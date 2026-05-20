@@ -72,6 +72,8 @@ Koma dev script
   bash dev.sh --build-only            build debug + sign only
   bash dev.sh -d ${DEFAULT_DEVICE}    build debug + sign + install
   bash dev.sh --no-build -d <device>  sign/install existing HAP
+  bash dev.sh --refresh               rebuild and force refresh certificate/profile
+  bash dev.sh --force-profile         same as --refresh
   bash dev.sh --launch [-d device]    launch app
   bash dev.sh --log [-d device]       hilog grep koma
 EOF
@@ -87,6 +89,10 @@ case "${1:-}" in
     "$HDC" -t "$dev" shell "hilog | grep -i koma" ;;
   --build-only)
     shift; build_debug; python3 "$PROJ/scripts/sign.py" --no-install "$@" ;;
+  --refresh|--force-profile)
+    refresh_arg="$1"; shift || true
+    build_debug
+    python3 "$PROJ/scripts/sign.py" "$refresh_arg" "$@" ;;
   --no-build)
     shift; python3 "$PROJ/scripts/sign.py" "$@" ;;
   *)
