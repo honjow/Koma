@@ -19,9 +19,11 @@ Koma 是 HarmonyOS 私有漫画书架与阅读器。
 - 不宣传全网/免费/聚合。
 - 上架版主打本地漫画和用户自有私有库。
 
-## Controller 规则
+## Controller 工作流约定
 
-本项目后续由当前聊天作为 controller：
+Artifact 目录规范见 `docs/CONTROLLER_ARTIFACTS.md`。
+
+每个 worker 必须产出：
 
 1. controller 负责拆任务、派 worker、读日志/结果、查 diff、跑构建、安装测试、推进下一 gate。
 2. worker 必须写 artifact 和 result，不接受只在聊天里自报完成。

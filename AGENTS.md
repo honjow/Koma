@@ -16,3 +16,4 @@ Koma 是 HarmonyOS 私有漫画书架/阅读器项目。
 - 签名材料在 `scripts/` 下本地保留但必须 gitignore，不得打印、提交或复制到日志。
 - 签名证书名复用 `next2v-debug`，避免华为调试证书数量超限；Profile 仍按 bundle 独立生成。
 - 长日志和构建输出放到 `.hermes-artifacts/`，聊天只汇报状态、路径和关键证据。
+- Controller/worker 截图、证明文件、结果文件统一按 `docs/CONTROLLER_ARTIFACTS.md` 存放；主 controller 尽量只做调度和必要 sanity check，review/QA 交给独立 worker。
