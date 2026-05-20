@@ -1,0 +1,27 @@
+import { UIAbility } from '@kit.AbilityKit'
+import { window } from '@kit.ArkUI'
+
+const TRANSPARENT_COLOR: string = '#00FFFFFF'
+const ENTRY_PAGE: string = 'pages/Index'
+
+export default class EntryAbility extends UIAbility {
+  onWindowStageCreate(windowStage: window.WindowStage): void {
+    try {
+      const win = windowStage.getMainWindowSync()
+      win.setWindowLayoutFullScreen(true)
+      win.setWindowSystemBarProperties({
+        statusBarColor: TRANSPARENT_COLOR,
+        navigationBarColor: TRANSPARENT_COLOR,
+      })
+    } catch (error) {
+      const e = error as Error
+      console.error('configure window failed: ' + e.message)
+    }
+
+    windowStage.loadContent(ENTRY_PAGE, (err) => {
+      if (err.code) {
+        console.error('loadContent failed: ' + JSON.stringify(err))
+      }
+    })
+  }
+}

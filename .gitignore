@@ -1,0 +1,12 @@
+oh_modules/
+**/oh_modules/
+build/
+**/build/
+.hvigor/
+.hermes-artifacts/
+.env.local
+scripts/*.p12
+scripts/*.csr
+scripts/*.cer
+scripts/*.p7b
+.DS_Store

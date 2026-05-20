@@ -1,0 +1,10 @@
+{
+  "color": [
+    { "name": "start_window_background", "value": "#F7F3EF" },
+    { "name": "koma_background", "value": "#F7F3EF" },
+    { "name": "koma_card", "value": "#FFFFFFFF" },
+    { "name": "koma_text_primary", "value": "#201A17" },
+    { "name": "koma_text_secondary", "value": "#85736B" },
+    { "name": "koma_accent", "value": "#E66A3A" }
+  ]
+}

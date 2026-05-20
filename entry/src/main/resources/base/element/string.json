@@ -1,0 +1,9 @@
+{
+  "string": [
+    { "name": "entry_desc", "value": "Koma - manga bookshelf and reader" },
+    { "name": "module_desc", "value": "Koma entry module" },
+    { "name": "EntryAbility_desc", "value": "Koma main ability" },
+    { "name": "EntryAbility_label", "value": "Koma" },
+    { "name": "app_name", "value": "Koma" }
+  ]
+}
