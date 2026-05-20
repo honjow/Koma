@@ -6,6 +6,9 @@ import { ReaderPage } from './ReaderPage'
 struct Index {
   @State selectedTab: number = 0
   @State private readerOpen: boolean = false
+  @State private readerPageIndex: number = 0
+  @State private readerChromeVisible: boolean = true
+  @State private readerWebtoonMode: boolean = false
 
   private tabLabel(index: number): string {
     if (index === 0) { return '书架' }
@@ -84,9 +87,10 @@ struct Index {
 
       if (this.readerOpen) {
         ReaderPage({
-          onClose: () => {
-            this.readerOpen = false
-          }
+          readerOpen: $readerOpen,
+          pageIndex: $readerPageIndex,
+          chromeVisible: $readerChromeVisible,
+          webtoonMode: $readerWebtoonMode
         })
           .zIndex(1)
       }
