@@ -68,6 +68,7 @@ const CONTINUE_READING: ContinueReadingInfo = {
 @Component
 export struct LibraryPage {
   private hasComics: boolean = true
+  onOpenReader: () => void = () => {}
 
   @Builder
   private ContinueReadingCard() {
@@ -111,6 +112,9 @@ export struct LibraryPage {
     .padding(16)
     .borderRadius(26)
     .backgroundColor($r('app.color.koma_card'))
+    .onClick(() => {
+      this.onOpenReader()
+    })
   }
 
   @Builder

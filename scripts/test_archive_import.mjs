@@ -5,8 +5,10 @@ import { resolve } from 'node:path'
 const root = resolve(import.meta.dirname, '..')
 const sortPath = resolve(root, 'entry/src/main/ets/import/ImageSortUtils.ets')
 const servicePath = resolve(root, 'entry/src/main/ets/import/ArchiveImportService.ets')
+const extractionServicePath = resolve(root, 'entry/src/main/ets/import/ArchiveExtractionService.ets')
 const sortSource = readFileSync(sortPath, 'utf8')
 const serviceSource = readFileSync(servicePath, 'utf8')
+const extractionServiceSource = readFileSync(extractionServicePath, 'utf8')
 
 function assertExport(source, symbol) {
   assert.match(source, new RegExp(`export (interface|class|function|const) ${symbol}\\b`), `${symbol} must be exported`)
@@ -29,6 +31,38 @@ function stripExtension(path) {
   const baseName = getBaseName(path)
   const dotIndex = baseName.lastIndexOf('.')
   return dotIndex <= 0 ? baseName : baseName.substring(0, dotIndex)
+}
+
+function normalizeSeparator(value) {
+  return value.replace(/\\/g, '/')
+}
+
+function sanitizeCacheSegment(value) {
+  const normalized = stripExtension(getBaseName(value)).trim().toLocaleLowerCase().replace(/[^a-z0-9]+/g, '-')
+  const trimmed = normalized.replace(/^-+|-+$/g, '')
+  return trimmed.length === 0 ? 'archive' : trimmed
+}
+
+function createStableCacheHash(value) {
+  const normalized = normalizeSeparator(value).trim()
+  let hash = 2166136261
+  for (let index = 0; index < normalized.length; index += 1) {
+    hash = (hash ^ normalized.charCodeAt(index)) >>> 0
+    hash = Math.imul(hash, 16777619) >>> 0
+  }
+  return hash.toString(16).padStart(8, '0')
+}
+
+function createArchiveExtractionCachePaths(cacheDir, archivePath, cacheKeySeed) {
+  const readableSegment = sanitizeCacheSegment(archivePath)
+  const uniqueSegment = createStableCacheHash(cacheKeySeed ?? archivePath)
+  const rootDir = `${cacheDir.replace(/\/+$/, '')}/import/${readableSegment}-${uniqueSegment}`
+  return {
+    rootDir,
+    archiveZipPath: `${rootDir}/archive.zip`,
+    extractionDir: `${rootDir}/extract`,
+    manifestPath: `${rootDir}/manifest.json`,
+  }
 }
 
 function isSafeArchiveEntryPath(path) {
@@ -160,6 +194,29 @@ for (const symbol of [
 }
 assertExport(serviceSource, 'ArchiveImportService')
 assertExport(serviceSource, 'buildComicFromArchive')
+assertExport(extractionServiceSource, 'ArchiveExtractionService')
+assertExport(extractionServiceSource, 'createArchiveExtractionCachePaths')
+assertExport(extractionServiceSource, 'shouldCopyArchiveAsZip')
+assertExport(extractionServiceSource, 'createExtractedPagePath')
+assertExport(extractionServiceSource, 'extractArchive')
+
+assert.match(extractionServiceSource, /zlib\.decompressFile\(request\.sandboxZipPath, request\.extractionDir\)/, 'extraction service must call zlib.decompressFile with sandbox zip and output dir')
+assert.match(extractionServiceSource, /fs\.listFile\(extractionDir, listFileOptions\)/, 'extraction service must enumerate extracted files through fileIo.listFile')
+assert.match(extractionServiceSource, /recursion:\s*true/, 'extraction listFile options must recurse')
+assert.ok(extractionServiceSource.includes("replace(/^\\/+/, '')"), 'extraction service must strip listFile leading slash before DTO import')
+assert.match(extractionServiceSource, /endsWith\('\.zip'\)/, 'extraction service must enforce zlib .zip input suffix')
+assert.match(extractionServiceSource, /archive\.zip/, 'cache copy target must normalize zip and cbz input to archive.zip')
+assert.match(extractionServiceSource, /createStableCacheHash/, 'cache root must include a stable hash component')
+assert.match(extractionServiceSource, /cacheKeySeed \?\? archivePath/, 'cache hash must use caller seed when present and source path otherwise')
+
+const firstCachePaths = createArchiveExtractionCachePaths('/cache', '/library/a/My Volume.cbz')
+const secondCachePaths = createArchiveExtractionCachePaths('/cache', '/library/b/My Volume.cbz')
+const seededCachePaths = createArchiveExtractionCachePaths('/cache', '/library/b/My Volume.cbz', 'comic-123')
+assert.notEqual(firstCachePaths.rootDir, secondCachePaths.rootDir, 'same basename archives in different paths must not share cache roots')
+assert.match(firstCachePaths.rootDir, /\/cache\/import\/my-volume-[a-f0-9]{8}$/)
+assert.match(seededCachePaths.rootDir, /\/cache\/import\/my-volume-[a-f0-9]{8}$/)
+assert.equal(seededCachePaths.rootDir, createArchiveExtractionCachePaths('/cache', '/library/b/My Volume.cbz', 'comic-123').rootDir)
+assert.notEqual(seededCachePaths.rootDir, secondCachePaths.rootDir, 'caller seed must influence cache root when supplied')
 
 const rawEntries = [
   { path: 'chapter/page10.JPG', byteSize: 10 },
