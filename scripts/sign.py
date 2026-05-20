@@ -32,7 +32,7 @@ UNSIGNED_HAP = PROJ / "entry/build/default/outputs/default/entry-default-unsigne
 SIGNED_HAP  = PROJ / "entry/build/default/outputs/default/entry-default-signed.hap"
 
 BUNDLE_NAME = "com.honjow.koma.dev"
-CERT_NAME   = "koma-debug"
+CERT_NAME   = "next2v-debug"
 
 SIGNING_MATERIALS_DIR = Path(os.environ.get("KOMA_SIGNING_MATERIALS_DIR", SCRIPTS))
 

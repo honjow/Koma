@@ -5,6 +5,7 @@
 - 暂定：Koma
 - Debug bundle：`com.honjow.koma.dev`
 - Release bundle：`com.honjow.koma`
+- Debug 证书名：复用 `next2v-debug`，避免华为调试证书数量超限；Profile 仍按 bundle 独立生成。
 - 测试机：`192.168.50.103:12345`
 
 ## 首版路线
