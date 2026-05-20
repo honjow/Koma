@@ -1,3 +1,5 @@
+import { LibraryPage } from './LibraryPage'
+
 @Entry
 @Component
 struct Index {
@@ -22,45 +24,11 @@ struct Index {
     .justifyContent(FlexAlign.Center)
   }
 
-  @Builder
-  private EmptyShelf() {
-    Column({ space: 16 }) {
-      Text('Koma')
-        .fontSize(34)
-        .fontWeight(FontWeight.Bold)
-        .fontColor($r('app.color.koma_text_primary'))
-      Text('私有漫画书架与本地阅读器')
-        .fontSize(16)
-        .fontColor($r('app.color.koma_text_secondary'))
-      Column({ space: 10 }) {
-        Text('首版目标')
-          .fontSize(16)
-          .fontWeight(FontWeight.Medium)
-          .fontColor($r('app.color.koma_text_primary'))
-        Text('本地 CBZ/ZIP、图片文件夹、阅读进度、沉浸式阅读器。Komga / OPDS / WebDAV 和 WASM 自定义源作为后续能力验证。')
-          .fontSize(14)
-          .lineHeight(22)
-          .fontColor($r('app.color.koma_text_secondary'))
-      }
-      .padding(20)
-      .borderRadius(24)
-      .backgroundColor($r('app.color.koma_card'))
-      Button('导入本地漫画')
-        .height(48)
-        .borderRadius(24)
-        .fontSize(16)
-        .backgroundColor($r('app.color.koma_accent'))
-    }
-    .width('100%')
-    .padding({ left: 20, right: 20 })
-    .alignItems(HorizontalAlign.Start)
-  }
-
   build() {
     Column() {
       Stack() {
         if (this.selectedTab === 0) {
-          this.EmptyShelf()
+          LibraryPage()
         } else {
           Column({ space: 12 }) {
             Text(this.tabLabel(this.selectedTab))
@@ -78,7 +46,7 @@ struct Index {
       }
       .layoutWeight(1)
       .width('100%')
-      .alignContent(Alignment.Center)
+      .alignContent(Alignment.TopStart)
 
       Tabs({ index: this.selectedTab }) {
         TabContent() { }.tabBar(this.TabItem(0))
