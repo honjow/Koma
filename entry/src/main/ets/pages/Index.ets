@@ -80,6 +80,7 @@ struct Index {
       .height('100%')
       .backgroundColor($r('app.color.koma_background'))
       .padding({ top: 72 })
+      .hitTestBehavior(this.readerOpen ? HitTestMode.None : HitTestMode.Default)
 
       if (this.readerOpen) {
         ReaderPage({
@@ -87,6 +88,7 @@ struct Index {
             this.readerOpen = false
           }
         })
+          .zIndex(1)
       }
     }
     .width('100%')
