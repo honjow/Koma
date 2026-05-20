@@ -67,6 +67,8 @@ Koma 是 HarmonyOS 私有漫画书架与阅读器。
 
 ### Lane 1A：本地数据模型与存储
 
+状态：已完成并集成，提交 `6634ef6`。
+
 建议串行优先启动。
 
 范围：
@@ -130,6 +132,8 @@ Koma 是 HarmonyOS 私有漫画书架与阅读器。
 
 ### Lane 1D：书架 UI 骨架
 
+状态：已完成并集成，提交 `6634ef6`；真机截图见 `.hermes-artifacts/20260521-0351/koma-library-ui.jpeg`。
+
 可与 1A/1B 并行做 mock，不接真实导入。
 
 范围：
@@ -181,6 +185,8 @@ Koma 是 HarmonyOS 私有漫画书架与阅读器。
 
 ### Lane 2A：Komga API 调研与最小客户端
 
+状态：第一轮 Komga/OPDS/WebDAV 合并调研已完成并集成，提交 `6634ef6`，产物为 `docs/research/private-library-sources.md`。
+
 可作为 Phase 1 并行 read-only 调研先启动。
 
 范围：
@@ -192,10 +198,12 @@ Koma 是 HarmonyOS 私有漫画书架与阅读器。
 
 产物：
 
-- `docs/research/komga-api.md`
+- `docs/research/private-library-sources.md`
 - 后续实现 spec。
 
 ### Lane 2B：OPDS 调研与 parser spike
+
+状态：第一轮协议调研已并入 `docs/research/private-library-sources.md`；parser spike 未开始。
 
 可与 2A 并行。
 
@@ -210,6 +218,8 @@ Koma 是 HarmonyOS 私有漫画书架与阅读器。
 - `docs/research/opds.md`
 
 ### Lane 2C：WebDAV 调研与文件枚举 spike
+
+状态：第一轮协议调研已并入 `docs/research/private-library-sources.md`；设备 PROPFIND spike 未开始。
 
 可与 2A/2B 并行。
 
