@@ -47,6 +47,11 @@ It validates required fields, scope rules, sha256, wasm magic/version, declared
 imports, exported fixture functions, capabilities, settings defaults, and
 network=false.
 
+Future HTTP/network source capability is tracked separately in
+`../host-imports/http-boundary.md`. That boundary is design-only: its sample
+manifest uses `network=true` and `koma_host.http_request` only to validate a
+future contract, and the current source-package validator must still reject it.
+
 This fixture intentionally does not add remote source index sync, source market
 UI, real manga sources, APK plugins, WebView+JS runtime behavior, signing
 material, WAMR source, HAP output, or Rust target directories to git.
