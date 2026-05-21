@@ -1,4 +1,14 @@
-import { ComicId, ReadingProgress } from './ComicModels'
+import {
+  Chapter,
+  Comic,
+  ComicId,
+  ComicSourceKind,
+  Page,
+  ReadingDirection,
+  ReadingProgress,
+  normalizeSortKey,
+} from './ComicModels'
+import { InMemoryLibraryStore, LibraryStore } from './LibraryStore'
 import { ReaderSessionConfig, ReaderSessionStore } from './ReaderSessionStore'
 
 export interface MockLibraryComic {
@@ -9,6 +19,8 @@ export interface MockLibraryComic {
   fallbackProgressText: string
   coverColor: string
   accentColor: string
+  chapterCount?: number
+  pageCount?: number
   readerSession?: ReaderSessionConfig
 }
 
@@ -19,6 +31,8 @@ export interface LibraryComicCardViewModel {
   progressText: string
   coverColor: string
   accentColor: string
+  pageCount: number
+  coverUri?: string
 }
 
 export interface ContinueReadingCardViewModel {
@@ -26,12 +40,24 @@ export interface ContinueReadingCardViewModel {
   detail: string
   progress: number
   color: string
+  comicId: ComicId
+  coverUri?: string
 }
 
 export interface LibraryViewModel {
   comics: LibraryComicCardViewModel[]
   continueReading: ContinueReadingCardViewModel
 }
+
+export interface LibraryComicPresentation {
+  subtitle?: string
+  chapterTitle?: string
+  fallbackProgressText: string
+  coverColor: string
+  accentColor: string
+}
+
+export type LibraryPresentationByComicId = Map<ComicId, LibraryComicPresentation>
 
 export const MOCK_LIBRARY_READER_SESSION: ReaderSessionConfig = {
   comicId: 'local-01',
@@ -97,6 +123,107 @@ export const MOCK_LIBRARY_COMICS: MockLibraryComic[] = [
   },
 ]
 
+const FALLBACK_COVER_COLORS: string[] = [
+  '#16745F',
+  '#344E7A',
+  '#7A405D',
+  '#51624D',
+  '#4C4A70',
+  '#8A6240',
+]
+
+const FALLBACK_ACCENT_COLORS: string[] = [
+  '#2FAE84',
+  '#6E92CE',
+  '#C46B92',
+  '#89A57D',
+  '#928FD2',
+  '#D39A62',
+]
+
+function hashComicId(comicId: ComicId): number {
+  let hash = 2166136261
+  for (let index = 0; index < comicId.length; index += 1) {
+    hash = (hash ^ comicId.charCodeAt(index)) >>> 0
+    hash = Math.imul(hash, 16777619) >>> 0
+  }
+  return hash
+}
+
+function createMockPages(comic: MockLibraryComic, chapterId: string, pageCount: number): Page[] {
+  const pages: Page[] = []
+  for (let index = 0; index < pageCount; index += 1) {
+    const pageNumber = index + 1
+    const fileName = `${pageNumber.toString().padStart(3, '0')}.jpg`
+    pages.push({
+      id: `${chapterId}-page-${pageNumber}`,
+      comicId: comic.id,
+      chapterId,
+      index,
+      fileName,
+      uri: `mock://${comic.id}/${fileName}`,
+      sortKey: normalizeSortKey(fileName),
+    })
+  }
+  return pages
+}
+
+export function createMockComic(comic: MockLibraryComic, now: number = 1): Comic {
+  const chapterId = comic.readerSession === undefined ? `${comic.id}-chapter-1` : comic.readerSession.chapterId
+  const pageCount = comic.pageCount === undefined ? (comic.readerSession === undefined ? 1 : comic.readerSession.totalPages) : comic.pageCount
+  const pages = createMockPages(comic, chapterId, pageCount)
+  const chapter: Chapter = {
+    id: chapterId,
+    comicId: comic.id,
+    title: comic.chapterTitle,
+    index: 0,
+    sourcePath: `mock://${comic.id}`,
+    sortKey: normalizeSortKey(comic.chapterTitle),
+    pages,
+    pageCount,
+    createdAt: now,
+    updatedAt: now,
+  }
+  return {
+    id: comic.id,
+    title: comic.title,
+    subtitle: comic.subtitle,
+    sourceKind: ComicSourceKind.LOCAL_ARCHIVE,
+    sourcePath: `mock://${comic.id}`,
+    coverUri: pages.length === 0 ? undefined : pages[0].uri,
+    sortTitle: normalizeSortKey(comic.title),
+    preferredDirection: ReadingDirection.RIGHT_TO_LEFT,
+    chapters: [chapter],
+    chapterCount: comic.chapterCount === undefined ? 1 : comic.chapterCount,
+    pageCount,
+    createdAt: now,
+    updatedAt: now,
+    lastImportedAt: now,
+  }
+}
+
+export function createMockLibraryPresentationMap(seed: MockLibraryComic[] = MOCK_LIBRARY_COMICS): LibraryPresentationByComicId {
+  const presentationByComicId: LibraryPresentationByComicId = new Map<ComicId, LibraryComicPresentation>()
+  seed.forEach((comic: MockLibraryComic) => {
+    presentationByComicId.set(comic.id, {
+      subtitle: comic.subtitle,
+      chapterTitle: comic.chapterTitle,
+      fallbackProgressText: comic.fallbackProgressText,
+      coverColor: comic.coverColor,
+      accentColor: comic.accentColor,
+    })
+  })
+  return presentationByComicId
+}
+
+export function createSeededLibraryStore(seed: MockLibraryComic[] = MOCK_LIBRARY_COMICS): LibraryStore {
+  const store = new InMemoryLibraryStore()
+  seed.forEach((comic: MockLibraryComic, index: number) => {
+    store.upsertComic(createMockComic(comic, index + 1))
+  })
+  return store
+}
+
 export function progressPercent(progress?: ReadingProgress): number {
   if (progress === undefined) {
     return 0
@@ -121,28 +248,123 @@ export function formatContinueReadingDetail(comic: MockLibraryComic, progress?: 
   return `继续阅读 ${comic.chapterTitle} / 第 ${progress.pageIndex + 1} 页 · ${progressPercent(progress)}%`
 }
 
-export function createLibraryViewModel(sessionStore?: ReaderSessionStore): LibraryViewModel {
-  const comics = MOCK_LIBRARY_COMICS.map((comic: MockLibraryComic): LibraryComicCardViewModel => {
+function formatSourceSubtitle(comic: Comic): string {
+  if (comic.subtitle !== undefined && comic.subtitle.length > 0) {
+    return comic.subtitle
+  }
+  if (comic.sourceKind === ComicSourceKind.LOCAL_FOLDER) {
+    return `图片文件夹 - ${comic.chapterCount} 章`
+  }
+  if (comic.sourceKind === ComicSourceKind.PRIVATE_LIBRARY) {
+    return `私有库 - ${comic.chapterCount} 章`
+  }
+  return `本地 ZIP - ${comic.chapterCount} 章`
+}
+
+function createFallbackPresentation(comic: Comic): LibraryComicPresentation {
+  const colorIndex = hashComicId(comic.id) % FALLBACK_COVER_COLORS.length
+  return {
+    subtitle: formatSourceSubtitle(comic),
+    chapterTitle: comic.chapters.length === 0 ? comic.title : comic.chapters[0].title,
+    fallbackProgressText: '未读',
+    coverColor: FALLBACK_COVER_COLORS[colorIndex],
+    accentColor: FALLBACK_ACCENT_COLORS[colorIndex],
+  }
+}
+
+function getProgressChapterTitle(comic: Comic, presentation: LibraryComicPresentation, progress?: ReadingProgress): string {
+  if (progress !== undefined) {
+    const chapter = comic.chapters.find((item: Chapter) => item.id === progress.chapterId)
+    if (chapter !== undefined) {
+      return chapter.title
+    }
+  }
+  if (presentation.chapterTitle !== undefined) {
+    return presentation.chapterTitle
+  }
+  return comic.chapters.length === 0 ? comic.title : comic.chapters[0].title
+}
+
+function formatProgressText(fallbackProgressText: string, progress?: ReadingProgress): string {
+  if (progress === undefined) {
+    return fallbackProgressText
+  }
+  if (progress.completed) {
+    return '已读完'
+  }
+  return `${progressPercent(progress)}%`
+}
+
+function formatContinueDetail(chapterTitle: string, progress?: ReadingProgress): string {
+  if (progress === undefined) {
+    return `继续阅读 ${chapterTitle}`
+  }
+  return `继续阅读 ${chapterTitle} / 第 ${progress.pageIndex + 1} 页 · ${progressPercent(progress)}%`
+}
+
+export function createLibraryViewModelFromStores(
+  libraryStore: LibraryStore,
+  sessionStore?: ReaderSessionStore,
+  presentationByComicId: LibraryPresentationByComicId = new Map<ComicId, LibraryComicPresentation>()
+): LibraryViewModel {
+  const comics = libraryStore.listComics()
+  const cards = comics.map((comic: Comic): LibraryComicCardViewModel => {
     const progress = sessionStore === undefined ? undefined : sessionStore.getProgress(comic.id)
+    const presentation = presentationByComicId.get(comic.id) ?? createFallbackPresentation(comic)
     return {
       id: comic.id,
       title: comic.title,
-      subtitle: comic.subtitle,
-      progressText: formatLibraryProgressText(comic, progress),
-      coverColor: comic.coverColor,
-      accentColor: comic.accentColor,
+      subtitle: presentation.subtitle ?? formatSourceSubtitle(comic),
+      progressText: formatProgressText(presentation.fallbackProgressText, progress),
+      coverColor: presentation.coverColor,
+      accentColor: presentation.accentColor,
+      pageCount: comic.pageCount,
+      coverUri: comic.coverUri,
     }
   })
 
-  const continueComic = MOCK_LIBRARY_COMICS[0]
-  const continueProgress = sessionStore === undefined ? undefined : sessionStore.getProgress(continueComic.id)
+  let continueComic = comics.length === 0 ? undefined : comics[0]
+  let continueProgress: ReadingProgress | undefined = undefined
+  comics.forEach((comic: Comic) => {
+    const progress = sessionStore === undefined ? undefined : sessionStore.getProgress(comic.id)
+    if (progress !== undefined && (continueProgress === undefined || progress.updatedAt > continueProgress.updatedAt)) {
+      continueComic = comic
+      continueProgress = progress
+    }
+  })
+
+  if (continueComic === undefined) {
+    return {
+      comics: cards,
+      continueReading: {
+        comicId: '',
+        title: '',
+        detail: '',
+        progress: 0,
+        color: '#16745F',
+      },
+    }
+  }
+
+  const continuePresentation = presentationByComicId.get(continueComic.id) ?? createFallbackPresentation(continueComic)
+  const chapterTitle = getProgressChapterTitle(continueComic, continuePresentation, continueProgress)
   return {
-    comics,
+    comics: cards,
     continueReading: {
       title: continueComic.title,
-      detail: formatContinueReadingDetail(continueComic, continueProgress),
+      detail: formatContinueDetail(chapterTitle, continueProgress),
       progress: continueProgress === undefined ? 0 : progressPercent(continueProgress),
-      color: continueComic.coverColor,
+      color: continuePresentation.coverColor,
+      comicId: continueComic.id,
+      coverUri: continueComic.coverUri,
     },
   }
+}
+
+export function createLibraryViewModel(sessionStore?: ReaderSessionStore): LibraryViewModel {
+  return createLibraryViewModelFromStores(
+    createSeededLibraryStore(),
+    sessionStore,
+    createMockLibraryPresentationMap()
+  )
 }

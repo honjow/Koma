@@ -8,12 +8,14 @@ const libraryStorePath = resolve(root, 'entry/src/main/ets/model/LibraryStore.et
 const progressStorePath = resolve(root, 'entry/src/main/ets/model/ReadingProgressStore.ets')
 const readerSessionStorePath = resolve(root, 'entry/src/main/ets/model/ReaderSessionStore.ets')
 const mockLibraryDataPath = resolve(root, 'entry/src/main/ets/model/MockLibraryData.ets')
+const libraryRepositoryPath = resolve(root, 'entry/src/main/ets/model/LibraryRepository.ets')
 
 const modelSource = readFileSync(modelPath, 'utf8')
 const libraryStoreSource = readFileSync(libraryStorePath, 'utf8')
 const progressStoreSource = readFileSync(progressStorePath, 'utf8')
 const readerSessionStoreSource = readFileSync(readerSessionStorePath, 'utf8')
 const mockLibraryDataSource = readFileSync(mockLibraryDataPath, 'utf8')
+const libraryRepositorySource = readFileSync(libraryRepositoryPath, 'utf8')
 
 function assertExport(source, symbol) {
   assert.match(source, new RegExp(`export (interface|class|function|enum|type|const) ${symbol}\\b`), `${symbol} must be exported`)
@@ -76,7 +78,12 @@ assertExport(readerSessionStoreSource, 'InMemoryReaderSessionStore')
 assertExport(mockLibraryDataSource, 'MockLibraryComic')
 assertExport(mockLibraryDataSource, 'LibraryViewModel')
 assertExport(mockLibraryDataSource, 'MOCK_LIBRARY_READER_SESSION')
+assertExport(mockLibraryDataSource, 'createSeededLibraryStore')
+assertExport(mockLibraryDataSource, 'createLibraryViewModelFromStores')
 assertExport(mockLibraryDataSource, 'createLibraryViewModel')
+assertExport(libraryRepositorySource, 'LibraryRepository')
+assertExport(libraryRepositorySource, 'StoreBackedLibraryRepository')
+assertExport(libraryRepositorySource, 'upsertComicAndCreateLibraryViewModel')
 
 const comic = {
   id: 'comic-1',
@@ -171,6 +178,57 @@ const mockLibraryComics = [
     fallbackProgressText: '第 8 话',
     coverColor: '#16745F',
     accentColor: '#2FAE84',
+    pageCount: 5,
+  },
+  {
+    id: 'local-02',
+    title: '北窗短篇集',
+    subtitle: '图片文件夹 - 6 章',
+    chapterTitle: '第 1 话',
+    fallbackProgressText: '未读',
+    coverColor: '#344E7A',
+    accentColor: '#6E92CE',
+    pageCount: 1,
+  },
+  {
+    id: 'local-03',
+    title: '海边的慢速列车',
+    subtitle: 'CBZ - 4 章',
+    chapterTitle: '第 2 话',
+    fallbackProgressText: '42%',
+    coverColor: '#8A6240',
+    accentColor: '#D39A62',
+    pageCount: 1,
+  },
+  {
+    id: 'local-04',
+    title: '午后三点的笔记',
+    subtitle: '本地 ZIP - 18 章',
+    chapterTitle: '第 3 话',
+    fallbackProgressText: '第 3 话',
+    coverColor: '#7A405D',
+    accentColor: '#C46B92',
+    pageCount: 1,
+  },
+  {
+    id: 'local-05',
+    title: '旧书店巡礼',
+    subtitle: '图片文件夹 - 9 章',
+    chapterTitle: '第 1 话',
+    fallbackProgressText: '新加入',
+    coverColor: '#51624D',
+    accentColor: '#89A57D',
+    pageCount: 1,
+  },
+  {
+    id: 'local-06',
+    title: '银河便签',
+    subtitle: 'CBZ - 21 章',
+    chapterTitle: '第 15 话',
+    fallbackProgressText: '第 15 话',
+    coverColor: '#4C4A70',
+    accentColor: '#928FD2',
+    pageCount: 1,
   },
 ]
 
@@ -185,32 +243,113 @@ function formatLibraryProgressText(comic, progress) {
   return `${progressPercent(progress)}%`
 }
 
-function formatContinueReadingDetail(comic, progress) {
-  if (progress === undefined) return `继续阅读 ${comic.chapterTitle}`
-  return `继续阅读 ${comic.chapterTitle} / 第 ${progress.pageIndex + 1} 页 · ${progressPercent(progress)}%`
+function createMockComic(item, createdAt) {
+  const chapterId = item.id === mockLibraryReaderSession.comicId ? mockLibraryReaderSession.chapterId : `${item.id}-chapter-1`
+  const pages = Array.from({ length: item.pageCount }, (_, index) => ({
+    id: `${chapterId}-page-${index + 1}`,
+    comicId: item.id,
+    chapterId,
+    index,
+    fileName: `${String(index + 1).padStart(3, '0')}.jpg`,
+    uri: `mock://${item.id}/${String(index + 1).padStart(3, '0')}.jpg`,
+    sortKey: `${String(index + 1).padStart(3, '0')}.jpg`,
+  }))
+  return {
+    id: item.id,
+    title: item.title,
+    subtitle: item.subtitle,
+    sourceKind: 'local_archive',
+    sourcePath: `mock://${item.id}`,
+    coverUri: pages[0]?.uri,
+    sortTitle: normalizeSortKey(item.title),
+    preferredDirection: 'right_to_left',
+    chapters: [{
+      id: chapterId,
+      comicId: item.id,
+      title: item.chapterTitle,
+      index: 0,
+      sourcePath: `mock://${item.id}`,
+      sortKey: normalizeSortKey(item.chapterTitle),
+      pages,
+      pageCount: pages.length,
+      createdAt,
+      updatedAt: createdAt,
+    }],
+    chapterCount: 1,
+    pageCount: pages.length,
+    createdAt,
+    updatedAt: createdAt,
+    lastImportedAt: createdAt,
+  }
 }
 
-function createLibraryViewModelFromProgress(progressByComicId) {
-  const comics = mockLibraryComics.map((item) => {
-    const itemProgress = progressByComicId.get(item.id)
+function createSeededStore() {
+  const comics = new Map()
+  mockLibraryComics.forEach((item, index) => {
+    const comic = createMockComic(item, index + 1)
+    comics.set(comic.id, comic)
+  })
+  return {
+    upsertComic(comic) {
+      comics.set(comic.id, comic)
+    },
+    listComics() {
+      return Array.from(comics.values()).sort((a, b) => {
+        const titleCompare = a.sortTitle.localeCompare(b.sortTitle)
+        return titleCompare !== 0 ? titleCompare : a.createdAt - b.createdAt
+      })
+    },
+  }
+}
+
+function createPresentationMap() {
+  return new Map(mockLibraryComics.map((item) => [item.id, item]))
+}
+
+function getChapterTitle(comic, progress, presentation) {
+  if (progress !== undefined) {
+    const chapter = comic.chapters.find((item) => item.id === progress.chapterId)
+    if (chapter !== undefined) return chapter.title
+  }
+  return presentation?.chapterTitle ?? comic.chapters[0]?.title ?? comic.title
+}
+
+function createLibraryViewModelFromStores(store, progressByComicId, presentationByComicId = new Map()) {
+  const storeComics = store.listComics()
+  const comics = storeComics.map((comic) => {
+    const itemProgress = progressByComicId.get(comic.id)
+    const presentation = presentationByComicId.get(comic.id)
     return {
-      id: item.id,
-      title: item.title,
-      subtitle: item.subtitle,
-      progressText: formatLibraryProgressText(item, itemProgress),
-      coverColor: item.coverColor,
-      accentColor: item.accentColor,
+      id: comic.id,
+      title: comic.title,
+      subtitle: presentation?.subtitle ?? comic.subtitle ?? `本地 ZIP - ${comic.chapterCount} 章`,
+      progressText: formatLibraryProgressText(presentation ?? { fallbackProgressText: '未读' }, itemProgress),
+      coverColor: presentation?.coverColor ?? '#16745F',
+      accentColor: presentation?.accentColor ?? '#2FAE84',
+      pageCount: comic.pageCount,
+      coverUri: comic.coverUri,
     }
   })
-  const continueComic = mockLibraryComics[0]
-  const continueProgress = progressByComicId.get(continueComic.id)
+  let continueComic = storeComics[0]
+  let continueProgress
+  for (const item of storeComics) {
+    const itemProgress = progressByComicId.get(item.id)
+    if (itemProgress !== undefined && (continueProgress === undefined || itemProgress.updatedAt > continueProgress.updatedAt)) {
+      continueComic = item
+      continueProgress = itemProgress
+    }
+  }
+  const continuePresentation = presentationByComicId.get(continueComic.id)
+  const chapterTitle = getChapterTitle(continueComic, continueProgress, continuePresentation)
   return {
     comics,
     continueReading: {
       title: continueComic.title,
-      detail: formatContinueReadingDetail(continueComic, continueProgress),
+      detail: continueProgress === undefined ? `继续阅读 ${chapterTitle}` : `继续阅读 ${chapterTitle} / 第 ${continueProgress.pageIndex + 1} 页 · ${progressPercent(continueProgress)}%`,
       progress: continueProgress === undefined ? 0 : progressPercent(continueProgress),
-      color: continueComic.coverColor,
+      color: continuePresentation?.coverColor ?? '#16745F',
+      comicId: continueComic.id,
+      coverUri: continueComic.coverUri,
     },
   }
 }
@@ -221,10 +360,68 @@ const sessionProgress = updateReadingProgress(
   'mock-page-2',
   mockLibraryReaderSession.totalPages,
 )
-const libraryVm = createLibraryViewModelFromProgress(new Map([[sessionProgress.comicId, sessionProgress]]))
+const seededStore = createSeededStore()
+const seededVm = createLibraryViewModelFromStores(seededStore, new Map(), createPresentationMap())
+assert.equal(seededVm.comics.length, 6, 'initial mock seed should generate the current six-book shelf')
+assert.equal(seededVm.comics.find((item) => item.id === 'local-01').title, '雨后街区')
+assert.equal(seededVm.comics.find((item) => item.id === 'local-01').coverUri, 'mock://local-01/001.jpg')
+
+const libraryVm = createLibraryViewModelFromStores(seededStore, new Map([[sessionProgress.comicId, sessionProgress]]), createPresentationMap())
 assert.equal(libraryVm.continueReading.title, '雨后街区')
 assert.equal(libraryVm.continueReading.detail, '继续阅读 第 8 话 / 第 2 页 · 40%')
 assert.equal(libraryVm.continueReading.progress, 40)
-assert.equal(libraryVm.comics[0].progressText, '40%')
+assert.equal(libraryVm.continueReading.comicId, 'local-01')
+assert.equal(libraryVm.comics.find((item) => item.id === 'local-01').progressText, '40%')
+
+const importedComic = {
+  id: 'imported-01',
+  title: 'Imported Volume',
+  sourceKind: 'local_archive',
+  sourcePath: '/library/Imported Volume.cbz',
+  coverUri: '/library/Imported Volume.cbz#001.jpg',
+  sortTitle: normalizeSortKey('Imported Volume'),
+  preferredDirection: 'right_to_left',
+  chapters: [{
+    id: 'imported-01-chapter-1',
+    comicId: 'imported-01',
+    title: 'Imported Volume',
+    index: 0,
+    sourcePath: '/library/Imported Volume.cbz',
+    sortKey: normalizeSortKey('Imported Volume'),
+    pages: [
+      { id: 'imported-page-1', comicId: 'imported-01', chapterId: 'imported-01-chapter-1', index: 0, fileName: '001.jpg', uri: '/library/Imported Volume.cbz#001.jpg', sortKey: '001.jpg' },
+      { id: 'imported-page-2', comicId: 'imported-01', chapterId: 'imported-01-chapter-1', index: 1, fileName: '002.jpg', uri: '/library/Imported Volume.cbz#002.jpg', sortKey: '002.jpg' },
+      { id: 'imported-page-3', comicId: 'imported-01', chapterId: 'imported-01-chapter-1', index: 2, fileName: '003.jpg', uri: '/library/Imported Volume.cbz#003.jpg', sortKey: '003.jpg' },
+    ],
+    pageCount: 3,
+    createdAt: 500,
+    updatedAt: 500,
+  }],
+  chapterCount: 1,
+  pageCount: 3,
+  createdAt: 500,
+  updatedAt: 500,
+  lastImportedAt: 500,
+}
+
+seededStore.upsertComic(importedComic)
+const importedVm = createLibraryViewModelFromStores(seededStore, new Map(), createPresentationMap())
+const importedCard = importedVm.comics.find((item) => item.id === 'imported-01')
+assert.equal(importedVm.comics.length, 7, 'upsert should add imported comic to the shelf view model')
+assert.equal(importedCard.title, 'Imported Volume')
+assert.equal(importedCard.pageCount, 3)
+assert.equal(importedCard.coverUri, '/library/Imported Volume.cbz#001.jpg')
+
+const importedProgress = updateReadingProgress(
+  createReadingProgress('imported-01', 'imported-01-chapter-1', 3),
+  1,
+  'imported-page-2',
+  3,
+)
+const importedProgressVm = createLibraryViewModelFromStores(seededStore, new Map([[importedProgress.comicId, importedProgress]]), createPresentationMap())
+assert.equal(importedProgressVm.continueReading.title, 'Imported Volume')
+assert.equal(importedProgressVm.continueReading.detail, '继续阅读 Imported Volume / 第 2 页 · 67%')
+assert.equal(importedProgressVm.continueReading.progress, 67)
+assert.equal(importedProgressVm.comics.find((item) => item.id === 'imported-01').progressText, '67%')
 
 console.log('PASS Koma model contracts')

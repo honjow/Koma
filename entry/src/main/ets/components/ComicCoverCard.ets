@@ -5,6 +5,8 @@ export interface ComicCoverInfo {
   progressText: string
   coverColor: string
   accentColor: string
+  pageCount?: number
+  coverUri?: string
 }
 
 @Component
