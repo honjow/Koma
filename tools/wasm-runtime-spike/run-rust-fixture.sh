@@ -38,9 +38,10 @@ require_tool git
 
 if [[ -n "${RUSTC:-}" ]]; then
   RUSTC_CMD=("$RUSTC")
-elif command -v rustup >/dev/null 2>&1; then
+elif command -v rustup >/dev/null 2>&1 && rustup run stable rustc --version >/dev/null 2>&1; then
   RUSTC_CMD=(rustup run stable rustc)
 else
+  require_tool rustc
   RUSTC_CMD=(rustc)
 fi
 
