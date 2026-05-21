@@ -3,6 +3,8 @@
 #include <cstddef>
 #include <string>
 
+#include "wasm_runtime_adapter.h"
+
 namespace {
 
 constexpr const char *kModuleName = "koma_source_runtime";
@@ -13,51 +15,6 @@ napi_value CreateUtf8(napi_env env, const std::string &value)
     napi_value result = nullptr;
     napi_create_string_utf8(env, value.c_str(), value.size(), &result);
     return result;
-}
-
-std::string EscapeJsonString(const std::string &value)
-{
-    std::string escaped;
-    escaped.reserve(value.size() + 16);
-
-    for (char ch : value) {
-        const auto byte = static_cast<unsigned char>(ch);
-        switch (ch) {
-            case '\\':
-                escaped += "\\\\";
-                break;
-            case '"':
-                escaped += "\\\"";
-                break;
-            case '\b':
-                escaped += "\\b";
-                break;
-            case '\f':
-                escaped += "\\f";
-                break;
-            case '\n':
-                escaped += "\\n";
-                break;
-            case '\r':
-                escaped += "\\r";
-                break;
-            case '\t':
-                escaped += "\\t";
-                break;
-            default:
-                if (byte < 0x20) {
-                    constexpr char kHex[] = "0123456789abcdef";
-                    escaped += "\\u00";
-                    escaped += kHex[(byte >> 4) & 0x0F];
-                    escaped += kHex[byte & 0x0F];
-                } else {
-                    escaped += ch;
-                }
-                break;
-        }
-    }
-
-    return escaped;
 }
 
 std::string GetStringArg(napi_env env, napi_value value)
@@ -109,8 +66,7 @@ napi_value RunJsonCall(napi_env env, napi_callback_info info)
         requestJson = GetStringArg(env, argv[0]);
     }
 
-    const std::string response = std::string("{\"ok\":true,\"runtime\":\"napi-sample\",\"requestEcho\":\"") +
-        EscapeJsonString(requestJson) + "\"}";
+    const std::string response = koma::RunBundledWasmJsonCall(requestJson);
     return CreateUtf8(env, response);
 }
 
