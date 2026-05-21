@@ -47,8 +47,7 @@ struct Index {
   private tabLabel(index: number): string {
     if (index === 0) { return '书架' }
     if (index === 1) { return '导入' }
-    if (index === 2) { return '历史' }
-    return '设置'
+    return ''
   }
 
   private openReader(comicId: ComicId) {
@@ -176,6 +175,9 @@ struct Index {
               sessionStore: this.readerSessionStore,
               onOpenReader: (comicId: ComicId) => {
                 this.openReader(comicId)
+              },
+              onImportRequested: () => {
+                this.selectedTab = 1
               }
             })
           } else if (this.selectedTab === 1) {
@@ -184,30 +186,6 @@ struct Index {
                 this.handleArchiveImportSucceeded(comic)
               }
             })
-          } else {
-            Column({ space: 12 }) {
-              Text(this.tabLabel(this.selectedTab))
-                .fontSize(30)
-                .fontWeight(FontWeight.Bold)
-                .fontColor($r('app.color.koma_text_primary'))
-              Text(this.selectedTab === 2 ? '阅读历史会显示最近打开的本地漫画。' : '框架占位页，后续按漫画阅读器路线补齐。')
-                .fontSize(15)
-                .fontColor($r('app.color.koma_text_secondary'))
-              if (this.selectedTab === 2) {
-                Button('打开阅读器原型')
-                  .height(46)
-                  .padding({ left: 22, right: 22 })
-                  .borderRadius(23)
-                  .fontSize(15)
-                  .backgroundColor($r('app.color.koma_accent'))
-                  .onClick(() => {
-                    this.openReader(MOCK_LIBRARY_READER_SESSION.comicId)
-                  })
-              }
-            }
-            .width('100%')
-            .padding(24)
-            .alignItems(HorizontalAlign.Start)
           }
         }
         .layoutWeight(1)
@@ -217,8 +195,6 @@ struct Index {
         Tabs({ index: this.selectedTab }) {
           TabContent() { }.tabBar(this.TabItem(0))
           TabContent() { }.tabBar(this.TabItem(1))
-          TabContent() { }.tabBar(this.TabItem(2))
-          TabContent() { }.tabBar(this.TabItem(3))
         }
         .height(72)
         .barPosition(BarPosition.End)

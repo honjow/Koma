@@ -1,10 +1,10 @@
 {
   "color": [
     { "name": "start_window_background", "value": "#11100F" },
-    { "name": "koma_background", "value": "#11100F" },
-    { "name": "koma_card", "value": "#1D1A18" },
-    { "name": "koma_text_primary", "value": "#F2ECE7" },
-    { "name": "koma_text_secondary", "value": "#BCAEA7" },
-    { "name": "koma_accent", "value": "#FF996F" }
+    { "name": "koma_background", "value": "#0F1010" },
+    { "name": "koma_card", "value": "#1B1D1C" },
+    { "name": "koma_text_primary", "value": "#F1F3F1" },
+    { "name": "koma_text_secondary", "value": "#A8AEA9" },
+    { "name": "koma_accent", "value": "#5CC8A8" }
   ]
 }

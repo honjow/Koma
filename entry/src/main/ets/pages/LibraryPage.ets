@@ -18,6 +18,7 @@ export struct LibraryPage {
   presentationByComicId: LibraryPresentationByComicId = createMockLibraryPresentationMap()
   sessionStore: ReaderSessionStore = new InMemoryReaderSessionStore()
   onOpenReader: (comicId: ComicId) => void = (_comicId: ComicId) => {}
+  onImportRequested: () => void = () => {}
 
   private viewModel(): LibraryViewModel {
     return createLibraryViewModelFromStores(this.libraryStore, this.sessionStore, this.presentationByComicId)
@@ -67,7 +68,7 @@ export struct LibraryPage {
     }
     .width('100%')
     .padding(16)
-    .borderRadius(26)
+    .borderRadius(8)
     .backgroundColor($r('app.color.koma_card'))
     .onClick(() => {
       this.onOpenReader(info.comicId)
@@ -76,30 +77,29 @@ export struct LibraryPage {
 
   @Builder
   private EmptyLibrary() {
-    Column({ space: 14 }) {
-      Text('Koma')
-        .fontSize(34)
-        .fontWeight(FontWeight.Bold)
-        .fontColor($r('app.color.koma_text_primary'))
-      Text('还没有本地漫画')
-        .fontSize(18)
+    Column({ space: 12 }) {
+      Text('还没有漫画')
+        .fontSize(20)
         .fontWeight(FontWeight.Medium)
         .fontColor($r('app.color.koma_text_primary'))
-      Text('导入 CBZ/ZIP 或图片文件夹后，会在这里显示封面、进度和最近阅读。')
+      Text('导入本地 CBZ 或 ZIP 后会显示在书架中。')
         .fontSize(14)
         .lineHeight(22)
         .fontColor($r('app.color.koma_text_secondary'))
         .textAlign(TextAlign.Center)
-      Button('导入本地漫画')
-        .height(46)
-        .padding({ left: 24, right: 24 })
-        .borderRadius(23)
+      Button('导入')
+        .height(40)
+        .padding({ left: 22, right: 22 })
+        .borderRadius(8)
         .fontSize(15)
         .backgroundColor($r('app.color.koma_accent'))
+        .onClick(() => {
+          this.onImportRequested()
+        })
     }
     .width('100%')
-    .padding(26)
-    .borderRadius(28)
+    .padding(24)
+    .borderRadius(8)
     .backgroundColor($r('app.color.koma_card'))
     .alignItems(HorizontalAlign.Center)
   }
@@ -125,18 +125,34 @@ export struct LibraryPage {
 
   build() {
     Scroll() {
-      Column({ space: 24 }) {
-        Column({ space: 6 }) {
-          Text('书架')
-            .fontSize(34)
-            .fontWeight(FontWeight.Bold)
-            .fontColor($r('app.color.koma_text_primary'))
-          Text('本地漫画和私有库内容会集中在这里')
-            .fontSize(15)
-            .fontColor($r('app.color.koma_text_secondary'))
+      Column({ space: 20 }) {
+        Row({ space: 12 }) {
+          Column({ space: 4 }) {
+            Text('书架')
+              .fontSize(30)
+              .fontWeight(FontWeight.Bold)
+              .fontColor($r('app.color.koma_text_primary'))
+            Text(this.hasLibraryContent() ? `${this.viewModel().comics.length} 本漫画` : '本地漫画')
+              .fontSize(14)
+              .fontColor($r('app.color.koma_text_secondary'))
+          }
+          .layoutWeight(1)
+          .alignItems(HorizontalAlign.Start)
+
+          Button('+')
+            .width(40)
+            .height(40)
+            .borderRadius(8)
+            .fontSize(24)
+            .fontWeight(FontWeight.Medium)
+            .fontColor(Color.White)
+            .backgroundColor($r('app.color.koma_accent'))
+            .onClick(() => {
+              this.onImportRequested()
+            })
         }
         .width('100%')
-        .alignItems(HorizontalAlign.Start)
+        .alignItems(VerticalAlign.Center)
 
         if (this.hasLibraryContent()) {
           this.ContinueReadingCard(this.viewModel().continueReading)

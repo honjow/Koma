@@ -8,77 +8,30 @@ import { Comic } from '../model/ComicModels'
 
 interface ImportEntryInfo {
   title: string
-  description: string
   actionText: string
-  badge: string
-  badgeColor: string
   accentColor: string
-  feedback: string
 }
 
 const ARCHIVE_ENTRY: ImportEntryInfo = {
-  title: '导入 CBZ/ZIP',
-  description: '选择一个或多个漫画压缩包。后续会复制到 Koma 沙盒，再进行索引和解压。',
-  actionText: '选择压缩包',
-  badge: '推荐',
-  badgeColor: '#E66A3A',
-  accentColor: '#16745F',
-  feedback: '下一步会打开系统文件选择器，并仅筛选 .cbz / .zip 文件。'
-}
-
-const IMAGE_ENTRY: ImportEntryInfo = {
-  title: '导入图片',
-  description: '适合零散页面或单章图片。Koma 会按文件名和页码规则整理阅读顺序。',
-  actionText: '选择图片',
-  badge: '本地',
-  badgeColor: '#344E7A',
-  accentColor: '#344E7A',
-  feedback: '下一步会打开系统图片选择器，可一次选择多张图片。'
-}
-
-const FOLDER_ENTRY: ImportEntryInfo = {
-  title: '文件夹导入',
-  description: '实验功能，依赖设备是否支持文件夹选择；若无法枚举目录，请改用 CBZ/ZIP 或多选图片。',
-  actionText: '尝试选择文件夹',
-  badge: '实验',
-  badgeColor: '#8A6240',
-  accentColor: '#8A6240',
-  feedback: '文件夹选择受系统能力限制；失败时请把文件夹压缩为 ZIP/CBZ，或直接多选图片。'
-}
-
-const PRIVATE_LIBRARY_ENTRY: ImportEntryInfo = {
-  title: '私有库接入',
-  description: 'Komga、OPDS、WebDAV 会作为私有库入口加入，不提供公共源或源市场。',
-  actionText: '稍后接入',
-  badge: '规划中',
-  badgeColor: '#51624D',
-  accentColor: '#51624D',
-  feedback: '私有库入口会在账号和同步边界稳定后接入；当前版本先完成本地导入。'
+  title: 'CBZ / ZIP',
+  actionText: '选择文件',
+  accentColor: '#256E5D',
 }
 
 @Component
 export struct ImportPage {
-  @State private feedbackText: string = '选择一种本地导入方式，当前页面只展示入口和后续系统 picker 边界。'
-  @State private importDebugText: string = '等待 QA 导入动作。'
+  @State private feedbackText: string = '选择本地漫画文件。'
   onArchiveImportSucceeded: (comic: Comic) => void = (_comic: Comic) => {}
   private readonly localImportCoordinator: LocalImportCoordinator = new LocalImportCoordinator()
 
-  private appendImportDebugEvent(event: LocalArchiveImportDebugEvent): void {
-    const line = formatLocalArchiveImportDebugEvent(event)
-    const nextText = this.importDebugText === '等待 QA 导入动作。' ? line : `${this.importDebugText}\n${line}`
-    const lines = nextText.split('\n')
-    if (lines.length > 24) {
-      this.importDebugText = lines.slice(lines.length - 24).join('\n')
-      return
-    }
-    this.importDebugText = nextText
+  private logImportDebugEvent(event: LocalArchiveImportDebugEvent): void {
+    console.info('[local-import] ' + formatLocalArchiveImportDebugEvent(event))
   }
 
   private async selectArchiveFromPicker(): Promise<void> {
-    this.feedbackText = '正在打开系统文件选择器；请选择 .cbz / .zip 后，Koma 会先复制为沙盒 archive.zip 再解压。'
-    this.importDebugText = ''
+    this.feedbackText = '正在导入...'
     this.localImportCoordinator.setDebugSink((event: LocalArchiveImportDebugEvent) => {
-      this.appendImportDebugEvent(event)
+      this.logImportDebugEvent(event)
     })
     try {
       const context = this.getUIContext().getHostContext() as common.UIAbilityContext
@@ -97,11 +50,18 @@ export struct ImportPage {
           this.onArchiveImportSucceeded(result.extractionResult.importResult.comic)
         }
       })
-      this.feedbackText = results.length === 0
-        ? '未选择文件；真实导入仍需要人工在系统文件选择器中选择一个 CBZ/ZIP。'
-        : `压缩包导入完成：成功 ${succeededCount} 个，失败 ${failedCount} 个。`
+      if (results.length === 0) {
+        this.feedbackText = '未选择文件。'
+      } else if (failedCount === 0) {
+        this.feedbackText = `已导入 ${succeededCount} 本。`
+      } else if (succeededCount === 0) {
+        this.feedbackText = `无法导入文件。失败 ${failedCount} 个。`
+      } else {
+        this.feedbackText = `已导入 ${succeededCount} 本，失败 ${failedCount} 个。`
+      }
     } catch (error) {
-      this.feedbackText = `压缩包导入未完成：${error}`
+      console.error('[local-import] import failed: ' + `${error}`)
+      this.feedbackText = '无法导入文件。'
     } finally {
       this.localImportCoordinator.setDebugSink(undefined)
     }
@@ -109,66 +69,44 @@ export struct ImportPage {
 
   @Builder
   private ImportEntryCard(entry: ImportEntryInfo) {
-    Column({ space: 14 }) {
+    Column({ space: 16 }) {
       Row({ space: 10 }) {
         Stack({ alignContent: Alignment.Center }) {
-          Text(entry.title.substring(0, 1))
+          Text('+')
             .fontSize(20)
             .fontWeight(FontWeight.Bold)
             .fontColor(Color.White)
         }
-        .width(48)
-        .height(48)
-        .borderRadius(16)
+        .width(40)
+        .height(40)
+        .borderRadius(8)
         .backgroundColor(entry.accentColor)
 
-        Column({ space: 6 }) {
-          Row({ space: 8 }) {
-            Text(entry.title)
-              .fontSize(19)
-              .fontWeight(FontWeight.Bold)
-              .fontColor($r('app.color.koma_text_primary'))
-              .maxLines(1)
-              .textOverflow({ overflow: TextOverflow.Ellipsis })
-            Text(entry.badge)
-              .fontSize(11)
-              .fontWeight(FontWeight.Medium)
-              .fontColor(Color.White)
-              .padding({ left: 8, right: 8, top: 3, bottom: 3 })
-              .borderRadius(10)
-              .backgroundColor(entry.badgeColor)
-          }
-          .width('100%')
-
-          Text(entry.description)
-            .fontSize(14)
-            .lineHeight(21)
-            .fontColor($r('app.color.koma_text_secondary'))
-        }
+        Text(entry.title)
+          .fontSize(18)
+          .fontWeight(FontWeight.Medium)
+          .fontColor($r('app.color.koma_text_primary'))
+          .maxLines(1)
+          .textOverflow({ overflow: TextOverflow.Ellipsis })
         .layoutWeight(1)
-        .alignItems(HorizontalAlign.Start)
       }
       .width('100%')
 
       Button(entry.actionText)
         .height(42)
         .width('100%')
-        .borderRadius(21)
+        .borderRadius(8)
         .fontSize(14)
         .fontWeight(FontWeight.Medium)
         .fontColor(Color.White)
         .backgroundColor(entry.accentColor)
         .onClick(() => {
-          if (entry === ARCHIVE_ENTRY) {
-            this.selectArchiveFromPicker()
-            return
-          }
-          this.feedbackText = entry.feedback
+          this.selectArchiveFromPicker()
         })
     }
     .width('100%')
     .padding(16)
-    .borderRadius(22)
+    .borderRadius(8)
     .backgroundColor($r('app.color.koma_card'))
     .alignItems(HorizontalAlign.Start)
   }
@@ -178,10 +116,10 @@ export struct ImportPage {
       Column({ space: 18 }) {
         Column({ space: 6 }) {
           Text('导入')
-            .fontSize(34)
+            .fontSize(30)
             .fontWeight(FontWeight.Bold)
             .fontColor($r('app.color.koma_text_primary'))
-          Text('从本地文件开始建立私有漫画书架')
+          Text('添加到书架')
             .fontSize(15)
             .fontColor($r('app.color.koma_text_secondary'))
         }
@@ -189,7 +127,7 @@ export struct ImportPage {
         .alignItems(HorizontalAlign.Start)
 
         Column({ space: 10 }) {
-          Text('当前选择')
+          Text('状态')
             .fontSize(13)
             .fontWeight(FontWeight.Medium)
             .fontColor($r('app.color.koma_accent'))
@@ -200,45 +138,11 @@ export struct ImportPage {
         }
         .width('100%')
         .padding(16)
-        .borderRadius(22)
-        .backgroundColor('#FFFFF8F4')
-        .alignItems(HorizontalAlign.Start)
-
-        Column({ space: 10 }) {
-          Row() {
-            Text('QA Debug · 本地压缩包导入')
-              .fontSize(13)
-              .fontWeight(FontWeight.Medium)
-              .fontColor('#7A4F23')
-            Blank()
-            Text('dev')
-              .fontSize(11)
-              .fontWeight(FontWeight.Medium)
-              .fontColor(Color.White)
-              .padding({ left: 8, right: 8, top: 3, bottom: 3 })
-              .borderRadius(10)
-              .backgroundColor('#7A4F23')
-          }
-          .width('100%')
-
-          Text(this.importDebugText.length === 0 ? '等待 picker 返回。' : this.importDebugText)
-            .width('100%')
-            .fontSize(11)
-            .lineHeight(17)
-            .fontColor('#3A2C21')
-            .maxLines(24)
-            .textOverflow({ overflow: TextOverflow.Ellipsis })
-        }
-        .width('100%')
-        .padding(14)
-        .borderRadius(14)
-        .backgroundColor('#FFFFF3E7')
+        .borderRadius(8)
+        .backgroundColor($r('app.color.koma_card'))
         .alignItems(HorizontalAlign.Start)
 
         this.ImportEntryCard(ARCHIVE_ENTRY)
-        this.ImportEntryCard(IMAGE_ENTRY)
-        this.ImportEntryCard(FOLDER_ENTRY)
-        this.ImportEntryCard(PRIVATE_LIBRARY_ENTRY)
       }
       .width('100%')
       .padding({ left: 20, right: 20, bottom: 28 })
