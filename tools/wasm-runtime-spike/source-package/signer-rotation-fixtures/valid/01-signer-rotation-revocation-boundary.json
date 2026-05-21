@@ -1,0 +1,191 @@
+{
+  "policyVersion": 1,
+  "status": "design-tooling-only",
+  "designOnly": true,
+  "fixtureOnly": true,
+  "implementsSigning": false,
+  "implementsCryptoVerification": false,
+  "implementsKeyGeneration": false,
+  "implementsTrustStore": false,
+  "implementsCertificates": false,
+  "networkIo": false,
+  "subprocesses": false,
+  "executesWasm": false,
+  "productRuntime": false,
+  "productUi": false,
+  "scope": {
+    "sourceMarket": false,
+    "publicIndex": false,
+    "remoteInstall": false,
+    "builtInSources": false,
+    "network": false
+  },
+  "validatorDrift": {
+    "network": false,
+    "subprocess": false,
+    "executableHook": false,
+    "wasmExecution": false,
+    "productRuntimeHook": false
+  },
+  "currentRuntime": {
+    "network": false,
+    "hostImports": [
+      "koma_host.log",
+      "koma_host.check_cancel"
+    ],
+    "httpHostImport": false
+  },
+  "timePolicy": {
+    "clockSource": "fixture-evaluationTime",
+    "evaluationTime": "2026-05-22T03:00:00Z",
+    "rejectAmbiguousTimestamp": true,
+    "rejectExpired": true,
+    "rejectNotYetValid": true
+  },
+  "identityBinding": {
+    "displayTextIsTrustIdentity": false,
+    "packageIdStableAcrossUpdates": true,
+    "signerIdRequired": true,
+    "keyIdRequired": true,
+    "signerAndKeyMustMatchInstalledPolicy": true
+  },
+  "installedPackagePolicy": {
+    "packageId": "koma.local.private-fixture",
+    "packageVersion": "1.1.0",
+    "packageSchemaVersion": 1,
+    "sourceAbi": "koma-source-abi-v0.1",
+    "hostAbi": "koma-host-v0.1",
+    "signerId": "signer:koma-private-lab",
+    "keyId": "key:koma-private-lab-2025",
+    "archiveSha256": "1111111111111111111111111111111111111111111111111111111111111111",
+    "wasmSha256": "2222222222222222222222222222222222222222222222222222222222222222",
+    "display": {
+      "name": "Private Fixture",
+      "author": "Koma Lab"
+    }
+  },
+  "candidatePackage": {
+    "packageId": "koma.local.private-fixture",
+    "packageVersion": "1.2.0",
+    "packageSchemaVersion": 1,
+    "sourceAbi": "koma-source-abi-v0.1",
+    "hostAbi": "koma-host-v0.1",
+    "signerId": "signer:koma-private-lab",
+    "keyId": "key:koma-private-lab-2026",
+    "archiveSha256": "3333333333333333333333333333333333333333333333333333333333333333",
+    "wasmSha256": "4444444444444444444444444444444444444444444444444444444444444444",
+    "createdAt": "2026-05-01T00:00:00Z",
+    "expiresAt": "2026-12-31T23:59:59Z",
+    "display": {
+      "name": "Private Fixture",
+      "author": "Koma Lab"
+    }
+  },
+  "signatureMetadata": {
+    "signerId": "signer:koma-private-lab",
+    "keyId": "key:koma-private-lab-2026",
+    "notBefore": "2026-05-01T00:00:00Z",
+    "notAfter": "2026-12-31T23:59:59Z",
+    "realVerificationPerformed": false
+  },
+  "rotationPolicy": {
+    "requiredForKeyChange": true,
+    "allowsSignerChange": false,
+    "mustNotBypassPackageVersionCompatibilityDigestGates": true,
+    "approved": {
+      "explicit": true,
+      "packageId": "koma.local.private-fixture",
+      "signerId": "signer:koma-private-lab",
+      "fromKeyId": "key:koma-private-lab-2025",
+      "toKeyId": "key:koma-private-lab-2026",
+      "notBefore": "2026-05-01T00:00:00Z",
+      "notAfter": "2026-06-30T23:59:59Z"
+    }
+  },
+  "updatePolicy": {
+    "packageIdMustRemainStable": true,
+    "downgradeRejectedByDefault": true,
+    "downgradeRequiresExplicitTrustAuthorityApproval": true,
+    "startupRuntimeHandoffBlockedWhenRevoked": true,
+    "downgradeApproval": {
+      "explicit": false,
+      "sameTrustAuthority": false
+    }
+  },
+  "revocationInputs": {
+    "staticFixtureOnly": true,
+    "networkFetch": false,
+    "revokedSignerIds": [],
+    "revokedKeyIds": [],
+    "revokedPackageVersions": [],
+    "revokedDigests": []
+  },
+  "compatibility": {
+    "policyVersion": 1,
+    "packageSchemaVersion": 1,
+    "sourceAbi": "koma-source-abi-v0.1",
+    "hostAbi": "koma-host-v0.1",
+    "app": {
+      "minVersion": "0.1.0",
+      "maxVersion": "0.9.0"
+    },
+    "checkedBeforeRuntimeEligibility": [
+      "packageSchema",
+      "sourceAbi",
+      "hostAbi",
+      "appVersion"
+    ]
+  },
+  "diagnostics": {
+    "redactedByDefault": true,
+    "minimalFieldNamesOnly": true,
+    "includeRawKeys": false,
+    "includeRawSignatures": false,
+    "includeTrustStoreDump": false,
+    "includeCredentials": false,
+    "includeCookies": false,
+    "includeAuthorizationHeaders": false,
+    "includeFullUserPaths": false,
+    "includePickerUris": false,
+    "includeAppPrivatePaths": false,
+    "includeRawPayloads": false,
+    "includeFullManifests": false,
+    "includeRequestBodies": false,
+    "includeResponseBodies": false,
+    "includeGeneratedCachePaths": false,
+    "includeRawPackageBytes": false,
+    "reportFields": [
+      "status",
+      "case",
+      "reasonCode",
+      "field"
+    ],
+    "reasonCodes": [
+      "IDENTITY_MISMATCH",
+      "ROTATION_REJECTED",
+      "REVOCATION_REJECTED",
+      "FRESHNESS_REJECTED",
+      "REAL_VERIFICATION_CLAIM_REJECTED",
+      "COMPATIBILITY_REJECTED",
+      "SCOPE_REJECTED",
+      "DIAGNOSTIC_REJECTED"
+    ]
+  },
+  "nonGoals": {
+    "realSigning": true,
+    "signatureVerification": true,
+    "keyGeneration": true,
+    "certificates": true,
+    "trustStore": true,
+    "revocationStore": true,
+    "networkRevocationFetch": true,
+    "productRuntime": true,
+    "productUi": true,
+    "sourceMarket": true,
+    "publicIndex": true,
+    "remoteInstall": true,
+    "builtInSources": true,
+    "httpImport": true,
+    "webViewJsDsl": true
+  }
+}

@@ -1,0 +1,457 @@
+{
+  "cases": [
+    {
+      "case": "display-text-as-trust-identity",
+      "expectRejectContains": "displayTextIsTrustIdentity",
+      "mutations": [
+        {
+          "path": "identityBinding.displayTextIsTrustIdentity",
+          "value": true
+        }
+      ]
+    },
+    {
+      "case": "signature-signer-id-mismatch",
+      "expectRejectContains": "signatureMetadata.signerId mismatch",
+      "mutations": [
+        {
+          "path": "signatureMetadata.signerId",
+          "value": "signer:other-lab"
+        }
+      ]
+    },
+    {
+      "case": "signature-key-id-mismatch",
+      "expectRejectContains": "signatureMetadata.keyId mismatch",
+      "mutations": [
+        {
+          "path": "signatureMetadata.keyId",
+          "value": "key:other-lab-2026"
+        }
+      ]
+    },
+    {
+      "case": "real-signature-verification-claim",
+      "expectRejectContains": "REAL_VERIFICATION_CLAIM_REJECTED",
+      "mutations": [
+        {
+          "path": "signatureMetadata.realVerificationPerformed",
+          "value": true
+        }
+      ]
+    },
+    {
+      "case": "unapproved-signer-change",
+      "expectRejectContains": "unapproved signer change",
+      "mutations": [
+        {
+          "path": "candidatePackage.signerId",
+          "value": "signer:other-lab"
+        },
+        {
+          "path": "signatureMetadata.signerId",
+          "value": "signer:other-lab"
+        }
+      ]
+    },
+    {
+      "case": "unapproved-key-rotation",
+      "expectRejectContains": "unapproved key rotation",
+      "mutations": [
+        {
+          "path": "candidatePackage.keyId",
+          "value": "key:koma-private-lab-2027"
+        },
+        {
+          "path": "signatureMetadata.keyId",
+          "value": "key:koma-private-lab-2027"
+        }
+      ]
+    },
+    {
+      "case": "cross-package-rotation",
+      "expectRejectContains": "cross-package rotation",
+      "mutations": [
+        {
+          "path": "rotationPolicy.approved.packageId",
+          "value": "koma.local.other-fixture"
+        }
+      ]
+    },
+    {
+      "case": "stale-rotation-policy",
+      "expectRejectContains": "rotationPolicy.approved expired",
+      "mutations": [
+        {
+          "path": "rotationPolicy.approved.notAfter",
+          "value": "2026-05-02T00:00:00Z"
+        }
+      ]
+    },
+    {
+      "case": "rotation-bypasses-gates",
+      "expectRejectContains": "mustNotBypassPackageVersionCompatibilityDigestGates",
+      "mutations": [
+        {
+          "path": "rotationPolicy.mustNotBypassPackageVersionCompatibilityDigestGates",
+          "value": false
+        }
+      ]
+    },
+    {
+      "case": "package-id-changed-across-update",
+      "expectRejectContains": "package id changed across update",
+      "mutations": [
+        {
+          "path": "candidatePackage.packageId",
+          "value": "koma.local.private-fixture-renamed"
+        }
+      ]
+    },
+    {
+      "case": "downgrade-without-explicit-approval",
+      "expectRejectContains": "downgrade without explicit approval",
+      "mutations": [
+        {
+          "path": "candidatePackage.packageVersion",
+          "value": "1.0.0"
+        }
+      ]
+    },
+    {
+      "case": "signer-revoked",
+      "expectRejectContains": "signer revoked",
+      "mutations": [
+        {
+          "path": "revocationInputs.revokedSignerIds",
+          "value": [
+            "signer:koma-private-lab"
+          ]
+        }
+      ]
+    },
+    {
+      "case": "key-id-revoked",
+      "expectRejectContains": "key id revoked",
+      "mutations": [
+        {
+          "path": "revocationInputs.revokedKeyIds",
+          "value": [
+            "key:koma-private-lab-2026"
+          ]
+        }
+      ]
+    },
+    {
+      "case": "package-version-revoked",
+      "expectRejectContains": "package id/version revoked",
+      "mutations": [
+        {
+          "path": "revocationInputs.revokedPackageVersions",
+          "value": [
+            {
+              "packageId": "koma.local.private-fixture",
+              "packageVersion": "1.2.0"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "case": "digest-revoked",
+      "expectRejectContains": "digest revoked",
+      "mutations": [
+        {
+          "path": "revocationInputs.revokedDigests",
+          "value": [
+            "3333333333333333333333333333333333333333333333333333333333333333"
+          ]
+        }
+      ]
+    },
+    {
+      "case": "expired-package",
+      "expectRejectContains": "candidatePackage expired",
+      "mutations": [
+        {
+          "path": "candidatePackage.expiresAt",
+          "value": "2026-05-02T00:00:00Z"
+        }
+      ]
+    },
+    {
+      "case": "expired-signature-window",
+      "expectRejectContains": "signatureMetadata expired",
+      "mutations": [
+        {
+          "path": "signatureMetadata.notAfter",
+          "value": "2026-05-02T00:00:00Z"
+        }
+      ]
+    },
+    {
+      "case": "expired-policy-window",
+      "expectRejectContains": "rotationPolicy.approved expired",
+      "mutations": [
+        {
+          "path": "rotationPolicy.approved.notAfter",
+          "value": "2026-05-02T00:00:00Z"
+        }
+      ]
+    },
+    {
+      "case": "package-not-yet-valid",
+      "expectRejectContains": "candidatePackage not yet valid",
+      "mutations": [
+        {
+          "path": "candidatePackage.createdAt",
+          "value": "2026-06-01T00:00:00Z"
+        }
+      ]
+    },
+    {
+      "case": "signature-not-yet-valid",
+      "expectRejectContains": "signatureMetadata not yet valid",
+      "mutations": [
+        {
+          "path": "signatureMetadata.notBefore",
+          "value": "2026-06-01T00:00:00Z"
+        }
+      ]
+    },
+    {
+      "case": "policy-not-yet-valid",
+      "expectRejectContains": "rotationPolicy.approved not yet valid",
+      "mutations": [
+        {
+          "path": "rotationPolicy.approved.notBefore",
+          "value": "2026-06-01T00:00:00Z"
+        }
+      ]
+    },
+    {
+      "case": "ambiguous-timestamp",
+      "expectRejectContains": "strict UTC timestamp",
+      "mutations": [
+        {
+          "path": "candidatePackage.createdAt",
+          "value": "2026-05-01T00:00:00"
+        }
+      ]
+    },
+    {
+      "case": "incompatible-source-abi",
+      "expectRejectContains": "compatibility.sourceAbi incompatible",
+      "mutations": [
+        {
+          "path": "candidatePackage.sourceAbi",
+          "value": "koma-source-abi-v9.9"
+        }
+      ]
+    },
+    {
+      "case": "incompatible-host-abi",
+      "expectRejectContains": "compatibility.hostAbi incompatible",
+      "mutations": [
+        {
+          "path": "candidatePackage.hostAbi",
+          "value": "koma-host-v9.9"
+        }
+      ]
+    },
+    {
+      "case": "incompatible-app-version",
+      "expectRejectContains": "compatibility.app incompatible",
+      "mutations": [
+        {
+          "path": "compatibility.app.minVersion",
+          "value": "2.0.0"
+        }
+      ]
+    },
+    {
+      "case": "unknown-policy-version",
+      "expectRejectContains": "policyVersion unsupported",
+      "mutations": [
+        {
+          "path": "policyVersion",
+          "value": 99
+        }
+      ]
+    },
+    {
+      "case": "unknown-compatibility-policy-version",
+      "expectRejectContains": "compatibility.policyVersion unsupported",
+      "mutations": [
+        {
+          "path": "compatibility.policyVersion",
+          "value": 99
+        }
+      ]
+    },
+    {
+      "case": "network-enabled",
+      "expectRejectContains": "currentRuntime.network",
+      "mutations": [
+        {
+          "path": "currentRuntime.network",
+          "value": true
+        }
+      ]
+    },
+    {
+      "case": "http-host-import-drift",
+      "expectRejectContains": "currentRuntime.hostImports",
+      "mutations": [
+        {
+          "path": "currentRuntime.hostImports",
+          "value": [
+            "koma_host.log",
+            "koma_host.check_cancel",
+            "koma_host.http_request"
+          ]
+        }
+      ]
+    },
+    {
+      "case": "product-runtime-enabled",
+      "expectRejectContains": "$.productRuntime",
+      "mutations": [
+        {
+          "path": "productRuntime",
+          "value": true
+        }
+      ]
+    },
+    {
+      "case": "product-ui-enabled",
+      "expectRejectContains": "$.productUi",
+      "mutations": [
+        {
+          "path": "productUi",
+          "value": true
+        }
+      ]
+    },
+    {
+      "case": "source-market-enabled",
+      "expectRejectContains": "scope.sourceMarket",
+      "mutations": [
+        {
+          "path": "scope.sourceMarket",
+          "value": true
+        }
+      ]
+    },
+    {
+      "case": "remote-install-enabled",
+      "expectRejectContains": "scope.remoteInstall",
+      "mutations": [
+        {
+          "path": "scope.remoteInstall",
+          "value": true
+        }
+      ]
+    },
+    {
+      "case": "built-in-source-enabled",
+      "expectRejectContains": "scope.builtInSources",
+      "mutations": [
+        {
+          "path": "scope.builtInSources",
+          "value": true
+        }
+      ]
+    },
+    {
+      "case": "diagnostic-raw-key-material",
+      "expectRejectContains": "diagnostics",
+      "mutations": [
+        {
+          "path": "diagnostics.includeRawKeys",
+          "value": true
+        }
+      ]
+    },
+    {
+      "case": "diagnostic-raw-signature-material",
+      "expectRejectContains": "diagnostics",
+      "mutations": [
+        {
+          "path": "diagnostics.includeRawSignatures",
+          "value": true
+        }
+      ]
+    },
+    {
+      "case": "diagnostic-path-material",
+      "expectRejectContains": "diagnostics",
+      "mutations": [
+        {
+          "path": "diagnostics.includeFullUserPaths",
+          "value": true
+        }
+      ]
+    },
+    {
+      "case": "diagnostic-secret-header-material",
+      "expectRejectContains": "forbidden diagnostic value",
+      "mutations": [
+        {
+          "path": "diagnostics.sample",
+          "value": "Authorization: Bearer sample"
+        }
+      ]
+    },
+    {
+      "case": "diagnostic-payload-material",
+      "expectRejectContains": "diagnostics",
+      "mutations": [
+        {
+          "path": "diagnostics.includeRawPayloads",
+          "value": true
+        }
+      ]
+    },
+    {
+      "case": "diagnostic-log-material",
+      "expectRejectContains": "forbidden diagnostic value",
+      "mutations": [
+        {
+          "path": "diagnostics.sample",
+          "value": "file:///tmp/local-log"
+        }
+      ]
+    },
+    {
+      "case": "executable-hook-drift",
+      "expectRejectContains": "validatorDrift.executableHook",
+      "mutations": [
+        {
+          "path": "validatorDrift.executableHook",
+          "value": true
+        }
+      ]
+    },
+    {
+      "case": "subprocess-drift",
+      "expectRejectContains": "validatorDrift.subprocess",
+      "mutations": [
+        {
+          "path": "validatorDrift.subprocess",
+          "value": true
+        }
+      ]
+    },
+    {
+      "case": "validator-network-drift",
+      "expectRejectContains": "validatorDrift.network",
+      "mutations": [
+        {
+          "path": "validatorDrift.network",
+          "value": true
+        }
+      ]
+    }
+  ]
+}
