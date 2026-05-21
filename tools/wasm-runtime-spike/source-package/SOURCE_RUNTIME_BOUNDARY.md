@@ -11,6 +11,10 @@ package manifests, local archives, and Linux WAMR execution. It does not add a
 source market, public source index, remote install path, built-in source list,
 HarmonyOS product UI, or product runtime loading behavior.
 
+Future local source package trust/provenance requirements are tracked in
+`SOURCE_PACKAGE_TRUST_BOUNDARY.md`. That file is design-only and does not add
+signing code, key material, product install, or runtime loading behavior.
+
 The validated path is:
 
 ```text
@@ -169,7 +173,8 @@ Expected execution evidence includes:
 - Streaming and large response strategy beyond fixed result buffers.
 - Concurrency, cancellation, reentrancy, and lifecycle rules for multi-call or
   long-running sources.
-- Signature, trust, provenance, revocation, and compatibility model.
+- Signature, trust, provenance, revocation, and compatibility model; see
+  `SOURCE_PACKAGE_TRUST_BOUNDARY.md`.
 - Final public Rust SDK/API shape and versioning policy.
 
 ## Validation Commands

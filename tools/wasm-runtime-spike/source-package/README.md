@@ -10,6 +10,9 @@ For the consolidated current runtime/package/archive boundary, see
 For the design-only future HarmonyOS source archive ingestion boundary, see
 `HARMONYOS_ARCHIVE_INGESTION_BOUNDARY.md`.
 
+For the design-only future local source package trust/provenance boundary, see
+`SOURCE_PACKAGE_TRUST_BOUNDARY.md`.
+
 The fixture keeps the useful package lessons from source index layouts such as
 per-source metadata, icon paths, settings, capabilities, and runtime limits,
 while staying aligned with Koma's current runtime evidence:
