@@ -163,7 +163,8 @@ function isSupportedLocalImagePath(path) {
     normalized.endsWith('.png') ||
     normalized.endsWith('.webp') ||
     normalized.endsWith('.gif') ||
-    normalized.endsWith('.bmp')
+    normalized.endsWith('.bmp') ||
+    normalized.endsWith('.avif')
 }
 
 function isAppImportExtractPath(path) {
@@ -339,6 +340,12 @@ const renderCases = [
     label: 'app cache extracted file URI renders locally',
   },
   {
+    uri: 'file:///data/storage/el2/base/cache/import/demo-12345678/extract/nested/page%231.avif',
+    kind: ReaderPageRenderKind.LOCAL_FILE_IMAGE,
+    imageUri: 'file:///data/storage/el2/base/cache/import/demo-12345678/extract/nested/page%231.avif',
+    label: 'encoded app cache extracted AVIF file URI renders locally',
+  },
+  {
     uri: '/data/storage/el2/base/files/import/demo-12345678/extract/003.png',
     kind: ReaderPageRenderKind.LOCAL_FILE_IMAGE,
     imageUri: 'file:///data/storage/el2/base/files/import/demo-12345678/extract/003.png',
@@ -367,6 +374,18 @@ const renderCases = [
     kind: ReaderPageRenderKind.URI_PLACEHOLDER,
     imageUri: '',
     label: 'archive entry DTO stays unsupported placeholder',
+  },
+  {
+    uri: 'file:///data/storage/el2/base/cache/import/demo-12345678/extract/page#1.png',
+    kind: ReaderPageRenderKind.URI_PLACEHOLDER,
+    imageUri: '',
+    label: 'raw fragment-like local file URI stays unsupported placeholder',
+  },
+  {
+    uri: 'file:///data/storage/el2/base/cache/import/demo-12345678/extract/page?1.png',
+    kind: ReaderPageRenderKind.URI_PLACEHOLDER,
+    imageUri: '',
+    label: 'raw query-like local file URI stays unsupported placeholder',
   },
   {
     uri: '/data/storage/el2/base/cache/import/demo-12345678/extract/../001.jpg',

@@ -31,7 +31,8 @@ function isSupportedLocalImagePath(path: string): boolean {
     normalized.endsWith('.png') ||
     normalized.endsWith('.webp') ||
     normalized.endsWith('.gif') ||
-    normalized.endsWith('.bmp')
+    normalized.endsWith('.bmp') ||
+    normalized.endsWith('.avif')
 }
 
 function isAppImportExtractPath(path: string): boolean {

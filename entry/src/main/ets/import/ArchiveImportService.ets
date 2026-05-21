@@ -9,6 +9,7 @@ import {
 import {
   getBaseName,
   isSupportedArchivePath,
+  isSafeArchiveEntryPath,
   sortImageEntryPaths,
   stripExtension,
 } from './ImageSortUtils'
@@ -27,6 +28,7 @@ export interface ArchiveImportRequest {
   title?: string
   importedAt?: number
   readingDirection?: ReadingDirection
+  extractionDir?: string
 }
 
 export interface ArchiveImportResult {
@@ -49,7 +51,43 @@ function createArchiveEntryUri(archivePath: string, entryPath: string): string {
   return `${archivePath}#${entryPath}`
 }
 
-function toPage(candidate: ArchiveEntryCandidate, comicId: string, chapterId: string, archivePath: string, index: number): Page {
+function normalizeSeparator(value: string): string {
+  return value.replace(/\\/g, '/')
+}
+
+function trimTrailingSlash(value: string): string {
+  let normalized = normalizeSeparator(value).trim()
+  while (normalized.length > 1 && normalized.endsWith('/')) {
+    normalized = normalized.substring(0, normalized.length - 1)
+  }
+  return normalized
+}
+
+function stripFileUriScheme(value: string): string {
+  return value.startsWith('file://') ? value.slice('file://'.length) : value
+}
+
+function encodeFileUriPath(path: string): string {
+  return path.split('/').map((segment: string) => encodeURIComponent(segment)).join('/')
+}
+
+function createExtractedPageUri(extractionDir: string, entryPath: string): string {
+  const normalizedEntryPath = normalizeSeparator(entryPath).replace(/^\/+/, '')
+  if (!isSafeArchiveEntryPath(normalizedEntryPath)) {
+    throw new Error(`Unsafe extracted entry path: ${entryPath}`)
+  }
+  const extractedPath = `${trimTrailingSlash(stripFileUriScheme(extractionDir))}/${normalizedEntryPath}`
+  return `file://${encodeFileUriPath(extractedPath)}`
+}
+
+function createPageUri(archivePath: string, entryPath: string, extractionDir: string | undefined): string {
+  if (extractionDir !== undefined && extractionDir.trim().length > 0) {
+    return createExtractedPageUri(extractionDir, entryPath)
+  }
+  return createArchiveEntryUri(archivePath, entryPath)
+}
+
+function toPage(candidate: ArchiveEntryCandidate, comicId: string, chapterId: string, archivePath: string, extractionDir: string | undefined, index: number): Page {
   const fileName = getBaseName(candidate.path)
   return {
     id: `${chapterId}-page-${index + 1}`,
@@ -57,7 +95,7 @@ function toPage(candidate: ArchiveEntryCandidate, comicId: string, chapterId: st
     chapterId,
     index,
     fileName,
-    uri: createArchiveEntryUri(archivePath, candidate.path),
+    uri: createPageUri(archivePath, candidate.path, extractionDir),
     sortKey: normalizeSortKey(candidate.path),
     width: candidate.width,
     height: candidate.height,
@@ -83,7 +121,7 @@ export class ArchiveImportService {
     const chapterId = `${comicId}-chapter-1`
     const pages: Page[] = sortedImagePaths.map((path: string, index: number) => {
       const candidate = entryByPath.get(path) as ArchiveEntryCandidate
-      return toPage(candidate, comicId, chapterId, request.archivePath, index)
+      return toPage(candidate, comicId, chapterId, request.archivePath, request.extractionDir, index)
     })
 
     const chapter: Chapter = {

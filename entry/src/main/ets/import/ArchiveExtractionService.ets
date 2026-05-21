@@ -163,6 +163,7 @@ export class ArchiveExtractionService {
     const importResult = buildComicFromArchive({
       archivePath: request.archivePath,
       entries,
+      extractionDir: request.extractionDir,
       comicId: request.comicId,
       title: request.title,
       importedAt: request.importedAt,
