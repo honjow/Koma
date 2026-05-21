@@ -6,10 +6,12 @@ const root = resolve(import.meta.dirname, '..')
 const modelPath = resolve(root, 'entry/src/main/ets/model/ComicModels.ets')
 const libraryStorePath = resolve(root, 'entry/src/main/ets/model/LibraryStore.ets')
 const progressStorePath = resolve(root, 'entry/src/main/ets/model/ReadingProgressStore.ets')
+const readerSessionStorePath = resolve(root, 'entry/src/main/ets/model/ReaderSessionStore.ets')
 
 const modelSource = readFileSync(modelPath, 'utf8')
 const libraryStoreSource = readFileSync(libraryStorePath, 'utf8')
 const progressStoreSource = readFileSync(progressStorePath, 'utf8')
+const readerSessionStoreSource = readFileSync(readerSessionStorePath, 'utf8')
 
 function assertExport(source, symbol) {
   assert.match(source, new RegExp(`export (interface|class|function|enum|type) ${symbol}\\b`), `${symbol} must be exported`)
@@ -67,6 +69,8 @@ assertExport(libraryStoreSource, 'LibraryStore')
 assertExport(libraryStoreSource, 'InMemoryLibraryStore')
 assertExport(progressStoreSource, 'ReadingProgressStore')
 assertExport(progressStoreSource, 'InMemoryReadingProgressStore')
+assertExport(readerSessionStoreSource, 'ReaderSessionStore')
+assertExport(readerSessionStoreSource, 'InMemoryReaderSessionStore')
 
 const comic = {
   id: 'comic-1',

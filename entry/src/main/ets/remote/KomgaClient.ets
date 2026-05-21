@@ -25,6 +25,13 @@ export interface KomgaHttpRequest {
   body?: string
 }
 
+export interface RedactedKomgaHttpRequest {
+  method: 'GET' | 'POST'
+  url: string
+  headers: KomgaHeaders
+  body?: string
+}
+
 export interface KomgaHttpResponse {
   status: number
   body: string
@@ -122,6 +129,15 @@ export function redactKomgaHeaders(headers: KomgaHeaders): KomgaHeaders {
     }
   })
   return redacted
+}
+
+export function redactKomgaRequest(request: KomgaHttpRequest): RedactedKomgaHttpRequest {
+  return {
+    method: request.method,
+    url: request.url,
+    headers: redactKomgaHeaders(request.headers),
+    body: request.body,
+  }
 }
 
 export function createRemotePageRef(

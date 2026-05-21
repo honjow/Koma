@@ -1,5 +1,7 @@
 import { LibraryPage } from './LibraryPage'
-import { ReaderPage } from './ReaderPage'
+import { ImportPage } from './ImportPage'
+import { MOCK_READER_SESSION, ReaderPage } from './ReaderPage'
+import { InMemoryReaderSessionStore, ReaderSessionStore } from '../model/ReaderSessionStore'
 
 @Entry
 @Component
@@ -9,12 +11,19 @@ struct Index {
   @State private readerPageIndex: number = 0
   @State private readerChromeVisible: boolean = true
   @State private readerWebtoonMode: boolean = false
+  private readerSessionStore: ReaderSessionStore = new InMemoryReaderSessionStore()
 
   private tabLabel(index: number): string {
     if (index === 0) { return '书架' }
     if (index === 1) { return '导入' }
     if (index === 2) { return '历史' }
     return '设置'
+  }
+
+  private openMockReader() {
+    this.readerPageIndex = this.readerSessionStore.restorePageIndex(MOCK_READER_SESSION)
+    this.readerChromeVisible = true
+    this.readerOpen = true
   }
 
   @Builder
@@ -36,9 +45,11 @@ struct Index {
           if (this.selectedTab === 0) {
             LibraryPage({
               onOpenReader: () => {
-                this.readerOpen = true
+                this.openMockReader()
               }
             })
+          } else if (this.selectedTab === 1) {
+            ImportPage()
           } else {
             Column({ space: 12 }) {
               Text(this.tabLabel(this.selectedTab))
@@ -56,7 +67,7 @@ struct Index {
                   .fontSize(15)
                   .backgroundColor($r('app.color.koma_accent'))
                   .onClick(() => {
-                    this.readerOpen = true
+                    this.openMockReader()
                   })
               }
             }
@@ -90,7 +101,9 @@ struct Index {
           readerOpen: $readerOpen,
           pageIndex: $readerPageIndex,
           chromeVisible: $readerChromeVisible,
-          webtoonMode: $readerWebtoonMode
+          webtoonMode: $readerWebtoonMode,
+          sessionStore: this.readerSessionStore,
+          sessionConfig: MOCK_READER_SESSION
         })
           .zIndex(1)
       }
