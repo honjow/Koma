@@ -1,0 +1,26 @@
+{
+  "case": "network_true_manifest",
+  "category": "manifest",
+  "expectRejectContains": "network must remain false",
+  "input": {
+    "runtime": {
+      "requiredHostImports": [
+        {
+          "module": "koma_host",
+          "name": "log"
+        },
+        {
+          "module": "koma_host",
+          "name": "check_cancel"
+        }
+      ]
+    },
+    "permissions": {
+      "network": true,
+      "hostImports": [
+        "koma_host.log",
+        "koma_host.check_cancel"
+      ]
+    }
+  }
+}

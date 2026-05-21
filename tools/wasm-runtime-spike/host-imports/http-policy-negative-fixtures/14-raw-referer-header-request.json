@@ -1,0 +1,14 @@
+{
+  "case": "raw_referer_header_request",
+  "category": "request_schema",
+  "expectRejectContains": "denied header",
+  "input": {
+    "version": 1,
+    "method": "GET",
+    "url": "https://api.example.invalid/search",
+    "headers": {
+      "Referer": "https://private.example.invalid/account"
+    },
+    "maxResponseBytes": 1024
+  }
+}

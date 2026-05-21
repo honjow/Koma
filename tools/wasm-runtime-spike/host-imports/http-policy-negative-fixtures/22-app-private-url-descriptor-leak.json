@@ -1,0 +1,15 @@
+{
+  "case": "app_private_url_descriptor_leak",
+  "category": "path_leak",
+  "expectRejectContains": "leaks raw local/app-private path",
+  "input": {
+    "descriptor": {
+      "kind": "imageRequest",
+      "request": {
+        "method": "GET",
+        "url": "https://api.example.invalid/page",
+        "sourcePath": "app-private://source-cache/page-1.jpg"
+      }
+    }
+  }
+}

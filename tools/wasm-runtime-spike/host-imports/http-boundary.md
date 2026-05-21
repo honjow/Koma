@@ -7,6 +7,9 @@ packages, source markets, WebView workflows, APK plugins, or built-in sources.
 The detailed candidate contract is now tracked in
 `http-host-import-v0.md`. This file remains the short validation boundary for
 the design fixture and the current-runtime rejection gates.
+Machine-verifiable negative fixtures for the closed current policy live in
+`http-policy-negative-fixtures/` and are validated by
+`validate-http-policy-negative-fixtures.py`.
 
 Current runtime packages remain on `koma-host-v0.1` with only:
 

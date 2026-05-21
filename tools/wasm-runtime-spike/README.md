@@ -10,6 +10,10 @@ The current consolidated runtime/package/archive boundary is documented in
 The future HTTP host import remains design-only. The concrete v0.1 candidate is
 documented in `host-imports/http-host-import-v0.md`; current runtime/package
 validation still rejects `network=true` and `koma_host.http_request`.
+Static negative fixtures for that closed policy live under
+`host-imports/http-policy-negative-fixtures/` and are checked by
+`host-imports/validate-http-policy-negative-fixtures.py`. The validator loads
+local JSON only, performs no network I/O, and does not execute WAMR.
 
 The spike validates this path on Linux:
 

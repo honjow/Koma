@@ -1,0 +1,12 @@
+{
+  "case": "connect_method_request",
+  "category": "request_schema",
+  "expectRejectContains": "method denied",
+  "input": {
+    "version": 1,
+    "method": "CONNECT",
+    "url": "https://api.example.invalid",
+    "headers": {},
+    "maxResponseBytes": 1024
+  }
+}

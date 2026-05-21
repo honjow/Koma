@@ -1,0 +1,12 @@
+{
+  "case": "file_scheme_request",
+  "category": "request_schema",
+  "expectRejectContains": "scheme denied",
+  "input": {
+    "version": 1,
+    "method": "GET",
+    "url": "file:///data/storage/el2/base/files/source.json",
+    "headers": {},
+    "maxResponseBytes": 1024
+  }
+}

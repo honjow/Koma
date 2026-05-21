@@ -1,0 +1,16 @@
+{
+  "case": "request_body_too_large",
+  "category": "request_schema",
+  "expectRejectContains": "request exceeds max body size",
+  "input": {
+    "version": 1,
+    "method": "POST",
+    "url": "https://api.example.invalid/search",
+    "headers": {
+      "Content-Type": "application/json"
+    },
+    "bodyBase64": "QUJDREVGRw==",
+    "maxRequestBytes": 4,
+    "maxResponseBytes": 1024
+  }
+}

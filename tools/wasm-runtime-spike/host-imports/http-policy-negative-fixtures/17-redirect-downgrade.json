@@ -1,0 +1,9 @@
+{
+  "case": "redirect_downgrade_https_to_http",
+  "category": "redirect",
+  "expectRejectContains": "redirect downgrade",
+  "input": {
+    "from": "https://api.example.invalid/page",
+    "to": "http://api.example.invalid/page"
+  }
+}

@@ -1,0 +1,12 @@
+{
+  "case": "log_cookie_leak",
+  "category": "log_redaction",
+  "expectRejectContains": "leaks cookie or credential/token",
+  "input": {
+    "level": "info",
+    "message": "response header Set-Cookie was present",
+    "context": {
+      "sourceId": "example-source"
+    }
+  }
+}

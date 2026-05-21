@@ -1,0 +1,35 @@
+{
+  "case": "missing_permission_import_even_with_request_shape",
+  "category": "permission_gate",
+  "expectRejectContains": "missing permission/import",
+  "input": {
+    "manifest": {
+      "runtime": {
+        "requiredHostImports": [
+          {
+            "module": "koma_host",
+            "name": "log"
+          },
+          {
+            "module": "koma_host",
+            "name": "check_cancel"
+          }
+        ]
+      },
+      "permissions": {
+        "network": false,
+        "hostImports": [
+          "koma_host.log",
+          "koma_host.check_cancel"
+        ]
+      }
+    },
+    "request": {
+      "version": 1,
+      "method": "GET",
+      "url": "https://api.example.invalid/search",
+      "headers": {},
+      "maxResponseBytes": 1024
+    }
+  }
+}

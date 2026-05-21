@@ -1,0 +1,12 @@
+{
+  "case": "trace_method_request",
+  "category": "request_schema",
+  "expectRejectContains": "method denied",
+  "input": {
+    "version": 1,
+    "method": "TRACE",
+    "url": "https://api.example.invalid/debug",
+    "headers": {},
+    "maxResponseBytes": 1024
+  }
+}

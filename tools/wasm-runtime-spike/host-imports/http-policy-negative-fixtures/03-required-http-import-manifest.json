@@ -1,0 +1,30 @@
+{
+  "case": "required_http_import_manifest",
+  "category": "manifest",
+  "expectRejectContains": "koma_host.http_request import",
+  "input": {
+    "runtime": {
+      "requiredHostImports": [
+        {
+          "module": "koma_host",
+          "name": "log"
+        },
+        {
+          "module": "koma_host",
+          "name": "check_cancel"
+        },
+        {
+          "module": "koma_host",
+          "name": "http_request"
+        }
+      ]
+    },
+    "permissions": {
+      "network": false,
+      "hostImports": [
+        "koma_host.log",
+        "koma_host.check_cancel"
+      ]
+    }
+  }
+}

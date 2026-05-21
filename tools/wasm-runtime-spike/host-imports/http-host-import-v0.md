@@ -533,7 +533,17 @@ Policy:
 
 ## Validation Plan And Negative Fixtures
 
-Future 3X negative policy fixtures should include:
+Current 3X negative policy fixtures are local static JSON records under
+`http-policy-negative-fixtures/` and are validated with:
+
+```sh
+python3 tools/wasm-runtime-spike/host-imports/validate-http-policy-negative-fixtures.py \
+  --fixture-dir tools/wasm-runtime-spike/host-imports/http-policy-negative-fixtures \
+  --artifact-dir /path/to/artifacts/http-policy-negative-fixtures
+```
+
+The validator performs no network I/O and no WAMR execution. It asserts that
+the current runtime policy remains closed and rejects:
 
 - `network=false` with `koma_host.http_request`.
 - `network=true` without `koma_host.http_request`.

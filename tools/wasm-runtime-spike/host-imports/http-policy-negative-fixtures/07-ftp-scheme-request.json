@@ -1,0 +1,12 @@
+{
+  "case": "ftp_scheme_request",
+  "category": "request_schema",
+  "expectRejectContains": "scheme denied",
+  "input": {
+    "version": 1,
+    "method": "GET",
+    "url": "ftp://example.invalid/archive.cbz",
+    "headers": {},
+    "maxResponseBytes": 1024
+  }
+}

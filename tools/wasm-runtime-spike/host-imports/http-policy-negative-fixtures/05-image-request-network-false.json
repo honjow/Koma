@@ -1,0 +1,29 @@
+{
+  "case": "image_request_network_false",
+  "category": "source_response",
+  "expectRejectContains": "gated while network=false",
+  "input": {
+    "version": 1,
+    "operation": "get_pages",
+    "hostHints": {
+      "network": false
+    },
+    "ok": true,
+    "data": {
+      "chapterId": "chapter-1",
+      "pages": [
+        {
+          "id": "page-1",
+          "index": 0,
+          "image": {
+            "kind": "imageRequest",
+            "request": {
+              "method": "GET",
+              "url": "https://cdn.example.invalid/page-1.jpg"
+            }
+          }
+        }
+      ]
+    }
+  }
+}

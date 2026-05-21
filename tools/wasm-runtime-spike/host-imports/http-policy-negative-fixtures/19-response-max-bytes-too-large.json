@@ -1,0 +1,12 @@
+{
+  "case": "response_max_bytes_too_large",
+  "category": "request_schema",
+  "expectRejectContains": "response max bytes exceeds policy",
+  "input": {
+    "version": 1,
+    "method": "GET",
+    "url": "https://api.example.invalid/search",
+    "headers": {},
+    "maxResponseBytes": 1048577
+  }
+}

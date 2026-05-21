@@ -1,0 +1,15 @@
+{
+  "case": "local_path_image_descriptor_leak",
+  "category": "path_leak",
+  "expectRejectContains": "leaks raw local/app-private path",
+  "input": {
+    "descriptor": {
+      "kind": "imageRequest",
+      "request": {
+        "method": "GET",
+        "url": "https://api.example.invalid/page",
+        "debugLocalPath": "/data/storage/el2/base/files/koma/private/page-1.jpg"
+      }
+    }
+  }
+}

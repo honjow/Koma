@@ -1,0 +1,14 @@
+{
+  "case": "host_header_request",
+  "category": "request_schema",
+  "expectRejectContains": "denied header",
+  "input": {
+    "version": 1,
+    "method": "GET",
+    "url": "https://api.example.invalid/search",
+    "headers": {
+      "Host": "different.example.invalid"
+    },
+    "maxResponseBytes": 1024
+  }
+}

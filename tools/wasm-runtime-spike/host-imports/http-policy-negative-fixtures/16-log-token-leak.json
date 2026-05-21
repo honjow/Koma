@@ -1,0 +1,12 @@
+{
+  "case": "log_token_leak",
+  "category": "log_redaction",
+  "expectRejectContains": "leaks cookie or credential/token",
+  "input": {
+    "level": "debug",
+    "message": "retry with bearer token redacted",
+    "context": {
+      "sourceId": "example-source"
+    }
+  }
+}
