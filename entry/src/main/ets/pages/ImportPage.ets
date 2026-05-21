@@ -18,10 +18,17 @@ const ARCHIVE_ENTRY: ImportEntryInfo = {
   accentColor: '#256E5D',
 }
 
+const IMAGE_ENTRY: ImportEntryInfo = {
+  title: '图片',
+  actionText: '选择多张图片',
+  accentColor: '#80612D',
+}
+
 @Component
 export struct ImportPage {
   @State private feedbackText: string = '选择本地漫画文件。'
   onArchiveImportSucceeded: (comic: Comic) => void = (_comic: Comic) => {}
+  onLocalImageImportSucceeded: (comic: Comic) => void = (_comic: Comic) => {}
   private readonly localImportCoordinator: LocalImportCoordinator = new LocalImportCoordinator()
 
   private logImportDebugEvent(event: LocalArchiveImportDebugEvent): void {
@@ -67,6 +74,45 @@ export struct ImportPage {
     }
   }
 
+  private async selectImagesFromPicker(): Promise<void> {
+    this.feedbackText = '正在导入...'
+    this.localImportCoordinator.setDebugSink((event: LocalArchiveImportDebugEvent) => {
+      this.logImportDebugEvent(event)
+    })
+    try {
+      const context = this.getUIContext().getHostContext() as common.UIAbilityContext
+      const results = await this.localImportCoordinator.pickAndImportImages(context)
+      let succeededCount = 0
+      let failedCount = 0
+      results.forEach((result) => {
+        if (result.status === 'succeeded') {
+          succeededCount += 1
+          return
+        }
+        failedCount += 1
+      })
+      results.forEach((result) => {
+        if (result.status === 'succeeded') {
+          this.onLocalImageImportSucceeded(result.importResult.comic)
+        }
+      })
+      if (results.length === 0) {
+        this.feedbackText = '未选择文件。'
+      } else if (failedCount === 0) {
+        this.feedbackText = `已导入 ${succeededCount} 本。`
+      } else if (succeededCount === 0) {
+        this.feedbackText = `无法导入图片。`
+      } else {
+        this.feedbackText = `已导入 ${succeededCount} 本，失败 ${failedCount} 个。`
+      }
+    } catch (error) {
+      console.error('[local-import] image import failed: ' + `${error}`)
+      this.feedbackText = '无法导入图片。'
+    } finally {
+      this.localImportCoordinator.setDebugSink(undefined)
+    }
+  }
+
   @Builder
   private ImportEntryCard(entry: ImportEntryInfo) {
     Column({ space: 16 }) {
@@ -101,7 +147,11 @@ export struct ImportPage {
         .fontColor(Color.White)
         .backgroundColor(entry.accentColor)
         .onClick(() => {
-          this.selectArchiveFromPicker()
+          if (entry.title === IMAGE_ENTRY.title) {
+            this.selectImagesFromPicker()
+          } else {
+            this.selectArchiveFromPicker()
+          }
         })
     }
     .width('100%')
@@ -143,6 +193,7 @@ export struct ImportPage {
         .alignItems(HorizontalAlign.Start)
 
         this.ImportEntryCard(ARCHIVE_ENTRY)
+        this.ImportEntryCard(IMAGE_ENTRY)
       }
       .width('100%')
       .height('100%')

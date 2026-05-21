@@ -184,6 +184,9 @@ struct Index {
             ImportPage({
               onArchiveImportSucceeded: (comic: Comic) => {
                 this.handleArchiveImportSucceeded(comic)
+              },
+              onLocalImageImportSucceeded: (comic: Comic) => {
+                this.handleArchiveImportSucceeded(comic)
               }
             })
           }

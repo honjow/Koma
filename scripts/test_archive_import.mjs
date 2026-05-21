@@ -5,6 +5,7 @@ import { resolve } from 'node:path'
 const root = resolve(import.meta.dirname, '..')
 const sortPath = resolve(root, 'entry/src/main/ets/import/ImageSortUtils.ets')
 const servicePath = resolve(root, 'entry/src/main/ets/import/ArchiveImportService.ets')
+const localImageServicePath = resolve(root, 'entry/src/main/ets/import/LocalImageImportService.ets')
 const extractionServicePath = resolve(root, 'entry/src/main/ets/import/ArchiveExtractionService.ets')
 const readerPageSourceAdapterPath = resolve(root, 'entry/src/main/ets/model/ReaderPageSourceAdapter.ets')
 const localImportCoordinatorPath = resolve(root, 'entry/src/main/ets/import/LocalImportCoordinator.ets')
@@ -13,6 +14,7 @@ const importPagePath = resolve(root, 'entry/src/main/ets/pages/ImportPage.ets')
 const indexPagePath = resolve(root, 'entry/src/main/ets/pages/Index.ets')
 const sortSource = readFileSync(sortPath, 'utf8')
 const serviceSource = readFileSync(servicePath, 'utf8')
+const localImageServiceSource = readFileSync(localImageServicePath, 'utf8')
 const extractionServiceSource = readFileSync(extractionServicePath, 'utf8')
 const readerPageSourceAdapterSource = readFileSync(readerPageSourceAdapterPath, 'utf8')
 const localImportCoordinatorSource = readFileSync(localImportCoordinatorPath, 'utf8')
@@ -180,6 +182,14 @@ function createExtractedPageUri(extractionDir, entryPath) {
   return `file://${encodeFileUriPath(extractedPath)}`
 }
 
+function createLocalImagePageUri(sandboxPath) {
+  return `file://${encodeFileUriPath(stripFileUriScheme(sandboxPath).replace(/\\/g, '/'))}`
+}
+
+function createReaderImageSourceUri(uri) {
+  return decodeURIComponent(stripFileUriScheme(uri.trim().replace(/\\/g, '/')))
+}
+
 function isReaderLocalImageSourceUri(uri) {
   const normalized = uri.trim().replace(/\\/g, '/')
   if (normalized.length === 0 || normalized.includes('#') || normalized.includes('?')) return false
@@ -301,6 +311,67 @@ function buildComicFromArchive(request) {
   }
 }
 
+function buildComicFromLocalImages(request) {
+  const imageByName = new Map()
+  request.images.forEach((candidate) => {
+    const fileName = candidate.fileName?.trim() || getBaseName(candidate.sandboxPath)
+    if (isSupportedImagePath(fileName) && !imageByName.has(fileName)) {
+      imageByName.set(fileName, { ...candidate, fileName })
+    }
+  })
+  const sortedImageNames = sortImageEntryPaths([...imageByName.keys()])
+  if (sortedImageNames.length === 0) {
+    throw new Error(`Local image selection contains no supported image pages: ${request.sourcePath}`)
+  }
+  const now = request.importedAt ?? Date.now()
+  const comicId = request.comicId ?? `local-folder-${request.sourcePath.trim().toLocaleLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || 'images'}`
+  const title = request.title ?? stripExtension(getBaseName(request.sourcePath))
+  const chapterId = `${comicId}-chapter-1`
+  const pages = sortedImageNames.map((fileName, index) => {
+    const candidate = imageByName.get(fileName)
+    return {
+      id: `${chapterId}-page-${index + 1}`,
+      comicId,
+      chapterId,
+      index,
+      fileName,
+      uri: createLocalImagePageUri(candidate.sandboxPath),
+      sortKey: fileName.trim().toLocaleLowerCase(),
+      byteSize: candidate.byteSize,
+    }
+  })
+  return {
+    comic: {
+      id: comicId,
+      title,
+      sourceKind: 'local_folder',
+      sourcePath: request.sourcePath,
+      coverUri: pages[0].uri,
+      sortTitle: title.trim().toLocaleLowerCase(),
+      preferredDirection: request.readingDirection ?? 'right_to_left',
+      chapters: [{
+        id: chapterId,
+        comicId,
+        title,
+        index: 0,
+        sourcePath: request.sourcePath,
+        sortKey: title.trim().toLocaleLowerCase(),
+        pages,
+        pageCount: pages.length,
+        createdAt: now,
+        updatedAt: now,
+      }],
+      chapterCount: 1,
+      pageCount: pages.length,
+      createdAt: now,
+      updatedAt: now,
+      lastImportedAt: now,
+    },
+    rejectedEntryCount: request.images.length - pages.length,
+    sourceEntryCount: request.images.length,
+  }
+}
+
 function notifySuccessfulArchiveImports(results, onComic) {
   results.forEach((result) => {
     if (result.status === 'succeeded') {
@@ -321,16 +392,22 @@ for (const symbol of [
 }
 assertExport(serviceSource, 'ArchiveImportService')
 assertExport(serviceSource, 'buildComicFromArchive')
+assertExport(localImageServiceSource, 'LocalImageImportService')
+assertExport(localImageServiceSource, 'buildComicFromLocalImages')
 assertExport(extractionServiceSource, 'ArchiveExtractionService')
 assertExport(extractionServiceSource, 'createArchiveExtractionCachePaths')
 assertExport(extractionServiceSource, 'shouldCopyArchiveAsZip')
 assertExport(extractionServiceSource, 'createExtractedPagePath')
 assertExport(extractionServiceSource, 'extractArchive')
 assertExport(localImportCoordinatorSource, 'ARCHIVE_FILE_SUFFIX_FILTER')
+assertExport(localImportCoordinatorSource, 'IMAGE_FILE_SUFFIX_FILTER')
 assertExport(localImportCoordinatorSource, 'LocalImportCoordinator')
 assertExport(localImportCoordinatorSource, 'createArchiveDocumentSelectOptions')
+assertExport(localImportCoordinatorSource, 'createImageDocumentSelectOptions')
 assertExport(localImportCoordinatorSource, 'pickArchiveUris')
+assertExport(localImportCoordinatorSource, 'pickImageUris')
 assertExport(localImportCoordinatorSource, 'copyPickedArchiveUriToSandbox')
+assertExport(localImportCoordinatorSource, 'copyPickedImageUriToSandbox')
 assertExport(localImportCoordinatorSource, 'assertSafeComputedArchiveImportCacheRoot')
 assertExport(localImportDebugSource, 'LocalArchiveImportDebugEvent')
 assertExport(localImportDebugSource, 'LocalArchiveImportDebugSnapshot')
@@ -349,6 +426,7 @@ assert.match(extractionServiceSource, /createStableCacheHash/, 'cache root must 
 assert.match(extractionServiceSource, /cacheKeySeed \?\? archivePath/, 'cache hash must use caller seed when present and source path otherwise')
 assert.match(localImportCoordinatorSource, /new picker\.DocumentViewPicker\(context\)/, 'local import must construct DocumentViewPicker with UIAbilityContext')
 assert.match(localImportCoordinatorSource, /Comic archives\(\.zip, \.cbz\)\|\.zip,\.cbz/, 'archive picker must filter ZIP and CBZ suffixes')
+assert.match(localImportCoordinatorSource, /Images\(\.jpg, \.jpeg, \.png, \.webp, \.gif, \.bmp, \.avif\)\|\.jpg,\.jpeg,\.png,\.webp,\.gif,\.bmp,\.avif/, 'image picker must filter supported local image suffixes')
 assert.doesNotMatch(localImportCoordinatorSource, /DocumentSelectMode\.FOLDER/, 'archive picker must not request folder selection')
 assert.match(localImportCoordinatorSource, /fs\.open\(sourceUri, fs\.OpenMode\.READ_ONLY\)/, 'picked URI must be opened through fileIo URI support')
 assert.match(localImportCoordinatorSource, /fs\.open\(sandboxZipPath, fs\.OpenMode\.WRITE_ONLY \| fs\.OpenMode\.CREATE \| fs\.OpenMode\.TRUNC\)/, 'sandbox archive.zip must be opened for overwrite')
@@ -357,14 +435,21 @@ assert.match(localImportCoordinatorSource, /createArchiveExtractionCachePaths\(r
 assert.match(localImportCoordinatorSource, /removeComputedArchiveImportCacheRoot\(request\.context\.cacheDir, paths\.rootDir\)[\s\S]*await fs\.mkdir\(paths\.rootDir, true\)[\s\S]*LOCAL_ARCHIVE_DEBUG_STEP_COPY_STARTED/, 'repeat import must clear the computed cache root before copying')
 assert.match(localImportCoordinatorSource, /assertSafeComputedArchiveImportCacheRoot\(cacheDir, cacheRootDir\)[\s\S]*fs\.listFile\(cacheRootDir, listFileOptions\)[\s\S]*fs\.unlink\(entryPath\)[\s\S]*fs\.rmdir\(cacheRootDir\)/, 'cache cleanup must recursively remove files and root directory after safety validation')
 assert.match(importPageSource, /onArchiveImportSucceeded:\s*\(comic:\s*Comic\)\s*=>\s*void/, 'ImportPage must expose a successful archive import callback')
+assert.match(importPageSource, /onLocalImageImportSucceeded:\s*\(comic:\s*Comic\)\s*=>\s*void/, 'ImportPage must expose a successful local image import callback')
 assert.match(importPageSource, /const results = await this\.localImportCoordinator\.pickAndImportArchives\(context\)[\s\S]*已导入 \$\{succeededCount\} 本，失败 \$\{failedCount\} 个/, 'ImportPage must summarize multi-archive successes and failures')
+assert.match(importPageSource, /const results = await this\.localImportCoordinator\.pickAndImportImages\(context\)[\s\S]*this\.onLocalImageImportSucceeded\(result\.importResult\.comic\)/, 'ImportPage must import selected image files and upsert only successful image import results')
 assert.match(importPageSource, /results\.forEach\(\(result\) => \{[\s\S]*if \(result\.status === 'succeeded'\) \{[\s\S]*this\.onArchiveImportSucceeded\(result\.extractionResult\.importResult\.comic\)/, 'ImportPage must only upsert successful archive import results')
 assert.match(importPageSource, /results\.forEach\(\(result\) => \{[\s\S]*this\.onArchiveImportSucceeded\(result\.extractionResult\.importResult\.comic\)[\s\S]*\}\)[\s\S]*if \(results\.length === 0\)/, 'ImportPage must not report archive import success until shelf persistence callbacks finish')
 assert.match(indexPageSource, /private handleArchiveImportSucceeded\(comic:\s*Comic\):\s*void \{[\s\S]*(this\.libraryStore\.upsertComic\(comic\)|upsertComicAndPersistLibraryStore\(this\.libraryStore, persistenceService, comic\))[\s\S]*catch \(error\) \{[\s\S]*console\.error\('persist imported comic failed: ' \+ e\.message\)[\s\S]*throw e[\s\S]*this\.libraryRevision \+= 1[\s\S]*this\.selectedTab = 0[\s\S]*\}/, 'Index must make persistence failures visible and only bump shelf success state after import persistence succeeds')
 assert.match(indexPageSource, /aboutToAppear\(\):\s*void \{[\s\S]*persistenceService\.restore\(\)[\s\S]*this\.libraryRevision \+= 1/, 'Index must hydrate persisted library data during startup before shelf rendering where feasible')
 assert.match(indexPageSource, /ImportPage\(\{[\s\S]*onArchiveImportSucceeded:\s*\(comic:\s*Comic\) => \{[\s\S]*this\.handleArchiveImportSucceeded\(comic\)/, 'Index must pass the import success callback into ImportPage')
+assert.match(indexPageSource, /onLocalImageImportSucceeded:\s*\(comic:\s*Comic\) => \{[\s\S]*this\.handleArchiveImportSucceeded\(comic\)/, 'Index must persist local image imports through the same shelf path')
 assert.match(indexPageSource, /LibraryPage\(\{[\s\S]*libraryRevision:\s*this\.libraryRevision/, 'Index must pass an explicit shelf refresh signal into LibraryPage')
 assert.match(localImportCoordinatorSource, /archiveExtractionService\.extractArchive/, 'local import must hand sandbox archive.zip to ArchiveExtractionService')
+assert.match(localImportCoordinatorSource, /buildComicFromLocalImages/, 'local image import must build a local-folder comic without entering archive extraction')
+assert.match(localImportCoordinatorSource, /request\.sourceUris\.filter\(\(sourceUri:\s*string\) => isSupportedImagePath\(sourceUri\)\)/, 'local image import must ignore unsupported selected files before copying')
+assert.match(localImageServiceSource, /ComicSourceKind\.LOCAL_FOLDER/, 'local image import must persist as local_folder')
+assert.match(localImageServiceSource, /throw new Error\(`Local image selection contains no supported image pages/, 'local image import must fail honestly when selection contains no supported images')
 assert.match(readerPageSourceAdapterSource, /ReaderPageRenderKind\.LOCAL_FILE_IMAGE/, 'reader adapter must expose a local image render path')
 assert.match(readerPageSourceAdapterSource, /isReaderLocalImageSourceUri/, 'reader adapter must keep local image URI classification explicit')
 assert.match(serviceSource, /encodeURIComponent\(segment\)/, 'extracted file URI path segments must be percent-encoded')
@@ -515,6 +600,36 @@ assert.deepEqual(reservedCharacterImportResult.comic.chapters[0].pages.map((page
 assert.ok(reservedCharacterImportResult.comic.chapters[0].pages.every((page) => !page.uri.includes('#')), 'reserved extracted page.uri must not contain raw fragment separators')
 assert.ok(reservedCharacterImportResult.comic.chapters[0].pages.every((page) => !page.uri.includes('?')), 'reserved extracted page.uri must not contain raw query separators')
 assert.ok(reservedCharacterImportResult.comic.chapters[0].pages.every((page) => isReaderLocalImageSourceUri(page.uri)), 'reserved extracted page.uri must classify as reader local file image')
+
+const localImageImportResult = buildComicFromLocalImages({
+  sourcePath: '/data/storage/el2/base/cache/import/folder-pages-12345678',
+  comicId: 'comic-local-folder',
+  title: 'Folder Pages',
+  importedAt: 24680,
+  images: [
+    { sourceUri: 'file://docs/page10.JPG', sandboxPath: '/data/storage/el2/base/cache/import/folder-pages-12345678/extract/page10.JPG', fileName: 'page10.JPG', byteSize: 10 },
+    { sourceUri: 'file://docs/readme.txt', sandboxPath: '/data/storage/el2/base/cache/import/folder-pages-12345678/extract/readme.txt', fileName: 'readme.txt', byteSize: 1 },
+    { sourceUri: 'file://docs/page2.png', sandboxPath: '/data/storage/el2/base/cache/import/folder-pages-12345678/extract/page2.png', fileName: 'page2.png', byteSize: 2 },
+    { sourceUri: 'file://docs/page001.webp', sandboxPath: '/data/storage/el2/base/cache/import/folder-pages-12345678/extract/page001.webp', fileName: 'page001.webp', byteSize: 3 },
+  ],
+})
+assert.equal(localImageImportResult.sourceEntryCount, 4, 'local image import must count selected files')
+assert.equal(localImageImportResult.rejectedEntryCount, 1, 'local image import must reject unsupported files without faking a page')
+assert.equal(localImageImportResult.comic.sourceKind, 'local_folder')
+assert.equal(localImageImportResult.comic.pageCount, 3)
+assert.deepEqual(localImageImportResult.comic.chapters[0].pages.map((page) => page.fileName), [
+  'page001.webp',
+  'page2.png',
+  'page10.JPG',
+])
+assert.ok(localImageImportResult.comic.chapters[0].pages.every((page) => isReaderLocalImageSourceUri(page.uri)), 'local image import page.uri must classify as reader local file image')
+assert.ok(localImageImportResult.comic.chapters[0].pages.every((page) => createReaderImageSourceUri(page.uri).startsWith('/data/storage/el2/base/cache/import/')), 'local image import render source must be an absolute path')
+assert.throws(() => buildComicFromLocalImages({
+  sourcePath: '/data/storage/el2/base/cache/import/no-images-12345678',
+  images: [
+    { sourceUri: 'file://docs/readme.txt', sandboxPath: '/data/storage/el2/base/cache/import/no-images-12345678/extract/readme.txt', fileName: 'readme.txt' },
+  ],
+}), /Local image selection contains no supported image pages/, 'no-image local selection must fail without producing a fake comic')
 
 const importedComics = new Map()
 notifySuccessfulArchiveImports([], (comic) => {

@@ -5,7 +5,17 @@ import {
   ArchiveExtractionService,
   createArchiveExtractionCachePaths,
 } from './ArchiveExtractionService'
-import { isSupportedArchivePath } from './ImageSortUtils'
+import {
+  getBaseName,
+  isSupportedArchivePath,
+  isSupportedImagePath,
+  stripExtension,
+} from './ImageSortUtils'
+import {
+  LocalImageImportCandidate,
+  LocalImageImportResult,
+  buildComicFromLocalImages,
+} from './LocalImageImportService'
 import {
   LOCAL_ARCHIVE_DEBUG_STEP_CACHE_PATHS,
   LOCAL_ARCHIVE_DEBUG_STEP_COPY_FAILED,
@@ -45,6 +55,28 @@ export interface LocalArchiveImportFailedResult {
 
 export type LocalArchiveImportItemResult = LocalArchiveImportResult | LocalArchiveImportFailedResult
 
+export interface LocalImageImportSelection {
+  sourceUris: string[]
+  copiedImages: LocalImageImportCandidate[]
+  extractionDir: string
+  cacheRootDir: string
+}
+
+export interface LocalImageImportSucceededResult extends LocalImageImportSelection {
+  status: 'succeeded'
+  importResult: LocalImageImportResult
+}
+
+export interface LocalImageImportFailedResult {
+  status: 'failed'
+  sourceUris: string[]
+  extractionDir?: string
+  cacheRootDir?: string
+  error: string
+}
+
+export type LocalImageImportItemResult = LocalImageImportSucceededResult | LocalImageImportFailedResult
+
 export interface LocalArchiveImportRequest {
   context: common.UIAbilityContext
   sourceUri: string
@@ -53,7 +85,16 @@ export interface LocalArchiveImportRequest {
   importedAt?: number
 }
 
+export interface LocalImageImportRequest {
+  context: common.UIAbilityContext
+  sourceUris: string[]
+  title?: string
+  comicId?: string
+  importedAt?: number
+}
+
 export const ARCHIVE_FILE_SUFFIX_FILTER = 'Comic archives(.zip, .cbz)|.zip,.cbz'
+export const IMAGE_FILE_SUFFIX_FILTER = 'Images(.jpg, .jpeg, .png, .webp, .gif, .bmp, .avif)|.jpg,.jpeg,.png,.webp,.gif,.bmp,.avif'
 
 function assertSupportedPickedArchive(sourceUri: string): void {
   if (!isSupportedArchivePath(sourceUri)) {
@@ -69,6 +110,22 @@ function closeFileQuietly(file: fs.File | undefined): void {
     fs.closeSync(file)
   } catch (_err) {
   }
+}
+
+function sanitizeCacheSegment(value: string): string {
+  const normalized = stripExtension(getBaseName(value)).trim().toLocaleLowerCase().replace(/[^a-z0-9]+/g, '-')
+  const trimmed = normalized.replace(/^-+|-+$/g, '')
+  return trimmed.length === 0 ? 'images' : trimmed
+}
+
+function createStableCacheHash(value: string): string {
+  const normalized = value.replace(/\\/g, '/').trim()
+  let hash = 2166136261
+  for (let index = 0; index < normalized.length; index += 1) {
+    hash = (hash ^ normalized.charCodeAt(index)) >>> 0
+    hash = Math.imul(hash, 16777619) >>> 0
+  }
+  return hash.toString(16).padStart(8, '0')
 }
 
 function normalizeImportCachePath(value: string): string {
@@ -175,9 +232,21 @@ export function createArchiveDocumentSelectOptions(maxSelectNumber: number = 100
   return options
 }
 
+export function createImageDocumentSelectOptions(maxSelectNumber: number = 300): picker.DocumentSelectOptions {
+  const options = new picker.DocumentSelectOptions()
+  options.fileSuffixFilters = [IMAGE_FILE_SUFFIX_FILTER]
+  options.maxSelectNumber = maxSelectNumber
+  return options
+}
+
 export async function pickArchiveUris(context: common.UIAbilityContext, maxSelectNumber: number = 100): Promise<string[]> {
   const documentPicker = new picker.DocumentViewPicker(context)
   return documentPicker.select(createArchiveDocumentSelectOptions(maxSelectNumber))
+}
+
+export async function pickImageUris(context: common.UIAbilityContext, maxSelectNumber: number = 300): Promise<string[]> {
+  const documentPicker = new picker.DocumentViewPicker(context)
+  return documentPicker.select(createImageDocumentSelectOptions(maxSelectNumber))
 }
 
 export async function copyPickedArchiveUriToSandbox(sourceUri: string, sandboxZipPath: string): Promise<void> {
@@ -188,6 +257,76 @@ export async function copyPickedArchiveUriToSandbox(sourceUri: string, sandboxZi
   try {
     sourceFile = await fs.open(sourceUri, fs.OpenMode.READ_ONLY)
     targetFile = await fs.open(sandboxZipPath, fs.OpenMode.WRITE_ONLY | fs.OpenMode.CREATE | fs.OpenMode.TRUNC)
+    await fs.copyFile(sourceFile.fd, targetFile.fd, 0)
+  } finally {
+    closeFileQuietly(sourceFile)
+    closeFileQuietly(targetFile)
+  }
+}
+
+function createLocalImageImportCachePaths(cacheDir: string, sourceUris: string[]): LocalImageImportSelection {
+  const firstUri = sourceUris.length === 0 ? 'images' : sourceUris[0]
+  const readableSegment = sanitizeCacheSegment(firstUri)
+  const uniqueSegment = createStableCacheHash(sourceUris.join('\n'))
+  const rootDir = joinImportCachePath(joinImportCachePath(cacheDir, 'import'), `${readableSegment}-${uniqueSegment}`)
+  return {
+    sourceUris,
+    copiedImages: [],
+    cacheRootDir: rootDir,
+    extractionDir: joinImportCachePath(rootDir, 'extract'),
+  }
+}
+
+function createUniqueLocalImageFileName(sourceUri: string, usedNames: Set<string>): string {
+  const baseName = getBaseName(sourceUri)
+  const fallbackName = baseName.length === 0 ? 'image.jpg' : baseName
+  if (!usedNames.has(fallbackName)) {
+    usedNames.add(fallbackName)
+    return fallbackName
+  }
+  const extensionIndex = fallbackName.lastIndexOf('.')
+  const stem = extensionIndex <= 0 ? fallbackName : fallbackName.substring(0, extensionIndex)
+  const extension = extensionIndex <= 0 ? '' : fallbackName.substring(extensionIndex)
+  let suffix = 2
+  while (usedNames.has(`${stem}-${suffix}${extension}`)) {
+    suffix += 1
+  }
+  const uniqueName = `${stem}-${suffix}${extension}`
+  usedNames.add(uniqueName)
+  return uniqueName
+}
+
+function decodePickerPathSegment(value: string): string {
+  try {
+    return decodeURIComponent(value)
+  } catch (_err) {
+    return value
+  }
+}
+
+function createLocalImageImportTitle(sourceUris: string[]): string {
+  if (sourceUris.length === 0) {
+    return '图片'
+  }
+  const normalized = sourceUris[0].replace(/\\/g, '/').split('?')[0].split('#')[0]
+  const parts = normalized.split('/').filter((part: string) => part.length > 0)
+  if (parts.length > 1) {
+    const parent = decodePickerPathSegment(parts[parts.length - 2]).trim()
+    if (parent.length > 0 && parent !== 'file:') {
+      return parent
+    }
+  }
+  const fallback = stripExtension(getBaseName(normalized)).trim()
+  return fallback.length === 0 ? '图片' : decodePickerPathSegment(fallback)
+}
+
+export async function copyPickedImageUriToSandbox(sourceUri: string, sandboxPath: string): Promise<void> {
+  let sourceFile: fs.File | undefined = undefined
+  let targetFile: fs.File | undefined = undefined
+
+  try {
+    sourceFile = await fs.open(sourceUri, fs.OpenMode.READ_ONLY)
+    targetFile = await fs.open(sandboxPath, fs.OpenMode.WRITE_ONLY | fs.OpenMode.CREATE | fs.OpenMode.TRUNC)
     await fs.copyFile(sourceFile.fd, targetFile.fd, 0)
   } finally {
     closeFileQuietly(sourceFile)
@@ -350,5 +489,126 @@ export class LocalImportCoordinator {
       }
     }
     return results
+  }
+
+  async preparePickedImages(request: LocalImageImportRequest): Promise<LocalImageImportSelection> {
+    const supportedSourceUris = request.sourceUris.filter((sourceUri: string) => isSupportedImagePath(sourceUri))
+    const selection = createLocalImageImportCachePaths(request.context.cacheDir, request.sourceUris)
+    this.reportDebugEvent({
+      step: LOCAL_ARCHIVE_DEBUG_STEP_CACHE_PATHS,
+      sourceUri: request.sourceUris.join(','),
+      cacheRootDir: selection.cacheRootDir,
+      extractionDir: selection.extractionDir,
+    })
+    await removeComputedArchiveImportCacheRoot(request.context.cacheDir, selection.cacheRootDir)
+    await fs.mkdir(selection.extractionDir, true)
+
+    const usedFileNames = new Set<string>()
+    for (const sourceUri of supportedSourceUris) {
+      const fileName = createUniqueLocalImageFileName(sourceUri, usedFileNames)
+      const sandboxPath = joinImportCachePath(selection.extractionDir, fileName)
+      this.reportDebugEvent({
+        step: LOCAL_ARCHIVE_DEBUG_STEP_COPY_STARTED,
+        sourceUri,
+        extractionDir: selection.extractionDir,
+      })
+      try {
+        await copyPickedImageUriToSandbox(sourceUri, sandboxPath)
+        const stat = await fs.stat(sandboxPath)
+        selection.copiedImages.push({
+          sourceUri,
+          sandboxPath,
+          fileName,
+          byteSize: stat.size,
+        })
+        this.reportDebugEvent({
+          step: LOCAL_ARCHIVE_DEBUG_STEP_COPY_SUCCEEDED,
+          sourceUri,
+          extractionDir: selection.extractionDir,
+        })
+      } catch (error) {
+        this.reportDebugEvent({
+          step: LOCAL_ARCHIVE_DEBUG_STEP_COPY_FAILED,
+          sourceUri,
+          extractionDir: selection.extractionDir,
+          error: `${error}`,
+        })
+        throw new Error(`${error}`)
+      }
+    }
+
+    return selection
+  }
+
+  async importPickedImages(request: LocalImageImportRequest): Promise<LocalImageImportSucceededResult> {
+    try {
+      const selection = await this.preparePickedImages(request)
+      const importCandidates: LocalImageImportCandidate[] = [...selection.copiedImages]
+      request.sourceUris.forEach((sourceUri: string) => {
+        if (!isSupportedImagePath(sourceUri)) {
+          importCandidates.push({
+            sourceUri,
+            sandboxPath: sourceUri,
+            fileName: getBaseName(sourceUri),
+          })
+        }
+      })
+      const importResult = buildComicFromLocalImages({
+        sourcePath: selection.cacheRootDir,
+        images: importCandidates,
+        comicId: request.comicId,
+        title: request.title ?? createLocalImageImportTitle(request.sourceUris),
+        importedAt: request.importedAt,
+      })
+      this.reportDebugEvent({
+        step: LOCAL_ARCHIVE_DEBUG_STEP_IMPORT_SUCCEEDED,
+        sourceUri: request.sourceUris.join(','),
+        extractionDir: selection.extractionDir,
+        comicId: importResult.comic.id,
+        title: importResult.comic.title,
+        pageCount: importResult.comic.pageCount,
+      })
+      return {
+        status: 'succeeded',
+        sourceUris: selection.sourceUris,
+        copiedImages: selection.copiedImages,
+        extractionDir: selection.extractionDir,
+        cacheRootDir: selection.cacheRootDir,
+        importResult,
+      }
+    } catch (error) {
+      this.reportDebugEvent({
+        step: LOCAL_ARCHIVE_DEBUG_STEP_IMPORT_FAILED,
+        sourceUri: request.sourceUris.join(','),
+        error: `${error}`,
+      })
+      throw new Error(`${error}`)
+    }
+  }
+
+  async pickAndImportImages(context: common.UIAbilityContext, maxSelectNumber: number = 300): Promise<LocalImageImportItemResult[]> {
+    this.reportDebugEvent({
+      step: LOCAL_ARCHIVE_DEBUG_STEP_PICKER_STARTED,
+    })
+    const uris = await pickImageUris(context, maxSelectNumber)
+    this.reportDebugEvent({
+      step: LOCAL_ARCHIVE_DEBUG_STEP_PICKER_RETURNED,
+      uriCount: uris.length,
+    })
+    if (uris.length === 0) {
+      return []
+    }
+    try {
+      return [await this.importPickedImages({
+        context,
+        sourceUris: uris,
+      })]
+    } catch (error) {
+      return [{
+        status: 'failed',
+        sourceUris: uris,
+        error: `${error}`,
+      }]
+    }
   }
 }
