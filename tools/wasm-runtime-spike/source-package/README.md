@@ -111,6 +111,23 @@ python3 tools/wasm-runtime-spike/source-package/package-source-archive.py \
 The validate-only path runs the same archive safety, extraction, staged manifest,
 wasm hash, network/import, and content-policy gates as the default happy path.
 
+To close the Linux smoke loop from archive validation to actual WAMR execution:
+
+```sh
+python3 tools/wasm-runtime-spike/source-package/run-source-archive-smoke.py \
+  --artifact-dir /path/to/artifacts/archive-to-wamr-smoke
+```
+
+The smoke script creates a SDK-backed `.koma-source.zip` unless `--archive` is
+provided, validates and extracts it through `package-source-archive.py
+--validate-archive`, checks the extracted manifest gates, builds the existing
+CMake WAMR host runner, and runs the extracted `wasm/rust_source_fixture.wasm`.
+The report is written to `source-archive-wamr-smoke-report.json` and records
+`WAMR_SPIKE_PASS`, `ok:true`, `Fixture Series`, `HOST_LOG`,
+`HOST_CHECK_CANCEL`, and `hostHints.network=false` evidence. All archives,
+extracted files, wasm binaries, host builds, caches, logs, and reports remain
+artifact outputs.
+
 `validate-archive-negative-fixtures.py` is a tooling-only adversarial corpus
 generator. It first creates a valid baseline archive under the artifact
 directory, then writes malformed zips under artifacts only and asserts the
