@@ -77,6 +77,7 @@ if(DEFINED WAMR_ROOT_DIR AND EXISTS "${WAMR_ROOT_DIR}/build-scripts/runtime_lib.
     set(WAMR_BUILD_THREAD_MGR 0)
     set(WAMR_BUILD_LIB_PTHREAD 0)
     set(WAMR_BUILD_BULK_MEMORY 1)
+    set(WAMR_DISABLE_HW_BOUND_CHECK 1)
 
     include(${WAMR_ROOT_DIR}/build-scripts/runtime_lib.cmake)
     add_library(koma_wamr_runtime STATIC ${WAMR_RUNTIME_LIB_SOURCE})

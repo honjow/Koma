@@ -166,14 +166,38 @@ private:
     bool initialized_ = false;
 };
 
+class ThreadEnv {
+public:
+    ThreadEnv()
+    {
+        if (!wasm_runtime_init_thread_env()) {
+            throw std::runtime_error("wasm_runtime_init_thread_env failed");
+        }
+        initialized_ = true;
+    }
+
+    ~ThreadEnv()
+    {
+        if (initialized_) {
+            wasm_runtime_destroy_thread_env();
+        }
+    }
+
+    ThreadEnv(const ThreadEnv &) = delete;
+    ThreadEnv &operator=(const ThreadEnv &) = delete;
+
+private:
+    bool initialized_ = false;
+};
+
 class Module {
 public:
-    Module()
+    Module() : wasmBytes_(kSourceRuntimeFixtureWasm, kSourceRuntimeFixtureWasm + kSourceRuntimeFixtureWasmLen)
     {
         char errorBuf[256] = {0};
         module_ = wasm_runtime_load(
-            const_cast<uint8_t *>(kSourceRuntimeFixtureWasm),
-            static_cast<uint32_t>(kSourceRuntimeFixtureWasmLen),
+            wasmBytes_.data(),
+            static_cast<uint32_t>(wasmBytes_.size()),
             errorBuf,
             sizeof(errorBuf));
         if (!module_) {
@@ -321,6 +345,7 @@ private:
     wasm_module_t module_ = nullptr;
     wasm_module_inst_t moduleInst_ = nullptr;
     wasm_exec_env_t execEnv_ = nullptr;
+    std::vector<uint8_t> wasmBytes_;
 };
 
 #endif
@@ -332,6 +357,7 @@ std::string RunBundledWasmJsonCall(const std::string &requestJson)
 #if defined(KOMA_ENABLE_WAMR)
     try {
         Runtime runtime;
+        ThreadEnv threadEnv;
         Module module;
         return module.RunSearch(requestJson);
     } catch (const std::exception &err) {

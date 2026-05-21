@@ -9,6 +9,8 @@ cmake_file="entry/src/main/cpp/CMakeLists.txt"
 adapter_cpp="entry/src/main/cpp/wasm_runtime_adapter.cpp"
 adapter_h="entry/src/main/cpp/wasm_runtime_adapter.h"
 wrapper_file="entry/src/main/ets/sourceRuntime/NativeSourceRuntime.ets"
+smoke_file="entry/src/main/ets/sourceRuntime/SourceRuntimeDeviceSmoke.ets"
+entry_ability_file="entry/src/main/ets/entryability/EntryAbility.ets"
 build_profile="entry/build-profile.json5"
 
 require_file() {
@@ -33,6 +35,8 @@ require_file "$cmake_file"
 require_file "$adapter_cpp"
 require_file "$adapter_h"
 require_file "$wrapper_file"
+require_file "$smoke_file"
+require_file "$entry_ability_file"
 
 require_text "$cpp_file" '#include <napi/native_api.h>'
 require_text "$cpp_file" 'napi_module_register'
@@ -70,10 +74,38 @@ require_text "$wrapper_file" "import nativeRuntime from 'libkoma_source_runtime.
 require_text "$wrapper_file" 'class NativeSourceRuntime'
 require_text "$wrapper_file" 'JSON.parse'
 
-changed_ui_files="$(git diff --name-only -- entry/src/main/ets/pages entry/src/main/ets/components entry/src/main/ets/model entry/src/main/ets/import entry/src/main/ets/remote entry/src/main/ets/entryability entry/src/main/module.json5)"
+require_text "$smoke_file" 'maybeRunSourceRuntimeDeviceSmoke'
+require_text "$smoke_file" 'NativeSourceRuntime.runJsonCall'
+require_text "$smoke_file" '"query":"fixture"'
+require_text "$smoke_file" 'koma-smoke'
+require_text "$smoke_file" 'Fixture Series'
+require_text "$smoke_file" 'KOMA_SOURCE_RUNTIME_SMOKE_RESULT'
+require_text "$smoke_file" 'entryability-want-test-only'
+require_text "$entry_ability_file" 'maybeRunSourceRuntimeDeviceSmoke'
+require_text "$entry_ability_file" 'onCreate'
+require_text "$entry_ability_file" 'onNewWant'
+
+if rg -q 'NativeSourceRuntime\\.(hello|add)' "$smoke_file"; then
+  echo "device smoke route must prove runJsonCall, not hello/add sample methods" >&2
+  exit 1
+fi
+
+if rg -q 'napi-sample|Koma native source runtime sample' "$smoke_file"; then
+  echo "device smoke route still references old hardcoded napi sample proof" >&2
+  exit 1
+fi
+
+changed_ui_files="$(git diff --name-only -- entry/src/main/ets/pages entry/src/main/ets/components entry/src/main/ets/model entry/src/main/ets/import entry/src/main/ets/remote entry/src/main/module.json5)"
 if [[ -n "$changed_ui_files" ]]; then
   echo "unexpected product/UI changes:" >&2
   echo "$changed_ui_files" >&2
+  exit 1
+fi
+
+unexpected_entryability_changes="$(git diff --name-only -- entry/src/main/ets/entryability | rg -v '^entry/src/main/ets/entryability/EntryAbility\.ets$' || true)"
+if [[ -n "$unexpected_entryability_changes" ]]; then
+  echo "unexpected entryability changes:" >&2
+  echo "$unexpected_entryability_changes" >&2
   exit 1
 fi
 
