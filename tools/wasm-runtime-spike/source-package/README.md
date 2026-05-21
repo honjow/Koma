@@ -19,6 +19,9 @@ plan, see `HARMONYOS_INTERNAL_DEV_INGESTION_PLAN.md`.
 For the design-only future local source package trust/provenance boundary, see
 `SOURCE_PACKAGE_TRUST_BOUNDARY.md`.
 
+For the stricter design/tooling-only trust, provenance, and signature boundary
+validated by local JSON fixtures, see `TRUST_PROVENANCE_BOUNDARY.md`.
+
 For the design/tooling-only future source settings, auth, and secret reference
 schema boundary, see `SOURCE_SETTINGS_AUTH_BOUNDARY.md`.
 
@@ -105,6 +108,27 @@ includes the built wasm sha256/size, generated manifest path, validator report
 path, and gate results for `packageId`, `hostAbi=koma-host-v0.1`,
 `network=false`, exact `koma_host.log`/`koma_host.check_cancel` imports, wasm
 hash/size, and disabled public index/marketplace/built-in/remote-install flags.
+
+## Trust/Provenance Boundary
+
+`trust-provenance-boundary.example.json` defines a design/tooling-only trust,
+provenance, and signature policy example for future local source packages. It
+does not implement signing, key generation, trust stores, cryptographic
+verification, product UI, product runtime loading, remote install, source
+markets, built-in sources, or network.
+
+```sh
+python3 tools/wasm-runtime-spike/source-package/validate-trust-provenance-boundary.py \
+  --fixture-dir tools/wasm-runtime-spike/source-package/trust-provenance-fixtures \
+  --artifact-dir /path/to/artifacts/trust-provenance-boundary
+```
+
+The validator writes `trust-provenance-boundary-report.json` under the artifact
+directory. It loads local JSON only, performs no network I/O, executes no WASM,
+and rejects unsigned release acceptance, missing or misordered trust checks,
+market/remote/built-in source drift, silent downgrade or duplicate overwrite,
+raw key/signature/path/secret/cookie logging, `network=true`, HTTP import drift,
+non-fail-closed policy, and product runtime/UI claims.
 
 ## Local Archive Boundary
 

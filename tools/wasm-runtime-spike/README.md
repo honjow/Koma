@@ -34,6 +34,14 @@ validation, preserve `network=false` and closed imports, and reject source
 market, remote install, built-in source, direct picker execution, raw diagnostic
 leaks, and product-runtime drift.
 
+The local source package trust, provenance, and signature boundary is
+design/tooling-only and documented in
+`source-package/TRUST_PROVENANCE_BOUNDARY.md`. Its fixtures keep signing,
+trust-store, crypto verification, product UI/runtime, source market, remote
+install, built-in sources, and network out of scope while statically rejecting
+trust-order drift, unsigned release acceptance, downgrade/duplicate overwrite
+drift, logging leaks, `network=true`, and HTTP import drift.
+
 The spike validates this path on Linux:
 
 ```text
