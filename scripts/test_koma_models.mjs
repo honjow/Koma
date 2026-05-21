@@ -12,6 +12,7 @@ const libraryRepositoryPath = resolve(root, 'entry/src/main/ets/model/LibraryRep
 const libraryPersistencePath = resolve(root, 'entry/src/main/ets/model/LibraryPersistence.ets')
 const indexPath = resolve(root, 'entry/src/main/ets/pages/Index.ets')
 const libraryPagePath = resolve(root, 'entry/src/main/ets/pages/LibraryPage.ets')
+const comicCoverCardPath = resolve(root, 'entry/src/main/ets/components/ComicCoverCard.ets')
 
 const modelSource = readFileSync(modelPath, 'utf8')
 const libraryStoreSource = readFileSync(libraryStorePath, 'utf8')
@@ -22,6 +23,7 @@ const libraryRepositorySource = readFileSync(libraryRepositoryPath, 'utf8')
 const libraryPersistenceSource = readFileSync(libraryPersistencePath, 'utf8')
 const indexSource = readFileSync(indexPath, 'utf8')
 const libraryPageSource = readFileSync(libraryPagePath, 'utf8')
+const comicCoverCardSource = readFileSync(comicCoverCardPath, 'utf8')
 
 function assertExport(source, symbol) {
   assert.match(source, new RegExp(`export (interface|class|function|enum|type|const) ${symbol}\\b`), `${symbol} must be exported`)
@@ -151,13 +153,68 @@ assert.match(
 )
 assert.match(
   indexSource,
-  /@State private libraryComics: Comic\[\][\s\S]*private refreshLibrarySnapshot\(\): void \{[\s\S]*this\.libraryComics = this\.libraryStore\.listComics\(\)[\s\S]*this\.libraryRevision \+= 1[\s\S]*removeComicAndPersistLibraryStore[\s\S]*this\.refreshLibrarySnapshot\(\)/,
+  /@State private libraryComics: Comic\[\][\s\S]*private refreshLibrarySnapshot\(\): void \{[\s\S]*this\.libraryComics = this\.libraryStore\.listComics\(\)[\s\S]*this\.libraryRevision \+= 1[\s\S]*private handleRemoveComicRequested\(comicId: ComicId\): boolean[\s\S]*removeComicAndPersistLibraryStore[\s\S]*this\.refreshLibrarySnapshot\(\)[\s\S]*return true/,
   'confirmed remove must publish a fresh comic array snapshot after successful persistence so the live shelf re-renders',
 )
 assert.match(
+  indexSource,
+  /onRemoveComicRequested:\s*\(comicId: ComicId\) => \{[\s\S]*return this\.handleRemoveComicRequested\(comicId\)/,
+  'Index remove callback must return whether deletion actually succeeded so LibraryPage can avoid stale local refresh on no-op paths',
+)
+assert.match(
+  indexSource,
+  /\[library-remove\] requested found=\$\{requestedComic !== undefined\} removable=\$\{removable\}[\s\S]*\[library-remove\] result removed=false persistence=unavailable[\s\S]*\[library-remove\] result removed=true persistence=unavailable[\s\S]*\[library-remove\] result removed=true persistence=available[\s\S]*\[library-remove\] result removed=false persistence=available/,
+  'remove diagnostics must use redacted status-only request/result fields',
+)
+assert.doesNotMatch(
+  indexSource,
+  /\[library-remove\][^\n]*(title=|sourcePath|source path|id=\$\{comicId\}|\/)/,
+  'remove diagnostics must not log comic titles, source paths, filesystem paths, or raw comic IDs',
+)
+assert.match(
   libraryPageSource,
-  /libraryComics: Comic\[\][\s\S]*createLibraryViewModelFromComics\(this\.libraryComics[\s\S]*this\.libraryComics\.length > 0/,
-  'LibraryPage must render from the revisioned comic snapshot instead of only reading through the mutable store',
+  /@Prop @Watch\('syncDisplayedSnapshotFromProps'\) libraryComics: Comic\[\][\s\S]*@Prop @Watch\('syncDisplayedSnapshotFromProps'\) libraryRevision: number[\s\S]*@State private displayedComics: Comic\[\][\s\S]*@State private displayedRevision: number/,
+  'LibraryPage must own a reactive displayed snapshot that can update while the mounted shelf stays alive',
+)
+assert.match(
+  libraryPageSource,
+  /private syncDisplayedSnapshotFromProps\(\): void \{[\s\S]*this\.displayedComics = this\.libraryComics[\s\S]*this\.displayedRevision = this\.libraryRevision[\s\S]*private refreshDisplayedSnapshotFromStore\(\): void \{[\s\S]*this\.displayedComics = this\.libraryStore\.listComics\(\)[\s\S]*this\.displayedRevision \+= 1/,
+  'LibraryPage must sync parent snapshots for restore/import and locally refresh from the store after confirmed remove',
+)
+assert.match(
+  libraryPageSource,
+  /createLibraryViewModelFromComics\(this\.displayedComics[\s\S]*this\.displayedComics\.length > 0[\s\S]*`\$\{this\.displayedRevision\}:\$\{comic\.id\}`/,
+  'LibraryPage Continue Reading, counts, and grid identity must derive from the local displayed snapshot',
+)
+assert.match(
+  comicCoverCardSource,
+  /export struct ComicCoverCard \{[\s\S]*@Prop comic: ComicCoverInfo[\s\S]*@Prop title: string[\s\S]*@Prop subtitle: string[\s\S]*@Prop progressText: string[\s\S]*Text\(this\.displayTitle\(\)\)[\s\S]*Text\(this\.displaySubtitle\(\)\)/,
+  'ComicCoverCard must receive primitive reactive props for grid cells so reused card instances update after remove/reorder',
+)
+assert.match(
+  libraryPageSource,
+  /struct ContinueReadingShelfCard \{[\s\S]*@Prop info: ContinueReadingCardViewModel[\s\S]*@Prop revision: number[\s\S]*Text\(this\.info\.title\)[\s\S]*onOpenReader\(this\.info\.comicId\)/,
+  'Continue Reading must render through reactive props so the live title changes when the first/latest comic is removed',
+)
+assert.match(
+  libraryPageSource,
+  /private comicRenderKey\(comic: ComicCoverInfo\): string \{[\s\S]*`\$\{this\.displayedRevision\}:\$\{comic\.id\}`[\s\S]*ForEach\(comics[\s\S]*this\.comicRenderKey\(comic\)/,
+  'grid item identity must include the explicit library revision to avoid stale ArkUI child reuse after shrink/reorder',
+)
+assert.match(
+  libraryPageSource,
+  /private gridComics\(\): ComicCoverInfo\[\] \{[\s\S]*this\.viewModel\(\)\.comics\.map[\s\S]*return \{[\s\S]*id: comic\.id[\s\S]*title: comic\.title[\s\S]*subtitle: comic\.subtitle[\s\S]*progressText: comic\.progressText/,
+  'grid source must rebuild fresh primitive card rows from the displayed snapshot before rendering',
+)
+assert.match(
+  libraryPageSource,
+  /private LibraryGridEven\(comics: ComicCoverInfo\[\]\)[\s\S]*this\.LibraryGrid\(comics\)[\s\S]*private LibraryGridOdd\(comics: ComicCoverInfo\[\]\)[\s\S]*this\.LibraryGrid\(comics\)[\s\S]*if \(this\.isEvenDisplayedRevision\(\)\) \{[\s\S]*this\.LibraryGridEven\(this\.gridComics\(\)\)[\s\S]*\} else \{[\s\S]*this\.LibraryGridOdd\(this\.gridComics\(\)\)/,
+  'library grid must cross a real conditional remount boundary when displayedRevision changes',
+)
+assert.match(
+  libraryPageSource,
+  /showRemoveConfirmation[\s\S]*primaryButton:\s*\{[\s\S]*value:\s*'移出'[\s\S]*if \(this\.onRemoveComicRequested\(comic\.id\)\) \{[\s\S]*this\.refreshDisplayedSnapshotFromStore\(\)[\s\S]*secondaryButton:\s*\{[\s\S]*value:\s*'取消'/,
+  'destructive remove confirmation must refresh the mounted displayed snapshot only after the primary remove callback succeeds while cancel remains secondary',
 )
 
 const comic = {

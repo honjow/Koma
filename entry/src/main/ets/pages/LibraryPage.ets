@@ -13,26 +13,120 @@ import { isRemovableLocalComic } from '../model/LibraryPersistence'
 import { InMemoryReaderSessionStore, ReaderSessionStore } from '../model/ReaderSessionStore'
 
 @Component
+struct ContinueReadingShelfCard {
+  @Prop info: ContinueReadingCardViewModel = {
+    title: '',
+    detail: '',
+    progress: 0,
+    color: '#16745F',
+    comicId: '',
+  }
+  @Prop revision: number = 0
+  onOpenReader: (comicId: ComicId) => void = (_comicId: ComicId) => {}
+
+  build() {
+    Row({ space: 14 }) {
+      Stack({ alignContent: Alignment.Center }) {
+        Text('K')
+          .fontSize(30)
+          .fontWeight(FontWeight.Bold)
+          .fontColor(Color.White)
+      }
+      .width(76)
+      .height(102)
+      .borderRadius(18)
+      .backgroundColor(this.info.color)
+
+      Column({ space: 8 }) {
+        Text('继续阅读')
+          .fontSize(13)
+          .fontWeight(FontWeight.Medium)
+          .fontColor($r('app.color.koma_accent'))
+        Text(this.info.title)
+          .fontSize(22)
+          .fontWeight(FontWeight.Bold)
+          .fontColor($r('app.color.koma_text_primary'))
+          .maxLines(1)
+          .textOverflow({ overflow: TextOverflow.Ellipsis })
+        Text(this.info.detail)
+          .fontSize(14)
+          .fontColor($r('app.color.koma_text_secondary'))
+          .maxLines(1)
+          .textOverflow({ overflow: TextOverflow.Ellipsis })
+        Progress({ value: this.info.progress, total: 100, type: ProgressType.Linear })
+          .height(4)
+          .color($r('app.color.koma_accent'))
+          .backgroundColor('#1FE66A3A')
+      }
+      .layoutWeight(1)
+      .alignItems(HorizontalAlign.Start)
+    }
+    .width('100%')
+    .padding(16)
+    .borderRadius(8)
+    .backgroundColor($r('app.color.koma_card'))
+    .onClick(() => {
+      this.onOpenReader(this.info.comicId)
+    })
+  }
+}
+
+@Component
 export struct LibraryPage {
   libraryStore: LibraryStore = createSeededLibraryStore()
-  libraryComics: Comic[] = createSeededLibraryStore().listComics()
-  libraryRevision: number = 0
+  @Prop @Watch('syncDisplayedSnapshotFromProps') libraryComics: Comic[] = createSeededLibraryStore().listComics()
+  @Prop @Watch('syncDisplayedSnapshotFromProps') libraryRevision: number = 0
+  @State private displayedComics: Comic[] = createSeededLibraryStore().listComics()
+  @State private displayedRevision: number = 0
   presentationByComicId: LibraryPresentationByComicId = createMockLibraryPresentationMap()
   sessionStore: ReaderSessionStore = new InMemoryReaderSessionStore()
   onOpenReader: (comicId: ComicId) => void = (_comicId: ComicId) => {}
   onImportRequested: () => void = () => {}
-  onRemoveComicRequested: (comicId: ComicId) => void = (_comicId: ComicId) => {}
+  onRemoveComicRequested: (comicId: ComicId) => boolean = (_comicId: ComicId) => false
+
+  private syncDisplayedSnapshotFromProps(): void {
+    this.displayedComics = this.libraryComics
+    this.displayedRevision = this.libraryRevision
+  }
+
+  private refreshDisplayedSnapshotFromStore(): void {
+    this.displayedComics = this.libraryStore.listComics()
+    this.displayedRevision += 1
+  }
 
   private viewModel(): LibraryViewModel {
-    return createLibraryViewModelFromComics(this.libraryComics, this.sessionStore, this.presentationByComicId)
+    return createLibraryViewModelFromComics(this.displayedComics, this.sessionStore, this.presentationByComicId)
+  }
+
+  private gridComics(): ComicCoverInfo[] {
+    return this.viewModel().comics.map((comic: ComicCoverInfo): ComicCoverInfo => {
+      return {
+        id: comic.id,
+        title: comic.title,
+        subtitle: comic.subtitle,
+        progressText: comic.progressText,
+        coverColor: comic.coverColor,
+        accentColor: comic.accentColor,
+        pageCount: comic.pageCount,
+        coverUri: comic.coverUri,
+      }
+    })
   }
 
   private hasLibraryContent(): boolean {
-    return this.libraryRevision >= 0 && this.libraryComics.length > 0
+    return this.displayedRevision >= 0 && this.displayedComics.length > 0
   }
 
   private canRemoveComic(comicId: ComicId): boolean {
-    return this.libraryRevision >= 0 && isRemovableLocalComic(this.libraryStore.getComic(comicId))
+    return this.displayedRevision >= 0 && isRemovableLocalComic(this.libraryStore.getComic(comicId))
+  }
+
+  private comicRenderKey(comic: ComicCoverInfo): string {
+    return `${this.displayedRevision}:${comic.id}`
+  }
+
+  private isEvenDisplayedRevision(): boolean {
+    return this.displayedRevision % 2 === 0
   }
 
   private showRemoveConfirmation(comic: ComicCoverInfo): void {
@@ -44,15 +138,17 @@ export struct LibraryPage {
       message: `从书架中移出《${comic.title}》？`,
       autoCancel: true,
       primaryButton: {
-        value: '取消',
-        action: () => {},
-      },
-      secondaryButton: {
         value: '移出',
         fontColor: $r('app.color.koma_danger'),
         action: () => {
-          this.onRemoveComicRequested(comic.id)
+          if (this.onRemoveComicRequested(comic.id)) {
+            this.refreshDisplayedSnapshotFromStore()
+          }
         },
+      },
+      secondaryButton: {
+        value: '取消',
+        action: () => {},
       },
     })
   }
@@ -68,53 +164,6 @@ export struct LibraryPage {
           })
       }
     }
-  }
-
-  @Builder
-  private ContinueReadingCard(info: ContinueReadingCardViewModel) {
-    Row({ space: 14 }) {
-      Stack({ alignContent: Alignment.Center }) {
-        Text('K')
-          .fontSize(30)
-          .fontWeight(FontWeight.Bold)
-          .fontColor(Color.White)
-      }
-      .width(76)
-      .height(102)
-      .borderRadius(18)
-      .backgroundColor(info.color)
-
-      Column({ space: 8 }) {
-        Text('继续阅读')
-          .fontSize(13)
-          .fontWeight(FontWeight.Medium)
-          .fontColor($r('app.color.koma_accent'))
-        Text(info.title)
-          .fontSize(22)
-          .fontWeight(FontWeight.Bold)
-          .fontColor($r('app.color.koma_text_primary'))
-          .maxLines(1)
-          .textOverflow({ overflow: TextOverflow.Ellipsis })
-        Text(info.detail)
-          .fontSize(14)
-          .fontColor($r('app.color.koma_text_secondary'))
-          .maxLines(1)
-          .textOverflow({ overflow: TextOverflow.Ellipsis })
-        Progress({ value: info.progress, total: 100, type: ProgressType.Linear })
-          .height(4)
-          .color($r('app.color.koma_accent'))
-          .backgroundColor('#1FE66A3A')
-      }
-      .layoutWeight(1)
-      .alignItems(HorizontalAlign.Start)
-    }
-    .width('100%')
-    .padding(16)
-    .borderRadius(8)
-    .backgroundColor($r('app.color.koma_card'))
-    .onClick(() => {
-      this.onOpenReader(info.comicId)
-    })
   }
 
   @Builder
@@ -153,7 +202,14 @@ export struct LibraryPage {
         GridItem() {
           Stack({ alignContent: Alignment.TopEnd }) {
             if (this.canRemoveComic(comic.id)) {
-              ComicCoverCard({ comic: comic })
+              ComicCoverCard({
+                comic: comic,
+                title: comic.title,
+                subtitle: comic.subtitle,
+                progressText: comic.progressText,
+                coverColor: comic.coverColor,
+                accentColor: comic.accentColor,
+              })
                 .onClick(() => {
                   this.onOpenReader(comic.id)
                 })
@@ -169,7 +225,14 @@ export struct LibraryPage {
                 .margin({ top: 8, right: 8 })
                 .bindMenu(this.ComicActionMenu(comic))
             } else {
-              ComicCoverCard({ comic: comic })
+              ComicCoverCard({
+                comic: comic,
+                title: comic.title,
+                subtitle: comic.subtitle,
+                progressText: comic.progressText,
+                coverColor: comic.coverColor,
+                accentColor: comic.accentColor,
+              })
                 .onClick(() => {
                   this.onOpenReader(comic.id)
                 })
@@ -177,13 +240,27 @@ export struct LibraryPage {
           }
           .width('100%')
         }
-      }, (comic: ComicCoverInfo) => comic.id)
+      }, (comic: ComicCoverInfo) => this.comicRenderKey(comic))
     }
     .width('100%')
     .columnsTemplate('1fr 1fr 1fr')
     .columnsGap(14)
     .rowsGap(22)
     .layoutWeight(1)
+  }
+
+  @Builder
+  private LibraryGridEven(comics: ComicCoverInfo[]) {
+    this.LibraryGrid(comics)
+  }
+
+  @Builder
+  private LibraryGridOdd(comics: ComicCoverInfo[]) {
+    this.LibraryGrid(comics)
+  }
+
+  aboutToAppear(): void {
+    this.syncDisplayedSnapshotFromProps()
   }
 
   build() {
@@ -218,7 +295,13 @@ export struct LibraryPage {
         .alignItems(VerticalAlign.Center)
 
         if (this.hasLibraryContent()) {
-          this.ContinueReadingCard(this.viewModel().continueReading)
+          ContinueReadingShelfCard({
+            info: this.viewModel().continueReading,
+            revision: this.displayedRevision,
+            onOpenReader: (comicId: ComicId) => {
+              this.onOpenReader(comicId)
+            },
+          })
 
           Row() {
             Text('最近加入')
@@ -232,7 +315,11 @@ export struct LibraryPage {
           }
           .width('100%')
 
-          this.LibraryGrid(this.viewModel().comics)
+          if (this.isEvenDisplayedRevision()) {
+            this.LibraryGridEven(this.gridComics())
+          } else {
+            this.LibraryGridOdd(this.gridComics())
+          }
         } else {
           this.EmptyLibrary()
         }

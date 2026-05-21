@@ -11,7 +11,7 @@ export interface ComicCoverInfo {
 
 @Component
 export struct ComicCoverCard {
-  comic: ComicCoverInfo = {
+  @Prop comic: ComicCoverInfo = {
     id: '',
     title: '',
     subtitle: '',
@@ -19,12 +19,37 @@ export struct ComicCoverCard {
     coverColor: '#FFFFFF',
     accentColor: '#E66A3A'
   }
+  @Prop title: string = ''
+  @Prop subtitle: string = ''
+  @Prop progressText: string = ''
+  @Prop coverColor: string = ''
+  @Prop accentColor: string = ''
+
+  private displayTitle(): string {
+    return this.title.length > 0 ? this.title : this.comic.title
+  }
+
+  private displaySubtitle(): string {
+    return this.subtitle.length > 0 ? this.subtitle : this.comic.subtitle
+  }
+
+  private displayProgressText(): string {
+    return this.progressText.length > 0 ? this.progressText : this.comic.progressText
+  }
+
+  private displayCoverColor(): string {
+    return this.coverColor.length > 0 ? this.coverColor : this.comic.coverColor
+  }
+
+  private displayAccentColor(): string {
+    return this.accentColor.length > 0 ? this.accentColor : this.comic.accentColor
+  }
 
   build() {
     Column({ space: 8 }) {
       Stack({ alignContent: Alignment.BottomStart }) {
         Column() {
-          Text(this.comic.title)
+          Text(this.displayTitle())
             .fontSize(17)
             .fontWeight(FontWeight.Bold)
             .fontColor(Color.White)
@@ -41,10 +66,10 @@ export struct ComicCoverCard {
         .width('100%')
         .height('100%')
         .padding(14)
-        .backgroundColor(this.comic.coverColor)
+        .backgroundColor(this.displayCoverColor())
 
         Row() {
-          Text(this.comic.progressText)
+          Text(this.displayProgressText())
             .fontSize(11)
             .fontWeight(FontWeight.Medium)
             .fontColor(Color.White)
@@ -54,7 +79,7 @@ export struct ComicCoverCard {
         .padding({ left: 10, right: 10 })
         .margin({ left: 10, bottom: 10 })
         .borderRadius(13)
-        .backgroundColor(this.comic.accentColor)
+        .backgroundColor(this.displayAccentColor())
       }
       .width('100%')
       .aspectRatio(0.68)
@@ -62,7 +87,7 @@ export struct ComicCoverCard {
       .clip(true)
       .shadow({ radius: 14, color: '#1A000000', offsetY: 7 })
 
-      Text(this.comic.title)
+      Text(this.displayTitle())
         .width('100%')
         .fontSize(14)
         .fontWeight(FontWeight.Medium)
@@ -71,7 +96,7 @@ export struct ComicCoverCard {
         .lineHeight(18)
         .textOverflow({ overflow: TextOverflow.Ellipsis })
 
-      Text(this.comic.subtitle)
+      Text(this.displaySubtitle())
         .width('100%')
         .fontSize(12)
         .fontColor($r('app.color.koma_text_secondary'))

@@ -94,20 +94,31 @@ struct Index {
     this.selectedTab = 0
   }
 
-  private handleRemoveComicRequested(comicId: ComicId): void {
+  private handleRemoveComicRequested(comicId: ComicId): boolean {
+    const requestedComic = this.libraryStore.getComic(comicId)
+    const removable = isRemovableLocalComic(requestedComic)
+    console.info(
+      `[library-remove] requested found=${requestedComic !== undefined} removable=${removable}`
+    )
     const persistenceService = this.ensureLibraryPersistenceService()
     if (persistenceService === undefined) {
-      const comic = this.libraryStore.getComic(comicId)
-      if (!isRemovableLocalComic(comic)) {
-        return
+      if (!removable) {
+        console.info('[library-remove] result removed=false persistence=unavailable')
+        return false
       }
       this.libraryStore.removeComic(comicId)
       this.refreshLibrarySnapshot()
-      return
+      console.info('[library-remove] result removed=true persistence=unavailable')
+      return true
     }
     try {
       if (removeComicAndPersistLibraryStore(this.libraryStore, persistenceService, comicId)) {
         this.refreshLibrarySnapshot()
+        console.info('[library-remove] result removed=true persistence=available')
+        return true
+      } else {
+        console.info('[library-remove] result removed=false persistence=available')
+        return false
       }
     } catch (error) {
       const e = error as Error
@@ -211,7 +222,7 @@ struct Index {
                 this.selectedTab = 1
               },
               onRemoveComicRequested: (comicId: ComicId) => {
-                this.handleRemoveComicRequested(comicId)
+                return this.handleRemoveComicRequested(comicId)
               }
             })
           } else if (this.selectedTab === 1) {
