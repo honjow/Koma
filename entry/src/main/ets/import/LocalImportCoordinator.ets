@@ -1,5 +1,5 @@
 import { common } from '@kit.AbilityKit'
-import { fileIo as fs, picker } from '@kit.CoreFileKit'
+import { fileIo as fs, ListFileOptions, picker } from '@kit.CoreFileKit'
 import {
   ArchiveExtractionResult,
   ArchiveExtractionService,
@@ -57,6 +57,103 @@ function closeFileQuietly(file: fs.File | undefined): void {
     fs.closeSync(file)
   } catch (_err) {
   }
+}
+
+function normalizeImportCachePath(value: string): string {
+  let normalized = value.replace(/\\/g, '/').trim()
+  while (normalized.length > 1 && normalized.endsWith('/')) {
+    normalized = normalized.substring(0, normalized.length - 1)
+  }
+  return normalized
+}
+
+function joinImportCachePath(parent: string, child: string): string {
+  const left = normalizeImportCachePath(parent)
+  const right = normalizeImportCachePath(child).replace(/^\/+/, '').replace(/\/+$/, '')
+  if (left === '/') {
+    return right.length === 0 ? left : `/${right}`
+  }
+  return right.length === 0 ? left : `${left}/${right}`
+}
+
+function hasUnsafeImportCachePathSegment(path: string): boolean {
+  const normalized = normalizeImportCachePath(path)
+  if (normalized === '/') {
+    return false
+  }
+  return normalized.split('/').some((segment, index) => {
+    if (segment === '.' || segment === '..') {
+      return true
+    }
+    return segment.length === 0 && index > 0
+  })
+}
+
+function normalizeListedImportCacheEntry(path: string): string {
+  return path.replace(/\\/g, '/').replace(/^\/+/, '').replace(/\/+$/, '')
+}
+
+function compareDeepestPathFirst(left: string, right: string): number {
+  const leftDepth = left.split('/').length
+  const rightDepth = right.split('/').length
+  if (leftDepth !== rightDepth) {
+    return rightDepth - leftDepth
+  }
+  return right.localeCompare(left)
+}
+
+async function pathExists(path: string): Promise<boolean> {
+  try {
+    return await fs.access(path)
+  } catch (_err) {
+    return false
+  }
+}
+
+export function assertSafeComputedArchiveImportCacheRoot(cacheDir: string, cacheRootDir: string): void {
+  const normalizedCacheDir = normalizeImportCachePath(cacheDir)
+  const normalizedRootDir = normalizeImportCachePath(cacheRootDir)
+  const importParentDir = joinImportCachePath(normalizedCacheDir, 'import')
+  if (
+    hasUnsafeImportCachePathSegment(normalizedCacheDir) ||
+    hasUnsafeImportCachePathSegment(normalizedRootDir) ||
+    normalizedRootDir === importParentDir ||
+    !normalizedRootDir.startsWith(`${importParentDir}/`)
+  ) {
+    throw new Error(`Refusing to delete outside computed archive import cache root: ${cacheRootDir}`)
+  }
+}
+
+async function removeComputedArchiveImportCacheRoot(cacheDir: string, cacheRootDir: string): Promise<void> {
+  assertSafeComputedArchiveImportCacheRoot(cacheDir, cacheRootDir)
+  if (!(await pathExists(cacheRootDir))) {
+    return
+  }
+
+  const listFileOptions: ListFileOptions = {
+    recursion: true,
+    listNum: 0,
+  }
+  const listedEntries = await fs.listFile(cacheRootDir, listFileOptions)
+  const relativeEntries = listedEntries
+    .map(normalizeListedImportCacheEntry)
+    .filter((entry) => entry.length > 0)
+    .sort(compareDeepestPathFirst)
+
+  for (const relativeEntry of relativeEntries) {
+    if (hasUnsafeImportCachePathSegment(relativeEntry)) {
+      throw new Error(`Refusing to delete unsafe archive import cache entry: ${relativeEntry}`)
+    }
+    const entryPath = joinImportCachePath(cacheRootDir, relativeEntry)
+    const stat = await fs.stat(entryPath)
+    if (stat.isDirectory()) {
+      await fs.rmdir(entryPath)
+    } else {
+      await fs.unlink(entryPath)
+    }
+  }
+
+  await fs.rmdir(cacheRootDir)
 }
 
 export function createArchiveDocumentSelectOptions(maxSelectNumber: number = 100): picker.DocumentSelectOptions {
@@ -117,6 +214,7 @@ export class LocalImportCoordinator {
       cacheRootDir: paths.rootDir,
       extractionDir: paths.extractionDir,
     })
+    await removeComputedArchiveImportCacheRoot(request.context.cacheDir, paths.rootDir)
     await fs.mkdir(paths.rootDir, true)
     this.reportDebugEvent({
       step: LOCAL_ARCHIVE_DEBUG_STEP_COPY_STARTED,

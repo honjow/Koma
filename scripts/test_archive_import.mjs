@@ -73,6 +73,46 @@ function createArchiveExtractionCachePaths(cacheDir, archivePath, cacheKeySeed) 
   }
 }
 
+function normalizeImportCachePath(value) {
+  let normalized = value.replace(/\\/g, '/').trim()
+  while (normalized.length > 1 && normalized.endsWith('/')) {
+    normalized = normalized.substring(0, normalized.length - 1)
+  }
+  return normalized
+}
+
+function hasUnsafeImportCachePathSegment(path) {
+  const normalized = normalizeImportCachePath(path)
+  if (normalized === '/') {
+    return false
+  }
+  return normalized.split('/').some((segment, index) => {
+    if (segment === '.' || segment === '..') {
+      return true
+    }
+    return segment.length === 0 && index > 0
+  })
+}
+
+function isSafeComputedArchiveImportCacheRoot(cacheDir, cacheRootDir) {
+  const normalizedCacheDir = normalizeImportCachePath(cacheDir)
+  const normalizedRootDir = normalizeImportCachePath(cacheRootDir)
+  const importParentDir = normalizedCacheDir === '/' ? '/import' : `${normalizedCacheDir}/import`
+  return !hasUnsafeImportCachePathSegment(normalizedCacheDir) &&
+    !hasUnsafeImportCachePathSegment(normalizedRootDir) &&
+    normalizedRootDir !== importParentDir &&
+    normalizedRootDir.startsWith(`${importParentDir}/`)
+}
+
+function normalizeListedImportCacheEntry(path) {
+  return path.replace(/\\/g, '/').replace(/^\/+/, '').replace(/\/+$/, '')
+}
+
+function isSafeListedImportCacheEntry(path) {
+  const relativeEntry = normalizeListedImportCacheEntry(path)
+  return relativeEntry.length > 0 && !hasUnsafeImportCachePathSegment(relativeEntry)
+}
+
 function sanitizeLocalArchiveDebugValue(value) {
   if (value === undefined) return ''
   const redacted = value
@@ -248,6 +288,7 @@ assertExport(localImportCoordinatorSource, 'LocalImportCoordinator')
 assertExport(localImportCoordinatorSource, 'createArchiveDocumentSelectOptions')
 assertExport(localImportCoordinatorSource, 'pickArchiveUris')
 assertExport(localImportCoordinatorSource, 'copyPickedArchiveUriToSandbox')
+assertExport(localImportCoordinatorSource, 'assertSafeComputedArchiveImportCacheRoot')
 assertExport(localImportDebugSource, 'LocalArchiveImportDebugEvent')
 assertExport(localImportDebugSource, 'LocalArchiveImportDebugSnapshot')
 assertExport(localImportDebugSource, 'sanitizeLocalArchiveDebugValue')
@@ -268,6 +309,8 @@ assert.match(localImportCoordinatorSource, /fs\.open\(sourceUri, fs\.OpenMode\.R
 assert.match(localImportCoordinatorSource, /fs\.open\(sandboxZipPath, fs\.OpenMode\.WRITE_ONLY \| fs\.OpenMode\.CREATE \| fs\.OpenMode\.TRUNC\)/, 'sandbox archive.zip must be opened for overwrite')
 assert.match(localImportCoordinatorSource, /fs\.copyFile\(sourceFile\.fd, targetFile\.fd, 0\)/, 'copy must bridge URI to sandbox with file descriptors')
 assert.match(localImportCoordinatorSource, /createArchiveExtractionCachePaths\(request\.context\.cacheDir, request\.sourceUri, request\.sourceUri\)/, 'local import must create archive.zip under app cache')
+assert.match(localImportCoordinatorSource, /removeComputedArchiveImportCacheRoot\(request\.context\.cacheDir, paths\.rootDir\)[\s\S]*await fs\.mkdir\(paths\.rootDir, true\)[\s\S]*LOCAL_ARCHIVE_DEBUG_STEP_COPY_STARTED/, 'repeat import must clear the computed cache root before copying')
+assert.match(localImportCoordinatorSource, /assertSafeComputedArchiveImportCacheRoot\(cacheDir, cacheRootDir\)[\s\S]*fs\.listFile\(cacheRootDir, listFileOptions\)[\s\S]*fs\.unlink\(entryPath\)[\s\S]*fs\.rmdir\(cacheRootDir\)/, 'cache cleanup must recursively remove files and root directory after safety validation')
 assert.match(importPageSource, /onArchiveImportSucceeded:\s*\(comic:\s*Comic\)\s*=>\s*void/, 'ImportPage must expose a successful archive import callback')
 assert.match(importPageSource, /const results = await this\.localImportCoordinator\.pickAndImportArchives\(context\)[\s\S]*results\.forEach\(\(result\) => \{[\s\S]*this\.onArchiveImportSucceeded\(result\.extractionResult\.importResult\.comic\)/, 'ImportPage must call the callback from real coordinator results')
 assert.match(indexPageSource, /private handleArchiveImportSucceeded\(comic:\s*Comic\):\s*void \{[\s\S]*this\.libraryStore\.upsertComic\(comic\)[\s\S]*this\.libraryRevision \+= 1[\s\S]*this\.selectedTab = 0[\s\S]*\}/, 'Index must upsert imported comics, bump a refresh signal, and return to the shelf')
@@ -296,6 +339,22 @@ assert.match(firstCachePaths.rootDir, /\/cache\/import\/my-volume-[a-f0-9]{8}$/)
 assert.match(seededCachePaths.rootDir, /\/cache\/import\/my-volume-[a-f0-9]{8}$/)
 assert.equal(seededCachePaths.rootDir, createArchiveExtractionCachePaths('/cache', '/library/b/My Volume.cbz', 'comic-123').rootDir)
 assert.notEqual(seededCachePaths.rootDir, secondCachePaths.rootDir, 'caller seed must influence cache root when supplied')
+assert.ok(isSafeComputedArchiveImportCacheRoot('/cache', seededCachePaths.rootDir), 'computed cache root must be safe to clean for repeat import')
+assert.ok(isSafeComputedArchiveImportCacheRoot('/cache/', '/cache/import/my-volume-12345678/'), 'trailing slashes must not affect cache cleanup safety')
+assert.ok(isSafeComputedArchiveImportCacheRoot('/cache', '/cache/import/leaf'), 'valid computed cache leaf must be safe to clean')
+assert.equal(isSafeComputedArchiveImportCacheRoot('/cache', '/cache/import'), false, 'cleanup must not delete the import parent')
+assert.equal(isSafeComputedArchiveImportCacheRoot('/cache', '/cache/import/../other'), false, 'cleanup must reject traversal')
+assert.equal(isSafeComputedArchiveImportCacheRoot('/cache', '/cache/import/.'), false, 'cleanup must reject import parent current-directory aliases')
+assert.equal(isSafeComputedArchiveImportCacheRoot('/cache', '/cache/import/./leaf'), false, 'cleanup must reject nested current-directory aliases')
+assert.equal(isSafeComputedArchiveImportCacheRoot('/cache', '/cache/import/leaf/.'), false, 'cleanup must reject computed leaf current-directory aliases')
+assert.equal(isSafeComputedArchiveImportCacheRoot('/cache', '/cache//import/leaf'), false, 'cleanup must reject duplicate slash aliases')
+assert.equal(isSafeComputedArchiveImportCacheRoot('/cache/.', '/cache/import/leaf'), false, 'cleanup must reject unsafe cacheDir aliases')
+assert.equal(isSafeComputedArchiveImportCacheRoot('/cache', '/tmp/import/my-volume-12345678'), false, 'cleanup must reject roots outside cacheDir/import')
+assert.equal(isSafeListedImportCacheEntry('leaf/page.jpg'), true, 'cleanup must allow normal listed relative entries')
+assert.equal(isSafeListedImportCacheEntry('./leaf/page.jpg'), false, 'cleanup must reject listed current-directory relative entries')
+assert.equal(isSafeListedImportCacheEntry('leaf/../page.jpg'), false, 'cleanup must reject listed traversal relative entries')
+assert.equal(isSafeListedImportCacheEntry('leaf/./page.jpg'), false, 'cleanup must reject listed nested current-directory relative entries')
+assert.equal(isSafeListedImportCacheEntry('leaf//page.jpg'), false, 'cleanup must reject listed duplicate slash aliases')
 
 const formattedPickerLine = formatLocalArchiveImportDebugEvent({
   step: 'picker_returned',
