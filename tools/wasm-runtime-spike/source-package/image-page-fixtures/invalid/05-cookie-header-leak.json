@@ -1,0 +1,12 @@
+{
+  "case": "raw cookie header value from source response",
+  "expectRejectContains": "raw headers are forbidden",
+  "input": {
+    "boundaryVersion": 1,
+    "designOnly": true,
+    "runtimeEnabled": false,
+    "responseHeaders": {
+      "Cookie": "Cookie: session=abc123"
+    }
+  }
+}

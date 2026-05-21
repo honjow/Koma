@@ -1,0 +1,14 @@
+{
+  "case": "raw header map in current source page response",
+  "expectRejectContains": "raw headers are forbidden",
+  "input": {
+    "boundaryVersion": 1,
+    "designOnly": true,
+    "runtimeEnabled": false,
+    "pageResponse": {
+      "headers": {
+        "Accept": "image/avif"
+      }
+    }
+  }
+}

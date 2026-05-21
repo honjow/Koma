@@ -22,6 +22,9 @@ schema boundary, see `SOURCE_SETTINGS_AUTH_BOUNDARY.md`.
 For the design/tooling-only future resource limit, cancellation, and timeout
 boundary, see `RESOURCE_LIMITS_CANCELLATION_BOUNDARY.md`.
 
+For the design/tooling-only future image/page loading strategy boundary, see
+`IMAGE_PAGE_LOADING_BOUNDARY.md`.
+
 The fixture keeps the useful package lessons from source index layouts such as
 per-source metadata, icon paths, settings, capabilities, and runtime limits,
 while staying aligned with Koma's current runtime evidence:
@@ -184,6 +187,28 @@ accepts the valid design fixture, and rejects oversized budgets, invalid
 timeouts, disabled or omitted cancellation, forbidden imports, `network=true`,
 remote URL/path/credential leaks, unsafe log bodies, and executable/product
 runtime flags.
+
+## Image/Page Loading Boundary
+
+`image-page-loading.example.json` defines a design/tooling-only strategy for
+future page descriptors, host-loaded placeholder/test images, source-resolved
+image request gating, cache identity, header policy, structured image errors,
+stale cache states, and network gates. It keeps current runtime behavior closed:
+`network=false`, no HTTP import, no remote URLs, no raw local/picker/app-private
+paths, no raw header values, and no product image loader.
+
+```sh
+python3 tools/wasm-runtime-spike/source-package/validate-image-page-fixtures.py \
+  --fixture-dir tools/wasm-runtime-spike/source-package/image-page-fixtures \
+  --artifact-dir /path/to/artifacts/image-page-fixtures
+```
+
+The validator writes `image-page-fixtures-report.json` under the artifact
+directory. It loads local JSON only, performs no network I/O, executes no WASM,
+accepts only current placeholder/test descriptors, and rejects remote image
+URLs, path leaks, credential/header leaks, unsafe cache key material, missing
+opaque ids, HTTP/network drift, current image request descriptors, and
+product-runtime image loading flags.
 
 To close the Linux smoke loop from archive validation to actual WAMR execution:
 

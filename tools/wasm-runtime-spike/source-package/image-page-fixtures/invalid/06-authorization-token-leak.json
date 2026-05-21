@@ -1,0 +1,12 @@
+{
+  "case": "authorization token leak in image descriptor",
+  "expectRejectContains": "forbidden header",
+  "input": {
+    "boundaryVersion": 1,
+    "designOnly": true,
+    "runtimeEnabled": false,
+    "imageDescriptor": {
+      "Authorization": "Bearer abcdefghijklmnopqrstuvwxyz"
+    }
+  }
+}

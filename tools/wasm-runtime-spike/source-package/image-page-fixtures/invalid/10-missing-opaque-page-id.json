@@ -1,0 +1,56 @@
+{
+  "case": "page descriptor missing opaque page id",
+  "expectRejectContains": "pageId must be an opaque identifier",
+  "input": {
+    "boundaryVersion": 1,
+    "designOnly": true,
+    "runtimeEnabled": false,
+    "currentRuntime": {
+      "network": false,
+      "hostImports": [
+        "koma_host.log",
+        "koma_host.check_cancel"
+      ],
+      "httpImportEnabled": false
+    },
+    "pageLoading": {
+      "currentAcceptedDescriptorTypes": [
+        "placeholder",
+        "testImage"
+      ],
+      "defaultOwnership": "host_loaded",
+      "sourceResolvedImages": {
+        "designOnly": true,
+        "futureDisabled": true,
+        "requiresNetwork": true,
+        "requiresHttpImport": true,
+        "acceptedInCurrentRuntime": false
+      },
+      "descriptors": [
+        {
+          "descriptorType": "placeholder",
+          "ownership": "host_loaded",
+          "sourceId": "local_test_koma_fixture",
+          "mangaId": "manga_fixture_001",
+          "chapterId": "chapter_001",
+          "pageId": "",
+          "ordinal": 1,
+          "display": {
+            "kind": "placeholder",
+            "width": 1200,
+            "height": 1800
+          },
+          "cacheIdentity": {
+            "namespace": "koma_source_page_v1",
+            "version": 1,
+            "sourceOpaqueId": "page_001",
+            "sourceId": "local_test_koma_fixture",
+            "mangaId": "manga_fixture_001",
+            "chapterId": "chapter_001",
+            "pageId": "page_001"
+          }
+        }
+      ]
+    }
+  }
+}

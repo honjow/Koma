@@ -1,0 +1,10 @@
+{
+  "case": "picker URI leaks from page descriptor",
+  "expectRejectContains": "local/app-private path",
+  "input": {
+    "boundaryVersion": 1,
+    "designOnly": true,
+    "runtimeEnabled": false,
+    "pageImage": "content://picker/image/page001"
+  }
+}

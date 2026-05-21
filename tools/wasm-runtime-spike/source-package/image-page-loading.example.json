@@ -1,0 +1,140 @@
+{
+  "boundaryVersion": 1,
+  "designOnly": true,
+  "runtimeEnabled": false,
+  "currentRuntime": {
+    "network": false,
+    "hostImports": [
+      "koma_host.log",
+      "koma_host.check_cancel"
+    ],
+    "httpImportEnabled": false
+  },
+  "pageLoading": {
+    "currentAcceptedDescriptorTypes": [
+      "placeholder",
+      "testImage"
+    ],
+    "defaultOwnership": "host_loaded",
+    "sourceResolvedImages": {
+      "designOnly": true,
+      "futureDisabled": true,
+      "requiresNetwork": true,
+      "requiresHttpImport": true,
+      "acceptedInCurrentRuntime": false
+    },
+    "descriptors": [
+      {
+        "descriptorType": "placeholder",
+        "ownership": "host_loaded",
+        "sourceId": "local_test_koma_fixture",
+        "mangaId": "manga_fixture_001",
+        "chapterId": "chapter_001",
+        "pageId": "page_001",
+        "ordinal": 1,
+        "display": {
+          "kind": "placeholder",
+          "width": 1200,
+          "height": 1800
+        },
+        "cacheIdentity": {
+          "namespace": "koma_source_page_v1",
+          "version": 1,
+          "sourceOpaqueId": "page_001",
+          "sourceId": "local_test_koma_fixture",
+          "mangaId": "manga_fixture_001",
+          "chapterId": "chapter_001",
+          "pageId": "page_001"
+        }
+      }
+    ]
+  },
+  "cachePolicy": {
+    "hostBuildsFinalKey": true,
+    "deterministicVersion": 1,
+    "forbidRawUrls": true,
+    "forbidHeaders": true,
+    "forbidCredentials": true,
+    "forbidLocalPaths": true,
+    "staleBehavior": {
+      "hostOwned": true,
+      "allowedStates": [
+        "fresh",
+        "stale",
+        "missing",
+        "evicted"
+      ]
+    }
+  },
+  "headerPolicy": {
+    "hostOwned": true,
+    "redacted": true,
+    "sourceMayReturnRawHeaders": false,
+    "allowlist": [
+      "Accept",
+      "Accept-Language"
+    ],
+    "forbiddenRaw": [
+      "Cookie",
+      "Authorization",
+      "Referer",
+      "Referrer",
+      "User-Agent",
+      "Set-Cookie",
+      "Host"
+    ]
+  },
+  "futureImageRequestDescriptor": {
+    "designOnly": true,
+    "futureDisabled": true,
+    "runtimeEnabled": false,
+    "methodPolicy": [
+      "GET",
+      "HEAD"
+    ],
+    "schemePolicy": [
+      "https"
+    ],
+    "headers": {
+      "hostOwned": true,
+      "redacted": true,
+      "sourceProvidesValues": false
+    },
+    "cookies": {
+      "hostOwned": true,
+      "sourceOwnsCookieJar": false
+    },
+    "timeoutPolicy": {
+      "hostOwnedWallClock": true,
+      "maxMs": 10000
+    },
+    "sizePolicy": {
+      "maxBytes": 10485760
+    }
+  },
+  "networkGates": {
+    "network": false,
+    "httpImport": false,
+    "remoteUrlsAcceptedInCurrentRuntime": false,
+    "imageRequestsAcceptedInCurrentRuntime": false
+  },
+  "errors": [
+    "network_disabled",
+    "permission_denied",
+    "not_found",
+    "cancelled",
+    "timeout",
+    "resource_limit_exceeded",
+    "cache_miss",
+    "stale_cache",
+    "decode_error",
+    "source_error"
+  ],
+  "productRuntime": {
+    "enabled": false,
+    "networkEnabled": false,
+    "remoteInstall": false,
+    "sourceMarket": false,
+    "imageLoaderEnabled": false
+  }
+}

@@ -1,0 +1,16 @@
+{
+  "case": "product runtime image loader enabled",
+  "expectRejectContains": "imageLoaderEnabled",
+  "input": {
+    "boundaryVersion": 1,
+    "designOnly": true,
+    "runtimeEnabled": false,
+    "productRuntime": {
+      "enabled": false,
+      "networkEnabled": false,
+      "remoteInstall": false,
+      "sourceMarket": false,
+      "imageLoaderEnabled": true
+    }
+  }
+}

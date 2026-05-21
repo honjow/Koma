@@ -34,6 +34,8 @@ This API draft builds on:
 - `HARMONYOS_ARCHIVE_INGESTION_BOUNDARY.md`: future local archive ingestion and
   app-private staging boundary.
 - `SOURCE_PACKAGE_TRUST_BOUNDARY.md`: future package trust/provenance boundary.
+- `IMAGE_PAGE_LOADING_BOUNDARY.md`: design/tooling-only future image/page
+  loading strategy, cache identity, header policy, and network gates.
 - `../host-imports/http-boundary.md`: design-only future HTTP host import.
 - `../host-imports/http-host-import-v0.md`: concrete HTTP v0.1 candidate for
   future host ABI, policy, settings/auth, and resource-limit work.

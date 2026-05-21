@@ -1,0 +1,14 @@
+{
+  "case": "current executable image request descriptor",
+  "expectRejectContains": "must not be executable",
+  "input": {
+    "boundaryVersion": 1,
+    "designOnly": true,
+    "runtimeEnabled": false,
+    "imageRequest": {
+      "request": {
+        "method": "GET"
+      }
+    }
+  }
+}

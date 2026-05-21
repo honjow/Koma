@@ -1,0 +1,12 @@
+{
+  "case": "cache key contains raw URL material",
+  "expectRejectContains": "remote URL",
+  "input": {
+    "boundaryVersion": 1,
+    "designOnly": true,
+    "runtimeEnabled": false,
+    "cacheIdentity": {
+      "cacheKey": "https://images.invalid/chapter/1/page/1.jpg"
+    }
+  }
+}

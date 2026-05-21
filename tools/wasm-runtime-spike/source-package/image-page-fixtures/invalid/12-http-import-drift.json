@@ -1,0 +1,17 @@
+{
+  "case": "HTTP host import drift",
+  "expectRejectContains": "hostImports",
+  "input": {
+    "boundaryVersion": 1,
+    "designOnly": true,
+    "runtimeEnabled": false,
+    "currentRuntime": {
+      "network": false,
+      "hostImports": [
+        "koma_host.log",
+        "koma_host.check_cancel",
+        "koma_host.http_request"
+      ]
+    }
+  }
+}

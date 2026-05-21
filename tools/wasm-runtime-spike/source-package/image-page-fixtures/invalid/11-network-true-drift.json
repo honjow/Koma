@@ -1,0 +1,16 @@
+{
+  "case": "network true drift",
+  "expectRejectContains": "network must remain false",
+  "input": {
+    "boundaryVersion": 1,
+    "designOnly": true,
+    "runtimeEnabled": false,
+    "currentRuntime": {
+      "network": true,
+      "hostImports": [
+        "koma_host.log",
+        "koma_host.check_cancel"
+      ]
+    }
+  }
+}

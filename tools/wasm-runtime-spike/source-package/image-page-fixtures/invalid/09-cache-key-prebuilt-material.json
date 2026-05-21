@@ -1,0 +1,12 @@
+{
+  "case": "source provides prebuilt cache key",
+  "expectRejectContains": "prebuilt cache key",
+  "input": {
+    "boundaryVersion": 1,
+    "designOnly": true,
+    "runtimeEnabled": false,
+    "cacheIdentity": {
+      "cacheKey": "source_chapter_page_001"
+    }
+  }
+}

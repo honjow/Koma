@@ -1,0 +1,10 @@
+{
+  "case": "remote URL page image while network=false",
+  "expectRejectContains": "remote URL",
+  "input": {
+    "boundaryVersion": 1,
+    "designOnly": true,
+    "runtimeEnabled": false,
+    "pageImage": "https://images.invalid/chapter/1/page/1.jpg"
+  }
+}
