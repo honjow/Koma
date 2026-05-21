@@ -156,6 +156,14 @@ function hasTraversalSegment(path) {
   return path.split('/').some((segment) => segment === '..')
 }
 
+function decodeFileUriPath(path) {
+  try {
+    return decodeURIComponent(path)
+  } catch (_err) {
+    return ''
+  }
+}
+
 function isSupportedLocalImagePath(path) {
   const normalized = path.toLocaleLowerCase()
   return normalized.endsWith('.jpg') ||
@@ -169,6 +177,8 @@ function isSupportedLocalImagePath(path) {
 
 function isAppImportExtractPath(path) {
   const appImportRoots = [
+    '/data/storage/el2/base/haps/entry/cache/import/',
+    '/data/storage/el2/base/haps/entry/files/import/',
     '/data/storage/el2/base/cache/import/',
     '/data/storage/el2/base/files/import/',
   ]
@@ -189,13 +199,14 @@ function isReaderLocalImageSourceUri(uri) {
   if (normalized.includes('://') && !normalized.startsWith('file://')) return false
   const path = stripFileUriScheme(normalized)
   if (!path.startsWith('/') || hasTraversalSegment(path)) return false
-  return isAppImportExtractPath(path) && isSupportedLocalImagePath(path)
+  const decodedPath = decodeFileUriPath(path)
+  if (decodedPath.length === 0 || !decodedPath.startsWith('/') || hasTraversalSegment(decodedPath)) return false
+  return isAppImportExtractPath(decodedPath) && isSupportedLocalImagePath(decodedPath)
 }
 
 function createReaderImageSourceUri(uri) {
   const normalized = normalizeReaderPageUri(uri)
-  if (normalized.startsWith('file://')) return normalized
-  return `file://${normalized}`
+  return decodeFileUriPath(stripFileUriScheme(normalized))
 }
 
 function createReaderPageRenderSource(config, pageIndex) {
@@ -330,25 +341,37 @@ const renderCases = [
   {
     uri: '/data/storage/el2/base/cache/import/demo-12345678/extract/001.jpg',
     kind: ReaderPageRenderKind.LOCAL_FILE_IMAGE,
-    imageUri: 'file:///data/storage/el2/base/cache/import/demo-12345678/extract/001.jpg',
+    imageUri: '/data/storage/el2/base/cache/import/demo-12345678/extract/001.jpg',
     label: 'app cache extracted image path renders locally',
+  },
+  {
+    uri: 'file:///data/storage/el2/base/haps/entry/cache/import/koma-qa-import-real-image-977e3a1b/extract/001-normal.png',
+    kind: ReaderPageRenderKind.LOCAL_FILE_IMAGE,
+    imageUri: '/data/storage/el2/base/haps/entry/cache/import/koma-qa-import-real-image-977e3a1b/extract/001-normal.png',
+    label: 'app haps entry cache extracted PNG file URI renders as an absolute path',
   },
   {
     uri: 'file:///data/storage/el2/base/cache/import/demo-12345678/extract/nested/002.webp',
     kind: ReaderPageRenderKind.LOCAL_FILE_IMAGE,
-    imageUri: 'file:///data/storage/el2/base/cache/import/demo-12345678/extract/nested/002.webp',
+    imageUri: '/data/storage/el2/base/cache/import/demo-12345678/extract/nested/002.webp',
     label: 'app cache extracted file URI renders locally',
   },
   {
-    uri: 'file:///data/storage/el2/base/cache/import/demo-12345678/extract/nested/page%231.avif',
+    uri: 'file:///data/storage/el2/base/haps/entry/cache/import/demo-12345678/extract/nested/page%231.avif',
     kind: ReaderPageRenderKind.LOCAL_FILE_IMAGE,
-    imageUri: 'file:///data/storage/el2/base/cache/import/demo-12345678/extract/nested/page%231.avif',
-    label: 'encoded app cache extracted AVIF file URI renders locally',
+    imageUri: '/data/storage/el2/base/haps/entry/cache/import/demo-12345678/extract/nested/page#1.avif',
+    label: 'encoded app cache extracted AVIF file URI renders as a decoded filesystem path',
+  },
+  {
+    uri: 'file:///data/storage/el2/base/haps/entry/cache/import/demo-12345678/extract/002-hash%23query%3F.png',
+    kind: ReaderPageRenderKind.LOCAL_FILE_IMAGE,
+    imageUri: '/data/storage/el2/base/haps/entry/cache/import/demo-12345678/extract/002-hash#query?.png',
+    label: 'encoded reserved path segments decode only after safe local classification',
   },
   {
     uri: '/data/storage/el2/base/files/import/demo-12345678/extract/003.png',
     kind: ReaderPageRenderKind.LOCAL_FILE_IMAGE,
-    imageUri: 'file:///data/storage/el2/base/files/import/demo-12345678/extract/003.png',
+    imageUri: '/data/storage/el2/base/files/import/demo-12345678/extract/003.png',
     label: 'app files extracted image path renders locally',
   },
   {
@@ -374,6 +397,12 @@ const renderCases = [
     kind: ReaderPageRenderKind.URI_PLACEHOLDER,
     imageUri: '',
     label: 'archive entry DTO stays unsupported placeholder',
+  },
+  {
+    uri: 'file:///data/storage/el2/base/haps/entry/cache/import/demo-12345678/archive.cbz#001-normal.png',
+    kind: ReaderPageRenderKind.URI_PLACEHOLDER,
+    imageUri: '',
+    label: 'raw cbz archive entry DTO under haps cache stays unsupported placeholder',
   },
   {
     uri: 'file:///data/storage/el2/base/cache/import/demo-12345678/extract/page#1.png',
@@ -404,6 +433,12 @@ const renderCases = [
     kind: ReaderPageRenderKind.URI_PLACEHOLDER,
     imageUri: '',
     label: 'tmp shaped import path stays unsupported placeholder',
+  },
+  {
+    uri: 'file:///data/storage/el2/base/haps/entry/cache/import/demo-12345678/extract/%2E%2E/001.png',
+    kind: ReaderPageRenderKind.URI_PLACEHOLDER,
+    imageUri: '',
+    label: 'encoded traversal segments stay unsupported placeholder',
   },
   {
     uri: 'file:///sdcard/cache/import/demo/extract/001.jpg',

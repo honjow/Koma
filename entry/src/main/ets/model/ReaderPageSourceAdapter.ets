@@ -24,6 +24,14 @@ function hasTraversalSegment(path: string): boolean {
   return path.split('/').some((segment: string) => segment === '..')
 }
 
+function decodeFileUriPath(path: string): string {
+  try {
+    return decodeURIComponent(path)
+  } catch (_err) {
+    return ''
+  }
+}
+
 function isSupportedLocalImagePath(path: string): boolean {
   const normalized = path.toLocaleLowerCase()
   return normalized.endsWith('.jpg') ||
@@ -37,6 +45,8 @@ function isSupportedLocalImagePath(path: string): boolean {
 
 function isAppImportExtractPath(path: string): boolean {
   const appImportRoots = [
+    '/data/storage/el2/base/haps/entry/cache/import/',
+    '/data/storage/el2/base/haps/entry/files/import/',
     '/data/storage/el2/base/cache/import/',
     '/data/storage/el2/base/files/import/',
   ]
@@ -67,15 +77,16 @@ export function isReaderLocalImageSourceUri(uri: string): boolean {
   if (!path.startsWith('/') || hasTraversalSegment(path)) {
     return false
   }
-  return isAppImportExtractPath(path) && isSupportedLocalImagePath(path)
+  const decodedPath = decodeFileUriPath(path)
+  if (decodedPath.length === 0 || !decodedPath.startsWith('/') || hasTraversalSegment(decodedPath)) {
+    return false
+  }
+  return isAppImportExtractPath(decodedPath) && isSupportedLocalImagePath(decodedPath)
 }
 
 export function createReaderImageSourceUri(uri: string): string {
   const normalized = normalizeReaderPageUri(uri)
-  if (normalized.startsWith('file://')) {
-    return normalized
-  }
-  return `file://${normalized}`
+  return decodeFileUriPath(stripFileUriScheme(normalized))
 }
 
 export function createReaderPageRenderSource(config: ReaderSessionConfig, pageIndex: number): ReaderPageRenderSource {
