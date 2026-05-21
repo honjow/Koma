@@ -1,0 +1,110 @@
+{
+  "planVersion": 1,
+  "designOnly": true,
+  "productRuntime": false,
+  "scope": {
+    "internalDevOnly": true,
+    "productUi": false,
+    "runtimeImplementation": false,
+    "deviceCommands": false,
+    "sourceMarket": false,
+    "publicIndex": false,
+    "remoteInstall": false,
+    "builtInSources": false,
+    "webViewDsl": false
+  },
+  "inputBoundary": {
+    "archiveKind": "koma-source-zip",
+    "localDeveloperProvidedArchiveOnly": true,
+    "remoteUrlsAccepted": false,
+    "sourceRepositorySync": false,
+    "copyPickerUriToAppPrivateStagingBeforeValidation": true,
+    "executeOrTrustSharedPickerUri": false
+  },
+  "storage": {
+    "appPrivateTempRole": "source-ingestion-attempts",
+    "appPrivateStagingRequired": true,
+    "appPrivatePackageStoreRole": "source-packages",
+    "deterministicLayout": [
+      "normalizedPackageId",
+      "normalizedVersion"
+    ],
+    "deriveLayoutFromManifest": true,
+    "atomicPromoteBeforeRegister": true,
+    "cleanupOnValidationFailure": true,
+    "cleanupOnPartialExtract": true,
+    "cleanupOnCrashOrInterruption": true,
+    "quotaDecisionRequiredBeforeImplementation": true
+  },
+  "validationOrder": [
+    "copy_to_app_private_staging",
+    "archive_safety",
+    "manifest_parse_schema",
+    "wasm_hash_size",
+    "trust_provenance",
+    "abi_import_network_policy",
+    "settings_auth_policy",
+    "resource_limits_policy",
+    "image_page_policy",
+    "atomic_promote_register"
+  ],
+  "currentRuntime": {
+    "network": false,
+    "hostImports": [
+      "koma_host.log",
+      "koma_host.check_cancel"
+    ],
+    "httpHostImport": false
+  },
+  "runtimeHandoff": {
+    "validatedExtractedWasmOnly": true,
+    "parsedManifestOnly": true,
+    "includePickerUri": false,
+    "includeRawSharedPath": false,
+    "includeUnvalidatedBytes": false
+  },
+  "diagnostics": {
+    "redactedLogs": true,
+    "rawUserPaths": false,
+    "rawPickerUris": false,
+    "secrets": false,
+    "fullManifestByDefault": false,
+    "largeResponsesByDefault": false
+  },
+  "rollbackRemovalUpdate": {
+    "duplicatePackageVersionDecisionRequired": true,
+    "downgradeDecisionRequired": true,
+    "compatibilityGateRequired": true,
+    "revocationTrustFuture": true,
+    "quotaCleanupRequired": true,
+    "removeFilesMetadataCachesSecretsLogs": true
+  },
+  "harmonyosApiNotes": {
+    "specificApisToBeConfirmed": true,
+    "doNotAssumeBroadFilePermissions": true,
+    "pickerUriCopyToSandboxToBeConfirmed": true,
+    "atomicPromoteToBeConfirmed": true,
+    "zipEnumerationToBeConfirmed": true
+  },
+  "stopConditions": [
+    "product_decision",
+    "internal_dev_ux",
+    "signing_trust",
+    "storage_quota",
+    "app_logging",
+    "network_permission"
+  ],
+  "testPlan": {
+    "mapsExistingCliValidators": true,
+    "futureAppSideSmokeOnly": true,
+    "deviceImplementationRequiredNow": false,
+    "unimplemented": [
+      "HarmonyOS file picker UX",
+      "sandbox storage writes",
+      "package registry",
+      "product runtime handoff",
+      "signing and revocation",
+      "network or HTTP"
+    ]
+  }
+}

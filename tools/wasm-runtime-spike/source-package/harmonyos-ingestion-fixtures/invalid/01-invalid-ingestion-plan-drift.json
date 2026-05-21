@@ -1,0 +1,154 @@
+{
+  "cases": [
+    {
+      "case": "missing app-private staging copy is rejected",
+      "expectRejectContains": "copyPickerUriToAppPrivateStagingBeforeValidation",
+      "mutations": [
+        {
+          "path": "inputBoundary.copyPickerUriToAppPrivateStagingBeforeValidation",
+          "value": false
+        }
+      ]
+    },
+    {
+      "case": "remote install is rejected",
+      "expectRejectContains": "remoteInstall",
+      "mutations": [
+        {
+          "path": "scope.remoteInstall",
+          "value": true
+        }
+      ]
+    },
+    {
+      "case": "source market is rejected",
+      "expectRejectContains": "sourceMarket",
+      "mutations": [
+        {
+          "path": "scope.sourceMarket",
+          "value": true
+        }
+      ]
+    },
+    {
+      "case": "network true is rejected",
+      "expectRejectContains": "currentRuntime.network",
+      "mutations": [
+        {
+          "path": "currentRuntime.network",
+          "value": true
+        }
+      ]
+    },
+    {
+      "case": "direct shared picker execution is rejected",
+      "expectRejectContains": "executeOrTrustSharedPickerUri",
+      "mutations": [
+        {
+          "path": "inputBoundary.executeOrTrustSharedPickerUri",
+          "value": true
+        }
+      ]
+    },
+    {
+      "case": "missing archive safety gate is rejected",
+      "expectRejectContains": "archive_safety",
+      "mutations": [
+        {
+          "path": "validationOrder",
+          "value": [
+            "copy_to_app_private_staging",
+            "manifest_parse_schema",
+            "wasm_hash_size",
+            "trust_provenance",
+            "abi_import_network_policy",
+            "settings_auth_policy",
+            "resource_limits_policy",
+            "image_page_policy",
+            "atomic_promote_register"
+          ]
+        }
+      ]
+    },
+    {
+      "case": "missing wasm hash size gate is rejected",
+      "expectRejectContains": "wasm_hash_size",
+      "mutations": [
+        {
+          "path": "validationOrder",
+          "value": [
+            "copy_to_app_private_staging",
+            "archive_safety",
+            "manifest_parse_schema",
+            "trust_provenance",
+            "abi_import_network_policy",
+            "settings_auth_policy",
+            "resource_limits_policy",
+            "image_page_policy",
+            "atomic_promote_register"
+          ]
+        }
+      ]
+    },
+    {
+      "case": "missing import policy gate is rejected",
+      "expectRejectContains": "abi_import_network_policy",
+      "mutations": [
+        {
+          "path": "validationOrder",
+          "value": [
+            "copy_to_app_private_staging",
+            "archive_safety",
+            "manifest_parse_schema",
+            "wasm_hash_size",
+            "trust_provenance",
+            "settings_auth_policy",
+            "resource_limits_policy",
+            "image_page_policy",
+            "atomic_promote_register"
+          ]
+        }
+      ]
+    },
+    {
+      "case": "raw path diagnostics are rejected",
+      "expectRejectContains": "rawUserPaths",
+      "mutations": [
+        {
+          "path": "diagnostics.rawUserPaths",
+          "value": true
+        }
+      ]
+    },
+    {
+      "case": "secret diagnostics are rejected",
+      "expectRejectContains": "diagnostics.secrets",
+      "mutations": [
+        {
+          "path": "diagnostics.secrets",
+          "value": true
+        }
+      ]
+    },
+    {
+      "case": "product runtime is rejected",
+      "expectRejectContains": "productRuntime",
+      "mutations": [
+        {
+          "path": "productRuntime",
+          "value": true
+        }
+      ]
+    },
+    {
+      "case": "built-in sources are rejected",
+      "expectRejectContains": "builtInSources",
+      "mutations": [
+        {
+          "path": "scope.builtInSources",
+          "value": true
+        }
+      ]
+    }
+  ]
+}
