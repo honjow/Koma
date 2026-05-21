@@ -84,6 +84,8 @@ run_logged "${RUSTC_CMD[@]}" --target wasm32-unknown-unknown \
   --edition=2021 \
   --crate-name koma_source_sdk \
   --crate-type rlib \
+  -C target-cpu=mvp \
+  -C target-feature=-reference-types \
   -C opt-level=z \
   -C panic=abort \
   -o "$SDK_RLIB" \
@@ -92,6 +94,8 @@ run_logged "${RUSTC_CMD[@]}" --target wasm32-unknown-unknown \
 run_logged "${RUSTC_CMD[@]}" --target wasm32-unknown-unknown \
   --edition=2021 \
   --crate-type cdylib \
+  -C target-cpu=mvp \
+  -C target-feature=-reference-types \
   -C opt-level=z \
   -C panic=abort \
   --extern "koma_source_sdk=$SDK_RLIB" \

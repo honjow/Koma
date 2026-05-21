@@ -86,12 +86,19 @@ bash tools/wasm-runtime-spike/run-rust-fixture.sh
 It has no Cargo dependencies and writes generated SDK rlib/wasm/log/JSON
 artifacts under the ignored artifact directory. The local `rust-sdk` crate is a
 test-only, self-authored Koma boundary for the fixture's tiny ABI surface:
-host logging/cancellation wrappers, request matching, KOMA result buffer
-writing, and the `hostHints.network=false` convention. The fixture imports only
-the existing `koma_host.log` and `koma_host.check_cancel` functions, exports
-`add`, `koma_source_init`, the four core source operation exports, and
+host logging/cancellation wrappers, provisional source-author request types,
+operation helpers, KOMA result buffer/envelope writing, and the
+`hostHints.network=false` convention. The fixture imports only the existing
+`koma_host.log` and `koma_host.check_cancel` functions, exports `add`,
+`koma_source_init`, the four core source operation exports, and
 `koma_source_free`, and returns test envelope shapes with `Fixture Series` and
 `hostHints.network: false`.
+
+The Rust SDK shape is provisional and tooling-only. Source fixture code
+implements a small `Source` trait and leaves ABI request reads, cancellation,
+response envelope construction, and result-buffer headers to SDK helpers. The
+direct `rustc` build pins `target-cpu=mvp` and disables `reference-types` so the
+generated wasm remains compatible with the current WAMR smoke host.
 
 The source-package tooling can also build this SDK-backed wasm into an ignored
 artifact directory, generate a local/test-only package manifest that points at
