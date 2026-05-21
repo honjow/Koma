@@ -15,6 +15,10 @@ Future local source package trust/provenance requirements are tracked in
 `SOURCE_PACKAGE_TRUST_BOUNDARY.md`. That file is design-only and does not add
 signing code, key material, product install, or runtime loading behavior.
 
+Candidate source operation names and JSON envelopes for future search, detail,
+chapter, and page calls are tracked in `SOURCE_API_V0.md`. That file is also
+design-only and does not expand the current host imports or enable network.
+
 The validated path is:
 
 ```text
@@ -176,6 +180,9 @@ Expected execution evidence includes:
 - Signature, trust, provenance, revocation, and compatibility model; see
   `SOURCE_PACKAGE_TRUST_BOUNDARY.md`.
 - Final public Rust SDK/API shape and versioning policy.
+- Source API v0.1 fixture/schema tests for search, manga detail, chapters,
+  pages, pagination, stable opaque ids, structured errors, cancellation,
+  timeout, and result size behavior; see `SOURCE_API_V0.md`.
 
 ## Validation Commands
 

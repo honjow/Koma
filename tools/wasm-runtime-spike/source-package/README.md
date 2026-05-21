@@ -7,6 +7,9 @@ remote installer, or a built-in source list.
 For the consolidated current runtime/package/archive boundary, see
 `SOURCE_RUNTIME_BOUNDARY.md`.
 
+For the candidate Source API v0.1 operation and JSON envelope design, see
+`SOURCE_API_V0.md`.
+
 For the design-only future HarmonyOS source archive ingestion boundary, see
 `HARMONYOS_ARCHIVE_INGESTION_BOUNDARY.md`.
 
