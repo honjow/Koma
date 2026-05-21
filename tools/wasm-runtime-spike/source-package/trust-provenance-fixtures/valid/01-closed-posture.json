@@ -1,0 +1,166 @@
+{
+  "boundaryVersion": 1,
+  "status": "design-tooling-only",
+  "designOnly": true,
+  "implementsSigning": false,
+  "implementsTrustStore": false,
+  "implementsCryptoVerification": false,
+  "productRuntime": false,
+  "productUi": false,
+  "scope": {
+    "localPackagesOnly": true,
+    "sourceMarket": false,
+    "publicIndex": false,
+    "remoteInstall": false,
+    "builtInSources": false,
+    "deviceInstall": false,
+    "network": false
+  },
+  "trustModes": {
+    "selectedProductMode": "undecided",
+    "unsignedLocalDevOnly": {
+      "allowed": true,
+      "releaseAccepted": false,
+      "requiresExplicitDeveloperMode": true
+    },
+    "checksumPinnedPrivatePackages": {
+      "plannedOption": true,
+      "pinArchiveDigest": true,
+      "pinWasmDigest": true
+    },
+    "signaturePinnedPrivateKeys": {
+      "plannedOption": true,
+      "realVerificationImplemented": false,
+      "requiresSignerId": true,
+      "requiresKeyId": true
+    },
+    "enterprisePrivateTrustStore": {
+      "plannedOption": true,
+      "publicCatalogRequired": false,
+      "remoteRevocationRequired": false
+    }
+  },
+  "provenanceGates": {
+    "archive": {
+      "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "sizeBytes": 32768,
+      "requiredBeforeTrustDecision": true
+    },
+    "manifest": {
+      "sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "sizeBytes": 4096,
+      "requiredBeforeTrustDecision": true
+    },
+    "package": {
+      "id": "koma.local.closed-posture",
+      "version": "0.1.0",
+      "requiredBeforeTrustDecision": true
+    }
+  },
+  "futureMetadata": {
+    "manifestFields": [
+      "schemaVersion",
+      "package.id",
+      "package.version",
+      "runtime.abi",
+      "runtime.hostAbi",
+      "runtime.wasm.sha256",
+      "runtime.wasm.size"
+    ],
+    "trustFields": [
+      "signerId",
+      "keyId",
+      "signatureBlockPath",
+      "createdAt",
+      "expiresAt",
+      "minAppVersion",
+      "maxAppVersion",
+      "minSourceAbi",
+      "maxSourceAbi",
+      "packageProvenance"
+    ],
+    "signatureBlockLocation": "signatures/koma-source-signature.json",
+    "provenanceKinds": [
+      "local-dev",
+      "private-checksum-pin",
+      "private-signature-pin",
+      "enterprise-private-trust-store"
+    ]
+  },
+  "verificationOrder": [
+    "archive_safety",
+    "archive_digest_size",
+    "manifest_parse_schema",
+    "manifest_digest_size",
+    "wasm_hash_size",
+    "package_identity_version_provenance",
+    "trust_signature_future_gate",
+    "abi_import_network_policy",
+    "atomic_promote_register"
+  ],
+  "currentRuntime": {
+    "network": false,
+    "hostImports": [
+      "koma_host.log",
+      "koma_host.check_cancel"
+    ],
+    "httpHostImport": false
+  },
+  "failurePolicy": {
+    "failClosed": true,
+    "rejectUnknownTrustMode": true,
+    "rejectMissingTrustMetadataWhenRequired": true,
+    "rejectOnVerificationError": true,
+    "noRuntimeHandoffOnFailure": true,
+    "cleanupStagingOnFailure": true
+  },
+  "updatePolicy": {
+    "duplicatePackageIdDecisionRequired": true,
+    "duplicateVersionSilentOverwrite": false,
+    "downgradeAllowedSilently": false,
+    "downgradeRequiresExplicitTrustDecision": true,
+    "revocationDecisionRequired": true,
+    "removalCleansFilesMetadataCachesSecretsLogs": true,
+    "rollbackRequiresStillTrustedCompatiblePackage": true
+  },
+  "logging": {
+    "redactedByDefault": true,
+    "developerDiagnosticModeRequiredForExpandedDetails": true,
+    "rawKeys": false,
+    "rawSignatures": false,
+    "fullUserPaths": false,
+    "credentials": false,
+    "cookies": false,
+    "fullManifests": false,
+    "largeResponses": false
+  },
+  "mapping": {
+    "existingValidators": [
+      "validate-source-package.py",
+      "package-source-archive.py",
+      "validate-archive-negative-fixtures.py",
+      "run-source-archive-smoke.py",
+      "validate-http-boundary.py",
+      "validate-harmonyos-ingestion-plan.py"
+    ],
+    "missingFutureTrustTests": [
+      "canonical signature payload fixtures",
+      "tampered signature fixtures",
+      "checksum pin mismatch fixtures",
+      "duplicate id and version fixtures",
+      "downgrade and rollback fixtures",
+      "revocation fixtures",
+      "expired package fixtures",
+      "trust log redaction fixtures"
+    ]
+  },
+  "nonGoals": {
+    "sourceMarket": true,
+    "publicIndex": true,
+    "remoteInstall": true,
+    "builtInSources": true,
+    "realSigningImplementation": true,
+    "productUi": true,
+    "network": true
+  }
+}

@@ -1,0 +1,307 @@
+{
+  "cases": [
+    {
+      "case": "missing-archive-digest",
+      "expectRejectContains": "provenanceGates.archive.sha256",
+      "mutations": [
+        {
+          "path": "provenanceGates.archive.sha256",
+          "action": "remove"
+        }
+      ]
+    },
+    {
+      "case": "drifted-archive-digest",
+      "expectRejectContains": "provenanceGates.archive.sha256",
+      "mutations": [
+        {
+          "path": "provenanceGates.archive.sha256",
+          "value": "not-a-sha256"
+        }
+      ]
+    },
+    {
+      "case": "drifted-archive-size",
+      "expectRejectContains": "provenanceGates.archive.sizeBytes",
+      "mutations": [
+        {
+          "path": "provenanceGates.archive.sizeBytes",
+          "value": 0
+        }
+      ]
+    },
+    {
+      "case": "missing-manifest-digest",
+      "expectRejectContains": "provenanceGates.manifest.sha256",
+      "mutations": [
+        {
+          "path": "provenanceGates.manifest.sha256",
+          "action": "remove"
+        }
+      ]
+    },
+    {
+      "case": "drifted-manifest-digest",
+      "expectRejectContains": "provenanceGates.manifest.sha256",
+      "mutations": [
+        {
+          "path": "provenanceGates.manifest.sha256",
+          "value": "cccc"
+        }
+      ]
+    },
+    {
+      "case": "drifted-manifest-size",
+      "expectRejectContains": "provenanceGates.manifest.sizeBytes",
+      "mutations": [
+        {
+          "path": "provenanceGates.manifest.sizeBytes",
+          "value": -1
+        }
+      ]
+    },
+    {
+      "case": "missing-package-id",
+      "expectRejectContains": "provenanceGates.package.id",
+      "mutations": [
+        {
+          "path": "provenanceGates.package.id",
+          "action": "remove"
+        }
+      ]
+    },
+    {
+      "case": "missing-package-version",
+      "expectRejectContains": "provenanceGates.package.version",
+      "mutations": [
+        {
+          "path": "provenanceGates.package.version",
+          "action": "remove"
+        }
+      ]
+    },
+    {
+      "case": "malformed-package-id",
+      "expectRejectContains": "normalized dotted package id",
+      "mutations": [
+        {
+          "path": "provenanceGates.package.id",
+          "value": "Koma Source"
+        }
+      ]
+    },
+    {
+      "case": "malformed-package-version",
+      "expectRejectContains": "normalized semantic version",
+      "mutations": [
+        {
+          "path": "provenanceGates.package.version",
+          "value": "latest"
+        }
+      ]
+    },
+    {
+      "case": "unsigned-package-accepted-as-release",
+      "expectRejectContains": "releaseAccepted must be false",
+      "mutations": [
+        {
+          "path": "trustModes.unsignedLocalDevOnly.releaseAccepted",
+          "value": true
+        }
+      ]
+    },
+    {
+      "case": "missing-verification-order-step",
+      "expectRejectContains": "verificationOrder missing trust_signature_future_gate",
+      "mutations": [
+        {
+          "path": "verificationOrder",
+          "value": [
+            "archive_safety",
+            "archive_digest_size",
+            "manifest_parse_schema",
+            "manifest_digest_size",
+            "wasm_hash_size",
+            "package_identity_version_provenance",
+            "abi_import_network_policy",
+            "atomic_promote_register"
+          ]
+        }
+      ]
+    },
+    {
+      "case": "trust-check-after-abi-import-policy",
+      "expectRejectContains": "trust_signature_future_gate before abi_import_network_policy",
+      "mutations": [
+        {
+          "path": "verificationOrder",
+          "value": [
+            "archive_safety",
+            "archive_digest_size",
+            "manifest_parse_schema",
+            "manifest_digest_size",
+            "wasm_hash_size",
+            "abi_import_network_policy",
+            "package_identity_version_provenance",
+            "trust_signature_future_gate",
+            "atomic_promote_register"
+          ]
+        }
+      ]
+    },
+    {
+      "case": "source-market-enabled",
+      "expectRejectContains": "sourceMarket must be false",
+      "mutations": [
+        {
+          "path": "scope.sourceMarket",
+          "value": true
+        }
+      ]
+    },
+    {
+      "case": "remote-install-enabled",
+      "expectRejectContains": "remoteInstall must be false",
+      "mutations": [
+        {
+          "path": "scope.remoteInstall",
+          "value": true
+        }
+      ]
+    },
+    {
+      "case": "built-in-source-enabled",
+      "expectRejectContains": "builtInSources must be false",
+      "mutations": [
+        {
+          "path": "scope.builtInSources",
+          "value": true
+        }
+      ]
+    },
+    {
+      "case": "downgrade-allowed-silently",
+      "expectRejectContains": "downgradeAllowedSilently must be false",
+      "mutations": [
+        {
+          "path": "updatePolicy.downgradeAllowedSilently",
+          "value": true
+        }
+      ]
+    },
+    {
+      "case": "duplicate-version-silently-overwrites",
+      "expectRejectContains": "duplicateVersionSilentOverwrite must be false",
+      "mutations": [
+        {
+          "path": "updatePolicy.duplicateVersionSilentOverwrite",
+          "value": true
+        }
+      ]
+    },
+    {
+      "case": "raw-key-logging",
+      "expectRejectContains": "rawKeys must be false",
+      "mutations": [
+        {
+          "path": "logging.rawKeys",
+          "value": true
+        }
+      ]
+    },
+    {
+      "case": "raw-signature-logging",
+      "expectRejectContains": "rawSignatures must be false",
+      "mutations": [
+        {
+          "path": "logging.rawSignatures",
+          "value": true
+        }
+      ]
+    },
+    {
+      "case": "raw-path-logging",
+      "expectRejectContains": "fullUserPaths must be false",
+      "mutations": [
+        {
+          "path": "logging.fullUserPaths",
+          "value": true
+        }
+      ]
+    },
+    {
+      "case": "credential-logging",
+      "expectRejectContains": "credentials must be false",
+      "mutations": [
+        {
+          "path": "logging.credentials",
+          "value": true
+        }
+      ]
+    },
+    {
+      "case": "cookie-logging",
+      "expectRejectContains": "cookies must be false",
+      "mutations": [
+        {
+          "path": "logging.cookies",
+          "value": true
+        }
+      ]
+    },
+    {
+      "case": "network-true",
+      "expectRejectContains": "currentRuntime.network must be false",
+      "mutations": [
+        {
+          "path": "currentRuntime.network",
+          "value": true
+        }
+      ]
+    },
+    {
+      "case": "http-import-drift",
+      "expectRejectContains": "currentRuntime.hostImports must be exactly",
+      "mutations": [
+        {
+          "path": "currentRuntime.hostImports",
+          "value": [
+            "koma_host.log",
+            "koma_host.check_cancel",
+            "koma_host.http_request"
+          ]
+        }
+      ]
+    },
+    {
+      "case": "non-fail-closed-policy",
+      "expectRejectContains": "failClosed must be true",
+      "mutations": [
+        {
+          "path": "failurePolicy.failClosed",
+          "value": false
+        }
+      ]
+    },
+    {
+      "case": "product-runtime-claim",
+      "expectRejectContains": "productRuntime must be false",
+      "mutations": [
+        {
+          "path": "productRuntime",
+          "value": true
+        }
+      ]
+    },
+    {
+      "case": "product-ui-claim",
+      "expectRejectContains": "productUi must be false",
+      "mutations": [
+        {
+          "path": "productUi",
+          "value": true
+        }
+      ]
+    }
+  ]
+}
