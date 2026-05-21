@@ -149,7 +149,8 @@ provided, validates and extracts it through `package-source-archive.py
 --validate-archive`, checks the extracted manifest gates, builds the existing
 CMake WAMR host runner, and runs the extracted `wasm/rust_source_fixture.wasm`.
 The report is written to `source-archive-wamr-smoke-report.json` and records
-`WAMR_SPIKE_PASS`, `ok:true`, `Fixture Series`, `HOST_LOG`,
+`WAMR_SPIKE_PASS`, `SOURCE_API_RUNTIME_SMOKE_PASS`, all four
+`SOURCE_API_OPERATION ... ok:true` lines, `Fixture Series`, `HOST_LOG`,
 `HOST_CHECK_CANCEL`, and `hostHints.network=false` evidence. All archives,
 extracted files, wasm binaries, host builds, caches, logs, and reports remain
 artifact outputs.

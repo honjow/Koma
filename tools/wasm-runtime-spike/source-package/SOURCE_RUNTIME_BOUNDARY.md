@@ -147,7 +147,11 @@ Expected execution evidence includes:
 
 - archive safety gates pass before WAMR execution
 - `WAMR_SPIKE_PASS`
-- `SEARCH_JSON` with `ok:true`
+- `SOURCE_API_RUNTIME_SMOKE_PASS`
+- `SOURCE_API_OPERATION search ok:true`
+- `SOURCE_API_OPERATION get_manga ok:true`
+- `SOURCE_API_OPERATION get_chapters ok:true`
+- `SOURCE_API_OPERATION get_pages ok:true`
 - `Fixture Series`
 - `HOST_LOG`
 - `HOST_CHECK_CANCEL`

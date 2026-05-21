@@ -196,7 +196,7 @@ def main() -> int:
             f"built wasm sha256 {wasm_sha} size {wasm_size} bytes",
             f"generated manifest {manifest_out}",
             f"validator report {validation_report}",
-            "WAMR run preserved ok:true, Fixture Series, and network=false evidence",
+            "WAMR run preserved all core operation ok:true envelopes and network=false evidence",
         ])
         report["status"] = "PASS"
     except Exception as err:

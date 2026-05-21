@@ -119,6 +119,60 @@ bool json_shape_is_plausible(const std::string &payload) {
     return depth == 0 && !in_string && payload.find("\"ok\":true") != std::string::npos;
 }
 
+struct SourceOperation {
+    const char *name;
+    const char *export_name;
+    const char *request_json;
+};
+
+bool contains_any_forbidden_runtime_string(const std::string &payload) {
+    const char *forbidden[] = {
+        "\"network\":true",
+        "http_request",
+        "https://",
+        "http://",
+        "file://",
+        "content://",
+        "ohos://",
+        "internal://",
+        "app-private",
+        "/home/",
+        "/Users/",
+        "/data/",
+        "/storage/",
+        "/sdcard/",
+        ".hermes-artifacts",
+    };
+    for (const char *needle : forbidden) {
+        if (payload.find(needle) != std::string::npos) {
+            return true;
+        }
+    }
+    return false;
+}
+
+void validate_source_envelope(const std::string &operation, const std::string &payload) {
+    if (!json_shape_is_plausible(payload)) {
+        throw std::runtime_error(operation + " result payload is not plausible JSON envelope");
+    }
+    if (payload.find("\"version\":1") == std::string::npos) {
+        throw std::runtime_error(operation + " result missing version:1");
+    }
+    if (payload.find("\"operation\":\"" + operation + "\"") == std::string::npos) {
+        throw std::runtime_error(operation + " result operation mismatch");
+    }
+    if (payload.find("\"data\":") == std::string::npos) {
+        throw std::runtime_error(operation + " result missing data");
+    }
+    if (payload.find("\"hostHints\":") == std::string::npos ||
+        payload.find("\"network\":false") == std::string::npos) {
+        throw std::runtime_error(operation + " result missing hostHints.network=false");
+    }
+    if (contains_any_forbidden_runtime_string(payload)) {
+        throw std::runtime_error(operation + " result leaked network/http/path evidence");
+    }
+}
+
 class Runtime {
 public:
     Runtime() : heap_(kRuntimeHeapBytes) {
@@ -243,10 +297,8 @@ public:
         std::cout << "INIT_OK manifest accepted\n";
     }
 
-    std::string call_search() {
-        constexpr const char *request =
-            "{\"callId\":\"spike-1\",\"query\":\"fixture\",\"page\":1,"
-            "\"filters\":[],\"locale\":\"zh-CN\",\"settings\":{}}";
+    std::string call_operation(const SourceOperation &operation) {
+        const char *request = operation.request_json;
         const uint32_t request_len = static_cast<uint32_t>(std::strlen(request));
         uint64_t request_ptr =
             wasm_runtime_module_dup_data(module_inst_, request, request_len);
@@ -254,10 +306,10 @@ public:
             throw std::runtime_error("failed to copy request into wasm memory");
         }
 
-        wasm_function_inst_t search = lookup("koma_source_search");
+        wasm_function_inst_t source_fn = lookup(operation.export_name);
         uint32_t argv[2] = {static_cast<uint32_t>(request_ptr), request_len};
         try {
-            require_call(exec_env_, module_inst_, search, 2, argv, "koma_source_search");
+            require_call(exec_env_, module_inst_, source_fn, 2, argv, operation.export_name);
         }
         catch (...) {
             wasm_runtime_module_free(module_inst_, request_ptr);
@@ -267,7 +319,7 @@ public:
 
         const uint32_t result_ptr = argv[0];
         if (result_ptr == 0) {
-            throw std::runtime_error("koma_source_search returned null result pointer");
+            throw std::runtime_error(std::string(operation.export_name) + " returned null result pointer");
         }
         if (!wasm_runtime_validate_app_addr(module_inst_, result_ptr, 16)) {
             throw std::runtime_error("result header is outside wasm memory");
@@ -299,17 +351,60 @@ public:
         const char *payload_native = static_cast<const char *>(
             wasm_runtime_addr_app_to_native(module_inst_, result_ptr + 16u));
         std::string payload(payload_native, payload_native + len);
-        if (!json_shape_is_plausible(payload)) {
-            throw std::runtime_error("result payload is not plausible JSON envelope");
-        }
+        validate_source_envelope(operation.name, payload);
 
         wasm_function_inst_t free_fn = lookup("koma_source_free");
         uint32_t free_argv[1] = {result_ptr};
         require_call(exec_env_, module_inst_, free_fn, 1, free_argv, "koma_source_free");
 
-        std::cout << "SEARCH_OK magic=KOMA flags=" << flags << " len=" << len << "\n";
-        std::cout << "SEARCH_JSON=" << payload << "\n";
+        std::cout << "SOURCE_API_OPERATION " << operation.name << " ok:true"
+                  << " magic=KOMA flags=" << flags << " len=" << len << "\n";
+        std::cout << "SOURCE_API_JSON " << operation.name << "=" << payload << "\n";
         return payload;
+    }
+
+    void call_core_operations() {
+        const SourceOperation operations[] = {
+            {
+                "search",
+                "koma_source_search",
+                "{\"type\":\"request\",\"version\":1,\"requestId\":\"runtime-search-001\","
+                "\"operation\":\"search\",\"sourceId\":\"local.test.koma.fixture\","
+                "\"args\":{\"query\":\"fixture\",\"page\":{\"cursor\":null,\"limit\":20},"
+                "\"filters\":{\"tags\":[\"fixture\"]}},\"settings\":{},"
+                "\"hostHints\":{\"network\":false}}",
+            },
+            {
+                "get_manga",
+                "koma_source_get_manga",
+                "{\"type\":\"request\",\"version\":1,\"requestId\":\"runtime-manga-001\","
+                "\"operation\":\"get_manga\",\"sourceId\":\"local.test.koma.fixture\","
+                "\"args\":{\"mangaId\":\"manga:fixture-series\"},\"settings\":{},"
+                "\"hostHints\":{\"network\":false}}",
+            },
+            {
+                "get_chapters",
+                "koma_source_get_chapters",
+                "{\"type\":\"request\",\"version\":1,\"requestId\":\"runtime-chapters-001\","
+                "\"operation\":\"get_chapters\",\"sourceId\":\"local.test.koma.fixture\","
+                "\"args\":{\"mangaId\":\"manga:fixture-series\","
+                "\"page\":{\"cursor\":null,\"limit\":100}},\"settings\":{},"
+                "\"hostHints\":{\"network\":false}}",
+            },
+            {
+                "get_pages",
+                "koma_source_get_pages",
+                "{\"type\":\"request\",\"version\":1,\"requestId\":\"runtime-pages-001\","
+                "\"operation\":\"get_pages\",\"sourceId\":\"local.test.koma.fixture\","
+                "\"args\":{\"chapterId\":\"chapter:fixture-series:001\"},\"settings\":{},"
+                "\"hostHints\":{\"network\":false,\"imageStrategy\":\"descriptor-only\"}}",
+            },
+        };
+
+        for (const SourceOperation &operation : operations) {
+            call_operation(operation);
+        }
+        std::cout << "hostHints.network=false\n";
     }
 
 private:
@@ -332,7 +427,8 @@ int main(int argc, char **argv) {
         Module module(read_file(argv[1]));
         module.validate_add();
         module.init_with_manifest();
-        module.call_search();
+        module.call_core_operations();
+        std::cout << "SOURCE_API_RUNTIME_SMOKE_PASS\n";
         std::cout << "WAMR_SPIKE_PASS\n";
         return 0;
     }

@@ -41,9 +41,9 @@
   },
   "capabilities": {
     "search": true,
-    "detail": false,
-    "chapterList": false,
-    "pageList": false,
+    "detail": true,
+    "chapterList": true,
+    "pageList": true,
     "imageUrl": false
   },
   "settingsSchema": {

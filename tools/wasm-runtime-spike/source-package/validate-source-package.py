@@ -12,7 +12,15 @@ from pathlib import Path
 SOURCE_ABI = "koma-source-abi-v0.1"
 HOST_ABI = "koma-host-v0.1"
 ALLOWED_IMPORTS = {("koma_host", "log"), ("koma_host", "check_cancel")}
-REQUIRED_EXPORTS = {"add", "koma_source_init", "koma_source_search", "koma_source_free"}
+REQUIRED_EXPORTS = {
+    "add",
+    "koma_source_init",
+    "koma_source_search",
+    "koma_source_get_manga",
+    "koma_source_get_chapters",
+    "koma_source_get_pages",
+    "koma_source_free",
+}
 CAPABILITY_KEYS = {"search", "detail", "chapterList", "pageList", "imageUrl"}
 SCOPE_FORBIDDEN_KEYS = {
     "repository",
@@ -182,7 +190,7 @@ def validate_settings_schema(schema: dict) -> None:
                     f"credential-shaped default is not allowed in fixture: {name}")
 
 
-def validate_manifest(manifest_path: Path) -> dict:
+def validate_manifest(manifest_path: Path, wasm_path_override: Path | None = None) -> dict:
     manifest = read_json(manifest_path)
     forbidden_hits = walk_forbidden_keys(manifest)
     require(not forbidden_hits, "forbidden source-market/plugin keys: " + ", ".join(forbidden_hits))
@@ -207,7 +215,7 @@ def validate_manifest(manifest_path: Path) -> dict:
     require(runtime.get("hostAbi") == HOST_ABI, f"runtime.hostAbi must be {HOST_ABI}")
     wasm = runtime.get("wasm")
     require(isinstance(wasm, dict), "runtime.wasm object is required")
-    wasm_path = resolve_package_path(manifest_path, wasm.get("path"))
+    wasm_path = wasm_path_override if wasm_path_override else resolve_package_path(manifest_path, wasm.get("path"))
     require(wasm_path.is_file(), f"wasm file does not exist: {wasm_path}")
     wasm_size = wasm_path.stat().st_size
     limits = runtime.get("limits")
@@ -218,7 +226,8 @@ def validate_manifest(manifest_path: Path) -> dict:
             "runtime.limits.maxWasmBytes must be a positive integer")
     require(wasm_size <= limits["maxWasmBytes"], "wasm exceeds maxWasmBytes")
     actual_sha = sha256_file(wasm_path)
-    require(wasm.get("sha256") == actual_sha, "runtime.wasm.sha256 does not match resolved wasm")
+    if wasm_path_override is None:
+        require(wasm.get("sha256") == actual_sha, "runtime.wasm.sha256 does not match resolved wasm")
 
     declared_imports = runtime.get("requiredHostImports")
     require(isinstance(declared_imports, list) and declared_imports, "requiredHostImports must be non-empty")
@@ -234,8 +243,9 @@ def validate_manifest(manifest_path: Path) -> dict:
     capabilities = manifest.get("capabilities")
     require(isinstance(capabilities, dict), "capabilities object is required")
     require(set(capabilities.keys()) == CAPABILITY_KEYS, "capabilities keys do not match fixture boundary")
-    require(capabilities.get("search") is True, "fixture requires search=true")
-    for key in CAPABILITY_KEYS - {"search"}:
+    for key in ("search", "detail", "chapterList", "pageList"):
+        require(capabilities.get(key) is True, f"fixture requires {key}=true")
+    for key in CAPABILITY_KEYS - {"search", "detail", "chapterList", "pageList"}:
         require(capabilities.get(key) is False, f"fixture requires {key}=false")
 
     validate_settings_schema(manifest.get("settingsSchema"))
@@ -323,24 +333,29 @@ def main() -> int:
         "evidence": [],
     }
     try:
-        manifest_evidence = validate_manifest(manifest_path)
+        rust_result = {"status": "NOT_RUN"}
+        wasm_path_override = None
+        if args.build_rust_fixture:
+            rust_result = run_rust_fixture(manifest_path, artifact_dir, read_json(manifest_path))
+            report["rustFixtureBuild"] = rust_result
+            require(rust_result.get("status") == "PASS", "rust fixture build/run failed")
+            wasm_path_override = Path(rust_result["wasmPath"])
+
+        manifest_evidence = validate_manifest(manifest_path, wasm_path_override)
         report["manifest"] = manifest_evidence
         report["evidence"].extend([
             f"manifest package id {manifest_evidence['packageId']} accepted",
             f"wasm sha256 {manifest_evidence['wasmSha256']} size {manifest_evidence['wasmSizeBytes']} bytes",
             "imports constrained to koma_host.log and koma_host.check_cancel",
-            "capabilities constrained to fixture search only",
+            "capabilities cover fixture search/detail/chapter/page operations",
             "network=false and no market/index/install scope fields",
         ])
         if args.build_rust_fixture:
-            rust_result = run_rust_fixture(manifest_path, artifact_dir, read_json(manifest_path))
-            report["rustFixtureBuild"] = rust_result
-            require(rust_result.get("status") == "PASS", "rust fixture build/run failed")
             report["evidence"].append(
                 f"rust fixture built at {rust_result['wasmPath']} sha256 {rust_result['wasmSha256']}"
             )
         else:
-            report["rustFixtureBuild"] = {"status": "NOT_RUN"}
+            report["rustFixtureBuild"] = rust_result
         report["status"] = "PASS"
     except Exception as err:
         report["error"] = str(err)

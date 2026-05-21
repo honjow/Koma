@@ -70,13 +70,14 @@ def run_command(cmd: list[str], *, cwd: Path, env: dict[str, str], log_path: Pat
     return result
 
 
-def extract_search_json(output: str) -> dict:
-    search_json = ""
+def extract_operation_json(output: str) -> dict[str, dict]:
+    payloads: dict[str, dict] = {}
     for line in output.splitlines():
-        if line.startswith("SEARCH_JSON="):
-            search_json = line[len("SEARCH_JSON="):]
-    require(search_json, "host runner did not print SEARCH_JSON")
-    return json.loads(search_json)
+        if line.startswith("SOURCE_API_JSON "):
+            name, raw = line[len("SOURCE_API_JSON "):].split("=", 1)
+            payloads[name] = json.loads(raw)
+    require(payloads, "host runner did not print SOURCE_API_JSON evidence")
+    return payloads
 
 
 def build_or_accept_archive(args: argparse.Namespace, artifact_dir: Path, env: dict[str, str], report: dict) -> Path:
@@ -247,26 +248,41 @@ def run_extracted_wasm(wasm_path: Path, artifact_dir: Path, env: dict[str, str],
     )
     require(run_result["exitCode"] == 0, "extracted wasm host run failed")
     output = Path(run_result["log"]).read_text(encoding="utf-8")
-    search_payload = extract_search_json(output)
+    operation_payloads = extract_operation_json(output)
+    expected_operations = ["search", "get_manga", "get_chapters", "get_pages"]
     require("WAMR_SPIKE_PASS" in output, "missing WAMR_SPIKE_PASS")
-    require(search_payload.get("ok") is True, "search JSON ok was not true")
-    items = search_payload.get("data", {}).get("items", [])
+    require("SOURCE_API_RUNTIME_SMOKE_PASS" in output, "missing SOURCE_API_RUNTIME_SMOKE_PASS")
+    for operation in expected_operations:
+        require(f"SOURCE_API_OPERATION {operation} ok:true" in output,
+                f"missing SOURCE_API_OPERATION {operation} ok:true")
+        payload = operation_payloads.get(operation)
+        require(isinstance(payload, dict), f"missing {operation} JSON payload")
+        require(payload.get("version") == 1, f"{operation} JSON version was not 1")
+        require(payload.get("ok") is True, f"{operation} JSON ok was not true")
+        require(payload.get("operation") == operation, f"{operation} JSON operation mismatch")
+        require(isinstance(payload.get("data"), dict), f"{operation} JSON missing data")
+        require(payload.get("hostHints", {}).get("network") is False,
+                f"{operation} JSON hostHints.network was not false")
+    items = operation_payloads["search"].get("data", {}).get("items", [])
     require(items and items[0].get("title") == "Fixture Series", "missing Fixture Series search evidence")
     require("HOST_LOG level=1" in output and "rust fixture init reached host imports" in output,
             "missing HOST_LOG import evidence")
     require("HOST_CHECK_CANCEL result=0" in output, "missing HOST_CHECK_CANCEL import evidence")
-    require(search_payload.get("hostHints", {}).get("network") is False,
-            "search JSON hostHints.network was not false")
+    require("hostHints.network=false" in output, "missing hostHints.network=false evidence")
 
-    search_json_path = artifact_dir / "extracted-wasm-search-result.json"
-    write_json(search_json_path, search_payload)
+    operation_json_path = artifact_dir / "extracted-wasm-operation-results.json"
+    write_json(operation_json_path, operation_payloads)
     return {
         "hostBinary": str(host_binary),
         "runLog": run_result["log"],
-        "searchJson": str(search_json_path),
+        "operationJson": str(operation_json_path),
         "evidence": [
             "WAMR_SPIKE_PASS",
-            "SEARCH_JSON ok:true",
+            "SOURCE_API_RUNTIME_SMOKE_PASS",
+            "SOURCE_API_OPERATION search ok:true",
+            "SOURCE_API_OPERATION get_manga ok:true",
+            "SOURCE_API_OPERATION get_chapters ok:true",
+            "SOURCE_API_OPERATION get_pages ok:true",
             "Fixture Series",
             "HOST_LOG rust fixture init reached host imports",
             "HOST_CHECK_CANCEL result=0",

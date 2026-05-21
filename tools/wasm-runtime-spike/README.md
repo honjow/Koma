@@ -42,8 +42,11 @@ Expected evidence in the log:
 ```text
 ADD_OK add(2,3)=5
 INIT_OK manifest accepted
-SEARCH_OK magic=KOMA flags=1 len=...
-SEARCH_JSON={"ok":true,...}
+SOURCE_API_OPERATION search ok:true magic=KOMA flags=1 len=...
+SOURCE_API_OPERATION get_manga ok:true magic=KOMA flags=1 len=...
+SOURCE_API_OPERATION get_chapters ok:true magic=KOMA flags=1 len=...
+SOURCE_API_OPERATION get_pages ok:true magic=KOMA flags=1 len=...
+SOURCE_API_RUNTIME_SMOKE_PASS
 WAMR_SPIKE_PASS
 ```
 
@@ -52,8 +55,10 @@ The host runner validates:
 - WAMR initializes, loads, instantiates, calls, and disposes the module.
 - `add(2,3)` returns `5`.
 - A JSON request buffer is copied into wasm memory.
-- `koma_source_search(ptr,len)` returns a result buffer with `KOMA` magic,
-  flags, payload length, and UTF-8 JSON envelope.
+- `koma_source_search(ptr,len)`, `koma_source_get_manga(ptr,len)`,
+  `koma_source_get_chapters(ptr,len)`, and `koma_source_get_pages(ptr,len)`
+  return result buffers with `KOMA` magic, flags, payload length, and UTF-8
+  JSON envelopes.
 - `koma_source_free(ptr)` is called after the host reads the payload.
 
 ## Rust Fixture Spike
@@ -76,9 +81,9 @@ test-only, self-authored Koma boundary for the fixture's tiny ABI surface:
 host logging/cancellation wrappers, request matching, KOMA result buffer
 writing, and the `hostHints.network=false` convention. The fixture imports only
 the existing `koma_host.log` and `koma_host.check_cancel` functions, exports
-`add`, `koma_source_init`, `koma_source_search`, and `koma_source_free`, and
-returns the same test envelope shape with `requestEcho: "fixture"`,
-`Fixture Series`, and `hostHints.network: false`.
+`add`, `koma_source_init`, the four core source operation exports, and
+`koma_source_free`, and returns test envelope shapes with `Fixture Series` and
+`hostHints.network: false`.
 
 The source-package tooling can also build this SDK-backed wasm into an ignored
 artifact directory, generate a local/test-only package manifest that points at

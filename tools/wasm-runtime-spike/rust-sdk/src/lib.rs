@@ -59,13 +59,25 @@ pub mod envelope {
     pub const HOST_HINTS_NETWORK_FALSE: &str = r#""hostHints":{"abi":"koma-host-v0.1","maxMemoryPages":2,"maxPayloadBytes":1048576,"network":false}"#;
 
     pub const BAD_EMPTY_REQUEST: &[u8] =
-        br#"{"ok":false,"error":{"code":"BAD_REQUEST","message":"empty request"},"warnings":[]}"#;
-    pub const BAD_FIXTURE_QUERY: &[u8] =
-        br#"{"ok":false,"error":{"code":"BAD_REQUEST","message":"expected fixture query"},"warnings":[]}"#;
+        br#"{"type":"response","version":1,"ok":false,"operation":"unknown","error":{"code":"BAD_REQUEST","message":"empty request"},"hostHints":{"network":false},"warnings":[]}"#;
+    pub const BAD_SEARCH_REQUEST: &[u8] =
+        br#"{"type":"response","version":1,"ok":false,"operation":"search","error":{"code":"BAD_REQUEST","message":"expected fixture search request"},"hostHints":{"network":false},"warnings":[]}"#;
+    pub const BAD_GET_MANGA_REQUEST: &[u8] =
+        br#"{"type":"response","version":1,"ok":false,"operation":"get_manga","error":{"code":"BAD_REQUEST","message":"expected fixture manga request"},"hostHints":{"network":false},"warnings":[]}"#;
+    pub const BAD_GET_CHAPTERS_REQUEST: &[u8] =
+        br#"{"type":"response","version":1,"ok":false,"operation":"get_chapters","error":{"code":"BAD_REQUEST","message":"expected fixture chapters request"},"hostHints":{"network":false},"warnings":[]}"#;
+    pub const BAD_GET_PAGES_REQUEST: &[u8] =
+        br#"{"type":"response","version":1,"ok":false,"operation":"get_pages","error":{"code":"BAD_REQUEST","message":"expected fixture pages request"},"hostHints":{"network":false},"warnings":[]}"#;
     pub const CANCELLED: &[u8] =
-        br#"{"ok":false,"error":{"code":"CANCELLED","message":"host cancelled"},"warnings":[]}"#;
+        br#"{"type":"response","version":1,"ok":false,"operation":"unknown","error":{"code":"CANCELLED","message":"host cancelled"},"hostHints":{"network":false},"warnings":[]}"#;
     pub const FIXTURE_SEARCH_OK: &[u8] =
-        br#"{"ok":true,"data":{"requestEcho":"fixture","items":[{"id":"rust-fixture-series-1","title":"Fixture Series","subtitle":"Rust WAMR ABI spike","cover":{"url":"https://example.local/covers/fixture.jpg","headersRef":"default"}}],"nextPage":null},"hostHints":{"abi":"koma-host-v0.1","maxMemoryPages":2,"maxPayloadBytes":1048576,"network":false},"warnings":[],"elapsedMs":0}"#;
+        br#"{"type":"response","version":1,"ok":true,"operation":"search","data":{"items":[{"id":"manga:fixture-series","title":"Fixture Series","subtitle":"Rust WAMR runtime smoke","cover":{"kind":"none"},"authors":["Koma Fixture"],"status":"unknown","contentRating":"unknown","sourceTags":["fixture"]}],"page":{"nextCursor":null,"hasMore":false}},"hostHints":{"abi":"koma-host-v0.1","maxMemoryPages":2,"maxPayloadBytes":1048576,"network":false},"warnings":[],"elapsedMs":0}"#;
+    pub const FIXTURE_GET_MANGA_OK: &[u8] =
+        br#"{"type":"response","version":1,"ok":true,"operation":"get_manga","data":{"manga":{"id":"manga:fixture-series","title":"Fixture Series","alternateTitles":["Fixture Manga"],"description":"Rust WAMR runtime smoke detail.","cover":{"kind":"none"},"authors":["Koma Fixture"],"artists":[],"status":"unknown","contentRating":"unknown","language":"zh-Hans","tags":["fixture"],"links":[]}},"hostHints":{"abi":"koma-host-v0.1","maxMemoryPages":2,"maxPayloadBytes":1048576,"network":false},"warnings":[],"elapsedMs":0}"#;
+    pub const FIXTURE_GET_CHAPTERS_OK: &[u8] =
+        br#"{"type":"response","version":1,"ok":true,"operation":"get_chapters","data":{"items":[{"id":"chapter:fixture-series:001","mangaId":"manga:fixture-series","title":"Chapter 1","chapterNumber":"1","volumeNumber":null,"language":"zh-Hans","publishedAt":null,"updatedAt":null,"pageCount":1}],"page":{"nextCursor":null,"hasMore":false}},"hostHints":{"abi":"koma-host-v0.1","maxMemoryPages":2,"maxPayloadBytes":1048576,"network":false},"warnings":[],"elapsedMs":0}"#;
+    pub const FIXTURE_GET_PAGES_OK: &[u8] =
+        br#"{"type":"response","version":1,"ok":true,"operation":"get_pages","data":{"chapterId":"chapter:fixture-series:001","pages":[{"id":"page:fixture-series:001:0001","index":0,"image":{"kind":"placeholder","label":"fixture-page-1","width":1200,"height":1800}}]},"hostHints":{"abi":"koma-host-v0.1","maxMemoryPages":2,"maxPayloadBytes":1048576,"network":false},"warnings":[],"elapsedMs":0}"#;
 }
 
 pub mod result {

@@ -4,6 +4,20 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 ARTIFACT_DIR="${KOMA_WASM_SPIKE_ARTIFACT_DIR:-$REPO_ROOT/.hermes-artifacts/wasm-runtime-spike-rust}"
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --artifact-dir)
+      ARTIFACT_DIR="$2"
+      shift 2
+      ;;
+    *)
+      printf 'unknown argument: %s\n' "$1" >&2
+      exit 2
+      ;;
+  esac
+done
+
 WAMR_TAG="${WAMR_TAG:-WAMR-2.3.0}"
 WAMR_COMMIT="${WAMR_COMMIT:-c7b2db18329f849b81568b94e72ddd0b20f431a5}"
 WAMR_ROOT_DIR="${WAMR_ROOT_DIR:-$ARTIFACT_DIR/cache/wasm-micro-runtime}"
@@ -13,7 +27,7 @@ WASM_OUT="$BUILD_DIR/rust_source_fixture.wasm"
 SDK_RLIB="$BUILD_DIR/libkoma_source_sdk.rlib"
 HOST_BUILD_DIR="$BUILD_DIR/host"
 RUN_LOG="$LOG_DIR/run-rust-fixture.log"
-JSON_OUT="$ARTIFACT_DIR/rust-search-result.json"
+JSON_OUT="$ARTIFACT_DIR/rust-source-operation-results.json"
 
 mkdir -p "$BUILD_DIR" "$LOG_DIR" "$(dirname "$WAMR_ROOT_DIR")"
 : > "$RUN_LOG"
@@ -85,6 +99,9 @@ run_logged "${RUSTC_CMD[@]}" --target wasm32-unknown-unknown \
   -C link-arg=--export=add \
   -C link-arg=--export=koma_source_init \
   -C link-arg=--export=koma_source_search \
+  -C link-arg=--export=koma_source_get_manga \
+  -C link-arg=--export=koma_source_get_chapters \
+  -C link-arg=--export=koma_source_get_pages \
   -C link-arg=--export=koma_source_free \
   -C link-arg=--export-memory \
   -C link-arg=-z \
@@ -102,9 +119,20 @@ run_logged cmake --build "$HOST_BUILD_DIR" --target koma_wamr_spike --parallel
 log "+ $HOST_BUILD_DIR/koma_wamr_spike $WASM_OUT"
 "$HOST_BUILD_DIR/koma_wamr_spike" "$WASM_OUT" 2>&1 | tee -a "$RUN_LOG"
 
-search_json="$(sed -n 's/^SEARCH_JSON=//p' "$RUN_LOG" | tail -n 1)"
-if [[ -z "$search_json" ]]; then
-  log "missing SEARCH_JSON evidence"
+for operation in search get_manga get_chapters get_pages; do
+  if ! grep -q "SOURCE_API_OPERATION $operation ok:true" "$RUN_LOG"; then
+    log "missing SOURCE_API_OPERATION $operation ok:true evidence"
+    exit 22
+  fi
+done
+
+if ! grep -q 'SOURCE_API_RUNTIME_SMOKE_PASS' "$RUN_LOG"; then
+  log "missing SOURCE_API_RUNTIME_SMOKE_PASS evidence"
+  exit 22
+fi
+
+if ! grep -q 'hostHints.network=false' "$RUN_LOG"; then
+  log "missing hostHints.network=false evidence"
   exit 22
 fi
 
@@ -119,20 +147,35 @@ if ! grep -q 'HOST_CHECK_CANCEL result=0' "$RUN_LOG"; then
 fi
 
 if command -v python3 >/dev/null 2>&1; then
-  printf '%s\n' "$search_json" > "$JSON_OUT"
-  run_logged python3 -m json.tool "$JSON_OUT"
-  run_logged python3 - "$JSON_OUT" <<'PY'
+  run_logged python3 - "$RUN_LOG" "$JSON_OUT" <<'PY'
 import json
 import sys
 
-with open(sys.argv[1], "r", encoding="utf-8") as fh:
-    payload = json.load(fh)
+run_log = sys.argv[1]
+json_out = sys.argv[2]
+payloads = {}
+with open(run_log, "r", encoding="utf-8") as fh:
+    for line in fh:
+        if not line.startswith("SOURCE_API_JSON "):
+            continue
+        name, raw = line[len("SOURCE_API_JSON "):].split("=", 1)
+        payloads[name] = json.loads(raw)
 
-assert payload["ok"] is True
-assert payload["data"]["requestEcho"] == "fixture"
-assert payload["data"]["items"][0]["title"] == "Fixture Series"
-assert payload["hostHints"]["network"] is False
+expected = ["search", "get_manga", "get_chapters", "get_pages"]
+assert sorted(payloads) == sorted(expected), payloads.keys()
+for name in expected:
+    payload = payloads[name]
+    assert payload["version"] == 1
+    assert payload["ok"] is True
+    assert payload["operation"] == name
+    assert "data" in payload
+    assert payload["hostHints"]["network"] is False
+assert payloads["search"]["data"]["items"][0]["title"] == "Fixture Series"
+with open(json_out, "w", encoding="utf-8") as out:
+    json.dump(payloads, out, indent=2, sort_keys=True)
+    out.write("\n")
 PY
+  run_logged python3 -m json.tool "$JSON_OUT"
 else
   log "python3 not found; host runner still validated result envelope shape"
 fi
