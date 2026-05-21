@@ -10,6 +10,7 @@ WAMR_ROOT_DIR="${WAMR_ROOT_DIR:-$ARTIFACT_DIR/cache/wasm-micro-runtime}"
 BUILD_DIR="$ARTIFACT_DIR/build"
 LOG_DIR="$ARTIFACT_DIR/logs"
 WASM_OUT="$BUILD_DIR/rust_source_fixture.wasm"
+SDK_RLIB="$BUILD_DIR/libkoma_source_sdk.rlib"
 HOST_BUILD_DIR="$BUILD_DIR/host"
 RUN_LOG="$LOG_DIR/run-rust-fixture.log"
 JSON_OUT="$ARTIFACT_DIR/rust-search-result.json"
@@ -66,9 +67,20 @@ fi
 log "Using WAMR $WAMR_TAG at $actual_commit"
 
 run_logged "${RUSTC_CMD[@]}" --target wasm32-unknown-unknown \
+  --edition=2021 \
+  --crate-name koma_source_sdk \
+  --crate-type rlib \
+  -C opt-level=z \
+  -C panic=abort \
+  -o "$SDK_RLIB" \
+  "$SCRIPT_DIR/rust-sdk/src/lib.rs"
+
+run_logged "${RUSTC_CMD[@]}" --target wasm32-unknown-unknown \
+  --edition=2021 \
   --crate-type cdylib \
   -C opt-level=z \
   -C panic=abort \
+  --extern "koma_source_sdk=$SDK_RLIB" \
   -C link-arg=--no-entry \
   -C link-arg=--export=add \
   -C link-arg=--export=koma_source_init \
@@ -126,6 +138,7 @@ else
 fi
 
 log "Rust fixture artifacts:"
+log "  sdk: $SDK_RLIB"
 log "  wasm: $WASM_OUT"
 log "  log: $RUN_LOG"
 log "  json: $JSON_OUT"

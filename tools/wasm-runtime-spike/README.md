@@ -58,7 +58,7 @@ The host runner validates:
 The Rust fixture is SDK-side only and uses the same host runner and ABI:
 
 ```text
-Rust no_std fixture source -> rustc wasm32-unknown-unknown -> WAMR interpreter host -> KOMA JSON envelope
+Rust no_std SDK rlib -> Rust no_std fixture source -> rustc wasm32-unknown-unknown -> WAMR interpreter host -> KOMA JSON envelope
 ```
 
 Run it separately from the C fixture:
@@ -67,9 +67,12 @@ Run it separately from the C fixture:
 bash tools/wasm-runtime-spike/run-rust-fixture.sh
 ```
 
-It has no Cargo dependencies and writes generated wasm/log/JSON artifacts under
-the ignored artifact directory. The fixture imports only the existing
-`koma_host.log` and `koma_host.check_cancel` functions, exports
+It has no Cargo dependencies and writes generated SDK rlib/wasm/log/JSON
+artifacts under the ignored artifact directory. The local `rust-sdk` crate is a
+test-only, self-authored Koma boundary for the fixture's tiny ABI surface:
+host logging/cancellation wrappers, request matching, KOMA result buffer
+writing, and the `hostHints.network=false` convention. The fixture imports only
+the existing `koma_host.log` and `koma_host.check_cancel` functions, exports
 `add`, `koma_source_init`, `koma_source_search`, and `koma_source_free`, and
 returns the same test envelope shape with `requestEcho: "fixture"`,
 `Fixture Series`, and `hostHints.network: false`.
