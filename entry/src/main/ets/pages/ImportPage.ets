@@ -145,7 +145,9 @@ export struct ImportPage {
         this.ImportEntryCard(ARCHIVE_ENTRY)
       }
       .width('100%')
-      .padding({ left: 20, right: 20, bottom: 28 })
+      .height('100%')
+      .padding({ left: 20, right: 20, top: 24, bottom: 28 })
+      .justifyContent(FlexAlign.Start)
     }
     .width('100%')
     .height('100%')
