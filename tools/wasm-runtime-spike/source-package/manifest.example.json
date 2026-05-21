@@ -1,0 +1,73 @@
+{
+  "schemaVersion": 1,
+  "package": {
+    "id": "local.test.koma.fixture",
+    "name": "Koma Local WASM Fixture",
+    "version": "0.1.0",
+    "language": "en",
+    "type": "wasm-source-fixture",
+    "nsfw": false,
+    "author": "Koma test fixture",
+    "description": "Local-only fixture manifest for validating Koma's WASM source package boundary.",
+    "icon": "icon.placeholder.txt"
+  },
+  "runtime": {
+    "abi": "koma-source-abi-v0.1",
+    "hostAbi": "koma-host-v0.1",
+    "wasm": {
+      "path": "../../../entry/src/main/resources/rawfile/test/source_runtime_fixture.wasm",
+      "sha256": "086cdc1a4d6eefd8dd04f34ae49803c188b7fa64f8a26960b247160ac2281935",
+      "build": {
+        "kind": "rustc-no-std-fixture",
+        "script": "../run-rust-fixture.sh",
+        "artifactPath": "build/rust_source_fixture.wasm"
+      }
+    },
+    "limits": {
+      "maxMemoryPages": 2,
+      "maxPayloadBytes": 1048576,
+      "maxWasmBytes": 131072
+    },
+    "requiredHostImports": [
+      {
+        "module": "koma_host",
+        "name": "log"
+      },
+      {
+        "module": "koma_host",
+        "name": "check_cancel"
+      }
+    ]
+  },
+  "capabilities": {
+    "search": true,
+    "detail": false,
+    "chapterList": false,
+    "pageList": false,
+    "imageUrl": false
+  },
+  "settingsSchema": {
+    "type": "object",
+    "properties": {
+      "fixtureLabel": {
+        "type": "string",
+        "title": "Fixture label",
+        "default": "fixture"
+      }
+    },
+    "required": []
+  },
+  "permissions": {
+    "network": false,
+    "hostImports": [
+      "koma_host.log",
+      "koma_host.check_cancel"
+    ]
+  },
+  "contentPolicy": {
+    "publicIndex": false,
+    "marketplace": false,
+    "builtInSource": false,
+    "remoteInstall": false
+  }
+}
