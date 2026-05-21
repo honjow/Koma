@@ -142,6 +142,23 @@ function getReaderSessionPageUri(config, pageIndex) {
   return config.pageUris[resolvedPageIndex] ?? ''
 }
 
+const ReaderMode = {
+  SINGLE_PAGE: 'single_page',
+  CONTINUOUS_SCROLL: 'continuous_scroll',
+}
+
+function readerModeFromContinuousScroll(enabled) {
+  return enabled ? ReaderMode.CONTINUOUS_SCROLL : ReaderMode.SINGLE_PAGE
+}
+
+function isContinuousScrollReaderMode(mode) {
+  return mode === ReaderMode.CONTINUOUS_SCROLL
+}
+
+function getReaderModeLabel(mode) {
+  return mode === ReaderMode.CONTINUOUS_SCROLL ? '连续滚动' : '单页'
+}
+
 const ReaderPageRenderKind = {
   MOCK_FALLBACK: 'mock_fallback',
   LOCAL_FILE_IMAGE: 'local_file_image',
@@ -333,6 +350,10 @@ function getReaderSessionPageId(config, pageIndex) {
 }
 
 assertExport(readerSessionStoreSource, 'ReaderSessionConfig')
+assertExport(readerSessionStoreSource, 'ReaderMode')
+assertExport(readerSessionStoreSource, 'readerModeFromContinuousScroll')
+assertExport(readerSessionStoreSource, 'isContinuousScrollReaderMode')
+assertExport(readerSessionStoreSource, 'getReaderModeLabel')
 assertExport(readerSessionStoreSource, 'ReaderSessionStore')
 assertExport(readerSessionStoreSource, 'InMemoryReaderSessionStore')
 assertExport(readerSessionStoreSource, 'createReaderSessionConfigFromComic')
@@ -365,17 +386,28 @@ assert.match(readerPageSource, /onDecodeFailed:[\s\S]*recordImageLoadFailure/, '
 assert.match(readerPageSource, /\[reader-source\]/, 'reader page must log redacted source diagnostics')
 assert.match(readerPageSource, /\[reader-image-error\]/, 'reader page must log redacted image error diagnostics')
 assert.match(readerPageSource, /expandSafeArea\(\[SafeAreaType\.SYSTEM\], \[SafeAreaEdge\.TOP, SafeAreaEdge\.BOTTOM\]\)/, 'reader background may extend into system safe areas')
+assert.match(readerPageSource, /currentReaderMode\(\) === ReaderMode\.CONTINUOUS_SCROLL/, 'reader page must render continuous scroll through the normalized reader mode contract')
 assert.match(readerChromeSource, /onCloseReader/, 'chrome return button must delegate to the reader route close callback')
 assert.match(readerChromeSource, /top: 24/, 'top reader chrome must reserve room for the status bar on fullscreen windows')
 assert.match(readerChromeSource, /bottom: 42/, 'bottom reader controls must reserve room for the navigation safe area on fullscreen windows')
 assert.match(readerChromeSource, /onPreviousPage/, 'chrome previous button must use reader callback')
 assert.match(readerChromeSource, /onNextPage/, 'chrome next button must use reader callback')
+assert.match(readerChromeSource, /ReaderModeSelector/, 'reader chrome must expose a bounded in-reader mode selector')
+assert.match(readerChromeSource, /getReaderModeLabel\(ReaderMode\.SINGLE_PAGE\)/, 'reader chrome must expose the 单页 mode label from the mode contract')
+assert.match(readerChromeSource, /getReaderModeLabel\(ReaderMode\.CONTINUOUS_SCROLL\)/, 'reader chrome must expose the 连续滚动 mode label from the mode contract')
+assert.doesNotMatch(readerChromeSource, /Webtoon 纵向预览|纵向/, 'reader chrome must avoid internal/webtoon wording in visible labels')
 
 assert.equal(clampPageIndex(-5, 5), 0, 'negative page indexes clamp to first page')
 assert.equal(clampPageIndex(9, 5), 4, 'large page indexes clamp to last page')
 assert.equal(clampPageIndex(2.8, 5), 2, 'fractional page indexes floor')
 assert.equal(calculateProgressRatio(1, 5), 0.4, 'second page of five is 40%')
 assert.equal(calculateProgressRatio(20, 5), 1, 'clamped last page is 100%')
+assert.equal(readerModeFromContinuousScroll(false), ReaderMode.SINGLE_PAGE, 'paged reader state maps to single-page mode')
+assert.equal(readerModeFromContinuousScroll(true), ReaderMode.CONTINUOUS_SCROLL, 'scroll reader state maps to continuous-scroll mode')
+assert.equal(isContinuousScrollReaderMode(ReaderMode.SINGLE_PAGE), false, 'single-page mode is not continuous scroll')
+assert.equal(isContinuousScrollReaderMode(ReaderMode.CONTINUOUS_SCROLL), true, 'continuous-scroll mode is recognized by contract')
+assert.equal(getReaderModeLabel(ReaderMode.SINGLE_PAGE), '单页', 'single-page mode has a quiet user-facing label')
+assert.equal(getReaderModeLabel(ReaderMode.CONTINUOUS_SCROLL), '连续滚动', 'continuous-scroll mode has a quiet user-facing label')
 
 const config = {
   comicId: 'local-01',

@@ -21,6 +21,23 @@ export interface ReaderSessionConfig {
   pageIds: string[]
 }
 
+export enum ReaderMode {
+  SINGLE_PAGE = 'single_page',
+  CONTINUOUS_SCROLL = 'continuous_scroll',
+}
+
+export function readerModeFromContinuousScroll(enabled: boolean): ReaderMode {
+  return enabled ? ReaderMode.CONTINUOUS_SCROLL : ReaderMode.SINGLE_PAGE
+}
+
+export function isContinuousScrollReaderMode(mode: ReaderMode): boolean {
+  return mode === ReaderMode.CONTINUOUS_SCROLL
+}
+
+export function getReaderModeLabel(mode: ReaderMode): string {
+  return mode === ReaderMode.CONTINUOUS_SCROLL ? '连续滚动' : '单页'
+}
+
 export interface ReaderSessionStore {
   restorePageIndex(config: ReaderSessionConfig): number
   updatePageIndex(config: ReaderSessionConfig, pageIndex: number, pageId?: string): ReadingProgress
