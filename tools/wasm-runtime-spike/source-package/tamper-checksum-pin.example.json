@@ -1,0 +1,200 @@
+{
+  "boundaryVersion": 1,
+  "status": "design-tooling-only",
+  "designOnly": true,
+  "fixtureOnly": true,
+  "implementsSigning": false,
+  "implementsCryptoVerification": false,
+  "implementsKeyGeneration": false,
+  "implementsTrustStore": false,
+  "executesWasm": false,
+  "networkIo": false,
+  "subprocesses": false,
+  "productRuntime": false,
+  "productUi": false,
+  "scope": {
+    "sourceMarket": false,
+    "publicIndex": false,
+    "remoteInstall": false,
+    "builtInSources": false,
+    "network": false
+  },
+  "validatorDrift": {
+    "network": false,
+    "subprocess": false,
+    "executableHook": false,
+    "wasmExecution": false,
+    "productRuntimeHook": false
+  },
+  "manifestModel": {
+    "schemaVersion": 1,
+    "package": {
+      "id": "koma.local.tamper-checksum",
+      "version": "0.1.0"
+    },
+    "runtime": {
+      "abi": "koma-source-abi-v0.1",
+      "hostAbi": "koma-host-v0.1",
+      "wasm": {
+        "path": "wasm/tamper_fixture.wasm",
+        "sha256": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+        "sizeBytes": 2048
+      },
+      "network": false,
+      "hostImports": [
+        "koma_host.log",
+        "koma_host.check_cancel"
+      ]
+    },
+    "contentPolicy": {
+      "sourceMarket": false,
+      "publicIndex": false,
+      "remoteInstall": false,
+      "builtInSources": false
+    }
+  },
+  "observedPackage": {
+    "archive": {
+      "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "sizeBytes": 40960
+    },
+    "manifest": {
+      "sha256": "03aec9f3bab9dd77c844e0bb2452f7262d4857342f43c6ed7eeb4d9b33d7f6d2",
+      "sizeBytes": 464,
+      "input": "normalized-json-object"
+    },
+    "wasm": {
+      "path": "wasm/tamper_fixture.wasm",
+      "sha256": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+      "sizeBytes": 2048
+    },
+    "canonicalSignedPayload": {
+      "present": true,
+      "sha256": "d0b33d22b615819b05c500e301043da9f1d45e434a5fb37bfe17e767e6afeaa9",
+      "sizeBytes": 642
+    },
+    "identity": {
+      "packageId": "koma.local.tamper-checksum",
+      "packageVersion": "0.1.0",
+      "signerId": "signer:fixture",
+      "keyId": "key:fixture-v1"
+    }
+  },
+  "canonicalSignedPayloadModel": {
+    "schemaVersion": 1,
+    "package": {
+      "id": "koma.local.tamper-checksum",
+      "version": "0.1.0"
+    },
+    "archive": {
+      "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "sizeBytes": 40960
+    },
+    "manifest": {
+      "sha256": "03aec9f3bab9dd77c844e0bb2452f7262d4857342f43c6ed7eeb4d9b33d7f6d2",
+      "sizeBytes": 464,
+      "input": "normalized-json-object"
+    },
+    "wasm": {
+      "path": "wasm/tamper_fixture.wasm",
+      "sha256": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+      "sizeBytes": 2048
+    },
+    "runtime": {
+      "network": false,
+      "hostImports": [
+        "koma_host.log",
+        "koma_host.check_cancel"
+      ]
+    },
+    "trust": {
+      "mode": "private-signature-pin",
+      "signerId": "signer:fixture",
+      "keyId": "key:fixture-v1"
+    }
+  },
+  "expectedTrust": {
+    "mode": "private-signature-pin",
+    "checksumPins": {
+      "archiveSha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "archiveSizeBytes": 40960,
+      "wasmSha256": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+      "wasmSizeBytes": 2048
+    },
+    "package": {
+      "id": "koma.local.tamper-checksum",
+      "version": "0.1.0"
+    },
+    "signer": {
+      "signerId": "signer:fixture",
+      "keyId": "key:fixture-v1"
+    },
+    "canonicalPayloadSha256": "d0b33d22b615819b05c500e301043da9f1d45e434a5fb37bfe17e767e6afeaa9"
+  },
+  "signatureBlock": {
+    "present": true,
+    "unsigned": false,
+    "malformed": false,
+    "tampered": false,
+    "state": "well-formed-placeholder",
+    "realVerificationPerformed": false,
+    "rawSignatureIncluded": false
+  },
+  "releasePolicy": {
+    "allowUnsignedRelease": false,
+    "signaturePinnedModeRequiresSignatureBlock": true
+  },
+  "diagnostics": {
+    "redactedByDefault": true,
+    "includeRawSignatures": false,
+    "includeRawArchiveBytes": false,
+    "includeRawWasmBytes": false,
+    "includeFullManifestDump": false,
+    "reportFields": [
+      "status",
+      "case",
+      "reasonCode",
+      "field",
+      "expectedPrefix",
+      "observedPrefix"
+    ],
+    "reasonCodes": [
+      "ARCHIVE_PIN_MISMATCH",
+      "MANIFEST_BINDING_MISMATCH",
+      "WASM_PIN_MISMATCH",
+      "CANONICAL_PAYLOAD_PIN_MISMATCH",
+      "PACKAGE_IDENTITY_MISMATCH",
+      "SIGNER_IDENTITY_MISMATCH",
+      "SIGNATURE_BLOCK_REJECTED",
+      "UNSIGNED_RELEASE_REJECTED",
+      "SCOPE_REJECTED",
+      "DIAGNOSTIC_REDACTION_REJECTED"
+    ]
+  },
+  "nonGoals": {
+    "realSigning": true,
+    "signatureVerification": true,
+    "keyGeneration": true,
+    "certificates": true,
+    "keyStore": true,
+    "trustStore": true,
+    "productIngestion": true,
+    "runtimeLoading": true,
+    "productRuntime": true,
+    "productUi": true,
+    "network": true,
+    "http": true,
+    "webViewJsDsl": true,
+    "sourceMarket": true,
+    "publicIndex": true,
+    "remoteInstall": true,
+    "builtInSources": true,
+    "rawArchiveBytes": true,
+    "rawWasmBytes": true,
+    "rawSignatures": true,
+    "credentials": true,
+    "headers": true,
+    "fullLocalPaths": true,
+    "executableHooks": true
+  }
+}
