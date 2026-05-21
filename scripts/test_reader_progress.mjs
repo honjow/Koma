@@ -176,15 +176,107 @@ function isSupportedLocalImagePath(path) {
 }
 
 function isAppImportExtractPath(path) {
-  const appImportRoots = [
-    '/data/storage/el2/base/haps/entry/cache/import/',
-    '/data/storage/el2/base/haps/entry/files/import/',
-    '/data/storage/el2/base/cache/import/',
-    '/data/storage/el2/base/files/import/',
+  return READER_SANDBOX_ROOTS.some((root) => {
+    if (!path.startsWith(root.path)) return false
+    return path.indexOf('/extract/', root.path.length) > root.path.length
+  })
+}
+
+const READER_SANDBOX_ROOTS = [
+  { label: 'cache_haps_entry', path: '/data/storage/el2/base/haps/entry/cache/import/' },
+  { label: 'files_haps_entry', path: '/data/storage/el2/base/haps/entry/files/import/' },
+  { label: 'cache_base', path: '/data/storage/el2/base/cache/import/' },
+  { label: 'files_base', path: '/data/storage/el2/base/files/import/' },
+]
+
+function matchReaderSandboxRoot(path) {
+  const matched = READER_SANDBOX_ROOTS.find((root) => {
+    return path.startsWith(root.path) && path.indexOf('/extract/', root.path.length) > root.path.length
+  })
+  return matched === undefined ? 'none' : matched.label
+}
+
+function getReaderUriExtension(uri) {
+  const normalized = normalizeReaderPageUri(uri)
+  const withoutQuery = normalized.split('?')[0].split('#')[0]
+  const lastSegment = withoutQuery.split('/').pop() ?? ''
+  const dotIndex = lastSegment.lastIndexOf('.')
+  if (dotIndex < 0 || dotIndex === lastSegment.length - 1) return ''
+  return lastSegment.slice(dotIndex + 1).toLocaleLowerCase()
+}
+
+function createShortReaderHash(value) {
+  let hash = 2166136261
+  for (let index = 0; index < value.length; index += 1) {
+    hash = (hash ^ value.charCodeAt(index)) >>> 0
+    hash = Math.imul(hash, 16777619) >>> 0
+  }
+  return hash.toString(16).padStart(8, '0').slice(-8)
+}
+
+function createReaderRedactedTail(uri) {
+  const normalized = normalizeReaderPageUri(uri)
+  const path = decodeFileUriPath(stripFileUriScheme(normalized))
+  const extension = getReaderUriExtension(uri)
+  const extensionTail = extension.length > 0 ? `<file.${extension}>` : '<file>'
+  const extractIndex = path.indexOf('/extract/')
+  if (extractIndex >= 0) {
+    const afterExtract = path.slice(extractIndex + '/extract/'.length)
+    const relativeSegments = afterExtract.split('/').filter((segment) => segment.length > 0)
+    if (relativeSegments.length > 1) return `<segment>/extract/<segment>/${extensionTail}`
+    return `<segment>/extract/${extensionTail}`
+  }
+  const strippedPath = stripFileUriScheme(normalized)
+  const pathSegments = strippedPath.split('/').filter((segment) => segment.length > 0)
+  if (pathSegments.length > 1) return `<segment>/${extensionTail}`
+  return extensionTail
+}
+
+function getReaderImageSourceForm(source) {
+  if (source.imageUri.length === 0) return 'none'
+  if (source.imageUri.startsWith('file://')) return 'file_uri'
+  if (source.imageUri.startsWith('/')) return 'absolute_path'
+  return 'other'
+}
+
+function createReaderUriDiagnostics(uri, pageIndex = 0) {
+  const normalized = normalizeReaderPageUri(uri)
+  const path = stripFileUriScheme(normalized)
+  const decodedPath = decodeFileUriPath(path)
+  const source = createReaderPageRenderSource({
+    comicId: 'diagnostic-case',
+    chapterId: 'chapter-1',
+    totalPages: 1,
+    pageUris: [uri],
+    pageIds: ['page-1'],
+  }, pageIndex)
+  const imageSource = source.imageUri.length > 0 ? source.imageUri : ''
+  return {
+    pageIndex,
+    kind: source.kind,
+    imageSourceForm: getReaderImageSourceForm(source),
+    hasFileScheme: normalized.startsWith('file://'),
+    hasRawFragmentOrQuery: normalized.includes('#') || normalized.includes('?'),
+    matchedSandboxRoot: decodedPath.length > 0 ? matchReaderSandboxRoot(decodedPath) : 'none',
+    extension: getReaderUriExtension(uri),
+    uriHash: createShortReaderHash(normalized),
+    sourceHash: createShortReaderHash(imageSource.length > 0 ? imageSource : normalized),
+    redactedTail: createReaderRedactedTail(uri),
+  }
+}
+
+/*
+  Keep the JS mirror above aligned with ReaderPageSourceAdapter.ets; these tests
+  execute the contract without depending on an ArkTS runtime.
+*/
+function assertNoPrivatePathLeak(diagnostics) {
+  const privateFragments = [
+    'koma-qa-import-real-image',
+    'demo-12345678',
+    '001-normal',
   ]
-  return appImportRoots.some((root) => {
-    if (!path.startsWith(root)) return false
-    return path.indexOf('/extract/', root.length) > root.length
+  privateFragments.forEach((fragment) => {
+    assert.equal(diagnostics.redactedTail.includes(fragment), false, `redacted tail must not include ${fragment}`)
   })
 }
 
@@ -249,6 +341,9 @@ assertExport(readerPageSourceAdapterSource, 'ReaderPageRenderKind')
 assertExport(readerPageSourceAdapterSource, 'isReaderLocalImageSourceUri')
 assertExport(readerPageSourceAdapterSource, 'createReaderImageSourceUri')
 assertExport(readerPageSourceAdapterSource, 'createReaderPageRenderSource')
+assertExport(readerPageSourceAdapterSource, 'ReaderPageRenderDiagnostics')
+assertExport(readerPageSourceAdapterSource, 'createReaderUriDiagnostics')
+assertExport(readerPageSourceAdapterSource, 'createReaderPageRenderDiagnostics')
 assert.match(readerSessionStoreSource, /ReadingProgressStore/, 'reader session store must wrap ReadingProgressStore')
 assert.match(readerSessionStoreSource, /clampPageIndex/, 'reader session restore/update must clamp page indexes')
 assert.match(readerSessionStoreSource, /pageUris: pages\.map/, 'reader session config must carry ordered page URIs')
@@ -264,6 +359,8 @@ assert.match(readerPageSource, /ReaderPageRenderKind\.LOCAL_FILE_IMAGE/, 'reader
 assert.match(readerPageSource, /ReaderPageRenderKind\.URI_PLACEHOLDER/, 'reader page must isolate URI rendering behind an explicit placeholder path')
 assert.match(readerPageSource, /Image\(imageUri\)/, 'reader page must pass accepted local image sources to ArkUI Image')
 assert.match(readerPageSource, /\.onError\(\(\) => \{[\s\S]*recordImageLoadFailure/, 'reader image load failures must return to a visible error placeholder')
+assert.match(readerPageSource, /\[reader-source\]/, 'reader page must log redacted source diagnostics')
+assert.match(readerPageSource, /\[reader-image-error\]/, 'reader page must log redacted image error diagnostics')
 assert.match(readerPageSource, /expandSafeArea\(\[SafeAreaType\.SYSTEM\], \[SafeAreaEdge\.TOP, SafeAreaEdge\.BOTTOM\]\)/, 'reader background may extend into system safe areas')
 assert.match(readerChromeSource, /onCloseReader/, 'chrome return button must delegate to the reader route close callback')
 assert.match(readerChromeSource, /top: 24/, 'top reader chrome must reserve room for the status bar on fullscreen windows')
@@ -459,5 +556,34 @@ renderCases.forEach((item, index) => {
   assert.equal(source.kind, item.kind, item.label)
   assert.equal(source.imageUri, item.imageUri, `${item.label} imageUri`)
 })
+
+const qaUri = 'file:///data/storage/el2/base/haps/entry/cache/import/koma-qa-import-real-image-1c7a8c1-1680328b/extract/001-normal.png'
+const qaDiagnostics = createReaderUriDiagnostics(qaUri, 0)
+assert.equal(qaDiagnostics.kind, ReaderPageRenderKind.LOCAL_FILE_IMAGE, 'QA URI diagnostics must classify as local file image')
+assert.equal(qaDiagnostics.imageSourceForm, 'absolute_path', 'QA URI diagnostics must report absolute Image source')
+assert.equal(qaDiagnostics.hasFileScheme, true, 'QA URI diagnostics must report file scheme')
+assert.equal(qaDiagnostics.hasRawFragmentOrQuery, false, 'QA URI diagnostics must reject raw fragment/query only when present')
+assert.equal(qaDiagnostics.matchedSandboxRoot, 'cache_haps_entry', 'QA URI diagnostics must report haps entry cache root')
+assert.equal(qaDiagnostics.extension, 'png', 'QA URI diagnostics must report extension')
+assert.match(qaDiagnostics.uriHash, /^[0-9a-f]{8}$/, 'QA URI diagnostics must include short uri hash')
+assert.match(qaDiagnostics.sourceHash, /^[0-9a-f]{8}$/, 'QA URI diagnostics must include short source hash')
+assertNoPrivatePathLeak(qaDiagnostics)
+
+const archiveDiagnostics = createReaderUriDiagnostics('file:///data/storage/el2/base/haps/entry/cache/import/demo-12345678/archive.cbz#001-normal.png', 1)
+assert.equal(archiveDiagnostics.kind, ReaderPageRenderKind.URI_PLACEHOLDER, 'archive entry diagnostics must remain placeholder')
+assert.equal(archiveDiagnostics.imageSourceForm, 'none', 'archive entry diagnostics must have no image source')
+assert.equal(archiveDiagnostics.hasRawFragmentOrQuery, true, 'archive entry diagnostics must flag raw fragment')
+
+const sdcardDiagnostics = createReaderUriDiagnostics('/sdcard/cache/import/demo/extract/001.jpg', 2)
+assert.equal(sdcardDiagnostics.kind, ReaderPageRenderKind.URI_PLACEHOLDER, 'sdcard diagnostics must remain placeholder')
+assert.equal(sdcardDiagnostics.matchedSandboxRoot, 'none', 'sdcard diagnostics must not match app sandbox roots')
+
+const encodedDiagnostics = createReaderUriDiagnostics('file:///data/storage/el2/base/haps/entry/cache/import/demo-12345678/extract/002-hash%23query%3F.png', 3)
+assert.equal(encodedDiagnostics.kind, ReaderPageRenderKind.LOCAL_FILE_IMAGE, 'encoded reserved filename diagnostics must remain local image')
+assert.equal(encodedDiagnostics.imageSourceForm, 'absolute_path', 'encoded reserved filename diagnostics must report absolute path')
+assert.equal(encodedDiagnostics.hasRawFragmentOrQuery, false, 'encoded reserved filename diagnostics must not flag raw fragment/query')
+assert.equal(encodedDiagnostics.matchedSandboxRoot, 'cache_haps_entry', 'encoded reserved filename diagnostics must match haps cache root')
+assert.equal(encodedDiagnostics.extension, 'png', 'encoded reserved filename diagnostics must report png extension')
+assertNoPrivatePathLeak(encodedDiagnostics)
 
 console.log('PASS Koma reader progress contracts')

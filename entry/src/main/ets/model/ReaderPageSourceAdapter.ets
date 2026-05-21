@@ -16,6 +16,31 @@ export interface ReaderPageRenderSource {
   fallbackPageIndex: number
 }
 
+export interface ReaderPageRenderDiagnostics {
+  pageIndex: number
+  kind: ReaderPageRenderKind
+  imageSourceForm: string
+  hasFileScheme: boolean
+  hasRawFragmentOrQuery: boolean
+  matchedSandboxRoot: string
+  extension: string
+  uriHash: string
+  sourceHash: string
+  redactedTail: string
+}
+
+interface ReaderSandboxRoot {
+  label: string
+  path: string
+}
+
+const READER_SANDBOX_ROOTS: ReaderSandboxRoot[] = [
+  { label: 'cache_haps_entry', path: '/data/storage/el2/base/haps/entry/cache/import/' },
+  { label: 'files_haps_entry', path: '/data/storage/el2/base/haps/entry/files/import/' },
+  { label: 'cache_base', path: '/data/storage/el2/base/cache/import/' },
+  { label: 'files_base', path: '/data/storage/el2/base/files/import/' },
+]
+
 function normalizeReaderPageUri(uri: string): string {
   return uri.trim().replace(/\\/g, '/')
 }
@@ -44,18 +69,99 @@ function isSupportedLocalImagePath(path: string): boolean {
 }
 
 function isAppImportExtractPath(path: string): boolean {
-  const appImportRoots = [
-    '/data/storage/el2/base/haps/entry/cache/import/',
-    '/data/storage/el2/base/haps/entry/files/import/',
-    '/data/storage/el2/base/cache/import/',
-    '/data/storage/el2/base/files/import/',
-  ]
-  return appImportRoots.some((root: string) => {
-    if (!path.startsWith(root)) {
+  return READER_SANDBOX_ROOTS.some((root: ReaderSandboxRoot) => {
+    if (!path.startsWith(root.path)) {
       return false
     }
-    return path.indexOf('/extract/', root.length) > root.length
+    return path.indexOf('/extract/', root.path.length) > root.path.length
   })
+}
+
+function matchReaderSandboxRoot(path: string): string {
+  const matched = READER_SANDBOX_ROOTS.find((root: ReaderSandboxRoot) => {
+    return path.startsWith(root.path) && path.indexOf('/extract/', root.path.length) > root.path.length
+  })
+  return matched === undefined ? 'none' : matched.label
+}
+
+function getReaderUriExtension(uri: string): string {
+  const normalized = normalizeReaderPageUri(uri)
+  const withoutQuery = normalized.split('?')[0].split('#')[0]
+  const lastSegment = withoutQuery.split('/').pop() ?? ''
+  const dotIndex = lastSegment.lastIndexOf('.')
+  if (dotIndex < 0 || dotIndex === lastSegment.length - 1) {
+    return ''
+  }
+  return lastSegment.slice(dotIndex + 1).toLocaleLowerCase()
+}
+
+function createShortReaderHash(value: string): string {
+  let hash = 2166136261
+  for (let index = 0; index < value.length; index += 1) {
+    hash = (hash ^ value.charCodeAt(index)) >>> 0
+    hash = Math.imul(hash, 16777619) >>> 0
+  }
+  return hash.toString(16).padStart(8, '0').slice(-8)
+}
+
+function createReaderRedactedTail(uri: string): string {
+  const normalized = normalizeReaderPageUri(uri)
+  const path = decodeFileUriPath(stripFileUriScheme(normalized))
+  const extension = getReaderUriExtension(uri)
+  const extensionTail = extension.length > 0 ? `<file.${extension}>` : '<file>'
+  const extractIndex = path.indexOf('/extract/')
+  if (extractIndex >= 0) {
+    const afterExtract = path.slice(extractIndex + '/extract/'.length)
+    const relativeSegments = afterExtract.split('/').filter((segment: string) => segment.length > 0)
+    if (relativeSegments.length > 1) {
+      return `<segment>/extract/<segment>/${extensionTail}`
+    }
+    return `<segment>/extract/${extensionTail}`
+  }
+  const strippedPath = stripFileUriScheme(normalized)
+  const pathSegments = strippedPath.split('/').filter((segment: string) => segment.length > 0)
+  if (pathSegments.length > 1) {
+    return `<segment>/${extensionTail}`
+  }
+  return extensionTail
+}
+
+function getReaderImageSourceForm(source: ReaderPageRenderSource): string {
+  if (source.imageUri.length === 0) {
+    return 'none'
+  }
+  if (source.imageUri.startsWith('file://')) {
+    return 'file_uri'
+  }
+  if (source.imageUri.startsWith('/')) {
+    return 'absolute_path'
+  }
+  return 'other'
+}
+
+function createReaderUriRenderSource(uri: string, pageIndex: number): ReaderPageRenderSource {
+  if (uri.length === 0 || uri.startsWith('mock://')) {
+    return {
+      kind: ReaderPageRenderKind.MOCK_FALLBACK,
+      uri,
+      imageUri: '',
+      fallbackPageIndex: pageIndex,
+    }
+  }
+  if (isReaderLocalImageSourceUri(uri)) {
+    return {
+      kind: ReaderPageRenderKind.LOCAL_FILE_IMAGE,
+      uri,
+      imageUri: createReaderImageSourceUri(uri),
+      fallbackPageIndex: pageIndex,
+    }
+  }
+  return {
+    kind: ReaderPageRenderKind.URI_PLACEHOLDER,
+    uri,
+    imageUri: '',
+    fallbackPageIndex: pageIndex,
+  }
 }
 
 function stripFileUriScheme(uri: string): string {
@@ -89,28 +195,31 @@ export function createReaderImageSourceUri(uri: string): string {
   return decodeFileUriPath(stripFileUriScheme(normalized))
 }
 
+export function createReaderUriDiagnostics(uri: string, pageIndex: number = 0): ReaderPageRenderDiagnostics {
+  const normalized = normalizeReaderPageUri(uri)
+  const path = stripFileUriScheme(normalized)
+  const decodedPath = decodeFileUriPath(path)
+  const source = createReaderUriRenderSource(uri, pageIndex)
+  const imageSource = source.imageUri.length > 0 ? source.imageUri : ''
+  return {
+    pageIndex,
+    kind: source.kind,
+    imageSourceForm: getReaderImageSourceForm(source),
+    hasFileScheme: normalized.startsWith('file://'),
+    hasRawFragmentOrQuery: normalized.includes('#') || normalized.includes('?'),
+    matchedSandboxRoot: decodedPath.length > 0 ? matchReaderSandboxRoot(decodedPath) : 'none',
+    extension: getReaderUriExtension(uri),
+    uriHash: createShortReaderHash(normalized),
+    sourceHash: createShortReaderHash(imageSource.length > 0 ? imageSource : normalized),
+    redactedTail: createReaderRedactedTail(uri),
+  }
+}
+
 export function createReaderPageRenderSource(config: ReaderSessionConfig, pageIndex: number): ReaderPageRenderSource {
   const uri = getReaderSessionPageUri(config, pageIndex)
-  if (uri.length === 0 || uri.startsWith('mock://')) {
-    return {
-      kind: ReaderPageRenderKind.MOCK_FALLBACK,
-      uri,
-      imageUri: '',
-      fallbackPageIndex: pageIndex,
-    }
-  }
-  if (isReaderLocalImageSourceUri(uri)) {
-    return {
-      kind: ReaderPageRenderKind.LOCAL_FILE_IMAGE,
-      uri,
-      imageUri: createReaderImageSourceUri(uri),
-      fallbackPageIndex: pageIndex,
-    }
-  }
-  return {
-    kind: ReaderPageRenderKind.URI_PLACEHOLDER,
-    uri,
-    imageUri: '',
-    fallbackPageIndex: pageIndex,
-  }
+  return createReaderUriRenderSource(uri, pageIndex)
+}
+
+export function createReaderPageRenderDiagnostics(config: ReaderSessionConfig, pageIndex: number): ReaderPageRenderDiagnostics {
+  return createReaderUriDiagnostics(getReaderSessionPageUri(config, pageIndex), pageIndex)
 }
