@@ -12,6 +12,7 @@ wrapper_file="entry/src/main/ets/sourceRuntime/NativeSourceRuntime.ets"
 smoke_file="entry/src/main/ets/sourceRuntime/SourceRuntimeDeviceSmoke.ets"
 entry_ability_file="entry/src/main/ets/entryability/EntryAbility.ets"
 build_profile="entry/build-profile.json5"
+rawfile_fixture="entry/src/main/resources/rawfile/test/source_runtime_fixture.wasm"
 
 require_file() {
   local path="$1"
@@ -37,13 +38,17 @@ require_file "$adapter_h"
 require_file "$wrapper_file"
 require_file "$smoke_file"
 require_file "$entry_ability_file"
+require_file "$rawfile_fixture"
 
 require_text "$cpp_file" '#include <napi/native_api.h>'
 require_text "$cpp_file" 'napi_module_register'
 require_text "$cpp_file" '"hello"'
 require_text "$cpp_file" '"add"'
 require_text "$cpp_file" '"runJsonCall"'
+require_text "$cpp_file" '"runJsonCallFromBytes"'
 require_text "$cpp_file" 'RunBundledWasmJsonCall'
+require_text "$cpp_file" 'RunWasmJsonCallFromBytes'
+require_text "$cpp_file" 'napi_get_typedarray_info'
 
 require_text "$adapter_cpp" 'KOMA_ENABLE_WAMR'
 require_text "$adapter_cpp" 'wasm_runtime_full_init'
@@ -53,6 +58,8 @@ require_text "$adapter_cpp" '"log".*HostLog'
 require_text "$adapter_cpp" '"check_cancel".*HostCheckCancel'
 require_text "$adapter_cpp" 'wasm_runtime_load'
 require_text "$adapter_cpp" 'wasm_runtime_module_dup_data'
+require_text "$adapter_cpp" 'LoadWasmBytesFromBundledFixture'
+require_text "$adapter_cpp" 'LoadWasmBytesFromExternalBytes'
 require_text "$adapter_cpp" 'koma_source_search'
 require_text "$adapter_cpp" 'koma_source_free'
 require_text "$adapter_cpp" 'kKomaMagic'
@@ -80,9 +87,13 @@ require_text "$build_profile" '"./src/main/cpp/CMakeLists.txt"'
 require_text "$wrapper_file" "import nativeRuntime from 'libkoma_source_runtime.so'"
 require_text "$wrapper_file" 'class NativeSourceRuntime'
 require_text "$wrapper_file" 'JSON.parse'
+require_text "$wrapper_file" 'runJsonCallFromBytes'
 
 require_text "$smoke_file" 'maybeRunSourceRuntimeDeviceSmoke'
 require_text "$smoke_file" 'NativeSourceRuntime.runJsonCall'
+require_text "$smoke_file" 'NativeSourceRuntime.runJsonCallFromBytes'
+require_text "$smoke_file" 'getRawFileContentSync'
+require_text "$smoke_file" 'test/source_runtime_fixture.wasm'
 require_text "$smoke_file" '"query":"fixture"'
 require_text "$smoke_file" 'koma-smoke'
 require_text "$smoke_file" 'Fixture Series'
@@ -91,6 +102,21 @@ require_text "$smoke_file" 'entryability-want-test-only'
 require_text "$entry_ability_file" 'maybeRunSourceRuntimeDeviceSmoke'
 require_text "$entry_ability_file" 'onCreate'
 require_text "$entry_ability_file" 'onNewWant'
+
+rawfile_magic="$(od -An -tx1 -N8 "$rawfile_fixture" | tr -d ' \n')"
+if [[ "$rawfile_magic" != "0061736d01000000" ]]; then
+  echo "rawfile wasm fixture does not start with wasm magic/version: $rawfile_magic" >&2
+  exit 1
+fi
+rawfile_size="$(wc -c < "$rawfile_fixture" | tr -d ' ')"
+if (( rawfile_size <= 0 || rawfile_size > 4096 )); then
+  echo "rawfile wasm fixture must stay a small test-only fixture, got ${rawfile_size} bytes" >&2
+  exit 1
+fi
+if ! strings "$rawfile_fixture" | rg -q 'Fixture Series|fixture init reached host imports'; then
+  echo "rawfile wasm fixture does not contain expected test fixture evidence" >&2
+  exit 1
+fi
 
 if rg -q 'NativeSourceRuntime\\.(hello|add)' "$smoke_file"; then
   echo "device smoke route must prove runJsonCall, not hello/add sample methods" >&2

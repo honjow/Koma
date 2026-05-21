@@ -4,6 +4,7 @@ interface NativeSourceRuntimeModule {
   hello(): string;
   add(a: number, b: number): number;
   runJsonCall(requestJson: string): string;
+  runJsonCallFromBytes(requestJson: string, wasmBytes: Uint8Array): string;
 }
 
 const nativeSourceRuntime = nativeRuntime as NativeSourceRuntimeModule;
@@ -33,6 +34,12 @@ export class NativeSourceRuntime {
   static runJsonCall(request: SourceRuntimeCallRequest | string): SourceRuntimeCallResponse {
     const requestJson = typeof request === 'string' ? request : JSON.stringify(request);
     const responseJson = nativeSourceRuntime.runJsonCall(requestJson);
+    return JSON.parse(responseJson) as SourceRuntimeCallResponse;
+  }
+
+  static runJsonCallFromBytes(request: SourceRuntimeCallRequest | string, wasmBytes: Uint8Array): SourceRuntimeCallResponse {
+    const requestJson = typeof request === 'string' ? request : JSON.stringify(request);
+    const responseJson = nativeSourceRuntime.runJsonCallFromBytes(requestJson, wasmBytes);
     return JSON.parse(responseJson) as SourceRuntimeCallResponse;
   }
 }

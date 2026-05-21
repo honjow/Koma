@@ -8,12 +8,12 @@ const ENTRY_PAGE: string = 'pages/Index'
 export default class EntryAbility extends UIAbility {
   onCreate(want: Want, launchParam: AbilityConstant.LaunchParam): void {
     void launchParam
-    maybeRunSourceRuntimeDeviceSmoke(want)
+    maybeRunSourceRuntimeDeviceSmoke(want, this.context.resourceManager)
   }
 
   onNewWant(want: Want, launchParam: AbilityConstant.LaunchParam): void {
     void launchParam
-    maybeRunSourceRuntimeDeviceSmoke(want)
+    maybeRunSourceRuntimeDeviceSmoke(want, this.context.resourceManager)
   }
 
   onWindowStageCreate(windowStage: window.WindowStage): void {

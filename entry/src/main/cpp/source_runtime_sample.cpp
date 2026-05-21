@@ -1,7 +1,9 @@
 #include <napi/native_api.h>
 
 #include <cstddef>
+#include <cstdint>
 #include <string>
+#include <vector>
 
 #include "wasm_runtime_adapter.h"
 
@@ -27,6 +29,39 @@ std::string GetStringArg(napi_env env, napi_value value)
     napi_get_value_string_utf8(env, value, &result[0], result.size(), &copied);
     result.resize(copied);
     return result;
+}
+
+bool GetByteVectorArg(napi_env env, napi_value value, std::vector<uint8_t> &bytes)
+{
+    bool isTypedArray = false;
+    napi_is_typedarray(env, value, &isTypedArray);
+    if (isTypedArray) {
+        napi_typedarray_type type = napi_uint8_array;
+        size_t length = 0;
+        void *data = nullptr;
+        napi_value arrayBuffer = nullptr;
+        size_t byteOffset = 0;
+        napi_get_typedarray_info(env, value, &type, &length, &data, &arrayBuffer, &byteOffset);
+        if (type != napi_uint8_array && type != napi_uint8_clamped_array) {
+            return false;
+        }
+        const auto *begin = static_cast<const uint8_t *>(data);
+        bytes.assign(begin, begin + length);
+        return true;
+    }
+
+    bool isArrayBuffer = false;
+    napi_is_arraybuffer(env, value, &isArrayBuffer);
+    if (isArrayBuffer) {
+        void *data = nullptr;
+        size_t byteLength = 0;
+        napi_get_arraybuffer_info(env, value, &data, &byteLength);
+        const auto *begin = static_cast<const uint8_t *>(data);
+        bytes.assign(begin, begin + byteLength);
+        return true;
+    }
+
+    return false;
 }
 
 napi_value Hello(napi_env env, napi_callback_info info)
@@ -70,6 +105,28 @@ napi_value RunJsonCall(napi_env env, napi_callback_info info)
     return CreateUtf8(env, response);
 }
 
+napi_value RunJsonCallFromBytes(napi_env env, napi_callback_info info)
+{
+    size_t argc = 2;
+    napi_value argv[2] = {nullptr, nullptr};
+    napi_get_cb_info(env, info, &argc, argv, nullptr, nullptr);
+
+    std::string requestJson;
+    if (argc > 0) {
+        requestJson = GetStringArg(env, argv[0]);
+    }
+
+    std::vector<uint8_t> wasmBytes;
+    if (argc < 2 || !GetByteVectorArg(env, argv[1], wasmBytes)) {
+        return CreateUtf8(env,
+            "{\"ok\":false,\"runtime\":\"wamr-unavailable\",\"error\":{\"code\":\"BAD_WASM_BYTES\","
+            "\"message\":\"runJsonCallFromBytes expects Uint8Array or ArrayBuffer\"},\"warnings\":[]}");
+    }
+
+    const std::string response = koma::RunWasmJsonCallFromBytes(requestJson, wasmBytes);
+    return CreateUtf8(env, response);
+}
+
 } // namespace
 
 EXTERN_C_START
@@ -79,6 +136,7 @@ static napi_value Init(napi_env env, napi_value exports)
         {"hello", nullptr, Hello, nullptr, nullptr, nullptr, napi_default, nullptr},
         {"add", nullptr, Add, nullptr, nullptr, nullptr, napi_default, nullptr},
         {"runJsonCall", nullptr, RunJsonCall, nullptr, nullptr, nullptr, napi_default, nullptr},
+        {"runJsonCallFromBytes", nullptr, RunJsonCallFromBytes, nullptr, nullptr, nullptr, napi_default, nullptr},
     };
     napi_define_properties(env, exports, sizeof(descriptors) / sizeof(descriptors[0]), descriptors);
     return exports;

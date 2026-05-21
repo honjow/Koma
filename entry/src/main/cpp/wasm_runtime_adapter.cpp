@@ -5,6 +5,7 @@
 #include <cstring>
 #include <stdexcept>
 #include <string>
+#include <utility>
 #include <vector>
 
 #if defined(KOMA_ENABLE_WAMR)
@@ -26,6 +27,7 @@ constexpr uint32_t kWasmStackBytes = 64u * 1024u;
 constexpr uint32_t kWasmHeapBytes = 256u * 1024u;
 constexpr uint32_t kMaxPayloadBytes = 1024u * 1024u;
 constexpr uint32_t kMaxHostLogBytes = 1024u;
+constexpr uint32_t kMaxFixtureWasmBytes = 1024u * 1024u;
 constexpr const char *kManifestJson =
     "{\"schemaVersion\":1,\"id\":\"local.example.private\","
     "\"runtime\":\"wasm-v1\",\"entry\":\"source_runtime_fixture.wasm\","
@@ -85,6 +87,28 @@ std::string ErrorJson(const std::string &code, const std::string &message)
 }
 
 #if defined(KOMA_ENABLE_WAMR)
+
+std::vector<uint8_t> LoadWasmBytesFromBundledFixture()
+{
+    return std::vector<uint8_t>(kSourceRuntimeFixtureWasm, kSourceRuntimeFixtureWasm + kSourceRuntimeFixtureWasmLen);
+}
+
+std::vector<uint8_t> LoadWasmBytesFromExternalBytes(const std::vector<uint8_t> &wasmBytes)
+{
+    if (wasmBytes.size() < 8) {
+        throw std::runtime_error("fixture wasm bytes are too short");
+    }
+    if (wasmBytes.size() > kMaxFixtureWasmBytes) {
+        throw std::runtime_error("fixture wasm bytes exceed test boundary limit");
+    }
+    if (wasmBytes[0] != 0x00 || wasmBytes[1] != 0x61 || wasmBytes[2] != 0x73 || wasmBytes[3] != 0x6d) {
+        throw std::runtime_error("fixture wasm bytes are missing wasm magic");
+    }
+    if (wasmBytes[4] != 0x01 || wasmBytes[5] != 0x00 || wasmBytes[6] != 0x00 || wasmBytes[7] != 0x00) {
+        throw std::runtime_error("fixture wasm bytes are not wasm version 1");
+    }
+    return wasmBytes;
+}
 
 void HostLog(wasm_exec_env_t execEnv, int32_t level, char *message, uint32_t messageLen)
 {
@@ -241,7 +265,7 @@ private:
 
 class Module {
 public:
-    Module() : wasmBytes_(kSourceRuntimeFixtureWasm, kSourceRuntimeFixtureWasm + kSourceRuntimeFixtureWasmLen)
+    explicit Module(std::vector<uint8_t> wasmBytes) : wasmBytes_(std::move(wasmBytes))
     {
         char errorBuf[256] = {0};
         module_ = wasm_runtime_load(
@@ -407,13 +431,31 @@ std::string RunBundledWasmJsonCall(const std::string &requestJson)
     try {
         Runtime runtime;
         ThreadEnv threadEnv;
-        Module module;
+        Module module(LoadWasmBytesFromBundledFixture());
         return module.RunSearch(requestJson);
     } catch (const std::exception &err) {
         return ErrorJson("WAMR_RUNTIME_ERROR", err.what());
     }
 #else
     (void)requestJson;
+    return ErrorJson("WAMR_NOT_BUILT", "native module was built without WAMR_ROOT_DIR");
+#endif
+}
+
+std::string RunWasmJsonCallFromBytes(const std::string &requestJson, const std::vector<uint8_t> &wasmBytes)
+{
+#if defined(KOMA_ENABLE_WAMR)
+    try {
+        Runtime runtime;
+        ThreadEnv threadEnv;
+        Module module(LoadWasmBytesFromExternalBytes(wasmBytes));
+        return module.RunSearch(requestJson);
+    } catch (const std::exception &err) {
+        return ErrorJson("WAMR_RUNTIME_ERROR", err.what());
+    }
+#else
+    (void)requestJson;
+    (void)wasmBytes;
     return ErrorJson("WAMR_NOT_BUILT", "native module was built without WAMR_ROOT_DIR");
 #endif
 }
