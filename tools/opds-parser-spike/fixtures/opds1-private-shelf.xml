@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+  <title>Private OPDS 1 Shelf</title>
+  <link rel="self" href="/opds/root.xml" type="application/atom+xml;profile=opds-catalog"/>
+  <entry>
+    <id>urn:navigation:series</id>
+    <title>Series A</title>
+    <link rel="subsection" href="../series/a.xml" type="application/atom+xml;profile=opds-catalog"/>
+  </entry>
+  <entry>
+    <id>urn:book:vol1</id>
+    <title>Series A Vol. 1</title>
+    <summary>Offline CBZ entry</summary>
+    <author><name>Creator One</name></author>
+    <link rel="http://opds-spec.org/image" href="covers/vol1.jpg" type="image/jpeg"/>
+    <link rel="http://opds-spec.org/image/thumbnail" href="covers/vol1-thumb.jpg" type="image/jpeg"/>
+    <link rel="http://opds-spec.org/acquisition" href="files/vol1.cbz" type="application/x-cbz"/>
+    <link rel="http://opds-spec.org/acquisition" href="files/vol1.epub" type="application/epub+zip"/>
+    <link rel="http://opds-spec.org/acquisition/buy" href="https://store.invalid/vol1" type="text/html"/>
+  </entry>
+  <entry>
+    <id>urn:book:zip</id>
+    <title>Archive By Extension</title>
+    <link rel="http://opds-spec.org/acquisition/open-access" href="/downloads/archive.zip?token=fixture" type="application/octet-stream"/>
+  </entry>
+</feed>

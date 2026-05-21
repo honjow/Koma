@@ -5,9 +5,13 @@ import { resolve } from 'node:path'
 const root = resolve(import.meta.dirname, '..')
 const modelPath = resolve(root, 'entry/src/main/ets/remote/OpdsModels.ets')
 const parserPath = resolve(root, 'entry/src/main/ets/remote/OpdsParser.ets')
+const opds1FixturePath = resolve(root, 'tools/opds-parser-spike/fixtures/opds1-private-shelf.xml')
+const opds2FixturePath = resolve(root, 'tools/opds-parser-spike/fixtures/opds2-private-shelf.json')
 
 const modelSource = readFileSync(modelPath, 'utf8')
 const parserSource = readFileSync(parserPath, 'utf8')
+const opds1Fixture = readFileSync(opds1FixturePath, 'utf8')
+const opds2Fixture = readFileSync(opds2FixturePath, 'utf8')
 
 function assertExport(source, symbol) {
   assert.match(source, new RegExp(`export (interface|class|function|enum|type|const) ${symbol}\\b`), `${symbol} must be exported`)
@@ -98,6 +102,11 @@ function readXmlBlocks(xml, tagName) {
   return [...xml.matchAll(pattern)].map((match) => match[1])
 }
 
+function stripXmlBlocks(xml, tagName) {
+  const pattern = new RegExp(`<(?:[A-Za-z0-9_-]+:)?${tagName}\\b[^>]*>[\\s\\S]*?<\\/(?:[A-Za-z0-9_-]+:)?${tagName}>`, 'gi')
+  return xml.replace(pattern, '')
+}
+
 function readFirstXmlText(xml, tagName) {
   const block = readXmlBlocks(xml, tagName)[0]
   if (block === undefined) return undefined
@@ -153,7 +162,8 @@ function parseOpds1Catalog(xml, feedUrl) {
     title: readFirstXmlText(xml, 'title'),
     navigation: [],
     publications: [],
-    links: readXmlLinks(xml, feedUrl),
+    groups: [],
+    links: readXmlLinks(stripXmlBlocks(xml, 'entry'), feedUrl),
   }
 
   for (const [index, entryXml] of readXmlBlocks(xml, 'entry').entries()) {
@@ -182,6 +192,29 @@ function parseOpds1Catalog(xml, feedUrl) {
     }
   }
   return result
+}
+
+function mapOpdsPublicationToAcquisitions(publication) {
+  return publication.acquisitionLinks.concat(publication.unsupportedLinks).map((link) => ({
+    href: link.href,
+    type: link.type,
+    title: link.title,
+    status: link.acquisitionStatus ?? OpdsAcquisitionStatus.UNSUPPORTED_TYPE,
+  }))
+}
+
+function mapOpdsPublicationToImages(publication) {
+  return publication.imageLinks.map((link) => ({
+    href: link.href,
+    type: link.type,
+    title: link.title,
+    isThumbnail: false,
+  })).concat(publication.thumbnailLinks.map((link) => ({
+    href: link.href,
+    type: link.type,
+    title: link.title,
+    isThumbnail: true,
+  })))
 }
 
 function asArray(value) {
@@ -240,6 +273,44 @@ function readOpds2Author(value) {
   return asString(asObject(value).name)
 }
 
+function readOpds2Publication(value, feedUrl, fallbackId) {
+  const publication = asObject(value)
+  const publicationMetadata = asObject(publication.metadata)
+  const title = asString(publicationMetadata.title) ?? asString(publication.title) ?? 'Untitled'
+  const links = readOpds2Links(publication.links, feedUrl).concat(readOpds2Images(publication.images, feedUrl))
+  return createPublication(
+    asString(publicationMetadata.identifier) ?? asString(publication.href) ?? fallbackId,
+    title,
+    asString(publicationMetadata.description) ?? asString(publicationMetadata.subtitle),
+    readOpds2Author(publicationMetadata.author),
+    links,
+  )
+}
+
+function readOpds2Group(value, feedUrl, fallbackTitle) {
+  const group = asObject(value)
+  const metadata = asObject(group.metadata)
+  const title = asString(metadata.title) ?? asString(group.title) ?? fallbackTitle
+  const navigation = []
+  for (const [index, item] of asArray(group.navigation).entries()) {
+    const nav = asObject(item)
+    const href = asString(nav.href)
+    if (href !== undefined) {
+      navigation.push({
+        id: asString(nav.identifier) ?? asString(nav.title) ?? `${fallbackTitle}-navigation-${index}`,
+        title: asString(nav.title) ?? href,
+        href: resolveOpdsHref(feedUrl, href),
+        type: asString(nav.type),
+      })
+    }
+  }
+  return {
+    title,
+    navigation,
+    publications: asArray(group.publications).map((item, index) => readOpds2Publication(item, feedUrl, `${fallbackTitle}-publication-${index}`)),
+  }
+}
+
 function parseOpds2Catalog(json, feedUrl) {
   const parsed = JSON.parse(json)
   const metadata = asObject(parsed.metadata)
@@ -249,6 +320,7 @@ function parseOpds2Catalog(json, feedUrl) {
     title: asString(metadata.title),
     navigation: [],
     publications: [],
+    groups: [],
     links: readOpds2Links(parsed.links, feedUrl),
   }
 
@@ -266,17 +338,14 @@ function parseOpds2Catalog(json, feedUrl) {
   }
 
   for (const [index, item] of asArray(parsed.publications).entries()) {
-    const publication = asObject(item)
-    const publicationMetadata = asObject(publication.metadata)
-    const title = asString(publicationMetadata.title) ?? asString(publication.title) ?? 'Untitled'
-    const links = readOpds2Links(publication.links, feedUrl).concat(readOpds2Images(publication.images, feedUrl))
-    result.publications.push(createPublication(
-      asString(publicationMetadata.identifier) ?? asString(publication.href) ?? `publication-${index}`,
-      title,
-      asString(publicationMetadata.description) ?? asString(publicationMetadata.subtitle),
-      readOpds2Author(publicationMetadata.author),
-      links,
-    ))
+    result.publications.push(readOpds2Publication(item, feedUrl, `publication-${index}`))
+  }
+
+  for (const [index, item] of asArray(parsed.groups).entries()) {
+    const group = readOpds2Group(item, feedUrl, `group-${index}`)
+    result.groups.push(group)
+    result.navigation = result.navigation.concat(group.navigation)
+    result.publications = result.publications.concat(group.publications)
   }
   return result
 }
@@ -292,8 +361,12 @@ try {
     'OpdsLinkKind',
     'OpdsAcquisitionStatus',
     'OpdsLink',
-    'OpdsNavigationItem',
+    'OpdsCatalogDto',
+    'OpdsAcquisitionDto',
+    'OpdsImageDto',
     'OpdsPublication',
+    'OpdsBookDto',
+    'OpdsPublicationGroup',
     'OpdsParseResult',
     'OPDS_SUPPORTED_ACQUISITION_MIME_TYPES',
   ]) {
@@ -307,6 +380,8 @@ try {
     'classifyOpdsLink',
     'isSupportedOpdsAcquisition',
     'isUnsupportedOpdsFlow',
+    'mapOpdsPublicationToAcquisitions',
+    'mapOpdsPublicationToImages',
   ]) {
     assertExport(parserSource, symbol)
   }
@@ -314,37 +389,10 @@ try {
   assert.doesNotMatch(parserSource, /\bfetch\s*\(|@ohos\.net\.http|http\.request/i, 'OPDS parser must not access network')
   assert.doesNotMatch(modelSource + parserSource, /market|plugin|source store|全网|免费漫画/i, 'OPDS spike must not introduce public source marketplace language')
   assert.doesNotMatch(modelSource, /rar/i, 'OPDS acquisition whitelist must stay limited to CBZ/ZIP')
-
-  const opds1Fixture = `<?xml version="1.0" encoding="utf-8"?>
-<feed xmlns="http://www.w3.org/2005/Atom">
-  <title>Private OPDS 1 Shelf</title>
-  <link rel="self" href="/opds/root.xml" type="application/atom+xml;profile=opds-catalog"/>
-  <entry>
-    <id>urn:navigation:series</id>
-    <title>Series A</title>
-    <link rel="subsection" href="../series/a.xml" type="application/atom+xml;profile=opds-catalog"/>
-  </entry>
-  <entry>
-    <id>urn:book:vol1</id>
-    <title>Series A Vol. 1</title>
-    <summary>Offline CBZ entry</summary>
-    <author><name>Creator One</name></author>
-    <link rel="http://opds-spec.org/image" href="covers/vol1.jpg" type="image/jpeg"/>
-    <link rel="http://opds-spec.org/image/thumbnail" href="covers/vol1-thumb.jpg" type="image/jpeg"/>
-    <link rel="http://opds-spec.org/acquisition" href="files/vol1.cbz" type="application/x-cbz"/>
-    <link rel="http://opds-spec.org/acquisition" href="files/vol1.epub" type="application/epub+zip"/>
-    <link rel="http://opds-spec.org/acquisition/buy" href="https://store.invalid/vol1" type="text/html"/>
-  </entry>
-  <entry>
-    <id>urn:book:zip</id>
-    <title>Archive By Extension</title>
-    <link rel="http://opds-spec.org/acquisition/open-access" href="/downloads/archive.zip?token=fixture" type="application/octet-stream"/>
-  </entry>
-</feed>`
-
   const opds1 = parseOpds1Catalog(opds1Fixture, 'https://library.invalid/opds/root.xml')
   assert.equal(opds1.version, 'opds1')
   assert.equal(opds1.title, 'Private OPDS 1 Shelf')
+  assert.equal(opds1.links.length, 1)
   assert.equal(opds1.links[0].kind, OpdsLinkKind.SELF)
   assert.equal(opds1.navigation.length, 1)
   assert.equal(opds1.navigation[0].href, 'https://library.invalid/series/a.xml')
@@ -357,49 +405,20 @@ try {
   assert.equal(opds1.publications[0].unsupportedLinks.find((link) => link.href.endsWith('vol1.epub')).acquisitionStatus, OpdsAcquisitionStatus.UNSUPPORTED_TYPE)
   assert.equal(opds1.publications[0].unsupportedLinks.find((link) => link.href.includes('store.invalid')).acquisitionStatus, OpdsAcquisitionStatus.UNSUPPORTED_FLOW)
   assert.equal(opds1.publications[1].acquisitionLinks[0].href, 'https://library.invalid/downloads/archive.zip?token=fixture')
-
-  const opds2Fixture = JSON.stringify({
-    metadata: { title: 'Private OPDS 2 Shelf' },
-    links: [
-      { rel: 'self', href: '/opds2/root.json', type: 'application/opds+json' },
-      { rel: 'next', href: 'page-2.json', type: 'application/opds+json' },
-    ],
-    navigation: [
-      { title: 'Recently Added', href: './recent.json', type: 'application/opds+json' },
-    ],
-    publications: [
-      {
-        metadata: {
-          identifier: 'pub-json-1',
-          title: 'JSON Volume',
-          description: 'OPDS 2 publication',
-          author: [{ name: 'Creator Two' }],
-        },
-        links: [
-          { rel: 'http://opds-spec.org/acquisition/open-access', href: '../files/json-volume.zip', type: 'application/zip' },
-          { rel: 'http://opds-spec.org/acquisition/borrow', href: '../borrow/json-volume', type: 'text/html' },
-          { rel: 'alternate', href: '../read/json-volume.html', type: 'text/html' },
-        ],
-        images: [
-          { rel: 'cover', href: '../covers/json-volume.jpg', type: 'image/jpeg' },
-          { rel: 'thumbnail', href: '../covers/json-volume-thumb.jpg', type: 'image/jpeg' },
-        ],
-      },
-      {
-        metadata: { title: 'Unsupported PDF' },
-        links: [
-          { rel: 'http://opds-spec.org/acquisition', href: '../files/book.pdf', type: 'application/pdf' },
-        ],
-      },
-    ],
-  })
+  assert.deepEqual(mapOpdsPublicationToAcquisitions(opds1.publications[0]).map((item) => item.status), [
+    OpdsAcquisitionStatus.SUPPORTED,
+    OpdsAcquisitionStatus.UNSUPPORTED_TYPE,
+    OpdsAcquisitionStatus.UNSUPPORTED_FLOW,
+  ])
+  assert.deepEqual(mapOpdsPublicationToImages(opds1.publications[0]).map((item) => item.isThumbnail), [false, true])
 
   const opds2 = parseOpds2Catalog(opds2Fixture, 'https://library.invalid/opds2/root.json')
   assert.equal(opds2.version, 'opds2')
   assert.equal(opds2.title, 'Private OPDS 2 Shelf')
   assert.deepEqual(opds2.links.map((link) => link.kind), [OpdsLinkKind.SELF, OpdsLinkKind.NEXT])
   assert.equal(opds2.navigation[0].href, 'https://library.invalid/opds2/recent.json')
-  assert.equal(opds2.publications.length, 2)
+  assert.equal(opds2.navigation[1].href, 'https://library.invalid/opds2/grouped.json')
+  assert.equal(opds2.publications.length, 3)
   assert.equal(opds2.publications[0].author, 'Creator Two')
   assert.equal(opds2.publications[0].acquisitionLinks[0].href, 'https://library.invalid/files/json-volume.zip')
   assert.equal(opds2.publications[0].unsupportedLinks[0].acquisitionStatus, OpdsAcquisitionStatus.UNSUPPORTED_FLOW)
@@ -407,6 +426,9 @@ try {
   assert.equal(opds2.publications[0].thumbnailLinks[0].href, 'https://library.invalid/covers/json-volume-thumb.jpg')
   assert.equal(opds2.publications[1].acquisitionLinks.length, 0)
   assert.equal(opds2.publications[1].unsupportedLinks[0].acquisitionStatus, OpdsAcquisitionStatus.UNSUPPORTED_TYPE)
+  assert.equal(opds2.groups.length, 1)
+  assert.equal(opds2.groups[0].title, 'Grouped Shelf')
+  assert.equal(opds2.groups[0].publications[0].acquisitionLinks[0].href, 'https://library.invalid/files/grouped.cbz')
 
   assert.equal(isSupportedOpdsAcquisition('application/octet-stream', '/books/private.cbz'), true)
   assert.equal(isSupportedOpdsAcquisition('application/vnd.comicbook+zip', '/books/private.bin'), true)

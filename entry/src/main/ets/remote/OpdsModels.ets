@@ -39,6 +39,22 @@ export interface OpdsNavigationItem {
   type?: string
 }
 
+export type OpdsCatalogDto = OpdsNavigationItem
+
+export interface OpdsAcquisitionDto {
+  href: string
+  type?: string
+  title?: string
+  status: OpdsAcquisitionStatus
+}
+
+export interface OpdsImageDto {
+  href: string
+  type?: string
+  title?: string
+  isThumbnail: boolean
+}
+
 export interface OpdsPublication {
   id: OpdsCatalogId
   title: string
@@ -51,12 +67,21 @@ export interface OpdsPublication {
   links: OpdsLink[]
 }
 
+export type OpdsBookDto = OpdsPublication
+
+export interface OpdsPublicationGroup {
+  title: string
+  navigation: OpdsCatalogDto[]
+  publications: OpdsBookDto[]
+}
+
 export interface OpdsParseResult {
   version: OpdsVersion
   feedUrl: string
   title?: string
-  navigation: OpdsNavigationItem[]
-  publications: OpdsPublication[]
+  navigation: OpdsCatalogDto[]
+  publications: OpdsBookDto[]
+  groups: OpdsPublicationGroup[]
   links: OpdsLink[]
 }
 
@@ -75,6 +100,7 @@ export function createEmptyOpdsParseResult(version: OpdsVersion, feedUrl: string
     title,
     navigation: [],
     publications: [],
+    groups: [],
     links: [],
   }
 }

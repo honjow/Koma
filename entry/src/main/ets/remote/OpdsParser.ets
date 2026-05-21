@@ -1,12 +1,16 @@
 import {
   OPDS_ACQUISITION_REL_PREFIX,
   OPDS_SUPPORTED_ACQUISITION_MIME_TYPES,
+  OpdsAcquisitionDto,
   OpdsAcquisitionStatus,
+  OpdsBookDto,
+  OpdsCatalogDto,
+  OpdsImageDto,
   OpdsLink,
   OpdsLinkKind,
-  OpdsNavigationItem,
   OpdsParseResult,
   OpdsPublication,
+  OpdsPublicationGroup,
   OpdsVersion,
   createEmptyOpdsParseResult,
 } from './OpdsModels'
@@ -38,7 +42,7 @@ export function parseOpdsCatalog(source: string, feedUrl: string, contentType?: 
 
 export function parseOpds1Catalog(xml: string, feedUrl: string): OpdsParseResult {
   const result = createEmptyOpdsParseResult(OpdsVersion.OPDS_1, feedUrl, readFirstXmlText(xml, 'title'))
-  result.links = readXmlLinks(xml, feedUrl)
+  result.links = readXmlLinks(stripXmlBlocks(xml, 'entry'), feedUrl)
 
   const entries = readXmlBlocks(xml, 'entry').map((entryXml: string): Opds1Entry => {
     return {
@@ -91,21 +95,48 @@ export function parseOpds2Catalog(json: string, feedUrl: string): OpdsParseResul
   })
 
   readArray(parsed['publications']).forEach((item: any, index: number) => {
-    const publication = readRecord(item)
-    const publicationMetadata = readRecord(publication['metadata'])
-    const title = readString(publicationMetadata['title']) ?? readString(publication['title']) ?? 'Untitled'
-    const links = readOpds2Links(publication['links'], feedUrl)
-      .concat(readOpds2Images(publication['images'], feedUrl))
-    result.publications.push(createPublication(
-      readString(publicationMetadata['identifier']) ?? readString(publication['href']) ?? `publication-${index}`,
-      title,
-      readString(publicationMetadata['description']) ?? readString(publicationMetadata['subtitle']),
-      readOpds2Author(publicationMetadata['author']),
-      links
-    ))
+    result.publications.push(readOpds2Publication(item, feedUrl, `publication-${index}`))
+  })
+
+  readArray(parsed['groups']).forEach((item: any, index: number) => {
+    const group = readOpds2Group(item, feedUrl, `group-${index}`)
+    result.groups.push(group)
+    result.navigation = result.navigation.concat(group.navigation)
+    result.publications = result.publications.concat(group.publications)
   })
 
   return result
+}
+
+export function mapOpdsPublicationToAcquisitions(publication: OpdsPublication): OpdsAcquisitionDto[] {
+  return publication.acquisitionLinks.concat(publication.unsupportedLinks).map((link: OpdsLink): OpdsAcquisitionDto => {
+    return {
+      href: link.href,
+      type: link.type,
+      title: link.title,
+      status: link.acquisitionStatus === undefined ? OpdsAcquisitionStatus.UNSUPPORTED_TYPE : link.acquisitionStatus,
+    }
+  })
+}
+
+export function mapOpdsPublicationToImages(publication: OpdsPublication): OpdsImageDto[] {
+  const fullImages = publication.imageLinks.map((link: OpdsLink): OpdsImageDto => {
+    return {
+      href: link.href,
+      type: link.type,
+      title: link.title,
+      isThumbnail: false,
+    }
+  })
+  const thumbnails = publication.thumbnailLinks.map((link: OpdsLink): OpdsImageDto => {
+    return {
+      href: link.href,
+      type: link.type,
+      title: link.title,
+      isThumbnail: true,
+    }
+  })
+  return fullImages.concat(thumbnails)
 }
 
 export function resolveOpdsHref(baseUrl: string, href: string): string {
@@ -178,6 +209,48 @@ function createPublication(
     imageLinks: links.filter((link: OpdsLink) => link.kind === OpdsLinkKind.IMAGE),
     thumbnailLinks: links.filter((link: OpdsLink) => link.kind === OpdsLinkKind.THUMBNAIL),
     links,
+  }
+}
+
+function readOpds2Publication(value: any, feedUrl: string, fallbackId: string): OpdsBookDto {
+  const publication = readRecord(value)
+  const publicationMetadata = readRecord(publication['metadata'])
+  const title = readString(publicationMetadata['title']) ?? readString(publication['title']) ?? 'Untitled'
+  const links = readOpds2Links(publication['links'], feedUrl)
+    .concat(readOpds2Images(publication['images'], feedUrl))
+  return createPublication(
+    readString(publicationMetadata['identifier']) ?? readString(publication['href']) ?? fallbackId,
+    title,
+    readString(publicationMetadata['description']) ?? readString(publicationMetadata['subtitle']),
+    readOpds2Author(publicationMetadata['author']),
+    links
+  )
+}
+
+function readOpds2Group(value: any, feedUrl: string, fallbackTitle: string): OpdsPublicationGroup {
+  const group = readRecord(value)
+  const metadata = readRecord(group['metadata'])
+  const title = readString(metadata['title']) ?? readString(group['title']) ?? fallbackTitle
+  const navigation: OpdsCatalogDto[] = []
+  readArray(group['navigation']).forEach((item: any, index: number) => {
+    const nav = readRecord(item)
+    const href = readString(nav['href'])
+    if (href !== undefined && href.length > 0) {
+      navigation.push({
+        id: readString(nav['identifier']) ?? readString(nav['title']) ?? `${fallbackTitle}-navigation-${index}`,
+        title: readString(nav['title']) ?? href,
+        href: resolveOpdsHref(feedUrl, href),
+        type: readString(nav['type']),
+      })
+    }
+  })
+  const publications = readArray(group['publications']).map((item: any, index: number): OpdsBookDto => {
+    return readOpds2Publication(item, feedUrl, `${fallbackTitle}-publication-${index}`)
+  })
+  return {
+    title,
+    navigation,
+    publications,
   }
 }
 
@@ -305,6 +378,11 @@ function readXmlBlocks(xml: string, tagName: string): string[] {
     match = pattern.exec(xml)
   }
   return blocks
+}
+
+function stripXmlBlocks(xml: string, tagName: string): string {
+  const pattern = new RegExp(`<(?:[A-Za-z0-9_-]+:)?${tagName}\\b[^>]*>[\\s\\S]*?<\\/(?:[A-Za-z0-9_-]+:)?${tagName}>`, 'gi')
+  return xml.replace(pattern, '')
 }
 
 function readFirstXmlText(xml: string, tagName: string): string | undefined {

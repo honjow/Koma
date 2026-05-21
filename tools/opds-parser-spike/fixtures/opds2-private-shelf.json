@@ -1,0 +1,111 @@
+{
+  "metadata": {
+    "title": "Private OPDS 2 Shelf"
+  },
+  "links": [
+    {
+      "rel": "self",
+      "href": "/opds2/root.json",
+      "type": "application/opds+json"
+    },
+    {
+      "rel": "next",
+      "href": "page-2.json",
+      "type": "application/opds+json"
+    }
+  ],
+  "navigation": [
+    {
+      "title": "Recently Added",
+      "href": "./recent.json",
+      "type": "application/opds+json"
+    }
+  ],
+  "publications": [
+    {
+      "metadata": {
+        "identifier": "pub-json-1",
+        "title": "JSON Volume",
+        "description": "OPDS 2 publication",
+        "author": [
+          {
+            "name": "Creator Two"
+          }
+        ]
+      },
+      "links": [
+        {
+          "rel": "http://opds-spec.org/acquisition/open-access",
+          "href": "../files/json-volume.zip",
+          "type": "application/zip"
+        },
+        {
+          "rel": "http://opds-spec.org/acquisition/borrow",
+          "href": "../borrow/json-volume",
+          "type": "text/html"
+        },
+        {
+          "rel": "alternate",
+          "href": "../read/json-volume.html",
+          "type": "text/html"
+        }
+      ],
+      "images": [
+        {
+          "rel": "cover",
+          "href": "../covers/json-volume.jpg",
+          "type": "image/jpeg"
+        },
+        {
+          "rel": "thumbnail",
+          "href": "../covers/json-volume-thumb.jpg",
+          "type": "image/jpeg"
+        }
+      ]
+    },
+    {
+      "metadata": {
+        "title": "Unsupported PDF"
+      },
+      "links": [
+        {
+          "rel": "http://opds-spec.org/acquisition",
+          "href": "../files/book.pdf",
+          "type": "application/pdf"
+        }
+      ]
+    }
+  ],
+  "groups": [
+    {
+      "metadata": {
+        "title": "Grouped Shelf"
+      },
+      "navigation": [
+        {
+          "title": "Grouped Navigation",
+          "href": "./grouped.json",
+          "type": "application/opds+json"
+        }
+      ],
+      "publications": [
+        {
+          "metadata": {
+            "identifier": "grouped-cbz",
+            "title": "Grouped CBZ"
+          },
+          "links": [
+            {
+              "rel": "http://opds-spec.org/acquisition",
+              "href": "../files/grouped.cbz",
+              "type": "application/octet-stream"
+            }
+          ],
+          "images": [
+            "../covers/grouped.jpg"
+          ]
+        }
+      ]
+    }
+  ]
+}
