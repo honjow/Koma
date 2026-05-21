@@ -4,6 +4,9 @@ This is a repo-local, non-shipping runtime spike for the future source ABI. It
 does not add product UI, source import, source lists, network integrations, or
 HarmonyOS app behavior.
 
+The current consolidated runtime/package/archive boundary is documented in
+`source-package/SOURCE_RUNTIME_BOUNDARY.md`.
+
 The spike validates this path on Linux:
 
 ```text

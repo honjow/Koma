@@ -4,6 +4,9 @@ This directory is a tooling-only fixture for the future Koma WASM source
 package shape. It is not product UI, a source repository, a marketplace, a
 remote installer, or a built-in source list.
 
+For the consolidated current runtime/package/archive boundary, see
+`SOURCE_RUNTIME_BOUNDARY.md`.
+
 The fixture keeps the useful package lessons from source index layouts such as
 per-source metadata, icon paths, settings, capabilities, and runtime limits,
 while staying aligned with Koma's current runtime evidence:
