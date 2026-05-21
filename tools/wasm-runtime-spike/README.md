@@ -20,6 +20,13 @@ documented in `source-package/SOURCE_SETTINGS_AUTH_BOUNDARY.md`. Its fixtures
 keep `network=false`, reject `koma_host.http_request`, and do not contain real
 credentials or executable login/logout/status/session behavior.
 
+Future resource limits, cancellation, and timeout policy is design/tooling-only
+and documented in
+`source-package/RESOURCE_LIMITS_CANCELLATION_BOUNDARY.md`. Its fixtures keep
+`network=false`, require the existing `koma_host.check_cancel` import, and
+statically reject oversized budgets, invalid timeouts, disabled cancellation,
+leaks, executable hooks, and product-runtime flags without executing WASM.
+
 The spike validates this path on Linux:
 
 ```text

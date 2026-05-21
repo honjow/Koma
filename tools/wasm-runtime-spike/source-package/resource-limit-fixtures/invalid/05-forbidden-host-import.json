@@ -1,0 +1,24 @@
+{
+  "case": "forbidden HTTP host import is rejected",
+  "expectRejectContains": "hostImports",
+  "input": {
+    "boundaryVersion": 1,
+    "designOnly": true,
+    "runtimeEnabled": false,
+    "currentRuntime": {
+      "network": false,
+      "hostImports": [
+        "koma_host.log",
+        "koma_host.check_cancel",
+        "koma_host.http_request"
+      ]
+    },
+    "resourceLimits": {},
+    "productRuntime": {
+      "enabled": false,
+      "networkEnabled": false,
+      "remoteInstall": false,
+      "sourceMarket": false
+    }
+  }
+}

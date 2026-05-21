@@ -1,0 +1,33 @@
+{
+  "case": "oversized result JSON budget is rejected",
+  "expectRejectContains": "maxResultJsonBytes",
+  "input": {
+    "boundaryVersion": 1,
+    "designOnly": true,
+    "runtimeEnabled": false,
+    "currentRuntime": {
+      "network": false,
+      "hostImports": [
+        "koma_host.log",
+        "koma_host.check_cancel"
+      ]
+    },
+    "resourceLimits": {
+      "results": {
+        "maxResultJsonBytes": 1048577,
+        "maxResultBufferBytes": 1114112,
+        "maxSearchItems": 100,
+        "maxChapterItems": 500,
+        "maxPageItems": 300,
+        "maxPageCountPerChapter": 300,
+        "truncation": "error"
+      }
+    },
+    "productRuntime": {
+      "enabled": false,
+      "networkEnabled": false,
+      "remoteInstall": false,
+      "sourceMarket": false
+    }
+  }
+}

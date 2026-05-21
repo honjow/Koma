@@ -1,0 +1,23 @@
+{
+  "case": "product runtime flag is rejected",
+  "expectRejectContains": "productRuntime.enabled",
+  "input": {
+    "boundaryVersion": 1,
+    "designOnly": true,
+    "runtimeEnabled": false,
+    "currentRuntime": {
+      "network": false,
+      "hostImports": [
+        "koma_host.log",
+        "koma_host.check_cancel"
+      ]
+    },
+    "resourceLimits": {},
+    "productRuntime": {
+      "enabled": true,
+      "networkEnabled": false,
+      "remoteInstall": false,
+      "sourceMarket": false
+    }
+  }
+}

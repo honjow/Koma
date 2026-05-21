@@ -1,0 +1,27 @@
+{
+  "case": "executable policy hook is rejected",
+  "expectRejectContains": "must not be executable",
+  "input": {
+    "boundaryVersion": 1,
+    "designOnly": true,
+    "runtimeEnabled": false,
+    "currentRuntime": {
+      "network": false,
+      "hostImports": [
+        "koma_host.log",
+        "koma_host.check_cancel"
+      ]
+    },
+    "resourceLimits": {
+      "timeouts": {
+        "handler": "run_timeout_hook"
+      }
+    },
+    "productRuntime": {
+      "enabled": false,
+      "networkEnabled": false,
+      "remoteInstall": false,
+      "sourceMarket": false
+    }
+  }
+}

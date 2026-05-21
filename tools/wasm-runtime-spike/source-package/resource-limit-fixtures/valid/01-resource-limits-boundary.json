@@ -1,0 +1,71 @@
+{
+  "boundaryVersion": 1,
+  "designOnly": true,
+  "runtimeEnabled": false,
+  "currentRuntime": {
+    "network": false,
+    "hostImports": [
+      "koma_host.log",
+      "koma_host.check_cancel"
+    ]
+  },
+  "resourceLimits": {
+    "results": {
+      "maxResultJsonBytes": 1048576,
+      "maxResultBufferBytes": 1114112,
+      "maxSearchItems": 100,
+      "maxChapterItems": 500,
+      "maxPageItems": 300,
+      "maxPageCountPerChapter": 300,
+      "truncation": "error"
+    },
+    "wasm": {
+      "maxWasmBytes": 131072,
+      "maxMemoryPages": 2,
+      "maxHeapBytes": 65536,
+      "maxStackBytes": 32768,
+      "maxCallDepth": 64,
+      "operationBudget": {
+        "kind": "hostDefined",
+        "maxUnits": 1000000,
+        "enforced": false
+      }
+    },
+    "timeouts": {
+      "perOperationMs": {
+        "search": 3000,
+        "get_manga": 3000,
+        "get_chapters": 3000,
+        "get_pages": 3000
+      },
+      "hostOwnedWallClock": true
+    },
+    "cancellation": {
+      "required": true,
+      "hostImport": "koma_host.check_cancel",
+      "polling": {
+        "beforeOperation": true,
+        "duringResultLoops": true,
+        "maxItemsBetweenPolls": 16
+      },
+      "sourceSdkKeepsImport": true
+    },
+    "errors": [
+      "TIMEOUT",
+      "CANCELLED",
+      "RESOURCE_LIMIT_EXCEEDED"
+    ],
+    "logging": {
+      "redactBodies": true,
+      "redactHeaders": true,
+      "redactPaths": true,
+      "includeRequestId": true
+    }
+  },
+  "productRuntime": {
+    "enabled": false,
+    "networkEnabled": false,
+    "remoteInstall": false,
+    "sourceMarket": false
+  }
+}

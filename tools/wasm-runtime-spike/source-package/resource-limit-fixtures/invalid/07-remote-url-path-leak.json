@@ -1,0 +1,24 @@
+{
+  "case": "remote URL in policy is rejected",
+  "expectRejectContains": "remote URL",
+  "input": {
+    "boundaryVersion": 1,
+    "designOnly": true,
+    "runtimeEnabled": false,
+    "notes": "fetch from https://example.invalid/source.json",
+    "currentRuntime": {
+      "network": false,
+      "hostImports": [
+        "koma_host.log",
+        "koma_host.check_cancel"
+      ]
+    },
+    "resourceLimits": {},
+    "productRuntime": {
+      "enabled": false,
+      "networkEnabled": false,
+      "remoteInstall": false,
+      "sourceMarket": false
+    }
+  }
+}

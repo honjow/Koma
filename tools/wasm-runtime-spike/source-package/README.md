@@ -19,6 +19,9 @@ For the design-only future local source package trust/provenance boundary, see
 For the design/tooling-only future source settings, auth, and secret reference
 schema boundary, see `SOURCE_SETTINGS_AUTH_BOUNDARY.md`.
 
+For the design/tooling-only future resource limit, cancellation, and timeout
+boundary, see `RESOURCE_LIMITS_CANCELLATION_BOUNDARY.md`.
+
 The fixture keeps the useful package lessons from source index layouts such as
 per-source metadata, icon paths, settings, capabilities, and runtime limits,
 while staying aligned with Koma's current runtime evidence:
@@ -160,6 +163,27 @@ directory. It loads local JSON only, performs no network I/O, keeps
 operations, and checks fixture strings for raw credential/header/cookie values
 and local/picker/app-private path leaks without echoing leaked values into the
 report.
+
+## Resource Limits/Cancellation Boundary
+
+`resource-limits.example.json` defines a design-only policy example for future
+bounded source execution. It keeps `network=false`, exact
+`koma_host.log`/`koma_host.check_cancel` imports, required cancellation polling,
+per-operation wall-clock timeout budgets, result/list/module budgets, structured
+`TIMEOUT`/`CANCELLED`/`RESOURCE_LIMIT_EXCEEDED` errors, and redacted logging.
+
+```sh
+python3 tools/wasm-runtime-spike/source-package/validate-resource-limit-fixtures.py \
+  --fixture-dir tools/wasm-runtime-spike/source-package/resource-limit-fixtures \
+  --artifact-dir /path/to/artifacts/resource-limit-fixtures
+```
+
+The validator writes `resource-limit-fixtures-report.json` under the artifact
+directory. It loads local JSON only, performs no network I/O, executes no WASM,
+accepts the valid design fixture, and rejects oversized budgets, invalid
+timeouts, disabled or omitted cancellation, forbidden imports, `network=true`,
+remote URL/path/credential leaks, unsafe log bodies, and executable/product
+runtime flags.
 
 To close the Linux smoke loop from archive validation to actual WAMR execution:
 
