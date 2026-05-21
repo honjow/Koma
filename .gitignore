@@ -2,6 +2,8 @@ oh_modules/
 **/oh_modules/
 build/
 **/build/
+.cxx/
+**/.cxx/
 .hvigor/
 .hermes-artifacts/
 .env.local
