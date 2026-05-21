@@ -3,6 +3,8 @@ import { ImportPage } from './ImportPage'
 import { MOCK_READER_SESSION, ReaderPage } from './ReaderPage'
 import { InMemoryReaderSessionStore, ReaderSessionStore } from '../model/ReaderSessionStore'
 
+const readerSessionStore: ReaderSessionStore = new InMemoryReaderSessionStore()
+
 @Entry
 @Component
 struct Index {
@@ -11,7 +13,7 @@ struct Index {
   @State private readerPageIndex: number = 0
   @State private readerChromeVisible: boolean = true
   @State private readerWebtoonMode: boolean = false
-  private readerSessionStore: ReaderSessionStore = new InMemoryReaderSessionStore()
+  private readerSessionStore: ReaderSessionStore = readerSessionStore
 
   private tabLabel(index: number): string {
     if (index === 0) { return '书架' }
