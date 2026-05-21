@@ -10,6 +10,7 @@ adapter_cpp="entry/src/main/cpp/wasm_runtime_adapter.cpp"
 adapter_h="entry/src/main/cpp/wasm_runtime_adapter.h"
 wrapper_file="entry/src/main/ets/sourceRuntime/NativeSourceRuntime.ets"
 smoke_file="entry/src/main/ets/sourceRuntime/SourceRuntimeDeviceSmoke.ets"
+source_package_importer_file="entry/src/main/ets/sourceRuntime/SourcePackageImporter.ets"
 entry_ability_file="entry/src/main/ets/entryability/EntryAbility.ets"
 build_profile="entry/build-profile.json5"
 rawfile_fixture="entry/src/main/resources/rawfile/test/source_runtime_fixture.wasm"
@@ -39,6 +40,7 @@ require_file "$adapter_cpp"
 require_file "$adapter_h"
 require_file "$wrapper_file"
 require_file "$smoke_file"
+require_file "$source_package_importer_file"
 require_file "$entry_ability_file"
 require_file "$rawfile_fixture"
 require_file "$rust_rawfile_fixture"
@@ -110,10 +112,20 @@ require_text "$smoke_file" 'KOMA_SOURCE_RUNTIME_SMOKE_RESULT'
 require_text "$smoke_file" 'entryability-want-test-only'
 require_text "$smoke_file" 'local_source_runtime_fixture.koma-source'
 require_text "$smoke_file" 'app-local-source-archive-import-test-only'
-require_text "$smoke_file" 'zlib.decompressFile'
+require_text "$smoke_file" 'importLocalSourceArchive'
+require_text "$smoke_file" 'stageRawfileSourcePackage'
+require_text "$smoke_file" 'importArchiveNegativeFixtures'
 require_text "$smoke_file" 'archiveImportOk'
 require_text "$smoke_file" 'archiveResponseOk'
 require_text "$smoke_file" 'archiveImportedWasmPath'
+require_text "$source_package_importer_file" 'zlib.decompressFile'
+require_text "$source_package_importer_file" 'SourceArchiveValidationReason'
+require_text "$source_package_importer_file" 'checksum_mismatch'
+require_text "$source_package_importer_file" 'network_not_allowed'
+require_text "$source_package_importer_file" 'unsafe_archive_entry'
+require_text "$source_package_importer_file" 'missing_manifest'
+require_text "$source_package_importer_file" 'missing_wasm'
+require_text "$source_package_importer_file" 'attemptedWamrExecution: false'
 require_text "$entry_ability_file" 'maybeRunSourceRuntimeDeviceSmoke'
 require_text "$entry_ability_file" 'onCreate'
 require_text "$entry_ability_file" 'onNewWant'
