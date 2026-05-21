@@ -1,4 +1,5 @@
 import { common, Want } from '@kit.AbilityKit'
+import { zlib } from '@kit.BasicServicesKit'
 import { cryptoFramework } from '@kit.CryptoArchitectureKit'
 import { fileIo as fs } from '@kit.CoreFileKit'
 import { resourceManager } from '@kit.LocalizationKit'
@@ -13,12 +14,16 @@ const SMOKE_LOG_PREFIX: string = 'KOMA_SOURCE_RUNTIME_SMOKE_RESULT '
 const SMOKE_RAWFILE_PATH: string = 'test/source_runtime_fixture.wasm'
 const RUST_SMOKE_RAWFILE_PATH: string = 'test/rust_source_runtime_fixture.wasm'
 const PACKAGE_ROUTE_LABEL: string = 'app-local-source-package-test-only'
+const ARCHIVE_ROUTE_LABEL: string = 'app-local-source-archive-import-test-only'
 const PACKAGE_MANIFEST_ID: string = 'local.test.koma.fixture'
 const PACKAGE_MANIFEST_VERSION: string = '0.1.0'
 const PACKAGE_MANIFEST_FILE: string = 'manifest.generated.json'
 const PACKAGE_WASM_FILE: string = 'rust_source_runtime_fixture.wasm'
 const PACKAGE_WASM_SHA256: string = '6d06d3a936bd0316818ec9d5754ea96c9cb33110c520cede6f0945c3eedbb4f8'
 const PACKAGE_WASM_MAX_BYTES: number = 131072
+const ARCHIVE_RAWFILE_PATH: string = 'test/local_source_runtime_fixture.koma-source'
+const ARCHIVE_SANDBOX_ZIP_FILE: string = 'local_source_runtime_fixture.zip'
+const ARCHIVE_REQUEST_JSON: string = '{"operation":"search","query":"fixture","smoke":"koma-archive-smoke"}'
 
 type WantParameterValue = Object | string | number | boolean | null | undefined
 type WantParameters = Record<string, WantParameterValue>
@@ -48,6 +53,22 @@ export interface SourceRuntimeSmokeResult {
   packageWasmPath?: string
   packageHashOk?: boolean
   packageRoute?: string
+  archiveRoute?: string
+  archiveRawfilePath?: string
+  archivePath?: string
+  archiveImportOk?: boolean
+  archiveResponse?: SourceRuntimeCallResponse
+  archiveResponseOk?: boolean
+  archiveOperation?: string
+  archiveRequestEcho?: string
+  archiveFirstTitle?: string
+  archiveNetwork?: boolean
+  archiveWasmBytes?: number
+  archiveManifestId?: string
+  archiveManifestVersion?: string
+  archiveManifestPath?: string
+  archiveImportedWasmPath?: string
+  archiveHashOk?: boolean
   error?: string
 }
 
@@ -167,6 +188,10 @@ function readBytesSync(path: string): Uint8Array {
   }
 }
 
+function readTextSync(path: string): string {
+  return fs.readTextSync(path, { encoding: 'utf-8' })
+}
+
 function writeTextSync(path: string, payload: string): void {
   let file: fs.File | undefined = undefined
   try {
@@ -174,6 +199,13 @@ function writeTextSync(path: string, payload: string): void {
     fs.writeSync(file.fd, payload, { encoding: 'utf-8' })
   } finally {
     closeFileQuietly(file)
+  }
+}
+
+async function removeDirectoryIfPresent(path: string): Promise<void> {
+  try {
+    await fs.rmdir(path)
+  } catch (_err) {
   }
 }
 
@@ -271,11 +303,61 @@ function stageAndRunLocalSourcePackageSmoke(
   result.packageRoute = PACKAGE_ROUTE_LABEL
 }
 
-export function maybeRunSourceRuntimeDeviceSmoke(
+async function stageImportAndRunLocalSourceArchiveSmoke(
+  context: common.UIAbilityContext,
+  resourceMgr: resourceManager.ResourceManager,
+  result: SourceRuntimeSmokeResult,
+): Promise<void> {
+  const archiveRoot = joinSmokePath(context.filesDir, 'source-runtime-archive-smoke')
+  const importedRoot = joinSmokePath(archiveRoot, 'imported-package')
+  const archivePath = joinSmokePath(archiveRoot, ARCHIVE_SANDBOX_ZIP_FILE)
+  const manifestPath = joinSmokePath(importedRoot, PACKAGE_MANIFEST_FILE)
+
+  ensureDirSync(archiveRoot)
+  await removeDirectoryIfPresent(importedRoot)
+  ensureDirSync(importedRoot)
+
+  const archiveBytes = resourceMgr.getRawFileContentSync(ARCHIVE_RAWFILE_PATH)
+  writeBytesSync(archivePath, archiveBytes)
+  await zlib.decompressFile(archivePath, importedRoot)
+
+  const manifest = JSON.parse(readTextSync(manifestPath)) as LocalSourcePackageManifest
+  const importedWasmPath = joinSmokePath(importedRoot, manifest.runtime.wasmPath)
+  const importedWasmBytes = readBytesSync(importedWasmPath)
+  const importedHash = sha256Hex(importedWasmBytes)
+  const archiveHashOk = importedHash === manifest.runtime.wasmSha256 &&
+    importedWasmBytes.byteLength === manifest.runtime.wasmSizeBytes &&
+    importedWasmBytes.byteLength <= manifest.runtime.maxWasmBytes
+
+  if (!archiveHashOk || manifest.package.id !== PACKAGE_MANIFEST_ID ||
+    manifest.package.version !== PACKAGE_MANIFEST_VERSION ||
+    manifest.permissions.network !== false) {
+    throw new Error('local source archive manifest/hash validation failed')
+  }
+
+  const archiveResponse = NativeSourceRuntime.runJsonCallFromBytes(ARCHIVE_REQUEST_JSON, importedWasmBytes)
+  result.archiveResponse = archiveResponse
+  result.archiveResponseOk = responseReachedRustFixture(archiveResponse)
+  result.archiveOperation = archiveResponse.operation
+  result.archiveRequestEcho = archiveResponse.data?.requestEcho
+  result.archiveFirstTitle = firstItemTitle(archiveResponse)
+  result.archiveNetwork = archiveResponse.hostHints?.['network'] === false ? false : undefined
+  result.archiveWasmBytes = importedWasmBytes.byteLength
+  result.archiveManifestId = manifest.package.id
+  result.archiveManifestVersion = manifest.package.version
+  result.archiveManifestPath = manifestPath
+  result.archiveImportedWasmPath = importedWasmPath
+  result.archiveHashOk = archiveHashOk
+  result.archiveImportOk = true
+  result.archivePath = archivePath
+  result.archiveRoute = ARCHIVE_ROUTE_LABEL
+}
+
+export async function maybeRunSourceRuntimeDeviceSmoke(
   want: Want,
   resourceMgr?: resourceManager.ResourceManager,
   context?: common.UIAbilityContext,
-): void {
+): Promise<void> {
   if (!hasSmokeTrigger(want)) {
     return
   }
@@ -288,6 +370,8 @@ export function maybeRunSourceRuntimeDeviceSmoke(
     rustRequestJson: RUST_SMOKE_REQUEST_JSON,
     rustRawfilePath: RUST_SMOKE_RAWFILE_PATH,
     packageRoute: PACKAGE_ROUTE_LABEL,
+    archiveRoute: ARCHIVE_ROUTE_LABEL,
+    archiveRawfilePath: ARCHIVE_RAWFILE_PATH,
   }
 
   try {
@@ -305,6 +389,7 @@ export function maybeRunSourceRuntimeDeviceSmoke(
       result.rustSourceResponse = NativeSourceRuntime.runJsonCallFromBytes(RUST_SMOKE_REQUEST_JSON, rustWasmBytes)
       if (context !== undefined) {
         stageAndRunLocalSourcePackageSmoke(context, resourceMgr, result)
+        await stageImportAndRunLocalSourceArchiveSmoke(context, resourceMgr, result)
       }
     }
     result.ok = responseReachedFixture(response) &&
@@ -315,9 +400,14 @@ export function maybeRunSourceRuntimeDeviceSmoke(
       result.packageResponse !== undefined &&
       responseReachedRustFixture(result.packageResponse) &&
       result.packageHashOk === true &&
-      result.packageNetwork === false
+      result.packageNetwork === false &&
+      result.archiveImportOk === true &&
+      result.archiveResponse !== undefined &&
+      responseReachedRustFixture(result.archiveResponse) &&
+      result.archiveHashOk === true &&
+      result.archiveNetwork === false
     if (!result.ok) {
-      result.error = 'WAMR fixture JSON assertion failed for bundled, legacy rawfile, Rust source rawfile, and local source package paths'
+      result.error = 'WAMR fixture JSON assertion failed for bundled, legacy rawfile, Rust source rawfile, local source package, and local source archive import paths'
     }
   } catch (error) {
     const e = error as Error

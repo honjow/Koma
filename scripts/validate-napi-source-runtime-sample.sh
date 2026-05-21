@@ -14,6 +14,7 @@ entry_ability_file="entry/src/main/ets/entryability/EntryAbility.ets"
 build_profile="entry/build-profile.json5"
 rawfile_fixture="entry/src/main/resources/rawfile/test/source_runtime_fixture.wasm"
 rust_rawfile_fixture="entry/src/main/resources/rawfile/test/rust_source_runtime_fixture.wasm"
+archive_fixture="entry/src/main/resources/rawfile/test/local_source_runtime_fixture.koma-source"
 
 require_file() {
   local path="$1"
@@ -41,6 +42,7 @@ require_file "$smoke_file"
 require_file "$entry_ability_file"
 require_file "$rawfile_fixture"
 require_file "$rust_rawfile_fixture"
+require_file "$archive_fixture"
 
 require_text "$cpp_file" '#include <napi/native_api.h>'
 require_text "$cpp_file" 'napi_module_register'
@@ -106,6 +108,12 @@ require_text "$smoke_file" 'rustSourceResponse'
 require_text "$smoke_file" 'rustRawfileBytes'
 require_text "$smoke_file" 'KOMA_SOURCE_RUNTIME_SMOKE_RESULT'
 require_text "$smoke_file" 'entryability-want-test-only'
+require_text "$smoke_file" 'local_source_runtime_fixture.koma-source'
+require_text "$smoke_file" 'app-local-source-archive-import-test-only'
+require_text "$smoke_file" 'zlib.decompressFile'
+require_text "$smoke_file" 'archiveImportOk'
+require_text "$smoke_file" 'archiveResponseOk'
+require_text "$smoke_file" 'archiveImportedWasmPath'
 require_text "$entry_ability_file" 'maybeRunSourceRuntimeDeviceSmoke'
 require_text "$entry_ability_file" 'onCreate'
 require_text "$entry_ability_file" 'onNewWant'
@@ -143,6 +151,10 @@ if ! strings "$rust_rawfile_fixture" | rg -q '"requestEcho":"fixture"'; then
   echo "rust rawfile wasm fixture does not contain requestEcho fixture evidence" >&2
   exit 1
 fi
+
+python3 tools/wasm-runtime-spike/source-package/validate-local-source-archive-fixture.py \
+  --archive "$archive_fixture" \
+  --artifact-dir "${KOMA_NAPI_SOURCE_RUNTIME_ARTIFACT_DIR:-.hermes-artifacts/napi-source-runtime-static/source-archive-fixture}" >/dev/null
 
 if rg -q 'NativeSourceRuntime\\.(hello|add)' "$smoke_file"; then
   echo "device smoke route must prove runJsonCall, not hello/add sample methods" >&2
