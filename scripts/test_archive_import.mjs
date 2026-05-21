@@ -8,11 +8,15 @@ const servicePath = resolve(root, 'entry/src/main/ets/import/ArchiveImportServic
 const extractionServicePath = resolve(root, 'entry/src/main/ets/import/ArchiveExtractionService.ets')
 const localImportCoordinatorPath = resolve(root, 'entry/src/main/ets/import/LocalImportCoordinator.ets')
 const localImportDebugPath = resolve(root, 'entry/src/main/ets/import/LocalImportDebugModels.ets')
+const importPagePath = resolve(root, 'entry/src/main/ets/pages/ImportPage.ets')
+const indexPagePath = resolve(root, 'entry/src/main/ets/pages/Index.ets')
 const sortSource = readFileSync(sortPath, 'utf8')
 const serviceSource = readFileSync(servicePath, 'utf8')
 const extractionServiceSource = readFileSync(extractionServicePath, 'utf8')
 const localImportCoordinatorSource = readFileSync(localImportCoordinatorPath, 'utf8')
 const localImportDebugSource = readFileSync(localImportDebugPath, 'utf8')
+const importPageSource = readFileSync(importPagePath, 'utf8')
+const indexPageSource = readFileSync(indexPagePath, 'utf8')
 
 function assertExport(source, symbol) {
   assert.match(source, new RegExp(`export (interface|class|async function|function|const) ${symbol}\\b`), `${symbol} must be exported`)
@@ -216,6 +220,12 @@ function buildComicFromArchive(request) {
   }
 }
 
+function notifySuccessfulArchiveImports(results, onComic) {
+  results.forEach((result) => {
+    onComic(result.extractionResult.importResult.comic)
+  })
+}
+
 for (const symbol of [
   'SUPPORTED_ARCHIVE_EXTENSIONS',
   'SUPPORTED_IMAGE_EXTENSIONS',
@@ -258,6 +268,11 @@ assert.match(localImportCoordinatorSource, /fs\.open\(sourceUri, fs\.OpenMode\.R
 assert.match(localImportCoordinatorSource, /fs\.open\(sandboxZipPath, fs\.OpenMode\.WRITE_ONLY \| fs\.OpenMode\.CREATE \| fs\.OpenMode\.TRUNC\)/, 'sandbox archive.zip must be opened for overwrite')
 assert.match(localImportCoordinatorSource, /fs\.copyFile\(sourceFile\.fd, targetFile\.fd, 0\)/, 'copy must bridge URI to sandbox with file descriptors')
 assert.match(localImportCoordinatorSource, /createArchiveExtractionCachePaths\(request\.context\.cacheDir, request\.sourceUri, request\.sourceUri\)/, 'local import must create archive.zip under app cache')
+assert.match(importPageSource, /onArchiveImportSucceeded:\s*\(comic:\s*Comic\)\s*=>\s*void/, 'ImportPage must expose a successful archive import callback')
+assert.match(importPageSource, /const results = await this\.localImportCoordinator\.pickAndImportArchives\(context\)[\s\S]*results\.forEach\(\(result\) => \{[\s\S]*this\.onArchiveImportSucceeded\(result\.extractionResult\.importResult\.comic\)/, 'ImportPage must call the callback from real coordinator results')
+assert.match(indexPageSource, /private handleArchiveImportSucceeded\(comic:\s*Comic\):\s*void \{[\s\S]*this\.libraryStore\.upsertComic\(comic\)[\s\S]*this\.libraryRevision \+= 1[\s\S]*this\.selectedTab = 0[\s\S]*\}/, 'Index must upsert imported comics, bump a refresh signal, and return to the shelf')
+assert.match(indexPageSource, /ImportPage\(\{[\s\S]*onArchiveImportSucceeded:\s*\(comic:\s*Comic\) => \{[\s\S]*this\.handleArchiveImportSucceeded\(comic\)/, 'Index must pass the import success callback into ImportPage')
+assert.match(indexPageSource, /LibraryPage\(\{[\s\S]*libraryRevision:\s*this\.libraryRevision/, 'Index must pass an explicit shelf refresh signal into LibraryPage')
 assert.match(localImportCoordinatorSource, /archiveExtractionService\.extractArchive/, 'local import must hand sandbox archive.zip to ArchiveExtractionService')
 assert.match(localImportCoordinatorSource, /setDebugSink\(debugSink\?: LocalArchiveImportDebugSink\)/, 'coordinator must expose an optional debug sink for QA surfaces')
 assert.match(localImportCoordinatorSource, /LOCAL_ARCHIVE_DEBUG_STEP_PICKER_STARTED/, 'coordinator must report picker start')
@@ -345,6 +360,24 @@ assert.deepEqual(result.comic.chapters[0].pages.map((page) => page.fileName), [
 assert.equal(result.comic.chapters[0].pages[1].width, 800)
 assert.equal(result.comic.chapters[0].pages[1].height, 1200)
 assert.equal(result.comic.chapters[0].pages[3].byteSize, 10)
+
+const importedComics = new Map()
+notifySuccessfulArchiveImports([], (comic) => {
+  importedComics.set(comic.id, comic)
+})
+assert.equal(importedComics.size, 0, 'picker cancel/empty results must not upsert imported comics')
+
+notifySuccessfulArchiveImports([
+  {
+    extractionResult: {
+      importResult: result,
+    },
+  },
+], (comic) => {
+  importedComics.set(comic.id, comic)
+})
+assert.equal(importedComics.size, 1, 'successful coordinator results must upsert imported comics')
+assert.equal(importedComics.get('comic-local-1').pageCount, 4)
 
 assert.throws(() => buildComicFromArchive({ archivePath: '/library/raw.rar', entries: [] }), /Unsupported archive path/)
 

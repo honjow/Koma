@@ -7,7 +7,7 @@ import {
   createMockLibraryPresentationMap,
   createSeededLibraryStore,
 } from '../model/MockLibraryData'
-import { ComicId } from '../model/ComicModels'
+import { Comic, ComicId } from '../model/ComicModels'
 import { LibraryStore } from '../model/LibraryStore'
 import {
   InMemoryReaderSessionStore,
@@ -29,6 +29,7 @@ struct Index {
   @State private readerChromeVisible: boolean = true
   @State private readerWebtoonMode: boolean = false
   @State private readerSessionConfig: ReaderSessionConfig = MOCK_LIBRARY_READER_SESSION
+  @State private libraryRevision: number = 0
   private readerSessionStore: ReaderSessionStore = readerSessionStore
   private libraryStore: LibraryStore = seededLibraryStore
   private presentationByComicId: LibraryPresentationByComicId = libraryPresentationByComicId
@@ -46,6 +47,12 @@ struct Index {
     this.readerPageIndex = this.readerSessionStore.restorePageIndex(this.readerSessionConfig)
     this.readerChromeVisible = true
     this.readerOpen = true
+  }
+
+  private handleArchiveImportSucceeded(comic: Comic): void {
+    this.libraryStore.upsertComic(comic)
+    this.libraryRevision += 1
+    this.selectedTab = 0
   }
 
   @Builder
@@ -67,6 +74,7 @@ struct Index {
           if (this.selectedTab === 0) {
             LibraryPage({
               libraryStore: this.libraryStore,
+              libraryRevision: this.libraryRevision,
               presentationByComicId: this.presentationByComicId,
               sessionStore: this.readerSessionStore,
               onOpenReader: (comicId: ComicId) => {
@@ -74,7 +82,11 @@ struct Index {
               }
             })
           } else if (this.selectedTab === 1) {
-            ImportPage()
+            ImportPage({
+              onArchiveImportSucceeded: (comic: Comic) => {
+                this.handleArchiveImportSucceeded(comic)
+              }
+            })
           } else {
             Column({ space: 12 }) {
               Text(this.tabLabel(this.selectedTab))

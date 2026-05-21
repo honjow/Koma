@@ -4,6 +4,7 @@ import {
   LocalArchiveImportDebugEvent,
   formatLocalArchiveImportDebugEvent,
 } from '../import/LocalImportDebugModels'
+import { Comic } from '../model/ComicModels'
 
 interface ImportEntryInfo {
   title: string
@@ -59,6 +60,7 @@ const PRIVATE_LIBRARY_ENTRY: ImportEntryInfo = {
 export struct ImportPage {
   @State private feedbackText: string = '选择一种本地导入方式，当前页面只展示入口和后续系统 picker 边界。'
   @State private importDebugText: string = '等待 QA 导入动作。'
+  onArchiveImportSucceeded: (comic: Comic) => void = (_comic: Comic) => {}
   private readonly localImportCoordinator: LocalImportCoordinator = new LocalImportCoordinator()
 
   private appendImportDebugEvent(event: LocalArchiveImportDebugEvent): void {
@@ -84,6 +86,9 @@ export struct ImportPage {
       this.feedbackText = results.length === 0
         ? '未选择文件；真实导入仍需要人工在系统文件选择器中选择一个 CBZ/ZIP。'
         : `已复制并解压 ${results.length} 个压缩包到 Koma 沙盒缓存。`
+      results.forEach((result) => {
+        this.onArchiveImportSucceeded(result.extractionResult.importResult.comic)
+      })
     } catch (error) {
       this.feedbackText = `压缩包导入未完成：${error}`
     } finally {

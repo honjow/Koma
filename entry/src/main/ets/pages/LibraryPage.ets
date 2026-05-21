@@ -13,14 +13,18 @@ import { InMemoryReaderSessionStore, ReaderSessionStore } from '../model/ReaderS
 
 @Component
 export struct LibraryPage {
-  private hasComics: boolean = true
   libraryStore: LibraryStore = createSeededLibraryStore()
+  libraryRevision: number = 0
   presentationByComicId: LibraryPresentationByComicId = createMockLibraryPresentationMap()
   sessionStore: ReaderSessionStore = new InMemoryReaderSessionStore()
   onOpenReader: (comicId: ComicId) => void = (_comicId: ComicId) => {}
 
   private viewModel(): LibraryViewModel {
     return createLibraryViewModelFromStores(this.libraryStore, this.sessionStore, this.presentationByComicId)
+  }
+
+  private hasLibraryContent(): boolean {
+    return this.libraryRevision >= 0 && this.libraryStore.listComics().length > 0
   }
 
   @Builder
@@ -134,7 +138,7 @@ export struct LibraryPage {
         .width('100%')
         .alignItems(HorizontalAlign.Start)
 
-        if (this.hasComics) {
+        if (this.hasLibraryContent()) {
           this.ContinueReadingCard(this.viewModel().continueReading)
 
           Row() {
