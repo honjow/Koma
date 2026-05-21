@@ -32,13 +32,24 @@ JSON_OUT="$ARTIFACT_DIR/rust-source-operation-results.json"
 mkdir -p "$BUILD_DIR" "$LOG_DIR" "$(dirname "$WAMR_ROOT_DIR")"
 : > "$RUN_LOG"
 
+redact_stream() {
+  sed \
+    -e "s#$WAMR_ROOT_DIR#<cache>#g" \
+    -e "s#$ARTIFACT_DIR#<artifact>#g" \
+    -e "s#$REPO_ROOT#<repo>#g" \
+    -e "s#/home/gamer#<home>#g" \
+    -e "s#cache/wasm-micro-runtime#<cache>#g" \
+    -e 's#Authorization:[^[:space:],;}]*#Authorization: <redacted>#Ig' \
+    -e 's#-----BEGIN [A-Z ]*PRIVATE KEY-----#<private-key>#Ig'
+}
+
 log() {
-  printf '%s\n' "$*" | tee -a "$RUN_LOG"
+  printf '%s\n' "$*" | redact_stream | tee -a "$RUN_LOG"
 }
 
 run_logged() {
   log "+ $*"
-  "$@" 2>&1 | tee -a "$RUN_LOG"
+  "$@" 2>&1 | redact_stream | tee -a "$RUN_LOG"
 }
 
 require_tool() {
@@ -121,7 +132,7 @@ run_logged cmake -S "$SCRIPT_DIR/host" -B "$HOST_BUILD_DIR" \
 run_logged cmake --build "$HOST_BUILD_DIR" --target koma_wamr_spike --parallel
 
 log "+ $HOST_BUILD_DIR/koma_wamr_spike $WASM_OUT"
-"$HOST_BUILD_DIR/koma_wamr_spike" "$WASM_OUT" 2>&1 | tee -a "$RUN_LOG"
+"$HOST_BUILD_DIR/koma_wamr_spike" "$WASM_OUT" 2>&1 | redact_stream | tee -a "$RUN_LOG"
 
 for operation in search get_manga get_chapters get_pages; do
   if ! grep -q "SOURCE_API_OPERATION $operation ok:true" "$RUN_LOG"; then

@@ -10,6 +10,9 @@ import zipfile
 import warnings
 from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+from redaction import redacted_command, redact_text, redact_value, write_redacted_json  # noqa: E402
+
 
 PACKAGE_SCRIPT = "tools/wasm-runtime-spike/source-package/package-source-archive.py"
 
@@ -20,16 +23,16 @@ def repo_root() -> Path:
 
 def write_json(path: Path, payload: dict) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    write_redacted_json(path, payload)
 
 
 def run_command(cmd: list[str], *, cwd: Path, env: dict[str, str], log_path: Path) -> dict:
     proc = subprocess.run(cmd, cwd=str(cwd), env=env, text=True,
                           stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
     log_path.parent.mkdir(parents=True, exist_ok=True)
-    log_path.write_text(proc.stdout, encoding="utf-8")
+    log_path.write_text(redact_text(proc.stdout), encoding="utf-8")
     return {
-        "cmd": " ".join(cmd),
+        "cmd": redacted_command(cmd),
         "exitCode": proc.returncode,
         "log": str(log_path),
         "output": proc.stdout,
@@ -239,7 +242,7 @@ def main() -> int:
         report["error"] = str(err)
 
     write_json(report_path, report)
-    print(json.dumps(report, indent=2, sort_keys=True))
+    print(json.dumps(redact_value(report), indent=2, sort_keys=True))
     return 0 if report["status"] == "PASS" else 1
 
 

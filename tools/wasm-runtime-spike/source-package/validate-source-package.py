@@ -8,6 +8,9 @@ import subprocess
 import sys
 from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+from redaction import redacted_command, redact_text, redact_value, write_redacted_json  # noqa: E402
+
 
 SOURCE_ABI = "koma-source-abi-v0.1"
 HOST_ABI = "koma-host-v0.1"
@@ -287,11 +290,11 @@ def run_rust_fixture(manifest_path: Path, artifact_dir: Path, manifest: dict) ->
     proc = subprocess.run(["bash", str(script)], cwd=str(repo_root()), env=env,
                           text=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
     log_path = artifact_dir / "run-rust-fixture-from-package-validator.log"
-    log_path.write_text(proc.stdout, encoding="utf-8")
+    log_path.write_text(redact_text(proc.stdout), encoding="utf-8")
     result = {
-        "cmd": f"KOMA_WASM_SPIKE_ARTIFACT_DIR={rust_artifact_dir} bash {script}",
+        "cmd": redacted_command(["bash", str(script)], {"KOMA_WASM_SPIKE_ARTIFACT_DIR": str(rust_artifact_dir)}),
         "exitCode": proc.returncode,
-        "log": str(log_path),
+        "log": redact_text(str(log_path)),
     }
     if proc.returncode != 0:
         result["status"] = "FAIL"
@@ -361,8 +364,8 @@ def main() -> int:
         report["error"] = str(err)
         report["status"] = "FAIL"
 
-    report_path.write_text(json.dumps(report, indent=2, sort_keys=True) + "\n", encoding="utf-8")
-    print(json.dumps(report, indent=2, sort_keys=True))
+    write_redacted_json(report_path, report)
+    print(json.dumps(redact_value(report), indent=2, sort_keys=True))
     return 0 if report["status"] == "PASS" else 1
 
 

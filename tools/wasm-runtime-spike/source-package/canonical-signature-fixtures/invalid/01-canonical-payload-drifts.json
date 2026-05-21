@@ -1,0 +1,337 @@
+{
+  "cases": [
+    {
+      "case": "unknown-canonicalization-version",
+      "expectRejectContains": "unknown canonicalization algorithm/version",
+      "mutations": [
+        {
+          "path": "canonicalization.algorithm",
+          "value": "koma.canonical-json.v2"
+        }
+      ]
+    },
+    {
+      "case": "sorted-keys-disabled",
+      "expectRejectContains": "canonicalization.sortedKeys must be true",
+      "mutations": [
+        {
+          "path": "canonicalization.sortedKeys",
+          "value": false
+        }
+      ]
+    },
+    {
+      "case": "duplicate-keys-accepted",
+      "expectRejectContains": "duplicateKeysAccepted must be false",
+      "mutations": [
+        {
+          "path": "canonicalization.duplicateKeysAccepted",
+          "value": true
+        }
+      ]
+    },
+    {
+      "case": "duplicate-key-json-rejected",
+      "expectRejectContains": "duplicate key rejected",
+      "rawJson": "{\"boundaryVersion\":1,\"boundaryVersion\":1}"
+    },
+    {
+      "case": "non-object-payload-model",
+      "expectRejectContains": "payload must be a normalized JSON object",
+      "mutations": [
+        {
+          "path": "payload",
+          "value": [
+            "not",
+            "an",
+            "object"
+          ]
+        }
+      ]
+    },
+    {
+      "case": "missing-package-id-binding",
+      "expectRejectContains": "payload.package.id",
+      "mutations": [
+        {
+          "path": "payload.package.id",
+          "action": "remove"
+        }
+      ]
+    },
+    {
+      "case": "missing-package-version-binding",
+      "expectRejectContains": "payload.package.version",
+      "mutations": [
+        {
+          "path": "payload.package.version",
+          "action": "remove"
+        }
+      ]
+    },
+    {
+      "case": "missing-archive-digest-binding",
+      "expectRejectContains": "payload.archive.sha256",
+      "mutations": [
+        {
+          "path": "payload.archive.sha256",
+          "action": "remove"
+        }
+      ]
+    },
+    {
+      "case": "missing-archive-size-binding",
+      "expectRejectContains": "payload.archive.sizeBytes",
+      "mutations": [
+        {
+          "path": "payload.archive.sizeBytes",
+          "action": "remove"
+        }
+      ]
+    },
+    {
+      "case": "missing-manifest-digest-binding",
+      "expectRejectContains": "payload.manifest.sha256",
+      "mutations": [
+        {
+          "path": "payload.manifest.sha256",
+          "action": "remove"
+        }
+      ]
+    },
+    {
+      "case": "missing-manifest-size-binding",
+      "expectRejectContains": "payload.manifest.sizeBytes",
+      "mutations": [
+        {
+          "path": "payload.manifest.sizeBytes",
+          "action": "remove"
+        }
+      ]
+    },
+    {
+      "case": "missing-wasm-path-binding",
+      "expectRejectContains": "payload.wasm.path",
+      "mutations": [
+        {
+          "path": "payload.wasm.path",
+          "action": "remove"
+        }
+      ]
+    },
+    {
+      "case": "missing-wasm-digest-binding",
+      "expectRejectContains": "payload.wasm.sha256",
+      "mutations": [
+        {
+          "path": "payload.wasm.sha256",
+          "action": "remove"
+        }
+      ]
+    },
+    {
+      "case": "missing-wasm-size-binding",
+      "expectRejectContains": "payload.wasm.sizeBytes",
+      "mutations": [
+        {
+          "path": "payload.wasm.sizeBytes",
+          "action": "remove"
+        }
+      ]
+    },
+    {
+      "case": "payload-digest-mismatch",
+      "expectRejectContains": "payload digest mismatch",
+      "mutations": [
+        {
+          "path": "payloadSha256",
+          "value": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+        }
+      ]
+    },
+    {
+      "case": "manifest-digest-mismatch",
+      "expectRejectContains": "manifest digest mismatch",
+      "mutations": [
+        {
+          "path": "payload.manifest.sha256",
+          "value": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"
+        }
+      ]
+    },
+    {
+      "case": "raw-manifest-text-used-as-input",
+      "expectRejectContains": "raw manifest text",
+      "mutations": [
+        {
+          "path": "rawManifestText",
+          "value": "{\"package\":{\"id\":\"koma.local.canonical-payload\"}}"
+        }
+      ]
+    },
+    {
+      "case": "network-true",
+      "expectRejectContains": "payload.runtime.network must be false",
+      "mutations": [
+        {
+          "path": "payload.runtime.network",
+          "value": true
+        }
+      ]
+    },
+    {
+      "case": "http-host-import-drift",
+      "expectRejectContains": "payload.runtime.hostImports must be exactly",
+      "mutations": [
+        {
+          "path": "payload.runtime.hostImports",
+          "value": [
+            "koma_host.log",
+            "koma_host.check_cancel",
+            "koma_host.http_request"
+          ]
+        }
+      ]
+    },
+    {
+      "case": "raw-private-key-diagnostic-leak",
+      "expectRejectContains": "forbidden sensitive value",
+      "mutations": [
+        {
+          "path": "diagnostics.example",
+          "value": "-----BEGIN PRIVATE KEY-----"
+        }
+      ]
+    },
+    {
+      "case": "authorization-header-diagnostic-leak",
+      "expectRejectContains": "forbidden sensitive value",
+      "mutations": [
+        {
+          "path": "diagnostics.example",
+          "value": "Authorization: Bearer abc.def.ghi"
+        }
+      ]
+    },
+    {
+      "case": "user-path-diagnostic-leak",
+      "expectRejectContains": "forbidden sensitive value",
+      "mutations": [
+        {
+          "path": "diagnostics.example",
+          "value": "/home/example/source.zip"
+        }
+      ]
+    },
+    {
+      "case": "signature-dump-field",
+      "expectRejectContains": "forbidden sensitive field",
+      "mutations": [
+        {
+          "path": "diagnostics.signatureDump",
+          "value": "MEUCIQDuNotARealSignatureButStillRawMaterial"
+        }
+      ]
+    },
+    {
+      "case": "raw-archive-bytes-included",
+      "expectRejectContains": "forbidden sensitive field",
+      "mutations": [
+        {
+          "path": "payload.archiveBytes",
+          "value": "UEsDBAoAAAAAA"
+        }
+      ]
+    },
+    {
+      "case": "raw-wasm-bytes-included",
+      "expectRejectContains": "forbidden sensitive field",
+      "mutations": [
+        {
+          "path": "payload.wasmBytes",
+          "value": "AGFzbQEAAA"
+        }
+      ]
+    },
+    {
+      "case": "product-runtime-enabled",
+      "expectRejectContains": "productRuntime must be false",
+      "mutations": [
+        {
+          "path": "productRuntime",
+          "value": true
+        }
+      ]
+    },
+    {
+      "case": "product-ui-enabled",
+      "expectRejectContains": "productUi must be false",
+      "mutations": [
+        {
+          "path": "productUi",
+          "value": true
+        }
+      ]
+    },
+    {
+      "case": "source-market-enabled",
+      "expectRejectContains": "scope.sourceMarket must be false",
+      "mutations": [
+        {
+          "path": "scope.sourceMarket",
+          "value": true
+        }
+      ]
+    },
+    {
+      "case": "remote-install-enabled",
+      "expectRejectContains": "scope.remoteInstall must be false",
+      "mutations": [
+        {
+          "path": "scope.remoteInstall",
+          "value": true
+        }
+      ]
+    },
+    {
+      "case": "built-in-source-enabled",
+      "expectRejectContains": "scope.builtInSources must be false",
+      "mutations": [
+        {
+          "path": "scope.builtInSources",
+          "value": true
+        }
+      ]
+    },
+    {
+      "case": "subprocess-validator-drift",
+      "expectRejectContains": "subprocesses must be false",
+      "mutations": [
+        {
+          "path": "subprocesses",
+          "value": true
+        }
+      ]
+    },
+    {
+      "case": "network-validator-drift",
+      "expectRejectContains": "networkIo must be false",
+      "mutations": [
+        {
+          "path": "networkIo",
+          "value": true
+        }
+      ]
+    },
+    {
+      "case": "executable-hook-drift",
+      "expectRejectContains": "nonGoals.executableHooks must be true",
+      "mutations": [
+        {
+          "path": "nonGoals.executableHooks",
+          "value": false
+        }
+      ]
+    }
+  ]
+}

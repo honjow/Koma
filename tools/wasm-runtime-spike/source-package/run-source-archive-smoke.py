@@ -8,6 +8,9 @@ import subprocess
 import sys
 from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+from redaction import redacted_command, redact_text, redact_value, write_redacted_json  # noqa: E402
+
 
 HOST_ABI = "koma-host-v0.1"
 HOST_IMPORTS = ["koma_host.log", "koma_host.check_cancel"]
@@ -36,7 +39,7 @@ def read_json(path: Path) -> dict:
 
 def write_json(path: Path, payload: dict) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    path.write_text(json.dumps(redact_value(payload), indent=2, sort_keys=True) + "\n", encoding="utf-8")
 
 
 def sha256_file(path: Path) -> str:
@@ -48,10 +51,7 @@ def sha256_file(path: Path) -> str:
 
 
 def command_text(cmd: list[str], env_prefix: dict[str, str] | None = None) -> str:
-    prefix = ""
-    if env_prefix:
-        prefix = " ".join(f"{key}={value}" for key, value in sorted(env_prefix.items())) + " "
-    return prefix + " ".join(cmd)
+    return redacted_command(cmd, env_prefix)
 
 
 def run_command(cmd: list[str], *, cwd: Path, env: dict[str, str], log_path: Path,
@@ -59,7 +59,7 @@ def run_command(cmd: list[str], *, cwd: Path, env: dict[str, str], log_path: Pat
     proc = subprocess.run(cmd, cwd=str(cwd), env=env, text=True,
                           stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
     log_path.parent.mkdir(parents=True, exist_ok=True)
-    log_path.write_text(proc.stdout, encoding="utf-8")
+    log_path.write_text(redact_text(proc.stdout), encoding="utf-8")
     result = {
         "cmd": command_text(cmd, env_prefix),
         "exitCode": proc.returncode,
@@ -130,7 +130,7 @@ def validate_and_extract_archive(archive_path: Path, artifact_dir: Path, env: di
     validation_report = read_json(validation_report_path)
     require(validation_report.get("status") == "PASS", "archive validation report did not pass")
 
-    extract_dir = Path(validation_report["extractDir"]).resolve()
+    extract_dir = validation_dir / "archive-extracted"
     manifest_path = extract_dir / "manifest.generated.json"
     require(manifest_path.is_file(), f"extracted manifest missing: {manifest_path}")
     manifest = read_json(manifest_path)
@@ -347,8 +347,8 @@ def main() -> int:
     except Exception as err:
         report["error"] = str(err)
 
-    write_json(report_path, report)
-    print(json.dumps(report, indent=2, sort_keys=True))
+    write_redacted_json(report_path, report)
+    print(json.dumps(redact_value(report), indent=2, sort_keys=True))
     return 0 if report["status"] == "PASS" else 1
 
 

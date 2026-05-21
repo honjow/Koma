@@ -138,9 +138,11 @@ shape, WASM hash/size, closed imports, `network=false`, HTTP drift, resource
 limits, settings/auth, image/page descriptors, and HarmonyOS internal-dev
 staging/promotion plan.
 
-Missing future trust tests before product enablement:
+Future trust tests before product enablement:
 
-- Canonical manifest/signature payload fixtures.
+- Canonical manifest/signature payload fixtures are covered by
+  `CANONICAL_SIGNATURE_PAYLOAD_BOUNDARY.md` and
+  `validate-canonical-signature-payload.py`.
 - Tampered signature, tampered manifest, tampered WASM, and checksum pin mismatch
   fixtures.
 - Signer id/key id matching, rotation, revocation, expiration, and compatibility

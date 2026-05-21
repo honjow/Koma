@@ -42,6 +42,12 @@ install, built-in sources, and network out of scope while statically rejecting
 trust-order drift, unsigned release acceptance, downgrade/duplicate overwrite
 drift, logging leaks, `network=true`, and HTTP import drift.
 
+Canonical manifest/signature payload fixtures for future trust gates are
+design/tooling-only and documented in
+`source-package/CANONICAL_SIGNATURE_PAYLOAD_BOUNDARY.md`. They define
+deterministic JSON bytes and public metadata bindings without signing,
+verification, keys, trust stores, product runtime/UI, network, or HTTP.
+
 The spike validates this path on Linux:
 
 ```text
