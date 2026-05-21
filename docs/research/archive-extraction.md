@@ -15,7 +15,7 @@ context.cacheDir/
       manifest.json
 ```
 
-`ArchiveExtractionService` owns the `extract/` directory and may remove/recreate it before each extraction. The picker/copy layer owns writing `archive.zip`; that layer is intentionally outside this spike because picker UI and URI copy behavior are separate from ZIP extraction.
+`ArchiveExtractionService` owns the `extract/` directory and may remove/recreate it before each extraction. `LocalImportCoordinator` owns the picker/copy boundary and writes the selected archive URI into `archive.zip` before extraction.
 
 ## API Boundaries
 
@@ -51,7 +51,15 @@ The current DTO `Page.uri` remains `archivePath#entryPath`, preserving the contr
 
 ## Device Spike Still Needed
 
-This service is designed to compile against the documented API, but the following should be proven on device before wiring UI:
+This service is designed to compile against the documented API. `LocalImportCoordinator` now expresses the intended file boundary:
+
+1. `DocumentViewPicker.select` returns user-granted ZIP/CBZ URI strings.
+2. The coordinator opens the picked URI with `fileIo.open(sourceUri, READ_ONLY)`, relying on documented URI support.
+3. It opens the sandbox cache target `archive.zip` with `WRITE_ONLY | CREATE | TRUNC`.
+4. It copies by file descriptor using `fileIo.copyFile(sourceFd, targetFd, 0)`.
+5. It passes the sandbox `archive.zip` path into `ArchiveExtractionService`.
+
+The following still requires real-device manual QA because the worker must not ask the user to choose a file during automated validation:
 
 - Whether copying a picker-returned `.cbz` URI directly to a sandbox `.zip` path works with the chosen file API on API 23.
 - Whether archives with backslash entry separators need API 21 `pathSeparatorStrategy`, or whether post-list normalization is sufficient on target devices.

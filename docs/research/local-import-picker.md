@@ -143,3 +143,15 @@ For Lane 1C, implement import plumbing in this order:
 3. Folder flow only after a dedicated interactive smoke test proves returned folder URIs can be enumerated or copied on the actual target class.
 
 Do not implement `fileAccess` ExtensionAbility for Koma. It is for system/file-manager integration and third-party configuration is documented as ineffective.
+
+## Lane 1H Spike Update
+
+`entry/src/main/ets/import/LocalImportCoordinator.ets` now implements the archive boundary:
+
+- `createArchiveDocumentSelectOptions()` uses `Comic archives(.zip, .cbz)|.zip,.cbz`.
+- After build validation, the implementation intentionally omits `selectMode`: document picker defaults to file selection, while setting `selectMode` explicitly triggers a FolderSelection syscap warning even for `FILE`.
+- `pickArchiveUris(context)` constructs `DocumentViewPicker` with `UIAbilityContext`.
+- `copyPickedArchiveUriToSandbox(sourceUri, sandboxZipPath)` opens the picker URI read-only via `fileIo.open`, opens sandbox `archive.zip` for overwrite, and copies by file descriptor using `fileIo.copyFile`.
+- `importPickedArchive()` creates `cache/import/<archive>-<hash>/archive.zip`, copies the selected URI there, then calls `ArchiveExtractionService.extractArchive`.
+
+The Import page is wired to launch this flow from the CBZ/ZIP button, but automated validation intentionally does not click through the system picker. A real file selection remains a manual QA proof point: select a small `.cbz` and `.zip`, confirm `archive.zip` appears in app cache, and confirm extraction produces image entries.

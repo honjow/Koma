@@ -6,12 +6,14 @@ const root = resolve(import.meta.dirname, '..')
 const sortPath = resolve(root, 'entry/src/main/ets/import/ImageSortUtils.ets')
 const servicePath = resolve(root, 'entry/src/main/ets/import/ArchiveImportService.ets')
 const extractionServicePath = resolve(root, 'entry/src/main/ets/import/ArchiveExtractionService.ets')
+const localImportCoordinatorPath = resolve(root, 'entry/src/main/ets/import/LocalImportCoordinator.ets')
 const sortSource = readFileSync(sortPath, 'utf8')
 const serviceSource = readFileSync(servicePath, 'utf8')
 const extractionServiceSource = readFileSync(extractionServicePath, 'utf8')
+const localImportCoordinatorSource = readFileSync(localImportCoordinatorPath, 'utf8')
 
 function assertExport(source, symbol) {
-  assert.match(source, new RegExp(`export (interface|class|function|const) ${symbol}\\b`), `${symbol} must be exported`)
+  assert.match(source, new RegExp(`export (interface|class|async function|function|const) ${symbol}\\b`), `${symbol} must be exported`)
 }
 
 function getBaseName(path) {
@@ -199,6 +201,11 @@ assertExport(extractionServiceSource, 'createArchiveExtractionCachePaths')
 assertExport(extractionServiceSource, 'shouldCopyArchiveAsZip')
 assertExport(extractionServiceSource, 'createExtractedPagePath')
 assertExport(extractionServiceSource, 'extractArchive')
+assertExport(localImportCoordinatorSource, 'ARCHIVE_FILE_SUFFIX_FILTER')
+assertExport(localImportCoordinatorSource, 'LocalImportCoordinator')
+assertExport(localImportCoordinatorSource, 'createArchiveDocumentSelectOptions')
+assertExport(localImportCoordinatorSource, 'pickArchiveUris')
+assertExport(localImportCoordinatorSource, 'copyPickedArchiveUriToSandbox')
 
 assert.match(extractionServiceSource, /zlib\.decompressFile\(request\.sandboxZipPath, request\.extractionDir\)/, 'extraction service must call zlib.decompressFile with sandbox zip and output dir')
 assert.match(extractionServiceSource, /fs\.listFile\(extractionDir, listFileOptions\)/, 'extraction service must enumerate extracted files through fileIo.listFile')
@@ -208,6 +215,14 @@ assert.match(extractionServiceSource, /endsWith\('\.zip'\)/, 'extraction service
 assert.match(extractionServiceSource, /archive\.zip/, 'cache copy target must normalize zip and cbz input to archive.zip')
 assert.match(extractionServiceSource, /createStableCacheHash/, 'cache root must include a stable hash component')
 assert.match(extractionServiceSource, /cacheKeySeed \?\? archivePath/, 'cache hash must use caller seed when present and source path otherwise')
+assert.match(localImportCoordinatorSource, /new picker\.DocumentViewPicker\(context\)/, 'local import must construct DocumentViewPicker with UIAbilityContext')
+assert.match(localImportCoordinatorSource, /Comic archives\(\.zip, \.cbz\)\|\.zip,\.cbz/, 'archive picker must filter ZIP and CBZ suffixes')
+assert.doesNotMatch(localImportCoordinatorSource, /DocumentSelectMode\.FOLDER/, 'archive picker must not request folder selection')
+assert.match(localImportCoordinatorSource, /fs\.open\(sourceUri, fs\.OpenMode\.READ_ONLY\)/, 'picked URI must be opened through fileIo URI support')
+assert.match(localImportCoordinatorSource, /fs\.open\(sandboxZipPath, fs\.OpenMode\.WRITE_ONLY \| fs\.OpenMode\.CREATE \| fs\.OpenMode\.TRUNC\)/, 'sandbox archive.zip must be opened for overwrite')
+assert.match(localImportCoordinatorSource, /fs\.copyFile\(sourceFile\.fd, targetFile\.fd, 0\)/, 'copy must bridge URI to sandbox with file descriptors')
+assert.match(localImportCoordinatorSource, /createArchiveExtractionCachePaths\(request\.context\.cacheDir, request\.sourceUri, request\.sourceUri\)/, 'local import must create archive.zip under app cache')
+assert.match(localImportCoordinatorSource, /archiveExtractionService\.extractArchive/, 'local import must hand sandbox archive.zip to ArchiveExtractionService')
 
 const firstCachePaths = createArchiveExtractionCachePaths('/cache', '/library/a/My Volume.cbz')
 const secondCachePaths = createArchiveExtractionCachePaths('/cache', '/library/b/My Volume.cbz')

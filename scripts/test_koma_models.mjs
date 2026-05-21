@@ -7,14 +7,16 @@ const modelPath = resolve(root, 'entry/src/main/ets/model/ComicModels.ets')
 const libraryStorePath = resolve(root, 'entry/src/main/ets/model/LibraryStore.ets')
 const progressStorePath = resolve(root, 'entry/src/main/ets/model/ReadingProgressStore.ets')
 const readerSessionStorePath = resolve(root, 'entry/src/main/ets/model/ReaderSessionStore.ets')
+const mockLibraryDataPath = resolve(root, 'entry/src/main/ets/model/MockLibraryData.ets')
 
 const modelSource = readFileSync(modelPath, 'utf8')
 const libraryStoreSource = readFileSync(libraryStorePath, 'utf8')
 const progressStoreSource = readFileSync(progressStorePath, 'utf8')
 const readerSessionStoreSource = readFileSync(readerSessionStorePath, 'utf8')
+const mockLibraryDataSource = readFileSync(mockLibraryDataPath, 'utf8')
 
 function assertExport(source, symbol) {
-  assert.match(source, new RegExp(`export (interface|class|function|enum|type) ${symbol}\\b`), `${symbol} must be exported`)
+  assert.match(source, new RegExp(`export (interface|class|function|enum|type|const) ${symbol}\\b`), `${symbol} must be exported`)
 }
 
 function normalizeSortKey(value) {
@@ -71,6 +73,10 @@ assertExport(progressStoreSource, 'ReadingProgressStore')
 assertExport(progressStoreSource, 'InMemoryReadingProgressStore')
 assertExport(readerSessionStoreSource, 'ReaderSessionStore')
 assertExport(readerSessionStoreSource, 'InMemoryReaderSessionStore')
+assertExport(mockLibraryDataSource, 'MockLibraryComic')
+assertExport(mockLibraryDataSource, 'LibraryViewModel')
+assertExport(mockLibraryDataSource, 'MOCK_LIBRARY_READER_SESSION')
+assertExport(mockLibraryDataSource, 'createLibraryViewModel')
 
 const comic = {
   id: 'comic-1',
@@ -149,5 +155,76 @@ const libraryItems = [
 })
 
 assert.deepEqual(libraryItems.map((item) => item.id), ['c', 'a', 'b'], 'library items should sort by normalized title then creation time')
+
+const mockLibraryReaderSession = {
+  comicId: 'local-01',
+  chapterId: 'chapter-8',
+  totalPages: 5,
+}
+
+const mockLibraryComics = [
+  {
+    id: 'local-01',
+    title: '雨后街区',
+    subtitle: '本地 ZIP - 12 章',
+    chapterTitle: '第 8 话',
+    fallbackProgressText: '第 8 话',
+    coverColor: '#16745F',
+    accentColor: '#2FAE84',
+  },
+]
+
+function progressPercent(progress) {
+  if (progress === undefined) return 0
+  return Math.round(progress.progressRatio * 100)
+}
+
+function formatLibraryProgressText(comic, progress) {
+  if (progress === undefined) return comic.fallbackProgressText
+  if (progress.completed) return '已读完'
+  return `${progressPercent(progress)}%`
+}
+
+function formatContinueReadingDetail(comic, progress) {
+  if (progress === undefined) return `继续阅读 ${comic.chapterTitle}`
+  return `继续阅读 ${comic.chapterTitle} / 第 ${progress.pageIndex + 1} 页 · ${progressPercent(progress)}%`
+}
+
+function createLibraryViewModelFromProgress(progressByComicId) {
+  const comics = mockLibraryComics.map((item) => {
+    const itemProgress = progressByComicId.get(item.id)
+    return {
+      id: item.id,
+      title: item.title,
+      subtitle: item.subtitle,
+      progressText: formatLibraryProgressText(item, itemProgress),
+      coverColor: item.coverColor,
+      accentColor: item.accentColor,
+    }
+  })
+  const continueComic = mockLibraryComics[0]
+  const continueProgress = progressByComicId.get(continueComic.id)
+  return {
+    comics,
+    continueReading: {
+      title: continueComic.title,
+      detail: formatContinueReadingDetail(continueComic, continueProgress),
+      progress: continueProgress === undefined ? 0 : progressPercent(continueProgress),
+      color: continueComic.coverColor,
+    },
+  }
+}
+
+const sessionProgress = updateReadingProgress(
+  createReadingProgress(mockLibraryReaderSession.comicId, mockLibraryReaderSession.chapterId, mockLibraryReaderSession.totalPages),
+  1,
+  'mock-page-2',
+  mockLibraryReaderSession.totalPages,
+)
+const libraryVm = createLibraryViewModelFromProgress(new Map([[sessionProgress.comicId, sessionProgress]]))
+assert.equal(libraryVm.continueReading.title, '雨后街区')
+assert.equal(libraryVm.continueReading.detail, '继续阅读 第 8 话 / 第 2 页 · 40%')
+assert.equal(libraryVm.continueReading.progress, 40)
+assert.equal(libraryVm.comics[0].progressText, '40%')
 
 console.log('PASS Koma model contracts')

@@ -1,6 +1,7 @@
 import { LibraryPage } from './LibraryPage'
 import { ImportPage } from './ImportPage'
-import { MOCK_READER_SESSION, ReaderPage } from './ReaderPage'
+import { ReaderPage } from './ReaderPage'
+import { MOCK_LIBRARY_READER_SESSION } from '../model/MockLibraryData'
 import { InMemoryReaderSessionStore, ReaderSessionStore } from '../model/ReaderSessionStore'
 
 const readerSessionStore: ReaderSessionStore = new InMemoryReaderSessionStore()
@@ -23,7 +24,7 @@ struct Index {
   }
 
   private openMockReader() {
-    this.readerPageIndex = this.readerSessionStore.restorePageIndex(MOCK_READER_SESSION)
+    this.readerPageIndex = this.readerSessionStore.restorePageIndex(MOCK_LIBRARY_READER_SESSION)
     this.readerChromeVisible = true
     this.readerOpen = true
   }
@@ -46,6 +47,7 @@ struct Index {
         Stack() {
           if (this.selectedTab === 0) {
             LibraryPage({
+              sessionStore: this.readerSessionStore,
               onOpenReader: () => {
                 this.openMockReader()
               }
@@ -105,7 +107,7 @@ struct Index {
           chromeVisible: $readerChromeVisible,
           webtoonMode: $readerWebtoonMode,
           sessionStore: this.readerSessionStore,
-          sessionConfig: MOCK_READER_SESSION
+          sessionConfig: MOCK_LIBRARY_READER_SESSION
         })
           .zIndex(1)
       }

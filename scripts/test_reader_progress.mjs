@@ -110,7 +110,9 @@ assertExport(readerSessionStoreSource, 'ReaderSessionStore')
 assertExport(readerSessionStoreSource, 'InMemoryReaderSessionStore')
 assert.match(readerSessionStoreSource, /ReadingProgressStore/, 'reader session store must wrap ReadingProgressStore')
 assert.match(readerSessionStoreSource, /clampPageIndex/, 'reader session restore/update must clamp page indexes')
-assert.match(indexSource, /restorePageIndex\(MOCK_READER_SESSION\)/, 'opening mock reader must restore from session store')
+assert.match(indexSource, /MOCK_LIBRARY_READER_SESSION/, 'index must bind the reader to the library session')
+assert.match(indexSource, /restorePageIndex\(MOCK_LIBRARY_READER_SESSION\)/, 'opening mock reader must restore from session store')
+assert.match(indexSource, /sessionStore: this\.readerSessionStore/, 'library and reader must share the same session store')
 assert.match(readerPageSource, /updatePageIndex\(this\.sessionConfig/, 'reader page changes must update session progress')
 assert.match(readerChromeSource, /onPreviousPage/, 'chrome previous button must use reader callback')
 assert.match(readerChromeSource, /onNextPage/, 'chrome next button must use reader callback')
@@ -122,7 +124,7 @@ assert.equal(calculateProgressRatio(1, 5), 0.4, 'second page of five is 40%')
 assert.equal(calculateProgressRatio(20, 5), 1, 'clamped last page is 100%')
 
 const config = {
-  comicId: 'mock-reader-rainy-block',
+  comicId: 'local-01',
   chapterId: 'chapter-8',
   totalPages: 5,
 }

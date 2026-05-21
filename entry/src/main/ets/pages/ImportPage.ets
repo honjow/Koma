@@ -1,3 +1,6 @@
+import { common } from '@kit.AbilityKit'
+import { LocalImportCoordinator } from '../import/LocalImportCoordinator'
+
 interface ImportEntryInfo {
   title: string
   description: string
@@ -51,6 +54,20 @@ const PRIVATE_LIBRARY_ENTRY: ImportEntryInfo = {
 @Component
 export struct ImportPage {
   @State private feedbackText: string = '选择一种本地导入方式，当前页面只展示入口和后续系统 picker 边界。'
+  private readonly localImportCoordinator: LocalImportCoordinator = new LocalImportCoordinator()
+
+  private async selectArchiveFromPicker(): Promise<void> {
+    this.feedbackText = '正在打开系统文件选择器；请选择 .cbz / .zip 后，Koma 会先复制为沙盒 archive.zip 再解压。'
+    try {
+      const context = this.getUIContext().getHostContext() as common.UIAbilityContext
+      const results = await this.localImportCoordinator.pickAndImportArchives(context)
+      this.feedbackText = results.length === 0
+        ? '未选择文件；真实导入仍需要人工在系统文件选择器中选择一个 CBZ/ZIP。'
+        : `已复制并解压 ${results.length} 个压缩包到 Koma 沙盒缓存。`
+    } catch (error) {
+      this.feedbackText = `压缩包导入未完成：${error}`
+    }
+  }
 
   @Builder
   private ImportEntryCard(entry: ImportEntryInfo) {
@@ -104,6 +121,10 @@ export struct ImportPage {
         .fontColor(Color.White)
         .backgroundColor(entry.accentColor)
         .onClick(() => {
+          if (entry === ARCHIVE_ENTRY) {
+            this.selectArchiveFromPicker()
+            return
+          }
           this.feedbackText = entry.feedback
         })
     }
