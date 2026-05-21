@@ -63,6 +63,15 @@ metadata, compatibility drift, closed-runtime drift, diagnostic leak flags, and
 validator execution drift without signing, verification, keys, trust stores,
 product runtime/UI, network, or HTTP.
 
+Duplicate/update/downgrade/rollback/removal fixtures for future local package
+lifecycle policy are design/tooling-only and documented in
+`source-package/LIFECYCLE_UPDATE_ROLLBACK_BOUNDARY.md`. They statically reject
+normalized id collisions, duplicate version drift, ambiguous version ordering,
+unapproved downgrades, unsafe rollback targets, removal cleanup category drift,
+closed-runtime drift, and real install/delete/store mutation claims without
+product runtime/UI, network, HTTP, registries, signing, verification, trust
+stores, or deletion.
+
 The spike validates this path on Linux:
 
 ```text

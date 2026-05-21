@@ -41,6 +41,9 @@ boundary, see `RESOURCE_LIMITS_CANCELLATION_BOUNDARY.md`.
 For the design/tooling-only future image/page loading strategy boundary, see
 `IMAGE_PAGE_LOADING_BOUNDARY.md`.
 
+For the design/tooling-only future duplicate/update/downgrade/rollback/removal
+lifecycle fixture boundary, see `LIFECYCLE_UPDATE_ROLLBACK_BOUNDARY.md`.
+
 The fixture keeps the useful package lessons from source index layouts such as
 per-source metadata, icon paths, settings, capabilities, and runtime limits,
 while staying aligned with Koma's current runtime evidence:
@@ -212,6 +215,30 @@ metadata, real signature verification claims, ambiguous timestamps,
 incompatible source/host/app bounds, unknown policy versions, `network=true`,
 HTTP import drift, product runtime/UI drift, market/remote/built-in source
 drift, diagnostic leaks, and validator execution drift.
+
+## Lifecycle Update, Downgrade, Rollback, And Removal Boundary
+
+`lifecycle-update-rollback.example.json` defines static future lifecycle
+decisions for duplicate ids, normalized collisions, duplicate versions, updates,
+downgrades, rollback, and removal planning. It stays design/tooling-only and
+does not implement install state, deletion, rollback, registries, signing,
+verification, trust stores, revocation stores, product runtime/UI, network,
+HTTP, remote install, source markets, or built-in sources.
+
+```sh
+python3 tools/wasm-runtime-spike/source-package/validate-lifecycle-update-rollback.py \
+  --fixture-dir tools/wasm-runtime-spike/source-package/lifecycle-update-fixtures \
+  --artifact-dir /path/to/artifacts/lifecycle-update-rollback
+```
+
+The validator writes `lifecycle-update-rollback-report.json` under the artifact
+directory. It loads local JSON only and rejects non-canonical package ids,
+silent normalized collisions, duplicate id/version digest or identity drift,
+ambiguous version ordering, package-id drift across update, unapproved or stale
+downgrades, rollback to revoked/expired/incompatible/unknown artifacts,
+rollback gate bypass, unsafe removal categories, runtime closure drift,
+diagnostic leak flags, validator execution drift, and real install/delete/store
+mutation claims.
 
 ## Local Archive Boundary
 

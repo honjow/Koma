@@ -1,0 +1,443 @@
+{
+  "cases": [
+    {
+      "case": "unknown-lifecycle-policy-version",
+      "expectRejectContains": "unknown lifecycle policy version",
+      "mutations": [
+        {
+          "path": "policyVersion",
+          "value": 2
+        }
+      ]
+    },
+    {
+      "case": "package-id-canonicalization-missing",
+      "expectRejectContains": "identityNormalization.explicitCanonicalPackageIds must be true",
+      "mutations": [
+        {
+          "path": "identityNormalization.explicitCanonicalPackageIds",
+          "value": false
+        }
+      ]
+    },
+    {
+      "case": "ambiguous-package-id-normalization",
+      "expectRejectContains": "package id canonicalization missing or ambiguous",
+      "mutations": [
+        {
+          "path": "installedArtifacts.0.packageId",
+          "value": "Koma.Local.Private-Fixture"
+        }
+      ]
+    },
+    {
+      "case": "duplicate-normalized-id-collision-silently-accepted",
+      "expectRejectContains": "must reject",
+      "mutations": [
+        {
+          "path": "lifecycleCases.normalizedCollision.decision.outcome",
+          "value": "accept"
+        }
+      ]
+    },
+    {
+      "case": "duplicate-id-version-digest-mismatch-accepted",
+      "expectRejectContains": "must reject",
+      "mutations": [
+        {
+          "path": "lifecycleCases.duplicateVersionDigestMismatch.decision.outcome",
+          "value": "accept"
+        }
+      ]
+    },
+    {
+      "case": "duplicate-id-version-signer-key-provenance-drift-accepted",
+      "expectRejectContains": "must reject",
+      "mutations": [
+        {
+          "path": "lifecycleCases.duplicateVersionIdentityDrift.decision.outcome",
+          "value": "accept"
+        }
+      ]
+    },
+    {
+      "case": "exact-duplicate-accepted-without-explicit-idempotent-policy",
+      "expectRejectContains": "exact duplicate accepted without explicit idempotent policy",
+      "mutations": [
+        {
+          "path": "lifecycleCases.exactDuplicate.explicitIdempotentPolicy",
+          "value": false
+        }
+      ]
+    },
+    {
+      "case": "package-id-changed-across-update",
+      "expectRejectContains": "package id changed across update",
+      "mutations": [
+        {
+          "path": "lifecycleCases.update.candidate.packageId",
+          "value": "koma.local.private-fixture-renamed"
+        },
+        {
+          "path": "lifecycleCases.update.candidate.normalizedPackageId",
+          "value": "koma.local.private-fixture-renamed"
+        }
+      ]
+    },
+    {
+      "case": "version-ordering-malformed",
+      "expectRejectContains": "version ordering ambiguous or malformed",
+      "mutations": [
+        {
+          "path": "lifecycleCases.update.candidate.packageVersion",
+          "value": "1.2"
+        }
+      ]
+    },
+    {
+      "case": "version-ordering-policy-ambiguous",
+      "expectRejectContains": "version ordering ambiguous or malformed",
+      "mutations": [
+        {
+          "path": "lifecycleCases.update.policy.versionOrdering",
+          "value": "string-compare"
+        }
+      ]
+    },
+    {
+      "case": "downgrade-accepted-without-explicit-approval",
+      "expectRejectContains": "must reject",
+      "mutations": [
+        {
+          "path": "lifecycleCases.downgradeWithoutApproval.decision.outcome",
+          "value": "accept"
+        }
+      ]
+    },
+    {
+      "case": "downgrade-approval-not-explicit",
+      "expectRejectContains": "downgrade accepted without explicit approval",
+      "mutations": [
+        {
+          "path": "lifecycleCases.approvedDowngrade.approval.explicit",
+          "value": false
+        }
+      ]
+    },
+    {
+      "case": "downgrade-approval-expired",
+      "expectRejectContains": "lifecycleCases.approvedDowngrade.approval expired",
+      "mutations": [
+        {
+          "path": "lifecycleCases.approvedDowngrade.approval.expiresAt",
+          "value": "2026-05-21T00:00:00Z"
+        }
+      ]
+    },
+    {
+      "case": "downgrade-approval-package-mismatch",
+      "expectRejectContains": "downgrade approval package mismatch",
+      "mutations": [
+        {
+          "path": "lifecycleCases.approvedDowngrade.approval.packageId",
+          "value": "koma.local.other-fixture"
+        }
+      ]
+    },
+    {
+      "case": "downgrade-approval-from-mismatch",
+      "expectRejectContains": "downgrade approval from mismatch",
+      "mutations": [
+        {
+          "path": "lifecycleCases.approvedDowngrade.approval.fromVersion",
+          "value": "1.3.0"
+        }
+      ]
+    },
+    {
+      "case": "downgrade-approval-to-mismatch",
+      "expectRejectContains": "downgrade approval to mismatch",
+      "mutations": [
+        {
+          "path": "lifecycleCases.approvedDowngrade.approval.toVersion",
+          "value": "1.0.0"
+        }
+      ]
+    },
+    {
+      "case": "downgrade-approval-signer-key-mismatch",
+      "expectRejectContains": "downgrade approval signer/key mismatch",
+      "mutations": [
+        {
+          "path": "lifecycleCases.approvedDowngrade.approval.keyId",
+          "value": "key:other-private-lab-2026"
+        }
+      ]
+    },
+    {
+      "case": "downgrade-approval-digest-mismatch",
+      "expectRejectContains": "downgrade approval digest mismatch",
+      "mutations": [
+        {
+          "path": "lifecycleCases.approvedDowngrade.approval.toArchiveSha256",
+          "value": "9999999999999999999999999999999999999999999999999999999999999999"
+        }
+      ]
+    },
+    {
+      "case": "rollback-to-revoked-signer",
+      "expectRejectContains": "rollback to revoked package/key/signer/digest",
+      "mutations": [
+        {
+          "path": "revocationInputs.revokedSignerIds",
+          "value": [
+            "signer:koma-private-lab"
+          ]
+        }
+      ]
+    },
+    {
+      "case": "rollback-to-revoked-digest",
+      "expectRejectContains": "rollback to revoked package/key/signer/digest",
+      "mutations": [
+        {
+          "path": "revocationInputs.revokedDigests",
+          "value": [
+            "1111111111111111111111111111111111111111111111111111111111111111"
+          ]
+        }
+      ]
+    },
+    {
+      "case": "rollback-to-expired-package",
+      "expectRejectContains": "lifecycleCases.rollback.target expired",
+      "mutations": [
+        {
+          "path": "lifecycleCases.rollback.target.expiresAt",
+          "value": "2026-05-21T00:00:00Z"
+        }
+      ]
+    },
+    {
+      "case": "rollback-to-incompatible-source-abi",
+      "expectRejectContains": "rollback incompatible ABI/app/host policy",
+      "mutations": [
+        {
+          "path": "lifecycleCases.rollback.compatibility.sourceAbi",
+          "value": "koma-source-abi-v9.9"
+        }
+      ]
+    },
+    {
+      "case": "rollback-to-incompatible-app-version",
+      "expectRejectContains": "rollback incompatible ABI/app/host policy",
+      "mutations": [
+        {
+          "path": "lifecycleCases.rollback.compatibility.app.minVersion",
+          "value": "9.0.0"
+        }
+      ]
+    },
+    {
+      "case": "rollback-to-unknown-artifact",
+      "expectRejectContains": "rollback to unknown/not-previously-accepted artifact",
+      "mutations": [
+        {
+          "path": "lifecycleCases.rollback.target.archiveSha256",
+          "value": "8888888888888888888888888888888888888888888888888888888888888888"
+        }
+      ]
+    },
+    {
+      "case": "rollback-bypasses-trust-import-network-gates",
+      "expectRejectContains": "lifecycleCases.rollback.gates.trust must be true",
+      "mutations": [
+        {
+          "path": "lifecycleCases.rollback.gates.trust",
+          "value": false
+        }
+      ]
+    },
+    {
+      "case": "removal-plan-contains-raw-category",
+      "expectRejectContains": "removal plan includes raw paths, credentials, trust data, raw package bytes, or runtime-eligible stale handle",
+      "mutations": [
+        {
+          "path": "lifecycleCases.removalPlan.cleanupCategories",
+          "value": [
+            "app-private-package-files",
+            "package-metadata",
+            "derived-caches",
+            "active-sessions",
+            "source-settings",
+            "credential-references",
+            "diagnostic-reports",
+            "runtime-handles",
+            "raw-package-bytes"
+          ]
+        }
+      ]
+    },
+    {
+      "case": "removal-plan-leaves-runtime-eligible-stale-handle",
+      "expectRejectContains": "leavesRuntimeEligibleStaleHandles must be false",
+      "mutations": [
+        {
+          "path": "lifecycleCases.removalPlan.leavesRuntimeEligibleStaleHandles",
+          "value": true
+        }
+      ]
+    },
+    {
+      "case": "removal-plan-omits-cleanup-categories",
+      "expectRejectContains": "removal plan omits required cleanup categories",
+      "mutations": [
+        {
+          "path": "lifecycleCases.removalPlan.cleanupCategories",
+          "value": [
+            "app-private-package-files",
+            "package-metadata",
+            "derived-caches",
+            "active-sessions",
+            "source-settings",
+            "diagnostic-reports"
+          ]
+        }
+      ]
+    },
+    {
+      "case": "network-true",
+      "expectRejectContains": "scope.network must be false",
+      "mutations": [
+        {
+          "path": "scope.network",
+          "value": true
+        }
+      ]
+    },
+    {
+      "case": "http-host-import-drift",
+      "expectRejectContains": "HTTP host import drift",
+      "mutations": [
+        {
+          "path": "currentRuntime.hostImports",
+          "value": [
+            "koma_host.log",
+            "koma_host.check_cancel",
+            "koma_host.http_request"
+          ]
+        }
+      ]
+    },
+    {
+      "case": "product-runtime-enabled",
+      "expectRejectContains": "productRuntime must be false",
+      "mutations": [
+        {
+          "path": "productRuntime",
+          "value": true
+        }
+      ]
+    },
+    {
+      "case": "product-ui-enabled",
+      "expectRejectContains": "productUi must be false",
+      "mutations": [
+        {
+          "path": "productUi",
+          "value": true
+        }
+      ]
+    },
+    {
+      "case": "source-market-drift",
+      "expectRejectContains": "scope.sourceMarket must be false",
+      "mutations": [
+        {
+          "path": "scope.sourceMarket",
+          "value": true
+        }
+      ]
+    },
+    {
+      "case": "remote-install-drift",
+      "expectRejectContains": "scope.remoteInstall must be false",
+      "mutations": [
+        {
+          "path": "scope.remoteInstall",
+          "value": true
+        }
+      ]
+    },
+    {
+      "case": "built-in-source-drift",
+      "expectRejectContains": "scope.builtInSources must be false",
+      "mutations": [
+        {
+          "path": "scope.builtInSources",
+          "value": true
+        }
+      ]
+    },
+    {
+      "case": "validator-executable-hook-drift",
+      "expectRejectContains": "validatorDrift.executableHook must be false",
+      "mutations": [
+        {
+          "path": "validatorDrift.executableHook",
+          "value": true
+        }
+      ]
+    },
+    {
+      "case": "validator-subprocess-drift",
+      "expectRejectContains": "validatorDrift.subprocess must be false",
+      "mutations": [
+        {
+          "path": "validatorDrift.subprocess",
+          "value": true
+        }
+      ]
+    },
+    {
+      "case": "validator-network-drift",
+      "expectRejectContains": "validatorDrift.network must be false",
+      "mutations": [
+        {
+          "path": "validatorDrift.network",
+          "value": true
+        }
+      ]
+    },
+    {
+      "case": "real-install-mutation-claim",
+      "expectRejectContains": "implementsInstallStateMutation must be false",
+      "mutations": [
+        {
+          "path": "implementsInstallStateMutation",
+          "value": true
+        }
+      ]
+    },
+    {
+      "case": "real-deletion-claim",
+      "expectRejectContains": "implementsDeletion must be false",
+      "mutations": [
+        {
+          "path": "implementsDeletion",
+          "value": true
+        }
+      ]
+    },
+    {
+      "case": "real-registry-mutation-claim",
+      "expectRejectContains": "implementsRegistry must be false",
+      "mutations": [
+        {
+          "path": "implementsRegistry",
+          "value": true
+        }
+      ]
+    }
+  ]
+}
