@@ -7,6 +7,9 @@ import sys
 from pathlib import Path
 from typing import Any
 
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+from redaction import redact_value, write_redacted_json  # noqa: E402
+
 
 ALLOWED_IMPORTS = ["koma_host.log", "koma_host.check_cancel"]
 HTTP_IMPORT = "koma_host.http_request"
@@ -74,8 +77,7 @@ def read_json(path: Path) -> dict[str, Any]:
 
 
 def write_json(path: Path, payload: dict[str, Any]) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    write_redacted_json(path, payload)
 
 
 def walk(value: Any, path: str = "$") -> list[tuple[str, Any]]:
@@ -405,7 +407,7 @@ def main() -> int:
         report["error"] = str(err)
 
     write_json(report_path, report)
-    print(json.dumps(report, indent=2, sort_keys=True))
+    print(json.dumps(redact_value(report), indent=2, sort_keys=True))
     return 0 if report["status"] == "PASS" else 1
 
 

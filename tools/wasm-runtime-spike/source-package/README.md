@@ -22,6 +22,9 @@ For the design-only future local source package trust/provenance boundary, see
 For the stricter design/tooling-only trust, provenance, and signature boundary
 validated by local JSON fixtures, see `TRUST_PROVENANCE_BOUNDARY.md`.
 
+For the design/tooling-only canonical manifest/signature payload fixture
+boundary for future trust gates, see `CANONICAL_SIGNATURE_PAYLOAD_BOUNDARY.md`.
+
 For the design/tooling-only future source settings, auth, and secret reference
 schema boundary, see `SOURCE_SETTINGS_AUTH_BOUNDARY.md`.
 
@@ -129,6 +132,30 @@ and rejects unsigned release acceptance, missing or misordered trust checks,
 market/remote/built-in source drift, silent downgrade or duplicate overwrite,
 raw key/signature/path/secret/cookie logging, `network=true`, HTTP import drift,
 non-fail-closed policy, and product runtime/UI claims.
+
+## Canonical Signature Payload Boundary
+
+`canonical-signature-payload.example.json` defines deterministic canonical JSON
+payload bytes for future checksum/signature gates. It binds package id/version,
+source ABI, host ABI, archive digest/size, canonical manifest digest/size, WASM
+path/digest/size, `network=false`, closed host imports, public provenance
+metadata, signer id, key id, and freshness fields. It does not implement
+signing, verification, key generation, certificates, trust stores, product
+runtime/UI, network, or HTTP.
+
+```sh
+python3 tools/wasm-runtime-spike/source-package/validate-canonical-signature-payload.py \
+  --fixture-dir tools/wasm-runtime-spike/source-package/canonical-signature-fixtures \
+  --artifact-dir /path/to/artifacts/canonical-signature-payload
+```
+
+The validator writes `canonical-signature-payload-report.json` under the
+artifact directory. It loads local JSON only, detects duplicate keys, rejects
+non-object payload models, unknown canonicalization versions, non-canonical JSON
+settings, missing package/archive/manifest/WASM bindings, payload and manifest
+digest mismatch, raw manifest text, `network=true`, HTTP import drift, raw
+key/header/path/signature/byte leaks, product runtime/UI drift, source market,
+remote install, built-in source drift, and executable validator drift.
 
 ## Local Archive Boundary
 

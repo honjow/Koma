@@ -8,6 +8,9 @@ import subprocess
 import sys
 from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+from redaction import redacted_command, redact_text, redact_value, write_redacted_json  # noqa: E402
+
 
 HOST_ABI = "koma-host-v0.1"
 HOST_IMPORTS = ["koma_host.log", "koma_host.check_cancel"]
@@ -40,9 +43,9 @@ def run_command(cmd: list[str], *, cwd: Path, env: dict[str, str], log_path: Pat
     proc = subprocess.run(cmd, cwd=str(cwd), env=env, text=True,
                           stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
     log_path.parent.mkdir(parents=True, exist_ok=True)
-    log_path.write_text(proc.stdout, encoding="utf-8")
+    log_path.write_text(redact_text(proc.stdout), encoding="utf-8")
     return {
-        "cmd": " ".join(cmd),
+        "cmd": redacted_command(cmd),
         "exitCode": proc.returncode,
         "log": str(log_path),
     }
@@ -154,11 +157,11 @@ def main() -> int:
             source_icon = (template_path.parent / icon_value).resolve()
             shutil.copyfile(source_icon, package_dir / Path(icon_value).name)
             manifest["package"]["icon"] = Path(icon_value).name
-        manifest["runtime"]["wasm"]["path"] = str(wasm_path)
+        manifest["runtime"]["wasm"]["path"] = "../rust-fixture/build/rust_source_fixture.wasm"
         manifest["runtime"]["wasm"]["sha256"] = wasm_sha
         manifest["runtime"]["wasm"]["build"] = {
             "kind": "rustc-no-std-sdk-fixture",
-            "script": str(run_script),
+            "script": "../run-rust-fixture.sh",
             "artifactPath": "build/rust_source_fixture.wasm",
         }
         write_json(manifest_out, manifest)
@@ -202,8 +205,8 @@ def main() -> int:
     except Exception as err:
         report["error"] = str(err)
 
-    write_json(report_path, report)
-    print(json.dumps(report, indent=2, sort_keys=True))
+    write_redacted_json(report_path, report)
+    print(json.dumps(redact_value(report), indent=2, sort_keys=True))
     return 0 if report["status"] == "PASS" else 1
 
 

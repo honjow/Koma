@@ -8,6 +8,9 @@ import sys
 from pathlib import Path
 from urllib.parse import urlparse
 
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+from redaction import redacted_command, redact_text, redact_value, write_redacted_json  # noqa: E402
+
 
 HTTP_IMPORT = "koma_host.http_request"
 BASE_IMPORTS = ["koma_host.log", "koma_host.check_cancel"]
@@ -262,11 +265,11 @@ def run_runtime_validator_rejection(design_manifest: Path, artifact_dir: Path) -
         str(artifact_dir / "runtime-validator-rejection"),
     ]
     proc = subprocess.run(cmd, cwd=str(repo_root()), text=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
-    log_path.write_text(proc.stdout, encoding="utf-8")
+    log_path.write_text(redact_text(proc.stdout), encoding="utf-8")
     return {
         "status": "PASS" if proc.returncode != 0 else "FAIL",
         "exitCode": proc.returncode,
-        "cmd": " ".join(cmd),
+        "cmd": redacted_command(cmd),
         "log": str(log_path),
         "summary": "current runtime package validator rejected HTTP design manifest"
         if proc.returncode != 0 else
@@ -322,8 +325,8 @@ def main() -> int:
         report["error"] = str(err)
         report["status"] = "FAIL"
 
-    report_path.write_text(json.dumps(report, indent=2, sort_keys=True) + "\n", encoding="utf-8")
-    print(json.dumps(report, indent=2, sort_keys=True))
+    write_redacted_json(report_path, report)
+    print(json.dumps(redact_value(report), indent=2, sort_keys=True))
     return 0 if report["status"] == "PASS" else 1
 
 

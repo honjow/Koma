@@ -1,0 +1,150 @@
+{
+  "boundaryVersion": 1,
+  "status": "design-tooling-only",
+  "designOnly": true,
+  "fixtureOnly": true,
+  "implementsSigning": false,
+  "implementsCryptoVerification": false,
+  "implementsKeyGeneration": false,
+  "implementsTrustStore": false,
+  "executesWasm": false,
+  "networkIo": false,
+  "subprocesses": false,
+  "productRuntime": false,
+  "productUi": false,
+  "scope": {
+    "sourceMarket": false,
+    "publicIndex": false,
+    "remoteInstall": false,
+    "builtInSources": false,
+    "network": false
+  },
+  "canonicalization": {
+    "algorithm": "koma.canonical-json.v1",
+    "input": "normalized-json-object",
+    "utf8": true,
+    "sortedKeys": true,
+    "insignificantWhitespace": false,
+    "duplicateKeysAccepted": false,
+    "nanInfinityAccepted": false,
+    "commentsAccepted": false,
+    "trailingCommasAccepted": false,
+    "primitiveFormatting": {
+      "floatsAllowed": false,
+      "integersDecimalNoPlus": true,
+      "unicodeNormalization": "NFC"
+    }
+  },
+  "manifestModel": {
+    "schemaVersion": 1,
+    "package": {
+      "id": "koma.local.canonical-payload",
+      "version": "0.1.0"
+    },
+    "runtime": {
+      "abi": "koma-source-abi-v0.1",
+      "hostAbi": "koma-host-v0.1",
+      "wasm": {
+        "path": "wasm/canonical_fixture.wasm",
+        "sha256": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+        "sizeBytes": 2048
+      },
+      "network": false,
+      "hostImports": [
+        "koma_host.log",
+        "koma_host.check_cancel"
+      ]
+    },
+    "contentPolicy": {
+      "sourceMarket": false,
+      "remoteInstall": false,
+      "builtInSources": false
+    }
+  },
+  "payload": {
+    "schemaVersion": 1,
+    "package": {
+      "id": "koma.local.canonical-payload",
+      "version": "0.1.0"
+    },
+    "abi": {
+      "sourceAbi": "koma-source-abi-v0.1",
+      "hostAbi": "koma-host-v0.1",
+      "schemaVersion": 1
+    },
+    "archive": {
+      "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "sizeBytes": 32768
+    },
+    "manifest": {
+      "sha256": "99a651b0787f37219248709ccffbf8db094453f4fb5eaf2e857e58d4c67c25e3",
+      "sizeBytes": 449,
+      "input": "normalized-json-object"
+    },
+    "wasm": {
+      "path": "wasm/canonical_fixture.wasm",
+      "sha256": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+      "sizeBytes": 2048
+    },
+    "runtime": {
+      "network": false,
+      "hostImports": [
+        "koma_host.log",
+        "koma_host.check_cancel"
+      ]
+    },
+    "trust": {
+      "mode": "private-signature-pin",
+      "provenance": "fixture-public-metadata-only",
+      "signerId": "signer:fixture",
+      "keyId": "key:fixture-v1",
+      "createdAt": "2026-05-22T00:00:00Z",
+      "expiresAt": "2027-05-22T00:00:00Z"
+    }
+  },
+  "payloadSha256": "4e0de3c53fa00e76cb494b4736a01454756d85230b33990ecdf1e8c3bfe52ad2",
+  "payloadSizeBytes": 849,
+  "diagnostics": {
+    "redactedByDefault": true,
+    "dumpRawPayloadByDefault": false,
+    "dumpSecretsPathsHeadersSignatures": false,
+    "reportFields": [
+      "status",
+      "case",
+      "reasonCode",
+      "field",
+      "expected",
+      "actualKind"
+    ],
+    "reasonCodes": [
+      "CANONICALIZATION_REJECTED",
+      "PAYLOAD_BINDING_REJECTED",
+      "MANIFEST_BINDING_REJECTED",
+      "SCOPE_REJECTED",
+      "DIAGNOSTIC_REDACTION_REJECTED"
+    ]
+  },
+  "nonGoals": {
+    "rawPrivateKeys": true,
+    "rawAppSigningCerts": true,
+    "credentials": true,
+    "cookies": true,
+    "authorizationHeaders": true,
+    "fullUserPaths": true,
+    "pickerUris": true,
+    "appPrivateAbsolutePaths": true,
+    "rawArchiveBytes": true,
+    "rawWasmBytes": true,
+    "fullRequestResponseBodies": true,
+    "generatedCachePaths": true,
+    "trustStoreDumps": true,
+    "sourceMarket": true,
+    "remoteInstall": true,
+    "builtInSources": true,
+    "productRuntime": true,
+    "productUi": true,
+    "network": true,
+    "webViewJsDsl": true,
+    "executableHooks": true
+  }
+}
