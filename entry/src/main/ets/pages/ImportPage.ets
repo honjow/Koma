@@ -1,5 +1,9 @@
 import { common } from '@kit.AbilityKit'
 import { LocalImportCoordinator } from '../import/LocalImportCoordinator'
+import {
+  LocalArchiveImportDebugEvent,
+  formatLocalArchiveImportDebugEvent,
+} from '../import/LocalImportDebugModels'
 
 interface ImportEntryInfo {
   title: string
@@ -54,10 +58,26 @@ const PRIVATE_LIBRARY_ENTRY: ImportEntryInfo = {
 @Component
 export struct ImportPage {
   @State private feedbackText: string = '选择一种本地导入方式，当前页面只展示入口和后续系统 picker 边界。'
+  @State private importDebugText: string = '等待 QA 导入动作。'
   private readonly localImportCoordinator: LocalImportCoordinator = new LocalImportCoordinator()
+
+  private appendImportDebugEvent(event: LocalArchiveImportDebugEvent): void {
+    const line = formatLocalArchiveImportDebugEvent(event)
+    const nextText = this.importDebugText === '等待 QA 导入动作。' ? line : `${this.importDebugText}\n${line}`
+    const lines = nextText.split('\n')
+    if (lines.length > 24) {
+      this.importDebugText = lines.slice(lines.length - 24).join('\n')
+      return
+    }
+    this.importDebugText = nextText
+  }
 
   private async selectArchiveFromPicker(): Promise<void> {
     this.feedbackText = '正在打开系统文件选择器；请选择 .cbz / .zip 后，Koma 会先复制为沙盒 archive.zip 再解压。'
+    this.importDebugText = ''
+    this.localImportCoordinator.setDebugSink((event: LocalArchiveImportDebugEvent) => {
+      this.appendImportDebugEvent(event)
+    })
     try {
       const context = this.getUIContext().getHostContext() as common.UIAbilityContext
       const results = await this.localImportCoordinator.pickAndImportArchives(context)
@@ -66,6 +86,8 @@ export struct ImportPage {
         : `已复制并解压 ${results.length} 个压缩包到 Koma 沙盒缓存。`
     } catch (error) {
       this.feedbackText = `压缩包导入未完成：${error}`
+    } finally {
+      this.localImportCoordinator.setDebugSink(undefined)
     }
   }
 
@@ -164,6 +186,37 @@ export struct ImportPage {
         .padding(16)
         .borderRadius(22)
         .backgroundColor('#FFFFF8F4')
+        .alignItems(HorizontalAlign.Start)
+
+        Column({ space: 10 }) {
+          Row() {
+            Text('QA Debug · 本地压缩包导入')
+              .fontSize(13)
+              .fontWeight(FontWeight.Medium)
+              .fontColor('#7A4F23')
+            Blank()
+            Text('dev')
+              .fontSize(11)
+              .fontWeight(FontWeight.Medium)
+              .fontColor(Color.White)
+              .padding({ left: 8, right: 8, top: 3, bottom: 3 })
+              .borderRadius(10)
+              .backgroundColor('#7A4F23')
+          }
+          .width('100%')
+
+          Text(this.importDebugText.length === 0 ? '等待 picker 返回。' : this.importDebugText)
+            .width('100%')
+            .fontSize(11)
+            .lineHeight(17)
+            .fontColor('#3A2C21')
+            .maxLines(24)
+            .textOverflow({ overflow: TextOverflow.Ellipsis })
+        }
+        .width('100%')
+        .padding(14)
+        .borderRadius(14)
+        .backgroundColor('#FFFFF3E7')
         .alignItems(HorizontalAlign.Start)
 
         this.ImportEntryCard(ARCHIVE_ENTRY)

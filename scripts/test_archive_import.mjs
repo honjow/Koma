@@ -7,10 +7,12 @@ const sortPath = resolve(root, 'entry/src/main/ets/import/ImageSortUtils.ets')
 const servicePath = resolve(root, 'entry/src/main/ets/import/ArchiveImportService.ets')
 const extractionServicePath = resolve(root, 'entry/src/main/ets/import/ArchiveExtractionService.ets')
 const localImportCoordinatorPath = resolve(root, 'entry/src/main/ets/import/LocalImportCoordinator.ets')
+const localImportDebugPath = resolve(root, 'entry/src/main/ets/import/LocalImportDebugModels.ets')
 const sortSource = readFileSync(sortPath, 'utf8')
 const serviceSource = readFileSync(servicePath, 'utf8')
 const extractionServiceSource = readFileSync(extractionServicePath, 'utf8')
 const localImportCoordinatorSource = readFileSync(localImportCoordinatorPath, 'utf8')
+const localImportDebugSource = readFileSync(localImportDebugPath, 'utf8')
 
 function assertExport(source, symbol) {
   assert.match(source, new RegExp(`export (interface|class|async function|function|const) ${symbol}\\b`), `${symbol} must be exported`)
@@ -65,6 +67,36 @@ function createArchiveExtractionCachePaths(cacheDir, archivePath, cacheKeySeed) 
     extractionDir: `${rootDir}/extract`,
     manifestPath: `${rootDir}/manifest.json`,
   }
+}
+
+function sanitizeLocalArchiveDebugValue(value) {
+  if (value === undefined) return ''
+  const redacted = value
+    .replace(/\s+/g, ' ')
+    .trim()
+    .replace(/([?&](?:token|access_token|refresh_token|password|secret|signature|credential|auth|code|key)=)[^&#]*/gi, '$1<redacted>')
+  if (redacted.length <= 180) return redacted
+  return `${redacted.substring(0, 64)}...${redacted.substring(redacted.length - 96)}`
+}
+
+function formatLocalArchiveImportDebugEvent(event) {
+  const fields = [event.step]
+  if (event.uriCount !== undefined) fields.push(`uris=${event.uriCount}`)
+  for (const [label, value] of [
+    ['sourceUri', event.sourceUri],
+    ['sandboxZipPath', event.sandboxZipPath],
+    ['cacheRootDir', event.cacheRootDir],
+    ['extractionDir', event.extractionDir],
+    ['comicId', event.comicId],
+    ['title', event.title],
+  ]) {
+    const sanitizedValue = sanitizeLocalArchiveDebugValue(value)
+    if (sanitizedValue.length > 0) fields.push(`${label}=${sanitizedValue}`)
+  }
+  if (event.pageCount !== undefined) fields.push(`pages=${event.pageCount}`)
+  const error = sanitizeLocalArchiveDebugValue(event.error)
+  if (error.length > 0) fields.push(`error=${error}`)
+  return fields.join(' | ')
 }
 
 function isSafeArchiveEntryPath(path) {
@@ -206,6 +238,10 @@ assertExport(localImportCoordinatorSource, 'LocalImportCoordinator')
 assertExport(localImportCoordinatorSource, 'createArchiveDocumentSelectOptions')
 assertExport(localImportCoordinatorSource, 'pickArchiveUris')
 assertExport(localImportCoordinatorSource, 'copyPickedArchiveUriToSandbox')
+assertExport(localImportDebugSource, 'LocalArchiveImportDebugEvent')
+assertExport(localImportDebugSource, 'LocalArchiveImportDebugSnapshot')
+assertExport(localImportDebugSource, 'sanitizeLocalArchiveDebugValue')
+assertExport(localImportDebugSource, 'formatLocalArchiveImportDebugEvent')
 
 assert.match(extractionServiceSource, /zlib\.decompressFile\(request\.sandboxZipPath, request\.extractionDir\)/, 'extraction service must call zlib.decompressFile with sandbox zip and output dir')
 assert.match(extractionServiceSource, /fs\.listFile\(extractionDir, listFileOptions\)/, 'extraction service must enumerate extracted files through fileIo.listFile')
@@ -223,6 +259,19 @@ assert.match(localImportCoordinatorSource, /fs\.open\(sandboxZipPath, fs\.OpenMo
 assert.match(localImportCoordinatorSource, /fs\.copyFile\(sourceFile\.fd, targetFile\.fd, 0\)/, 'copy must bridge URI to sandbox with file descriptors')
 assert.match(localImportCoordinatorSource, /createArchiveExtractionCachePaths\(request\.context\.cacheDir, request\.sourceUri, request\.sourceUri\)/, 'local import must create archive.zip under app cache')
 assert.match(localImportCoordinatorSource, /archiveExtractionService\.extractArchive/, 'local import must hand sandbox archive.zip to ArchiveExtractionService')
+assert.match(localImportCoordinatorSource, /setDebugSink\(debugSink\?: LocalArchiveImportDebugSink\)/, 'coordinator must expose an optional debug sink for QA surfaces')
+assert.match(localImportCoordinatorSource, /LOCAL_ARCHIVE_DEBUG_STEP_PICKER_STARTED/, 'coordinator must report picker start')
+assert.match(localImportCoordinatorSource, /LOCAL_ARCHIVE_DEBUG_STEP_PICKER_RETURNED/, 'coordinator must report picker returned URI count and source URI lines')
+assert.match(localImportCoordinatorSource, /LOCAL_ARCHIVE_DEBUG_STEP_CACHE_PATHS/, 'coordinator must report cache root and extraction paths')
+assert.match(localImportCoordinatorSource, /LOCAL_ARCHIVE_DEBUG_STEP_COPY_STARTED/, 'coordinator must report archive copy start')
+assert.match(localImportCoordinatorSource, /LOCAL_ARCHIVE_DEBUG_STEP_COPY_SUCCEEDED/, 'coordinator must report archive copy success')
+assert.match(localImportCoordinatorSource, /LOCAL_ARCHIVE_DEBUG_STEP_COPY_FAILED/, 'coordinator must report archive copy errors')
+assert.match(localImportCoordinatorSource, /LOCAL_ARCHIVE_DEBUG_STEP_EXTRACTION_STARTED/, 'coordinator must report extraction start')
+assert.match(localImportCoordinatorSource, /LOCAL_ARCHIVE_DEBUG_STEP_EXTRACTION_SUCCEEDED/, 'coordinator must report extraction success')
+assert.match(localImportCoordinatorSource, /LOCAL_ARCHIVE_DEBUG_STEP_EXTRACTION_FAILED/, 'coordinator must report extraction errors')
+assert.match(localImportCoordinatorSource, /LOCAL_ARCHIVE_DEBUG_STEP_IMPORT_SUCCEEDED/, 'coordinator must report imported comic metadata')
+assert.match(localImportDebugSource, /token\|access_token\|refresh_token\|password\|secret\|signature\|credential\|auth\|code\|key/, 'debug formatting must redact common secret query values')
+assert.match(localImportDebugSource, /DEBUG_VALUE_TAIL_LENGTH/, 'debug formatting must preserve a useful path suffix when truncating')
 
 const firstCachePaths = createArchiveExtractionCachePaths('/cache', '/library/a/My Volume.cbz')
 const secondCachePaths = createArchiveExtractionCachePaths('/cache', '/library/b/My Volume.cbz')
@@ -232,6 +281,28 @@ assert.match(firstCachePaths.rootDir, /\/cache\/import\/my-volume-[a-f0-9]{8}$/)
 assert.match(seededCachePaths.rootDir, /\/cache\/import\/my-volume-[a-f0-9]{8}$/)
 assert.equal(seededCachePaths.rootDir, createArchiveExtractionCachePaths('/cache', '/library/b/My Volume.cbz', 'comic-123').rootDir)
 assert.notEqual(seededCachePaths.rootDir, secondCachePaths.rootDir, 'caller seed must influence cache root when supplied')
+
+const formattedPickerLine = formatLocalArchiveImportDebugEvent({
+  step: 'picker_returned',
+  uriCount: 2,
+  sourceUri: 'file://docs/Long Path/Volume 01.cbz?token=secret-value',
+})
+assert.equal(formattedPickerLine, 'picker_returned | uris=2 | sourceUri=file://docs/Long Path/Volume 01.cbz?token=<redacted>')
+
+const longDebugUri = `file://docs/${'nested/'.repeat(35)}Volume 99.cbz?access_token=secret`
+const sanitizedLongUri = sanitizeLocalArchiveDebugValue(longDebugUri)
+assert.ok(sanitizedLongUri.startsWith('file://docs/nested/'), 'long debug URI must retain scheme and prefix')
+assert.ok(sanitizedLongUri.endsWith('Volume 99.cbz?access_token=<redacted>'), 'long debug URI must retain archive suffix')
+assert.ok(!sanitizedLongUri.includes('secret'), 'long debug URI must redact secret query values')
+
+assert.equal(formatLocalArchiveImportDebugEvent({
+  step: 'import_succeeded',
+  sandboxZipPath: '/cache/import/volume-12345678/archive.zip',
+  extractionDir: '/cache/import/volume-12345678/extract',
+  comicId: 'local-archive-volume',
+  title: 'Volume',
+  pageCount: 4,
+}), 'import_succeeded | sandboxZipPath=/cache/import/volume-12345678/archive.zip | extractionDir=/cache/import/volume-12345678/extract | comicId=local-archive-volume | title=Volume | pages=4')
 
 const rawEntries = [
   { path: 'chapter/page10.JPG', byteSize: 10 },
