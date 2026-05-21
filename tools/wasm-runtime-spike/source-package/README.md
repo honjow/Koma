@@ -7,6 +7,9 @@ remote installer, or a built-in source list.
 For the consolidated current runtime/package/archive boundary, see
 `SOURCE_RUNTIME_BOUNDARY.md`.
 
+For the design-only future HarmonyOS source archive ingestion boundary, see
+`HARMONYOS_ARCHIVE_INGESTION_BOUNDARY.md`.
+
 The fixture keeps the useful package lessons from source index layouts such as
 per-source metadata, icon paths, settings, capabilities, and runtime limits,
 while staying aligned with Koma's current runtime evidence:
