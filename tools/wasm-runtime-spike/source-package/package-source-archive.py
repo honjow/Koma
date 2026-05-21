@@ -296,20 +296,35 @@ def validate_staged_manifest(extract_dir: Path, artifact_dir: Path, env: dict[st
     }
 
 
+def validate_existing_archive(archive_path: Path, artifact_dir: Path, env: dict[str, str], report: dict) -> dict:
+    extract_dir = artifact_dir / "archive-extracted"
+    safety = validate_archive_safety(archive_path)
+    extract_archive(archive_path, extract_dir)
+    staged = validate_staged_manifest(extract_dir, artifact_dir, env, report)
+    return {
+        "extractDir": str(extract_dir),
+        "safety": safety,
+        "manifestGates": staged["gates"],
+        "wasm": staged["wasm"],
+        "validationReport": staged["validationReport"],
+    }
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(
         description="Create and validate a tooling-only local Koma WASM source package archive."
     )
     parser.add_argument("--artifact-dir", required=True)
     parser.add_argument("--package-dir", help="Existing generated-package directory to archive.")
+    parser.add_argument("--validate-archive", help="Validate an existing local source archive without building one.")
     parser.add_argument("--report", help="Report path. Defaults to <artifact-dir>/source-package-archive-report.json.")
     args = parser.parse_args()
 
     artifact_dir = Path(args.artifact_dir).resolve()
-    report_path = Path(args.report).resolve() if args.report else artifact_dir / "source-package-archive-report.json"
-    archive_path = artifact_dir / "archive" / "local.test.koma.fixture.koma-source.zip"
+    default_report = "source-package-archive-validation-report.json" if args.validate_archive else "source-package-archive-report.json"
+    report_path = Path(args.report).resolve() if args.report else artifact_dir / default_report
+    archive_path = Path(args.validate_archive).resolve() if args.validate_archive else artifact_dir / "archive" / "local.test.koma.fixture.koma-source.zip"
     staging_dir = artifact_dir / "archive-staging"
-    extract_dir = artifact_dir / "archive-extracted"
     report = {
         "status": "FAIL",
         "artifactDir": str(artifact_dir),
@@ -325,32 +340,42 @@ def main() -> int:
         require(is_under(artifact_dir, artifact_dir), "artifact dir must resolve")
         os.environ["KOMA_SOURCE_PACKAGE_ARTIFACT_DIR"] = str(artifact_dir)
         env = os.environ.copy()
-        package_dir = Path(args.package_dir).resolve() if args.package_dir else build_generated_package(artifact_dir, env, report)
-        require(is_under(package_dir, artifact_dir), "package dir must live under artifact dir")
+        if args.validate_archive:
+            validated = validate_existing_archive(archive_path, artifact_dir, env, report)
+            report.update({
+                "status": "PASS",
+                **validated,
+            })
+            report["evidence"].extend([
+                f"archive validated at {archive_path}",
+                f"wasm sha256 {validated['wasm']['sha256']} size {validated['wasm']['sizeBytes']} bytes",
+                "existing archive safety and staged manifest checks passed",
+            ])
+        else:
+            package_dir = Path(args.package_dir).resolve() if args.package_dir else build_generated_package(artifact_dir, env, report)
+            require(is_under(package_dir, artifact_dir), "package dir must live under artifact dir")
 
-        archive_info = create_archive(package_dir, archive_path, staging_dir)
-        safety = validate_archive_safety(archive_path)
-        extract_archive(archive_path, extract_dir)
-        staged = validate_staged_manifest(extract_dir, artifact_dir, env, report)
+            archive_info = create_archive(package_dir, archive_path, staging_dir)
+            validated = validate_existing_archive(archive_path, artifact_dir, env, report)
 
-        report.update({
-            "status": "PASS",
-            "packageDir": str(package_dir),
-            "stagingDir": str(staging_dir),
-            "extractDir": str(extract_dir),
-            "entries": archive_info["entries"],
-            "safety": safety,
-            "manifestGates": staged["gates"],
-            "wasm": staged["wasm"],
-            "validationReport": staged["validationReport"],
-        })
-        report["evidence"].extend([
-            f"archive created at {archive_path}",
-            f"entries: {', '.join(archive_info['entries'])}",
-            f"wasm sha256 {staged['wasm']['sha256']} size {staged['wasm']['sizeBytes']} bytes",
-            "staged archive manifest passed validate-source-package.py",
-            "network=false, hostAbi=koma-host-v0.1, host imports log/check_cancel, and content policy flags closed",
-        ])
+            report.update({
+                "status": "PASS",
+                "packageDir": str(package_dir),
+                "stagingDir": str(staging_dir),
+                "extractDir": validated["extractDir"],
+                "entries": archive_info["entries"],
+                "safety": validated["safety"],
+                "manifestGates": validated["manifestGates"],
+                "wasm": validated["wasm"],
+                "validationReport": validated["validationReport"],
+            })
+            report["evidence"].extend([
+                f"archive created at {archive_path}",
+                f"entries: {', '.join(archive_info['entries'])}",
+                f"wasm sha256 {validated['wasm']['sha256']} size {validated['wasm']['sizeBytes']} bytes",
+                "staged archive manifest passed validate-source-package.py",
+                "network=false, hostAbi=koma-host-v0.1, host imports log/check_cancel, and content policy flags closed",
+            ])
     except Exception as err:
         report["error"] = str(err)
 

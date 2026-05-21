@@ -100,6 +100,29 @@ The script writes `source-package-archive-report.json` under the artifact
 directory. The generated archive, staged package, extracted files, logs, wasm,
 and reports are all artifact outputs and should stay out of git.
 
+An existing local source archive can be checked without rebuilding it:
+
+```sh
+python3 tools/wasm-runtime-spike/source-package/package-source-archive.py \
+  --artifact-dir /path/to/artifacts/archive-validation \
+  --validate-archive /path/to/local.test.koma.fixture.koma-source.zip
+```
+
+The validate-only path runs the same archive safety, extraction, staged manifest,
+wasm hash, network/import, and content-policy gates as the default happy path.
+
+`validate-archive-negative-fixtures.py` is a tooling-only adversarial corpus
+generator. It first creates a valid baseline archive under the artifact
+directory, then writes malformed zips under artifacts only and asserts the
+validate-only path rejects traversal, absolute paths, duplicate entries,
+symlinks, unexpected entries, network/http import drift, wasm hash mismatch, and
+missing required entries.
+
+```sh
+python3 tools/wasm-runtime-spike/source-package/validate-archive-negative-fixtures.py \
+  --artifact-dir /path/to/artifacts/archive-negative-fixtures
+```
+
 Future HTTP/network source capability is tracked separately in
 `../host-imports/http-boundary.md`. That boundary is design-only: its sample
 manifest uses `network=true` and `koma_host.http_request` only to validate a
