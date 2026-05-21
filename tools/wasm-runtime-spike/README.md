@@ -27,6 +27,13 @@ and documented in
 statically reject oversized budgets, invalid timeouts, disabled cancellation,
 leaks, executable hooks, and product-runtime flags without executing WASM.
 
+The HarmonyOS internal-dev ingestion plan is also design/tooling-only and is
+documented in `source-package/HARMONYOS_INTERNAL_DEV_INGESTION_PLAN.md`. Its
+fixtures keep ingestion local-only, require app-private staging before
+validation, preserve `network=false` and closed imports, and reject source
+market, remote install, built-in source, direct picker execution, raw diagnostic
+leaks, and product-runtime drift.
+
 The spike validates this path on Linux:
 
 ```text

@@ -13,6 +13,9 @@ For the candidate Source API v0.1 operation and JSON envelope design, see
 For the design-only future HarmonyOS source archive ingestion boundary, see
 `HARMONYOS_ARCHIVE_INGESTION_BOUNDARY.md`.
 
+For the design-only future HarmonyOS internal-dev staging/promotion ingestion
+plan, see `HARMONYOS_INTERNAL_DEV_INGESTION_PLAN.md`.
+
 For the design-only future local source package trust/provenance boundary, see
 `SOURCE_PACKAGE_TRUST_BOUNDARY.md`.
 
@@ -244,6 +247,30 @@ Future HTTP/network source capability is tracked separately in
 `../host-imports/http-boundary.md`. That boundary is design-only: its sample
 manifest uses `network=true` and `koma_host.http_request` only to validate a
 future contract, and the current source-package validator must still reject it.
+
+## HarmonyOS Internal-Dev Ingestion Plan
+
+`HARMONYOS_INTERNAL_DEV_INGESTION_PLAN.md` maps the existing local archive
+validation gates to a future app-private copy, staging, validation, atomic
+promote, and register flow. It is still non-release and design-only: no
+HarmonyOS product runtime, UI, picker implementation, package registry, storage
+writes, HTTP, source market, remote install, or built-in source behavior is
+implemented here.
+
+```sh
+python3 tools/wasm-runtime-spike/source-package/validate-harmonyos-ingestion-plan.py \
+  --fixture-dir tools/wasm-runtime-spike/source-package/harmonyos-ingestion-fixtures \
+  --artifact-dir /path/to/artifacts/harmonyos-ingestion-plan
+```
+
+The validator writes `harmonyos-ingestion-plan-report.json` under the artifact
+directory. It loads local JSON only, performs no network I/O, executes no WASM,
+and checks that the plan remains design-only/internal-dev-only, local archive
+only, copied to app-private staging before validation, ordered through archive,
+manifest, wasm hash/size, trust, import/network, settings/auth/resource/image,
+and promote/register gates. Invalid fixtures prove drift is rejected for remote
+install, source market, `network=true`, direct picker execution, missing gates,
+raw path/secret logging, product runtime, and built-in sources.
 
 This fixture intentionally does not add remote source index sync, source market
 UI, real manga sources, APK plugins, WebView+JS runtime behavior, signing
