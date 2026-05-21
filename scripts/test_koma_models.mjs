@@ -7,17 +7,17 @@ const modelPath = resolve(root, 'entry/src/main/ets/model/ComicModels.ets')
 const libraryStorePath = resolve(root, 'entry/src/main/ets/model/LibraryStore.ets')
 const progressStorePath = resolve(root, 'entry/src/main/ets/model/ReadingProgressStore.ets')
 const readerSessionStorePath = resolve(root, 'entry/src/main/ets/model/ReaderSessionStore.ets')
-const readerPageSourceAdapterPath = resolve(root, 'entry/src/main/ets/model/ReaderPageSourceAdapter.ets')
 const mockLibraryDataPath = resolve(root, 'entry/src/main/ets/model/MockLibraryData.ets')
 const libraryRepositoryPath = resolve(root, 'entry/src/main/ets/model/LibraryRepository.ets')
+const libraryPersistencePath = resolve(root, 'entry/src/main/ets/model/LibraryPersistence.ets')
 
 const modelSource = readFileSync(modelPath, 'utf8')
 const libraryStoreSource = readFileSync(libraryStorePath, 'utf8')
 const progressStoreSource = readFileSync(progressStorePath, 'utf8')
 const readerSessionStoreSource = readFileSync(readerSessionStorePath, 'utf8')
-const readerPageSourceAdapterSource = readFileSync(readerPageSourceAdapterPath, 'utf8')
 const mockLibraryDataSource = readFileSync(mockLibraryDataPath, 'utf8')
 const libraryRepositorySource = readFileSync(libraryRepositoryPath, 'utf8')
+const libraryPersistenceSource = readFileSync(libraryPersistencePath, 'utf8')
 
 function assertExport(source, symbol) {
   assert.match(source, new RegExp(`export (interface|class|function|enum|type|const) ${symbol}\\b`), `${symbol} must be exported`)
@@ -65,41 +65,6 @@ function updateReadingProgress(previous, pageIndex, pageId, totalPages = previou
   }
 }
 
-function createReaderSessionConfigFromComic(comic, chapterId) {
-  let chapter = comic.chapters[0]
-  if (chapterId !== undefined) {
-    chapter = comic.chapters.find((item) => item.id === chapterId) ?? chapter
-  }
-  if (chapter === undefined) {
-    return {
-      comicId: comic.id,
-      chapterId: '',
-      title: comic.title,
-      totalPages: 0,
-      pageUris: [],
-      pageIds: [],
-    }
-  }
-  const pages = [...chapter.pages].sort((a, b) => {
-    if (a.index !== b.index) return a.index - b.index
-    return a.sortKey.localeCompare(b.sortKey)
-  })
-  return {
-    comicId: comic.id,
-    chapterId: chapter.id,
-    title: comic.title,
-    chapterTitle: chapter.title,
-    totalPages: pages.length,
-    pageUris: pages.map((page) => page.uri),
-    pageIds: pages.map((page) => page.id),
-  }
-}
-
-function getReaderSessionPageUri(config, pageIndex) {
-  const resolvedPageIndex = clampPageIndex(pageIndex, config.totalPages)
-  return config.pageUris[resolvedPageIndex] ?? ''
-}
-
 for (const symbol of ['Comic', 'Chapter', 'Page', 'ReadingProgress', 'LibraryItem']) {
   assertExport(modelSource, symbol)
 }
@@ -112,10 +77,6 @@ assertExport(progressStoreSource, 'ReadingProgressStore')
 assertExport(progressStoreSource, 'InMemoryReadingProgressStore')
 assertExport(readerSessionStoreSource, 'ReaderSessionStore')
 assertExport(readerSessionStoreSource, 'InMemoryReaderSessionStore')
-assertExport(readerSessionStoreSource, 'createReaderSessionConfigFromComic')
-assertExport(readerSessionStoreSource, 'getReaderSessionPageUri')
-assertExport(readerPageSourceAdapterSource, 'ReaderPageRenderKind')
-assertExport(readerPageSourceAdapterSource, 'createReaderPageRenderSource')
 assertExport(mockLibraryDataSource, 'MockLibraryComic')
 assertExport(mockLibraryDataSource, 'LibraryViewModel')
 assertExport(mockLibraryDataSource, 'MOCK_LIBRARY_READER_SESSION')
@@ -125,6 +86,30 @@ assertExport(mockLibraryDataSource, 'createLibraryViewModel')
 assertExport(libraryRepositorySource, 'LibraryRepository')
 assertExport(libraryRepositorySource, 'StoreBackedLibraryRepository')
 assertExport(libraryRepositorySource, 'upsertComicAndCreateLibraryViewModel')
+assertExport(libraryPersistenceSource, 'LIBRARY_STORE_PERSISTENCE_SCHEMA_VERSION')
+assertExport(libraryPersistenceSource, 'PersistedLibraryStoreDocument')
+assertExport(libraryPersistenceSource, 'persistComic')
+assertExport(libraryPersistenceSource, 'hydrateComic')
+assertExport(libraryPersistenceSource, 'serializeLibraryStore')
+assertExport(libraryPersistenceSource, 'hydrateLibraryStoreFromJson')
+assertExport(libraryPersistenceSource, 'LibraryStorePersistenceAdapter')
+assertExport(libraryPersistenceSource, 'LibraryStorePersistenceService')
+
+assert.match(
+  libraryPersistenceSource,
+  /export interface PersistedLibraryStoreDocument\s*{[^}]*\bschemaVersion:\s*number\b/s,
+  'PersistedLibraryStoreDocument.schemaVersion must be required in production source',
+)
+assert.match(
+  libraryPersistenceSource,
+  /function assertSupportedLibraryStoreDocument[\s\S]*document\.schemaVersion !== LIBRARY_STORE_PERSISTENCE_SCHEMA_VERSION[\s\S]*throw new Error/,
+  'production hydrate path must reject missing or unsupported schema versions',
+)
+assert.match(
+  libraryPersistenceSource,
+  /export function hydrateLibraryStoreFromJson[\s\S]*assertSupportedLibraryStoreDocument\(document\)[\s\S]*libraryStore\.clear\(\)/,
+  'production hydrate path must validate schemaVersion before clearing the store',
+)
 
 const comic = {
   id: 'comic-1',
@@ -208,20 +193,6 @@ const mockLibraryReaderSession = {
   comicId: 'local-01',
   chapterId: 'chapter-8',
   totalPages: 5,
-  pageUris: [
-    'mock://local-01/001.jpg',
-    'mock://local-01/002.jpg',
-    'mock://local-01/003.jpg',
-    'mock://local-01/004.jpg',
-    'mock://local-01/005.jpg',
-  ],
-  pageIds: [
-    'chapter-8-page-1',
-    'chapter-8-page-2',
-    'chapter-8-page-3',
-    'chapter-8-page-4',
-    'chapter-8-page-5',
-  ],
 }
 
 const mockLibraryComics = [
@@ -354,7 +325,138 @@ function createSeededStore() {
         return titleCompare !== 0 ? titleCompare : a.createdAt - b.createdAt
       })
     },
+    clear() {
+      comics.clear()
+    },
+    getComic(comicId) {
+      return comics.get(comicId)
+    },
   }
+}
+
+function persistPage(page) {
+  const row = {
+    id: page.id,
+    comicId: page.comicId,
+    chapterId: page.chapterId,
+    index: page.index,
+    fileName: page.fileName,
+    uri: page.uri,
+    sortKey: page.sortKey,
+  }
+  if (page.width !== undefined) row.width = page.width
+  if (page.height !== undefined) row.height = page.height
+  if (page.byteSize !== undefined) row.byteSize = page.byteSize
+  return row
+}
+
+function hydratePage(row) {
+  const page = {
+    id: row.id,
+    comicId: row.comicId,
+    chapterId: row.chapterId,
+    index: row.index,
+    fileName: row.fileName,
+    uri: row.uri,
+    sortKey: row.sortKey,
+  }
+  if (row.width !== undefined) page.width = row.width
+  if (row.height !== undefined) page.height = row.height
+  if (row.byteSize !== undefined) page.byteSize = row.byteSize
+  return page
+}
+
+function persistChapter(chapter) {
+  return {
+    id: chapter.id,
+    comicId: chapter.comicId,
+    title: chapter.title,
+    index: chapter.index,
+    sourcePath: chapter.sourcePath,
+    sortKey: chapter.sortKey,
+    pages: chapter.pages.map((page) => persistPage(page)),
+    pageCount: chapter.pageCount,
+    createdAt: chapter.createdAt,
+    updatedAt: chapter.updatedAt,
+  }
+}
+
+function hydrateChapter(row) {
+  return {
+    id: row.id,
+    comicId: row.comicId,
+    title: row.title,
+    index: row.index,
+    sourcePath: row.sourcePath,
+    sortKey: row.sortKey,
+    pages: row.pages === undefined ? [] : row.pages.map((page) => hydratePage(page)),
+    pageCount: row.pageCount,
+    createdAt: row.createdAt,
+    updatedAt: row.updatedAt,
+  }
+}
+
+function persistComic(comic) {
+  const row = {
+    id: comic.id,
+    title: comic.title,
+    sourceKind: comic.sourceKind,
+    sourcePath: comic.sourcePath,
+    sortTitle: comic.sortTitle,
+    preferredDirection: comic.preferredDirection,
+    chapters: comic.chapters.map((chapter) => persistChapter(chapter)),
+    chapterCount: comic.chapterCount,
+    pageCount: comic.pageCount,
+    createdAt: comic.createdAt,
+    updatedAt: comic.updatedAt,
+    lastImportedAt: comic.lastImportedAt,
+  }
+  if (comic.subtitle !== undefined) row.subtitle = comic.subtitle
+  if (comic.author !== undefined) row.author = comic.author
+  if (comic.coverUri !== undefined) row.coverUri = comic.coverUri
+  return row
+}
+
+function hydrateComic(row) {
+  const comic = {
+    id: row.id,
+    title: row.title,
+    sourceKind: row.sourceKind,
+    sourcePath: row.sourcePath,
+    sortTitle: row.sortTitle,
+    preferredDirection: row.preferredDirection,
+    chapters: row.chapters === undefined ? [] : row.chapters.map((chapter) => hydrateChapter(chapter)),
+    chapterCount: row.chapterCount,
+    pageCount: row.pageCount,
+    createdAt: row.createdAt,
+    updatedAt: row.updatedAt,
+    lastImportedAt: row.lastImportedAt,
+  }
+  if (row.subtitle !== undefined) comic.subtitle = row.subtitle
+  if (row.author !== undefined) comic.author = row.author
+  if (row.coverUri !== undefined) comic.coverUri = row.coverUri
+  return comic
+}
+
+function serializeLibraryStore(store) {
+  return JSON.stringify({
+    schemaVersion: 1,
+    comics: store.listComics().map((item) => persistComic(item)),
+  })
+}
+
+function assertSupportedLibraryStoreDocument(document) {
+  if (document.schemaVersion !== 1) {
+    throw new Error(`Unsupported library store persistence schema version: ${document.schemaVersion}`)
+  }
+}
+
+function hydrateLibraryStoreFromJson(store, payload) {
+  const document = JSON.parse(payload)
+  assertSupportedLibraryStoreDocument(document)
+  const rows = document.comics === undefined ? [] : document.comics
+  store.clear()
+  rows.forEach((row) => store.upsertComic(hydrateComic(row)))
 }
 
 function createPresentationMap() {
@@ -479,17 +581,95 @@ assert.equal(importedProgressVm.continueReading.detail, '继续阅读 Imported V
 assert.equal(importedProgressVm.continueReading.progress, 67)
 assert.equal(importedProgressVm.comics.find((item) => item.id === 'imported-01').progressText, '67%')
 
-const importedSessionConfig = createReaderSessionConfigFromComic(importedComic)
-assert.equal(importedSessionConfig.comicId, 'imported-01')
-assert.equal(importedSessionConfig.chapterId, 'imported-01-chapter-1')
-assert.equal(importedSessionConfig.title, 'Imported Volume')
-assert.equal(importedSessionConfig.chapterTitle, 'Imported Volume')
-assert.equal(importedSessionConfig.totalPages, 3, 'imported reader session must use Comic page count')
-assert.deepEqual(importedSessionConfig.pageUris, [
-  '/library/Imported Volume.cbz#001.jpg',
-  '/library/Imported Volume.cbz#002.jpg',
-  '/library/Imported Volume.cbz#003.jpg',
-], 'imported reader session must expose ordered page URIs')
-assert.equal(getReaderSessionPageUri(importedSessionConfig, importedProgress.pageIndex), '/library/Imported Volume.cbz#002.jpg', 'progress page index must map to imported page URI')
+const persistedPayload = serializeLibraryStore(seededStore)
+const persistedDocument = JSON.parse(persistedPayload)
+assert.equal(persistedDocument.schemaVersion, 1, 'library persistence payload must be versioned')
+assert.equal(persistedDocument.comics.length, 7, 'library persistence payload must include all comics')
+assert.deepEqual(Object.keys(persistedDocument), ['schemaVersion', 'comics'], 'library persistence document key order must be stable')
+
+const persistedImported = persistedDocument.comics.find((item) => item.id === 'imported-01')
+assert.equal(persistedImported.title, 'Imported Volume')
+assert.equal(persistedImported.pageCount, 3)
+assert.equal(persistedImported.coverUri, '/library/Imported Volume.cbz#001.jpg')
+assert.deepEqual(
+  persistedImported.chapters[0].pages.map((page) => page.uri),
+  [
+    '/library/Imported Volume.cbz#001.jpg',
+    '/library/Imported Volume.cbz#002.jpg',
+    '/library/Imported Volume.cbz#003.jpg',
+  ],
+  'persisted page URIs must remain stable',
+)
+
+const restoredStore = createSeededStore()
+hydrateLibraryStoreFromJson(restoredStore, persistedPayload)
+const restoredImported = restoredStore.getComic('imported-01')
+assert.equal(restoredStore.listComics().length, 7, 'hydrating a store must replace current contents with persisted comics')
+assert.equal(restoredImported.title, importedComic.title)
+assert.equal(restoredImported.pageCount, importedComic.pageCount)
+assert.equal(restoredImported.coverUri, importedComic.coverUri)
+assert.deepEqual(restoredImported.chapters[0].pages.map((page) => page.id), ['imported-page-1', 'imported-page-2', 'imported-page-3'])
+assert.equal(restoredImported.chapters[0].pages[1].uri, '/library/Imported Volume.cbz#002.jpg')
+
+const optionalPayload = JSON.stringify({
+  schemaVersion: 1,
+  comics: [{
+    ...persistedImported,
+    coverUri: undefined,
+    subtitle: undefined,
+    author: undefined,
+    extraFutureField: 'ignored',
+    chapters: [{
+      ...persistedImported.chapters[0],
+      extraFutureChapterField: 'ignored',
+      pages: persistedImported.chapters[0].pages.map((page) => ({
+        ...page,
+        width: undefined,
+        height: undefined,
+        byteSize: undefined,
+        extraFuturePageField: 'ignored',
+      })),
+    }],
+  }],
+})
+const optionalStore = createSeededStore()
+hydrateLibraryStoreFromJson(optionalStore, optionalPayload)
+const optionalComic = optionalStore.getComic('imported-01')
+assert.equal(optionalStore.listComics().length, 1, 'hydrating a smaller document must clear stale comics')
+assert.equal(optionalComic.coverUri, undefined, 'missing optional coverUri must be accepted')
+assert.equal(optionalComic.chapters[0].pages[0].width, undefined, 'missing optional page dimensions must be accepted')
+assert.equal(optionalComic.extraFutureField, undefined, 'unknown comic fields must not hydrate into the runtime model')
+assert.equal(optionalComic.chapters[0].extraFutureChapterField, undefined, 'unknown chapter fields must not hydrate into the runtime model')
+assert.equal(optionalComic.chapters[0].pages[0].extraFuturePageField, undefined, 'unknown page fields must not hydrate into the runtime model')
+
+const emptyStore = createSeededStore()
+hydrateLibraryStoreFromJson(emptyStore, JSON.stringify({ schemaVersion: 1 }))
+assert.equal(emptyStore.listComics().length, 0, 'missing comics array should hydrate as an empty library')
+
+const missingVersionStore = createSeededStore()
+const missingVersionBefore = missingVersionStore.listComics().map((item) => item.id)
+assert.throws(
+  () => hydrateLibraryStoreFromJson(missingVersionStore, JSON.stringify({ comics: [] })),
+  /Unsupported library store persistence schema version: undefined/,
+  'missing schemaVersion must reject before mutating the library store',
+)
+assert.deepEqual(
+  missingVersionStore.listComics().map((item) => item.id),
+  missingVersionBefore,
+  'missing schemaVersion must leave existing library data unchanged',
+)
+
+const unsupportedVersionStore = createSeededStore()
+const unsupportedVersionBefore = unsupportedVersionStore.listComics().map((item) => item.id)
+assert.throws(
+  () => hydrateLibraryStoreFromJson(unsupportedVersionStore, JSON.stringify({ schemaVersion: 2, comics: [] })),
+  /Unsupported library store persistence schema version: 2/,
+  'unsupported schemaVersion must reject before mutating the library store',
+)
+assert.deepEqual(
+  unsupportedVersionStore.listComics().map((item) => item.id),
+  unsupportedVersionBefore,
+  'unsupported schemaVersion must leave existing library data unchanged',
+)
 
 console.log('PASS Koma model contracts')
