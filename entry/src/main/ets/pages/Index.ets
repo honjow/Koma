@@ -16,6 +16,7 @@ import {
   createReaderSessionConfigFromComic,
 } from '../model/ReaderSessionStore'
 
+const READER_ROUTE_NAME: string = 'ReaderPage'
 const readerSessionStore: ReaderSessionStore = new InMemoryReaderSessionStore()
 const seededLibraryStore: LibraryStore = createSeededLibraryStore()
 const libraryPresentationByComicId: LibraryPresentationByComicId = createMockLibraryPresentationMap()
@@ -33,6 +34,7 @@ struct Index {
   private readerSessionStore: ReaderSessionStore = readerSessionStore
   private libraryStore: LibraryStore = seededLibraryStore
   private presentationByComicId: LibraryPresentationByComicId = libraryPresentationByComicId
+  private readerPathStack: NavPathStack = new NavPathStack()
 
   private tabLabel(index: number): string {
     if (index === 0) { return '书架' }
@@ -46,7 +48,18 @@ struct Index {
     this.readerSessionConfig = comic === undefined ? MOCK_LIBRARY_READER_SESSION : createReaderSessionConfigFromComic(comic)
     this.readerPageIndex = this.readerSessionStore.restorePageIndex(this.readerSessionConfig)
     this.readerChromeVisible = true
+    if (!this.readerOpen) {
+      this.readerPathStack.pushPath({ name: READER_ROUTE_NAME })
+    }
     this.readerOpen = true
+  }
+
+  private closeReader(): void {
+    if (!this.readerOpen) {
+      return
+    }
+    this.readerOpen = false
+    this.readerPathStack.pop(false)
   }
 
   private handleArchiveImportSucceeded(comic: Comic): void {
@@ -67,8 +80,40 @@ struct Index {
     .justifyContent(FlexAlign.Center)
   }
 
+  @Builder
+  private ReaderDestination(name: string, param: Object) {
+    if (name === READER_ROUTE_NAME) {
+      NavDestination() {
+        ReaderPage({
+          readerOpen: $readerOpen,
+          pageIndex: $readerPageIndex,
+          chromeVisible: $readerChromeVisible,
+          webtoonMode: $readerWebtoonMode,
+          sessionStore: this.readerSessionStore,
+          sessionConfig: this.readerSessionConfig,
+          onCloseReader: () => {
+            this.closeReader()
+          }
+        })
+      }
+      .hideTitleBar(true)
+      .onBackPressed(() => {
+        this.closeReader()
+        return true
+      })
+    }
+  }
+
+  onBackPress(): boolean {
+    if (this.readerOpen) {
+      this.closeReader()
+      return true
+    }
+    return false
+  }
+
   build() {
-    Stack() {
+    Navigation(this.readerPathStack) {
       Column() {
         Stack() {
           if (this.selectedTab === 0) {
@@ -132,21 +177,12 @@ struct Index {
       .backgroundColor($r('app.color.koma_background'))
       .padding({ top: 72 })
       .hitTestBehavior(this.readerOpen ? HitTestMode.None : HitTestMode.Default)
-
-      if (this.readerOpen) {
-        ReaderPage({
-          readerOpen: $readerOpen,
-          pageIndex: $readerPageIndex,
-          chromeVisible: $readerChromeVisible,
-          webtoonMode: $readerWebtoonMode,
-          sessionStore: this.readerSessionStore,
-          sessionConfig: this.readerSessionConfig
-        })
-          .zIndex(1)
-      }
     }
     .width('100%')
     .height('100%')
     .backgroundColor('#0B0A09')
+    .mode(NavigationMode.Stack)
+    .hideTitleBar(true)
+    .navDestination(this.ReaderDestination)
   }
 }
