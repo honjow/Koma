@@ -24,6 +24,71 @@ const PACKAGE_WASM_MAX_BYTES: number = 131072
 const ARCHIVE_RAWFILE_PATH: string = 'test/local_source_runtime_fixture.koma-source'
 const ARCHIVE_SANDBOX_ZIP_FILE: string = 'local_source_runtime_fixture.zip'
 const ARCHIVE_REQUEST_JSON: string = '{"operation":"search","query":"fixture","smoke":"koma-archive-smoke"}'
+const ARCHIVE_NEGATIVE_ROUTE_LABEL: string = 'app-local-source-archive-negative-test-only'
+const ARCHIVE_NEGATIVE_CASES: ArchiveNegativeCaseFixture[] = [
+  {
+    id: 'checksum_mismatch',
+    rawfilePath: 'test/archive-negative/checksum_mismatch.koma-source',
+    expectedReason: 'checksum_mismatch',
+  },
+  {
+    id: 'network_not_allowed',
+    rawfilePath: 'test/archive-negative/network_not_allowed.koma-source',
+    expectedReason: 'network_not_allowed',
+  },
+  {
+    id: 'unsafe_archive_entry',
+    rawfilePath: 'test/archive-negative/unsafe_archive_entry.koma-source',
+    expectedReason: 'unsafe_archive_entry',
+  },
+  {
+    id: 'missing_manifest',
+    rawfilePath: 'test/archive-negative/missing_manifest.koma-source',
+    expectedReason: 'missing_manifest',
+  },
+  {
+    id: 'missing_wasm',
+    rawfilePath: 'test/archive-negative/missing_wasm.koma-source',
+    expectedReason: 'missing_wasm',
+  },
+]
+
+type ArchiveValidationReason =
+  'checksum_mismatch' |
+  'network_not_allowed' |
+  'unsafe_archive_entry' |
+  'missing_manifest' |
+  'missing_wasm' |
+  'manifest_invalid'
+
+interface ArchiveNegativeCaseFixture {
+  id: string
+  rawfilePath: string
+  expectedReason: ArchiveValidationReason
+}
+
+interface ArchiveImportValidationResult {
+  ok: boolean
+  reasonCode?: ArchiveValidationReason
+  manifest?: LocalSourcePackageManifest
+  wasmBytes?: Uint8Array
+  manifestPath?: string
+  wasmPath?: string
+  wasmBytesLength?: number
+  hashOk?: boolean
+  attemptedWamrExecution: boolean
+}
+
+export interface ArchiveNegativeSmokeCaseResult {
+  id: string
+  rawfilePath: string
+  rejected: boolean
+  reasonCode?: string
+  expectedReasonCode: string
+  reasonMatchesExpected: boolean
+  attemptedWamrExecution: boolean
+  rawfileBytes?: number
+}
 
 type WantParameterValue = Object | string | number | boolean | null | undefined
 type WantParameters = Record<string, WantParameterValue>
@@ -38,8 +103,11 @@ export interface SourceRuntimeSmokeResult {
   rustRawfilePath?: string
   rustRawfileBytes?: number
   response?: SourceRuntimeCallResponse
+  responseOk?: boolean
   resourceResponse?: SourceRuntimeCallResponse
+  resourceResponseOk?: boolean
   rustSourceResponse?: SourceRuntimeCallResponse
+  rustSourceResponseOk?: boolean
   packageResponse?: SourceRuntimeCallResponse
   packageResponseOk?: boolean
   packageOperation?: string
@@ -69,6 +137,9 @@ export interface SourceRuntimeSmokeResult {
   archiveManifestPath?: string
   archiveImportedWasmPath?: string
   archiveHashOk?: boolean
+  archiveNegativeRoute?: string
+  archiveNegativeOk?: boolean
+  archiveNegativeCases?: ArchiveNegativeSmokeCaseResult[]
   error?: string
 }
 
@@ -220,6 +291,106 @@ function sha256Hex(bytes: Uint8Array): string {
   return result
 }
 
+function readUInt16Le(bytes: Uint8Array, offset: number): number {
+  return bytes[offset] | (bytes[offset + 1] << 8)
+}
+
+function readUInt32Le(bytes: Uint8Array, offset: number): number {
+  return (bytes[offset] |
+    (bytes[offset + 1] << 8) |
+    (bytes[offset + 2] << 16) |
+    (bytes[offset + 3] << 24)) >>> 0
+}
+
+function decodeAscii(bytes: Uint8Array, offset: number, length: number): string {
+  let value = ''
+  for (let index = 0; index < length; index += 1) {
+    value += String.fromCharCode(bytes[offset + index])
+  }
+  return value
+}
+
+function isSafeArchiveEntryName(name: string): boolean {
+  if (name.length === 0 || name.endsWith('/') || name.startsWith('/') || name.includes('\\')) {
+    return false
+  }
+  const parts = name.split('/')
+  for (let index = 0; index < parts.length; index += 1) {
+    const part = parts[index]
+    if (part.length === 0 || part === '..' || part.startsWith('.')) {
+      return false
+    }
+  }
+  return true
+}
+
+function readArchiveEntryNames(archiveBytes: Uint8Array): string[] {
+  const minEocdSize = 22
+  if (archiveBytes.byteLength < minEocdSize) {
+    throw new Error('zip_eocd_missing')
+  }
+  let eocdOffset = -1
+  const firstPossible = Math.max(0, archiveBytes.byteLength - 65557)
+  for (let offset = archiveBytes.byteLength - minEocdSize; offset >= firstPossible; offset -= 1) {
+    if (readUInt32Le(archiveBytes, offset) === 0x06054b50) {
+      eocdOffset = offset
+      break
+    }
+  }
+  if (eocdOffset < 0) {
+    throw new Error('zip_eocd_missing')
+  }
+  const entryCount = readUInt16Le(archiveBytes, eocdOffset + 10)
+  const centralDirectorySize = readUInt32Le(archiveBytes, eocdOffset + 12)
+  const centralDirectoryOffset = readUInt32Le(archiveBytes, eocdOffset + 16)
+  if (centralDirectoryOffset + centralDirectorySize > archiveBytes.byteLength) {
+    throw new Error('zip_central_directory_invalid')
+  }
+
+  const names: string[] = []
+  let offset = centralDirectoryOffset
+  for (let index = 0; index < entryCount; index += 1) {
+    if (offset + 46 > archiveBytes.byteLength || readUInt32Le(archiveBytes, offset) !== 0x02014b50) {
+      throw new Error('zip_central_directory_invalid')
+    }
+    const nameLength = readUInt16Le(archiveBytes, offset + 28)
+    const extraLength = readUInt16Le(archiveBytes, offset + 30)
+    const commentLength = readUInt16Le(archiveBytes, offset + 32)
+    const nameOffset = offset + 46
+    const nextOffset = nameOffset + nameLength + extraLength + commentLength
+    if (nextOffset > archiveBytes.byteLength) {
+      throw new Error('zip_central_directory_invalid')
+    }
+    names.push(decodeAscii(archiveBytes, nameOffset, nameLength))
+    offset = nextOffset
+  }
+  return names
+}
+
+function validateArchiveEntries(archiveBytes: Uint8Array): ArchiveValidationReason | undefined {
+  let names: string[]
+  try {
+    names = readArchiveEntryNames(archiveBytes)
+  } catch (_err) {
+    return 'unsafe_archive_entry'
+  }
+  let hasManifest = false
+  const seen = new Set<string>()
+  for (let index = 0; index < names.length; index += 1) {
+    const name = names[index]
+    if (seen.has(name) || !isSafeArchiveEntryName(name)) {
+      return 'unsafe_archive_entry'
+    }
+    seen.add(name)
+    if (name === PACKAGE_MANIFEST_FILE) {
+      hasManifest = true
+    } else if (name !== PACKAGE_WASM_FILE) {
+      return 'unsafe_archive_entry'
+    }
+  }
+  return hasManifest ? undefined : 'missing_manifest'
+}
+
 function buildLocalSourcePackageManifest(wasmSize: number): LocalSourcePackageManifest {
   return {
     schemaVersion: 1,
@@ -288,7 +459,6 @@ function stageAndRunLocalSourcePackageSmoke(
   }
 
   const packageResponse = NativeSourceRuntime.runJsonCallFromBytes(PACKAGE_SMOKE_REQUEST_JSON, stagedBytes)
-  result.packageResponse = packageResponse
   result.packageResponseOk = responseReachedRustFixture(packageResponse)
   result.packageOperation = packageResponse.operation
   result.packageRequestEcho = packageResponse.data?.requestEcho
@@ -311,46 +481,132 @@ async function stageImportAndRunLocalSourceArchiveSmoke(
   const archiveRoot = joinSmokePath(context.filesDir, 'source-runtime-archive-smoke')
   const importedRoot = joinSmokePath(archiveRoot, 'imported-package')
   const archivePath = joinSmokePath(archiveRoot, ARCHIVE_SANDBOX_ZIP_FILE)
-  const manifestPath = joinSmokePath(importedRoot, PACKAGE_MANIFEST_FILE)
 
   ensureDirSync(archiveRoot)
-  await removeDirectoryIfPresent(importedRoot)
-  ensureDirSync(importedRoot)
-
   const archiveBytes = resourceMgr.getRawFileContentSync(ARCHIVE_RAWFILE_PATH)
-  writeBytesSync(archivePath, archiveBytes)
-  await zlib.decompressFile(archivePath, importedRoot)
-
-  const manifest = JSON.parse(readTextSync(manifestPath)) as LocalSourcePackageManifest
-  const importedWasmPath = joinSmokePath(importedRoot, manifest.runtime.wasmPath)
-  const importedWasmBytes = readBytesSync(importedWasmPath)
-  const importedHash = sha256Hex(importedWasmBytes)
-  const archiveHashOk = importedHash === manifest.runtime.wasmSha256 &&
-    importedWasmBytes.byteLength === manifest.runtime.wasmSizeBytes &&
-    importedWasmBytes.byteLength <= manifest.runtime.maxWasmBytes
-
-  if (!archiveHashOk || manifest.package.id !== PACKAGE_MANIFEST_ID ||
-    manifest.package.version !== PACKAGE_MANIFEST_VERSION ||
-    manifest.permissions.network !== false) {
-    throw new Error('local source archive manifest/hash validation failed')
+  const validated = await validateLocalSourceArchive(archiveBytes, archivePath, importedRoot)
+  if (!validated.ok || validated.manifest === undefined || validated.wasmBytes === undefined) {
+    throw new Error(`local source archive import rejected: ${validated.reasonCode}`)
   }
 
-  const archiveResponse = NativeSourceRuntime.runJsonCallFromBytes(ARCHIVE_REQUEST_JSON, importedWasmBytes)
-  result.archiveResponse = archiveResponse
+  validated.attemptedWamrExecution = true
+  const archiveResponse = NativeSourceRuntime.runJsonCallFromBytes(ARCHIVE_REQUEST_JSON, validated.wasmBytes)
   result.archiveResponseOk = responseReachedRustFixture(archiveResponse)
   result.archiveOperation = archiveResponse.operation
   result.archiveRequestEcho = archiveResponse.data?.requestEcho
   result.archiveFirstTitle = firstItemTitle(archiveResponse)
   result.archiveNetwork = archiveResponse.hostHints?.['network'] === false ? false : undefined
-  result.archiveWasmBytes = importedWasmBytes.byteLength
-  result.archiveManifestId = manifest.package.id
-  result.archiveManifestVersion = manifest.package.version
-  result.archiveManifestPath = manifestPath
-  result.archiveImportedWasmPath = importedWasmPath
-  result.archiveHashOk = archiveHashOk
+  result.archiveWasmBytes = validated.wasmBytes.byteLength
+  result.archiveManifestId = validated.manifest.package.id
+  result.archiveManifestVersion = validated.manifest.package.version
+  result.archiveManifestPath = validated.manifestPath
+  result.archiveImportedWasmPath = validated.wasmPath
+  result.archiveHashOk = validated.hashOk
   result.archiveImportOk = true
   result.archivePath = archivePath
   result.archiveRoute = ARCHIVE_ROUTE_LABEL
+}
+
+async function validateLocalSourceArchive(
+  archiveBytes: Uint8Array,
+  archivePath: string,
+  importedRoot: string,
+): Promise<ArchiveImportValidationResult> {
+  const unsafeReason = validateArchiveEntries(archiveBytes)
+  if (unsafeReason !== undefined) {
+    return { ok: false, reasonCode: unsafeReason, attemptedWamrExecution: false }
+  }
+
+  await removeDirectoryIfPresent(importedRoot)
+  ensureDirSync(importedRoot)
+  writeBytesSync(archivePath, archiveBytes)
+  await zlib.decompressFile(archivePath, importedRoot)
+
+  const manifestPath = joinSmokePath(importedRoot, PACKAGE_MANIFEST_FILE)
+  if (!fs.accessSync(manifestPath)) {
+    return { ok: false, reasonCode: 'missing_manifest', manifestPath, attemptedWamrExecution: false }
+  }
+
+  let manifest: LocalSourcePackageManifest
+  try {
+    manifest = JSON.parse(readTextSync(manifestPath)) as LocalSourcePackageManifest
+  } catch (_err) {
+    return { ok: false, reasonCode: 'manifest_invalid', manifestPath, attemptedWamrExecution: false }
+  }
+
+  if (manifest.package.id !== PACKAGE_MANIFEST_ID || manifest.package.version !== PACKAGE_MANIFEST_VERSION) {
+    return { ok: false, reasonCode: 'manifest_invalid', manifest, manifestPath, attemptedWamrExecution: false }
+  }
+  if (manifest.permissions.network !== false || manifest.permissions.hostImports.includes('koma_host.http_request')) {
+    return { ok: false, reasonCode: 'network_not_allowed', manifest, manifestPath, attemptedWamrExecution: false }
+  }
+  if (manifest.runtime.wasmPath !== PACKAGE_WASM_FILE) {
+    return { ok: false, reasonCode: 'manifest_invalid', manifest, manifestPath, attemptedWamrExecution: false }
+  }
+
+  const importedWasmPath = joinSmokePath(importedRoot, manifest.runtime.wasmPath)
+  if (!fs.accessSync(importedWasmPath)) {
+    return { ok: false, reasonCode: 'missing_wasm', manifest, manifestPath, wasmPath: importedWasmPath, attemptedWamrExecution: false }
+  }
+
+  const importedWasmBytes = readBytesSync(importedWasmPath)
+  const importedHash = sha256Hex(importedWasmBytes)
+  const hashOk = importedHash === manifest.runtime.wasmSha256 &&
+    importedWasmBytes.byteLength === manifest.runtime.wasmSizeBytes &&
+    importedWasmBytes.byteLength <= manifest.runtime.maxWasmBytes
+  if (!hashOk) {
+    return {
+      ok: false,
+      reasonCode: 'checksum_mismatch',
+      manifest,
+      manifestPath,
+      wasmPath: importedWasmPath,
+      wasmBytesLength: importedWasmBytes.byteLength,
+      hashOk,
+      attemptedWamrExecution: false,
+    }
+  }
+
+  return {
+    ok: true,
+    manifest,
+    wasmBytes: importedWasmBytes,
+    manifestPath,
+    wasmPath: importedWasmPath,
+    wasmBytesLength: importedWasmBytes.byteLength,
+    hashOk,
+    attemptedWamrExecution: false,
+  }
+}
+
+async function runArchiveNegativeSmokeCases(
+  context: common.UIAbilityContext,
+  resourceMgr: resourceManager.ResourceManager,
+): Promise<ArchiveNegativeSmokeCaseResult[]> {
+  const archiveRoot = joinSmokePath(context.filesDir, 'source-runtime-archive-negative-smoke')
+  ensureDirSync(archiveRoot)
+  const results: ArchiveNegativeSmokeCaseResult[] = []
+  for (let index = 0; index < ARCHIVE_NEGATIVE_CASES.length; index += 1) {
+    const fixture = ARCHIVE_NEGATIVE_CASES[index]
+    const archiveBytes = resourceMgr.getRawFileContentSync(fixture.rawfilePath)
+    const caseRoot = joinSmokePath(archiveRoot, fixture.id)
+    const archivePath = joinSmokePath(caseRoot, `${fixture.id}.zip`)
+    const importedRoot = joinSmokePath(caseRoot, 'imported-package')
+    ensureDirSync(caseRoot)
+    const validated = await validateLocalSourceArchive(archiveBytes, archivePath, importedRoot)
+    const rejected = !validated.ok
+    results.push({
+      id: fixture.id,
+      rawfilePath: fixture.rawfilePath,
+      rejected,
+      reasonCode: validated.reasonCode,
+      expectedReasonCode: fixture.expectedReason,
+      reasonMatchesExpected: rejected && validated.reasonCode === fixture.expectedReason,
+      attemptedWamrExecution: validated.attemptedWamrExecution,
+      rawfileBytes: archiveBytes.byteLength,
+    })
+  }
+  return results
 }
 
 export async function maybeRunSourceRuntimeDeviceSmoke(
@@ -372,42 +628,48 @@ export async function maybeRunSourceRuntimeDeviceSmoke(
     packageRoute: PACKAGE_ROUTE_LABEL,
     archiveRoute: ARCHIVE_ROUTE_LABEL,
     archiveRawfilePath: ARCHIVE_RAWFILE_PATH,
+    archiveNegativeRoute: ARCHIVE_NEGATIVE_ROUTE_LABEL,
   }
 
   try {
     const response = NativeSourceRuntime.runJsonCall(SMOKE_REQUEST_JSON)
-    result.response = response
+    result.responseOk = responseReachedFixture(response)
     let resourceResponse: SourceRuntimeCallResponse | undefined = undefined
+    let rustSourceResponseOk = false
     if (resourceMgr !== undefined) {
       const wasmBytes = resourceMgr.getRawFileContentSync(SMOKE_RAWFILE_PATH)
       result.rawfileBytes = wasmBytes.byteLength
       resourceResponse = NativeSourceRuntime.runJsonCallFromBytes(SMOKE_REQUEST_JSON, wasmBytes)
-      result.resourceResponse = resourceResponse
+      result.resourceResponseOk = responseReachedFixture(resourceResponse)
 
       const rustWasmBytes = resourceMgr.getRawFileContentSync(RUST_SMOKE_RAWFILE_PATH)
       result.rustRawfileBytes = rustWasmBytes.byteLength
-      result.rustSourceResponse = NativeSourceRuntime.runJsonCallFromBytes(RUST_SMOKE_REQUEST_JSON, rustWasmBytes)
+      const rustSourceResponse = NativeSourceRuntime.runJsonCallFromBytes(RUST_SMOKE_REQUEST_JSON, rustWasmBytes)
+      rustSourceResponseOk = responseReachedRustFixture(rustSourceResponse)
+      result.rustSourceResponseOk = rustSourceResponseOk
       if (context !== undefined) {
         stageAndRunLocalSourcePackageSmoke(context, resourceMgr, result)
         await stageImportAndRunLocalSourceArchiveSmoke(context, resourceMgr, result)
+        result.archiveNegativeCases = await runArchiveNegativeSmokeCases(context, resourceMgr)
+        result.archiveNegativeOk = result.archiveNegativeCases.length === ARCHIVE_NEGATIVE_CASES.length &&
+          result.archiveNegativeCases.every((item: ArchiveNegativeSmokeCaseResult) =>
+            item.rejected && item.reasonMatchesExpected && item.attemptedWamrExecution === false)
       }
     }
-    result.ok = responseReachedFixture(response) &&
+    result.ok = result.responseOk === true &&
       resourceResponse !== undefined &&
-      responseReachedFixture(resourceResponse) &&
-      result.rustSourceResponse !== undefined &&
-      responseReachedRustFixture(result.rustSourceResponse) &&
-      result.packageResponse !== undefined &&
-      responseReachedRustFixture(result.packageResponse) &&
+      result.resourceResponseOk === true &&
+      rustSourceResponseOk &&
+      result.packageResponseOk === true &&
       result.packageHashOk === true &&
       result.packageNetwork === false &&
       result.archiveImportOk === true &&
-      result.archiveResponse !== undefined &&
-      responseReachedRustFixture(result.archiveResponse) &&
+      result.archiveResponseOk === true &&
       result.archiveHashOk === true &&
-      result.archiveNetwork === false
+      result.archiveNetwork === false &&
+      result.archiveNegativeOk === true
     if (!result.ok) {
-      result.error = 'WAMR fixture JSON assertion failed for bundled, legacy rawfile, Rust source rawfile, local source package, and local source archive import paths'
+      result.error = 'WAMR fixture JSON assertion failed for bundled, legacy rawfile, Rust source rawfile, local source package, local source archive import, and archive negative rejection paths'
     }
   } catch (error) {
     const e = error as Error
