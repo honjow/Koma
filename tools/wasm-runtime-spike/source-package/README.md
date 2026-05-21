@@ -28,6 +28,10 @@ boundary for future trust gates, see `CANONICAL_SIGNATURE_PAYLOAD_BOUNDARY.md`.
 For the design/tooling-only tamper and checksum-pin mismatch fixture boundary
 for future trust gates, see `TAMPER_CHECKSUM_PIN_BOUNDARY.md`.
 
+For the design/tooling-only signer/key rotation, revocation, expiration, and
+compatibility fixture boundary for future trust gates, see
+`SIGNER_ROTATION_REVOCATION_BOUNDARY.md`.
+
 For the design/tooling-only future source settings, auth, and secret reference
 schema boundary, see `SOURCE_SETTINGS_AUTH_BOUNDARY.md`.
 
@@ -181,6 +185,33 @@ manifest or WASM metadata, unsigned release acceptance, missing or malformed
 signature-block placeholder status, `network=true`, HTTP import drift,
 market/remote/built-in source drift, product runtime/UI drift, diagnostic leaks,
 raw archive/WASM bytes, and validator subprocess/network/executable hook drift.
+
+## Signer Rotation And Revocation Boundary
+
+`signer-rotation-revocation.example.json` defines static future package trust
+decisions for signer/key identity, key rotation, revocation, expiration,
+freshness, and compatibility checks. It stays design/tooling-only and does not
+implement signing, verification, key generation, certificates, trust stores,
+revocation stores, product runtime/UI, network, HTTP, remote install, source
+markets, or built-in sources. `signatureMetadata.realVerificationPerformed`
+must be `false` or absent because this lane must not claim real signature
+verification.
+
+```sh
+python3 tools/wasm-runtime-spike/source-package/validate-signer-rotation-revocation.py \
+  --fixture-dir tools/wasm-runtime-spike/source-package/signer-rotation-fixtures \
+  --artifact-dir /path/to/artifacts/signer-rotation-revocation
+```
+
+The validator writes `signer-rotation-revocation-report.json` under the artifact
+directory. It loads local JSON only and rejects display text used as trust
+identity, signer/key mismatch, unapproved signer change, unapproved key
+rotation, cross-package or stale rotation policy, package id drift, downgrade
+without explicit approval, static revocation hits, expired or not-yet-valid
+metadata, real signature verification claims, ambiguous timestamps,
+incompatible source/host/app bounds, unknown policy versions, `network=true`,
+HTTP import drift, product runtime/UI drift, market/remote/built-in source
+drift, diagnostic leaks, and validator execution drift.
 
 ## Local Archive Boundary
 

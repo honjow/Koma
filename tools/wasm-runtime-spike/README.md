@@ -55,6 +55,14 @@ archive, manifest, WASM, package identity, signer identity, canonical payload,
 signature-block placeholder, scope, diagnostic leak, and validator drift without
 signing, verification, keys, trust stores, product runtime/UI, network, or HTTP.
 
+Signer/key rotation, revocation, expiration, and compatibility fixtures for
+future package trust gates are design/tooling-only and documented in
+`source-package/SIGNER_ROTATION_REVOCATION_BOUNDARY.md`. They statically reject
+identity drift, unapproved rotation, revocation hits, stale or future-dated
+metadata, compatibility drift, closed-runtime drift, diagnostic leak flags, and
+validator execution drift without signing, verification, keys, trust stores,
+product runtime/UI, network, or HTTP.
+
 The spike validates this path on Linux:
 
 ```text
