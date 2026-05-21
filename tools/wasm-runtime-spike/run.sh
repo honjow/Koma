@@ -58,6 +58,7 @@ run_logged clang --target=wasm32 -O2 -nostdlib \
   -Wl,--export=koma_source_init \
   -Wl,--export=koma_source_search \
   -Wl,--export=koma_source_free \
+  -Wl,--allow-undefined \
   -Wl,--export-memory \
   -Wl,--initial-memory=131072 \
   -Wl,--max-memory=131072 \

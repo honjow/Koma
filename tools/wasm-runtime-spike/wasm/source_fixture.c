@@ -1,6 +1,13 @@
 #include <stdint.h>
 
 #define KOMA_MAGIC 0x4B4F4D41u
+#define KOMA_HOST_LOG_INFO 1
+
+__attribute__((import_module("koma_host"), import_name("log")))
+void koma_host_log(uint32_t level, uint32_t message_ptr, uint32_t message_len);
+
+__attribute__((import_module("koma_host"), import_name("check_cancel")))
+int32_t koma_host_check_cancel(void);
 
 extern unsigned char __heap_base;
 static uint32_t bump = 0;
@@ -75,6 +82,11 @@ int32_t add(int32_t a, int32_t b) {
 __attribute__((export_name("koma_source_init")))
 int32_t koma_source_init(uint32_t manifest_ptr, uint32_t manifest_len) {
     (void)manifest_ptr;
+    static const char message[] = "fixture init reached host imports";
+    koma_host_log(KOMA_HOST_LOG_INFO, (uint32_t)(uintptr_t)message, sizeof(message) - 1u);
+    if (koma_host_check_cancel() != 0) {
+        return -2;
+    }
     return manifest_len > 0 ? 0 : -1;
 }
 
@@ -88,8 +100,12 @@ uint32_t koma_source_search(uint32_t req_ptr, uint32_t req_len) {
         return make_result("{\"ok\":false,\"error\":{\"code\":\"BAD_REQUEST\",\"message\":\"expected fixture query\"},\"warnings\":[]}", 0);
     }
 
+    if (koma_host_check_cancel() != 0) {
+        return make_result("{\"ok\":false,\"error\":{\"code\":\"CANCELLED\",\"message\":\"host cancelled\"},\"warnings\":[]}", 0);
+    }
+
     return make_result(
-        "{\"ok\":true,\"data\":{\"requestEcho\":\"fixture\",\"items\":[{\"id\":\"fixture-series-1\",\"title\":\"Fixture Series\",\"subtitle\":\"WAMR ABI spike\",\"cover\":{\"url\":\"https://example.local/covers/fixture.jpg\",\"headersRef\":\"default\"}}],\"nextPage\":null},\"warnings\":[],\"elapsedMs\":0}",
+        "{\"ok\":true,\"data\":{\"requestEcho\":\"fixture\",\"items\":[{\"id\":\"fixture-series-1\",\"title\":\"Fixture Series\",\"subtitle\":\"WAMR ABI spike\",\"cover\":{\"url\":\"https://example.local/covers/fixture.jpg\",\"headersRef\":\"default\"}}],\"nextPage\":null},\"hostHints\":{\"abi\":\"koma-host-v0.1\",\"maxMemoryPages\":2,\"maxPayloadBytes\":1048576,\"network\":false},\"warnings\":[],\"elapsedMs\":0}",
         1);
 }
 

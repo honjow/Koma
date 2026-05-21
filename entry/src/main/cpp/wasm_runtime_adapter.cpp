@@ -1,6 +1,7 @@
 #include "wasm_runtime_adapter.h"
 
 #include <cstdint>
+#include <cstdio>
 #include <cstring>
 #include <stdexcept>
 #include <string>
@@ -11,6 +12,11 @@
 #include "wasm_export.h"
 #endif
 
+#if __has_include(<hilog/log.h>)
+#include <hilog/log.h>
+#define KOMA_HAS_HILOG 1
+#endif
+
 namespace koma {
 namespace {
 
@@ -19,9 +25,12 @@ constexpr uint32_t kRuntimeHeapBytes = 8u * 1024u * 1024u;
 constexpr uint32_t kWasmStackBytes = 64u * 1024u;
 constexpr uint32_t kWasmHeapBytes = 256u * 1024u;
 constexpr uint32_t kMaxPayloadBytes = 1024u * 1024u;
+constexpr uint32_t kMaxHostLogBytes = 1024u;
 constexpr const char *kManifestJson =
     "{\"schemaVersion\":1,\"id\":\"local.example.private\","
     "\"runtime\":\"wasm-v1\",\"entry\":\"source_runtime_fixture.wasm\","
+    "\"host\":{\"abi\":\"koma-host-v0.1\",\"imports\":[\"log\",\"check_cancel\"],"
+    "\"limits\":{\"maxMemoryPages\":2,\"maxPayloadBytes\":1048576,\"network\":false}},"
     "\"contentPolicy\":{\"publicIndex\":false,\"marketplace\":false}}";
 
 std::string EscapeJsonString(const std::string &value)
@@ -76,6 +85,43 @@ std::string ErrorJson(const std::string &code, const std::string &message)
 }
 
 #if defined(KOMA_ENABLE_WAMR)
+
+void HostLog(wasm_exec_env_t execEnv, int32_t level, char *message, uint32_t messageLen)
+{
+    (void)execEnv;
+    const uint32_t safeLen = messageLen > kMaxHostLogBytes ? kMaxHostLogBytes : messageLen;
+    std::string sanitized;
+    sanitized.reserve(safeLen);
+    for (uint32_t i = 0; i < safeLen; i++) {
+        const char ch = message[i];
+        sanitized += (ch >= 0x20 && ch <= 0x7e) ? ch : '?';
+    }
+
+#if defined(KOMA_HAS_HILOG)
+    OH_LOG_Print(LOG_APP, LOG_INFO, 0x0, "KomaSourceRuntime",
+        "HOST_LOG level=%{public}d len=%{public}u message=%{public}s",
+        level, messageLen, sanitized.c_str());
+#else
+    std::fprintf(stderr, "KomaSourceRuntime HOST_LOG level=%d len=%u message=%s\n",
+        level, messageLen, sanitized.c_str());
+#endif
+}
+
+int32_t HostCheckCancel(wasm_exec_env_t execEnv)
+{
+    (void)execEnv;
+#if defined(KOMA_HAS_HILOG)
+    OH_LOG_Print(LOG_APP, LOG_INFO, 0x0, "KomaSourceRuntime", "HOST_CHECK_CANCEL result=0");
+#else
+    std::fprintf(stderr, "KomaSourceRuntime HOST_CHECK_CANCEL result=0\n");
+#endif
+    return 0;
+}
+
+NativeSymbol g_komaHostSymbols[] = {
+    {"log", reinterpret_cast<void *>(HostLog), "(i*~)", nullptr},
+    {"check_cancel", reinterpret_cast<void *>(HostCheckCancel), "()i", nullptr},
+};
 
 uint32_t ReadLeU32(const uint8_t *p)
 {
@@ -144,6 +190,9 @@ public:
         initArgs.mem_alloc_type = Alloc_With_Pool;
         initArgs.mem_alloc_option.pool.heap_buf = heap_.data();
         initArgs.mem_alloc_option.pool.heap_size = static_cast<uint32_t>(heap_.size());
+        initArgs.native_module_name = "koma_host";
+        initArgs.native_symbols = g_komaHostSymbols;
+        initArgs.n_native_symbols = static_cast<uint32_t>(sizeof(g_komaHostSymbols) / sizeof(g_komaHostSymbols[0]));
 
         if (!wasm_runtime_full_init(&initArgs)) {
             throw std::runtime_error("wasm_runtime_full_init failed");

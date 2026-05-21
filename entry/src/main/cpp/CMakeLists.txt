@@ -14,7 +14,7 @@ set(KOMA_SOURCE_RUNTIME_SOURCES
 add_library(koma_source_runtime SHARED ${KOMA_SOURCE_RUNTIME_SOURCES})
 target_compile_features(koma_source_runtime PRIVATE cxx_std_17)
 target_include_directories(koma_source_runtime PRIVATE ${NATIVERENDER_ROOT_PATH})
-target_link_libraries(koma_source_runtime PUBLIC libace_napi.z.so)
+target_link_libraries(koma_source_runtime PUBLIC libace_napi.z.so libhilog_ndk.z.so)
 
 if(DEFINED ENV{WAMR_ROOT_DIR} AND NOT DEFINED WAMR_ROOT_DIR)
     set(WAMR_ROOT_DIR "$ENV{WAMR_ROOT_DIR}")
@@ -45,6 +45,7 @@ if(DEFINED WAMR_ROOT_DIR AND EXISTS "${WAMR_ROOT_DIR}/build-scripts/runtime_lib.
             -Wl,--export=koma_source_init
             -Wl,--export=koma_source_search
             -Wl,--export=koma_source_free
+            -Wl,--allow-undefined
             -Wl,--export-memory
             -Wl,--initial-memory=131072
             -Wl,--max-memory=131072

@@ -15,6 +15,31 @@ constexpr uint32_t kRuntimeHeapBytes = 8u * 1024u * 1024u;
 constexpr uint32_t kWasmStackBytes = 64u * 1024u;
 constexpr uint32_t kWasmHeapBytes = 256u * 1024u;
 constexpr uint32_t kMaxPayloadBytes = 1024u * 1024u;
+constexpr uint32_t kMaxHostLogBytes = 1024u;
+
+void host_log(wasm_exec_env_t exec_env, int32_t level, char *message, uint32_t message_len) {
+    (void)exec_env;
+    const uint32_t safe_len = message_len > kMaxHostLogBytes ? kMaxHostLogBytes : message_len;
+    std::string sanitized;
+    sanitized.reserve(safe_len);
+    for (uint32_t i = 0; i < safe_len; i++) {
+        const char ch = message[i];
+        sanitized += (ch >= 0x20 && ch <= 0x7e) ? ch : '?';
+    }
+    std::cout << "HOST_LOG level=" << level << " len=" << message_len
+              << " message=\"" << sanitized << "\"\n";
+}
+
+int32_t host_check_cancel(wasm_exec_env_t exec_env) {
+    (void)exec_env;
+    std::cout << "HOST_CHECK_CANCEL result=0\n";
+    return 0;
+}
+
+NativeSymbol g_koma_host_symbols[] = {
+    {"log", reinterpret_cast<void *>(host_log), "(i*~)", nullptr},
+    {"check_cancel", reinterpret_cast<void *>(host_check_cancel), "()i", nullptr},
+};
 
 std::vector<uint8_t> read_file(const char *path) {
     std::ifstream in(path, std::ios::binary);
@@ -102,6 +127,10 @@ public:
         init_args.mem_alloc_type = Alloc_With_Pool;
         init_args.mem_alloc_option.pool.heap_buf = heap_.data();
         init_args.mem_alloc_option.pool.heap_size = static_cast<uint32_t>(heap_.size());
+        init_args.native_module_name = "koma_host";
+        init_args.native_symbols = g_koma_host_symbols;
+        init_args.n_native_symbols =
+            static_cast<uint32_t>(sizeof(g_koma_host_symbols) / sizeof(g_koma_host_symbols[0]));
 
         if (!wasm_runtime_full_init(&init_args)) {
             throw std::runtime_error("wasm_runtime_full_init failed");
@@ -187,6 +216,8 @@ public:
         constexpr const char *manifest =
             "{\"schemaVersion\":1,\"id\":\"local.example.private\","
             "\"runtime\":\"wasm-v1\",\"entry\":\"source.wasm\","
+            "\"host\":{\"abi\":\"koma-host-v0.1\",\"imports\":[\"log\",\"check_cancel\"],"
+            "\"limits\":{\"maxMemoryPages\":2,\"maxPayloadBytes\":1048576,\"network\":false}},"
             "\"contentPolicy\":{\"publicIndex\":false,\"marketplace\":false}}";
         const uint32_t manifest_len = static_cast<uint32_t>(std::strlen(manifest));
         uint64_t manifest_ptr =

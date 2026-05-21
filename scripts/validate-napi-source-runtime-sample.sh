@@ -24,7 +24,7 @@ require_file() {
 require_text() {
   local path="$1"
   local pattern="$2"
-  if ! rg -q "$pattern" "$path"; then
+  if ! rg -q -- "$pattern" "$path"; then
     echo "missing pattern '$pattern' in $path" >&2
     exit 1
   fi
@@ -47,12 +47,18 @@ require_text "$cpp_file" 'RunBundledWasmJsonCall'
 
 require_text "$adapter_cpp" 'KOMA_ENABLE_WAMR'
 require_text "$adapter_cpp" 'wasm_runtime_full_init'
+require_text "$adapter_cpp" 'native_module_name = "koma_host"'
+require_text "$adapter_cpp" 'NativeSymbol g_komaHostSymbols'
+require_text "$adapter_cpp" '"log".*HostLog'
+require_text "$adapter_cpp" '"check_cancel".*HostCheckCancel'
 require_text "$adapter_cpp" 'wasm_runtime_load'
 require_text "$adapter_cpp" 'wasm_runtime_module_dup_data'
 require_text "$adapter_cpp" 'koma_source_search'
 require_text "$adapter_cpp" 'koma_source_free'
 require_text "$adapter_cpp" 'kKomaMagic'
 require_text "$adapter_cpp" 'WAMR_NOT_BUILT'
+require_text "$adapter_cpp" 'koma-host-v0.1'
+require_text "$adapter_cpp" 'maxPayloadBytes'
 
 if rg -q 'runtime\\":\\"napi-sample' "$cpp_file" "$adapter_cpp"; then
   echo "runJsonCall still contains the old hardcoded napi-sample response" >&2
@@ -62,6 +68,7 @@ fi
 require_text "$cmake_file" 'wasm-runtime-spike/wasm/source_fixture.c'
 require_text "$cmake_file" 'KOMA_ENABLE_WAMR'
 require_text "$cmake_file" 'WAMR_ROOT_DIR'
+require_text "$cmake_file" '--allow-undefined'
 require_text "$cmake_file" 'WAMR_BUILD_INTERP 1'
 require_text "$cmake_file" 'WAMR_BUILD_AOT 0'
 require_text "$cmake_file" 'WAMR_BUILD_JIT 0'
@@ -111,6 +118,19 @@ fi
 
 if git diff --name-only | rg -q '(^|/)(Aidoku|AidokuRunner|aidoku-rs|source-market|marketplace|plugin-market)'; then
   echo "unexpected source marketplace/plugin/Aidoku-shaped path changed" >&2
+  exit 1
+fi
+
+require_text "tools/wasm-runtime-spike/wasm/source_fixture.c" 'import_module\("koma_host"\)'
+require_text "tools/wasm-runtime-spike/wasm/source_fixture.c" 'import_name\("log"\)'
+require_text "tools/wasm-runtime-spike/wasm/source_fixture.c" 'import_name\("check_cancel"\)'
+require_text "tools/wasm-runtime-spike/host/host_runner.cpp" 'native_module_name = "koma_host"'
+require_text "tools/wasm-runtime-spike/host/host_runner.cpp" 'HOST_LOG'
+require_text "tools/wasm-runtime-spike/host/host_runner.cpp" 'HOST_CHECK_CANCEL'
+
+if git diff --name-only | rg -q '(^|/)(source|sources|market|marketplace|plugin).*(Page|View|Store|Service|Client)\.(ets|ts|cpp)$'; then
+  echo "unexpected source management or marketplace-shaped product changes" >&2
+  git diff --name-only | rg '(^|/)(source|sources|market|marketplace|plugin).*(Page|View|Store|Service|Client)\.(ets|ts|cpp)$' >&2
   exit 1
 fi
 
