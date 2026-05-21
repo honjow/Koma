@@ -11,6 +11,7 @@ adapter_h="entry/src/main/cpp/wasm_runtime_adapter.h"
 wrapper_file="entry/src/main/ets/sourceRuntime/NativeSourceRuntime.ets"
 smoke_file="entry/src/main/ets/sourceRuntime/SourceRuntimeDeviceSmoke.ets"
 source_package_importer_file="entry/src/main/ets/sourceRuntime/SourcePackageImporter.ets"
+source_runtime_runner_file="entry/src/main/ets/sourceRuntime/SourceRuntimeRunner.ets"
 entry_ability_file="entry/src/main/ets/entryability/EntryAbility.ets"
 build_profile="entry/build-profile.json5"
 rawfile_fixture="entry/src/main/resources/rawfile/test/source_runtime_fixture.wasm"
@@ -41,6 +42,7 @@ require_file "$adapter_h"
 require_file "$wrapper_file"
 require_file "$smoke_file"
 require_file "$source_package_importer_file"
+require_file "$source_runtime_runner_file"
 require_file "$entry_ability_file"
 require_file "$rawfile_fixture"
 require_file "$rust_rawfile_fixture"
@@ -96,8 +98,9 @@ require_text "$wrapper_file" 'JSON.parse'
 require_text "$wrapper_file" 'runJsonCallFromBytes'
 
 require_text "$smoke_file" 'maybeRunSourceRuntimeDeviceSmoke'
-require_text "$smoke_file" 'NativeSourceRuntime.runJsonCall'
-require_text "$smoke_file" 'NativeSourceRuntime.runJsonCallFromBytes'
+require_text "$smoke_file" 'runBundledSourceOperation'
+require_text "$smoke_file" 'runSourceOperationFromBytes'
+require_text "$smoke_file" 'runSearchFixtureFromBytes'
 require_text "$smoke_file" 'getRawFileContentSync'
 require_text "$smoke_file" 'test/source_runtime_fixture.wasm'
 require_text "$smoke_file" 'test/rust_source_runtime_fixture.wasm'
@@ -105,7 +108,6 @@ require_text "$smoke_file" '"query":"fixture"'
 require_text "$smoke_file" '"operation":"search"'
 require_text "$smoke_file" 'koma-smoke'
 require_text "$smoke_file" 'koma-rust-smoke'
-require_text "$smoke_file" 'Fixture Series'
 require_text "$smoke_file" 'rustSourceResponse'
 require_text "$smoke_file" 'rustRawfileBytes'
 require_text "$smoke_file" 'KOMA_SOURCE_RUNTIME_SMOKE_RESULT'
@@ -118,6 +120,13 @@ require_text "$smoke_file" 'importArchiveNegativeFixtures'
 require_text "$smoke_file" 'archiveImportOk'
 require_text "$smoke_file" 'archiveResponseOk'
 require_text "$smoke_file" 'archiveImportedWasmPath'
+require_text "$source_runtime_runner_file" 'NativeSourceRuntime.runJsonCall'
+require_text "$source_runtime_runner_file" 'NativeSourceRuntime.runJsonCallFromBytes'
+require_text "$source_runtime_runner_file" 'runSourceOperationFromBytes'
+require_text "$source_runtime_runner_file" 'runSearchFixtureFromBytes'
+require_text "$source_runtime_runner_file" 'responseReachedSearchFixture'
+require_text "$source_runtime_runner_file" 'Fixture Series'
+require_text "$source_runtime_runner_file" '"network":false'
 require_text "$source_package_importer_file" 'zlib.decompressFile'
 require_text "$source_package_importer_file" 'SourceArchiveValidationReason'
 require_text "$source_package_importer_file" 'checksum_mismatch'
@@ -170,6 +179,11 @@ python3 tools/wasm-runtime-spike/source-package/validate-local-source-archive-fi
 
 if rg -q 'NativeSourceRuntime\\.(hello|add)' "$smoke_file"; then
   echo "device smoke route must prove runJsonCall, not hello/add sample methods" >&2
+  exit 1
+fi
+
+if rg -q 'NativeSourceRuntime\\.runJsonCall' "$smoke_file"; then
+  echo "device smoke route must execute through SourceRuntimeRunner, not direct native runtime calls" >&2
   exit 1
 fi
 

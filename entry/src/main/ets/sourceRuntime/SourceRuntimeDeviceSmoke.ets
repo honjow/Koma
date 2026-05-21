@@ -1,6 +1,6 @@
 import { common, Want } from '@kit.AbilityKit'
 import { resourceManager } from '@kit.LocalizationKit'
-import { NativeSourceRuntime, SourceRuntimeCallResponse } from './NativeSourceRuntime'
+import { SourceRuntimeCallResponse } from './NativeSourceRuntime'
 import {
   importArchiveNegativeFixtures,
   importLocalSourceArchive,
@@ -8,6 +8,12 @@ import {
   SourceArchiveNegativeImportResult,
   stageRawfileSourcePackage,
 } from './SourcePackageImporter'
+import {
+  responseReachedFixture,
+  runBundledSourceOperation,
+  runSearchFixtureFromBytes,
+  runSourceOperationFromBytes,
+} from './SourceRuntimeRunner'
 
 const SMOKE_TRIGGER_PARAM: string = 'koma.sourceRuntimeSmoke'
 const SMOKE_TRIGGER_VALUE: string = 'run'
@@ -114,35 +120,10 @@ function hasSmokeTrigger(want: Want): boolean {
   return parameters[SMOKE_TRIGGER_PARAM] === SMOKE_TRIGGER_VALUE
 }
 
-function responseReachedFixture(response: SourceRuntimeCallResponse): boolean {
-  return response.ok === true &&
-    response.data !== undefined &&
-    response.data.requestEcho === 'fixture' &&
-    JSON.stringify(response).includes('Fixture Series')
-}
-
-function responseReachedRustFixture(response: SourceRuntimeCallResponse): boolean {
-  return response.ok === true &&
-    response.operation === 'search' &&
-    response.data !== undefined &&
-    response.data.requestEcho === 'fixture' &&
-    JSON.stringify(response).includes('Fixture Series') &&
-    JSON.stringify(response).includes('"network":false')
-}
-
 function joinSmokePath(parent: string, child: string): string {
   const left = parent.replace(/\\/g, '/').replace(/\/+$/, '')
   const right = child.replace(/\\/g, '/').replace(/^\/+/, '')
   return left.length === 0 ? right : `${left}/${right}`
-}
-
-function firstItemTitle(response: SourceRuntimeCallResponse): string | undefined {
-  const items = response.data?.items
-  if (items === undefined || items.length === 0) {
-    return undefined
-  }
-  const title = items[0]['title']
-  return typeof title === 'string' ? title : undefined
 }
 
 function stageAndRunLocalSourcePackageSmoke(
@@ -151,12 +132,12 @@ function stageAndRunLocalSourcePackageSmoke(
   result: SourceRuntimeSmokeResult,
 ): void {
   const staged = stageRawfileSourcePackage(context, resourceMgr, RUST_SMOKE_RAWFILE_PATH, 'source-runtime-package-smoke')
-  const packageResponse = NativeSourceRuntime.runJsonCallFromBytes(PACKAGE_SMOKE_REQUEST_JSON, staged.wasmBytes)
-  result.packageResponseOk = responseReachedRustFixture(packageResponse)
-  result.packageOperation = packageResponse.operation
-  result.packageRequestEcho = packageResponse.data?.requestEcho
-  result.packageFirstTitle = firstItemTitle(packageResponse)
-  result.packageNetwork = packageResponse.hostHints?.['network'] === false ? false : undefined
+  const packageRun = runSearchFixtureFromBytes(PACKAGE_SMOKE_REQUEST_JSON, staged.wasmBytes)
+  result.packageResponseOk = packageRun.responseOk
+  result.packageOperation = packageRun.operation
+  result.packageRequestEcho = packageRun.requestEcho
+  result.packageFirstTitle = packageRun.firstTitle
+  result.packageNetwork = packageRun.network
   result.packageWasmBytes = staged.wasmBytes.byteLength
   result.packageManifestId = staged.manifest.package.id
   result.packageManifestVersion = staged.manifest.package.version
@@ -182,12 +163,12 @@ async function stageImportAndRunLocalSourceArchiveSmoke(
   }
 
   imported.attemptedWamrExecution = true
-  const archiveResponse = NativeSourceRuntime.runJsonCallFromBytes(ARCHIVE_REQUEST_JSON, imported.wasmBytes)
-  result.archiveResponseOk = responseReachedRustFixture(archiveResponse)
-  result.archiveOperation = archiveResponse.operation
-  result.archiveRequestEcho = archiveResponse.data?.requestEcho
-  result.archiveFirstTitle = firstItemTitle(archiveResponse)
-  result.archiveNetwork = archiveResponse.hostHints?.['network'] === false ? false : undefined
+  const archiveRun = runSearchFixtureFromBytes(ARCHIVE_REQUEST_JSON, imported.wasmBytes)
+  result.archiveResponseOk = archiveRun.responseOk
+  result.archiveOperation = archiveRun.operation
+  result.archiveRequestEcho = archiveRun.requestEcho
+  result.archiveFirstTitle = archiveRun.firstTitle
+  result.archiveNetwork = archiveRun.network
   result.archiveWasmBytes = imported.wasmBytes.byteLength
   result.archiveManifestId = imported.manifest.package.id
   result.archiveManifestVersion = imported.manifest.package.version
@@ -222,20 +203,20 @@ export async function maybeRunSourceRuntimeDeviceSmoke(
   }
 
   try {
-    const response = NativeSourceRuntime.runJsonCall(SMOKE_REQUEST_JSON)
+    const response = runBundledSourceOperation(SMOKE_REQUEST_JSON)
     result.responseOk = responseReachedFixture(response)
     let resourceResponse: SourceRuntimeCallResponse | undefined = undefined
     let rustSourceResponseOk = false
     if (resourceMgr !== undefined) {
       const wasmBytes = resourceMgr.getRawFileContentSync(SMOKE_RAWFILE_PATH)
       result.rawfileBytes = wasmBytes.byteLength
-      resourceResponse = NativeSourceRuntime.runJsonCallFromBytes(SMOKE_REQUEST_JSON, wasmBytes)
+      resourceResponse = runSourceOperationFromBytes(SMOKE_REQUEST_JSON, wasmBytes)
       result.resourceResponseOk = responseReachedFixture(resourceResponse)
 
       const rustWasmBytes = resourceMgr.getRawFileContentSync(RUST_SMOKE_RAWFILE_PATH)
       result.rustRawfileBytes = rustWasmBytes.byteLength
-      const rustSourceResponse = NativeSourceRuntime.runJsonCallFromBytes(RUST_SMOKE_REQUEST_JSON, rustWasmBytes)
-      rustSourceResponseOk = responseReachedRustFixture(rustSourceResponse)
+      const rustSourceRun = runSearchFixtureFromBytes(RUST_SMOKE_REQUEST_JSON, rustWasmBytes)
+      rustSourceResponseOk = rustSourceRun.responseOk
       result.rustSourceResponseOk = rustSourceResponseOk
       if (context !== undefined) {
         stageAndRunLocalSourcePackageSmoke(context, resourceMgr, result)
