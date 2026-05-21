@@ -48,6 +48,13 @@ design/tooling-only and documented in
 deterministic JSON bytes and public metadata bindings without signing,
 verification, keys, trust stores, product runtime/UI, network, or HTTP.
 
+Tamper and checksum-pin mismatch fixtures for future package trust gates are
+design/tooling-only and documented in
+`source-package/TAMPER_CHECKSUM_PIN_BOUNDARY.md`. They statically reject
+archive, manifest, WASM, package identity, signer identity, canonical payload,
+signature-block placeholder, scope, diagnostic leak, and validator drift without
+signing, verification, keys, trust stores, product runtime/UI, network, or HTTP.
+
 The spike validates this path on Linux:
 
 ```text

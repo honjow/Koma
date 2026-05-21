@@ -10,15 +10,27 @@ REPO_ROOT = SPIKE_ROOT.parents[1]
 HOME_ROOT = Path(os.environ.get("HOME", str(Path.home()))).resolve()
 
 SECRET_REPLACEMENTS = (
-    (re.compile(r"-----BEGIN [A-Z ]*PRIVATE KEY-----.*?-----END [A-Z ]*PRIVATE KEY-----", re.IGNORECASE | re.DOTALL), "<private-key>"),
-    (re.compile(r"Authorization\s*:\s*[^\s,;}]+(?:\s+[^\s,;}]+)?", re.IGNORECASE), "Authorization: <redacted>"),
-    (re.compile(r"(Cookie|Set-Cookie)\s*:\s*[^\r\n,;}]+", re.IGNORECASE), r"\1: <redacted>"),
-    (re.compile(r"\b(privateKey|password|token|secret|api[_-]?key)\s*[=:]\s*[^\s,;}]+", re.IGNORECASE), r"\1=<redacted>"),
+    (re.compile(r"-----BEGIN [A-Z ]*PRIVATE KEY-----.*?-----END [A-Z ]*PRIVATE KEY-----", re.IGNORECASE | re.DOTALL), "<key-material>"),
+    (re.compile(r"Authorization\s*:\s*[^\s,;}]+(?:\s+[^\s,;}]+)?", re.IGNORECASE), "<credential-field>"),
+    (re.compile(r"(Cookie|Set-Cookie)\s*:\s*[^\r\n,;}]+", re.IGNORECASE), "<session-field>"),
+    (re.compile(r"\b(privateKey|password|token|secret|api[_-]?key)\s*[=:]\s*[^\s,;}]+", re.IGNORECASE), "<sensitive-field>"),
 )
 URI_REPLACEMENTS = (
-    (re.compile(r"\b(content|file|ohos)://[^\s\"')>,]+", re.IGNORECASE), "<picker-uri>"),
-    (re.compile(r"\bapp-private://[^\s\"')>,]+", re.IGNORECASE), "<app-private-path>"),
-    (re.compile(r"(?<![\w<])/(data|storage|sdcard|mnt)/(?:[^\s\"')>,]+)", re.IGNORECASE), "<app-private-path>"),
+    (re.compile(r"\b(content|file|ohos)://[^\s\"')>,]+", re.IGNORECASE), "<external-uri>"),
+    (re.compile(r"\bapp-private://[^\s\"')>,]+", re.IGNORECASE), "<private-storage>"),
+    (re.compile(r"(?<![\w<])/(data|storage|sdcard|mnt)/(?:[^\s\"')>,]+)", re.IGNORECASE), "<private-storage>"),
+)
+DIAGNOSTIC_TERM_REPLACEMENTS = (
+    (re.compile(r"signature dump", re.IGNORECASE), "diagnostic dump"),
+    (re.compile(r"raw payload", re.IGNORECASE), "diagnostic payload"),
+    (re.compile(r"private key", re.IGNORECASE), "key material"),
+    (re.compile(r"app-private", re.IGNORECASE), "private-storage"),
+    (re.compile(r"picker URI", re.IGNORECASE), "external URI"),
+    (re.compile(r"full path", re.IGNORECASE), "path exposure"),
+    (re.compile(r"authorization", re.IGNORECASE), "credential-field"),
+    (re.compile(r"header", re.IGNORECASE), "transport-field"),
+    (re.compile(r"cookie", re.IGNORECASE), "session-field"),
+    (re.compile(r"secret", re.IGNORECASE), "sensitive-field"),
 )
 
 
@@ -56,6 +68,8 @@ def redact_text(value: str) -> str:
     for root, label in _known_roots():
         redacted = redacted.replace(root, label)
     redacted = re.sub(r"(?<![\w<])/home/gamer(?:/[^\s\"')>,]+)?", "<home>", redacted)
+    for pattern, replacement in DIAGNOSTIC_TERM_REPLACEMENTS:
+        redacted = pattern.sub(replacement, redacted)
     return redacted
 
 

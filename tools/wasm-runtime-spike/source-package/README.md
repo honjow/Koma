@@ -25,6 +25,9 @@ validated by local JSON fixtures, see `TRUST_PROVENANCE_BOUNDARY.md`.
 For the design/tooling-only canonical manifest/signature payload fixture
 boundary for future trust gates, see `CANONICAL_SIGNATURE_PAYLOAD_BOUNDARY.md`.
 
+For the design/tooling-only tamper and checksum-pin mismatch fixture boundary
+for future trust gates, see `TAMPER_CHECKSUM_PIN_BOUNDARY.md`.
+
 For the design/tooling-only future source settings, auth, and secret reference
 schema boundary, see `SOURCE_SETTINGS_AUTH_BOUNDARY.md`.
 
@@ -156,6 +159,28 @@ settings, missing package/archive/manifest/WASM bindings, payload and manifest
 digest mismatch, raw manifest text, `network=true`, HTTP import drift, raw
 key/header/path/signature/byte leaks, product runtime/UI drift, source market,
 remote install, built-in source drift, and executable validator drift.
+
+## Tamper And Checksum Pin Boundary
+
+`tamper-checksum-pin.example.json` makes future fail-closed behavior concrete
+for archive, manifest, WASM, package id/version, signer id/key id, canonical
+payload, and signature-block status mismatches. It stays static and does not
+implement signing, verification, key generation, certificates, trust stores,
+product ingestion, product runtime/UI, network, HTTP, or WebView behavior.
+
+```sh
+python3 tools/wasm-runtime-spike/source-package/validate-tamper-checksum-pin.py \
+  --fixture-dir tools/wasm-runtime-spike/source-package/tamper-checksum-fixtures \
+  --artifact-dir /path/to/artifacts/tamper-checksum-pin
+```
+
+The validator writes `tamper-checksum-pin-report.json` under the artifact
+directory. It loads local JSON only, uses stdlib hashing only for fixture
+consistency, rejects checksum/signature/payload/identity mismatch, stale
+manifest or WASM metadata, unsigned release acceptance, missing or malformed
+signature-block placeholder status, `network=true`, HTTP import drift,
+market/remote/built-in source drift, product runtime/UI drift, diagnostic leaks,
+raw archive/WASM bytes, and validator subprocess/network/executable hook drift.
 
 ## Local Archive Boundary
 

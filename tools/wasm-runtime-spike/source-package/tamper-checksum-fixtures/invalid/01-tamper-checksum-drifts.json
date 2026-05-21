@@ -1,0 +1,376 @@
+{
+  "cases": [
+    {
+      "case": "archive-digest-mismatch",
+      "expectRejectContains": "archive digest mismatch",
+      "mutations": [
+        {
+          "path": "expectedTrust.checksumPins.archiveSha256",
+          "value": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+        }
+      ]
+    },
+    {
+      "case": "archive-size-mismatch",
+      "expectRejectContains": "archive size mismatch",
+      "mutations": [
+        {
+          "path": "expectedTrust.checksumPins.archiveSizeBytes",
+          "value": 40961
+        }
+      ]
+    },
+    {
+      "case": "manifest-digest-mismatch",
+      "expectRejectContains": "manifest digest mismatch",
+      "mutations": [
+        {
+          "path": "observedPackage.manifest.sha256",
+          "value": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"
+        }
+      ]
+    },
+    {
+      "case": "manifest-size-mismatch",
+      "expectRejectContains": "manifest size mismatch",
+      "mutations": [
+        {
+          "path": "observedPackage.manifest.sizeBytes",
+          "value": 465
+        }
+      ]
+    },
+    {
+      "case": "wasm-digest-mismatch",
+      "expectRejectContains": "wasm digest mismatch",
+      "mutations": [
+        {
+          "path": "expectedTrust.checksumPins.wasmSha256",
+          "value": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+        }
+      ]
+    },
+    {
+      "case": "wasm-size-mismatch",
+      "expectRejectContains": "wasm size mismatch",
+      "mutations": [
+        {
+          "path": "expectedTrust.checksumPins.wasmSizeBytes",
+          "value": 2049
+        }
+      ]
+    },
+    {
+      "case": "canonical-payload-digest-mismatch",
+      "expectRejectContains": "canonical payload digest mismatch",
+      "mutations": [
+        {
+          "path": "expectedTrust.canonicalPayloadSha256",
+          "value": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+        }
+      ]
+    },
+    {
+      "case": "package-id-mismatch",
+      "expectRejectContains": "package id mismatch",
+      "mutations": [
+        {
+          "path": "expectedTrust.package.id",
+          "value": "koma.local.other-package"
+        }
+      ]
+    },
+    {
+      "case": "package-version-mismatch",
+      "expectRejectContains": "package version mismatch",
+      "mutations": [
+        {
+          "path": "expectedTrust.package.version",
+          "value": "0.2.0"
+        }
+      ]
+    },
+    {
+      "case": "signer-id-mismatch",
+      "expectRejectContains": "signer id mismatch",
+      "mutations": [
+        {
+          "path": "expectedTrust.signer.signerId",
+          "value": "signer:other"
+        }
+      ]
+    },
+    {
+      "case": "key-id-mismatch",
+      "expectRejectContains": "key id mismatch",
+      "mutations": [
+        {
+          "path": "expectedTrust.signer.keyId",
+          "value": "key:other-v1"
+        }
+      ]
+    },
+    {
+      "case": "malformed-signature-block",
+      "expectRejectContains": "signatureBlock.malformed must be false",
+      "mutations": [
+        {
+          "path": "signatureBlock.malformed",
+          "value": true
+        }
+      ]
+    },
+    {
+      "case": "tampered-signature-block",
+      "expectRejectContains": "signatureBlock.tampered must be false",
+      "mutations": [
+        {
+          "path": "signatureBlock.tampered",
+          "value": true
+        }
+      ]
+    },
+    {
+      "case": "missing-signature-block-in-signature-pinned-mode",
+      "expectRejectContains": "signatureBlock.present must be true",
+      "mutations": [
+        {
+          "path": "signatureBlock.present",
+          "value": false
+        }
+      ]
+    },
+    {
+      "case": "unsigned-package-release-signature-pinned-mode",
+      "expectRejectContains": "signatureBlock.unsigned must be false",
+      "mutations": [
+        {
+          "path": "signatureBlock.unsigned",
+          "value": true
+        }
+      ]
+    },
+    {
+      "case": "unsigned-release-accepted",
+      "expectRejectContains": "releasePolicy.allowUnsignedRelease must be false",
+      "mutations": [
+        {
+          "path": "releasePolicy.allowUnsignedRelease",
+          "value": true
+        }
+      ]
+    },
+    {
+      "case": "checksum-pinned-mode-missing-expected-checksum",
+      "expectRejectContains": "checksum-pinned mode missing expected checksum",
+      "mutations": [
+        {
+          "path": "expectedTrust.mode",
+          "value": "private-checksum-pin"
+        },
+        {
+          "path": "expectedTrust.checksumPins.archiveSha256",
+          "action": "remove"
+        },
+        {
+          "path": "expectedTrust.checksumPins.wasmSha256",
+          "action": "remove"
+        }
+      ]
+    },
+    {
+      "case": "stale-manifest-bytes-after-mutation",
+      "expectRejectContains": "manifest digest mismatch",
+      "mutations": [
+        {
+          "path": "manifestModel.package.version",
+          "value": "0.1.1"
+        }
+      ]
+    },
+    {
+      "case": "stale-wasm-bytes-after-mutation",
+      "expectRejectContains": "wasm digest mismatch",
+      "mutations": [
+        {
+          "path": "canonicalSignedPayloadModel.wasm.sha256",
+          "value": "9999999999999999999999999999999999999999999999999999999999999999"
+        }
+      ]
+    },
+    {
+      "case": "network-true",
+      "expectRejectContains": "canonicalSignedPayloadModel.runtime.network must be false",
+      "mutations": [
+        {
+          "path": "canonicalSignedPayloadModel.runtime.network",
+          "value": true
+        }
+      ]
+    },
+    {
+      "case": "http-host-import-drift",
+      "expectRejectContains": "hostImports must be exactly",
+      "mutations": [
+        {
+          "path": "canonicalSignedPayloadModel.runtime.hostImports",
+          "value": [
+            "koma_host.log",
+            "koma_host.check_cancel",
+            "koma_host.http_request"
+          ]
+        }
+      ]
+    },
+    {
+      "case": "source-market-drift",
+      "expectRejectContains": "scope.sourceMarket must be false",
+      "mutations": [
+        {
+          "path": "scope.sourceMarket",
+          "value": true
+        }
+      ]
+    },
+    {
+      "case": "public-index-drift",
+      "expectRejectContains": "scope.publicIndex must be false",
+      "mutations": [
+        {
+          "path": "scope.publicIndex",
+          "value": true
+        }
+      ]
+    },
+    {
+      "case": "remote-install-drift",
+      "expectRejectContains": "scope.remoteInstall must be false",
+      "mutations": [
+        {
+          "path": "scope.remoteInstall",
+          "value": true
+        }
+      ]
+    },
+    {
+      "case": "built-in-source-drift",
+      "expectRejectContains": "scope.builtInSources must be false",
+      "mutations": [
+        {
+          "path": "scope.builtInSources",
+          "value": true
+        }
+      ]
+    },
+    {
+      "case": "product-runtime-enabled",
+      "expectRejectContains": "productRuntime must be false",
+      "mutations": [
+        {
+          "path": "productRuntime",
+          "value": true
+        }
+      ]
+    },
+    {
+      "case": "product-ui-enabled",
+      "expectRejectContains": "productUi must be false",
+      "mutations": [
+        {
+          "path": "productUi",
+          "value": true
+        }
+      ]
+    },
+    {
+      "case": "raw-private-key-diagnostic-leak",
+      "expectRejectContains": "forbidden sensitive value",
+      "mutations": [
+        {
+          "path": "diagnostics.example",
+          "value": "-----BEGIN PRIVATE KEY-----"
+        }
+      ]
+    },
+    {
+      "case": "raw-signature-dump-field",
+      "expectRejectContains": "forbidden sensitive field",
+      "mutations": [
+        {
+          "path": "diagnostics.rawSignatureDump",
+          "value": "MEUCIQDfixtureNotRealButStillRawMaterial"
+        }
+      ]
+    },
+    {
+      "case": "authorization-header-leak",
+      "expectRejectContains": "forbidden sensitive value",
+      "mutations": [
+        {
+          "path": "diagnostics.example",
+          "value": "Authorization: Bearer abc.def.ghi"
+        }
+      ]
+    },
+    {
+      "case": "raw-local-path-leak",
+      "expectRejectContains": "forbidden sensitive value",
+      "mutations": [
+        {
+          "path": "diagnostics.example",
+          "value": "/home/example/package.koma-source.zip"
+        }
+      ]
+    },
+    {
+      "case": "raw-archive-bytes-included",
+      "expectRejectContains": "forbidden sensitive field",
+      "mutations": [
+        {
+          "path": "observedPackage.archiveBytes",
+          "value": "UEsDBAoAAAAAA"
+        }
+      ]
+    },
+    {
+      "case": "raw-wasm-bytes-included",
+      "expectRejectContains": "forbidden sensitive field",
+      "mutations": [
+        {
+          "path": "observedPackage.wasmBytes",
+          "value": "AGFzbQEAAA"
+        }
+      ]
+    },
+    {
+      "case": "validator-subprocess-drift",
+      "expectRejectContains": "validatorDrift.subprocess must be false",
+      "mutations": [
+        {
+          "path": "validatorDrift.subprocess",
+          "value": true
+        }
+      ]
+    },
+    {
+      "case": "validator-network-drift",
+      "expectRejectContains": "validatorDrift.network must be false",
+      "mutations": [
+        {
+          "path": "validatorDrift.network",
+          "value": true
+        }
+      ]
+    },
+    {
+      "case": "validator-executable-hook-drift",
+      "expectRejectContains": "validatorDrift.executableHook must be false",
+      "mutations": [
+        {
+          "path": "validatorDrift.executableHook",
+          "value": true
+        }
+      ]
+    }
+  ]
+}
