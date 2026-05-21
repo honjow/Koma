@@ -68,6 +68,38 @@ path, and gate results for `packageId`, `hostAbi=koma-host-v0.1`,
 `network=false`, exact `koma_host.log`/`koma_host.check_cancel` imports, wasm
 hash/size, and disabled public index/marketplace/built-in/remote-install flags.
 
+## Local Archive Boundary
+
+`package-source-archive.py` turns the SDK-backed generated package into a local
+artifact-only archive for future import/install research. The archive is still a
+tooling fixture, not app install behavior, runtime loading from zip, remote sync,
+or a source market.
+
+By default the script first runs `build-rust-sdk-source-package.py`, then stages
+a self-contained package under the artifact directory and writes a
+`.koma-source.zip` containing:
+
+- `manifest.generated.json`
+- `wasm/rust_source_fixture.wasm`
+- `icon.placeholder.txt` when the generated manifest declares the icon
+
+The archived manifest keeps the generated wasm sha256 and rewrites only the wasm
+path to the package-local `wasm/rust_source_fixture.wasm`. The validator then
+checks the zip boundary for expected entries only, duplicate names, absolute
+paths, path traversal, symlinks, hidden/generated build directories, oversized
+files, manifest parseability, wasm sha256/size, `network=false`,
+`hostAbi=koma-host-v0.1`, exact `koma_host.log`/`koma_host.check_cancel` host
+imports, and disabled public index/marketplace/built-in/remote-install flags.
+
+```sh
+python3 tools/wasm-runtime-spike/source-package/package-source-archive.py \
+  --artifact-dir /path/to/artifacts/source-package-archive
+```
+
+The script writes `source-package-archive-report.json` under the artifact
+directory. The generated archive, staged package, extracted files, logs, wasm,
+and reports are all artifact outputs and should stay out of git.
+
 Future HTTP/network source capability is tracked separately in
 `../host-imports/http-boundary.md`. That boundary is design-only: its sample
 manifest uses `network=true` and `koma_host.http_request` only to validate a
