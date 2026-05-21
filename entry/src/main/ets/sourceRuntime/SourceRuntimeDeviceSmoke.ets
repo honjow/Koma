@@ -5,8 +5,10 @@ import { NativeSourceRuntime, SourceRuntimeCallResponse } from './NativeSourceRu
 const SMOKE_TRIGGER_PARAM: string = 'koma.sourceRuntimeSmoke'
 const SMOKE_TRIGGER_VALUE: string = 'run'
 const SMOKE_REQUEST_JSON: string = '{"query":"fixture","smoke":"koma-smoke"}'
+const RUST_SMOKE_REQUEST_JSON: string = '{"operation":"search","query":"fixture","smoke":"koma-rust-smoke"}'
 const SMOKE_LOG_PREFIX: string = 'KOMA_SOURCE_RUNTIME_SMOKE_RESULT '
 const SMOKE_RAWFILE_PATH: string = 'test/source_runtime_fixture.wasm'
+const RUST_SMOKE_RAWFILE_PATH: string = 'test/rust_source_runtime_fixture.wasm'
 
 type WantParameterValue = Object | string | number | boolean | null | undefined
 type WantParameters = Record<string, WantParameterValue>
@@ -17,8 +19,12 @@ export interface SourceRuntimeSmokeResult {
   requestJson: string
   rawfilePath?: string
   rawfileBytes?: number
+  rustRequestJson?: string
+  rustRawfilePath?: string
+  rustRawfileBytes?: number
   response?: SourceRuntimeCallResponse
   resourceResponse?: SourceRuntimeCallResponse
+  rustSourceResponse?: SourceRuntimeCallResponse
   error?: string
 }
 
@@ -39,6 +45,15 @@ function responseReachedFixture(response: SourceRuntimeCallResponse): boolean {
     JSON.stringify(response).includes('Fixture Series')
 }
 
+function responseReachedRustFixture(response: SourceRuntimeCallResponse): boolean {
+  return response.ok === true &&
+    response.operation === 'search' &&
+    response.data !== undefined &&
+    response.data.requestEcho === 'fixture' &&
+    JSON.stringify(response).includes('Fixture Series') &&
+    JSON.stringify(response).includes('"network":false')
+}
+
 export function maybeRunSourceRuntimeDeviceSmoke(want: Want, resourceMgr?: resourceManager.ResourceManager): void {
   if (!hasSmokeTrigger(want)) {
     return
@@ -49,6 +64,8 @@ export function maybeRunSourceRuntimeDeviceSmoke(want: Want, resourceMgr?: resou
     route: 'entryability-want-test-only',
     requestJson: SMOKE_REQUEST_JSON,
     rawfilePath: SMOKE_RAWFILE_PATH,
+    rustRequestJson: RUST_SMOKE_REQUEST_JSON,
+    rustRawfilePath: RUST_SMOKE_RAWFILE_PATH,
   }
 
   try {
@@ -60,12 +77,18 @@ export function maybeRunSourceRuntimeDeviceSmoke(want: Want, resourceMgr?: resou
       result.rawfileBytes = wasmBytes.byteLength
       resourceResponse = NativeSourceRuntime.runJsonCallFromBytes(SMOKE_REQUEST_JSON, wasmBytes)
       result.resourceResponse = resourceResponse
+
+      const rustWasmBytes = resourceMgr.getRawFileContentSync(RUST_SMOKE_RAWFILE_PATH)
+      result.rustRawfileBytes = rustWasmBytes.byteLength
+      result.rustSourceResponse = NativeSourceRuntime.runJsonCallFromBytes(RUST_SMOKE_REQUEST_JSON, rustWasmBytes)
     }
     result.ok = responseReachedFixture(response) &&
       resourceResponse !== undefined &&
-      responseReachedFixture(resourceResponse)
+      responseReachedFixture(resourceResponse) &&
+      result.rustSourceResponse !== undefined &&
+      responseReachedRustFixture(result.rustSourceResponse)
     if (!result.ok) {
-      result.error = 'WAMR fixture JSON assertion failed for bundled and rawfile byte paths'
+      result.error = 'WAMR fixture JSON assertion failed for bundled, legacy rawfile, and Rust source rawfile paths'
     }
   } catch (error) {
     const e = error as Error

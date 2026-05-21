@@ -13,6 +13,7 @@ smoke_file="entry/src/main/ets/sourceRuntime/SourceRuntimeDeviceSmoke.ets"
 entry_ability_file="entry/src/main/ets/entryability/EntryAbility.ets"
 build_profile="entry/build-profile.json5"
 rawfile_fixture="entry/src/main/resources/rawfile/test/source_runtime_fixture.wasm"
+rust_rawfile_fixture="entry/src/main/resources/rawfile/test/rust_source_runtime_fixture.wasm"
 
 require_file() {
   local path="$1"
@@ -39,6 +40,7 @@ require_file "$wrapper_file"
 require_file "$smoke_file"
 require_file "$entry_ability_file"
 require_file "$rawfile_fixture"
+require_file "$rust_rawfile_fixture"
 
 require_text "$cpp_file" '#include <napi/native_api.h>'
 require_text "$cpp_file" 'napi_module_register'
@@ -94,9 +96,14 @@ require_text "$smoke_file" 'NativeSourceRuntime.runJsonCall'
 require_text "$smoke_file" 'NativeSourceRuntime.runJsonCallFromBytes'
 require_text "$smoke_file" 'getRawFileContentSync'
 require_text "$smoke_file" 'test/source_runtime_fixture.wasm'
+require_text "$smoke_file" 'test/rust_source_runtime_fixture.wasm'
 require_text "$smoke_file" '"query":"fixture"'
+require_text "$smoke_file" '"operation":"search"'
 require_text "$smoke_file" 'koma-smoke'
+require_text "$smoke_file" 'koma-rust-smoke'
 require_text "$smoke_file" 'Fixture Series'
+require_text "$smoke_file" 'rustSourceResponse'
+require_text "$smoke_file" 'rustRawfileBytes'
 require_text "$smoke_file" 'KOMA_SOURCE_RUNTIME_SMOKE_RESULT'
 require_text "$smoke_file" 'entryability-want-test-only'
 require_text "$entry_ability_file" 'maybeRunSourceRuntimeDeviceSmoke'
@@ -115,6 +122,25 @@ if (( rawfile_size <= 0 || rawfile_size > 4096 )); then
 fi
 if ! strings "$rawfile_fixture" | rg -q 'Fixture Series|fixture init reached host imports'; then
   echo "rawfile wasm fixture does not contain expected test fixture evidence" >&2
+  exit 1
+fi
+
+rust_rawfile_magic="$(od -An -tx1 -N8 "$rust_rawfile_fixture" | tr -d ' \n')"
+if [[ "$rust_rawfile_magic" != "0061736d01000000" ]]; then
+  echo "rust rawfile wasm fixture does not start with wasm magic/version: $rust_rawfile_magic" >&2
+  exit 1
+fi
+rust_rawfile_size="$(wc -c < "$rust_rawfile_fixture" | tr -d ' ')"
+if (( rust_rawfile_size <= 0 || rust_rawfile_size > 131072 )); then
+  echo "rust rawfile wasm fixture must stay inside the source-package maxWasmBytes test boundary, got ${rust_rawfile_size} bytes" >&2
+  exit 1
+fi
+if ! strings "$rust_rawfile_fixture" | rg -q 'Rust WAMR runtime smoke|rust fixture init reached host imports'; then
+  echo "rust rawfile wasm fixture does not contain expected Rust fixture evidence" >&2
+  exit 1
+fi
+if ! strings "$rust_rawfile_fixture" | rg -q '"requestEcho":"fixture"'; then
+  echo "rust rawfile wasm fixture does not contain requestEcho fixture evidence" >&2
   exit 1
 fi
 

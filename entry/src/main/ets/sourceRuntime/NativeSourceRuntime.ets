@@ -13,13 +13,18 @@ export type SourceRuntimeCallRequest = Record<string, Object | string | number |
 
 export interface SourceRuntimeFixtureData {
   requestEcho?: string;
+  items?: Array<Record<string, Object | string | number | boolean | null>>;
 }
 
 export interface SourceRuntimeCallResponse {
   ok: boolean;
   runtime?: string;
+  type?: string;
+  version?: number;
+  operation?: string;
   requestEcho?: string;
   data?: SourceRuntimeFixtureData;
+  hostHints?: Record<string, Object | string | number | boolean | null>;
 }
 
 export class NativeSourceRuntime {

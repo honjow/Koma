@@ -186,6 +186,7 @@ for name in expected:
     assert "data" in payload
     assert payload["hostHints"]["network"] is False
 assert payloads["search"]["data"]["items"][0]["title"] == "Fixture Series"
+assert payloads["search"]["data"]["requestEcho"] == "fixture"
 with open(json_out, "w", encoding="utf-8") as out:
     json.dump(payloads, out, indent=2, sort_keys=True)
     out.write("\n")
