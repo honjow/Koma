@@ -5,6 +5,7 @@
     { "name": "koma_card", "value": "#1B1D1C" },
     { "name": "koma_text_primary", "value": "#F1F3F1" },
     { "name": "koma_text_secondary", "value": "#A8AEA9" },
-    { "name": "koma_accent", "value": "#5CC8A8" }
+    { "name": "koma_accent", "value": "#5CC8A8" },
+    { "name": "koma_danger", "value": "#F2B8B5" }
   ]
 }

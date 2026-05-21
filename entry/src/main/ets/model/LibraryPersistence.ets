@@ -1,6 +1,7 @@
 import {
   Chapter,
   Comic,
+  ComicId,
   ComicSourceKind,
   Page,
   ReadingDirection,
@@ -392,6 +393,16 @@ export class LibraryStorePersistenceService {
   }
 }
 
+export function isRemovableLocalComic(comic: Comic | undefined): boolean {
+  if (comic === undefined) {
+    return false
+  }
+  if (comic.sourcePath.startsWith('mock://')) {
+    return false
+  }
+  return comic.sourceKind === ComicSourceKind.LOCAL_ARCHIVE || comic.sourceKind === ComicSourceKind.LOCAL_FOLDER
+}
+
 export function upsertComicAndPersistLibraryStore(
   libraryStore: LibraryStore,
   persistenceService: LibraryStorePersistenceService,
@@ -401,6 +412,26 @@ export function upsertComicAndPersistLibraryStore(
   libraryStore.upsertComic(comic)
   try {
     persistenceService.persist()
+  } catch (error) {
+    hydrateLibraryStoreFromJson(libraryStore, previousPayload)
+    throw error as Error
+  }
+}
+
+export function removeComicAndPersistLibraryStore(
+  libraryStore: LibraryStore,
+  persistenceService: LibraryStorePersistenceService,
+  comicId: ComicId
+): boolean {
+  const comic = libraryStore.getComic(comicId)
+  if (!isRemovableLocalComic(comic)) {
+    return false
+  }
+  const previousPayload = serializeLibraryStore(libraryStore)
+  libraryStore.removeComic(comicId)
+  try {
+    persistenceService.persist()
+    return true
   } catch (error) {
     hydrateLibraryStoreFromJson(libraryStore, previousPayload)
     throw error as Error

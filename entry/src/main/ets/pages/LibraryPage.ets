@@ -9,6 +9,7 @@ import {
 } from '../model/MockLibraryData'
 import { ComicId } from '../model/ComicModels'
 import { LibraryStore } from '../model/LibraryStore'
+import { isRemovableLocalComic } from '../model/LibraryPersistence'
 import { InMemoryReaderSessionStore, ReaderSessionStore } from '../model/ReaderSessionStore'
 
 @Component
@@ -19,6 +20,7 @@ export struct LibraryPage {
   sessionStore: ReaderSessionStore = new InMemoryReaderSessionStore()
   onOpenReader: (comicId: ComicId) => void = (_comicId: ComicId) => {}
   onImportRequested: () => void = () => {}
+  onRemoveComicRequested: (comicId: ComicId) => void = (_comicId: ComicId) => {}
 
   private viewModel(): LibraryViewModel {
     return createLibraryViewModelFromStores(this.libraryStore, this.sessionStore, this.presentationByComicId)
@@ -26,6 +28,45 @@ export struct LibraryPage {
 
   private hasLibraryContent(): boolean {
     return this.libraryRevision >= 0 && this.libraryStore.listComics().length > 0
+  }
+
+  private canRemoveComic(comicId: ComicId): boolean {
+    return this.libraryRevision >= 0 && isRemovableLocalComic(this.libraryStore.getComic(comicId))
+  }
+
+  private showRemoveConfirmation(comic: ComicCoverInfo): void {
+    if (!this.canRemoveComic(comic.id)) {
+      return
+    }
+    this.getUIContext().showAlertDialog({
+      title: '移出书架',
+      message: `从书架中移出《${comic.title}》？`,
+      autoCancel: true,
+      primaryButton: {
+        value: '取消',
+        action: () => {},
+      },
+      secondaryButton: {
+        value: '移出',
+        fontColor: $r('app.color.koma_danger'),
+        action: () => {
+          this.onRemoveComicRequested(comic.id)
+        },
+      },
+    })
+  }
+
+  @Builder
+  private ComicActionMenu(comic: ComicCoverInfo) {
+    Menu() {
+      if (this.canRemoveComic(comic.id)) {
+        MenuItem({ content: '移出书架' })
+          .contentFontColor($r('app.color.koma_danger'))
+          .onClick(() => {
+            this.showRemoveConfirmation(comic)
+          })
+      }
+    }
   }
 
   @Builder
@@ -109,10 +150,31 @@ export struct LibraryPage {
     Grid() {
       ForEach(comics, (comic: ComicCoverInfo) => {
         GridItem() {
-          ComicCoverCard({ comic: comic })
-            .onClick(() => {
-              this.onOpenReader(comic.id)
-            })
+          Stack({ alignContent: Alignment.TopEnd }) {
+            if (this.canRemoveComic(comic.id)) {
+              ComicCoverCard({ comic: comic })
+                .onClick(() => {
+                  this.onOpenReader(comic.id)
+                })
+                .bindContextMenu(this.ComicActionMenu(comic), ResponseType.LongPress)
+
+              Button('…')
+                .width(32)
+                .height(32)
+                .borderRadius(8)
+                .fontSize(20)
+                .fontColor($r('app.color.koma_text_primary'))
+                .backgroundColor($r('app.color.koma_card'))
+                .margin({ top: 8, right: 8 })
+                .bindMenu(this.ComicActionMenu(comic))
+            } else {
+              ComicCoverCard({ comic: comic })
+                .onClick(() => {
+                  this.onOpenReader(comic.id)
+                })
+            }
+          }
+          .width('100%')
         }
       }, (comic: ComicCoverInfo) => comic.id)
     }

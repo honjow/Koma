@@ -96,6 +96,8 @@ assertExport(libraryPersistenceSource, 'LibraryStorePersistenceAdapter')
 assertExport(libraryPersistenceSource, 'AppFilesLibraryStorePersistenceAdapter')
 assertExport(libraryPersistenceSource, 'LibraryStorePersistenceService')
 assertExport(libraryPersistenceSource, 'upsertComicAndPersistLibraryStore')
+assertExport(libraryPersistenceSource, 'isRemovableLocalComic')
+assertExport(libraryPersistenceSource, 'removeComicAndPersistLibraryStore')
 
 assert.match(
   libraryPersistenceSource,
@@ -131,6 +133,16 @@ assert.match(
   libraryPersistenceSource,
   /export function upsertComicAndPersistLibraryStore[\s\S]*const previousPayload = serializeLibraryStore\(libraryStore\)[\s\S]*libraryStore\.upsertComic\(comic\)[\s\S]*persistenceService\.persist\(\)[\s\S]*hydrateLibraryStoreFromJson\(libraryStore, previousPayload\)[\s\S]*throw error/,
   'save-after-upsert helper must rollback the live store and rethrow when persistence fails',
+)
+assert.match(
+  libraryPersistenceSource,
+  /export function isRemovableLocalComic[\s\S]*comic\.sourcePath\.startsWith\('mock:\/\/'\)[\s\S]*ComicSourceKind\.LOCAL_ARCHIVE[\s\S]*ComicSourceKind\.LOCAL_FOLDER/,
+  'remove affordance must exclude seed/demo rows and only allow local archive/folder comics',
+)
+assert.match(
+  libraryPersistenceSource,
+  /export function removeComicAndPersistLibraryStore[\s\S]*const comic = libraryStore\.getComic\(comicId\)[\s\S]*if \(!isRemovableLocalComic\(comic\)\) \{[\s\S]*return false[\s\S]*const previousPayload = serializeLibraryStore\(libraryStore\)[\s\S]*libraryStore\.removeComic\(comicId\)[\s\S]*persistenceService\.persist\(\)[\s\S]*hydrateLibraryStoreFromJson\(libraryStore, previousPayload\)[\s\S]*throw error/,
+  'save-after-remove helper must no-op missing or protected rows and rollback the live store when persistence fails',
 )
 
 const comic = {
@@ -352,6 +364,9 @@ function createSeededStore() {
     },
     getComic(comicId) {
       return comics.get(comicId)
+    },
+    removeComic(comicId) {
+      comics.delete(comicId)
     },
   }
 }
@@ -629,6 +644,28 @@ function upsertComicAndPersistLibraryStore(store, persistenceService, comic) {
   store.upsertComic(comic)
   try {
     persistenceService.persist()
+  } catch (error) {
+    hydrateLibraryStoreFromJson(store, previousPayload)
+    throw error
+  }
+}
+
+function isRemovableLocalComic(comic) {
+  if (comic === undefined) return false
+  if (comic.sourcePath.startsWith('mock://')) return false
+  return comic.sourceKind === 'local_archive' || comic.sourceKind === 'local_folder'
+}
+
+function removeComicAndPersistLibraryStore(store, persistenceService, comicId) {
+  const comic = store.getComic(comicId)
+  if (!isRemovableLocalComic(comic)) {
+    return false
+  }
+  const previousPayload = serializeLibraryStore(store)
+  store.removeComic(comicId)
+  try {
+    persistenceService.persist()
+    return true
   } catch (error) {
     hydrateLibraryStoreFromJson(store, previousPayload)
     throw error
@@ -974,5 +1011,59 @@ assert.deepEqual(
   'save failure during import persistence must rollback the in-memory upsert',
 )
 assert.equal(throwingSaveStore.getComic('imported-01'), undefined, 'failed import must not remain visible in the live shelf store')
+
+assert.equal(isRemovableLocalComic(importedComic), true, 'imported local archive comics should be removable')
+assert.equal(isRemovableLocalComic(seededStore.getComic('local-01')), false, 'seed/demo comics must not be removable')
+assert.equal(isRemovableLocalComic({ ...importedComic, sourceKind: 'private_library' }), false, 'private library comics must not be removed by the local shelf action')
+assert.equal(isRemovableLocalComic(undefined), false, 'missing comics must not be removable')
+
+const removeStore = createSeededStore()
+removeStore.upsertComic(importedComic)
+const removeAdapter = new MemoryLibraryStorePersistenceAdapter(undefined)
+const removeService = new LibraryStorePersistenceService(removeStore, removeAdapter)
+assert.equal(removeComicAndPersistLibraryStore(removeStore, removeService, 'imported-01'), true, 'removing an imported local comic should report success')
+assert.equal(removeStore.getComic('imported-01'), undefined, 'removed imported comic must leave the live shelf store')
+assert.equal(removeAdapter.savedPayloads.length, 1, 'successful remove must persist exactly once')
+assert.equal(
+  JSON.parse(removeAdapter.savedPayloads[0]).comics.some((item) => item.id === 'imported-01'),
+  false,
+  'saved library payload must omit the removed comic',
+)
+const removeRestoredStore = createSeededStore()
+hydrateLibraryStoreFromJson(removeRestoredStore, removeAdapter.savedPayloads[0])
+assert.equal(removeRestoredStore.getComic('imported-01'), undefined, 'restore after remove must keep the comic absent')
+
+const missingRemoveStore = createSeededStore()
+const missingRemoveAdapter = new MemoryLibraryStorePersistenceAdapter(undefined)
+const missingRemoveService = new LibraryStorePersistenceService(missingRemoveStore, missingRemoveAdapter)
+const missingRemoveBefore = missingRemoveStore.listComics().map((item) => item.id)
+assert.equal(removeComicAndPersistLibraryStore(missingRemoveStore, missingRemoveService, 'not-here'), false, 'missing remove should be a no-op')
+assert.deepEqual(missingRemoveStore.listComics().map((item) => item.id), missingRemoveBefore, 'missing remove must leave the shelf unchanged')
+assert.equal(missingRemoveAdapter.savedPayloads.length, 0, 'missing remove must not write persistence')
+
+const seedRemoveStore = createSeededStore()
+const seedRemoveAdapter = new MemoryLibraryStorePersistenceAdapter(undefined)
+const seedRemoveService = new LibraryStorePersistenceService(seedRemoveStore, seedRemoveAdapter)
+const seedRemoveBefore = seedRemoveStore.listComics().map((item) => item.id)
+assert.equal(removeComicAndPersistLibraryStore(seedRemoveStore, seedRemoveService, 'local-01'), false, 'seed/demo remove should be a no-op')
+assert.deepEqual(seedRemoveStore.listComics().map((item) => item.id), seedRemoveBefore, 'seed/demo remove must leave fallback shelf data unchanged')
+assert.equal(seedRemoveAdapter.savedPayloads.length, 0, 'seed/demo remove must not write persistence')
+
+const throwingRemoveStore = createSeededStore()
+throwingRemoveStore.upsertComic(importedComic)
+const throwingRemoveBefore = throwingRemoveStore.listComics().map((item) => item.id)
+const throwingRemoveAdapter = new MemoryLibraryStorePersistenceAdapter(undefined, new Error('disk full'))
+const throwingRemoveService = new LibraryStorePersistenceService(throwingRemoveStore, throwingRemoveAdapter)
+assert.throws(
+  () => removeComicAndPersistLibraryStore(throwingRemoveStore, throwingRemoveService, 'imported-01'),
+  /disk full/,
+  'save failure during remove persistence must be visible to the caller',
+)
+assert.deepEqual(
+  throwingRemoveStore.listComics().map((item) => item.id),
+  throwingRemoveBefore,
+  'save failure during remove persistence must rollback the in-memory deletion',
+)
+assert.equal(throwingRemoveStore.getComic('imported-01').title, 'Imported Volume', 'failed remove must keep the imported comic visible')
 
 console.log('PASS Koma model contracts')

@@ -13,6 +13,8 @@ import { LibraryStore } from '../model/LibraryStore'
 import {
   AppFilesLibraryStorePersistenceAdapter,
   LibraryStorePersistenceService,
+  isRemovableLocalComic,
+  removeComicAndPersistLibraryStore,
   upsertComicAndPersistLibraryStore,
 } from '../model/LibraryPersistence'
 import {
@@ -84,6 +86,28 @@ struct Index {
     }
     this.libraryRevision += 1
     this.selectedTab = 0
+  }
+
+  private handleRemoveComicRequested(comicId: ComicId): void {
+    const persistenceService = this.ensureLibraryPersistenceService()
+    if (persistenceService === undefined) {
+      const comic = this.libraryStore.getComic(comicId)
+      if (!isRemovableLocalComic(comic)) {
+        return
+      }
+      this.libraryStore.removeComic(comicId)
+      this.libraryRevision += 1
+      return
+    }
+    try {
+      if (removeComicAndPersistLibraryStore(this.libraryStore, persistenceService, comicId)) {
+        this.libraryRevision += 1
+      }
+    } catch (error) {
+      const e = error as Error
+      console.error('persist removed comic failed: ' + e.message)
+      throw e
+    }
   }
 
   private ensureLibraryPersistenceService(): LibraryStorePersistenceService | undefined {
@@ -178,6 +202,9 @@ struct Index {
               },
               onImportRequested: () => {
                 this.selectedTab = 1
+              },
+              onRemoveComicRequested: (comicId: ComicId) => {
+                this.handleRemoveComicRequested(comicId)
               }
             })
           } else if (this.selectedTab === 1) {
