@@ -10,6 +10,8 @@ const readerSessionStorePath = resolve(root, 'entry/src/main/ets/model/ReaderSes
 const mockLibraryDataPath = resolve(root, 'entry/src/main/ets/model/MockLibraryData.ets')
 const libraryRepositoryPath = resolve(root, 'entry/src/main/ets/model/LibraryRepository.ets')
 const libraryPersistencePath = resolve(root, 'entry/src/main/ets/model/LibraryPersistence.ets')
+const indexPath = resolve(root, 'entry/src/main/ets/pages/Index.ets')
+const libraryPagePath = resolve(root, 'entry/src/main/ets/pages/LibraryPage.ets')
 
 const modelSource = readFileSync(modelPath, 'utf8')
 const libraryStoreSource = readFileSync(libraryStorePath, 'utf8')
@@ -18,6 +20,8 @@ const readerSessionStoreSource = readFileSync(readerSessionStorePath, 'utf8')
 const mockLibraryDataSource = readFileSync(mockLibraryDataPath, 'utf8')
 const libraryRepositorySource = readFileSync(libraryRepositoryPath, 'utf8')
 const libraryPersistenceSource = readFileSync(libraryPersistencePath, 'utf8')
+const indexSource = readFileSync(indexPath, 'utf8')
+const libraryPageSource = readFileSync(libraryPagePath, 'utf8')
 
 function assertExport(source, symbol) {
   assert.match(source, new RegExp(`export (interface|class|function|enum|type|const) ${symbol}\\b`), `${symbol} must be exported`)
@@ -81,6 +85,7 @@ assertExport(mockLibraryDataSource, 'MockLibraryComic')
 assertExport(mockLibraryDataSource, 'LibraryViewModel')
 assertExport(mockLibraryDataSource, 'MOCK_LIBRARY_READER_SESSION')
 assertExport(mockLibraryDataSource, 'createSeededLibraryStore')
+assertExport(mockLibraryDataSource, 'createLibraryViewModelFromComics')
 assertExport(mockLibraryDataSource, 'createLibraryViewModelFromStores')
 assertExport(mockLibraryDataSource, 'createLibraryViewModel')
 assertExport(libraryRepositorySource, 'LibraryRepository')
@@ -143,6 +148,16 @@ assert.match(
   libraryPersistenceSource,
   /export function removeComicAndPersistLibraryStore[\s\S]*const comic = libraryStore\.getComic\(comicId\)[\s\S]*if \(!isRemovableLocalComic\(comic\)\) \{[\s\S]*return false[\s\S]*const previousPayload = serializeLibraryStore\(libraryStore\)[\s\S]*libraryStore\.removeComic\(comicId\)[\s\S]*persistenceService\.persist\(\)[\s\S]*hydrateLibraryStoreFromJson\(libraryStore, previousPayload\)[\s\S]*throw error/,
   'save-after-remove helper must no-op missing or protected rows and rollback the live store when persistence fails',
+)
+assert.match(
+  indexSource,
+  /@State private libraryComics: Comic\[\][\s\S]*private refreshLibrarySnapshot\(\): void \{[\s\S]*this\.libraryComics = this\.libraryStore\.listComics\(\)[\s\S]*this\.libraryRevision \+= 1[\s\S]*removeComicAndPersistLibraryStore[\s\S]*this\.refreshLibrarySnapshot\(\)/,
+  'confirmed remove must publish a fresh comic array snapshot after successful persistence so the live shelf re-renders',
+)
+assert.match(
+  libraryPageSource,
+  /libraryComics: Comic\[\][\s\S]*createLibraryViewModelFromComics\(this\.libraryComics[\s\S]*this\.libraryComics\.length > 0/,
+  'LibraryPage must render from the revisioned comic snapshot instead of only reading through the mutable store',
 )
 
 const comic = {
@@ -684,8 +699,7 @@ function getChapterTitle(comic, progress, presentation) {
   return presentation?.chapterTitle ?? comic.chapters[0]?.title ?? comic.title
 }
 
-function createLibraryViewModelFromStores(store, progressByComicId, presentationByComicId = new Map()) {
-  const storeComics = store.listComics()
+function createLibraryViewModelFromComics(storeComics, progressByComicId, presentationByComicId = new Map()) {
   const comics = storeComics.map((comic) => {
     const itemProgress = progressByComicId.get(comic.id)
     const presentation = presentationByComicId.get(comic.id)
@@ -709,6 +723,18 @@ function createLibraryViewModelFromStores(store, progressByComicId, presentation
       continueProgress = itemProgress
     }
   }
+  if (continueComic === undefined) {
+    return {
+      comics,
+      continueReading: {
+        comicId: '',
+        title: '',
+        detail: '',
+        progress: 0,
+        color: '#16745F',
+      },
+    }
+  }
   const continuePresentation = presentationByComicId.get(continueComic.id)
   const chapterTitle = getChapterTitle(continueComic, continueProgress, continuePresentation)
   return {
@@ -722,6 +748,10 @@ function createLibraryViewModelFromStores(store, progressByComicId, presentation
       coverUri: continueComic.coverUri,
     },
   }
+}
+
+function createLibraryViewModelFromStores(store, progressByComicId, presentationByComicId = new Map()) {
+  return createLibraryViewModelFromComics(store.listComics(), progressByComicId, presentationByComicId)
 }
 
 const sessionProgress = updateReadingProgress(
@@ -1023,6 +1053,10 @@ const removeAdapter = new MemoryLibraryStorePersistenceAdapter(undefined)
 const removeService = new LibraryStorePersistenceService(removeStore, removeAdapter)
 assert.equal(removeComicAndPersistLibraryStore(removeStore, removeService, 'imported-01'), true, 'removing an imported local comic should report success')
 assert.equal(removeStore.getComic('imported-01'), undefined, 'removed imported comic must leave the live shelf store')
+const removeSnapshot = removeStore.listComics()
+const removeSnapshotVm = createLibraryViewModelFromComics(removeSnapshot, new Map(), createPresentationMap())
+assert.equal(removeSnapshot.some((item) => item.id === 'imported-01'), false, 'post-remove snapshot must omit the removed comic for live shelf binding')
+assert.equal(removeSnapshotVm.comics.some((item) => item.id === 'imported-01'), false, 'view model built from the live snapshot must omit the removed comic immediately')
 assert.equal(removeAdapter.savedPayloads.length, 1, 'successful remove must persist exactly once')
 assert.equal(
   JSON.parse(removeAdapter.savedPayloads[0]).comics.some((item) => item.id === 'imported-01'),

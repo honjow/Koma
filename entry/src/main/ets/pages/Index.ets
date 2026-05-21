@@ -39,6 +39,7 @@ struct Index {
   @State private readerWebtoonMode: boolean = false
   @State private readerSessionConfig: ReaderSessionConfig = MOCK_LIBRARY_READER_SESSION
   @State private libraryRevision: number = 0
+  @State private libraryComics: Comic[] = seededLibraryStore.listComics()
   private readerSessionStore: ReaderSessionStore = readerSessionStore
   private libraryStore: LibraryStore = seededLibraryStore
   private presentationByComicId: LibraryPresentationByComicId = libraryPresentationByComicId
@@ -50,6 +51,11 @@ struct Index {
     if (index === 0) { return '书架' }
     if (index === 1) { return '导入' }
     return ''
+  }
+
+  private refreshLibrarySnapshot(): void {
+    this.libraryComics = this.libraryStore.listComics()
+    this.libraryRevision += 1
   }
 
   private openReader(comicId: ComicId) {
@@ -84,7 +90,7 @@ struct Index {
         throw e
       }
     }
-    this.libraryRevision += 1
+    this.refreshLibrarySnapshot()
     this.selectedTab = 0
   }
 
@@ -96,12 +102,12 @@ struct Index {
         return
       }
       this.libraryStore.removeComic(comicId)
-      this.libraryRevision += 1
+      this.refreshLibrarySnapshot()
       return
     }
     try {
       if (removeComicAndPersistLibraryStore(this.libraryStore, persistenceService, comicId)) {
-        this.libraryRevision += 1
+        this.refreshLibrarySnapshot()
       }
     } catch (error) {
       const e = error as Error
@@ -136,7 +142,7 @@ struct Index {
     }
     try {
       persistenceService.restore()
-      this.libraryRevision += 1
+      this.refreshLibrarySnapshot()
     } catch (error) {
       const e = error as Error
       console.error('restore library store failed: ' + e.message)
@@ -194,6 +200,7 @@ struct Index {
           if (this.selectedTab === 0) {
             LibraryPage({
               libraryStore: this.libraryStore,
+              libraryComics: this.libraryComics,
               libraryRevision: this.libraryRevision,
               presentationByComicId: this.presentationByComicId,
               sessionStore: this.readerSessionStore,

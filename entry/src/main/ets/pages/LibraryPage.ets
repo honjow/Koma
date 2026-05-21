@@ -3,11 +3,11 @@ import {
   ContinueReadingCardViewModel,
   LibraryPresentationByComicId,
   LibraryViewModel,
-  createLibraryViewModelFromStores,
+  createLibraryViewModelFromComics,
   createMockLibraryPresentationMap,
   createSeededLibraryStore,
 } from '../model/MockLibraryData'
-import { ComicId } from '../model/ComicModels'
+import { Comic, ComicId } from '../model/ComicModels'
 import { LibraryStore } from '../model/LibraryStore'
 import { isRemovableLocalComic } from '../model/LibraryPersistence'
 import { InMemoryReaderSessionStore, ReaderSessionStore } from '../model/ReaderSessionStore'
@@ -15,6 +15,7 @@ import { InMemoryReaderSessionStore, ReaderSessionStore } from '../model/ReaderS
 @Component
 export struct LibraryPage {
   libraryStore: LibraryStore = createSeededLibraryStore()
+  libraryComics: Comic[] = createSeededLibraryStore().listComics()
   libraryRevision: number = 0
   presentationByComicId: LibraryPresentationByComicId = createMockLibraryPresentationMap()
   sessionStore: ReaderSessionStore = new InMemoryReaderSessionStore()
@@ -23,11 +24,11 @@ export struct LibraryPage {
   onRemoveComicRequested: (comicId: ComicId) => void = (_comicId: ComicId) => {}
 
   private viewModel(): LibraryViewModel {
-    return createLibraryViewModelFromStores(this.libraryStore, this.sessionStore, this.presentationByComicId)
+    return createLibraryViewModelFromComics(this.libraryComics, this.sessionStore, this.presentationByComicId)
   }
 
   private hasLibraryContent(): boolean {
-    return this.libraryRevision >= 0 && this.libraryStore.listComics().length > 0
+    return this.libraryRevision >= 0 && this.libraryComics.length > 0
   }
 
   private canRemoveComic(comicId: ComicId): boolean {

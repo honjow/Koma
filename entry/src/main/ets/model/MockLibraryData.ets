@@ -316,12 +316,11 @@ function formatContinueDetail(chapterTitle: string, progress?: ReadingProgress):
   return `继续阅读 ${chapterTitle} / 第 ${progress.pageIndex + 1} 页 · ${progressPercent(progress)}%`
 }
 
-export function createLibraryViewModelFromStores(
-  libraryStore: LibraryStore,
+export function createLibraryViewModelFromComics(
+  comics: Comic[],
   sessionStore?: ReaderSessionStore,
   presentationByComicId: LibraryPresentationByComicId = new Map<ComicId, LibraryComicPresentation>()
 ): LibraryViewModel {
-  const comics = libraryStore.listComics()
   const cards = comics.map((comic: Comic): LibraryComicCardViewModel => {
     const progress = sessionStore === undefined ? undefined : sessionStore.getProgress(comic.id)
     const presentation = presentationByComicId.get(comic.id) ?? createFallbackPresentation(comic)
@@ -373,6 +372,14 @@ export function createLibraryViewModelFromStores(
       coverUri: continueComic.coverUri,
     },
   }
+}
+
+export function createLibraryViewModelFromStores(
+  libraryStore: LibraryStore,
+  sessionStore?: ReaderSessionStore,
+  presentationByComicId: LibraryPresentationByComicId = new Map<ComicId, LibraryComicPresentation>()
+): LibraryViewModel {
+  return createLibraryViewModelFromComics(libraryStore.listComics(), sessionStore, presentationByComicId)
 }
 
 export function createLibraryViewModel(sessionStore?: ReaderSessionStore): LibraryViewModel {
