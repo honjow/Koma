@@ -1,0 +1,141 @@
+{
+  "boundaryVersion": 1,
+  "currentRuntime": {
+    "network": false,
+    "hostImports": [
+      "koma_host.log",
+      "koma_host.check_cancel"
+    ]
+  },
+  "settings": [
+    {
+      "key": "serverLabel",
+      "type": "string",
+      "label": "Server label",
+      "description": "Host-visible display name for a private library.",
+      "required": true,
+      "default": "Private library",
+      "constraints": {
+        "minLength": 1,
+        "maxLength": 80
+      }
+    },
+    {
+      "key": "contentLanguage",
+      "type": "enum",
+      "label": "Content language",
+      "required": false,
+      "default": "en",
+      "options": [
+        {
+          "value": "en",
+          "label": "English"
+        },
+        {
+          "value": "ja",
+          "label": "Japanese"
+        },
+        {
+          "value": "zh",
+          "label": "Chinese"
+        }
+      ]
+    },
+    {
+      "key": "includeNsfw",
+      "type": "bool",
+      "label": "Include adult entries",
+      "required": false,
+      "default": false
+    },
+    {
+      "key": "pageSize",
+      "type": "int",
+      "label": "Page size",
+      "required": false,
+      "default": 40,
+      "constraints": {
+        "min": 1,
+        "max": 200
+      }
+    },
+    {
+      "key": "qualityBias",
+      "type": "number",
+      "label": "Quality bias",
+      "required": false,
+      "default": 0.8,
+      "constraints": {
+        "min": 0.0,
+        "max": 1.0
+      }
+    },
+    {
+      "key": "accountPassword",
+      "type": "secret",
+      "label": "Account password",
+      "description": "Host-owned secret reference placeholder only.",
+      "required": false,
+      "secretRef": {
+        "id": "accountPassword",
+        "purpose": "password"
+      }
+    }
+  ],
+  "auth": {
+    "designOnly": true,
+    "hostOwnedStorage": true,
+    "sourceStoresCredentials": false,
+    "operations": {
+      "login": {
+        "designOnly": true,
+        "runtimeEnabled": false,
+        "requiresFutureHttp": true
+      },
+      "logout": {
+        "designOnly": true,
+        "runtimeEnabled": false
+      },
+      "status": {
+        "designOnly": true,
+        "runtimeEnabled": false
+      },
+      "session": {
+        "designOnly": true,
+        "runtimeEnabled": false
+      }
+    },
+    "errors": [
+      {
+        "code": "AUTH_REQUIRED",
+        "message": "Authentication is required."
+      },
+      {
+        "code": "AUTH_EXPIRED",
+        "message": "Authentication has expired."
+      },
+      {
+        "code": "BAD_CREDENTIALS",
+        "message": "Credentials were rejected."
+      },
+      {
+        "code": "RATE_LIMITED",
+        "message": "Authentication is temporarily rate limited.",
+        "retryAfterSeconds": 60
+      }
+    ]
+  },
+  "credentialPolicy": {
+    "hostOwnedStorage": true,
+    "hostOwnedSession": true,
+    "sourceStoresCredentials": false,
+    "sourceOwnsCookieJar": false,
+    "redactLogs": true,
+    "denyRawAuthorizationHeaders": true,
+    "denyRawCookies": true,
+    "denyAppPrivatePathLeaks": true
+  },
+  "notes": [
+    "Design/tooling-only: no product UI, no real login, no credential storage, no HTTP runtime."
+  ]
+}

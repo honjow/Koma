@@ -1,0 +1,40 @@
+{
+  "case": "malformed int default is rejected",
+  "expectRejectContains": "default must be integer",
+  "input": {
+    "boundaryVersion": 1,
+    "currentRuntime": {
+      "network": false,
+      "hostImports": [
+        "koma_host.log",
+        "koma_host.check_cancel"
+      ]
+    },
+    "settings": [
+      {
+        "key": "pageSize",
+        "type": "int",
+        "label": "Page size",
+        "required": false,
+        "default": "40"
+      }
+    ],
+    "auth": {
+      "designOnly": true,
+      "hostOwnedStorage": true,
+      "sourceStoresCredentials": false,
+      "operations": {},
+      "errors": []
+    },
+    "credentialPolicy": {
+      "hostOwnedStorage": true,
+      "hostOwnedSession": true,
+      "sourceStoresCredentials": false,
+      "sourceOwnsCookieJar": false,
+      "redactLogs": true,
+      "denyRawAuthorizationHeaders": true,
+      "denyRawCookies": true,
+      "denyAppPrivatePathLeaks": true
+    }
+  }
+}

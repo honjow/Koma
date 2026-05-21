@@ -1,0 +1,33 @@
+{
+  "case": "authorization header value is rejected",
+  "expectRejectContains": "raw credential material",
+  "input": {
+    "boundaryVersion": 1,
+    "currentRuntime": {
+      "network": false,
+      "hostImports": [
+        "koma_host.log",
+        "koma_host.check_cancel"
+      ]
+    },
+    "settings": [],
+    "auth": {
+      "designOnly": true,
+      "hostOwnedStorage": true,
+      "sourceStoresCredentials": false,
+      "operations": {},
+      "errors": []
+    },
+    "credentialPolicy": {
+      "hostOwnedStorage": true,
+      "hostOwnedSession": true,
+      "sourceStoresCredentials": false,
+      "sourceOwnsCookieJar": false,
+      "redactLogs": true,
+      "denyRawAuthorizationHeaders": true,
+      "denyRawCookies": true,
+      "denyAppPrivatePathLeaks": true
+    },
+    "log": "Authorization: Bearer abc123"
+  }
+}

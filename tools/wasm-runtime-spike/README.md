@@ -15,6 +15,11 @@ Static negative fixtures for that closed policy live under
 `host-imports/validate-http-policy-negative-fixtures.py`. The validator loads
 local JSON only, performs no network I/O, and does not execute WAMR.
 
+Future source settings/auth/secret reference metadata is also design-only and
+documented in `source-package/SOURCE_SETTINGS_AUTH_BOUNDARY.md`. Its fixtures
+keep `network=false`, reject `koma_host.http_request`, and do not contain real
+credentials or executable login/logout/status/session behavior.
+
 The spike validates this path on Linux:
 
 ```text

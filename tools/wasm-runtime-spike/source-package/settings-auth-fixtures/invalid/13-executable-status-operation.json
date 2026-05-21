@@ -1,0 +1,38 @@
+{
+  "case": "executable auth operation is rejected",
+  "expectRejectContains": "must not be executable",
+  "input": {
+    "boundaryVersion": 1,
+    "currentRuntime": {
+      "network": false,
+      "hostImports": [
+        "koma_host.log",
+        "koma_host.check_cancel"
+      ]
+    },
+    "settings": [],
+    "auth": {
+      "designOnly": true,
+      "hostOwnedStorage": true,
+      "sourceStoresCredentials": false,
+      "operations": {
+        "status": {
+          "designOnly": true,
+          "runtimeEnabled": false,
+          "wasmExport": "koma_source_auth_status"
+        }
+      },
+      "errors": []
+    },
+    "credentialPolicy": {
+      "hostOwnedStorage": true,
+      "hostOwnedSession": true,
+      "sourceStoresCredentials": false,
+      "sourceOwnsCookieJar": false,
+      "redactLogs": true,
+      "denyRawAuthorizationHeaders": true,
+      "denyRawCookies": true,
+      "denyAppPrivatePathLeaks": true
+    }
+  }
+}

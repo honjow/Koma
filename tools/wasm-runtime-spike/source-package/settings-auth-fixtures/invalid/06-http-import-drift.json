@@ -1,0 +1,33 @@
+{
+  "case": "http host import drift is rejected",
+  "expectRejectContains": "http_request import",
+  "input": {
+    "boundaryVersion": 1,
+    "currentRuntime": {
+      "network": false,
+      "hostImports": [
+        "koma_host.log",
+        "koma_host.check_cancel",
+        "koma_host.http_request"
+      ]
+    },
+    "settings": [],
+    "auth": {
+      "designOnly": true,
+      "hostOwnedStorage": true,
+      "sourceStoresCredentials": false,
+      "operations": {},
+      "errors": []
+    },
+    "credentialPolicy": {
+      "hostOwnedStorage": true,
+      "hostOwnedSession": true,
+      "sourceStoresCredentials": false,
+      "sourceOwnsCookieJar": false,
+      "redactLogs": true,
+      "denyRawAuthorizationHeaders": true,
+      "denyRawCookies": true,
+      "denyAppPrivatePathLeaks": true
+    }
+  }
+}

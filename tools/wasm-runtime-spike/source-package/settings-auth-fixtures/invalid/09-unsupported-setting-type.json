@@ -1,0 +1,39 @@
+{
+  "case": "unsupported setting type is rejected",
+  "expectRejectContains": "type is unsupported",
+  "input": {
+    "boundaryVersion": 1,
+    "currentRuntime": {
+      "network": false,
+      "hostImports": [
+        "koma_host.log",
+        "koma_host.check_cancel"
+      ]
+    },
+    "settings": [
+      {
+        "key": "theme",
+        "type": "object",
+        "label": "Theme",
+        "required": false
+      }
+    ],
+    "auth": {
+      "designOnly": true,
+      "hostOwnedStorage": true,
+      "sourceStoresCredentials": false,
+      "operations": {},
+      "errors": []
+    },
+    "credentialPolicy": {
+      "hostOwnedStorage": true,
+      "hostOwnedSession": true,
+      "sourceStoresCredentials": false,
+      "sourceOwnsCookieJar": false,
+      "redactLogs": true,
+      "denyRawAuthorizationHeaders": true,
+      "denyRawCookies": true,
+      "denyAppPrivatePathLeaks": true
+    }
+  }
+}

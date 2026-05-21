@@ -16,6 +16,9 @@ For the design-only future HarmonyOS source archive ingestion boundary, see
 For the design-only future local source package trust/provenance boundary, see
 `SOURCE_PACKAGE_TRUST_BOUNDARY.md`.
 
+For the design/tooling-only future source settings, auth, and secret reference
+schema boundary, see `SOURCE_SETTINGS_AUTH_BOUNDARY.md`.
+
 The fixture keeps the useful package lessons from source index layouts such as
 per-source metadata, icon paths, settings, capabilities, and runtime limits,
 while staying aligned with Koma's current runtime evidence:
@@ -136,6 +139,27 @@ python3 tools/wasm-runtime-spike/source-package/package-source-archive.py \
 
 The validate-only path runs the same archive safety, extraction, staged manifest,
 wasm hash, network/import, and content-policy gates as the default happy path.
+
+## Settings/Auth Boundary
+
+`settings-auth.example.json` defines a non-executable schema example for future
+settings metadata, host-owned secret references, design-only auth operations,
+credential/cookie policy, and structured auth errors. It does not store
+credentials, execute login/logout/status/session, enable product UI, or enable
+HTTP/network.
+
+```sh
+python3 tools/wasm-runtime-spike/source-package/validate-settings-auth-fixtures.py \
+  --fixture-dir tools/wasm-runtime-spike/source-package/settings-auth-fixtures \
+  --artifact-dir /path/to/artifacts/settings-auth-fixtures
+```
+
+The validator writes `settings-auth-fixtures-report.json` under the artifact
+directory. It loads local JSON only, performs no network I/O, keeps
+`network=false`, rejects `koma_host.http_request`, rejects executable auth
+operations, and checks fixture strings for raw credential/header/cookie values
+and local/picker/app-private path leaks without echoing leaked values into the
+report.
 
 To close the Linux smoke loop from archive validation to actual WAMR execution:
 
