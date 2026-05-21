@@ -33,6 +33,13 @@ deterministic. The validator can also build the Rust no_std fixture into the
 artifact directory to prove the source-to-wasm path without committing generated
 wasm.
 
+`build-rust-sdk-source-package.py` is the tooling-only bridge between the local
+Rust SDK fixture and this package boundary. It builds and runs the SDK-backed
+fixture through WAMR, computes the generated wasm size and sha256, writes a
+local generated manifest under the artifact directory, and validates that
+manifest with the same package validator. The generated manifest and wasm stay
+out of git.
+
 ## Validate
 
 ```sh
@@ -46,6 +53,20 @@ The script writes `source-package-validation.json` under the artifact directory.
 It validates required fields, scope rules, sha256, wasm magic/version, declared
 imports, exported fixture functions, capabilities, settings defaults, and
 network=false.
+
+To exercise the Rust-SDK-backed package build boundary:
+
+```sh
+python3 tools/wasm-runtime-spike/source-package/build-rust-sdk-source-package.py \
+  --artifact-dir /path/to/artifacts/source-package-build
+```
+
+The build report is written to
+`rust-sdk-source-package-build-report.json` under the artifact directory and
+includes the built wasm sha256/size, generated manifest path, validator report
+path, and gate results for `packageId`, `hostAbi=koma-host-v0.1`,
+`network=false`, exact `koma_host.log`/`koma_host.check_cancel` imports, wasm
+hash/size, and disabled public index/marketplace/built-in/remote-install flags.
 
 Future HTTP/network source capability is tracked separately in
 `../host-imports/http-boundary.md`. That boundary is design-only: its sample

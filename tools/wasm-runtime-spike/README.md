@@ -77,6 +77,16 @@ the existing `koma_host.log` and `koma_host.check_cancel` functions, exports
 returns the same test envelope shape with `requestEcho: "fixture"`,
 `Fixture Series`, and `hostHints.network: false`.
 
+The source-package tooling can also build this SDK-backed wasm into an ignored
+artifact directory, generate a local/test-only package manifest that points at
+that exact wasm, and validate the manifest hash, size, ABI, imports, network
+flag, and no-market/no-remote-install boundary:
+
+```sh
+python3 tools/wasm-runtime-spike/source-package/build-rust-sdk-source-package.py \
+  --artifact-dir /path/to/artifacts/source-package-build
+```
+
 ## HarmonyOS NAPI Next Step
 
 Keep this isolated from production app behavior. The next narrow integration
