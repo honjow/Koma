@@ -1,10 +1,24 @@
 import { LibraryPage } from './LibraryPage'
 import { ImportPage } from './ImportPage'
 import { ReaderPage } from './ReaderPage'
-import { MOCK_LIBRARY_READER_SESSION } from '../model/MockLibraryData'
-import { InMemoryReaderSessionStore, ReaderSessionStore } from '../model/ReaderSessionStore'
+import {
+  LibraryPresentationByComicId,
+  MOCK_LIBRARY_READER_SESSION,
+  createMockLibraryPresentationMap,
+  createSeededLibraryStore,
+} from '../model/MockLibraryData'
+import { ComicId } from '../model/ComicModels'
+import { LibraryStore } from '../model/LibraryStore'
+import {
+  InMemoryReaderSessionStore,
+  ReaderSessionConfig,
+  ReaderSessionStore,
+  createReaderSessionConfigFromComic,
+} from '../model/ReaderSessionStore'
 
 const readerSessionStore: ReaderSessionStore = new InMemoryReaderSessionStore()
+const seededLibraryStore: LibraryStore = createSeededLibraryStore()
+const libraryPresentationByComicId: LibraryPresentationByComicId = createMockLibraryPresentationMap()
 
 @Entry
 @Component
@@ -14,7 +28,10 @@ struct Index {
   @State private readerPageIndex: number = 0
   @State private readerChromeVisible: boolean = true
   @State private readerWebtoonMode: boolean = false
+  @State private readerSessionConfig: ReaderSessionConfig = MOCK_LIBRARY_READER_SESSION
   private readerSessionStore: ReaderSessionStore = readerSessionStore
+  private libraryStore: LibraryStore = seededLibraryStore
+  private presentationByComicId: LibraryPresentationByComicId = libraryPresentationByComicId
 
   private tabLabel(index: number): string {
     if (index === 0) { return '书架' }
@@ -23,8 +40,10 @@ struct Index {
     return '设置'
   }
 
-  private openMockReader() {
-    this.readerPageIndex = this.readerSessionStore.restorePageIndex(MOCK_LIBRARY_READER_SESSION)
+  private openReader(comicId: ComicId) {
+    const comic = this.libraryStore.getComic(comicId)
+    this.readerSessionConfig = comic === undefined ? MOCK_LIBRARY_READER_SESSION : createReaderSessionConfigFromComic(comic)
+    this.readerPageIndex = this.readerSessionStore.restorePageIndex(this.readerSessionConfig)
     this.readerChromeVisible = true
     this.readerOpen = true
   }
@@ -47,9 +66,11 @@ struct Index {
         Stack() {
           if (this.selectedTab === 0) {
             LibraryPage({
+              libraryStore: this.libraryStore,
+              presentationByComicId: this.presentationByComicId,
               sessionStore: this.readerSessionStore,
-              onOpenReader: () => {
-                this.openMockReader()
+              onOpenReader: (comicId: ComicId) => {
+                this.openReader(comicId)
               }
             })
           } else if (this.selectedTab === 1) {
@@ -71,7 +92,7 @@ struct Index {
                   .fontSize(15)
                   .backgroundColor($r('app.color.koma_accent'))
                   .onClick(() => {
-                    this.openMockReader()
+                    this.openReader(MOCK_LIBRARY_READER_SESSION.comicId)
                   })
               }
             }
@@ -107,7 +128,7 @@ struct Index {
           chromeVisible: $readerChromeVisible,
           webtoonMode: $readerWebtoonMode,
           sessionStore: this.readerSessionStore,
-          sessionConfig: MOCK_LIBRARY_READER_SESSION
+          sessionConfig: this.readerSessionConfig
         })
           .zIndex(1)
       }

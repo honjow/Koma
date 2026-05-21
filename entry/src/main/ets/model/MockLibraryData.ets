@@ -63,6 +63,20 @@ export const MOCK_LIBRARY_READER_SESSION: ReaderSessionConfig = {
   comicId: 'local-01',
   chapterId: 'chapter-8',
   totalPages: 5,
+  pageUris: [
+    'mock://local-01/001.jpg',
+    'mock://local-01/002.jpg',
+    'mock://local-01/003.jpg',
+    'mock://local-01/004.jpg',
+    'mock://local-01/005.jpg',
+  ],
+  pageIds: [
+    'chapter-8-page-1',
+    'chapter-8-page-2',
+    'chapter-8-page-3',
+    'chapter-8-page-4',
+    'chapter-8-page-5',
+  ],
 }
 
 export const MOCK_LIBRARY_COMICS: MockLibraryComic[] = [

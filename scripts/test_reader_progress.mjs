@@ -4,11 +4,13 @@ import { resolve } from 'node:path'
 
 const root = resolve(import.meta.dirname, '..')
 const readerSessionStorePath = resolve(root, 'entry/src/main/ets/model/ReaderSessionStore.ets')
+const readerPageSourceAdapterPath = resolve(root, 'entry/src/main/ets/model/ReaderPageSourceAdapter.ets')
 const readerPagePath = resolve(root, 'entry/src/main/ets/pages/ReaderPage.ets')
 const readerChromePath = resolve(root, 'entry/src/main/ets/components/ReaderChrome.ets')
 const indexPath = resolve(root, 'entry/src/main/ets/pages/Index.ets')
 
 const readerSessionStoreSource = readFileSync(readerSessionStorePath, 'utf8')
+const readerPageSourceAdapterSource = readFileSync(readerPageSourceAdapterPath, 'utf8')
 const readerPageSource = readFileSync(readerPagePath, 'utf8')
 const readerChromeSource = readFileSync(readerChromePath, 'utf8')
 const indexSource = readFileSync(indexPath, 'utf8')
@@ -105,15 +107,61 @@ class InMemoryReaderSessionStore {
   }
 }
 
+function createReaderSessionConfigFromComic(comic, chapterId) {
+  let chapter = comic.chapters[0]
+  if (chapterId !== undefined) {
+    chapter = comic.chapters.find((item) => item.id === chapterId) ?? chapter
+  }
+  if (chapter === undefined) {
+    return {
+      comicId: comic.id,
+      chapterId: '',
+      title: comic.title,
+      totalPages: 0,
+      pageUris: [],
+      pageIds: [],
+    }
+  }
+  const pages = [...chapter.pages].sort((a, b) => {
+    if (a.index !== b.index) return a.index - b.index
+    return a.sortKey.localeCompare(b.sortKey)
+  })
+  return {
+    comicId: comic.id,
+    chapterId: chapter.id,
+    title: comic.title,
+    chapterTitle: chapter.title,
+    totalPages: pages.length,
+    pageUris: pages.map((page) => page.uri),
+    pageIds: pages.map((page) => page.id),
+  }
+}
+
+function getReaderSessionPageUri(config, pageIndex) {
+  const resolvedPageIndex = clampPageIndex(pageIndex, config.totalPages)
+  return config.pageUris[resolvedPageIndex] ?? ''
+}
+
+function getReaderSessionPageId(config, pageIndex) {
+  const resolvedPageIndex = clampPageIndex(pageIndex, config.totalPages)
+  return config.pageIds[resolvedPageIndex] ?? `page-${resolvedPageIndex + 1}`
+}
+
 assertExport(readerSessionStoreSource, 'ReaderSessionConfig')
 assertExport(readerSessionStoreSource, 'ReaderSessionStore')
 assertExport(readerSessionStoreSource, 'InMemoryReaderSessionStore')
+assertExport(readerSessionStoreSource, 'createReaderSessionConfigFromComic')
+assertExport(readerSessionStoreSource, 'getReaderSessionPageUri')
+assertExport(readerPageSourceAdapterSource, 'ReaderPageRenderKind')
+assertExport(readerPageSourceAdapterSource, 'createReaderPageRenderSource')
 assert.match(readerSessionStoreSource, /ReadingProgressStore/, 'reader session store must wrap ReadingProgressStore')
 assert.match(readerSessionStoreSource, /clampPageIndex/, 'reader session restore/update must clamp page indexes')
-assert.match(indexSource, /MOCK_LIBRARY_READER_SESSION/, 'index must bind the reader to the library session')
-assert.match(indexSource, /restorePageIndex\(MOCK_LIBRARY_READER_SESSION\)/, 'opening mock reader must restore from session store')
+assert.match(readerSessionStoreSource, /pageUris: pages\.map/, 'reader session config must carry ordered page URIs')
+assert.match(indexSource, /createReaderSessionConfigFromComic/, 'index must open reader sessions from Comic records')
+assert.match(indexSource, /restorePageIndex\(this\.readerSessionConfig\)/, 'opening reader must restore from the selected session config')
 assert.match(indexSource, /sessionStore: this\.readerSessionStore/, 'library and reader must share the same session store')
 assert.match(readerPageSource, /updatePageIndex\(this\.sessionConfig/, 'reader page changes must update session progress')
+assert.match(readerPageSource, /ReaderPageRenderKind\.URI_PLACEHOLDER/, 'reader page must isolate URI rendering behind an explicit placeholder path')
 assert.match(readerChromeSource, /onPreviousPage/, 'chrome previous button must use reader callback')
 assert.match(readerChromeSource, /onNextPage/, 'chrome next button must use reader callback')
 
@@ -127,6 +175,8 @@ const config = {
   comicId: 'local-01',
   chapterId: 'chapter-8',
   totalPages: 5,
+  pageUris: ['mock://local-01/001.jpg', 'mock://local-01/002.jpg', 'mock://local-01/003.jpg', 'mock://local-01/004.jpg', 'mock://local-01/005.jpg'],
+  pageIds: ['mock-page-1', 'mock-page-2', 'mock-page-3', 'mock-page-4', 'mock-page-5'],
 }
 const store = new InMemoryReaderSessionStore()
 assert.equal(store.restorePageIndex(config), 0, 'first open starts on page 1')
@@ -146,5 +196,33 @@ assert.equal(store.restorePageIndex(config), 4, 'restore also returns clamped la
 
 const otherChapter = { ...config, chapterId: 'chapter-9' }
 assert.equal(store.restorePageIndex(otherChapter), 0, 'a different chapter starts from first page')
+
+const importedComic = {
+  id: 'imported-3-pages',
+  title: 'Imported Three Pages',
+  chapters: [{
+    id: 'chapter-real',
+    title: 'Chapter Real',
+    pages: [
+      { id: 'page-c', uri: 'file://comic/003.jpg', index: 2, sortKey: '003.jpg' },
+      { id: 'page-a', uri: 'file://comic/001.jpg', index: 0, sortKey: '001.jpg' },
+      { id: 'page-b', uri: 'file://comic/002.jpg', index: 1, sortKey: '002.jpg' },
+    ],
+  }],
+}
+const importedConfig = createReaderSessionConfigFromComic(importedComic)
+assert.equal(importedConfig.totalPages, 3, 'reader session page count must come from Comic pages')
+assert.deepEqual(importedConfig.pageUris, ['file://comic/001.jpg', 'file://comic/002.jpg', 'file://comic/003.jpg'], 'reader session must preserve ordered page URIs')
+assert.equal(getReaderSessionPageUri(importedConfig, 1), 'file://comic/002.jpg', 'page index 1 must map to second page URI')
+assert.equal(getReaderSessionPageId(importedConfig, 2), 'page-c', 'page index 2 must map to third page id')
+
+const importedStore = new InMemoryReaderSessionStore()
+assert.equal(importedStore.restorePageIndex(importedConfig), 0, 'imported comic first open starts on page 1')
+const importedPageTwo = importedStore.updatePageIndex(importedConfig, 1, getReaderSessionPageId(importedConfig, 1))
+assert.equal(importedPageTwo.totalPages, 3, 'imported progress stores real page count')
+assert.equal(importedPageTwo.pageIndex, 1)
+assert.equal(importedPageTwo.pageId, 'page-b')
+assert.equal(importedStore.restorePageIndex(importedConfig), 1, 'imported comic restore uses saved real page index')
+assert.equal(getReaderSessionPageUri(importedConfig, importedStore.restorePageIndex(importedConfig)), 'file://comic/002.jpg', 'restored page index maps back to the saved page URI')
 
 console.log('PASS Koma reader progress contracts')

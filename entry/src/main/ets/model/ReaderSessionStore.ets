@@ -1,5 +1,8 @@
 import {
+  Chapter,
+  Comic,
   ComicId,
+  Page,
   ReadingProgress,
   clampPageIndex,
 } from './ComicModels'
@@ -11,7 +14,11 @@ import {
 export interface ReaderSessionConfig {
   comicId: ComicId
   chapterId: string
+  title?: string
+  chapterTitle?: string
   totalPages: number
+  pageUris: string[]
+  pageIds: string[]
 }
 
 export interface ReaderSessionStore {
@@ -54,4 +61,61 @@ export class InMemoryReaderSessionStore implements ReaderSessionStore {
   clear(): void {
     this.progressStore.clear()
   }
+}
+
+function sortedPages(chapter: Chapter): Page[] {
+  return chapter.pages.slice().sort((a: Page, b: Page) => {
+    if (a.index !== b.index) {
+      return a.index - b.index
+    }
+    return a.sortKey.localeCompare(b.sortKey)
+  })
+}
+
+export function createReaderSessionConfigFromComic(comic: Comic, chapterId?: string): ReaderSessionConfig {
+  let chapter = comic.chapters.length === 0 ? undefined : comic.chapters[0]
+  if (chapterId !== undefined) {
+    const matchedChapter = comic.chapters.find((item: Chapter) => item.id === chapterId)
+    if (matchedChapter !== undefined) {
+      chapter = matchedChapter
+    }
+  }
+
+  if (chapter === undefined) {
+    return {
+      comicId: comic.id,
+      chapterId: '',
+      title: comic.title,
+      totalPages: 0,
+      pageUris: [],
+      pageIds: [],
+    }
+  }
+
+  const pages = sortedPages(chapter)
+  return {
+    comicId: comic.id,
+    chapterId: chapter.id,
+    title: comic.title,
+    chapterTitle: chapter.title,
+    totalPages: pages.length,
+    pageUris: pages.map((page: Page) => page.uri),
+    pageIds: pages.map((page: Page) => page.id),
+  }
+}
+
+export function getReaderSessionPageUri(config: ReaderSessionConfig, pageIndex: number): string {
+  const resolvedPageIndex = clampPageIndex(pageIndex, config.totalPages)
+  if (resolvedPageIndex >= config.pageUris.length) {
+    return ''
+  }
+  return config.pageUris[resolvedPageIndex]
+}
+
+export function getReaderSessionPageId(config: ReaderSessionConfig, pageIndex: number): string {
+  const resolvedPageIndex = clampPageIndex(pageIndex, config.totalPages)
+  if (resolvedPageIndex >= config.pageIds.length) {
+    return `page-${resolvedPageIndex + 1}`
+  }
+  return config.pageIds[resolvedPageIndex]
 }

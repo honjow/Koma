@@ -7,6 +7,7 @@ const modelPath = resolve(root, 'entry/src/main/ets/model/ComicModels.ets')
 const libraryStorePath = resolve(root, 'entry/src/main/ets/model/LibraryStore.ets')
 const progressStorePath = resolve(root, 'entry/src/main/ets/model/ReadingProgressStore.ets')
 const readerSessionStorePath = resolve(root, 'entry/src/main/ets/model/ReaderSessionStore.ets')
+const readerPageSourceAdapterPath = resolve(root, 'entry/src/main/ets/model/ReaderPageSourceAdapter.ets')
 const mockLibraryDataPath = resolve(root, 'entry/src/main/ets/model/MockLibraryData.ets')
 const libraryRepositoryPath = resolve(root, 'entry/src/main/ets/model/LibraryRepository.ets')
 
@@ -14,6 +15,7 @@ const modelSource = readFileSync(modelPath, 'utf8')
 const libraryStoreSource = readFileSync(libraryStorePath, 'utf8')
 const progressStoreSource = readFileSync(progressStorePath, 'utf8')
 const readerSessionStoreSource = readFileSync(readerSessionStorePath, 'utf8')
+const readerPageSourceAdapterSource = readFileSync(readerPageSourceAdapterPath, 'utf8')
 const mockLibraryDataSource = readFileSync(mockLibraryDataPath, 'utf8')
 const libraryRepositorySource = readFileSync(libraryRepositoryPath, 'utf8')
 
@@ -63,6 +65,41 @@ function updateReadingProgress(previous, pageIndex, pageId, totalPages = previou
   }
 }
 
+function createReaderSessionConfigFromComic(comic, chapterId) {
+  let chapter = comic.chapters[0]
+  if (chapterId !== undefined) {
+    chapter = comic.chapters.find((item) => item.id === chapterId) ?? chapter
+  }
+  if (chapter === undefined) {
+    return {
+      comicId: comic.id,
+      chapterId: '',
+      title: comic.title,
+      totalPages: 0,
+      pageUris: [],
+      pageIds: [],
+    }
+  }
+  const pages = [...chapter.pages].sort((a, b) => {
+    if (a.index !== b.index) return a.index - b.index
+    return a.sortKey.localeCompare(b.sortKey)
+  })
+  return {
+    comicId: comic.id,
+    chapterId: chapter.id,
+    title: comic.title,
+    chapterTitle: chapter.title,
+    totalPages: pages.length,
+    pageUris: pages.map((page) => page.uri),
+    pageIds: pages.map((page) => page.id),
+  }
+}
+
+function getReaderSessionPageUri(config, pageIndex) {
+  const resolvedPageIndex = clampPageIndex(pageIndex, config.totalPages)
+  return config.pageUris[resolvedPageIndex] ?? ''
+}
+
 for (const symbol of ['Comic', 'Chapter', 'Page', 'ReadingProgress', 'LibraryItem']) {
   assertExport(modelSource, symbol)
 }
@@ -75,6 +112,10 @@ assertExport(progressStoreSource, 'ReadingProgressStore')
 assertExport(progressStoreSource, 'InMemoryReadingProgressStore')
 assertExport(readerSessionStoreSource, 'ReaderSessionStore')
 assertExport(readerSessionStoreSource, 'InMemoryReaderSessionStore')
+assertExport(readerSessionStoreSource, 'createReaderSessionConfigFromComic')
+assertExport(readerSessionStoreSource, 'getReaderSessionPageUri')
+assertExport(readerPageSourceAdapterSource, 'ReaderPageRenderKind')
+assertExport(readerPageSourceAdapterSource, 'createReaderPageRenderSource')
 assertExport(mockLibraryDataSource, 'MockLibraryComic')
 assertExport(mockLibraryDataSource, 'LibraryViewModel')
 assertExport(mockLibraryDataSource, 'MOCK_LIBRARY_READER_SESSION')
@@ -167,6 +208,20 @@ const mockLibraryReaderSession = {
   comicId: 'local-01',
   chapterId: 'chapter-8',
   totalPages: 5,
+  pageUris: [
+    'mock://local-01/001.jpg',
+    'mock://local-01/002.jpg',
+    'mock://local-01/003.jpg',
+    'mock://local-01/004.jpg',
+    'mock://local-01/005.jpg',
+  ],
+  pageIds: [
+    'chapter-8-page-1',
+    'chapter-8-page-2',
+    'chapter-8-page-3',
+    'chapter-8-page-4',
+    'chapter-8-page-5',
+  ],
 }
 
 const mockLibraryComics = [
@@ -423,5 +478,18 @@ assert.equal(importedProgressVm.continueReading.title, 'Imported Volume')
 assert.equal(importedProgressVm.continueReading.detail, '继续阅读 Imported Volume / 第 2 页 · 67%')
 assert.equal(importedProgressVm.continueReading.progress, 67)
 assert.equal(importedProgressVm.comics.find((item) => item.id === 'imported-01').progressText, '67%')
+
+const importedSessionConfig = createReaderSessionConfigFromComic(importedComic)
+assert.equal(importedSessionConfig.comicId, 'imported-01')
+assert.equal(importedSessionConfig.chapterId, 'imported-01-chapter-1')
+assert.equal(importedSessionConfig.title, 'Imported Volume')
+assert.equal(importedSessionConfig.chapterTitle, 'Imported Volume')
+assert.equal(importedSessionConfig.totalPages, 3, 'imported reader session must use Comic page count')
+assert.deepEqual(importedSessionConfig.pageUris, [
+  '/library/Imported Volume.cbz#001.jpg',
+  '/library/Imported Volume.cbz#002.jpg',
+  '/library/Imported Volume.cbz#003.jpg',
+], 'imported reader session must expose ordered page URIs')
+assert.equal(getReaderSessionPageUri(importedSessionConfig, importedProgress.pageIndex), '/library/Imported Volume.cbz#002.jpg', 'progress page index must map to imported page URI')
 
 console.log('PASS Koma model contracts')

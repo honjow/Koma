@@ -1,15 +1,26 @@
 import { ComicCoverCard, ComicCoverInfo } from '../components/ComicCoverCard'
-import { createLibraryViewModel, ContinueReadingCardViewModel, LibraryViewModel } from '../model/MockLibraryData'
+import {
+  ContinueReadingCardViewModel,
+  LibraryPresentationByComicId,
+  LibraryViewModel,
+  createLibraryViewModelFromStores,
+  createMockLibraryPresentationMap,
+  createSeededLibraryStore,
+} from '../model/MockLibraryData'
+import { ComicId } from '../model/ComicModels'
+import { LibraryStore } from '../model/LibraryStore'
 import { InMemoryReaderSessionStore, ReaderSessionStore } from '../model/ReaderSessionStore'
 
 @Component
 export struct LibraryPage {
   private hasComics: boolean = true
+  libraryStore: LibraryStore = createSeededLibraryStore()
+  presentationByComicId: LibraryPresentationByComicId = createMockLibraryPresentationMap()
   sessionStore: ReaderSessionStore = new InMemoryReaderSessionStore()
-  onOpenReader: () => void = () => {}
+  onOpenReader: (comicId: ComicId) => void = (_comicId: ComicId) => {}
 
   private viewModel(): LibraryViewModel {
-    return createLibraryViewModel(this.sessionStore)
+    return createLibraryViewModelFromStores(this.libraryStore, this.sessionStore, this.presentationByComicId)
   }
 
   @Builder
@@ -55,7 +66,7 @@ export struct LibraryPage {
     .borderRadius(26)
     .backgroundColor($r('app.color.koma_card'))
     .onClick(() => {
-      this.onOpenReader()
+      this.onOpenReader(info.comicId)
     })
   }
 
@@ -95,6 +106,9 @@ export struct LibraryPage {
       ForEach(comics, (comic: ComicCoverInfo) => {
         GridItem() {
           ComicCoverCard({ comic: comic })
+            .onClick(() => {
+              this.onOpenReader(comic.id)
+            })
         }
       }, (comic: ComicCoverInfo) => comic.id)
     }
