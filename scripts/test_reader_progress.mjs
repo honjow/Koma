@@ -142,6 +142,87 @@ function getReaderSessionPageUri(config, pageIndex) {
   return config.pageUris[resolvedPageIndex] ?? ''
 }
 
+const ReaderPageRenderKind = {
+  MOCK_FALLBACK: 'mock_fallback',
+  LOCAL_FILE_IMAGE: 'local_file_image',
+  URI_PLACEHOLDER: 'uri_placeholder',
+}
+
+function normalizeReaderPageUri(uri) {
+  return uri.trim().replace(/\\/g, '/')
+}
+
+function hasTraversalSegment(path) {
+  return path.split('/').some((segment) => segment === '..')
+}
+
+function isSupportedLocalImagePath(path) {
+  const normalized = path.toLocaleLowerCase()
+  return normalized.endsWith('.jpg') ||
+    normalized.endsWith('.jpeg') ||
+    normalized.endsWith('.png') ||
+    normalized.endsWith('.webp') ||
+    normalized.endsWith('.gif') ||
+    normalized.endsWith('.bmp')
+}
+
+function isAppImportExtractPath(path) {
+  const appImportRoots = [
+    '/data/storage/el2/base/cache/import/',
+    '/data/storage/el2/base/files/import/',
+  ]
+  return appImportRoots.some((root) => {
+    if (!path.startsWith(root)) return false
+    return path.indexOf('/extract/', root.length) > root.length
+  })
+}
+
+function stripFileUriScheme(uri) {
+  if (!uri.startsWith('file://')) return uri
+  return uri.slice('file://'.length)
+}
+
+function isReaderLocalImageSourceUri(uri) {
+  const normalized = normalizeReaderPageUri(uri)
+  if (normalized.length === 0 || normalized.includes('#') || normalized.includes('?')) return false
+  if (normalized.includes('://') && !normalized.startsWith('file://')) return false
+  const path = stripFileUriScheme(normalized)
+  if (!path.startsWith('/') || hasTraversalSegment(path)) return false
+  return isAppImportExtractPath(path) && isSupportedLocalImagePath(path)
+}
+
+function createReaderImageSourceUri(uri) {
+  const normalized = normalizeReaderPageUri(uri)
+  if (normalized.startsWith('file://')) return normalized
+  return `file://${normalized}`
+}
+
+function createReaderPageRenderSource(config, pageIndex) {
+  const uri = getReaderSessionPageUri(config, pageIndex)
+  if (uri.length === 0 || uri.startsWith('mock://')) {
+    return {
+      kind: ReaderPageRenderKind.MOCK_FALLBACK,
+      uri,
+      imageUri: '',
+      fallbackPageIndex: pageIndex,
+    }
+  }
+  if (isReaderLocalImageSourceUri(uri)) {
+    return {
+      kind: ReaderPageRenderKind.LOCAL_FILE_IMAGE,
+      uri,
+      imageUri: createReaderImageSourceUri(uri),
+      fallbackPageIndex: pageIndex,
+    }
+  }
+  return {
+    kind: ReaderPageRenderKind.URI_PLACEHOLDER,
+    uri,
+    imageUri: '',
+    fallbackPageIndex: pageIndex,
+  }
+}
+
 function getReaderSessionPageId(config, pageIndex) {
   const resolvedPageIndex = clampPageIndex(pageIndex, config.totalPages)
   return config.pageIds[resolvedPageIndex] ?? `page-${resolvedPageIndex + 1}`
@@ -153,6 +234,8 @@ assertExport(readerSessionStoreSource, 'InMemoryReaderSessionStore')
 assertExport(readerSessionStoreSource, 'createReaderSessionConfigFromComic')
 assertExport(readerSessionStoreSource, 'getReaderSessionPageUri')
 assertExport(readerPageSourceAdapterSource, 'ReaderPageRenderKind')
+assertExport(readerPageSourceAdapterSource, 'isReaderLocalImageSourceUri')
+assertExport(readerPageSourceAdapterSource, 'createReaderImageSourceUri')
 assertExport(readerPageSourceAdapterSource, 'createReaderPageRenderSource')
 assert.match(readerSessionStoreSource, /ReadingProgressStore/, 'reader session store must wrap ReadingProgressStore')
 assert.match(readerSessionStoreSource, /clampPageIndex/, 'reader session restore/update must clamp page indexes')
@@ -165,7 +248,10 @@ assert.match(indexSource, /pushPath\(\{\s*name:\s*READER_ROUTE_NAME\s*\}\)/, 'op
 assert.match(indexSource, /\.onBackPressed\(\(\) => \{[\s\S]*this\.closeReader\(\)[\s\S]*return true/, 'reader route must intercept system back and close reader')
 assert.match(indexSource, /onBackPress\(\): boolean \{[\s\S]*this\.closeReader\(\)[\s\S]*return true/, 'entry page back fallback must close an open reader instead of exiting')
 assert.match(readerPageSource, /updatePageIndex\(this\.sessionConfig/, 'reader page changes must update session progress')
+assert.match(readerPageSource, /ReaderPageRenderKind\.LOCAL_FILE_IMAGE/, 'reader page must render accepted local file images through a distinct path')
 assert.match(readerPageSource, /ReaderPageRenderKind\.URI_PLACEHOLDER/, 'reader page must isolate URI rendering behind an explicit placeholder path')
+assert.match(readerPageSource, /Image\(imageUri\)/, 'reader page must pass accepted local image sources to ArkUI Image')
+assert.match(readerPageSource, /\.onError\(\(\) => \{[\s\S]*recordImageLoadFailure/, 'reader image load failures must return to a visible error placeholder')
 assert.match(readerPageSource, /expandSafeArea\(\[SafeAreaType\.SYSTEM\], \[SafeAreaEdge\.TOP, SafeAreaEdge\.BOTTOM\]\)/, 'reader background may extend into system safe areas')
 assert.match(readerChromeSource, /onCloseReader/, 'chrome return button must delegate to the reader route close callback')
 assert.match(readerChromeSource, /top: 24/, 'top reader chrome must reserve room for the status bar on fullscreen windows')
@@ -232,5 +318,92 @@ assert.equal(importedPageTwo.pageIndex, 1)
 assert.equal(importedPageTwo.pageId, 'page-b')
 assert.equal(importedStore.restorePageIndex(importedConfig), 1, 'imported comic restore uses saved real page index')
 assert.equal(getReaderSessionPageUri(importedConfig, importedStore.restorePageIndex(importedConfig)), 'file://comic/002.jpg', 'restored page index maps back to the saved page URI')
+
+const renderCases = [
+  {
+    uri: 'mock://local-01/001.jpg',
+    kind: ReaderPageRenderKind.MOCK_FALLBACK,
+    imageUri: '',
+    label: 'mock URI remains mock fallback',
+  },
+  {
+    uri: '/data/storage/el2/base/cache/import/demo-12345678/extract/001.jpg',
+    kind: ReaderPageRenderKind.LOCAL_FILE_IMAGE,
+    imageUri: 'file:///data/storage/el2/base/cache/import/demo-12345678/extract/001.jpg',
+    label: 'app cache extracted image path renders locally',
+  },
+  {
+    uri: 'file:///data/storage/el2/base/cache/import/demo-12345678/extract/nested/002.webp',
+    kind: ReaderPageRenderKind.LOCAL_FILE_IMAGE,
+    imageUri: 'file:///data/storage/el2/base/cache/import/demo-12345678/extract/nested/002.webp',
+    label: 'app cache extracted file URI renders locally',
+  },
+  {
+    uri: '/data/storage/el2/base/files/import/demo-12345678/extract/003.png',
+    kind: ReaderPageRenderKind.LOCAL_FILE_IMAGE,
+    imageUri: 'file:///data/storage/el2/base/files/import/demo-12345678/extract/003.png',
+    label: 'app files extracted image path renders locally',
+  },
+  {
+    uri: 'http://example.com/001.jpg',
+    kind: ReaderPageRenderKind.URI_PLACEHOLDER,
+    imageUri: '',
+    label: 'http stays unsupported placeholder',
+  },
+  {
+    uri: 'content://media/external/images/001',
+    kind: ReaderPageRenderKind.URI_PLACEHOLDER,
+    imageUri: '',
+    label: 'content URI stays unsupported placeholder',
+  },
+  {
+    uri: 'docs://provider/001.jpg',
+    kind: ReaderPageRenderKind.URI_PLACEHOLDER,
+    imageUri: '',
+    label: 'docs URI stays unsupported placeholder',
+  },
+  {
+    uri: '/data/storage/el2/base/cache/import/demo-12345678/archive.zip#001.jpg',
+    kind: ReaderPageRenderKind.URI_PLACEHOLDER,
+    imageUri: '',
+    label: 'archive entry DTO stays unsupported placeholder',
+  },
+  {
+    uri: '/data/storage/el2/base/cache/import/demo-12345678/extract/../001.jpg',
+    kind: ReaderPageRenderKind.URI_PLACEHOLDER,
+    imageUri: '',
+    label: 'traversal path stays unsupported placeholder',
+  },
+  {
+    uri: '/sdcard/cache/import/demo/extract/001.jpg',
+    kind: ReaderPageRenderKind.URI_PLACEHOLDER,
+    imageUri: '',
+    label: 'sdcard shaped import path stays unsupported placeholder',
+  },
+  {
+    uri: '/tmp/cache/import/demo/extract/001.jpg',
+    kind: ReaderPageRenderKind.URI_PLACEHOLDER,
+    imageUri: '',
+    label: 'tmp shaped import path stays unsupported placeholder',
+  },
+  {
+    uri: 'file:///sdcard/cache/import/demo/extract/001.jpg',
+    kind: ReaderPageRenderKind.URI_PLACEHOLDER,
+    imageUri: '',
+    label: 'sdcard shaped file URI stays unsupported placeholder',
+  },
+]
+
+renderCases.forEach((item, index) => {
+  const source = createReaderPageRenderSource({
+    comicId: `render-case-${index}`,
+    chapterId: 'chapter-1',
+    totalPages: 1,
+    pageUris: [item.uri],
+    pageIds: ['page-1'],
+  }, 0)
+  assert.equal(source.kind, item.kind, item.label)
+  assert.equal(source.imageUri, item.imageUri, `${item.label} imageUri`)
+})
 
 console.log('PASS Koma reader progress contracts')

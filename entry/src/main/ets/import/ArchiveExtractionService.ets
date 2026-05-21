@@ -157,6 +157,9 @@ export class ArchiveExtractionService {
     assertNotCancelled(request.cancelToken)
 
     const entries = await this.listImageEntries(request.extractionDir)
+    if (entries.length === 0) {
+      throw new Error(`Archive contains no supported image pages: ${request.archivePath}`)
+    }
     const importResult = buildComicFromArchive({
       archivePath: request.archivePath,
       entries,

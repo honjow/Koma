@@ -30,8 +30,20 @@ export interface LocalArchiveImportSelection {
 }
 
 export interface LocalArchiveImportResult extends LocalArchiveImportSelection {
+  status: 'succeeded'
   extractionResult: ArchiveExtractionResult
 }
+
+export interface LocalArchiveImportFailedResult {
+  status: 'failed'
+  sourceUri: string
+  sandboxZipPath?: string
+  extractionDir?: string
+  cacheRootDir?: string
+  error: string
+}
+
+export type LocalArchiveImportItemResult = LocalArchiveImportResult | LocalArchiveImportFailedResult
 
 export interface LocalArchiveImportRequest {
   context: common.UIAbilityContext
@@ -296,6 +308,7 @@ export class LocalImportCoordinator {
         sandboxZipPath: selection.sandboxZipPath,
         extractionDir: selection.extractionDir,
         cacheRootDir: selection.cacheRootDir,
+        status: 'succeeded',
         extractionResult,
       }
     } catch (error) {
@@ -308,7 +321,7 @@ export class LocalImportCoordinator {
     }
   }
 
-  async pickAndImportArchives(context: common.UIAbilityContext, maxSelectNumber: number = 100): Promise<LocalArchiveImportResult[]> {
+  async pickAndImportArchives(context: common.UIAbilityContext, maxSelectNumber: number = 100): Promise<LocalArchiveImportItemResult[]> {
     this.reportDebugEvent({
       step: LOCAL_ARCHIVE_DEBUG_STEP_PICKER_STARTED,
     })
@@ -317,16 +330,24 @@ export class LocalImportCoordinator {
       step: LOCAL_ARCHIVE_DEBUG_STEP_PICKER_RETURNED,
       uriCount: uris.length,
     })
-    const results: LocalArchiveImportResult[] = []
+    const results: LocalArchiveImportItemResult[] = []
     for (const uri of uris) {
       this.reportDebugEvent({
         step: LOCAL_ARCHIVE_DEBUG_STEP_PICKER_RETURNED,
         sourceUri: uri,
       })
-      results.push(await this.importPickedArchive({
-        context,
-        sourceUri: uri,
-      }))
+      try {
+        results.push(await this.importPickedArchive({
+          context,
+          sourceUri: uri,
+        }))
+      } catch (error) {
+        results.push({
+          status: 'failed',
+          sourceUri: uri,
+          error: `${error}`,
+        })
+      }
     }
     return results
   }

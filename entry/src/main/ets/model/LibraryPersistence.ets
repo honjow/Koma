@@ -5,13 +5,15 @@ import {
   Page,
   ReadingDirection,
 } from './ComicModels'
+import { fileIo as fs } from '@kit.CoreFileKit'
 import { LibraryStore } from './LibraryStore'
 
 export const LIBRARY_STORE_PERSISTENCE_SCHEMA_VERSION = 1
+export const LIBRARY_STORE_PERSISTENCE_FILE_NAME = 'library-store.v1.json'
 
 export interface PersistedLibraryStoreDocument {
   schemaVersion: number
-  comics?: PersistedComic[]
+  comics: PersistedComic[]
 }
 
 export interface PersistedComic {
@@ -81,6 +83,7 @@ function persistPage(page: Page): PersistedPage {
 }
 
 function hydratePage(row: PersistedPage): Page {
+  assertValidPersistedPage(row)
   const page: Page = {
     id: row.id,
     comicId: row.comicId,
@@ -118,7 +121,8 @@ function persistChapter(chapter: Chapter): PersistedChapter {
 }
 
 function hydrateChapter(row: PersistedChapter): Chapter {
-  const pages = row.pages === undefined ? [] : row.pages.map((page: PersistedPage) => hydratePage(page))
+  assertValidPersistedChapter(row)
+  const pages = row.pages.map((page: PersistedPage) => hydratePage(page))
   return {
     id: row.id,
     comicId: row.comicId,
@@ -161,7 +165,8 @@ export function persistComic(comic: Comic): PersistedComic {
 }
 
 export function hydrateComic(row: PersistedComic): Comic {
-  const chapters = row.chapters === undefined ? [] : row.chapters.map((chapter: PersistedChapter) => hydrateChapter(chapter))
+  assertValidPersistedComic(row)
+  const chapters = row.chapters.map((chapter: PersistedChapter) => hydrateChapter(chapter))
   const comic: Comic = {
     id: row.id,
     title: row.title,
@@ -205,19 +210,164 @@ function assertSupportedLibraryStoreDocument(document: PersistedLibraryStoreDocu
   }
 }
 
-export function hydrateLibraryStoreFromJson(libraryStore: LibraryStore, payload: string): void {
+function assertPersistedObject(value: Object | null, label: string): void {
+  if (value === null || typeof value !== 'object' || Array.isArray(value)) {
+    throw new Error(`Invalid library store persistence ${label}: expected object`)
+  }
+}
+
+function assertStringField(value: string | undefined, label: string): void {
+  if (typeof value !== 'string' || value.length === 0) {
+    throw new Error(`Invalid library store persistence ${label}: expected non-empty string`)
+  }
+}
+
+function assertOptionalStringField(value: string | undefined, label: string): void {
+  if (value !== undefined && typeof value !== 'string') {
+    throw new Error(`Invalid library store persistence ${label}: expected string`)
+  }
+}
+
+function assertNumberField(value: number | undefined, label: string): void {
+  if (typeof value !== 'number' || !Number.isFinite(value)) {
+    throw new Error(`Invalid library store persistence ${label}: expected finite number`)
+  }
+}
+
+function assertOptionalNumberField(value: number | undefined, label: string): void {
+  if (value !== undefined && (typeof value !== 'number' || !Number.isFinite(value))) {
+    throw new Error(`Invalid library store persistence ${label}: expected finite number`)
+  }
+}
+
+function assertComicSourceKind(value: ComicSourceKind | undefined, label: string): void {
+  if (
+    value !== ComicSourceKind.LOCAL_ARCHIVE &&
+    value !== ComicSourceKind.LOCAL_FOLDER &&
+    value !== ComicSourceKind.PRIVATE_LIBRARY
+  ) {
+    throw new Error(`Invalid library store persistence ${label}: expected comic source kind`)
+  }
+}
+
+function assertReadingDirection(value: ReadingDirection | undefined, label: string): void {
+  if (
+    value !== ReadingDirection.LEFT_TO_RIGHT &&
+    value !== ReadingDirection.RIGHT_TO_LEFT &&
+    value !== ReadingDirection.WEBTOON
+  ) {
+    throw new Error(`Invalid library store persistence ${label}: expected reading direction`)
+  }
+}
+
+function assertValidPersistedPage(row: PersistedPage): void {
+  assertPersistedObject(row as Object, 'page')
+  assertStringField(row.id, 'page.id')
+  assertStringField(row.comicId, 'page.comicId')
+  assertStringField(row.chapterId, 'page.chapterId')
+  assertNumberField(row.index, 'page.index')
+  assertStringField(row.fileName, 'page.fileName')
+  assertStringField(row.uri, 'page.uri')
+  assertStringField(row.sortKey, 'page.sortKey')
+  assertOptionalNumberField(row.width, 'page.width')
+  assertOptionalNumberField(row.height, 'page.height')
+  assertOptionalNumberField(row.byteSize, 'page.byteSize')
+}
+
+function assertValidPersistedChapter(row: PersistedChapter): void {
+  assertPersistedObject(row as Object, 'chapter')
+  assertStringField(row.id, 'chapter.id')
+  assertStringField(row.comicId, 'chapter.comicId')
+  assertStringField(row.title, 'chapter.title')
+  assertNumberField(row.index, 'chapter.index')
+  assertStringField(row.sourcePath, 'chapter.sourcePath')
+  assertStringField(row.sortKey, 'chapter.sortKey')
+  if (!Array.isArray(row.pages)) {
+    throw new Error('Invalid library store persistence chapter.pages: expected array')
+  }
+  assertNumberField(row.pageCount, 'chapter.pageCount')
+  assertNumberField(row.createdAt, 'chapter.createdAt')
+  assertNumberField(row.updatedAt, 'chapter.updatedAt')
+}
+
+function assertValidPersistedComic(row: PersistedComic): void {
+  assertPersistedObject(row as Object, 'comic')
+  assertStringField(row.id, 'comic.id')
+  assertStringField(row.title, 'comic.title')
+  assertOptionalStringField(row.subtitle, 'comic.subtitle')
+  assertOptionalStringField(row.author, 'comic.author')
+  assertComicSourceKind(row.sourceKind, 'comic.sourceKind')
+  assertStringField(row.sourcePath, 'comic.sourcePath')
+  assertOptionalStringField(row.coverUri, 'comic.coverUri')
+  assertStringField(row.sortTitle, 'comic.sortTitle')
+  assertReadingDirection(row.preferredDirection, 'comic.preferredDirection')
+  if (!Array.isArray(row.chapters)) {
+    throw new Error('Invalid library store persistence comic.chapters: expected array')
+  }
+  assertNumberField(row.chapterCount, 'comic.chapterCount')
+  assertNumberField(row.pageCount, 'comic.pageCount')
+  assertNumberField(row.createdAt, 'comic.createdAt')
+  assertNumberField(row.updatedAt, 'comic.updatedAt')
+  assertNumberField(row.lastImportedAt, 'comic.lastImportedAt')
+}
+
+function parseValidatedLibraryStoreComics(payload: string): Comic[] {
   const document = JSON.parse(payload) as PersistedLibraryStoreDocument
+  assertPersistedObject(document as Object, 'document')
   assertSupportedLibraryStoreDocument(document)
-  const comics = document.comics === undefined ? [] : document.comics
+  if (!Array.isArray(document.comics)) {
+    throw new Error('Invalid library store persistence comics: expected array')
+  }
+  return document.comics.map((row: PersistedComic) => hydrateComic(row))
+}
+
+export function hydrateLibraryStoreFromJson(libraryStore: LibraryStore, payload: string): void {
+  const comics = parseValidatedLibraryStoreComics(payload)
   libraryStore.clear()
-  comics.forEach((row: PersistedComic) => {
-    libraryStore.upsertComic(hydrateComic(row))
+  comics.forEach((comic: Comic) => {
+    libraryStore.upsertComic(comic)
   })
 }
 
 export interface LibraryStorePersistenceAdapter {
   load(): string | undefined
   save(payload: string): void
+}
+
+function joinLibraryPersistencePath(parent: string, child: string): string {
+  const left = parent.replace(/\\/g, '/').replace(/\/+$/, '')
+  const right = child.replace(/\\/g, '/').replace(/^\/+/, '')
+  if (left.length === 0) {
+    return right
+  }
+  return `${left}/${right}`
+}
+
+export class AppFilesLibraryStorePersistenceAdapter implements LibraryStorePersistenceAdapter {
+  private readonly filePath: string
+
+  constructor(filesDir: string, fileName: string = LIBRARY_STORE_PERSISTENCE_FILE_NAME) {
+    this.filePath = joinLibraryPersistencePath(filesDir, fileName)
+  }
+
+  load(): string | undefined {
+    if (!fs.accessSync(this.filePath)) {
+      return undefined
+    }
+    return fs.readTextSync(this.filePath, { encoding: 'utf-8' })
+  }
+
+  save(payload: string): void {
+    let file: fs.File | undefined = undefined
+    try {
+      file = fs.openSync(this.filePath, fs.OpenMode.WRITE_ONLY | fs.OpenMode.CREATE | fs.OpenMode.TRUNC)
+      fs.writeSync(file.fd, payload, { encoding: 'utf-8' })
+    } finally {
+      if (file !== undefined) {
+        fs.closeSync(file)
+      }
+    }
+  }
 }
 
 export class LibraryStorePersistenceService {
@@ -232,7 +382,6 @@ export class LibraryStorePersistenceService {
   restore(): void {
     const payload = this.adapter.load()
     if (payload === undefined || payload.length === 0) {
-      this.libraryStore.clear()
       return
     }
     hydrateLibraryStoreFromJson(this.libraryStore, payload)
@@ -240,5 +389,20 @@ export class LibraryStorePersistenceService {
 
   persist(): void {
     this.adapter.save(serializeLibraryStore(this.libraryStore))
+  }
+}
+
+export function upsertComicAndPersistLibraryStore(
+  libraryStore: LibraryStore,
+  persistenceService: LibraryStorePersistenceService,
+  comic: Comic
+): void {
+  const previousPayload = serializeLibraryStore(libraryStore)
+  libraryStore.upsertComic(comic)
+  try {
+    persistenceService.persist()
+  } catch (error) {
+    hydrateLibraryStoreFromJson(libraryStore, previousPayload)
+    throw error as Error
   }
 }

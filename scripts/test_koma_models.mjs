@@ -93,7 +93,9 @@ assertExport(libraryPersistenceSource, 'hydrateComic')
 assertExport(libraryPersistenceSource, 'serializeLibraryStore')
 assertExport(libraryPersistenceSource, 'hydrateLibraryStoreFromJson')
 assertExport(libraryPersistenceSource, 'LibraryStorePersistenceAdapter')
+assertExport(libraryPersistenceSource, 'AppFilesLibraryStorePersistenceAdapter')
 assertExport(libraryPersistenceSource, 'LibraryStorePersistenceService')
+assertExport(libraryPersistenceSource, 'upsertComicAndPersistLibraryStore')
 
 assert.match(
   libraryPersistenceSource,
@@ -102,13 +104,33 @@ assert.match(
 )
 assert.match(
   libraryPersistenceSource,
+  /export interface PersistedLibraryStoreDocument\s*{[^}]*\bcomics:\s*PersistedComic\[\]/s,
+  'PersistedLibraryStoreDocument.comics must be required in production source',
+)
+assert.match(
+  libraryPersistenceSource,
   /function assertSupportedLibraryStoreDocument[\s\S]*document\.schemaVersion !== LIBRARY_STORE_PERSISTENCE_SCHEMA_VERSION[\s\S]*throw new Error/,
   'production hydrate path must reject missing or unsupported schema versions',
 )
 assert.match(
   libraryPersistenceSource,
-  /export function hydrateLibraryStoreFromJson[\s\S]*assertSupportedLibraryStoreDocument\(document\)[\s\S]*libraryStore\.clear\(\)/,
-  'production hydrate path must validate schemaVersion before clearing the store',
+  /function parseValidatedLibraryStoreComics[\s\S]*assertSupportedLibraryStoreDocument\(document\)[\s\S]*return document\.comics\.map[\s\S]*export function hydrateLibraryStoreFromJson[\s\S]*const comics = parseValidatedLibraryStoreComics\(payload\)[\s\S]*libraryStore\.clear\(\)/,
+  'production hydrate path must validate schemaVersion and persisted rows before clearing the store',
+)
+assert.match(
+  libraryPersistenceSource,
+  /export class AppFilesLibraryStorePersistenceAdapter[\s\S]*fs\.readTextSync[\s\S]*fs\.openSync[\s\S]*fs\.writeSync/,
+  'HarmonyOS file adapter must use app sandbox fileIo text read/write APIs',
+)
+assert.match(
+  libraryPersistenceSource,
+  /restore\(\):\s*void\s*{[\s\S]*payload === undefined \|\| payload\.length === 0[\s\S]*return[\s\S]*hydrateLibraryStoreFromJson/,
+  'empty persistence payload must leave the seeded startup store intact',
+)
+assert.match(
+  libraryPersistenceSource,
+  /export function upsertComicAndPersistLibraryStore[\s\S]*const previousPayload = serializeLibraryStore\(libraryStore\)[\s\S]*libraryStore\.upsertComic\(comic\)[\s\S]*persistenceService\.persist\(\)[\s\S]*hydrateLibraryStoreFromJson\(libraryStore, previousPayload\)[\s\S]*throw error/,
+  'save-after-upsert helper must rollback the live store and rethrow when persistence fails',
 )
 
 const comic = {
@@ -351,6 +373,7 @@ function persistPage(page) {
 }
 
 function hydratePage(row) {
+  assertValidPersistedPage(row)
   const page = {
     id: row.id,
     comicId: row.comicId,
@@ -382,6 +405,7 @@ function persistChapter(chapter) {
 }
 
 function hydrateChapter(row) {
+  assertValidPersistedChapter(row)
   return {
     id: row.id,
     comicId: row.comicId,
@@ -389,7 +413,7 @@ function hydrateChapter(row) {
     index: row.index,
     sourcePath: row.sourcePath,
     sortKey: row.sortKey,
-    pages: row.pages === undefined ? [] : row.pages.map((page) => hydratePage(page)),
+    pages: row.pages.map((page) => hydratePage(page)),
     pageCount: row.pageCount,
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
@@ -418,6 +442,7 @@ function persistComic(comic) {
 }
 
 function hydrateComic(row) {
+  assertValidPersistedComic(row)
   const comic = {
     id: row.id,
     title: row.title,
@@ -425,7 +450,7 @@ function hydrateComic(row) {
     sourcePath: row.sourcePath,
     sortTitle: row.sortTitle,
     preferredDirection: row.preferredDirection,
-    chapters: row.chapters === undefined ? [] : row.chapters.map((chapter) => hydrateChapter(chapter)),
+    chapters: row.chapters.map((chapter) => hydrateChapter(chapter)),
     chapterCount: row.chapterCount,
     pageCount: row.pageCount,
     createdAt: row.createdAt,
@@ -451,12 +476,163 @@ function assertSupportedLibraryStoreDocument(document) {
   }
 }
 
-function hydrateLibraryStoreFromJson(store, payload) {
+function assertPersistedObject(value, label) {
+  if (value === null || typeof value !== 'object' || Array.isArray(value)) {
+    throw new Error(`Invalid library store persistence ${label}: expected object`)
+  }
+}
+
+function assertStringField(value, label) {
+  if (typeof value !== 'string' || value.length === 0) {
+    throw new Error(`Invalid library store persistence ${label}: expected non-empty string`)
+  }
+}
+
+function assertOptionalStringField(value, label) {
+  if (value !== undefined && typeof value !== 'string') {
+    throw new Error(`Invalid library store persistence ${label}: expected string`)
+  }
+}
+
+function assertNumberField(value, label) {
+  if (typeof value !== 'number' || !Number.isFinite(value)) {
+    throw new Error(`Invalid library store persistence ${label}: expected finite number`)
+  }
+}
+
+function assertOptionalNumberField(value, label) {
+  if (value !== undefined && (typeof value !== 'number' || !Number.isFinite(value))) {
+    throw new Error(`Invalid library store persistence ${label}: expected finite number`)
+  }
+}
+
+function assertComicSourceKind(value, label) {
+  if (!['local_archive', 'local_folder', 'private_library'].includes(value)) {
+    throw new Error(`Invalid library store persistence ${label}: expected comic source kind`)
+  }
+}
+
+function assertReadingDirection(value, label) {
+  if (!['left_to_right', 'right_to_left', 'webtoon'].includes(value)) {
+    throw new Error(`Invalid library store persistence ${label}: expected reading direction`)
+  }
+}
+
+function assertValidPersistedPage(row) {
+  assertPersistedObject(row, 'page')
+  assertStringField(row.id, 'page.id')
+  assertStringField(row.comicId, 'page.comicId')
+  assertStringField(row.chapterId, 'page.chapterId')
+  assertNumberField(row.index, 'page.index')
+  assertStringField(row.fileName, 'page.fileName')
+  assertStringField(row.uri, 'page.uri')
+  assertStringField(row.sortKey, 'page.sortKey')
+  assertOptionalNumberField(row.width, 'page.width')
+  assertOptionalNumberField(row.height, 'page.height')
+  assertOptionalNumberField(row.byteSize, 'page.byteSize')
+}
+
+function assertValidPersistedChapter(row) {
+  assertPersistedObject(row, 'chapter')
+  assertStringField(row.id, 'chapter.id')
+  assertStringField(row.comicId, 'chapter.comicId')
+  assertStringField(row.title, 'chapter.title')
+  assertNumberField(row.index, 'chapter.index')
+  assertStringField(row.sourcePath, 'chapter.sourcePath')
+  assertStringField(row.sortKey, 'chapter.sortKey')
+  if (!Array.isArray(row.pages)) {
+    throw new Error('Invalid library store persistence chapter.pages: expected array')
+  }
+  assertNumberField(row.pageCount, 'chapter.pageCount')
+  assertNumberField(row.createdAt, 'chapter.createdAt')
+  assertNumberField(row.updatedAt, 'chapter.updatedAt')
+}
+
+function assertValidPersistedComic(row) {
+  assertPersistedObject(row, 'comic')
+  assertStringField(row.id, 'comic.id')
+  assertStringField(row.title, 'comic.title')
+  assertOptionalStringField(row.subtitle, 'comic.subtitle')
+  assertOptionalStringField(row.author, 'comic.author')
+  assertComicSourceKind(row.sourceKind, 'comic.sourceKind')
+  assertStringField(row.sourcePath, 'comic.sourcePath')
+  assertOptionalStringField(row.coverUri, 'comic.coverUri')
+  assertStringField(row.sortTitle, 'comic.sortTitle')
+  assertReadingDirection(row.preferredDirection, 'comic.preferredDirection')
+  if (!Array.isArray(row.chapters)) {
+    throw new Error('Invalid library store persistence comic.chapters: expected array')
+  }
+  assertNumberField(row.chapterCount, 'comic.chapterCount')
+  assertNumberField(row.pageCount, 'comic.pageCount')
+  assertNumberField(row.createdAt, 'comic.createdAt')
+  assertNumberField(row.updatedAt, 'comic.updatedAt')
+  assertNumberField(row.lastImportedAt, 'comic.lastImportedAt')
+}
+
+function parseValidatedLibraryStoreComics(payload) {
   const document = JSON.parse(payload)
+  assertPersistedObject(document, 'document')
   assertSupportedLibraryStoreDocument(document)
-  const rows = document.comics === undefined ? [] : document.comics
+  if (!Array.isArray(document.comics)) {
+    throw new Error('Invalid library store persistence comics: expected array')
+  }
+  return document.comics.map((row) => hydrateComic(row))
+}
+
+function hydrateLibraryStoreFromJson(store, payload) {
+  const comics = parseValidatedLibraryStoreComics(payload)
   store.clear()
-  rows.forEach((row) => store.upsertComic(hydrateComic(row)))
+  comics.forEach((comic) => store.upsertComic(comic))
+}
+
+class MemoryLibraryStorePersistenceAdapter {
+  constructor(payload, saveError) {
+    this.payload = payload
+    this.saveError = saveError
+    this.savedPayloads = []
+  }
+
+  load() {
+    return this.payload
+  }
+
+  save(payload) {
+    if (this.saveError !== undefined) {
+      throw this.saveError
+    }
+    this.payload = payload
+    this.savedPayloads.push(payload)
+  }
+}
+
+class LibraryStorePersistenceService {
+  constructor(store, adapter) {
+    this.store = store
+    this.adapter = adapter
+  }
+
+  restore() {
+    const payload = this.adapter.load()
+    if (payload === undefined || payload.length === 0) {
+      return
+    }
+    hydrateLibraryStoreFromJson(this.store, payload)
+  }
+
+  persist() {
+    this.adapter.save(serializeLibraryStore(this.store))
+  }
+}
+
+function upsertComicAndPersistLibraryStore(store, persistenceService, comic) {
+  const previousPayload = serializeLibraryStore(store)
+  store.upsertComic(comic)
+  try {
+    persistenceService.persist()
+  } catch (error) {
+    hydrateLibraryStoreFromJson(store, previousPayload)
+    throw error
+  }
 }
 
 function createPresentationMap() {
@@ -643,8 +819,21 @@ assert.equal(optionalComic.chapters[0].extraFutureChapterField, undefined, 'unkn
 assert.equal(optionalComic.chapters[0].pages[0].extraFuturePageField, undefined, 'unknown page fields must not hydrate into the runtime model')
 
 const emptyStore = createSeededStore()
-hydrateLibraryStoreFromJson(emptyStore, JSON.stringify({ schemaVersion: 1 }))
-assert.equal(emptyStore.listComics().length, 0, 'missing comics array should hydrate as an empty library')
+hydrateLibraryStoreFromJson(emptyStore, JSON.stringify({ schemaVersion: 1, comics: [] }))
+assert.equal(emptyStore.listComics().length, 0, 'explicit empty comics array should hydrate as an empty library')
+
+const missingComicsStore = createSeededStore()
+const missingComicsBefore = missingComicsStore.listComics().map((item) => item.id)
+assert.throws(
+  () => hydrateLibraryStoreFromJson(missingComicsStore, JSON.stringify({ schemaVersion: 1 })),
+  /Invalid library store persistence comics: expected array/,
+  'missing comics array must reject before mutating the library store',
+)
+assert.deepEqual(
+  missingComicsStore.listComics().map((item) => item.id),
+  missingComicsBefore,
+  'missing comics array must leave existing library data unchanged',
+)
 
 const missingVersionStore = createSeededStore()
 const missingVersionBefore = missingVersionStore.listComics().map((item) => item.id)
@@ -671,5 +860,119 @@ assert.deepEqual(
   unsupportedVersionBefore,
   'unsupported schemaVersion must leave existing library data unchanged',
 )
+
+const malformedComicsStore = createSeededStore()
+const malformedComicsBefore = malformedComicsStore.listComics().map((item) => item.id)
+assert.throws(
+  () => hydrateLibraryStoreFromJson(malformedComicsStore, JSON.stringify({ schemaVersion: 1, comics: {} })),
+  /Invalid library store persistence comics: expected array/,
+  'non-array comics must reject before mutating the library store',
+)
+assert.deepEqual(
+  malformedComicsStore.listComics().map((item) => item.id),
+  malformedComicsBefore,
+  'non-array comics must leave existing library data unchanged',
+)
+
+const malformedChapterStore = createSeededStore()
+const malformedChapterBefore = malformedChapterStore.listComics().map((item) => item.id)
+const malformedChapterPayload = JSON.stringify({
+  schemaVersion: 1,
+  comics: [{
+    ...persistedImported,
+    chapters: [{
+      ...persistedImported.chapters[0],
+      pages: undefined,
+    }],
+  }],
+})
+assert.throws(
+  () => hydrateLibraryStoreFromJson(malformedChapterStore, malformedChapterPayload),
+  /Invalid library store persistence chapter\.pages: expected array/,
+  'missing page array must reject before mutating the library store',
+)
+assert.deepEqual(
+  malformedChapterStore.listComics().map((item) => item.id),
+  malformedChapterBefore,
+  'missing page array must leave existing library data unchanged',
+)
+
+const malformedPageStore = createSeededStore()
+const malformedPageBefore = malformedPageStore.listComics().map((item) => item.id)
+const malformedPagePayload = JSON.stringify({
+  schemaVersion: 1,
+  comics: [{
+    ...persistedImported,
+    chapters: [{
+      ...persistedImported.chapters[0],
+      pages: [{
+        ...persistedImported.chapters[0].pages[0],
+        uri: undefined,
+      }],
+    }],
+  }],
+})
+assert.throws(
+  () => hydrateLibraryStoreFromJson(malformedPageStore, malformedPagePayload),
+  /Invalid library store persistence page\.uri: expected non-empty string/,
+  'invalid page fields must reject before mutating the library store',
+)
+assert.deepEqual(
+  malformedPageStore.listComics().map((item) => item.id),
+  malformedPageBefore,
+  'invalid page fields must leave existing library data unchanged',
+)
+
+const emptyAdapterStore = createSeededStore()
+const emptyAdapter = new MemoryLibraryStorePersistenceAdapter(undefined)
+new LibraryStorePersistenceService(emptyAdapterStore, emptyAdapter).restore()
+assert.equal(
+  emptyAdapterStore.listComics().length,
+  6,
+  'startup restore with no persistence file must keep deterministic seeded shelf data',
+)
+
+const persistedImportedOnlyPayload = JSON.stringify({
+  schemaVersion: 1,
+  comics: [persistedImported],
+})
+const persistedOnlyStore = createSeededStore()
+new LibraryStorePersistenceService(
+  persistedOnlyStore,
+  new MemoryLibraryStorePersistenceAdapter(persistedImportedOnlyPayload),
+).restore()
+assert.deepEqual(
+  persistedOnlyStore.listComics().map((item) => item.id),
+  ['imported-01'],
+  'startup restore with a valid document must replace seeds with persisted document contents',
+)
+
+const saveAfterUpsertStore = createSeededStore()
+const saveAfterUpsertAdapter = new MemoryLibraryStorePersistenceAdapter(undefined)
+const saveAfterUpsertService = new LibraryStorePersistenceService(saveAfterUpsertStore, saveAfterUpsertAdapter)
+upsertComicAndPersistLibraryStore(saveAfterUpsertStore, saveAfterUpsertService, importedComic)
+assert.equal(saveAfterUpsertAdapter.savedPayloads.length, 1, 'successful import upsert must save exactly once')
+assert.equal(saveAfterUpsertStore.getComic('imported-01').title, 'Imported Volume')
+assert.equal(
+  JSON.parse(saveAfterUpsertAdapter.savedPayloads[0]).comics.some((item) => item.id === 'imported-01'),
+  true,
+  'saved library payload must include the imported comic after upsert',
+)
+
+const throwingSaveStore = createSeededStore()
+const throwingSaveBefore = throwingSaveStore.listComics().map((item) => item.id)
+const throwingSaveAdapter = new MemoryLibraryStorePersistenceAdapter(undefined, new Error('disk full'))
+const throwingSaveService = new LibraryStorePersistenceService(throwingSaveStore, throwingSaveAdapter)
+assert.throws(
+  () => upsertComicAndPersistLibraryStore(throwingSaveStore, throwingSaveService, importedComic),
+  /disk full/,
+  'save failure during import persistence must be visible to the caller',
+)
+assert.deepEqual(
+  throwingSaveStore.listComics().map((item) => item.id),
+  throwingSaveBefore,
+  'save failure during import persistence must rollback the in-memory upsert',
+)
+assert.equal(throwingSaveStore.getComic('imported-01'), undefined, 'failed import must not remain visible in the live shelf store')
 
 console.log('PASS Koma model contracts')

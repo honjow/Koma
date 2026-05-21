@@ -83,12 +83,23 @@ export struct ImportPage {
     try {
       const context = this.getUIContext().getHostContext() as common.UIAbilityContext
       const results = await this.localImportCoordinator.pickAndImportArchives(context)
+      let succeededCount = 0
+      let failedCount = 0
+      results.forEach((result) => {
+        if (result.status === 'succeeded') {
+          succeededCount += 1
+          return
+        }
+        failedCount += 1
+      })
+      results.forEach((result) => {
+        if (result.status === 'succeeded') {
+          this.onArchiveImportSucceeded(result.extractionResult.importResult.comic)
+        }
+      })
       this.feedbackText = results.length === 0
         ? '未选择文件；真实导入仍需要人工在系统文件选择器中选择一个 CBZ/ZIP。'
-        : `已复制并解压 ${results.length} 个压缩包到 Koma 沙盒缓存。`
-      results.forEach((result) => {
-        this.onArchiveImportSucceeded(result.extractionResult.importResult.comic)
-      })
+        : `压缩包导入完成：成功 ${succeededCount} 个，失败 ${failedCount} 个。`
     } catch (error) {
       this.feedbackText = `压缩包导入未完成：${error}`
     } finally {

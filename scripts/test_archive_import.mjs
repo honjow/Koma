@@ -262,7 +262,9 @@ function buildComicFromArchive(request) {
 
 function notifySuccessfulArchiveImports(results, onComic) {
   results.forEach((result) => {
-    onComic(result.extractionResult.importResult.comic)
+    if (result.status === 'succeeded') {
+      onComic(result.extractionResult.importResult.comic)
+    }
   })
 }
 
@@ -298,6 +300,7 @@ assert.match(extractionServiceSource, /zlib\.decompressFile\(request\.sandboxZip
 assert.match(extractionServiceSource, /fs\.listFile\(extractionDir, listFileOptions\)/, 'extraction service must enumerate extracted files through fileIo.listFile')
 assert.match(extractionServiceSource, /recursion:\s*true/, 'extraction listFile options must recurse')
 assert.ok(extractionServiceSource.includes("replace(/^\\/+/, '')"), 'extraction service must strip listFile leading slash before DTO import')
+assert.match(extractionServiceSource, /if \(entries\.length === 0\) \{[\s\S]*Archive contains no supported image pages/, 'archives with no supported image pages must fail before comic import')
 assert.match(extractionServiceSource, /endsWith\('\.zip'\)/, 'extraction service must enforce zlib .zip input suffix')
 assert.match(extractionServiceSource, /archive\.zip/, 'cache copy target must normalize zip and cbz input to archive.zip')
 assert.match(extractionServiceSource, /createStableCacheHash/, 'cache root must include a stable hash component')
@@ -312,11 +315,17 @@ assert.match(localImportCoordinatorSource, /createArchiveExtractionCachePaths\(r
 assert.match(localImportCoordinatorSource, /removeComputedArchiveImportCacheRoot\(request\.context\.cacheDir, paths\.rootDir\)[\s\S]*await fs\.mkdir\(paths\.rootDir, true\)[\s\S]*LOCAL_ARCHIVE_DEBUG_STEP_COPY_STARTED/, 'repeat import must clear the computed cache root before copying')
 assert.match(localImportCoordinatorSource, /assertSafeComputedArchiveImportCacheRoot\(cacheDir, cacheRootDir\)[\s\S]*fs\.listFile\(cacheRootDir, listFileOptions\)[\s\S]*fs\.unlink\(entryPath\)[\s\S]*fs\.rmdir\(cacheRootDir\)/, 'cache cleanup must recursively remove files and root directory after safety validation')
 assert.match(importPageSource, /onArchiveImportSucceeded:\s*\(comic:\s*Comic\)\s*=>\s*void/, 'ImportPage must expose a successful archive import callback')
-assert.match(importPageSource, /const results = await this\.localImportCoordinator\.pickAndImportArchives\(context\)[\s\S]*results\.forEach\(\(result\) => \{[\s\S]*this\.onArchiveImportSucceeded\(result\.extractionResult\.importResult\.comic\)/, 'ImportPage must call the callback from real coordinator results')
-assert.match(indexPageSource, /private handleArchiveImportSucceeded\(comic:\s*Comic\):\s*void \{[\s\S]*this\.libraryStore\.upsertComic\(comic\)[\s\S]*this\.libraryRevision \+= 1[\s\S]*this\.selectedTab = 0[\s\S]*\}/, 'Index must upsert imported comics, bump a refresh signal, and return to the shelf')
+assert.match(importPageSource, /const results = await this\.localImportCoordinator\.pickAndImportArchives\(context\)[\s\S]*成功 \$\{succeededCount\} 个，失败 \$\{failedCount\} 个/, 'ImportPage must summarize multi-archive successes and failures')
+assert.match(importPageSource, /results\.forEach\(\(result\) => \{[\s\S]*if \(result\.status === 'succeeded'\) \{[\s\S]*this\.onArchiveImportSucceeded\(result\.extractionResult\.importResult\.comic\)/, 'ImportPage must only upsert successful archive import results')
+assert.match(importPageSource, /results\.forEach\(\(result\) => \{[\s\S]*this\.onArchiveImportSucceeded\(result\.extractionResult\.importResult\.comic\)[\s\S]*\}\)[\s\S]*this\.feedbackText = results\.length === 0/, 'ImportPage must not report archive import success until shelf persistence callbacks finish')
+assert.match(indexPageSource, /private handleArchiveImportSucceeded\(comic:\s*Comic\):\s*void \{[\s\S]*(this\.libraryStore\.upsertComic\(comic\)|upsertComicAndPersistLibraryStore\(this\.libraryStore, persistenceService, comic\))[\s\S]*catch \(error\) \{[\s\S]*console\.error\('persist imported comic failed: ' \+ e\.message\)[\s\S]*throw e[\s\S]*this\.libraryRevision \+= 1[\s\S]*this\.selectedTab = 0[\s\S]*\}/, 'Index must make persistence failures visible and only bump shelf success state after import persistence succeeds')
+assert.match(indexPageSource, /aboutToAppear\(\):\s*void \{[\s\S]*persistenceService\.restore\(\)[\s\S]*this\.libraryRevision \+= 1/, 'Index must hydrate persisted library data during startup before shelf rendering where feasible')
 assert.match(indexPageSource, /ImportPage\(\{[\s\S]*onArchiveImportSucceeded:\s*\(comic:\s*Comic\) => \{[\s\S]*this\.handleArchiveImportSucceeded\(comic\)/, 'Index must pass the import success callback into ImportPage')
 assert.match(indexPageSource, /LibraryPage\(\{[\s\S]*libraryRevision:\s*this\.libraryRevision/, 'Index must pass an explicit shelf refresh signal into LibraryPage')
 assert.match(localImportCoordinatorSource, /archiveExtractionService\.extractArchive/, 'local import must hand sandbox archive.zip to ArchiveExtractionService')
+assert.match(localImportCoordinatorSource, /export interface LocalArchiveImportFailedResult[\s\S]*status: 'failed'[\s\S]*error: string/, 'local import must expose failed item results for partial multi-selection')
+assert.match(localImportCoordinatorSource, /export type LocalArchiveImportItemResult = LocalArchiveImportResult \| LocalArchiveImportFailedResult/, 'local import must use an explicit success/failure result union')
+assert.match(localImportCoordinatorSource, /for \(const uri of uris\) \{[\s\S]*try \{[\s\S]*results\.push\(await this\.importPickedArchive[\s\S]*\} catch \(error\) \{[\s\S]*status: 'failed'[\s\S]*sourceUri: uri[\s\S]*error: `\$\{error\}`/, 'multi-archive import must continue after per-item failures')
 assert.match(localImportCoordinatorSource, /setDebugSink\(debugSink\?: LocalArchiveImportDebugSink\)/, 'coordinator must expose an optional debug sink for QA surfaces')
 assert.match(localImportCoordinatorSource, /LOCAL_ARCHIVE_DEBUG_STEP_PICKER_STARTED/, 'coordinator must report picker start')
 assert.match(localImportCoordinatorSource, /LOCAL_ARCHIVE_DEBUG_STEP_PICKER_RETURNED/, 'coordinator must report picker returned URI count and source URI lines')
@@ -428,6 +437,7 @@ assert.equal(importedComics.size, 0, 'picker cancel/empty results must not upser
 
 notifySuccessfulArchiveImports([
   {
+    status: 'succeeded',
     extractionResult: {
       importResult: result,
     },
@@ -437,6 +447,38 @@ notifySuccessfulArchiveImports([
 })
 assert.equal(importedComics.size, 1, 'successful coordinator results must upsert imported comics')
 assert.equal(importedComics.get('comic-local-1').pageCount, 4)
+
+notifySuccessfulArchiveImports([
+  {
+    status: 'failed',
+    sourceUri: '/library/broken.zip',
+    error: 'Archive contains no supported image pages: /library/broken.zip',
+  },
+], (comic) => {
+  importedComics.set(comic.id, comic)
+})
+assert.equal(importedComics.size, 1, 'failed coordinator results must not upsert imported comics')
+
+const mixedImportResults = [
+  {
+    status: 'succeeded',
+    sourceUri: '/library/My Volume 02.cbz',
+    extractionResult: {
+      importResult: result,
+    },
+  },
+  {
+    status: 'failed',
+    sourceUri: '/library/corrupt.zip',
+    error: 'Error: failed to decompress archive',
+  },
+]
+const mixedImportedComics = new Map()
+notifySuccessfulArchiveImports(mixedImportResults, (comic) => {
+  mixedImportedComics.set(comic.id, comic)
+})
+assert.equal(mixedImportedComics.size, 1, 'mixed success/failure selections must preserve successful imports')
+assert.equal(mixedImportedComics.get('comic-local-1').pageCount, 4)
 
 assert.throws(() => buildComicFromArchive({ archivePath: '/library/raw.rar', entries: [] }), /Unsupported archive path/)
 

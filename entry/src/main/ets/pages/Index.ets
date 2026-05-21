@@ -1,3 +1,4 @@
+import { common } from '@kit.AbilityKit'
 import { LibraryPage } from './LibraryPage'
 import { ImportPage } from './ImportPage'
 import { ReaderPage } from './ReaderPage'
@@ -9,6 +10,11 @@ import {
 } from '../model/MockLibraryData'
 import { Comic, ComicId } from '../model/ComicModels'
 import { LibraryStore } from '../model/LibraryStore'
+import {
+  AppFilesLibraryStorePersistenceAdapter,
+  LibraryStorePersistenceService,
+  upsertComicAndPersistLibraryStore,
+} from '../model/LibraryPersistence'
 import {
   InMemoryReaderSessionStore,
   ReaderSessionConfig,
@@ -35,6 +41,8 @@ struct Index {
   private libraryStore: LibraryStore = seededLibraryStore
   private presentationByComicId: LibraryPresentationByComicId = libraryPresentationByComicId
   private readerPathStack: NavPathStack = new NavPathStack()
+  private libraryPersistenceService?: LibraryStorePersistenceService
+  private libraryPersistenceRestored: boolean = false
 
   private tabLabel(index: number): string {
     if (index === 0) { return '书架' }
@@ -63,9 +71,53 @@ struct Index {
   }
 
   private handleArchiveImportSucceeded(comic: Comic): void {
-    this.libraryStore.upsertComic(comic)
+    const persistenceService = this.ensureLibraryPersistenceService()
+    if (persistenceService === undefined) {
+      this.libraryStore.upsertComic(comic)
+    } else {
+      try {
+        upsertComicAndPersistLibraryStore(this.libraryStore, persistenceService, comic)
+      } catch (error) {
+        const e = error as Error
+        console.error('persist imported comic failed: ' + e.message)
+        throw e
+      }
+    }
     this.libraryRevision += 1
     this.selectedTab = 0
+  }
+
+  private ensureLibraryPersistenceService(): LibraryStorePersistenceService | undefined {
+    if (this.libraryPersistenceService !== undefined) {
+      return this.libraryPersistenceService
+    }
+    const context = getContext(this) as common.UIAbilityContext
+    if (context === undefined || context.filesDir === undefined || context.filesDir.length === 0) {
+      return undefined
+    }
+    this.libraryPersistenceService = new LibraryStorePersistenceService(
+      this.libraryStore,
+      new AppFilesLibraryStorePersistenceAdapter(context.filesDir)
+    )
+    return this.libraryPersistenceService
+  }
+
+  aboutToAppear(): void {
+    if (this.libraryPersistenceRestored) {
+      return
+    }
+    this.libraryPersistenceRestored = true
+    const persistenceService = this.ensureLibraryPersistenceService()
+    if (persistenceService === undefined) {
+      return
+    }
+    try {
+      persistenceService.restore()
+      this.libraryRevision += 1
+    } catch (error) {
+      const e = error as Error
+      console.error('restore library store failed: ' + e.message)
+    }
   }
 
   @Builder

@@ -37,7 +37,7 @@ context.cacheDir/
 6. Stat each image path for `byteSize`.
 7. Pass `{ path, byteSize }` entries to `buildComicFromArchive`.
 
-The current DTO `Page.uri` remains `archivePath#entryPath`, preserving the contract already covered by `ArchiveImportService`. Runtime image loading can resolve `entryPath` through `createExtractedPagePath(extractionDir, entryPath)` when reading from cache.
+The archive-entry DTO `Page.uri` shape is `archivePath#entryPath`, preserving the contract already covered by `ArchiveImportService`. Reader image rendering must not pass that DTO shape directly to ArkUI `Image`. The bounded render path accepts only extracted app sandbox image paths under `cache/import/.../extract/...` or `files/import/.../extract/...`, plus their `file://` forms. Remote schemes, picker/document schemes, and archive-entry DTOs remain placeholder-only until a lane wires a trusted resolver.
 
 ## Safety / Lifecycle
 
@@ -62,5 +62,6 @@ This service is designed to compile against the documented API. `LocalImportCoor
 The following still requires real-device manual QA because the worker must not ask the user to choose a file during automated validation:
 
 - Whether copying a picker-returned `.cbz` URI directly to a sandbox `.zip` path works with the chosen file API on API 23.
+- Whether ArkUI `Image` accepts the generated `file://` source for extracted app-cache page images on target devices, or whether the reader must convert sandbox paths through `@ohos.file.fileuri` before display.
 - Whether archives with backslash entry separators need API 21 `pathSeparatorStrategy`, or whether post-list normalization is sufficient on target devices.
 - Exact behavior for filename encoding in non-UTF8 ZIPs; docs recommend UTF-8 encoded names.

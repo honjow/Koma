@@ -5,13 +5,76 @@ import {
 
 export enum ReaderPageRenderKind {
   MOCK_FALLBACK = 'mock_fallback',
+  LOCAL_FILE_IMAGE = 'local_file_image',
   URI_PLACEHOLDER = 'uri_placeholder',
 }
 
 export interface ReaderPageRenderSource {
   kind: ReaderPageRenderKind
   uri: string
+  imageUri: string
   fallbackPageIndex: number
+}
+
+function normalizeReaderPageUri(uri: string): string {
+  return uri.trim().replace(/\\/g, '/')
+}
+
+function hasTraversalSegment(path: string): boolean {
+  return path.split('/').some((segment: string) => segment === '..')
+}
+
+function isSupportedLocalImagePath(path: string): boolean {
+  const normalized = path.toLocaleLowerCase()
+  return normalized.endsWith('.jpg') ||
+    normalized.endsWith('.jpeg') ||
+    normalized.endsWith('.png') ||
+    normalized.endsWith('.webp') ||
+    normalized.endsWith('.gif') ||
+    normalized.endsWith('.bmp')
+}
+
+function isAppImportExtractPath(path: string): boolean {
+  const appImportRoots = [
+    '/data/storage/el2/base/cache/import/',
+    '/data/storage/el2/base/files/import/',
+  ]
+  return appImportRoots.some((root: string) => {
+    if (!path.startsWith(root)) {
+      return false
+    }
+    return path.indexOf('/extract/', root.length) > root.length
+  })
+}
+
+function stripFileUriScheme(uri: string): string {
+  if (!uri.startsWith('file://')) {
+    return uri
+  }
+  return uri.slice('file://'.length)
+}
+
+export function isReaderLocalImageSourceUri(uri: string): boolean {
+  const normalized = normalizeReaderPageUri(uri)
+  if (normalized.length === 0 || normalized.includes('#') || normalized.includes('?')) {
+    return false
+  }
+  if (normalized.includes('://') && !normalized.startsWith('file://')) {
+    return false
+  }
+  const path = stripFileUriScheme(normalized)
+  if (!path.startsWith('/') || hasTraversalSegment(path)) {
+    return false
+  }
+  return isAppImportExtractPath(path) && isSupportedLocalImagePath(path)
+}
+
+export function createReaderImageSourceUri(uri: string): string {
+  const normalized = normalizeReaderPageUri(uri)
+  if (normalized.startsWith('file://')) {
+    return normalized
+  }
+  return `file://${normalized}`
 }
 
 export function createReaderPageRenderSource(config: ReaderSessionConfig, pageIndex: number): ReaderPageRenderSource {
@@ -20,12 +83,22 @@ export function createReaderPageRenderSource(config: ReaderSessionConfig, pageIn
     return {
       kind: ReaderPageRenderKind.MOCK_FALLBACK,
       uri,
+      imageUri: '',
+      fallbackPageIndex: pageIndex,
+    }
+  }
+  if (isReaderLocalImageSourceUri(uri)) {
+    return {
+      kind: ReaderPageRenderKind.LOCAL_FILE_IMAGE,
+      uri,
+      imageUri: createReaderImageSourceUri(uri),
       fallbackPageIndex: pageIndex,
     }
   }
   return {
     kind: ReaderPageRenderKind.URI_PLACEHOLDER,
     uri,
+    imageUri: '',
     fallbackPageIndex: pageIndex,
   }
 }
