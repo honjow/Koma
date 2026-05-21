@@ -88,10 +88,17 @@
       "headers": {
         "requestAllowlist": [
           "Accept",
+          "Accept-Language",
           "Content-Type",
           "If-None-Match",
           "If-Modified-Since",
           "User-Agent"
+        ],
+        "responseAllowlist": [
+          "content-type",
+          "etag",
+          "last-modified",
+          "cache-control"
         ],
         "denyRawSecrets": true
       },
@@ -99,10 +106,26 @@
         "allowCredentialsRef": true,
         "allowRawSecrets": false,
         "cookiePolicy": "host-managed-session"
+      },
+      "cache": {
+        "mode": "host-partitioned",
+        "maxEntryBytes": 1048576
+      },
+      "rateLimit": {
+        "maxConcurrentRequests": 2,
+        "requestsPerMinute": 60
       }
     }
   },
   "httpBoundary": {
+    "spec": "http-host-import-v0.md",
+    "status": "design-only",
+    "abiVersioning": {
+      "sourceAbi": "koma-source-abi-v0.1",
+      "hostAbi": "koma-host-v0.2-design-http",
+      "requestVersion": 1,
+      "failClosedOnMismatch": true
+    },
     "import": {
       "module": "koma_host",
       "name": "http_request",
@@ -112,12 +135,19 @@
       "version": 1,
       "method": "GET",
       "url": "https://api.example.invalid/search?q=koma",
+      "urlRef": null,
       "headers": {
         "Accept": "application/json"
       },
       "bodyBase64": null,
+      "bodyRef": null,
       "timeoutMs": 8000,
       "redirect": "follow",
+      "maxResponseBytes": 1048576,
+      "cache": {
+        "mode": "default",
+        "maxAgeSeconds": null
+      },
       "credentialsRef": null,
       "sessionRef": "default"
     },
@@ -125,25 +155,63 @@
       "ok": true,
       "status": 200,
       "url": "https://api.example.invalid/search?q=koma",
+      "finalUrl": "https://api.example.invalid/search?q=koma",
       "headers": {
-        "content-type": "application/json"
+        "content-type": "application/json",
+        "etag": "\"fixture\""
       },
       "bodyBase64": "eyJpdGVtcyI6W119",
+      "bodyRef": null,
+      "redirectCount": 0,
+      "timing": {
+        "elapsedMs": 42,
+        "dnsMs": null,
+        "connectMs": null,
+        "tlsMs": null,
+        "firstByteMs": null
+      },
       "truncated": false,
       "fromCache": false,
       "elapsedMs": 42
     },
     "errorCodes": [
+      "dns_error",
+      "connect_error",
+      "tls_error",
       "permission_denied",
       "invalid_request",
       "out_buffer_too_small",
       "timeout",
-      "response_too_large",
+      "redirect_error",
+      "body_too_large",
       "cancelled",
       "network_unavailable",
       "host_internal"
     ],
-    "cancelBehavior": "Host checks koma_host.check_cancel before request dispatch and before writing the response envelope."
+    "cancelBehavior": "Host checks koma_host.check_cancel before policy work, before request dispatch, while waiting when possible, and before writing the response envelope.",
+    "resourceLimits": {
+      "maxHeaderBytes": 32768,
+      "maxHeaders": 64,
+      "maxConcurrentRequests": 2,
+      "maxHttpEnvelopeBytes": 1048576
+    },
+    "imageLoading": {
+      "remoteUrlUnderNetworkFalse": false,
+      "credentialedImagesUseHostDescriptor": true
+    },
+    "negativeFixturePlan": [
+      "network=false with http_request",
+      "missing http_request import",
+      "disallowed scheme",
+      "disallowed host",
+      "credential header leak",
+      "cookie leak",
+      "redirect downgrade",
+      "body too large",
+      "timeout",
+      "response log leak",
+      "remote URL under network=false"
+    ]
   },
   "contentPolicy": {
     "publicIndex": false,

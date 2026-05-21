@@ -7,6 +7,10 @@ HarmonyOS app behavior.
 The current consolidated runtime/package/archive boundary is documented in
 `source-package/SOURCE_RUNTIME_BOUNDARY.md`.
 
+The future HTTP host import remains design-only. The concrete v0.1 candidate is
+documented in `host-imports/http-host-import-v0.md`; current runtime/package
+validation still rejects `network=true` and `koma_host.http_request`.
+
 The spike validates this path on Linux:
 
 ```text

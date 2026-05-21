@@ -79,8 +79,9 @@ The Linux host runner logs sanitized messages and currently returns
 `check_cancel=0` in smoke runs. The import set is intentionally closed for
 `koma-host-v0.1`.
 
-HTTP remains design-only under `../host-imports/http-boundary.md`. The proposed
-`koma_host.http_request` import is gated behind a future design ABI and
+HTTP remains design-only under `../host-imports/http-boundary.md`, with the
+concrete v0.1 candidate in `../host-imports/http-host-import-v0.md`. The
+proposed `koma_host.http_request` import is gated behind a future design ABI and
 `permissions.network=true`; current source-package validation must reject it.
 
 ## Rust SDK Role

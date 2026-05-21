@@ -4,6 +4,10 @@ This is a design-only boundary for a future Koma WASM source runtime HTTP
 capability. It does not enable network in WAMR, HarmonyOS, product UI, source
 packages, source markets, WebView workflows, APK plugins, or built-in sources.
 
+The detailed candidate contract is now tracked in
+`http-host-import-v0.md`. This file remains the short validation boundary for
+the design fixture and the current-runtime rejection gates.
+
 Current runtime packages remain on `koma-host-v0.1` with only:
 
 ```text
@@ -155,6 +159,17 @@ HTTP imports require an explicit future manifest permission block:
 Current `koma-host-v0.1` package validation still rejects `network=true` and
 `koma_host.http_request`. The sample contract in this directory is accepted only
 by the design-only HTTP boundary validator and reports `runtimeEnabled: false`.
+
+The future v0.1 candidate requires all of the following before any HTTP request
+could run in a later implementation:
+
+- compatible `koma-source-abi` and future `koma-host` HTTP ABI;
+- `permissions.network=true`;
+- `koma_host.http_request` in both runtime imports and permission imports;
+- complete fail-closed network policy for scheme, host, method, request bytes,
+  response bytes, timeout, redirects, headers, credentials, cache, and rate;
+- host-owned credential references and cookie/session partitions rather than
+  raw source-visible secrets.
 
 ## Non-Goals
 

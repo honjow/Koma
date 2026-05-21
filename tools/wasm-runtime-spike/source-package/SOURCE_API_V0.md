@@ -35,6 +35,8 @@ This API draft builds on:
   app-private staging boundary.
 - `SOURCE_PACKAGE_TRUST_BOUNDARY.md`: future package trust/provenance boundary.
 - `../host-imports/http-boundary.md`: design-only future HTTP host import.
+- `../host-imports/http-host-import-v0.md`: concrete HTTP v0.1 candidate for
+  future host ABI, policy, settings/auth, and resource-limit work.
 
 This file does not change those boundaries. In particular, HTTP remains
 design-only and current validation must still reject `network=true` and
