@@ -54,6 +54,20 @@ out of git.
 
 ## Validate
 
+To validate the candidate Source API v0.1 JSON request/response fixture corpus:
+
+```sh
+python3 tools/wasm-runtime-spike/source-package/validate-source-api-fixtures.py \
+  --fixture-dir tools/wasm-runtime-spike/source-package/source-api-fixtures \
+  --artifact-dir /path/to/artifacts/source-api-fixtures
+```
+
+The script writes `source-api-fixtures-report.json` under the artifact
+directory. It accepts valid request/response envelopes for `search`,
+`get_manga`, `get_chapters`, and `get_pages`, and asserts that invalid fixtures
+are rejected with deterministic local reasons. The validator is stdlib-only,
+does not invoke WAMR, and does not perform network.
+
 ```sh
 python3 tools/wasm-runtime-spike/source-package/validate-source-package.py \
   --manifest tools/wasm-runtime-spike/source-package/manifest.example.json \

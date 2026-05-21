@@ -1,0 +1,33 @@
+{
+  "type": "response",
+  "version": 1,
+  "ok": true,
+  "operation": "get_manga",
+  "data": {
+    "manga": {
+      "id": "manga:fixture-series",
+      "title": "Fixture Series",
+      "alternateTitles": [
+        "Fixture Manga"
+      ],
+      "description": "Static source API fixture detail.",
+      "cover": {
+        "kind": "none"
+      },
+      "authors": [
+        "Koma Fixture"
+      ],
+      "artists": [],
+      "status": "unknown",
+      "contentRating": "unknown",
+      "language": "zh-Hans",
+      "tags": [
+        "fixture"
+      ],
+      "links": []
+    }
+  },
+  "hostHints": {
+    "network": false
+  }
+}

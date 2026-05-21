@@ -1,0 +1,17 @@
+{
+  "type": "response",
+  "version": 1,
+  "ok": false,
+  "operation": "search",
+  "error": {
+    "code": "invalid_request",
+    "message": "query must be a string",
+    "retryable": false,
+    "details": {
+      "field": "args.query"
+    }
+  },
+  "hostHints": {
+    "network": false
+  }
+}

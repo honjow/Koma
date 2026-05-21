@@ -1,0 +1,16 @@
+{
+  "type": "response",
+  "version": 1,
+  "ok": true,
+  "operation": "search",
+  "data": {
+    "items": [],
+    "page": {
+      "nextCursor": null,
+      "hasMore": false
+    }
+  },
+  "hostHints": {
+    "network": true
+  }
+}

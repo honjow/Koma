@@ -1,0 +1,13 @@
+{
+  "type": "response",
+  "version": 1,
+  "ok": false,
+  "operation": "search",
+  "error": {
+    "message": "query must be a string",
+    "retryable": false
+  },
+  "hostHints": {
+    "network": false
+  }
+}

@@ -1,0 +1,24 @@
+{
+  "type": "response",
+  "version": 1,
+  "ok": true,
+  "operation": "get_pages",
+  "data": {
+    "chapterId": "chapter:fixture-series:001",
+    "pages": [
+      {
+        "id": "page:fixture-series:001:0001",
+        "index": 0,
+        "image": {
+          "kind": "placeholder",
+          "label": "/home/gamer/private/page-1.jpg",
+          "width": 1200,
+          "height": 1800
+        }
+      }
+    ]
+  },
+  "hostHints": {
+    "network": false
+  }
+}

@@ -1,0 +1,9 @@
+{
+  "type": "response",
+  "version": 1,
+  "ok": true,
+  "operation": "get_manga",
+  "hostHints": {
+    "network": false
+  }
+}

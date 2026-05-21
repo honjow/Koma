@@ -1,0 +1,33 @@
+{
+  "type": "response",
+  "version": 1,
+  "ok": true,
+  "operation": "search",
+  "data": {
+    "items": [
+      {
+        "id": "manga:fixture-series",
+        "title": "Fixture Series",
+        "subtitle": "Static fixture result",
+        "cover": {
+          "kind": "none"
+        },
+        "authors": [
+          "Koma Fixture"
+        ],
+        "status": "unknown",
+        "contentRating": "unknown",
+        "sourceTags": [
+          "fixture"
+        ]
+      }
+    ],
+    "page": {
+      "nextCursor": null,
+      "hasMore": false
+    }
+  },
+  "hostHints": {
+    "network": false
+  }
+}

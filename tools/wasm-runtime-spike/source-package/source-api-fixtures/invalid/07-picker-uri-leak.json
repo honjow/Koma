@@ -1,0 +1,19 @@
+{
+  "type": "response",
+  "version": 1,
+  "ok": true,
+  "operation": "get_manga",
+  "data": {
+    "manga": {
+      "id": "manga:fixture-series",
+      "title": "Fixture Series",
+      "cover": {
+        "kind": "placeholder",
+        "uri": "file://media/Photo/1"
+      }
+    }
+  },
+  "hostHints": {
+    "network": false
+  }
+}

@@ -1,0 +1,27 @@
+{
+  "type": "response",
+  "version": 1,
+  "ok": true,
+  "operation": "search",
+  "data": {
+    "items": [
+      {
+        "id": {
+          "source": "fixture",
+          "series": 1
+        },
+        "title": "Fixture Series",
+        "cover": {
+          "kind": "none"
+        }
+      }
+    ],
+    "page": {
+      "nextCursor": null,
+      "hasMore": false
+    }
+  },
+  "hostHints": {
+    "network": false
+  }
+}

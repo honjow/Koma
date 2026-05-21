@@ -1,0 +1,20 @@
+{
+  "type": "request",
+  "version": 1,
+  "requestId": "req-bad-page",
+  "operation": "search",
+  "sourceId": "local.test.koma.fixture",
+  "args": {
+    "query": "koma",
+    "page": {
+      "cursor": {
+        "offset": 20
+      },
+      "limit": 20
+    }
+  },
+  "settings": {},
+  "hostHints": {
+    "network": false
+  }
+}

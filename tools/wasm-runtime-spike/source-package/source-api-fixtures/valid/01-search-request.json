@@ -1,0 +1,29 @@
+{
+  "type": "request",
+  "version": 1,
+  "requestId": "req-search-001",
+  "operation": "search",
+  "sourceId": "local.test.koma.fixture",
+  "args": {
+    "query": "koma",
+    "page": {
+      "cursor": null,
+      "limit": 20
+    },
+    "filters": {
+      "sort": "relevance",
+      "tags": [
+        "fixture"
+      ]
+    }
+  },
+  "settings": {
+    "language": "zh-Hans"
+  },
+  "hostHints": {
+    "abi": "koma-host-v0.1",
+    "network": false,
+    "maxPayloadBytes": 1048576,
+    "locale": "zh-Hans"
+  }
+}

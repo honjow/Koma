@@ -1,0 +1,28 @@
+{
+  "type": "response",
+  "version": 1,
+  "ok": true,
+  "operation": "get_chapters",
+  "data": {
+    "items": [
+      {
+        "id": "chapter:fixture-series:001",
+        "mangaId": "manga:fixture-series",
+        "title": "Chapter 1",
+        "chapterNumber": "1",
+        "volumeNumber": null,
+        "language": "zh-Hans",
+        "publishedAt": null,
+        "updatedAt": null,
+        "pageCount": 3
+      }
+    ],
+    "page": {
+      "nextCursor": null,
+      "hasMore": false
+    }
+  },
+  "hostHints": {
+    "network": false
+  }
+}

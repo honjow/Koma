@@ -1,0 +1,15 @@
+{
+  "type": "request",
+  "version": 1,
+  "requestId": "req-manga-001",
+  "operation": "get_manga",
+  "sourceId": "local.test.koma.fixture",
+  "args": {
+    "mangaId": "manga:fixture-series"
+  },
+  "settings": {},
+  "hostHints": {
+    "abi": "koma-host-v0.1",
+    "network": false
+  }
+}

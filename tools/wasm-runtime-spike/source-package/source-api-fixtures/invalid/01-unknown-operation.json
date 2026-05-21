@@ -1,0 +1,12 @@
+{
+  "type": "request",
+  "version": 1,
+  "requestId": "req-bad-operation",
+  "operation": "get_home_sections",
+  "sourceId": "local.test.koma.fixture",
+  "args": {},
+  "settings": {},
+  "hostHints": {
+    "network": false
+  }
+}

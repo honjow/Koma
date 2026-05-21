@@ -1,0 +1,16 @@
+{
+  "type": "request",
+  "version": 1,
+  "requestId": "req-pages-001",
+  "operation": "get_pages",
+  "sourceId": "local.test.koma.fixture",
+  "args": {
+    "chapterId": "chapter:fixture-series:001"
+  },
+  "settings": {},
+  "hostHints": {
+    "abi": "koma-host-v0.1",
+    "network": false,
+    "imageStrategy": "descriptor-only"
+  }
+}

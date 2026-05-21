@@ -620,6 +620,19 @@ These are outside v0.1 core but should fit the same request/response envelope:
 
 ## Validation And Future Tests
 
+Current fixture validator:
+
+```sh
+python3 tools/wasm-runtime-spike/source-package/validate-source-api-fixtures.py \
+  --fixture-dir tools/wasm-runtime-spike/source-package/source-api-fixtures \
+  --artifact-dir /path/to/artifacts/source-api-fixtures
+```
+
+The fixture corpus covers valid request/response envelopes for `search`,
+`get_manga`, `get_chapters`, and `get_pages`, plus invalid cases for operation,
+`hostHints.network`, response envelope shape, path/URI leaks, remote page image
+descriptors while `network=false`, non-opaque ids, and malformed pagination.
+
 Current validators that must continue to pass for this design-only lane:
 
 - `run-source-archive-smoke.py`: archive validation, extraction, and Linux WAMR
@@ -645,4 +658,3 @@ Missing future tests before product enablement:
 - HTTP permission gates, host allowlists, redirects, credentials, cookies, cache
   partitioning, and response size limits if a future ABI enables network.
 - Compatibility tests across `koma-source-abi` and `koma-host` versions.
-

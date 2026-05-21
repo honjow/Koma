@@ -1,0 +1,15 @@
+{
+  "type": "response",
+  "version": 1,
+  "operation": "search",
+  "data": {
+    "items": [],
+    "page": {
+      "nextCursor": null,
+      "hasMore": false
+    }
+  },
+  "hostHints": {
+    "network": false
+  }
+}
