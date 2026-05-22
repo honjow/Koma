@@ -12,6 +12,18 @@ NEXT_BROWSE_OPERATIONS = {"get_listings", "get_manga_list", "get_home", "get_fil
 CONFIG_IMAGE_OPERATIONS = {"get_settings", "get_image_request"}
 ALLOWED_OPERATIONS = CORE_OPERATIONS | NEXT_BROWSE_OPERATIONS | CONFIG_IMAGE_OPERATIONS
 ALLOWED_IMAGE_KINDS = {"none", "placeholder", "imageRequest"}
+ALLOWED_ERROR_CODES = {
+    "unimplemented",
+    "invalid_request",
+    "not_found",
+    "cancelled",
+    "timeout",
+    "network_disabled",
+    "permission_denied",
+    "parse_error",
+    "source_error",
+    "internal_error",
+}
 FUTURE_DESIGN_ONLY_OPERATIONS = {
     "process_page_image",
     "page_description",
@@ -37,16 +49,18 @@ SECRET_RE = re.compile(
 
 
 class ValidationError(Exception):
-    pass
+    def __init__(self, message: str, reason_code: str = "validation_error") -> None:
+        super().__init__(message)
+        self.reason_code = reason_code
 
 
-def fail(message: str) -> None:
-    raise ValidationError(message)
+def fail(message: str, reason_code: str = "validation_error") -> None:
+    raise ValidationError(message, reason_code)
 
 
-def require(condition: bool, message: str) -> None:
+def require(condition: bool, message: str, reason_code: str = "validation_error") -> None:
     if not condition:
-        fail(message)
+        fail(message, reason_code)
 
 
 def read_json(path: Path) -> dict[str, Any]:
@@ -419,6 +433,20 @@ def validate_response_data(operation: str, data: Any, network: bool) -> None:
         validate_image_request_descriptor(data.get("imageRequest"), "data.imageRequest")
 
 
+def validate_structured_error(error: Any) -> None:
+    require(isinstance(error, dict), "error response must include structured error", "source_error_required")
+    require(isinstance(error.get("code"), str) and error["code"], "error.code is required", "source_error_code_required")
+    require(error["code"] in ALLOWED_ERROR_CODES, "error.code must be a documented SourceError code",
+            "source_error_code_unknown")
+    require(isinstance(error.get("message"), str) and error["message"], "error.message is required",
+            "source_error_message_required")
+    require(isinstance(error.get("retryable"), bool), "error.retryable boolean is required",
+            "source_error_retryable_required")
+    if "details" in error:
+        require(isinstance(error["details"], dict), "error.details must be an object when present",
+                "source_error_details_malformed")
+
+
 def validate_response(payload: dict[str, Any]) -> None:
     operation, network = validate_common_envelope(payload)
     require("ok" in payload and isinstance(payload["ok"], bool), "response ok boolean is required")
@@ -427,9 +455,7 @@ def validate_response(payload: dict[str, Any]) -> None:
         require("data" in payload, "success response must include data")
         validate_response_data(operation, payload["data"], network)
     else:
-        error = payload.get("error")
-        require(isinstance(error, dict), "error response must include structured error")
-        require(isinstance(error.get("code"), str) and error["code"], "error.code is required")
+        validate_structured_error(payload.get("error"))
 
 
 def validate_fixture(path: Path) -> dict[str, Any]:
@@ -450,6 +476,7 @@ def validate_fixture(path: Path) -> dict[str, Any]:
         validate_metadata(payload)
     scan_for_disallowed_strings(payload, allow_fixture_url=fixture_type == "httpFixtureRequest")
     return {
+        "caseId": path.stem,
         "file": str(path),
         "type": fixture_type,
         "operation": payload.get("operation"),
@@ -482,8 +509,10 @@ def collect_json_files(path: Path) -> list[Path]:
 
 def main() -> int:
     parser = argparse.ArgumentParser(description="Validate Koma Source API v0.2 JSON envelope fixtures.")
-    parser.add_argument("--fixture-dir", required=True)
-    parser.add_argument("--artifact-dir", required=True)
+    default_fixture_dir = Path(__file__).resolve().parent / "source-api-fixtures"
+    default_artifact_dir = Path.cwd() / ".hermes-artifacts" / "source-api-fixtures"
+    parser.add_argument("--fixture-dir", default=str(default_fixture_dir))
+    parser.add_argument("--artifact-dir", default=str(default_artifact_dir))
     parser.add_argument("--report", help="Defaults to <artifact-dir>/source-api-fixtures-report.json.")
     args = parser.parse_args()
 
@@ -511,10 +540,12 @@ def main() -> int:
                 report["validCases"] += 1
             except Exception as err:
                 case = {
+                    "caseId": path.stem,
                     "file": str(path),
                     "expected": "accept",
                     "status": "FAIL",
                     "reason": str(err),
+                    "reasonCode": getattr(err, "reason_code", "unexpected_error"),
                 }
             report["cases"].append(case)
 
@@ -522,17 +553,21 @@ def main() -> int:
             try:
                 validate_fixture(path)
                 case = {
+                    "caseId": path.stem,
                     "file": str(path),
                     "expected": "reject",
                     "status": "FAIL",
                     "reason": "invalid fixture was accepted",
+                    "reasonCode": "invalid_fixture_accepted",
                 }
             except Exception as err:
                 case = {
+                    "caseId": path.stem,
                     "file": str(path),
                     "expected": "reject",
                     "status": "PASS",
                     "reason": str(err),
+                    "reasonCode": getattr(err, "reason_code", "unexpected_error"),
                 }
                 report["invalidCases"] += 1
             report["cases"].append(case)
@@ -547,6 +582,7 @@ def main() -> int:
             "fixture string fields scanned for raw local/picker/app-private path leaks",
             "fixture string fields scanned for remote URLs and credential-like leaks",
             "unknown operations fail closed; no fallback to search is allowed",
+            "structured SourceError codes/retryable/details are bounded by the v0.2 spec",
         ]
     except Exception as err:
         report["status"] = "FAIL"

@@ -1,0 +1,17 @@
+{
+  "type": "response",
+  "version": 1,
+  "ok": false,
+  "operation": "search",
+  "error": {
+    "code": "rate_limited",
+    "message": "fixture uses an undocumented error code",
+    "retryable": true,
+    "details": {
+      "field": "args.query"
+    }
+  },
+  "hostHints": {
+    "network": false
+  }
+}

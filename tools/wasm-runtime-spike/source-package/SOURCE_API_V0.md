@@ -779,6 +779,12 @@ Structured error:
 }
 ```
 
+Fixture validation treats `code` as a closed v0.2 set matching the candidate
+error codes above. `message` must be a non-empty diagnostic string,
+`retryable` must be boolean, and `details`, when present, must be an object.
+Validator reports include stable case ids and reason codes such as
+`source_error_code_unknown` so QA can verify exact structured-error coverage.
+
 Host hints:
 
 ```json
@@ -877,7 +883,8 @@ metadata fixtures for `SourceInfo` and `SourceCapabilities`. Invalid fixtures
 cover unknown/future operations, `hostHints.network`, response envelope shape,
 path/URI leaks, remote URL leaks while `network=false`, credential-like leaks,
 raw authorization headers, non-opaque ids, and malformed pagination/model
-shapes.
+shapes. Structured error invalid fixtures also cover undocumented error codes
+and report stable reason codes.
 
 Current validators that must continue to pass for this design-only lane:
 
