@@ -38,8 +38,11 @@ import {
   runSourceApiV02SurfaceFromBytes,
   runSearchFixtureFromBytes,
   runSourceOperationFromBytes,
+  runSourceRuntimeCancelTimeoutNegativesFromBytes,
   runSourceRuntimeSizeLimitNegativesFromBytes,
   SourceRuntimeApiOperationsSummary,
+  SourceRuntimeCancelTimeoutNegativeCaseSummary,
+  SourceRuntimeCancelTimeoutNegativeSummary,
   SourceRuntimeNegativeExecutionCaseSummary,
   SourceRuntimeSizeLimitNegativeCaseSummary,
   SourceRuntimeSizeLimitNegativeSummary,
@@ -55,6 +58,7 @@ const SMOKE_PHASE_RELOAD_PERSISTED_INVENTORY: string = 'reload-persisted-invento
 const SMOKE_PHASE_PERSISTED_PAYLOAD_MISSING: string = 'persisted-payload-missing'
 const SMOKE_PHASE_SOURCE_API_V02: string = 'source-api-v02'
 const SMOKE_PHASE_SIZE_LIMIT_NEGATIVES: string = 'size-limit-negatives'
+const SMOKE_PHASE_CANCEL_TIMEOUT_NEGATIVES: string = 'cancel-timeout-negatives'
 const SMOKE_REQUEST_JSON: string = '{"operation":"search","query":"fixture","smoke":"koma-smoke"}'
 const RUST_SMOKE_REQUEST_JSON: string = '{"operation":"search","query":"fixture","smoke":"koma-rust-smoke"}'
 const PACKAGE_SMOKE_REQUEST_JSON: string = '{"operation":"search","query":"fixture","smoke":"koma-package-smoke"}'
@@ -159,6 +163,14 @@ export interface SourceRuntimeSizeLimitNegativeCaseEvidence {
   attemptedWamrExecution: boolean
   requestBytes?: number
   resultBytes?: number
+  noRawPayloadOrPathLeak: boolean
+}
+
+export interface SourceRuntimeCancelTimeoutNegativeCaseEvidence {
+  id: string
+  rejected: boolean
+  reasonCode?: string
+  attemptedWamrExecution: boolean
   noRawPayloadOrPathLeak: boolean
 }
 
@@ -336,6 +348,16 @@ export interface SourceRuntimeSmokeResult {
   sourceRuntimeSizeLimitStableReasonCodes?: string[]
   sourceRuntimeSizeLimitNoRawPayloadOrPathLeak?: boolean
   sourceRuntimeSizeLimitNegativeCases?: SourceRuntimeSizeLimitNegativeCaseEvidence[]
+  sourceRuntimeCancelTimeoutNegativesOk?: boolean
+  sourceRuntimeCancelledGuardRejected?: boolean
+  sourceRuntimeCancelledGuardReasonCode?: string
+  sourceRuntimeCancelledGuardAttemptedWamrExecution?: boolean
+  sourceRuntimeTimeoutGuardRejected?: boolean
+  sourceRuntimeTimeoutGuardReasonCode?: string
+  sourceRuntimeTimeoutGuardAttemptedWamrExecution?: boolean
+  sourceRuntimeCancelTimeoutStableReasonCodes?: string[]
+  sourceRuntimeCancelTimeoutNoRawPayloadOrPathLeak?: boolean
+  sourceRuntimeCancelTimeoutNegativeCases?: SourceRuntimeCancelTimeoutNegativeCaseEvidence[]
   sourceRuntimeArchiveIngestionSearchOk?: boolean
   sourceRuntimeArchiveIngestionSearch?: SourceRuntimeRunRequestByIdEvidence
   sourceRuntimeArchiveIngestionNonSearchOk?: boolean
@@ -448,6 +470,18 @@ function compactSizeLimitNegativeCase(
   }
 }
 
+function compactCancelTimeoutNegativeCase(
+  summary: SourceRuntimeCancelTimeoutNegativeCaseSummary,
+): SourceRuntimeCancelTimeoutNegativeCaseEvidence {
+  return {
+    id: summary.id,
+    rejected: summary.rejected,
+    reasonCode: summary.reasonCode,
+    attemptedWamrExecution: summary.attemptedWamrExecution,
+    noRawPayloadOrPathLeak: summary.noRawPayloadOrPathLeak,
+  }
+}
+
 function applySizeLimitNegativeEvidence(
   result: SourceRuntimeSmokeResult,
   summary: SourceRuntimeSizeLimitNegativeSummary,
@@ -468,6 +502,25 @@ function applySizeLimitNegativeEvidence(
     compactSizeLimitNegativeCase(summary.oversizedRequest),
     compactSizeLimitNegativeCase(summary.oversizedResult),
     compactSizeLimitNegativeCase(summary.malformedResult),
+  ]
+}
+
+function applyCancelTimeoutNegativeEvidence(
+  result: SourceRuntimeSmokeResult,
+  summary: SourceRuntimeCancelTimeoutNegativeSummary,
+): void {
+  result.sourceRuntimeCancelTimeoutNegativesOk = summary.ok
+  result.sourceRuntimeCancelledGuardRejected = summary.cancelled.rejected
+  result.sourceRuntimeCancelledGuardReasonCode = summary.cancelled.reasonCode
+  result.sourceRuntimeCancelledGuardAttemptedWamrExecution = summary.cancelled.attemptedWamrExecution
+  result.sourceRuntimeTimeoutGuardRejected = summary.timeout.rejected
+  result.sourceRuntimeTimeoutGuardReasonCode = summary.timeout.reasonCode
+  result.sourceRuntimeTimeoutGuardAttemptedWamrExecution = summary.timeout.attemptedWamrExecution
+  result.sourceRuntimeCancelTimeoutStableReasonCodes = summary.stableReasonCodes
+  result.sourceRuntimeCancelTimeoutNoRawPayloadOrPathLeak = summary.noRawPayloadOrPathLeak
+  result.sourceRuntimeCancelTimeoutNegativeCases = [
+    compactCancelTimeoutNegativeCase(summary.cancelled),
+    compactCancelTimeoutNegativeCase(summary.timeout),
   ]
 }
 
@@ -1193,6 +1246,23 @@ export async function maybeRunSourceRuntimeDeviceSmoke(
       return
     }
 
+    if (result.smokePhase === SMOKE_PHASE_CANCEL_TIMEOUT_NEGATIVES) {
+      if (resourceMgr === undefined) {
+        result.error = 'source runtime cancel/timeout negative smoke requires resource manager'
+      } else {
+        const rustWasmBytes = resourceMgr.getRawFileContentSync(RUST_SMOKE_RAWFILE_PATH)
+        result.rustRawfileBytes = rustWasmBytes.byteLength
+        applyCancelTimeoutNegativeEvidence(result, runSourceRuntimeCancelTimeoutNegativesFromBytes(rustWasmBytes))
+        result.ok = result.sourceRuntimeCancelTimeoutNegativesOk === true
+        if (!result.ok && result.error === undefined) {
+          result.error = 'Cancel/timeout negative phase failed to reject guard cases with stable reasons'
+        }
+      }
+      compactSmokeResultForHilog(result)
+      console.info(SMOKE_LOG_PREFIX + JSON.stringify(result))
+      return
+    }
+
     if (result.smokePhase !== SMOKE_PHASE_FULL) {
       result.error = 'unknown source runtime smoke phase'
       compactSmokeResultForHilog(result)
@@ -1216,12 +1286,14 @@ export async function maybeRunSourceRuntimeDeviceSmoke(
       const rustSourceOperations = runSourceApiFixtureOperationsFromBytes(rustWasmBytes)
       const sourceApiV02 = runSourceApiV02SurfaceFromBytes(rustWasmBytes)
       const sizeLimitNegatives = runSourceRuntimeSizeLimitNegativesFromBytes(rustWasmBytes)
+      const cancelTimeoutNegatives = runSourceRuntimeCancelTimeoutNegativesFromBytes(rustWasmBytes)
       rustSourceResponseOk = rustSourceRun.responseOk
       result.rustSourceResponseOk = rustSourceResponseOk
       result.rustSourceApiOperationsOk = rustSourceOperations.ok
       result.rustSourceApiOperations = compactSourceApiOperations(rustSourceOperations)
       applySourceApiV02Evidence(result, sourceApiV02)
       applySizeLimitNegativeEvidence(result, sizeLimitNegatives)
+      applyCancelTimeoutNegativeEvidence(result, cancelTimeoutNegatives)
       if (context !== undefined) {
         runLocalSourcePackageSmoke(context, resourceMgr, result)
         await runLocalSourceArchiveSmoke(context, resourceMgr, result)
@@ -1264,13 +1336,14 @@ export async function maybeRunSourceRuntimeDeviceSmoke(
       result.archiveNegativeOk === true &&
       result.sourceApiV02Ok === true &&
       result.sourceRuntimeSizeLimitNegativesOk === true &&
+      result.sourceRuntimeCancelTimeoutNegativesOk === true &&
       result.sourceRuntimeExecutionNegativeOk === true &&
       result.sourceRuntimeRegistryOk === true &&
       result.sourceRuntimeRegistryReloadOk === true &&
       result.sourceRuntimeArchiveIngestionRunRequestOk === true &&
       result.sourceRuntimeInstalledSourceInventoryOk === true
     if (!result.ok) {
-      result.error = 'WAMR fixture JSON assertion failed for bundled, legacy rawfile, Rust source rawfile, Source API v0.2 surface, size-limit negatives, local source package, local source archive import, archive negative rejection, negative execution, registry run-by-id, registry persistence/reload, and archive ingestion run-request paths'
+      result.error = 'WAMR fixture JSON assertion failed for bundled, legacy rawfile, Rust source rawfile, Source API v0.2 surface, size-limit negatives, cancel/timeout negatives, local source package, local source archive import, archive negative rejection, negative execution, registry run-by-id, registry persistence/reload, and archive ingestion run-request paths'
     }
   } catch (error) {
     const e = error as Error

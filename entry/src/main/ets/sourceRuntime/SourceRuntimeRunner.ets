@@ -69,6 +69,23 @@ export interface SourceRuntimeSizeLimitNegativeSummary {
   evidence: string[]
 }
 
+export interface SourceRuntimeCancelTimeoutNegativeCaseSummary {
+  id: string
+  rejected: boolean
+  reasonCode?: string
+  attemptedWamrExecution: boolean
+  noRawPayloadOrPathLeak: boolean
+}
+
+export interface SourceRuntimeCancelTimeoutNegativeSummary {
+  ok: boolean
+  cancelled: SourceRuntimeCancelTimeoutNegativeCaseSummary
+  timeout: SourceRuntimeCancelTimeoutNegativeCaseSummary
+  stableReasonCodes: string[]
+  noRawPayloadOrPathLeak: boolean
+  evidence: string[]
+}
+
 const SOURCE_API_OPERATION_REQUESTS: string[] = [
   '{"type":"request","version":1,"requestId":"device-search-001","operation":"search","sourceId":"local.test.koma.fixture","args":{"query":"fixture","page":{"cursor":null,"limit":20},"filters":{"tags":["fixture"]}},"settings":{},"hostHints":{"network":false}}',
   '{"type":"request","version":1,"requestId":"device-manga-001","operation":"get_manga","sourceId":"local.test.koma.fixture","args":{"mangaId":"manga:fixture-series"},"settings":{},"hostHints":{"network":false}}',
@@ -111,6 +128,10 @@ const SOURCE_RUNTIME_OVERSIZED_RESULT_REQUEST: string =
   '{"type":"request","version":1,"requestId":"device-size-limit-result-001","operation":"test_oversized_result","sourceId":"local.test.koma.fixture","args":{},"settings":{},"hostHints":{"network":false}}'
 const SOURCE_RUNTIME_MALFORMED_RESULT_REQUEST: string =
   '{"type":"request","version":1,"requestId":"device-size-limit-malformed-001","operation":"test_malformed_result","sourceId":"local.test.koma.fixture","args":{},"settings":{},"hostHints":{"network":false}}'
+const SOURCE_RUNTIME_CANCEL_GUARD_REQUEST: string =
+  '{"type":"request","version":1,"requestId":"device-cancel-guard-001","operation":"search","sourceId":"local.test.koma.fixture","args":{"query":"fixture"},"settings":{},"hostHints":{"network":false},"komaTestOnly":true,"testGuard":"cancel"}'
+const SOURCE_RUNTIME_TIMEOUT_GUARD_REQUEST: string =
+  '{"type":"request","version":1,"requestId":"device-timeout-guard-001","operation":"search","sourceId":"local.test.koma.fixture","args":{"query":"fixture"},"settings":{},"hostHints":{"network":false},"komaTestOnly":true,"testGuard":"timeout"}'
 
 export function runBundledSourceOperation(request: SourceRuntimeCallRequest | string): SourceRuntimeCallResponse {
   return NativeSourceRuntime.runJsonCall(request)
@@ -324,6 +345,33 @@ function summarizeSizeLimitNegativeCase(
       attemptedWamrExecution,
       requestBytes: requestJson.length,
       resultBytes,
+      noRawPayloadOrPathLeak: false,
+    }
+  }
+}
+
+function summarizeCancelTimeoutNegativeCase(
+  id: string,
+  requestJson: string,
+  wasmBytes: Uint8Array,
+  expectedReasonCode: string,
+  attemptedWamrExecution: boolean,
+): SourceRuntimeCancelTimeoutNegativeCaseSummary {
+  try {
+    const response = runSourceOperationFromBytes(requestJson, wasmBytes)
+    const reasonCode = responseReasonCode(response)
+    return {
+      id,
+      rejected: response.ok === false && reasonCode === expectedReasonCode,
+      reasonCode,
+      attemptedWamrExecution,
+      noRawPayloadOrPathLeak: responseHasNoRawPayloadOrPathLeak(response),
+    }
+  } catch (_err) {
+    return {
+      id,
+      rejected: false,
+      attemptedWamrExecution,
       noRawPayloadOrPathLeak: false,
     }
   }
@@ -563,6 +611,49 @@ export function runSourceRuntimeSizeLimitNegativesFromBytes(
       `oversized_request:${oversizedRequest.reasonCode ?? 'missing'}:${oversizedRequest.rejected ? 'rejected' : 'failed-open'}`,
       `oversized_result:${oversizedResult.reasonCode ?? 'missing'}:${oversizedResult.rejected ? 'rejected' : 'failed-open'}`,
       `malformed_result:${malformedResult.reasonCode ?? 'missing'}:${malformedResult.rejected ? 'rejected' : 'failed-open'}`,
+      `no_raw_payload_or_path_leak:${noRawPayloadOrPathLeak ? 'ok' : 'fail'}`,
+    ],
+  }
+}
+
+export function runSourceRuntimeCancelTimeoutNegativesFromBytes(
+  wasmBytes: Uint8Array,
+): SourceRuntimeCancelTimeoutNegativeSummary {
+  const cancelled = summarizeCancelTimeoutNegativeCase(
+    'cancelled_guard',
+    SOURCE_RUNTIME_CANCEL_GUARD_REQUEST,
+    wasmBytes,
+    'cancelled',
+    true,
+  )
+  const timeout = summarizeCancelTimeoutNegativeCase(
+    'timeout_guard',
+    SOURCE_RUNTIME_TIMEOUT_GUARD_REQUEST,
+    wasmBytes,
+    'timeout',
+    false,
+  )
+  const stableReasonCodes = [
+    cancelled.reasonCode ?? '',
+    timeout.reasonCode ?? '',
+  ].filter((item: string) => item.length > 0)
+  const noRawPayloadOrPathLeak = cancelled.noRawPayloadOrPathLeak && timeout.noRawPayloadOrPathLeak
+  const ok = cancelled.rejected &&
+    cancelled.attemptedWamrExecution === true &&
+    timeout.rejected &&
+    timeout.attemptedWamrExecution === false &&
+    stableReasonCodes.includes('cancelled') &&
+    stableReasonCodes.includes('timeout') &&
+    noRawPayloadOrPathLeak
+  return {
+    ok,
+    cancelled,
+    timeout,
+    stableReasonCodes,
+    noRawPayloadOrPathLeak,
+    evidence: [
+      `cancelled_guard:${cancelled.reasonCode ?? 'missing'}:${cancelled.rejected ? 'rejected' : 'failed-open'}`,
+      `timeout_guard:${timeout.reasonCode ?? 'missing'}:${timeout.rejected ? 'rejected' : 'failed-open'}`,
       `no_raw_payload_or_path_leak:${noRawPayloadOrPathLeak ? 'ok' : 'fail'}`,
     ],
   }

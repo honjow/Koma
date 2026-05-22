@@ -179,6 +179,21 @@ if ! grep -q 'SOURCE_API_UNKNOWN_OPERATION_REJECTED ok:true' "$RUN_LOG"; then
   exit 22
 fi
 
+if ! grep -q 'SOURCE_API_CANCEL_GUARD_REJECTED ok:true reason=cancelled attemptedWamrExecution=true noRawPayloadOrPathLeak=true' "$RUN_LOG"; then
+  log "missing deterministic cancel guard rejection evidence"
+  exit 28
+fi
+
+if ! grep -q 'SOURCE_API_TIMEOUT_GUARD_REJECTED ok:true reason=timeout attemptedWamrExecution=false noRawPayloadOrPathLeak=true' "$RUN_LOG"; then
+  log "missing deterministic timeout guard rejection evidence"
+  exit 28
+fi
+
+if ! grep -q 'SOURCE_API_JSON timeout_guard_rejected=.*"ok":false.*"reasonCode":"timeout"' "$RUN_LOG"; then
+  log "missing validated timeout guard rejection JSON evidence"
+  exit 28
+fi
+
 if ! grep -q 'SOURCE_API_HTTP_FIXTURE_ALLOWED ok:true .*networkPerformed=false' "$RUN_LOG"; then
   log "missing HTTP fixture allowed request evidence"
   exit 25
@@ -275,6 +290,7 @@ expected = [
     "get_manga_list_http_fixture",
     "get_manga_list_html_fixture",
     "unknown_operation_rejected",
+    "timeout_guard_rejected",
 ]
 assert sorted(payloads) == sorted(expected), payloads.keys()
 
@@ -372,6 +388,17 @@ assert rejected["operation"] == "search"
 assert rejected["error"]["code"] == "invalid_request"
 assert rejected["error"]["message"] == "unexpected operation"
 assert "Fixture Series" not in json.dumps(rejected, sort_keys=True)
+
+timeout_rejected = payloads["timeout_guard_rejected"]
+assert timeout_rejected["ok"] is False
+assert timeout_rejected["runtime"] == "wamr-unavailable"
+assert timeout_rejected["error"]["code"] == "WAMR_RUNTIME_TIMEOUT"
+assert timeout_rejected["error"]["message"] == "source runtime call timed out"
+assert timeout_rejected["reasonCode"] == "timeout"
+assert timeout_rejected["warnings"] == []
+timeout_raw = json.dumps(timeout_rejected, sort_keys=True)
+assert "Fixture Series" not in timeout_raw
+assert '"data"' not in timeout_raw
 
 for name, payload in payloads.items():
     raw = json.dumps(payload, sort_keys=True)

@@ -21,6 +21,26 @@ constexpr uint32_t kMaxHttpFixtureResponseBytes = 4096u;
 constexpr uint32_t kMaxHtmlFixtureBytes = 4096u;
 constexpr uint32_t kMaxHtmlFixtureStringBytes = 512u;
 constexpr uint32_t kMaxHtmlFixtureDescriptors = 16u;
+constexpr const char *kTestTimeoutGuard = "\"testGuard\":\"timeout\"";
+
+bool g_force_cancel_for_current_call = false;
+
+class ForcedCancelScope {
+public:
+    explicit ForcedCancelScope(bool enabled) : previous_(g_force_cancel_for_current_call) {
+        g_force_cancel_for_current_call = enabled;
+    }
+
+    ~ForcedCancelScope() {
+        g_force_cancel_for_current_call = previous_;
+    }
+
+    ForcedCancelScope(const ForcedCancelScope &) = delete;
+    ForcedCancelScope &operator=(const ForcedCancelScope &) = delete;
+
+private:
+    bool previous_;
+};
 
 void host_log(wasm_exec_env_t exec_env, int32_t level, char *message, uint32_t message_len) {
     (void)exec_env;
@@ -37,8 +57,9 @@ void host_log(wasm_exec_env_t exec_env, int32_t level, char *message, uint32_t m
 
 int32_t host_check_cancel(wasm_exec_env_t exec_env) {
     (void)exec_env;
-    std::cout << "HOST_CHECK_CANCEL result=0\n";
-    return 0;
+    const int32_t result = g_force_cancel_for_current_call ? 1 : 0;
+    std::cout << "HOST_CHECK_CANCEL result=" << result << "\n";
+    return result;
 }
 
 bool contains_ci(std::string value, std::string needle) {
@@ -450,6 +471,38 @@ void require_contains(const std::string &payload,
                       const std::string &context) {
     if (payload.find(needle) == std::string::npos) {
         throw std::runtime_error(context + " missing " + needle);
+    }
+}
+
+bool has_test_only_guard(const std::string &request_json, const char *guard) {
+    return request_json.find("\"komaTestOnly\":true") != std::string::npos &&
+           request_json.find(guard) != std::string::npos;
+}
+
+std::string timeout_guard_error_json(const std::string &request_json) {
+    if (!has_test_only_guard(request_json, kTestTimeoutGuard)) {
+        throw std::runtime_error("timeout guard request did not select timeout guard");
+    }
+    return "{\"ok\":false,\"runtime\":\"wamr-unavailable\","
+           "\"error\":{\"code\":\"WAMR_RUNTIME_TIMEOUT\","
+           "\"message\":\"source runtime call timed out\"},"
+           "\"reasonCode\":\"timeout\",\"warnings\":[]}";
+}
+
+void validate_timeout_guard_payload(const std::string &payload) {
+    require_contains(payload, "\"ok\":false", "timeout guard rejection");
+    require_contains(payload, "\"runtime\":\"wamr-unavailable\"", "timeout guard rejection");
+    require_contains(payload, "\"code\":\"WAMR_RUNTIME_TIMEOUT\"", "timeout guard rejection");
+    require_contains(payload, "\"message\":\"source runtime call timed out\"",
+                     "timeout guard rejection");
+    require_contains(payload, "\"reasonCode\":\"timeout\"", "timeout guard rejection");
+    require_contains(payload, "\"warnings\":[]", "timeout guard rejection");
+    if (payload.find("\"ok\":true") != std::string::npos ||
+        payload.find("\"data\":") != std::string::npos ||
+        payload.find("Fixture Series") != std::string::npos ||
+        payload.find("\"requestEcho\":\"fixture\"") != std::string::npos ||
+        contains_any_forbidden_runtime_string(payload)) {
+        throw std::runtime_error("timeout guard leaked success or unsafe evidence");
     }
 }
 
@@ -913,6 +966,58 @@ public:
         std::cout << "SOURCE_API_JSON unknown_operation_rejected=" << payload << "\n";
     }
 
+    void reject_cancel_timeout_guards() {
+        const SourceOperation operation = {
+            "search",
+            "koma_source_search",
+            "{\"type\":\"request\",\"version\":1,\"requestId\":\"runtime-cancel-guard-001\","
+            "\"operation\":\"search\",\"sourceId\":\"local.test.koma.fixture\","
+            "\"args\":{\"query\":\"fixture\"},\"settings\":{},\"hostHints\":{\"network\":false},"
+            "\"komaTestOnly\":true,\"testGuard\":\"cancel\"}",
+        };
+        const char *request = operation.request_json;
+        const uint32_t request_len = static_cast<uint32_t>(std::strlen(request));
+        uint64_t request_ptr =
+            wasm_runtime_module_dup_data(module_inst_, request, request_len);
+        if (request_ptr == 0) {
+            throw std::runtime_error("failed to copy cancel-guard request into wasm memory");
+        }
+
+        wasm_function_inst_t source_fn = lookup(operation.export_name);
+        uint32_t argv[2] = {static_cast<uint32_t>(request_ptr), request_len};
+        try {
+            ForcedCancelScope cancel_scope(true);
+            require_call(exec_env_, module_inst_, source_fn, 2, argv, operation.export_name);
+        }
+        catch (...) {
+            wasm_runtime_module_free(module_inst_, request_ptr);
+            throw;
+        }
+        wasm_runtime_module_free(module_inst_, request_ptr);
+
+        std::string payload = read_result_payload(argv[0], false, "cancel guard rejection");
+        require_contains(payload, "\"ok\":false", "cancel guard rejection");
+        require_contains(payload, "\"operation\":\"search\"", "cancel guard rejection");
+        require_contains(payload, "\"code\":\"cancelled\"", "cancel guard rejection");
+        require_contains(payload, "\"message\":\"host cancelled\"", "cancel guard rejection");
+        if (payload.find("Fixture Series") != std::string::npos ||
+            payload.find("\"requestEcho\":\"fixture\"") != std::string::npos ||
+            contains_any_forbidden_runtime_string(payload)) {
+            throw std::runtime_error("cancel guard leaked success or unsafe evidence");
+        }
+        std::cout << "SOURCE_API_CANCEL_GUARD_REJECTED ok:true reason=cancelled attemptedWamrExecution=true noRawPayloadOrPathLeak=true\n";
+
+        const std::string timeout_request =
+            "{\"type\":\"request\",\"version\":1,\"requestId\":\"runtime-timeout-guard-001\","
+            "\"operation\":\"search\",\"sourceId\":\"local.test.koma.fixture\","
+            "\"args\":{\"query\":\"fixture\"},\"settings\":{},\"hostHints\":{\"network\":false},"
+            "\"komaTestOnly\":true,\"testGuard\":\"timeout\"}";
+        const std::string timeout_payload = timeout_guard_error_json(timeout_request);
+        validate_timeout_guard_payload(timeout_payload);
+        std::cout << "SOURCE_API_TIMEOUT_GUARD_REJECTED ok:true reason=timeout attemptedWamrExecution=false noRawPayloadOrPathLeak=true\n";
+        std::cout << "SOURCE_API_JSON timeout_guard_rejected=" << timeout_payload << "\n";
+    }
+
     void call_core_operations() {
         const SourceOperation operations[] = {
             {
@@ -1020,6 +1125,7 @@ public:
             call_operation(operation);
         }
         reject_unknown_operation();
+        reject_cancel_timeout_guards();
         std::cout << "hostHints.network=false\n";
     }
 

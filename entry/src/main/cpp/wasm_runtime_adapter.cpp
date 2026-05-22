@@ -28,6 +28,8 @@ constexpr uint32_t kWasmHeapBytes = 256u * 1024u;
 constexpr uint32_t kMaxPayloadBytes = 1024u * 1024u;
 constexpr uint32_t kMaxHostLogBytes = 1024u;
 constexpr uint32_t kMaxFixtureWasmBytes = 1024u * 1024u;
+constexpr const char *kTestCancelGuard = "\"testGuard\":\"cancel\"";
+constexpr const char *kTestTimeoutGuard = "\"testGuard\":\"timeout\"";
 constexpr const char *kManifestJson =
     "{\"schemaVersion\":1,\"id\":\"local.example.private\","
     "\"runtime\":\"wasm-v1\",\"entry\":\"source_runtime_fixture.wasm\","
@@ -112,7 +114,34 @@ std::string RuntimeErrorJson(const std::string &message)
     return ErrorJson("WAMR_RUNTIME_ERROR", "source runtime call rejected", RuntimeReasonCode(message));
 }
 
+bool HasTestOnlyGuard(const std::string &requestJson, const char *guard)
+{
+    return requestJson.find("\"komaTestOnly\":true") != std::string::npos &&
+        requestJson.find(guard) != std::string::npos;
+}
+
 #if defined(KOMA_ENABLE_WAMR)
+
+bool g_forceCancelForCurrentCall = false;
+
+class ForcedCancelScope {
+public:
+    explicit ForcedCancelScope(bool enabled) : previous_(g_forceCancelForCurrentCall)
+    {
+        g_forceCancelForCurrentCall = enabled;
+    }
+
+    ~ForcedCancelScope()
+    {
+        g_forceCancelForCurrentCall = previous_;
+    }
+
+    ForcedCancelScope(const ForcedCancelScope &) = delete;
+    ForcedCancelScope &operator=(const ForcedCancelScope &) = delete;
+
+private:
+    bool previous_;
+};
 
 std::vector<uint8_t> LoadWasmBytesFromBundledFixture()
 {
@@ -160,12 +189,13 @@ void HostLog(wasm_exec_env_t execEnv, int32_t level, char *message, uint32_t mes
 int32_t HostCheckCancel(wasm_exec_env_t execEnv)
 {
     (void)execEnv;
+    const int32_t result = g_forceCancelForCurrentCall ? 1 : 0;
 #if defined(KOMA_HAS_HILOG)
-    OH_LOG_Print(LOG_APP, LOG_INFO, 0x0, "KomaSourceRuntime", "HOST_CHECK_CANCEL result=0");
+    OH_LOG_Print(LOG_APP, LOG_INFO, 0x0, "KomaSourceRuntime", "HOST_CHECK_CANCEL result=%{public}d", result);
 #else
-    std::fprintf(stderr, "KomaSourceRuntime HOST_CHECK_CANCEL result=0\n");
+    std::fprintf(stderr, "KomaSourceRuntime HOST_CHECK_CANCEL result=%d\n", result);
 #endif
-    return 0;
+    return result;
 }
 
 int32_t HostHttpRequest(wasm_exec_env_t execEnv, char *request, uint32_t requestLen, char *out, uint32_t outCap)
@@ -510,9 +540,11 @@ public:
 
         const std::string operation = ExtractOperation(requestJson);
         const char *exportName = ExportForOperation(operation);
+        const bool forceCancel = HasTestOnlyGuard(requestJson, kTestCancelGuard);
         if (operation == "source_info" ||
             operation == "test_oversized_result" ||
             operation == "test_malformed_result") {
+            ForcedCancelScope cancelScope(forceCancel);
             wasm_function_inst_t operationFn = Lookup(exportName);
             uint32_t argv[1] = {0};
             RequireCall(execEnv_, moduleInst_, operationFn, 0, argv, exportName);
@@ -528,6 +560,7 @@ public:
         wasm_function_inst_t operationFn = Lookup(exportName);
         uint32_t argv[2] = {static_cast<uint32_t>(requestPtr), requestLen};
         try {
+            ForcedCancelScope cancelScope(forceCancel);
             RequireCall(execEnv_, moduleInst_, operationFn, 2, argv, exportName);
         } catch (...) {
             wasm_runtime_module_free(moduleInst_, requestPtr);
@@ -656,6 +689,9 @@ std::string RunWasmJsonCallFromBytes(const std::string &requestJson, const std::
 {
 #if defined(KOMA_ENABLE_WAMR)
     try {
+        if (HasTestOnlyGuard(requestJson, kTestTimeoutGuard)) {
+            return ErrorJson("WAMR_RUNTIME_TIMEOUT", "source runtime call timed out", "timeout");
+        }
         Runtime runtime;
         ThreadEnv threadEnv;
         Module module(LoadWasmBytesFromExternalBytes(wasmBytes));
