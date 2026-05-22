@@ -1,7 +1,7 @@
 import { common } from '@kit.AbilityKit'
 import { fileIo as fs } from '@kit.CoreFileKit'
 import { resourceManager } from '@kit.LocalizationKit'
-import { SourceRuntimeCallResponse } from './NativeSourceRuntime'
+import { SourceRuntimeCallRequest, SourceRuntimeCallResponse } from './NativeSourceRuntime'
 import {
   importArchiveNegativeFixtures,
   importLocalSourceArchive,
@@ -13,6 +13,7 @@ import {
   runSearchFixtureFromBytes,
   runSourceApiFixtureOperationsForSourceIdFromBytes,
   runSourceApiFixtureOperationsFromBytes,
+  runSourceOperationFromBytes,
   runSourceRuntimeNegativeExecutionFromBytes,
   SourceRuntimeApiOperationsSummary,
   SourceRuntimeNegativeExecutionSummary,
@@ -65,6 +66,17 @@ export interface SourceRuntimeServiceRunByIdSummary {
   sourceApiOperations: SourceRuntimeApiOperationsSummary
 }
 
+export interface SourceRuntimeServiceRunRequestByIdSummary {
+  ok: boolean
+  sourceId: string
+  operation?: string
+  reasonCode?: string
+  sourceCount: number
+  response?: SourceRuntimeCallResponse
+  responseOk: boolean
+  attemptedWamrExecution: boolean
+}
+
 export interface SourceRuntimeServiceRegistryNegativeSummary {
   duplicateRejected: boolean
   duplicateReasonCode?: string
@@ -90,6 +102,15 @@ export interface SourceRuntimeServiceRegistryReloadSummary {
   packageRunByIdOperations: SourceRuntimeApiOperationsSummary
   archiveRunByIdOk: boolean
   archiveRunByIdOperations: SourceRuntimeApiOperationsSummary
+  packageRunRequestById: SourceRuntimeServiceRunRequestByIdSummary
+  archiveRunRequestById: SourceRuntimeServiceRunRequestByIdSummary
+  nonSearchRunRequestById: SourceRuntimeServiceRunRequestByIdSummary
+  unknownSourceRunRequestById: SourceRuntimeServiceRunRequestByIdSummary
+  sourceIdMismatchRunRequestById: SourceRuntimeServiceRunRequestByIdSummary
+  malformedRunRequestById: SourceRuntimeServiceRunRequestByIdSummary
+  nullRequestRunRequestById: SourceRuntimeServiceRunRequestByIdSummary
+  arrayRequestRunRequestById: SourceRuntimeServiceRunRequestByIdSummary
+  missingOperationRunRequestById: SourceRuntimeServiceRunRequestByIdSummary
   negative: SourceRuntimeServiceRegistryReloadNegativeSummary
   corruptNegative: SourceRuntimeServiceRegistryReloadNegativeSummary
 }
@@ -291,6 +312,91 @@ export function runRegisteredSourceApiOperationsById(
   }
 }
 
+export function runRegisteredSourceRequestById(
+  registry: SourceRuntimeRegistry,
+  sourceId: string,
+  requestJson: string,
+): SourceRuntimeServiceRunRequestByIdSummary {
+  const lookup = registry.lookup(sourceId)
+  if (!lookup.ok || lookup.entry === undefined) {
+    return {
+      ok: false,
+      sourceId,
+      reasonCode: lookup.reasonCode,
+      sourceCount: lookup.sourceCount,
+      responseOk: false,
+      attemptedWamrExecution: false,
+    }
+  }
+
+  let request: SourceRuntimeCallRequest
+  try {
+    request = JSON.parse(requestJson) as SourceRuntimeCallRequest
+  } catch (_err) {
+    return {
+      ok: false,
+      sourceId: lookup.entry.sourceId,
+      reasonCode: 'malformed_json',
+      sourceCount: lookup.sourceCount,
+      responseOk: false,
+      attemptedWamrExecution: false,
+    }
+  }
+  if (request === null || typeof request !== 'object' || Array.isArray(request)) {
+    return {
+      ok: false,
+      sourceId: lookup.entry.sourceId,
+      reasonCode: 'missing_or_invalid_operation',
+      sourceCount: lookup.sourceCount,
+      responseOk: false,
+      attemptedWamrExecution: false,
+    }
+  }
+
+  const operation = request['operation']
+  if (typeof operation !== 'string' || operation.trim().length === 0) {
+    return {
+      ok: false,
+      sourceId: lookup.entry.sourceId,
+      reasonCode: 'missing_or_invalid_operation',
+      sourceCount: lookup.sourceCount,
+      responseOk: false,
+      attemptedWamrExecution: false,
+    }
+  }
+
+  const requestSourceId = request['sourceId']
+  if (requestSourceId !== undefined && (typeof requestSourceId !== 'string' || requestSourceId !== lookup.entry.sourceId)) {
+    return {
+      ok: false,
+      sourceId: lookup.entry.sourceId,
+      operation,
+      reasonCode: 'source_id_mismatch',
+      sourceCount: lookup.sourceCount,
+      responseOk: false,
+      attemptedWamrExecution: false,
+    }
+  }
+
+  const response = runSourceOperationFromBytes(requestJson, lookup.entry.wasmBytes)
+  const responseText = JSON.stringify(response)
+  const responseOk = response.ok === true &&
+    response.operation === operation &&
+    response.hostHints?.['network'] === false &&
+    (operation === 'search' ? responseText.includes('Fixture Series') && response.data?.requestEcho === 'fixture' :
+      operation === 'get_manga' ? responseText.includes('Fixture Series') && responseText.includes('manga:fixture-series') :
+        responseText.includes('fixture'))
+  return {
+    ok: responseOk,
+    sourceId: lookup.entry.sourceId,
+    operation,
+    sourceCount: lookup.sourceCount,
+    response,
+    responseOk,
+    attemptedWamrExecution: true,
+  }
+}
+
 export function runSourceRuntimeRegistryNegativeEvidence(
   registry: SourceRuntimeRegistry,
   existingEntry: SourceRuntimeRegistryEntry,
@@ -405,6 +511,15 @@ export function persistReloadAndRunRegisteredSourcesById(
       packageRunByIdOperations: { ok: false, operations: [], evidence: [] },
       archiveRunByIdOk: false,
       archiveRunByIdOperations: { ok: false, operations: [], evidence: [] },
+      packageRunRequestById: sourceRuntimeServiceRunRequestByIdRejected(packageSourceId, persist.persistedSourceCount, persist.reasonCode),
+      archiveRunRequestById: sourceRuntimeServiceRunRequestByIdRejected(archiveSourceId, persist.persistedSourceCount, persist.reasonCode),
+      nonSearchRunRequestById: sourceRuntimeServiceRunRequestByIdRejected(packageSourceId, persist.persistedSourceCount, persist.reasonCode),
+      unknownSourceRunRequestById: sourceRuntimeServiceRunRequestByIdRejected('missing.source.id.test-only', persist.persistedSourceCount, persist.reasonCode),
+      sourceIdMismatchRunRequestById: sourceRuntimeServiceRunRequestByIdRejected(packageSourceId, persist.persistedSourceCount, persist.reasonCode),
+      malformedRunRequestById: sourceRuntimeServiceRunRequestByIdRejected(packageSourceId, persist.persistedSourceCount, persist.reasonCode),
+      nullRequestRunRequestById: sourceRuntimeServiceRunRequestByIdRejected(packageSourceId, persist.persistedSourceCount, persist.reasonCode),
+      arrayRequestRunRequestById: sourceRuntimeServiceRunRequestByIdRejected(packageSourceId, persist.persistedSourceCount, persist.reasonCode),
+      missingOperationRunRequestById: sourceRuntimeServiceRunRequestByIdRejected(packageSourceId, persist.persistedSourceCount, persist.reasonCode),
       negative: missingNegative,
       corruptNegative,
     }
@@ -422,6 +537,15 @@ export function persistReloadAndRunRegisteredSourcesById(
       packageRunByIdOperations: { ok: false, operations: [], evidence: [] },
       archiveRunByIdOk: false,
       archiveRunByIdOperations: { ok: false, operations: [], evidence: [] },
+      packageRunRequestById: sourceRuntimeServiceRunRequestByIdRejected(packageSourceId, reloaded.reloadedSourceCount, reloaded.reasonCode),
+      archiveRunRequestById: sourceRuntimeServiceRunRequestByIdRejected(archiveSourceId, reloaded.reloadedSourceCount, reloaded.reasonCode),
+      nonSearchRunRequestById: sourceRuntimeServiceRunRequestByIdRejected(packageSourceId, reloaded.reloadedSourceCount, reloaded.reasonCode),
+      unknownSourceRunRequestById: sourceRuntimeServiceRunRequestByIdRejected('missing.source.id.test-only', reloaded.reloadedSourceCount, reloaded.reasonCode),
+      sourceIdMismatchRunRequestById: sourceRuntimeServiceRunRequestByIdRejected(packageSourceId, reloaded.reloadedSourceCount, reloaded.reasonCode),
+      malformedRunRequestById: sourceRuntimeServiceRunRequestByIdRejected(packageSourceId, reloaded.reloadedSourceCount, reloaded.reasonCode),
+      nullRequestRunRequestById: sourceRuntimeServiceRunRequestByIdRejected(packageSourceId, reloaded.reloadedSourceCount, reloaded.reasonCode),
+      arrayRequestRunRequestById: sourceRuntimeServiceRunRequestByIdRejected(packageSourceId, reloaded.reloadedSourceCount, reloaded.reasonCode),
+      missingOperationRunRequestById: sourceRuntimeServiceRunRequestByIdRejected(packageSourceId, reloaded.reloadedSourceCount, reloaded.reasonCode),
       negative: missingNegative,
       corruptNegative,
     }
@@ -429,9 +553,75 @@ export function persistReloadAndRunRegisteredSourcesById(
 
   const packageRunById = runRegisteredSourceApiOperationsById(reloaded.registry, packageSourceId)
   const archiveRunById = runRegisteredSourceApiOperationsById(reloaded.registry, archiveSourceId)
+  const packageRunRequestById = runRegisteredSourceRequestById(
+    reloaded.registry,
+    packageSourceId,
+    `{"type":"request","version":1,"requestId":"device-run-request-by-id-package-search-001","operation":"search","sourceId":"${packageSourceId}","args":{"query":"fixture","page":{"cursor":null,"limit":20}},"settings":{},"hostHints":{"network":false}}`,
+  )
+  const archiveRunRequestById = runRegisteredSourceRequestById(
+    reloaded.registry,
+    archiveSourceId,
+    `{"type":"request","version":1,"requestId":"device-run-request-by-id-archive-search-001","operation":"search","sourceId":"${archiveSourceId}","args":{"query":"fixture","page":{"cursor":null,"limit":20}},"settings":{},"hostHints":{"network":false}}`,
+  )
+  const nonSearchRunRequestById = runRegisteredSourceRequestById(
+    reloaded.registry,
+    packageSourceId,
+    `{"type":"request","version":1,"requestId":"device-run-request-by-id-package-manga-001","operation":"get_manga","sourceId":"${packageSourceId}","args":{"mangaId":"manga:fixture-series"},"settings":{},"hostHints":{"network":false}}`,
+  )
+  const unknownSourceRunRequestById = runRegisteredSourceRequestById(
+    reloaded.registry,
+    'missing.source.id.test-only',
+    '{"type":"request","version":1,"requestId":"device-run-request-by-id-unknown-001","operation":"search","sourceId":"missing.source.id.test-only","args":{"query":"fixture"},"settings":{},"hostHints":{"network":false}}',
+  )
+  const sourceIdMismatchRunRequestById = runRegisteredSourceRequestById(
+    reloaded.registry,
+    packageSourceId,
+    `{"type":"request","version":1,"requestId":"device-run-request-by-id-mismatch-001","operation":"search","sourceId":"${archiveSourceId}","args":{"query":"fixture"},"settings":{},"hostHints":{"network":false}}`,
+  )
+  const malformedRunRequestById = runRegisteredSourceRequestById(
+    reloaded.registry,
+    packageSourceId,
+    '{"type":"request","version":1,"requestId":"device-run-request-by-id-malformed-001","operation":"search"',
+  )
+  const nullRequestRunRequestById = runRegisteredSourceRequestById(
+    reloaded.registry,
+    packageSourceId,
+    'null',
+  )
+  const arrayRequestRunRequestById = runRegisteredSourceRequestById(
+    reloaded.registry,
+    packageSourceId,
+    '[]',
+  )
+  const missingOperationRunRequestById = runRegisteredSourceRequestById(
+    reloaded.registry,
+    packageSourceId,
+    `{"type":"request","version":1,"requestId":"device-run-request-by-id-missing-operation-001","sourceId":"${packageSourceId}","args":{"query":"fixture"},"settings":{},"hostHints":{"network":false}}`,
+  )
   return {
     ok: packageRunById.ok && packageRunById.sourceApiOperationsOk &&
       archiveRunById.ok && archiveRunById.sourceApiOperationsOk &&
+      packageRunRequestById.ok &&
+      archiveRunRequestById.ok &&
+      nonSearchRunRequestById.ok &&
+      !unknownSourceRunRequestById.ok &&
+      unknownSourceRunRequestById.reasonCode === 'source_id_not_registered' &&
+      unknownSourceRunRequestById.attemptedWamrExecution === false &&
+      !sourceIdMismatchRunRequestById.ok &&
+      sourceIdMismatchRunRequestById.reasonCode === 'source_id_mismatch' &&
+      sourceIdMismatchRunRequestById.attemptedWamrExecution === false &&
+      !malformedRunRequestById.ok &&
+      malformedRunRequestById.reasonCode === 'malformed_json' &&
+      malformedRunRequestById.attemptedWamrExecution === false &&
+      !nullRequestRunRequestById.ok &&
+      nullRequestRunRequestById.reasonCode === 'missing_or_invalid_operation' &&
+      nullRequestRunRequestById.attemptedWamrExecution === false &&
+      !arrayRequestRunRequestById.ok &&
+      arrayRequestRunRequestById.reasonCode === 'missing_or_invalid_operation' &&
+      arrayRequestRunRequestById.attemptedWamrExecution === false &&
+      !missingOperationRunRequestById.ok &&
+      missingOperationRunRequestById.reasonCode === 'missing_or_invalid_operation' &&
+      missingOperationRunRequestById.attemptedWamrExecution === false &&
       missingNegative.rejected &&
       corruptNegative.rejected,
     metadataPath,
@@ -441,8 +631,32 @@ export function persistReloadAndRunRegisteredSourcesById(
     packageRunByIdOperations: packageRunById.sourceApiOperations,
     archiveRunByIdOk: archiveRunById.ok && archiveRunById.sourceApiOperationsOk,
     archiveRunByIdOperations: archiveRunById.sourceApiOperations,
+    packageRunRequestById,
+    archiveRunRequestById,
+    nonSearchRunRequestById,
+    unknownSourceRunRequestById,
+    sourceIdMismatchRunRequestById,
+    malformedRunRequestById,
+    nullRequestRunRequestById,
+    arrayRequestRunRequestById,
+    missingOperationRunRequestById,
     negative: missingNegative,
     corruptNegative,
+  }
+}
+
+function sourceRuntimeServiceRunRequestByIdRejected(
+  sourceId: string,
+  sourceCount: number,
+  reasonCode?: string,
+): SourceRuntimeServiceRunRequestByIdSummary {
+  return {
+    ok: false,
+    sourceId,
+    reasonCode,
+    sourceCount,
+    responseOk: false,
+    attemptedWamrExecution: false,
   }
 }
 

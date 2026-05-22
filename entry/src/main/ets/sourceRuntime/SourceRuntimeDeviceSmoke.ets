@@ -18,6 +18,7 @@ import {
   SourceRuntimeServiceRegistryNegativeSummary,
   SourceRuntimeServiceRegistryReloadSummary,
   SourceRuntimeServiceRunByIdSummary,
+  SourceRuntimeServiceRunRequestByIdSummary,
   SourceRuntimeServiceRunSummary,
 } from './SourceRuntimeService'
 import { SourceRuntimeRegistry } from './SourceRuntimeRegistry'
@@ -113,6 +114,15 @@ export interface SourceRuntimeRegistryEntryEvidence {
   validationEvidence: string[]
 }
 
+export interface SourceRuntimeRunRequestByIdEvidence {
+  sourceId: string
+  operation?: string
+  ok: boolean
+  responseOk: boolean
+  reasonCode?: string
+  attemptedWamrExecution: boolean
+}
+
 export interface SourceRuntimeSmokeResult {
   ok: boolean
   route: string
@@ -199,6 +209,31 @@ export interface SourceRuntimeSmokeResult {
   sourceRuntimeRegistryReloadCorruptMetadataRejected?: boolean
   sourceRuntimeRegistryReloadCorruptMetadataReasonCode?: string
   sourceRuntimeRegistryReloadCorruptMetadataAttemptedWamrExecution?: boolean
+  sourceRuntimeRunRequestByIdOk?: boolean
+  sourceRuntimeRunRequestByIdPackageSearchOk?: boolean
+  sourceRuntimeRunRequestByIdPackageSearch?: SourceRuntimeRunRequestByIdEvidence
+  sourceRuntimeRunRequestByIdArchiveSearchOk?: boolean
+  sourceRuntimeRunRequestByIdArchiveSearch?: SourceRuntimeRunRequestByIdEvidence
+  sourceRuntimeRunRequestByIdNonSearchOk?: boolean
+  sourceRuntimeRunRequestByIdNonSearch?: SourceRuntimeRunRequestByIdEvidence
+  sourceRuntimeRunRequestByIdUnknownSourceRejected?: boolean
+  sourceRuntimeRunRequestByIdUnknownSourceReasonCode?: string
+  sourceRuntimeRunRequestByIdUnknownSourceAttemptedWamrExecution?: boolean
+  sourceRuntimeRunRequestByIdSourceIdMismatchRejected?: boolean
+  sourceRuntimeRunRequestByIdSourceIdMismatchReasonCode?: string
+  sourceRuntimeRunRequestByIdSourceIdMismatchAttemptedWamrExecution?: boolean
+  sourceRuntimeRunRequestByIdMalformedRejected?: boolean
+  sourceRuntimeRunRequestByIdMalformedReasonCode?: string
+  sourceRuntimeRunRequestByIdMalformedAttemptedWamrExecution?: boolean
+  sourceRuntimeRunRequestByIdNullRequestRejected?: boolean
+  sourceRuntimeRunRequestByIdNullRequestReasonCode?: string
+  sourceRuntimeRunRequestByIdNullRequestAttemptedWamrExecution?: boolean
+  sourceRuntimeRunRequestByIdArrayRequestRejected?: boolean
+  sourceRuntimeRunRequestByIdArrayRequestReasonCode?: string
+  sourceRuntimeRunRequestByIdArrayRequestAttemptedWamrExecution?: boolean
+  sourceRuntimeRunRequestByIdMissingOperationRejected?: boolean
+  sourceRuntimeRunRequestByIdMissingOperationReasonCode?: string
+  sourceRuntimeRunRequestByIdMissingOperationAttemptedWamrExecution?: boolean
   error?: string
 }
 
@@ -403,7 +438,8 @@ async function runSourceRuntimeRegistrySmoke(
     result.sourceRuntimeRegistryDuplicateRejected === true &&
     result.sourceRuntimeRegistryMissingSourceIdRejected === true &&
     result.sourceRuntimeRegistryInvalidRunRejected === true &&
-    result.sourceRuntimeRegistryReloadOk === true
+    result.sourceRuntimeRegistryReloadOk === true &&
+    result.sourceRuntimeRunRequestByIdOk === true
 }
 
 function applyRunByIdEvidence(
@@ -449,6 +485,61 @@ function applyRegistryReloadEvidence(
   result.sourceRuntimeRegistryReloadCorruptMetadataRejected = summary.corruptNegative.rejected
   result.sourceRuntimeRegistryReloadCorruptMetadataReasonCode = summary.corruptNegative.reasonCode
   result.sourceRuntimeRegistryReloadCorruptMetadataAttemptedWamrExecution = summary.corruptNegative.attemptedWamrExecution
+  result.sourceRuntimeRunRequestByIdPackageSearchOk = summary.packageRunRequestById.ok
+  result.sourceRuntimeRunRequestByIdPackageSearch = compactRunRequestByIdEvidence(summary.packageRunRequestById)
+  result.sourceRuntimeRunRequestByIdArchiveSearchOk = summary.archiveRunRequestById.ok
+  result.sourceRuntimeRunRequestByIdArchiveSearch = compactRunRequestByIdEvidence(summary.archiveRunRequestById)
+  result.sourceRuntimeRunRequestByIdNonSearchOk = summary.nonSearchRunRequestById.ok
+  result.sourceRuntimeRunRequestByIdNonSearch = compactRunRequestByIdEvidence(summary.nonSearchRunRequestById)
+  result.sourceRuntimeRunRequestByIdUnknownSourceRejected = !summary.unknownSourceRunRequestById.ok &&
+    summary.unknownSourceRunRequestById.reasonCode === 'source_id_not_registered'
+  result.sourceRuntimeRunRequestByIdUnknownSourceReasonCode = summary.unknownSourceRunRequestById.reasonCode
+  result.sourceRuntimeRunRequestByIdUnknownSourceAttemptedWamrExecution =
+    summary.unknownSourceRunRequestById.attemptedWamrExecution
+  result.sourceRuntimeRunRequestByIdSourceIdMismatchRejected = !summary.sourceIdMismatchRunRequestById.ok &&
+    summary.sourceIdMismatchRunRequestById.reasonCode === 'source_id_mismatch'
+  result.sourceRuntimeRunRequestByIdSourceIdMismatchReasonCode = summary.sourceIdMismatchRunRequestById.reasonCode
+  result.sourceRuntimeRunRequestByIdSourceIdMismatchAttemptedWamrExecution =
+    summary.sourceIdMismatchRunRequestById.attemptedWamrExecution
+  result.sourceRuntimeRunRequestByIdMalformedRejected = !summary.malformedRunRequestById.ok &&
+    summary.malformedRunRequestById.reasonCode === 'malformed_json'
+  result.sourceRuntimeRunRequestByIdMalformedReasonCode = summary.malformedRunRequestById.reasonCode
+  result.sourceRuntimeRunRequestByIdMalformedAttemptedWamrExecution =
+    summary.malformedRunRequestById.attemptedWamrExecution
+  result.sourceRuntimeRunRequestByIdNullRequestRejected = !summary.nullRequestRunRequestById.ok &&
+    summary.nullRequestRunRequestById.reasonCode === 'missing_or_invalid_operation'
+  result.sourceRuntimeRunRequestByIdNullRequestReasonCode = summary.nullRequestRunRequestById.reasonCode
+  result.sourceRuntimeRunRequestByIdNullRequestAttemptedWamrExecution =
+    summary.nullRequestRunRequestById.attemptedWamrExecution
+  result.sourceRuntimeRunRequestByIdArrayRequestRejected = !summary.arrayRequestRunRequestById.ok &&
+    summary.arrayRequestRunRequestById.reasonCode === 'missing_or_invalid_operation'
+  result.sourceRuntimeRunRequestByIdArrayRequestReasonCode = summary.arrayRequestRunRequestById.reasonCode
+  result.sourceRuntimeRunRequestByIdArrayRequestAttemptedWamrExecution =
+    summary.arrayRequestRunRequestById.attemptedWamrExecution
+  result.sourceRuntimeRunRequestByIdMissingOperationRejected = !summary.missingOperationRunRequestById.ok &&
+    summary.missingOperationRunRequestById.reasonCode === 'missing_or_invalid_operation'
+  result.sourceRuntimeRunRequestByIdMissingOperationReasonCode = summary.missingOperationRunRequestById.reasonCode
+  result.sourceRuntimeRunRequestByIdMissingOperationAttemptedWamrExecution =
+    summary.missingOperationRunRequestById.attemptedWamrExecution
+  result.sourceRuntimeRunRequestByIdOk =
+    summary.packageRunRequestById.ok &&
+      summary.packageRunRequestById.operation === 'search' &&
+      summary.archiveRunRequestById.ok &&
+      summary.archiveRunRequestById.operation === 'search' &&
+      summary.nonSearchRunRequestById.ok &&
+      summary.nonSearchRunRequestById.operation === 'get_manga' &&
+      result.sourceRuntimeRunRequestByIdUnknownSourceRejected === true &&
+      summary.unknownSourceRunRequestById.attemptedWamrExecution === false &&
+      result.sourceRuntimeRunRequestByIdSourceIdMismatchRejected === true &&
+      summary.sourceIdMismatchRunRequestById.attemptedWamrExecution === false &&
+      result.sourceRuntimeRunRequestByIdMalformedRejected === true &&
+      summary.malformedRunRequestById.attemptedWamrExecution === false &&
+      result.sourceRuntimeRunRequestByIdNullRequestRejected === true &&
+      summary.nullRequestRunRequestById.attemptedWamrExecution === false &&
+      result.sourceRuntimeRunRequestByIdArrayRequestRejected === true &&
+      summary.arrayRequestRunRequestById.attemptedWamrExecution === false &&
+      result.sourceRuntimeRunRequestByIdMissingOperationRejected === true &&
+      summary.missingOperationRunRequestById.attemptedWamrExecution === false
   result.sourceRuntimeRegistryReloadOk = summary.ok &&
     summary.persistedSourceCount >= 2 &&
     summary.reloadedSourceCount >= 2 &&
@@ -462,14 +553,68 @@ function applyRegistryReloadEvidence(
     summary.corruptNegative.attemptedWamrExecution === false
 }
 
+function compactRunRequestByIdEvidence(
+  summary: SourceRuntimeServiceRunRequestByIdSummary,
+): SourceRuntimeRunRequestByIdEvidence {
+  return {
+    sourceId: summary.sourceId,
+    operation: summary.operation,
+    ok: summary.ok,
+    responseOk: summary.responseOk,
+    reasonCode: summary.reasonCode,
+    attemptedWamrExecution: summary.attemptedWamrExecution,
+  }
+}
+
 function compactSmokeResultForHilog(result: SourceRuntimeSmokeResult): void {
+  result.route = ''
+  result.requestJson = ''
   result.rawfilePath = undefined
+  result.rawfileBytes = undefined
+  result.rustRequestJson = undefined
   result.rustRawfilePath = undefined
+  result.rustRawfileBytes = undefined
+  result.packageRoute = undefined
+  result.packageOperation = undefined
+  result.packageRequestEcho = undefined
+  result.packageFirstTitle = undefined
+  result.packageWasmBytes = undefined
+  result.packageManifestId = undefined
+  result.packageManifestVersion = undefined
+  result.packageManifestPath = undefined
+  result.packageWasmPath = undefined
+  result.archiveRoute = undefined
   result.archiveRawfilePath = undefined
+  result.archivePath = undefined
+  result.archiveOperation = undefined
+  result.archiveRequestEcho = undefined
+  result.archiveFirstTitle = undefined
+  result.archiveWasmBytes = undefined
+  result.archiveManifestId = undefined
+  result.archiveManifestVersion = undefined
+  result.archiveManifestPath = undefined
+  result.archiveImportedWasmPath = undefined
+  result.archiveNegativeRoute = undefined
+  result.rustSourceApiOperations = undefined
+  result.packageSourceApiOperations = undefined
+  result.archiveSourceApiOperations = undefined
+  result.sourceRuntimeRegistrySourceCount = undefined
+  result.sourceRuntimeRegistryPackageSourceId = undefined
+  result.sourceRuntimeRegistryArchiveSourceId = undefined
+  result.sourceRuntimeRegistryPackageRunByIdOperations = undefined
+  result.sourceRuntimeRegistryArchiveRunByIdOperations = undefined
+  result.sourceRuntimeRegistryReloadMetadataPath = undefined
+  result.sourceRuntimeRegistryPersistedSourceCount = undefined
+  result.sourceRuntimeRegistryReloadedSourceCount = undefined
+  result.sourceRuntimeRegistryPackageReloadRunByIdOperations = undefined
+  result.sourceRuntimeRegistryArchiveReloadRunByIdOperations = undefined
   result.sourceRuntimeRegistryPackageEntry = undefined
   result.sourceRuntimeRegistryArchiveEntry = undefined
   result.sourceRuntimeExecutionNegativeCases = undefined
   result.archiveNegativeCases = undefined
+  result.sourceRuntimeRunRequestByIdPackageSearch = undefined
+  result.sourceRuntimeRunRequestByIdArchiveSearch = undefined
+  result.sourceRuntimeRunRequestByIdNonSearch = undefined
 }
 
 export async function maybeRunSourceRuntimeDeviceSmoke(
