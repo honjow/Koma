@@ -1,4 +1,4 @@
-# Koma Source API v0.1 Candidate
+# Koma Source API v0.1/v0.2 Candidate
 
 This document defines a candidate source-author/runtime contract for real manga
 source operations on top of the existing WASM package/runtime boundary. It is a
@@ -14,7 +14,10 @@ Status:
 - Current host ABI remains `koma-host-v0.1` with only `koma_host.log` and
   `koma_host.check_cancel`.
 - Network remains disabled by default. `hostHints.network=false` is expected in
-  current fixture responses.
+  current fixture requests, responses, and metadata fixtures.
+- v0.2 extends the v0.1 four-operation fixture contract with source metadata,
+  feature discovery, browse/config models, image request descriptors, and
+  structured optional-operation errors. It does not enable runtime HTTP.
 
 Non-goals:
 
@@ -170,6 +173,8 @@ Error response:
 
 Candidate error codes:
 
+- `unimplemented`: optional operation is known by the API but unsupported by
+  this source or disabled by its capabilities.
 - `invalid_request`: malformed JSON, missing field, unsupported filter, or bad
   cursor.
 - `not_found`: source-owned id is unknown.
@@ -185,6 +190,13 @@ Messages are developer diagnostics, not localized UI strings. Hosts should map
 codes to user-facing copy.
 
 ## Core Operations v0.1
+
+These four operations remain the current/core compatibility surface:
+
+- `search`
+- `get_manga`
+- `get_chapters`
+- `get_pages`
 
 ### `search(query, page, filters/settings)`
 
@@ -422,6 +434,199 @@ Response:
 }
 ```
 
+## Source API v0.2 Staging
+
+v0.2 keeps the v0.1 envelope and core operations compatible. The new contract is
+primarily about making the source-author model useful and discoverable before
+the runtime enables HTTP, auth, or product UI.
+
+Operation stages:
+
+- Current/core: `search`, `get_manga`, `get_chapters`, `get_pages`.
+- Next browse operations: `get_listings`, `get_manga_list`, `get_home`,
+  `get_filters`.
+- Config/image operations: `get_settings`, `get_image_request`.
+- Future/design-only: `process_page_image`, `page_description`, `base_url`,
+  `login`, `auth`, `deeplink`, and `migration`.
+
+Rules:
+
+- Unknown operation names fail closed. A host must never silently default an
+  unknown operation to `search`.
+- A known optional operation can return a structured `unimplemented` error.
+- Current fixtures keep `hostHints.network=false` and must not contain remote
+  URLs, raw local paths, picker/content URIs, app-private paths, raw cookies,
+  raw tokens, `Authorization` headers, or passwords.
+- Image requests are descriptors/references. They do not carry raw URLs or
+  credential header maps while current network support is disabled.
+
+### SourceInfo
+
+`SourceInfo` is static or cheaply computed source metadata:
+
+```json
+{
+  "id": "local.test.koma.fixture",
+  "name": "Koma Fixture Source",
+  "version": "0.2.0",
+  "apiVersion": "0.2",
+  "language": "zh-Hans",
+  "author": "Koma Fixture",
+  "description": "Static Source API v0.2 fixture source.",
+  "contentRating": "unknown"
+}
+```
+
+The `id` is the package/source id. It is not a URL and must not expose a local
+path.
+
+### SourceCapabilities
+
+Capabilities let the host avoid guessing from operation names or accidental
+export presence:
+
+```json
+{
+  "search": true,
+  "mangaDetail": true,
+  "chapters": true,
+  "pages": true,
+  "listings": true,
+  "mangaList": true,
+  "home": true,
+  "filters": true,
+  "settings": true,
+  "imageRequest": true,
+  "future": {
+    "process_page_image": false,
+    "page_description": false,
+    "base_url": false,
+    "login": false,
+    "auth": false,
+    "deeplink": false,
+    "migration": false
+  }
+}
+```
+
+`future` entries are documentary only in v0.2 fixtures and must remain disabled
+until a later runtime lane defines their host policies.
+
+### Browse Operations
+
+`get_listings` returns source-defined browse entry points:
+
+```json
+{
+  "listings": [
+    {
+      "id": "listing:popular",
+      "name": "Popular",
+      "kind": "popular"
+    }
+  ]
+}
+```
+
+`get_manga_list` returns a `MangaPageResult` for a listing id plus pagination
+and optional filters:
+
+```json
+{
+  "listingId": "listing:popular",
+  "items": [],
+  "page": {
+    "nextCursor": null,
+    "hasMore": false
+  }
+}
+```
+
+`get_home` returns grouped home sections:
+
+```json
+{
+  "sections": [
+    {
+      "id": "home:featured",
+      "title": "Featured",
+      "kind": "mangaList",
+      "items": []
+    },
+    {
+      "id": "home:latest-link",
+      "title": "Latest",
+      "kind": "listingLink",
+      "listingId": "listing:latest"
+    }
+  ]
+}
+```
+
+`get_filters` returns author-defined filter controls. Candidate kinds are
+`text`, `sort`, `check`, `select`, `multiSelect`, `note`, and `range`.
+
+### Settings
+
+`get_settings` returns a schema, not raw current secret values. Candidate kinds
+are `string`, `number`, `boolean`, `select`, and `secretRef`.
+
+```json
+{
+  "settings": [
+    {
+      "id": "setting:language",
+      "label": "Language",
+      "kind": "select",
+      "default": "zh-Hans",
+      "options": [
+        {
+          "id": "zh-Hans",
+          "label": "Chinese"
+        }
+      ]
+    },
+    {
+      "id": "setting:credential",
+      "label": "Credential reference",
+      "kind": "secretRef",
+      "secretRefKey": "credential:main"
+    }
+  ]
+}
+```
+
+`secretRef` means the host owns any real credential material and passes only a
+bounded reference through the source API.
+
+### ImageRequest Descriptor
+
+`get_image_request` converts a source page/image reference into a
+host-mediated descriptor:
+
+```json
+{
+  "imageRequest": {
+    "id": "image-request:fixture-page-1",
+    "resourceRef": "image-resource:fixture-page-1",
+    "method": "GET",
+    "headers": [
+      {
+        "name": "Accept",
+        "value": "image/*"
+      }
+    ],
+    "credentialRefs": [],
+    "cacheKey": "image-cache:fixture-page-1"
+  }
+}
+```
+
+Current fixtures intentionally use `resourceRef`, `credentialRefs`, and
+`cacheKey` instead of raw remote URLs, cookies, tokens, authorization headers,
+or local paths. A later host-import lane must define URL policy before any real
+HTTP image loading is enabled.
+
 ## Data Schemas
 
 These are candidate JSON shapes, not formal JSON Schema files yet.
@@ -506,9 +711,11 @@ Allowed `image.kind` candidates:
 
 - `none`: no cover/page image available.
 - `placeholder`: static fixture or generated placeholder descriptor.
-- `remoteUrl`: future network image URL; invalid while `network=false`.
-- `imageRequest`: future host-mediated image request descriptor, intended to
-  avoid exposing raw credential headers or cookies to sources.
+- `imageRequest`: host-mediated image request descriptor, intended to avoid
+  exposing raw credential headers or cookies to sources.
+
+`remoteUrl` remains future/design-only for the current fixture validator and is
+invalid while `hostHints.network=false`.
 
 Page cursor/pagination:
 
@@ -609,18 +816,17 @@ Direction:
 - Treat exact module names, trait names, serde strategy, allocator choice, and
   error enum shape as candidate design, not final public API.
 
-## Optional Future Operations
+## v0.1 Compatibility Notes
 
-These are outside v0.1 core but should fit the same request/response envelope:
-
-- `get_home_sections()`: source-defined shelves such as popular, latest, or
-  curated sections.
-- `get_latest(page)`: latest-updated manga summaries when the source supports
-  it.
-- `login`, `status`, `logout`: future account/session flow. Must not expose raw
-  credentials to WASM without a separate credential policy.
-- `resolve_image_request()`: future host-mediated image loading strategy where
-  the source returns a descriptor and the host performs the network request.
+- v0.1 fixtures containing only `search`, `get_manga`, `get_chapters`, and
+  `get_pages` remain valid when they obey the common envelope, opaque id,
+  pagination, `network=false`, and leak-prevention rules.
+- v0.2 adds metadata and optional operation shapes without changing the v0.1
+  response envelope.
+- Older sources can report unsupported v0.2 optional operations by returning a
+  structured `unimplemented` error for known optional operation names.
+- Hosts should use capabilities/export discovery before calling optional
+  operations.
 
 ## Validation And Future Tests
 
@@ -633,9 +839,13 @@ python3 tools/wasm-runtime-spike/source-package/validate-source-api-fixtures.py 
 ```
 
 The fixture corpus covers valid request/response envelopes for `search`,
-`get_manga`, `get_chapters`, and `get_pages`, plus invalid cases for operation,
-`hostHints.network`, response envelope shape, path/URI leaks, remote page image
-descriptors while `network=false`, non-opaque ids, and malformed pagination.
+`get_manga`, `get_chapters`, `get_pages`, `get_listings`, `get_manga_list`,
+`get_home`, `get_filters`, `get_settings`, and `get_image_request`, plus
+metadata fixtures for `SourceInfo` and `SourceCapabilities`. Invalid fixtures
+cover unknown/future operations, `hostHints.network`, response envelope shape,
+path/URI leaks, remote URL leaks while `network=false`, credential-like leaks,
+raw authorization headers, non-opaque ids, and malformed pagination/model
+shapes.
 
 Current validators that must continue to pass for this design-only lane:
 
@@ -650,7 +860,7 @@ Current validators that must continue to pass for this design-only lane:
 
 Missing future tests before product enablement:
 
-- JSON schema fixtures for every core operation.
+- JSON schema fixtures for every operation.
 - Invalid request and invalid response fixtures.
 - Stable opaque id behavior across search/detail/chapter/page calls.
 - Pagination cursor validation and malformed cursor rejection.

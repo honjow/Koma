@@ -1,0 +1,17 @@
+{
+  "type": "request",
+  "version": 1,
+  "requestId": "req-image-request-001",
+  "operation": "get_image_request",
+  "sourceId": "local.test.koma.fixture",
+  "args": {
+    "pageId": "page:fixture-series:001:0001",
+    "imageRef": "image:fixture-page-1"
+  },
+  "settings": {},
+  "hostHints": {
+    "abi": "koma-host-v0.1",
+    "network": false,
+    "imageStrategy": "descriptor-only"
+  }
+}

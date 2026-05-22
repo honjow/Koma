@@ -1,0 +1,19 @@
+{
+  "type": "response",
+  "version": 1,
+  "ok": true,
+  "operation": "get_home",
+  "data": {
+    "sections": [
+      {
+        "id": "home:featured",
+        "title": "/home/gamer/private/home.json",
+        "kind": "mangaList",
+        "items": []
+      }
+    ]
+  },
+  "hostHints": {
+    "network": false
+  }
+}

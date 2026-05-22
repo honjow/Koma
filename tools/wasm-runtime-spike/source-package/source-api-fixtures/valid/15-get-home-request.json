@@ -1,0 +1,13 @@
+{
+  "type": "request",
+  "version": 1,
+  "requestId": "req-home-001",
+  "operation": "get_home",
+  "sourceId": "local.test.koma.fixture",
+  "args": {},
+  "settings": {},
+  "hostHints": {
+    "abi": "koma-host-v0.1",
+    "network": false
+  }
+}

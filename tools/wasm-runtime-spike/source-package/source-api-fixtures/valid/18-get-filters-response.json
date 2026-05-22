@@ -1,0 +1,33 @@
+{
+  "type": "response",
+  "version": 1,
+  "ok": true,
+  "operation": "get_filters",
+  "data": {
+    "filters": [
+      {
+        "id": "filter:query",
+        "label": "Query",
+        "kind": "text"
+      },
+      {
+        "id": "filter:sort",
+        "label": "Sort",
+        "kind": "sort",
+        "options": [
+          {
+            "id": "sort:popular",
+            "label": "Popular"
+          },
+          {
+            "id": "sort:latest",
+            "label": "Latest"
+          }
+        ]
+      }
+    ]
+  },
+  "hostHints": {
+    "network": false
+  }
+}

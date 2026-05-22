@@ -7,7 +7,8 @@ remote installer, or a built-in source list.
 For the consolidated current runtime/package/archive boundary, see
 `SOURCE_RUNTIME_BOUNDARY.md`.
 
-For the candidate Source API v0.1 operation and JSON envelope design, see
+For the candidate Source API v0.1/v0.2 operation, model, capability, and JSON
+fixture design, see
 `SOURCE_API_V0.md`.
 
 For the design-only future HarmonyOS source archive ingestion boundary, see
@@ -82,7 +83,8 @@ out of git.
 
 ## Validate
 
-To validate the candidate Source API v0.1 JSON request/response fixture corpus:
+To validate the candidate Source API v0.2 JSON metadata/request/response
+fixture corpus:
 
 ```sh
 python3 tools/wasm-runtime-spike/source-package/validate-source-api-fixtures.py \
@@ -91,10 +93,15 @@ python3 tools/wasm-runtime-spike/source-package/validate-source-api-fixtures.py 
 ```
 
 The script writes `source-api-fixtures-report.json` under the artifact
-directory. It accepts valid request/response envelopes for `search`,
-`get_manga`, `get_chapters`, and `get_pages`, and asserts that invalid fixtures
-are rejected with deterministic local reasons. The validator is stdlib-only,
-does not invoke WAMR, and does not perform network.
+directory. It accepts valid metadata/request/response envelopes for
+`SourceInfo`, `SourceCapabilities`, `search`, `get_manga`, `get_chapters`,
+`get_pages`, `get_listings`, `get_manga_list`, `get_home`, `get_filters`,
+`get_settings`, and `get_image_request`, and asserts that invalid fixtures are
+rejected with deterministic local reasons. The validator is stdlib-only, does
+not invoke WAMR, and does not perform network. Current fixtures must keep
+`hostHints.network=false` and must not contain raw remote URLs, local paths,
+picker/content URIs, app-private paths, cookies, tokens, authorization headers,
+or passwords.
 
 ```sh
 python3 tools/wasm-runtime-spike/source-package/validate-source-package.py \

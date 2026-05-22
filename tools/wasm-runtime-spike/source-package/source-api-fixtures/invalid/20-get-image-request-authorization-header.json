@@ -1,0 +1,23 @@
+{
+  "type": "response",
+  "version": 1,
+  "ok": true,
+  "operation": "get_image_request",
+  "data": {
+    "imageRequest": {
+      "id": "image-request:fixture-page-1",
+      "resourceRef": "image-resource:fixture-page-1",
+      "method": "GET",
+      "headers": [
+        {
+          "name": "Authorization",
+          "value": "Bearer abc123"
+        }
+      ],
+      "credentialRefs": []
+    }
+  },
+  "hostHints": {
+    "network": false
+  }
+}

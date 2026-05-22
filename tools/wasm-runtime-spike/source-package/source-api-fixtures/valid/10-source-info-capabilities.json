@@ -1,0 +1,38 @@
+{
+  "type": "metadata",
+  "version": 1,
+  "sourceInfo": {
+    "id": "local.test.koma.fixture",
+    "name": "Koma Fixture Source",
+    "version": "0.2.0",
+    "apiVersion": "0.2",
+    "language": "zh-Hans",
+    "author": "Koma Fixture",
+    "description": "Static Source API v0.2 fixture source.",
+    "contentRating": "unknown"
+  },
+  "capabilities": {
+    "search": true,
+    "mangaDetail": true,
+    "chapters": true,
+    "pages": true,
+    "listings": true,
+    "mangaList": true,
+    "home": true,
+    "filters": true,
+    "settings": true,
+    "imageRequest": true,
+    "future": {
+      "process_page_image": false,
+      "page_description": false,
+      "base_url": false,
+      "login": false,
+      "auth": false,
+      "deeplink": false,
+      "migration": false
+    }
+  },
+  "hostHints": {
+    "network": false
+  }
+}

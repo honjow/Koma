@@ -1,0 +1,18 @@
+{
+  "type": "response",
+  "version": 1,
+  "ok": true,
+  "operation": "get_filters",
+  "data": {
+    "filters": [
+      {
+        "id": "filter:unsafe",
+        "label": "Unsafe",
+        "kind": "script"
+      }
+    ]
+  },
+  "hostHints": {
+    "network": false
+  }
+}

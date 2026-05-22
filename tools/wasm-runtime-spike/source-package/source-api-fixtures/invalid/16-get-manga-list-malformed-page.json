@@ -1,0 +1,19 @@
+{
+  "type": "response",
+  "version": 1,
+  "ok": true,
+  "operation": "get_manga_list",
+  "data": {
+    "listingId": "listing:popular",
+    "items": [],
+    "page": {
+      "nextCursor": {
+        "offset": 20
+      },
+      "hasMore": false
+    }
+  },
+  "hostHints": {
+    "network": false
+  }
+}

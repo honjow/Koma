@@ -7,13 +7,31 @@ from pathlib import Path
 from typing import Any
 
 
-ALLOWED_OPERATIONS = {"search", "get_manga", "get_chapters", "get_pages"}
-ALLOWED_IMAGE_KINDS = {"none", "placeholder", "remoteUrl", "imageRequest"}
+CORE_OPERATIONS = {"search", "get_manga", "get_chapters", "get_pages"}
+NEXT_BROWSE_OPERATIONS = {"get_listings", "get_manga_list", "get_home", "get_filters"}
+CONFIG_IMAGE_OPERATIONS = {"get_settings", "get_image_request"}
+ALLOWED_OPERATIONS = CORE_OPERATIONS | NEXT_BROWSE_OPERATIONS | CONFIG_IMAGE_OPERATIONS
+ALLOWED_IMAGE_KINDS = {"none", "placeholder", "imageRequest"}
+FUTURE_DESIGN_ONLY_OPERATIONS = {
+    "process_page_image",
+    "page_description",
+    "base_url",
+    "login",
+    "auth",
+    "deeplink",
+    "migration",
+}
 ID_FIELDS = {"id", "mangaId", "chapterId"}
 PATH_LEAK_RE = re.compile(
     r"(^/home/|^/Users/|^/data/|^/storage/|^/sdcard/|^/mnt/|"
     r"^[A-Za-z]:\\|file://|content://|ohos://|internal://|app-private|"
     r"\.hermes-artifacts|/cache/|/files/|/Documents/)"
+)
+REMOTE_URL_RE = re.compile(r"https?://", re.IGNORECASE)
+SECRET_RE = re.compile(
+    r"(authorization|bearer\s+[a-z0-9._~+/=-]+|cookie|set-cookie|password|passwd|"
+    r"access[_-]?token|refresh[_-]?token|api[_-]?key)",
+    re.IGNORECASE,
 )
 
 
@@ -96,7 +114,8 @@ def validate_host_hints(value: Any, path: str) -> bool:
 def validate_common_envelope(payload: dict[str, Any]) -> tuple[str, bool]:
     require(payload.get("version") == 1, "version must be 1")
     operation = payload.get("operation")
-    require(operation in ALLOWED_OPERATIONS, "operation must be one of search/get_manga/get_chapters/get_pages")
+    require(operation in ALLOWED_OPERATIONS,
+            "operation must be a current Source API v0.2 fixture operation")
     network = validate_host_hints(payload.get("hostHints"), "hostHints")
     return operation, network
 
@@ -120,6 +139,21 @@ def validate_request(payload: dict[str, Any]) -> None:
         validate_page_request(args.get("page"), "args.page")
     elif operation == "get_pages":
         validate_opaque_string(args.get("chapterId"), "args.chapterId")
+    elif operation == "get_listings":
+        require(args == {}, "get_listings args must be empty")
+    elif operation == "get_manga_list":
+        validate_opaque_string(args.get("listingId"), "args.listingId")
+        validate_page_request(args.get("page"), "args.page")
+        if "filters" in args:
+            require(isinstance(args["filters"], dict), "args.filters must be an object")
+    elif operation == "get_home":
+        if "page" in args:
+            validate_page_request(args["page"], "args.page")
+    elif operation in {"get_filters", "get_settings"}:
+        require(args == {}, f"{operation} args must be empty")
+    elif operation == "get_image_request":
+        validate_opaque_string(args.get("pageId"), "args.pageId")
+        validate_opaque_string(args.get("imageRef"), "args.imageRef")
 
 
 def validate_cover(value: Any, path: str) -> None:
@@ -160,10 +194,9 @@ def validate_image(value: Any, path: str, network: bool) -> None:
     require(isinstance(value, dict), f"{path} must be an object")
     kind = value.get("kind")
     require(kind in ALLOWED_IMAGE_KINDS, f"{path}.kind is not a known image descriptor kind")
-    require(kind in {"none", "placeholder"} or network, f"{path}.kind={kind} is gated while network=false")
-    if kind == "remoteUrl":
-        require(isinstance(value.get("url"), str) and value["url"].startswith(("https://", "http://")),
-                f"{path}.url must be a remote URL")
+    require(kind in {"none", "placeholder", "imageRequest"}, f"{path}.kind is not allowed in current fixtures")
+    if kind == "imageRequest":
+        validate_opaque_string(value.get("requestRef"), f"{path}.requestRef")
     for field in ("width", "height"):
         if field in value:
             require(isinstance(value[field], int) and not isinstance(value[field], bool) and value[field] > 0,
@@ -176,6 +209,114 @@ def validate_page_descriptor(value: Any, path: str, network: bool) -> None:
     require(isinstance(value.get("index"), int) and not isinstance(value["index"], bool) and value["index"] >= 0,
             f"{path}.index must be a non-negative integer")
     validate_image(value.get("image"), f"{path}.image", network)
+
+
+def validate_source_info(value: Any, path: str) -> None:
+    require(isinstance(value, dict), f"{path} must be an object")
+    validate_opaque_string(value.get("id"), f"{path}.id")
+    require(isinstance(value.get("name"), str) and value["name"], f"{path}.name is required")
+    require(isinstance(value.get("version"), str) and value["version"], f"{path}.version is required")
+    if "apiVersion" in value:
+        require(value["apiVersion"] == "0.2", f"{path}.apiVersion must be 0.2")
+    for field in ("language", "author", "description", "contentRating"):
+        if field in value:
+            require(value[field] is None or isinstance(value[field], str), f"{path}.{field} must be a string or null")
+
+
+def validate_capabilities(value: Any, path: str) -> None:
+    require(isinstance(value, dict), f"{path} must be an object")
+    expected = {
+        "search", "mangaDetail", "chapters", "pages", "listings", "mangaList",
+        "home", "filters", "settings", "imageRequest",
+    }
+    require(expected.issubset(value.keys()), f"{path} must declare all v0.2 capability booleans")
+    for key in expected:
+        require(isinstance(value[key], bool), f"{path}.{key} must be boolean")
+    if "future" in value:
+        require(isinstance(value["future"], dict), f"{path}.future must be an object")
+        for key in FUTURE_DESIGN_ONLY_OPERATIONS:
+            if key in value["future"]:
+                require(value["future"][key] is False, f"{path}.future.{key} must remain false")
+
+
+def validate_metadata(payload: dict[str, Any]) -> None:
+    require(payload.get("version") == 1, "version must be 1")
+    validate_host_hints(payload.get("hostHints"), "hostHints")
+    validate_source_info(payload.get("sourceInfo"), "sourceInfo")
+    validate_capabilities(payload.get("capabilities"), "capabilities")
+
+
+def validate_listing(value: Any, path: str) -> None:
+    require(isinstance(value, dict), f"{path} must be an object")
+    validate_opaque_string(value.get("id"), f"{path}.id")
+    require(isinstance(value.get("name"), str) and value["name"], f"{path}.name is required")
+    require(value.get("kind") in {"popular", "latest", "category", "custom"},
+            f"{path}.kind must be popular/latest/category/custom")
+
+
+def validate_filter(value: Any, path: str) -> None:
+    require(isinstance(value, dict), f"{path} must be an object")
+    validate_opaque_string(value.get("id"), f"{path}.id")
+    require(isinstance(value.get("label"), str) and value["label"], f"{path}.label is required")
+    kind = value.get("kind")
+    require(kind in {"text", "sort", "check", "select", "multiSelect", "note", "range"},
+            f"{path}.kind is not a known filter kind")
+    if kind in {"sort", "select", "multiSelect"}:
+        options = value.get("options")
+        require(isinstance(options, list) and options, f"{path}.options must be a non-empty array")
+        for index, option in enumerate(options):
+            require(isinstance(option, dict), f"{path}.options[{index}] must be an object")
+            validate_opaque_string(option.get("id"), f"{path}.options[{index}].id")
+            require(isinstance(option.get("label"), str) and option["label"],
+                    f"{path}.options[{index}].label is required")
+
+
+def validate_setting(value: Any, path: str) -> None:
+    require(isinstance(value, dict), f"{path} must be an object")
+    validate_opaque_string(value.get("id"), f"{path}.id")
+    require(isinstance(value.get("label"), str) and value["label"], f"{path}.label is required")
+    kind = value.get("kind")
+    require(kind in {"string", "number", "boolean", "select", "secretRef"},
+            f"{path}.kind is not a known setting kind")
+    require("password" not in value and "token" not in value and "authorization" not in value,
+            f"{path} must not inline credential fields")
+    if kind == "secretRef":
+        validate_opaque_string(value.get("secretRefKey"), f"{path}.secretRefKey")
+        require("default" not in value, f"{path}.default must not be present for secretRef")
+    if kind == "select":
+        require(isinstance(value.get("options"), list) and value["options"], f"{path}.options must be non-empty")
+
+
+def validate_home_section(value: Any, path: str, network: bool) -> None:
+    require(isinstance(value, dict), f"{path} must be an object")
+    validate_opaque_string(value.get("id"), f"{path}.id")
+    require(isinstance(value.get("title"), str) and value["title"], f"{path}.title is required")
+    kind = value.get("kind")
+    require(kind in {"mangaList", "listingLink"}, f"{path}.kind must be mangaList/listingLink")
+    if kind == "mangaList":
+        items = value.get("items")
+        require(isinstance(items, list), f"{path}.items must be an array")
+        for index, item in enumerate(items):
+            validate_summary(item, f"{path}.items[{index}]")
+    else:
+        validate_opaque_string(value.get("listingId"), f"{path}.listingId")
+
+
+def validate_image_request_descriptor(value: Any, path: str) -> None:
+    require(isinstance(value, dict), f"{path} must be an object")
+    validate_opaque_string(value.get("id"), f"{path}.id")
+    validate_opaque_string(value.get("resourceRef"), f"{path}.resourceRef")
+    require(value.get("method") in {"GET"}, f"{path}.method must be GET")
+    headers = value.get("headers", [])
+    require(isinstance(headers, list), f"{path}.headers must be an array")
+    for index, header in enumerate(headers):
+        require(isinstance(header, dict), f"{path}.headers[{index}] must be an object")
+        name = header.get("name")
+        require(isinstance(name, str) and name, f"{path}.headers[{index}].name is required")
+        require(name.lower() not in {"authorization", "cookie", "set-cookie"},
+                f"{path}.headers[{index}].name must not carry raw credentials")
+        require(isinstance(header.get("value"), str), f"{path}.headers[{index}].value must be a string")
+    require(isinstance(value.get("credentialRefs", []), list), f"{path}.credentialRefs must be an array")
 
 
 def validate_response_data(operation: str, data: Any, network: bool) -> None:
@@ -200,6 +341,35 @@ def validate_response_data(operation: str, data: Any, network: bool) -> None:
         require(isinstance(pages, list), "data.pages must be an array")
         for index, page in enumerate(pages):
             validate_page_descriptor(page, f"data.pages[{index}]", network)
+    elif operation == "get_listings":
+        listings = data.get("listings")
+        require(isinstance(listings, list), "data.listings must be an array")
+        for index, listing in enumerate(listings):
+            validate_listing(listing, f"data.listings[{index}]")
+    elif operation == "get_manga_list":
+        validate_opaque_string(data.get("listingId"), "data.listingId")
+        items = data.get("items")
+        require(isinstance(items, list), "data.items must be an array")
+        for index, item in enumerate(items):
+            validate_summary(item, f"data.items[{index}]")
+        validate_page_info(data.get("page"), "data.page")
+    elif operation == "get_home":
+        sections = data.get("sections")
+        require(isinstance(sections, list), "data.sections must be an array")
+        for index, section in enumerate(sections):
+            validate_home_section(section, f"data.sections[{index}]", network)
+    elif operation == "get_filters":
+        filters = data.get("filters")
+        require(isinstance(filters, list), "data.filters must be an array")
+        for index, filter_value in enumerate(filters):
+            validate_filter(filter_value, f"data.filters[{index}]")
+    elif operation == "get_settings":
+        settings = data.get("settings")
+        require(isinstance(settings, list), "data.settings must be an array")
+        for index, setting in enumerate(settings):
+            validate_setting(setting, f"data.settings[{index}]")
+    elif operation == "get_image_request":
+        validate_image_request_descriptor(data.get("imageRequest"), "data.imageRequest")
 
 
 def validate_response(payload: dict[str, Any]) -> None:
@@ -218,17 +388,33 @@ def validate_response(payload: dict[str, Any]) -> None:
 def validate_fixture(path: Path) -> dict[str, Any]:
     payload = read_json(path)
     fixture_type = payload.get("type")
-    require(fixture_type in {"request", "response"}, "type must be request or response")
+    require(fixture_type in {"metadata", "request", "response"}, "type must be metadata/request/response")
     if fixture_type == "request":
         validate_request(payload)
-    else:
+    elif fixture_type == "response":
         validate_response(payload)
+    else:
+        validate_metadata(payload)
+    scan_for_disallowed_strings(payload)
     return {
         "file": str(path),
         "type": fixture_type,
         "operation": payload.get("operation"),
         "status": "PASS",
     }
+
+
+def scan_for_disallowed_strings(value: Any, path: str = "$") -> None:
+    if isinstance(value, dict):
+        for key, child in value.items():
+            scan_for_disallowed_strings(child, f"{path}.{key}")
+    elif isinstance(value, list):
+        for index, child in enumerate(value):
+            scan_for_disallowed_strings(child, f"{path}[{index}]")
+    elif isinstance(value, str):
+        require(not PATH_LEAK_RE.search(value), f"{path} leaks a raw local/picker/app-private path")
+        require(not REMOTE_URL_RE.search(value), f"{path} leaks a remote URL in current network=false fixtures")
+        require(not SECRET_RE.search(value), f"{path} leaks raw credential-like material")
 
 
 def collect_json_files(path: Path) -> list[Path]:
@@ -239,7 +425,7 @@ def collect_json_files(path: Path) -> list[Path]:
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Validate Koma Source API v0.1 JSON envelope fixtures.")
+    parser = argparse.ArgumentParser(description="Validate Koma Source API v0.2 JSON envelope fixtures.")
     parser.add_argument("--fixture-dir", required=True)
     parser.add_argument("--artifact-dir", required=True)
     parser.add_argument("--report", help="Defaults to <artifact-dir>/source-api-fixtures-report.json.")
@@ -299,10 +485,12 @@ def main() -> int:
         require(not failing, f"{len(failing)} fixture case(s) failed")
         report["status"] = "PASS"
         report["evidence"] = [
-            f"{report['validCases']} valid request/response fixtures accepted",
+            f"{report['validCases']} valid metadata/request/response fixtures accepted",
             f"{report['invalidCases']} invalid fixtures rejected with reasons",
             "network=false enforced for current hostHints",
-            "response string fields scanned for raw local/picker/app-private path leaks",
+            "fixture string fields scanned for raw local/picker/app-private path leaks",
+            "fixture string fields scanned for remote URLs and credential-like leaks",
+            "unknown operations fail closed; no fallback to search is allowed",
         ]
     except Exception as err:
         report["status"] = "FAIL"

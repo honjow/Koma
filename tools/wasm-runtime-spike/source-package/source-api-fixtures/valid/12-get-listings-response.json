@@ -1,0 +1,23 @@
+{
+  "type": "response",
+  "version": 1,
+  "ok": true,
+  "operation": "get_listings",
+  "data": {
+    "listings": [
+      {
+        "id": "listing:popular",
+        "name": "Popular",
+        "kind": "popular"
+      },
+      {
+        "id": "listing:latest",
+        "name": "Latest",
+        "kind": "latest"
+      }
+    ]
+  },
+  "hostHints": {
+    "network": false
+  }
+}

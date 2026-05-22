@@ -1,0 +1,33 @@
+{
+  "type": "response",
+  "version": 1,
+  "ok": true,
+  "operation": "get_home",
+  "data": {
+    "sections": [
+      {
+        "id": "home:featured",
+        "title": "Featured",
+        "kind": "mangaList",
+        "items": [
+          {
+            "id": "manga:fixture-series",
+            "title": "Fixture Series",
+            "cover": {
+              "kind": "none"
+            }
+          }
+        ]
+      },
+      {
+        "id": "home:latest-link",
+        "title": "Latest",
+        "kind": "listingLink",
+        "listingId": "listing:latest"
+      }
+    ]
+  },
+  "hostHints": {
+    "network": false
+  }
+}

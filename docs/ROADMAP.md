@@ -237,7 +237,18 @@ Artifact 目录规范见 `docs/CONTROLLER_ARTIFACTS.md`。
 
 ## Phase 3：Aidoku 风格 WASM source runtime Spike
 
-目标：回答“鸿蒙上能不能跑 Aidoku 类 WASM source 架构”，不作为 v1 依赖。
+目标：回答“鸿蒙上能不能跑 Aidoku 类 WASM source 架构”，并逐步形成 source 作者可用的 API/SDK/host-import 能力；不作为 v1 依赖，也不做源市场/远程源/内置源。
+
+方向大纲：
+
+- `docs/WASM_SOURCE_RUNTIME_DIRECTION.md`
+
+当前纠偏原则：
+
+- package integrity、archive safety、fail-closed negative smoke 是 gate，不是 Phase 3 的全部主线。
+- 当安全/包验证 baseline 已经证明后，下一步默认应推进 Source API、Rust SDK、capabilities、listings/home/filters、HTTP/HTML host imports、image request、settings/auth references 等功能接口能力。
+- 不要把 Phase 3 自动延伸成连续安全 hardening；除非该 hardening 直接保护新引入的能力。
+- 不要切到本地图片导入、书架 UI、阅读器 UI、Komga/OPDS/WebDAV 等其它 track。
 
 ### Lane 3A：WASM runtime 最小可行性
 
@@ -252,20 +263,23 @@ Artifact 目录规范见 `docs/CONTROLLER_ARTIFACTS.md`。
 - `docs/research/wasm-runtime-spike.md`
 - native spike 代码可以独立分支/目录，未稳定前不进主 UI。
 
-### Lane 3B：Source ABI 草案
+### Lane 3B：Source ABI / Source API 草案
 
 可与 3A 并行，只读/文档。
 
 范围：
 
-- 定义自己的最小 ABI：search/detail/pages。
-- manifest 包格式草案。
-- host imports 最小集：log/net/html/defaults。
-- 权限模型：allowedHosts、超时、内存、并发。
+- 从最小 ABI 逐步扩展到 source 作者可用的 API：search、manga detail/update、chapters、pages、listings、home、filters、settings、image request。
+- manifest/source package 格式草案。
+- capabilities / feature discovery。
+- host imports 分层：log/check_cancel -> HTTP -> HTML parse/select -> settings/defaults -> image request/auth refs。
+- 权限模型：allowedHosts、超时、内存、并发、credential/session refs、日志脱敏。
 
 产物：
 
 - `docs/source-runtime-abi.md`
+- `tools/wasm-runtime-spike/source-package/SOURCE_API_V0.md`
+- `docs/WASM_SOURCE_RUNTIME_DIRECTION.md`
 
 ## Phase 4：正式视觉与图标
 

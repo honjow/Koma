@@ -1,0 +1,31 @@
+{
+  "type": "response",
+  "version": 1,
+  "ok": true,
+  "operation": "get_settings",
+  "data": {
+    "settings": [
+      {
+        "id": "setting:language",
+        "label": "Language",
+        "kind": "select",
+        "default": "zh-Hans",
+        "options": [
+          {
+            "id": "zh-Hans",
+            "label": "Chinese"
+          }
+        ]
+      },
+      {
+        "id": "setting:credential",
+        "label": "Credential reference",
+        "kind": "secretRef",
+        "secretRefKey": "credential:main"
+      }
+    ]
+  },
+  "hostHints": {
+    "network": false
+  }
+}

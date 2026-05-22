@@ -1,0 +1,14 @@
+{
+  "type": "request",
+  "version": 1,
+  "requestId": "req-future-001",
+  "operation": "process_page_image",
+  "sourceId": "local.test.koma.fixture",
+  "args": {
+    "pageId": "page:fixture-series:001:0001"
+  },
+  "settings": {},
+  "hostHints": {
+    "network": false
+  }
+}
