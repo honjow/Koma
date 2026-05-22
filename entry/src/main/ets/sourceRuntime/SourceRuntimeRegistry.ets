@@ -19,6 +19,7 @@ export interface SourceRuntimeRegistryEntryInput {
 export interface SourceRuntimeRegistryEntry {
   sourceId: string
   manifestId: string
+  manifestName: string
   manifestVersion: string
   route: string
   importStatus: SourceRuntimeRegistryRouteStatus
@@ -49,6 +50,7 @@ export interface SourceRuntimeRegistryLookupResult {
 export interface SourceRuntimeRegistryPersistedEntry {
   sourceId: string
   manifestId: string
+  manifestName: string
   manifestVersion: string
   route: string
   importStatus: SourceRuntimeRegistryRouteStatus
@@ -78,6 +80,16 @@ export interface SourceRuntimeRegistryReloadResult {
   metadataPath: string
   registry: SourceRuntimeRegistry
   reloadedSourceCount: number
+}
+
+export interface SourceRuntimeRegistryInstalledSourceSummary {
+  sourceId: string
+  displayName: string
+  version: string
+  wasmByteCount: number
+  importStatus: SourceRuntimeRegistryRouteStatus
+  networkEnabled: boolean
+  httpEnabled: boolean
 }
 
 function normalizeSourceRuntimeSourceId(sourceId: string): string {
@@ -162,7 +174,7 @@ function manifestForReload(entry: SourceRuntimeRegistryPersistedEntry): LocalSou
     schemaVersion: 1,
     package: {
       id: entry.manifestId,
-      name: 'Koma Local WASM Fixture',
+      name: entry.manifestName,
       version: entry.manifestVersion,
       language: 'en',
       type: 'wasm-source-fixture',
@@ -193,6 +205,7 @@ function persistedEntryFromRegistryEntry(entry: SourceRuntimeRegistryEntry): Sou
   return {
     sourceId: entry.sourceId,
     manifestId: entry.manifestId,
+    manifestName: entry.manifestName,
     manifestVersion: entry.manifestVersion,
     route: entry.route,
     importStatus: entry.importStatus,
@@ -238,6 +251,7 @@ function optionalPersistedPathIsValid(value: string | undefined): boolean {
 function persistedEntryShapeInvalid(entry: SourceRuntimeRegistryPersistedEntry): boolean {
   if (typeof entry.sourceId !== 'string' ||
     typeof entry.manifestId !== 'string' ||
+    typeof entry.manifestName !== 'string' ||
     typeof entry.manifestVersion !== 'string' ||
     typeof entry.route !== 'string' ||
     typeof entry.importStatus !== 'string' ||
@@ -279,6 +293,7 @@ export class SourceRuntimeRegistry {
     const entry: SourceRuntimeRegistryEntry = {
       sourceId,
       manifestId: input.manifest.package.id,
+      manifestName: input.manifest.package.name,
       manifestVersion: input.manifest.package.version,
       route: input.route,
       importStatus: input.importStatus,
@@ -315,6 +330,24 @@ export class SourceRuntimeRegistry {
 
   list(): SourceRuntimeRegistryEntry[] {
     return this.entries.slice()
+  }
+
+  listInstalledSourceSummaries(): SourceRuntimeRegistryInstalledSourceSummary[] {
+    const summaries: SourceRuntimeRegistryInstalledSourceSummary[] = []
+    for (let index = 0; index < this.entries.length; index += 1) {
+      const entry = this.entries[index]
+      const summary: SourceRuntimeRegistryInstalledSourceSummary = {
+        sourceId: entry.sourceId,
+        displayName: entry.manifestName,
+        version: entry.manifestVersion,
+        wasmByteCount: entry.wasmByteCount,
+        importStatus: entry.importStatus,
+        networkEnabled: false,
+        httpEnabled: false,
+      }
+      summaries.push(summary)
+    }
+    return summaries
   }
 
   persistToAppLocalMetadata(metadataPath: string): SourceRuntimeRegistryPersistResult {

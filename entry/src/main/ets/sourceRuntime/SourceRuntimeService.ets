@@ -21,6 +21,7 @@ import {
 import {
   SourceRuntimeRegistry,
   SourceRuntimeRegistryEntry,
+  SourceRuntimeRegistryInstalledSourceSummary,
   SourceRuntimeRegistryPersistResult,
   SourceRuntimeRegistryRegisterResult,
   SourceRuntimeRegistryReloadResult,
@@ -125,6 +126,11 @@ export interface SourceRuntimeServiceArchiveIngestionRunSummary {
   importRegister: SourceRuntimeServiceRegistrationSummary
   persistedSourceCount: number
   reloadedSourceCount: number
+  installedSourceInventory: SourceRuntimeRegistryInstalledSourceSummary[]
+  installedSourceInventoryOk: boolean
+  inventoryExpectedSourceIdCount: number
+  inventorySafetyOk: boolean
+  selectedSourceId?: string
   hashOk: boolean
   network: boolean
   searchRunRequestById: SourceRuntimeServiceRunRequestByIdSummary
@@ -413,6 +419,12 @@ export function runRegisteredSourceRequestById(
     responseOk,
     attemptedWamrExecution: true,
   }
+}
+
+export function listInstalledSourceSummaries(
+  registry: SourceRuntimeRegistry,
+): SourceRuntimeRegistryInstalledSourceSummary[] {
+  return registry.listInstalledSourceSummaries()
 }
 
 export function runSourceRuntimeRegistryNegativeEvidence(
@@ -724,7 +736,15 @@ export async function importRegisterPersistReloadAndRunLocalSourceArchiveRequest
     )
   }
 
-  const searchRunRequestById = runRegisteredSourceRequestById(reloaded.registry, sourceId, searchRequestJson)
+  const installedSourceInventory = listInstalledSourceSummaries(reloaded.registry)
+  const inventoryExpectedSourceIdCount = installedSourceInventory.filter(
+    (item: SourceRuntimeRegistryInstalledSourceSummary) => item.sourceId === sourceId,
+  ).length
+  const inventorySafetyOk = sourceRuntimeInstalledSourceInventorySafetyOk(installedSourceInventory)
+  const selectedSourceId = inventoryExpectedSourceIdCount === 1 ? sourceId : undefined
+  const selectedSourceIdRunRequestById = selectedSourceId === undefined ?
+    sourceRuntimeServiceRunRequestByIdRejected(sourceId, reloaded.reloadedSourceCount, 'source_id_not_registered') :
+    runRegisteredSourceRequestById(reloaded.registry, selectedSourceId, searchRequestJson)
   const nonSearchRunRequestById = runRegisteredSourceRequestById(reloaded.registry, sourceId, nonSearchRequestJson)
   const unknownSourceRunRequestById = runRegisteredSourceRequestById(
     reloaded.registry,
@@ -746,8 +766,10 @@ export async function importRegisterPersistReloadAndRunLocalSourceArchiveRequest
       reloaded.ok &&
       persist.persistedSourceCount === 1 &&
       reloaded.reloadedSourceCount === 1 &&
-      searchRunRequestById.ok &&
-      searchRunRequestById.operation === 'search' &&
+      inventoryExpectedSourceIdCount === 1 &&
+      inventorySafetyOk &&
+      selectedSourceIdRunRequestById.ok &&
+      selectedSourceIdRunRequestById.operation === 'search' &&
       nonSearchRunRequestById.ok &&
       nonSearchRunRequestById.operation === 'get_manga' &&
       !unknownSourceRunRequestById.ok &&
@@ -763,9 +785,17 @@ export async function importRegisterPersistReloadAndRunLocalSourceArchiveRequest
     importRegister: importedRegistered,
     persistedSourceCount: persist.persistedSourceCount,
     reloadedSourceCount: reloaded.reloadedSourceCount,
+    installedSourceInventory,
+    installedSourceInventoryOk: inventoryExpectedSourceIdCount === 1 &&
+      inventorySafetyOk &&
+      selectedSourceIdRunRequestById.ok &&
+      selectedSourceIdRunRequestById.operation === 'search',
+    inventoryExpectedSourceIdCount,
+    inventorySafetyOk,
+    selectedSourceId,
     hashOk: importedRegistered.entry.hashOk,
     network: importedRegistered.entry.network,
-    searchRunRequestById,
+    searchRunRequestById: selectedSourceIdRunRequestById,
     nonSearchRunRequestById,
     unknownSourceRunRequestById,
     sourceIdMismatchRunRequestById,
@@ -790,6 +820,11 @@ function sourceRuntimeServiceArchiveIngestionRunRejected(
     importRegister,
     persistedSourceCount,
     reloadedSourceCount,
+    installedSourceInventory: [],
+    installedSourceInventoryOk: false,
+    inventoryExpectedSourceIdCount: 0,
+    inventorySafetyOk: false,
+    selectedSourceId: undefined,
     hashOk: false,
     network: false,
     searchRunRequestById: sourceRuntimeServiceRunRequestByIdRejected(sourceId, reloadedSourceCount, reasonCode),
@@ -801,6 +836,27 @@ function sourceRuntimeServiceArchiveIngestionRunRejected(
     ),
     sourceIdMismatchRunRequestById: sourceRuntimeServiceRunRequestByIdRejected(sourceId, reloadedSourceCount, reasonCode),
   }
+}
+
+function sourceRuntimeInstalledSourceInventorySafetyOk(
+  summaries: SourceRuntimeRegistryInstalledSourceSummary[],
+): boolean {
+  const serialized = JSON.stringify(summaries)
+  return !serialized.includes('manifestPath') &&
+    !serialized.includes('wasmPath') &&
+    !serialized.includes('archivePath') &&
+    !serialized.includes('wasmBytes') &&
+    !serialized.includes('runtime') &&
+    !serialized.includes('permissions') &&
+    !serialized.includes('contentPolicy') &&
+    summaries.every((item: SourceRuntimeRegistryInstalledSourceSummary) =>
+      item.sourceId.length > 0 &&
+        item.displayName.length > 0 &&
+        item.version.length > 0 &&
+        item.wasmByteCount > 0 &&
+        item.importStatus === 'imported' &&
+        item.networkEnabled === false &&
+        item.httpEnabled === false)
 }
 
 function sourceRuntimeServiceRunRequestByIdRejected(

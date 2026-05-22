@@ -23,7 +23,10 @@ import {
   SourceRuntimeServiceRunRequestByIdSummary,
   SourceRuntimeServiceRunSummary,
 } from './SourceRuntimeService'
-import { SourceRuntimeRegistry } from './SourceRuntimeRegistry'
+import {
+  SourceRuntimeRegistry,
+  SourceRuntimeRegistryInstalledSourceSummary,
+} from './SourceRuntimeRegistry'
 import {
   responseReachedFixture,
   runBundledSourceOperation,
@@ -249,6 +252,17 @@ export interface SourceRuntimeSmokeResult {
   sourceRuntimeArchiveIngestionReloadedSourceCount?: number
   sourceRuntimeArchiveIngestionHashOk?: boolean
   sourceRuntimeArchiveIngestionNetwork?: boolean
+  sourceRuntimeInstalledSourceInventoryOk?: boolean
+  sourceRuntimeInstalledSourceInventory?: SourceRuntimeRegistryInstalledSourceSummary[]
+  sourceRuntimeInstalledSourceInventoryExpectedSourceIdCount?: number
+  sourceRuntimeInstalledSourceInventoryExpectedSourceIdPresentOnce?: boolean
+  sourceRuntimeInstalledSourceInventorySafeFieldsOk?: boolean
+  sourceRuntimeInstalledSourceInventoryNoRawPathLeak?: boolean
+  sourceRuntimeInstalledSourceInventoryNoFullManifestLeak?: boolean
+  sourceRuntimeInstalledSourceInventoryNoWasmBytesLeak?: boolean
+  sourceRuntimeInstalledSourceInventorySelectedSourceId?: string
+  sourceRuntimeInstalledSourceInventorySelectedRunRequestOk?: boolean
+  sourceRuntimeInstalledSourceInventorySelectedRunRequest?: SourceRuntimeRunRequestByIdEvidence
   sourceRuntimeArchiveIngestionSearchOk?: boolean
   sourceRuntimeArchiveIngestionSearch?: SourceRuntimeRunRequestByIdEvidence
   sourceRuntimeArchiveIngestionNonSearchOk?: boolean
@@ -610,6 +624,28 @@ function applyArchiveIngestionEvidence(
   result.sourceRuntimeArchiveIngestionReloadedSourceCount = summary.reloadedSourceCount
   result.sourceRuntimeArchiveIngestionHashOk = summary.hashOk
   result.sourceRuntimeArchiveIngestionNetwork = summary.network
+  result.sourceRuntimeInstalledSourceInventory = summary.installedSourceInventory
+  result.sourceRuntimeInstalledSourceInventoryExpectedSourceIdCount = summary.inventoryExpectedSourceIdCount
+  result.sourceRuntimeInstalledSourceInventoryExpectedSourceIdPresentOnce =
+    summary.inventoryExpectedSourceIdCount === 1
+  const inventoryText = JSON.stringify(summary.installedSourceInventory)
+  result.sourceRuntimeInstalledSourceInventoryNoRawPathLeak =
+      !inventoryText.includes('manifestPath') &&
+      !inventoryText.includes('wasmPath') &&
+      !inventoryText.includes('archivePath') &&
+      !inventoryText.includes('/data/')
+  result.sourceRuntimeInstalledSourceInventoryNoFullManifestLeak =
+    !inventoryText.includes('runtime') &&
+      !inventoryText.includes('permissions') &&
+      !inventoryText.includes('contentPolicy') &&
+      !inventoryText.includes('wasmSha256')
+  result.sourceRuntimeInstalledSourceInventoryNoWasmBytesLeak = !inventoryText.includes('wasmBytes')
+  result.sourceRuntimeInstalledSourceInventorySafeFieldsOk =
+    summary.inventorySafetyOk &&
+      result.sourceRuntimeInstalledSourceInventoryNoRawPathLeak === true &&
+      result.sourceRuntimeInstalledSourceInventoryNoFullManifestLeak === true &&
+      result.sourceRuntimeInstalledSourceInventoryNoWasmBytesLeak === true
+  result.sourceRuntimeInstalledSourceInventorySelectedSourceId = summary.selectedSourceId
   result.sourceRuntimeArchiveIngestionImportRegisterOk = summary.importRegister.ok &&
     summary.importRegister.entry !== undefined &&
     summary.importRegister.entry.importStatus === 'imported'
@@ -618,6 +654,11 @@ function applyArchiveIngestionEvidence(
   result.sourceRuntimeArchiveIngestionSearchOk = summary.searchRunRequestById.ok &&
     summary.searchRunRequestById.operation === 'search'
   result.sourceRuntimeArchiveIngestionSearch = compactRunRequestByIdEvidence(summary.searchRunRequestById)
+  result.sourceRuntimeInstalledSourceInventorySelectedRunRequestOk =
+    summary.selectedSourceId === summary.sourceId &&
+      result.sourceRuntimeArchiveIngestionSearchOk === true
+  result.sourceRuntimeInstalledSourceInventorySelectedRunRequest =
+    compactRunRequestByIdEvidence(summary.searchRunRequestById)
   result.sourceRuntimeArchiveIngestionNonSearchOk = summary.nonSearchRunRequestById.ok &&
     summary.nonSearchRunRequestById.operation === 'get_manga'
   result.sourceRuntimeArchiveIngestionNonSearch = compactRunRequestByIdEvidence(summary.nonSearchRunRequestById)
@@ -642,6 +683,11 @@ function applyArchiveIngestionEvidence(
     summary.unknownSourceRunRequestById.attemptedWamrExecution === false &&
     result.sourceRuntimeArchiveIngestionSourceIdMismatchRejected === true &&
     summary.sourceIdMismatchRunRequestById.attemptedWamrExecution === false
+  result.sourceRuntimeInstalledSourceInventoryOk =
+    summary.installedSourceInventoryOk &&
+      result.sourceRuntimeInstalledSourceInventoryExpectedSourceIdPresentOnce === true &&
+      result.sourceRuntimeInstalledSourceInventorySafeFieldsOk === true &&
+      result.sourceRuntimeInstalledSourceInventorySelectedRunRequestOk === true
 }
 
 function compactRunRequestByIdEvidence(
@@ -657,7 +703,32 @@ function compactRunRequestByIdEvidence(
   }
 }
 
+function compactInstalledSourceInventoryForHilog(
+  inventory?: SourceRuntimeRegistryInstalledSourceSummary[],
+): SourceRuntimeRegistryInstalledSourceSummary[] | undefined {
+  if (inventory === undefined) {
+    return undefined
+  }
+  const compactInventory: SourceRuntimeRegistryInstalledSourceSummary[] = []
+  for (let index = 0; index < inventory.length; index += 1) {
+    const item = inventory[index]
+    compactInventory.push({
+      sourceId: item.sourceId,
+      displayName: item.displayName,
+      version: item.version,
+      wasmByteCount: item.wasmByteCount,
+      importStatus: item.importStatus,
+      networkEnabled: item.networkEnabled,
+      httpEnabled: item.httpEnabled,
+    })
+  }
+  return compactInventory
+}
+
 function compactSmokeResultForHilog(result: SourceRuntimeSmokeResult): void {
+  result.sourceRuntimeInstalledSourceInventory = compactInstalledSourceInventoryForHilog(
+    result.sourceRuntimeInstalledSourceInventory,
+  )
   result.route = ''
   result.requestJson = ''
   result.rawfilePath = undefined
@@ -706,13 +777,22 @@ function compactSmokeResultForHilog(result: SourceRuntimeSmokeResult): void {
   result.sourceRuntimeRunRequestByIdPackageSearch = undefined
   result.sourceRuntimeRunRequestByIdArchiveSearch = undefined
   result.sourceRuntimeRunRequestByIdNonSearch = undefined
+  result.sourceRuntimeRunRequestByIdUnknownSourceReasonCode = undefined
+  result.sourceRuntimeRunRequestByIdSourceIdMismatchReasonCode = undefined
+  result.sourceRuntimeRunRequestByIdMalformedReasonCode = undefined
+  result.sourceRuntimeRunRequestByIdNullRequestReasonCode = undefined
+  result.sourceRuntimeRunRequestByIdArrayRequestReasonCode = undefined
+  result.sourceRuntimeRunRequestByIdMissingOperationReasonCode = undefined
   result.sourceRuntimeArchiveIngestionSourceId = undefined
   result.sourceRuntimeArchiveIngestionRoute = undefined
   result.sourceRuntimeArchiveIngestionMetadataPath = undefined
   result.sourceRuntimeArchiveIngestionPersistedSourceCount = undefined
   result.sourceRuntimeArchiveIngestionReloadedSourceCount = undefined
+  result.sourceRuntimeInstalledSourceInventorySelectedRunRequest = undefined
   result.sourceRuntimeArchiveIngestionSearch = undefined
   result.sourceRuntimeArchiveIngestionNonSearch = undefined
+  result.sourceRuntimeArchiveIngestionUnknownSourceReasonCode = undefined
+  result.sourceRuntimeArchiveIngestionSourceIdMismatchReasonCode = undefined
 }
 
 export async function maybeRunSourceRuntimeDeviceSmoke(
@@ -799,7 +879,8 @@ export async function maybeRunSourceRuntimeDeviceSmoke(
       result.sourceRuntimeExecutionNegativeOk === true &&
       result.sourceRuntimeRegistryOk === true &&
       result.sourceRuntimeRegistryReloadOk === true &&
-      result.sourceRuntimeArchiveIngestionRunRequestOk === true
+      result.sourceRuntimeArchiveIngestionRunRequestOk === true &&
+      result.sourceRuntimeInstalledSourceInventoryOk === true
     if (!result.ok) {
       result.error = 'WAMR fixture JSON assertion failed for bundled, legacy rawfile, Rust source rawfile, local source package, local source archive import, archive negative rejection, negative execution, registry run-by-id, registry persistence/reload, and archive ingestion run-request paths'
     }
