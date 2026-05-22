@@ -383,6 +383,34 @@ pub mod source {
             Self::new(SourceErrorCode::NotFound, message)
         }
 
+        pub const fn cancelled() -> Self {
+            Self::new(SourceErrorCode::Cancelled, "operation cancelled")
+        }
+
+        pub const fn timeout(message: &'static str) -> Self {
+            Self::new(SourceErrorCode::Timeout, message)
+        }
+
+        pub const fn network_disabled(message: &'static str) -> Self {
+            Self::new(SourceErrorCode::NetworkDisabled, message)
+        }
+
+        pub const fn permission_denied(message: &'static str) -> Self {
+            Self::new(SourceErrorCode::PermissionDenied, message)
+        }
+
+        pub const fn parse_error(message: &'static str) -> Self {
+            Self::new(SourceErrorCode::ParseError, message)
+        }
+
+        pub const fn source_error(message: &'static str) -> Self {
+            Self::new(SourceErrorCode::SourceError, message)
+        }
+
+        pub const fn internal_error(message: &'static str) -> Self {
+            Self::new(SourceErrorCode::InternalError, message)
+        }
+
         pub fn code(&self) -> &'static str {
             self.code.as_str()
         }

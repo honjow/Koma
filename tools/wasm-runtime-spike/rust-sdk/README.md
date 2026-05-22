@@ -76,6 +76,20 @@ impl Source for MySource {
 }
 ```
 
+Structured errors should use the named helpers instead of constructing
+`SourceErrorCode` directly:
+
+- `SourceError::unimplemented()`
+- `SourceError::invalid_request(message)`
+- `SourceError::not_found(message)`
+- `SourceError::cancelled()`
+- `SourceError::timeout(message)`
+- `SourceError::network_disabled(message)`
+- `SourceError::permission_denied(message)`
+- `SourceError::parse_error(message)`
+- `SourceError::source_error(message)`
+- `SourceError::internal_error(message)`
+
 This is deliberately not a final public API. The request wrappers currently do
 minimal byte matching so the direct `rustc`/`no_std` wasm build stays small and
 does not require allocation or JSON dependencies. The SDK still expects source

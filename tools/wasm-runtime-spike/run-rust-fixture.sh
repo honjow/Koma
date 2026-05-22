@@ -194,6 +194,22 @@ if ! grep -q 'SOURCE_API_JSON timeout_guard_rejected=.*"ok":false.*"reasonCode":
   exit 28
 fi
 
+for error_case in \
+  'structured_error_cancelled:cancelled' \
+  'structured_error_timeout:timeout' \
+  'structured_error_network_disabled:network_disabled' \
+  'structured_error_permission_denied:permission_denied' \
+  'structured_error_parse_error:parse_error' \
+  'structured_error_source_error:source_error' \
+  'structured_error_internal_error:internal_error'; do
+  error_id="${error_case%%:*}"
+  reason="${error_case##*:}"
+  if ! grep -q "SOURCE_API_STRUCTURED_ERROR_HELPER ok:true id=$error_id reason=$reason noRawPayloadOrPathLeak=true" "$RUN_LOG"; then
+    log "missing structured error helper evidence for $error_id"
+    exit 29
+  fi
+done
+
 if ! grep -q 'SOURCE_API_HTTP_FIXTURE_ALLOWED ok:true .*networkPerformed=false' "$RUN_LOG"; then
   log "missing HTTP fixture allowed request evidence"
   exit 25
@@ -289,6 +305,13 @@ expected = [
     *config_image_expected,
     "get_manga_list_http_fixture",
     "get_manga_list_html_fixture",
+    "structured_error_cancelled",
+    "structured_error_timeout",
+    "structured_error_network_disabled",
+    "structured_error_permission_denied",
+    "structured_error_parse_error",
+    "structured_error_source_error",
+    "structured_error_internal_error",
     "unknown_operation_rejected",
     "timeout_guard_rejected",
 ]
@@ -330,6 +353,26 @@ assert payloads["get_manga_list"]["data"]["listingId"] == "listing:popular"
 assert payloads["get_manga_list"]["data"]["items"][0]["title"] == "Fixture Series"
 assert payloads["get_manga_list"]["data"]["page"]["nextCursor"] is None
 assert payloads["get_manga_list"]["data"]["page"]["hasMore"] is False
+
+structured_errors = {
+    "structured_error_cancelled": ("cancelled", "operation cancelled"),
+    "structured_error_timeout": ("timeout", "fixture source timed out"),
+    "structured_error_network_disabled": ("network_disabled", "network disabled by host hints"),
+    "structured_error_permission_denied": ("permission_denied", "permission denied by fixture"),
+    "structured_error_parse_error": ("parse_error", "fixture parse failed"),
+    "structured_error_source_error": ("source_error", "fixture source error"),
+    "structured_error_internal_error": ("internal_error", "fixture internal error"),
+}
+for name, (code, message) in structured_errors.items():
+    payload = payloads[name]
+    assert payload["version"] == 1
+    assert payload["ok"] is False
+    assert payload["operation"] == "search"
+    assert payload["error"]["code"] == code
+    assert payload["error"]["message"] == message
+    assert payload["hostHints"]["network"] is False
+    assert "data" not in payload
+
 http_fixture = payloads["get_manga_list_http_fixture"]
 assert http_fixture["version"] == 1
 assert http_fixture["ok"] is True

@@ -430,6 +430,45 @@ bool json_shape_is_plausible(const std::string &payload) {
     return depth == 0 && !in_string && payload.find("\"ok\":true") != std::string::npos;
 }
 
+bool json_error_shape_is_plausible(const std::string &payload) {
+    if (payload.empty() || payload.front() != '{' || payload.back() != '}') {
+        return false;
+    }
+
+    int depth = 0;
+    bool in_string = false;
+    bool escaped = false;
+    for (char ch : payload) {
+        if (in_string) {
+            if (escaped) {
+                escaped = false;
+            }
+            else if (ch == '\\') {
+                escaped = true;
+            }
+            else if (ch == '"') {
+                in_string = false;
+            }
+            continue;
+        }
+
+        if (ch == '"') {
+            in_string = true;
+        }
+        else if (ch == '{' || ch == '[') {
+            depth++;
+        }
+        else if (ch == '}' || ch == ']') {
+            depth--;
+            if (depth < 0) {
+                return false;
+            }
+        }
+    }
+
+    return depth == 0 && !in_string && payload.find("\"ok\":false") != std::string::npos;
+}
+
 struct SourceOperation {
     const char *name;
     const char *export_name;
@@ -926,6 +965,73 @@ public:
         return payload;
     }
 
+    void call_error_operation(const char *json_name,
+                              const char *query,
+                              const char *code,
+                              const char *message) {
+        std::string request =
+            std::string("{\"type\":\"request\",\"version\":1,\"requestId\":\"runtime-") +
+            json_name +
+            "\",\"operation\":\"search\",\"sourceId\":\"local.test.koma.fixture\","
+            "\"args\":{\"query\":\"" +
+            query +
+            "\"},\"settings\":{},\"hostHints\":{\"network\":false}}";
+        const uint32_t request_len = static_cast<uint32_t>(request.size());
+        uint64_t request_ptr =
+            wasm_runtime_module_dup_data(module_inst_, request.c_str(), request_len);
+        if (request_ptr == 0) {
+            throw std::runtime_error("failed to copy structured-error request into wasm memory");
+        }
+
+        wasm_function_inst_t source_fn = lookup("koma_source_search");
+        uint32_t argv[2] = {static_cast<uint32_t>(request_ptr), request_len};
+        try {
+            require_call(exec_env_, module_inst_, source_fn, 2, argv, "koma_source_search");
+        }
+        catch (...) {
+            wasm_runtime_module_free(module_inst_, request_ptr);
+            throw;
+        }
+        wasm_runtime_module_free(module_inst_, request_ptr);
+
+        std::string payload = read_result_payload(argv[0], false, "structured error helper");
+        if (!json_error_shape_is_plausible(payload)) {
+            throw std::runtime_error(std::string(json_name) + " error payload is not plausible JSON");
+        }
+        require_contains(payload, "\"version\":1", json_name);
+        require_contains(payload, "\"operation\":\"search\"", json_name);
+        require_contains(payload, std::string("\"code\":\"") + code + "\"", json_name);
+        require_contains(payload, std::string("\"message\":\"") + message + "\"", json_name);
+        require_contains(payload, "\"hostHints\":{\"network\":false}", json_name);
+        if (payload.find("\"data\":") != std::string::npos ||
+            payload.find("Fixture Series") != std::string::npos ||
+            payload.find("\"requestEcho\":\"fixture\"") != std::string::npos ||
+            contains_any_forbidden_runtime_string(payload)) {
+            throw std::runtime_error(std::string(json_name) + " leaked success or unsafe evidence");
+        }
+
+        std::cout << "SOURCE_API_STRUCTURED_ERROR_HELPER ok:true id=" << json_name
+                  << " reason=" << code << " noRawPayloadOrPathLeak=true\n";
+        std::cout << "SOURCE_API_JSON " << json_name << "=" << payload << "\n";
+    }
+
+    void call_structured_error_helpers() {
+        call_error_operation("structured_error_cancelled", "sdk:cancelled",
+                             "cancelled", "operation cancelled");
+        call_error_operation("structured_error_timeout", "sdk:timeout",
+                             "timeout", "fixture source timed out");
+        call_error_operation("structured_error_network_disabled", "sdk:network-disabled",
+                             "network_disabled", "network disabled by host hints");
+        call_error_operation("structured_error_permission_denied", "sdk:permission-denied",
+                             "permission_denied", "permission denied by fixture");
+        call_error_operation("structured_error_parse_error", "sdk:parse-error",
+                             "parse_error", "fixture parse failed");
+        call_error_operation("structured_error_source_error", "sdk:source-error",
+                             "source_error", "fixture source error");
+        call_error_operation("structured_error_internal_error", "sdk:internal-error",
+                             "internal_error", "fixture internal error");
+    }
+
     void reject_unknown_operation() {
         const SourceOperation operation = {
             "search",
@@ -1124,6 +1230,7 @@ public:
         for (const SourceOperation &operation : operations) {
             call_operation(operation);
         }
+        call_structured_error_helpers();
         reject_unknown_operation();
         reject_cancel_timeout_guards();
         std::cout << "hostHints.network=false\n";

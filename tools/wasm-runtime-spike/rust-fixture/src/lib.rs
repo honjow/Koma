@@ -84,6 +84,24 @@ impl Source for FixtureSource {
     fn search(&self, request: SearchRequest<'_>) -> SourceResult {
         if request.query_is(b"fixture") {
             Ok(JsonPayload::new(SEARCH_DATA))
+        } else if request.query_is(b"sdk:cancelled") {
+            Err(SourceError::cancelled())
+        } else if request.query_is(b"sdk:timeout") {
+            Err(SourceError::timeout("fixture source timed out"))
+        } else if request.query_is(b"sdk:network-disabled") {
+            Err(SourceError::network_disabled(
+                "network disabled by host hints",
+            ))
+        } else if request.query_is(b"sdk:permission-denied") {
+            Err(SourceError::permission_denied(
+                "permission denied by fixture",
+            ))
+        } else if request.query_is(b"sdk:parse-error") {
+            Err(SourceError::parse_error("fixture parse failed"))
+        } else if request.query_is(b"sdk:source-error") {
+            Err(SourceError::source_error("fixture source error"))
+        } else if request.query_is(b"sdk:internal-error") {
+            Err(SourceError::internal_error("fixture internal error"))
         } else {
             Err(SourceError::invalid_request(
                 "expected fixture search request",
