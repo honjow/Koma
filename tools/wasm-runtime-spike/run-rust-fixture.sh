@@ -28,6 +28,7 @@ SDK_RLIB="$BUILD_DIR/libkoma_source_sdk.rlib"
 HOST_BUILD_DIR="$BUILD_DIR/host"
 RUN_LOG="$LOG_DIR/run-rust-fixture.log"
 JSON_OUT="$ARTIFACT_DIR/rust-source-operation-results.json"
+REPORT_OUT="$ARTIFACT_DIR/source-info-capabilities-report.json"
 
 mkdir -p "$BUILD_DIR" "$LOG_DIR" "$(dirname "$WAMR_ROOT_DIR")"
 : > "$RUN_LOG"
@@ -281,12 +282,13 @@ if ! grep -q 'HOST_CHECK_CANCEL result=0' "$RUN_LOG"; then
 fi
 
 if command -v python3 >/dev/null 2>&1; then
-  run_logged python3 - "$RUN_LOG" "$JSON_OUT" <<'PY'
+  run_logged python3 - "$RUN_LOG" "$JSON_OUT" "$REPORT_OUT" <<'PY'
 import json
 import sys
 
 run_log = sys.argv[1]
 json_out = sys.argv[2]
+report_out = sys.argv[3]
 payloads = {}
 with open(run_log, "r", encoding="utf-8") as fh:
     for line in fh:
@@ -456,8 +458,83 @@ for name, payload in payloads.items():
 with open(json_out, "w", encoding="utf-8") as out:
     json.dump(payloads, out, indent=2, sort_keys=True)
     out.write("\n")
+
+allowed_source_info_fields = (
+    "id",
+    "name",
+    "version",
+    "apiVersion",
+    "language",
+    "contentRating",
+)
+v02_capability_keys = (
+    "search",
+    "mangaDetail",
+    "chapters",
+    "pages",
+    "listings",
+    "mangaList",
+    "home",
+    "filters",
+    "settings",
+    "imageRequest",
+)
+report_source_info = {
+    key: info[key] for key in allowed_source_info_fields if key in info
+}
+report_capabilities_v02 = {
+    key: bool(capabilities[key]) for key in v02_capability_keys
+}
+report_capabilities_future = {
+    key: bool(value) for key, value in sorted(capabilities["future"].items())
+}
+operation_summary_names = [
+    "source_info",
+    *core_expected,
+    *browse_expected,
+    *config_image_expected,
+]
+operation_summary = []
+for name in operation_summary_names:
+    payload = payloads[name]
+    operation_summary.append({
+        "operation": payload["operation"],
+        "ok": payload["ok"],
+        "version": payload["version"],
+        "hostHintsNetwork": payload["hostHints"]["network"],
+    })
+report = {
+    "version": 1,
+    "scope": "wasm-runtime-spike rust fixture host evidence",
+    "sourceInfo": report_source_info,
+    "capabilities": {
+        "v02": report_capabilities_v02,
+        "future": report_capabilities_future,
+    },
+    "operations": operation_summary,
+    "sourceInfoStatus": {
+        "ok": payloads["source_info"]["ok"],
+        "operation": payloads["source_info"]["operation"],
+        "hostHintsNetwork": payloads["source_info"]["hostHints"]["network"],
+    },
+}
+report_raw = json.dumps(report, sort_keys=True)
+forbidden_report = [
+    "http_request", "https://", "http://", "file://",
+    "content://", "ohos://", "internal://", "app-private", "/home/",
+    "/Users/", "/data/", "/storage/", "/sdcard/", ".hermes-artifacts",
+    "password", "token", "secret", "apiKey", "cookie", "Authorization",
+    "BEGIN PRIVATE KEY", "BEGIN RSA PRIVATE KEY",
+]
+assert not any(item in report_raw for item in forbidden_report), "report leaked sensitive token"
+assert all(value is False for value in report_capabilities_future.values())
+assert all(isinstance(value, bool) for value in report_capabilities_v02.values())
+with open(report_out, "w", encoding="utf-8") as out:
+    json.dump(report, out, indent=2, sort_keys=True)
+    out.write("\n")
 PY
   run_logged python3 -m json.tool "$JSON_OUT"
+  run_logged python3 -m json.tool "$REPORT_OUT"
 else
   log "python3 not found; host runner still validated result envelope shape"
 fi
@@ -467,3 +544,4 @@ log "  sdk: $SDK_RLIB"
 log "  wasm: $WASM_OUT"
 log "  log: $RUN_LOG"
 log "  json: $JSON_OUT"
+log "  report: $REPORT_OUT"
