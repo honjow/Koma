@@ -205,6 +205,74 @@ bool JsonEnvelopeIsPlausible(const std::string &payload)
     return depth == 0 && !inString && payload.find("\"ok\":") != std::string::npos;
 }
 
+std::string ExtractOperation(const std::string &requestJson)
+{
+    if (requestJson.size() > kMaxPayloadBytes) {
+        throw std::runtime_error("request JSON exceeds operation dispatch boundary");
+    }
+
+    const std::string key = "\"operation\"";
+    size_t pos = requestJson.find(key);
+    if (pos == std::string::npos) {
+        throw std::runtime_error("missing operation");
+    }
+    pos += key.size();
+    while (pos < requestJson.size() && (requestJson[pos] == ' ' || requestJson[pos] == '\n' ||
+        requestJson[pos] == '\r' || requestJson[pos] == '\t')) {
+        pos++;
+    }
+    if (pos >= requestJson.size() || requestJson[pos] != ':') {
+        throw std::runtime_error("invalid operation field");
+    }
+    pos++;
+    while (pos < requestJson.size() && (requestJson[pos] == ' ' || requestJson[pos] == '\n' ||
+        requestJson[pos] == '\r' || requestJson[pos] == '\t')) {
+        pos++;
+    }
+    if (pos >= requestJson.size() || requestJson[pos] != '"') {
+        throw std::runtime_error("operation must be a string");
+    }
+    pos++;
+
+    std::string operation;
+    while (pos < requestJson.size()) {
+        const char ch = requestJson[pos++];
+        if (ch == '\\') {
+            throw std::runtime_error("escaped operation values are not supported");
+        }
+        if (ch == '"') {
+            if (operation == "search" || operation == "get_manga" ||
+                operation == "get_chapters" || operation == "get_pages") {
+                return operation;
+            }
+            throw std::runtime_error("unsupported operation: " + operation);
+        }
+        if (operation.size() >= 32) {
+            throw std::runtime_error("operation value is too long");
+        }
+        operation += ch;
+    }
+
+    throw std::runtime_error("unterminated operation string");
+}
+
+const char *ExportForOperation(const std::string &operation)
+{
+    if (operation == "search") {
+        return "koma_source_search";
+    }
+    if (operation == "get_manga") {
+        return "koma_source_get_manga";
+    }
+    if (operation == "get_chapters") {
+        return "koma_source_get_chapters";
+    }
+    if (operation == "get_pages") {
+        return "koma_source_get_pages";
+    }
+    throw std::runtime_error("unsupported operation: " + operation);
+}
+
 class Runtime {
 public:
     Runtime() : heap_(kRuntimeHeapBytes)
@@ -304,28 +372,30 @@ public:
     Module(const Module &) = delete;
     Module &operator=(const Module &) = delete;
 
-    std::string RunSearch(const std::string &requestJson)
+    std::string RunOperation(const std::string &requestJson)
     {
         ValidateAdd();
         InitWithManifest();
 
+        const std::string operation = ExtractOperation(requestJson);
+        const char *exportName = ExportForOperation(operation);
         const uint32_t requestLen = static_cast<uint32_t>(requestJson.size());
         uint64_t requestPtr = wasm_runtime_module_dup_data(moduleInst_, requestJson.data(), requestLen);
         if (requestPtr == 0) {
             throw std::runtime_error("failed to copy request into wasm memory");
         }
 
-        wasm_function_inst_t search = Lookup("koma_source_search");
+        wasm_function_inst_t operationFn = Lookup(exportName);
         uint32_t argv[2] = {static_cast<uint32_t>(requestPtr), requestLen};
         try {
-            RequireCall(execEnv_, moduleInst_, search, 2, argv, "koma_source_search");
+            RequireCall(execEnv_, moduleInst_, operationFn, 2, argv, exportName);
         } catch (...) {
             wasm_runtime_module_free(moduleInst_, requestPtr);
             throw;
         }
         wasm_runtime_module_free(moduleInst_, requestPtr);
 
-        return ReadEnvelope(argv[0]);
+        return ReadEnvelope(argv[0], exportName);
     }
 
 private:
@@ -371,10 +441,10 @@ private:
         }
     }
 
-    std::string ReadEnvelope(uint32_t resultPtr)
+    std::string ReadEnvelope(uint32_t resultPtr, const char *exportName)
     {
         if (resultPtr == 0) {
-            throw std::runtime_error("koma_source_search returned null result pointer");
+            throw std::runtime_error(std::string(exportName) + " returned null result pointer");
         }
         if (!wasm_runtime_validate_app_addr(moduleInst_, resultPtr, 16)) {
             throw std::runtime_error("result header is outside wasm memory");
@@ -432,7 +502,7 @@ std::string RunBundledWasmJsonCall(const std::string &requestJson)
         Runtime runtime;
         ThreadEnv threadEnv;
         Module module(LoadWasmBytesFromBundledFixture());
-        return module.RunSearch(requestJson);
+        return module.RunOperation(requestJson);
     } catch (const std::exception &err) {
         return ErrorJson("WAMR_RUNTIME_ERROR", err.what());
     }
@@ -449,7 +519,7 @@ std::string RunWasmJsonCallFromBytes(const std::string &requestJson, const std::
         Runtime runtime;
         ThreadEnv threadEnv;
         Module module(LoadWasmBytesFromExternalBytes(wasmBytes));
-        return module.RunSearch(requestJson);
+        return module.RunOperation(requestJson);
     } catch (const std::exception &err) {
         return ErrorJson("WAMR_RUNTIME_ERROR", err.what());
     }

@@ -13,6 +13,19 @@ export interface SourceRuntimeSearchFixtureSummary {
   network?: boolean
 }
 
+export interface SourceRuntimeApiOperationsSummary {
+  ok: boolean
+  operations: string[]
+  evidence: string[]
+}
+
+const SOURCE_API_OPERATION_REQUESTS: string[] = [
+  '{"type":"request","version":1,"requestId":"device-search-001","operation":"search","sourceId":"local.test.koma.fixture","args":{"query":"fixture","page":{"cursor":null,"limit":20},"filters":{"tags":["fixture"]}},"settings":{},"hostHints":{"network":false}}',
+  '{"type":"request","version":1,"requestId":"device-manga-001","operation":"get_manga","sourceId":"local.test.koma.fixture","args":{"mangaId":"manga:fixture-series"},"settings":{},"hostHints":{"network":false}}',
+  '{"type":"request","version":1,"requestId":"device-chapters-001","operation":"get_chapters","sourceId":"local.test.koma.fixture","args":{"mangaId":"manga:fixture-series","page":{"cursor":null,"limit":100}},"settings":{},"hostHints":{"network":false}}',
+  '{"type":"request","version":1,"requestId":"device-pages-001","operation":"get_pages","sourceId":"local.test.koma.fixture","args":{"chapterId":"chapter:fixture-series:001"},"settings":{},"hostHints":{"network":false,"imageStrategy":"descriptor-only"}}',
+]
+
 export function runBundledSourceOperation(request: SourceRuntimeCallRequest | string): SourceRuntimeCallResponse {
   return NativeSourceRuntime.runJsonCall(request)
 }
@@ -58,5 +71,75 @@ export function runSearchFixtureFromBytes(
     requestEcho: response.data?.requestEcho,
     firstTitle: firstItemTitle(response),
     network: response.hostHints?.['network'] === false ? false : undefined,
+  }
+}
+
+function operationFromRequest(requestJson: string): string {
+  const request = JSON.parse(requestJson) as SourceRuntimeCallRequest
+  const operation = request['operation']
+  return typeof operation === 'string' ? operation : ''
+}
+
+function includesEvidence(response: SourceRuntimeCallResponse, expected: string): boolean {
+  return JSON.stringify(response).includes(expected)
+}
+
+function validateOperationResponse(operation: string, response: SourceRuntimeCallResponse): string[] {
+  const evidence: string[] = []
+  if (response.ok === true) {
+    evidence.push('ok:true')
+  }
+  if (response.operation === operation) {
+    evidence.push(`operation:${operation}`)
+  }
+  if (response.hostHints?.['network'] === false) {
+    evidence.push('network:false')
+  }
+  if (operation === 'search' &&
+    firstItemTitle(response) === 'Fixture Series' &&
+    response.data?.requestEcho === 'fixture') {
+    evidence.push('search:Fixture Series:fixture')
+  }
+  if (operation === 'get_manga' &&
+    includesEvidence(response, 'Fixture Series') &&
+    includesEvidence(response, 'manga:fixture-series')) {
+    evidence.push('get_manga:manga:fixture-series:Fixture Series')
+  }
+  if (operation === 'get_chapters' &&
+    includesEvidence(response, 'chapter:fixture-series:001') &&
+    includesEvidence(response, 'Chapter 1')) {
+    evidence.push('get_chapters:chapter:fixture-series:001:Chapter 1')
+  }
+  if (operation === 'get_pages' &&
+    includesEvidence(response, 'chapter:fixture-series:001') &&
+    includesEvidence(response, 'page:fixture-series:001:0001') &&
+    includesEvidence(response, 'fixture-page-1') &&
+    includesEvidence(response, 'placeholder')) {
+    evidence.push('get_pages:chapter:fixture-series:001:page:fixture-series:001:0001:fixture-page-1')
+  }
+  return evidence
+}
+
+export function runSourceApiFixtureOperationsFromBytes(wasmBytes: Uint8Array): SourceRuntimeApiOperationsSummary {
+  const operations: string[] = []
+  const evidence: string[] = []
+  let ok = true
+  for (const requestJson of SOURCE_API_OPERATION_REQUESTS) {
+    const operation = operationFromRequest(requestJson)
+    const response = runSourceOperationFromBytes(requestJson, wasmBytes)
+    const operationEvidence = validateOperationResponse(operation, response)
+    const responseOk = response.ok === true &&
+      response.operation === operation &&
+      response.hostHints?.['network'] === false &&
+      operationEvidence.length >= 4
+    operations.push(operation)
+    evidence.push(`${operation}:${responseOk ? 'ok' : 'fail'}`)
+    evidence.push(operationEvidence.length > 0 ? operationEvidence[operationEvidence.length - 1] : `${operation}:missing`)
+    ok = ok && responseOk
+  }
+  return {
+    ok: operations.length === 4 && ok,
+    operations,
+    evidence,
   }
 }

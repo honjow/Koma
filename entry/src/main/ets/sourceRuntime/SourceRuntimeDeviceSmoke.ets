@@ -11,13 +11,15 @@ import {
 import {
   responseReachedFixture,
   runBundledSourceOperation,
+  runSourceApiFixtureOperationsFromBytes,
   runSearchFixtureFromBytes,
   runSourceOperationFromBytes,
+  SourceRuntimeApiOperationsSummary,
 } from './SourceRuntimeRunner'
 
 const SMOKE_TRIGGER_PARAM: string = 'koma.sourceRuntimeSmoke'
 const SMOKE_TRIGGER_VALUE: string = 'run'
-const SMOKE_REQUEST_JSON: string = '{"query":"fixture","smoke":"koma-smoke"}'
+const SMOKE_REQUEST_JSON: string = '{"operation":"search","query":"fixture","smoke":"koma-smoke"}'
 const RUST_SMOKE_REQUEST_JSON: string = '{"operation":"search","query":"fixture","smoke":"koma-rust-smoke"}'
 const PACKAGE_SMOKE_REQUEST_JSON: string = '{"operation":"search","query":"fixture","smoke":"koma-package-smoke"}'
 const SMOKE_LOG_PREFIX: string = 'KOMA_SOURCE_RUNTIME_SMOKE_RESULT '
@@ -60,6 +62,13 @@ const ARCHIVE_NEGATIVE_CASES: SourceArchiveNegativeCaseFixture[] = [
 type WantParameterValue = Object | string | number | boolean | null | undefined
 type WantParameters = Record<string, WantParameterValue>
 
+export interface SourceArchiveNegativeCaseEvidence {
+  id: string
+  reasonCode?: string
+  reasonMatchesExpected: boolean
+  attemptedWamrExecution: boolean
+}
+
 export interface SourceRuntimeSmokeResult {
   ok: boolean
   route: string
@@ -75,8 +84,12 @@ export interface SourceRuntimeSmokeResult {
   resourceResponseOk?: boolean
   rustSourceResponse?: SourceRuntimeCallResponse
   rustSourceResponseOk?: boolean
+  rustSourceApiOperationsOk?: boolean
+  rustSourceApiOperations?: SourceRuntimeApiOperationsSummary
   packageResponse?: SourceRuntimeCallResponse
   packageResponseOk?: boolean
+  packageSourceApiOperationsOk?: boolean
+  packageSourceApiOperations?: SourceRuntimeApiOperationsSummary
   packageOperation?: string
   packageRequestEcho?: string
   packageFirstTitle?: string
@@ -94,6 +107,8 @@ export interface SourceRuntimeSmokeResult {
   archiveImportOk?: boolean
   archiveResponse?: SourceRuntimeCallResponse
   archiveResponseOk?: boolean
+  archiveSourceApiOperationsOk?: boolean
+  archiveSourceApiOperations?: SourceRuntimeApiOperationsSummary
   archiveOperation?: string
   archiveRequestEcho?: string
   archiveFirstTitle?: string
@@ -106,7 +121,7 @@ export interface SourceRuntimeSmokeResult {
   archiveHashOk?: boolean
   archiveNegativeRoute?: string
   archiveNegativeOk?: boolean
-  archiveNegativeCases?: SourceArchiveNegativeImportResult[]
+  archiveNegativeCases?: SourceArchiveNegativeCaseEvidence[]
   error?: string
 }
 
@@ -133,7 +148,10 @@ function stageAndRunLocalSourcePackageSmoke(
 ): void {
   const staged = stageRawfileSourcePackage(context, resourceMgr, RUST_SMOKE_RAWFILE_PATH, 'source-runtime-package-smoke')
   const packageRun = runSearchFixtureFromBytes(PACKAGE_SMOKE_REQUEST_JSON, staged.wasmBytes)
+  const packageOperations = runSourceApiFixtureOperationsFromBytes(staged.wasmBytes)
   result.packageResponseOk = packageRun.responseOk
+  result.packageSourceApiOperationsOk = packageOperations.ok
+  result.packageSourceApiOperations = packageOperations
   result.packageOperation = packageRun.operation
   result.packageRequestEcho = packageRun.requestEcho
   result.packageFirstTitle = packageRun.firstTitle
@@ -164,7 +182,10 @@ async function stageImportAndRunLocalSourceArchiveSmoke(
 
   imported.attemptedWamrExecution = true
   const archiveRun = runSearchFixtureFromBytes(ARCHIVE_REQUEST_JSON, imported.wasmBytes)
+  const archiveOperations = runSourceApiFixtureOperationsFromBytes(imported.wasmBytes)
   result.archiveResponseOk = archiveRun.responseOk
+  result.archiveSourceApiOperationsOk = archiveOperations.ok
+  result.archiveSourceApiOperations = archiveOperations
   result.archiveOperation = archiveRun.operation
   result.archiveRequestEcho = archiveRun.requestEcho
   result.archiveFirstTitle = archiveRun.firstTitle
@@ -216,19 +237,31 @@ export async function maybeRunSourceRuntimeDeviceSmoke(
       const rustWasmBytes = resourceMgr.getRawFileContentSync(RUST_SMOKE_RAWFILE_PATH)
       result.rustRawfileBytes = rustWasmBytes.byteLength
       const rustSourceRun = runSearchFixtureFromBytes(RUST_SMOKE_REQUEST_JSON, rustWasmBytes)
+      const rustSourceOperations = runSourceApiFixtureOperationsFromBytes(rustWasmBytes)
       rustSourceResponseOk = rustSourceRun.responseOk
       result.rustSourceResponseOk = rustSourceResponseOk
+      result.rustSourceApiOperationsOk = rustSourceOperations.ok
+      result.rustSourceApiOperations = rustSourceOperations
       if (context !== undefined) {
         stageAndRunLocalSourcePackageSmoke(context, resourceMgr, result)
         await stageImportAndRunLocalSourceArchiveSmoke(context, resourceMgr, result)
-        result.archiveNegativeCases = await importArchiveNegativeFixtures(
+        const archiveNegativeCases = await importArchiveNegativeFixtures(
           context,
           resourceMgr,
           ARCHIVE_NEGATIVE_CASES,
           'source-runtime-archive-negative-smoke',
         )
-        result.archiveNegativeOk = result.archiveNegativeCases.length === ARCHIVE_NEGATIVE_CASES.length &&
-          result.archiveNegativeCases.every((item: SourceArchiveNegativeImportResult) =>
+        result.archiveNegativeCases = archiveNegativeCases.map((item: SourceArchiveNegativeImportResult) => {
+          const evidence: SourceArchiveNegativeCaseEvidence = {
+            id: item.id,
+            reasonCode: item.reasonCode,
+            reasonMatchesExpected: item.reasonMatchesExpected,
+            attemptedWamrExecution: item.attemptedWamrExecution,
+          }
+          return evidence
+        })
+        result.archiveNegativeOk = archiveNegativeCases.length === ARCHIVE_NEGATIVE_CASES.length &&
+          archiveNegativeCases.every((item: SourceArchiveNegativeImportResult) =>
             item.rejected && item.reasonMatchesExpected && item.attemptedWamrExecution === false)
       }
     }
@@ -237,12 +270,15 @@ export async function maybeRunSourceRuntimeDeviceSmoke(
       result.resourceResponseOk === true &&
       rustSourceResponseOk &&
       result.packageResponseOk === true &&
+      result.packageSourceApiOperationsOk === true &&
       result.packageHashOk === true &&
       result.packageNetwork === false &&
       result.archiveImportOk === true &&
       result.archiveResponseOk === true &&
+      result.archiveSourceApiOperationsOk === true &&
       result.archiveHashOk === true &&
       result.archiveNetwork === false &&
+      result.rustSourceApiOperationsOk === true &&
       result.archiveNegativeOk === true
     if (!result.ok) {
       result.error = 'WAMR fixture JSON assertion failed for bundled, legacy rawfile, Rust source rawfile, local source package, local source archive import, and archive negative rejection paths'
