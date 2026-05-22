@@ -8,12 +8,14 @@ import {
 import {
   importAndRegisterLocalSourceArchive,
   importAndRunLocalSourceArchive,
+  importRegisterPersistReloadAndRunLocalSourceArchiveRequest,
   importArchiveNegativeFixturesWithoutExecution,
   persistReloadAndRunRegisteredSourcesById,
   runRegisteredSourceApiOperationsById,
   runStagedRawfileSourcePackage,
   runSourceRuntimeRegistryNegativeEvidence,
   stageAndRegisterRawfileSourcePackage,
+  SourceRuntimeServiceArchiveIngestionRunSummary,
   SourceRuntimeServiceRegistrationSummary,
   SourceRuntimeServiceRegistryNegativeSummary,
   SourceRuntimeServiceRegistryReloadSummary,
@@ -44,11 +46,14 @@ const PACKAGE_ROUTE_LABEL: string = 'app-local-source-package-test-only'
 const ARCHIVE_ROUTE_LABEL: string = 'app-local-source-archive-import-test-only'
 const PACKAGE_REGISTRY_ROUTE_LABEL: string = 'app-local-source-package-registry-test-only'
 const ARCHIVE_REGISTRY_ROUTE_LABEL: string = 'app-local-source-archive-registry-test-only'
+const ARCHIVE_INGESTION_ROUTE_LABEL: string = 'app-local-source-archive-ingestion-run-request-test-only'
 const PACKAGE_REGISTRY_SOURCE_ID: string = 'local.test.koma.fixture.package.registry'
 const ARCHIVE_REGISTRY_SOURCE_ID: string = 'local.test.koma.fixture.archive.registry'
+const ARCHIVE_INGESTION_SOURCE_ID: string = 'local.test.koma.fixture.archive.ingestion'
 const REGISTRY_RELOAD_METADATA_FILE: string = 'registry-metadata.json'
 const REGISTRY_RELOAD_MISSING_METADATA_FILE: string = 'missing-registry-metadata.json'
 const REGISTRY_RELOAD_CORRUPT_METADATA_FILE: string = 'corrupt-registry-metadata.json'
+const ARCHIVE_INGESTION_METADATA_FILE: string = 'archive-ingestion-registry-metadata.json'
 const ARCHIVE_RAWFILE_PATH: string = 'test/local_source_runtime_fixture.koma-source'
 const ARCHIVE_SANDBOX_ZIP_FILE: string = 'local_source_runtime_fixture.zip'
 const ARCHIVE_REQUEST_JSON: string = '{"operation":"search","query":"fixture","smoke":"koma-archive-smoke"}'
@@ -234,6 +239,26 @@ export interface SourceRuntimeSmokeResult {
   sourceRuntimeRunRequestByIdMissingOperationRejected?: boolean
   sourceRuntimeRunRequestByIdMissingOperationReasonCode?: string
   sourceRuntimeRunRequestByIdMissingOperationAttemptedWamrExecution?: boolean
+  sourceRuntimeArchiveIngestionRunRequestOk?: boolean
+  sourceRuntimeArchiveIngestionImportRegisterOk?: boolean
+  sourceRuntimeArchiveIngestionPersistReloadOk?: boolean
+  sourceRuntimeArchiveIngestionSourceId?: string
+  sourceRuntimeArchiveIngestionRoute?: string
+  sourceRuntimeArchiveIngestionMetadataPath?: string
+  sourceRuntimeArchiveIngestionPersistedSourceCount?: number
+  sourceRuntimeArchiveIngestionReloadedSourceCount?: number
+  sourceRuntimeArchiveIngestionHashOk?: boolean
+  sourceRuntimeArchiveIngestionNetwork?: boolean
+  sourceRuntimeArchiveIngestionSearchOk?: boolean
+  sourceRuntimeArchiveIngestionSearch?: SourceRuntimeRunRequestByIdEvidence
+  sourceRuntimeArchiveIngestionNonSearchOk?: boolean
+  sourceRuntimeArchiveIngestionNonSearch?: SourceRuntimeRunRequestByIdEvidence
+  sourceRuntimeArchiveIngestionUnknownSourceRejected?: boolean
+  sourceRuntimeArchiveIngestionUnknownSourceReasonCode?: string
+  sourceRuntimeArchiveIngestionUnknownSourceAttemptedWamrExecution?: boolean
+  sourceRuntimeArchiveIngestionSourceIdMismatchRejected?: boolean
+  sourceRuntimeArchiveIngestionSourceIdMismatchReasonCode?: string
+  sourceRuntimeArchiveIngestionSourceIdMismatchAttemptedWamrExecution?: boolean
   error?: string
 }
 
@@ -442,6 +467,27 @@ async function runSourceRuntimeRegistrySmoke(
     result.sourceRuntimeRunRequestByIdOk === true
 }
 
+async function runSourceRuntimeArchiveIngestionSmoke(
+  context: common.UIAbilityContext,
+  resourceMgr: resourceManager.ResourceManager,
+  result: SourceRuntimeSmokeResult,
+): Promise<void> {
+  const metadataRoot = joinSourceRuntimeSmokePath(context.filesDir, 'source-runtime-archive-ingestion-smoke')
+  const summary = await importRegisterPersistReloadAndRunLocalSourceArchiveRequest(
+    context,
+    resourceMgr,
+    ARCHIVE_RAWFILE_PATH,
+    'source-runtime-archive-ingestion-smoke',
+    'local_source_runtime_ingestion_fixture.zip',
+    joinSourceRuntimeSmokePath(metadataRoot, ARCHIVE_INGESTION_METADATA_FILE),
+    ARCHIVE_INGESTION_SOURCE_ID,
+    ARCHIVE_INGESTION_ROUTE_LABEL,
+    `{"type":"request","version":1,"requestId":"device-archive-ingestion-search-001","operation":"search","sourceId":"${ARCHIVE_INGESTION_SOURCE_ID}","args":{"query":"fixture","page":{"cursor":null,"limit":20}},"settings":{},"hostHints":{"network":false}}`,
+    `{"type":"request","version":1,"requestId":"device-archive-ingestion-manga-001","operation":"get_manga","sourceId":"${ARCHIVE_INGESTION_SOURCE_ID}","args":{"mangaId":"manga:fixture-series"},"settings":{},"hostHints":{"network":false}}`,
+  )
+  applyArchiveIngestionEvidence(result, summary)
+}
+
 function applyRunByIdEvidence(
   result: SourceRuntimeSmokeResult,
   summary: SourceRuntimeServiceRunByIdSummary,
@@ -553,6 +599,51 @@ function applyRegistryReloadEvidence(
     summary.corruptNegative.attemptedWamrExecution === false
 }
 
+function applyArchiveIngestionEvidence(
+  result: SourceRuntimeSmokeResult,
+  summary: SourceRuntimeServiceArchiveIngestionRunSummary,
+): void {
+  result.sourceRuntimeArchiveIngestionSourceId = summary.sourceId
+  result.sourceRuntimeArchiveIngestionRoute = summary.route
+  result.sourceRuntimeArchiveIngestionMetadataPath = summary.metadataPath
+  result.sourceRuntimeArchiveIngestionPersistedSourceCount = summary.persistedSourceCount
+  result.sourceRuntimeArchiveIngestionReloadedSourceCount = summary.reloadedSourceCount
+  result.sourceRuntimeArchiveIngestionHashOk = summary.hashOk
+  result.sourceRuntimeArchiveIngestionNetwork = summary.network
+  result.sourceRuntimeArchiveIngestionImportRegisterOk = summary.importRegister.ok &&
+    summary.importRegister.entry !== undefined &&
+    summary.importRegister.entry.importStatus === 'imported'
+  result.sourceRuntimeArchiveIngestionPersistReloadOk =
+    summary.persistedSourceCount === 1 && summary.reloadedSourceCount === 1
+  result.sourceRuntimeArchiveIngestionSearchOk = summary.searchRunRequestById.ok &&
+    summary.searchRunRequestById.operation === 'search'
+  result.sourceRuntimeArchiveIngestionSearch = compactRunRequestByIdEvidence(summary.searchRunRequestById)
+  result.sourceRuntimeArchiveIngestionNonSearchOk = summary.nonSearchRunRequestById.ok &&
+    summary.nonSearchRunRequestById.operation === 'get_manga'
+  result.sourceRuntimeArchiveIngestionNonSearch = compactRunRequestByIdEvidence(summary.nonSearchRunRequestById)
+  result.sourceRuntimeArchiveIngestionUnknownSourceRejected = !summary.unknownSourceRunRequestById.ok &&
+    summary.unknownSourceRunRequestById.reasonCode === 'source_id_not_registered'
+  result.sourceRuntimeArchiveIngestionUnknownSourceReasonCode = summary.unknownSourceRunRequestById.reasonCode
+  result.sourceRuntimeArchiveIngestionUnknownSourceAttemptedWamrExecution =
+    summary.unknownSourceRunRequestById.attemptedWamrExecution
+  result.sourceRuntimeArchiveIngestionSourceIdMismatchRejected = !summary.sourceIdMismatchRunRequestById.ok &&
+    summary.sourceIdMismatchRunRequestById.reasonCode === 'source_id_mismatch'
+  result.sourceRuntimeArchiveIngestionSourceIdMismatchReasonCode = summary.sourceIdMismatchRunRequestById.reasonCode
+  result.sourceRuntimeArchiveIngestionSourceIdMismatchAttemptedWamrExecution =
+    summary.sourceIdMismatchRunRequestById.attemptedWamrExecution
+  result.sourceRuntimeArchiveIngestionRunRequestOk = summary.ok &&
+    result.sourceRuntimeArchiveIngestionImportRegisterOk === true &&
+    result.sourceRuntimeArchiveIngestionPersistReloadOk === true &&
+    result.sourceRuntimeArchiveIngestionHashOk === true &&
+    result.sourceRuntimeArchiveIngestionNetwork === false &&
+    result.sourceRuntimeArchiveIngestionSearchOk === true &&
+    result.sourceRuntimeArchiveIngestionNonSearchOk === true &&
+    result.sourceRuntimeArchiveIngestionUnknownSourceRejected === true &&
+    summary.unknownSourceRunRequestById.attemptedWamrExecution === false &&
+    result.sourceRuntimeArchiveIngestionSourceIdMismatchRejected === true &&
+    summary.sourceIdMismatchRunRequestById.attemptedWamrExecution === false
+}
+
 function compactRunRequestByIdEvidence(
   summary: SourceRuntimeServiceRunRequestByIdSummary,
 ): SourceRuntimeRunRequestByIdEvidence {
@@ -615,6 +706,13 @@ function compactSmokeResultForHilog(result: SourceRuntimeSmokeResult): void {
   result.sourceRuntimeRunRequestByIdPackageSearch = undefined
   result.sourceRuntimeRunRequestByIdArchiveSearch = undefined
   result.sourceRuntimeRunRequestByIdNonSearch = undefined
+  result.sourceRuntimeArchiveIngestionSourceId = undefined
+  result.sourceRuntimeArchiveIngestionRoute = undefined
+  result.sourceRuntimeArchiveIngestionMetadataPath = undefined
+  result.sourceRuntimeArchiveIngestionPersistedSourceCount = undefined
+  result.sourceRuntimeArchiveIngestionReloadedSourceCount = undefined
+  result.sourceRuntimeArchiveIngestionSearch = undefined
+  result.sourceRuntimeArchiveIngestionNonSearch = undefined
 }
 
 export async function maybeRunSourceRuntimeDeviceSmoke(
@@ -662,6 +760,7 @@ export async function maybeRunSourceRuntimeDeviceSmoke(
         runLocalSourcePackageSmoke(context, resourceMgr, result)
         await runLocalSourceArchiveSmoke(context, resourceMgr, result)
         await runSourceRuntimeRegistrySmoke(context, resourceMgr, result)
+        await runSourceRuntimeArchiveIngestionSmoke(context, resourceMgr, result)
         const archiveNegativeCases = await importArchiveNegativeFixturesWithoutExecution(
           context,
           resourceMgr,
@@ -699,9 +798,10 @@ export async function maybeRunSourceRuntimeDeviceSmoke(
       result.archiveNegativeOk === true &&
       result.sourceRuntimeExecutionNegativeOk === true &&
       result.sourceRuntimeRegistryOk === true &&
-      result.sourceRuntimeRegistryReloadOk === true
+      result.sourceRuntimeRegistryReloadOk === true &&
+      result.sourceRuntimeArchiveIngestionRunRequestOk === true
     if (!result.ok) {
-      result.error = 'WAMR fixture JSON assertion failed for bundled, legacy rawfile, Rust source rawfile, local source package, local source archive import, archive negative rejection, negative execution, registry run-by-id, and registry persistence/reload paths'
+      result.error = 'WAMR fixture JSON assertion failed for bundled, legacy rawfile, Rust source rawfile, local source package, local source archive import, archive negative rejection, negative execution, registry run-by-id, registry persistence/reload, and archive ingestion run-request paths'
     }
   } catch (error) {
     const e = error as Error

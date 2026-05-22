@@ -127,6 +127,7 @@ require_text "$smoke_file" 'app-local-source-archive-import-test-only'
 require_text "$smoke_file" 'SourceRuntimeService'
 require_text "$smoke_file" 'runStagedRawfileSourcePackage'
 require_text "$smoke_file" 'importAndRunLocalSourceArchive'
+require_text "$smoke_file" 'importRegisterPersistReloadAndRunLocalSourceArchiveRequest'
 require_text "$smoke_file" 'SourceRuntimeRegistry'
 require_text "$smoke_file" 'stageAndRegisterRawfileSourcePackage'
 require_text "$smoke_file" 'importAndRegisterLocalSourceArchive'
@@ -184,6 +185,16 @@ require_text "$smoke_file" 'sourceRuntimeRunRequestByIdNullRequestRejected'
 require_text "$smoke_file" 'sourceRuntimeRunRequestByIdNullRequestAttemptedWamrExecution'
 require_text "$smoke_file" 'sourceRuntimeRunRequestByIdArrayRequestRejected'
 require_text "$smoke_file" 'sourceRuntimeRunRequestByIdArrayRequestAttemptedWamrExecution'
+require_text "$smoke_file" 'sourceRuntimeArchiveIngestionRunRequestOk'
+require_text "$smoke_file" 'sourceRuntimeArchiveIngestionImportRegisterOk'
+require_text "$smoke_file" 'sourceRuntimeArchiveIngestionPersistReloadOk'
+require_text "$smoke_file" 'sourceRuntimeArchiveIngestionSearchOk'
+require_text "$smoke_file" 'sourceRuntimeArchiveIngestionNonSearchOk'
+require_text "$smoke_file" 'sourceRuntimeArchiveIngestionUnknownSourceRejected'
+require_text "$smoke_file" 'sourceRuntimeArchiveIngestionUnknownSourceAttemptedWamrExecution'
+require_text "$smoke_file" 'sourceRuntimeArchiveIngestionSourceIdMismatchRejected'
+require_text "$smoke_file" 'sourceRuntimeArchiveIngestionSourceIdMismatchAttemptedWamrExecution'
+require_text "$smoke_file" 'app-local-source-archive-ingestion-run-request-test-only'
 if rg -q 'stageRawfileSourcePackage|importLocalSourceArchive' "$smoke_file"; then
   echo "device smoke must consume SourceRuntimeService for package/archive happy paths, not direct importer helpers" >&2
   exit 1
@@ -221,6 +232,7 @@ require_text "$source_package_importer_file" 'missing_wasm'
 require_text "$source_package_importer_file" 'attemptedWamrExecution: false'
 require_text "$source_runtime_service_file" 'runStagedRawfileSourcePackage'
 require_text "$source_runtime_service_file" 'importAndRunLocalSourceArchive'
+require_text "$source_runtime_service_file" 'importRegisterPersistReloadAndRunLocalSourceArchiveRequest'
 require_text "$source_runtime_service_file" 'importArchiveNegativeFixturesWithoutExecution'
 require_text "$source_runtime_service_file" 'SourceRuntimeRegistry'
 require_text "$source_runtime_service_file" 'stageAndRegisterRawfileSourcePackage'
@@ -241,6 +253,7 @@ require_text "$source_runtime_service_file" 'malformed_json'
 require_text "$source_runtime_service_file" 'missing_or_invalid_operation'
 require_text "$source_runtime_service_file" 'source_id_not_registered'
 require_text "$source_runtime_service_file" 'SourceRuntimeServiceRunRequestByIdSummary'
+require_text "$source_runtime_service_file" 'SourceRuntimeServiceArchiveIngestionRunSummary'
 require_text "$source_runtime_service_file" 'attemptedWamrExecution: false'
 require_text "$source_runtime_service_file" "request === null || typeof request !== 'object' || Array.isArray(request)"
 require_text "$source_runtime_service_file" 'nullRequestRunRequestById'
@@ -257,6 +270,10 @@ require_text "$source_runtime_service_file" 'sourceRuntimeExecutionNegativeCases
 require_text "$source_runtime_service_file" 'searchResponseCompatible'
 require_text "$source_runtime_service_file" 'attemptedWamrExecution: true'
 require_text "$source_runtime_service_file" 'network'
+if ! rg -U -q 'importRegisterPersistReloadAndRunLocalSourceArchiveRequest[\s\S]*importAndRegisterLocalSourceArchive[\s\S]*persistSourceRuntimeRegistryMetadata[\s\S]*reloadSourceRuntimeRegistryFromMetadata[\s\S]*runRegisteredSourceRequestById' "$source_runtime_service_file"; then
+  echo "archive ingestion helper must compose import/register, persist, reload, then run-request-by-id" >&2
+  exit 1
+fi
 
 if ! rg -U -q 'runRegisteredSourceRequestById[\s\S]*registry\.lookup[\s\S]*JSON\.parse[\s\S]*runSourceOperationFromBytes' "$source_runtime_service_file"; then
   echo "single-request run-by-id must lookup and validate before WAMR execution" >&2

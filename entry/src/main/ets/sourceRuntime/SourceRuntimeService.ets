@@ -115,6 +115,24 @@ export interface SourceRuntimeServiceRegistryReloadSummary {
   corruptNegative: SourceRuntimeServiceRegistryReloadNegativeSummary
 }
 
+export interface SourceRuntimeServiceArchiveIngestionRunSummary {
+  ok: boolean
+  sourceId: string
+  route: string
+  reasonCode?: string
+  metadataPath: string
+  archivePath?: string
+  importRegister: SourceRuntimeServiceRegistrationSummary
+  persistedSourceCount: number
+  reloadedSourceCount: number
+  hashOk: boolean
+  network: boolean
+  searchRunRequestById: SourceRuntimeServiceRunRequestByIdSummary
+  nonSearchRunRequestById: SourceRuntimeServiceRunRequestByIdSummary
+  unknownSourceRunRequestById: SourceRuntimeServiceRunRequestByIdSummary
+  sourceIdMismatchRunRequestById: SourceRuntimeServiceRunRequestByIdSummary
+}
+
 function closeFileQuietly(file: fs.File | undefined): void {
   if (file === undefined) {
     return
@@ -642,6 +660,146 @@ export function persistReloadAndRunRegisteredSourcesById(
     missingOperationRunRequestById,
     negative: missingNegative,
     corruptNegative,
+  }
+}
+
+export async function importRegisterPersistReloadAndRunLocalSourceArchiveRequest(
+  context: common.UIAbilityContext,
+  resourceMgr: resourceManager.ResourceManager,
+  rawfilePath: string,
+  archiveRootName: string,
+  archiveFileName: string,
+  metadataPath: string,
+  sourceId: string,
+  route: string,
+  searchRequestJson: string,
+  nonSearchRequestJson: string,
+): Promise<SourceRuntimeServiceArchiveIngestionRunSummary> {
+  const registry = new SourceRuntimeRegistry()
+  const importedRegistered = await importAndRegisterLocalSourceArchive(
+    registry,
+    context,
+    resourceMgr,
+    rawfilePath,
+    archiveRootName,
+    archiveFileName,
+    sourceId,
+    route,
+  )
+  if (!importedRegistered.ok || importedRegistered.entry === undefined) {
+    return sourceRuntimeServiceArchiveIngestionRunRejected(
+      sourceId,
+      route,
+      metadataPath,
+      importedRegistered,
+      0,
+      0,
+      importedRegistered.reasonCode,
+    )
+  }
+
+  const persist = persistSourceRuntimeRegistryMetadata(registry, metadataPath)
+  if (!persist.ok) {
+    return sourceRuntimeServiceArchiveIngestionRunRejected(
+      sourceId,
+      route,
+      metadataPath,
+      importedRegistered,
+      persist.persistedSourceCount,
+      0,
+      persist.reasonCode,
+    )
+  }
+
+  const reloaded = reloadSourceRuntimeRegistryFromMetadata(metadataPath)
+  if (!reloaded.ok) {
+    return sourceRuntimeServiceArchiveIngestionRunRejected(
+      sourceId,
+      route,
+      metadataPath,
+      importedRegistered,
+      persist.persistedSourceCount,
+      reloaded.reloadedSourceCount,
+      reloaded.reasonCode,
+    )
+  }
+
+  const searchRunRequestById = runRegisteredSourceRequestById(reloaded.registry, sourceId, searchRequestJson)
+  const nonSearchRunRequestById = runRegisteredSourceRequestById(reloaded.registry, sourceId, nonSearchRequestJson)
+  const unknownSourceRunRequestById = runRegisteredSourceRequestById(
+    reloaded.registry,
+    'missing.source.id.archive-ingestion-test-only',
+    '{"type":"request","version":1,"requestId":"device-archive-ingestion-unknown-001","operation":"search","sourceId":"missing.source.id.archive-ingestion-test-only","args":{"query":"fixture"},"settings":{},"hostHints":{"network":false}}',
+  )
+  const sourceIdMismatchRunRequestById = runRegisteredSourceRequestById(
+    reloaded.registry,
+    sourceId,
+    `{"type":"request","version":1,"requestId":"device-archive-ingestion-mismatch-001","operation":"search","sourceId":"${sourceId}.mismatch","args":{"query":"fixture"},"settings":{},"hostHints":{"network":false}}`,
+  )
+
+  return {
+    ok: importedRegistered.ok &&
+      importedRegistered.entry.importStatus === 'imported' &&
+      importedRegistered.entry.hashOk &&
+      importedRegistered.entry.network === false &&
+      persist.ok &&
+      reloaded.ok &&
+      persist.persistedSourceCount === 1 &&
+      reloaded.reloadedSourceCount === 1 &&
+      searchRunRequestById.ok &&
+      searchRunRequestById.operation === 'search' &&
+      nonSearchRunRequestById.ok &&
+      nonSearchRunRequestById.operation === 'get_manga' &&
+      !unknownSourceRunRequestById.ok &&
+      unknownSourceRunRequestById.reasonCode === 'source_id_not_registered' &&
+      unknownSourceRunRequestById.attemptedWamrExecution === false &&
+      !sourceIdMismatchRunRequestById.ok &&
+      sourceIdMismatchRunRequestById.reasonCode === 'source_id_mismatch' &&
+      sourceIdMismatchRunRequestById.attemptedWamrExecution === false,
+    sourceId,
+    route,
+    metadataPath,
+    archivePath: importedRegistered.entry.archivePath,
+    importRegister: importedRegistered,
+    persistedSourceCount: persist.persistedSourceCount,
+    reloadedSourceCount: reloaded.reloadedSourceCount,
+    hashOk: importedRegistered.entry.hashOk,
+    network: importedRegistered.entry.network,
+    searchRunRequestById,
+    nonSearchRunRequestById,
+    unknownSourceRunRequestById,
+    sourceIdMismatchRunRequestById,
+  }
+}
+
+function sourceRuntimeServiceArchiveIngestionRunRejected(
+  sourceId: string,
+  route: string,
+  metadataPath: string,
+  importRegister: SourceRuntimeServiceRegistrationSummary,
+  persistedSourceCount: number,
+  reloadedSourceCount: number,
+  reasonCode?: string,
+): SourceRuntimeServiceArchiveIngestionRunSummary {
+  return {
+    ok: false,
+    sourceId,
+    route,
+    reasonCode,
+    metadataPath,
+    importRegister,
+    persistedSourceCount,
+    reloadedSourceCount,
+    hashOk: false,
+    network: false,
+    searchRunRequestById: sourceRuntimeServiceRunRequestByIdRejected(sourceId, reloadedSourceCount, reasonCode),
+    nonSearchRunRequestById: sourceRuntimeServiceRunRequestByIdRejected(sourceId, reloadedSourceCount, reasonCode),
+    unknownSourceRunRequestById: sourceRuntimeServiceRunRequestByIdRejected(
+      'missing.source.id.archive-ingestion-test-only',
+      reloadedSourceCount,
+      reasonCode,
+    ),
+    sourceIdMismatchRunRequestById: sourceRuntimeServiceRunRequestByIdRejected(sourceId, reloadedSourceCount, reasonCode),
   }
 }
 
