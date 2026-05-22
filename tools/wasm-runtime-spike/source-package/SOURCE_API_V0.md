@@ -495,8 +495,8 @@ export presence:
   "mangaList": true,
   "home": true,
   "filters": true,
-  "settings": true,
-  "imageRequest": true,
+  "settings": false,
+  "imageRequest": false,
   "future": {
     "process_page_image": false,
     "page_description": false,
@@ -516,10 +516,12 @@ The current Rust/WAMR fixture exposes `koma_source_info` as the functional
 discovery entrypoint. Local smoke validation calls that export and requires a
 v0.2-shaped envelope with source id/name/version/API version/language/content
 rating, core capabilities (`search`, `mangaDetail`, `chapters`, `pages`) set to
-`true`, optional browse/config/image capabilities set to `false`, all future
-capabilities set to `false`, and `hostHints.network=false`. Static package
-validation accepts `koma_source_info` as an optional export and records the same
-runtime evidence when `--build-rust-fixture` is used.
+`true`, implemented browse capabilities (`listings`, `mangaList`, `home`,
+`filters`) set to `true`, config/image capabilities (`settings`,
+`imageRequest`) set to `false`, all future capabilities set to `false`, and
+`hostHints.network=false`. Static package validation accepts `koma_source_info`
+and browse exports as optional static exports and records the same runtime
+evidence when `--build-rust-fixture` is used.
 
 ### Browse Operations
 

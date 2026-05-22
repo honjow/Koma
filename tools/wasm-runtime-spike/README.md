@@ -111,6 +111,10 @@ SOURCE_API_OPERATION search ok:true magic=KOMA flags=1 len=...
 SOURCE_API_OPERATION get_manga ok:true magic=KOMA flags=1 len=...
 SOURCE_API_OPERATION get_chapters ok:true magic=KOMA flags=1 len=...
 SOURCE_API_OPERATION get_pages ok:true magic=KOMA flags=1 len=...
+SOURCE_API_OPERATION get_listings ok:true magic=KOMA
+SOURCE_API_OPERATION get_manga_list ok:true magic=KOMA
+SOURCE_API_OPERATION get_home ok:true magic=KOMA
+SOURCE_API_OPERATION get_filters ok:true magic=KOMA
 SOURCE_API_RUNTIME_SMOKE_PASS
 WAMR_SPIKE_PASS
 ```
@@ -121,7 +125,9 @@ The host runner validates:
 - `add(2,3)` returns `5`.
 - A JSON request buffer is copied into wasm memory.
 - `koma_source_search(ptr,len)`, `koma_source_get_manga(ptr,len)`,
-  `koma_source_get_chapters(ptr,len)`, and `koma_source_get_pages(ptr,len)`
+  `koma_source_get_chapters(ptr,len)`, `koma_source_get_pages(ptr,len)`,
+  `koma_source_get_listings(ptr,len)`, `koma_source_get_manga_list(ptr,len)`,
+  `koma_source_get_home(ptr,len)`, and `koma_source_get_filters(ptr,len)`
   return result buffers with `KOMA` magic, flags, payload length, and UTF-8
   JSON envelopes.
 - `koma_source_free(ptr)` is called after the host reads the payload.
@@ -148,8 +154,9 @@ operation helpers, KOMA result buffer/envelope writing, and the
 `hostHints.network=false` convention. The fixture imports only the existing
 `koma_host.log` and `koma_host.check_cancel` functions, exports `add`,
 `koma_source_init`, the four core source operation exports, and
-`koma_source_free`, and returns test envelope shapes with `Fixture Series` and
-`hostHints.network: false`.
+the S4 browse operation exports, and `koma_source_free`, and returns test
+envelope shapes with `Fixture Series`, deterministic listing/home/filter ids,
+and `hostHints.network: false`.
 
 The Rust SDK shape is provisional and tooling-only. Source fixture code
 implements a small `Source` trait and leaves ABI request reads, cancellation,

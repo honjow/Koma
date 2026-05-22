@@ -25,6 +25,12 @@ REQUIRED_EXPORTS = {
     "koma_source_free",
 }
 OPTIONAL_EXPORTS = {"koma_source_info"}
+OPTIONAL_BROWSE_EXPORTS = {
+    "koma_source_get_listings",
+    "koma_source_get_manga_list",
+    "koma_source_get_home",
+    "koma_source_get_filters",
+}
 CAPABILITY_KEYS = {"search", "detail", "chapterList", "pageList", "imageUrl"}
 SCOPE_FORBIDDEN_KEYS = {
     "repository",
@@ -244,7 +250,10 @@ def validate_source_info_payload(payload: dict) -> dict:
     require(isinstance(capabilities, dict), "source_info.capabilities must be an object")
     for key in ("search", "mangaDetail", "chapters", "pages"):
         require(capabilities.get(key) is True, f"source_info capability {key} must be true")
-    optional = ("listings", "mangaList", "home", "filters", "settings", "imageRequest")
+    browse = ("listings", "mangaList", "home", "filters")
+    for key in browse:
+        require(capabilities.get(key) is True, f"source_info capability {key} must be true")
+    optional = ("settings", "imageRequest")
     for key in optional:
         require(capabilities.get(key) is False, f"source_info capability {key} must be false")
     future = capabilities.get("future")
@@ -256,6 +265,7 @@ def validate_source_info_payload(payload: dict) -> dict:
         "sourceId": info["id"],
         "apiVersion": info["apiVersion"],
         "coreCapabilitiesTrue": ["search", "mangaDetail", "chapters", "pages"],
+        "browseCapabilitiesTrue": list(browse),
         "optionalCapabilitiesFalse": list(optional),
         "futureCapabilitiesFalse": sorted(future.keys()),
         "network": False,
@@ -267,7 +277,17 @@ def validate_runtime_operation_payloads(payloads: dict) -> dict:
     require("source_info" in payloads, "runtime smoke did not record source_info")
     source_info = validate_source_info_payload(payloads["source_info"])
 
-    for operation in ("search", "get_manga", "get_chapters", "get_pages"):
+    operations = (
+        "search",
+        "get_manga",
+        "get_chapters",
+        "get_pages",
+        "get_listings",
+        "get_manga_list",
+        "get_home",
+        "get_filters",
+    )
+    for operation in operations:
         payload = payloads.get(operation)
         require(isinstance(payload, dict), f"runtime smoke missing {operation} payload")
         require(payload.get("version") == 1, f"{operation}.version must be 1")
@@ -276,6 +296,18 @@ def validate_runtime_operation_payloads(payloads: dict) -> dict:
         require(isinstance(payload.get("data"), dict), f"{operation}.data must be an object")
         require(payload.get("hostHints", {}).get("network") is False,
                 f"{operation} hostHints.network must be false")
+    require(payloads["get_listings"]["data"]["listings"][0]["id"] == "listing:popular",
+            "get_listings fixture id drifted")
+    require(payloads["get_manga_list"]["data"]["listingId"] == "listing:popular",
+            "get_manga_list listingId drifted")
+    require(payloads["get_manga_list"]["data"]["page"]["nextCursor"] is None,
+            "get_manga_list nextCursor must be null")
+    require(payloads["get_manga_list"]["data"]["page"]["hasMore"] is False,
+            "get_manga_list hasMore must be false")
+    require(payloads["get_home"]["data"]["sections"][0]["id"] == "home:featured",
+            "get_home featured section drifted")
+    require(payloads["get_filters"]["data"]["filters"][0]["id"] == "filter:query",
+            "get_filters query filter drifted")
 
     rejected = payloads.get("unknown_operation_rejected")
     require(isinstance(rejected, dict), "runtime smoke missing unknown operation rejection")
@@ -289,6 +321,7 @@ def validate_runtime_operation_payloads(payloads: dict) -> dict:
     return {
         "sourceInfo": source_info,
         "coreOperations": ["search", "get_manga", "get_chapters", "get_pages"],
+        "browseOperations": ["get_listings", "get_manga_list", "get_home", "get_filters"],
         "unknownOperationRejected": True,
     }
 
@@ -342,7 +375,7 @@ def validate_manifest(manifest_path: Path, wasm_path_override: Path | None = Non
     require(wasm_import_set == ALLOWED_IMPORTS, f"wasm imports must be exactly {sorted(ALLOWED_IMPORTS)}")
     require(REQUIRED_EXPORTS.issubset(set(wasm_exports)),
             "wasm exports missing required fixture functions")
-    optional_exports = sorted(set(wasm_exports) & OPTIONAL_EXPORTS)
+    optional_exports = sorted(set(wasm_exports) & (OPTIONAL_EXPORTS | OPTIONAL_BROWSE_EXPORTS))
 
     capabilities = manifest.get("capabilities")
     require(isinstance(capabilities, dict), "capabilities object is required")
@@ -409,7 +442,9 @@ def run_rust_fixture(manifest_path: Path, artifact_dir: Path, manifest: dict) ->
     imports, exports = parse_wasm_imports_exports(wasm_path)
     require(set(imports) == ALLOWED_IMPORTS, "built rust fixture imports drifted")
     require(REQUIRED_EXPORTS.issubset(set(exports)), "built rust fixture exports drifted")
-    optional_exports = sorted(set(exports) & OPTIONAL_EXPORTS)
+    require(OPTIONAL_BROWSE_EXPORTS.issubset(set(exports)),
+            "built rust fixture missing browse operation exports")
+    optional_exports = sorted(set(exports) & (OPTIONAL_EXPORTS | OPTIONAL_BROWSE_EXPORTS))
     payload_path = rust_artifact_dir / "rust-source-operation-results.json"
     require(payload_path.is_file(), f"rust fixture runtime JSON evidence missing: {payload_path}")
     runtime_evidence = validate_runtime_operation_payloads(read_json(payload_path))
@@ -461,7 +496,7 @@ def main() -> int:
             f"wasm sha256 {manifest_evidence['wasmSha256']} size {manifest_evidence['wasmSizeBytes']} bytes",
             "imports constrained to koma_host.log and koma_host.check_cancel",
             "capabilities cover fixture search/detail/chapter/page operations",
-            "optional koma_source_info export accepted by static wasm validation",
+            "optional source_info and browse exports accepted by static wasm validation",
             "network=false and no market/index/install scope fields",
         ])
         if args.build_rust_fixture:
@@ -470,7 +505,7 @@ def main() -> int:
                 f"rust fixture built at {rust_result['wasmPath']} sha256 {rust_result['wasmSha256']}"
             )
             report["evidence"].append(
-                "runtime source_info validated with core capabilities true, optional capabilities false, and network=false"
+                "runtime source_info validated with core/browse capabilities true, config/image/future capabilities false, and network=false"
             )
             report["sourceInfoRuntimeEvidence"] = runtime_evidence
         else:

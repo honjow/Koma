@@ -13,8 +13,8 @@ The SDK intentionally covers only the current spike:
 - SDK-owned operation runners for `search`, `get_manga`, `get_chapters`, and
   `get_pages` that handle ABI request reads, operation checks, cancellation,
   JSON response envelope writing, and KOMA result buffer headers.
-- Default SDK runners for v0.2 optional browse/config/image operations. Sources
-  can override the trait methods later; the default response is a structured
+- SDK runners for v0.2 optional browse/config/image operations. Sources can
+  override the trait methods; the default response is a structured
   `unimplemented` error.
 - A small `koma_source_info` export path that serializes source metadata and
   capabilities through the same KOMA result buffer format.
@@ -69,7 +69,7 @@ impl Source for MySource {
         }
     }
 
-    /* implement get_manga, get_chapters, and get_pages */
+    /* implement get_manga, get_chapters, get_pages, and optional browse methods */
 }
 ```
 
@@ -89,9 +89,8 @@ Optional v0.2 operations are represented in the trait now:
 - `get_settings`
 - `get_image_request`
 
-The fixture does not export or smoke those operations yet. That keeps this lane
-focused on trait ergonomics and preserves the existing Linux/device smoke
-contract for the four core operations.
+The current fixture exports and smokes the browse methods. `get_settings` and
+`get_image_request` remain default-unimplemented until later config/image lanes.
 
 Rerun the local runtime smoke with:
 

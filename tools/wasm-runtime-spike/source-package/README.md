@@ -117,9 +117,10 @@ It validates required fields, scope rules, sha256, wasm magic/version, declared
 imports, exported fixture functions, optional `koma_source_info` discovery,
 capabilities, settings defaults, and network=false. With `--build-rust-fixture`
 it also parses the WAMR smoke JSON and records functional evidence that
-`source_info` returns Source API v0.2 metadata, core capabilities are true,
-optional/future capabilities are false, `hostHints.network=false`, and unknown
-operations reject instead of falling back to search.
+`source_info` returns Source API v0.2 metadata, core and browse capabilities are
+true, config/image/future capabilities are false, browse operations return the
+expected listing/home/filter/page shapes, `hostHints.network=false`, and
+unknown operations reject instead of falling back to search.
 
 To exercise the Rust-SDK-backed package build boundary:
 

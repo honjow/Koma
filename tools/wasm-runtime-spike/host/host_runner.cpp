@@ -203,15 +203,67 @@ void validate_source_info_envelope(const std::string &payload) {
     require_contains(payload, "\"mangaDetail\":true", "source_info capabilities");
     require_contains(payload, "\"chapters\":true", "source_info capabilities");
     require_contains(payload, "\"pages\":true", "source_info capabilities");
-    require_contains(payload, "\"listings\":false", "source_info capabilities");
-    require_contains(payload, "\"mangaList\":false", "source_info capabilities");
-    require_contains(payload, "\"home\":false", "source_info capabilities");
-    require_contains(payload, "\"filters\":false", "source_info capabilities");
+    require_contains(payload, "\"listings\":true", "source_info capabilities");
+    require_contains(payload, "\"mangaList\":true", "source_info capabilities");
+    require_contains(payload, "\"home\":true", "source_info capabilities");
+    require_contains(payload, "\"filters\":true", "source_info capabilities");
     require_contains(payload, "\"settings\":false", "source_info capabilities");
     require_contains(payload, "\"imageRequest\":false", "source_info capabilities");
     require_contains(payload, "\"process_page_image\":false", "source_info capabilities");
+    require_contains(payload, "\"page_description\":false", "source_info capabilities");
+    require_contains(payload, "\"base_url\":false", "source_info capabilities");
     require_contains(payload, "\"login\":false", "source_info capabilities");
     require_contains(payload, "\"auth\":false", "source_info capabilities");
+}
+
+void validate_operation_data(const std::string &operation, const std::string &payload) {
+    if (operation == "search") {
+        require_contains(payload, "\"requestEcho\":\"fixture\"", operation);
+        require_contains(payload, "\"id\":\"manga:fixture-series\"", operation);
+        require_contains(payload, "\"title\":\"Fixture Series\"", operation);
+        require_contains(payload, "\"page\":{\"nextCursor\":null,\"hasMore\":false}", operation);
+    }
+    else if (operation == "get_manga") {
+        require_contains(payload, "\"manga\":{\"id\":\"manga:fixture-series\"", operation);
+        require_contains(payload, "\"title\":\"Fixture Series\"", operation);
+    }
+    else if (operation == "get_chapters") {
+        require_contains(payload, "\"id\":\"chapter:fixture-series:001\"", operation);
+        require_contains(payload, "\"mangaId\":\"manga:fixture-series\"", operation);
+        require_contains(payload, "\"page\":{\"nextCursor\":null,\"hasMore\":false}", operation);
+    }
+    else if (operation == "get_pages") {
+        require_contains(payload, "\"chapterId\":\"chapter:fixture-series:001\"", operation);
+        require_contains(payload, "\"id\":\"page:fixture-series:001:0001\"", operation);
+    }
+    else if (operation == "get_listings") {
+        require_contains(payload, "\"listings\":[", operation);
+        require_contains(payload, "\"id\":\"listing:popular\"", operation);
+        require_contains(payload, "\"name\":\"Popular\"", operation);
+        require_contains(payload, "\"kind\":\"popular\"", operation);
+        require_contains(payload, "\"id\":\"listing:latest\"", operation);
+    }
+    else if (operation == "get_manga_list") {
+        require_contains(payload, "\"listingId\":\"listing:popular\"", operation);
+        require_contains(payload, "\"id\":\"manga:fixture-series\"", operation);
+        require_contains(payload, "\"title\":\"Fixture Series\"", operation);
+        require_contains(payload, "\"subtitle\":\"Browse fixture result\"", operation);
+        require_contains(payload, "\"page\":{\"nextCursor\":null,\"hasMore\":false}", operation);
+    }
+    else if (operation == "get_home") {
+        require_contains(payload, "\"sections\":[", operation);
+        require_contains(payload, "\"id\":\"home:featured\"", operation);
+        require_contains(payload, "\"kind\":\"mangaList\"", operation);
+        require_contains(payload, "\"id\":\"home:latest-link\"", operation);
+        require_contains(payload, "\"listingId\":\"listing:latest\"", operation);
+    }
+    else if (operation == "get_filters") {
+        require_contains(payload, "\"filters\":[", operation);
+        require_contains(payload, "\"id\":\"filter:query\"", operation);
+        require_contains(payload, "\"kind\":\"text\"", operation);
+        require_contains(payload, "\"id\":\"filter:sort\"", operation);
+        require_contains(payload, "\"kind\":\"sort\"", operation);
+    }
 }
 
 class Runtime {
@@ -389,7 +441,7 @@ public:
 
         std::cout << "SOURCE_API_SOURCE_INFO ok:true export=koma_source_info\n";
         std::cout << "SOURCE_API_JSON source_info=" << payload << "\n";
-        std::cout << "SOURCE_API_CAPABILITIES core:true optional:false network:false\n";
+        std::cout << "SOURCE_API_CAPABILITIES core:true browse:true config:false image:false network:false\n";
         return payload;
     }
 
@@ -415,6 +467,7 @@ public:
 
         std::string payload = read_result_payload(argv[0], true, operation.export_name);
         validate_source_envelope(operation.name, payload);
+        validate_operation_data(operation.name, payload);
 
         std::cout << "SOURCE_API_OPERATION " << operation.name << " ok:true"
                   << " magic=KOMA\n";
@@ -497,6 +550,37 @@ public:
                 "\"operation\":\"get_pages\",\"sourceId\":\"local.test.koma.fixture\","
                 "\"args\":{\"chapterId\":\"chapter:fixture-series:001\"},\"settings\":{},"
                 "\"hostHints\":{\"network\":false,\"imageStrategy\":\"descriptor-only\"}}",
+            },
+            {
+                "get_listings",
+                "koma_source_get_listings",
+                "{\"type\":\"request\",\"version\":1,\"requestId\":\"runtime-listings-001\","
+                "\"operation\":\"get_listings\",\"sourceId\":\"local.test.koma.fixture\","
+                "\"args\":{},\"settings\":{},\"hostHints\":{\"network\":false}}",
+            },
+            {
+                "get_manga_list",
+                "koma_source_get_manga_list",
+                "{\"type\":\"request\",\"version\":1,\"requestId\":\"runtime-manga-list-001\","
+                "\"operation\":\"get_manga_list\",\"sourceId\":\"local.test.koma.fixture\","
+                "\"args\":{\"listingId\":\"listing:popular\","
+                "\"page\":{\"cursor\":null,\"limit\":20},"
+                "\"filters\":{\"sort\":\"popular\"}},\"settings\":{},"
+                "\"hostHints\":{\"network\":false}}",
+            },
+            {
+                "get_home",
+                "koma_source_get_home",
+                "{\"type\":\"request\",\"version\":1,\"requestId\":\"runtime-home-001\","
+                "\"operation\":\"get_home\",\"sourceId\":\"local.test.koma.fixture\","
+                "\"args\":{},\"settings\":{},\"hostHints\":{\"network\":false}}",
+            },
+            {
+                "get_filters",
+                "koma_source_get_filters",
+                "{\"type\":\"request\",\"version\":1,\"requestId\":\"runtime-filters-001\","
+                "\"operation\":\"get_filters\",\"sourceId\":\"local.test.koma.fixture\","
+                "\"args\":{},\"settings\":{},\"hostHints\":{\"network\":false}}",
             },
         };
 

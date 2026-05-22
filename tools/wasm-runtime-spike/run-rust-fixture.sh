@@ -118,6 +118,10 @@ run_logged "${RUSTC_CMD[@]}" --target wasm32-unknown-unknown \
   -C link-arg=--export=koma_source_get_manga \
   -C link-arg=--export=koma_source_get_chapters \
   -C link-arg=--export=koma_source_get_pages \
+  -C link-arg=--export=koma_source_get_listings \
+  -C link-arg=--export=koma_source_get_manga_list \
+  -C link-arg=--export=koma_source_get_home \
+  -C link-arg=--export=koma_source_get_filters \
   -C link-arg=--export=koma_source_free \
   -C link-arg=--export-memory \
   -C link-arg=-z \
@@ -135,7 +139,7 @@ run_logged cmake --build "$HOST_BUILD_DIR" --target koma_wamr_spike --parallel
 log "+ $HOST_BUILD_DIR/koma_wamr_spike $WASM_OUT"
 "$HOST_BUILD_DIR/koma_wamr_spike" "$WASM_OUT" 2>&1 | redact_stream | tee -a "$RUN_LOG"
 
-for operation in search get_manga get_chapters get_pages; do
+for operation in search get_manga get_chapters get_pages get_listings get_manga_list get_home get_filters; do
   if ! grep -q "SOURCE_API_OPERATION $operation ok:true" "$RUN_LOG"; then
     log "missing SOURCE_API_OPERATION $operation ok:true evidence"
     exit 22
@@ -152,7 +156,7 @@ if ! grep -q 'SOURCE_API_SOURCE_INFO ok:true export=koma_source_info' "$RUN_LOG"
   exit 22
 fi
 
-if ! grep -q 'SOURCE_API_CAPABILITIES core:true optional:false network:false' "$RUN_LOG"; then
+if ! grep -q 'SOURCE_API_CAPABILITIES core:true browse:true config:false image:false network:false' "$RUN_LOG"; then
   log "missing SOURCE_API_CAPABILITIES evidence"
   exit 22
 fi
@@ -192,8 +196,9 @@ with open(run_log, "r", encoding="utf-8") as fh:
         name, raw = line[len("SOURCE_API_JSON "):].split("=", 1)
         payloads[name] = json.loads(raw)
 
+browse_expected = ["get_listings", "get_manga_list", "get_home", "get_filters"]
 core_expected = ["search", "get_manga", "get_chapters", "get_pages"]
-expected = ["source_info", *core_expected, "unknown_operation_rejected"]
+expected = ["source_info", *core_expected, *browse_expected, "unknown_operation_rejected"]
 assert sorted(payloads) == sorted(expected), payloads.keys()
 
 source_info = payloads["source_info"]
@@ -211,12 +216,14 @@ assert info["contentRating"] == "unknown"
 capabilities = source_info["data"]["capabilities"]
 for key in ["search", "mangaDetail", "chapters", "pages"]:
     assert capabilities[key] is True, key
-for key in ["listings", "mangaList", "home", "filters", "settings", "imageRequest"]:
+for key in ["listings", "mangaList", "home", "filters"]:
+    assert capabilities[key] is True, key
+for key in ["settings", "imageRequest"]:
     assert capabilities[key] is False, key
 for key, value in capabilities["future"].items():
     assert value is False, key
 
-for name in core_expected:
+for name in [*core_expected, *browse_expected]:
     payload = payloads[name]
     assert payload["version"] == 1
     assert payload["ok"] is True
@@ -225,6 +232,15 @@ for name in core_expected:
     assert payload["hostHints"]["network"] is False
 assert payloads["search"]["data"]["items"][0]["title"] == "Fixture Series"
 assert payloads["search"]["data"]["requestEcho"] == "fixture"
+assert payloads["get_listings"]["data"]["listings"][0]["id"] == "listing:popular"
+assert payloads["get_manga_list"]["data"]["listingId"] == "listing:popular"
+assert payloads["get_manga_list"]["data"]["items"][0]["title"] == "Fixture Series"
+assert payloads["get_manga_list"]["data"]["page"]["nextCursor"] is None
+assert payloads["get_manga_list"]["data"]["page"]["hasMore"] is False
+assert payloads["get_home"]["data"]["sections"][0]["id"] == "home:featured"
+assert payloads["get_home"]["data"]["sections"][1]["listingId"] == "listing:latest"
+assert payloads["get_filters"]["data"]["filters"][0]["id"] == "filter:query"
+assert payloads["get_filters"]["data"]["filters"][1]["kind"] == "sort"
 
 rejected = payloads["unknown_operation_rejected"]
 assert rejected["version"] == 1

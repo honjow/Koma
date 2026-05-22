@@ -20,8 +20,8 @@
     "mangaList": true,
     "home": true,
     "filters": true,
-    "settings": true,
-    "imageRequest": true,
+    "settings": false,
+    "imageRequest": false,
     "future": {
       "process_page_image": false,
       "page_description": false,
