@@ -8,8 +8,9 @@ import {
 import {
   importAndRegisterLocalSourceArchive,
   importAndRunLocalSourceArchive,
-  importRegisterPersistReloadAndRunLocalSourceArchiveRequest,
   importArchiveNegativeFixturesWithoutExecution,
+  importRegisterPersistReloadAndRunLocalSourceArchiveRequest,
+  importRegisterPersistRemovePayloadReloadAndRunLocalSourceArchiveRequest,
   persistReloadAndRunRegisteredSourcesById,
   reloadPersistedSourceInventoryAndRunRequestById,
   runRegisteredSourceApiOperationsById,
@@ -18,6 +19,7 @@ import {
   stageAndRegisterRawfileSourcePackage,
   SourceRuntimeServiceArchiveIngestionRunSummary,
   SourceRuntimeServicePersistedInventoryReloadSummary,
+  SourceRuntimeServicePersistedPayloadMissingSummary,
   SourceRuntimeServiceRegistrationSummary,
   SourceRuntimeServiceRegistryNegativeSummary,
   SourceRuntimeServiceRegistryReloadSummary,
@@ -45,6 +47,7 @@ const SMOKE_PHASE_PARAM: string = 'koma.sourceRuntimeSmoke.phase'
 const SMOKE_PHASE_FULL: string = 'full'
 const SMOKE_PHASE_SETUP_PERSISTED_INVENTORY: string = 'setup-persisted-inventory'
 const SMOKE_PHASE_RELOAD_PERSISTED_INVENTORY: string = 'reload-persisted-inventory'
+const SMOKE_PHASE_PERSISTED_PAYLOAD_MISSING: string = 'persisted-payload-missing'
 const SMOKE_REQUEST_JSON: string = '{"operation":"search","query":"fixture","smoke":"koma-smoke"}'
 const RUST_SMOKE_REQUEST_JSON: string = '{"operation":"search","query":"fixture","smoke":"koma-rust-smoke"}'
 const PACKAGE_SMOKE_REQUEST_JSON: string = '{"operation":"search","query":"fixture","smoke":"koma-package-smoke"}'
@@ -56,13 +59,16 @@ const ARCHIVE_ROUTE_LABEL: string = 'app-local-source-archive-import-test-only'
 const PACKAGE_REGISTRY_ROUTE_LABEL: string = 'app-local-source-package-registry-test-only'
 const ARCHIVE_REGISTRY_ROUTE_LABEL: string = 'app-local-source-archive-registry-test-only'
 const ARCHIVE_INGESTION_ROUTE_LABEL: string = 'app-local-source-archive-ingestion-run-request-test-only'
+const PERSISTED_PAYLOAD_MISSING_ROUTE_LABEL: string = 'app-local-source-persisted-payload-missing-test-only'
 const PACKAGE_REGISTRY_SOURCE_ID: string = 'local.test.koma.fixture.package.registry'
 const ARCHIVE_REGISTRY_SOURCE_ID: string = 'local.test.koma.fixture.archive.registry'
 const ARCHIVE_INGESTION_SOURCE_ID: string = 'local.test.koma.fixture.archive.ingestion'
+const PERSISTED_PAYLOAD_MISSING_SOURCE_ID: string = 'local.test.koma.fixture.persisted.payload.missing'
 const REGISTRY_RELOAD_METADATA_FILE: string = 'registry-metadata.json'
 const REGISTRY_RELOAD_MISSING_METADATA_FILE: string = 'missing-registry-metadata.json'
 const REGISTRY_RELOAD_CORRUPT_METADATA_FILE: string = 'corrupt-registry-metadata.json'
 const ARCHIVE_INGESTION_METADATA_FILE: string = 'archive-ingestion-registry-metadata.json'
+const PERSISTED_PAYLOAD_MISSING_METADATA_FILE: string = 'persisted-payload-missing-registry-metadata.json'
 const ARCHIVE_RAWFILE_PATH: string = 'test/local_source_runtime_fixture.koma-source'
 const ARCHIVE_SANDBOX_ZIP_FILE: string = 'local_source_runtime_fixture.zip'
 const ARCHIVE_REQUEST_JSON: string = '{"operation":"search","query":"fixture","smoke":"koma-archive-smoke"}'
@@ -280,6 +286,16 @@ export interface SourceRuntimeSmokeResult {
   sourceRuntimePersistedInventoryRestartReloadOnlyDidNotImportArchive?: boolean
   sourceRuntimePersistedInventoryRestartReloadedSourceCount?: number
   sourceRuntimePersistedInventoryRestartPhase?: string
+  sourceRuntimePersistedPayloadMissingOk?: boolean
+  sourceRuntimePersistedPayloadMissingImportRegisterOk?: boolean
+  sourceRuntimePersistedPayloadMissingMetadataWrittenOk?: boolean
+  sourceRuntimePersistedPayloadMissingMutationApplied?: boolean
+  sourceRuntimePersistedPayloadMissingMetadataReloadRejected?: boolean
+  sourceRuntimePersistedPayloadMissingReasonCode?: string
+  sourceRuntimePersistedPayloadMissingReloadOnlyDidNotImportArchive?: boolean
+  sourceRuntimePersistedPayloadMissingAttemptedWamrExecution?: boolean
+  sourceRuntimePersistedPayloadMissingRunRejected?: boolean
+  sourceRuntimePersistedPayloadMissingRunRequest?: SourceRuntimeRunRequestByIdEvidence
   sourceRuntimeArchiveIngestionSearchOk?: boolean
   sourceRuntimeArchiveIngestionSearch?: SourceRuntimeRunRequestByIdEvidence
   sourceRuntimeArchiveIngestionNonSearchOk?: boolean
@@ -540,6 +556,27 @@ function runSourceRuntimePersistedInventoryReloadSmoke(
   applyPersistedInventoryReloadEvidence(result, summary)
 }
 
+async function runSourceRuntimePersistedPayloadMissingSmoke(
+  context: common.UIAbilityContext,
+  resourceMgr: resourceManager.ResourceManager,
+  result: SourceRuntimeSmokeResult,
+): Promise<void> {
+  const metadataRoot = joinSourceRuntimeSmokePath(context.filesDir, 'source-runtime-persisted-payload-missing-smoke')
+  const searchRequestJson = `{"type":"request","version":1,"requestId":"device-persisted-payload-missing-search-001","operation":"search","sourceId":"${PERSISTED_PAYLOAD_MISSING_SOURCE_ID}","args":{"query":"fixture","page":{"cursor":null,"limit":20}},"settings":{},"hostHints":{"network":false}}`
+  const summary = await importRegisterPersistRemovePayloadReloadAndRunLocalSourceArchiveRequest(
+    context,
+    resourceMgr,
+    ARCHIVE_RAWFILE_PATH,
+    'source-runtime-persisted-payload-missing-smoke',
+    'local_source_runtime_persisted_payload_missing_fixture.zip',
+    joinSourceRuntimeSmokePath(metadataRoot, PERSISTED_PAYLOAD_MISSING_METADATA_FILE),
+    PERSISTED_PAYLOAD_MISSING_SOURCE_ID,
+    PERSISTED_PAYLOAD_MISSING_ROUTE_LABEL,
+    searchRequestJson,
+  )
+  applyPersistedPayloadMissingEvidence(result, summary)
+}
+
 function applyRunByIdEvidence(
   result: SourceRuntimeSmokeResult,
   summary: SourceRuntimeServiceRunByIdSummary,
@@ -796,6 +833,41 @@ function applyPersistedInventoryReloadEvidence(
       result.sourceRuntimeInstalledSourceInventorySelectedRunRequestOk === true
 }
 
+function applyPersistedPayloadMissingEvidence(
+  result: SourceRuntimeSmokeResult,
+  summary: SourceRuntimeServicePersistedPayloadMissingSummary,
+): void {
+  result.sourceRuntimeArchiveIngestionSourceId = summary.sourceId
+  result.sourceRuntimeArchiveIngestionRoute = summary.route
+  result.sourceRuntimeArchiveIngestionMetadataPath = summary.metadataPath
+  result.sourceRuntimeArchiveIngestionPersistedSourceCount = summary.persistedSourceCount
+  result.sourceRuntimeArchiveIngestionReloadedSourceCount = summary.reloadedSourceCount
+  result.sourceRuntimePersistedPayloadMissingImportRegisterOk = summary.importRegister.ok &&
+    summary.importRegister.entry !== undefined &&
+    summary.importRegister.entry.importStatus === 'imported'
+  result.sourceRuntimePersistedPayloadMissingMetadataWrittenOk = summary.persistedSourceCount === 1
+  result.sourceRuntimePersistedPayloadMissingMutationApplied = summary.payloadMutationApplied
+  result.sourceRuntimePersistedPayloadMissingMetadataReloadRejected = summary.metadataReloadRejected
+  result.sourceRuntimePersistedPayloadMissingReasonCode = summary.reasonCode
+  result.sourceRuntimePersistedPayloadMissingReloadOnlyDidNotImportArchive = summary.reloadOnlyDidNotImportArchive
+  result.sourceRuntimePersistedPayloadMissingAttemptedWamrExecution =
+    summary.searchRunRequestById.attemptedWamrExecution
+  result.sourceRuntimePersistedPayloadMissingRunRejected =
+    !summary.searchRunRequestById.ok && summary.searchRunRequestById.reasonCode === 'wasm_missing'
+  result.sourceRuntimePersistedPayloadMissingRunRequest =
+    compactRunRequestByIdEvidence(summary.searchRunRequestById)
+  result.sourceRuntimePersistedPayloadMissingOk =
+    summary.ok &&
+      result.sourceRuntimePersistedPayloadMissingImportRegisterOk === true &&
+      result.sourceRuntimePersistedPayloadMissingMetadataWrittenOk === true &&
+      result.sourceRuntimePersistedPayloadMissingMutationApplied === true &&
+      result.sourceRuntimePersistedPayloadMissingMetadataReloadRejected === true &&
+      result.sourceRuntimePersistedPayloadMissingReasonCode === 'wasm_missing' &&
+      result.sourceRuntimePersistedPayloadMissingReloadOnlyDidNotImportArchive === true &&
+      result.sourceRuntimePersistedPayloadMissingRunRejected === true &&
+      result.sourceRuntimePersistedPayloadMissingAttemptedWamrExecution === false
+}
+
 function compactRunRequestByIdEvidence(
   summary: SourceRuntimeServiceRunRequestByIdSummary,
 ): SourceRuntimeRunRequestByIdEvidence {
@@ -958,6 +1030,22 @@ export async function maybeRunSourceRuntimeDeviceSmoke(
         result.ok = result.sourceRuntimePersistedInventoryRestartOk === true
         if (!result.ok && result.error === undefined) {
           result.error = 'Persisted inventory reload-only phase failed to reload metadata and run selected source request'
+        }
+      }
+      compactSmokeResultForHilog(result)
+      console.info(SMOKE_LOG_PREFIX + JSON.stringify(result))
+      return
+    }
+
+    if (result.smokePhase === SMOKE_PHASE_PERSISTED_PAYLOAD_MISSING) {
+      result.sourceRuntimePersistedInventoryRestartPhase = SMOKE_PHASE_PERSISTED_PAYLOAD_MISSING
+      if (resourceMgr === undefined || context === undefined) {
+        result.error = 'source runtime persisted payload missing smoke requires resource manager and ability context'
+      } else {
+        await runSourceRuntimePersistedPayloadMissingSmoke(context, resourceMgr, result)
+        result.ok = result.sourceRuntimePersistedPayloadMissingOk === true
+        if (!result.ok && result.error === undefined) {
+          result.error = 'Persisted payload missing phase failed to reject metadata reload/run without archive re-import or WAMR execution'
         }
       }
       compactSmokeResultForHilog(result)

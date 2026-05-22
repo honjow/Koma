@@ -158,6 +158,22 @@ export interface SourceRuntimeServicePersistedInventoryReloadSummary {
   sourceIdMismatchRunRequestById: SourceRuntimeServiceRunRequestByIdSummary
 }
 
+export interface SourceRuntimeServicePersistedPayloadMissingSummary {
+  ok: boolean
+  sourceId: string
+  route: string
+  reasonCode?: string
+  metadataPath: string
+  archivePath?: string
+  importRegister: SourceRuntimeServiceRegistrationSummary
+  persistedSourceCount: number
+  payloadMutationApplied: boolean
+  reloadOnlyDidNotImportArchive: boolean
+  metadataReloadRejected: boolean
+  reloadedSourceCount: number
+  searchRunRequestById: SourceRuntimeServiceRunRequestByIdSummary
+}
+
 function closeFileQuietly(file: fs.File | undefined): void {
   if (file === undefined) {
     return
@@ -821,6 +837,99 @@ export async function importRegisterPersistReloadAndRunLocalSourceArchiveRequest
   }
 }
 
+export async function importRegisterPersistRemovePayloadReloadAndRunLocalSourceArchiveRequest(
+  context: common.UIAbilityContext,
+  resourceMgr: resourceManager.ResourceManager,
+  rawfilePath: string,
+  archiveRootName: string,
+  archiveFileName: string,
+  metadataPath: string,
+  sourceId: string,
+  route: string,
+  searchRequestJson: string,
+): Promise<SourceRuntimeServicePersistedPayloadMissingSummary> {
+  const registry = new SourceRuntimeRegistry()
+  const importedRegistered = await importAndRegisterLocalSourceArchive(
+    registry,
+    context,
+    resourceMgr,
+    rawfilePath,
+    archiveRootName,
+    archiveFileName,
+    sourceId,
+    route,
+  )
+  if (!importedRegistered.ok || importedRegistered.entry === undefined) {
+    return sourceRuntimeServicePersistedPayloadMissingRejected(
+      sourceId,
+      route,
+      metadataPath,
+      importedRegistered,
+      0,
+      false,
+      0,
+      importedRegistered.reasonCode,
+    )
+  }
+
+  const persist = persistSourceRuntimeRegistryMetadata(registry, metadataPath)
+  if (!persist.ok) {
+    return sourceRuntimeServicePersistedPayloadMissingRejected(
+      sourceId,
+      route,
+      metadataPath,
+      importedRegistered,
+      persist.persistedSourceCount,
+      false,
+      0,
+      persist.reasonCode,
+    )
+  }
+
+  const wasmPath = importedRegistered.entry.wasmPath
+  if (wasmPath === undefined || wasmPath.trim().length === 0 || !fs.accessSync(wasmPath)) {
+    return sourceRuntimeServicePersistedPayloadMissingRejected(
+      sourceId,
+      route,
+      metadataPath,
+      importedRegistered,
+      persist.persistedSourceCount,
+      false,
+      0,
+      'wasm_missing',
+    )
+  }
+
+  await fs.unlink(wasmPath)
+  const reloaded = reloadPersistedSourceInventoryAndRunRequestById(
+    metadataPath,
+    sourceId,
+    route,
+    searchRequestJson,
+    searchRequestJson,
+  )
+  const missingPayloadRejected =
+    !reloaded.ok &&
+      reloaded.reasonCode === 'wasm_missing' &&
+      reloaded.searchRunRequestById.reasonCode === 'wasm_missing' &&
+      reloaded.searchRunRequestById.attemptedWamrExecution === false
+  return {
+    ok: missingPayloadRejected && reloaded.reloadOnlyDidNotImportArchive,
+    sourceId,
+    route,
+    reasonCode: reloaded.reasonCode,
+    metadataPath,
+    archivePath: importedRegistered.entry.archivePath,
+    importRegister: importedRegistered,
+    persistedSourceCount: persist.persistedSourceCount,
+    payloadMutationApplied: !fs.accessSync(wasmPath),
+    reloadOnlyDidNotImportArchive: reloaded.reloadOnlyDidNotImportArchive,
+    metadataReloadRejected: reloaded.reasonCode === 'wasm_missing',
+    reloadedSourceCount: reloaded.reloadedSourceCount,
+    searchRunRequestById: reloaded.searchRunRequestById,
+  }
+}
+
 export function reloadPersistedSourceInventoryAndRunRequestById(
   metadataPath: string,
   sourceId: string,
@@ -892,6 +1001,33 @@ export function reloadPersistedSourceInventoryAndRunRequestById(
     nonSearchRunRequestById,
     unknownSourceRunRequestById,
     sourceIdMismatchRunRequestById,
+  }
+}
+
+function sourceRuntimeServicePersistedPayloadMissingRejected(
+  sourceId: string,
+  route: string,
+  metadataPath: string,
+  importRegister: SourceRuntimeServiceRegistrationSummary,
+  persistedSourceCount: number,
+  payloadMutationApplied: boolean,
+  reloadedSourceCount: number,
+  reasonCode?: string,
+): SourceRuntimeServicePersistedPayloadMissingSummary {
+  return {
+    ok: false,
+    sourceId,
+    route,
+    reasonCode,
+    metadataPath,
+    archivePath: importRegister.entry?.archivePath,
+    importRegister,
+    persistedSourceCount,
+    payloadMutationApplied,
+    reloadOnlyDidNotImportArchive: true,
+    metadataReloadRejected: reasonCode === 'wasm_missing',
+    reloadedSourceCount,
+    searchRunRequestById: sourceRuntimeServiceRunRequestByIdRejected(sourceId, reloadedSourceCount, reasonCode),
   }
 }
 

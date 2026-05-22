@@ -205,6 +205,7 @@ require_text "$smoke_file" 'compactInstalledSourceInventoryForHilog'
 require_text "$smoke_file" 'koma.sourceRuntimeSmoke.phase'
 require_text "$smoke_file" 'setup-persisted-inventory'
 require_text "$smoke_file" 'reload-persisted-inventory'
+require_text "$smoke_file" 'persisted-payload-missing'
 require_text "$smoke_file" 'sourceRuntimePersistedInventoryRestartOk'
 require_text "$smoke_file" 'sourceRuntimePersistedInventoryRestartSetupOk'
 require_text "$smoke_file" 'sourceRuntimePersistedInventoryRestartReloadOnlyOk'
@@ -212,6 +213,12 @@ require_text "$smoke_file" 'sourceRuntimePersistedInventoryRestartMetadataWritte
 require_text "$smoke_file" 'sourceRuntimePersistedInventoryRestartMetadataReloadedOk'
 require_text "$smoke_file" 'sourceRuntimePersistedInventoryRestartReloadOnlyDidNotImportArchive'
 require_text "$smoke_file" 'runSourceRuntimePersistedInventoryReloadSmoke'
+require_text "$smoke_file" 'sourceRuntimePersistedPayloadMissingOk'
+require_text "$smoke_file" 'sourceRuntimePersistedPayloadMissingReasonCode'
+require_text "$smoke_file" 'sourceRuntimePersistedPayloadMissingAttemptedWamrExecution'
+require_text "$smoke_file" 'sourceRuntimePersistedPayloadMissingReloadOnlyDidNotImportArchive'
+require_text "$smoke_file" 'runSourceRuntimePersistedPayloadMissingSmoke'
+require_text "$smoke_file" 'importRegisterPersistRemovePayloadReloadAndRunLocalSourceArchiveRequest'
 require_text "$smoke_file" 'sourceId: item.sourceId'
 require_text "$smoke_file" 'displayName: item.displayName'
 require_text "$smoke_file" 'wasmByteCount: item.wasmByteCount'
@@ -280,7 +287,9 @@ require_text "$source_runtime_service_file" 'source_id_not_registered'
 require_text "$source_runtime_service_file" 'SourceRuntimeServiceRunRequestByIdSummary'
 require_text "$source_runtime_service_file" 'SourceRuntimeServiceArchiveIngestionRunSummary'
 require_text "$source_runtime_service_file" 'SourceRuntimeServicePersistedInventoryReloadSummary'
+require_text "$source_runtime_service_file" 'SourceRuntimeServicePersistedPayloadMissingSummary'
 require_text "$source_runtime_service_file" 'reloadPersistedSourceInventoryAndRunRequestById'
+require_text "$source_runtime_service_file" 'importRegisterPersistRemovePayloadReloadAndRunLocalSourceArchiveRequest'
 require_text "$source_runtime_service_file" 'reloadOnlyDidNotImportArchive: true'
 require_text "$source_runtime_service_file" 'listInstalledSourceSummaries'
 require_text "$source_runtime_service_file" 'installedSourceInventoryOk'
@@ -317,9 +326,20 @@ if ! rg -U -q 'reloadPersistedSourceInventoryAndRunRequestById[\s\S]*reloadSourc
   exit 1
 fi
 
+if ! rg -U -q 'importRegisterPersistRemovePayloadReloadAndRunLocalSourceArchiveRequest[\s\S]*importAndRegisterLocalSourceArchive[\s\S]*persistSourceRuntimeRegistryMetadata[\s\S]*fs\.unlink[\s\S]*reloadPersistedSourceInventoryAndRunRequestById' "$source_runtime_service_file"; then
+  echo "persisted payload missing helper must import/register, persist metadata, remove app-local wasm payload, then use reload-only request path" >&2
+  exit 1
+fi
+
 reload_helper="$(sed -n '/export function reloadPersistedSourceInventoryAndRunRequestById/,/^}/p' "$source_runtime_service_file")"
 if printf '%s\n' "$reload_helper" | rg -q 'importAndRegisterLocalSourceArchive|importLocalSourceArchive|stageRawfileSourcePackage'; then
   echo "persisted inventory reload-only helper must not import or stage source archives" >&2
+  exit 1
+fi
+
+payload_missing_helper="$(sed -n '/export async function importRegisterPersistRemovePayloadReloadAndRunLocalSourceArchiveRequest/,/^}/p' "$source_runtime_service_file")"
+if ! printf '%s\n' "$payload_missing_helper" | rg -q 'reloadPersistedSourceInventoryAndRunRequestById'; then
+  echo "persisted payload missing helper must delegate reload/run to the reload-only helper" >&2
   exit 1
 fi
 require_text "$source_runtime_registry_file" 'class SourceRuntimeRegistry'
