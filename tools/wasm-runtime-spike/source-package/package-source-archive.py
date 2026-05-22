@@ -15,7 +15,17 @@ from redaction import redacted_command, redact_text, redact_value, write_redacte
 
 
 HOST_ABI = "koma-host-v0.1"
-HOST_IMPORTS = ["koma_host.log", "koma_host.check_cancel"]
+FIXTURE_HTTP_HOST_ABI = "koma-host-v0.1-fixture-http"
+FIXTURE_HTTP_HTML_HOST_ABI = "koma-host-v0.1-fixture-http-html"
+BASE_HOST_IMPORTS = ["koma_host.log", "koma_host.check_cancel"]
+HTTP_HOST_IMPORTS = BASE_HOST_IMPORTS + ["koma_host.http_request"]
+HTML_HOST_IMPORTS = [
+    "koma_host.html_parse",
+    "koma_host.html_select",
+    "koma_host.html_attr",
+    "koma_host.html_text",
+    "koma_host.html_close",
+]
 CONTENT_POLICY_KEYS = ("publicIndex", "marketplace", "builtInSource", "remoteInstall")
 MAX_MANIFEST_BYTES = 1024 * 1024
 MAX_WASM_BYTES = 2 * 1024 * 1024
@@ -241,10 +251,24 @@ def extract_archive(archive_path: Path, extract_dir: Path) -> None:
                 shutil.copyfileobj(src, dst)
 
 
+def active_fixture_policy(manifest: dict) -> tuple[str, list[str]]:
+    permissions = manifest.get("permissions", {})
+    http_enabled = isinstance(permissions.get("experimentalHttpFixture"), dict) and \
+        permissions["experimentalHttpFixture"].get("enabled") is True
+    html_enabled = isinstance(permissions.get("experimentalHtmlFixture"), dict) and \
+        permissions["experimentalHtmlFixture"].get("enabled") is True
+    if html_enabled:
+        return FIXTURE_HTTP_HTML_HOST_ABI, HTTP_HOST_IMPORTS + HTML_HOST_IMPORTS
+    if http_enabled:
+        return FIXTURE_HTTP_HOST_ABI, HTTP_HOST_IMPORTS
+    return HOST_ABI, BASE_HOST_IMPORTS
+
+
 def manifest_gates(manifest: dict, wasm_sha: str, wasm_size: int) -> list[dict]:
     runtime = manifest.get("runtime", {})
     permissions = manifest.get("permissions", {})
     content_policy = manifest.get("contentPolicy", {})
+    expected_host_abi, expected_host_imports = active_fixture_policy(manifest)
     imports = [
         f"{item.get('module')}.{item.get('name')}"
         for item in runtime.get("requiredHostImports", [])
@@ -253,11 +277,13 @@ def manifest_gates(manifest: dict, wasm_sha: str, wasm_size: int) -> list[dict]:
     gates = [
         {"name": "network", "status": "PASS" if permissions.get("network") is False else "FAIL",
          "value": permissions.get("network")},
-        {"name": "hostAbi", "status": "PASS" if runtime.get("hostAbi") == HOST_ABI else "FAIL",
-         "value": runtime.get("hostAbi")},
-        {"name": "hostImports", "status": "PASS" if imports == HOST_IMPORTS else "FAIL", "value": imports},
-        {"name": "permissionsHostImports", "status": "PASS" if permissions.get("hostImports") == HOST_IMPORTS else "FAIL",
-         "value": permissions.get("hostImports")},
+        {"name": "hostAbi", "status": "PASS" if runtime.get("hostAbi") == expected_host_abi else "FAIL",
+         "value": runtime.get("hostAbi"), "expected": expected_host_abi},
+        {"name": "hostImports", "status": "PASS" if imports == expected_host_imports else "FAIL",
+         "value": imports, "expected": expected_host_imports},
+        {"name": "permissionsHostImports",
+         "status": "PASS" if permissions.get("hostImports") == expected_host_imports else "FAIL",
+         "value": permissions.get("hostImports"), "expected": expected_host_imports},
         {"name": "wasmSha256", "status": "PASS" if runtime.get("wasm", {}).get("sha256") == wasm_sha else "FAIL",
          "value": runtime.get("wasm", {}).get("sha256"), "actual": wasm_sha},
         {"name": "wasmSize", "status": "PASS" if wasm_size <= runtime.get("limits", {}).get("maxWasmBytes", 0) else "FAIL",
@@ -377,7 +403,7 @@ def main() -> int:
                 f"entries: {', '.join(archive_info['entries'])}",
                 f"wasm sha256 {validated['wasm']['sha256']} size {validated['wasm']['sizeBytes']} bytes",
                 "staged archive manifest passed validate-source-package.py",
-                "network=false, hostAbi=koma-host-v0.1, host imports log/check_cancel, and content policy flags closed",
+                "network=false, active fixture host ABI/import policy, and content policy flags closed",
             ])
     except Exception as err:
         report["error"] = str(err)

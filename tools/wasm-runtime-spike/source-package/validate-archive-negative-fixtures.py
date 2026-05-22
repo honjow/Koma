@@ -130,11 +130,11 @@ def build_fixtures(entries: dict[str, bytes], fixture_dir: Path) -> list[dict]:
     add("manifest_network_true", "manifest-network-true.koma-source.zip",
         case_entries(entries, manifest=network_manifest))
 
-    http_manifest = json.loads(json.dumps(manifest))
-    http_manifest["runtime"]["requiredHostImports"].append({"module": "koma_host", "name": "http_request"})
-    http_manifest["permissions"]["hostImports"].append("koma_host.http_request")
-    add("http_import_enabled", "http-import-enabled.koma-source.zip",
-        case_entries(entries, manifest=http_manifest))
+    host_import_drift_manifest = json.loads(json.dumps(manifest))
+    host_import_drift_manifest["runtime"]["requiredHostImports"].append({"module": "koma_host", "name": "raw_socket"})
+    host_import_drift_manifest["permissions"]["hostImports"].append("koma_host.raw_socket")
+    add("host_import_policy_drift", "host-import-policy-drift.koma-source.zip",
+        case_entries(entries, manifest=host_import_drift_manifest))
 
     tampered_wasm = wasm + b"\0tampered"
     add("wasm_sha256_mismatch", "wasm-sha256-mismatch.koma-source.zip",
