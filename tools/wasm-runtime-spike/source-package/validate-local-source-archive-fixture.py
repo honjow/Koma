@@ -10,7 +10,7 @@ PACKAGE_ID = "local.test.koma.fixture"
 PACKAGE_VERSION = "0.1.0"
 MANIFEST_NAME = "manifest.generated.json"
 WASM_NAME = "rust_source_runtime_fixture.wasm"
-WASM_SHA256 = "6d06d3a936bd0316818ec9d5754ea96c9cb33110c520cede6f0945c3eedbb4f8"
+WASM_SHA256 = "255163710202d77fa218f1ccf96fbdcc7ec954b8f8bd1a04e6f15426a2d00161"
 WASM_MAX_BYTES = 131072
 FORBIDDEN_TEXT = (
     "source market",

@@ -38,8 +38,11 @@ import {
   runSourceApiV02SurfaceFromBytes,
   runSearchFixtureFromBytes,
   runSourceOperationFromBytes,
+  runSourceRuntimeSizeLimitNegativesFromBytes,
   SourceRuntimeApiOperationsSummary,
   SourceRuntimeNegativeExecutionCaseSummary,
+  SourceRuntimeSizeLimitNegativeCaseSummary,
+  SourceRuntimeSizeLimitNegativeSummary,
   SourceRuntimeV02SurfaceSummary,
 } from './SourceRuntimeRunner'
 
@@ -51,6 +54,7 @@ const SMOKE_PHASE_SETUP_PERSISTED_INVENTORY: string = 'setup-persisted-inventory
 const SMOKE_PHASE_RELOAD_PERSISTED_INVENTORY: string = 'reload-persisted-inventory'
 const SMOKE_PHASE_PERSISTED_PAYLOAD_MISSING: string = 'persisted-payload-missing'
 const SMOKE_PHASE_SOURCE_API_V02: string = 'source-api-v02'
+const SMOKE_PHASE_SIZE_LIMIT_NEGATIVES: string = 'size-limit-negatives'
 const SMOKE_REQUEST_JSON: string = '{"operation":"search","query":"fixture","smoke":"koma-smoke"}'
 const RUST_SMOKE_REQUEST_JSON: string = '{"operation":"search","query":"fixture","smoke":"koma-rust-smoke"}'
 const PACKAGE_SMOKE_REQUEST_JSON: string = '{"operation":"search","query":"fixture","smoke":"koma-package-smoke"}'
@@ -146,6 +150,16 @@ export interface SourceRuntimeRunRequestByIdEvidence {
   responseOk: boolean
   reasonCode?: string
   attemptedWamrExecution: boolean
+}
+
+export interface SourceRuntimeSizeLimitNegativeCaseEvidence {
+  id: string
+  rejected: boolean
+  reasonCode?: string
+  attemptedWamrExecution: boolean
+  requestBytes?: number
+  resultBytes?: number
+  noRawPayloadOrPathLeak: boolean
 }
 
 export interface SourceRuntimeSmokeResult {
@@ -309,6 +323,19 @@ export interface SourceRuntimeSmokeResult {
   sourceRuntimePersistedPayloadMissingAttemptedWamrExecution?: boolean
   sourceRuntimePersistedPayloadMissingRunRejected?: boolean
   sourceRuntimePersistedPayloadMissingRunRequest?: SourceRuntimeRunRequestByIdEvidence
+  sourceRuntimeSizeLimitNegativesOk?: boolean
+  sourceRuntimeOversizedRequestRejected?: boolean
+  sourceRuntimeOversizedRequestReasonCode?: string
+  sourceRuntimeOversizedRequestAttemptedWamrExecution?: boolean
+  sourceRuntimeOversizedResultRejected?: boolean
+  sourceRuntimeOversizedResultReasonCode?: string
+  sourceRuntimeOversizedResultAttemptedWamrExecution?: boolean
+  sourceRuntimeMalformedResultRejected?: boolean
+  sourceRuntimeMalformedResultReasonCode?: string
+  sourceRuntimeMalformedResultAttemptedWamrExecution?: boolean
+  sourceRuntimeSizeLimitStableReasonCodes?: string[]
+  sourceRuntimeSizeLimitNoRawPayloadOrPathLeak?: boolean
+  sourceRuntimeSizeLimitNegativeCases?: SourceRuntimeSizeLimitNegativeCaseEvidence[]
   sourceRuntimeArchiveIngestionSearchOk?: boolean
   sourceRuntimeArchiveIngestionSearch?: SourceRuntimeRunRequestByIdEvidence
   sourceRuntimeArchiveIngestionNonSearchOk?: boolean
@@ -405,6 +432,43 @@ function applySourceApiV02Evidence(
   result.sourceApiV02Operations = summary.operations
   result.sourceApiV02UnsupportedOperations = summary.unsupportedOperations
   result.sourceApiV02Evidence = summary.evidence
+}
+
+function compactSizeLimitNegativeCase(
+  summary: SourceRuntimeSizeLimitNegativeCaseSummary,
+): SourceRuntimeSizeLimitNegativeCaseEvidence {
+  return {
+    id: summary.id,
+    rejected: summary.rejected,
+    reasonCode: summary.reasonCode,
+    attemptedWamrExecution: summary.attemptedWamrExecution,
+    requestBytes: summary.requestBytes,
+    resultBytes: summary.resultBytes,
+    noRawPayloadOrPathLeak: summary.noRawPayloadOrPathLeak,
+  }
+}
+
+function applySizeLimitNegativeEvidence(
+  result: SourceRuntimeSmokeResult,
+  summary: SourceRuntimeSizeLimitNegativeSummary,
+): void {
+  result.sourceRuntimeSizeLimitNegativesOk = summary.ok
+  result.sourceRuntimeOversizedRequestRejected = summary.oversizedRequest.rejected
+  result.sourceRuntimeOversizedRequestReasonCode = summary.oversizedRequest.reasonCode
+  result.sourceRuntimeOversizedRequestAttemptedWamrExecution = summary.oversizedRequest.attemptedWamrExecution
+  result.sourceRuntimeOversizedResultRejected = summary.oversizedResult.rejected
+  result.sourceRuntimeOversizedResultReasonCode = summary.oversizedResult.reasonCode
+  result.sourceRuntimeOversizedResultAttemptedWamrExecution = summary.oversizedResult.attemptedWamrExecution
+  result.sourceRuntimeMalformedResultRejected = summary.malformedResult.rejected
+  result.sourceRuntimeMalformedResultReasonCode = summary.malformedResult.reasonCode
+  result.sourceRuntimeMalformedResultAttemptedWamrExecution = summary.malformedResult.attemptedWamrExecution
+  result.sourceRuntimeSizeLimitStableReasonCodes = summary.stableReasonCodes
+  result.sourceRuntimeSizeLimitNoRawPayloadOrPathLeak = summary.noRawPayloadOrPathLeak
+  result.sourceRuntimeSizeLimitNegativeCases = [
+    compactSizeLimitNegativeCase(summary.oversizedRequest),
+    compactSizeLimitNegativeCase(summary.oversizedResult),
+    compactSizeLimitNegativeCase(summary.malformedResult),
+  ]
 }
 
 function compactRegistryEntry(summary: SourceRuntimeServiceRegistrationSummary): SourceRuntimeRegistryEntryEvidence | undefined {
@@ -1112,6 +1176,23 @@ export async function maybeRunSourceRuntimeDeviceSmoke(
       return
     }
 
+    if (result.smokePhase === SMOKE_PHASE_SIZE_LIMIT_NEGATIVES) {
+      if (resourceMgr === undefined) {
+        result.error = 'source runtime size-limit negative smoke requires resource manager'
+      } else {
+        const rustWasmBytes = resourceMgr.getRawFileContentSync(RUST_SMOKE_RAWFILE_PATH)
+        result.rustRawfileBytes = rustWasmBytes.byteLength
+        applySizeLimitNegativeEvidence(result, runSourceRuntimeSizeLimitNegativesFromBytes(rustWasmBytes))
+        result.ok = result.sourceRuntimeSizeLimitNegativesOk === true
+        if (!result.ok && result.error === undefined) {
+          result.error = 'Size-limit negative phase failed to reject request/result/malformed envelope with stable reasons'
+        }
+      }
+      compactSmokeResultForHilog(result)
+      console.info(SMOKE_LOG_PREFIX + JSON.stringify(result))
+      return
+    }
+
     if (result.smokePhase !== SMOKE_PHASE_FULL) {
       result.error = 'unknown source runtime smoke phase'
       compactSmokeResultForHilog(result)
@@ -1134,11 +1215,13 @@ export async function maybeRunSourceRuntimeDeviceSmoke(
       const rustSourceRun = runSearchFixtureFromBytes(RUST_SMOKE_REQUEST_JSON, rustWasmBytes)
       const rustSourceOperations = runSourceApiFixtureOperationsFromBytes(rustWasmBytes)
       const sourceApiV02 = runSourceApiV02SurfaceFromBytes(rustWasmBytes)
+      const sizeLimitNegatives = runSourceRuntimeSizeLimitNegativesFromBytes(rustWasmBytes)
       rustSourceResponseOk = rustSourceRun.responseOk
       result.rustSourceResponseOk = rustSourceResponseOk
       result.rustSourceApiOperationsOk = rustSourceOperations.ok
       result.rustSourceApiOperations = compactSourceApiOperations(rustSourceOperations)
       applySourceApiV02Evidence(result, sourceApiV02)
+      applySizeLimitNegativeEvidence(result, sizeLimitNegatives)
       if (context !== undefined) {
         runLocalSourcePackageSmoke(context, resourceMgr, result)
         await runLocalSourceArchiveSmoke(context, resourceMgr, result)
@@ -1180,13 +1263,14 @@ export async function maybeRunSourceRuntimeDeviceSmoke(
       result.rustSourceApiOperationsOk === true &&
       result.archiveNegativeOk === true &&
       result.sourceApiV02Ok === true &&
+      result.sourceRuntimeSizeLimitNegativesOk === true &&
       result.sourceRuntimeExecutionNegativeOk === true &&
       result.sourceRuntimeRegistryOk === true &&
       result.sourceRuntimeRegistryReloadOk === true &&
       result.sourceRuntimeArchiveIngestionRunRequestOk === true &&
       result.sourceRuntimeInstalledSourceInventoryOk === true
     if (!result.ok) {
-      result.error = 'WAMR fixture JSON assertion failed for bundled, legacy rawfile, Rust source rawfile, Source API v0.2 surface, local source package, local source archive import, archive negative rejection, negative execution, registry run-by-id, registry persistence/reload, and archive ingestion run-request paths'
+      result.error = 'WAMR fixture JSON assertion failed for bundled, legacy rawfile, Rust source rawfile, Source API v0.2 surface, size-limit negatives, local source package, local source archive import, archive negative rejection, negative execution, registry run-by-id, registry persistence/reload, and archive ingestion run-request paths'
     }
   } catch (error) {
     const e = error as Error

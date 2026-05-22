@@ -11,6 +11,7 @@ use koma_source_sdk::source::{
 use koma_source_sdk::request::contains_bytes;
 
 static mut RESPONSE: ResultBuffer<8192> = ResultBuffer::new();
+static mut TEST_BOUNDARY_RESPONSE: [u8; 64] = [0; 64];
 static FIXTURE_SOURCE: FixtureSource = FixtureSource;
 
 const MANGA_ID: &[u8] = b"manga:fixture-series";
@@ -289,6 +290,10 @@ fn response_buffer() -> &'static mut ResultBuffer<8192> {
     unsafe { &mut *core::ptr::addr_of_mut!(RESPONSE) }
 }
 
+fn test_boundary_response() -> *mut u8 {
+    core::ptr::addr_of_mut!(TEST_BOUNDARY_RESPONSE) as *mut u8
+}
+
 #[no_mangle]
 pub extern "C" fn add(a: i32, b: i32) -> i32 {
     a + b
@@ -416,6 +421,32 @@ pub extern "C" fn koma_source_get_image_request(req_ptr: u32, req_len: u32) -> u
         req_len,
         b"rust fixture get_image_request reached host imports",
     )
+}
+
+#[no_mangle]
+pub extern "C" fn koma_test_oversized_result() -> u32 {
+    let base = test_boundary_response();
+    unsafe {
+        core::ptr::copy_nonoverlapping(0x4B4F4D41_u32.to_le_bytes().as_ptr(), base, 4);
+        core::ptr::copy_nonoverlapping(1_u32.to_le_bytes().as_ptr(), base.add(4), 4);
+        core::ptr::copy_nonoverlapping(1_048_577_u32.to_le_bytes().as_ptr(), base.add(8), 4);
+        core::ptr::copy_nonoverlapping(0_u32.to_le_bytes().as_ptr(), base.add(12), 4);
+    }
+    base as u32
+}
+
+#[no_mangle]
+pub extern "C" fn koma_test_malformed_result() -> u32 {
+    let payload = b"{\"type\":\"response\",\"version\":1}";
+    let base = test_boundary_response();
+    unsafe {
+        core::ptr::copy_nonoverlapping(0x4B4F4D41_u32.to_le_bytes().as_ptr(), base, 4);
+        core::ptr::copy_nonoverlapping(1_u32.to_le_bytes().as_ptr(), base.add(4), 4);
+        core::ptr::copy_nonoverlapping((payload.len() as u32).to_le_bytes().as_ptr(), base.add(8), 4);
+        core::ptr::copy_nonoverlapping(0_u32.to_le_bytes().as_ptr(), base.add(12), 4);
+        core::ptr::copy_nonoverlapping(payload.as_ptr(), base.add(16), payload.len());
+    }
+    base as u32
 }
 
 #[no_mangle]

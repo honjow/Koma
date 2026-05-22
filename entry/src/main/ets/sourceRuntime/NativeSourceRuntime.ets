@@ -24,6 +24,8 @@ export interface SourceRuntimeCallResponse {
   operation?: string;
   requestEcho?: string;
   data?: SourceRuntimeFixtureData;
+  error?: Record<string, Object | string | number | boolean | null>;
+  reasonCode?: string;
   hostHints?: Record<string, Object | string | number | boolean | null>;
 }
 

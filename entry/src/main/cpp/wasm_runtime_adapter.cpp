@@ -81,10 +81,35 @@ std::string EscapeJsonString(const std::string &value)
     return escaped;
 }
 
-std::string ErrorJson(const std::string &code, const std::string &message)
+std::string RuntimeReasonCode(const std::string &message)
+{
+    if (message.find("request JSON exceeds operation dispatch boundary") != std::string::npos) {
+        return "request_too_large";
+    }
+    if (message.find("unexpected payload length") != std::string::npos) {
+        return "result_too_large";
+    }
+    if (message.find("result payload is not plausible JSON envelope") != std::string::npos ||
+        message.find("bad result magic") != std::string::npos ||
+        message.find("unexpected result flags") != std::string::npos ||
+        message.find("reserved result header field") != std::string::npos ||
+        message.find("result header is outside wasm memory") != std::string::npos ||
+        message.find("result payload is outside wasm memory") != std::string::npos) {
+        return "malformed_result";
+    }
+    return "runtime_error";
+}
+
+std::string ErrorJson(const std::string &code, const std::string &message, const std::string &reasonCode)
 {
     return std::string("{\"ok\":false,\"runtime\":\"wamr-unavailable\",\"error\":{\"code\":\"") +
-        EscapeJsonString(code) + "\",\"message\":\"" + EscapeJsonString(message) + "\"},\"warnings\":[]}";
+        EscapeJsonString(code) + "\",\"message\":\"" + EscapeJsonString(message) +
+        "\"},\"reasonCode\":\"" + EscapeJsonString(reasonCode) + "\",\"warnings\":[]}";
+}
+
+std::string RuntimeErrorJson(const std::string &message)
+{
+    return ErrorJson("WAMR_RUNTIME_ERROR", "source runtime call rejected", RuntimeReasonCode(message));
 }
 
 #if defined(KOMA_ENABLE_WAMR)
@@ -319,7 +344,9 @@ std::string ExtractOperation(const std::string &requestJson)
                 operation == "get_pages" || operation == "get_listings" ||
                 operation == "get_manga_list" || operation == "get_home" ||
                 operation == "get_filters" || operation == "get_settings" ||
-                operation == "get_image_request") {
+                operation == "get_image_request" ||
+                operation == "test_oversized_result" ||
+                operation == "test_malformed_result") {
                 return operation;
             }
             throw std::runtime_error("unsupported operation: " + operation);
@@ -367,6 +394,12 @@ const char *ExportForOperation(const std::string &operation)
     }
     if (operation == "get_image_request") {
         return "koma_source_get_image_request";
+    }
+    if (operation == "test_oversized_result") {
+        return "koma_test_oversized_result";
+    }
+    if (operation == "test_malformed_result") {
+        return "koma_test_malformed_result";
     }
     throw std::runtime_error("unsupported operation: " + operation);
 }
@@ -477,7 +510,9 @@ public:
 
         const std::string operation = ExtractOperation(requestJson);
         const char *exportName = ExportForOperation(operation);
-        if (operation == "source_info") {
+        if (operation == "source_info" ||
+            operation == "test_oversized_result" ||
+            operation == "test_malformed_result") {
             wasm_function_inst_t operationFn = Lookup(exportName);
             uint32_t argv[1] = {0};
             RequireCall(execEnv_, moduleInst_, operationFn, 0, argv, exportName);
@@ -609,11 +644,11 @@ std::string RunBundledWasmJsonCall(const std::string &requestJson)
         Module module(LoadWasmBytesFromBundledFixture());
         return module.RunOperation(requestJson);
     } catch (const std::exception &err) {
-        return ErrorJson("WAMR_RUNTIME_ERROR", err.what());
+        return RuntimeErrorJson(err.what());
     }
 #else
     (void)requestJson;
-    return ErrorJson("WAMR_NOT_BUILT", "native module was built without WAMR_ROOT_DIR");
+    return ErrorJson("WAMR_NOT_BUILT", "native module was built without WAMR_ROOT_DIR", "wamr_not_built");
 #endif
 }
 
@@ -626,12 +661,12 @@ std::string RunWasmJsonCallFromBytes(const std::string &requestJson, const std::
         Module module(LoadWasmBytesFromExternalBytes(wasmBytes));
         return module.RunOperation(requestJson);
     } catch (const std::exception &err) {
-        return ErrorJson("WAMR_RUNTIME_ERROR", err.what());
+        return RuntimeErrorJson(err.what());
     }
 #else
     (void)requestJson;
     (void)wasmBytes;
-    return ErrorJson("WAMR_NOT_BUILT", "native module was built without WAMR_ROOT_DIR");
+    return ErrorJson("WAMR_NOT_BUILT", "native module was built without WAMR_ROOT_DIR", "wamr_not_built");
 #endif
 }
 

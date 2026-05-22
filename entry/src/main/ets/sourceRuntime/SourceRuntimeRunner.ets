@@ -49,6 +49,26 @@ export interface SourceRuntimeNegativeExecutionSummary {
   evidence: string[]
 }
 
+export interface SourceRuntimeSizeLimitNegativeCaseSummary {
+  id: string
+  rejected: boolean
+  reasonCode?: string
+  attemptedWamrExecution: boolean
+  requestBytes?: number
+  resultBytes?: number
+  noRawPayloadOrPathLeak: boolean
+}
+
+export interface SourceRuntimeSizeLimitNegativeSummary {
+  ok: boolean
+  oversizedRequest: SourceRuntimeSizeLimitNegativeCaseSummary
+  oversizedResult: SourceRuntimeSizeLimitNegativeCaseSummary
+  malformedResult: SourceRuntimeSizeLimitNegativeCaseSummary
+  stableReasonCodes: string[]
+  noRawPayloadOrPathLeak: boolean
+  evidence: string[]
+}
+
 const SOURCE_API_OPERATION_REQUESTS: string[] = [
   '{"type":"request","version":1,"requestId":"device-search-001","operation":"search","sourceId":"local.test.koma.fixture","args":{"query":"fixture","page":{"cursor":null,"limit":20},"filters":{"tags":["fixture"]}},"settings":{},"hostHints":{"network":false}}',
   '{"type":"request","version":1,"requestId":"device-manga-001","operation":"get_manga","sourceId":"local.test.koma.fixture","args":{"mangaId":"manga:fixture-series"},"settings":{},"hostHints":{"network":false}}',
@@ -85,6 +105,12 @@ const SOURCE_RUNTIME_NEGATIVE_EXECUTION_REQUESTS: string[] = [
   '{"type":"request","version":1,"requestId":"device-negative-missing-operation-001","sourceId":"local.test.koma.fixture","args":{"query":"fixture"},"settings":{},"hostHints":{"network":false}}',
   '{"type":"request","version":1,"requestId":"device-negative-non-string-operation-001","operation":123,"sourceId":"local.test.koma.fixture","args":{"query":"fixture"},"settings":{},"hostHints":{"network":false}}',
 ]
+
+const SOURCE_RUNTIME_MAX_PAYLOAD_BYTES: number = 1024 * 1024
+const SOURCE_RUNTIME_OVERSIZED_RESULT_REQUEST: string =
+  '{"type":"request","version":1,"requestId":"device-size-limit-result-001","operation":"test_oversized_result","sourceId":"local.test.koma.fixture","args":{},"settings":{},"hostHints":{"network":false}}'
+const SOURCE_RUNTIME_MALFORMED_RESULT_REQUEST: string =
+  '{"type":"request","version":1,"requestId":"device-size-limit-malformed-001","operation":"test_malformed_result","sourceId":"local.test.koma.fixture","args":{},"settings":{},"hostHints":{"network":false}}'
 
 export function runBundledSourceOperation(request: SourceRuntimeCallRequest | string): SourceRuntimeCallResponse {
   return NativeSourceRuntime.runJsonCall(request)
@@ -234,6 +260,73 @@ function includesForbiddenCompactEvidence(response: SourceRuntimeCallResponse): 
     lower.includes('password') ||
     lower.includes('rawtoken') ||
     lower.includes('bearer ')
+}
+
+function buildOversizedRequestJson(): string {
+  const prefix = '{"type":"request","version":1,"requestId":"device-size-limit-request-001","operation":"search","sourceId":"local.test.koma.fixture","args":{"query":"fixture","padding":"'
+  const suffix = '"},"settings":{},"hostHints":{"network":false}}'
+  const paddingBytes = SOURCE_RUNTIME_MAX_PAYLOAD_BYTES + 128 - prefix.length - suffix.length
+  let padding = ''
+  for (let index = 0; index < paddingBytes; index += 1) {
+    padding += 'x'
+  }
+  return prefix + padding + suffix
+}
+
+function responseReasonCode(response: SourceRuntimeCallResponse): string | undefined {
+  if (typeof response.reasonCode === 'string') {
+    return response.reasonCode
+  }
+  const code = response.error?.['code']
+  return typeof code === 'string' ? code : undefined
+}
+
+function responseHasNoRawPayloadOrPathLeak(response: SourceRuntimeCallResponse): boolean {
+  const raw = JSON.stringify(response)
+  return !raw.includes('/data/') &&
+    !raw.includes('/home/') &&
+    !raw.includes('/storage/') &&
+    !raw.includes('/sdcard/') &&
+    !raw.includes('.wasm') &&
+    !raw.includes('.koma-source') &&
+    !raw.includes('manifest') &&
+    !raw.includes('wasmBytes') &&
+    !raw.includes('padding') &&
+    !raw.includes('xxxxxxxx') &&
+    !raw.includes('local_source_runtime_fixture') &&
+    !raw.includes('rust_source_runtime_fixture')
+}
+
+function summarizeSizeLimitNegativeCase(
+  id: string,
+  requestJson: string,
+  wasmBytes: Uint8Array,
+  expectedReasonCode: string,
+  attemptedWamrExecution: boolean,
+  resultBytes?: number,
+): SourceRuntimeSizeLimitNegativeCaseSummary {
+  try {
+    const response = runSourceOperationFromBytes(requestJson, wasmBytes)
+    const reasonCode = responseReasonCode(response)
+    return {
+      id,
+      rejected: response.ok === false && reasonCode === expectedReasonCode,
+      reasonCode,
+      attemptedWamrExecution,
+      requestBytes: requestJson.length,
+      resultBytes,
+      noRawPayloadOrPathLeak: responseHasNoRawPayloadOrPathLeak(response),
+    }
+  } catch (_err) {
+    return {
+      id,
+      rejected: false,
+      attemptedWamrExecution,
+      requestBytes: requestJson.length,
+      resultBytes,
+      noRawPayloadOrPathLeak: false,
+    }
+  }
 }
 
 export function runSourceApiFixtureOperationsFromBytes(wasmBytes: Uint8Array): SourceRuntimeApiOperationsSummary {
@@ -412,5 +505,65 @@ export function runSourceRuntimeNegativeExecutionFromBytes(
     ok: cases.length === 3 && ok,
     cases,
     evidence,
+  }
+}
+
+export function runSourceRuntimeSizeLimitNegativesFromBytes(
+  wasmBytes: Uint8Array,
+): SourceRuntimeSizeLimitNegativeSummary {
+  const oversizedRequestJson = buildOversizedRequestJson()
+  const oversizedRequest = summarizeSizeLimitNegativeCase(
+    'oversized_request',
+    oversizedRequestJson,
+    wasmBytes,
+    'request_too_large',
+    false,
+  )
+  const oversizedResult = summarizeSizeLimitNegativeCase(
+    'oversized_result',
+    SOURCE_RUNTIME_OVERSIZED_RESULT_REQUEST,
+    wasmBytes,
+    'result_too_large',
+    true,
+    SOURCE_RUNTIME_MAX_PAYLOAD_BYTES + 1,
+  )
+  const malformedResult = summarizeSizeLimitNegativeCase(
+    'malformed_result',
+    SOURCE_RUNTIME_MALFORMED_RESULT_REQUEST,
+    wasmBytes,
+    'malformed_result',
+    true,
+  )
+  const stableReasonCodes = [
+    oversizedRequest.reasonCode ?? '',
+    oversizedResult.reasonCode ?? '',
+    malformedResult.reasonCode ?? '',
+  ].filter((item: string) => item.length > 0)
+  const noRawPayloadOrPathLeak = oversizedRequest.noRawPayloadOrPathLeak &&
+    oversizedResult.noRawPayloadOrPathLeak &&
+    malformedResult.noRawPayloadOrPathLeak
+  const ok = oversizedRequest.rejected &&
+    oversizedRequest.attemptedWamrExecution === false &&
+    oversizedResult.rejected &&
+    oversizedResult.attemptedWamrExecution === true &&
+    malformedResult.rejected &&
+    malformedResult.attemptedWamrExecution === true &&
+    stableReasonCodes.includes('request_too_large') &&
+    stableReasonCodes.includes('result_too_large') &&
+    stableReasonCodes.includes('malformed_result') &&
+    noRawPayloadOrPathLeak
+  return {
+    ok,
+    oversizedRequest,
+    oversizedResult,
+    malformedResult,
+    stableReasonCodes,
+    noRawPayloadOrPathLeak,
+    evidence: [
+      `oversized_request:${oversizedRequest.reasonCode ?? 'missing'}:${oversizedRequest.rejected ? 'rejected' : 'failed-open'}`,
+      `oversized_result:${oversizedResult.reasonCode ?? 'missing'}:${oversizedResult.rejected ? 'rejected' : 'failed-open'}`,
+      `malformed_result:${malformedResult.reasonCode ?? 'missing'}:${malformedResult.rejected ? 'rejected' : 'failed-open'}`,
+      `no_raw_payload_or_path_leak:${noRawPayloadOrPathLeak ? 'ok' : 'fail'}`,
+    ],
   }
 }

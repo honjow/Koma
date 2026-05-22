@@ -120,7 +120,8 @@ napi_value RunJsonCallFromBytes(napi_env env, napi_callback_info info)
     if (argc < 2 || !GetByteVectorArg(env, argv[1], wasmBytes)) {
         return CreateUtf8(env,
             "{\"ok\":false,\"runtime\":\"wamr-unavailable\",\"error\":{\"code\":\"BAD_WASM_BYTES\","
-            "\"message\":\"runJsonCallFromBytes expects Uint8Array or ArrayBuffer\"},\"warnings\":[]}");
+            "\"message\":\"runJsonCallFromBytes expects Uint8Array or ArrayBuffer\"},"
+            "\"reasonCode\":\"bad_wasm_bytes\",\"warnings\":[]}");
     }
 
     const std::string response = koma::RunWasmJsonCallFromBytes(requestJson, wasmBytes);

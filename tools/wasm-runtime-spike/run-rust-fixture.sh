@@ -128,6 +128,8 @@ run_logged "${RUSTC_CMD[@]}" --target wasm32-unknown-unknown \
   -C link-arg=--export=koma_source_get_filters \
   -C link-arg=--export=koma_source_get_settings \
   -C link-arg=--export=koma_source_get_image_request \
+  -C link-arg=--export=koma_test_oversized_result \
+  -C link-arg=--export=koma_test_malformed_result \
   -C link-arg=--export=koma_source_free \
   -C link-arg=--export-memory \
   -C link-arg=-z \
