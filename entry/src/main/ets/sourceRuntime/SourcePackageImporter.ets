@@ -8,7 +8,7 @@ export const SOURCE_PACKAGE_MANIFEST_ID: string = 'local.test.koma.fixture'
 export const SOURCE_PACKAGE_MANIFEST_VERSION: string = '0.1.0'
 export const SOURCE_PACKAGE_MANIFEST_FILE: string = 'manifest.generated.json'
 export const SOURCE_PACKAGE_WASM_FILE: string = 'rust_source_runtime_fixture.wasm'
-export const SOURCE_PACKAGE_WASM_SHA256: string = '6d06d3a936bd0316818ec9d5754ea96c9cb33110c520cede6f0945c3eedbb4f8'
+export const SOURCE_PACKAGE_WASM_SHA256: string = '5e03c5dedf562bbd65b0e35eeeb3a60c89eab59e9a25facae2402bf5926ab3a3'
 export const SOURCE_PACKAGE_WASM_MAX_BYTES: number = 131072
 
 export type SourceArchiveValidationReason =

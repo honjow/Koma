@@ -16,7 +16,7 @@
     "hostAbi": "koma-host-v0.1-fixture-http-html",
     "wasm": {
       "path": "../../../entry/src/main/resources/rawfile/test/rust_source_runtime_fixture.wasm",
-      "sha256": "6d06d3a936bd0316818ec9d5754ea96c9cb33110c520cede6f0945c3eedbb4f8",
+      "sha256": "5e03c5dedf562bbd65b0e35eeeb3a60c89eab59e9a25facae2402bf5926ab3a3",
       "build": {
         "kind": "rustc-no-std-fixture",
         "script": "../run-rust-fixture.sh",

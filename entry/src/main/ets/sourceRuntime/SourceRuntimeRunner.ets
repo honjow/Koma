@@ -19,6 +19,19 @@ export interface SourceRuntimeApiOperationsSummary {
   evidence: string[]
 }
 
+export interface SourceRuntimeV02SurfaceSummary {
+  ok: boolean
+  sourceInfoOk: boolean
+  coreOpsOk: boolean
+  browseOpsOk: boolean
+  settingsImageRefsOk: boolean
+  networkFalse: boolean
+  noSecretOrPathLeak: boolean
+  operations: string[]
+  unsupportedOperations: string[]
+  evidence: string[]
+}
+
 export interface SourceRuntimeNegativeExecutionCaseSummary {
   id: string
   requestJson: string
@@ -41,6 +54,20 @@ const SOURCE_API_OPERATION_REQUESTS: string[] = [
   '{"type":"request","version":1,"requestId":"device-manga-001","operation":"get_manga","sourceId":"local.test.koma.fixture","args":{"mangaId":"manga:fixture-series"},"settings":{},"hostHints":{"network":false}}',
   '{"type":"request","version":1,"requestId":"device-chapters-001","operation":"get_chapters","sourceId":"local.test.koma.fixture","args":{"mangaId":"manga:fixture-series","page":{"cursor":null,"limit":100}},"settings":{},"hostHints":{"network":false}}',
   '{"type":"request","version":1,"requestId":"device-pages-001","operation":"get_pages","sourceId":"local.test.koma.fixture","args":{"chapterId":"chapter:fixture-series:001"},"settings":{},"hostHints":{"network":false,"imageStrategy":"descriptor-only"}}',
+]
+
+const SOURCE_API_V02_OPERATION_REQUESTS: string[] = [
+  '{"type":"request","version":1,"requestId":"device-source-info-001","operation":"source_info","sourceId":"local.test.koma.fixture","args":{},"settings":{},"hostHints":{"network":false}}',
+  '{"type":"request","version":1,"requestId":"device-search-001","operation":"search","sourceId":"local.test.koma.fixture","args":{"query":"fixture","page":{"cursor":null,"limit":20},"filters":{"tags":["fixture"]}},"settings":{},"hostHints":{"network":false}}',
+  '{"type":"request","version":1,"requestId":"device-manga-001","operation":"get_manga","sourceId":"local.test.koma.fixture","args":{"mangaId":"manga:fixture-series"},"settings":{},"hostHints":{"network":false}}',
+  '{"type":"request","version":1,"requestId":"device-chapters-001","operation":"get_chapters","sourceId":"local.test.koma.fixture","args":{"mangaId":"manga:fixture-series","page":{"cursor":null,"limit":100}},"settings":{},"hostHints":{"network":false}}',
+  '{"type":"request","version":1,"requestId":"device-pages-001","operation":"get_pages","sourceId":"local.test.koma.fixture","args":{"chapterId":"chapter:fixture-series:001"},"settings":{},"hostHints":{"network":false,"imageStrategy":"descriptor-only"}}',
+  '{"type":"request","version":1,"requestId":"device-listings-001","operation":"get_listings","sourceId":"local.test.koma.fixture","args":{},"settings":{},"hostHints":{"network":false}}',
+  '{"type":"request","version":1,"requestId":"device-manga-list-001","operation":"get_manga_list","sourceId":"local.test.koma.fixture","args":{"listingId":"listing:popular","page":{"cursor":null,"limit":20},"filters":{}},"settings":{},"hostHints":{"network":false}}',
+  '{"type":"request","version":1,"requestId":"device-home-001","operation":"get_home","sourceId":"local.test.koma.fixture","args":{},"settings":{},"hostHints":{"network":false}}',
+  '{"type":"request","version":1,"requestId":"device-filters-001","operation":"get_filters","sourceId":"local.test.koma.fixture","args":{},"settings":{},"hostHints":{"network":false}}',
+  '{"type":"request","version":1,"requestId":"device-settings-001","operation":"get_settings","sourceId":"local.test.koma.fixture","args":{},"settings":{},"hostHints":{"network":false}}',
+  '{"type":"request","version":1,"requestId":"device-image-request-001","operation":"get_image_request","sourceId":"local.test.koma.fixture","args":{"pageId":"page:fixture-series:001:0001"},"settings":{},"hostHints":{"network":false}}',
 ]
 
 function buildSourceApiOperationRequests(sourceId: string): string[] {
@@ -150,7 +177,63 @@ function validateOperationResponse(operation: string, response: SourceRuntimeCal
     includesEvidence(response, 'placeholder')) {
     evidence.push('get_pages:chapter:fixture-series:001:page:fixture-series:001:0001:fixture-page-1')
   }
+  if (operation === 'source_info' &&
+    includesEvidence(response, '"sourceInfo"') &&
+    includesEvidence(response, '"apiVersion":"0.2"') &&
+    includesEvidence(response, '"capabilities"') &&
+    includesEvidence(response, '"search":true') &&
+    includesEvidence(response, '"imageRequest":true')) {
+    evidence.push('source_info:apiVersion:0.2:capabilities')
+  }
+  if (operation === 'get_listings' &&
+    includesEvidence(response, 'listing:popular') &&
+    includesEvidence(response, 'listing:latest')) {
+    evidence.push('get_listings:listing:popular:listing:latest')
+  }
+  if (operation === 'get_manga_list' &&
+    includesEvidence(response, 'listing:popular') &&
+    includesEvidence(response, 'Fixture Series')) {
+    evidence.push('get_manga_list:listing:popular:Fixture Series')
+  }
+  if (operation === 'get_home' &&
+    includesEvidence(response, 'home:featured') &&
+    includesEvidence(response, 'home:latest-link')) {
+    evidence.push('get_home:home:featured:home:latest-link')
+  }
+  if (operation === 'get_filters' &&
+    includesEvidence(response, 'filter:query') &&
+    includesEvidence(response, 'filter:sort')) {
+    evidence.push('get_filters:filter:query:filter:sort')
+  }
+  if (operation === 'get_settings' &&
+    includesEvidence(response, 'setting:language') &&
+    includesEvidence(response, 'login:primary') &&
+    !includesForbiddenCompactEvidence(response)) {
+    evidence.push('get_settings:safe-setting-descriptors')
+  }
+  if (operation === 'get_image_request' &&
+    includesEvidence(response, 'fixture-image:fixture-page-1') &&
+    includesEvidence(response, 'headers:image:fixture-page-1') &&
+    includesEvidence(response, 'credentials:image:primary') &&
+    !includesForbiddenCompactEvidence(response)) {
+    evidence.push('get_image_request:host-owned-refs')
+  }
   return evidence
+}
+
+function includesForbiddenCompactEvidence(response: SourceRuntimeCallResponse): boolean {
+  const raw = JSON.stringify(response)
+  const lower = raw.toLowerCase()
+  return raw.includes('/data/') ||
+    raw.includes('/home/') ||
+    raw.includes('file://') ||
+    raw.includes('picker://') ||
+    raw.includes('datashare://') ||
+    lower.includes('authorization') ||
+    lower.includes('cookie') ||
+    lower.includes('password') ||
+    lower.includes('rawtoken') ||
+    lower.includes('bearer ')
 }
 
 export function runSourceApiFixtureOperationsFromBytes(wasmBytes: Uint8Array): SourceRuntimeApiOperationsSummary {
@@ -162,6 +245,82 @@ export function runSourceApiFixtureOperationsForSourceIdFromBytes(
   sourceId: string,
 ): SourceRuntimeApiOperationsSummary {
   return runSourceApiFixtureOperationsRequestsFromBytes(wasmBytes, buildSourceApiOperationRequests(sourceId))
+}
+
+export function runSourceApiV02SurfaceFromBytes(wasmBytes: Uint8Array): SourceRuntimeV02SurfaceSummary {
+  const operations: string[] = []
+  const unsupportedOperations: string[] = []
+  const evidence: string[] = []
+  let sourceInfoOk = false
+  let coreOpsOk = true
+  let browseOpsOk = true
+  let settingsImageRefsOk = true
+  let networkFalse = true
+  let noSecretOrPathLeak = true
+
+  for (const requestJson of SOURCE_API_V02_OPERATION_REQUESTS) {
+    const operation = operationFromRequest(requestJson)
+    try {
+      const response = runSourceOperationFromBytes(requestJson, wasmBytes)
+      const operationEvidence = validateOperationResponse(operation, response)
+      const operationOk = response.ok === true &&
+        response.operation === operation &&
+        response.hostHints?.['network'] === false &&
+        !includesForbiddenCompactEvidence(response) &&
+        operationEvidence.length >= 4
+      operations.push(operation)
+      evidence.push(`${operation}:${operationOk ? 'ok' : 'fail'}`)
+      evidence.push(operationEvidence.length > 0 ? operationEvidence[operationEvidence.length - 1] : `${operation}:missing`)
+      networkFalse = networkFalse && response.hostHints?.['network'] === false
+      noSecretOrPathLeak = noSecretOrPathLeak && !includesForbiddenCompactEvidence(response)
+      if (operation === 'source_info') {
+        sourceInfoOk = operationOk
+      } else if (operation === 'search' || operation === 'get_manga' ||
+        operation === 'get_chapters' || operation === 'get_pages') {
+        coreOpsOk = coreOpsOk && operationOk
+      } else if (operation === 'get_listings' || operation === 'get_manga_list' ||
+        operation === 'get_home' || operation === 'get_filters') {
+        browseOpsOk = browseOpsOk && operationOk
+      } else if (operation === 'get_settings' || operation === 'get_image_request') {
+        settingsImageRefsOk = settingsImageRefsOk && operationOk
+      }
+    } catch (error) {
+      const e = error as Error
+      unsupportedOperations.push(operation)
+      evidence.push(`${operation}:unsupported:${e.message}`)
+      if (operation === 'source_info') {
+        sourceInfoOk = false
+      } else if (operation === 'search' || operation === 'get_manga' ||
+        operation === 'get_chapters' || operation === 'get_pages') {
+        coreOpsOk = false
+      } else if (operation === 'get_listings' || operation === 'get_manga_list' ||
+        operation === 'get_home' || operation === 'get_filters') {
+        browseOpsOk = false
+      } else if (operation === 'get_settings' || operation === 'get_image_request') {
+        settingsImageRefsOk = false
+      }
+    }
+  }
+
+  const ok = sourceInfoOk &&
+    coreOpsOk &&
+    browseOpsOk &&
+    settingsImageRefsOk &&
+    networkFalse &&
+    noSecretOrPathLeak &&
+    unsupportedOperations.length === 0
+  return {
+    ok,
+    sourceInfoOk,
+    coreOpsOk,
+    browseOpsOk,
+    settingsImageRefsOk,
+    networkFalse,
+    noSecretOrPathLeak,
+    operations,
+    unsupportedOperations,
+    evidence,
+  }
 }
 
 function runSourceApiFixtureOperationsRequestsFromBytes(

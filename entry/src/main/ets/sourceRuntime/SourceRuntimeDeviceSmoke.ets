@@ -35,10 +35,12 @@ import {
   responseReachedFixture,
   runBundledSourceOperation,
   runSourceApiFixtureOperationsFromBytes,
+  runSourceApiV02SurfaceFromBytes,
   runSearchFixtureFromBytes,
   runSourceOperationFromBytes,
   SourceRuntimeApiOperationsSummary,
   SourceRuntimeNegativeExecutionCaseSummary,
+  SourceRuntimeV02SurfaceSummary,
 } from './SourceRuntimeRunner'
 
 const SMOKE_TRIGGER_PARAM: string = 'koma.sourceRuntimeSmoke'
@@ -48,6 +50,7 @@ const SMOKE_PHASE_FULL: string = 'full'
 const SMOKE_PHASE_SETUP_PERSISTED_INVENTORY: string = 'setup-persisted-inventory'
 const SMOKE_PHASE_RELOAD_PERSISTED_INVENTORY: string = 'reload-persisted-inventory'
 const SMOKE_PHASE_PERSISTED_PAYLOAD_MISSING: string = 'persisted-payload-missing'
+const SMOKE_PHASE_SOURCE_API_V02: string = 'source-api-v02'
 const SMOKE_REQUEST_JSON: string = '{"operation":"search","query":"fixture","smoke":"koma-smoke"}'
 const RUST_SMOKE_REQUEST_JSON: string = '{"operation":"search","query":"fixture","smoke":"koma-rust-smoke"}'
 const PACKAGE_SMOKE_REQUEST_JSON: string = '{"operation":"search","query":"fixture","smoke":"koma-package-smoke"}'
@@ -163,6 +166,16 @@ export interface SourceRuntimeSmokeResult {
   rustSourceResponseOk?: boolean
   rustSourceApiOperationsOk?: boolean
   rustSourceApiOperations?: SourceRuntimeApiOperationsSummary
+  sourceApiV02Ok?: boolean
+  sourceApiV02SourceInfoOk?: boolean
+  sourceApiV02CoreOpsOk?: boolean
+  sourceApiV02BrowseOpsOk?: boolean
+  sourceApiV02SettingsImageRefsOk?: boolean
+  sourceApiV02NetworkFalse?: boolean
+  sourceApiV02NoSecretOrPathLeak?: boolean
+  sourceApiV02Operations?: string[]
+  sourceApiV02UnsupportedOperations?: string[]
+  sourceApiV02Evidence?: string[]
   packageResponse?: SourceRuntimeCallResponse
   packageResponseOk?: boolean
   packageSourceApiOperationsOk?: boolean
@@ -376,6 +389,22 @@ function compactSourceApiOperations(summary: SourceRuntimeApiOperationsSummary):
     operations: summary.operations,
     evidence: [],
   }
+}
+
+function applySourceApiV02Evidence(
+  result: SourceRuntimeSmokeResult,
+  summary: SourceRuntimeV02SurfaceSummary,
+): void {
+  result.sourceApiV02Ok = summary.ok
+  result.sourceApiV02SourceInfoOk = summary.sourceInfoOk
+  result.sourceApiV02CoreOpsOk = summary.coreOpsOk
+  result.sourceApiV02BrowseOpsOk = summary.browseOpsOk
+  result.sourceApiV02SettingsImageRefsOk = summary.settingsImageRefsOk
+  result.sourceApiV02NetworkFalse = summary.networkFalse
+  result.sourceApiV02NoSecretOrPathLeak = summary.noSecretOrPathLeak
+  result.sourceApiV02Operations = summary.operations
+  result.sourceApiV02UnsupportedOperations = summary.unsupportedOperations
+  result.sourceApiV02Evidence = summary.evidence
 }
 
 function compactRegistryEntry(summary: SourceRuntimeServiceRegistrationSummary): SourceRuntimeRegistryEntryEvidence | undefined {
@@ -936,6 +965,11 @@ function compactSmokeResultForHilog(result: SourceRuntimeSmokeResult): void {
   result.archiveImportedWasmPath = undefined
   result.archiveNegativeRoute = undefined
   result.rustSourceApiOperations = undefined
+  if (result.smokePhase !== SMOKE_PHASE_SOURCE_API_V02) {
+    result.sourceApiV02Evidence = undefined
+    result.sourceApiV02Operations = undefined
+    result.sourceApiV02UnsupportedOperations = undefined
+  }
   result.packageSourceApiOperations = undefined
   result.archiveSourceApiOperations = undefined
   result.sourceRuntimeRegistrySourceCount = undefined
@@ -955,6 +989,12 @@ function compactSmokeResultForHilog(result: SourceRuntimeSmokeResult): void {
   result.sourceRuntimeRunRequestByIdPackageSearch = undefined
   result.sourceRuntimeRunRequestByIdArchiveSearch = undefined
   result.sourceRuntimeRunRequestByIdNonSearch = undefined
+  result.sourceRuntimeRunRequestByIdUnknownSourceAttemptedWamrExecution = undefined
+  result.sourceRuntimeRunRequestByIdSourceIdMismatchAttemptedWamrExecution = undefined
+  result.sourceRuntimeRunRequestByIdMalformedAttemptedWamrExecution = undefined
+  result.sourceRuntimeRunRequestByIdNullRequestAttemptedWamrExecution = undefined
+  result.sourceRuntimeRunRequestByIdArrayRequestAttemptedWamrExecution = undefined
+  result.sourceRuntimeRunRequestByIdMissingOperationAttemptedWamrExecution = undefined
   result.sourceRuntimeRunRequestByIdUnknownSourceReasonCode = undefined
   result.sourceRuntimeRunRequestByIdSourceIdMismatchReasonCode = undefined
   result.sourceRuntimeRunRequestByIdMalformedReasonCode = undefined
@@ -971,6 +1011,8 @@ function compactSmokeResultForHilog(result: SourceRuntimeSmokeResult): void {
   result.sourceRuntimeArchiveIngestionNonSearch = undefined
   result.sourceRuntimeArchiveIngestionUnknownSourceReasonCode = undefined
   result.sourceRuntimeArchiveIngestionSourceIdMismatchReasonCode = undefined
+  result.sourceRuntimeArchiveIngestionUnknownSourceAttemptedWamrExecution = undefined
+  result.sourceRuntimeArchiveIngestionSourceIdMismatchAttemptedWamrExecution = undefined
 }
 
 export async function maybeRunSourceRuntimeDeviceSmoke(
@@ -1053,6 +1095,23 @@ export async function maybeRunSourceRuntimeDeviceSmoke(
       return
     }
 
+    if (result.smokePhase === SMOKE_PHASE_SOURCE_API_V02) {
+      if (resourceMgr === undefined) {
+        result.error = 'source api v0.2 device smoke requires resource manager'
+      } else {
+        const rustWasmBytes = resourceMgr.getRawFileContentSync(RUST_SMOKE_RAWFILE_PATH)
+        result.rustRawfileBytes = rustWasmBytes.byteLength
+        applySourceApiV02Evidence(result, runSourceApiV02SurfaceFromBytes(rustWasmBytes))
+        result.ok = result.sourceApiV02Ok === true
+        if (!result.ok && result.error === undefined) {
+          result.error = 'Source API v0.2 NAPI smoke failed or reported unsupported operations'
+        }
+      }
+      compactSmokeResultForHilog(result)
+      console.info(SMOKE_LOG_PREFIX + JSON.stringify(result))
+      return
+    }
+
     if (result.smokePhase !== SMOKE_PHASE_FULL) {
       result.error = 'unknown source runtime smoke phase'
       compactSmokeResultForHilog(result)
@@ -1074,10 +1133,12 @@ export async function maybeRunSourceRuntimeDeviceSmoke(
       result.rustRawfileBytes = rustWasmBytes.byteLength
       const rustSourceRun = runSearchFixtureFromBytes(RUST_SMOKE_REQUEST_JSON, rustWasmBytes)
       const rustSourceOperations = runSourceApiFixtureOperationsFromBytes(rustWasmBytes)
+      const sourceApiV02 = runSourceApiV02SurfaceFromBytes(rustWasmBytes)
       rustSourceResponseOk = rustSourceRun.responseOk
       result.rustSourceResponseOk = rustSourceResponseOk
       result.rustSourceApiOperationsOk = rustSourceOperations.ok
       result.rustSourceApiOperations = compactSourceApiOperations(rustSourceOperations)
+      applySourceApiV02Evidence(result, sourceApiV02)
       if (context !== undefined) {
         runLocalSourcePackageSmoke(context, resourceMgr, result)
         await runLocalSourceArchiveSmoke(context, resourceMgr, result)
@@ -1118,13 +1179,14 @@ export async function maybeRunSourceRuntimeDeviceSmoke(
       result.archiveNetwork === false &&
       result.rustSourceApiOperationsOk === true &&
       result.archiveNegativeOk === true &&
+      result.sourceApiV02Ok === true &&
       result.sourceRuntimeExecutionNegativeOk === true &&
       result.sourceRuntimeRegistryOk === true &&
       result.sourceRuntimeRegistryReloadOk === true &&
       result.sourceRuntimeArchiveIngestionRunRequestOk === true &&
       result.sourceRuntimeInstalledSourceInventoryOk === true
     if (!result.ok) {
-      result.error = 'WAMR fixture JSON assertion failed for bundled, legacy rawfile, Rust source rawfile, local source package, local source archive import, archive negative rejection, negative execution, registry run-by-id, registry persistence/reload, and archive ingestion run-request paths'
+      result.error = 'WAMR fixture JSON assertion failed for bundled, legacy rawfile, Rust source rawfile, Source API v0.2 surface, local source package, local source archive import, archive negative rejection, negative execution, registry run-by-id, registry persistence/reload, and archive ingestion run-request paths'
     }
   } catch (error) {
     const e = error as Error

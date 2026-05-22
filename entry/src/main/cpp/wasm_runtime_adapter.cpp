@@ -31,7 +31,8 @@ constexpr uint32_t kMaxFixtureWasmBytes = 1024u * 1024u;
 constexpr const char *kManifestJson =
     "{\"schemaVersion\":1,\"id\":\"local.example.private\","
     "\"runtime\":\"wasm-v1\",\"entry\":\"source_runtime_fixture.wasm\","
-    "\"host\":{\"abi\":\"koma-host-v0.1\",\"imports\":[\"log\",\"check_cancel\"],"
+    "\"host\":{\"abi\":\"koma-host-v0.1\",\"imports\":[\"log\",\"check_cancel\","
+    "\"http_request\",\"html_parse\",\"html_select\",\"html_attr\",\"html_text\",\"html_close\"],"
     "\"limits\":{\"maxMemoryPages\":2,\"maxPayloadBytes\":1048576,\"network\":false}},"
     "\"contentPolicy\":{\"publicIndex\":false,\"marketplace\":false}}";
 
@@ -142,9 +143,81 @@ int32_t HostCheckCancel(wasm_exec_env_t execEnv)
     return 0;
 }
 
+int32_t HostHttpRequest(wasm_exec_env_t execEnv, char *request, uint32_t requestLen, char *out, uint32_t outCap)
+{
+    (void)execEnv;
+    (void)request;
+    (void)requestLen;
+    const char *payload =
+        "{\"ok\":false,\"error\":{\"code\":\"network_disabled\","
+        "\"message\":\"Harmony device smoke keeps HTTP fixture disabled\","
+        "\"retryable\":false},\"networkPerformed\":false}";
+    const uint32_t payloadLen = static_cast<uint32_t>(std::strlen(payload));
+    if (!out || outCap < payloadLen) {
+        return -3;
+    }
+    std::memcpy(out, payload, payloadLen);
+    return static_cast<int32_t>(payloadLen);
+}
+
+int32_t HostHtmlParse(wasm_exec_env_t execEnv, char *html, uint32_t htmlLen)
+{
+    (void)execEnv;
+    (void)html;
+    (void)htmlLen;
+    return -1;
+}
+
+int32_t HostHtmlSelect(wasm_exec_env_t execEnv, int32_t descriptor, char *selector, uint32_t selectorLen)
+{
+    (void)execEnv;
+    (void)descriptor;
+    (void)selector;
+    (void)selectorLen;
+    return -1;
+}
+
+int32_t HostHtmlAttr(wasm_exec_env_t execEnv,
+    int32_t descriptor,
+    char *attr,
+    uint32_t attrLen,
+    char *out,
+    uint32_t outCap)
+{
+    (void)execEnv;
+    (void)descriptor;
+    (void)attr;
+    (void)attrLen;
+    (void)out;
+    (void)outCap;
+    return -1;
+}
+
+int32_t HostHtmlText(wasm_exec_env_t execEnv, int32_t descriptor, char *out, uint32_t outCap)
+{
+    (void)execEnv;
+    (void)descriptor;
+    (void)out;
+    (void)outCap;
+    return -1;
+}
+
+int32_t HostHtmlClose(wasm_exec_env_t execEnv, int32_t descriptor)
+{
+    (void)execEnv;
+    (void)descriptor;
+    return 0;
+}
+
 NativeSymbol g_komaHostSymbols[] = {
     {"log", reinterpret_cast<void *>(HostLog), "(i*~)", nullptr},
     {"check_cancel", reinterpret_cast<void *>(HostCheckCancel), "()i", nullptr},
+    {"http_request", reinterpret_cast<void *>(HostHttpRequest), "(*~*~)i", nullptr},
+    {"html_parse", reinterpret_cast<void *>(HostHtmlParse), "(*~)i", nullptr},
+    {"html_select", reinterpret_cast<void *>(HostHtmlSelect), "(i*~)i", nullptr},
+    {"html_attr", reinterpret_cast<void *>(HostHtmlAttr), "(i*~*~)i", nullptr},
+    {"html_text", reinterpret_cast<void *>(HostHtmlText), "(i*~)i", nullptr},
+    {"html_close", reinterpret_cast<void *>(HostHtmlClose), "(i)i", nullptr},
 };
 
 uint32_t ReadLeU32(const uint8_t *p)
@@ -241,8 +314,12 @@ std::string ExtractOperation(const std::string &requestJson)
             throw std::runtime_error("escaped operation values are not supported");
         }
         if (ch == '"') {
-            if (operation == "search" || operation == "get_manga" ||
-                operation == "get_chapters" || operation == "get_pages") {
+            if (operation == "source_info" || operation == "search" ||
+                operation == "get_manga" || operation == "get_chapters" ||
+                operation == "get_pages" || operation == "get_listings" ||
+                operation == "get_manga_list" || operation == "get_home" ||
+                operation == "get_filters" || operation == "get_settings" ||
+                operation == "get_image_request") {
                 return operation;
             }
             throw std::runtime_error("unsupported operation: " + operation);
@@ -258,6 +335,9 @@ std::string ExtractOperation(const std::string &requestJson)
 
 const char *ExportForOperation(const std::string &operation)
 {
+    if (operation == "source_info") {
+        return "koma_source_info";
+    }
     if (operation == "search") {
         return "koma_source_search";
     }
@@ -269,6 +349,24 @@ const char *ExportForOperation(const std::string &operation)
     }
     if (operation == "get_pages") {
         return "koma_source_get_pages";
+    }
+    if (operation == "get_listings") {
+        return "koma_source_get_listings";
+    }
+    if (operation == "get_manga_list") {
+        return "koma_source_get_manga_list";
+    }
+    if (operation == "get_home") {
+        return "koma_source_get_home";
+    }
+    if (operation == "get_filters") {
+        return "koma_source_get_filters";
+    }
+    if (operation == "get_settings") {
+        return "koma_source_get_settings";
+    }
+    if (operation == "get_image_request") {
+        return "koma_source_get_image_request";
     }
     throw std::runtime_error("unsupported operation: " + operation);
 }
@@ -379,6 +477,13 @@ public:
 
         const std::string operation = ExtractOperation(requestJson);
         const char *exportName = ExportForOperation(operation);
+        if (operation == "source_info") {
+            wasm_function_inst_t operationFn = Lookup(exportName);
+            uint32_t argv[1] = {0};
+            RequireCall(execEnv_, moduleInst_, operationFn, 0, argv, exportName);
+            return ReadEnvelope(argv[0], exportName);
+        }
+
         const uint32_t requestLen = static_cast<uint32_t>(requestJson.size());
         uint64_t requestPtr = wasm_runtime_module_dup_data(moduleInst_, requestJson.data(), requestLen);
         if (requestPtr == 0) {
