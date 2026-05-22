@@ -4,7 +4,8 @@ extern crate koma_source_sdk;
 
 use koma_source_sdk::result::ResultBuffer;
 use koma_source_sdk::source::{
-    self, ChapterId, ChapterListRequest, MangaId, SearchRequest, Source, SourceInfo, SourceResult,
+    self, ChapterId, ChapterListRequest, JsonPayload, MangaId, SearchRequest, Source,
+    SourceCapabilities, SourceError, SourceInfo, SourceResult,
 };
 
 static mut RESPONSE: ResultBuffer<2048> = ResultBuffer::new();
@@ -25,41 +26,60 @@ const PAGES_DATA: &[u8] =
 struct FixtureSource;
 
 impl Source for FixtureSource {
-    const INFO: SourceInfo = SourceInfo {
-        id: "koma.fixture.rust-sdk",
-        name: "Koma Rust SDK Fixture",
-        version: "0.1.0",
-    };
+    fn info(&self) -> SourceInfo {
+        SourceInfo {
+            id: "koma.fixture.rust-sdk",
+            name: "Koma Rust SDK Fixture",
+            version: "0.2.0",
+            api_version: "0.2",
+            language: "zh-Hans",
+            author: "Koma Fixture",
+            description: "Rust SDK trait ergonomics fixture.",
+            content_rating: "unknown",
+        }
+    }
+
+    fn capabilities(&self) -> SourceCapabilities {
+        SourceCapabilities::CORE
+    }
 
     fn search(&self, request: SearchRequest<'_>) -> SourceResult {
         if request.query_is(b"fixture") {
-            SourceResult::Json(SEARCH_DATA)
+            Ok(JsonPayload::new(SEARCH_DATA))
         } else {
-            SourceResult::BadRequest("expected fixture search request")
+            Err(SourceError::invalid_request(
+                "expected fixture search request",
+            ))
         }
     }
 
     fn get_manga(&self, id: MangaId<'_>) -> SourceResult {
         if id.is(MANGA_ID) {
-            SourceResult::Json(MANGA_DATA)
+            Ok(JsonPayload::new(MANGA_DATA))
         } else {
-            SourceResult::BadRequest("expected fixture manga request")
+            Err(SourceError::invalid_request(
+                "expected fixture manga request",
+            ))
         }
     }
 
     fn get_chapters(&self, request: ChapterListRequest<'_>) -> SourceResult {
         if request.manga_id_is(MANGA_ID) {
-            SourceResult::Json(CHAPTERS_DATA)
+            Ok(JsonPayload::new(CHAPTERS_DATA))
         } else {
-            SourceResult::BadRequest("expected fixture chapters request")
+            Err(SourceError::invalid_request(
+                "expected fixture chapters request",
+            ))
         }
     }
 
     fn get_pages(&self, id: ChapterId<'_>) -> SourceResult {
         if id.is(CHAPTER_ID) {
-            SourceResult::Json(PAGES_DATA)
+            Ok(JsonPayload::new(PAGES_DATA))
         } else {
-            SourceResult::BadRequest("expected fixture pages request")
+            Err(SourceError::invalid_request(
+                "expected fixture pages request",
+            ))
         }
     }
 }
@@ -80,7 +100,16 @@ pub extern "C" fn add(a: i32, b: i32) -> i32 {
 
 #[no_mangle]
 pub extern "C" fn koma_source_init(_manifest_ptr: u32, manifest_len: u32) -> i32 {
-    source::init::<FixtureSource>(manifest_len, b"rust fixture init reached host imports")
+    source::init(
+        &FIXTURE_SOURCE,
+        manifest_len,
+        b"rust fixture init reached host imports",
+    )
+}
+
+#[no_mangle]
+pub extern "C" fn koma_source_info() -> u32 {
+    source::source_info(&FIXTURE_SOURCE, response_buffer())
 }
 
 #[no_mangle]

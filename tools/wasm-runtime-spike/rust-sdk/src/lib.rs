@@ -106,10 +106,45 @@ pub mod source {
     use crate::request::Request;
     use crate::result::ResultBuffer;
 
+    #[derive(Clone, Copy)]
     pub struct SourceInfo {
         pub id: &'static str,
         pub name: &'static str,
         pub version: &'static str,
+        pub api_version: &'static str,
+        pub language: &'static str,
+        pub author: &'static str,
+        pub description: &'static str,
+        pub content_rating: &'static str,
+    }
+
+    #[derive(Clone, Copy)]
+    pub struct SourceCapabilities {
+        pub search: bool,
+        pub manga_detail: bool,
+        pub chapters: bool,
+        pub pages: bool,
+        pub listings: bool,
+        pub manga_list: bool,
+        pub home: bool,
+        pub filters: bool,
+        pub settings: bool,
+        pub image_request: bool,
+    }
+
+    impl SourceCapabilities {
+        pub const CORE: Self = Self {
+            search: true,
+            manga_detail: true,
+            chapters: true,
+            pages: true,
+            listings: false,
+            manga_list: false,
+            home: false,
+            filters: false,
+            settings: false,
+            image_request: false,
+        };
     }
 
     pub struct SearchRequest<'a> {
@@ -128,18 +163,155 @@ pub mod source {
         request: Request<'a>,
     }
 
-    pub enum SourceResult {
-        Json(&'static [u8]),
-        BadRequest(&'static str),
+    pub struct ListingsRequest<'a> {
+        request: Request<'a>,
     }
 
+    pub struct MangaListRequest<'a> {
+        request: Request<'a>,
+    }
+
+    pub struct HomeRequest<'a> {
+        request: Request<'a>,
+    }
+
+    pub struct FiltersRequest<'a> {
+        request: Request<'a>,
+    }
+
+    pub struct SettingsRequest<'a> {
+        request: Request<'a>,
+    }
+
+    pub struct ImageRequestInput<'a> {
+        request: Request<'a>,
+    }
+
+    pub struct JsonPayload {
+        bytes: &'static [u8],
+    }
+
+    impl JsonPayload {
+        pub const fn new(bytes: &'static [u8]) -> Self {
+            Self { bytes }
+        }
+
+        pub fn bytes(&self) -> &'static [u8] {
+            self.bytes
+        }
+    }
+
+    impl From<&'static [u8]> for JsonPayload {
+        fn from(bytes: &'static [u8]) -> Self {
+            Self::new(bytes)
+        }
+    }
+
+    #[derive(Clone, Copy)]
+    pub enum SourceErrorCode {
+        Unimplemented,
+        InvalidRequest,
+        NotFound,
+        Cancelled,
+        Timeout,
+        NetworkDisabled,
+        PermissionDenied,
+        ParseError,
+        SourceError,
+        InternalError,
+    }
+
+    impl SourceErrorCode {
+        pub fn as_str(&self) -> &'static str {
+            match self {
+                Self::Unimplemented => "unimplemented",
+                Self::InvalidRequest => "invalid_request",
+                Self::NotFound => "not_found",
+                Self::Cancelled => "cancelled",
+                Self::Timeout => "timeout",
+                Self::NetworkDisabled => "network_disabled",
+                Self::PermissionDenied => "permission_denied",
+                Self::ParseError => "parse_error",
+                Self::SourceError => "source_error",
+                Self::InternalError => "internal_error",
+            }
+        }
+    }
+
+    pub struct SourceError {
+        code: SourceErrorCode,
+        message: &'static str,
+    }
+
+    impl SourceError {
+        pub const fn new(code: SourceErrorCode, message: &'static str) -> Self {
+            Self { code, message }
+        }
+
+        pub const fn unimplemented() -> Self {
+            Self::new(SourceErrorCode::Unimplemented, "operation not implemented")
+        }
+
+        pub const fn invalid_request(message: &'static str) -> Self {
+            Self::new(SourceErrorCode::InvalidRequest, message)
+        }
+
+        pub const fn not_found(message: &'static str) -> Self {
+            Self::new(SourceErrorCode::NotFound, message)
+        }
+
+        pub fn code(&self) -> &'static str {
+            self.code.as_str()
+        }
+
+        pub fn message(&self) -> &'static str {
+            self.message
+        }
+    }
+
+    pub type SourceResult = core::result::Result<JsonPayload, SourceError>;
+
     pub trait Source {
-        const INFO: SourceInfo;
+        fn info(&self) -> SourceInfo;
+
+        fn capabilities(&self) -> SourceCapabilities {
+            SourceCapabilities::CORE
+        }
 
         fn search(&self, request: SearchRequest<'_>) -> SourceResult;
         fn get_manga(&self, id: MangaId<'_>) -> SourceResult;
         fn get_chapters(&self, request: ChapterListRequest<'_>) -> SourceResult;
         fn get_pages(&self, id: ChapterId<'_>) -> SourceResult;
+
+        fn get_listings(&self, _request: ListingsRequest<'_>) -> SourceResult {
+            Err(SourceError::unimplemented())
+        }
+
+        fn get_manga_list(&self, _request: MangaListRequest<'_>) -> SourceResult {
+            Err(SourceError::unimplemented())
+        }
+
+        fn get_home(&self, _request: HomeRequest<'_>) -> SourceResult {
+            Err(SourceError::unimplemented())
+        }
+
+        fn get_filters(&self, _request: FiltersRequest<'_>) -> SourceResult {
+            Err(SourceError::unimplemented())
+        }
+
+        fn get_settings(&self, _request: SettingsRequest<'_>) -> SourceResult {
+            Err(SourceError::unimplemented())
+        }
+
+        fn get_image_request(&self, _request: ImageRequestInput<'_>) -> SourceResult {
+            Err(SourceError::unimplemented())
+        }
+    }
+
+    pub trait OperationRequest<'a> {
+        const OPERATION: &'static str;
+
+        fn from_request(request: Request<'a>) -> Self;
     }
 
     impl<'a> SearchRequest<'a> {
@@ -166,8 +338,125 @@ pub mod source {
         }
     }
 
-    pub fn init<S: Source>(manifest_len: u32, log_message: &[u8]) -> i32 {
-        let _ = S::INFO;
+    impl<'a> ListingsRequest<'a> {
+        pub fn raw_contains(&self, needle: &[u8]) -> bool {
+            self.request.contains(needle)
+        }
+    }
+
+    impl<'a> MangaListRequest<'a> {
+        pub fn listing_id_is(&self, id: &[u8]) -> bool {
+            self.request.contains_json_string(b"listingId", id)
+        }
+    }
+
+    impl<'a> HomeRequest<'a> {
+        pub fn raw_contains(&self, needle: &[u8]) -> bool {
+            self.request.contains(needle)
+        }
+    }
+
+    impl<'a> FiltersRequest<'a> {
+        pub fn raw_contains(&self, needle: &[u8]) -> bool {
+            self.request.contains(needle)
+        }
+    }
+
+    impl<'a> SettingsRequest<'a> {
+        pub fn raw_contains(&self, needle: &[u8]) -> bool {
+            self.request.contains(needle)
+        }
+    }
+
+    impl<'a> ImageRequestInput<'a> {
+        pub fn page_id_is(&self, id: &[u8]) -> bool {
+            self.request.contains_json_string(b"pageId", id)
+        }
+    }
+
+    impl<'a> OperationRequest<'a> for SearchRequest<'a> {
+        const OPERATION: &'static str = "search";
+
+        fn from_request(request: Request<'a>) -> Self {
+            SearchRequest { request }
+        }
+    }
+
+    impl<'a> OperationRequest<'a> for MangaId<'a> {
+        const OPERATION: &'static str = "get_manga";
+
+        fn from_request(request: Request<'a>) -> Self {
+            MangaId { request }
+        }
+    }
+
+    impl<'a> OperationRequest<'a> for ChapterListRequest<'a> {
+        const OPERATION: &'static str = "get_chapters";
+
+        fn from_request(request: Request<'a>) -> Self {
+            ChapterListRequest { request }
+        }
+    }
+
+    impl<'a> OperationRequest<'a> for ChapterId<'a> {
+        const OPERATION: &'static str = "get_pages";
+
+        fn from_request(request: Request<'a>) -> Self {
+            ChapterId { request }
+        }
+    }
+
+    impl<'a> OperationRequest<'a> for ListingsRequest<'a> {
+        const OPERATION: &'static str = "get_listings";
+
+        fn from_request(request: Request<'a>) -> Self {
+            ListingsRequest { request }
+        }
+    }
+
+    impl<'a> OperationRequest<'a> for MangaListRequest<'a> {
+        const OPERATION: &'static str = "get_manga_list";
+
+        fn from_request(request: Request<'a>) -> Self {
+            MangaListRequest { request }
+        }
+    }
+
+    impl<'a> OperationRequest<'a> for HomeRequest<'a> {
+        const OPERATION: &'static str = "get_home";
+
+        fn from_request(request: Request<'a>) -> Self {
+            HomeRequest { request }
+        }
+    }
+
+    impl<'a> OperationRequest<'a> for FiltersRequest<'a> {
+        const OPERATION: &'static str = "get_filters";
+
+        fn from_request(request: Request<'a>) -> Self {
+            FiltersRequest { request }
+        }
+    }
+
+    impl<'a> OperationRequest<'a> for SettingsRequest<'a> {
+        const OPERATION: &'static str = "get_settings";
+
+        fn from_request(request: Request<'a>) -> Self {
+            SettingsRequest { request }
+        }
+    }
+
+    impl<'a> OperationRequest<'a> for ImageRequestInput<'a> {
+        const OPERATION: &'static str = "get_image_request";
+
+        fn from_request(request: Request<'a>) -> Self {
+            ImageRequestInput { request }
+        }
+    }
+
+    pub fn init<S: Source>(source: &S, manifest_len: u32, log_message: &[u8]) -> i32 {
+        let _ = source.info();
+        let _ = source.capabilities();
         host::log_info(log_message);
         if host::check_cancel() {
             return -2;
@@ -191,7 +480,7 @@ pub mod source {
         else {
             return buffer.last_ptr();
         };
-        write_source_result(buffer, "search", source.search(SearchRequest { request }))
+        write_source_result(buffer, SearchRequest::OPERATION, source.search(request))
     }
 
     pub fn get_manga<S: Source, const N: usize>(
@@ -205,7 +494,7 @@ pub mod source {
         else {
             return buffer.last_ptr();
         };
-        write_source_result(buffer, "get_manga", source.get_manga(MangaId { request }))
+        write_source_result(buffer, MangaId::OPERATION, source.get_manga(request))
     }
 
     pub fn get_chapters<S: Source, const N: usize>(
@@ -222,8 +511,8 @@ pub mod source {
         };
         write_source_result(
             buffer,
-            "get_chapters",
-            source.get_chapters(ChapterListRequest { request }),
+            ChapterListRequest::OPERATION,
+            source.get_chapters(request),
         )
     }
 
@@ -238,33 +527,176 @@ pub mod source {
         else {
             return buffer.last_ptr();
         };
-        write_source_result(buffer, "get_pages", source.get_pages(ChapterId { request }))
+        write_source_result(buffer, ChapterId::OPERATION, source.get_pages(request))
     }
 
-    fn prepare_operation<'a, const N: usize>(
+    pub fn source_info<S: Source, const N: usize>(source: &S, buffer: &mut ResultBuffer<N>) -> u32 {
+        let info = source.info();
+        let capabilities = source.capabilities();
+        buffer.write_source_metadata(&info, &capabilities)
+    }
+
+    pub fn get_listings<S: Source, const N: usize>(
+        source: &S,
+        buffer: &mut ResultBuffer<N>,
+        req_ptr: u32,
+        req_len: u32,
+        log_message: &[u8],
+    ) -> u32 {
+        let Some(request) = prepare_operation(
+            buffer,
+            req_ptr,
+            req_len,
+            ListingsRequest::OPERATION,
+            log_message,
+        ) else {
+            return buffer.last_ptr();
+        };
+        write_source_result(
+            buffer,
+            ListingsRequest::OPERATION,
+            source.get_listings(request),
+        )
+    }
+
+    pub fn get_manga_list<S: Source, const N: usize>(
+        source: &S,
+        buffer: &mut ResultBuffer<N>,
+        req_ptr: u32,
+        req_len: u32,
+        log_message: &[u8],
+    ) -> u32 {
+        let Some(request) = prepare_operation(
+            buffer,
+            req_ptr,
+            req_len,
+            MangaListRequest::OPERATION,
+            log_message,
+        ) else {
+            return buffer.last_ptr();
+        };
+        write_source_result(
+            buffer,
+            MangaListRequest::OPERATION,
+            source.get_manga_list(request),
+        )
+    }
+
+    pub fn get_home<S: Source, const N: usize>(
+        source: &S,
+        buffer: &mut ResultBuffer<N>,
+        req_ptr: u32,
+        req_len: u32,
+        log_message: &[u8],
+    ) -> u32 {
+        let Some(request) = prepare_operation(
+            buffer,
+            req_ptr,
+            req_len,
+            HomeRequest::OPERATION,
+            log_message,
+        ) else {
+            return buffer.last_ptr();
+        };
+        write_source_result(buffer, HomeRequest::OPERATION, source.get_home(request))
+    }
+
+    pub fn get_filters<S: Source, const N: usize>(
+        source: &S,
+        buffer: &mut ResultBuffer<N>,
+        req_ptr: u32,
+        req_len: u32,
+        log_message: &[u8],
+    ) -> u32 {
+        let Some(request) = prepare_operation(
+            buffer,
+            req_ptr,
+            req_len,
+            FiltersRequest::OPERATION,
+            log_message,
+        ) else {
+            return buffer.last_ptr();
+        };
+        write_source_result(
+            buffer,
+            FiltersRequest::OPERATION,
+            source.get_filters(request),
+        )
+    }
+
+    pub fn get_settings<S: Source, const N: usize>(
+        source: &S,
+        buffer: &mut ResultBuffer<N>,
+        req_ptr: u32,
+        req_len: u32,
+        log_message: &[u8],
+    ) -> u32 {
+        let Some(request) = prepare_operation(
+            buffer,
+            req_ptr,
+            req_len,
+            SettingsRequest::OPERATION,
+            log_message,
+        ) else {
+            return buffer.last_ptr();
+        };
+        write_source_result(
+            buffer,
+            SettingsRequest::OPERATION,
+            source.get_settings(request),
+        )
+    }
+
+    pub fn get_image_request<S: Source, const N: usize>(
+        source: &S,
+        buffer: &mut ResultBuffer<N>,
+        req_ptr: u32,
+        req_len: u32,
+        log_message: &[u8],
+    ) -> u32 {
+        let Some(request) = prepare_operation(
+            buffer,
+            req_ptr,
+            req_len,
+            ImageRequestInput::OPERATION,
+            log_message,
+        ) else {
+            return buffer.last_ptr();
+        };
+        write_source_result(
+            buffer,
+            ImageRequestInput::OPERATION,
+            source.get_image_request(request),
+        )
+    }
+
+    fn prepare_operation<'a, R, const N: usize>(
         buffer: &mut ResultBuffer<N>,
         req_ptr: u32,
         req_len: u32,
         operation: &'static str,
         log_message: &[u8],
-    ) -> Option<Request<'a>> {
+    ) -> Option<R>
+    where
+        R: OperationRequest<'a>,
+    {
         let Some(request) = (unsafe { Request::from_abi(req_ptr, req_len) }) else {
-            buffer.write_error("unknown", "BAD_REQUEST", "empty request");
+            buffer.write_error("unknown", "invalid_request", "empty request");
             return None;
         };
 
         host::log_info(log_message);
         if !request.contains_json_string(b"operation", operation.as_bytes()) {
-            buffer.write_error(operation, "BAD_REQUEST", "unexpected operation");
+            buffer.write_error(operation, "invalid_request", "unexpected operation");
             return None;
         }
 
         if host::check_cancel() {
-            buffer.write_error(operation, "CANCELLED", "host cancelled");
+            buffer.write_error(operation, "cancelled", "host cancelled");
             return None;
         }
 
-        Some(request)
+        Some(R::from_request(request))
     }
 
     fn write_source_result<const N: usize>(
@@ -273,10 +705,8 @@ pub mod source {
         result: SourceResult,
     ) -> u32 {
         match result {
-            SourceResult::Json(data) => buffer.write_success(operation, data),
-            SourceResult::BadRequest(message) => {
-                buffer.write_error(operation, "BAD_REQUEST", message)
-            }
+            Ok(data) => buffer.write_success(operation, data.bytes()),
+            Err(error) => buffer.write_error(operation, error.code(), error.message()),
         }
     }
 }
@@ -308,6 +738,8 @@ pub mod envelope {
 }
 
 pub mod result {
+    use crate::source::{SourceCapabilities, SourceInfo};
+
     const KOMA_MAGIC: u32 = 0x4B4F4D41;
     const HEADER_LEN: usize = 16;
     const RESPONSE_PREFIX_OK: &[u8] = br#"{"type":"response","version":1,"ok":true,"operation":""#;
@@ -365,6 +797,64 @@ pub mod result {
             )
         }
 
+        pub fn write_source_metadata(
+            &mut self,
+            info: &SourceInfo,
+            capabilities: &SourceCapabilities,
+        ) -> u32 {
+            self.write_success_parts(
+                "source_info",
+                &[
+                    br#"{"sourceInfo":{"id":""#,
+                    info.id.as_bytes(),
+                    br#"","name":""#,
+                    info.name.as_bytes(),
+                    br#"","version":""#,
+                    info.version.as_bytes(),
+                    br#"","apiVersion":""#,
+                    info.api_version.as_bytes(),
+                    br#"","language":""#,
+                    info.language.as_bytes(),
+                    br#"","author":""#,
+                    info.author.as_bytes(),
+                    br#"","description":""#,
+                    info.description.as_bytes(),
+                    br#"","contentRating":""#,
+                    info.content_rating.as_bytes(),
+                    br#""},"capabilities":{"search":"#,
+                    bool_json(capabilities.search),
+                    br#","mangaDetail":"#,
+                    bool_json(capabilities.manga_detail),
+                    br#","chapters":"#,
+                    bool_json(capabilities.chapters),
+                    br#","pages":"#,
+                    bool_json(capabilities.pages),
+                    br#","listings":"#,
+                    bool_json(capabilities.listings),
+                    br#","mangaList":"#,
+                    bool_json(capabilities.manga_list),
+                    br#","home":"#,
+                    bool_json(capabilities.home),
+                    br#","filters":"#,
+                    bool_json(capabilities.filters),
+                    br#","settings":"#,
+                    bool_json(capabilities.settings),
+                    br#","imageRequest":"#,
+                    bool_json(capabilities.image_request),
+                    br#","future":{"process_page_image":false,"page_description":false,"base_url":false,"login":false,"auth":false,"deeplink":false,"migration":false}}}"#,
+                ],
+            )
+        }
+
+        pub fn write_success_parts(&mut self, operation: &str, data_parts: &[&[u8]]) -> u32 {
+            self.write_nested_parts(
+                true,
+                &[RESPONSE_PREFIX_OK, operation.as_bytes(), DATA_PREFIX],
+                data_parts,
+                &[SUCCESS_SUFFIX],
+            )
+        }
+
         pub fn write_error(&mut self, operation: &str, code: &str, message: &str) -> u32 {
             self.write_parts(
                 false,
@@ -419,11 +909,67 @@ pub mod result {
             self.last_response = self.bytes.as_mut_ptr() as u32;
             self.last_response
         }
+
+        fn write_nested_parts(
+            &mut self,
+            ok: bool,
+            prefix: &[&[u8]],
+            middle: &[&[u8]],
+            suffix: &[&[u8]],
+        ) -> u32 {
+            let mut payload_len = 0_usize;
+            for part in prefix {
+                payload_len += part.len();
+            }
+            for part in middle {
+                payload_len += part.len();
+            }
+            for part in suffix {
+                payload_len += part.len();
+            }
+            if payload_len + HEADER_LEN > N {
+                return 0;
+            }
+
+            let flags = if ok { 1_u32 } else { 0_u32 };
+            let payload_len_u32 = payload_len as u32;
+            let zero = 0_u32;
+            let base = self.bytes.as_mut_ptr();
+            unsafe {
+                core::ptr::copy_nonoverlapping(KOMA_MAGIC.to_le_bytes().as_ptr(), base, 4);
+                core::ptr::copy_nonoverlapping(flags.to_le_bytes().as_ptr(), base.add(4), 4);
+                core::ptr::copy_nonoverlapping(
+                    payload_len_u32.to_le_bytes().as_ptr(),
+                    base.add(8),
+                    4,
+                );
+                core::ptr::copy_nonoverlapping(zero.to_le_bytes().as_ptr(), base.add(12), 4);
+
+                let mut cursor = HEADER_LEN;
+                for parts in [prefix, middle, suffix] {
+                    for part in parts {
+                        core::ptr::copy_nonoverlapping(part.as_ptr(), base.add(cursor), part.len());
+                        cursor += part.len();
+                    }
+                }
+            }
+
+            self.last_response = self.bytes.as_mut_ptr() as u32;
+            self.last_response
+        }
     }
 
     impl<const N: usize> Default for ResultBuffer<N> {
         fn default() -> Self {
             Self::new()
+        }
+    }
+
+    fn bool_json(value: bool) -> &'static [u8] {
+        if value {
+            b"true"
+        } else {
+            b"false"
         }
     }
 }

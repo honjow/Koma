@@ -113,6 +113,7 @@ run_logged "${RUSTC_CMD[@]}" --target wasm32-unknown-unknown \
   -C link-arg=--no-entry \
   -C link-arg=--export=add \
   -C link-arg=--export=koma_source_init \
+  -C link-arg=--export=koma_source_info \
   -C link-arg=--export=koma_source_search \
   -C link-arg=--export=koma_source_get_manga \
   -C link-arg=--export=koma_source_get_chapters \
