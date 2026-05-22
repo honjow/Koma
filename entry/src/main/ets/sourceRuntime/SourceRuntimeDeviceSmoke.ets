@@ -2,12 +2,15 @@ import { common, Want } from '@kit.AbilityKit'
 import { resourceManager } from '@kit.LocalizationKit'
 import { SourceRuntimeCallResponse } from './NativeSourceRuntime'
 import {
-  importArchiveNegativeFixtures,
-  importLocalSourceArchive,
   SourceArchiveNegativeCaseFixture,
   SourceArchiveNegativeImportResult,
-  stageRawfileSourcePackage,
 } from './SourcePackageImporter'
+import {
+  importAndRunLocalSourceArchive,
+  importArchiveNegativeFixturesWithoutExecution,
+  runStagedRawfileSourcePackage,
+  SourceRuntimeServiceRunSummary,
+} from './SourceRuntimeService'
 import {
   responseReachedFixture,
   runBundledSourceOperation,
@@ -135,70 +138,79 @@ function hasSmokeTrigger(want: Want): boolean {
   return parameters[SMOKE_TRIGGER_PARAM] === SMOKE_TRIGGER_VALUE
 }
 
-function joinSmokePath(parent: string, child: string): string {
-  const left = parent.replace(/\\/g, '/').replace(/\/+$/, '')
-  const right = child.replace(/\\/g, '/').replace(/^\/+/, '')
-  return left.length === 0 ? right : `${left}/${right}`
+function applyPackageServiceSummary(
+  result: SourceRuntimeSmokeResult,
+  summary: SourceRuntimeServiceRunSummary,
+): void {
+  result.packageResponseOk = summary.responseOk
+  result.packageSourceApiOperationsOk = summary.sourceApiOperationsOk
+  result.packageSourceApiOperations = summary.sourceApiOperations
+  result.packageOperation = summary.operation
+  result.packageRequestEcho = summary.requestEcho
+  result.packageFirstTitle = summary.firstTitle
+  result.packageNetwork = summary.network
+  result.packageWasmBytes = summary.wasmBytes
+  result.packageManifestId = summary.manifestId
+  result.packageManifestVersion = summary.manifestVersion
+  result.packageManifestPath = summary.manifestPath
+  result.packageWasmPath = summary.wasmPath
+  result.packageHashOk = summary.hashOk
+  result.packageRoute = summary.route
 }
 
-function stageAndRunLocalSourcePackageSmoke(
+function applyArchiveServiceSummary(
+  result: SourceRuntimeSmokeResult,
+  summary: SourceRuntimeServiceRunSummary,
+): void {
+  result.archiveResponseOk = summary.responseOk
+  result.archiveSourceApiOperationsOk = summary.sourceApiOperationsOk
+  result.archiveSourceApiOperations = summary.sourceApiOperations
+  result.archiveOperation = summary.operation
+  result.archiveRequestEcho = summary.requestEcho
+  result.archiveFirstTitle = summary.firstTitle
+  result.archiveNetwork = summary.network
+  result.archiveWasmBytes = summary.wasmBytes
+  result.archiveManifestId = summary.manifestId
+  result.archiveManifestVersion = summary.manifestVersion
+  result.archiveManifestPath = summary.manifestPath
+  result.archiveImportedWasmPath = summary.wasmPath
+  result.archiveHashOk = summary.hashOk
+  result.archiveImportOk = summary.importStatus === 'imported'
+  result.archivePath = summary.archivePath
+  result.archiveRoute = summary.route
+}
+
+function runLocalSourcePackageSmoke(
   context: common.UIAbilityContext,
   resourceMgr: resourceManager.ResourceManager,
   result: SourceRuntimeSmokeResult,
 ): void {
-  const staged = stageRawfileSourcePackage(context, resourceMgr, RUST_SMOKE_RAWFILE_PATH, 'source-runtime-package-smoke')
-  const packageRun = runSearchFixtureFromBytes(PACKAGE_SMOKE_REQUEST_JSON, staged.wasmBytes)
-  const packageOperations = runSourceApiFixtureOperationsFromBytes(staged.wasmBytes)
-  result.packageResponseOk = packageRun.responseOk
-  result.packageSourceApiOperationsOk = packageOperations.ok
-  result.packageSourceApiOperations = packageOperations
-  result.packageOperation = packageRun.operation
-  result.packageRequestEcho = packageRun.requestEcho
-  result.packageFirstTitle = packageRun.firstTitle
-  result.packageNetwork = packageRun.network
-  result.packageWasmBytes = staged.wasmBytes.byteLength
-  result.packageManifestId = staged.manifest.package.id
-  result.packageManifestVersion = staged.manifest.package.version
-  result.packageManifestPath = staged.manifestPath
-  result.packageWasmPath = staged.wasmPath
-  result.packageHashOk = staged.hashOk
-  result.packageRoute = PACKAGE_ROUTE_LABEL
+  const summary = runStagedRawfileSourcePackage(
+    context,
+    resourceMgr,
+    RUST_SMOKE_RAWFILE_PATH,
+    'source-runtime-package-smoke',
+    PACKAGE_SMOKE_REQUEST_JSON,
+    PACKAGE_ROUTE_LABEL,
+  )
+  applyPackageServiceSummary(result, summary)
 }
 
-async function stageImportAndRunLocalSourceArchiveSmoke(
+async function runLocalSourceArchiveSmoke(
   context: common.UIAbilityContext,
   resourceMgr: resourceManager.ResourceManager,
   result: SourceRuntimeSmokeResult,
 ): Promise<void> {
-  const archiveRoot = joinSmokePath(context.filesDir, 'source-runtime-archive-smoke')
-  const importedRoot = joinSmokePath(archiveRoot, 'imported-package')
-  const archivePath = joinSmokePath(archiveRoot, ARCHIVE_SANDBOX_ZIP_FILE)
-
-  const archiveBytes = resourceMgr.getRawFileContentSync(ARCHIVE_RAWFILE_PATH)
-  const imported = await importLocalSourceArchive(archiveBytes, archivePath, importedRoot)
-  if (!imported.ok || imported.manifest === undefined || imported.wasmBytes === undefined) {
-    throw new Error(`local source archive import rejected: ${imported.reasonCode}`)
-  }
-
-  imported.attemptedWamrExecution = true
-  const archiveRun = runSearchFixtureFromBytes(ARCHIVE_REQUEST_JSON, imported.wasmBytes)
-  const archiveOperations = runSourceApiFixtureOperationsFromBytes(imported.wasmBytes)
-  result.archiveResponseOk = archiveRun.responseOk
-  result.archiveSourceApiOperationsOk = archiveOperations.ok
-  result.archiveSourceApiOperations = archiveOperations
-  result.archiveOperation = archiveRun.operation
-  result.archiveRequestEcho = archiveRun.requestEcho
-  result.archiveFirstTitle = archiveRun.firstTitle
-  result.archiveNetwork = archiveRun.network
-  result.archiveWasmBytes = imported.wasmBytes.byteLength
-  result.archiveManifestId = imported.manifest.package.id
-  result.archiveManifestVersion = imported.manifest.package.version
-  result.archiveManifestPath = imported.manifestPath
-  result.archiveImportedWasmPath = imported.wasmPath
-  result.archiveHashOk = imported.hashOk
-  result.archiveImportOk = true
-  result.archivePath = archivePath
-  result.archiveRoute = ARCHIVE_ROUTE_LABEL
+  const summary = await importAndRunLocalSourceArchive(
+    context,
+    resourceMgr,
+    ARCHIVE_RAWFILE_PATH,
+    'source-runtime-archive-smoke',
+    ARCHIVE_SANDBOX_ZIP_FILE,
+    ARCHIVE_REQUEST_JSON,
+    ARCHIVE_ROUTE_LABEL,
+  )
+  applyArchiveServiceSummary(result, summary)
 }
 
 export async function maybeRunSourceRuntimeDeviceSmoke(
@@ -243,9 +255,9 @@ export async function maybeRunSourceRuntimeDeviceSmoke(
       result.rustSourceApiOperationsOk = rustSourceOperations.ok
       result.rustSourceApiOperations = rustSourceOperations
       if (context !== undefined) {
-        stageAndRunLocalSourcePackageSmoke(context, resourceMgr, result)
-        await stageImportAndRunLocalSourceArchiveSmoke(context, resourceMgr, result)
-        const archiveNegativeCases = await importArchiveNegativeFixtures(
+        runLocalSourcePackageSmoke(context, resourceMgr, result)
+        await runLocalSourceArchiveSmoke(context, resourceMgr, result)
+        const archiveNegativeCases = await importArchiveNegativeFixturesWithoutExecution(
           context,
           resourceMgr,
           ARCHIVE_NEGATIVE_CASES,

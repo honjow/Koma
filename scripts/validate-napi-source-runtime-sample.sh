@@ -12,6 +12,7 @@ wrapper_file="entry/src/main/ets/sourceRuntime/NativeSourceRuntime.ets"
 smoke_file="entry/src/main/ets/sourceRuntime/SourceRuntimeDeviceSmoke.ets"
 source_package_importer_file="entry/src/main/ets/sourceRuntime/SourcePackageImporter.ets"
 source_runtime_runner_file="entry/src/main/ets/sourceRuntime/SourceRuntimeRunner.ets"
+source_runtime_service_file="entry/src/main/ets/sourceRuntime/SourceRuntimeService.ets"
 entry_ability_file="entry/src/main/ets/entryability/EntryAbility.ets"
 build_profile="entry/build-profile.json5"
 rawfile_fixture="entry/src/main/resources/rawfile/test/source_runtime_fixture.wasm"
@@ -43,6 +44,7 @@ require_file "$wrapper_file"
 require_file "$smoke_file"
 require_file "$source_package_importer_file"
 require_file "$source_runtime_runner_file"
+require_file "$source_runtime_service_file"
 require_file "$entry_ability_file"
 require_file "$rawfile_fixture"
 require_file "$rust_rawfile_fixture"
@@ -120,15 +122,20 @@ require_text "$smoke_file" 'KOMA_SOURCE_RUNTIME_SMOKE_RESULT'
 require_text "$smoke_file" 'entryability-want-test-only'
 require_text "$smoke_file" 'local_source_runtime_fixture.koma-source'
 require_text "$smoke_file" 'app-local-source-archive-import-test-only'
-require_text "$smoke_file" 'importLocalSourceArchive'
-require_text "$smoke_file" 'stageRawfileSourcePackage'
-require_text "$smoke_file" 'importArchiveNegativeFixtures'
+require_text "$smoke_file" 'SourceRuntimeService'
+require_text "$smoke_file" 'runStagedRawfileSourcePackage'
+require_text "$smoke_file" 'importAndRunLocalSourceArchive'
+require_text "$smoke_file" 'importArchiveNegativeFixturesWithoutExecution'
 require_text "$smoke_file" 'archiveImportOk'
 require_text "$smoke_file" 'archiveResponseOk'
 require_text "$smoke_file" 'archiveImportedWasmPath'
 require_text "$smoke_file" 'rustSourceApiOperationsOk'
 require_text "$smoke_file" 'packageSourceApiOperationsOk'
 require_text "$smoke_file" 'archiveSourceApiOperationsOk'
+if rg -q 'stageRawfileSourcePackage|importLocalSourceArchive' "$smoke_file"; then
+  echo "device smoke must consume SourceRuntimeService for package/archive happy paths, not direct importer helpers" >&2
+  exit 1
+fi
 require_text "$source_runtime_runner_file" 'NativeSourceRuntime.runJsonCall'
 require_text "$source_runtime_runner_file" 'NativeSourceRuntime.runJsonCallFromBytes'
 require_text "$source_runtime_runner_file" 'runSourceOperationFromBytes'
@@ -152,6 +159,17 @@ require_text "$source_package_importer_file" 'unsafe_archive_entry'
 require_text "$source_package_importer_file" 'missing_manifest'
 require_text "$source_package_importer_file" 'missing_wasm'
 require_text "$source_package_importer_file" 'attemptedWamrExecution: false'
+require_text "$source_runtime_service_file" 'runStagedRawfileSourcePackage'
+require_text "$source_runtime_service_file" 'importAndRunLocalSourceArchive'
+require_text "$source_runtime_service_file" 'importArchiveNegativeFixturesWithoutExecution'
+require_text "$source_runtime_service_file" 'stageRawfileSourcePackage'
+require_text "$source_runtime_service_file" 'importLocalSourceArchive'
+require_text "$source_runtime_service_file" 'runSearchFixtureFromBytes'
+require_text "$source_runtime_service_file" 'runSourceApiFixtureOperationsFromBytes'
+require_text "$source_runtime_service_file" 'SourceRuntimeServiceRunSummary'
+require_text "$source_runtime_service_file" 'searchResponseCompatible'
+require_text "$source_runtime_service_file" 'attemptedWamrExecution: true'
+require_text "$source_runtime_service_file" 'network'
 require_text "$entry_ability_file" 'maybeRunSourceRuntimeDeviceSmoke'
 require_text "$entry_ability_file" 'onCreate'
 require_text "$entry_ability_file" 'onNewWant'
@@ -235,9 +253,10 @@ require_text "tools/wasm-runtime-spike/host/host_runner.cpp" 'native_module_name
 require_text "tools/wasm-runtime-spike/host/host_runner.cpp" 'HOST_LOG'
 require_text "tools/wasm-runtime-spike/host/host_runner.cpp" 'HOST_CHECK_CANCEL'
 
-if git diff --name-only | rg -q '(^|/)(source|sources|market|marketplace|plugin).*(Page|View|Store|Service|Client)\.(ets|ts|cpp)$'; then
+source_management_changes="$(git diff --name-only | rg '(^|/)(source|sources|market|marketplace|plugin).*(Page|View|Store|Service|Client)\.(ets|ts|cpp)$' | rg -v '^entry/src/main/ets/sourceRuntime/SourceRuntimeService\.ets$' || true)"
+if [[ -n "$source_management_changes" ]]; then
   echo "unexpected source management or marketplace-shaped product changes" >&2
-  git diff --name-only | rg '(^|/)(source|sources|market|marketplace|plugin).*(Page|View|Store|Service|Client)\.(ets|ts|cpp)$' >&2
+  echo "$source_management_changes" >&2
   exit 1
 fi
 
