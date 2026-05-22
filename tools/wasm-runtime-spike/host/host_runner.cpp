@@ -142,6 +142,12 @@ bool contains_any_forbidden_runtime_string(const std::string &payload) {
         "/storage/",
         "/sdcard/",
         ".hermes-artifacts",
+        "password",
+        "token",
+        "secret",
+        "apiKey",
+        "cookie",
+        "Authorization",
     };
     for (const char *needle : forbidden) {
         if (payload.find(needle) != std::string::npos) {
@@ -149,6 +155,14 @@ bool contains_any_forbidden_runtime_string(const std::string &payload) {
         }
     }
     return false;
+}
+
+void require_contains(const std::string &payload,
+                      const std::string &needle,
+                      const std::string &context) {
+    if (payload.find(needle) == std::string::npos) {
+        throw std::runtime_error(context + " missing " + needle);
+    }
 }
 
 void validate_source_envelope(const std::string &operation, const std::string &payload) {
@@ -171,6 +185,33 @@ void validate_source_envelope(const std::string &operation, const std::string &p
     if (contains_any_forbidden_runtime_string(payload)) {
         throw std::runtime_error(operation + " result leaked network/http/path evidence");
     }
+}
+
+void validate_source_info_envelope(const std::string &payload) {
+    validate_source_envelope("source_info", payload);
+
+    require_contains(payload, "\"sourceInfo\":", "source_info");
+    require_contains(payload, "\"id\":\"local.test.koma.fixture\"", "source_info");
+    require_contains(payload, "\"name\":\"Koma Rust SDK Fixture\"", "source_info");
+    require_contains(payload, "\"version\":\"0.2.0\"", "source_info");
+    require_contains(payload, "\"apiVersion\":\"0.2\"", "source_info");
+    require_contains(payload, "\"language\":\"zh-Hans\"", "source_info");
+    require_contains(payload, "\"contentRating\":\"unknown\"", "source_info");
+
+    require_contains(payload, "\"capabilities\":", "source_info");
+    require_contains(payload, "\"search\":true", "source_info capabilities");
+    require_contains(payload, "\"mangaDetail\":true", "source_info capabilities");
+    require_contains(payload, "\"chapters\":true", "source_info capabilities");
+    require_contains(payload, "\"pages\":true", "source_info capabilities");
+    require_contains(payload, "\"listings\":false", "source_info capabilities");
+    require_contains(payload, "\"mangaList\":false", "source_info capabilities");
+    require_contains(payload, "\"home\":false", "source_info capabilities");
+    require_contains(payload, "\"filters\":false", "source_info capabilities");
+    require_contains(payload, "\"settings\":false", "source_info capabilities");
+    require_contains(payload, "\"imageRequest\":false", "source_info capabilities");
+    require_contains(payload, "\"process_page_image\":false", "source_info capabilities");
+    require_contains(payload, "\"login\":false", "source_info capabilities");
+    require_contains(payload, "\"auth\":false", "source_info capabilities");
 }
 
 class Runtime {
@@ -297,6 +338,61 @@ public:
         std::cout << "INIT_OK manifest accepted\n";
     }
 
+    std::string read_result_payload(uint32_t result_ptr, bool expect_ok, const char *context) {
+        if (result_ptr == 0) {
+            throw std::runtime_error(std::string(context) + " returned null result pointer");
+        }
+        if (!wasm_runtime_validate_app_addr(module_inst_, result_ptr, 16)) {
+            throw std::runtime_error("result header is outside wasm memory");
+        }
+
+        const uint8_t *header = static_cast<const uint8_t *>(
+            wasm_runtime_addr_app_to_native(module_inst_, result_ptr));
+        const uint32_t magic = read_le_u32(header);
+        const uint32_t flags = read_le_u32(header + 4);
+        const uint32_t len = read_le_u32(header + 8);
+        const uint32_t reserved = read_le_u32(header + 12);
+
+        if (magic != kKomaMagic) {
+            throw std::runtime_error("bad result magic");
+        }
+        if ((flags & ~1u) != 0 || ((flags & 1u) != 0) != expect_ok) {
+            throw std::runtime_error("unexpected result flags " + std::to_string(flags));
+        }
+        if (reserved != 0) {
+            throw std::runtime_error("reserved result header field is non-zero");
+        }
+        if (len == 0 || len > kMaxPayloadBytes) {
+            throw std::runtime_error("unexpected payload length " + std::to_string(len));
+        }
+        if (!wasm_runtime_validate_app_addr(module_inst_, result_ptr + 16u, len)) {
+            throw std::runtime_error("result payload is outside wasm memory");
+        }
+
+        const char *payload_native = static_cast<const char *>(
+            wasm_runtime_addr_app_to_native(module_inst_, result_ptr + 16u));
+        std::string payload(payload_native, payload_native + len);
+
+        wasm_function_inst_t free_fn = lookup("koma_source_free");
+        uint32_t free_argv[1] = {result_ptr};
+        require_call(exec_env_, module_inst_, free_fn, 1, free_argv, "koma_source_free");
+        return payload;
+    }
+
+    std::string call_source_info() {
+        wasm_function_inst_t source_fn = lookup("koma_source_info");
+        uint32_t argv[1] = {0};
+        require_call(exec_env_, module_inst_, source_fn, 0, argv, "koma_source_info");
+
+        std::string payload = read_result_payload(argv[0], true, "koma_source_info");
+        validate_source_info_envelope(payload);
+
+        std::cout << "SOURCE_API_SOURCE_INFO ok:true export=koma_source_info\n";
+        std::cout << "SOURCE_API_JSON source_info=" << payload << "\n";
+        std::cout << "SOURCE_API_CAPABILITIES core:true optional:false network:false\n";
+        return payload;
+    }
+
     std::string call_operation(const SourceOperation &operation) {
         const char *request = operation.request_json;
         const uint32_t request_len = static_cast<uint32_t>(std::strlen(request));
@@ -317,50 +413,53 @@ public:
         }
         wasm_runtime_module_free(module_inst_, request_ptr);
 
-        const uint32_t result_ptr = argv[0];
-        if (result_ptr == 0) {
-            throw std::runtime_error(std::string(operation.export_name) + " returned null result pointer");
-        }
-        if (!wasm_runtime_validate_app_addr(module_inst_, result_ptr, 16)) {
-            throw std::runtime_error("result header is outside wasm memory");
-        }
-
-        const uint8_t *header = static_cast<const uint8_t *>(
-            wasm_runtime_addr_app_to_native(module_inst_, result_ptr));
-        const uint32_t magic = read_le_u32(header);
-        const uint32_t flags = read_le_u32(header + 4);
-        const uint32_t len = read_le_u32(header + 8);
-        const uint32_t reserved = read_le_u32(header + 12);
-
-        if (magic != kKomaMagic) {
-            throw std::runtime_error("bad result magic");
-        }
-        if ((flags & ~1u) != 0 || (flags & 1u) == 0) {
-            throw std::runtime_error("unexpected result flags " + std::to_string(flags));
-        }
-        if (reserved != 0) {
-            throw std::runtime_error("reserved result header field is non-zero");
-        }
-        if (len == 0 || len > kMaxPayloadBytes) {
-            throw std::runtime_error("unexpected payload length " + std::to_string(len));
-        }
-        if (!wasm_runtime_validate_app_addr(module_inst_, result_ptr + 16u, len)) {
-            throw std::runtime_error("result payload is outside wasm memory");
-        }
-
-        const char *payload_native = static_cast<const char *>(
-            wasm_runtime_addr_app_to_native(module_inst_, result_ptr + 16u));
-        std::string payload(payload_native, payload_native + len);
+        std::string payload = read_result_payload(argv[0], true, operation.export_name);
         validate_source_envelope(operation.name, payload);
 
-        wasm_function_inst_t free_fn = lookup("koma_source_free");
-        uint32_t free_argv[1] = {result_ptr};
-        require_call(exec_env_, module_inst_, free_fn, 1, free_argv, "koma_source_free");
-
         std::cout << "SOURCE_API_OPERATION " << operation.name << " ok:true"
-                  << " magic=KOMA flags=" << flags << " len=" << len << "\n";
+                  << " magic=KOMA\n";
         std::cout << "SOURCE_API_JSON " << operation.name << "=" << payload << "\n";
         return payload;
+    }
+
+    void reject_unknown_operation() {
+        const SourceOperation operation = {
+            "search",
+            "koma_source_search",
+            "{\"type\":\"request\",\"version\":1,\"requestId\":\"runtime-unknown-operation-001\","
+            "\"operation\":\"unknown_operation\",\"sourceId\":\"local.test.koma.fixture\","
+            "\"args\":{\"query\":\"fixture\"},\"settings\":{},\"hostHints\":{\"network\":false}}",
+        };
+        const char *request = operation.request_json;
+        const uint32_t request_len = static_cast<uint32_t>(std::strlen(request));
+        uint64_t request_ptr =
+            wasm_runtime_module_dup_data(module_inst_, request, request_len);
+        if (request_ptr == 0) {
+            throw std::runtime_error("failed to copy unknown-operation request into wasm memory");
+        }
+
+        wasm_function_inst_t source_fn = lookup(operation.export_name);
+        uint32_t argv[2] = {static_cast<uint32_t>(request_ptr), request_len};
+        try {
+            require_call(exec_env_, module_inst_, source_fn, 2, argv, operation.export_name);
+        }
+        catch (...) {
+            wasm_runtime_module_free(module_inst_, request_ptr);
+            throw;
+        }
+        wasm_runtime_module_free(module_inst_, request_ptr);
+
+        std::string payload = read_result_payload(argv[0], false, "unknown operation rejection");
+        require_contains(payload, "\"ok\":false", "unknown operation rejection");
+        require_contains(payload, "\"operation\":\"search\"", "unknown operation rejection");
+        require_contains(payload, "\"code\":\"invalid_request\"", "unknown operation rejection");
+        require_contains(payload, "\"message\":\"unexpected operation\"", "unknown operation rejection");
+        if (payload.find("Fixture Series") != std::string::npos ||
+            payload.find("\"requestEcho\":\"fixture\"") != std::string::npos) {
+            throw std::runtime_error("unknown operation defaulted to search");
+        }
+        std::cout << "SOURCE_API_UNKNOWN_OPERATION_REJECTED ok:true export=koma_source_search\n";
+        std::cout << "SOURCE_API_JSON unknown_operation_rejected=" << payload << "\n";
     }
 
     void call_core_operations() {
@@ -404,6 +503,7 @@ public:
         for (const SourceOperation &operation : operations) {
             call_operation(operation);
         }
+        reject_unknown_operation();
         std::cout << "hostHints.network=false\n";
     }
 
@@ -427,6 +527,7 @@ int main(int argc, char **argv) {
         Module module(read_file(argv[1]));
         module.validate_add();
         module.init_with_manifest();
+        module.call_source_info();
         module.call_core_operations();
         std::cout << "SOURCE_API_RUNTIME_SMOKE_PASS\n";
         std::cout << "WAMR_SPIKE_PASS\n";

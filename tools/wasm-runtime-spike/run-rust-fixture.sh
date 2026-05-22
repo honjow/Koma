@@ -147,6 +147,21 @@ if ! grep -q 'SOURCE_API_RUNTIME_SMOKE_PASS' "$RUN_LOG"; then
   exit 22
 fi
 
+if ! grep -q 'SOURCE_API_SOURCE_INFO ok:true export=koma_source_info' "$RUN_LOG"; then
+  log "missing SOURCE_API_SOURCE_INFO ok:true evidence"
+  exit 22
+fi
+
+if ! grep -q 'SOURCE_API_CAPABILITIES core:true optional:false network:false' "$RUN_LOG"; then
+  log "missing SOURCE_API_CAPABILITIES evidence"
+  exit 22
+fi
+
+if ! grep -q 'SOURCE_API_UNKNOWN_OPERATION_REJECTED ok:true' "$RUN_LOG"; then
+  log "missing unknown operation rejection evidence"
+  exit 22
+fi
+
 if ! grep -q 'hostHints.network=false' "$RUN_LOG"; then
   log "missing hostHints.network=false evidence"
   exit 22
@@ -177,9 +192,31 @@ with open(run_log, "r", encoding="utf-8") as fh:
         name, raw = line[len("SOURCE_API_JSON "):].split("=", 1)
         payloads[name] = json.loads(raw)
 
-expected = ["search", "get_manga", "get_chapters", "get_pages"]
+core_expected = ["search", "get_manga", "get_chapters", "get_pages"]
+expected = ["source_info", *core_expected, "unknown_operation_rejected"]
 assert sorted(payloads) == sorted(expected), payloads.keys()
-for name in expected:
+
+source_info = payloads["source_info"]
+assert source_info["version"] == 1
+assert source_info["ok"] is True
+assert source_info["operation"] == "source_info"
+assert source_info["hostHints"]["network"] is False
+info = source_info["data"]["sourceInfo"]
+assert info["id"] == "local.test.koma.fixture"
+assert info["name"] == "Koma Rust SDK Fixture"
+assert info["version"] == "0.2.0"
+assert info["apiVersion"] == "0.2"
+assert info["language"] == "zh-Hans"
+assert info["contentRating"] == "unknown"
+capabilities = source_info["data"]["capabilities"]
+for key in ["search", "mangaDetail", "chapters", "pages"]:
+    assert capabilities[key] is True, key
+for key in ["listings", "mangaList", "home", "filters", "settings", "imageRequest"]:
+    assert capabilities[key] is False, key
+for key, value in capabilities["future"].items():
+    assert value is False, key
+
+for name in core_expected:
     payload = payloads[name]
     assert payload["version"] == 1
     assert payload["ok"] is True
@@ -188,6 +225,25 @@ for name in expected:
     assert payload["hostHints"]["network"] is False
 assert payloads["search"]["data"]["items"][0]["title"] == "Fixture Series"
 assert payloads["search"]["data"]["requestEcho"] == "fixture"
+
+rejected = payloads["unknown_operation_rejected"]
+assert rejected["version"] == 1
+assert rejected["ok"] is False
+assert rejected["operation"] == "search"
+assert rejected["error"]["code"] == "invalid_request"
+assert rejected["error"]["message"] == "unexpected operation"
+assert "Fixture Series" not in json.dumps(rejected, sort_keys=True)
+
+for name, payload in payloads.items():
+    raw = json.dumps(payload, sort_keys=True)
+    forbidden = [
+        '"network": true', "http_request", "https://", "http://", "file://",
+        "content://", "ohos://", "internal://", "app-private", "/home/",
+        "/Users/", "/data/", "/storage/", "/sdcard/", ".hermes-artifacts",
+        "password", "token", "secret", "apiKey", "cookie", "Authorization",
+    ]
+    assert not any(item in raw for item in forbidden), name
+
 with open(json_out, "w", encoding="utf-8") as out:
     json.dump(payloads, out, indent=2, sort_keys=True)
     out.write("\n")

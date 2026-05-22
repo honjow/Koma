@@ -512,6 +512,15 @@ export presence:
 `future` entries are documentary only in v0.2 fixtures and must remain disabled
 until a later runtime lane defines their host policies.
 
+The current Rust/WAMR fixture exposes `koma_source_info` as the functional
+discovery entrypoint. Local smoke validation calls that export and requires a
+v0.2-shaped envelope with source id/name/version/API version/language/content
+rating, core capabilities (`search`, `mangaDetail`, `chapters`, `pages`) set to
+`true`, optional browse/config/image capabilities set to `false`, all future
+capabilities set to `false`, and `hostHints.network=false`. Static package
+validation accepts `koma_source_info` as an optional export and records the same
+runtime evidence when `--build-rust-fixture` is used.
+
 ### Browse Operations
 
 `get_listings` returns source-defined browse entry points:
@@ -854,7 +863,8 @@ Current validators that must continue to pass for this design-only lane:
 - `validate-archive-negative-fixtures.py`: malformed archive rejection.
 - `package-source-archive.py`: local archive packaging/validation boundary.
 - `validate-source-package.py --build-rust-fixture`: manifest, wasm, import,
-  export, capability, settings, and `network=false` checks.
+  export, `koma_source_info`, capability, settings, unknown-operation
+  rejection, and `network=false` checks.
 - `validate-http-boundary.py`: HTTP remains design-only and current package
   validation rejects HTTP/network drift.
 

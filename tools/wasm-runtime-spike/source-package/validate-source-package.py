@@ -24,6 +24,7 @@ REQUIRED_EXPORTS = {
     "koma_source_get_pages",
     "koma_source_free",
 }
+OPTIONAL_EXPORTS = {"koma_source_info"}
 CAPABILITY_KEYS = {"search", "detail", "chapterList", "pageList", "imageUrl"}
 SCOPE_FORBIDDEN_KEYS = {
     "repository",
@@ -42,6 +43,30 @@ SCOPE_FORBIDDEN_KEYS = {
     "plugin",
 }
 SECRET_WORDS = ("password", "token", "secret", "apikey", "apiKey", "cookie", "authorization")
+FORBIDDEN_RUNTIME_STRINGS = (
+    '"network": true',
+    '"network":true',
+    "http_request",
+    "https://",
+    "http://",
+    "file://",
+    "content://",
+    "ohos://",
+    "internal://",
+    "app-private",
+    "/home/",
+    "/Users/",
+    "/data/",
+    "/storage/",
+    "/sdcard/",
+    ".hermes-artifacts",
+    "password",
+    "token",
+    "secret",
+    "apiKey",
+    "cookie",
+    "Authorization",
+)
 
 
 class ValidationError(Exception):
@@ -193,6 +218,81 @@ def validate_settings_schema(schema: dict) -> None:
                     f"credential-shaped default is not allowed in fixture: {name}")
 
 
+def validate_source_info_payload(payload: dict) -> dict:
+    require(isinstance(payload, dict), "source_info payload must be an object")
+    raw = json.dumps(payload, sort_keys=True)
+    for forbidden in FORBIDDEN_RUNTIME_STRINGS:
+        require(forbidden not in raw, f"source_info payload leaked forbidden runtime string: {forbidden}")
+
+    require(payload.get("version") == 1, "source_info.version must be 1")
+    require(payload.get("ok") is True, "source_info.ok must be true")
+    require(payload.get("operation") == "source_info", "source_info.operation mismatch")
+    require(payload.get("hostHints", {}).get("network") is False,
+            "source_info hostHints.network must be false")
+    data = payload.get("data")
+    require(isinstance(data, dict), "source_info.data must be an object")
+    info = data.get("sourceInfo")
+    require(isinstance(info, dict), "source_info.data.sourceInfo must be an object")
+    for key in ("id", "name", "version", "apiVersion", "language", "contentRating"):
+        require(isinstance(info.get(key), str) and info[key],
+                f"source_info.sourceInfo.{key} must be a non-empty string")
+    require(info["id"] == "local.test.koma.fixture", "source_info source id drifted")
+    require(info["version"] == "0.2.0", "source_info version drifted")
+    require(info["apiVersion"] == "0.2", "source_info apiVersion drifted")
+
+    capabilities = data.get("capabilities")
+    require(isinstance(capabilities, dict), "source_info.capabilities must be an object")
+    for key in ("search", "mangaDetail", "chapters", "pages"):
+        require(capabilities.get(key) is True, f"source_info capability {key} must be true")
+    optional = ("listings", "mangaList", "home", "filters", "settings", "imageRequest")
+    for key in optional:
+        require(capabilities.get(key) is False, f"source_info capability {key} must be false")
+    future = capabilities.get("future")
+    require(isinstance(future, dict), "source_info.capabilities.future must be an object")
+    for key, value in future.items():
+        require(value is False, f"source_info future capability {key} must be false")
+
+    return {
+        "sourceId": info["id"],
+        "apiVersion": info["apiVersion"],
+        "coreCapabilitiesTrue": ["search", "mangaDetail", "chapters", "pages"],
+        "optionalCapabilitiesFalse": list(optional),
+        "futureCapabilitiesFalse": sorted(future.keys()),
+        "network": False,
+    }
+
+
+def validate_runtime_operation_payloads(payloads: dict) -> dict:
+    require(isinstance(payloads, dict), "runtime operation payload report must be an object")
+    require("source_info" in payloads, "runtime smoke did not record source_info")
+    source_info = validate_source_info_payload(payloads["source_info"])
+
+    for operation in ("search", "get_manga", "get_chapters", "get_pages"):
+        payload = payloads.get(operation)
+        require(isinstance(payload, dict), f"runtime smoke missing {operation} payload")
+        require(payload.get("version") == 1, f"{operation}.version must be 1")
+        require(payload.get("ok") is True, f"{operation}.ok must be true")
+        require(payload.get("operation") == operation, f"{operation}.operation mismatch")
+        require(isinstance(payload.get("data"), dict), f"{operation}.data must be an object")
+        require(payload.get("hostHints", {}).get("network") is False,
+                f"{operation} hostHints.network must be false")
+
+    rejected = payloads.get("unknown_operation_rejected")
+    require(isinstance(rejected, dict), "runtime smoke missing unknown operation rejection")
+    require(rejected.get("ok") is False, "unknown operation must reject")
+    require(rejected.get("operation") == "search", "unknown operation rejection should stay on called export")
+    require(rejected.get("error", {}).get("code") == "invalid_request",
+            "unknown operation rejection code drifted")
+    require("Fixture Series" not in json.dumps(rejected, sort_keys=True),
+            "unknown operation defaulted to search data")
+
+    return {
+        "sourceInfo": source_info,
+        "coreOperations": ["search", "get_manga", "get_chapters", "get_pages"],
+        "unknownOperationRejected": True,
+    }
+
+
 def validate_manifest(manifest_path: Path, wasm_path_override: Path | None = None) -> dict:
     manifest = read_json(manifest_path)
     forbidden_hits = walk_forbidden_keys(manifest)
@@ -242,6 +342,7 @@ def validate_manifest(manifest_path: Path, wasm_path_override: Path | None = Non
     require(wasm_import_set == ALLOWED_IMPORTS, f"wasm imports must be exactly {sorted(ALLOWED_IMPORTS)}")
     require(REQUIRED_EXPORTS.issubset(set(wasm_exports)),
             "wasm exports missing required fixture functions")
+    optional_exports = sorted(set(wasm_exports) & OPTIONAL_EXPORTS)
 
     capabilities = manifest.get("capabilities")
     require(isinstance(capabilities, dict), "capabilities object is required")
@@ -274,6 +375,8 @@ def validate_manifest(manifest_path: Path, wasm_path_override: Path | None = Non
         "hostAbi": runtime["hostAbi"],
         "hostImports": sorted([f"{module}.{name}" for module, name in wasm_import_set]),
         "exports": sorted([name for name in wasm_exports if name in REQUIRED_EXPORTS]),
+        "optionalExports": optional_exports,
+        "sourceInfoExport": "koma_source_info" in optional_exports,
         "capabilities": capabilities,
         "network": permissions["network"],
     }
@@ -306,12 +409,19 @@ def run_rust_fixture(manifest_path: Path, artifact_dir: Path, manifest: dict) ->
     imports, exports = parse_wasm_imports_exports(wasm_path)
     require(set(imports) == ALLOWED_IMPORTS, "built rust fixture imports drifted")
     require(REQUIRED_EXPORTS.issubset(set(exports)), "built rust fixture exports drifted")
+    optional_exports = sorted(set(exports) & OPTIONAL_EXPORTS)
+    payload_path = rust_artifact_dir / "rust-source-operation-results.json"
+    require(payload_path.is_file(), f"rust fixture runtime JSON evidence missing: {payload_path}")
+    runtime_evidence = validate_runtime_operation_payloads(read_json(payload_path))
     result.update({
         "status": "PASS",
         "wasmPath": str(wasm_path),
         "wasmSha256": sha256_file(wasm_path),
         "wasmSizeBytes": wasm_path.stat().st_size,
         "hostImports": sorted([f"{module}.{name}" for module, name in imports]),
+        "optionalExports": optional_exports,
+        "sourceInfoExport": "koma_source_info" in optional_exports,
+        "runtimeEvidence": runtime_evidence,
     })
     return result
 
@@ -351,14 +461,23 @@ def main() -> int:
             f"wasm sha256 {manifest_evidence['wasmSha256']} size {manifest_evidence['wasmSizeBytes']} bytes",
             "imports constrained to koma_host.log and koma_host.check_cancel",
             "capabilities cover fixture search/detail/chapter/page operations",
+            "optional koma_source_info export accepted by static wasm validation",
             "network=false and no market/index/install scope fields",
         ])
         if args.build_rust_fixture:
+            runtime_evidence = rust_result["runtimeEvidence"]
             report["evidence"].append(
                 f"rust fixture built at {rust_result['wasmPath']} sha256 {rust_result['wasmSha256']}"
             )
+            report["evidence"].append(
+                "runtime source_info validated with core capabilities true, optional capabilities false, and network=false"
+            )
+            report["sourceInfoRuntimeEvidence"] = runtime_evidence
         else:
             report["rustFixtureBuild"] = rust_result
+            report["evidence"].append(
+                "static-only mode records optional koma_source_info export presence; run with --build-rust-fixture for functional metadata/capability proof"
+            )
         report["status"] = "PASS"
     except Exception as err:
         report["error"] = str(err)

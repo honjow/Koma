@@ -28,7 +28,7 @@ struct FixtureSource;
 impl Source for FixtureSource {
     fn info(&self) -> SourceInfo {
         SourceInfo {
-            id: "koma.fixture.rust-sdk",
+            id: "local.test.koma.fixture",
             name: "Koma Rust SDK Fixture",
             version: "0.2.0",
             api_version: "0.2",

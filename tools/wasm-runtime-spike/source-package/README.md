@@ -62,7 +62,9 @@ Rust SDK source -> wasm32-unknown-unknown -> WAMR sandbox -> explicit host impor
 - runtime metadata: `koma-source-abi-v0.1`, `koma-host-v0.1`, wasm path,
   wasm sha256, max memory pages, max payload bytes, max wasm bytes, and required
   host imports.
-- capabilities: only `search` is enabled for the current fixture.
+- capabilities: the four core fixture operations are enabled (`search`,
+  `detail`, `chapterList`, and `pageList`); image URL/network behavior remains
+  disabled.
 - settings schema: typed placeholder settings with no credentials.
 - permissions: `network` is false and the only host imports are
   `koma_host.log` and `koma_host.check_cancel`.
@@ -112,8 +114,12 @@ python3 tools/wasm-runtime-spike/source-package/validate-source-package.py \
 
 The script writes `source-package-validation.json` under the artifact directory.
 It validates required fields, scope rules, sha256, wasm magic/version, declared
-imports, exported fixture functions, capabilities, settings defaults, and
-network=false.
+imports, exported fixture functions, optional `koma_source_info` discovery,
+capabilities, settings defaults, and network=false. With `--build-rust-fixture`
+it also parses the WAMR smoke JSON and records functional evidence that
+`source_info` returns Source API v0.2 metadata, core capabilities are true,
+optional/future capabilities are false, `hostHints.network=false`, and unknown
+operations reject instead of falling back to search.
 
 To exercise the Rust-SDK-backed package build boundary:
 
