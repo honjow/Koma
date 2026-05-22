@@ -18,10 +18,25 @@
         ]
       },
       {
-        "id": "setting:credential",
-        "label": "Credential reference",
-        "kind": "secretRef",
-        "secretRefKey": "credential:main"
+        "id": "setting:show-adult",
+        "label": "Show adult entries",
+        "kind": "boolean",
+        "default": false
+      },
+      {
+        "id": "setting:reader-group",
+        "label": "Reader group",
+        "kind": "group",
+        "children": [
+          "setting:language",
+          "setting:show-adult"
+        ]
+      },
+      {
+        "id": "setting:login-reference",
+        "label": "Login reference",
+        "kind": "loginRef",
+        "loginRefKey": "login:primary"
       }
     ]
   },

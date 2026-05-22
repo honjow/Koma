@@ -42,6 +42,10 @@ OPTIONAL_BROWSE_EXPORTS = {
     "koma_source_get_home",
     "koma_source_get_filters",
 }
+OPTIONAL_CONFIG_IMAGE_EXPORTS = {
+    "koma_source_get_settings",
+    "koma_source_get_image_request",
+}
 CAPABILITY_KEYS = {"search", "detail", "chapterList", "pageList", "imageUrl"}
 SCOPE_FORBIDDEN_KEYS = {
     "repository",
@@ -266,7 +270,7 @@ def validate_source_info_payload(payload: dict) -> dict:
         require(capabilities.get(key) is True, f"source_info capability {key} must be true")
     optional = ("settings", "imageRequest")
     for key in optional:
-        require(capabilities.get(key) is False, f"source_info capability {key} must be false")
+        require(capabilities.get(key) is True, f"source_info capability {key} must be true")
     future = capabilities.get("future")
     require(isinstance(future, dict), "source_info.capabilities.future must be an object")
     for key, value in future.items():
@@ -277,7 +281,7 @@ def validate_source_info_payload(payload: dict) -> dict:
         "apiVersion": info["apiVersion"],
         "coreCapabilitiesTrue": ["search", "mangaDetail", "chapters", "pages"],
         "browseCapabilitiesTrue": list(browse),
-        "optionalCapabilitiesFalse": list(optional),
+        "configImageCapabilitiesTrue": list(optional),
         "futureCapabilitiesFalse": sorted(future.keys()),
         "network": False,
     }
@@ -297,6 +301,8 @@ def validate_runtime_operation_payloads(payloads: dict) -> dict:
         "get_manga_list",
         "get_home",
         "get_filters",
+        "get_settings",
+        "get_image_request",
     )
     for operation in operations:
         payload = payloads.get(operation)
@@ -362,6 +368,32 @@ def validate_runtime_operation_payloads(payloads: dict) -> dict:
             "get_home featured section drifted")
     require(payloads["get_filters"]["data"]["filters"][0]["id"] == "filter:query",
             "get_filters query filter drifted")
+    settings = payloads["get_settings"]["data"].get("settings")
+    require(isinstance(settings, list) and len(settings) >= 5,
+            "get_settings settings fixture missing")
+    setting_kinds = {item.get("kind") for item in settings if isinstance(item, dict)}
+    require({"select", "boolean", "string", "group", "loginRef"}.issubset(setting_kinds),
+            "get_settings must include representative safe setting kinds")
+    require(any(item.get("loginRefKey") == "login:primary" for item in settings if isinstance(item, dict)),
+            "get_settings login reference placeholder missing")
+    image_request = payloads["get_image_request"]["data"].get("imageRequest")
+    require(isinstance(image_request, dict), "get_image_request descriptor missing")
+    require(image_request.get("url") == "fixture-image:fixture-page-1",
+            "get_image_request controlled fixture URL drifted")
+    require(image_request.get("method") == "GET", "get_image_request method drifted")
+    for key in ("headersRef", "credentialsRef", "sessionRef"):
+        value = image_request.get(key)
+        require(isinstance(value, str) and value,
+                f"get_image_request {key} must be a host-owned reference")
+        require("://" not in value and "/" not in value and "\\" not in value,
+                f"get_image_request {key} must be opaque")
+    require(image_request.get("cacheKey") == "image-cache:fixture-page-1",
+            "get_image_request cacheKey drifted")
+    require(image_request.get("requiresAuth") is True,
+            "get_image_request requiresAuth must be true for auth-reference proof")
+    raw_image = json.dumps(image_request, sort_keys=True)
+    for forbidden in ("Authorization", "Cookie", "Set-Cookie", "Bearer ", "password", "token", "secret"):
+        require(forbidden not in raw_image, f"get_image_request leaked raw secret string: {forbidden}")
 
     rejected = payloads.get("unknown_operation_rejected")
     require(isinstance(rejected, dict), "runtime smoke missing unknown operation rejection")
@@ -376,6 +408,7 @@ def validate_runtime_operation_payloads(payloads: dict) -> dict:
         "sourceInfo": source_info,
         "coreOperations": ["search", "get_manga", "get_chapters", "get_pages"],
         "browseOperations": ["get_listings", "get_manga_list", "get_home", "get_filters"],
+        "configImageOperations": ["get_settings", "get_image_request"],
         "unknownOperationRejected": True,
     }
 
@@ -441,7 +474,7 @@ def validate_manifest(manifest_path: Path, wasm_path_override: Path | None = Non
             f"wasm imports must match active policy {sorted(allowed_imports)}")
     require(REQUIRED_EXPORTS.issubset(set(wasm_exports)),
             "wasm exports missing required fixture functions")
-    optional_exports = sorted(set(wasm_exports) & (OPTIONAL_EXPORTS | OPTIONAL_BROWSE_EXPORTS))
+    optional_exports = sorted(set(wasm_exports) & (OPTIONAL_EXPORTS | OPTIONAL_BROWSE_EXPORTS | OPTIONAL_CONFIG_IMAGE_EXPORTS))
 
     capabilities = manifest.get("capabilities")
     require(isinstance(capabilities, dict), "capabilities object is required")
@@ -548,7 +581,9 @@ def run_rust_fixture(manifest_path: Path, artifact_dir: Path, manifest: dict) ->
     require(REQUIRED_EXPORTS.issubset(set(exports)), "built rust fixture exports drifted")
     require(OPTIONAL_BROWSE_EXPORTS.issubset(set(exports)),
             "built rust fixture missing browse operation exports")
-    optional_exports = sorted(set(exports) & (OPTIONAL_EXPORTS | OPTIONAL_BROWSE_EXPORTS))
+    require(OPTIONAL_CONFIG_IMAGE_EXPORTS.issubset(set(exports)),
+            "built rust fixture missing settings/image operation exports")
+    optional_exports = sorted(set(exports) & (OPTIONAL_EXPORTS | OPTIONAL_BROWSE_EXPORTS | OPTIONAL_CONFIG_IMAGE_EXPORTS))
     payload_path = rust_artifact_dir / "rust-source-operation-results.json"
     require(payload_path.is_file(), f"rust fixture runtime JSON evidence missing: {payload_path}")
     runtime_evidence = validate_runtime_operation_payloads(read_json(payload_path))
@@ -609,7 +644,7 @@ def main() -> int:
                 f"rust fixture built at {rust_result['wasmPath']} sha256 {rust_result['wasmSha256']}"
             )
             report["evidence"].append(
-                "runtime source_info validated with core/browse capabilities true, config/image/future capabilities false, and network=false"
+                "runtime source_info validated with core/browse/settings/image capabilities true, future capabilities false, and network=false"
             )
             report["evidence"].append(
             "runtime HTTP fixture validated allowed static host request, denied host, denied credential header, and networkPerformed=false"

@@ -476,7 +476,9 @@ Rules:
   URLs, raw local paths, picker/content URIs, app-private paths, raw cookies,
   raw tokens, `Authorization` headers, or passwords.
 - Image requests are descriptors/references. They do not carry raw URLs or
-  credential header maps while current network support is disabled.
+  credential header maps while current network support is disabled. The S7
+  WAMR fixture uses a controlled `fixture-image:` URL token only; no real
+  network is performed.
 
 ### SourceInfo
 
@@ -513,8 +515,8 @@ export presence:
   "mangaList": true,
   "home": true,
   "filters": true,
-  "settings": false,
-  "imageRequest": false,
+  "settings": true,
+  "imageRequest": true,
   "future": {
     "process_page_image": false,
     "page_description": false,
@@ -535,11 +537,11 @@ discovery entrypoint. Local smoke validation calls that export and requires a
 v0.2-shaped envelope with source id/name/version/API version/language/content
 rating, core capabilities (`search`, `mangaDetail`, `chapters`, `pages`) set to
 `true`, implemented browse capabilities (`listings`, `mangaList`, `home`,
-`filters`) set to `true`, config/image capabilities (`settings`,
-`imageRequest`) set to `false`, all future capabilities set to `false`, and
+`filters`) set to `true`, implemented config/image capabilities (`settings`,
+`imageRequest`) set to `true`, all future capabilities set to `false`, and
 `hostHints.network=false`. Static package validation accepts `koma_source_info`
-and browse exports as optional static exports and records the same runtime
-evidence when `--build-rust-fixture` is used.
+plus browse/settings/image exports as optional static exports and records the
+same runtime evidence when `--build-rust-fixture` is used.
 
 ### Browse Operations
 
@@ -598,7 +600,8 @@ and optional filters:
 ### Settings
 
 `get_settings` returns a schema, not raw current secret values. Candidate kinds
-are `string`, `number`, `boolean`, `select`, and `secretRef`.
+are `string`, `number`, `boolean`, `select`, `group`, `loginRef`, and
+`secretRef`.
 
 ```json
 {
@@ -616,17 +619,18 @@ are `string`, `number`, `boolean`, `select`, and `secretRef`.
       ]
     },
     {
-      "id": "setting:credential",
-      "label": "Credential reference",
-      "kind": "secretRef",
-      "secretRefKey": "credential:main"
+      "id": "setting:login-reference",
+      "label": "Login reference",
+      "kind": "loginRef",
+      "loginRefKey": "login:primary"
     }
   ]
 }
 ```
 
-`secretRef` means the host owns any real credential material and passes only a
-bounded reference through the source API.
+`loginRef` and `secretRef` mean the host owns any real credential/session
+material and passes only bounded references through the source API. `login`
+capability remains false until a later lane defines executable login behavior.
 
 ### ImageRequest Descriptor
 
@@ -637,24 +641,23 @@ host-mediated descriptor:
 {
   "imageRequest": {
     "id": "image-request:fixture-page-1",
+    "url": "fixture-image:fixture-page-1",
+    "headersRef": "headers:image:fixture-page-1",
+    "credentialsRef": "credentials:image:primary",
+    "sessionRef": "session:image:primary",
     "resourceRef": "image-resource:fixture-page-1",
     "method": "GET",
-    "headers": [
-      {
-        "name": "Accept",
-        "value": "image/*"
-      }
-    ],
-    "credentialRefs": [],
-    "cacheKey": "image-cache:fixture-page-1"
+    "cacheKey": "image-cache:fixture-page-1",
+    "requiresAuth": true
   }
 }
 ```
 
-Current fixtures intentionally use `resourceRef`, `credentialRefs`, and
-`cacheKey` instead of raw remote URLs, cookies, tokens, authorization headers,
-or local paths. A later host-import lane must define URL policy before any real
-HTTP image loading is enabled.
+Current fixtures intentionally use `headersRef`, `credentialsRef`,
+`sessionRef`, `resourceRef`, and `cacheKey` instead of raw cookies, tokens,
+authorization headers, or local paths. The `url` is a controlled fixture token,
+not a network URL. A later host-import lane must define URL policy before any
+real HTTP image loading is enabled.
 
 ## Data Schemas
 

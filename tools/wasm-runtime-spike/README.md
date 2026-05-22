@@ -34,6 +34,13 @@ documented in `source-package/SOURCE_SETTINGS_AUTH_BOUNDARY.md`. Its fixtures
 keep `network=false`, reject `koma_host.http_request`, and do not contain real
 credentials or executable login/logout/status/session behavior.
 
+S7 adds local WAMR/tooling proof for `get_settings` and
+`get_image_request`. The Rust fixture now returns safe setting descriptors plus
+host-owned image request references (`headersRef`, `credentialsRef`, and
+`sessionRef`) and a controlled `fixture-image:` URL token. It still performs no
+real network I/O and does not expose raw cookie, token, password, or
+`Authorization` values.
+
 Future resource limits, cancellation, and timeout policy is design/tooling-only
 and documented in
 `source-package/RESOURCE_LIMITS_CANCELLATION_BOUNDARY.md`. Its fixtures keep
@@ -138,6 +145,9 @@ SOURCE_API_HTML_FIXTURE_UNSUPPORTED_SELECTOR_DENIED ok:true selector=script
 SOURCE_API_HTML_FIXTURE_UNSUPPORTED_ATTR_DENIED ok:true attr=href
 SOURCE_API_OPERATION get_home ok:true magic=KOMA
 SOURCE_API_OPERATION get_filters ok:true magic=KOMA
+SOURCE_API_OPERATION get_settings ok:true magic=KOMA
+SOURCE_API_OPERATION get_image_request ok:true magic=KOMA
+SOURCE_API_IMAGE_REQUEST_REFS ok:true headersRef=true credentialsRef=true sessionRef=true rawSecrets=false networkPerformed=false
 SOURCE_API_RUNTIME_SMOKE_PASS
 WAMR_SPIKE_PASS
 ```
@@ -150,9 +160,10 @@ The host runner validates:
 - `koma_source_search(ptr,len)`, `koma_source_get_manga(ptr,len)`,
   `koma_source_get_chapters(ptr,len)`, `koma_source_get_pages(ptr,len)`,
   `koma_source_get_listings(ptr,len)`, `koma_source_get_manga_list(ptr,len)`,
-  `koma_source_get_home(ptr,len)`, and `koma_source_get_filters(ptr,len)`
-  return result buffers with `KOMA` magic, flags, payload length, and UTF-8
-  JSON envelopes.
+  `koma_source_get_home(ptr,len)`, `koma_source_get_filters(ptr,len)`,
+  `koma_source_get_settings(ptr,len)`, and
+  `koma_source_get_image_request(ptr,len)` return result buffers with `KOMA`
+  magic, flags, payload length, and UTF-8 JSON envelopes.
 - `koma_source_free(ptr)` is called after the host reads the payload.
 
 ## Rust Fixture Spike

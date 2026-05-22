@@ -495,8 +495,8 @@ void validate_source_info_envelope(const std::string &payload) {
     require_contains(payload, "\"mangaList\":true", "source_info capabilities");
     require_contains(payload, "\"home\":true", "source_info capabilities");
     require_contains(payload, "\"filters\":true", "source_info capabilities");
-    require_contains(payload, "\"settings\":false", "source_info capabilities");
-    require_contains(payload, "\"imageRequest\":false", "source_info capabilities");
+    require_contains(payload, "\"settings\":true", "source_info capabilities");
+    require_contains(payload, "\"imageRequest\":true", "source_info capabilities");
     require_contains(payload, "\"process_page_image\":false", "source_info capabilities");
     require_contains(payload, "\"page_description\":false", "source_info capabilities");
     require_contains(payload, "\"base_url\":false", "source_info capabilities");
@@ -577,6 +577,66 @@ void validate_operation_data(const std::string &operation, const std::string &pa
         require_contains(payload, "\"id\":\"filter:sort\"", operation);
         require_contains(payload, "\"kind\":\"sort\"", operation);
     }
+    else if (operation == "get_settings") {
+        require_contains(payload, "\"settings\":[", operation);
+        require_contains(payload, "\"id\":\"setting:language\"", operation);
+        require_contains(payload, "\"kind\":\"select\"", operation);
+        require_contains(payload, "\"id\":\"setting:show-adult\"", operation);
+        require_contains(payload, "\"kind\":\"boolean\"", operation);
+        require_contains(payload, "\"id\":\"setting:display-name\"", operation);
+        require_contains(payload, "\"kind\":\"string\"", operation);
+        require_contains(payload, "\"id\":\"setting:reader-group\"", operation);
+        require_contains(payload, "\"kind\":\"group\"", operation);
+        require_contains(payload, "\"id\":\"setting:login-reference\"", operation);
+        require_contains(payload, "\"kind\":\"loginRef\"", operation);
+        require_contains(payload, "\"loginRefKey\":\"login:primary\"", operation);
+    }
+    else if (operation == "get_image_request") {
+        require_contains(payload, "\"imageRequest\":", operation);
+        require_contains(payload, "\"id\":\"image-request:fixture-page-1\"", operation);
+        require_contains(payload, "\"url\":\"fixture-image:fixture-page-1\"", operation);
+        require_contains(payload, "\"method\":\"GET\"", operation);
+        require_contains(payload, "\"headersRef\":\"headers:image:fixture-page-1\"", operation);
+        require_contains(payload, "\"credentialsRef\":\"credentials:image:primary\"", operation);
+        require_contains(payload, "\"sessionRef\":\"session:image:primary\"", operation);
+        require_contains(payload, "\"cacheKey\":\"image-cache:fixture-page-1\"", operation);
+        require_contains(payload, "\"requiresAuth\":true", operation);
+    }
+}
+
+bool is_opaque_reference_value(const std::string &payload, const std::string &field) {
+    const std::string prefix = "\"" + field + "\":\"";
+    const size_t start = payload.find(prefix);
+    if (start == std::string::npos) {
+        return false;
+    }
+    const size_t value_start = start + prefix.size();
+    const size_t value_end = payload.find('"', value_start);
+    if (value_end == std::string::npos || value_end == value_start) {
+        return false;
+    }
+    const std::string value = payload.substr(value_start, value_end - value_start);
+    return value.find("://") == std::string::npos && value.find('/') == std::string::npos &&
+           value.find('\\') == std::string::npos && !contains_ci(value, "authorization") &&
+           !contains_ci(value, "cookie") && !contains_ci(value, "token") &&
+           !contains_ci(value, "password") && !contains_ci(value, "secret");
+}
+
+void validate_image_request_refs(const std::string &payload) {
+    for (const char *field : {"headersRef", "credentialsRef", "sessionRef"}) {
+        if (!is_opaque_reference_value(payload, field)) {
+            throw std::runtime_error(std::string("get_image_request ") + field +
+                                     " is not an opaque host-owned reference");
+        }
+    }
+    if (payload.find("\"Authorization\"") != std::string::npos ||
+        payload.find("\"Cookie\"") != std::string::npos ||
+        payload.find("\"headers\":") != std::string::npos ||
+        payload.find("Bearer ") != std::string::npos) {
+        throw std::runtime_error("get_image_request leaked raw header or credential material");
+    }
+    std::cout << "SOURCE_API_IMAGE_REQUEST_REFS ok:true headersRef=true credentialsRef=true "
+                 "sessionRef=true rawSecrets=false networkPerformed=false\n";
 }
 
 class Runtime {
@@ -762,7 +822,7 @@ public:
 
         std::cout << "SOURCE_API_SOURCE_INFO ok:true export=koma_source_info\n";
         std::cout << "SOURCE_API_JSON source_info=" << payload << "\n";
-        std::cout << "SOURCE_API_CAPABILITIES core:true browse:true config:false image:false network:false\n";
+        std::cout << "SOURCE_API_CAPABILITIES core:true browse:true config:true image:true network:false\n";
         return payload;
     }
 
@@ -789,6 +849,9 @@ public:
         std::string payload = read_result_payload(argv[0], true, operation.export_name);
         validate_source_envelope(operation.name, payload);
         validate_operation_data(operation.name, payload);
+        if (std::strcmp(operation.name, "get_image_request") == 0) {
+            validate_image_request_refs(payload);
+        }
 
         const bool http_fixture_operation =
             std::strstr(request, "\"listingId\":\"listing:http-fixture\"") != nullptr;
@@ -934,6 +997,22 @@ public:
                 "{\"type\":\"request\",\"version\":1,\"requestId\":\"runtime-filters-001\","
                 "\"operation\":\"get_filters\",\"sourceId\":\"local.test.koma.fixture\","
                 "\"args\":{},\"settings\":{},\"hostHints\":{\"network\":false}}",
+            },
+            {
+                "get_settings",
+                "koma_source_get_settings",
+                "{\"type\":\"request\",\"version\":1,\"requestId\":\"runtime-settings-001\","
+                "\"operation\":\"get_settings\",\"sourceId\":\"local.test.koma.fixture\","
+                "\"args\":{},\"settings\":{},\"hostHints\":{\"network\":false}}",
+            },
+            {
+                "get_image_request",
+                "koma_source_get_image_request",
+                "{\"type\":\"request\",\"version\":1,\"requestId\":\"runtime-image-request-001\","
+                "\"operation\":\"get_image_request\",\"sourceId\":\"local.test.koma.fixture\","
+                "\"args\":{\"pageId\":\"page:fixture-series:001:0001\","
+                "\"imageRef\":\"image:fixture-page-1\"},\"settings\":{\"loginRef\":\"login:primary\"},"
+                "\"hostHints\":{\"network\":false,\"imageStrategy\":\"descriptor-only\"}}",
             },
         };
 

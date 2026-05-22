@@ -126,6 +126,8 @@ run_logged "${RUSTC_CMD[@]}" --target wasm32-unknown-unknown \
   -C link-arg=--export=koma_source_get_manga_list \
   -C link-arg=--export=koma_source_get_home \
   -C link-arg=--export=koma_source_get_filters \
+  -C link-arg=--export=koma_source_get_settings \
+  -C link-arg=--export=koma_source_get_image_request \
   -C link-arg=--export=koma_source_free \
   -C link-arg=--export-memory \
   -C link-arg=-z \
@@ -143,7 +145,7 @@ run_logged cmake --build "$HOST_BUILD_DIR" --target koma_wamr_spike --parallel
 log "+ $HOST_BUILD_DIR/koma_wamr_spike $WASM_OUT"
 "$HOST_BUILD_DIR/koma_wamr_spike" "$WASM_OUT" 2>&1 | redact_stream | tee -a "$RUN_LOG"
 
-for operation in search get_manga get_chapters get_pages get_listings get_manga_list get_home get_filters; do
+for operation in search get_manga get_chapters get_pages get_listings get_manga_list get_home get_filters get_settings get_image_request; do
   if ! grep -q "SOURCE_API_OPERATION $operation ok:true" "$RUN_LOG"; then
     log "missing SOURCE_API_OPERATION $operation ok:true evidence"
     exit 22
@@ -160,9 +162,14 @@ if ! grep -q 'SOURCE_API_SOURCE_INFO ok:true export=koma_source_info' "$RUN_LOG"
   exit 22
 fi
 
-if ! grep -q 'SOURCE_API_CAPABILITIES core:true browse:true config:false image:false network:false' "$RUN_LOG"; then
+if ! grep -q 'SOURCE_API_CAPABILITIES core:true browse:true config:true image:true network:false' "$RUN_LOG"; then
   log "missing SOURCE_API_CAPABILITIES evidence"
   exit 22
+fi
+
+if ! grep -q 'SOURCE_API_IMAGE_REQUEST_REFS ok:true' "$RUN_LOG"; then
+  log "missing image request reference-only evidence"
+  exit 27
 fi
 
 if ! grep -q 'SOURCE_API_UNKNOWN_OPERATION_REJECTED ok:true' "$RUN_LOG"; then
@@ -256,11 +263,13 @@ with open(run_log, "r", encoding="utf-8") as fh:
         payloads[name] = json.loads(raw)
 
 browse_expected = ["get_listings", "get_manga_list", "get_home", "get_filters"]
+config_image_expected = ["get_settings", "get_image_request"]
 core_expected = ["search", "get_manga", "get_chapters", "get_pages"]
 expected = [
     "source_info",
     *core_expected,
     *browse_expected,
+    *config_image_expected,
     "get_manga_list_http_fixture",
     "get_manga_list_html_fixture",
     "unknown_operation_rejected",
@@ -285,11 +294,11 @@ for key in ["search", "mangaDetail", "chapters", "pages"]:
 for key in ["listings", "mangaList", "home", "filters"]:
     assert capabilities[key] is True, key
 for key in ["settings", "imageRequest"]:
-    assert capabilities[key] is False, key
+    assert capabilities[key] is True, key
 for key, value in capabilities["future"].items():
     assert value is False, key
 
-for name in [*core_expected, *browse_expected]:
+for name in [*core_expected, *browse_expected, *config_image_expected]:
     payload = payloads[name]
     assert payload["version"] == 1
     assert payload["ok"] is True
@@ -337,6 +346,22 @@ assert payloads["get_home"]["data"]["sections"][0]["id"] == "home:featured"
 assert payloads["get_home"]["data"]["sections"][1]["listingId"] == "listing:latest"
 assert payloads["get_filters"]["data"]["filters"][0]["id"] == "filter:query"
 assert payloads["get_filters"]["data"]["filters"][1]["kind"] == "sort"
+settings = payloads["get_settings"]["data"]["settings"]
+assert settings[0]["id"] == "setting:language"
+assert settings[0]["kind"] == "select"
+assert settings[1]["kind"] == "boolean"
+assert settings[2]["kind"] == "string"
+assert settings[3]["kind"] == "group"
+assert settings[4]["kind"] == "loginRef"
+image_request = payloads["get_image_request"]["data"]["imageRequest"]
+assert image_request["id"] == "image-request:fixture-page-1"
+assert image_request["url"] == "fixture-image:fixture-page-1"
+assert image_request["method"] == "GET"
+assert image_request["headersRef"] == "headers:image:fixture-page-1"
+assert image_request["credentialsRef"] == "credentials:image:primary"
+assert image_request["sessionRef"] == "session:image:primary"
+assert image_request["cacheKey"] == "image-cache:fixture-page-1"
+assert image_request["requiresAuth"] is True
 
 rejected = payloads["unknown_operation_rejected"]
 assert rejected["version"] == 1

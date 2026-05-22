@@ -129,14 +129,17 @@ capabilities, settings defaults, `network=false`, and the explicit
 `experimentalHttpFixture`/`experimentalHtmlFixture` gates. With
 `--build-rust-fixture` it also parses the WAMR smoke JSON and records functional
 evidence that
-`source_info` returns Source API v0.2 metadata, core and browse capabilities are
-true, config/image/future capabilities are false, browse operations return the
-expected listing/home/filter/page shapes, `hostHints.network=false`, and
-unknown operations reject instead of falling back to search. It also requires
-S5 controlled HTTP fixture evidence: allowed static host request, denied host,
-denied credential header, and no real network. S6 additionally requires
-controlled HTML fixture evidence: parse/select/attr/text pass, unsupported
-selector/attribute deny, and no real network.
+`source_info` returns Source API v0.2 metadata, core, browse, settings, and
+image request capabilities are true, future capabilities are false, browse
+operations return the expected listing/home/filter/page shapes,
+`get_settings` returns only safe schema/reference descriptors,
+`get_image_request` returns host-owned `headersRef`, `credentialsRef`, and
+`sessionRef` values with no raw credential headers, `hostHints.network=false`,
+and unknown operations reject instead of falling back to search. It also
+requires S5 controlled HTTP fixture evidence: allowed static host request,
+denied host, denied credential header, and no real network. S6 additionally
+requires controlled HTML fixture evidence: parse/select/attr/text pass,
+unsupported selector/attribute deny, and no real network.
 
 To exercise the Rust-SDK-backed package build boundary:
 

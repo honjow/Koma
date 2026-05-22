@@ -277,7 +277,7 @@ def validate_setting(value: Any, path: str) -> None:
     validate_opaque_string(value.get("id"), f"{path}.id")
     require(isinstance(value.get("label"), str) and value["label"], f"{path}.label is required")
     kind = value.get("kind")
-    require(kind in {"string", "number", "boolean", "select", "secretRef"},
+    require(kind in {"string", "number", "boolean", "select", "group", "loginRef", "secretRef"},
             f"{path}.kind is not a known setting kind")
     require("password" not in value and "token" not in value and "authorization" not in value,
             f"{path} must not inline credential fields")
@@ -286,6 +286,14 @@ def validate_setting(value: Any, path: str) -> None:
         require("default" not in value, f"{path}.default must not be present for secretRef")
     if kind == "select":
         require(isinstance(value.get("options"), list) and value["options"], f"{path}.options must be non-empty")
+    if kind == "group":
+        children = value.get("children")
+        require(isinstance(children, list) and children, f"{path}.children must be a non-empty array")
+        for index, child in enumerate(children):
+            validate_opaque_string(child, f"{path}.children[{index}]")
+    if kind == "loginRef":
+        validate_opaque_string(value.get("loginRefKey"), f"{path}.loginRefKey")
+        require("default" not in value, f"{path}.default must not be present for loginRef")
 
 
 def validate_home_section(value: Any, path: str, network: bool) -> None:
@@ -306,18 +314,19 @@ def validate_home_section(value: Any, path: str, network: bool) -> None:
 def validate_image_request_descriptor(value: Any, path: str) -> None:
     require(isinstance(value, dict), f"{path} must be an object")
     validate_opaque_string(value.get("id"), f"{path}.id")
-    validate_opaque_string(value.get("resourceRef"), f"{path}.resourceRef")
+    require(isinstance(value.get("url"), str) and value["url"], f"{path}.url must be a controlled fixture URL token")
+    require(value["url"].startswith("fixture-image:"), f"{path}.url must stay fixture-controlled")
+    require("://" not in value["url"] and "/" not in value["url"] and "\\" not in value["url"],
+            f"{path}.url must not expose a remote URL or path")
     require(value.get("method") in {"GET"}, f"{path}.method must be GET")
-    headers = value.get("headers", [])
-    require(isinstance(headers, list), f"{path}.headers must be an array")
-    for index, header in enumerate(headers):
-        require(isinstance(header, dict), f"{path}.headers[{index}] must be an object")
-        name = header.get("name")
-        require(isinstance(name, str) and name, f"{path}.headers[{index}].name is required")
-        require(name.lower() not in {"authorization", "cookie", "set-cookie"},
-                f"{path}.headers[{index}].name must not carry raw credentials")
-        require(isinstance(header.get("value"), str), f"{path}.headers[{index}].value must be a string")
-    require(isinstance(value.get("credentialRefs", []), list), f"{path}.credentialRefs must be an array")
+    for ref_field in ("headersRef", "credentialsRef", "sessionRef"):
+        validate_opaque_string(value.get(ref_field), f"{path}.{ref_field}")
+    validate_opaque_string(value.get("cacheKey"), f"{path}.cacheKey")
+    require(isinstance(value.get("requiresAuth"), bool), f"{path}.requiresAuth must be boolean")
+    if "resourceRef" in value:
+        validate_opaque_string(value.get("resourceRef"), f"{path}.resourceRef")
+    require("headers" not in value, f"{path}.headers must be host-owned via headersRef")
+    require("credentialRefs" not in value, f"{path}.credentialRefs must use credentialsRef")
 
 
 def validate_http_fixture_request(payload: dict[str, Any]) -> None:

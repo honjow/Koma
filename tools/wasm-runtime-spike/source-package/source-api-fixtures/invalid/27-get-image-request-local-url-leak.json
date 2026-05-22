@@ -6,21 +6,13 @@
   "data": {
     "imageRequest": {
       "id": "image-request:fixture-page-1",
-      "url": "fixture-image:fixture-page-1",
+      "url": "file:///data/app/private/page-1.jpg",
+      "method": "GET",
       "headersRef": "headers:image:fixture-page-1",
       "credentialsRef": "credentials:image:primary",
       "sessionRef": "session:image:primary",
       "cacheKey": "image-cache:fixture-page-1",
-      "requiresAuth": true,
-      "resourceRef": "image-resource:fixture-page-1",
-      "method": "GET",
-      "headers": [
-        {
-          "name": "Authorization",
-          "value": "Bearer abc123"
-        }
-      ],
-      "credentialRefs": []
+      "requiresAuth": true
     }
   },
   "hostHints": {

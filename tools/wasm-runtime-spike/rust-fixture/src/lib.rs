@@ -4,9 +4,9 @@ extern crate koma_source_sdk;
 
 use koma_source_sdk::result::ResultBuffer;
 use koma_source_sdk::source::{
-    self, ChapterId, ChapterListRequest, FiltersRequest, HomeRequest, JsonPayload,
-    ListingsRequest, MangaId, MangaListRequest, SearchRequest, Source, SourceCapabilities,
-    SourceError, SourceInfo, SourceResult,
+    self, ChapterId, ChapterListRequest, FiltersRequest, HomeRequest, ImageRequestInput,
+    JsonPayload, ListingsRequest, MangaId, MangaListRequest, SearchRequest, SettingsRequest,
+    Source, SourceCapabilities, SourceError, SourceInfo, SourceResult,
 };
 use koma_source_sdk::request::contains_bytes;
 
@@ -39,6 +39,10 @@ const HOME_DATA: &[u8] =
     br#"{"sections":[{"id":"home:featured","title":"Featured","kind":"mangaList","items":[{"id":"manga:fixture-series","title":"Fixture Series","cover":{"kind":"none"}}]},{"id":"home:latest-link","title":"Latest","kind":"listingLink","listingId":"listing:latest"}]}"#;
 const FILTERS_DATA: &[u8] =
     br#"{"filters":[{"id":"filter:query","label":"Query","kind":"text"},{"id":"filter:sort","label":"Sort","kind":"sort","options":[{"id":"sort:popular","label":"Popular"},{"id":"sort:latest","label":"Latest"}]}]}"#;
+const SETTINGS_DATA: &[u8] =
+    br#"{"settings":[{"id":"setting:language","label":"Language","kind":"select","default":"zh-Hans","options":[{"id":"zh-Hans","label":"Chinese"},{"id":"en","label":"English"}]},{"id":"setting:show-adult","label":"Show adult entries","kind":"boolean","default":false},{"id":"setting:display-name","label":"Display name","kind":"string","default":"fixture reader"},{"id":"setting:reader-group","label":"Reader group","kind":"group","children":["setting:language","setting:show-adult","setting:display-name"]},{"id":"setting:login-reference","label":"Login reference","kind":"loginRef","loginRefKey":"login:primary"}]}"#;
+const IMAGE_REQUEST_DATA: &[u8] =
+    br#"{"imageRequest":{"id":"image-request:fixture-page-1","url":"fixture-image:fixture-page-1","method":"GET","headersRef":"headers:image:fixture-page-1","credentialsRef":"credentials:image:primary","sessionRef":"session:image:primary","cacheKey":"image-cache:fixture-page-1","requiresAuth":true,"resourceRef":"image-resource:fixture-page-1"}}"#;
 const HTTP_ALLOWED_REQUEST: &[u8] =
     br#"{"version":1,"method":"GET","url":"https://fixture.koma.local/manga-list/http-fixture","headers":{"Accept":"application/json"},"bodyBase64":null,"timeoutMs":1000,"responseKind":"bodyJson"}"#;
 const HTTP_DENIED_HOST_REQUEST: &[u8] =
@@ -70,6 +74,8 @@ impl Source for FixtureSource {
             manga_list: true,
             home: true,
             filters: true,
+            settings: true,
+            image_request: true,
             ..SourceCapabilities::CORE
         }
     }
@@ -138,6 +144,20 @@ impl Source for FixtureSource {
 
     fn get_filters(&self, _request: FiltersRequest<'_>) -> SourceResult {
         Ok(JsonPayload::new(FILTERS_DATA))
+    }
+
+    fn get_settings(&self, _request: SettingsRequest<'_>) -> SourceResult {
+        Ok(JsonPayload::new(SETTINGS_DATA))
+    }
+
+    fn get_image_request(&self, request: ImageRequestInput<'_>) -> SourceResult {
+        if request.page_id_is(b"page:fixture-series:001:0001") {
+            Ok(JsonPayload::new(IMAGE_REQUEST_DATA))
+        } else {
+            Err(SourceError::invalid_request(
+                "expected fixture image request",
+            ))
+        }
     }
 }
 
@@ -373,6 +393,28 @@ pub extern "C" fn koma_source_get_filters(req_ptr: u32, req_len: u32) -> u32 {
         req_ptr,
         req_len,
         b"rust fixture get_filters reached host imports",
+    )
+}
+
+#[no_mangle]
+pub extern "C" fn koma_source_get_settings(req_ptr: u32, req_len: u32) -> u32 {
+    source::get_settings(
+        &FIXTURE_SOURCE,
+        response_buffer(),
+        req_ptr,
+        req_len,
+        b"rust fixture get_settings reached host imports",
+    )
+}
+
+#[no_mangle]
+pub extern "C" fn koma_source_get_image_request(req_ptr: u32, req_len: u32) -> u32 {
+    source::get_image_request(
+        &FIXTURE_SOURCE,
+        response_buffer(),
+        req_ptr,
+        req_len,
+        b"rust fixture get_image_request reached host imports",
     )
 }
 
