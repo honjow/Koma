@@ -105,7 +105,7 @@ def build_fixtures(entries: dict[str, bytes], fixture_dir: Path) -> list[dict]:
     def add(name: str, archive_name: str, zip_entries: list[tuple[str, bytes]]) -> None:
         archive = fixture_dir / archive_name
         write_zip(archive, zip_entries)
-        fixtures.append({"name": name, "archive": archive})
+        fixtures.append({"id": name, "name": name, "archive": archive})
 
     add("path_traversal_entry", "path-traversal.koma-source.zip",
         case_entries(entries, extra=[("../evil", b"evil")]))
@@ -116,11 +116,11 @@ def build_fixtures(entries: dict[str, bytes], fixture_dir: Path) -> list[dict]:
     with warnings.catch_warnings():
         warnings.simplefilter("ignore", UserWarning)
         write_zip(duplicate_archive, list(entries.items()) + [("manifest.generated.json", entries["manifest.generated.json"])])
-    fixtures.append({"name": "duplicate_entry_name", "archive": duplicate_archive})
+    fixtures.append({"id": "duplicate_entry_name", "name": "duplicate_entry_name", "archive": duplicate_archive})
 
     symlink_archive = fixture_dir / "symlink-entry.koma-source.zip"
     write_symlink_zip(symlink_archive, entries)
-    fixtures.append({"name": "symlink_entry", "archive": symlink_archive})
+    fixtures.append({"id": "symlink_entry", "name": "symlink_entry", "archive": symlink_archive})
 
     add("unexpected_entry_name", "unexpected-entry.koma-source.zip",
         case_entries(entries, extra=[("unexpected.txt", b"unexpected")]))
@@ -204,6 +204,7 @@ def main() -> int:
         fixtures = build_fixtures(entries, fixture_dir)
 
         for fixture in fixtures:
+            case_id = fixture["id"]
             case_name = fixture["name"]
             case_validation_dir = validation_dir / case_name
             case_log = logs_dir / f"validate-{case_name}.log"
@@ -220,6 +221,7 @@ def main() -> int:
             reason = parse_validation_reason(result["output"])
             report["commands"].append({k: v for k, v in result.items() if k != "output"})
             report["cases"].append({
+                "id": case_id,
                 "name": case_name,
                 "archive": str(fixture["archive"]),
                 "expectedRejection": True,
