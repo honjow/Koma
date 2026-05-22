@@ -11,7 +11,9 @@ import {
 import {
   runSearchFixtureFromBytes,
   runSourceApiFixtureOperationsFromBytes,
+  runSourceRuntimeNegativeExecutionFromBytes,
   SourceRuntimeApiOperationsSummary,
+  SourceRuntimeNegativeExecutionSummary,
 } from './SourceRuntimeRunner'
 
 export interface SourceRuntimeServiceRunSummary {
@@ -33,6 +35,8 @@ export interface SourceRuntimeServiceRunSummary {
   searchResponseCompatible: boolean
   sourceApiOperationsOk: boolean
   sourceApiOperations: SourceRuntimeApiOperationsSummary
+  sourceRuntimeExecutionNegativeOk: boolean
+  sourceRuntimeExecutionNegativeCases: SourceRuntimeNegativeExecutionSummary
   attemptedWamrExecution: boolean
 }
 
@@ -53,6 +57,7 @@ export function runStagedRawfileSourcePackage(
   const staged = stageRawfileSourcePackage(context, resourceMgr, rawfilePath, packageRootName)
   const run = runSearchFixtureFromBytes(requestJson, staged.wasmBytes)
   const operations = runSourceApiFixtureOperationsFromBytes(staged.wasmBytes)
+  const negativeExecution = runSourceRuntimeNegativeExecutionFromBytes(staged.wasmBytes)
   const network = run.network === false ? false : true
   return {
     route,
@@ -72,6 +77,8 @@ export function runStagedRawfileSourcePackage(
     searchResponseCompatible: run.responseOk,
     sourceApiOperationsOk: operations.ok,
     sourceApiOperations: operations,
+    sourceRuntimeExecutionNegativeOk: negativeExecution.ok,
+    sourceRuntimeExecutionNegativeCases: negativeExecution,
     attemptedWamrExecution: true,
   }
 }
@@ -96,6 +103,7 @@ export async function importAndRunLocalSourceArchive(
 
   const run = runSearchFixtureFromBytes(requestJson, imported.wasmBytes)
   const operations = runSourceApiFixtureOperationsFromBytes(imported.wasmBytes)
+  const negativeExecution = runSourceRuntimeNegativeExecutionFromBytes(imported.wasmBytes)
   const network = run.network === false ? false : true
   return {
     route,
@@ -116,6 +124,8 @@ export async function importAndRunLocalSourceArchive(
     searchResponseCompatible: run.responseOk,
     sourceApiOperationsOk: operations.ok,
     sourceApiOperations: operations,
+    sourceRuntimeExecutionNegativeOk: negativeExecution.ok,
+    sourceRuntimeExecutionNegativeCases: negativeExecution,
     attemptedWamrExecution: true,
   }
 }

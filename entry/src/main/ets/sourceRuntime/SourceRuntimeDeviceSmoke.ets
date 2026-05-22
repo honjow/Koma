@@ -18,6 +18,7 @@ import {
   runSearchFixtureFromBytes,
   runSourceOperationFromBytes,
   SourceRuntimeApiOperationsSummary,
+  SourceRuntimeNegativeExecutionCaseSummary,
 } from './SourceRuntimeRunner'
 
 const SMOKE_TRIGGER_PARAM: string = 'koma.sourceRuntimeSmoke'
@@ -70,6 +71,17 @@ export interface SourceArchiveNegativeCaseEvidence {
   reasonCode?: string
   reasonMatchesExpected: boolean
   attemptedWamrExecution: boolean
+}
+
+export interface SourceRuntimeExecutionNegativeCaseEvidence {
+  route: string
+  id: string
+  rejected: boolean
+  didNotDefaultToSearch: boolean
+  responseOk: boolean
+  responseOperation?: string
+  responseFirstTitle?: string
+  error?: string
 }
 
 export interface SourceRuntimeSmokeResult {
@@ -125,6 +137,8 @@ export interface SourceRuntimeSmokeResult {
   archiveNegativeRoute?: string
   archiveNegativeOk?: boolean
   archiveNegativeCases?: SourceArchiveNegativeCaseEvidence[]
+  sourceRuntimeExecutionNegativeOk?: boolean
+  sourceRuntimeExecutionNegativeCases?: SourceRuntimeExecutionNegativeCaseEvidence[]
   error?: string
 }
 
@@ -144,7 +158,7 @@ function applyPackageServiceSummary(
 ): void {
   result.packageResponseOk = summary.responseOk
   result.packageSourceApiOperationsOk = summary.sourceApiOperationsOk
-  result.packageSourceApiOperations = summary.sourceApiOperations
+  result.packageSourceApiOperations = compactSourceApiOperations(summary.sourceApiOperations)
   result.packageOperation = summary.operation
   result.packageRequestEcho = summary.requestEcho
   result.packageFirstTitle = summary.firstTitle
@@ -152,10 +166,9 @@ function applyPackageServiceSummary(
   result.packageWasmBytes = summary.wasmBytes
   result.packageManifestId = summary.manifestId
   result.packageManifestVersion = summary.manifestVersion
-  result.packageManifestPath = summary.manifestPath
-  result.packageWasmPath = summary.wasmPath
   result.packageHashOk = summary.hashOk
   result.packageRoute = summary.route
+  appendSourceRuntimeExecutionNegativeCases(result, summary)
 }
 
 function applyArchiveServiceSummary(
@@ -164,7 +177,7 @@ function applyArchiveServiceSummary(
 ): void {
   result.archiveResponseOk = summary.responseOk
   result.archiveSourceApiOperationsOk = summary.sourceApiOperationsOk
-  result.archiveSourceApiOperations = summary.sourceApiOperations
+  result.archiveSourceApiOperations = compactSourceApiOperations(summary.sourceApiOperations)
   result.archiveOperation = summary.operation
   result.archiveRequestEcho = summary.requestEcho
   result.archiveFirstTitle = summary.firstTitle
@@ -172,12 +185,47 @@ function applyArchiveServiceSummary(
   result.archiveWasmBytes = summary.wasmBytes
   result.archiveManifestId = summary.manifestId
   result.archiveManifestVersion = summary.manifestVersion
-  result.archiveManifestPath = summary.manifestPath
-  result.archiveImportedWasmPath = summary.wasmPath
   result.archiveHashOk = summary.hashOk
   result.archiveImportOk = summary.importStatus === 'imported'
-  result.archivePath = summary.archivePath
   result.archiveRoute = summary.route
+  appendSourceRuntimeExecutionNegativeCases(result, summary)
+}
+
+function compactSourceApiOperations(summary: SourceRuntimeApiOperationsSummary): SourceRuntimeApiOperationsSummary {
+  return {
+    ok: summary.ok,
+    operations: summary.operations,
+    evidence: [],
+  }
+}
+
+function appendSourceRuntimeExecutionNegativeCases(
+  result: SourceRuntimeSmokeResult,
+  summary: SourceRuntimeServiceRunSummary,
+): void {
+  const existing = result.sourceRuntimeExecutionNegativeCases ?? []
+  const nextCases = summary.sourceRuntimeExecutionNegativeCases.cases.map(
+    (item: SourceRuntimeNegativeExecutionCaseSummary) => {
+      const evidence: SourceRuntimeExecutionNegativeCaseEvidence = {
+        route: summary.route,
+        id: item.id,
+        rejected: item.rejected,
+        didNotDefaultToSearch: item.didNotDefaultToSearch,
+        responseOk: item.responseOk,
+        responseOperation: item.responseOperation,
+        responseFirstTitle: item.responseFirstTitle,
+        error: item.error,
+      }
+      return evidence
+    },
+  )
+  result.sourceRuntimeExecutionNegativeCases = existing.concat(nextCases)
+  result.sourceRuntimeExecutionNegativeOk =
+    (result.sourceRuntimeExecutionNegativeOk !== false) &&
+      summary.sourceRuntimeExecutionNegativeOk &&
+      result.sourceRuntimeExecutionNegativeCases.length >= 3 &&
+      result.sourceRuntimeExecutionNegativeCases.every((item: SourceRuntimeExecutionNegativeCaseEvidence) =>
+        item.rejected && item.didNotDefaultToSearch && item.responseOk === false)
 }
 
 function runLocalSourcePackageSmoke(
@@ -253,7 +301,7 @@ export async function maybeRunSourceRuntimeDeviceSmoke(
       rustSourceResponseOk = rustSourceRun.responseOk
       result.rustSourceResponseOk = rustSourceResponseOk
       result.rustSourceApiOperationsOk = rustSourceOperations.ok
-      result.rustSourceApiOperations = rustSourceOperations
+      result.rustSourceApiOperations = compactSourceApiOperations(rustSourceOperations)
       if (context !== undefined) {
         runLocalSourcePackageSmoke(context, resourceMgr, result)
         await runLocalSourceArchiveSmoke(context, resourceMgr, result)
@@ -291,9 +339,10 @@ export async function maybeRunSourceRuntimeDeviceSmoke(
       result.archiveHashOk === true &&
       result.archiveNetwork === false &&
       result.rustSourceApiOperationsOk === true &&
-      result.archiveNegativeOk === true
+      result.archiveNegativeOk === true &&
+      result.sourceRuntimeExecutionNegativeOk === true
     if (!result.ok) {
-      result.error = 'WAMR fixture JSON assertion failed for bundled, legacy rawfile, Rust source rawfile, local source package, local source archive import, and archive negative rejection paths'
+      result.error = 'WAMR fixture JSON assertion failed for bundled, legacy rawfile, Rust source rawfile, local source package, local source archive import, archive negative rejection, and negative execution paths'
     }
   } catch (error) {
     const e = error as Error
