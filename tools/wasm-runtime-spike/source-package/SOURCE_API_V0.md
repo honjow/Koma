@@ -11,8 +11,10 @@ Status:
 - Research/tooling-only.
 - Candidate API shape, not a final public SDK or stable product ABI.
 - Existing package/archive/runtime validators remain the active safety gates.
-- Current host ABI remains `koma-host-v0.1` with only `koma_host.log` and
-  `koma_host.check_cancel`.
+- General host ABI remains `koma-host-v0.1` with only `koma_host.log` and
+  `koma_host.check_cancel`. S5 adds a local WAMR-only
+  `koma-host-v0.1-fixture-http` smoke that imports `koma_host.http_request`
+  only when the manifest declares `experimentalHttpFixture`.
 - Network remains disabled by default. `hostHints.network=false` is expected in
   current fixture requests, responses, and metadata fixtures.
 - v0.2 extends the v0.1 four-operation fixture contract with source metadata,
@@ -23,7 +25,9 @@ Non-goals:
 
 - No HarmonyOS product runtime, UI, install/import flow, or source selection.
 - No source market, public source index, remote install, or built-in sources.
-- No real HTTP implementation or enabled HTTP host import.
+- No real HTTP implementation, real network I/O, Harmony app HTTP enablement,
+  or public source support. The S5 HTTP import is a deterministic local fixture
+  under `fixture.koma.local`.
 - No bundled third-party manga source behavior.
 - No WAMR vendor/source changes, generated wasm/archive outputs, HAP outputs,
   signing material, or Rust target directories in git.
@@ -69,10 +73,15 @@ host JSON request -> guest memory -> exported operation -> KOMA result buffer
 -> host validates payload length and JSON -> koma_source_free(result_ptr)
 ```
 
-Current allowed host imports:
+Current general allowed host imports:
 
 - `koma_host.log(level, message_ptr, message_len)`.
 - `koma_host.check_cancel() -> i32`.
+
+S5 local WAMR fixture import:
+
+- `koma_host.http_request(req_ptr, req_len, out_ptr, out_cap) -> i32`, accepted
+  only by the fixture host ABI and only for static `fixture.koma.local` data.
 
 Logging rules:
 
@@ -90,7 +99,8 @@ Cancellation rules:
 
 HTTP and image loading:
 
-- `koma_host.http_request` is future/design-only.
+- `koma_host.http_request` is fixture-only in S5 local WAMR tooling and remains
+  product-disabled.
 - Source API requests include `hostHints.network=false` today so fixture logic
   can branch without implying network capability.
 - Future network support must be gated by manifest permissions, host ABI,

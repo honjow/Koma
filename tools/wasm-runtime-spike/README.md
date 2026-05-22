@@ -7,9 +7,14 @@ HarmonyOS app behavior.
 The current consolidated runtime/package/archive boundary is documented in
 `source-package/SOURCE_RUNTIME_BOUNDARY.md`.
 
-The future HTTP host import remains design-only. The concrete v0.1 candidate is
-documented in `host-imports/http-host-import-v0.md`; current runtime/package
-validation still rejects `network=true` and `koma_host.http_request`.
+The future HTTP host import remains product-disabled. The concrete v0.1
+candidate is documented in `host-imports/http-host-import-v0.md`; this spike
+adds only a local WAMR fixture import, `koma_host.http_request`, behind an
+explicit `experimentalHttpFixture` manifest policy. It returns static data for
+`https://fixture.koma.local/...`, performs no real network I/O, and does not
+enable HarmonyOS app runtime HTTP, product UI, public sources, or source
+markets. Current non-fixture validators still reject `network=true` and
+unpermitted `koma_host.http_request`.
 Static negative fixtures for that closed policy live under
 `host-imports/http-policy-negative-fixtures/` and are checked by
 `host-imports/validate-http-policy-negative-fixtures.py`. The validator loads
@@ -113,6 +118,9 @@ SOURCE_API_OPERATION get_chapters ok:true magic=KOMA flags=1 len=...
 SOURCE_API_OPERATION get_pages ok:true magic=KOMA flags=1 len=...
 SOURCE_API_OPERATION get_listings ok:true magic=KOMA
 SOURCE_API_OPERATION get_manga_list ok:true magic=KOMA
+SOURCE_API_HTTP_FIXTURE_ALLOWED ok:true host=fixture.koma.local networkPerformed=false
+SOURCE_API_HTTP_FIXTURE_DENIED_HOST ok:true reason=host_not_allowed
+SOURCE_API_HTTP_FIXTURE_DENIED_CREDENTIAL_HEADER ok:true reason=credential_header_denied
 SOURCE_API_OPERATION get_home ok:true magic=KOMA
 SOURCE_API_OPERATION get_filters ok:true magic=KOMA
 SOURCE_API_RUNTIME_SMOKE_PASS
@@ -151,12 +159,15 @@ artifacts under the ignored artifact directory. The local `rust-sdk` crate is a
 test-only, self-authored Koma boundary for the fixture's tiny ABI surface:
 host logging/cancellation wrappers, provisional source-author request types,
 operation helpers, KOMA result buffer/envelope writing, and the
-`hostHints.network=false` convention. The fixture imports only the existing
-`koma_host.log` and `koma_host.check_cancel` functions, exports `add`,
-`koma_source_init`, the four core source operation exports, and
-the S4 browse operation exports, and `koma_source_free`, and returns test
-envelope shapes with `Fixture Series`, deterministic listing/home/filter ids,
-and `hostHints.network: false`.
+`hostHints.network=false` convention. For S5, the fixture also imports
+`koma_host.http_request` only in the local WAMR host runner. The
+`listing:http-fixture` manga-list path proves one allowed static fixture request
+and denied host/secret-header cases; all responses remain deterministic,
+`networkPerformed=false`, and product/Harmony runtime networking stays out of
+scope. The fixture exports `add`, `koma_source_init`, the four core source
+operation exports, the S4 browse operation exports, and `koma_source_free`, and
+returns test envelope shapes with `Fixture Series`, deterministic
+listing/home/filter ids, and `hostHints.network: false`.
 
 The Rust SDK shape is provisional and tooling-only. Source fixture code
 implements a small `Source` trait and leaves ABI request reads, cancellation,

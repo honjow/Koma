@@ -6,7 +6,8 @@ fixture source stays focused on source behavior.
 
 The SDK intentionally covers only the current spike:
 
-- `koma_host.log` and `koma_host.check_cancel` host imports.
+- `koma_host.log`, `koma_host.check_cancel`, and the S5 local-fixture-only
+  `koma_host.http_request` host imports.
 - `hostHints.network=false` response convention.
 - A provisional `Source` trait with `SourceInfo`, `SourceCapabilities`,
   structured `SourceError`, and operation-specific request wrappers.
@@ -20,8 +21,10 @@ The SDK intentionally covers only the current spike:
   capabilities through the same KOMA result buffer format.
 - KOMA result buffer header writing for the existing WAMR host runner.
 
-It does not enable HTTP, network access, source markets, remote install, or any
-HarmonyOS product runtime path.
+It does not enable real HTTP, network access, source markets, remote install, or
+any HarmonyOS product runtime path. The HTTP helper is present only so the local
+WAMR fixture can request static data from `fixture.koma.local` through a
+host-owned deny-by-default policy.
 
 The fixture under `../rust-fixture` demonstrates the intended author-facing
 shape for this spike:
@@ -77,7 +80,7 @@ This is deliberately not a final public API. The request wrappers currently do
 minimal byte matching so the direct `rustc`/`no_std` wasm build stays small and
 does not require allocation or JSON dependencies. The SDK still expects source
 authors to provide valid static JSON data fragments; typed DTO serialization,
-allocation-backed JSON parsing, host HTTP, settings/auth, and image request
+allocation-backed JSON parsing, real host HTTP, settings/auth, and image request
 resolution remain later lanes.
 
 Optional v0.2 operations are represented in the trait now:

@@ -16,6 +16,8 @@ constexpr uint32_t kWasmStackBytes = 64u * 1024u;
 constexpr uint32_t kWasmHeapBytes = 256u * 1024u;
 constexpr uint32_t kMaxPayloadBytes = 1024u * 1024u;
 constexpr uint32_t kMaxHostLogBytes = 1024u;
+constexpr uint32_t kMaxHttpFixtureRequestBytes = 2048u;
+constexpr uint32_t kMaxHttpFixtureResponseBytes = 4096u;
 
 void host_log(wasm_exec_env_t exec_env, int32_t level, char *message, uint32_t message_len) {
     (void)exec_env;
@@ -36,9 +38,106 @@ int32_t host_check_cancel(wasm_exec_env_t exec_env) {
     return 0;
 }
 
+bool contains_ci(std::string value, std::string needle) {
+    for (char &ch : value) {
+        if (ch >= 'A' && ch <= 'Z') {
+            ch = static_cast<char>(ch - 'A' + 'a');
+        }
+    }
+    for (char &ch : needle) {
+        if (ch >= 'A' && ch <= 'Z') {
+            ch = static_cast<char>(ch - 'A' + 'a');
+        }
+    }
+    return value.find(needle) != std::string::npos;
+}
+
+int32_t write_http_fixture_response(char *out, uint32_t out_cap, const std::string &payload) {
+    if (payload.size() > kMaxHttpFixtureResponseBytes || payload.size() > out_cap) {
+        return -3;
+    }
+    std::memcpy(out, payload.data(), payload.size());
+    return static_cast<int32_t>(payload.size());
+}
+
+std::string http_fixture_error(const char *code, const char *phase) {
+    return std::string("{\"ok\":false,\"error\":{\"code\":\"") + code +
+           "\",\"message\":\"fixture HTTP policy denied request\",\"phase\":\"" + phase +
+           "\",\"retryable\":false},\"networkPerformed\":false}";
+}
+
+int32_t host_http_request(wasm_exec_env_t exec_env,
+                          char *request,
+                          uint32_t request_len,
+                          char *out,
+                          uint32_t out_cap) {
+    (void)exec_env;
+    if (!request || !out || request_len == 0 || request_len > kMaxHttpFixtureRequestBytes ||
+        out_cap < 256) {
+        const std::string payload = http_fixture_error("invalid_request", "shape");
+        return out ? write_http_fixture_response(out, out_cap, payload) : -2;
+    }
+
+    const std::string req(request, request + request_len);
+    const bool has_credential_header =
+        contains_ci(req, "\"authorization\"") || contains_ci(req, "\"cookie\"") ||
+        contains_ci(req, "proxy-authorization") || contains_ci(req, "set-cookie") ||
+        contains_ci(req, "token") || contains_ci(req, "password");
+    std::string payload;
+    const char *evidence = nullptr;
+
+    if (has_credential_header) {
+        payload = http_fixture_error("credential_header_denied", "headers");
+        evidence = "SOURCE_API_HTTP_FIXTURE_DENIED_CREDENTIAL_HEADER ok:true reason=credential_header_denied";
+    }
+    else if (req.find("\"version\":1") == std::string::npos ||
+             req.find("\"url\":\"") == std::string::npos) {
+        payload = http_fixture_error("invalid_request", "shape");
+        evidence = "SOURCE_API_HTTP_FIXTURE_DENIED_INVALID ok:true reason=invalid_request";
+    }
+    else if (req.find("\"method\":\"GET\"") == std::string::npos) {
+        payload = http_fixture_error("method_not_allowed", "method");
+        evidence = "SOURCE_API_HTTP_FIXTURE_DENIED_METHOD ok:true reason=method_not_allowed";
+    }
+    else if (req.find("\"responseKind\":\"bodyJson\"") == std::string::npos &&
+             req.find("\"responseKind\":\"bodyText\"") == std::string::npos) {
+        payload = http_fixture_error("response_kind_not_allowed", "responseKind");
+        evidence =
+            "SOURCE_API_HTTP_FIXTURE_DENIED_RESPONSE_KIND ok:true reason=response_kind_not_allowed";
+    }
+    else if (req.find("\"bodyBase64\":null") == std::string::npos) {
+        payload = http_fixture_error("request_body_too_large", "body");
+        evidence = "SOURCE_API_HTTP_FIXTURE_DENIED_BODY ok:true reason=request_body_too_large";
+    }
+    else if (req.find("\"url\":\"https://fixture.koma.local/manga-list/http-fixture\"") ==
+             std::string::npos) {
+        payload = http_fixture_error("host_not_allowed", "url");
+        evidence = "SOURCE_API_HTTP_FIXTURE_DENIED_HOST ok:true reason=host_not_allowed";
+    }
+    else {
+        payload =
+            "{\"ok\":true,\"status\":200,\"headers\":{\"content-type\":\"application/json\"},"
+            "\"bodyText\":\"{\\\"items\\\":[{\\\"id\\\":\\\"manga:http-fixture-series\\\","
+            "\\\"title\\\":\\\"HTTP Fixture Series\\\"}]}\","
+            "\"bodyJson\":{\"items\":[{\"id\":\"manga:http-fixture-series\","
+            "\"title\":\"HTTP Fixture Series\"}]},"
+            "\"finalUrl\":\"https://fixture.koma.local/manga-list/http-fixture\","
+            "\"responseKind\":\"bodyJson\",\"networkPerformed\":false}";
+        evidence = "SOURCE_API_HTTP_FIXTURE_ALLOWED ok:true host=fixture.koma.local "
+                   "networkPerformed=false";
+    }
+
+    const int32_t written = write_http_fixture_response(out, out_cap, payload);
+    if (written >= 0 && evidence) {
+        std::cout << evidence << "\n";
+    }
+    return written;
+}
+
 NativeSymbol g_koma_host_symbols[] = {
     {"log", reinterpret_cast<void *>(host_log), "(i*~)", nullptr},
     {"check_cancel", reinterpret_cast<void *>(host_check_cancel), "()i", nullptr},
+    {"http_request", reinterpret_cast<void *>(host_http_request), "(*~*~)i", nullptr},
 };
 
 std::vector<uint8_t> read_file(const char *path) {
@@ -128,7 +227,6 @@ struct SourceOperation {
 bool contains_any_forbidden_runtime_string(const std::string &payload) {
     const char *forbidden[] = {
         "\"network\":true",
-        "http_request",
         "https://",
         "http://",
         "file://",
@@ -147,7 +245,6 @@ bool contains_any_forbidden_runtime_string(const std::string &payload) {
         "secret",
         "apiKey",
         "cookie",
-        "Authorization",
     };
     for (const char *needle : forbidden) {
         if (payload.find(needle) != std::string::npos) {
@@ -242,12 +339,23 @@ void validate_operation_data(const std::string &operation, const std::string &pa
         require_contains(payload, "\"name\":\"Popular\"", operation);
         require_contains(payload, "\"kind\":\"popular\"", operation);
         require_contains(payload, "\"id\":\"listing:latest\"", operation);
+        require_contains(payload, "\"id\":\"listing:http-fixture\"", operation);
     }
     else if (operation == "get_manga_list") {
-        require_contains(payload, "\"listingId\":\"listing:popular\"", operation);
-        require_contains(payload, "\"id\":\"manga:fixture-series\"", operation);
-        require_contains(payload, "\"title\":\"Fixture Series\"", operation);
-        require_contains(payload, "\"subtitle\":\"Browse fixture result\"", operation);
+        if (payload.find("\"listingId\":\"listing:http-fixture\"") != std::string::npos) {
+            require_contains(payload, "\"id\":\"manga:http-fixture-series\"", operation);
+            require_contains(payload, "\"title\":\"HTTP Fixture Series\"", operation);
+            require_contains(payload, "\"allowed\":true", operation);
+            require_contains(payload, "\"deniedHost\":\"host_not_allowed\"", operation);
+            require_contains(payload, "\"deniedCredentialHeader\":\"credential_header_denied\"", operation);
+            require_contains(payload, "\"networkPerformed\":false", operation);
+        }
+        else {
+            require_contains(payload, "\"listingId\":\"listing:popular\"", operation);
+            require_contains(payload, "\"id\":\"manga:fixture-series\"", operation);
+            require_contains(payload, "\"title\":\"Fixture Series\"", operation);
+            require_contains(payload, "\"subtitle\":\"Browse fixture result\"", operation);
+        }
         require_contains(payload, "\"page\":{\"nextCursor\":null,\"hasMore\":false}", operation);
     }
     else if (operation == "get_home") {
@@ -363,8 +471,11 @@ public:
         constexpr const char *manifest =
             "{\"schemaVersion\":1,\"id\":\"local.example.private\","
             "\"runtime\":\"wasm-v1\",\"entry\":\"source.wasm\","
-            "\"host\":{\"abi\":\"koma-host-v0.1\",\"imports\":[\"log\",\"check_cancel\"],"
+            "\"host\":{\"abi\":\"koma-host-v0.1-fixture-http\","
+            "\"imports\":[\"log\",\"check_cancel\",\"http_request\"],"
             "\"limits\":{\"maxMemoryPages\":2,\"maxPayloadBytes\":1048576,\"network\":false}},"
+            "\"experimentalHttpFixture\":{\"enabled\":true,\"allowedHost\":\"fixture.koma.local\","
+            "\"networkPerformed\":false},"
             "\"contentPolicy\":{\"publicIndex\":false,\"marketplace\":false}}";
         const uint32_t manifest_len = static_cast<uint32_t>(std::strlen(manifest));
         uint64_t manifest_ptr =
@@ -469,9 +580,16 @@ public:
         validate_source_envelope(operation.name, payload);
         validate_operation_data(operation.name, payload);
 
+        const bool http_fixture_operation =
+            std::strstr(request, "\"listingId\":\"listing:http-fixture\"") != nullptr;
+        const char *json_name =
+            http_fixture_operation ? "get_manga_list_http_fixture" : operation.name;
         std::cout << "SOURCE_API_OPERATION " << operation.name << " ok:true"
                   << " magic=KOMA\n";
-        std::cout << "SOURCE_API_JSON " << operation.name << "=" << payload << "\n";
+        if (http_fixture_operation) {
+            std::cout << "SOURCE_API_HTTP_FIXTURE_OPERATION ok:true operation=get_manga_list\n";
+        }
+        std::cout << "SOURCE_API_JSON " << json_name << "=" << payload << "\n";
         return payload;
     }
 
@@ -567,6 +685,15 @@ public:
                 "\"page\":{\"cursor\":null,\"limit\":20},"
                 "\"filters\":{\"sort\":\"popular\"}},\"settings\":{},"
                 "\"hostHints\":{\"network\":false}}",
+            },
+            {
+                "get_manga_list",
+                "koma_source_get_manga_list",
+                "{\"type\":\"request\",\"version\":1,\"requestId\":\"runtime-http-fixture-list-001\","
+                "\"operation\":\"get_manga_list\",\"sourceId\":\"local.test.koma.fixture\","
+                "\"args\":{\"listingId\":\"listing:http-fixture\","
+                "\"page\":{\"cursor\":null,\"limit\":20}},\"settings\":{},"
+                "\"hostHints\":{\"network\":false,\"experimentalHttpFixture\":true}}",
             },
             {
                 "get_home",

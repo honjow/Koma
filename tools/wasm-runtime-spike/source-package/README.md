@@ -59,15 +59,17 @@ Rust SDK source -> wasm32-unknown-unknown -> WAMR sandbox -> explicit host impor
 
 - package metadata: id, name, version, language, type, NSFW flag, author,
   description, and an optional icon placeholder.
-- runtime metadata: `koma-source-abi-v0.1`, `koma-host-v0.1`, wasm path,
-  wasm sha256, max memory pages, max payload bytes, max wasm bytes, and required
-  host imports.
+- runtime metadata: `koma-source-abi-v0.1`, fixture-only
+  `koma-host-v0.1-fixture-http`, wasm path, wasm sha256, max memory pages, max
+  payload bytes, max wasm bytes, and required host imports.
 - capabilities: the four core fixture operations are enabled (`search`,
   `detail`, `chapterList`, and `pageList`); image URL/network behavior remains
   disabled.
 - settings schema: typed placeholder settings with no credentials.
-- permissions: `network` is false and the only host imports are
-  `koma_host.log` and `koma_host.check_cancel`.
+- permissions: `network` is false. `koma_host.http_request` is permitted only
+  through `experimentalHttpFixture`, constrained to `fixture.koma.local`, `GET`,
+  bodyJson/bodyText responses, static fixture data, and
+  `networkPerformed=false`.
 - content policy: public index, marketplace, built-in source, and remote install
   are all false.
 
@@ -100,10 +102,13 @@ directory. It accepts valid metadata/request/response envelopes for
 `get_pages`, `get_listings`, `get_manga_list`, `get_home`, `get_filters`,
 `get_settings`, and `get_image_request`, and asserts that invalid fixtures are
 rejected with deterministic local reasons. The validator is stdlib-only, does
-not invoke WAMR, and does not perform network. Current fixtures must keep
-`hostHints.network=false` and must not contain raw remote URLs, local paths,
-picker/content URIs, app-private paths, cookies, tokens, authorization headers,
-or passwords.
+not invoke WAMR, and does not perform network. Current Source API fixtures must
+keep `hostHints.network=false` and must not contain raw remote URLs, local
+paths, picker/content URIs, app-private paths, cookies, tokens, authorization
+headers, or passwords. The S5 `httpFixtureRequest` fixtures are the only
+exception for the static `https://fixture.koma.local/...` URL and exist solely
+to validate the local WAMR host-import policy shape; they still require
+`networkPerformed=false`.
 
 ```sh
 python3 tools/wasm-runtime-spike/source-package/validate-source-package.py \
@@ -115,12 +120,15 @@ python3 tools/wasm-runtime-spike/source-package/validate-source-package.py \
 The script writes `source-package-validation.json` under the artifact directory.
 It validates required fields, scope rules, sha256, wasm magic/version, declared
 imports, exported fixture functions, optional `koma_source_info` discovery,
-capabilities, settings defaults, and network=false. With `--build-rust-fixture`
-it also parses the WAMR smoke JSON and records functional evidence that
+capabilities, settings defaults, `network=false`, and the explicit
+`experimentalHttpFixture` gate. With `--build-rust-fixture` it also parses the
+WAMR smoke JSON and records functional evidence that
 `source_info` returns Source API v0.2 metadata, core and browse capabilities are
 true, config/image/future capabilities are false, browse operations return the
 expected listing/home/filter/page shapes, `hostHints.network=false`, and
-unknown operations reject instead of falling back to search.
+unknown operations reject instead of falling back to search. It also requires
+S5 controlled HTTP fixture evidence: allowed static host request, denied host,
+denied credential header, and no real network.
 
 To exercise the Rust-SDK-backed package build boundary:
 
@@ -132,9 +140,9 @@ python3 tools/wasm-runtime-spike/source-package/build-rust-sdk-source-package.py
 The build report is written to
 `rust-sdk-source-package-build-report.json` under the artifact directory and
 includes the built wasm sha256/size, generated manifest path, validator report
-path, and gate results for `packageId`, `hostAbi=koma-host-v0.1`,
-`network=false`, exact `koma_host.log`/`koma_host.check_cancel` imports, wasm
-hash/size, and disabled public index/marketplace/built-in/remote-install flags.
+path, and gate results for `packageId`, fixture HTTP host ABI,
+`network=false`, exact fixture-gated host imports, wasm hash/size, and disabled
+public index/marketplace/built-in/remote-install flags.
 
 ## Trust/Provenance Boundary
 

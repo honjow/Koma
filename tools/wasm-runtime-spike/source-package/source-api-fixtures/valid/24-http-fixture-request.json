@@ -1,0 +1,14 @@
+{
+  "type": "httpFixtureRequest",
+  "version": 1,
+  "fixtureOnly": true,
+  "method": "GET",
+  "url": "https://fixture.koma.local/manga-list/http-fixture",
+  "headers": {
+    "Accept": "application/json"
+  },
+  "bodyBase64": null,
+  "timeoutMs": 1000,
+  "responseKind": "bodyJson",
+  "networkPerformed": false
+}

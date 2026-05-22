@@ -13,7 +13,7 @@
   },
   "runtime": {
     "abi": "koma-source-abi-v0.1",
-    "hostAbi": "koma-host-v0.1",
+    "hostAbi": "koma-host-v0.1-fixture-http",
     "wasm": {
       "path": "../../../entry/src/main/resources/rawfile/test/rust_source_runtime_fixture.wasm",
       "sha256": "6d06d3a936bd0316818ec9d5754ea96c9cb33110c520cede6f0945c3eedbb4f8",
@@ -36,6 +36,10 @@
       {
         "module": "koma_host",
         "name": "check_cancel"
+      },
+      {
+        "module": "koma_host",
+        "name": "http_request"
       }
     ]
   },
@@ -61,8 +65,23 @@
     "network": false,
     "hostImports": [
       "koma_host.log",
-      "koma_host.check_cancel"
-    ]
+      "koma_host.check_cancel",
+      "koma_host.http_request"
+    ],
+    "experimentalHttpFixture": {
+      "enabled": true,
+      "allowedHost": "fixture.koma.local",
+      "allowedMethods": [
+        "GET"
+      ],
+      "responseKinds": [
+        "bodyJson",
+        "bodyText"
+      ],
+      "maxRequestBytes": 2048,
+      "maxResponseBytes": 4096,
+      "networkPerformed": false
+    }
   },
   "contentPolicy": {
     "publicIndex": false,

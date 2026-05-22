@@ -1,18 +1,21 @@
 # Koma HTTP Host Import v0.1 Candidate
 
-This is a design-only specification for a future Koma WASM source runtime HTTP
-host import. It exists so later validator, SDK, settings/auth, and resource
-limit lanes can reason about one concrete policy surface before any network
-implementation exists.
+This is a product-disabled specification for a future Koma WASM source runtime
+HTTP host import. It exists so validator, SDK, settings/auth, and resource
+limit lanes can reason about one concrete policy surface before any real
+network implementation exists.
 
 Current runtime status is unchanged:
 
 - `permissions.network=false` for current source packages.
-- HTTP is design-only.
+- HTTP is fixture-only in local WAMR tooling.
+- The S5 local fixture ABI is `koma-host-v0.1-fixture-http`.
+- The S5 allowed host is exactly `fixture.koma.local`.
 - The design fixture reports `runtimeEnabled=false`.
 - The design fixture reports `networkPerformed=false`.
 - Current package/runtime gates reject `permissions.network=true`.
-- Current package/runtime gates reject `koma_host.http_request`.
+- Current non-fixture package/runtime gates reject unpermitted
+  `koma_host.http_request`.
 - No code path in this lane performs network I/O.
 
 ## Import Shape And ABI Versioning
@@ -25,7 +28,8 @@ name: http_request
 qualified: koma_host.http_request
 ```
 
-Candidate C-facing shape for `koma-host-v0.2-design-http`:
+Candidate C-facing shape, used by the S5 local fixture ABI and still subject to
+future revision:
 
 ```c
 int32_t koma_host_http_request(

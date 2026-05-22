@@ -28,6 +28,7 @@ PATH_LEAK_RE = re.compile(
     r"\.hermes-artifacts|/cache/|/files/|/Documents/)"
 )
 REMOTE_URL_RE = re.compile(r"https?://", re.IGNORECASE)
+FIXTURE_HTTP_URL = "https://fixture.koma.local/manga-list/http-fixture"
 SECRET_RE = re.compile(
     r"(authorization|bearer\s+[a-z0-9._~+/=-]+|cookie|set-cookie|password|passwd|"
     r"access[_-]?token|refresh[_-]?token|api[_-]?key)",
@@ -319,6 +320,27 @@ def validate_image_request_descriptor(value: Any, path: str) -> None:
     require(isinstance(value.get("credentialRefs", []), list), f"{path}.credentialRefs must be an array")
 
 
+def validate_http_fixture_request(payload: dict[str, Any]) -> None:
+    require(payload.get("version") == 1, "version must be 1")
+    require(payload.get("fixtureOnly") is True, "fixtureOnly must be true")
+    require(payload.get("networkPerformed") is False, "networkPerformed must be false")
+    require(payload.get("method") == "GET", "method must be GET for S5 fixture")
+    require(payload.get("url") == FIXTURE_HTTP_URL, "url must be the controlled fixture host URL")
+    require(payload.get("bodyBase64") is None, "bodyBase64 must be null for GET")
+    require(payload.get("timeoutMs") in range(1, 1001), "timeoutMs must be 1..1000")
+    require(payload.get("responseKind") in {"bodyJson", "bodyText"},
+            "responseKind must be bodyJson/bodyText")
+    headers = payload.get("headers")
+    require(isinstance(headers, dict), "headers must be an object")
+    for name, value in headers.items():
+        lower = name.lower()
+        require(lower in {"accept", "accept-language", "content-type", "if-none-match", "if-modified-since"},
+                f"header {name} is not allowed")
+        require(lower not in {"authorization", "cookie", "set-cookie", "proxy-authorization"},
+                f"header {name} must not carry raw credentials")
+        require(isinstance(value, str), f"header {name} value must be a string")
+
+
 def validate_response_data(operation: str, data: Any, network: bool) -> None:
     require(isinstance(data, dict), "data must be an object")
     if operation == "search":
@@ -388,14 +410,17 @@ def validate_response(payload: dict[str, Any]) -> None:
 def validate_fixture(path: Path) -> dict[str, Any]:
     payload = read_json(path)
     fixture_type = payload.get("type")
-    require(fixture_type in {"metadata", "request", "response"}, "type must be metadata/request/response")
+    require(fixture_type in {"metadata", "request", "response", "httpFixtureRequest"},
+            "type must be metadata/request/response/httpFixtureRequest")
     if fixture_type == "request":
         validate_request(payload)
     elif fixture_type == "response":
         validate_response(payload)
+    elif fixture_type == "httpFixtureRequest":
+        validate_http_fixture_request(payload)
     else:
         validate_metadata(payload)
-    scan_for_disallowed_strings(payload)
+    scan_for_disallowed_strings(payload, allow_fixture_url=fixture_type == "httpFixtureRequest")
     return {
         "file": str(path),
         "type": fixture_type,
@@ -404,16 +429,19 @@ def validate_fixture(path: Path) -> dict[str, Any]:
     }
 
 
-def scan_for_disallowed_strings(value: Any, path: str = "$") -> None:
+def scan_for_disallowed_strings(value: Any, path: str = "$", allow_fixture_url: bool = False) -> None:
     if isinstance(value, dict):
         for key, child in value.items():
-            scan_for_disallowed_strings(child, f"{path}.{key}")
+            scan_for_disallowed_strings(child, f"{path}.{key}", allow_fixture_url)
     elif isinstance(value, list):
         for index, child in enumerate(value):
-            scan_for_disallowed_strings(child, f"{path}[{index}]")
+            scan_for_disallowed_strings(child, f"{path}[{index}]", allow_fixture_url)
     elif isinstance(value, str):
         require(not PATH_LEAK_RE.search(value), f"{path} leaks a raw local/picker/app-private path")
-        require(not REMOTE_URL_RE.search(value), f"{path} leaks a remote URL in current network=false fixtures")
+        if allow_fixture_url and value == FIXTURE_HTTP_URL:
+            pass
+        else:
+            require(not REMOTE_URL_RE.search(value), f"{path} leaks a remote URL in current network=false fixtures")
         require(not SECRET_RE.search(value), f"{path} leaks raw credential-like material")
 
 

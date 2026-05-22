@@ -1,8 +1,10 @@
 # Koma HTTP Host Import Boundary
 
-This is a design-only boundary for a future Koma WASM source runtime HTTP
-capability. It does not enable network in WAMR, HarmonyOS, product UI, source
-packages, source markets, WebView workflows, APK plugins, or built-in sources.
+This is a product-disabled boundary for a future Koma WASM source runtime HTTP
+capability. S5 adds only a local WAMR fixture import for deterministic static
+data under `fixture.koma.local`; it does not enable real network in WAMR,
+HarmonyOS, product UI, source markets, WebView workflows, APK plugins, or
+built-in sources.
 
 The detailed candidate contract is now tracked in
 `http-host-import-v0.md`. This file remains the short validation boundary for
@@ -11,14 +13,16 @@ Machine-verifiable negative fixtures for the closed current policy live in
 `http-policy-negative-fixtures/` and are validated by
 `validate-http-policy-negative-fixtures.py`.
 
-Current runtime packages remain on `koma-host-v0.1` with only:
+General runtime packages remain on `koma-host-v0.1` with only:
 
 ```text
 koma_host.log
 koma_host.check_cancel
 ```
 
-The proposed HTTP import is reserved for a later host ABI:
+The S5 local WAMR fixture uses a temporary `koma-host-v0.1-fixture-http` ABI
+and an explicit `experimentalHttpFixture` manifest gate to exercise the proposed
+HTTP import shape without network I/O:
 
 ```c
 int32_t koma_host_http_request(
@@ -159,9 +163,11 @@ HTTP imports require an explicit future manifest permission block:
 }
 ```
 
-Current `koma-host-v0.1` package validation still rejects `network=true` and
-`koma_host.http_request`. The sample contract in this directory is accepted only
-by the design-only HTTP boundary validator and reports `runtimeEnabled: false`.
+Current non-fixture package validation still rejects `network=true` and
+unpermitted `koma_host.http_request`. The S5 source-package validator accepts
+the import only when `experimentalHttpFixture.enabled=true`,
+`allowedHost=fixture.koma.local`, `networkPerformed=false`, and the wasm imports
+match the fixture policy.
 
 The future v0.1 candidate requires all of the following before any HTTP request
 could run in a later implementation:

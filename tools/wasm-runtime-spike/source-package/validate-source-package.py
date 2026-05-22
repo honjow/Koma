@@ -14,7 +14,9 @@ from redaction import redacted_command, redact_text, redact_value, write_redacte
 
 SOURCE_ABI = "koma-source-abi-v0.1"
 HOST_ABI = "koma-host-v0.1"
+FIXTURE_HTTP_HOST_ABI = "koma-host-v0.1-fixture-http"
 ALLOWED_IMPORTS = {("koma_host", "log"), ("koma_host", "check_cancel")}
+FIXTURE_HTTP_IMPORTS = ALLOWED_IMPORTS | {("koma_host", "http_request")}
 REQUIRED_EXPORTS = {
     "add",
     "koma_source_init",
@@ -304,6 +306,24 @@ def validate_runtime_operation_payloads(payloads: dict) -> dict:
             "get_manga_list nextCursor must be null")
     require(payloads["get_manga_list"]["data"]["page"]["hasMore"] is False,
             "get_manga_list hasMore must be false")
+    http_fixture = payloads.get("get_manga_list_http_fixture")
+    require(isinstance(http_fixture, dict), "runtime smoke missing HTTP fixture manga list")
+    require(http_fixture.get("ok") is True, "HTTP fixture manga list must be ok")
+    require(http_fixture.get("operation") == "get_manga_list",
+            "HTTP fixture manga list operation mismatch")
+    require(http_fixture.get("hostHints", {}).get("network") is False,
+            "HTTP fixture hostHints.network must remain false")
+    require(http_fixture.get("data", {}).get("listingId") == "listing:http-fixture",
+            "HTTP fixture listingId drifted")
+    http_policy = http_fixture.get("data", {}).get("httpFixture")
+    require(isinstance(http_policy, dict), "HTTP fixture policy evidence missing")
+    require(http_policy.get("allowed") is True, "HTTP fixture allowed request missing")
+    require(http_policy.get("deniedHost") == "host_not_allowed",
+            "HTTP fixture denied host reason drifted")
+    require(http_policy.get("deniedCredentialHeader") == "credential_header_denied",
+            "HTTP fixture denied credential header reason drifted")
+    require(http_policy.get("networkPerformed") is False,
+            "HTTP fixture must not perform real network")
     require(payloads["get_home"]["data"]["sections"][0]["id"] == "home:featured",
             "get_home featured section drifted")
     require(payloads["get_filters"]["data"]["filters"][0]["id"] == "filter:query",
@@ -348,7 +368,12 @@ def validate_manifest(manifest_path: Path, wasm_path_override: Path | None = Non
     runtime = manifest.get("runtime")
     require(isinstance(runtime, dict), "runtime object is required")
     require(runtime.get("abi") == SOURCE_ABI, f"runtime.abi must be {SOURCE_ABI}")
-    require(runtime.get("hostAbi") == HOST_ABI, f"runtime.hostAbi must be {HOST_ABI}")
+    permissions = manifest.get("permissions")
+    require(isinstance(permissions, dict), "permissions object is required")
+    experimental_http = permissions.get("experimentalHttpFixture")
+    http_fixture_enabled = isinstance(experimental_http, dict) and experimental_http.get("enabled") is True
+    expected_host_abi = FIXTURE_HTTP_HOST_ABI if http_fixture_enabled else HOST_ABI
+    require(runtime.get("hostAbi") == expected_host_abi, f"runtime.hostAbi must be {expected_host_abi}")
     wasm = runtime.get("wasm")
     require(isinstance(wasm, dict), "runtime.wasm object is required")
     wasm_path = wasm_path_override if wasm_path_override else resolve_package_path(manifest_path, wasm.get("path"))
@@ -368,11 +393,14 @@ def validate_manifest(manifest_path: Path, wasm_path_override: Path | None = Non
     declared_imports = runtime.get("requiredHostImports")
     require(isinstance(declared_imports, list) and declared_imports, "requiredHostImports must be non-empty")
     declared_pairs = {(item.get("module"), item.get("name")) for item in declared_imports if isinstance(item, dict)}
-    require(declared_pairs == ALLOWED_IMPORTS, "requiredHostImports must be exactly koma_host.log/check_cancel")
+    allowed_imports = FIXTURE_HTTP_IMPORTS if http_fixture_enabled else ALLOWED_IMPORTS
+    require(declared_pairs == allowed_imports,
+            "requiredHostImports must match the active fixture host import policy")
 
     wasm_imports, wasm_exports = parse_wasm_imports_exports(wasm_path)
     wasm_import_set = set(wasm_imports)
-    require(wasm_import_set == ALLOWED_IMPORTS, f"wasm imports must be exactly {sorted(ALLOWED_IMPORTS)}")
+    require(wasm_import_set == allowed_imports,
+            f"wasm imports must match active policy {sorted(allowed_imports)}")
     require(REQUIRED_EXPORTS.issubset(set(wasm_exports)),
             "wasm exports missing required fixture functions")
     optional_exports = sorted(set(wasm_exports) & (OPTIONAL_EXPORTS | OPTIONAL_BROWSE_EXPORTS))
@@ -387,11 +415,20 @@ def validate_manifest(manifest_path: Path, wasm_path_override: Path | None = Non
 
     validate_settings_schema(manifest.get("settingsSchema"))
 
-    permissions = manifest.get("permissions")
-    require(isinstance(permissions, dict), "permissions object is required")
     require(permissions.get("network") is False, "fixture permissions.network must be false")
-    require(permissions.get("hostImports") == ["koma_host.log", "koma_host.check_cancel"],
-            "permissions.hostImports must match allowed imports")
+    expected_permission_imports = ["koma_host.log", "koma_host.check_cancel"]
+    if http_fixture_enabled:
+        require(experimental_http.get("allowedHost") == "fixture.koma.local",
+                "experimentalHttpFixture.allowedHost must be fixture.koma.local")
+        require(experimental_http.get("networkPerformed") is False,
+                "experimentalHttpFixture.networkPerformed must be false")
+        require(experimental_http.get("allowedMethods") == ["GET"],
+                "experimentalHttpFixture.allowedMethods must be GET only")
+        require(experimental_http.get("responseKinds") == ["bodyJson", "bodyText"],
+                "experimentalHttpFixture.responseKinds must be bodyJson/bodyText")
+        expected_permission_imports.append("koma_host.http_request")
+    require(permissions.get("hostImports") == expected_permission_imports,
+            "permissions.hostImports must match active fixture imports")
 
     content_policy = manifest.get("contentPolicy")
     require(isinstance(content_policy, dict), "contentPolicy object is required")
@@ -412,6 +449,7 @@ def validate_manifest(manifest_path: Path, wasm_path_override: Path | None = Non
         "sourceInfoExport": "koma_source_info" in optional_exports,
         "capabilities": capabilities,
         "network": permissions["network"],
+        "experimentalHttpFixture": http_fixture_enabled,
     }
 
 
@@ -440,7 +478,11 @@ def run_rust_fixture(manifest_path: Path, artifact_dir: Path, manifest: dict) ->
     wasm_path = rust_artifact_dir / artifact_rel
     require(wasm_path.is_file(), f"built rust fixture wasm missing: {wasm_path}")
     imports, exports = parse_wasm_imports_exports(wasm_path)
-    require(set(imports) == ALLOWED_IMPORTS, "built rust fixture imports drifted")
+    permissions = manifest["permissions"]
+    http_fixture_enabled = isinstance(permissions.get("experimentalHttpFixture"), dict) and \
+        permissions["experimentalHttpFixture"].get("enabled") is True
+    allowed_imports = FIXTURE_HTTP_IMPORTS if http_fixture_enabled else ALLOWED_IMPORTS
+    require(set(imports) == allowed_imports, "built rust fixture imports drifted")
     require(REQUIRED_EXPORTS.issubset(set(exports)), "built rust fixture exports drifted")
     require(OPTIONAL_BROWSE_EXPORTS.issubset(set(exports)),
             "built rust fixture missing browse operation exports")
@@ -494,10 +536,10 @@ def main() -> int:
         report["evidence"].extend([
             f"manifest package id {manifest_evidence['packageId']} accepted",
             f"wasm sha256 {manifest_evidence['wasmSha256']} size {manifest_evidence['wasmSizeBytes']} bytes",
-            "imports constrained to koma_host.log and koma_host.check_cancel",
+            "imports constrained to the active fixture host import policy",
             "capabilities cover fixture search/detail/chapter/page operations",
             "optional source_info and browse exports accepted by static wasm validation",
-            "network=false and no market/index/install scope fields",
+            "network=false, experimental HTTP fixture gate explicit, and no market/index/install scope fields",
         ])
         if args.build_rust_fixture:
             runtime_evidence = rust_result["runtimeEvidence"]
@@ -506,6 +548,9 @@ def main() -> int:
             )
             report["evidence"].append(
                 "runtime source_info validated with core/browse capabilities true, config/image/future capabilities false, and network=false"
+            )
+            report["evidence"].append(
+                "runtime HTTP fixture validated allowed static host request, denied host, denied credential header, and networkPerformed=false"
             )
             report["sourceInfoRuntimeEvidence"] = runtime_evidence
         else:

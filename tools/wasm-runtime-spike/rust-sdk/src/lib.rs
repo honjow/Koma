@@ -10,6 +10,14 @@ pub mod host {
 
         #[link_name = "check_cancel"]
         fn koma_host_check_cancel() -> i32;
+
+        #[link_name = "http_request"]
+        fn koma_host_http_request(
+            req_ptr: *const u8,
+            req_len: u32,
+            out_ptr: *mut u8,
+            out_cap: u32,
+        ) -> i32;
     }
 
     pub fn log_info(message: &[u8]) {
@@ -20,6 +28,22 @@ pub mod host {
 
     pub fn check_cancel() -> bool {
         unsafe { koma_host_check_cancel() != 0 }
+    }
+
+    pub fn http_request(request: &[u8], output: &mut [u8]) -> core::result::Result<usize, i32> {
+        let written = unsafe {
+            koma_host_http_request(
+                request.as_ptr(),
+                request.len() as u32,
+                output.as_mut_ptr(),
+                output.len() as u32,
+            )
+        };
+        if written < 0 || written as usize > output.len() {
+            Err(written)
+        } else {
+            Ok(written as usize)
+        }
     }
 }
 

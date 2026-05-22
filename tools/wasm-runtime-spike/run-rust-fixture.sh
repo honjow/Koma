@@ -98,6 +98,8 @@ run_logged "${RUSTC_CMD[@]}" --target wasm32-unknown-unknown \
   -C target-cpu=mvp \
   -C target-feature=-reference-types \
   -C opt-level=z \
+  -C debuginfo=0 \
+  -C strip=symbols \
   -C panic=abort \
   -o "$SDK_RLIB" \
   "$SCRIPT_DIR/rust-sdk/src/lib.rs"
@@ -108,6 +110,8 @@ run_logged "${RUSTC_CMD[@]}" --target wasm32-unknown-unknown \
   -C target-cpu=mvp \
   -C target-feature=-reference-types \
   -C opt-level=z \
+  -C debuginfo=0 \
+  -C strip=symbols \
   -C panic=abort \
   --extern "koma_source_sdk=$SDK_RLIB" \
   -C link-arg=--no-entry \
@@ -166,6 +170,26 @@ if ! grep -q 'SOURCE_API_UNKNOWN_OPERATION_REJECTED ok:true' "$RUN_LOG"; then
   exit 22
 fi
 
+if ! grep -q 'SOURCE_API_HTTP_FIXTURE_ALLOWED ok:true .*networkPerformed=false' "$RUN_LOG"; then
+  log "missing HTTP fixture allowed request evidence"
+  exit 25
+fi
+
+if ! grep -q 'SOURCE_API_HTTP_FIXTURE_DENIED_HOST ok:true reason=host_not_allowed' "$RUN_LOG"; then
+  log "missing HTTP fixture denied host evidence"
+  exit 25
+fi
+
+if ! grep -q 'SOURCE_API_HTTP_FIXTURE_DENIED_CREDENTIAL_HEADER ok:true reason=credential_header_denied' "$RUN_LOG"; then
+  log "missing HTTP fixture denied credential header evidence"
+  exit 25
+fi
+
+if ! grep -q 'SOURCE_API_HTTP_FIXTURE_OPERATION ok:true operation=get_manga_list' "$RUN_LOG"; then
+  log "missing get_manga_list HTTP fixture operation evidence"
+  exit 25
+fi
+
 if ! grep -q 'hostHints.network=false' "$RUN_LOG"; then
   log "missing hostHints.network=false evidence"
   exit 22
@@ -198,7 +222,13 @@ with open(run_log, "r", encoding="utf-8") as fh:
 
 browse_expected = ["get_listings", "get_manga_list", "get_home", "get_filters"]
 core_expected = ["search", "get_manga", "get_chapters", "get_pages"]
-expected = ["source_info", *core_expected, *browse_expected, "unknown_operation_rejected"]
+expected = [
+    "source_info",
+    *core_expected,
+    *browse_expected,
+    "get_manga_list_http_fixture",
+    "unknown_operation_rejected",
+]
 assert sorted(payloads) == sorted(expected), payloads.keys()
 
 source_info = payloads["source_info"]
@@ -237,6 +267,18 @@ assert payloads["get_manga_list"]["data"]["listingId"] == "listing:popular"
 assert payloads["get_manga_list"]["data"]["items"][0]["title"] == "Fixture Series"
 assert payloads["get_manga_list"]["data"]["page"]["nextCursor"] is None
 assert payloads["get_manga_list"]["data"]["page"]["hasMore"] is False
+http_fixture = payloads["get_manga_list_http_fixture"]
+assert http_fixture["version"] == 1
+assert http_fixture["ok"] is True
+assert http_fixture["operation"] == "get_manga_list"
+assert http_fixture["hostHints"]["network"] is False
+assert http_fixture["data"]["listingId"] == "listing:http-fixture"
+assert http_fixture["data"]["items"][0]["id"] == "manga:http-fixture-series"
+assert http_fixture["data"]["items"][0]["title"] == "HTTP Fixture Series"
+assert http_fixture["data"]["httpFixture"]["allowed"] is True
+assert http_fixture["data"]["httpFixture"]["deniedHost"] == "host_not_allowed"
+assert http_fixture["data"]["httpFixture"]["deniedCredentialHeader"] == "credential_header_denied"
+assert http_fixture["data"]["httpFixture"]["networkPerformed"] is False
 assert payloads["get_home"]["data"]["sections"][0]["id"] == "home:featured"
 assert payloads["get_home"]["data"]["sections"][1]["listingId"] == "listing:latest"
 assert payloads["get_filters"]["data"]["filters"][0]["id"] == "filter:query"

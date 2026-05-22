@@ -8,13 +8,15 @@ use koma_source_sdk::source::{
     ListingsRequest, MangaId, MangaListRequest, SearchRequest, Source, SourceCapabilities,
     SourceError, SourceInfo, SourceResult,
 };
+use koma_source_sdk::request::contains_bytes;
 
-static mut RESPONSE: ResultBuffer<4096> = ResultBuffer::new();
+static mut RESPONSE: ResultBuffer<8192> = ResultBuffer::new();
 static FIXTURE_SOURCE: FixtureSource = FixtureSource;
 
 const MANGA_ID: &[u8] = b"manga:fixture-series";
 const CHAPTER_ID: &[u8] = b"chapter:fixture-series:001";
 const LISTING_ID_POPULAR: &[u8] = b"listing:popular";
+const LISTING_ID_HTTP_FIXTURE: &[u8] = b"listing:http-fixture";
 
 const SEARCH_DATA: &[u8] =
     br#"{"requestEcho":"fixture","items":[{"id":"manga:fixture-series","title":"Fixture Series","subtitle":"Rust WAMR runtime smoke","cover":{"kind":"none"},"authors":["Koma Fixture"],"status":"unknown","contentRating":"unknown","sourceTags":["fixture"]}],"page":{"nextCursor":null,"hasMore":false}}"#;
@@ -25,13 +27,21 @@ const CHAPTERS_DATA: &[u8] =
 const PAGES_DATA: &[u8] =
     br#"{"chapterId":"chapter:fixture-series:001","pages":[{"id":"page:fixture-series:001:0001","index":0,"image":{"kind":"placeholder","label":"fixture-page-1","width":1200,"height":1800}}]}"#;
 const LISTINGS_DATA: &[u8] =
-    br#"{"listings":[{"id":"listing:popular","name":"Popular","kind":"popular"},{"id":"listing:latest","name":"Latest","kind":"latest"}]}"#;
+    br#"{"listings":[{"id":"listing:popular","name":"Popular","kind":"popular"},{"id":"listing:latest","name":"Latest","kind":"latest"},{"id":"listing:http-fixture","name":"HTTP Fixture","kind":"custom"}]}"#;
 const MANGA_LIST_DATA: &[u8] =
     br#"{"listingId":"listing:popular","items":[{"id":"manga:fixture-series","title":"Fixture Series","subtitle":"Browse fixture result","cover":{"kind":"none"},"authors":["Koma Fixture"],"status":"unknown","contentRating":"unknown","sourceTags":["fixture"]}],"page":{"nextCursor":null,"hasMore":false}}"#;
+const HTTP_MANGA_LIST_DATA: &[u8] =
+    br#"{"listingId":"listing:http-fixture","items":[{"id":"manga:http-fixture-series","title":"HTTP Fixture Series","subtitle":"Host import static fixture result","cover":{"kind":"none"},"authors":["Koma Fixture"],"status":"unknown","contentRating":"unknown","sourceTags":["fixture","http-host-import-v0.1"]}],"page":{"nextCursor":null,"hasMore":false},"httpFixture":{"allowed":true,"deniedHost":"host_not_allowed","deniedCredentialHeader":"credential_header_denied","networkPerformed":false}}"#;
 const HOME_DATA: &[u8] =
     br#"{"sections":[{"id":"home:featured","title":"Featured","kind":"mangaList","items":[{"id":"manga:fixture-series","title":"Fixture Series","cover":{"kind":"none"}}]},{"id":"home:latest-link","title":"Latest","kind":"listingLink","listingId":"listing:latest"}]}"#;
 const FILTERS_DATA: &[u8] =
     br#"{"filters":[{"id":"filter:query","label":"Query","kind":"text"},{"id":"filter:sort","label":"Sort","kind":"sort","options":[{"id":"sort:popular","label":"Popular"},{"id":"sort:latest","label":"Latest"}]}]}"#;
+const HTTP_ALLOWED_REQUEST: &[u8] =
+    br#"{"version":1,"method":"GET","url":"https://fixture.koma.local/manga-list/http-fixture","headers":{"Accept":"application/json"},"bodyBase64":null,"timeoutMs":1000,"responseKind":"bodyJson"}"#;
+const HTTP_DENIED_HOST_REQUEST: &[u8] =
+    br#"{"version":1,"method":"GET","url":"https://not-fixture.example/manga-list/http-fixture","headers":{"Accept":"application/json"},"bodyBase64":null,"timeoutMs":1000,"responseKind":"bodyJson"}"#;
+const HTTP_DENIED_CREDENTIAL_HEADER_REQUEST: &[u8] =
+    br#"{"version":1,"method":"GET","url":"https://fixture.koma.local/manga-list/http-fixture","headers":{"Authorization":"redacted"},"bodyBase64":null,"timeoutMs":1000,"responseKind":"bodyJson"}"#;
 
 struct FixtureSource;
 
@@ -106,6 +116,8 @@ impl Source for FixtureSource {
     fn get_manga_list(&self, request: MangaListRequest<'_>) -> SourceResult {
         if request.listing_id_is(LISTING_ID_POPULAR) {
             Ok(JsonPayload::new(MANGA_LIST_DATA))
+        } else if request.listing_id_is(LISTING_ID_HTTP_FIXTURE) && http_fixture_policy_smoke() {
+            Ok(JsonPayload::new(HTTP_MANGA_LIST_DATA))
         } else {
             Err(SourceError::invalid_request(
                 "expected fixture listing request",
@@ -122,12 +134,50 @@ impl Source for FixtureSource {
     }
 }
 
+fn http_fixture_policy_smoke() -> bool {
+    let mut output = [0_u8; 2048];
+    let Ok(allowed_len) = koma_source_sdk::host::http_request(HTTP_ALLOWED_REQUEST, &mut output)
+    else {
+        return false;
+    };
+    let allowed = unsafe { core::slice::from_raw_parts(output.as_ptr(), allowed_len) };
+    if !contains_bytes(allowed, br#""ok":true"#)
+        || !contains_bytes(allowed, br#""status":200"#)
+        || !contains_bytes(allowed, br#""bodyJson""#)
+        || !contains_bytes(allowed, b"HTTP Fixture Series")
+        || !contains_bytes(allowed, br#""networkPerformed":false"#)
+    {
+        return false;
+    }
+
+    let Ok(denied_host_len) =
+        koma_source_sdk::host::http_request(HTTP_DENIED_HOST_REQUEST, &mut output)
+    else {
+        return false;
+    };
+    let denied_host = unsafe { core::slice::from_raw_parts(output.as_ptr(), denied_host_len) };
+    if !contains_bytes(denied_host, br#""ok":false"#)
+        || !contains_bytes(denied_host, br#""code":"host_not_allowed""#)
+    {
+        return false;
+    }
+
+    let Ok(denied_header_len) =
+        koma_source_sdk::host::http_request(HTTP_DENIED_CREDENTIAL_HEADER_REQUEST, &mut output)
+    else {
+        return false;
+    };
+    let denied_header = unsafe { core::slice::from_raw_parts(output.as_ptr(), denied_header_len) };
+    contains_bytes(denied_header, br#""ok":false"#)
+        && contains_bytes(denied_header, br#""code":"credential_header_denied""#)
+}
+
 #[panic_handler]
 fn panic(_: &core::panic::PanicInfo<'_>) -> ! {
     loop {}
 }
 
-fn response_buffer() -> &'static mut ResultBuffer<4096> {
+fn response_buffer() -> &'static mut ResultBuffer<8192> {
     unsafe { &mut *core::ptr::addr_of_mut!(RESPONSE) }
 }
 
