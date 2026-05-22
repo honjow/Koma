@@ -1,0 +1,25 @@
+{
+  "type": "metadata",
+  "version": 1,
+  "sourceInfo": {
+    "id": "local.test.koma.fixture",
+    "name": "Koma Fixture Source",
+    "version": "0.2.0",
+    "apiVersion": "0.2"
+  },
+  "capabilities": {
+    "search": true,
+    "mangaDetail": true,
+    "chapters": true,
+    "pages": true,
+    "listings": true,
+    "mangaList": true,
+    "home": true,
+    "filters": true,
+    "settings": true,
+    "imageRequest": "yes"
+  },
+  "hostHints": {
+    "network": false
+  }
+}

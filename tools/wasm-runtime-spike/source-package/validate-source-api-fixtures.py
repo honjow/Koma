@@ -239,19 +239,31 @@ def validate_source_info(value: Any, path: str) -> None:
 
 
 def validate_capabilities(value: Any, path: str) -> None:
-    require(isinstance(value, dict), f"{path} must be an object")
+    require(isinstance(value, dict), f"{path} must be an object", "source_capability_object_required")
     expected = {
         "search", "mangaDetail", "chapters", "pages", "listings", "mangaList",
         "home", "filters", "settings", "imageRequest",
     }
-    require(expected.issubset(value.keys()), f"{path} must declare all v0.2 capability booleans")
+    missing = expected - value.keys()
+    require(not missing, f"{path} must declare all v0.2 capability booleans (missing: {sorted(missing)})",
+            "source_capability_key_missing")
     for key in expected:
-        require(isinstance(value[key], bool), f"{path}.{key} must be boolean")
+        require(isinstance(value[key], bool), f"{path}.{key} must be boolean",
+                "source_capability_not_boolean")
     if "future" in value:
-        require(isinstance(value["future"], dict), f"{path}.future must be an object")
+        require(isinstance(value["future"], dict), f"{path}.future must be an object",
+                "source_capability_future_object_required")
+        future_missing = FUTURE_DESIGN_ONLY_OPERATIONS - value["future"].keys()
+        require(not future_missing,
+                f"{path}.future must declare all documented future keys (missing: {sorted(future_missing)})",
+                "source_capability_future_key_missing")
         for key in FUTURE_DESIGN_ONLY_OPERATIONS:
-            if key in value["future"]:
-                require(value["future"][key] is False, f"{path}.future.{key} must remain false")
+            require(isinstance(value["future"][key], bool),
+                    f"{path}.future.{key} must be boolean",
+                    "source_capability_future_not_boolean")
+            require(value["future"][key] is False,
+                    f"{path}.future.{key} must remain false",
+                    "source_capability_future_must_be_false")
 
 
 def validate_metadata(payload: dict[str, Any]) -> None:
