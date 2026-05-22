@@ -139,6 +139,25 @@ export interface SourceRuntimeServiceArchiveIngestionRunSummary {
   sourceIdMismatchRunRequestById: SourceRuntimeServiceRunRequestByIdSummary
 }
 
+export interface SourceRuntimeServicePersistedInventoryReloadSummary {
+  ok: boolean
+  sourceId: string
+  route: string
+  reasonCode?: string
+  metadataPath: string
+  reloadOnlyDidNotImportArchive: boolean
+  reloadedSourceCount: number
+  installedSourceInventory: SourceRuntimeRegistryInstalledSourceSummary[]
+  installedSourceInventoryOk: boolean
+  inventoryExpectedSourceIdCount: number
+  inventorySafetyOk: boolean
+  selectedSourceId?: string
+  searchRunRequestById: SourceRuntimeServiceRunRequestByIdSummary
+  nonSearchRunRequestById: SourceRuntimeServiceRunRequestByIdSummary
+  unknownSourceRunRequestById: SourceRuntimeServiceRunRequestByIdSummary
+  sourceIdMismatchRunRequestById: SourceRuntimeServiceRunRequestByIdSummary
+}
+
 function closeFileQuietly(file: fs.File | undefined): void {
   if (file === undefined) {
     return
@@ -799,6 +818,111 @@ export async function importRegisterPersistReloadAndRunLocalSourceArchiveRequest
     nonSearchRunRequestById,
     unknownSourceRunRequestById,
     sourceIdMismatchRunRequestById,
+  }
+}
+
+export function reloadPersistedSourceInventoryAndRunRequestById(
+  metadataPath: string,
+  sourceId: string,
+  route: string,
+  searchRequestJson: string,
+  nonSearchRequestJson: string,
+): SourceRuntimeServicePersistedInventoryReloadSummary {
+  const reloaded = reloadSourceRuntimeRegistryFromMetadata(metadataPath)
+  if (!reloaded.ok) {
+    return sourceRuntimeServicePersistedInventoryReloadRejected(
+      sourceId,
+      route,
+      metadataPath,
+      reloaded.reloadedSourceCount,
+      reloaded.reasonCode,
+    )
+  }
+
+  const installedSourceInventory = listInstalledSourceSummaries(reloaded.registry)
+  const inventoryExpectedSourceIdCount = installedSourceInventory.filter(
+    (item: SourceRuntimeRegistryInstalledSourceSummary) => item.sourceId === sourceId,
+  ).length
+  const inventorySafetyOk = sourceRuntimeInstalledSourceInventorySafetyOk(installedSourceInventory)
+  const selectedSourceId = inventoryExpectedSourceIdCount === 1 ? sourceId : undefined
+  const selectedSourceIdRunRequestById = selectedSourceId === undefined ?
+    sourceRuntimeServiceRunRequestByIdRejected(sourceId, reloaded.reloadedSourceCount, 'source_id_not_registered') :
+    runRegisteredSourceRequestById(reloaded.registry, selectedSourceId, searchRequestJson)
+  const nonSearchRunRequestById = runRegisteredSourceRequestById(reloaded.registry, sourceId, nonSearchRequestJson)
+  const unknownSourceRunRequestById = runRegisteredSourceRequestById(
+    reloaded.registry,
+    'missing.source.id.persisted-inventory-reload-test-only',
+    '{"type":"request","version":1,"requestId":"device-persisted-inventory-reload-unknown-001","operation":"search","sourceId":"missing.source.id.persisted-inventory-reload-test-only","args":{"query":"fixture"},"settings":{},"hostHints":{"network":false}}',
+  )
+  const sourceIdMismatchRunRequestById = runRegisteredSourceRequestById(
+    reloaded.registry,
+    sourceId,
+    `{"type":"request","version":1,"requestId":"device-persisted-inventory-reload-mismatch-001","operation":"search","sourceId":"${sourceId}.mismatch","args":{"query":"fixture"},"settings":{},"hostHints":{"network":false}}`,
+  )
+
+  return {
+    ok: reloaded.ok &&
+      reloaded.reloadedSourceCount === 1 &&
+      inventoryExpectedSourceIdCount === 1 &&
+      inventorySafetyOk &&
+      selectedSourceIdRunRequestById.ok &&
+      selectedSourceIdRunRequestById.operation === 'search' &&
+      nonSearchRunRequestById.ok &&
+      nonSearchRunRequestById.operation === 'get_manga' &&
+      !unknownSourceRunRequestById.ok &&
+      unknownSourceRunRequestById.reasonCode === 'source_id_not_registered' &&
+      unknownSourceRunRequestById.attemptedWamrExecution === false &&
+      !sourceIdMismatchRunRequestById.ok &&
+      sourceIdMismatchRunRequestById.reasonCode === 'source_id_mismatch' &&
+      sourceIdMismatchRunRequestById.attemptedWamrExecution === false,
+    sourceId,
+    route,
+    metadataPath,
+    reloadOnlyDidNotImportArchive: true,
+    reloadedSourceCount: reloaded.reloadedSourceCount,
+    installedSourceInventory,
+    installedSourceInventoryOk: inventoryExpectedSourceIdCount === 1 &&
+      inventorySafetyOk &&
+      selectedSourceIdRunRequestById.ok &&
+      selectedSourceIdRunRequestById.operation === 'search',
+    inventoryExpectedSourceIdCount,
+    inventorySafetyOk,
+    selectedSourceId,
+    searchRunRequestById: selectedSourceIdRunRequestById,
+    nonSearchRunRequestById,
+    unknownSourceRunRequestById,
+    sourceIdMismatchRunRequestById,
+  }
+}
+
+function sourceRuntimeServicePersistedInventoryReloadRejected(
+  sourceId: string,
+  route: string,
+  metadataPath: string,
+  reloadedSourceCount: number,
+  reasonCode?: string,
+): SourceRuntimeServicePersistedInventoryReloadSummary {
+  return {
+    ok: false,
+    sourceId,
+    route,
+    reasonCode,
+    metadataPath,
+    reloadOnlyDidNotImportArchive: true,
+    reloadedSourceCount,
+    installedSourceInventory: [],
+    installedSourceInventoryOk: false,
+    inventoryExpectedSourceIdCount: 0,
+    inventorySafetyOk: false,
+    selectedSourceId: undefined,
+    searchRunRequestById: sourceRuntimeServiceRunRequestByIdRejected(sourceId, reloadedSourceCount, reasonCode),
+    nonSearchRunRequestById: sourceRuntimeServiceRunRequestByIdRejected(sourceId, reloadedSourceCount, reasonCode),
+    unknownSourceRunRequestById: sourceRuntimeServiceRunRequestByIdRejected(
+      'missing.source.id.persisted-inventory-reload-test-only',
+      reloadedSourceCount,
+      reasonCode,
+    ),
+    sourceIdMismatchRunRequestById: sourceRuntimeServiceRunRequestByIdRejected(sourceId, reloadedSourceCount, reasonCode),
   }
 }
 

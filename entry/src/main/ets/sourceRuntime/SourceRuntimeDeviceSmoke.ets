@@ -11,11 +11,13 @@ import {
   importRegisterPersistReloadAndRunLocalSourceArchiveRequest,
   importArchiveNegativeFixturesWithoutExecution,
   persistReloadAndRunRegisteredSourcesById,
+  reloadPersistedSourceInventoryAndRunRequestById,
   runRegisteredSourceApiOperationsById,
   runStagedRawfileSourcePackage,
   runSourceRuntimeRegistryNegativeEvidence,
   stageAndRegisterRawfileSourcePackage,
   SourceRuntimeServiceArchiveIngestionRunSummary,
+  SourceRuntimeServicePersistedInventoryReloadSummary,
   SourceRuntimeServiceRegistrationSummary,
   SourceRuntimeServiceRegistryNegativeSummary,
   SourceRuntimeServiceRegistryReloadSummary,
@@ -39,6 +41,10 @@ import {
 
 const SMOKE_TRIGGER_PARAM: string = 'koma.sourceRuntimeSmoke'
 const SMOKE_TRIGGER_VALUE: string = 'run'
+const SMOKE_PHASE_PARAM: string = 'koma.sourceRuntimeSmoke.phase'
+const SMOKE_PHASE_FULL: string = 'full'
+const SMOKE_PHASE_SETUP_PERSISTED_INVENTORY: string = 'setup-persisted-inventory'
+const SMOKE_PHASE_RELOAD_PERSISTED_INVENTORY: string = 'reload-persisted-inventory'
 const SMOKE_REQUEST_JSON: string = '{"operation":"search","query":"fixture","smoke":"koma-smoke"}'
 const RUST_SMOKE_REQUEST_JSON: string = '{"operation":"search","query":"fixture","smoke":"koma-rust-smoke"}'
 const PACKAGE_SMOKE_REQUEST_JSON: string = '{"operation":"search","query":"fixture","smoke":"koma-package-smoke"}'
@@ -60,6 +66,8 @@ const ARCHIVE_INGESTION_METADATA_FILE: string = 'archive-ingestion-registry-meta
 const ARCHIVE_RAWFILE_PATH: string = 'test/local_source_runtime_fixture.koma-source'
 const ARCHIVE_SANDBOX_ZIP_FILE: string = 'local_source_runtime_fixture.zip'
 const ARCHIVE_REQUEST_JSON: string = '{"operation":"search","query":"fixture","smoke":"koma-archive-smoke"}'
+const ARCHIVE_INGESTION_SEARCH_REQUEST_JSON: string = `{"type":"request","version":1,"requestId":"device-archive-ingestion-search-001","operation":"search","sourceId":"${ARCHIVE_INGESTION_SOURCE_ID}","args":{"query":"fixture","page":{"cursor":null,"limit":20}},"settings":{},"hostHints":{"network":false}}`
+const ARCHIVE_INGESTION_NON_SEARCH_REQUEST_JSON: string = `{"type":"request","version":1,"requestId":"device-archive-ingestion-manga-001","operation":"get_manga","sourceId":"${ARCHIVE_INGESTION_SOURCE_ID}","args":{"mangaId":"manga:fixture-series"},"settings":{},"hostHints":{"network":false}}`
 const ARCHIVE_NEGATIVE_ROUTE_LABEL: string = 'app-local-source-archive-negative-test-only'
 const ARCHIVE_NEGATIVE_CASES: SourceArchiveNegativeCaseFixture[] = [
   {
@@ -134,6 +142,7 @@ export interface SourceRuntimeRunRequestByIdEvidence {
 export interface SourceRuntimeSmokeResult {
   ok: boolean
   route: string
+  smokePhase?: string
   requestJson: string
   rawfilePath?: string
   rawfileBytes?: number
@@ -263,6 +272,14 @@ export interface SourceRuntimeSmokeResult {
   sourceRuntimeInstalledSourceInventorySelectedSourceId?: string
   sourceRuntimeInstalledSourceInventorySelectedRunRequestOk?: boolean
   sourceRuntimeInstalledSourceInventorySelectedRunRequest?: SourceRuntimeRunRequestByIdEvidence
+  sourceRuntimePersistedInventoryRestartOk?: boolean
+  sourceRuntimePersistedInventoryRestartSetupOk?: boolean
+  sourceRuntimePersistedInventoryRestartReloadOnlyOk?: boolean
+  sourceRuntimePersistedInventoryRestartMetadataWrittenOk?: boolean
+  sourceRuntimePersistedInventoryRestartMetadataReloadedOk?: boolean
+  sourceRuntimePersistedInventoryRestartReloadOnlyDidNotImportArchive?: boolean
+  sourceRuntimePersistedInventoryRestartReloadedSourceCount?: number
+  sourceRuntimePersistedInventoryRestartPhase?: string
   sourceRuntimeArchiveIngestionSearchOk?: boolean
   sourceRuntimeArchiveIngestionSearch?: SourceRuntimeRunRequestByIdEvidence
   sourceRuntimeArchiveIngestionNonSearchOk?: boolean
@@ -290,6 +307,12 @@ function wantParameters(want: Want): WantParameters {
 function hasSmokeTrigger(want: Want): boolean {
   const parameters = wantParameters(want)
   return parameters[SMOKE_TRIGGER_PARAM] === SMOKE_TRIGGER_VALUE
+}
+
+function smokePhase(want: Want): string {
+  const parameters = wantParameters(want)
+  const phase = parameters[SMOKE_PHASE_PARAM]
+  return typeof phase === 'string' && phase.length > 0 ? phase : SMOKE_PHASE_FULL
 }
 
 function applyPackageServiceSummary(
@@ -496,10 +519,25 @@ async function runSourceRuntimeArchiveIngestionSmoke(
     joinSourceRuntimeSmokePath(metadataRoot, ARCHIVE_INGESTION_METADATA_FILE),
     ARCHIVE_INGESTION_SOURCE_ID,
     ARCHIVE_INGESTION_ROUTE_LABEL,
-    `{"type":"request","version":1,"requestId":"device-archive-ingestion-search-001","operation":"search","sourceId":"${ARCHIVE_INGESTION_SOURCE_ID}","args":{"query":"fixture","page":{"cursor":null,"limit":20}},"settings":{},"hostHints":{"network":false}}`,
-    `{"type":"request","version":1,"requestId":"device-archive-ingestion-manga-001","operation":"get_manga","sourceId":"${ARCHIVE_INGESTION_SOURCE_ID}","args":{"mangaId":"manga:fixture-series"},"settings":{},"hostHints":{"network":false}}`,
+    ARCHIVE_INGESTION_SEARCH_REQUEST_JSON,
+    ARCHIVE_INGESTION_NON_SEARCH_REQUEST_JSON,
   )
   applyArchiveIngestionEvidence(result, summary)
+}
+
+function runSourceRuntimePersistedInventoryReloadSmoke(
+  context: common.UIAbilityContext,
+  result: SourceRuntimeSmokeResult,
+): void {
+  const metadataRoot = joinSourceRuntimeSmokePath(context.filesDir, 'source-runtime-archive-ingestion-smoke')
+  const summary = reloadPersistedSourceInventoryAndRunRequestById(
+    joinSourceRuntimeSmokePath(metadataRoot, ARCHIVE_INGESTION_METADATA_FILE),
+    ARCHIVE_INGESTION_SOURCE_ID,
+    ARCHIVE_INGESTION_ROUTE_LABEL,
+    ARCHIVE_INGESTION_SEARCH_REQUEST_JSON,
+    ARCHIVE_INGESTION_NON_SEARCH_REQUEST_JSON,
+  )
+  applyPersistedInventoryReloadEvidence(result, summary)
 }
 
 function applyRunByIdEvidence(
@@ -690,6 +728,74 @@ function applyArchiveIngestionEvidence(
       result.sourceRuntimeInstalledSourceInventorySelectedRunRequestOk === true
 }
 
+function applyPersistedInventoryReloadEvidence(
+  result: SourceRuntimeSmokeResult,
+  summary: SourceRuntimeServicePersistedInventoryReloadSummary,
+): void {
+  result.sourceRuntimeArchiveIngestionSourceId = summary.sourceId
+  result.sourceRuntimeArchiveIngestionRoute = summary.route
+  result.sourceRuntimeArchiveIngestionMetadataPath = summary.metadataPath
+  result.sourceRuntimeArchiveIngestionReloadedSourceCount = summary.reloadedSourceCount
+  result.sourceRuntimeInstalledSourceInventory = summary.installedSourceInventory
+  result.sourceRuntimeInstalledSourceInventoryExpectedSourceIdCount = summary.inventoryExpectedSourceIdCount
+  result.sourceRuntimeInstalledSourceInventoryExpectedSourceIdPresentOnce =
+    summary.inventoryExpectedSourceIdCount === 1
+  const inventoryText = JSON.stringify(summary.installedSourceInventory)
+  result.sourceRuntimeInstalledSourceInventoryNoRawPathLeak =
+      !inventoryText.includes('manifestPath') &&
+      !inventoryText.includes('wasmPath') &&
+      !inventoryText.includes('archivePath') &&
+      !inventoryText.includes('/data/')
+  result.sourceRuntimeInstalledSourceInventoryNoFullManifestLeak =
+    !inventoryText.includes('runtime') &&
+      !inventoryText.includes('permissions') &&
+      !inventoryText.includes('contentPolicy') &&
+      !inventoryText.includes('wasmSha256')
+  result.sourceRuntimeInstalledSourceInventoryNoWasmBytesLeak = !inventoryText.includes('wasmBytes')
+  result.sourceRuntimeInstalledSourceInventorySafeFieldsOk =
+    summary.inventorySafetyOk &&
+      result.sourceRuntimeInstalledSourceInventoryNoRawPathLeak === true &&
+      result.sourceRuntimeInstalledSourceInventoryNoFullManifestLeak === true &&
+      result.sourceRuntimeInstalledSourceInventoryNoWasmBytesLeak === true
+  result.sourceRuntimeInstalledSourceInventorySelectedSourceId = summary.selectedSourceId
+  result.sourceRuntimeArchiveIngestionSearchOk = summary.searchRunRequestById.ok &&
+    summary.searchRunRequestById.operation === 'search'
+  result.sourceRuntimeArchiveIngestionSearch = compactRunRequestByIdEvidence(summary.searchRunRequestById)
+  result.sourceRuntimeInstalledSourceInventorySelectedRunRequestOk =
+    summary.selectedSourceId === summary.sourceId &&
+      result.sourceRuntimeArchiveIngestionSearchOk === true
+  result.sourceRuntimeInstalledSourceInventorySelectedRunRequest =
+    compactRunRequestByIdEvidence(summary.searchRunRequestById)
+  result.sourceRuntimeArchiveIngestionNonSearchOk = summary.nonSearchRunRequestById.ok &&
+    summary.nonSearchRunRequestById.operation === 'get_manga'
+  result.sourceRuntimeArchiveIngestionNonSearch = compactRunRequestByIdEvidence(summary.nonSearchRunRequestById)
+  result.sourceRuntimeArchiveIngestionUnknownSourceRejected = !summary.unknownSourceRunRequestById.ok &&
+    summary.unknownSourceRunRequestById.reasonCode === 'source_id_not_registered'
+  result.sourceRuntimeArchiveIngestionUnknownSourceReasonCode = summary.unknownSourceRunRequestById.reasonCode
+  result.sourceRuntimeArchiveIngestionUnknownSourceAttemptedWamrExecution =
+    summary.unknownSourceRunRequestById.attemptedWamrExecution
+  result.sourceRuntimeArchiveIngestionSourceIdMismatchRejected = !summary.sourceIdMismatchRunRequestById.ok &&
+    summary.sourceIdMismatchRunRequestById.reasonCode === 'source_id_mismatch'
+  result.sourceRuntimeArchiveIngestionSourceIdMismatchReasonCode = summary.sourceIdMismatchRunRequestById.reasonCode
+  result.sourceRuntimeArchiveIngestionSourceIdMismatchAttemptedWamrExecution =
+    summary.sourceIdMismatchRunRequestById.attemptedWamrExecution
+  result.sourceRuntimeInstalledSourceInventoryOk =
+    summary.installedSourceInventoryOk &&
+      result.sourceRuntimeInstalledSourceInventoryExpectedSourceIdPresentOnce === true &&
+      result.sourceRuntimeInstalledSourceInventorySafeFieldsOk === true &&
+      result.sourceRuntimeInstalledSourceInventorySelectedRunRequestOk === true
+  result.sourceRuntimePersistedInventoryRestartReloadOnlyOk = summary.ok
+  result.sourceRuntimePersistedInventoryRestartMetadataReloadedOk =
+    summary.reasonCode === undefined && summary.reloadedSourceCount === 1
+  result.sourceRuntimePersistedInventoryRestartReloadOnlyDidNotImportArchive = summary.reloadOnlyDidNotImportArchive
+  result.sourceRuntimePersistedInventoryRestartReloadedSourceCount = summary.reloadedSourceCount
+  result.sourceRuntimePersistedInventoryRestartOk =
+    summary.ok &&
+      summary.reloadOnlyDidNotImportArchive &&
+      result.sourceRuntimeInstalledSourceInventoryOk === true &&
+      result.sourceRuntimeInstalledSourceInventorySelectedRunRequestOk === true
+}
+
 function compactRunRequestByIdEvidence(
   summary: SourceRuntimeServiceRunRequestByIdSummary,
 ): SourceRuntimeRunRequestByIdEvidence {
@@ -807,6 +913,7 @@ export async function maybeRunSourceRuntimeDeviceSmoke(
   const result: SourceRuntimeSmokeResult = {
     ok: false,
     route: 'entryability-want-test-only',
+    smokePhase: smokePhase(want),
     requestJson: SMOKE_REQUEST_JSON,
     rawfilePath: SMOKE_RAWFILE_PATH,
     rustRequestJson: RUST_SMOKE_REQUEST_JSON,
@@ -818,6 +925,53 @@ export async function maybeRunSourceRuntimeDeviceSmoke(
   }
 
   try {
+    if (result.smokePhase === SMOKE_PHASE_SETUP_PERSISTED_INVENTORY) {
+      result.sourceRuntimePersistedInventoryRestartPhase = SMOKE_PHASE_SETUP_PERSISTED_INVENTORY
+      if (resourceMgr === undefined || context === undefined) {
+        result.error = 'source runtime persisted inventory setup smoke requires resource manager and ability context'
+      } else {
+        await runSourceRuntimeArchiveIngestionSmoke(context, resourceMgr, result)
+        result.sourceRuntimePersistedInventoryRestartSetupOk =
+          result.sourceRuntimeArchiveIngestionRunRequestOk === true
+        result.sourceRuntimePersistedInventoryRestartMetadataWrittenOk =
+          result.sourceRuntimeArchiveIngestionPersistedSourceCount === 1
+        result.sourceRuntimePersistedInventoryRestartOk =
+          result.sourceRuntimePersistedInventoryRestartSetupOk === true &&
+            result.sourceRuntimePersistedInventoryRestartMetadataWrittenOk === true &&
+            result.sourceRuntimeInstalledSourceInventoryOk === true
+        result.ok = result.sourceRuntimePersistedInventoryRestartOk === true
+        if (!result.ok && result.error === undefined) {
+          result.error = 'Persisted inventory setup phase failed to import/register/persist local source archive'
+        }
+      }
+      compactSmokeResultForHilog(result)
+      console.info(SMOKE_LOG_PREFIX + JSON.stringify(result))
+      return
+    }
+
+    if (result.smokePhase === SMOKE_PHASE_RELOAD_PERSISTED_INVENTORY) {
+      result.sourceRuntimePersistedInventoryRestartPhase = SMOKE_PHASE_RELOAD_PERSISTED_INVENTORY
+      if (context === undefined) {
+        result.error = 'source runtime persisted inventory reload smoke requires ability context'
+      } else {
+        runSourceRuntimePersistedInventoryReloadSmoke(context, result)
+        result.ok = result.sourceRuntimePersistedInventoryRestartOk === true
+        if (!result.ok && result.error === undefined) {
+          result.error = 'Persisted inventory reload-only phase failed to reload metadata and run selected source request'
+        }
+      }
+      compactSmokeResultForHilog(result)
+      console.info(SMOKE_LOG_PREFIX + JSON.stringify(result))
+      return
+    }
+
+    if (result.smokePhase !== SMOKE_PHASE_FULL) {
+      result.error = 'unknown source runtime smoke phase'
+      compactSmokeResultForHilog(result)
+      console.info(SMOKE_LOG_PREFIX + JSON.stringify(result))
+      return
+    }
+
     const response = runBundledSourceOperation(SMOKE_REQUEST_JSON)
     result.responseOk = responseReachedFixture(response)
     let resourceResponse: SourceRuntimeCallResponse | undefined = undefined

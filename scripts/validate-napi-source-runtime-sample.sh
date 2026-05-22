@@ -202,6 +202,16 @@ require_text "$smoke_file" 'sourceRuntimeInstalledSourceInventoryNoFullManifestL
 require_text "$smoke_file" 'sourceRuntimeInstalledSourceInventoryNoWasmBytesLeak'
 require_text "$smoke_file" 'sourceRuntimeInstalledSourceInventorySelectedRunRequestOk'
 require_text "$smoke_file" 'compactInstalledSourceInventoryForHilog'
+require_text "$smoke_file" 'koma.sourceRuntimeSmoke.phase'
+require_text "$smoke_file" 'setup-persisted-inventory'
+require_text "$smoke_file" 'reload-persisted-inventory'
+require_text "$smoke_file" 'sourceRuntimePersistedInventoryRestartOk'
+require_text "$smoke_file" 'sourceRuntimePersistedInventoryRestartSetupOk'
+require_text "$smoke_file" 'sourceRuntimePersistedInventoryRestartReloadOnlyOk'
+require_text "$smoke_file" 'sourceRuntimePersistedInventoryRestartMetadataWrittenOk'
+require_text "$smoke_file" 'sourceRuntimePersistedInventoryRestartMetadataReloadedOk'
+require_text "$smoke_file" 'sourceRuntimePersistedInventoryRestartReloadOnlyDidNotImportArchive'
+require_text "$smoke_file" 'runSourceRuntimePersistedInventoryReloadSmoke'
 require_text "$smoke_file" 'sourceId: item.sourceId'
 require_text "$smoke_file" 'displayName: item.displayName'
 require_text "$smoke_file" 'wasmByteCount: item.wasmByteCount'
@@ -269,6 +279,9 @@ require_text "$source_runtime_service_file" 'missing_or_invalid_operation'
 require_text "$source_runtime_service_file" 'source_id_not_registered'
 require_text "$source_runtime_service_file" 'SourceRuntimeServiceRunRequestByIdSummary'
 require_text "$source_runtime_service_file" 'SourceRuntimeServiceArchiveIngestionRunSummary'
+require_text "$source_runtime_service_file" 'SourceRuntimeServicePersistedInventoryReloadSummary'
+require_text "$source_runtime_service_file" 'reloadPersistedSourceInventoryAndRunRequestById'
+require_text "$source_runtime_service_file" 'reloadOnlyDidNotImportArchive: true'
 require_text "$source_runtime_service_file" 'listInstalledSourceSummaries'
 require_text "$source_runtime_service_file" 'installedSourceInventoryOk'
 require_text "$source_runtime_service_file" 'sourceRuntimeInstalledSourceInventorySafetyOk'
@@ -296,6 +309,17 @@ fi
 
 if ! rg -U -q 'runRegisteredSourceRequestById[\s\S]*registry\.lookup[\s\S]*JSON\.parse[\s\S]*runSourceOperationFromBytes' "$source_runtime_service_file"; then
   echo "single-request run-by-id must lookup and validate before WAMR execution" >&2
+  exit 1
+fi
+
+if ! rg -U -q 'reloadPersistedSourceInventoryAndRunRequestById[\s\S]*reloadSourceRuntimeRegistryFromMetadata[\s\S]*listInstalledSourceSummaries[\s\S]*runRegisteredSourceRequestById' "$source_runtime_service_file"; then
+  echo "persisted inventory reload helper must reload metadata, list sanitized inventory, then run request by sourceId" >&2
+  exit 1
+fi
+
+reload_helper="$(sed -n '/export function reloadPersistedSourceInventoryAndRunRequestById/,/^}/p' "$source_runtime_service_file")"
+if printf '%s\n' "$reload_helper" | rg -q 'importAndRegisterLocalSourceArchive|importLocalSourceArchive|stageRawfileSourcePackage'; then
+  echo "persisted inventory reload-only helper must not import or stage source archives" >&2
   exit 1
 fi
 require_text "$source_runtime_registry_file" 'class SourceRuntimeRegistry'
