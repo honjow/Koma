@@ -43,6 +43,16 @@ const SOURCE_API_OPERATION_REQUESTS: string[] = [
   '{"type":"request","version":1,"requestId":"device-pages-001","operation":"get_pages","sourceId":"local.test.koma.fixture","args":{"chapterId":"chapter:fixture-series:001"},"settings":{},"hostHints":{"network":false,"imageStrategy":"descriptor-only"}}',
 ]
 
+function buildSourceApiOperationRequests(sourceId: string): string[] {
+  const safeSourceId = sourceId.trim()
+  return [
+    `{"type":"request","version":1,"requestId":"device-search-001","operation":"search","sourceId":"${safeSourceId}","args":{"query":"fixture","page":{"cursor":null,"limit":20},"filters":{"tags":["fixture"]}},"settings":{},"hostHints":{"network":false}}`,
+    `{"type":"request","version":1,"requestId":"device-manga-001","operation":"get_manga","sourceId":"${safeSourceId}","args":{"mangaId":"manga:fixture-series"},"settings":{},"hostHints":{"network":false}}`,
+    `{"type":"request","version":1,"requestId":"device-chapters-001","operation":"get_chapters","sourceId":"${safeSourceId}","args":{"mangaId":"manga:fixture-series","page":{"cursor":null,"limit":100}},"settings":{},"hostHints":{"network":false}}`,
+    `{"type":"request","version":1,"requestId":"device-pages-001","operation":"get_pages","sourceId":"${safeSourceId}","args":{"chapterId":"chapter:fixture-series:001"},"settings":{},"hostHints":{"network":false,"imageStrategy":"descriptor-only"}}`,
+  ]
+}
+
 const SOURCE_RUNTIME_NEGATIVE_EXECUTION_REQUESTS: string[] = [
   '{"type":"request","version":1,"requestId":"device-negative-unsupported-001","operation":"unknown_operation","sourceId":"local.test.koma.fixture","args":{"query":"fixture"},"settings":{},"hostHints":{"network":false}}',
   '{"type":"request","version":1,"requestId":"device-negative-missing-operation-001","sourceId":"local.test.koma.fixture","args":{"query":"fixture"},"settings":{},"hostHints":{"network":false}}',
@@ -144,10 +154,24 @@ function validateOperationResponse(operation: string, response: SourceRuntimeCal
 }
 
 export function runSourceApiFixtureOperationsFromBytes(wasmBytes: Uint8Array): SourceRuntimeApiOperationsSummary {
+  return runSourceApiFixtureOperationsRequestsFromBytes(wasmBytes, SOURCE_API_OPERATION_REQUESTS)
+}
+
+export function runSourceApiFixtureOperationsForSourceIdFromBytes(
+  wasmBytes: Uint8Array,
+  sourceId: string,
+): SourceRuntimeApiOperationsSummary {
+  return runSourceApiFixtureOperationsRequestsFromBytes(wasmBytes, buildSourceApiOperationRequests(sourceId))
+}
+
+function runSourceApiFixtureOperationsRequestsFromBytes(
+  wasmBytes: Uint8Array,
+  requests: string[],
+): SourceRuntimeApiOperationsSummary {
   const operations: string[] = []
   const evidence: string[] = []
   let ok = true
-  for (const requestJson of SOURCE_API_OPERATION_REQUESTS) {
+  for (const requestJson of requests) {
     const operation = operationFromRequest(requestJson)
     const response = runSourceOperationFromBytes(requestJson, wasmBytes)
     const operationEvidence = validateOperationResponse(operation, response)

@@ -13,6 +13,7 @@ smoke_file="entry/src/main/ets/sourceRuntime/SourceRuntimeDeviceSmoke.ets"
 source_package_importer_file="entry/src/main/ets/sourceRuntime/SourcePackageImporter.ets"
 source_runtime_runner_file="entry/src/main/ets/sourceRuntime/SourceRuntimeRunner.ets"
 source_runtime_service_file="entry/src/main/ets/sourceRuntime/SourceRuntimeService.ets"
+source_runtime_registry_file="entry/src/main/ets/sourceRuntime/SourceRuntimeRegistry.ets"
 entry_ability_file="entry/src/main/ets/entryability/EntryAbility.ets"
 build_profile="entry/build-profile.json5"
 rawfile_fixture="entry/src/main/resources/rawfile/test/source_runtime_fixture.wasm"
@@ -45,6 +46,7 @@ require_file "$smoke_file"
 require_file "$source_package_importer_file"
 require_file "$source_runtime_runner_file"
 require_file "$source_runtime_service_file"
+require_file "$source_runtime_registry_file"
 require_file "$entry_ability_file"
 require_file "$rawfile_fixture"
 require_file "$rust_rawfile_fixture"
@@ -125,6 +127,10 @@ require_text "$smoke_file" 'app-local-source-archive-import-test-only'
 require_text "$smoke_file" 'SourceRuntimeService'
 require_text "$smoke_file" 'runStagedRawfileSourcePackage'
 require_text "$smoke_file" 'importAndRunLocalSourceArchive'
+require_text "$smoke_file" 'SourceRuntimeRegistry'
+require_text "$smoke_file" 'stageAndRegisterRawfileSourcePackage'
+require_text "$smoke_file" 'importAndRegisterLocalSourceArchive'
+require_text "$smoke_file" 'runRegisteredSourceApiOperationsById'
 require_text "$smoke_file" 'importArchiveNegativeFixturesWithoutExecution'
 require_text "$smoke_file" 'archiveImportOk'
 require_text "$smoke_file" 'archiveResponseOk'
@@ -135,6 +141,17 @@ require_text "$smoke_file" 'archiveSourceApiOperationsOk'
 require_text "$smoke_file" 'sourceRuntimeExecutionNegativeOk'
 require_text "$smoke_file" 'sourceRuntimeExecutionNegativeCases'
 require_text "$smoke_file" 'didNotDefaultToSearch'
+require_text "$smoke_file" 'sourceRuntimeRegistryOk'
+require_text "$smoke_file" 'sourceRuntimeRegistrySourceCount'
+require_text "$smoke_file" 'sourceRuntimeRegistryPackageSourceId'
+require_text "$smoke_file" 'sourceRuntimeRegistryArchiveSourceId'
+require_text "$smoke_file" 'sourceRuntimeRegistryPackageEntry'
+require_text "$smoke_file" 'sourceRuntimeRegistryArchiveEntry'
+require_text "$smoke_file" 'sourceRuntimeRegistryPackageRunByIdOk'
+require_text "$smoke_file" 'sourceRuntimeRegistryArchiveRunByIdOk'
+require_text "$smoke_file" 'sourceRuntimeRegistryDuplicateRejected'
+require_text "$smoke_file" 'sourceRuntimeRegistryMissingSourceIdRejected'
+require_text "$smoke_file" 'sourceRuntimeRegistryInvalidRunRejected'
 if rg -q 'stageRawfileSourcePackage|importLocalSourceArchive' "$smoke_file"; then
   echo "device smoke must consume SourceRuntimeService for package/archive happy paths, not direct importer helpers" >&2
   exit 1
@@ -144,6 +161,7 @@ require_text "$source_runtime_runner_file" 'NativeSourceRuntime.runJsonCallFromB
 require_text "$source_runtime_runner_file" 'runSourceOperationFromBytes'
 require_text "$source_runtime_runner_file" 'runSearchFixtureFromBytes'
 require_text "$source_runtime_runner_file" 'runSourceApiFixtureOperationsFromBytes'
+require_text "$source_runtime_runner_file" 'runSourceApiFixtureOperationsForSourceIdFromBytes'
 require_text "$source_runtime_runner_file" 'runSourceRuntimeNegativeExecutionFromBytes'
 require_text "$source_runtime_runner_file" 'SOURCE_RUNTIME_NEGATIVE_EXECUTION_REQUESTS'
 require_text "$source_runtime_runner_file" '"operation":"unknown_operation"'
@@ -172,9 +190,15 @@ require_text "$source_package_importer_file" 'attemptedWamrExecution: false'
 require_text "$source_runtime_service_file" 'runStagedRawfileSourcePackage'
 require_text "$source_runtime_service_file" 'importAndRunLocalSourceArchive'
 require_text "$source_runtime_service_file" 'importArchiveNegativeFixturesWithoutExecution'
+require_text "$source_runtime_service_file" 'SourceRuntimeRegistry'
+require_text "$source_runtime_service_file" 'stageAndRegisterRawfileSourcePackage'
+require_text "$source_runtime_service_file" 'importAndRegisterLocalSourceArchive'
+require_text "$source_runtime_service_file" 'runRegisteredSourceApiOperationsById'
+require_text "$source_runtime_service_file" 'runSourceRuntimeRegistryNegativeEvidence'
 require_text "$source_runtime_service_file" 'stageRawfileSourcePackage'
 require_text "$source_runtime_service_file" 'importLocalSourceArchive'
 require_text "$source_runtime_service_file" 'runSearchFixtureFromBytes'
+require_text "$source_runtime_service_file" 'runSourceApiFixtureOperationsForSourceIdFromBytes'
 require_text "$source_runtime_service_file" 'runSourceApiFixtureOperationsFromBytes'
 require_text "$source_runtime_service_file" 'runSourceRuntimeNegativeExecutionFromBytes'
 require_text "$source_runtime_service_file" 'SourceRuntimeServiceRunSummary'
@@ -183,6 +207,15 @@ require_text "$source_runtime_service_file" 'sourceRuntimeExecutionNegativeCases
 require_text "$source_runtime_service_file" 'searchResponseCompatible'
 require_text "$source_runtime_service_file" 'attemptedWamrExecution: true'
 require_text "$source_runtime_service_file" 'network'
+require_text "$source_runtime_registry_file" 'class SourceRuntimeRegistry'
+require_text "$source_runtime_registry_file" 'register'
+require_text "$source_runtime_registry_file" 'lookup'
+require_text "$source_runtime_registry_file" 'missing_source_id'
+require_text "$source_runtime_registry_file" 'duplicate_source_id'
+require_text "$source_runtime_registry_file" 'validation_failed'
+require_text "$source_runtime_registry_file" 'source_id_not_registered'
+require_text "$source_runtime_registry_file" 'hashOk:true'
+require_text "$source_runtime_registry_file" 'network:false'
 require_text "$entry_ability_file" 'maybeRunSourceRuntimeDeviceSmoke'
 require_text "$entry_ability_file" 'onCreate'
 require_text "$entry_ability_file" 'onNewWant'
