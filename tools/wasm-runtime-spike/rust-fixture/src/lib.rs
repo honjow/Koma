@@ -17,6 +17,7 @@ const MANGA_ID: &[u8] = b"manga:fixture-series";
 const CHAPTER_ID: &[u8] = b"chapter:fixture-series:001";
 const LISTING_ID_POPULAR: &[u8] = b"listing:popular";
 const LISTING_ID_HTTP_FIXTURE: &[u8] = b"listing:http-fixture";
+const LISTING_ID_HTML_FIXTURE: &[u8] = b"listing:html-fixture";
 
 const SEARCH_DATA: &[u8] =
     br#"{"requestEcho":"fixture","items":[{"id":"manga:fixture-series","title":"Fixture Series","subtitle":"Rust WAMR runtime smoke","cover":{"kind":"none"},"authors":["Koma Fixture"],"status":"unknown","contentRating":"unknown","sourceTags":["fixture"]}],"page":{"nextCursor":null,"hasMore":false}}"#;
@@ -27,11 +28,13 @@ const CHAPTERS_DATA: &[u8] =
 const PAGES_DATA: &[u8] =
     br#"{"chapterId":"chapter:fixture-series:001","pages":[{"id":"page:fixture-series:001:0001","index":0,"image":{"kind":"placeholder","label":"fixture-page-1","width":1200,"height":1800}}]}"#;
 const LISTINGS_DATA: &[u8] =
-    br#"{"listings":[{"id":"listing:popular","name":"Popular","kind":"popular"},{"id":"listing:latest","name":"Latest","kind":"latest"},{"id":"listing:http-fixture","name":"HTTP Fixture","kind":"custom"}]}"#;
+    br#"{"listings":[{"id":"listing:popular","name":"Popular","kind":"popular"},{"id":"listing:latest","name":"Latest","kind":"latest"},{"id":"listing:http-fixture","name":"HTTP Fixture","kind":"custom"},{"id":"listing:html-fixture","name":"HTML Fixture","kind":"custom"}]}"#;
 const MANGA_LIST_DATA: &[u8] =
     br#"{"listingId":"listing:popular","items":[{"id":"manga:fixture-series","title":"Fixture Series","subtitle":"Browse fixture result","cover":{"kind":"none"},"authors":["Koma Fixture"],"status":"unknown","contentRating":"unknown","sourceTags":["fixture"]}],"page":{"nextCursor":null,"hasMore":false}}"#;
 const HTTP_MANGA_LIST_DATA: &[u8] =
     br#"{"listingId":"listing:http-fixture","items":[{"id":"manga:http-fixture-series","title":"HTTP Fixture Series","subtitle":"Host import static fixture result","cover":{"kind":"none"},"authors":["Koma Fixture"],"status":"unknown","contentRating":"unknown","sourceTags":["fixture","http-host-import-v0.1"]}],"page":{"nextCursor":null,"hasMore":false},"httpFixture":{"allowed":true,"deniedHost":"host_not_allowed","deniedCredentialHeader":"credential_header_denied","networkPerformed":false}}"#;
+const HTML_MANGA_LIST_DATA: &[u8] =
+    br#"{"listingId":"listing:html-fixture","items":[{"id":"manga:html-fixture-series","title":"HTML Fixture Series","subtitle":"Host HTML parse fixture result","cover":{"kind":"none"},"authors":["Koma Fixture"],"status":"unknown","contentRating":"unknown","sourceTags":["fixture","html-host-import-v0.1"]}],"page":{"nextCursor":null,"hasMore":false},"htmlFixture":{"parse":true,"select":true,"attr":true,"text":true,"chapterId":"chapter:html-fixture-series:001","chapterTitle":"Chapter 1","pageId":"page:html-fixture-series:001:0001","unsupportedSelectorDenied":"unsupported_selector","unsupportedAttrDenied":"attribute_not_allowed","networkPerformed":false}}"#;
 const HOME_DATA: &[u8] =
     br#"{"sections":[{"id":"home:featured","title":"Featured","kind":"mangaList","items":[{"id":"manga:fixture-series","title":"Fixture Series","cover":{"kind":"none"}}]},{"id":"home:latest-link","title":"Latest","kind":"listingLink","listingId":"listing:latest"}]}"#;
 const FILTERS_DATA: &[u8] =
@@ -42,6 +45,8 @@ const HTTP_DENIED_HOST_REQUEST: &[u8] =
     br#"{"version":1,"method":"GET","url":"https://not-fixture.example/manga-list/http-fixture","headers":{"Accept":"application/json"},"bodyBase64":null,"timeoutMs":1000,"responseKind":"bodyJson"}"#;
 const HTTP_DENIED_CREDENTIAL_HEADER_REQUEST: &[u8] =
     br#"{"version":1,"method":"GET","url":"https://fixture.koma.local/manga-list/http-fixture","headers":{"Authorization":"redacted"},"bodyBase64":null,"timeoutMs":1000,"responseKind":"bodyJson"}"#;
+const HTML_FIXTURE_BODY: &[u8] =
+    br#"<section data-koma-fixture="html-host-import-v0"><article class="manga-card" data-id="manga:html-fixture-series"><h3 class="title">HTML Fixture Series</h3><a class="chapter" data-id="chapter:html-fixture-series:001" data-page-id="page:html-fixture-series:001:0001">Chapter 1</a></article></section>"#;
 
 struct FixtureSource;
 
@@ -118,6 +123,8 @@ impl Source for FixtureSource {
             Ok(JsonPayload::new(MANGA_LIST_DATA))
         } else if request.listing_id_is(LISTING_ID_HTTP_FIXTURE) && http_fixture_policy_smoke() {
             Ok(JsonPayload::new(HTTP_MANGA_LIST_DATA))
+        } else if request.listing_id_is(LISTING_ID_HTML_FIXTURE) && html_fixture_policy_smoke() {
+            Ok(JsonPayload::new(HTML_MANGA_LIST_DATA))
         } else {
             Err(SourceError::invalid_request(
                 "expected fixture listing request",
@@ -170,6 +177,87 @@ fn http_fixture_policy_smoke() -> bool {
     let denied_header = unsafe { core::slice::from_raw_parts(output.as_ptr(), denied_header_len) };
     contains_bytes(denied_header, br#""ok":false"#)
         && contains_bytes(denied_header, br#""code":"credential_header_denied""#)
+}
+
+fn bytes_equal(left: &[u8], right: &[u8]) -> bool {
+    left.len() == right.len() && contains_bytes(left, right)
+}
+
+fn html_fixture_policy_smoke() -> bool {
+    let Ok(document) = koma_source_sdk::host::html_parse(HTML_FIXTURE_BODY) else {
+        return false;
+    };
+    let Ok(card) = koma_source_sdk::host::html_select(document, b"article.manga-card") else {
+        let _ = koma_source_sdk::host::html_close(document);
+        return false;
+    };
+    let Ok(title) = koma_source_sdk::host::html_select(card, b"h3.title") else {
+        let _ = koma_source_sdk::host::html_close(card);
+        let _ = koma_source_sdk::host::html_close(document);
+        return false;
+    };
+    let Ok(chapter) = koma_source_sdk::host::html_select(card, b"a.chapter") else {
+        let _ = koma_source_sdk::host::html_close(title);
+        let _ = koma_source_sdk::host::html_close(card);
+        let _ = koma_source_sdk::host::html_close(document);
+        return false;
+    };
+
+    let mut output = [0_u8; 128];
+    let Ok(manga_id_len) = koma_source_sdk::host::html_attr(card, b"data-id", &mut output)
+    else {
+        return false;
+    };
+    let manga_id = unsafe { core::slice::from_raw_parts(output.as_ptr(), manga_id_len) };
+    if !bytes_equal(manga_id, b"manga:html-fixture-series") {
+        return false;
+    }
+
+    let Ok(title_len) = koma_source_sdk::host::html_text(title, &mut output) else {
+        return false;
+    };
+    let title_text = unsafe { core::slice::from_raw_parts(output.as_ptr(), title_len) };
+    if !bytes_equal(title_text, b"HTML Fixture Series") {
+        return false;
+    }
+
+    let Ok(chapter_id_len) = koma_source_sdk::host::html_attr(chapter, b"data-id", &mut output)
+    else {
+        return false;
+    };
+    let chapter_id = unsafe { core::slice::from_raw_parts(output.as_ptr(), chapter_id_len) };
+    if !bytes_equal(chapter_id, b"chapter:html-fixture-series:001") {
+        return false;
+    }
+
+    let Ok(chapter_title_len) = koma_source_sdk::host::html_text(chapter, &mut output) else {
+        return false;
+    };
+    let chapter_title = unsafe { core::slice::from_raw_parts(output.as_ptr(), chapter_title_len) };
+    if !bytes_equal(chapter_title, b"Chapter 1") {
+        return false;
+    }
+
+    let Ok(page_id_len) = koma_source_sdk::host::html_attr(chapter, b"data-page-id", &mut output)
+    else {
+        return false;
+    };
+    let page_id = unsafe { core::slice::from_raw_parts(output.as_ptr(), page_id_len) };
+    if !bytes_equal(page_id, b"page:html-fixture-series:001:0001") {
+        return false;
+    }
+
+    let unsupported_selector_denied =
+        koma_source_sdk::host::html_select(document, b"script").is_err();
+    let unsupported_attr_denied =
+        koma_source_sdk::host::html_attr(card, b"href", &mut output).is_err();
+
+    let _ = koma_source_sdk::host::html_close(chapter);
+    let _ = koma_source_sdk::host::html_close(title);
+    let _ = koma_source_sdk::host::html_close(card);
+    let _ = koma_source_sdk::host::html_close(document);
+
+    unsupported_selector_denied && unsupported_attr_denied
 }
 
 #[panic_handler]

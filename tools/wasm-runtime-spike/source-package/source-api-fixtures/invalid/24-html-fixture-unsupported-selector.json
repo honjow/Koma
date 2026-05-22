@@ -1,0 +1,23 @@
+{
+  "type": "htmlFixtureRequest",
+  "version": 1,
+  "fixtureOnly": true,
+  "source": "httpFixtureBody",
+  "selectorSubset": [
+    "article.manga-card",
+    "script"
+  ],
+  "allowedAttributes": [
+    "data-id",
+    "data-page-id"
+  ],
+  "checks": {
+    "parse": true,
+    "select": true,
+    "attr": true,
+    "text": true,
+    "unsupportedSelectorDenied": true,
+    "unsupportedAttrDenied": true
+  },
+  "networkPerformed": false
+}

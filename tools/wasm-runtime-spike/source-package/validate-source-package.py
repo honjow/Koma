@@ -15,8 +15,17 @@ from redaction import redacted_command, redact_text, redact_value, write_redacte
 SOURCE_ABI = "koma-source-abi-v0.1"
 HOST_ABI = "koma-host-v0.1"
 FIXTURE_HTTP_HOST_ABI = "koma-host-v0.1-fixture-http"
+FIXTURE_HTTP_HTML_HOST_ABI = "koma-host-v0.1-fixture-http-html"
 ALLOWED_IMPORTS = {("koma_host", "log"), ("koma_host", "check_cancel")}
 FIXTURE_HTTP_IMPORTS = ALLOWED_IMPORTS | {("koma_host", "http_request")}
+FIXTURE_HTML_IMPORTS = {
+    ("koma_host", "html_parse"),
+    ("koma_host", "html_select"),
+    ("koma_host", "html_attr"),
+    ("koma_host", "html_text"),
+    ("koma_host", "html_close"),
+}
+FIXTURE_HTTP_HTML_IMPORTS = FIXTURE_HTTP_IMPORTS | FIXTURE_HTML_IMPORTS
 REQUIRED_EXPORTS = {
     "add",
     "koma_source_init",
@@ -324,6 +333,31 @@ def validate_runtime_operation_payloads(payloads: dict) -> dict:
             "HTTP fixture denied credential header reason drifted")
     require(http_policy.get("networkPerformed") is False,
             "HTTP fixture must not perform real network")
+    html_fixture = payloads.get("get_manga_list_html_fixture")
+    require(isinstance(html_fixture, dict), "runtime smoke missing HTML fixture manga list")
+    require(html_fixture.get("ok") is True, "HTML fixture manga list must be ok")
+    require(html_fixture.get("operation") == "get_manga_list",
+            "HTML fixture manga list operation mismatch")
+    require(html_fixture.get("hostHints", {}).get("network") is False,
+            "HTML fixture hostHints.network must remain false")
+    require(html_fixture.get("data", {}).get("listingId") == "listing:html-fixture",
+            "HTML fixture listingId drifted")
+    html_policy = html_fixture.get("data", {}).get("htmlFixture")
+    require(isinstance(html_policy, dict), "HTML fixture policy evidence missing")
+    for key in ("parse", "select", "attr", "text"):
+        require(html_policy.get(key) is True, f"HTML fixture {key} evidence missing")
+    require(html_policy.get("chapterId") == "chapter:html-fixture-series:001",
+            "HTML fixture chapter id drifted")
+    require(html_policy.get("chapterTitle") == "Chapter 1",
+            "HTML fixture chapter text drifted")
+    require(html_policy.get("pageId") == "page:html-fixture-series:001:0001",
+            "HTML fixture page id drifted")
+    require(html_policy.get("unsupportedSelectorDenied") == "unsupported_selector",
+            "HTML fixture unsupported selector denial drifted")
+    require(html_policy.get("unsupportedAttrDenied") == "attribute_not_allowed",
+            "HTML fixture unsupported attr denial drifted")
+    require(html_policy.get("networkPerformed") is False,
+            "HTML fixture must not perform real network")
     require(payloads["get_home"]["data"]["sections"][0]["id"] == "home:featured",
             "get_home featured section drifted")
     require(payloads["get_filters"]["data"]["filters"][0]["id"] == "filter:query",
@@ -372,7 +406,10 @@ def validate_manifest(manifest_path: Path, wasm_path_override: Path | None = Non
     require(isinstance(permissions, dict), "permissions object is required")
     experimental_http = permissions.get("experimentalHttpFixture")
     http_fixture_enabled = isinstance(experimental_http, dict) and experimental_http.get("enabled") is True
-    expected_host_abi = FIXTURE_HTTP_HOST_ABI if http_fixture_enabled else HOST_ABI
+    experimental_html = permissions.get("experimentalHtmlFixture")
+    html_fixture_enabled = isinstance(experimental_html, dict) and experimental_html.get("enabled") is True
+    expected_host_abi = FIXTURE_HTTP_HTML_HOST_ABI if html_fixture_enabled else \
+        (FIXTURE_HTTP_HOST_ABI if http_fixture_enabled else HOST_ABI)
     require(runtime.get("hostAbi") == expected_host_abi, f"runtime.hostAbi must be {expected_host_abi}")
     wasm = runtime.get("wasm")
     require(isinstance(wasm, dict), "runtime.wasm object is required")
@@ -393,7 +430,8 @@ def validate_manifest(manifest_path: Path, wasm_path_override: Path | None = Non
     declared_imports = runtime.get("requiredHostImports")
     require(isinstance(declared_imports, list) and declared_imports, "requiredHostImports must be non-empty")
     declared_pairs = {(item.get("module"), item.get("name")) for item in declared_imports if isinstance(item, dict)}
-    allowed_imports = FIXTURE_HTTP_IMPORTS if http_fixture_enabled else ALLOWED_IMPORTS
+    allowed_imports = FIXTURE_HTTP_HTML_IMPORTS if html_fixture_enabled else \
+        (FIXTURE_HTTP_IMPORTS if http_fixture_enabled else ALLOWED_IMPORTS)
     require(declared_pairs == allowed_imports,
             "requiredHostImports must match the active fixture host import policy")
 
@@ -427,6 +465,26 @@ def validate_manifest(manifest_path: Path, wasm_path_override: Path | None = Non
         require(experimental_http.get("responseKinds") == ["bodyJson", "bodyText"],
                 "experimentalHttpFixture.responseKinds must be bodyJson/bodyText")
         expected_permission_imports.append("koma_host.http_request")
+    if html_fixture_enabled:
+        require(http_fixture_enabled, "experimentalHtmlFixture requires experimentalHttpFixture in S6")
+        require(experimental_html.get("networkPerformed") is False,
+                "experimentalHtmlFixture.networkPerformed must be false")
+        require(experimental_html.get("selectorSubset") == [
+            "article.manga-card", "h3.title", "a.chapter",
+        ], "experimentalHtmlFixture.selectorSubset drifted")
+        require(experimental_html.get("allowedAttributes") == ["data-id", "data-page-id"],
+                "experimentalHtmlFixture.allowedAttributes drifted")
+        require(experimental_html.get("maxHtmlBytes") == 4096,
+                "experimentalHtmlFixture.maxHtmlBytes must be 4096")
+        require(experimental_html.get("maxStringBytes") == 512,
+                "experimentalHtmlFixture.maxStringBytes must be 512")
+        expected_permission_imports.extend([
+            "koma_host.html_parse",
+            "koma_host.html_select",
+            "koma_host.html_attr",
+            "koma_host.html_text",
+            "koma_host.html_close",
+        ])
     require(permissions.get("hostImports") == expected_permission_imports,
             "permissions.hostImports must match active fixture imports")
 
@@ -450,6 +508,7 @@ def validate_manifest(manifest_path: Path, wasm_path_override: Path | None = Non
         "capabilities": capabilities,
         "network": permissions["network"],
         "experimentalHttpFixture": http_fixture_enabled,
+        "experimentalHtmlFixture": html_fixture_enabled,
     }
 
 
@@ -481,7 +540,10 @@ def run_rust_fixture(manifest_path: Path, artifact_dir: Path, manifest: dict) ->
     permissions = manifest["permissions"]
     http_fixture_enabled = isinstance(permissions.get("experimentalHttpFixture"), dict) and \
         permissions["experimentalHttpFixture"].get("enabled") is True
-    allowed_imports = FIXTURE_HTTP_IMPORTS if http_fixture_enabled else ALLOWED_IMPORTS
+    html_fixture_enabled = isinstance(permissions.get("experimentalHtmlFixture"), dict) and \
+        permissions["experimentalHtmlFixture"].get("enabled") is True
+    allowed_imports = FIXTURE_HTTP_HTML_IMPORTS if html_fixture_enabled else \
+        (FIXTURE_HTTP_IMPORTS if http_fixture_enabled else ALLOWED_IMPORTS)
     require(set(imports) == allowed_imports, "built rust fixture imports drifted")
     require(REQUIRED_EXPORTS.issubset(set(exports)), "built rust fixture exports drifted")
     require(OPTIONAL_BROWSE_EXPORTS.issubset(set(exports)),
@@ -550,7 +612,10 @@ def main() -> int:
                 "runtime source_info validated with core/browse capabilities true, config/image/future capabilities false, and network=false"
             )
             report["evidence"].append(
-                "runtime HTTP fixture validated allowed static host request, denied host, denied credential header, and networkPerformed=false"
+            "runtime HTTP fixture validated allowed static host request, denied host, denied credential header, and networkPerformed=false"
+            )
+            report["evidence"].append(
+                "runtime HTML fixture validated parse/select/attr/text, denied unsupported selector/attr, and networkPerformed=false"
             )
             report["sourceInfoRuntimeEvidence"] = runtime_evidence
         else:

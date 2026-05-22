@@ -18,6 +18,9 @@ constexpr uint32_t kMaxPayloadBytes = 1024u * 1024u;
 constexpr uint32_t kMaxHostLogBytes = 1024u;
 constexpr uint32_t kMaxHttpFixtureRequestBytes = 2048u;
 constexpr uint32_t kMaxHttpFixtureResponseBytes = 4096u;
+constexpr uint32_t kMaxHtmlFixtureBytes = 4096u;
+constexpr uint32_t kMaxHtmlFixtureStringBytes = 512u;
+constexpr uint32_t kMaxHtmlFixtureDescriptors = 16u;
 
 void host_log(wasm_exec_env_t exec_env, int32_t level, char *message, uint32_t message_len) {
     (void)exec_env;
@@ -134,10 +137,198 @@ int32_t host_http_request(wasm_exec_env_t exec_env,
     return written;
 }
 
+enum class HtmlDescriptorKind {
+    Closed,
+    Document,
+    MangaCard,
+    Title,
+    Chapter,
+};
+
+struct HtmlDescriptor {
+    HtmlDescriptorKind kind = HtmlDescriptorKind::Closed;
+};
+
+HtmlDescriptor g_html_descriptors[kMaxHtmlFixtureDescriptors];
+
+int32_t allocate_html_descriptor(HtmlDescriptorKind kind) {
+    for (uint32_t i = 1; i < kMaxHtmlFixtureDescriptors; i++) {
+        if (g_html_descriptors[i].kind == HtmlDescriptorKind::Closed) {
+            g_html_descriptors[i].kind = kind;
+            return static_cast<int32_t>(i);
+        }
+    }
+    return -5;
+}
+
+bool html_descriptor_is_valid(int32_t descriptor) {
+    return descriptor > 0 && descriptor < static_cast<int32_t>(kMaxHtmlFixtureDescriptors) &&
+           g_html_descriptors[descriptor].kind != HtmlDescriptorKind::Closed;
+}
+
+bool is_supported_html_fixture(const std::string &html) {
+    return html.find("<section data-koma-fixture=\"html-host-import-v0\">") != std::string::npos &&
+           html.find("article class=\"manga-card\"") != std::string::npos &&
+           html.find("data-id=\"manga:html-fixture-series\"") != std::string::npos &&
+           html.find("HTML Fixture Series") != std::string::npos &&
+           !contains_ci(html, "authorization") && !contains_ci(html, "cookie") &&
+           !contains_ci(html, "token") && !contains_ci(html, "password") &&
+           html.find("/home/") == std::string::npos && html.find("file://") == std::string::npos;
+}
+
+int32_t host_html_parse(wasm_exec_env_t exec_env, char *html, uint32_t html_len) {
+    (void)exec_env;
+    if (!html || html_len == 0 || html_len > kMaxHtmlFixtureBytes) {
+        std::cout << "SOURCE_API_HTML_FIXTURE_PARSE_DENIED ok:true reason=invalid_html\n";
+        return -2;
+    }
+
+    const std::string fixture_html(html, html + html_len);
+    if (!is_supported_html_fixture(fixture_html)) {
+        std::cout << "SOURCE_API_HTML_FIXTURE_PARSE_DENIED ok:true reason=unsupported_fixture\n";
+        return -1;
+    }
+
+    const int32_t descriptor = allocate_html_descriptor(HtmlDescriptorKind::Document);
+    if (descriptor > 0) {
+        std::cout << "SOURCE_API_HTML_FIXTURE_PARSE_ALLOWED ok:true descriptor=document\n";
+    }
+    return descriptor;
+}
+
+int32_t host_html_select(wasm_exec_env_t exec_env,
+                         int32_t descriptor,
+                         char *selector,
+                         uint32_t selector_len) {
+    (void)exec_env;
+    if (!html_descriptor_is_valid(descriptor) || !selector || selector_len == 0 ||
+        selector_len > 64) {
+        std::cout << "SOURCE_API_HTML_FIXTURE_SELECT_DENIED ok:true reason=invalid_selector\n";
+        return -2;
+    }
+
+    const std::string selector_value(selector, selector + selector_len);
+    const HtmlDescriptorKind kind = g_html_descriptors[descriptor].kind;
+    HtmlDescriptorKind next = HtmlDescriptorKind::Closed;
+    if (kind == HtmlDescriptorKind::Document && selector_value == "article.manga-card") {
+        next = HtmlDescriptorKind::MangaCard;
+    }
+    else if (kind == HtmlDescriptorKind::MangaCard && selector_value == "h3.title") {
+        next = HtmlDescriptorKind::Title;
+    }
+    else if (kind == HtmlDescriptorKind::MangaCard && selector_value == "a.chapter") {
+        next = HtmlDescriptorKind::Chapter;
+    }
+    else {
+        std::cout << "SOURCE_API_HTML_FIXTURE_UNSUPPORTED_SELECTOR_DENIED ok:true selector="
+                  << selector_value << "\n";
+        return -1;
+    }
+
+    const int32_t selected = allocate_html_descriptor(next);
+    if (selected > 0) {
+        std::cout << "SOURCE_API_HTML_FIXTURE_SELECT_ALLOWED ok:true selector="
+                  << selector_value << "\n";
+    }
+    return selected;
+}
+
+int32_t write_html_fixture_string(char *out, uint32_t out_cap, const std::string &value) {
+    if (!out || out_cap == 0 || value.size() > kMaxHtmlFixtureStringBytes ||
+        value.size() > out_cap) {
+        return -3;
+    }
+    if (contains_ci(value, "authorization") || contains_ci(value, "cookie") ||
+        contains_ci(value, "token") || contains_ci(value, "password") ||
+        value.find("/home/") != std::string::npos || value.find("file://") != std::string::npos) {
+        return -4;
+    }
+    std::memcpy(out, value.data(), value.size());
+    return static_cast<int32_t>(value.size());
+}
+
+int32_t host_html_attr(wasm_exec_env_t exec_env,
+                       int32_t descriptor,
+                       char *attr,
+                       uint32_t attr_len,
+                       char *out,
+                       uint32_t out_cap) {
+    (void)exec_env;
+    if (!html_descriptor_is_valid(descriptor) || !attr || attr_len == 0 || attr_len > 32) {
+        std::cout << "SOURCE_API_HTML_FIXTURE_ATTR_DENIED ok:true reason=invalid_attr\n";
+        return -2;
+    }
+
+    const std::string attr_value(attr, attr + attr_len);
+    const HtmlDescriptorKind kind = g_html_descriptors[descriptor].kind;
+    std::string value;
+    if (kind == HtmlDescriptorKind::MangaCard && attr_value == "data-id") {
+        value = "manga:html-fixture-series";
+    }
+    else if (kind == HtmlDescriptorKind::Chapter && attr_value == "data-id") {
+        value = "chapter:html-fixture-series:001";
+    }
+    else if (kind == HtmlDescriptorKind::Chapter && attr_value == "data-page-id") {
+        value = "page:html-fixture-series:001:0001";
+    }
+    else {
+        std::cout << "SOURCE_API_HTML_FIXTURE_UNSUPPORTED_ATTR_DENIED ok:true attr="
+                  << attr_value << "\n";
+        return -1;
+    }
+
+    const int32_t written = write_html_fixture_string(out, out_cap, value);
+    if (written >= 0) {
+        std::cout << "SOURCE_API_HTML_FIXTURE_ATTR_ALLOWED ok:true attr=" << attr_value << "\n";
+    }
+    return written;
+}
+
+int32_t host_html_text(wasm_exec_env_t exec_env, int32_t descriptor, char *out, uint32_t out_cap) {
+    (void)exec_env;
+    if (!html_descriptor_is_valid(descriptor)) {
+        std::cout << "SOURCE_API_HTML_FIXTURE_TEXT_DENIED ok:true reason=invalid_descriptor\n";
+        return -2;
+    }
+
+    std::string value;
+    const HtmlDescriptorKind kind = g_html_descriptors[descriptor].kind;
+    if (kind == HtmlDescriptorKind::Title) {
+        value = "HTML Fixture Series";
+    }
+    else if (kind == HtmlDescriptorKind::Chapter) {
+        value = "Chapter 1";
+    }
+    else {
+        std::cout << "SOURCE_API_HTML_FIXTURE_TEXT_DENIED ok:true reason=unsupported_descriptor\n";
+        return -1;
+    }
+
+    const int32_t written = write_html_fixture_string(out, out_cap, value);
+    if (written >= 0) {
+        std::cout << "SOURCE_API_HTML_FIXTURE_TEXT_ALLOWED ok:true\n";
+    }
+    return written;
+}
+
+int32_t host_html_close(wasm_exec_env_t exec_env, int32_t descriptor) {
+    (void)exec_env;
+    if (!html_descriptor_is_valid(descriptor)) {
+        return -1;
+    }
+    g_html_descriptors[descriptor].kind = HtmlDescriptorKind::Closed;
+    return 0;
+}
+
 NativeSymbol g_koma_host_symbols[] = {
     {"log", reinterpret_cast<void *>(host_log), "(i*~)", nullptr},
     {"check_cancel", reinterpret_cast<void *>(host_check_cancel), "()i", nullptr},
     {"http_request", reinterpret_cast<void *>(host_http_request), "(*~*~)i", nullptr},
+    {"html_parse", reinterpret_cast<void *>(host_html_parse), "(*~)i", nullptr},
+    {"html_select", reinterpret_cast<void *>(host_html_select), "(i*~)i", nullptr},
+    {"html_attr", reinterpret_cast<void *>(host_html_attr), "(i*~*~)i", nullptr},
+    {"html_text", reinterpret_cast<void *>(host_html_text), "(i*~)i", nullptr},
+    {"html_close", reinterpret_cast<void *>(host_html_close), "(i)i", nullptr},
 };
 
 std::vector<uint8_t> read_file(const char *path) {
@@ -350,6 +541,20 @@ void validate_operation_data(const std::string &operation, const std::string &pa
             require_contains(payload, "\"deniedCredentialHeader\":\"credential_header_denied\"", operation);
             require_contains(payload, "\"networkPerformed\":false", operation);
         }
+        else if (payload.find("\"listingId\":\"listing:html-fixture\"") != std::string::npos) {
+            require_contains(payload, "\"id\":\"manga:html-fixture-series\"", operation);
+            require_contains(payload, "\"title\":\"HTML Fixture Series\"", operation);
+            require_contains(payload, "\"chapterId\":\"chapter:html-fixture-series:001\"", operation);
+            require_contains(payload, "\"chapterTitle\":\"Chapter 1\"", operation);
+            require_contains(payload, "\"pageId\":\"page:html-fixture-series:001:0001\"", operation);
+            require_contains(payload, "\"parse\":true", operation);
+            require_contains(payload, "\"select\":true", operation);
+            require_contains(payload, "\"attr\":true", operation);
+            require_contains(payload, "\"text\":true", operation);
+            require_contains(payload, "\"unsupportedSelectorDenied\":\"unsupported_selector\"", operation);
+            require_contains(payload, "\"unsupportedAttrDenied\":\"attribute_not_allowed\"", operation);
+            require_contains(payload, "\"networkPerformed\":false", operation);
+        }
         else {
             require_contains(payload, "\"listingId\":\"listing:popular\"", operation);
             require_contains(payload, "\"id\":\"manga:fixture-series\"", operation);
@@ -471,10 +676,15 @@ public:
         constexpr const char *manifest =
             "{\"schemaVersion\":1,\"id\":\"local.example.private\","
             "\"runtime\":\"wasm-v1\",\"entry\":\"source.wasm\","
-            "\"host\":{\"abi\":\"koma-host-v0.1-fixture-http\","
-            "\"imports\":[\"log\",\"check_cancel\",\"http_request\"],"
+            "\"host\":{\"abi\":\"koma-host-v0.1-fixture-http-html\","
+            "\"imports\":[\"log\",\"check_cancel\",\"http_request\",\"html_parse\","
+            "\"html_select\",\"html_attr\",\"html_text\",\"html_close\"],"
             "\"limits\":{\"maxMemoryPages\":2,\"maxPayloadBytes\":1048576,\"network\":false}},"
             "\"experimentalHttpFixture\":{\"enabled\":true,\"allowedHost\":\"fixture.koma.local\","
+            "\"networkPerformed\":false},"
+            "\"experimentalHtmlFixture\":{\"enabled\":true,\"selectorSubset\":["
+            "\"article.manga-card\",\"h3.title\",\"a.chapter\"],"
+            "\"allowedAttributes\":[\"data-id\",\"data-page-id\"],"
             "\"networkPerformed\":false},"
             "\"contentPolicy\":{\"publicIndex\":false,\"marketplace\":false}}";
         const uint32_t manifest_len = static_cast<uint32_t>(std::strlen(manifest));
@@ -582,12 +792,19 @@ public:
 
         const bool http_fixture_operation =
             std::strstr(request, "\"listingId\":\"listing:http-fixture\"") != nullptr;
+        const bool html_fixture_operation =
+            std::strstr(request, "\"listingId\":\"listing:html-fixture\"") != nullptr;
         const char *json_name =
-            http_fixture_operation ? "get_manga_list_http_fixture" : operation.name;
+            http_fixture_operation     ? "get_manga_list_http_fixture"
+            : html_fixture_operation   ? "get_manga_list_html_fixture"
+                                       : operation.name;
         std::cout << "SOURCE_API_OPERATION " << operation.name << " ok:true"
                   << " magic=KOMA\n";
         if (http_fixture_operation) {
             std::cout << "SOURCE_API_HTTP_FIXTURE_OPERATION ok:true operation=get_manga_list\n";
+        }
+        if (html_fixture_operation) {
+            std::cout << "SOURCE_API_HTML_FIXTURE_OPERATION ok:true operation=get_manga_list\n";
         }
         std::cout << "SOURCE_API_JSON " << json_name << "=" << payload << "\n";
         return payload;
@@ -694,6 +911,15 @@ public:
                 "\"args\":{\"listingId\":\"listing:http-fixture\","
                 "\"page\":{\"cursor\":null,\"limit\":20}},\"settings\":{},"
                 "\"hostHints\":{\"network\":false,\"experimentalHttpFixture\":true}}",
+            },
+            {
+                "get_manga_list",
+                "koma_source_get_manga_list",
+                "{\"type\":\"request\",\"version\":1,\"requestId\":\"runtime-html-fixture-list-001\","
+                "\"operation\":\"get_manga_list\",\"sourceId\":\"local.test.koma.fixture\","
+                "\"args\":{\"listingId\":\"listing:html-fixture\","
+                "\"page\":{\"cursor\":null,\"limit\":20}},\"settings\":{},"
+                "\"hostHints\":{\"network\":false,\"experimentalHtmlFixture\":true}}",
             },
             {
                 "get_home",

@@ -18,6 +18,28 @@ pub mod host {
             out_ptr: *mut u8,
             out_cap: u32,
         ) -> i32;
+
+        #[link_name = "html_parse"]
+        fn koma_host_html_parse(html_ptr: *const u8, html_len: u32) -> i32;
+
+        #[link_name = "html_select"]
+        fn koma_host_html_select(descriptor: i32, selector_ptr: *const u8, selector_len: u32)
+            -> i32;
+
+        #[link_name = "html_attr"]
+        fn koma_host_html_attr(
+            descriptor: i32,
+            attr_ptr: *const u8,
+            attr_len: u32,
+            out_ptr: *mut u8,
+            out_cap: u32,
+        ) -> i32;
+
+        #[link_name = "html_text"]
+        fn koma_host_html_text(descriptor: i32, out_ptr: *mut u8, out_cap: u32) -> i32;
+
+        #[link_name = "html_close"]
+        fn koma_host_html_close(descriptor: i32) -> i32;
     }
 
     pub fn log_info(message: &[u8]) {
@@ -43,6 +65,83 @@ pub mod host {
             Err(written)
         } else {
             Ok(written as usize)
+        }
+    }
+
+    #[derive(Clone, Copy)]
+    pub struct HtmlDescriptor {
+        raw: i32,
+    }
+
+    impl HtmlDescriptor {
+        pub fn raw(&self) -> i32 {
+            self.raw
+        }
+    }
+
+    pub fn html_parse(html: &[u8]) -> core::result::Result<HtmlDescriptor, i32> {
+        let descriptor = unsafe { koma_host_html_parse(html.as_ptr(), html.len() as u32) };
+        if descriptor <= 0 {
+            Err(descriptor)
+        } else {
+            Ok(HtmlDescriptor { raw: descriptor })
+        }
+    }
+
+    pub fn html_select(
+        descriptor: HtmlDescriptor,
+        selector: &[u8],
+    ) -> core::result::Result<HtmlDescriptor, i32> {
+        let selected = unsafe {
+            koma_host_html_select(descriptor.raw, selector.as_ptr(), selector.len() as u32)
+        };
+        if selected <= 0 {
+            Err(selected)
+        } else {
+            Ok(HtmlDescriptor { raw: selected })
+        }
+    }
+
+    pub fn html_attr(
+        descriptor: HtmlDescriptor,
+        attr: &[u8],
+        output: &mut [u8],
+    ) -> core::result::Result<usize, i32> {
+        let written = unsafe {
+            koma_host_html_attr(
+                descriptor.raw,
+                attr.as_ptr(),
+                attr.len() as u32,
+                output.as_mut_ptr(),
+                output.len() as u32,
+            )
+        };
+        if written < 0 || written as usize > output.len() {
+            Err(written)
+        } else {
+            Ok(written as usize)
+        }
+    }
+
+    pub fn html_text(
+        descriptor: HtmlDescriptor,
+        output: &mut [u8],
+    ) -> core::result::Result<usize, i32> {
+        let written =
+            unsafe { koma_host_html_text(descriptor.raw, output.as_mut_ptr(), output.len() as u32) };
+        if written < 0 || written as usize > output.len() {
+            Err(written)
+        } else {
+            Ok(written as usize)
+        }
+    }
+
+    pub fn html_close(descriptor: HtmlDescriptor) -> core::result::Result<(), i32> {
+        let closed = unsafe { koma_host_html_close(descriptor.raw) };
+        if closed < 0 {
+            Err(closed)
+        } else {
+            Ok(())
         }
     }
 }

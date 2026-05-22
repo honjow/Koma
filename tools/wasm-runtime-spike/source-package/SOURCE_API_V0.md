@@ -15,6 +15,10 @@ Status:
   `koma_host.check_cancel`. S5 adds a local WAMR-only
   `koma-host-v0.1-fixture-http` smoke that imports `koma_host.http_request`
   only when the manifest declares `experimentalHttpFixture`.
+- S6 extends only that local WAMR fixture lane with
+  `koma-host-v0.1-fixture-http-html` and host-owned HTML descriptors for
+  `html_parse`, `html_select`, `html_attr`, `html_text`, and `html_close` when
+  the manifest declares `experimentalHtmlFixture`.
 - Network remains disabled by default. `hostHints.network=false` is expected in
   current fixture requests, responses, and metadata fixtures.
 - v0.2 extends the v0.1 four-operation fixture contract with source metadata,
@@ -101,6 +105,10 @@ HTTP and image loading:
 
 - `koma_host.http_request` is fixture-only in S5 local WAMR tooling and remains
   product-disabled.
+- `koma_host.html_parse/select/attr/text/close` are fixture-only in S6 local
+  WAMR tooling and remain product-disabled. The host owns descriptors, accepts
+  only deterministic fixture HTML, permits only a tiny selector/attribute
+  subset, and denies unsupported selectors/attributes.
 - Source API requests include `hostHints.network=false` today so fixture logic
   can branch without implying network capability.
 - Future network support must be gated by manifest permissions, host ABI,

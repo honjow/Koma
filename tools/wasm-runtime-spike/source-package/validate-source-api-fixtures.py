@@ -341,6 +341,22 @@ def validate_http_fixture_request(payload: dict[str, Any]) -> None:
         require(isinstance(value, str), f"header {name} value must be a string")
 
 
+def validate_html_fixture_request(payload: dict[str, Any]) -> None:
+    require(payload.get("version") == 1, "version must be 1")
+    require(payload.get("fixtureOnly") is True, "fixtureOnly must be true")
+    require(payload.get("networkPerformed") is False, "networkPerformed must be false")
+    require(payload.get("source") in {"httpFixtureBody", "staticFixtureHtml"},
+            "source must be a controlled fixture HTML source")
+    require(payload.get("selectorSubset") == ["article.manga-card", "h3.title", "a.chapter"],
+            "selectorSubset must match the S6 fixture subset")
+    require(payload.get("allowedAttributes") == ["data-id", "data-page-id"],
+            "allowedAttributes must match the S6 fixture attr subset")
+    checks = payload.get("checks")
+    require(isinstance(checks, dict), "checks must be an object")
+    for key in ("parse", "select", "attr", "text", "unsupportedSelectorDenied", "unsupportedAttrDenied"):
+        require(checks.get(key) is True, f"checks.{key} must be true")
+
+
 def validate_response_data(operation: str, data: Any, network: bool) -> None:
     require(isinstance(data, dict), "data must be an object")
     if operation == "search":
@@ -410,14 +426,17 @@ def validate_response(payload: dict[str, Any]) -> None:
 def validate_fixture(path: Path) -> dict[str, Any]:
     payload = read_json(path)
     fixture_type = payload.get("type")
-    require(fixture_type in {"metadata", "request", "response", "httpFixtureRequest"},
-            "type must be metadata/request/response/httpFixtureRequest")
+    require(fixture_type in {
+        "metadata", "request", "response", "httpFixtureRequest", "htmlFixtureRequest",
+    }, "type must be metadata/request/response/httpFixtureRequest/htmlFixtureRequest")
     if fixture_type == "request":
         validate_request(payload)
     elif fixture_type == "response":
         validate_response(payload)
     elif fixture_type == "httpFixtureRequest":
         validate_http_fixture_request(payload)
+    elif fixture_type == "htmlFixtureRequest":
+        validate_html_fixture_request(payload)
     else:
         validate_metadata(payload)
     scan_for_disallowed_strings(payload, allow_fixture_url=fixture_type == "httpFixtureRequest")

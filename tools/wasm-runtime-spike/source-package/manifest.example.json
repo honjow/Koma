@@ -13,7 +13,7 @@
   },
   "runtime": {
     "abi": "koma-source-abi-v0.1",
-    "hostAbi": "koma-host-v0.1-fixture-http",
+    "hostAbi": "koma-host-v0.1-fixture-http-html",
     "wasm": {
       "path": "../../../entry/src/main/resources/rawfile/test/rust_source_runtime_fixture.wasm",
       "sha256": "6d06d3a936bd0316818ec9d5754ea96c9cb33110c520cede6f0945c3eedbb4f8",
@@ -40,6 +40,26 @@
       {
         "module": "koma_host",
         "name": "http_request"
+      },
+      {
+        "module": "koma_host",
+        "name": "html_parse"
+      },
+      {
+        "module": "koma_host",
+        "name": "html_select"
+      },
+      {
+        "module": "koma_host",
+        "name": "html_attr"
+      },
+      {
+        "module": "koma_host",
+        "name": "html_text"
+      },
+      {
+        "module": "koma_host",
+        "name": "html_close"
       }
     ]
   },
@@ -66,7 +86,12 @@
     "hostImports": [
       "koma_host.log",
       "koma_host.check_cancel",
-      "koma_host.http_request"
+      "koma_host.http_request",
+      "koma_host.html_parse",
+      "koma_host.html_select",
+      "koma_host.html_attr",
+      "koma_host.html_text",
+      "koma_host.html_close"
     ],
     "experimentalHttpFixture": {
       "enabled": true,
@@ -80,6 +105,21 @@
       ],
       "maxRequestBytes": 2048,
       "maxResponseBytes": 4096,
+      "networkPerformed": false
+    },
+    "experimentalHtmlFixture": {
+      "enabled": true,
+      "selectorSubset": [
+        "article.manga-card",
+        "h3.title",
+        "a.chapter"
+      ],
+      "allowedAttributes": [
+        "data-id",
+        "data-page-id"
+      ],
+      "maxHtmlBytes": 4096,
+      "maxStringBytes": 512,
       "networkPerformed": false
     }
   },

@@ -69,6 +69,11 @@ Rust SDK source -> wasm32-unknown-unknown -> WAMR sandbox -> explicit host impor
 - permissions: `network` is false. `koma_host.http_request` is permitted only
   through `experimentalHttpFixture`, constrained to `fixture.koma.local`, `GET`,
   bodyJson/bodyText responses, static fixture data, and
+  `networkPerformed=false`. `koma_host.html_parse`, `html_select`, `html_attr`,
+  `html_text`, and `html_close` are permitted only through
+  `experimentalHtmlFixture`, constrained to deterministic fixture HTML, the
+  selector subset `article.manga-card`/`h3.title`/`a.chapter`, the attributes
+  `data-id`/`data-page-id`, bounded strings/descriptors, and
   `networkPerformed=false`.
 - content policy: public index, marketplace, built-in source, and remote install
   are all false.
@@ -121,14 +126,17 @@ The script writes `source-package-validation.json` under the artifact directory.
 It validates required fields, scope rules, sha256, wasm magic/version, declared
 imports, exported fixture functions, optional `koma_source_info` discovery,
 capabilities, settings defaults, `network=false`, and the explicit
-`experimentalHttpFixture` gate. With `--build-rust-fixture` it also parses the
-WAMR smoke JSON and records functional evidence that
+`experimentalHttpFixture`/`experimentalHtmlFixture` gates. With
+`--build-rust-fixture` it also parses the WAMR smoke JSON and records functional
+evidence that
 `source_info` returns Source API v0.2 metadata, core and browse capabilities are
 true, config/image/future capabilities are false, browse operations return the
 expected listing/home/filter/page shapes, `hostHints.network=false`, and
 unknown operations reject instead of falling back to search. It also requires
 S5 controlled HTTP fixture evidence: allowed static host request, denied host,
-denied credential header, and no real network.
+denied credential header, and no real network. S6 additionally requires
+controlled HTML fixture evidence: parse/select/attr/text pass, unsupported
+selector/attribute deny, and no real network.
 
 To exercise the Rust-SDK-backed package build boundary:
 

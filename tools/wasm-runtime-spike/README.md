@@ -20,6 +20,15 @@ Static negative fixtures for that closed policy live under
 `host-imports/validate-http-policy-negative-fixtures.py`. The validator loads
 local JSON only, performs no network I/O, and does not execute WAMR.
 
+The future HTML host import is also product-disabled. S6 adds only local WAMR
+fixture imports, `koma_host.html_parse`, `html_select`, `html_attr`,
+`html_text`, and `html_close`, behind `experimentalHtmlFixture`. The host parses
+only deterministic fixture HTML, returns host-owned integer descriptors, accepts
+only `article.manga-card`, `h3.title`, and `a.chapter`, exposes only `data-id`,
+`data-page-id`, and text, bounds descriptor/string counts, and denies unsupported
+selectors/attributes. It does not add WebView, JavaScript, public source
+parsing, product runtime parsing, or real network behavior.
+
 Future source settings/auth/secret reference metadata is also design-only and
 documented in `source-package/SOURCE_SETTINGS_AUTH_BOUNDARY.md`. Its fixtures
 keep `network=false`, reject `koma_host.http_request`, and do not contain real
@@ -121,6 +130,12 @@ SOURCE_API_OPERATION get_manga_list ok:true magic=KOMA
 SOURCE_API_HTTP_FIXTURE_ALLOWED ok:true host=fixture.koma.local networkPerformed=false
 SOURCE_API_HTTP_FIXTURE_DENIED_HOST ok:true reason=host_not_allowed
 SOURCE_API_HTTP_FIXTURE_DENIED_CREDENTIAL_HEADER ok:true reason=credential_header_denied
+SOURCE_API_HTML_FIXTURE_PARSE_ALLOWED ok:true descriptor=document
+SOURCE_API_HTML_FIXTURE_SELECT_ALLOWED ok:true selector=article.manga-card
+SOURCE_API_HTML_FIXTURE_ATTR_ALLOWED ok:true attr=data-id
+SOURCE_API_HTML_FIXTURE_TEXT_ALLOWED ok:true
+SOURCE_API_HTML_FIXTURE_UNSUPPORTED_SELECTOR_DENIED ok:true selector=script
+SOURCE_API_HTML_FIXTURE_UNSUPPORTED_ATTR_DENIED ok:true attr=href
 SOURCE_API_OPERATION get_home ok:true magic=KOMA
 SOURCE_API_OPERATION get_filters ok:true magic=KOMA
 SOURCE_API_RUNTIME_SMOKE_PASS
@@ -164,10 +179,13 @@ operation helpers, KOMA result buffer/envelope writing, and the
 `listing:http-fixture` manga-list path proves one allowed static fixture request
 and denied host/secret-header cases; all responses remain deterministic,
 `networkPerformed=false`, and product/Harmony runtime networking stays out of
-scope. The fixture exports `add`, `koma_source_init`, the four core source
-operation exports, the S4 browse operation exports, and `koma_source_free`, and
-returns test envelope shapes with `Fixture Series`, deterministic
-listing/home/filter ids, and `hostHints.network: false`.
+scope. For S6, `listing:html-fixture` also proves host-owned HTML
+parse/select/attr/text descriptors against static fixture HTML plus denied
+unsupported selector/attribute cases. The fixture exports `add`,
+`koma_source_init`, the four core source operation exports, the S4 browse
+operation exports, and `koma_source_free`, and returns test envelope shapes with
+`Fixture Series`, deterministic listing/home/filter ids, and
+`hostHints.network: false`.
 
 The Rust SDK shape is provisional and tooling-only. Source fixture code
 implements a small `Source` trait and leaves ABI request reads, cancellation,

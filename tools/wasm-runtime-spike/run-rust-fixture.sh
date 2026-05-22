@@ -190,6 +190,41 @@ if ! grep -q 'SOURCE_API_HTTP_FIXTURE_OPERATION ok:true operation=get_manga_list
   exit 25
 fi
 
+if ! grep -q 'SOURCE_API_HTML_FIXTURE_PARSE_ALLOWED ok:true descriptor=document' "$RUN_LOG"; then
+  log "missing HTML fixture parse evidence"
+  exit 26
+fi
+
+if ! grep -q 'SOURCE_API_HTML_FIXTURE_SELECT_ALLOWED ok:true selector=article.manga-card' "$RUN_LOG"; then
+  log "missing HTML fixture select evidence"
+  exit 26
+fi
+
+if ! grep -q 'SOURCE_API_HTML_FIXTURE_ATTR_ALLOWED ok:true attr=data-id' "$RUN_LOG"; then
+  log "missing HTML fixture attr evidence"
+  exit 26
+fi
+
+if ! grep -q 'SOURCE_API_HTML_FIXTURE_TEXT_ALLOWED ok:true' "$RUN_LOG"; then
+  log "missing HTML fixture text evidence"
+  exit 26
+fi
+
+if ! grep -q 'SOURCE_API_HTML_FIXTURE_UNSUPPORTED_SELECTOR_DENIED ok:true selector=script' "$RUN_LOG"; then
+  log "missing HTML fixture unsupported selector denial evidence"
+  exit 26
+fi
+
+if ! grep -q 'SOURCE_API_HTML_FIXTURE_UNSUPPORTED_ATTR_DENIED ok:true attr=href' "$RUN_LOG"; then
+  log "missing HTML fixture unsupported attr denial evidence"
+  exit 26
+fi
+
+if ! grep -q 'SOURCE_API_HTML_FIXTURE_OPERATION ok:true operation=get_manga_list' "$RUN_LOG"; then
+  log "missing get_manga_list HTML fixture operation evidence"
+  exit 26
+fi
+
 if ! grep -q 'hostHints.network=false' "$RUN_LOG"; then
   log "missing hostHints.network=false evidence"
   exit 22
@@ -227,6 +262,7 @@ expected = [
     *core_expected,
     *browse_expected,
     "get_manga_list_http_fixture",
+    "get_manga_list_html_fixture",
     "unknown_operation_rejected",
 ]
 assert sorted(payloads) == sorted(expected), payloads.keys()
@@ -279,6 +315,24 @@ assert http_fixture["data"]["httpFixture"]["allowed"] is True
 assert http_fixture["data"]["httpFixture"]["deniedHost"] == "host_not_allowed"
 assert http_fixture["data"]["httpFixture"]["deniedCredentialHeader"] == "credential_header_denied"
 assert http_fixture["data"]["httpFixture"]["networkPerformed"] is False
+html_fixture = payloads["get_manga_list_html_fixture"]
+assert html_fixture["version"] == 1
+assert html_fixture["ok"] is True
+assert html_fixture["operation"] == "get_manga_list"
+assert html_fixture["hostHints"]["network"] is False
+assert html_fixture["data"]["listingId"] == "listing:html-fixture"
+assert html_fixture["data"]["items"][0]["id"] == "manga:html-fixture-series"
+assert html_fixture["data"]["items"][0]["title"] == "HTML Fixture Series"
+assert html_fixture["data"]["htmlFixture"]["parse"] is True
+assert html_fixture["data"]["htmlFixture"]["select"] is True
+assert html_fixture["data"]["htmlFixture"]["attr"] is True
+assert html_fixture["data"]["htmlFixture"]["text"] is True
+assert html_fixture["data"]["htmlFixture"]["chapterId"] == "chapter:html-fixture-series:001"
+assert html_fixture["data"]["htmlFixture"]["chapterTitle"] == "Chapter 1"
+assert html_fixture["data"]["htmlFixture"]["pageId"] == "page:html-fixture-series:001:0001"
+assert html_fixture["data"]["htmlFixture"]["unsupportedSelectorDenied"] == "unsupported_selector"
+assert html_fixture["data"]["htmlFixture"]["unsupportedAttrDenied"] == "attribute_not_allowed"
+assert html_fixture["data"]["htmlFixture"]["networkPerformed"] is False
 assert payloads["get_home"]["data"]["sections"][0]["id"] == "home:featured"
 assert payloads["get_home"]["data"]["sections"][1]["listingId"] == "listing:latest"
 assert payloads["get_filters"]["data"]["filters"][0]["id"] == "filter:query"
