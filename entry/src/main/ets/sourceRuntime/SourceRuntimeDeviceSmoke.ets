@@ -9,12 +9,14 @@ import {
   importAndRegisterLocalSourceArchive,
   importAndRunLocalSourceArchive,
   importArchiveNegativeFixturesWithoutExecution,
+  persistReloadAndRunRegisteredSourcesById,
   runRegisteredSourceApiOperationsById,
   runStagedRawfileSourcePackage,
   runSourceRuntimeRegistryNegativeEvidence,
   stageAndRegisterRawfileSourcePackage,
   SourceRuntimeServiceRegistrationSummary,
   SourceRuntimeServiceRegistryNegativeSummary,
+  SourceRuntimeServiceRegistryReloadSummary,
   SourceRuntimeServiceRunByIdSummary,
   SourceRuntimeServiceRunSummary,
 } from './SourceRuntimeService'
@@ -43,6 +45,9 @@ const PACKAGE_REGISTRY_ROUTE_LABEL: string = 'app-local-source-package-registry-
 const ARCHIVE_REGISTRY_ROUTE_LABEL: string = 'app-local-source-archive-registry-test-only'
 const PACKAGE_REGISTRY_SOURCE_ID: string = 'local.test.koma.fixture.package.registry'
 const ARCHIVE_REGISTRY_SOURCE_ID: string = 'local.test.koma.fixture.archive.registry'
+const REGISTRY_RELOAD_METADATA_FILE: string = 'registry-metadata.json'
+const REGISTRY_RELOAD_MISSING_METADATA_FILE: string = 'missing-registry-metadata.json'
+const REGISTRY_RELOAD_CORRUPT_METADATA_FILE: string = 'corrupt-registry-metadata.json'
 const ARCHIVE_RAWFILE_PATH: string = 'test/local_source_runtime_fixture.koma-source'
 const ARCHIVE_SANDBOX_ZIP_FILE: string = 'local_source_runtime_fixture.zip'
 const ARCHIVE_REQUEST_JSON: string = '{"operation":"search","query":"fixture","smoke":"koma-archive-smoke"}'
@@ -180,7 +185,27 @@ export interface SourceRuntimeSmokeResult {
   sourceRuntimeRegistryMissingSourceIdReasonCode?: string
   sourceRuntimeRegistryInvalidRunRejected?: boolean
   sourceRuntimeRegistryInvalidRunReasonCode?: string
+  sourceRuntimeRegistryReloadOk?: boolean
+  sourceRuntimeRegistryReloadMetadataPath?: string
+  sourceRuntimeRegistryPersistedSourceCount?: number
+  sourceRuntimeRegistryReloadedSourceCount?: number
+  sourceRuntimeRegistryPackageReloadRunByIdOk?: boolean
+  sourceRuntimeRegistryPackageReloadRunByIdOperations?: SourceRuntimeApiOperationsSummary
+  sourceRuntimeRegistryArchiveReloadRunByIdOk?: boolean
+  sourceRuntimeRegistryArchiveReloadRunByIdOperations?: SourceRuntimeApiOperationsSummary
+  sourceRuntimeRegistryReloadNegativeRejected?: boolean
+  sourceRuntimeRegistryReloadNegativeReasonCode?: string
+  sourceRuntimeRegistryReloadNegativeAttemptedWamrExecution?: boolean
+  sourceRuntimeRegistryReloadCorruptMetadataRejected?: boolean
+  sourceRuntimeRegistryReloadCorruptMetadataReasonCode?: string
+  sourceRuntimeRegistryReloadCorruptMetadataAttemptedWamrExecution?: boolean
   error?: string
+}
+
+function joinSourceRuntimeSmokePath(parent: string, child: string): string {
+  const left = parent.replace(/\\/g, '/').replace(/\/+$/, '')
+  const right = child.replace(/\\/g, '/').replace(/^\/+/, '')
+  return left.length === 0 ? right : `${left}/${right}`
 }
 
 function wantParameters(want: Want): WantParameters {
@@ -347,6 +372,15 @@ async function runSourceRuntimeRegistrySmoke(
   )
   const packageRunById = runRegisteredSourceApiOperationsById(registry, PACKAGE_REGISTRY_SOURCE_ID)
   const archiveRunById = runRegisteredSourceApiOperationsById(registry, ARCHIVE_REGISTRY_SOURCE_ID)
+  const metadataRoot = joinSourceRuntimeSmokePath(context.filesDir, 'source-runtime-registry-reload-smoke')
+  const reloadSummary = persistReloadAndRunRegisteredSourcesById(
+    registry,
+    joinSourceRuntimeSmokePath(metadataRoot, REGISTRY_RELOAD_METADATA_FILE),
+    joinSourceRuntimeSmokePath(metadataRoot, REGISTRY_RELOAD_MISSING_METADATA_FILE),
+    joinSourceRuntimeSmokePath(metadataRoot, REGISTRY_RELOAD_CORRUPT_METADATA_FILE),
+    PACKAGE_REGISTRY_SOURCE_ID,
+    ARCHIVE_REGISTRY_SOURCE_ID,
+  )
   result.sourceRuntimeRegistrySourceCount = registry.count()
   result.sourceRuntimeRegistryPackageSourceId = PACKAGE_REGISTRY_SOURCE_ID
   result.sourceRuntimeRegistryArchiveSourceId = ARCHIVE_REGISTRY_SOURCE_ID
@@ -354,6 +388,7 @@ async function runSourceRuntimeRegistrySmoke(
   result.sourceRuntimeRegistryArchiveEntry = compactRegistryEntry(archiveRegistered)
   applyRunByIdEvidence(result, packageRunById, true)
   applyRunByIdEvidence(result, archiveRunById, false)
+  applyRegistryReloadEvidence(result, reloadSummary)
   if (packageRegistered.entry !== undefined) {
     const negative = runSourceRuntimeRegistryNegativeEvidence(registry, packageRegistered.entry)
     applyRegistryNegativeEvidence(result, negative)
@@ -367,7 +402,8 @@ async function runSourceRuntimeRegistrySmoke(
     result.sourceRuntimeRegistryArchiveRunByIdOk === true &&
     result.sourceRuntimeRegistryDuplicateRejected === true &&
     result.sourceRuntimeRegistryMissingSourceIdRejected === true &&
-    result.sourceRuntimeRegistryInvalidRunRejected === true
+    result.sourceRuntimeRegistryInvalidRunRejected === true &&
+    result.sourceRuntimeRegistryReloadOk === true
 }
 
 function applyRunByIdEvidence(
@@ -394,6 +430,46 @@ function applyRegistryNegativeEvidence(
   result.sourceRuntimeRegistryMissingSourceIdReasonCode = summary.missingSourceIdReasonCode
   result.sourceRuntimeRegistryInvalidRunRejected = summary.invalidRunRejected
   result.sourceRuntimeRegistryInvalidRunReasonCode = summary.invalidRunReasonCode
+}
+
+function applyRegistryReloadEvidence(
+  result: SourceRuntimeSmokeResult,
+  summary: SourceRuntimeServiceRegistryReloadSummary,
+): void {
+  result.sourceRuntimeRegistryReloadMetadataPath = summary.metadataPath
+  result.sourceRuntimeRegistryPersistedSourceCount = summary.persistedSourceCount
+  result.sourceRuntimeRegistryReloadedSourceCount = summary.reloadedSourceCount
+  result.sourceRuntimeRegistryPackageReloadRunByIdOk = summary.packageRunByIdOk
+  result.sourceRuntimeRegistryPackageReloadRunByIdOperations = compactSourceApiOperations(summary.packageRunByIdOperations)
+  result.sourceRuntimeRegistryArchiveReloadRunByIdOk = summary.archiveRunByIdOk
+  result.sourceRuntimeRegistryArchiveReloadRunByIdOperations = compactSourceApiOperations(summary.archiveRunByIdOperations)
+  result.sourceRuntimeRegistryReloadNegativeRejected = summary.negative.rejected
+  result.sourceRuntimeRegistryReloadNegativeReasonCode = summary.negative.reasonCode
+  result.sourceRuntimeRegistryReloadNegativeAttemptedWamrExecution = summary.negative.attemptedWamrExecution
+  result.sourceRuntimeRegistryReloadCorruptMetadataRejected = summary.corruptNegative.rejected
+  result.sourceRuntimeRegistryReloadCorruptMetadataReasonCode = summary.corruptNegative.reasonCode
+  result.sourceRuntimeRegistryReloadCorruptMetadataAttemptedWamrExecution = summary.corruptNegative.attemptedWamrExecution
+  result.sourceRuntimeRegistryReloadOk = summary.ok &&
+    summary.persistedSourceCount >= 2 &&
+    summary.reloadedSourceCount >= 2 &&
+    summary.packageRunByIdOk &&
+    summary.archiveRunByIdOk &&
+    summary.negative.rejected &&
+    summary.negative.reasonCode === 'metadata_missing' &&
+    summary.negative.attemptedWamrExecution === false &&
+    summary.corruptNegative.rejected &&
+    summary.corruptNegative.reasonCode === 'metadata_invalid' &&
+    summary.corruptNegative.attemptedWamrExecution === false
+}
+
+function compactSmokeResultForHilog(result: SourceRuntimeSmokeResult): void {
+  result.rawfilePath = undefined
+  result.rustRawfilePath = undefined
+  result.archiveRawfilePath = undefined
+  result.sourceRuntimeRegistryPackageEntry = undefined
+  result.sourceRuntimeRegistryArchiveEntry = undefined
+  result.sourceRuntimeExecutionNegativeCases = undefined
+  result.archiveNegativeCases = undefined
 }
 
 export async function maybeRunSourceRuntimeDeviceSmoke(
@@ -477,14 +553,16 @@ export async function maybeRunSourceRuntimeDeviceSmoke(
       result.rustSourceApiOperationsOk === true &&
       result.archiveNegativeOk === true &&
       result.sourceRuntimeExecutionNegativeOk === true &&
-      result.sourceRuntimeRegistryOk === true
+      result.sourceRuntimeRegistryOk === true &&
+      result.sourceRuntimeRegistryReloadOk === true
     if (!result.ok) {
-      result.error = 'WAMR fixture JSON assertion failed for bundled, legacy rawfile, Rust source rawfile, local source package, local source archive import, archive negative rejection, negative execution, and registry run-by-id paths'
+      result.error = 'WAMR fixture JSON assertion failed for bundled, legacy rawfile, Rust source rawfile, local source package, local source archive import, archive negative rejection, negative execution, registry run-by-id, and registry persistence/reload paths'
     }
   } catch (error) {
     const e = error as Error
     result.error = e.message
   }
 
+  compactSmokeResultForHilog(result)
   console.info(SMOKE_LOG_PREFIX + JSON.stringify(result))
 }

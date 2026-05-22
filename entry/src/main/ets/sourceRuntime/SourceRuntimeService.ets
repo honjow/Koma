@@ -1,4 +1,5 @@
 import { common } from '@kit.AbilityKit'
+import { fileIo as fs } from '@kit.CoreFileKit'
 import { resourceManager } from '@kit.LocalizationKit'
 import { SourceRuntimeCallResponse } from './NativeSourceRuntime'
 import {
@@ -19,7 +20,9 @@ import {
 import {
   SourceRuntimeRegistry,
   SourceRuntimeRegistryEntry,
+  SourceRuntimeRegistryPersistResult,
   SourceRuntimeRegistryRegisterResult,
+  SourceRuntimeRegistryReloadResult,
 } from './SourceRuntimeRegistry'
 
 export interface SourceRuntimeServiceRunSummary {
@@ -71,10 +74,50 @@ export interface SourceRuntimeServiceRegistryNegativeSummary {
   invalidRunReasonCode?: string
 }
 
+export interface SourceRuntimeServiceRegistryReloadNegativeSummary {
+  rejected: boolean
+  reasonCode?: string
+  attemptedWamrExecution: boolean
+}
+
+export interface SourceRuntimeServiceRegistryReloadSummary {
+  ok: boolean
+  reasonCode?: string
+  metadataPath: string
+  persistedSourceCount: number
+  reloadedSourceCount: number
+  packageRunByIdOk: boolean
+  packageRunByIdOperations: SourceRuntimeApiOperationsSummary
+  archiveRunByIdOk: boolean
+  archiveRunByIdOperations: SourceRuntimeApiOperationsSummary
+  negative: SourceRuntimeServiceRegistryReloadNegativeSummary
+  corruptNegative: SourceRuntimeServiceRegistryReloadNegativeSummary
+}
+
+function closeFileQuietly(file: fs.File | undefined): void {
+  if (file === undefined) {
+    return
+  }
+  try {
+    fs.closeSync(file)
+  } catch (_err) {
+  }
+}
+
 function joinSourceRuntimeServicePath(parent: string, child: string): string {
   const left = parent.replace(/\\/g, '/').replace(/\/+$/, '')
   const right = child.replace(/\\/g, '/').replace(/^\/+/, '')
   return left.length === 0 ? right : `${left}/${right}`
+}
+
+function writeTextSync(path: string, payload: string): void {
+  let file: fs.File | undefined = undefined
+  try {
+    file = fs.openSync(path, fs.OpenMode.WRITE_ONLY | fs.OpenMode.CREATE | fs.OpenMode.TRUNC)
+    fs.writeSync(file.fd, payload, { encoding: 'utf-8' })
+  } finally {
+    closeFileQuietly(file)
+  }
 }
 
 export function runStagedRawfileSourcePackage(
@@ -337,6 +380,114 @@ export function runSourceRuntimeRegistryNegativeEvidence(
     missingSourceIdReasonCode: missing.reasonCode,
     invalidRunRejected: !invalidRun.ok && invalidRun.reasonCode === 'source_id_not_registered',
     invalidRunReasonCode: invalidRun.reasonCode,
+  }
+}
+
+export function persistReloadAndRunRegisteredSourcesById(
+  registry: SourceRuntimeRegistry,
+  metadataPath: string,
+  missingMetadataPath: string,
+  corruptMetadataPath: string,
+  packageSourceId: string,
+  archiveSourceId: string,
+): SourceRuntimeServiceRegistryReloadSummary {
+  const persist = persistSourceRuntimeRegistryMetadata(registry, metadataPath)
+  const missingNegative = runSourceRuntimeRegistryReloadNegativeEvidence(missingMetadataPath)
+  const corruptNegative = runSourceRuntimeRegistryReloadCorruptMetadataEvidence(corruptMetadataPath)
+  if (!persist.ok) {
+    return {
+      ok: false,
+      reasonCode: persist.reasonCode,
+      metadataPath,
+      persistedSourceCount: persist.persistedSourceCount,
+      reloadedSourceCount: 0,
+      packageRunByIdOk: false,
+      packageRunByIdOperations: { ok: false, operations: [], evidence: [] },
+      archiveRunByIdOk: false,
+      archiveRunByIdOperations: { ok: false, operations: [], evidence: [] },
+      negative: missingNegative,
+      corruptNegative,
+    }
+  }
+
+  const reloaded = reloadSourceRuntimeRegistryFromMetadata(metadataPath)
+  if (!reloaded.ok) {
+    return {
+      ok: false,
+      reasonCode: reloaded.reasonCode,
+      metadataPath,
+      persistedSourceCount: persist.persistedSourceCount,
+      reloadedSourceCount: reloaded.reloadedSourceCount,
+      packageRunByIdOk: false,
+      packageRunByIdOperations: { ok: false, operations: [], evidence: [] },
+      archiveRunByIdOk: false,
+      archiveRunByIdOperations: { ok: false, operations: [], evidence: [] },
+      negative: missingNegative,
+      corruptNegative,
+    }
+  }
+
+  const packageRunById = runRegisteredSourceApiOperationsById(reloaded.registry, packageSourceId)
+  const archiveRunById = runRegisteredSourceApiOperationsById(reloaded.registry, archiveSourceId)
+  return {
+    ok: packageRunById.ok && packageRunById.sourceApiOperationsOk &&
+      archiveRunById.ok && archiveRunById.sourceApiOperationsOk &&
+      missingNegative.rejected &&
+      corruptNegative.rejected,
+    metadataPath,
+    persistedSourceCount: persist.persistedSourceCount,
+    reloadedSourceCount: reloaded.reloadedSourceCount,
+    packageRunByIdOk: packageRunById.ok && packageRunById.sourceApiOperationsOk,
+    packageRunByIdOperations: packageRunById.sourceApiOperations,
+    archiveRunByIdOk: archiveRunById.ok && archiveRunById.sourceApiOperationsOk,
+    archiveRunByIdOperations: archiveRunById.sourceApiOperations,
+    negative: missingNegative,
+    corruptNegative,
+  }
+}
+
+export function persistSourceRuntimeRegistryMetadata(
+  registry: SourceRuntimeRegistry,
+  metadataPath: string,
+): SourceRuntimeRegistryPersistResult {
+  return registry.persistToAppLocalMetadata(metadataPath)
+}
+
+export function reloadSourceRuntimeRegistryFromMetadata(metadataPath: string): SourceRuntimeRegistryReloadResult {
+  return SourceRuntimeRegistry.reloadFromAppLocalMetadata(metadataPath)
+}
+
+export function runSourceRuntimeRegistryReloadNegativeEvidence(
+  missingMetadataPath: string,
+): SourceRuntimeServiceRegistryReloadNegativeSummary {
+  const reloaded = reloadSourceRuntimeRegistryFromMetadata(missingMetadataPath)
+  return {
+    rejected: !reloaded.ok && reloaded.reasonCode === 'metadata_missing',
+    reasonCode: reloaded.reasonCode,
+    attemptedWamrExecution: false,
+  }
+}
+
+export function runSourceRuntimeRegistryReloadCorruptMetadataEvidence(
+  corruptMetadataPath: string,
+): SourceRuntimeServiceRegistryReloadNegativeSummary {
+  try {
+    writeTextSync(
+      corruptMetadataPath,
+      '{"schemaVersion":1,"entries":[{"sourceId":123,"manifestId":"koma.fixture.corrupt-metadata","manifestVersion":"1.0.0","route":"app-local-source-corrupt-metadata-test-only","importStatus":"imported","wasmByteCount":-1,"hashOk":true,"network":false,"wasmPath":"corrupt-metadata-fixture.wasm"}]}',
+    )
+    const reloaded = reloadSourceRuntimeRegistryFromMetadata(corruptMetadataPath)
+    return {
+      rejected: !reloaded.ok && reloaded.reasonCode === 'metadata_invalid',
+      reasonCode: reloaded.reasonCode,
+      attemptedWamrExecution: false,
+    }
+  } catch (_err) {
+    return {
+      rejected: false,
+      reasonCode: 'metadata_invalid',
+      attemptedWamrExecution: false,
+    }
   }
 }
 
