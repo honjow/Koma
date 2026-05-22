@@ -29,6 +29,7 @@ HOST_BUILD_DIR="$BUILD_DIR/host"
 RUN_LOG="$LOG_DIR/run-rust-fixture.log"
 JSON_OUT="$ARTIFACT_DIR/rust-source-operation-results.json"
 REPORT_OUT="$ARTIFACT_DIR/source-info-capabilities-report.json"
+SURFACE_REPORT_OUT="$ARTIFACT_DIR/source-operation-surface-report.json"
 
 mkdir -p "$BUILD_DIR" "$LOG_DIR" "$(dirname "$WAMR_ROOT_DIR")"
 : > "$RUN_LOG"
@@ -282,13 +283,14 @@ if ! grep -q 'HOST_CHECK_CANCEL result=0' "$RUN_LOG"; then
 fi
 
 if command -v python3 >/dev/null 2>&1; then
-  run_logged python3 - "$RUN_LOG" "$JSON_OUT" "$REPORT_OUT" <<'PY'
+  run_logged python3 - "$RUN_LOG" "$JSON_OUT" "$REPORT_OUT" "$SURFACE_REPORT_OUT" <<'PY'
 import json
 import sys
 
 run_log = sys.argv[1]
 json_out = sys.argv[2]
 report_out = sys.argv[3]
+surface_report_out = sys.argv[4]
 payloads = {}
 with open(run_log, "r", encoding="utf-8") as fh:
     for line in fh:
@@ -532,9 +534,264 @@ assert all(isinstance(value, bool) for value in report_capabilities_v02.values()
 with open(report_out, "w", encoding="utf-8") as out:
     json.dump(report, out, indent=2, sort_keys=True)
     out.write("\n")
+
+surface_operation_names = [
+    *core_expected,
+    *browse_expected,
+    *config_image_expected,
+]
+
+
+def base_surface(payload):
+    return {
+        "operation": payload["operation"],
+        "ok": payload["ok"],
+        "version": payload["version"],
+        "hostHintsNetwork": payload["hostHints"]["network"],
+    }
+
+
+def page_summary(page):
+    return {
+        "hasMore": bool(page["hasMore"]),
+        "nextCursor": page["nextCursor"],
+    }
+
+
+def first_item_summary(item):
+    summary = {
+        "id": item["id"],
+        "title": item["title"],
+        "contentRating": item["contentRating"],
+        "status": item["status"],
+        "coverKind": item["cover"]["kind"],
+        "sourceTagsCount": len(item.get("sourceTags", [])),
+    }
+    if "authors" in item:
+        summary["authorsCount"] = len(item["authors"])
+    return summary
+
+
+surface_builders = {}
+
+
+def _surface_search(payload):
+    data = payload["data"]
+    items = data["items"]
+    return {
+        "itemCount": len(items),
+        "firstItem": first_item_summary(items[0]),
+        "page": page_summary(data["page"]),
+        "requestEcho": data["requestEcho"],
+    }
+
+
+def _surface_get_manga(payload):
+    manga = payload["data"]["manga"]
+    return {
+        "manga": {
+            "id": manga["id"],
+            "title": manga["title"],
+            "contentRating": manga["contentRating"],
+            "status": manga["status"],
+            "language": manga["language"],
+            "coverKind": manga["cover"]["kind"],
+            "tagsCount": len(manga.get("tags", [])),
+            "authorsCount": len(manga.get("authors", [])),
+            "artistsCount": len(manga.get("artists", [])),
+            "alternateTitlesCount": len(manga.get("alternateTitles", [])),
+            "linksCount": len(manga.get("links", [])),
+            "hasDescription": bool(manga.get("description")),
+        },
+    }
+
+
+def _surface_get_chapters(payload):
+    data = payload["data"]
+    items = data["items"]
+    first = items[0]
+    return {
+        "itemCount": len(items),
+        "firstChapter": {
+            "id": first["id"],
+            "mangaId": first["mangaId"],
+            "chapterNumber": first["chapterNumber"],
+            "title": first["title"],
+            "language": first["language"],
+            "pageCount": first["pageCount"],
+            "hasVolumeNumber": first["volumeNumber"] is not None,
+            "hasPublishedAt": first["publishedAt"] is not None,
+            "hasUpdatedAt": first["updatedAt"] is not None,
+        },
+        "page": page_summary(data["page"]),
+    }
+
+
+def _surface_get_pages(payload):
+    data = payload["data"]
+    pages = data["pages"]
+    first = pages[0]
+    image = first["image"]
+    return {
+        "chapterId": data["chapterId"],
+        "pageCount": len(pages),
+        "firstPage": {
+            "id": first["id"],
+            "index": first["index"],
+            "imageKind": image["kind"],
+            "imageLabel": image.get("label"),
+            "imageWidth": image.get("width"),
+            "imageHeight": image.get("height"),
+        },
+    }
+
+
+def _surface_get_listings(payload):
+    listings = payload["data"]["listings"]
+    return {
+        "listingCount": len(listings),
+        "listings": [
+            {"id": entry["id"], "kind": entry["kind"], "name": entry["name"]}
+            for entry in listings
+        ],
+    }
+
+
+def _surface_get_manga_list(payload):
+    data = payload["data"]
+    items = data["items"]
+    return {
+        "listingId": data["listingId"],
+        "itemCount": len(items),
+        "firstItem": first_item_summary(items[0]),
+        "page": page_summary(data["page"]),
+    }
+
+
+def _surface_get_home(payload):
+    sections = payload["data"]["sections"]
+    section_summaries = []
+    for section in sections:
+        summary = {
+            "id": section["id"],
+            "kind": section["kind"],
+            "title": section["title"],
+        }
+        if "items" in section:
+            summary["itemCount"] = len(section["items"])
+        if "listingId" in section:
+            summary["listingId"] = section["listingId"]
+        section_summaries.append(summary)
+    return {
+        "sectionCount": len(sections),
+        "sections": section_summaries,
+    }
+
+
+def _surface_get_filters(payload):
+    filters = payload["data"]["filters"]
+    summaries = []
+    for entry in filters:
+        summary = {
+            "id": entry["id"],
+            "kind": entry["kind"],
+            "label": entry["label"],
+        }
+        if "options" in entry:
+            summary["optionCount"] = len(entry["options"])
+        summaries.append(summary)
+    return {
+        "filterCount": len(filters),
+        "filters": summaries,
+    }
+
+
+def _surface_get_settings(payload):
+    settings = payload["data"]["settings"]
+    summaries = []
+    for entry in settings:
+        summary = {"id": entry["id"], "kind": entry["kind"], "label": entry["label"]}
+        if "options" in entry:
+            summary["optionCount"] = len(entry["options"])
+        if "children" in entry:
+            summary["childrenCount"] = len(entry["children"])
+        if "loginRefKey" in entry:
+            summary["hasLoginRefKey"] = True
+        if "default" in entry:
+            summary["hasDefault"] = True
+        summaries.append(summary)
+    return {
+        "settingCount": len(settings),
+        "settings": summaries,
+    }
+
+
+def _surface_get_image_request(payload):
+    image_request = payload["data"]["imageRequest"]
+    return {
+        "imageRequest": {
+            "id": image_request["id"],
+            "url": image_request["url"],
+            "method": image_request["method"],
+            "hasHeaderRef": bool(image_request.get("headersRef")),
+            "hasProtectedRef": bool(image_request.get("credentialsRef")),
+            "hasSessionRef": bool(image_request.get("sessionRef")),
+            "hasResourceRef": bool(image_request.get("resourceRef")),
+            "hasCacheKey": bool(image_request.get("cacheKey")),
+            "requiresAuth": image_request["requiresAuth"],
+        },
+    }
+
+
+surface_builders = {
+    "search": _surface_search,
+    "get_manga": _surface_get_manga,
+    "get_chapters": _surface_get_chapters,
+    "get_pages": _surface_get_pages,
+    "get_listings": _surface_get_listings,
+    "get_manga_list": _surface_get_manga_list,
+    "get_home": _surface_get_home,
+    "get_filters": _surface_get_filters,
+    "get_settings": _surface_get_settings,
+    "get_image_request": _surface_get_image_request,
+}
+
+surface_operations = []
+for name in surface_operation_names:
+    payload = payloads[name]
+    entry = base_surface(payload)
+    entry["surface"] = surface_builders[name](payload)
+    surface_operations.append(entry)
+
+surface_report = {
+    "version": 1,
+    "scope": "wasm-runtime-spike rust fixture runtime operation surface evidence",
+    "sourceInfo": report_source_info,
+    "operationCount": len(surface_operations),
+    "operations": surface_operations,
+}
+surface_raw = json.dumps(surface_report, sort_keys=True)
+forbidden_surface = [
+    "http_request", "https://", "http://", "file://",
+    "content://", "ohos://", "internal://", "app-private", "/home/",
+    "/Users/", "/data/", "/storage/", "/sdcard/", ".hermes-artifacts",
+    "password", "token", "secret", "apiKey", "cookie", "Authorization",
+    "BEGIN PRIVATE KEY", "BEGIN RSA PRIVATE KEY",
+    ".p12", ".cer", ".p7b", "credential",
+    "/tmp/", "/root/",
+]
+assert not any(item in surface_raw for item in forbidden_surface), "surface report leaked sensitive token"
+assert all(entry["hostHintsNetwork"] is False for entry in surface_operations)
+assert all(entry["ok"] is True for entry in surface_operations)
+assert all(entry["version"] == 1 for entry in surface_operations)
+assert sorted(entry["operation"] for entry in surface_operations) == sorted(surface_operation_names)
+with open(surface_report_out, "w", encoding="utf-8") as out:
+    json.dump(surface_report, out, indent=2, sort_keys=True)
+    out.write("\n")
 PY
   run_logged python3 -m json.tool "$JSON_OUT"
   run_logged python3 -m json.tool "$REPORT_OUT"
+  run_logged python3 -m json.tool "$SURFACE_REPORT_OUT"
 else
   log "python3 not found; host runner still validated result envelope shape"
 fi
@@ -545,3 +802,4 @@ log "  wasm: $WASM_OUT"
 log "  log: $RUN_LOG"
 log "  json: $JSON_OUT"
 log "  report: $REPORT_OUT"
+log "  surface: $SURFACE_REPORT_OUT"

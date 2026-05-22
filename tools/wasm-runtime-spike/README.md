@@ -181,7 +181,16 @@ bash tools/wasm-runtime-spike/run-rust-fixture.sh
 ```
 
 It has no Cargo dependencies and writes generated SDK rlib/wasm/log/JSON
-artifacts under the ignored artifact directory. The local `rust-sdk` crate is a
+artifacts under the ignored artifact directory. Alongside the raw envelope
+dump (`rust-source-operation-results.json`) and the existing
+`source-info-capabilities-report.json`, the runner emits
+`source-operation-surface-report.json`: a sanitized per-operation surface
+summary for `search`, `get_manga`, `get_chapters`, `get_pages`, `get_listings`,
+`get_manga_list`, `get_home`, `get_filters`, `get_settings`, and
+`get_image_request` (operation name, `ok`/`version`/`hostHintsNetwork=false`,
+plus representative stable ids/kinds/counts/titles). It contains no raw
+payloads, paths, URLs (besides the existing `fixture-image:` reference), or
+credential material. The local `rust-sdk` crate is a
 test-only, self-authored Koma boundary for the fixture's tiny ABI surface:
 host logging/cancellation wrappers, provisional source-author request types,
 operation helpers, KOMA result buffer/envelope writing, and the
