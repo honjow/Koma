@@ -161,6 +161,15 @@ pub mod request {
             Some(Self { bytes })
         }
 
+        #[cfg(test)]
+        pub(crate) fn from_bytes_for_test(bytes: &'a [u8]) -> Option<Self> {
+            if bytes.is_empty() {
+                return None;
+            }
+
+            Some(Self { bytes })
+        }
+
         pub fn contains(&self, needle: &[u8]) -> bool {
             contains_bytes(self.bytes, needle)
         }
@@ -193,6 +202,93 @@ pub mod request {
             let pattern = unsafe { core::slice::from_raw_parts(pattern.as_ptr(), needed) };
             contains_bytes(self.bytes, pattern)
         }
+
+        pub fn contains_json_number(&self, key: &[u8], value: u32) -> bool {
+            let mut digits = [0_u8; 10];
+            let digits_len = encode_u32_decimal(value, &mut digits);
+
+            let mut pattern = [0_u8; 96];
+            let needed = key.len() + digits_len + 3;
+            if needed > pattern.len() {
+                return false;
+            }
+
+            let pattern_ptr = pattern.as_mut_ptr();
+            unsafe {
+                *pattern_ptr = b'"';
+                core::ptr::copy_nonoverlapping(key.as_ptr(), pattern_ptr.add(1), key.len());
+                let mut cursor = 1 + key.len();
+                *pattern_ptr.add(cursor) = b'"';
+                *pattern_ptr.add(cursor + 1) = b':';
+                cursor += 2;
+                core::ptr::copy_nonoverlapping(
+                    digits.as_ptr(),
+                    pattern_ptr.add(cursor),
+                    digits_len,
+                );
+            }
+
+            let pattern = unsafe { core::slice::from_raw_parts(pattern.as_ptr(), needed) };
+            find_with_non_digit_boundary(self.bytes, pattern)
+        }
+    }
+
+    fn encode_u32_decimal(value: u32, out: &mut [u8; 10]) -> usize {
+        if value == 0 {
+            out[0] = b'0';
+            return 1;
+        }
+
+        let mut scratch = [0_u8; 10];
+        let mut remaining = value;
+        let mut written = 0_usize;
+        while remaining > 0 {
+            scratch[written] = b'0' + (remaining % 10) as u8;
+            remaining /= 10;
+            written += 1;
+        }
+
+        let mut index = 0_usize;
+        while index < written {
+            out[index] = scratch[written - 1 - index];
+            index += 1;
+        }
+        written
+    }
+
+    fn find_with_non_digit_boundary(haystack: &[u8], needle: &[u8]) -> bool {
+        if needle.is_empty() || haystack.len() < needle.len() {
+            return false;
+        }
+
+        let last = haystack.len() - needle.len();
+        let mut index = 0_usize;
+        while index <= last {
+            let mut matched = true;
+            let mut offset = 0_usize;
+            while offset < needle.len() {
+                let hay = unsafe { *haystack.as_ptr().add(index + offset) };
+                let expected = unsafe { *needle.as_ptr().add(offset) };
+                if hay != expected {
+                    matched = false;
+                    break;
+                }
+                offset += 1;
+            }
+            if matched {
+                let tail = index + needle.len();
+                if tail >= haystack.len() {
+                    return true;
+                }
+                let next = unsafe { *haystack.as_ptr().add(tail) };
+                if !(next >= b'0' && next <= b'9') {
+                    return true;
+                }
+            }
+            index += 1;
+        }
+
+        false
     }
 
     pub fn contains_bytes(haystack: &[u8], needle: &[u8]) -> bool {
@@ -482,6 +578,10 @@ pub mod source {
         pub fn query_is(&self, query: &[u8]) -> bool {
             self.request.contains_json_string(b"query", query)
         }
+
+        pub fn limit_is(&self, limit: u32) -> bool {
+            self.request.contains_json_number(b"limit", limit)
+        }
     }
 
     impl<'a> MangaId<'a> {
@@ -511,6 +611,10 @@ pub mod source {
     impl<'a> MangaListRequest<'a> {
         pub fn listing_id_is(&self, id: &[u8]) -> bool {
             self.request.contains_json_string(b"listingId", id)
+        }
+
+        pub fn limit_is(&self, limit: u32) -> bool {
+            self.request.contains_json_number(b"limit", limit)
         }
     }
 
@@ -1140,7 +1244,8 @@ pub mod result {
 
 #[cfg(test)]
 mod tests {
-    use crate::source::SourceCapabilities;
+    use crate::request::Request;
+    use crate::source::{MangaListRequest, OperationRequest, SearchRequest, SourceCapabilities};
 
     #[test]
     fn full_v02_fixture_capabilities_advertise_current_operation_surface() {
@@ -1156,5 +1261,43 @@ mod tests {
         assert!(capabilities.filters);
         assert!(capabilities.settings);
         assert!(capabilities.image_request);
+    }
+
+    fn request_from(bytes: &[u8]) -> Request<'_> {
+        Request::from_bytes_for_test(bytes).expect("non-empty request")
+    }
+
+    #[test]
+    fn contains_json_number_matches_compact_pagination_limit() {
+        let bytes: &[u8] =
+            br#"{"operation":"get_manga_list","listingId":"all","cursor":"","limit":20}"#;
+        let request = request_from(bytes);
+
+        assert!(request.contains_json_number(b"limit", 20));
+        assert!(!request.contains_json_number(b"limit", 21));
+        assert!(!request.contains_json_number(b"offset", 20));
+    }
+
+    #[test]
+    fn contains_json_number_rejects_digit_prefix_collision() {
+        let bytes: &[u8] = br#"{"limit":200}"#;
+        let request = request_from(bytes);
+
+        assert!(request.contains_json_number(b"limit", 200));
+        assert!(!request.contains_json_number(b"limit", 20));
+    }
+
+    #[test]
+    fn manga_list_and_search_limit_is_wrappers_match_compact_pagination() {
+        let manga_list_bytes: &[u8] =
+            br#"{"operation":"get_manga_list","listingId":"all","cursor":"","limit":20}"#;
+        let manga_list = MangaListRequest::from_request(request_from(manga_list_bytes));
+        assert!(manga_list.limit_is(20));
+        assert!(!manga_list.limit_is(50));
+
+        let search_bytes: &[u8] = br#"{"operation":"search","query":"foo","limit":50}"#;
+        let search = SearchRequest::from_request(request_from(search_bytes));
+        assert!(search.limit_is(50));
+        assert!(!search.limit_is(20));
     }
 }
