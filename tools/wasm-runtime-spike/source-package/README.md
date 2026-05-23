@@ -412,6 +412,27 @@ artifact directory with redacted commands, per-step report paths, and the
 parity-confirmed v0.2 operations covered. It exits 0 only when every step
 passes and every expected per-step report file is present.
 
+To prove the suite's fail-closed behavior is repeatably testable as tooling
+(not just QA evidence), the negative-contract validator copies the wrapper and
+redaction helper under the artifact directory, patches the copied wrapper to
+replace its first step with a local stub that exits nonzero without writing
+its expected report, runs the patched copy, and asserts the suite exited
+nonzero, the suite report status is `FAIL`, the suite findings include both a
+`step exit` entry and a `missing expected report` entry for the stubbed step,
+and the matching `expectedReportsPresent` entry is `false`. The validator
+performs no repository mutation; all copies, patches, suite outputs, logs, and
+its own report stay under the provided `--artifact-dir`:
+
+```sh
+python3 tools/wasm-runtime-spike/source-package/validate-evidence-suite-negative-contract.py \
+  --artifact-dir /path/to/artifacts/evidence-suite-negative-contract
+```
+
+The validator writes `evidence-suite-negative-contract-report.json` under the
+artifact directory. The negative suite run reuses the artifact-local WAMR cache
+by default; pass `--shared-wamr-root /path/to/wasm-micro-runtime` to reuse an
+existing checkout and skip an extra clone.
+
 `validate-archive-negative-fixtures.py` is a tooling-only adversarial corpus
 generator. It first creates a valid baseline archive under the artifact
 directory, then writes malformed zips under artifacts only and asserts the
