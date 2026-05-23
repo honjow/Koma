@@ -37,12 +37,12 @@ fn html_select_all(descriptor: i32, selector: &[u8], out: &mut [u8]) -> i32 {
 }
 
 /// Buffer to hold descriptors returned by html_select_all (up to 50 results)
-static mut SELECT_ALL_BUF: [u8; 200] = [0; 200]; // 50 * 4 bytes
+static mut SELECT_ALL_BUF: [u8; 2000] = [0; 2000]; // 500 * 4 bytes
 
 
 const SITE_BASE: &[u8] = b"https://www.baozimh.com";
 const READER_BASE: &[u8] = b"https://www.twmanga.com";
-const PAYLOAD_CAP: usize = 32 * 1024;
+const PAYLOAD_CAP: usize = 128 * 1024;
 const HTTP_OUT_CAP: usize = 512 * 1024;
 const HTML_BUF_CAP: usize = 512 * 1024;
 const HTTP_REQ_CAP: usize = 1024;
@@ -445,15 +445,7 @@ fn run_search(req: &[u8]) -> u32 {
     // Use html_select_all to get all comics-card poster links
     let select_buf = unsafe { &mut *core::ptr::addr_of_mut!(SELECT_ALL_BUF) };
     let count = html_select_all(document.0.raw(), b"a.comics-card__poster", select_buf);
-    // Debug: log the count
-    {
-        let mut dbg = [0u8; 64];
-        let mut dc = 0usize;
-        write_bytes(&mut dbg, &mut dc, b"select_all count=");
-        let cnt_str = if count < 0 { b"-1" as &[u8] } else if count == 0 { b"0" } else { b"+" };
-        write_bytes(&mut dbg, &mut dc, cnt_str);
-        log_info(&dbg[..dc]);
-    }
+
 
     let payload = payload_buf();
     let mut c = 0usize;
@@ -464,7 +456,7 @@ fn run_search(req: &[u8]) -> u32 {
 
     let mut written = 0usize;
     let max_items = if count > 0 { count as usize } else { 0 };
-    let max_items = if max_items > 50 { 50 } else { max_items };
+    let max_items = if max_items > 500 { 500 } else { max_items };
 
     for i in 0..max_items {
         let offset = i * 4;
@@ -650,7 +642,7 @@ fn run_get_chapters(req: &[u8]) -> u32 {
     }
 
     let max_items = if count > 0 { count as usize } else { 0 };
-    let max_items = if max_items > 50 { 50 } else { max_items };
+    let max_items = if max_items > 500 { 500 } else { max_items };
     let mut written = 0usize;
 
     for i in 0..max_items {
@@ -755,7 +747,7 @@ fn run_get_pages(req: &[u8]) -> u32 {
     }
 
     let max_items = if count > 0 { count as usize } else { 0 };
-    let max_items = if max_items > 50 { 50 } else { max_items };
+    let max_items = if max_items > 500 { 500 } else { max_items };
     let mut written = 0usize;
 
     for i in 0..max_items {
