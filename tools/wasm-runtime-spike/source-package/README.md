@@ -69,6 +69,9 @@ built-in source catalog, product UI, real network, or trust/signing workflow.
 - [`SOURCE_AUTHOR_FIXTURE_SDK_PARITY.md`](SOURCE_AUTHOR_FIXTURE_SDK_PARITY.md)
   — map from source-author SDK concepts to the fixtures and validators that
   prove each one.
+- [`SOURCE_RUNTIME_PRODUCTIZATION_CHECKPOINT.md`](SOURCE_RUNTIME_PRODUCTIZATION_CHECKPOINT.md)
+  — post-S18A–S18I checkpoint summarizing stabilized surfaces, preserved
+  non-goals, and the next productization decision options.
 
 ## Manifest Boundary
 
