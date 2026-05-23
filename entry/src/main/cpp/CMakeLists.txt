@@ -10,12 +10,19 @@ endif()
 set(KOMA_SOURCE_RUNTIME_SOURCES
     source_runtime_sample.cpp
     wasm_runtime_adapter.cpp
-    html_host.cpp)
+    html_host.cpp
+    http_host.cpp)
 
 add_library(koma_source_runtime SHARED ${KOMA_SOURCE_RUNTIME_SOURCES})
 target_compile_features(koma_source_runtime PRIVATE cxx_std_17)
 target_include_directories(koma_source_runtime PRIVATE ${NATIVERENDER_ROOT_PATH})
 target_link_libraries(koma_source_runtime PUBLIC libace_napi.z.so libhilog_ndk.z.so)
+
+# Link native HTTP library (API 20+) if available
+find_library(NET_HTTP_LIB net_http)
+if(NET_HTTP_LIB)
+    target_link_libraries(koma_source_runtime PUBLIC ${NET_HTTP_LIB})
+endif()
 
 if(DEFINED ENV{WAMR_ROOT_DIR} AND NOT DEFINED WAMR_ROOT_DIR)
     set(WAMR_ROOT_DIR "$ENV{WAMR_ROOT_DIR}")

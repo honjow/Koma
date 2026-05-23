@@ -9,6 +9,7 @@
 #include <vector>
 
 #include "html_host.h"
+#include "http_host.h"
 
 #if defined(KOMA_ENABLE_WAMR)
 #include "source_runtime_fixture_wasm.h"
@@ -203,18 +204,7 @@ int32_t HostCheckCancel(wasm_exec_env_t execEnv)
 int32_t HostHttpRequest(wasm_exec_env_t execEnv, char *request, uint32_t requestLen, char *out, uint32_t outCap)
 {
     (void)execEnv;
-    (void)request;
-    (void)requestLen;
-    const char *payload =
-        "{\"ok\":false,\"error\":{\"code\":\"network_disabled\","
-        "\"message\":\"Harmony device smoke keeps HTTP fixture disabled\","
-        "\"retryable\":false},\"networkPerformed\":false}";
-    const uint32_t payloadLen = static_cast<uint32_t>(std::strlen(payload));
-    if (!out || outCap < payloadLen) {
-        return -3;
-    }
-    std::memcpy(out, payload, payloadLen);
-    return static_cast<int32_t>(payloadLen);
+    return koma::http::HostRequest(request, requestLen, out, outCap);
 }
 
 int32_t HostHtmlParse(wasm_exec_env_t execEnv, char *html, uint32_t htmlLen)
