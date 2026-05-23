@@ -73,6 +73,19 @@ impl Source for MySource {
 advertise as `true` must be backed by a real method override; everything else
 should remain off so the SDK returns a structured `unimplemented` error.
 
+Two SDK constants are provided for the common shapes:
+
+- `SourceCapabilities::CORE` advertises only the four core operations
+  (`search`, `mangaDetail`, `chapters`, `pages`). Use this as the default when
+  the source only implements and exports the core surface.
+- `SourceCapabilities::FULL_V02_FIXTURE` advertises all 10 current v0.2
+  operations (core plus `listings`, `mangaList`, `home`, `filters`,
+  `settings`, `imageRequest`). Use this **only** when the source actually
+  implements every v0.2 method and exports a matching `koma_source_*` ABI
+  shim for each one; otherwise build a `SourceCapabilities` value by hand so
+  no flag is `true` without a real method and export behind it. All
+  `future.*` keys stay `false` in both helpers.
+
 ### 2. Implement / export currently supported operations
 
 For each operation the source supports, override the trait method and return

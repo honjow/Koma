@@ -50,7 +50,13 @@ Validators are referenced by filename under
   `api_version`, `language`, `author`, `description`, `content_rating`).
   `Source::capabilities` returns `SourceCapabilities` with the v0.2 camelCase
   keys (`search`, `mangaDetail`, `chapters`, `pages`, `listings`, `mangaList`,
-  `home`, `filters`, `settings`, `imageRequest`, plus `future.*` keys).
+  `home`, `filters`, `settings`, `imageRequest`, plus `future.*` keys). The
+  SDK provides `SourceCapabilities::CORE` for the four core operations and
+  `SourceCapabilities::FULL_V02_FIXTURE` for the full 10-operation v0.2
+  surface; both are author conveniences and do not bypass any validator —
+  the evidence layers below still have to see real method overrides,
+  exported `koma_source_*` shims, and v0.2-conforming response envelopes for
+  every flag the helper sets to `true`.
 - **Fixture side:** `source-api-fixtures/info.*.json` and
   `source-api-fixtures/capabilities.*.json` carry the same fields inside the
   v0.2 response envelope.

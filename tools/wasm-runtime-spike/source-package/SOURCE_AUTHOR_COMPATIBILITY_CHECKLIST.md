@@ -71,6 +71,14 @@ Rules:
   `future.process_page_image`, `future.page_description`, `future.base_url`,
   `future.login`, `future.auth`, `future.deeplink`, `future.migration`.
 
+The SDK ships `SourceCapabilities::CORE` (the four core operations) and
+`SourceCapabilities::FULL_V02_FIXTURE` (all 10 current v0.2 operations) as
+convenience constants. They are author shorthand only — using
+`FULL_V02_FIXTURE` does not relax this checklist. Every flag the helper turns
+`true` must still have a matching trait method override **and** a matching
+exported `koma_source_<operation>` shim, and the evidence validators must
+still see a valid v0.2 response for each one.
+
 ## Envelope naming conventions
 
 - [ ] `operation` field carries the **snake_case** operation name
