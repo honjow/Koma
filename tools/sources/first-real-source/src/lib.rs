@@ -67,7 +67,18 @@ const SOURCE_INFO: SourceInfo = SourceInfo {
     content_rating: "unknown",
 };
 
-const SOURCE_CAPS: SourceCapabilities = SourceCapabilities::CORE;
+const SOURCE_CAPS: SourceCapabilities = SourceCapabilities {
+    search: true,
+    manga_detail: true,
+    chapters: true,
+    pages: true,
+    listings: true,
+    manga_list: false,
+    home: false,
+    filters: false,
+    settings: false,
+    image_request: false,
+};
 
 #[panic_handler]
 fn panic(_: &core::panic::PanicInfo<'_>) -> ! {
@@ -593,11 +604,71 @@ fn run_get_manga(req: &[u8]) -> u32 {
             }
         }
     }
-    if !write_bytes(
-        payload,
-        &mut c,
-        br#"],"artists":[],"status":"unknown","contentRating":"unknown","language":"zh-Hant","tags":[],"links":[]}}"#,
-    ) {
+    // Extract tags (span.tag): [0]=status, [1]=region, [2+]=genre tags
+    let select_buf = unsafe { &mut *core::ptr::addr_of_mut!(SELECT_ALL_BUF) };
+    let tag_count = html_select_all(document.0.raw(), b"span.tag", select_buf);
+    let tag_max = if tag_count > 0 { (tag_count as usize).min(20) } else { 0 };
+
+    // Read all tag texts into a stack buffer
+    let mut tag_texts: [[u8; 64]; 20] = [[0u8; 64]; 20];
+    let mut tag_lens: [usize; 20] = [0; 20];
+    for ti in 0..tag_max {
+        let off = ti * 4;
+        if off + 4 > select_buf.len() { break; }
+        let td = i32::from_le_bytes([select_buf[off], select_buf[off+1], select_buf[off+2], select_buf[off+3]]);
+        if td < 0 { continue; }
+        let hd: HtmlDescriptor = unsafe { core::mem::transmute(td) };
+        let len = html_text(hd, &mut tag_texts[ti]).unwrap_or(0);
+        // Trim leading/trailing whitespace
+        let mut start = 0;
+        let mut end = len;
+        while start < end && (tag_texts[ti][start] == b' ' || tag_texts[ti][start] == b'\n' || tag_texts[ti][start] == b'\r' || tag_texts[ti][start] == b'\t') { start += 1; }
+        while end > start && (tag_texts[ti][end-1] == b' ' || tag_texts[ti][end-1] == b'\n' || tag_texts[ti][end-1] == b'\r' || tag_texts[ti][end-1] == b'\t') { end -= 1; }
+        if start > 0 && end > start {
+            // Shift trimmed content to beginning
+            let trimmed_len = end - start;
+            let mut k = 0;
+            while k < trimmed_len { tag_texts[ti][k] = tag_texts[ti][start + k]; k += 1; }
+            tag_lens[ti] = trimmed_len;
+        } else {
+            tag_lens[ti] = end - start;
+        }
+        let _ = html_close(hd);
+    }
+
+    // Determine status from first tag
+    let status_bytes = if tag_lens[0] > 0 { &tag_texts[0][..tag_lens[0]] } else { b"unknown" as &[u8] };
+    let status_str: &[u8] = if status_bytes == "連載中".as_bytes() || status_bytes == "连载中".as_bytes() {
+        b"ongoing"
+    } else if status_bytes == "已完結".as_bytes() || status_bytes == "已完结".as_bytes() {
+        b"completed"
+    } else {
+        b"unknown"
+    };
+
+    // Write: ],"artists":[],"status":"...","contentRating":"unknown","language":"zh-Hant","tags":[
+    let ok3 = write_bytes(payload, &mut c, br#"],"artists":[],"status":""#)
+        && write_bytes(payload, &mut c, status_str)
+        && write_bytes(payload, &mut c, br#"","contentRating":"unknown","language":"zh-Hant","tags":["#);
+    if !ok3 {
+        return write_error("get_manga", "internal_error", "payload overflow");
+    }
+
+    // Write genre tags (skip [0]=status, [1]=region, start from [2])
+    let mut tag_written = 0usize;
+    for ti in 2..tag_max {
+        if tag_lens[ti] == 0 { continue; }
+        if tag_written > 0 {
+            if !write_bytes(payload, &mut c, b",") { break; }
+        }
+        let ok4 = write_bytes(payload, &mut c, br#"""#)
+            && append_json_escaped(payload, &mut c, &tag_texts[ti][..tag_lens[ti]])
+            && write_bytes(payload, &mut c, br#"""#);
+        if !ok4 { break; }
+        tag_written += 1;
+    }
+
+    if !write_bytes(payload, &mut c, br#"],"links":[]}}"#) {
         return write_error("get_manga", "internal_error", "payload overflow");
     }
 
@@ -799,6 +870,76 @@ fn run_get_pages(req: &[u8]) -> u32 {
     write_success_payload("get_pages", c)
 }
 
+fn run_get_listings(req: &[u8]) -> u32 {
+    // URL: /classify (popular, default page 1)
+    let url = b"https://www.baozimh.com/classify";
+
+    let html_len = match fetch_html(url) {
+        Some(len) => len,
+        None => return write_error("get_listings", "source_error", "fetch failed"),
+    };
+    let html_bytes = unsafe { core::slice::from_raw_parts(HTML_BUF.as_ptr(), html_len) };
+
+    let document = match html_parse(html_bytes) {
+        Ok(d) => OwnedDescriptor(d),
+        Err(_) => return write_error("get_listings", "parse_error", "html_parse failed"),
+    };
+
+    let select_buf = unsafe { &mut *core::ptr::addr_of_mut!(SELECT_ALL_BUF) };
+    let count = html_select_all(document.0.raw(), b"a.comics-card__poster", select_buf);
+
+    let payload = payload_buf();
+    let mut c = 0usize;
+
+    if !write_bytes(payload, &mut c, br#"{"items":["#) {
+        return write_error("get_listings", "internal_error", "payload overflow");
+    }
+
+    let max_items = if count > 0 { (count as usize).min(500) } else { 0 };
+    let mut written = 0usize;
+
+    for i in 0..max_items {
+        let offset = i * 4;
+        if offset + 4 > select_buf.len() { break; }
+        let desc = i32::from_le_bytes([
+            select_buf[offset], select_buf[offset+1], select_buf[offset+2], select_buf[offset+3],
+        ]);
+        if desc < 0 { continue; }
+
+        let hd: HtmlDescriptor = unsafe { core::mem::transmute(desc) };
+        let scratch_href = scratch_a();
+        let scratch_title = scratch_b();
+        let href_bytes = attr_into(hd, b"href", scratch_href);
+        let title_bytes = attr_into(hd, b"title", scratch_title);
+
+        if let (Some(href), Some(title)) = (href_bytes, title_bytes) {
+            let mut slug_buf = [0u8; 128];
+            if let Some(slug_len) = slug_from_comic_path(href, &mut slug_buf) {
+                let slug = &slug_buf[..slug_len];
+                if written > 0 {
+                    if !write_bytes(payload, &mut c, b",") { break; }
+                }
+                let ok = write_bytes(payload, &mut c, br#"{"id":"manga:"#)
+                    && append_json_escaped(payload, &mut c, slug)
+                    && write_bytes(payload, &mut c, br#"","title":""#)
+                    && append_json_escaped(payload, &mut c, title)
+                    && write_bytes(payload, &mut c, br#"","cover":{"kind":"url","url":"https://static-tw.baozimh.com/cover/"#)
+                    && append_json_escaped(payload, &mut c, slug)
+                    && write_bytes(payload, &mut c, br#".jpg"},"authors":[],"status":"unknown","contentRating":"unknown","sourceTags":["baozimh"]}"#);
+                if !ok { break; }
+                written += 1;
+            }
+        }
+        let _ = html_close(hd);
+    }
+
+    if !write_bytes(payload, &mut c, br#"],"page":{"nextCursor":null,"hasMore":false}}"#) {
+        return write_error("get_listings", "internal_error", "payload overflow");
+    }
+
+    write_success_payload("get_listings", c)
+}
+
 fn extract_query_param<'a>(url: &[u8], key: &[u8], out: &'a mut [u8]) -> Option<&'a [u8]> {
     let mut pattern_buf = [0u8; 32];
     if key.len() + 1 > pattern_buf.len() {
@@ -895,6 +1036,15 @@ pub extern "C" fn koma_source_get_pages(req_ptr: u32, req_len: u32) -> u32 {
     };
     log_info(b"baozimh get_pages");
     run_get_pages(req)
+}
+
+#[no_mangle]
+pub extern "C" fn koma_source_get_listings(req_ptr: u32, req_len: u32) -> u32 {
+    let req = unsafe { core::slice::from_raw_parts(req_ptr as *const u8, req_len as usize) };
+    if !contains_bytes(req, br#""operation":"get_listings""#) {
+        return write_error("get_listings", "unexpected_operation", "expected get_listings");
+    }
+    run_get_listings(req)
 }
 
 #[no_mangle]
