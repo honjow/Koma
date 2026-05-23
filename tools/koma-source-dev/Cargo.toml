@@ -1,0 +1,14 @@
+[package]
+name = "koma-source-dev"
+version = "0.1.0"
+edition = "2021"
+description = "Dev-mode host runner for Koma WASM sources — runs sources locally with real HTTP"
+
+[dependencies]
+wasmtime = "22"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+ureq = { version = "2", features = ["json"] }
+scraper = "0.19"
+clap = { version = "4", features = ["derive"] }
+anyhow = "1"
