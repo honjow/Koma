@@ -396,7 +396,7 @@ fn run_search(req: &[u8]) -> u32 {
                     && append_json_escaped(payload, &mut c, title)
                     && write_bytes(payload, &mut c, br#"","cover":{"kind":"url","url":"https://static-tw.baozimh.com/cover/"#)
                     && append_json_escaped(payload, &mut c, slug)
-                    && write_bytes(payload, &mut c, br#".jpg"},"authors":[],"status":"unknown","contentRating":"unknown","sourceTags":["baozimh"]}"#);
+                    && write_bytes(payload, &mut c, br#".jpg"},"authors":[],"status":"unknown","contentRating":"unknown","description":"","sourceTags":["baozimh"]}"#);
                 if !ok {
                     return write_error("search", "internal_error", "payload overflow");
                 }
@@ -450,10 +450,12 @@ fn run_get_manga(req: &[u8]) -> u32 {
     let title_desc = html_select(document.0, b"h1.comics-detail__title");
     let author_desc = html_select(document.0, b"h2.comics-detail__author");
     let desc_desc = html_select(document.0, b"p.comics-detail__desc");
+    let alt_desc = html_select(document.0, b"p.comics-detail__other-name");
 
     let mut title_buf = [0u8; 256];
     let mut author_buf = [0u8; 256];
     let mut desc_buf = [0u8; 1024];
+    let mut alt_buf = [0u8; 512];
 
     let title_text = if let Ok(d) = title_desc {
         let owned = OwnedDescriptor(d);
@@ -473,6 +475,12 @@ fn run_get_manga(req: &[u8]) -> u32 {
     } else {
         None
     };
+    let alt_text = if let Ok(d) = alt_desc {
+        let owned = OwnedDescriptor(d);
+        text_into(owned.0, &mut alt_buf).map(|s| trim_ascii(s))
+    } else {
+        None
+    };
 
     let payload = payload_buf();
     let mut c = 0usize;
@@ -480,7 +488,21 @@ fn run_get_manga(req: &[u8]) -> u32 {
         && append_json_escaped(payload, &mut c, slug)
         && write_bytes(payload, &mut c, br#"","title":""#)
         && append_json_escaped(payload, &mut c, title_text.unwrap_or(slug))
-        && write_bytes(payload, &mut c, br#"","alternateTitles":[],"description":""#)
+        && write_bytes(payload, &mut c, br#"","alternateTitles":["#);
+    if !ok {
+        return write_error("get_manga", "internal_error", "payload overflow");
+    }
+    if let Some(alt) = alt_text {
+        if !alt.is_empty() {
+            let ok_alt = write_bytes(payload, &mut c, b"\"")
+                && append_json_escaped(payload, &mut c, alt)
+                && write_bytes(payload, &mut c, b"\"");
+            if !ok_alt {
+                return write_error("get_manga", "internal_error", "payload overflow");
+            }
+        }
+    }
+    let ok = write_bytes(payload, &mut c, br#"],"description":""#)
         && append_json_escaped(payload, &mut c, desc_text.unwrap_or(&[]))
         && write_bytes(payload, &mut c, br#"","cover":{"kind":"url","url":"https://static-tw.baozimh.com/cover/"#)
         && append_json_escaped(payload, &mut c, slug)
