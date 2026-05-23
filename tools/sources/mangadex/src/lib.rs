@@ -104,20 +104,57 @@ fn build_get_request(dst: &mut [u8], url: &[u8]) -> Option<usize> {
     Some(cursor)
 }
 
-/// Fetch URL and return raw JSON response body bytes (from bodyText field)
-fn fetch_json(url_bytes: &[u8]) -> Option<&'static [u8]> {
-    let req_len = build_get_request(http_req_buf(), url_bytes)?;
+#[derive(Copy, Clone)]
+enum FetchError {
+    Network,
+    NotFound,
+    RateLimit,
+    ClientError,
+    ServerError,
+}
+
+fn parse_status_code(bytes: &[u8]) -> u16 {
+    let mut n = 0u16;
+    for &b in bytes {
+        if b >= b'0' && b <= b'9' {
+            n = n * 10 + (b - b'0') as u16;
+        }
+    }
+    n
+}
+
+fn fetch_error_code(e: FetchError) -> (&'static str, &'static str) {
+    match e {
+        FetchError::Network => ("network_error", "connection or timeout failure"),
+        FetchError::NotFound => ("not_found", "resource not found"),
+        FetchError::RateLimit => ("rate_limited", "rate limited by server"),
+        FetchError::ClientError => ("client_error", "client error (4xx)"),
+        FetchError::ServerError => ("server_error", "server error (5xx)"),
+    }
+}
+
+fn fetch_json(url_bytes: &[u8]) -> Result<&'static [u8], FetchError> {
+    let req_len = build_get_request(http_req_buf(), url_bytes).ok_or(FetchError::Network)?;
     let req_slice = &http_req_buf()[..req_len];
-    let resp_len = http_request(req_slice, http_out()).ok()?;
+    let resp_len = http_request(req_slice, http_out()).map_err(|_| FetchError::Network)?;
     let resp = &http_out()[..resp_len];
     if !contains_bytes(resp, br#""ok":true"#) {
         log_info(b"mangadex: http response not ok");
-        return None;
+        let err = if let Some(code_bytes) = extract_json_number(resp, b"statusCode") {
+            match parse_status_code(code_bytes) {
+                404 => FetchError::NotFound,
+                429 => FetchError::RateLimit,
+                400..=499 => FetchError::ClientError,
+                500..=599 => FetchError::ServerError,
+                _ => FetchError::Network,
+            }
+        } else {
+            FetchError::Network
+        };
+        return Err(err);
     }
-    // Extract bodyText value - it's a JSON string containing the API response
     let body_marker = b"\"bodyText\":\"";
-    let body_start = find_subslice(resp, body_marker)? + body_marker.len();
-    // Unescape the JSON string into JSON_BUF (large buffer)
+    let body_start = find_subslice(resp, body_marker).ok_or(FetchError::Network)? + body_marker.len();
     let out = json_buf();
     let mut out_cursor = 0usize;
     let mut i = body_start;
@@ -130,19 +167,19 @@ fn fetch_json(url_bytes: &[u8]) -> Option<&'static [u8]> {
                 b'n' => b'\n', b'r' => b'\r', b't' => b'\t',
                 _ => next,
             };
-            if out_cursor >= out.len() { return None; }
+            if out_cursor >= out.len() { return Err(FetchError::Network); }
             out[out_cursor] = unescaped;
             out_cursor += 1;
             i += 2;
             continue;
         }
         if b == b'"' { break; }
-        if out_cursor >= out.len() { return None; }
+        if out_cursor >= out.len() { return Err(FetchError::Network); }
         out[out_cursor] = b;
         out_cursor += 1;
         i += 1;
     }
-    Some(unsafe { core::slice::from_raw_parts(JSON_BUF.as_ptr(), out_cursor) })
+    Ok(unsafe { core::slice::from_raw_parts(JSON_BUF.as_ptr(), out_cursor) })
 }
 
 // --- Operations ---
@@ -164,8 +201,8 @@ fn run_search(req: &[u8]) -> u32 {
     let url_bytes = unsafe { core::slice::from_raw_parts(SCRATCH_A.as_ptr(), url_cursor) };
 
     let api_json = match fetch_json(url_bytes) {
-        Some(v) => v,
-        None => return write_error("search", "source_error", "fetch failed"),
+        Ok(v) => v,
+        Err(e) => { let (c, m) = fetch_error_code(e); return write_error("search", c, m); }
     };
 
     // Parse the "data" array
@@ -259,8 +296,8 @@ fn run_get_manga(req: &[u8]) -> u32 {
     let url_bytes = unsafe { core::slice::from_raw_parts(SCRATCH_A.as_ptr(), url_cursor) };
 
     let api_json = match fetch_json(url_bytes) {
-        Some(v) => v,
-        None => return write_error("get_manga", "source_error", "fetch failed"),
+        Ok(v) => v,
+        Err(e) => { let (c, m) = fetch_error_code(e); return write_error("get_manga", c, m); }
     };
 
     // Parse manga object from "data":{...}
@@ -405,8 +442,8 @@ fn run_get_chapters(req: &[u8]) -> u32 {
     let url_bytes = unsafe { core::slice::from_raw_parts(SCRATCH_A.as_ptr(), url_cursor) };
 
     let api_json = match fetch_json(url_bytes) {
-        Some(v) => v,
-        None => return write_error("get_chapters", "source_error", "fetch failed"),
+        Ok(v) => v,
+        Err(e) => { let (c, m) = fetch_error_code(e); return write_error("get_chapters", c, m); }
     };
 
     let payload = payload_buf();
@@ -483,8 +520,8 @@ fn run_get_pages(req: &[u8]) -> u32 {
     let url_bytes = unsafe { core::slice::from_raw_parts(SCRATCH_A.as_ptr(), url_cursor) };
 
     let api_json = match fetch_json(url_bytes) {
-        Some(v) => v,
-        None => return write_error("get_pages", "source_error", "fetch failed"),
+        Ok(v) => v,
+        Err(e) => { let (c, m) = fetch_error_code(e); return write_error("get_pages", c, m); }
     };
 
     // Extract baseUrl and hash
@@ -561,8 +598,8 @@ fn run_get_listings(_req: &[u8]) -> u32 {
     let url = b"https://api.mangadex.org/manga?order%5BfollowedCount%5D=desc&limit=20&includes%5B%5D=cover_art";
 
     let api_json = match fetch_json(url) {
-        Some(v) => v,
-        None => return write_error("get_listings", "source_error", "fetch failed"),
+        Ok(v) => v,
+        Err(e) => { let (c, m) = fetch_error_code(e); return write_error("get_listings", c, m); }
     };
 
     let payload = payload_buf();
@@ -693,8 +730,8 @@ fn run_get_manga_list(req: &[u8]) -> u32 {
     let url_bytes = unsafe { core::slice::from_raw_parts(SCRATCH_A.as_ptr(), url_cursor) };
 
     let api_json = match fetch_json(url_bytes) {
-        Some(v) => v,
-        None => return write_error("get_manga_list", "source_error", "fetch failed"),
+        Ok(v) => v,
+        Err(e) => { let (c, m) = fetch_error_code(e); return write_error("get_manga_list", c, m); }
     };
 
     // Parse total from response for hasMore
@@ -826,7 +863,7 @@ fn run_get_home(_req: &[u8]) -> u32 {
         if !ok { break; }
 
         // Fetch this section's data
-        if let Some(api_json) = fetch_json(url) {
+        if let Ok(api_json) = fetch_json(url) {
             if let Some(mut iter) = JsonArrayIter::new(api_json, b"data") {
                 let mut item_count = 0usize;
                 while let Some(obj) = iter.next_object() {

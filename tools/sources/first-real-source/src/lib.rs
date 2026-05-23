@@ -133,17 +133,57 @@ fn build_get_request(dst: &mut [u8], url: &[u8]) -> Option<usize> {
     Some(cursor)
 }
 
-fn fetch_html(url_bytes: &[u8]) -> Option<usize> {
-    let req_len = build_get_request(http_req_buf(), url_bytes)?;
+#[derive(Copy, Clone)]
+enum FetchError {
+    Network,
+    NotFound,
+    RateLimit,
+    ClientError,
+    ServerError,
+}
+
+fn parse_status_code(bytes: &[u8]) -> u16 {
+    let mut n = 0u16;
+    for &b in bytes {
+        if b >= b'0' && b <= b'9' {
+            n = n * 10 + (b - b'0') as u16;
+        }
+    }
+    n
+}
+
+fn fetch_error_code(e: FetchError) -> (&'static str, &'static str) {
+    match e {
+        FetchError::Network => ("network_error", "connection or timeout failure"),
+        FetchError::NotFound => ("not_found", "resource not found"),
+        FetchError::RateLimit => ("rate_limited", "rate limited by server"),
+        FetchError::ClientError => ("client_error", "client error (4xx)"),
+        FetchError::ServerError => ("server_error", "server error (5xx)"),
+    }
+}
+
+fn fetch_html(url_bytes: &[u8]) -> Result<usize, FetchError> {
+    let req_len = build_get_request(http_req_buf(), url_bytes).ok_or(FetchError::Network)?;
     let req_slice = &http_req_buf()[..req_len];
-    let resp_len = http_request(req_slice, http_out()).ok()?;
+    let resp_len = http_request(req_slice, http_out()).map_err(|_| FetchError::Network)?;
     let resp = &http_out()[..resp_len];
     if !contains_bytes(resp, br#""ok":true"#) {
         log_info(b"baozimh: http response not ok");
-        return None;
+        let err = if let Some(code_bytes) = extract_json_number(resp, b"statusCode") {
+            match parse_status_code(code_bytes) {
+                404 => FetchError::NotFound,
+                429 => FetchError::RateLimit,
+                400..=499 => FetchError::ClientError,
+                500..=599 => FetchError::ServerError,
+                _ => FetchError::Network,
+            }
+        } else {
+            FetchError::Network
+        };
+        return Err(err);
     }
     let body_marker = b"\"bodyText\":\"";
-    let body_start_idx = find_subslice(resp, body_marker)? + body_marker.len();
+    let body_start_idx = find_subslice(resp, body_marker).ok_or(FetchError::Network)? + body_marker.len();
     let html_dst = html_buf();
     let mut out_cursor = 0usize;
     let mut i = body_start_idx;
@@ -162,7 +202,7 @@ fn fetch_html(url_bytes: &[u8]) -> Option<usize> {
                 b'f' => 0x0c,
                 b'u' => {
                     if i + 5 >= resp.len() {
-                        return None;
+                        return Err(FetchError::Network);
                     }
                     let mut code: u32 = 0;
                     let mut k = 0;
@@ -172,27 +212,27 @@ fn fetch_html(url_bytes: &[u8]) -> Option<usize> {
                             b'0'..=b'9' => (h - b'0') as u32,
                             b'a'..=b'f' => 10 + (h - b'a') as u32,
                             b'A'..=b'F' => 10 + (h - b'A') as u32,
-                            _ => return None,
+                            _ => return Err(FetchError::Network),
                         };
                         code = (code << 4) | v;
                         k += 1;
                     }
                     if code < 0x80 {
                         if out_cursor >= html_dst.len() {
-                            return None;
+                            return Err(FetchError::Network);
                         }
                         html_dst[out_cursor] = code as u8;
                         out_cursor += 1;
                     } else if code < 0x800 {
                         if out_cursor + 2 > html_dst.len() {
-                            return None;
+                            return Err(FetchError::Network);
                         }
                         html_dst[out_cursor] = 0xC0 | (code >> 6) as u8;
                         html_dst[out_cursor + 1] = 0x80 | (code & 0x3F) as u8;
                         out_cursor += 2;
                     } else {
                         if out_cursor + 3 > html_dst.len() {
-                            return None;
+                            return Err(FetchError::Network);
                         }
                         html_dst[out_cursor] = 0xE0 | (code >> 12) as u8;
                         html_dst[out_cursor + 1] = 0x80 | ((code >> 6) & 0x3F) as u8;
@@ -205,7 +245,7 @@ fn fetch_html(url_bytes: &[u8]) -> Option<usize> {
                 _ => next,
             };
             if out_cursor >= html_dst.len() {
-                return None;
+                return Err(FetchError::Network);
             }
             html_dst[out_cursor] = unescaped;
             out_cursor += 1;
@@ -213,16 +253,16 @@ fn fetch_html(url_bytes: &[u8]) -> Option<usize> {
             continue;
         }
         if b == b'"' {
-            return Some(out_cursor);
+            return Ok(out_cursor);
         }
         if out_cursor >= html_dst.len() {
-            return None;
+            return Err(FetchError::Network);
         }
         html_dst[out_cursor] = b;
         out_cursor += 1;
         i += 1;
     }
-    None
+    Err(FetchError::Network)
 }
 
 struct OwnedDescriptor(HtmlDescriptor);
@@ -298,8 +338,8 @@ fn run_search(req: &[u8]) -> u32 {
     let url_bytes = unsafe { core::slice::from_raw_parts(SCRATCH_A.as_ptr(), url_cursor) };
 
     let html_len = match fetch_html(url_bytes) {
-        Some(len) => len,
-        None => return write_error("search", "source_error", "http or body decode failed"),
+        Ok(len) => len,
+        Err(e) => { let (c, m) = fetch_error_code(e); return write_error("search", c, m); }
     };
     let html_bytes = unsafe { core::slice::from_raw_parts(HTML_BUF.as_ptr(), html_len) };
 
@@ -397,8 +437,8 @@ fn run_get_manga(req: &[u8]) -> u32 {
     let url_bytes = unsafe { core::slice::from_raw_parts(SCRATCH_A.as_ptr(), url_cursor) };
 
     let html_len = match fetch_html(url_bytes) {
-        Some(n) => n,
-        None => return write_error("get_manga", "source_error", "fetch failed"),
+        Ok(n) => n,
+        Err(e) => { let (c, m) = fetch_error_code(e); return write_error("get_manga", c, m); }
     };
     let html_bytes = unsafe { core::slice::from_raw_parts(HTML_BUF.as_ptr(), html_len) };
 
@@ -552,8 +592,8 @@ fn run_get_chapters(req: &[u8]) -> u32 {
     let url_bytes = unsafe { core::slice::from_raw_parts(SCRATCH_A.as_ptr(), url_cursor) };
 
     let html_len = match fetch_html(url_bytes) {
-        Some(n) => n,
-        None => return write_error("get_chapters", "source_error", "fetch failed"),
+        Ok(n) => n,
+        Err(e) => { let (c, m) = fetch_error_code(e); return write_error("get_chapters", c, m); }
     };
     let html_bytes = unsafe { core::slice::from_raw_parts(HTML_BUF.as_ptr(), html_len) };
 
@@ -653,8 +693,8 @@ fn run_get_pages(req: &[u8]) -> u32 {
     let url_bytes = unsafe { core::slice::from_raw_parts(SCRATCH_A.as_ptr(), url_cursor) };
 
     let html_len = match fetch_html(url_bytes) {
-        Some(n) => n,
-        None => return write_error("get_pages", "source_error", "fetch failed"),
+        Ok(n) => n,
+        Err(e) => { let (c, m) = fetch_error_code(e); return write_error("get_pages", c, m); }
     };
     let html_bytes = unsafe { core::slice::from_raw_parts(HTML_BUF.as_ptr(), html_len) };
 
@@ -730,8 +770,8 @@ fn run_get_listings(req: &[u8]) -> u32 {
     let url = b"https://www.baozimh.com/classify";
 
     let html_len = match fetch_html(url) {
-        Some(len) => len,
-        None => return write_error("get_listings", "source_error", "fetch failed"),
+        Ok(len) => len,
+        Err(e) => { let (c, m) = fetch_error_code(e); return write_error("get_listings", c, m); }
     };
     let html_bytes = unsafe { core::slice::from_raw_parts(HTML_BUF.as_ptr(), html_len) };
 
@@ -845,8 +885,8 @@ fn run_get_manga_list(req: &[u8]) -> u32 {
     let url_bytes = unsafe { core::slice::from_raw_parts(SCRATCH_A.as_ptr(), url_cursor) };
 
     let html_len = match fetch_html(url_bytes) {
-        Some(len) => len,
-        None => return write_error("get_manga_list", "source_error", "fetch failed"),
+        Ok(len) => len,
+        Err(e) => { let (c, m) = fetch_error_code(e); return write_error("get_manga_list", c, m); }
     };
     let html_bytes = unsafe { core::slice::from_raw_parts(HTML_BUF.as_ptr(), html_len) };
 
@@ -947,7 +987,7 @@ fn parse_cards_into_section(payload: &mut [u8], c: &mut usize, section_title: &[
 
     let mut item_count = 0usize;
 
-    if let Some(html_len) = fetch_html(url) {
+    if let Ok(html_len) = fetch_html(url) {
         let html_bytes = unsafe { core::slice::from_raw_parts(HTML_BUF.as_ptr(), html_len) };
         if let Ok(doc_desc) = html_parse(html_bytes) {
             let doc = OwnedDescriptor(doc_desc);
