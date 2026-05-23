@@ -388,6 +388,69 @@ fn register_host_imports(linker: &mut Linker<HostState>) -> Result<()> {
         }
     })?;
 
+    // koma_host.html_select_all — returns count of matches, stores each as a fragment doc.
+    // Guest passes an output buffer (out_ptr, out_cap) to receive descriptor i32s.
+    // Returns: number of matches found (descriptors written = min(count, out_cap/4)).
+    linker.func_wrap("koma_host", "html_select_all", |mut caller: Caller<'_, HostState>, descriptor: i32, selector_ptr: i32, selector_len: i32, out_ptr: i32, out_cap: i32| -> i32 {
+        let memory = match caller.get_export("memory").and_then(|e| e.into_memory()) {
+            Some(m) => m,
+            None => return -1,
+        };
+        let data = memory.data(&caller);
+        let sel_start = selector_ptr as usize;
+        let sel_end = sel_start + selector_len as usize;
+        if sel_end > data.len() { return -1; }
+        let sel_bytes = data[sel_start..sel_end].to_vec();
+        let selector_str = String::from_utf8_lossy(&sel_bytes).to_string();
+
+        let selector = match scraper::Selector::parse(&selector_str) {
+            Ok(s) => s,
+            Err(_) => return -1,
+        };
+
+        let state = caller.data_mut();
+        let idx = descriptor as usize;
+        if idx >= state.html_docs.len() { return -1; }
+
+        // Collect all matching elements as HTML fragments
+        let matched_htmls: Vec<String> = {
+            let doc = match &state.html_docs[idx] {
+                Some(d) => d,
+                None => return -1,
+            };
+            doc.select(&selector).map(|el| el.html()).collect()
+        };
+
+        let count = matched_htmls.len();
+        let max_write = (out_cap as usize) / 4; // each descriptor is i32 = 4 bytes
+
+        // Store each match as a fragment doc and write descriptor to guest memory
+        let mut descriptors = Vec::new();
+        for html in matched_htmls {
+            let subdoc = scraper::Html::parse_fragment(&html);
+            let new_idx = state.html_docs.len();
+            state.html_docs.push(Some(subdoc));
+            descriptors.push(new_idx as i32);
+        }
+
+        // Write descriptors to guest output buffer
+        let memory = match caller.get_export("memory").and_then(|e| e.into_memory()) {
+            Some(m) => m,
+            None => return count as i32,
+        };
+        let write_count = descriptors.len().min(max_write);
+        let out_start = out_ptr as usize;
+        let mem_data = memory.data_mut(&mut caller);
+        for (i, desc) in descriptors[..write_count].iter().enumerate() {
+            let offset = out_start + i * 4;
+            if offset + 4 <= mem_data.len() {
+                mem_data[offset..offset + 4].copy_from_slice(&desc.to_le_bytes());
+            }
+        }
+
+        count as i32
+    })?;
+
     // koma_host.html_attr
     linker.func_wrap("koma_host", "html_attr", |mut caller: Caller<'_, HostState>, descriptor: i32, attr_ptr: i32, attr_len: i32, out_ptr: i32, out_cap: i32| -> i32 {
         let memory = match caller.get_export("memory").and_then(|e| e.into_memory()) {
@@ -410,8 +473,8 @@ fn register_host_imports(linker: &mut Linker<HostState>) -> Result<()> {
                 None => return -1,
             };
             let sel = scraper::Selector::parse("*").unwrap();
-            doc.select(&sel).next()
-                .and_then(|el| el.value().attr(&attr_str).map(|s| s.to_string()))
+            doc.select(&sel)
+                .find_map(|el| el.value().attr(&attr_str).map(|s| s.to_string()))
                 .unwrap_or_default()
         };
 
