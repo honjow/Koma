@@ -545,11 +545,21 @@ fn run_get_manga(req: &[u8]) -> u32 {
     // Find the end of this object
     let obj = &api_json[data_start..];
 
-    let title = extract_json_string(obj, b"en")
-        .or_else(|| extract_json_string(obj, b"ja"))
-        .or_else(|| extract_json_string(obj, b"ja-ro"))
-        .unwrap_or(b"Unknown");
+    let title = {
+        let title_marker = b"\"title\":{"; 
+        match find_subslice(obj, title_marker) {
+            Some(idx) => {
+                let title_obj = &obj[idx + title_marker.len()..];
+                extract_json_string(title_obj, b"en")
+                    .or_else(|| extract_json_string(title_obj, b"ja"))
+                    .or_else(|| extract_json_string(title_obj, b"ja-ro"))
+                    .unwrap_or(b"Unknown")
+            }
+            None => b"Unknown" as &[u8],
+        }
+    };
     let status = extract_json_string(obj, b"status").unwrap_or(b"unknown");
+    let content_rating = extract_json_string(obj, b"contentRating").unwrap_or(b"unknown");
     // description is a nested object {"en":"...", ...} — find it, then extract "en" inside
     let desc = {
         let desc_marker = b"\"description\":{";
@@ -565,6 +575,7 @@ fn run_get_manga(req: &[u8]) -> u32 {
 
     // Extract author names from relationships
     let author_name = extract_author_name(obj);
+    let artist_name = extract_artist_name(obj);
 
     // Extract tags
     let payload = payload_buf();
@@ -596,10 +607,19 @@ fn run_get_manga(req: &[u8]) -> u32 {
             && append_json_unescaped_then_escaped(payload, &mut c, author)
             && write_bytes(payload, &mut c, b"\"");
     }
-    let ok3 = write_bytes(payload, &mut c, br#"],"artists":[],"status":""#)
-        && append_json_escaped(payload, &mut c, status)
-        && write_bytes(payload, &mut c, br#"","contentRating":"unknown","language":"en","tags":["#);
+    let ok3 = write_bytes(payload, &mut c, br#"],"artists":["#);
     if !ok3 { return write_error("get_manga", "internal_error", "overflow"); }
+    if let Some(artist) = artist_name {
+        let _ = write_bytes(payload, &mut c, b"\"")
+            && append_json_unescaped_then_escaped(payload, &mut c, artist)
+            && write_bytes(payload, &mut c, b"\"");
+    }
+    let ok4 = write_bytes(payload, &mut c, br#"],"status":""#)
+        && append_json_escaped(payload, &mut c, status)
+        && write_bytes(payload, &mut c, br#"","contentRating":""#)
+        && append_json_escaped(payload, &mut c, content_rating)
+        && write_bytes(payload, &mut c, br#"","language":"en","tags":["#);
+    if !ok4 { return write_error("get_manga", "internal_error", "overflow"); }
     // Extract tag names from tags array
     if let Some(mut tag_iter) = JsonArrayIter::new(obj, b"tags") {
         let mut tag_count = 0usize;
@@ -624,6 +644,13 @@ fn run_get_manga(req: &[u8]) -> u32 {
 
 fn extract_author_name<'a>(obj: &'a [u8]) -> Option<&'a [u8]> {
     let marker = b"\"type\":\"author\"";
+    let idx = find_subslice(obj, marker)?;
+    let rest = &obj[idx..];
+    extract_json_string(rest, b"name")
+}
+
+fn extract_artist_name<'a>(obj: &'a [u8]) -> Option<&'a [u8]> {
+    let marker = b"\"type\":\"artist\"";
     let idx = find_subslice(obj, marker)?;
     let rest = &obj[idx..];
     extract_json_string(rest, b"name")
