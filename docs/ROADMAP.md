@@ -31,7 +31,7 @@ Artifact 目录规范见 `docs/CONTROLLER_ARTIFACTS.md`。
 4. 并行任务必须不改同一批文件，或者只做只读调研。
 5. 设备 QA 默认使用 `192.168.50.103:12345`。
 6. 长日志放 `.hermes-artifacts/`，聊天只汇报状态、证据、路径。
-7. Koma 签名证书名复用 `next2v-debug`，Profile 按 bundle 自动生成。
+7. Koma 调试签名物料共享：放 `~/.config/harmony/debug-signing/`，证书名 `honjow-debug`（账号级共享），Profile 按 bundleId 自动生成。env 由 `scripts/dev.env` 定义。
 
 ## Phase 0：基础工程收口
 

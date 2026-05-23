@@ -5,7 +5,7 @@
 - 暂定：Koma
 - Debug bundle：`com.honjow.koma.dev`
 - Release bundle：`com.honjow.koma`
-- Debug 证书名：复用 `next2v-debug`，避免华为调试证书数量超限；Profile 仍按 bundle 独立生成。
+- Debug 证书名：`honjow-debug`（账号级共享，多 OH 项目复用避免撞 AGC 调试证书配额）；物料统一放 `~/.config/harmony/debug-signing/`，由 `scripts/dev.env` 的 `HARMONY_DEBUG_*` 环境变量定位。Profile 仍按 bundle 独立生成。
 - 测试机：`192.168.50.103:12345`
 
 ## 首版路线

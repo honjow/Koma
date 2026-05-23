@@ -21,8 +21,10 @@ Koma 是 HarmonyOS 私有漫画书架/阅读器：
 
 - 设备 QA 使用 `192.168.50.103:12345`，避免 V2Next 共享测试机 `192.168.50.237:12345`。
 - 103 HDC 出现 unauthorized 时，先在 host 上 `hdc kill` / `hdc start` / `hdc tconn`，确认仍 unauthorized 再向用户求助。
-- 签名材料放在 `scripts/` 下本地保留，必须 gitignore，不得打印、提交或复制到日志。
-- 签名证书名复用 `next2v-debug`，避免华为调试证书数量超限；Profile 仍按 bundle 独立生成。
+- 调试签名物料放在用户目录 `~/.config/harmony/debug-signing/`（账号级共享），跨 OH 项目复用同一份 cert 避免撞 AGC 调试证书配额。
+- 证书名 `honjow-debug`（开发者身份级，所有 OH 项目共用），Profile 仍按 bundleId 独立生成并放在 `${HARMONY_DEBUG_DIR}/profiles/`。
+- 路径由 `scripts/dev.env` 声明的 `HARMONY_DEBUG_*` env 控制；`dev.sh` 和 `scripts/lane-preflight.sh` 自动 source。手动调 `python3 scripts/sign.py` 必须先 source dev.env，否则 sign.py 立即报错退出。
+- 不得把任何签名物料 commit 进仓、打印到日志、或复制进 worktree。
 
 ## Artifact & Controller
 
