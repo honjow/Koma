@@ -74,9 +74,9 @@ const SOURCE_CAPS: SourceCapabilities = SourceCapabilities {
     pages: true,
     listings: true,
     manga_list: true,
-    home: false,
+    home: true,
     filters: true,
-    settings: false,
+    settings: true,
     image_request: true,
 };
 
@@ -1109,6 +1109,130 @@ fn run_modify_image_request(req: &[u8]) -> u32 {
     write_success_payload("modify_image_request", c)
 }
 
+// --- get_home: multi-section home page ---
+// Uses /classify with different filters to build sections, avoiding the heavy homepage HTML.
+
+fn parse_cards_into_section(payload: &mut [u8], c: &mut usize, section_title: &[u8], url: &[u8], max_items: usize) -> bool {
+    let ok = write_bytes(payload, c, br#"{"title":""#)
+        && append_json_escaped(payload, c, section_title)
+        && write_bytes(payload, c, br#"","items":["#);
+    if !ok { return false; }
+
+    let mut item_count = 0usize;
+
+    if let Some(html_len) = fetch_html(url) {
+        let html_bytes = unsafe { core::slice::from_raw_parts(HTML_BUF.as_ptr(), html_len) };
+        if let Ok(doc_desc) = html_parse(html_bytes) {
+            let doc = OwnedDescriptor(doc_desc);
+            let select_buf = unsafe { &mut *core::ptr::addr_of_mut!(SELECT_ALL_BUF) };
+            let count = html_select_all(doc.0.raw(), b"a.comics-card__poster", select_buf);
+            let real_max = if count > 0 { (count as usize).min(max_items) } else { 0 };
+
+            for i in 0..real_max {
+                let offset = i * 4;
+                if offset + 4 > select_buf.len() { break; }
+                let desc = i32::from_le_bytes([
+                    select_buf[offset], select_buf[offset+1], select_buf[offset+2], select_buf[offset+3],
+                ]);
+                if desc < 0 { continue; }
+
+                let hd: HtmlDescriptor = unsafe { core::mem::transmute(desc) };
+                let scratch_href = scratch_a();
+                let scratch_title = scratch_b();
+                let href_bytes = attr_into(hd, b"href", scratch_href);
+                let title_bytes = attr_into(hd, b"title", scratch_title);
+
+                if let (Some(href), Some(title)) = (href_bytes, title_bytes) {
+                    let mut slug_buf = [0u8; 128];
+                    if let Some(slug_len) = slug_from_comic_path(href, &mut slug_buf) {
+                        let slug = &slug_buf[..slug_len];
+                        if item_count > 0 {
+                            if !write_bytes(payload, c, b",") { break; }
+                        }
+                        let ok2 = write_bytes(payload, c, br#"{"id":"manga:"#)
+                            && append_json_escaped(payload, c, slug)
+                            && write_bytes(payload, c, br#"","title":""#)
+                            && append_json_escaped(payload, c, title)
+                            && write_bytes(payload, c, br#"","cover":{"kind":"url","url":"https://static-tw.baozimh.com/cover/"#)
+                            && append_json_escaped(payload, c, slug)
+                            && write_bytes(payload, c, br#".jpg"}}"#);
+                        if !ok2 { break; }
+                        item_count += 1;
+                    }
+                }
+                let _ = html_close(hd);
+            }
+        }
+    }
+
+    write_bytes(payload, c, b"]}")
+}
+
+fn run_get_home(_req: &[u8]) -> u32 {
+    let payload = payload_buf();
+    let mut c = 0usize;
+    if !write_bytes(payload, &mut c, br#"{"sections":["#) {
+        return write_error("get_home", "internal_error", "overflow");
+    }
+
+    // Section 1: 熱門 (default classify page)
+    if !parse_cards_into_section(payload, &mut c,
+        "熱門漫畫".as_bytes(),
+        b"https://www.baozimh.com/classify", 12) {
+        return write_error("get_home", "internal_error", "overflow");
+    }
+
+    // Section 2: 國漫推薦
+    if !write_bytes(payload, &mut c, b",") {
+        return write_error("get_home", "internal_error", "overflow");
+    }
+    if !parse_cards_into_section(payload, &mut c,
+        "國漫推薦".as_bytes(),
+        b"https://www.baozimh.com/classify?type=all&region=cn", 12) {
+        return write_error("get_home", "internal_error", "overflow");
+    }
+
+    // Section 3: 日本漫畫
+    if !write_bytes(payload, &mut c, b",") {
+        return write_error("get_home", "internal_error", "overflow");
+    }
+    if !parse_cards_into_section(payload, &mut c,
+        "日本漫畫".as_bytes(),
+        b"https://www.baozimh.com/classify?type=all&region=jp", 12) {
+        return write_error("get_home", "internal_error", "overflow");
+    }
+
+    // Section 4: 韓國漫畫
+    if !write_bytes(payload, &mut c, b",") {
+        return write_error("get_home", "internal_error", "overflow");
+    }
+    if !parse_cards_into_section(payload, &mut c,
+        "韓國漫畫".as_bytes(),
+        b"https://www.baozimh.com/classify?type=all&region=kr", 12) {
+        return write_error("get_home", "internal_error", "overflow");
+    }
+
+    if !write_bytes(payload, &mut c, b"]}") {
+        return write_error("get_home", "internal_error", "overflow");
+    }
+    write_success_payload("get_home", c)
+}
+
+// --- get_settings: source-level user preferences ---
+
+fn run_get_settings(_req: &[u8]) -> u32 {
+    const SETTINGS_JSON: &str = "{\"settings\":[{\"id\":\"defaultRegion\",\"name\":\"預設地區\",\"kind\":\"select\",\"options\":[{\"value\":\"all\",\"label\":\"全部\"},{\"value\":\"cn\",\"label\":\"國漫\"},{\"value\":\"jp\",\"label\":\"日本\"},{\"value\":\"kr\",\"label\":\"韓國\"},{\"value\":\"en\",\"label\":\"歐美\"}],\"default\":\"all\"},{\"id\":\"defaultState\",\"name\":\"預設狀態\",\"kind\":\"select\",\"options\":[{\"value\":\"all\",\"label\":\"全部\"},{\"value\":\"serial\",\"label\":\"連載中\"},{\"value\":\"pub\",\"label\":\"已完結\"}],\"default\":\"all\"}]}";
+
+    let settings_bytes = SETTINGS_JSON.as_bytes();
+    let payload = payload_buf();
+    let flen = settings_bytes.len();
+    if flen > payload.len() {
+        return write_error("get_settings", "internal_error", "payload overflow");
+    }
+    payload[..flen].copy_from_slice(settings_bytes);
+    write_success_payload("get_settings", flen)
+}
+
 fn extract_query_param<'a>(url: &[u8], key: &[u8], out: &'a mut [u8]) -> Option<&'a [u8]> {
     let mut pattern_buf = [0u8; 32];
     if key.len() + 1 > pattern_buf.len() {
@@ -1244,6 +1368,26 @@ pub extern "C" fn koma_source_get_image_request(req_ptr: u32, req_len: u32) -> u
     };
     log_info(b"baozimh modify_image_request");
     run_modify_image_request(req)
+}
+
+#[no_mangle]
+pub extern "C" fn koma_source_get_home(req_ptr: u32, req_len: u32) -> u32 {
+    let req = match read_request(req_ptr, req_len) {
+        Some(r) => r,
+        None => return write_error("get_home", "invalid_request", "empty request"),
+    };
+    log_info(b"baozimh get_home");
+    run_get_home(req)
+}
+
+#[no_mangle]
+pub extern "C" fn koma_source_get_settings(req_ptr: u32, req_len: u32) -> u32 {
+    let req = match read_request(req_ptr, req_len) {
+        Some(r) => r,
+        None => return write_error("get_settings", "invalid_request", "empty request"),
+    };
+    log_info(b"baozimh get_settings");
+    run_get_settings(req)
 }
 
 #[no_mangle]
