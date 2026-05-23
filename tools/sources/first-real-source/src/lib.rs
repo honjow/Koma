@@ -488,7 +488,9 @@ fn run_search(req: &[u8]) -> u32 {
                     && append_json_escaped(payload, &mut c, slug)
                     && write_bytes(payload, &mut c, br#"","title":""#)
                     && append_json_escaped(payload, &mut c, title)
-                    && write_bytes(payload, &mut c, br#"","cover":{"kind":"none"},"authors":[],"status":"unknown","contentRating":"unknown","sourceTags":["baozimh"]}"#);
+                    && write_bytes(payload, &mut c, br#"","cover":{"kind":"url","url":"https://static-tw.baozimh.com/cover/"#)
+                    && append_json_escaped(payload, &mut c, slug)
+                    && write_bytes(payload, &mut c, br#".jpg"},"authors":[],"status":"unknown","contentRating":"unknown","sourceTags":["baozimh"]}"#);
                 if !ok {
                     return write_error("search", "internal_error", "payload overflow");
                 }
@@ -574,7 +576,9 @@ fn run_get_manga(req: &[u8]) -> u32 {
         && append_json_escaped(payload, &mut c, title_text.unwrap_or(slug))
         && write_bytes(payload, &mut c, br#"","alternateTitles":[],"description":""#)
         && append_json_escaped(payload, &mut c, desc_text.unwrap_or(&[]))
-        && write_bytes(payload, &mut c, br#"","cover":{"kind":"none"},"authors":["#);
+        && write_bytes(payload, &mut c, br#"","cover":{"kind":"url","url":"https://static-tw.baozimh.com/cover/"#)
+        && append_json_escaped(payload, &mut c, slug)
+        && write_bytes(payload, &mut c, br#".jpg"},"authors":["#);
 
     if !ok {
         return write_error("get_manga", "internal_error", "payload overflow");
