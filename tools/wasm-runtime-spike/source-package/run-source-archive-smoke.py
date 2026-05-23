@@ -12,11 +12,39 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from redaction import redacted_command, redact_text, redact_value, write_redacted_json  # noqa: E402
 
 
-HOST_ABI = "koma-host-v0.1"
-HOST_IMPORTS = ["koma_host.log", "koma_host.check_cancel"]
+HOST_ABI = "koma-host-v0.1-fixture-http-html"
+HOST_IMPORTS = [
+    "koma_host.log",
+    "koma_host.check_cancel",
+    "koma_host.http_request",
+    "koma_host.html_parse",
+    "koma_host.html_select",
+    "koma_host.html_attr",
+    "koma_host.html_text",
+    "koma_host.html_close",
+]
 WAMR_TAG = "WAMR-2.3.0"
 WAMR_COMMIT = "c7b2db18329f849b81568b94e72ddd0b20f431a5"
 CONTENT_POLICY_KEYS = ("publicIndex", "marketplace", "builtInSource", "remoteInstall")
+EXPECTED_OPERATIONS = (
+    "search",
+    "get_manga",
+    "get_chapters",
+    "get_pages",
+    "get_listings",
+    "get_manga_list",
+    "get_home",
+    "get_filters",
+    "get_settings",
+    "get_image_request",
+)
+SURFACE_FORBIDDEN_TOKENS = (
+    "https://", "http://", "file://", "content://", "ohos://", "internal://",
+    "app-private", "/home/", "/Users/", "/data/", "/storage/", "/sdcard/",
+    ".hermes-artifacts", "password", "token", "secret", "apiKey", "cookie",
+    "Authorization", "BEGIN PRIVATE KEY", "BEGIN RSA PRIVATE KEY",
+    ".p12", ".cer", ".p7b", "credential",
+)
 
 
 class SmokeError(Exception):
@@ -201,6 +229,174 @@ def ensure_wamr_checkout(wamr_root: Path, env: dict[str, str], report: dict, art
     require(actual_commit == WAMR_COMMIT, f"WAMR commit mismatch: expected {WAMR_COMMIT} got {actual_commit}")
 
 
+def _surface_base(payload: dict) -> dict:
+    return {
+        "operation": payload["operation"],
+        "ok": payload["ok"],
+        "version": payload["version"],
+        "hostHintsNetwork": payload["hostHints"]["network"],
+    }
+
+
+def _surface_search(payload: dict) -> dict:
+    data = payload.get("data", {})
+    items = data.get("items", [])
+    first = items[0] if items else {}
+    return {
+        "itemCount": len(items),
+        "firstItemTitle": first.get("title"),
+        "hasFirstItemId": bool(first.get("id")),
+        "page": {
+            "hasMore": bool(data.get("page", {}).get("hasMore")),
+            "hasNextCursor": data.get("page", {}).get("nextCursor") is not None,
+        },
+    }
+
+
+def _surface_get_manga(payload: dict) -> dict:
+    manga = payload.get("data", {}).get("manga", {})
+    return {
+        "hasMangaId": bool(manga.get("id")),
+        "title": manga.get("title"),
+        "contentRating": manga.get("contentRating"),
+        "status": manga.get("status"),
+        "language": manga.get("language"),
+        "tagsCount": len(manga.get("tags", [])),
+    }
+
+
+def _surface_get_chapters(payload: dict) -> dict:
+    data = payload.get("data", {})
+    items = data.get("items", [])
+    first = items[0] if items else {}
+    return {
+        "itemCount": len(items),
+        "firstChapterTitle": first.get("title"),
+        "firstChapterPageCount": first.get("pageCount"),
+        "page": {
+            "hasMore": bool(data.get("page", {}).get("hasMore")),
+            "hasNextCursor": data.get("page", {}).get("nextCursor") is not None,
+        },
+    }
+
+
+def _surface_get_pages(payload: dict) -> dict:
+    data = payload.get("data", {})
+    pages = data.get("pages", [])
+    first = pages[0] if pages else {}
+    image = first.get("image", {}) if isinstance(first, dict) else {}
+    return {
+        "pageCount": len(pages),
+        "hasChapterId": bool(data.get("chapterId")),
+        "firstImageKind": image.get("kind"),
+    }
+
+
+def _surface_get_listings(payload: dict) -> dict:
+    listings = payload.get("data", {}).get("listings", [])
+    return {
+        "listingCount": len(listings),
+        "kinds": sorted({entry.get("kind") for entry in listings if entry.get("kind")}),
+    }
+
+
+def _surface_get_manga_list(payload: dict) -> dict:
+    data = payload.get("data", {})
+    items = data.get("items", [])
+    first = items[0] if items else {}
+    return {
+        "hasListingId": bool(data.get("listingId")),
+        "itemCount": len(items),
+        "firstItemTitle": first.get("title"),
+        "page": {
+            "hasMore": bool(data.get("page", {}).get("hasMore")),
+            "hasNextCursor": data.get("page", {}).get("nextCursor") is not None,
+        },
+    }
+
+
+def _surface_get_home(payload: dict) -> dict:
+    sections = payload.get("data", {}).get("sections", [])
+    return {
+        "sectionCount": len(sections),
+        "kinds": sorted({section.get("kind") for section in sections if section.get("kind")}),
+    }
+
+
+def _surface_get_filters(payload: dict) -> dict:
+    filters = payload.get("data", {}).get("filters", [])
+    return {
+        "filterCount": len(filters),
+        "kinds": sorted({entry.get("kind") for entry in filters if entry.get("kind")}),
+    }
+
+
+def _surface_get_settings(payload: dict) -> dict:
+    settings = payload.get("data", {}).get("settings", [])
+    return {
+        "settingCount": len(settings),
+        "kinds": sorted({entry.get("kind") for entry in settings if entry.get("kind")}),
+    }
+
+
+def _surface_get_image_request(payload: dict) -> dict:
+    image_request = payload.get("data", {}).get("imageRequest", {})
+    return {
+        "hasImageRequestId": bool(image_request.get("id")),
+        "method": image_request.get("method"),
+        "hasHeaderOrTransportRef": bool(
+            image_request.get("headersRef") or image_request.get("transport-fieldsRef")
+        ),
+        "hasProtectedRef": bool(image_request.get("credentialsRef")),
+        "hasSessionRef": bool(image_request.get("sessionRef")),
+        "hasResourceRef": bool(image_request.get("resourceRef")),
+        "hasCacheKey": bool(image_request.get("cacheKey")),
+        "requiresAuth": image_request.get("requiresAuth"),
+    }
+
+
+SURFACE_BUILDERS = {
+    "search": _surface_search,
+    "get_manga": _surface_get_manga,
+    "get_chapters": _surface_get_chapters,
+    "get_pages": _surface_get_pages,
+    "get_listings": _surface_get_listings,
+    "get_manga_list": _surface_get_manga_list,
+    "get_home": _surface_get_home,
+    "get_filters": _surface_get_filters,
+    "get_settings": _surface_get_settings,
+    "get_image_request": _surface_get_image_request,
+}
+
+
+def build_operation_surface(operation_payloads: dict[str, dict], operations: list[str]) -> dict:
+    entries = []
+    for name in operations:
+        payload = operation_payloads[name]
+        entry = _surface_base(payload)
+        entry["surface"] = SURFACE_BUILDERS[name](payload)
+        entries.append(entry)
+    require(all(entry["ok"] is True for entry in entries),
+            "operation surface entries are not all ok:true")
+    require(all(entry["version"] == 1 for entry in entries),
+            "operation surface entries are not all version 1")
+    require(all(entry["hostHintsNetwork"] is False for entry in entries),
+            "operation surface entries leaked hostHints.network=true")
+    require(sorted(entry["operation"] for entry in entries) == sorted(operations),
+            "operation surface entries do not match expected operations")
+    surface = {
+        "version": 1,
+        "scope": "wasm-runtime-spike archive smoke runtime operation surface evidence",
+        "operationCount": len(entries),
+        "operations": entries,
+    }
+    raw = json.dumps(surface, sort_keys=True)
+    raw_lower = raw.lower()
+    leaked = [token for token in SURFACE_FORBIDDEN_TOKENS if token.lower() in raw_lower]
+    require(not leaked, f"operation surface leaked forbidden tokens: {leaked}")
+    return surface
+
+
 def run_extracted_wasm(wasm_path: Path, artifact_dir: Path, env: dict[str, str], report: dict) -> dict:
     require(shutil.which("cmake") is not None, "missing required tool: cmake")
     host_artifact_dir = artifact_dir / "host-runner"
@@ -249,7 +445,7 @@ def run_extracted_wasm(wasm_path: Path, artifact_dir: Path, env: dict[str, str],
     require(run_result["exitCode"] == 0, "extracted wasm host run failed")
     output = Path(run_result["log"]).read_text(encoding="utf-8")
     operation_payloads = extract_operation_json(output)
-    expected_operations = ["search", "get_manga", "get_chapters", "get_pages"]
+    expected_operations = list(EXPECTED_OPERATIONS)
     require("WAMR_SPIKE_PASS" in output, "missing WAMR_SPIKE_PASS")
     require("SOURCE_API_RUNTIME_SMOKE_PASS" in output, "missing SOURCE_API_RUNTIME_SMOKE_PASS")
     for operation in expected_operations:
@@ -272,17 +468,17 @@ def run_extracted_wasm(wasm_path: Path, artifact_dir: Path, env: dict[str, str],
 
     operation_json_path = artifact_dir / "extracted-wasm-operation-results.json"
     write_json(operation_json_path, operation_payloads)
+    operation_surface = build_operation_surface(operation_payloads, expected_operations)
     return {
         "hostBinary": str(host_binary),
         "runLog": run_result["log"],
         "operationJson": str(operation_json_path),
+        "operationsCovered": list(expected_operations),
+        "operationSurface": operation_surface,
         "evidence": [
             "WAMR_SPIKE_PASS",
             "SOURCE_API_RUNTIME_SMOKE_PASS",
-            "SOURCE_API_OPERATION search ok:true",
-            "SOURCE_API_OPERATION get_manga ok:true",
-            "SOURCE_API_OPERATION get_chapters ok:true",
-            "SOURCE_API_OPERATION get_pages ok:true",
+            *[f"SOURCE_API_OPERATION {op} ok:true" for op in expected_operations],
             "Fixture Series",
             "HOST_LOG rust fixture init reached host imports",
             "HOST_CHECK_CANCEL result=0",
@@ -317,6 +513,8 @@ def main() -> int:
         "manifestGates": [],
         "archiveValidationReport": "",
         "wamr": {},
+        "operationsCovered": [],
+        "operationSurface": {},
         "evidence": [],
     }
 
@@ -334,12 +532,15 @@ def main() -> int:
             "manifestGates": gates,
             "archiveValidationReport": str(artifact_dir / "archive-validation" / "source-package-archive-validation-report.json"),
             "wamr": wamr,
+            "operationsCovered": wamr["operationsCovered"],
+            "operationSurface": wamr["operationSurface"],
         })
         report["evidence"].extend([
             f"archive validated at {archive_path}",
             f"extracted manifest {manifest_path}",
             f"extracted wasm {wasm_path}",
             "manifest gates passed for network=false, hostAbi, host imports, wasm sha/size, and closed content policy",
+            f"archive smoke covered {len(wamr['operationsCovered'])} v0.2 operations: {', '.join(wamr['operationsCovered'])}",
             *wamr["evidence"],
         ])
         if archive_validation.get("safety", {}).get("status") == "PASS":
