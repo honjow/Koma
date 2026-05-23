@@ -132,6 +132,101 @@ fn append_json_escaped(dst: &mut [u8], cursor: &mut usize, src: &[u8]) -> bool {
     true
 }
 
+/// Write src into dst, unescaping JSON string escapes first, then JSON-escaping for output.
+/// Handles: \/ -> /, \" -> ", \\ -> \, \n \r \t, \uXXXX -> UTF-8 bytes.
+fn append_json_unescaped_then_escaped(dst: &mut [u8], cursor: &mut usize, src: &[u8]) -> bool {
+    let mut i = 0usize;
+    while i < src.len() {
+        if src[i] == b'\\' && i + 1 < src.len() {
+            let next = src[i + 1];
+            match next {
+                b'/' => { if !write_bytes(dst, cursor, b"/") { return false; } i += 2; }
+                b'"' => { if !write_bytes(dst, cursor, b"\\\"") { return false; } i += 2; }
+                b'\\' => { if !write_bytes(dst, cursor, b"\\\\") { return false; } i += 2; }
+                b'n' => { if !write_bytes(dst, cursor, b"\\n") { return false; } i += 2; }
+                b'r' => { if !write_bytes(dst, cursor, b"\\r") { return false; } i += 2; }
+                b't' => { if !write_bytes(dst, cursor, b"\\t") { return false; } i += 2; }
+                b'u' if i + 5 < src.len() => {
+                    // \uXXXX — decode to codepoint, emit UTF-8, then JSON-escape if needed
+                    let hex = &src[i+2..i+6];
+                    let cp = hex_to_u16(hex);
+                    if cp > 0 {
+                        let mut utf8 = [0u8; 4];
+                        let len = encode_utf8(cp as u32, &mut utf8);
+                        for j in 0..len {
+                            if !append_json_escaped_byte(dst, cursor, utf8[j]) { return false; }
+                        }
+                        i += 6;
+                    } else {
+                        // bad hex, pass through
+                        if *cursor >= dst.len() { return false; }
+                        dst[*cursor] = src[i]; *cursor += 1; i += 1;
+                    }
+                }
+                _ => {
+                    // unknown escape, just pass through the char after backslash
+                    if !append_json_escaped_byte(dst, cursor, next) { return false; }
+                    i += 2;
+                }
+            }
+        } else {
+            if !append_json_escaped_byte(dst, cursor, src[i]) { return false; }
+            i += 1;
+        }
+    }
+    true
+}
+
+fn append_json_escaped_byte(dst: &mut [u8], cursor: &mut usize, b: u8) -> bool {
+    match b {
+        b'"' => write_bytes(dst, cursor, b"\\\""),
+        b'\\' => write_bytes(dst, cursor, b"\\\\"),
+        b'\n' => write_bytes(dst, cursor, b"\\n"),
+        b'\r' => write_bytes(dst, cursor, b"\\r"),
+        b'\t' => write_bytes(dst, cursor, b"\\t"),
+        _ if b < 0x20 => write_bytes(dst, cursor, b" "),
+        _ => {
+            if *cursor >= dst.len() { return false; }
+            dst[*cursor] = b; *cursor += 1; true
+        }
+    }
+}
+
+fn hex_to_u16(hex: &[u8]) -> u16 {
+    let mut val = 0u16;
+    for &b in hex {
+        let digit = match b {
+            b'0'..=b'9' => (b - b'0') as u16,
+            b'a'..=b'f' => (b - b'a' + 10) as u16,
+            b'A'..=b'F' => (b - b'A' + 10) as u16,
+            _ => return 0,
+        };
+        val = val * 16 + digit;
+    }
+    val
+}
+
+fn encode_utf8(cp: u32, buf: &mut [u8; 4]) -> usize {
+    if cp < 0x80 {
+        buf[0] = cp as u8; 1
+    } else if cp < 0x800 {
+        buf[0] = 0xC0 | (cp >> 6) as u8;
+        buf[1] = 0x80 | (cp & 0x3F) as u8;
+        2
+    } else if cp < 0x10000 {
+        buf[0] = 0xE0 | (cp >> 12) as u8;
+        buf[1] = 0x80 | ((cp >> 6) & 0x3F) as u8;
+        buf[2] = 0x80 | (cp & 0x3F) as u8;
+        3
+    } else {
+        buf[0] = 0xF0 | (cp >> 18) as u8;
+        buf[1] = 0x80 | ((cp >> 12) & 0x3F) as u8;
+        buf[2] = 0x80 | ((cp >> 6) & 0x3F) as u8;
+        buf[3] = 0x80 | (cp & 0x3F) as u8;
+        4
+    }
+}
+
 fn find_subslice(haystack: &[u8], needle: &[u8]) -> Option<usize> {
     if needle.is_empty() || haystack.len() < needle.len() { return None; }
     let last = haystack.len() - needle.len();
@@ -455,7 +550,17 @@ fn run_get_manga(req: &[u8]) -> u32 {
         .or_else(|| extract_json_string(obj, b"ja-ro"))
         .unwrap_or(b"Unknown");
     let status = extract_json_string(obj, b"status").unwrap_or(b"unknown");
-    let desc = extract_json_string(obj, b"en").unwrap_or(b""); // description.en
+    // description is a nested object {"en":"...", ...} — find it, then extract "en" inside
+    let desc = {
+        let desc_marker = b"\"description\":{";
+        match find_subslice(obj, desc_marker) {
+            Some(idx) => {
+                let desc_obj = &obj[idx + desc_marker.len()..];
+                extract_json_string(desc_obj, b"en").unwrap_or(b"")
+            }
+            None => b"" as &[u8],
+        }
+    };
     let cover_fn = extract_cover_filename(obj);
 
     // Extract author names from relationships
@@ -469,7 +574,7 @@ fn run_get_manga(req: &[u8]) -> u32 {
         && write_bytes(payload, &mut c, br#"","title":""#)
         && append_json_escaped(payload, &mut c, title)
         && write_bytes(payload, &mut c, br#"","alternateTitles":[],"description":""#)
-        && append_json_escaped(payload, &mut c, desc)
+        && append_json_unescaped_then_escaped(payload, &mut c, desc)
         && write_bytes(payload, &mut c, br#"","cover":{"kind":"url","url":""#)
         && write_bytes(payload, &mut c, COVERS_BASE)
         && append_json_escaped(payload, &mut c, uuid)
@@ -488,13 +593,31 @@ fn run_get_manga(req: &[u8]) -> u32 {
     if !ok2 { return write_error("get_manga", "internal_error", "overflow"); }
     if let Some(author) = author_name {
         let _ = write_bytes(payload, &mut c, b"\"")
-            && append_json_escaped(payload, &mut c, author)
+            && append_json_unescaped_then_escaped(payload, &mut c, author)
             && write_bytes(payload, &mut c, b"\"");
     }
     let ok3 = write_bytes(payload, &mut c, br#"],"artists":[],"status":""#)
         && append_json_escaped(payload, &mut c, status)
-        && write_bytes(payload, &mut c, br#"","contentRating":"unknown","language":"en","tags":[],"links":[]}}"#);
+        && write_bytes(payload, &mut c, br#"","contentRating":"unknown","language":"en","tags":["#);
     if !ok3 { return write_error("get_manga", "internal_error", "overflow"); }
+    // Extract tag names from tags array
+    if let Some(mut tag_iter) = JsonArrayIter::new(obj, b"tags") {
+        let mut tag_count = 0usize;
+        while let Some(tag_obj) = tag_iter.next_object() {
+            if let Some(name) = extract_json_string(tag_obj, b"en") {
+                if tag_count > 0 {
+                    if !write_bytes(payload, &mut c, b",") { break; }
+                }
+                let _ = write_bytes(payload, &mut c, b"\"")
+                    && append_json_unescaped_then_escaped(payload, &mut c, name)
+                    && write_bytes(payload, &mut c, b"\"");
+                tag_count += 1;
+            }
+        }
+    }
+    if !write_bytes(payload, &mut c, br#"],"links":[]}}"#) {
+        return write_error("get_manga", "internal_error", "overflow");
+    }
 
     write_success_payload("get_manga", c)
 }
@@ -663,11 +786,11 @@ fn run_get_pages(req: &[u8]) -> u32 {
             && write_bytes(payload, &mut c, br#"","index":"#)
             && write_usize(payload, &mut c, page_idx)
             && write_bytes(payload, &mut c, br#","image":{"kind":"url","url":""#)
-            && append_json_escaped(payload, &mut c, base_url)
+            && append_json_unescaped_then_escaped(payload, &mut c, base_url)
             && write_bytes(payload, &mut c, b"/data/")
-            && append_json_escaped(payload, &mut c, hash)
+            && append_json_unescaped_then_escaped(payload, &mut c, hash)
             && write_bytes(payload, &mut c, b"/")
-            && append_json_escaped(payload, &mut c, filename)
+            && append_json_unescaped_then_escaped(payload, &mut c, filename)
             && write_bytes(payload, &mut c, br#""}}"#);
         if !ok3 { break; }
         page_idx += 1;
