@@ -8,6 +8,8 @@
 #include <utility>
 #include <vector>
 
+#include "html_host.h"
+
 #if defined(KOMA_ENABLE_WAMR)
 #include "source_runtime_fixture_wasm.h"
 #include "wasm_export.h"
@@ -34,7 +36,7 @@ constexpr const char *kManifestJson =
     "{\"schemaVersion\":1,\"id\":\"local.example.private\","
     "\"runtime\":\"wasm-v1\",\"entry\":\"source_runtime_fixture.wasm\","
     "\"host\":{\"abi\":\"koma-host-v0.1\",\"imports\":[\"log\",\"check_cancel\","
-    "\"http_request\",\"html_parse\",\"html_select\",\"html_attr\",\"html_text\",\"html_close\"],"
+    "\"http_request\",\"html_parse\",\"html_select\",\"html_select_all\",\"html_attr\",\"html_text\",\"html_close\"],"
     "\"limits\":{\"maxMemoryPages\":2,\"maxPayloadBytes\":1048576,\"network\":false}},"
     "\"contentPolicy\":{\"publicIndex\":false,\"marketplace\":false}}";
 
@@ -218,18 +220,19 @@ int32_t HostHttpRequest(wasm_exec_env_t execEnv, char *request, uint32_t request
 int32_t HostHtmlParse(wasm_exec_env_t execEnv, char *html, uint32_t htmlLen)
 {
     (void)execEnv;
-    (void)html;
-    (void)htmlLen;
-    return -1;
+    return koma::html::Parse(html, htmlLen);
 }
 
 int32_t HostHtmlSelect(wasm_exec_env_t execEnv, int32_t descriptor, char *selector, uint32_t selectorLen)
 {
     (void)execEnv;
-    (void)descriptor;
-    (void)selector;
-    (void)selectorLen;
-    return -1;
+    return koma::html::Select(descriptor, selector, selectorLen);
+}
+
+int32_t HostHtmlSelectAll(wasm_exec_env_t execEnv, int32_t descriptor, char *selector, uint32_t selectorLen, char *out, uint32_t outCap)
+{
+    (void)execEnv;
+    return koma::html::SelectAll(descriptor, selector, selectorLen, out, outCap);
 }
 
 int32_t HostHtmlAttr(wasm_exec_env_t execEnv,
@@ -240,28 +243,19 @@ int32_t HostHtmlAttr(wasm_exec_env_t execEnv,
     uint32_t outCap)
 {
     (void)execEnv;
-    (void)descriptor;
-    (void)attr;
-    (void)attrLen;
-    (void)out;
-    (void)outCap;
-    return -1;
+    return koma::html::Attr(descriptor, attr, attrLen, out, outCap);
 }
 
 int32_t HostHtmlText(wasm_exec_env_t execEnv, int32_t descriptor, char *out, uint32_t outCap)
 {
     (void)execEnv;
-    (void)descriptor;
-    (void)out;
-    (void)outCap;
-    return -1;
+    return koma::html::Text(descriptor, out, outCap);
 }
 
 int32_t HostHtmlClose(wasm_exec_env_t execEnv, int32_t descriptor)
 {
     (void)execEnv;
-    (void)descriptor;
-    return 0;
+    return koma::html::Close(descriptor);
 }
 
 NativeSymbol g_komaHostSymbols[] = {
@@ -270,6 +264,7 @@ NativeSymbol g_komaHostSymbols[] = {
     {"http_request", reinterpret_cast<void *>(HostHttpRequest), "(*~*~)i", nullptr},
     {"html_parse", reinterpret_cast<void *>(HostHtmlParse), "(*~)i", nullptr},
     {"html_select", reinterpret_cast<void *>(HostHtmlSelect), "(i*~)i", nullptr},
+    {"html_select_all", reinterpret_cast<void *>(HostHtmlSelectAll), "(i*~*~)i", nullptr},
     {"html_attr", reinterpret_cast<void *>(HostHtmlAttr), "(i*~*~)i", nullptr},
     {"html_text", reinterpret_cast<void *>(HostHtmlText), "(i*~)i", nullptr},
     {"html_close", reinterpret_cast<void *>(HostHtmlClose), "(i)i", nullptr},

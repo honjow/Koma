@@ -9,7 +9,8 @@ endif()
 
 set(KOMA_SOURCE_RUNTIME_SOURCES
     source_runtime_sample.cpp
-    wasm_runtime_adapter.cpp)
+    wasm_runtime_adapter.cpp
+    html_host.cpp)
 
 add_library(koma_source_runtime SHARED ${KOMA_SOURCE_RUNTIME_SOURCES})
 target_compile_features(koma_source_runtime PRIVATE cxx_std_17)
@@ -62,6 +63,22 @@ if(DEFINED WAMR_ROOT_DIR AND EXISTS "${WAMR_ROOT_DIR}/build-scripts/runtime_lib.
     add_dependencies(koma_source_runtime koma_source_runtime_fixture)
     target_include_directories(koma_source_runtime PRIVATE ${KOMA_GENERATED_DIR})
 
+    # --- lexbor (HTML parser with CSS selectors) ---
+    set(LEXBOR_ROOT_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../../../../third_party/lexbor)
+    set(LEXBOR_BUILD_SHARED OFF CACHE BOOL "" FORCE)
+    set(LEXBOR_BUILD_STATIC ON CACHE BOOL "" FORCE)
+    set(LEXBOR_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
+    set(LEXBOR_BUILD_TESTS OFF CACHE BOOL "" FORCE)
+    set(LEXBOR_BUILD_TESTS_CPP OFF CACHE BOOL "" FORCE)
+    set(LEXBOR_BUILD_BENCHMARKS OFF CACHE BOOL "" FORCE)
+    set(LEXBOR_BUILD_UTILS OFF CACHE BOOL "" FORCE)
+    set(LEXBOR_INSTALL_HEADERS OFF CACHE BOOL "" FORCE)
+    add_subdirectory(${LEXBOR_ROOT_DIR} ${CMAKE_CURRENT_BINARY_DIR}/lexbor EXCLUDE_FROM_ALL)
+    target_include_directories(koma_source_runtime PRIVATE ${LEXBOR_ROOT_DIR}/source)
+    target_link_libraries(koma_source_runtime PRIVATE lexbor_static)
+    target_compile_definitions(koma_source_runtime PRIVATE KOMA_ENABLE_LEXBOR=1)
+
+    # --- WAMR ---
     set(WAMR_BUILD_PLATFORM "linux")
     set(WAMR_BUILD_TARGET "AARCH64")
     set(WAMR_BUILD_INTERP 1)
