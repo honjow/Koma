@@ -73,11 +73,11 @@ const SOURCE_CAPS: SourceCapabilities = SourceCapabilities {
     chapters: true,
     pages: true,
     listings: true,
-    manga_list: false,
+    manga_list: true,
     home: false,
-    filters: false,
+    filters: true,
     settings: false,
-    image_request: false,
+    image_request: true,
 };
 
 #[panic_handler]
@@ -940,6 +940,175 @@ fn run_get_listings(req: &[u8]) -> u32 {
     write_success_payload("get_listings", c)
 }
 
+/// Extract a JSON number value for a given key, returns the bytes of the number
+fn extract_json_number<'a>(req: &'a [u8], key: &[u8]) -> Option<&'a [u8]> {
+    // Build pattern "key":
+    let mut pattern = [0u8; 64];
+    let needed = key.len() + 3; // "key":
+    if needed > pattern.len() {
+        return None;
+    }
+    pattern[0] = b'"';
+    pattern[1..1 + key.len()].copy_from_slice(key);
+    pattern[1 + key.len()] = b'"';
+    pattern[2 + key.len()] = b':';
+    let start = find_subslice(req, &pattern[..needed])? + needed;
+    // Skip whitespace
+    let mut i = start;
+    while i < req.len() && (req[i] == b' ' || req[i] == b'\t' || req[i] == b'\n' || req[i] == b'\r') {
+        i += 1;
+    }
+    if i >= req.len() { return None; }
+    // Collect digits
+    let num_start = i;
+    while i < req.len() && (req[i] >= b'0' && req[i] <= b'9') {
+        i += 1;
+    }
+    if i == num_start { return None; }
+    Some(&req[num_start..i])
+}
+
+fn run_get_filters(_req: &[u8]) -> u32 {
+    // Return filter definitions for baozimh classify page
+    // Filters: region, state, type (genre)
+    // Using &str (not byte string) because labels contain non-ASCII (Chinese)
+    const FILTERS_JSON: &str = "{\"filters\":[{\"id\":\"region\",\"name\":\"地區\",\"kind\":\"select\",\"options\":[{\"value\":\"all\",\"label\":\"全部\"},{\"value\":\"cn\",\"label\":\"國漫\"},{\"value\":\"jp\",\"label\":\"日本\"},{\"value\":\"kr\",\"label\":\"韓國\"},{\"value\":\"en\",\"label\":\"歐美\"}],\"default\":\"all\"},{\"id\":\"state\",\"name\":\"狀態\",\"kind\":\"select\",\"options\":[{\"value\":\"all\",\"label\":\"全部\"},{\"value\":\"serial\",\"label\":\"連載中\"},{\"value\":\"pub\",\"label\":\"已完結\"}],\"default\":\"all\"},{\"id\":\"type\",\"name\":\"類型\",\"kind\":\"select\",\"options\":[{\"value\":\"all\",\"label\":\"全部\"},{\"value\":\"lianai\",\"label\":\"戀愛\"},{\"value\":\"chunai\",\"label\":\"純愛\"},{\"value\":\"gufeng\",\"label\":\"古風\"},{\"value\":\"yineng\",\"label\":\"異能\"},{\"value\":\"xuanyi\",\"label\":\"懸疑\"},{\"value\":\"juqing\",\"label\":\"劇情\"},{\"value\":\"kehuan\",\"label\":\"科幻\"},{\"value\":\"qihuan\",\"label\":\"奇幻\"},{\"value\":\"xuanhuan\",\"label\":\"玄幻\"},{\"value\":\"chuanyue\",\"label\":\"穿越\"},{\"value\":\"mouxian\",\"label\":\"冒險\"},{\"value\":\"tuili\",\"label\":\"推理\"},{\"value\":\"wuxia\",\"label\":\"武俠\"},{\"value\":\"gedou\",\"label\":\"格鬥\"},{\"value\":\"zhanzheng\",\"label\":\"戰爭\"},{\"value\":\"rexie\",\"label\":\"熱血\"},{\"value\":\"gaoxiao\",\"label\":\"搞笑\"},{\"value\":\"danuzhu\",\"label\":\"大女主\"},{\"value\":\"dushi\",\"label\":\"都市\"},{\"value\":\"zongcai\",\"label\":\"總裁\"},{\"value\":\"hougong\",\"label\":\"後宮\"},{\"value\":\"richang\",\"label\":\"日常\"},{\"value\":\"hanman\",\"label\":\"韓漫\"},{\"value\":\"shaonian\",\"label\":\"少年\"},{\"value\":\"qita\",\"label\":\"其它\"}],\"default\":\"all\"}]}";
+    let filters_bytes = FILTERS_JSON.as_bytes();
+
+    let payload = payload_buf();
+    let flen = filters_bytes.len();
+    if flen > payload.len() {
+        return write_error("get_filters", "internal_error", "payload overflow");
+    }
+    payload[..flen].copy_from_slice(filters_bytes);
+    write_success_payload("get_filters", flen)
+}
+
+fn run_get_manga_list(req: &[u8]) -> u32 {
+    // Extract filter values from request JSON
+    let region = extract_json_string(req, b"region").unwrap_or(b"all");
+    let state = extract_json_string(req, b"state").unwrap_or(b"all");
+    let manga_type = extract_json_string(req, b"type").unwrap_or(b"all");
+    let page_bytes = extract_json_number(req, b"page");
+    let page_num = if let Some(pb) = page_bytes {
+        let mut n = 0usize;
+        for &b in pb {
+            n = n * 10 + (b - b'0') as usize;
+        }
+        if n == 0 { 1 } else { n }
+    } else {
+        1
+    };
+
+    // Build URL: /classify?type=X&region=Y&state=Z&filter=*&page=N
+    let url_buf = scratch_a();
+    let mut url_cursor = 0usize;
+    let ok = write_bytes(url_buf, &mut url_cursor, SITE_BASE)
+        && write_bytes(url_buf, &mut url_cursor, b"/classify?type=")
+        && write_bytes(url_buf, &mut url_cursor, manga_type)
+        && write_bytes(url_buf, &mut url_cursor, b"&region=")
+        && write_bytes(url_buf, &mut url_cursor, region)
+        && write_bytes(url_buf, &mut url_cursor, b"&state=")
+        && write_bytes(url_buf, &mut url_cursor, state)
+        && write_bytes(url_buf, &mut url_cursor, b"&filter=%2a&page=")
+        && write_usize(url_buf, &mut url_cursor, page_num);
+    if !ok {
+        return write_error("get_manga_list", "internal_error", "url overflow");
+    }
+    let url_bytes = unsafe { core::slice::from_raw_parts(SCRATCH_A.as_ptr(), url_cursor) };
+
+    let html_len = match fetch_html(url_bytes) {
+        Some(len) => len,
+        None => return write_error("get_manga_list", "source_error", "fetch failed"),
+    };
+    let html_bytes = unsafe { core::slice::from_raw_parts(HTML_BUF.as_ptr(), html_len) };
+
+    let document = match html_parse(html_bytes) {
+        Ok(d) => OwnedDescriptor(d),
+        Err(_) => return write_error("get_manga_list", "parse_error", "html_parse failed"),
+    };
+
+    let select_buf = unsafe { &mut *core::ptr::addr_of_mut!(SELECT_ALL_BUF) };
+    let count = html_select_all(document.0.raw(), b"a.comics-card__poster", select_buf);
+
+    let payload = payload_buf();
+    let mut c = 0usize;
+
+    if !write_bytes(payload, &mut c, br#"{"items":["#) {
+        return write_error("get_manga_list", "internal_error", "payload overflow");
+    }
+
+    let max_items = if count > 0 { (count as usize).min(500) } else { 0 };
+    let mut written = 0usize;
+
+    for i in 0..max_items {
+        let offset = i * 4;
+        if offset + 4 > select_buf.len() { break; }
+        let desc = i32::from_le_bytes([
+            select_buf[offset], select_buf[offset+1], select_buf[offset+2], select_buf[offset+3],
+        ]);
+        if desc < 0 { continue; }
+
+        let hd: HtmlDescriptor = unsafe { core::mem::transmute(desc) };
+        let scratch_href = scratch_a();
+        let scratch_title = scratch_b();
+        let href_bytes = attr_into(hd, b"href", scratch_href);
+        let title_bytes = attr_into(hd, b"title", scratch_title);
+
+        if let (Some(href), Some(title)) = (href_bytes, title_bytes) {
+            let mut slug_buf = [0u8; 128];
+            if let Some(slug_len) = slug_from_comic_path(href, &mut slug_buf) {
+                let slug = &slug_buf[..slug_len];
+                if written > 0 {
+                    if !write_bytes(payload, &mut c, b",") { break; }
+                }
+                let ok = write_bytes(payload, &mut c, br#"{"id":"manga:"#)
+                    && append_json_escaped(payload, &mut c, slug)
+                    && write_bytes(payload, &mut c, br#"","title":""#)
+                    && append_json_escaped(payload, &mut c, title)
+                    && write_bytes(payload, &mut c, br#"","cover":{"kind":"url","url":"https://static-tw.baozimh.com/cover/"#)
+                    && append_json_escaped(payload, &mut c, slug)
+                    && write_bytes(payload, &mut c, br#".jpg"},"authors":[],"status":"unknown","contentRating":"unknown","sourceTags":["baozimh"]}"#);
+                if !ok { break; }
+                written += 1;
+            }
+        }
+        let _ = html_close(hd);
+    }
+
+    // hasMore: true if we got a full page (36+)
+    let has_more = if written >= 36 { b"true" as &[u8] } else { b"false" as &[u8] };
+    let ok2 = write_bytes(payload, &mut c, br#"],"page":{"nextCursor":""#)
+        && write_usize(payload, &mut c, page_num + 1)
+        && write_bytes(payload, &mut c, br#"","hasMore":"#)
+        && write_bytes(payload, &mut c, has_more)
+        && write_bytes(payload, &mut c, b"}}");
+    if !ok2 {
+        return write_error("get_manga_list", "internal_error", "payload overflow");
+    }
+
+    write_success_payload("get_manga_list", c)
+}
+
+fn run_modify_image_request(req: &[u8]) -> u32 {
+    // baozimh images are freely accessible, no modification needed.
+    // Just extract the URL and return an unmodified request
+    let url = match extract_json_string(req, b"url") {
+        Some(u) => u,
+        None => return write_error("modify_image_request", "invalid_request", "missing url"),
+    };
+
+    let payload = payload_buf();
+    let mut c = 0usize;
+    let ok = write_bytes(payload, &mut c, br#"{"url":""#)
+        && append_json_escaped(payload, &mut c, url)
+        && write_bytes(payload, &mut c, br#"","headers":{}}"#);
+    if !ok {
+        return write_error("modify_image_request", "internal_error", "payload overflow");
+    }
+    write_success_payload("modify_image_request", c)
+}
+
 fn extract_query_param<'a>(url: &[u8], key: &[u8], out: &'a mut [u8]) -> Option<&'a [u8]> {
     let mut pattern_buf = [0u8; 32];
     if key.len() + 1 > pattern_buf.len() {
@@ -1045,6 +1214,36 @@ pub extern "C" fn koma_source_get_listings(req_ptr: u32, req_len: u32) -> u32 {
         return write_error("get_listings", "unexpected_operation", "expected get_listings");
     }
     run_get_listings(req)
+}
+
+#[no_mangle]
+pub extern "C" fn koma_source_get_manga_list(req_ptr: u32, req_len: u32) -> u32 {
+    let req = match read_request(req_ptr, req_len) {
+        Some(r) => r,
+        None => return write_error("get_manga_list", "invalid_request", "empty request"),
+    };
+    log_info(b"baozimh get_manga_list");
+    run_get_manga_list(req)
+}
+
+#[no_mangle]
+pub extern "C" fn koma_source_get_filters(req_ptr: u32, req_len: u32) -> u32 {
+    let req = match read_request(req_ptr, req_len) {
+        Some(r) => r,
+        None => return write_error("get_filters", "invalid_request", "empty request"),
+    };
+    log_info(b"baozimh get_filters");
+    run_get_filters(req)
+}
+
+#[no_mangle]
+pub extern "C" fn koma_source_get_image_request(req_ptr: u32, req_len: u32) -> u32 {
+    let req = match read_request(req_ptr, req_len) {
+        Some(r) => r,
+        None => return write_error("modify_image_request", "invalid_request", "empty request"),
+    };
+    log_info(b"baozimh modify_image_request");
+    run_modify_image_request(req)
 }
 
 #[no_mangle]
