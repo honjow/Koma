@@ -170,6 +170,7 @@ pub fn run_operation(wasm_path: &Path, op: &str, request_json: &str) -> Result<s
         "get_filters" => "koma_source_get_filters",
         "get_settings" => "koma_source_get_settings",
         "get_image_request" => "koma_source_get_image_request",
+        "image_request" | "modify_image_request" => "koma_source_modify_image_request",
         _ => anyhow::bail!("Unknown operation: {}", op),
     };
 

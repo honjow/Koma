@@ -39,11 +39,11 @@ const SOURCE_CAPS: SourceCapabilities = SourceCapabilities {
     chapters: true,
     pages: true,
     listings: true,
-    manga_list: false,
+    manga_list: true,
     home: false,
-    filters: false,
+    filters: true,
     settings: false,
-    image_request: false,
+    image_request: true,
 };
 
 #[panic_handler]
@@ -742,6 +742,179 @@ fn run_get_listings(_req: &[u8]) -> u32 {
     write_success_payload("get_listings", c)
 }
 
+// --- get_filters: return browseable filter definitions ---
+
+fn run_get_filters(_req: &[u8]) -> u32 {
+    // MangaDex filters: status, contentRating, publicationDemographic, order
+    // We keep a static definition; tags would require an API call to /manga/tag
+    // but the most useful browsing filters are these fixed enums.
+    const FILTERS_JSON: &[u8] = br#"{"filters":[{"id":"status","name":"Status","kind":"select","options":[{"value":"all","label":"All"},{"value":"ongoing","label":"Ongoing"},{"value":"completed","label":"Completed"},{"value":"hiatus","label":"Hiatus"},{"value":"cancelled","label":"Cancelled"}],"default":"all"},{"id":"contentRating","name":"Content Rating","kind":"select","options":[{"value":"all","label":"All"},{"value":"safe","label":"Safe"},{"value":"suggestive","label":"Suggestive"},{"value":"erotica","label":"Erotica"}],"default":"all"},{"id":"demographic","name":"Demographic","kind":"select","options":[{"value":"all","label":"All"},{"value":"shounen","label":"Shounen"},{"value":"shoujo","label":"Shoujo"},{"value":"seinen","label":"Seinen"},{"value":"josei","label":"Josei"}],"default":"all"},{"id":"order","name":"Order By","kind":"select","options":[{"value":"relevance","label":"Relevance"},{"value":"followedCount","label":"Popularity"},{"value":"latestUploadedChapter","label":"Latest Upload"},{"value":"createdAt","label":"Newest"},{"value":"title","label":"Title"}],"default":"relevance"}]}"#;
+
+    let payload = payload_buf();
+    let flen = FILTERS_JSON.len();
+    if flen > payload.len() {
+        return write_error("get_filters", "internal_error", "payload overflow");
+    }
+    payload[..flen].copy_from_slice(FILTERS_JSON);
+    write_success_payload("get_filters", flen)
+}
+
+// --- get_manga_list: browse with filters ---
+
+fn run_get_manga_list(req: &[u8]) -> u32 {
+    // Extract filter parameters from request
+    let status = extract_json_string(req, b"status").unwrap_or(b"all");
+    let content_rating = extract_json_string(req, b"contentRating").unwrap_or(b"all");
+    let demographic = extract_json_string(req, b"demographic").unwrap_or(b"all");
+    let order = extract_json_string(req, b"order").unwrap_or(b"relevance");
+    let page_bytes = extract_json_number(req, b"page");
+    let page_num = if let Some(pb) = page_bytes {
+        let mut n = 0usize;
+        for &b in pb { n = n * 10 + (b - b'0') as usize; }
+        if n == 0 { 1 } else { n }
+    } else { 1 };
+    let offset_val = (page_num - 1) * 20;
+
+    // Build URL: /manga?limit=20&offset=N&includes[]=cover_art + optional filters
+    let url_buf = scratch_a();
+    let mut url_cursor = 0usize;
+    let ok = write_bytes(url_buf, &mut url_cursor, API_BASE)
+        && write_bytes(url_buf, &mut url_cursor, b"/manga?limit=20&includes%5B%5D=cover_art&offset=")
+        && write_usize(url_buf, &mut url_cursor, offset_val);
+    if !ok { return write_error("get_manga_list", "internal_error", "url overflow"); }
+
+    // Append status filter
+    if status != b"all" {
+        let ok2 = write_bytes(url_buf, &mut url_cursor, b"&status%5B%5D=")
+            && write_bytes(url_buf, &mut url_cursor, status);
+        if !ok2 { return write_error("get_manga_list", "internal_error", "url overflow"); }
+    }
+    // Append contentRating filter
+    if content_rating != b"all" {
+        let ok2 = write_bytes(url_buf, &mut url_cursor, b"&contentRating%5B%5D=")
+            && write_bytes(url_buf, &mut url_cursor, content_rating);
+        if !ok2 { return write_error("get_manga_list", "internal_error", "url overflow"); }
+    } else {
+        // Default: include safe + suggestive
+        let ok2 = write_bytes(url_buf, &mut url_cursor, b"&contentRating%5B%5D=safe&contentRating%5B%5D=suggestive");
+        if !ok2 { return write_error("get_manga_list", "internal_error", "url overflow"); }
+    }
+    // Append demographic filter
+    if demographic != b"all" {
+        let ok2 = write_bytes(url_buf, &mut url_cursor, b"&publicationDemographic%5B%5D=")
+            && write_bytes(url_buf, &mut url_cursor, demographic);
+        if !ok2 { return write_error("get_manga_list", "internal_error", "url overflow"); }
+    }
+    // Append order
+    if order != b"relevance" {
+        let ok2 = write_bytes(url_buf, &mut url_cursor, b"&order%5B")
+            && write_bytes(url_buf, &mut url_cursor, order)
+            && write_bytes(url_buf, &mut url_cursor, b"%5D=desc");
+        if !ok2 { return write_error("get_manga_list", "internal_error", "url overflow"); }
+    }
+
+    let url_bytes = unsafe { core::slice::from_raw_parts(SCRATCH_A.as_ptr(), url_cursor) };
+
+    let api_json = match fetch_json(url_bytes) {
+        Some(v) => v,
+        None => return write_error("get_manga_list", "source_error", "fetch failed"),
+    };
+
+    // Parse total from response for hasMore
+    let total = extract_json_number(api_json, b"total")
+        .and_then(|t| {
+            let mut n = 0usize;
+            for &b in t { n = n * 10 + (b - b'0') as usize; }
+            Some(n)
+        })
+        .unwrap_or(0);
+    let has_more = offset_val + 20 < total;
+
+    let payload = payload_buf();
+    let mut c = 0usize;
+    if !write_bytes(payload, &mut c, br#"{"items":["#) {
+        return write_error("get_manga_list", "internal_error", "overflow");
+    }
+
+    let mut iter = match JsonArrayIter::new(api_json, b"data") {
+        Some(it) => it,
+        None => return write_error("get_manga_list", "parse_error", "no data"),
+    };
+
+    let mut written = 0usize;
+    while let Some(obj) = iter.next_object() {
+        if written >= 20 { break; }
+        let id = match extract_json_string(obj, b"id") {
+            Some(v) => v,
+            None => continue,
+        };
+        let title = extract_json_string(obj, b"en")
+            .or_else(|| extract_json_string(obj, b"ja"))
+            .or_else(|| extract_json_string(obj, b"ja-ro"))
+            .unwrap_or(b"Unknown");
+        let st = extract_json_string(obj, b"status").unwrap_or(b"unknown");
+        let cover_fn = extract_cover_filename(obj);
+
+        if written > 0 {
+            if !write_bytes(payload, &mut c, b",") { break; }
+        }
+        let ok = write_bytes(payload, &mut c, br#"{"id":"mdx:"#)
+            && append_json_escaped(payload, &mut c, id)
+            && write_bytes(payload, &mut c, br#"","title":""#)
+            && append_json_escaped(payload, &mut c, title)
+            && write_bytes(payload, &mut c, br#"","cover":{"kind":"url","url":""#)
+            && write_bytes(payload, &mut c, COVERS_BASE)
+            && append_json_escaped(payload, &mut c, id)
+            && write_bytes(payload, &mut c, b"/");
+        if !ok { break; }
+        if let Some(cfn) = cover_fn {
+            if !append_json_escaped(payload, &mut c, cfn) { break; }
+        } else {
+            if !write_bytes(payload, &mut c, b"none.jpg") { break; }
+        }
+        let ok2 = write_bytes(payload, &mut c, br#""},"authors":[],"status":""#)
+            && append_json_escaped(payload, &mut c, st)
+            && write_bytes(payload, &mut c, br#"","contentRating":"unknown","sourceTags":["mangadex"]}"#);
+        if !ok2 { break; }
+        written += 1;
+    }
+
+    // Close items array and add pagination info
+    let ok_close = write_bytes(payload, &mut c, br#"],"page":{"nextCursor":""#)
+        && write_usize(payload, &mut c, page_num + 1)
+        && write_bytes(payload, &mut c, br#"","hasMore":"#);
+    if !ok_close { return write_error("get_manga_list", "internal_error", "overflow"); }
+    if has_more {
+        if !write_bytes(payload, &mut c, b"true}}") {
+            return write_error("get_manga_list", "internal_error", "overflow");
+        }
+    } else {
+        if !write_bytes(payload, &mut c, b"false}}") {
+            return write_error("get_manga_list", "internal_error", "overflow");
+        }
+    }
+
+    write_success_payload("get_manga_list", c)
+}
+
+// --- modify_image_request: pass-through (MangaDex CDN needs no special headers) ---
+
+fn run_image_request(req: &[u8]) -> u32 {
+    // Just return the URL and empty headers as-is
+    let url = match extract_json_string(req, b"url") {
+        Some(u) => u,
+        None => return write_error("image_request", "invalid_request", "missing url"),
+    };
+
+    let payload = payload_buf();
+    let mut c = 0usize;
+    let ok = write_bytes(payload, &mut c, br#"{"url":""#)
+        && append_json_escaped(payload, &mut c, url)
+        && write_bytes(payload, &mut c, br#"","headers":{}}"#);
+    if !ok { return write_error("image_request", "internal_error", "overflow"); }
+    write_success_payload("image_request", c)
+}
+
 // --- Exports ---
 
 #[no_mangle]
@@ -804,6 +977,36 @@ pub extern "C" fn koma_source_get_listings(req_ptr: u32, req_len: u32) -> u32 {
     };
     log_info(b"mangadex get_listings");
     run_get_listings(req)
+}
+
+#[no_mangle]
+pub extern "C" fn koma_source_get_filters(req_ptr: u32, req_len: u32) -> u32 {
+    let req = match read_request(req_ptr, req_len) {
+        Some(r) => r,
+        None => return write_error("get_filters", "invalid_request", "empty"),
+    };
+    log_info(b"mangadex get_filters");
+    run_get_filters(req)
+}
+
+#[no_mangle]
+pub extern "C" fn koma_source_get_manga_list(req_ptr: u32, req_len: u32) -> u32 {
+    let req = match read_request(req_ptr, req_len) {
+        Some(r) => r,
+        None => return write_error("get_manga_list", "invalid_request", "empty"),
+    };
+    log_info(b"mangadex get_manga_list");
+    run_get_manga_list(req)
+}
+
+#[no_mangle]
+pub extern "C" fn koma_source_modify_image_request(req_ptr: u32, req_len: u32) -> u32 {
+    let req = match read_request(req_ptr, req_len) {
+        Some(r) => r,
+        None => return write_error("image_request", "invalid_request", "empty"),
+    };
+    log_info(b"mangadex modify_image_request");
+    run_image_request(req)
 }
 
 #[no_mangle]
