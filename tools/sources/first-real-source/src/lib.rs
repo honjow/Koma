@@ -41,6 +41,7 @@ static mut SELECT_ALL_BUF: [u8; 200] = [0; 200]; // 50 * 4 bytes
 
 
 const SITE_BASE: &[u8] = b"https://www.baozimh.com";
+const READER_BASE: &[u8] = b"https://www.twmanga.com";
 const PAYLOAD_CAP: usize = 32 * 1024;
 const HTTP_OUT_CAP: usize = 512 * 1024;
 const HTML_BUF_CAP: usize = 512 * 1024;
@@ -718,7 +719,7 @@ fn run_get_pages(req: &[u8]) -> u32 {
 
     let url_buf = scratch_a();
     let mut url_cursor = 0usize;
-    if !(write_bytes(url_buf, &mut url_cursor, SITE_BASE)
+    if !(write_bytes(url_buf, &mut url_cursor, READER_BASE)
         && write_bytes(url_buf, &mut url_cursor, b"/comic/chapter/")
         && write_bytes(url_buf, &mut url_cursor, slug)
         && write_bytes(url_buf, &mut url_cursor, b"/0_")
