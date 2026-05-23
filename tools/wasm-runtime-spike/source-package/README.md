@@ -53,6 +53,23 @@ while staying aligned with Koma's current runtime evidence:
 Rust SDK source -> wasm32-unknown-unknown -> WAMR sandbox -> explicit host imports
 ```
 
+## Source Author Docs
+
+For source authors working against the current Rust SDK and Source API v0.2
+fixture, the following docs live alongside this README. They are local/dev
+source-author documentation only — not a source market, remote install flow,
+built-in source catalog, product UI, real network, or trust/signing workflow.
+
+- [`SOURCE_AUTHOR_STABILIZATION_AUDIT.md`](SOURCE_AUTHOR_STABILIZATION_AUDIT.md)
+  — current author-facing contract, gaps, and prioritized stabilization slices.
+- [`SOURCE_AUTHOR_QUICKSTART.md`](SOURCE_AUTHOR_QUICKSTART.md) — minimal Rust
+  SDK authoring workflow against the v0.2 fixture surface.
+- [`SOURCE_AUTHOR_COMPATIBILITY_CHECKLIST.md`](SOURCE_AUTHOR_COMPATIBILITY_CHECKLIST.md)
+  — pre-flight checklist of contract items to verify before the evidence suite.
+- [`SOURCE_AUTHOR_FIXTURE_SDK_PARITY.md`](SOURCE_AUTHOR_FIXTURE_SDK_PARITY.md)
+  — map from source-author SDK concepts to the fixtures and validators that
+  prove each one.
+
 ## Manifest Boundary
 
 `manifest.example.json` declares only a local test package:
