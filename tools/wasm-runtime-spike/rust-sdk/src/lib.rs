@@ -1,4 +1,4 @@
-#![no_std]
+#![cfg_attr(not(test), no_std)]
 
 pub mod host {
     pub const LOG_INFO: u32 = 1;
@@ -267,6 +267,19 @@ pub mod source {
             filters: false,
             settings: false,
             image_request: false,
+        };
+
+        pub const FULL_V02_FIXTURE: Self = Self {
+            search: true,
+            manga_detail: true,
+            chapters: true,
+            pages: true,
+            listings: true,
+            manga_list: true,
+            home: true,
+            filters: true,
+            settings: true,
+            image_request: true,
         };
     }
 
@@ -1122,5 +1135,26 @@ pub mod result {
         } else {
             b"false"
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::source::SourceCapabilities;
+
+    #[test]
+    fn full_v02_fixture_capabilities_advertise_current_operation_surface() {
+        let capabilities = SourceCapabilities::FULL_V02_FIXTURE;
+
+        assert!(capabilities.search);
+        assert!(capabilities.manga_detail);
+        assert!(capabilities.chapters);
+        assert!(capabilities.pages);
+        assert!(capabilities.listings);
+        assert!(capabilities.manga_list);
+        assert!(capabilities.home);
+        assert!(capabilities.filters);
+        assert!(capabilities.settings);
+        assert!(capabilities.image_request);
     }
 }
