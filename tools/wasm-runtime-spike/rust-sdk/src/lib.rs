@@ -1242,6 +1242,377 @@ pub mod result {
     }
 }
 
+// === JSON/Buffer Utilities ===
+//
+// Byte-level helpers shared by source implementations. These are intentionally
+// no_std / no_alloc and operate on caller-provided fixed-size buffers with a
+// mutable cursor, matching the WASM source convention.
+pub mod json_utils {
+    pub fn write_bytes(dst: &mut [u8], cursor: &mut usize, src: &[u8]) -> bool {
+        let end = *cursor + src.len();
+        if end > dst.len() {
+            return false;
+        }
+        dst[*cursor..end].copy_from_slice(src);
+        *cursor = end;
+        true
+    }
+
+    pub fn write_usize(dst: &mut [u8], cursor: &mut usize, val: usize) -> bool {
+        let mut buf = [0u8; 20];
+        let mut n = val;
+        let mut len = 0;
+        if n == 0 {
+            buf[0] = b'0';
+            len = 1;
+        } else {
+            while n > 0 {
+                buf[len] = b'0' + (n % 10) as u8;
+                n /= 10;
+                len += 1;
+            }
+            let mut i = 0;
+            let mut j = len - 1;
+            while i < j {
+                let tmp = buf[i];
+                buf[i] = buf[j];
+                buf[j] = tmp;
+                i += 1;
+                j -= 1;
+            }
+        }
+        write_bytes(dst, cursor, &buf[..len])
+    }
+
+    pub fn append_json_escaped_byte(dst: &mut [u8], cursor: &mut usize, b: u8) -> bool {
+        match b {
+            b'"' => write_bytes(dst, cursor, b"\\\""),
+            b'\\' => write_bytes(dst, cursor, b"\\\\"),
+            b'\n' => write_bytes(dst, cursor, b"\\n"),
+            b'\r' => write_bytes(dst, cursor, b"\\r"),
+            b'\t' => write_bytes(dst, cursor, b"\\t"),
+            0x08 => write_bytes(dst, cursor, b"\\b"),
+            0x0c => write_bytes(dst, cursor, b"\\f"),
+            _ if b < 0x20 => write_bytes(dst, cursor, b" "),
+            _ => {
+                if *cursor >= dst.len() {
+                    return false;
+                }
+                dst[*cursor] = b;
+                *cursor += 1;
+                true
+            }
+        }
+    }
+
+    pub fn append_json_escaped(dst: &mut [u8], cursor: &mut usize, src: &[u8]) -> bool {
+        for &b in src {
+            if !append_json_escaped_byte(dst, cursor, b) {
+                return false;
+            }
+        }
+        true
+    }
+
+    pub fn hex_to_u16(hex: &[u8]) -> u16 {
+        let mut val = 0u16;
+        for &b in hex {
+            let digit = match b {
+                b'0'..=b'9' => (b - b'0') as u16,
+                b'a'..=b'f' => (b - b'a' + 10) as u16,
+                b'A'..=b'F' => (b - b'A' + 10) as u16,
+                _ => return 0,
+            };
+            val = val * 16 + digit;
+        }
+        val
+    }
+
+    pub fn encode_utf8(cp: u32, buf: &mut [u8; 4]) -> usize {
+        if cp < 0x80 {
+            buf[0] = cp as u8;
+            1
+        } else if cp < 0x800 {
+            buf[0] = 0xC0 | (cp >> 6) as u8;
+            buf[1] = 0x80 | (cp & 0x3F) as u8;
+            2
+        } else if cp < 0x10000 {
+            buf[0] = 0xE0 | (cp >> 12) as u8;
+            buf[1] = 0x80 | ((cp >> 6) & 0x3F) as u8;
+            buf[2] = 0x80 | (cp & 0x3F) as u8;
+            3
+        } else {
+            buf[0] = 0xF0 | (cp >> 18) as u8;
+            buf[1] = 0x80 | ((cp >> 12) & 0x3F) as u8;
+            buf[2] = 0x80 | ((cp >> 6) & 0x3F) as u8;
+            buf[3] = 0x80 | (cp & 0x3F) as u8;
+            4
+        }
+    }
+
+    pub fn append_json_unescaped_then_escaped(
+        dst: &mut [u8],
+        cursor: &mut usize,
+        src: &[u8],
+    ) -> bool {
+        let mut i = 0usize;
+        while i < src.len() {
+            if src[i] == b'\\' && i + 1 < src.len() {
+                let next = src[i + 1];
+                match next {
+                    b'/' => {
+                        if !write_bytes(dst, cursor, b"/") {
+                            return false;
+                        }
+                        i += 2;
+                    }
+                    b'"' => {
+                        if !write_bytes(dst, cursor, b"\\\"") {
+                            return false;
+                        }
+                        i += 2;
+                    }
+                    b'\\' => {
+                        if !write_bytes(dst, cursor, b"\\\\") {
+                            return false;
+                        }
+                        i += 2;
+                    }
+                    b'n' => {
+                        if !write_bytes(dst, cursor, b"\\n") {
+                            return false;
+                        }
+                        i += 2;
+                    }
+                    b'r' => {
+                        if !write_bytes(dst, cursor, b"\\r") {
+                            return false;
+                        }
+                        i += 2;
+                    }
+                    b't' => {
+                        if !write_bytes(dst, cursor, b"\\t") {
+                            return false;
+                        }
+                        i += 2;
+                    }
+                    b'u' if i + 5 < src.len() => {
+                        let hex = &src[i + 2..i + 6];
+                        let cp = hex_to_u16(hex);
+                        if cp > 0 {
+                            let mut utf8 = [0u8; 4];
+                            let len = encode_utf8(cp as u32, &mut utf8);
+                            let mut j = 0;
+                            while j < len {
+                                if !append_json_escaped_byte(dst, cursor, utf8[j]) {
+                                    return false;
+                                }
+                                j += 1;
+                            }
+                            i += 6;
+                        } else {
+                            if *cursor >= dst.len() {
+                                return false;
+                            }
+                            dst[*cursor] = src[i];
+                            *cursor += 1;
+                            i += 1;
+                        }
+                    }
+                    _ => {
+                        if !append_json_escaped_byte(dst, cursor, next) {
+                            return false;
+                        }
+                        i += 2;
+                    }
+                }
+            } else {
+                if !append_json_escaped_byte(dst, cursor, src[i]) {
+                    return false;
+                }
+                i += 1;
+            }
+        }
+        true
+    }
+
+    pub fn write_url_encoded(dst: &mut [u8], cursor: &mut usize, src: &[u8]) -> bool {
+        const HEX: &[u8; 16] = b"0123456789ABCDEF";
+        for &b in src {
+            let unreserved = (b >= b'A' && b <= b'Z')
+                || (b >= b'a' && b <= b'z')
+                || (b >= b'0' && b <= b'9')
+                || b == b'-'
+                || b == b'_'
+                || b == b'.'
+                || b == b'~';
+            if unreserved {
+                if *cursor >= dst.len() {
+                    return false;
+                }
+                dst[*cursor] = b;
+                *cursor += 1;
+            } else {
+                if *cursor + 3 > dst.len() {
+                    return false;
+                }
+                dst[*cursor] = b'%';
+                dst[*cursor + 1] = HEX[(b >> 4) as usize];
+                dst[*cursor + 2] = HEX[(b & 0x0f) as usize];
+                *cursor += 3;
+            }
+        }
+        true
+    }
+
+    pub fn find_subslice(haystack: &[u8], needle: &[u8]) -> Option<usize> {
+        if needle.is_empty() || haystack.len() < needle.len() {
+            return None;
+        }
+        let last = haystack.len() - needle.len();
+        let mut i = 0usize;
+        while i <= last {
+            let mut matched = true;
+            let mut j = 0usize;
+            while j < needle.len() {
+                if haystack[i + j] != needle[j] {
+                    matched = false;
+                    break;
+                }
+                j += 1;
+            }
+            if matched {
+                return Some(i);
+            }
+            i += 1;
+        }
+        None
+    }
+
+    pub fn contains_bytes(haystack: &[u8], needle: &[u8]) -> bool {
+        find_subslice(haystack, needle).is_some()
+    }
+
+    pub fn extract_json_string<'a>(data: &'a [u8], key: &[u8]) -> Option<&'a [u8]> {
+        let mut pattern = [0u8; 64];
+        let needed = key.len() + 4;
+        if needed > pattern.len() {
+            return None;
+        }
+        pattern[0] = b'"';
+        pattern[1..1 + key.len()].copy_from_slice(key);
+        pattern[1 + key.len()] = b'"';
+        pattern[2 + key.len()] = b':';
+        pattern[3 + key.len()] = b'"';
+        let start = find_subslice(data, &pattern[..needed])? + needed;
+        let mut i = start;
+        while i < data.len() {
+            let b = data[i];
+            if b == b'\\' {
+                i += 2;
+                continue;
+            }
+            if b == b'"' {
+                return Some(&data[start..i]);
+            }
+            i += 1;
+        }
+        None
+    }
+
+    pub fn extract_json_number<'a>(data: &'a [u8], key: &[u8]) -> Option<&'a [u8]> {
+        let mut pattern = [0u8; 64];
+        let needed = key.len() + 3;
+        if needed > pattern.len() {
+            return None;
+        }
+        pattern[0] = b'"';
+        pattern[1..1 + key.len()].copy_from_slice(key);
+        pattern[1 + key.len()] = b'"';
+        pattern[2 + key.len()] = b':';
+        let start = find_subslice(data, &pattern[..needed])? + needed;
+        let mut i = start;
+        while i < data.len()
+            && (data[i] == b' ' || data[i] == b'\t' || data[i] == b'\n' || data[i] == b'\r')
+        {
+            i += 1;
+        }
+        let num_start = i;
+        while i < data.len() && data[i] >= b'0' && data[i] <= b'9' {
+            i += 1;
+        }
+        if i == num_start {
+            return None;
+        }
+        Some(&data[num_start..i])
+    }
+
+    /// Iterate objects inside a JSON array under `array_key`.
+    pub struct JsonArrayIter<'a> {
+        data: &'a [u8],
+        pos: usize,
+    }
+
+    impl<'a> JsonArrayIter<'a> {
+        pub fn new(data: &'a [u8], array_key: &[u8]) -> Option<Self> {
+            let mut pattern = [0u8; 64];
+            let needed = array_key.len() + 4;
+            if needed > pattern.len() {
+                return None;
+            }
+            pattern[0] = b'"';
+            pattern[1..1 + array_key.len()].copy_from_slice(array_key);
+            pattern[1 + array_key.len()] = b'"';
+            pattern[2 + array_key.len()] = b':';
+            pattern[3 + array_key.len()] = b'[';
+            let start = find_subslice(data, &pattern[..needed])? + needed;
+            Some(Self { data, pos: start })
+        }
+
+        pub fn next_object(&mut self) -> Option<&'a [u8]> {
+            while self.pos < self.data.len() {
+                match self.data[self.pos] {
+                    b' ' | b'\t' | b'\n' | b'\r' | b',' => self.pos += 1,
+                    b']' => return None,
+                    b'{' => break,
+                    _ => return None,
+                }
+            }
+            if self.pos >= self.data.len() {
+                return None;
+            }
+            let start = self.pos;
+            let mut depth = 0i32;
+            let mut in_string = false;
+            while self.pos < self.data.len() {
+                let b = self.data[self.pos];
+                if in_string {
+                    if b == b'\\' {
+                        self.pos += 1;
+                    } else if b == b'"' {
+                        in_string = false;
+                    }
+                } else {
+                    match b {
+                        b'"' => in_string = true,
+                        b'{' | b'[' => depth += 1,
+                        b'}' | b']' => {
+                            depth -= 1;
+                            if depth == 0 {
+                                self.pos += 1;
+                                return Some(&self.data[start..self.pos]);
+                            }
+                        }
+                        _ => {}
+                    }
+                }
+                self.pos += 1;
+            }
+            None
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use crate::request::Request;

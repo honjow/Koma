@@ -6,7 +6,10 @@ use koma_source_sdk::host::{
     self, HtmlDescriptor, html_attr, html_close, html_parse, html_select, html_text, http_request,
     log_info,
 };
-use koma_source_sdk::request::contains_bytes;
+use koma_source_sdk::json_utils::{
+    append_json_escaped, contains_bytes, extract_json_number, extract_json_string, find_subslice,
+    write_bytes, write_url_encoded, write_usize,
+};
 use koma_source_sdk::result::ResultBuffer;
 use koma_source_sdk::source::{SourceCapabilities, SourceInfo};
 
@@ -118,154 +121,6 @@ fn read_request<'a>(req_ptr: u32, req_len: u32) -> Option<&'a [u8]> {
         return None;
     }
     Some(unsafe { core::slice::from_raw_parts(req_ptr as *const u8, req_len as usize) })
-}
-
-fn write_usize(dst: &mut [u8], cursor: &mut usize, val: usize) -> bool {
-    let mut buf = [0u8; 10];
-    let mut n = val;
-    let mut len = 0;
-    if n == 0 {
-        buf[0] = b'0';
-        len = 1;
-    } else {
-        while n > 0 {
-            buf[len] = b'0' + (n % 10) as u8;
-            n /= 10;
-            len += 1;
-        }
-        // Reverse
-        let mut i = 0;
-        let mut j = len - 1;
-        while i < j {
-            let tmp = buf[i];
-            buf[i] = buf[j];
-            buf[j] = tmp;
-            i += 1;
-            j -= 1;
-        }
-    }
-    write_bytes(dst, cursor, &buf[..len])
-}
-
-fn write_bytes(dst: &mut [u8], cursor: &mut usize, src: &[u8]) -> bool {
-    let end = *cursor + src.len();
-    if end > dst.len() {
-        return false;
-    }
-    dst[*cursor..end].copy_from_slice(src);
-    *cursor = end;
-    true
-}
-
-fn append_json_escaped(dst: &mut [u8], cursor: &mut usize, src: &[u8]) -> bool {
-    for &b in src {
-        let escape: Option<&[u8]> = match b {
-            b'"' => Some(b"\\\""),
-            b'\\' => Some(b"\\\\"),
-            b'\n' => Some(b"\\n"),
-            b'\r' => Some(b"\\r"),
-            b'\t' => Some(b"\\t"),
-            0x08 => Some(b"\\b"),
-            0x0c => Some(b"\\f"),
-            _ if b < 0x20 => Some(b" "),
-            _ => None,
-        };
-        match escape {
-            Some(seq) => {
-                if !write_bytes(dst, cursor, seq) {
-                    return false;
-                }
-            }
-            None => {
-                if *cursor >= dst.len() {
-                    return false;
-                }
-                dst[*cursor] = b;
-                *cursor += 1;
-            }
-        }
-    }
-    true
-}
-
-fn find_subslice(haystack: &[u8], needle: &[u8]) -> Option<usize> {
-    if needle.is_empty() || haystack.len() < needle.len() {
-        return None;
-    }
-    let last = haystack.len() - needle.len();
-    let mut i = 0usize;
-    while i <= last {
-        let mut matched = true;
-        let mut j = 0usize;
-        while j < needle.len() {
-            if haystack[i + j] != needle[j] {
-                matched = false;
-                break;
-            }
-            j += 1;
-        }
-        if matched {
-            return Some(i);
-        }
-        i += 1;
-    }
-    None
-}
-
-fn extract_json_string<'a>(req: &'a [u8], key: &[u8]) -> Option<&'a [u8]> {
-    let mut pattern = [0u8; 64];
-    let needed = key.len() + 4;
-    if needed > pattern.len() {
-        return None;
-    }
-    pattern[0] = b'"';
-    pattern[1..1 + key.len()].copy_from_slice(key);
-    pattern[1 + key.len()] = b'"';
-    pattern[2 + key.len()] = b':';
-    pattern[3 + key.len()] = b'"';
-    let start = find_subslice(req, &pattern[..needed])? + needed;
-    let mut i = start;
-    while i < req.len() {
-        let b = req[i];
-        if b == b'\\' {
-            i += 2;
-            continue;
-        }
-        if b == b'"' {
-            return Some(&req[start..i]);
-        }
-        i += 1;
-    }
-    None
-}
-
-fn write_url_encoded(dst: &mut [u8], cursor: &mut usize, src: &[u8]) -> bool {
-    for &b in src {
-        let unreserved = (b >= b'A' && b <= b'Z')
-            || (b >= b'a' && b <= b'z')
-            || (b >= b'0' && b <= b'9')
-            || b == b'-'
-            || b == b'_'
-            || b == b'.'
-            || b == b'~';
-        if unreserved {
-            if *cursor >= dst.len() {
-                return false;
-            }
-            dst[*cursor] = b;
-            *cursor += 1;
-        } else {
-            if *cursor + 3 > dst.len() {
-                return false;
-            }
-            const HEX: &[u8; 16] = b"0123456789ABCDEF";
-            dst[*cursor] = b'%';
-            dst[*cursor + 1] = HEX[(b >> 4) as usize];
-            dst[*cursor + 2] = HEX[(b & 0x0f) as usize];
-            *cursor += 3;
-        }
-    }
-    true
 }
 
 fn build_get_request(dst: &mut [u8], url: &[u8]) -> Option<usize> {
@@ -938,34 +793,6 @@ fn run_get_listings(req: &[u8]) -> u32 {
     }
 
     write_success_payload("get_listings", c)
-}
-
-/// Extract a JSON number value for a given key, returns the bytes of the number
-fn extract_json_number<'a>(req: &'a [u8], key: &[u8]) -> Option<&'a [u8]> {
-    // Build pattern "key":
-    let mut pattern = [0u8; 64];
-    let needed = key.len() + 3; // "key":
-    if needed > pattern.len() {
-        return None;
-    }
-    pattern[0] = b'"';
-    pattern[1..1 + key.len()].copy_from_slice(key);
-    pattern[1 + key.len()] = b'"';
-    pattern[2 + key.len()] = b':';
-    let start = find_subslice(req, &pattern[..needed])? + needed;
-    // Skip whitespace
-    let mut i = start;
-    while i < req.len() && (req[i] == b' ' || req[i] == b'\t' || req[i] == b'\n' || req[i] == b'\r') {
-        i += 1;
-    }
-    if i >= req.len() { return None; }
-    // Collect digits
-    let num_start = i;
-    while i < req.len() && (req[i] >= b'0' && req[i] <= b'9') {
-        i += 1;
-    }
-    if i == num_start { return None; }
-    Some(&req[num_start..i])
 }
 
 fn run_get_filters(_req: &[u8]) -> u32 {
