@@ -109,6 +109,22 @@ operations your source supports plus `koma_source_info` and
 `koma_source_free`. Keep static fixture payloads small enough to fit
 `hostHints.maxPayloadBytes`.
 
+For sources that need to branch on a small number of compact request fields
+without pulling in a JSON parser, the SDK exposes no_std-safe byte helpers:
+
+- `Request::contains_json_number(key, value)` — substring-matches a compact
+  `"key":<digits>` pair with a non-digit right boundary (so `limit:200` does
+  not match `limit:20`).
+- `SearchRequest::limit_is(limit)` and `MangaListRequest::limit_is(limit)` —
+  thin wrappers over the above for the common `limit` pagination field.
+
+These are compact-field byte helpers, not a JSON parser. They are
+intentionally narrow: they only see compact `"key":<u32>` forms, and do not
+validate full JSON, accept whitespace variants, or check schema. Authors
+must still match the v0.2 envelope shape, and the fixture / evidence
+validators remain the source of truth for the real request/response
+contract.
+
 ### 3. Build and run the direct Rust/WAMR fixture
 
 This builds `wasm32-unknown-unknown` for the source SDK and the source crate,

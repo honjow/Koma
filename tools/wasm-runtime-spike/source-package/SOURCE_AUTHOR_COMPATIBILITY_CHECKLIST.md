@@ -112,6 +112,23 @@ validator treats this as a closed set; ad-hoc strings are rejected.
 Each error must include a non-empty diagnostic `message`, a boolean
 `retryable`, and, when present, an object `details`.
 
+## Request inspection helpers (optional)
+
+For sources that branch on a small number of compact request fields without a
+JSON parser, the SDK exposes no_std-safe byte helpers:
+
+- [ ] `Request::contains_json_number(key, value)` — compact `"key":<digits>`
+  match with a non-digit right boundary, so `limit:200` does not match
+  `limit:20`.
+- [ ] `SearchRequest::limit_is(limit)` and `MangaListRequest::limit_is(limit)`
+  — thin wrappers for the common `limit` pagination field.
+
+These are compact-field byte helpers, **not a JSON parser**. They do not
+validate full JSON, accept whitespace variants, or check schema, and they are
+optional author shorthand only. Using them does not relax any checklist item:
+the fixture and evidence validators still prove the real request/response
+contract.
+
 ## Host imports and network gates
 
 - [ ] General host ABI `koma-host-v0.1` exposes **only**

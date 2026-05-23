@@ -86,6 +86,22 @@ Validators are referenced by filename under
   - `run-source-archive-smoke.py` — runs every supported operation through
     the extracted wasm after archive validation.
 
+### Request inspection helpers
+
+- **SDK side:** `Request::contains_json_number(key, value)` is a no_std-safe
+  compact-field byte helper for `"key":<u32>` request fragments, and
+  `SearchRequest::limit_is(limit)` / `MangaListRequest::limit_is(limit)` wrap it
+  for common numeric pagination. These helpers avoid raw author byte matching,
+  but they are not a JSON parser: they do not validate full JSON, whitespace
+  variants, or schema.
+- **Fixture side:** request envelopes still carry the real v0.2 JSON contract.
+  Helper matches are only author conveniences for compact fixture fields.
+- **Proven by:**
+  - `validate-source-api-fixtures.py` — request and response envelope/schema
+    validation remains the source of truth for the corpus.
+  - Direct Rust/WAMR fixture and `run-source-runtime-evidence-suite.py` — prove
+    the actual request/response contract emitted and consumed through WAMR.
+
 ### `JsonPayload` response fragments
 
 - **SDK side:** operations return `Ok(JsonPayload::new(b"..."))` with static
