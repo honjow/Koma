@@ -398,6 +398,20 @@ The report is written to `source-archive-wamr-smoke-report.json` and records
 extracted files, wasm binaries, host builds, caches, logs, and reports remain
 artifact outputs.
 
+To run the full source-runtime evidence chain (direct Rust/WAMR fixture,
+archive smoke, operation-surface parity, source API v0.2 JSON fixture
+validator) in one command:
+
+```sh
+python3 tools/wasm-runtime-spike/source-package/run-source-runtime-evidence-suite.py \
+  --artifact-dir /path/to/artifacts/source-runtime-evidence-suite
+```
+
+The wrapper writes `source-runtime-evidence-suite-report.json` under the
+artifact directory with redacted commands, per-step report paths, and the
+parity-confirmed v0.2 operations covered. It exits 0 only when every step
+passes and every expected per-step report file is present.
+
 `validate-archive-negative-fixtures.py` is a tooling-only adversarial corpus
 generator. It first creates a valid baseline archive under the artifact
 directory, then writes malformed zips under artifacts only and asserts the
