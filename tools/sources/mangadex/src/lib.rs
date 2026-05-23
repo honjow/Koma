@@ -40,9 +40,9 @@ const SOURCE_CAPS: SourceCapabilities = SourceCapabilities {
     pages: true,
     listings: true,
     manga_list: true,
-    home: false,
+    home: true,
     filters: true,
-    settings: false,
+    settings: true,
     image_request: true,
 };
 
@@ -915,6 +915,102 @@ fn run_image_request(req: &[u8]) -> u32 {
     write_success_payload("image_request", c)
 }
 
+// --- get_home: multi-section home page ---
+
+fn run_get_home(_req: &[u8]) -> u32 {
+    // Section 1: Popular New Titles (by followedCount)
+    let url_popular = b"https://api.mangadex.org/manga?order%5BfollowedCount%5D=desc&limit=10&includes%5B%5D=cover_art&contentRating%5B%5D=safe&contentRating%5B%5D=suggestive";
+    // Section 2: Latest Updates (by latestUploadedChapter)
+    let url_latest = b"https://api.mangadex.org/manga?order%5BlatestUploadedChapter%5D=desc&limit=10&includes%5B%5D=cover_art&contentRating%5B%5D=safe&contentRating%5B%5D=suggestive";
+    // Section 3: Recently Added (by createdAt)
+    let url_recent = b"https://api.mangadex.org/manga?order%5BcreatedAt%5D=desc&limit=10&includes%5B%5D=cover_art&contentRating%5B%5D=safe&contentRating%5B%5D=suggestive";
+
+    let payload = payload_buf();
+    let mut c = 0usize;
+    if !write_bytes(payload, &mut c, br#"{"sections":["#) {
+        return write_error("get_home", "internal_error", "overflow");
+    }
+
+    // Fetch and emit each section
+    let sections: [(&[u8], &[u8]); 3] = [
+        (b"Popular" as &[u8], url_popular as &[u8]),
+        (b"Latest Updates" as &[u8], url_latest as &[u8]),
+        (b"Recently Added" as &[u8], url_recent as &[u8]),
+    ];
+
+    let mut section_idx = 0usize;
+    for (section_title, url) in sections.iter() {
+        if section_idx > 0 {
+            if !write_bytes(payload, &mut c, b",") { break; }
+        }
+        let ok = write_bytes(payload, &mut c, br#"{"title":""#)
+            && append_json_escaped(payload, &mut c, section_title)
+            && write_bytes(payload, &mut c, br#"","items":["#);
+        if !ok { break; }
+
+        // Fetch this section's data
+        if let Some(api_json) = fetch_json(url) {
+            if let Some(mut iter) = JsonArrayIter::new(api_json, b"data") {
+                let mut item_count = 0usize;
+                while let Some(obj) = iter.next_object() {
+                    if item_count >= 10 { break; }
+                    let id = match extract_json_string(obj, b"id") {
+                        Some(v) => v,
+                        None => continue,
+                    };
+                    let title = extract_json_string(obj, b"en")
+                        .or_else(|| extract_json_string(obj, b"ja"))
+                        .unwrap_or(b"Unknown");
+                    let cover_fn = extract_cover_filename(obj);
+
+                    if item_count > 0 {
+                        if !write_bytes(payload, &mut c, b",") { break; }
+                    }
+                    let ok2 = write_bytes(payload, &mut c, br#"{"id":"mdx:"#)
+                        && append_json_escaped(payload, &mut c, id)
+                        && write_bytes(payload, &mut c, br#"","title":""#)
+                        && append_json_escaped(payload, &mut c, title)
+                        && write_bytes(payload, &mut c, br#"","cover":{"kind":"url","url":""#)
+                        && write_bytes(payload, &mut c, COVERS_BASE)
+                        && append_json_escaped(payload, &mut c, id)
+                        && write_bytes(payload, &mut c, b"/");
+                    if !ok2 { break; }
+                    if let Some(cfn) = cover_fn {
+                        if !append_json_escaped(payload, &mut c, cfn) { break; }
+                    } else {
+                        if !write_bytes(payload, &mut c, b"none.jpg") { break; }
+                    }
+                    if !write_bytes(payload, &mut c, br#""}}"#) { break; }
+                    item_count += 1;
+                }
+            }
+        }
+
+        if !write_bytes(payload, &mut c, b"]}") { break; }
+        section_idx += 1;
+    }
+
+    if !write_bytes(payload, &mut c, b"]}") {
+        return write_error("get_home", "internal_error", "overflow");
+    }
+    write_success_payload("get_home", c)
+}
+
+// --- get_settings: source-level user preferences ---
+
+fn run_get_settings(_req: &[u8]) -> u32 {
+    // MangaDex settings: preferred language, content rating, data saver mode
+    const SETTINGS_JSON: &[u8] = br#"{"settings":[{"id":"language","name":"Preferred Language","kind":"select","options":[{"value":"en","label":"English"},{"value":"ja","label":"Japanese"},{"value":"zh","label":"Chinese (Simplified)"},{"value":"zh-hk","label":"Chinese (Traditional)"},{"value":"ko","label":"Korean"},{"value":"fr","label":"French"},{"value":"es","label":"Spanish"},{"value":"de","label":"German"},{"value":"pt-br","label":"Portuguese (Brazil)"}],"default":"en"},{"id":"dataSaver","name":"Data Saver","kind":"toggle","description":"Use compressed images to save bandwidth","default":"false"},{"id":"defaultContentRating","name":"Default Content Rating","kind":"select","options":[{"value":"safe","label":"Safe Only"},{"value":"suggestive","label":"Safe + Suggestive"},{"value":"erotica","label":"All (including Erotica)"}],"default":"suggestive"}]}"#;
+
+    let payload = payload_buf();
+    let flen = SETTINGS_JSON.len();
+    if flen > payload.len() {
+        return write_error("get_settings", "internal_error", "payload overflow");
+    }
+    payload[..flen].copy_from_slice(SETTINGS_JSON);
+    write_success_payload("get_settings", flen)
+}
+
 // --- Exports ---
 
 #[no_mangle]
@@ -1007,6 +1103,26 @@ pub extern "C" fn koma_source_modify_image_request(req_ptr: u32, req_len: u32) -
     };
     log_info(b"mangadex modify_image_request");
     run_image_request(req)
+}
+
+#[no_mangle]
+pub extern "C" fn koma_source_get_home(req_ptr: u32, req_len: u32) -> u32 {
+    let req = match read_request(req_ptr, req_len) {
+        Some(r) => r,
+        None => return write_error("get_home", "invalid_request", "empty"),
+    };
+    log_info(b"mangadex get_home");
+    run_get_home(req)
+}
+
+#[no_mangle]
+pub extern "C" fn koma_source_get_settings(req_ptr: u32, req_len: u32) -> u32 {
+    let req = match read_request(req_ptr, req_len) {
+        Some(r) => r,
+        None => return write_error("get_settings", "invalid_request", "empty"),
+    };
+    log_info(b"mangadex get_settings");
+    run_get_settings(req)
 }
 
 #[no_mangle]
