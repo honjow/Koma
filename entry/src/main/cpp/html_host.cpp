@@ -57,7 +57,7 @@ struct SelectAllState {
     std::vector<lxb_dom_node_t *> results;
 };
 
-lxb_status_t SelectCallback(lxb_dom_node_t *node, lxb_css_selector_specificity_t *spec, void *ctx)
+lxb_status_t SelectCallback(lxb_dom_node_t *node, lxb_css_selector_specificity_t spec, void *ctx)
 {
     (void)spec;
     auto *state = static_cast<SelectAllState *>(ctx);

@@ -51,19 +51,47 @@ std::string ExtractJsonString(const char *json, uint32_t jsonLen, const char *ke
 }
 
 /// Build a JSON response for the WASM guest.
-/// Format: {"ok":true/false,"statusCode":NNN,"body":"...","headers":{}}
+/// Format: {"ok":true,"statusCode":NNN,"bodyText":"<json-escaped body>"}
+/// The WASM source SDK expects this exact envelope with bodyText field.
 int32_t WriteSuccessResponse(char *out, uint32_t outCap,
     int statusCode, const char *body, uint32_t bodyLen)
 {
-    // Build: {"ok":true,"statusCode":200,"bodyBytes":NNN,"body":"<base64 or raw>"}
-    // For simplicity, we write the raw body bytes directly; the WASM guest
-    // expects the HTTP response body in the output buffer, not wrapped in JSON.
-    // The dev runner protocol: host writes raw HTTP body, returns length.
-    if (bodyLen > outCap) {
+    // Build JSON prefix
+    std::string prefix = "{\"ok\":true,\"statusCode\":" + std::to_string(statusCode) + ",\"bodyText\":\"";
+    std::string suffix = "\"}";
+
+    // JSON-escape the body
+    std::string result;
+    result.reserve(prefix.size() + bodyLen + bodyLen / 4 + suffix.size());
+    result += prefix;
+
+    for (uint32_t i = 0; i < bodyLen; i++) {
+        unsigned char ch = static_cast<unsigned char>(body[i]);
+        switch (ch) {
+            case '"':  result += "\\\""; break;
+            case '\\': result += "\\\\"; break;
+            case '\n': result += "\\n";  break;
+            case '\r': result += "\\r";  break;
+            case '\t': result += "\\t";  break;
+            default:
+                if (ch < 0x20) {
+                    char buf[8];
+                    std::snprintf(buf, sizeof(buf), "\\u%04x", ch);
+                    result += buf;
+                } else {
+                    result += static_cast<char>(ch);
+                }
+                break;
+        }
+    }
+
+    result += suffix;
+
+    if (result.size() > outCap) {
         return -3;
     }
-    std::memcpy(out, body, bodyLen);
-    return static_cast<int32_t>(bodyLen);
+    std::memcpy(out, result.data(), result.size());
+    return static_cast<int32_t>(result.size());
 }
 
 int32_t WriteErrorResponse(char *out, uint32_t outCap, const char *code, const char *message)
@@ -146,14 +174,16 @@ int32_t HostRequest(const char *requestJson, uint32_t requestLen,
     };
 
     // The OH_Http_Request API uses plain C function pointers, so we can't use
-    // C++ lambdas that capture state. We need a thread-local or global context.
-    // Use a thread_local approach since WASM calls are single-threaded per module.
-    
-    static thread_local HttpSyncContext *tl_ctx = nullptr;
-    tl_ctx = &ctx;
+    // C++ lambdas that capture state. The callback fires on a different thread,
+    // so thread_local won't work either. Use a plain static pointer guarded by
+    // the assumption that WASM calls are serialized (one request at a time).
+
+    static HttpSyncContext *s_ctx = nullptr;
+    s_ctx = &ctx;
 
     Http_ResponseCallback respCb = [](Http_Response *response, uint32_t errCode) {
-        HttpSyncContext *c = tl_ctx;
+        HttpSyncContext *c = s_ctx;
+        HTTP_LOG("response callback fired: errCode=%{public}u ctx=%{public}p", errCode, c);
         if (c == nullptr) return;
 
         std::lock_guard<std::mutex> lock(c->mu);
@@ -180,6 +210,8 @@ int32_t HostRequest(const char *requestJson, uint32_t requestLen,
         return WriteErrorResponse(out, outCap, "network_error", "OH_Http_Request failed");
     }
 
+    HTTP_LOG("OH_Http_Request dispatched, waiting for callback (timeout 60s)...");
+
     // Wait for response
     {
         std::unique_lock<std::mutex> lock(ctx.mu);
@@ -187,7 +219,7 @@ int32_t HostRequest(const char *requestJson, uint32_t requestLen,
     }
 
     OH_Http_Destroy(&req);
-    tl_ctx = nullptr;
+    s_ctx = nullptr;
 
     if (!ctx.done) {
         HTTP_LOG("request timed out");

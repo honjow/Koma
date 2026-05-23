@@ -1,5 +1,6 @@
 import { common, Want } from '@kit.AbilityKit'
 import { resourceManager } from '@kit.LocalizationKit'
+import { taskpool } from '@kit.ArkTS'
 import { SourceRuntimeCallResponse } from './NativeSourceRuntime'
 import {
   SourceArchiveNegativeCaseFixture,
@@ -59,6 +60,9 @@ const SMOKE_PHASE_PERSISTED_PAYLOAD_MISSING: string = 'persisted-payload-missing
 const SMOKE_PHASE_SOURCE_API_V02: string = 'source-api-v02'
 const SMOKE_PHASE_SIZE_LIMIT_NEGATIVES: string = 'size-limit-negatives'
 const SMOKE_PHASE_CANCEL_TIMEOUT_NEGATIVES: string = 'cancel-timeout-negatives'
+const SMOKE_PHASE_REAL_SOURCE_SEARCH: string = 'real-source-search'
+const REAL_SOURCE_RAWFILE_PATH: string = 'test/baozimh.wasm'
+const REAL_SOURCE_SEARCH_REQUEST: string = '{"operation":"search","query":"test"}'
 const SMOKE_REQUEST_JSON: string = '{"operation":"search","query":"fixture","smoke":"koma-smoke"}'
 const RUST_SMOKE_REQUEST_JSON: string = '{"operation":"search","query":"fixture","smoke":"koma-rust-smoke"}'
 const PACKAGE_SMOKE_REQUEST_JSON: string = '{"operation":"search","query":"fixture","smoke":"koma-package-smoke"}'
@@ -368,7 +372,16 @@ export interface SourceRuntimeSmokeResult {
   sourceRuntimeArchiveIngestionSourceIdMismatchRejected?: boolean
   sourceRuntimeArchiveIngestionSourceIdMismatchReasonCode?: string
   sourceRuntimeArchiveIngestionSourceIdMismatchAttemptedWamrExecution?: boolean
+  realSourceWasmBytes?: number
+  realSourceResponse?: SourceRuntimeCallResponse
   error?: string
+}
+
+@Concurrent
+async function runRealSourceSearchTask(requestJson: string, wasmBytes: Uint8Array): Promise<string> {
+  const mod: Record<string, Object> = await import('libkoma_source_runtime.so') as Record<string, Object>
+  const nativeRuntime = (mod.default ?? mod) as Record<string, Function>
+  return nativeRuntime.runJsonCallFromBytes(requestJson, wasmBytes) as string
 }
 
 function joinSourceRuntimeSmokePath(parent: string, child: string): string {
@@ -1256,6 +1269,26 @@ export async function maybeRunSourceRuntimeDeviceSmoke(
         result.ok = result.sourceRuntimeCancelTimeoutNegativesOk === true
         if (!result.ok && result.error === undefined) {
           result.error = 'Cancel/timeout negative phase failed to reject guard cases with stable reasons'
+        }
+      }
+      compactSmokeResultForHilog(result)
+      console.info(SMOKE_LOG_PREFIX + JSON.stringify(result))
+      return
+    }
+
+    if (result.smokePhase === SMOKE_PHASE_REAL_SOURCE_SEARCH) {
+      if (resourceMgr === undefined) {
+        result.error = 'real-source-search phase requires resource manager'
+      } else {
+        const wasmBytes = resourceMgr.getRawFileContentSync(REAL_SOURCE_RAWFILE_PATH)
+        result.realSourceWasmBytes = wasmBytes.byteLength
+        console.info(SMOKE_LOG_PREFIX + '{"phase":"real-source-search","status":"loading","bytes":' + wasmBytes.byteLength + '}')
+        const responseJson = await taskpool.execute(runRealSourceSearchTask, REAL_SOURCE_SEARCH_REQUEST, new Uint8Array(wasmBytes.buffer)) as string
+        const response: SourceRuntimeCallResponse = JSON.parse(responseJson) as SourceRuntimeCallResponse
+        result.realSourceResponse = response
+        result.ok = response !== undefined && response.ok === true
+        if (!result.ok && result.error === undefined) {
+          result.error = 'real-source-search: operation failed or returned error'
         }
       }
       compactSmokeResultForHilog(result)

@@ -568,7 +568,10 @@ private:
 
     void ValidateAdd()
     {
-        wasm_function_inst_t add = Lookup("add");
+        wasm_function_inst_t add = wasm_runtime_lookup_function(moduleInst_, "add");
+        if (!add) {
+            return;  // real source modules may not export add; skip fixture validation
+        }
         uint32_t argv[2] = {2, 3};
         RequireCall(execEnv_, moduleInst_, add, 2, argv, "add");
         if (argv[0] != 5) {
@@ -682,6 +685,10 @@ std::string RunWasmJsonCallFromBytes(const std::string &requestJson, const std::
         Module module(LoadWasmBytesFromExternalBytes(wasmBytes));
         return module.RunOperation(requestJson);
     } catch (const std::exception &err) {
+#if defined(KOMA_HAS_HILOG)
+        OH_LOG_Print(LOG_APP, LOG_ERROR, 0x0, "KomaSourceRuntime",
+            "RunWasmJsonCallFromBytes exception: %{public}s", err.what());
+#endif
         return RuntimeErrorJson(err.what());
     }
 #else
