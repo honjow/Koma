@@ -8,3 +8,5 @@ build/
 .hermes-artifacts/
 .env.local
 .DS_Store
+tools/wasm-runtime-spike/rust-sdk/target/
+.hermes/workers/
