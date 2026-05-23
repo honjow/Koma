@@ -62,6 +62,7 @@ const SMOKE_PHASE_SIZE_LIMIT_NEGATIVES: string = 'size-limit-negatives'
 const SMOKE_PHASE_CANCEL_TIMEOUT_NEGATIVES: string = 'cancel-timeout-negatives'
 const SMOKE_PHASE_REAL_SOURCE_SEARCH: string = 'real-source-search'
 const REAL_SOURCE_RAWFILE_PATH: string = 'test/baozimh.wasm'
+const MANGADEX_RAWFILE_PATH: string = 'test/mangadex.wasm'
 const REAL_SOURCE_SEARCH_REQUEST: string = '{"operation":"search","query":"test"}'
 const SMOKE_REQUEST_JSON: string = '{"operation":"search","query":"fixture","smoke":"koma-smoke"}'
 const RUST_SMOKE_REQUEST_JSON: string = '{"operation":"search","query":"fixture","smoke":"koma-rust-smoke"}'
@@ -374,6 +375,8 @@ export interface SourceRuntimeSmokeResult {
   sourceRuntimeArchiveIngestionSourceIdMismatchAttemptedWamrExecution?: boolean
   realSourceWasmBytes?: number
   realSourceResponse?: SourceRuntimeCallResponse
+  mangadexWasmBytes?: number
+  mangadexResponse?: SourceRuntimeCallResponse
   error?: string
 }
 
@@ -1280,15 +1283,29 @@ export async function maybeRunSourceRuntimeDeviceSmoke(
       if (resourceMgr === undefined) {
         result.error = 'real-source-search phase requires resource manager'
       } else {
+        // baozimh
         const wasmBytes = resourceMgr.getRawFileContentSync(REAL_SOURCE_RAWFILE_PATH)
         result.realSourceWasmBytes = wasmBytes.byteLength
-        console.info(SMOKE_LOG_PREFIX + '{"phase":"real-source-search","status":"loading","bytes":' + wasmBytes.byteLength + '}')
+        console.info(SMOKE_LOG_PREFIX + '{"phase":"real-source-search","source":"baozimh","status":"loading","bytes":' + wasmBytes.byteLength + '}')
         const responseJson = await taskpool.execute(runRealSourceSearchTask, REAL_SOURCE_SEARCH_REQUEST, new Uint8Array(wasmBytes.buffer)) as string
         const response: SourceRuntimeCallResponse = JSON.parse(responseJson) as SourceRuntimeCallResponse
         result.realSourceResponse = response
-        result.ok = response !== undefined && response.ok === true
+
+        // mangadex
+        const mangadexBytes = resourceMgr.getRawFileContentSync(MANGADEX_RAWFILE_PATH)
+        result.mangadexWasmBytes = mangadexBytes.byteLength
+        console.info(SMOKE_LOG_PREFIX + '{"phase":"real-source-search","source":"mangadex","status":"loading","bytes":' + mangadexBytes.byteLength + '}')
+        const mangadexJson = await taskpool.execute(runRealSourceSearchTask, REAL_SOURCE_SEARCH_REQUEST, new Uint8Array(mangadexBytes.buffer)) as string
+        const mangadexResponse: SourceRuntimeCallResponse = JSON.parse(mangadexJson) as SourceRuntimeCallResponse
+        result.mangadexResponse = mangadexResponse
+
+        result.ok = response !== undefined && response.ok === true &&
+          mangadexResponse !== undefined && mangadexResponse.ok === true
         if (!result.ok && result.error === undefined) {
-          result.error = 'real-source-search: operation failed or returned error'
+          const failures: string[] = []
+          if (!response?.ok) failures.push('baozimh')
+          if (!mangadexResponse?.ok) failures.push('mangadex')
+          result.error = 'real-source-search failed: ' + failures.join(', ')
         }
       }
       compactSmokeResultForHilog(result)
