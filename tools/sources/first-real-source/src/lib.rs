@@ -42,8 +42,8 @@ static mut SELECT_ALL_BUF: [u8; 200] = [0; 200]; // 50 * 4 bytes
 
 const SITE_BASE: &[u8] = b"https://www.baozimh.com";
 const PAYLOAD_CAP: usize = 32 * 1024;
-const HTTP_OUT_CAP: usize = 200 * 1024;
-const HTML_BUF_CAP: usize = 200 * 1024;
+const HTTP_OUT_CAP: usize = 512 * 1024;
+const HTML_BUF_CAP: usize = 512 * 1024;
 const HTTP_REQ_CAP: usize = 1024;
 const SCRATCH_CAP: usize = 1024;
 
@@ -106,6 +106,33 @@ fn read_request<'a>(req_ptr: u32, req_len: u32) -> Option<&'a [u8]> {
         return None;
     }
     Some(unsafe { core::slice::from_raw_parts(req_ptr as *const u8, req_len as usize) })
+}
+
+fn write_usize(dst: &mut [u8], cursor: &mut usize, val: usize) -> bool {
+    let mut buf = [0u8; 10];
+    let mut n = val;
+    let mut len = 0;
+    if n == 0 {
+        buf[0] = b'0';
+        len = 1;
+    } else {
+        while n > 0 {
+            buf[len] = b'0' + (n % 10) as u8;
+            n /= 10;
+            len += 1;
+        }
+        // Reverse
+        let mut i = 0;
+        let mut j = len - 1;
+        while i < j {
+            let tmp = buf[i];
+            buf[i] = buf[j];
+            buf[j] = tmp;
+            i += 1;
+            j -= 1;
+        }
+    }
+    write_bytes(dst, cursor, &buf[..len])
 }
 
 fn write_bytes(dst: &mut [u8], cursor: &mut usize, src: &[u8]) -> bool {
@@ -612,19 +639,32 @@ fn run_get_chapters(req: &[u8]) -> u32 {
         Err(_) => return write_error("get_chapters", "parse_error", "html_parse failed"),
     };
 
-    let chapter_anchor = html_select(document.0, b"a.comics-chapters__item");
+    let select_buf = unsafe { &mut *core::ptr::addr_of_mut!(SELECT_ALL_BUF) };
+    let count = html_select_all(document.0.raw(), b"a.comics-chapters__item", select_buf);
+
     let payload = payload_buf();
     let mut c = 0usize;
     if !write_bytes(payload, &mut c, br#"{"items":["#) {
         return write_error("get_chapters", "internal_error", "payload overflow");
     }
 
-    if let Ok(d) = chapter_anchor {
-        let owned = OwnedDescriptor(d);
+    let max_items = if count > 0 { count as usize } else { 0 };
+    let max_items = if max_items > 50 { 50 } else { max_items };
+    let mut written = 0usize;
+
+    for i in 0..max_items {
+        let offset = i * 4;
+        if offset + 4 > select_buf.len() { break; }
+        let desc = i32::from_le_bytes([
+            select_buf[offset], select_buf[offset+1], select_buf[offset+2], select_buf[offset+3],
+        ]);
+        if desc < 0 { continue; }
+
+        let hd: HtmlDescriptor = unsafe { core::mem::transmute(desc) };
         let mut title_buf = [0u8; 256];
-        let title = text_into(owned.0, &mut title_buf).map(trim_ascii);
+        let title = text_into(hd, &mut title_buf).map(trim_ascii);
         let mut href_buf = [0u8; 256];
-        let href = attr_into(owned.0, b"href", &mut href_buf);
+        let href = attr_into(hd, b"href", &mut href_buf);
 
         let mut chapter_slot_buf = [0u8; 16];
         let chapter_slot = if let Some(h) = href {
@@ -632,8 +672,11 @@ fn run_get_chapters(req: &[u8]) -> u32 {
         } else {
             None
         };
-
         let slot = chapter_slot.unwrap_or(b"0");
+
+        if written > 0 {
+            if !write_bytes(payload, &mut c, b",") { break; }
+        }
         let ok = write_bytes(payload, &mut c, br#"{"id":"chapter:"#)
             && append_json_escaped(payload, &mut c, slug)
             && write_bytes(payload, &mut c, b":")
@@ -645,9 +688,9 @@ fn run_get_chapters(req: &[u8]) -> u32 {
             && write_bytes(payload, &mut c, br#"","chapterNumber":""#)
             && append_json_escaped(payload, &mut c, slot)
             && write_bytes(payload, &mut c, br#"","volumeNumber":null,"language":"zh-Hant","publishedAt":null,"updatedAt":null,"pageCount":null}"#);
-        if !ok {
-            return write_error("get_chapters", "internal_error", "payload overflow");
-        }
+        if !ok { break; }
+        written += 1;
+        let _ = html_close(hd);
     }
 
     if !write_bytes(payload, &mut c, br#"],"page":{"nextCursor":null,"hasMore":false}}"#) {
@@ -696,7 +739,9 @@ fn run_get_pages(req: &[u8]) -> u32 {
         Ok(d) => OwnedDescriptor(d),
         Err(_) => return write_error("get_pages", "parse_error", "html_parse failed"),
     };
-    let img = html_select(document.0, b"amp-img.comic-contain__item");
+    let select_buf = unsafe { &mut *core::ptr::addr_of_mut!(SELECT_ALL_BUF) };
+    let count = html_select_all(document.0.raw(), b"amp-img.comic-contain__item", select_buf);
+
     let payload = payload_buf();
     let mut c = 0usize;
     let ok = write_bytes(payload, &mut c, br#"{"chapterId":"chapter:"#)
@@ -708,21 +753,47 @@ fn run_get_pages(req: &[u8]) -> u32 {
         return write_error("get_pages", "internal_error", "payload overflow");
     }
 
-    if let Ok(d) = img {
-        let owned = OwnedDescriptor(d);
+    let max_items = if count > 0 { count as usize } else { 0 };
+    let max_items = if max_items > 50 { 50 } else { max_items };
+    let mut written = 0usize;
+
+    for i in 0..max_items {
+        let offset = i * 4;
+        if offset + 4 > select_buf.len() { break; }
+        let desc = i32::from_le_bytes([
+            select_buf[offset], select_buf[offset+1], select_buf[offset+2], select_buf[offset+3],
+        ]);
+        if desc < 0 { continue; }
+
+        let hd: HtmlDescriptor = unsafe { core::mem::transmute(desc) };
         let mut src_buf = [0u8; 512];
-        if let Some(src) = attr_into(owned.0, b"src", &mut src_buf) {
+        if let Some(img_src) = attr_into(hd, b"src", &mut src_buf) {
+            if written > 0 {
+                if !write_bytes(payload, &mut c, b",") { break; }
+            }
+            // Build index as 4-digit string
+            let mut idx_buf = [0u8; 4];
+            let idx_val = written as u32;
+            idx_buf[0] = b'0' + ((idx_val / 1000) % 10) as u8;
+            idx_buf[1] = b'0' + ((idx_val / 100) % 10) as u8;
+            idx_buf[2] = b'0' + ((idx_val / 10) % 10) as u8;
+            idx_buf[3] = b'0' + (idx_val % 10) as u8;
+
             let ok2 = write_bytes(payload, &mut c, br#"{"id":"page:"#)
                 && append_json_escaped(payload, &mut c, slug)
                 && write_bytes(payload, &mut c, b":")
                 && append_json_escaped(payload, &mut c, slot)
-                && write_bytes(payload, &mut c, br#":0001","index":0,"image":{"kind":"url","url":""#)
-                && append_json_escaped(payload, &mut c, src)
+                && write_bytes(payload, &mut c, b":")
+                && write_bytes(payload, &mut c, &idx_buf)
+                && write_bytes(payload, &mut c, br#"","index":"#)
+                && write_usize(payload, &mut c, written)
+                && write_bytes(payload, &mut c, br#","image":{"kind":"url","url":""#)
+                && append_json_escaped(payload, &mut c, img_src)
                 && write_bytes(payload, &mut c, br#""}}"#);
-            if !ok2 {
-                return write_error("get_pages", "internal_error", "payload overflow");
-            }
+            if !ok2 { break; }
+            written += 1;
         }
+        let _ = html_close(hd);
     }
 
     if !write_bytes(payload, &mut c, b"]}") {
