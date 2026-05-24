@@ -4,6 +4,8 @@
 
 Koma 是 HarmonyOS 私有漫画书架与阅读器。
 
+当前功能基线见 `docs/FEATURE_PROGRESS_20260524.md`：Phase 1 本地 MVP、Phase 2 Komga/OPDS/WebDAV、跨源搜索、History、Reader cache、Komga progress sync、Settings 功能化、WAMR native runtime、source package manager 均已集成并通过 2026-05-24 final gate。
+
 首版主线：
 
 - 本地漫画：CBZ/ZIP、图片文件夹、封面、章节、阅读进度。
