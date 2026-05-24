@@ -4,8 +4,8 @@ import {
 } from './ReaderSessionStore'
 
 export enum ReaderPageRenderKind {
-  MOCK_FALLBACK = 'mock_fallback',
   LOCAL_FILE_IMAGE = 'local_file_image',
+  REMOTE_URL_IMAGE = 'remote_url_image',
   URI_PLACEHOLDER = 'uri_placeholder',
 }
 
@@ -66,6 +66,12 @@ function isSupportedLocalImagePath(path: string): boolean {
     normalized.endsWith('.gif') ||
     normalized.endsWith('.bmp') ||
     normalized.endsWith('.avif')
+}
+
+function isReaderRemoteImageSourceUri(uri: string): boolean {
+  const normalized = normalizeReaderPageUri(uri).toLocaleLowerCase()
+  return (normalized.startsWith('http://') || normalized.startsWith('https://')) &&
+    isSupportedLocalImagePath(normalized.split('?')[0].split('#')[0])
 }
 
 function isAppImportExtractPath(path: string): boolean {
@@ -142,7 +148,7 @@ function getReaderImageSourceForm(source: ReaderPageRenderSource): string {
 function createReaderUriRenderSource(uri: string, pageIndex: number): ReaderPageRenderSource {
   if (uri.length === 0 || uri.startsWith('mock://')) {
     return {
-      kind: ReaderPageRenderKind.MOCK_FALLBACK,
+      kind: ReaderPageRenderKind.URI_PLACEHOLDER,
       uri,
       imageUri: '',
       fallbackPageIndex: pageIndex,
@@ -153,6 +159,14 @@ function createReaderUriRenderSource(uri: string, pageIndex: number): ReaderPage
       kind: ReaderPageRenderKind.LOCAL_FILE_IMAGE,
       uri,
       imageUri: createReaderImageSourceUri(uri),
+      fallbackPageIndex: pageIndex,
+    }
+  }
+  if (isReaderRemoteImageSourceUri(uri)) {
+    return {
+      kind: ReaderPageRenderKind.REMOTE_URL_IMAGE,
+      uri,
+      imageUri: uri,
       fallbackPageIndex: pageIndex,
     }
   }
