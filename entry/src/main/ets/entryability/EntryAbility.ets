@@ -1,6 +1,7 @@
 import { UIAbility, Want, AbilityConstant } from '@kit.AbilityKit'
 import { window } from '@kit.ArkUI'
 import { StorageKeys } from '../constants/StorageKeys'
+import { RemoteProgressBootstrapSync } from '../model/RemoteProgressBootstrapSync'
 import { registerBundledDevSourcesForBrowse } from '../sourceRuntime/SourceRuntimeAppRegistry'
 import { maybeRunSourceRuntimeDeviceSmoke } from '../sourceRuntime/SourceRuntimeDeviceSmoke'
 
@@ -39,7 +40,12 @@ export default class EntryAbility extends UIAbility {
         console.error('loadContent failed: ' + JSON.stringify(err))
       }
       this.storeAvoidHeights(windowStage)
+      this.syncRemoteProgressInBackground()
     })
+  }
+
+  onForeground(): void {
+    this.syncRemoteProgressInBackground()
   }
 
   private storeAvoidHeights(windowStage: window.WindowStage): void {
@@ -64,5 +70,9 @@ export default class EntryAbility extends UIAbility {
       AppStorage.setOrCreate<number>(StorageKeys.BOTTOM_AVOID_HEIGHT, FALLBACK_BOTTOM_AVOID)
       AppStorage.setOrCreate<number>(StorageKeys.KEYBOARD_HEIGHT, 0)
     }
+  }
+
+  private syncRemoteProgressInBackground(): void {
+    void new RemoteProgressBootstrapSync(this.context).syncAllKomgaProgress()
   }
 }

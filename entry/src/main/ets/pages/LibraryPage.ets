@@ -1,3 +1,4 @@
+import { common } from '@kit.AbilityKit'
 import { ComicCoverCard, ComicCoverInfo } from '../components/ComicCoverCard'
 import { SecondaryListScaffold } from '../components/SecondaryListScaffold'
 import { ThemeConstants } from '../theme/ThemeConstants'
@@ -11,8 +12,14 @@ import {
 } from '../model/MockLibraryData'
 import { Comic, ComicId } from '../model/ComicModels'
 import { LibraryStore } from '../model/LibraryStore'
+import { StorageKeys } from '../constants/StorageKeys'
 import { isRemovableLocalComic } from '../model/LibraryPersistence'
-import { InMemoryReaderSessionStore, ReaderSessionStore } from '../model/ReaderSessionStore'
+import {
+  AppFilesReaderSessionPersistenceAdapter,
+  InMemoryReaderSessionStore,
+  PersistentReaderSessionStore,
+  ReaderSessionStore,
+} from '../model/ReaderSessionStore'
 
 @Component
 struct ContinueReadingShelfCard {
@@ -83,6 +90,7 @@ export struct LibraryPage {
   @State private selectionMode: boolean = false
   @State private selectedIds: Set<ComicId> = new Set<ComicId>()
   @State private suppressOpenComicId: ComicId = ''
+  @StorageProp(StorageKeys.REMOTE_PROGRESS_SYNC_REV) @Watch('onRemoteProgressSyncRevChanged') remoteProgressSyncRev: number = 0
   presentationByComicId: LibraryPresentationByComicId = createMockLibraryPresentationMap()
   sessionStore: ReaderSessionStore = new InMemoryReaderSessionStore()
   onOpenReader: (comicId: ComicId) => void = (_comicId: ComicId) => {}
@@ -95,6 +103,28 @@ export struct LibraryPage {
     this.displayedComics = this.libraryComics
     this.displayedRevision = this.libraryRevision
     this.removeMissingSelectedComics()
+  }
+
+  private onRemoteProgressSyncRevChanged(): void {
+    void this.remoteProgressSyncRev
+    this.reloadPersistentSessionStore('bootstrap_sync')
+  }
+
+  private reloadPersistentSessionStore(reason: string): void {
+    try {
+      const context = getContext(this) as common.UIAbilityContext
+      if (context === undefined || context.filesDir === undefined || context.filesDir.length === 0) {
+        return
+      }
+      this.sessionStore = new PersistentReaderSessionStore(
+        new AppFilesReaderSessionPersistenceAdapter(context.filesDir)
+      )
+      this.refreshDisplayedSnapshotFromStore()
+      console.info(`[Library] step=progress_reload reason=${reason}`)
+    } catch (error) {
+      const e = error as Error
+      console.info('[Library] step=progress_reload_failed reason=' + e.message)
+    }
   }
 
   private refreshDisplayedSnapshotFromStore(): void {
@@ -480,6 +510,7 @@ export struct LibraryPage {
 
   aboutToAppear(): void {
     this.syncDisplayedSnapshotFromProps()
+    this.reloadPersistentSessionStore('appear')
   }
 
   onBackPress(): boolean {

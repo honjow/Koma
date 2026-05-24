@@ -1,5 +1,6 @@
 import { common } from '@kit.AbilityKit'
 import { SecondaryListScaffold } from '../components/SecondaryListScaffold'
+import { StorageKeys } from '../constants/StorageKeys'
 import { ThemeConstants } from '../theme/ThemeConstants'
 import {
   Chapter,
@@ -27,6 +28,7 @@ const MS_PER_YEAR: number = 365 * MS_PER_DAY
 export struct HistoryPage {
   libraryStore: LibraryStore = createSeededLibraryStore()
   @Prop @Watch('onActiveChanged') active: boolean = false
+  @StorageProp(StorageKeys.REMOTE_PROGRESS_SYNC_REV) @Watch('onRemoteProgressSyncRevChanged') remoteProgressSyncRev: number = 0
   @State private historyItems: LibraryItem[] = []
   @State private revision: number = 0
   onOpenReader: (comicId: ComicId, chapterId?: string) => void = (_comicId: ComicId, _chapterId?: string) => {}
@@ -35,6 +37,11 @@ export struct HistoryPage {
     if (this.active) {
       this.reloadHistory('tab_active')
     }
+  }
+
+  private onRemoteProgressSyncRevChanged(): void {
+    void this.remoteProgressSyncRev
+    this.reloadHistory('bootstrap_sync')
   }
 
   private createReaderSessionStore(): ReaderSessionStore | undefined {
