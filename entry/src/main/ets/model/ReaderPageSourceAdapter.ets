@@ -2,6 +2,7 @@ import {
   ReaderSessionConfig,
   getReaderSessionPageUri,
 } from './ReaderSessionStore'
+import { KomgaHeaders } from '../remote/KomgaClient'
 
 export enum ReaderPageRenderKind {
   LOCAL_FILE_IMAGE = 'local_file_image',
@@ -14,6 +15,7 @@ export interface ReaderPageRenderSource {
   uri: string
   imageUri: string
   fallbackPageIndex: number
+  headers?: KomgaHeaders
 }
 
 export interface ReaderPageRenderDiagnostics {
@@ -34,12 +36,19 @@ interface ReaderSandboxRoot {
   path: string
 }
 
+interface ReaderRemoteHeaderRule {
+  prefix: string
+  headers: KomgaHeaders
+}
+
 const READER_SANDBOX_ROOTS: ReaderSandboxRoot[] = [
   { label: 'cache_haps_entry', path: '/data/storage/el2/base/haps/entry/cache/import/' },
   { label: 'files_haps_entry', path: '/data/storage/el2/base/haps/entry/files/import/' },
   { label: 'cache_base', path: '/data/storage/el2/base/cache/import/' },
   { label: 'files_base', path: '/data/storage/el2/base/files/import/' },
 ]
+
+const readerRemoteHeaderRules: ReaderRemoteHeaderRule[] = []
 
 function normalizeReaderPageUri(uri: string): string {
   return uri.trim().replace(/\\/g, '/')
@@ -70,8 +79,14 @@ function isSupportedLocalImagePath(path: string): boolean {
 
 function isReaderRemoteImageSourceUri(uri: string): boolean {
   const normalized = normalizeReaderPageUri(uri).toLocaleLowerCase()
-  return (normalized.startsWith('http://') || normalized.startsWith('https://')) &&
-    isSupportedLocalImagePath(normalized.split('?')[0].split('#')[0])
+  return normalized.startsWith('http://') || normalized.startsWith('https://')
+}
+
+function resolveReaderRemoteHeaders(uri: string): KomgaHeaders | undefined {
+  const matched = readerRemoteHeaderRules.find((rule: ReaderRemoteHeaderRule) => {
+    return uri.startsWith(rule.prefix)
+  })
+  return matched === undefined ? undefined : matched.headers
 }
 
 function isAppImportExtractPath(path: string): boolean {
@@ -168,6 +183,7 @@ function createReaderUriRenderSource(uri: string, pageIndex: number): ReaderPage
       uri,
       imageUri: uri,
       fallbackPageIndex: pageIndex,
+      headers: resolveReaderRemoteHeaders(uri),
     }
   }
   return {
@@ -207,6 +223,24 @@ export function isReaderLocalImageSourceUri(uri: string): boolean {
 export function createReaderImageSourceUri(uri: string): string {
   const normalized = normalizeReaderPageUri(uri)
   return decodeFileUriPath(stripFileUriScheme(normalized))
+}
+
+export function installReaderRemoteHeaders(prefix: string, headers: KomgaHeaders): void {
+  const normalizedPrefix = prefix.trim()
+  if (normalizedPrefix.length === 0) {
+    return
+  }
+  const index = readerRemoteHeaderRules.findIndex((rule: ReaderRemoteHeaderRule) => rule.prefix === normalizedPrefix)
+  const rule: ReaderRemoteHeaderRule = {
+    prefix: normalizedPrefix,
+    headers,
+  }
+  if (index >= 0) {
+    readerRemoteHeaderRules[index] = rule
+  } else {
+    readerRemoteHeaderRules.push(rule)
+  }
+  console.info('[Reader] remote headers installed')
 }
 
 export function createReaderUriDiagnostics(uri: string, pageIndex: number = 0): ReaderPageRenderDiagnostics {

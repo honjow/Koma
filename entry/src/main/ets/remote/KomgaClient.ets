@@ -8,6 +8,7 @@ import {
   KomgaPageDto,
   KomgaPageImageKind,
   KomgaPageList,
+  KomgaPageResponseDto,
   KomgaResolvedCredential,
   RemotePageRef,
   KomgaSeriesDto,
@@ -15,7 +16,11 @@ import {
 } from './KomgaModels'
 
 export interface KomgaHeaders {
-  [key: string]: string
+  authorization?: string
+  accept?: string
+  contentType?: string
+  xApiKey?: string
+  xAuthToken?: string
 }
 
 export interface KomgaHttpRequest {
@@ -95,7 +100,7 @@ export function buildKomgaUrl(baseUrl: string, path: string): string {
 
 export function buildKomgaAuthHeaders(config: KomgaServerConfig, credential?: KomgaResolvedCredential): KomgaHeaders {
   if (config.authKind === KomgaAuthKind.NONE) {
-    return {}
+    return {} as KomgaHeaders
   }
   assertCredentialRef(config, credential)
   if (credential === undefined) {
@@ -105,30 +110,54 @@ export function buildKomgaAuthHeaders(config: KomgaServerConfig, credential?: Ko
     if (credential.basicToken === undefined || credential.basicToken.length === 0) {
       throw new Error('Komga Basic credential token is required')
     }
-    return { 'Authorization': `Basic ${credential.basicToken}` }
+    return { authorization: `Basic ${credential.basicToken}` } as KomgaHeaders
   }
   if (config.authKind === KomgaAuthKind.API_KEY) {
     if (credential.apiKey === undefined || credential.apiKey.length === 0) {
       throw new Error('Komga API key credential is required')
     }
-    return { 'X-API-Key': credential.apiKey }
+    return { xApiKey: credential.apiKey } as KomgaHeaders
   }
   if (credential.sessionToken === undefined || credential.sessionToken.length === 0) {
     throw new Error('Komga session token credential is required')
   }
-  return { 'X-Auth-Token': credential.sessionToken }
+  return { xAuthToken: credential.sessionToken } as KomgaHeaders
 }
 
 export function redactKomgaHeaders(headers: KomgaHeaders): KomgaHeaders {
-  const redacted: KomgaHeaders = {}
-  Object.keys(headers).forEach((key: string) => {
-    if (isSensitiveHeader(key)) {
-      redacted[key] = '<redacted>'
-    } else {
-      redacted[key] = headers[key]
-    }
-  })
+  const redacted: KomgaHeaders = {} as KomgaHeaders
+  redacted.accept = headers.accept
+  redacted.contentType = headers.contentType
+  if (headers.authorization !== undefined) {
+    redacted.authorization = '<redacted>'
+  }
+  if (headers.xApiKey !== undefined) {
+    redacted.xApiKey = '<redacted>'
+  }
+  if (headers.xAuthToken !== undefined) {
+    redacted.xAuthToken = '<redacted>'
+  }
   return redacted
+}
+
+export function komgaHeadersToHttpHeaderObject(headers: KomgaHeaders): Object {
+  const entries: string[] = []
+  if (headers.authorization !== undefined) {
+    entries.push(`"Authorization":${JSON.stringify(headers.authorization)}`)
+  }
+  if (headers.accept !== undefined) {
+    entries.push(`"Accept":${JSON.stringify(headers.accept)}`)
+  }
+  if (headers.contentType !== undefined) {
+    entries.push(`"Content-Type":${JSON.stringify(headers.contentType)}`)
+  }
+  if (headers.xApiKey !== undefined) {
+    entries.push(`"X-API-Key":${JSON.stringify(headers.xApiKey)}`)
+  }
+  if (headers.xAuthToken !== undefined) {
+    entries.push(`"X-Auth-Token":${JSON.stringify(headers.xAuthToken)}`)
+  }
+  return JSON.parse(`{${entries.join(',')}}`) as Object
 }
 
 export function redactKomgaRequest(request: KomgaHttpRequest): RedactedKomgaHttpRequest {
@@ -175,11 +204,15 @@ export class KomgaClient {
     return buildKomgaUrl(this.server.baseUrl, path)
   }
 
-  buildHeaders(extraHeaders: KomgaHeaders = {}): KomgaHeaders {
-    return {
-      ...buildKomgaAuthHeaders(this.server, this.credential),
-      ...extraHeaders,
-    }
+  buildHeaders(extraHeaders: KomgaHeaders = {} as KomgaHeaders): KomgaHeaders {
+    const authHeaders = buildKomgaAuthHeaders(this.server, this.credential)
+    const headers: KomgaHeaders = {} as KomgaHeaders
+    headers.authorization = extraHeaders.authorization === undefined ? authHeaders.authorization : extraHeaders.authorization
+    headers.accept = extraHeaders.accept === undefined ? authHeaders.accept : extraHeaders.accept
+    headers.contentType = extraHeaders.contentType === undefined ? authHeaders.contentType : extraHeaders.contentType
+    headers.xApiKey = extraHeaders.xApiKey === undefined ? authHeaders.xApiKey : extraHeaders.xApiKey
+    headers.xAuthToken = extraHeaders.xAuthToken === undefined ? authHeaders.xAuthToken : extraHeaders.xAuthToken
+    return headers
   }
 
   buildLibrariesRequest(): KomgaHttpRequest {
@@ -219,7 +252,7 @@ export class KomgaClient {
 
   async listBookPages(bookId: KomgaBookId): Promise<KomgaPageDto[]> {
     const response = await this.send(this.buildBookPagesRequest(bookId))
-    const parsed = JSON.parse(response.body) as KomgaPageDto[] | { content: KomgaPageDto[] }
+    const parsed = JSON.parse(response.body) as KomgaPageDto[] | KomgaPageResponseDto
     if (Array.isArray(parsed)) {
       return parsed
     }
@@ -227,9 +260,9 @@ export class KomgaClient {
   }
 
   private buildJsonRequest(method: 'GET' | 'POST', path: string, body?: KomgaListRequest): KomgaHttpRequest {
-    const headers = this.buildHeaders({ 'Accept': 'application/json' })
+    const headers = this.buildHeaders({ accept: 'application/json' } as KomgaHeaders)
     if (method === 'POST') {
-      headers['Content-Type'] = 'application/json'
+      headers.contentType = 'application/json'
     }
     return {
       method,
@@ -243,7 +276,11 @@ export class KomgaClient {
     if (this.http === undefined) {
       throw new Error('KomgaHttpAdapter is required for network requests')
     }
-    return this.http.request(request)
+    const response = await this.http.request(request)
+    if (response.status < 200 || response.status >= 300) {
+      throw new Error(`Komga request failed with status ${response.status}`)
+    }
+    return response
   }
 }
 

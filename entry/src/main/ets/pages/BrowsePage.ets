@@ -13,9 +13,13 @@ import { SourceBrowsePage } from './SourceBrowsePage'
 import { SourceSearchPage } from './SourceSearchPage'
 import { SourceManga } from '../model/SourceModels'
 import { RouterHelper } from '../common/RouterHelper'
+import { common } from '@kit.AbilityKit'
+import { RemoteServerStore } from '../model/RemoteServerStore'
+import { KomgaSeriesPage } from './KomgaSeriesPage'
 
 const SOURCE_BROWSE_ROUTE_NAME: string = 'SourceBrowsePage'
 const SOURCE_SEARCH_ROUTE_NAME: string = 'SourceSearchPage'
+const KOMGA_ROUTE_NAME: string = 'KomgaSeriesPage'
 
 interface SourceRouteParam {
   source: SourceRuntimeRegistryInstalledSourceSummary
@@ -25,6 +29,7 @@ interface SourceRouteParam {
 export struct BrowsePage {
   @State private viewModel: BrowseViewModel = new BrowseViewModel()
   @State private refreshingSources: boolean = false
+  @State private komgaConfigured: boolean = false
   sourceRegistry: SourceRuntimeRegistry = appSourceRuntimeRegistry
   private browsePathStack: NavPathStack = new NavPathStack()
 
@@ -40,6 +45,10 @@ export struct BrowsePage {
       name: SOURCE_SEARCH_ROUTE_NAME,
       param: { source: source } as SourceRouteParam,
     })
+  }
+
+  private openKomga(): void {
+    this.browsePathStack.pushPath({ name: KOMGA_ROUTE_NAME })
   }
 
   @Builder
@@ -64,6 +73,56 @@ export struct BrowsePage {
 
   @Builder
   private SourceListItems() {
+    if (this.komgaConfigured) {
+      ListItem() {
+        Row({ space: 14 }) {
+          Stack({ alignContent: Alignment.Center }) {
+            Text('K')
+              .fontSize(20)
+              .fontWeight(FontWeight.Bold)
+              .fontColor(Color.White)
+          }
+          .width(48)
+          .height(48)
+          .borderRadius(24)
+          .backgroundColor('#16745F')
+
+          Column({ space: 5 }) {
+            Row({ space: 8 }) {
+              Text('Komga')
+                .fontSize(17)
+                .fontWeight(FontWeight.Medium)
+                .fontColor($r('app.color.koma_text_primary'))
+                .layoutWeight(1)
+              Text('私有库')
+                .fontSize(11)
+                .fontWeight(FontWeight.Medium)
+                .fontColor($r('app.color.koma_accent'))
+                .padding({ left: 8, right: 8, top: 3, bottom: 3 })
+                .borderRadius(8)
+                .backgroundColor('#1F256E5D')
+            }
+            .width('100%')
+            .alignItems(VerticalAlign.Center)
+            Text('浏览 libraries / series / books')
+              .fontSize(13)
+              .fontColor($r('app.color.koma_text_secondary'))
+          }
+          .layoutWeight(1)
+          .alignItems(HorizontalAlign.Start)
+          Text('>')
+            .fontSize(18)
+            .fontColor($r('app.color.koma_text_secondary'))
+        }
+        .width('100%')
+        .padding(14)
+        .borderRadius(8)
+        .backgroundColor($r('app.color.koma_card'))
+        .onClick(() => {
+          this.openKomga()
+        })
+      }
+    }
     ForEach(this.viewModel.sources, (source: SourceRuntimeRegistryInstalledSourceSummary) => {
       ListItem() {
         SourceListItem({
@@ -104,17 +163,36 @@ export struct BrowsePage {
         })
       }
       .title('搜索')
+    } else if (name === KOMGA_ROUTE_NAME) {
+      NavDestination() {
+        KomgaSeriesPage()
+      }
+      .title('Komga')
     }
   }
 
   aboutToAppear(): void {
     this.viewModel = new BrowseViewModel(this.sourceRegistry)
     this.viewModel.loadInstalledSources()
+    this.loadKomgaAvailability()
+  }
+
+  private async loadKomgaAvailability(): Promise<void> {
+    try {
+      const store = new RemoteServerStore(getContext(this) as common.UIAbilityContext)
+      this.komgaConfigured = await store.loadKomga() !== undefined
+      console.info(`[Komga] step=browse_availability configured=${this.komgaConfigured}`)
+    } catch (error) {
+      const e = error as Error
+      this.komgaConfigured = false
+      console.error('[Komga] step=browse_availability_failed message=' + e.message)
+    }
   }
 
   private refreshSources(): void {
     this.refreshingSources = true
     this.viewModel.loadInstalledSources()
+    this.loadKomgaAvailability()
     this.refreshingSources = false
   }
 
@@ -138,7 +216,7 @@ export struct BrowsePage {
                 .width('100%')
                 .justifyContent(FlexAlign.Center)
               }
-            } else if (this.viewModel.sources.length === 0) {
+            } else if (this.viewModel.sources.length === 0 && !this.komgaConfigured) {
               ListItem() {
                 this.EmptySources()
               }

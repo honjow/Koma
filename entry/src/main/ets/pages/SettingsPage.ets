@@ -1,5 +1,8 @@
 import { SecondaryListScaffold } from '../components/SecondaryListScaffold'
 import { ThemeConstants } from '../theme/ThemeConstants'
+import { KomgaServerPage } from './KomgaServerPage'
+
+const KOMGA_SERVER_ROUTE_NAME: string = 'KomgaServerPage'
 
 interface SettingsRow {
   key: string
@@ -34,6 +37,7 @@ const SETTINGS_SECTIONS: SettingsSection[] = [
     key: 'data',
     title: '数据',
     rows: [
+      { key: 'komga', title: 'Komga 私有库', detail: '服务器与认证' },
       { key: 'sources', title: '源管理', detail: '管理已安装的源包' },
       { key: 'backup', title: '备份与恢复', detail: '导出书架及阅读进度' },
     ],
@@ -50,6 +54,12 @@ const SETTINGS_SECTIONS: SettingsSection[] = [
 
 @Component
 export struct SettingsPage {
+  private settingsPathStack: NavPathStack = new NavPathStack()
+
+  private openKomgaSettings(): void {
+    this.settingsPathStack.pushPath({ name: KOMGA_SERVER_ROUTE_NAME })
+  }
+
   @Builder
   private SectionTitle(title: string) {
     Text(title)
@@ -75,6 +85,11 @@ export struct SettingsPage {
     }
     .width('100%')
     .padding({ left: 16, right: 16, top: 14, bottom: 14 })
+    .onClick(() => {
+      if (row.key === 'komga') {
+        this.openKomgaSettings()
+      }
+    })
   }
 
   @Builder
@@ -101,21 +116,38 @@ export struct SettingsPage {
   }
 
   build() {
-    Column() {
-      SecondaryListScaffold({
-        listSpace: 18,
-        horizontalPadding: 20,
-        bottomPadding: ThemeConstants.FLOAT_BAR_HEIGHT + 20,
-      }) {
-        ForEach(SETTINGS_SECTIONS, (section: SettingsSection) => {
-          ListItem() {
-            this.Section(section)
-          }
-        }, (section: SettingsSection) => section.key)
+    Navigation(this.settingsPathStack) {
+      Column() {
+        SecondaryListScaffold({
+          listSpace: 18,
+          horizontalPadding: 20,
+          bottomPadding: ThemeConstants.FLOAT_BAR_HEIGHT + 20,
+        }) {
+          ForEach(SETTINGS_SECTIONS, (section: SettingsSection) => {
+            ListItem() {
+              this.Section(section)
+            }
+          }, (section: SettingsSection) => section.key)
+        }
       }
+      .width('100%')
+      .height('100%')
+      .backgroundColor($r('sys.color.ohos_id_color_sub_background'))
     }
     .width('100%')
     .height('100%')
-    .backgroundColor($r('sys.color.ohos_id_color_sub_background'))
+    .mode(NavigationMode.Stack)
+    .hideTitleBar(true)
+    .navDestination(this.SettingsDestination)
+  }
+
+  @Builder
+  private SettingsDestination(name: string, _param: Object) {
+    if (name === KOMGA_SERVER_ROUTE_NAME) {
+      NavDestination() {
+        KomgaServerPage()
+      }
+      .title('Komga')
+    }
   }
 }
