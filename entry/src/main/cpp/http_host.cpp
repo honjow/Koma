@@ -1,6 +1,7 @@
 #include "http_host.h"
 
 #include <cstdint>
+#include <chrono>
 #include <cstring>
 #include <string>
 #include <mutex>
@@ -120,7 +121,26 @@ struct HttpSyncContext {
     uint32_t errCode = 0;
     int responseCode = 0;
     std::string responseBody;
+
+    void Reset()
+    {
+        done = false;
+        errCode = 0;
+        responseCode = 0;
+        responseBody.clear();
+    }
 };
+
+// The HarmonyOS native HTTP callback API does not expose a caller-owned user
+// data pointer. Keep the synchronous host bridge serialized and store callback
+// state in process-lifetime storage so NetStack worker callbacks never touch a
+// HostRequest stack frame. Response payload bytes are copied during the callback;
+// NetStack owns the callback response object and the request is cleaned up with
+// OH_Http_Destroy after the callback boundary.
+std::mutex g_requestMu;
+std::mutex g_activeCtxMu;
+HttpSyncContext g_activeCtxStorage;
+HttpSyncContext *g_activeCtx = nullptr;
 
 } // namespace
 
@@ -151,6 +171,8 @@ int32_t HostRequest(const char *requestJson, uint32_t requestLen,
 
     HTTP_LOG("request: %{public}s %{public}s", method.c_str(), url.c_str());
 
+    std::unique_lock<std::mutex> requestLock(g_requestMu);
+
     // Create request
     Http_Request *req = OH_Http_CreateRequest(url.c_str());
     if (req == nullptr) {
@@ -165,24 +187,22 @@ int32_t HostRequest(const char *requestJson, uint32_t requestLen,
     }
 
     // Synchronous wait context
-    HttpSyncContext ctx;
-
-    // Response callback
-    Http_ResponseCallback responseCb = [](Http_Response *response, uint32_t errCode) {
-        // NOTE: We cannot capture local variables in a C callback.
-        // This won't work. We need a different approach.
-    };
-
-    // The OH_Http_Request API uses plain C function pointers, so we can't use
-    // C++ lambdas that capture state. The callback fires on a different thread,
-    // so thread_local won't work either. Use a plain static pointer guarded by
-    // the assumption that WASM calls are serialized (one request at a time).
-
-    static HttpSyncContext *s_ctx = nullptr;
-    s_ctx = &ctx;
+    HttpSyncContext *ctx = &g_activeCtxStorage;
+    {
+        std::lock_guard<std::mutex> lock(ctx->mu);
+        ctx->Reset();
+    }
+    {
+        std::lock_guard<std::mutex> activeLock(g_activeCtxMu);
+        g_activeCtx = ctx;
+    }
 
     Http_ResponseCallback respCb = [](Http_Response *response, uint32_t errCode) {
-        HttpSyncContext *c = s_ctx;
+        HttpSyncContext *c = nullptr;
+        {
+            std::lock_guard<std::mutex> activeLock(g_activeCtxMu);
+            c = g_activeCtx;
+        }
         HTTP_LOG("response callback fired: errCode=%{public}u ctx=%{public}p", errCode, c);
         if (c == nullptr) return;
 
@@ -193,9 +213,11 @@ int32_t HostRequest(const char *requestJson, uint32_t requestLen,
             if (response->body.buffer != nullptr && response->body.length > 0) {
                 c->responseBody.assign(response->body.buffer, response->body.length);
             }
-            if (response->destroyResponse != nullptr) {
-                response->destroyResponse(&response);
-            }
+            HTTP_LOG("response callback copied: status=%{public}d bodyLen=%{public}u",
+                c->responseCode, response->body.length);
+        } else {
+            HTTP_LOG("response callback without response body: errCode=%{public}u response=%{public}p",
+                errCode, response);
         }
         c->done = true;
         c->cv.notify_one();
@@ -205,6 +227,12 @@ int32_t HostRequest(const char *requestJson, uint32_t requestLen,
 
     int ret = OH_Http_Request(req, respCb, eventsHandler);
     if (ret != 0) {
+        {
+            std::lock_guard<std::mutex> activeLock(g_activeCtxMu);
+            if (g_activeCtx == ctx) {
+                g_activeCtx = nullptr;
+            }
+        }
         OH_Http_Destroy(&req);
         HTTP_LOG("OH_Http_Request failed with %{public}d", ret);
         return WriteErrorResponse(out, outCap, "network_error", "OH_Http_Request failed");
@@ -214,29 +242,37 @@ int32_t HostRequest(const char *requestJson, uint32_t requestLen,
 
     // Wait for response
     {
-        std::unique_lock<std::mutex> lock(ctx.mu);
-        ctx.cv.wait_for(lock, std::chrono::seconds(60), [&ctx] { return ctx.done; });
+        std::unique_lock<std::mutex> lock(ctx->mu);
+        ctx->cv.wait_for(lock, std::chrono::seconds(60), [ctx] { return ctx->done; });
     }
 
+    HTTP_LOG("cleanup: destroying request after callback wait");
     OH_Http_Destroy(&req);
-    s_ctx = nullptr;
+    {
+        std::lock_guard<std::mutex> activeLock(g_activeCtxMu);
+        if (g_activeCtx == ctx) {
+            g_activeCtx = nullptr;
+        }
+    }
+    HTTP_LOG("cleanup: request destroyed and callback context cleared");
 
-    if (!ctx.done) {
+    std::unique_lock<std::mutex> resultLock(ctx->mu);
+    if (!ctx->done) {
         HTTP_LOG("request timed out");
         return WriteErrorResponse(out, outCap, "timeout", "HTTP request timed out");
     }
 
-    if (ctx.errCode != 0) {
-        HTTP_LOG("HTTP error code: %{public}u", ctx.errCode);
+    if (ctx->errCode != 0) {
+        HTTP_LOG("HTTP error code: %{public}u", ctx->errCode);
         return WriteErrorResponse(out, outCap, "network_error", "HTTP request failed");
     }
 
     HTTP_LOG("response: status=%{public}d bodyLen=%{public}zu",
-        ctx.responseCode, ctx.responseBody.size());
+        ctx->responseCode, ctx->responseBody.size());
 
     // Write raw body to output buffer (matching dev runner protocol)
-    return WriteSuccessResponse(out, outCap, ctx.responseCode,
-        ctx.responseBody.data(), static_cast<uint32_t>(ctx.responseBody.size()));
+    return WriteSuccessResponse(out, outCap, ctx->responseCode,
+        ctx->responseBody.data(), static_cast<uint32_t>(ctx->responseBody.size()));
 }
 
 #else // !KOMA_HAS_NATIVE_HTTP

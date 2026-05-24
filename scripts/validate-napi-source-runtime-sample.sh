@@ -8,6 +8,7 @@ cpp_file="entry/src/main/cpp/source_runtime_sample.cpp"
 cmake_file="entry/src/main/cpp/CMakeLists.txt"
 adapter_cpp="entry/src/main/cpp/wasm_runtime_adapter.cpp"
 adapter_h="entry/src/main/cpp/wasm_runtime_adapter.h"
+http_host_cpp="entry/src/main/cpp/http_host.cpp"
 wrapper_file="entry/src/main/ets/sourceRuntime/NativeSourceRuntime.ets"
 smoke_file="entry/src/main/ets/sourceRuntime/SourceRuntimeDeviceSmoke.ets"
 source_package_importer_file="entry/src/main/ets/sourceRuntime/SourcePackageImporter.ets"
@@ -41,6 +42,7 @@ require_file "$cpp_file"
 require_file "$cmake_file"
 require_file "$adapter_cpp"
 require_file "$adapter_h"
+require_file "$http_host_cpp"
 require_file "$wrapper_file"
 require_file "$smoke_file"
 require_file "$source_package_importer_file"
@@ -108,6 +110,16 @@ require_text "$adapter_cpp" 'WAMR_RUNTIME_TIMEOUT'
 require_text "$adapter_cpp" '"timeout"'
 require_text "$adapter_cpp" 'koma_test_oversized_result'
 require_text "$adapter_cpp" 'koma_test_malformed_result'
+require_text "$http_host_cpp" 'g_requestMu'
+require_text "$http_host_cpp" 'g_activeCtxMu'
+require_text "$http_host_cpp" 'g_activeCtxStorage'
+require_text "$http_host_cpp" 'response callback copied: status='
+require_text "$http_host_cpp" 'cleanup: destroying request after callback wait'
+require_text "$http_host_cpp" 'OH_Http_Destroy\(&req\)'
+if rg -q 'destroyResponse|OH_Http_DestroyResponse|static HttpSyncContext \*s_ctx|HttpSyncContext ctx;' "$http_host_cpp"; then
+  echo "native HTTP host must not destroy callback response or use stack/static raw callback context" >&2
+  exit 1
+fi
 
 if rg -q 'runtime\\":\\"napi-sample' "$cpp_file" "$adapter_cpp"; then
   echo "runJsonCall still contains the old hardcoded napi-sample response" >&2
