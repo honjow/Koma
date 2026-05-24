@@ -75,7 +75,13 @@ export function getReaderThemeModeLabel(mode: ReaderThemeMode): string {
 }
 
 export function readerModeFromPageMode(pageMode: ReaderPageMode): ReaderMode {
-  return pageMode === 'continuous_scroll' ? ReaderMode.CONTINUOUS_SCROLL : ReaderMode.SINGLE_PAGE
+  if (pageMode === 'continuous_scroll') {
+    return ReaderMode.CONTINUOUS_SCROLL
+  }
+  if (pageMode === 'double_page') {
+    return ReaderMode.DUAL_PAGE
+  }
+  return ReaderMode.SINGLE_PAGE
 }
 
 export function applyReaderThemeMode(context: common.UIAbilityContext, mode: ReaderThemeMode): void {

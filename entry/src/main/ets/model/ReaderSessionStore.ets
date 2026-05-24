@@ -37,6 +37,7 @@ export const EMPTY_READER_SESSION_CONFIG: ReaderSessionConfig = {
 
 export enum ReaderMode {
   SINGLE_PAGE = 'single_page',
+  DUAL_PAGE = 'dual_page',
   CONTINUOUS_SCROLL = 'continuous_scroll',
 }
 
@@ -49,7 +50,13 @@ export function isContinuousScrollReaderMode(mode: ReaderMode): boolean {
 }
 
 export function getReaderModeLabel(mode: ReaderMode): string {
-  return mode === ReaderMode.CONTINUOUS_SCROLL ? '连续滚动' : '单页'
+  if (mode === ReaderMode.CONTINUOUS_SCROLL) {
+    return '连续滚动'
+  }
+  if (mode === ReaderMode.DUAL_PAGE) {
+    return '双页'
+  }
+  return '单页'
 }
 
 export interface ReaderSessionStore {
@@ -139,7 +146,7 @@ function joinReaderPersistencePath(parent: string, child: string): string {
 }
 
 function isReaderMode(value: ReaderMode | undefined): boolean {
-  return value === ReaderMode.SINGLE_PAGE || value === ReaderMode.CONTINUOUS_SCROLL
+  return value === ReaderMode.SINGLE_PAGE || value === ReaderMode.DUAL_PAGE || value === ReaderMode.CONTINUOUS_SCROLL
 }
 
 function parseReaderProgressDocument(payload: string): PersistedReaderProgressDocument {
