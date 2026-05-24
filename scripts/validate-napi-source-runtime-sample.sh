@@ -122,6 +122,12 @@ require_text "$cmake_file" 'kSourceRuntimeFixtureWasm'
 require_text "$cmake_file" 'WAMR_BUILD_INTERP 1'
 require_text "$cmake_file" 'WAMR_BUILD_AOT 0'
 require_text "$cmake_file" 'WAMR_BUILD_JIT 0'
+require_text "$cmake_file" 'Rust-generated URL-installed \.koma source wasm packages require reference types'
+require_text "$cmake_file" 'WAMR_BUILD_REF_TYPES 1'
+if rg -q 'WAMR_BUILD_REF_TYPES[[:space:]]+0' "$cmake_file"; then
+  echo "WAMR reference types must stay enabled for URL-installed .koma source packages" >&2
+  exit 1
+fi
 require_text "$cmake_file" 'add_library\(koma_source_runtime SHARED'
 require_text "$cmake_file" 'libace_napi.z.so'
 require_text "$build_profile" '"externalNativeOptions"'
