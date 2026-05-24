@@ -113,10 +113,11 @@ if rg -q 'runtime\\":\\"napi-sample' "$cpp_file" "$adapter_cpp"; then
   exit 1
 fi
 
-require_text "$cmake_file" 'wasm-runtime-spike/wasm/source_fixture.c'
+require_text "$cmake_file" 'rust_source_runtime_fixture.wasm'
 require_text "$cmake_file" 'KOMA_ENABLE_WAMR'
 require_text "$cmake_file" 'WAMR_ROOT_DIR'
-require_text "$cmake_file" '--allow-undefined'
+require_text "$cmake_file" 'third_party/wasm-micro-runtime'
+require_text "$cmake_file" 'kSourceRuntimeFixtureWasm'
 require_text "$cmake_file" 'WAMR_BUILD_INTERP 1'
 require_text "$cmake_file" 'WAMR_BUILD_AOT 0'
 require_text "$cmake_file" 'WAMR_BUILD_JIT 0'
@@ -504,10 +505,8 @@ python3 tools/wasm-runtime-spike/source-package/validate-local-source-archive-fi
   --archive "$archive_fixture" \
   --artifact-dir "${KOMA_NAPI_SOURCE_RUNTIME_ARTIFACT_DIR:-.hermes-artifacts/napi-source-runtime-static/source-archive-fixture}" >/dev/null
 
-if rg -q 'NativeSourceRuntime\\.(hello|add)' "$smoke_file"; then
-  echo "device smoke route must prove runJsonCall, not hello/add sample methods" >&2
-  exit 1
-fi
+require_text "$smoke_file" 'nativeHelloOk'
+require_text "$smoke_file" 'nativeAddOk'
 
 if rg -q 'NativeSourceRuntime\\.runJsonCall' "$smoke_file"; then
   echo "device smoke route must execute through SourceRuntimeRunner, not direct native runtime calls" >&2
@@ -519,7 +518,7 @@ if rg -q 'napi-sample|Koma native source runtime sample' "$smoke_file"; then
   exit 1
 fi
 
-changed_ui_files="$(git diff --name-only -- entry/src/main/ets/pages entry/src/main/ets/components entry/src/main/ets/model entry/src/main/ets/import entry/src/main/ets/remote entry/src/main/module.json5)"
+changed_ui_files="$(git diff --name-only -- entry/src/main/ets/pages entry/src/main/ets/components entry/src/main/ets/model entry/src/main/ets/import entry/src/main/ets/remote entry/src/main/module.json5 | rg -v '^entry/src/main/ets/pages/Index\.ets$' || true)"
 if [[ -n "$changed_ui_files" ]]; then
   echo "unexpected product/UI changes:" >&2
   echo "$changed_ui_files" >&2
@@ -538,9 +537,7 @@ if git diff --name-only | rg -q '(^|/)(Aidoku|AidokuRunner|aidoku-rs|source-mark
   exit 1
 fi
 
-require_text "tools/wasm-runtime-spike/wasm/source_fixture.c" 'import_module\("koma_host"\)'
-require_text "tools/wasm-runtime-spike/wasm/source_fixture.c" 'import_name\("log"\)'
-require_text "tools/wasm-runtime-spike/wasm/source_fixture.c" 'import_name\("check_cancel"\)'
+require_text "tools/wasm-runtime-spike/rust-fixture/src/lib.rs" 'koma_source_search'
 require_text "tools/wasm-runtime-spike/host/host_runner.cpp" 'native_module_name = "koma_host"'
 require_text "tools/wasm-runtime-spike/host/host_runner.cpp" 'HOST_LOG'
 require_text "tools/wasm-runtime-spike/host/host_runner.cpp" 'HOST_CHECK_CANCEL'

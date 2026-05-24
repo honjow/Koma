@@ -1,7 +1,10 @@
 import { common, Want } from '@kit.AbilityKit'
 import { resourceManager } from '@kit.LocalizationKit'
 import { taskpool } from '@kit.ArkTS'
-import { SourceRuntimeCallResponse } from './NativeSourceRuntime'
+import {
+  NativeSourceRuntime,
+  SourceRuntimeCallResponse,
+} from './NativeSourceRuntime'
 import {
   SourceArchiveNegativeCaseFixture,
   SourceArchiveNegativeImportResult,
@@ -183,6 +186,8 @@ export interface SourceRuntimeSmokeResult {
   ok: boolean
   route: string
   smokePhase?: string
+  nativeHelloOk?: boolean
+  nativeAddOk?: boolean
   requestJson: string
   rawfilePath?: string
   rawfileBytes?: number
@@ -1172,6 +1177,18 @@ export async function maybeRunSourceRuntimeDeviceSmoke(
   }
 
   try {
+    const nativeHello = NativeSourceRuntime.hello()
+    const nativeAdd = NativeSourceRuntime.add(2, 3)
+    result.nativeHelloOk = nativeHello.indexOf('Koma native source runtime') >= 0
+    result.nativeAddOk = nativeAdd === 5
+    console.info(`[SourceRuntime] step=native_loaded helloOk=${result.nativeHelloOk} addOk=${result.nativeAddOk}`)
+    if (result.nativeHelloOk !== true || result.nativeAddOk !== true) {
+      result.error = 'native source runtime hello/add smoke failed'
+      compactSmokeResultForHilog(result)
+      console.info(SMOKE_LOG_PREFIX + JSON.stringify(result))
+      return
+    }
+
     if (result.smokePhase === SMOKE_PHASE_SETUP_PERSISTED_INVENTORY) {
       result.sourceRuntimePersistedInventoryRestartPhase = SMOKE_PHASE_SETUP_PERSISTED_INVENTORY
       if (resourceMgr === undefined || context === undefined) {
@@ -1322,6 +1339,9 @@ export async function maybeRunSourceRuntimeDeviceSmoke(
 
     const response = runBundledSourceOperation(SMOKE_REQUEST_JSON)
     result.responseOk = responseReachedFixture(response)
+    if (result.responseOk === true) {
+      console.info('[SourceRuntime] step=wasm_smoke_ok route=bundled')
+    }
     let resourceResponse: SourceRuntimeCallResponse | undefined = undefined
     let rustSourceResponseOk = false
     if (resourceMgr !== undefined) {
@@ -1370,6 +1390,8 @@ export async function maybeRunSourceRuntimeDeviceSmoke(
       }
     }
     result.ok = result.responseOk === true &&
+      result.nativeHelloOk === true &&
+      result.nativeAddOk === true &&
       resourceResponse !== undefined &&
       result.resourceResponseOk === true &&
       rustSourceResponseOk &&

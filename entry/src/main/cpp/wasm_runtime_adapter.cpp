@@ -663,7 +663,11 @@ std::string RunBundledWasmJsonCall(const std::string &requestJson)
         Runtime runtime;
         ThreadEnv threadEnv;
         Module module(LoadWasmBytesFromBundledFixture());
-        return module.RunOperation(requestJson);
+        std::string response = module.RunOperation(requestJson);
+#if defined(KOMA_HAS_HILOG)
+        OH_LOG_Print(LOG_APP, LOG_INFO, 0x0, "KomaSourceRuntime", "[SourceRuntime] step=wasm_smoke_ok route=bundled");
+#endif
+        return response;
     } catch (const std::exception &err) {
         return RuntimeErrorJson(err.what());
     }
@@ -683,7 +687,12 @@ std::string RunWasmJsonCallFromBytes(const std::string &requestJson, const std::
         Runtime runtime;
         ThreadEnv threadEnv;
         Module module(LoadWasmBytesFromExternalBytes(wasmBytes));
-        return module.RunOperation(requestJson);
+        std::string response = module.RunOperation(requestJson);
+#if defined(KOMA_HAS_HILOG)
+        OH_LOG_Print(LOG_APP, LOG_INFO, 0x0, "KomaSourceRuntime", "[SourceRuntime] step=wasm_smoke_ok route=bytes wasmBytes=%{public}zu",
+            wasmBytes.size());
+#endif
+        return response;
     } catch (const std::exception &err) {
 #if defined(KOMA_HAS_HILOG)
         OH_LOG_Print(LOG_APP, LOG_ERROR, 0x0, "KomaSourceRuntime",

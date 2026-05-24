@@ -13,16 +13,10 @@ interface BundledDevSource {
 
 const BUNDLED_DEV_SOURCES: BundledDevSource[] = [
   {
-    sourceId: 'baozimh-browse',
-    displayName: 'Baozimh',
+    sourceId: 'local.test.koma.fixture.browse',
+    displayName: 'Koma Fixture',
     version: 'dev',
-    rawfilePath: 'test/baozimh.wasm',
-  },
-  {
-    sourceId: 'mangadex-browse',
-    displayName: 'MangaDex',
-    version: 'dev',
-    rawfilePath: 'test/mangadex.wasm',
+    rawfilePath: 'test/rust_source_runtime_fixture.wasm',
   },
 ]
 

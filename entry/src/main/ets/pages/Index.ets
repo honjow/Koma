@@ -45,11 +45,15 @@ import {
 } from '../model/ReaderSessionStore'
 import { installReaderRemoteHeadersForComic } from '../model/ReaderPageSourceAdapter'
 import { SourceRuntimeRegistry } from '../sourceRuntime/SourceRuntimeRegistry'
+import {
+  appSourceRuntimeRegistry,
+  registerBundledDevSourcesForBrowse,
+} from '../sourceRuntime/SourceRuntimeAppRegistry'
 
 const readerSessionStore: ReaderSessionStore = new InMemoryReaderSessionStore()
 const seededLibraryStore: LibraryStore = createSeededLibraryStore()
 const libraryPresentationByComicId: LibraryPresentationByComicId = createMockLibraryPresentationMap()
-const sourceRuntimeRegistry: SourceRuntimeRegistry = new SourceRuntimeRegistry()
+const sourceRuntimeRegistry: SourceRuntimeRegistry = appSourceRuntimeRegistry
 
 @Entry
 @Component
@@ -175,6 +179,7 @@ struct Index {
 
   aboutToAppear(): void {
     RouterHelper.setAppPathStack(this.appPathStack)
+    registerBundledDevSourcesForBrowse((getContext(this) as common.UIAbilityContext).resourceManager)
     if (this.libraryPersistenceRestored) {
       return
     }

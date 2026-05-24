@@ -7,6 +7,11 @@
 
 #include "wasm_runtime_adapter.h"
 
+#if __has_include(<hilog/log.h>)
+#include <hilog/log.h>
+#define KOMA_HAS_HILOG 1
+#endif
+
 namespace {
 
 constexpr const char *kModuleName = "koma_source_runtime";
@@ -156,5 +161,8 @@ static napi_module sourceRuntimeModule = {
 
 extern "C" __attribute__((constructor)) void RegisterKomaSourceRuntimeModule(void)
 {
+#if defined(KOMA_HAS_HILOG)
+    OH_LOG_Print(LOG_APP, LOG_INFO, 0x0, "KomaSourceRuntime", "[SourceRuntime] step=native_loaded");
+#endif
     napi_module_register(&sourceRuntimeModule);
 }
