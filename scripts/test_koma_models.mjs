@@ -25,6 +25,8 @@ const sourceSearchPagePath = resolve(root, 'entry/src/main/ets/pages/SourceSearc
 const secondaryListScaffoldPath = resolve(root, 'entry/src/main/ets/components/SecondaryListScaffold.ets')
 const comicCoverCardPath = resolve(root, 'entry/src/main/ets/components/ComicCoverCard.ets')
 const mangaDetailPagePath = resolve(root, 'entry/src/main/ets/pages/MangaDetailPage.ets')
+const readerPageSourceAdapterPath = resolve(root, 'entry/src/main/ets/model/ReaderPageSourceAdapter.ets')
+const sourceSettingsStorePath = resolve(root, 'entry/src/main/ets/sourceRuntime/SourceSettingsStore.ets')
 
 const modelSource = readFileSync(modelPath, 'utf8')
 const libraryStoreSource = readFileSync(libraryStorePath, 'utf8')
@@ -48,6 +50,8 @@ const sourceSearchPageSource = readFileSync(sourceSearchPagePath, 'utf8')
 const secondaryListScaffoldSource = readFileSync(secondaryListScaffoldPath, 'utf8')
 const comicCoverCardSource = readFileSync(comicCoverCardPath, 'utf8')
 const mangaDetailPageSource = readFileSync(mangaDetailPagePath, 'utf8')
+const readerPageSourceAdapterSource = readFileSync(readerPageSourceAdapterPath, 'utf8')
+const sourceSettingsStoreSource = readFileSync(sourceSettingsStorePath, 'utf8')
 
 function assertExport(source, symbol) {
   assert.match(source, new RegExp(`export (interface|class|function|enum|type|const) ${symbol}\\b`), `${symbol} must be exported`)
@@ -107,7 +111,7 @@ function updateReadingProgress(previous, pageIndex, pageId, totalPages = previou
   }
 }
 
-function buildSourceDetailRequestJson(sourceId, operation, args, hostHints) {
+function buildSourceDetailRequestJson(sourceId, operation, args, hostHints, sourceSettings = {}) {
   return JSON.stringify({
     type: 'request',
     version: 1,
@@ -115,7 +119,7 @@ function buildSourceDetailRequestJson(sourceId, operation, args, hostHints) {
     operation,
     sourceId,
     args,
-    settings: {},
+    settings: sourceSettings,
     hostHints,
   })
 }
@@ -324,8 +328,13 @@ assert.doesNotMatch(
 )
 assert.match(
   mangaDetailPageSource,
-  /private buildSourceDetailRequestJson[\s\S]*type:\s*'request'[\s\S]*version:\s*1[\s\S]*requestId:\s*`detail-\$\{operation\}-\$\{sourceId\}-\$\{Date\.now\(\)\}`[\s\S]*operation,[\s\S]*sourceId,[\s\S]*args,[\s\S]*settings,[\s\S]*hostHints/,
+  /private buildSourceDetailRequestJson[\s\S]*appSourceSettingsStore\.loadForSource\(sourceId\)[\s\S]*type:\s*'request'[\s\S]*version:\s*1[\s\S]*requestId:\s*`detail-\$\{operation\}-\$\{sourceId\}-\$\{Date\.now\(\)\}`[\s\S]*operation,[\s\S]*sourceId,[\s\S]*args,[\s\S]*settings,[\s\S]*hostHints/,
   'MangaDetailPage must build v1 source request envelopes for detail, chapters, and pages',
+)
+assert.match(
+  readerPageSourceAdapterSource,
+  /appSourceSettingsStore\.loadForSource\(sourceRuntimeId\)[\s\S]*operation: 'get_image_request'[\s\S]*settings,/,
+  'ReaderPageSourceAdapter source image requests must inject per-source settings',
 )
 assert.match(
   mangaDetailPageSource,
@@ -363,6 +372,7 @@ const mangaRequest = JSON.parse(buildSourceDetailRequestJson(
   'get_manga',
   { mangaId: 'manga:fixture-series' },
   { network: true },
+  { 'setting:language': 'zh-Hans' },
 ))
 assert.deepEqual(
   {
@@ -380,10 +390,10 @@ assert.deepEqual(
     operation: 'get_manga',
     sourceId: 'local.test.koma.fixture',
     args: { mangaId: 'manga:fixture-series' },
-    settings: {},
+    settings: { 'setting:language': 'zh-Hans' },
     hostHints: { network: true },
   },
-  'detail request envelope must match the source runtime v1 contract',
+  'detail request envelope must match the source runtime v1 contract and include source settings',
 )
 const chaptersRequest = JSON.parse(buildSourceDetailRequestJson(
   'local.test.koma.fixture',
@@ -429,12 +439,13 @@ assert.equal(sourcePageResponseItems({ ok: true, data: { items: [{ id: 'fixture-
 assert.equal(sourceComicId('source.alpha', 'manga-1'), 'source.alpha:manga-1', 'source comic id should prefix plain manga ids')
 assert.equal(sourceComicId('source.alpha', 'source.alpha:manga-1'), 'source.alpha:manga-1', 'source comic id should not double-prefix normalized manga ids')
 
-assert.match(backupServiceSource, /const BACKUP_SCHEMA_VERSION:\s*number = 2/, 'backup export must use schema v2')
+assert.match(backupServiceSource, /const BACKUP_SCHEMA_VERSION:\s*number = 3/, 'backup export must use schema v3')
+assert.match(backupServiceSource, /const BACKUP_SCHEMA_VERSION_V2:\s*number = 2/, 'backup import must keep schema v2 compatibility')
 assert.match(backupServiceSource, /const BACKUP_SCHEMA_VERSION_V1:\s*number = 1/, 'backup import must keep schema v1 compatibility')
 assert.match(
   backupServiceSource,
-  /document\.schemaVersion !== BACKUP_SCHEMA_VERSION && document\.schemaVersion !== BACKUP_SCHEMA_VERSION_V1/,
-  'backup import must accept both v1 and v2 schema versions',
+  /document\.schemaVersion !== BACKUP_SCHEMA_VERSION &&[\s\S]*document\.schemaVersion !== BACKUP_SCHEMA_VERSION_V2 &&[\s\S]*document\.schemaVersion !== BACKUP_SCHEMA_VERSION_V1/,
+  'backup import must accept v1, v2, and v3 schema versions',
 )
 assert.match(
   backupServiceSource,
@@ -443,13 +454,18 @@ assert.match(
 )
 assert.match(
   backupServiceSource,
-  /settings:\s*await new ReaderPreferencesStore\(this\.context\)\.load\(\)/,
-  'backup v2 export must include SettingsPage reader preferences',
+  /sourceSettings:\s*appSourceSettingsStore\.exportAll\(\)/,
+  'backup v3 export must include sanitized source settings',
 )
 assert.match(
   backupServiceSource,
-  /if \(document\.schemaVersion >= BACKUP_SCHEMA_VERSION\) \{[\s\S]*importSourcePackages\(document\.sourcePackages\)[\s\S]*importSettings\(document\.settings\)/,
-  'backup v2 import must restore source packages and settings only after v1 fields are accepted',
+  /settings:\s*await new ReaderPreferencesStore\(this\.context\)\.load\(\)/,
+  'backup export must include SettingsPage reader preferences',
+)
+assert.match(
+  backupServiceSource,
+  /if \(document\.schemaVersion >= BACKUP_SCHEMA_VERSION\) \{[\s\S]*importSourceSettings\(document\.sourceSettings\)[\s\S]*if \(document\.schemaVersion >= BACKUP_SCHEMA_VERSION_V2\) \{[\s\S]*importSourcePackages\(document\.sourcePackages\)[\s\S]*importSettings\(document\.settings\)/,
+  'backup v3 import must restore source settings while preserving v2 source package/settings restore',
 )
 assert.match(
   backupServiceSource,
@@ -465,6 +481,11 @@ assert.doesNotMatch(
   backupServiceSource,
   /console\.(?:info|warn|error)\([^)]*(?:libraryStore|readingProgress|remoteServers|sourcePackages|wasmBase64|payload)/,
   'backup service must not log raw backup payloads, credentials, or source package bytes',
+)
+assert.match(
+  sourceSettingsStoreSource,
+  /filterSafeValues[\s\S]*descriptorIsCredentialLike\(key, ''\)/,
+  'source settings backups must use the same non-secret filtering as normal persistence',
 )
 
 const comic = {

@@ -1,4 +1,5 @@
 import { MangaDetailHeader } from '../components/MangaDetailHeader'
+import { common } from '@kit.AbilityKit'
 import { MangaDescriptionSection } from '../components/MangaDescriptionSection'
 import { MangaTagsSection } from '../components/MangaTagsSection'
 import { ChapterListSection } from '../components/ChapterListSection'
@@ -29,6 +30,11 @@ import {
   SourceRuntimeRegistryEntry,
 } from '../sourceRuntime/SourceRuntimeRegistry'
 import { runSourceOperationFromBytes } from '../sourceRuntime/SourceRuntimeRunner'
+import {
+  SourceSettingsRecord,
+  appSourceSettingsStore,
+  configureSourceSettingsStore,
+} from '../sourceRuntime/SourceSettingsStore'
 import { taskpool } from '@kit.ArkTS'
 
 export const MANGA_DETAIL_ROUTE_NAME: string = 'MangaDetailPage'
@@ -69,8 +75,6 @@ interface SourceChaptersRequestArgs {
   page: SourceChaptersPageArg
 }
 
-interface SourceDetailRequestSettings {}
-
 interface SourceDetailRequestHostHints {
   network: boolean
 }
@@ -86,7 +90,7 @@ interface SourceDetailRequest {
   operation: string
   sourceId: string
   args: SourceMangaRequestArgs | SourceChaptersRequestArgs | SourcePagesRequestArgs
-  settings: SourceDetailRequestSettings
+  settings: SourceSettingsRecord
   hostHints: SourceDetailRequestHostHints | SourcePagesRequestHostHints
 }
 
@@ -122,6 +126,7 @@ export struct MangaDetailPage {
   }
 
   aboutToAppear(): void {
+    configureSourceSettingsStore(getContext(this) as common.UIAbilityContext)
     this.loadMangaDetail()
   }
 
@@ -234,7 +239,7 @@ export struct MangaDetailPage {
     args: SourceMangaRequestArgs | SourceChaptersRequestArgs | SourcePagesRequestArgs,
     hostHints: SourceDetailRequestHostHints | SourcePagesRequestHostHints,
   ): string {
-    const settings: SourceDetailRequestSettings = {}
+    const settings = appSourceSettingsStore.loadForSource(sourceId)
     const request: SourceDetailRequest = {
       type: 'request',
       version: 1,

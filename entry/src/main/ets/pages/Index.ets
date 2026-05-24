@@ -49,6 +49,7 @@ import {
   appSourceRuntimeRegistry,
   bootstrapSourceRuntimeAppRegistry,
 } from '../sourceRuntime/SourceRuntimeAppRegistry'
+import { configureSourceSettingsStore } from '../sourceRuntime/SourceSettingsStore'
 
 const readerSessionStore: ReaderSessionStore = new InMemoryReaderSessionStore()
 const seededLibraryStore: LibraryStore = createSeededLibraryStore()
@@ -179,7 +180,9 @@ struct Index {
 
   aboutToAppear(): void {
     RouterHelper.setAppPathStack(this.appPathStack)
-    bootstrapSourceRuntimeAppRegistry(getContext(this) as common.UIAbilityContext)
+    const context = getContext(this) as common.UIAbilityContext
+    configureSourceSettingsStore(context)
+    bootstrapSourceRuntimeAppRegistry(context)
     if (this.libraryPersistenceRestored) {
       return
     }
