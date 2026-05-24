@@ -19,8 +19,14 @@ import {
   exportInstalledSourcePackages,
   restoreSourcePackagesFromBackup,
 } from '../sourceRuntime/SourceRuntimeAppRegistry'
+import {
+  SourceSettingsRecord,
+  appSourceSettingsStore,
+  configureSourceSettingsStore,
+} from '../sourceRuntime/SourceSettingsStore'
 
-const BACKUP_SCHEMA_VERSION: number = 2
+const BACKUP_SCHEMA_VERSION: number = 3
+const BACKUP_SCHEMA_VERSION_V2: number = 2
 const BACKUP_SCHEMA_VERSION_V1: number = 1
 const REMOTE_SERVER_STORE_NAME: string = 'koma_remote_servers_v1'
 const KOMGA_SERVER_KEY: string = 'komga.server'
@@ -46,6 +52,7 @@ interface KomaBackupDocument {
   readingProgress: string
   remoteServers: RemoteServerBackupDocument
   sourcePackages?: SourcePackageBackupEntry[]
+  sourceSettings?: Record<string, SourceSettingsRecord>
   settings?: ReaderPreferences
 }
 
@@ -97,6 +104,7 @@ export class BackupService {
 
   constructor(context: common.UIAbilityContext) {
     this.context = context
+    configureSourceSettingsStore(context)
   }
 
   async export(): Promise<string> {
@@ -107,6 +115,7 @@ export class BackupService {
       readingProgress: readTextIfExists(this.readerProgressPath(), emptyReaderProgressPayload()),
       remoteServers: await this.exportRemoteServers(),
       sourcePackages: exportInstalledSourcePackages(),
+      sourceSettings: appSourceSettingsStore.exportAll(),
       settings: await new ReaderPreferencesStore(this.context).load(),
     }
     console.info('[Backup] step=export_json')
@@ -115,7 +124,9 @@ export class BackupService {
 
   async import(json: string): Promise<void> {
     const document = JSON.parse(json) as KomaBackupDocument
-    if (document.schemaVersion !== BACKUP_SCHEMA_VERSION && document.schemaVersion !== BACKUP_SCHEMA_VERSION_V1) {
+    if (document.schemaVersion !== BACKUP_SCHEMA_VERSION &&
+      document.schemaVersion !== BACKUP_SCHEMA_VERSION_V2 &&
+      document.schemaVersion !== BACKUP_SCHEMA_VERSION_V1) {
       throw new Error(`Unsupported backup schema version: ${document.schemaVersion}`)
     }
     if (typeof document.libraryStore !== 'string' || typeof document.readingProgress !== 'string') {
@@ -127,6 +138,9 @@ export class BackupService {
     writeText(this.readerProgressPath(), document.readingProgress)
     await this.importRemoteServers(document.remoteServers)
     if (document.schemaVersion >= BACKUP_SCHEMA_VERSION) {
+      this.importSourceSettings(document.sourceSettings)
+    }
+    if (document.schemaVersion >= BACKUP_SCHEMA_VERSION_V2) {
       await this.importSourcePackages(document.sourcePackages)
       await this.importSettings(document.settings)
     }
@@ -225,6 +239,16 @@ export class BackupService {
       themeMode: settings.themeMode ?? DEFAULT_READER_PREFERENCES.themeMode,
     }
     await new ReaderPreferencesStore(this.context).save(nextSettings)
+  }
+
+  private importSourceSettings(sourceSettings: Record<string, SourceSettingsRecord> | undefined): void {
+    if (sourceSettings === undefined) {
+      return
+    }
+    if (sourceSettings === null || Array.isArray(sourceSettings) || typeof sourceSettings !== 'object') {
+      throw new Error('Invalid backup source settings')
+    }
+    appSourceSettingsStore.importAll(sourceSettings)
   }
 
   private async putOrDelete(store: preferences.Preferences, key: string, value: string | undefined): Promise<void> {

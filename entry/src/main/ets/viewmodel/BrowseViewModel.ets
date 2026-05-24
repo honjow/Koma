@@ -3,6 +3,10 @@ import { SourceManga, SourceMangaList, SourceMangaStatus } from '../model/Source
 import { SourceRuntimeCallResponse } from '../sourceRuntime/NativeSourceRuntime'
 import { appSourceRuntimeRegistry } from '../sourceRuntime/SourceRuntimeAppRegistry'
 import {
+  SourceSettingsRecord,
+  appSourceSettingsStore,
+} from '../sourceRuntime/SourceSettingsStore'
+import {
   SourceRuntimeRegistryEntry,
   SourceRuntimeRegistry,
   SourceRuntimeRegistryInstalledSourceSummary,
@@ -37,9 +41,6 @@ interface SourceMangaListArgs {
 
 type SourceOperationArgs = SourceHomeArgs | SourceSearchArgs | SourceMangaListArgs
 
-interface SourceOperationSettings {
-}
-
 interface SourceOperationHostHints {
   network: boolean
 }
@@ -51,7 +52,7 @@ interface SourceOperationRequest {
   operation: string
   sourceId: string
   args: SourceOperationArgs
-  settings: SourceOperationSettings
+  settings: SourceSettingsRecord
   hostHints: SourceOperationHostHints
 }
 
@@ -336,7 +337,7 @@ export class BrowseViewModel {
     args: SourceOperationArgs,
     page: number,
   ): string {
-    const settings: SourceOperationSettings = {}
+    const settings = appSourceSettingsStore.loadForSource(sourceId)
     const hostHints: SourceOperationHostHints = { network: true }
     const request: SourceOperationRequest = {
       type: 'request',

@@ -3,6 +3,7 @@ import { SecondaryListScaffold } from '../components/SecondaryListScaffold'
 import { ThemeConstants } from '../theme/ThemeConstants'
 import {
   InstalledSourcePackage,
+  appSourceRuntimeRegistry,
   installFromArchive,
   listInstalled,
   pickSourcePackageArchive,
@@ -10,14 +11,27 @@ import {
   runSmoke,
   setEnabled,
 } from '../sourceRuntime/SourceRuntimeAppRegistry'
+import {
+  SourceSettingDescriptor,
+  SourceSettingValue,
+  SourceSettingsRecord,
+  appSourceSettingsStore,
+  configureSourceSettingsStore,
+  fetchSourceSettingDescriptors,
+} from '../sourceRuntime/SourceSettingsStore'
 
 @Component
 export struct SourcePackageManagerPage {
   @State private packages: InstalledSourcePackage[] = []
   @State private busy: boolean = false
   @State private statusText: string = ''
+  @State private settingsSourceId: string = ''
+  @State private settingsSourceName: string = ''
+  @State private settingDescriptors: SourceSettingDescriptor[] = []
+  @State private settingDraft: SourceSettingsRecord = {}
 
   aboutToAppear(): void {
+    configureSourceSettingsStore(this.context())
     this.reload()
   }
 
@@ -108,6 +122,81 @@ export struct SourcePackageManagerPage {
       this.statusText = 'Smoke FAIL：' + (result.reasonCode ?? 'smoke_failed')
       this.showToast('Smoke FAIL')
     }
+  }
+
+  private openSettings(source: InstalledSourcePackage): void {
+    this.settingsSourceId = source.id
+    this.settingsSourceName = source.name
+    this.settingDescriptors = fetchSourceSettingDescriptors(appSourceRuntimeRegistry, source.id)
+    const saved = appSourceSettingsStore.loadForSource(source.id)
+    const nextDraft: SourceSettingsRecord = {}
+    this.settingDescriptors.forEach((descriptor: SourceSettingDescriptor) => {
+      if (!descriptor.supported || descriptor.sensitive) {
+        return
+      }
+      const savedValue = saved[descriptor.id]
+      if (savedValue !== undefined) {
+        nextDraft[descriptor.id] = savedValue
+      } else if (descriptor.defaultValue !== undefined) {
+        nextDraft[descriptor.id] = descriptor.defaultValue
+      }
+    })
+    this.settingDraft = nextDraft
+    this.statusText = this.settingDescriptors.length === 0 ? '未发现可配置项' : '正在编辑源设置'
+  }
+
+  private closeSettings(): void {
+    this.settingsSourceId = ''
+    this.settingsSourceName = ''
+    this.settingDescriptors = []
+    this.settingDraft = {}
+  }
+
+  private saveSettings(): void {
+    if (this.settingsSourceId.length === 0) {
+      return
+    }
+    appSourceSettingsStore.saveForSource(this.settingsSourceId, this.settingDraft, this.settingDescriptors)
+    this.statusText = '源设置已保存'
+    this.showToast('源设置已保存')
+    this.closeSettings()
+  }
+
+  private updateSettingValue(id: string, value: SourceSettingValue): void {
+    const nextDraft: SourceSettingsRecord = {}
+    Object.keys(this.settingDraft).forEach((key: string) => {
+      nextDraft[key] = this.settingDraft[key]
+    })
+    nextDraft[id] = value
+    this.settingDraft = nextDraft
+  }
+
+  private settingStringValue(descriptor: SourceSettingDescriptor): string {
+    const value = this.settingDraft[descriptor.id]
+    return typeof value === 'string' ? value : ''
+  }
+
+  private settingBooleanValue(descriptor: SourceSettingDescriptor): boolean {
+    return this.settingDraft[descriptor.id] === true
+  }
+
+  private settingSelectLabel(descriptor: SourceSettingDescriptor): string {
+    const value = this.settingDraft[descriptor.id]
+    const selected = typeof value === 'string' ? value : ''
+    const option = descriptor.options?.find((item) => item.id === selected)
+    return option?.label ?? (selected.length > 0 ? selected : '未选择')
+  }
+
+  private cycleSelectSetting(descriptor: SourceSettingDescriptor): void {
+    const options = descriptor.options ?? []
+    if (options.length === 0) {
+      return
+    }
+    const current = this.settingDraft[descriptor.id]
+    const currentId = typeof current === 'string' ? current : ''
+    const currentIndex = options.findIndex((item) => item.id === currentId)
+    const nextIndex = currentIndex < 0 || currentIndex >= options.length - 1 ? 0 : currentIndex + 1
+    this.updateSettingValue(descriptor.id, options[nextIndex].id)
   }
 
   private capsText(source: InstalledSourcePackage): string {
@@ -243,6 +332,18 @@ export struct SourcePackageManagerPage {
             this.smokePackage(source)
           })
 
+        Button('设置')
+          .height(36)
+          .layoutWeight(1)
+          .fontSize(13)
+          .fontColor($r('app.color.koma_accent'))
+          .backgroundColor('#00000000')
+          .border({ width: 1, color: $r('app.color.koma_accent') })
+          .borderRadius(8)
+          .onClick(() => {
+            this.openSettings(source)
+          })
+
         Button('删除')
           .height(36)
           .layoutWeight(1)
@@ -263,6 +364,137 @@ export struct SourcePackageManagerPage {
     .backgroundColor($r('app.color.koma_card'))
   }
 
+  @Builder
+  private SettingsPanel() {
+    if (this.settingsSourceId.length > 0) {
+      Column({ space: 12 }) {
+        Row({ space: 10 }) {
+          Column({ space: 4 }) {
+            Text(this.settingsSourceName)
+              .fontSize(16)
+              .fontWeight(FontWeight.Medium)
+              .fontColor($r('app.color.koma_text_primary'))
+              .maxLines(1)
+              .textOverflow({ overflow: TextOverflow.Ellipsis })
+            Text('源设置')
+              .fontSize(12)
+              .fontColor($r('app.color.koma_text_secondary'))
+          }
+          .layoutWeight(1)
+          .alignItems(HorizontalAlign.Start)
+
+          Button('关闭')
+            .height(32)
+            .fontSize(13)
+            .fontColor($r('app.color.koma_text_secondary'))
+            .backgroundColor('#00000000')
+            .onClick(() => {
+              this.closeSettings()
+            })
+        }
+        .width('100%')
+
+        if (this.settingDescriptors.length === 0) {
+          Text('此源包未提供设置项')
+            .width('100%')
+            .fontSize(13)
+            .fontColor($r('app.color.koma_text_secondary'))
+        } else {
+          ForEach(this.settingDescriptors, (descriptor: SourceSettingDescriptor) => {
+            this.SettingRow(descriptor)
+          }, (descriptor: SourceSettingDescriptor) => descriptor.id)
+        }
+
+        Button('保存设置')
+          .height(38)
+          .width('100%')
+          .fontSize(14)
+          .fontColor(Color.White)
+          .backgroundColor($r('app.color.koma_accent'))
+          .borderRadius(8)
+          .onClick(() => {
+            this.saveSettings()
+          })
+      }
+      .width('100%')
+      .padding(16)
+      .borderRadius(8)
+      .backgroundColor($r('app.color.koma_card'))
+    }
+  }
+
+  @Builder
+  private SettingRow(descriptor: SourceSettingDescriptor) {
+    Column({ space: 6 }) {
+      if (descriptor.sensitive || !descriptor.supported) {
+        Row({ space: 8 }) {
+          Text(descriptor.label)
+            .fontSize(14)
+            .fontColor($r('app.color.koma_text_primary'))
+            .layoutWeight(1)
+          Text(descriptor.sensitive ? '需要登录配置（暂未启用）' : '暂不支持')
+            .fontSize(12)
+            .fontColor($r('app.color.koma_text_secondary'))
+        }
+        .width('100%')
+      } else if (descriptor.kind === 'boolean') {
+        Row({ space: 8 }) {
+          Text(descriptor.label)
+            .fontSize(14)
+            .fontColor($r('app.color.koma_text_primary'))
+            .layoutWeight(1)
+          Toggle({ type: ToggleType.Switch, isOn: this.settingBooleanValue(descriptor) })
+            .onChange((isOn: boolean) => {
+              this.updateSettingValue(descriptor.id, isOn)
+            })
+        }
+        .width('100%')
+      } else if (descriptor.kind === 'select') {
+        Row({ space: 8 }) {
+          Text(descriptor.label)
+            .fontSize(14)
+            .fontColor($r('app.color.koma_text_primary'))
+            .layoutWeight(1)
+          Button(this.settingSelectLabel(descriptor))
+            .height(32)
+            .fontSize(13)
+            .fontColor($r('app.color.koma_accent'))
+            .backgroundColor('#00000000')
+            .border({ width: 1, color: '#338F837D' })
+            .borderRadius(8)
+            .onClick(() => {
+              this.cycleSelectSetting(descriptor)
+            })
+        }
+        .width('100%')
+      } else if (descriptor.kind === 'group') {
+        Text(descriptor.label)
+          .width('100%')
+          .fontSize(14)
+          .fontWeight(FontWeight.Medium)
+          .fontColor($r('app.color.koma_text_primary'))
+        Text((descriptor.children ?? []).join(' / '))
+          .width('100%')
+          .fontSize(12)
+          .fontColor($r('app.color.koma_text_secondary'))
+      } else {
+        Text(descriptor.label)
+          .width('100%')
+          .fontSize(13)
+          .fontColor($r('app.color.koma_text_secondary'))
+        TextInput({ text: this.settingStringValue(descriptor) })
+          .height(36)
+          .fontSize(13)
+          .onChange((value: string) => {
+            this.updateSettingValue(descriptor.id, value)
+          })
+      }
+    }
+    .width('100%')
+    .padding({ top: 8, bottom: 8 })
+    .border({ width: { bottom: 1 }, color: '#148F837D' })
+  }
+
   build() {
     Column() {
       SecondaryListScaffold({
@@ -276,6 +508,11 @@ export struct SourcePackageManagerPage {
         if (this.packages.length === 0) {
           ListItem() {
             this.EmptyCard()
+          }
+        }
+        if (this.settingsSourceId.length > 0) {
+          ListItem() {
+            this.SettingsPanel()
           }
         }
         ForEach(this.packages, (source: InstalledSourcePackage) => {

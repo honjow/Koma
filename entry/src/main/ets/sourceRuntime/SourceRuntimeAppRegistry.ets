@@ -12,6 +12,7 @@ import {
 import {
   runRegisteredSourceRequestById,
 } from './SourceRuntimeService'
+import { appSourceSettingsStore } from './SourceSettingsStore'
 import {
   SourceRuntimeRegistry,
   SourceRuntimeRegistryEntry,
@@ -583,6 +584,7 @@ export async function remove(context: common.UIAbilityContext, id: string): Prom
     } catch (_err) {
     }
   }
+  appSourceSettingsStore.removeSource(id)
   persistInstalledSources(context)
   console.info('[SourceManager] step=remove id=' + id)
   return true

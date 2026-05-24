@@ -5,6 +5,7 @@ import { ReaderPreferencesStore, applyReaderThemeMode } from '../model/ReaderPre
 import { RemoteProgressBootstrapSync } from '../model/RemoteProgressBootstrapSync'
 import { bootstrapSourceRuntimeAppRegistry } from '../sourceRuntime/SourceRuntimeAppRegistry'
 import { maybeRunSourceRuntimeDeviceSmoke } from '../sourceRuntime/SourceRuntimeDeviceSmoke'
+import { configureSourceSettingsStore } from '../sourceRuntime/SourceSettingsStore'
 
 const TRANSPARENT_COLOR: string = '#00FFFFFF'
 const ENTRY_PAGE: string = 'pages/Index'
@@ -15,6 +16,7 @@ export default class EntryAbility extends UIAbility {
   onCreate(want: Want, launchParam: AbilityConstant.LaunchParam): void {
     void launchParam
     this.applySavedThemeMode()
+    configureSourceSettingsStore(this.context)
     bootstrapSourceRuntimeAppRegistry(this.context)
     maybeRunSourceRuntimeDeviceSmoke(want, this.context.resourceManager, this.context)
   }

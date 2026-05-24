@@ -21,6 +21,10 @@ import {
 import { RemoteServerStore } from './RemoteServerStore'
 import { appSourceRuntimeRegistry } from '../sourceRuntime/SourceRuntimeAppRegistry'
 import { runRegisteredSourceRequestById } from '../sourceRuntime/SourceRuntimeService'
+import {
+  SourceSettingsRecord,
+  appSourceSettingsStore,
+} from '../sourceRuntime/SourceSettingsStore'
 
 export type ReaderRemoteImageHeaders = Record<string, string>
 export type ReaderRemoteImageCacheStats = RemoteImageCacheStats
@@ -79,8 +83,6 @@ interface ReaderSourceImageRequestArgs {
   pageId: string
 }
 
-interface ReaderSourceImageRequestSettings {}
-
 interface ReaderSourceImageRequestHostHints {
   network: boolean
 }
@@ -92,7 +94,7 @@ interface ReaderSourceImageRequest {
   operation: string
   sourceId: string
   args: ReaderSourceImageRequestArgs
-  settings: ReaderSourceImageRequestSettings
+  settings: SourceSettingsRecord
   hostHints: ReaderSourceImageRequestHostHints
 }
 
@@ -500,7 +502,7 @@ function sourceRuntimeImageRequestPayload(responseData: Record<string, Object> |
 
 function resolveSourceRuntimeImageRequest(sourceRuntimeId: string, pageId: string): SourceRuntimeResolvedImageRequest | undefined {
   const args: ReaderSourceImageRequestArgs = { pageId }
-  const settings: ReaderSourceImageRequestSettings = {}
+  const settings = appSourceSettingsStore.loadForSource(sourceRuntimeId)
   const hostHints: ReaderSourceImageRequestHostHints = { network: false }
   const request: ReaderSourceImageRequest = {
     type: 'request',

@@ -9,6 +9,7 @@ const backupServicePath = resolve(root, 'entry/src/main/ets/model/BackupService.
 const managerPagePath = resolve(root, 'entry/src/main/ets/pages/SourcePackageManagerPage.ets')
 const browseViewModelPath = resolve(root, 'entry/src/main/ets/viewmodel/BrowseViewModel.ets')
 const browsePagePath = resolve(root, 'entry/src/main/ets/pages/BrowsePage.ets')
+const sourceSettingsStorePath = resolve(root, 'entry/src/main/ets/sourceRuntime/SourceSettingsStore.ets')
 const smokePath = resolve(root, 'entry/src/main/ets/sourceRuntime/SourceRuntimeDeviceSmoke.ets')
 const abiDocPath = resolve(root, 'docs/source-runtime-abi.md')
 const localKomaFixturePath = resolve(root, 'entry/src/main/resources/rawfile/test/local_source_runtime_fixture.koma')
@@ -23,6 +24,7 @@ const backupServiceSource = readFileSync(backupServicePath, 'utf8')
 const managerPageSource = readFileSync(managerPagePath, 'utf8')
 const browseViewModelSource = readFileSync(browseViewModelPath, 'utf8')
 const browsePageSource = readFileSync(browsePagePath, 'utf8')
+const sourceSettingsStoreSource = readFileSync(sourceSettingsStorePath, 'utf8')
 const smokeSource = readFileSync(smokePath, 'utf8')
 const abiDocSource = readFileSync(abiDocPath, 'utf8')
 
@@ -138,10 +140,34 @@ assert.match(importerSource, /validateArchiveEntries[\s\S]*seen\.has\(name\)[\s\
 assert.match(importerSource, /checksum_mismatch/, 'checksum mismatch rejection must stay wired')
 assert.match(importerSource, /network_not_allowed/, 'network permission rejection must stay wired')
 assert.match(managerPageSource, /\.koma \/ \.koma-source\.zip \/ \.zip/, 'manager UI copy must mention .koma / .koma-source.zip / .zip')
+assert.match(sourceSettingsStoreSource, /export class SourceSettingsStore[\s\S]*loadForSource\(sourceId: string\)[\s\S]*saveForSource\(sourceId: string, values: SourceSettingsRecord/, 'source settings store must exist and scope values by sourceId')
+assert.match(sourceSettingsStoreSource, /SOURCE_SETTINGS_FILE_NAME:\s*string = 'source-settings\.json'[\s\S]*schemaVersion:\s*SOURCE_SETTINGS_SCHEMA_VERSION[\s\S]*sources:/, 'source settings store must persist a simple schema-versioned per-source document')
+assert.match(sourceSettingsStoreSource, /function descriptorIsCredentialLike[\s\S]*SECRET_ID_MARKERS[\s\S]*some/, 'source settings store must recognize credential-like descriptor ids')
+for (const marker of ['password', 'authorization', 'api_key', 'cookie', 'token']) {
+  assert.match(sourceSettingsStoreSource, new RegExp(`'${marker}'`), `source settings secret marker ${marker} must be blocked`)
+}
+assert.match(sourceSettingsStoreSource, /filterSafeValues[\s\S]*!descriptor\.supported \|\| descriptor\.sensitive[\s\S]*descriptorIsCredentialLike\(key, ''\)/, 'source settings persistence must block raw credential-like values')
+assert.match(sourceSettingsStoreSource, /fetchSourceSettingDescriptors[\s\S]*operation: 'get_settings'[\s\S]*normalizeSourceSettingDescriptors\(summary\.response\)/, 'source settings helper must call get_settings and normalize descriptors')
+assert.match(sourceSettingsStoreSource, /data\?\.\['settings'\] \?\? data\?\.\['items'\]/, 'source settings helper must accept data.settings and data.items response shapes')
+assert.match(sourceSettingsStoreSource, /SAFE_SETTING_KINDS:\s*string\[\] = \['string', 'boolean', 'select', 'multiselect', 'range'\]/, 'source settings persistence must limit saved descriptor kinds to safe non-secret values')
+assert.match(managerPageSource, /Button\('设置'\)[\s\S]*this\.openSettings\(source\)/, 'SourcePackageManagerPage must expose a 设置 action on package cards')
+assert.match(managerPageSource, /fetchSourceSettingDescriptors\(appSourceRuntimeRegistry, source\.id\)/, 'SourcePackageManagerPage settings action must fetch get_settings descriptors')
+assert.match(managerPageSource, /需要登录配置（暂未启用）/, 'SourcePackageManagerPage must show auth-required placeholder for credential-like descriptors')
+assert.match(managerPageSource, /appSourceSettingsStore\.saveForSource\(this\.settingsSourceId, this\.settingDraft, this\.settingDescriptors\)/, 'SourcePackageManagerPage must save settings through the source settings store')
 assert.match(
   browseViewModelSource,
   /loadInstalledSources\(\): void \{[\s\S]*this\.sources = this\.registry\.listInstalledSourceSummaries\(\)[\s\S]*\}/,
   'Browse loadInstalledSources must use the registry inventory directly',
+)
+assert.match(
+  browseViewModelSource,
+  /appSourceSettingsStore\.loadForSource\(sourceId\)[\s\S]*settings,/,
+  'BrowseViewModel must load and inject per-source settings into source runtime requests',
+)
+assert.doesNotMatch(
+  browseViewModelSource,
+  /const settings[^=]*=\s*\{\}/,
+  'BrowseViewModel must not hardcode empty source runtime settings',
 )
 assert.doesNotMatch(
   browseViewModelSource,
