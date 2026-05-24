@@ -12,10 +12,10 @@ export interface ReaderPreferences {
   themeMode: ReaderThemeMode
 }
 
-const READER_PREFERENCES_STORE_NAME: string = 'koma_reader_preferences_v1'
-const PAGE_MODE_KEY: string = 'reader.pageMode'
-const READING_DIRECTION_KEY: string = 'reader.readingDirection'
-const THEME_MODE_KEY: string = 'reader.themeMode'
+export const READER_PREFERENCES_STORE_NAME: string = 'koma_reader_preferences_v1'
+export const PAGE_MODE_KEY: string = 'reader.pageMode'
+export const READING_DIRECTION_KEY: string = 'reader.readingDirection'
+export const THEME_MODE_KEY: string = 'reader.themeMode'
 
 export const DEFAULT_READER_PREFERENCES: ReaderPreferences = {
   pageMode: 'single_page',
@@ -128,6 +128,14 @@ export class ReaderPreferencesStore {
   async saveThemeMode(themeMode: ReaderThemeMode): Promise<void> {
     const store = await this.preferences()
     await store.put(THEME_MODE_KEY, themeMode)
+    await store.flush()
+  }
+
+  async save(preferences: ReaderPreferences): Promise<void> {
+    const store = await this.preferences()
+    await store.put(PAGE_MODE_KEY, normalizeReaderPageMode(preferences.pageMode))
+    await store.put(READING_DIRECTION_KEY, normalizeReaderReadingDirection(preferences.readingDirection))
+    await store.put(THEME_MODE_KEY, normalizeReaderThemeMode(preferences.themeMode))
     await store.flush()
   }
 

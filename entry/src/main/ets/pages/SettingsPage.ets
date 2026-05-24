@@ -60,7 +60,7 @@ const SETTINGS_SECTIONS: SettingsSection[] = [
       { key: 'opds', title: 'OPDS 私有库', detail: 'Catalog 与认证' },
       { key: 'webdav', title: 'WebDAV 私有库', detail: '远程文件夹与认证' },
       { key: 'sources', title: '管理已安装的源包', detail: '暂未安装源包' },
-      { key: 'backup', title: '备份与恢复', detail: '导出书架及阅读进度' },
+      { key: 'backup', title: '备份与恢复', detail: '导出书架、进度、源包和设置' },
     ],
   },
   {
@@ -236,7 +236,7 @@ export struct SettingsPage {
     console.info('[Settings] step=backup_sheet')
     this.getUIContext().showActionSheet({
       title: '备份与恢复',
-      message: '导出或导入书架、阅读进度和远程服务器配置',
+      message: '导出或导入书架、阅读进度、远程服务器、源包和阅读设置',
       sheets: [
         { title: '导出备份', action: () => { this.exportBackup() } },
         { title: '导入备份', action: () => { this.importBackup() } },
@@ -262,7 +262,7 @@ export struct SettingsPage {
     console.info('[Settings] step=backup_import_start')
     void this.backupService().importFromPicker()
       .then(() => {
-        this.showInfoDialog('备份已导入', '书架、阅读进度和远程服务器配置已恢复。')
+        this.showInfoDialog('备份已导入', '书架、阅读进度、远程服务器、源包和阅读设置已恢复。')
       })
       .catch((error: Error) => {
         console.error('[Settings] step=backup_import_failed message=' + error.message)

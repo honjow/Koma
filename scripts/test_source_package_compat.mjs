@@ -5,6 +5,7 @@ import { resolve } from 'node:path'
 const root = resolve(import.meta.dirname, '..')
 const appRegistryPath = resolve(root, 'entry/src/main/ets/sourceRuntime/SourceRuntimeAppRegistry.ets')
 const importerPath = resolve(root, 'entry/src/main/ets/sourceRuntime/SourcePackageImporter.ets')
+const backupServicePath = resolve(root, 'entry/src/main/ets/model/BackupService.ets')
 const managerPagePath = resolve(root, 'entry/src/main/ets/pages/SourcePackageManagerPage.ets')
 const browseViewModelPath = resolve(root, 'entry/src/main/ets/viewmodel/BrowseViewModel.ets')
 const browsePagePath = resolve(root, 'entry/src/main/ets/pages/BrowsePage.ets')
@@ -18,6 +19,7 @@ const externalSourcePackages = [
 
 const appRegistrySource = readFileSync(appRegistryPath, 'utf8')
 const importerSource = readFileSync(importerPath, 'utf8')
+const backupServiceSource = readFileSync(backupServicePath, 'utf8')
 const managerPageSource = readFileSync(managerPagePath, 'utf8')
 const browseViewModelSource = readFileSync(browseViewModelPath, 'utf8')
 const browsePageSource = readFileSync(browsePagePath, 'utf8')
@@ -79,6 +81,41 @@ assert.match(
   appRegistrySource,
   /const archiveBytes = readBytesSync\(archivePath\)[\s\S]*importLocalSourceArchive\(archiveBytes, archivePath, importedRoot\)/,
   'app import path must pass archive bytes to content validator after copying',
+)
+assert.match(
+  appRegistrySource,
+  /export interface SourcePackageBackupEntry \{[\s\S]*sourceId: string[\s\S]*version: string[\s\S]*enabled: boolean[\s\S]*manifest: LocalSourcePackageManifest[\s\S]*wasmBase64: string[\s\S]*wasmByteCount: number[\s\S]*\}/,
+  'source package backup entries must use manifest plus base64 wasm bytes',
+)
+assert.match(
+  appRegistrySource,
+  /exportInstalledSourcePackages\(\): SourcePackageBackupEntry\[\][\s\S]*manifest: manifestFromRegistryEntry\(entry\)[\s\S]*wasmBase64: bytesToBase64\(entry\.wasmBytes\)[\s\S]*wasmByteCount: entry\.wasmByteCount/,
+  'source package backup export must capture bytes and manifest from the registry',
+)
+assert.doesNotMatch(
+  appRegistrySource.match(/exportInstalledSourcePackages\(\): SourcePackageBackupEntry\[\][\s\S]*?return packages\n\}/)?.[0] ?? '',
+  /archivePath|wasmPath|manifestPath/,
+  'source package backup export must not depend on old sandbox absolute paths',
+)
+assert.match(
+  appRegistrySource,
+  /manifestWasmPathFromRegistryEntry[\s\S]*SOURCE_REPO_PACKAGE_WASM_FILE[\s\S]*return SOURCE_PACKAGE_WASM_FILE/,
+  'source package backup manifests must store a package-relative wasm path',
+)
+assert.match(
+  appRegistrySource,
+  /restoreSourcePackagesFromBackup[\s\S]*base64ToBytes\(sourcePackage\.wasmBase64\)[\s\S]*validateRestoredSourcePackage\(manifest, wasmBytes\)[\s\S]*appSourceRuntimeRegistry\.register/,
+  'source package backup restore must decode base64, validate fail-closed, and rebuild registry entries',
+)
+assert.match(
+  importerSource,
+  /export function validateRestoredSourcePackage[\s\S]*validateNormalizedManifest\(manifest\)[\s\S]*validateImportedWasmBytes\(manifest, wasmBytes\)[\s\S]*checksum_mismatch/,
+  'backup source restore must reuse source package manifest and wasm validation helpers',
+)
+assert.match(
+  backupServiceSource,
+  /sourcePackages:\s*exportInstalledSourcePackages\(\)/,
+  'backup schema v2 must include source package payloads',
 )
 assert.doesNotMatch(
   appRegistrySource,

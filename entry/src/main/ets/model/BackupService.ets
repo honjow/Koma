@@ -9,8 +9,19 @@ import {
   READER_PROGRESS_PERSISTENCE_FILE_NAME,
   READER_PROGRESS_PERSISTENCE_SCHEMA_VERSION,
 } from './ReaderSessionStore'
+import {
+  DEFAULT_READER_PREFERENCES,
+  ReaderPreferences,
+  ReaderPreferencesStore,
+} from './ReaderPreferencesStore'
+import {
+  SourcePackageBackupEntry,
+  exportInstalledSourcePackages,
+  restoreSourcePackagesFromBackup,
+} from '../sourceRuntime/SourceRuntimeAppRegistry'
 
-const BACKUP_SCHEMA_VERSION: number = 1
+const BACKUP_SCHEMA_VERSION: number = 2
+const BACKUP_SCHEMA_VERSION_V1: number = 1
 const REMOTE_SERVER_STORE_NAME: string = 'koma_remote_servers_v1'
 const KOMGA_SERVER_KEY: string = 'komga.server'
 const KOMGA_CREDENTIAL_KEY: string = 'komga.credential'
@@ -34,6 +45,8 @@ interface KomaBackupDocument {
   libraryStore: string
   readingProgress: string
   remoteServers: RemoteServerBackupDocument
+  sourcePackages?: SourcePackageBackupEntry[]
+  settings?: ReaderPreferences
 }
 
 function joinBackupPath(parent: string, child: string): string {
@@ -93,6 +106,8 @@ export class BackupService {
       libraryStore: readTextIfExists(this.libraryPath(), emptyLibraryStorePayload()),
       readingProgress: readTextIfExists(this.readerProgressPath(), emptyReaderProgressPayload()),
       remoteServers: await this.exportRemoteServers(),
+      sourcePackages: exportInstalledSourcePackages(),
+      settings: await new ReaderPreferencesStore(this.context).load(),
     }
     console.info('[Backup] step=export_json')
     return JSON.stringify(document)
@@ -100,7 +115,7 @@ export class BackupService {
 
   async import(json: string): Promise<void> {
     const document = JSON.parse(json) as KomaBackupDocument
-    if (document.schemaVersion !== BACKUP_SCHEMA_VERSION) {
+    if (document.schemaVersion !== BACKUP_SCHEMA_VERSION && document.schemaVersion !== BACKUP_SCHEMA_VERSION_V1) {
       throw new Error(`Unsupported backup schema version: ${document.schemaVersion}`)
     }
     if (typeof document.libraryStore !== 'string' || typeof document.readingProgress !== 'string') {
@@ -111,6 +126,10 @@ export class BackupService {
     writeText(this.libraryPath(), document.libraryStore)
     writeText(this.readerProgressPath(), document.readingProgress)
     await this.importRemoteServers(document.remoteServers)
+    if (document.schemaVersion >= BACKUP_SCHEMA_VERSION) {
+      await this.importSourcePackages(document.sourcePackages)
+      await this.importSettings(document.settings)
+    }
     console.info('[Backup] step=import_json')
   }
 
@@ -166,13 +185,46 @@ export class BackupService {
 
   private async importRemoteServers(remoteServers: RemoteServerBackupDocument): Promise<void> {
     const store = await preferences.getPreferences(this.context, REMOTE_SERVER_STORE_NAME)
-    await this.putOrDelete(store, KOMGA_SERVER_KEY, remoteServers.komgaServer)
-    await this.putOrDelete(store, KOMGA_CREDENTIAL_KEY, remoteServers.komgaCredential)
-    await this.putOrDelete(store, WEBDAV_SERVER_KEY, remoteServers.webDavServer)
-    await this.putOrDelete(store, WEBDAV_CREDENTIAL_KEY, remoteServers.webDavCredential)
-    await this.putOrDelete(store, OPDS_SERVER_KEY, remoteServers.opdsServer)
-    await this.putOrDelete(store, OPDS_CREDENTIAL_KEY, remoteServers.opdsCredential)
+    const backup = remoteServers ?? {
+      komgaServer: '',
+      komgaCredential: '',
+      webDavServer: '',
+      webDavCredential: '',
+      opdsServer: '',
+      opdsCredential: '',
+    }
+    await this.putOrDelete(store, KOMGA_SERVER_KEY, backup.komgaServer)
+    await this.putOrDelete(store, KOMGA_CREDENTIAL_KEY, backup.komgaCredential)
+    await this.putOrDelete(store, WEBDAV_SERVER_KEY, backup.webDavServer)
+    await this.putOrDelete(store, WEBDAV_CREDENTIAL_KEY, backup.webDavCredential)
+    await this.putOrDelete(store, OPDS_SERVER_KEY, backup.opdsServer)
+    await this.putOrDelete(store, OPDS_CREDENTIAL_KEY, backup.opdsCredential)
     await store.flush()
+  }
+
+  private async importSourcePackages(sourcePackages: SourcePackageBackupEntry[] | undefined): Promise<void> {
+    if (sourcePackages === undefined) {
+      return
+    }
+    if (!Array.isArray(sourcePackages)) {
+      throw new Error('Invalid backup source packages')
+    }
+    const restored = await restoreSourcePackagesFromBackup(this.context, sourcePackages)
+    if (!restored.ok) {
+      throw new Error('Invalid backup source packages: ' + (restored.reasonCode ?? 'restore_failed'))
+    }
+  }
+
+  private async importSettings(settings: ReaderPreferences | undefined): Promise<void> {
+    if (settings === undefined) {
+      return
+    }
+    const nextSettings: ReaderPreferences = {
+      pageMode: settings.pageMode ?? DEFAULT_READER_PREFERENCES.pageMode,
+      readingDirection: settings.readingDirection ?? DEFAULT_READER_PREFERENCES.readingDirection,
+      themeMode: settings.themeMode ?? DEFAULT_READER_PREFERENCES.themeMode,
+    }
+    await new ReaderPreferencesStore(this.context).save(nextSettings)
   }
 
   private async putOrDelete(store: preferences.Preferences, key: string, value: string | undefined): Promise<void> {

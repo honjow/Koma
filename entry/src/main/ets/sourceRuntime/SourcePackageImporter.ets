@@ -383,7 +383,7 @@ function parseSourceRepoPackageManifest(raw: string, wasmSize: number): LocalSou
   }
 }
 
-function validateNormalizedManifest(manifest: LocalSourcePackageManifest): SourceArchiveValidationReason | undefined {
+export function validateNormalizedManifest(manifest: LocalSourcePackageManifest): SourceArchiveValidationReason | undefined {
   if (manifest.package.id.length === 0 || manifest.package.version.length === 0 || manifest.package.id.length > 96) {
     return 'manifest_invalid'
   }
@@ -399,12 +399,26 @@ function validateNormalizedManifest(manifest: LocalSourcePackageManifest): Sourc
   return undefined
 }
 
-function validateImportedWasmBytes(manifest: LocalSourcePackageManifest, importedWasmBytes: Uint8Array): boolean {
+export function validateImportedWasmBytes(manifest: LocalSourcePackageManifest, importedWasmBytes: Uint8Array): boolean {
   const importedHash = sha256Hex(importedWasmBytes)
   const sizeOk = importedWasmBytes.byteLength === manifest.runtime.wasmSizeBytes &&
     importedWasmBytes.byteLength <= manifest.runtime.maxWasmBytes
   const declaredHash = manifest.runtime.wasmSha256
   return sizeOk && (declaredHash.length === 0 || importedHash === declaredHash)
+}
+
+export function validateRestoredSourcePackage(
+  manifest: LocalSourcePackageManifest,
+  wasmBytes: Uint8Array,
+): SourceArchiveValidationReason | undefined {
+  const manifestReason = validateNormalizedManifest(manifest)
+  if (manifestReason !== undefined) {
+    return manifestReason
+  }
+  if (!validateImportedWasmBytes(manifest, wasmBytes)) {
+    return 'checksum_mismatch'
+  }
+  return undefined
 }
 
 function buildLocalSourcePackageManifest(wasmSize: number): LocalSourcePackageManifest {

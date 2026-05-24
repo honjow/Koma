@@ -1,8 +1,13 @@
 import { common } from '@kit.AbilityKit'
+import { buffer } from '@kit.ArkTS'
+import { cryptoFramework } from '@kit.CryptoArchitectureKit'
 import { fileIo as fs, ListFileOptions, picker } from '@kit.CoreFileKit'
 import {
   importLocalSourceArchive,
   LocalSourcePackageManifest,
+  SOURCE_PACKAGE_WASM_FILE,
+  SOURCE_REPO_PACKAGE_WASM_FILE,
+  validateRestoredSourcePackage,
 } from './SourcePackageImporter'
 import {
   runRegisteredSourceRequestById,
@@ -39,6 +44,21 @@ export interface SourcePackageSmokeResult {
   id: string
   reasonCode?: string
   firstTitle?: string
+}
+
+export interface SourcePackageBackupEntry {
+  sourceId: string
+  version: string
+  enabled: boolean
+  manifest: LocalSourcePackageManifest
+  wasmBase64: string
+  wasmByteCount: number
+}
+
+export interface SourcePackageRestoreResult {
+  ok: boolean
+  restoredCount: number
+  reasonCode?: string
 }
 
 export const appSourceRuntimeRegistry: SourceRuntimeRegistry = new SourceRuntimeRegistry()
@@ -86,6 +106,32 @@ function readBytesSync(path: string): Uint8Array {
     file = fs.openSync(path, fs.OpenMode.READ_ONLY)
     const readBytes = fs.readSync(file.fd, buffer)
     return new Uint8Array(buffer, 0, readBytes)
+  } finally {
+    closeFileQuietly(file)
+  }
+}
+
+function bytesToExactArrayBuffer(bytes: Uint8Array): ArrayBuffer {
+  const exact = new Uint8Array(bytes.byteLength)
+  exact.set(bytes)
+  return exact.buffer
+}
+
+function writeBytesSync(path: string, bytes: Uint8Array): void {
+  let file: fs.File | undefined = undefined
+  try {
+    file = fs.openSync(path, fs.OpenMode.WRITE_ONLY | fs.OpenMode.CREATE | fs.OpenMode.TRUNC)
+    fs.writeSync(file.fd, bytesToExactArrayBuffer(bytes))
+  } finally {
+    closeFileQuietly(file)
+  }
+}
+
+function writeTextSync(path: string, payload: string): void {
+  let file: fs.File | undefined = undefined
+  try {
+    file = fs.openSync(path, fs.OpenMode.WRITE_ONLY | fs.OpenMode.CREATE | fs.OpenMode.TRUNC)
+    fs.writeSync(file.fd, payload, { encoding: 'utf-8' })
   } finally {
     closeFileQuietly(file)
   }
@@ -182,6 +228,14 @@ function sourcePackageFromEntry(entry: SourceRuntimeRegistryEntry): InstalledSou
   }
 }
 
+function manifestWasmPathFromRegistryEntry(entry: SourceRuntimeRegistryEntry): string {
+  const wasmPath = entry.wasmPath ?? ''
+  if (wasmPath.endsWith(SOURCE_REPO_PACKAGE_WASM_FILE)) {
+    return SOURCE_REPO_PACKAGE_WASM_FILE
+  }
+  return SOURCE_PACKAGE_WASM_FILE
+}
+
 function manifestFromRegistryEntry(entry: SourceRuntimeRegistryEntry): LocalSourcePackageManifest {
   return {
     schemaVersion: 1,
@@ -196,8 +250,8 @@ function manifestFromRegistryEntry(entry: SourceRuntimeRegistryEntry): LocalSour
     runtime: {
       abi: 'koma-source-abi-v0.1',
       hostAbi: 'koma-host-v0.1',
-      wasmPath: entry.wasmPath ?? '',
-      wasmSha256: '',
+      wasmPath: manifestWasmPathFromRegistryEntry(entry),
+      wasmSha256: sha256Hex(entry.wasmBytes),
       wasmSizeBytes: entry.wasmByteCount,
       maxWasmBytes: entry.wasmByteCount,
     },
@@ -212,6 +266,30 @@ function manifestFromRegistryEntry(entry: SourceRuntimeRegistryEntry): LocalSour
       remoteInstall: false,
     },
   }
+}
+
+function bytesToBase64(bytes: Uint8Array): string {
+  return buffer.from(bytesToExactArrayBuffer(bytes)).toString('base64')
+}
+
+function base64ToBytes(payload: string): Uint8Array {
+  const decoded = buffer.from(payload, 'base64')
+  const bytes = new Uint8Array(decoded.length)
+  for (let index = 0; index < decoded.length; index += 1) {
+    bytes[index] = decoded[index]
+  }
+  return bytes
+}
+
+function sha256Hex(bytes: Uint8Array): string {
+  const md = cryptoFramework.createMd('SHA256')
+  md.updateSync({ data: bytes })
+  const digest = md.digestSync().data
+  let result = ''
+  for (let index = 0; index < digest.length; index += 1) {
+    result += digest[index].toString(16).padStart(2, '0')
+  }
+  return result
 }
 
 function persistInstalledSources(context: common.UIAbilityContext): void {
@@ -240,6 +318,113 @@ function persistInstalledSources(context: common.UIAbilityContext): void {
   if (!persist.ok) {
     throw new Error(persist.reasonCode ?? 'source_registry_persist_failed')
   }
+}
+
+export function exportInstalledSourcePackages(): SourcePackageBackupEntry[] {
+  const entries = appSourceRuntimeRegistry.list()
+  const packages: SourcePackageBackupEntry[] = []
+  for (let index = 0; index < entries.length; index += 1) {
+    const entry = entries[index]
+    if (entry.importStatus !== 'imported') {
+      continue
+    }
+    packages.push({
+      sourceId: entry.sourceId,
+      version: entry.manifestVersion,
+      enabled: entry.enabled,
+      manifest: manifestFromRegistryEntry(entry),
+      wasmBase64: bytesToBase64(entry.wasmBytes),
+      wasmByteCount: entry.wasmByteCount,
+    })
+  }
+  return packages
+}
+
+export async function restoreSourcePackagesFromBackup(
+  context: common.UIAbilityContext,
+  packages: SourcePackageBackupEntry[],
+): Promise<SourcePackageRestoreResult> {
+  ensureDirSync(appSourceRoot(context))
+  ensureDirSync(appSourcePackagesRoot(context))
+  let restoredCount = 0
+  for (let index = 0; index < packages.length; index += 1) {
+    const sourcePackage = packages[index]
+    if (sourcePackage === undefined ||
+      typeof sourcePackage.sourceId !== 'string' ||
+      typeof sourcePackage.version !== 'string' ||
+      typeof sourcePackage.enabled !== 'boolean' ||
+      typeof sourcePackage.wasmBase64 !== 'string' ||
+      typeof sourcePackage.wasmByteCount !== 'number') {
+      return { ok: false, restoredCount, reasonCode: 'invalid_source_package_backup' }
+    }
+    const manifest = sourcePackage.manifest
+    if (manifest === undefined || manifest === null || Array.isArray(manifest) || typeof manifest !== 'object') {
+      return { ok: false, restoredCount, reasonCode: 'invalid_source_package_manifest' }
+    }
+    if (manifest.package === undefined || manifest.runtime === undefined ||
+      manifest.permissions === undefined || manifest.contentPolicy === undefined) {
+      return { ok: false, restoredCount, reasonCode: 'invalid_source_package_manifest' }
+    }
+    if (manifest.package.id !== sourcePackage.sourceId || manifest.package.version !== sourcePackage.version) {
+      return { ok: false, restoredCount, reasonCode: 'source_package_identity_mismatch' }
+    }
+
+    const wasmBytes = base64ToBytes(sourcePackage.wasmBase64)
+    if (wasmBytes.byteLength !== sourcePackage.wasmByteCount) {
+      return { ok: false, restoredCount, reasonCode: 'source_package_byte_count_mismatch' }
+    }
+    const validationReason = validateRestoredSourcePackage(manifest, wasmBytes)
+    if (validationReason !== undefined) {
+      return { ok: false, restoredCount, reasonCode: validationReason }
+    }
+
+    const packageDir = joinSourceRuntimePath(appSourcePackagesRoot(context), `backup-${Date.now()}-${index}`)
+    const archivePath = joinSourceRuntimePath(packageDir, 'backup-source-package.json')
+    const importedRoot = joinSourceRuntimePath(packageDir, 'package')
+    const manifestPath = joinSourceRuntimePath(importedRoot, 'manifest.generated.json')
+    const wasmPath = joinSourceRuntimePath(importedRoot, manifest.runtime.wasmPath)
+    ensureDirSync(packageDir)
+    ensureDirSync(importedRoot)
+    writeTextSync(archivePath, JSON.stringify({
+      sourceId: sourcePackage.sourceId,
+      version: sourcePackage.version,
+      restoredAt: Date.now(),
+    }))
+    writeTextSync(manifestPath, JSON.stringify(manifest))
+    writeBytesSync(wasmPath, wasmBytes)
+
+    const existing = appSourceRuntimeRegistry.remove(sourcePackage.sourceId)
+    if (existing?.archivePath !== undefined) {
+      const existingDir = existing.archivePath.replace(/\\/g, '/').replace(/\/[^/]*$/, '')
+      try {
+        await removeAppSourcePackageDir(context, existingDir)
+      } catch (_err) {
+      }
+    }
+    const registered = appSourceRuntimeRegistry.register({
+      sourceId: sourcePackage.sourceId,
+      route: IMPORTED_SOURCE_ROUTE,
+      importStatus: 'imported',
+      manifest,
+      wasmBytes,
+      hashOk: true,
+      network: false,
+      enabled: sourcePackage.enabled,
+      manifestPath,
+      wasmPath,
+      archivePath,
+    })
+    if (!registered.ok) {
+      try {
+        await removeAppSourcePackageDir(context, packageDir)
+      } catch (_err) {
+      }
+      return { ok: false, restoredCount, reasonCode: registered.reasonCode ?? 'source_package_register_failed' }
+    }
+    restoredCount += 1
+  }
+  persistInstalledSources(context)
+  return { ok: true, restoredCount }
 }
 
 export function reloadInstalledSourcePackages(context: common.UIAbilityContext): void {

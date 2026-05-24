@@ -10,6 +10,8 @@ const readerSessionStorePath = resolve(root, 'entry/src/main/ets/model/ReaderSes
 const mockLibraryDataPath = resolve(root, 'entry/src/main/ets/model/MockLibraryData.ets')
 const libraryRepositoryPath = resolve(root, 'entry/src/main/ets/model/LibraryRepository.ets')
 const libraryPersistencePath = resolve(root, 'entry/src/main/ets/model/LibraryPersistence.ets')
+const backupServicePath = resolve(root, 'entry/src/main/ets/model/BackupService.ets')
+const readerPreferencesStorePath = resolve(root, 'entry/src/main/ets/model/ReaderPreferencesStore.ets')
 const indexPath = resolve(root, 'entry/src/main/ets/pages/Index.ets')
 const libraryPagePath = resolve(root, 'entry/src/main/ets/pages/LibraryPage.ets')
 const comicCoverCardPath = resolve(root, 'entry/src/main/ets/components/ComicCoverCard.ets')
@@ -22,6 +24,8 @@ const readerSessionStoreSource = readFileSync(readerSessionStorePath, 'utf8')
 const mockLibraryDataSource = readFileSync(mockLibraryDataPath, 'utf8')
 const libraryRepositorySource = readFileSync(libraryRepositoryPath, 'utf8')
 const libraryPersistenceSource = readFileSync(libraryPersistencePath, 'utf8')
+const backupServiceSource = readFileSync(backupServicePath, 'utf8')
+const readerPreferencesStoreSource = readFileSync(readerPreferencesStorePath, 'utf8')
 const indexSource = readFileSync(indexPath, 'utf8')
 const libraryPageSource = readFileSync(libraryPagePath, 'utf8')
 const comicCoverCardSource = readFileSync(comicCoverCardPath, 'utf8')
@@ -118,6 +122,10 @@ assertExport(libraryStoreSource, 'InMemoryLibraryStore')
 assertExport(progressStoreSource, 'ReadingProgressStore')
 assertExport(progressStoreSource, 'InMemoryReadingProgressStore')
 assertExport(readerSessionStoreSource, 'ReaderSessionStore')
+assertExport(readerPreferencesStoreSource, 'READER_PREFERENCES_STORE_NAME')
+assertExport(readerPreferencesStoreSource, 'PAGE_MODE_KEY')
+assertExport(readerPreferencesStoreSource, 'READING_DIRECTION_KEY')
+assertExport(readerPreferencesStoreSource, 'THEME_MODE_KEY')
 assertExport(readerSessionStoreSource, 'InMemoryReaderSessionStore')
 assertExport(mockLibraryDataSource, 'MockLibraryComic')
 assertExport(mockLibraryDataSource, 'LibraryViewModel')
@@ -363,6 +371,44 @@ assert.equal(sourcePageResponseItems({ ok: true, data: { pages: [{ id: 'page-1' 
 assert.equal(sourcePageResponseItems({ ok: true, data: { items: [{ id: 'fixture-page-1' }] } }).length, 1, 'get_pages must keep fixture data.items compatibility')
 assert.equal(sourceComicId('source.alpha', 'manga-1'), 'source.alpha:manga-1', 'source comic id should prefix plain manga ids')
 assert.equal(sourceComicId('source.alpha', 'source.alpha:manga-1'), 'source.alpha:manga-1', 'source comic id should not double-prefix normalized manga ids')
+
+assert.match(backupServiceSource, /const BACKUP_SCHEMA_VERSION:\s*number = 2/, 'backup export must use schema v2')
+assert.match(backupServiceSource, /const BACKUP_SCHEMA_VERSION_V1:\s*number = 1/, 'backup import must keep schema v1 compatibility')
+assert.match(
+  backupServiceSource,
+  /document\.schemaVersion !== BACKUP_SCHEMA_VERSION && document\.schemaVersion !== BACKUP_SCHEMA_VERSION_V1/,
+  'backup import must accept both v1 and v2 schema versions',
+)
+assert.match(
+  backupServiceSource,
+  /sourcePackages:\s*exportInstalledSourcePackages\(\)/,
+  'backup v2 export must include source packages',
+)
+assert.match(
+  backupServiceSource,
+  /settings:\s*await new ReaderPreferencesStore\(this\.context\)\.load\(\)/,
+  'backup v2 export must include SettingsPage reader preferences',
+)
+assert.match(
+  backupServiceSource,
+  /if \(document\.schemaVersion >= BACKUP_SCHEMA_VERSION\) \{[\s\S]*importSourcePackages\(document\.sourcePackages\)[\s\S]*importSettings\(document\.settings\)/,
+  'backup v2 import must restore source packages and settings only after v1 fields are accepted',
+)
+assert.match(
+  backupServiceSource,
+  /restoreSourcePackagesFromBackup\(this\.context, sourcePackages\)/,
+  'backup v2 import must delegate source package restoration to the app registry helper',
+)
+assert.match(
+  backupServiceSource,
+  /new ReaderPreferencesStore\(this\.context\)\.save\(nextSettings\)/,
+  'backup v2 import must flush restored reader preferences',
+)
+assert.doesNotMatch(
+  backupServiceSource,
+  /console\.(?:info|warn|error)\([^)]*(?:libraryStore|readingProgress|remoteServers|sourcePackages|wasmBase64|payload)/,
+  'backup service must not log raw backup payloads, credentials, or source package bytes',
+)
 
 const comic = {
   id: 'comic-1',
