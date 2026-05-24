@@ -24,6 +24,7 @@ export interface PersistedComic {
   author?: string
   sourceKind: ComicSourceKind
   sourcePath: string
+  sourceRuntimeId?: string
   remoteServerId?: string
   remoteResourceId?: string
   coverUri?: string
@@ -161,6 +162,9 @@ export function persistComic(comic: Comic): PersistedComic {
   if (comic.author !== undefined) {
     row.author = comic.author
   }
+  if (comic.sourceRuntimeId !== undefined) {
+    row.sourceRuntimeId = comic.sourceRuntimeId
+  }
   if (comic.remoteServerId !== undefined) {
     row.remoteServerId = comic.remoteServerId
   }
@@ -195,6 +199,9 @@ export function hydrateComic(row: PersistedComic): Comic {
   }
   if (row.author !== undefined) {
     comic.author = row.author
+  }
+  if (row.sourceRuntimeId !== undefined) {
+    comic.sourceRuntimeId = row.sourceRuntimeId
   }
   if (row.remoteServerId !== undefined) {
     comic.remoteServerId = row.remoteServerId
@@ -316,6 +323,7 @@ function assertValidPersistedComic(row: PersistedComic): void {
   assertOptionalStringField(row.author, 'comic.author')
   assertComicSourceKind(row.sourceKind, 'comic.sourceKind')
   assertStringField(row.sourcePath, 'comic.sourcePath')
+  assertOptionalStringField(row.sourceRuntimeId, 'comic.sourceRuntimeId')
   assertOptionalStringField(row.remoteServerId, 'comic.remoteServerId')
   assertOptionalStringField(row.remoteResourceId, 'comic.remoteResourceId')
   assertOptionalStringField(row.coverUri, 'comic.coverUri')

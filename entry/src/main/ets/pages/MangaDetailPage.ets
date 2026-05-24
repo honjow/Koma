@@ -13,6 +13,7 @@ import {
   Chapter,
   Comic,
   ComicSourceKind,
+  Page,
   ReadingDirection,
   normalizeSortKey,
 } from '../model/ComicModels'
@@ -37,11 +38,34 @@ interface MangaDetailRouteParams {
 
 interface SourceOperationDataPayload {
   items?: Record<string, Object>[]
+  pages?: Record<string, Object>[]
 }
 
 interface SourceOperationResponsePayload {
   ok?: boolean
   data?: SourceOperationDataPayload
+}
+
+interface SourcePagesRequestArgs {
+  chapterId: string
+}
+
+interface SourcePagesRequestSettings {}
+
+interface SourcePagesRequestHostHints {
+  network: boolean
+  imageStrategy: string
+}
+
+interface SourcePagesRequest {
+  type: string
+  version: number
+  requestId: string
+  operation: string
+  sourceId: string
+  args: SourcePagesRequestArgs
+  settings: SourcePagesRequestSettings
+  hostHints: SourcePagesRequestHostHints
 }
 
 @Concurrent
@@ -214,7 +238,107 @@ export struct MangaDetailPage {
         return
       }
     }
+    if (this.manga.sourceId !== undefined && this.firstChapterId() !== undefined) {
+      await this.ensureSourceChapterPages(this.firstChapterId() as string)
+    }
     this.onOpenReader(this.currentComicId(), this.firstChapterId())
+  }
+
+  private async ensureSourceChapterPages(chapterId: string): Promise<void> {
+    if (this.libraryStore === undefined || this.manga.sourceId === undefined) {
+      return
+    }
+    const comic = this.libraryStore.getComic(this.currentComicId())
+    const chapter = comic?.chapters.find((item: Chapter): boolean => item.id === chapterId)
+    if (comic === undefined || chapter === undefined || chapter.pages.length > 0) {
+      return
+    }
+    const lookup = this.sourceRegistry.lookup(this.manga.sourceId)
+    if (!lookup.ok || lookup.entry === undefined) {
+      throw new Error(lookup.reasonCode ?? 'source lookup failed')
+    }
+    const pages = await this.runSourcePagesOperation(lookup.entry, comic.id, chapterId)
+    chapter.pages = pages
+    chapter.pageCount = pages.length
+    chapter.updatedAt = Date.now()
+    comic.pageCount = comic.chapters.reduce((total: number, item: Chapter): number => total + item.pageCount, 0)
+    comic.updatedAt = chapter.updatedAt
+    if (this.libraryPersistenceService === undefined) {
+      this.libraryStore.upsertComic(comic)
+    } else {
+      upsertComicAndPersistLibraryStore(this.libraryStore, this.libraryPersistenceService, comic)
+    }
+    this.onLibraryChanged()
+  }
+
+  private async runSourcePagesOperation(
+    entry: SourceRuntimeRegistryEntry,
+    comicId: string,
+    chapterId: string
+  ): Promise<Page[]> {
+    const args: SourcePagesRequestArgs = { chapterId }
+    const settings: SourcePagesRequestSettings = {}
+    const hostHints: SourcePagesRequestHostHints = { network: true, imageStrategy: 'descriptor-or-url' }
+    const request: SourcePagesRequest = {
+      type: 'request',
+      version: 1,
+      requestId: `detail-get-pages-${entry.sourceId}-${Date.now()}`,
+      operation: 'get_pages',
+      sourceId: entry.sourceId,
+      args,
+      settings,
+      hostHints,
+    }
+    const responseJson = await taskpool.execute(
+      executeMangaDetailSourceOperation,
+      JSON.stringify(request),
+      new Uint8Array(entry.wasmBytes.buffer)
+    ) as string
+    const response = JSON.parse(responseJson) as SourceOperationResponsePayload
+    const rows = response.data?.pages !== undefined ? response.data.pages : (response.data?.items ?? [])
+    if (response.ok !== true || rows.length === 0) {
+      throw new Error('get_pages returned no pages')
+    }
+    return rows.map((item: Record<string, Object>, index: number): Page => {
+      const pageId = this.optionalSourceString(item['id']) ?? this.optionalSourceString(item['pageId']) ?? `${chapterId}:page:${index + 1}`
+      const url = this.optionalSourceString(item['url']) ?? this.optionalSourceString(item['uri']) ?? ''
+      const page: Page = {
+        id: pageId,
+        comicId,
+        chapterId,
+        index,
+        fileName: `source-page-${index + 1}`,
+        uri: url,
+        sortKey: `${index}`.padStart(6, '0'),
+      }
+      const width = this.optionalSourceNumber(item['width'])
+      if (width !== undefined) {
+        page.width = width
+      }
+      const height = this.optionalSourceNumber(item['height'])
+      if (height !== undefined) {
+        page.height = height
+      }
+      return page
+    })
+  }
+
+  private optionalSourceString(value: Object | string | number | boolean | null | undefined): string | undefined {
+    if (typeof value !== 'string' || value.trim().length === 0) {
+      return undefined
+    }
+    return value
+  }
+
+  private optionalSourceNumber(value: Object | string | number | boolean | null | undefined): number | undefined {
+    if (typeof value === 'number' && Number.isFinite(value)) {
+      return value
+    }
+    if (typeof value !== 'string') {
+      return undefined
+    }
+    const parsed = Number(value)
+    return Number.isFinite(parsed) ? parsed : undefined
   }
 
   private showToast(message: string): void {
@@ -331,7 +455,14 @@ export struct MangaDetailPage {
         ChapterListSection({
           chapters: this.chapters,
           onOpenChapter: (chapterId: string) => {
-            this.onOpenReader(this.manga.id, chapterId)
+            void this.ensureSourceChapterPages(chapterId)
+              .then(() => {
+                this.onOpenReader(this.currentComicId(), chapterId)
+              })
+              .catch((error: Error) => {
+                console.error('[manga-detail] source pages load failed: ' + error.message)
+                this.showToast('章节页面加载失败')
+              })
           },
         })
       }
@@ -393,6 +524,7 @@ function comicFromSourceManga(manga: MangaDetail, chapters: MangaChapterItem[], 
     author: manga.author,
     sourceKind: ComicSourceKind.PRIVATE_LIBRARY,
     sourcePath: manga.url ?? `source://${manga.sourceId ?? 'unknown'}/${manga.id}`,
+    sourceRuntimeId: manga.sourceId,
     coverUri: manga.coverUrl,
     sortTitle: normalizeSortKey(manga.title),
     preferredDirection: ReadingDirection.RIGHT_TO_LEFT,

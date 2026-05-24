@@ -249,7 +249,7 @@ struct Index {
           libraryPersistenceService: this.ensureLibraryPersistenceService(),
           sourceRegistry: this.sourceRegistry,
           onBack: () => { this.appPathStack.pop(false) },
-          onOpenReader: (mangaId: string, _chapterId?: string) => { void this.openReader(mangaId) },
+          onOpenReader: (mangaId: string, chapterId?: string) => { void this.openReader(mangaId, chapterId) },
           onLibraryChanged: () => { this.refreshLibrarySnapshot() }
         })
       }

@@ -54,6 +54,7 @@ export interface Comic {
   author?: string
   sourceKind: ComicSourceKind
   sourcePath: string
+  sourceRuntimeId?: string
   remoteServerId?: string
   remoteResourceId?: string
   coverUri?: string

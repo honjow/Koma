@@ -1,5 +1,6 @@
 import { fileIo as fs } from '@kit.CoreFileKit'
-import { KomgaHeaders } from '../remote/KomgaClient'
+
+export type RemoteImageCacheHeaders = Record<string, string>
 
 export const DEFAULT_REMOTE_IMAGE_CACHE_MAX_BYTES: number = 500 * 1024 * 1024
 const REMOTE_IMAGE_CACHE_SCHEMA_VERSION: number = 1
@@ -71,24 +72,15 @@ function stableHeaderValue(value: string | undefined): string {
   return value === undefined ? '' : value
 }
 
-function stableHeadersKey(headers: KomgaHeaders | undefined): string {
+function stableHeadersKey(headers: RemoteImageCacheHeaders | undefined): string {
   if (headers === undefined) {
     return ''
   }
-  if (headers.accept === undefined &&
-    headers.authorization === undefined &&
-    headers.contentType === undefined &&
-    headers.xApiKey === undefined &&
-    headers.xAuthToken === undefined) {
+  const names = Object.keys(headers).sort()
+  if (names.length === 0) {
     return ''
   }
-  return [
-    `accept=${stableHeaderValue(headers.accept)}`,
-    `authorization=${stableHeaderValue(headers.authorization)}`,
-    `contentType=${stableHeaderValue(headers.contentType)}`,
-    `xApiKey=${stableHeaderValue(headers.xApiKey)}`,
-    `xAuthToken=${stableHeaderValue(headers.xAuthToken)}`,
-  ].join('\n')
+  return names.map((name: string) => `${name.toLocaleLowerCase()}=${stableHeaderValue(headers[name])}`).join('\n')
 }
 
 function readUrlSource(url: string): string {
@@ -112,7 +104,7 @@ function createStableCacheHash(value: string): string {
   return `${hashA.toString(16).padStart(8, '0')}${hashB.toString(16).padStart(8, '0')}`
 }
 
-function cacheKeyFor(url: string, headers: KomgaHeaders | undefined): string {
+function cacheKeyFor(url: string, headers: RemoteImageCacheHeaders | undefined): string {
   const source = readUrlSource(url)
   return createStableCacheHash(`${source}\n${url}\n${stableHeadersKey(headers)}`)
 }
@@ -148,7 +140,7 @@ export class RemoteImageCacheStore {
     this.restore()
   }
 
-  get(url: string, headers?: KomgaHeaders): Promise<string | undefined> {
+  get(url: string, headers?: RemoteImageCacheHeaders): Promise<string | undefined> {
     const key = cacheKeyFor(url, headers)
     const entry = this.entries.get(key)
     if (entry === undefined) {
@@ -168,7 +160,7 @@ export class RemoteImageCacheStore {
     return Promise.resolve(entry.path)
   }
 
-  async put(url: string, headers: KomgaHeaders | undefined, bytes: ArrayBuffer): Promise<string> {
+  async put(url: string, headers: RemoteImageCacheHeaders | undefined, bytes: ArrayBuffer): Promise<string> {
     const key = cacheKeyFor(url, headers)
     const filePath = joinSandboxPath(this.rootDir, `${key}.${extensionForUrl(url)}`)
     writeBytesSync(filePath, bytes)

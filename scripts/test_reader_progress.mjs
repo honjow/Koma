@@ -160,8 +160,8 @@ function getReaderModeLabel(mode) {
 }
 
 const ReaderPageRenderKind = {
-  MOCK_FALLBACK: 'mock_fallback',
   LOCAL_FILE_IMAGE: 'local_file_image',
+  REMOTE_URL_IMAGE: 'remote_url_image',
   URI_PLACEHOLDER: 'uri_placeholder',
 }
 
@@ -319,10 +319,24 @@ function createReaderImageSourceUri(uri) {
 }
 
 function createReaderPageRenderSource(config, pageIndex) {
+  if (config.sourceRuntimeId !== undefined && config.sourceRuntimeId.trim().length > 0) {
+    const pageId = getReaderSessionPageId(config, pageIndex)
+    const uri = getReaderSessionPageUri(config, pageIndex)
+    const isUrl = uri.toLocaleLowerCase().startsWith('http://') || uri.toLocaleLowerCase().startsWith('https://')
+    return {
+      kind: ReaderPageRenderKind.REMOTE_URL_IMAGE,
+      uri,
+      imageUri: isUrl ? uri : `source-runtime://${config.sourceRuntimeId}/${encodeURIComponent(pageId)}`,
+      fallbackPageIndex: pageIndex,
+      sourceRuntimeId: config.sourceRuntimeId,
+      pageId,
+      pageUri: uri,
+    }
+  }
   const uri = getReaderSessionPageUri(config, pageIndex)
   if (uri.length === 0 || uri.startsWith('mock://')) {
     return {
-      kind: ReaderPageRenderKind.MOCK_FALLBACK,
+      kind: ReaderPageRenderKind.URI_PLACEHOLDER,
       uri,
       imageUri: '',
       fallbackPageIndex: pageIndex,
@@ -336,12 +350,37 @@ function createReaderPageRenderSource(config, pageIndex) {
       fallbackPageIndex: pageIndex,
     }
   }
+  if (uri.toLocaleLowerCase().startsWith('http://') || uri.toLocaleLowerCase().startsWith('https://')) {
+    return {
+      kind: ReaderPageRenderKind.REMOTE_URL_IMAGE,
+      uri,
+      imageUri: uri,
+      fallbackPageIndex: pageIndex,
+    }
+  }
   return {
     kind: ReaderPageRenderKind.URI_PLACEHOLDER,
     uri,
     imageUri: '',
     fallbackPageIndex: pageIndex,
   }
+}
+
+function stableHeadersKey(headers) {
+  if (headers === undefined) return ''
+  const names = Object.keys(headers).sort()
+  if (names.length === 0) return ''
+  return names.map((name) => `${name.toLocaleLowerCase()}=${headers[name] ?? ''}`).join('\n')
+}
+
+function cacheKeyFor(url, headers) {
+  return createShortReaderHash(`${url}\n${stableHeadersKey(headers)}`)
+}
+
+function sourceRuntimeImageRequestPayload(responseData) {
+  if (responseData === undefined) return undefined
+  if (responseData.imageRequest !== undefined) return responseData.imageRequest
+  return responseData
 }
 
 function getReaderSessionPageId(config, pageIndex) {
@@ -368,11 +407,20 @@ assertExport(readerPageSourceAdapterSource, 'createReaderPageRenderDiagnostics')
 assert.match(readerSessionStoreSource, /ReadingProgressStore/, 'reader session store must wrap ReadingProgressStore')
 assert.match(readerSessionStoreSource, /clampPageIndex/, 'reader session restore/update must clamp page indexes')
 assert.match(readerSessionStoreSource, /pageUris: pages\.map/, 'reader session config must carry ordered page URIs')
+assert.match(readerSessionStoreSource, /sourceRuntimeId\?: string/, 'reader session config must carry optional source runtime id')
+assert.match(readerPageSourceAdapterSource, /get_image_request/, 'reader cache path must call source runtime image request')
+assert.match(readerPageSourceAdapterSource, /fetchAndCacheReaderRemoteSource/, 'reader cache path must resolve source runtime image requests before fetch')
+assert.match(readerPageSourceAdapterSource, /source_image_request_fallback allowed=false/, 'source image request fallback must fail closed for non-URL page URIs')
+assert.match(readerPageSourceAdapterSource, /source_image_request_fallback allowed=true/, 'source image request fallback may use ordinary URL page URIs')
+assert.match(readerPageSourceAdapterSource, /headers=\$\{headers === undefined \? 0 : Object\.keys\(headers\)\.length\}/, 'source image request logs must report header count only')
+assert.match(readerPageSourceAdapterSource, /readerRemoteHeadersToHttpHeaderObject/, 'reader remote fetch must support normalized header maps')
+assert.match(readerPageSource, /fetchAndCacheReaderRemoteSource\(this\.remoteSource\)/, 'reader image decode must route source runtime pages through the source-aware cache path')
 assert.match(indexSource, /createReaderSessionConfigFromComic/, 'index must open reader sessions from Comic records')
 assert.match(indexSource, /restorePageIndex\(this\.readerSessionConfig\)/, 'opening reader must restore from the selected session config')
 assert.match(indexSource, /sessionStore: this\.readerSessionStore/, 'library and reader must share the same session store')
-assert.match(indexSource, /Navigation\(this\.readerPathStack\)/, 'reader must be hosted by an in-app Navigation stack')
-assert.match(indexSource, /pushPath\(\{\s*name:\s*READER_ROUTE_NAME\s*\}\)/, 'opening reader must push a reader route')
+assert.match(indexSource, /HdsNavigation\(this\.appPathStack\)/, 'reader must be hosted by an in-app Navigation stack')
+assert.match(indexSource, /pushPath\(\{\s*name:\s*RouteName\.READER\s*\}\)/, 'opening reader must push a reader route')
+assert.match(indexSource, /onOpenReader: \(mangaId: string, chapterId\?: string\) => \{ void this\.openReader\(mangaId, chapterId\) \}/, 'manga detail reader opening must preserve selected chapter id')
 assert.match(indexSource, /\.onBackPressed\(\(\) => \{[\s\S]*this\.closeReader\(\)[\s\S]*return true/, 'reader route must intercept system back and close reader')
 assert.match(indexSource, /onBackPress\(\): boolean \{[\s\S]*this\.closeReader\(\)[\s\S]*return true/, 'entry page back fallback must close an open reader instead of exiting')
 assert.match(readerPageSource, /updatePageIndex\(this\.sessionConfig/, 'reader page changes must update session progress')
@@ -463,12 +511,47 @@ assert.equal(importedPageTwo.pageId, 'page-b')
 assert.equal(importedStore.restorePageIndex(importedConfig), 1, 'imported comic restore uses saved real page index')
 assert.equal(getReaderSessionPageUri(importedConfig, importedStore.restorePageIndex(importedConfig)), 'file://comic/002.jpg', 'restored page index maps back to the saved page URI')
 
+const sourceRuntimeConfig = {
+  comicId: 'source-comic',
+  chapterId: 'source-chapter',
+  totalPages: 2,
+  pageUris: ['source://descriptor/one', 'https://cdn.example.test/fallback/002.jpg'],
+  pageIds: ['page:source:001', 'page:source:002'],
+  sourceRuntimeId: 'local.test.koma.fixture',
+}
+const descriptorPage = createReaderPageRenderSource(sourceRuntimeConfig, 0)
+assert.equal(descriptorPage.kind, ReaderPageRenderKind.REMOTE_URL_IMAGE, 'source runtime descriptor pages render through remote cache path')
+assert.equal(descriptorPage.sourceRuntimeId, 'local.test.koma.fixture', 'source runtime id is preserved on render source')
+assert.equal(descriptorPage.pageId, 'page:source:001', 'source runtime page index resolves to pageId')
+assert.equal(descriptorPage.imageUri, 'source-runtime://local.test.koma.fixture/page%3Asource%3A001', 'source runtime descriptor page gets a stable non-secret render key')
+const fallbackUrlPage = createReaderPageRenderSource(sourceRuntimeConfig, 1)
+assert.equal(fallbackUrlPage.pageUri, 'https://cdn.example.test/fallback/002.jpg', 'ordinary URL page URI is preserved for fallback')
+
+const imageRequestPayload = sourceRuntimeImageRequestPayload({
+  imageRequest: {
+    url: 'https://images.example.test/page/001.jpg',
+    headers: {
+      Referer: 'https://images.example.test/chapter',
+      'User-Agent': 'KomaSource/1',
+    },
+  },
+})
+assert.equal(imageRequestPayload.url, 'https://images.example.test/page/001.jpg', 'source image_request resolves effective image URL')
+assert.equal(imageRequestPayload.headers.Referer, 'https://images.example.test/chapter', 'source image_request resolves request headers')
+
+const baseCacheKey = cacheKeyFor('https://images.example.test/page/001.jpg', { Accept: 'image/webp' })
+const authCacheKey = cacheKeyFor('https://images.example.test/page/001.jpg', { Accept: 'image/webp', Cookie: 'session=opaque' })
+const urlCacheKey = cacheKeyFor('https://images.example.test/page/002.jpg', { Accept: 'image/webp' })
+assert.notEqual(baseCacheKey, authCacheKey, 'remote image cache key must vary by headers')
+assert.notEqual(baseCacheKey, urlCacheKey, 'remote image cache key must vary by effective URL')
+assert.equal(stableHeadersKey({ 'User-Agent': 'A', Referer: 'B' }), 'referer=B\nuser-agent=A', 'header cache key is stable and sorted')
+
 const renderCases = [
   {
     uri: 'mock://local-01/001.jpg',
-    kind: ReaderPageRenderKind.MOCK_FALLBACK,
+    kind: ReaderPageRenderKind.URI_PLACEHOLDER,
     imageUri: '',
-    label: 'mock URI remains mock fallback',
+    label: 'mock URI remains placeholder',
   },
   {
     uri: '/data/storage/el2/base/cache/import/demo-12345678/extract/001.jpg',
@@ -508,9 +591,9 @@ const renderCases = [
   },
   {
     uri: 'http://example.com/001.jpg',
-    kind: ReaderPageRenderKind.URI_PLACEHOLDER,
-    imageUri: '',
-    label: 'http stays unsupported placeholder',
+    kind: ReaderPageRenderKind.REMOTE_URL_IMAGE,
+    imageUri: 'http://example.com/001.jpg',
+    label: 'http renders through remote image cache',
   },
   {
     uri: 'content://media/external/images/001',

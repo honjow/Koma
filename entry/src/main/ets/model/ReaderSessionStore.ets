@@ -23,6 +23,7 @@ export interface ReaderSessionConfig {
   totalPages: number
   pageUris: string[]
   pageIds: string[]
+  sourceRuntimeId?: string
 }
 
 export const EMPTY_READER_SESSION_CONFIG: ReaderSessionConfig = {
@@ -33,6 +34,7 @@ export const EMPTY_READER_SESSION_CONFIG: ReaderSessionConfig = {
   totalPages: 0,
   pageUris: [],
   pageIds: [],
+  sourceRuntimeId: undefined,
 }
 
 export enum ReaderMode {
@@ -308,6 +310,7 @@ export function createReaderSessionConfigFromComic(comic: Comic, chapterId?: str
       totalPages: 0,
       pageUris: [],
       pageIds: [],
+      sourceRuntimeId: comic.sourceRuntimeId,
     }
   }
 
@@ -320,6 +323,7 @@ export function createReaderSessionConfigFromComic(comic: Comic, chapterId?: str
     totalPages: pages.length,
     pageUris: pages.map((page: Page) => page.uri),
     pageIds: pages.map((page: Page) => page.id),
+    sourceRuntimeId: comic.sourceRuntimeId,
   }
 }
 
