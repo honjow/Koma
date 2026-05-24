@@ -562,6 +562,10 @@ export struct LibraryPage {
   private ComicActionMenu(comic: ComicCoverInfo) {
     Menu() {
       if (this.canRemoveComic(comic.id)) {
+        MenuItem({ content: '选择' })
+          .onClick(() => {
+            this.enterSelectionMode(comic.id)
+          })
         MenuItem({ content: '移出书架' })
           .contentFontColor($r('app.color.koma_danger'))
           .onClick(() => {
