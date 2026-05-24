@@ -33,6 +33,10 @@ export struct SourceBrowsePage {
     return this.bottomH + ThemeConstants.FLOAT_BAR_HEIGHT + 20
   }
 
+  private bottomFloatingTabViewportClearance(): number {
+    return this.bottomContentInset()
+  }
+
   @Builder
   private SectionHeader(title: string, count: number) {
     Row() {
@@ -145,6 +149,8 @@ export struct SourceBrowsePage {
     }
     .width('100%')
     .height('100%')
+    .padding({ bottom: this.bottomFloatingTabViewportClearance() })
+    .clipContent(ContentClipMode.CONTENT_ONLY)
     .backgroundColor($r('app.color.koma_background'))
     .onReachEnd(() => {
       void this.viewModel.loadMoreBrowse()

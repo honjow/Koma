@@ -69,6 +69,13 @@ function assertUsesScrollContentSafeArea(source, label) {
   assert.match(source, /\.padding\(\{[^}]*top:\s*this\.topContentInset\(\)[^}]*bottom:\s*this\.bottomContentInset\(\)[^}]*\}\)/, `${label} must apply safe-area avoidance as scroll content padding`)
 }
 
+function assertSourceBrowseFloatingTabViewportClearance(source) {
+  assert.match(source, /bottomContentInset\(\): number \{[\s\S]*this\.bottomH[\s\S]*ThemeConstants\.FLOAT_BAR_HEIGHT/, 'SourceBrowsePage must keep bottomContentInset for scroll-end clearance')
+  assert.match(source, /bottomFloatingTabViewportClearance\(\): number \{[\s\S]*return this\.bottomContentInset\(\)/, 'SourceBrowsePage must expose a named floating tab viewport clearance')
+  assert.match(source, /Scroll\(\)[\s\S]*\.padding\(\{\s*bottom:\s*this\.bottomFloatingTabViewportClearance\(\)\s*\}\)[\s\S]*\.clipContent\(ContentClipMode\.CONTENT_ONLY\)/, 'SourceBrowsePage scroll viewport must reserve and clip bottom content above floating tab chrome')
+  assert.doesNotMatch(source, /\.expandSafeArea\(/, 'SourceBrowsePage must not change reader-style immersive safe-area expansion')
+}
+
 function normalizeSortKey(value) {
   return value.trim().toLocaleLowerCase()
 }
@@ -236,6 +243,7 @@ for (const [source, label] of [
 ]) {
   assertUsesScrollContentSafeArea(source, label)
 }
+assertSourceBrowseFloatingTabViewportClearance(sourceBrowsePageSource)
 
 assert.match(
   libraryPersistenceSource,
