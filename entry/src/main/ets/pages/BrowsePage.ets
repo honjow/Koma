@@ -1,86 +1,153 @@
-import { TabLabel } from '../common/Constants'
+import { SourceListItem } from '../components/SourceListItem'
+import { BrowseViewModel } from '../viewmodel/BrowseViewModel'
+import { SourceRuntimeRegistry, SourceRuntimeRegistryInstalledSourceSummary } from '../sourceRuntime/SourceRuntimeRegistry'
+import { SourceBrowsePage } from './SourceBrowsePage'
+import { SourceSearchPage } from './SourceSearchPage'
 
-interface BrowsePlaceholderRow {
-  key: string
-  title: string
-  subtitle: string
+const SOURCE_BROWSE_ROUTE_NAME: string = 'SourceBrowsePage'
+const SOURCE_SEARCH_ROUTE_NAME: string = 'SourceSearchPage'
+
+interface SourceRouteParam {
+  source: SourceRuntimeRegistryInstalledSourceSummary
 }
-
-const PLACEHOLDER_ROWS: BrowsePlaceholderRow[] = [
-  {
-    key: 'placeholder-installed',
-    title: '已安装的源将显示在这里',
-    subtitle: '通过设置 → 数据 → 源管理 添加源包后会显示在此列表。',
-  },
-]
 
 @Component
 export struct BrowsePage {
-  @Builder
-  private Header() {
-    Row({ space: 12 }) {
-      Column({ space: 4 }) {
-        Text(TabLabel.BROWSE)
-          .fontSize(30)
-          .fontWeight(FontWeight.Bold)
-          .fontColor($r('app.color.koma_text_primary'))
-        Text('从源获取漫画')
-          .fontSize(14)
-          .fontColor($r('app.color.koma_text_secondary'))
-      }
-      .layoutWeight(1)
-      .alignItems(HorizontalAlign.Start)
-    }
-    .width('100%')
-    .alignItems(VerticalAlign.Center)
+  @State private viewModel: BrowseViewModel = new BrowseViewModel()
+  @State private refreshingSources: boolean = false
+  private browsePathStack: NavPathStack = new NavPathStack()
+
+  private openSource(source: SourceRuntimeRegistryInstalledSourceSummary): void {
+    this.browsePathStack.pushPath({
+      name: SOURCE_BROWSE_ROUTE_NAME,
+      param: { source: source } as SourceRouteParam,
+    })
+  }
+
+  private openSourceSearch(source: SourceRuntimeRegistryInstalledSourceSummary): void {
+    this.browsePathStack.pushPath({
+      name: SOURCE_SEARCH_ROUTE_NAME,
+      param: { source: source } as SourceRouteParam,
+    })
   }
 
   @Builder
-  private PlaceholderRow(row: BrowsePlaceholderRow) {
-    Column({ space: 6 }) {
-      Text(row.title)
-        .fontSize(15)
+  private EmptySources() {
+    Column({ space: 10 }) {
+      Text('未安装任何源')
+        .fontSize(20)
         .fontWeight(FontWeight.Medium)
         .fontColor($r('app.color.koma_text_primary'))
-      Text(row.subtitle)
-        .fontSize(13)
-        .lineHeight(20)
+      Text('导入本地源包后，可以在这里浏览源内漫画。')
+        .fontSize(14)
+        .lineHeight(22)
         .fontColor($r('app.color.koma_text_secondary'))
+        .textAlign(TextAlign.Center)
     }
     .width('100%')
-    .padding(16)
+    .padding(24)
     .borderRadius(8)
     .backgroundColor($r('app.color.koma_card'))
-    .alignItems(HorizontalAlign.Start)
+    .alignItems(HorizontalAlign.Center)
+  }
+
+  @Builder
+  private SourceList() {
+    List({ space: 10 }) {
+      ForEach(this.viewModel.sources, (source: SourceRuntimeRegistryInstalledSourceSummary) => {
+        ListItem() {
+          SourceListItem({
+            source: source,
+            languageBadge: this.viewModel.sourceLanguageBadge(source),
+            onSourceTap: (selected: SourceRuntimeRegistryInstalledSourceSummary) => {
+              this.openSource(selected)
+            },
+          })
+        }
+      }, (source: SourceRuntimeRegistryInstalledSourceSummary) => source.sourceId)
+    }
+    .width('100%')
+    .layoutWeight(1)
+  }
+
+  @Builder
+  private BrowseDestination(name: string, param: Object) {
+    if (name === SOURCE_BROWSE_ROUTE_NAME) {
+      NavDestination() {
+        SourceBrowsePage({
+          source: (param as SourceRouteParam).source,
+          viewModel: this.viewModel,
+          onSearchRequested: (source: SourceRuntimeRegistryInstalledSourceSummary) => {
+            this.openSourceSearch(source)
+          },
+        })
+      }
+      .hideTitleBar(true)
+    } else if (name === SOURCE_SEARCH_ROUTE_NAME) {
+      NavDestination() {
+        SourceSearchPage({
+          source: (param as SourceRouteParam).source,
+          viewModel: this.viewModel,
+        })
+      }
+      .hideTitleBar(true)
+    }
+  }
+
+  aboutToAppear(): void {
+    this.viewModel.loadInstalledSources()
+  }
+
+  private refreshSources(): void {
+    this.refreshingSources = true
+    this.viewModel.loadInstalledSources()
+    this.refreshingSources = false
   }
 
   build() {
-    Navigation() {
-      Scroll() {
+    Navigation(this.browsePathStack) {
+      Refresh({ refreshing: $$this.refreshingSources }) {
         Column({ space: 18 }) {
-          this.Header()
-
-          List({ space: 12 }) {
-            ForEach(PLACEHOLDER_ROWS, (row: BrowsePlaceholderRow) => {
-              ListItem() {
-                this.PlaceholderRow(row)
-              }
-            }, (row: BrowsePlaceholderRow) => row.key)
+          Column({ space: 4 }) {
+            Text('浏览')
+              .fontSize(30)
+              .fontWeight(FontWeight.Bold)
+              .fontColor($r('app.color.koma_text_primary'))
+            Text(this.viewModel.sources.length > 0 ? `${this.viewModel.sources.length} 个已安装源` : '自定义源')
+              .fontSize(14)
+              .fontColor($r('app.color.koma_text_secondary'))
           }
           .width('100%')
-          .divider({ strokeWidth: 0 })
+          .alignItems(HorizontalAlign.Start)
+
+          if (this.viewModel.loadingSources) {
+            LoadingProgress()
+              .width(36)
+              .height(36)
+              .color($r('app.color.koma_accent'))
+          } else if (this.viewModel.sources.length === 0) {
+            this.EmptySources()
+          } else {
+            this.SourceList()
+          }
         }
         .width('100%')
-        .padding({ left: 20, right: 20, top: 16, bottom: 28 })
+        .height('100%')
+        .padding({ left: 20, right: 20, bottom: 28 })
+        .backgroundColor($r('app.color.koma_background'))
       }
-      .width('100%')
-      .height('100%')
+      .onRefreshing(() => {
+        this.refreshSources()
+      })
     }
     .width('100%')
     .height('100%')
     .mode(NavigationMode.Stack)
-    .title(TabLabel.BROWSE)
-    .hideBackButton(true)
-    .backgroundColor($r('app.color.koma_background'))
+    .hideTitleBar(true)
+    .navDestination(this.BrowseDestination)
   }
+}
+
+export function createBrowseViewModel(registry: SourceRuntimeRegistry = new SourceRuntimeRegistry()): BrowseViewModel {
+  return new BrowseViewModel(registry)
 }
