@@ -25,6 +25,7 @@ import {
   SourceSettingsRecord,
   appSourceSettingsStore,
 } from '../sourceRuntime/SourceSettingsStore'
+import { OfflineDownloadStore } from './OfflineDownloadStore'
 
 export type ReaderRemoteImageHeaders = Record<string, string>
 export type ReaderRemoteImageCacheStats = RemoteImageCacheStats
@@ -109,6 +110,7 @@ const READER_SANDBOX_ROOTS: ReaderSandboxRoot[] = [
 
 const readerRemoteHeaderRules: ReaderRemoteHeaderRule[] = []
 let readerRemoteImageCacheStore: RemoteImageCacheStore | undefined = undefined
+let readerOfflineDownloadStore: OfflineDownloadStore | undefined = undefined
 let readerRemoteImageCacheMaxBytes: number = DEFAULT_REMOTE_IMAGE_CACHE_MAX_BYTES
 const readerPrefetchInFlight: string[] = []
 
@@ -258,6 +260,22 @@ async function fetchReaderRemoteImageBytes(url: string, headers: ReaderRemoteIma
   } finally {
     request.destroy()
   }
+}
+
+export async function fetchReaderRemoteSourceBytes(source: ReaderPageRenderSource): Promise<ArrayBuffer> {
+  if (source.sourceRuntimeId !== undefined && source.pageId !== undefined) {
+    const resolved = resolveSourceRuntimeImageRequest(source.sourceRuntimeId, source.pageId, source.pageUri)
+    if (resolved !== undefined) {
+      return fetchReaderRemoteImageBytes(resolved.url, resolved.headers)
+    }
+    if (source.pageUri === undefined || !isReaderRemoteImageSourceUri(source.pageUri)) {
+      console.warn(`[ReaderOffline] step=source_image_request_fallback allowed=false source=${createShortReaderHash(source.sourceRuntimeId)} page=${createShortReaderHash(source.pageId)}`)
+      throw new Error('Source image request failed and fallback page URI is not a valid URL')
+    }
+    console.warn(`[ReaderOffline] step=source_image_request_fallback allowed=true source=${createShortReaderHash(source.sourceRuntimeId)} page=${createShortReaderHash(source.pageId)} urlHash=${createShortReaderHash(source.pageUri)}`)
+    return fetchReaderRemoteImageBytes(source.pageUri, source.headers)
+  }
+  return fetchReaderRemoteImageBytes(source.imageUri, source.headers)
 }
 
 function createReaderRedactedTail(uri: string): string {
@@ -444,6 +462,34 @@ export function configureReaderRemoteImageCache(cacheDir: string, maxBytes: numb
   readerRemoteImageCacheStore.evictIfOver(readerRemoteImageCacheMaxBytes)
 }
 
+export function configureReaderOfflineDownloads(filesDir: string): void {
+  if (filesDir.length === 0) {
+    return
+  }
+  if (readerOfflineDownloadStore === undefined) {
+    readerOfflineDownloadStore = new OfflineDownloadStore(filesDir)
+    console.info('[ReaderOffline] step=ready')
+  }
+}
+
+function createReaderOfflineDownloadRenderSource(config: ReaderSessionConfig, pageIndex: number): ReaderPageRenderSource | undefined {
+  if (readerOfflineDownloadStore === undefined || config.comicId.length === 0 || config.chapterId.length === 0) {
+    return undefined
+  }
+  const pageId = getReaderSessionPageId(config, pageIndex)
+  const localPath = readerOfflineDownloadStore.resolveDownloadedPage(config.comicId, config.chapterId, pageId, pageIndex)
+  if (localPath === undefined) {
+    return undefined
+  }
+  return {
+    kind: ReaderPageRenderKind.LOCAL_FILE_IMAGE,
+    uri: localPath,
+    imageUri: localPath,
+    fallbackPageIndex: pageIndex,
+    pageId,
+  }
+}
+
 export async function getReaderRemoteImageCacheStats(): Promise<ReaderRemoteImageCacheStats> {
   if (readerRemoteImageCacheStore === undefined) {
     return {
@@ -606,6 +652,10 @@ export function createReaderUriDiagnostics(uri: string, pageIndex: number = 0): 
 }
 
 export function createReaderPageRenderSource(config: ReaderSessionConfig, pageIndex: number): ReaderPageRenderSource {
+  const offlineDownloadSource = createReaderOfflineDownloadRenderSource(config, pageIndex)
+  if (offlineDownloadSource !== undefined) {
+    return offlineDownloadSource
+  }
   const sourceRuntimeSource = createReaderSourceRuntimeRenderSource(config, pageIndex)
   if (sourceRuntimeSource !== undefined) {
     return sourceRuntimeSource

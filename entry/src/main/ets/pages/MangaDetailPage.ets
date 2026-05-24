@@ -20,6 +20,12 @@ import {
   ReadingDirection,
   normalizeSortKey,
 } from '../model/ComicModels'
+import { OfflineDownloadService } from '../model/OfflineDownloadService'
+import {
+  OfflineDownloadStatus,
+  OfflineDownloadStore,
+  OfflineDownloadSummary,
+} from '../model/OfflineDownloadStore'
 import { LibraryStore } from '../model/LibraryStore'
 import {
   LibraryStorePersistenceService,
@@ -35,6 +41,7 @@ import {
   appSourceSettingsStore,
   configureSourceSettingsStore,
 } from '../sourceRuntime/SourceSettingsStore'
+import { installReaderRemoteHeadersForComic } from '../model/ReaderPageSourceAdapter'
 import { taskpool } from '@kit.ArkTS'
 
 export const MANGA_DETAIL_ROUTE_NAME: string = 'MangaDetailPage'
@@ -107,6 +114,8 @@ export struct MangaDetailPage {
   @State private chapters: MangaChapterItem[] = _mockChapterList()
   @State private isInLibrary: boolean = false
   @State private isLoading: boolean = false
+  @State private downloadBusy: boolean = false
+  @State private downloadStatusText: string = ''
   @State private feedbackText: string = ''
   @StorageProp(StorageKeys.TOP_AVOID_HEIGHT) topH: number = 0
   @StorageProp(StorageKeys.BOTTOM_AVOID_HEIGHT) bottomH: number = 0
@@ -130,6 +139,30 @@ export struct MangaDetailPage {
     this.loadMangaDetail()
   }
 
+  private offlineDownloadService(): OfflineDownloadService | undefined {
+    try {
+      const context = getContext(this) as common.UIAbilityContext
+      if (context === undefined || context.filesDir === undefined || context.filesDir.length === 0) {
+        return undefined
+      }
+      return new OfflineDownloadService(new OfflineDownloadStore(context.filesDir))
+    } catch (error) {
+      void error
+      console.warn('[ReaderOffline] step=detail_service_unavailable failed=true')
+      return undefined
+    }
+  }
+
+  private refreshDownloadStatus(): void {
+    const service = this.offlineDownloadService()
+    const chapterId = this.firstChapterId()
+    if (service === undefined || chapterId === undefined) {
+      this.downloadStatusText = ''
+      return
+    }
+    this.downloadStatusText = this.formatDownloadStatus(service.getChapterSummary(this.currentComicId(), chapterId))
+  }
+
   private async loadMangaDetail(): Promise<void> {
     const mangaId = this.params.mangaId
     const sourceId = this.params.sourceId
@@ -148,12 +181,14 @@ export struct MangaDetailPage {
       this.chapters = _mockChapterList()
       this.isInLibrary = this.manga.isInLibrary
       this.feedbackText = ''
+      this.refreshDownloadStatus()
       return
     }
     this.manga = mangaDetailFromComic(comic)
     this.chapters = comic.chapters.map((chapter: Chapter): MangaChapterItem => mangaChapterItemFromComicChapter(chapter))
     this.isInLibrary = true
     this.feedbackText = ''
+    this.refreshDownloadStatus()
   }
 
   private async loadSourceMangaDetail(sourceId: string, mangaId: string): Promise<void> {
@@ -174,6 +209,7 @@ export struct MangaDetailPage {
       this.chapters = chapters
       this.isInLibrary = detail.isInLibrary
       this.feedbackText = ''
+      this.refreshDownloadStatus()
     } catch (error) {
       const e = error as Error
       console.error('[manga-detail] source detail load failed: ' + e.message)
@@ -181,6 +217,7 @@ export struct MangaDetailPage {
       this.chapters = _mockChapterList()
       this.isInLibrary = false
       this.feedbackText = '源详情加载失败，已显示占位内容。'
+      this.downloadStatusText = ''
     } finally {
       this.isLoading = false
     }
@@ -307,6 +344,7 @@ export struct MangaDetailPage {
       this.manga.isInLibrary = true
       this.feedbackText = '已收藏到书架。'
       this.onLibraryChanged()
+      this.refreshDownloadStatus()
       this.showToast('已收藏到书架')
       return true
     } catch (error) {
@@ -329,6 +367,62 @@ export struct MangaDetailPage {
       await this.ensureSourceChapterPages(this.firstChapterId() as string)
     }
     this.onOpenReader(this.currentComicId(), this.firstChapterId())
+  }
+
+  private async handleDownloadChapter(): Promise<void> {
+    if (this.downloadBusy) {
+      return
+    }
+    const chapterId = this.firstChapterId()
+    if (chapterId === undefined) {
+      this.downloadStatusText = '暂无可下载章节'
+      this.showToast('暂无可下载章节')
+      return
+    }
+    const service = this.offlineDownloadService()
+    if (service === undefined) {
+      this.downloadStatusText = '下载不可用'
+      this.showToast('下载不可用')
+      return
+    }
+    this.downloadBusy = true
+    this.downloadStatusText = '下载中...'
+    try {
+      if (!this.isInLibrary && this.manga.sourceId !== undefined) {
+        const added = await this.handleAddToLibrary()
+        if (!added) {
+          this.downloadStatusText = '下载已取消'
+          return
+        }
+      }
+      if (this.manga.sourceId !== undefined) {
+        await this.ensureSourceChapterPages(chapterId)
+      }
+      const comic = this.libraryStore?.getComic(this.currentComicId())
+      if (comic === undefined) {
+        this.downloadStatusText = '请先收藏到书架'
+        this.showToast('请先收藏到书架')
+        return
+      }
+      try {
+        await installReaderRemoteHeadersForComic(getContext(this) as common.UIAbilityContext, comic)
+      } catch (error) {
+        void error
+        console.warn('[ReaderOffline] step=detail_headers_unavailable failed=true')
+      }
+      const manifest = await service.downloadChapter(comic, chapterId)
+      this.downloadStatusText = this.formatDownloadStatus({
+        comicId: manifest.comicId,
+        chapterId: manifest.chapterId,
+        pageCount: manifest.pageCount,
+        downloadedPageCount: manifest.downloadedPageCount,
+        status: manifest.status,
+        updatedAt: manifest.updatedAt,
+      })
+      this.showToast(manifest.status === OfflineDownloadStatus.DOWNLOADED ? '章节已下载' : '章节下载失败')
+    } finally {
+      this.downloadBusy = false
+    }
   }
 
   private async ensureSourceChapterPages(chapterId: string): Promise<void> {
@@ -466,6 +560,25 @@ export struct MangaDetailPage {
     return this.chapters.some((chapter: MangaChapterItem): boolean => chapter.isRead) ? '继续阅读' : '开始阅读'
   }
 
+  private formatDownloadStatus(summary: OfflineDownloadSummary | undefined): string {
+    if (summary === undefined) {
+      return ''
+    }
+    if (summary.status === OfflineDownloadStatus.DOWNLOADED) {
+      return `已下载 ${summary.downloadedPageCount}/${summary.pageCount}`
+    }
+    if (summary.status === OfflineDownloadStatus.DOWNLOADING || summary.status === OfflineDownloadStatus.QUEUED) {
+      return `下载中 ${summary.downloadedPageCount}/${summary.pageCount}`
+    }
+    if (summary.status === OfflineDownloadStatus.PARTIAL) {
+      return `部分下载 ${summary.downloadedPageCount}/${summary.pageCount}`
+    }
+    if (summary.status === OfflineDownloadStatus.BLOCKED) {
+      return '暂无法下载'
+    }
+    return '下载失败'
+  }
+
   @Builder
   private Toolbar() {
     Row() {
@@ -518,6 +631,19 @@ export struct MangaDetailPage {
         .onClick(() => {
           this.handleStartReading()
         })
+
+      Button(this.downloadBusy ? '下载中' : '下载章节', { type: ButtonType.Capsule })
+        .height(44)
+        .layoutWeight(1)
+        .fontSize(15)
+        .fontWeight(FontWeight.Medium)
+        .fontColor($r('app.color.koma_accent'))
+        .backgroundColor('#00000000')
+        .border({ width: 1, color: $r('app.color.koma_accent') })
+        .enabled(!this.downloadBusy)
+        .onClick(() => {
+          this.handleDownloadChapter()
+        })
     }
     .width('100%')
   }
@@ -535,6 +661,13 @@ export struct MangaDetailPage {
 
         if (this.isLoading || this.feedbackText.length > 0) {
           Text(this.isLoading ? '加载中...' : this.feedbackText)
+            .width('100%')
+            .fontSize(13)
+            .fontColor($r('app.color.koma_text_secondary'))
+        }
+
+        if (this.downloadStatusText.length > 0) {
+          Text(this.downloadStatusText)
             .width('100%')
             .fontSize(13)
             .fontColor($r('app.color.koma_text_secondary'))

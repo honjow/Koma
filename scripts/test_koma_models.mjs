@@ -12,6 +12,8 @@ const libraryRepositoryPath = resolve(root, 'entry/src/main/ets/model/LibraryRep
 const libraryPersistencePath = resolve(root, 'entry/src/main/ets/model/LibraryPersistence.ets')
 const backupServicePath = resolve(root, 'entry/src/main/ets/model/BackupService.ets')
 const readerPreferencesStorePath = resolve(root, 'entry/src/main/ets/model/ReaderPreferencesStore.ets')
+const offlineDownloadStorePath = resolve(root, 'entry/src/main/ets/model/OfflineDownloadStore.ets')
+const offlineDownloadServicePath = resolve(root, 'entry/src/main/ets/model/OfflineDownloadService.ets')
 const entryAbilityPath = resolve(root, 'entry/src/main/ets/entryability/EntryAbility.ets')
 const indexPath = resolve(root, 'entry/src/main/ets/pages/Index.ets')
 const libraryPagePath = resolve(root, 'entry/src/main/ets/pages/LibraryPage.ets')
@@ -37,6 +39,8 @@ const libraryRepositorySource = readFileSync(libraryRepositoryPath, 'utf8')
 const libraryPersistenceSource = readFileSync(libraryPersistencePath, 'utf8')
 const backupServiceSource = readFileSync(backupServicePath, 'utf8')
 const readerPreferencesStoreSource = readFileSync(readerPreferencesStorePath, 'utf8')
+const offlineDownloadStoreSource = readFileSync(offlineDownloadStorePath, 'utf8')
+const offlineDownloadServiceSource = readFileSync(offlineDownloadServicePath, 'utf8')
 const entryAbilitySource = readFileSync(entryAbilityPath, 'utf8')
 const indexSource = readFileSync(indexPath, 'utf8')
 const libraryPageSource = readFileSync(libraryPagePath, 'utf8')
@@ -193,6 +197,10 @@ assertExport(readerPreferencesStoreSource, 'READER_PREFERENCES_STORE_NAME')
 assertExport(readerPreferencesStoreSource, 'PAGE_MODE_KEY')
 assertExport(readerPreferencesStoreSource, 'READING_DIRECTION_KEY')
 assertExport(readerPreferencesStoreSource, 'THEME_MODE_KEY')
+assertExport(offlineDownloadStoreSource, 'OfflineDownloadStore')
+assertExport(offlineDownloadStoreSource, 'OfflineDownloadStatus')
+assertExport(offlineDownloadStoreSource, 'OfflineChapterDownloadManifest')
+assertExport(offlineDownloadServiceSource, 'OfflineDownloadService')
 assertExport(readerSessionStoreSource, 'InMemoryReaderSessionStore')
 assertExport(mockLibraryDataSource, 'MockLibraryComic')
 assertExport(mockLibraryDataSource, 'LibraryViewModel')
@@ -249,6 +257,57 @@ assert.match(
   libraryPersistenceSource,
   /export interface PersistedLibraryStoreDocument\s*{[^}]*\bschemaVersion:\s*number\b/s,
   'PersistedLibraryStoreDocument.schemaVersion must be required in production source',
+)
+
+assert.match(
+  offlineDownloadStoreSource,
+  /OFFLINE_DOWNLOAD_ROOT_DIR_NAME:\s*string = 'downloads'/,
+  'offline downloads must be stored under a dedicated files/downloads root',
+)
+assert.match(
+  offlineDownloadStoreSource,
+  /assertSafeOfflineDownloadRoot[\s\S]*hasTraversalSegment[\s\S]*OFFLINE_DOWNLOAD_ROOT_DIR_NAME/,
+  'offline download paths must reject traversal and stay under files/downloads',
+)
+assert.match(
+  offlineDownloadStoreSource,
+  /export interface OfflineChapterDownloadManifest\s*{[\s\S]*status:\s*OfflineDownloadStatus[\s\S]*pageCount:\s*number[\s\S]*downloadedPageCount:\s*number/s,
+  'offline manifest must track status, pageCount, and downloadedPageCount',
+)
+assert.match(
+  offlineDownloadStoreSource,
+  /resolveDownloadedPage[\s\S]*manifest\.status !== OfflineDownloadStatus\.DOWNLOADED[\s\S]*fs\.accessSync\(page\.localPath\)/,
+  'offline resolver must only expose existing files for fully downloaded chapters',
+)
+assert.doesNotMatch(
+  offlineDownloadStoreSource,
+  /reader-remote-image-cache|RemoteImageCacheStore|url:\s*string/,
+  'offline download store must be separate from transient reader-remote-image-cache and not persist page URLs',
+)
+assert.match(
+  offlineDownloadServiceSource,
+  /fetchReaderRemoteSourceBytes/,
+  'offline download service must reuse reader/source image request resolution for remote pages',
+)
+assert.match(
+  offlineDownloadServiceSource,
+  /ReaderPageRenderKind\.LOCAL_FILE_IMAGE[\s\S]*copyLocalFile/,
+  'offline download service must copy existing local reader images into durable download storage',
+)
+assert.match(
+  mangaDetailPageSource,
+  /Button\(this\.downloadBusy \? '下载中' : '下载章节'[\s\S]*this\.handleDownloadChapter\(\)/,
+  'MangaDetailPage must expose a user-visible chapter download action',
+)
+assert.match(
+  mangaDetailPageSource,
+  /已下载 \$\{summary\.downloadedPageCount\}\/\$\{summary\.pageCount\}/,
+  'MangaDetailPage must expose a quiet downloaded N/M status',
+)
+assert.doesNotMatch(
+  mangaDetailPageSource,
+  /debug|sandbox|internal|manifest\.v1|files\/downloads/i,
+  'MangaDetailPage visible copy must avoid debug/internal storage wording',
 )
 assert.match(
   libraryPersistenceSource,
