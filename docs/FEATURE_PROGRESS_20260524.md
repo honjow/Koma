@@ -4,18 +4,24 @@ This document records the feature-development baseline reached in the long 2026-
 
 ## Latest Consolidated Gate
 
-Artifact: `.hermes-artifacts/20260525-0200-consolidated-gate/`
+Artifacts:
 
-Verified after the source-runtime/product-boundary/backup follow-up batch:
+- `.hermes-artifacts/20260525-0215-cache-management/`
+- `.hermes-artifacts/20260525-0230-safe-area-main-shell/`
+- `.hermes-artifacts/20260525-0245-source-settings/`
+
+Verified after reader image-cache management, content-list safe-area avoidance, and source-specific settings:
 
 - `node scripts/test_koma_models.mjs` PASS.
 - `node scripts/test_source_package_compat.mjs` PASS.
 - `node scripts/test_reader_progress.mjs` PASS.
 - `bash scripts/validate-napi-source-runtime-sample.sh` PASS.
 - `bash dev.sh --build-only --non-interactive` PASS.
+- Debug HAP installed to `192.168.50.103:12345` as `com.honjow.koma.dev` PASS.
 - Device smoke artifacts:
   - `.hermes-artifacts/20260525-0115-bf-device-smoke/` confirms Browse no longer exposes `Koma Fixture`.
   - `.hermes-artifacts/20260525-0140-bk-device-smoke/` confirms Settings backup copy includes source packages and settings.
+  - `.hermes-artifacts/20260525-0245-source-settings/device/` confirms app launch, Settings, and Source Package Manager empty-state surfaces on device.
 
 ## 2026-05-24 Final Gate
 
@@ -67,6 +73,9 @@ Verified on device `192.168.50.103:12345`:
 | Remove Browse mock fallback | `a09b688` | Empty source registry no longer injects `Mock Source`; Browse shows import guidance. |
 | Remove bundled fixture from Browse | `3dfe08d` | Production Browse bootstrap no longer registers `Koma Fixture`; rawfile fixtures remain test-only. |
 | Backup schema v2 | `1705893` | Backup/export covers library, progress, remote servers, source packages, and reader/settings preferences; v1 imports remain accepted. |
+| Reader image cache management | `a48ce93` | Settings shows remote image cache stats and exposes clear action scoped to `reader-remote-image-cache`. |
+| Content safe-area avoidance | `ec697de` | Keeps fullscreen transparent/floating shell while adding internal content-list insets for ordinary pages. |
+| Source package settings | `23dac83` | Installed local source packages can expose non-secret settings via `get_settings`; settings persist by sourceId, inject into runtime calls, and backup schema v3 exports sanitized settings. |
 
 ## Current Product Baseline
 
@@ -105,9 +114,10 @@ Verified on device `192.168.50.103:12345`:
 
 - Komga / OPDS / WebDAV config pages.
 - Reader page mode / reading direction / theme preferences.
-- Backup export/import via picker. Schema v2 includes library, reading progress, remote server settings, installed source packages, and reader/settings preferences. Schema v1 import remains accepted.
+- Backup export/import via picker. Schema v3 includes library, reading progress, remote server settings, installed source packages, sanitized per-source settings, and reader/settings preferences. Schema v1/v2 import remains accepted.
 - About / license / version dialogs.
 - Source package manager page.
+- Reader remote image cache stats and clear action.
 
 ### WASM Source Runtime
 
@@ -116,15 +126,17 @@ Verified on device `192.168.50.103:12345`:
 - Local source package manager supports local archive import, enable/disable/remove, and smoke.
 - App accepts source-repo `.koma` packages (`manifest.json` + `source.wasm`) and legacy/internal source archive layouts.
 - Reader integrates source `get_image_request` for source-owned image URL/header resolution.
+- Installed source packages can expose non-secret `get_settings` descriptors; Koma stores sanitized values per source id and injects them into Browse/detail/pages/image-request runtime envelopes.
 - Production Browse lists only user-installed/enabled packages; no bundled public source or test fixture is registered.
 - No remote source market/download path was added.
 
 ## Known Gaps / Follow-up
 
 1. Source package picker import UI path is implemented but not fully hand-driven with a real selected `.koma` on device; static/source-runtime gates cover archive validation, restore, and run.
-2. Library multi-select long-press automation is unreliable with `uitest`; needs manual UX pass or alternative gesture handling if user reports real-device failure.
-3. WebDAV public demo endpoint had Harmony device `Internal error`; local fixture covered PROPFIND/GET. Needs broader NAS/WebDAV compatibility matrix.
-4. OPDS publication path uses image URL fallback for the tested Komga OPDS v2 demo; EPUB/publication manifest returned HTTP 406.
-5. Error-state UI is not unified across source types; intentionally deferred because the user asked to prioritize functionality over UI detail.
-6. Large CBZ / large remote chapter performance still needs stress testing.
-7. Backup JSON is local user-initiated and unencrypted; encryption/password UX was explicitly not added in schema v2.
+2. Source package settings page was device-smoked only in empty-state because no installed source package was present on the device during the final smoke; per-source `设置` button/descriptor editing still needs a real installed `.koma` runtime UI pass.
+3. Library multi-select long-press automation is unreliable with `uitest`; needs manual UX pass or alternative gesture handling if user reports real-device failure.
+4. WebDAV public demo endpoint had Harmony device `Internal error`; local fixture covered PROPFIND/GET. Needs broader NAS/WebDAV compatibility matrix.
+5. OPDS publication path uses image URL fallback for the tested Komga OPDS v2 demo; EPUB/publication manifest returned HTTP 406.
+6. Error-state UI is not unified across source types; intentionally deferred because the user asked to prioritize functionality over UI detail.
+7. Large CBZ / large remote chapter performance still needs stress testing.
+8. Backup JSON is local user-initiated and unencrypted; encryption/password UX was explicitly not added. Source settings backup is sanitized and excludes credential-like values.
