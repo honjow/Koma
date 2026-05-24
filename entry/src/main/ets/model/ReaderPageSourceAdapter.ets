@@ -2,7 +2,15 @@ import {
   ReaderSessionConfig,
   getReaderSessionPageUri,
 } from './ReaderSessionStore'
-import { KomgaHeaders } from '../remote/KomgaClient'
+import { http } from '@kit.NetworkKit'
+import {
+  KomgaHeaders,
+  komgaHeadersToHttpHeaderObject,
+} from '../remote/KomgaClient'
+import {
+  DEFAULT_REMOTE_IMAGE_CACHE_MAX_BYTES,
+  RemoteImageCacheStore,
+} from './RemoteImageCacheStore'
 
 export enum ReaderPageRenderKind {
   LOCAL_FILE_IMAGE = 'local_file_image',
@@ -49,6 +57,9 @@ const READER_SANDBOX_ROOTS: ReaderSandboxRoot[] = [
 ]
 
 const readerRemoteHeaderRules: ReaderRemoteHeaderRule[] = []
+let readerRemoteImageCacheStore: RemoteImageCacheStore | undefined = undefined
+let readerRemoteImageCacheMaxBytes: number = DEFAULT_REMOTE_IMAGE_CACHE_MAX_BYTES
+const readerPrefetchInFlight: string[] = []
 
 function normalizeReaderPageUri(uri: string): string {
   return uri.trim().replace(/\\/g, '/')
@@ -123,6 +134,31 @@ function createShortReaderHash(value: string): string {
     hash = Math.imul(hash, 16777619) >>> 0
   }
   return hash.toString(16).padStart(8, '0').slice(-8)
+}
+
+function remoteFetchKey(url: string, headers: KomgaHeaders | undefined): string {
+  return createShortReaderHash(`${url}\n${JSON.stringify(headers ?? {})}`)
+}
+
+async function fetchReaderRemoteImageBytes(url: string, headers: KomgaHeaders | undefined): Promise<ArrayBuffer> {
+  const request = http.createHttp()
+  try {
+    const response = await request.request(url, {
+      method: http.RequestMethod.GET,
+      expectDataType: http.HttpDataType.ARRAY_BUFFER,
+      usingCache: false,
+      header: komgaHeadersToHttpHeaderObject(headers ?? ({} as KomgaHeaders)),
+      readTimeout: 60000,
+      connectTimeout: 30000,
+      maxLimit: 100 * 1024 * 1024,
+    })
+    if (response.responseCode < 200 || response.responseCode >= 300) {
+      throw new Error(`remote image status ${response.responseCode}`)
+    }
+    return response.result as ArrayBuffer
+  } finally {
+    request.destroy()
+  }
 }
 
 function createReaderRedactedTail(uri: string): string {
@@ -241,6 +277,65 @@ export function installReaderRemoteHeaders(prefix: string, headers: KomgaHeaders
     readerRemoteHeaderRules.push(rule)
   }
   console.info('[Reader] remote headers installed')
+}
+
+export function configureReaderRemoteImageCache(cacheDir: string, maxBytes: number = DEFAULT_REMOTE_IMAGE_CACHE_MAX_BYTES): void {
+  if (cacheDir.length === 0) {
+    return
+  }
+  if (readerRemoteImageCacheStore === undefined) {
+    readerRemoteImageCacheStore = new RemoteImageCacheStore(cacheDir)
+    console.info('[ReaderCache] step=ready')
+  }
+  readerRemoteImageCacheMaxBytes = maxBytes
+  readerRemoteImageCacheStore.evictIfOver(readerRemoteImageCacheMaxBytes)
+}
+
+export async function resolveLocalCached(url: string, headers?: KomgaHeaders): Promise<string | undefined> {
+  if (readerRemoteImageCacheStore === undefined) {
+    console.info('[ReaderCache] step=miss reason=unconfigured')
+    return undefined
+  }
+  return readerRemoteImageCacheStore.get(url, headers)
+}
+
+export async function fetchAndCacheReaderRemoteImage(url: string, headers?: KomgaHeaders): Promise<string> {
+  const cachedPath = await resolveLocalCached(url, headers)
+  if (cachedPath !== undefined) {
+    return cachedPath
+  }
+  const bytes = await fetchReaderRemoteImageBytes(url, headers)
+  if (readerRemoteImageCacheStore === undefined) {
+    throw new Error('Reader remote image cache is unavailable')
+  }
+  const path = await readerRemoteImageCacheStore.put(url, headers, bytes)
+  await readerRemoteImageCacheStore.evictIfOver(readerRemoteImageCacheMaxBytes)
+  return path
+}
+
+export function prefetchReaderRemoteImage(source: ReaderPageRenderSource): void {
+  if (source.kind !== ReaderPageRenderKind.REMOTE_URL_IMAGE || readerRemoteImageCacheStore === undefined) {
+    return
+  }
+  const key = remoteFetchKey(source.imageUri, source.headers)
+  if (readerPrefetchInFlight.includes(key)) {
+    return
+  }
+  readerPrefetchInFlight.push(key)
+  console.info(`[ReaderCache] step=prefetch_start key=${key} page=${source.fallbackPageIndex}`)
+  fetchAndCacheReaderRemoteImage(source.imageUri, source.headers)
+    .then((_path: string) => {
+      console.info(`[ReaderCache] step=prefetch_done key=${key} page=${source.fallbackPageIndex}`)
+    })
+    .catch((error: Error) => {
+      console.warn(`[ReaderCache] step=prefetch_done key=${key} page=${source.fallbackPageIndex} failed=true message=${error.message}`)
+    })
+    .finally(() => {
+      const index = readerPrefetchInFlight.indexOf(key)
+      if (index >= 0) {
+        readerPrefetchInFlight.splice(index, 1)
+      }
+    })
 }
 
 export function createReaderUriDiagnostics(uri: string, pageIndex: number = 0): ReaderPageRenderDiagnostics {
