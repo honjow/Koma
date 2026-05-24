@@ -10,8 +10,24 @@ import {
   createMockLibraryPresentationMap,
   createSeededLibraryStore,
 } from '../model/MockLibraryData'
-import { Comic, ComicId } from '../model/ComicModels'
-import { LibraryStore } from '../model/LibraryStore'
+import {
+  Comic,
+  ComicId,
+  ComicSourceKind,
+  LibraryItem,
+  ReadingProgress,
+} from '../model/ComicModels'
+import {
+  LibraryListOptions,
+  LibraryReadStateFilter,
+  LibrarySortBy,
+  LibraryStore,
+} from '../model/LibraryStore'
+import {
+  LibraryFilterPreferences,
+  LibraryFilterStore,
+  LibrarySourceFilter,
+} from '../model/LibraryFilterStore'
 import { StorageKeys } from '../constants/StorageKeys'
 import { isRemovableLocalComic } from '../model/LibraryPersistence'
 import {
@@ -90,6 +106,9 @@ export struct LibraryPage {
   @State private selectionMode: boolean = false
   @State private selectedIds: Set<ComicId> = new Set<ComicId>()
   @State private suppressOpenComicId: ComicId = ''
+  @State private sortBy: LibrarySortBy = 'lastRead'
+  @State private filterSource: LibrarySourceFilter = 'all'
+  @State private filterReadState: LibraryReadStateFilter = 'all'
   @StorageProp(StorageKeys.REMOTE_PROGRESS_SYNC_REV) @Watch('onRemoteProgressSyncRevChanged') remoteProgressSyncRev: number = 0
   presentationByComicId: LibraryPresentationByComicId = createMockLibraryPresentationMap()
   sessionStore: ReaderSessionStore = new InMemoryReaderSessionStore()
@@ -100,7 +119,7 @@ export struct LibraryPage {
   private longPressComicId: ComicId = ''
 
   private syncDisplayedSnapshotFromProps(): void {
-    this.displayedComics = this.libraryComics
+    this.refreshDisplayedSnapshotFromStore()
     this.displayedRevision = this.libraryRevision
     this.removeMissingSelectedComics()
   }
@@ -128,9 +147,163 @@ export struct LibraryPage {
   }
 
   private refreshDisplayedSnapshotFromStore(): void {
-    this.displayedComics = this.libraryStore.listComics()
+    const progressByComicId = this.progressByComicId()
+    const items = this.libraryStore.listLibraryItems(progressByComicId, this.currentListOptions())
+    const nextComics: Comic[] = []
+    items.forEach((item: LibraryItem) => {
+      const comic = this.libraryStore.getComic(item.comicId)
+      if (comic !== undefined) {
+        nextComics.push(comic)
+      }
+    })
+    this.displayedComics = nextComics
     this.displayedRevision += 1
     this.removeMissingSelectedComics()
+  }
+
+  private progressByComicId(): Map<ComicId, ReadingProgress> {
+    const progressByComicId: Map<ComicId, ReadingProgress> = new Map<ComicId, ReadingProgress>()
+    this.libraryStore.listComics().forEach((comic: Comic) => {
+      const progress = this.sessionStore.getProgress(comic.id)
+      if (progress !== undefined) {
+        progressByComicId.set(comic.id, progress)
+      }
+    })
+    return progressByComicId
+  }
+
+  private currentListOptions(): LibraryListOptions {
+    return {
+      sortBy: this.sortBy,
+      filterSource: this.sourceKindsForFilter(),
+      filterReadState: this.filterReadState,
+    }
+  }
+
+  private sourceKindsForFilter(): ComicSourceKind[] | undefined {
+    if (this.filterSource === 'all') {
+      return undefined
+    }
+    if (this.filterSource === 'local') {
+      return [ComicSourceKind.LOCAL_ARCHIVE, ComicSourceKind.LOCAL_FOLDER]
+    }
+    if (this.filterSource === 'komga') {
+      return [ComicSourceKind.KOMGA_REMOTE]
+    }
+    if (this.filterSource === 'opds') {
+      return [ComicSourceKind.OPDS_REMOTE]
+    }
+    if (this.filterSource === 'webdav') {
+      return [ComicSourceKind.WEBDAV_REMOTE]
+    }
+    return [ComicSourceKind.PRIVATE_LIBRARY]
+  }
+
+  private async restoreFilterPreferences(): Promise<void> {
+    try {
+      const context = getContext(this) as common.UIAbilityContext
+      const preferencesValue = await new LibraryFilterStore(context).load()
+      this.sortBy = preferencesValue.sortBy
+      this.filterSource = preferencesValue.source
+      this.filterReadState = preferencesValue.readState
+      this.refreshDisplayedSnapshotFromStore()
+      console.info(
+        `[Library] step=filter_restored sortBy=${this.sortBy} source=${this.filterSource} readState=${this.filterReadState}`
+      )
+    } catch (error) {
+      const e = error as Error
+      console.info('[Library] step=filter_restore_failed reason=' + e.message)
+    }
+  }
+
+  private saveFilterPreferences(): void {
+    try {
+      const context = getContext(this) as common.UIAbilityContext
+      const preferencesValue: LibraryFilterPreferences = {
+        sortBy: this.sortBy,
+        source: this.filterSource,
+        readState: this.filterReadState,
+      }
+      void new LibraryFilterStore(context).save(preferencesValue)
+    } catch (error) {
+      const e = error as Error
+      console.info('[Library] step=filter_save_failed reason=' + e.message)
+    }
+  }
+
+  private setSortBy(sortBy: LibrarySortBy): void {
+    if (this.sortBy === sortBy) {
+      return
+    }
+    this.sortBy = sortBy
+    this.refreshDisplayedSnapshotFromStore()
+    this.saveFilterPreferences()
+    console.info(`[Library] step=sort_changed sortBy=${sortBy}`)
+  }
+
+  private setSourceFilter(source: LibrarySourceFilter): void {
+    if (this.filterSource === source) {
+      return
+    }
+    this.filterSource = source
+    this.refreshDisplayedSnapshotFromStore()
+    this.saveFilterPreferences()
+    console.info(`[Library] step=filter_changed source=${source} readState=${this.filterReadState}`)
+  }
+
+  private setReadStateFilter(readState: LibraryReadStateFilter): void {
+    if (this.filterReadState === readState) {
+      return
+    }
+    this.filterReadState = readState
+    this.refreshDisplayedSnapshotFromStore()
+    this.saveFilterPreferences()
+    console.info(`[Library] step=filter_changed source=${this.filterSource} readState=${readState}`)
+  }
+
+  private sortLabel(): string {
+    if (this.sortBy === 'added') {
+      return '最近加入'
+    }
+    if (this.sortBy === 'title') {
+      return '标题'
+    }
+    if (this.sortBy === 'source') {
+      return '来源'
+    }
+    return '最近阅读'
+  }
+
+  private sourceLabel(): string {
+    if (this.filterSource === 'local') {
+      return '本地'
+    }
+    if (this.filterSource === 'komga') {
+      return 'Komga'
+    }
+    if (this.filterSource === 'opds') {
+      return 'OPDS'
+    }
+    if (this.filterSource === 'webdav') {
+      return 'WebDAV'
+    }
+    if (this.filterSource === 'wasm') {
+      return 'wasm'
+    }
+    return '全部来源'
+  }
+
+  private readStateLabel(): string {
+    if (this.filterReadState === 'unread') {
+      return '未读'
+    }
+    if (this.filterReadState === 'reading') {
+      return '读过'
+    }
+    if (this.filterReadState === 'completed') {
+      return '已完成'
+    }
+    return '全部状态'
   }
 
   private viewModel(): LibraryViewModel {
@@ -153,6 +326,10 @@ export struct LibraryPage {
   }
 
   private hasLibraryContent(): boolean {
+    return this.displayedRevision >= 0 && this.libraryStore.listComics().length > 0
+  }
+
+  private hasVisibleLibraryContent(): boolean {
     return this.displayedRevision >= 0 && this.displayedComics.length > 0
   }
 
@@ -352,6 +529,111 @@ export struct LibraryPage {
   }
 
   @Builder
+  private SortMenu() {
+    Menu() {
+      MenuItem({ content: '最近阅读' })
+        .onClick(() => {
+          this.setSortBy('lastRead')
+        })
+      MenuItem({ content: '最近加入' })
+        .onClick(() => {
+          this.setSortBy('added')
+        })
+      MenuItem({ content: '标题' })
+        .onClick(() => {
+          this.setSortBy('title')
+        })
+      MenuItem({ content: '来源' })
+        .onClick(() => {
+          this.setSortBy('source')
+        })
+    }
+  }
+
+  @Builder
+  private SourceMenu() {
+    Menu() {
+      MenuItem({ content: '全部' })
+        .onClick(() => {
+          this.setSourceFilter('all')
+        })
+      MenuItem({ content: '本地' })
+        .onClick(() => {
+          this.setSourceFilter('local')
+        })
+      MenuItem({ content: 'Komga' })
+        .onClick(() => {
+          this.setSourceFilter('komga')
+        })
+      MenuItem({ content: 'OPDS' })
+        .onClick(() => {
+          this.setSourceFilter('opds')
+        })
+      MenuItem({ content: 'WebDAV' })
+        .onClick(() => {
+          this.setSourceFilter('webdav')
+        })
+      MenuItem({ content: 'wasm' })
+        .onClick(() => {
+          this.setSourceFilter('wasm')
+        })
+    }
+  }
+
+  @Builder
+  private ReadStateMenu() {
+    Menu() {
+      MenuItem({ content: '全部' })
+        .onClick(() => {
+          this.setReadStateFilter('all')
+        })
+      MenuItem({ content: '未读' })
+        .onClick(() => {
+          this.setReadStateFilter('unread')
+        })
+      MenuItem({ content: '读过' })
+        .onClick(() => {
+          this.setReadStateFilter('reading')
+        })
+      MenuItem({ content: '已完成' })
+        .onClick(() => {
+          this.setReadStateFilter('completed')
+        })
+    }
+  }
+
+  @Builder
+  private SortFilterBar() {
+    Row({ space: 8 }) {
+      Button(`排序 ${this.sortLabel()} ▾`)
+        .height(34)
+        .padding({ left: 12, right: 12 })
+        .borderRadius(8)
+        .fontSize(13)
+        .fontColor(this.sortBy !== 'lastRead' ? Color.White : $r('app.color.koma_text_primary'))
+        .backgroundColor(this.sortBy !== 'lastRead' ? $r('app.color.koma_accent') : $r('app.color.koma_card'))
+        .bindMenu(this.SortMenu())
+      Button(`${this.sourceLabel()} ▾`)
+        .height(34)
+        .padding({ left: 12, right: 12 })
+        .borderRadius(8)
+        .fontSize(13)
+        .fontColor(this.filterSource !== 'all' ? Color.White : $r('app.color.koma_text_primary'))
+        .backgroundColor(this.filterSource !== 'all' ? $r('app.color.koma_accent') : $r('app.color.koma_card'))
+        .bindMenu(this.SourceMenu())
+      Button(`${this.readStateLabel()} ▾`)
+        .height(34)
+        .padding({ left: 12, right: 12 })
+        .borderRadius(8)
+        .fontSize(13)
+        .fontColor(this.filterReadState !== 'all' ? Color.White : $r('app.color.koma_text_primary'))
+        .backgroundColor(this.filterReadState !== 'all' ? $r('app.color.koma_accent') : $r('app.color.koma_card'))
+        .bindMenu(this.ReadStateMenu())
+    }
+    .width('100%')
+  }
+
+  @Builder
   private EmptyLibrary() {
     Column({ space: 12 }) {
       Text('还没有漫画')
@@ -372,6 +654,26 @@ export struct LibraryPage {
         .onClick(() => {
           this.onImportRequested()
         })
+    }
+    .width('100%')
+    .padding(24)
+    .borderRadius(8)
+    .backgroundColor($r('app.color.koma_card'))
+    .alignItems(HorizontalAlign.Center)
+  }
+
+  @Builder
+  private EmptyFilteredLibrary() {
+    Column({ space: 10 }) {
+      Text('没有符合条件的漫画')
+        .fontSize(18)
+        .fontWeight(FontWeight.Medium)
+        .fontColor($r('app.color.koma_text_primary'))
+      Text('调整排序或筛选条件后再试。')
+        .fontSize(14)
+        .lineHeight(22)
+        .fontColor($r('app.color.koma_text_secondary'))
+        .textAlign(TextAlign.Center)
     }
     .width('100%')
     .padding(24)
@@ -511,6 +813,7 @@ export struct LibraryPage {
   aboutToAppear(): void {
     this.syncDisplayedSnapshotFromProps()
     this.reloadPersistentSessionStore('appear')
+    void this.restoreFilterPreferences()
   }
 
   onBackPress(): boolean {
@@ -529,16 +832,18 @@ export struct LibraryPage {
         bottomPadding: ThemeConstants.FLOAT_BAR_HEIGHT + 20,
       }) {
         if (this.hasLibraryContent()) {
-          ListItem() {
-            ContinueReadingShelfCard({
-              info: this.viewModel().continueReading,
-              revision: this.displayedRevision,
-              onOpenReader: (comicId: ComicId) => {
-                if (!this.selectionMode) {
-                  this.onOpenReader(comicId)
-                }
-              },
-            })
+          if (this.hasVisibleLibraryContent()) {
+            ListItem() {
+              ContinueReadingShelfCard({
+                info: this.viewModel().continueReading,
+                revision: this.displayedRevision,
+                onOpenReader: (comicId: ComicId) => {
+                  if (!this.selectionMode) {
+                    this.onOpenReader(comicId)
+                  }
+                },
+              })
+            }
           }
 
           if (this.selectionMode) {
@@ -549,7 +854,7 @@ export struct LibraryPage {
 
           ListItem() {
             Row() {
-              Text('最近加入')
+              Text('书架')
                 .fontSize(20)
                 .fontWeight(FontWeight.Bold)
                 .fontColor($r('app.color.koma_text_primary'))
@@ -576,10 +881,20 @@ export struct LibraryPage {
           }
 
           ListItem() {
-            if (this.isEvenDisplayedRevision()) {
-              this.LibraryGridEven(this.gridComics())
-            } else {
-              this.LibraryGridOdd(this.gridComics())
+            this.SortFilterBar()
+          }
+
+          if (this.hasVisibleLibraryContent()) {
+            ListItem() {
+              if (this.isEvenDisplayedRevision()) {
+                this.LibraryGridEven(this.gridComics())
+              } else {
+                this.LibraryGridOdd(this.gridComics())
+              }
+            }
+          } else {
+            ListItem() {
+              this.EmptyFilteredLibrary()
             }
           }
         } else {
