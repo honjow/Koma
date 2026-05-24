@@ -1,6 +1,7 @@
 import { SourceListItem } from '../components/SourceListItem'
 import { BrowseViewModel } from '../viewmodel/BrowseViewModel'
 import { SourceRuntimeRegistry, SourceRuntimeRegistryInstalledSourceSummary } from '../sourceRuntime/SourceRuntimeRegistry'
+import { appSourceRuntimeRegistry } from '../sourceRuntime/SourceRuntimeAppRegistry'
 import { SourceBrowsePage } from './SourceBrowsePage'
 import { SourceSearchPage } from './SourceSearchPage'
 import { SourceManga } from '../model/SourceModels'
@@ -17,7 +18,7 @@ interface SourceRouteParam {
 export struct BrowsePage {
   @State private viewModel: BrowseViewModel = new BrowseViewModel()
   @State private refreshingSources: boolean = false
-  sourceRegistry: SourceRuntimeRegistry = new SourceRuntimeRegistry()
+  sourceRegistry: SourceRuntimeRegistry = appSourceRuntimeRegistry
   private browsePathStack: NavPathStack = new NavPathStack()
 
   private openSource(source: SourceRuntimeRegistryInstalledSourceSummary): void {
