@@ -19,6 +19,10 @@ import { SettingsPage } from './SettingsPage'
 import { ImportPage } from './ImportPage'
 import { ReaderPage } from './ReaderPage'
 import { MangaDetailPage } from './MangaDetailPage'
+import { KomgaServerPage } from './KomgaServerPage'
+import { OpdsServerPage } from './OpdsServerPage'
+import { SourcePackageManagerPage } from './SourcePackageManagerPage'
+import { WebDavServerPage } from './WebDavServerPage'
 import { RouteName, TabIndex, TabLabel } from '../common/Constants'
 import { RouterHelper } from '../common/RouterHelper'
 import { KomaTabIcon } from '../components/KomaTabIcon'
@@ -111,6 +115,10 @@ struct Index {
 
   private openImport(): void {
     this.appPathStack.pushPath({ name: RouteName.IMPORT })
+  }
+
+  private openSettingsSecondary(routeName: string): void {
+    this.appPathStack.pushPath({ name: routeName })
   }
 
   private handleArchiveImportSucceeded(comic: Comic): void {
@@ -257,6 +265,26 @@ struct Index {
         })
       }
       .hideTitleBar(true)
+    } else if (name === RouteName.KOMGA_SERVER) {
+      HdsNavDestination() {
+        KomgaServerPage()
+      }
+      .titleBar(this.navDestTitleBarOpts('Komga'))
+    } else if (name === RouteName.OPDS_SERVER) {
+      HdsNavDestination() {
+        OpdsServerPage()
+      }
+      .titleBar(this.navDestTitleBarOpts('OPDS'))
+    } else if (name === RouteName.WEBDAV_SERVER) {
+      HdsNavDestination() {
+        WebDavServerPage()
+      }
+      .titleBar(this.navDestTitleBarOpts('WebDAV'))
+    } else if (name === RouteName.SOURCE_PACKAGE_MANAGER) {
+      HdsNavDestination() {
+        SourcePackageManagerPage()
+      }
+      .titleBar(this.navDestTitleBarOpts('源包管理'))
     }
   }
 
@@ -324,7 +352,20 @@ struct Index {
         }.tabBar(this.TabIcon(TabLabel.SEARCH, TabIndex.SEARCH))
 
         TabContent() {
-          SettingsPage()
+          SettingsPage({
+            onOpenKomgaSettings: () => {
+              this.openSettingsSecondary(RouteName.KOMGA_SERVER)
+            },
+            onOpenOpdsSettings: () => {
+              this.openSettingsSecondary(RouteName.OPDS_SERVER)
+            },
+            onOpenWebDavSettings: () => {
+              this.openSettingsSecondary(RouteName.WEBDAV_SERVER)
+            },
+            onOpenSourcePackageManager: () => {
+              this.openSettingsSecondary(RouteName.SOURCE_PACKAGE_MANAGER)
+            }
+          })
         }.tabBar(this.TabIcon(TabLabel.SETTINGS, TabIndex.SETTINGS))
       }
       .barOverlap(true)

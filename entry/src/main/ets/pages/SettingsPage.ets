@@ -19,16 +19,7 @@ import {
   getReaderThemeModeLabel,
   getReadingDirectionLabel,
 } from '../model/ReaderPreferencesStore'
-import { KomgaServerPage } from './KomgaServerPage'
-import { OpdsServerPage } from './OpdsServerPage'
-import { SourcePackageManagerPage } from './SourcePackageManagerPage'
-import { WebDavServerPage } from './WebDavServerPage'
 import { listInstalled } from '../sourceRuntime/SourceRuntimeAppRegistry'
-
-const KOMGA_SERVER_ROUTE_NAME: string = 'KomgaServerPage'
-const OPDS_SERVER_ROUTE_NAME: string = 'OpdsServerPage'
-const WEBDAV_SERVER_ROUTE_NAME: string = 'WebDavServerPage'
-const SOURCE_PACKAGE_MANAGER_ROUTE_NAME: string = 'SourcePackageManagerPage'
 
 interface SettingsRow {
   key: string
@@ -84,28 +75,15 @@ const SETTINGS_SECTIONS: SettingsSection[] = [
 
 @Component
 export struct SettingsPage {
-  private settingsPathStack: NavPathStack = new NavPathStack()
+  onOpenKomgaSettings: () => void = () => {}
+  onOpenOpdsSettings: () => void = () => {}
+  onOpenWebDavSettings: () => void = () => {}
+  onOpenSourcePackageManager: () => void = () => {}
   @State private pageMode: ReaderPageMode = 'single_page'
   @State private readingDirection: ReadingDirection = ReadingDirection.LEFT_TO_RIGHT
   @State private themeMode: ReaderThemeMode = 'system'
   @State private versionDetail: string = 'Koma 开发版'
   @State private imageCacheDetail: string = '0 B · 0 项'
-
-  private openKomgaSettings(): void {
-    this.settingsPathStack.pushPath({ name: KOMGA_SERVER_ROUTE_NAME })
-  }
-
-  private openWebDavSettings(): void {
-    this.settingsPathStack.pushPath({ name: WEBDAV_SERVER_ROUTE_NAME })
-  }
-
-  private openOpdsSettings(): void {
-    this.settingsPathStack.pushPath({ name: OPDS_SERVER_ROUTE_NAME })
-  }
-
-  private openSourcePackageManager(): void {
-    this.settingsPathStack.pushPath({ name: SOURCE_PACKAGE_MANAGER_ROUTE_NAME })
-  }
 
   private context(): common.UIAbilityContext {
     return getContext(this) as common.UIAbilityContext
@@ -348,7 +326,7 @@ export struct SettingsPage {
 
   private showSourcesDialog(): void {
     console.info('[Settings] step=sources_manager_open')
-    this.openSourcePackageManager()
+    this.onOpenSourcePackageManager()
   }
 
   private showInfoDialog(title: string, message: string): void {
@@ -385,11 +363,11 @@ export struct SettingsPage {
 
   private handleRowClick(row: SettingsRow): void {
     if (row.key === 'komga') {
-      this.openKomgaSettings()
+      this.onOpenKomgaSettings()
     } else if (row.key === 'opds') {
-      this.openOpdsSettings()
+      this.onOpenOpdsSettings()
     } else if (row.key === 'webdav') {
-      this.openWebDavSettings()
+      this.onOpenWebDavSettings()
     } else if (row.key === 'page-mode') {
       this.showPageModeSheet()
     } else if (row.key === 'reading-direction') {
@@ -473,53 +451,21 @@ export struct SettingsPage {
   }
 
   build() {
-    Navigation(this.settingsPathStack) {
-      Column() {
-        SecondaryListScaffold({
-          listSpace: 18,
-          horizontalPadding: 20,
-          bottomPadding: ThemeConstants.FLOAT_BAR_HEIGHT + 20,
-        }) {
-          ForEach(SETTINGS_SECTIONS, (section: SettingsSection) => {
-            ListItem() {
-              this.Section(section)
-            }
-          }, (section: SettingsSection) => section.key)
-        }
+    Column() {
+      SecondaryListScaffold({
+        listSpace: 18,
+        horizontalPadding: 20,
+        bottomPadding: ThemeConstants.FLOAT_BAR_HEIGHT + 20,
+      }) {
+        ForEach(SETTINGS_SECTIONS, (section: SettingsSection) => {
+          ListItem() {
+            this.Section(section)
+          }
+        }, (section: SettingsSection) => section.key)
       }
-      .width('100%')
-      .height('100%')
-      .backgroundColor($r('sys.color.ohos_id_color_sub_background'))
     }
     .width('100%')
     .height('100%')
-    .mode(NavigationMode.Stack)
-    .hideTitleBar(true)
-    .navDestination(this.SettingsDestination)
-  }
-
-  @Builder
-  private SettingsDestination(name: string, _param: Object) {
-    if (name === KOMGA_SERVER_ROUTE_NAME) {
-      NavDestination() {
-        KomgaServerPage()
-      }
-      .title('Komga')
-    } else if (name === OPDS_SERVER_ROUTE_NAME) {
-      NavDestination() {
-        OpdsServerPage()
-      }
-      .title('OPDS')
-    } else if (name === WEBDAV_SERVER_ROUTE_NAME) {
-      NavDestination() {
-        WebDavServerPage()
-      }
-      .title('WebDAV')
-    } else if (name === SOURCE_PACKAGE_MANAGER_ROUTE_NAME) {
-      NavDestination() {
-        SourcePackageManagerPage()
-      }
-      .title('源包管理')
-    }
+    .backgroundColor($r('sys.color.ohos_id_color_sub_background'))
   }
 }
