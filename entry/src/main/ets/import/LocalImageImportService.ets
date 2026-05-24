@@ -7,6 +7,7 @@ import {
   normalizeSortKey,
 } from '../model/ComicModels'
 import {
+  compareNaturalPath,
   getBaseName,
   isSupportedImagePath,
   sortImageEntryPaths,
@@ -20,6 +21,7 @@ export interface LocalImageImportCandidate {
   byteSize?: number
   width?: number
   height?: number
+  selectionIndex?: number
 }
 
 export interface LocalImageImportRequest {
@@ -80,17 +82,68 @@ function toPage(candidate: LocalImageImportCandidate, comicId: string, chapterId
   }
 }
 
+interface OrderedLocalImageImportCandidate {
+  candidate: LocalImageImportCandidate
+  fileName: string
+  originalIndex: number
+}
+
+function orderLocalImageCandidates(images: LocalImageImportCandidate[]): OrderedLocalImageImportCandidate[] {
+  const supportedImages: OrderedLocalImageImportCandidate[] = []
+  images.forEach((candidate: LocalImageImportCandidate, index: number) => {
+    const fileName = resolveCandidateFileName(candidate)
+    if (isSupportedImagePath(fileName)) {
+      supportedImages.push({
+        candidate,
+        fileName,
+        originalIndex: index,
+      })
+    }
+  })
+
+  const hasPickerOrder = supportedImages.some((item: OrderedLocalImageImportCandidate) => {
+    return item.candidate.selectionIndex !== undefined
+  })
+  if (hasPickerOrder) {
+    return supportedImages.sort((left: OrderedLocalImageImportCandidate, right: OrderedLocalImageImportCandidate) => {
+      const leftSelectionIndex = left.candidate.selectionIndex === undefined ? Number.MAX_SAFE_INTEGER : left.candidate.selectionIndex
+      const rightSelectionIndex = right.candidate.selectionIndex === undefined ? Number.MAX_SAFE_INTEGER : right.candidate.selectionIndex
+      if (leftSelectionIndex !== rightSelectionIndex) {
+        return leftSelectionIndex - rightSelectionIndex
+      }
+      const nameCompare = compareNaturalPath(left.fileName, right.fileName)
+      if (nameCompare !== 0) {
+        return nameCompare
+      }
+      return left.originalIndex - right.originalIndex
+    })
+  }
+
+  const sortedImageNames = sortImageEntryPaths(supportedImages.map((item: OrderedLocalImageImportCandidate) => item.fileName))
+  const sortOrderByName = new Map<string, number>()
+  sortedImageNames.forEach((fileName: string, index: number) => {
+    if (!sortOrderByName.has(fileName)) {
+      sortOrderByName.set(fileName, index)
+    }
+  })
+  return supportedImages.sort((left: OrderedLocalImageImportCandidate, right: OrderedLocalImageImportCandidate) => {
+    const leftSortOrder = sortOrderByName.get(left.fileName) ?? Number.MAX_SAFE_INTEGER
+    const rightSortOrder = sortOrderByName.get(right.fileName) ?? Number.MAX_SAFE_INTEGER
+    if (leftSortOrder !== rightSortOrder) {
+      return leftSortOrder - rightSortOrder
+    }
+    const nameCompare = compareNaturalPath(left.fileName, right.fileName)
+    if (nameCompare !== 0) {
+      return nameCompare
+    }
+    return left.originalIndex - right.originalIndex
+  })
+}
+
 export class LocalImageImportService {
   buildComicFromLocalImages(request: LocalImageImportRequest): LocalImageImportResult {
-    const imageByName = new Map<string, LocalImageImportCandidate>()
-    request.images.forEach((candidate: LocalImageImportCandidate) => {
-      const fileName = resolveCandidateFileName(candidate)
-      if (isSupportedImagePath(fileName) && !imageByName.has(fileName)) {
-        imageByName.set(fileName, candidate)
-      }
-    })
-    const sortedImageNames = sortImageEntryPaths(Array.from(imageByName.keys()))
-    if (sortedImageNames.length === 0) {
+    const orderedImages = orderLocalImageCandidates(request.images)
+    if (orderedImages.length === 0) {
       throw new Error(`Local image selection contains no supported image pages: ${request.sourcePath}`)
     }
 
@@ -98,8 +151,8 @@ export class LocalImageImportService {
     const title = request.title === undefined ? stripExtension(getBaseName(request.sourcePath)) : request.title
     const comicId = request.comicId === undefined ? createLocalImageComicId(request.sourcePath) : request.comicId
     const chapterId = `${comicId}-chapter-1`
-    const pages: Page[] = sortedImageNames.map((fileName: string, index: number) => {
-      return toPage(imageByName.get(fileName) as LocalImageImportCandidate, comicId, chapterId, index)
+    const pages: Page[] = orderedImages.map((item: OrderedLocalImageImportCandidate, index: number) => {
+      return toPage(item.candidate, comicId, chapterId, index)
     })
 
     const chapter: Chapter = {

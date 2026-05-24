@@ -507,6 +507,7 @@ export class LocalImportCoordinator {
     for (const sourceUri of supportedSourceUris) {
       const fileName = createUniqueLocalImageFileName(sourceUri, usedFileNames)
       const sandboxPath = joinImportCachePath(selection.extractionDir, fileName)
+      const selectionIndex = request.sourceUris.indexOf(sourceUri)
       this.reportDebugEvent({
         step: LOCAL_ARCHIVE_DEBUG_STEP_COPY_STARTED,
         sourceUri,
@@ -520,6 +521,7 @@ export class LocalImportCoordinator {
           sandboxPath,
           fileName,
           byteSize: stat.size,
+          selectionIndex: selectionIndex < 0 ? undefined : selectionIndex,
         })
         this.reportDebugEvent({
           step: LOCAL_ARCHIVE_DEBUG_STEP_COPY_SUCCEEDED,
@@ -550,6 +552,7 @@ export class LocalImportCoordinator {
             sourceUri,
             sandboxPath: sourceUri,
             fileName: getBaseName(sourceUri),
+            selectionIndex: request.sourceUris.indexOf(sourceUri),
           })
         }
       })
@@ -568,6 +571,7 @@ export class LocalImportCoordinator {
         title: importResult.comic.title,
         pageCount: importResult.comic.pageCount,
       })
+      console.info(`[Import] step=comic_built id=${importResult.comic.id} pages=${importResult.comic.pageCount}`)
       return {
         status: 'succeeded',
         sourceUris: selection.sourceUris,
@@ -591,6 +595,7 @@ export class LocalImportCoordinator {
       step: LOCAL_ARCHIVE_DEBUG_STEP_PICKER_STARTED,
     })
     const uris = await pickImageUris(context, maxSelectNumber)
+    console.info(`[Import] step=images_picked count=${uris.length}`)
     this.reportDebugEvent({
       step: LOCAL_ARCHIVE_DEBUG_STEP_PICKER_RETURNED,
       uriCount: uris.length,

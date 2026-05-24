@@ -37,6 +37,13 @@ export struct ImportPage {
     console.info(`[Import] step=${event.step} path=${path} ${formatLocalArchiveImportDebugEvent(event)}`)
   }
 
+  private showToast(message: string): void {
+    try {
+      this.getUIContext().getPromptAction().showToast({ message: message })
+    } catch (_err) {
+    }
+  }
+
   private async selectArchiveFromPicker(): Promise<void> {
     if (this.importing) {
       return
@@ -68,10 +75,12 @@ export struct ImportPage {
         this.feedbackText = '未选择文件。'
       } else if (failedCount === 0) {
         this.feedbackText = `已导入 ${succeededCount} 本。`
+        this.showToast(this.feedbackText)
       } else if (succeededCount === 0) {
         this.feedbackText = `无法导入文件。失败 ${failedCount} 个。`
       } else {
         this.feedbackText = `已导入 ${succeededCount} 本，失败 ${failedCount} 个。`
+        this.showToast(this.feedbackText)
       }
       console.info(`[Import] step=archive_import_finished path= succeeded=${succeededCount} failed=${failedCount}`)
     } catch (error) {
@@ -114,10 +123,12 @@ export struct ImportPage {
         this.feedbackText = '未选择文件。'
       } else if (failedCount === 0) {
         this.feedbackText = `已导入 ${succeededCount} 本。`
+        this.showToast(this.feedbackText)
       } else if (succeededCount === 0) {
         this.feedbackText = `无法导入图片。`
       } else {
         this.feedbackText = `已导入 ${succeededCount} 本，失败 ${failedCount} 个。`
+        this.showToast(this.feedbackText)
       }
       console.info(`[Import] step=image_import_finished path= succeeded=${succeededCount} failed=${failedCount}`)
     } catch (error) {
