@@ -56,18 +56,6 @@ interface SourceOperationRequest {
 }
 
 const SOURCE_OPERATION_PAGE_SIZE: number = 20
-const MOCK_SOURCE_SUMMARY: SourceRuntimeRegistryInstalledSourceSummary = {
-  sourceId: 'mock.source.browse',
-  displayName: 'Mock Source',
-  version: 'dev',
-  wasmByteCount: 0,
-  importStatus: 'staged',
-  networkEnabled: false,
-  httpEnabled: false,
-  enabled: true,
-  status: 'staged',
-  capabilities: ['search'],
-}
 
 @Concurrent
 async function runBrowseSourceOperationTask(requestJson: string, wasmBytes: Uint8Array): Promise<string> {
@@ -174,7 +162,6 @@ export class BrowseViewModel {
   loadingSearch: boolean = false
   errorMessage: string = ''
   searchQuery: string = ''
-  useMockData: boolean = false
 
   constructor(registry?: SourceRuntimeRegistry) {
     this.registry = registry ?? appSourceRuntimeRegistry
@@ -187,15 +174,10 @@ export class BrowseViewModel {
     this.errorMessage = ''
     try {
       this.sources = this.registry.listInstalledSourceSummaries()
-      this.useMockData = this.sources.length === 0
-      if (this.useMockData) {
-        this.sources = [MOCK_SOURCE_SUMMARY]
-      }
     } catch (error) {
       const e = error as Error
       this.errorMessage = e.message.length > 0 ? e.message : '无法加载源'
       this.sources = []
-      this.useMockData = false
     } finally {
       this.loadingSources = false
     }
@@ -215,14 +197,6 @@ export class BrowseViewModel {
     this.loadingBrowse = true
     this.errorMessage = ''
     try {
-      if (this.useMockData) {
-        const popular = this._mockSourceMangaList(source.sourceId, 'popular', 1)
-        const latest = this._mockSourceMangaList(source.sourceId, 'latest', 1)
-        this.popularManga = popular.manga
-        this.latestManga = latest.manga
-        this.hasMoreBrowse = popular.hasNextPage || latest.hasNextPage
-        return
-      }
       const homeArgs: SourceHomeArgs = {}
       const home = await this.runSourceOperation(source.sourceId, 'get_home', homeArgs, 1)
       this.popularManga = home.manga
@@ -248,9 +222,7 @@ export class BrowseViewModel {
     this.errorMessage = ''
     try {
       this.browsePage += 1
-      const more = this.useMockData ?
-        this._mockSourceMangaList(this.selectedSource.sourceId, 'popular', this.browsePage) :
-        await this.loadMangaList(this.selectedSource, 'popular', this.browsePage)
+      const more = await this.loadMangaList(this.selectedSource, 'popular', this.browsePage)
       this.popularManga = this.popularManga.concat(more.manga)
       this.hasMoreBrowse = more.hasNextPage
     } catch (error) {
@@ -275,9 +247,7 @@ export class BrowseViewModel {
         this.hasMoreSearch = false
         return
       }
-      const result = this.useMockData ?
-        this._mockSearchSourceMangaList(source.sourceId, normalizedQuery, 1) :
-        await this.searchSource(source, normalizedQuery, 1)
+      const result = await this.searchSource(source, normalizedQuery, 1)
       this.searchResults = result.manga
       this.hasMoreSearch = result.hasNextPage
     } catch (error) {
@@ -298,9 +268,7 @@ export class BrowseViewModel {
     this.errorMessage = ''
     try {
       this.searchPage += 1
-      const more = this.useMockData ?
-        this._mockSearchSourceMangaList(this.selectedSource.sourceId, this.searchQuery.trim(), this.searchPage) :
-        await this.searchSource(this.selectedSource, this.searchQuery.trim(), this.searchPage)
+      const more = await this.searchSource(this.selectedSource, this.searchQuery.trim(), this.searchPage)
       this.searchResults = this.searchResults.concat(more.manga)
       this.hasMoreSearch = more.hasNextPage
     } catch (error) {
@@ -412,58 +380,5 @@ export class BrowseViewModel {
       return 'EN'
     }
     return 'SRC'
-  }
-
-  _mockSourceMangaList(sourceId: string, section: BrowseSourceSection, page: number): SourceMangaList {
-    const titles = section === 'latest' ? [
-      '今日更新的书店街',
-      '星港快递员',
-      '雨夜电车',
-      '青空修复师',
-      '第七间阅览室',
-      '海风里的便签',
-    ] : [
-      '异世界书架管理员',
-      '午后三点的龙',
-      '纸月亮与灯塔',
-      '黑猫编辑部',
-      '旧城区侦探手记',
-      '银河咖啡馆',
-    ]
-    const manga: SourceManga[] = titles.map((title: string, index: number): SourceManga => {
-      const serial = (page - 1) * titles.length + index + 1
-      return {
-        id: `${section}-${serial}`,
-        sourceId,
-        title: page === 1 ? title : `${title} ${page}`,
-        author: section === 'latest' ? 'Koma Mock' : 'Source Mock',
-        description: 'Mock source manga used until runtime browse integration is enabled.',
-        status: index % 2 === 0 ? 'ongoing' : 'unknown',
-        tags: section === 'latest' ? ['最新'] : ['热门'],
-      }
-    })
-    return {
-      manga,
-      hasNextPage: page < 2,
-    }
-  }
-
-  private _mockSearchSourceMangaList(sourceId: string, query: string, page: number): SourceMangaList {
-    const base = this._mockSourceMangaList(sourceId, 'popular', page).manga
-    const manga = base.map((item: SourceManga, index: number): SourceManga => {
-      return {
-        id: `search-${page}-${index}-${query}`,
-        sourceId,
-        title: `${query} ${item.title}`,
-        author: item.author,
-        description: item.description,
-        status: item.status,
-        tags: ['搜索'],
-      }
-    })
-    return {
-      manga,
-      hasNextPage: page < 2,
-    }
   }
 }

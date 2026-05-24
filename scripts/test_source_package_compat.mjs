@@ -6,6 +6,8 @@ const root = resolve(import.meta.dirname, '..')
 const appRegistryPath = resolve(root, 'entry/src/main/ets/sourceRuntime/SourceRuntimeAppRegistry.ets')
 const importerPath = resolve(root, 'entry/src/main/ets/sourceRuntime/SourcePackageImporter.ets')
 const managerPagePath = resolve(root, 'entry/src/main/ets/pages/SourcePackageManagerPage.ets')
+const browseViewModelPath = resolve(root, 'entry/src/main/ets/viewmodel/BrowseViewModel.ets')
+const browsePagePath = resolve(root, 'entry/src/main/ets/pages/BrowsePage.ets')
 const smokePath = resolve(root, 'entry/src/main/ets/sourceRuntime/SourceRuntimeDeviceSmoke.ets')
 const abiDocPath = resolve(root, 'docs/source-runtime-abi.md')
 const localKomaFixturePath = resolve(root, 'entry/src/main/resources/rawfile/test/local_source_runtime_fixture.koma')
@@ -17,6 +19,8 @@ const externalSourcePackages = [
 const appRegistrySource = readFileSync(appRegistryPath, 'utf8')
 const importerSource = readFileSync(importerPath, 'utf8')
 const managerPageSource = readFileSync(managerPagePath, 'utf8')
+const browseViewModelSource = readFileSync(browseViewModelPath, 'utf8')
+const browsePageSource = readFileSync(browsePagePath, 'utf8')
 const smokeSource = readFileSync(smokePath, 'utf8')
 const abiDocSource = readFileSync(abiDocPath, 'utf8')
 
@@ -87,6 +91,21 @@ assert.match(importerSource, /validateArchiveEntries[\s\S]*seen\.has\(name\)[\s\
 assert.match(importerSource, /checksum_mismatch/, 'checksum mismatch rejection must stay wired')
 assert.match(importerSource, /network_not_allowed/, 'network permission rejection must stay wired')
 assert.match(managerPageSource, /\.koma \/ \.koma-source\.zip \/ \.zip/, 'manager UI copy must mention .koma / .koma-source.zip / .zip')
+assert.match(
+  browseViewModelSource,
+  /loadInstalledSources\(\): void \{[\s\S]*this\.sources = this\.registry\.listInstalledSourceSummaries\(\)[\s\S]*\}/,
+  'Browse loadInstalledSources must use the registry inventory directly',
+)
+assert.doesNotMatch(
+  browseViewModelSource,
+  /MOCK_SOURCE_SUMMARY|Mock Source|mock\.source\.browse|useMockData|_mockSourceMangaList|_mockSearchSourceMangaList|this\.sources\s*=\s*\[[^\]\n]+/,
+  'Browse production path must not inject a mock source when the registry is empty',
+)
+assert.match(
+  browsePageSource,
+  /Text\('未安装源包'\)[\s\S]*Text\('从设置导入 \.koma 源包'\)/,
+  'empty Browse source inventory must guide users to import a .koma source package',
+)
 assert.match(smokeSource, /local_source_runtime_fixture\.koma/, 'device smoke must cover a .koma source archive')
 assert.match(abiDocSource, /`\.koma`、`\.koma-source`、`\.koma-source\.zip` 和 `\.zip`/, 'source ABI docs must document supported import suffixes')
 

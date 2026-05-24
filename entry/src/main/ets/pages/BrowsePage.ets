@@ -74,11 +74,11 @@ export struct BrowsePage {
   @Builder
   private EmptySources() {
     Column({ space: 10 }) {
-      Text('未安装任何源')
+      Text('未安装源包')
         .fontSize(20)
         .fontWeight(FontWeight.Medium)
         .fontColor($r('app.color.koma_text_primary'))
-      Text('导入本地源包后，可以在这里浏览源内漫画。')
+      Text('从设置导入 .koma 源包')
         .fontSize(14)
         .lineHeight(22)
         .fontColor($r('app.color.koma_text_secondary'))
