@@ -5,15 +5,18 @@ import {
   LibraryItem,
   ReadingProgress,
   comicToLibraryItem,
+  normalizeCategoryIds,
 } from './ComicModels'
 
 export type LibrarySortBy = 'lastRead' | 'added' | 'title' | 'source'
 export type LibraryReadStateFilter = 'all' | 'unread' | 'reading' | 'completed'
+export type LibraryCategoryFilter = 'all' | 'uncategorized' | string
 
 export interface LibraryListOptions {
   sortBy?: LibrarySortBy
   filterSource?: ComicSourceKind[]
   filterReadState?: LibraryReadStateFilter
+  filterCategoryId?: LibraryCategoryFilter
 }
 
 export interface LibraryStore {
@@ -55,10 +58,21 @@ export class InMemoryLibraryStore implements LibraryStore {
   listLibraryItems(progressByComicId?: Map<ComicId, ReadingProgress>, options?: LibraryListOptions): LibraryItem[] {
     const sourceFilters = options?.filterSource
     const readStateFilter = options?.filterReadState ?? 'all'
+    const categoryFilter = options?.filterCategoryId ?? 'all'
     const sortBy = options?.sortBy ?? 'lastRead'
     const rows: LibraryItem[] = Array.from(this.comics.values())
       .filter((comic: Comic): boolean => {
         return sourceFilters === undefined || sourceFilters.includes(comic.sourceKind)
+      })
+      .filter((comic: Comic): boolean => {
+        if (categoryFilter === 'all') {
+          return true
+        }
+        const categoryIds = normalizeCategoryIds(comic.categoryIds)
+        if (categoryFilter === 'uncategorized') {
+          return categoryIds.length === 0
+        }
+        return categoryIds.includes(categoryFilter)
       })
       .map((comic: Comic): LibraryItem => {
         const progress = progressByComicId === undefined ? undefined : progressByComicId.get(comic.id)

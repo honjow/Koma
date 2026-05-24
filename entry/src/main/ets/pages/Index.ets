@@ -32,11 +32,12 @@ import {
   createMockLibraryPresentationMap,
   createSeededLibraryStore,
 } from '../model/MockLibraryData'
-import { Comic, ComicId } from '../model/ComicModels'
+import { Comic, ComicId, withComicCategoryIds } from '../model/ComicModels'
 import { LibraryStore } from '../model/LibraryStore'
 import {
   AppFilesLibraryStorePersistenceAdapter,
   LibraryStorePersistenceService,
+  assignComicCategoriesAndPersistLibraryStore,
   isRemovableLocalComic,
   removeComicAndPersistLibraryStore,
   upsertComicAndPersistLibraryStore,
@@ -167,6 +168,36 @@ struct Index {
     } catch (error) {
       const e = error as Error
       console.error('persist removed comic failed: ' + e.message)
+      throw e
+    }
+  }
+
+  private handleAssignCategoriesRequested(comicIds: ComicId[], categoryIds?: string[]): boolean {
+    const persistenceService = this.ensureLibraryPersistenceService()
+    if (persistenceService === undefined) {
+      comicIds.forEach((comicId: ComicId) => {
+        const comic = this.libraryStore.getComic(comicId)
+        if (comic !== undefined) {
+          this.libraryStore.upsertComic(withComicCategoryIds(comic, categoryIds))
+        }
+      })
+      this.refreshLibrarySnapshot()
+      return comicIds.length > 0
+    }
+    try {
+      const changedCount = assignComicCategoriesAndPersistLibraryStore(
+        this.libraryStore,
+        persistenceService,
+        comicIds,
+        categoryIds
+      )
+      if (changedCount > 0) {
+        this.refreshLibrarySnapshot()
+      }
+      return changedCount > 0
+    } catch (error) {
+      const e = error as Error
+      console.error('persist category assignment failed: ' + e.message)
       throw e
     }
   }
@@ -314,6 +345,9 @@ struct Index {
             },
             onRemoveComicRequested: (comicId: ComicId) => {
               return this.handleRemoveComicRequested(comicId)
+            },
+            onAssignCategoriesRequested: (comicIds: ComicId[], categoryIds?: string[]) => {
+              return this.handleAssignCategoriesRequested(comicIds, categoryIds)
             }
           })
         }.tabBar(this.TabIcon(TabLabel.LIBRARY, TabIndex.LIBRARY))

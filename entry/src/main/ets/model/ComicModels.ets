@@ -52,6 +52,7 @@ export interface Comic {
   title: string
   subtitle?: string
   author?: string
+  categoryIds?: string[]
   sourceKind: ComicSourceKind
   sourcePath: string
   sourceRuntimeId?: string
@@ -67,6 +68,19 @@ export interface Comic {
   updatedAt: number
   lastImportedAt: number
 }
+
+export const LIBRARY_CATEGORY_FAVORITE_ID: string = 'favorite'
+export const LIBRARY_CATEGORY_READ_LATER_ID: string = 'read_later'
+
+export interface LibraryCategoryDefinition {
+  id: string
+  name: string
+}
+
+export const BUILT_IN_LIBRARY_CATEGORIES: LibraryCategoryDefinition[] = [
+  { id: LIBRARY_CATEGORY_FAVORITE_ID, name: '收藏' },
+  { id: LIBRARY_CATEGORY_READ_LATER_ID, name: '稍后阅读' },
+]
 
 export interface ReadingProgress {
   comicId: ComicId
@@ -96,6 +110,62 @@ export interface LibraryItem {
 
 export function normalizeSortKey(value: string): string {
   return value.trim().toLocaleLowerCase()
+}
+
+export function normalizeCategoryIds(categoryIds?: string[]): string[] {
+  if (categoryIds === undefined) {
+    return []
+  }
+  const nextIds: string[] = []
+  categoryIds.forEach((categoryId: string) => {
+    const normalized = categoryId.trim()
+    if (normalized.length > 0 && !nextIds.includes(normalized)) {
+      nextIds.push(normalized)
+    }
+  })
+  return nextIds
+}
+
+export function withComicCategoryIds(comic: Comic, categoryIds?: string[]): Comic {
+  const normalizedCategoryIds = normalizeCategoryIds(categoryIds)
+  const nextComic: Comic = {
+    id: comic.id,
+    title: comic.title,
+    sourceKind: comic.sourceKind,
+    sourcePath: comic.sourcePath,
+    sortTitle: comic.sortTitle,
+    preferredDirection: comic.preferredDirection,
+    chapters: comic.chapters,
+    chapterCount: comic.chapterCount,
+    pageCount: comic.pageCount,
+    createdAt: comic.createdAt,
+    updatedAt: Date.now(),
+    lastImportedAt: comic.lastImportedAt,
+  }
+  if (comic.subtitle !== undefined) {
+    nextComic.subtitle = comic.subtitle
+  }
+  if (comic.author !== undefined) {
+    nextComic.author = comic.author
+  }
+  if (comic.sourceRuntimeId !== undefined) {
+    nextComic.sourceRuntimeId = comic.sourceRuntimeId
+  }
+  if (comic.remoteServerId !== undefined) {
+    nextComic.remoteServerId = comic.remoteServerId
+  }
+  if (comic.remoteResourceId !== undefined) {
+    nextComic.remoteResourceId = comic.remoteResourceId
+  }
+  if (comic.coverUri !== undefined) {
+    nextComic.coverUri = comic.coverUri
+  }
+  if (normalizedCategoryIds.length > 0) {
+    nextComic.categoryIds = normalizedCategoryIds
+  } else {
+    nextComic.categoryIds = undefined
+  }
+  return nextComic
 }
 
 export function clampPageIndex(pageIndex: number, totalPages: number): number {
@@ -173,7 +243,14 @@ export function serializeComic(comic: Comic): string {
 }
 
 export function deserializeComic(payload: string): Comic {
-  return JSON.parse(payload) as Comic
+  const comic = JSON.parse(payload) as Comic
+  const categoryIds = normalizeCategoryIds(comic.categoryIds)
+  if (categoryIds.length > 0) {
+    comic.categoryIds = categoryIds
+  } else {
+    comic.categoryIds = undefined
+  }
+  return comic
 }
 
 export function serializeReadingProgress(progress: ReadingProgress): string {

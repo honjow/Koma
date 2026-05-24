@@ -128,6 +128,32 @@ function updateReadingProgress(previous, pageIndex, pageId, totalPages = previou
   }
 }
 
+function normalizeCategoryIds(categoryIds) {
+  if (categoryIds === undefined) return []
+  const nextIds = []
+  for (const categoryId of categoryIds) {
+    const normalized = categoryId.trim()
+    if (normalized.length > 0 && !nextIds.includes(normalized)) {
+      nextIds.push(normalized)
+    }
+  }
+  return nextIds
+}
+
+function withComicCategoryIds(comic, categoryIds) {
+  const normalizedCategoryIds = normalizeCategoryIds(categoryIds)
+  const nextComic = {
+    ...comic,
+    updatedAt: Date.now(),
+  }
+  if (normalizedCategoryIds.length > 0) {
+    nextComic.categoryIds = normalizedCategoryIds
+  } else {
+    delete nextComic.categoryIds
+  }
+  return nextComic
+}
+
 function buildSourceDetailRequestJson(sourceId, operation, args, hostHints, sourceSettings = {}) {
   return JSON.stringify({
     type: 'request',
@@ -214,6 +240,8 @@ for (const symbol of ['Comic', 'Chapter', 'Page', 'ReadingProgress', 'LibraryIte
 assertExport(modelSource, 'serializeComic')
 assertExport(modelSource, 'deserializeComic')
 assertExport(modelSource, 'updateReadingProgress')
+assertExport(modelSource, 'normalizeCategoryIds')
+assertExport(modelSource, 'withComicCategoryIds')
 assertExport(libraryStoreSource, 'LibraryStore')
 assertExport(libraryStoreSource, 'InMemoryLibraryStore')
 assertExport(progressStoreSource, 'ReadingProgressStore')
@@ -250,6 +278,7 @@ assertExport(libraryPersistenceSource, 'LibraryStorePersistenceAdapter')
 assertExport(libraryPersistenceSource, 'AppFilesLibraryStorePersistenceAdapter')
 assertExport(libraryPersistenceSource, 'LibraryStorePersistenceService')
 assertExport(libraryPersistenceSource, 'upsertComicAndPersistLibraryStore')
+assertExport(libraryPersistenceSource, 'assignComicCategoriesAndPersistLibraryStore')
 assertExport(libraryPersistenceSource, 'isRemovableLocalComic')
 assertExport(libraryPersistenceSource, 'removeComicAndPersistLibraryStore')
 
@@ -356,6 +385,31 @@ assert.match(
   libraryPersistenceSource,
   /export interface PersistedLibraryStoreDocument\s*{[^}]*\bcomics:\s*PersistedComic\[\]/s,
   'PersistedLibraryStoreDocument.comics must be required in production source',
+)
+assert.match(
+  modelSource,
+  /categoryIds\?:\s*string\[\][\s\S]*export function normalizeCategoryIds/,
+  'Comic model must expose optional categoryIds with a normalizer for backward-compatible uncategorized rows',
+)
+assert.match(
+  libraryStoreSource,
+  /filterCategoryId\?:\s*LibraryCategoryFilter[\s\S]*categoryFilter === 'uncategorized'[\s\S]*categoryIds\.includes\(categoryFilter\)/,
+  'LibraryListOptions must support all, uncategorized, and concrete category filtering',
+)
+assert.match(
+  libraryPageSource,
+  /private categoryLabel\(\): string \{[\s\S]*'全部分类'[\s\S]*CategoryMenu[\s\S]*MenuItem\(\{ content: '未分类' \}\)[\s\S]*MenuItem\(\{ content: '稍后阅读' \}\)[\s\S]*MenuItem\(\{ content: '收藏' \}\)/,
+  'LibraryPage must expose user-visible category filter labels',
+)
+assert.match(
+  libraryPageSource,
+  /Button\('稍后阅读'\)[\s\S]*assignSelectedCategory\(\[LIBRARY_CATEGORY_READ_LATER_ID\]\)[\s\S]*Button\('收藏'\)[\s\S]*assignSelectedCategory\(\[LIBRARY_CATEGORY_FAVORITE_ID\]\)[\s\S]*Button\('清除分类'\)[\s\S]*assignSelectedCategory\(undefined\)/,
+  'LibraryPage selection mode must expose bulk category assignment and clearing actions',
+)
+assert.match(
+  indexSource,
+  /onAssignCategoriesRequested:\s*\(comicIds: ComicId\[\], categoryIds\?: string\[\]\) => \{[\s\S]*return this\.handleAssignCategoriesRequested\(comicIds, categoryIds\)/,
+  'Index must wire LibraryPage category assignment into the persistent library store',
 )
 assert.match(
   libraryPersistenceSource,
@@ -1020,6 +1074,8 @@ function persistComic(comic) {
   }
   if (comic.subtitle !== undefined) row.subtitle = comic.subtitle
   if (comic.author !== undefined) row.author = comic.author
+  const categoryIds = normalizeCategoryIds(comic.categoryIds)
+  if (categoryIds.length > 0) row.categoryIds = categoryIds
   if (comic.coverUri !== undefined) row.coverUri = comic.coverUri
   return row
 }
@@ -1042,6 +1098,8 @@ function hydrateComic(row) {
   }
   if (row.subtitle !== undefined) comic.subtitle = row.subtitle
   if (row.author !== undefined) comic.author = row.author
+  const categoryIds = normalizeCategoryIds(row.categoryIds)
+  if (categoryIds.length > 0) comic.categoryIds = categoryIds
   if (row.coverUri !== undefined) comic.coverUri = row.coverUri
   return comic
 }
@@ -1075,6 +1133,14 @@ function assertOptionalStringField(value, label) {
   if (value !== undefined && typeof value !== 'string') {
     throw new Error(`Invalid library store persistence ${label}: expected string`)
   }
+}
+
+function assertOptionalStringArrayField(value, label) {
+  if (value === undefined) return
+  if (!Array.isArray(value)) {
+    throw new Error(`Invalid library store persistence ${label}: expected string array`)
+  }
+  value.forEach((item, index) => assertStringField(item, `${label}.${index}`))
 }
 
 function assertNumberField(value, label) {
@@ -1137,6 +1203,7 @@ function assertValidPersistedComic(row) {
   assertStringField(row.title, 'comic.title')
   assertOptionalStringField(row.subtitle, 'comic.subtitle')
   assertOptionalStringField(row.author, 'comic.author')
+  assertOptionalStringArrayField(row.categoryIds, 'comic.categoryIds')
   assertComicSourceKind(row.sourceKind, 'comic.sourceKind')
   assertStringField(row.sourcePath, 'comic.sourcePath')
   assertOptionalStringField(row.coverUri, 'comic.coverUri')
@@ -1238,6 +1305,36 @@ function removeComicAndPersistLibraryStore(store, persistenceService, comicId) {
     hydrateLibraryStoreFromJson(store, previousPayload)
     throw error
   }
+}
+
+function assignComicCategoriesAndPersistLibraryStore(store, persistenceService, comicIds, categoryIds) {
+  const normalizedCategoryIds = normalizeCategoryIds(categoryIds)
+  const previousPayload = serializeLibraryStore(store)
+  let changedCount = 0
+  comicIds.forEach((comicId) => {
+    const comic = store.getComic(comicId)
+    if (comic !== undefined) {
+      store.upsertComic(withComicCategoryIds(comic, normalizedCategoryIds))
+      changedCount += 1
+    }
+  })
+  if (changedCount === 0) return 0
+  try {
+    persistenceService.persist()
+    return changedCount
+  } catch (error) {
+    hydrateLibraryStoreFromJson(store, previousPayload)
+    throw error
+  }
+}
+
+function listLibraryItemsByCategory(store, filterCategoryId = 'all') {
+  return store.listComics().filter((comic) => {
+    const categoryIds = normalizeCategoryIds(comic.categoryIds)
+    if (filterCategoryId === 'all') return true
+    if (filterCategoryId === 'uncategorized') return categoryIds.length === 0
+    return categoryIds.includes(filterCategoryId)
+  })
 }
 
 function createPresentationMap() {
@@ -1387,6 +1484,7 @@ const persistedImported = persistedDocument.comics.find((item) => item.id === 'i
 assert.equal(persistedImported.title, 'Imported Volume')
 assert.equal(persistedImported.pageCount, 3)
 assert.equal(persistedImported.coverUri, '/library/Imported Volume.cbz#001.jpg')
+assert.equal(persistedImported.categoryIds, undefined, 'old imported comics without categoryIds must persist as uncategorized')
 assert.deepEqual(
   persistedImported.chapters[0].pages.map((page) => page.uri),
   [
@@ -1433,6 +1531,7 @@ hydrateLibraryStoreFromJson(optionalStore, optionalPayload)
 const optionalComic = optionalStore.getComic('imported-01')
 assert.equal(optionalStore.listComics().length, 1, 'hydrating a smaller document must clear stale comics')
 assert.equal(optionalComic.coverUri, undefined, 'missing optional coverUri must be accepted')
+assert.equal(optionalComic.categoryIds, undefined, 'missing optional categoryIds must be accepted as uncategorized')
 assert.equal(optionalComic.chapters[0].pages[0].width, undefined, 'missing optional page dimensions must be accepted')
 assert.equal(optionalComic.extraFutureField, undefined, 'unknown comic fields must not hydrate into the runtime model')
 assert.equal(optionalComic.chapters[0].extraFutureChapterField, undefined, 'unknown chapter fields must not hydrate into the runtime model')
@@ -1594,6 +1693,31 @@ assert.deepEqual(
   'save failure during import persistence must rollback the in-memory upsert',
 )
 assert.equal(throwingSaveStore.getComic('imported-01'), undefined, 'failed import must not remain visible in the live shelf store')
+
+const categoryStore = createSeededStore()
+categoryStore.upsertComic(importedComic)
+const categoryAdapter = new MemoryLibraryStorePersistenceAdapter(undefined)
+const categoryService = new LibraryStorePersistenceService(categoryStore, categoryAdapter)
+assert.deepEqual(normalizeCategoryIds([' read_later ', 'favorite', 'read_later', '']), ['read_later', 'favorite'], 'category ids must be trimmed and deduplicated')
+assert.equal(assignComicCategoriesAndPersistLibraryStore(categoryStore, categoryService, ['imported-01'], ['read_later']), 1, 'bulk category assignment should update existing comics')
+assert.deepEqual(categoryStore.getComic('imported-01').categoryIds, ['read_later'], 'bulk assignment must update the live store immediately')
+assert.equal(listLibraryItemsByCategory(categoryStore, 'read_later').some((item) => item.id === 'imported-01'), true, 'category filter must include assigned comics')
+assert.equal(listLibraryItemsByCategory(categoryStore, 'uncategorized').some((item) => item.id === 'imported-01'), false, 'uncategorized filter must exclude assigned comics')
+assert.deepEqual(JSON.parse(categoryAdapter.savedPayloads.at(-1)).comics.find((item) => item.id === 'imported-01').categoryIds, ['read_later'], 'category assignment must persist categoryIds')
+assert.equal(assignComicCategoriesAndPersistLibraryStore(categoryStore, categoryService, ['imported-01'], undefined), 1, 'clear category assignment should update existing comics')
+assert.equal(categoryStore.getComic('imported-01').categoryIds, undefined, 'clearing categories must return the comic to uncategorized')
+assert.equal(listLibraryItemsByCategory(categoryStore, 'uncategorized').some((item) => item.id === 'imported-01'), true, 'uncategorized filter must include cleared comics')
+
+const throwingCategoryStore = createSeededStore()
+throwingCategoryStore.upsertComic(importedComic)
+const throwingCategoryAdapter = new MemoryLibraryStorePersistenceAdapter(undefined, new Error('disk full'))
+const throwingCategoryService = new LibraryStorePersistenceService(throwingCategoryStore, throwingCategoryAdapter)
+assert.throws(
+  () => assignComicCategoriesAndPersistLibraryStore(throwingCategoryStore, throwingCategoryService, ['imported-01'], ['favorite']),
+  /disk full/,
+  'save failure during category assignment must be visible to the caller',
+)
+assert.equal(throwingCategoryStore.getComic('imported-01').categoryIds, undefined, 'failed category assignment must rollback the live store')
 
 assert.equal(isRemovableLocalComic(importedComic), true, 'imported local archive comics should be removable')
 assert.equal(isRemovableLocalComic(seededStore.getComic('local-01')), false, 'seed/demo comics must not be removable')

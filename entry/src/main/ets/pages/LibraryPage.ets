@@ -16,8 +16,11 @@ import {
   ComicSourceKind,
   LibraryItem,
   ReadingProgress,
+  LIBRARY_CATEGORY_FAVORITE_ID,
+  LIBRARY_CATEGORY_READ_LATER_ID,
 } from '../model/ComicModels'
 import {
+  LibraryCategoryFilter,
   LibraryListOptions,
   LibraryReadStateFilter,
   LibrarySortBy,
@@ -109,12 +112,15 @@ export struct LibraryPage {
   @State private sortBy: LibrarySortBy = 'lastRead'
   @State private filterSource: LibrarySourceFilter = 'all'
   @State private filterReadState: LibraryReadStateFilter = 'all'
+  @State private filterCategory: LibraryCategoryFilter = 'all'
   @StorageProp(StorageKeys.REMOTE_PROGRESS_SYNC_REV) @Watch('onRemoteProgressSyncRevChanged') remoteProgressSyncRev: number = 0
   presentationByComicId: LibraryPresentationByComicId = createMockLibraryPresentationMap()
   sessionStore: ReaderSessionStore = new InMemoryReaderSessionStore()
   onOpenReader: (comicId: ComicId) => void = (_comicId: ComicId) => {}
   onImportRequested: () => void = () => {}
   onRemoveComicRequested: (comicId: ComicId) => boolean = (_comicId: ComicId) => false
+  onAssignCategoriesRequested: (comicIds: ComicId[], categoryIds?: string[]) => boolean =
+    (_comicIds: ComicId[], _categoryIds?: string[]) => false
   private longPressTimer: number = 0
   private longPressComicId: ComicId = ''
 
@@ -177,6 +183,7 @@ export struct LibraryPage {
       sortBy: this.sortBy,
       filterSource: this.sourceKindsForFilter(),
       filterReadState: this.filterReadState,
+      filterCategoryId: this.filterCategory,
     }
   }
 
@@ -206,9 +213,10 @@ export struct LibraryPage {
       this.sortBy = preferencesValue.sortBy
       this.filterSource = preferencesValue.source
       this.filterReadState = preferencesValue.readState
+      this.filterCategory = preferencesValue.category
       this.refreshDisplayedSnapshotFromStore()
       console.info(
-        `[Library] step=filter_restored sortBy=${this.sortBy} source=${this.filterSource} readState=${this.filterReadState}`
+        `[Library] step=filter_restored sortBy=${this.sortBy} source=${this.filterSource} readState=${this.filterReadState} category=${this.filterCategory}`
       )
     } catch (error) {
       const e = error as Error
@@ -223,6 +231,7 @@ export struct LibraryPage {
         sortBy: this.sortBy,
         source: this.filterSource,
         readState: this.filterReadState,
+        category: this.filterCategory,
       }
       void new LibraryFilterStore(context).save(preferencesValue)
     } catch (error) {
@@ -259,6 +268,16 @@ export struct LibraryPage {
     this.refreshDisplayedSnapshotFromStore()
     this.saveFilterPreferences()
     console.info(`[Library] step=filter_changed source=${this.filterSource} readState=${readState}`)
+  }
+
+  private setCategoryFilter(category: LibraryCategoryFilter): void {
+    if (this.filterCategory === category) {
+      return
+    }
+    this.filterCategory = category
+    this.refreshDisplayedSnapshotFromStore()
+    this.saveFilterPreferences()
+    console.info(`[Library] step=filter_changed category=${category}`)
   }
 
   private sortLabel(): string {
@@ -304,6 +323,19 @@ export struct LibraryPage {
       return '已完成'
     }
     return '全部状态'
+  }
+
+  private categoryLabel(): string {
+    if (this.filterCategory === 'uncategorized') {
+      return '未分类'
+    }
+    if (this.filterCategory === LIBRARY_CATEGORY_READ_LATER_ID) {
+      return '稍后阅读'
+    }
+    if (this.filterCategory === LIBRARY_CATEGORY_FAVORITE_ID) {
+      return '收藏'
+    }
+    return '全部分类'
   }
 
   private viewModel(): LibraryViewModel {
@@ -468,6 +500,17 @@ export struct LibraryPage {
     }
   }
 
+  private assignSelectedCategory(categoryIds?: string[]): void {
+    const comicIds = Array.from(this.selectedIds)
+    if (comicIds.length === 0) {
+      return
+    }
+    if (this.onAssignCategoriesRequested(comicIds, categoryIds)) {
+      this.exitSelectionMode()
+      this.refreshDisplayedSnapshotFromStore()
+    }
+  }
+
   private showBatchRemoveConfirmation(): void {
     const count = this.selectedCount()
     if (count === 0) {
@@ -603,6 +646,29 @@ export struct LibraryPage {
   }
 
   @Builder
+  private CategoryMenu() {
+    Menu() {
+      MenuItem({ content: '全部' })
+        .onClick(() => {
+          this.setCategoryFilter('all')
+        })
+      MenuItem({ content: '未分类' })
+        .onClick(() => {
+          this.setCategoryFilter('uncategorized')
+        })
+      MenuItem({ content: '稍后阅读' })
+        .onClick(() => {
+          this.setCategoryFilter(LIBRARY_CATEGORY_READ_LATER_ID)
+        })
+      MenuItem({ content: '收藏' })
+        .onClick(() => {
+          this.setCategoryFilter(LIBRARY_CATEGORY_FAVORITE_ID)
+        })
+    }
+  }
+
+
+  @Builder
   private SortFilterBar() {
     Row({ space: 8 }) {
       Button(`排序 ${this.sortLabel()} ▾`)
@@ -629,6 +695,14 @@ export struct LibraryPage {
         .fontColor(this.filterReadState !== 'all' ? Color.White : $r('app.color.koma_text_primary'))
         .backgroundColor(this.filterReadState !== 'all' ? $r('app.color.koma_accent') : $r('app.color.koma_card'))
         .bindMenu(this.ReadStateMenu())
+      Button(`${this.categoryLabel()} ▾`)
+        .height(34)
+        .padding({ left: 12, right: 12 })
+        .borderRadius(8)
+        .fontSize(13)
+        .fontColor(this.filterCategory !== 'all' ? Color.White : $r('app.color.koma_text_primary'))
+        .backgroundColor(this.filterCategory !== 'all' ? $r('app.color.koma_accent') : $r('app.color.koma_card'))
+        .bindMenu(this.CategoryMenu())
     }
     .width('100%')
   }
@@ -711,6 +785,42 @@ export struct LibraryPage {
         .backgroundColor('#0F000000')
         .onClick(() => {
           this.exitSelectionMode()
+        })
+
+      Button('稍后阅读')
+        .height(36)
+        .padding({ left: 12, right: 12 })
+        .borderRadius(8)
+        .fontSize(14)
+        .fontColor(Color.White)
+        .backgroundColor($r('app.color.koma_accent'))
+        .enabled(this.selectedCount() > 0)
+        .onClick(() => {
+          this.assignSelectedCategory([LIBRARY_CATEGORY_READ_LATER_ID])
+        })
+
+      Button('收藏')
+        .height(36)
+        .padding({ left: 12, right: 12 })
+        .borderRadius(8)
+        .fontSize(14)
+        .fontColor(Color.White)
+        .backgroundColor($r('app.color.koma_accent'))
+        .enabled(this.selectedCount() > 0)
+        .onClick(() => {
+          this.assignSelectedCategory([LIBRARY_CATEGORY_FAVORITE_ID])
+        })
+
+      Button('清除分类')
+        .height(36)
+        .padding({ left: 12, right: 12 })
+        .borderRadius(8)
+        .fontSize(14)
+        .fontColor($r('app.color.koma_text_primary'))
+        .backgroundColor('#0F000000')
+        .enabled(this.selectedCount() > 0)
+        .onClick(() => {
+          this.assignSelectedCategory(undefined)
         })
 
       Button('删除')

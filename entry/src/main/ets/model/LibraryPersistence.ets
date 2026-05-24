@@ -5,6 +5,8 @@ import {
   ComicSourceKind,
   Page,
   ReadingDirection,
+  normalizeCategoryIds,
+  withComicCategoryIds,
 } from './ComicModels'
 import { fileIo as fs } from '@kit.CoreFileKit'
 import { LibraryStore } from './LibraryStore'
@@ -22,6 +24,7 @@ export interface PersistedComic {
   title: string
   subtitle?: string
   author?: string
+  categoryIds?: string[]
   sourceKind: ComicSourceKind
   sourcePath: string
   sourceRuntimeId?: string
@@ -162,6 +165,10 @@ export function persistComic(comic: Comic): PersistedComic {
   if (comic.author !== undefined) {
     row.author = comic.author
   }
+  const categoryIds = normalizeCategoryIds(comic.categoryIds)
+  if (categoryIds.length > 0) {
+    row.categoryIds = categoryIds
+  }
   if (comic.sourceRuntimeId !== undefined) {
     row.sourceRuntimeId = comic.sourceRuntimeId
   }
@@ -199,6 +206,10 @@ export function hydrateComic(row: PersistedComic): Comic {
   }
   if (row.author !== undefined) {
     comic.author = row.author
+  }
+  const categoryIds = normalizeCategoryIds(row.categoryIds)
+  if (categoryIds.length > 0) {
+    comic.categoryIds = categoryIds
   }
   if (row.sourceRuntimeId !== undefined) {
     comic.sourceRuntimeId = row.sourceRuntimeId
@@ -248,6 +259,18 @@ function assertOptionalStringField(value: string | undefined, label: string): vo
   if (value !== undefined && typeof value !== 'string') {
     throw new Error(`Invalid library store persistence ${label}: expected string`)
   }
+}
+
+function assertOptionalStringArrayField(value: string[] | undefined, label: string): void {
+  if (value === undefined) {
+    return
+  }
+  if (!Array.isArray(value)) {
+    throw new Error(`Invalid library store persistence ${label}: expected string array`)
+  }
+  value.forEach((item: string, index: number) => {
+    assertStringField(item, `${label}.${index}`)
+  })
 }
 
 function assertNumberField(value: number | undefined, label: string): void {
@@ -321,6 +344,7 @@ function assertValidPersistedComic(row: PersistedComic): void {
   assertStringField(row.title, 'comic.title')
   assertOptionalStringField(row.subtitle, 'comic.subtitle')
   assertOptionalStringField(row.author, 'comic.author')
+  assertOptionalStringArrayField(row.categoryIds, 'comic.categoryIds')
   assertComicSourceKind(row.sourceKind, 'comic.sourceKind')
   assertStringField(row.sourcePath, 'comic.sourcePath')
   assertOptionalStringField(row.sourceRuntimeId, 'comic.sourceRuntimeId')
@@ -439,6 +463,34 @@ export function upsertComicAndPersistLibraryStore(
   libraryStore.addComic(comic)
   try {
     persistenceService.persist()
+  } catch (error) {
+    hydrateLibraryStoreFromJson(libraryStore, previousPayload)
+    throw error as Error
+  }
+}
+
+export function assignComicCategoriesAndPersistLibraryStore(
+  libraryStore: LibraryStore,
+  persistenceService: LibraryStorePersistenceService,
+  comicIds: ComicId[],
+  categoryIds?: string[]
+): number {
+  const normalizedCategoryIds = normalizeCategoryIds(categoryIds)
+  const previousPayload = serializeLibraryStore(libraryStore)
+  let changedCount = 0
+  comicIds.forEach((comicId: ComicId) => {
+    const comic = libraryStore.getComic(comicId)
+    if (comic !== undefined) {
+      libraryStore.upsertComic(withComicCategoryIds(comic, normalizedCategoryIds))
+      changedCount += 1
+    }
+  })
+  if (changedCount === 0) {
+    return 0
+  }
+  try {
+    persistenceService.persist()
+    return changedCount
   } catch (error) {
     hydrateLibraryStoreFromJson(libraryStore, previousPayload)
     throw error as Error

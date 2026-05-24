@@ -3,6 +3,7 @@ import { preferences } from '@kit.ArkData'
 import {
   LibraryReadStateFilter,
   LibrarySortBy,
+  LibraryCategoryFilter,
 } from './LibraryStore'
 
 export type LibrarySourceFilter = 'all' | 'local' | 'komga' | 'opds' | 'webdav' | 'wasm'
@@ -11,17 +12,20 @@ export interface LibraryFilterPreferences {
   sortBy: LibrarySortBy
   source: LibrarySourceFilter
   readState: LibraryReadStateFilter
+  category: LibraryCategoryFilter
 }
 
 const LIBRARY_FILTER_STORE_NAME: string = 'koma_library_filter_preferences'
 const LIBRARY_SORT_KEY: string = 'library.sort'
 const LIBRARY_FILTER_SOURCE_KEY: string = 'library.filter.source'
 const LIBRARY_FILTER_READ_STATE_KEY: string = 'library.filter.readState'
+const LIBRARY_FILTER_CATEGORY_KEY: string = 'library.filter.category'
 
 const DEFAULT_LIBRARY_FILTER_PREFERENCES: LibraryFilterPreferences = {
   sortBy: 'lastRead',
   source: 'all',
   readState: 'all',
+  category: 'all',
 }
 
 function normalizeSortBy(value: string): LibrarySortBy {
@@ -45,6 +49,13 @@ function normalizeReadState(value: string): LibraryReadStateFilter {
   return 'all'
 }
 
+function normalizeCategory(value: string): LibraryCategoryFilter {
+  if (value === 'uncategorized' || value === 'favorite' || value === 'read_later') {
+    return value
+  }
+  return 'all'
+}
+
 export class LibraryFilterStore {
   private context: common.UIAbilityContext
 
@@ -57,10 +68,12 @@ export class LibraryFilterStore {
     const sortBy = await store.get(LIBRARY_SORT_KEY, DEFAULT_LIBRARY_FILTER_PREFERENCES.sortBy) as string
     const source = await store.get(LIBRARY_FILTER_SOURCE_KEY, DEFAULT_LIBRARY_FILTER_PREFERENCES.source) as string
     const readState = await store.get(LIBRARY_FILTER_READ_STATE_KEY, DEFAULT_LIBRARY_FILTER_PREFERENCES.readState) as string
+    const category = await store.get(LIBRARY_FILTER_CATEGORY_KEY, DEFAULT_LIBRARY_FILTER_PREFERENCES.category) as string
     return {
       sortBy: normalizeSortBy(sortBy),
       source: normalizeSource(source),
       readState: normalizeReadState(readState),
+      category: normalizeCategory(category),
     }
   }
 
@@ -69,6 +82,7 @@ export class LibraryFilterStore {
     await store.put(LIBRARY_SORT_KEY, preferencesValue.sortBy)
     await store.put(LIBRARY_FILTER_SOURCE_KEY, preferencesValue.source)
     await store.put(LIBRARY_FILTER_READ_STATE_KEY, preferencesValue.readState)
+    await store.put(LIBRARY_FILTER_CATEGORY_KEY, preferencesValue.category)
     await store.flush()
   }
 
