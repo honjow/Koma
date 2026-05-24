@@ -76,9 +76,9 @@ struct Index {
     this.libraryRevision += 1
   }
 
-  private openReader(comicId: ComicId) {
+  private openReader(comicId: ComicId, chapterId?: string) {
     const comic = this.libraryStore.getComic(comicId)
-    this.readerSessionConfig = comic === undefined ? MOCK_LIBRARY_READER_SESSION : createReaderSessionConfigFromComic(comic)
+    this.readerSessionConfig = comic === undefined ? MOCK_LIBRARY_READER_SESSION : createReaderSessionConfigFromComic(comic, chapterId)
     this.readerPageIndex = this.readerSessionStore.restorePageIndex(this.readerSessionConfig)
     this.readerChromeVisible = true
     if (!this.readerOpen) {
@@ -280,7 +280,13 @@ struct Index {
         }.tabBar(this.TabIcon(TabLabel.BROWSE, TabIndex.BROWSE))
 
         TabContent() {
-          HistoryPage()
+          HistoryPage({
+            libraryStore: this.libraryStore,
+            active: this.selectedTab === TabIndex.HISTORY,
+            onOpenReader: (comicId: ComicId, chapterId?: string) => {
+              this.openReader(comicId, chapterId)
+            }
+          })
         }.tabBar(this.TabIcon(TabLabel.HISTORY, TabIndex.HISTORY))
 
         TabContent() {
