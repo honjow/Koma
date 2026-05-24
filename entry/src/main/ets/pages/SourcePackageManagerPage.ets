@@ -719,7 +719,6 @@ export struct SourcePackageManagerPage {
   build() {
     Column() {
       SecondaryListScaffold({
-        title: '源包管理',
         listSpace: 14,
         horizontalPadding: 20,
         bottomPadding: ThemeConstants.FLOAT_BAR_HEIGHT + 20,

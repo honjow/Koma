@@ -545,7 +545,7 @@ require_text "tools/wasm-runtime-spike/host/host_runner.cpp" 'native_module_name
 require_text "tools/wasm-runtime-spike/host/host_runner.cpp" 'HOST_LOG'
 require_text "tools/wasm-runtime-spike/host/host_runner.cpp" 'HOST_CHECK_CANCEL'
 
-source_management_changes="$(git diff --name-only | rg '(^|/)(source|sources|market|marketplace|plugin).*(Page|View|Store|Service|Client)\.(ets|ts|cpp)$' | rg -v '^entry/src/main/ets/sourceRuntime/SourceRuntimeService\.ets$|^entry/src/main/ets/sourceRuntime/SourceSettingsStore\.ets$|^entry/src/main/ets/pages/SourcePackageManagerPage\.ets$' || true)"
+source_management_changes="$(git diff --name-only | rg '(^|/)(source|sources|market|marketplace|plugin).*(Page|View|Store|Service|Client)\.(ets|ts|cpp)$' | rg -v '^entry/src/main/ets/sourceRuntime/SourceRuntimeService\.ets$|^entry/src/main/ets/sourceRuntime/SourceSettingsStore\.ets$|^entry/src/main/ets/sourceRuntime/SourceIndexService\.ets$|^entry/src/main/ets/pages/SourcePackageManagerPage\.ets$' || true)"
 if [[ -n "$source_management_changes" ]]; then
   echo "unexpected source management or marketplace-shaped product changes" >&2
   echo "$source_management_changes" >&2

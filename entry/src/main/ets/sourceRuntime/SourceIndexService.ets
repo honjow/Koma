@@ -162,7 +162,7 @@ export class SourceIndexService {
       const body = typeof response.result === 'string' ? response.result : JSON.stringify(response.result)
       let parsed: Object[]
       try {
-        const raw = JSON.parse(body)
+        const raw: Object = JSON.parse(body) as Object
         if (!Array.isArray(raw)) {
           return { ok: false, reasonCode: 'invalid_index_format', entries: [] }
         }
@@ -215,9 +215,6 @@ export class SourceIndexService {
       let archiveBytes: Uint8Array
       if (response.result instanceof ArrayBuffer) {
         archiveBytes = new Uint8Array(response.result)
-      } else if (typeof response.result === 'string') {
-        const encoder = new TextEncoder()
-        archiveBytes = encoder.encode(response.result)
       } else {
         return { ok: false, reasonCode: 'invalid_response' }
       }
