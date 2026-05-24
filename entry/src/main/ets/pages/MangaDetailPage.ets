@@ -37,7 +37,10 @@ interface MangaDetailRouteParams {
 }
 
 interface SourceOperationDataPayload {
+  manga?: Record<string, Object>
+  item?: Record<string, Object>
   items?: Record<string, Object>[]
+  chapters?: Record<string, Object>[]
   pages?: Record<string, Object>[]
 }
 
@@ -50,22 +53,39 @@ interface SourcePagesRequestArgs {
   chapterId: string
 }
 
-interface SourcePagesRequestSettings {}
+interface SourceMangaRequestArgs {
+  mangaId: string
+}
 
-interface SourcePagesRequestHostHints {
+interface SourceChaptersPageArg {
+  cursor: string | null
+  limit: number
+}
+
+interface SourceChaptersRequestArgs {
+  mangaId: string
+  page: SourceChaptersPageArg
+}
+
+interface SourceDetailRequestSettings {}
+
+interface SourceDetailRequestHostHints {
   network: boolean
+}
+
+interface SourcePagesRequestHostHints extends SourceDetailRequestHostHints {
   imageStrategy: string
 }
 
-interface SourcePagesRequest {
+interface SourceDetailRequest {
   type: string
   version: number
   requestId: string
   operation: string
   sourceId: string
-  args: SourcePagesRequestArgs
-  settings: SourcePagesRequestSettings
-  hostHints: SourcePagesRequestHostHints
+  args: SourceMangaRequestArgs | SourceChaptersRequestArgs | SourcePagesRequestArgs
+  settings: SourceDetailRequestSettings
+  hostHints: SourceDetailRequestHostHints | SourcePagesRequestHostHints
 }
 
 @Concurrent
@@ -154,14 +174,15 @@ export struct MangaDetailPage {
     operation: string,
     mangaId: string
   ): Promise<MangaDetail> {
-    const request = JSON.stringify({ operation: operation, manga_id: mangaId })
+    const args: SourceMangaRequestArgs = { mangaId }
+    const request = this.buildSourceDetailRequestJson(entry.sourceId, operation, args, { network: true })
     const responseJson = await taskpool.execute(
       executeMangaDetailSourceOperation,
       request,
       new Uint8Array(entry.wasmBytes.buffer)
     ) as string
     const response = JSON.parse(responseJson) as SourceOperationResponsePayload
-    const item = response.data?.items === undefined || response.data.items.length === 0 ? undefined : response.data.items[0]
+    const item = this.sourceMangaResponseItem(response)
     if (response.ok !== true || item === undefined) {
       throw new Error('get_manga returned no item')
     }
@@ -172,23 +193,72 @@ export struct MangaDetailPage {
     entry: SourceRuntimeRegistryEntry,
     mangaId: string
   ): Promise<MangaChapterItem[]> {
-    const request = JSON.stringify({ operation: 'get_chapters', manga_id: mangaId })
+    const args: SourceChaptersRequestArgs = {
+      mangaId,
+      page: {
+        cursor: null,
+        limit: 100,
+      },
+    }
+    const request = this.buildSourceDetailRequestJson(entry.sourceId, 'get_chapters', args, { network: true })
     const responseJson = await taskpool.execute(
       executeMangaDetailSourceOperation,
       request,
       new Uint8Array(entry.wasmBytes.buffer)
     ) as string
     const response = JSON.parse(responseJson) as SourceOperationResponsePayload
-    if (response.ok !== true || response.data?.items === undefined) {
+    const rows = this.sourceChapterResponseItems(response)
+    if (response.ok !== true || rows.length === 0) {
       throw new Error('get_chapters returned no items')
     }
-    return response.data.items.map((item: Record<string, Object>): MangaChapterItem => {
+    return rows.map((item: Record<string, Object>): MangaChapterItem => {
       return parseMangaChapterFromSourceItem(item)
     })
   }
 
+  private buildSourceDetailRequestJson(
+    sourceId: string,
+    operation: string,
+    args: SourceMangaRequestArgs | SourceChaptersRequestArgs | SourcePagesRequestArgs,
+    hostHints: SourceDetailRequestHostHints | SourcePagesRequestHostHints,
+  ): string {
+    const settings: SourceDetailRequestSettings = {}
+    const request: SourceDetailRequest = {
+      type: 'request',
+      version: 1,
+      requestId: `detail-${operation}-${sourceId}-${Date.now()}`,
+      operation,
+      sourceId,
+      args,
+      settings,
+      hostHints,
+    }
+    return JSON.stringify(request)
+  }
+
+  private sourceMangaResponseItem(response: SourceOperationResponsePayload): Record<string, Object> | undefined {
+    if (response.data?.manga !== undefined) {
+      return response.data.manga
+    }
+    if (response.data?.item !== undefined) {
+      return response.data.item
+    }
+    return response.data?.items === undefined || response.data.items.length === 0 ? undefined : response.data.items[0]
+  }
+
+  private sourceChapterResponseItems(response: SourceOperationResponsePayload): Record<string, Object>[] {
+    if (response.data?.items !== undefined) {
+      return response.data.items
+    }
+    return response.data?.chapters ?? []
+  }
+
   private sourceComicId(sourceId: string | undefined, mangaId: string): string {
-    return sourceId === undefined || sourceId.trim().length === 0 ? mangaId : `${sourceId}:${mangaId}`
+    const normalizedSourceId = sourceId?.trim()
+    if (normalizedSourceId === undefined || normalizedSourceId.length === 0) {
+      return mangaId
+    }
+    return mangaId.startsWith(`${normalizedSourceId}:`) ? mangaId : `${normalizedSourceId}:${mangaId}`
   }
 
   private currentComicId(): string {
@@ -277,21 +347,11 @@ export struct MangaDetailPage {
     chapterId: string
   ): Promise<Page[]> {
     const args: SourcePagesRequestArgs = { chapterId }
-    const settings: SourcePagesRequestSettings = {}
     const hostHints: SourcePagesRequestHostHints = { network: true, imageStrategy: 'descriptor-or-url' }
-    const request: SourcePagesRequest = {
-      type: 'request',
-      version: 1,
-      requestId: `detail-get-pages-${entry.sourceId}-${Date.now()}`,
-      operation: 'get_pages',
-      sourceId: entry.sourceId,
-      args,
-      settings,
-      hostHints,
-    }
+    const request = this.buildSourceDetailRequestJson(entry.sourceId, 'get_pages', args, hostHints)
     const responseJson = await taskpool.execute(
       executeMangaDetailSourceOperation,
-      JSON.stringify(request),
+      request,
       new Uint8Array(entry.wasmBytes.buffer)
     ) as string
     const response = JSON.parse(responseJson) as SourceOperationResponsePayload

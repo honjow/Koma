@@ -13,6 +13,7 @@ const libraryPersistencePath = resolve(root, 'entry/src/main/ets/model/LibraryPe
 const indexPath = resolve(root, 'entry/src/main/ets/pages/Index.ets')
 const libraryPagePath = resolve(root, 'entry/src/main/ets/pages/LibraryPage.ets')
 const comicCoverCardPath = resolve(root, 'entry/src/main/ets/components/ComicCoverCard.ets')
+const mangaDetailPagePath = resolve(root, 'entry/src/main/ets/pages/MangaDetailPage.ets')
 
 const modelSource = readFileSync(modelPath, 'utf8')
 const libraryStoreSource = readFileSync(libraryStorePath, 'utf8')
@@ -24,6 +25,7 @@ const libraryPersistenceSource = readFileSync(libraryPersistencePath, 'utf8')
 const indexSource = readFileSync(indexPath, 'utf8')
 const libraryPageSource = readFileSync(libraryPagePath, 'utf8')
 const comicCoverCardSource = readFileSync(comicCoverCardPath, 'utf8')
+const mangaDetailPageSource = readFileSync(mangaDetailPagePath, 'utf8')
 
 function assertExport(source, symbol) {
   assert.match(source, new RegExp(`export (interface|class|function|enum|type|const) ${symbol}\\b`), `${symbol} must be exported`)
@@ -69,6 +71,40 @@ function updateReadingProgress(previous, pageIndex, pageId, totalPages = previou
     completed: totalPages <= 0 || nextIndex >= totalPages - 1,
     updatedAt: Date.now(),
   }
+}
+
+function buildSourceDetailRequestJson(sourceId, operation, args, hostHints) {
+  return JSON.stringify({
+    type: 'request',
+    version: 1,
+    requestId: `detail-${operation}-${sourceId}-1`,
+    operation,
+    sourceId,
+    args,
+    settings: {},
+    hostHints,
+  })
+}
+
+function sourceMangaResponseItem(response) {
+  if (response.data?.manga !== undefined) return response.data.manga
+  if (response.data?.item !== undefined) return response.data.item
+  return response.data?.items === undefined || response.data.items.length === 0 ? undefined : response.data.items[0]
+}
+
+function sourceChapterResponseItems(response) {
+  if (response.data?.items !== undefined) return response.data.items
+  return response.data?.chapters ?? []
+}
+
+function sourcePageResponseItems(response) {
+  return response.data?.pages !== undefined ? response.data.pages : (response.data?.items ?? [])
+}
+
+function sourceComicId(sourceId, mangaId) {
+  const normalizedSourceId = sourceId?.trim()
+  if (normalizedSourceId === undefined || normalizedSourceId.length === 0) return mangaId
+  return mangaId.startsWith(`${normalizedSourceId}:`) ? mangaId : `${normalizedSourceId}:${mangaId}`
 }
 
 for (const symbol of ['Comic', 'Chapter', 'Page', 'ReadingProgress', 'LibraryItem']) {
@@ -216,6 +252,117 @@ assert.match(
   /showRemoveConfirmation[\s\S]*primaryButton:\s*\{[\s\S]*value:\s*'移出'[\s\S]*if \(this\.onRemoveComicRequested\(comic\.id\)\) \{[\s\S]*this\.refreshDisplayedSnapshotFromStore\(\)[\s\S]*secondaryButton:\s*\{[\s\S]*value:\s*'取消'/,
   'destructive remove confirmation must refresh the mounted displayed snapshot only after the primary remove callback succeeds while cancel remains secondary',
 )
+assert.doesNotMatch(
+  mangaDetailPageSource,
+  /JSON\.stringify\(\{\s*operation:\s*operation,\s*manga_id:|JSON\.stringify\(\{\s*operation:\s*'get_chapters',\s*manga_id:/,
+  'MangaDetailPage source detail/chapter operations must not use the legacy manga_id request shape',
+)
+assert.match(
+  mangaDetailPageSource,
+  /private buildSourceDetailRequestJson[\s\S]*type:\s*'request'[\s\S]*version:\s*1[\s\S]*requestId:\s*`detail-\$\{operation\}-\$\{sourceId\}-\$\{Date\.now\(\)\}`[\s\S]*operation,[\s\S]*sourceId,[\s\S]*args,[\s\S]*settings,[\s\S]*hostHints/,
+  'MangaDetailPage must build v1 source request envelopes for detail, chapters, and pages',
+)
+assert.match(
+  mangaDetailPageSource,
+  /const args: SourceMangaRequestArgs = \{ mangaId \}[\s\S]*this\.buildSourceDetailRequestJson\(entry\.sourceId, operation, args, \{ network: true \}\)/,
+  'get_manga must send args.mangaId with network host hints',
+)
+assert.match(
+  mangaDetailPageSource,
+  /const args: SourceChaptersRequestArgs = \{[\s\S]*mangaId,[\s\S]*cursor:\s*null,[\s\S]*limit:\s*100[\s\S]*this\.buildSourceDetailRequestJson\(entry\.sourceId, 'get_chapters', args, \{ network: true \}\)/,
+  'get_chapters must send args.mangaId plus a page cursor/limit with network host hints',
+)
+assert.match(
+  mangaDetailPageSource,
+  /private sourceMangaResponseItem[\s\S]*response\.data\?\.manga[\s\S]*response\.data\?\.item[\s\S]*response\.data\?\.items/,
+  'get_manga parsing must accept data.manga, data.item, and data.items[0]',
+)
+assert.match(
+  mangaDetailPageSource,
+  /private sourceChapterResponseItems[\s\S]*response\.data\?\.items[\s\S]*response\.data\?\.chapters/,
+  'get_chapters parsing must accept data.items and data.chapters',
+)
+assert.match(
+  mangaDetailPageSource,
+  /const rows = response\.data\?\.pages !== undefined \? response\.data\.pages : \(response\.data\?\.items \?\? \[\]\)/,
+  'get_pages parsing must keep accepting data.pages and fixture data.items',
+)
+assert.match(
+  mangaDetailPageSource,
+  /mangaId\.startsWith\(`\$\{normalizedSourceId\}:`\) \? mangaId : `\$\{normalizedSourceId\}:\$\{mangaId\}`/,
+  'source comic ids must avoid double-prefixing already normalized source manga ids',
+)
+
+const mangaRequest = JSON.parse(buildSourceDetailRequestJson(
+  'local.test.koma.fixture',
+  'get_manga',
+  { mangaId: 'manga:fixture-series' },
+  { network: true },
+))
+assert.deepEqual(
+  {
+    type: mangaRequest.type,
+    version: mangaRequest.version,
+    operation: mangaRequest.operation,
+    sourceId: mangaRequest.sourceId,
+    args: mangaRequest.args,
+    settings: mangaRequest.settings,
+    hostHints: mangaRequest.hostHints,
+  },
+  {
+    type: 'request',
+    version: 1,
+    operation: 'get_manga',
+    sourceId: 'local.test.koma.fixture',
+    args: { mangaId: 'manga:fixture-series' },
+    settings: {},
+    hostHints: { network: true },
+  },
+  'detail request envelope must match the source runtime v1 contract',
+)
+const chaptersRequest = JSON.parse(buildSourceDetailRequestJson(
+  'local.test.koma.fixture',
+  'get_chapters',
+  { mangaId: 'manga:fixture-series', page: { cursor: null, limit: 100 } },
+  { network: true },
+))
+assert.deepEqual(chaptersRequest.args, { mangaId: 'manga:fixture-series', page: { cursor: null, limit: 100 } }, 'chapters request must use args.mangaId and page limit')
+const pagesRequest = JSON.parse(buildSourceDetailRequestJson(
+  'local.test.koma.fixture',
+  'get_pages',
+  { chapterId: 'chapter:fixture-series:001' },
+  { network: true, imageStrategy: 'descriptor-or-url' },
+))
+assert.deepEqual(pagesRequest.args, { chapterId: 'chapter:fixture-series:001' }, 'pages request must keep args.chapterId')
+assert.deepEqual(pagesRequest.hostHints, { network: true, imageStrategy: 'descriptor-or-url' }, 'pages request must keep source image host hints')
+
+const sourceRepoDetailResponse = {
+  ok: true,
+  data: {
+    manga: {
+      id: 'manga:source-repo',
+      title: 'Source Repo Detail',
+    },
+  },
+}
+const sourceRepoChaptersResponse = {
+  ok: true,
+  data: {
+    items: [
+      { id: 'chapter:source-repo:001', title: 'Chapter 1' },
+      { id: 'chapter:source-repo:002', title: 'Chapter 2' },
+    ],
+  },
+}
+assert.equal(sourceMangaResponseItem(sourceRepoDetailResponse).title, 'Source Repo Detail', 'get_manga must parse source-repo data.manga.title')
+assert.equal(sourceChapterResponseItems(sourceRepoChaptersResponse).length, 2, 'get_chapters must parse source-repo data.items chapters')
+assert.equal(sourceMangaResponseItem({ ok: true, data: { item: { title: 'Fixture Item' } } }).title, 'Fixture Item', 'get_manga must keep data.item compatibility')
+assert.equal(sourceMangaResponseItem({ ok: true, data: { items: [{ title: 'Fixture Items' }] } }).title, 'Fixture Items', 'get_manga must keep data.items[0] compatibility')
+assert.equal(sourceChapterResponseItems({ ok: true, data: { chapters: [{ id: 'legacy-chapter' }] } }).length, 1, 'get_chapters must keep data.chapters compatibility')
+assert.equal(sourcePageResponseItems({ ok: true, data: { pages: [{ id: 'page-1' }] } }).length, 1, 'get_pages must parse real-source data.pages')
+assert.equal(sourcePageResponseItems({ ok: true, data: { items: [{ id: 'fixture-page-1' }] } }).length, 1, 'get_pages must keep fixture data.items compatibility')
+assert.equal(sourceComicId('source.alpha', 'manga-1'), 'source.alpha:manga-1', 'source comic id should prefix plain manga ids')
+assert.equal(sourceComicId('source.alpha', 'source.alpha:manga-1'), 'source.alpha:manga-1', 'source comic id should not double-prefix normalized manga ids')
 
 const comic = {
   id: 'comic-1',
