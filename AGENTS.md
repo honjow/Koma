@@ -10,6 +10,7 @@ Index only. Open the relevant guide for the current task.
 
 - [Product plan](docs/PRODUCT_PLAN.md)
 - [Roadmap](docs/ROADMAP.md)
+- [Feature comparison: Koma vs Aidoku vs Mihon](docs/FEATURE_COMPARISON_AIDOKU_MIHON.md)
 - [Controller artifact layout](docs/CONTROLLER_ARTIFACTS.md)
 
 ## Research
