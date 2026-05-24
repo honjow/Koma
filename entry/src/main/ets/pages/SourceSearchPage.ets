@@ -26,7 +26,7 @@ export struct SourceSearchPage {
       this.searchTimer = 0
     }
     this.searchTimer = setTimeout(() => {
-      this.viewModel.runSearch(this.source, this.query)
+      void this.viewModel.runSearch(this.source, this.query)
       this.searchTimer = 0
     }, 300)
   }
@@ -132,7 +132,7 @@ export struct SourceSearchPage {
               .fontColor($r('app.color.koma_accent'))
               .backgroundColor($r('app.color.koma_card'))
               .onClick(() => {
-                this.viewModel.loadMoreSearch()
+                void this.viewModel.loadMoreSearch()
               })
           }
         }
@@ -144,7 +144,7 @@ export struct SourceSearchPage {
     .height('100%')
     .backgroundColor($r('app.color.koma_background'))
     .onReachEnd(() => {
-      this.viewModel.loadMoreSearch()
+      void this.viewModel.loadMoreSearch()
     })
   }
 }
