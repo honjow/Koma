@@ -9,6 +9,7 @@ import {
   KomgaPageImageKind,
   KomgaPageList,
   KomgaPageResponseDto,
+  KomgaReadProgressDto,
   KomgaResolvedCredential,
   RemotePageRef,
   KomgaSeriesDto,
@@ -24,14 +25,14 @@ export interface KomgaHeaders {
 }
 
 export interface KomgaHttpRequest {
-  method: 'GET' | 'POST'
+  method: 'GET' | 'POST' | 'PATCH'
   url: string
   headers: KomgaHeaders
   body?: string
 }
 
 export interface RedactedKomgaHttpRequest {
-  method: 'GET' | 'POST'
+  method: 'GET' | 'POST' | 'PATCH'
   url: string
   headers: KomgaHeaders
   body?: string
@@ -67,6 +68,14 @@ export class KomgaPaths {
 
   static bookPages(bookId: KomgaBookId): string {
     return `/api/v1/books/${encodePathSegment(bookId)}/pages`
+  }
+
+  static book(bookId: KomgaBookId): string {
+    return `/api/v1/books/${encodePathSegment(bookId)}`
+  }
+
+  static bookReadProgress(bookId: KomgaBookId): string {
+    return `/api/v1/books/${encodePathSegment(bookId)}/read-progress`
   }
 
   static pageImage(bookId: KomgaBookId, pageNumber: number, kind: KomgaPageImageKind = KomgaPageImageKind.STREAM): string {
@@ -231,6 +240,17 @@ export class KomgaClient {
     return this.buildJsonRequest('GET', KomgaPaths.bookPages(bookId))
   }
 
+  buildBookRequest(bookId: KomgaBookId): KomgaHttpRequest {
+    return this.buildJsonRequest('GET', KomgaPaths.book(bookId))
+  }
+
+  buildPatchBookReadProgressRequest(bookId: KomgaBookId, page: number, completed: boolean): KomgaHttpRequest {
+    return this.buildJsonRequest('PATCH', KomgaPaths.bookReadProgress(bookId), {
+      page,
+      completed,
+    } as KomgaReadProgressPatchRequest)
+  }
+
   getPageImageUrl(bookId: KomgaBookId, pageNumber: number, kind: KomgaPageImageKind = KomgaPageImageKind.STREAM): string {
     return this.buildUrl(KomgaPaths.pageImage(bookId, pageNumber, kind))
   }
@@ -259,9 +279,19 @@ export class KomgaClient {
     return parsed.content
   }
 
-  private buildJsonRequest(method: 'GET' | 'POST', path: string, body?: KomgaListRequest): KomgaHttpRequest {
+  async getBookReadProgress(bookId: KomgaBookId): Promise<KomgaReadProgressDto | undefined> {
+    const response = await this.send(this.buildBookRequest(bookId))
+    const book = JSON.parse(response.body) as KomgaBookDto
+    return book.readProgress
+  }
+
+  async patchBookReadProgress(bookId: KomgaBookId, page: number, completed: boolean): Promise<void> {
+    await this.send(this.buildPatchBookReadProgressRequest(bookId, page, completed))
+  }
+
+  private buildJsonRequest(method: 'GET' | 'POST' | 'PATCH', path: string, body?: KomgaListRequest | KomgaReadProgressPatchRequest): KomgaHttpRequest {
     const headers = this.buildHeaders({ accept: 'application/json' } as KomgaHeaders)
-    if (method === 'POST') {
+    if (method === 'POST' || method === 'PATCH') {
       headers.contentType = 'application/json'
     }
     return {
@@ -295,6 +325,11 @@ function assertCredentialRef(config: KomgaServerConfig, credential?: KomgaResolv
   if (credential !== undefined && credential.credentialRef !== config.credentialRef) {
     throw new Error('Komga credentialRef mismatch')
   }
+}
+
+interface KomgaReadProgressPatchRequest {
+  page: number
+  completed: boolean
 }
 
 function isSensitiveHeader(key: string): boolean {

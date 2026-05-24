@@ -95,8 +95,19 @@ export interface KomgaBookDto {
   sizeBytes?: number
   media?: KomgaBookMediaDto
   metadata?: KomgaBookMetadataDto
+  readProgress?: KomgaReadProgressDto
   created?: string
   lastModified?: string
+}
+
+export interface KomgaReadProgressDto {
+  completed: boolean
+  created?: string
+  deviceId?: string
+  deviceName?: string
+  lastModified?: string
+  page: number
+  readDate?: string
 }
 
 export interface KomgaBookMediaDto {

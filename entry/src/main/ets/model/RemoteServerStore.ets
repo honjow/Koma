@@ -130,6 +130,7 @@ export class HarmonyHttpAdapter implements KomgaHttpAdapter {
     try {
       const response = await httpRequest.request(request.url, {
         method: request.method === 'POST' ? http.RequestMethod.POST : http.RequestMethod.GET,
+        customMethod: request.method === 'PATCH' ? 'PATCH' : undefined,
         extraData: request.body,
         expectDataType: http.HttpDataType.STRING,
         usingCache: false,
