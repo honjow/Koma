@@ -1,5 +1,10 @@
+const TITLE_BAR_HEIGHT: number = 56
+const FLOATING_TAB_BAR_PADDING: number = 96
+
 @Component
 export struct SearchPage {
+  @StorageProp('topAvoidHeight') topAvoidHeight: number = 0
+  @StorageProp('bottomAvoidHeight') bottomAvoidHeight: number = 0
   @State private queryText: string = ''
 
   @Builder
@@ -48,7 +53,12 @@ export struct SearchPage {
     }
     .width('100%')
     .height('100%')
-    .padding({ left: 20, right: 20, top: 16, bottom: 96 })
+    .padding({
+      left: 20,
+      right: 20,
+      top: this.topAvoidHeight + TITLE_BAR_HEIGHT,
+      bottom: this.bottomAvoidHeight + FLOATING_TAB_BAR_PADDING,
+    })
     .backgroundColor($r('sys.color.ohos_id_color_sub_background'))
   }
 }

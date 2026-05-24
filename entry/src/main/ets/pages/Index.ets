@@ -332,13 +332,6 @@ struct Index {
   private titleBarOptions(): Record<string, Object> {
     let titleInfo: Record<string, Object> = { 'mainTitle': this.tabTitles[this.selectedTab] }
     let content: Record<string, Object> = { 'title': titleInfo }
-    if (this.selectedTab === TabIndex.LIBRARY) {
-      let items: Record<string, Object>[] = [
-        this.titleMenuItem('导入', $r('sys.symbol.plus'), () => { this.openImport() }),
-      ]
-      let menu: Record<string, Object> = { 'value': items, 'maxCount': 1 }
-      content['menu'] = menu
-    }
     let mat: Record<string, Object> = {
       'materialType': hdsMaterial.MaterialType.ADAPTIVE,
       'materialLevel': hdsMaterial.MaterialLevel.ADAPTIVE,
@@ -386,13 +379,4 @@ struct Index {
     }
   }
 
-  private titleMenuItem(label: string, icon: Resource, action: () => void): Record<string, Object> {
-    let content: Record<string, Object> = {
-      'label': label,
-      'icon': icon,
-      'isEnabled': true,
-      'action': action,
-    }
-    return { 'content': content }
-  }
 }

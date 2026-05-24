@@ -15,6 +15,8 @@ import { RouterHelper } from '../common/RouterHelper'
 
 const SOURCE_BROWSE_ROUTE_NAME: string = 'SourceBrowsePage'
 const SOURCE_SEARCH_ROUTE_NAME: string = 'SourceSearchPage'
+const TITLE_BAR_HEIGHT: number = 56
+const FLOATING_TAB_BAR_PADDING: number = 96
 
 interface SourceRouteParam {
   source: SourceRuntimeRegistryInstalledSourceSummary
@@ -22,6 +24,8 @@ interface SourceRouteParam {
 
 @Component
 export struct BrowsePage {
+  @StorageProp('topAvoidHeight') topAvoidHeight: number = 0
+  @StorageProp('bottomAvoidHeight') bottomAvoidHeight: number = 0
   @State private viewModel: BrowseViewModel = new BrowseViewModel()
   @State private refreshingSources: boolean = false
   sourceRegistry: SourceRuntimeRegistry = appSourceRuntimeRegistry
@@ -138,7 +142,12 @@ export struct BrowsePage {
         }
         .width('100%')
         .height('100%')
-        .padding({ left: 20, right: 20, top: 16, bottom: 96 })
+        .padding({
+          left: 20,
+          right: 20,
+          top: this.topAvoidHeight + TITLE_BAR_HEIGHT,
+          bottom: this.bottomAvoidHeight + FLOATING_TAB_BAR_PADDING,
+        })
         .backgroundColor($r('sys.color.ohos_id_color_sub_background'))
       }
       .onRefreshing(() => {

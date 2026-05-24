@@ -12,6 +12,9 @@ import { LibraryStore } from '../model/LibraryStore'
 import { isRemovableLocalComic } from '../model/LibraryPersistence'
 import { InMemoryReaderSessionStore, ReaderSessionStore } from '../model/ReaderSessionStore'
 
+const TITLE_BAR_HEIGHT: number = 56
+const FLOATING_TAB_BAR_PADDING: number = 96
+
 @Component
 struct ContinueReadingShelfCard {
   @Prop info: ContinueReadingCardViewModel = {
@@ -73,6 +76,8 @@ struct ContinueReadingShelfCard {
 
 @Component
 export struct LibraryPage {
+  @StorageProp('topAvoidHeight') topAvoidHeight: number = 0
+  @StorageProp('bottomAvoidHeight') bottomAvoidHeight: number = 0
   libraryStore: LibraryStore = createSeededLibraryStore()
   @Prop @Watch('syncDisplayedSnapshotFromProps') libraryComics: Comic[] = createSeededLibraryStore().listComics()
   @Prop @Watch('syncDisplayedSnapshotFromProps') libraryRevision: number = 0
@@ -285,6 +290,17 @@ export struct LibraryPage {
             Text(`${this.viewModel().comics.length} 本`)
               .fontSize(13)
               .fontColor($r('app.color.koma_text_secondary'))
+            Button('+')
+              .width(36)
+              .height(36)
+              .borderRadius(8)
+              .fontSize(22)
+              .fontColor($r('app.color.koma_text_primary'))
+              .backgroundColor($r('app.color.koma_card'))
+              .margin({ left: 10 })
+              .onClick(() => {
+                this.onImportRequested()
+              })
           }
           .width('100%')
         }
@@ -304,7 +320,12 @@ export struct LibraryPage {
     }
     .width('100%')
     .height('100%')
-    .padding({ left: 20, right: 20, top: 16, bottom: 96 })
+    .padding({
+      left: 20,
+      right: 20,
+      top: this.topAvoidHeight + TITLE_BAR_HEIGHT,
+      bottom: this.bottomAvoidHeight + FLOATING_TAB_BAR_PADDING,
+    })
     .scrollBar(BarState.Off)
     .backgroundColor($r('sys.color.ohos_id_color_sub_background'))
   }

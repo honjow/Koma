@@ -12,8 +12,14 @@ const PLACEHOLDER_ROWS: HistoryPlaceholderRow[] = [
   },
 ]
 
+const TITLE_BAR_HEIGHT: number = 56
+const FLOATING_TAB_BAR_PADDING: number = 96
+
 @Component
 export struct HistoryPage {
+  @StorageProp('topAvoidHeight') topAvoidHeight: number = 0
+  @StorageProp('bottomAvoidHeight') bottomAvoidHeight: number = 0
+
   @Builder
   private PlaceholderRow(row: HistoryPlaceholderRow) {
     Column({ space: 6 }) {
@@ -43,7 +49,12 @@ export struct HistoryPage {
     }
     .width('100%')
     .height('100%')
-    .padding({ left: 20, right: 20, top: 16, bottom: 96 })
+    .padding({
+      left: 20,
+      right: 20,
+      top: this.topAvoidHeight + TITLE_BAR_HEIGHT,
+      bottom: this.bottomAvoidHeight + FLOATING_TAB_BAR_PADDING,
+    })
     .scrollBar(BarState.Off)
     .divider({ strokeWidth: 0 })
     .backgroundColor($r('sys.color.ohos_id_color_sub_background'))
