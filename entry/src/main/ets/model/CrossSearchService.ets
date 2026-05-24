@@ -1,0 +1,557 @@
+import { common } from '@kit.AbilityKit'
+import {
+  Chapter,
+  Comic,
+  ComicSourceKind,
+  Page,
+  ReadingDirection,
+  normalizeSortKey,
+} from './ComicModels'
+import { InMemoryLibraryStore, LibraryStore } from './LibraryStore'
+import {
+  AppFilesLibraryStorePersistenceAdapter,
+  LibraryStorePersistenceService,
+} from './LibraryPersistence'
+import { createSeededLibraryStore } from './MockLibraryData'
+import { MOCK_LIBRARY_READER_SESSION } from './MockLibraryData'
+import { installReaderRemoteHeaders } from './ReaderPageSourceAdapter'
+import { createReaderSessionConfigFromComic } from './ReaderSessionStore'
+import { RemoteServerStore, WebDavServerRecord } from './RemoteServerStore'
+import { SourceManga } from './SourceModels'
+import { BrowseViewModel } from '../viewmodel/BrowseViewModel'
+import { KomgaSeriesDto } from '../remote/KomgaModels'
+import {
+  OpdsClient,
+  mapOpdsPublicationToImages,
+  resolveOpdsHref,
+} from '../remote/OpdsParser'
+import {
+  OpdsBookDto,
+  OpdsImageDto,
+  OpdsLink,
+  OpdsParseResult,
+} from '../remote/OpdsModels'
+import { DavComicCandidateKind, DavResource } from '../remote/WebDavModels'
+import { WebDavClient, readWebDavUrlPath } from '../remote/WebDavClient'
+import { appSourceRuntimeRegistry } from '../sourceRuntime/SourceRuntimeAppRegistry'
+import { SourceRuntimeRegistryInstalledSourceSummary } from '../sourceRuntime/SourceRuntimeRegistry'
+
+export type CrossSearchSourceKind = 'local' | 'komga' | 'opds' | 'webdav' | 'wasm'
+
+export interface CrossSearchResultItem {
+  id: string
+  title: string
+  subtitle: string
+  sourceKind: CrossSearchSourceKind
+  sourceLabel: string
+  coverUri?: string
+  localComicId?: string
+  sourceId?: string
+  sourceMangaId?: string
+  komgaSeriesId?: string
+  opdsFeedUrl?: string
+  opdsPublicationId?: string
+  webDavHref?: string
+  webDavPathSegments?: string[]
+  webDavIsCollection?: boolean
+}
+
+export interface CrossSearchSection {
+  id: string
+  title: string
+  sourceKind: CrossSearchSourceKind
+  loading: boolean
+  errorText: string
+  items: CrossSearchResultItem[]
+}
+
+interface SourceSearchOutcome {
+  section: CrossSearchSection
+}
+
+const SEARCH_TIMEOUT_MS: number = 5000
+const KOMGA_PAGE_SIZE: number = 20
+const SOURCE_PAGE_SIZE: number = 20
+
+export class CrossSearchService {
+  private context: common.UIAbilityContext
+  private remoteStore: RemoteServerStore
+  private sourceViewModel: BrowseViewModel
+
+  constructor(context: common.UIAbilityContext) {
+    this.context = context
+    this.remoteStore = new RemoteServerStore(context)
+    this.sourceViewModel = new BrowseViewModel(appSourceRuntimeRegistry)
+  }
+
+  async search(query: string): Promise<CrossSearchSection[]> {
+    const normalizedQuery = query.trim()
+    if (normalizedQuery.length === 0) {
+      return []
+    }
+    console.info(`[Search] step=query_start length=${normalizedQuery.length}`)
+    const tasks: Promise<SourceSearchOutcome>[] = [
+      this.withTimeout(this.searchLocal(normalizedQuery), this.emptySection('local', '书架', 'local')),
+      this.withTimeout(this.searchKomga(normalizedQuery), this.emptySection('komga', 'Komga', 'komga')),
+      this.withTimeout(this.searchOpds(normalizedQuery), this.emptySection('opds', 'OPDS', 'opds')),
+      this.withTimeout(this.searchWebDav(normalizedQuery), this.emptySection('webdav', 'WebDAV', 'webdav')),
+    ]
+
+    const sourceTasks = appSourceRuntimeRegistry.listInstalledSourceSummaries().map((source: SourceRuntimeRegistryInstalledSourceSummary) => {
+      return this.withTimeout(this.searchWasmSource(source, normalizedQuery), this.emptySection(`wasm:${source.sourceId}`, source.displayName, 'wasm'))
+    })
+    const outcomes = await Promise.all(tasks.concat(sourceTasks))
+    const sections = outcomes.map((outcome: SourceSearchOutcome): CrossSearchSection => outcome.section)
+      .filter((section: CrossSearchSection): boolean => section.items.length > 0 || section.errorText.length > 0)
+    console.info(`[Search] step=query_done sections=${sections.length}`)
+    return sections
+  }
+
+  async openWebDavReader(item: CrossSearchResultItem): Promise<boolean> {
+    if (item.sourceKind !== 'webdav') {
+      return false
+    }
+    const record = await this.remoteStore.loadWebDav()
+    if (record === undefined) {
+      throw new Error('请先在设置里配置 WebDAV')
+    }
+    const client = this.remoteStore.createWebDavClient(record)
+    const pathSegments = item.webDavPathSegments ?? []
+    const resources = await client.propfind(pathSegments, 1)
+    const images = this.sortDavResources(resources.filter((resource: DavResource): boolean => {
+      if (item.webDavIsCollection === true) {
+        return !resource.isCollection && resource.candidateKind === DavComicCandidateKind.IMAGE_FILE
+      }
+      return resource.href === item.webDavHref && resource.candidateKind === DavComicCandidateKind.IMAGE_FILE
+    }))
+    if (images.length === 0) {
+      throw new Error('这个 WebDAV 结果没有可直接阅读的图片')
+    }
+    this.installWebDavReaderSession(record, client, pathSegments, item.title, images)
+    console.info(`[Search] step=open_webdav_reader pages=${images.length}`)
+    return true
+  }
+
+  private async searchLocal(query: string): Promise<SourceSearchOutcome> {
+    const libraryStore = this.loadLocalLibraryStore()
+    const lowerQuery = query.toLocaleLowerCase()
+    const items = libraryStore.listComics()
+      .filter((comic: Comic): boolean => this.localComicMatches(comic, lowerQuery))
+      .slice(0, SOURCE_PAGE_SIZE)
+      .map((comic: Comic): CrossSearchResultItem => {
+        return {
+          id: `local:${comic.id}`,
+          title: comic.title,
+          subtitle: comic.author ?? `${comic.chapterCount} 章 / ${comic.pageCount} 页`,
+          sourceKind: 'local',
+          sourceLabel: '书架',
+          coverUri: comic.coverUri,
+          localComicId: comic.id,
+        }
+      })
+    console.info(`[Search] step=local_done count=${items.length}`)
+    return { section: this.section('local', '书架', 'local', items) }
+  }
+
+  private async searchKomga(query: string): Promise<SourceSearchOutcome> {
+    try {
+      const record = await this.remoteStore.loadKomga()
+      if (record === undefined) {
+        return { section: this.section('komga', 'Komga', 'komga', []) }
+      }
+      const response = await this.remoteStore.createKomgaClient(record).listSeries({
+        page: 0,
+        size: KOMGA_PAGE_SIZE,
+        search: query,
+        sort: ['metadata.titleSort,asc'],
+      })
+      const items = response.content.map((series: KomgaSeriesDto): CrossSearchResultItem => {
+        const title = this.komgaSeriesTitle(series)
+        return {
+          id: `komga:${record.server.id}:${series.id}`,
+          title,
+          subtitle: `${series.booksCount === undefined ? 0 : series.booksCount} books`,
+          sourceKind: 'komga',
+          sourceLabel: 'Komga',
+          komgaSeriesId: series.id,
+        }
+      })
+      console.info(`[Search] step=komga_done count=${items.length}`)
+      return { section: this.section('komga', 'Komga', 'komga', items) }
+    } catch (error) {
+      const e = error as Error
+      console.error('[Search] step=komga_failed message=' + e.message)
+      return { section: this.errorSection('komga', 'Komga', 'komga', e.message) }
+    }
+  }
+
+  private async searchOpds(query: string): Promise<SourceSearchOutcome> {
+    try {
+      const record = await this.remoteStore.loadOpds()
+      if (record === undefined) {
+        return { section: this.section('opds', 'OPDS', 'opds', []) }
+      }
+      const client = this.remoteStore.createOpdsClient(record)
+      const root = await client.fetchCatalog()
+      const searchUrl = this.findOpdsSearchUrl(root, query)
+      const catalog = searchUrl.length === 0 ? root : await client.fetchCatalog(searchUrl)
+      const items = this.filterOpdsPublications(client, catalog, query)
+      console.info(`[Search] step=opds_done count=${items.length}`)
+      return { section: this.section('opds', 'OPDS', 'opds', items) }
+    } catch (error) {
+      const e = error as Error
+      console.error('[Search] step=opds_failed message=' + e.message)
+      return { section: this.errorSection('opds', 'OPDS', 'opds', e.message) }
+    }
+  }
+
+  private async searchWebDav(query: string): Promise<SourceSearchOutcome> {
+    try {
+      const record = await this.remoteStore.loadWebDav()
+      if (record === undefined) {
+        return { section: this.section('webdav', 'WebDAV', 'webdav', []) }
+      }
+      const client = this.remoteStore.createWebDavClient(record)
+      const lowerQuery = query.toLocaleLowerCase()
+      const rootResources = await client.propfind([], 1)
+      const resources = await this.collectWebDavSearchResources(client, rootResources)
+      const items = resources.filter((resource: DavResource): boolean => {
+        if (this.isCurrentWebDavResource(client, [], resource)) {
+          return false
+        }
+        const supported = resource.isCollection || resource.candidateKind === DavComicCandidateKind.IMAGE_FILE
+        return supported && this.davResourceName(resource).toLocaleLowerCase().indexOf(lowerQuery) >= 0
+      }).slice(0, SOURCE_PAGE_SIZE).map((resource: DavResource): CrossSearchResultItem => {
+        return {
+          id: `webdav:${resource.href}`,
+          title: this.davResourceName(resource),
+          subtitle: resource.isCollection ? 'WebDAV 文件夹' : 'WebDAV 图片',
+          sourceKind: 'webdav',
+          sourceLabel: 'WebDAV',
+          webDavHref: resource.href,
+          webDavPathSegments: resource.isCollection ? this.webDavRelativeSegments(client, resource.href) : [],
+          webDavIsCollection: resource.isCollection,
+        }
+      })
+      console.info(`[Search] step=webdav_done count=${items.length}`)
+      return { section: this.section('webdav', 'WebDAV', 'webdav', items) }
+    } catch (error) {
+      const e = error as Error
+      console.error('[Search] step=webdav_failed message=' + e.message)
+      return { section: this.errorSection('webdav', 'WebDAV', 'webdav', e.message) }
+    }
+  }
+
+  private async searchWasmSource(source: SourceRuntimeRegistryInstalledSourceSummary, query: string): Promise<SourceSearchOutcome> {
+    try {
+      const result = await this.sourceViewModel.searchSource(source, query, 1)
+      const items = result.manga.slice(0, SOURCE_PAGE_SIZE).map((manga: SourceManga): CrossSearchResultItem => {
+        return {
+          id: `wasm:${manga.sourceId}:${manga.id}`,
+          title: manga.title,
+          subtitle: manga.author ?? source.displayName,
+          sourceKind: 'wasm',
+          sourceLabel: source.displayName,
+          coverUri: manga.coverUrl,
+          sourceId: manga.sourceId,
+          sourceMangaId: manga.id,
+        }
+      })
+      console.info(`[Search] step=wasm_done source=${source.sourceId} count=${items.length}`)
+      return { section: this.section(`wasm:${source.sourceId}`, source.displayName, 'wasm', items) }
+    } catch (error) {
+      const e = error as Error
+      console.error(`[Search] step=wasm_failed source=${source.sourceId} message=${e.message}`)
+      return { section: this.errorSection(`wasm:${source.sourceId}`, source.displayName, 'wasm', e.message) }
+    }
+  }
+
+  private async collectWebDavSearchResources(client: WebDavClient, rootResources: DavResource[]): Promise<DavResource[]> {
+    const collected: DavResource[] = rootResources.slice()
+    const folders = rootResources.filter((resource: DavResource): boolean => {
+      return resource.isCollection && !this.isCurrentWebDavResource(client, [], resource)
+    }).slice(0, 20)
+    for (let index = 0; index < folders.length; index += 1) {
+      const folder = folders[index]
+      try {
+        const pathSegments = this.webDavRelativeSegments(client, folder.href)
+        const children = await client.propfind(pathSegments, 1)
+        children.forEach((child: DavResource) => {
+          if (!this.isCurrentWebDavResource(client, pathSegments, child)) {
+            collected.push(child)
+          }
+        })
+      } catch (error) {
+        const e = error as Error
+        console.error('[Search] step=webdav_child_scan_failed message=' + e.message)
+      }
+    }
+    return collected
+  }
+
+  private async withTimeout(task: Promise<SourceSearchOutcome>, fallback: CrossSearchSection): Promise<SourceSearchOutcome> {
+    return new Promise<SourceSearchOutcome>((resolve) => {
+      let done = false
+      const timer = setTimeout(() => {
+        if (done) {
+          return
+        }
+        done = true
+        console.error(`[Search] step=source_timeout source=${fallback.id}`)
+        resolve({
+          section: this.errorSection(fallback.id, fallback.title, fallback.sourceKind, '搜索超时'),
+        })
+      }, SEARCH_TIMEOUT_MS)
+      task.then((value: SourceSearchOutcome) => {
+        if (done) {
+          return
+        }
+        done = true
+        clearTimeout(timer)
+        resolve(value)
+      }).catch((error: Error) => {
+        if (done) {
+          return
+        }
+        done = true
+        clearTimeout(timer)
+        resolve({
+          section: this.errorSection(fallback.id, fallback.title, fallback.sourceKind, error.message),
+        })
+      })
+    })
+  }
+
+  private loadLocalLibraryStore(): LibraryStore {
+    const store = createSeededLibraryStore()
+    try {
+      if (this.context.filesDir === undefined || this.context.filesDir.length === 0) {
+        return store
+      }
+      const persistence = new LibraryStorePersistenceService(
+        store,
+        new AppFilesLibraryStorePersistenceAdapter(this.context.filesDir)
+      )
+      persistence.restore()
+      return store
+    } catch (error) {
+      const e = error as Error
+      console.error('[Search] step=local_restore_failed message=' + e.message)
+      return new InMemoryLibraryStore()
+    }
+  }
+
+  private localComicMatches(comic: Comic, lowerQuery: string): boolean {
+    if (comic.title.toLocaleLowerCase().indexOf(lowerQuery) >= 0) {
+      return true
+    }
+    if (comic.subtitle !== undefined && comic.subtitle.toLocaleLowerCase().indexOf(lowerQuery) >= 0) {
+      return true
+    }
+    if (comic.author !== undefined && comic.author.toLocaleLowerCase().indexOf(lowerQuery) >= 0) {
+      return true
+    }
+    return comic.chapters.some((chapter: Chapter): boolean => {
+      return chapter.title.toLocaleLowerCase().indexOf(lowerQuery) >= 0
+    })
+  }
+
+  private findOpdsSearchUrl(catalog: OpdsParseResult, query: string): string {
+    const searchLink = catalog.links.find((link: OpdsLink): boolean => {
+      const rel = link.rel === undefined ? '' : link.rel.toLocaleLowerCase()
+      const type = link.type === undefined ? '' : link.type.toLocaleLowerCase()
+      return rel.indexOf('search') >= 0 || type.indexOf('opensearch') >= 0
+    })
+    if (searchLink === undefined) {
+      return ''
+    }
+    const encoded = encodeURIComponent(query)
+    let href = searchLink.href
+    href = href.replace('{searchTerms}', encoded)
+    href = href.replace('{query}', encoded)
+    href = href.replace('{?q}', `?q=${encoded}`)
+    href = href.replace('{?query}', `?query=${encoded}`)
+    href = href.replace('{?searchTerms}', `?searchTerms=${encoded}`)
+    href = href.replace('{?search}', `?search=${encoded}`)
+    href = href.replace('{&q}', `&q=${encoded}`)
+    href = href.replace('{&query}', `&query=${encoded}`)
+    href = href.replace('{&searchTerms}', `&searchTerms=${encoded}`)
+    return resolveOpdsHref(catalog.feedUrl, href)
+  }
+
+  private filterOpdsPublications(client: OpdsClient, catalog: OpdsParseResult, query: string): CrossSearchResultItem[] {
+    const lowerQuery = query.toLocaleLowerCase()
+    return catalog.publications.filter((publication: OpdsBookDto): boolean => {
+      return publication.title.toLocaleLowerCase().indexOf(lowerQuery) >= 0 ||
+        (publication.author !== undefined && publication.author.toLocaleLowerCase().indexOf(lowerQuery) >= 0) ||
+        (publication.summary !== undefined && publication.summary.toLocaleLowerCase().indexOf(lowerQuery) >= 0)
+    }).slice(0, SOURCE_PAGE_SIZE).map((publication: OpdsBookDto): CrossSearchResultItem => {
+      const images = mapOpdsPublicationToImages(publication)
+      return {
+        id: `opds:${this.shortHash(catalog.feedUrl)}:${publication.id}`,
+        title: publication.title,
+        subtitle: publication.author ?? `${images.length} 张图片`,
+        sourceKind: 'opds',
+        sourceLabel: 'OPDS',
+        coverUri: images.length === 0 ? undefined : images[0].href,
+        opdsFeedUrl: catalog.feedUrl,
+        opdsPublicationId: publication.id,
+      }
+    })
+  }
+
+  private installWebDavReaderSession(
+    record: WebDavServerRecord,
+    client: WebDavClient,
+    pathSegments: string[],
+    title: string,
+    images: DavResource[],
+  ): void {
+    const now = Date.now()
+    const sourcePath = client.buildUrl(pathSegments)
+    const comicId = `webdav:${record.server.id}:comic:${this.shortHash(sourcePath)}`
+    const chapterId = `webdav:${record.server.id}:chapter:${this.shortHash(sourcePath)}`
+    const pages = images.map((resource: DavResource, index: number): Page => {
+      const name = this.davResourceName(resource)
+      return {
+        id: `${chapterId}:page:${index + 1}`,
+        comicId,
+        chapterId,
+        index,
+        fileName: name,
+        uri: client.getResourceUrl(resource),
+        sortKey: normalizeSortKey(name),
+        byteSize: resource.contentLength,
+      }
+    })
+    const chapter: Chapter = {
+      id: chapterId,
+      comicId,
+      title,
+      index: 0,
+      sourcePath,
+      sortKey: normalizeSortKey(title),
+      pages,
+      pageCount: pages.length,
+      createdAt: now,
+      updatedAt: now,
+    }
+    const comic: Comic = {
+      id: comicId,
+      title,
+      sourceKind: ComicSourceKind.PRIVATE_LIBRARY,
+      sourcePath,
+      coverUri: pages[0].uri,
+      sortTitle: normalizeSortKey(title),
+      preferredDirection: ReadingDirection.RIGHT_TO_LEFT,
+      chapters: [chapter],
+      chapterCount: 1,
+      pageCount: pages.length,
+      createdAt: now,
+      updatedAt: now,
+      lastImportedAt: now,
+    }
+    const config = createReaderSessionConfigFromComic(comic, chapterId)
+    MOCK_LIBRARY_READER_SESSION.comicId = config.comicId
+    MOCK_LIBRARY_READER_SESSION.chapterId = config.chapterId
+    MOCK_LIBRARY_READER_SESSION.title = config.title
+    MOCK_LIBRARY_READER_SESSION.chapterTitle = config.chapterTitle
+    MOCK_LIBRARY_READER_SESSION.totalPages = config.totalPages
+    MOCK_LIBRARY_READER_SESSION.pageUris = config.pageUris
+    MOCK_LIBRARY_READER_SESSION.pageIds = config.pageIds
+    installReaderRemoteHeaders(client.getBaseUrl(), this.remoteStore.getWebDavImageHeaders(record))
+  }
+
+  private isCurrentWebDavResource(client: WebDavClient, pathSegments: string[], resource: DavResource): boolean {
+    return this.normalizeUrl(client.buildUrl(pathSegments)) === this.normalizeUrl(resource.href)
+  }
+
+  private normalizeUrl(value: string): string {
+    let normalized = value
+    while (normalized.endsWith('/')) {
+      normalized = normalized.substring(0, normalized.length - 1)
+    }
+    return normalized
+  }
+
+  private webDavRelativeSegments(client: WebDavClient, href: string): string[] {
+    try {
+      const rawRootPath = readWebDavUrlPath(client.buildUrl([]))
+      const rootPath = rawRootPath.endsWith('/') ? rawRootPath : rawRootPath + '/'
+      let childPath = readWebDavUrlPath(href)
+      if (childPath.endsWith('/')) {
+        childPath = childPath.substring(0, childPath.length - 1)
+      }
+      if (!childPath.startsWith(rootPath)) {
+        return []
+      }
+      return childPath.substring(rootPath.length).split('/').filter((segment: string): boolean => {
+        return segment.length > 0
+      }).map((segment: string): string => decodeURIComponent(segment))
+    } catch (_err) {
+      return []
+    }
+  }
+
+  private sortDavResources(resources: DavResource[]): DavResource[] {
+    return resources.slice().sort((left: DavResource, right: DavResource): number => {
+      return this.davResourceName(left).localeCompare(this.davResourceName(right))
+    })
+  }
+
+  private davResourceName(resource: DavResource): string {
+    if (resource.displayname !== undefined && resource.displayname.length > 0) {
+      return resource.displayname
+    }
+    try {
+      const pathname = readWebDavUrlPath(resource.href)
+      const trimmed = pathname.endsWith('/') ? pathname.substring(0, pathname.length - 1) : pathname
+      const name = trimmed.split('/').pop()
+      return name === undefined || name.length === 0 ? resource.href : decodeURIComponent(name)
+    } catch (_err) {
+      return resource.href
+    }
+  }
+
+  private komgaSeriesTitle(item: KomgaSeriesDto): string {
+    if (item.metadata?.title !== undefined && item.metadata.title.length > 0) {
+      return item.metadata.title
+    }
+    return item.name
+  }
+
+  private section(id: string, title: string, kind: CrossSearchSourceKind, items: CrossSearchResultItem[]): CrossSearchSection {
+    return {
+      id,
+      title,
+      sourceKind: kind,
+      loading: false,
+      errorText: '',
+      items,
+    }
+  }
+
+  private emptySection(id: string, title: string, kind: CrossSearchSourceKind): CrossSearchSection {
+    return this.section(id, title, kind, [])
+  }
+
+  private errorSection(id: string, title: string, kind: CrossSearchSourceKind, errorText: string): CrossSearchSection {
+    return {
+      id,
+      title,
+      sourceKind: kind,
+      loading: false,
+      errorText,
+      items: [],
+    }
+  }
+
+  private shortHash(value: string): string {
+    let hash = 2166136261
+    for (let index = 0; index < value.length; index += 1) {
+      hash = (hash ^ value.charCodeAt(index)) >>> 0
+      hash = Math.imul(hash, 16777619) >>> 0
+    }
+    return hash.toString(16).padStart(8, '0').slice(-8)
+  }
+}
