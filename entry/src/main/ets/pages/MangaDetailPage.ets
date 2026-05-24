@@ -196,7 +196,7 @@ export struct MangaDetailPage {
     const responseJson = await taskpool.execute(
       executeMangaDetailSourceOperation,
       request,
-      new Uint8Array(entry.wasmBytes.buffer)
+      this.copyWasmBytes(entry)
     ) as string
     const response = JSON.parse(responseJson) as SourceOperationResponsePayload
     const item = this.sourceMangaResponseItem(response)
@@ -221,7 +221,7 @@ export struct MangaDetailPage {
     const responseJson = await taskpool.execute(
       executeMangaDetailSourceOperation,
       request,
-      new Uint8Array(entry.wasmBytes.buffer)
+      this.copyWasmBytes(entry)
     ) as string
     const response = JSON.parse(responseJson) as SourceOperationResponsePayload
     const rows = this.sourceChapterResponseItems(response)
@@ -369,7 +369,7 @@ export struct MangaDetailPage {
     const responseJson = await taskpool.execute(
       executeMangaDetailSourceOperation,
       request,
-      new Uint8Array(entry.wasmBytes.buffer)
+      this.copyWasmBytes(entry)
     ) as string
     const response = JSON.parse(responseJson) as SourceOperationResponsePayload
     const rows = response.data?.pages !== undefined ? response.data.pages : (response.data?.items ?? [])
@@ -398,6 +398,12 @@ export struct MangaDetailPage {
       }
       return page
     })
+  }
+
+  private copyWasmBytes(entry: SourceRuntimeRegistryEntry): Uint8Array {
+    const copy = new Uint8Array(entry.wasmBytes.byteLength)
+    copy.set(entry.wasmBytes)
+    return copy
   }
 
   private optionalSourceString(value: Object | string | number | boolean | null | undefined): string | undefined {

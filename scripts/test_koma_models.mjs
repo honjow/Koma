@@ -366,6 +366,21 @@ assert.match(
   /mangaId\.startsWith\(`\$\{normalizedSourceId\}:`\) \? mangaId : `\$\{normalizedSourceId\}:\$\{mangaId\}`/,
   'source comic ids must avoid double-prefixing already normalized source manga ids',
 )
+assert.match(
+  mangaDetailPageSource,
+  /private copyWasmBytes\(entry: SourceRuntimeRegistryEntry\): Uint8Array \{[\s\S]*new Uint8Array\(entry\.wasmBytes\.byteLength\)[\s\S]*copy\.set\(entry\.wasmBytes\)[\s\S]*return copy/,
+  'MangaDetailPage must copy source wasm bytes before each taskpool call',
+)
+assert.doesNotMatch(
+  mangaDetailPageSource,
+  /new Uint8Array\(entry\.wasmBytes\.buffer\)/,
+  'MangaDetailPage must not pass the registry wasm ArrayBuffer directly to taskpool',
+)
+assert.equal(
+  (mangaDetailPageSource.match(/this\.copyWasmBytes\(entry\)/g) ?? []).length,
+  3,
+  'MangaDetailPage must copy wasm bytes for get_manga, get_chapters, and get_pages taskpool calls',
+)
 
 const mangaRequest = JSON.parse(buildSourceDetailRequestJson(
   'local.test.koma.fixture',
