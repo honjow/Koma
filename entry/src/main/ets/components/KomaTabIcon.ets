@@ -21,7 +21,7 @@ export struct KomaTabIcon {
   }
 
   build() {
-    Column() {
+    Column({ space: 4 }) {
       SymbolGlyph(this.iconForIndex(this.idx))
         .fontSize(22)
         .fontColor([
