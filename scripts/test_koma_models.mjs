@@ -138,7 +138,7 @@ assert.match(
 )
 assert.match(
   libraryPersistenceSource,
-  /export function upsertComicAndPersistLibraryStore[\s\S]*const previousPayload = serializeLibraryStore\(libraryStore\)[\s\S]*libraryStore\.upsertComic\(comic\)[\s\S]*persistenceService\.persist\(\)[\s\S]*hydrateLibraryStoreFromJson\(libraryStore, previousPayload\)[\s\S]*throw error/,
+  /export function upsertComicAndPersistLibraryStore[\s\S]*const previousPayload = serializeLibraryStore\(libraryStore\)[\s\S]*libraryStore\.(upsertComic|addComic)\(comic\)[\s\S]*persistenceService\.persist\(\)[\s\S]*hydrateLibraryStoreFromJson\(libraryStore, previousPayload\)[\s\S]*throw error/,
   'save-after-upsert helper must rollback the live store and rethrow when persistence fails',
 )
 assert.match(
@@ -178,8 +178,8 @@ assert.match(
 )
 assert.match(
   libraryPageSource,
-  /private syncDisplayedSnapshotFromProps\(\): void \{[\s\S]*this\.displayedComics = this\.libraryComics[\s\S]*this\.displayedRevision = this\.libraryRevision[\s\S]*private refreshDisplayedSnapshotFromStore\(\): void \{[\s\S]*this\.displayedComics = this\.libraryStore\.listComics\(\)[\s\S]*this\.displayedRevision \+= 1/,
-  'LibraryPage must sync parent snapshots for restore/import and locally refresh from the store after confirmed remove',
+  /private syncDisplayedSnapshotFromProps\(\): void \{[\s\S]*this\.refreshDisplayedSnapshotFromStore\(\)[\s\S]*this\.displayedRevision = this\.libraryRevision[\s\S]*private refreshDisplayedSnapshotFromStore\(\): void \{[\s\S]*this\.libraryStore\.listLibraryItems[\s\S]*this\.displayedRevision \+= 1/,
+  'LibraryPage must sync parent snapshots for restore/import and locally refresh from the store after confirmed remove (post LS sort/filter — sync now delegates to store refresh)',
 )
 assert.match(
   libraryPageSource,
