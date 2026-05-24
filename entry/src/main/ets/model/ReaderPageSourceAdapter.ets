@@ -2,6 +2,11 @@ import {
   ReaderSessionConfig,
   getReaderSessionPageUri,
 } from './ReaderSessionStore'
+import {
+  Comic,
+  ComicSourceKind,
+} from './ComicModels'
+import { common } from '@kit.AbilityKit'
 import { http } from '@kit.NetworkKit'
 import {
   KomgaHeaders,
@@ -11,6 +16,7 @@ import {
   DEFAULT_REMOTE_IMAGE_CACHE_MAX_BYTES,
   RemoteImageCacheStore,
 } from './RemoteImageCacheStore'
+import { RemoteServerStore } from './RemoteServerStore'
 
 export enum ReaderPageRenderKind {
   LOCAL_FILE_IMAGE = 'local_file_image',
@@ -277,6 +283,39 @@ export function installReaderRemoteHeaders(prefix: string, headers: KomgaHeaders
     readerRemoteHeaderRules.push(rule)
   }
   console.info('[Reader] remote headers installed')
+}
+
+export async function installReaderRemoteHeadersForComic(context: common.UIAbilityContext, comic: Comic): Promise<void> {
+  if (comic.sourceKind !== ComicSourceKind.KOMGA_REMOTE &&
+    comic.sourceKind !== ComicSourceKind.OPDS_REMOTE &&
+    comic.sourceKind !== ComicSourceKind.WEBDAV_REMOTE) {
+    return
+  }
+  const store = new RemoteServerStore(context)
+  if (comic.sourceKind === ComicSourceKind.KOMGA_REMOTE) {
+    const record = await store.loadKomga()
+    if (record === undefined) {
+      throw new Error('Komga server is not configured')
+    }
+    installReaderRemoteHeaders(store.createKomgaClient(record).getBaseUrl(), store.getKomgaImageHeaders(record))
+    console.info('[Favorite] step=reader_headers_installed kind=komga')
+    return
+  }
+  if (comic.sourceKind === ComicSourceKind.OPDS_REMOTE) {
+    const record = await store.loadOpds()
+    if (record === undefined) {
+      throw new Error('OPDS server is not configured')
+    }
+    installReaderRemoteHeaders(store.createOpdsClient(record).getUrlPrefix(), store.getOpdsImageHeaders(record))
+    console.info('[Favorite] step=reader_headers_installed kind=opds')
+    return
+  }
+  const record = await store.loadWebDav()
+  if (record === undefined) {
+    throw new Error('WebDAV server is not configured')
+  }
+  installReaderRemoteHeaders(store.createWebDavClient(record).getBaseUrl(), store.getWebDavImageHeaders(record))
+  console.info('[Favorite] step=reader_headers_installed kind=webdav')
 }
 
 export function configureReaderRemoteImageCache(cacheDir: string, maxBytes: number = DEFAULT_REMOTE_IMAGE_CACHE_MAX_BYTES): void {

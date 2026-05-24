@@ -10,6 +10,9 @@ export enum ComicSourceKind {
   LOCAL_ARCHIVE = 'local_archive',
   LOCAL_FOLDER = 'local_folder',
   PRIVATE_LIBRARY = 'private_library',
+  KOMGA_REMOTE = 'komga_remote',
+  OPDS_REMOTE = 'opds_remote',
+  WEBDAV_REMOTE = 'webdav_remote',
 }
 
 export enum ReadingDirection {
@@ -51,6 +54,8 @@ export interface Comic {
   author?: string
   sourceKind: ComicSourceKind
   sourcePath: string
+  remoteServerId?: string
+  remoteResourceId?: string
   coverUri?: string
   sortTitle: string
   preferredDirection: ReadingDirection

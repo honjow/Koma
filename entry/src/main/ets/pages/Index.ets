@@ -43,6 +43,7 @@ import {
   ReaderSessionStore,
   createReaderSessionConfigFromComic,
 } from '../model/ReaderSessionStore'
+import { installReaderRemoteHeadersForComic } from '../model/ReaderPageSourceAdapter'
 import { SourceRuntimeRegistry } from '../sourceRuntime/SourceRuntimeRegistry'
 
 const readerSessionStore: ReaderSessionStore = new InMemoryReaderSessionStore()
@@ -76,8 +77,16 @@ struct Index {
     this.libraryRevision += 1
   }
 
-  private openReader(comicId: ComicId, chapterId?: string) {
+  private async openReader(comicId: ComicId, chapterId?: string): Promise<void> {
     const comic = this.libraryStore.getComic(comicId)
+    if (comic !== undefined) {
+      try {
+        await installReaderRemoteHeadersForComic(getContext(this) as common.UIAbilityContext, comic)
+      } catch (error) {
+        const e = error as Error
+        console.error('[Favorite] step=open_remote_reader_headers_failed message=' + e.message)
+      }
+    }
     this.readerSessionConfig = comic === undefined ? MOCK_LIBRARY_READER_SESSION : createReaderSessionConfigFromComic(comic, chapterId)
     this.readerPageIndex = this.readerSessionStore.restorePageIndex(this.readerSessionConfig)
     this.readerChromeVisible = true
@@ -235,7 +244,7 @@ struct Index {
           libraryPersistenceService: this.ensureLibraryPersistenceService(),
           sourceRegistry: this.sourceRegistry,
           onBack: () => { this.appPathStack.pop(false) },
-          onOpenReader: (mangaId: string, _chapterId?: string) => { this.openReader(mangaId) },
+          onOpenReader: (mangaId: string, _chapterId?: string) => { void this.openReader(mangaId) },
           onLibraryChanged: () => { this.refreshLibrarySnapshot() }
         })
       }
@@ -262,7 +271,7 @@ struct Index {
             presentationByComicId: this.presentationByComicId,
             sessionStore: this.readerSessionStore,
             onOpenReader: (comicId: ComicId) => {
-              this.openReader(comicId)
+              void this.openReader(comicId)
             },
             onImportRequested: () => {
               this.openImport()
@@ -275,7 +284,13 @@ struct Index {
 
         TabContent() {
           BrowsePage({
-            sourceRegistry: this.sourceRegistry
+            sourceRegistry: this.sourceRegistry,
+            libraryStore: this.libraryStore,
+            libraryPersistenceService: this.ensureLibraryPersistenceService(),
+            onLibraryChanged: () => {
+              this.refreshLibrarySnapshot()
+              this.selectedTab = TabIndex.LIBRARY
+            }
           })
         }.tabBar(this.TabIcon(TabLabel.BROWSE, TabIndex.BROWSE))
 
@@ -284,13 +299,20 @@ struct Index {
             libraryStore: this.libraryStore,
             active: this.selectedTab === TabIndex.HISTORY,
             onOpenReader: (comicId: ComicId, chapterId?: string) => {
-              this.openReader(comicId, chapterId)
+              void this.openReader(comicId, chapterId)
             }
           })
         }.tabBar(this.TabIcon(TabLabel.HISTORY, TabIndex.HISTORY))
 
         TabContent() {
-          SearchPage()
+          SearchPage({
+            libraryStore: this.libraryStore,
+            libraryPersistenceService: this.ensureLibraryPersistenceService(),
+            onLibraryChanged: () => {
+              this.refreshLibrarySnapshot()
+              this.selectedTab = TabIndex.LIBRARY
+            }
+          })
         }.tabBar(this.TabIcon(TabLabel.SEARCH, TabIndex.SEARCH))
 
         TabContent() {

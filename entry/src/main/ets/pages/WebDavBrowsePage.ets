@@ -9,7 +9,13 @@ import {
   ReadingDirection,
   normalizeSortKey,
 } from '../model/ComicModels'
+import { LibraryStore } from '../model/LibraryStore'
+import {
+  LibraryStorePersistenceService,
+  upsertComicAndPersistLibraryStore,
+} from '../model/LibraryPersistence'
 import { MOCK_LIBRARY_READER_SESSION } from '../model/MockLibraryData'
+import { createSeededLibraryStore } from '../model/MockLibraryData'
 import { installReaderRemoteHeaders } from '../model/ReaderPageSourceAdapter'
 import { ReaderSessionConfig, createReaderSessionConfigFromComic } from '../model/ReaderSessionStore'
 import { RemoteServerStore, WebDavServerRecord } from '../model/RemoteServerStore'
@@ -24,7 +30,11 @@ export struct WebDavBrowsePage {
   @State private images: DavResource[] = []
   @State private loading: boolean = true
   @State private errorText: string = ''
+  @State private favoriteRevision: number = 0
   private record?: WebDavServerRecord
+  libraryStore: LibraryStore = createSeededLibraryStore()
+  libraryPersistenceService?: LibraryStorePersistenceService
+  onLibraryChanged: () => void = () => {}
 
   private store(): RemoteServerStore {
     return new RemoteServerStore(getContext(this) as common.UIAbilityContext)
@@ -160,6 +170,119 @@ export struct WebDavBrowsePage {
     RouterHelper.pushReader()
   }
 
+  private currentDirectoryUrl(): string {
+    const client = this.client()
+    return client === undefined ? '' : client.buildUrl(this.pathSegments)
+  }
+
+  private currentResourceId(): string {
+    return this.currentDirectoryUrl()
+  }
+
+  private isCurrentDirectoryFavorited(): boolean {
+    const record = this.record
+    if (record === undefined || this.favoriteRevision < 0) {
+      return false
+    }
+    return this.libraryStore.findByRemote(record.server.id, this.currentResourceId()) !== undefined
+  }
+
+  private createCurrentDirectoryComic(): Comic | undefined {
+    const client = this.client()
+    const record = this.record
+    if (client === undefined || record === undefined || this.images.length === 0) {
+      return undefined
+    }
+    const title = this.currentTitle()
+    const directoryUrl = client.buildUrl(this.pathSegments)
+    const now = Date.now()
+    const comicId = `webdav:${record.server.id}:comic:${this.shortHash(directoryUrl)}`
+    const chapterId = `webdav:${record.server.id}:chapter:${this.shortHash(directoryUrl)}`
+    const pages = this.images.map((resource: DavResource, index: number): Page => {
+      const name = this.resourceName(resource)
+      return {
+        id: `${chapterId}:page:${index + 1}`,
+        comicId,
+        chapterId,
+        index,
+        fileName: name,
+        uri: client.getResourceUrl(resource),
+        sortKey: normalizeSortKey(name),
+        byteSize: resource.contentLength,
+      }
+    })
+    const chapter: Chapter = {
+      id: chapterId,
+      comicId,
+      title,
+      index: 0,
+      sourcePath: directoryUrl,
+      sortKey: normalizeSortKey(title),
+      pages,
+      pageCount: pages.length,
+      createdAt: now,
+      updatedAt: now,
+    }
+    return {
+      id: comicId,
+      title,
+      sourceKind: ComicSourceKind.WEBDAV_REMOTE,
+      sourcePath: directoryUrl,
+      remoteServerId: record.server.id,
+      remoteResourceId: directoryUrl,
+      coverUri: pages.length === 0 ? undefined : pages[0].uri,
+      sortTitle: normalizeSortKey(title),
+      preferredDirection: ReadingDirection.RIGHT_TO_LEFT,
+      chapters: [chapter],
+      chapterCount: 1,
+      pageCount: pages.length,
+      createdAt: now,
+      updatedAt: now,
+      lastImportedAt: now,
+    }
+  }
+
+  private addCurrentDirectoryToLibrary(): void {
+    const record = this.record
+    if (record === undefined) {
+      return
+    }
+    const resourceId = this.currentResourceId()
+    if (this.libraryStore.findByRemote(record.server.id, resourceId) !== undefined) {
+      this.showToast('已在书架中')
+      return
+    }
+    const comic = this.createCurrentDirectoryComic()
+    if (comic === undefined) {
+      this.showToast('没有可收藏图片')
+      return
+    }
+    try {
+      console.info(`[Favorite] step=webdav_add_start server=${record.server.id} resourceHash=${this.shortHash(resourceId)}`)
+      if (this.libraryPersistenceService === undefined) {
+        this.libraryStore.upsertComic(comic)
+      } else {
+        upsertComicAndPersistLibraryStore(this.libraryStore, this.libraryPersistenceService, comic)
+      }
+      this.favoriteRevision += 1
+      this.onLibraryChanged()
+      this.showToast('已加入书架')
+      console.info(`[Favorite] step=webdav_add_ok pages=${comic.pageCount}`)
+    } catch (error) {
+      const e = error as Error
+      this.errorText = e.message
+      this.showToast('加入书架失败')
+      console.error('[Favorite] step=webdav_add_failed message=' + e.message)
+    }
+  }
+
+  private showToast(message: string): void {
+    try {
+      this.getUIContext().getPromptAction().showToast({ message: message })
+    } catch (_err) {
+    }
+  }
+
   private installReaderSession(config: ReaderSessionConfig): void {
     const record = this.record
     const client = this.client()
@@ -268,6 +391,18 @@ export struct WebDavBrowsePage {
       }
       .width('100%')
       if (this.images.length > 0) {
+        Button(this.isCurrentDirectoryFavorited() ? '已收藏' : '把此目录加入书架')
+          .height(40)
+          .width('100%')
+          .fontSize(14)
+          .fontWeight(FontWeight.Medium)
+          .fontColor(this.isCurrentDirectoryFavorited() ? Color.White : $r('app.color.koma_accent'))
+          .backgroundColor(this.isCurrentDirectoryFavorited() ? $r('app.color.koma_accent') : '#00000000')
+          .border({ width: 1, color: $r('app.color.koma_accent') })
+          .borderRadius(8)
+          .onClick(() => {
+            this.addCurrentDirectoryToLibrary()
+          })
         Button(`阅读 ${this.images.length} 页`)
           .height(40)
           .width('100%')

@@ -18,6 +18,9 @@ import { RemoteServerStore } from '../model/RemoteServerStore'
 import { KomgaSeriesPage } from './KomgaSeriesPage'
 import { OpdsBrowsePage } from './OpdsBrowsePage'
 import { WebDavBrowsePage } from './WebDavBrowsePage'
+import { LibraryStore } from '../model/LibraryStore'
+import { LibraryStorePersistenceService } from '../model/LibraryPersistence'
+import { createSeededLibraryStore } from '../model/MockLibraryData'
 
 const SOURCE_BROWSE_ROUTE_NAME: string = 'SourceBrowsePage'
 const SOURCE_SEARCH_ROUTE_NAME: string = 'SourceSearchPage'
@@ -37,6 +40,9 @@ export struct BrowsePage {
   @State private opdsConfigured: boolean = false
   @State private webDavConfigured: boolean = false
   sourceRegistry: SourceRuntimeRegistry = appSourceRuntimeRegistry
+  libraryStore: LibraryStore = createSeededLibraryStore()
+  libraryPersistenceService?: LibraryStorePersistenceService
+  onLibraryChanged: () => void = () => {}
   private browsePathStack: NavPathStack = new NavPathStack()
 
   private openSource(source: SourceRuntimeRegistryInstalledSourceSummary): void {
@@ -279,17 +285,35 @@ export struct BrowsePage {
       .title('搜索')
     } else if (name === KOMGA_ROUTE_NAME) {
       NavDestination() {
-        KomgaSeriesPage()
+        KomgaSeriesPage({
+          libraryStore: this.libraryStore,
+          libraryPersistenceService: this.libraryPersistenceService,
+          onLibraryChanged: () => {
+            this.onLibraryChanged()
+          }
+        })
       }
       .title('Komga')
     } else if (name === WEBDAV_ROUTE_NAME) {
       NavDestination() {
-        WebDavBrowsePage()
+        WebDavBrowsePage({
+          libraryStore: this.libraryStore,
+          libraryPersistenceService: this.libraryPersistenceService,
+          onLibraryChanged: () => {
+            this.onLibraryChanged()
+          }
+        })
       }
       .title('WebDAV')
     } else if (name === OPDS_ROUTE_NAME) {
       NavDestination() {
-        OpdsBrowsePage()
+        OpdsBrowsePage({
+          libraryStore: this.libraryStore,
+          libraryPersistenceService: this.libraryPersistenceService,
+          onLibraryChanged: () => {
+            this.onLibraryChanged()
+          }
+        })
       }
       .title('OPDS')
     }

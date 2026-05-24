@@ -9,6 +9,9 @@ import {
 import { ThemeConstants } from '../theme/ThemeConstants'
 import { KomgaSeriesPage } from './KomgaSeriesPage'
 import { OpdsBrowsePage } from './OpdsBrowsePage'
+import { LibraryStore } from '../model/LibraryStore'
+import { LibraryStorePersistenceService } from '../model/LibraryPersistence'
+import { createSeededLibraryStore } from '../model/MockLibraryData'
 
 const SEARCH_DEBOUNCE_MS: number = 400
 const KOMGA_ROUTE_NAME: string = 'SearchKomgaSeriesPage'
@@ -23,6 +26,9 @@ export struct SearchPage {
   private searchTimer: number = 0
   private searchSerial: number = 0
   private service?: CrossSearchService
+  libraryStore: LibraryStore = createSeededLibraryStore()
+  libraryPersistenceService?: LibraryStorePersistenceService
+  onLibraryChanged: () => void = () => {}
   private searchPathStack: NavPathStack = new NavPathStack()
 
   aboutToAppear(): void {
@@ -273,12 +279,24 @@ export struct SearchPage {
   private SearchDestination(name: string, _param: Object) {
     if (name === KOMGA_ROUTE_NAME) {
       NavDestination() {
-        KomgaSeriesPage()
+        KomgaSeriesPage({
+          libraryStore: this.libraryStore,
+          libraryPersistenceService: this.libraryPersistenceService,
+          onLibraryChanged: () => {
+            this.onLibraryChanged()
+          }
+        })
       }
       .title('Komga')
     } else if (name === OPDS_ROUTE_NAME) {
       NavDestination() {
-        OpdsBrowsePage()
+        OpdsBrowsePage({
+          libraryStore: this.libraryStore,
+          libraryPersistenceService: this.libraryPersistenceService,
+          onLibraryChanged: () => {
+            this.onLibraryChanged()
+          }
+        })
       }
       .title('OPDS')
     }

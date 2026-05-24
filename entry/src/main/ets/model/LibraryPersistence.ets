@@ -24,6 +24,8 @@ export interface PersistedComic {
   author?: string
   sourceKind: ComicSourceKind
   sourcePath: string
+  remoteServerId?: string
+  remoteResourceId?: string
   coverUri?: string
   sortTitle: string
   preferredDirection: ReadingDirection
@@ -159,6 +161,12 @@ export function persistComic(comic: Comic): PersistedComic {
   if (comic.author !== undefined) {
     row.author = comic.author
   }
+  if (comic.remoteServerId !== undefined) {
+    row.remoteServerId = comic.remoteServerId
+  }
+  if (comic.remoteResourceId !== undefined) {
+    row.remoteResourceId = comic.remoteResourceId
+  }
   if (comic.coverUri !== undefined) {
     row.coverUri = comic.coverUri
   }
@@ -187,6 +195,12 @@ export function hydrateComic(row: PersistedComic): Comic {
   }
   if (row.author !== undefined) {
     comic.author = row.author
+  }
+  if (row.remoteServerId !== undefined) {
+    comic.remoteServerId = row.remoteServerId
+  }
+  if (row.remoteResourceId !== undefined) {
+    comic.remoteResourceId = row.remoteResourceId
   }
   if (row.coverUri !== undefined) {
     comic.coverUri = row.coverUri
@@ -245,7 +259,10 @@ function assertComicSourceKind(value: ComicSourceKind | undefined, label: string
   if (
     value !== ComicSourceKind.LOCAL_ARCHIVE &&
     value !== ComicSourceKind.LOCAL_FOLDER &&
-    value !== ComicSourceKind.PRIVATE_LIBRARY
+    value !== ComicSourceKind.PRIVATE_LIBRARY &&
+    value !== ComicSourceKind.KOMGA_REMOTE &&
+    value !== ComicSourceKind.OPDS_REMOTE &&
+    value !== ComicSourceKind.WEBDAV_REMOTE
   ) {
     throw new Error(`Invalid library store persistence ${label}: expected comic source kind`)
   }
@@ -299,6 +316,8 @@ function assertValidPersistedComic(row: PersistedComic): void {
   assertOptionalStringField(row.author, 'comic.author')
   assertComicSourceKind(row.sourceKind, 'comic.sourceKind')
   assertStringField(row.sourcePath, 'comic.sourcePath')
+  assertOptionalStringField(row.remoteServerId, 'comic.remoteServerId')
+  assertOptionalStringField(row.remoteResourceId, 'comic.remoteResourceId')
   assertOptionalStringField(row.coverUri, 'comic.coverUri')
   assertStringField(row.sortTitle, 'comic.sortTitle')
   assertReadingDirection(row.preferredDirection, 'comic.preferredDirection')

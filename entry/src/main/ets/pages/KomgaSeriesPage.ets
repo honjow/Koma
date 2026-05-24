@@ -2,6 +2,12 @@ import { common } from '@kit.AbilityKit'
 import { RouterHelper } from '../common/RouterHelper'
 import { SecondaryListScaffold } from '../components/SecondaryListScaffold'
 import { Chapter, Comic } from '../model/ComicModels'
+import { LibraryStore } from '../model/LibraryStore'
+import {
+  LibraryStorePersistenceService,
+  upsertComicAndPersistLibraryStore,
+} from '../model/LibraryPersistence'
+import { createSeededLibraryStore } from '../model/MockLibraryData'
 import { MOCK_LIBRARY_READER_SESSION } from '../model/MockLibraryData'
 import { installReaderRemoteHeaders } from '../model/ReaderPageSourceAdapter'
 import { ReaderSessionConfig, createReaderSessionConfigFromComic } from '../model/ReaderSessionStore'
@@ -39,7 +45,11 @@ export struct KomgaSeriesPage {
   @State private errorText: string = ''
   @State private page: number = 0
   @State private hasMore: boolean = true
+  @State private favoriteRevision: number = 0
   private record?: KomgaServerRecord
+  libraryStore: LibraryStore = createSeededLibraryStore()
+  libraryPersistenceService?: LibraryStorePersistenceService
+  onLibraryChanged: () => void = () => {}
 
   private store(): RemoteServerStore {
     return new RemoteServerStore(getContext(this) as common.UIAbilityContext)
@@ -173,6 +183,77 @@ export struct KomgaSeriesPage {
       const e = error as Error
       this.errorText = e.message
       console.error('[Komga] step=open_book_failed message=' + e.message)
+    }
+  }
+
+  private isSelectedSeriesFavorited(): boolean {
+    const record = this.record
+    const series = this.selectedSeries
+    if (record === undefined || series === undefined || this.favoriteRevision < 0) {
+      return false
+    }
+    return this.libraryStore.findByRemote(record.server.id, series.id) !== undefined
+  }
+
+  private async addSelectedSeriesToLibrary(): Promise<void> {
+    const client = this.client()
+    const record = this.record
+    const series = this.selectedSeries
+    if (client === undefined || record === undefined || series === undefined) {
+      return
+    }
+    if (this.libraryStore.findByRemote(record.server.id, series.id) !== undefined) {
+      this.showToast('已在书架中')
+      return
+    }
+    try {
+      console.info(`[Favorite] step=komga_add_start server=${record.server.id} resource=${series.id}`)
+      let bookRows = this.books
+      if (bookRows.length === 0) {
+        const response = await client.listBooks({
+          page: 0,
+          size: 100,
+          seriesIds: [series.id],
+          sort: ['metadata.numberSort,asc'],
+        })
+        bookRows = response.content.filter((book: KomgaBookDto) => book.seriesId === series.id)
+        this.books = bookRows
+      }
+      const comicId = createKomgaComicId(record.server.id, series.id)
+      const chapters: Chapter[] = []
+      for (let index = 0; index < bookRows.length; index += 1) {
+        const book = bookRows[index]
+        const chapterId = `komga:${record.server.id}:book:${book.id}`
+        const pageDtos = await client.listBookPages(book.id)
+        const pages = pageDtos.map((page: KomgaPageDto) => {
+          const mapped = mapKomgaPageToPage(record.server.id, book.id, comicId, chapterId, page)
+          mapped.uri = client.getPageImageUrl(book.id, page.number, KomgaPageImageKind.STREAM)
+          return mapped
+        })
+        chapters.push(mapKomgaBookToChapter(record.server.id, book, comicId, pages, index))
+      }
+      const comic = mapKomgaSeriesToComic(record.server.id, series, chapters)
+      if (this.libraryPersistenceService === undefined) {
+        this.libraryStore.upsertComic(comic)
+      } else {
+        upsertComicAndPersistLibraryStore(this.libraryStore, this.libraryPersistenceService, comic)
+      }
+      this.favoriteRevision += 1
+      this.onLibraryChanged()
+      this.showToast('已加入书架')
+      console.info(`[Favorite] step=komga_add_ok chapters=${chapters.length} pages=${comic.pageCount}`)
+    } catch (error) {
+      const e = error as Error
+      this.errorText = e.message
+      this.showToast('加入书架失败')
+      console.error('[Favorite] step=komga_add_failed message=' + e.message)
+    }
+  }
+
+  private showToast(message: string): void {
+    try {
+      this.getUIContext().getPromptAction().showToast({ message: message })
+    } catch (_err) {
     }
   }
 
@@ -323,6 +404,18 @@ export struct KomgaSeriesPage {
             .fontWeight(FontWeight.Medium)
             .fontColor($r('app.color.koma_text_primary'))
             .width('100%')
+          Button(this.isSelectedSeriesFavorited() ? '已收藏' : '加入书架')
+            .height(40)
+            .width('100%')
+            .fontSize(14)
+            .fontWeight(FontWeight.Medium)
+            .fontColor(this.isSelectedSeriesFavorited() ? Color.White : $r('app.color.koma_accent'))
+            .backgroundColor(this.isSelectedSeriesFavorited() ? $r('app.color.koma_accent') : '#00000000')
+            .border({ width: 1, color: $r('app.color.koma_accent') })
+            .borderRadius(8)
+            .onClick(() => {
+              this.addSelectedSeriesToLibrary()
+            })
           if (this.books.length === 0) {
             Text('暂无 books')
               .fontSize(14)

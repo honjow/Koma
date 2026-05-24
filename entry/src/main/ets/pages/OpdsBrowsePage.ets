@@ -9,7 +9,13 @@ import {
   ReadingDirection,
   normalizeSortKey,
 } from '../model/ComicModels'
+import { LibraryStore } from '../model/LibraryStore'
+import {
+  LibraryStorePersistenceService,
+  upsertComicAndPersistLibraryStore,
+} from '../model/LibraryPersistence'
 import { MOCK_LIBRARY_READER_SESSION } from '../model/MockLibraryData'
+import { createSeededLibraryStore } from '../model/MockLibraryData'
 import { installReaderRemoteHeaders } from '../model/ReaderPageSourceAdapter'
 import { ReaderSessionConfig, createReaderSessionConfigFromComic } from '../model/ReaderSessionStore'
 import { OpdsServerRecord, RemoteServerStore } from '../model/RemoteServerStore'
@@ -45,7 +51,11 @@ export struct OpdsBrowsePage {
   @State private selectedImages: OpdsImageDto[] = []
   @State private loading: boolean = true
   @State private errorText: string = ''
+  @State private favoriteRevision: number = 0
   private record?: OpdsServerRecord
+  libraryStore: LibraryStore = createSeededLibraryStore()
+  libraryPersistenceService?: LibraryStorePersistenceService
+  onLibraryChanged: () => void = () => {}
 
   private store(): RemoteServerStore {
     return new RemoteServerStore(getContext(this) as common.UIAbilityContext)
@@ -217,6 +227,111 @@ export struct OpdsBrowsePage {
     RouterHelper.pushReader()
   }
 
+  private isSelectedPublicationFavorited(): boolean {
+    const record = this.record
+    const publication = this.selectedPublication
+    if (record === undefined || publication === undefined || this.favoriteRevision < 0) {
+      return false
+    }
+    return this.libraryStore.findByRemote(record.server.id, publication.id) !== undefined
+  }
+
+  private createSelectedPublicationComic(): Comic | undefined {
+    const record = this.record
+    const publication = this.selectedPublication
+    if (record === undefined || publication === undefined || this.selectedImages.length === 0) {
+      return undefined
+    }
+    const now = Date.now()
+    const comicId = `opds:${record.server.id}:comic:${this.shortHash(publication.id)}`
+    const chapterId = `opds:${record.server.id}:chapter:${this.shortHash(publication.id + this.currentUrl)}`
+    const pages = this.selectedImages.map((image: OpdsImageDto, index: number): Page => {
+      const name = image.title === undefined || image.title.length === 0 ? `page-${index + 1}` : image.title
+      return {
+        id: `${chapterId}:page:${index + 1}`,
+        comicId,
+        chapterId,
+        index,
+        fileName: name,
+        uri: image.href,
+        sortKey: normalizeSortKey(name),
+      }
+    })
+    const chapter: Chapter = {
+      id: chapterId,
+      comicId,
+      title: publication.title,
+      index: 0,
+      sourcePath: this.currentUrl,
+      sortKey: normalizeSortKey(publication.title),
+      pages,
+      pageCount: pages.length,
+      createdAt: now,
+      updatedAt: now,
+    }
+    return {
+      id: comicId,
+      title: publication.title,
+      subtitle: publication.summary,
+      author: publication.author,
+      sourceKind: ComicSourceKind.OPDS_REMOTE,
+      sourcePath: this.currentUrl,
+      remoteServerId: record.server.id,
+      remoteResourceId: publication.id,
+      coverUri: pages[0].uri,
+      sortTitle: normalizeSortKey(publication.title),
+      preferredDirection: ReadingDirection.RIGHT_TO_LEFT,
+      chapters: [chapter],
+      chapterCount: 1,
+      pageCount: pages.length,
+      createdAt: now,
+      updatedAt: now,
+      lastImportedAt: now,
+    }
+  }
+
+  private addSelectedPublicationToLibrary(): void {
+    const record = this.record
+    const publication = this.selectedPublication
+    if (record === undefined || publication === undefined) {
+      return
+    }
+    if (this.libraryStore.findByRemote(record.server.id, publication.id) !== undefined) {
+      this.showToast('已在书架中')
+      return
+    }
+    const comic = this.createSelectedPublicationComic()
+    if (comic === undefined) {
+      this.errorText = '这个 OPDS 条目没有可收藏的图片 URL'
+      this.showToast('没有可收藏图片')
+      return
+    }
+    try {
+      console.info(`[Favorite] step=opds_add_start server=${record.server.id} resource=${publication.id}`)
+      if (this.libraryPersistenceService === undefined) {
+        this.libraryStore.upsertComic(comic)
+      } else {
+        upsertComicAndPersistLibraryStore(this.libraryStore, this.libraryPersistenceService, comic)
+      }
+      this.favoriteRevision += 1
+      this.onLibraryChanged()
+      this.showToast('已加入书架')
+      console.info(`[Favorite] step=opds_add_ok pages=${comic.pageCount}`)
+    } catch (error) {
+      const e = error as Error
+      this.errorText = e.message
+      this.showToast('加入书架失败')
+      console.error('[Favorite] step=opds_add_failed message=' + e.message)
+    }
+  }
+
+  private showToast(message: string): void {
+    try {
+      this.getUIContext().getPromptAction().showToast({ message: message })
+    } catch (_err) {
+    }
+  }
+
   private installReaderSession(config: ReaderSessionConfig): void {
     const record = this.record
     if (record === undefined) {
@@ -275,6 +390,18 @@ export struct OpdsBrowsePage {
       }
       .width('100%')
       if (this.selectedPublication !== undefined && this.selectedImages.length > 0) {
+        Button(this.isSelectedPublicationFavorited() ? '已收藏' : '加入书架')
+          .height(40)
+          .width('100%')
+          .fontSize(14)
+          .fontWeight(FontWeight.Medium)
+          .fontColor(this.isSelectedPublicationFavorited() ? Color.White : $r('app.color.koma_accent'))
+          .backgroundColor(this.isSelectedPublicationFavorited() ? $r('app.color.koma_accent') : '#00000000')
+          .border({ width: 1, color: $r('app.color.koma_accent') })
+          .borderRadius(8)
+          .onClick(() => {
+            this.addSelectedPublicationToLibrary()
+          })
         Button(`阅读 ${this.selectedImages.length} 张图片`)
           .height(40)
           .width('100%')

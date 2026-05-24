@@ -8,6 +8,7 @@ import {
 
 export interface LibraryStore {
   getComic(comicId: ComicId): Comic | undefined
+  findByRemote(serverId: string, resourceId: string): Comic | undefined
   listComics(): Comic[]
   listLibraryItems(progressByComicId?: Map<ComicId, ReadingProgress>): LibraryItem[]
   addComic(comic: Comic): void
@@ -23,6 +24,12 @@ export class InMemoryLibraryStore implements LibraryStore {
 
   getComic(comicId: ComicId): Comic | undefined {
     return this.comics.get(comicId)
+  }
+
+  findByRemote(serverId: string, resourceId: string): Comic | undefined {
+    return Array.from(this.comics.values()).find((comic: Comic): boolean => {
+      return comic.remoteServerId === serverId && comic.remoteResourceId === resourceId
+    })
   }
 
   listComics(): Comic[] {
