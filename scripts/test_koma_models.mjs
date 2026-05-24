@@ -139,6 +139,32 @@ function sourcePageResponseItems(response) {
   return response.data?.pages !== undefined ? response.data.pages : (response.data?.items ?? [])
 }
 
+function optionalSourceString(value) {
+  return typeof value === 'string' && value.trim().length > 0 ? value : undefined
+}
+
+function sourcePageImageUrl(item) {
+  const directUrl = optionalSourceString(item.url) ?? optionalSourceString(item.uri)
+  if (directUrl !== undefined) return directUrl
+  const image = item.image
+  if (image === undefined || image === null || Array.isArray(image) || typeof image !== 'object') return undefined
+  return optionalSourceString(image.url) ?? optionalSourceString(image.uri)
+}
+
+function isReaderRemoteImageSourceUri(uri) {
+  const normalized = uri.trim().replace(/\\/g, '/').toLocaleLowerCase()
+  return normalized.startsWith('http://') || normalized.startsWith('https://')
+}
+
+function buildReaderSourceImageRequestArgs(pageId, pageUri) {
+  const args = { pageId }
+  if (pageUri !== undefined && isReaderRemoteImageSourceUri(pageUri)) {
+    args.url = pageUri
+    args.pageUri = pageUri
+  }
+  return args
+}
+
 function sourceComicId(sourceId, mangaId) {
   const normalizedSourceId = sourceId?.trim()
   if (normalizedSourceId === undefined || normalizedSourceId.length === 0) return mangaId
@@ -363,6 +389,21 @@ assert.match(
 )
 assert.match(
   mangaDetailPageSource,
+  /private sourcePageImageUrl\(item: Record<string, Object>\): string \| undefined \{[\s\S]*this\.optionalSourceString\(item\['url'\]\) \?\? this\.optionalSourceString\(item\['uri'\]\)[\s\S]*const image = item\['image'\][\s\S]*imageRecord\['url'\]/,
+  'get_pages parsing must accept nested image.url while preserving top-level url/uri compatibility',
+)
+assert.match(
+  readerPageSourceAdapterSource,
+  /interface ReaderSourceImageRequestArgs \{[\s\S]*pageId: string[\s\S]*url\?: string[\s\S]*pageUri\?: string[\s\S]*\}/,
+  'reader source image request args must include pageId plus optional URL fields',
+)
+assert.match(
+  readerPageSourceAdapterSource,
+  /if \(pageUri !== undefined && isReaderRemoteImageSourceUri\(pageUri\)\) \{[\s\S]*args\.url = pageUri[\s\S]*args\.pageUri = pageUri[\s\S]*\}/,
+  'reader source image requests must pass the source page URL when it is a valid remote URL',
+)
+assert.match(
+  mangaDetailPageSource,
   /mangaId\.startsWith\(`\$\{normalizedSourceId\}:`\) \? mangaId : `\$\{normalizedSourceId\}:\$\{mangaId\}`/,
   'source comic ids must avoid double-prefixing already normalized source manga ids',
 )
@@ -425,6 +466,30 @@ const pagesRequest = JSON.parse(buildSourceDetailRequestJson(
 ))
 assert.deepEqual(pagesRequest.args, { chapterId: 'chapter:fixture-series:001' }, 'pages request must keep args.chapterId')
 assert.deepEqual(pagesRequest.hostHints, { network: true, imageStrategy: 'descriptor-or-url' }, 'pages request must keep source image host hints')
+assert.equal(
+  sourcePageImageUrl({ id: 'page:0', image: { kind: 'url', url: 'https://uploads.mangadex.org/data/hash/001.jpg' } }),
+  'https://uploads.mangadex.org/data/hash/001.jpg',
+  'source pages must preserve nested image.url from source runtime responses',
+)
+assert.equal(
+  sourcePageImageUrl({ id: 'page:1', url: 'https://cdn.example.test/top-level.jpg', image: { url: 'https://cdn.example.test/nested.jpg' } }),
+  'https://cdn.example.test/top-level.jpg',
+  'source pages must keep top-level url precedence for compatibility',
+)
+assert.deepEqual(
+  buildReaderSourceImageRequestArgs('page:0', 'https://uploads.mangadex.org/data/hash/001.jpg'),
+  {
+    pageId: 'page:0',
+    url: 'https://uploads.mangadex.org/data/hash/001.jpg',
+    pageUri: 'https://uploads.mangadex.org/data/hash/001.jpg',
+  },
+  'reader get_image_request args must include the real remote page URL for source runtimes',
+)
+assert.deepEqual(
+  buildReaderSourceImageRequestArgs('page:descriptor', 'source://descriptor/one'),
+  { pageId: 'page:descriptor' },
+  'reader get_image_request args must not pass non-remote descriptor URIs as image URLs',
+)
 
 const sourceRepoDetailResponse = {
   ok: true,

@@ -378,7 +378,7 @@ export struct MangaDetailPage {
     }
     return rows.map((item: Record<string, Object>, index: number): Page => {
       const pageId = this.optionalSourceString(item['id']) ?? this.optionalSourceString(item['pageId']) ?? `${chapterId}:page:${index + 1}`
-      const url = this.optionalSourceString(item['url']) ?? this.optionalSourceString(item['uri']) ?? ''
+      const url = this.sourcePageImageUrl(item) ?? ''
       const page: Page = {
         id: pageId,
         comicId,
@@ -411,6 +411,19 @@ export struct MangaDetailPage {
       return undefined
     }
     return value
+  }
+
+  private sourcePageImageUrl(item: Record<string, Object>): string | undefined {
+    const directUrl = this.optionalSourceString(item['url']) ?? this.optionalSourceString(item['uri'])
+    if (directUrl !== undefined) {
+      return directUrl
+    }
+    const image = item['image']
+    if (image === undefined || image === null || Array.isArray(image) || typeof image !== 'object') {
+      return undefined
+    }
+    const imageRecord = image as Record<string, Object>
+    return this.optionalSourceString(imageRecord['url']) ?? this.optionalSourceString(imageRecord['uri'])
   }
 
   private optionalSourceNumber(value: Object | string | number | boolean | null | undefined): number | undefined {

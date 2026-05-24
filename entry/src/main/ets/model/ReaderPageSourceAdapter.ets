@@ -81,6 +81,8 @@ interface SourceRuntimeResolvedImageRequest {
 
 interface ReaderSourceImageRequestArgs {
   pageId: string
+  url?: string
+  pageUri?: string
 }
 
 interface ReaderSourceImageRequestHostHints {
@@ -500,8 +502,12 @@ function sourceRuntimeImageRequestPayload(responseData: Record<string, Object> |
   return responseData as SourceRuntimeImageRequestDescriptor
 }
 
-function resolveSourceRuntimeImageRequest(sourceRuntimeId: string, pageId: string): SourceRuntimeResolvedImageRequest | undefined {
+function resolveSourceRuntimeImageRequest(sourceRuntimeId: string, pageId: string, pageUri?: string): SourceRuntimeResolvedImageRequest | undefined {
   const args: ReaderSourceImageRequestArgs = { pageId }
+  if (pageUri !== undefined && isReaderRemoteImageSourceUri(pageUri)) {
+    args.url = pageUri
+    args.pageUri = pageUri
+  }
   const settings = appSourceSettingsStore.loadForSource(sourceRuntimeId)
   const hostHints: ReaderSourceImageRequestHostHints = { network: false }
   const request: ReaderSourceImageRequest = {
@@ -540,7 +546,7 @@ function resolveSourceRuntimeImageRequest(sourceRuntimeId: string, pageId: strin
 
 export async function fetchAndCacheReaderRemoteSource(source: ReaderPageRenderSource): Promise<string> {
   if (source.sourceRuntimeId !== undefined && source.pageId !== undefined) {
-    const resolved = resolveSourceRuntimeImageRequest(source.sourceRuntimeId, source.pageId)
+    const resolved = resolveSourceRuntimeImageRequest(source.sourceRuntimeId, source.pageId, source.pageUri)
     if (resolved !== undefined) {
       return fetchAndCacheReaderRemoteImage(resolved.url, resolved.headers)
     }
