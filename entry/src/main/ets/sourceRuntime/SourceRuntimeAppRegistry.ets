@@ -1,6 +1,5 @@
 import { common } from '@kit.AbilityKit'
 import { fileIo as fs, ListFileOptions, picker } from '@kit.CoreFileKit'
-import { resourceManager } from '@kit.LocalizationKit'
 import {
   importLocalSourceArchive,
   LocalSourcePackageManifest,
@@ -13,19 +12,11 @@ import {
   SourceRuntimeRegistryEntry,
 } from './SourceRuntimeRegistry'
 
-const DEV_SOURCE_ROUTE: string = 'bundled-dev-rawfile-source'
 const IMPORTED_SOURCE_ROUTE: string = 'app-local-source-package'
 const APP_SOURCE_ROOT_NAME: string = 'source-runtime'
 const APP_SOURCE_PACKAGES_DIR_NAME: string = 'packages'
 const APP_SOURCE_METADATA_FILE_NAME: string = 'source-runtime-registry.json'
 const SOURCE_ARCHIVE_SUFFIX_FILTER: string = 'Koma source packages(.koma, .koma-source, .koma-source.zip, .zip)|.koma,.koma-source,.koma-source.zip,.zip'
-
-interface BundledDevSource {
-  sourceId: string
-  displayName: string
-  version: string
-  rawfilePath: string
-}
 
 export interface InstalledSourcePackage {
   id: string
@@ -49,15 +40,6 @@ export interface SourcePackageSmokeResult {
   reasonCode?: string
   firstTitle?: string
 }
-
-const BUNDLED_DEV_SOURCES: BundledDevSource[] = [
-  {
-    sourceId: 'local.test.koma.fixture.browse',
-    displayName: 'Koma Fixture',
-    version: 'dev',
-    rawfilePath: 'test/rust_source_runtime_fixture.wasm',
-  },
-]
 
 export const appSourceRuntimeRegistry: SourceRuntimeRegistry = new SourceRuntimeRegistry()
 
@@ -189,38 +171,6 @@ function sourceArchiveSandboxFileName(sourceUri: string): string {
   return 'source-package.zip'
 }
 
-function createBundledDevManifest(source: BundledDevSource, wasmByteCount: number): LocalSourcePackageManifest {
-  return {
-    schemaVersion: 1,
-    package: {
-      id: source.sourceId,
-      name: source.displayName,
-      version: source.version,
-      language: 'multi',
-      type: 'wasm-source-dev',
-      nsfw: false,
-    },
-    runtime: {
-      abi: 'koma-source-abi-v0.1',
-      hostAbi: 'koma-host-v0.1',
-      wasmPath: source.rawfilePath,
-      wasmSha256: '',
-      wasmSizeBytes: wasmByteCount,
-      maxWasmBytes: wasmByteCount,
-    },
-    permissions: {
-      network: false,
-      hostImports: [],
-    },
-    contentPolicy: {
-      publicIndex: false,
-      marketplace: false,
-      builtInSource: false,
-      remoteInstall: false,
-    },
-  }
-}
-
 function sourcePackageFromEntry(entry: SourceRuntimeRegistryEntry): InstalledSourcePackage {
   return {
     id: entry.sourceId,
@@ -349,37 +299,9 @@ export function reloadInstalledSourcePackages(context: common.UIAbilityContext):
   }
 }
 
-export function registerBundledDevSourcesForBrowse(resourceMgr: resourceManager.ResourceManager): number {
-  for (let index = 0; index < BUNDLED_DEV_SOURCES.length; index += 1) {
-    const source = BUNDLED_DEV_SOURCES[index]
-    if (appSourceRuntimeRegistry.lookup(source.sourceId).ok) {
-      continue
-    }
-    try {
-      const wasmBytes = resourceMgr.getRawFileContentSync(source.rawfilePath)
-      appSourceRuntimeRegistry.register({
-        sourceId: source.sourceId,
-        route: DEV_SOURCE_ROUTE,
-        importStatus: 'staged',
-        manifest: createBundledDevManifest(source, wasmBytes.byteLength),
-        wasmBytes: new Uint8Array(wasmBytes.buffer),
-        hashOk: true,
-        network: false,
-        enabled: true,
-        wasmPath: source.rawfilePath,
-      })
-    } catch (error) {
-      const e = error as Error
-      console.error('register bundled browse source failed: ' + source.sourceId + ': ' + e.message)
-    }
-  }
-
-  return appSourceRuntimeRegistry.count()
-}
-
 export function bootstrapSourceRuntimeAppRegistry(context: common.UIAbilityContext): number {
   reloadInstalledSourcePackages(context)
-  return registerBundledDevSourcesForBrowse(context.resourceManager)
+  return appSourceRuntimeRegistry.count()
 }
 
 export function listInstalled(): InstalledSourcePackage[] {

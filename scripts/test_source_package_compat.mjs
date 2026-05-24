@@ -81,6 +81,16 @@ assert.match(
   'app import path must pass archive bytes to content validator after copying',
 )
 assert.doesNotMatch(
+  appRegistrySource,
+  /BUNDLED_DEV_SOURCES|registerBundledDevSourcesForBrowse|local\.test\.koma\.fixture\.browse|Koma Fixture|bundled-dev-rawfile-source|wasm-source-dev/,
+  'production Browse registry must not define or register bundled dev fixture sources',
+)
+assert.match(
+  appRegistrySource,
+  /bootstrapSourceRuntimeAppRegistry\(context: common\.UIAbilityContext\): number \{\s*reloadInstalledSourcePackages\(context\)\s*return appSourceRuntimeRegistry\.count\(\)\s*\}/,
+  'bootstrapSourceRuntimeAppRegistry must only reload persisted/imported source packages',
+)
+assert.doesNotMatch(
   importerSource,
   /archivePath\.endsWith|\.koma\)\s*\{/,
   'source package importer must not trust archive filename extensions',
