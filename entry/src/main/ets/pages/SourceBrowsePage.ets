@@ -1,5 +1,7 @@
 import { MangaGridItem } from '../components/MangaGridItem'
+import { StorageKeys } from '../constants/StorageKeys'
 import { SourceManga } from '../model/SourceModels'
+import { ThemeConstants } from '../theme/ThemeConstants'
 import { BrowseViewModel } from '../viewmodel/BrowseViewModel'
 import { SourceRuntimeRegistryInstalledSourceSummary } from '../sourceRuntime/SourceRuntimeRegistry'
 
@@ -18,8 +20,18 @@ export struct SourceBrowsePage {
     capabilities: [],
   }
   @ObjectLink viewModel: BrowseViewModel
+  @StorageProp(StorageKeys.TOP_AVOID_HEIGHT) topH: number = 0
+  @StorageProp(StorageKeys.BOTTOM_AVOID_HEIGHT) bottomH: number = 0
   onSearchRequested: (source: SourceRuntimeRegistryInstalledSourceSummary) => void = (_source: SourceRuntimeRegistryInstalledSourceSummary) => {}
   onMangaTap: (manga: SourceManga) => void = (_manga: SourceManga) => {}
+
+  private topContentInset(): number {
+    return this.topH + ThemeConstants.TITLE_BAR_HEIGHT
+  }
+
+  private bottomContentInset(): number {
+    return this.bottomH + ThemeConstants.FLOAT_BAR_HEIGHT + 20
+  }
 
   @Builder
   private SectionHeader(title: string, count: number) {
@@ -129,7 +141,7 @@ export struct SourceBrowsePage {
         }
       }
       .width('100%')
-      .padding({ left: 20, right: 20, bottom: 28 })
+      .padding({ left: 20, right: 20, top: this.topContentInset(), bottom: this.bottomContentInset() })
     }
     .width('100%')
     .height('100%')

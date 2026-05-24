@@ -12,8 +12,17 @@ const libraryRepositoryPath = resolve(root, 'entry/src/main/ets/model/LibraryRep
 const libraryPersistencePath = resolve(root, 'entry/src/main/ets/model/LibraryPersistence.ets')
 const backupServicePath = resolve(root, 'entry/src/main/ets/model/BackupService.ets')
 const readerPreferencesStorePath = resolve(root, 'entry/src/main/ets/model/ReaderPreferencesStore.ets')
+const entryAbilityPath = resolve(root, 'entry/src/main/ets/entryability/EntryAbility.ets')
 const indexPath = resolve(root, 'entry/src/main/ets/pages/Index.ets')
 const libraryPagePath = resolve(root, 'entry/src/main/ets/pages/LibraryPage.ets')
+const browsePagePath = resolve(root, 'entry/src/main/ets/pages/BrowsePage.ets')
+const historyPagePath = resolve(root, 'entry/src/main/ets/pages/HistoryPage.ets')
+const searchPagePath = resolve(root, 'entry/src/main/ets/pages/SearchPage.ets')
+const settingsPagePath = resolve(root, 'entry/src/main/ets/pages/SettingsPage.ets')
+const importPagePath = resolve(root, 'entry/src/main/ets/pages/ImportPage.ets')
+const sourceBrowsePagePath = resolve(root, 'entry/src/main/ets/pages/SourceBrowsePage.ets')
+const sourceSearchPagePath = resolve(root, 'entry/src/main/ets/pages/SourceSearchPage.ets')
+const secondaryListScaffoldPath = resolve(root, 'entry/src/main/ets/components/SecondaryListScaffold.ets')
 const comicCoverCardPath = resolve(root, 'entry/src/main/ets/components/ComicCoverCard.ets')
 const mangaDetailPagePath = resolve(root, 'entry/src/main/ets/pages/MangaDetailPage.ets')
 
@@ -26,13 +35,34 @@ const libraryRepositorySource = readFileSync(libraryRepositoryPath, 'utf8')
 const libraryPersistenceSource = readFileSync(libraryPersistencePath, 'utf8')
 const backupServiceSource = readFileSync(backupServicePath, 'utf8')
 const readerPreferencesStoreSource = readFileSync(readerPreferencesStorePath, 'utf8')
+const entryAbilitySource = readFileSync(entryAbilityPath, 'utf8')
 const indexSource = readFileSync(indexPath, 'utf8')
 const libraryPageSource = readFileSync(libraryPagePath, 'utf8')
+const browsePageSource = readFileSync(browsePagePath, 'utf8')
+const historyPageSource = readFileSync(historyPagePath, 'utf8')
+const searchPageSource = readFileSync(searchPagePath, 'utf8')
+const settingsPageSource = readFileSync(settingsPagePath, 'utf8')
+const importPageSource = readFileSync(importPagePath, 'utf8')
+const sourceBrowsePageSource = readFileSync(sourceBrowsePagePath, 'utf8')
+const sourceSearchPageSource = readFileSync(sourceSearchPagePath, 'utf8')
+const secondaryListScaffoldSource = readFileSync(secondaryListScaffoldPath, 'utf8')
 const comicCoverCardSource = readFileSync(comicCoverCardPath, 'utf8')
 const mangaDetailPageSource = readFileSync(mangaDetailPagePath, 'utf8')
 
 function assertExport(source, symbol) {
   assert.match(source, new RegExp(`export (interface|class|function|enum|type|const) ${symbol}\\b`), `${symbol} must be exported`)
+}
+
+function assertUsesSecondaryListSafeArea(source, label) {
+  assert.match(source, /SecondaryListScaffold\(\{[\s\S]*bottomPadding:\s*ThemeConstants\.FLOAT_BAR_HEIGHT \+ 20/, `${label} must avoid floating tab chrome inside list content`)
+}
+
+function assertUsesScrollContentSafeArea(source, label) {
+  assert.match(source, /@StorageProp\(StorageKeys\.TOP_AVOID_HEIGHT\)\s+topH:\s*number = 0/, `${label} must read top safe-area avoidance height`)
+  assert.match(source, /@StorageProp\(StorageKeys\.BOTTOM_AVOID_HEIGHT\)\s+bottomH:\s*number = 0/, `${label} must read bottom safe-area avoidance height`)
+  assert.match(source, /topContentInset\(\): number \{[\s\S]*this\.topH/, `${label} must calculate a top inset inside scroll content`)
+  assert.match(source, /bottomContentInset\(\): number \{[\s\S]*this\.bottomH[\s\S]*ThemeConstants\.FLOAT_BAR_HEIGHT/, `${label} must calculate bottom inset for floating chrome inside scroll content`)
+  assert.match(source, /\.padding\(\{[^}]*top:\s*this\.topContentInset\(\)[^}]*bottom:\s*this\.bottomContentInset\(\)[^}]*\}\)/, `${label} must apply safe-area avoidance as scroll content padding`)
 }
 
 function normalizeSortKey(value) {
@@ -149,6 +179,33 @@ assertExport(libraryPersistenceSource, 'LibraryStorePersistenceService')
 assertExport(libraryPersistenceSource, 'upsertComicAndPersistLibraryStore')
 assertExport(libraryPersistenceSource, 'isRemovableLocalComic')
 assertExport(libraryPersistenceSource, 'removeComicAndPersistLibraryStore')
+
+assert.match(entryAbilitySource, /const TRANSPARENT_COLOR: string = '#00FFFFFF'/, 'EntryAbility must keep transparent system bar color')
+assert.match(entryAbilitySource, /setWindowLayoutFullScreen\(true\)/, 'EntryAbility must keep fullscreen window layout')
+assert.match(entryAbilitySource, /statusBarColor:\s*TRANSPARENT_COLOR/, 'EntryAbility status bar must remain transparent')
+assert.match(entryAbilitySource, /navigationBarColor:\s*TRANSPARENT_COLOR/, 'EntryAbility navigation bar must remain transparent')
+assert.match(indexSource, /\.ignoreLayoutSafeArea\(\s*\[\s*LayoutSafeAreaType\.SYSTEM\s*\][\s\S]*\[LayoutSafeAreaEdge\.TOP,\s*LayoutSafeAreaEdge\.BOTTOM\]/, 'root shell must continue drawing under system safe areas')
+assert.match(indexSource, /\.expandSafeArea\(\[SafeAreaType\.SYSTEM\], \[SafeAreaEdge\.TOP, SafeAreaEdge\.BOTTOM\]\)/, 'root shell must preserve immersive safe-area expansion')
+assert.doesNotMatch(indexSource, /HdsNavigation\(this\.appPathStack\)[\s\S]*\.(padding|margin)\(/, 'root app shell must not use root padding or margin to avoid safe areas')
+assert.match(secondaryListScaffoldSource, /Blank\(\)\.height\(this\.topH \+ ThemeConstants\.TITLE_BAR_HEIGHT\)/, 'shared list scaffold must include an internal top spacer')
+assert.match(secondaryListScaffoldSource, /Blank\(\)\.height\(this\.bottomH \+ this\.bottomPadding \+ this\.keyboardPadding\(\)\)/, 'shared list scaffold must include an internal bottom spacer')
+for (const [source, label] of [
+  [libraryPageSource, 'LibraryPage'],
+  [browsePageSource, 'BrowsePage'],
+  [historyPageSource, 'HistoryPage'],
+  [searchPageSource, 'SearchPage'],
+  [settingsPageSource, 'SettingsPage'],
+]) {
+  assertUsesSecondaryListSafeArea(source, label)
+}
+for (const [source, label] of [
+  [importPageSource, 'ImportPage'],
+  [sourceBrowsePageSource, 'SourceBrowsePage'],
+  [sourceSearchPageSource, 'SourceSearchPage'],
+  [mangaDetailPageSource, 'MangaDetailPage'],
+]) {
+  assertUsesScrollContentSafeArea(source, label)
+}
 
 assert.match(
   libraryPersistenceSource,

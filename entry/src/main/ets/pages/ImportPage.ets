@@ -1,10 +1,12 @@
 import { common } from '@kit.AbilityKit'
+import { StorageKeys } from '../constants/StorageKeys'
 import { LocalImportCoordinator } from '../import/LocalImportCoordinator'
 import {
   LocalArchiveImportDebugEvent,
   formatLocalArchiveImportDebugEvent,
 } from '../import/LocalImportDebugModels'
 import { Comic } from '../model/ComicModels'
+import { ThemeConstants } from '../theme/ThemeConstants'
 
 interface ImportEntryInfo {
   title: string
@@ -28,9 +30,19 @@ const IMAGE_ENTRY: ImportEntryInfo = {
 export struct ImportPage {
   @State private feedbackText: string = '选择本地漫画文件。'
   @State private importing: boolean = false
+  @StorageProp(StorageKeys.TOP_AVOID_HEIGHT) topH: number = 0
+  @StorageProp(StorageKeys.BOTTOM_AVOID_HEIGHT) bottomH: number = 0
   onArchiveImportSucceeded: (comic: Comic) => void = (_comic: Comic) => {}
   onLocalImageImportSucceeded: (comic: Comic) => void = (_comic: Comic) => {}
   private readonly localImportCoordinator: LocalImportCoordinator = new LocalImportCoordinator()
+
+  private topContentInset(): number {
+    return this.topH + ThemeConstants.TITLE_BAR_HEIGHT
+  }
+
+  private bottomContentInset(): number {
+    return this.bottomH + ThemeConstants.FLOAT_BAR_HEIGHT + 20
+  }
 
   private logImportDebugEvent(event: LocalArchiveImportDebugEvent): void {
     const path = event.sourceUri ?? event.extractionDir ?? event.sandboxZipPath ?? event.cacheRootDir ?? ''
@@ -230,7 +242,7 @@ export struct ImportPage {
       }
       .width('100%')
       .height('100%')
-      .padding({ left: 20, right: 20, top: 24, bottom: 28 })
+      .padding({ left: 20, right: 20, top: this.topContentInset(), bottom: this.bottomContentInset() })
       .justifyContent(FlexAlign.Start)
     }
     .width('100%')

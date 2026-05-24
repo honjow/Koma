@@ -2,6 +2,8 @@ import { MangaDetailHeader } from '../components/MangaDetailHeader'
 import { MangaDescriptionSection } from '../components/MangaDescriptionSection'
 import { MangaTagsSection } from '../components/MangaTagsSection'
 import { ChapterListSection } from '../components/ChapterListSection'
+import { StorageKeys } from '../constants/StorageKeys'
+import { ThemeConstants } from '../theme/ThemeConstants'
 import {
   MangaChapterItem,
   MangaDetail,
@@ -102,12 +104,22 @@ export struct MangaDetailPage {
   @State private isInLibrary: boolean = false
   @State private isLoading: boolean = false
   @State private feedbackText: string = ''
+  @StorageProp(StorageKeys.TOP_AVOID_HEIGHT) topH: number = 0
+  @StorageProp(StorageKeys.BOTTOM_AVOID_HEIGHT) bottomH: number = 0
   libraryStore?: LibraryStore
   libraryPersistenceService?: LibraryStorePersistenceService
   sourceRegistry: SourceRuntimeRegistry = new SourceRuntimeRegistry()
   onBack: () => void = () => {}
   onOpenReader: (mangaId: string, chapterId?: string) => void = (_mangaId: string, _chapterId?: string) => {}
   onLibraryChanged: () => void = () => {}
+
+  private topContentInset(): number {
+    return this.topH + 12
+  }
+
+  private bottomContentInset(): number {
+    return this.bottomH + ThemeConstants.FLOAT_BAR_HEIGHT + 20
+  }
 
   aboutToAppear(): void {
     this.loadMangaDetail()
@@ -527,7 +539,7 @@ export struct MangaDetailPage {
         })
       }
       .width('100%')
-      .padding({ left: 20, right: 20, top: 12, bottom: 32 })
+      .padding({ left: 20, right: 20, top: this.topContentInset(), bottom: this.bottomContentInset() })
     }
     .width('100%')
     .height('100%')
