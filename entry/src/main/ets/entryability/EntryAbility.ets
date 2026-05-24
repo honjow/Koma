@@ -3,7 +3,7 @@ import { window } from '@kit.ArkUI'
 import { StorageKeys } from '../constants/StorageKeys'
 import { ReaderPreferencesStore, applyReaderThemeMode } from '../model/ReaderPreferencesStore'
 import { RemoteProgressBootstrapSync } from '../model/RemoteProgressBootstrapSync'
-import { registerBundledDevSourcesForBrowse } from '../sourceRuntime/SourceRuntimeAppRegistry'
+import { bootstrapSourceRuntimeAppRegistry } from '../sourceRuntime/SourceRuntimeAppRegistry'
 import { maybeRunSourceRuntimeDeviceSmoke } from '../sourceRuntime/SourceRuntimeDeviceSmoke'
 
 const TRANSPARENT_COLOR: string = '#00FFFFFF'
@@ -15,7 +15,7 @@ export default class EntryAbility extends UIAbility {
   onCreate(want: Want, launchParam: AbilityConstant.LaunchParam): void {
     void launchParam
     this.applySavedThemeMode()
-    registerBundledDevSourcesForBrowse(this.context.resourceManager)
+    bootstrapSourceRuntimeAppRegistry(this.context)
     maybeRunSourceRuntimeDeviceSmoke(want, this.context.resourceManager, this.context)
   }
 

@@ -11,6 +11,7 @@ export interface SourceRuntimeRegistryEntryInput {
   wasmBytes: Uint8Array
   hashOk: boolean
   network: boolean
+  enabled?: boolean
   manifestPath?: string
   wasmPath?: string
   archivePath?: string
@@ -27,6 +28,10 @@ export interface SourceRuntimeRegistryEntry {
   wasmByteCount: number
   hashOk: boolean
   network: boolean
+  enabled: boolean
+  language: string
+  type: string
+  capabilities: string[]
   validationEvidence: string[]
   manifestPath?: string
   wasmPath?: string
@@ -57,6 +62,10 @@ export interface SourceRuntimeRegistryPersistedEntry {
   wasmByteCount: number
   hashOk: boolean
   network: boolean
+  enabled?: boolean
+  language?: string
+  type?: string
+  capabilities?: string[]
   wasmPath?: string
   manifestPath?: string
   archivePath?: string
@@ -90,6 +99,9 @@ export interface SourceRuntimeRegistryInstalledSourceSummary {
   importStatus: SourceRuntimeRegistryRouteStatus
   networkEnabled: boolean
   httpEnabled: boolean
+  enabled: boolean
+  status: string
+  capabilities: string[]
 }
 
 function normalizeSourceRuntimeSourceId(sourceId: string): string {
@@ -109,7 +121,19 @@ function sourceRuntimeRegistryEvidence(input: SourceRuntimeRegistryEntryInput): 
   evidence.push(`manifestVersion:${input.manifest.package.version}`)
   evidence.push(`route:${input.route}`)
   evidence.push(`importStatus:${input.importStatus}`)
+  evidence.push(`enabled:${input.enabled === false ? 'false' : 'true'}`)
   return evidence
+}
+
+function capabilitiesFromManifest(manifest: LocalSourcePackageManifest): string[] {
+  const capabilities: string[] = ['search', 'detail', 'chapters', 'pages']
+  if (manifest.permissions.network) {
+    capabilities.push('network')
+  }
+  if (manifest.permissions.hostImports.length > 0) {
+    capabilities.push('hostImports:' + manifest.permissions.hostImports.length.toString())
+  }
+  return capabilities
 }
 
 function closeFileQuietly(file: fs.File | undefined): void {
@@ -176,8 +200,8 @@ function manifestForReload(entry: SourceRuntimeRegistryPersistedEntry): LocalSou
       id: entry.manifestId,
       name: entry.manifestName,
       version: entry.manifestVersion,
-      language: 'en',
-      type: 'wasm-source-fixture',
+      language: entry.language ?? 'en',
+      type: entry.type ?? 'wasm-source-fixture',
       nsfw: false,
     },
     runtime: {
@@ -212,6 +236,10 @@ function persistedEntryFromRegistryEntry(entry: SourceRuntimeRegistryEntry): Sou
     wasmByteCount: entry.wasmByteCount,
     hashOk: entry.hashOk,
     network: entry.network,
+    enabled: entry.enabled,
+    language: entry.language,
+    type: entry.type,
+    capabilities: entry.capabilities,
     wasmPath: entry.wasmPath,
     manifestPath: entry.manifestPath,
     archivePath: entry.archivePath,
@@ -267,6 +295,25 @@ function persistedEntryShapeInvalid(entry: SourceRuntimeRegistryPersistedEntry):
   if (entry.hashOk !== true || entry.network !== false) {
     return true
   }
+  if (entry.enabled !== undefined && typeof entry.enabled !== 'boolean') {
+    return true
+  }
+  if (entry.language !== undefined && typeof entry.language !== 'string') {
+    return true
+  }
+  if (entry.type !== undefined && typeof entry.type !== 'string') {
+    return true
+  }
+  if (entry.capabilities !== undefined) {
+    if (!Array.isArray(entry.capabilities)) {
+      return true
+    }
+    for (let index = 0; index < entry.capabilities.length; index += 1) {
+      if (typeof entry.capabilities[index] !== 'string') {
+        return true
+      }
+    }
+  }
   return !optionalPersistedPathIsValid(entry.manifestPath) || !optionalPersistedPathIsValid(entry.archivePath)
 }
 
@@ -301,6 +348,10 @@ export class SourceRuntimeRegistry {
       wasmByteCount: input.wasmBytes.byteLength,
       hashOk: input.hashOk,
       network: input.network,
+      enabled: input.enabled === false ? false : true,
+      language: input.manifest.package.language,
+      type: input.manifest.package.type,
+      capabilities: capabilitiesFromManifest(input.manifest),
       validationEvidence: sourceRuntimeRegistryEvidence(input),
       manifestPath: input.manifestPath,
       wasmPath: input.wasmPath,
@@ -332,10 +383,36 @@ export class SourceRuntimeRegistry {
     return this.entries.slice()
   }
 
+  setEnabled(sourceId: string, enabled: boolean): boolean {
+    const normalized = normalizeSourceRuntimeSourceId(sourceId)
+    for (let index = 0; index < this.entries.length; index += 1) {
+      if (this.entries[index].sourceId === normalized) {
+        this.entries[index].enabled = enabled
+        return true
+      }
+    }
+    return false
+  }
+
+  remove(sourceId: string): SourceRuntimeRegistryEntry | undefined {
+    const normalized = normalizeSourceRuntimeSourceId(sourceId)
+    for (let index = 0; index < this.entries.length; index += 1) {
+      if (this.entries[index].sourceId === normalized) {
+        const removed = this.entries[index]
+        this.entries.splice(index, 1)
+        return removed
+      }
+    }
+    return undefined
+  }
+
   listInstalledSourceSummaries(): SourceRuntimeRegistryInstalledSourceSummary[] {
     const summaries: SourceRuntimeRegistryInstalledSourceSummary[] = []
     for (let index = 0; index < this.entries.length; index += 1) {
       const entry = this.entries[index]
+      if (!entry.enabled) {
+        continue
+      }
       const summary: SourceRuntimeRegistryInstalledSourceSummary = {
         sourceId: entry.sourceId,
         displayName: entry.manifestName,
@@ -344,6 +421,9 @@ export class SourceRuntimeRegistry {
         importStatus: entry.importStatus,
         networkEnabled: false,
         httpEnabled: false,
+        enabled: entry.enabled,
+        status: entry.importStatus,
+        capabilities: entry.capabilities,
       }
       summaries.push(summary)
     }
@@ -439,6 +519,7 @@ export class SourceRuntimeRegistry {
           wasmBytes,
           hashOk: entry.hashOk,
           network: entry.network,
+          enabled: entry.enabled === false ? false : true,
           manifestPath: entry.manifestPath,
           wasmPath,
           archivePath: entry.archivePath,

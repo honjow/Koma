@@ -13,6 +13,9 @@ export struct SourceSearchPage {
     importStatus: 'staged',
     networkEnabled: false,
     httpEnabled: false,
+    enabled: true,
+    status: 'staged',
+    capabilities: [],
   }
   @ObjectLink viewModel: BrowseViewModel
   @State private query: string = ''

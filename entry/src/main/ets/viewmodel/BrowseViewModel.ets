@@ -64,6 +64,9 @@ const MOCK_SOURCE_SUMMARY: SourceRuntimeRegistryInstalledSourceSummary = {
   importStatus: 'staged',
   networkEnabled: false,
   httpEnabled: false,
+  enabled: true,
+  status: 'staged',
+  capabilities: ['search'],
 }
 
 @Concurrent

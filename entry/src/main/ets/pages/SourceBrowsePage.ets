@@ -13,6 +13,9 @@ export struct SourceBrowsePage {
     importStatus: 'staged',
     networkEnabled: false,
     httpEnabled: false,
+    enabled: true,
+    status: 'staged',
+    capabilities: [],
   }
   @ObjectLink viewModel: BrowseViewModel
   onSearchRequested: (source: SourceRuntimeRegistryInstalledSourceSummary) => void = (_source: SourceRuntimeRegistryInstalledSourceSummary) => {}

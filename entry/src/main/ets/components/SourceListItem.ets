@@ -10,6 +10,9 @@ export struct SourceListItem {
     importStatus: 'staged',
     networkEnabled: false,
     httpEnabled: false,
+    enabled: true,
+    status: 'staged',
+    capabilities: [],
   }
   @Prop languageBadge: string = 'SRC'
   onSourceTap: (source: SourceRuntimeRegistryInstalledSourceSummary) => void = (_source: SourceRuntimeRegistryInstalledSourceSummary) => {}

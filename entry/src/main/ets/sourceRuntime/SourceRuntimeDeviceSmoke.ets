@@ -1065,6 +1065,9 @@ function compactInstalledSourceInventoryForHilog(
       importStatus: item.importStatus,
       networkEnabled: item.networkEnabled,
       httpEnabled: item.httpEnabled,
+      enabled: item.enabled,
+      status: item.status,
+      capabilities: item.capabilities,
     })
   }
   return compactInventory

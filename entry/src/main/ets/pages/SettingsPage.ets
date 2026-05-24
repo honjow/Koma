@@ -14,11 +14,14 @@ import {
 } from '../model/ReaderPreferencesStore'
 import { KomgaServerPage } from './KomgaServerPage'
 import { OpdsServerPage } from './OpdsServerPage'
+import { SourcePackageManagerPage } from './SourcePackageManagerPage'
 import { WebDavServerPage } from './WebDavServerPage'
+import { listInstalled } from '../sourceRuntime/SourceRuntimeAppRegistry'
 
 const KOMGA_SERVER_ROUTE_NAME: string = 'KomgaServerPage'
 const OPDS_SERVER_ROUTE_NAME: string = 'OpdsServerPage'
 const WEBDAV_SERVER_ROUTE_NAME: string = 'WebDavServerPage'
+const SOURCE_PACKAGE_MANAGER_ROUTE_NAME: string = 'SourcePackageManagerPage'
 
 interface SettingsRow {
   key: string
@@ -91,6 +94,10 @@ export struct SettingsPage {
     this.settingsPathStack.pushPath({ name: OPDS_SERVER_ROUTE_NAME })
   }
 
+  private openSourcePackageManager(): void {
+    this.settingsPathStack.pushPath({ name: SOURCE_PACKAGE_MANAGER_ROUTE_NAME })
+  }
+
   private context(): common.UIAbilityContext {
     return getContext(this) as common.UIAbilityContext
   }
@@ -115,6 +122,10 @@ export struct SettingsPage {
     }
     if (row.key === 'version') {
       return this.versionDetail
+    }
+    if (row.key === 'sources') {
+      const count = listInstalled().length
+      return count > 0 ? `${count} 个源包` : '暂未安装源包'
     }
     return row.detail
   }
@@ -260,15 +271,8 @@ export struct SettingsPage {
   }
 
   private showSourcesDialog(): void {
-    console.info('[Settings] step=sources_dialog')
-    void this.getUIContext().getPromptAction().showDialog({
-      title: '管理已安装的源包',
-      message: '暂未安装源包。\n\n源包管理将由独立流程接入；当前可前往 Browse 安装源。',
-      buttons: [
-        { text: '前往 Browse 安装源', color: '#8D5A3B' },
-        { text: '知道了', color: '#666666' },
-      ],
-    })
+    console.info('[Settings] step=sources_manager_open')
+    this.openSourcePackageManager()
   }
 
   private showInfoDialog(title: string, message: string): void {
@@ -425,6 +429,11 @@ export struct SettingsPage {
         WebDavServerPage()
       }
       .title('WebDAV')
+    } else if (name === SOURCE_PACKAGE_MANAGER_ROUTE_NAME) {
+      NavDestination() {
+        SourcePackageManagerPage()
+      }
+      .title('源包管理')
     }
   }
 }
