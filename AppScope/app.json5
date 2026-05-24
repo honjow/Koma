@@ -1,6 +1,6 @@
 {
   "app": {
-    "bundleName": "com.honjow.koma",
+    "bundleName": "com.honjow.koma.dev",
     "vendor": "koma",
     "versionCode": 1,
     "versionName": "0.1.0",

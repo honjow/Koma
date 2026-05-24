@@ -223,7 +223,7 @@ struct Index {
         MangaDetailPage({
           params: { mangaId: (param as Record<string, string>)?.mangaId, sourceId: (param as Record<string, string>)?.sourceId },
           onBack: () => { this.appPathStack.pop(false) },
-          onOpenReader: (mangaId: string, chapterId?: string) => { this.openReader(mangaId) }
+          onOpenReader: (mangaId: string, _chapterId?: string) => { this.openReader(mangaId) }
         })
       }
       .hideTitleBar(true)

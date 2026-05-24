@@ -1,7 +1,8 @@
 import { RouteName } from './Constants'
 
 export interface MangaDetailRouteParam {
-  comicId: string
+  mangaId: string
+  sourceId?: string
 }
 
 export class RouterHelper {

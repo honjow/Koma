@@ -3,6 +3,8 @@ import { BrowseViewModel } from '../viewmodel/BrowseViewModel'
 import { SourceRuntimeRegistry, SourceRuntimeRegistryInstalledSourceSummary } from '../sourceRuntime/SourceRuntimeRegistry'
 import { SourceBrowsePage } from './SourceBrowsePage'
 import { SourceSearchPage } from './SourceSearchPage'
+import { SourceManga } from '../model/SourceModels'
+import { RouterHelper } from '../common/RouterHelper'
 
 const SOURCE_BROWSE_ROUTE_NAME: string = 'SourceBrowsePage'
 const SOURCE_SEARCH_ROUTE_NAME: string = 'SourceSearchPage'
@@ -80,6 +82,9 @@ export struct BrowsePage {
           onSearchRequested: (source: SourceRuntimeRegistryInstalledSourceSummary) => {
             this.openSourceSearch(source)
           },
+          onMangaTap: (manga: SourceManga) => {
+            RouterHelper.pushMangaDetail({ mangaId: manga.id, sourceId: manga.sourceId })
+          },
         })
       }
       .hideTitleBar(true)
@@ -88,6 +93,9 @@ export struct BrowsePage {
         SourceSearchPage({
           source: (param as SourceRouteParam).source,
           viewModel: this.viewModel,
+          onMangaTap: (manga: SourceManga) => {
+            RouterHelper.pushMangaDetail({ mangaId: manga.id, sourceId: manga.sourceId })
+          },
         })
       }
       .hideTitleBar(true)
