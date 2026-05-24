@@ -2,7 +2,22 @@
 
 This document records the feature-development baseline reached in the long 2026-05-24 controller session. It is not an instruction file; `AGENTS.md` remains only an index.
 
-## Final Gate
+## Latest Consolidated Gate
+
+Artifact: `.hermes-artifacts/20260525-0200-consolidated-gate/`
+
+Verified after the source-runtime/product-boundary/backup follow-up batch:
+
+- `node scripts/test_koma_models.mjs` PASS.
+- `node scripts/test_source_package_compat.mjs` PASS.
+- `node scripts/test_reader_progress.mjs` PASS.
+- `bash scripts/validate-napi-source-runtime-sample.sh` PASS.
+- `bash dev.sh --build-only --non-interactive` PASS.
+- Device smoke artifacts:
+  - `.hermes-artifacts/20260525-0115-bf-device-smoke/` confirms Browse no longer exposes `Koma Fixture`.
+  - `.hermes-artifacts/20260525-0140-bk-device-smoke/` confirms Settings backup copy includes source packages and settings.
+
+## 2026-05-24 Final Gate
 
 Artifact: `.hermes-artifacts/20260524-2200-final-gate/`
 
@@ -46,6 +61,12 @@ Verified on device `192.168.50.103:12345`:
 | Stop demo seed by default | `1726cca` | Production no longer injects mock library rows unless explicitly seeded. |
 | WAMR native runtime | `d8f031f` | WAMR vendored into HAP; native smoke/search no longer `wamr_not_built`. |
 | Source package manager | `a5c9e5b` | Settings manager page: list/import/enable/disable/remove/smoke local source packages. |
+| Source repo `.koma` compatibility | `7ecba36` | App imports `.koma` / `.koma-source` / `.koma-source.zip` / `.zip` by archive content, not extension trust. |
+| Source runtime image requests | `c4a3317` | Reader resolves `pageId -> get_image_request -> URL+headers` before remote image cache; cache key includes effective headers. |
+| Source detail contract | `5946e1a` | MangaDetail source operations now use v1 request envelope and parse source-repo `data.manga` / `data.items` shapes. |
+| Remove Browse mock fallback | `a09b688` | Empty source registry no longer injects `Mock Source`; Browse shows import guidance. |
+| Remove bundled fixture from Browse | `3dfe08d` | Production Browse bootstrap no longer registers `Koma Fixture`; rawfile fixtures remain test-only. |
+| Backup schema v2 | `1705893` | Backup/export covers library, progress, remote servers, source packages, and reader/settings preferences; v1 imports remain accepted. |
 
 ## Current Product Baseline
 
@@ -76,15 +97,15 @@ Verified on device `192.168.50.103:12345`:
 
 ### Search
 
-- Cross-source search over local LibraryStore, Komga, OPDS, WebDAV, and enabled wasm sources.
+- Cross-source search over local LibraryStore, Komga, OPDS, WebDAV, and enabled user-installed wasm sources.
 - Per-source timeout/error isolation.
-- Bundled wasm fixture source now returns results through native WAMR runtime.
+- Test wasm fixture remains available only to source-runtime smoke/tests; it is not registered in production Browse.
 
 ### Settings
 
 - Komga / OPDS / WebDAV config pages.
 - Reader page mode / reading direction / theme preferences.
-- Backup export/import via picker.
+- Backup export/import via picker. Schema v2 includes library, reading progress, remote server settings, installed source packages, and reader/settings preferences. Schema v1 import remains accepted.
 - About / license / version dialogs.
 - Source package manager page.
 
@@ -93,13 +114,17 @@ Verified on device `192.168.50.103:12345`:
 - `third_party/wasm-micro-runtime/` vendored and built into `libkoma_source_runtime.so`.
 - Device source runtime smoke passes.
 - Local source package manager supports local archive import, enable/disable/remove, and smoke.
+- App accepts source-repo `.koma` packages (`manifest.json` + `source.wasm`) and legacy/internal source archive layouts.
+- Reader integrates source `get_image_request` for source-owned image URL/header resolution.
+- Production Browse lists only user-installed/enabled packages; no bundled public source or test fixture is registered.
 - No remote source market/download path was added.
 
 ## Known Gaps / Follow-up
 
-1. Source package picker import UI path is implemented but not fully hand-driven with a real selected `.koma-source.zip` on device; source runtime smoke covers archive validation/run.
+1. Source package picker import UI path is implemented but not fully hand-driven with a real selected `.koma` on device; static/source-runtime gates cover archive validation, restore, and run.
 2. Library multi-select long-press automation is unreliable with `uitest`; needs manual UX pass or alternative gesture handling if user reports real-device failure.
 3. WebDAV public demo endpoint had Harmony device `Internal error`; local fixture covered PROPFIND/GET. Needs broader NAS/WebDAV compatibility matrix.
 4. OPDS publication path uses image URL fallback for the tested Komga OPDS v2 demo; EPUB/publication manifest returned HTTP 406.
 5. Error-state UI is not unified across source types; intentionally deferred because the user asked to prioritize functionality over UI detail.
 6. Large CBZ / large remote chapter performance still needs stress testing.
+7. Backup JSON is local user-initiated and unencrypted; encryption/password UX was explicitly not added in schema v2.
