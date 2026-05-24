@@ -2,6 +2,17 @@
 
 Always-loaded rules for Koma. Open relevant per-task docs (`docs/PRODUCT_PLAN.md`, `docs/ROADMAP.md`, `docs/CONTROLLER_ARTIFACTS.md`) for scope-specific guidance.
 
+## Session Focus
+
+本会话主攻**应用侧功能开发**。以 Aidoku (iOS manga reader) 为蓝本搭建完整 App 框架。
+
+## Worker Dispatch
+
+- 优先使用 **Claude Code** 和 **Codex** 作为 worker。
+- Claude Code `-p` mode 在 background 下必须用 tmux 或 stdin pipe (`cat prompt.md | claude -p ...`)，直接 nohup 不会写 stdout。
+- Claude Code 有 session limit → fallback Codex。
+- 应用开发遵循鸿蒙应用开发规范，**优先使用 HDS 组件**。
+
 ## Project Direction
 
 Koma 是 HarmonyOS 私有漫画书架/阅读器：
