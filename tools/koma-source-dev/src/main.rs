@@ -158,7 +158,7 @@ fn run_test_all(wasm: &PathBuf) -> Result<()> {
             Err(e) => print_fail("get_pages", &e.to_string()),
             Ok(v) if !is_ok(&v) => print_fail("get_pages", error_msg(&v)),
             Ok(v) => {
-                let count = item_count(&v, "items");
+                let count = item_count(&v, "pages");
                 print_pass("get_pages", &format!("{} pages", count));
             }
         }
@@ -195,6 +195,15 @@ fn run_test_all(wasm: &PathBuf) -> Result<()> {
     run_independent!("get_settings", r#"{}"#, |v: &serde_json::Value| {
         let field_count = data(v).as_object().map(|o| o.len()).unwrap_or(0);
         format!("{} fields", field_count)
+    });
+
+    run_independent!("get_home", r#"{}"#, |v: &serde_json::Value| {
+        format!("{} items", item_count(v, "items"))
+    });
+
+    run_independent!("get_image_request", r#"{"url":"https://example.com/img.jpg"}"#, |v: &serde_json::Value| {
+        let has_url = data(v).get("url").and_then(|u| u.as_str()).is_some();
+        if has_url { "ok".into() } else { "missing url field".into() }
     });
 
     println!("\nResults: {}/{} passed", passed, TOTAL);
