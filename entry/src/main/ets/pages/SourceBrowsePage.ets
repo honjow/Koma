@@ -55,7 +55,7 @@ export struct SourceBrowsePage {
   }
 
   aboutToAppear(): void {
-    this.viewModel.loadBrowseHome(this.source)
+    void this.viewModel.loadBrowseHome(this.source)
   }
 
   build() {
@@ -91,11 +91,19 @@ export struct SourceBrowsePage {
         .width('100%')
         .alignItems(VerticalAlign.Center)
 
-        if (this.viewModel.loadingBrowse && this.viewModel.popularManga.length === 0) {
+        if (this.viewModel.loadingBrowse && this.viewModel.popularManga.length === 0 && this.viewModel.latestManga.length === 0) {
           LoadingProgress()
             .width(36)
             .height(36)
             .color($r('app.color.koma_accent'))
+        } else if (this.viewModel.errorMessage.length > 0) {
+          Text(this.viewModel.errorMessage)
+            .width('100%')
+            .fontSize(14)
+            .fontColor($r('app.color.koma_danger'))
+            .padding(16)
+            .borderRadius(8)
+            .backgroundColor($r('app.color.koma_card'))
         } else {
           this.SectionHeader('热门', this.viewModel.popularManga.length)
           this.MangaGrid(this.viewModel.popularManga)
@@ -112,7 +120,7 @@ export struct SourceBrowsePage {
               .fontColor($r('app.color.koma_accent'))
               .backgroundColor($r('app.color.koma_card'))
               .onClick(() => {
-                this.viewModel.loadMoreBrowse()
+                void this.viewModel.loadMoreBrowse()
               })
           }
         }
@@ -124,7 +132,7 @@ export struct SourceBrowsePage {
     .height('100%')
     .backgroundColor($r('app.color.koma_background'))
     .onReachEnd(() => {
-      this.viewModel.loadMoreBrowse()
+      void this.viewModel.loadMoreBrowse()
     })
   }
 }

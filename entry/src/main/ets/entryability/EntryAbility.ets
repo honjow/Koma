@@ -1,5 +1,6 @@
 import { UIAbility, Want, AbilityConstant } from '@kit.AbilityKit'
 import { window } from '@kit.ArkUI'
+import { registerBundledDevSourcesForBrowse } from '../sourceRuntime/SourceRuntimeAppRegistry'
 import { maybeRunSourceRuntimeDeviceSmoke } from '../sourceRuntime/SourceRuntimeDeviceSmoke'
 
 const TRANSPARENT_COLOR: string = '#00FFFFFF'
@@ -8,6 +9,7 @@ const ENTRY_PAGE: string = 'pages/Index'
 export default class EntryAbility extends UIAbility {
   onCreate(want: Want, launchParam: AbilityConstant.LaunchParam): void {
     void launchParam
+    registerBundledDevSourcesForBrowse(this.context.resourceManager)
     maybeRunSourceRuntimeDeviceSmoke(want, this.context.resourceManager, this.context)
   }
 
