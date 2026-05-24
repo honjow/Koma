@@ -17,12 +17,30 @@ import {
   komgaHeadersToHttpHeaderObject,
   normalizeKomgaBaseUrl,
 } from '../remote/KomgaClient'
+import {
+  WebDavClient,
+  WebDavHeaders,
+  WebDavHttpAdapter,
+  WebDavHttpRequest,
+  WebDavHttpResponse,
+  normalizeWebDavBaseUrl,
+  webDavHeadersToHttpHeaderObject,
+} from '../remote/WebDavClient'
+import {
+  WebDavAuthKind,
+  WebDavResolvedCredential,
+  WebDavServerConfig,
+} from '../remote/WebDavModels'
 
 const REMOTE_SERVER_STORE_NAME: string = 'koma_remote_servers_v1'
 const KOMGA_SERVER_KEY: string = 'komga.server'
 const KOMGA_CREDENTIAL_KEY: string = 'komga.credential'
+const WEBDAV_SERVER_KEY: string = 'webdav.server'
+const WEBDAV_CREDENTIAL_KEY: string = 'webdav.credential'
 const DEFAULT_KOMGA_SERVER_ID: string = 'komga-default'
 const DEFAULT_KOMGA_CREDENTIAL_REF: string = 'komga-default-credential'
+const DEFAULT_WEBDAV_SERVER_ID: string = 'webdav-default'
+const DEFAULT_WEBDAV_CREDENTIAL_REF: string = 'webdav-default-credential'
 
 export interface KomgaServerDraft {
   baseUrl: string
@@ -37,11 +55,28 @@ export interface KomgaServerRecord {
   credential?: KomgaResolvedCredential
 }
 
+export interface WebDavServerDraft {
+  baseUrl: string
+  username?: string
+  password?: string
+  rootPath?: string
+}
+
+export interface WebDavServerRecord {
+  server: WebDavServerConfig
+  credential?: WebDavResolvedCredential
+}
+
 interface StoredKomgaCredential {
   credentialRef: string
   basicToken?: string
   apiKey?: string
   sessionToken?: string
+}
+
+interface StoredWebDavCredential {
+  credentialRef: string
+  basicToken?: string
 }
 
 export class HarmonyHttpAdapter implements KomgaHttpAdapter {
@@ -67,6 +102,38 @@ export class HarmonyHttpAdapter implements KomgaHttpAdapter {
     } catch (error) {
       const e = error as BusinessError
       console.error(`[Komga] step=http_error code=${e.code} message=${e.message}`)
+      throw new Error(e.message)
+    } finally {
+      httpRequest.destroy()
+    }
+  }
+}
+
+export class WebDavHarmonyHttpAdapter implements WebDavHttpAdapter {
+  async request(request: WebDavHttpRequest): Promise<WebDavHttpResponse> {
+    const httpRequest = http.createHttp()
+    const startedAt = Date.now()
+    try {
+      const options: http.HttpRequestOptions = {
+        method: request.method === 'GET' ? http.RequestMethod.GET : http.RequestMethod.GET,
+        customMethod: request.method === 'PROPFIND' ? 'PROPFIND' : undefined,
+        extraData: request.body,
+        expectDataType: http.HttpDataType.STRING,
+        usingCache: false,
+        header: webDavHeadersToHttpHeaderObject(request.headers),
+        readTimeout: 60000,
+        connectTimeout: 30000,
+      }
+      const response = await httpRequest.request(request.url, options)
+      const body = typeof response.result === 'string' ? response.result : JSON.stringify(response.result)
+      console.info(`[WebDAV] step=http method=${request.method} status=${response.responseCode} elapsed=${Date.now() - startedAt}`)
+      return {
+        status: response.responseCode,
+        body,
+      }
+    } catch (error) {
+      const e = error as BusinessError
+      console.error(`[WebDAV] step=http_error method=${request.method} code=${e.code} message=${e.message}`)
       throw new Error(e.message)
     } finally {
       httpRequest.destroy()
@@ -143,6 +210,68 @@ export class RemoteServerStore {
     console.info('[Komga] step=clear_server')
   }
 
+  async loadWebDav(): Promise<WebDavServerRecord | undefined> {
+    const store = await this.preferences()
+    const serverPayload = await store.get(WEBDAV_SERVER_KEY, '') as string
+    if (serverPayload.length === 0) {
+      return undefined
+    }
+    const server = JSON.parse(serverPayload) as WebDavServerConfig
+    const credentialPayload = await store.get(WEBDAV_CREDENTIAL_KEY, '') as string
+    if (credentialPayload.length === 0 || server.credentialRef === undefined) {
+      return { server }
+    }
+    const stored = JSON.parse(credentialPayload) as StoredWebDavCredential
+    if (stored.credentialRef !== server.credentialRef) {
+      return { server }
+    }
+    return {
+      server,
+      credential: {
+        credentialRef: stored.credentialRef,
+        basicToken: stored.basicToken,
+      },
+    }
+  }
+
+  async saveWebDav(draft: WebDavServerDraft): Promise<WebDavServerRecord> {
+    const baseUrl = normalizeWebDavBaseUrl(draft.baseUrl)
+    if (baseUrl.length === 0) {
+      throw new Error('请输入 WebDAV Server URL')
+    }
+    const credential = this.createWebDavCredential(draft)
+    const rootPath = draft.rootPath === undefined ? '' : draft.rootPath.trim()
+    const server: WebDavServerConfig = {
+      id: DEFAULT_WEBDAV_SERVER_ID,
+      name: 'WebDAV',
+      baseUrl,
+      rootPath: rootPath.length === 0 ? undefined : rootPath,
+      authKind: credential === undefined ? WebDavAuthKind.NONE : WebDavAuthKind.BASIC,
+      credentialRef: credential === undefined ? undefined : DEFAULT_WEBDAV_CREDENTIAL_REF,
+    }
+    const store = await this.preferences()
+    await store.put(WEBDAV_SERVER_KEY, JSON.stringify(server))
+    if (credential === undefined) {
+      await store.delete(WEBDAV_CREDENTIAL_KEY)
+    } else {
+      await store.put(WEBDAV_CREDENTIAL_KEY, JSON.stringify(credential))
+    }
+    await store.flush()
+    console.info('[WebDAV] step=save_server')
+    return {
+      server,
+      credential,
+    }
+  }
+
+  async clearWebDav(): Promise<void> {
+    const store = await this.preferences()
+    await store.delete(WEBDAV_SERVER_KEY)
+    await store.delete(WEBDAV_CREDENTIAL_KEY)
+    await store.flush()
+    console.info('[WebDAV] step=clear_server')
+  }
+
   createKomgaClient(record: KomgaServerRecord): KomgaClient {
     return new KomgaClient({
       server: record.server,
@@ -151,11 +280,30 @@ export class RemoteServerStore {
     })
   }
 
+  createWebDavClient(record: WebDavServerRecord): WebDavClient {
+    return new WebDavClient({
+      server: record.server,
+      credential: record.credential,
+      http: new WebDavHarmonyHttpAdapter(),
+    })
+  }
+
   getKomgaImageHeaders(record: KomgaServerRecord): KomgaHeaders {
     return new KomgaClient({
       server: record.server,
       credential: record.credential,
     }).buildHeaders({ accept: 'image/*' } as KomgaHeaders)
+  }
+
+  getWebDavImageHeaders(record: WebDavServerRecord): KomgaHeaders {
+    const webDavHeaders: WebDavHeaders = new WebDavClient({
+      server: record.server,
+      credential: record.credential,
+    }).buildHeaders({ accept: 'image/*' } as WebDavHeaders)
+    return {
+      authorization: webDavHeaders.authorization,
+      accept: webDavHeaders.accept,
+    } as KomgaHeaders
   }
 
   private createCredential(draft: KomgaServerDraft): KomgaResolvedCredential | undefined {
@@ -179,6 +327,21 @@ export class RemoteServerStore {
     }
     return {
       credentialRef: DEFAULT_KOMGA_CREDENTIAL_REF,
+      basicToken: buffer.from(`${username}:${password}`, 'utf8').toString('base64'),
+    }
+  }
+
+  private createWebDavCredential(draft: WebDavServerDraft): WebDavResolvedCredential | undefined {
+    const username = draft.username === undefined ? '' : draft.username.trim()
+    const password = draft.password === undefined ? '' : draft.password
+    if (username.length === 0 && password.length === 0) {
+      return undefined
+    }
+    if (username.length === 0 || password.length === 0) {
+      throw new Error('请输入用户名和密码')
+    }
+    return {
+      credentialRef: DEFAULT_WEBDAV_CREDENTIAL_REF,
       basicToken: buffer.from(`${username}:${password}`, 'utf8').toString('base64'),
     }
   }

@@ -10,7 +10,10 @@ import {
 } from './WebDavModels'
 
 export interface WebDavHeaders {
-  [key: string]: string
+  authorization?: string
+  accept?: string
+  contentType?: string
+  depth?: string
 }
 
 export interface WebDavHttpRequest {
@@ -52,21 +55,25 @@ export function normalizeWebDavBaseUrl(baseUrl: string): string {
 }
 
 export function resolveWebDavHref(baseUrl: string, href: string): string {
-  try {
-    return new URL(href, baseUrl).toString()
-  } catch (error) {
+  if (href.startsWith('http://') || href.startsWith('https://')) {
     return href
   }
+  const origin = readUrlOrigin(baseUrl)
+  if (origin.length === 0) {
+    return href
+  }
+  if (href.startsWith('/')) {
+    return origin + href
+  }
+  return joinUrlPath(baseUrl, href)
 }
 
 export function buildWebDavUrl(baseUrl: string, pathSegments: string[] = []): string {
-  const base = new URL(normalizeWebDavBaseUrl(baseUrl) + '/')
-  const baseSegments = base.pathname.split('/').filter((segment: string) => segment.length > 0)
-  const nextSegments = pathSegments
-    .map((segment: string): string[] => segment.split('/'))
-    .reduce((all: string[], parts: string[]): string[] => all.concat(parts), [])
-    .filter((segment: string) => segment.length > 0 && segment !== '.')
-
+  const normalizedBase = normalizeWebDavBaseUrl(stripQueryAndHash(baseUrl))
+  const origin = readUrlOrigin(normalizedBase)
+  const basePath = readUrlPath(normalizedBase)
+  const baseSegments = splitPathSegments(basePath)
+  const nextSegments = flattenWebDavPathSegments(pathSegments)
   nextSegments.forEach((segment: string) => {
     if (segment === '..') {
       if (baseSegments.length > 0) {
@@ -76,9 +83,8 @@ export function buildWebDavUrl(baseUrl: string, pathSegments: string[] = []): st
       baseSegments.push(segment)
     }
   })
-
-  base.pathname = '/' + baseSegments.map((segment: string) => encodeURIComponent(segment)).join('/')
-  return base.toString()
+  const path = '/' + baseSegments.map((segment: string) => encodeURIComponent(segment)).join('/')
+  return origin + path
 }
 
 export function buildWebDavAuthHeaders(config: WebDavServerConfig, credential?: WebDavResolvedCredential): WebDavHeaders {
@@ -97,14 +103,17 @@ export function buildWebDavAuthHeaders(config: WebDavServerConfig, credential?: 
   if (credential.basicToken === undefined || credential.basicToken.length === 0) {
     throw new Error('WebDAV Basic credential token is required')
   }
-  return { 'Authorization': `Basic ${credential.basicToken}` }
+  return { authorization: `Basic ${credential.basicToken}` } as WebDavHeaders
 }
 
 export function redactWebDavHeaders(headers: WebDavHeaders): WebDavHeaders {
-  const redacted: WebDavHeaders = {}
-  Object.keys(headers).forEach((key: string) => {
-    redacted[key] = isSensitiveHeader(key) ? '<redacted>' : headers[key]
-  })
+  const redacted: WebDavHeaders = {} as WebDavHeaders
+  redacted.accept = headers.accept
+  redacted.contentType = headers.contentType
+  redacted.depth = headers.depth
+  if (headers.authorization !== undefined) {
+    redacted.authorization = '<redacted>'
+  }
   return redacted
 }
 
@@ -115,6 +124,23 @@ export function redactWebDavRequest(request: WebDavHttpRequest): RedactedWebDavH
     headers: redactWebDavHeaders(request.headers),
     body: request.body,
   }
+}
+
+export function webDavHeadersToHttpHeaderObject(headers: WebDavHeaders): Object {
+  const entries: string[] = []
+  if (headers.authorization !== undefined) {
+    entries.push(`"Authorization":${JSON.stringify(headers.authorization)}`)
+  }
+  if (headers.accept !== undefined) {
+    entries.push(`"Accept":${JSON.stringify(headers.accept)}`)
+  }
+  if (headers.contentType !== undefined) {
+    entries.push(`"Content-Type":${JSON.stringify(headers.contentType)}`)
+  }
+  if (headers.depth !== undefined) {
+    entries.push(`"Depth":${JSON.stringify(headers.depth)}`)
+  }
+  return JSON.parse(`{${entries.join(',')}}`) as Object
 }
 
 export function buildPropfindBody(): string {
@@ -212,10 +238,13 @@ export class WebDavClient {
   }
 
   buildHeaders(extraHeaders: WebDavHeaders = {}): WebDavHeaders {
-    return {
-      ...buildWebDavAuthHeaders(this.server, this.credential),
-      ...extraHeaders,
-    }
+    const authHeaders = buildWebDavAuthHeaders(this.server, this.credential)
+    const headers: WebDavHeaders = {} as WebDavHeaders
+    headers.authorization = extraHeaders.authorization === undefined ? authHeaders.authorization : extraHeaders.authorization
+    headers.accept = extraHeaders.accept === undefined ? authHeaders.accept : extraHeaders.accept
+    headers.contentType = extraHeaders.contentType === undefined ? authHeaders.contentType : extraHeaders.contentType
+    headers.depth = extraHeaders.depth === undefined ? authHeaders.depth : extraHeaders.depth
+    return headers
   }
 
   buildPropfindRequest(pathSegments: string[] = [], depth: 0 | 1 = 1): WebDavHttpRequest {
@@ -223,10 +252,10 @@ export class WebDavClient {
       method: 'PROPFIND',
       url: this.buildUrl(pathSegments),
       headers: this.buildHeaders({
-        'Accept': 'application/xml, text/xml',
-        'Content-Type': 'application/xml; charset=utf-8',
-        'Depth': `${depth}`,
-      }),
+        accept: 'application/xml, text/xml',
+        contentType: 'application/xml; charset=utf-8',
+        depth: `${depth}`,
+      } as WebDavHeaders),
       body: buildPropfindBody(),
     }
   }
@@ -235,7 +264,7 @@ export class WebDavClient {
     return {
       method: 'GET',
       url: this.buildUrl(pathSegments),
-      headers: this.buildHeaders({ 'Accept': '*/*' }),
+      headers: this.buildHeaders({ accept: '*/*' } as WebDavHeaders),
     }
   }
 
@@ -245,6 +274,10 @@ export class WebDavClient {
       throw new Error(`WebDAV PROPFIND expected 207 but received ${response.status}`)
     }
     return parseWebDavMultiStatus(response.body, this.buildUrl(pathSegments))
+  }
+
+  getResourceUrl(resource: DavResource): string {
+    return resource.href
   }
 
   private async send(request: WebDavHttpRequest): Promise<WebDavHttpResponse> {
@@ -317,27 +350,76 @@ function stripQueryAndHash(value: string): string {
 }
 
 function readNameFromHref(href: string): string {
-  const pathname = new URL(href).pathname
+  const pathname = readUrlPath(href)
   const trimmed = pathname.endsWith('/') ? pathname.substring(0, pathname.length - 1) : pathname
   const name = trimmed.split('/').pop()
   return name === undefined || name.length === 0 ? href : decodeURIComponent(name)
 }
 
 function isDirectChildHref(parentHref: string, childHref: string): boolean {
-  const parent = new URL(parentHref)
-  const child = new URL(childHref)
-  if (parent.origin !== child.origin) {
+  if (readUrlOrigin(parentHref) !== readUrlOrigin(childHref)) {
     return false
   }
-  const parentPath = parent.pathname.endsWith('/') ? parent.pathname : parent.pathname + '/'
-  if (!child.pathname.startsWith(parentPath) || child.pathname === parentPath) {
+  const rawParentPath = readUrlPath(parentHref)
+  const childPath = readUrlPath(childHref)
+  const parentPath = rawParentPath.endsWith('/') ? rawParentPath : rawParentPath + '/'
+  if (!childPath.startsWith(parentPath) || childPath === parentPath) {
     return false
   }
-  const rest = child.pathname.substring(parentPath.length)
+  const rest = childPath.substring(parentPath.length)
   return rest.length > 0 && rest.indexOf('/') < 0
 }
 
-function isSensitiveHeader(key: string): boolean {
-  const normalized = key.toLocaleLowerCase()
-  return normalized === 'authorization' || normalized === 'cookie' || normalized === 'x-auth-token'
+function readUrlOrigin(value: string): string {
+  const schemeIndex = value.indexOf('://')
+  if (schemeIndex < 0) {
+    return ''
+  }
+  const pathIndex = value.indexOf('/', schemeIndex + 3)
+  if (pathIndex < 0) {
+    return value
+  }
+  return value.substring(0, pathIndex)
+}
+
+export function readWebDavUrlPath(value: string): string {
+  return readUrlPath(value)
+}
+
+function readUrlPath(value: string): string {
+  const withoutQuery = stripQueryAndHash(value)
+  const schemeIndex = withoutQuery.indexOf('://')
+  if (schemeIndex < 0) {
+    return withoutQuery.startsWith('/') ? withoutQuery : '/' + withoutQuery
+  }
+  const pathIndex = withoutQuery.indexOf('/', schemeIndex + 3)
+  if (pathIndex < 0) {
+    return '/'
+  }
+  return withoutQuery.substring(pathIndex)
+}
+
+function splitPathSegments(path: string): string[] {
+  return path.split('/').filter((segment: string): boolean => segment.length > 0).map((segment: string): string => {
+    return decodeURIComponent(segment)
+  })
+}
+
+function flattenWebDavPathSegments(pathSegments: string[]): string[] {
+  const flattened: string[] = []
+  pathSegments.forEach((segment: string) => {
+    segment.split('/').forEach((part: string) => {
+      if (part.length > 0 && part !== '.') {
+        flattened.push(part)
+      }
+    })
+  })
+  return flattened
+}
+
+function joinUrlPath(baseUrl: string, href: string): string {
+  const origin = readUrlOrigin(baseUrl)
+  const basePath = readUrlPath(baseUrl)
+  const parentPath = basePath.endsWith('/') ? basePath : basePath.substring(0, basePath.lastIndexOf('/') + 1)
+  return origin + parentPath + href
 }

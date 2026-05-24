@@ -16,10 +16,12 @@ import { RouterHelper } from '../common/RouterHelper'
 import { common } from '@kit.AbilityKit'
 import { RemoteServerStore } from '../model/RemoteServerStore'
 import { KomgaSeriesPage } from './KomgaSeriesPage'
+import { WebDavBrowsePage } from './WebDavBrowsePage'
 
 const SOURCE_BROWSE_ROUTE_NAME: string = 'SourceBrowsePage'
 const SOURCE_SEARCH_ROUTE_NAME: string = 'SourceSearchPage'
 const KOMGA_ROUTE_NAME: string = 'KomgaSeriesPage'
+const WEBDAV_ROUTE_NAME: string = 'WebDavBrowsePage'
 
 interface SourceRouteParam {
   source: SourceRuntimeRegistryInstalledSourceSummary
@@ -30,6 +32,7 @@ export struct BrowsePage {
   @State private viewModel: BrowseViewModel = new BrowseViewModel()
   @State private refreshingSources: boolean = false
   @State private komgaConfigured: boolean = false
+  @State private webDavConfigured: boolean = false
   sourceRegistry: SourceRuntimeRegistry = appSourceRuntimeRegistry
   private browsePathStack: NavPathStack = new NavPathStack()
 
@@ -49,6 +52,10 @@ export struct BrowsePage {
 
   private openKomga(): void {
     this.browsePathStack.pushPath({ name: KOMGA_ROUTE_NAME })
+  }
+
+  private openWebDav(): void {
+    this.browsePathStack.pushPath({ name: WEBDAV_ROUTE_NAME })
   }
 
   @Builder
@@ -123,6 +130,56 @@ export struct BrowsePage {
         })
       }
     }
+    if (this.webDavConfigured) {
+      ListItem() {
+        Row({ space: 14 }) {
+          Stack({ alignContent: Alignment.Center }) {
+            Text('W')
+              .fontSize(20)
+              .fontWeight(FontWeight.Bold)
+              .fontColor(Color.White)
+          }
+          .width(48)
+          .height(48)
+          .borderRadius(24)
+          .backgroundColor('#5F5F9F')
+
+          Column({ space: 5 }) {
+            Row({ space: 8 }) {
+              Text('WebDAV')
+                .fontSize(17)
+                .fontWeight(FontWeight.Medium)
+                .fontColor($r('app.color.koma_text_primary'))
+                .layoutWeight(1)
+              Text('远程文件夹')
+                .fontSize(11)
+                .fontWeight(FontWeight.Medium)
+                .fontColor($r('app.color.koma_accent'))
+                .padding({ left: 8, right: 8, top: 3, bottom: 3 })
+                .borderRadius(8)
+                .backgroundColor('#1F256E5D')
+            }
+            .width('100%')
+            .alignItems(VerticalAlign.Center)
+            Text('浏览目录 / 图片文件夹 / Reader')
+              .fontSize(13)
+              .fontColor($r('app.color.koma_text_secondary'))
+          }
+          .layoutWeight(1)
+          .alignItems(HorizontalAlign.Start)
+          Text('>')
+            .fontSize(18)
+            .fontColor($r('app.color.koma_text_secondary'))
+        }
+        .width('100%')
+        .padding(14)
+        .borderRadius(8)
+        .backgroundColor($r('app.color.koma_card'))
+        .onClick(() => {
+          this.openWebDav()
+        })
+      }
+    }
     ForEach(this.viewModel.sources, (source: SourceRuntimeRegistryInstalledSourceSummary) => {
       ListItem() {
         SourceListItem({
@@ -168,31 +225,40 @@ export struct BrowsePage {
         KomgaSeriesPage()
       }
       .title('Komga')
+    } else if (name === WEBDAV_ROUTE_NAME) {
+      NavDestination() {
+        WebDavBrowsePage()
+      }
+      .title('WebDAV')
     }
   }
 
   aboutToAppear(): void {
     this.viewModel = new BrowseViewModel(this.sourceRegistry)
     this.viewModel.loadInstalledSources()
-    this.loadKomgaAvailability()
+    this.loadRemoteAvailability()
   }
 
-  private async loadKomgaAvailability(): Promise<void> {
+  private async loadRemoteAvailability(): Promise<void> {
     try {
       const store = new RemoteServerStore(getContext(this) as common.UIAbilityContext)
       this.komgaConfigured = await store.loadKomga() !== undefined
+      this.webDavConfigured = await store.loadWebDav() !== undefined
       console.info(`[Komga] step=browse_availability configured=${this.komgaConfigured}`)
+      console.info(`[WebDAV] step=browse_availability configured=${this.webDavConfigured}`)
     } catch (error) {
       const e = error as Error
       this.komgaConfigured = false
+      this.webDavConfigured = false
       console.error('[Komga] step=browse_availability_failed message=' + e.message)
+      console.error('[WebDAV] step=browse_availability_failed message=' + e.message)
     }
   }
 
   private refreshSources(): void {
     this.refreshingSources = true
     this.viewModel.loadInstalledSources()
-    this.loadKomgaAvailability()
+    this.loadRemoteAvailability()
     this.refreshingSources = false
   }
 
@@ -216,7 +282,7 @@ export struct BrowsePage {
                 .width('100%')
                 .justifyContent(FlexAlign.Center)
               }
-            } else if (this.viewModel.sources.length === 0 && !this.komgaConfigured) {
+            } else if (this.viewModel.sources.length === 0 && !this.komgaConfigured && !this.webDavConfigured) {
               ListItem() {
                 this.EmptySources()
               }
