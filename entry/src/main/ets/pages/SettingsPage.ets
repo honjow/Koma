@@ -1,5 +1,17 @@
+import { bundleManager, common } from '@kit.AbilityKit'
 import { SecondaryListScaffold } from '../components/SecondaryListScaffold'
 import { ThemeConstants } from '../theme/ThemeConstants'
+import { ReadingDirection } from '../model/ComicModels'
+import { BackupService } from '../model/BackupService'
+import {
+  ReaderPageMode,
+  ReaderPreferencesStore,
+  ReaderThemeMode,
+  applyReaderThemeMode,
+  getReaderPageModeLabel,
+  getReaderThemeModeLabel,
+  getReadingDirectionLabel,
+} from '../model/ReaderPreferencesStore'
 import { KomgaServerPage } from './KomgaServerPage'
 import { OpdsServerPage } from './OpdsServerPage'
 import { WebDavServerPage } from './WebDavServerPage'
@@ -44,7 +56,7 @@ const SETTINGS_SECTIONS: SettingsSection[] = [
       { key: 'komga', title: 'Komga 私有库', detail: '服务器与认证' },
       { key: 'opds', title: 'OPDS 私有库', detail: 'Catalog 与认证' },
       { key: 'webdav', title: 'WebDAV 私有库', detail: '远程文件夹与认证' },
-      { key: 'sources', title: '源管理', detail: '管理已安装的源包' },
+      { key: 'sources', title: '管理已安装的源包', detail: '暂未安装源包' },
       { key: 'backup', title: '备份与恢复', detail: '导出书架及阅读进度' },
     ],
   },
@@ -52,6 +64,7 @@ const SETTINGS_SECTIONS: SettingsSection[] = [
     key: 'about',
     title: '关于',
     rows: [
+      { key: 'about', title: '关于', detail: 'Koma 与项目说明' },
       { key: 'version', title: '版本', detail: 'Koma 开发版' },
       { key: 'open-source', title: '开源许可', detail: '查看依赖与许可证' },
     ],
@@ -61,6 +74,10 @@ const SETTINGS_SECTIONS: SettingsSection[] = [
 @Component
 export struct SettingsPage {
   private settingsPathStack: NavPathStack = new NavPathStack()
+  @State private pageMode: ReaderPageMode = 'single_page'
+  @State private readingDirection: ReadingDirection = ReadingDirection.LEFT_TO_RIGHT
+  @State private themeMode: ReaderThemeMode = 'system'
+  @State private versionDetail: string = 'Koma 开发版'
 
   private openKomgaSettings(): void {
     this.settingsPathStack.pushPath({ name: KOMGA_SERVER_ROUTE_NAME })
@@ -72,6 +89,239 @@ export struct SettingsPage {
 
   private openOpdsSettings(): void {
     this.settingsPathStack.pushPath({ name: OPDS_SERVER_ROUTE_NAME })
+  }
+
+  private context(): common.UIAbilityContext {
+    return getContext(this) as common.UIAbilityContext
+  }
+
+  private preferencesStore(): ReaderPreferencesStore {
+    return new ReaderPreferencesStore(this.context())
+  }
+
+  private backupService(): BackupService {
+    return new BackupService(this.context())
+  }
+
+  private rowDetail(row: SettingsRow): string {
+    if (row.key === 'page-mode') {
+      return getReaderPageModeLabel(this.pageMode)
+    }
+    if (row.key === 'reading-direction') {
+      return getReadingDirectionLabel(this.readingDirection)
+    }
+    if (row.key === 'theme') {
+      return getReaderThemeModeLabel(this.themeMode)
+    }
+    if (row.key === 'version') {
+      return this.versionDetail
+    }
+    return row.detail
+  }
+
+  private loadPreferences(): void {
+    void this.preferencesStore().load()
+      .then((preferences) => {
+        this.pageMode = preferences.pageMode
+        this.readingDirection = preferences.readingDirection
+        this.themeMode = preferences.themeMode
+        console.info('[Settings] step=load_preferences')
+      })
+      .catch((error: Error) => {
+        console.warn('[Settings] step=load_preferences_failed message=' + error.message)
+      })
+  }
+
+  private loadVersion(): void {
+    try {
+      const info = bundleManager.getBundleInfoForSelfSync(bundleManager.BundleFlag.GET_BUNDLE_INFO_DEFAULT)
+      this.versionDetail = `${info.versionName} (${info.versionCode})`
+    } catch (error) {
+      const e = error as Error
+      console.warn('[Settings] step=version_failed message=' + e.message)
+      this.versionDetail = 'Koma 开发版'
+    }
+  }
+
+  private showPageModeSheet(): void {
+    console.info('[Settings] step=page_mode_sheet')
+    this.getUIContext().showActionSheet({
+      title: '翻页模式',
+      message: '选择阅读器默认翻页模式',
+      sheets: [
+        { title: '单页', action: () => { this.savePageMode('single_page') } },
+        { title: '双页', action: () => { this.savePageMode('double_page') } },
+        { title: '连续滚动', action: () => { this.savePageMode('continuous_scroll') } },
+      ],
+    })
+  }
+
+  private savePageMode(pageMode: ReaderPageMode): void {
+    this.pageMode = pageMode
+    void this.preferencesStore().savePageMode(pageMode)
+      .then(() => {
+        console.info('[Settings] step=save_page_mode value=' + pageMode)
+      })
+      .catch((error: Error) => {
+        console.warn('[Settings] step=save_page_mode_failed message=' + error.message)
+      })
+  }
+
+  private showReadingDirectionSheet(): void {
+    console.info('[Settings] step=reading_direction_sheet')
+    this.getUIContext().showActionSheet({
+      title: '阅读方向',
+      message: '选择阅读器默认阅读方向',
+      sheets: [
+        { title: '从左到右', action: () => { this.saveReadingDirection(ReadingDirection.LEFT_TO_RIGHT) } },
+        { title: '从右到左', action: () => { this.saveReadingDirection(ReadingDirection.RIGHT_TO_LEFT) } },
+        { title: '纵向', action: () => { this.saveReadingDirection(ReadingDirection.WEBTOON) } },
+      ],
+    })
+  }
+
+  private saveReadingDirection(readingDirection: ReadingDirection): void {
+    this.readingDirection = readingDirection
+    void this.preferencesStore().saveReadingDirection(readingDirection)
+      .then(() => {
+        console.info('[Settings] step=save_reading_direction value=' + readingDirection)
+      })
+      .catch((error: Error) => {
+        console.warn('[Settings] step=save_reading_direction_failed message=' + error.message)
+      })
+  }
+
+  private showThemeSheet(): void {
+    console.info('[Settings] step=theme_sheet')
+    this.getUIContext().showActionSheet({
+      title: '主题',
+      message: '选择应用深浅色模式',
+      sheets: [
+        { title: '跟随系统', action: () => { this.saveThemeMode('system') } },
+        { title: '浅色', action: () => { this.saveThemeMode('light') } },
+        { title: '深色', action: () => { this.saveThemeMode('dark') } },
+      ],
+    })
+  }
+
+  private saveThemeMode(themeMode: ReaderThemeMode): void {
+    this.themeMode = themeMode
+    try {
+      applyReaderThemeMode(this.context(), themeMode)
+    } catch (error) {
+      const e = error as Error
+      console.warn('[Settings] step=apply_theme_failed message=' + e.message)
+    }
+    void this.preferencesStore().saveThemeMode(themeMode)
+      .then(() => {
+        console.info('[Settings] step=save_theme value=' + themeMode)
+      })
+      .catch((error: Error) => {
+        console.warn('[Settings] step=save_theme_failed message=' + error.message)
+      })
+  }
+
+  private showBackupSheet(): void {
+    console.info('[Settings] step=backup_sheet')
+    this.getUIContext().showActionSheet({
+      title: '备份与恢复',
+      message: '导出或导入书架、阅读进度和远程服务器配置',
+      sheets: [
+        { title: '导出备份', action: () => { this.exportBackup() } },
+        { title: '导入备份', action: () => { this.importBackup() } },
+      ],
+    })
+  }
+
+  private exportBackup(): void {
+    console.info('[Settings] step=backup_export_start')
+    void this.backupService().exportToPicker()
+      .then((uri: string | undefined) => {
+        if (uri !== undefined) {
+          this.showInfoDialog('备份已导出', '备份 JSON 已保存到所选位置。')
+        }
+      })
+      .catch((error: Error) => {
+        console.error('[Settings] step=backup_export_failed message=' + error.message)
+        this.showInfoDialog('导出失败', error.message)
+      })
+  }
+
+  private importBackup(): void {
+    console.info('[Settings] step=backup_import_start')
+    void this.backupService().importFromPicker()
+      .then(() => {
+        this.showInfoDialog('备份已导入', '书架、阅读进度和远程服务器配置已恢复。')
+      })
+      .catch((error: Error) => {
+        console.error('[Settings] step=backup_import_failed message=' + error.message)
+        this.showInfoDialog('导入失败', error.message)
+      })
+  }
+
+  private showSourcesDialog(): void {
+    console.info('[Settings] step=sources_dialog')
+    void this.getUIContext().getPromptAction().showDialog({
+      title: '管理已安装的源包',
+      message: '暂未安装源包。\n\n源包管理将由独立流程接入；当前可前往 Browse 安装源。',
+      buttons: [
+        { text: '前往 Browse 安装源', color: '#8D5A3B' },
+        { text: '知道了', color: '#666666' },
+      ],
+    })
+  }
+
+  private showInfoDialog(title: string, message: string): void {
+    void this.getUIContext().getPromptAction().showDialog({
+      title,
+      message,
+      buttons: [
+        { text: '确定', color: '#8D5A3B' },
+      ],
+    })
+  }
+
+  private showAboutDialog(): void {
+    console.info('[Settings] step=about_dialog')
+    this.showInfoDialog('关于 Koma', 'Koma 是面向 HarmonyOS 的私有漫画书架与阅读器。')
+  }
+
+  private showOpenSourceDialog(): void {
+    console.info('[Settings] step=open_source_dialog')
+    this.showInfoDialog('开源许可', 'Koma 使用 HarmonyOS SDK 与项目内自有代码构建。\n\n第三方依赖许可将在后续版本补充完整清单。')
+  }
+
+  private showVersionDialog(): void {
+    console.info('[Settings] step=version_dialog')
+    this.showInfoDialog('版本', this.versionDetail)
+  }
+
+  private handleRowClick(row: SettingsRow): void {
+    if (row.key === 'komga') {
+      this.openKomgaSettings()
+    } else if (row.key === 'opds') {
+      this.openOpdsSettings()
+    } else if (row.key === 'webdav') {
+      this.openWebDavSettings()
+    } else if (row.key === 'page-mode') {
+      this.showPageModeSheet()
+    } else if (row.key === 'reading-direction') {
+      this.showReadingDirectionSheet()
+    } else if (row.key === 'theme') {
+      this.showThemeSheet()
+    } else if (row.key === 'backup') {
+      this.showBackupSheet()
+    } else if (row.key === 'sources') {
+      this.showSourcesDialog()
+    } else if (row.key === 'about') {
+      this.showAboutDialog()
+    } else if (row.key === 'version') {
+      this.showVersionDialog()
+    } else if (row.key === 'open-source') {
+      this.showOpenSourceDialog()
+    } else if (row.key === 'language') {
+      this.showInfoDialog('语言', '当前为简体中文。')
+    }
   }
 
   @Builder
@@ -91,7 +341,7 @@ export struct SettingsPage {
         .fontSize(15)
         .fontColor($r('app.color.koma_text_primary'))
         .layoutWeight(1)
-      Text(row.detail)
+      Text(this.rowDetail(row))
         .fontSize(13)
         .fontColor($r('app.color.koma_text_secondary'))
         .maxLines(1)
@@ -100,14 +350,13 @@ export struct SettingsPage {
     .width('100%')
     .padding({ left: 16, right: 16, top: 14, bottom: 14 })
     .onClick(() => {
-      if (row.key === 'komga') {
-        this.openKomgaSettings()
-      } else if (row.key === 'opds') {
-        this.openOpdsSettings()
-      } else if (row.key === 'webdav') {
-        this.openWebDavSettings()
-      }
+      this.handleRowClick(row)
     })
+  }
+
+  aboutToAppear(): void {
+    this.loadVersion()
+    this.loadPreferences()
   }
 
   @Builder

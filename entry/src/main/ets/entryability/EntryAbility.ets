@@ -1,6 +1,7 @@
 import { UIAbility, Want, AbilityConstant } from '@kit.AbilityKit'
 import { window } from '@kit.ArkUI'
 import { StorageKeys } from '../constants/StorageKeys'
+import { ReaderPreferencesStore, applyReaderThemeMode } from '../model/ReaderPreferencesStore'
 import { RemoteProgressBootstrapSync } from '../model/RemoteProgressBootstrapSync'
 import { registerBundledDevSourcesForBrowse } from '../sourceRuntime/SourceRuntimeAppRegistry'
 import { maybeRunSourceRuntimeDeviceSmoke } from '../sourceRuntime/SourceRuntimeDeviceSmoke'
@@ -13,6 +14,7 @@ const FALLBACK_BOTTOM_AVOID: number = 0
 export default class EntryAbility extends UIAbility {
   onCreate(want: Want, launchParam: AbilityConstant.LaunchParam): void {
     void launchParam
+    this.applySavedThemeMode()
     registerBundledDevSourcesForBrowse(this.context.resourceManager)
     maybeRunSourceRuntimeDeviceSmoke(want, this.context.resourceManager, this.context)
   }
@@ -74,5 +76,16 @@ export default class EntryAbility extends UIAbility {
 
   private syncRemoteProgressInBackground(): void {
     void new RemoteProgressBootstrapSync(this.context).syncAllKomgaProgress()
+  }
+
+  private applySavedThemeMode(): void {
+    void new ReaderPreferencesStore(this.context).load()
+      .then((preferences) => {
+        applyReaderThemeMode(this.context, preferences.themeMode)
+        console.info('[Settings] step=apply_startup_theme value=' + preferences.themeMode)
+      })
+      .catch((error: Error) => {
+        console.warn('[Settings] step=apply_startup_theme_failed message=' + error.message)
+      })
   }
 }
