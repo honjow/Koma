@@ -27,22 +27,29 @@ const IMAGE_ENTRY: ImportEntryInfo = {
 @Component
 export struct ImportPage {
   @State private feedbackText: string = '选择本地漫画文件。'
+  @State private importing: boolean = false
   onArchiveImportSucceeded: (comic: Comic) => void = (_comic: Comic) => {}
   onLocalImageImportSucceeded: (comic: Comic) => void = (_comic: Comic) => {}
   private readonly localImportCoordinator: LocalImportCoordinator = new LocalImportCoordinator()
 
   private logImportDebugEvent(event: LocalArchiveImportDebugEvent): void {
-    console.info('[local-import] ' + formatLocalArchiveImportDebugEvent(event))
+    const path = event.sourceUri ?? event.extractionDir ?? event.sandboxZipPath ?? event.cacheRootDir ?? ''
+    console.info(`[Import] step=${event.step} path=${path} ${formatLocalArchiveImportDebugEvent(event)}`)
   }
 
   private async selectArchiveFromPicker(): Promise<void> {
+    if (this.importing) {
+      return
+    }
+    this.importing = true
     this.feedbackText = '正在导入...'
+    console.info('[Import] step=archive_import_started path=')
     this.localImportCoordinator.setDebugSink((event: LocalArchiveImportDebugEvent) => {
       this.logImportDebugEvent(event)
     })
     try {
       const context = this.getUIContext().getHostContext() as common.UIAbilityContext
-      const results = await this.localImportCoordinator.pickAndImportArchives(context)
+      const results = await this.localImportCoordinator.pickAndImportArchives(context, 1)
       let succeededCount = 0
       let failedCount = 0
       results.forEach((result) => {
@@ -66,16 +73,23 @@ export struct ImportPage {
       } else {
         this.feedbackText = `已导入 ${succeededCount} 本，失败 ${failedCount} 个。`
       }
+      console.info(`[Import] step=archive_import_finished path= succeeded=${succeededCount} failed=${failedCount}`)
     } catch (error) {
-      console.error('[local-import] import failed: ' + `${error}`)
+      console.error('[Import] step=archive_import_failed path= error=' + `${error}`)
       this.feedbackText = '无法导入文件。'
     } finally {
       this.localImportCoordinator.setDebugSink(undefined)
+      this.importing = false
     }
   }
 
   private async selectImagesFromPicker(): Promise<void> {
+    if (this.importing) {
+      return
+    }
+    this.importing = true
     this.feedbackText = '正在导入...'
+    console.info('[Import] step=image_import_started path=')
     this.localImportCoordinator.setDebugSink((event: LocalArchiveImportDebugEvent) => {
       this.logImportDebugEvent(event)
     })
@@ -105,11 +119,13 @@ export struct ImportPage {
       } else {
         this.feedbackText = `已导入 ${succeededCount} 本，失败 ${failedCount} 个。`
       }
+      console.info(`[Import] step=image_import_finished path= succeeded=${succeededCount} failed=${failedCount}`)
     } catch (error) {
-      console.error('[local-import] image import failed: ' + `${error}`)
+      console.error('[Import] step=image_import_failed path= error=' + `${error}`)
       this.feedbackText = '无法导入图片。'
     } finally {
       this.localImportCoordinator.setDebugSink(undefined)
+      this.importing = false
     }
   }
 
@@ -138,7 +154,7 @@ export struct ImportPage {
       }
       .width('100%')
 
-      Button(entry.actionText)
+      Button(this.importing ? '导入中...' : entry.actionText)
         .height(42)
         .width('100%')
         .borderRadius(8)
@@ -146,6 +162,7 @@ export struct ImportPage {
         .fontWeight(FontWeight.Medium)
         .fontColor(Color.White)
         .backgroundColor(entry.accentColor)
+        .enabled(!this.importing)
         .onClick(() => {
           if (entry.title === IMAGE_ENTRY.title) {
             this.selectImagesFromPicker()
@@ -153,6 +170,11 @@ export struct ImportPage {
             this.selectArchiveFromPicker()
           }
         })
+      if (this.importing) {
+        LoadingProgress()
+          .width(22)
+          .height(22)
+      }
     }
     .width('100%')
     .padding(16)

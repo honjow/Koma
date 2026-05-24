@@ -10,6 +10,7 @@ export interface LibraryStore {
   getComic(comicId: ComicId): Comic | undefined
   listComics(): Comic[]
   listLibraryItems(progressByComicId?: Map<ComicId, ReadingProgress>): LibraryItem[]
+  addComic(comic: Comic): void
   upsertComic(comic: Comic): void
   removeComic(comicId: ComicId): void
   clear(): void
@@ -39,6 +40,10 @@ export class InMemoryLibraryStore implements LibraryStore {
       const progress = progressByComicId === undefined ? undefined : progressByComicId.get(comic.id)
       return comicToLibraryItem(comic, progress)
     })
+  }
+
+  addComic(comic: Comic): void {
+    this.upsertComic(comic)
   }
 
   upsertComic(comic: Comic): void {

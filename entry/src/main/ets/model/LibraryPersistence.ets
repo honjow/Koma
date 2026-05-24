@@ -409,7 +409,7 @@ export function upsertComicAndPersistLibraryStore(
   comic: Comic
 ): void {
   const previousPayload = serializeLibraryStore(libraryStore)
-  libraryStore.upsertComic(comic)
+  libraryStore.addComic(comic)
   try {
     persistenceService.persist()
   } catch (error) {
