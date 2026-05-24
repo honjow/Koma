@@ -503,17 +503,19 @@ export async function pickSourcePackageArchive(context: common.UIAbilityContext)
   return result.length > 0 ? result[0] : undefined
 }
 
-export async function installFromArchive(context: common.UIAbilityContext, uri: string): Promise<SourcePackageInstallResult> {
-  console.info('[SourceManager] step=import_start')
+async function registerSourcePackageFromBytes(
+  context: common.UIAbilityContext,
+  archiveBytes: Uint8Array,
+  archiveFileName: string,
+): Promise<SourcePackageInstallResult> {
   ensureDirSync(appSourceRoot(context))
   ensureDirSync(appSourcePackagesRoot(context))
   const packageDir = joinSourceRuntimePath(appSourcePackagesRoot(context), `import-${Date.now()}`)
-  const archivePath = joinSourceRuntimePath(packageDir, sourceArchiveSandboxFileName(uri))
+  const archivePath = joinSourceRuntimePath(packageDir, archiveFileName)
   const importedRoot = joinSourceRuntimePath(packageDir, 'package')
   try {
     ensureDirSync(packageDir)
-    await copyPickedArchiveUriToSandbox(uri, archivePath)
-    const archiveBytes = readBytesSync(archivePath)
+    writeBytesSync(archivePath, archiveBytes)
     const imported = await importLocalSourceArchive(archiveBytes, archivePath, importedRoot)
     if (!imported.ok || imported.manifest === undefined || imported.wasmBytes === undefined) {
       await removeAppSourcePackageDir(context, packageDir)
@@ -560,6 +562,37 @@ export async function installFromArchive(context: common.UIAbilityContext, uri: 
     console.error('[SourceManager] step=import_fail reason=' + e.message)
     return { ok: false, reasonCode: 'import_failed' }
   }
+}
+
+export async function installFromArchive(context: common.UIAbilityContext, uri: string): Promise<SourcePackageInstallResult> {
+  console.info('[SourceManager] step=import_start')
+  ensureDirSync(appSourceRoot(context))
+  ensureDirSync(appSourcePackagesRoot(context))
+  const packageDir = joinSourceRuntimePath(appSourcePackagesRoot(context), `import-${Date.now()}`)
+  const archiveFileName = sourceArchiveSandboxFileName(uri)
+  const archivePath = joinSourceRuntimePath(packageDir, archiveFileName)
+  try {
+    ensureDirSync(packageDir)
+    await copyPickedArchiveUriToSandbox(uri, archivePath)
+    const archiveBytes = readBytesSync(archivePath)
+    return await registerSourcePackageFromBytes(context, archiveBytes, archiveFileName)
+  } catch (error) {
+    const e = error as Error
+    try {
+      await removeAppSourcePackageDir(context, packageDir)
+    } catch (_err) {
+    }
+    console.error('[SourceManager] step=import_fail reason=' + e.message)
+    return { ok: false, reasonCode: 'import_failed' }
+  }
+}
+
+export async function installFromBytes(context: common.UIAbilityContext, archiveBytes: Uint8Array, pkgFileName: string): Promise<SourcePackageInstallResult> {
+  console.info('[SourceManager] step=import_start source=bytes pkg=' + pkgFileName)
+  const sanitized = pkgFileName.replace(/[\\/]/g, '_').replace(/^_+|_+$/g, '') || 'source-package.koma'
+  const archiveFileName = sanitized.endsWith('.koma') || sanitized.endsWith('.koma-source') ||
+    sanitized.endsWith('.koma-source.zip') || sanitized.endsWith('.zip') ? sanitized : sanitized + '.koma'
+  return await registerSourcePackageFromBytes(context, archiveBytes, archiveFileName)
 }
 
 export function setEnabled(context: common.UIAbilityContext, id: string, enabled: boolean): boolean {

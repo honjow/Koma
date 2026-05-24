@@ -81,8 +81,13 @@ assert.match(
 )
 assert.match(
   appRegistrySource,
-  /const archiveBytes = readBytesSync\(archivePath\)[\s\S]*importLocalSourceArchive\(archiveBytes, archivePath, importedRoot\)/,
-  'app import path must pass archive bytes to content validator after copying',
+  /registerSourcePackageFromBytes[\s\S]*importLocalSourceArchive\(archiveBytes, archivePath, importedRoot\)/,
+  'app import core path must pass archive bytes to content validator for both picker and bytes install',
+)
+assert.match(
+  appRegistrySource,
+  /export async function installFromBytes\(context: common\.UIAbilityContext, archiveBytes: Uint8Array, pkgFileName: string\): Promise<SourcePackageInstallResult>/,
+  'app registry must expose installFromBytes for source index service to use',
 )
 assert.match(
   appRegistrySource,
@@ -181,6 +186,55 @@ assert.match(
 )
 assert.match(smokeSource, /local_source_runtime_fixture\.koma/, 'device smoke must cover a .koma source archive')
 assert.match(abiDocSource, /`\.koma`、`\.koma-source`、`\.koma-source\.zip` 和 `\.zip`/, 'source ABI docs must document supported import suffixes')
+
+const indexServicePath = resolve(root, 'entry/src/main/ets/sourceRuntime/SourceIndexService.ets')
+const indexServiceSource = readFileSync(indexServicePath, 'utf8')
+
+assert.match(indexServiceSource, /isValidHttpUrl/, 'SourceIndexService must validate URLs')
+assert.match(indexServiceSource, /safeResolvePkgUrl/, 'SourceIndexService must resolve relative pkg URLs against index URL')
+assert.match(indexServiceSource, /authorityStart/, 'SourceIndexService must handle bare-domain index URLs without replacing host during pkg resolution')
+assert.match(indexServiceSource, /firstPathSlash < 0/, 'SourceIndexService must resolve bare-domain index URL pkg paths under the same host root')
+assert.match(indexServiceSource, /installFromBytes/, 'SourceIndexService must delegate install to app registry installFromBytes')
+assert.match(indexServiceSource, /parseIndexEntry/, 'SourceIndexService must parse index entries safely')
+assert.match(
+  indexServiceSource,
+  /importLocalSourceArchive|installFromBytes/,
+  'SourceIndexService must not bypass archive validation',
+)
+assert.doesNotMatch(
+  indexServiceSource,
+  /http:\/\/localhost|http:\/\/127\.0\.0\.1/,
+  'SourceIndexService must not include any default or hardcoded source index URL',
+)
+assert.doesNotMatch(
+  managerPageSource,
+  /https?:\/\/[^/\s]+\/source-index|https?:\/\/[^/\s]+\/index\.json/,
+  'SourcePackageManagerPage must not include any default source index URL',
+)
+assert.match(managerPageSource, /加载源列表/, 'SourcePackageManagerPage must provide 加载源列表 action')
+assert.match(managerPageSource, /本地导入/, 'SourcePackageManagerPage must keep 本地导入 as secondary fallback')
+assert.match(managerPageSource, /源索引地址/, 'SourcePackageManagerPage must surface source index URL input')
+assert.match(
+  managerPageSource,
+  /SourceIndexService/,
+  'SourcePackageManagerPage must import SourceIndexService',
+)
+assert.match(
+  managerPageSource,
+  /installIndexEntry/,
+  'SourcePackageManagerPage must wire install from index entry',
+)
+assert.match(
+  managerPageSource,
+  /输入源索引地址加载源列表，或通过本地导入打开/,
+  'empty state must mention source index URL first, local package import second',
+)
+
+assert.match(
+  backupServiceSource,
+  /sourceIndexUrl/,
+  'backup schema v3 must export/import source index URL',
+)
 
 assertSourceRepoShape(localKomaFixturePath)
 

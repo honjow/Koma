@@ -19,6 +19,12 @@ import {
   configureSourceSettingsStore,
   fetchSourceSettingDescriptors,
 } from '../sourceRuntime/SourceSettingsStore'
+import {
+  SourceIndexEntry,
+  SourceIndexFetchResult,
+  SourceIndexInstallResult,
+  SourceIndexService,
+} from '../sourceRuntime/SourceIndexService'
 
 @Component
 export struct SourcePackageManagerPage {
@@ -29,10 +35,17 @@ export struct SourcePackageManagerPage {
   @State private settingsSourceName: string = ''
   @State private settingDescriptors: SourceSettingDescriptor[] = []
   @State private settingDraft: SourceSettingsRecord = {}
+  @State private sourceIndexUrl: string = ''
+  @State private indexEntries: SourceIndexEntry[] = []
+  @State private indexFetchBusy: boolean = false
+  @State private indexInstallBusy: boolean = false
+  @State private indexStatusText: string = ''
+  private sourceIndexService: SourceIndexService = new SourceIndexService(this.context())
 
   aboutToAppear(): void {
     configureSourceSettingsStore(this.context())
     this.reload()
+    this.loadSavedIndexUrl()
   }
 
   private context(): common.UIAbilityContext {
@@ -41,6 +54,21 @@ export struct SourcePackageManagerPage {
 
   private reload(): void {
     this.packages = listInstalled()
+  }
+
+  private async loadSavedIndexUrl(): Promise<void> {
+    const saved = await this.sourceIndexService.loadSavedUrl()
+    if (saved.length > 0) {
+      this.sourceIndexUrl = saved
+    }
+  }
+
+  private installedSourceIds(): string[] {
+    return this.packages.map((pkg: InstalledSourcePackage): string => pkg.id)
+  }
+
+  private isSourceInstalled(entryId: string): boolean {
+    return this.installedSourceIds().indexOf(entryId) >= 0
   }
 
   private showToast(message: string): void {
@@ -78,6 +106,67 @@ export struct SourcePackageManagerPage {
       this.reload()
     } finally {
       this.busy = false
+    }
+  }
+
+  private async fetchIndex(): Promise<void> {
+    if (this.indexFetchBusy) {
+      return
+    }
+    const url = this.sourceIndexUrl.trim()
+    if (url.length === 0) {
+      this.indexStatusText = '请输入源索引地址'
+      return
+    }
+    this.indexFetchBusy = true
+    this.indexStatusText = '正在加载源列表...'
+    this.indexEntries = []
+    try {
+      await this.sourceIndexService.saveUrl(url)
+      const result: SourceIndexFetchResult = await this.sourceIndexService.fetchIndex(url)
+      if (result.ok) {
+        this.indexEntries = result.entries
+        this.indexStatusText = '已加载 ' + result.entries.length + ' 个源'
+      } else {
+        this.indexStatusText = '加载失败：' + (result.reasonCode ?? 'unknown')
+      }
+    } catch (error) {
+      const e = error as Error
+      this.indexStatusText = '加载失败：' + e.message
+    } finally {
+      this.indexFetchBusy = false
+    }
+  }
+
+  private async installIndexEntry(entry: SourceIndexEntry): Promise<void> {
+    if (this.indexInstallBusy || this.busy) {
+      return
+    }
+    if (this.isSourceInstalled(entry.id)) {
+      this.showToast('此源已安装')
+      return
+    }
+    this.indexInstallBusy = true
+    this.indexStatusText = '正在安装 ' + entry.name + '...'
+    try {
+      const result: SourceIndexInstallResult = await this.sourceIndexService.installPackage(
+        this.sourceIndexUrl.trim(),
+        entry,
+      )
+      if (result.ok) {
+        this.indexStatusText = '已安装 ' + entry.name
+        this.showToast('源包安装成功')
+        this.reload()
+      } else {
+        this.indexStatusText = '安装失败：' + (result.reasonCode ?? 'unknown')
+        this.showToast('源包安装失败')
+      }
+    } catch (error) {
+      const e = error as Error
+      this.indexStatusText = '安装失败：' + e.message
+      this.showToast('源包安装失败')
+    } finally {
+      this.indexInstallBusy = false
     }
   }
 
@@ -207,7 +296,150 @@ export struct SourcePackageManagerPage {
   }
 
   @Builder
-  private HeaderCard() {
+  private IndexUrlCard() {
+    Column({ space: 12 }) {
+      Text('源索引地址')
+        .width('100%')
+        .fontSize(16)
+        .fontWeight(FontWeight.Medium)
+        .fontColor($r('app.color.koma_text_primary'))
+
+      TextInput({ text: this.sourceIndexUrl, placeholder: 'https://…' })
+        .height(40)
+        .width('100%')
+        .fontSize(14)
+        .fontColor($r('app.color.koma_text_primary'))
+        .placeholderColor($r('app.color.koma_text_secondary'))
+        .backgroundColor($r('app.color.koma_card'))
+        .borderRadius(8)
+        .onChange((value: string) => {
+          this.sourceIndexUrl = value
+        })
+        .onSubmit(() => {
+          this.fetchIndex()
+        })
+
+      Row({ space: 10 }) {
+        Button(this.indexFetchBusy ? '加载中' : '加载源列表')
+          .height(38)
+          .layoutWeight(1)
+          .fontSize(14)
+          .fontColor(Color.White)
+          .enabled(!this.indexFetchBusy)
+          .backgroundColor($r('app.color.koma_accent'))
+          .borderRadius(8)
+          .onClick(() => {
+            this.fetchIndex()
+          })
+
+        Button(this.busy ? '导入中' : '本地导入')
+          .height(38)
+          .layoutWeight(1)
+          .fontSize(14)
+          .fontColor($r('app.color.koma_text_secondary'))
+          .enabled(!this.busy)
+          .backgroundColor('#00000000')
+          .border({ width: 1, color: '#338F837D' })
+          .borderRadius(8)
+          .onClick(() => {
+            this.importPackage()
+          })
+      }
+      .width('100%')
+
+      if (this.indexStatusText.length > 0) {
+        Text(this.indexStatusText)
+          .width('100%')
+          .fontSize(13)
+          .lineHeight(20)
+          .fontColor($r('app.color.koma_text_secondary'))
+      }
+    }
+    .width('100%')
+    .padding(16)
+    .borderRadius(8)
+    .backgroundColor($r('app.color.koma_card'))
+  }
+
+  @Builder
+  private RemoteIndexCard(entry: SourceIndexEntry) {
+    Column({ space: 10 }) {
+      Row({ space: 12 }) {
+        Column({ space: 4 }) {
+          Text(entry.name)
+            .fontSize(15)
+            .fontWeight(FontWeight.Medium)
+            .fontColor($r('app.color.koma_text_primary'))
+            .maxLines(1)
+            .textOverflow({ overflow: TextOverflow.Ellipsis })
+          Text(entry.id)
+            .fontSize(12)
+            .fontColor($r('app.color.koma_text_secondary'))
+            .maxLines(1)
+            .textOverflow({ overflow: TextOverflow.Ellipsis })
+        }
+        .layoutWeight(1)
+        .alignItems(HorizontalAlign.Start)
+
+        if (this.isSourceInstalled(entry.id)) {
+          Text('已安装')
+            .fontSize(12)
+            .fontColor($r('app.color.koma_accent'))
+            .padding({ left: 10, right: 10, top: 4, bottom: 4 })
+            .borderRadius(8)
+            .backgroundColor('#148F837D')
+        } else {
+          Button(this.indexInstallBusy ? '安装中' : '安装')
+            .height(34)
+            .fontSize(13)
+            .fontColor(Color.White)
+            .enabled(!this.indexInstallBusy)
+            .backgroundColor($r('app.color.koma_accent'))
+            .borderRadius(8)
+            .onClick(() => {
+              this.installIndexEntry(entry)
+            })
+        }
+      }
+      .width('100%')
+
+      Row({ space: 8 }) {
+        Text('v' + entry.version)
+          .fontSize(12)
+          .fontColor($r('app.color.koma_text_secondary'))
+        if (entry.lang.length > 0) {
+          Text(entry.lang)
+            .fontSize(12)
+            .fontColor($r('app.color.koma_text_secondary'))
+        }
+        if (entry.nsfw) {
+          Text('NSFW')
+            .fontSize(11)
+            .fontColor(Color.White)
+            .padding({ left: 6, right: 6, top: 2, bottom: 2 })
+            .borderRadius(4)
+            .backgroundColor('#A13D32')
+        }
+      }
+      .width('100%')
+
+      if (entry.description.length > 0) {
+        Text(entry.description)
+          .width('100%')
+          .fontSize(13)
+          .maxLines(2)
+          .textOverflow({ overflow: TextOverflow.Ellipsis })
+          .fontColor($r('app.color.koma_text_secondary'))
+      }
+    }
+    .width('100%')
+    .padding(16)
+    .borderRadius(8)
+    .backgroundColor($r('app.color.koma_card'))
+  }
+
+  @Builder
+  private InstalledHeaderCard() {
     Column({ space: 12 }) {
       Row({ space: 12 }) {
         Column({ space: 4 }) {
@@ -221,17 +453,6 @@ export struct SourcePackageManagerPage {
         }
         .layoutWeight(1)
         .alignItems(HorizontalAlign.Start)
-
-        Button(this.busy ? '导入中' : '导入')
-          .height(36)
-          .fontSize(14)
-          .fontColor(Color.White)
-          .enabled(!this.busy)
-          .backgroundColor($r('app.color.koma_accent'))
-          .borderRadius(8)
-          .onClick(() => {
-            this.importPackage()
-          })
       }
       .width('100%')
 
@@ -256,7 +477,7 @@ export struct SourcePackageManagerPage {
         .fontSize(16)
         .fontWeight(FontWeight.Medium)
         .fontColor($r('app.color.koma_text_primary'))
-      Text('从本地文件导入 .koma / .koma-source.zip / .zip 源包。')
+      Text('输入源索引地址加载源列表，或通过本地导入打开 .koma / .koma-source.zip / .zip 源包。')
         .fontSize(13)
         .fontColor($r('app.color.koma_text_secondary'))
     }
@@ -503,7 +724,17 @@ export struct SourcePackageManagerPage {
         bottomPadding: ThemeConstants.FLOAT_BAR_HEIGHT + 20,
       }) {
         ListItem() {
-          this.HeaderCard()
+          this.IndexUrlCard()
+        }
+        if (this.indexEntries.length > 0) {
+          ForEach(this.indexEntries, (entry: SourceIndexEntry) => {
+            ListItem() {
+              this.RemoteIndexCard(entry)
+            }
+          }, (entry: SourceIndexEntry) => entry.id)
+        }
+        ListItem() {
+          this.InstalledHeaderCard()
         }
         if (this.packages.length === 0) {
           ListItem() {

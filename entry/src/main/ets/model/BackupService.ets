@@ -29,6 +29,8 @@ const BACKUP_SCHEMA_VERSION: number = 3
 const BACKUP_SCHEMA_VERSION_V2: number = 2
 const BACKUP_SCHEMA_VERSION_V1: number = 1
 const REMOTE_SERVER_STORE_NAME: string = 'koma_remote_servers_v1'
+const SOURCE_INDEX_PREFS_STORE_NAME: string = 'koma_source_package_manager_v1'
+const SOURCE_INDEX_URL_KEY: string = 'source_index.url'
 const KOMGA_SERVER_KEY: string = 'komga.server'
 const KOMGA_CREDENTIAL_KEY: string = 'komga.credential'
 const WEBDAV_SERVER_KEY: string = 'webdav.server'
@@ -54,6 +56,7 @@ interface KomaBackupDocument {
   sourcePackages?: SourcePackageBackupEntry[]
   sourceSettings?: Record<string, SourceSettingsRecord>
   settings?: ReaderPreferences
+  sourceIndexUrl?: string
 }
 
 function joinBackupPath(parent: string, child: string): string {
@@ -117,6 +120,7 @@ export class BackupService {
       sourcePackages: exportInstalledSourcePackages(),
       sourceSettings: appSourceSettingsStore.exportAll(),
       settings: await new ReaderPreferencesStore(this.context).load(),
+      sourceIndexUrl: await this.exportSourceIndexUrl(),
     }
     console.info('[Backup] step=export_json')
     return JSON.stringify(document)
@@ -139,6 +143,7 @@ export class BackupService {
     await this.importRemoteServers(document.remoteServers)
     if (document.schemaVersion >= BACKUP_SCHEMA_VERSION) {
       this.importSourceSettings(document.sourceSettings)
+      await this.importSourceIndexUrl(document.sourceIndexUrl)
     }
     if (document.schemaVersion >= BACKUP_SCHEMA_VERSION_V2) {
       await this.importSourcePackages(document.sourcePackages)
@@ -257,5 +262,27 @@ export class BackupService {
       return
     }
     await store.put(key, value)
+  }
+
+  private async exportSourceIndexUrl(): Promise<string | undefined> {
+    try {
+      const store = await preferences.getPreferences(this.context, SOURCE_INDEX_PREFS_STORE_NAME)
+      const url = await store.get(SOURCE_INDEX_URL_KEY, '') as string
+      return typeof url === 'string' && url.trim().length > 0 ? url.trim() : undefined
+    } catch (_err) {
+      return undefined
+    }
+  }
+
+  private async importSourceIndexUrl(url: string | undefined): Promise<void> {
+    if (url === undefined || url.trim().length === 0) {
+      return
+    }
+    try {
+      const store = await preferences.getPreferences(this.context, SOURCE_INDEX_PREFS_STORE_NAME)
+      await store.put(SOURCE_INDEX_URL_KEY, url.trim())
+      await store.flush()
+    } catch (_err) {
+    }
   }
 }
