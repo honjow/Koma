@@ -24,6 +24,7 @@ export struct ComicCoverCard {
   @Prop progressText: string = ''
   @Prop coverColor: string = ''
   @Prop accentColor: string = ''
+  @Prop selected: boolean = false
 
   private displayTitle(): string {
     return this.title.length > 0 ? this.title : this.comic.title
@@ -80,6 +81,27 @@ export struct ComicCoverCard {
         .margin({ left: 10, bottom: 10 })
         .borderRadius(13)
         .backgroundColor(this.displayAccentColor())
+
+        if (this.selected) {
+          Column()
+            .width('100%')
+            .height('100%')
+            .backgroundColor('#66000000')
+
+          Stack({ alignContent: Alignment.Center }) {
+            Text('✓')
+              .fontSize(18)
+              .fontWeight(FontWeight.Bold)
+              .fontColor(Color.White)
+          }
+          .width(34)
+          .height(34)
+          .margin({ top: 10, right: 10 })
+          .borderRadius(17)
+          .backgroundColor($r('app.color.koma_accent'))
+          .border({ width: 2, color: Color.White })
+          .align(Alignment.TopEnd)
+        }
       }
       .width('100%')
       .aspectRatio(0.68)

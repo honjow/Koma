@@ -80,20 +80,27 @@ export struct LibraryPage {
   @Prop @Watch('syncDisplayedSnapshotFromProps') libraryRevision: number = 0
   @State private displayedComics: Comic[] = createSeededLibraryStore().listComics()
   @State private displayedRevision: number = 0
+  @State private selectionMode: boolean = false
+  @State private selectedIds: Set<ComicId> = new Set<ComicId>()
+  @State private suppressOpenComicId: ComicId = ''
   presentationByComicId: LibraryPresentationByComicId = createMockLibraryPresentationMap()
   sessionStore: ReaderSessionStore = new InMemoryReaderSessionStore()
   onOpenReader: (comicId: ComicId) => void = (_comicId: ComicId) => {}
   onImportRequested: () => void = () => {}
   onRemoveComicRequested: (comicId: ComicId) => boolean = (_comicId: ComicId) => false
+  private longPressTimer: number = 0
+  private longPressComicId: ComicId = ''
 
   private syncDisplayedSnapshotFromProps(): void {
     this.displayedComics = this.libraryComics
     this.displayedRevision = this.libraryRevision
+    this.removeMissingSelectedComics()
   }
 
   private refreshDisplayedSnapshotFromStore(): void {
     this.displayedComics = this.libraryStore.listComics()
     this.displayedRevision += 1
+    this.removeMissingSelectedComics()
   }
 
   private viewModel(): LibraryViewModel {
@@ -129,6 +136,152 @@ export struct LibraryPage {
 
   private isEvenDisplayedRevision(): boolean {
     return this.displayedRevision % 2 === 0
+  }
+
+  private removeMissingSelectedComics(): void {
+    if (this.selectedIds.size === 0) {
+      this.selectionMode = false
+      return
+    }
+    const availableIds = new Set<ComicId>(this.displayedComics.map((comic: Comic): ComicId => comic.id))
+    const nextSelectedIds = new Set<ComicId>()
+    this.selectedIds.forEach((comicId: ComicId) => {
+      if (availableIds.has(comicId)) {
+        nextSelectedIds.add(comicId)
+      }
+    })
+    this.selectedIds = nextSelectedIds
+    this.selectionMode = this.selectedIds.size > 0
+  }
+
+  private enterSelectionMode(comicId: ComicId): void {
+    if (!this.canRemoveComic(comicId)) {
+      return
+    }
+    const nextSelectedIds = new Set<ComicId>()
+    nextSelectedIds.add(comicId)
+    this.selectedIds = nextSelectedIds
+    this.selectionMode = true
+    this.suppressOpenComicId = comicId
+  }
+
+  private exitSelectionMode(): void {
+    this.selectedIds = new Set<ComicId>()
+    this.selectionMode = false
+  }
+
+  private isComicSelected(comicId: ComicId): boolean {
+    return this.selectedIds.has(comicId)
+  }
+
+  private handleComicClick(comicId: ComicId): void {
+    if (this.suppressOpenComicId === comicId) {
+      this.suppressOpenComicId = ''
+      return
+    }
+    if (this.selectionMode) {
+      this.toggleSelection(comicId)
+    } else {
+      this.onOpenReader(comicId)
+    }
+  }
+
+  private clearLongPressTimer(): void {
+    if (this.longPressTimer > 0) {
+      clearTimeout(this.longPressTimer)
+      this.longPressTimer = 0
+    }
+    this.longPressComicId = ''
+  }
+
+  private handleComicTouch(comicId: ComicId, event: TouchEvent): void {
+    if (!this.canRemoveComic(comicId)) {
+      return
+    }
+    if (event.type === TouchType.Down) {
+      this.clearLongPressTimer()
+      this.longPressComicId = comicId
+      this.longPressTimer = setTimeout(() => {
+        if (this.longPressComicId === comicId) {
+          this.enterSelectionMode(comicId)
+        }
+        this.longPressTimer = 0
+      }, 500)
+      return
+    }
+    if (event.type === TouchType.Up || event.type === TouchType.Cancel) {
+      this.clearLongPressTimer()
+    }
+  }
+
+  private toggleSelection(comicId: ComicId): void {
+    if (!this.canRemoveComic(comicId)) {
+      return
+    }
+    const nextSelectedIds = new Set<ComicId>(this.selectedIds)
+    if (nextSelectedIds.has(comicId)) {
+      nextSelectedIds.delete(comicId)
+    } else {
+      nextSelectedIds.add(comicId)
+    }
+    this.selectedIds = nextSelectedIds
+    this.selectionMode = this.selectedIds.size > 0
+  }
+
+  private selectAllVisibleComics(): void {
+    const nextSelectedIds = new Set<ComicId>()
+    this.gridComics().forEach((comic: ComicCoverInfo) => {
+      if (this.canRemoveComic(comic.id)) {
+        nextSelectedIds.add(comic.id)
+      }
+    })
+    this.selectedIds = nextSelectedIds
+    this.selectionMode = this.selectedIds.size > 0
+  }
+
+  private selectedCount(): number {
+    return this.selectedIds.size
+  }
+
+  private removeSelectedComics(): void {
+    const comicIds = Array.from(this.selectedIds)
+    if (comicIds.length === 0) {
+      return
+    }
+    console.info(`[Library] step=batch_remove count=${comicIds.length}`)
+    let removedCount = 0
+    comicIds.forEach((comicId: ComicId) => {
+      if (this.onRemoveComicRequested(comicId)) {
+        removedCount += 1
+      }
+    })
+    this.exitSelectionMode()
+    if (removedCount > 0) {
+      this.refreshDisplayedSnapshotFromStore()
+    }
+  }
+
+  private showBatchRemoveConfirmation(): void {
+    const count = this.selectedCount()
+    if (count === 0) {
+      return
+    }
+    this.getUIContext().showAlertDialog({
+      title: '批量移出书架',
+      message: `从书架中移出已选的 ${count} 本漫画？`,
+      autoCancel: true,
+      primaryButton: {
+        value: '移出',
+        fontColor: $r('app.color.koma_danger'),
+        action: () => {
+          this.removeSelectedComics()
+        },
+      },
+      secondaryButton: {
+        value: '取消',
+        action: () => {},
+      },
+    })
   }
 
   private showRemoveConfirmation(comic: ComicCoverInfo): void {
@@ -198,6 +351,55 @@ export struct LibraryPage {
   }
 
   @Builder
+  private BatchActionBar() {
+    Row({ space: 10 }) {
+      Text(`已选 ${this.selectedCount()}`)
+        .fontSize(16)
+        .fontWeight(FontWeight.Bold)
+        .fontColor($r('app.color.koma_text_primary'))
+        .layoutWeight(1)
+
+      Button('全选')
+        .height(36)
+        .padding({ left: 12, right: 12 })
+        .borderRadius(8)
+        .fontSize(14)
+        .fontColor($r('app.color.koma_text_primary'))
+        .backgroundColor('#0F000000')
+        .onClick(() => {
+          this.selectAllVisibleComics()
+        })
+
+      Button('取消')
+        .height(36)
+        .padding({ left: 12, right: 12 })
+        .borderRadius(8)
+        .fontSize(14)
+        .fontColor($r('app.color.koma_text_primary'))
+        .backgroundColor('#0F000000')
+        .onClick(() => {
+          this.exitSelectionMode()
+        })
+
+      Button('删除')
+        .height(36)
+        .padding({ left: 12, right: 12 })
+        .borderRadius(8)
+        .fontSize(14)
+        .fontColor(Color.White)
+        .backgroundColor($r('app.color.koma_danger'))
+        .enabled(this.selectedCount() > 0)
+        .onClick(() => {
+          this.showBatchRemoveConfirmation()
+        })
+    }
+    .width('100%')
+    .padding({ left: 14, right: 14, top: 12, bottom: 12 })
+    .borderRadius(8)
+    .backgroundColor($r('app.color.koma_card'))
+  }
+
+  @Builder
   private LibraryGrid(comics: ComicCoverInfo[]) {
     Grid() {
       ForEach(comics, (comic: ComicCoverInfo) => {
@@ -211,21 +413,33 @@ export struct LibraryPage {
                 progressText: comic.progressText,
                 coverColor: comic.coverColor,
                 accentColor: comic.accentColor,
+                selected: this.isComicSelected(comic.id),
               })
-                .onClick(() => {
-                  this.onOpenReader(comic.id)
+                .onTouch((event: TouchEvent) => {
+                  this.handleComicTouch(comic.id, event)
                 })
-                .bindContextMenu(this.ComicActionMenu(comic), ResponseType.LongPress)
+                .priorityGesture(GestureGroup(GestureMode.Exclusive,
+                  LongPressGesture({ fingers: 1, repeat: false, duration: 500 })
+                    .onAction(() => {
+                      this.enterSelectionMode(comic.id)
+                    }),
+                  TapGesture()
+                    .onAction(() => {
+                      this.handleComicClick(comic.id)
+                    })
+                ))
 
-              Button('…')
-                .width(32)
-                .height(32)
-                .borderRadius(8)
-                .fontSize(20)
-                .fontColor($r('app.color.koma_text_primary'))
-                .backgroundColor($r('app.color.koma_card'))
-                .margin({ top: 8, right: 8 })
-                .bindMenu(this.ComicActionMenu(comic))
+              if (!this.selectionMode) {
+                Button('…')
+                  .width(32)
+                  .height(32)
+                  .borderRadius(8)
+                  .fontSize(20)
+                  .fontColor($r('app.color.koma_text_primary'))
+                  .backgroundColor($r('app.color.koma_card'))
+                  .margin({ top: 8, right: 8 })
+                  .bindMenu(this.ComicActionMenu(comic))
+              }
             } else {
               ComicCoverCard({
                 comic: comic,
@@ -234,10 +448,14 @@ export struct LibraryPage {
                 progressText: comic.progressText,
                 coverColor: comic.coverColor,
                 accentColor: comic.accentColor,
+                selected: false,
               })
-                .onClick(() => {
-                  this.onOpenReader(comic.id)
-                })
+                .gesture(TapGesture()
+                  .onAction(() => {
+                    if (!this.selectionMode) {
+                      this.onOpenReader(comic.id)
+                    }
+                  }))
             }
           }
           .width('100%')
@@ -264,6 +482,14 @@ export struct LibraryPage {
     this.syncDisplayedSnapshotFromProps()
   }
 
+  onBackPress(): boolean {
+    if (this.selectionMode) {
+      this.exitSelectionMode()
+      return true
+    }
+    return false
+  }
+
   build() {
     Column() {
       SecondaryListScaffold({
@@ -277,9 +503,17 @@ export struct LibraryPage {
               info: this.viewModel().continueReading,
               revision: this.displayedRevision,
               onOpenReader: (comicId: ComicId) => {
-                this.onOpenReader(comicId)
+                if (!this.selectionMode) {
+                  this.onOpenReader(comicId)
+                }
               },
             })
+          }
+
+          if (this.selectionMode) {
+            ListItem() {
+              this.BatchActionBar()
+            }
           }
 
           ListItem() {
@@ -300,8 +534,11 @@ export struct LibraryPage {
                 .fontColor($r('app.color.koma_text_primary'))
                 .backgroundColor($r('app.color.koma_card'))
                 .margin({ left: 10 })
+                .enabled(!this.selectionMode)
                 .onClick(() => {
-                  this.onImportRequested()
+                  if (!this.selectionMode) {
+                    this.onImportRequested()
+                  }
                 })
             }
             .width('100%')
