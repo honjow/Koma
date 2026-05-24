@@ -53,10 +53,12 @@ function safeResolvePkgUrl(indexUrl: string, pkg: string): string {
     return normalizedPkg
   }
   const base = indexUrl.replace(/\/+$/, '')
-  const indexDir = base.substring(0, base.lastIndexOf('/') + 1)
-  if (indexDir.length === 0) {
+  const authorityStart = base.indexOf('://')
+  const firstPathSlash = authorityStart >= 0 ? base.indexOf('/', authorityStart + 3) : base.indexOf('/')
+  if (firstPathSlash < 0) {
     return `${base}/${normalizedPkg}`
   }
+  const indexDir = base.substring(0, base.lastIndexOf('/') + 1)
   return `${indexDir}${normalizedPkg}`
 }
 
