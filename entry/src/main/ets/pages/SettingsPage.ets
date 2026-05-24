@@ -1,9 +1,11 @@
 import { SecondaryListScaffold } from '../components/SecondaryListScaffold'
 import { ThemeConstants } from '../theme/ThemeConstants'
 import { KomgaServerPage } from './KomgaServerPage'
+import { OpdsServerPage } from './OpdsServerPage'
 import { WebDavServerPage } from './WebDavServerPage'
 
 const KOMGA_SERVER_ROUTE_NAME: string = 'KomgaServerPage'
+const OPDS_SERVER_ROUTE_NAME: string = 'OpdsServerPage'
 const WEBDAV_SERVER_ROUTE_NAME: string = 'WebDavServerPage'
 
 interface SettingsRow {
@@ -40,6 +42,7 @@ const SETTINGS_SECTIONS: SettingsSection[] = [
     title: '数据',
     rows: [
       { key: 'komga', title: 'Komga 私有库', detail: '服务器与认证' },
+      { key: 'opds', title: 'OPDS 私有库', detail: 'Catalog 与认证' },
       { key: 'webdav', title: 'WebDAV 私有库', detail: '远程文件夹与认证' },
       { key: 'sources', title: '源管理', detail: '管理已安装的源包' },
       { key: 'backup', title: '备份与恢复', detail: '导出书架及阅读进度' },
@@ -65,6 +68,10 @@ export struct SettingsPage {
 
   private openWebDavSettings(): void {
     this.settingsPathStack.pushPath({ name: WEBDAV_SERVER_ROUTE_NAME })
+  }
+
+  private openOpdsSettings(): void {
+    this.settingsPathStack.pushPath({ name: OPDS_SERVER_ROUTE_NAME })
   }
 
   @Builder
@@ -95,6 +102,8 @@ export struct SettingsPage {
     .onClick(() => {
       if (row.key === 'komga') {
         this.openKomgaSettings()
+      } else if (row.key === 'opds') {
+        this.openOpdsSettings()
       } else if (row.key === 'webdav') {
         this.openWebDavSettings()
       }
@@ -157,6 +166,11 @@ export struct SettingsPage {
         KomgaServerPage()
       }
       .title('Komga')
+    } else if (name === OPDS_SERVER_ROUTE_NAME) {
+      NavDestination() {
+        OpdsServerPage()
+      }
+      .title('OPDS')
     } else if (name === WEBDAV_SERVER_ROUTE_NAME) {
       NavDestination() {
         WebDavServerPage()

@@ -16,11 +16,13 @@ import { RouterHelper } from '../common/RouterHelper'
 import { common } from '@kit.AbilityKit'
 import { RemoteServerStore } from '../model/RemoteServerStore'
 import { KomgaSeriesPage } from './KomgaSeriesPage'
+import { OpdsBrowsePage } from './OpdsBrowsePage'
 import { WebDavBrowsePage } from './WebDavBrowsePage'
 
 const SOURCE_BROWSE_ROUTE_NAME: string = 'SourceBrowsePage'
 const SOURCE_SEARCH_ROUTE_NAME: string = 'SourceSearchPage'
 const KOMGA_ROUTE_NAME: string = 'KomgaSeriesPage'
+const OPDS_ROUTE_NAME: string = 'OpdsBrowsePage'
 const WEBDAV_ROUTE_NAME: string = 'WebDavBrowsePage'
 
 interface SourceRouteParam {
@@ -32,6 +34,7 @@ export struct BrowsePage {
   @State private viewModel: BrowseViewModel = new BrowseViewModel()
   @State private refreshingSources: boolean = false
   @State private komgaConfigured: boolean = false
+  @State private opdsConfigured: boolean = false
   @State private webDavConfigured: boolean = false
   sourceRegistry: SourceRuntimeRegistry = appSourceRuntimeRegistry
   private browsePathStack: NavPathStack = new NavPathStack()
@@ -56,6 +59,10 @@ export struct BrowsePage {
 
   private openWebDav(): void {
     this.browsePathStack.pushPath({ name: WEBDAV_ROUTE_NAME })
+  }
+
+  private openOpds(): void {
+    this.browsePathStack.pushPath({ name: OPDS_ROUTE_NAME })
   }
 
   @Builder
@@ -180,6 +187,56 @@ export struct BrowsePage {
         })
       }
     }
+    if (this.opdsConfigured) {
+      ListItem() {
+        Row({ space: 14 }) {
+          Stack({ alignContent: Alignment.Center }) {
+            Text('O')
+              .fontSize(20)
+              .fontWeight(FontWeight.Bold)
+              .fontColor(Color.White)
+          }
+          .width(48)
+          .height(48)
+          .borderRadius(24)
+          .backgroundColor('#8A5A2B')
+
+          Column({ space: 5 }) {
+            Row({ space: 8 }) {
+              Text('OPDS')
+                .fontSize(17)
+                .fontWeight(FontWeight.Medium)
+                .fontColor($r('app.color.koma_text_primary'))
+                .layoutWeight(1)
+              Text('Catalog')
+                .fontSize(11)
+                .fontWeight(FontWeight.Medium)
+                .fontColor($r('app.color.koma_accent'))
+                .padding({ left: 8, right: 8, top: 3, bottom: 3 })
+                .borderRadius(8)
+                .backgroundColor('#1F256E5D')
+            }
+            .width('100%')
+            .alignItems(VerticalAlign.Center)
+            Text('浏览 catalog / acquisition / 图片')
+              .fontSize(13)
+              .fontColor($r('app.color.koma_text_secondary'))
+          }
+          .layoutWeight(1)
+          .alignItems(HorizontalAlign.Start)
+          Text('>')
+            .fontSize(18)
+            .fontColor($r('app.color.koma_text_secondary'))
+        }
+        .width('100%')
+        .padding(14)
+        .borderRadius(8)
+        .backgroundColor($r('app.color.koma_card'))
+        .onClick(() => {
+          this.openOpds()
+        })
+      }
+    }
     ForEach(this.viewModel.sources, (source: SourceRuntimeRegistryInstalledSourceSummary) => {
       ListItem() {
         SourceListItem({
@@ -230,6 +287,11 @@ export struct BrowsePage {
         WebDavBrowsePage()
       }
       .title('WebDAV')
+    } else if (name === OPDS_ROUTE_NAME) {
+      NavDestination() {
+        OpdsBrowsePage()
+      }
+      .title('OPDS')
     }
   }
 
@@ -243,14 +305,18 @@ export struct BrowsePage {
     try {
       const store = new RemoteServerStore(getContext(this) as common.UIAbilityContext)
       this.komgaConfigured = await store.loadKomga() !== undefined
+      this.opdsConfigured = await store.loadOpds() !== undefined
       this.webDavConfigured = await store.loadWebDav() !== undefined
       console.info(`[Komga] step=browse_availability configured=${this.komgaConfigured}`)
+      console.info(`[OPDS] step=browse_availability configured=${this.opdsConfigured}`)
       console.info(`[WebDAV] step=browse_availability configured=${this.webDavConfigured}`)
     } catch (error) {
       const e = error as Error
       this.komgaConfigured = false
+      this.opdsConfigured = false
       this.webDavConfigured = false
       console.error('[Komga] step=browse_availability_failed message=' + e.message)
+      console.error('[OPDS] step=browse_availability_failed message=' + e.message)
       console.error('[WebDAV] step=browse_availability_failed message=' + e.message)
     }
   }
@@ -282,7 +348,7 @@ export struct BrowsePage {
                 .width('100%')
                 .justifyContent(FlexAlign.Center)
               }
-            } else if (this.viewModel.sources.length === 0 && !this.komgaConfigured && !this.webDavConfigured) {
+            } else if (this.viewModel.sources.length === 0 && !this.komgaConfigured && !this.opdsConfigured && !this.webDavConfigured) {
               ListItem() {
                 this.EmptySources()
               }

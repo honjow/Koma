@@ -15,6 +15,34 @@ import {
   createEmptyOpdsParseResult,
 } from './OpdsModels'
 
+export interface OpdsHeaders {
+  authorization?: string
+  accept?: string
+  contentType?: string
+}
+
+export interface OpdsHttpRequest {
+  method: 'GET'
+  url: string
+  headers: OpdsHeaders
+}
+
+export interface OpdsHttpResponse {
+  status: number
+  body: string
+  contentType?: string
+}
+
+export interface OpdsHttpAdapter {
+  request(request: OpdsHttpRequest): Promise<OpdsHttpResponse>
+}
+
+export interface OpdsClientOptions {
+  rootUrl: string
+  authorization?: string
+  http?: OpdsHttpAdapter
+}
+
 interface Opds1Entry {
   id?: string
   title: string
@@ -38,6 +66,99 @@ export function parseOpdsCatalog(source: string, feedUrl: string, contentType?: 
     return parseOpds2Catalog(trimmed, feedUrl)
   }
   return parseOpds1Catalog(trimmed, feedUrl)
+}
+
+export function normalizeOpdsRootUrl(rootUrl: string): string {
+  return rootUrl.trim()
+}
+
+export function buildOpdsHeaders(authorization?: string, accept: string = 'application/opds+json, application/atom+xml, application/xml, text/xml, application/json'): OpdsHeaders {
+  const headers: OpdsHeaders = { accept } as OpdsHeaders
+  if (authorization !== undefined && authorization.length > 0) {
+    headers.authorization = authorization
+  }
+  return headers
+}
+
+export function opdsHeadersToHttpHeaderObject(headers: OpdsHeaders): Object {
+  const entries: string[] = []
+  if (headers.authorization !== undefined) {
+    entries.push(`"Authorization":${JSON.stringify(headers.authorization)}`)
+  }
+  if (headers.accept !== undefined) {
+    entries.push(`"Accept":${JSON.stringify(headers.accept)}`)
+  }
+  if (headers.contentType !== undefined) {
+    entries.push(`"Content-Type":${JSON.stringify(headers.contentType)}`)
+  }
+  return JSON.parse(`{${entries.join(',')}}`) as Object
+}
+
+export function parseOpdsPublicationImages(source: string, feedUrl: string, contentType?: string): OpdsImageDto[] {
+  const trimmed = source.trim()
+  if ((contentType !== undefined && contentType.toLocaleLowerCase().indexOf('json') >= 0) || trimmed.startsWith('{')) {
+    return readOpds2ManifestImages(trimmed, feedUrl)
+  }
+  const result = parseOpds1Catalog(trimmed, feedUrl)
+  const images: OpdsImageDto[] = []
+  result.publications.forEach((publication: OpdsPublication) => {
+    images.push(...mapOpdsPublicationToImages(publication))
+  })
+  return images
+}
+
+export class OpdsClient {
+  private rootUrl: string
+  private authorization?: string
+  private http?: OpdsHttpAdapter
+
+  constructor(options: OpdsClientOptions) {
+    this.rootUrl = normalizeOpdsRootUrl(options.rootUrl)
+    this.authorization = options.authorization
+    this.http = options.http
+  }
+
+  getRootUrl(): string {
+    return this.rootUrl
+  }
+
+  getUrlPrefix(): string {
+    const origin = readOpdsUrlOrigin(this.rootUrl)
+    return origin.length === 0 ? this.rootUrl : origin
+  }
+
+  buildHeaders(accept?: string): OpdsHeaders {
+    return buildOpdsHeaders(this.authorization, accept)
+  }
+
+  async fetchCatalog(url: string = this.rootUrl): Promise<OpdsParseResult> {
+    const response = await this.send({
+      method: 'GET',
+      url,
+      headers: this.buildHeaders(),
+    })
+    return parseOpdsCatalog(response.body, url, response.contentType)
+  }
+
+  async fetchPublicationImages(url: string): Promise<OpdsImageDto[]> {
+    const response = await this.send({
+      method: 'GET',
+      url,
+      headers: this.buildHeaders('application/divina+json, application/webpub+json, application/json, application/opds+json, image/*'),
+    })
+    return parseOpdsPublicationImages(response.body, url, response.contentType)
+  }
+
+  private async send(request: OpdsHttpRequest): Promise<OpdsHttpResponse> {
+    if (this.http === undefined) {
+      throw new Error('OpdsHttpAdapter is required for network requests')
+    }
+    const response = await this.http.request(request)
+    if (response.status < 200 || response.status >= 300) {
+      throw new Error(`OPDS request failed with status ${response.status}`)
+    }
+    return response
+  }
 }
 
 export function parseOpds1Catalog(xml: string, feedUrl: string): OpdsParseResult {
@@ -76,12 +197,12 @@ export function parseOpds1Catalog(xml: string, feedUrl: string): OpdsParseResult
 }
 
 export function parseOpds2Catalog(json: string, feedUrl: string): OpdsParseResult {
-  const parsed = JSON.parse(json) as Record<string, any>
+  const parsed = JSON.parse(json) as Record<string, Object>
   const metadata = readRecord(parsed['metadata'])
   const result = createEmptyOpdsParseResult(OpdsVersion.OPDS_2, feedUrl, readString(metadata['title']))
 
   result.links = readOpds2Links(parsed['links'], feedUrl)
-  readArray(parsed['navigation']).forEach((item: any, index: number) => {
+  readArray(parsed['navigation']).forEach((item: Object, index: number) => {
     const navigation = readRecord(item)
     const href = readString(navigation['href'])
     if (href !== undefined && href.length > 0) {
@@ -94,11 +215,11 @@ export function parseOpds2Catalog(json: string, feedUrl: string): OpdsParseResul
     }
   })
 
-  readArray(parsed['publications']).forEach((item: any, index: number) => {
+  readArray(parsed['publications']).forEach((item: Object, index: number) => {
     result.publications.push(readOpds2Publication(item, feedUrl, `publication-${index}`))
   })
 
-  readArray(parsed['groups']).forEach((item: any, index: number) => {
+  readArray(parsed['groups']).forEach((item: Object, index: number) => {
     const group = readOpds2Group(item, feedUrl, `group-${index}`)
     result.groups.push(group)
     result.navigation = result.navigation.concat(group.navigation)
@@ -140,11 +261,24 @@ export function mapOpdsPublicationToImages(publication: OpdsPublication): OpdsIm
 }
 
 export function resolveOpdsHref(baseUrl: string, href: string): string {
-  try {
-    return new URL(href, baseUrl).toString()
-  } catch (error) {
+  if (href.startsWith('http://') || href.startsWith('https://')) {
     return href
   }
+  const origin = readOpdsUrlOrigin(baseUrl)
+  if (href.startsWith('//')) {
+    const protocolEnd = baseUrl.indexOf(':')
+    return protocolEnd < 0 ? href : baseUrl.substring(0, protocolEnd + 1) + href
+  }
+  if (href.startsWith('/')) {
+    return origin.length === 0 ? href : origin + href
+  }
+  const cleanBase = stripOpdsQueryAndHash(baseUrl)
+  const slashIndex = cleanBase.lastIndexOf('/')
+  if (slashIndex < 0) {
+    return href
+  }
+  const baseDir = cleanBase.endsWith('/') ? cleanBase : cleanBase.substring(0, slashIndex + 1)
+  return baseDir + href
 }
 
 export function classifyOpdsLink(rel?: string, type?: string, href?: string): OpdsLinkKind {
@@ -182,7 +316,8 @@ export function isSupportedOpdsAcquisition(type?: string, href?: string): boolea
     return true
   }
   const normalizedHref = href === undefined ? '' : href.toLocaleLowerCase().split('?')[0].split('#')[0]
-  return normalizedHref.endsWith('.cbz') || normalizedHref.endsWith('.zip')
+  return (normalizedType === 'application/octet-stream' || normalizedType.length === 0) &&
+    (normalizedHref.endsWith('.cbz') || normalizedHref.endsWith('.zip'))
 }
 
 export function isUnsupportedOpdsFlow(rel?: string): boolean {
@@ -212,7 +347,7 @@ function createPublication(
   }
 }
 
-function readOpds2Publication(value: any, feedUrl: string, fallbackId: string): OpdsBookDto {
+function readOpds2Publication(value: Object, feedUrl: string, fallbackId: string): OpdsBookDto {
   const publication = readRecord(value)
   const publicationMetadata = readRecord(publication['metadata'])
   const title = readString(publicationMetadata['title']) ?? readString(publication['title']) ?? 'Untitled'
@@ -227,12 +362,12 @@ function readOpds2Publication(value: any, feedUrl: string, fallbackId: string): 
   )
 }
 
-function readOpds2Group(value: any, feedUrl: string, fallbackTitle: string): OpdsPublicationGroup {
+function readOpds2Group(value: Object, feedUrl: string, fallbackTitle: string): OpdsPublicationGroup {
   const group = readRecord(value)
   const metadata = readRecord(group['metadata'])
   const title = readString(metadata['title']) ?? readString(group['title']) ?? fallbackTitle
   const navigation: OpdsCatalogDto[] = []
-  readArray(group['navigation']).forEach((item: any, index: number) => {
+  readArray(group['navigation']).forEach((item: Object, index: number) => {
     const nav = readRecord(item)
     const href = readString(nav['href'])
     if (href !== undefined && href.length > 0) {
@@ -244,7 +379,7 @@ function readOpds2Group(value: any, feedUrl: string, fallbackTitle: string): Opd
       })
     }
   })
-  const publications = readArray(group['publications']).map((item: any, index: number): OpdsBookDto => {
+  const publications = readArray(group['publications']).map((item: Object, index: number): OpdsBookDto => {
     return readOpds2Publication(item, feedUrl, `${fallbackTitle}-publication-${index}`)
   })
   return {
@@ -271,8 +406,8 @@ function readXmlLinks(xml: string, feedUrl: string): OpdsLink[] {
   })
 }
 
-function readOpds2Links(value: any, feedUrl: string): OpdsLink[] {
-  return readArray(value).map((item: any): OpdsLink => {
+function readOpds2Links(value: Object | undefined, feedUrl: string): OpdsLink[] {
+  return readArray(value).map((item: Object): OpdsLink => {
     const link = readRecord(item)
     const rel = readRelValue(link['rel'])
     const type = readString(link['type']) ?? readString(link['encodingFormat'])
@@ -289,8 +424,8 @@ function readOpds2Links(value: any, feedUrl: string): OpdsLink[] {
   })
 }
 
-function readOpds2Images(value: any, feedUrl: string): OpdsLink[] {
-  return readArray(value).map((item: any): OpdsLink => {
+function readOpds2Images(value: Object | undefined, feedUrl: string): OpdsLink[] {
+  return readArray(value).map((item: Object): OpdsLink => {
     if (typeof item === 'string') {
       return {
         href: resolveOpdsHref(feedUrl, item),
@@ -309,6 +444,53 @@ function readOpds2Images(value: any, feedUrl: string): OpdsLink[] {
       type,
       title: readString(image['title']),
       kind,
+    }
+  })
+}
+
+function readOpds2ManifestImages(json: string, feedUrl: string): OpdsImageDto[] {
+  const parsed = JSON.parse(json) as Record<string, Object>
+  const links = readOpds2Images(parsed['images'], feedUrl)
+    .concat(readImageCandidates(parsed['readingOrder'], feedUrl))
+    .concat(readImageCandidates(parsed['resources'], feedUrl))
+    .concat(readImageCandidates(parsed['pageList'], feedUrl))
+  return links.filter((link: OpdsLink): boolean => {
+    const type = link.type === undefined ? '' : link.type.toLocaleLowerCase()
+    const href = link.href.toLocaleLowerCase().split('?')[0].split('#')[0]
+    return type.startsWith('image/') ||
+      href.endsWith('.jpg') ||
+      href.endsWith('.jpeg') ||
+      href.endsWith('.png') ||
+      href.endsWith('.webp') ||
+      href.endsWith('.gif')
+  }).map((link: OpdsLink): OpdsImageDto => {
+    return {
+      href: link.href,
+      type: link.type,
+      title: link.title,
+      isThumbnail: link.kind === OpdsLinkKind.THUMBNAIL,
+    }
+  })
+}
+
+function readImageCandidates(value: Object | undefined, feedUrl: string): OpdsLink[] {
+  return readArray(value).map((item: Object): OpdsLink => {
+    if (typeof item === 'string') {
+      return {
+        href: resolveOpdsHref(feedUrl, item),
+        kind: OpdsLinkKind.IMAGE,
+      }
+    }
+    const link = readRecord(item)
+    const href = resolveOpdsHref(feedUrl, readString(link['href']) ?? readString(link['url']) ?? '')
+    const rel = readRelValue(link['rel'])
+    const type = readString(link['type']) ?? readString(link['encodingFormat'])
+    return {
+      href,
+      rel,
+      type,
+      title: readString(link['title']),
+      kind: classifyOpdsLink(rel ?? 'image', type, href),
     }
   })
 }
@@ -334,34 +516,34 @@ function normalizeRel(rel?: string): string {
   return rel === undefined ? '' : rel.toLocaleLowerCase().trim()
 }
 
-function readRelValue(value: any): string | undefined {
+function readRelValue(value: Object | undefined): string | undefined {
   if (Array.isArray(value)) {
     return value.join(' ')
   }
   return readString(value)
 }
 
-function readOpds2Author(value: any): string | undefined {
+function readOpds2Author(value: Object | undefined): string | undefined {
   if (typeof value === 'string') {
     return value
   }
   if (Array.isArray(value)) {
-    const names = value.map((item: any): string | undefined => readString(readRecord(item)['name'])).filter((name: string | undefined) => name !== undefined) as string[]
+    const names = (value as Object[]).map((item: Object): string | undefined => readString(readRecord(item)['name'])).filter((name: string | undefined) => name !== undefined) as string[]
     return names.length === 0 ? undefined : names.join(', ')
   }
   return readString(readRecord(value)['name'])
 }
 
-function readString(value: any): string | undefined {
+function readString(value: Object | undefined): string | undefined {
   return typeof value === 'string' && value.length > 0 ? value : undefined
 }
 
-function readRecord(value: any): Record<string, any> {
-  return value !== null && typeof value === 'object' && !Array.isArray(value) ? value as Record<string, any> : {}
+function readRecord(value: Object | undefined): Record<string, Object> {
+  return value !== undefined && typeof value === 'object' && !Array.isArray(value) ? value as Record<string, Object> : {}
 }
 
-function readArray(value: any): any[] {
-  return Array.isArray(value) ? value : []
+function readArray(value: Object | undefined): Object[] {
+  return Array.isArray(value) ? value as Object[] : []
 }
 
 function readFirstXmlBlock(xml: string, tagName: string): string | undefined {
@@ -432,4 +614,22 @@ function decodeXmlEntities(value: string): string {
     .replace(/&gt;/g, '>')
     .replace(/&quot;/g, '"')
     .replace(/&apos;/g, '\'')
+}
+
+function readOpdsUrlOrigin(url: string): string {
+  const match = /^(https?:\/\/[^\/?#]+)/i.exec(url)
+  return match === null ? '' : match[1]
+}
+
+function stripOpdsQueryAndHash(url: string): string {
+  const queryIndex = url.indexOf('?')
+  const hashIndex = url.indexOf('#')
+  let end = url.length
+  if (queryIndex >= 0 && queryIndex < end) {
+    end = queryIndex
+  }
+  if (hashIndex >= 0 && hashIndex < end) {
+    end = hashIndex
+  }
+  return url.substring(0, end)
 }

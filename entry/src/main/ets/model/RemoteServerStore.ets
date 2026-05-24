@@ -31,16 +31,30 @@ import {
   WebDavResolvedCredential,
   WebDavServerConfig,
 } from '../remote/WebDavModels'
+import {
+  OpdsClient,
+  OpdsHeaders,
+  OpdsHttpAdapter,
+  OpdsHttpRequest,
+  OpdsHttpResponse,
+  normalizeOpdsRootUrl,
+  opdsHeadersToHttpHeaderObject,
+} from '../remote/OpdsParser'
+import { OpdsVersion } from '../remote/OpdsModels'
 
 const REMOTE_SERVER_STORE_NAME: string = 'koma_remote_servers_v1'
 const KOMGA_SERVER_KEY: string = 'komga.server'
 const KOMGA_CREDENTIAL_KEY: string = 'komga.credential'
 const WEBDAV_SERVER_KEY: string = 'webdav.server'
 const WEBDAV_CREDENTIAL_KEY: string = 'webdav.credential'
+const OPDS_SERVER_KEY: string = 'opds.server'
+const OPDS_CREDENTIAL_KEY: string = 'opds.credential'
 const DEFAULT_KOMGA_SERVER_ID: string = 'komga-default'
 const DEFAULT_KOMGA_CREDENTIAL_REF: string = 'komga-default-credential'
 const DEFAULT_WEBDAV_SERVER_ID: string = 'webdav-default'
 const DEFAULT_WEBDAV_CREDENTIAL_REF: string = 'webdav-default-credential'
+const DEFAULT_OPDS_SERVER_ID: string = 'opds-default'
+const DEFAULT_OPDS_CREDENTIAL_REF: string = 'opds-default-credential'
 
 export interface KomgaServerDraft {
   baseUrl: string
@@ -67,6 +81,31 @@ export interface WebDavServerRecord {
   credential?: WebDavResolvedCredential
 }
 
+export interface OpdsServerDraft {
+  rootUrl: string
+  username?: string
+  password?: string
+  version?: OpdsVersion
+}
+
+export interface OpdsServerConfig {
+  id: string
+  name: string
+  rootUrl: string
+  version?: OpdsVersion
+  credentialRef?: string
+}
+
+export interface OpdsResolvedCredential {
+  credentialRef: string
+  basicToken?: string
+}
+
+export interface OpdsServerRecord {
+  server: OpdsServerConfig
+  credential?: OpdsResolvedCredential
+}
+
 interface StoredKomgaCredential {
   credentialRef: string
   basicToken?: string
@@ -75,6 +114,11 @@ interface StoredKomgaCredential {
 }
 
 interface StoredWebDavCredential {
+  credentialRef: string
+  basicToken?: string
+}
+
+interface StoredOpdsCredential {
   credentialRef: string
   basicToken?: string
 }
@@ -134,6 +178,39 @@ export class WebDavHarmonyHttpAdapter implements WebDavHttpAdapter {
     } catch (error) {
       const e = error as BusinessError
       console.error(`[WebDAV] step=http_error method=${request.method} code=${e.code} message=${e.message}`)
+      throw new Error(e.message)
+    } finally {
+      httpRequest.destroy()
+    }
+  }
+}
+
+export class OpdsHarmonyHttpAdapter implements OpdsHttpAdapter {
+  async request(request: OpdsHttpRequest): Promise<OpdsHttpResponse> {
+    const httpRequest = http.createHttp()
+    const startedAt = Date.now()
+    try {
+      const response = await httpRequest.request(request.url, {
+        method: http.RequestMethod.GET,
+        expectDataType: http.HttpDataType.STRING,
+        usingCache: false,
+        header: opdsHeadersToHttpHeaderObject(request.headers),
+        readTimeout: 60000,
+        connectTimeout: 30000,
+      })
+      const body = typeof response.result === 'string' ? response.result : JSON.stringify(response.result)
+      const headerObject = response.header as Record<string, Object>
+      const contentTypeValue = headerObject['content-type'] ?? headerObject['Content-Type']
+      const contentType = typeof contentTypeValue === 'string' ? contentTypeValue : undefined
+      console.info(`[OPDS] step=http status=${response.responseCode} elapsed=${Date.now() - startedAt}`)
+      return {
+        status: response.responseCode,
+        body,
+        contentType,
+      }
+    } catch (error) {
+      const e = error as BusinessError
+      console.error(`[OPDS] step=http_error code=${e.code} message=${e.message}`)
       throw new Error(e.message)
     } finally {
       httpRequest.destroy()
@@ -272,6 +349,66 @@ export class RemoteServerStore {
     console.info('[WebDAV] step=clear_server')
   }
 
+  async loadOpds(): Promise<OpdsServerRecord | undefined> {
+    const store = await this.preferences()
+    const serverPayload = await store.get(OPDS_SERVER_KEY, '') as string
+    if (serverPayload.length === 0) {
+      return undefined
+    }
+    const server = JSON.parse(serverPayload) as OpdsServerConfig
+    const credentialPayload = await store.get(OPDS_CREDENTIAL_KEY, '') as string
+    if (credentialPayload.length === 0 || server.credentialRef === undefined) {
+      return { server }
+    }
+    const stored = JSON.parse(credentialPayload) as StoredOpdsCredential
+    if (stored.credentialRef !== server.credentialRef) {
+      return { server }
+    }
+    return {
+      server,
+      credential: {
+        credentialRef: stored.credentialRef,
+        basicToken: stored.basicToken,
+      },
+    }
+  }
+
+  async saveOpds(draft: OpdsServerDraft): Promise<OpdsServerRecord> {
+    const rootUrl = normalizeOpdsRootUrl(draft.rootUrl)
+    if (rootUrl.length === 0) {
+      throw new Error('请输入 OPDS Catalog URL')
+    }
+    const credential = this.createOpdsCredential(draft)
+    const server: OpdsServerConfig = {
+      id: DEFAULT_OPDS_SERVER_ID,
+      name: 'OPDS',
+      rootUrl,
+      version: draft.version,
+      credentialRef: credential === undefined ? undefined : DEFAULT_OPDS_CREDENTIAL_REF,
+    }
+    const store = await this.preferences()
+    await store.put(OPDS_SERVER_KEY, JSON.stringify(server))
+    if (credential === undefined) {
+      await store.delete(OPDS_CREDENTIAL_KEY)
+    } else {
+      await store.put(OPDS_CREDENTIAL_KEY, JSON.stringify(credential))
+    }
+    await store.flush()
+    console.info('[OPDS] step=save_server')
+    return {
+      server,
+      credential,
+    }
+  }
+
+  async clearOpds(): Promise<void> {
+    const store = await this.preferences()
+    await store.delete(OPDS_SERVER_KEY)
+    await store.delete(OPDS_CREDENTIAL_KEY)
+    await store.flush()
+    console.info('[OPDS] step=clear_server')
+  }
+
   createKomgaClient(record: KomgaServerRecord): KomgaClient {
     return new KomgaClient({
       server: record.server,
@@ -285,6 +422,14 @@ export class RemoteServerStore {
       server: record.server,
       credential: record.credential,
       http: new WebDavHarmonyHttpAdapter(),
+    })
+  }
+
+  createOpdsClient(record: OpdsServerRecord): OpdsClient {
+    return new OpdsClient({
+      rootUrl: record.server.rootUrl,
+      authorization: this.getOpdsAuthorization(record),
+      http: new OpdsHarmonyHttpAdapter(),
     })
   }
 
@@ -303,6 +448,17 @@ export class RemoteServerStore {
     return {
       authorization: webDavHeaders.authorization,
       accept: webDavHeaders.accept,
+    } as KomgaHeaders
+  }
+
+  getOpdsImageHeaders(record: OpdsServerRecord): KomgaHeaders {
+    const opdsHeaders: OpdsHeaders = new OpdsClient({
+      rootUrl: record.server.rootUrl,
+      authorization: this.getOpdsAuthorization(record),
+    }).buildHeaders('image/*')
+    return {
+      authorization: opdsHeaders.authorization,
+      accept: opdsHeaders.accept,
     } as KomgaHeaders
   }
 
@@ -344,6 +500,31 @@ export class RemoteServerStore {
       credentialRef: DEFAULT_WEBDAV_CREDENTIAL_REF,
       basicToken: buffer.from(`${username}:${password}`, 'utf8').toString('base64'),
     }
+  }
+
+  private createOpdsCredential(draft: OpdsServerDraft): OpdsResolvedCredential | undefined {
+    const username = draft.username === undefined ? '' : draft.username.trim()
+    const password = draft.password === undefined ? '' : draft.password
+    if (username.length === 0 && password.length === 0) {
+      return undefined
+    }
+    if (username.length === 0 || password.length === 0) {
+      throw new Error('请输入用户名和密码')
+    }
+    return {
+      credentialRef: DEFAULT_OPDS_CREDENTIAL_REF,
+      basicToken: buffer.from(`${username}:${password}`, 'utf8').toString('base64'),
+    }
+  }
+
+  private getOpdsAuthorization(record: OpdsServerRecord): string | undefined {
+    if (record.server.credentialRef === undefined) {
+      return undefined
+    }
+    if (record.credential === undefined || record.credential.basicToken === undefined || record.credential.basicToken.length === 0) {
+      throw new Error('OPDS Basic credential token is required')
+    }
+    return `Basic ${record.credential.basicToken}`
   }
 
   private async preferences(): Promise<preferences.Preferences> {
