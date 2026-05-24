@@ -1,7 +1,14 @@
 import { common } from '@kit.AbilityKit'
 import { LibraryPage } from './LibraryPage'
+import { BrowsePage } from './BrowsePage'
+import { HistoryPage } from './HistoryPage'
+import { SearchPage } from './SearchPage'
+import { SettingsPage } from './SettingsPage'
 import { ImportPage } from './ImportPage'
 import { ReaderPage } from './ReaderPage'
+import { MangaDetailPage, readMangaDetailRouteParam } from './MangaDetailPage'
+import { RouteName, TabIndex, TabLabel } from '../common/Constants'
+import { RouterHelper } from '../common/RouterHelper'
 import {
   LibraryPresentationByComicId,
   MOCK_LIBRARY_READER_SESSION,
@@ -24,7 +31,6 @@ import {
   createReaderSessionConfigFromComic,
 } from '../model/ReaderSessionStore'
 
-const READER_ROUTE_NAME: string = 'ReaderPage'
 const readerSessionStore: ReaderSessionStore = new InMemoryReaderSessionStore()
 const seededLibraryStore: LibraryStore = createSeededLibraryStore()
 const libraryPresentationByComicId: LibraryPresentationByComicId = createMockLibraryPresentationMap()
@@ -32,7 +38,7 @@ const libraryPresentationByComicId: LibraryPresentationByComicId = createMockLib
 @Entry
 @Component
 struct Index {
-  @State selectedTab: number = 0
+  @State selectedTab: number = TabIndex.LIBRARY
   @State private readerOpen: boolean = false
   @State private readerPageIndex: number = 0
   @State private readerChromeVisible: boolean = true
@@ -40,18 +46,13 @@ struct Index {
   @State private readerSessionConfig: ReaderSessionConfig = MOCK_LIBRARY_READER_SESSION
   @State private libraryRevision: number = 0
   @State private libraryComics: Comic[] = seededLibraryStore.listComics()
+  private tabController: TabsController = new TabsController()
   private readerSessionStore: ReaderSessionStore = readerSessionStore
   private libraryStore: LibraryStore = seededLibraryStore
   private presentationByComicId: LibraryPresentationByComicId = libraryPresentationByComicId
-  private readerPathStack: NavPathStack = new NavPathStack()
+  private appPathStack: NavPathStack = new NavPathStack()
   private libraryPersistenceService?: LibraryStorePersistenceService
   private libraryPersistenceRestored: boolean = false
-
-  private tabLabel(index: number): string {
-    if (index === 0) { return '书架' }
-    if (index === 1) { return '导入' }
-    return ''
-  }
 
   private refreshLibrarySnapshot(): void {
     this.libraryComics = this.libraryStore.listComics()
@@ -64,7 +65,7 @@ struct Index {
     this.readerPageIndex = this.readerSessionStore.restorePageIndex(this.readerSessionConfig)
     this.readerChromeVisible = true
     if (!this.readerOpen) {
-      this.readerPathStack.pushPath({ name: READER_ROUTE_NAME })
+      this.appPathStack.pushPath({ name: RouteName.READER })
     }
     this.readerOpen = true
   }
@@ -74,7 +75,11 @@ struct Index {
       return
     }
     this.readerOpen = false
-    this.readerPathStack.pop(false)
+    this.appPathStack.pop(false)
+  }
+
+  private openImport(): void {
+    this.appPathStack.pushPath({ name: RouteName.IMPORT })
   }
 
   private handleArchiveImportSucceeded(comic: Comic): void {
@@ -143,6 +148,7 @@ struct Index {
   }
 
   aboutToAppear(): void {
+    RouterHelper.setAppPathStack(this.appPathStack)
     if (this.libraryPersistenceRestored) {
       return
     }
@@ -161,20 +167,25 @@ struct Index {
   }
 
   @Builder
-  private TabItem(index: number) {
-    Column() {
-      Text(this.tabLabel(index))
+  private TabBarItem(index: number, label: string, icon: Resource) {
+    Column({ space: 4 }) {
+      SymbolGlyph(icon)
+        .fontSize(22)
+        .fontColor(this.selectedTab === index ? [$r('app.color.koma_accent')] : [$r('app.color.koma_text_secondary')])
+
+      Text(label)
         .fontSize(12)
         .fontWeight(this.selectedTab === index ? FontWeight.Medium : FontWeight.Regular)
         .fontColor(this.selectedTab === index ? $r('app.color.koma_accent') : $r('app.color.koma_text_secondary'))
     }
+    .width('100%')
     .height(56)
     .justifyContent(FlexAlign.Center)
   }
 
   @Builder
-  private ReaderDestination(name: string, param: Object) {
-    if (name === READER_ROUTE_NAME) {
+  private AppDestination(name: string, param: Object) {
+    if (name === RouteName.READER) {
       NavDestination() {
         ReaderPage({
           readerOpen: $readerOpen,
@@ -193,6 +204,25 @@ struct Index {
         this.closeReader()
         return true
       })
+    } else if (name === RouteName.IMPORT) {
+      NavDestination() {
+        ImportPage({
+          onArchiveImportSucceeded: (comic: Comic) => {
+            this.handleArchiveImportSucceeded(comic)
+            this.appPathStack.pop(false)
+          },
+          onLocalImageImportSucceeded: (comic: Comic) => {
+            this.handleArchiveImportSucceeded(comic)
+            this.appPathStack.pop(false)
+          }
+        })
+      }
+      .hideTitleBar(true)
+    } else if (name === RouteName.MANGA_DETAIL) {
+      NavDestination() {
+        MangaDetailPage({ comicId: readMangaDetailRouteParam(param).comicId })
+      }
+      .hideTitleBar(true)
     }
   }
 
@@ -205,60 +235,63 @@ struct Index {
   }
 
   build() {
-    Navigation(this.readerPathStack) {
-      Column() {
-        Stack() {
-          if (this.selectedTab === 0) {
-            LibraryPage({
-              libraryStore: this.libraryStore,
-              libraryComics: this.libraryComics,
-              libraryRevision: this.libraryRevision,
-              presentationByComicId: this.presentationByComicId,
-              sessionStore: this.readerSessionStore,
-              onOpenReader: (comicId: ComicId) => {
-                this.openReader(comicId)
-              },
-              onImportRequested: () => {
-                this.selectedTab = 1
-              },
-              onRemoveComicRequested: (comicId: ComicId) => {
-                return this.handleRemoveComicRequested(comicId)
-              }
-            })
-          } else if (this.selectedTab === 1) {
-            ImportPage({
-              onArchiveImportSucceeded: (comic: Comic) => {
-                this.handleArchiveImportSucceeded(comic)
-              },
-              onLocalImageImportSucceeded: (comic: Comic) => {
-                this.handleArchiveImportSucceeded(comic)
-              }
-            })
-          }
+    Navigation(this.appPathStack) {
+      Tabs({ barPosition: BarPosition.End, controller: this.tabController, index: $$this.selectedTab }) {
+        TabContent() {
+          LibraryPage({
+            libraryStore: this.libraryStore,
+            libraryComics: this.libraryComics,
+            libraryRevision: this.libraryRevision,
+            presentationByComicId: this.presentationByComicId,
+            sessionStore: this.readerSessionStore,
+            onOpenReader: (comicId: ComicId) => {
+              this.openReader(comicId)
+            },
+            onImportRequested: () => {
+              this.openImport()
+            },
+            onRemoveComicRequested: (comicId: ComicId) => {
+              return this.handleRemoveComicRequested(comicId)
+            }
+          })
         }
-        .layoutWeight(1)
-        .width('100%')
-        .alignContent(Alignment.TopStart)
+        .tabBar(this.TabBarItem(TabIndex.LIBRARY, TabLabel.LIBRARY, $r('sys.symbol.rectangle_on_rectangle_fill')))
 
-        Tabs({ index: this.selectedTab }) {
-          TabContent() { }.tabBar(this.TabItem(0))
-          TabContent() { }.tabBar(this.TabItem(1))
+        TabContent() {
+          BrowsePage()
         }
-        .height(72)
-        .barPosition(BarPosition.End)
-        .onChange((index: number) => { this.selectedTab = index })
+        .tabBar(this.TabBarItem(TabIndex.BROWSE, TabLabel.BROWSE, $r('sys.symbol.dot_grid_2x2')))
+
+        TabContent() {
+          HistoryPage()
+        }
+        .tabBar(this.TabBarItem(TabIndex.HISTORY, TabLabel.HISTORY, $r('sys.symbol.stopwatch_fill')))
+
+        TabContent() {
+          SearchPage()
+        }
+        .tabBar(this.TabBarItem(TabIndex.SEARCH, TabLabel.SEARCH, $r('sys.symbol.magnifyingglass')))
+
+        TabContent() {
+          SettingsPage()
+        }
+        .tabBar(this.TabBarItem(TabIndex.SETTINGS, TabLabel.SETTINGS, $r('sys.symbol.more')))
       }
+      .scrollable(false)
+      .barMode(BarMode.Fixed)
+      .barHeight(72)
       .width('100%')
       .height('100%')
       .backgroundColor($r('app.color.koma_background'))
-      .padding({ top: 72 })
-      .hitTestBehavior(this.readerOpen ? HitTestMode.None : HitTestMode.Default)
+      .onChange((index: number) => {
+        this.selectedTab = index
+      })
     }
     .width('100%')
     .height('100%')
-    .backgroundColor('#0B0A09')
+    .backgroundColor($r('app.color.koma_background'))
     .mode(NavigationMode.Stack)
     .hideTitleBar(true)
-    .navDestination(this.ReaderDestination)
+    .navDestination(this.AppDestination)
   }
 }
