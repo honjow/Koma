@@ -1,10 +1,8 @@
-const TITLE_BAR_HEIGHT: number = 56
-const FLOATING_TAB_BAR_PADDING: number = 96
+import { SecondaryListScaffold } from '../components/SecondaryListScaffold'
+import { ThemeConstants } from '../theme/ThemeConstants'
 
 @Component
 export struct SearchPage {
-  @StorageProp('topAvoidHeight') topAvoidHeight: number = 0
-  @StorageProp('bottomAvoidHeight') bottomAvoidHeight: number = 0
   @State private queryText: string = ''
 
   @Builder
@@ -47,18 +45,22 @@ export struct SearchPage {
   }
 
   build() {
-    Column({ space: 18 }) {
-      this.SearchInput()
-      this.EmptyResults()
+    Column() {
+      SecondaryListScaffold({
+        listSpace: 18,
+        horizontalPadding: 20,
+        bottomPadding: ThemeConstants.FLOAT_BAR_HEIGHT + 20,
+      }) {
+        ListItem() {
+          this.SearchInput()
+        }
+        ListItem() {
+          this.EmptyResults()
+        }
+      }
     }
     .width('100%')
     .height('100%')
-    .padding({
-      left: 20,
-      right: 20,
-      top: this.topAvoidHeight + TITLE_BAR_HEIGHT,
-      bottom: this.bottomAvoidHeight + FLOATING_TAB_BAR_PADDING,
-    })
     .backgroundColor($r('sys.color.ohos_id_color_sub_background'))
   }
 }

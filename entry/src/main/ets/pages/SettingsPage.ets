@@ -1,3 +1,6 @@
+import { SecondaryListScaffold } from '../components/SecondaryListScaffold'
+import { ThemeConstants } from '../theme/ThemeConstants'
+
 interface SettingsRow {
   key: string
   title: string
@@ -45,14 +48,8 @@ const SETTINGS_SECTIONS: SettingsSection[] = [
   },
 ]
 
-const TITLE_BAR_HEIGHT: number = 56
-const FLOATING_TAB_BAR_PADDING: number = 96
-
 @Component
 export struct SettingsPage {
-  @StorageProp('topAvoidHeight') topAvoidHeight: number = 0
-  @StorageProp('bottomAvoidHeight') bottomAvoidHeight: number = 0
-
   @Builder
   private SectionTitle(title: string) {
     Text(title)
@@ -104,22 +101,21 @@ export struct SettingsPage {
   }
 
   build() {
-    List({ space: 18 }) {
-      ForEach(SETTINGS_SECTIONS, (section: SettingsSection) => {
-        ListItem() {
-          this.Section(section)
-        }
-      }, (section: SettingsSection) => section.key)
+    Column() {
+      SecondaryListScaffold({
+        listSpace: 18,
+        horizontalPadding: 20,
+        bottomPadding: ThemeConstants.FLOAT_BAR_HEIGHT + 20,
+      }) {
+        ForEach(SETTINGS_SECTIONS, (section: SettingsSection) => {
+          ListItem() {
+            this.Section(section)
+          }
+        }, (section: SettingsSection) => section.key)
+      }
     }
     .width('100%')
     .height('100%')
-    .padding({
-      left: 20,
-      right: 20,
-      top: this.topAvoidHeight + TITLE_BAR_HEIGHT,
-      bottom: this.bottomAvoidHeight + FLOATING_TAB_BAR_PADDING,
-    })
-    .scrollBar(BarState.Off)
     .backgroundColor($r('sys.color.ohos_id_color_sub_background'))
   }
 }

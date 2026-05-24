@@ -1,13 +1,13 @@
 import { UIAbility, Want, AbilityConstant } from '@kit.AbilityKit'
 import { window } from '@kit.ArkUI'
+import { StorageKeys } from '../constants/StorageKeys'
 import { registerBundledDevSourcesForBrowse } from '../sourceRuntime/SourceRuntimeAppRegistry'
 import { maybeRunSourceRuntimeDeviceSmoke } from '../sourceRuntime/SourceRuntimeDeviceSmoke'
 
 const TRANSPARENT_COLOR: string = '#00FFFFFF'
 const ENTRY_PAGE: string = 'pages/Index'
-const FALLBACK_TOP_AVOID_HEIGHT: number = 0
-const FALLBACK_BOTTOM_AVOID_HEIGHT: number = 0
-const TITLE_BAR_HEIGHT: number = 56
+const FALLBACK_TOP_AVOID: number = 107
+const FALLBACK_BOTTOM_AVOID: number = 0
 
 export default class EntryAbility extends UIAbility {
   onCreate(want: Want, launchParam: AbilityConstant.LaunchParam): void {
@@ -48,15 +48,21 @@ export default class EntryAbility extends UIAbility {
       const uiContext = win.getUIContext()
       const systemArea = win.getWindowAvoidArea(window.AvoidAreaType.TYPE_SYSTEM)
       const navigationArea = win.getWindowAvoidArea(window.AvoidAreaType.TYPE_NAVIGATION_INDICATOR)
-      AppStorage.setOrCreate<number>('topAvoidHeight', uiContext.px2vp(systemArea.topRect.height))
-      AppStorage.setOrCreate<number>('bottomAvoidHeight', uiContext.px2vp(navigationArea.bottomRect.height))
-      AppStorage.setOrCreate<number>('titleBarHeight', TITLE_BAR_HEIGHT)
+      AppStorage.setOrCreate<number>(
+        StorageKeys.TOP_AVOID_HEIGHT,
+        uiContext.px2vp(systemArea.topRect.height),
+      )
+      AppStorage.setOrCreate<number>(
+        StorageKeys.BOTTOM_AVOID_HEIGHT,
+        uiContext.px2vp(navigationArea.bottomRect.height),
+      )
+      AppStorage.setOrCreate<number>(StorageKeys.KEYBOARD_HEIGHT, 0)
     } catch (error) {
       const e = error as Error
       console.error('store avoid heights failed: ' + e.message)
-      AppStorage.setOrCreate<number>('topAvoidHeight', FALLBACK_TOP_AVOID_HEIGHT)
-      AppStorage.setOrCreate<number>('bottomAvoidHeight', FALLBACK_BOTTOM_AVOID_HEIGHT)
-      AppStorage.setOrCreate<number>('titleBarHeight', TITLE_BAR_HEIGHT)
+      AppStorage.setOrCreate<number>(StorageKeys.TOP_AVOID_HEIGHT, FALLBACK_TOP_AVOID)
+      AppStorage.setOrCreate<number>(StorageKeys.BOTTOM_AVOID_HEIGHT, FALLBACK_BOTTOM_AVOID)
+      AppStorage.setOrCreate<number>(StorageKeys.KEYBOARD_HEIGHT, 0)
     }
   }
 }

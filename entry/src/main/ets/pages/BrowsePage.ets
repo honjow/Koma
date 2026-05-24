@@ -1,10 +1,11 @@
 import {
   BlurStrategy,
   hdsMaterial,
-  HdsNavDestination,
   ScrollEffectType,
 } from '@kit.UIDesignKit'
+import { SecondaryListScaffold } from '../components/SecondaryListScaffold'
 import { SourceListItem } from '../components/SourceListItem'
+import { ThemeConstants } from '../theme/ThemeConstants'
 import { BrowseViewModel } from '../viewmodel/BrowseViewModel'
 import { SourceRuntimeRegistry, SourceRuntimeRegistryInstalledSourceSummary } from '../sourceRuntime/SourceRuntimeRegistry'
 import { appSourceRuntimeRegistry } from '../sourceRuntime/SourceRuntimeAppRegistry'
@@ -15,8 +16,6 @@ import { RouterHelper } from '../common/RouterHelper'
 
 const SOURCE_BROWSE_ROUTE_NAME: string = 'SourceBrowsePage'
 const SOURCE_SEARCH_ROUTE_NAME: string = 'SourceSearchPage'
-const TITLE_BAR_HEIGHT: number = 56
-const FLOATING_TAB_BAR_PADDING: number = 96
 
 interface SourceRouteParam {
   source: SourceRuntimeRegistryInstalledSourceSummary
@@ -24,8 +23,6 @@ interface SourceRouteParam {
 
 @Component
 export struct BrowsePage {
-  @StorageProp('topAvoidHeight') topAvoidHeight: number = 0
-  @StorageProp('bottomAvoidHeight') bottomAvoidHeight: number = 0
   @State private viewModel: BrowseViewModel = new BrowseViewModel()
   @State private refreshingSources: boolean = false
   sourceRegistry: SourceRuntimeRegistry = appSourceRuntimeRegistry
@@ -66,28 +63,24 @@ export struct BrowsePage {
   }
 
   @Builder
-  private SourceList() {
-    List({ space: 10 }) {
-      ForEach(this.viewModel.sources, (source: SourceRuntimeRegistryInstalledSourceSummary) => {
-        ListItem() {
-          SourceListItem({
-            source: source,
-            languageBadge: this.viewModel.sourceLanguageBadge(source),
-            onSourceTap: (selected: SourceRuntimeRegistryInstalledSourceSummary) => {
-              this.openSource(selected)
-            },
-          })
-        }
-      }, (source: SourceRuntimeRegistryInstalledSourceSummary) => source.sourceId)
-    }
-    .width('100%')
-    .layoutWeight(1)
+  private SourceListItems() {
+    ForEach(this.viewModel.sources, (source: SourceRuntimeRegistryInstalledSourceSummary) => {
+      ListItem() {
+        SourceListItem({
+          source: source,
+          languageBadge: this.viewModel.sourceLanguageBadge(source),
+          onSourceTap: (selected: SourceRuntimeRegistryInstalledSourceSummary) => {
+            this.openSource(selected)
+          },
+        })
+      }
+    }, (source: SourceRuntimeRegistryInstalledSourceSummary) => source.sourceId)
   }
 
   @Builder
   private BrowseDestination(name: string, param: Object) {
     if (name === SOURCE_BROWSE_ROUTE_NAME) {
-      HdsNavDestination() {
+      NavDestination() {
         SourceBrowsePage({
           source: (param as SourceRouteParam).source,
           viewModel: this.viewModel,
@@ -99,9 +92,9 @@ export struct BrowsePage {
           },
         })
       }
-      .titleBar(this.navDestTitleBarOpts((param as SourceRouteParam).source.displayName))
+      .title((param as SourceRouteParam).source.displayName)
     } else if (name === SOURCE_SEARCH_ROUTE_NAME) {
-      HdsNavDestination() {
+      NavDestination() {
         SourceSearchPage({
           source: (param as SourceRouteParam).source,
           viewModel: this.viewModel,
@@ -110,7 +103,7 @@ export struct BrowsePage {
           },
         })
       }
-      .titleBar(this.navDestTitleBarOpts('搜索'))
+      .title('搜索')
     }
   }
 
@@ -128,26 +121,34 @@ export struct BrowsePage {
   build() {
     Navigation(this.browsePathStack) {
       Refresh({ refreshing: $$this.refreshingSources }) {
-        Column({ space: 18 }) {
-          if (this.viewModel.loadingSources) {
-            LoadingProgress()
-              .width(36)
-              .height(36)
-              .color($r('app.color.koma_accent'))
-          } else if (this.viewModel.sources.length === 0) {
-            this.EmptySources()
-          } else {
-            this.SourceList()
+        Column() {
+          SecondaryListScaffold({
+            listSpace: 18,
+            horizontalPadding: 20,
+            bottomPadding: ThemeConstants.FLOAT_BAR_HEIGHT + 20,
+          }) {
+            if (this.viewModel.loadingSources) {
+              ListItem() {
+                Row() {
+                  LoadingProgress()
+                    .width(36)
+                    .height(36)
+                    .color($r('app.color.koma_accent'))
+                }
+                .width('100%')
+                .justifyContent(FlexAlign.Center)
+              }
+            } else if (this.viewModel.sources.length === 0) {
+              ListItem() {
+                this.EmptySources()
+              }
+            } else {
+              this.SourceListItems()
+            }
           }
         }
         .width('100%')
         .height('100%')
-        .padding({
-          left: 20,
-          right: 20,
-          top: this.topAvoidHeight + TITLE_BAR_HEIGHT,
-          bottom: this.bottomAvoidHeight + FLOATING_TAB_BAR_PADDING,
-        })
         .backgroundColor($r('sys.color.ohos_id_color_sub_background'))
       }
       .onRefreshing(() => {
