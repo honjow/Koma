@@ -4,6 +4,13 @@ import { ThemeConstants } from '../theme/ThemeConstants'
 import { ReadingDirection } from '../model/ComicModels'
 import { BackupService } from '../model/BackupService'
 import {
+  ReaderRemoteImageCacheStats,
+  clearReaderRemoteImageCache,
+  configureReaderRemoteImageCache,
+  formatReaderRemoteImageCacheSize,
+  getReaderRemoteImageCacheStats,
+} from '../model/ReaderPageSourceAdapter'
+import {
   ReaderPageMode,
   ReaderPreferencesStore,
   ReaderThemeMode,
@@ -61,6 +68,7 @@ const SETTINGS_SECTIONS: SettingsSection[] = [
       { key: 'webdav', title: 'WebDAV 私有库', detail: '远程文件夹与认证' },
       { key: 'sources', title: '管理已安装的源包', detail: '暂未安装源包' },
       { key: 'backup', title: '备份与恢复', detail: '导出书架、进度、源包和设置' },
+      { key: 'image-cache', title: '图片缓存', detail: '0 B · 0 项' },
     ],
   },
   {
@@ -81,6 +89,7 @@ export struct SettingsPage {
   @State private readingDirection: ReadingDirection = ReadingDirection.LEFT_TO_RIGHT
   @State private themeMode: ReaderThemeMode = 'system'
   @State private versionDetail: string = 'Koma 开发版'
+  @State private imageCacheDetail: string = '0 B · 0 项'
 
   private openKomgaSettings(): void {
     this.settingsPathStack.pushPath({ name: KOMGA_SERVER_ROUTE_NAME })
@@ -127,6 +136,9 @@ export struct SettingsPage {
       const count = listInstalled().length
       return count > 0 ? `${count} 个源包` : '暂未安装源包'
     }
+    if (row.key === 'image-cache') {
+      return this.imageCacheDetail
+    }
     return row.detail
   }
 
@@ -152,6 +164,41 @@ export struct SettingsPage {
       console.warn('[Settings] step=version_failed message=' + e.message)
       this.versionDetail = 'Koma 开发版'
     }
+  }
+
+  private ensureReaderRemoteImageCache(): boolean {
+    try {
+      const context = this.context()
+      if (context.cacheDir === undefined || context.cacheDir.length === 0) {
+        return false
+      }
+      configureReaderRemoteImageCache(context.cacheDir)
+      return true
+    } catch (error) {
+      const e = error as Error
+      console.warn('[Settings] step=image_cache_configure_failed message=' + e.message)
+      return false
+    }
+  }
+
+  private updateImageCacheDetail(stats: ReaderRemoteImageCacheStats): void {
+    this.imageCacheDetail = `${formatReaderRemoteImageCacheSize(stats.totalBytes)} · ${stats.entryCount} 项`
+  }
+
+  private loadImageCacheStats(): void {
+    if (!this.ensureReaderRemoteImageCache()) {
+      this.imageCacheDetail = '不可用'
+      return
+    }
+    void getReaderRemoteImageCacheStats()
+      .then((stats: ReaderRemoteImageCacheStats) => {
+        this.updateImageCacheDetail(stats)
+        console.info('[Settings] step=image_cache_stats totalBytes=' + stats.totalBytes + ' entryCount=' + stats.entryCount)
+      })
+      .catch((error: Error) => {
+        this.imageCacheDetail = '读取失败'
+        console.warn('[Settings] step=image_cache_stats_failed message=' + error.message)
+      })
   }
 
   private showPageModeSheet(): void {
@@ -270,6 +317,35 @@ export struct SettingsPage {
       })
   }
 
+  private showImageCacheSheet(): void {
+    console.info('[Settings] step=image_cache_sheet')
+    this.getUIContext().showActionSheet({
+      title: '图片缓存',
+      message: this.imageCacheDetail,
+      sheets: [
+        { title: '清理缓存', action: () => { this.clearImageCache() } },
+      ],
+    })
+  }
+
+  private clearImageCache(): void {
+    if (!this.ensureReaderRemoteImageCache()) {
+      this.showToast('图片缓存不可用')
+      return
+    }
+    console.info('[Settings] step=image_cache_clear_start')
+    void clearReaderRemoteImageCache()
+      .then((stats: ReaderRemoteImageCacheStats) => {
+        this.updateImageCacheDetail(stats)
+        console.info('[Settings] step=image_cache_clear_done totalBytes=' + stats.totalBytes + ' entryCount=' + stats.entryCount)
+        this.showToast('图片缓存已清理')
+      })
+      .catch((error: Error) => {
+        console.warn('[Settings] step=image_cache_clear_failed message=' + error.message)
+        this.showToast('清理缓存失败')
+      })
+  }
+
   private showSourcesDialog(): void {
     console.info('[Settings] step=sources_manager_open')
     this.openSourcePackageManager()
@@ -283,6 +359,13 @@ export struct SettingsPage {
         { text: '确定', color: '#8D5A3B' },
       ],
     })
+  }
+
+  private showToast(message: string): void {
+    try {
+      this.getUIContext().getPromptAction().showToast({ message: message })
+    } catch (_error) {
+    }
   }
 
   private showAboutDialog(): void {
@@ -315,6 +398,8 @@ export struct SettingsPage {
       this.showThemeSheet()
     } else if (row.key === 'backup') {
       this.showBackupSheet()
+    } else if (row.key === 'image-cache') {
+      this.showImageCacheSheet()
     } else if (row.key === 'sources') {
       this.showSourcesDialog()
     } else if (row.key === 'about') {
@@ -361,6 +446,7 @@ export struct SettingsPage {
   aboutToAppear(): void {
     this.loadVersion()
     this.loadPreferences()
+    this.loadImageCacheStats()
   }
 
   @Builder

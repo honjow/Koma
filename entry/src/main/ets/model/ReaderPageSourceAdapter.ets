@@ -14,13 +14,16 @@ import {
 } from '../remote/KomgaClient'
 import {
   DEFAULT_REMOTE_IMAGE_CACHE_MAX_BYTES,
+  RemoteImageCacheStats,
   RemoteImageCacheStore,
+  formatRemoteImageCacheSize as formatRemoteImageCacheSizeFromStore,
 } from './RemoteImageCacheStore'
 import { RemoteServerStore } from './RemoteServerStore'
 import { appSourceRuntimeRegistry } from '../sourceRuntime/SourceRuntimeAppRegistry'
 import { runRegisteredSourceRequestById } from '../sourceRuntime/SourceRuntimeService'
 
 export type ReaderRemoteImageHeaders = Record<string, string>
+export type ReaderRemoteImageCacheStats = RemoteImageCacheStats
 
 export enum ReaderPageRenderKind {
   LOCAL_FILE_IMAGE = 'local_file_image',
@@ -435,6 +438,31 @@ export function configureReaderRemoteImageCache(cacheDir: string, maxBytes: numb
   }
   readerRemoteImageCacheMaxBytes = maxBytes
   readerRemoteImageCacheStore.evictIfOver(readerRemoteImageCacheMaxBytes)
+}
+
+export async function getReaderRemoteImageCacheStats(): Promise<ReaderRemoteImageCacheStats> {
+  if (readerRemoteImageCacheStore === undefined) {
+    return {
+      totalBytes: 0,
+      entryCount: 0,
+    }
+  }
+  return readerRemoteImageCacheStore.stats()
+}
+
+export async function clearReaderRemoteImageCache(): Promise<ReaderRemoteImageCacheStats> {
+  if (readerRemoteImageCacheStore === undefined) {
+    return {
+      totalBytes: 0,
+      entryCount: 0,
+    }
+  }
+  await readerRemoteImageCacheStore.clear()
+  return readerRemoteImageCacheStore.stats()
+}
+
+export function formatReaderRemoteImageCacheSize(totalBytes: number): string {
+  return formatRemoteImageCacheSizeFromStore(totalBytes)
 }
 
 export async function resolveLocalCached(url: string, headers?: ReaderRemoteImageHeaders): Promise<string | undefined> {

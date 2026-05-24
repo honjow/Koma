@@ -1,4 +1,4 @@
-import { fileIo as fs } from '@kit.CoreFileKit'
+import { fileIo as fs, ListFileOptions } from '@kit.CoreFileKit'
 
 export type RemoteImageCacheHeaders = Record<string, string>
 
@@ -13,6 +13,11 @@ export interface RemoteImageCacheManifestEntry {
   path: string
   size: number
   lastAccessAt: number
+}
+
+export interface RemoteImageCacheStats {
+  totalBytes: number
+  entryCount: number
 }
 
 interface RemoteImageCacheManifestDocument {
@@ -128,6 +133,22 @@ function safeParseManifest(payload: string): RemoteImageCacheManifestDocument {
   return parsed
 }
 
+export function formatRemoteImageCacheSize(totalBytes: number): string {
+  if (totalBytes < 1024) {
+    return `${totalBytes} B`
+  }
+  const kib = totalBytes / 1024
+  if (kib < 1024) {
+    return `${kib.toFixed(kib < 10 ? 1 : 0)} KB`
+  }
+  const mib = kib / 1024
+  if (mib < 1024) {
+    return `${mib.toFixed(mib < 10 ? 1 : 0)} MB`
+  }
+  const gib = mib / 1024
+  return `${gib.toFixed(gib < 10 ? 1 : 0)} GB`
+}
+
 export class RemoteImageCacheStore {
   private readonly rootDir: string
   private readonly manifestPath: string
@@ -207,6 +228,76 @@ export class RemoteImageCacheStore {
       console.info(`[ReaderCache] step=evict key=${entry.key} size=${entry.size} total=${total}`)
     }
     this.persist()
+  }
+
+  async stats(): Promise<RemoteImageCacheStats> {
+    let totalBytes = 0
+    let entryCount = 0
+    const staleKeys: string[] = []
+    this.entries.forEach((entry: RemoteImageCacheManifestEntry) => {
+      if (fs.accessSync(entry.path)) {
+        totalBytes += entry.size
+        entryCount += 1
+      } else {
+        staleKeys.push(entry.key)
+      }
+    })
+    if (staleKeys.length > 0) {
+      staleKeys.forEach((key: string) => {
+        this.entries.delete(key)
+      })
+      this.persist()
+    }
+    return {
+      totalBytes,
+      entryCount,
+    }
+  }
+
+  async clear(): Promise<void> {
+    const paths: string[] = []
+    this.entries.forEach((entry: RemoteImageCacheManifestEntry) => {
+      if (!paths.includes(entry.path)) {
+        paths.push(entry.path)
+      }
+    })
+    try {
+      const listFileOptions: ListFileOptions = {
+        recursion: false,
+        listNum: 0,
+      }
+      const listedEntries = await fs.listFile(this.rootDir, listFileOptions)
+      listedEntries.forEach((entry: string) => {
+        const normalizedEntry = normalizeSeparator(entry)
+        if (normalizedEntry.length === 0 ||
+          normalizedEntry === REMOTE_IMAGE_CACHE_MANIFEST_NAME ||
+          normalizedEntry.includes('/') ||
+          normalizedEntry === '.' ||
+          normalizedEntry === '..') {
+          return
+        }
+        const entryPath = joinSandboxPath(this.rootDir, normalizedEntry)
+        if (!paths.includes(entryPath)) {
+          paths.push(entryPath)
+        }
+      })
+    } catch (_err) {
+    }
+    for (const path of paths) {
+      try {
+        if (fs.accessSync(path)) {
+          await fs.unlink(path)
+        }
+      } catch (_err) {
+      }
+    }
+    this.entries.clear()
+    try {
+      if (fs.accessSync(this.manifestPath)) {
+        await fs.unlink(this.manifestPath)
+      }
+    } catch (_err) {
+    }
   }
 
   private ensureRoot(): void {
