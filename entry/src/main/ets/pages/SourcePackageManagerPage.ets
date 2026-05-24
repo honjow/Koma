@@ -167,7 +167,7 @@ export struct SourcePackageManagerPage {
         .fontSize(16)
         .fontWeight(FontWeight.Medium)
         .fontColor($r('app.color.koma_text_primary'))
-      Text('从本地文件导入 .koma-source.zip 或 .zip 源包。')
+      Text('从本地文件导入 .koma / .koma-source.zip / .zip 源包。')
         .fontSize(13)
         .fontColor($r('app.color.koma_text_secondary'))
     }

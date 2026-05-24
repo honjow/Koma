@@ -14,6 +14,8 @@
 
 ## 包结构
 
+导入文件后缀支持 `.koma`、`.koma-source`、`.koma-source.zip` 和 `.zip`。后缀只用于系统文件选择器过滤与诊断展示；运行前必须按归档内容读取并校验 `manifest.json` 与 `source.wasm`。
+
 ```text
 koma-source/
   manifest.json

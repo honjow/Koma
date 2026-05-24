@@ -8,6 +8,8 @@ export const SOURCE_PACKAGE_MANIFEST_ID: string = 'local.test.koma.fixture'
 export const SOURCE_PACKAGE_MANIFEST_VERSION: string = '0.1.0'
 export const SOURCE_PACKAGE_MANIFEST_FILE: string = 'manifest.generated.json'
 export const SOURCE_PACKAGE_WASM_FILE: string = 'rust_source_runtime_fixture.wasm'
+export const SOURCE_REPO_PACKAGE_MANIFEST_FILE: string = 'manifest.json'
+export const SOURCE_REPO_PACKAGE_WASM_FILE: string = 'source.wasm'
 export const SOURCE_PACKAGE_WASM_SHA256: string = '255163710202d77fa218f1ccf96fbdcc7ec954b8f8bd1a04e6f15426a2d00161'
 export const SOURCE_PACKAGE_WASM_MAX_BYTES: number = 131072
 
@@ -72,6 +74,33 @@ export interface LocalSourcePackageManifest {
   runtime: LocalSourcePackageRuntime
   permissions: LocalSourcePackagePermissions
   contentPolicy: LocalSourcePackageContentPolicy
+}
+
+interface SourceRepoPackageManifest {
+  id: string
+  name: string
+  version: string
+  lang?: string
+  language?: string
+  nsfw?: boolean
+  runtime?: string
+  entry?: string
+  wasmSha256?: string
+  sourceWasmSha256?: string
+  maxWasmBytes?: number
+  capabilities?: SourceRepoPackageCapabilities
+  contentPolicy?: SourceRepoPackageContentPolicy
+}
+
+interface SourceRepoPackageCapabilities {
+  network?: boolean
+}
+
+interface SourceRepoPackageContentPolicy {
+  publicIndex?: boolean
+  marketplace?: boolean
+  builtInSource?: boolean
+  remoteInstall?: boolean
 }
 
 export interface SourcePackageStageResult {
@@ -261,7 +290,8 @@ function validateArchiveEntries(archiveBytes: Uint8Array): SourceArchiveValidati
   } catch (_err) {
     return 'unsafe_archive_entry'
   }
-  let hasManifest = false
+  let hasInternalManifest = false
+  let hasSourceRepoManifest = false
   const seen = new Set<string>()
   for (let index = 0; index < names.length; index += 1) {
     const name = names[index]
@@ -270,12 +300,111 @@ function validateArchiveEntries(archiveBytes: Uint8Array): SourceArchiveValidati
     }
     seen.add(name)
     if (name === SOURCE_PACKAGE_MANIFEST_FILE) {
-      hasManifest = true
-    } else if (name !== SOURCE_PACKAGE_WASM_FILE) {
+      hasInternalManifest = true
+    } else if (name === SOURCE_REPO_PACKAGE_MANIFEST_FILE) {
+      hasSourceRepoManifest = true
+    }
+  }
+  if (hasInternalManifest && hasSourceRepoManifest) {
+    return 'unsafe_archive_entry'
+  }
+  if (!hasInternalManifest && !hasSourceRepoManifest) {
+    return 'missing_manifest'
+  }
+
+  const expectedManifest = hasInternalManifest ? SOURCE_PACKAGE_MANIFEST_FILE : SOURCE_REPO_PACKAGE_MANIFEST_FILE
+  const expectedWasm = hasInternalManifest ? SOURCE_PACKAGE_WASM_FILE : SOURCE_REPO_PACKAGE_WASM_FILE
+  for (let index = 0; index < names.length; index += 1) {
+    const name = names[index]
+    if (name !== expectedManifest && name !== expectedWasm) {
       return 'unsafe_archive_entry'
     }
   }
-  return hasManifest ? undefined : 'missing_manifest'
+  return undefined
+}
+
+function isPlainObject(value: Object | null): boolean {
+  return value !== null && typeof value === 'object' && !Array.isArray(value)
+}
+
+function nonEmptyString(value: Object | undefined): string | undefined {
+  return typeof value === 'string' && value.length > 0 ? value : undefined
+}
+
+function optionalBoolean(value: Object | undefined, fallback: boolean): boolean {
+  return typeof value === 'boolean' ? value : fallback
+}
+
+function optionalNumber(value: Object | undefined, fallback: number): number {
+  return typeof value === 'number' && Number.isFinite(value) ? value : fallback
+}
+
+function parseSourceRepoPackageManifest(raw: string, wasmSize: number): LocalSourcePackageManifest | undefined {
+  const parsed = JSON.parse(raw) as SourceRepoPackageManifest
+  const id = nonEmptyString(parsed.id)
+  const name = nonEmptyString(parsed.name)
+  const version = nonEmptyString(parsed.version)
+  if (id === undefined || name === undefined || version === undefined || id.length > 96) {
+    return undefined
+  }
+
+  const capabilities = isPlainObject(parsed.capabilities as Object | null) ? parsed.capabilities : undefined
+  const contentPolicy = isPlainObject(parsed.contentPolicy as Object | null) ? parsed.contentPolicy : undefined
+  const declaredSha256 = nonEmptyString(parsed.wasmSha256) ?? nonEmptyString(parsed.sourceWasmSha256) ?? ''
+  const maxWasmBytes = optionalNumber(parsed.maxWasmBytes, Math.max(wasmSize, SOURCE_PACKAGE_WASM_MAX_BYTES))
+  return {
+    schemaVersion: 1,
+    package: {
+      id,
+      name,
+      version,
+      language: nonEmptyString(parsed.language) ?? nonEmptyString(parsed.lang) ?? 'multi',
+      type: nonEmptyString(parsed.runtime) ?? 'wasm-source',
+      nsfw: optionalBoolean(parsed.nsfw, false),
+    },
+    runtime: {
+      abi: 'koma-source-abi-v0.1',
+      hostAbi: 'koma-host-v0.1',
+      wasmPath: SOURCE_REPO_PACKAGE_WASM_FILE,
+      wasmSha256: declaredSha256,
+      wasmSizeBytes: wasmSize,
+      maxWasmBytes,
+    },
+    permissions: {
+      network: optionalBoolean(capabilities?.network, false),
+      hostImports: [],
+    },
+    contentPolicy: {
+      publicIndex: optionalBoolean(contentPolicy?.publicIndex, false),
+      marketplace: optionalBoolean(contentPolicy?.marketplace, false),
+      builtInSource: optionalBoolean(contentPolicy?.builtInSource, false),
+      remoteInstall: optionalBoolean(contentPolicy?.remoteInstall, false),
+    },
+  }
+}
+
+function validateNormalizedManifest(manifest: LocalSourcePackageManifest): SourceArchiveValidationReason | undefined {
+  if (manifest.package.id.length === 0 || manifest.package.version.length === 0 || manifest.package.id.length > 96) {
+    return 'manifest_invalid'
+  }
+  if (manifest.permissions.network !== false || manifest.permissions.hostImports.includes('koma_host.http_request')) {
+    return 'network_not_allowed'
+  }
+  if (manifest.contentPolicy.marketplace || manifest.contentPolicy.builtInSource || manifest.contentPolicy.remoteInstall) {
+    return 'network_not_allowed'
+  }
+  if (manifest.runtime.wasmPath !== SOURCE_PACKAGE_WASM_FILE && manifest.runtime.wasmPath !== SOURCE_REPO_PACKAGE_WASM_FILE) {
+    return 'manifest_invalid'
+  }
+  return undefined
+}
+
+function validateImportedWasmBytes(manifest: LocalSourcePackageManifest, importedWasmBytes: Uint8Array): boolean {
+  const importedHash = sha256Hex(importedWasmBytes)
+  const sizeOk = importedWasmBytes.byteLength === manifest.runtime.wasmSizeBytes &&
+    importedWasmBytes.byteLength <= manifest.runtime.maxWasmBytes
+  const declaredHash = manifest.runtime.wasmSha256
+  return sizeOk && (declaredHash.length === 0 || importedHash === declaredHash)
 }
 
 function buildLocalSourcePackageManifest(wasmSize: number): LocalSourcePackageManifest {
@@ -361,26 +490,36 @@ export async function importLocalSourceArchive(
   writeBytesSync(archivePath, archiveBytes)
   await zlib.decompressFile(archivePath, importedRoot)
 
-  const manifestPath = joinSourceRuntimePath(importedRoot, SOURCE_PACKAGE_MANIFEST_FILE)
+  let manifestPath = joinSourceRuntimePath(importedRoot, SOURCE_PACKAGE_MANIFEST_FILE)
+  let sourceRepoLayout = false
+  if (!fs.accessSync(manifestPath)) {
+    manifestPath = joinSourceRuntimePath(importedRoot, SOURCE_REPO_PACKAGE_MANIFEST_FILE)
+    sourceRepoLayout = true
+  }
   if (!fs.accessSync(manifestPath)) {
     return { ok: false, reasonCode: 'missing_manifest', manifestPath, attemptedWamrExecution: false }
   }
 
   let manifest: LocalSourcePackageManifest
   try {
-    manifest = JSON.parse(readTextSync(manifestPath)) as LocalSourcePackageManifest
+    if (sourceRepoLayout) {
+      const sourceRepoWasmPath = joinSourceRuntimePath(importedRoot, SOURCE_REPO_PACKAGE_WASM_FILE)
+      const wasmSize = fs.accessSync(sourceRepoWasmPath) ? fs.statSync(sourceRepoWasmPath).size : 0
+      const normalizedManifest = parseSourceRepoPackageManifest(readTextSync(manifestPath), wasmSize)
+      if (normalizedManifest === undefined) {
+        return { ok: false, reasonCode: 'manifest_invalid', manifestPath, attemptedWamrExecution: false }
+      }
+      manifest = normalizedManifest
+    } else {
+      manifest = JSON.parse(readTextSync(manifestPath)) as LocalSourcePackageManifest
+    }
   } catch (_err) {
     return { ok: false, reasonCode: 'manifest_invalid', manifestPath, attemptedWamrExecution: false }
   }
 
-  if (manifest.package.id !== SOURCE_PACKAGE_MANIFEST_ID || manifest.package.version !== SOURCE_PACKAGE_MANIFEST_VERSION) {
-    return { ok: false, reasonCode: 'manifest_invalid', manifest, manifestPath, attemptedWamrExecution: false }
-  }
-  if (manifest.permissions.network !== false || manifest.permissions.hostImports.includes('koma_host.http_request')) {
-    return { ok: false, reasonCode: 'network_not_allowed', manifest, manifestPath, attemptedWamrExecution: false }
-  }
-  if (manifest.runtime.wasmPath !== SOURCE_PACKAGE_WASM_FILE) {
-    return { ok: false, reasonCode: 'manifest_invalid', manifest, manifestPath, attemptedWamrExecution: false }
+  const manifestReason = validateNormalizedManifest(manifest)
+  if (manifestReason !== undefined) {
+    return { ok: false, reasonCode: manifestReason, manifest, manifestPath, attemptedWamrExecution: false }
   }
 
   const importedWasmPath = joinSourceRuntimePath(importedRoot, manifest.runtime.wasmPath)
@@ -389,10 +528,7 @@ export async function importLocalSourceArchive(
   }
 
   const importedWasmBytes = readBytesSync(importedWasmPath)
-  const importedHash = sha256Hex(importedWasmBytes)
-  const hashOk = importedHash === manifest.runtime.wasmSha256 &&
-    importedWasmBytes.byteLength === manifest.runtime.wasmSizeBytes &&
-    importedWasmBytes.byteLength <= manifest.runtime.maxWasmBytes
+  const hashOk = validateImportedWasmBytes(manifest, importedWasmBytes)
   if (!hashOk) {
     return {
       ok: false,

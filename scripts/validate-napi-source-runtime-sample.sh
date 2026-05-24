@@ -18,7 +18,7 @@ entry_ability_file="entry/src/main/ets/entryability/EntryAbility.ets"
 build_profile="entry/build-profile.json5"
 rawfile_fixture="entry/src/main/resources/rawfile/test/source_runtime_fixture.wasm"
 rust_rawfile_fixture="entry/src/main/resources/rawfile/test/rust_source_runtime_fixture.wasm"
-archive_fixture="entry/src/main/resources/rawfile/test/local_source_runtime_fixture.koma-source"
+archive_fixture="entry/src/main/resources/rawfile/test/local_source_runtime_fixture.koma"
 
 require_file() {
   local path="$1"
@@ -51,6 +51,7 @@ require_file "$entry_ability_file"
 require_file "$rawfile_fixture"
 require_file "$rust_rawfile_fixture"
 require_file "$archive_fixture"
+require_file "entry/src/main/resources/rawfile/test/local_source_runtime_fixture.koma-source"
 
 require_text "$cpp_file" '#include <napi/native_api.h>'
 require_text "$cpp_file" 'napi_module_register'
@@ -147,7 +148,9 @@ require_text "$smoke_file" 'rustSourceResponse'
 require_text "$smoke_file" 'rustRawfileBytes'
 require_text "$smoke_file" 'KOMA_SOURCE_RUNTIME_SMOKE_RESULT'
 require_text "$smoke_file" 'entryability-want-test-only'
-require_text "$smoke_file" 'local_source_runtime_fixture.koma-source'
+require_text "$smoke_file" 'local_source_runtime_fixture.koma'
+require_text "$source_package_importer_file" 'manifest.json'
+require_text "$source_package_importer_file" 'source.wasm'
 require_text "$smoke_file" 'app-local-source-archive-import-test-only'
 require_text "$smoke_file" 'SourceRuntimeService'
 require_text "$smoke_file" 'runStagedRawfileSourcePackage'
@@ -518,7 +521,7 @@ if rg -q 'napi-sample|Koma native source runtime sample' "$smoke_file"; then
   exit 1
 fi
 
-changed_ui_files="$(git diff --name-only -- entry/src/main/ets/pages entry/src/main/ets/components entry/src/main/ets/model entry/src/main/ets/import entry/src/main/ets/remote entry/src/main/module.json5 | rg -v '^entry/src/main/ets/pages/Index\.ets$' || true)"
+changed_ui_files="$(git diff --name-only -- entry/src/main/ets/pages entry/src/main/ets/components entry/src/main/ets/model entry/src/main/ets/import entry/src/main/ets/remote entry/src/main/module.json5 | rg -v '^entry/src/main/ets/pages/Index\.ets$|^entry/src/main/ets/pages/SourcePackageManagerPage\.ets$' || true)"
 if [[ -n "$changed_ui_files" ]]; then
   echo "unexpected product/UI changes:" >&2
   echo "$changed_ui_files" >&2
@@ -542,7 +545,7 @@ require_text "tools/wasm-runtime-spike/host/host_runner.cpp" 'native_module_name
 require_text "tools/wasm-runtime-spike/host/host_runner.cpp" 'HOST_LOG'
 require_text "tools/wasm-runtime-spike/host/host_runner.cpp" 'HOST_CHECK_CANCEL'
 
-source_management_changes="$(git diff --name-only | rg '(^|/)(source|sources|market|marketplace|plugin).*(Page|View|Store|Service|Client)\.(ets|ts|cpp)$' | rg -v '^entry/src/main/ets/sourceRuntime/SourceRuntimeService\.ets$' || true)"
+source_management_changes="$(git diff --name-only | rg '(^|/)(source|sources|market|marketplace|plugin).*(Page|View|Store|Service|Client)\.(ets|ts|cpp)$' | rg -v '^entry/src/main/ets/sourceRuntime/SourceRuntimeService\.ets$|^entry/src/main/ets/pages/SourcePackageManagerPage\.ets$' || true)"
 if [[ -n "$source_management_changes" ]]; then
   echo "unexpected source management or marketplace-shaped product changes" >&2
   echo "$source_management_changes" >&2

@@ -18,7 +18,7 @@ const IMPORTED_SOURCE_ROUTE: string = 'app-local-source-package'
 const APP_SOURCE_ROOT_NAME: string = 'source-runtime'
 const APP_SOURCE_PACKAGES_DIR_NAME: string = 'packages'
 const APP_SOURCE_METADATA_FILE_NAME: string = 'source-runtime-registry.json'
-const SOURCE_ARCHIVE_SUFFIX_FILTER: string = 'Koma source packages(.koma-source.zip, .zip)|.koma-source.zip,.zip'
+const SOURCE_ARCHIVE_SUFFIX_FILTER: string = 'Koma source packages(.koma, .koma-source, .koma-source.zip, .zip)|.koma,.koma-source,.koma-source.zip,.zip'
 
 interface BundledDevSource {
   sourceId: string
@@ -167,6 +167,26 @@ async function copyPickedArchiveUriToSandbox(sourceUri: string, sandboxPath: str
     closeFileQuietly(sourceFile)
     closeFileQuietly(targetFile)
   }
+}
+
+function sourceArchiveSandboxFileName(sourceUri: string): string {
+  const withoutFragment = sourceUri.split('#')[0]
+  const withoutQuery = withoutFragment.split('?')[0]
+  const leaf = withoutQuery.split('/').pop() ?? ''
+  const sanitized = leaf
+    .replace(/%20/g, ' ')
+    .replace(/[^A-Za-z0-9._ -]/g, '_')
+    .replace(/\s+/g, '-')
+    .replace(/^-+|-+$/g, '')
+  const candidate = sanitized.length > 0 ? sanitized : 'source-package'
+  const lower = candidate.toLowerCase()
+  if (lower.endsWith('.koma-source.zip') || lower.endsWith('.zip')) {
+    return candidate
+  }
+  if (lower.endsWith('.koma') || lower.endsWith('.koma-source')) {
+    return candidate + '.zip'
+  }
+  return 'source-package.zip'
 }
 
 function createBundledDevManifest(source: BundledDevSource, wasmByteCount: number): LocalSourcePackageManifest {
@@ -380,7 +400,7 @@ export async function installFromArchive(context: common.UIAbilityContext, uri: 
   ensureDirSync(appSourceRoot(context))
   ensureDirSync(appSourcePackagesRoot(context))
   const packageDir = joinSourceRuntimePath(appSourcePackagesRoot(context), `import-${Date.now()}`)
-  const archivePath = joinSourceRuntimePath(packageDir, 'source-package.zip')
+  const archivePath = joinSourceRuntimePath(packageDir, sourceArchiveSandboxFileName(uri))
   const importedRoot = joinSourceRuntimePath(packageDir, 'package')
   try {
     ensureDirSync(packageDir)
