@@ -565,18 +565,25 @@ export struct MangaDetailPage {
       return ''
     }
     if (summary.status === OfflineDownloadStatus.DOWNLOADED) {
-      return `已下载 ${summary.downloadedPageCount}/${summary.pageCount}`
+      return `已下载 ${summary.downloadedPageCount}/${summary.pageCount} 页`
     }
     if (summary.status === OfflineDownloadStatus.DOWNLOADING || summary.status === OfflineDownloadStatus.QUEUED) {
-      return `下载中 ${summary.downloadedPageCount}/${summary.pageCount}`
+      return `下载中 ${summary.downloadedPageCount}/${summary.pageCount} 页`
     }
     if (summary.status === OfflineDownloadStatus.PARTIAL) {
-      return `部分下载 ${summary.downloadedPageCount}/${summary.pageCount}`
+      return `部分下载 ${summary.downloadedPageCount}/${summary.pageCount} 页`
     }
     if (summary.status === OfflineDownloadStatus.BLOCKED) {
       return '暂无法下载'
     }
     return '下载失败'
+  }
+
+  private downloadButtonLabel(): string {
+    if (this.downloadBusy) {
+      return '下载中'
+    }
+    return this.downloadStatusText.startsWith('已下载 ') ? '重新下载' : '下载章节'
   }
 
   @Builder
@@ -632,7 +639,7 @@ export struct MangaDetailPage {
           this.handleStartReading()
         })
 
-      Button(this.downloadBusy ? '下载中' : '下载章节', { type: ButtonType.Capsule })
+      Button(this.downloadButtonLabel(), { type: ButtonType.Capsule })
         .height(44)
         .layoutWeight(1)
         .fontSize(15)

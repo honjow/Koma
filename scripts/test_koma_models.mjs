@@ -306,13 +306,18 @@ assert.match(
 )
 assert.match(
   mangaDetailPageSource,
-  /Button\(this\.downloadBusy \? '下载中' : '下载章节'[\s\S]*this\.handleDownloadChapter\(\)/,
+  /downloadButtonLabel\(\)[\s\S]*'下载中'[\s\S]*'重新下载'[\s\S]*'下载章节'/,
+  'MangaDetailPage must label completed downloads as a redownload action',
+)
+assert.match(
+  mangaDetailPageSource,
+  /Button\(this\.downloadButtonLabel\(\)[\s\S]*this\.handleDownloadChapter\(\)/,
   'MangaDetailPage must expose a user-visible chapter download action',
 )
 assert.match(
   mangaDetailPageSource,
-  /已下载 \$\{summary\.downloadedPageCount\}\/\$\{summary\.pageCount\}/,
-  'MangaDetailPage must expose a quiet downloaded N/M status',
+  /已下载 \$\{summary\.downloadedPageCount\}\/\$\{summary\.pageCount\} 页/,
+  'MangaDetailPage must expose an explicit downloaded N/M page status',
 )
 assert.doesNotMatch(
   mangaDetailPageSource,
