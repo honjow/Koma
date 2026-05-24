@@ -20,6 +20,7 @@ Koma 是 HarmonyOS 私有漫画书架/阅读器：
 - 本地漫画：CBZ/ZIP、图片文件夹、书架、阅读进度。
 - 私有库：Komga / OPDS / WebDAV。
 - 自定义源：研究 Aidoku 风格 WASM source，但不内置源、不做 APK 插件、不提供源市场。
+- Source import direction：源使用**用户输入/配置 URL 源索引后导入加载**的方式；不要把主路径设计成内置源市场或只依赖本地文件 picker。具体 source index/package 定义以独立仓库 `/home/gamer/git/koma-sources` 为准，当前可见定义见 `dist/index.json`（索引项含 `id/name/version/lang/nsfw/author/description/contentRating/pkg/icon/minAppVersion`，`pkg` 指向 `.koma` 包）。
 
 ## Hard Constraints
 

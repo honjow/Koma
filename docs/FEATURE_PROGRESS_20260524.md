@@ -123,7 +123,7 @@ Verified on device `192.168.50.103:12345`:
 
 - `third_party/wasm-micro-runtime/` vendored and built into `libkoma_source_runtime.so`.
 - Device source runtime smoke passes.
-- Local source package manager supports local archive import, enable/disable/remove, and smoke.
+- Local source package manager supports local archive import, enable/disable/remove, and smoke. Next source-import product path should be URL source-index import/load, not a bundled market and not local picker only; source index/package definitions are owned by `/home/gamer/git/koma-sources/dist/index.json`.
 - App accepts source-repo `.koma` packages (`manifest.json` + `source.wasm`) and legacy/internal source archive layouts.
 - Reader integrates source `get_image_request` for source-owned image URL/header resolution.
 - Installed source packages can expose non-secret `get_settings` descriptors; Koma stores sanitized values per source id and injects them into Browse/detail/pages/image-request runtime envelopes.
@@ -132,11 +132,12 @@ Verified on device `192.168.50.103:12345`:
 
 ## Known Gaps / Follow-up
 
-1. Source package picker import UI path is implemented but not fully hand-driven with a real selected `.koma` on device; static/source-runtime gates cover archive validation, restore, and run.
-2. Source package settings page was device-smoked only in empty-state because no installed source package was present on the device during the final smoke; per-source `设置` button/descriptor editing still needs a real installed `.koma` runtime UI pass.
-3. Library multi-select long-press automation is unreliable with `uitest`; needs manual UX pass or alternative gesture handling if user reports real-device failure.
-4. WebDAV public demo endpoint had Harmony device `Internal error`; local fixture covered PROPFIND/GET. Needs broader NAS/WebDAV compatibility matrix.
-5. OPDS publication path uses image URL fallback for the tested Komga OPDS v2 demo; EPUB/publication manifest returned HTTP 406.
-6. Error-state UI is not unified across source types; intentionally deferred because the user asked to prioritize functionality over UI detail.
-7. Large CBZ / large remote chapter performance still needs stress testing.
-8. Backup JSON is local user-initiated and unencrypted; encryption/password UX was explicitly not added. Source settings backup is sanitized and excludes credential-like values.
+1. Source URL index import/load is not implemented yet. Current manager is local archive picker oriented; next lane should add user-configured source index URL -> fetch `index.json` -> list packages -> download selected `pkg` -> install/enable, following `/home/gamer/git/koma-sources/dist/index.json`.
+2. Source package picker import UI path is implemented but not fully hand-driven with a real selected `.koma` on device; static/source-runtime gates cover archive validation, restore, and run.
+3. Source package settings page was device-smoked only in empty-state because no installed source package was present on the device during the final smoke; per-source `设置` button/descriptor editing still needs a real installed `.koma` runtime UI pass.
+4. Library multi-select long-press automation is unreliable with `uitest`; needs manual UX pass or alternative gesture handling if user reports real-device failure.
+5. WebDAV public demo endpoint had Harmony device `Internal error`; local fixture covered PROPFIND/GET. Needs broader NAS/WebDAV compatibility matrix.
+6. OPDS publication path uses image URL fallback for the tested Komga OPDS v2 demo; EPUB/publication manifest returned HTTP 406.
+7. Error-state UI is not unified across source types; intentionally deferred because the user asked to prioritize functionality over UI detail.
+8. Large CBZ / large remote chapter performance still needs stress testing.
+9. Backup JSON is local user-initiated and unencrypted; encryption/password UX was explicitly not added. Source settings backup is sanitized and excludes credential-like values.

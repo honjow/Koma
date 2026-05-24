@@ -14,7 +14,9 @@
 
 ## 包结构
 
-导入文件后缀支持 `.koma`、`.koma-source`、`.koma-source.zip` 和 `.zip`。后缀只用于系统文件选择器过滤与诊断展示；运行前必须按归档内容读取并校验 `manifest.json` 与 `source.wasm`。
+导入加载主路径应支持用户配置的 source index URL：App 拉取远端 `index.json`，展示其中的 source 元数据，再按条目的 `pkg` 下载对应 `.koma` 包并安装。独立源仓库 `/home/gamer/git/koma-sources/dist/index.json` 是当前索引定义来源；索引项字段包括 `id/name/version/lang/nsfw/author/description/contentRating/pkg/icon/minAppVersion`，`pkg` 为相对索引 URL 的包路径或文件名。
+
+本地文件导入仍可作为高级/调试/离线路径。导入文件后缀支持 `.koma`、`.koma-source`、`.koma-source.zip` 和 `.zip`。后缀只用于系统文件选择器过滤与诊断展示；运行前必须按归档内容读取并校验 `manifest.json` 与 `source.wasm`。
 
 ```text
 koma-source/
