@@ -41,6 +41,9 @@ function writeBytesSync(path: string, bytes: ArrayBuffer): void {
 }
 
 async function copyLocalFile(sourcePath: string, targetPath: string): Promise<number> {
+  if (sourcePath === targetPath) {
+    return fs.statSync(targetPath).size
+  }
   let sourceFile: fs.File | undefined = undefined
   let targetFile: fs.File | undefined = undefined
   try {
@@ -107,7 +110,7 @@ export class OfflineDownloadService {
       for (let index = 0; index < config.totalPages; index += 1) {
         const page = pageAtIndex(chapter, index)
         const pageId = page?.id ?? `page-${index + 1}`
-        const source = createReaderPageRenderSource(config, index)
+        const source = createReaderPageRenderSource(config, index, { preferOffline: false })
         const localPath = this.store.pageFilePath(comic.id, chapterId, pageId, index, extensionFromUri(source.uri.length > 0 ? source.uri : source.imageUri))
         const size = await this.writePage(source, localPath)
         const row: OfflineDownloadedPage = {

@@ -239,7 +239,8 @@ export class OfflineDownloadStore {
 
   resolveDownloadedPage(comicId: ComicId, chapterId: string, pageId: string, pageIndex: number): string | undefined {
     const manifest = this.loadManifest(comicId, chapterId)
-    if (manifest === undefined || manifest.status !== OfflineDownloadStatus.DOWNLOADED) {
+    if (manifest === undefined ||
+      (manifest.status !== OfflineDownloadStatus.DOWNLOADED && manifest.status !== OfflineDownloadStatus.PARTIAL)) {
       return undefined
     }
     const page = manifest.pages.find((item: OfflineDownloadedPage): boolean => {

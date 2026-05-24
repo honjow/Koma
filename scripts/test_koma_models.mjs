@@ -276,8 +276,8 @@ assert.match(
 )
 assert.match(
   offlineDownloadStoreSource,
-  /resolveDownloadedPage[\s\S]*manifest\.status !== OfflineDownloadStatus\.DOWNLOADED[\s\S]*fs\.accessSync\(page\.localPath\)/,
-  'offline resolver must only expose existing files for fully downloaded chapters',
+  /resolveDownloadedPage[\s\S]*manifest\.status !== OfflineDownloadStatus\.DOWNLOADED[\s\S]*manifest\.status !== OfflineDownloadStatus\.PARTIAL[\s\S]*fs\.accessSync\(page\.localPath\)/,
+  'offline resolver must expose existing files for downloaded and partial chapters',
 )
 assert.doesNotMatch(
   offlineDownloadStoreSource,
@@ -293,6 +293,16 @@ assert.match(
   offlineDownloadServiceSource,
   /ReaderPageRenderKind\.LOCAL_FILE_IMAGE[\s\S]*copyLocalFile/,
   'offline download service must copy existing local reader images into durable download storage',
+)
+assert.match(
+  offlineDownloadServiceSource,
+  /createReaderPageRenderSource\(config, index, \{ preferOffline: false \}\)/,
+  'offline download service must bypass existing offline files while downloading pages',
+)
+assert.match(
+  offlineDownloadServiceSource,
+  /copyLocalFile\(sourcePath: string, targetPath: string\)[\s\S]*sourcePath === targetPath[\s\S]*fs\.statSync\(targetPath\)\.size[\s\S]*OpenMode\.TRUNC/,
+  'offline download service must not truncate a file by copying it onto itself',
 )
 assert.match(
   mangaDetailPageSource,

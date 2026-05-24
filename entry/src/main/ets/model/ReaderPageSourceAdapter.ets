@@ -47,6 +47,10 @@ export interface ReaderPageRenderSource {
   pageUri?: string
 }
 
+export interface ReaderPageRenderSourceOptions {
+  preferOffline?: boolean
+}
+
 export interface ReaderPageRenderDiagnostics {
   pageIndex: number
   kind: ReaderPageRenderKind
@@ -651,10 +655,12 @@ export function createReaderUriDiagnostics(uri: string, pageIndex: number = 0): 
   }
 }
 
-export function createReaderPageRenderSource(config: ReaderSessionConfig, pageIndex: number): ReaderPageRenderSource {
-  const offlineDownloadSource = createReaderOfflineDownloadRenderSource(config, pageIndex)
-  if (offlineDownloadSource !== undefined) {
-    return offlineDownloadSource
+export function createReaderPageRenderSource(config: ReaderSessionConfig, pageIndex: number, options?: ReaderPageRenderSourceOptions): ReaderPageRenderSource {
+  if (options?.preferOffline !== false) {
+    const offlineDownloadSource = createReaderOfflineDownloadRenderSource(config, pageIndex)
+    if (offlineDownloadSource !== undefined) {
+      return offlineDownloadSource
+    }
   }
   const sourceRuntimeSource = createReaderSourceRuntimeRenderSource(config, pageIndex)
   if (sourceRuntimeSource !== undefined) {
