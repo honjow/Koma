@@ -246,7 +246,6 @@ export struct LibraryPage {
     .columnsTemplate('1fr 1fr 1fr')
     .columnsGap(14)
     .rowsGap(22)
-    .layoutWeight(1)
   }
 
   @Builder
@@ -264,37 +263,9 @@ export struct LibraryPage {
   }
 
   build() {
-    Scroll() {
-      Column({ space: 20 }) {
-        Row({ space: 12 }) {
-          Column({ space: 4 }) {
-            Text('书架')
-              .fontSize(30)
-              .fontWeight(FontWeight.Bold)
-              .fontColor($r('app.color.koma_text_primary'))
-            Text(this.hasLibraryContent() ? `${this.viewModel().comics.length} 本漫画` : '本地漫画')
-              .fontSize(14)
-              .fontColor($r('app.color.koma_text_secondary'))
-          }
-          .layoutWeight(1)
-          .alignItems(HorizontalAlign.Start)
-
-          Button('+')
-            .width(40)
-            .height(40)
-            .borderRadius(8)
-            .fontSize(24)
-            .fontWeight(FontWeight.Medium)
-            .fontColor(Color.White)
-            .backgroundColor($r('app.color.koma_accent'))
-            .onClick(() => {
-              this.onImportRequested()
-            })
-        }
-        .width('100%')
-        .alignItems(VerticalAlign.Center)
-
-        if (this.hasLibraryContent()) {
+    List({ space: 20 }) {
+      if (this.hasLibraryContent()) {
+        ListItem() {
           ContinueReadingShelfCard({
             info: this.viewModel().continueReading,
             revision: this.displayedRevision,
@@ -302,7 +273,9 @@ export struct LibraryPage {
               this.onOpenReader(comicId)
             },
           })
+        }
 
+        ListItem() {
           Row() {
             Text('最近加入')
               .fontSize(20)
@@ -314,20 +287,25 @@ export struct LibraryPage {
               .fontColor($r('app.color.koma_text_secondary'))
           }
           .width('100%')
+        }
 
+        ListItem() {
           if (this.isEvenDisplayedRevision()) {
             this.LibraryGridEven(this.gridComics())
           } else {
             this.LibraryGridOdd(this.gridComics())
           }
-        } else {
+        }
+      } else {
+        ListItem() {
           this.EmptyLibrary()
         }
       }
-      .width('100%')
-      .padding({ left: 20, right: 20, bottom: 28 })
     }
     .width('100%')
     .height('100%')
+    .padding({ left: 20, right: 20, top: 16, bottom: 96 })
+    .scrollBar(BarState.Off)
+    .backgroundColor($r('sys.color.ohos_id_color_sub_background'))
   }
 }

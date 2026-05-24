@@ -1,4 +1,16 @@
 import { common } from '@kit.AbilityKit'
+import {
+  BlurStrategy,
+  hdsMaterial,
+  HdsNavDestination,
+  HdsNavigation,
+  HdsNavigationTitleMode,
+  HdsTabs,
+  HdsTabsController,
+  HdsTabsFloatingStyle,
+  HideMode,
+  ScrollEffectType,
+} from '@kit.UIDesignKit'
 import { LibraryPage } from './LibraryPage'
 import { BrowsePage } from './BrowsePage'
 import { HistoryPage } from './HistoryPage'
@@ -6,9 +18,10 @@ import { SearchPage } from './SearchPage'
 import { SettingsPage } from './SettingsPage'
 import { ImportPage } from './ImportPage'
 import { ReaderPage } from './ReaderPage'
-import { MangaDetailPage, MANGA_DETAIL_ROUTE_NAME } from './MangaDetailPage'
+import { MangaDetailPage } from './MangaDetailPage'
 import { RouteName, TabIndex, TabLabel } from '../common/Constants'
 import { RouterHelper } from '../common/RouterHelper'
+import { KomaTabIcon } from '../components/KomaTabIcon'
 import {
   LibraryPresentationByComicId,
   MOCK_LIBRARY_READER_SESSION,
@@ -48,7 +61,8 @@ struct Index {
   @State private readerSessionConfig: ReaderSessionConfig = MOCK_LIBRARY_READER_SESSION
   @State private libraryRevision: number = 0
   @State private libraryComics: Comic[] = seededLibraryStore.listComics()
-  private tabController: TabsController = new TabsController()
+  private tabController: HdsTabsController = new HdsTabsController()
+  private tabTitles: string[] = [TabLabel.LIBRARY, TabLabel.BROWSE, TabLabel.HISTORY, TabLabel.SEARCH, TabLabel.SETTINGS]
   private readerSessionStore: ReaderSessionStore = readerSessionStore
   private libraryStore: LibraryStore = seededLibraryStore
   private presentationByComicId: LibraryPresentationByComicId = libraryPresentationByComicId
@@ -170,26 +184,18 @@ struct Index {
   }
 
   @Builder
-  private TabBarItem(index: number, label: string, icon: Resource) {
-    Column({ space: 4 }) {
-      SymbolGlyph(icon)
-        .fontSize(22)
-        .fontColor(this.selectedTab === index ? [$r('app.color.koma_accent')] : [$r('app.color.koma_text_secondary')])
-
-      Text(label)
-        .fontSize(12)
-        .fontWeight(this.selectedTab === index ? FontWeight.Medium : FontWeight.Regular)
-        .fontColor(this.selectedTab === index ? $r('app.color.koma_accent') : $r('app.color.koma_text_secondary'))
-    }
-    .width('100%')
-    .height(56)
-    .justifyContent(FlexAlign.Center)
+  TabIcon(title: string, idx: number) {
+    KomaTabIcon({
+      title: title,
+      idx: idx,
+      currentIndex: this.selectedTab,
+    })
   }
 
   @Builder
   private AppDestination(name: string, param: Object) {
     if (name === RouteName.READER) {
-      NavDestination() {
+      HdsNavDestination() {
         ReaderPage({
           readerOpen: $readerOpen,
           pageIndex: $readerPageIndex,
@@ -208,7 +214,7 @@ struct Index {
         return true
       })
     } else if (name === RouteName.IMPORT) {
-      NavDestination() {
+      HdsNavDestination() {
         ImportPage({
           onArchiveImportSucceeded: (comic: Comic) => {
             this.handleArchiveImportSucceeded(comic)
@@ -220,9 +226,9 @@ struct Index {
           }
         })
       }
-      .hideTitleBar(true)
+      .titleBar(this.navDestTitleBarOpts('导入'))
     } else if (name === RouteName.MANGA_DETAIL) {
-      NavDestination() {
+      HdsNavDestination() {
         MangaDetailPage({
           params: { mangaId: (param as Record<string, string>)?.mangaId, sourceId: (param as Record<string, string>)?.sourceId },
           libraryStore: this.libraryStore,
@@ -246,8 +252,8 @@ struct Index {
   }
 
   build() {
-    Navigation(this.appPathStack) {
-      Tabs({ barPosition: BarPosition.End, controller: this.tabController, index: $$this.selectedTab }) {
+    HdsNavigation(this.appPathStack) {
+      HdsTabs({ controller: this.tabController, index: this.selectedTab }) {
         TabContent() {
           LibraryPage({
             libraryStore: this.libraryStore,
@@ -265,46 +271,128 @@ struct Index {
               return this.handleRemoveComicRequested(comicId)
             }
           })
-        }
-        .tabBar(this.TabBarItem(TabIndex.LIBRARY, TabLabel.LIBRARY, $r('sys.symbol.rectangle_on_rectangle_fill')))
+        }.tabBar(this.TabIcon(TabLabel.LIBRARY, TabIndex.LIBRARY))
 
         TabContent() {
           BrowsePage({
             sourceRegistry: this.sourceRegistry
           })
-        }
-        .tabBar(this.TabBarItem(TabIndex.BROWSE, TabLabel.BROWSE, $r('sys.symbol.dot_grid_2x2')))
+        }.tabBar(this.TabIcon(TabLabel.BROWSE, TabIndex.BROWSE))
 
         TabContent() {
           HistoryPage()
-        }
-        .tabBar(this.TabBarItem(TabIndex.HISTORY, TabLabel.HISTORY, $r('sys.symbol.stopwatch_fill')))
+        }.tabBar(this.TabIcon(TabLabel.HISTORY, TabIndex.HISTORY))
 
         TabContent() {
           SearchPage()
-        }
-        .tabBar(this.TabBarItem(TabIndex.SEARCH, TabLabel.SEARCH, $r('sys.symbol.magnifyingglass')))
+        }.tabBar(this.TabIcon(TabLabel.SEARCH, TabIndex.SEARCH))
 
         TabContent() {
           SettingsPage()
-        }
-        .tabBar(this.TabBarItem(TabIndex.SETTINGS, TabLabel.SETTINGS, $r('sys.symbol.more')))
+        }.tabBar(this.TabIcon(TabLabel.SETTINGS, TabIndex.SETTINGS))
       }
-      .scrollable(false)
+      .barOverlap(true)
+      .barPosition(BarPosition.End)
       .barMode(BarMode.Fixed)
-      .barHeight(72)
-      .width('100%')
-      .height('100%')
-      .backgroundColor($r('app.color.koma_background'))
+      .scrollable(false)
+      .animationDuration(0)
+      .barFloatingStyle({
+        barBottomMargin: 16,
+        adaptToHandedness: true,
+        systemMaterialEffect: {
+          materialType: hdsMaterial.MaterialType.ADAPTIVE,
+          materialLevel: hdsMaterial.MaterialLevel.ADAPTIVE,
+        },
+      } as HdsTabsFloatingStyle)
       .onChange((index: number) => {
         this.selectedTab = index
       })
     }
+    .titleBar(this.titleBarOptions())
+    .titleMode(HdsNavigationTitleMode.MINI)
+    .hideBackButton(true)
+    .dynamicHideTitleBar({
+      hideTitleArea: false,
+      hideBottomBuilder: false,
+      hideStatusBar: false,
+      mode: HideMode.SCROLL_UP,
+    })
+    .ignoreLayoutSafeArea(
+      [LayoutSafeAreaType.SYSTEM],
+      [LayoutSafeAreaEdge.TOP, LayoutSafeAreaEdge.BOTTOM],
+    )
+    .expandSafeArea([SafeAreaType.SYSTEM], [SafeAreaEdge.TOP, SafeAreaEdge.BOTTOM])
+    .navDestination(this.AppDestination)
+    .mode(NavigationMode.Stack)
     .width('100%')
     .height('100%')
-    .backgroundColor($r('app.color.koma_background'))
-    .mode(NavigationMode.Stack)
-    .hideTitleBar(true)
-    .navDestination(this.AppDestination)
+    .backgroundColor($r('sys.color.ohos_id_color_sub_background'))
+  }
+
+  private titleBarOptions(): Record<string, Object> {
+    let titleInfo: Record<string, Object> = { 'mainTitle': this.tabTitles[this.selectedTab] }
+    let content: Record<string, Object> = { 'title': titleInfo }
+    if (this.selectedTab === TabIndex.LIBRARY) {
+      let items: Record<string, Object>[] = [
+        this.titleMenuItem('导入', $r('sys.symbol.plus'), () => { this.openImport() }),
+      ]
+      let menu: Record<string, Object> = { 'value': items, 'maxCount': 1 }
+      content['menu'] = menu
+    }
+    let mat: Record<string, Object> = {
+      'materialType': hdsMaterial.MaterialType.ADAPTIVE,
+      'materialLevel': hdsMaterial.MaterialLevel.ADAPTIVE,
+    }
+    let scrollOpts: Record<string, Object> = {
+      'enableScrollEffect': true,
+      'scrollEffectType': ScrollEffectType.GRADIENT_BLUR,
+    }
+    let style: Record<string, Object> = {
+      'systemMaterialEffect': mat,
+      'scrollEffectOpts': scrollOpts,
+    }
+    return {
+      'avoidLayoutSafeArea': true,
+      'enableComponentSafeArea': false,
+      'blurStrategy': BlurStrategy.ENABLE,
+      'content': content,
+      'style': style,
+    }
+  }
+
+  private navDestTitleBarOpts(title?: string): Record<string, Object> {
+    let mat: Record<string, Object> = {
+      'materialType': hdsMaterial.MaterialType.ADAPTIVE,
+      'materialLevel': hdsMaterial.MaterialLevel.ADAPTIVE,
+    }
+    let scrollOpts: Record<string, Object> = {
+      'enableScrollEffect': true,
+      'scrollEffectType': ScrollEffectType.GRADIENT_BLUR,
+    }
+    let style: Record<string, Object> = {
+      'systemMaterialEffect': mat,
+      'scrollEffectOpts': scrollOpts,
+    }
+    let content: Record<string, Object> = {}
+    if (title) {
+      content['title'] = { 'mainTitle': title } as Record<string, Object>
+    }
+    return {
+      'avoidLayoutSafeArea': true,
+      'enableComponentSafeArea': false,
+      'blurStrategy': BlurStrategy.ENABLE,
+      'content': content,
+      'style': style,
+    }
+  }
+
+  private titleMenuItem(label: string, icon: Resource, action: () => void): Record<string, Object> {
+    let content: Record<string, Object> = {
+      'label': label,
+      'icon': icon,
+      'isEnabled': true,
+      'action': action,
+    }
+    return { 'content': content }
   }
 }

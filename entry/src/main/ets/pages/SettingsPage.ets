@@ -1,5 +1,3 @@
-import { TabLabel } from '../common/Constants'
-
 interface SettingsRow {
   key: string
   title: string
@@ -49,21 +47,6 @@ const SETTINGS_SECTIONS: SettingsSection[] = [
 
 @Component
 export struct SettingsPage {
-  @Builder
-  private Header() {
-    Column({ space: 4 }) {
-      Text(TabLabel.SETTINGS)
-        .fontSize(30)
-        .fontWeight(FontWeight.Bold)
-        .fontColor($r('app.color.koma_text_primary'))
-      Text('偏好与数据')
-        .fontSize(14)
-        .fontColor($r('app.color.koma_text_secondary'))
-    }
-    .width('100%')
-    .alignItems(HorizontalAlign.Start)
-  }
-
   @Builder
   private SectionTitle(title: string) {
     Text(title)
@@ -115,26 +98,17 @@ export struct SettingsPage {
   }
 
   build() {
-    Navigation() {
-      Scroll() {
-        Column({ space: 18 }) {
-          this.Header()
-
-          ForEach(SETTINGS_SECTIONS, (section: SettingsSection) => {
-            this.Section(section)
-          }, (section: SettingsSection) => section.key)
+    List({ space: 18 }) {
+      ForEach(SETTINGS_SECTIONS, (section: SettingsSection) => {
+        ListItem() {
+          this.Section(section)
         }
-        .width('100%')
-        .padding({ left: 20, right: 20, top: 16, bottom: 28 })
-      }
-      .width('100%')
-      .height('100%')
+      }, (section: SettingsSection) => section.key)
     }
     .width('100%')
     .height('100%')
-    .mode(NavigationMode.Stack)
-    .title(TabLabel.SETTINGS)
-    .hideBackButton(true)
-    .backgroundColor($r('app.color.koma_background'))
+    .padding({ left: 20, right: 20, top: 16, bottom: 96 })
+    .scrollBar(BarState.Off)
+    .backgroundColor($r('sys.color.ohos_id_color_sub_background'))
   }
 }

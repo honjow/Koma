@@ -1,23 +1,6 @@
-import { TabLabel } from '../common/Constants'
-
 @Component
 export struct SearchPage {
   @State private queryText: string = ''
-
-  @Builder
-  private Header() {
-    Column({ space: 4 }) {
-      Text(TabLabel.SEARCH)
-        .fontSize(30)
-        .fontWeight(FontWeight.Bold)
-        .fontColor($r('app.color.koma_text_primary'))
-      Text('在已安装的源中搜索')
-        .fontSize(14)
-        .fontColor($r('app.color.koma_text_secondary'))
-    }
-    .width('100%')
-    .alignItems(HorizontalAlign.Start)
-  }
 
   @Builder
   private SearchInput() {
@@ -59,24 +42,13 @@ export struct SearchPage {
   }
 
   build() {
-    Navigation() {
-      Scroll() {
-        Column({ space: 18 }) {
-          this.Header()
-          this.SearchInput()
-          this.EmptyResults()
-        }
-        .width('100%')
-        .padding({ left: 20, right: 20, top: 16, bottom: 28 })
-      }
-      .width('100%')
-      .height('100%')
+    Column({ space: 18 }) {
+      this.SearchInput()
+      this.EmptyResults()
     }
     .width('100%')
     .height('100%')
-    .mode(NavigationMode.Stack)
-    .title(TabLabel.SEARCH)
-    .hideBackButton(true)
-    .backgroundColor($r('app.color.koma_background'))
+    .padding({ left: 20, right: 20, top: 16, bottom: 96 })
+    .backgroundColor($r('sys.color.ohos_id_color_sub_background'))
   }
 }

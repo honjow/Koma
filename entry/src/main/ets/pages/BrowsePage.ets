@@ -1,3 +1,9 @@
+import {
+  BlurStrategy,
+  hdsMaterial,
+  HdsNavDestination,
+  ScrollEffectType,
+} from '@kit.UIDesignKit'
 import { SourceListItem } from '../components/SourceListItem'
 import { BrowseViewModel } from '../viewmodel/BrowseViewModel'
 import { SourceRuntimeRegistry, SourceRuntimeRegistryInstalledSourceSummary } from '../sourceRuntime/SourceRuntimeRegistry'
@@ -77,7 +83,7 @@ export struct BrowsePage {
   @Builder
   private BrowseDestination(name: string, param: Object) {
     if (name === SOURCE_BROWSE_ROUTE_NAME) {
-      NavDestination() {
+      HdsNavDestination() {
         SourceBrowsePage({
           source: (param as SourceRouteParam).source,
           viewModel: this.viewModel,
@@ -89,9 +95,9 @@ export struct BrowsePage {
           },
         })
       }
-      .hideTitleBar(true)
+      .titleBar(this.navDestTitleBarOpts((param as SourceRouteParam).source.displayName))
     } else if (name === SOURCE_SEARCH_ROUTE_NAME) {
-      NavDestination() {
+      HdsNavDestination() {
         SourceSearchPage({
           source: (param as SourceRouteParam).source,
           viewModel: this.viewModel,
@@ -100,7 +106,7 @@ export struct BrowsePage {
           },
         })
       }
-      .hideTitleBar(true)
+      .titleBar(this.navDestTitleBarOpts('搜索'))
     }
   }
 
@@ -119,18 +125,6 @@ export struct BrowsePage {
     Navigation(this.browsePathStack) {
       Refresh({ refreshing: $$this.refreshingSources }) {
         Column({ space: 18 }) {
-          Column({ space: 4 }) {
-            Text('浏览')
-              .fontSize(30)
-              .fontWeight(FontWeight.Bold)
-              .fontColor($r('app.color.koma_text_primary'))
-            Text(this.viewModel.sources.length > 0 ? `${this.viewModel.sources.length} 个已安装源` : '自定义源')
-              .fontSize(14)
-              .fontColor($r('app.color.koma_text_secondary'))
-          }
-          .width('100%')
-          .alignItems(HorizontalAlign.Start)
-
           if (this.viewModel.loadingSources) {
             LoadingProgress()
               .width(36)
@@ -144,8 +138,8 @@ export struct BrowsePage {
         }
         .width('100%')
         .height('100%')
-        .padding({ left: 20, right: 20, bottom: 28 })
-        .backgroundColor($r('app.color.koma_background'))
+        .padding({ left: 20, right: 20, top: 16, bottom: 96 })
+        .backgroundColor($r('sys.color.ohos_id_color_sub_background'))
       }
       .onRefreshing(() => {
         this.refreshSources()
@@ -156,6 +150,30 @@ export struct BrowsePage {
     .mode(NavigationMode.Stack)
     .hideTitleBar(true)
     .navDestination(this.BrowseDestination)
+  }
+
+  private navDestTitleBarOpts(title: string): Record<string, Object> {
+    let mat: Record<string, Object> = {
+      'materialType': hdsMaterial.MaterialType.ADAPTIVE,
+      'materialLevel': hdsMaterial.MaterialLevel.ADAPTIVE,
+    }
+    let scrollOpts: Record<string, Object> = {
+      'enableScrollEffect': true,
+      'scrollEffectType': ScrollEffectType.GRADIENT_BLUR,
+    }
+    let style: Record<string, Object> = {
+      'systemMaterialEffect': mat,
+      'scrollEffectOpts': scrollOpts,
+    }
+    let titleInfo: Record<string, Object> = { 'mainTitle': title }
+    let content: Record<string, Object> = { 'title': titleInfo }
+    return {
+      'avoidLayoutSafeArea': true,
+      'enableComponentSafeArea': false,
+      'blurStrategy': BlurStrategy.ENABLE,
+      'content': content,
+      'style': style,
+    }
   }
 }
 

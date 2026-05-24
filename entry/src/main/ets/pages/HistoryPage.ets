@@ -1,5 +1,3 @@
-import { TabLabel } from '../common/Constants'
-
 interface HistoryPlaceholderRow {
   key: string
   title: string
@@ -16,21 +14,6 @@ const PLACEHOLDER_ROWS: HistoryPlaceholderRow[] = [
 
 @Component
 export struct HistoryPage {
-  @Builder
-  private Header() {
-    Column({ space: 4 }) {
-      Text(TabLabel.HISTORY)
-        .fontSize(30)
-        .fontWeight(FontWeight.Bold)
-        .fontColor($r('app.color.koma_text_primary'))
-      Text('最近阅读')
-        .fontSize(14)
-        .fontColor($r('app.color.koma_text_secondary'))
-    }
-    .width('100%')
-    .alignItems(HorizontalAlign.Start)
-  }
-
   @Builder
   private PlaceholderRow(row: HistoryPlaceholderRow) {
     Column({ space: 6 }) {
@@ -51,32 +34,18 @@ export struct HistoryPage {
   }
 
   build() {
-    Navigation() {
-      Scroll() {
-        Column({ space: 18 }) {
-          this.Header()
-
-          List({ space: 12 }) {
-            ForEach(PLACEHOLDER_ROWS, (row: HistoryPlaceholderRow) => {
-              ListItem() {
-                this.PlaceholderRow(row)
-              }
-            }, (row: HistoryPlaceholderRow) => row.key)
-          }
-          .width('100%')
-          .divider({ strokeWidth: 0 })
+    List({ space: 12 }) {
+      ForEach(PLACEHOLDER_ROWS, (row: HistoryPlaceholderRow) => {
+        ListItem() {
+          this.PlaceholderRow(row)
         }
-        .width('100%')
-        .padding({ left: 20, right: 20, top: 16, bottom: 28 })
-      }
-      .width('100%')
-      .height('100%')
+      }, (row: HistoryPlaceholderRow) => row.key)
     }
     .width('100%')
     .height('100%')
-    .mode(NavigationMode.Stack)
-    .title(TabLabel.HISTORY)
-    .hideBackButton(true)
-    .backgroundColor($r('app.color.koma_background'))
+    .padding({ left: 20, right: 20, top: 16, bottom: 96 })
+    .scrollBar(BarState.Off)
+    .divider({ strokeWidth: 0 })
+    .backgroundColor($r('sys.color.ohos_id_color_sub_background'))
   }
 }
