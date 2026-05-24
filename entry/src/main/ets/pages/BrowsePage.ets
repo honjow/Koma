@@ -17,6 +17,7 @@ interface SourceRouteParam {
 export struct BrowsePage {
   @State private viewModel: BrowseViewModel = new BrowseViewModel()
   @State private refreshingSources: boolean = false
+  sourceRegistry: SourceRuntimeRegistry = new SourceRuntimeRegistry()
   private browsePathStack: NavPathStack = new NavPathStack()
 
   private openSource(source: SourceRuntimeRegistryInstalledSourceSummary): void {
@@ -103,6 +104,7 @@ export struct BrowsePage {
   }
 
   aboutToAppear(): void {
+    this.viewModel = new BrowseViewModel(this.sourceRegistry)
     this.viewModel.loadInstalledSources()
   }
 

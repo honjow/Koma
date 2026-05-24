@@ -30,10 +30,12 @@ import {
   ReaderSessionStore,
   createReaderSessionConfigFromComic,
 } from '../model/ReaderSessionStore'
+import { SourceRuntimeRegistry } from '../sourceRuntime/SourceRuntimeRegistry'
 
 const readerSessionStore: ReaderSessionStore = new InMemoryReaderSessionStore()
 const seededLibraryStore: LibraryStore = createSeededLibraryStore()
 const libraryPresentationByComicId: LibraryPresentationByComicId = createMockLibraryPresentationMap()
+const sourceRuntimeRegistry: SourceRuntimeRegistry = new SourceRuntimeRegistry()
 
 @Entry
 @Component
@@ -50,6 +52,7 @@ struct Index {
   private readerSessionStore: ReaderSessionStore = readerSessionStore
   private libraryStore: LibraryStore = seededLibraryStore
   private presentationByComicId: LibraryPresentationByComicId = libraryPresentationByComicId
+  private sourceRegistry: SourceRuntimeRegistry = sourceRuntimeRegistry
   private appPathStack: NavPathStack = new NavPathStack()
   private libraryPersistenceService?: LibraryStorePersistenceService
   private libraryPersistenceRestored: boolean = false
@@ -222,8 +225,12 @@ struct Index {
       NavDestination() {
         MangaDetailPage({
           params: { mangaId: (param as Record<string, string>)?.mangaId, sourceId: (param as Record<string, string>)?.sourceId },
+          libraryStore: this.libraryStore,
+          libraryPersistenceService: this.ensureLibraryPersistenceService(),
+          sourceRegistry: this.sourceRegistry,
           onBack: () => { this.appPathStack.pop(false) },
-          onOpenReader: (mangaId: string, _chapterId?: string) => { this.openReader(mangaId) }
+          onOpenReader: (mangaId: string, _chapterId?: string) => { this.openReader(mangaId) },
+          onLibraryChanged: () => { this.refreshLibrarySnapshot() }
         })
       }
       .hideTitleBar(true)
@@ -262,7 +269,9 @@ struct Index {
         .tabBar(this.TabBarItem(TabIndex.LIBRARY, TabLabel.LIBRARY, $r('sys.symbol.rectangle_on_rectangle_fill')))
 
         TabContent() {
-          BrowsePage()
+          BrowsePage({
+            sourceRegistry: this.sourceRegistry
+          })
         }
         .tabBar(this.TabBarItem(TabIndex.BROWSE, TabLabel.BROWSE, $r('sys.symbol.dot_grid_2x2')))
 

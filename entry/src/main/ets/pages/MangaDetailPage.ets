@@ -2,7 +2,31 @@ import { MangaDetailHeader } from '../components/MangaDetailHeader'
 import { MangaDescriptionSection } from '../components/MangaDescriptionSection'
 import { MangaTagsSection } from '../components/MangaTagsSection'
 import { ChapterListSection } from '../components/ChapterListSection'
-import { MangaChapterItem, MangaDetail, MangaStatus } from '../model/MangaDetailModels'
+import {
+  MangaChapterItem,
+  MangaDetail,
+  MangaStatus,
+  parseMangaChapterFromSourceItem,
+  parseMangaDetailFromSourceItem,
+} from '../model/MangaDetailModels'
+import {
+  Chapter,
+  Comic,
+  ComicSourceKind,
+  ReadingDirection,
+  normalizeSortKey,
+} from '../model/ComicModels'
+import { LibraryStore } from '../model/LibraryStore'
+import {
+  LibraryStorePersistenceService,
+  upsertComicAndPersistLibraryStore,
+} from '../model/LibraryPersistence'
+import {
+  SourceRuntimeRegistry,
+  SourceRuntimeRegistryEntry,
+} from '../sourceRuntime/SourceRuntimeRegistry'
+import { runSourceOperationFromBytes } from '../sourceRuntime/SourceRuntimeRunner'
+import { taskpool } from '@kit.ArkTS'
 
 export const MANGA_DETAIL_ROUTE_NAME: string = 'MangaDetailPage'
 
@@ -11,19 +35,193 @@ interface MangaDetailRouteParams {
   sourceId?: string
 }
 
+interface SourceOperationDataPayload {
+  items?: Record<string, Object>[]
+}
+
+interface SourceOperationResponsePayload {
+  ok?: boolean
+  data?: SourceOperationDataPayload
+}
+
+@Concurrent
+function executeMangaDetailSourceOperation(requestJson: string, wasmBytes: Uint8Array): string {
+  const response = runSourceOperationFromBytes(requestJson, wasmBytes)
+  return JSON.stringify(response)
+}
+
 @Component
 export struct MangaDetailPage {
   @Prop params: MangaDetailRouteParams = {}
   @State private manga: MangaDetail = _mockMangaDetail()
   @State private chapters: MangaChapterItem[] = _mockChapterList()
   @State private isInLibrary: boolean = false
+  @State private isLoading: boolean = false
+  @State private feedbackText: string = ''
+  libraryStore?: LibraryStore
+  libraryPersistenceService?: LibraryStorePersistenceService
+  sourceRegistry: SourceRuntimeRegistry = new SourceRuntimeRegistry()
   onBack: () => void = () => {}
   onOpenReader: (mangaId: string, chapterId?: string) => void = (_mangaId: string, _chapterId?: string) => {}
+  onLibraryChanged: () => void = () => {}
 
   aboutToAppear(): void {
-    this.manga = _mockMangaDetail(this.params.mangaId, this.params.sourceId)
-    this.chapters = _mockChapterList()
-    this.isInLibrary = this.manga.isInLibrary
+    this.loadMangaDetail()
+  }
+
+  private async loadMangaDetail(): Promise<void> {
+    const mangaId = this.params.mangaId
+    const sourceId = this.params.sourceId
+    if (sourceId !== undefined && sourceId.trim().length > 0 &&
+      mangaId !== undefined && mangaId.trim().length > 0) {
+      await this.loadSourceMangaDetail(sourceId, mangaId)
+      return
+    }
+    this.loadLocalOrMockManga(mangaId)
+  }
+
+  private loadLocalOrMockManga(mangaId?: string): void {
+    const comic = mangaId === undefined || this.libraryStore === undefined ? undefined : this.libraryStore.getComic(mangaId)
+    if (comic === undefined) {
+      this.manga = _mockMangaDetail(mangaId, this.params.sourceId)
+      this.chapters = _mockChapterList()
+      this.isInLibrary = this.manga.isInLibrary
+      this.feedbackText = ''
+      return
+    }
+    this.manga = mangaDetailFromComic(comic)
+    this.chapters = comic.chapters.map((chapter: Chapter): MangaChapterItem => mangaChapterItemFromComicChapter(chapter))
+    this.isInLibrary = true
+    this.feedbackText = ''
+  }
+
+  private async loadSourceMangaDetail(sourceId: string, mangaId: string): Promise<void> {
+    this.isLoading = true
+    this.feedbackText = '正在加载源详情...'
+    try {
+      const lookup = this.sourceRegistry.lookup(sourceId)
+      if (!lookup.ok || lookup.entry === undefined) {
+        throw new Error(lookup.reasonCode ?? 'source lookup failed')
+      }
+      const detail = await this.runSourceMangaOperation(lookup.entry, 'get_manga', mangaId)
+      const chapters = await this.runSourceChaptersOperation(lookup.entry, mangaId)
+      const comicId = this.sourceComicId(sourceId, mangaId)
+      detail.chapterCount = chapters.length
+      detail.isInLibrary = this.libraryStore?.getComic(comicId) !== undefined
+      detail.sourceName = lookup.entry.manifestName
+      this.manga = detail
+      this.chapters = chapters
+      this.isInLibrary = detail.isInLibrary
+      this.feedbackText = ''
+    } catch (error) {
+      const e = error as Error
+      console.error('[manga-detail] source detail load failed: ' + e.message)
+      this.manga = _mockMangaDetail(mangaId, sourceId)
+      this.chapters = _mockChapterList()
+      this.isInLibrary = false
+      this.feedbackText = '源详情加载失败，已显示占位内容。'
+    } finally {
+      this.isLoading = false
+    }
+  }
+
+  private async runSourceMangaOperation(
+    entry: SourceRuntimeRegistryEntry,
+    operation: string,
+    mangaId: string
+  ): Promise<MangaDetail> {
+    const request = JSON.stringify({ operation: operation, manga_id: mangaId })
+    const responseJson = await taskpool.execute(
+      executeMangaDetailSourceOperation,
+      request,
+      new Uint8Array(entry.wasmBytes.buffer)
+    ) as string
+    const response = JSON.parse(responseJson) as SourceOperationResponsePayload
+    const item = response.data?.items === undefined || response.data.items.length === 0 ? undefined : response.data.items[0]
+    if (response.ok !== true || item === undefined) {
+      throw new Error('get_manga returned no item')
+    }
+    return parseMangaDetailFromSourceItem(entry.sourceId, item)
+  }
+
+  private async runSourceChaptersOperation(
+    entry: SourceRuntimeRegistryEntry,
+    mangaId: string
+  ): Promise<MangaChapterItem[]> {
+    const request = JSON.stringify({ operation: 'get_chapters', manga_id: mangaId })
+    const responseJson = await taskpool.execute(
+      executeMangaDetailSourceOperation,
+      request,
+      new Uint8Array(entry.wasmBytes.buffer)
+    ) as string
+    const response = JSON.parse(responseJson) as SourceOperationResponsePayload
+    if (response.ok !== true || response.data?.items === undefined) {
+      throw new Error('get_chapters returned no items')
+    }
+    return response.data.items.map((item: Record<string, Object>): MangaChapterItem => {
+      return parseMangaChapterFromSourceItem(item)
+    })
+  }
+
+  private sourceComicId(sourceId: string | undefined, mangaId: string): string {
+    return sourceId === undefined || sourceId.trim().length === 0 ? mangaId : `${sourceId}:${mangaId}`
+  }
+
+  private currentComicId(): string {
+    return this.sourceComicId(this.manga.sourceId, this.manga.id)
+  }
+
+  private firstChapterId(): string | undefined {
+    return this.chapters.length === 0 ? undefined : this.chapters[0].id
+  }
+
+  private async handleAddToLibrary(): Promise<boolean> {
+    if (this.isInLibrary) {
+      this.showToast('已在书架中')
+      return true
+    }
+    if (this.libraryStore === undefined) {
+      this.feedbackText = '书架不可用。'
+      this.showToast('书架不可用')
+      return false
+    }
+    const comic = comicFromSourceManga(this.manga, this.chapters, this.currentComicId())
+    try {
+      if (this.libraryPersistenceService === undefined) {
+        this.libraryStore.upsertComic(comic)
+      } else {
+        upsertComicAndPersistLibraryStore(this.libraryStore, this.libraryPersistenceService, comic)
+      }
+      this.isInLibrary = true
+      this.manga.isInLibrary = true
+      this.feedbackText = '已收藏到书架。'
+      this.onLibraryChanged()
+      this.showToast('已收藏到书架')
+      return true
+    } catch (error) {
+      const e = error as Error
+      console.error('[manga-detail] add to library failed: ' + e.message)
+      this.feedbackText = '收藏失败。'
+      this.showToast('收藏失败')
+      return false
+    }
+  }
+
+  private async handleStartReading(): Promise<void> {
+    if (!this.isInLibrary && this.manga.sourceId !== undefined) {
+      const added = await this.handleAddToLibrary()
+      if (!added) {
+        return
+      }
+    }
+    this.onOpenReader(this.currentComicId(), this.firstChapterId())
+  }
+
+  private showToast(message: string): void {
+    try {
+      this.getUIContext().getPromptAction().showToast({ message: message })
+    } catch (_err) {
+    }
   }
 
   private displayedManga(): MangaDetail {
@@ -87,7 +285,7 @@ export struct MangaDetailPage {
         .backgroundColor(this.isInLibrary ? $r('app.color.koma_accent') : '#00000000')
         .border({ width: 1, color: $r('app.color.koma_accent') })
         .onClick(() => {
-          this.isInLibrary = !this.isInLibrary
+          this.handleAddToLibrary()
         })
 
       Button(this.primaryReadLabel(), { type: ButtonType.Capsule })
@@ -98,7 +296,7 @@ export struct MangaDetailPage {
         .fontColor(Color.White)
         .backgroundColor($r('app.color.koma_accent'))
         .onClick(() => {
-          this.onOpenReader(this.manga.id)
+          this.handleStartReading()
         })
     }
     .width('100%')
@@ -114,6 +312,13 @@ export struct MangaDetailPage {
         })
 
         this.ActionButtons()
+
+        if (this.isLoading || this.feedbackText.length > 0) {
+          Text(this.isLoading ? '加载中...' : this.feedbackText)
+            .width('100%')
+            .fontSize(13)
+            .fontColor($r('app.color.koma_text_secondary'))
+        }
 
         MangaDescriptionSection({
           description: this.manga.description,
@@ -136,6 +341,67 @@ export struct MangaDetailPage {
     .width('100%')
     .height('100%')
     .backgroundColor($r('app.color.koma_background'))
+  }
+}
+
+function mangaDetailFromComic(comic: Comic): MangaDetail {
+  return {
+    id: comic.id,
+    title: comic.title,
+    author: comic.author,
+    description: comic.subtitle,
+    coverUrl: comic.coverUri,
+    status: MangaStatus.UNKNOWN,
+    chapterCount: comic.chapterCount,
+    isInLibrary: true,
+    sourceId: undefined,
+    sourceName: '书架',
+    url: comic.sourcePath,
+  }
+}
+
+function mangaChapterItemFromComicChapter(chapter: Chapter): MangaChapterItem {
+  return {
+    id: chapter.id,
+    title: chapter.title,
+    chapterNumber: chapter.index + 1,
+    isRead: false,
+    isDownloaded: chapter.pageCount > 0,
+  }
+}
+
+function comicFromSourceManga(manga: MangaDetail, chapters: MangaChapterItem[], comicId: string): Comic {
+  const now = Date.now()
+  const comicChapters = chapters.map((chapter: MangaChapterItem, index: number): Chapter => {
+    return {
+      id: chapter.id,
+      comicId,
+      title: chapter.title.length > 0 ? chapter.title : `第${index + 1}话`,
+      index,
+      sourcePath: `${manga.url ?? manga.id}#${chapter.id}`,
+      sortKey: chapter.chapterNumber === undefined ? `${index}` : `${chapter.chapterNumber}`,
+      pages: [],
+      pageCount: 0,
+      createdAt: now,
+      updatedAt: now,
+    }
+  })
+  return {
+    id: comicId,
+    title: manga.title,
+    subtitle: manga.description,
+    author: manga.author,
+    sourceKind: ComicSourceKind.PRIVATE_LIBRARY,
+    sourcePath: manga.url ?? `source://${manga.sourceId ?? 'unknown'}/${manga.id}`,
+    coverUri: manga.coverUrl,
+    sortTitle: normalizeSortKey(manga.title),
+    preferredDirection: ReadingDirection.RIGHT_TO_LEFT,
+    chapters: comicChapters,
+    chapterCount: comicChapters.length,
+    pageCount: 0,
+    createdAt: now,
+    updatedAt: now,
+    lastImportedAt: now,
   }
 }
 
