@@ -230,7 +230,9 @@ export function createMockLibraryPresentationMap(seed: MockLibraryComic[] = MOCK
   return presentationByComicId
 }
 
-export function createSeededLibraryStore(seed: MockLibraryComic[] = MOCK_LIBRARY_COMICS): LibraryStore {
+// Empty by default — production ships with no demo rows.
+// Pass MOCK_LIBRARY_COMICS explicitly when seeding mock data for tests / dev fixtures.
+export function createSeededLibraryStore(seed: MockLibraryComic[] = []): LibraryStore {
   const store = new InMemoryLibraryStore()
   seed.forEach((comic: MockLibraryComic, index: number) => {
     store.upsertComic(createMockComic(comic, index + 1))
