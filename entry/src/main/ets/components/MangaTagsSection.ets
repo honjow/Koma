@@ -15,7 +15,7 @@ export struct MangaTagsSection {
         .fontColor($r('app.color.koma_text_primary'))
 
       if (this.hasTags()) {
-        Flex({ wrap: FlexWrap.Wrap, space: { main: 8, cross: 8 } }) {
+        Flex({ wrap: FlexWrap.Wrap }) {
           ForEach(this.tags, (tag: string) => {
             Text(tag)
               .fontSize(13)
@@ -24,6 +24,7 @@ export struct MangaTagsSection {
               .padding({ left: 12, right: 12, top: 7, bottom: 7 })
               .borderRadius(16)
               .backgroundColor('#1A5CC8A8')
+              .margin({ right: 8, bottom: 8 })
               .onClick(() => {})
           }, (tag: string) => tag)
         }

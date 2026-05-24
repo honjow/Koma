@@ -23,8 +23,11 @@ export class BrowseViewModel {
   errorMessage: string = ''
   searchQuery: string = ''
 
-  constructor(private readonly registry: SourceRuntimeRegistry = new SourceRuntimeRegistry()) {
+  constructor(registry?: SourceRuntimeRegistry) {
+    this.registry = registry ?? new SourceRuntimeRegistry()
   }
+
+  private registry: SourceRuntimeRegistry
 
   loadInstalledSources(): void {
     this.loadingSources = true

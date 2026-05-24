@@ -6,7 +6,7 @@ import { SearchPage } from './SearchPage'
 import { SettingsPage } from './SettingsPage'
 import { ImportPage } from './ImportPage'
 import { ReaderPage } from './ReaderPage'
-import { MangaDetailPage, readMangaDetailRouteParam } from './MangaDetailPage'
+import { MangaDetailPage, MANGA_DETAIL_ROUTE_NAME } from './MangaDetailPage'
 import { RouteName, TabIndex, TabLabel } from '../common/Constants'
 import { RouterHelper } from '../common/RouterHelper'
 import {
@@ -220,7 +220,11 @@ struct Index {
       .hideTitleBar(true)
     } else if (name === RouteName.MANGA_DETAIL) {
       NavDestination() {
-        MangaDetailPage({ comicId: readMangaDetailRouteParam(param).comicId })
+        MangaDetailPage({
+          params: { mangaId: (param as Record<string, string>)?.mangaId, sourceId: (param as Record<string, string>)?.sourceId },
+          onBack: () => { this.appPathStack.pop(false) },
+          onOpenReader: (mangaId: string, chapterId?: string) => { this.openReader(mangaId) }
+        })
       }
       .hideTitleBar(true)
     }
