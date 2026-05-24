@@ -1,3 +1,5 @@
+import { normalizeSourceDisplayText } from './SourceTextNormalizer'
+
 export interface MangaDetail {
   id: string
   title: string
@@ -50,6 +52,13 @@ function optionalSourceString(value: Object | undefined): string | undefined {
   return normalized.length === 0 ? undefined : normalized
 }
 
+function optionalSourceDisplayString(value: Object | undefined): string | undefined {
+  if (typeof value !== 'string') {
+    return undefined
+  }
+  return normalizeSourceDisplayText(value)
+}
+
 function optionalSourceNumber(value: Object | undefined): number | undefined {
   if (typeof value === 'number' && Number.isFinite(value)) {
     return value
@@ -67,8 +76,9 @@ function sourceStringList(value: Object | undefined): string[] | undefined {
   }
   const result: string[] = []
   value.forEach((item: Object) => {
-    if (typeof item === 'string' && item.trim().length > 0) {
-      result.push(item)
+    const normalized = optionalSourceDisplayString(item)
+    if (normalized !== undefined) {
+      result.push(normalized)
     }
   })
   return result.length === 0 ? undefined : result
@@ -101,16 +111,16 @@ export function parseMangaDetailFromSourceItem(sourceId: string, item: SourceRun
     optionalSourceString(item['title']),
   ]) ?? 'source-manga'
   const title = firstSourceString([
-    optionalSourceString(item['title']),
-    optionalSourceString(item['name']),
-    id,
+    optionalSourceDisplayString(item['title']),
+    optionalSourceDisplayString(item['name']),
+    normalizeSourceDisplayText(id),
   ]) ?? '未命名漫画'
   return {
     id,
     title,
-    author: optionalSourceString(item['author']),
-    artist: optionalSourceString(item['artist']),
-    description: optionalSourceString(item['description']),
+    author: optionalSourceDisplayString(item['author']),
+    artist: optionalSourceDisplayString(item['artist']),
+    description: optionalSourceDisplayString(item['description']),
     coverUrl: firstSourceString([
       optionalSourceString(item['cover_url']),
       optionalSourceString(item['coverUrl']),
@@ -134,13 +144,13 @@ export function parseMangaChapterFromSourceItem(item: SourceRuntimeRecord): Mang
   const chapterNumber = optionalSourceNumber(item['chapter_number']) ?? optionalSourceNumber(item['chapterNumber'])
   return {
     id,
-    title: firstSourceString([optionalSourceString(item['title']), id]) ?? '未命名章节',
+    title: firstSourceString([optionalSourceDisplayString(item['title']), normalizeSourceDisplayText(id)]) ?? '未命名章节',
     chapterNumber,
     volumeNumber: firstSourceString([
       optionalSourceString(item['volume_number']),
       optionalSourceString(item['volumeNumber']),
     ]),
-    scanlator: optionalSourceString(item['scanlator']),
+    scanlator: optionalSourceDisplayString(item['scanlator']),
     dateUpload: optionalSourceNumber(item['date_upload']) ?? optionalSourceNumber(item['dateUpload']),
     isRead: false,
     isDownloaded: false,

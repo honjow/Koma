@@ -1,5 +1,6 @@
 import { taskpool } from '@kit.ArkTS'
 import { SourceManga, SourceMangaList, SourceMangaStatus } from '../model/SourceModels'
+import { normalizeSourceDisplayText } from '../model/SourceTextNormalizer'
 import { SourceRuntimeCallResponse } from '../sourceRuntime/NativeSourceRuntime'
 import { appSourceRuntimeRegistry } from '../sourceRuntime/SourceRuntimeAppRegistry'
 import {
@@ -86,8 +87,11 @@ function normalizeStringArray(value: RuntimeValue | undefined): string[] | undef
   }
   const tags: string[] = []
   value.forEach((item: RuntimeValue) => {
-    if (typeof item === 'string' && item.trim().length > 0) {
-      tags.push(item)
+    if (typeof item === 'string') {
+      const normalized = normalizeSourceDisplayText(item)
+      if (normalized !== undefined) {
+        tags.push(normalized)
+      }
     }
   })
   return tags.length > 0 ? tags : undefined
@@ -105,13 +109,13 @@ function parseSourceMangaFromItem(sourceId: string, item: RuntimeRecord): Source
   return {
     id: optionalString(item['id']) ?? title,
     sourceId,
-    title,
-    author: optionalString(item['author']),
-    artist: optionalString(item['artist']),
-    description: optionalString(item['description']),
+    title: normalizeSourceDisplayText(title) ?? title,
+    author: normalizeSourceDisplayText(optionalString(item['author'])),
+    artist: normalizeSourceDisplayText(optionalString(item['artist'])),
+    description: normalizeSourceDisplayText(optionalString(item['description'])),
     coverUrl: optionalString(item['cover_url']) ?? optionalString(item['coverUrl']),
     status: normalizeStatus(item['status']),
-    contentRating: optionalString(item['content_rating']) ?? optionalString(item['contentRating']),
+    contentRating: normalizeSourceDisplayText(optionalString(item['content_rating']) ?? optionalString(item['contentRating'])),
     tags: normalizeStringArray(item['tags']),
     url: optionalString(item['url']),
   }

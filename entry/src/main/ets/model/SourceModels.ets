@@ -1,3 +1,5 @@
+import { normalizeSourceDisplayText } from './SourceTextNormalizer'
+
 export type SourceMangaStatus = 'ongoing' | 'completed' | 'hiatus' | 'cancelled' | 'unknown'
 
 export interface SourceManga {
@@ -146,7 +148,14 @@ function normalizeTags(payload: SourceRuntimeMangaPayload): string[] | undefined
   if (source === undefined) {
     return undefined
   }
-  return source.filter((tag: string): boolean => tag.trim().length > 0)
+  const tags: string[] = []
+  source.forEach((tag: string) => {
+    const normalized = normalizeSourceDisplayText(tag)
+    if (normalized !== undefined) {
+      tags.push(normalized)
+    }
+  })
+  return tags.length === 0 ? undefined : tags
 }
 
 export function normalizeSourceManga(sourceId: string, payload: SourceRuntimeMangaPayload): SourceManga {
@@ -154,10 +163,10 @@ export function normalizeSourceManga(sourceId: string, payload: SourceRuntimeMan
   return {
     id: firstNonEmpty([payload.id, title]) ?? title,
     sourceId,
-    title,
-    author: firstNonEmpty([payload.author, payload.authors === undefined ? undefined : payload.authors.join(', ')]),
-    artist: firstNonEmpty([payload.artist, payload.artists === undefined ? undefined : payload.artists.join(', ')]),
-    description: optionalString(payload.description),
+    title: normalizeSourceDisplayText(title) ?? title,
+    author: normalizeSourceDisplayText(firstNonEmpty([payload.author, payload.authors === undefined ? undefined : payload.authors.join(', ')])),
+    artist: normalizeSourceDisplayText(firstNonEmpty([payload.artist, payload.artists === undefined ? undefined : payload.artists.join(', ')])),
+    description: normalizeSourceDisplayText(payload.description),
     coverUrl: firstNonEmpty([payload.coverUrl, payload.cover === undefined ? undefined : payload.cover.url]),
     status: normalizeSourceMangaStatus(payload.status),
     contentRating: optionalString(payload.contentRating),
@@ -188,10 +197,11 @@ export function parseSourceChaptersJson(json: string): SourceChapter[] {
     const payload = JSON.parse(json) as SourceRuntimeChapterListPayload
     const rows = payload.chapters !== undefined ? payload.chapters : (payload.items ?? [])
     return rows.map((row: SourceRuntimeChapterPayload): SourceChapter => {
+      const title = firstNonEmpty([row.title, row.id]) ?? '未命名章节'
       return {
         id: firstNonEmpty([row.id, row.title]) ?? 'chapter',
-        title: firstNonEmpty([row.title, row.id]) ?? '未命名章节',
-        scanlator: optionalString(row.scanlator),
+        title: normalizeSourceDisplayText(title) ?? title,
+        scanlator: normalizeSourceDisplayText(row.scanlator),
         dateUpload: optionalNumber(row.dateUpload),
         chapterNumber: optionalNumber(row.chapterNumber),
         volumeNumber: optionalNumber(row.volumeNumber),

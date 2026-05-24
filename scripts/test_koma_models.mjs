@@ -8,6 +8,9 @@ const libraryStorePath = resolve(root, 'entry/src/main/ets/model/LibraryStore.et
 const progressStorePath = resolve(root, 'entry/src/main/ets/model/ReadingProgressStore.ets')
 const readerSessionStorePath = resolve(root, 'entry/src/main/ets/model/ReaderSessionStore.ets')
 const mockLibraryDataPath = resolve(root, 'entry/src/main/ets/model/MockLibraryData.ets')
+const sourceModelsPath = resolve(root, 'entry/src/main/ets/model/SourceModels.ets')
+const sourceTextNormalizerPath = resolve(root, 'entry/src/main/ets/model/SourceTextNormalizer.ets')
+const mangaDetailModelsPath = resolve(root, 'entry/src/main/ets/model/MangaDetailModels.ets')
 const libraryRepositoryPath = resolve(root, 'entry/src/main/ets/model/LibraryRepository.ets')
 const libraryPersistencePath = resolve(root, 'entry/src/main/ets/model/LibraryPersistence.ets')
 const backupServicePath = resolve(root, 'entry/src/main/ets/model/BackupService.ets')
@@ -35,6 +38,9 @@ const libraryStoreSource = readFileSync(libraryStorePath, 'utf8')
 const progressStoreSource = readFileSync(progressStorePath, 'utf8')
 const readerSessionStoreSource = readFileSync(readerSessionStorePath, 'utf8')
 const mockLibraryDataSource = readFileSync(mockLibraryDataPath, 'utf8')
+const sourceModelsSource = readFileSync(sourceModelsPath, 'utf8')
+const sourceTextNormalizerSource = readFileSync(sourceTextNormalizerPath, 'utf8')
+const mangaDetailModelsSource = readFileSync(mangaDetailModelsPath, 'utf8')
 const libraryRepositorySource = readFileSync(libraryRepositoryPath, 'utf8')
 const libraryPersistenceSource = readFileSync(libraryPersistencePath, 'utf8')
 const backupServiceSource = readFileSync(backupServicePath, 'utf8')
@@ -182,6 +188,26 @@ function sourceComicId(sourceId, mangaId) {
   return mangaId.startsWith(`${normalizedSourceId}:`) ? mangaId : `${normalizedSourceId}:${mangaId}`
 }
 
+function decodeSourceDisplayTextEscapes(value) {
+  let decoded = ''
+  let index = 0
+  while (index < value.length) {
+    if (value.charAt(index) === '\\' &&
+      value.charAt(index + 1) === 'u' &&
+      index + 6 <= value.length) {
+      const hex = value.substring(index + 2, index + 6)
+      if (/^[0-9a-fA-F]{4}$/.test(hex)) {
+        decoded += String.fromCharCode(Number.parseInt(hex, 16))
+        index += 6
+        continue
+      }
+    }
+    decoded += value.charAt(index)
+    index += 1
+  }
+  return decoded
+}
+
 for (const symbol of ['Comic', 'Chapter', 'Page', 'ReadingProgress', 'LibraryItem']) {
   assertExport(modelSource, symbol)
 }
@@ -209,6 +235,8 @@ assertExport(mockLibraryDataSource, 'createSeededLibraryStore')
 assertExport(mockLibraryDataSource, 'createLibraryViewModelFromComics')
 assertExport(mockLibraryDataSource, 'createLibraryViewModelFromStores')
 assertExport(mockLibraryDataSource, 'createLibraryViewModel')
+assertExport(sourceTextNormalizerSource, 'decodeSourceDisplayTextEscapes')
+assertExport(sourceTextNormalizerSource, 'normalizeSourceDisplayText')
 assertExport(libraryRepositorySource, 'LibraryRepository')
 assertExport(libraryRepositorySource, 'StoreBackedLibraryRepository')
 assertExport(libraryRepositorySource, 'upsertComicAndCreateLibraryViewModel')
@@ -600,6 +628,41 @@ assert.equal(sourcePageResponseItems({ ok: true, data: { pages: [{ id: 'page-1' 
 assert.equal(sourcePageResponseItems({ ok: true, data: { items: [{ id: 'fixture-page-1' }] } }).length, 1, 'get_pages must keep fixture data.items compatibility')
 assert.equal(sourceComicId('source.alpha', 'manga-1'), 'source.alpha:manga-1', 'source comic id should prefix plain manga ids')
 assert.equal(sourceComicId('source.alpha', 'source.alpha:manga-1'), 'source.alpha:manga-1', 'source comic id should not double-prefix normalized manga ids')
+assert.equal(
+  decodeSourceDisplayTextEscapes('Days Off in the Dragon\\u0027s Stomach'),
+  "Days Off in the Dragon's Stomach",
+  'source display text unicode escapes must decode apostrophes',
+)
+assert.equal(
+  decodeSourceDisplayTextEscapes('Title \\u4e2d\\u6587 \\uZZZZ'),
+  'Title 中文 \\uZZZZ',
+  'source display text unicode escapes must decode valid hex quads and leave invalid escapes untouched',
+)
+assert.match(
+  sourceModelsSource,
+  /title:\s*normalizeSourceDisplayText\(title\) \?\? title[\s\S]*description:\s*normalizeSourceDisplayText\(payload\.description\)[\s\S]*tags:\s*normalizeTags\(payload\)/,
+  'SourceManga list normalization must decode source-provided title, description, and tags at model boundary',
+)
+assert.match(
+  sourceModelsSource,
+  /title:\s*normalizeSourceDisplayText\(title\) \?\? title[\s\S]*scanlator:\s*normalizeSourceDisplayText\(row\.scanlator\)/,
+  'SourceChapter normalization must decode source-provided chapter display strings',
+)
+assert.match(
+  mangaDetailModelsSource,
+  /optionalSourceDisplayString\(item\['title'\]\)/,
+  'Manga detail normalization must decode source-provided title text',
+)
+assert.match(
+  mangaDetailModelsSource,
+  /description:\s*optionalSourceDisplayString\(item\['description'\]\)/,
+  'Manga detail normalization must decode source-provided description text',
+)
+assert.match(
+  mangaDetailModelsSource,
+  /tags:\s*sourceStringList\(item\['tags'\]\)/,
+  'Manga detail normalization must decode source-provided tags',
+)
 
 assert.match(backupServiceSource, /const BACKUP_SCHEMA_VERSION:\s*number = 3/, 'backup export must use schema v3')
 assert.match(backupServiceSource, /const BACKUP_SCHEMA_VERSION_V2:\s*number = 2/, 'backup import must keep schema v2 compatibility')
