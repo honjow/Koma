@@ -19,6 +19,7 @@ import { SettingsPage } from './SettingsPage'
 import { ImportPage } from './ImportPage'
 import { ReaderPage } from './ReaderPage'
 import { MangaDetailPage } from './MangaDetailPage'
+import { LibraryUpdateResultPage } from './LibraryUpdateResultPage'
 import { KomgaServerPage } from './KomgaServerPage'
 import { OpdsServerPage } from './OpdsServerPage'
 import { SourcePackageManagerPage } from './SourcePackageManagerPage'
@@ -316,6 +317,11 @@ struct Index {
         SourcePackageManagerPage()
       }
       .titleBar(this.navDestTitleBarOpts('源包管理'))
+    } else if (name === RouteName.LIBRARY_UPDATE_RESULTS) {
+      HdsNavDestination() {
+        LibraryUpdateResultPage()
+      }
+      .titleBar(this.navDestTitleBarOpts('书架更新详情'))
     }
   }
 
@@ -401,6 +407,9 @@ struct Index {
             },
             onOpenSourcePackageManager: () => {
               this.openSettingsSecondary(RouteName.SOURCE_PACKAGE_MANAGER)
+            },
+            onOpenLibraryUpdateResults: () => {
+              this.openSettingsSecondary(RouteName.LIBRARY_UPDATE_RESULTS)
             },
             onLibraryChanged: () => {
               this.refreshLibrarySnapshot()

@@ -11,6 +11,10 @@ import {
   formatLibraryUpdateSummary,
 } from '../model/LibraryUpdateService'
 import {
+  getLatestLibraryUpdateSummary,
+  setLatestLibraryUpdateSummary,
+} from '../model/LibraryUpdateResultStore'
+import {
   DEFAULT_LIBRARY_UPDATE_PREFERENCES,
   LibraryUpdatePreferences,
   LibraryUpdatePreferencesStore,
@@ -82,6 +86,7 @@ const SETTINGS_SECTIONS: SettingsSection[] = [
       { key: 'library-auto-update', title: '自动检查更新', detail: '关闭' },
       { key: 'library-update-interval', title: '检查间隔', detail: '每 24 小时' },
       { key: 'library-update', title: '检查书架更新', detail: '尚未检查' },
+      { key: 'library-update-results', title: '书架更新详情', detail: '尚无结果' },
       { key: 'sources', title: '管理已安装的源包', detail: '暂未安装源包' },
       { key: 'backup', title: '备份与恢复', detail: '导出书架、进度、源包和设置' },
       { key: 'image-cache', title: '图片缓存', detail: '0 B · 0 项' },
@@ -104,6 +109,7 @@ export struct SettingsPage {
   onOpenOpdsSettings: () => void = () => {}
   onOpenWebDavSettings: () => void = () => {}
   onOpenSourcePackageManager: () => void = () => {}
+  onOpenLibraryUpdateResults: () => void = () => {}
   onLibraryChanged: () => void = () => {}
   libraryStore?: LibraryStore
   libraryPersistenceService?: LibraryStorePersistenceService
@@ -190,6 +196,9 @@ export struct SettingsPage {
       }
       return `${summaryText} · ${this.formatTimestamp(checkedAt)}`
     }
+    if (row.key === 'library-update-results') {
+      return this.libraryUpdateSummary === undefined ? '尚无结果' : '查看最近检查结果'
+    }
     return row.detail
   }
 
@@ -228,6 +237,10 @@ export struct SettingsPage {
       .catch((error: Error) => {
         console.warn('[Settings] step=load_library_update_preferences_failed message=' + error.message)
       })
+  }
+
+  private loadLatestLibraryUpdateSummary(): void {
+    this.libraryUpdateSummary = getLatestLibraryUpdateSummary()
   }
 
   private runDueLibraryUpdateCheck(): void {
@@ -504,6 +517,11 @@ export struct SettingsPage {
     this.onOpenSourcePackageManager()
   }
 
+  private openLibraryUpdateResults(): void {
+    console.info('[Settings] step=open_library_update_results')
+    this.onOpenLibraryUpdateResults()
+  }
+
   private saveLibraryUpdatePreferences(preferences: LibraryUpdatePreferences): void {
     this.libraryUpdatePreferences = preferences
   }
@@ -593,6 +611,7 @@ export struct SettingsPage {
     void service.checkLibraryUpdates()
       .then((summary: LibraryUpdateSummary) => {
         this.libraryUpdateSummary = summary
+        setLatestLibraryUpdateSummary(summary)
         this.onLibraryChanged()
         const summaryText = formatLibraryUpdateSummary(summary)
         console.info('[Settings] step=library_update_done reason=' + reason + ' total=' + summary.totalCount + ' updated=' + summary.updatedCount + ' failed=' + summary.failedCount)
@@ -681,6 +700,8 @@ export struct SettingsPage {
       this.showLibraryUpdateIntervalSheet()
     } else if (row.key === 'library-update') {
       this.checkLibraryUpdates()
+    } else if (row.key === 'library-update-results') {
+      this.openLibraryUpdateResults()
     } else if (row.key === 'about') {
       this.showAboutDialog()
     } else if (row.key === 'version') {
@@ -731,6 +752,7 @@ export struct SettingsPage {
   }
 
   aboutToAppear(): void {
+    this.loadLatestLibraryUpdateSummary()
     this.loadVersion()
     this.loadPreferences()
     this.loadLibraryUpdatePreferences()

@@ -14,6 +14,7 @@ const mangaDetailModelsPath = resolve(root, 'entry/src/main/ets/model/MangaDetai
 const libraryRepositoryPath = resolve(root, 'entry/src/main/ets/model/LibraryRepository.ets')
 const libraryPersistencePath = resolve(root, 'entry/src/main/ets/model/LibraryPersistence.ets')
 const libraryUpdateServicePath = resolve(root, 'entry/src/main/ets/model/LibraryUpdateService.ets')
+const libraryUpdateResultStorePath = resolve(root, 'entry/src/main/ets/model/LibraryUpdateResultStore.ets')
 const libraryUpdatePreferencesStorePath = resolve(root, 'entry/src/main/ets/model/LibraryUpdatePreferencesStore.ets')
 const backupServicePath = resolve(root, 'entry/src/main/ets/model/BackupService.ets')
 const readerPreferencesStorePath = resolve(root, 'entry/src/main/ets/model/ReaderPreferencesStore.ets')
@@ -26,6 +27,7 @@ const browsePagePath = resolve(root, 'entry/src/main/ets/pages/BrowsePage.ets')
 const historyPagePath = resolve(root, 'entry/src/main/ets/pages/HistoryPage.ets')
 const searchPagePath = resolve(root, 'entry/src/main/ets/pages/SearchPage.ets')
 const settingsPagePath = resolve(root, 'entry/src/main/ets/pages/SettingsPage.ets')
+const libraryUpdateResultPagePath = resolve(root, 'entry/src/main/ets/pages/LibraryUpdateResultPage.ets')
 const importPagePath = resolve(root, 'entry/src/main/ets/pages/ImportPage.ets')
 const sourceBrowsePagePath = resolve(root, 'entry/src/main/ets/pages/SourceBrowsePage.ets')
 const sourceSearchPagePath = resolve(root, 'entry/src/main/ets/pages/SourceSearchPage.ets')
@@ -49,6 +51,7 @@ const mangaDetailModelsSource = readFileSync(mangaDetailModelsPath, 'utf8')
 const libraryRepositorySource = readFileSync(libraryRepositoryPath, 'utf8')
 const libraryPersistenceSource = readFileSync(libraryPersistencePath, 'utf8')
 const libraryUpdateServiceSource = readFileSync(libraryUpdateServicePath, 'utf8')
+const libraryUpdateResultStoreSource = readFileSync(libraryUpdateResultStorePath, 'utf8')
 const libraryUpdatePreferencesStoreSource = readFileSync(libraryUpdatePreferencesStorePath, 'utf8')
 const backupServiceSource = readFileSync(backupServicePath, 'utf8')
 const readerPreferencesStoreSource = readFileSync(readerPreferencesStorePath, 'utf8')
@@ -61,6 +64,7 @@ const browsePageSource = readFileSync(browsePagePath, 'utf8')
 const historyPageSource = readFileSync(historyPagePath, 'utf8')
 const searchPageSource = readFileSync(searchPagePath, 'utf8')
 const settingsPageSource = readFileSync(settingsPagePath, 'utf8')
+const libraryUpdateResultPageSource = readFileSync(libraryUpdateResultPagePath, 'utf8')
 const importPageSource = readFileSync(importPagePath, 'utf8')
 const sourceBrowsePageSource = readFileSync(sourceBrowsePagePath, 'utf8')
 const sourceSearchPageSource = readFileSync(sourceSearchPagePath, 'utf8')
@@ -299,6 +303,9 @@ assertExport(libraryUpdateServiceSource, 'LibraryUpdateComicResult')
 assertExport(libraryUpdateServiceSource, 'LibraryUpdateSummary')
 assertExport(libraryUpdateServiceSource, 'LibraryUpdateService')
 assertExport(libraryUpdateServiceSource, 'formatLibraryUpdateSummary')
+assertExport(libraryUpdateResultStoreSource, 'cloneLibraryUpdateSummary')
+assertExport(libraryUpdateResultStoreSource, 'setLatestLibraryUpdateSummary')
+assertExport(libraryUpdateResultStoreSource, 'getLatestLibraryUpdateSummary')
 assertExport(libraryUpdatePreferencesStoreSource, 'LibraryUpdatePreferences')
 assertExport(libraryUpdatePreferencesStoreSource, 'LIBRARY_UPDATE_PREFERENCES_STORE_NAME')
 assertExport(libraryUpdatePreferencesStoreSource, 'LIBRARY_UPDATE_AUTO_CHECK_ENABLED_KEY')
@@ -330,6 +337,7 @@ for (const [source, label] of [
   [historyPageSource, 'HistoryPage'],
   [searchPageSource, 'SearchPage'],
   [settingsPageSource, 'SettingsPage'],
+  [libraryUpdateResultPageSource, 'LibraryUpdateResultPage'],
 ]) {
   assertUsesSecondaryListSafeArea(source, label)
 }
@@ -451,6 +459,11 @@ assert.match(
 )
 assert.match(
   settingsPageSource,
+  /\{ key: 'library-update-results', title: '书架更新详情', detail: '尚无结果' \}/,
+  'SettingsPage must expose a row for the latest library update result details',
+)
+assert.match(
+  settingsPageSource,
   /\{ key: 'library-auto-update', title: '自动检查更新', detail: '关闭' \}[\s\S]*\{ key: 'library-update-interval', title: '检查间隔', detail: '每 24 小时' \}[\s\S]*\{ key: 'library-update', title: '检查书架更新', detail: '尚未检查' \}/,
   'SettingsPage must expose auto-check preferences next to the foreground library update entry',
 )
@@ -486,6 +499,36 @@ assert.match(
 )
 assert.match(
   settingsPageSource,
+  /setLatestLibraryUpdateSummary\(summary\)/,
+  'SettingsPage must store the latest successful update summary for the result page',
+)
+assert.match(
+  settingsPageSource,
+  /onOpenLibraryUpdateResults:\s*\(\) => void = \(\) => \{\}/,
+  'SettingsPage must accept a callback for opening library update result details',
+)
+assert.match(
+  settingsPageSource,
+  /row\.key === 'library-update-results'[\s\S]*this\.openLibraryUpdateResults\(\)/,
+  'SettingsPage detail row must open the result page',
+)
+assert.match(
+  settingsPageSource,
+  /openLibraryUpdateResults\(\): void \{[\s\S]*\[Settings\] step=open_library_update_results[\s\S]*this\.onOpenLibraryUpdateResults\(\)/,
+  'SettingsPage must log and call the callback when opening update result details',
+)
+assert.doesNotMatch(
+  settingsPageSource,
+  /row\.key === 'library-update-results'[\s\S]{0,160}checkLibraryUpdates\(/,
+  'SettingsPage detail row must not run a library update check',
+)
+assert.doesNotMatch(
+  settingsPageSource,
+  /(Navigation|NavDestination)\(/,
+  'SettingsPage must not nest Navigation/NavDestination for library update result details',
+)
+assert.match(
+  settingsPageSource,
   /SecondaryListScaffold\(\{[\s\S]*bottomPadding:\s*ThemeConstants\.FLOAT_BAR_HEIGHT \+ 20 \+ ThemeConstants\.SPACE_XL/,
   'SettingsPage must preserve SecondaryListScaffold bottom clearance while adding update status',
 )
@@ -513,6 +556,51 @@ assert.match(
   indexSource,
   /SettingsPage\(\{[\s\S]*libraryStore: this\.libraryStore[\s\S]*sourceRegistry: this\.sourceRegistry[\s\S]*onLibraryChanged: \(\) => \{[\s\S]*this\.refreshLibrarySnapshot\(\)/,
   'Index must wire Settings library update completion back into the live shelf snapshot',
+)
+assert.match(
+  indexSource,
+  /import \{ LibraryUpdateResultPage \} from '\.\/LibraryUpdateResultPage'/,
+  'Index must import LibraryUpdateResultPage',
+)
+assert.match(
+  indexSource,
+  /onOpenLibraryUpdateResults:\s*\(\) => \{[\s\S]*this\.openSettingsSecondary\(RouteName\.LIBRARY_UPDATE_RESULTS\)/,
+  'Index must wire Settings detail callback to the top-level route',
+)
+assert.match(
+  indexSource,
+  /name === RouteName\.LIBRARY_UPDATE_RESULTS[\s\S]*HdsNavDestination\(\)[\s\S]*LibraryUpdateResultPage\(\)[\s\S]*\.titleBar\(this\.navDestTitleBarOpts\('书架更新详情'\)\)/,
+  'Index must render library update results as a top-level HDS destination',
+)
+assert.match(
+  readFileSync(resolve(root, 'entry/src/main/ets/common/Constants.ets'), 'utf8'),
+  /static readonly LIBRARY_UPDATE_RESULTS: string = 'LibraryUpdateResultPage'/,
+  'RouteName must include LIBRARY_UPDATE_RESULTS',
+)
+assert.match(
+  libraryUpdateResultPageSource,
+  /aboutToAppear\(\): void \{[\s\S]*getLatestLibraryUpdateSummary\(\)[\s\S]*\[LibraryUpdateResults\] step=appear hasSummary=/,
+  'LibraryUpdateResultPage must read the latest summary on appear and log safe aggregate state',
+)
+assert.match(
+  libraryUpdateResultPageSource,
+  /尚无检查结果[\s\S]*请先在设置中运行检查书架更新/,
+  'LibraryUpdateResultPage must render the empty state copy',
+)
+assert.match(
+  libraryUpdateResultPageSource,
+  /SummaryMetric\('总计', summary\.totalCount\)[\s\S]*SummaryMetric\('更新', summary\.updatedCount\)[\s\S]*SummaryMetric\('未变化', summary\.unchangedCount\)[\s\S]*SummaryMetric\('跳过', summary\.skippedCount\)[\s\S]*SummaryMetric\('失败', summary\.failedCount\)/,
+  'LibraryUpdateResultPage must render all aggregate counters',
+)
+assert.match(
+  libraryUpdateResultPageSource,
+  /result\.comicId[\s\S]*statusLabel\(result\.status\)[\s\S]*result\.previousChapterCount\} -> \$\{result\.newChapterCount\}[\s\S]*result\.message/,
+  'LibraryUpdateResultPage must render per-comic ids, counts, status, and messages',
+)
+assert.match(
+  libraryUpdateResultPageSource,
+  /status === 'updated'[\s\S]*return '更新'[\s\S]*status === 'unchanged'[\s\S]*return '未变化'[\s\S]*status === 'skipped'[\s\S]*return '跳过'[\s\S]*return '失败'/,
+  'LibraryUpdateResultPage must expose required status labels',
 )
 assert.match(
   libraryUpdateServiceSource,

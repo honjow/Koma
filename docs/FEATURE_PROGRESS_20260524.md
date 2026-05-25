@@ -121,6 +121,7 @@ Verified on device `192.168.50.103:12345`:
 - Source package manager page.
 - Reader remote image cache stats and clear action.
 - Foreground library update check with last summary/status row.
+- Library update details page shows the latest in-memory check summary and per-comic results from Settings.
 - Library update auto-check preferences are persisted and run only when Settings opens and a due interval has elapsed while the app is foregrounded.
 
 ### WASM Source Runtime
