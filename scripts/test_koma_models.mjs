@@ -947,10 +947,45 @@ assert.match(
   /Button\(this\.validateSettingsActionLabel\(source\.id\)\)[\s\S]*this\.validateSettings\(source\)/,
   'installed source cards must expose a settings validation action',
 )
+assert.match(
+  sourcePackageManagerPageSource,
+  /\[SourceRuntimeDiagnostics\] step=open id=[\s\S]*\[SourceRuntimeDiagnostics\] step=refresh id=/,
+  'source package manager must log diagnostics open and refresh lifecycle with metadata only',
+)
+assert.match(
+  sourcePackageManagerPageSource,
+  /Button\(this\.isDiagnosticsOpen\(source\.id\) \? '收起诊断' : '诊断'\)[\s\S]*this\.toggleDiagnostics\(source\)/,
+  'installed source cards must expose a diagnostics action',
+)
+assert.match(
+  sourcePackageManagerPageSource,
+  /DiagnosticsPanel\(source: InstalledSourcePackage\)[\s\S]*刷新诊断[\s\S]*diagnosticsSourceMetaText\(source\)[\s\S]*diagnosticsSmokeText\(source\)[\s\S]*diagnosticsUpdateText\(source\)[\s\S]*diagnosticsSettingsText\(source\)[\s\S]*diagnosticsSettingsValidationText\(source\)/,
+  'diagnostics panel must render source id metadata, smoke, update, setting counts, and settings validation',
+)
+assert.match(
+  sourcePackageManagerPageSource,
+  /diagnosticsSourceMetaText\(source: InstalledSourcePackage\): string[\s\S]*id: [\s\S]*enabled:[\s\S]*imported:/,
+  'diagnostics panel must include safe source id/enabled/imported metadata',
+)
+assert.match(
+  sourcePackageManagerPageSource,
+  /diagnosticsSettingCounts\(sourceId: string\): SourceDiagnosticsSettingCounts[\s\S]*fetchSourceSettingDescriptors\(appSourceRuntimeRegistry, sourceId\)[\s\S]*total:[\s\S]*editable:[\s\S]*sensitive:[\s\S]*saved:/,
+  'diagnostics panel must compute descriptor total/editable/sensitive and saved safe setting counts',
+)
+assert.match(
+  sourcePackageManagerPageSource,
+  /capsText\(source\)/,
+  'diagnostics panel must include source capabilities',
+)
 assert.doesNotMatch(
   sourcePackageManagerPageSource,
   /console\.(?:log|info|warn|error)\([^)]*JSON\.stringify\((?:settings|savedSettings|request|this\.settingDraft)/,
   'source settings validation must not log settings payloads or request JSON',
+)
+assert.doesNotMatch(
+  sourcePackageManagerPageSource,
+  /\[SourceRuntimeDiagnostics\][^)]*(?:JSON\.stringify|settings|savedSettings|request|settingDraft|token|cookie|password|apiKey|secret)/i,
+  'source runtime diagnostics logs must not include settings payloads, request JSON, or secret descriptors',
 )
 assert.doesNotMatch(
   sourcePackageManagerPageSource,

@@ -63,6 +63,13 @@ interface SourceSettingsValidationRequest {
   hostHints: SourceSettingsValidationHostHints
 }
 
+interface SourceDiagnosticsSettingCounts {
+  total: number
+  editable: number
+  sensitive: number
+  saved: number
+}
+
 @Component
 export struct SourcePackageManagerPage {
   @State private packages: InstalledSourcePackage[] = []
@@ -83,6 +90,7 @@ export struct SourcePackageManagerPage {
   @State private settingsAvailability: Record<string, string> = {}
   @State private settingsValidationStatuses: SourceSettingsValidationStatus[] = []
   @State private settingsValidationSourceId: string = ''
+  @State private diagnosticsSourceId: string = ''
   private sourceIndexService: SourceIndexService = new SourceIndexService(this.context())
 
   aboutToAppear(): void {
@@ -174,6 +182,27 @@ export struct SourcePackageManagerPage {
     return { sourceId, status: 'unknown' }
   }
 
+  private isDiagnosticsOpen(sourceId: string): boolean {
+    return this.diagnosticsSourceId === sourceId
+  }
+
+  private toggleDiagnostics(source: InstalledSourcePackage): void {
+    if (this.isDiagnosticsOpen(source.id)) {
+      this.diagnosticsSourceId = ''
+      console.info('[SourceRuntimeDiagnostics] step=close id=' + source.id)
+      return
+    }
+    this.diagnosticsSourceId = source.id
+    console.info('[SourceRuntimeDiagnostics] step=open id=' + source.id)
+  }
+
+  private refreshDiagnostics(source: InstalledSourcePackage): void {
+    console.info('[SourceRuntimeDiagnostics] step=refresh id=' + source.id)
+    this.reload()
+    const installed = this.installedPackage(source.id)
+    this.diagnosticsSourceId = installed === undefined ? '' : source.id
+  }
+
   private setUpdateStatus(nextStatus: SourcePackageUpdateStatus): void {
     const next: SourcePackageUpdateStatus[] = []
     let replaced = false
@@ -198,6 +227,17 @@ export struct SourcePackageManagerPage {
   private savedSettingsCount(sourceId: string): number {
     const saved = appSourceSettingsStore.loadForSource(sourceId)
     return Object.keys(saved).length
+  }
+
+  private diagnosticsSettingCounts(sourceId: string): SourceDiagnosticsSettingCounts {
+    const descriptors = fetchSourceSettingDescriptors(appSourceRuntimeRegistry, sourceId)
+    const counts: SourceDiagnosticsSettingCounts = {
+      total: descriptors.length,
+      editable: descriptors.filter((descriptor: SourceSettingDescriptor): boolean => descriptor.supported && !descriptor.sensitive).length,
+      sensitive: descriptors.filter((descriptor: SourceSettingDescriptor): boolean => descriptor.sensitive).length,
+      saved: this.savedSettingsCount(sourceId),
+    }
+    return counts
   }
 
   private settingsValidationStatus(sourceId: string): SourceSettingsValidationStatus {
@@ -644,6 +684,9 @@ export struct SourcePackageManagerPage {
       if (removed) {
         this.clearUpdateStatus(source.id)
         this.clearSettingsValidationStatus(source.id)
+        if (this.diagnosticsSourceId === source.id) {
+          this.diagnosticsSourceId = ''
+        }
       }
       this.reload()
     } catch (_error) {
@@ -850,6 +893,54 @@ export struct SourcePackageManagerPage {
 
   private sourceSettingsText(source: InstalledSourcePackage): string {
     return this.settingsAvailability[source.id] ?? '设置项：未检查'
+  }
+
+  private diagnosticsSourceMetaText(source: InstalledSourcePackage): string {
+    return 'id: ' + source.id + ' · name: ' + source.name + ' · enabled: ' + (source.enabled ? 'true' : 'false') + ' · imported: ' + (source.status === 'imported' ? 'true' : 'false')
+  }
+
+  private diagnosticsVersionText(source: InstalledSourcePackage): string {
+    return 'version: ' + source.version + ' · language: ' + (source.lang.length > 0 ? source.lang : 'unknown') + ' · rating: ' + (source.nsfw ? 'NSFW' : '全年龄')
+  }
+
+  private diagnosticsSmokeText(source: InstalledSourcePackage): string {
+    const reason = source.lastDiagnosticMessage.length > 0 ? this.sourceReasonText(source.lastDiagnosticMessage) : '未运行'
+    return 'Smoke：' + source.smokeStatus + ' · ' + reason
+  }
+
+  private diagnosticsUpdateReasonText(status: SourcePackageUpdateStatus): string {
+    switch (status.status) {
+      case 'checking':
+        return '检查中'
+      case 'latest':
+      case 'update':
+        return this.sourceReasonText(status.reasonCode ?? 'ok')
+      case 'missing':
+        return '索引中未找到'
+      case 'failed':
+        return this.sourceReasonText(status.reasonCode)
+      case 'unknown':
+      default:
+        return '未检查'
+    }
+  }
+
+  private diagnosticsUpdateText(source: InstalledSourcePackage): string {
+    const status = this.updateStatus(source.id)
+    const localVersion = status.localVersion ?? source.version
+    const remoteVersion = status.remoteVersion ?? 'unknown'
+    return 'Update：' + status.status + ' · localVersion=' + localVersion + ' · remoteVersion=' + remoteVersion + ' · ' + this.diagnosticsUpdateReasonText(status)
+  }
+
+  private diagnosticsSettingsText(source: InstalledSourcePackage): string {
+    const counts = this.diagnosticsSettingCounts(source.id)
+    return 'Settings descriptors：total=' + counts.total.toString() + ' · editable=' + counts.editable.toString() + ' · sensitive=' + counts.sensitive.toString() + ' · saved=' + counts.saved.toString()
+  }
+
+  private diagnosticsSettingsValidationText(source: InstalledSourcePackage): string {
+    const status = this.settingsValidationStatus(source.id)
+    const reason = status.status === 'fail' ? this.sourceReasonText(status.reasonCode) : (status.status === 'running' ? '验证中' : (status.status === 'pass' ? '正常' : '未运行'))
+    return 'Settings validation：' + status.status + ' · saved=' + status.savedCount.toString() + ' · ' + reason
   }
 
   @Builder
@@ -1179,7 +1270,10 @@ export struct SourcePackageManagerPage {
           .onClick(() => {
             this.smokePackage(source)
           })
+      }
+      .width('100%')
 
+      Row({ space: 8 }) {
         Button('设置')
           .height(36)
           .layoutWeight(1)
@@ -1205,6 +1299,18 @@ export struct SourcePackageManagerPage {
             this.validateSettings(source)
           })
 
+        Button(this.isDiagnosticsOpen(source.id) ? '收起诊断' : '诊断')
+          .height(36)
+          .layoutWeight(1)
+          .fontSize(13)
+          .fontColor($r('app.color.koma_accent'))
+          .backgroundColor('#00000000')
+          .border({ width: 1, color: $r('app.color.koma_accent') })
+          .borderRadius(8)
+          .onClick(() => {
+            this.toggleDiagnostics(source)
+          })
+
         Button('删除')
           .height(36)
           .layoutWeight(1)
@@ -1218,11 +1324,80 @@ export struct SourcePackageManagerPage {
           })
       }
       .width('100%')
+
+      if (this.isDiagnosticsOpen(source.id)) {
+        this.DiagnosticsPanel(source)
+      }
     }
     .width('100%')
     .padding(16)
     .borderRadius(8)
     .backgroundColor($r('app.color.koma_card'))
+  }
+
+  @Builder
+  private DiagnosticsPanel(source: InstalledSourcePackage) {
+    Column({ space: 10 }) {
+      Row({ space: 10 }) {
+        Text('源运行诊断')
+          .fontSize(15)
+          .fontWeight(FontWeight.Medium)
+          .fontColor($r('app.color.koma_text_primary'))
+          .layoutWeight(1)
+
+        Button('刷新诊断')
+          .height(32)
+          .fontSize(13)
+          .fontColor($r('app.color.koma_accent'))
+          .backgroundColor('#00000000')
+          .border({ width: 1, color: $r('app.color.koma_accent') })
+          .borderRadius(8)
+          .onClick(() => {
+            this.refreshDiagnostics(source)
+          })
+      }
+      .width('100%')
+
+      Text(this.diagnosticsSourceMetaText(source))
+        .width('100%')
+        .fontSize(12)
+        .fontColor($r('app.color.koma_text_secondary'))
+      Text(this.diagnosticsVersionText(source))
+        .width('100%')
+        .fontSize(12)
+        .fontColor($r('app.color.koma_text_secondary'))
+      Text(this.capsText(source))
+        .width('100%')
+        .fontSize(12)
+        .fontColor($r('app.color.koma_text_secondary'))
+        .maxLines(3)
+        .textOverflow({ overflow: TextOverflow.Ellipsis })
+      Text(this.diagnosticsSmokeText(source))
+        .width('100%')
+        .fontSize(12)
+        .fontColor($r('app.color.koma_text_secondary'))
+      Text(this.diagnosticsUpdateText(source))
+        .width('100%')
+        .fontSize(12)
+        .fontColor($r('app.color.koma_text_secondary'))
+        .maxLines(2)
+        .textOverflow({ overflow: TextOverflow.Ellipsis })
+      Text(this.diagnosticsSettingsText(source))
+        .width('100%')
+        .fontSize(12)
+        .fontColor($r('app.color.koma_text_secondary'))
+      Text(this.diagnosticsSettingsValidationText(source))
+        .width('100%')
+        .fontSize(12)
+        .fontColor($r('app.color.koma_text_secondary'))
+        .maxLines(2)
+        .textOverflow({ overflow: TextOverflow.Ellipsis })
+    }
+    .width('100%')
+    .padding(12)
+    .border({ width: 1, color: '#338F837D' })
+    .borderRadius(8)
+    .backgroundColor('#0A8F837D')
   }
 
   @Builder
