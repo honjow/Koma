@@ -132,6 +132,7 @@ Verified on device `192.168.50.103:12345`:
 - App accepts source-repo `.koma` packages (`manifest.json` + `source.wasm`) and legacy/internal source archive layouts.
 - Reader integrates source `get_image_request` for source-owned image URL/header resolution.
 - Installed source packages can expose non-secret `get_settings` descriptors; Koma stores sanitized values per source id and injects them into Browse/detail/pages/image-request runtime envelopes.
+- Installed source cards can validate saved non-secret settings through a `get_home` runtime request and show per-source PASS/FAIL state without exposing setting values.
 - Production Browse lists only user-installed/enabled packages; no bundled public source or test fixture is registered.
 - Source URL index import: user-configured index URL -> fetch `index.json` -> list packages -> download selected `pkg` -> install/enable via existing archive validator/registry. No built-in default source URL is included.
 - Installed source package update check/upgrade MVP uses the user-configured source index to show per-package latest/update/missing/failure status and update installed packages safely.

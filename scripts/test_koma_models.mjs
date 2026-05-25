@@ -927,6 +927,36 @@ assert.match(
   /if \(this\.updateEntry\(source\.id\) !== undefined\) \{[\s\S]*Button\(this\.updateActionLabel\(source\.id\)\)[\s\S]*this\.updateInstalledPackage\(source\)/,
   'installed source cards must show an update button only when an update is available',
 )
+assert.match(
+  sourcePackageManagerPageSource,
+  /\[SourceSettingsValidation\] step=start id=[\s\S]*\[SourceSettingsValidation\] step=done id=[\s\S]*ok=true[\s\S]*\[SourceSettingsValidation\] step=done id=[\s\S]*ok=false reason=/,
+  'source package manager must log SourceSettingsValidation lifecycle without payloads',
+)
+assert.match(
+  sourcePackageManagerPageSource,
+  /validateSettings\(source: InstalledSourcePackage\): void[\s\S]*appSourceSettingsStore\.loadForSource\(source\.id\)[\s\S]*const args: SourceSettingsValidationArgs = \{\}[\s\S]*const hostHints: SourceSettingsValidationHostHints = \{ network: true \}[\s\S]*operation: 'get_home'[\s\S]*args,[\s\S]*settings: savedSettings[\s\S]*hostHints,[\s\S]*runRegisteredSourceRequestById\(appSourceRuntimeRegistry, source\.id, JSON\.stringify\(request\)\)/,
+  'source settings validation must use saved per-source settings in a runtime get_home envelope',
+)
+assert.match(
+  sourcePackageManagerPageSource,
+  /settingsValidationText\(source: InstalledSourcePackage\): string[\s\S]*已保存 [\s\S]*设置验证：验证中[\s\S]*设置验证：PASS[\s\S]*设置验证：FAIL：[\s\S]*设置验证：未运行/,
+  'installed source cards must render unknown/running/PASS/FAIL settings validation text with saved count',
+)
+assert.match(
+  sourcePackageManagerPageSource,
+  /Button\(this\.validateSettingsActionLabel\(source\.id\)\)[\s\S]*this\.validateSettings\(source\)/,
+  'installed source cards must expose a settings validation action',
+)
+assert.doesNotMatch(
+  sourcePackageManagerPageSource,
+  /console\.(?:log|info|warn|error)\([^)]*JSON\.stringify\((?:settings|savedSettings|request|this\.settingDraft)/,
+  'source settings validation must not log settings payloads or request JSON',
+)
+assert.doesNotMatch(
+  sourcePackageManagerPageSource,
+  /catch \((?:error|err|e)\)[\s\S]{0,160}(?:statusText|showToast)\s*=[\s\S]{0,80}\.(?:message|stack)|catch \((?:error|err|e)\)[\s\S]{0,160}showToast\([^)]*\.(?:message|stack)/,
+  'source package manager must not surface raw exception details in settings validation UI',
+)
 assert.doesNotMatch(
   sourcePackageManagerPageSource,
   /源市场|内置源|聚合源|fake source market/i,

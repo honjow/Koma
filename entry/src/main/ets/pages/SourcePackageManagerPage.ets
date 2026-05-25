@@ -11,6 +11,7 @@ import {
   runSmoke,
   setEnabled,
 } from '../sourceRuntime/SourceRuntimeAppRegistry'
+import { runRegisteredSourceRequestById } from '../sourceRuntime/SourceRuntimeService'
 import {
   SourceSettingDescriptor,
   SourceSettingValue,
@@ -27,6 +28,7 @@ import {
 } from '../sourceRuntime/SourceIndexService'
 
 type SourcePackageUpdateState = 'unknown' | 'checking' | 'latest' | 'update' | 'missing' | 'failed'
+type SourceSettingsValidationState = 'unknown' | 'running' | 'pass' | 'fail'
 
 interface SourcePackageUpdateStatus {
   sourceId: string
@@ -35,6 +37,30 @@ interface SourcePackageUpdateStatus {
   remoteVersion?: string
   localVersion?: string
   reasonCode?: string
+}
+
+interface SourceSettingsValidationStatus {
+  sourceId: string
+  status: SourceSettingsValidationState
+  savedCount: number
+  reasonCode?: string
+}
+
+interface SourceSettingsValidationArgs {}
+
+interface SourceSettingsValidationHostHints {
+  network: boolean
+}
+
+interface SourceSettingsValidationRequest {
+  type: string
+  version: number
+  requestId: string
+  operation: string
+  sourceId: string
+  args: SourceSettingsValidationArgs
+  settings: SourceSettingsRecord
+  hostHints: SourceSettingsValidationHostHints
 }
 
 @Component
@@ -55,6 +81,8 @@ export struct SourcePackageManagerPage {
   @State private updateCheckBusy: boolean = false
   @State private updateInstallSourceId: string = ''
   @State private settingsAvailability: Record<string, string> = {}
+  @State private settingsValidationStatuses: SourceSettingsValidationStatus[] = []
+  @State private settingsValidationSourceId: string = ''
   private sourceIndexService: SourceIndexService = new SourceIndexService(this.context())
 
   aboutToAppear(): void {
@@ -70,16 +98,28 @@ export struct SourcePackageManagerPage {
   private reload(): void {
     this.packages = listInstalled()
     const availability: Record<string, string> = {}
+    const validationStatuses: SourceSettingsValidationStatus[] = []
     this.packages.forEach((source: InstalledSourcePackage) => {
       const descriptors = fetchSourceSettingDescriptors(appSourceRuntimeRegistry, source.id)
       if (descriptors.length === 0) {
         availability[source.id] = '设置项：无'
-        return
+      } else {
+        const editable = descriptors.filter((descriptor: SourceSettingDescriptor): boolean => descriptor.supported && !descriptor.sensitive).length
+        availability[source.id] = '设置项：' + editable.toString() + '/' + descriptors.length.toString() + ' 可编辑'
       }
-      const editable = descriptors.filter((descriptor: SourceSettingDescriptor): boolean => descriptor.supported && !descriptor.sensitive).length
-      availability[source.id] = '设置项：' + editable.toString() + '/' + descriptors.length.toString() + ' 可编辑'
+      const existing = this.settingsValidationStatuses.find((status: SourceSettingsValidationStatus): boolean => status.sourceId === source.id)
+      if (existing !== undefined) {
+        validationStatuses.push(existing)
+      } else {
+        validationStatuses.push({
+          sourceId: source.id,
+          status: 'unknown',
+          savedCount: this.savedSettingsCount(source.id),
+        })
+      }
     })
     this.settingsAvailability = availability
+    this.settingsValidationStatuses = validationStatuses
   }
 
   private async loadSavedIndexUrl(): Promise<void> {
@@ -153,6 +193,44 @@ export struct SourcePackageManagerPage {
 
   private clearUpdateStatus(sourceId: string): void {
     this.packageUpdateStatuses = this.packageUpdateStatuses.filter((item: SourcePackageUpdateStatus): boolean => item.sourceId !== sourceId)
+  }
+
+  private savedSettingsCount(sourceId: string): number {
+    const saved = appSourceSettingsStore.loadForSource(sourceId)
+    return Object.keys(saved).length
+  }
+
+  private settingsValidationStatus(sourceId: string): SourceSettingsValidationStatus {
+    const status = this.settingsValidationStatuses.find((item: SourceSettingsValidationStatus): boolean => item.sourceId === sourceId)
+    if (status !== undefined) {
+      return status
+    }
+    return {
+      sourceId,
+      status: 'unknown',
+      savedCount: this.savedSettingsCount(sourceId),
+    }
+  }
+
+  private setSettingsValidationStatus(nextStatus: SourceSettingsValidationStatus): void {
+    const next: SourceSettingsValidationStatus[] = []
+    let replaced = false
+    this.settingsValidationStatuses.forEach((item: SourceSettingsValidationStatus) => {
+      if (item.sourceId === nextStatus.sourceId) {
+        next.push(nextStatus)
+        replaced = true
+      } else {
+        next.push(item)
+      }
+    })
+    if (!replaced) {
+      next.push(nextStatus)
+    }
+    this.settingsValidationStatuses = next
+  }
+
+  private clearSettingsValidationStatus(sourceId: string): void {
+    this.settingsValidationStatuses = this.settingsValidationStatuses.filter((item: SourceSettingsValidationStatus): boolean => item.sourceId !== sourceId)
   }
 
   private updateStatusText(source: InstalledSourcePackage): string {
@@ -425,6 +503,12 @@ export struct SourcePackageManagerPage {
         return '运行超时'
       case 'smoke_failed':
         return 'Smoke 检查失败'
+      case 'missing_response':
+        return '源运行未返回结果'
+      case 'runtime_response_not_ok':
+        return '源运行返回失败'
+      case 'settings_validation_failed':
+        return '设置验证失败'
       case 'ok':
         return '正常'
       case 'unknown':
@@ -559,6 +643,7 @@ export struct SourcePackageManagerPage {
       this.statusText = removed ? '已删除源包' : '源包不可用'
       if (removed) {
         this.clearUpdateStatus(source.id)
+        this.clearSettingsValidationStatus(source.id)
       }
       this.reload()
     } catch (_error) {
@@ -578,6 +663,90 @@ export struct SourcePackageManagerPage {
       this.showToast('Smoke FAIL')
     }
     this.reload()
+  }
+
+  private validateSettingsActionLabel(sourceId: string): string {
+    return this.settingsValidationSourceId === sourceId ? '验证中' : '验证设置'
+  }
+
+  private settingsValidationText(source: InstalledSourcePackage): string {
+    const status = this.settingsValidationStatus(source.id)
+    const savedText = ' · 已保存 ' + status.savedCount.toString() + ' 项'
+    switch (status.status) {
+      case 'running':
+        return '设置验证：验证中' + savedText
+      case 'pass':
+        return '设置验证：PASS' + savedText
+      case 'fail':
+        return '设置验证：FAIL：' + this.sourceReasonText(status.reasonCode) + savedText
+      case 'unknown':
+      default:
+        return '设置验证：未运行' + savedText
+    }
+  }
+
+  private validateSettings(source: InstalledSourcePackage): void {
+    if (this.settingsValidationSourceId.length > 0) {
+      return
+    }
+    const savedSettings = appSourceSettingsStore.loadForSource(source.id)
+    const savedCount = Object.keys(savedSettings).length
+    console.info('[SourceSettingsValidation] step=start id=' + source.id + ' saved=' + savedCount)
+    this.settingsValidationSourceId = source.id
+    this.setSettingsValidationStatus({
+      sourceId: source.id,
+      status: 'running',
+      savedCount,
+    })
+    const args: SourceSettingsValidationArgs = {}
+    const hostHints: SourceSettingsValidationHostHints = { network: true }
+    const request: SourceSettingsValidationRequest = {
+      type: 'request',
+      version: 1,
+      requestId: 'settings-validation-' + source.id + '-' + Date.now().toString(),
+      operation: 'get_home',
+      sourceId: source.id,
+      args,
+      settings: savedSettings,
+      hostHints,
+    }
+    try {
+      const result = runRegisteredSourceRequestById(appSourceRuntimeRegistry, source.id, JSON.stringify(request))
+      if (result.response !== undefined && result.response.ok === true) {
+        this.setSettingsValidationStatus({
+          sourceId: source.id,
+          status: 'pass',
+          savedCount,
+        })
+        this.statusText = '设置验证 PASS'
+        this.showToast('设置验证 PASS')
+        console.info('[SourceSettingsValidation] step=done id=' + source.id + ' ok=true saved=' + savedCount)
+        return
+      }
+      const reason = result.reasonCode ?? result.response?.reasonCode ?? (result.response === undefined ? 'missing_response' : 'runtime_response_not_ok')
+      this.setSettingsValidationStatus({
+        sourceId: source.id,
+        status: 'fail',
+        savedCount,
+        reasonCode: reason,
+      })
+      this.statusText = '设置验证失败：' + this.sourceReasonText(reason)
+      this.showToast('设置验证 FAIL')
+      console.error('[SourceSettingsValidation] step=done id=' + source.id + ' ok=false reason=' + reason + ' saved=' + savedCount)
+    } catch (_error) {
+      const reason = 'settings_validation_failed'
+      this.setSettingsValidationStatus({
+        sourceId: source.id,
+        status: 'fail',
+        savedCount,
+        reasonCode: reason,
+      })
+      this.statusText = '设置验证失败：' + this.sourceReasonText(reason)
+      this.showToast('设置验证 FAIL')
+      console.error('[SourceSettingsValidation] step=done id=' + source.id + ' ok=false reason=' + reason + ' saved=' + savedCount)
+    } finally {
+      this.settingsValidationSourceId = ''
+    }
   }
 
   private openSettings(source: InstalledSourcePackage): void {
@@ -613,6 +782,13 @@ export struct SourcePackageManagerPage {
       return
     }
     appSourceSettingsStore.saveForSource(this.settingsSourceId, this.settingDraft, this.settingDescriptors)
+    const savedCount = this.savedSettingsCount(this.settingsSourceId)
+    this.setSettingsValidationStatus({
+      sourceId: this.settingsSourceId,
+      status: 'unknown',
+      savedCount,
+    })
+    this.reload()
     this.statusText = '源设置已保存'
     this.showToast('源设置已保存')
     this.closeSettings()
@@ -951,6 +1127,13 @@ export struct SourcePackageManagerPage {
         .fontSize(12)
         .fontColor($r('app.color.koma_text_secondary'))
 
+      Text(this.settingsValidationText(source))
+        .width('100%')
+        .fontSize(12)
+        .fontColor($r('app.color.koma_text_secondary'))
+        .maxLines(2)
+        .textOverflow({ overflow: TextOverflow.Ellipsis })
+
       Text(this.capsText(source))
         .width('100%')
         .fontSize(12)
@@ -1007,6 +1190,19 @@ export struct SourcePackageManagerPage {
           .borderRadius(8)
           .onClick(() => {
             this.openSettings(source)
+          })
+
+        Button(this.validateSettingsActionLabel(source.id))
+          .height(36)
+          .layoutWeight(1)
+          .fontSize(13)
+          .fontColor($r('app.color.koma_accent'))
+          .enabled(this.settingsValidationSourceId.length === 0)
+          .backgroundColor('#00000000')
+          .border({ width: 1, color: $r('app.color.koma_accent') })
+          .borderRadius(8)
+          .onClick(() => {
+            this.validateSettings(source)
           })
 
         Button('删除')
