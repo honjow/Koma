@@ -31,6 +31,7 @@ export interface SourceRuntimeRegistryEntry {
   enabled: boolean
   language: string
   type: string
+  nsfw: boolean
   capabilities: string[]
   validationEvidence: string[]
   manifestPath?: string
@@ -65,6 +66,7 @@ export interface SourceRuntimeRegistryPersistedEntry {
   enabled?: boolean
   language?: string
   type?: string
+  nsfw?: boolean
   capabilities?: string[]
   wasmPath?: string
   manifestPath?: string
@@ -100,6 +102,8 @@ export interface SourceRuntimeRegistryInstalledSourceSummary {
   networkEnabled: boolean
   httpEnabled: boolean
   enabled: boolean
+  language: string
+  nsfw: boolean
   status: string
   capabilities: string[]
 }
@@ -202,7 +206,7 @@ function manifestForReload(entry: SourceRuntimeRegistryPersistedEntry): LocalSou
       version: entry.manifestVersion,
       language: entry.language ?? 'en',
       type: entry.type ?? 'wasm-source-fixture',
-      nsfw: false,
+      nsfw: entry.nsfw === true,
     },
     runtime: {
       abi: 'koma-source-abi-v0.1',
@@ -239,6 +243,7 @@ function persistedEntryFromRegistryEntry(entry: SourceRuntimeRegistryEntry): Sou
     enabled: entry.enabled,
     language: entry.language,
     type: entry.type,
+    nsfw: entry.nsfw,
     capabilities: entry.capabilities,
     wasmPath: entry.wasmPath,
     manifestPath: entry.manifestPath,
@@ -304,6 +309,9 @@ function persistedEntryShapeInvalid(entry: SourceRuntimeRegistryPersistedEntry):
   if (entry.type !== undefined && typeof entry.type !== 'string') {
     return true
   }
+  if (entry.nsfw !== undefined && typeof entry.nsfw !== 'boolean') {
+    return true
+  }
   if (entry.capabilities !== undefined) {
     if (!Array.isArray(entry.capabilities)) {
       return true
@@ -351,6 +359,7 @@ export class SourceRuntimeRegistry {
       enabled: input.enabled === false ? false : true,
       language: input.manifest.package.language,
       type: input.manifest.package.type,
+      nsfw: input.manifest.package.nsfw,
       capabilities: capabilitiesFromManifest(input.manifest),
       validationEvidence: sourceRuntimeRegistryEvidence(input),
       manifestPath: input.manifestPath,
@@ -422,6 +431,8 @@ export class SourceRuntimeRegistry {
         networkEnabled: false,
         httpEnabled: false,
         enabled: entry.enabled,
+        language: entry.language,
+        nsfw: entry.nsfw,
         status: entry.importStatus,
         capabilities: entry.capabilities,
       }

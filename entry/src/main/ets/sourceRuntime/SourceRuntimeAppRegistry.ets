@@ -28,8 +28,12 @@ export interface InstalledSourcePackage {
   id: string
   name: string
   version: string
+  lang: string
+  nsfw: boolean
   enabled: boolean
   status: string
+  smokeStatus: string
+  lastDiagnosticMessage: string
   capabilities: string[]
 }
 
@@ -63,6 +67,20 @@ export interface SourcePackageRestoreResult {
 }
 
 export const appSourceRuntimeRegistry: SourceRuntimeRegistry = new SourceRuntimeRegistry()
+let sourceRuntimeDiagnostics: SourcePackageSmokeResult[] = []
+
+function getSourceRuntimeDiagnostic(id: string): SourcePackageSmokeResult | undefined {
+  return sourceRuntimeDiagnostics.find((item: SourcePackageSmokeResult): boolean => item.id === id)
+}
+
+function setSourceRuntimeDiagnostic(result: SourcePackageSmokeResult): void {
+  sourceRuntimeDiagnostics = sourceRuntimeDiagnostics.filter((item: SourcePackageSmokeResult): boolean => item.id !== result.id)
+  sourceRuntimeDiagnostics.push(result)
+}
+
+function clearSourceRuntimeDiagnostic(id: string): void {
+  sourceRuntimeDiagnostics = sourceRuntimeDiagnostics.filter((item: SourcePackageSmokeResult): boolean => item.id !== id)
+}
 
 function joinSourceRuntimePath(parent: string, child: string): string {
   const left = parent.replace(/\\/g, '/').replace(/\/+$/, '')
@@ -219,12 +237,17 @@ function sourceArchiveSandboxFileName(sourceUri: string): string {
 }
 
 function sourcePackageFromEntry(entry: SourceRuntimeRegistryEntry): InstalledSourcePackage {
+  const diagnostic = getSourceRuntimeDiagnostic(entry.sourceId)
   return {
     id: entry.sourceId,
     name: entry.manifestName,
     version: entry.manifestVersion,
+    lang: entry.language,
+    nsfw: entry.nsfw,
     enabled: entry.enabled,
     status: entry.importStatus,
+    smokeStatus: diagnostic === undefined ? '未运行' : (diagnostic.ok ? 'PASS' : 'FAIL'),
+    lastDiagnosticMessage: diagnostic === undefined ? '' : (diagnostic.reasonCode ?? 'ok'),
     capabilities: entry.capabilities,
   }
 }
@@ -246,7 +269,7 @@ function manifestFromRegistryEntry(entry: SourceRuntimeRegistryEntry): LocalSour
       version: entry.manifestVersion,
       language: entry.language,
       type: entry.type,
-      nsfw: false,
+      nsfw: entry.nsfw,
     },
     runtime: {
       abi: 'koma-source-abi-v0.1',
@@ -453,7 +476,7 @@ export function reloadInstalledSourcePackages(context: common.UIAbilityContext):
           version: entry.manifestVersion,
           language: entry.language,
           type: entry.type,
-          nsfw: false,
+          nsfw: entry.nsfw,
         },
         runtime: {
           abi: 'koma-source-abi-v0.1',
@@ -553,13 +576,12 @@ async function registerSourcePackageFromBytes(
     persistInstalledSources(context)
     console.info('[SourceManager] step=import_ok id=' + sourceId)
     return { ok: true, id: sourceId, name: imported.manifest.package.name }
-  } catch (error) {
-    const e = error as Error
+  } catch (_error) {
     try {
       await removeAppSourcePackageDir(context, packageDir)
     } catch (_err) {
     }
-    console.error('[SourceManager] step=import_fail reason=' + e.message)
+    console.error('[SourceManager] step=import_fail reason=import_failed')
     return { ok: false, reasonCode: 'import_failed' }
   }
 }
@@ -576,13 +598,12 @@ export async function installFromArchive(context: common.UIAbilityContext, uri: 
     await copyPickedArchiveUriToSandbox(uri, archivePath)
     const archiveBytes = readBytesSync(archivePath)
     return await registerSourcePackageFromBytes(context, archiveBytes, archiveFileName)
-  } catch (error) {
-    const e = error as Error
+  } catch (_error) {
     try {
       await removeAppSourcePackageDir(context, packageDir)
     } catch (_err) {
     }
-    console.error('[SourceManager] step=import_fail reason=' + e.message)
+    console.error('[SourceManager] step=import_fail reason=import_failed')
     return { ok: false, reasonCode: 'import_failed' }
   }
 }
@@ -618,6 +639,7 @@ export async function remove(context: common.UIAbilityContext, id: string): Prom
     }
   }
   appSourceSettingsStore.removeSource(id)
+  clearSourceRuntimeDiagnostic(id)
   persistInstalledSources(context)
   console.info('[SourceManager] step=remove id=' + id)
   return true
@@ -630,8 +652,12 @@ export function runSmoke(id: string): SourcePackageSmokeResult {
     `{"type":"request","version":1,"requestId":"source-manager-smoke-${Date.now()}","operation":"search","sourceId":"${id}","args":{"query":"fixture","page":{"cursor":null,"limit":20}},"settings":{},"hostHints":{"network":false}}`,
   )
   if (!result.ok) {
-    return { ok: false, id, reasonCode: result.reasonCode ?? 'smoke_failed' }
+    const failed: SourcePackageSmokeResult = { ok: false, id, reasonCode: result.reasonCode ?? 'smoke_failed' }
+    setSourceRuntimeDiagnostic(failed)
+    return failed
   }
   console.info('[SourceManager] step=smoke_ok id=' + id)
-  return { ok: true, id, firstTitle: 'Fixture Series' }
+  const passed: SourcePackageSmokeResult = { ok: true, id, firstTitle: 'Fixture Series' }
+  setSourceRuntimeDiagnostic(passed)
+  return passed
 }

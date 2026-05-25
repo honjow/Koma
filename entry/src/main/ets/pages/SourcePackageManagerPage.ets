@@ -40,6 +40,7 @@ export struct SourcePackageManagerPage {
   @State private indexFetchBusy: boolean = false
   @State private indexInstallBusy: boolean = false
   @State private indexStatusText: string = ''
+  @State private settingsAvailability: Record<string, string> = {}
   private sourceIndexService: SourceIndexService = new SourceIndexService(this.context())
 
   aboutToAppear(): void {
@@ -54,6 +55,17 @@ export struct SourcePackageManagerPage {
 
   private reload(): void {
     this.packages = listInstalled()
+    const availability: Record<string, string> = {}
+    this.packages.forEach((source: InstalledSourcePackage) => {
+      const descriptors = fetchSourceSettingDescriptors(appSourceRuntimeRegistry, source.id)
+      if (descriptors.length === 0) {
+        availability[source.id] = '设置项：无'
+        return
+      }
+      const editable = descriptors.filter((descriptor: SourceSettingDescriptor): boolean => descriptor.supported && !descriptor.sensitive).length
+      availability[source.id] = '设置项：' + editable.toString() + '/' + descriptors.length.toString() + ' 可编辑'
+    })
+    this.settingsAvailability = availability
   }
 
   private async loadSavedIndexUrl(): Promise<void> {
@@ -67,8 +79,115 @@ export struct SourcePackageManagerPage {
     return this.packages.map((pkg: InstalledSourcePackage): string => pkg.id)
   }
 
+  private installedPackage(entryId: string): InstalledSourcePackage | undefined {
+    return this.packages.find((pkg: InstalledSourcePackage): boolean => pkg.id === entryId)
+  }
+
   private isSourceInstalled(entryId: string): boolean {
     return this.installedSourceIds().indexOf(entryId) >= 0
+  }
+
+  private compareVersion(left: string, right: string): number {
+    const leftParts = left.split('.')
+    const rightParts = right.split('.')
+    const count = Math.max(leftParts.length, rightParts.length)
+    for (let index = 0; index < count; index += 1) {
+      const leftValue = Number.parseInt(leftParts[index] ?? '0')
+      const rightValue = Number.parseInt(rightParts[index] ?? '0')
+      if (Number.isNaN(leftValue) || Number.isNaN(rightValue)) {
+        return left === right ? 0 : left.localeCompare(right)
+      }
+      if (leftValue !== rightValue) {
+        return leftValue > rightValue ? 1 : -1
+      }
+    }
+    return 0
+  }
+
+  private hasUpdate(entry: SourceIndexEntry): boolean {
+    const installed = this.installedPackage(entry.id)
+    if (installed === undefined || entry.version.length === 0 || installed.version.length === 0) {
+      return false
+    }
+    return this.compareVersion(entry.version, installed.version) > 0
+  }
+
+  private indexVersionText(entry: SourceIndexEntry): string {
+    const installed = this.installedPackage(entry.id)
+    if (installed === undefined) {
+      return 'v' + entry.version
+    }
+    return '已装 v' + installed.version + ' / 索引 v' + entry.version
+  }
+
+  private sourceReasonText(reasonCode: string | undefined): string {
+    const code = reasonCode ?? 'unknown'
+    switch (code) {
+      case 'invalid_url':
+        return '索引地址必须是 http 或 https'
+      case 'network_error':
+        return '网络请求失败'
+      case 'http_error':
+        return '服务器返回错误状态'
+      case 'invalid_index_format':
+        return '源索引格式不正确'
+      case 'invalid_json':
+        return '源索引 JSON 无法解析'
+      case 'invalid_pkg_url':
+        return '源包地址不正确'
+      case 'invalid_response':
+        return '源包下载响应无效'
+      case 'empty_package':
+        return '源包为空'
+      case 'checksum_mismatch':
+        return '源包校验和不匹配'
+      case 'network_not_allowed':
+        return '源包请求了当前不允许的网络/安装能力'
+      case 'unsafe_archive_entry':
+        return '源包包含不安全文件路径'
+      case 'missing_manifest':
+        return '源包缺少 manifest'
+      case 'missing_wasm':
+        return '源包缺少 WASM 文件'
+      case 'manifest_invalid':
+        return '源包 manifest 不符合要求'
+      case 'validation_failed':
+        return '源包校验失败'
+      case 'register_failed':
+        return '源包注册失败'
+      case 'import_failed':
+        return '源包导入失败'
+      case 'duplicate_source_id':
+        return '源 ID 已存在'
+      case 'missing_source_id':
+        return '源 ID 缺失'
+      case 'source_id_not_registered':
+        return '源包未注册'
+      case 'source_id_mismatch':
+        return '请求源 ID 与源包不一致'
+      case 'malformed_json':
+        return '运行请求格式错误'
+      case 'missing_or_invalid_operation':
+        return '运行请求缺少有效操作'
+      case 'request_too_large':
+        return '运行请求过大'
+      case 'result_too_large':
+        return '运行结果过大'
+      case 'malformed_result':
+        return '运行结果格式错误'
+      case 'cancelled':
+        return '运行已取消'
+      case 'timeout':
+        return '运行超时'
+      case 'smoke_failed':
+        return 'Smoke 检查失败'
+      case 'ok':
+        return '正常'
+      case 'unknown':
+        return '未知错误'
+      default:
+        return '错误代码：' + code
+    }
   }
 
   private showToast(message: string): void {
@@ -95,13 +214,12 @@ export struct SourcePackageManagerPage {
         this.statusText = '导入成功'
         this.showToast('源包已导入')
       } else {
-        this.statusText = '导入失败：' + (result.reasonCode ?? 'validation_failed')
+        this.statusText = '导入失败：' + this.sourceReasonText(result.reasonCode)
         this.showToast('源包校验失败')
       }
       this.reload()
-    } catch (error) {
-      const e = error as Error
-      this.statusText = '导入失败：' + e.message
+    } catch (_error) {
+      this.statusText = '导入失败：' + this.sourceReasonText('import_failed')
       this.showToast('源包导入失败')
       this.reload()
     } finally {
@@ -128,42 +246,44 @@ export struct SourcePackageManagerPage {
         this.indexEntries = result.entries
         this.indexStatusText = '已加载 ' + result.entries.length + ' 个源'
       } else {
-        this.indexStatusText = '加载失败：' + (result.reasonCode ?? 'unknown')
+        this.indexStatusText = '加载失败：' + this.sourceReasonText(result.reasonCode)
       }
-    } catch (error) {
-      const e = error as Error
-      this.indexStatusText = '加载失败：' + e.message
+    } catch (_error) {
+      this.indexStatusText = '加载失败：' + this.sourceReasonText('network_error')
     } finally {
       this.indexFetchBusy = false
     }
   }
 
-  private async installIndexEntry(entry: SourceIndexEntry): Promise<void> {
+  private async installIndexEntry(entry: SourceIndexEntry, replaceExisting: boolean = false): Promise<void> {
     if (this.indexInstallBusy || this.busy) {
       return
     }
-    if (this.isSourceInstalled(entry.id)) {
+    const existing = this.installedPackage(entry.id)
+    if (existing !== undefined && !replaceExisting) {
       this.showToast('此源已安装')
       return
     }
     this.indexInstallBusy = true
-    this.indexStatusText = '正在安装 ' + entry.name + '...'
+    this.indexStatusText = replaceExisting ? ('正在更新 ' + entry.name + '...') : ('正在安装 ' + entry.name + '...')
     try {
       const result: SourceIndexInstallResult = await this.sourceIndexService.installPackage(
         this.sourceIndexUrl.trim(),
         entry,
       )
       if (result.ok) {
-        this.indexStatusText = '已安装 ' + entry.name
-        this.showToast('源包安装成功')
+        if (existing !== undefined && !existing.enabled) {
+          setEnabled(this.context(), existing.id, false)
+        }
+        this.indexStatusText = replaceExisting ? ('已更新 ' + entry.name) : ('已安装 ' + entry.name)
+        this.showToast(replaceExisting ? '源包已更新' : '源包安装成功')
         this.reload()
       } else {
-        this.indexStatusText = '安装失败：' + (result.reasonCode ?? 'unknown')
+        this.indexStatusText = (replaceExisting ? '更新失败：' : '安装失败：') + this.sourceReasonText(result.reasonCode)
         this.showToast('源包安装失败')
       }
-    } catch (error) {
-      const e = error as Error
-      this.indexStatusText = '安装失败：' + e.message
+    } catch (_error) {
+      this.indexStatusText = (replaceExisting ? '更新失败：' : '安装失败：') + this.sourceReasonText('network_error')
       this.showToast('源包安装失败')
     } finally {
       this.indexInstallBusy = false
@@ -194,9 +314,8 @@ export struct SourcePackageManagerPage {
       const removed = await remove(this.context(), source.id)
       this.statusText = removed ? '已删除源包' : '源包不可用'
       this.reload()
-    } catch (error) {
-      const e = error as Error
-      this.statusText = '删除失败：' + e.message
+    } catch (_error) {
+      this.statusText = '删除失败：' + this.sourceReasonText('unknown')
     } finally {
       this.busy = false
     }
@@ -208,9 +327,10 @@ export struct SourcePackageManagerPage {
       this.statusText = 'Smoke PASS'
       this.showToast('Smoke PASS')
     } else {
-      this.statusText = 'Smoke FAIL：' + (result.reasonCode ?? 'smoke_failed')
+      this.statusText = 'Smoke FAIL：' + this.sourceReasonText(result.reasonCode)
       this.showToast('Smoke FAIL')
     }
+    this.reload()
   }
 
   private openSettings(source: InstalledSourcePackage): void {
@@ -293,6 +413,20 @@ export struct SourcePackageManagerPage {
       return 'capabilities: none'
     }
     return 'capabilities: ' + source.capabilities.join(', ')
+  }
+
+  private sourceMetaText(source: InstalledSourcePackage): string {
+    const parts: string[] = ['v' + source.version]
+    if (source.lang.length > 0) {
+      parts.push(source.lang)
+    }
+    parts.push(source.nsfw ? 'NSFW' : '全年龄')
+    parts.push(source.status)
+    return parts.join(' · ')
+  }
+
+  private sourceSettingsText(source: InstalledSourcePackage): string {
+    return this.settingsAvailability[source.id] ?? '设置项：未检查'
   }
 
   @Builder
@@ -381,7 +515,18 @@ export struct SourcePackageManagerPage {
         .layoutWeight(1)
         .alignItems(HorizontalAlign.Start)
 
-        if (this.isSourceInstalled(entry.id)) {
+        if (this.hasUpdate(entry)) {
+          Button(this.indexInstallBusy ? '更新中' : '更新')
+            .height(34)
+            .fontSize(13)
+            .fontColor(Color.White)
+            .enabled(!this.indexInstallBusy)
+            .backgroundColor($r('app.color.koma_accent'))
+            .borderRadius(8)
+            .onClick(() => {
+              this.installIndexEntry(entry, true)
+            })
+        } else if (this.isSourceInstalled(entry.id)) {
           Text('已安装')
             .fontSize(12)
             .fontColor($r('app.color.koma_accent'))
@@ -404,7 +549,7 @@ export struct SourcePackageManagerPage {
       .width('100%')
 
       Row({ space: 8 }) {
-        Text('v' + entry.version)
+        Text(this.indexVersionText(entry))
           .fontSize(12)
           .fontColor($r('app.color.koma_text_secondary'))
         if (entry.lang.length > 0) {
@@ -419,6 +564,14 @@ export struct SourcePackageManagerPage {
             .padding({ left: 6, right: 6, top: 2, bottom: 2 })
             .borderRadius(4)
             .backgroundColor('#A13D32')
+        }
+        if (this.hasUpdate(entry)) {
+          Text('可更新')
+            .fontSize(11)
+            .fontColor(Color.White)
+            .padding({ left: 6, right: 6, top: 2, bottom: 2 })
+            .borderRadius(4)
+            .backgroundColor($r('app.color.koma_accent'))
         }
       }
       .width('100%')
@@ -516,9 +669,21 @@ export struct SourcePackageManagerPage {
       }
       .width('100%')
 
-      Text('v' + source.version + ' · ' + source.status)
+      Text(this.sourceMetaText(source))
         .width('100%')
         .fontSize(13)
+        .fontColor($r('app.color.koma_text_secondary'))
+
+      Text('Smoke：' + source.smokeStatus + (source.lastDiagnosticMessage.length > 0 ? (' · ' + this.sourceReasonText(source.lastDiagnosticMessage)) : ''))
+        .width('100%')
+        .fontSize(12)
+        .fontColor($r('app.color.koma_text_secondary'))
+        .maxLines(2)
+        .textOverflow({ overflow: TextOverflow.Ellipsis })
+
+      Text(this.sourceSettingsText(source))
+        .width('100%')
+        .fontSize(12)
         .fontColor($r('app.color.koma_text_secondary'))
 
       Text(this.capsText(source))

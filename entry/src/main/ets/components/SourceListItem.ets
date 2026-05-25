@@ -11,6 +11,8 @@ export struct SourceListItem {
     networkEnabled: false,
     httpEnabled: false,
     enabled: true,
+    language: '',
+    nsfw: false,
     status: 'staged',
     capabilities: [],
   }

@@ -15,6 +15,9 @@ source_package_importer_file="entry/src/main/ets/sourceRuntime/SourcePackageImpo
 source_runtime_runner_file="entry/src/main/ets/sourceRuntime/SourceRuntimeRunner.ets"
 source_runtime_service_file="entry/src/main/ets/sourceRuntime/SourceRuntimeService.ets"
 source_runtime_registry_file="entry/src/main/ets/sourceRuntime/SourceRuntimeRegistry.ets"
+source_runtime_app_registry_file="entry/src/main/ets/sourceRuntime/SourceRuntimeAppRegistry.ets"
+source_index_service_file="entry/src/main/ets/sourceRuntime/SourceIndexService.ets"
+source_package_manager_page_file="entry/src/main/ets/pages/SourcePackageManagerPage.ets"
 entry_ability_file="entry/src/main/ets/entryability/EntryAbility.ets"
 build_profile="entry/build-profile.json5"
 rawfile_fixture="entry/src/main/resources/rawfile/test/source_runtime_fixture.wasm"
@@ -49,6 +52,9 @@ require_file "$source_package_importer_file"
 require_file "$source_runtime_runner_file"
 require_file "$source_runtime_service_file"
 require_file "$source_runtime_registry_file"
+require_file "$source_runtime_app_registry_file"
+require_file "$source_index_service_file"
+require_file "$source_package_manager_page_file"
 require_file "$entry_ability_file"
 require_file "$rawfile_fixture"
 require_file "$rust_rawfile_fixture"
@@ -484,6 +490,20 @@ require_text "$source_runtime_registry_file" 'wasm_byte_count_mismatch'
 require_text "$source_runtime_registry_file" 'readBytesSync'
 require_text "$source_runtime_registry_file" 'hashOk:true'
 require_text "$source_runtime_registry_file" 'network:false'
+require_text "$source_runtime_registry_file" 'nsfw'
+require_text "$source_runtime_app_registry_file" 'sourceRuntimeDiagnostics'
+require_text "$source_runtime_app_registry_file" 'lastDiagnosticMessage'
+require_text "$source_runtime_app_registry_file" 'clearSourceRuntimeDiagnostic'
+require_text "$source_index_service_file" 'installPackage'
+require_text "$source_index_service_file" 'step=download_pkg'
+if rg -q 'step=(save_url|fetch_ok|download_pkg).*url=' "$source_index_service_file"; then
+  echo "source index service must not log raw source index or package URLs" >&2
+  exit 1
+fi
+require_text "$source_package_manager_page_file" 'hasUpdate'
+require_text "$source_package_manager_page_file" 'sourceReasonText'
+require_text "$source_package_manager_page_file" 'installIndexEntry\(entry: SourceIndexEntry, replaceExisting: boolean = false\)'
+require_text "$source_package_manager_page_file" 'setEnabled\(this.context\(\), existing.id, false\)'
 require_text "$entry_ability_file" 'maybeRunSourceRuntimeDeviceSmoke'
 require_text "$entry_ability_file" 'onCreate'
 require_text "$entry_ability_file" 'onNewWant'
@@ -539,7 +559,7 @@ if rg -q 'napi-sample|Koma native source runtime sample' "$smoke_file"; then
   exit 1
 fi
 
-changed_ui_files="$(git diff --name-only -- entry/src/main/ets/pages entry/src/main/ets/components entry/src/main/ets/model entry/src/main/ets/import entry/src/main/ets/remote entry/src/main/module.json5 | rg -v '^entry/src/main/ets/pages/Index\.ets$|^entry/src/main/ets/pages/LibraryPage\.ets$|^entry/src/main/ets/pages/ReaderPage\.ets$|^entry/src/main/ets/pages/SettingsPage\.ets$|^entry/src/main/ets/pages/SourcePackageManagerPage\.ets$|^entry/src/main/ets/pages/MangaDetailPage\.ets$|^entry/src/main/ets/components/ReaderChrome\.ets$|^entry/src/main/ets/model/ComicModels\.ets$|^entry/src/main/ets/model/Library(FilterStore|Persistence|Store)\.ets$|^entry/src/main/ets/model/Reader(PageSourceAdapter|PreferencesStore)\.ets$|^entry/src/main/ets/model/OfflineDownload(Store|Service)\.ets$|^entry/src/main/ets/model/Source(TextNormalizer|Models)\.ets$|^entry/src/main/ets/model/MangaDetailModels\.ets$|^entry/src/main/ets/viewmodel/BrowseViewModel\.ets$|^entry/src/main/ets/model/BackupService\.ets$' || true)"
+changed_ui_files="$(git diff --name-only -- entry/src/main/ets/pages entry/src/main/ets/components entry/src/main/ets/model entry/src/main/ets/import entry/src/main/ets/remote entry/src/main/module.json5 | rg -v '^entry/src/main/ets/pages/Index\.ets$|^entry/src/main/ets/pages/LibraryPage\.ets$|^entry/src/main/ets/pages/ReaderPage\.ets$|^entry/src/main/ets/pages/SettingsPage\.ets$|^entry/src/main/ets/pages/SourcePackageManagerPage\.ets$|^entry/src/main/ets/pages/Source(Browse|Search)Page\.ets$|^entry/src/main/ets/pages/MangaDetailPage\.ets$|^entry/src/main/ets/components/ReaderChrome\.ets$|^entry/src/main/ets/components/SourceListItem\.ets$|^entry/src/main/ets/model/ComicModels\.ets$|^entry/src/main/ets/model/Library(FilterStore|Persistence|Store)\.ets$|^entry/src/main/ets/model/Reader(PageSourceAdapter|PreferencesStore)\.ets$|^entry/src/main/ets/model/OfflineDownload(Store|Service)\.ets$|^entry/src/main/ets/model/Source(TextNormalizer|Models)\.ets$|^entry/src/main/ets/model/MangaDetailModels\.ets$|^entry/src/main/ets/viewmodel/BrowseViewModel\.ets$|^entry/src/main/ets/model/BackupService\.ets$' || true)"
 if [[ -n "$changed_ui_files" ]]; then
   echo "unexpected product/UI changes:" >&2
   echo "$changed_ui_files" >&2
@@ -563,7 +583,7 @@ require_text "tools/wasm-runtime-spike/host/host_runner.cpp" 'native_module_name
 require_text "tools/wasm-runtime-spike/host/host_runner.cpp" 'HOST_LOG'
 require_text "tools/wasm-runtime-spike/host/host_runner.cpp" 'HOST_CHECK_CANCEL'
 
-source_management_changes="$(git diff --name-only | rg '(^|/)(source|sources|market|marketplace|plugin).*(Page|View|Store|Service|Client)\.(ets|ts|cpp)$' | rg -v '^entry/src/main/ets/sourceRuntime/SourceRuntimeService\.ets$|^entry/src/main/ets/sourceRuntime/SourceSettingsStore\.ets$|^entry/src/main/ets/sourceRuntime/SourceIndexService\.ets$|^entry/src/main/ets/pages/SourcePackageManagerPage\.ets$' || true)"
+source_management_changes="$(git diff --name-only | rg '(^|/)(source|sources|market|marketplace|plugin).*(Page|View|Store|Service|Client)\.(ets|ts|cpp)$' | rg -v '^entry/src/main/ets/sourceRuntime/SourceRuntimeService\.ets$|^entry/src/main/ets/sourceRuntime/SourceSettingsStore\.ets$|^entry/src/main/ets/sourceRuntime/SourceIndexService\.ets$|^entry/src/main/ets/pages/Source(PackageManager|Browse|Search)Page\.ets$' || true)"
 if [[ -n "$source_management_changes" ]]; then
   echo "unexpected source management or marketplace-shaped product changes" >&2
   echo "$source_management_changes" >&2

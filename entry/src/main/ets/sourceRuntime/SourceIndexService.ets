@@ -123,10 +123,10 @@ export class SourceIndexService {
       const store = await preferences.getPreferences(this.context, SOURCE_INDEX_PREFS_STORE_NAME)
       await store.put(SOURCE_INDEX_URL_KEY, normalized)
       await store.flush()
-      console.info('[SourceIndex] step=save_url url=' + normalized)
+      console.info('[SourceIndex] step=save_url')
     } catch (error) {
       const e = error as BusinessError
-      console.error('[SourceIndex] step=save_url_fail code=' + e.code + ' message=' + e.message)
+      console.error('[SourceIndex] step=save_url_fail code=' + e.code)
     }
   }
 
@@ -180,11 +180,11 @@ export class SourceIndexService {
           entries.push(entry)
         }
       }
-      console.info('[SourceIndex] step=fetch_ok count=' + entries.length + ' url=' + normalizedUrl)
+      console.info('[SourceIndex] step=fetch_ok count=' + entries.length)
       return { ok: true, entries }
     } catch (error) {
       const e = error as BusinessError
-      console.error('[SourceIndex] step=fetch_error code=' + e.code + ' message=' + e.message)
+      console.error('[SourceIndex] step=fetch_error code=' + e.code)
       return { ok: false, reasonCode: 'network_error', entries: [] }
     } finally {
       httpRequest.destroy()
@@ -197,7 +197,7 @@ export class SourceIndexService {
       return { ok: false, reasonCode: 'invalid_pkg_url' }
     }
 
-    console.info('[SourceIndex] step=download_pkg url=' + pkgUrl)
+    console.info('[SourceIndex] step=download_pkg')
 
     const httpRequest = http.createHttp()
     try {
@@ -235,7 +235,7 @@ export class SourceIndexService {
       return { ok: true, install }
     } catch (error) {
       const e = error as BusinessError
-      console.error('[SourceIndex] step=download_error code=' + e.code + ' message=' + e.message)
+      console.error('[SourceIndex] step=download_error code=' + e.code)
       return { ok: false, reasonCode: 'network_error' }
     } finally {
       httpRequest.destroy()

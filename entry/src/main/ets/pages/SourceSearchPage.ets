@@ -16,6 +16,8 @@ export struct SourceSearchPage {
     networkEnabled: false,
     httpEnabled: false,
     enabled: true,
+    language: '',
+    nsfw: false,
     status: 'staged',
     capabilities: [],
   }

@@ -27,6 +27,7 @@ const settingsPagePath = resolve(root, 'entry/src/main/ets/pages/SettingsPage.et
 const importPagePath = resolve(root, 'entry/src/main/ets/pages/ImportPage.ets')
 const sourceBrowsePagePath = resolve(root, 'entry/src/main/ets/pages/SourceBrowsePage.ets')
 const sourceSearchPagePath = resolve(root, 'entry/src/main/ets/pages/SourceSearchPage.ets')
+const sourcePackageManagerPagePath = resolve(root, 'entry/src/main/ets/pages/SourcePackageManagerPage.ets')
 const secondaryListScaffoldPath = resolve(root, 'entry/src/main/ets/components/SecondaryListScaffold.ets')
 const comicCoverCardPath = resolve(root, 'entry/src/main/ets/components/ComicCoverCard.ets')
 const mangaDetailPagePath = resolve(root, 'entry/src/main/ets/pages/MangaDetailPage.ets')
@@ -57,6 +58,7 @@ const settingsPageSource = readFileSync(settingsPagePath, 'utf8')
 const importPageSource = readFileSync(importPagePath, 'utf8')
 const sourceBrowsePageSource = readFileSync(sourceBrowsePagePath, 'utf8')
 const sourceSearchPageSource = readFileSync(sourceSearchPagePath, 'utf8')
+const sourcePackageManagerPageSource = readFileSync(sourcePackageManagerPagePath, 'utf8')
 const secondaryListScaffoldSource = readFileSync(secondaryListScaffoldPath, 'utf8')
 const comicCoverCardSource = readFileSync(comicCoverCardPath, 'utf8')
 const mangaDetailPageSource = readFileSync(mangaDetailPagePath, 'utf8')
@@ -768,6 +770,26 @@ assert.match(
   sourceSettingsStoreSource,
   /filterSafeValues[\s\S]*descriptorIsCredentialLike\(key, ''\)/,
   'source settings backups must use the same non-secret filtering as normal persistence',
+)
+assert.match(
+  sourcePackageManagerPageSource,
+  /hasUpdate\(entry: SourceIndexEntry\)[\s\S]*compareVersion\(entry\.version, installed\.version\) > 0/,
+  'source package manager must detect index updates by installed/current version',
+)
+assert.match(
+  sourcePackageManagerPageSource,
+  /installIndexEntry\(entry: SourceIndexEntry, replaceExisting: boolean = false\)[\s\S]*setEnabled\(this\.context\(\), existing\.id, false\)/,
+  'source package manager update action must reinstall matching index entries while preserving disabled state',
+)
+assert.match(
+  sourcePackageManagerPageSource,
+  /sourceReasonText\(reasonCode: string \| undefined\)[\s\S]*checksum_mismatch[\s\S]*network_not_allowed[\s\S]*unsafe_archive_entry[\s\S]*missing_manifest[\s\S]*smoke_failed/,
+  'source package manager must map install/index/smoke reason codes to user-readable text',
+)
+assert.doesNotMatch(
+  sourcePackageManagerPageSource,
+  /失败：' \+ e\.message|失败：' \+ \(error as Error\)\.message/,
+  'source package manager must not surface raw internal exception messages',
 )
 
 const comic = {
