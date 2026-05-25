@@ -225,7 +225,7 @@ export class SourceIndexService {
         return { ok: false, reasonCode: 'empty_package' }
       }
 
-      const install = await installFromBytes(this.context, archiveBytes, entry.pkg)
+      const install = await installFromBytes(this.context, archiveBytes, entry.pkg, entry.id)
       if (!install.ok) {
         console.error('[SourceIndex] step=install_fail reason=' + (install.reasonCode ?? 'unknown'))
         return { ok: false, reasonCode: install.reasonCode, install }

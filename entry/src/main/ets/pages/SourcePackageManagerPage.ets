@@ -26,6 +26,17 @@ import {
   SourceIndexService,
 } from '../sourceRuntime/SourceIndexService'
 
+type SourcePackageUpdateState = 'unknown' | 'checking' | 'latest' | 'update' | 'missing' | 'failed'
+
+interface SourcePackageUpdateStatus {
+  sourceId: string
+  status: SourcePackageUpdateState
+  remoteEntry?: SourceIndexEntry
+  remoteVersion?: string
+  localVersion?: string
+  reasonCode?: string
+}
+
 @Component
 export struct SourcePackageManagerPage {
   @State private packages: InstalledSourcePackage[] = []
@@ -40,6 +51,9 @@ export struct SourcePackageManagerPage {
   @State private indexFetchBusy: boolean = false
   @State private indexInstallBusy: boolean = false
   @State private indexStatusText: string = ''
+  @State private packageUpdateStatuses: SourcePackageUpdateStatus[] = []
+  @State private updateCheckBusy: boolean = false
+  @State private updateInstallSourceId: string = ''
   @State private settingsAvailability: Record<string, string> = {}
   private sourceIndexService: SourceIndexService = new SourceIndexService(this.context())
 
@@ -110,6 +124,236 @@ export struct SourcePackageManagerPage {
       return false
     }
     return this.compareVersion(entry.version, installed.version) > 0
+  }
+
+  private updateStatus(sourceId: string): SourcePackageUpdateStatus {
+    const status = this.packageUpdateStatuses.find((item: SourcePackageUpdateStatus): boolean => item.sourceId === sourceId)
+    if (status !== undefined) {
+      return status
+    }
+    return { sourceId, status: 'unknown' }
+  }
+
+  private setUpdateStatus(nextStatus: SourcePackageUpdateStatus): void {
+    const next: SourcePackageUpdateStatus[] = []
+    let replaced = false
+    this.packageUpdateStatuses.forEach((item: SourcePackageUpdateStatus) => {
+      if (item.sourceId === nextStatus.sourceId) {
+        next.push(nextStatus)
+        replaced = true
+      } else {
+        next.push(item)
+      }
+    })
+    if (!replaced) {
+      next.push(nextStatus)
+    }
+    this.packageUpdateStatuses = next
+  }
+
+  private clearUpdateStatus(sourceId: string): void {
+    this.packageUpdateStatuses = this.packageUpdateStatuses.filter((item: SourcePackageUpdateStatus): boolean => item.sourceId !== sourceId)
+  }
+
+  private updateStatusText(source: InstalledSourcePackage): string {
+    const status = this.updateStatus(source.id)
+    switch (status.status) {
+      case 'checking':
+        return '更新：检查中'
+      case 'latest':
+        return '更新：已是最新 v' + (status.localVersion ?? source.version)
+      case 'update':
+        return '更新：可更新 v' + (status.localVersion ?? source.version) + ' → v' + (status.remoteVersion ?? '')
+      case 'missing':
+        return '更新：索引中未找到'
+      case 'failed':
+        return '更新：检查失败：' + this.sourceReasonText(status.reasonCode)
+      case 'unknown':
+      default:
+        return '更新：未检查'
+    }
+  }
+
+  private updateActionLabel(sourceId: string): string {
+    return this.updateInstallSourceId === sourceId ? '更新中' : '更新'
+  }
+
+  private updateEntry(sourceId: string): SourceIndexEntry | undefined {
+    const status = this.updateStatus(sourceId)
+    return status.status === 'update' ? status.remoteEntry : undefined
+  }
+
+  private async currentIndexUrlOrPrompt(): Promise<string> {
+    let url = this.sourceIndexUrl.trim()
+    if (url.length === 0) {
+      const saved = await this.sourceIndexService.loadSavedUrl()
+      if (saved.length > 0) {
+        this.sourceIndexUrl = saved
+        url = saved
+      }
+    }
+    if (url.length === 0) {
+      this.statusText = '请输入源索引地址'
+      this.indexStatusText = '请输入源索引地址'
+      this.showToast('请输入源索引地址')
+    }
+    return url
+  }
+
+  private async checkInstalledUpdates(): Promise<void> {
+    if (this.updateCheckBusy || this.indexFetchBusy) {
+      return
+    }
+    const url = await this.currentIndexUrlOrPrompt()
+    if (url.length === 0) {
+      return
+    }
+    const count = this.packages.length
+    console.info('[SourcePackageUpdate] step=check_start count=' + count)
+    this.updateCheckBusy = true
+    this.statusText = '正在检查更新...'
+    this.packageUpdateStatuses = this.packages.map((source: InstalledSourcePackage): SourcePackageUpdateStatus => {
+      return {
+        sourceId: source.id,
+        status: 'checking',
+        localVersion: source.version,
+      }
+    })
+    try {
+      await this.sourceIndexService.saveUrl(url)
+      const result: SourceIndexFetchResult = await this.sourceIndexService.fetchIndex(url)
+      if (!result.ok) {
+        this.packageUpdateStatuses = this.packages.map((source: InstalledSourcePackage): SourcePackageUpdateStatus => {
+          return {
+            sourceId: source.id,
+            status: 'failed',
+            localVersion: source.version,
+            reasonCode: result.reasonCode,
+          }
+        })
+        this.statusText = '检查失败：' + this.sourceReasonText(result.reasonCode)
+        console.info('[SourcePackageUpdate] step=check_done update=0 latest=0 missing=0 failed=' + count)
+        return
+      }
+
+      this.indexEntries = result.entries
+      this.indexStatusText = '已加载 ' + result.entries.length + ' 个源'
+      let updateCount = 0
+      let latestCount = 0
+      let missingCount = 0
+      const nextStatuses: SourcePackageUpdateStatus[] = []
+      this.packages.forEach((source: InstalledSourcePackage) => {
+        const entry = result.entries.find((item: SourceIndexEntry): boolean => item.id === source.id)
+        if (entry === undefined) {
+          missingCount += 1
+          nextStatuses.push({
+            sourceId: source.id,
+            status: 'missing',
+            localVersion: source.version,
+          })
+          return
+        }
+        if (entry.version.length > 0 && source.version.length > 0 && this.compareVersion(entry.version, source.version) > 0) {
+          updateCount += 1
+          nextStatuses.push({
+            sourceId: source.id,
+            status: 'update',
+            remoteEntry: entry,
+            remoteVersion: entry.version,
+            localVersion: source.version,
+          })
+          return
+        }
+        latestCount += 1
+        nextStatuses.push({
+          sourceId: source.id,
+          status: 'latest',
+          remoteEntry: entry,
+          remoteVersion: entry.version,
+          localVersion: source.version,
+        })
+      })
+      this.packageUpdateStatuses = nextStatuses
+      this.statusText = '检查完成：可更新 ' + updateCount.toString() + '，最新 ' + latestCount.toString() + '，未找到 ' + missingCount.toString()
+      console.info('[SourcePackageUpdate] step=check_done update=' + updateCount + ' latest=' + latestCount + ' missing=' + missingCount + ' failed=0')
+    } catch (_error) {
+      this.packageUpdateStatuses = this.packages.map((source: InstalledSourcePackage): SourcePackageUpdateStatus => {
+        return {
+          sourceId: source.id,
+          status: 'failed',
+          localVersion: source.version,
+          reasonCode: 'network_error',
+        }
+      })
+      this.statusText = '检查失败：' + this.sourceReasonText('network_error')
+      console.info('[SourcePackageUpdate] step=check_done update=0 latest=0 missing=0 failed=' + count)
+    } finally {
+      this.updateCheckBusy = false
+    }
+  }
+
+  private async updateInstalledPackage(source: InstalledSourcePackage): Promise<void> {
+    if (this.updateInstallSourceId.length > 0 || this.indexInstallBusy || this.busy) {
+      return
+    }
+    const entry = this.updateEntry(source.id)
+    if (entry === undefined) {
+      return
+    }
+    const url = await this.currentIndexUrlOrPrompt()
+    if (url.length === 0) {
+      return
+    }
+    const wasEnabled = source.enabled
+    this.updateInstallSourceId = source.id
+    this.statusText = '正在更新 ' + source.name + '...'
+    console.info('[SourcePackageUpdate] step=install_start id=' + source.id)
+    try {
+      const result: SourceIndexInstallResult = await this.sourceIndexService.installPackage(url, entry)
+      if (result.ok) {
+        if (!wasEnabled) {
+          setEnabled(this.context(), source.id, false)
+        }
+        this.reload()
+        const installed = this.installedPackage(source.id)
+        this.setUpdateStatus({
+          sourceId: source.id,
+          status: 'latest',
+          remoteEntry: entry,
+          remoteVersion: entry.version,
+          localVersion: installed?.version ?? entry.version,
+        })
+        this.statusText = '已更新 ' + source.name
+        this.showToast('源包已更新')
+        console.info('[SourcePackageUpdate] step=install_done id=' + source.id)
+      } else {
+        this.setUpdateStatus({
+          sourceId: source.id,
+          status: 'failed',
+          remoteEntry: entry,
+          remoteVersion: entry.version,
+          localVersion: source.version,
+          reasonCode: result.reasonCode,
+        })
+        this.statusText = '更新失败：' + this.sourceReasonText(result.reasonCode)
+        this.showToast('源包安装失败')
+        console.error('[SourcePackageUpdate] step=install_failed id=' + source.id + ' reason=' + (result.reasonCode ?? 'unknown'))
+      }
+    } catch (_error) {
+      this.setUpdateStatus({
+        sourceId: source.id,
+        status: 'failed',
+        remoteEntry: entry,
+        remoteVersion: entry.version,
+        localVersion: source.version,
+        reasonCode: 'network_error',
+      })
+      this.statusText = '更新失败：' + this.sourceReasonText('network_error')
+      this.showToast('源包安装失败')
+      console.error('[SourcePackageUpdate] step=install_failed id=' + source.id + ' reason=network_error')
+    } finally {
+      this.updateInstallSourceId = ''
+    }
   }
 
   private indexVersionText(entry: SourceIndexEntry): string {
@@ -313,6 +557,9 @@ export struct SourcePackageManagerPage {
     try {
       const removed = await remove(this.context(), source.id)
       this.statusText = removed ? '已删除源包' : '源包不可用'
+      if (removed) {
+        this.clearUpdateStatus(source.id)
+      }
       this.reload()
     } catch (_error) {
       this.statusText = '删除失败：' + this.sourceReasonText('unknown')
@@ -606,6 +853,17 @@ export struct SourcePackageManagerPage {
         }
         .layoutWeight(1)
         .alignItems(HorizontalAlign.Start)
+
+        Button(this.updateCheckBusy ? '检查中' : '检查更新')
+          .height(34)
+          .fontSize(13)
+          .fontColor(Color.White)
+          .enabled(!this.updateCheckBusy && !this.indexFetchBusy)
+          .backgroundColor($r('app.color.koma_accent'))
+          .borderRadius(8)
+          .onClick(() => {
+            this.checkInstalledUpdates()
+          })
       }
       .width('100%')
 
@@ -674,6 +932,13 @@ export struct SourcePackageManagerPage {
         .fontSize(13)
         .fontColor($r('app.color.koma_text_secondary'))
 
+      Text(this.updateStatusText(source))
+        .width('100%')
+        .fontSize(12)
+        .fontColor($r('app.color.koma_text_secondary'))
+        .maxLines(2)
+        .textOverflow({ overflow: TextOverflow.Ellipsis })
+
       Text('Smoke：' + source.smokeStatus + (source.lastDiagnosticMessage.length > 0 ? (' · ' + this.sourceReasonText(source.lastDiagnosticMessage)) : ''))
         .width('100%')
         .fontSize(12)
@@ -694,6 +959,20 @@ export struct SourcePackageManagerPage {
         .textOverflow({ overflow: TextOverflow.Ellipsis })
 
       Row({ space: 8 }) {
+        if (this.updateEntry(source.id) !== undefined) {
+          Button(this.updateActionLabel(source.id))
+            .height(36)
+            .layoutWeight(1)
+            .fontSize(13)
+            .fontColor(Color.White)
+            .enabled(this.updateInstallSourceId.length === 0 && !this.indexInstallBusy && !this.busy)
+            .backgroundColor($r('app.color.koma_accent'))
+            .borderRadius(8)
+            .onClick(() => {
+              this.updateInstalledPackage(source)
+            })
+        }
+
         Button(source.enabled ? '停用' : '启用')
           .height(36)
           .layoutWeight(1)

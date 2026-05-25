@@ -134,6 +134,7 @@ Verified on device `192.168.50.103:12345`:
 - Installed source packages can expose non-secret `get_settings` descriptors; Koma stores sanitized values per source id and injects them into Browse/detail/pages/image-request runtime envelopes.
 - Production Browse lists only user-installed/enabled packages; no bundled public source or test fixture is registered.
 - Source URL index import: user-configured index URL -> fetch `index.json` -> list packages -> download selected `pkg` -> install/enable via existing archive validator/registry. No built-in default source URL is included.
+- Installed source package update check/upgrade MVP uses the user-configured source index to show per-package latest/update/missing/failure status and update installed packages safely.
 - Library update MVP supports installed source-runtime comics via `get_chapters`; local imports and Komga/OPDS/WebDAV metadata refresh are skipped until safe refresh APIs are wired.
 
 ## Known Gaps / Follow-up

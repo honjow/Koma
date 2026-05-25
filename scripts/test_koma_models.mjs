@@ -35,6 +35,8 @@ const comicCoverCardPath = resolve(root, 'entry/src/main/ets/components/ComicCov
 const mangaDetailPagePath = resolve(root, 'entry/src/main/ets/pages/MangaDetailPage.ets')
 const readerPageSourceAdapterPath = resolve(root, 'entry/src/main/ets/model/ReaderPageSourceAdapter.ets')
 const sourceSettingsStorePath = resolve(root, 'entry/src/main/ets/sourceRuntime/SourceSettingsStore.ets')
+const sourceRuntimeAppRegistryPath = resolve(root, 'entry/src/main/ets/sourceRuntime/SourceRuntimeAppRegistry.ets')
+const sourceIndexServicePath = resolve(root, 'entry/src/main/ets/sourceRuntime/SourceIndexService.ets')
 
 const modelSource = readFileSync(modelPath, 'utf8')
 const libraryStoreSource = readFileSync(libraryStorePath, 'utf8')
@@ -68,6 +70,8 @@ const comicCoverCardSource = readFileSync(comicCoverCardPath, 'utf8')
 const mangaDetailPageSource = readFileSync(mangaDetailPagePath, 'utf8')
 const readerPageSourceAdapterSource = readFileSync(readerPageSourceAdapterPath, 'utf8')
 const sourceSettingsStoreSource = readFileSync(sourceSettingsStorePath, 'utf8')
+const sourceRuntimeAppRegistrySource = readFileSync(sourceRuntimeAppRegistryPath, 'utf8')
+const sourceIndexServiceSource = readFileSync(sourceIndexServicePath, 'utf8')
 
 function assertExport(source, symbol) {
   assert.match(source, new RegExp(`export (interface|class|function|enum|type|const) ${symbol}\\b`), `${symbol} must be exported`)
@@ -897,6 +901,57 @@ assert.match(
   sourcePackageManagerPageSource,
   /installIndexEntry\(entry: SourceIndexEntry, replaceExisting: boolean = false\)[\s\S]*setEnabled\(this\.context\(\), existing\.id, false\)/,
   'source package manager update action must reinstall matching index entries while preserving disabled state',
+)
+assert.match(
+  sourcePackageManagerPageSource,
+  /Button\(this\.updateCheckBusy \? '检查中' : '检查更新'\)[\s\S]*checkInstalledUpdates\(\)/,
+  'source package manager must expose a check-update action for installed source packages',
+)
+assert.match(
+  sourcePackageManagerPageSource,
+  /checkInstalledUpdates\(\): Promise<void>[\s\S]*this\.sourceIndexService\.fetchIndex\(url\)[\s\S]*compareVersion\(entry\.version, source\.version\)/,
+  'installed source update checks must fetch the user-configured source index and compare remote/local versions',
+)
+assert.match(
+  sourcePackageManagerPageSource,
+  /\[SourcePackageUpdate\] step=check_start count=[\s\S]*\[SourcePackageUpdate\] step=check_done update=[\s\S]*\[SourcePackageUpdate\] step=install_start id=[\s\S]*\[SourcePackageUpdate\] step=install_done id=[\s\S]*\[SourcePackageUpdate\] step=install_failed id=/,
+  'source package manager must log SourcePackageUpdate check and install lifecycle events',
+)
+assert.match(
+  sourcePackageManagerPageSource,
+  /updateStatusText\(source: InstalledSourcePackage\): string[\s\S]*更新：检查中[\s\S]*更新：已是最新 v[\s\S]*更新：可更新 v[\s\S]*更新：索引中未找到[\s\S]*更新：检查失败：[\s\S]*更新：未检查/,
+  'installed source cards must render per-package update status text',
+)
+assert.match(
+  sourcePackageManagerPageSource,
+  /if \(this\.updateEntry\(source\.id\) !== undefined\) \{[\s\S]*Button\(this\.updateActionLabel\(source\.id\)\)[\s\S]*this\.updateInstalledPackage\(source\)/,
+  'installed source cards must show an update button only when an update is available',
+)
+assert.doesNotMatch(
+  sourcePackageManagerPageSource,
+  /源市场|内置源|聚合源|fake source market/i,
+  'source package manager must not introduce forbidden source-market copy',
+)
+assert.doesNotMatch(
+  sourcePackageManagerPageSource,
+  /sourceIndexUrl:\s*string\s*=\s*['"]https?:\/\//,
+  'source package manager must not include a built-in default source index URL',
+)
+assertUsesSecondaryListSafeArea(sourcePackageManagerPageSource, 'SourcePackageManagerPage')
+assert.match(
+  sourceRuntimeAppRegistrySource,
+  /restoreRuntimeRegistryEntry\(removedExisting\)[\s\S]*removeAppSourcePackageDir\(context, packageDir\)[\s\S]*registeredReplacementSourceId = sourceId[\s\S]*persistInstalledSources\(context\)[\s\S]*removeAppSourcePackageDir\(context, existingDir\)[\s\S]*appSourceRuntimeRegistry\.remove\(registeredReplacementSourceId\)[\s\S]*restoreRuntimeRegistryEntry\(removedExisting\)/,
+  'source package replacement must restore the previous registry entry on failed registration/persist and delete the old package only after the replacement is persisted',
+)
+assert.match(
+  sourceRuntimeAppRegistrySource,
+  /expectedSourceId\?: string[\s\S]*sourceId !== expectedSourceId[\s\S]*reason=source_id_mismatch[\s\S]*return \{ ok: false, reasonCode: 'source_id_mismatch' \}/,
+  'source package replacement must verify the downloaded manifest source id before replacing an installed source',
+)
+assert.match(
+  sourceIndexServiceSource,
+  /installFromBytes\(this\.context, archiveBytes, entry\.pkg, entry\.id\)/,
+  'source index installs must pass the expected source id into package validation',
 )
 assert.match(
   sourcePackageManagerPageSource,

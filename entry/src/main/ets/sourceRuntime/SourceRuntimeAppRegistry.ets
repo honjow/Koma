@@ -292,6 +292,28 @@ function manifestFromRegistryEntry(entry: SourceRuntimeRegistryEntry): LocalSour
   }
 }
 
+function restoreRuntimeRegistryEntry(entry: SourceRuntimeRegistryEntry | undefined): void {
+  if (entry === undefined) {
+    return
+  }
+  if (appSourceRuntimeRegistry.lookup(entry.sourceId).ok) {
+    return
+  }
+  appSourceRuntimeRegistry.register({
+    sourceId: entry.sourceId,
+    route: entry.route,
+    importStatus: entry.importStatus,
+    manifest: manifestFromRegistryEntry(entry),
+    wasmBytes: entry.wasmBytes,
+    hashOk: entry.hashOk,
+    network: entry.network,
+    enabled: entry.enabled,
+    manifestPath: entry.manifestPath,
+    wasmPath: entry.wasmPath,
+    archivePath: entry.archivePath,
+  })
+}
+
 function bytesToBase64(bytes: Uint8Array): string {
   return buffer.from(bytesToExactArrayBuffer(bytes)).toString('base64')
 }
@@ -530,12 +552,15 @@ async function registerSourcePackageFromBytes(
   context: common.UIAbilityContext,
   archiveBytes: Uint8Array,
   archiveFileName: string,
+  expectedSourceId?: string,
 ): Promise<SourcePackageInstallResult> {
   ensureDirSync(appSourceRoot(context))
   ensureDirSync(appSourcePackagesRoot(context))
   const packageDir = joinSourceRuntimePath(appSourcePackagesRoot(context), `import-${Date.now()}`)
   const archivePath = joinSourceRuntimePath(packageDir, archiveFileName)
   const importedRoot = joinSourceRuntimePath(packageDir, 'package')
+  let removedExisting: SourceRuntimeRegistryEntry | undefined = undefined
+  let registeredReplacementSourceId: string = ''
   try {
     ensureDirSync(packageDir)
     writeBytesSync(archivePath, archiveBytes)
@@ -547,14 +572,12 @@ async function registerSourcePackageFromBytes(
     }
 
     const sourceId = imported.manifest.package.id
-    const existing = appSourceRuntimeRegistry.remove(sourceId)
-    if (existing?.wasmPath !== undefined && existing.archivePath !== undefined) {
-      const existingDir = existing.archivePath.replace(/\\/g, '/').replace(/\/[^/]*$/, '')
-      try {
-        await removeAppSourcePackageDir(context, existingDir)
-      } catch (_err) {
-      }
+    if (expectedSourceId !== undefined && expectedSourceId.length > 0 && sourceId !== expectedSourceId) {
+      await removeAppSourcePackageDir(context, packageDir)
+      console.error('[SourceManager] step=import_fail reason=source_id_mismatch expected=' + expectedSourceId + ' actual=' + sourceId)
+      return { ok: false, reasonCode: 'source_id_mismatch' }
     }
+    removedExisting = appSourceRuntimeRegistry.remove(sourceId)
     const registered = appSourceRuntimeRegistry.register({
       sourceId,
       route: IMPORTED_SOURCE_ROUTE,
@@ -569,14 +592,27 @@ async function registerSourcePackageFromBytes(
       archivePath,
     })
     if (!registered.ok) {
+      restoreRuntimeRegistryEntry(removedExisting)
       await removeAppSourcePackageDir(context, packageDir)
       console.error('[SourceManager] step=import_fail reason=' + (registered.reasonCode ?? 'register_failed'))
       return { ok: false, reasonCode: registered.reasonCode ?? 'register_failed' }
     }
+    registeredReplacementSourceId = sourceId
     persistInstalledSources(context)
+    if (removedExisting?.archivePath !== undefined) {
+      const existingDir = removedExisting.archivePath.replace(/\\/g, '/').replace(/\/[^/]*$/, '')
+      try {
+        await removeAppSourcePackageDir(context, existingDir)
+      } catch (_err) {
+      }
+    }
     console.info('[SourceManager] step=import_ok id=' + sourceId)
     return { ok: true, id: sourceId, name: imported.manifest.package.name }
   } catch (_error) {
+    if (registeredReplacementSourceId.length > 0) {
+      appSourceRuntimeRegistry.remove(registeredReplacementSourceId)
+    }
+    restoreRuntimeRegistryEntry(removedExisting)
     try {
       await removeAppSourcePackageDir(context, packageDir)
     } catch (_err) {
@@ -608,12 +644,17 @@ export async function installFromArchive(context: common.UIAbilityContext, uri: 
   }
 }
 
-export async function installFromBytes(context: common.UIAbilityContext, archiveBytes: Uint8Array, pkgFileName: string): Promise<SourcePackageInstallResult> {
+export async function installFromBytes(
+  context: common.UIAbilityContext,
+  archiveBytes: Uint8Array,
+  pkgFileName: string,
+  expectedSourceId?: string,
+): Promise<SourcePackageInstallResult> {
   console.info('[SourceManager] step=import_start source=bytes pkg=' + pkgFileName)
   const sanitized = pkgFileName.replace(/[\\/]/g, '_').replace(/^_+|_+$/g, '') || 'source-package.koma'
   const archiveFileName = sanitized.endsWith('.koma') || sanitized.endsWith('.koma-source') ||
     sanitized.endsWith('.koma-source.zip') || sanitized.endsWith('.zip') ? sanitized : sanitized + '.koma'
-  return await registerSourcePackageFromBytes(context, archiveBytes, archiveFileName)
+  return await registerSourcePackageFromBytes(context, archiveBytes, archiveFileName, expectedSourceId)
 }
 
 export function setEnabled(context: common.UIAbilityContext, id: string, enabled: boolean): boolean {
