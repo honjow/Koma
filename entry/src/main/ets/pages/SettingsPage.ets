@@ -11,6 +11,13 @@ import {
   formatLibraryUpdateSummary,
 } from '../model/LibraryUpdateService'
 import {
+  DEFAULT_LIBRARY_UPDATE_PREFERENCES,
+  LibraryUpdatePreferences,
+  LibraryUpdatePreferencesStore,
+  getLibraryUpdateAutoCheckLabel,
+  isLibraryUpdateDue,
+} from '../model/LibraryUpdatePreferencesStore'
+import {
   ReaderRemoteImageCacheStats,
   clearReaderRemoteImageCache,
   configureReaderRemoteImageCache,
@@ -72,6 +79,8 @@ const SETTINGS_SECTIONS: SettingsSection[] = [
       { key: 'komga', title: 'Komga 私有库', detail: '服务器与认证' },
       { key: 'opds', title: 'OPDS 私有库', detail: 'Catalog 与认证' },
       { key: 'webdav', title: 'WebDAV 私有库', detail: '远程文件夹与认证' },
+      { key: 'library-auto-update', title: '自动检查更新', detail: '关闭' },
+      { key: 'library-update-interval', title: '检查间隔', detail: '每 24 小时' },
       { key: 'library-update', title: '检查书架更新', detail: '尚未检查' },
       { key: 'sources', title: '管理已安装的源包', detail: '暂未安装源包' },
       { key: 'backup', title: '备份与恢复', detail: '导出书架、进度、源包和设置' },
@@ -109,6 +118,7 @@ export struct SettingsPage {
   @State private imageCacheDetail: string = '0 B · 0 项'
   @State private libraryUpdateBusy: boolean = false
   @State private libraryUpdateSummary?: LibraryUpdateSummary = undefined
+  @State private libraryUpdatePreferences: LibraryUpdatePreferences = DEFAULT_LIBRARY_UPDATE_PREFERENCES
 
   private context(): common.UIAbilityContext {
     return getContext(this) as common.UIAbilityContext
@@ -120,6 +130,10 @@ export struct SettingsPage {
 
   private backupService(): BackupService {
     return new BackupService(this.context())
+  }
+
+  private libraryUpdatePreferencesStore(): LibraryUpdatePreferencesStore {
+    return new LibraryUpdatePreferencesStore(this.context())
   }
 
   private rowDetail(row: SettingsRow): string {
@@ -151,6 +165,15 @@ export struct SettingsPage {
     if (row.key === 'image-cache') {
       return this.imageCacheDetail
     }
+    if (row.key === 'library-auto-update') {
+      return getLibraryUpdateAutoCheckLabel(this.libraryUpdatePreferences)
+    }
+    if (row.key === 'library-update-interval') {
+      if (!this.libraryUpdatePreferences.autoCheckEnabled) {
+        return '开启后可设置'
+      }
+      return `每 ${this.libraryUpdatePreferences.intervalHours} 小时`
+    }
     if (row.key === 'library-update') {
       if (this.libraryUpdateBusy) {
         return '检查中...'
@@ -158,6 +181,11 @@ export struct SettingsPage {
       const summaryText = formatLibraryUpdateSummary(this.libraryUpdateSummary)
       const checkedAt = this.libraryUpdateSummary?.checkedAt
       if (checkedAt === undefined) {
+        const storedSummary = this.libraryUpdatePreferences.lastSummaryText
+        const storedCheckedAt = this.libraryUpdatePreferences.lastCheckedAt
+        if (storedSummary !== undefined && storedCheckedAt !== undefined) {
+          return `${storedSummary} · ${this.formatTimestamp(storedCheckedAt)}`
+        }
         return summaryText
       }
       return `${summaryText} · ${this.formatTimestamp(checkedAt)}`
@@ -188,6 +216,26 @@ export struct SettingsPage {
       .catch((error: Error) => {
         console.warn('[Settings] step=load_preferences_failed message=' + error.message)
       })
+  }
+
+  private loadLibraryUpdatePreferences(): void {
+    void this.libraryUpdatePreferencesStore().load()
+      .then((preferences: LibraryUpdatePreferences) => {
+        this.libraryUpdatePreferences = preferences
+        console.info('[Settings] step=load_library_update_preferences auto=' + preferences.autoCheckEnabled + ' intervalHours=' + preferences.intervalHours)
+        this.runDueLibraryUpdateCheck()
+      })
+      .catch((error: Error) => {
+        console.warn('[Settings] step=load_library_update_preferences_failed message=' + error.message)
+      })
+  }
+
+  private runDueLibraryUpdateCheck(): void {
+    if (!isLibraryUpdateDue(this.libraryUpdatePreferences, Date.now())) {
+      return
+    }
+    console.info('[Settings] step=library_update_due_check intervalHours=' + this.libraryUpdatePreferences.intervalHours)
+    this.checkLibraryUpdates('due')
   }
 
   private loadVersion(): void {
@@ -456,7 +504,78 @@ export struct SettingsPage {
     this.onOpenSourcePackageManager()
   }
 
-  private checkLibraryUpdates(): void {
+  private saveLibraryUpdatePreferences(preferences: LibraryUpdatePreferences): void {
+    this.libraryUpdatePreferences = preferences
+  }
+
+  private setLibraryAutoUpdateEnabled(autoCheckEnabled: boolean): void {
+    const nextPreferences: LibraryUpdatePreferences = {
+      autoCheckEnabled,
+      intervalHours: this.libraryUpdatePreferences.intervalHours,
+    }
+    if (this.libraryUpdatePreferences.lastCheckedAt !== undefined) {
+      nextPreferences.lastCheckedAt = this.libraryUpdatePreferences.lastCheckedAt
+    }
+    if (this.libraryUpdatePreferences.lastSummaryText !== undefined) {
+      nextPreferences.lastSummaryText = this.libraryUpdatePreferences.lastSummaryText
+    }
+    this.libraryUpdatePreferences = nextPreferences
+    void this.libraryUpdatePreferencesStore().saveAutoCheckEnabled(autoCheckEnabled)
+      .then((preferences: LibraryUpdatePreferences) => {
+        this.saveLibraryUpdatePreferences(preferences)
+        console.info('[Settings] step=save_library_auto_update value=' + preferences.autoCheckEnabled)
+        if (preferences.autoCheckEnabled) {
+          this.runDueLibraryUpdateCheck()
+        }
+      })
+      .catch((error: Error) => {
+        console.warn('[Settings] step=save_library_auto_update_failed message=' + error.message)
+        this.showToast('保存自动检查设置失败')
+      })
+  }
+
+  private showLibraryUpdateIntervalSheet(): void {
+    if (!this.libraryUpdatePreferences.autoCheckEnabled) {
+      this.showToast('请先开启自动检查更新')
+      return
+    }
+    console.info('[Settings] step=library_update_interval_sheet')
+    this.getUIContext().showActionSheet({
+      title: '检查间隔',
+      message: '打开应用时自动检查书架更新',
+      sheets: [
+        { title: '每 12 小时', action: () => { this.saveLibraryUpdateInterval(12) } },
+        { title: '每 24 小时', action: () => { this.saveLibraryUpdateInterval(24) } },
+        { title: '每 48 小时', action: () => { this.saveLibraryUpdateInterval(48) } },
+      ],
+    })
+  }
+
+  private saveLibraryUpdateInterval(intervalHours: number): void {
+    const nextPreferences: LibraryUpdatePreferences = {
+      autoCheckEnabled: this.libraryUpdatePreferences.autoCheckEnabled,
+      intervalHours,
+    }
+    if (this.libraryUpdatePreferences.lastCheckedAt !== undefined) {
+      nextPreferences.lastCheckedAt = this.libraryUpdatePreferences.lastCheckedAt
+    }
+    if (this.libraryUpdatePreferences.lastSummaryText !== undefined) {
+      nextPreferences.lastSummaryText = this.libraryUpdatePreferences.lastSummaryText
+    }
+    this.libraryUpdatePreferences = nextPreferences
+    void this.libraryUpdatePreferencesStore().saveIntervalHours(intervalHours)
+      .then((preferences: LibraryUpdatePreferences) => {
+        this.saveLibraryUpdatePreferences(preferences)
+        console.info('[Settings] step=save_library_update_interval intervalHours=' + preferences.intervalHours)
+        this.runDueLibraryUpdateCheck()
+      })
+      .catch((error: Error) => {
+        console.warn('[Settings] step=save_library_update_interval_failed message=' + error.message)
+        this.showToast('保存检查间隔失败')
+      })
+  }
+
+  private checkLibraryUpdates(reason: string = 'manual'): void {
     if (this.libraryUpdateBusy) {
       return
     }
@@ -475,12 +594,24 @@ export struct SettingsPage {
       .then((summary: LibraryUpdateSummary) => {
         this.libraryUpdateSummary = summary
         this.onLibraryChanged()
-        console.info('[Settings] step=library_update_done total=' + summary.totalCount + ' updated=' + summary.updatedCount + ' failed=' + summary.failedCount)
-        this.showToast(summary.updatedCount > 0 ? `发现 ${summary.updatedCount} 本更新` : '书架已是最新')
+        const summaryText = formatLibraryUpdateSummary(summary)
+        console.info('[Settings] step=library_update_done reason=' + reason + ' total=' + summary.totalCount + ' updated=' + summary.updatedCount + ' failed=' + summary.failedCount)
+        void this.libraryUpdatePreferencesStore().saveLastSummary(summary.checkedAt, summaryText)
+          .then((preferences: LibraryUpdatePreferences) => {
+            this.saveLibraryUpdatePreferences(preferences)
+          })
+          .catch((error: Error) => {
+            console.warn('[Settings] step=save_library_update_summary_failed message=' + error.message)
+          })
+        if (reason === 'manual') {
+          this.showToast(summary.updatedCount > 0 ? `发现 ${summary.updatedCount} 本更新` : '书架已是最新')
+        }
       })
       .catch((error: Error) => {
         console.warn('[Settings] step=library_update_failed message=' + error.message)
-        this.showToast('检查书架更新失败')
+        if (reason === 'manual') {
+          this.showToast('检查书架更新失败')
+        }
       })
       .finally(() => {
         this.libraryUpdateBusy = false
@@ -544,6 +675,10 @@ export struct SettingsPage {
       this.showImageCacheSheet()
     } else if (row.key === 'sources') {
       this.showSourcesDialog()
+    } else if (row.key === 'library-auto-update') {
+      this.setLibraryAutoUpdateEnabled(!this.libraryUpdatePreferences.autoCheckEnabled)
+    } else if (row.key === 'library-update-interval') {
+      this.showLibraryUpdateIntervalSheet()
     } else if (row.key === 'library-update') {
       this.checkLibraryUpdates()
     } else if (row.key === 'about') {
@@ -579,17 +714,26 @@ export struct SettingsPage {
         .fontColor($r('app.color.koma_text_secondary'))
         .maxLines(1)
         .textOverflow({ overflow: TextOverflow.Ellipsis })
+      if (row.key === 'library-auto-update') {
+        Toggle({ type: ToggleType.Switch, isOn: this.libraryUpdatePreferences.autoCheckEnabled })
+          .onChange((isOn: boolean) => {
+            this.setLibraryAutoUpdateEnabled(isOn)
+          })
+      }
     }
     .width('100%')
     .padding({ left: 16, right: 16, top: 14, bottom: 14 })
     .onClick(() => {
-      this.handleRowClick(row)
+      if (row.key !== 'library-auto-update') {
+        this.handleRowClick(row)
+      }
     })
   }
 
   aboutToAppear(): void {
     this.loadVersion()
     this.loadPreferences()
+    this.loadLibraryUpdatePreferences()
     this.loadImageCacheStats()
   }
 

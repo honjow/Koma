@@ -77,6 +77,7 @@ Verified on device `192.168.50.103:12345`:
 | Content safe-area avoidance | `ec697de` | Keeps fullscreen transparent/floating shell while adding internal content-list insets for ordinary pages. |
 | Source package settings | `23dac83` | Installed local source packages can expose non-secret settings via `get_settings`; settings persist by sourceId, inject into runtime calls, and backup schema v3 exports sanitized settings. |
 | Library update check MVP | `pending` | Settings foreground action checks Library for source-runtime chapter changes, updates chapter metadata, and reports skipped/failed counts without scheduler or OS notifications. |
+| Library auto-update preferences | `pending` | Settings persists an app-open due-check preference with 12h/24h/48h intervals and last status. This is a foreground MVP only, not a system background scheduler or notification flow. |
 
 ## Current Product Baseline
 
@@ -120,6 +121,7 @@ Verified on device `192.168.50.103:12345`:
 - Source package manager page.
 - Reader remote image cache stats and clear action.
 - Foreground library update check with last summary/status row.
+- Library update auto-check preferences are persisted and run only when Settings opens and a due interval has elapsed while the app is foregrounded.
 
 ### WASM Source Runtime
 

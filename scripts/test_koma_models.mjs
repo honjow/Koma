@@ -14,6 +14,7 @@ const mangaDetailModelsPath = resolve(root, 'entry/src/main/ets/model/MangaDetai
 const libraryRepositoryPath = resolve(root, 'entry/src/main/ets/model/LibraryRepository.ets')
 const libraryPersistencePath = resolve(root, 'entry/src/main/ets/model/LibraryPersistence.ets')
 const libraryUpdateServicePath = resolve(root, 'entry/src/main/ets/model/LibraryUpdateService.ets')
+const libraryUpdatePreferencesStorePath = resolve(root, 'entry/src/main/ets/model/LibraryUpdatePreferencesStore.ets')
 const backupServicePath = resolve(root, 'entry/src/main/ets/model/BackupService.ets')
 const readerPreferencesStorePath = resolve(root, 'entry/src/main/ets/model/ReaderPreferencesStore.ets')
 const offlineDownloadStorePath = resolve(root, 'entry/src/main/ets/model/OfflineDownloadStore.ets')
@@ -46,6 +47,7 @@ const mangaDetailModelsSource = readFileSync(mangaDetailModelsPath, 'utf8')
 const libraryRepositorySource = readFileSync(libraryRepositoryPath, 'utf8')
 const libraryPersistenceSource = readFileSync(libraryPersistencePath, 'utf8')
 const libraryUpdateServiceSource = readFileSync(libraryUpdateServicePath, 'utf8')
+const libraryUpdatePreferencesStoreSource = readFileSync(libraryUpdatePreferencesStorePath, 'utf8')
 const backupServiceSource = readFileSync(backupServicePath, 'utf8')
 const readerPreferencesStoreSource = readFileSync(readerPreferencesStorePath, 'utf8')
 const offlineDownloadStoreSource = readFileSync(offlineDownloadStorePath, 'utf8')
@@ -293,6 +295,21 @@ assertExport(libraryUpdateServiceSource, 'LibraryUpdateComicResult')
 assertExport(libraryUpdateServiceSource, 'LibraryUpdateSummary')
 assertExport(libraryUpdateServiceSource, 'LibraryUpdateService')
 assertExport(libraryUpdateServiceSource, 'formatLibraryUpdateSummary')
+assertExport(libraryUpdatePreferencesStoreSource, 'LibraryUpdatePreferences')
+assertExport(libraryUpdatePreferencesStoreSource, 'LIBRARY_UPDATE_PREFERENCES_STORE_NAME')
+assertExport(libraryUpdatePreferencesStoreSource, 'LIBRARY_UPDATE_AUTO_CHECK_ENABLED_KEY')
+assertExport(libraryUpdatePreferencesStoreSource, 'LIBRARY_UPDATE_INTERVAL_HOURS_KEY')
+assertExport(libraryUpdatePreferencesStoreSource, 'LIBRARY_UPDATE_LAST_CHECKED_AT_KEY')
+assertExport(libraryUpdatePreferencesStoreSource, 'LIBRARY_UPDATE_LAST_SUMMARY_TEXT_KEY')
+assertExport(libraryUpdatePreferencesStoreSource, 'LIBRARY_UPDATE_INTERVAL_OPTIONS')
+assertExport(libraryUpdatePreferencesStoreSource, 'DEFAULT_LIBRARY_UPDATE_PREFERENCES')
+assertExport(libraryUpdatePreferencesStoreSource, 'normalizeLibraryUpdateAutoCheckEnabled')
+assertExport(libraryUpdatePreferencesStoreSource, 'normalizeLibraryUpdateIntervalHours')
+assertExport(libraryUpdatePreferencesStoreSource, 'normalizeLibraryUpdateTimestamp')
+assertExport(libraryUpdatePreferencesStoreSource, 'normalizeLibraryUpdateSummaryText')
+assertExport(libraryUpdatePreferencesStoreSource, 'getLibraryUpdateAutoCheckLabel')
+assertExport(libraryUpdatePreferencesStoreSource, 'isLibraryUpdateDue')
+assertExport(libraryUpdatePreferencesStoreSource, 'LibraryUpdatePreferencesStore')
 
 assert.match(entryAbilitySource, /const TRANSPARENT_COLOR: string = '#00FFFFFF'/, 'EntryAbility must keep transparent system bar color')
 assert.match(entryAbilitySource, /setWindowLayoutFullScreen\(true\)/, 'EntryAbility must keep fullscreen window layout')
@@ -430,13 +447,63 @@ assert.match(
 )
 assert.match(
   settingsPageSource,
+  /\{ key: 'library-auto-update', title: '自动检查更新', detail: '关闭' \}[\s\S]*\{ key: 'library-update-interval', title: '检查间隔', detail: '每 24 小时' \}[\s\S]*\{ key: 'library-update', title: '检查书架更新', detail: '尚未检查' \}/,
+  'SettingsPage must expose auto-check preferences next to the foreground library update entry',
+)
+assert.match(
+  settingsPageSource,
+  /Toggle\(\{ type: ToggleType\.Switch, isOn: this\.libraryUpdatePreferences\.autoCheckEnabled \}\)[\s\S]*setLibraryAutoUpdateEnabled\(isOn\)/,
+  'SettingsPage must use a switch row for library auto-check preference',
+)
+assert.match(
+  settingsPageSource,
+  /title: '检查间隔'[\s\S]*message: '打开应用时自动检查书架更新'[\s\S]*每 12 小时[\s\S]*每 24 小时[\s\S]*每 48 小时/,
+  'SettingsPage interval selector copy must describe app-open foreground checks',
+)
+assert.match(
+  settingsPageSource,
+  /loadLibraryUpdatePreferences\(\)[\s\S]*this\.runDueLibraryUpdateCheck\(\)/,
+  'SettingsPage must evaluate due library checks when update preferences load',
+)
+assert.match(
+  settingsPageSource,
+  /isLibraryUpdateDue\(this\.libraryUpdatePreferences, Date\.now\(\)\)[\s\S]*this\.checkLibraryUpdates\('due'\)/,
+  'SettingsPage must trigger due checks only when preferences say they are due',
+)
+assert.match(
+  settingsPageSource,
   /new LibraryUpdateService\([\s\S]*this\.libraryStore[\s\S]*this\.sourceRegistry[\s\S]*this\.libraryPersistenceService[\s\S]*\)\s*[\s\S]*\.checkLibraryUpdates\(\)/,
   'SettingsPage must trigger LibraryUpdateService from the foreground entry',
 )
 assert.match(
   settingsPageSource,
+  /saveLastSummary\(summary\.checkedAt, summaryText\)/,
+  'SettingsPage must persist the latest manual or due update summary',
+)
+assert.match(
+  settingsPageSource,
   /SecondaryListScaffold\(\{[\s\S]*bottomPadding:\s*ThemeConstants\.FLOAT_BAR_HEIGHT \+ 20 \+ ThemeConstants\.SPACE_XL/,
   'SettingsPage must preserve SecondaryListScaffold bottom clearance while adding update status',
+)
+assert.match(
+  libraryUpdatePreferencesStoreSource,
+  /DEFAULT_LIBRARY_UPDATE_PREFERENCES:[\s\S]*autoCheckEnabled:\s*false[\s\S]*intervalHours:\s*24/,
+  'LibraryUpdatePreferencesStore defaults must disable automatic checks and use a 24h interval',
+)
+assert.match(
+  libraryUpdatePreferencesStoreSource,
+  /LIBRARY_UPDATE_INTERVAL_OPTIONS: number\[\] = \[12, 24, 48\]/,
+  'LibraryUpdatePreferencesStore must expose 12h, 24h, and 48h interval choices',
+)
+assert.match(
+  libraryUpdatePreferencesStoreSource,
+  /catch \(_error\) \{[\s\S]*autoCheckEnabled: DEFAULT_LIBRARY_UPDATE_PREFERENCES\.autoCheckEnabled[\s\S]*intervalHours: DEFAULT_LIBRARY_UPDATE_PREFERENCES\.intervalHours/,
+  'LibraryUpdatePreferencesStore must safely restore defaults when preference data cannot be read',
+)
+assert.doesNotMatch(
+  settingsPageSource,
+  /后台自动更新|系统通知|通知权限/,
+  'SettingsPage copy must not imply background auto updates or system notifications',
 )
 assert.match(
   indexSource,
@@ -461,6 +528,7 @@ assert.match(
 for (const [source, label] of [
   [settingsPageSource, 'SettingsPage'],
   [libraryUpdateServiceSource, 'LibraryUpdateService'],
+  [libraryUpdatePreferencesStoreSource, 'LibraryUpdatePreferencesStore'],
   [indexSource, 'Index'],
 ]) {
   assert.doesNotMatch(source, /源市场|内置源|聚合源|fake source market/i, `${label} must not introduce built-in/fake source-market copy`)
