@@ -11,6 +11,7 @@ import {
   formatLibraryUpdateSummary,
 } from '../model/LibraryUpdateService'
 import {
+  LibraryUpdateResultStore,
   getLatestLibraryUpdateSummary,
   setLatestLibraryUpdateSummary,
 } from '../model/LibraryUpdateResultStore'
@@ -142,6 +143,10 @@ export struct SettingsPage {
     return new LibraryUpdatePreferencesStore(this.context())
   }
 
+  private libraryUpdateResultStore(): LibraryUpdateResultStore {
+    return new LibraryUpdateResultStore(this.context())
+  }
+
   private rowDetail(row: SettingsRow): string {
     if (row.key === 'page-mode') {
       return getReaderPageModeLabel(this.pageMode)
@@ -240,7 +245,23 @@ export struct SettingsPage {
   }
 
   private loadLatestLibraryUpdateSummary(): void {
-    this.libraryUpdateSummary = getLatestLibraryUpdateSummary()
+    const latest = getLatestLibraryUpdateSummary()
+    this.libraryUpdateSummary = latest
+    void this.libraryUpdateResultStore().load()
+      .then((summary: LibraryUpdateSummary | undefined) => {
+        const current = getLatestLibraryUpdateSummary()
+        let effectiveSummary = current
+        if (summary !== undefined && (current === undefined || summary.checkedAt > current.checkedAt)) {
+          setLatestLibraryUpdateSummary(summary)
+          effectiveSummary = summary
+        }
+        this.libraryUpdateSummary = effectiveSummary
+        const total = effectiveSummary === undefined ? 0 : effectiveSummary.totalCount
+        console.info('[Settings] step=load_library_update_results hasSummary=' + (effectiveSummary !== undefined) + ' total=' + total)
+      })
+      .catch((error: Error) => {
+        console.warn('[Settings] step=load_library_update_results_failed message=' + error.message)
+      })
   }
 
   private runDueLibraryUpdateCheck(): void {
@@ -612,6 +633,13 @@ export struct SettingsPage {
       .then((summary: LibraryUpdateSummary) => {
         this.libraryUpdateSummary = summary
         setLatestLibraryUpdateSummary(summary)
+        void this.libraryUpdateResultStore().save(summary)
+          .then(() => {
+            console.info('[Settings] step=save_library_update_results total=' + summary.totalCount)
+          })
+          .catch((error: Error) => {
+            console.warn('[Settings] step=save_library_update_results_failed message=' + error.message)
+          })
         this.onLibraryChanged()
         const summaryText = formatLibraryUpdateSummary(summary)
         console.info('[Settings] step=library_update_done reason=' + reason + ' total=' + summary.totalCount + ' updated=' + summary.updatedCount + ' failed=' + summary.failedCount)

@@ -1,21 +1,52 @@
+import { common } from '@kit.AbilityKit'
 import { SecondaryListScaffold } from '../components/SecondaryListScaffold'
 import {
   LibraryUpdateComicResult,
   LibraryUpdateResultStatus,
   LibraryUpdateSummary,
 } from '../model/LibraryUpdateService'
-import { getLatestLibraryUpdateSummary } from '../model/LibraryUpdateResultStore'
+import {
+  LibraryUpdateResultStore,
+  getLatestLibraryUpdateSummary,
+  setLatestLibraryUpdateSummary,
+} from '../model/LibraryUpdateResultStore'
 import { ThemeConstants } from '../theme/ThemeConstants'
 
 @Component
 export struct LibraryUpdateResultPage {
   @State private summary?: LibraryUpdateSummary = undefined
 
+  private context(): common.UIAbilityContext {
+    return getContext(this) as common.UIAbilityContext
+  }
+
+  private libraryUpdateResultStore(): LibraryUpdateResultStore {
+    return new LibraryUpdateResultStore(this.context())
+  }
+
   aboutToAppear(): void {
     const latest = getLatestLibraryUpdateSummary()
     this.summary = latest
     const total = latest === undefined ? 0 : latest.totalCount
     console.info('[LibraryUpdateResults] step=appear hasSummary=' + (latest !== undefined) + ' total=' + total)
+    if (latest !== undefined) {
+      return
+    }
+    void this.libraryUpdateResultStore().load()
+      .then((summary: LibraryUpdateSummary | undefined) => {
+        const current = getLatestLibraryUpdateSummary()
+        let effectiveSummary = current
+        if (summary !== undefined && (current === undefined || summary.checkedAt > current.checkedAt)) {
+          setLatestLibraryUpdateSummary(summary)
+          effectiveSummary = summary
+        }
+        this.summary = effectiveSummary
+        const total = effectiveSummary === undefined ? 0 : effectiveSummary.totalCount
+        console.info('[LibraryUpdateResults] step=load_persisted hasSummary=' + (effectiveSummary !== undefined) + ' total=' + total)
+      })
+      .catch((error: Error) => {
+        console.warn('[LibraryUpdateResults] step=load_persisted_failed message=' + error.message)
+      })
   }
 
   private formatTimestamp(value: number): string {
