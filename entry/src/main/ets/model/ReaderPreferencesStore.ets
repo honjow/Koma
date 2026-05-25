@@ -5,22 +5,32 @@ import { ReaderMode } from './ReaderSessionStore'
 
 export type ReaderPageMode = 'single_page' | 'double_page' | 'continuous_scroll'
 export type ReaderThemeMode = 'system' | 'light' | 'dark'
+export type ReaderBackgroundMode = 'black' | 'paper' | 'light'
 
 export interface ReaderPreferences {
   pageMode: ReaderPageMode
   readingDirection: ReadingDirection
   themeMode: ReaderThemeMode
+  backgroundMode: ReaderBackgroundMode
+  showProgressControls: boolean
+  keepScreenAwake: boolean
 }
 
 export const READER_PREFERENCES_STORE_NAME: string = 'koma_reader_preferences_v1'
 export const PAGE_MODE_KEY: string = 'reader.pageMode'
 export const READING_DIRECTION_KEY: string = 'reader.readingDirection'
 export const THEME_MODE_KEY: string = 'reader.themeMode'
+export const BACKGROUND_MODE_KEY: string = 'reader.backgroundMode'
+export const SHOW_PROGRESS_CONTROLS_KEY: string = 'reader.showProgressControls'
+export const KEEP_SCREEN_AWAKE_KEY: string = 'reader.keepScreenAwake'
 
 export const DEFAULT_READER_PREFERENCES: ReaderPreferences = {
   pageMode: 'single_page',
   readingDirection: ReadingDirection.LEFT_TO_RIGHT,
   themeMode: 'system',
+  backgroundMode: 'black',
+  showProgressControls: true,
+  keepScreenAwake: true,
 }
 
 export function normalizeReaderPageMode(value: string): ReaderPageMode {
@@ -35,6 +45,27 @@ export function normalizeReaderThemeMode(value: string): ReaderThemeMode {
     return value
   }
   return 'system'
+}
+
+export function normalizeReaderBackgroundMode(value: string): ReaderBackgroundMode {
+  if (value === 'paper' || value === 'light') {
+    return value
+  }
+  return 'black'
+}
+
+export function normalizeReaderProgressControls(value: boolean | string | number): boolean {
+  if (value === false || value === 'false' || value === 0 || value === '0') {
+    return false
+  }
+  return true
+}
+
+export function normalizeReaderKeepScreenAwake(value: boolean | string | number): boolean {
+  if (value === false || value === 'false' || value === 0 || value === '0') {
+    return false
+  }
+  return true
 }
 
 export function normalizeReaderReadingDirection(value: string): ReadingDirection {
@@ -74,6 +105,24 @@ export function getReaderThemeModeLabel(mode: ReaderThemeMode): string {
   return '跟随系统'
 }
 
+export function getReaderBackgroundModeLabel(mode: ReaderBackgroundMode): string {
+  if (mode === 'paper') {
+    return '纸张'
+  }
+  if (mode === 'light') {
+    return '浅色'
+  }
+  return '黑色'
+}
+
+export function getReaderProgressControlsLabel(showProgressControls: boolean): string {
+  return showProgressControls ? '显示' : '隐藏'
+}
+
+export function getReaderKeepScreenAwakeLabel(keepScreenAwake: boolean): string {
+  return keepScreenAwake ? '开启' : '关闭'
+}
+
 export function readerModeFromPageMode(pageMode: ReaderPageMode): ReaderMode {
   if (pageMode === 'continuous_scroll') {
     return ReaderMode.CONTINUOUS_SCROLL
@@ -106,10 +155,18 @@ export class ReaderPreferencesStore {
     const pageMode = await store.get(PAGE_MODE_KEY, DEFAULT_READER_PREFERENCES.pageMode) as string
     const readingDirection = await store.get(READING_DIRECTION_KEY, DEFAULT_READER_PREFERENCES.readingDirection) as string
     const themeMode = await store.get(THEME_MODE_KEY, DEFAULT_READER_PREFERENCES.themeMode) as string
+    const backgroundMode = await store.get(BACKGROUND_MODE_KEY, DEFAULT_READER_PREFERENCES.backgroundMode) as string
+    const showProgressControls =
+      await store.get(SHOW_PROGRESS_CONTROLS_KEY, DEFAULT_READER_PREFERENCES.showProgressControls) as boolean | string | number
+    const keepScreenAwake =
+      await store.get(KEEP_SCREEN_AWAKE_KEY, DEFAULT_READER_PREFERENCES.keepScreenAwake) as boolean | string | number
     return {
       pageMode: normalizeReaderPageMode(pageMode),
       readingDirection: normalizeReaderReadingDirection(readingDirection),
       themeMode: normalizeReaderThemeMode(themeMode),
+      backgroundMode: normalizeReaderBackgroundMode(backgroundMode),
+      showProgressControls: normalizeReaderProgressControls(showProgressControls),
+      keepScreenAwake: normalizeReaderKeepScreenAwake(keepScreenAwake),
     }
   }
 
@@ -131,11 +188,32 @@ export class ReaderPreferencesStore {
     await store.flush()
   }
 
+  async saveBackgroundMode(backgroundMode: ReaderBackgroundMode): Promise<void> {
+    const store = await this.preferences()
+    await store.put(BACKGROUND_MODE_KEY, backgroundMode)
+    await store.flush()
+  }
+
+  async saveShowProgressControls(showProgressControls: boolean): Promise<void> {
+    const store = await this.preferences()
+    await store.put(SHOW_PROGRESS_CONTROLS_KEY, showProgressControls)
+    await store.flush()
+  }
+
+  async saveKeepScreenAwake(keepScreenAwake: boolean): Promise<void> {
+    const store = await this.preferences()
+    await store.put(KEEP_SCREEN_AWAKE_KEY, keepScreenAwake)
+    await store.flush()
+  }
+
   async save(preferences: ReaderPreferences): Promise<void> {
     const store = await this.preferences()
     await store.put(PAGE_MODE_KEY, normalizeReaderPageMode(preferences.pageMode))
     await store.put(READING_DIRECTION_KEY, normalizeReaderReadingDirection(preferences.readingDirection))
     await store.put(THEME_MODE_KEY, normalizeReaderThemeMode(preferences.themeMode))
+    await store.put(BACKGROUND_MODE_KEY, normalizeReaderBackgroundMode(preferences.backgroundMode))
+    await store.put(SHOW_PROGRESS_CONTROLS_KEY, normalizeReaderProgressControls(preferences.showProgressControls))
+    await store.put(KEEP_SCREEN_AWAKE_KEY, normalizeReaderKeepScreenAwake(preferences.keepScreenAwake))
     await store.flush()
   }
 

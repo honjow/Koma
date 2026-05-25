@@ -251,6 +251,9 @@ assertExport(readerPreferencesStoreSource, 'READER_PREFERENCES_STORE_NAME')
 assertExport(readerPreferencesStoreSource, 'PAGE_MODE_KEY')
 assertExport(readerPreferencesStoreSource, 'READING_DIRECTION_KEY')
 assertExport(readerPreferencesStoreSource, 'THEME_MODE_KEY')
+assertExport(readerPreferencesStoreSource, 'BACKGROUND_MODE_KEY')
+assertExport(readerPreferencesStoreSource, 'SHOW_PROGRESS_CONTROLS_KEY')
+assertExport(readerPreferencesStoreSource, 'KEEP_SCREEN_AWAKE_KEY')
 assertExport(offlineDownloadStoreSource, 'OfflineDownloadStore')
 assertExport(offlineDownloadStoreSource, 'OfflineDownloadStatus')
 assertExport(offlineDownloadStoreSource, 'OfflineChapterDownloadManifest')
@@ -753,8 +756,8 @@ assert.match(
 )
 assert.match(
   backupServiceSource,
-  /new ReaderPreferencesStore\(this\.context\)\.save\(nextSettings\)/,
-  'backup v2 import must flush restored reader preferences',
+  /backgroundMode:\s*settings\.backgroundMode \?\? DEFAULT_READER_PREFERENCES\.backgroundMode[\s\S]*showProgressControls:\s*settings\.showProgressControls \?\? DEFAULT_READER_PREFERENCES\.showProgressControls[\s\S]*keepScreenAwake:\s*settings\.keepScreenAwake \?\? DEFAULT_READER_PREFERENCES\.keepScreenAwake[\s\S]*new ReaderPreferencesStore\(this\.context\)\.save\(nextSettings\)/,
+  'backup v2 import must preserve backward compatibility while restoring reader settings MVP preferences',
 )
 assert.doesNotMatch(
   backupServiceSource,

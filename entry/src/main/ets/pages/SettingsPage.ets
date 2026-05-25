@@ -11,11 +11,15 @@ import {
   getReaderRemoteImageCacheStats,
 } from '../model/ReaderPageSourceAdapter'
 import {
+  ReaderBackgroundMode,
   ReaderPageMode,
   ReaderPreferencesStore,
   ReaderThemeMode,
   applyReaderThemeMode,
+  getReaderBackgroundModeLabel,
+  getReaderKeepScreenAwakeLabel,
   getReaderPageModeLabel,
+  getReaderProgressControlsLabel,
   getReaderThemeModeLabel,
   getReadingDirectionLabel,
 } from '../model/ReaderPreferencesStore'
@@ -48,6 +52,9 @@ const SETTINGS_SECTIONS: SettingsSection[] = [
     rows: [
       { key: 'page-mode', title: '翻页模式', detail: '单页' },
       { key: 'reading-direction', title: '阅读方向', detail: '从左到右' },
+      { key: 'reader-background', title: '阅读背景', detail: '黑色' },
+      { key: 'reader-progress', title: '页码与进度', detail: '显示' },
+      { key: 'reader-keep-screen-awake', title: '屏幕常亮', detail: '开启' },
     ],
   },
   {
@@ -82,6 +89,9 @@ export struct SettingsPage {
   @State private pageMode: ReaderPageMode = 'single_page'
   @State private readingDirection: ReadingDirection = ReadingDirection.LEFT_TO_RIGHT
   @State private themeMode: ReaderThemeMode = 'system'
+  @State private readerBackgroundMode: ReaderBackgroundMode = 'black'
+  @State private showReaderProgressControls: boolean = true
+  @State private keepReaderScreenAwake: boolean = true
   @State private versionDetail: string = 'Koma 开发版'
   @State private imageCacheDetail: string = '0 B · 0 项'
 
@@ -107,6 +117,15 @@ export struct SettingsPage {
     if (row.key === 'theme') {
       return getReaderThemeModeLabel(this.themeMode)
     }
+    if (row.key === 'reader-background') {
+      return getReaderBackgroundModeLabel(this.readerBackgroundMode)
+    }
+    if (row.key === 'reader-progress') {
+      return getReaderProgressControlsLabel(this.showReaderProgressControls)
+    }
+    if (row.key === 'reader-keep-screen-awake') {
+      return getReaderKeepScreenAwakeLabel(this.keepReaderScreenAwake)
+    }
     if (row.key === 'version') {
       return this.versionDetail
     }
@@ -126,6 +145,9 @@ export struct SettingsPage {
         this.pageMode = preferences.pageMode
         this.readingDirection = preferences.readingDirection
         this.themeMode = preferences.themeMode
+        this.readerBackgroundMode = preferences.backgroundMode
+        this.showReaderProgressControls = preferences.showProgressControls
+        this.keepReaderScreenAwake = preferences.keepScreenAwake
         console.info('[Settings] step=load_preferences')
       })
       .catch((error: Error) => {
@@ -257,6 +279,76 @@ export struct SettingsPage {
       })
   }
 
+  private showReaderBackgroundSheet(): void {
+    console.info('[Settings] step=reader_background_sheet')
+    this.getUIContext().showActionSheet({
+      title: '阅读背景',
+      message: '选择阅读器页面外的背景颜色',
+      sheets: [
+        { title: '黑色', action: () => { this.saveReaderBackgroundMode('black') } },
+        { title: '纸张', action: () => { this.saveReaderBackgroundMode('paper') } },
+        { title: '浅色', action: () => { this.saveReaderBackgroundMode('light') } },
+      ],
+    })
+  }
+
+  private saveReaderBackgroundMode(backgroundMode: ReaderBackgroundMode): void {
+    this.readerBackgroundMode = backgroundMode
+    void this.preferencesStore().saveBackgroundMode(backgroundMode)
+      .then(() => {
+        console.info('[Settings] step=save_reader_background value=' + backgroundMode)
+      })
+      .catch((error: Error) => {
+        console.warn('[Settings] step=save_reader_background_failed message=' + error.message)
+      })
+  }
+
+  private showReaderProgressSheet(): void {
+    console.info('[Settings] step=reader_progress_sheet')
+    this.getUIContext().showActionSheet({
+      title: '页码与进度',
+      message: '控制阅读器底部页码和进度条显示',
+      sheets: [
+        { title: '显示', action: () => { this.saveReaderProgressControls(true) } },
+        { title: '隐藏', action: () => { this.saveReaderProgressControls(false) } },
+      ],
+    })
+  }
+
+  private saveReaderProgressControls(showProgressControls: boolean): void {
+    this.showReaderProgressControls = showProgressControls
+    void this.preferencesStore().saveShowProgressControls(showProgressControls)
+      .then(() => {
+        console.info('[Settings] step=save_reader_progress value=' + showProgressControls)
+      })
+      .catch((error: Error) => {
+        console.warn('[Settings] step=save_reader_progress_failed message=' + error.message)
+      })
+  }
+
+  private showReaderKeepScreenAwakeSheet(): void {
+    console.info('[Settings] step=reader_keep_screen_awake_sheet')
+    this.getUIContext().showActionSheet({
+      title: '屏幕常亮',
+      message: '控制阅读器打开时是否保持屏幕常亮',
+      sheets: [
+        { title: '开启', action: () => { this.saveReaderKeepScreenAwake(true) } },
+        { title: '关闭', action: () => { this.saveReaderKeepScreenAwake(false) } },
+      ],
+    })
+  }
+
+  private saveReaderKeepScreenAwake(keepScreenAwake: boolean): void {
+    this.keepReaderScreenAwake = keepScreenAwake
+    void this.preferencesStore().saveKeepScreenAwake(keepScreenAwake)
+      .then(() => {
+        console.info('[Settings] step=save_reader_keep_screen_awake value=' + keepScreenAwake)
+      })
+      .catch((error: Error) => {
+        console.warn('[Settings] step=save_reader_keep_screen_awake_failed message=' + error.message)
+      })
+  }
+
   private showBackupSheet(): void {
     console.info('[Settings] step=backup_sheet')
     this.getUIContext().showActionSheet({
@@ -374,6 +466,12 @@ export struct SettingsPage {
       this.showReadingDirectionSheet()
     } else if (row.key === 'theme') {
       this.showThemeSheet()
+    } else if (row.key === 'reader-background') {
+      this.showReaderBackgroundSheet()
+    } else if (row.key === 'reader-progress') {
+      this.showReaderProgressSheet()
+    } else if (row.key === 'reader-keep-screen-awake') {
+      this.showReaderKeepScreenAwakeSheet()
     } else if (row.key === 'backup') {
       this.showBackupSheet()
     } else if (row.key === 'image-cache') {
