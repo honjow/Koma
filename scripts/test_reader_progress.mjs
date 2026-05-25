@@ -509,7 +509,7 @@ assert.match(readerPageSource, /showProgressControls: this\.showProgressControls
 assert.match(readerPageSource, /window\.getLastWindow\(context\)[\s\S]*setWindowKeepScreenOn\(keepScreenAwake\)/, 'ReaderPage must apply keep-screen-awake through localized window API')
 assert.match(readerPageSource, /aboutToAppear\(\): void \{[\s\S]*applyReaderKeepScreenAwake\(this\.keepScreenAwake, 'appear'\)/, 'ReaderPage must apply keep-screen-awake only while reader appears')
 assert.match(readerPageSource, /aboutToDisappear\(\): void \{[\s\S]*applyReaderKeepScreenAwake\(false, 'disappear'\)/, 'ReaderPage must restore screen timeout when leaving reader')
-assert.match(readerChromeSource, /showProgressControls: boolean = true/, 'ReaderChrome must default to showing page number/progress')
+assert.match(readerChromeSource, /@Prop\s+showProgressControls:\s*boolean = true/, 'ReaderChrome progress visibility must be reactive to ReaderPage preference updates')
 assert.match(readerChromeSource, /if \(this\.showProgressControls\) \{[\s\S]*Text\(`\$\{this\.pageIndex \+ 1\} \/ \$\{this\.pageTotal\}`\)/, 'ReaderChrome must hide the page number label when requested')
 assert.match(readerChromeSource, /if \(this\.showProgressControls\) \{[\s\S]*Progress\(\{ value: this\.progressValue\(\), total: 100, type: ProgressType\.Linear \}\)/, 'ReaderChrome must hide the progress bar when requested')
 assert.match(readerChromeSource, /Button\('上一页'\)[\s\S]*Button\('下一页'\)/, 'ReaderChrome must keep previous/next navigation controls available')
