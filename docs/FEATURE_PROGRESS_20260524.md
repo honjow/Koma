@@ -78,6 +78,7 @@ Verified on device `192.168.50.103:12345`:
 | Source package settings | `23dac83` | Installed local source packages can expose non-secret settings via `get_settings`; settings persist by sourceId, inject into runtime calls, and backup schema v3 exports sanitized settings. |
 | Library update check MVP | `pending` | Settings foreground action checks Library for source-runtime chapter changes, updates chapter metadata, and reports skipped/failed counts without scheduler or OS notifications. |
 | Library auto-update preferences | `pending` | Settings persists an app-open due-check preference with 12h/24h/48h intervals and last status. This is a foreground MVP only, not a system background scheduler or notification flow. |
+| Library update result persistence | `pending` | Latest sanitized per-comic update results persist across app restarts for the details page without rerunning checks. |
 
 ## Current Product Baseline
 

@@ -303,9 +303,19 @@ assertExport(libraryUpdateServiceSource, 'LibraryUpdateComicResult')
 assertExport(libraryUpdateServiceSource, 'LibraryUpdateSummary')
 assertExport(libraryUpdateServiceSource, 'LibraryUpdateService')
 assertExport(libraryUpdateServiceSource, 'formatLibraryUpdateSummary')
+assertExport(libraryUpdateResultStoreSource, 'LIBRARY_UPDATE_RESULT_STORE_NAME')
+assertExport(libraryUpdateResultStoreSource, 'LIBRARY_UPDATE_LATEST_RESULT_JSON_KEY')
+assertExport(libraryUpdateResultStoreSource, 'LIBRARY_UPDATE_RESULT_MAX_RESULTS')
+assertExport(libraryUpdateResultStoreSource, 'LIBRARY_UPDATE_RESULT_MAX_COMIC_ID_LENGTH')
+assertExport(libraryUpdateResultStoreSource, 'LIBRARY_UPDATE_RESULT_MAX_MESSAGE_LENGTH')
+assertExport(libraryUpdateResultStoreSource, 'PersistedLibraryUpdateResult')
+assertExport(libraryUpdateResultStoreSource, 'PersistedLibraryUpdateSummary')
+assertExport(libraryUpdateResultStoreSource, 'serializeLibraryUpdateSummary')
+assertExport(libraryUpdateResultStoreSource, 'hydrateLibraryUpdateSummaryFromJson')
 assertExport(libraryUpdateResultStoreSource, 'cloneLibraryUpdateSummary')
 assertExport(libraryUpdateResultStoreSource, 'setLatestLibraryUpdateSummary')
 assertExport(libraryUpdateResultStoreSource, 'getLatestLibraryUpdateSummary')
+assertExport(libraryUpdateResultStoreSource, 'LibraryUpdateResultStore')
 assertExport(libraryUpdatePreferencesStoreSource, 'LibraryUpdatePreferences')
 assertExport(libraryUpdatePreferencesStoreSource, 'LIBRARY_UPDATE_PREFERENCES_STORE_NAME')
 assertExport(libraryUpdatePreferencesStoreSource, 'LIBRARY_UPDATE_AUTO_CHECK_ENABLED_KEY')
@@ -504,6 +514,26 @@ assert.match(
 )
 assert.match(
   settingsPageSource,
+  /private libraryUpdateResultStore\(\): LibraryUpdateResultStore \{[\s\S]*new LibraryUpdateResultStore\(this\.context\(\)\)/,
+  'SettingsPage must construct a persisted library update result store from the UIAbility context',
+)
+assert.match(
+  settingsPageSource,
+  /loadLatestLibraryUpdateSummary\(\): void \{[\s\S]*getLatestLibraryUpdateSummary\(\)[\s\S]*this\.libraryUpdateResultStore\(\)\.load\(\)[\s\S]*const current = getLatestLibraryUpdateSummary\(\)[\s\S]*setLatestLibraryUpdateSummary\(summary\)[\s\S]*this\.libraryUpdateSummary = effectiveSummary[\s\S]*step=load_library_update_results hasSummary=/,
+  'SettingsPage must load persisted library update result details after checking fresh in-memory state',
+)
+assert.match(
+  settingsPageSource,
+  /\.then\(\(summary: LibraryUpdateSummary \| undefined\) => \{[\s\S]*const current = getLatestLibraryUpdateSummary\(\)[\s\S]*if \(summary !== undefined && \(current === undefined \|\| summary\.checkedAt > current\.checkedAt\)\) \{[\s\S]*setLatestLibraryUpdateSummary\(summary\)[\s\S]*this\.libraryUpdateSummary = effectiveSummary/,
+  'SettingsPage must only use persisted library update results as fallback or when newer than fresh in-memory state at load resolution',
+)
+assert.match(
+  settingsPageSource,
+  /this\.libraryUpdateResultStore\(\)\.save\(summary\)[\s\S]*step=save_library_update_results total=/,
+  'SettingsPage must asynchronously persist latest successful library update result details',
+)
+assert.match(
+  settingsPageSource,
   /onOpenLibraryUpdateResults:\s*\(\) => void = \(\) => \{\}/,
   'SettingsPage must accept a callback for opening library update result details',
 )
@@ -584,6 +614,21 @@ assert.match(
 )
 assert.match(
   libraryUpdateResultPageSource,
+  /new LibraryUpdateResultStore\(this\.context\(\)\)/,
+  'LibraryUpdateResultPage must construct the persisted result store from context',
+)
+assert.match(
+  libraryUpdateResultPageSource,
+  /if \(latest !== undefined\) \{[\s\S]*return[\s\S]*this\.libraryUpdateResultStore\(\)\.load\(\)[\s\S]*step=load_persisted hasSummary=/,
+  'LibraryUpdateResultPage must fall back to persisted result loading when memory is absent',
+)
+assert.match(
+  libraryUpdateResultPageSource,
+  /\.then\(\(summary: LibraryUpdateSummary \| undefined\) => \{[\s\S]*const current = getLatestLibraryUpdateSummary\(\)[\s\S]*if \(summary !== undefined && \(current === undefined \|\| summary\.checkedAt > current\.checkedAt\)\) \{[\s\S]*setLatestLibraryUpdateSummary\(summary\)[\s\S]*this\.summary = effectiveSummary/,
+  'LibraryUpdateResultPage must only hydrate persisted results when newer than fresh in-memory state at load resolution',
+)
+assert.match(
+  libraryUpdateResultPageSource,
   /尚无检查结果[\s\S]*请先在设置中运行检查书架更新/,
   'LibraryUpdateResultPage must render the empty state copy',
 )
@@ -616,6 +661,71 @@ assert.match(
   libraryUpdateServiceSource,
   /mergeSourceChapters[\s\S]*pages: existing\.pages[\s\S]*pageCount: existing\.pageCount/,
   'LibraryUpdateService must preserve existing pages when refreshing source-runtime chapter metadata',
+)
+assert.match(
+  libraryUpdateResultStoreSource,
+  /preferences\.getPreferences\(this\.context, LIBRARY_UPDATE_RESULT_STORE_NAME\)/,
+  'LibraryUpdateResultStore must use Harmony preferences with its dedicated store name',
+)
+assert.match(
+  libraryUpdateResultStoreSource,
+  /JSON\.stringify\(persisted\)/,
+  'LibraryUpdateResultStore must serialize persisted result details as JSON',
+)
+assert.match(
+  libraryUpdateResultStoreSource,
+  /JSON\.parse\(jsonText\)/,
+  'LibraryUpdateResultStore must parse persisted result details as JSON',
+)
+assert.match(
+  libraryUpdateResultStoreSource,
+  /store\.put\(LIBRARY_UPDATE_LATEST_RESULT_JSON_KEY, serializeLibraryUpdateSummary\(summary\)\)[\s\S]*store\.flush\(\)/,
+  'LibraryUpdateResultStore.save must write the latest result JSON and flush preferences',
+)
+assert.match(
+  libraryUpdateResultStoreSource,
+  /Number\.isFinite\(value\) && value >= 0[\s\S]*Number\.isFinite\(value\) && value > 0/,
+  'LibraryUpdateResultStore must validate positive checkedAt and nonnegative count fields',
+)
+assert.match(
+  libraryUpdateResultStoreSource,
+  /value === 'updated'[\s\S]*value === 'unchanged'[\s\S]*value === 'skipped'[\s\S]*value === 'failed'/,
+  'LibraryUpdateResultStore must validate persisted result statuses',
+)
+assert.match(
+  libraryUpdateResultStoreSource,
+  /clampString\(result\.comicId, LIBRARY_UPDATE_RESULT_MAX_COMIC_ID_LENGTH\)[\s\S]*clampString\(result\.message, LIBRARY_UPDATE_RESULT_MAX_MESSAGE_LENGTH\)/,
+  'LibraryUpdateResultStore must clamp persisted comicId and message strings',
+)
+assert.match(
+  libraryUpdateResultStoreSource,
+  /\.slice\(0, LIBRARY_UPDATE_RESULT_MAX_RESULTS\)/,
+  'LibraryUpdateResultStore must cap persisted result count',
+)
+assert.match(
+  libraryUpdateResultStoreSource,
+  /totalCount:\s*normalizeCount\(summary\.totalCount\)[\s\S]*updatedCount:\s*normalizeCount\(summary\.updatedCount\)[\s\S]*failedCount:\s*normalizeCount\(summary\.failedCount\)[\s\S]*results,/,
+  'LibraryUpdateResultStore serialization must preserve sanitized aggregate counters independent of capped details',
+)
+assert.match(
+  libraryUpdateResultStoreSource,
+  /function aggregateCountField\([\s\S]*!isNonNegativeFiniteNumber\(value\)[\s\S]*return fallback[\s\S]*return normalizeCount\(value\)/,
+  'LibraryUpdateResultStore hydration must sanitize aggregate counters and fall back for missing or malformed fields',
+)
+assert.match(
+  libraryUpdateResultStoreSource,
+  /totalCount:\s*aggregateCountField\(record, 'totalCount', resultTotalCount\)[\s\S]*updatedCount:\s*aggregateCountField\(record, 'updatedCount', resultUpdatedCount\)[\s\S]*failedCount:\s*aggregateCountField\(record, 'failedCount', resultFailedCount\)/,
+  'LibraryUpdateResultStore hydration must prefer persisted aggregate counters over capped detail-derived counts when valid',
+)
+assert.match(
+  libraryUpdateResultStoreSource,
+  /catch \(_error\) \{[\s\S]*return undefined[\s\S]*\}/,
+  'LibraryUpdateResultStore must fail closed to undefined for corrupt or unreadable persisted JSON',
+)
+assert.doesNotMatch(
+  libraryUpdateResultStoreSource,
+  /requestJson|settings|token|cookie|password|headers|payload|rawUrl|sourcePath|sourceRuntimeId|remoteResourceId/i,
+  'LibraryUpdateResultStore must not persist raw source request/settings/headers/token/password/payload/url fields',
 )
 for (const [source, label] of [
   [settingsPageSource, 'SettingsPage'],
