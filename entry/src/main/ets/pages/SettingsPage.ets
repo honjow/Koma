@@ -553,7 +553,7 @@ export struct SettingsPage {
       SecondaryListScaffold({
         listSpace: 18,
         horizontalPadding: 20,
-        bottomPadding: ThemeConstants.FLOAT_BAR_HEIGHT + 20,
+        bottomPadding: ThemeConstants.FLOAT_BAR_HEIGHT + 20 + ThemeConstants.SPACE_XL,
       }) {
         ForEach(SETTINGS_SECTIONS, (section: SettingsSection) => {
           ListItem() {
