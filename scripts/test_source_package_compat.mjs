@@ -86,7 +86,7 @@ assert.match(
 )
 assert.match(
   appRegistrySource,
-  /export async function installFromBytes\(context: common\.UIAbilityContext, archiveBytes: Uint8Array, pkgFileName: string\): Promise<SourcePackageInstallResult>/,
+  /export async function installFromBytes\(\s*context: common\.UIAbilityContext,\s*archiveBytes: Uint8Array,\s*pkgFileName: string,\s*expectedSourceId\?: string,\s*\): Promise<SourcePackageInstallResult>/,
   'app registry must expose installFromBytes for source index service to use',
 )
 assert.match(
