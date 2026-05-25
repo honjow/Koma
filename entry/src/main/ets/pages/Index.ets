@@ -387,6 +387,9 @@ struct Index {
 
         TabContent() {
           SettingsPage({
+            libraryStore: this.libraryStore,
+            libraryPersistenceService: this.ensureLibraryPersistenceService(),
+            sourceRegistry: this.sourceRegistry,
             onOpenKomgaSettings: () => {
               this.openSettingsSecondary(RouteName.KOMGA_SERVER)
             },
@@ -398,6 +401,9 @@ struct Index {
             },
             onOpenSourcePackageManager: () => {
               this.openSettingsSecondary(RouteName.SOURCE_PACKAGE_MANAGER)
+            },
+            onLibraryChanged: () => {
+              this.refreshLibrarySnapshot()
             }
           })
         }.tabBar(this.TabIcon(TabLabel.SETTINGS, TabIndex.SETTINGS))

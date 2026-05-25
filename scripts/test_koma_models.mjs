@@ -13,6 +13,7 @@ const sourceTextNormalizerPath = resolve(root, 'entry/src/main/ets/model/SourceT
 const mangaDetailModelsPath = resolve(root, 'entry/src/main/ets/model/MangaDetailModels.ets')
 const libraryRepositoryPath = resolve(root, 'entry/src/main/ets/model/LibraryRepository.ets')
 const libraryPersistencePath = resolve(root, 'entry/src/main/ets/model/LibraryPersistence.ets')
+const libraryUpdateServicePath = resolve(root, 'entry/src/main/ets/model/LibraryUpdateService.ets')
 const backupServicePath = resolve(root, 'entry/src/main/ets/model/BackupService.ets')
 const readerPreferencesStorePath = resolve(root, 'entry/src/main/ets/model/ReaderPreferencesStore.ets')
 const offlineDownloadStorePath = resolve(root, 'entry/src/main/ets/model/OfflineDownloadStore.ets')
@@ -44,6 +45,7 @@ const sourceTextNormalizerSource = readFileSync(sourceTextNormalizerPath, 'utf8'
 const mangaDetailModelsSource = readFileSync(mangaDetailModelsPath, 'utf8')
 const libraryRepositorySource = readFileSync(libraryRepositoryPath, 'utf8')
 const libraryPersistenceSource = readFileSync(libraryPersistencePath, 'utf8')
+const libraryUpdateServiceSource = readFileSync(libraryUpdateServicePath, 'utf8')
 const backupServiceSource = readFileSync(backupServicePath, 'utf8')
 const readerPreferencesStoreSource = readFileSync(readerPreferencesStorePath, 'utf8')
 const offlineDownloadStoreSource = readFileSync(offlineDownloadStorePath, 'utf8')
@@ -286,6 +288,11 @@ assertExport(libraryPersistenceSource, 'upsertComicAndPersistLibraryStore')
 assertExport(libraryPersistenceSource, 'assignComicCategoriesAndPersistLibraryStore')
 assertExport(libraryPersistenceSource, 'isRemovableLocalComic')
 assertExport(libraryPersistenceSource, 'removeComicAndPersistLibraryStore')
+assertExport(libraryUpdateServiceSource, 'LibraryUpdateResultStatus')
+assertExport(libraryUpdateServiceSource, 'LibraryUpdateComicResult')
+assertExport(libraryUpdateServiceSource, 'LibraryUpdateSummary')
+assertExport(libraryUpdateServiceSource, 'LibraryUpdateService')
+assertExport(libraryUpdateServiceSource, 'formatLibraryUpdateSummary')
 
 assert.match(entryAbilitySource, /const TRANSPARENT_COLOR: string = '#00FFFFFF'/, 'EntryAbility must keep transparent system bar color')
 assert.match(entryAbilitySource, /setWindowLayoutFullScreen\(true\)/, 'EntryAbility must keep fullscreen window layout')
@@ -416,6 +423,48 @@ assert.match(
   /onAssignCategoriesRequested:\s*\(comicIds: ComicId\[\], categoryIds\?: string\[\]\) => \{[\s\S]*return this\.handleAssignCategoriesRequested\(comicIds, categoryIds\)/,
   'Index must wire LibraryPage category assignment into the persistent library store',
 )
+assert.match(
+  settingsPageSource,
+  /\{ key: 'library-update', title: '检查书架更新', detail: '尚未检查' \}/,
+  'SettingsPage must expose a foreground library update entry under Data',
+)
+assert.match(
+  settingsPageSource,
+  /new LibraryUpdateService\([\s\S]*this\.libraryStore[\s\S]*this\.sourceRegistry[\s\S]*this\.libraryPersistenceService[\s\S]*\)\s*[\s\S]*\.checkLibraryUpdates\(\)/,
+  'SettingsPage must trigger LibraryUpdateService from the foreground entry',
+)
+assert.match(
+  settingsPageSource,
+  /SecondaryListScaffold\(\{[\s\S]*bottomPadding:\s*ThemeConstants\.FLOAT_BAR_HEIGHT \+ 20 \+ ThemeConstants\.SPACE_XL/,
+  'SettingsPage must preserve SecondaryListScaffold bottom clearance while adding update status',
+)
+assert.match(
+  indexSource,
+  /SettingsPage\(\{[\s\S]*libraryStore: this\.libraryStore[\s\S]*sourceRegistry: this\.sourceRegistry[\s\S]*onLibraryChanged: \(\) => \{[\s\S]*this\.refreshLibrarySnapshot\(\)/,
+  'Index must wire Settings library update completion back into the live shelf snapshot',
+)
+assert.match(
+  libraryUpdateServiceSource,
+  /ComicSourceKind\.LOCAL_ARCHIVE[\s\S]*ComicSourceKind\.LOCAL_FOLDER[\s\S]*本地导入暂不支持远程更新/,
+  'LibraryUpdateService must skip local imports instead of faking update support',
+)
+assert.match(
+  libraryUpdateServiceSource,
+  /ComicSourceKind\.KOMGA_REMOTE[\s\S]*ComicSourceKind\.OPDS_REMOTE[\s\S]*ComicSourceKind\.WEBDAV_REMOTE[\s\S]*该远程库暂未接入安全的元数据刷新/,
+  'LibraryUpdateService must skip unsupported private remote metadata refresh paths',
+)
+assert.match(
+  libraryUpdateServiceSource,
+  /mergeSourceChapters[\s\S]*pages: existing\.pages[\s\S]*pageCount: existing\.pageCount/,
+  'LibraryUpdateService must preserve existing pages when refreshing source-runtime chapter metadata',
+)
+for (const [source, label] of [
+  [settingsPageSource, 'SettingsPage'],
+  [libraryUpdateServiceSource, 'LibraryUpdateService'],
+  [indexSource, 'Index'],
+]) {
+  assert.doesNotMatch(source, /源市场|内置源|聚合源|fake source market/i, `${label} must not introduce built-in/fake source-market copy`)
+}
 assert.match(
   libraryPersistenceSource,
   /function assertSupportedLibraryStoreDocument[\s\S]*document\.schemaVersion !== LIBRARY_STORE_PERSISTENCE_SCHEMA_VERSION[\s\S]*throw new Error/,

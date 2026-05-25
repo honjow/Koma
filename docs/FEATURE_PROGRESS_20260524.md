@@ -76,6 +76,7 @@ Verified on device `192.168.50.103:12345`:
 | Reader image cache management | `a48ce93` | Settings shows remote image cache stats and exposes clear action scoped to `reader-remote-image-cache`. |
 | Content safe-area avoidance | `ec697de` | Keeps fullscreen transparent/floating shell while adding internal content-list insets for ordinary pages. |
 | Source package settings | `23dac83` | Installed local source packages can expose non-secret settings via `get_settings`; settings persist by sourceId, inject into runtime calls, and backup schema v3 exports sanitized settings. |
+| Library update check MVP | `pending` | Settings foreground action checks Library for source-runtime chapter changes, updates chapter metadata, and reports skipped/failed counts without scheduler or OS notifications. |
 
 ## Current Product Baseline
 
@@ -118,6 +119,7 @@ Verified on device `192.168.50.103:12345`:
 - About / license / version dialogs.
 - Source package manager page.
 - Reader remote image cache stats and clear action.
+- Foreground library update check with last summary/status row.
 
 ### WASM Source Runtime
 
@@ -130,6 +132,7 @@ Verified on device `192.168.50.103:12345`:
 - Installed source packages can expose non-secret `get_settings` descriptors; Koma stores sanitized values per source id and injects them into Browse/detail/pages/image-request runtime envelopes.
 - Production Browse lists only user-installed/enabled packages; no bundled public source or test fixture is registered.
 - Source URL index import: user-configured index URL -> fetch `index.json` -> list packages -> download selected `pkg` -> install/enable via existing archive validator/registry. No built-in default source URL is included.
+- Library update MVP supports installed source-runtime comics via `get_chapters`; local imports and Komga/OPDS/WebDAV metadata refresh are skipped until safe refresh APIs are wired.
 
 ## Known Gaps / Follow-up
 

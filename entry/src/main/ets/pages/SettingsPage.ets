@@ -3,6 +3,13 @@ import { SecondaryListScaffold } from '../components/SecondaryListScaffold'
 import { ThemeConstants } from '../theme/ThemeConstants'
 import { ReadingDirection } from '../model/ComicModels'
 import { BackupService } from '../model/BackupService'
+import { LibraryStore } from '../model/LibraryStore'
+import { LibraryStorePersistenceService } from '../model/LibraryPersistence'
+import {
+  LibraryUpdateService,
+  LibraryUpdateSummary,
+  formatLibraryUpdateSummary,
+} from '../model/LibraryUpdateService'
 import {
   ReaderRemoteImageCacheStats,
   clearReaderRemoteImageCache,
@@ -24,6 +31,7 @@ import {
   getReadingDirectionLabel,
 } from '../model/ReaderPreferencesStore'
 import { listInstalled } from '../sourceRuntime/SourceRuntimeAppRegistry'
+import { SourceRuntimeRegistry } from '../sourceRuntime/SourceRuntimeRegistry'
 
 interface SettingsRow {
   key: string
@@ -64,6 +72,7 @@ const SETTINGS_SECTIONS: SettingsSection[] = [
       { key: 'komga', title: 'Komga 私有库', detail: '服务器与认证' },
       { key: 'opds', title: 'OPDS 私有库', detail: 'Catalog 与认证' },
       { key: 'webdav', title: 'WebDAV 私有库', detail: '远程文件夹与认证' },
+      { key: 'library-update', title: '检查书架更新', detail: '尚未检查' },
       { key: 'sources', title: '管理已安装的源包', detail: '暂未安装源包' },
       { key: 'backup', title: '备份与恢复', detail: '导出书架、进度、源包和设置' },
       { key: 'image-cache', title: '图片缓存', detail: '0 B · 0 项' },
@@ -86,6 +95,10 @@ export struct SettingsPage {
   onOpenOpdsSettings: () => void = () => {}
   onOpenWebDavSettings: () => void = () => {}
   onOpenSourcePackageManager: () => void = () => {}
+  onLibraryChanged: () => void = () => {}
+  libraryStore?: LibraryStore
+  libraryPersistenceService?: LibraryStorePersistenceService
+  sourceRegistry?: SourceRuntimeRegistry
   @State private pageMode: ReaderPageMode = 'single_page'
   @State private readingDirection: ReadingDirection = ReadingDirection.LEFT_TO_RIGHT
   @State private themeMode: ReaderThemeMode = 'system'
@@ -94,6 +107,8 @@ export struct SettingsPage {
   @State private keepReaderScreenAwake: boolean = true
   @State private versionDetail: string = 'Koma 开发版'
   @State private imageCacheDetail: string = '0 B · 0 项'
+  @State private libraryUpdateBusy: boolean = false
+  @State private libraryUpdateSummary?: LibraryUpdateSummary = undefined
 
   private context(): common.UIAbilityContext {
     return getContext(this) as common.UIAbilityContext
@@ -136,7 +151,27 @@ export struct SettingsPage {
     if (row.key === 'image-cache') {
       return this.imageCacheDetail
     }
+    if (row.key === 'library-update') {
+      if (this.libraryUpdateBusy) {
+        return '检查中...'
+      }
+      const summaryText = formatLibraryUpdateSummary(this.libraryUpdateSummary)
+      const checkedAt = this.libraryUpdateSummary?.checkedAt
+      if (checkedAt === undefined) {
+        return summaryText
+      }
+      return `${summaryText} · ${this.formatTimestamp(checkedAt)}`
+    }
     return row.detail
+  }
+
+  private formatTimestamp(value: number): string {
+    const date = new Date(value)
+    const month = `${date.getMonth() + 1}`.padStart(2, '0')
+    const day = `${date.getDate()}`.padStart(2, '0')
+    const hour = `${date.getHours()}`.padStart(2, '0')
+    const minute = `${date.getMinutes()}`.padStart(2, '0')
+    return `${month}-${day} ${hour}:${minute}`
   }
 
   private loadPreferences(): void {
@@ -421,6 +456,37 @@ export struct SettingsPage {
     this.onOpenSourcePackageManager()
   }
 
+  private checkLibraryUpdates(): void {
+    if (this.libraryUpdateBusy) {
+      return
+    }
+    if (this.libraryStore === undefined || this.sourceRegistry === undefined) {
+      this.showToast('书架更新不可用')
+      return
+    }
+    this.libraryUpdateBusy = true
+    console.info('[Settings] step=library_update_start')
+    const service = new LibraryUpdateService(
+      this.libraryStore,
+      this.sourceRegistry,
+      this.libraryPersistenceService,
+    )
+    void service.checkLibraryUpdates()
+      .then((summary: LibraryUpdateSummary) => {
+        this.libraryUpdateSummary = summary
+        this.onLibraryChanged()
+        console.info('[Settings] step=library_update_done total=' + summary.totalCount + ' updated=' + summary.updatedCount + ' failed=' + summary.failedCount)
+        this.showToast(summary.updatedCount > 0 ? `发现 ${summary.updatedCount} 本更新` : '书架已是最新')
+      })
+      .catch((error: Error) => {
+        console.warn('[Settings] step=library_update_failed message=' + error.message)
+        this.showToast('检查书架更新失败')
+      })
+      .finally(() => {
+        this.libraryUpdateBusy = false
+      })
+  }
+
   private showInfoDialog(title: string, message: string): void {
     void this.getUIContext().getPromptAction().showDialog({
       title,
@@ -478,6 +544,8 @@ export struct SettingsPage {
       this.showImageCacheSheet()
     } else if (row.key === 'sources') {
       this.showSourcesDialog()
+    } else if (row.key === 'library-update') {
+      this.checkLibraryUpdates()
     } else if (row.key === 'about') {
       this.showAboutDialog()
     } else if (row.key === 'version') {
