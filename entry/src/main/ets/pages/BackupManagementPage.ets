@@ -57,6 +57,10 @@ export struct BackupManagementPage {
     })
   }
 
+  private backupFailureMessage(code: string): string {
+    return `操作未完成，请稍后重试或重新选择备份文件。错误码：${code}`
+  }
+
   private exportBackup(): void {
     if (this.busy) {
       return
@@ -69,9 +73,9 @@ export struct BackupManagementPage {
           this.showInfoDialog('备份已导出', `备份 JSON 已保存到所选位置。\n${BACKUP_UNENCRYPTED_EXPORT_WARNING}`)
         }
       })
-      .catch((error: Error) => {
+      .catch((_error: Error) => {
         console.error('[BackupManagement] step=export_failed code=backup_export_failed')
-        this.showInfoDialog('导出失败', error.message)
+        this.showInfoDialog('导出失败', this.backupFailureMessage('backup_export_failed'))
       })
       .finally(() => {
         this.exportPassphrase = ''
@@ -103,9 +107,9 @@ export struct BackupManagementPage {
           this.showInfoDialog('加密备份已导出', BACKUP_ENCRYPTED_EXPORT_SUCCESS)
         }
       })
-      .catch((error: Error) => {
+      .catch((_error: Error) => {
         console.error('[BackupManagement] step=export_encrypted_failed code=backup_export_failed')
-        this.showInfoDialog('导出失败', error.message)
+        this.showInfoDialog('导出失败', this.backupFailureMessage('backup_export_failed'))
       })
       .finally(() => {
         this.importPassphrase = ''
@@ -135,9 +139,9 @@ export struct BackupManagementPage {
           this.showToast('已读取备份预览，请确认后恢复')
         }
       })
-      .catch((error: Error) => {
+      .catch((_error: Error) => {
         console.error('[BackupManagement] step=preview_failed code=backup_preview_failed')
-        this.showInfoDialog('预览失败', error.message)
+        this.showInfoDialog('预览失败', this.backupFailureMessage('backup_preview_failed'))
       })
       .finally(() => {
         this.busy = false
@@ -188,9 +192,9 @@ export struct BackupManagementPage {
         this.selectedBackupPreview = undefined
         this.showInfoDialog('备份已导入', '已按所选备份恢复书架、阅读进度、远程服务器配置、源包和偏好。')
       })
-      .catch((error: Error) => {
+      .catch((_error: Error) => {
         console.error('[BackupManagement] step=import_failed code=backup_import_failed')
-        this.showInfoDialog('导入失败', error.message)
+        this.showInfoDialog('导入失败', this.backupFailureMessage('backup_import_failed'))
       })
       .finally(() => {
         this.busy = false

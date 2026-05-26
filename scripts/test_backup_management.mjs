@@ -154,5 +154,17 @@ assert.doesNotMatch(
   /document\.encryption/,
   'backup restore must not require new encryption metadata so v1/v2/v3 schema restores stay compatible',
 )
+assert.doesNotMatch(
+  backupPageSource,
+  /showInfoDialog\('(?:导出失败|预览失败|导入失败)',\s*error\.message\)/,
+  'BackupManagementPage must not expose raw native/provider/filesystem errors in user-visible non-decrypt failure dialogs',
+)
+for (const code of ['backup_export_failed', 'backup_preview_failed', 'backup_import_failed']) {
+  assert.match(
+    backupPageSource,
+    new RegExp(`backupFailureMessage\\('${code}'\\)`),
+    `BackupManagementPage must show neutral user-visible message with ${code}`,
+  )
+}
 
 console.log('backup management checks PASS')
