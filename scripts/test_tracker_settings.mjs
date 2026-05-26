@@ -17,21 +17,49 @@ const constantsSource = readFileSync(constantsPath, 'utf8')
 
 assert.match(
   trackerModelsSource,
-  /export type TrackerConnectionStatus = 'not_configured' \| 'planned' \| 'disabled'/,
-  'tracker model must expose only safe local placeholder statuses',
+  /export type TrackerAccountStatus = 'disconnected' \| 'auth_pending' \| 'connected' \| 'expired' \| 'error'/,
+  'tracker model must expose honest account states',
 )
 assert.match(
   trackerModelsSource,
-  /export interface TrackerProviderConnection \{[\s\S]*providerId: TrackerProviderId[\s\S]*displayName: string[\s\S]*status: TrackerConnectionStatus[\s\S]*\}/,
-  'tracker connection model must include provider id, display name, and status',
+  /export interface TrackerAccount \{[\s\S]*providerId: TrackerProviderId[\s\S]*status: TrackerAccountStatus[\s\S]*profile\?: TrackerPublicProfile[\s\S]*credentialAccountKey\?: string/,
+  'tracker account model must keep profile metadata separate from credential refs',
 )
 assert.match(
   trackerModelsSource,
-  /export interface ComicTrackerMapping \{[\s\S]*comicId: ComicId[\s\S]*providerId: TrackerProviderId[\s\S]*externalSeriesId: string/,
-  'tracker model should reserve a per-comic mapping shape',
+  /export interface TrackerCredentialSecretStore \{[\s\S]*isAvailable\(\): boolean[\s\S]*writeToken\(request: TrackerCredentialWriteRequest\): Promise<TrackerCredentialStoreResult>[\s\S]*readToken\(ref: TrackerCredentialSecretRef\): Promise<Uint8Array \| undefined>/,
+  'tracker model must define a narrow secure-token boundary',
 )
-assert.match(trackerModelsSource, /displayName: 'AniList'/, 'tracker providers must include AniList')
-assert.match(trackerModelsSource, /displayName: 'MyAnimeList'/, 'tracker providers must include MyAnimeList')
+assert.match(
+  trackerModelsSource,
+  /class UnavailableTrackerCredentialSecretStore[\s\S]*isAvailable\(\): boolean \{[\s\S]*return false[\s\S]*writeToken[\s\S]*storage_unavailable/,
+  'default tracker credential store must fail closed',
+)
+assert.match(
+  trackerModelsSource,
+  /status === 'connected' && \(!secureStorageAvailable \|\| credentialAccountKey === undefined\)[\s\S]*next\.status = 'error'[\s\S]*secure_storage_unavailable/,
+  'connected tracker accounts must be rejected when secure storage is unavailable',
+)
+assert.match(
+  trackerModelsSource,
+  /parseTrackerOAuthCallback\(callbackUri: string, expectedState: string\)[\s\S]*codePresent: code !== undefined[\s\S]*reason: 'state_mismatch'/,
+  'OAuth callback parser must reject state mismatch without returning the raw code',
+)
+assert.doesNotMatch(
+  trackerModelsSource,
+  /clientSecret|client_secret|accessToken|refreshToken|rawToken|authCode|authorizationCode|bearer/i,
+  'tracker models must not add raw OAuth material fields',
+)
+assert.match(
+  trackerModelsSource,
+  /displayName: 'AniList'/,
+  'tracker providers must include AniList',
+)
+assert.match(
+  trackerModelsSource,
+  /displayName: 'MyAnimeList'/,
+  'tracker providers must include MyAnimeList',
+)
 assert.match(trackerModelsSource, /displayName: 'Kitsu'/, 'tracker providers should include Kitsu')
 assert.match(trackerModelsSource, /displayName: 'MangaUpdates'/, 'tracker providers should include MangaUpdates')
 assert.match(trackerModelsSource, /displayName: 'Bangumi'/, 'tracker providers should include Bangumi')
@@ -83,36 +111,23 @@ assert.doesNotMatch(
 )
 assert.match(
   trackerPageSource,
-  /公共追踪账号同步尚未接入/,
-  'TrackerSettingsPage must clearly say public tracker account sync is not connected yet',
+  /安全存储未验证，追踪账号连接暂不可用/,
+  'TrackerSettingsPage must surface secure storage unavailability',
 )
 assert.match(
   trackerPageSource,
-  /不会要求登录，也不会保存账号授权数据/,
-  'TrackerSettingsPage must avoid collecting account authorization data in this lane',
+  /getTrackerAccountStatusLabel/,
+  'TrackerSettingsPage must use truthful status labels from the model',
 )
 assert.match(
   trackerPageSource,
-  /账号未连接/,
-  'TrackerSettingsPage must present providers as not connected placeholders',
+  /\.enabled\(this\.canPrepareConnect\(provider\)\)/,
+  'connect action must be disabled unless config and secure storage are available',
 )
-
-const trackerLaneSource = [
-  trackerModelsSource,
+assert.doesNotMatch(
   trackerPageSource,
-  settingsPageSource.match(/key: 'trackers'[\s\S]*?\}/)?.[0] ?? '',
-  indexSource.match(/RouteName\.TRACKER_SETTINGS[\s\S]*?titleBar/)?.[0] ?? '',
-].join('\n')
-
-assert.doesNotMatch(
-  trackerLaneSource,
-  /\b(token|secret|password|passwd|credential|authorization|apiKey|api_key|accessKey|refreshKey)\b/i,
-  'tracker skeleton must not introduce credential-like fields or labels',
-)
-assert.doesNotMatch(
-  trackerLaneSource,
-  /\b(fetch|http\.request|POST|PUT|PATCH|DELETE|upload|remoteWrite|syncNow|syncEnabled|connected:\s*true)\b/,
-  'tracker skeleton must not introduce public network write/sync behavior or connected claims',
+  /TextInput\(|InputType\.Password|已连接.*Button|connected:\s*true/,
+  'TrackerSettingsPage must not collect secrets or fake connected state',
 )
 
 console.log('tracker settings checks PASS')

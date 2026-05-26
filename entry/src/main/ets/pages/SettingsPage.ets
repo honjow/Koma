@@ -119,7 +119,7 @@ const SETTINGS_SECTIONS: SettingsSection[] = [
       { key: 'local-library-refresh', title: '刷新本地导入', detail: '需要重新选择本地文件' },
       { key: 'sources', title: '管理已安装的源包', detail: '暂未安装源包' },
       { key: 'downloads', title: '下载管理', detail: '离线章节与失败任务' },
-      { key: 'trackers', title: '追踪账号', detail: '公共账号同步尚未接入' },
+      { key: 'trackers', title: '追踪账号', detail: '安全存储未验证，账号未连接' },
       { key: 'backup', title: '备份与恢复', detail: '导出书架、进度、源包和设置' },
       { key: 'image-cache', title: '图片缓存', detail: '0 B · 0 项' },
     ],
