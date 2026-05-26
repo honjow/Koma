@@ -35,6 +35,12 @@ import { DavComicCandidateKind, DavResource } from '../remote/WebDavModels'
 import { WebDavClient, readWebDavUrlPath } from '../remote/WebDavClient'
 import { appSourceRuntimeRegistry } from '../sourceRuntime/SourceRuntimeAppRegistry'
 import { SourceRuntimeRegistryInstalledSourceSummary } from '../sourceRuntime/SourceRuntimeRegistry'
+import {
+  CrossSearchSectionState,
+  SearchDiagnostic,
+  safeSearchDiagnostic,
+  searchStateUserText,
+} from './SearchStateMapper'
 
 export type CrossSearchSourceKind = 'local' | 'komga' | 'opds' | 'webdav' | 'wasm'
 
@@ -61,6 +67,9 @@ export interface CrossSearchSection {
   title: string
   sourceKind: CrossSearchSourceKind
   loading: boolean
+  state: CrossSearchSectionState
+  resultCount: number
+  diagnosticCode: string
   errorText: string
   items: CrossSearchResultItem[]
 }
@@ -102,8 +111,22 @@ export class CrossSearchService {
     })
     const outcomes = await Promise.all(tasks.concat(sourceTasks))
     const sections = outcomes.map((outcome: SourceSearchOutcome): CrossSearchSection => outcome.section)
-      .filter((section: CrossSearchSection): boolean => section.items.length > 0 || section.errorText.length > 0)
     console.info(`[Search] step=query_done sections=${sections.length}`)
+    return sections
+  }
+
+  pendingSections(): CrossSearchSection[] {
+    const sections: CrossSearchSection[] = [
+      this.stateSection('local', '书架', 'local', 'running'),
+      this.stateSection('komga', 'Komga', 'komga', 'running'),
+      this.stateSection('opds', 'OPDS', 'opds', 'running'),
+      this.stateSection('webdav', 'WebDAV', 'webdav', 'running'),
+    ]
+    appSourceRuntimeRegistry.listInstalledSourceSummaries().forEach((source: SourceRuntimeRegistryInstalledSourceSummary) => {
+      sections.push(this.sourceSupportsSearch(source) ?
+        this.stateSection(`wasm:${source.sourceId}`, source.displayName, 'wasm', 'running') :
+        this.stateSection(`wasm:${source.sourceId}`, source.displayName, 'wasm', 'unsupported', 'search_not_supported'))
+    })
     return sections
   }
 
@@ -157,7 +180,7 @@ export class CrossSearchService {
     try {
       const record = await this.remoteStore.loadKomga()
       if (record === undefined) {
-        return { section: this.section('komga', 'Komga', 'komga', []) }
+        return { section: this.stateSection('komga', 'Komga', 'komga', 'unsupported', 'not_configured') }
       }
       const response = await this.remoteStore.createKomgaClient(record).listSeries({
         page: 0,
@@ -180,8 +203,9 @@ export class CrossSearchService {
       return { section: this.section('komga', 'Komga', 'komga', items) }
     } catch (error) {
       const e = error as Error
-      console.error('[Search] step=komga_failed message=' + e.message)
-      return { section: this.errorSection('komga', 'Komga', 'komga', e.message) }
+      const diagnostic = safeSearchDiagnostic(e)
+      console.error('[Search] step=komga_failed code=' + diagnostic.code)
+      return { section: this.errorSection('komga', 'Komga', 'komga', diagnostic) }
     }
   }
 
@@ -189,7 +213,7 @@ export class CrossSearchService {
     try {
       const record = await this.remoteStore.loadOpds()
       if (record === undefined) {
-        return { section: this.section('opds', 'OPDS', 'opds', []) }
+        return { section: this.stateSection('opds', 'OPDS', 'opds', 'unsupported', 'not_configured') }
       }
       const client = this.remoteStore.createOpdsClient(record)
       const root = await client.fetchCatalog()
@@ -200,8 +224,9 @@ export class CrossSearchService {
       return { section: this.section('opds', 'OPDS', 'opds', items) }
     } catch (error) {
       const e = error as Error
-      console.error('[Search] step=opds_failed message=' + e.message)
-      return { section: this.errorSection('opds', 'OPDS', 'opds', e.message) }
+      const diagnostic = safeSearchDiagnostic(e)
+      console.error('[Search] step=opds_failed code=' + diagnostic.code)
+      return { section: this.errorSection('opds', 'OPDS', 'opds', diagnostic) }
     }
   }
 
@@ -209,7 +234,7 @@ export class CrossSearchService {
     try {
       const record = await this.remoteStore.loadWebDav()
       if (record === undefined) {
-        return { section: this.section('webdav', 'WebDAV', 'webdav', []) }
+        return { section: this.stateSection('webdav', 'WebDAV', 'webdav', 'unsupported', 'not_configured') }
       }
       const client = this.remoteStore.createWebDavClient(record)
       const lowerQuery = query.toLocaleLowerCase()
@@ -237,13 +262,17 @@ export class CrossSearchService {
       return { section: this.section('webdav', 'WebDAV', 'webdav', items) }
     } catch (error) {
       const e = error as Error
-      console.error('[Search] step=webdav_failed message=' + e.message)
-      return { section: this.errorSection('webdav', 'WebDAV', 'webdav', e.message) }
+      const diagnostic = safeSearchDiagnostic(e)
+      console.error('[Search] step=webdav_failed code=' + diagnostic.code)
+      return { section: this.errorSection('webdav', 'WebDAV', 'webdav', diagnostic) }
     }
   }
 
   private async searchWasmSource(source: SourceRuntimeRegistryInstalledSourceSummary, query: string): Promise<SourceSearchOutcome> {
     try {
+      if (!this.sourceSupportsSearch(source)) {
+        return { section: this.stateSection(`wasm:${source.sourceId}`, source.displayName, 'wasm', 'unsupported', 'search_not_supported') }
+      }
       const result = await this.sourceViewModel.searchSource(source, query, 1)
       const items = result.manga.slice(0, SOURCE_PAGE_SIZE).map((manga: SourceManga): CrossSearchResultItem => {
         return {
@@ -261,8 +290,9 @@ export class CrossSearchService {
       return { section: this.section(`wasm:${source.sourceId}`, source.displayName, 'wasm', items) }
     } catch (error) {
       const e = error as Error
-      console.error(`[Search] step=wasm_failed source=${source.sourceId} message=${e.message}`)
-      return { section: this.errorSection(`wasm:${source.sourceId}`, source.displayName, 'wasm', e.message) }
+      const diagnostic = safeSearchDiagnostic(e)
+      console.error(`[Search] step=wasm_failed source=${source.sourceId} code=${diagnostic.code}`)
+      return { section: this.errorSection(`wasm:${source.sourceId}`, source.displayName, 'wasm', diagnostic) }
     }
   }
 
@@ -283,7 +313,7 @@ export class CrossSearchService {
         })
       } catch (error) {
         const e = error as Error
-        console.error('[Search] step=webdav_child_scan_failed message=' + e.message)
+        console.error('[Search] step=webdav_child_scan_failed code=' + safeSearchDiagnostic(e).code)
       }
     }
     return collected
@@ -299,7 +329,7 @@ export class CrossSearchService {
         done = true
         console.error(`[Search] step=source_timeout source=${fallback.id}`)
         resolve({
-          section: this.errorSection(fallback.id, fallback.title, fallback.sourceKind, '搜索超时'),
+          section: this.timeoutSection(fallback.id, fallback.title, fallback.sourceKind),
         })
       }, SEARCH_TIMEOUT_MS)
       task.then((value: SourceSearchOutcome) => {
@@ -316,7 +346,7 @@ export class CrossSearchService {
         done = true
         clearTimeout(timer)
         resolve({
-          section: this.errorSection(fallback.id, fallback.title, fallback.sourceKind, error.message),
+          section: this.errorSection(fallback.id, fallback.title, fallback.sourceKind, safeSearchDiagnostic(error)),
         })
       })
     })
@@ -336,7 +366,7 @@ export class CrossSearchService {
       return store
     } catch (error) {
       const e = error as Error
-      console.error('[Search] step=local_restore_failed message=' + e.message)
+      console.error('[Search] step=local_restore_failed code=' + safeSearchDiagnostic(e).code)
       return new InMemoryLibraryStore()
     }
   }
@@ -526,6 +556,9 @@ export class CrossSearchService {
       title,
       sourceKind: kind,
       loading: false,
+      state: items.length === 0 ? 'empty' : 'ready',
+      resultCount: items.length,
+      diagnosticCode: '',
       errorText: '',
       items,
     }
@@ -535,13 +568,50 @@ export class CrossSearchService {
     return this.section(id, title, kind, [])
   }
 
-  private errorSection(id: string, title: string, kind: CrossSearchSourceKind, errorText: string): CrossSearchSection {
+  private stateSection(
+    id: string,
+    title: string,
+    kind: CrossSearchSourceKind,
+    state: CrossSearchSectionState,
+    diagnosticCode: string = '',
+  ): CrossSearchSection {
+    return {
+      id,
+      title,
+      sourceKind: kind,
+      loading: state === 'pending' || state === 'running',
+      state,
+      resultCount: 0,
+      diagnosticCode,
+      errorText: searchStateUserText(state, diagnosticCode),
+      items: [],
+    }
+  }
+
+  private errorSection(id: string, title: string, kind: CrossSearchSourceKind, diagnostic: SearchDiagnostic): CrossSearchSection {
     return {
       id,
       title,
       sourceKind: kind,
       loading: false,
-      errorText,
+      state: 'failed',
+      resultCount: 0,
+      diagnosticCode: diagnostic.code,
+      errorText: diagnostic.userText,
+      items: [],
+    }
+  }
+
+  private timeoutSection(id: string, title: string, kind: CrossSearchSourceKind): CrossSearchSection {
+    return {
+      id,
+      title,
+      sourceKind: kind,
+      loading: false,
+      state: 'timeout',
+      resultCount: 0,
+      diagnosticCode: 'timeout',
+      errorText: searchStateUserText('timeout', 'timeout'),
       items: [],
     }
   }
@@ -553,5 +623,9 @@ export class CrossSearchService {
       hash = Math.imul(hash, 16777619) >>> 0
     }
     return hash.toString(16).padStart(8, '0').slice(-8)
+  }
+
+  private sourceSupportsSearch(source: SourceRuntimeRegistryInstalledSourceSummary): boolean {
+    return source.enabled && source.capabilities.indexOf('search') >= 0
   }
 }

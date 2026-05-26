@@ -12,6 +12,8 @@ import { OpdsBrowsePage } from './OpdsBrowsePage'
 import { LibraryStore } from '../model/LibraryStore'
 import { LibraryStorePersistenceService } from '../model/LibraryPersistence'
 import { createSeededLibraryStore } from '../model/MockLibraryData'
+import { SearchHistoryEntry, SearchHistoryStore } from '../model/SearchHistoryStore'
+import { safeSearchDiagnostic, searchStateUserText } from '../model/SearchStateMapper'
 
 const SEARCH_DEBOUNCE_MS: number = 400
 const KOMGA_ROUTE_NAME: string = 'SearchKomgaSeriesPage'
@@ -21,18 +23,23 @@ const OPDS_ROUTE_NAME: string = 'SearchOpdsBrowsePage'
 export struct SearchPage {
   @State private queryText: string = ''
   @State private sections: CrossSearchSection[] = []
+  @State private history: SearchHistoryEntry[] = []
   @State private loading: boolean = false
   @State private feedbackText: string = ''
   private searchTimer: number = 0
   private searchSerial: number = 0
   private service?: CrossSearchService
+  private historyStore?: SearchHistoryStore
   libraryStore: LibraryStore = createSeededLibraryStore()
   libraryPersistenceService?: LibraryStorePersistenceService
   onLibraryChanged: () => void = () => {}
   private searchPathStack: NavPathStack = new NavPathStack()
 
   aboutToAppear(): void {
-    this.service = new CrossSearchService(getContext(this) as common.UIAbilityContext)
+    const context = getContext(this) as common.UIAbilityContext
+    this.service = new CrossSearchService(context)
+    this.historyStore = new SearchHistoryStore(context)
+    this.loadHistory()
     console.info('[Search] step=page_appear')
   }
 
@@ -71,7 +78,9 @@ export struct SearchPage {
       return
     }
     this.loading = true
+    this.sections = service.pendingSections()
     this.feedbackText = ''
+    this.recordHistory(query)
     console.info(`[Search] step=ui_search_start serial=${serial}`)
     try {
       const result = await service.search(query)
@@ -88,13 +97,58 @@ export struct SearchPage {
         return
       }
       this.sections = []
-      this.feedbackText = e.message.length === 0 ? '搜索失败' : e.message
-      console.error('[Search] step=ui_search_failed message=' + e.message)
+      const diagnostic = safeSearchDiagnostic(e)
+      this.feedbackText = diagnostic.userText
+      console.error('[Search] step=ui_search_failed code=' + diagnostic.code)
     } finally {
       if (serial === this.searchSerial) {
         this.loading = false
       }
     }
+  }
+
+  private loadHistory(): void {
+    const store = this.historyStore
+    if (store === undefined) {
+      return
+    }
+    void store.load().then((entries: SearchHistoryEntry[]) => {
+      this.history = entries
+    }).catch((error: Error) => {
+      console.error('[Search] step=history_load_failed code=' + safeSearchDiagnostic(error).code)
+    })
+  }
+
+  private recordHistory(query: string): void {
+    const store = this.historyStore
+    if (store === undefined) {
+      return
+    }
+    void store.record(query).then((entries: SearchHistoryEntry[]) => {
+      this.history = entries
+    }).catch((error: Error) => {
+      console.error('[Search] step=history_record_failed code=' + safeSearchDiagnostic(error).code)
+    })
+  }
+
+  private clearHistory(): void {
+    const store = this.historyStore
+    this.history = []
+    if (store === undefined) {
+      return
+    }
+    void store.clear().catch((error: Error) => {
+      console.error('[Search] step=history_clear_failed code=' + safeSearchDiagnostic(error).code)
+    })
+  }
+
+  private runHistoryQuery(query: string): void {
+    if (this.searchTimer > 0) {
+      clearTimeout(this.searchTimer)
+      this.searchTimer = 0
+    }
+    this.queryText = query
+    void this.runSearch(query)
   }
 
   private async openResult(item: CrossSearchResultItem): Promise<void> {
@@ -125,8 +179,9 @@ export struct SearchPage {
         RouterHelper.pushReader()
       } catch (error) {
         const e = error as Error
-        this.feedbackText = e.message
-        console.error('[Search] step=open_webdav_failed message=' + e.message)
+        const diagnostic = safeSearchDiagnostic(e)
+        this.feedbackText = diagnostic.userText
+        console.error('[Search] step=open_webdav_failed code=' + diagnostic.code)
       }
     }
   }
@@ -140,7 +195,7 @@ export struct SearchPage {
   }
 
   private sectionTitle(section: CrossSearchSection): string {
-    return section.items.length === 0 ? section.title : `${section.title} · ${section.items.length}`
+    return section.resultCount === 0 ? section.title : `${section.title} · ${section.resultCount}`
   }
 
   private badgeText(item: CrossSearchResultItem): string {
@@ -209,6 +264,89 @@ export struct SearchPage {
     .borderRadius(8)
     .backgroundColor($r('app.color.koma_card'))
     .alignItems(HorizontalAlign.Center)
+  }
+
+  @Builder
+  private HistoryPanel() {
+    Column({ space: 10 }) {
+      Row() {
+        Text('最近搜索')
+          .fontSize(14)
+          .fontWeight(FontWeight.Medium)
+          .fontColor($r('sys.color.font_secondary'))
+          .layoutWeight(1)
+        if (this.history.length > 0) {
+          Button('清除')
+            .height(32)
+            .borderRadius(8)
+            .fontSize(13)
+            .fontColor($r('app.color.koma_accent'))
+            .backgroundColor(Color.Transparent)
+            .onClick(() => {
+              this.clearHistory()
+            })
+        }
+      }
+      .width('100%')
+
+      if (this.history.length === 0) {
+        Text('暂无搜索历史')
+          .width('100%')
+          .fontSize(13)
+          .fontColor($r('app.color.koma_text_secondary'))
+          .padding(16)
+          .borderRadius(8)
+          .backgroundColor($r('app.color.koma_card'))
+          .textAlign(TextAlign.Center)
+      } else {
+        ForEach(this.history, (entry: SearchHistoryEntry) => {
+          Row() {
+            Column({ space: 4 }) {
+              Text(entry.query)
+                .fontSize(15)
+                .fontWeight(FontWeight.Medium)
+                .fontColor($r('app.color.koma_text_primary'))
+                .maxLines(1)
+                .textOverflow({ overflow: TextOverflow.Ellipsis })
+                .width('100%')
+              Text(this.formatHistoryTime(entry.updatedAt))
+                .fontSize(12)
+                .fontColor($r('app.color.koma_text_secondary'))
+            }
+            .layoutWeight(1)
+            .alignItems(HorizontalAlign.Start)
+            Text('>')
+              .fontSize(16)
+              .fontColor($r('app.color.koma_accent'))
+          }
+          .width('100%')
+          .padding(14)
+          .borderRadius(8)
+          .backgroundColor($r('app.color.koma_card'))
+          .onClick(() => {
+            this.runHistoryQuery(entry.query)
+          })
+        }, (entry: SearchHistoryEntry) => `${entry.query}:${entry.updatedAt}`)
+      }
+    }
+    .width('100%')
+    .alignItems(HorizontalAlign.Start)
+  }
+
+  private formatHistoryTime(updatedAt: number): string {
+    const date = new Date(updatedAt)
+    const month = (date.getMonth() + 1).toString().padStart(2, '0')
+    const day = date.getDate().toString().padStart(2, '0')
+    const hour = date.getHours().toString().padStart(2, '0')
+    const minute = date.getMinutes().toString().padStart(2, '0')
+    return `${month}-${day} ${hour}:${minute}`
+  }
+
+  private sectionStatusText(section: CrossSearchSection): string {
+    if (section.errorText.length > 0) {
+      return section.errorText
+    }
+    return searchStateUserText(section.state, section.diagnosticCode)
   }
 
   @Builder
@@ -313,24 +451,6 @@ export struct SearchPage {
           ListItem() {
             this.SearchInput()
           }
-          if (this.loading) {
-            ListItem() {
-              Row({ space: 10 }) {
-                LoadingProgress()
-                  .width(28)
-                  .height(28)
-                  .color($r('app.color.koma_accent'))
-                Text('正在搜索...')
-                  .fontSize(14)
-                  .fontColor($r('app.color.koma_text_secondary'))
-              }
-              .width('100%')
-              .padding(16)
-              .borderRadius(8)
-              .backgroundColor($r('app.color.koma_card'))
-              .justifyContent(FlexAlign.Center)
-            }
-          }
           if (this.feedbackText.length > 0) {
             ListItem() {
               Text(this.feedbackText)
@@ -342,17 +462,44 @@ export struct SearchPage {
                 .backgroundColor($r('app.color.koma_card'))
             }
           }
-          if (!this.loading && this.totalResultCount() === 0 && this.feedbackText.length === 0) {
+          if (!this.loading && this.queryText.trim().length > 0 && this.sections.length === 0 && this.totalResultCount() === 0 && this.feedbackText.length === 0) {
             ListItem() {
               this.EmptyResults()
             }
           }
+          if (!this.loading && this.queryText.trim().length === 0 && this.feedbackText.length === 0) {
+            ListItem() {
+              this.HistoryPanel()
+            }
+          }
           ForEach(this.sections, (section: CrossSearchSection) => {
-            if (section.errorText.length > 0) {
+            if (section.state === 'running' || section.state === 'pending') {
               ListItem() {
                 Column({ space: 8 }) {
                   this.SectionHeader(section.title)
-                  Text(section.errorText)
+                  Row({ space: 10 }) {
+                    LoadingProgress()
+                      .width(24)
+                      .height(24)
+                      .color($r('app.color.koma_accent'))
+                    Text(this.sectionStatusText(section))
+                      .fontSize(13)
+                      .fontColor($r('app.color.koma_text_secondary'))
+                  }
+                  .width('100%')
+                  .padding(14)
+                  .borderRadius(8)
+                  .backgroundColor($r('app.color.koma_card'))
+                  .justifyContent(FlexAlign.Center)
+                }
+                .width('100%')
+                .alignItems(HorizontalAlign.Start)
+              }
+            } else if (section.state === 'empty' || section.state === 'timeout' || section.state === 'failed' || section.state === 'unsupported') {
+              ListItem() {
+                Column({ space: 8 }) {
+                  this.SectionHeader(section.title)
+                  Text(this.sectionStatusText(section))
                     .width('100%')
                     .fontSize(13)
                     .fontColor($r('app.color.koma_text_secondary'))
@@ -363,7 +510,7 @@ export struct SearchPage {
                 .width('100%')
                 .alignItems(HorizontalAlign.Start)
               }
-            } else if (section.items.length > 0) {
+            } else if (section.state === 'ready' && section.items.length > 0) {
               ListItem() {
                 this.SectionHeader(this.sectionTitle(section))
               }
