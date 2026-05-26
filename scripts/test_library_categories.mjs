@@ -15,6 +15,7 @@ const libraryPersistence = source('entry/src/main/ets/model/LibraryPersistence.e
 const mockLibraryData = source('entry/src/main/ets/model/MockLibraryData.ets')
 const comicCoverCard = source('entry/src/main/ets/components/ComicCoverCard.ets')
 const libraryPage = source('entry/src/main/ets/pages/LibraryPage.ets')
+const libraryCategoryPage = source('entry/src/main/ets/pages/LibraryCategoryManagementPage.ets')
 const indexPage = source('entry/src/main/ets/pages/Index.ets')
 
 function assertContains(haystack, needle, message) {
@@ -50,7 +51,11 @@ assert.match(libraryPersistence, /export function updateComicCategoryMembershipA
 
 assert.match(libraryStore, /filterSource\?:\s*ComicSourceKind\[\][\s\S]*filterReadState\?:\s*LibraryReadStateFilter[\s\S]*filterCategoryId\?:\s*LibraryCategoryFilter/, 'category filtering must compose with source and read-state filters')
 assert.match(libraryStore, /categoryFilter === 'all'[\s\S]*categoryFilter === 'uncategorized'[\s\S]*categoryIds\.includes\(categoryFilter\)/, 'LibraryStore must support all, uncategorized, and concrete category filters')
+assert.match(libraryStore, /moveCustomCategory\(categoryId: string, direction: 'up' \| 'down'[\s\S]*targetIndex = direction === 'up' \? index - 1 : index \+ 1[\s\S]*sortOrder: target\.sortOrder[\s\S]*sortOrder: current\.sortOrder/, 'LibraryStore must reorder custom categories by swapping durable sortOrder values')
 assert.match(libraryFilterStore, /LIBRARY_SORT_KEY[\s\S]*LIBRARY_FILTER_SOURCE_KEY[\s\S]*LIBRARY_FILTER_READ_STATE_KEY[\s\S]*LIBRARY_FILTER_CATEGORY_KEY[\s\S]*category: normalizeCategory\(category\)[\s\S]*store\.put\(LIBRARY_FILTER_CATEGORY_KEY/, 'filter preferences must persist category alongside existing sort/source/read-state filters')
+assert.match(libraryPersistence, /moveCustomCategoryAndPersistLibraryStore\([\s\S]*previousPayload = serializeLibraryStore\(libraryStore\)[\s\S]*libraryStore\.moveCustomCategory\(categoryId, direction\)[\s\S]*persistenceService\.persist\(\)[\s\S]*hydrateLibraryStoreFromJson\(libraryStore, previousPayload\)/, 'custom category reorder must persist atomically and roll back on persistence failure')
+assert.match(libraryCategoryPage, /persistMove\(categoryId: string, direction: 'up' \| 'down'\)[\s\S]*moveCustomCategoryAndPersistLibraryStore\([\s\S]*refreshCategories\(\)[\s\S]*onLibraryChanged\(\)/, 'category management page must persist category reorder and refresh library state')
+assert.match(libraryCategoryPage, /Button\('上移'\)[\s\S]*enabled\(!this\.isFirstCategory\(category\)\)[\s\S]*persistMove\(category\.id, 'up'\)[\s\S]*Button\('下移'\)[\s\S]*enabled\(!this\.isLastCategory\(category\)\)[\s\S]*persistMove\(category\.id, 'down'\)/, 'category management page must expose bounded up/down controls')
 
 assert.match(libraryPage, /private addSelectedCategory\(categoryId: string\)[\s\S]*onUpdateCategoryMembershipRequested\(comicIds, categoryId, true\)/, 'LibraryPage batch bar must expose an add-category action for selected comics')
 assert.match(libraryPage, /private removeSelectedCategory\(categoryId: string\)[\s\S]*onUpdateCategoryMembershipRequested\(comicIds, categoryId, false\)/, 'LibraryPage batch bar must expose a remove-category action for selected comics')

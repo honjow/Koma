@@ -39,6 +39,7 @@ export interface LibraryStore {
   replaceCustomCategories(categories: CustomLibraryCategory[]): void
   createCustomCategory(name: string, now?: number): CustomLibraryCategory
   renameCustomCategory(categoryId: string, name: string, now?: number): CustomLibraryCategory
+  moveCustomCategory(categoryId: string, direction: 'up' | 'down', now?: number): boolean
   deleteCustomCategory(categoryId: string): boolean
   clear(): void
   dumpJson(): string
@@ -225,6 +226,38 @@ export class InMemoryLibraryStore implements LibraryStore {
     }
     this.customCategories.set(categoryId, next)
     return this.cloneCustomCategory(next)
+  }
+
+  moveCustomCategory(categoryId: string, direction: 'up' | 'down', now: number = Date.now()): boolean {
+    if (isBuiltInLibraryCategoryId(categoryId)) {
+      return false
+    }
+    const categories = this.listCustomCategories()
+    const index = categories.findIndex((category: CustomLibraryCategory): boolean => category.id === categoryId)
+    if (index < 0) {
+      return false
+    }
+    const targetIndex = direction === 'up' ? index - 1 : index + 1
+    if (targetIndex < 0 || targetIndex >= categories.length) {
+      return false
+    }
+    const current = categories[index]
+    const target = categories[targetIndex]
+    this.customCategories.set(current.id, {
+      id: current.id,
+      name: current.name,
+      sortOrder: target.sortOrder,
+      createdAt: current.createdAt,
+      updatedAt: now,
+    })
+    this.customCategories.set(target.id, {
+      id: target.id,
+      name: target.name,
+      sortOrder: current.sortOrder,
+      createdAt: target.createdAt,
+      updatedAt: now,
+    })
+    return true
   }
 
   deleteCustomCategory(categoryId: string): boolean {

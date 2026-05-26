@@ -4,6 +4,7 @@ import {
   LibraryStorePersistenceService,
   createCustomCategoryAndPersistLibraryStore,
   deleteCustomCategoryAndPersistLibraryStore,
+  moveCustomCategoryAndPersistLibraryStore,
   renameCustomCategoryAndPersistLibraryStore,
 } from '../model/LibraryPersistence'
 import { SecondaryListScaffold } from '../components/SecondaryListScaffold'
@@ -110,6 +111,31 @@ export struct LibraryCategoryManagementPage {
     }
   }
 
+  private persistMove(categoryId: string, direction: 'up' | 'down'): void {
+    if (this.libraryStore === undefined || this.libraryPersistenceService === undefined) {
+      this.showToast('分类管理不可用')
+      return
+    }
+    try {
+      if (moveCustomCategoryAndPersistLibraryStore(this.libraryStore, this.libraryPersistenceService, categoryId, direction)) {
+        this.refreshCategories()
+        this.onLibraryChanged()
+        this.showToast('分类顺序已更新')
+      }
+    } catch (error) {
+      const e = error as Error
+      this.showToast(e.message)
+    }
+  }
+
+  private isFirstCategory(category: CustomLibraryCategory): boolean {
+    return this.categories.length > 0 && this.categories[0].id === category.id
+  }
+
+  private isLastCategory(category: CustomLibraryCategory): boolean {
+    return this.categories.length > 0 && this.categories[this.categories.length - 1].id === category.id
+  }
+
   private categoryUsageCount(categoryId: string): number {
     if (this.libraryStore === undefined) {
       return 0
@@ -201,6 +227,30 @@ export struct LibraryCategoryManagementPage {
           }
           .layoutWeight(1)
           .alignItems(HorizontalAlign.Start)
+          Button('上移')
+            .height(36)
+            .padding({ left: 12, right: 12 })
+            .borderRadius(8)
+            .fontSize(14)
+            .fontColor($r('app.color.koma_text_primary'))
+            .backgroundColor('#0F000000')
+            .enabled(!this.isFirstCategory(category))
+            .opacity(this.isFirstCategory(category) ? 0.45 : 1)
+            .onClick(() => {
+              this.persistMove(category.id, 'up')
+            })
+          Button('下移')
+            .height(36)
+            .padding({ left: 12, right: 12 })
+            .borderRadius(8)
+            .fontSize(14)
+            .fontColor($r('app.color.koma_text_primary'))
+            .backgroundColor('#0F000000')
+            .enabled(!this.isLastCategory(category))
+            .opacity(this.isLastCategory(category) ? 0.45 : 1)
+            .onClick(() => {
+              this.persistMove(category.id, 'down')
+            })
           Button('重命名')
             .height(36)
             .padding({ left: 12, right: 12 })

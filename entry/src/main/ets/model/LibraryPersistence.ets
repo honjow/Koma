@@ -670,6 +670,26 @@ export function renameCustomCategoryAndPersistLibraryStore(
   }
 }
 
+export function moveCustomCategoryAndPersistLibraryStore(
+  libraryStore: LibraryStore,
+  persistenceService: LibraryStorePersistenceService,
+  categoryId: string,
+  direction: 'up' | 'down'
+): boolean {
+  const previousPayload = serializeLibraryStore(libraryStore)
+  const moved = libraryStore.moveCustomCategory(categoryId, direction)
+  if (!moved) {
+    return false
+  }
+  try {
+    persistenceService.persist()
+    return true
+  } catch (error) {
+    hydrateLibraryStoreFromJson(libraryStore, previousPayload)
+    throw error as Error
+  }
+}
+
 export function deleteCustomCategoryAndPersistLibraryStore(
   libraryStore: LibraryStore,
   persistenceService: LibraryStorePersistenceService,
