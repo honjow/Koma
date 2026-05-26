@@ -9,7 +9,9 @@ import {
   OfflineDownloadStore,
 } from '../model/OfflineDownloadStore'
 import {
+  OFFLINE_DOWNLOAD_FOREGROUND_CONCURRENCY_LIMIT_OPTIONS,
   OfflineDownloadQueueEntry,
+  OfflineDownloadQueuePreferences,
   OfflineDownloadQueueStore,
 } from '../model/OfflineDownloadQueueStore'
 import { installReaderRemoteHeadersForComic } from '../model/ReaderPageSourceAdapter'
@@ -27,6 +29,10 @@ enum DownloadQueueFilter {
 export struct DownloadsPage {
   libraryStore?: LibraryStore
   @State private entries: OfflineDownloadQueueEntry[] = []
+  @State private preferences: OfflineDownloadQueuePreferences = {
+    foregroundConcurrencyLimit: 1,
+    isPaused: false,
+  }
   @State private busyKey: string = ''
   @State private filter: DownloadQueueFilter = DownloadQueueFilter.ALL
 
@@ -39,7 +45,9 @@ export struct DownloadsPage {
   }
 
   private loadQueue(): void {
-    this.entries = this.queueStore().load()
+    const store = this.queueStore()
+    this.entries = store.load()
+    this.preferences = store.loadPreferences()
   }
 
   private rowKey(entry: OfflineDownloadQueueEntry): string {
@@ -100,7 +108,7 @@ export struct DownloadsPage {
 
   private rowSubtitle(entry: OfflineDownloadQueueEntry): string {
     const comicTitle = entry.comicTitle !== undefined && entry.comicTitle.length > 0 ? entry.comicTitle : entry.comicId
-    return `${comicTitle} · ${this.formatStatus(entry.status)} · ${entry.downloadedPageCount}/${entry.pageCount} 页`
+    return `${comicTitle} · ${this.formatEntryStatus(entry)} · ${entry.downloadedPageCount}/${entry.pageCount} 页`
   }
 
   private blockedHelpText(entry: OfflineDownloadQueueEntry): string {
@@ -135,6 +143,39 @@ export struct DownloadsPage {
     return 'failed'
   }
 
+  private formatEntryStatus(entry: OfflineDownloadQueueEntry): string {
+    if (entry.failureReasonCode === 'paused') {
+      return 'paused'
+    }
+    if (this.preferences.isPaused && entry.status === OfflineDownloadStatus.QUEUED) {
+      return 'paused'
+    }
+    return this.formatStatus(entry.status)
+  }
+
+  private queueStateText(): string {
+    const running = this.entries.filter((entry: OfflineDownloadQueueEntry): boolean => {
+      return entry.status === OfflineDownloadStatus.DOWNLOADING
+    }).length
+    const queued = this.entries.filter((entry: OfflineDownloadQueueEntry): boolean => {
+      return entry.status === OfflineDownloadStatus.QUEUED
+    }).length
+    const failed = this.entries.filter((entry: OfflineDownloadQueueEntry): boolean => {
+      return entry.status === OfflineDownloadStatus.FAILED || entry.status === OfflineDownloadStatus.PARTIAL
+    }).length
+    const blocked = this.entries.filter((entry: OfflineDownloadQueueEntry): boolean => {
+      return entry.status === OfflineDownloadStatus.BLOCKED
+    }).length
+    const state = this.preferences.isPaused ? 'paused' : (running > 0 || this.busyKey.length > 0 ? 'running' : 'queued')
+    return `${state} · queued ${queued} · failed ${failed} · blocked ${blocked} · concurrency ${this.preferences.foregroundConcurrencyLimit}`
+  }
+
+  private queuedEntries(): OfflineDownloadQueueEntry[] {
+    return this.entries.filter((entry: OfflineDownloadQueueEntry): boolean => {
+      return entry.status === OfflineDownloadStatus.QUEUED
+    })
+  }
+
   private canRetry(entry: OfflineDownloadQueueEntry): boolean {
     return entry.status === OfflineDownloadStatus.FAILED ||
       entry.status === OfflineDownloadStatus.PARTIAL
@@ -158,6 +199,10 @@ export struct DownloadsPage {
 
   private retryDownload(entry: OfflineDownloadQueueEntry): void {
     if (!this.canRetry(entry) || this.busyKey.length > 0) {
+      return
+    }
+    if (this.preferences.isPaused) {
+      this.showToast('队列已暂停')
       return
     }
     const comic = this.libraryStore?.getComic(entry.comicId)
@@ -217,6 +262,10 @@ export struct DownloadsPage {
     if (this.busyKey.length > 0) {
       return
     }
+    if (this.preferences.isPaused) {
+      this.showToast('队列已暂停')
+      return
+    }
     const targets = this.retryableEntries()
     if (targets.length === 0) {
       this.showToast('没有可重试任务')
@@ -227,15 +276,72 @@ export struct DownloadsPage {
   }
 
   private async runRetryBatch(targets: OfflineDownloadQueueEntry[]): Promise<void> {
-    let retried = 0
     try {
-      for (let index = 0; index < targets.length; index += 1) {
-        const entry = targets[index]
-        if (!this.canRetry(entry)) {
-          continue
-        }
+      const retried = await this.runForegroundDownloadBatch(targets)
+      this.loadQueue()
+      this.showToast(retried > 0 ? '已重试失败任务' : '没有可重试任务')
+    } catch (error) {
+      const e = error as Error
+      console.warn('[Downloads] step=batch_retry_failed message=' + e.message)
+      this.showToast('批量重试失败')
+    } finally {
+      this.busyKey = ''
+    }
+  }
+
+  private pauseQueuedDownloads(): void {
+    this.preferences = this.queueStore().pauseAllQueuedWork()
+    this.loadQueue()
+    this.showToast('已暂停排队任务')
+  }
+
+  private resumeQueuedDownloads(): void {
+    if (this.busyKey.length > 0) {
+      return
+    }
+    this.preferences = this.queueStore().resumeAllQueuedWork()
+    const targets = this.queuedEntries()
+    if (targets.length === 0) {
+      this.loadQueue()
+      this.showToast('没有排队任务')
+      return
+    }
+    this.busyKey = 'batch-resume'
+    void this.runResumeBatch(targets)
+  }
+
+  private async runResumeBatch(targets: OfflineDownloadQueueEntry[]): Promise<void> {
+    try {
+      const resumed = await this.runForegroundDownloadBatch(targets)
+      this.loadQueue()
+      this.showToast(resumed > 0 ? '已继续排队任务' : '没有可继续任务')
+    } catch (error) {
+      const e = error as Error
+      console.warn('[Downloads] step=batch_resume_failed message=' + e.message)
+      this.showToast('继续队列失败')
+    } finally {
+      this.busyKey = ''
+    }
+  }
+
+  private setForegroundConcurrencyLimit(limit: number): void {
+    if (this.busyKey.length > 0) {
+      return
+    }
+    this.preferences = this.queueStore().setForegroundConcurrencyLimit(limit)
+    this.loadQueue()
+  }
+
+  private async runForegroundDownloadBatch(targets: OfflineDownloadQueueEntry[]): Promise<number> {
+    const concurrencyLimit = Math.max(1, Math.min(3, Math.floor(this.preferences.foregroundConcurrencyLimit)))
+    let nextIndex = 0
+    let completed = 0
+    const worker = async (): Promise<void> => {
+      while (nextIndex < targets.length && !this.queueStore().loadPreferences().isPaused) {
+        const entry = targets[nextIndex]
+        nextIndex += 1
         const comic = this.libraryStore?.getComic(entry.comicId)
-        if (comic === undefined) {
+        if (comic === undefined || entry.status === OfflineDownloadStatus.BLOCKED) {
           continue
         }
         try {
@@ -250,17 +356,15 @@ export struct DownloadsPage {
           comicTitle: entry.comicTitle ?? comic.title,
           chapterTitle: entry.chapterTitle,
         })
-        retried += 1
+        completed += 1
       }
-      this.loadQueue()
-      this.showToast(retried > 0 ? '已重试失败任务' : '没有可重试任务')
-    } catch (error) {
-      const e = error as Error
-      console.warn('[Downloads] step=batch_retry_failed message=' + e.message)
-      this.showToast('批量重试失败')
-    } finally {
-      this.busyKey = ''
     }
+    const workers: Promise<void>[] = []
+    for (let index = 0; index < concurrencyLimit && index < targets.length; index += 1) {
+      workers.push(worker())
+    }
+    await Promise.all(workers)
+    return completed
   }
 
   private removeCompletedFailedDownloads(): void {
@@ -305,6 +409,18 @@ export struct DownloadsPage {
     }
   }
 
+  @Builder
+  private ConcurrencyMenu() {
+    Menu() {
+      ForEach(OFFLINE_DOWNLOAD_FOREGROUND_CONCURRENCY_LIMIT_OPTIONS, (limit: number) => {
+        MenuItem({ content: `${limit}` })
+          .onClick(() => {
+            this.setForegroundConcurrencyLimit(limit)
+          })
+      }, (limit: number) => `${limit}`)
+    }
+  }
+
   aboutToAppear(): void {
     this.loadQueue()
   }
@@ -342,6 +458,13 @@ export struct DownloadsPage {
   @Builder
   private QueueControls() {
     Column({ space: 8 }) {
+      Text(this.queueStateText())
+        .width('100%')
+        .fontSize(12)
+        .fontColor($r('app.color.koma_text_secondary'))
+        .maxLines(2)
+        .textOverflow({ overflow: TextOverflow.Ellipsis })
+
       Row() {
         Button(`状态 ${this.filterLabel()} ▾`)
           .height(34)
@@ -351,10 +474,35 @@ export struct DownloadsPage {
           .fontColor(this.filter !== DownloadQueueFilter.ALL ? Color.White : $r('app.color.koma_text_primary'))
           .backgroundColor(this.filter !== DownloadQueueFilter.ALL ? $r('app.color.koma_accent') : $r('app.color.koma_card'))
           .bindMenu(this.FilterMenu())
+        Button(`并发 ${this.preferences.foregroundConcurrencyLimit} ▾`)
+          .height(34)
+          .padding({ left: 12, right: 12 })
+          .borderRadius(8)
+          .fontSize(13)
+          .fontColor($r('app.color.koma_text_primary'))
+          .backgroundColor($r('app.color.koma_card'))
+          .enabled(this.busyKey.length === 0)
+          .bindMenu(this.ConcurrencyMenu())
       }
+      .justifyContent(FlexAlign.SpaceBetween)
       .width('100%')
 
       Row({ space: 8 }) {
+        Button(this.preferences.isPaused ? (this.busyKey === 'batch-resume' ? '继续中' : '继续队列') : '暂停队列')
+          .height(34)
+          .padding({ left: 12, right: 12 })
+          .borderRadius(8)
+          .fontSize(13)
+          .fontColor(this.preferences.isPaused ? Color.White : $r('app.color.koma_text_secondary'))
+          .backgroundColor(this.preferences.isPaused ? $r('app.color.koma_accent') : '#00000000')
+          .enabled(!this.preferences.isPaused || this.busyKey.length === 0)
+          .onClick(() => {
+            if (this.preferences.isPaused) {
+              this.resumeQueuedDownloads()
+            } else {
+              this.pauseQueuedDownloads()
+            }
+          })
         Button(this.busyKey === 'batch-retry' ? '重试中' : '重试失败')
           .height(34)
           .padding({ left: 12, right: 12 })
@@ -362,7 +510,7 @@ export struct DownloadsPage {
           .fontSize(13)
           .fontColor($r('app.color.koma_accent'))
           .backgroundColor('#00000000')
-          .enabled(this.busyKey.length === 0)
+          .enabled(this.busyKey.length === 0 && !this.preferences.isPaused)
           .onClick(() => {
             this.retryFailedDownloads()
           })
@@ -430,7 +578,7 @@ export struct DownloadsPage {
         .layoutWeight(1)
         .alignItems(HorizontalAlign.Start)
 
-        Text(this.formatStatus(entry.status))
+        Text(this.formatEntryStatus(entry))
           .fontSize(12)
           .fontColor($r('app.color.koma_accent'))
       }
@@ -445,7 +593,7 @@ export struct DownloadsPage {
             .fontSize(13)
             .fontColor(Color.White)
             .backgroundColor($r('app.color.koma_accent'))
-            .enabled(this.busyKey.length === 0)
+            .enabled(this.busyKey.length === 0 && !this.preferences.isPaused)
             .onClick(() => {
               this.retryDownload(entry)
             })

@@ -94,6 +94,7 @@ export class OfflineDownloadService {
   }
 
   async downloadChapter(comic: Comic, chapterId: string, labels?: OfflineDownloadLabels): Promise<OfflineChapterDownloadManifest> {
+    const initialPreferences = this.queueStore.loadPreferences()
     this.queueStore.upsert({
       comicId: comic.id,
       chapterId,
@@ -104,6 +105,16 @@ export class OfflineDownloadService {
       downloadedPageCount: 0,
       updatedAt: Date.now(),
     })
+    if (initialPreferences.isPaused || this.queueStore.loadPreferences().isPaused) {
+      const existingManifest = this.store.loadManifest(comic.id, chapterId)
+      if (existingManifest !== undefined) {
+        this.queueStore.upsert(this.queueStore.fromManifest(existingManifest, labels?.comicTitle ?? comic.title, labels?.chapterTitle))
+        return existingManifest
+      }
+      const queuedManifest = this.store.createManifest(comic.id, chapterId, 0, OfflineDownloadStatus.QUEUED)
+      this.queueStore.upsert(this.queueStore.fromManifest(queuedManifest, labels?.comicTitle ?? comic.title, labels?.chapterTitle))
+      return queuedManifest
+    }
     const chapter = comic.chapters.find((item: Chapter): boolean => item.id === chapterId)
     if (chapter === undefined) {
       console.warn(`[ReaderOffline] step=download_blocked comic=${createOfflineDownloadStableHash(comic.id)} chapter=${createOfflineDownloadStableHash(chapterId)} reason=chapter_missing`)
@@ -133,6 +144,13 @@ export class OfflineDownloadService {
     const config = createReaderSessionConfigFromComic(comic, chapterId)
     try {
       for (let index = 0; index < config.totalPages; index += 1) {
+        if (this.queueStore.loadPreferences().isPaused) {
+          manifest.status = manifest.downloadedPageCount > 0 ? OfflineDownloadStatus.PARTIAL : OfflineDownloadStatus.QUEUED
+          manifest.failureReasonCode = 'paused'
+          manifest = this.store.saveManifest(manifest)
+          this.queueStore.upsert(this.queueStore.fromManifest(manifest, labels?.comicTitle ?? comic.title, labels?.chapterTitle ?? chapter.title))
+          return manifest
+        }
         const page = pageAtIndex(chapter, index)
         const pageId = page?.id ?? `page-${index + 1}`
         const source = createReaderPageRenderSource(config, index, { preferOffline: false })
