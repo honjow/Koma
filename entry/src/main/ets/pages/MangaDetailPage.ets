@@ -369,12 +369,12 @@ export struct MangaDetailPage {
     this.onOpenReader(this.currentComicId(), this.firstChapterId())
   }
 
-  private async handleDownloadChapter(): Promise<void> {
+  private async handleDownloadChapter(chapterId?: string): Promise<void> {
     if (this.downloadBusy) {
       return
     }
-    const chapterId = this.firstChapterId()
-    if (chapterId === undefined) {
+    const resolvedChapterId = chapterId ?? this.firstChapterId()
+    if (resolvedChapterId === undefined) {
       this.downloadStatusText = '暂无可下载章节'
       this.showToast('暂无可下载章节')
       return
@@ -396,7 +396,7 @@ export struct MangaDetailPage {
         }
       }
       if (this.manga.sourceId !== undefined) {
-        await this.ensureSourceChapterPages(chapterId)
+        await this.ensureSourceChapterPages(resolvedChapterId)
       }
       const comic = this.libraryStore?.getComic(this.currentComicId())
       if (comic === undefined) {
@@ -410,7 +410,11 @@ export struct MangaDetailPage {
         void error
         console.warn('[ReaderOffline] step=detail_headers_unavailable failed=true')
       }
-      const manifest = await service.downloadChapter(comic, chapterId)
+      const chapterTitle = this.chapters.find((item: MangaChapterItem): boolean => item.id === resolvedChapterId)?.title
+      const manifest = await service.downloadChapter(comic, resolvedChapterId, {
+        comicTitle: comic.title,
+        chapterTitle,
+      })
       this.downloadStatusText = this.formatDownloadStatus({
         comicId: manifest.comicId,
         chapterId: manifest.chapterId,
@@ -699,6 +703,9 @@ export struct MangaDetailPage {
                 console.error('[manga-detail] source pages load failed: ' + error.message)
                 this.showToast('章节页面加载失败')
               })
+          },
+          onDownloadChapter: (chapterId: string) => {
+            this.handleDownloadChapter(chapterId)
           },
         })
       }

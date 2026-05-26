@@ -44,6 +44,7 @@ export struct ChapterListSection {
   @State private sortedChapters: MangaChapterItem[] = []
   private dataSource: ChapterListDataSource = new ChapterListDataSource([])
   onOpenChapter: (chapterId: string) => void = (_chapterId: string) => {}
+  onDownloadChapter: (chapterId: string) => void = (_chapterId: string) => {}
 
   private rebuildDataSource(): void {
     this.sortedChapters = this.sortedChapterList()
@@ -154,30 +155,38 @@ export struct ChapterListSection {
   @Builder
   private ChapterRow(chapter: MangaChapterItem) {
     Row({ space: 10 }) {
-      Circle()
-        .width(8)
-        .height(8)
-        .fill(chapter.isRead ? $r('app.color.koma_text_secondary') : $r('app.color.koma_accent'))
-        .opacity(chapter.isRead ? 0.45 : 1)
+      Row({ space: 10 }) {
+        Circle()
+          .width(8)
+          .height(8)
+          .fill(chapter.isRead ? $r('app.color.koma_text_secondary') : $r('app.color.koma_accent'))
+          .opacity(chapter.isRead ? 0.45 : 1)
 
-      Column({ space: 4 }) {
-        Text(this.chapterTitle(chapter))
-          .width('100%')
-          .fontSize(15)
-          .fontWeight(chapter.isRead ? FontWeight.Regular : FontWeight.Medium)
-          .fontColor($r('app.color.koma_text_primary'))
-          .maxLines(1)
-          .textOverflow({ overflow: TextOverflow.Ellipsis })
+        Column({ space: 4 }) {
+          Text(this.chapterTitle(chapter))
+            .width('100%')
+            .fontSize(15)
+            .fontWeight(chapter.isRead ? FontWeight.Regular : FontWeight.Medium)
+            .fontColor($r('app.color.koma_text_primary'))
+            .maxLines(1)
+            .textOverflow({ overflow: TextOverflow.Ellipsis })
 
-        Text(this.chapterSubtitle(chapter))
-          .width('100%')
-          .fontSize(12)
-          .fontColor($r('app.color.koma_text_secondary'))
-          .maxLines(1)
-          .textOverflow({ overflow: TextOverflow.Ellipsis })
+          Text(this.chapterSubtitle(chapter))
+            .width('100%')
+            .fontSize(12)
+            .fontColor($r('app.color.koma_text_secondary'))
+            .maxLines(1)
+            .textOverflow({ overflow: TextOverflow.Ellipsis })
+        }
+        .layoutWeight(1)
+        .alignItems(HorizontalAlign.Start)
       }
       .layoutWeight(1)
-      .alignItems(HorizontalAlign.Start)
+      .height('100%')
+      .alignItems(VerticalAlign.Center)
+      .onClick(() => {
+        this.onOpenChapter(chapter.id)
+      })
 
       if (chapter.isDownloaded) {
         Text('↓')
@@ -185,14 +194,23 @@ export struct ChapterListSection {
           .fontWeight(FontWeight.Bold)
           .fontColor($r('app.color.koma_accent'))
       }
+
+      Button('↓')
+        .width(34)
+        .height(34)
+        .borderRadius(8)
+        .fontSize(16)
+        .fontWeight(FontWeight.Bold)
+        .fontColor($r('app.color.koma_accent'))
+        .backgroundColor('#00000000')
+        .onClick(() => {
+          this.onDownloadChapter(chapter.id)
+        })
     }
     .width('100%')
     .height(62)
     .padding({ left: 14, right: 14 })
     .opacity(chapter.isRead ? 0.68 : 1)
-    .onClick(() => {
-      this.onOpenChapter(chapter.id)
-    })
   }
 
   build() {

@@ -89,6 +89,7 @@ const SETTINGS_SECTIONS: SettingsSection[] = [
       { key: 'library-update', title: '检查书架更新', detail: '尚未检查' },
       { key: 'library-update-results', title: '书架更新详情', detail: '尚无结果' },
       { key: 'sources', title: '管理已安装的源包', detail: '暂未安装源包' },
+      { key: 'downloads', title: '下载管理', detail: '离线章节与失败任务' },
       { key: 'backup', title: '备份与恢复', detail: '导出书架、进度、源包和设置' },
       { key: 'image-cache', title: '图片缓存', detail: '0 B · 0 项' },
     ],
@@ -111,6 +112,7 @@ export struct SettingsPage {
   onOpenWebDavSettings: () => void = () => {}
   onOpenSourcePackageManager: () => void = () => {}
   onOpenLibraryUpdateResults: () => void = () => {}
+  onOpenDownloads: () => void = () => {}
   onLibraryChanged: () => void = () => {}
   libraryStore?: LibraryStore
   libraryPersistenceService?: LibraryStorePersistenceService
@@ -722,6 +724,8 @@ export struct SettingsPage {
       this.showImageCacheSheet()
     } else if (row.key === 'sources') {
       this.showSourcesDialog()
+    } else if (row.key === 'downloads') {
+      this.onOpenDownloads()
     } else if (row.key === 'library-auto-update') {
       this.setLibraryAutoUpdateEnabled(!this.libraryUpdatePreferences.autoCheckEnabled)
     } else if (row.key === 'library-update-interval') {

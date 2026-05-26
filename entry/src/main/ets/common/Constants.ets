@@ -15,6 +15,7 @@ export class RouteName {
   static readonly WEBDAV_SERVER: string = 'WebDavServerPage'
   static readonly SOURCE_PACKAGE_MANAGER: string = 'SourcePackageManagerPage'
   static readonly LIBRARY_UPDATE_RESULTS: string = 'LibraryUpdateResultPage'
+  static readonly DOWNLOADS: string = 'DownloadsPage'
 }
 
 export class TabLabel {

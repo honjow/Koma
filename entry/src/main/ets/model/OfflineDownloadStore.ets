@@ -1,4 +1,4 @@
-import { fileIo as fs } from '@kit.CoreFileKit'
+import { fileIo as fs, ListFileOptions } from '@kit.CoreFileKit'
 import {
   ComicId,
   PageId,
@@ -44,6 +44,15 @@ export interface OfflineDownloadSummary {
   downloadedPageCount: number
   status: OfflineDownloadStatus
   updatedAt: number
+}
+
+function compareDeepestPathFirst(left: string, right: string): number {
+  const leftDepth = left.split('/').length
+  const rightDepth = right.split('/').length
+  if (leftDepth !== rightDepth) {
+    return rightDepth - leftDepth
+  }
+  return right.localeCompare(left)
 }
 
 function normalizeDownloadPath(value: string): string {
@@ -117,6 +126,14 @@ function writeTextSync(path: string, payload: string): void {
   }
 }
 
+async function pathExists(path: string): Promise<boolean> {
+  try {
+    return await fs.access(path)
+  } catch (_err) {
+    return false
+  }
+}
+
 function safeParseManifest(payload: string): OfflineChapterDownloadManifest {
   const parsed = JSON.parse(payload) as OfflineChapterDownloadManifest
   if (parsed.schemaVersion !== OFFLINE_DOWNLOAD_SCHEMA_VERSION || !Array.isArray(parsed.pages)) {
@@ -138,6 +155,10 @@ export class OfflineDownloadStore {
     this.filesDir = trimTrailingSlash(filesDir)
     this.rootDir = joinOfflineDownloadPath(this.filesDir, OFFLINE_DOWNLOAD_ROOT_DIR_NAME)
     this.ensureRoot()
+  }
+
+  filesRootDir(): string {
+    return this.filesDir
   }
 
   chapterDir(comicId: ComicId, chapterId: string): string {
@@ -251,6 +272,33 @@ export class OfflineDownloadStore {
     }
     assertSafeOfflineDownloadRoot(this.filesDir, page.localPath)
     return fs.accessSync(page.localPath) ? page.localPath : undefined
+  }
+
+  async deleteChapterDownload(comicId: ComicId, chapterId: string): Promise<void> {
+    const chapterDir = this.chapterDir(comicId, chapterId)
+    assertSafeOfflineDownloadRoot(this.filesDir, chapterDir)
+    if (!(await pathExists(chapterDir))) {
+      return
+    }
+    const options: ListFileOptions = {
+      recursion: true,
+      listNum: 0,
+    }
+    const entries = (await fs.listFile(chapterDir, options))
+      .map((entry: string): string => entry.replace(/\\/g, '/').replace(/^\/+/, '').replace(/\/+$/, ''))
+      .filter((entry: string): boolean => entry.length > 0 && entry.indexOf('..') < 0)
+      .sort(compareDeepestPathFirst)
+    for (let index = 0; index < entries.length; index += 1) {
+      const entryPath = joinOfflineDownloadPath(chapterDir, entries[index])
+      assertSafeOfflineDownloadRoot(this.filesDir, entryPath)
+      const stat = await fs.stat(entryPath)
+      if (stat.isDirectory()) {
+        await fs.rmdir(entryPath)
+      } else {
+        await fs.unlink(entryPath)
+      }
+    }
+    await fs.rmdir(chapterDir)
   }
 
   private ensureRoot(): void {
