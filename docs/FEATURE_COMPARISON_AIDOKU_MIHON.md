@@ -1,7 +1,7 @@
 # Koma vs Aidoku vs Mihon 功能对比
 
 更新时间：2026-05-27
-Koma 基线：`master` / `ea51414` 后续实现
+Koma 基线：`master` / `1269199` 后续实现
 
 ## 证据来源
 
@@ -22,7 +22,8 @@ Koma 基线：`master` / `ea51414` 后续实现
 Koma 不是完成态。当前是 **HarmonyOS 私有/本地优先漫画阅读器的功能骨架 + 可跑通的 source runtime E2E**：
 
 - 本地导入、私有库、Reader、source URL index、MangaDex source runtime 到 Reader 图片已跑通。
-- 但成熟漫画阅读器的关键系统仍缺：下载增强、自动更新、tracker、更多 reader 设置、源生态/升级、通知、完整备份管理、兼容性矩阵。
+- 漫画源生态不作为 Koma App 本体缺口处理；source index/package/真实漫画源维护放在独立仓库 `/home/gamer/git/koma-sources`。
+- App 本体剩余关键系统缺口见 `docs/APP_GAP_PLAN_AIDOKU.md`：下载增强、自动更新/通知、tracker、更多 reader 设置、本地库重扫、完整备份管理、release readiness。
 
 ## 功能矩阵
 
@@ -75,22 +76,17 @@ Koma 不是完成态。当前是 **HarmonyOS 私有/本地优先漫画阅读器�
    - 已有：tap navigation 开关、非裁剪 fit-width/fit-screen、页面间距、非裁剪收紧页边、音量键翻页 runtime、宽图旋转、屏幕常亮、进度显示开关。
    - 仍需：宽图拆分、更多背景/手势设置、异常比例图片矩阵 QA。
 
-4. **Source runtime 管理完善**
-   - 对标 Aidoku source list / Mihon extension repos，但保持 Koma 的“不内置源、不源市场”边界。
-   - 已有：用户配置 source index、安装/升级 UX 骨架、capability 摘要、runtime diagnostics、source author SDK docs。
-   - 仍需：签名/信任策略、settings/upgrade 真机完整 QA、源开发工具、源包兼容矩阵。
-
-5. **自动更新 / 通知**
+4. **自动更新 / 通知**
    - 对标 Mihon scheduled library updates。
    - 需要：私有库/source 新章检查、前台/后台策略、通知、失败退避。
 
-6. **Tracker**
+5. **Tracker**
    - 对标 Aidoku AniList/MyAnimeList、Mihon 多 tracker。
    - Koma 主打私有/本地，tracker 可后置；但成熟 reader 最终需要。
 
 ## 不建议优先做
 
-- 内置源市场：违反 Koma 上架边界。
+- 内置源市场：违反 Koma 上架边界；漫画源生态维护放在 `/home/gamer/git/koma-sources`，不纳入 Koma App 本体缺口排序。
 - 继续大面积 UI polish：当前功能缺口更大；只修 blocking 安全区/可用性问题。
 - 公共 tracker 先行：对 Koma 私有/本地定位不是第一价值点。
 - 复杂云同步：先把本地备份、下载、分类、自动更新做好。
