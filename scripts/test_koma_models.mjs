@@ -568,6 +568,11 @@ assert.match(
 )
 assert.match(
   libraryPageSource,
+  /private validCategoryFilter\(\): LibraryCategoryFilter \{[\s\S]*this\.filterCategory === LIBRARY_CATEGORY_FAVORITE_ID[\s\S]*listCustomCategories\(\)\.some[\s\S]*this\.filterCategory = 'all'[\s\S]*saveFilterPreferences\(\)/,
+  'LibraryPage must reset stale deleted custom category filters before applying list options',
+)
+assert.match(
+  libraryPageSource,
   /private categoryLabel\(\): string \{[\s\S]*'全部分类'[\s\S]*CategoryMenu[\s\S]*MenuItem\(\{ content: '未分类' \}\)[\s\S]*MenuItem\(\{ content: '稍后阅读' \}\)[\s\S]*MenuItem\(\{ content: '收藏' \}\)/,
   'LibraryPage must expose user-visible category filter labels',
 )
