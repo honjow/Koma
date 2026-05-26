@@ -16,8 +16,11 @@ import {
 } from '../model/LocalLibraryRefreshService'
 import {
   LibraryUpdateResultStore,
+  clearLatestLibraryUpdateSummary,
+  createLibraryUpdateJobSnapshot,
   formatLibraryUpdateNotificationSummary,
   getLatestLibraryUpdateSummary,
+  setLatestLibraryUpdateJobSnapshot,
   setLatestLibraryUpdateSummary,
 } from '../model/LibraryUpdateResultStore'
 import {
@@ -26,6 +29,7 @@ import {
   LibraryUpdatePreferencesStore,
   getLibraryUpdateAutoCheckLabel,
   getLibraryUpdateLastResultLabel,
+  getLibraryUpdateNextDueAt,
   getLibraryUpdateNextDueLabel,
   getLibraryUpdateNotificationStatusLabel,
   formatLibraryUpdateTimestamp,
@@ -386,7 +390,18 @@ export struct SettingsPage {
       return
     }
     console.info('[Settings] step=library_update_due_check intervalHours=' + this.libraryUpdatePreferences.intervalHours)
-    this.checkLibraryUpdates('due')
+    const dueAt = Date.now()
+    const dueSnapshot = createLibraryUpdateJobSnapshot('due', dueAt)
+    setLatestLibraryUpdateJobSnapshot(dueSnapshot)
+    void this.libraryUpdateResultStore().saveJobSnapshot(dueSnapshot)
+      .then(() => {
+        console.info('[Settings] step=save_library_update_job_due')
+        this.checkLibraryUpdates('due')
+      })
+      .catch((error: Error) => {
+        console.warn('[Settings] step=save_library_update_job_due_failed code=' + safeSettingsErrorCode(error))
+        this.checkLibraryUpdates('due')
+      })
   }
 
   private loadVersion(): void {
@@ -856,6 +871,13 @@ export struct SettingsPage {
       return
     }
     this.libraryUpdateBusy = true
+    const startedAt = Date.now()
+    const runningSnapshot = createLibraryUpdateJobSnapshot('running', startedAt, undefined, undefined, undefined, startedAt)
+    setLatestLibraryUpdateJobSnapshot(runningSnapshot)
+    void this.libraryUpdateResultStore().saveJobSnapshot(runningSnapshot)
+      .catch((error: Error) => {
+        console.warn('[Settings] step=save_library_update_job_running_failed code=' + safeSettingsErrorCode(error))
+      })
     console.info('[Settings] step=library_update_start')
     const service = new LibraryUpdateService(
       this.libraryStore,
@@ -866,6 +888,8 @@ export struct SettingsPage {
       .then((summary: LibraryUpdateSummary) => {
         this.libraryUpdateSummary = summary
         setLatestLibraryUpdateSummary(summary)
+        const successSnapshot = createLibraryUpdateJobSnapshot('success', summary.checkedAt, summary, undefined, undefined, startedAt)
+        setLatestLibraryUpdateJobSnapshot(successSnapshot)
         void this.libraryUpdateResultStore().save(summary)
           .then(() => {
             console.info('[Settings] step=save_library_update_results total=' + summary.totalCount)
@@ -892,6 +916,7 @@ export struct SettingsPage {
         const checkedAt = Date.now()
         const failureCode = normalizeLibraryUpdateFailureCode('check_failed') ?? 'unknown'
         this.libraryUpdateSummary = undefined
+        clearLatestLibraryUpdateSummary()
         this.libraryUpdatePreferences = {
           autoCheckEnabled: this.libraryUpdatePreferences.autoCheckEnabled,
           intervalHours: this.libraryUpdatePreferences.intervalHours,
@@ -900,6 +925,17 @@ export struct SettingsPage {
           failureCount: normalizeLibraryUpdateFailureCount(this.libraryUpdatePreferences.failureCount + 1),
           lastFailureCode: failureCode,
         }
+        const nextDueAt = getLibraryUpdateNextDueAt(this.libraryUpdatePreferences)
+        const failedState = nextDueAt !== undefined && nextDueAt > checkedAt ? 'backed-off' : 'failed'
+        const failedSnapshot = createLibraryUpdateJobSnapshot(failedState, checkedAt, undefined, failureCode, nextDueAt, startedAt)
+        setLatestLibraryUpdateJobSnapshot(failedSnapshot)
+        void this.libraryUpdateResultStore().saveJobSnapshot(failedSnapshot)
+          .then(() => {
+            console.info('[Settings] step=save_library_update_job_failed state=' + failedState)
+          })
+          .catch((saveError: Error) => {
+            console.warn('[Settings] step=save_library_update_job_failed_failed code=' + safeSettingsErrorCode(saveError))
+          })
         void this.libraryUpdatePreferencesStore().saveFailedCheck(checkedAt, failureCode)
           .then((preferences: LibraryUpdatePreferences) => {
             this.saveLibraryUpdatePreferences(preferences)
