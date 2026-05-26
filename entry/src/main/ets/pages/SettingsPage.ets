@@ -136,9 +136,7 @@ const SETTINGS_SECTIONS: SettingsSection[] = [
 ]
 
 function safeSettingsErrorCode(error: Error): string {
-  const name = error.name.trim().toLocaleLowerCase()
-  const code = name.length > 0 ? name : 'error'
-  return code.replace(/[^a-z0-9_.-]/g, '_').substring(0, 48)
+  return normalizeLibraryUpdateFailureCode(error.name) ?? 'unknown'
 }
 
 @Component
