@@ -79,6 +79,7 @@ Verified on device `192.168.50.103:12345`:
 | Library update check MVP | `pending` | Settings foreground action checks Library for source-runtime chapter changes, updates chapter metadata, and reports skipped/failed counts without scheduler or OS notifications. |
 | Library auto-update preferences | `pending` | Settings persists an app-open due-check preference with 12h/24h/48h intervals and last status. This is a foreground MVP only, not a system background scheduler or notification flow. |
 | Library update result persistence | `pending` | Latest sanitized per-comic update results persist across app restarts for the details page without rerunning checks. |
+| Downloads queue MVP | `7a4c0d1` | Settings Downloads page, durable queue records, per-chapter MangaDetail download action, retry/remove for feasible rows, and Reader offline manifest path preservation. |
 
 ## Current Product Baseline
 
@@ -100,6 +101,7 @@ Verified on device `192.168.50.103:12345`:
 - Progress persistence and resume.
 - Komga progress pull/push.
 - Remote image cache under app cache with LRU and prefetch.
+- Offline chapter download MVP records durable queue rows under app files, exposes a Settings Downloads page, and lets MangaDetail trigger per-chapter downloads. This is still an in-app foreground MVP, not an OS background downloader.
 
 ### Private Libraries
 
@@ -121,6 +123,7 @@ Verified on device `192.168.50.103:12345`:
 - About / license / version dialogs.
 - Source package manager page.
 - Reader remote image cache stats and clear action.
+- Downloads page lists offline chapters / failed tasks from the durable queue, with retry for failed/partial rows and explicit guidance for blocked rows that need MangaDetail page hydration.
 - Foreground library update check with last summary/status row.
 - Library update details page shows the latest in-memory check summary and per-comic results from Settings.
 - Library update auto-check preferences are persisted and run only when Settings opens and a due interval has elapsed while the app is foregrounded.
@@ -151,3 +154,4 @@ Verified on device `192.168.50.103:12345`:
 6. Error-state UI is not unified across source types; intentionally deferred because the user asked to prioritize functionality over UI detail.
 7. Large CBZ / large remote chapter performance still needs stress testing.
 8. Backup JSON is local user-initiated and unencrypted; encryption/password UX was explicitly not added. Source settings backup is sanitized and excludes credential-like values.
+9. Downloads are foreground/in-app only: no OS background scheduler, no notifications, no batch queue controls, and source-backed `pages_missing` rows still require opening MangaDetail to hydrate pages before retry.

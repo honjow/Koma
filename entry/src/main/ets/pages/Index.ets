@@ -24,6 +24,7 @@ import { KomgaServerPage } from './KomgaServerPage'
 import { OpdsServerPage } from './OpdsServerPage'
 import { SourcePackageManagerPage } from './SourcePackageManagerPage'
 import { WebDavServerPage } from './WebDavServerPage'
+import { DownloadsPage } from './DownloadsPage'
 import { RouteName, TabIndex, TabLabel } from '../common/Constants'
 import { RouterHelper } from '../common/RouterHelper'
 import { KomaTabIcon } from '../components/KomaTabIcon'
@@ -322,6 +323,13 @@ struct Index {
         LibraryUpdateResultPage()
       }
       .titleBar(this.navDestTitleBarOpts('书架更新详情'))
+    } else if (name === RouteName.DOWNLOADS) {
+      HdsNavDestination() {
+        DownloadsPage({
+          libraryStore: this.libraryStore,
+        })
+      }
+      .titleBar(this.navDestTitleBarOpts('下载管理'))
     }
   }
 
@@ -410,6 +418,9 @@ struct Index {
             },
             onOpenLibraryUpdateResults: () => {
               this.openSettingsSecondary(RouteName.LIBRARY_UPDATE_RESULTS)
+            },
+            onOpenDownloads: () => {
+              this.openSettingsSecondary(RouteName.DOWNLOADS)
             },
             onLibraryChanged: () => {
               this.refreshLibrarySnapshot()

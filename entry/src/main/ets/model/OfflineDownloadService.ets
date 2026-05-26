@@ -19,6 +19,14 @@ import {
   OfflineDownloadedPage,
   createOfflineDownloadStableHash,
 } from './OfflineDownloadStore'
+import {
+  OfflineDownloadQueueStore,
+} from './OfflineDownloadQueueStore'
+
+export interface OfflineDownloadLabels {
+  comicTitle?: string
+  chapterTitle?: string
+}
 
 function closeFileQuietly(file: fs.File | undefined): void {
   if (file === undefined) {
@@ -74,24 +82,38 @@ function pageAtIndex(chapter: Chapter, index: number): Page | undefined {
 
 export class OfflineDownloadService {
   private readonly store: OfflineDownloadStore
+  private readonly queueStore: OfflineDownloadQueueStore
 
-  constructor(store: OfflineDownloadStore) {
+  constructor(store: OfflineDownloadStore, queueStore?: OfflineDownloadQueueStore) {
     this.store = store
+    this.queueStore = queueStore ?? new OfflineDownloadQueueStore(store.filesRootDir())
   }
 
   getChapterSummary(comicId: string, chapterId: string): OfflineDownloadSummary | undefined {
     return this.store.loadSummary(comicId, chapterId)
   }
 
-  async downloadChapter(comic: Comic, chapterId: string): Promise<OfflineChapterDownloadManifest> {
+  async downloadChapter(comic: Comic, chapterId: string, labels?: OfflineDownloadLabels): Promise<OfflineChapterDownloadManifest> {
+    this.queueStore.upsert({
+      comicId: comic.id,
+      chapterId,
+      comicTitle: labels?.comicTitle ?? comic.title,
+      chapterTitle: labels?.chapterTitle,
+      status: OfflineDownloadStatus.QUEUED,
+      pageCount: 0,
+      downloadedPageCount: 0,
+      updatedAt: Date.now(),
+    })
     const chapter = comic.chapters.find((item: Chapter): boolean => item.id === chapterId)
     if (chapter === undefined) {
       console.warn(`[ReaderOffline] step=download_blocked comic=${createOfflineDownloadStableHash(comic.id)} chapter=${createOfflineDownloadStableHash(chapterId)} reason=chapter_missing`)
-      return this.store.createManifest(comic.id, chapterId, 0, OfflineDownloadStatus.BLOCKED)
+      const manifest = this.store.createManifest(comic.id, chapterId, 0, OfflineDownloadStatus.BLOCKED)
+      this.queueStore.upsert(this.queueStore.fromManifest(manifest, labels?.comicTitle ?? comic.title, labels?.chapterTitle))
+      return manifest
     }
     if (chapter.pages.length === 0) {
       console.warn(`[ReaderOffline] step=download_blocked comic=${createOfflineDownloadStableHash(comic.id)} chapter=${createOfflineDownloadStableHash(chapterId)} reason=pages_missing`)
-      return this.store.saveManifest({
+      const manifest = this.store.saveManifest({
         schemaVersion: 1,
         comicId: comic.id,
         chapterId,
@@ -102,9 +124,12 @@ export class OfflineDownloadService {
         pages: [],
         failureReasonCode: 'pages_missing',
       })
+      this.queueStore.upsert(this.queueStore.fromManifest(manifest, labels?.comicTitle ?? comic.title, labels?.chapterTitle ?? chapter.title))
+      return manifest
     }
 
     let manifest = this.store.createManifest(comic.id, chapterId, chapter.pages.length, OfflineDownloadStatus.DOWNLOADING)
+    this.queueStore.upsert(this.queueStore.fromManifest(manifest, labels?.comicTitle ?? comic.title, labels?.chapterTitle ?? chapter.title))
     const config = createReaderSessionConfigFromComic(comic, chapterId)
     try {
       for (let index = 0; index < config.totalPages; index += 1) {
@@ -121,9 +146,11 @@ export class OfflineDownloadService {
           updatedAt: Date.now(),
         }
         manifest = this.store.recordPage(manifest, row)
+        this.queueStore.upsert(this.queueStore.fromManifest(manifest, labels?.comicTitle ?? comic.title, labels?.chapterTitle ?? chapter.title))
       }
       manifest.status = OfflineDownloadStatus.DOWNLOADED
       manifest = this.store.saveManifest(manifest)
+      this.queueStore.upsert(this.queueStore.fromManifest(manifest, labels?.comicTitle ?? comic.title, labels?.chapterTitle ?? chapter.title))
       console.info(`[ReaderOffline] step=download_done comic=${createOfflineDownloadStableHash(comic.id)} chapter=${createOfflineDownloadStableHash(chapterId)} pages=${manifest.downloadedPageCount}/${manifest.pageCount}`)
       return manifest
     } catch (error) {
@@ -131,6 +158,7 @@ export class OfflineDownloadService {
       manifest.status = manifest.downloadedPageCount > 0 ? OfflineDownloadStatus.PARTIAL : OfflineDownloadStatus.FAILED
       manifest.failureReasonCode = 'page_fetch_failed'
       manifest = this.store.saveManifest(manifest)
+      this.queueStore.upsert(this.queueStore.fromManifest(manifest, labels?.comicTitle ?? comic.title, labels?.chapterTitle ?? chapter.title))
       console.warn(`[ReaderOffline] step=download_failed comic=${createOfflineDownloadStableHash(comic.id)} chapter=${createOfflineDownloadStableHash(chapterId)} pages=${manifest.downloadedPageCount}/${manifest.pageCount} reason=page_fetch_failed`)
       return manifest
     }
