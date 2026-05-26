@@ -7,6 +7,7 @@ export interface ComicCoverInfo {
   accentColor: string
   pageCount?: number
   coverUri?: string
+  categoryLabels?: string[]
 }
 
 @Component
@@ -24,6 +25,7 @@ export struct ComicCoverCard {
   @Prop progressText: string = ''
   @Prop coverColor: string = ''
   @Prop accentColor: string = ''
+  @Prop categoryLabels: string[] = []
   @Prop selected: boolean = false
 
   private displayTitle(): string {
@@ -44,6 +46,10 @@ export struct ComicCoverCard {
 
   private displayAccentColor(): string {
     return this.accentColor.length > 0 ? this.accentColor : this.comic.accentColor
+  }
+
+  private displayCategoryLabels(): string[] {
+    return this.categoryLabels.length > 0 ? this.categoryLabels : (this.comic.categoryLabels ?? [])
   }
 
   build() {
@@ -124,6 +130,22 @@ export struct ComicCoverCard {
         .fontColor($r('app.color.koma_text_secondary'))
         .maxLines(1)
         .textOverflow({ overflow: TextOverflow.Ellipsis })
+
+      if (this.displayCategoryLabels().length > 0) {
+        Row({ space: 6 }) {
+          ForEach(this.displayCategoryLabels(), (categoryLabel: string) => {
+            Text(categoryLabel)
+              .height(20)
+              .padding({ left: 8, right: 8 })
+              .borderRadius(8)
+              .fontSize(11)
+              .fontColor($r('app.color.koma_accent'))
+              .backgroundColor('#1FE66A3A')
+              .maxLines(1)
+          }, (categoryLabel: string) => categoryLabel)
+        }
+        .width('100%')
+      }
     }
     .width('100%')
     .alignItems(HorizontalAlign.Start)

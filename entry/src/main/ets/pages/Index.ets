@@ -34,7 +34,13 @@ import {
   createMockLibraryPresentationMap,
   createSeededLibraryStore,
 } from '../model/MockLibraryData'
-import { Comic, ComicId, withComicCategoryIds } from '../model/ComicModels'
+import {
+  Comic,
+  ComicId,
+  withComicAddedCategoryId,
+  withComicCategoryIds,
+  withComicRemovedCategoryId,
+} from '../model/ComicModels'
 import { LibraryStore } from '../model/LibraryStore'
 import {
   AppFilesLibraryStorePersistenceAdapter,
@@ -42,6 +48,7 @@ import {
   assignComicCategoriesAndPersistLibraryStore,
   isRemovableLocalComic,
   removeComicAndPersistLibraryStore,
+  updateComicCategoryMembershipAndPersistLibraryStore,
   upsertComicAndPersistLibraryStore,
 } from '../model/LibraryPersistence'
 import {
@@ -204,6 +211,39 @@ struct Index {
     }
   }
 
+  private handleUpdateCategoryMembershipRequested(comicIds: ComicId[], categoryId: string, selected: boolean): boolean {
+    const persistenceService = this.ensureLibraryPersistenceService()
+    if (persistenceService === undefined) {
+      comicIds.forEach((comicId: ComicId) => {
+        const comic = this.libraryStore.getComic(comicId)
+        if (comic !== undefined) {
+          this.libraryStore.upsertComic(
+            selected ? withComicAddedCategoryId(comic, categoryId) : withComicRemovedCategoryId(comic, categoryId)
+          )
+        }
+      })
+      this.refreshLibrarySnapshot()
+      return comicIds.length > 0
+    }
+    try {
+      const changedCount = updateComicCategoryMembershipAndPersistLibraryStore(
+        this.libraryStore,
+        persistenceService,
+        comicIds,
+        categoryId,
+        selected
+      )
+      if (changedCount > 0) {
+        this.refreshLibrarySnapshot()
+      }
+      return changedCount > 0
+    } catch (error) {
+      const e = error as Error
+      console.error('persist category membership failed: ' + e.message)
+      throw e
+    }
+  }
+
   private ensureLibraryPersistenceService(): LibraryStorePersistenceService | undefined {
     if (this.libraryPersistenceService !== undefined) {
       return this.libraryPersistenceService
@@ -362,6 +402,9 @@ struct Index {
             },
             onAssignCategoriesRequested: (comicIds: ComicId[], categoryIds?: string[]) => {
               return this.handleAssignCategoriesRequested(comicIds, categoryIds)
+            },
+            onUpdateCategoryMembershipRequested: (comicIds: ComicId[], categoryId: string, selected: boolean) => {
+              return this.handleUpdateCategoryMembershipRequested(comicIds, categoryId, selected)
             }
           })
         }.tabBar(this.TabIcon(TabLabel.LIBRARY, TabIndex.LIBRARY))

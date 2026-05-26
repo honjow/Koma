@@ -6,7 +6,9 @@ import {
   Page,
   ReadingDirection,
   normalizeCategoryIds,
+  withComicAddedCategoryId,
   withComicCategoryIds,
+  withComicRemovedCategoryId,
 } from './ComicModels'
 import { fileIo as fs } from '@kit.CoreFileKit'
 import { LibraryStore } from './LibraryStore'
@@ -482,6 +484,41 @@ export function assignComicCategoriesAndPersistLibraryStore(
     const comic = libraryStore.getComic(comicId)
     if (comic !== undefined) {
       libraryStore.upsertComic(withComicCategoryIds(comic, normalizedCategoryIds))
+      changedCount += 1
+    }
+  })
+  if (changedCount === 0) {
+    return 0
+  }
+  try {
+    persistenceService.persist()
+    return changedCount
+  } catch (error) {
+    hydrateLibraryStoreFromJson(libraryStore, previousPayload)
+    throw error as Error
+  }
+}
+
+export function updateComicCategoryMembershipAndPersistLibraryStore(
+  libraryStore: LibraryStore,
+  persistenceService: LibraryStorePersistenceService,
+  comicIds: ComicId[],
+  categoryId: string,
+  selected: boolean
+): number {
+  const normalizedCategoryId = categoryId.trim()
+  if (normalizedCategoryId.length === 0) {
+    return 0
+  }
+  const previousPayload = serializeLibraryStore(libraryStore)
+  let changedCount = 0
+  comicIds.forEach((comicId: ComicId) => {
+    const comic = libraryStore.getComic(comicId)
+    if (comic !== undefined) {
+      const nextComic = selected ?
+        withComicAddedCategoryId(comic, normalizedCategoryId) :
+        withComicRemovedCategoryId(comic, normalizedCategoryId)
+      libraryStore.upsertComic(nextComic)
       changedCount += 1
     }
   })

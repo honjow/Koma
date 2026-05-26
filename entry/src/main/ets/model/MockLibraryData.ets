@@ -3,9 +3,12 @@ import {
   Comic,
   ComicId,
   ComicSourceKind,
+  LIBRARY_CATEGORY_FAVORITE_ID,
+  LIBRARY_CATEGORY_READ_LATER_ID,
   Page,
   ReadingDirection,
   ReadingProgress,
+  normalizeCategoryIds,
   normalizeSortKey,
 } from './ComicModels'
 import { InMemoryLibraryStore, LibraryStore } from './LibraryStore'
@@ -33,6 +36,7 @@ export interface LibraryComicCardViewModel {
   accentColor: string
   pageCount: number
   coverUri?: string
+  categoryLabels: string[]
 }
 
 export interface ContinueReadingCardViewModel {
@@ -311,6 +315,18 @@ function formatProgressText(fallbackProgressText: string, progress?: ReadingProg
   return `${progressPercent(progress)}%`
 }
 
+function formatCategoryLabels(categoryIds?: string[]): string[] {
+  const labels: string[] = []
+  normalizeCategoryIds(categoryIds).forEach((categoryId: string) => {
+    if (categoryId === LIBRARY_CATEGORY_FAVORITE_ID) {
+      labels.push('收藏')
+    } else if (categoryId === LIBRARY_CATEGORY_READ_LATER_ID) {
+      labels.push('稍后阅读')
+    }
+  })
+  return labels
+}
+
 function formatContinueDetail(chapterTitle: string, progress?: ReadingProgress): string {
   if (progress === undefined) {
     return `继续阅读 ${chapterTitle}`
@@ -335,6 +351,7 @@ export function createLibraryViewModelFromComics(
       accentColor: presentation.accentColor,
       pageCount: comic.pageCount,
       coverUri: comic.coverUri,
+      categoryLabels: formatCategoryLabels(comic.categoryIds),
     }
   })
 

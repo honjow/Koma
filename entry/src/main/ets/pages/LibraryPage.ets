@@ -121,6 +121,8 @@ export struct LibraryPage {
   onRemoveComicRequested: (comicId: ComicId) => boolean = (_comicId: ComicId) => false
   onAssignCategoriesRequested: (comicIds: ComicId[], categoryIds?: string[]) => boolean =
     (_comicIds: ComicId[], _categoryIds?: string[]) => false
+  onUpdateCategoryMembershipRequested: (comicIds: ComicId[], categoryId: string, selected: boolean) => boolean =
+    (_comicIds: ComicId[], _categoryId: string, _selected: boolean) => false
   private longPressTimer: number = 0
   private longPressComicId: ComicId = ''
 
@@ -353,6 +355,7 @@ export struct LibraryPage {
         accentColor: comic.accentColor,
         pageCount: comic.pageCount,
         coverUri: comic.coverUri,
+        categoryLabels: comic.categoryLabels,
       }
     })
   }
@@ -506,6 +509,28 @@ export struct LibraryPage {
       return
     }
     if (this.onAssignCategoriesRequested(comicIds, categoryIds)) {
+      this.exitSelectionMode()
+      this.refreshDisplayedSnapshotFromStore()
+    }
+  }
+
+  private addSelectedCategory(categoryId: string): void {
+    const comicIds = Array.from(this.selectedIds)
+    if (comicIds.length === 0) {
+      return
+    }
+    if (this.onUpdateCategoryMembershipRequested(comicIds, categoryId, true)) {
+      this.exitSelectionMode()
+      this.refreshDisplayedSnapshotFromStore()
+    }
+  }
+
+  private removeSelectedCategory(categoryId: string): void {
+    const comicIds = Array.from(this.selectedIds)
+    if (comicIds.length === 0) {
+      return
+    }
+    if (this.onUpdateCategoryMembershipRequested(comicIds, categoryId, false)) {
       this.exitSelectionMode()
       this.refreshDisplayedSnapshotFromStore()
     }
@@ -671,6 +696,32 @@ export struct LibraryPage {
     }
   }
 
+  @Builder
+  private BatchCategoryMenu() {
+    Menu() {
+      MenuItem({ content: '加入收藏' })
+        .onClick(() => {
+          this.addSelectedCategory(LIBRARY_CATEGORY_FAVORITE_ID)
+        })
+      MenuItem({ content: '移出收藏' })
+        .onClick(() => {
+          this.removeSelectedCategory(LIBRARY_CATEGORY_FAVORITE_ID)
+        })
+      MenuItem({ content: '加入稍后' })
+        .onClick(() => {
+          this.addSelectedCategory(LIBRARY_CATEGORY_READ_LATER_ID)
+        })
+      MenuItem({ content: '移出稍后' })
+        .onClick(() => {
+          this.removeSelectedCategory(LIBRARY_CATEGORY_READ_LATER_ID)
+        })
+      MenuItem({ content: '清除分类' })
+        .onClick(() => {
+          this.assignSelectedCategory(undefined)
+        })
+    }
+  }
+
 
   @Builder
   private SortFilterBar() {
@@ -791,7 +842,7 @@ export struct LibraryPage {
           this.exitSelectionMode()
         })
 
-      Button('稍后阅读')
+      Button('分类 ▾')
         .height(36)
         .padding({ left: 12, right: 12 })
         .borderRadius(8)
@@ -799,33 +850,7 @@ export struct LibraryPage {
         .fontColor(Color.White)
         .backgroundColor($r('app.color.koma_accent'))
         .enabled(this.selectedCount() > 0)
-        .onClick(() => {
-          this.assignSelectedCategory([LIBRARY_CATEGORY_READ_LATER_ID])
-        })
-
-      Button('收藏')
-        .height(36)
-        .padding({ left: 12, right: 12 })
-        .borderRadius(8)
-        .fontSize(14)
-        .fontColor(Color.White)
-        .backgroundColor($r('app.color.koma_accent'))
-        .enabled(this.selectedCount() > 0)
-        .onClick(() => {
-          this.assignSelectedCategory([LIBRARY_CATEGORY_FAVORITE_ID])
-        })
-
-      Button('清除分类')
-        .height(36)
-        .padding({ left: 12, right: 12 })
-        .borderRadius(8)
-        .fontSize(14)
-        .fontColor($r('app.color.koma_text_primary'))
-        .backgroundColor('#0F000000')
-        .enabled(this.selectedCount() > 0)
-        .onClick(() => {
-          this.assignSelectedCategory(undefined)
-        })
+        .bindMenu(this.BatchCategoryMenu())
 
       Button('删除')
         .height(36)
@@ -859,6 +884,7 @@ export struct LibraryPage {
                 progressText: comic.progressText,
                 coverColor: comic.coverColor,
                 accentColor: comic.accentColor,
+                categoryLabels: comic.categoryLabels ?? [],
                 selected: this.isComicSelected(comic.id),
               })
                 .onTouch((event: TouchEvent) => {
@@ -894,6 +920,7 @@ export struct LibraryPage {
                 progressText: comic.progressText,
                 coverColor: comic.coverColor,
                 accentColor: comic.accentColor,
+                categoryLabels: comic.categoryLabels ?? [],
                 selected: false,
               })
                 .gesture(TapGesture()

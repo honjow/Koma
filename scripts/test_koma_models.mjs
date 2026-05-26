@@ -168,6 +168,20 @@ function withComicCategoryIds(comic, categoryIds) {
   return nextComic
 }
 
+function withComicAddedCategoryId(comic, categoryId) {
+  const categoryIds = normalizeCategoryIds(comic.categoryIds)
+  const normalizedCategoryId = categoryId.trim()
+  if (normalizedCategoryId.length === 0 || categoryIds.includes(normalizedCategoryId)) {
+    return withComicCategoryIds(comic, categoryIds)
+  }
+  return withComicCategoryIds(comic, [...categoryIds, normalizedCategoryId])
+}
+
+function withComicRemovedCategoryId(comic, categoryId) {
+  const normalizedCategoryId = categoryId.trim()
+  return withComicCategoryIds(comic, normalizeCategoryIds(comic.categoryIds).filter((item) => item !== normalizedCategoryId))
+}
+
 function buildSourceDetailRequestJson(sourceId, operation, args, hostHints, sourceSettings = {}) {
   return JSON.stringify({
     type: 'request',
@@ -256,6 +270,8 @@ assertExport(modelSource, 'deserializeComic')
 assertExport(modelSource, 'updateReadingProgress')
 assertExport(modelSource, 'normalizeCategoryIds')
 assertExport(modelSource, 'withComicCategoryIds')
+assertExport(modelSource, 'withComicAddedCategoryId')
+assertExport(modelSource, 'withComicRemovedCategoryId')
 assertExport(libraryStoreSource, 'LibraryStore')
 assertExport(libraryStoreSource, 'InMemoryLibraryStore')
 assertExport(progressStoreSource, 'ReadingProgressStore')
@@ -296,6 +312,7 @@ assertExport(libraryPersistenceSource, 'AppFilesLibraryStorePersistenceAdapter')
 assertExport(libraryPersistenceSource, 'LibraryStorePersistenceService')
 assertExport(libraryPersistenceSource, 'upsertComicAndPersistLibraryStore')
 assertExport(libraryPersistenceSource, 'assignComicCategoriesAndPersistLibraryStore')
+assertExport(libraryPersistenceSource, 'updateComicCategoryMembershipAndPersistLibraryStore')
 assertExport(libraryPersistenceSource, 'isRemovableLocalComic')
 assertExport(libraryPersistenceSource, 'removeComicAndPersistLibraryStore')
 assertExport(libraryUpdateServiceSource, 'LibraryUpdateResultStatus')
@@ -454,13 +471,18 @@ assert.match(
 )
 assert.match(
   libraryPageSource,
-  /Button\('稍后阅读'\)[\s\S]*assignSelectedCategory\(\[LIBRARY_CATEGORY_READ_LATER_ID\]\)[\s\S]*Button\('收藏'\)[\s\S]*assignSelectedCategory\(\[LIBRARY_CATEGORY_FAVORITE_ID\]\)[\s\S]*Button\('清除分类'\)[\s\S]*assignSelectedCategory\(undefined\)/,
-  'LibraryPage selection mode must expose bulk category assignment and clearing actions',
+  /MenuItem\(\{ content: '加入收藏' \}\)[\s\S]*addSelectedCategory\(LIBRARY_CATEGORY_FAVORITE_ID\)[\s\S]*MenuItem\(\{ content: '移出收藏' \}\)[\s\S]*removeSelectedCategory\(LIBRARY_CATEGORY_FAVORITE_ID\)[\s\S]*MenuItem\(\{ content: '加入稍后' \}\)[\s\S]*addSelectedCategory\(LIBRARY_CATEGORY_READ_LATER_ID\)[\s\S]*MenuItem\(\{ content: '移出稍后' \}\)[\s\S]*removeSelectedCategory\(LIBRARY_CATEGORY_READ_LATER_ID\)[\s\S]*MenuItem\(\{ content: '清除分类' \}\)[\s\S]*assignSelectedCategory\(undefined\)/,
+  'LibraryPage selection mode must expose bulk category add, remove, and clearing actions',
 )
 assert.match(
   indexSource,
   /onAssignCategoriesRequested:\s*\(comicIds: ComicId\[\], categoryIds\?: string\[\]\) => \{[\s\S]*return this\.handleAssignCategoriesRequested\(comicIds, categoryIds\)/,
   'Index must wire LibraryPage category assignment into the persistent library store',
+)
+assert.match(
+  indexSource,
+  /onUpdateCategoryMembershipRequested:\s*\(comicIds: ComicId\[\], categoryId: string, selected: boolean\)[\s\S]*return this\.handleUpdateCategoryMembershipRequested\(comicIds, categoryId, selected\)/,
+  'Index must wire LibraryPage category add/remove actions into the persistent library store',
 )
 assert.match(
   settingsPageSource,
@@ -1788,6 +1810,30 @@ function assignComicCategoriesAndPersistLibraryStore(store, persistenceService, 
   }
 }
 
+function updateComicCategoryMembershipAndPersistLibraryStore(store, persistenceService, comicIds, categoryId, selected) {
+  const normalizedCategoryId = categoryId.trim()
+  if (normalizedCategoryId.length === 0) return 0
+  const previousPayload = serializeLibraryStore(store)
+  let changedCount = 0
+  comicIds.forEach((comicId) => {
+    const comic = store.getComic(comicId)
+    if (comic !== undefined) {
+      store.upsertComic(selected ?
+        withComicAddedCategoryId(comic, normalizedCategoryId) :
+        withComicRemovedCategoryId(comic, normalizedCategoryId))
+      changedCount += 1
+    }
+  })
+  if (changedCount === 0) return 0
+  try {
+    persistenceService.persist()
+    return changedCount
+  } catch (error) {
+    hydrateLibraryStoreFromJson(store, previousPayload)
+    throw error
+  }
+}
+
 function listLibraryItemsByCategory(store, filterCategoryId = 'all') {
   return store.listComics().filter((comic) => {
     const categoryIds = normalizeCategoryIds(comic.categoryIds)
@@ -2164,6 +2210,10 @@ assert.deepEqual(categoryStore.getComic('imported-01').categoryIds, ['read_later
 assert.equal(listLibraryItemsByCategory(categoryStore, 'read_later').some((item) => item.id === 'imported-01'), true, 'category filter must include assigned comics')
 assert.equal(listLibraryItemsByCategory(categoryStore, 'uncategorized').some((item) => item.id === 'imported-01'), false, 'uncategorized filter must exclude assigned comics')
 assert.deepEqual(JSON.parse(categoryAdapter.savedPayloads.at(-1)).comics.find((item) => item.id === 'imported-01').categoryIds, ['read_later'], 'category assignment must persist categoryIds')
+assert.equal(updateComicCategoryMembershipAndPersistLibraryStore(categoryStore, categoryService, ['imported-01'], 'favorite', true), 1, 'adding a batch category should update existing comics')
+assert.deepEqual(categoryStore.getComic('imported-01').categoryIds, ['read_later', 'favorite'], 'adding Favorite must preserve existing Read Later')
+assert.equal(updateComicCategoryMembershipAndPersistLibraryStore(categoryStore, categoryService, ['imported-01'], 'favorite', false), 1, 'removing a batch category should update existing comics')
+assert.deepEqual(categoryStore.getComic('imported-01').categoryIds, ['read_later'], 'removing Favorite must preserve existing Read Later')
 assert.equal(assignComicCategoriesAndPersistLibraryStore(categoryStore, categoryService, ['imported-01'], undefined), 1, 'clear category assignment should update existing comics')
 assert.equal(categoryStore.getComic('imported-01').categoryIds, undefined, 'clearing categories must return the comic to uncategorized')
 assert.equal(listLibraryItemsByCategory(categoryStore, 'uncategorized').some((item) => item.id === 'imported-01'), true, 'uncategorized filter must include cleared comics')

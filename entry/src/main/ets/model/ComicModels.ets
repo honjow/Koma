@@ -168,6 +168,24 @@ export function withComicCategoryIds(comic: Comic, categoryIds?: string[]): Comi
   return nextComic
 }
 
+export function withComicAddedCategoryId(comic: Comic, categoryId: string): Comic {
+  const categoryIds = normalizeCategoryIds(comic.categoryIds)
+  const normalizedCategoryId = categoryId.trim()
+  if (normalizedCategoryId.length === 0 || categoryIds.includes(normalizedCategoryId)) {
+    return withComicCategoryIds(comic, categoryIds)
+  }
+  categoryIds.push(normalizedCategoryId)
+  return withComicCategoryIds(comic, categoryIds)
+}
+
+export function withComicRemovedCategoryId(comic: Comic, categoryId: string): Comic {
+  const normalizedCategoryId = categoryId.trim()
+  const categoryIds = normalizeCategoryIds(comic.categoryIds).filter((item: string): boolean => {
+    return item !== normalizedCategoryId
+  })
+  return withComicCategoryIds(comic, categoryIds)
+}
+
 export function clampPageIndex(pageIndex: number, totalPages: number): number {
   if (totalPages <= 0) {
     return 0
