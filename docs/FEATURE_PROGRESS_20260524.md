@@ -78,9 +78,10 @@ Verified on device `192.168.50.103:12345`:
 | Reader image cache management | `a48ce93` | Settings shows remote image cache stats and exposes clear action scoped to `reader-remote-image-cache`. |
 | Content safe-area avoidance | `ec697de` | Keeps fullscreen transparent/floating shell while adding internal content-list insets for ordinary pages. |
 | Source package settings | `23dac83` | Installed local source packages can expose non-secret settings via `get_settings`; settings persist by sourceId, inject into runtime calls, and backup schema v3 exports sanitized settings. |
-| Library update check MVP | `pending` | Settings foreground action checks Library for source-runtime chapter changes, updates chapter metadata, and reports skipped/failed counts without scheduler or OS notifications. |
-| Library auto-update preferences | `pending` | Settings persists an app-open due-check preference with 12h/24h/48h intervals and last status. This is a foreground MVP only, not a system background scheduler or notification flow. |
-| Library update result persistence | `pending` | Latest sanitized per-comic update results persist across app restarts for the details page without rerunning checks. |
+| Library update check MVP | `d9` | Settings foreground action checks Library for source-runtime chapter changes, updates chapter metadata, and reports new-chapter/updated/skipped/failed counts without a background scheduler. |
+| Library auto-update preferences | `d9` | Settings persists an app-open due-check preference with 12h/24h/48h intervals, deterministic last-check/next-due text, and foreground-only copy. |
+| Library update result persistence | `d9` | Latest sanitized per-comic update results persist across app restarts for the details page without rerunning checks. |
+| Library update reminder skeleton | `d9` | Settings exposes a planned update reminder row, but Koma does not request notification permission and does not send real notifications in this lane. |
 | Downloads queue MVP | `7a4c0d1` | Settings Downloads page, durable queue records, per-chapter MangaDetail download action, retry/remove for feasible rows, and Reader offline manifest path preservation. |
 | Library category management | `87a03fb` | Built-in Favorite / Read Later category filters and multi-select add/remove category actions preserve other memberships. |
 | Reader advanced settings | `031157a` | Settings adds image fit, tap navigation, and page gap controls; Reader consumes persisted settings with non-cropping fit-width and narrow edge tap zones. |
@@ -136,9 +137,10 @@ Verified on device `192.168.50.103:12345`:
 - Source package manager page.
 - Reader remote image cache stats and clear action.
 - Downloads page lists offline chapters / failed tasks from the durable queue, with retry for failed/partial rows and explicit guidance for blocked rows that need MangaDetail page hydration.
-- Foreground library update check with last summary/status row.
-- Library update details page shows the latest in-memory check summary and per-comic results from Settings.
+- Foreground library update check with last summary/status row, new-chapter count, updated/skipped/failed counts, and next-due text when app-open auto-check is enabled.
+- Library update details page shows the latest in-memory or persisted check summary and sanitized per-comic results from Settings.
 - Library update auto-check preferences are persisted and run only when Settings opens and a due interval has elapsed while the app is foregrounded.
+- Library update reminder preference is a planned skeleton only; no notification permission is requested and no delivery path is exposed.
 
 ### WASM Source Runtime
 
@@ -172,3 +174,4 @@ Verified on device `192.168.50.103:12345`:
 11. Reader advanced settings still need real chapter visual QA for unusual image aspect ratios; static/build gates and Settings persistence device smoke pass.
 12. Source package update/capability UX was device-smoked only in empty-state because no installed source package was present; static tests cover tampered persisted capability metadata and update-state contracts.
 13. Volume-key reader navigation is preference-only; runtime key-event handling is still unwired.
+14. Library update scheduling remains foreground-only. Real background scheduling and notification delivery still require a verified Harmony API path, permissions, implementation tests, and device QA.
