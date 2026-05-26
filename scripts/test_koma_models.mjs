@@ -335,6 +335,8 @@ assertExport(libraryStoreSource, 'InMemoryLibraryStore')
 assertExport(progressStoreSource, 'ReadingProgressStore')
 assertExport(progressStoreSource, 'InMemoryReadingProgressStore')
 assertExport(readerSessionStoreSource, 'ReaderSessionStore')
+assertExport(readerSessionStoreSource, 'getReaderSessionPageWidth')
+assertExport(readerSessionStoreSource, 'getReaderSessionPageHeight')
 assertExport(readerPreferencesStoreSource, 'READER_PREFERENCES_STORE_NAME')
 assertExport(readerPreferencesStoreSource, 'PAGE_MODE_KEY')
 assertExport(readerPreferencesStoreSource, 'READING_DIRECTION_KEY')
@@ -447,6 +449,27 @@ for (const [source, label] of [
   assertUsesScrollContentSafeArea(source, label)
 }
 assertSourceBrowseFloatingTabViewportClearance(sourceBrowsePageSource)
+
+assert.match(
+  readerSessionStoreSource,
+  /export interface ReaderSessionConfig[\s\S]*pageUris: string\[\][\s\S]*pageIds: string\[\][\s\S]*pageWidths: Array<number \| undefined>[\s\S]*pageHeights: Array<number \| undefined>/,
+  'ReaderSessionConfig must carry optional page dimensions alongside URIs and ids',
+)
+assert.match(
+  readerSessionStoreSource,
+  /pageWidths: pages\.map\(\(page: Page\) => page\.width\)[\s\S]*pageHeights: pages\.map\(\(page: Page\) => page\.height\)/,
+  'createReaderSessionConfigFromComic must preserve page width/height metadata for reader runtime decisions',
+)
+assert.match(
+  readerSessionStoreSource,
+  /export function getReaderSessionPageWidth\(config: ReaderSessionConfig, pageIndex: number\): number \| undefined[\s\S]*resolvedPageIndex >= config\.pageWidths\.length[\s\S]*return undefined[\s\S]*return config\.pageWidths\[resolvedPageIndex\]/,
+  'ReaderSessionStore must expose fail-open page width lookup for missing metadata',
+)
+assert.match(
+  readerSessionStoreSource,
+  /export function getReaderSessionPageHeight\(config: ReaderSessionConfig, pageIndex: number\): number \| undefined[\s\S]*resolvedPageIndex >= config\.pageHeights\.length[\s\S]*return undefined[\s\S]*return config\.pageHeights\[resolvedPageIndex\]/,
+  'ReaderSessionStore must expose fail-open page height lookup for missing metadata',
+)
 
 assert.match(
   libraryPersistenceSource,
