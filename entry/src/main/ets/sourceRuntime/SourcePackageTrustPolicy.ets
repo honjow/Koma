@@ -9,7 +9,7 @@ export interface SourcePackageTrustSummary {
   boundaryNotice: string
 }
 
-export const SOURCE_PACKAGE_TRUST_BOUNDARY_NOTICE: string = 'Koma 不提供默认公开源或预置源列表；源包来自用户导入或用户配置的索引地址。'
+export const SOURCE_PACKAGE_TRUST_BOUNDARY_NOTICE: string = 'Koma 不提供默认公开源或预置源列表；源包来自用户导入或用户配置的索引地址；更新仅适用于这些用户导入或用户配置的源包。'
 
 export function installedSourceTrustSummary(source: InstalledSourcePackage, capabilitySummary: string): SourcePackageTrustSummary {
   return {
