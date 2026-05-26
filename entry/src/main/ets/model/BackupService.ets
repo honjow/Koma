@@ -48,6 +48,10 @@ export const BACKUP_INCLUDED_DOMAIN_LABELS: string[] = [
   '阅读器与设置偏好',
 ]
 export const BACKUP_MANAGEMENT_STORAGE_NOTE: string = '备份文件通过系统文件选择器保存和选择，当前页面不保留应用内备份历史。已导出的文件由用户在所选位置管理。'
+export const BACKUP_ENCRYPTION_STATE: string = 'unencrypted'
+export const BACKUP_ENCRYPTION_STATUS_LABEL: string = '未加密'
+export const BACKUP_ENCRYPTION_PLAN_LABEL: string = '加密备份计划中，尚未启用'
+export const BACKUP_UNENCRYPTED_EXPORT_WARNING: string = '当前导出的备份是未加密 JSON，可直接读取。请只保存到可信位置。'
 const REMOTE_SERVER_STORE_NAME: string = 'koma_remote_servers_v1'
 const SOURCE_INDEX_PREFS_STORE_NAME: string = 'koma_source_package_manager_v1'
 const SOURCE_INDEX_URL_KEY: string = 'source_index.url'
@@ -67,9 +71,15 @@ interface RemoteServerBackupDocument {
   opdsCredential: string
 }
 
+interface BackupEncryptionMetadata {
+  state: string
+  algorithm: string
+}
+
 interface KomaBackupDocument {
   schemaVersion: number
   exportedAt: number
+  encryption: BackupEncryptionMetadata
   libraryStore: string
   readingProgress: string
   remoteServers: RemoteServerBackupDocument
@@ -134,6 +144,10 @@ export class BackupService {
     const document: KomaBackupDocument = {
       schemaVersion: BACKUP_SCHEMA_VERSION,
       exportedAt: Date.now(),
+      encryption: {
+        state: BACKUP_ENCRYPTION_STATE,
+        algorithm: 'none',
+      },
       libraryStore: readTextIfExists(this.libraryPath(), emptyLibraryStorePayload()),
       readingProgress: readTextIfExists(this.readerProgressPath(), emptyReaderProgressPayload()),
       remoteServers: await this.exportRemoteServers(),

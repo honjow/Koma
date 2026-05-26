@@ -76,6 +76,36 @@ assert.match(
 )
 assert.match(
   backupServiceSource,
+  /export const BACKUP_ENCRYPTION_STATE:\s*string = 'unencrypted'[\s\S]*export const BACKUP_UNENCRYPTED_EXPORT_WARNING:[^\n]*未加密 JSON/,
+  'backup encryption skeleton must label current exports as unencrypted JSON',
+)
+assert.match(
+  backupServiceSource,
+  /encryption:\s*\{[\s\S]*state:\s*BACKUP_ENCRYPTION_STATE[\s\S]*algorithm:\s*'none'[\s\S]*\}/,
+  'exported backup JSON must carry explicit unencrypted metadata when crypto is not implemented',
+)
+assert.doesNotMatch(
+  backupServiceSource,
+  /state:\s*'encrypted'|encrypted:\s*true|algorithm:\s*'(?!none')|encrypt(?:Backup|Json|Payload)\(/i,
+  'backup service must not claim or perform fake encryption',
+)
+assert.match(
+  backupPageSource,
+  /private EncryptionCard\(\)[\s\S]*BACKUP_ENCRYPTION_STATUS_LABEL[\s\S]*BACKUP_ENCRYPTION_PLAN_LABEL[\s\S]*Button\('加密备份（计划中）'\)[\s\S]*\.enabled\(false\)/,
+  'BackupManagementPage must surface encryption as planned/not enabled, not functional',
+)
+assert.match(
+  backupPageSource,
+  /showInfoDialog\('备份已导出',[\s\S]*BACKUP_UNENCRYPTED_EXPORT_WARNING/,
+  'BackupManagementPage must warn successful exports are unencrypted',
+)
+assert.doesNotMatch(
+  backupPageSource,
+  /已加密|加密已启用|InputType\.Password|TextInput\(/,
+  'BackupManagementPage must not show fake encrypted status or password-entry UI',
+)
+assert.match(
+  backupServiceSource,
   /async importFromPicker\(\): Promise<boolean>[\s\S]*result\.length === 0[\s\S]*return false[\s\S]*await this\.import\(payload\)[\s\S]*return true/,
   'BackupService.importFromPicker must return false on picker cancellation and true only after restore',
 )
@@ -103,6 +133,11 @@ assert.match(
   backupServiceSource,
   /if \(document\.schemaVersion !== BACKUP_SCHEMA_VERSION &&[\s\S]*document\.schemaVersion !== BACKUP_SCHEMA_VERSION_V2 &&[\s\S]*document\.schemaVersion !== BACKUP_SCHEMA_VERSION_V1\)/,
   'backup restore must continue accepting schema v1/v2/v3',
+)
+assert.doesNotMatch(
+  backupServiceSource.match(/async import\(json: string\): Promise<void> \{[\s\S]*?console\.info\('\[Backup\] step=import_json'\)/)?.[0] ?? '',
+  /document\.encryption/,
+  'backup restore must not require new encryption metadata so v1/v2/v3 schema restores stay compatible',
 )
 
 console.log('backup management checks PASS')

@@ -2,9 +2,12 @@ import { common } from '@kit.AbilityKit'
 import { SecondaryListScaffold } from '../components/SecondaryListScaffold'
 import {
   BACKUP_ACCEPTED_SCHEMA_VERSIONS,
+  BACKUP_ENCRYPTION_PLAN_LABEL,
+  BACKUP_ENCRYPTION_STATUS_LABEL,
   BACKUP_INCLUDED_DOMAIN_LABELS,
   BACKUP_MANAGEMENT_STORAGE_NOTE,
   BACKUP_SCHEMA_VERSION,
+  BACKUP_UNENCRYPTED_EXPORT_WARNING,
   BackupService,
 } from '../model/BackupService'
 import { ThemeConstants } from '../theme/ThemeConstants'
@@ -51,7 +54,7 @@ export struct BackupManagementPage {
     void this.backupService().exportToPicker()
       .then((uri: string | undefined) => {
         if (uri !== undefined) {
-          this.showInfoDialog('备份已导出', '备份 JSON 已保存到所选位置。')
+          this.showInfoDialog('备份已导出', `备份 JSON 已保存到所选位置。\n${BACKUP_UNENCRYPTED_EXPORT_WARNING}`)
         }
       })
       .catch((error: Error) => {
@@ -109,6 +112,42 @@ export struct BackupManagementPage {
           .fontColor($r('app.color.koma_text_secondary'))
       }
       .width('100%')
+    }
+    .width('100%')
+    .padding({ left: 16, right: 16, top: 16, bottom: 16 })
+    .borderRadius(8)
+    .backgroundColor($r('app.color.koma_card'))
+  }
+
+  @Builder
+  private EncryptionCard() {
+    Column({ space: 12 }) {
+      Row() {
+        Text('备份加密')
+          .fontSize(15)
+          .fontWeight(FontWeight.Medium)
+          .fontColor($r('app.color.koma_text_primary'))
+          .layoutWeight(1)
+        Text(BACKUP_ENCRYPTION_STATUS_LABEL)
+          .fontSize(14)
+          .fontColor($r('app.color.koma_accent'))
+      }
+      .width('100%')
+
+      Text(BACKUP_ENCRYPTION_PLAN_LABEL)
+        .width('100%')
+        .fontSize(13)
+        .fontColor($r('app.color.koma_text_secondary'))
+        .lineHeight(19)
+
+      Button('加密备份（计划中）')
+        .width('100%')
+        .height(42)
+        .borderRadius(8)
+        .fontSize(15)
+        .fontColor($r('app.color.koma_text_secondary'))
+        .backgroundColor('#00000000')
+        .enabled(false)
     }
     .width('100%')
     .padding({ left: 16, right: 16, top: 16, bottom: 16 })
@@ -206,6 +245,9 @@ export struct BackupManagementPage {
       }) {
         ListItem() {
           this.StatusCard()
+        }
+        ListItem() {
+          this.EncryptionCard()
         }
         ListItem() {
           this.DomainsCard()
