@@ -115,6 +115,16 @@ assert.match(
   'Notification-facing failure codes must use only coarse allowlisted buckets',
 )
 assert.match(
+  settingsPageSource,
+  /safeSettingsErrorCode\(error: Error\): string \{[\s\S]*return normalizeLibraryUpdateFailureCode\(error\.name\) \?\? 'unknown'[\s\S]*\}/,
+  'Settings update failure logs must bucket exception names through the allowlisted failure-code normalizer',
+)
+assert.doesNotMatch(
+  settingsPageSource,
+  /safeSettingsErrorCode\(error: Error\): string \{[\s\S]*error\.name\.trim\(\)\.toLocaleLowerCase\(\)[\s\S]*replace\(\/\[\^a-z0-9_\.-\]\/g,[\s\S]*substring\(0, 48\)[\s\S]*\}/,
+  'Settings update failure logs must not sanitize-and-emit raw exception names',
+)
+assert.match(
   preferencesSource,
   /saveFailedCheck\(checkedAt: number, failureCode: string\): Promise<LibraryUpdatePreferences>[\s\S]*lastFailureCode: normalizeLibraryUpdateFailureCode\(failureCode\) \?\? 'unknown'[\s\S]*await this\.save\(next\)/,
   'Failed checks must persist a coarse failure code without carrying forward stale success summaries',
@@ -200,6 +210,16 @@ for (const [raw, expected] of failureCodeCases) {
   const redacted = redactLibraryUpdateFailureCode(raw)
   assert.equal(redacted, expected, `failure code should map ${raw} to ${expected}`)
   assert.equal(/mangadex|sk_live|secret|https?:|example\.test|\/data\/storage|users|providerexception/i.test(redacted), false, 'failure code must not preserve sensitive raw words')
+}
+const settingsExceptionNameCases = [
+  ['ProviderException', 'source_runtime_error'],
+  ['TokenExpiredError', 'auth_error'],
+  ['SecretPathUriException', 'storage_error'],
+]
+for (const [rawName, expected] of settingsExceptionNameCases) {
+  const code = redactLibraryUpdateFailureCode(rawName)
+  assert.equal(code, expected, `settings error code should bucket ${rawName} to ${expected}`)
+  assert.equal(/providerexception|tokenexpirederror|secretpathuriexception|provider|token|secret|path|uri/i.test(code), false, 'settings error code must not preserve raw provider/token/secret/path/uri exception words')
 }
 const failedLabel = getLibraryUpdateLastResultLabel({
   autoCheckEnabled: true,
