@@ -81,6 +81,8 @@ export const MOCK_LIBRARY_READER_SESSION: ReaderSessionConfig = {
     'chapter-8-page-4',
     'chapter-8-page-5',
   ],
+  pageWidths: [],
+  pageHeights: [],
 }
 
 export const MOCK_LIBRARY_COMICS: MockLibraryComic[] = [

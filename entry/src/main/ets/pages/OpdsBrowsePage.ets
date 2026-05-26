@@ -344,6 +344,8 @@ export struct OpdsBrowsePage {
     MOCK_LIBRARY_READER_SESSION.totalPages = config.totalPages
     MOCK_LIBRARY_READER_SESSION.pageUris = config.pageUris
     MOCK_LIBRARY_READER_SESSION.pageIds = config.pageIds
+    MOCK_LIBRARY_READER_SESSION.pageWidths = config.pageWidths
+    MOCK_LIBRARY_READER_SESSION.pageHeights = config.pageHeights
     installReaderRemoteHeaders(this.store().createOpdsClient(record).getUrlPrefix(), this.store().getOpdsImageHeaders(record))
   }
 

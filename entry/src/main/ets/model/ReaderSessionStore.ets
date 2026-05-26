@@ -23,6 +23,8 @@ export interface ReaderSessionConfig {
   totalPages: number
   pageUris: string[]
   pageIds: string[]
+  pageWidths: Array<number | undefined>
+  pageHeights: Array<number | undefined>
   sourceRuntimeId?: string
 }
 
@@ -34,6 +36,8 @@ export const EMPTY_READER_SESSION_CONFIG: ReaderSessionConfig = {
   totalPages: 0,
   pageUris: [],
   pageIds: [],
+  pageWidths: [],
+  pageHeights: [],
   sourceRuntimeId: undefined,
 }
 
@@ -310,6 +314,8 @@ export function createReaderSessionConfigFromComic(comic: Comic, chapterId?: str
       totalPages: 0,
       pageUris: [],
       pageIds: [],
+      pageWidths: [],
+      pageHeights: [],
       sourceRuntimeId: comic.sourceRuntimeId,
     }
   }
@@ -323,6 +329,8 @@ export function createReaderSessionConfigFromComic(comic: Comic, chapterId?: str
     totalPages: pages.length,
     pageUris: pages.map((page: Page) => page.uri),
     pageIds: pages.map((page: Page) => page.id),
+    pageWidths: pages.map((page: Page) => page.width),
+    pageHeights: pages.map((page: Page) => page.height),
     sourceRuntimeId: comic.sourceRuntimeId,
   }
 }
@@ -341,4 +349,20 @@ export function getReaderSessionPageId(config: ReaderSessionConfig, pageIndex: n
     return `page-${resolvedPageIndex + 1}`
   }
   return config.pageIds[resolvedPageIndex]
+}
+
+export function getReaderSessionPageWidth(config: ReaderSessionConfig, pageIndex: number): number | undefined {
+  const resolvedPageIndex = clampPageIndex(pageIndex, config.totalPages)
+  if (resolvedPageIndex >= config.pageWidths.length) {
+    return undefined
+  }
+  return config.pageWidths[resolvedPageIndex]
+}
+
+export function getReaderSessionPageHeight(config: ReaderSessionConfig, pageIndex: number): number | undefined {
+  const resolvedPageIndex = clampPageIndex(pageIndex, config.totalPages)
+  if (resolvedPageIndex >= config.pageHeights.length) {
+    return undefined
+  }
+  return config.pageHeights[resolvedPageIndex]
 }
