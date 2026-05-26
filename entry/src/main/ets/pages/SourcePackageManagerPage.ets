@@ -283,18 +283,34 @@ export struct SourcePackageManagerPage {
     const status = this.updateStatus(source.id)
     switch (status.status) {
       case 'checking':
-        return '更新：检查中'
+        return '更新：检查中（手动）'
       case 'latest':
         return '更新：已是最新 v' + (status.localVersion ?? source.version)
       case 'update':
         return '更新：可更新 v' + (status.localVersion ?? source.version) + ' → v' + (status.remoteVersion ?? '')
       case 'missing':
-        return '更新：索引中未找到'
+        return '更新：索引中未找到（仅检查当前配置索引）'
       case 'failed':
-        return '更新：检查失败：' + this.sourceReasonText(status.reasonCode)
+        return '更新：检查失败：' + this.sourceRedactedReasonText(status.reasonCode)
       case 'unknown':
       default:
         return '更新：未检查'
+    }
+  }
+
+  private updateStatusColor(source: InstalledSourcePackage): ResourceColor {
+    const status = this.updateStatus(source.id)
+    switch (status.status) {
+      case 'update':
+        return $r('app.color.koma_accent')
+      case 'failed':
+        return $r('app.color.koma_danger')
+      case 'checking':
+      case 'latest':
+      case 'missing':
+      case 'unknown':
+      default:
+        return $r('app.color.koma_text_secondary')
     }
   }
 
@@ -355,7 +371,7 @@ export struct SourcePackageManagerPage {
             reasonCode: result.reasonCode,
           }
         })
-        this.statusText = '检查失败：' + this.sourceReasonText(result.reasonCode)
+        this.statusText = '检查失败：' + this.sourceRedactedReasonText(result.reasonCode)
         console.info('[SourcePackageUpdate] step=check_done update=0 latest=0 missing=0 failed=' + count)
         return
       }
@@ -409,7 +425,7 @@ export struct SourcePackageManagerPage {
           reasonCode: 'network_error',
         }
       })
-      this.statusText = '检查失败：' + this.sourceReasonText('network_error')
+      this.statusText = '检查失败：' + this.sourceRedactedReasonText('network_error')
       console.info('[SourcePackageUpdate] step=check_done update=0 latest=0 missing=0 failed=' + count)
     } finally {
       this.updateCheckBusy = false
@@ -459,7 +475,7 @@ export struct SourcePackageManagerPage {
           localVersion: source.version,
           reasonCode: result.reasonCode,
         })
-        this.statusText = '更新失败：' + this.sourceReasonText(result.reasonCode)
+        this.statusText = '更新失败：' + this.sourceRedactedReasonText(result.reasonCode)
         this.showToast('源包安装失败')
         console.error('[SourcePackageUpdate] step=install_failed id=' + source.id + ' reason=' + (result.reasonCode ?? 'unknown'))
       }
@@ -472,7 +488,7 @@ export struct SourcePackageManagerPage {
         localVersion: source.version,
         reasonCode: 'network_error',
       })
-      this.statusText = '更新失败：' + this.sourceReasonText('network_error')
+      this.statusText = '更新失败：' + this.sourceRedactedReasonText('network_error')
       this.showToast('源包安装失败')
       console.error('[SourcePackageUpdate] step=install_failed id=' + source.id + ' reason=network_error')
     } finally {
@@ -561,6 +577,49 @@ export struct SourcePackageManagerPage {
         return '未知错误'
       default:
         return '错误代码：' + code
+    }
+  }
+
+  private sourceRedactedReasonText(reasonCode: string | undefined): string {
+    const code = reasonCode ?? 'unknown'
+    switch (code) {
+      case 'invalid_url':
+      case 'network_error':
+      case 'http_error':
+      case 'invalid_index_format':
+      case 'invalid_json':
+      case 'invalid_pkg_url':
+      case 'invalid_response':
+      case 'empty_package':
+      case 'checksum_mismatch':
+      case 'network_not_allowed':
+      case 'unsafe_archive_entry':
+      case 'missing_manifest':
+      case 'missing_wasm':
+      case 'manifest_invalid':
+      case 'validation_failed':
+      case 'register_failed':
+      case 'import_failed':
+      case 'duplicate_source_id':
+      case 'missing_source_id':
+      case 'source_id_not_registered':
+      case 'source_id_mismatch':
+      case 'malformed_json':
+      case 'missing_or_invalid_operation':
+      case 'request_too_large':
+      case 'result_too_large':
+      case 'malformed_result':
+      case 'cancelled':
+      case 'timeout':
+      case 'smoke_failed':
+      case 'missing_response':
+      case 'runtime_response_not_ok':
+      case 'settings_validation_failed':
+      case 'ok':
+      case 'unknown':
+        return this.sourceReasonText(code)
+      default:
+        return '原因已隐藏（详情已写入诊断日志）'
     }
   }
 
@@ -980,7 +1039,7 @@ export struct SourcePackageManagerPage {
       case 'missing':
         return '索引中未找到'
       case 'failed':
-        return this.sourceReasonText(status.reasonCode)
+        return this.sourceRedactedReasonText(status.reasonCode)
       case 'unknown':
       default:
         return '未检查'
@@ -1071,6 +1130,12 @@ export struct SourcePackageManagerPage {
       }
 
       Text(SOURCE_PACKAGE_TRUST_BOUNDARY_NOTICE)
+        .width('100%')
+        .fontSize(12)
+        .lineHeight(18)
+        .fontColor($r('app.color.koma_text_secondary'))
+
+      Text('源包更新只会在你点按检查更新时读取当前填写或已保存的源索引地址；不会后台定时检查，也不会发送更新提醒。')
         .width('100%')
         .fontSize(12)
         .lineHeight(18)
@@ -1232,6 +1297,12 @@ export struct SourcePackageManagerPage {
         .fontSize(12)
         .lineHeight(18)
         .fontColor($r('app.color.koma_text_secondary'))
+
+      Text('检查更新为手动操作，仅对用户导入或用户配置索引中的源包生效。')
+        .width('100%')
+        .fontSize(12)
+        .lineHeight(18)
+        .fontColor($r('app.color.koma_text_secondary'))
     }
     .width('100%')
     .padding(16)
@@ -1300,7 +1371,7 @@ export struct SourcePackageManagerPage {
       Text(this.updateStatusText(source))
         .width('100%')
         .fontSize(12)
-        .fontColor($r('app.color.koma_text_secondary'))
+        .fontColor(this.updateStatusColor(source))
         .maxLines(2)
         .textOverflow({ overflow: TextOverflow.Ellipsis })
 
