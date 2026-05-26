@@ -25,9 +25,29 @@ import {
   configureSourceSettingsStore,
 } from '../sourceRuntime/SourceSettingsStore'
 
-const BACKUP_SCHEMA_VERSION: number = 3
-const BACKUP_SCHEMA_VERSION_V2: number = 2
-const BACKUP_SCHEMA_VERSION_V1: number = 1
+export const BACKUP_SCHEMA_VERSION: number = 3
+export const BACKUP_SCHEMA_VERSION_V2: number = 2
+export const BACKUP_SCHEMA_VERSION_V1: number = 1
+export const BACKUP_ACCEPTED_SCHEMA_VERSIONS: number[] = [
+  BACKUP_SCHEMA_VERSION_V1,
+  BACKUP_SCHEMA_VERSION_V2,
+  BACKUP_SCHEMA_VERSION,
+]
+export const BACKUP_INCLUDED_DOMAINS: string[] = [
+  'library',
+  'progress',
+  'remote servers',
+  'source packages and sanitized source settings',
+  'reader and settings preferences',
+]
+export const BACKUP_INCLUDED_DOMAIN_LABELS: string[] = [
+  '书架',
+  '阅读进度',
+  '远程服务器配置',
+  '源包与已清理的源设置',
+  '阅读器与设置偏好',
+]
+export const BACKUP_MANAGEMENT_STORAGE_NOTE: string = '备份文件通过系统文件选择器保存和选择，当前页面不保留应用内备份历史。已导出的文件由用户在所选位置管理。'
 const REMOTE_SERVER_STORE_NAME: string = 'koma_remote_servers_v1'
 const SOURCE_INDEX_PREFS_STORE_NAME: string = 'koma_source_package_manager_v1'
 const SOURCE_INDEX_URL_KEY: string = 'source_index.url'
@@ -168,18 +188,19 @@ export class BackupService {
     return result[0]
   }
 
-  async importFromPicker(): Promise<void> {
+  async importFromPicker(): Promise<boolean> {
     const options = new picker.DocumentSelectOptions()
     options.maxSelectNumber = 1
     const documentPicker = new picker.DocumentViewPicker(this.context)
     const result = await documentPicker.select(options)
     if (result.length === 0) {
       console.info('[Backup] step=import_cancel')
-      return
+      return false
     }
     const payload = fs.readTextSync(result[0], { encoding: 'utf-8' })
     await this.import(payload)
     console.info('[Backup] step=import_select uri=' + result[0])
+    return true
   }
 
   private libraryPath(): string {

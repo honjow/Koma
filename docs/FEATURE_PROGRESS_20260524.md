@@ -9,11 +9,13 @@ Artifacts:
 - `.hermes-artifacts/20260525-0215-cache-management/`
 - `.hermes-artifacts/20260525-0230-safe-area-main-shell/`
 - `.hermes-artifacts/20260525-0245-source-settings/`
+- `.hermes-artifacts/20260526-d6-backup-management-ui/`
 
 Verified after reader image-cache management, content-list safe-area avoidance, and source-specific settings:
 
 - `node scripts/test_koma_models.mjs` PASS.
 - `node scripts/test_source_package_compat.mjs` PASS.
+- `node scripts/test_backup_management.mjs` PASS.
 - `node scripts/test_reader_progress.mjs` PASS.
 - `bash scripts/validate-napi-source-runtime-sample.sh` PASS.
 - `bash dev.sh --build-only --non-interactive` PASS.
@@ -85,6 +87,7 @@ Verified on device `192.168.50.103:12345`:
 | Downloads queue controls | `a61c63b` | MangaDetail visible-chapter batch download actions plus Downloads page status filters, batch retry for feasible failed/partial rows, and cleanup controls. |
 | Source package update UX / SDK docs | `54debb0` | Source Package Manager surfaces update/capability UX hooks, persisted capability summaries are bounded by manifest-derived allowlists, and `docs/source-package-sdk.md` documents the author contract. |
 | Reader trim/volume preferences | `08c203e` | Settings adds non-destructive trim-page-margins and volume-key-navigation preferences; trim removes container inset without rounded clipping, while volume-key runtime remains explicitly unwired. |
+| D6 backup management UI | `8bc42bf` | Settings opens a dedicated Backup Management page showing schema/status, included domains, export/import actions, and picker-file ownership limits without adding cloud sync, scheduling, or encryption UX. |
 
 ## Current Product Baseline
 
@@ -128,7 +131,7 @@ Verified on device `192.168.50.103:12345`:
 - Komga / OPDS / WebDAV config pages.
 - Reader page mode / reading direction / theme preferences.
 - Reader image fit / tap navigation / page gap preferences.
-- Backup export/import via picker. Schema v3 includes library, reading progress, remote server settings, installed source packages, sanitized per-source settings, and reader/settings preferences. Schema v1/v2 import remains accepted.
+- Backup export/import via a dedicated Settings secondary page backed by system file pickers. Schema v3 includes library, reading progress, remote server settings, installed source packages, sanitized per-source settings, and reader/settings preferences. Schema v1/v2 import remains accepted; picker-selected files remain external and user-managed rather than an in-app backup history.
 - About / license / version dialogs.
 - Source package manager page.
 - Reader remote image cache stats and clear action.

@@ -2,7 +2,6 @@ import { bundleManager, common } from '@kit.AbilityKit'
 import { SecondaryListScaffold } from '../components/SecondaryListScaffold'
 import { ThemeConstants } from '../theme/ThemeConstants'
 import { ReadingDirection } from '../model/ComicModels'
-import { BackupService } from '../model/BackupService'
 import { LibraryStore } from '../model/LibraryStore'
 import { LibraryStorePersistenceService } from '../model/LibraryPersistence'
 import {
@@ -125,6 +124,7 @@ export struct SettingsPage {
   onOpenSourcePackageManager: () => void = () => {}
   onOpenLibraryUpdateResults: () => void = () => {}
   onOpenDownloads: () => void = () => {}
+  onOpenBackupManagement: () => void = () => {}
   onLibraryChanged: () => void = () => {}
   libraryStore?: LibraryStore
   libraryPersistenceService?: LibraryStorePersistenceService
@@ -152,10 +152,6 @@ export struct SettingsPage {
 
   private preferencesStore(): ReaderPreferencesStore {
     return new ReaderPreferencesStore(this.context())
-  }
-
-  private backupService(): BackupService {
-    return new BackupService(this.context())
   }
 
   private libraryUpdatePreferencesStore(): LibraryUpdatePreferencesStore {
@@ -621,44 +617,6 @@ export struct SettingsPage {
       })
   }
 
-  private showBackupSheet(): void {
-    console.info('[Settings] step=backup_sheet')
-    this.getUIContext().showActionSheet({
-      title: '备份与恢复',
-      message: '导出或导入书架、阅读进度、远程服务器、源包和阅读设置',
-      sheets: [
-        { title: '导出备份', action: () => { this.exportBackup() } },
-        { title: '导入备份', action: () => { this.importBackup() } },
-      ],
-    })
-  }
-
-  private exportBackup(): void {
-    console.info('[Settings] step=backup_export_start')
-    void this.backupService().exportToPicker()
-      .then((uri: string | undefined) => {
-        if (uri !== undefined) {
-          this.showInfoDialog('备份已导出', '备份 JSON 已保存到所选位置。')
-        }
-      })
-      .catch((error: Error) => {
-        console.error('[Settings] step=backup_export_failed message=' + error.message)
-        this.showInfoDialog('导出失败', error.message)
-      })
-  }
-
-  private importBackup(): void {
-    console.info('[Settings] step=backup_import_start')
-    void this.backupService().importFromPicker()
-      .then(() => {
-        this.showInfoDialog('备份已导入', '书架、阅读进度、远程服务器、源包和阅读设置已恢复。')
-      })
-      .catch((error: Error) => {
-        console.error('[Settings] step=backup_import_failed message=' + error.message)
-        this.showInfoDialog('导入失败', error.message)
-      })
-  }
-
   private showImageCacheSheet(): void {
     console.info('[Settings] step=image_cache_sheet')
     this.getUIContext().showActionSheet({
@@ -882,7 +840,7 @@ export struct SettingsPage {
     } else if (row.key === 'reader-volume-key-navigation') {
       this.showReaderVolumeKeyNavigationSheet()
     } else if (row.key === 'backup') {
-      this.showBackupSheet()
+      this.onOpenBackupManagement()
     } else if (row.key === 'image-cache') {
       this.showImageCacheSheet()
     } else if (row.key === 'sources') {
