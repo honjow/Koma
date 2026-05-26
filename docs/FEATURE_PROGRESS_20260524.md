@@ -80,6 +80,8 @@ Verified on device `192.168.50.103:12345`:
 | Library auto-update preferences | `pending` | Settings persists an app-open due-check preference with 12h/24h/48h intervals and last status. This is a foreground MVP only, not a system background scheduler or notification flow. |
 | Library update result persistence | `pending` | Latest sanitized per-comic update results persist across app restarts for the details page without rerunning checks. |
 | Downloads queue MVP | `7a4c0d1` | Settings Downloads page, durable queue records, per-chapter MangaDetail download action, retry/remove for feasible rows, and Reader offline manifest path preservation. |
+| Library category management | `87a03fb` | Built-in Favorite / Read Later category filters and multi-select add/remove category actions preserve other memberships. |
+| Reader advanced settings | `031157a` | Settings adds image fit, tap navigation, and page gap controls; Reader consumes persisted settings with non-cropping fit-width and narrow edge tap zones. |
 
 ## Current Product Baseline
 
@@ -91,6 +93,7 @@ Verified on device `192.168.50.103:12345`:
 - Continue Reading card uses persisted reading progress.
 - History and Library refresh after bootstrap progress sync.
 - Sort/filter controls persist across restart.
+- Built-in category filters for Favorite / Read Later and batch category add/remove actions.
 - Multi-select remove exists; automated long-press QA is weak due uitest behavior, but build/install pass.
 
 ### Reader
@@ -102,6 +105,7 @@ Verified on device `192.168.50.103:12345`:
 - Komga progress pull/push.
 - Remote image cache under app cache with LRU and prefetch.
 - Offline chapter download MVP records durable queue rows under app files, exposes a Settings Downloads page, and lets MangaDetail trigger per-chapter downloads. This is still an in-app foreground MVP, not an OS background downloader.
+- Advanced reader settings persist image fit mode, tap navigation, and page gap mode. `fit_width` widens the container without `Cover` cropping; tap navigation uses narrow edge zones and can be disabled.
 
 ### Private Libraries
 
@@ -119,6 +123,7 @@ Verified on device `192.168.50.103:12345`:
 
 - Komga / OPDS / WebDAV config pages.
 - Reader page mode / reading direction / theme preferences.
+- Reader image fit / tap navigation / page gap preferences.
 - Backup export/import via picker. Schema v3 includes library, reading progress, remote server settings, installed source packages, sanitized per-source settings, and reader/settings preferences. Schema v1/v2 import remains accepted.
 - About / license / version dialogs.
 - Source package manager page.
@@ -155,3 +160,5 @@ Verified on device `192.168.50.103:12345`:
 7. Large CBZ / large remote chapter performance still needs stress testing.
 8. Backup JSON is local user-initiated and unencrypted; encryption/password UX was explicitly not added. Source settings backup is sanitized and excludes credential-like values.
 9. Downloads are foreground/in-app only: no OS background scheduler, no notifications, no batch queue controls, and source-backed `pages_missing` rows still require opening MangaDetail to hydrate pages before retry.
+10. Library category runtime device QA covered empty-state/safe-area only because the device had no library rows; static tests cover category membership/filter contracts.
+11. Reader advanced settings still need real chapter visual QA for unusual image aspect ratios; static/build gates and Settings persistence device smoke pass.
