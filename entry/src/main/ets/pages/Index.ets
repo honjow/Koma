@@ -25,6 +25,7 @@ import { OpdsServerPage } from './OpdsServerPage'
 import { SourcePackageManagerPage } from './SourcePackageManagerPage'
 import { WebDavServerPage } from './WebDavServerPage'
 import { DownloadsPage } from './DownloadsPage'
+import { BackupManagementPage } from './BackupManagementPage'
 import { RouteName, TabIndex, TabLabel } from '../common/Constants'
 import { RouterHelper } from '../common/RouterHelper'
 import { KomaTabIcon } from '../components/KomaTabIcon'
@@ -370,6 +371,11 @@ struct Index {
         })
       }
       .titleBar(this.navDestTitleBarOpts('下载管理'))
+    } else if (name === RouteName.BACKUP_MANAGEMENT) {
+      HdsNavDestination() {
+        BackupManagementPage()
+      }
+      .titleBar(this.navDestTitleBarOpts('备份与恢复'))
     }
   }
 
@@ -464,6 +470,9 @@ struct Index {
             },
             onOpenDownloads: () => {
               this.openSettingsSecondary(RouteName.DOWNLOADS)
+            },
+            onOpenBackupManagement: () => {
+              this.openSettingsSecondary(RouteName.BACKUP_MANAGEMENT)
             },
             onLibraryChanged: () => {
               this.refreshLibrarySnapshot()

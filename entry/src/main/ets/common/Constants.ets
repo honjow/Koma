@@ -16,6 +16,7 @@ export class RouteName {
   static readonly SOURCE_PACKAGE_MANAGER: string = 'SourcePackageManagerPage'
   static readonly LIBRARY_UPDATE_RESULTS: string = 'LibraryUpdateResultPage'
   static readonly DOWNLOADS: string = 'DownloadsPage'
+  static readonly BACKUP_MANAGEMENT: string = 'BackupManagementPage'
 }
 
 export class TabLabel {
