@@ -1,7 +1,7 @@
 # Koma vs Aidoku vs Mihon 功能对比
 
-更新时间：2026-05-26  
-Koma 基线：`08c203e feat: extend reader advanced settings`
+更新时间：2026-05-27
+Koma 基线：`lane-d31-download-pause-concurrency` / `624193e` 后续实现
 
 ## 证据来源
 
@@ -38,7 +38,7 @@ Koma 不是完成态。当前是 **HarmonyOS 私有/本地优先漫画阅读器�
 | 在线/自定义源 | WAMR source runtime；URL index 导入 `.koma`；MangaDex E2E 已到 Reader 图片；source author SDK 文档 | Robust WASM source system；`.aix` 外部 source；source list | Extension repos + APK extensions + manual extensions | Koma 架构接近 Aidoku 思路；仍缺真实源生态、源开发工具、签名/信任策略、错误恢复、更多真实源兼容。 |
 | Source 安装路径 | 用户输入 URL index → 列表 → 下载 `.koma` → install/enable；本地 picker fallback；已安装源更新状态/能力摘要 UX | 内置/外部 source、`.aix` 导入、source list URL | Extension repos + install extensions | Koma URL index 主路径已做；下一步是签名/信任、源升级完整真机 QA、兼容矩阵。 |
 | Source 设置 | 支持 source `get_settings` descriptor、非敏感 settings 持久化/backup 注入 | 当前摘录未确认设置细节 | backup 包含 source settings | Koma 有底层能力；真实 installed source 的设置 UI 仍需完整 device QA。 |
-| 下载离线 | Reader remote image cache + LRU + prefetch；下载队列 MVP；Settings 下载管理页；MangaDetail 批量下载；队列过滤/批量重试/清理 | README 明确支持 Downloads | 下载队列、下载目录、重扫下载、并发策略 | 已有前台队列骨架；仍缺暂停/并发策略、通知、下载目录/重扫、完整离线 reader QA。 |
+| 下载离线 | Reader remote image cache + LRU + prefetch；下载队列 MVP；Settings 下载管理页；MangaDetail 批量下载；队列过滤/批量重试/清理；前台队列暂停/继续；前台并发上限偏好 | README 明确支持 Downloads | 下载队列、下载目录、重扫下载、并发策略 | 已有前台队列骨架与基础暂停/并发控制；仍缺系统后台下载、真实下载通知、下载目录/重扫、完整离线 reader QA。 |
 | 图片缓存 | Remote image cache、LRU、prefetch、设置页清理 | downloads 能力明确，缓存细节未摘录 | 下载/缓存成熟 | Koma 缓存只是 reader image cache，不等价于离线下载。 |
 | 搜索 | Cross-source search：local / Komga / OPDS / WebDAV / wasm sources，超时隔离，持久化搜索历史，按源展示 pending/running/empty/timeout/failed/unsupported 状态 | 源内搜索 | Global Search across sources | Koma 有全局搜索雏形；需结果质量、过滤、多源真实数据矩阵。 |
 | 详情页 | 真实 source detail、章节、收藏、开始阅读、章节筛选、章节 read/unread 操作 | 源内容详情 + add library | series detail + add library + tracking/downloads | 仍缺 scanlator/group、多语言版本、更完整的章节元数据操作。 |
@@ -49,7 +49,7 @@ Koma 不是完成态。当前是 **HarmonyOS 私有/本地优先漫画阅读器�
 | Tracker | 本地-only tracker 设置骨架，无 MAL/AniList/Kitsu 等真实账号同步 | README：AniList、MyAnimeList | MAL/AniList/Kitsu/MangaUpdates/Shikimori/Bangumi；一向同步，离线后同步 | 可后置，但对标成熟 reader 必须有。 |
 | 自动更新库 | 前台 source-runtime 新章检查、app-open due-check 偏好、最新结果持久化、失败退避；未做后台调度 | 当前摘录未确认 | Scheduled library updates | 缺后台定时/系统调度、私有库刷新矩阵。 |
 | 通知 | 书架更新有通知就绪摘要与失败码脱敏持久化；暂无系统通知投递 | 当前摘录未确认 | 下载/更新/错误通知成熟 | 缺新章/下载完成/失败的真实系统通知与权限态 QA。 |
-| 章节下载队列 | 前台下载队列 MVP、状态过滤、批量重试/清理、MangaDetail 单章/可见章节批量下载；source-backed 可见章节批量下载会逐章 hydrate pages；离线 Reader 路径存在 | Downloads | Download queue | 仍缺更细的暂停/并发策略、通知、下载目录/重扫、完整 source 离线 reader 真机 QA。 |
+| 章节下载队列 | 前台下载队列 MVP、状态过滤、批量重试/清理、MangaDetail 单章/可见章节批量下载；source-backed 可见章节批量下载会逐章 hydrate pages；Settings 可暂停/继续前台队列并设置前台并发上限；离线 Reader 路径存在 | Downloads | Download queue | 仍缺系统后台下载、真实下载通知、下载目录/重扫、完整 source 离线 reader 真机 QA。 |
 | 扩展/源安全 | `.koma` archive validator、WAMR sandbox、host imports、fail-closed 测试 | WASM source system | Android extension APK，有恶意扩展风险提示 | Koma 技术路线更安全；仍缺用户可理解的权限提示、source capability UI、签名/信任策略。 |
 | UI 成熟度 | Aidoku 风格骨架；安全区持续修；功能优先 | iOS 成熟交互 | Android/Material 成熟 | Koma UI 可用但未 polished；当前策略应继续功能优先，只修 blocking UI。 |
 | i18n | 未见完整多语言资源体系 | Weblate translations | Weblate translations | Koma 缺 i18n，对上架有影响。 |
@@ -62,8 +62,8 @@ Koma 不是完成态。当前是 **HarmonyOS 私有/本地优先漫画阅读器�
 
 1. **下载队列 / 离线章节增强**
    - 对标 Aidoku Downloads、Mihon Downloads。
-   - 已有：前台队列、状态、失败重试/删除、Settings 下载管理入口、MangaDetail 可见章节批量下载、队列过滤/批量重试/清理。
-   - 仍需：暂停/并发策略、通知、下载目录/重扫、离线 reader 完整真机 QA。
+   - 已有：前台队列、状态、失败重试/删除、Settings 下载管理入口、MangaDetail 可见章节批量下载、队列过滤/批量重试/清理、前台暂停/继续、前台并发上限。
+   - 仍需：系统后台下载、真实下载通知、下载目录/重扫、离线 reader 完整真机 QA。
 
 2. **Library categories / 批量管理增强**
    - 对标 Mihon categories。
