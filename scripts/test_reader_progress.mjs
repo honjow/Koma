@@ -430,6 +430,7 @@ assert.match(readerPageSourceAdapterSource, /fetchAndCacheReaderRemoteSource/, '
 assert.match(readerPageSourceAdapterSource, /source_image_request_fallback allowed=false/, 'source image request fallback must fail closed for non-URL page URIs')
 assert.match(readerPageSourceAdapterSource, /source_image_request_fallback allowed=true/, 'source image request fallback may use ordinary URL page URIs')
 assert.match(readerPageSourceAdapterSource, /headers=\$\{headers === undefined \? 0 : Object\.keys\(headers\)\.length\}/, 'source image request logs must report header count only')
+assert.doesNotMatch(readerPageSourceAdapterSource, /step=source_image_request[^\n]*message=/, 'source image request logs must not emit raw exception messages')
 assert.match(readerPageSourceAdapterSource, /readerRemoteHeadersToHttpHeaderObject/, 'reader remote fetch must support normalized header maps')
 assert.match(readerPageSourceAdapterSource, /readerRemoteImageCacheStore\.stats\(\)/, 'adapter must expose remote image cache stats through the configured store')
 assert.match(readerPageSourceAdapterSource, /readerRemoteImageCacheStore\.clear\(\)/, 'adapter must expose remote image cache clear through the configured store')
