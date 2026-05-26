@@ -31,14 +31,19 @@ import {
 } from '../model/ReaderPageSourceAdapter'
 import {
   ReaderBackgroundMode,
+  ReaderImageFitMode,
+  ReaderPageGapMode,
   ReaderPageMode,
   ReaderPreferencesStore,
   ReaderThemeMode,
   applyReaderThemeMode,
   getReaderBackgroundModeLabel,
+  getReaderImageFitModeLabel,
   getReaderKeepScreenAwakeLabel,
+  getReaderPageGapModeLabel,
   getReaderPageModeLabel,
   getReaderProgressControlsLabel,
+  getReaderTapNavigationLabel,
   getReaderThemeModeLabel,
   getReadingDirectionLabel,
 } from '../model/ReaderPreferencesStore'
@@ -75,6 +80,9 @@ const SETTINGS_SECTIONS: SettingsSection[] = [
       { key: 'reader-background', title: '阅读背景', detail: '黑色' },
       { key: 'reader-progress', title: '页码与进度', detail: '显示' },
       { key: 'reader-keep-screen-awake', title: '屏幕常亮', detail: '开启' },
+      { key: 'reader-image-fit', title: '图片适配', detail: '适合屏幕' },
+      { key: 'reader-tap-navigation', title: '点击翻页', detail: '开启' },
+      { key: 'reader-page-gap', title: '页面间距', detail: '标准' },
     ],
   },
   {
@@ -123,6 +131,9 @@ export struct SettingsPage {
   @State private readerBackgroundMode: ReaderBackgroundMode = 'black'
   @State private showReaderProgressControls: boolean = true
   @State private keepReaderScreenAwake: boolean = true
+  @State private readerImageFitMode: ReaderImageFitMode = 'contain'
+  @State private readerTapNavigationEnabled: boolean = true
+  @State private readerPageGapMode: ReaderPageGapMode = 'normal'
   @State private versionDetail: string = 'Koma 开发版'
   @State private imageCacheDetail: string = '0 B · 0 项'
   @State private libraryUpdateBusy: boolean = false
@@ -167,6 +178,15 @@ export struct SettingsPage {
     }
     if (row.key === 'reader-keep-screen-awake') {
       return getReaderKeepScreenAwakeLabel(this.keepReaderScreenAwake)
+    }
+    if (row.key === 'reader-image-fit') {
+      return getReaderImageFitModeLabel(this.readerImageFitMode)
+    }
+    if (row.key === 'reader-tap-navigation') {
+      return getReaderTapNavigationLabel(this.readerTapNavigationEnabled)
+    }
+    if (row.key === 'reader-page-gap') {
+      return getReaderPageGapModeLabel(this.readerPageGapMode)
     }
     if (row.key === 'version') {
       return this.versionDetail
@@ -227,6 +247,9 @@ export struct SettingsPage {
         this.readerBackgroundMode = preferences.backgroundMode
         this.showReaderProgressControls = preferences.showProgressControls
         this.keepReaderScreenAwake = preferences.keepScreenAwake
+        this.readerImageFitMode = preferences.imageFitMode
+        this.readerTapNavigationEnabled = preferences.tapNavigationEnabled
+        this.readerPageGapMode = preferences.pageGapMode
         console.info('[Settings] step=load_preferences')
       })
       .catch((error: Error) => {
@@ -465,6 +488,76 @@ export struct SettingsPage {
       })
       .catch((error: Error) => {
         console.warn('[Settings] step=save_reader_keep_screen_awake_failed message=' + error.message)
+      })
+  }
+
+  private showReaderImageFitSheet(): void {
+    console.info('[Settings] step=reader_image_fit_sheet')
+    this.getUIContext().showActionSheet({
+      title: '图片适配',
+      message: '控制阅读器图片缩放方式',
+      sheets: [
+        { title: '适合屏幕', action: () => { this.saveReaderImageFitMode('contain') } },
+        { title: '适合宽度', action: () => { this.saveReaderImageFitMode('fit_width') } },
+      ],
+    })
+  }
+
+  private saveReaderImageFitMode(imageFitMode: ReaderImageFitMode): void {
+    this.readerImageFitMode = imageFitMode
+    void this.preferencesStore().saveImageFitMode(imageFitMode)
+      .then(() => {
+        console.info('[Settings] step=save_reader_image_fit value=' + imageFitMode)
+      })
+      .catch((error: Error) => {
+        console.warn('[Settings] step=save_reader_image_fit_failed message=' + error.message)
+      })
+  }
+
+  private showReaderTapNavigationSheet(): void {
+    console.info('[Settings] step=reader_tap_navigation_sheet')
+    this.getUIContext().showActionSheet({
+      title: '点击翻页',
+      message: '控制左右点击区域是否翻页',
+      sheets: [
+        { title: '开启', action: () => { this.saveReaderTapNavigationEnabled(true) } },
+        { title: '关闭', action: () => { this.saveReaderTapNavigationEnabled(false) } },
+      ],
+    })
+  }
+
+  private saveReaderTapNavigationEnabled(tapNavigationEnabled: boolean): void {
+    this.readerTapNavigationEnabled = tapNavigationEnabled
+    void this.preferencesStore().saveTapNavigationEnabled(tapNavigationEnabled)
+      .then(() => {
+        console.info('[Settings] step=save_reader_tap_navigation value=' + tapNavigationEnabled)
+      })
+      .catch((error: Error) => {
+        console.warn('[Settings] step=save_reader_tap_navigation_failed message=' + error.message)
+      })
+  }
+
+  private showReaderPageGapSheet(): void {
+    console.info('[Settings] step=reader_page_gap_sheet')
+    this.getUIContext().showActionSheet({
+      title: '页面间距',
+      message: '控制阅读器页面之间的距离',
+      sheets: [
+        { title: '紧凑', action: () => { this.saveReaderPageGapMode('compact') } },
+        { title: '标准', action: () => { this.saveReaderPageGapMode('normal') } },
+        { title: '宽松', action: () => { this.saveReaderPageGapMode('wide') } },
+      ],
+    })
+  }
+
+  private saveReaderPageGapMode(pageGapMode: ReaderPageGapMode): void {
+    this.readerPageGapMode = pageGapMode
+    void this.preferencesStore().savePageGapMode(pageGapMode)
+      .then(() => {
+        console.info('[Settings] step=save_reader_page_gap value=' + pageGapMode)
+      })
+      .catch((error: Error) => {
+        console.warn('[Settings] step=save_reader_page_gap_failed message=' + error.message)
       })
   }
 
@@ -718,6 +811,12 @@ export struct SettingsPage {
       this.showReaderProgressSheet()
     } else if (row.key === 'reader-keep-screen-awake') {
       this.showReaderKeepScreenAwakeSheet()
+    } else if (row.key === 'reader-image-fit') {
+      this.showReaderImageFitSheet()
+    } else if (row.key === 'reader-tap-navigation') {
+      this.showReaderTapNavigationSheet()
+    } else if (row.key === 'reader-page-gap') {
+      this.showReaderPageGapSheet()
     } else if (row.key === 'backup') {
       this.showBackupSheet()
     } else if (row.key === 'image-cache') {

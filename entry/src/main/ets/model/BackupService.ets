@@ -245,6 +245,9 @@ export class BackupService {
       backgroundMode: settings.backgroundMode ?? DEFAULT_READER_PREFERENCES.backgroundMode,
       showProgressControls: settings.showProgressControls ?? DEFAULT_READER_PREFERENCES.showProgressControls,
       keepScreenAwake: settings.keepScreenAwake ?? DEFAULT_READER_PREFERENCES.keepScreenAwake,
+      imageFitMode: settings.imageFitMode ?? DEFAULT_READER_PREFERENCES.imageFitMode,
+      tapNavigationEnabled: settings.tapNavigationEnabled ?? DEFAULT_READER_PREFERENCES.tapNavigationEnabled,
+      pageGapMode: settings.pageGapMode ?? DEFAULT_READER_PREFERENCES.pageGapMode,
     }
     await new ReaderPreferencesStore(this.context).save(nextSettings)
   }

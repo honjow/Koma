@@ -6,6 +6,8 @@ import { ReaderMode } from './ReaderSessionStore'
 export type ReaderPageMode = 'single_page' | 'double_page' | 'continuous_scroll'
 export type ReaderThemeMode = 'system' | 'light' | 'dark'
 export type ReaderBackgroundMode = 'black' | 'paper' | 'light'
+export type ReaderImageFitMode = 'contain' | 'fit_width'
+export type ReaderPageGapMode = 'compact' | 'normal' | 'wide'
 
 export interface ReaderPreferences {
   pageMode: ReaderPageMode
@@ -14,6 +16,9 @@ export interface ReaderPreferences {
   backgroundMode: ReaderBackgroundMode
   showProgressControls: boolean
   keepScreenAwake: boolean
+  imageFitMode: ReaderImageFitMode
+  tapNavigationEnabled: boolean
+  pageGapMode: ReaderPageGapMode
 }
 
 export const READER_PREFERENCES_STORE_NAME: string = 'koma_reader_preferences_v1'
@@ -23,6 +28,9 @@ export const THEME_MODE_KEY: string = 'reader.themeMode'
 export const BACKGROUND_MODE_KEY: string = 'reader.backgroundMode'
 export const SHOW_PROGRESS_CONTROLS_KEY: string = 'reader.showProgressControls'
 export const KEEP_SCREEN_AWAKE_KEY: string = 'reader.keepScreenAwake'
+export const IMAGE_FIT_MODE_KEY: string = 'reader.imageFitMode'
+export const TAP_NAVIGATION_ENABLED_KEY: string = 'reader.tapNavigationEnabled'
+export const PAGE_GAP_MODE_KEY: string = 'reader.pageGapMode'
 
 export const DEFAULT_READER_PREFERENCES: ReaderPreferences = {
   pageMode: 'single_page',
@@ -31,6 +39,9 @@ export const DEFAULT_READER_PREFERENCES: ReaderPreferences = {
   backgroundMode: 'black',
   showProgressControls: true,
   keepScreenAwake: true,
+  imageFitMode: 'contain',
+  tapNavigationEnabled: true,
+  pageGapMode: 'normal',
 }
 
 export function normalizeReaderPageMode(value: string): ReaderPageMode {
@@ -54,6 +65,20 @@ export function normalizeReaderBackgroundMode(value: string): ReaderBackgroundMo
   return 'black'
 }
 
+export function normalizeReaderImageFitMode(value: string): ReaderImageFitMode {
+  if (value === 'fit_width') {
+    return value
+  }
+  return 'contain'
+}
+
+export function normalizeReaderPageGapMode(value: string): ReaderPageGapMode {
+  if (value === 'compact' || value === 'wide') {
+    return value
+  }
+  return 'normal'
+}
+
 export function normalizeReaderProgressControls(value: boolean | string | number): boolean {
   if (value === false || value === 'false' || value === 0 || value === '0') {
     return false
@@ -62,6 +87,13 @@ export function normalizeReaderProgressControls(value: boolean | string | number
 }
 
 export function normalizeReaderKeepScreenAwake(value: boolean | string | number): boolean {
+  if (value === false || value === 'false' || value === 0 || value === '0') {
+    return false
+  }
+  return true
+}
+
+export function normalizeReaderTapNavigationEnabled(value: boolean | string | number): boolean {
   if (value === false || value === 'false' || value === 0 || value === '0') {
     return false
   }
@@ -123,6 +155,27 @@ export function getReaderKeepScreenAwakeLabel(keepScreenAwake: boolean): string 
   return keepScreenAwake ? '开启' : '关闭'
 }
 
+export function getReaderImageFitModeLabel(mode: ReaderImageFitMode): string {
+  if (mode === 'fit_width') {
+    return '适合宽度'
+  }
+  return '适合屏幕'
+}
+
+export function getReaderTapNavigationLabel(tapNavigationEnabled: boolean): string {
+  return tapNavigationEnabled ? '开启' : '关闭'
+}
+
+export function getReaderPageGapModeLabel(mode: ReaderPageGapMode): string {
+  if (mode === 'compact') {
+    return '紧凑'
+  }
+  if (mode === 'wide') {
+    return '宽松'
+  }
+  return '标准'
+}
+
 export function readerModeFromPageMode(pageMode: ReaderPageMode): ReaderMode {
   if (pageMode === 'continuous_scroll') {
     return ReaderMode.CONTINUOUS_SCROLL
@@ -160,6 +213,10 @@ export class ReaderPreferencesStore {
       await store.get(SHOW_PROGRESS_CONTROLS_KEY, DEFAULT_READER_PREFERENCES.showProgressControls) as boolean | string | number
     const keepScreenAwake =
       await store.get(KEEP_SCREEN_AWAKE_KEY, DEFAULT_READER_PREFERENCES.keepScreenAwake) as boolean | string | number
+    const imageFitMode = await store.get(IMAGE_FIT_MODE_KEY, DEFAULT_READER_PREFERENCES.imageFitMode) as string
+    const tapNavigationEnabled =
+      await store.get(TAP_NAVIGATION_ENABLED_KEY, DEFAULT_READER_PREFERENCES.tapNavigationEnabled) as boolean | string | number
+    const pageGapMode = await store.get(PAGE_GAP_MODE_KEY, DEFAULT_READER_PREFERENCES.pageGapMode) as string
     return {
       pageMode: normalizeReaderPageMode(pageMode),
       readingDirection: normalizeReaderReadingDirection(readingDirection),
@@ -167,6 +224,9 @@ export class ReaderPreferencesStore {
       backgroundMode: normalizeReaderBackgroundMode(backgroundMode),
       showProgressControls: normalizeReaderProgressControls(showProgressControls),
       keepScreenAwake: normalizeReaderKeepScreenAwake(keepScreenAwake),
+      imageFitMode: normalizeReaderImageFitMode(imageFitMode),
+      tapNavigationEnabled: normalizeReaderTapNavigationEnabled(tapNavigationEnabled),
+      pageGapMode: normalizeReaderPageGapMode(pageGapMode),
     }
   }
 
@@ -206,6 +266,24 @@ export class ReaderPreferencesStore {
     await store.flush()
   }
 
+  async saveImageFitMode(imageFitMode: ReaderImageFitMode): Promise<void> {
+    const store = await this.preferences()
+    await store.put(IMAGE_FIT_MODE_KEY, normalizeReaderImageFitMode(imageFitMode))
+    await store.flush()
+  }
+
+  async saveTapNavigationEnabled(tapNavigationEnabled: boolean): Promise<void> {
+    const store = await this.preferences()
+    await store.put(TAP_NAVIGATION_ENABLED_KEY, normalizeReaderTapNavigationEnabled(tapNavigationEnabled))
+    await store.flush()
+  }
+
+  async savePageGapMode(pageGapMode: ReaderPageGapMode): Promise<void> {
+    const store = await this.preferences()
+    await store.put(PAGE_GAP_MODE_KEY, normalizeReaderPageGapMode(pageGapMode))
+    await store.flush()
+  }
+
   async save(preferences: ReaderPreferences): Promise<void> {
     const store = await this.preferences()
     await store.put(PAGE_MODE_KEY, normalizeReaderPageMode(preferences.pageMode))
@@ -214,6 +292,9 @@ export class ReaderPreferencesStore {
     await store.put(BACKGROUND_MODE_KEY, normalizeReaderBackgroundMode(preferences.backgroundMode))
     await store.put(SHOW_PROGRESS_CONTROLS_KEY, normalizeReaderProgressControls(preferences.showProgressControls))
     await store.put(KEEP_SCREEN_AWAKE_KEY, normalizeReaderKeepScreenAwake(preferences.keepScreenAwake))
+    await store.put(IMAGE_FIT_MODE_KEY, normalizeReaderImageFitMode(preferences.imageFitMode))
+    await store.put(TAP_NAVIGATION_ENABLED_KEY, normalizeReaderTapNavigationEnabled(preferences.tapNavigationEnabled))
+    await store.put(PAGE_GAP_MODE_KEY, normalizeReaderPageGapMode(preferences.pageGapMode))
     await store.flush()
   }
 
