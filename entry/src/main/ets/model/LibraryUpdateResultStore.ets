@@ -4,6 +4,7 @@ import {
   LibraryUpdateComicResult,
   LibraryUpdateResultStatus,
   LibraryUpdateSummary,
+  countLibraryUpdateNewChapters,
 } from './LibraryUpdateService'
 
 export const LIBRARY_UPDATE_RESULT_STORE_NAME: string = 'koma_library_update_results_v1'
@@ -30,6 +31,17 @@ export interface PersistedLibraryUpdateSummary {
   results: PersistedLibraryUpdateResult[]
 }
 
+export interface LibraryUpdateNotificationSummary {
+  checkedAt: number
+  totalCount: number
+  updatedCount: number
+  newChapterCount: number
+  failedCount: number
+  failureCodes: string[]
+  summaryText: string
+  systemDispatchEnabled: boolean
+}
+
 let latestLibraryUpdateSummary: LibraryUpdateSummary | undefined = undefined
 
 function clampString(value: string, maxLength: number): string {
@@ -37,6 +49,32 @@ function clampString(value: string, maxLength: number): string {
     return value
   }
   return value.substring(0, maxLength)
+}
+
+export function redactLibraryUpdateFailureCode(value: string | undefined): string {
+  if (value === undefined) {
+    return 'unknown'
+  }
+  const trimmed = value.trim().toLocaleLowerCase()
+  if (trimmed.length === 0) {
+    return 'unknown'
+  }
+  if (/timeout|timed\s*out|deadline|etimedout/.test(trimmed)) {
+    return 'timeout'
+  }
+  if (/storage|database|disk|quota|file|cache|path|directory|(^|\s)\/[^\s]+|(^|\s)[a-z]:[\\/]|enoent|eacces/.test(trimmed)) {
+    return 'storage_error'
+  }
+  if (/auth|unauthori[sz]ed|forbidden|permission|login|credential|tok(?:en)?|api[_\s-]?key|secret|401|403/.test(trimmed)) {
+    return 'auth_error'
+  }
+  if (/network|fetch|http|https|dns|socket|connection|econn|enotfound|eai_again|ssl|tls|remote/.test(trimmed)) {
+    return 'network_error'
+  }
+  if (/source|runtime|wasm|provider|plugin|script|exception|unavailable/.test(trimmed)) {
+    return 'source_runtime_error'
+  }
+  return clampString('unknown', 64)
 }
 
 function isNonNegativeFiniteNumber(value: number): boolean {
@@ -61,24 +99,62 @@ function isValidStatus(value: string): boolean {
     value === 'failed'
 }
 
+function sanitizeLibraryUpdateResultMessage(status: LibraryUpdateResultStatus, message: string): string {
+  return status === 'failed' ? redactLibraryUpdateFailureCode(message) : message
+}
+
 function cloneLibraryUpdateResult(result: LibraryUpdateComicResult): LibraryUpdateComicResult {
   return {
     comicId: result.comicId,
     status: result.status,
     previousChapterCount: result.previousChapterCount,
     newChapterCount: result.newChapterCount,
-    message: result.message,
+    message: sanitizeLibraryUpdateResultMessage(result.status, result.message),
   }
 }
 
 function persistLibraryUpdateResult(result: LibraryUpdateComicResult): PersistedLibraryUpdateResult {
+  const message = sanitizeLibraryUpdateResultMessage(result.status, result.message)
   return {
     comicId: clampString(result.comicId, LIBRARY_UPDATE_RESULT_MAX_COMIC_ID_LENGTH),
     status: result.status,
     previousChapterCount: normalizeCount(result.previousChapterCount),
     newChapterCount: normalizeCount(result.newChapterCount),
-    message: clampString(result.message, LIBRARY_UPDATE_RESULT_MAX_MESSAGE_LENGTH),
+    message: clampString(message, LIBRARY_UPDATE_RESULT_MAX_MESSAGE_LENGTH),
   }
+}
+
+export function createLibraryUpdateNotificationSummary(summary: LibraryUpdateSummary): LibraryUpdateNotificationSummary {
+  const failureCodes: string[] = []
+  summary.results.forEach((result: LibraryUpdateComicResult) => {
+    if (result.status !== 'failed') {
+      return
+    }
+    const code = redactLibraryUpdateFailureCode(result.message)
+    if (!failureCodes.includes(code)) {
+      failureCodes.push(code)
+    }
+  })
+  const newChapterCount = countLibraryUpdateNewChapters(summary)
+  const summaryText = `${newChapterCount} 新章 · ${summary.updatedCount} 更新 · ${summary.failedCount} 失败`
+  return {
+    checkedAt: summary.checkedAt,
+    totalCount: summary.totalCount,
+    updatedCount: summary.updatedCount,
+    newChapterCount,
+    failedCount: summary.failedCount,
+    failureCodes,
+    summaryText,
+    systemDispatchEnabled: false,
+  }
+}
+
+export function formatLibraryUpdateNotificationSummary(summary: LibraryUpdateSummary): string {
+  const notificationSummary = createLibraryUpdateNotificationSummary(summary)
+  if (notificationSummary.failureCodes.length === 0) {
+    return notificationSummary.summaryText
+  }
+  return `${notificationSummary.summaryText} · ${notificationSummary.failureCodes.join(',')}`
 }
 
 export function serializeLibraryUpdateSummary(summary: LibraryUpdateSummary): string {
@@ -147,12 +223,13 @@ function hydrateLibraryUpdateResult(value: Object): LibraryUpdateComicResult | u
     !isNonNegativeFiniteNumber(newChapterCount)) {
     return undefined
   }
+  const safeStatus = status as LibraryUpdateResultStatus
   return {
     comicId: clampString(comicId, LIBRARY_UPDATE_RESULT_MAX_COMIC_ID_LENGTH),
-    status: status as LibraryUpdateResultStatus,
+    status: safeStatus,
     previousChapterCount: normalizeCount(previousChapterCount),
     newChapterCount: normalizeCount(newChapterCount),
-    message: clampString(message, LIBRARY_UPDATE_RESULT_MAX_MESSAGE_LENGTH),
+    message: clampString(sanitizeLibraryUpdateResultMessage(safeStatus, message), LIBRARY_UPDATE_RESULT_MAX_MESSAGE_LENGTH),
   }
 }
 

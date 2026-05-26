@@ -219,6 +219,32 @@ export function formatLibraryUpdateSummary(summary?: LibraryUpdateSummary): stri
   return `${summary.totalCount} 本 · ${countLibraryUpdateNewChapters(summary)} 新章 · ${summary.updatedCount} 更新 · ${summary.skippedCount} 跳过 · ${summary.failedCount} 失败`
 }
 
+function safeLibraryUpdateFailureCode(value: string | undefined): string {
+  if (value === undefined) {
+    return 'source_runtime_error'
+  }
+  const trimmed = value.trim().toLocaleLowerCase()
+  if (trimmed.length === 0) {
+    return 'source_runtime_error'
+  }
+  if (/timeout|timed\s*out|deadline|etimedout/.test(trimmed)) {
+    return 'timeout'
+  }
+  if (/storage|database|disk|quota|file|cache|path|directory|(^|\s)\/[^\s]+|(^|\s)[a-z]:[\\/]|enoent|eacces/.test(trimmed)) {
+    return 'storage_error'
+  }
+  if (/auth|unauthori[sz]ed|forbidden|permission|login|credential|tok(?:en)?|api[_\s-]?key|secret|401|403/.test(trimmed)) {
+    return 'auth_error'
+  }
+  if (/network|fetch|http|https|dns|socket|connection|econn|enotfound|eai_again|ssl|tls|remote/.test(trimmed)) {
+    return 'network_error'
+  }
+  if (/source|runtime|wasm|provider|plugin|script|exception|unavailable/.test(trimmed)) {
+    return 'source_runtime_error'
+  }
+  return 'unknown'
+}
+
 export class LibraryUpdateService {
   private libraryStore: LibraryStore
   private sourceRegistry: SourceRuntimeRegistry
@@ -294,7 +320,7 @@ export class LibraryUpdateService {
         status: 'failed',
         previousChapterCount,
         newChapterCount: previousChapterCount,
-        message: lookup.reasonCode ?? '源包不可用',
+        message: safeLibraryUpdateFailureCode(lookup.reasonCode ?? 'source_unavailable'),
       }
     }
     try {
@@ -328,7 +354,7 @@ export class LibraryUpdateService {
         status: 'failed',
         previousChapterCount,
         newChapterCount: previousChapterCount,
-        message: e.message,
+        message: safeLibraryUpdateFailureCode(e.message),
       }
     }
   }
@@ -358,7 +384,7 @@ export class LibraryUpdateService {
     const response = JSON.parse(responseJson) as SourceOperationResponsePayload
     const rows = sourceChapterResponseItems(response)
     if (response.ok !== true || rows.length === 0) {
-      throw new Error(response.reasonCode ?? 'get_chapters returned no items')
+      throw new Error(response.reasonCode ?? 'get_chapters_empty')
     }
     return rows.map((row: Record<string, Object>): MangaChapterItem => parseMangaChapterFromSourceItem(row))
   }

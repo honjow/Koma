@@ -400,7 +400,11 @@ assertExport(libraryUpdateResultStoreSource, 'LIBRARY_UPDATE_RESULT_MAX_COMIC_ID
 assertExport(libraryUpdateResultStoreSource, 'LIBRARY_UPDATE_RESULT_MAX_MESSAGE_LENGTH')
 assertExport(libraryUpdateResultStoreSource, 'PersistedLibraryUpdateResult')
 assertExport(libraryUpdateResultStoreSource, 'PersistedLibraryUpdateSummary')
+assertExport(libraryUpdateResultStoreSource, 'LibraryUpdateNotificationSummary')
+assertExport(libraryUpdateResultStoreSource, 'redactLibraryUpdateFailureCode')
 assertExport(libraryUpdateResultStoreSource, 'serializeLibraryUpdateSummary')
+assertExport(libraryUpdateResultStoreSource, 'createLibraryUpdateNotificationSummary')
+assertExport(libraryUpdateResultStoreSource, 'formatLibraryUpdateNotificationSummary')
 assertExport(libraryUpdateResultStoreSource, 'hydrateLibraryUpdateSummaryFromJson')
 assertExport(libraryUpdateResultStoreSource, 'cloneLibraryUpdateSummary')
 assertExport(libraryUpdateResultStoreSource, 'setLatestLibraryUpdateSummary')
@@ -411,19 +415,28 @@ assertExport(libraryUpdatePreferencesStoreSource, 'LibraryUpdateNotificationStat
 assertExport(libraryUpdatePreferencesStoreSource, 'LIBRARY_UPDATE_PREFERENCES_STORE_NAME')
 assertExport(libraryUpdatePreferencesStoreSource, 'LIBRARY_UPDATE_AUTO_CHECK_ENABLED_KEY')
 assertExport(libraryUpdatePreferencesStoreSource, 'LIBRARY_UPDATE_INTERVAL_HOURS_KEY')
+assertExport(libraryUpdatePreferencesStoreSource, 'LIBRARY_UPDATE_FOREGROUND_ONLY_KEY')
 assertExport(libraryUpdatePreferencesStoreSource, 'LIBRARY_UPDATE_LAST_CHECKED_AT_KEY')
 assertExport(libraryUpdatePreferencesStoreSource, 'LIBRARY_UPDATE_LAST_SUMMARY_TEXT_KEY')
+assertExport(libraryUpdatePreferencesStoreSource, 'LIBRARY_UPDATE_FAILURE_COUNT_KEY')
+assertExport(libraryUpdatePreferencesStoreSource, 'LIBRARY_UPDATE_LAST_FAILURE_CODE_KEY')
 assertExport(libraryUpdatePreferencesStoreSource, 'LIBRARY_UPDATE_INTERVAL_OPTIONS')
 assertExport(libraryUpdatePreferencesStoreSource, 'LIBRARY_UPDATE_NOTIFICATION_STATUS')
+assertExport(libraryUpdatePreferencesStoreSource, 'LIBRARY_UPDATE_MAX_BACKOFF_HOURS')
 assertExport(libraryUpdatePreferencesStoreSource, 'DEFAULT_LIBRARY_UPDATE_PREFERENCES')
 assertExport(libraryUpdatePreferencesStoreSource, 'normalizeLibraryUpdateAutoCheckEnabled')
 assertExport(libraryUpdatePreferencesStoreSource, 'normalizeLibraryUpdateIntervalHours')
+assertExport(libraryUpdatePreferencesStoreSource, 'normalizeLibraryUpdateForegroundOnly')
 assertExport(libraryUpdatePreferencesStoreSource, 'normalizeLibraryUpdateTimestamp')
 assertExport(libraryUpdatePreferencesStoreSource, 'normalizeLibraryUpdateSummaryText')
+assertExport(libraryUpdatePreferencesStoreSource, 'normalizeLibraryUpdateFailureCount')
+assertExport(libraryUpdatePreferencesStoreSource, 'normalizeLibraryUpdateFailureCode')
 assertExport(libraryUpdatePreferencesStoreSource, 'formatLibraryUpdateTimestamp')
 assertExport(libraryUpdatePreferencesStoreSource, 'getLibraryUpdateAutoCheckLabel')
+assertExport(libraryUpdatePreferencesStoreSource, 'getLibraryUpdateBackoffHours')
 assertExport(libraryUpdatePreferencesStoreSource, 'getLibraryUpdateNextDueAt')
 assertExport(libraryUpdatePreferencesStoreSource, 'getLibraryUpdateNextDueLabel')
+assertExport(libraryUpdatePreferencesStoreSource, 'getLibraryUpdateLastResultLabel')
 assertExport(libraryUpdatePreferencesStoreSource, 'getLibraryUpdateNotificationStatusLabel')
 assertExport(libraryUpdatePreferencesStoreSource, 'isLibraryUpdateNotificationDeliveryEnabled')
 assertExport(libraryUpdatePreferencesStoreSource, 'isLibraryUpdateDue')
@@ -688,12 +701,12 @@ assert.match(
 )
 assert.match(
   settingsPageSource,
-  /loadLatestLibraryUpdateSummary\(\): void \{[\s\S]*getLatestLibraryUpdateSummary\(\)[\s\S]*this\.libraryUpdateResultStore\(\)\.load\(\)[\s\S]*const current = getLatestLibraryUpdateSummary\(\)[\s\S]*setLatestLibraryUpdateSummary\(summary\)[\s\S]*this\.libraryUpdateSummary = effectiveSummary[\s\S]*step=load_library_update_results hasSummary=/,
-  'SettingsPage must load persisted library update result details after checking fresh in-memory state',
+  /loadLatestLibraryUpdateSummary\(\): void \{[\s\S]*getLatestLibraryUpdateSummary\(\)[\s\S]*this\.isLibraryUpdateSummaryStaleAfterFailure\(latest\)[\s\S]*this\.libraryUpdateResultStore\(\)\.load\(\)[\s\S]*const current = getLatestLibraryUpdateSummary\(\)[\s\S]*setLatestLibraryUpdateSummary\(summary\)[\s\S]*this\.isLibraryUpdateSummaryStaleAfterFailure\(effectiveSummary\)[\s\S]*step=load_library_update_results hasSummary=/,
+  'SettingsPage must load persisted library update result details after checking fresh in-memory state and suppress stale success after newer failures',
 )
 assert.match(
   settingsPageSource,
-  /\.then\(\(summary: LibraryUpdateSummary \| undefined\) => \{[\s\S]*const current = getLatestLibraryUpdateSummary\(\)[\s\S]*if \(summary !== undefined && \(current === undefined \|\| summary\.checkedAt > current\.checkedAt\)\) \{[\s\S]*setLatestLibraryUpdateSummary\(summary\)[\s\S]*this\.libraryUpdateSummary = effectiveSummary/,
+  /\.then\(\(summary: LibraryUpdateSummary \| undefined\) => \{[\s\S]*const current = getLatestLibraryUpdateSummary\(\)[\s\S]*if \(summary !== undefined && \(current === undefined \|\| summary\.checkedAt > current\.checkedAt\)\) \{[\s\S]*setLatestLibraryUpdateSummary\(summary\)[\s\S]*this\.isLibraryUpdateSummaryStaleAfterFailure\(effectiveSummary\)/,
   'SettingsPage must only use persisted library update results as fallback or when newer than fresh in-memory state at load resolution',
 )
 assert.match(
@@ -733,8 +746,8 @@ assert.match(
 )
 assert.match(
   libraryUpdatePreferencesStoreSource,
-  /DEFAULT_LIBRARY_UPDATE_PREFERENCES:[\s\S]*autoCheckEnabled:\s*false[\s\S]*intervalHours:\s*24/,
-  'LibraryUpdatePreferencesStore defaults must disable automatic checks and use a 24h interval',
+  /DEFAULT_LIBRARY_UPDATE_PREFERENCES:[\s\S]*autoCheckEnabled:\s*false[\s\S]*intervalHours:\s*24[\s\S]*foregroundOnly:\s*true[\s\S]*failureCount:\s*0/,
+  'LibraryUpdatePreferencesStore defaults must disable automatic checks, use a 24h interval, stay foreground-only, and start with no failures',
 )
 assert.match(
   libraryUpdatePreferencesStoreSource,
@@ -743,8 +756,53 @@ assert.match(
 )
 assert.match(
   libraryUpdatePreferencesStoreSource,
-  /getLibraryUpdateNextDueAt\(preferences: LibraryUpdatePreferences\): number \| undefined[\s\S]*lastCheckedAt \+ preferences\.intervalHours \* 60 \* 60 \* 1000/,
-  'LibraryUpdatePreferencesStore must compute next due time from the persisted foreground interval',
+  /getLibraryUpdateNextDueAt\(preferences: LibraryUpdatePreferences\): number \| undefined[\s\S]*const intervalMs = preferences\.intervalHours \* 60 \* 60 \* 1000[\s\S]*const backoffMs = getLibraryUpdateBackoffHours\(preferences\) \* 60 \* 60 \* 1000[\s\S]*return preferences\.lastCheckedAt \+ intervalMs \+ backoffMs/,
+  'LibraryUpdatePreferencesStore must compute next due time from the persisted foreground interval plus failure backoff',
+)
+assert.match(
+  libraryUpdatePreferencesStoreSource,
+  /saveFailedCheck\(checkedAt: number, failureCode: string\): Promise<LibraryUpdatePreferences>[\s\S]*failureCount: normalizeLibraryUpdateFailureCount\(current\.failureCount \+ 1\)[\s\S]*lastFailureCode: normalizeLibraryUpdateFailureCode\(failureCode\) \?\? 'unknown'/,
+  'LibraryUpdatePreferencesStore must persist failed foreground checks with redacted failure codes and increasing backoff state',
+)
+assert.doesNotMatch(
+  libraryUpdatePreferencesStoreSource,
+  /saveFailedCheck\(checkedAt: number, failureCode: string\): Promise<LibraryUpdatePreferences>[\s\S]*next\.lastSummaryText = current\.lastSummaryText[\s\S]*await this\.save\(next\)/,
+  'LibraryUpdatePreferencesStore must clear stale success summaries after a failed foreground check',
+)
+assert.match(
+  libraryUpdatePreferencesStoreSource,
+  /getLibraryUpdateLastResultLabel\(preferences: LibraryUpdatePreferences\): string \{[\s\S]*normalizeLibraryUpdateFailureCount\(preferences\.failureCount\) > 0[\s\S]*上次检查失败[\s\S]*lastSummaryText/,
+  'LibraryUpdatePreferencesStore must prioritize an active failure over stale success summary text',
+)
+assert.match(
+  libraryUpdatePreferencesStoreSource,
+  /saveLastSummary\(checkedAt: number, summaryText: string\): Promise<LibraryUpdatePreferences>[\s\S]*failureCount:\s*0/,
+  'LibraryUpdatePreferencesStore must clear failure backoff after a completed check summary',
+)
+assert.match(
+  libraryUpdateResultStoreSource,
+  /createLibraryUpdateNotificationSummary\(summary: LibraryUpdateSummary\): LibraryUpdateNotificationSummary[\s\S]*redactLibraryUpdateFailureCode\(result\.message\)[\s\S]*systemDispatchEnabled: false/,
+  'LibraryUpdateResultStore must expose a notification-ready summary without pretending system dispatch is enabled',
+)
+assert.match(
+  libraryUpdateResultStoreSource,
+  /persistLibraryUpdateResult\(result: LibraryUpdateComicResult\)[\s\S]*sanitizeLibraryUpdateResultMessage\(result\.status, result\.message\)/,
+  'Persisted failed library update results must store redacted failure codes instead of raw provider reasons',
+)
+assert.match(
+  libraryUpdateResultStoreSource,
+  /hydrateLibraryUpdateResult\(value: Object\): LibraryUpdateComicResult \| undefined[\s\S]*sanitizeLibraryUpdateResultMessage\(safeStatus, message\)/,
+  'Hydrated old failed library update results must redact raw provider reasons before result pages render them',
+)
+assert.match(
+  libraryUpdateResultStoreSource,
+  /redactLibraryUpdateFailureCode\(value: string \| undefined\): string[\s\S]*return 'timeout'[\s\S]*return 'storage_error'[\s\S]*return 'auth_error'[\s\S]*return 'network_error'[\s\S]*return 'source_runtime_error'[\s\S]*return clampString\('unknown', 64\)/,
+  'Persisted failed library update results must use only coarse allowlisted failure buckets',
+)
+assert.match(
+  libraryUpdateServiceSource,
+  /safeLibraryUpdateFailureCode\(value: string \| undefined\): string[\s\S]*return 'timeout'[\s\S]*return 'storage_error'[\s\S]*return 'auth_error'[\s\S]*return 'network_error'[\s\S]*return 'source_runtime_error'[\s\S]*return 'unknown'/,
+  'LibraryUpdateService failure messages must be reduced to coarse allowlisted buckets before notification/status persistence',
 )
 assert.match(
   libraryUpdatePreferencesStoreSource,
@@ -753,7 +811,7 @@ assert.match(
 )
 assert.match(
   libraryUpdatePreferencesStoreSource,
-  /catch \(_error\) \{[\s\S]*autoCheckEnabled: DEFAULT_LIBRARY_UPDATE_PREFERENCES\.autoCheckEnabled[\s\S]*intervalHours: DEFAULT_LIBRARY_UPDATE_PREFERENCES\.intervalHours/,
+  /catch \(_error\) \{[\s\S]*autoCheckEnabled: DEFAULT_LIBRARY_UPDATE_PREFERENCES\.autoCheckEnabled[\s\S]*intervalHours: DEFAULT_LIBRARY_UPDATE_PREFERENCES\.intervalHours[\s\S]*foregroundOnly: DEFAULT_LIBRARY_UPDATE_PREFERENCES\.foregroundOnly[\s\S]*failureCount: DEFAULT_LIBRARY_UPDATE_PREFERENCES\.failureCount/,
   'LibraryUpdatePreferencesStore must safely restore defaults when preference data cannot be read',
 )
 assert.doesNotMatch(
@@ -878,8 +936,8 @@ assert.match(
 )
 assert.match(
   libraryUpdateResultStoreSource,
-  /clampString\(result\.comicId, LIBRARY_UPDATE_RESULT_MAX_COMIC_ID_LENGTH\)[\s\S]*clampString\(result\.message, LIBRARY_UPDATE_RESULT_MAX_MESSAGE_LENGTH\)/,
-  'LibraryUpdateResultStore must clamp persisted comicId and message strings',
+  /const message = sanitizeLibraryUpdateResultMessage\(result\.status, result\.message\)[\s\S]*clampString\(result\.comicId, LIBRARY_UPDATE_RESULT_MAX_COMIC_ID_LENGTH\)[\s\S]*clampString\(message, LIBRARY_UPDATE_RESULT_MAX_MESSAGE_LENGTH\)/,
+  'LibraryUpdateResultStore must clamp persisted comicId and sanitized message strings',
 )
 assert.match(
   libraryUpdateResultStoreSource,

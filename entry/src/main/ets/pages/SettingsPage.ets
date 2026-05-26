@@ -16,6 +16,7 @@ import {
 } from '../model/LocalLibraryRefreshService'
 import {
   LibraryUpdateResultStore,
+  formatLibraryUpdateNotificationSummary,
   getLatestLibraryUpdateSummary,
   setLatestLibraryUpdateSummary,
 } from '../model/LibraryUpdateResultStore'
@@ -24,10 +25,13 @@ import {
   LibraryUpdatePreferences,
   LibraryUpdatePreferencesStore,
   getLibraryUpdateAutoCheckLabel,
+  getLibraryUpdateLastResultLabel,
   getLibraryUpdateNextDueLabel,
   getLibraryUpdateNotificationStatusLabel,
   formatLibraryUpdateTimestamp,
   isLibraryUpdateDue,
+  normalizeLibraryUpdateFailureCode,
+  normalizeLibraryUpdateFailureCount,
 } from '../model/LibraryUpdatePreferencesStore'
 import {
   ReaderRemoteImageCacheStats,
@@ -130,6 +134,12 @@ const SETTINGS_SECTIONS: SettingsSection[] = [
     ],
   },
 ]
+
+function safeSettingsErrorCode(error: Error): string {
+  const name = error.name.trim().toLocaleLowerCase()
+  const code = name.length > 0 ? name : 'error'
+  return code.replace(/[^a-z0-9_.-]/g, '_').substring(0, 48)
+}
 
 @Component
 export struct SettingsPage {
@@ -239,26 +249,34 @@ export struct SettingsPage {
       return `${getLibraryUpdateAutoCheckLabel(this.libraryUpdatePreferences)} · ${getLibraryUpdateNextDueLabel(this.libraryUpdatePreferences)}`
     }
     if (row.key === 'library-update-notifications') {
+      const effectiveSummary = this.getEffectiveLibraryUpdateSummary()
+      if (effectiveSummary !== undefined) {
+        return `${getLibraryUpdateNotificationStatusLabel()} · ${formatLibraryUpdateNotificationSummary(effectiveSummary)}`
+      }
       return getLibraryUpdateNotificationStatusLabel()
     }
     if (row.key === 'library-update') {
       if (this.libraryUpdateBusy) {
         return '检查中...'
       }
-      const summaryText = formatLibraryUpdateSummary(this.libraryUpdateSummary)
-      const checkedAt = this.libraryUpdateSummary?.checkedAt
+      const effectiveSummary = this.getEffectiveLibraryUpdateSummary()
+      const summaryText = formatLibraryUpdateSummary(effectiveSummary)
+      const checkedAt = effectiveSummary?.checkedAt
       if (checkedAt === undefined) {
         const storedSummary = this.libraryUpdatePreferences.lastSummaryText
         const storedCheckedAt = this.libraryUpdatePreferences.lastCheckedAt
         if (storedSummary !== undefined && storedCheckedAt !== undefined) {
-          return `${storedSummary} · ${this.formatTimestamp(storedCheckedAt)}`
+          return `${getLibraryUpdateLastResultLabel(this.libraryUpdatePreferences)} · ${getLibraryUpdateNextDueLabel(this.libraryUpdatePreferences)}`
+        }
+        if (this.libraryUpdatePreferences.lastFailureCode !== undefined && storedCheckedAt !== undefined) {
+          return `${getLibraryUpdateLastResultLabel(this.libraryUpdatePreferences)} · ${getLibraryUpdateNextDueLabel(this.libraryUpdatePreferences)}`
         }
         return `${summaryText} · ${getLibraryUpdateNextDueLabel(this.libraryUpdatePreferences)}`
       }
       return `${summaryText} · 上次 ${this.formatTimestamp(checkedAt)} · ${getLibraryUpdateNextDueLabel(this.libraryUpdatePreferences)}`
     }
     if (row.key === 'library-update-results') {
-      return this.libraryUpdateSummary === undefined ? '尚无结果' : '查看最近检查结果'
+      return this.getEffectiveLibraryUpdateSummary() === undefined ? '尚无结果' : '查看最近检查结果'
     }
     if (row.key === 'library-categories') {
       const count = this.libraryStore === undefined ? 0 : this.libraryStore.listCustomCategories().length
@@ -287,6 +305,29 @@ export struct SettingsPage {
     return formatLibraryUpdateTimestamp(value)
   }
 
+  private getEffectiveLibraryUpdateSummary(): LibraryUpdateSummary | undefined {
+    if (this.isLibraryUpdateSummaryStaleAfterFailure(this.libraryUpdateSummary)) {
+      return undefined
+    }
+    return this.libraryUpdateSummary
+  }
+
+  private isLibraryUpdateSummaryStaleAfterFailure(summary: LibraryUpdateSummary | undefined): boolean {
+    if (summary === undefined ||
+      this.libraryUpdatePreferences.lastCheckedAt === undefined ||
+      this.libraryUpdatePreferences.lastFailureCode === undefined ||
+      normalizeLibraryUpdateFailureCount(this.libraryUpdatePreferences.failureCount) <= 0) {
+      return false
+    }
+    return this.libraryUpdatePreferences.lastCheckedAt >= summary.checkedAt
+  }
+
+  private clearStaleLibraryUpdateSummaryAfterFailure(): void {
+    if (this.isLibraryUpdateSummaryStaleAfterFailure(this.libraryUpdateSummary)) {
+      this.libraryUpdateSummary = undefined
+    }
+  }
+
   private loadPreferences(): void {
     void this.preferencesStore().load()
       .then((preferences) => {
@@ -313,17 +354,18 @@ export struct SettingsPage {
     void this.libraryUpdatePreferencesStore().load()
       .then((preferences: LibraryUpdatePreferences) => {
         this.libraryUpdatePreferences = preferences
+        this.clearStaleLibraryUpdateSummaryAfterFailure()
         console.info('[Settings] step=load_library_update_preferences auto=' + preferences.autoCheckEnabled + ' intervalHours=' + preferences.intervalHours)
         this.runDueLibraryUpdateCheck()
       })
       .catch((error: Error) => {
-        console.warn('[Settings] step=load_library_update_preferences_failed message=' + error.message)
+        console.warn('[Settings] step=load_library_update_preferences_failed code=' + safeSettingsErrorCode(error))
       })
   }
 
   private loadLatestLibraryUpdateSummary(): void {
     const latest = getLatestLibraryUpdateSummary()
-    this.libraryUpdateSummary = latest
+    this.libraryUpdateSummary = this.isLibraryUpdateSummaryStaleAfterFailure(latest) ? undefined : latest
     void this.libraryUpdateResultStore().load()
       .then((summary: LibraryUpdateSummary | undefined) => {
         const current = getLatestLibraryUpdateSummary()
@@ -332,12 +374,12 @@ export struct SettingsPage {
           setLatestLibraryUpdateSummary(summary)
           effectiveSummary = summary
         }
-        this.libraryUpdateSummary = effectiveSummary
-        const total = effectiveSummary === undefined ? 0 : effectiveSummary.totalCount
-        console.info('[Settings] step=load_library_update_results hasSummary=' + (effectiveSummary !== undefined) + ' total=' + total)
+        this.libraryUpdateSummary = this.isLibraryUpdateSummaryStaleAfterFailure(effectiveSummary) ? undefined : effectiveSummary
+        const total = this.libraryUpdateSummary === undefined ? 0 : this.libraryUpdateSummary.totalCount
+        console.info('[Settings] step=load_library_update_results hasSummary=' + (this.libraryUpdateSummary !== undefined) + ' total=' + total)
       })
       .catch((error: Error) => {
-        console.warn('[Settings] step=load_library_update_results_failed message=' + error.message)
+        console.warn('[Settings] step=load_library_update_results_failed code=' + safeSettingsErrorCode(error))
       })
   }
 
@@ -734,12 +776,17 @@ export struct SettingsPage {
     const nextPreferences: LibraryUpdatePreferences = {
       autoCheckEnabled,
       intervalHours: this.libraryUpdatePreferences.intervalHours,
+      foregroundOnly: this.libraryUpdatePreferences.foregroundOnly,
+      failureCount: this.libraryUpdatePreferences.failureCount,
     }
     if (this.libraryUpdatePreferences.lastCheckedAt !== undefined) {
       nextPreferences.lastCheckedAt = this.libraryUpdatePreferences.lastCheckedAt
     }
     if (this.libraryUpdatePreferences.lastSummaryText !== undefined) {
       nextPreferences.lastSummaryText = this.libraryUpdatePreferences.lastSummaryText
+    }
+    if (this.libraryUpdatePreferences.lastFailureCode !== undefined) {
+      nextPreferences.lastFailureCode = this.libraryUpdatePreferences.lastFailureCode
     }
     this.libraryUpdatePreferences = nextPreferences
     void this.libraryUpdatePreferencesStore().saveAutoCheckEnabled(autoCheckEnabled)
@@ -777,12 +824,17 @@ export struct SettingsPage {
     const nextPreferences: LibraryUpdatePreferences = {
       autoCheckEnabled: this.libraryUpdatePreferences.autoCheckEnabled,
       intervalHours,
+      foregroundOnly: this.libraryUpdatePreferences.foregroundOnly,
+      failureCount: this.libraryUpdatePreferences.failureCount,
     }
     if (this.libraryUpdatePreferences.lastCheckedAt !== undefined) {
       nextPreferences.lastCheckedAt = this.libraryUpdatePreferences.lastCheckedAt
     }
     if (this.libraryUpdatePreferences.lastSummaryText !== undefined) {
       nextPreferences.lastSummaryText = this.libraryUpdatePreferences.lastSummaryText
+    }
+    if (this.libraryUpdatePreferences.lastFailureCode !== undefined) {
+      nextPreferences.lastFailureCode = this.libraryUpdatePreferences.lastFailureCode
     }
     this.libraryUpdatePreferences = nextPreferences
     void this.libraryUpdatePreferencesStore().saveIntervalHours(intervalHours)
@@ -792,7 +844,7 @@ export struct SettingsPage {
         this.runDueLibraryUpdateCheck()
       })
       .catch((error: Error) => {
-        console.warn('[Settings] step=save_library_update_interval_failed message=' + error.message)
+        console.warn('[Settings] step=save_library_update_interval_failed code=' + safeSettingsErrorCode(error))
         this.showToast('保存检查间隔失败')
       })
   }
@@ -821,7 +873,7 @@ export struct SettingsPage {
             console.info('[Settings] step=save_library_update_results total=' + summary.totalCount)
           })
           .catch((error: Error) => {
-            console.warn('[Settings] step=save_library_update_results_failed message=' + error.message)
+            console.warn('[Settings] step=save_library_update_results_failed code=' + safeSettingsErrorCode(error))
           })
         this.onLibraryChanged()
         const summaryText = formatLibraryUpdateSummary(summary)
@@ -831,14 +883,32 @@ export struct SettingsPage {
             this.saveLibraryUpdatePreferences(preferences)
           })
           .catch((error: Error) => {
-            console.warn('[Settings] step=save_library_update_summary_failed message=' + error.message)
+            console.warn('[Settings] step=save_library_update_summary_failed code=' + safeSettingsErrorCode(error))
           })
         if (reason === 'manual') {
           this.showToast(summary.updatedCount > 0 ? `发现 ${summary.updatedCount} 本更新` : '书架已是最新')
         }
       })
       .catch((error: Error) => {
-        console.warn('[Settings] step=library_update_failed message=' + error.message)
+        console.warn('[Settings] step=library_update_failed code=' + safeSettingsErrorCode(error))
+        const checkedAt = Date.now()
+        const failureCode = normalizeLibraryUpdateFailureCode('check_failed') ?? 'unknown'
+        this.libraryUpdateSummary = undefined
+        this.libraryUpdatePreferences = {
+          autoCheckEnabled: this.libraryUpdatePreferences.autoCheckEnabled,
+          intervalHours: this.libraryUpdatePreferences.intervalHours,
+          foregroundOnly: this.libraryUpdatePreferences.foregroundOnly,
+          lastCheckedAt: checkedAt,
+          failureCount: normalizeLibraryUpdateFailureCount(this.libraryUpdatePreferences.failureCount + 1),
+          lastFailureCode: failureCode,
+        }
+        void this.libraryUpdatePreferencesStore().saveFailedCheck(checkedAt, failureCode)
+          .then((preferences: LibraryUpdatePreferences) => {
+            this.saveLibraryUpdatePreferences(preferences)
+          })
+          .catch((saveError: Error) => {
+            console.warn('[Settings] step=save_library_update_failure_failed code=' + safeSettingsErrorCode(saveError))
+          })
         if (reason === 'manual') {
           this.showToast('检查书架更新失败')
         }
@@ -959,7 +1029,7 @@ export struct SettingsPage {
     } else if (row.key === 'library-update-interval') {
       this.showLibraryUpdateIntervalSheet()
     } else if (row.key === 'library-update-notifications') {
-      this.showInfoDialog('更新提醒', '当前版本只保存前台检查结果，不会发送提醒。真正可投递的提醒会在权限、实现和设备验证齐备后再开放。')
+      this.showInfoDialog('更新提醒', '当前版本只保存前台检查结果和提醒摘要，不会发送提醒。真正可投递的提醒会在权限、实现和设备验证齐备后再开放。')
     } else if (row.key === 'library-update') {
       this.checkLibraryUpdates()
     } else if (row.key === 'library-update-results') {
