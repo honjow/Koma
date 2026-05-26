@@ -187,8 +187,29 @@ export struct LibraryPage {
       sortBy: this.sortBy,
       filterSource: this.sourceKindsForFilter(),
       filterReadState: this.filterReadState,
-      filterCategoryId: this.filterCategory,
+      filterCategoryId: this.validCategoryFilter(),
     }
+  }
+
+  private validCategoryFilter(): LibraryCategoryFilter {
+    if (
+      this.filterCategory === 'all' ||
+      this.filterCategory === 'uncategorized' ||
+      this.filterCategory === LIBRARY_CATEGORY_READ_LATER_ID ||
+      this.filterCategory === LIBRARY_CATEGORY_FAVORITE_ID
+    ) {
+      return this.filterCategory
+    }
+    const categoryExists = this.libraryStore.listCustomCategories().some((category: CustomLibraryCategory): boolean => {
+      return category.id === this.filterCategory
+    })
+    if (categoryExists) {
+      return this.filterCategory
+    }
+    this.filterCategory = 'all'
+    this.saveFilterPreferences()
+    console.info('[Library] step=category_filter_reset reason=missing_category')
+    return 'all'
   }
 
   private sourceKindsForFilter(): ComicSourceKind[] | undefined {
