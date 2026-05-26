@@ -95,6 +95,11 @@ assert.match(
 )
 assert.match(
   readerPreferencesStoreSource,
+  /getReaderVolumeKeyNavigationLabel\(volumeKeyNavigationEnabled: boolean\): string \{[\s\S]*volumeKeyNavigationEnabled \? '开启' : '关闭'/,
+  'volume key navigation label must reflect active runtime support instead of stale persisted-only copy',
+)
+assert.match(
+  readerPreferencesStoreSource,
   /store\.get\(IMAGE_FIT_MODE_KEY, DEFAULT_READER_PREFERENCES\.imageFitMode\)/,
   'reader preferences load must read persisted image fit mode',
 )
@@ -174,12 +179,32 @@ assert.match(
   /showReaderWideImagePlannedDialog\(title: string\)[\s\S]*尚未接入页面拆分渲染[\s\S]*图片元数据证明页面为宽图时旋转显示[\s\S]*缺少尺寸时保持单页显示/,
   'planned wide-image actions must clearly state split is not active and rotation depends on metadata',
 )
-assert.match(settingsPageSource, /showReaderVolumeKeyNavigationSheet\(\)[\s\S]*仅保存偏好[\s\S]*尚未接入音量键事件[\s\S]*title: '开启（仅保存）'[\s\S]*title: '关闭'/, 'volume-key sheet must label persisted-only support until key events are wired')
+assert.match(settingsPageSource, /showReaderVolumeKeyNavigationSheet\(\)[\s\S]*阅读器获得焦点时音量上\/下会执行上一页\/下一页[\s\S]*未开启时不拦截系统音量键[\s\S]*title: '开启'[\s\S]*title: '关闭'/, 'volume-key sheet must describe real focused-reader runtime support and no disabled-state interception')
 
 assert.match(
   readerPageSource,
   /imageFitMode = preferences\.imageFitMode[\s\S]*tapNavigationEnabled = preferences\.tapNavigationEnabled[\s\S]*pageGapMode = preferences\.pageGapMode[\s\S]*trimPageMarginsEnabled = preferences\.trimPageMarginsEnabled[\s\S]*wideImageMode = preferences\.wideImageMode/,
   'ReaderPage must apply persisted advanced settings after load',
+)
+assert.match(
+  readerPageSource,
+  /import \{ KeyCode \} from '@kit\.InputKit'/,
+  'ReaderPage must use HarmonyOS InputKit key codes for volume-key runtime navigation',
+)
+assert.match(
+  readerPageSource,
+  /READER_VOLUME_KEY_FOCUS_ID:\s*string = 'reader-volume-key-surface'[\s\S]*\.id\(READER_VOLUME_KEY_FOCUS_ID\)[\s\S]*\.focusable\(true\)[\s\S]*\.defaultFocus\(true\)[\s\S]*\.onKeyEvent\(\(event: KeyEvent\) => \{[\s\S]*this\.handleVolumeKeyNavigation\(event\)/,
+  'ReaderPage surface must be focusable and route key events into the volume-key handler',
+)
+assert.match(
+  readerPageSource,
+  /volumeKeyNavigationEnabled = preferences\.volumeKeyNavigationEnabled[\s\S]*volumeKeyNavigation=\$\{preferences\.volumeKeyNavigationEnabled\}/,
+  'ReaderPage must load and log the persisted volume-key navigation preference',
+)
+assert.match(
+  readerPageSource,
+  /private handleVolumeKeyNavigation\(event: KeyEvent\): boolean[\s\S]*!this\.volumeKeyNavigationEnabled \|\| !this\.isVolumeNavigationKey\(event\.keyCode\)[\s\S]*return false[\s\S]*event\.type !== KeyType\.Down[\s\S]*return true[\s\S]*KeyCode\.KEYCODE_VOLUME_UP[\s\S]*this\.previousPage\(\)[\s\S]*this\.nextPage\(\)/,
+  'ReaderPage must only consume volume keys when enabled, handle down events, and map volume up/down to previous/next page',
 )
 assert.match(
   readerPageSource,
