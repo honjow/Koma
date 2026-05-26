@@ -76,7 +76,7 @@ export struct TrackerSettingsPage {
 
   private prepareConnect(provider: TrackerProviderConfig): void {
     if (!this.canPrepareConnect(provider)) {
-      this.authPreparationMessage = !this.secureStorageAvailable ? '安全存储不可用，无法开始授权' : 'Provider 配置未完成，无法开始授权'
+      this.authPreparationMessage = !this.secureStorageAvailable ? '账号连接暂不可用' : '当前版本暂不能开始授权'
       this.showToast(this.authPreparationMessage)
       return
     }
@@ -93,16 +93,16 @@ export struct TrackerSettingsPage {
 
   private authPrepareStatusLabel(status: string): string {
     if (status === 'secure_storage_unavailable') {
-      return '安全存储不可用，无法保存授权'
+      return '账号连接暂不可用'
     }
     if (status === 'provider_config_missing') {
-      return 'Provider 配置未完成'
+      return '当前版本暂不能开始授权'
     }
     if (status === 'provider_unsupported') {
-      return 'Provider 尚未开放连接'
+      return '当前服务暂不支持连接'
     }
     if (status === 'pkce_unavailable') {
-      return 'PKCE 不可用，无法开始授权'
+      return '当前版本暂不能开始授权'
     }
     return '授权准备失败'
   }
