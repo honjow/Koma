@@ -71,8 +71,8 @@ assert.match(
 )
 assert.match(
   backupPageSource,
-  /exportToPicker\(\)[\s\S]*importFromPicker\(\)/,
-  'BackupManagementPage must expose export and import actions',
+  /exportToPicker\(\)[\s\S]*selectImportPreviewFromPicker\(\)[\s\S]*restoreSelectedBackup\(\)/,
+  'BackupManagementPage must expose export, import preview, and explicit restore actions',
 )
 assert.match(
   backupServiceSource,
@@ -111,13 +111,28 @@ assert.match(
 )
 assert.match(
   backupPageSource,
-  /importFromPicker\(\)[\s\S]*\.then\(\(restored: boolean\) => \{[\s\S]*if \(restored\) \{[\s\S]*this\.showInfoDialog\('备份已导入'/,
-  'BackupManagementPage must show import success only when a restore actually happened',
+  /selectImportPreviewFromPicker\(\)[\s\S]*selectedBackupPayload[\s\S]*selectedBackupPreview[\s\S]*restoreSelectedBackup\(\)[\s\S]*backupService\(\)\.import\(this\.selectedBackupPayload\)[\s\S]*this\.showInfoDialog\('备份已导入'/,
+  'BackupManagementPage must preview picker-selected backups before explicit restore',
 )
 assert.match(
   backupPageSource,
   /BACKUP_MANAGEMENT_STORAGE_NOTE/,
   'BackupManagementPage must explain picker-selected files are user-managed',
+)
+assert.match(
+  backupServiceSource,
+  /export interface BackupImportPreview[\s\S]*schemaVersion:\s*number[\s\S]*exportedAtText:\s*string[\s\S]*encryptionText:\s*string[\s\S]*libraryItemCount:\s*number[\s\S]*progressCount:\s*number[\s\S]*settingsCount:\s*number[\s\S]*categoryCount:\s*number[\s\S]*downloadQueueCount:\s*number[\s\S]*trackerMappingCount:\s*number[\s\S]*sourcePackageCount:\s*number/,
+  'backup import preview must expose version, exportedAt, encryption state, and core counts',
+)
+assert.match(
+  backupServiceSource,
+  /preview\(json: string\): BackupImportPreview[\s\S]*document\.schemaVersion !== BACKUP_SCHEMA_VERSION[\s\S]*document\.schemaVersion !== BACKUP_SCHEMA_VERSION_V2[\s\S]*document\.schemaVersion !== BACKUP_SCHEMA_VERSION_V1[\s\S]*formatBackupEncryption\(document\.encryption\)[\s\S]*libraryItemCount: arrayFieldCount\(libraryStore, 'comics'\)[\s\S]*progressCount: arrayFieldCount\(readingProgress, 'progress'\)/,
+  'backup preview must keep v1/v2/v3 compatibility and summarize without requiring new metadata',
+)
+assert.match(
+  backupPageSource,
+  /恢复所选备份[\s\S]*BACKUP_IMPORT_PREVIEW_NOTE[\s\S]*BACKUP_IMPORT_CONFLICT_POLICY/,
+  'BackupManagementPage must state preview/conflict policy and require a separate restore action',
 )
 const safeStatusAndDocs = [
   backupServiceSource.match(/export const BACKUP_INCLUDED_DOMAINS[\s\S]*?export const BACKUP_MANAGEMENT_STORAGE_NOTE[^\n]*/)?.[0] ?? '',

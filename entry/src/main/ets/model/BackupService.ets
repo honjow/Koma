@@ -52,6 +52,8 @@ export const BACKUP_ENCRYPTION_STATE: string = 'unencrypted'
 export const BACKUP_ENCRYPTION_STATUS_LABEL: string = '未加密'
 export const BACKUP_ENCRYPTION_PLAN_LABEL: string = '加密备份计划中，尚未启用'
 export const BACKUP_UNENCRYPTED_EXPORT_WARNING: string = '当前导出的备份是未加密 JSON，可直接读取。请只保存到可信位置。'
+export const BACKUP_IMPORT_PREVIEW_NOTE: string = '选择备份 JSON 后会先显示版本、导出时间、未加密状态和可识别的数据数量；预览不会改动当前数据。'
+export const BACKUP_IMPORT_CONFLICT_POLICY: string = '恢复必须由用户再次确认。当前实现按备份内容恢复书架和阅读进度，并写入备份内配置；不会在预览时删除当前数据，也不会假装提供逐项冲突合并。'
 const REMOTE_SERVER_STORE_NAME: string = 'koma_remote_servers_v1'
 const SOURCE_INDEX_PREFS_STORE_NAME: string = 'koma_source_package_manager_v1'
 const SOURCE_INDEX_URL_KEY: string = 'source_index.url'
@@ -87,6 +89,27 @@ interface KomaBackupDocument {
   sourceSettings?: Record<string, SourceSettingsRecord>
   settings?: ReaderPreferences
   sourceIndexUrl?: string
+}
+
+export interface BackupImportPreview {
+  schemaVersion: number
+  exportedAtText: string
+  encryptionText: string
+  libraryItemCount: number
+  progressCount: number
+  settingsCount: number
+  categoryCount: number
+  downloadQueueCount: number
+  trackerMappingCount: number
+  sourcePackageCount: number
+  sourceSettingsCount: number
+  hasDownloadQueueCount: boolean
+  hasTrackerMappingCount: boolean
+}
+
+export interface BackupImportSelectionPreview {
+  payload: string
+  preview: BackupImportPreview
 }
 
 function joinBackupPath(parent: string, child: string): string {
@@ -130,6 +153,66 @@ function emptyReaderProgressPayload(): string {
     progress: [],
     modes: [],
   })
+}
+
+function asJsonObject(value: Object, label: string): Record<string, Object> {
+  if (value === null || Array.isArray(value) || typeof value !== 'object') {
+    throw new Error(`Invalid backup ${label}`)
+  }
+  return value as Record<string, Object>
+}
+
+function arrayFieldCount(source: Record<string, Object>, key: string): number {
+  const value = source[key]
+  if (!Array.isArray(value)) {
+    return 0
+  }
+  return value.length
+}
+
+function countLibraryCategories(libraryStore: Record<string, Object>): number {
+  const comics = libraryStore['comics']
+  if (!Array.isArray(comics)) {
+    return 0
+  }
+  const categories = new Set<string>()
+  comics.forEach((item: Object) => {
+    if (item === null || Array.isArray(item) || typeof item !== 'object') {
+      return
+    }
+    const row = item as Record<string, Object>
+    const categoryIds = row['categoryIds']
+    if (!Array.isArray(categoryIds)) {
+      return
+    }
+    categoryIds.forEach((categoryId: Object) => {
+      if (typeof categoryId === 'string' && categoryId.trim().length > 0) {
+        categories.add(categoryId.trim())
+      }
+    })
+  })
+  return categories.size
+}
+
+function countReaderPreferences(settings: ReaderPreferences | undefined): number {
+  if (settings === undefined || settings === null || Array.isArray(settings) || typeof settings !== 'object') {
+    return 0
+  }
+  return Object.keys(settings).length
+}
+
+function formatBackupExportedAt(exportedAt: number | undefined): string {
+  if (exportedAt === undefined || !Number.isFinite(exportedAt) || exportedAt <= 0) {
+    return '未提供'
+  }
+  return new Date(exportedAt).toLocaleString()
+}
+
+function formatBackupEncryption(encryption: BackupEncryptionMetadata | undefined): string {
+  if (encryption !== undefined && encryption.state === BACKUP_ENCRYPTION_STATE && encryption.algorithm === 'none') {
+    return '未加密 JSON'
+  }
+  return '未加密状态未标注；旧版备份按未加密 JSON 处理'
 }
 
 export class BackupService {
@@ -186,6 +269,35 @@ export class BackupService {
     console.info('[Backup] step=import_json')
   }
 
+  preview(json: string): BackupImportPreview {
+    const document = JSON.parse(json) as KomaBackupDocument
+    if (document.schemaVersion !== BACKUP_SCHEMA_VERSION &&
+      document.schemaVersion !== BACKUP_SCHEMA_VERSION_V2 &&
+      document.schemaVersion !== BACKUP_SCHEMA_VERSION_V1) {
+      throw new Error(`Unsupported backup schema version: ${document.schemaVersion}`)
+    }
+    if (typeof document.libraryStore !== 'string' || typeof document.readingProgress !== 'string') {
+      throw new Error('Invalid backup payload')
+    }
+    const libraryStore = asJsonObject(JSON.parse(document.libraryStore) as Object, 'library')
+    const readingProgress = asJsonObject(JSON.parse(document.readingProgress) as Object, 'progress')
+    return {
+      schemaVersion: document.schemaVersion,
+      exportedAtText: formatBackupExportedAt(document.exportedAt),
+      encryptionText: formatBackupEncryption(document.encryption),
+      libraryItemCount: arrayFieldCount(libraryStore, 'comics'),
+      progressCount: arrayFieldCount(readingProgress, 'progress'),
+      settingsCount: countReaderPreferences(document.settings),
+      categoryCount: countLibraryCategories(libraryStore),
+      downloadQueueCount: 0,
+      trackerMappingCount: 0,
+      sourcePackageCount: Array.isArray(document.sourcePackages) ? document.sourcePackages.length : 0,
+      sourceSettingsCount: document.sourceSettings === undefined ? 0 : Object.keys(document.sourceSettings).length,
+      hasDownloadQueueCount: false,
+      hasTrackerMappingCount: false,
+    }
+  }
+
   async exportToPicker(): Promise<string | undefined> {
     const payload = await this.export()
     const options = new picker.DocumentSaveOptions()
@@ -215,6 +327,24 @@ export class BackupService {
     await this.import(payload)
     console.info('[Backup] step=import_select uri=' + result[0])
     return true
+  }
+
+  async selectImportPreviewFromPicker(): Promise<BackupImportSelectionPreview | undefined> {
+    const options = new picker.DocumentSelectOptions()
+    options.maxSelectNumber = 1
+    const documentPicker = new picker.DocumentViewPicker(this.context)
+    const result = await documentPicker.select(options)
+    if (result.length === 0) {
+      console.info('[Backup] step=preview_cancel')
+      return undefined
+    }
+    const payload = fs.readTextSync(result[0], { encoding: 'utf-8' })
+    const preview = this.preview(payload)
+    console.info('[Backup] step=preview_select uri=' + result[0])
+    return {
+      payload,
+      preview,
+    }
   }
 
   private libraryPath(): string {
