@@ -39,6 +39,7 @@ const readerPageSourceAdapterPath = resolve(root, 'entry/src/main/ets/model/Read
 const sourceSettingsStorePath = resolve(root, 'entry/src/main/ets/sourceRuntime/SourceSettingsStore.ets')
 const sourceRuntimeAppRegistryPath = resolve(root, 'entry/src/main/ets/sourceRuntime/SourceRuntimeAppRegistry.ets')
 const sourceIndexServicePath = resolve(root, 'entry/src/main/ets/sourceRuntime/SourceIndexService.ets')
+const sourcePackageTrustPolicyPath = resolve(root, 'entry/src/main/ets/sourceRuntime/SourcePackageTrustPolicy.ets')
 
 const modelSource = readFileSync(modelPath, 'utf8')
 const libraryStoreSource = readFileSync(libraryStorePath, 'utf8')
@@ -76,6 +77,7 @@ const readerPageSourceAdapterSource = readFileSync(readerPageSourceAdapterPath, 
 const sourceSettingsStoreSource = readFileSync(sourceSettingsStorePath, 'utf8')
 const sourceRuntimeAppRegistrySource = readFileSync(sourceRuntimeAppRegistryPath, 'utf8')
 const sourceIndexServiceSource = readFileSync(sourceIndexServicePath, 'utf8')
+const sourcePackageTrustPolicySource = readFileSync(sourcePackageTrustPolicyPath, 'utf8')
 
 function assertExport(source, symbol) {
   assert.match(source, new RegExp(`export (interface|class|function|enum|type|const) ${symbol}\\b`), `${symbol} must be exported`)
@@ -1219,6 +1221,26 @@ assert.match(
   sourcePackageManagerPageSource,
   /capsText\(source\)/,
   'diagnostics panel must include source capabilities',
+)
+assert.match(
+  sourcePackageManagerPageSource,
+  /installedTrustMetaText\(source\)[\s\S]*installedTrustCapabilityText\(source\)[\s\S]*diagnosticsTrustText\(source\)/,
+  'source package manager must display installed source trust metadata and capability summary',
+)
+assert.match(
+  sourcePackageManagerPageSource,
+  /RemoteIndexCard\(entry: SourceIndexEntry\)[\s\S]*sourceIndexTrustMetaText\(entry\)[\s\S]*sourceIndexTrustCapabilityText\(entry\)/,
+  'source package manager must display trust metadata for source index update candidates',
+)
+assert.match(
+  sourcePackageTrustPolicySource,
+  /Koma 不提供默认公开源或预置源列表[\s\S]*用户导入[\s\S]*未验证签名[\s\S]*能力摘要（manifest 派生）/,
+  'source trust policy labels must stay honest about user import, unverified signatures, manifest-derived capabilities, and no default public sources',
+)
+assert.doesNotMatch(
+  sourcePackageTrustPolicySource,
+  /verifySignature|signatureVerified|realVerification|isSignatureValid|cryptoFramework|publicKey|certificate/i,
+  'source trust policy must not add fake signature verification',
 )
 assert.doesNotMatch(
   sourcePackageManagerPageSource,

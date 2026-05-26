@@ -26,6 +26,12 @@ import {
   SourceIndexInstallResult,
   SourceIndexService,
 } from '../sourceRuntime/SourceIndexService'
+import {
+  installedSourceTrustSummary,
+  SourcePackageTrustSummary,
+  sourceIndexCandidateTrustSummary,
+  SOURCE_PACKAGE_TRUST_BOUNDARY_NOTICE,
+} from '../sourceRuntime/SourcePackageTrustPolicy'
 
 type SourcePackageUpdateState = 'unknown' | 'checking' | 'latest' | 'update' | 'missing' | 'failed'
 type SourceSettingsValidationState = 'unknown' | 'running' | 'pass' | 'fail'
@@ -895,14 +901,46 @@ export struct SourcePackageManagerPage {
   }
 
   private capsText(source: InstalledSourcePackage): string {
-    if (source.capabilities.length === 0) {
+    return this.capabilitySummaryText(source.capabilities)
+  }
+
+  private capabilitySummaryText(capabilities: string[]): string {
+    if (capabilities.length === 0) {
       return '能力：未声明'
     }
     const labels: string[] = []
-    source.capabilities.forEach((capability: string) => {
+    capabilities.forEach((capability: string) => {
       labels.push(this.capabilityLabel(capability))
     })
     return '能力：' + labels.join(' / ')
+  }
+
+  private installedTrustSummary(source: InstalledSourcePackage): SourcePackageTrustSummary {
+    return installedSourceTrustSummary(source, this.capabilitySummaryText(source.capabilities).replace('能力：', ''))
+  }
+
+  private sourceIndexTrustSummary(entry: SourceIndexEntry): SourcePackageTrustSummary {
+    return sourceIndexCandidateTrustSummary(entry, this.hasUpdate(entry))
+  }
+
+  private trustMetaText(summary: SourcePackageTrustSummary): string {
+    return summary.provenanceLabel + ' · ' + summary.verificationLabel + ' · ' + summary.identityLabel
+  }
+
+  private installedTrustMetaText(source: InstalledSourcePackage): string {
+    return this.trustMetaText(this.installedTrustSummary(source))
+  }
+
+  private installedTrustCapabilityText(source: InstalledSourcePackage): string {
+    return this.installedTrustSummary(source).capabilitySummaryLabel
+  }
+
+  private sourceIndexTrustMetaText(entry: SourceIndexEntry): string {
+    return this.trustMetaText(this.sourceIndexTrustSummary(entry))
+  }
+
+  private sourceIndexTrustCapabilityText(entry: SourceIndexEntry): string {
+    return this.sourceIndexTrustSummary(entry).capabilitySummaryLabel
   }
 
   private sourceMetaText(source: InstalledSourcePackage): string {
@@ -967,6 +1005,11 @@ export struct SourcePackageManagerPage {
     return 'Settings validation：' + status.status + ' · saved=' + status.savedCount.toString() + ' · ' + reason
   }
 
+  private diagnosticsTrustText(source: InstalledSourcePackage): string {
+    const summary = this.installedTrustSummary(source)
+    return 'Trust：' + summary.provenanceLabel + ' · ' + summary.verificationLabel + ' · ' + summary.identityLabel
+  }
+
   @Builder
   private IndexUrlCard() {
     Column({ space: 12 }) {
@@ -1026,6 +1069,12 @@ export struct SourcePackageManagerPage {
           .lineHeight(20)
           .fontColor($r('app.color.koma_text_secondary'))
       }
+
+      Text(SOURCE_PACKAGE_TRUST_BOUNDARY_NOTICE)
+        .width('100%')
+        .fontSize(12)
+        .lineHeight(18)
+        .fontColor($r('app.color.koma_text_secondary'))
     }
     .width('100%')
     .padding(16)
@@ -1122,6 +1171,18 @@ export struct SourcePackageManagerPage {
           .textOverflow({ overflow: TextOverflow.Ellipsis })
           .fontColor($r('app.color.koma_text_secondary'))
       }
+
+      Text(this.sourceIndexTrustMetaText(entry))
+        .width('100%')
+        .fontSize(12)
+        .fontColor($r('app.color.koma_text_secondary'))
+        .maxLines(2)
+        .textOverflow({ overflow: TextOverflow.Ellipsis })
+
+      Text(this.sourceIndexTrustCapabilityText(entry))
+        .width('100%')
+        .fontSize(12)
+        .fontColor($r('app.color.koma_text_secondary'))
     }
     .width('100%')
     .padding(16)
@@ -1165,6 +1226,12 @@ export struct SourcePackageManagerPage {
           .lineHeight(20)
           .fontColor($r('app.color.koma_text_secondary'))
       }
+
+      Text(SOURCE_PACKAGE_TRUST_BOUNDARY_NOTICE)
+        .width('100%')
+        .fontSize(12)
+        .lineHeight(18)
+        .fontColor($r('app.color.koma_text_secondary'))
     }
     .width('100%')
     .padding(16)
@@ -1223,6 +1290,13 @@ export struct SourcePackageManagerPage {
         .fontSize(13)
         .fontColor($r('app.color.koma_text_secondary'))
 
+      Text(this.installedTrustMetaText(source))
+        .width('100%')
+        .fontSize(12)
+        .fontColor($r('app.color.koma_text_secondary'))
+        .maxLines(2)
+        .textOverflow({ overflow: TextOverflow.Ellipsis })
+
       Text(this.updateStatusText(source))
         .width('100%')
         .fontSize(12)
@@ -1250,6 +1324,13 @@ export struct SourcePackageManagerPage {
         .textOverflow({ overflow: TextOverflow.Ellipsis })
 
       Text(this.capsText(source))
+        .width('100%')
+        .fontSize(12)
+        .fontColor($r('app.color.koma_text_secondary'))
+        .maxLines(2)
+        .textOverflow({ overflow: TextOverflow.Ellipsis })
+
+      Text(this.installedTrustCapabilityText(source))
         .width('100%')
         .fontSize(12)
         .fontColor($r('app.color.koma_text_secondary'))
@@ -1390,6 +1471,12 @@ export struct SourcePackageManagerPage {
         .width('100%')
         .fontSize(12)
         .fontColor($r('app.color.koma_text_secondary'))
+      Text(this.diagnosticsTrustText(source))
+        .width('100%')
+        .fontSize(12)
+        .fontColor($r('app.color.koma_text_secondary'))
+        .maxLines(2)
+        .textOverflow({ overflow: TextOverflow.Ellipsis })
       Text(this.capsText(source))
         .width('100%')
         .fontSize(12)

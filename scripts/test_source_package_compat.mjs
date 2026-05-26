@@ -12,6 +12,7 @@ const browsePagePath = resolve(root, 'entry/src/main/ets/pages/BrowsePage.ets')
 const sourceSettingsStorePath = resolve(root, 'entry/src/main/ets/sourceRuntime/SourceSettingsStore.ets')
 const smokePath = resolve(root, 'entry/src/main/ets/sourceRuntime/SourceRuntimeDeviceSmoke.ets')
 const sourceRuntimeRegistryPath = resolve(root, 'entry/src/main/ets/sourceRuntime/SourceRuntimeRegistry.ets')
+const sourcePackageTrustPolicyPath = resolve(root, 'entry/src/main/ets/sourceRuntime/SourcePackageTrustPolicy.ets')
 const abiDocPath = resolve(root, 'docs/source-runtime-abi.md')
 const sdkDocPath = resolve(root, 'docs/source-package-sdk.md')
 const localKomaFixturePath = resolve(root, 'entry/src/main/resources/rawfile/test/local_source_runtime_fixture.koma')
@@ -29,6 +30,7 @@ const browsePageSource = readFileSync(browsePagePath, 'utf8')
 const sourceSettingsStoreSource = readFileSync(sourceSettingsStorePath, 'utf8')
 const smokeSource = readFileSync(smokePath, 'utf8')
 const sourceRuntimeRegistrySource = readFileSync(sourceRuntimeRegistryPath, 'utf8')
+const sourcePackageTrustPolicySource = readFileSync(sourcePackageTrustPolicyPath, 'utf8')
 const abiDocSource = readFileSync(abiDocPath, 'utf8')
 const sdkDocSource = readFileSync(sdkDocPath, 'utf8')
 
@@ -252,6 +254,36 @@ assert.match(
   managerPageSource,
   /capabilityLabel\(capability: string\)[\s\S]*受控宿主接口[\s\S]*搜索[\s\S]*详情[\s\S]*章节[\s\S]*页面/,
   'source capability UI must translate runtime capability tokens into user-facing labels',
+)
+assert.match(
+  sourcePackageTrustPolicySource,
+  /installedSourceTrustSummary[\s\S]*用户导入[\s\S]*未验证签名[\s\S]*包 ID：[\s\S]*版本：[\s\S]*能力摘要（manifest 派生）/,
+  'installed source trust policy must use honest user-imported, unverified, id/version, and manifest-derived capability labels',
+)
+assert.match(
+  sourcePackageTrustPolicySource,
+  /sourceIndexCandidateTrustSummary[\s\S]*用户配置索引更新候选[\s\S]*未验证签名[\s\S]*能力摘要（manifest 派生）：安装校验后显示/,
+  'source index update candidates must be labeled as unverified user-configured index candidates until manifest validation',
+)
+assert.match(
+  sourcePackageTrustPolicySource,
+  /Koma 不提供默认公开源或预置源列表/,
+  'source trust policy must warn that Koma has no default public source list',
+)
+assert.match(
+  managerPageSource,
+  /SOURCE_PACKAGE_TRUST_BOUNDARY_NOTICE[\s\S]*RemoteIndexCard\(entry: SourceIndexEntry\)[\s\S]*sourceIndexTrustMetaText\(entry\)[\s\S]*sourceIndexTrustCapabilityText\(entry\)[\s\S]*PackageCard\(source: InstalledSourcePackage\)[\s\S]*installedTrustMetaText\(source\)[\s\S]*installedTrustCapabilityText\(source\)/,
+  'source package manager must render trust metadata for update/index candidates and installed packages',
+)
+assert.doesNotMatch(
+  sourcePackageTrustPolicySource + managerPageSource,
+  /官方源|已认证|已验证签名|安全源|可信源|verified signature/i,
+  'source trust UI must not claim official/certified/safe/verified status without real verification',
+)
+assert.doesNotMatch(
+  sourcePackageTrustPolicySource,
+  /verifySignature|signatureVerified|realVerification|isSignatureValid|cryptoFramework|publicKey|certificate/i,
+  'source trust policy must not introduce fake cryptographic signature verification',
 )
 assert.match(
   sourceRuntimeRegistrySource,
