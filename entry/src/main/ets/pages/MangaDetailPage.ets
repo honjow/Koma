@@ -550,19 +550,35 @@ export struct MangaDetailPage {
           return
         }
       }
-      const comic = this.libraryStore?.getComic(this.currentComicId())
-      if (comic === undefined) {
+      const initialComic = this.libraryStore?.getComic(this.currentComicId())
+      if (initialComic === undefined) {
         this.downloadStatusText = '请先收藏到书架'
         this.showToast('请先收藏到书架')
         return
       }
       try {
-        await installReaderRemoteHeadersForComic(getContext(this) as common.UIAbilityContext, comic)
+        await installReaderRemoteHeadersForComic(getContext(this) as common.UIAbilityContext, initialComic)
       } catch (_error) {
         console.warn('[ReaderOffline] step=detail_batch_headers_unavailable failed=true')
       }
       for (let index = 0; index < targetChapterIds.length; index += 1) {
         const chapterId = targetChapterIds[index]
+        if (this.manga.sourceId !== undefined) {
+          try {
+            const hydrated = await this.ensureSourceChapterPages(chapterId)
+            if (!hydrated) {
+              console.warn('[ReaderOffline] step=batch_pages_unavailable failed=true reason=source_pages_missing')
+            }
+          } catch (_error) {
+            console.warn('[ReaderOffline] step=batch_pages_unavailable failed=true reason=source_pages_lookup')
+          }
+        }
+        const comic = this.libraryStore?.getComic(this.currentComicId())
+        if (comic === undefined) {
+          failedCount += 1
+          this.downloadStatusText = `批量下载中 ${index + 1}/${targetChapterIds.length}`
+          continue
+        }
         const chapterTitle = this.chapters.find((item: MangaChapterItem): boolean => item.id === chapterId)?.title
         const manifest = await service.downloadChapter(comic, chapterId, {
           comicTitle: comic.title,
@@ -585,20 +601,26 @@ export struct MangaDetailPage {
     }
   }
 
-  private async ensureSourceChapterPages(chapterId: string): Promise<void> {
+  private async ensureSourceChapterPages(chapterId: string): Promise<boolean> {
     if (this.libraryStore === undefined || this.manga.sourceId === undefined) {
-      return
+      return false
     }
     const comic = this.libraryStore.getComic(this.currentComicId())
     const chapter = comic?.chapters.find((item: Chapter): boolean => item.id === chapterId)
-    if (comic === undefined || chapter === undefined || chapter.pages.length > 0) {
-      return
+    if (comic === undefined || chapter === undefined) {
+      return false
+    }
+    if (chapter.pages.length > 0) {
+      return true
     }
     const lookup = this.sourceRegistry.lookup(this.manga.sourceId)
     if (!lookup.ok || lookup.entry === undefined) {
       throw new Error(lookup.reasonCode ?? 'source lookup failed')
     }
     const pages = await this.runSourcePagesOperation(lookup.entry, comic.id, chapterId)
+    if (pages.length === 0) {
+      return false
+    }
     chapter.pages = pages
     chapter.pageCount = pages.length
     chapter.updatedAt = Date.now()
@@ -610,6 +632,7 @@ export struct MangaDetailPage {
       upsertComicAndPersistLibraryStore(this.libraryStore, this.libraryPersistenceService, comic)
     }
     this.onLibraryChanged()
+    return true
   }
 
   private markChapterReadState(chapterId: string, isRead: boolean): void {
