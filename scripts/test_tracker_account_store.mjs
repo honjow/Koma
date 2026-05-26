@@ -6,6 +6,15 @@ const root = resolve(import.meta.dirname, '..')
 const trackerModelsSource = readFileSync(resolve(root, 'entry/src/main/ets/model/TrackerModels.ets'), 'utf8')
 const backupServiceSource = readFileSync(resolve(root, 'entry/src/main/ets/model/BackupService.ets'), 'utf8')
 
+function createDeterministicPkceForTest(seed) {
+  const normalized = seed.replace(/[^A-Za-z0-9._~-]/g, '').slice(0, 32)
+  const verifier = `koma-test-${normalized.length === 0 ? 'seed' : normalized}-verifier-000000000000000000000000`
+  return {
+    codeVerifier: verifier,
+    codeChallenge: verifier,
+  }
+}
+
 const trackerAccountBlock = trackerModelsSource.match(/export interface TrackerAccount \{[\s\S]*?\n\}/)?.[0] ?? ''
 assert.match(trackerAccountBlock, /providerId: TrackerProviderId/, 'account must include provider id')
 assert.match(trackerAccountBlock, /status: TrackerAccountStatus/, 'account must include honest status')
@@ -35,10 +44,13 @@ assert.match(
   /provider\.authorizationEndpoint === undefined \|\| provider\.clientId === undefined \|\| provider\.redirectUri === undefined[\s\S]*status: 'provider_config_missing'/,
   'OAuth preparation must require provider registration metadata without a client secret',
 )
-assert.match(
+const testPkce = createDeterministicPkceForTest('tracker-account-store')
+assert.equal(testPkce.codeVerifier, testPkce.codeChallenge, 'test-only PKCE helper should be deterministic for script fixtures')
+assert.match(testPkce.codeVerifier, /^koma-test-tracker-account-store-verifier-0+$/, 'test-only PKCE helper should sanitize stable seeds')
+assert.doesNotMatch(
   trackerModelsSource,
-  /createDeterministicPkceForTest\(seed: string\)/,
-  'PKCE helper must be explicitly test-only while production remains gated',
+  /createDeterministicPkceForTest/,
+  'deterministic PKCE helper must not be exported from production source',
 )
 const prepareConnectBlock = trackerModelsSource.match(/async prepareConnect\(providerId: TrackerProviderId\): Promise<TrackerOAuthStartPreparation> \{[\s\S]*?\n  \}/)?.[0] ?? ''
 assert.match(
