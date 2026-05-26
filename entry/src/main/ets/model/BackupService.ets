@@ -25,8 +25,17 @@ import {
   appSourceSettingsStore,
   configureSourceSettingsStore,
 } from '../sourceRuntime/SourceSettingsStore'
+import {
+  BACKUP_ENCRYPTED_CONTENT_SCHEMA_VERSION,
+  BACKUP_PASSPHRASE_MIN_LENGTH,
+  BackupEncryptedPublicPreview,
+  BackupEncryptionService,
+  isEncryptedBackupPayload,
+  previewEncryptedBackupEnvelope,
+} from './BackupEncryptionService'
 
 export const BACKUP_SCHEMA_VERSION: number = 3
+export const BACKUP_ENCRYPTED_SCHEMA_VERSION: number = BACKUP_ENCRYPTED_CONTENT_SCHEMA_VERSION
 export const BACKUP_SCHEMA_VERSION_V2: number = 2
 export const BACKUP_SCHEMA_VERSION_V1: number = 1
 export const BACKUP_ACCEPTED_SCHEMA_VERSIONS: number[] = [
@@ -50,10 +59,12 @@ export const BACKUP_INCLUDED_DOMAIN_LABELS: string[] = [
 ]
 export const BACKUP_MANAGEMENT_STORAGE_NOTE: string = '备份文件通过系统文件选择器保存和选择，当前页面不保留应用内备份历史。已导出的文件由用户在所选位置管理。'
 export const BACKUP_ENCRYPTION_STATE: string = 'unencrypted'
-export const BACKUP_ENCRYPTION_STATUS_LABEL: string = '未加密'
-export const BACKUP_ENCRYPTION_PLAN_LABEL: string = '加密备份计划中，尚未启用'
+export const BACKUP_ENCRYPTION_STATUS_LABEL: string = '可用'
+export const BACKUP_ENCRYPTION_PLAN_LABEL: string = '加密导出使用 PBKDF2-HMAC-SHA-256 和 AES-256-GCM；Koma 不保存口令，也无法找回。'
 export const BACKUP_UNENCRYPTED_EXPORT_WARNING: string = '当前导出的备份是未加密 JSON，可直接读取。请只保存到可信位置。'
-export const BACKUP_IMPORT_PREVIEW_NOTE: string = '选择备份 JSON 后会先显示版本、导出时间、未加密状态和可识别的数据数量；预览不会改动当前数据。'
+export const BACKUP_ENCRYPTED_EXPORT_SUCCESS: string = '加密备份已保存。请妥善保管口令；Koma 不保存也无法找回。'
+export const BACKUP_PASSPHRASE_HELP_TEXT: string = `加密备份口令至少 ${BACKUP_PASSPHRASE_MIN_LENGTH} 个字符。导入加密备份时，解密成功后仍需再次确认恢复。`
+export const BACKUP_IMPORT_PREVIEW_NOTE: string = '选择备份后会先显示版本、导出时间、加密状态和可识别的数据数量；加密备份在输入口令并认证通过前只显示公开信封信息。预览不会改动当前数据。'
 export const BACKUP_IMPORT_CONFLICT_POLICY: string = '恢复必须由用户再次确认。当前实现按备份内容恢复书架和阅读进度，并写入备份内配置；不会在预览时删除当前数据，也不会假装提供逐项冲突合并。'
 const REMOTE_SERVER_STORE_NAME: string = 'koma_remote_servers_v1'
 const SOURCE_INDEX_PREFS_STORE_NAME: string = 'koma_source_package_manager_v1'
@@ -96,6 +107,10 @@ export interface BackupImportPreview {
   schemaVersion: number
   exportedAtText: string
   encryptionText: string
+  encrypted: boolean
+  decrypted: boolean
+  algorithm: string
+  kdfId: string
   libraryItemCount: number
   progressCount: number
   settingsCount: number
@@ -220,6 +235,38 @@ function formatBackupEncryption(encryption: BackupEncryptionMetadata | undefined
   return '未加密状态未标注；旧版备份按未加密 JSON 处理'
 }
 
+function emptyEncryptedCountsPreview(publicPreview: BackupEncryptedPublicPreview): BackupImportPreview {
+  return {
+    schemaVersion: publicPreview.contentSchemaVersion,
+    exportedAtText: publicPreview.exportedAtText,
+    encryptionText: '已加密；需要口令解密后预览内容',
+    encrypted: true,
+    decrypted: false,
+    algorithm: publicPreview.algorithm,
+    kdfId: publicPreview.kdfId,
+    libraryItemCount: 0,
+    progressCount: 0,
+    settingsCount: 0,
+    categoryCount: 0,
+    downloadQueueCount: 0,
+    trackerMappingCount: 0,
+    sourcePackageCount: 0,
+    sourceSettingsCount: 0,
+    hasDownloadQueueCount: false,
+    hasTrackerMappingCount: false,
+  }
+}
+
+function isAcceptedPlaintextSchemaVersion(schemaVersion: number): boolean {
+  return schemaVersion === BACKUP_SCHEMA_VERSION ||
+    schemaVersion === BACKUP_SCHEMA_VERSION_V2 ||
+    schemaVersion === BACKUP_SCHEMA_VERSION_V1
+}
+
+function isAcceptedDecryptedSchemaVersion(schemaVersion: number): boolean {
+  return isAcceptedPlaintextSchemaVersion(schemaVersion) || schemaVersion === BACKUP_ENCRYPTED_SCHEMA_VERSION
+}
+
 export class BackupService {
   private context: common.UIAbilityContext
 
@@ -229,8 +276,19 @@ export class BackupService {
   }
 
   async export(): Promise<string> {
+    return JSON.stringify(await this.buildBackupDocument(BACKUP_SCHEMA_VERSION))
+  }
+
+  async exportEncrypted(passphrase: string): Promise<string> {
+    const document = await this.buildBackupDocument(BACKUP_ENCRYPTED_SCHEMA_VERSION)
+    const payload = await new BackupEncryptionService().encrypt(JSON.stringify(document), passphrase)
+    console.info('[Backup] step=export_encrypted')
+    return payload
+  }
+
+  private async buildBackupDocument(schemaVersion: number): Promise<KomaBackupDocument> {
     const document: KomaBackupDocument = {
-      schemaVersion: BACKUP_SCHEMA_VERSION,
+      schemaVersion,
       exportedAt: Date.now(),
       encryption: {
         state: BACKUP_ENCRYPTION_STATE,
@@ -245,14 +303,23 @@ export class BackupService {
       sourceIndexUrl: await this.exportSourceIndexUrl(),
     }
     console.info('[Backup] step=export_json')
-    return JSON.stringify(document)
+    return document
   }
 
   async import(json: string): Promise<void> {
+    await this.importDocument(json, false)
+  }
+
+  async importDecrypted(json: string): Promise<void> {
+    await this.importDocument(json, true)
+  }
+
+  private async importDocument(json: string, allowEncryptedContentSchema: boolean): Promise<void> {
     const document = JSON.parse(json) as KomaBackupDocument
-    if (document.schemaVersion !== BACKUP_SCHEMA_VERSION &&
-      document.schemaVersion !== BACKUP_SCHEMA_VERSION_V2 &&
-      document.schemaVersion !== BACKUP_SCHEMA_VERSION_V1) {
+    const accepted = allowEncryptedContentSchema ?
+      isAcceptedDecryptedSchemaVersion(document.schemaVersion) :
+      isAcceptedPlaintextSchemaVersion(document.schemaVersion)
+    if (!accepted) {
       throw new Error(`Unsupported backup schema version: ${document.schemaVersion}`)
     }
     if (typeof document.libraryStore !== 'string' || typeof document.readingProgress !== 'string') {
@@ -275,10 +342,22 @@ export class BackupService {
   }
 
   preview(json: string): BackupImportPreview {
+    if (isEncryptedBackupPayload(json)) {
+      return emptyEncryptedCountsPreview(previewEncryptedBackupEnvelope(json))
+    }
+    return this.previewDocument(json, false)
+  }
+
+  private previewDecrypted(json: string): BackupImportPreview {
+    return this.previewDocument(json, true)
+  }
+
+  private previewDocument(json: string, allowEncryptedContentSchema: boolean): BackupImportPreview {
     const document = JSON.parse(json) as KomaBackupDocument
-    if (document.schemaVersion !== BACKUP_SCHEMA_VERSION &&
-      document.schemaVersion !== BACKUP_SCHEMA_VERSION_V2 &&
-      document.schemaVersion !== BACKUP_SCHEMA_VERSION_V1) {
+    const accepted = allowEncryptedContentSchema ?
+      isAcceptedDecryptedSchemaVersion(document.schemaVersion) :
+      isAcceptedPlaintextSchemaVersion(document.schemaVersion)
+    if (!accepted) {
       throw new Error(`Unsupported backup schema version: ${document.schemaVersion}`)
     }
     if (typeof document.libraryStore !== 'string' || typeof document.readingProgress !== 'string') {
@@ -290,6 +369,10 @@ export class BackupService {
       schemaVersion: document.schemaVersion,
       exportedAtText: formatBackupExportedAt(document.exportedAt),
       encryptionText: formatBackupEncryption(document.encryption),
+      encrypted: false,
+      decrypted: true,
+      algorithm: 'none',
+      kdfId: '',
       libraryItemCount: arrayFieldCount(libraryStore, 'comics'),
       progressCount: arrayFieldCount(readingProgress, 'progress'),
       settingsCount: countReaderPreferences(document.settings),
@@ -300,6 +383,33 @@ export class BackupService {
       sourceSettingsCount: document.sourceSettings === undefined ? 0 : Object.keys(document.sourceSettings).length,
       hasDownloadQueueCount: false,
       hasTrackerMappingCount: false,
+    }
+  }
+
+  async decryptPreview(json: string, passphrase: string): Promise<BackupImportSelectionPreview> {
+    const plaintext = await new BackupEncryptionService().decrypt(json, passphrase)
+    const preview = this.previewDecrypted(plaintext)
+    return {
+      payload: plaintext,
+      preview: {
+        schemaVersion: preview.schemaVersion,
+        exportedAtText: preview.exportedAtText,
+        algorithm: preview.algorithm,
+        kdfId: preview.kdfId,
+        libraryItemCount: preview.libraryItemCount,
+        progressCount: preview.progressCount,
+        settingsCount: preview.settingsCount,
+        categoryCount: preview.categoryCount,
+        downloadQueueCount: preview.downloadQueueCount,
+        trackerMappingCount: preview.trackerMappingCount,
+        sourcePackageCount: preview.sourcePackageCount,
+        sourceSettingsCount: preview.sourceSettingsCount,
+        hasDownloadQueueCount: preview.hasDownloadQueueCount,
+        hasTrackerMappingCount: preview.hasTrackerMappingCount,
+        encrypted: true,
+        decrypted: true,
+        encryptionText: '已加密；口令认证通过',
+      },
     }
   }
 
@@ -315,7 +425,23 @@ export class BackupService {
       return undefined
     }
     writeText(result[0], payload)
-    console.info('[Backup] step=export_save uri=' + result[0])
+    console.info('[Backup] step=export_save')
+    return result[0]
+  }
+
+  async exportEncryptedToPicker(passphrase: string): Promise<string | undefined> {
+    const payload = await this.exportEncrypted(passphrase)
+    const options = new picker.DocumentSaveOptions()
+    options.newFileNames = [`koma-backup-${Date.now()}.koma-backup`]
+    options.fileSuffixChoices = ['Koma 加密备份|.koma-backup']
+    const documentPicker = new picker.DocumentViewPicker(this.context)
+    const result = await documentPicker.save(options)
+    if (result.length === 0) {
+      console.info('[Backup] step=export_encrypted_cancel')
+      return undefined
+    }
+    writeText(result[0], payload)
+    console.info('[Backup] step=export_encrypted_save')
     return result[0]
   }
 
@@ -330,7 +456,7 @@ export class BackupService {
     }
     const payload = fs.readTextSync(result[0], { encoding: 'utf-8' })
     await this.import(payload)
-    console.info('[Backup] step=import_select uri=' + result[0])
+    console.info('[Backup] step=import_select')
     return true
   }
 
@@ -345,7 +471,7 @@ export class BackupService {
     }
     const payload = fs.readTextSync(result[0], { encoding: 'utf-8' })
     const preview = this.preview(payload)
-    console.info('[Backup] step=preview_select uri=' + result[0])
+    console.info('[Backup] step=preview_select')
     return {
       payload,
       preview,
@@ -364,11 +490,11 @@ export class BackupService {
     const store = await preferences.getPreferences(this.context, REMOTE_SERVER_STORE_NAME)
     return {
       komgaServer: await store.get(KOMGA_SERVER_KEY, '') as string,
-      komgaCredential: await store.get(KOMGA_CREDENTIAL_KEY, '') as string,
+      komgaCredential: '',
       webDavServer: await store.get(WEBDAV_SERVER_KEY, '') as string,
-      webDavCredential: await store.get(WEBDAV_CREDENTIAL_KEY, '') as string,
+      webDavCredential: '',
       opdsServer: await store.get(OPDS_SERVER_KEY, '') as string,
-      opdsCredential: await store.get(OPDS_CREDENTIAL_KEY, '') as string,
+      opdsCredential: '',
     }
   }
 

@@ -92,7 +92,7 @@ Verified on device `192.168.50.103:12345`:
 | Downloads queue controls | `a61c63b` | MangaDetail visible-chapter batch download actions plus Downloads page status filters, batch retry for feasible failed/partial rows, and cleanup controls. |
 | Source package update UX / SDK docs | `54debb0` | Source Package Manager surfaces update/capability UX hooks, persisted capability summaries are bounded by manifest-derived allowlists, and `docs/source-package-sdk.md` documents the author contract. |
 | Reader trim/volume preferences | `08c203e` | Settings adds non-destructive trim-page-margins and volume-key-navigation preferences; trim removes container inset without rounded clipping, while volume-key runtime remains explicitly unwired. |
-| D6 backup management UI | `8bc42bf` | Settings opens a dedicated Backup Management page showing schema/status, included domains, export/import actions, and picker-file ownership limits without adding cloud sync, scheduling, or encryption UX. |
+| D6 backup management UI | `8bc42bf` | Settings opens a dedicated Backup Management page showing schema/status, included domains, export/import actions, picker-file ownership limits, and the current encrypted backup flow; cloud sync and scheduling remain out of scope. |
 | D8 tracker settings skeleton | `pending` | Settings opens a dedicated tracker page with AniList/MyAnimeList/Kitsu/MangaUpdates/Bangumi unavailable placeholders plus local-only provider/status and per-comic mapping models. Public tracker account sync, login, credential storage, and remote write APIs remain explicitly out of scope. |
 
 ## Current Product Baseline
@@ -174,7 +174,7 @@ Verified on device `192.168.50.103:12345`:
 5. OPDS publication path uses image URL fallback for the tested Komga OPDS v2 demo; EPUB/publication manifest returned HTTP 406.
 6. Error-state UI is not unified across source types; intentionally deferred because the user asked to prioritize functionality over UI detail.
 7. Large CBZ / large remote chapter performance still needs stress testing.
-8. Backup JSON is local user-initiated and unencrypted; encryption/password UX was explicitly not added. Source settings backup is sanitized and excludes credential-like values.
+8. Backup JSON remains local user-initiated. Legacy JSON export is still unencrypted and labeled as such; encrypted export/import uses a passphrase-gated envelope path. Source settings backup is sanitized and excludes credential-like values.
 9. Downloads are foreground/in-app only: no OS background scheduler, no notifications, no pause/concurrency policy, and source-backed `pages_missing` rows still require opening MangaDetail to hydrate pages before retry.
 10. Library category runtime device QA covered empty-state/safe-area only because the device had no library rows; static tests cover category membership/filter contracts.
 11. Reader advanced settings still need real chapter visual QA for unusual image aspect ratios; static/build gates and Settings persistence device smoke pass.
