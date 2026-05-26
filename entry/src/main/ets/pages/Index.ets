@@ -26,6 +26,7 @@ import { SourcePackageManagerPage } from './SourcePackageManagerPage'
 import { WebDavServerPage } from './WebDavServerPage'
 import { DownloadsPage } from './DownloadsPage'
 import { BackupManagementPage } from './BackupManagementPage'
+import { TrackerSettingsPage } from './TrackerSettingsPage'
 import { RouteName, TabIndex, TabLabel } from '../common/Constants'
 import { RouterHelper } from '../common/RouterHelper'
 import { KomaTabIcon } from '../components/KomaTabIcon'
@@ -376,6 +377,11 @@ struct Index {
         BackupManagementPage()
       }
       .titleBar(this.navDestTitleBarOpts('备份与恢复'))
+    } else if (name === RouteName.TRACKER_SETTINGS) {
+      HdsNavDestination() {
+        TrackerSettingsPage()
+      }
+      .titleBar(this.navDestTitleBarOpts('追踪账号'))
     }
   }
 
@@ -473,6 +479,9 @@ struct Index {
             },
             onOpenBackupManagement: () => {
               this.openSettingsSecondary(RouteName.BACKUP_MANAGEMENT)
+            },
+            onOpenTrackerSettings: () => {
+              this.openSettingsSecondary(RouteName.TRACKER_SETTINGS)
             },
             onLibraryChanged: () => {
               this.refreshLibrarySnapshot()

@@ -101,6 +101,7 @@ const SETTINGS_SECTIONS: SettingsSection[] = [
       { key: 'library-update-results', title: '书架更新详情', detail: '尚无结果' },
       { key: 'sources', title: '管理已安装的源包', detail: '暂未安装源包' },
       { key: 'downloads', title: '下载管理', detail: '离线章节与失败任务' },
+      { key: 'trackers', title: '追踪账号', detail: '公共账号同步尚未接入' },
       { key: 'backup', title: '备份与恢复', detail: '导出书架、进度、源包和设置' },
       { key: 'image-cache', title: '图片缓存', detail: '0 B · 0 项' },
     ],
@@ -125,6 +126,7 @@ export struct SettingsPage {
   onOpenLibraryUpdateResults: () => void = () => {}
   onOpenDownloads: () => void = () => {}
   onOpenBackupManagement: () => void = () => {}
+  onOpenTrackerSettings: () => void = () => {}
   onLibraryChanged: () => void = () => {}
   libraryStore?: LibraryStore
   libraryPersistenceService?: LibraryStorePersistenceService
@@ -841,6 +843,8 @@ export struct SettingsPage {
       this.showReaderVolumeKeyNavigationSheet()
     } else if (row.key === 'backup') {
       this.onOpenBackupManagement()
+    } else if (row.key === 'trackers') {
+      this.onOpenTrackerSettings()
     } else if (row.key === 'image-cache') {
       this.showImageCacheSheet()
     } else if (row.key === 'sources') {

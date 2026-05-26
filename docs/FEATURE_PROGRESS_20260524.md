@@ -10,12 +10,16 @@ Artifacts:
 - `.hermes-artifacts/20260525-0230-safe-area-main-shell/`
 - `.hermes-artifacts/20260525-0245-source-settings/`
 - `.hermes-artifacts/20260526-d6-backup-management-ui/`
+- `.hermes-artifacts/20260526-d8-tracker-skeleton/`
 
-Verified after reader image-cache management, content-list safe-area avoidance, and source-specific settings:
+Verified after reader image-cache management, content-list safe-area avoidance, source-specific settings, backup management UI, and tracker settings skeleton:
 
+- `node scripts/test_tracker_settings.mjs` PASS.
 - `node scripts/test_koma_models.mjs` PASS.
 - `node scripts/test_source_package_compat.mjs` PASS.
 - `node scripts/test_backup_management.mjs` PASS.
+- `node scripts/test_reader_settings.mjs` PASS.
+- `node scripts/test_offline_download_queue.mjs` PASS.
 - `node scripts/test_reader_progress.mjs` PASS.
 - `bash scripts/validate-napi-source-runtime-sample.sh` PASS.
 - `bash dev.sh --build-only --non-interactive` PASS.
@@ -88,6 +92,7 @@ Verified on device `192.168.50.103:12345`:
 | Source package update UX / SDK docs | `54debb0` | Source Package Manager surfaces update/capability UX hooks, persisted capability summaries are bounded by manifest-derived allowlists, and `docs/source-package-sdk.md` documents the author contract. |
 | Reader trim/volume preferences | `08c203e` | Settings adds non-destructive trim-page-margins and volume-key-navigation preferences; trim removes container inset without rounded clipping, while volume-key runtime remains explicitly unwired. |
 | D6 backup management UI | `8bc42bf` | Settings opens a dedicated Backup Management page showing schema/status, included domains, export/import actions, and picker-file ownership limits without adding cloud sync, scheduling, or encryption UX. |
+| D8 tracker settings skeleton | `pending` | Settings opens a dedicated tracker page with AniList/MyAnimeList/Kitsu/MangaUpdates/Bangumi unavailable placeholders plus local-only provider/status and per-comic mapping models. Public tracker account sync, login, credential storage, and remote write APIs remain explicitly out of scope. |
 
 ## Current Product Baseline
 
@@ -139,6 +144,7 @@ Verified on device `192.168.50.103:12345`:
 - Foreground library update check with last summary/status row.
 - Library update details page shows the latest in-memory check summary and per-comic results from Settings.
 - Library update auto-check preferences are persisted and run only when Settings opens and a due interval has elapsed while the app is foregrounded.
+- Tracker settings page lists AniList, MyAnimeList, Kitsu, MangaUpdates, and Bangumi as unavailable/not-connected placeholders. The tracker data skeleton stores only local provider id/display name/status and an inert per-comic mapping shape; there is no login UI, credential storage, public account sync, or remote write API in this lane.
 
 ### WASM Source Runtime
 
@@ -172,3 +178,4 @@ Verified on device `192.168.50.103:12345`:
 11. Reader advanced settings still need real chapter visual QA for unusual image aspect ratios; static/build gates and Settings persistence device smoke pass.
 12. Source package update/capability UX was device-smoked only in empty-state because no installed source package was present; static tests cover tampered persisted capability metadata and update-state contracts.
 13. Volume-key reader navigation is preference-only; runtime key-event handling is still unwired.
+14. Tracker settings skeleton has static/build coverage only in this lane; device QA still needs to open Settings -> 追踪账号 and confirm the secondary page safe-area layout on hardware.
