@@ -2,7 +2,10 @@ import { MangaDetailHeader } from '../components/MangaDetailHeader'
 import { common } from '@kit.AbilityKit'
 import { MangaDescriptionSection } from '../components/MangaDescriptionSection'
 import { MangaTagsSection } from '../components/MangaTagsSection'
-import { ChapterListSection } from '../components/ChapterListSection'
+import {
+  ChapterBatchDownloadMode,
+  ChapterListSection,
+} from '../components/ChapterListSection'
 import { StorageKeys } from '../constants/StorageKeys'
 import { ThemeConstants } from '../theme/ThemeConstants'
 import {
@@ -429,6 +432,88 @@ export struct MangaDetailPage {
     }
   }
 
+  private batchDownloadChapterIds(chapterIds: string[], mode: ChapterBatchDownloadMode): string[] {
+    const service = this.offlineDownloadService()
+    if (service === undefined) {
+      return []
+    }
+    const comicId = this.currentComicId()
+    return chapterIds.filter((chapterId: string): boolean => {
+      const summary = service.getChapterSummary(comicId, chapterId)
+      if (mode === ChapterBatchDownloadMode.FAILED_ONLY) {
+        return summary?.status === OfflineDownloadStatus.FAILED ||
+          summary?.status === OfflineDownloadStatus.PARTIAL
+      }
+      if (mode === ChapterBatchDownloadMode.NOT_DOWNLOADED) {
+        return summary?.status !== OfflineDownloadStatus.DOWNLOADED
+      }
+      return true
+    })
+  }
+
+  private async handleDownloadVisibleChapters(chapterIds: string[], mode: ChapterBatchDownloadMode): Promise<void> {
+    if (this.downloadBusy) {
+      return
+    }
+    const service = this.offlineDownloadService()
+    if (service === undefined) {
+      this.downloadStatusText = '下载不可用'
+      this.showToast('下载不可用')
+      return
+    }
+    const targetChapterIds = this.batchDownloadChapterIds(chapterIds, mode)
+    if (targetChapterIds.length === 0) {
+      this.downloadStatusText = '没有符合条件的章节'
+      this.showToast('没有符合条件的章节')
+      return
+    }
+    this.downloadBusy = true
+    this.downloadStatusText = `批量下载中 0/${targetChapterIds.length}`
+    let downloadedCount = 0
+    let blockedCount = 0
+    let failedCount = 0
+    try {
+      if (!this.isInLibrary && this.manga.sourceId !== undefined) {
+        const added = await this.handleAddToLibrary()
+        if (!added) {
+          this.downloadStatusText = '下载已取消'
+          return
+        }
+      }
+      const comic = this.libraryStore?.getComic(this.currentComicId())
+      if (comic === undefined) {
+        this.downloadStatusText = '请先收藏到书架'
+        this.showToast('请先收藏到书架')
+        return
+      }
+      try {
+        await installReaderRemoteHeadersForComic(getContext(this) as common.UIAbilityContext, comic)
+      } catch (_error) {
+        console.warn('[ReaderOffline] step=detail_batch_headers_unavailable failed=true')
+      }
+      for (let index = 0; index < targetChapterIds.length; index += 1) {
+        const chapterId = targetChapterIds[index]
+        const chapterTitle = this.chapters.find((item: MangaChapterItem): boolean => item.id === chapterId)?.title
+        const manifest = await service.downloadChapter(comic, chapterId, {
+          comicTitle: comic.title,
+          chapterTitle,
+        })
+        if (manifest.status === OfflineDownloadStatus.DOWNLOADED) {
+          downloadedCount += 1
+        } else if (manifest.status === OfflineDownloadStatus.BLOCKED) {
+          blockedCount += 1
+        } else {
+          failedCount += 1
+        }
+        this.downloadStatusText = `批量下载中 ${index + 1}/${targetChapterIds.length}`
+      }
+      this.downloadStatusText = `批量完成：已下载 ${downloadedCount}，受阻 ${blockedCount}，失败 ${failedCount}`
+      this.showToast(blockedCount > 0 ? '部分章节缺少页数据' : '批量下载完成')
+    } finally {
+      this.downloadBusy = false
+    }
+  }
+
   private async ensureSourceChapterPages(chapterId: string): Promise<void> {
     if (this.libraryStore === undefined || this.manga.sourceId === undefined) {
       return
@@ -706,6 +791,9 @@ export struct MangaDetailPage {
           },
           onDownloadChapter: (chapterId: string) => {
             this.handleDownloadChapter(chapterId)
+          },
+          onDownloadVisibleChapters: (chapterIds: string[], mode: ChapterBatchDownloadMode) => {
+            this.handleDownloadVisibleChapters(chapterIds, mode)
           },
         })
       }

@@ -1,5 +1,11 @@
 import { ChapterSortOrder, MangaChapterItem } from '../model/MangaDetailModels'
 
+export enum ChapterBatchDownloadMode {
+  ALL_VISIBLE = 'all_visible',
+  FAILED_ONLY = 'failed_only',
+  NOT_DOWNLOADED = 'not_downloaded',
+}
+
 class ChapterListDataSource implements IDataSource {
   private listeners: DataChangeListener[] = []
   private chapters: MangaChapterItem[] = []
@@ -45,6 +51,8 @@ export struct ChapterListSection {
   private dataSource: ChapterListDataSource = new ChapterListDataSource([])
   onOpenChapter: (chapterId: string) => void = (_chapterId: string) => {}
   onDownloadChapter: (chapterId: string) => void = (_chapterId: string) => {}
+  onDownloadVisibleChapters: (chapterIds: string[], mode: ChapterBatchDownloadMode) => void =
+    (_chapterIds: string[], _mode: ChapterBatchDownloadMode) => {}
 
   private rebuildDataSource(): void {
     this.sortedChapters = this.sortedChapterList()
@@ -92,6 +100,10 @@ export struct ChapterListSection {
   private setSortOrder(sortOrder: ChapterSortOrder): void {
     this.sortOrder = sortOrder
     this.rebuildDataSource()
+  }
+
+  private visibleChapterIds(): string[] {
+    return this.sortedChapters.map((chapter: MangaChapterItem): string => chapter.id)
   }
 
   private chapterTitle(chapter: MangaChapterItem): string {
@@ -148,6 +160,24 @@ export struct ChapterListSection {
       MenuItem({ content: '话数升序' })
         .onClick(() => {
           this.setSortOrder(ChapterSortOrder.BY_NUMBER_ASC)
+        })
+    }
+  }
+
+  @Builder
+  private BatchDownloadMenu() {
+    Menu() {
+      MenuItem({ content: '下载可见章节' })
+        .onClick(() => {
+          this.onDownloadVisibleChapters(this.visibleChapterIds(), ChapterBatchDownloadMode.ALL_VISIBLE)
+        })
+      MenuItem({ content: '仅重试失败' })
+        .onClick(() => {
+          this.onDownloadVisibleChapters(this.visibleChapterIds(), ChapterBatchDownloadMode.FAILED_ONLY)
+        })
+      MenuItem({ content: '下载未完成' })
+        .onClick(() => {
+          this.onDownloadVisibleChapters(this.visibleChapterIds(), ChapterBatchDownloadMode.NOT_DOWNLOADED)
         })
     }
   }
@@ -221,6 +251,14 @@ export struct ChapterListSection {
           .fontWeight(FontWeight.Bold)
           .fontColor($r('app.color.koma_text_primary'))
         Blank()
+        Button('批量下载 ▾')
+          .height(34)
+          .padding({ left: 12, right: 12 })
+          .borderRadius(8)
+          .fontSize(13)
+          .fontColor($r('app.color.koma_accent'))
+          .backgroundColor('#00000000')
+          .bindMenu(this.BatchDownloadMenu())
         Button(`${this.sortLabel()} ↕`)
           .height(34)
           .padding({ left: 12, right: 12 })

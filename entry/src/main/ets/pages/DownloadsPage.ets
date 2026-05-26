@@ -14,11 +14,21 @@ import {
 } from '../model/OfflineDownloadQueueStore'
 import { installReaderRemoteHeadersForComic } from '../model/ReaderPageSourceAdapter'
 
+enum DownloadQueueFilter {
+  ALL = 'all',
+  QUEUED = 'queued',
+  DOWNLOADING = 'downloading',
+  FAILED = 'failed',
+  BLOCKED = 'blocked',
+  DOWNLOADED = 'downloaded',
+}
+
 @Component
 export struct DownloadsPage {
   libraryStore?: LibraryStore
   @State private entries: OfflineDownloadQueueEntry[] = []
   @State private busyKey: string = ''
+  @State private filter: DownloadQueueFilter = DownloadQueueFilter.ALL
 
   private context(): common.UIAbilityContext {
     return getContext(this) as common.UIAbilityContext
@@ -34,6 +44,51 @@ export struct DownloadsPage {
 
   private rowKey(entry: OfflineDownloadQueueEntry): string {
     return `${entry.comicId}::${entry.chapterId}`
+  }
+
+  private visibleEntries(): OfflineDownloadQueueEntry[] {
+    return this.entries.filter((entry: OfflineDownloadQueueEntry): boolean => {
+      if (this.filter === DownloadQueueFilter.ALL) {
+        return true
+      }
+      if (this.filter === DownloadQueueFilter.FAILED) {
+        return entry.status === OfflineDownloadStatus.FAILED ||
+          entry.status === OfflineDownloadStatus.PARTIAL
+      }
+      if (this.filter === DownloadQueueFilter.DOWNLOADED) {
+        return entry.status === OfflineDownloadStatus.DOWNLOADED
+      }
+      if (this.filter === DownloadQueueFilter.BLOCKED) {
+        return entry.status === OfflineDownloadStatus.BLOCKED
+      }
+      if (this.filter === DownloadQueueFilter.DOWNLOADING) {
+        return entry.status === OfflineDownloadStatus.DOWNLOADING
+      }
+      return entry.status === OfflineDownloadStatus.QUEUED
+    })
+  }
+
+  private filterLabel(): string {
+    if (this.filter === DownloadQueueFilter.QUEUED) {
+      return 'queued'
+    }
+    if (this.filter === DownloadQueueFilter.DOWNLOADING) {
+      return 'downloading'
+    }
+    if (this.filter === DownloadQueueFilter.FAILED) {
+      return 'failed'
+    }
+    if (this.filter === DownloadQueueFilter.BLOCKED) {
+      return 'blocked'
+    }
+    if (this.filter === DownloadQueueFilter.DOWNLOADED) {
+      return 'downloaded'
+    }
+    return 'all'
+  }
+
+  private setFilter(filter: DownloadQueueFilter): void {
+    this.filter = filter
   }
 
   private rowTitle(entry: OfflineDownloadQueueEntry): string {
@@ -83,6 +138,18 @@ export struct DownloadsPage {
   private canRetry(entry: OfflineDownloadQueueEntry): boolean {
     return entry.status === OfflineDownloadStatus.FAILED ||
       entry.status === OfflineDownloadStatus.PARTIAL
+  }
+
+  private retryableEntries(): OfflineDownloadQueueEntry[] {
+    return this.visibleEntries().filter((entry: OfflineDownloadQueueEntry): boolean => this.canRetry(entry))
+  }
+
+  private removableCompletedFailedEntries(): OfflineDownloadQueueEntry[] {
+    return this.entries.filter((entry: OfflineDownloadQueueEntry): boolean => {
+      return entry.status === OfflineDownloadStatus.DOWNLOADED ||
+        entry.status === OfflineDownloadStatus.FAILED ||
+        entry.status === OfflineDownloadStatus.PARTIAL
+    })
   }
 
   private canRemove(entry: OfflineDownloadQueueEntry): boolean {
@@ -146,6 +213,91 @@ export struct DownloadsPage {
       })
   }
 
+  private retryFailedDownloads(): void {
+    if (this.busyKey.length > 0) {
+      return
+    }
+    const targets = this.retryableEntries()
+    if (targets.length === 0) {
+      this.showToast('没有可重试任务')
+      return
+    }
+    this.busyKey = 'batch-retry'
+    void this.runRetryBatch(targets)
+  }
+
+  private async runRetryBatch(targets: OfflineDownloadQueueEntry[]): Promise<void> {
+    let retried = 0
+    try {
+      for (let index = 0; index < targets.length; index += 1) {
+        const entry = targets[index]
+        if (!this.canRetry(entry)) {
+          continue
+        }
+        const comic = this.libraryStore?.getComic(entry.comicId)
+        if (comic === undefined) {
+          continue
+        }
+        try {
+          await installReaderRemoteHeadersForComic(this.context(), comic)
+        } catch (_error) {
+        }
+        const service = new OfflineDownloadService(
+          new OfflineDownloadStore(this.context().filesDir),
+          this.queueStore()
+        )
+        await service.downloadChapter(comic, entry.chapterId, {
+          comicTitle: entry.comicTitle ?? comic.title,
+          chapterTitle: entry.chapterTitle,
+        })
+        retried += 1
+      }
+      this.loadQueue()
+      this.showToast(retried > 0 ? '已重试失败任务' : '没有可重试任务')
+    } catch (error) {
+      const e = error as Error
+      console.warn('[Downloads] step=batch_retry_failed message=' + e.message)
+      this.showToast('批量重试失败')
+    } finally {
+      this.busyKey = ''
+    }
+  }
+
+  private removeCompletedFailedDownloads(): void {
+    if (this.busyKey.length > 0) {
+      return
+    }
+    const targets = this.removableCompletedFailedEntries()
+    if (targets.length === 0) {
+      this.showToast('没有可清理任务')
+      return
+    }
+    this.busyKey = 'batch-remove'
+    void this.runRemoveBatch(targets)
+  }
+
+  private async runRemoveBatch(targets: OfflineDownloadQueueEntry[]): Promise<void> {
+    try {
+      const store = this.queueStore()
+      for (let index = 0; index < targets.length; index += 1) {
+        const entry = targets[index]
+        if (entry.status === OfflineDownloadStatus.DOWNLOADED ||
+          entry.status === OfflineDownloadStatus.FAILED ||
+          entry.status === OfflineDownloadStatus.PARTIAL) {
+          await store.deleteChapterDownload(entry.comicId, entry.chapterId)
+        }
+      }
+      this.loadQueue()
+      this.showToast('已清理完成和失败任务')
+    } catch (error) {
+      const e = error as Error
+      console.warn('[Downloads] step=batch_remove_failed message=' + e.message)
+      this.showToast('批量清理失败')
+    } finally {
+      this.busyKey = ''
+    }
+  }
+
   private showToast(message: string): void {
     try {
       this.getUIContext().getPromptAction().showToast({ message: message })
@@ -155,6 +307,80 @@ export struct DownloadsPage {
 
   aboutToAppear(): void {
     this.loadQueue()
+  }
+
+  @Builder
+  private FilterMenu() {
+    Menu() {
+      MenuItem({ content: '全部' })
+        .onClick(() => {
+          this.setFilter(DownloadQueueFilter.ALL)
+        })
+      MenuItem({ content: 'queued' })
+        .onClick(() => {
+          this.setFilter(DownloadQueueFilter.QUEUED)
+        })
+      MenuItem({ content: 'downloading' })
+        .onClick(() => {
+          this.setFilter(DownloadQueueFilter.DOWNLOADING)
+        })
+      MenuItem({ content: 'failed' })
+        .onClick(() => {
+          this.setFilter(DownloadQueueFilter.FAILED)
+        })
+      MenuItem({ content: 'blocked' })
+        .onClick(() => {
+          this.setFilter(DownloadQueueFilter.BLOCKED)
+        })
+      MenuItem({ content: 'downloaded' })
+        .onClick(() => {
+          this.setFilter(DownloadQueueFilter.DOWNLOADED)
+        })
+    }
+  }
+
+  @Builder
+  private QueueControls() {
+    Column({ space: 8 }) {
+      Row() {
+        Button(`状态 ${this.filterLabel()} ▾`)
+          .height(34)
+          .padding({ left: 12, right: 12 })
+          .borderRadius(8)
+          .fontSize(13)
+          .fontColor(this.filter !== DownloadQueueFilter.ALL ? Color.White : $r('app.color.koma_text_primary'))
+          .backgroundColor(this.filter !== DownloadQueueFilter.ALL ? $r('app.color.koma_accent') : $r('app.color.koma_card'))
+          .bindMenu(this.FilterMenu())
+      }
+      .width('100%')
+
+      Row({ space: 8 }) {
+        Button(this.busyKey === 'batch-retry' ? '重试中' : '重试失败')
+          .height(34)
+          .padding({ left: 12, right: 12 })
+          .borderRadius(8)
+          .fontSize(13)
+          .fontColor($r('app.color.koma_accent'))
+          .backgroundColor('#00000000')
+          .enabled(this.busyKey.length === 0)
+          .onClick(() => {
+            this.retryFailedDownloads()
+          })
+        Button(this.busyKey === 'batch-remove' ? '清理中' : '清理完成/失败')
+          .height(34)
+          .padding({ left: 12, right: 12 })
+          .borderRadius(8)
+          .fontSize(13)
+          .fontColor($r('app.color.koma_text_secondary'))
+          .backgroundColor('#00000000')
+          .enabled(this.busyKey.length === 0)
+          .onClick(() => {
+            this.removeCompletedFailedDownloads()
+          })
+      }
+      .width('100%')
+    }
+    .width('100%')
   }
 
   @Builder
@@ -258,7 +484,15 @@ export struct DownloadsPage {
             this.EmptyState()
           }
         } else {
-          ForEach(this.entries, (entry: OfflineDownloadQueueEntry) => {
+          ListItem() {
+            this.QueueControls()
+          }
+          if (this.visibleEntries().length === 0) {
+            ListItem() {
+              this.EmptyState()
+            }
+          }
+          ForEach(this.visibleEntries(), (entry: OfflineDownloadQueueEntry) => {
             ListItem() {
               this.DownloadRow(entry)
             }
