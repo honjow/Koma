@@ -84,6 +84,7 @@ Verified on device `192.168.50.103:12345`:
 | Reader advanced settings | `031157a` | Settings adds image fit, tap navigation, and page gap controls; Reader consumes persisted settings with non-cropping fit-width and narrow edge tap zones. |
 | Downloads queue controls | `a61c63b` | MangaDetail visible-chapter batch download actions plus Downloads page status filters, batch retry for feasible failed/partial rows, and cleanup controls. |
 | Source package update UX / SDK docs | `54debb0` | Source Package Manager surfaces update/capability UX hooks, persisted capability summaries are bounded by manifest-derived allowlists, and `docs/source-package-sdk.md` documents the author contract. |
+| Reader trim/volume preferences | `08c203e` | Settings adds non-destructive trim-page-margins and volume-key-navigation preferences; trim removes container inset without rounded clipping, while volume-key runtime remains explicitly unwired. |
 
 ## Current Product Baseline
 
@@ -108,6 +109,7 @@ Verified on device `192.168.50.103:12345`:
 - Remote image cache under app cache with LRU and prefetch.
 - Offline chapter download MVP records durable queue rows under app files, exposes a Settings Downloads page, lets MangaDetail trigger per-chapter and visible-chapter batch downloads, and supports queue status filters plus batch retry/cleanup for feasible rows. This is still an in-app foreground MVP, not an OS background downloader.
 - Advanced reader settings persist image fit mode, tap navigation, and page gap mode. `fit_width` widens the container without `Cover` cropping; tap navigation uses narrow edge zones and can be disabled.
+- Reader trim-page-margins and volume-key-navigation preferences persist and round-trip through backups. Trim is a presentation-only inset reduction with no rounded clipping when enabled; volume-key navigation is saved as a preference until Harmony key-event handling is wired.
 
 ### Private Libraries
 
@@ -166,3 +168,4 @@ Verified on device `192.168.50.103:12345`:
 10. Library category runtime device QA covered empty-state/safe-area only because the device had no library rows; static tests cover category membership/filter contracts.
 11. Reader advanced settings still need real chapter visual QA for unusual image aspect ratios; static/build gates and Settings persistence device smoke pass.
 12. Source package update/capability UX was device-smoked only in empty-state because no installed source package was present; static tests cover tampered persisted capability metadata and update-state contracts.
+13. Volume-key reader navigation is preference-only; runtime key-event handling is still unwired.

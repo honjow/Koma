@@ -1,7 +1,7 @@
 # Koma vs Aidoku vs Mihon 功能对比
 
 更新时间：2026-05-26  
-Koma 基线：`76bf170 Merge branch 'lane-d5-source-sdk-update-ux'`
+Koma 基线：`08c203e feat: extend reader advanced settings`
 
 ## 证据来源
 
@@ -32,7 +32,7 @@ Koma 不是完成态。当前是 **HarmonyOS 私有/本地优先漫画阅读器�
 | 产品边界 | 私有漫画书架 + 阅读器；不内置源、不源市场、不宣传聚合 | 在线阅读 + WASM/external source system | 本地 + 扩展源；官方不提供内容 | Koma 边界更保守，适合上架；功能补齐不能走内置源市场路线。 |
 | 本地漫画 | CBZ/ZIP 导入；多图片导入；导入后入书架 | 当前官方资料重点是 external sources，不是本地目录主线 | Local source：固定目录结构、文件夹/zip/chapter 结构 | Koma 已有导入，但缺 Mihon 式 local source 文件夹规范、重扫、元数据识别。 |
 | 书架 Library | 网格、继续阅读、历史、排序/过滤、移出、Favorite/Read Later 分类过滤、批量分类增删 | Library + bookmark/add to library | Library + categories + filters | 分类 MVP 已有；缺自定义分类、分类排序、更多筛选维度。 |
-| 阅读器模式 | 单页、连续/Webtoon、双页、RTL 双页、沉浸 chrome、图片适配、点击翻页、页面间距 | 可在线/下载阅读；当前官方 README 未细分 reader 设置 | 多 viewer、阅读方向、paged/long strip、大量 reader settings | Koma 基础 reader 已成；缺裁边、宽图拆分/旋转、音量键、更多背景/手势设置。 |
+| 阅读器模式 | 单页、连续/Webtoon、双页、RTL 双页、沉浸 chrome、图片适配、点击翻页、页面间距、非裁剪收紧页边、音量键翻页偏好 | 可在线/下载阅读；当前官方 README 未细分 reader 设置 | 多 viewer、阅读方向、paged/long strip、大量 reader settings | Koma 基础 reader 已成；缺真实音量键 runtime、宽图拆分/旋转、更多背景/手势设置。 |
 | 阅读进度 | 本地进度持久化；History；Komga progress pull/push | tracker 集成 | 本地进度 + tracker 更新；Komga/Kavita enhanced services | Koma 有 Komga 方向，但无 MAL/AniList/Kitsu 等公共 tracker。 |
 | 私有库 | Komga / OPDS / WebDAV 已接入；Browse/Reader/favorites/部分进度同步 | 主要 source 系统 | Komga/Kavita enhanced services；更多 tracker 生态 | Koma 私有库方向强，但需要 NAS/WebDAV、OPDS 1/2、Komga auth/大库兼容性矩阵。 |
 | 在线/自定义源 | WAMR source runtime；URL index 导入 `.koma`；MangaDex E2E 已到 Reader 图片；source author SDK 文档 | Robust WASM source system；`.aix` 外部 source；source list | Extension repos + APK extensions + manual extensions | Koma 架构接近 Aidoku 思路；仍缺真实源生态、源开发工具、签名/信任策略、错误恢复、更多真实源兼容。 |
@@ -72,8 +72,8 @@ Koma 不是完成态。当前是 **HarmonyOS 私有/本地优先漫画阅读器�
 
 3. **Reader 高级设置增强**
    - 对标 Mihon reader settings。
-   - 已有：tap navigation 开关、非裁剪 fit-width/fit-screen、页面间距、屏幕常亮、进度显示开关。
-   - 仍需：裁边、宽图拆分/旋转、音量键、更多背景/手势设置。
+   - 已有：tap navigation 开关、非裁剪 fit-width/fit-screen、页面间距、非裁剪收紧页边、音量键翻页偏好、屏幕常亮、进度显示开关。
+   - 仍需：真实音量键 runtime、宽图拆分/旋转、更多背景/手势设置。
 
 4. **Source runtime 管理完善**
    - 对标 Aidoku source list / Mihon extension repos，但保持 Koma 的“不内置源、不源市场”边界。
