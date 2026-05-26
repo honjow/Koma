@@ -10,6 +10,11 @@ import {
   formatLibraryUpdateSummary,
 } from '../model/LibraryUpdateService'
 import {
+  LocalLibraryRefreshService,
+  LocalLibraryRefreshSummary,
+  formatLocalLibraryRefreshSummary,
+} from '../model/LocalLibraryRefreshService'
+import {
   LibraryUpdateResultStore,
   getLatestLibraryUpdateSummary,
   setLatestLibraryUpdateSummary,
@@ -103,6 +108,7 @@ const SETTINGS_SECTIONS: SettingsSection[] = [
       { key: 'library-update-notifications', title: '更新提醒', detail: '计划中 · 暂不发送' },
       { key: 'library-update', title: '检查书架更新', detail: '尚未检查' },
       { key: 'library-update-results', title: '书架更新详情', detail: '尚无结果' },
+      { key: 'local-library-refresh', title: '刷新本地导入', detail: '需要重新选择本地文件' },
       { key: 'sources', title: '管理已安装的源包', detail: '暂未安装源包' },
       { key: 'downloads', title: '下载管理', detail: '离线章节与失败任务' },
       { key: 'trackers', title: '追踪账号', detail: '公共账号同步尚未接入' },
@@ -151,6 +157,8 @@ export struct SettingsPage {
   @State private libraryUpdateBusy: boolean = false
   @State private libraryUpdateSummary?: LibraryUpdateSummary = undefined
   @State private libraryUpdatePreferences: LibraryUpdatePreferences = DEFAULT_LIBRARY_UPDATE_PREFERENCES
+  @State private localLibraryRefreshBusy: boolean = false
+  @State private localLibraryRefreshSummary?: LocalLibraryRefreshSummary = undefined
 
   private context(): common.UIAbilityContext {
     return getContext(this) as common.UIAbilityContext
@@ -243,13 +251,20 @@ export struct SettingsPage {
     if (row.key === 'library-update-results') {
       return this.libraryUpdateSummary === undefined ? '尚无结果' : '查看最近检查结果'
     }
+    if (row.key === 'local-library-refresh') {
+      if (this.localLibraryRefreshBusy) {
+        return '检查中...'
+      }
+      return formatLocalLibraryRefreshSummary(this.localLibraryRefreshSummary)
+    }
     return row.detail
   }
 
   private rowDetailMaxLines(row: SettingsRow): number {
     if (row.key === 'library-update' ||
       row.key === 'library-update-interval' ||
-      row.key === 'library-update-notifications') {
+      row.key === 'library-update-notifications' ||
+      row.key === 'local-library-refresh') {
       return 2
     }
     return 1
@@ -791,6 +806,39 @@ export struct SettingsPage {
       })
   }
 
+  private checkLocalLibraryRefresh(): void {
+    if (this.localLibraryRefreshBusy) {
+      return
+    }
+    if (this.libraryStore === undefined) {
+      this.showToast('本地刷新不可用')
+      return
+    }
+    this.localLibraryRefreshBusy = true
+    console.info('[Settings] step=local_library_refresh_start')
+    try {
+      const summary = new LocalLibraryRefreshService(this.libraryStore).checkLocalLibraryRefresh()
+      this.localLibraryRefreshSummary = summary
+      console.info(
+        '[Settings] step=local_library_refresh_done total=' + summary.totalCount +
+          ' reselectRequired=' + summary.reselectRequiredCount
+      )
+      if (summary.totalCount === 0) {
+        this.showToast('没有本地导入项目')
+      } else if (summary.reselectRequiredCount > 0) {
+        this.showToast('刷新需要重新选择本地文件')
+      } else {
+        this.showToast('本地导入无需处理')
+      }
+    } catch (error) {
+      const e = error as Error
+      console.warn('[Settings] step=local_library_refresh_failed message=' + e.message)
+      this.showToast('检查本地刷新失败')
+    } finally {
+      this.localLibraryRefreshBusy = false
+    }
+  }
+
   private showInfoDialog(title: string, message: string): void {
     void this.getUIContext().getPromptAction().showDialog({
       title,
@@ -872,6 +920,8 @@ export struct SettingsPage {
       this.checkLibraryUpdates()
     } else if (row.key === 'library-update-results') {
       this.openLibraryUpdateResults()
+    } else if (row.key === 'local-library-refresh') {
+      this.checkLocalLibraryRefresh()
     } else if (row.key === 'about') {
       this.showAboutDialog()
     } else if (row.key === 'version') {
