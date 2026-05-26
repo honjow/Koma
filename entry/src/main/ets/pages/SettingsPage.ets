@@ -43,6 +43,7 @@ import {
   ReaderPageMode,
   ReaderPreferencesStore,
   ReaderThemeMode,
+  ReaderWideImageMode,
   applyReaderThemeMode,
   getReaderBackgroundModeLabel,
   getReaderImageFitModeLabel,
@@ -53,6 +54,7 @@ import {
   getReaderTapNavigationLabel,
   getReaderThemeModeLabel,
   getReaderTrimPageMarginsLabel,
+  getReaderWideImageModeLabel,
   getReaderVolumeKeyNavigationLabel,
   getReadingDirectionLabel,
 } from '../model/ReaderPreferencesStore'
@@ -93,6 +95,7 @@ const SETTINGS_SECTIONS: SettingsSection[] = [
       { key: 'reader-tap-navigation', title: '点击翻页', detail: '开启' },
       { key: 'reader-page-gap', title: '页面间距', detail: '标准' },
       { key: 'reader-trim-page-margins', title: '收紧页边（不裁图）', detail: '关闭' },
+      { key: 'reader-wide-image-mode', title: '宽图处理', detail: '保持单页' },
       { key: 'reader-volume-key-navigation', title: '音量键翻页', detail: '关闭' },
     ],
   },
@@ -151,6 +154,7 @@ export struct SettingsPage {
   @State private readerTapNavigationEnabled: boolean = true
   @State private readerPageGapMode: ReaderPageGapMode = 'normal'
   @State private readerTrimPageMarginsEnabled: boolean = false
+  @State private readerWideImageMode: ReaderWideImageMode = 'keep_single'
   @State private readerVolumeKeyNavigationEnabled: boolean = false
   @State private versionDetail: string = 'Koma 开发版'
   @State private imageCacheDetail: string = '0 B · 0 项'
@@ -206,6 +210,9 @@ export struct SettingsPage {
     }
     if (row.key === 'reader-trim-page-margins') {
       return getReaderTrimPageMarginsLabel(this.readerTrimPageMarginsEnabled)
+    }
+    if (row.key === 'reader-wide-image-mode') {
+      return getReaderWideImageModeLabel(this.readerWideImageMode)
     }
     if (row.key === 'reader-volume-key-navigation') {
       return getReaderVolumeKeyNavigationLabel(this.readerVolumeKeyNavigationEnabled)
@@ -287,6 +294,7 @@ export struct SettingsPage {
         this.readerTapNavigationEnabled = preferences.tapNavigationEnabled
         this.readerPageGapMode = preferences.pageGapMode
         this.readerTrimPageMarginsEnabled = preferences.trimPageMarginsEnabled
+        this.readerWideImageMode = preferences.wideImageMode
         this.readerVolumeKeyNavigationEnabled = preferences.volumeKeyNavigationEnabled
         console.info('[Settings] step=load_preferences')
       })
@@ -622,6 +630,34 @@ export struct SettingsPage {
       })
   }
 
+  private showReaderWideImageModeSheet(): void {
+    console.info('[Settings] step=reader_wide_image_mode_sheet')
+    this.getUIContext().showActionSheet({
+      title: '宽图处理',
+      message: '当前版本保持宽图单页显示；拆分和旋转需要可靠图片尺寸检测后再开放',
+      sheets: [
+        { title: '保持单页', action: () => { this.saveReaderWideImageMode('keep_single') } },
+        { title: '拆分宽图（计划中）', action: () => { this.showReaderWideImagePlannedDialog('拆分宽图') } },
+        { title: '旋转宽图（计划中）', action: () => { this.showReaderWideImagePlannedDialog('旋转宽图') } },
+      ],
+    })
+  }
+
+  private saveReaderWideImageMode(wideImageMode: ReaderWideImageMode): void {
+    this.readerWideImageMode = wideImageMode
+    void this.preferencesStore().saveWideImageMode(wideImageMode)
+      .then(() => {
+        console.info('[Settings] step=save_reader_wide_image_mode value=' + wideImageMode)
+      })
+      .catch((error: Error) => {
+        console.warn('[Settings] step=save_reader_wide_image_mode_failed message=' + error.message)
+      })
+  }
+
+  private showReaderWideImagePlannedDialog(title: string): void {
+    this.showInfoDialog(title, '尚未接入可靠图片尺寸检测与页面拆分/旋转渲染。本版本会继续保持宽图单页显示，避免裁切或误旋转。')
+  }
+
   private showReaderVolumeKeyNavigationSheet(): void {
     console.info('[Settings] step=reader_volume_key_navigation_sheet')
     this.getUIContext().showActionSheet({
@@ -898,6 +934,8 @@ export struct SettingsPage {
       this.showReaderPageGapSheet()
     } else if (row.key === 'reader-trim-page-margins') {
       this.showReaderTrimPageMarginsSheet()
+    } else if (row.key === 'reader-wide-image-mode') {
+      this.showReaderWideImageModeSheet()
     } else if (row.key === 'reader-volume-key-navigation') {
       this.showReaderVolumeKeyNavigationSheet()
     } else if (row.key === 'backup') {
