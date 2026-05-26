@@ -23,6 +23,57 @@ const indexSource = readFileSync(indexPath, 'utf8')
 const settingsPageSource = readFileSync(settingsPagePath, 'utf8')
 const readerPreferencesStoreSource = readFileSync(readerPreferencesStorePath, 'utf8')
 
+assert.match(
+  readerPreferencesStoreSource,
+  /export type ReaderWideImageMode = 'keep_single' \| 'rotate_wide_pages' \| 'split_wide_pages'/,
+  'reader preferences must persist wide-page split as a first-class mode alongside rotation',
+)
+assert.match(
+  readerPageSource,
+  /export const READER_WIDE_IMAGE_ASPECT_RATIO_THRESHOLD:\s*number = 1\.2[\s\S]*export function shouldSplitReaderWideImagePage\(mode: ReaderWideImageMode, readerMode: ReaderMode, width: number \| undefined, height: number \| undefined\): boolean[\s\S]*mode === 'split_wide_pages' && readerMode !== ReaderMode\.DUAL_PAGE && isReaderWideLandscapePage\(width, height\)/,
+  'wide-page split must use the shared threshold, require dimensions, and stay disabled for dual-page mode',
+)
+assert.match(
+  readerPageSource,
+  /export function readerWidePageSplitSidesForDirection\(direction: ReadingDirection\): ReaderWidePageSplitSide\[\][\s\S]*ReadingDirection\.RIGHT_TO_LEFT[\s\S]*return \['right', 'left'\][\s\S]*return \['left', 'right'\]/,
+  'wide-page split ordering must be right/left for RTL and left/right for LTR',
+)
+assert.match(
+  readerPageSource,
+  /shouldRotateReaderWideImagePage\(mode: ReaderWideImageMode, width: number \| undefined, height: number \| undefined\): boolean \{[\s\S]*mode === 'rotate_wide_pages'[\s\S]*shouldSplitReaderWideImagePage\(mode: ReaderWideImageMode, readerMode: ReaderMode, width: number \| undefined, height: number \| undefined\): boolean \{[\s\S]*mode === 'split_wide_pages'/,
+  'wide-page rotate and split must be mutually exclusive mode checks',
+)
+assert.match(
+  readerChromeSource,
+  /@Prop\s+canGoPrevious:\s*boolean = false[\s\S]*@Prop\s+canGoNext:\s*boolean = false/,
+  'ReaderChrome navigation enabled state must be supplied independently from physical page indexes',
+)
+assert.match(
+  readerChromeSource,
+  /Button\('上一页'\)[\s\S]*\.enabled\(this\.canGoPrevious\)[\s\S]*if \(this\.canGoPrevious\) \{[\s\S]*this\.onPreviousPage\(\)/,
+  'ReaderChrome previous control must use split-aware canGoPrevious before invoking the callback',
+)
+assert.match(
+  readerChromeSource,
+  /Button\('下一页'\)[\s\S]*\.enabled\(this\.canGoNext\)[\s\S]*if \(this\.canGoNext\) \{[\s\S]*this\.onNextPage\(\)/,
+  'ReaderChrome next control must use split-aware canGoNext before invoking the callback',
+)
+assert.match(
+  readerPageSource,
+  /private isSinglePageSplitMode\(\): boolean \{[\s\S]*this\.currentReaderMode\(\) === ReaderMode\.SINGLE_PAGE && this\.wideImageMode === 'split_wide_pages'[\s\S]*private canGoPreviousPage\(\): boolean \{[\s\S]*this\.readerDisplayIndex > 0[\s\S]*return this\.pageIndex > 0/,
+  'ReaderPage must preserve physical previous boundaries outside split single-page mode',
+)
+assert.match(
+  readerPageSource,
+  /private canGoNextPage\(\): boolean \{[\s\S]*this\.readerDisplayIndex < this\.singlePageDisplayEntries\(\)\.length - 1[\s\S]*return this\.pageIndex < this\.pageTotal\(\) - 1/,
+  'ReaderPage must preserve physical next boundaries outside split single-page mode',
+)
+assert.match(
+  readerPageSource,
+  /ReaderChrome\(\{[\s\S]*canGoPrevious: this\.canGoPreviousPage\(\),[\s\S]*canGoNext: this\.canGoNextPage\(\),[\s\S]*onPreviousPage: \(\) => \{[\s\S]*this\.previousPage\(\)[\s\S]*onNextPage: \(\) => \{[\s\S]*this\.nextPage\(\)/,
+  'ReaderPage must pass split-aware navigation state while keeping chrome callbacks wired to reader navigation',
+)
+
 function assertExport(source, symbol) {
   assert.match(source, new RegExp(`export (interface|class|function|enum|type|async function) ${symbol}\\b`), `${symbol} must be exported`)
 }
@@ -37,6 +88,28 @@ function clampPageIndex(pageIndex, totalPages) {
 function calculateProgressRatio(pageIndex, totalPages) {
   if (totalPages <= 0) return 0
   return (clampPageIndex(pageIndex, totalPages) + 1) / totalPages
+}
+
+function createReaderDisplayEntries(totalPages, widePageIndexes = []) {
+  const widePages = new Set(widePageIndexes)
+  const entries = []
+  for (let pageIndex = 0; pageIndex < totalPages; pageIndex += 1) {
+    if (widePages.has(pageIndex)) {
+      entries.push({ pageIndex, splitSide: 'left' })
+      entries.push({ pageIndex, splitSide: 'right' })
+    } else {
+      entries.push({ pageIndex, splitSide: 'none' })
+    }
+  }
+  return entries
+}
+
+function splitAwareCanGoPrevious({ splitMode, readerDisplayIndex, pageIndex }) {
+  return splitMode ? readerDisplayIndex > 0 : pageIndex > 0
+}
+
+function splitAwareCanGoNext({ splitMode, readerDisplayIndex, pageIndex, displayTotal, pageTotal }) {
+  return splitMode ? readerDisplayIndex < displayTotal - 1 : pageIndex < pageTotal - 1
 }
 
 function createReadingProgress(comicId, chapterId, totalPages) {
@@ -526,6 +599,37 @@ assert.equal(isContinuousScrollReaderMode(ReaderMode.SINGLE_PAGE), false, 'singl
 assert.equal(isContinuousScrollReaderMode(ReaderMode.CONTINUOUS_SCROLL), true, 'continuous-scroll mode is recognized by contract')
 assert.equal(getReaderModeLabel(ReaderMode.SINGLE_PAGE), '单页', 'single-page mode has a quiet user-facing label')
 assert.equal(getReaderModeLabel(ReaderMode.CONTINUOUS_SCROLL), '连续滚动', 'continuous-scroll mode has a quiet user-facing label')
+
+const splitEdgeEntries = createReaderDisplayEntries(3, [0, 2])
+assert.equal(splitEdgeEntries.length, 5, 'split display has more entries than physical pages when wide pages are duplicated into halves')
+assert.equal(splitEdgeEntries[1].pageIndex, 0, 'second split half of the first physical page still reports physical page 0')
+assert.equal(
+  splitAwareCanGoPrevious({ splitMode: true, readerDisplayIndex: 1, pageIndex: splitEdgeEntries[1].pageIndex }),
+  true,
+  'chrome previous is enabled on the second split half of the first physical page',
+)
+assert.equal(splitEdgeEntries[3].pageIndex, 2, 'first split half of the last physical page still reports the last physical page')
+assert.equal(
+  splitAwareCanGoNext({
+    splitMode: true,
+    readerDisplayIndex: 3,
+    pageIndex: splitEdgeEntries[3].pageIndex,
+    displayTotal: splitEdgeEntries.length,
+    pageTotal: 3,
+  }),
+  true,
+  'chrome next is enabled on the first split half of the last physical page',
+)
+assert.equal(
+  splitAwareCanGoPrevious({ splitMode: false, readerDisplayIndex: 1, pageIndex: 0 }),
+  false,
+  'non-split previous remains disabled at the first physical page',
+)
+assert.equal(
+  splitAwareCanGoNext({ splitMode: false, readerDisplayIndex: 3, pageIndex: 2, displayTotal: splitEdgeEntries.length, pageTotal: 3 }),
+  false,
+  'non-split next remains disabled at the last physical page',
+)
 
 const config = {
   comicId: 'local-01',

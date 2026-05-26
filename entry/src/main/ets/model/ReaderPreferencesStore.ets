@@ -8,7 +8,7 @@ export type ReaderThemeMode = 'system' | 'light' | 'dark'
 export type ReaderBackgroundMode = 'black' | 'paper' | 'light'
 export type ReaderImageFitMode = 'contain' | 'fit_width'
 export type ReaderPageGapMode = 'compact' | 'normal' | 'wide'
-export type ReaderWideImageMode = 'keep_single' | 'rotate_wide_pages'
+export type ReaderWideImageMode = 'keep_single' | 'rotate_wide_pages' | 'split_wide_pages'
 
 export interface ReaderPreferences {
   pageMode: ReaderPageMode
@@ -90,7 +90,7 @@ export function normalizeReaderPageGapMode(value: string): ReaderPageGapMode {
 }
 
 export function normalizeReaderWideImageMode(value: string): ReaderWideImageMode {
-  if (value === 'rotate_wide_pages') {
+  if (value === 'rotate_wide_pages' || value === 'split_wide_pages') {
     return value
   }
   return 'keep_single'
@@ -212,6 +212,9 @@ export function getReaderTrimPageMarginsLabel(trimPageMarginsEnabled: boolean): 
 }
 
 export function getReaderWideImageModeLabel(mode: ReaderWideImageMode): string {
+  if (mode === 'split_wide_pages') {
+    return '拆分宽图'
+  }
   if (mode === 'rotate_wide_pages') {
     return '旋转宽图'
   }

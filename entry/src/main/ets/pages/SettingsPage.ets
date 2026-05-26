@@ -695,11 +695,11 @@ export struct SettingsPage {
     console.info('[Settings] step=reader_wide_image_mode_sheet')
     this.getUIContext().showActionSheet({
       title: '宽图处理',
-      message: '旋转宽图仅在页面带有可靠宽高元数据时生效；缺少尺寸时保持当前显示',
+      message: '宽图拆分和旋转仅在页面带有可靠宽高元数据时生效；拆分优先于旋转，缺少尺寸时保持当前显示。',
       sheets: [
         { title: '保持单页', action: () => { this.saveReaderWideImageMode('keep_single') } },
+        { title: '拆分宽图', action: () => { this.saveReaderWideImageMode('split_wide_pages') } },
         { title: '旋转宽图', action: () => { this.saveReaderWideImageMode('rotate_wide_pages') } },
-        { title: '拆分宽图（计划中）', action: () => { this.showReaderWideImagePlannedDialog('拆分宽图') } },
       ],
     })
   }
@@ -713,10 +713,6 @@ export struct SettingsPage {
       .catch((error: Error) => {
         console.warn('[Settings] step=save_reader_wide_image_mode_failed message=' + error.message)
       })
-  }
-
-  private showReaderWideImagePlannedDialog(title: string): void {
-    this.showInfoDialog(title, '尚未接入页面拆分渲染。本版本只会在图片元数据证明页面为宽图时旋转显示；缺少尺寸时保持单页显示，避免裁切或误旋转。')
   }
 
   private showReaderVolumeKeyNavigationSheet(): void {

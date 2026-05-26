@@ -25,8 +25,8 @@ assert.match(
 )
 assert.match(
   readerPreferencesStoreSource,
-  /export type ReaderWideImageMode = 'keep_single' \| 'rotate_wide_pages'/,
-  'reader preferences must model persisted wide image choices with a real rotate mode',
+  /export type ReaderWideImageMode = 'keep_single' \| 'rotate_wide_pages' \| 'split_wide_pages'/,
+  'reader preferences must model persisted wide image choices with real rotate and split modes',
 )
 assert.match(
   readerPreferencesStoreSource,
@@ -85,8 +85,8 @@ assert.match(
 )
 assert.match(
   readerPreferencesStoreSource,
-  /normalizeReaderWideImageMode\(value: string\): ReaderWideImageMode[\s\S]*value === 'rotate_wide_pages'[\s\S]*return value[\s\S]*return 'keep_single'/,
-  'wide image handling must accept the real rotate mode and normalize unsupported values back to safe single-page display',
+  /normalizeReaderWideImageMode\(value: string\): ReaderWideImageMode[\s\S]*value === 'rotate_wide_pages' \|\| value === 'split_wide_pages'[\s\S]*return value[\s\S]*return 'keep_single'/,
+  'wide image handling must accept real rotate and split modes and normalize unsupported values back to safe single-page display',
 )
 assert.match(
   readerPreferencesStoreSource,
@@ -171,13 +171,8 @@ assert.match(settingsPageSource, /showReaderPageGapSheet\(\)[\s\S]*title: '紧�
 assert.match(settingsPageSource, /showReaderTrimPageMarginsSheet\(\)[\s\S]*不裁切漫画图片内容[\s\S]*title: '开启'[\s\S]*title: '关闭'/, 'trim sheet must honestly describe the non-cropping container behavior')
 assert.match(
   settingsPageSource,
-  /showReaderWideImageModeSheet\(\)[\s\S]*旋转宽图仅在页面带有可靠宽高元数据时生效[\s\S]*缺少尺寸时保持当前显示[\s\S]*title: '保持单页'[\s\S]*title: '旋转宽图'[\s\S]*title: '拆分宽图（计划中）'/,
-  'wide image handling sheet must expose real metadata-gated rotation without claiming split support',
-)
-assert.match(
-  settingsPageSource,
-  /showReaderWideImagePlannedDialog\(title: string\)[\s\S]*尚未接入页面拆分渲染[\s\S]*图片元数据证明页面为宽图时旋转显示[\s\S]*缺少尺寸时保持单页显示/,
-  'planned wide-image actions must clearly state split is not active and rotation depends on metadata',
+  /showReaderWideImageModeSheet\(\)[\s\S]*宽图拆分和旋转仅在页面带有可靠宽高元数据时生效[\s\S]*拆分优先于旋转[\s\S]*title: '保持单页'[\s\S]*title: '拆分宽图'[\s\S]*saveReaderWideImageMode\('split_wide_pages'\)[\s\S]*title: '旋转宽图'/,
+  'wide image handling sheet must expose real metadata-gated split and rotate modes with the mutual-exclusion priority',
 )
 assert.match(settingsPageSource, /showReaderVolumeKeyNavigationSheet\(\)[\s\S]*阅读器获得焦点时音量上\/下会执行上一页\/下一页[\s\S]*未开启时不拦截系统音量键[\s\S]*title: '开启'[\s\S]*title: '关闭'/, 'volume-key sheet must describe real focused-reader runtime support and no disabled-state interception')
 
@@ -224,12 +219,32 @@ assert.match(
 assert.match(
   readerPageSource,
   /export function shouldRotateReaderWideImagePage\(mode: ReaderWideImageMode, width: number \| undefined, height: number \| undefined\): boolean[\s\S]*mode === 'rotate_wide_pages' && isReaderWideLandscapePage\(width, height\)[\s\S]*private shouldRotateWidePage\(index: number\): boolean[\s\S]*shouldRotateReaderWideImagePage\(this\.wideImageMode, this\.pageWidth\(index\), this\.pageHeight\(index\)\)/,
-  'ReaderPage must consume the persisted wide-image setting before rotating a page',
+  'ReaderPage must consume only the rotate persisted wide-image setting before rotating a page',
+)
+assert.match(
+  readerPageSource,
+  /export function shouldSplitReaderWideImagePage\(mode: ReaderWideImageMode, readerMode: ReaderMode, width: number \| undefined, height: number \| undefined\): boolean[\s\S]*mode === 'split_wide_pages' && readerMode !== ReaderMode\.DUAL_PAGE && isReaderWideLandscapePage\(width, height\)[\s\S]*private shouldSplitWidePage\(index: number, readerMode: ReaderMode\): boolean[\s\S]*shouldSplitReaderWideImagePage\(this\.wideImageMode, readerMode, this\.pageWidth\(index\), this\.pageHeight\(index\)\)/,
+  'ReaderPage must split only metadata-proven wide pages, suppress splitting in dual-page mode, and keep split separate from rotate',
+)
+assert.match(
+  readerPageSource,
+  /export function readerWidePageSplitSidesForDirection\(direction: ReadingDirection\): ReaderWidePageSplitSide\[\][\s\S]*ReadingDirection\.RIGHT_TO_LEFT[\s\S]*return \['right', 'left'\][\s\S]*return \['left', 'right'\]/,
+  'ReaderPage must order split halves as left/right for LTR and right/left for RTL',
 )
 assert.match(
   readerPageSource,
   /rotateClockwise: this\.shouldRotateWidePage\(index\)/,
   'ReaderPage must pass metadata-gated wide-page rotation into image rendering',
+)
+assert.match(
+  readerPageSource,
+  /desiredRegion:[\s\S]*size: \{ width: splitWidth, height \}[\s\S]*x,[\s\S]*y: 0/,
+  'split rendering must decode explicit left/right source regions instead of using cover or lossy visual crop',
+)
+assert.match(
+  readerPageSource,
+  /private readerDisplayEntries\(readerMode: ReaderMode\): ReaderPageDisplayEntry\[\][\s\S]*this\.shouldSplitWidePage\(index, readerMode\)[\s\S]*readerWidePageSplitSidesForDirection\(this\.readingDirection\)[\s\S]*splitSide: sides\[0\][\s\S]*splitSide: sides\[1\][\s\S]*splitSide: 'none'/,
+  'single/webtoon display entries must duplicate only eligible wide pages into ordered split halves and leave normal pages unsplit',
 )
 assert.match(
   readerPageSource,
@@ -248,8 +263,8 @@ assert.doesNotMatch(
 )
 assert.doesNotMatch(
   readerPageSource,
-  /splitWide|ImageFit\.Cover/,
-  'wide image runtime must not add unbacked split behavior or crop-prone rendering behavior',
+  /ImageFit\.Cover/,
+  'wide image runtime must not add crop-prone rendering behavior',
 )
 assert.match(
   readerPageSource,
@@ -303,7 +318,7 @@ assert.match(
 )
 assert.match(
   readerPageSource,
-  /List\(\{ space: this\.pageGapSpace\(\), initialIndex: this\.pageIndex, scroller: this\.webtoonScroller \}\)/,
+  /List\(\{ space: this\.pageGapSpace\(\), initialIndex: this\.displayIndexForPage\(this\.pageIndex, ReaderMode\.CONTINUOUS_SCROLL\), scroller: this\.webtoonScroller \}\)/,
   'webtoon reader must visibly apply the page gap setting',
 )
 assert.match(
