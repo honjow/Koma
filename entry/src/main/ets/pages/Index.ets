@@ -334,6 +334,7 @@ struct Index {
           params: { mangaId: (param as Record<string, string>)?.mangaId, sourceId: (param as Record<string, string>)?.sourceId },
           libraryStore: this.libraryStore,
           libraryPersistenceService: this.ensureLibraryPersistenceService(),
+          readerSessionStore: this.readerSessionStore,
           sourceRegistry: this.sourceRegistry,
           onBack: () => { this.appPathStack.pop(false) },
           onOpenReader: (mangaId: string, chapterId?: string) => { void this.openReader(mangaId, chapterId) },

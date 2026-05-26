@@ -8,6 +8,7 @@ const libraryStorePath = resolve(root, 'entry/src/main/ets/model/LibraryStore.et
 const libraryCategoryManagementPagePath = resolve(root, 'entry/src/main/ets/pages/LibraryCategoryManagementPage.ets')
 const progressStorePath = resolve(root, 'entry/src/main/ets/model/ReadingProgressStore.ets')
 const readerSessionStorePath = resolve(root, 'entry/src/main/ets/model/ReaderSessionStore.ets')
+const chapterReadStateStorePath = resolve(root, 'entry/src/main/ets/model/ChapterReadStateStore.ets')
 const mockLibraryDataPath = resolve(root, 'entry/src/main/ets/model/MockLibraryData.ets')
 const sourceModelsPath = resolve(root, 'entry/src/main/ets/model/SourceModels.ets')
 const sourceTextNormalizerPath = resolve(root, 'entry/src/main/ets/model/SourceTextNormalizer.ets')
@@ -35,6 +36,7 @@ const sourceSearchPagePath = resolve(root, 'entry/src/main/ets/pages/SourceSearc
 const sourcePackageManagerPagePath = resolve(root, 'entry/src/main/ets/pages/SourcePackageManagerPage.ets')
 const secondaryListScaffoldPath = resolve(root, 'entry/src/main/ets/components/SecondaryListScaffold.ets')
 const comicCoverCardPath = resolve(root, 'entry/src/main/ets/components/ComicCoverCard.ets')
+const chapterListSectionPath = resolve(root, 'entry/src/main/ets/components/ChapterListSection.ets')
 const mangaDetailPagePath = resolve(root, 'entry/src/main/ets/pages/MangaDetailPage.ets')
 const readerPageSourceAdapterPath = resolve(root, 'entry/src/main/ets/model/ReaderPageSourceAdapter.ets')
 const sourceSettingsStorePath = resolve(root, 'entry/src/main/ets/sourceRuntime/SourceSettingsStore.ets')
@@ -46,6 +48,7 @@ const modelSource = readFileSync(modelPath, 'utf8')
 const libraryStoreSource = readFileSync(libraryStorePath, 'utf8')
 const progressStoreSource = readFileSync(progressStorePath, 'utf8')
 const readerSessionStoreSource = readFileSync(readerSessionStorePath, 'utf8')
+const chapterReadStateStoreSource = readFileSync(chapterReadStateStorePath, 'utf8')
 const mockLibraryDataSource = readFileSync(mockLibraryDataPath, 'utf8')
 const sourceModelsSource = readFileSync(sourceModelsPath, 'utf8')
 const sourceTextNormalizerSource = readFileSync(sourceTextNormalizerPath, 'utf8')
@@ -74,6 +77,7 @@ const sourceSearchPageSource = readFileSync(sourceSearchPagePath, 'utf8')
 const sourcePackageManagerPageSource = readFileSync(sourcePackageManagerPagePath, 'utf8')
 const secondaryListScaffoldSource = readFileSync(secondaryListScaffoldPath, 'utf8')
 const comicCoverCardSource = readFileSync(comicCoverCardPath, 'utf8')
+const chapterListSectionSource = readFileSync(chapterListSectionPath, 'utf8')
 const mangaDetailPageSource = readFileSync(mangaDetailPagePath, 'utf8')
 const readerPageSourceAdapterSource = readFileSync(readerPageSourceAdapterPath, 'utf8')
 const sourceSettingsStoreSource = readFileSync(sourceSettingsStorePath, 'utf8')
@@ -337,6 +341,11 @@ assertExport(progressStoreSource, 'InMemoryReadingProgressStore')
 assertExport(readerSessionStoreSource, 'ReaderSessionStore')
 assertExport(readerSessionStoreSource, 'getReaderSessionPageWidth')
 assertExport(readerSessionStoreSource, 'getReaderSessionPageHeight')
+assertExport(chapterReadStateStoreSource, 'ChapterReadStateStore')
+assertExport(chapterReadStateStoreSource, 'ChapterReadStateOverride')
+assertExport(chapterReadStateStoreSource, 'AppFilesChapterReadStatePersistenceAdapter')
+assertExport(chapterReadStateStoreSource, 'isChapterReadFromState')
+assertExport(chapterReadStateStoreSource, 'CHAPTER_READ_STATE_SCHEMA_VERSION')
 assertExport(readerPreferencesStoreSource, 'READER_PREFERENCES_STORE_NAME')
 assertExport(readerPreferencesStoreSource, 'PAGE_MODE_KEY')
 assertExport(readerPreferencesStoreSource, 'READING_DIRECTION_KEY')
@@ -1210,6 +1219,61 @@ assert.match(
   mangaDetailModelsSource,
   /tags:\s*sourceStringList\(item\['tags'\]\)/,
   'Manga detail normalization must decode source-provided tags',
+)
+assert.match(
+  chapterReadStateStoreSource,
+  /CHAPTER_READ_STATE_FILE_NAME:\s*string = 'chapter-read-state\.v1\.json'/,
+  'chapter read-state overrides must persist in a dedicated schema-versioned file',
+)
+assert.match(
+  chapterReadStateStoreSource,
+  /isChapterReadFromState\([\s\S]*override !== undefined[\s\S]*return override\.isRead[\s\S]*progress\.chapterId === chapterId[\s\S]*progress\.completed === true/,
+  'chapter read-state helper must prefer explicit overrides and otherwise use completed reader progress for the same chapter',
+)
+assert.match(
+  chapterReadStateStoreSource,
+  /mark\(comicId: ComicId, chapterId: string, isRead: boolean\)[\s\S]*this\.overrides\.set\(chapterReadStateKey\([\s\S]*this\.persist\(\)/,
+  'chapter read-state store must persist explicit per-chapter read/unread overrides',
+)
+assert.match(
+  mangaDetailPageSource,
+  /decorateChapterStates\(chapters: MangaChapterItem\[\]\): MangaChapterItem\[\][\s\S]*readerSessionStore\.getProgress\(comicId\)[\s\S]*readStateStore\.isRead\(comicId, chapter\.id, progress\)[\s\S]*getChapterSummary\(comicId, chapter\.id\)[\s\S]*OfflineDownloadStatus\.DOWNLOADED/,
+  'MangaDetailPage must derive chapter read state from progress/overrides and downloaded state from durable download summaries',
+)
+assert.match(
+  mangaDetailPageSource,
+  /markChapterReadState\(chapterId: string, isRead: boolean\)[\s\S]*store\.mark\(this\.currentComicId\(\), chapterId, isRead\)[\s\S]*applyChapterStatesToCurrent\(\)/,
+  'MangaDetailPage mark-read must persist explicit chapter overrides and refresh visible state',
+)
+assert.doesNotMatch(
+  mangaDetailPageSource,
+  /markChapterReadState\(chapterId: string, isRead: boolean\)[\s\S]*readerSessionStore\.saveProgress/,
+  'MangaDetailPage manual mark-read must not overwrite comic reader progress',
+)
+assert.match(
+  mangaDetailPageSource,
+  /markVisibleChaptersReadState\(chapterIds: string\[\], isRead: boolean\)[\s\S]*targetIds\.forEach[\s\S]*store\.mark\(comicId, chapterId, isRead\)[\s\S]*applyChapterStatesToCurrent\(\)/,
+  'MangaDetailPage visible read-state action must mark only the provided visible chapter ids',
+)
+assert.match(
+  mangaDetailPageSource,
+  /ChapterListSection\(\{[\s\S]*onMarkChapterReadState:[\s\S]*this\.markChapterReadState\(chapterId, isRead\)[\s\S]*onMarkVisibleChaptersReadState:[\s\S]*this\.markVisibleChaptersReadState\(chapterIds, isRead\)/,
+  'MangaDetailPage must wire per-chapter and visible chapter read-state actions',
+)
+assert.match(
+  chapterListSectionSource,
+  /export enum ChapterReadFilter\s*{[\s\S]*ALL[\s\S]*UNREAD[\s\S]*READ[\s\S]*DOWNLOADED/,
+  'ChapterListSection must expose all/unread/read/downloaded chapter filters',
+)
+assert.match(
+  chapterListSectionSource,
+  /filteredChapterList\(\): MangaChapterItem\[\][\s\S]*ChapterReadFilter\.UNREAD[\s\S]*!chapter\.isRead[\s\S]*ChapterReadFilter\.READ[\s\S]*chapter\.isRead[\s\S]*ChapterReadFilter\.DOWNLOADED[\s\S]*chapter\.isDownloaded/,
+  'ChapterListSection filters must use durable read/downloaded flags on chapter rows',
+)
+assert.match(
+  chapterListSectionSource,
+  /VisibleReadStateMenu\(\)[\s\S]*onMarkVisibleChaptersReadState\(this\.visibleChapterIds\(\), true\)[\s\S]*onMarkVisibleChaptersReadState\(this\.visibleChapterIds\(\), false\)/,
+  'ChapterListSection visible mark-read actions must target the current filtered visible chapter ids',
 )
 
 assert.match(backupServiceSource, /const BACKUP_SCHEMA_VERSION:\s*number = 3/, 'backup export must use schema v3')

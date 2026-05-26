@@ -1,5 +1,12 @@
 import { ChapterSortOrder, MangaChapterItem } from '../model/MangaDetailModels'
 
+export enum ChapterReadFilter {
+  ALL = 'all',
+  UNREAD = 'unread',
+  READ = 'read',
+  DOWNLOADED = 'downloaded',
+}
+
 export enum ChapterBatchDownloadMode {
   ALL_VISIBLE = 'all_visible',
   FAILED_ONLY = 'failed_only',
@@ -47,12 +54,17 @@ class ChapterListDataSource implements IDataSource {
 export struct ChapterListSection {
   @Prop @Watch('rebuildDataSource') chapters: MangaChapterItem[] = []
   @State private sortOrder: ChapterSortOrder = ChapterSortOrder.NEWEST_FIRST
+  @State private readFilter: ChapterReadFilter = ChapterReadFilter.ALL
   @State private sortedChapters: MangaChapterItem[] = []
   private dataSource: ChapterListDataSource = new ChapterListDataSource([])
   onOpenChapter: (chapterId: string) => void = (_chapterId: string) => {}
   onDownloadChapter: (chapterId: string) => void = (_chapterId: string) => {}
   onDownloadVisibleChapters: (chapterIds: string[], mode: ChapterBatchDownloadMode) => void =
     (_chapterIds: string[], _mode: ChapterBatchDownloadMode) => {}
+  onMarkChapterReadState: (chapterId: string, isRead: boolean) => void =
+    (_chapterId: string, _isRead: boolean) => {}
+  onMarkVisibleChaptersReadState: (chapterIds: string[], isRead: boolean) => void =
+    (_chapterIds: string[], _isRead: boolean) => {}
 
   private rebuildDataSource(): void {
     this.sortedChapters = this.sortedChapterList()
@@ -60,7 +72,7 @@ export struct ChapterListSection {
   }
 
   private sortedChapterList(): MangaChapterItem[] {
-    const sorted = this.chapters.slice()
+    const sorted = this.filteredChapterList()
     sorted.sort((left: MangaChapterItem, right: MangaChapterItem): number => {
       if (this.sortOrder === ChapterSortOrder.OLDEST_FIRST) {
         return this.dateValue(left) - this.dateValue(right)
@@ -74,6 +86,19 @@ export struct ChapterListSection {
       return this.dateValue(right) - this.dateValue(left)
     })
     return sorted
+  }
+
+  private filteredChapterList(): MangaChapterItem[] {
+    if (this.readFilter === ChapterReadFilter.UNREAD) {
+      return this.chapters.filter((chapter: MangaChapterItem): boolean => !chapter.isRead)
+    }
+    if (this.readFilter === ChapterReadFilter.READ) {
+      return this.chapters.filter((chapter: MangaChapterItem): boolean => chapter.isRead)
+    }
+    if (this.readFilter === ChapterReadFilter.DOWNLOADED) {
+      return this.chapters.filter((chapter: MangaChapterItem): boolean => chapter.isDownloaded)
+    }
+    return this.chapters.slice()
   }
 
   private dateValue(chapter: MangaChapterItem): number {
@@ -97,8 +122,26 @@ export struct ChapterListSection {
     return '最新优先'
   }
 
+  private filterLabel(): string {
+    if (this.readFilter === ChapterReadFilter.UNREAD) {
+      return '未读'
+    }
+    if (this.readFilter === ChapterReadFilter.READ) {
+      return '已读'
+    }
+    if (this.readFilter === ChapterReadFilter.DOWNLOADED) {
+      return '已下载'
+    }
+    return '全部'
+  }
+
   private setSortOrder(sortOrder: ChapterSortOrder): void {
     this.sortOrder = sortOrder
+    this.rebuildDataSource()
+  }
+
+  private setReadFilter(readFilter: ChapterReadFilter): void {
+    this.readFilter = readFilter
     this.rebuildDataSource()
   }
 
@@ -183,6 +226,56 @@ export struct ChapterListSection {
   }
 
   @Builder
+  private FilterMenu() {
+    Menu() {
+      MenuItem({ content: '全部' })
+        .onClick(() => {
+          this.setReadFilter(ChapterReadFilter.ALL)
+        })
+      MenuItem({ content: '未读' })
+        .onClick(() => {
+          this.setReadFilter(ChapterReadFilter.UNREAD)
+        })
+      MenuItem({ content: '已读' })
+        .onClick(() => {
+          this.setReadFilter(ChapterReadFilter.READ)
+        })
+      MenuItem({ content: '已下载' })
+        .onClick(() => {
+          this.setReadFilter(ChapterReadFilter.DOWNLOADED)
+        })
+    }
+  }
+
+  @Builder
+  private ReadStateMenu(chapter: MangaChapterItem) {
+    Menu() {
+      MenuItem({ content: '标记已读' })
+        .onClick(() => {
+          this.onMarkChapterReadState(chapter.id, true)
+        })
+      MenuItem({ content: '标记未读' })
+        .onClick(() => {
+          this.onMarkChapterReadState(chapter.id, false)
+        })
+    }
+  }
+
+  @Builder
+  private VisibleReadStateMenu() {
+    Menu() {
+      MenuItem({ content: '可见章节标记已读' })
+        .onClick(() => {
+          this.onMarkVisibleChaptersReadState(this.visibleChapterIds(), true)
+        })
+      MenuItem({ content: '可见章节标记未读' })
+        .onClick(() => {
+          this.onMarkVisibleChaptersReadState(this.visibleChapterIds(), false)
+        })
+    }
+  }
+
+  @Builder
   private ChapterRow(chapter: MangaChapterItem) {
     Row({ space: 10 }) {
       Row({ space: 10 }) {
@@ -236,6 +329,15 @@ export struct ChapterListSection {
         .onClick(() => {
           this.onDownloadChapter(chapter.id)
         })
+
+      Button('⋯')
+        .width(34)
+        .height(34)
+        .borderRadius(8)
+        .fontSize(18)
+        .fontColor($r('app.color.koma_accent'))
+        .backgroundColor('#00000000')
+        .bindMenu(this.ReadStateMenu(chapter))
     }
     .width('100%')
     .height(62)
@@ -245,31 +347,57 @@ export struct ChapterListSection {
 
   build() {
     Column({ space: 12 }) {
-      Row() {
-        Text(`章节 (${this.chapters.length})`)
-          .fontSize(20)
-          .fontWeight(FontWeight.Bold)
-          .fontColor($r('app.color.koma_text_primary'))
-        Blank()
-        Button('批量下载 ▾')
-          .height(34)
-          .padding({ left: 12, right: 12 })
-          .borderRadius(8)
-          .fontSize(13)
-          .fontColor($r('app.color.koma_accent'))
-          .backgroundColor('#00000000')
-          .bindMenu(this.BatchDownloadMenu())
-        Button(`${this.sortLabel()} ↕`)
-          .height(34)
-          .padding({ left: 12, right: 12 })
-          .borderRadius(8)
-          .fontSize(13)
-          .fontColor($r('app.color.koma_accent'))
-          .backgroundColor('#00000000')
-          .bindMenu(this.SortMenu())
+      Column({ space: 8 }) {
+        Row() {
+          Text(`章节 (${this.sortedChapters.length}/${this.chapters.length})`)
+            .fontSize(20)
+            .fontWeight(FontWeight.Bold)
+            .fontColor($r('app.color.koma_text_primary'))
+            .layoutWeight(1)
+          Button(`${this.filterLabel()} ▾`)
+            .height(34)
+            .padding({ left: 12, right: 12 })
+            .borderRadius(8)
+            .fontSize(13)
+            .fontColor($r('app.color.koma_accent'))
+            .backgroundColor('#00000000')
+            .bindMenu(this.FilterMenu())
+          Button(`${this.sortLabel()} ↕`)
+            .height(34)
+            .padding({ left: 12, right: 12 })
+            .borderRadius(8)
+            .fontSize(13)
+            .fontColor($r('app.color.koma_accent'))
+            .backgroundColor('#00000000')
+            .bindMenu(this.SortMenu())
+        }
+        .width('100%')
+        .alignItems(VerticalAlign.Center)
+
+        Row() {
+          Button('标记 ▾')
+            .height(34)
+            .padding({ left: 12, right: 12 })
+            .borderRadius(8)
+            .fontSize(13)
+            .fontColor($r('app.color.koma_accent'))
+            .backgroundColor('#00000000')
+            .bindMenu(this.VisibleReadStateMenu())
+          Button('批量下载 ▾')
+            .height(34)
+            .padding({ left: 12, right: 12 })
+            .borderRadius(8)
+            .fontSize(13)
+            .fontColor($r('app.color.koma_accent'))
+            .backgroundColor('#00000000')
+            .bindMenu(this.BatchDownloadMenu())
+          Blank()
+        }
+        .width('100%')
+        .alignItems(VerticalAlign.Center)
       }
       .width('100%')
-      .alignItems(VerticalAlign.Center)
+      .alignItems(HorizontalAlign.Start)
 
       List() {
         LazyForEach(this.dataSource, (chapter: MangaChapterItem) => {
