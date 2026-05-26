@@ -99,6 +99,19 @@ assert.match(
   /showInfoDialog\('备份已导出',[\s\S]*BACKUP_UNENCRYPTED_EXPORT_WARNING/,
   'BackupManagementPage must warn successful exports are unencrypted',
 )
+assert.doesNotMatch(
+  backupPageSource,
+  /showInfoDialog\('[^']*失败',\s*error\.message\)/,
+  'BackupManagementPage failure dialogs must not surface raw Error.message details',
+)
+for (const code of [
+  'backup_export_failed',
+  'backup_preview_failed',
+  'backup_decrypt_failed',
+  'backup_import_failed',
+]) {
+  assert.match(backupPageSource, new RegExp(`code=${code}`), `BackupManagementPage must retain safe log code ${code}`)
+}
 assert.match(
   backupPageSource,
   /selectedEncryptedBackupPayload[\s\S]*TextInput\(\{ text: this\.importPassphrase[\s\S]*InputType\.Password[\s\S]*解密并预览/,
