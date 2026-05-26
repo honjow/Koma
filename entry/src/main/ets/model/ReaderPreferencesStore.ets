@@ -8,6 +8,7 @@ export type ReaderThemeMode = 'system' | 'light' | 'dark'
 export type ReaderBackgroundMode = 'black' | 'paper' | 'light'
 export type ReaderImageFitMode = 'contain' | 'fit_width'
 export type ReaderPageGapMode = 'compact' | 'normal' | 'wide'
+export type ReaderWideImageMode = 'keep_single'
 
 export interface ReaderPreferences {
   pageMode: ReaderPageMode
@@ -20,6 +21,7 @@ export interface ReaderPreferences {
   tapNavigationEnabled: boolean
   pageGapMode: ReaderPageGapMode
   trimPageMarginsEnabled: boolean
+  wideImageMode: ReaderWideImageMode
   volumeKeyNavigationEnabled: boolean
 }
 
@@ -34,6 +36,7 @@ export const IMAGE_FIT_MODE_KEY: string = 'reader.imageFitMode'
 export const TAP_NAVIGATION_ENABLED_KEY: string = 'reader.tapNavigationEnabled'
 export const PAGE_GAP_MODE_KEY: string = 'reader.pageGapMode'
 export const TRIM_PAGE_MARGINS_ENABLED_KEY: string = 'reader.trimPageMarginsEnabled'
+export const WIDE_IMAGE_MODE_KEY: string = 'reader.wideImageMode'
 export const VOLUME_KEY_NAVIGATION_ENABLED_KEY: string = 'reader.volumeKeyNavigationEnabled'
 
 export const DEFAULT_READER_PREFERENCES: ReaderPreferences = {
@@ -47,6 +50,7 @@ export const DEFAULT_READER_PREFERENCES: ReaderPreferences = {
   tapNavigationEnabled: true,
   pageGapMode: 'normal',
   trimPageMarginsEnabled: false,
+  wideImageMode: 'keep_single',
   volumeKeyNavigationEnabled: false,
 }
 
@@ -83,6 +87,10 @@ export function normalizeReaderPageGapMode(value: string): ReaderPageGapMode {
     return value
   }
   return 'normal'
+}
+
+export function normalizeReaderWideImageMode(_value: string): ReaderWideImageMode {
+  return 'keep_single'
 }
 
 export function normalizeReaderProgressControls(value: boolean | string | number): boolean {
@@ -200,6 +208,10 @@ export function getReaderTrimPageMarginsLabel(trimPageMarginsEnabled: boolean): 
   return trimPageMarginsEnabled ? '开启（不裁图）' : '关闭'
 }
 
+export function getReaderWideImageModeLabel(_mode: ReaderWideImageMode): string {
+  return '保持单页'
+}
+
 export function getReaderVolumeKeyNavigationLabel(volumeKeyNavigationEnabled: boolean): string {
   return volumeKeyNavigationEnabled ? '已保存（待接入）' : '关闭'
 }
@@ -247,6 +259,7 @@ export class ReaderPreferencesStore {
     const pageGapMode = await store.get(PAGE_GAP_MODE_KEY, DEFAULT_READER_PREFERENCES.pageGapMode) as string
     const trimPageMarginsEnabled =
       await store.get(TRIM_PAGE_MARGINS_ENABLED_KEY, DEFAULT_READER_PREFERENCES.trimPageMarginsEnabled) as boolean | string | number
+    const wideImageMode = await store.get(WIDE_IMAGE_MODE_KEY, DEFAULT_READER_PREFERENCES.wideImageMode) as string
     const volumeKeyNavigationEnabled =
       await store.get(VOLUME_KEY_NAVIGATION_ENABLED_KEY, DEFAULT_READER_PREFERENCES.volumeKeyNavigationEnabled) as boolean | string | number
     return {
@@ -260,6 +273,7 @@ export class ReaderPreferencesStore {
       tapNavigationEnabled: normalizeReaderTapNavigationEnabled(tapNavigationEnabled),
       pageGapMode: normalizeReaderPageGapMode(pageGapMode),
       trimPageMarginsEnabled: normalizeReaderTrimPageMarginsEnabled(trimPageMarginsEnabled),
+      wideImageMode: normalizeReaderWideImageMode(wideImageMode),
       volumeKeyNavigationEnabled: normalizeReaderVolumeKeyNavigationEnabled(volumeKeyNavigationEnabled),
     }
   }
@@ -324,6 +338,12 @@ export class ReaderPreferencesStore {
     await store.flush()
   }
 
+  async saveWideImageMode(wideImageMode: ReaderWideImageMode): Promise<void> {
+    const store = await this.preferences()
+    await store.put(WIDE_IMAGE_MODE_KEY, normalizeReaderWideImageMode(wideImageMode))
+    await store.flush()
+  }
+
   async saveVolumeKeyNavigationEnabled(volumeKeyNavigationEnabled: boolean): Promise<void> {
     const store = await this.preferences()
     await store.put(VOLUME_KEY_NAVIGATION_ENABLED_KEY, normalizeReaderVolumeKeyNavigationEnabled(volumeKeyNavigationEnabled))
@@ -342,6 +362,7 @@ export class ReaderPreferencesStore {
     await store.put(TAP_NAVIGATION_ENABLED_KEY, normalizeReaderTapNavigationEnabled(preferences.tapNavigationEnabled))
     await store.put(PAGE_GAP_MODE_KEY, normalizeReaderPageGapMode(preferences.pageGapMode))
     await store.put(TRIM_PAGE_MARGINS_ENABLED_KEY, normalizeReaderTrimPageMarginsEnabled(preferences.trimPageMarginsEnabled))
+    await store.put(WIDE_IMAGE_MODE_KEY, normalizeReaderWideImageMode(preferences.wideImageMode))
     await store.put(VOLUME_KEY_NAVIGATION_ENABLED_KEY, normalizeReaderVolumeKeyNavigationEnabled(preferences.volumeKeyNavigationEnabled))
     await store.flush()
   }
