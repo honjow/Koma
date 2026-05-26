@@ -1,7 +1,7 @@
 # Koma vs Aidoku vs Mihon 功能对比
 
 更新时间：2026-05-26  
-Koma 基线：`a61c63b feat: enhance downloads queue controls`
+Koma 基线：`76bf170 Merge branch 'lane-d5-source-sdk-update-ux'`
 
 ## 证据来源
 
@@ -35,8 +35,8 @@ Koma 不是完成态。当前是 **HarmonyOS 私有/本地优先漫画阅读器�
 | 阅读器模式 | 单页、连续/Webtoon、双页、RTL 双页、沉浸 chrome、图片适配、点击翻页、页面间距 | 可在线/下载阅读；当前官方 README 未细分 reader 设置 | 多 viewer、阅读方向、paged/long strip、大量 reader settings | Koma 基础 reader 已成；缺裁边、宽图拆分/旋转、音量键、更多背景/手势设置。 |
 | 阅读进度 | 本地进度持久化；History；Komga progress pull/push | tracker 集成 | 本地进度 + tracker 更新；Komga/Kavita enhanced services | Koma 有 Komga 方向，但无 MAL/AniList/Kitsu 等公共 tracker。 |
 | 私有库 | Komga / OPDS / WebDAV 已接入；Browse/Reader/favorites/部分进度同步 | 主要 source 系统 | Komga/Kavita enhanced services；更多 tracker 生态 | Koma 私有库方向强，但需要 NAS/WebDAV、OPDS 1/2、Komga auth/大库兼容性矩阵。 |
-| 在线/自定义源 | WAMR source runtime；URL index 导入 `.koma`；MangaDex E2E 已到 Reader 图片 | Robust WASM source system；`.aix` 外部 source；source list | Extension repos + APK extensions + manual extensions | Koma 架构接近 Aidoku 思路，但生态为 0：缺 SDK 文档、源开发工具、签名/权限/安全 UX、错误恢复、更多真实源兼容。 |
-| Source 安装路径 | 用户输入 URL index → 列表 → 下载 `.koma` → install/enable；本地 picker fallback | 内置/外部 source、`.aix` 导入、source list URL | Extension repos + install extensions | Koma URL index 主路径已做；下一步是源升级/卸载/版本兼容/失败诊断。 |
+| 在线/自定义源 | WAMR source runtime；URL index 导入 `.koma`；MangaDex E2E 已到 Reader 图片；source author SDK 文档 | Robust WASM source system；`.aix` 外部 source；source list | Extension repos + APK extensions + manual extensions | Koma 架构接近 Aidoku 思路；仍缺真实源生态、源开发工具、签名/信任策略、错误恢复、更多真实源兼容。 |
+| Source 安装路径 | 用户输入 URL index → 列表 → 下载 `.koma` → install/enable；本地 picker fallback；已安装源更新状态/能力摘要 UX | 内置/外部 source、`.aix` 导入、source list URL | Extension repos + install extensions | Koma URL index 主路径已做；下一步是签名/信任、源升级完整真机 QA、兼容矩阵。 |
 | Source 设置 | 支持 source `get_settings` descriptor、非敏感 settings 持久化/backup 注入 | 当前摘录未确认设置细节 | backup 包含 source settings | Koma 有底层能力；真实 installed source 的设置 UI 仍需完整 device QA。 |
 | 下载离线 | Reader remote image cache + LRU + prefetch；下载队列 MVP；Settings 下载管理页；MangaDetail 批量下载；队列过滤/批量重试/清理 | README 明确支持 Downloads | 下载队列、下载目录、重扫下载、并发策略 | 已有前台队列骨架；仍缺暂停/并发策略、通知、下载目录/重扫、完整离线 reader QA。 |
 | 图片缓存 | Remote image cache、LRU、prefetch、设置页清理 | downloads 能力明确，缓存细节未摘录 | 下载/缓存成熟 | Koma 缓存只是 reader image cache，不等价于离线下载。 |
@@ -77,7 +77,8 @@ Koma 不是完成态。当前是 **HarmonyOS 私有/本地优先漫画阅读器�
 
 4. **Source runtime 管理完善**
    - 对标 Aidoku source list / Mihon extension repos，但保持 Koma 的“不内置源、不源市场”边界。
-   - 需要：源升级、权限/capability 展示、错误诊断、settings 真机验证、源包兼容矩阵。
+   - 已有：用户配置 source index、安装/升级 UX 骨架、capability 摘要、runtime diagnostics、source author SDK docs。
+   - 仍需：签名/信任策略、settings/upgrade 真机完整 QA、源开发工具、源包兼容矩阵。
 
 5. **自动更新 / 通知**
    - 对标 Mihon scheduled library updates。

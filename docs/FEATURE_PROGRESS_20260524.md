@@ -83,6 +83,7 @@ Verified on device `192.168.50.103:12345`:
 | Library category management | `87a03fb` | Built-in Favorite / Read Later category filters and multi-select add/remove category actions preserve other memberships. |
 | Reader advanced settings | `031157a` | Settings adds image fit, tap navigation, and page gap controls; Reader consumes persisted settings with non-cropping fit-width and narrow edge tap zones. |
 | Downloads queue controls | `a61c63b` | MangaDetail visible-chapter batch download actions plus Downloads page status filters, batch retry for feasible failed/partial rows, and cleanup controls. |
+| Source package update UX / SDK docs | `54debb0` | Source Package Manager surfaces update/capability UX hooks, persisted capability summaries are bounded by manifest-derived allowlists, and `docs/source-package-sdk.md` documents the author contract. |
 
 ## Current Product Baseline
 
@@ -148,6 +149,7 @@ Verified on device `192.168.50.103:12345`:
 - Source URL index import: user-configured index URL -> fetch `index.json` -> list packages -> download selected `pkg` -> install/enable via existing archive validator/registry. No built-in default source URL is included. Live device smoke verified with a locally served source index and `com.dm5.koma` install on `192.168.50.103:12345`.
 - Installed source package update check/upgrade MVP uses the user-configured source index to show per-package latest/update/missing/failure status and update installed packages safely.
 - Installed source cards include an inline runtime diagnostics panel with safe smoke/update/capability/settings summary and refresh logging.
+- Source Package Manager exposes source-index/update controls, user-facing capability summaries, and source author SDK docs. Persisted capability summaries are display hints only and are bounded by manifest-derived capabilities plus an allowlist on reload.
 - Library update MVP supports installed source-runtime comics via `get_chapters`; local imports and Komga/OPDS/WebDAV metadata refresh are skipped until safe refresh APIs are wired.
 
 ## Known Gaps / Follow-up
@@ -163,3 +165,4 @@ Verified on device `192.168.50.103:12345`:
 9. Downloads are foreground/in-app only: no OS background scheduler, no notifications, no pause/concurrency policy, and source-backed `pages_missing` rows still require opening MangaDetail to hydrate pages before retry.
 10. Library category runtime device QA covered empty-state/safe-area only because the device had no library rows; static tests cover category membership/filter contracts.
 11. Reader advanced settings still need real chapter visual QA for unusual image aspect ratios; static/build gates and Settings persistence device smoke pass.
+12. Source package update/capability UX was device-smoked only in empty-state because no installed source package was present; static tests cover tampered persisted capability metadata and update-state contracts.
