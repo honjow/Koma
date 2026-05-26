@@ -19,6 +19,14 @@ import {
 export type LibrarySortBy = 'lastRead' | 'added' | 'title' | 'source'
 export type LibraryReadStateFilter = 'all' | 'unread' | 'reading' | 'completed'
 export type LibraryCategoryFilter = 'all' | 'uncategorized' | string
+export type LibraryCategoryDisplayCategoryId = 'all' | 'uncategorized' | string
+
+export interface LibraryCategoryDisplayStrategy {
+  categoryId: LibraryCategoryDisplayCategoryId
+  sortBy: LibrarySortBy
+  readState: LibraryReadStateFilter
+  updatedAt: number
+}
 
 export interface LibraryListOptions {
   sortBy?: LibrarySortBy
@@ -41,6 +49,10 @@ export interface LibraryStore {
   renameCustomCategory(categoryId: string, name: string, now?: number): CustomLibraryCategory
   moveCustomCategory(categoryId: string, direction: 'up' | 'down', now?: number): boolean
   deleteCustomCategory(categoryId: string): boolean
+  listCategoryDisplayStrategies(): LibraryCategoryDisplayStrategy[]
+  getCategoryDisplayStrategy(categoryId: LibraryCategoryDisplayCategoryId): LibraryCategoryDisplayStrategy | undefined
+  replaceCategoryDisplayStrategies(strategies: LibraryCategoryDisplayStrategy[]): void
+  setCategoryDisplayStrategy(strategy: LibraryCategoryDisplayStrategy): LibraryCategoryDisplayStrategy
   clear(): void
   dumpJson(): string
   restoreJson(payload: string): void
@@ -49,6 +61,7 @@ export interface LibraryStore {
 export class InMemoryLibraryStore implements LibraryStore {
   private comics: Map<ComicId, Comic> = new Map<ComicId, Comic>()
   private customCategories: Map<string, CustomLibraryCategory> = new Map<string, CustomLibraryCategory>()
+  private categoryDisplayStrategies: Map<string, LibraryCategoryDisplayStrategy> = new Map<string, LibraryCategoryDisplayStrategy>()
 
   getComic(comicId: ComicId): Comic | undefined {
     return this.comics.get(comicId)
@@ -268,6 +281,7 @@ export class InMemoryLibraryStore implements LibraryStore {
       return false
     }
     this.customCategories.delete(categoryId)
+    this.categoryDisplayStrategies.delete(categoryId)
     this.comics.forEach((comic: Comic, comicId: ComicId) => {
       const nextCategoryIds = normalizeCategoryIds(comic.categoryIds).filter((item: string): boolean => {
         return item !== categoryId
@@ -279,21 +293,53 @@ export class InMemoryLibraryStore implements LibraryStore {
     return true
   }
 
+  listCategoryDisplayStrategies(): LibraryCategoryDisplayStrategy[] {
+    return Array.from(this.categoryDisplayStrategies.values()).map((strategy: LibraryCategoryDisplayStrategy): LibraryCategoryDisplayStrategy => {
+      return this.cloneCategoryDisplayStrategy(strategy)
+    })
+  }
+
+  getCategoryDisplayStrategy(categoryId: LibraryCategoryDisplayCategoryId): LibraryCategoryDisplayStrategy | undefined {
+    const strategy = this.categoryDisplayStrategies.get(categoryId.trim())
+    return strategy === undefined ? undefined : this.cloneCategoryDisplayStrategy(strategy)
+  }
+
+  replaceCategoryDisplayStrategies(strategies: LibraryCategoryDisplayStrategy[]): void {
+    const nextStrategies: Map<string, LibraryCategoryDisplayStrategy> = new Map<string, LibraryCategoryDisplayStrategy>()
+    strategies.forEach((strategy: LibraryCategoryDisplayStrategy) => {
+      const restoredStrategy = this.validateCategoryDisplayStrategy(strategy)
+      nextStrategies.set(restoredStrategy.categoryId, restoredStrategy)
+    })
+    this.categoryDisplayStrategies.clear()
+    nextStrategies.forEach((strategy: LibraryCategoryDisplayStrategy, categoryId: string) => {
+      this.categoryDisplayStrategies.set(categoryId, this.cloneCategoryDisplayStrategy(strategy))
+    })
+  }
+
+  setCategoryDisplayStrategy(strategy: LibraryCategoryDisplayStrategy): LibraryCategoryDisplayStrategy {
+    const nextStrategy = this.validateCategoryDisplayStrategy(strategy)
+    this.categoryDisplayStrategies.set(nextStrategy.categoryId, this.cloneCategoryDisplayStrategy(nextStrategy))
+    return this.cloneCategoryDisplayStrategy(nextStrategy)
+  }
+
   clear(): void {
     this.comics.clear()
     this.customCategories.clear()
+    this.categoryDisplayStrategies.clear()
   }
 
   dumpJson(): string {
     return JSON.stringify({
       comics: this.listComics(),
       customCategories: this.listCustomCategories(),
+      categoryDisplayStrategies: this.listCategoryDisplayStrategies(),
     })
   }
 
   restoreJson(payload: string): void {
     this.comics.clear()
     this.customCategories.clear()
+    this.categoryDisplayStrategies.clear()
     const parsed = JSON.parse(payload) as Record<string, Object>
     const rows = Array.isArray(parsed) ? parsed as Comic[] : parsed['comics'] as Comic[]
     rows.forEach((comic: Comic) => {
@@ -301,6 +347,9 @@ export class InMemoryLibraryStore implements LibraryStore {
     })
     if (!Array.isArray(parsed) && Array.isArray(parsed['customCategories'])) {
       this.replaceCustomCategories(parsed['customCategories'] as CustomLibraryCategory[])
+    }
+    if (!Array.isArray(parsed) && Array.isArray(parsed['categoryDisplayStrategies'])) {
+      this.replaceCategoryDisplayStrategies(parsed['categoryDisplayStrategies'] as LibraryCategoryDisplayStrategy[])
     }
   }
 
@@ -320,6 +369,47 @@ export class InMemoryLibraryStore implements LibraryStore {
       return 0
     }
     return categories[categories.length - 1].sortOrder + 1
+  }
+
+  private cloneCategoryDisplayStrategy(strategy: LibraryCategoryDisplayStrategy): LibraryCategoryDisplayStrategy {
+    return {
+      categoryId: strategy.categoryId,
+      sortBy: strategy.sortBy,
+      readState: strategy.readState,
+      updatedAt: strategy.updatedAt,
+    }
+  }
+
+  private validateCategoryDisplayStrategy(strategy: LibraryCategoryDisplayStrategy): LibraryCategoryDisplayStrategy {
+    const categoryId = strategy.categoryId.trim()
+    if (categoryId.length === 0) {
+      throw new Error('Invalid category display strategy categoryId')
+    }
+    if (
+      strategy.sortBy !== 'lastRead' &&
+      strategy.sortBy !== 'added' &&
+      strategy.sortBy !== 'title' &&
+      strategy.sortBy !== 'source'
+    ) {
+      throw new Error('Invalid category display strategy sortBy')
+    }
+    if (
+      strategy.readState !== 'all' &&
+      strategy.readState !== 'unread' &&
+      strategy.readState !== 'reading' &&
+      strategy.readState !== 'completed'
+    ) {
+      throw new Error('Invalid category display strategy readState')
+    }
+    if (!Number.isFinite(strategy.updatedAt)) {
+      throw new Error('Invalid category display strategy updatedAt')
+    }
+    return {
+      categoryId,
+      sortBy: strategy.sortBy,
+      readState: strategy.readState,
+      updatedAt: strategy.updatedAt,
+    }
   }
 
   private createCustomCategoryId(now: number): string {

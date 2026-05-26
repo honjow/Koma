@@ -1,11 +1,24 @@
-import { Comic, CustomLibraryCategory, LIBRARY_CATEGORY_NAME_MAX_LENGTH } from '../model/ComicModels'
-import { LibraryStore } from '../model/LibraryStore'
+import {
+  Comic,
+  CustomLibraryCategory,
+  LIBRARY_CATEGORY_FAVORITE_ID,
+  LIBRARY_CATEGORY_NAME_MAX_LENGTH,
+  LIBRARY_CATEGORY_READ_LATER_ID,
+} from '../model/ComicModels'
+import {
+  LibraryCategoryDisplayCategoryId,
+  LibraryCategoryDisplayStrategy,
+  LibraryReadStateFilter,
+  LibrarySortBy,
+  LibraryStore,
+} from '../model/LibraryStore'
 import {
   LibraryStorePersistenceService,
   createCustomCategoryAndPersistLibraryStore,
   deleteCustomCategoryAndPersistLibraryStore,
   moveCustomCategoryAndPersistLibraryStore,
   renameCustomCategoryAndPersistLibraryStore,
+  setCategoryDisplayStrategyAndPersistLibraryStore,
 } from '../model/LibraryPersistence'
 import { SecondaryListScaffold } from '../components/SecondaryListScaffold'
 import { ThemeConstants } from '../theme/ThemeConstants'
@@ -29,6 +42,78 @@ export struct LibraryCategoryManagementPage {
       this.getUIContext().getPromptAction().showToast({ message: message })
     } catch (_error) {
     }
+  }
+
+  private categoryStrategy(categoryId: LibraryCategoryDisplayCategoryId): LibraryCategoryDisplayStrategy {
+    const strategy = this.libraryStore?.getCategoryDisplayStrategy(categoryId)
+    if (strategy !== undefined) {
+      return strategy
+    }
+    return {
+      categoryId,
+      sortBy: 'lastRead',
+      readState: 'all',
+      updatedAt: 0,
+    }
+  }
+
+  private sortLabel(sortBy: LibrarySortBy): string {
+    if (sortBy === 'added') {
+      return '最近加入'
+    }
+    if (sortBy === 'title') {
+      return '标题'
+    }
+    if (sortBy === 'source') {
+      return '来源'
+    }
+    return '最近阅读'
+  }
+
+  private readStateLabel(readState: LibraryReadStateFilter): string {
+    if (readState === 'unread') {
+      return '未读'
+    }
+    if (readState === 'reading') {
+      return '读过'
+    }
+    if (readState === 'completed') {
+      return '已完成'
+    }
+    return '全部状态'
+  }
+
+  private persistCategoryStrategy(
+    categoryId: LibraryCategoryDisplayCategoryId,
+    sortBy: LibrarySortBy,
+    readState: LibraryReadStateFilter
+  ): void {
+    if (this.libraryStore === undefined || this.libraryPersistenceService === undefined) {
+      this.showToast('分类管理不可用')
+      return
+    }
+    try {
+      setCategoryDisplayStrategyAndPersistLibraryStore(this.libraryStore, this.libraryPersistenceService, {
+        categoryId,
+        sortBy,
+        readState,
+        updatedAt: Date.now(),
+      })
+      this.onLibraryChanged()
+      this.showToast('显示方式已更新')
+    } catch (_error) {
+      this.showToast('显示方式未保存')
+    }
+  }
+
+  private setCategorySort(categoryId: LibraryCategoryDisplayCategoryId, sortBy: LibrarySortBy): void {
+    const strategy = this.categoryStrategy(categoryId)
+    this.persistCategoryStrategy(categoryId, sortBy, strategy.readState)
+  }
+
+  private setCategoryReadState(categoryId: LibraryCategoryDisplayCategoryId, readState: LibraryReadStateFilter): void {
+    const strategy = this.categoryStrategy(categoryId)
+    this.persistCategoryStrategy(categoryId, strategy.sortBy, readState)
   }
 
   private persistCreate(): void {
@@ -109,6 +194,108 @@ export struct LibraryCategoryManagementPage {
       const e = error as Error
       this.showToast(e.message)
     }
+  }
+
+  @Builder
+  private CategorySortMenu(categoryId: LibraryCategoryDisplayCategoryId) {
+    Menu() {
+      MenuItem({ content: '最近阅读' })
+        .onClick(() => {
+          this.setCategorySort(categoryId, 'lastRead')
+        })
+      MenuItem({ content: '最近加入' })
+        .onClick(() => {
+          this.setCategorySort(categoryId, 'added')
+        })
+      MenuItem({ content: '标题' })
+        .onClick(() => {
+          this.setCategorySort(categoryId, 'title')
+        })
+      MenuItem({ content: '来源' })
+        .onClick(() => {
+          this.setCategorySort(categoryId, 'source')
+        })
+    }
+  }
+
+  @Builder
+  private CategoryReadStateMenu(categoryId: LibraryCategoryDisplayCategoryId) {
+    Menu() {
+      MenuItem({ content: '全部状态' })
+        .onClick(() => {
+          this.setCategoryReadState(categoryId, 'all')
+        })
+      MenuItem({ content: '未读' })
+        .onClick(() => {
+          this.setCategoryReadState(categoryId, 'unread')
+        })
+      MenuItem({ content: '读过' })
+        .onClick(() => {
+          this.setCategoryReadState(categoryId, 'reading')
+        })
+      MenuItem({ content: '已完成' })
+        .onClick(() => {
+          this.setCategoryReadState(categoryId, 'completed')
+        })
+    }
+  }
+
+  @Builder
+  private StrategyRow(categoryId: LibraryCategoryDisplayCategoryId, title: string) {
+    Row({ space: 10 }) {
+      Column({ space: 4 }) {
+        Text(title)
+          .fontSize(15)
+          .fontWeight(FontWeight.Medium)
+          .fontColor($r('app.color.koma_text_primary'))
+          .maxLines(1)
+          .textOverflow({ overflow: TextOverflow.Ellipsis })
+        Text('打开分类时自动使用')
+          .fontSize(13)
+          .fontColor($r('app.color.koma_text_secondary'))
+      }
+      .layoutWeight(1)
+      .alignItems(HorizontalAlign.Start)
+      Button(this.sortLabel(this.categoryStrategy(categoryId).sortBy))
+        .height(36)
+        .padding({ left: 12, right: 12 })
+        .borderRadius(8)
+        .fontSize(14)
+        .fontColor($r('app.color.koma_text_primary'))
+        .backgroundColor('#0F000000')
+        .bindMenu(this.CategorySortMenu(categoryId))
+      Button(this.readStateLabel(this.categoryStrategy(categoryId).readState))
+        .height(36)
+        .padding({ left: 12, right: 12 })
+        .borderRadius(8)
+        .fontSize(14)
+        .fontColor($r('app.color.koma_text_primary'))
+        .backgroundColor('#0F000000')
+        .bindMenu(this.CategoryReadStateMenu(categoryId))
+    }
+    .width('100%')
+    .padding({ left: 16, right: 16, top: 14, bottom: 14 })
+    .borderRadius(8)
+    .backgroundColor($r('app.color.koma_card'))
+  }
+
+  @Builder
+  private DisplayStrategySection() {
+    Column({ space: 10 }) {
+      Text('分类显示方式')
+        .width('100%')
+        .fontSize(15)
+        .fontWeight(FontWeight.Medium)
+        .fontColor($r('app.color.koma_text_primary'))
+      this.StrategyRow('all', '全部分类')
+      this.StrategyRow('uncategorized', '未分类')
+      this.StrategyRow(LIBRARY_CATEGORY_FAVORITE_ID, '收藏')
+      this.StrategyRow(LIBRARY_CATEGORY_READ_LATER_ID, '稍后阅读')
+      ForEach(this.categories, (category: CustomLibraryCategory) => {
+        this.StrategyRow(category.id, category.name)
+      }, (category: CustomLibraryCategory) => category.id)
+    }
+    .width('100%')
   }
 
   private persistMove(categoryId: string, direction: 'up' | 'down'): void {
@@ -304,6 +491,9 @@ export struct LibraryCategoryManagementPage {
         horizontalPadding: 20,
         bottomPadding: ThemeConstants.FLOAT_BAR_HEIGHT + 20,
       }) {
+        ListItem() {
+          this.DisplayStrategySection()
+        }
         ListItem() {
           this.CreateCard()
         }

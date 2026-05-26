@@ -239,6 +239,7 @@ export struct LibraryPage {
       this.filterSource = preferencesValue.source
       this.filterReadState = preferencesValue.readState
       this.filterCategory = preferencesValue.category
+      this.applyCategoryDisplayStrategy(this.validCategoryFilter())
       this.refreshDisplayedSnapshotFromStore()
       console.info(
         `[Library] step=filter_restored sortBy=${this.sortBy} source=${this.filterSource} readState=${this.filterReadState} category=${this.filterCategory}`
@@ -300,9 +301,19 @@ export struct LibraryPage {
       return
     }
     this.filterCategory = category
+    this.applyCategoryDisplayStrategy(category)
     this.refreshDisplayedSnapshotFromStore()
     this.saveFilterPreferences()
     console.info(`[Library] step=filter_changed category=${category}`)
+  }
+
+  private applyCategoryDisplayStrategy(category: LibraryCategoryFilter): void {
+    const strategy = this.libraryStore.getCategoryDisplayStrategy(category)
+    if (strategy === undefined) {
+      return
+    }
+    this.sortBy = strategy.sortBy
+    this.filterReadState = strategy.readState
   }
 
   private sortLabel(): string {

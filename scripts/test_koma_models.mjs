@@ -611,13 +611,23 @@ assert.match(
 )
 assert.match(
   libraryPersistenceSource,
-  /customCategories\?: PersistedLibraryCategory\[\][\s\S]*createCustomCategoryAndPersistLibraryStore[\s\S]*renameCustomCategoryAndPersistLibraryStore[\s\S]*deleteCustomCategoryAndPersistLibraryStore/,
-  'Library persistence must include custom categories and persistence helpers',
+  /customCategories\?: PersistedLibraryCategory\[\][\s\S]*categoryDisplayStrategies\?: PersistedCategoryDisplayStrategy\[\][\s\S]*createCustomCategoryAndPersistLibraryStore[\s\S]*renameCustomCategoryAndPersistLibraryStore[\s\S]*deleteCustomCategoryAndPersistLibraryStore[\s\S]*setCategoryDisplayStrategyAndPersistLibraryStore/,
+  'Library persistence must include custom categories, display strategies, and persistence helpers',
 )
 assert.match(
   libraryCategoryManagementPageSource,
-  /createCustomCategoryAndPersistLibraryStore[\s\S]*deleteCustomCategoryAndPersistLibraryStore[\s\S]*renameCustomCategoryAndPersistLibraryStore[\s\S]*export struct LibraryCategoryManagementPage[\s\S]*TextInput/,
-  'LibraryCategoryManagementPage must expose list/create/rename/delete category management',
+  /createCustomCategoryAndPersistLibraryStore[\s\S]*deleteCustomCategoryAndPersistLibraryStore[\s\S]*renameCustomCategoryAndPersistLibraryStore[\s\S]*setCategoryDisplayStrategyAndPersistLibraryStore[\s\S]*export struct LibraryCategoryManagementPage[\s\S]*TextInput/,
+  'LibraryCategoryManagementPage must expose list/create/rename/delete category management and display strategy controls',
+)
+assert.match(
+  libraryCategoryManagementPageSource,
+  /DisplayStrategySection\(\)[\s\S]*this\.StrategyRow\('all', '全部分类'\)[\s\S]*this\.StrategyRow\('uncategorized', '未分类'\)[\s\S]*this\.StrategyRow\(LIBRARY_CATEGORY_FAVORITE_ID, '收藏'\)[\s\S]*this\.StrategyRow\(LIBRARY_CATEGORY_READ_LATER_ID, '稍后阅读'\)[\s\S]*ForEach\(this\.categories/,
+  'LibraryCategoryManagementPage must expose display strategies for default, built-in, and custom categories',
+)
+assert.match(
+  libraryPageSource,
+  /private setCategoryFilter\(category: LibraryCategoryFilter\): void \{[\s\S]*this\.applyCategoryDisplayStrategy\(category\)[\s\S]*private applyCategoryDisplayStrategy\(category: LibraryCategoryFilter\): void \{[\s\S]*this\.libraryStore\.getCategoryDisplayStrategy\(category\)[\s\S]*this\.sortBy = strategy\.sortBy[\s\S]*this\.filterReadState = strategy\.readState/,
+  'LibraryPage must apply a persisted category display strategy when a category filter is selected',
 )
 assert.match(
   libraryCategoryManagementPageSource,
@@ -984,7 +994,7 @@ assert.match(
 )
 assert.match(
   libraryPersistenceSource,
-  /function parseValidatedLibraryStoreDocument[\s\S]*assertSupportedLibraryStoreDocument\(document\)[\s\S]*customCategories[\s\S]*assertValidPersistedLibraryCategory[\s\S]*assertUniquePersistedLibraryCategories[\s\S]*document\.comics\.forEach[\s\S]*export function assertValidLibraryStoreJson[\s\S]*parseValidatedLibraryStoreDocument\(payload\)[\s\S]*export function hydrateLibraryStoreFromJson[\s\S]*const document = parseValidatedLibraryStoreDocument\(payload\)[\s\S]*libraryStore\.clear\(\)[\s\S]*libraryStore\.replaceCustomCategories/,
+  /function parseValidatedLibraryStoreDocument[\s\S]*assertSupportedLibraryStoreDocument\(document\)[\s\S]*customCategories[\s\S]*assertValidPersistedLibraryCategory[\s\S]*assertUniquePersistedLibraryCategories[\s\S]*categoryDisplayStrategies[\s\S]*assertValidPersistedCategoryDisplayStrategy[\s\S]*assertUniquePersistedCategoryDisplayStrategies[\s\S]*document\.comics\.forEach[\s\S]*export function assertValidLibraryStoreJson[\s\S]*parseValidatedLibraryStoreDocument\(payload\)[\s\S]*export function hydrateLibraryStoreFromJson[\s\S]*const document = parseValidatedLibraryStoreDocument\(payload\)[\s\S]*libraryStore\.clear\(\)[\s\S]*libraryStore\.replaceCustomCategories[\s\S]*libraryStore\.replaceCategoryDisplayStrategies/,
   'production hydrate path must validate schemaVersion and persisted rows before clearing the store',
 )
 assert.match(
@@ -1772,6 +1782,7 @@ function createMockComic(item, createdAt) {
 function createSeededStore() {
   const comics = new Map()
   const customCategories = new Map()
+  const categoryDisplayStrategies = new Map()
   mockLibraryComics.forEach((item, index) => {
     const comic = createMockComic(item, index + 1)
     comics.set(comic.id, comic)
@@ -1873,6 +1884,7 @@ function createSeededStore() {
       if (isBuiltInLibraryCategoryId(categoryId)) return false
       if (!customCategories.has(categoryId)) return false
       customCategories.delete(categoryId)
+      categoryDisplayStrategies.delete(categoryId)
       for (const [comicId, comic] of comics) {
         const before = normalizeCategoryIds(comic.categoryIds)
         const after = before.filter((item) => item !== categoryId)
@@ -1882,6 +1894,45 @@ function createSeededStore() {
       }
       return true
     },
+    listCategoryDisplayStrategies() {
+      return Array.from(categoryDisplayStrategies.values()).map((strategy) => ({ ...strategy }))
+    },
+    getCategoryDisplayStrategy(categoryId) {
+      const strategy = categoryDisplayStrategies.get(categoryId.trim())
+      return strategy === undefined ? undefined : { ...strategy }
+    },
+    replaceCategoryDisplayStrategies(strategies) {
+      categoryDisplayStrategies.clear()
+      for (const strategy of strategies) {
+        const nextStrategy = validateCategoryDisplayStrategy(strategy)
+        categoryDisplayStrategies.set(nextStrategy.categoryId, { ...nextStrategy })
+      }
+    },
+    setCategoryDisplayStrategy(strategy) {
+      const nextStrategy = validateCategoryDisplayStrategy(strategy)
+      categoryDisplayStrategies.set(nextStrategy.categoryId, { ...nextStrategy })
+      return { ...nextStrategy }
+    },
+  }
+}
+
+function validateCategoryDisplayStrategy(strategy) {
+  const categoryId = strategy.categoryId.trim()
+  if (categoryId.length === 0) throw new Error('Invalid category display strategy categoryId')
+  if (!['lastRead', 'added', 'title', 'source'].includes(strategy.sortBy)) {
+    throw new Error('Invalid category display strategy sortBy')
+  }
+  if (!['all', 'unread', 'reading', 'completed'].includes(strategy.readState)) {
+    throw new Error('Invalid category display strategy readState')
+  }
+  if (typeof strategy.updatedAt !== 'number' || !Number.isFinite(strategy.updatedAt)) {
+    throw new Error('Invalid category display strategy updatedAt')
+  }
+  return {
+    categoryId,
+    sortBy: strategy.sortBy,
+    readState: strategy.readState,
+    updatedAt: strategy.updatedAt,
   }
 }
 
@@ -2003,6 +2054,8 @@ function serializeLibraryStore(store) {
   }
   const customCategories = store.listCustomCategories().map((category) => ({ ...category }))
   if (customCategories.length > 0) document.customCategories = customCategories
+  const categoryDisplayStrategies = store.listCategoryDisplayStrategies().map((strategy) => ({ ...strategy }))
+  if (categoryDisplayStrategies.length > 0) document.categoryDisplayStrategies = categoryDisplayStrategies
   return JSON.stringify(document)
 }
 
@@ -2124,12 +2177,38 @@ function assertValidPersistedLibraryCategory(row) {
   assertValidCustomCategoryShape(row)
 }
 
+function assertValidPersistedCategoryDisplayStrategy(row) {
+  assertPersistedObject(row, 'categoryDisplayStrategy')
+  assertStringField(row.categoryId, 'categoryDisplayStrategy.categoryId')
+  if (!['lastRead', 'added', 'title', 'source'].includes(row.sortBy)) {
+    throw new Error('Invalid library store persistence categoryDisplayStrategy.sortBy: expected library sort')
+  }
+  if (!['all', 'unread', 'reading', 'completed'].includes(row.readState)) {
+    throw new Error('Invalid library store persistence categoryDisplayStrategy.readState: expected read-state filter')
+  }
+  assertNumberField(row.updatedAt, 'categoryDisplayStrategy.updatedAt')
+}
+
+function assertUniquePersistedCategoryDisplayStrategies(rows) {
+  const categoryIds = []
+  for (const row of rows) {
+    const categoryId = row.categoryId.trim()
+    if (categoryIds.includes(categoryId)) {
+      throw new Error('Invalid library store persistence categoryDisplayStrategies: duplicate category id')
+    }
+    categoryIds.push(categoryId)
+  }
+}
+
 function parseValidatedLibraryStoreDocument(payload) {
   const document = JSON.parse(payload)
   assertPersistedObject(document, 'document')
   assertSupportedLibraryStoreDocument(document)
   if (document.customCategories !== undefined && !Array.isArray(document.customCategories)) {
     throw new Error('Invalid library store persistence customCategories: expected array')
+  }
+  if (document.categoryDisplayStrategies !== undefined && !Array.isArray(document.categoryDisplayStrategies)) {
+    throw new Error('Invalid library store persistence categoryDisplayStrategies: expected array')
   }
   if (!Array.isArray(document.comics)) {
     throw new Error('Invalid library store persistence comics: expected array')
@@ -2138,6 +2217,10 @@ function parseValidatedLibraryStoreDocument(payload) {
   if (document.customCategories !== undefined) {
     assertUniquePersistedLibraryCategories(document.customCategories)
   }
+  document.categoryDisplayStrategies?.forEach((row) => assertValidPersistedCategoryDisplayStrategy(row))
+  if (document.categoryDisplayStrategies !== undefined) {
+    assertUniquePersistedCategoryDisplayStrategies(document.categoryDisplayStrategies)
+  }
   document.comics.forEach((row) => assertValidPersistedComic(row))
   return document
 }
@@ -2145,9 +2228,11 @@ function parseValidatedLibraryStoreDocument(payload) {
 function hydrateLibraryStoreFromJson(store, payload) {
   const document = parseValidatedLibraryStoreDocument(payload)
   const customCategories = document.customCategories ?? []
+  const categoryDisplayStrategies = document.categoryDisplayStrategies ?? []
   const comics = document.comics.map((row) => hydrateComic(row))
   store.clear()
   store.replaceCustomCategories(customCategories)
+  store.replaceCategoryDisplayStrategies(categoryDisplayStrategies)
   comics.forEach((comic) => store.upsertComic(comic))
 }
 
@@ -2299,6 +2384,18 @@ function deleteCustomCategoryAndPersistLibraryStore(store, persistenceService, c
   try {
     persistenceService.persist()
     return true
+  } catch (error) {
+    hydrateLibraryStoreFromJson(store, previousPayload)
+    throw error
+  }
+}
+
+function setCategoryDisplayStrategyAndPersistLibraryStore(store, persistenceService, strategy) {
+  const previousPayload = serializeLibraryStore(store)
+  const savedStrategy = store.setCategoryDisplayStrategy(strategy)
+  try {
+    persistenceService.persist()
+    return savedStrategy
   } catch (error) {
     hydrateLibraryStoreFromJson(store, previousPayload)
     throw error
@@ -2712,18 +2809,41 @@ assert.equal(updateComicCategoryMembershipAndPersistLibraryStore(categoryStore, 
 assert.equal(updateComicCategoryMembershipAndPersistLibraryStore(categoryStore, categoryService, ['imported-01'], 'read_later', true), 1, 'batch add must still accept built-in Read Later')
 assert.equal(updateComicCategoryMembershipAndPersistLibraryStore(categoryStore, categoryService, ['imported-01'], 'favorite', true), 1, 'batch add must still accept built-in Favorite')
 assert.equal(listLibraryItemsByCategory(categoryStore, customCategory.id).some((item) => item.id === 'imported-01'), true, 'custom category filter must include matching comics')
+const savedFavoriteStrategy = setCategoryDisplayStrategyAndPersistLibraryStore(categoryStore, categoryService, {
+  categoryId: 'favorite',
+  sortBy: 'title',
+  readState: 'unread',
+  updatedAt: 10,
+})
+assert.deepEqual(savedFavoriteStrategy, {
+  categoryId: 'favorite',
+  sortBy: 'title',
+  readState: 'unread',
+  updatedAt: 10,
+}, 'built-in category display strategy must be saved with a stable category id')
+setCategoryDisplayStrategyAndPersistLibraryStore(categoryStore, categoryService, {
+  categoryId: customCategory.id,
+  sortBy: 'added',
+  readState: 'reading',
+  updatedAt: 11,
+})
+assert.equal(categoryStore.getCategoryDisplayStrategy(customCategory.id).sortBy, 'added', 'custom category display strategy must update live store')
+assert.equal(JSON.parse(categoryAdapter.savedPayloads.at(-1)).categoryDisplayStrategies.length, 2, 'category display strategies must persist beside category definitions')
 const renamedCategory = renameCustomCategoryAndPersistLibraryStore(categoryStore, categoryService, customCategory.id, 'Owned')
 assert.equal(renamedCategory.name, 'Owned', 'custom category rename must update the name')
 assert.equal(deleteCustomCategoryAndPersistLibraryStore(categoryStore, categoryService, customCategory.id), true, 'custom category delete must report success')
 assert.equal(categoryStore.listCustomCategories().length, 0, 'custom category delete must remove the definition')
+assert.equal(categoryStore.getCategoryDisplayStrategy(customCategory.id), undefined, 'custom category delete must remove only that category display strategy')
+assert.equal(categoryStore.getCategoryDisplayStrategy('favorite').sortBy, 'title', 'custom category delete must preserve built-in display strategies')
 assert.equal(normalizeCategoryIds(categoryStore.getComic('imported-01').categoryIds).includes(customCategory.id), false, 'custom category delete must remove custom membership references')
 assert.equal(normalizeCategoryIds(categoryStore.getComic('imported-01').categoryIds).includes('read_later'), true, 'custom category delete must preserve existing Read Later membership')
 assert.equal(normalizeCategoryIds(categoryStore.getComic('imported-01').categoryIds).includes('favorite'), true, 'custom category delete must preserve existing Favorite membership')
 
 const categoryRestoreStore = createSeededStore()
-const categoryRestorePayload = categoryAdapter.savedPayloads.find((payload) => JSON.parse(payload).customCategories?.length === 1)
+const categoryRestorePayload = categoryAdapter.savedPayloads.find((payload) => JSON.parse(payload).customCategories?.length === 1 && JSON.parse(payload).categoryDisplayStrategies?.length === 2)
 hydrateLibraryStoreFromJson(categoryRestoreStore, categoryRestorePayload)
 assert.equal(categoryRestoreStore.listCustomCategories()[0].name, 'Favorites 2026', 'custom categories must restore from persisted library JSON')
+assert.equal(categoryRestoreStore.getCategoryDisplayStrategy('favorite').readState, 'unread', 'category display strategies must restore from persisted library JSON')
 const maliciousBuiltInCategoryIdPayload = JSON.stringify({
   ...JSON.parse(categoryRestorePayload),
   customCategories: [{ id: 'favorite', name: 'Restored Favorite', sortOrder: 0, createdAt: 1, updatedAt: 1 }],
@@ -2771,6 +2891,17 @@ assert.throws(
   'save failure during custom category creation must be visible to the caller',
 )
 assert.equal(throwingCategoryStore.listCustomCategories().length, 0, 'failed custom category creation must rollback the live store')
+assert.throws(
+  () => setCategoryDisplayStrategyAndPersistLibraryStore(throwingCategoryStore, throwingCategoryService, {
+    categoryId: 'favorite',
+    sortBy: 'title',
+    readState: 'unread',
+    updatedAt: 12,
+  }),
+  /disk full/,
+  'save failure during category display strategy update must be visible to the caller',
+)
+assert.equal(throwingCategoryStore.getCategoryDisplayStrategy('favorite'), undefined, 'failed category display strategy update must rollback the live store')
 
 assert.equal(isRemovableLocalComic(importedComic), true, 'imported local archive comics should be removable')
 assert.equal(isRemovableLocalComic(seededStore.getComic('local-01')), false, 'seed/demo comics must not be removable')

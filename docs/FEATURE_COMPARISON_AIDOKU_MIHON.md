@@ -31,7 +31,7 @@ Koma 不是完成态。当前是 **HarmonyOS 私有/本地优先漫画阅读器�
 | 平台 | HarmonyOS NEXT 原生 ArkUI；debug bundle `com.honjow.koma.dev` | iOS / iPadOS | Android 8+ | 平台差异化成立；HarmonyOS 组件/安全区/设备行为仍需持续真机验证。 |
 | 产品边界 | 私有漫画书架 + 阅读器；不内置源、不源市场、不宣传聚合 | 在线阅读 + WASM/external source system | 本地 + 扩展源；官方不提供内容 | Koma 边界更保守，适合上架；功能补齐不能走内置源市场路线。 |
 | 本地漫画 | CBZ/ZIP 导入；多图片导入；导入后入书架 | 当前官方资料重点是 external sources，不是本地目录主线 | Local source：固定目录结构、文件夹/zip/chapter 结构 | Koma 已有导入，但缺 Mihon 式 local source 文件夹规范、重扫、元数据识别。 |
-| 书架 Library | 网格、继续阅读、历史、排序/过滤、移出、Favorite/Read Later 与用户自定义分类过滤、批量分类增删、自定义分类管理/排序 | Library + bookmark/add to library | Library + categories + filters | 分类 MVP 已有；仍缺分类专属显示策略、更多筛选维度。 |
+| 书架 Library | 网格、继续阅读、历史、排序/过滤、移出、Favorite/Read Later 与用户自定义分类过滤、批量分类增删、自定义分类管理/排序、分类专属排序/阅读状态显示策略 | Library + bookmark/add to library | Library + categories + filters | 分类显示策略已有轻量版本；仍缺更多筛选维度。 |
 | 阅读器模式 | 单页、连续/Webtoon、双页、RTL 双页、沉浸 chrome、图片适配、点击翻页、页面间距、非裁剪收紧页边、宽图旋转、音量键翻页 runtime | 可在线/下载阅读；当前官方 README 未细分 reader 设置 | 多 viewer、阅读方向、paged/long strip、大量 reader settings | Koma 基础 reader 已成；仍缺宽图拆分、更多背景/手势设置和异常比例图片矩阵 QA。 |
 | 阅读进度 | 本地进度持久化；History；Komga progress pull/push | tracker 集成 | 本地进度 + tracker 更新；Komga/Kavita enhanced services | Koma 有 Komga 方向，但无 MAL/AniList/Kitsu 等公共 tracker。 |
 | 私有库 | Komga / OPDS / WebDAV 已接入；Browse/Reader/favorites/部分进度同步 | 主要 source 系统 | Komga/Kavita enhanced services；更多 tracker 生态 | Koma 私有库方向强，但需要 NAS/WebDAV、OPDS 1/2、Komga auth/大库兼容性矩阵。 |
@@ -45,7 +45,7 @@ Koma 不是完成态。当前是 **HarmonyOS 私有/本地优先漫画阅读器�
 | History | 真实阅读历史，点击恢复 | 当前摘录未确认 | 有历史/最近阅读类能力 | Koma 基础可用；缺清理、分组、跨设备同步。 |
 | 备份 | Schema v3：library/progress/remote servers/source packages/source settings/reader settings；本地导入导出 | 创建、导出、导入、恢复、重命名/删除 | library/tracking/settings/source settings；自动备份；云同步建议 | Koma 有备份核心；缺自动备份、备份管理列表、加密/敏感字段 UX、跨设备恢复 QA。 |
 | 设置 | Komga/OPDS/WebDAV、reader prefs、theme、backup、about/license/source manager/cache clear | settings + backups | reader/download/library/tracking/storage 等大量设置 | Koma 设置功能化已开始，但深度远低于 Mihon。 |
-| 分类 Categories | Favorite / Read Later 与用户自定义分类过滤；多选批量 add/remove 多分类；Settings 分类管理支持创建/重命名/删除/上移下移排序 | 当前摘录未确认 | 明确支持 categories，多分类、批量设置 | 已有分类 MVP；仍缺分类专属显示策略。 |
+| 分类 Categories | Favorite / Read Later 与用户自定义分类过滤；多选批量 add/remove 多分类；Settings 分类管理支持创建/重命名/删除/上移下移排序；支持为全部/未分类/内置/自定义分类保存排序与阅读状态显示策略 | 当前摘录未确认 | 明确支持 categories，多分类、批量设置 | 已有轻量分类显示策略；后续可补更多筛选维度与视图模式。 |
 | Tracker | 本地-only tracker 设置骨架，无 MAL/AniList/Kitsu 等真实账号同步 | README：AniList、MyAnimeList | MAL/AniList/Kitsu/MangaUpdates/Shikimori/Bangumi；一向同步，离线后同步 | 可后置，但对标成熟 reader 必须有。 |
 | 自动更新库 | 前台 source-runtime 新章检查、app-open due-check 偏好、最新结果持久化、失败退避；未做后台调度 | 当前摘录未确认 | Scheduled library updates | 缺后台定时/系统调度、私有库刷新矩阵。 |
 | 通知 | 书架更新有通知就绪摘要与失败码脱敏持久化；暂无系统通知投递 | 当前摘录未确认 | 下载/更新/错误通知成熟 | 缺新章/下载完成/失败的真实系统通知与权限态 QA。 |
@@ -67,8 +67,8 @@ Koma 不是完成态。当前是 **HarmonyOS 私有/本地优先漫画阅读器�
 
 2. **Library categories / 批量管理增强**
    - 对标 Mihon categories。
-   - 已有：Favorite / Read Later 与用户自定义多分类归属、批量增删、分类过滤、Settings 分类创建/重命名/删除/排序。
-   - 仍需：分类专属显示策略。
+   - 已有：Favorite / Read Later 与用户自定义多分类归属、批量增删、分类过滤、Settings 分类创建/重命名/删除/排序、分类专属排序/阅读状态显示策略。
+   - 仍需：更多筛选维度与视图模式。
 
 3. **Reader 高级设置增强**
    - 对标 Mihon reader settings。
