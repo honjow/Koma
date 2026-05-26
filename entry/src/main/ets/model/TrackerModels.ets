@@ -380,15 +380,6 @@ export function buildTrackerAuthorizationUrl(
   return `${provider.authorizationEndpoint}?${params.join('&')}`
 }
 
-export function createDeterministicPkceForTest(seed: string): TrackerPkcePair {
-  const normalized = seed.replace(/[^A-Za-z0-9._~-]/g, '').slice(0, 32)
-  const verifier = `koma-test-${normalized.length === 0 ? 'seed' : normalized}-verifier-000000000000000000000000`
-  return {
-    codeVerifier: verifier,
-    codeChallenge: verifier,
-  }
-}
-
 export function parseTrackerOAuthCallback(callbackUri: string, expectedState: string): TrackerOAuthCallbackResult {
   let query: Record<string, string>
   try {
