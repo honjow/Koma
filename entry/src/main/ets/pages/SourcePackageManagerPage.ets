@@ -874,11 +874,35 @@ export struct SourcePackageManagerPage {
     this.updateSettingValue(descriptor.id, options[nextIndex].id)
   }
 
+  private capabilityLabel(capability: string): string {
+    if (capability.startsWith('hostImports:')) {
+      return '受控宿主接口 ' + capability.replace('hostImports:', '') + ' 项'
+    }
+    switch (capability) {
+      case 'search':
+        return '搜索'
+      case 'detail':
+        return '详情'
+      case 'chapters':
+        return '章节'
+      case 'pages':
+        return '页面'
+      case 'network':
+        return '网络访问'
+      default:
+        return capability
+    }
+  }
+
   private capsText(source: InstalledSourcePackage): string {
     if (source.capabilities.length === 0) {
-      return 'capabilities: none'
+      return '能力：未声明'
     }
-    return 'capabilities: ' + source.capabilities.join(', ')
+    const labels: string[] = []
+    source.capabilities.forEach((capability: string) => {
+      labels.push(this.capabilityLabel(capability))
+    })
+    return '能力：' + labels.join(' / ')
   }
 
   private sourceMetaText(source: InstalledSourcePackage): string {
