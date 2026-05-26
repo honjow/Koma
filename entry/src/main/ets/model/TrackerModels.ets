@@ -222,9 +222,19 @@ export function getTrackerAccountDetail(account: TrackerAccount, secureStorageAv
     return '需要重新授权'
   }
   if (account.status === 'error') {
-    return account.statusReason ?? '连接失败'
+    return getTrackerAccountErrorDetail(account.statusReason)
   }
   return '账号未连接'
+}
+
+function getTrackerAccountErrorDetail(reason: string | undefined): string {
+  if (reason === 'secure_storage_unavailable' || reason === 'missing_credential_reference') {
+    return '账号状态暂不可用'
+  }
+  if (reason === 'provider_config_missing' || reason === 'pkce_unavailable') {
+    return '账号连接暂不可用'
+  }
+  return '连接失败'
 }
 
 export function normalizeTrackerAccountStatus(value: string): TrackerAccountStatus {

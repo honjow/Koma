@@ -15,6 +15,24 @@ const settingsPageSource = readFileSync(settingsPagePath, 'utf8')
 const indexSource = readFileSync(indexPath, 'utf8')
 const constantsSource = readFileSync(constantsPath, 'utf8')
 
+function sourceSlice(source, startNeedle, endNeedle) {
+  const start = source.indexOf(startNeedle)
+  assert.notEqual(start, -1, `${startNeedle} must exist`)
+  const end = source.indexOf(endNeedle, start + startNeedle.length)
+  return end === -1 ? source.slice(start) : source.slice(start, end)
+}
+
+const trackerAccountDetailBlock = sourceSlice(
+  trackerModelsSource,
+  'export function getTrackerAccountDetail',
+  'export function normalizeTrackerAccountStatus',
+)
+const trackerAuthPrepareStatusLabelBlock = sourceSlice(
+  trackerPageSource,
+  'private authPrepareStatusLabel',
+  'private showToast',
+)
+
 assert.match(
   trackerModelsSource,
   /export type TrackerAccountStatus = 'disconnected' \| 'auth_pending' \| 'connected' \| 'expired' \| 'error'/,
@@ -39,6 +57,21 @@ assert.match(
   trackerModelsSource,
   /status === 'connected' && \(!secureStorageAvailable \|\| credentialAccountKey === undefined\)[\s\S]*next\.status = 'error'[\s\S]*secure_storage_unavailable/,
   'connected tracker accounts must be rejected when secure storage is unavailable',
+)
+assert.match(
+  trackerAccountDetailBlock,
+  /status === 'error'[\s\S]*return getTrackerAccountErrorDetail\(account\.statusReason\)/,
+  'account detail helper must map error reasons through user-facing copy',
+)
+assert.doesNotMatch(
+  trackerAccountDetailBlock,
+  /return account\.statusReason|return reason/,
+  'account detail helper must not expose raw internal status reasons',
+)
+assert.match(
+  trackerAccountDetailBlock,
+  /账号状态暂不可用[\s\S]*账号连接暂不可用[\s\S]*连接失败/,
+  'account detail helper must include generic Chinese fallback text for errors',
 )
 assert.match(
   trackerModelsSource,
@@ -113,6 +146,21 @@ assert.match(
   trackerPageSource,
   /安全存储未验证，追踪账号连接暂不可用/,
   'TrackerSettingsPage must surface secure storage unavailability',
+)
+assert.match(
+  trackerPageSource,
+  /账号连接暂不可用/,
+  'TrackerSettingsPage must use user-facing unavailable text for auth preparation failures',
+)
+assert.match(
+  trackerPageSource,
+  /当前版本暂不能开始授权/,
+  'TrackerSettingsPage must use user-facing unavailable text for incomplete auth setup',
+)
+assert.doesNotMatch(
+  trackerAuthPrepareStatusLabelBlock,
+  /PKCE|Provider 配置|secure_storage_unavailable'[\s\S]*return 'secure_storage_unavailable|provider_config_missing'[\s\S]*return 'provider_config_missing|pkce_unavailable'[\s\S]*return 'pkce_unavailable/,
+  'TrackerSettingsPage must not expose OAuth implementation terms or raw reason codes in auth prompts',
 )
 assert.match(
   trackerPageSource,
