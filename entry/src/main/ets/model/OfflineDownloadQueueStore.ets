@@ -12,6 +12,11 @@ import {
 
 export const OFFLINE_DOWNLOAD_QUEUE_SCHEMA_VERSION: number = 1
 export const OFFLINE_DOWNLOAD_QUEUE_FILE_NAME: string = 'queue.v1.json'
+export const OFFLINE_DOWNLOAD_FOREGROUND_CONCURRENCY_LIMIT_OPTIONS: number[] = [1, 2, 3]
+export const DEFAULT_OFFLINE_DOWNLOAD_QUEUE_PREFERENCES: OfflineDownloadQueuePreferences = {
+  foregroundConcurrencyLimit: 1,
+  isPaused: false,
+}
 const OFFLINE_DOWNLOAD_QUEUE_TEMP_FILE_NAME: string = 'queue.v1.json.tmp'
 
 export interface OfflineDownloadQueueEntry {
@@ -26,8 +31,14 @@ export interface OfflineDownloadQueueEntry {
   failureReasonCode?: string
 }
 
+export interface OfflineDownloadQueuePreferences {
+  foregroundConcurrencyLimit: number
+  isPaused: boolean
+}
+
 interface OfflineDownloadQueueDocument {
   schemaVersion: number
+  preferences?: OfflineDownloadQueuePreferences
   entries: OfflineDownloadQueueEntry[]
 }
 
@@ -110,6 +121,26 @@ function normalizeEntry(entry: OfflineDownloadQueueEntry): OfflineDownloadQueueE
   return next
 }
 
+function normalizeForegroundConcurrencyLimit(value: number): number {
+  const normalized = Math.floor(value)
+  return OFFLINE_DOWNLOAD_FOREGROUND_CONCURRENCY_LIMIT_OPTIONS.indexOf(normalized) >= 0 ?
+    normalized :
+    DEFAULT_OFFLINE_DOWNLOAD_QUEUE_PREFERENCES.foregroundConcurrencyLimit
+}
+
+function normalizePreferences(preferences?: OfflineDownloadQueuePreferences): OfflineDownloadQueuePreferences {
+  if (preferences === undefined) {
+    return {
+      foregroundConcurrencyLimit: DEFAULT_OFFLINE_DOWNLOAD_QUEUE_PREFERENCES.foregroundConcurrencyLimit,
+      isPaused: DEFAULT_OFFLINE_DOWNLOAD_QUEUE_PREFERENCES.isPaused,
+    }
+  }
+  return {
+    foregroundConcurrencyLimit: normalizeForegroundConcurrencyLimit(preferences.foregroundConcurrencyLimit),
+    isPaused: preferences.isPaused === true,
+  }
+}
+
 export class OfflineDownloadQueueStore {
   private readonly filesDir: string
   private readonly rootDir: string
@@ -142,21 +173,75 @@ export class OfflineDownloadQueueStore {
   }
 
   load(): OfflineDownloadQueueEntry[] {
+    return this.loadDocument().entries
+  }
+
+  loadPreferences(): OfflineDownloadQueuePreferences {
+    return this.loadDocument().preferences ?? normalizePreferences()
+  }
+
+  savePreferences(preferences: OfflineDownloadQueuePreferences): OfflineDownloadQueuePreferences {
+    const document = this.loadDocument()
+    const normalized = normalizePreferences(preferences)
+    this.saveDocument({
+      schemaVersion: OFFLINE_DOWNLOAD_QUEUE_SCHEMA_VERSION,
+      preferences: normalized,
+      entries: document.entries,
+    })
+    return normalized
+  }
+
+  setForegroundConcurrencyLimit(limit: number): OfflineDownloadQueuePreferences {
+    const preferences = this.loadPreferences()
+    preferences.foregroundConcurrencyLimit = normalizeForegroundConcurrencyLimit(limit)
+    return this.savePreferences(preferences)
+  }
+
+  pauseAllQueuedWork(): OfflineDownloadQueuePreferences {
+    const preferences = this.loadPreferences()
+    preferences.isPaused = true
+    return this.savePreferences(preferences)
+  }
+
+  resumeAllQueuedWork(): OfflineDownloadQueuePreferences {
+    const preferences = this.loadPreferences()
+    preferences.isPaused = false
+    return this.savePreferences(preferences)
+  }
+
+  private loadDocument(): OfflineDownloadQueueDocument {
     if (!fs.accessSync(this.queuePath)) {
-      return []
+      return {
+        schemaVersion: OFFLINE_DOWNLOAD_QUEUE_SCHEMA_VERSION,
+        preferences: normalizePreferences(),
+        entries: [],
+      }
     }
     try {
       const document = JSON.parse(fs.readTextSync(this.queuePath, { encoding: 'utf-8' })) as OfflineDownloadQueueDocument
       if (document.schemaVersion !== OFFLINE_DOWNLOAD_QUEUE_SCHEMA_VERSION || !Array.isArray(document.entries)) {
-        return []
+        return {
+          schemaVersion: OFFLINE_DOWNLOAD_QUEUE_SCHEMA_VERSION,
+          preferences: normalizePreferences(),
+          entries: [],
+        }
       }
-      return document.entries.map((entry: OfflineDownloadQueueEntry): OfflineDownloadQueueEntry => normalizeEntry(entry))
+      return {
+        schemaVersion: OFFLINE_DOWNLOAD_QUEUE_SCHEMA_VERSION,
+        preferences: normalizePreferences(document.preferences),
+        entries: document.entries.map((entry: OfflineDownloadQueueEntry): OfflineDownloadQueueEntry => normalizeEntry(entry)),
+      }
     } catch (_err) {
-      return []
+      return {
+        schemaVersion: OFFLINE_DOWNLOAD_QUEUE_SCHEMA_VERSION,
+        preferences: normalizePreferences(),
+        entries: [],
+      }
     }
   }
 
   upsert(entry: OfflineDownloadQueueEntry): OfflineDownloadQueueEntry {
+    const document = this.loadDocument()
     const normalized = normalizeEntry({
       comicId: entry.comicId,
       chapterId: entry.chapterId,
@@ -168,19 +253,28 @@ export class OfflineDownloadQueueStore {
       updatedAt: Date.now(),
       failureReasonCode: entry.failureReasonCode,
     })
-    const entries = this.load().filter((item: OfflineDownloadQueueEntry): boolean => {
+    const entries = document.entries.filter((item: OfflineDownloadQueueEntry): boolean => {
       return item.comicId !== normalized.comicId || item.chapterId !== normalized.chapterId
     })
     entries.unshift(normalized)
-    this.saveDocument({ schemaVersion: OFFLINE_DOWNLOAD_QUEUE_SCHEMA_VERSION, entries })
+    this.saveDocument({
+      schemaVersion: OFFLINE_DOWNLOAD_QUEUE_SCHEMA_VERSION,
+      preferences: document.preferences,
+      entries,
+    })
     return normalized
   }
 
   remove(comicId: ComicId, chapterId: string): void {
-    const entries = this.load().filter((item: OfflineDownloadQueueEntry): boolean => {
+    const document = this.loadDocument()
+    const entries = document.entries.filter((item: OfflineDownloadQueueEntry): boolean => {
       return item.comicId !== comicId || item.chapterId !== chapterId
     })
-    this.saveDocument({ schemaVersion: OFFLINE_DOWNLOAD_QUEUE_SCHEMA_VERSION, entries })
+    this.saveDocument({
+      schemaVersion: OFFLINE_DOWNLOAD_QUEUE_SCHEMA_VERSION,
+      preferences: document.preferences,
+      entries,
+    })
   }
 
   async deleteChapterDownload(comicId: ComicId, chapterId: string): Promise<void> {
@@ -196,6 +290,7 @@ export class OfflineDownloadQueueStore {
     assertSafeOfflineDownloadRoot(this.filesDir, tempPath)
     writeTextSync(tempPath, JSON.stringify({
       schemaVersion: OFFLINE_DOWNLOAD_QUEUE_SCHEMA_VERSION,
+      preferences: document.preferences === undefined ? normalizePreferences() : normalizePreferences(document.preferences),
       entries: document.entries.map((entry: OfflineDownloadQueueEntry): OfflineDownloadQueueEntry => normalizeEntry(entry)),
     }))
     try {
@@ -215,5 +310,6 @@ export class OfflineDownloadQueueStore {
     void OfflineDownloadStatus.PARTIAL
     void OfflineDownloadStatus.FAILED
     void OfflineDownloadStatus.BLOCKED
+    void OFFLINE_DOWNLOAD_FOREGROUND_CONCURRENCY_LIMIT_OPTIONS
   }
 }
