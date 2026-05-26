@@ -18,7 +18,10 @@ import {
   withComicRemovedCategoryId,
 } from './ComicModels'
 import { fileIo as fs } from '@kit.CoreFileKit'
-import { LibraryStore } from './LibraryStore'
+import {
+  LibraryCategoryDisplayStrategy,
+  LibraryStore,
+} from './LibraryStore'
 
 export const LIBRARY_STORE_PERSISTENCE_SCHEMA_VERSION = 1
 export const LIBRARY_STORE_PERSISTENCE_FILE_NAME = 'library-store.v1.json'
@@ -26,6 +29,7 @@ export const LIBRARY_STORE_PERSISTENCE_FILE_NAME = 'library-store.v1.json'
 export interface PersistedLibraryStoreDocument {
   schemaVersion: number
   customCategories?: PersistedLibraryCategory[]
+  categoryDisplayStrategies?: PersistedCategoryDisplayStrategy[]
   comics: PersistedComic[]
 }
 
@@ -34,6 +38,13 @@ export interface PersistedLibraryCategory {
   name: string
   sortOrder: number
   createdAt: number
+  updatedAt: number
+}
+
+export interface PersistedCategoryDisplayStrategy {
+  categoryId: string
+  sortBy: string
+  readState: string
   updatedAt: number
 }
 
@@ -255,6 +266,12 @@ export function createLibraryStorePersistenceDocument(libraryStore: LibraryStore
   if (customCategories.length > 0) {
     document.customCategories = customCategories
   }
+  const categoryDisplayStrategies = libraryStore.listCategoryDisplayStrategies().map((strategy: LibraryCategoryDisplayStrategy): PersistedCategoryDisplayStrategy => {
+    return persistCategoryDisplayStrategy(strategy)
+  })
+  if (categoryDisplayStrategies.length > 0) {
+    document.categoryDisplayStrategies = categoryDisplayStrategies
+  }
   return document
 }
 
@@ -330,6 +347,18 @@ function assertReadingDirection(value: ReadingDirection | undefined, label: stri
     value !== ReadingDirection.WEBTOON
   ) {
     throw new Error(`Invalid library store persistence ${label}: expected reading direction`)
+  }
+}
+
+function assertLibrarySortBy(value: string | undefined, label: string): void {
+  if (value !== 'lastRead' && value !== 'added' && value !== 'title' && value !== 'source') {
+    throw new Error(`Invalid library store persistence ${label}: expected library sort`)
+  }
+}
+
+function assertLibraryReadState(value: string | undefined, label: string): void {
+  if (value !== 'all' && value !== 'unread' && value !== 'reading' && value !== 'completed') {
+    throw new Error(`Invalid library store persistence ${label}: expected read-state filter`)
   }
 }
 
@@ -447,12 +476,56 @@ function assertUniquePersistedLibraryCategories(rows: PersistedLibraryCategory[]
   })
 }
 
+function persistCategoryDisplayStrategy(strategy: LibraryCategoryDisplayStrategy): PersistedCategoryDisplayStrategy {
+  return {
+    categoryId: strategy.categoryId,
+    sortBy: strategy.sortBy,
+    readState: strategy.readState,
+    updatedAt: strategy.updatedAt,
+  }
+}
+
+function hydrateCategoryDisplayStrategy(row: PersistedCategoryDisplayStrategy): LibraryCategoryDisplayStrategy {
+  assertValidPersistedCategoryDisplayStrategy(row)
+  return {
+    categoryId: row.categoryId,
+    sortBy: row.sortBy as 'lastRead' | 'added' | 'title' | 'source',
+    readState: row.readState as 'all' | 'unread' | 'reading' | 'completed',
+    updatedAt: row.updatedAt,
+  }
+}
+
+function assertValidPersistedCategoryDisplayStrategy(row: PersistedCategoryDisplayStrategy): void {
+  assertPersistedObject(row as Object, 'categoryDisplayStrategy')
+  assertStringField(row.categoryId, 'categoryDisplayStrategy.categoryId')
+  if (row.categoryId.trim().length === 0) {
+    throw new Error('Invalid library store persistence categoryDisplayStrategy.categoryId: expected non-empty category id')
+  }
+  assertLibrarySortBy(row.sortBy, 'categoryDisplayStrategy.sortBy')
+  assertLibraryReadState(row.readState, 'categoryDisplayStrategy.readState')
+  assertNumberField(row.updatedAt, 'categoryDisplayStrategy.updatedAt')
+}
+
+function assertUniquePersistedCategoryDisplayStrategies(rows: PersistedCategoryDisplayStrategy[]): void {
+  const categoryIds: string[] = []
+  rows.forEach((row: PersistedCategoryDisplayStrategy) => {
+    const categoryId = row.categoryId.trim()
+    if (categoryIds.includes(categoryId)) {
+      throw new Error('Invalid library store persistence categoryDisplayStrategies: duplicate category id')
+    }
+    categoryIds.push(categoryId)
+  })
+}
+
 function parseValidatedLibraryStoreDocument(payload: string): PersistedLibraryStoreDocument {
   const document = JSON.parse(payload) as PersistedLibraryStoreDocument
   assertPersistedObject(document as Object, 'document')
   assertSupportedLibraryStoreDocument(document)
   if (document.customCategories !== undefined && !Array.isArray(document.customCategories)) {
     throw new Error('Invalid library store persistence customCategories: expected array')
+  }
+  if (document.categoryDisplayStrategies !== undefined && !Array.isArray(document.categoryDisplayStrategies)) {
+    throw new Error('Invalid library store persistence categoryDisplayStrategies: expected array')
   }
   if (!Array.isArray(document.comics)) {
     throw new Error('Invalid library store persistence comics: expected array')
@@ -462,6 +535,12 @@ function parseValidatedLibraryStoreDocument(payload: string): PersistedLibrarySt
       assertValidPersistedLibraryCategory(row)
     })
     assertUniquePersistedLibraryCategories(document.customCategories)
+  }
+  if (document.categoryDisplayStrategies !== undefined) {
+    document.categoryDisplayStrategies.forEach((row: PersistedCategoryDisplayStrategy) => {
+      assertValidPersistedCategoryDisplayStrategy(row)
+    })
+    assertUniquePersistedCategoryDisplayStrategies(document.categoryDisplayStrategies)
   }
   document.comics.forEach((row: PersistedComic) => {
     assertValidPersistedComic(row)
@@ -478,9 +557,13 @@ export function hydrateLibraryStoreFromJson(libraryStore: LibraryStore, payload:
   const customCategories = document.customCategories === undefined ? [] : document.customCategories.map((row: PersistedLibraryCategory) => {
     return hydrateLibraryCategory(row)
   })
+  const categoryDisplayStrategies = document.categoryDisplayStrategies === undefined ? [] : document.categoryDisplayStrategies.map((row: PersistedCategoryDisplayStrategy) => {
+    return hydrateCategoryDisplayStrategy(row)
+  })
   const comics = document.comics.map((row: PersistedComic) => hydrateComic(row))
   libraryStore.clear()
   libraryStore.replaceCustomCategories(customCategories)
+  libraryStore.replaceCategoryDisplayStrategies(categoryDisplayStrategies)
   comics.forEach((comic: Comic) => {
     libraryStore.upsertComic(comic)
   })
@@ -703,6 +786,22 @@ export function deleteCustomCategoryAndPersistLibraryStore(
   try {
     persistenceService.persist()
     return true
+  } catch (error) {
+    hydrateLibraryStoreFromJson(libraryStore, previousPayload)
+    throw error as Error
+  }
+}
+
+export function setCategoryDisplayStrategyAndPersistLibraryStore(
+  libraryStore: LibraryStore,
+  persistenceService: LibraryStorePersistenceService,
+  strategy: LibraryCategoryDisplayStrategy
+): LibraryCategoryDisplayStrategy {
+  const previousPayload = serializeLibraryStore(libraryStore)
+  const savedStrategy = libraryStore.setCategoryDisplayStrategy(strategy)
+  try {
+    persistenceService.persist()
+    return savedStrategy
   } catch (error) {
     hydrateLibraryStoreFromJson(libraryStore, previousPayload)
     throw error as Error
