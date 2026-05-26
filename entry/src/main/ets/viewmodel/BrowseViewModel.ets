@@ -2,6 +2,7 @@ import { taskpool } from '@kit.ArkTS'
 import { SourceManga, SourceMangaList, SourceMangaStatus } from '../model/SourceModels'
 import { normalizeSourceDisplayText } from '../model/SourceTextNormalizer'
 import { SourceRuntimeCallResponse } from '../sourceRuntime/NativeSourceRuntime'
+import { safeDiagnosticCode, safeSearchDiagnostic } from '../model/SearchStateMapper'
 import { appSourceRuntimeRegistry } from '../sourceRuntime/SourceRuntimeAppRegistry'
 import {
   SourceSettingsRecord,
@@ -257,7 +258,7 @@ export class BrowseViewModel {
       this.hasMoreSearch = result.hasNextPage
     } catch (error) {
       const e = error as Error
-      this.errorMessage = e.message.length > 0 ? e.message : '搜索失败'
+      this.errorMessage = safeSearchDiagnostic(e).userText
       this.searchResults = []
       this.hasMoreSearch = false
     } finally {
@@ -278,7 +279,7 @@ export class BrowseViewModel {
       this.hasMoreSearch = more.hasNextPage
     } catch (error) {
       const e = error as Error
-      this.errorMessage = e.message.length > 0 ? e.message : '加载更多失败'
+      this.errorMessage = safeSearchDiagnostic(e).userText
       this.hasMoreSearch = false
     } finally {
       this.loadingSearch = false
@@ -364,11 +365,11 @@ export class BrowseViewModel {
 
   private runtimeErrorMessage(response: SourceRuntimeCallResponse): string {
     if (typeof response.reasonCode === 'string' && response.reasonCode.length > 0) {
-      return `源运行失败：${response.reasonCode}`
+      return `源运行失败：${safeDiagnosticCode(response.reasonCode)}`
     }
-    const errorMessage = response.error?.['message']
-    if (typeof errorMessage === 'string' && errorMessage.length > 0) {
-      return `源运行失败：${errorMessage}`
+    const errorCode = response.error?.['code']
+    if (typeof errorCode === 'string' && errorCode.length > 0) {
+      return `源运行失败：${safeDiagnosticCode(errorCode)}`
     }
     return '源运行失败'
   }
