@@ -388,18 +388,28 @@ assertExport(libraryPersistenceSource, 'deleteCustomCategoryAndPersistLibrarySto
 assertExport(libraryPersistenceSource, 'isRemovableLocalComic')
 assertExport(libraryPersistenceSource, 'removeComicAndPersistLibraryStore')
 assertExport(libraryUpdateServiceSource, 'LibraryUpdateResultStatus')
+assertExport(libraryUpdateServiceSource, 'LibraryUpdateProviderKind')
 assertExport(libraryUpdateServiceSource, 'LibraryUpdateComicResult')
+assertExport(libraryUpdateServiceSource, 'LibraryUpdateProviderSummary')
 assertExport(libraryUpdateServiceSource, 'LibraryUpdateSummary')
 assertExport(libraryUpdateServiceSource, 'LibraryUpdateService')
 assertExport(libraryUpdateServiceSource, 'countLibraryUpdateNewChapters')
+assertExport(libraryUpdateServiceSource, 'summarizeLibraryUpdateProviders')
 assertExport(libraryUpdateServiceSource, 'formatLibraryUpdateSummary')
 assertExport(libraryUpdateResultStoreSource, 'LIBRARY_UPDATE_RESULT_STORE_NAME')
 assertExport(libraryUpdateResultStoreSource, 'LIBRARY_UPDATE_LATEST_RESULT_JSON_KEY')
+assertExport(libraryUpdateResultStoreSource, 'LIBRARY_UPDATE_LATEST_JOB_JSON_KEY')
 assertExport(libraryUpdateResultStoreSource, 'LIBRARY_UPDATE_RESULT_MAX_RESULTS')
+assertExport(libraryUpdateResultStoreSource, 'LIBRARY_UPDATE_RESULT_MAX_PROVIDER_SUMMARIES')
 assertExport(libraryUpdateResultStoreSource, 'LIBRARY_UPDATE_RESULT_MAX_COMIC_ID_LENGTH')
 assertExport(libraryUpdateResultStoreSource, 'LIBRARY_UPDATE_RESULT_MAX_MESSAGE_LENGTH')
+assertExport(libraryUpdateResultStoreSource, 'LIBRARY_UPDATE_RESULT_MAX_SOURCE_KEY_LENGTH')
+assertExport(libraryUpdateResultStoreSource, 'LibraryUpdateJobState')
 assertExport(libraryUpdateResultStoreSource, 'PersistedLibraryUpdateResult')
+assertExport(libraryUpdateResultStoreSource, 'PersistedLibraryUpdateProviderSummary')
 assertExport(libraryUpdateResultStoreSource, 'PersistedLibraryUpdateSummary')
+assertExport(libraryUpdateResultStoreSource, 'LibraryUpdateJobSnapshot')
+assertExport(libraryUpdateResultStoreSource, 'PersistedLibraryUpdateJobSnapshot')
 assertExport(libraryUpdateResultStoreSource, 'LibraryUpdateNotificationSummary')
 assertExport(libraryUpdateResultStoreSource, 'redactLibraryUpdateFailureCode')
 assertExport(libraryUpdateResultStoreSource, 'serializeLibraryUpdateSummary')
@@ -407,8 +417,14 @@ assertExport(libraryUpdateResultStoreSource, 'createLibraryUpdateNotificationSum
 assertExport(libraryUpdateResultStoreSource, 'formatLibraryUpdateNotificationSummary')
 assertExport(libraryUpdateResultStoreSource, 'hydrateLibraryUpdateSummaryFromJson')
 assertExport(libraryUpdateResultStoreSource, 'cloneLibraryUpdateSummary')
+assertExport(libraryUpdateResultStoreSource, 'createLibraryUpdateJobSnapshot')
+assertExport(libraryUpdateResultStoreSource, 'serializeLibraryUpdateJobSnapshot')
+assertExport(libraryUpdateResultStoreSource, 'hydrateLibraryUpdateJobSnapshotFromJson')
 assertExport(libraryUpdateResultStoreSource, 'setLatestLibraryUpdateSummary')
+assertExport(libraryUpdateResultStoreSource, 'clearLatestLibraryUpdateSummary')
 assertExport(libraryUpdateResultStoreSource, 'getLatestLibraryUpdateSummary')
+assertExport(libraryUpdateResultStoreSource, 'setLatestLibraryUpdateJobSnapshot')
+assertExport(libraryUpdateResultStoreSource, 'getLatestLibraryUpdateJobSnapshot')
 assertExport(libraryUpdateResultStoreSource, 'LibraryUpdateResultStore')
 assertExport(libraryUpdatePreferencesStoreSource, 'LibraryUpdatePreferences')
 assertExport(libraryUpdatePreferencesStoreSource, 'LibraryUpdateNotificationStatus')
@@ -691,8 +707,8 @@ assert.match(
 )
 assert.match(
   settingsPageSource,
-  /isLibraryUpdateDue\(this\.libraryUpdatePreferences, Date\.now\(\)\)[\s\S]*this\.checkLibraryUpdates\('due'\)/,
-  'SettingsPage must trigger due checks only when preferences say they are due',
+  /isLibraryUpdateDue\(this\.libraryUpdatePreferences, Date\.now\(\)\)[\s\S]*createLibraryUpdateJobSnapshot\('due'[\s\S]*saveJobSnapshot\(dueSnapshot\)[\s\S]*this\.checkLibraryUpdates\('due'\)/,
+  'SettingsPage must durably record a due state before starting due checks',
 )
 assert.match(
   settingsPageSource,
@@ -743,6 +759,11 @@ assert.match(
   settingsPageSource,
   /openLibraryUpdateResults\(\): void \{[\s\S]*\[Settings\] step=open_library_update_results[\s\S]*this\.onOpenLibraryUpdateResults\(\)/,
   'SettingsPage must log and call the callback when opening update result details',
+)
+assert.match(
+  settingsPageSource,
+  /catch\(\(error: Error\) => \{[\s\S]*step=library_update_failed[\s\S]*this\.libraryUpdateSummary = undefined[\s\S]*clearLatestLibraryUpdateSummary\(\)[\s\S]*saveJobSnapshot\(failedSnapshot\)/,
+  'SettingsPage must clear in-memory latest success before a newer failed or backed-off snapshot can open result details',
 )
 assert.doesNotMatch(
   settingsPageSource,
@@ -866,8 +887,8 @@ assert.match(
 )
 assert.match(
   libraryUpdateResultPageSource,
-  /aboutToAppear\(\): void \{[\s\S]*getLatestLibraryUpdateSummary\(\)[\s\S]*\[LibraryUpdateResults\] step=appear hasSummary=/,
-  'LibraryUpdateResultPage must read the latest summary on appear and log safe aggregate state',
+  /aboutToAppear\(\): void \{[\s\S]*getLatestLibraryUpdateJobSnapshot\(\)[\s\S]*effectiveSummaryForJob\(getLatestLibraryUpdateSummary\(\), latestJob\)[\s\S]*\[LibraryUpdateResults\] step=appear hasSummary=/,
+  'LibraryUpdateResultPage must read the latest job snapshot before treating a latest summary as current',
 )
 assert.match(
   libraryUpdateResultPageSource,
@@ -876,13 +897,13 @@ assert.match(
 )
 assert.match(
   libraryUpdateResultPageSource,
-  /if \(latest !== undefined\) \{[\s\S]*return[\s\S]*this\.libraryUpdateResultStore\(\)\.load\(\)[\s\S]*step=load_persisted hasSummary=/,
-  'LibraryUpdateResultPage must fall back to persisted result loading when memory is absent',
+  /loadJobSnapshot\(\)[\s\S]*setLatestLibraryUpdateJobSnapshot\(snapshot\)[\s\S]*isSummaryBlockedByJob\(this\.summary, effectiveJob\)[\s\S]*clearLatestLibraryUpdateSummary\(\)[\s\S]*this\.loadPersistedSummary\(effectiveJob\)/,
+  'LibraryUpdateResultPage must let newer failed or backed-off job snapshots suppress stale current successes',
 )
 assert.match(
   libraryUpdateResultPageSource,
-  /\.then\(\(summary: LibraryUpdateSummary \| undefined\) => \{[\s\S]*const current = getLatestLibraryUpdateSummary\(\)[\s\S]*if \(summary !== undefined && \(current === undefined \|\| summary\.checkedAt > current\.checkedAt\)\) \{[\s\S]*setLatestLibraryUpdateSummary\(summary\)[\s\S]*this\.summary = effectiveSummary/,
-  'LibraryUpdateResultPage must only hydrate persisted results when newer than fresh in-memory state at load resolution',
+  /\.then\(\(summary: LibraryUpdateSummary \| undefined\) => \{[\s\S]*const current = getLatestLibraryUpdateSummary\(\)[\s\S]*if \(summary !== undefined && \(current === undefined \|\| summary\.checkedAt > current\.checkedAt\)\) \{[\s\S]*setLatestLibraryUpdateSummary\(summary\)[\s\S]*this\.summary = this\.effectiveSummaryForJob\(effectiveSummary, jobSnapshot\)/,
+  'LibraryUpdateResultPage must only hydrate persisted results when newer than memory and not blocked by a newer failed job',
 )
 assert.match(
   libraryUpdateResultPageSource,

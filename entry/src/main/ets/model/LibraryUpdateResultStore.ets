@@ -2,23 +2,45 @@ import { common } from '@kit.AbilityKit'
 import { preferences } from '@kit.ArkData'
 import {
   LibraryUpdateComicResult,
+  LibraryUpdateProviderKind,
+  LibraryUpdateProviderSummary,
   LibraryUpdateResultStatus,
   LibraryUpdateSummary,
   countLibraryUpdateNewChapters,
+  summarizeLibraryUpdateProviders,
 } from './LibraryUpdateService'
 
 export const LIBRARY_UPDATE_RESULT_STORE_NAME: string = 'koma_library_update_results_v1'
 export const LIBRARY_UPDATE_LATEST_RESULT_JSON_KEY: string = 'libraryUpdate.latestResultJson'
+export const LIBRARY_UPDATE_LATEST_JOB_JSON_KEY: string = 'libraryUpdate.latestJobJson'
 export const LIBRARY_UPDATE_RESULT_MAX_RESULTS: number = 200
+export const LIBRARY_UPDATE_RESULT_MAX_PROVIDER_SUMMARIES: number = 80
 export const LIBRARY_UPDATE_RESULT_MAX_COMIC_ID_LENGTH: number = 256
 export const LIBRARY_UPDATE_RESULT_MAX_MESSAGE_LENGTH: number = 512
+export const LIBRARY_UPDATE_RESULT_MAX_SOURCE_KEY_LENGTH: number = 64
+
+export type LibraryUpdateJobState = 'due' | 'running' | 'success' | 'failed' | 'backed-off'
 
 export interface PersistedLibraryUpdateResult {
   comicId: string
+  providerKind: LibraryUpdateProviderKind
+  sourceKey: string
   status: LibraryUpdateResultStatus
   previousChapterCount: number
   newChapterCount: number
   message: string
+}
+
+export interface PersistedLibraryUpdateProviderSummary {
+  providerKind: LibraryUpdateProviderKind
+  sourceKey: string
+  totalCount: number
+  updatedCount: number
+  unchangedCount: number
+  skippedCount: number
+  failedCount: number
+  newChapterCount: number
+  failureCodes: string[]
 }
 
 export interface PersistedLibraryUpdateSummary {
@@ -28,7 +50,30 @@ export interface PersistedLibraryUpdateSummary {
   unchangedCount: number
   skippedCount: number
   failedCount: number
+  providerSummaries: PersistedLibraryUpdateProviderSummary[]
   results: PersistedLibraryUpdateResult[]
+}
+
+export interface LibraryUpdateJobSnapshot {
+  state: LibraryUpdateJobState
+  updatedAt: number
+  startedAt?: number
+  finishedAt?: number
+  nextDueAt?: number
+  failureCode?: string
+  summary?: LibraryUpdateSummary
+  providerSummaries: LibraryUpdateProviderSummary[]
+}
+
+export interface PersistedLibraryUpdateJobSnapshot {
+  state: LibraryUpdateJobState
+  updatedAt: number
+  startedAt?: number
+  finishedAt?: number
+  nextDueAt?: number
+  failureCode?: string
+  summary?: PersistedLibraryUpdateSummary
+  providerSummaries: PersistedLibraryUpdateProviderSummary[]
 }
 
 export interface LibraryUpdateNotificationSummary {
@@ -43,6 +88,7 @@ export interface LibraryUpdateNotificationSummary {
 }
 
 let latestLibraryUpdateSummary: LibraryUpdateSummary | undefined = undefined
+let latestLibraryUpdateJobSnapshot: LibraryUpdateJobSnapshot | undefined = undefined
 
 function clampString(value: string, maxLength: number): string {
   if (value.length <= maxLength) {
@@ -99,6 +145,42 @@ function isValidStatus(value: string): boolean {
     value === 'failed'
 }
 
+function isValidProviderKind(value: string): boolean {
+  return value === 'source_runtime' ||
+    value === 'local' ||
+    value === 'komga' ||
+    value === 'opds' ||
+    value === 'webdav' ||
+    value === 'private_library' ||
+    value === 'unsupported'
+}
+
+function isValidJobState(value: string): boolean {
+  return value === 'due' ||
+    value === 'running' ||
+    value === 'success' ||
+    value === 'failed' ||
+    value === 'backed-off'
+}
+
+function normalizeProviderKind(value: string | undefined): LibraryUpdateProviderKind {
+  if (value !== undefined && isValidProviderKind(value)) {
+    return value as LibraryUpdateProviderKind
+  }
+  return 'unsupported'
+}
+
+function normalizeSourceKey(value: string | undefined): string {
+  if (value === undefined) {
+    return 'source:unknown'
+  }
+  const trimmed = value.trim().toLocaleLowerCase()
+  if (/^(source:[a-z0-9]+|local|komga|opds|webdav|private_library|unsupported)$/.test(trimmed)) {
+    return clampString(trimmed, LIBRARY_UPDATE_RESULT_MAX_SOURCE_KEY_LENGTH)
+  }
+  return 'source:unknown'
+}
+
 function sanitizeLibraryUpdateResultMessage(status: LibraryUpdateResultStatus, message: string): string {
   return status === 'failed' ? redactLibraryUpdateFailureCode(message) : message
 }
@@ -106,6 +188,8 @@ function sanitizeLibraryUpdateResultMessage(status: LibraryUpdateResultStatus, m
 function cloneLibraryUpdateResult(result: LibraryUpdateComicResult): LibraryUpdateComicResult {
   return {
     comicId: result.comicId,
+    providerKind: result.providerKind,
+    sourceKey: result.sourceKey,
     status: result.status,
     previousChapterCount: result.previousChapterCount,
     newChapterCount: result.newChapterCount,
@@ -117,10 +201,33 @@ function persistLibraryUpdateResult(result: LibraryUpdateComicResult): Persisted
   const message = sanitizeLibraryUpdateResultMessage(result.status, result.message)
   return {
     comicId: clampString(result.comicId, LIBRARY_UPDATE_RESULT_MAX_COMIC_ID_LENGTH),
+    providerKind: normalizeProviderKind(result.providerKind),
+    sourceKey: normalizeSourceKey(result.sourceKey),
     status: result.status,
     previousChapterCount: normalizeCount(result.previousChapterCount),
     newChapterCount: normalizeCount(result.newChapterCount),
     message: clampString(message, LIBRARY_UPDATE_RESULT_MAX_MESSAGE_LENGTH),
+  }
+}
+
+function persistLibraryUpdateProviderSummary(summary: LibraryUpdateProviderSummary): PersistedLibraryUpdateProviderSummary {
+  const failureCodes: string[] = []
+  summary.failureCodes.forEach((code: string) => {
+    const safeCode = redactLibraryUpdateFailureCode(code)
+    if (!failureCodes.includes(safeCode)) {
+      failureCodes.push(safeCode)
+    }
+  })
+  return {
+    providerKind: normalizeProviderKind(summary.providerKind),
+    sourceKey: normalizeSourceKey(summary.sourceKey),
+    totalCount: normalizeCount(summary.totalCount),
+    updatedCount: normalizeCount(summary.updatedCount),
+    unchangedCount: normalizeCount(summary.unchangedCount),
+    skippedCount: normalizeCount(summary.skippedCount),
+    failedCount: normalizeCount(summary.failedCount),
+    newChapterCount: normalizeCount(summary.newChapterCount),
+    failureCodes,
   }
 }
 
@@ -161,6 +268,10 @@ export function serializeLibraryUpdateSummary(summary: LibraryUpdateSummary): st
   const results = summary.results
     .slice(0, LIBRARY_UPDATE_RESULT_MAX_RESULTS)
     .map((result: LibraryUpdateComicResult): PersistedLibraryUpdateResult => persistLibraryUpdateResult(result))
+  const providerSummaries = (summary.providerSummaries.length > 0 ? summary.providerSummaries : summarizeLibraryUpdateProviders(summary.results))
+    .slice(0, LIBRARY_UPDATE_RESULT_MAX_PROVIDER_SUMMARIES)
+    .map((providerSummary: LibraryUpdateProviderSummary): PersistedLibraryUpdateProviderSummary =>
+      persistLibraryUpdateProviderSummary(providerSummary))
   const persisted: PersistedLibraryUpdateSummary = {
     checkedAt: isValidCheckedAt(summary.checkedAt) ? summary.checkedAt : Date.now(),
     totalCount: normalizeCount(summary.totalCount),
@@ -168,6 +279,7 @@ export function serializeLibraryUpdateSummary(summary: LibraryUpdateSummary): st
     unchangedCount: normalizeCount(summary.unchangedCount),
     skippedCount: normalizeCount(summary.skippedCount),
     failedCount: normalizeCount(summary.failedCount),
+    providerSummaries,
     results,
   }
   return JSON.stringify(persisted)
@@ -207,6 +319,8 @@ function hydrateLibraryUpdateResult(value: Object): LibraryUpdateComicResult | u
   }
   const record = value as Record<string, Object>
   const comicId = stringField(record, 'comicId')
+  const providerKind = stringField(record, 'providerKind')
+  const sourceKey = stringField(record, 'sourceKey')
   const status = stringField(record, 'status')
   const previousChapterCount = numberField(record, 'previousChapterCount')
   const newChapterCount = numberField(record, 'newChapterCount')
@@ -226,10 +340,59 @@ function hydrateLibraryUpdateResult(value: Object): LibraryUpdateComicResult | u
   const safeStatus = status as LibraryUpdateResultStatus
   return {
     comicId: clampString(comicId, LIBRARY_UPDATE_RESULT_MAX_COMIC_ID_LENGTH),
+    providerKind: normalizeProviderKind(providerKind),
+    sourceKey: normalizeSourceKey(sourceKey),
     status: safeStatus,
     previousChapterCount: normalizeCount(previousChapterCount),
     newChapterCount: normalizeCount(newChapterCount),
     message: clampString(sanitizeLibraryUpdateResultMessage(safeStatus, message), LIBRARY_UPDATE_RESULT_MAX_MESSAGE_LENGTH),
+  }
+}
+
+function hydrateLibraryUpdateProviderSummary(value: Object): LibraryUpdateProviderSummary | undefined {
+  if (!isRecord(value)) {
+    return undefined
+  }
+  const record = value as Record<string, Object>
+  const providerKind = stringField(record, 'providerKind')
+  const sourceKey = stringField(record, 'sourceKey')
+  const totalCount = numberField(record, 'totalCount')
+  const updatedCount = numberField(record, 'updatedCount')
+  const unchangedCount = numberField(record, 'unchangedCount')
+  const skippedCount = numberField(record, 'skippedCount')
+  const failedCount = numberField(record, 'failedCount')
+  const newChapterCount = numberField(record, 'newChapterCount')
+  const rawFailureCodesObject = record['failureCodes']
+  if (totalCount === undefined ||
+    updatedCount === undefined ||
+    unchangedCount === undefined ||
+    skippedCount === undefined ||
+    failedCount === undefined ||
+    newChapterCount === undefined ||
+    !Array.isArray(rawFailureCodesObject)) {
+    return undefined
+  }
+  const failureCodes: string[] = []
+  const rawFailureCodes = rawFailureCodesObject as Object[]
+  rawFailureCodes.forEach((rawCode: Object) => {
+    if (typeof rawCode !== 'string') {
+      return
+    }
+    const code = redactLibraryUpdateFailureCode(rawCode)
+    if (!failureCodes.includes(code)) {
+      failureCodes.push(code)
+    }
+  })
+  return {
+    providerKind: normalizeProviderKind(providerKind),
+    sourceKey: normalizeSourceKey(sourceKey),
+    totalCount: normalizeCount(totalCount),
+    updatedCount: normalizeCount(updatedCount),
+    unchangedCount: normalizeCount(unchangedCount),
+    skippedCount: normalizeCount(skippedCount),
+    failedCount: normalizeCount(failedCount),
+    newChapterCount: normalizeCount(newChapterCount),
+    failureCodes,
   }
 }
 
@@ -258,6 +421,20 @@ export function hydrateLibraryUpdateSummaryFromJson(jsonText: string): LibraryUp
       }
       results.push(result)
     }
+    let providerSummaries = summarizeLibraryUpdateProviders(results)
+    const rawProviderSummariesObject = record['providerSummaries']
+    if (Array.isArray(rawProviderSummariesObject)) {
+      const hydratedProviderSummaries: LibraryUpdateProviderSummary[] = []
+      const cappedProviderSummaries = (rawProviderSummariesObject as Object[]).slice(0, LIBRARY_UPDATE_RESULT_MAX_PROVIDER_SUMMARIES)
+      for (const item of cappedProviderSummaries) {
+        const providerSummary = hydrateLibraryUpdateProviderSummary(item)
+        if (providerSummary === undefined) {
+          return undefined
+        }
+        hydratedProviderSummaries.push(providerSummary)
+      }
+      providerSummaries = hydratedProviderSummaries
+    }
     const resultTotalCount = results.length
     const resultUpdatedCount = results.filter((result: LibraryUpdateComicResult): boolean => result.status === 'updated').length
     const resultUnchangedCount = results.filter((result: LibraryUpdateComicResult): boolean => result.status === 'unchanged').length
@@ -270,6 +447,7 @@ export function hydrateLibraryUpdateSummaryFromJson(jsonText: string): LibraryUp
       unchangedCount: aggregateCountField(record, 'unchangedCount', resultUnchangedCount),
       skippedCount: aggregateCountField(record, 'skippedCount', resultSkippedCount),
       failedCount: aggregateCountField(record, 'failedCount', resultFailedCount),
+      providerSummaries,
       results,
     }
   } catch (_error) {
@@ -285,7 +463,136 @@ export function cloneLibraryUpdateSummary(summary: LibraryUpdateSummary): Librar
     unchangedCount: summary.unchangedCount,
     skippedCount: summary.skippedCount,
     failedCount: summary.failedCount,
+    providerSummaries: summary.providerSummaries.map((providerSummary: LibraryUpdateProviderSummary): LibraryUpdateProviderSummary => {
+      return {
+        providerKind: providerSummary.providerKind,
+        sourceKey: providerSummary.sourceKey,
+        totalCount: providerSummary.totalCount,
+        updatedCount: providerSummary.updatedCount,
+        unchangedCount: providerSummary.unchangedCount,
+        skippedCount: providerSummary.skippedCount,
+        failedCount: providerSummary.failedCount,
+        newChapterCount: providerSummary.newChapterCount,
+        failureCodes: providerSummary.failureCodes.map((code: string): string => redactLibraryUpdateFailureCode(code)),
+      }
+    }),
     results: summary.results.map((result: LibraryUpdateComicResult): LibraryUpdateComicResult => cloneLibraryUpdateResult(result)),
+  }
+}
+
+export function createLibraryUpdateJobSnapshot(
+  state: LibraryUpdateJobState,
+  updatedAt: number,
+  summary?: LibraryUpdateSummary,
+  failureCode?: string,
+  nextDueAt?: number,
+  startedAt?: number,
+): LibraryUpdateJobSnapshot {
+  const snapshot: LibraryUpdateJobSnapshot = {
+    state,
+    updatedAt: isValidCheckedAt(updatedAt) ? updatedAt : Date.now(),
+    providerSummaries: summary === undefined ? [] : cloneLibraryUpdateSummary(summary).providerSummaries,
+  }
+  if (startedAt !== undefined && isValidCheckedAt(startedAt)) {
+    snapshot.startedAt = startedAt
+  }
+  if (summary !== undefined) {
+    snapshot.finishedAt = summary.checkedAt
+    snapshot.summary = cloneLibraryUpdateSummary(summary)
+  }
+  if (failureCode !== undefined) {
+    snapshot.failureCode = redactLibraryUpdateFailureCode(failureCode)
+  }
+  if (nextDueAt !== undefined && nextDueAt >= 0) {
+    snapshot.nextDueAt = normalizeCount(nextDueAt)
+  }
+  return snapshot
+}
+
+export function serializeLibraryUpdateJobSnapshot(snapshot: LibraryUpdateJobSnapshot): string {
+  const persisted: PersistedLibraryUpdateJobSnapshot = {
+    state: snapshot.state,
+    updatedAt: isValidCheckedAt(snapshot.updatedAt) ? snapshot.updatedAt : Date.now(),
+    providerSummaries: snapshot.providerSummaries
+      .slice(0, LIBRARY_UPDATE_RESULT_MAX_PROVIDER_SUMMARIES)
+      .map((providerSummary: LibraryUpdateProviderSummary): PersistedLibraryUpdateProviderSummary =>
+        persistLibraryUpdateProviderSummary(providerSummary)),
+  }
+  if (snapshot.startedAt !== undefined && isValidCheckedAt(snapshot.startedAt)) {
+    persisted.startedAt = snapshot.startedAt
+  }
+  if (snapshot.finishedAt !== undefined && isValidCheckedAt(snapshot.finishedAt)) {
+    persisted.finishedAt = snapshot.finishedAt
+  }
+  if (snapshot.nextDueAt !== undefined && snapshot.nextDueAt >= 0) {
+    persisted.nextDueAt = normalizeCount(snapshot.nextDueAt)
+  }
+  if (snapshot.failureCode !== undefined) {
+    persisted.failureCode = redactLibraryUpdateFailureCode(snapshot.failureCode)
+  }
+  if (snapshot.summary !== undefined) {
+    persisted.summary = JSON.parse(serializeLibraryUpdateSummary(snapshot.summary)) as PersistedLibraryUpdateSummary
+  }
+  return JSON.stringify(persisted)
+}
+
+export function hydrateLibraryUpdateJobSnapshotFromJson(jsonText: string): LibraryUpdateJobSnapshot | undefined {
+  try {
+    const parsed = JSON.parse(jsonText) as Object
+    if (!isRecord(parsed)) {
+      return undefined
+    }
+    const record = parsed as Record<string, Object>
+    const state = stringField(record, 'state')
+    const updatedAt = numberField(record, 'updatedAt')
+    if (state === undefined || !isValidJobState(state) || updatedAt === undefined || !isValidCheckedAt(updatedAt)) {
+      return undefined
+    }
+    const rawProviderSummariesObject = record['providerSummaries']
+    if (!Array.isArray(rawProviderSummariesObject)) {
+      return undefined
+    }
+    const providerSummaries: LibraryUpdateProviderSummary[] = []
+    const cappedProviderSummaries = (rawProviderSummariesObject as Object[]).slice(0, LIBRARY_UPDATE_RESULT_MAX_PROVIDER_SUMMARIES)
+    for (const item of cappedProviderSummaries) {
+      const providerSummary = hydrateLibraryUpdateProviderSummary(item)
+      if (providerSummary === undefined) {
+        return undefined
+      }
+      providerSummaries.push(providerSummary)
+    }
+    const snapshot: LibraryUpdateJobSnapshot = {
+      state: state as LibraryUpdateJobState,
+      updatedAt,
+      providerSummaries,
+    }
+    const startedAt = numberField(record, 'startedAt')
+    if (startedAt !== undefined && isValidCheckedAt(startedAt)) {
+      snapshot.startedAt = startedAt
+    }
+    const finishedAt = numberField(record, 'finishedAt')
+    if (finishedAt !== undefined && isValidCheckedAt(finishedAt)) {
+      snapshot.finishedAt = finishedAt
+    }
+    const nextDueAt = numberField(record, 'nextDueAt')
+    if (nextDueAt !== undefined && nextDueAt >= 0) {
+      snapshot.nextDueAt = normalizeCount(nextDueAt)
+    }
+    const failureCode = stringField(record, 'failureCode')
+    if (failureCode !== undefined) {
+      snapshot.failureCode = redactLibraryUpdateFailureCode(failureCode)
+    }
+    const summaryObject = record['summary']
+    if (isRecord(summaryObject as Object | null)) {
+      const summary = hydrateLibraryUpdateSummaryFromJson(JSON.stringify(summaryObject))
+      if (summary === undefined) {
+        return undefined
+      }
+      snapshot.summary = summary
+    }
+    return snapshot
+  } catch (_error) {
+    return undefined
   }
 }
 
@@ -293,11 +600,40 @@ export function setLatestLibraryUpdateSummary(summary: LibraryUpdateSummary): vo
   latestLibraryUpdateSummary = cloneLibraryUpdateSummary(summary)
 }
 
+export function clearLatestLibraryUpdateSummary(): void {
+  latestLibraryUpdateSummary = undefined
+}
+
 export function getLatestLibraryUpdateSummary(): LibraryUpdateSummary | undefined {
   if (latestLibraryUpdateSummary === undefined) {
     return undefined
   }
   return cloneLibraryUpdateSummary(latestLibraryUpdateSummary)
+}
+
+export function setLatestLibraryUpdateJobSnapshot(snapshot: LibraryUpdateJobSnapshot): void {
+  latestLibraryUpdateJobSnapshot = createLibraryUpdateJobSnapshot(
+    snapshot.state,
+    snapshot.updatedAt,
+    snapshot.summary,
+    snapshot.failureCode,
+    snapshot.nextDueAt,
+    snapshot.startedAt,
+  )
+}
+
+export function getLatestLibraryUpdateJobSnapshot(): LibraryUpdateJobSnapshot | undefined {
+  if (latestLibraryUpdateJobSnapshot === undefined) {
+    return undefined
+  }
+  return createLibraryUpdateJobSnapshot(
+    latestLibraryUpdateJobSnapshot.state,
+    latestLibraryUpdateJobSnapshot.updatedAt,
+    latestLibraryUpdateJobSnapshot.summary,
+    latestLibraryUpdateJobSnapshot.failureCode,
+    latestLibraryUpdateJobSnapshot.nextDueAt,
+    latestLibraryUpdateJobSnapshot.startedAt,
+  )
 }
 
 export class LibraryUpdateResultStore {
@@ -323,12 +659,36 @@ export class LibraryUpdateResultStore {
   async save(summary: LibraryUpdateSummary): Promise<void> {
     const store = await this.preferences()
     await store.put(LIBRARY_UPDATE_LATEST_RESULT_JSON_KEY, serializeLibraryUpdateSummary(summary))
+    await store.put(LIBRARY_UPDATE_LATEST_JOB_JSON_KEY, serializeLibraryUpdateJobSnapshot(createLibraryUpdateJobSnapshot('success', summary.checkedAt, summary)))
+    await store.flush()
+  }
+
+  async loadJobSnapshot(): Promise<LibraryUpdateJobSnapshot | undefined> {
+    try {
+      const store = await this.preferences()
+      const jsonText = await store.get(LIBRARY_UPDATE_LATEST_JOB_JSON_KEY, '') as string
+      if (jsonText.length === 0) {
+        return undefined
+      }
+      return hydrateLibraryUpdateJobSnapshotFromJson(jsonText)
+    } catch (_error) {
+      return undefined
+    }
+  }
+
+  async saveJobSnapshot(snapshot: LibraryUpdateJobSnapshot): Promise<void> {
+    const store = await this.preferences()
+    if (snapshot.state === 'failed' || snapshot.state === 'backed-off') {
+      await store.put(LIBRARY_UPDATE_LATEST_RESULT_JSON_KEY, '')
+    }
+    await store.put(LIBRARY_UPDATE_LATEST_JOB_JSON_KEY, serializeLibraryUpdateJobSnapshot(snapshot))
     await store.flush()
   }
 
   async clear(): Promise<void> {
     const store = await this.preferences()
     await store.put(LIBRARY_UPDATE_LATEST_RESULT_JSON_KEY, '')
+    await store.put(LIBRARY_UPDATE_LATEST_JOB_JSON_KEY, '')
     await store.flush()
   }
 

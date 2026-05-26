@@ -7,8 +7,12 @@ import {
   countLibraryUpdateNewChapters,
 } from '../model/LibraryUpdateService'
 import {
+  LibraryUpdateJobSnapshot,
   LibraryUpdateResultStore,
+  clearLatestLibraryUpdateSummary,
+  getLatestLibraryUpdateJobSnapshot,
   getLatestLibraryUpdateSummary,
+  setLatestLibraryUpdateJobSnapshot,
   setLatestLibraryUpdateSummary,
 } from '../model/LibraryUpdateResultStore'
 import { formatLibraryUpdateTimestamp } from '../model/LibraryUpdatePreferencesStore'
@@ -17,6 +21,7 @@ import { ThemeConstants } from '../theme/ThemeConstants'
 @Component
 export struct LibraryUpdateResultPage {
   @State private summary?: LibraryUpdateSummary = undefined
+  @State private jobSnapshot?: LibraryUpdateJobSnapshot = undefined
 
   private context(): common.UIAbilityContext {
     return getContext(this) as common.UIAbilityContext
@@ -27,11 +32,36 @@ export struct LibraryUpdateResultPage {
   }
 
   aboutToAppear(): void {
-    const latest = getLatestLibraryUpdateSummary()
+    const latestJob = getLatestLibraryUpdateJobSnapshot()
+    const latest = this.effectiveSummaryForJob(getLatestLibraryUpdateSummary(), latestJob)
+    this.jobSnapshot = latestJob
     this.summary = latest
     const total = latest === undefined ? 0 : latest.totalCount
-    console.info('[LibraryUpdateResults] step=appear hasSummary=' + (latest !== undefined) + ' total=' + total)
-    if (latest !== undefined) {
+    const state = latestJob === undefined ? 'none' : latestJob.state
+    console.info('[LibraryUpdateResults] step=appear hasSummary=' + (latest !== undefined) + ' total=' + total + ' state=' + state)
+    void this.libraryUpdateResultStore().loadJobSnapshot()
+      .then((snapshot: LibraryUpdateJobSnapshot | undefined) => {
+        const currentJob = getLatestLibraryUpdateJobSnapshot()
+        let effectiveJob = currentJob
+        if (snapshot !== undefined && (currentJob === undefined || snapshot.updatedAt > currentJob.updatedAt)) {
+          setLatestLibraryUpdateJobSnapshot(snapshot)
+          effectiveJob = snapshot
+        }
+        this.jobSnapshot = effectiveJob
+        if (this.isSummaryBlockedByJob(this.summary, effectiveJob)) {
+          clearLatestLibraryUpdateSummary()
+          this.summary = undefined
+        }
+        this.loadPersistedSummary(effectiveJob)
+      })
+      .catch((error: Error) => {
+        console.warn('[LibraryUpdateResults] step=load_job_failed message=' + error.message)
+        this.loadPersistedSummary(latestJob)
+      })
+  }
+
+  private loadPersistedSummary(jobSnapshot: LibraryUpdateJobSnapshot | undefined): void {
+    if (this.summary !== undefined && !this.isSummaryBlockedByJob(this.summary, jobSnapshot)) {
       return
     }
     void this.libraryUpdateResultStore().load()
@@ -42,13 +72,37 @@ export struct LibraryUpdateResultPage {
           setLatestLibraryUpdateSummary(summary)
           effectiveSummary = summary
         }
-        this.summary = effectiveSummary
+        this.summary = this.effectiveSummaryForJob(effectiveSummary, jobSnapshot)
         const total = effectiveSummary === undefined ? 0 : effectiveSummary.totalCount
         console.info('[LibraryUpdateResults] step=load_persisted hasSummary=' + (effectiveSummary !== undefined) + ' total=' + total)
       })
       .catch((error: Error) => {
         console.warn('[LibraryUpdateResults] step=load_persisted_failed message=' + error.message)
       })
+  }
+
+  private isFailureJobSnapshot(snapshot: LibraryUpdateJobSnapshot | undefined): boolean {
+    return snapshot !== undefined && (snapshot.state === 'failed' || snapshot.state === 'backed-off')
+  }
+
+  private isSummaryBlockedByJob(
+    summary: LibraryUpdateSummary | undefined,
+    snapshot: LibraryUpdateJobSnapshot | undefined,
+  ): boolean {
+    if (!this.isFailureJobSnapshot(snapshot)) {
+      return false
+    }
+    if (summary === undefined) {
+      return true
+    }
+    return (snapshot as LibraryUpdateJobSnapshot).updatedAt >= summary.checkedAt
+  }
+
+  private effectiveSummaryForJob(
+    summary: LibraryUpdateSummary | undefined,
+    snapshot: LibraryUpdateJobSnapshot | undefined,
+  ): LibraryUpdateSummary | undefined {
+    return this.isSummaryBlockedByJob(summary, snapshot) ? undefined : summary
   }
 
   private formatTimestamp(value: number): string {
@@ -85,11 +139,11 @@ export struct LibraryUpdateResultPage {
   private EmptyState() {
     ListItem() {
       Column({ space: 8 }) {
-        Text('尚无检查结果')
+        Text(this.emptyStateTitle())
           .fontSize(18)
           .fontWeight(FontWeight.Medium)
           .fontColor($r('app.color.koma_text_primary'))
-        Text('请先在设置中运行检查书架更新')
+        Text(this.emptyStateMessage())
           .fontSize(14)
           .fontColor($r('app.color.koma_text_secondary'))
       }
@@ -98,6 +152,25 @@ export struct LibraryUpdateResultPage {
       .borderRadius(8)
       .backgroundColor($r('app.color.koma_card'))
     }
+  }
+
+  private emptyStateTitle(): string {
+    if (this.isFailureJobSnapshot(this.jobSnapshot)) {
+      return (this.jobSnapshot as LibraryUpdateJobSnapshot).state === 'backed-off' ? '检查失败，已退避' : '检查失败'
+    }
+    return '尚无检查结果'
+  }
+
+  private emptyStateMessage(): string {
+    if (this.isFailureJobSnapshot(this.jobSnapshot)) {
+      const snapshot = this.jobSnapshot as LibraryUpdateJobSnapshot
+      const code = snapshot.failureCode ?? 'unknown'
+      if (snapshot.nextDueAt !== undefined && snapshot.nextDueAt > 0) {
+        return `最近一次检查失败：${code}。下次前台检查 ${this.formatTimestamp(snapshot.nextDueAt)}`
+      }
+      return `最近一次检查失败：${code}`
+    }
+    return '请先在设置中运行检查书架更新'
   }
 
   @Builder

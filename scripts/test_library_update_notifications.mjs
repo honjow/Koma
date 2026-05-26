@@ -55,6 +55,21 @@ assert.match(
 )
 assert.match(
   serviceSource,
+  /export type LibraryUpdateProviderKind = 'source_runtime' \| 'local' \| 'komga' \| 'opds' \| 'webdav' \| 'private_library' \| 'unsupported'/,
+  'Library update results must use a bounded provider allowlist',
+)
+assert.match(
+  serviceSource,
+  /safeLibraryUpdateSourceKey\(value: string \| undefined\): string[\s\S]*return `source:\$\{\(hash >>> 0\)\.toString\(36\)\}`/,
+  'Library update source keys must be hashed instead of persisting raw source/provider identifiers',
+)
+assert.match(
+  serviceSource,
+  /summarizeLibraryUpdateProviders\(results: LibraryUpdateComicResult\[\]\): LibraryUpdateProviderSummary\[\][\s\S]*item\.providerKind === result\.providerKind && item\.sourceKey === result\.sourceKey[\s\S]*failureCodes/,
+  'Library update summaries must include per-provider/per-source grouped outcomes',
+)
+assert.match(
+  serviceSource,
   /return `\$\{summary\.totalCount\} 本 · \$\{countLibraryUpdateNewChapters\(summary\)\} 新章 · \$\{summary\.updatedCount\} 更新 · \$\{summary\.skippedCount\} 跳过 · \$\{summary\.failedCount\} 失败`/,
   'Summary formatting must include new, updated, skipped, and failed counts in a stable order',
 )
@@ -111,6 +126,31 @@ assert.match(
 )
 assert.match(
   resultStoreSource,
+  /export type LibraryUpdateJobState = 'due' \| 'running' \| 'success' \| 'failed' \| 'backed-off'/,
+  'Library update job snapshots must expose the D36 state machine states',
+)
+assert.match(
+  resultStoreSource,
+  /LIBRARY_UPDATE_LATEST_JOB_JSON_KEY[\s\S]*serializeLibraryUpdateJobSnapshot[\s\S]*hydrateLibraryUpdateJobSnapshotFromJson/,
+  'Library update job snapshots must have durable serialization and hydration',
+)
+assert.match(
+  resultStoreSource,
+  /clearLatestLibraryUpdateSummary\(\): void \{[\s\S]*latestLibraryUpdateSummary = undefined[\s\S]*saveJobSnapshot\(snapshot: LibraryUpdateJobSnapshot\)[\s\S]*snapshot\.state === 'failed' \|\| snapshot\.state === 'backed-off'[\s\S]*store\.put\(LIBRARY_UPDATE_LATEST_RESULT_JSON_KEY, ''\)/,
+  'Failed or backed-off job snapshots must clear the persisted latest success while preserving the job snapshot',
+)
+assert.match(
+  resultStoreSource,
+  /persistLibraryUpdateProviderSummary\(summary: LibraryUpdateProviderSummary\)[\s\S]*redactLibraryUpdateFailureCode\(code\)[\s\S]*sourceKey: normalizeSourceKey\(summary\.sourceKey\)/,
+  'Provider summaries must persist only redacted failure codes and safe source keys',
+)
+assert.match(
+  resultStoreSource,
+  /normalizeSourceKey\(value: string \| undefined\): string[\s\S]*\/\^\(source:\[a-z0-9\]\+\|local\|komga\|opds\|webdav\|private_library\|unsupported\)\$\/[\s\S]*return 'source:unknown'/,
+  'Persisted source keys must be allowlisted and fail closed',
+)
+assert.match(
+  resultStoreSource,
   /redactLibraryUpdateFailureCode\(value: string \| undefined\): string[\s\S]*return 'timeout'[\s\S]*return 'storage_error'[\s\S]*return 'auth_error'[\s\S]*return 'network_error'[\s\S]*return 'source_runtime_error'[\s\S]*return clampString\('unknown', 64\)/,
   'Notification-facing failure codes must use only coarse allowlisted buckets',
 )
@@ -148,6 +188,31 @@ assert.match(
   resultStoreSource,
   /hydrateLibraryUpdateSummaryFromJson\(jsonText: string\)[\s\S]*JSON\.parse\(jsonText\)[\s\S]*aggregateCountField\(record, 'totalCount', resultTotalCount\)/,
   'Existing update result persistence must continue to hydrate aggregate counts deterministically',
+)
+assert.match(
+  settingsPageSource,
+  /createLibraryUpdateJobSnapshot\('running'[\s\S]*saveJobSnapshot\(runningSnapshot\)[\s\S]*createLibraryUpdateJobSnapshot\('success'[\s\S]*failedState = nextDueAt !== undefined && nextDueAt > checkedAt \? 'backed-off' : 'failed'[\s\S]*saveJobSnapshot\(failedSnapshot\)/,
+  'Settings foreground checks must persist running, success, failed, and backed-off job states',
+)
+assert.match(
+  settingsPageSource,
+  /runDueLibraryUpdateCheck\(\): void \{[\s\S]*isLibraryUpdateDue\(this\.libraryUpdatePreferences, Date\.now\(\)\)[\s\S]*createLibraryUpdateJobSnapshot\('due'[\s\S]*saveJobSnapshot\(dueSnapshot\)[\s\S]*this\.checkLibraryUpdates\('due'\)/,
+  'Due checks must durably persist a due snapshot before transitioning to running',
+)
+assert.match(
+  settingsPageSource,
+  /step=library_update_failed[\s\S]*this\.libraryUpdateSummary = undefined[\s\S]*clearLatestLibraryUpdateSummary\(\)[\s\S]*saveJobSnapshot\(failedSnapshot\)/,
+  'Settings must not leave an in-memory latest success available for navigation after a newer failure',
+)
+assert.match(
+  resultPageSource,
+  /getLatestLibraryUpdateJobSnapshot\(\)[\s\S]*effectiveSummaryForJob\(getLatestLibraryUpdateSummary\(\), latestJob\)[\s\S]*loadJobSnapshot\(\)[\s\S]*isSummaryBlockedByJob\(this\.summary, effectiveJob\)[\s\S]*clearLatestLibraryUpdateSummary\(\)/,
+  'LibraryUpdateResultPage must not display a persisted latest success when a newer failed/backed-off job snapshot exists',
+)
+assert.match(
+  resultPageSource,
+  /emptyStateTitle\(\): string[\s\S]*'检查失败，已退避'[\s\S]*emptyStateMessage\(\): string[\s\S]*最近一次检查失败/,
+  'LibraryUpdateResultPage must show an honest failure/backoff detail state instead of stale success',
 )
 
 function getLibraryUpdateBackoffHours(preferences) {

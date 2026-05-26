@@ -20,13 +20,28 @@ import {
 } from '../sourceRuntime/SourceSettingsStore'
 
 export type LibraryUpdateResultStatus = 'unchanged' | 'updated' | 'skipped' | 'failed'
+export type LibraryUpdateProviderKind = 'source_runtime' | 'local' | 'komga' | 'opds' | 'webdav' | 'private_library' | 'unsupported'
 
 export interface LibraryUpdateComicResult {
   comicId: string
+  providerKind: LibraryUpdateProviderKind
+  sourceKey: string
   status: LibraryUpdateResultStatus
   previousChapterCount: number
   newChapterCount: number
   message: string
+}
+
+export interface LibraryUpdateProviderSummary {
+  providerKind: LibraryUpdateProviderKind
+  sourceKey: string
+  totalCount: number
+  updatedCount: number
+  unchangedCount: number
+  skippedCount: number
+  failedCount: number
+  newChapterCount: number
+  failureCodes: string[]
 }
 
 export interface LibraryUpdateSummary {
@@ -36,6 +51,7 @@ export interface LibraryUpdateSummary {
   unchangedCount: number
   skippedCount: number
   failedCount: number
+  providerSummaries: LibraryUpdateProviderSummary[]
   results: LibraryUpdateComicResult[]
 }
 
@@ -192,6 +208,7 @@ function updatedComicWithChapters(comic: Comic, chapters: Chapter[], now: number
 }
 
 function summarizeResults(checkedAt: number, results: LibraryUpdateComicResult[]): LibraryUpdateSummary {
+  const providerSummaries = summarizeLibraryUpdateProviders(results)
   return {
     checkedAt,
     totalCount: results.length,
@@ -199,6 +216,7 @@ function summarizeResults(checkedAt: number, results: LibraryUpdateComicResult[]
     unchangedCount: results.filter((result: LibraryUpdateComicResult): boolean => result.status === 'unchanged').length,
     skippedCount: results.filter((result: LibraryUpdateComicResult): boolean => result.status === 'skipped').length,
     failedCount: results.filter((result: LibraryUpdateComicResult): boolean => result.status === 'failed').length,
+    providerSummaries,
     results,
   }
 }
@@ -210,6 +228,44 @@ export function countLibraryUpdateNewChapters(summary: LibraryUpdateSummary): nu
     }
     return total + Math.max(result.newChapterCount - result.previousChapterCount, 0)
   }, 0)
+}
+
+export function summarizeLibraryUpdateProviders(results: LibraryUpdateComicResult[]): LibraryUpdateProviderSummary[] {
+  const summaries: LibraryUpdateProviderSummary[] = []
+  results.forEach((result: LibraryUpdateComicResult) => {
+    let summary = summaries.find((item: LibraryUpdateProviderSummary): boolean =>
+      item.providerKind === result.providerKind && item.sourceKey === result.sourceKey)
+    if (summary === undefined) {
+      summary = {
+        providerKind: result.providerKind,
+        sourceKey: result.sourceKey,
+        totalCount: 0,
+        updatedCount: 0,
+        unchangedCount: 0,
+        skippedCount: 0,
+        failedCount: 0,
+        newChapterCount: 0,
+        failureCodes: [],
+      }
+      summaries.push(summary)
+    }
+    summary.totalCount += 1
+    if (result.status === 'updated') {
+      summary.updatedCount += 1
+      summary.newChapterCount += Math.max(result.newChapterCount - result.previousChapterCount, 0)
+    } else if (result.status === 'unchanged') {
+      summary.unchangedCount += 1
+    } else if (result.status === 'skipped') {
+      summary.skippedCount += 1
+    } else {
+      summary.failedCount += 1
+      const code = safeLibraryUpdateFailureCode(result.message)
+      if (!summary.failureCodes.includes(code)) {
+        summary.failureCodes.push(code)
+      }
+    }
+  })
+  return summaries
 }
 
 export function formatLibraryUpdateSummary(summary?: LibraryUpdateSummary): string {
@@ -243,6 +299,50 @@ function safeLibraryUpdateFailureCode(value: string | undefined): string {
     return 'source_runtime_error'
   }
   return 'unknown'
+}
+
+function safeLibraryUpdateSourceKey(value: string | undefined): string {
+  if (value === undefined || value.trim().length === 0) {
+    return 'source:unknown'
+  }
+  let hash = 2166136261
+  for (let index = 0; index < value.length; index += 1) {
+    hash ^= value.charCodeAt(index)
+    hash = Math.imul(hash, 16777619)
+  }
+  return `source:${(hash >>> 0).toString(36)}`
+}
+
+function providerKindForComic(comic: Comic): LibraryUpdateProviderKind {
+  if (comic.sourceRuntimeId !== undefined && comic.sourceRuntimeId.trim().length > 0) {
+    return 'source_runtime'
+  }
+  if (comic.sourceKind === ComicSourceKind.LOCAL_ARCHIVE || comic.sourceKind === ComicSourceKind.LOCAL_FOLDER) {
+    return 'local'
+  }
+  if (comic.sourceKind === ComicSourceKind.KOMGA_REMOTE) {
+    return 'komga'
+  }
+  if (comic.sourceKind === ComicSourceKind.OPDS_REMOTE) {
+    return 'opds'
+  }
+  if (comic.sourceKind === ComicSourceKind.WEBDAV_REMOTE) {
+    return 'webdav'
+  }
+  if (comic.sourceKind === ComicSourceKind.PRIVATE_LIBRARY) {
+    return 'private_library'
+  }
+  return 'unsupported'
+}
+
+function sourceKeyForComic(comic: Comic): string {
+  if (comic.sourceRuntimeId !== undefined && comic.sourceRuntimeId.trim().length > 0) {
+    return safeLibraryUpdateSourceKey(comic.sourceRuntimeId)
+  }
+  if (comic.remoteServerId !== undefined && comic.remoteServerId.trim().length > 0) {
+    return safeLibraryUpdateSourceKey(comic.remoteServerId)
+  }
+  return providerKindForComic(comic)
 }
 
 export class LibraryUpdateService {
@@ -317,6 +417,8 @@ export class LibraryUpdateService {
     if (!lookup.ok || lookup.entry === undefined) {
       return {
         comicId: comic.id,
+        providerKind: providerKindForComic(comic),
+        sourceKey: sourceKeyForComic(comic),
         status: 'failed',
         previousChapterCount,
         newChapterCount: previousChapterCount,
@@ -331,6 +433,8 @@ export class LibraryUpdateService {
       if (remoteChapters.length <= previousChapterCount && !hasNewId) {
         return {
           comicId: comic.id,
+          providerKind: providerKindForComic(comic),
+          sourceKey: sourceKeyForComic(comic),
           status: 'unchanged',
           previousChapterCount,
           newChapterCount: previousChapterCount,
@@ -342,6 +446,8 @@ export class LibraryUpdateService {
       this.libraryStore.upsertComic(updatedComicWithChapters(comic, mergedChapters, now))
       return {
         comicId: comic.id,
+        providerKind: providerKindForComic(comic),
+        sourceKey: sourceKeyForComic(comic),
         status: 'updated',
         previousChapterCount,
         newChapterCount: mergedChapters.length,
@@ -351,6 +457,8 @@ export class LibraryUpdateService {
       const e = error as Error
       return {
         comicId: comic.id,
+        providerKind: providerKindForComic(comic),
+        sourceKey: sourceKeyForComic(comic),
         status: 'failed',
         previousChapterCount,
         newChapterCount: previousChapterCount,
@@ -392,6 +500,8 @@ export class LibraryUpdateService {
   private skippedResult(comic: Comic, previousChapterCount: number, message: string): LibraryUpdateComicResult {
     return {
       comicId: comic.id,
+      providerKind: providerKindForComic(comic),
+      sourceKey: sourceKeyForComic(comic),
       status: 'skipped',
       previousChapterCount,
       newChapterCount: previousChapterCount,
