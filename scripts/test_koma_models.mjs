@@ -1963,6 +1963,9 @@ function parseValidatedLibraryStoreDocument(payload) {
     throw new Error('Invalid library store persistence comics: expected array')
   }
   document.customCategories?.forEach((row) => assertValidPersistedLibraryCategory(row))
+  if (document.customCategories !== undefined) {
+    assertUniquePersistedLibraryCategories(document.customCategories)
+  }
   document.comics.forEach((row) => assertValidPersistedComic(row))
   return document
 }
