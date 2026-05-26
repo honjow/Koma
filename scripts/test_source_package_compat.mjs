@@ -11,7 +11,9 @@ const browseViewModelPath = resolve(root, 'entry/src/main/ets/viewmodel/BrowseVi
 const browsePagePath = resolve(root, 'entry/src/main/ets/pages/BrowsePage.ets')
 const sourceSettingsStorePath = resolve(root, 'entry/src/main/ets/sourceRuntime/SourceSettingsStore.ets')
 const smokePath = resolve(root, 'entry/src/main/ets/sourceRuntime/SourceRuntimeDeviceSmoke.ets')
+const sourceRuntimeRegistryPath = resolve(root, 'entry/src/main/ets/sourceRuntime/SourceRuntimeRegistry.ets')
 const abiDocPath = resolve(root, 'docs/source-runtime-abi.md')
+const sdkDocPath = resolve(root, 'docs/source-package-sdk.md')
 const localKomaFixturePath = resolve(root, 'entry/src/main/resources/rawfile/test/local_source_runtime_fixture.koma')
 const externalSourcePackages = [
   '/home/gamer/git/koma-sources/dist/sources/mangadex/mangadex-0.1.0.koma',
@@ -26,7 +28,9 @@ const browseViewModelSource = readFileSync(browseViewModelPath, 'utf8')
 const browsePageSource = readFileSync(browsePagePath, 'utf8')
 const sourceSettingsStoreSource = readFileSync(sourceSettingsStorePath, 'utf8')
 const smokeSource = readFileSync(smokePath, 'utf8')
+const sourceRuntimeRegistrySource = readFileSync(sourceRuntimeRegistryPath, 'utf8')
 const abiDocSource = readFileSync(abiDocPath, 'utf8')
+const sdkDocSource = readFileSync(sdkDocPath, 'utf8')
 
 function readUInt16Le(bytes, offset) {
   return bytes[offset] | (bytes[offset + 1] << 8)
@@ -229,12 +233,87 @@ assert.match(
   /输入源索引地址加载源列表，或通过本地导入打开/,
   'empty state must mention source index URL first, local package import second',
 )
+assert.match(
+  managerPageSource,
+  /type SourcePackageUpdateState = 'unknown' \| 'checking' \| 'latest' \| 'update' \| 'missing' \| 'failed'/,
+  'SourcePackageManagerPage must model unknown/checking/latest/update/missing/failed update states',
+)
+assert.match(
+  managerPageSource,
+  /checkInstalledUpdates\(\): Promise<void>[\s\S]*this\.sourceIndexService\.fetchIndex\(url\)[\s\S]*status: 'missing'[\s\S]*status: 'update'[\s\S]*status: 'latest'/,
+  'installed update refresh must derive missing/update/latest from the configured source index',
+)
+assert.match(
+  managerPageSource,
+  /updateInstalledPackage\(source: InstalledSourcePackage\): Promise<void>[\s\S]*this\.sourceIndexService\.installPackage\(url, entry\)[\s\S]*setEnabled\(this\.context\(\), source\.id, false\)/,
+  'selected source update must reuse SourceIndexService install validation and preserve disabled state',
+)
+assert.match(
+  managerPageSource,
+  /capabilityLabel\(capability: string\)[\s\S]*受控宿主接口[\s\S]*搜索[\s\S]*详情[\s\S]*章节[\s\S]*页面/,
+  'source capability UI must translate runtime capability tokens into user-facing labels',
+)
+assert.match(
+  sourceRuntimeRegistrySource,
+  /capabilities\?: string\[\][\s\S]*normalizedCapabilityList[\s\S]*capabilities: normalizedCapabilityList\(input\.capabilities, input\.manifest\)[\s\S]*capabilities: entry\.capabilities/,
+  'source registry must preserve sanitized capability summaries through persistence reload',
+)
+assert.match(
+  sourceRuntimeRegistrySource,
+  /displayCapabilityTokenAllowed\(token: string\)[\s\S]*token === 'search'[\s\S]*token === 'pages'[\s\S]*token === 'network'[\s\S]*token\.startsWith\('hostImports:'\)/,
+  'source registry capability display tokens must be bounded by an explicit allowlist',
+)
+assert.match(
+  sourceRuntimeRegistrySource,
+  /const manifestCapabilities = capabilitiesFromManifest\(manifest\)[\s\S]*displayCapabilityTokenAllowed\(trimmed\)[\s\S]*manifestCapabilities\.indexOf\(trimmed\) >= 0[\s\S]*return capabilities\.length > 0 \? capabilities : manifestCapabilities/,
+  'persisted capability summaries must be intersected with manifest-derived capabilities',
+)
+assert.match(
+  sourceRuntimeRegistrySource,
+  /reloadFromAppLocalMetadata[\s\S]*manifest: manifestForReload\(entry\)[\s\S]*capabilities: entry\.capabilities/,
+  'metadata reload may pass persisted capabilities only through manifest-bound registry sanitization',
+)
+{
+  const manifestDerivedCapabilities = ['search', 'detail', 'chapters', 'pages']
+  const tamperedPersistedCapabilities = ['search', ' network ', 'hostImports:2', 'sourceSecrets', '']
+  const allowedDisplayCapability = (token) => (
+    token === 'search' ||
+    token === 'detail' ||
+    token === 'chapters' ||
+    token === 'pages' ||
+    token === 'network' ||
+    token.startsWith('hostImports:')
+  )
+  const sanitizedCapabilities = tamperedPersistedCapabilities
+    .map((item) => item.trim())
+    .filter((item, index, list) => (
+      allowedDisplayCapability(item) &&
+      manifestDerivedCapabilities.includes(item) &&
+      list.indexOf(item) === index
+    ))
+  assert.deepEqual(
+    sanitizedCapabilities,
+    ['search'],
+    'tampered persisted capabilities must drop unknown, network, and hostImports when the reconstructed manifest does not grant them',
+  )
+}
 
 assert.match(
   backupServiceSource,
   /sourceIndexUrl/,
   'backup schema v3 must export/import source index URL',
 )
+
+for (const marker of [
+  'Manifest shape',
+  'Runtime request envelope',
+  'Settings descriptor rules',
+  'Package archive layout',
+  'Compatibility notes',
+  'No built-in source market',
+]) {
+  assert.match(sdkDocSource, new RegExp(marker), `source package SDK doc must include ${marker}`)
+}
 
 assertSourceRepoShape(localKomaFixturePath)
 

@@ -12,6 +12,7 @@ export interface SourceRuntimeRegistryEntryInput {
   hashOk: boolean
   network: boolean
   enabled?: boolean
+  capabilities?: string[]
   manifestPath?: string
   wasmPath?: string
   archivePath?: string
@@ -138,6 +139,32 @@ function capabilitiesFromManifest(manifest: LocalSourcePackageManifest): string[
     capabilities.push('hostImports:' + manifest.permissions.hostImports.length.toString())
   }
   return capabilities
+}
+
+function displayCapabilityTokenAllowed(token: string): boolean {
+  return token === 'search' ||
+    token === 'detail' ||
+    token === 'chapters' ||
+    token === 'pages' ||
+    token === 'network' ||
+    token.startsWith('hostImports:')
+}
+
+function normalizedCapabilityList(input: string[] | undefined, manifest: LocalSourcePackageManifest): string[] {
+  const manifestCapabilities = capabilitiesFromManifest(manifest)
+  if (input === undefined || input.length === 0) {
+    return manifestCapabilities
+  }
+  const capabilities: string[] = []
+  input.forEach((item: string) => {
+    const trimmed = item.trim()
+    if (displayCapabilityTokenAllowed(trimmed) &&
+      manifestCapabilities.indexOf(trimmed) >= 0 &&
+      capabilities.indexOf(trimmed) < 0) {
+      capabilities.push(trimmed)
+    }
+  })
+  return capabilities.length > 0 ? capabilities : manifestCapabilities
 }
 
 function closeFileQuietly(file: fs.File | undefined): void {
@@ -360,7 +387,7 @@ export class SourceRuntimeRegistry {
       language: input.manifest.package.language,
       type: input.manifest.package.type,
       nsfw: input.manifest.package.nsfw,
-      capabilities: capabilitiesFromManifest(input.manifest),
+      capabilities: normalizedCapabilityList(input.capabilities, input.manifest),
       validationEvidence: sourceRuntimeRegistryEvidence(input),
       manifestPath: input.manifestPath,
       wasmPath: input.wasmPath,
@@ -531,6 +558,7 @@ export class SourceRuntimeRegistry {
           hashOk: entry.hashOk,
           network: entry.network,
           enabled: entry.enabled === false ? false : true,
+          capabilities: entry.capabilities,
           manifestPath: entry.manifestPath,
           wasmPath,
           archivePath: entry.archivePath,
