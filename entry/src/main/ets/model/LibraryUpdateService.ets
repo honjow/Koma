@@ -203,11 +203,20 @@ function summarizeResults(checkedAt: number, results: LibraryUpdateComicResult[]
   }
 }
 
+export function countLibraryUpdateNewChapters(summary: LibraryUpdateSummary): number {
+  return summary.results.reduce((total: number, result: LibraryUpdateComicResult): number => {
+    if (result.status !== 'updated') {
+      return total
+    }
+    return total + Math.max(result.newChapterCount - result.previousChapterCount, 0)
+  }, 0)
+}
+
 export function formatLibraryUpdateSummary(summary?: LibraryUpdateSummary): string {
   if (summary === undefined) {
     return '尚未检查'
   }
-  return `${summary.totalCount} 本 · ${summary.updatedCount} 更新 · ${summary.failedCount} 失败`
+  return `${summary.totalCount} 本 · ${countLibraryUpdateNewChapters(summary)} 新章 · ${summary.updatedCount} 更新 · ${summary.skippedCount} 跳过 · ${summary.failedCount} 失败`
 }
 
 export class LibraryUpdateService {

@@ -4,12 +4,14 @@ import {
   LibraryUpdateComicResult,
   LibraryUpdateResultStatus,
   LibraryUpdateSummary,
+  countLibraryUpdateNewChapters,
 } from '../model/LibraryUpdateService'
 import {
   LibraryUpdateResultStore,
   getLatestLibraryUpdateSummary,
   setLatestLibraryUpdateSummary,
 } from '../model/LibraryUpdateResultStore'
+import { formatLibraryUpdateTimestamp } from '../model/LibraryUpdatePreferencesStore'
 import { ThemeConstants } from '../theme/ThemeConstants'
 
 @Component
@@ -50,13 +52,7 @@ export struct LibraryUpdateResultPage {
   }
 
   private formatTimestamp(value: number): string {
-    const date = new Date(value)
-    const year = `${date.getFullYear()}`
-    const month = `${date.getMonth() + 1}`.padStart(2, '0')
-    const day = `${date.getDate()}`.padStart(2, '0')
-    const hour = `${date.getHours()}`.padStart(2, '0')
-    const minute = `${date.getMinutes()}`.padStart(2, '0')
-    return `${year}-${month}-${day} ${hour}:${minute}`
+    return formatLibraryUpdateTimestamp(value)
   }
 
   private statusLabel(status: LibraryUpdateResultStatus): string {
@@ -140,6 +136,12 @@ export struct LibraryUpdateResultPage {
           this.SummaryMetric('未变化', summary.unchangedCount)
           this.SummaryMetric('跳过', summary.skippedCount)
           this.SummaryMetric('失败', summary.failedCount)
+        }
+        .width('100%')
+        Row() {
+          this.SummaryMetric('新章', countLibraryUpdateNewChapters(summary))
+          Blank()
+            .layoutWeight(4)
         }
         .width('100%')
       }

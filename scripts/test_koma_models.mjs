@@ -319,6 +319,7 @@ assertExport(libraryUpdateServiceSource, 'LibraryUpdateResultStatus')
 assertExport(libraryUpdateServiceSource, 'LibraryUpdateComicResult')
 assertExport(libraryUpdateServiceSource, 'LibraryUpdateSummary')
 assertExport(libraryUpdateServiceSource, 'LibraryUpdateService')
+assertExport(libraryUpdateServiceSource, 'countLibraryUpdateNewChapters')
 assertExport(libraryUpdateServiceSource, 'formatLibraryUpdateSummary')
 assertExport(libraryUpdateResultStoreSource, 'LIBRARY_UPDATE_RESULT_STORE_NAME')
 assertExport(libraryUpdateResultStoreSource, 'LIBRARY_UPDATE_LATEST_RESULT_JSON_KEY')
@@ -334,18 +335,25 @@ assertExport(libraryUpdateResultStoreSource, 'setLatestLibraryUpdateSummary')
 assertExport(libraryUpdateResultStoreSource, 'getLatestLibraryUpdateSummary')
 assertExport(libraryUpdateResultStoreSource, 'LibraryUpdateResultStore')
 assertExport(libraryUpdatePreferencesStoreSource, 'LibraryUpdatePreferences')
+assertExport(libraryUpdatePreferencesStoreSource, 'LibraryUpdateNotificationStatus')
 assertExport(libraryUpdatePreferencesStoreSource, 'LIBRARY_UPDATE_PREFERENCES_STORE_NAME')
 assertExport(libraryUpdatePreferencesStoreSource, 'LIBRARY_UPDATE_AUTO_CHECK_ENABLED_KEY')
 assertExport(libraryUpdatePreferencesStoreSource, 'LIBRARY_UPDATE_INTERVAL_HOURS_KEY')
 assertExport(libraryUpdatePreferencesStoreSource, 'LIBRARY_UPDATE_LAST_CHECKED_AT_KEY')
 assertExport(libraryUpdatePreferencesStoreSource, 'LIBRARY_UPDATE_LAST_SUMMARY_TEXT_KEY')
 assertExport(libraryUpdatePreferencesStoreSource, 'LIBRARY_UPDATE_INTERVAL_OPTIONS')
+assertExport(libraryUpdatePreferencesStoreSource, 'LIBRARY_UPDATE_NOTIFICATION_STATUS')
 assertExport(libraryUpdatePreferencesStoreSource, 'DEFAULT_LIBRARY_UPDATE_PREFERENCES')
 assertExport(libraryUpdatePreferencesStoreSource, 'normalizeLibraryUpdateAutoCheckEnabled')
 assertExport(libraryUpdatePreferencesStoreSource, 'normalizeLibraryUpdateIntervalHours')
 assertExport(libraryUpdatePreferencesStoreSource, 'normalizeLibraryUpdateTimestamp')
 assertExport(libraryUpdatePreferencesStoreSource, 'normalizeLibraryUpdateSummaryText')
+assertExport(libraryUpdatePreferencesStoreSource, 'formatLibraryUpdateTimestamp')
 assertExport(libraryUpdatePreferencesStoreSource, 'getLibraryUpdateAutoCheckLabel')
+assertExport(libraryUpdatePreferencesStoreSource, 'getLibraryUpdateNextDueAt')
+assertExport(libraryUpdatePreferencesStoreSource, 'getLibraryUpdateNextDueLabel')
+assertExport(libraryUpdatePreferencesStoreSource, 'getLibraryUpdateNotificationStatusLabel')
+assertExport(libraryUpdatePreferencesStoreSource, 'isLibraryUpdateNotificationDeliveryEnabled')
 assertExport(libraryUpdatePreferencesStoreSource, 'isLibraryUpdateDue')
 assertExport(libraryUpdatePreferencesStoreSource, 'LibraryUpdatePreferencesStore')
 
@@ -496,7 +504,7 @@ assert.match(
 )
 assert.match(
   settingsPageSource,
-  /\{ key: 'library-auto-update', title: '自动检查更新', detail: '关闭' \}[\s\S]*\{ key: 'library-update-interval', title: '检查间隔', detail: '每 24 小时' \}[\s\S]*\{ key: 'library-update', title: '检查书架更新', detail: '尚未检查' \}/,
+  /\{ key: 'library-auto-update', title: '自动检查更新', detail: '关闭' \}[\s\S]*\{ key: 'library-update-interval', title: '检查间隔', detail: '每 24 小时' \}[\s\S]*\{ key: 'library-update-notifications', title: '更新提醒', detail: '计划中 · 暂不发送' \}[\s\S]*\{ key: 'library-update', title: '检查书架更新', detail: '尚未检查' \}/,
   'SettingsPage must expose auto-check preferences next to the foreground library update entry',
 )
 assert.match(
@@ -508,6 +516,11 @@ assert.match(
   settingsPageSource,
   /title: '检查间隔'[\s\S]*message: '打开应用时自动检查书架更新'[\s\S]*每 12 小时[\s\S]*每 24 小时[\s\S]*每 48 小时/,
   'SettingsPage interval selector copy must describe app-open foreground checks',
+)
+assert.match(
+  settingsPageSource,
+  /row\.key === 'library-update-notifications'[\s\S]*getLibraryUpdateNotificationStatusLabel\(\)[\s\S]*showInfoDialog\('更新提醒'[\s\S]*不会发送提醒/,
+  'SettingsPage must expose a non-delivering update reminder skeleton',
 )
 assert.match(
   settingsPageSource,
@@ -596,6 +609,16 @@ assert.match(
 )
 assert.match(
   libraryUpdatePreferencesStoreSource,
+  /getLibraryUpdateNextDueAt\(preferences: LibraryUpdatePreferences\): number \| undefined[\s\S]*lastCheckedAt \+ preferences\.intervalHours \* 60 \* 60 \* 1000/,
+  'LibraryUpdatePreferencesStore must compute next due time from the persisted foreground interval',
+)
+assert.match(
+  libraryUpdatePreferencesStoreSource,
+  /isLibraryUpdateNotificationDeliveryEnabled[\s\S]*return false/,
+  'LibraryUpdatePreferencesStore must not report enabled notification delivery without implementation support',
+)
+assert.match(
+  libraryUpdatePreferencesStoreSource,
   /catch \(_error\) \{[\s\S]*autoCheckEnabled: DEFAULT_LIBRARY_UPDATE_PREFERENCES\.autoCheckEnabled[\s\S]*intervalHours: DEFAULT_LIBRARY_UPDATE_PREFERENCES\.intervalHours/,
   'LibraryUpdatePreferencesStore must safely restore defaults when preference data cannot be read',
 )
@@ -656,7 +679,7 @@ assert.match(
 )
 assert.match(
   libraryUpdateResultPageSource,
-  /SummaryMetric\('总计', summary\.totalCount\)[\s\S]*SummaryMetric\('更新', summary\.updatedCount\)[\s\S]*SummaryMetric\('未变化', summary\.unchangedCount\)[\s\S]*SummaryMetric\('跳过', summary\.skippedCount\)[\s\S]*SummaryMetric\('失败', summary\.failedCount\)/,
+  /SummaryMetric\('总计', summary\.totalCount\)[\s\S]*SummaryMetric\('更新', summary\.updatedCount\)[\s\S]*SummaryMetric\('未变化', summary\.unchangedCount\)[\s\S]*SummaryMetric\('跳过', summary\.skippedCount\)[\s\S]*SummaryMetric\('失败', summary\.failedCount\)[\s\S]*SummaryMetric\('新章', countLibraryUpdateNewChapters\(summary\)\)/,
   'LibraryUpdateResultPage must render all aggregate counters',
 )
 assert.match(

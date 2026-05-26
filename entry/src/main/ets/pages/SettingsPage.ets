@@ -19,6 +19,9 @@ import {
   LibraryUpdatePreferences,
   LibraryUpdatePreferencesStore,
   getLibraryUpdateAutoCheckLabel,
+  getLibraryUpdateNextDueLabel,
+  getLibraryUpdateNotificationStatusLabel,
+  formatLibraryUpdateTimestamp,
   isLibraryUpdateDue,
 } from '../model/LibraryUpdatePreferencesStore'
 import {
@@ -97,6 +100,7 @@ const SETTINGS_SECTIONS: SettingsSection[] = [
       { key: 'webdav', title: 'WebDAV 私有库', detail: '远程文件夹与认证' },
       { key: 'library-auto-update', title: '自动检查更新', detail: '关闭' },
       { key: 'library-update-interval', title: '检查间隔', detail: '每 24 小时' },
+      { key: 'library-update-notifications', title: '更新提醒', detail: '计划中 · 暂不发送' },
       { key: 'library-update', title: '检查书架更新', detail: '尚未检查' },
       { key: 'library-update-results', title: '书架更新详情', detail: '尚无结果' },
       { key: 'sources', title: '管理已安装的源包', detail: '暂未安装源包' },
@@ -215,7 +219,10 @@ export struct SettingsPage {
       if (!this.libraryUpdatePreferences.autoCheckEnabled) {
         return '开启后可设置'
       }
-      return `每 ${this.libraryUpdatePreferences.intervalHours} 小时`
+      return `${getLibraryUpdateAutoCheckLabel(this.libraryUpdatePreferences)} · ${getLibraryUpdateNextDueLabel(this.libraryUpdatePreferences)}`
+    }
+    if (row.key === 'library-update-notifications') {
+      return getLibraryUpdateNotificationStatusLabel()
     }
     if (row.key === 'library-update') {
       if (this.libraryUpdateBusy) {
@@ -229,9 +236,9 @@ export struct SettingsPage {
         if (storedSummary !== undefined && storedCheckedAt !== undefined) {
           return `${storedSummary} · ${this.formatTimestamp(storedCheckedAt)}`
         }
-        return summaryText
+        return `${summaryText} · ${getLibraryUpdateNextDueLabel(this.libraryUpdatePreferences)}`
       }
-      return `${summaryText} · ${this.formatTimestamp(checkedAt)}`
+      return `${summaryText} · 上次 ${this.formatTimestamp(checkedAt)} · ${getLibraryUpdateNextDueLabel(this.libraryUpdatePreferences)}`
     }
     if (row.key === 'library-update-results') {
       return this.libraryUpdateSummary === undefined ? '尚无结果' : '查看最近检查结果'
@@ -239,13 +246,17 @@ export struct SettingsPage {
     return row.detail
   }
 
+  private rowDetailMaxLines(row: SettingsRow): number {
+    if (row.key === 'library-update' ||
+      row.key === 'library-update-interval' ||
+      row.key === 'library-update-notifications') {
+      return 2
+    }
+    return 1
+  }
+
   private formatTimestamp(value: number): string {
-    const date = new Date(value)
-    const month = `${date.getMonth() + 1}`.padStart(2, '0')
-    const day = `${date.getDate()}`.padStart(2, '0')
-    const hour = `${date.getHours()}`.padStart(2, '0')
-    const minute = `${date.getMinutes()}`.padStart(2, '0')
-    return `${month}-${day} ${hour}:${minute}`
+    return formatLibraryUpdateTimestamp(value)
   }
 
   private loadPreferences(): void {
@@ -855,6 +866,8 @@ export struct SettingsPage {
       this.setLibraryAutoUpdateEnabled(!this.libraryUpdatePreferences.autoCheckEnabled)
     } else if (row.key === 'library-update-interval') {
       this.showLibraryUpdateIntervalSheet()
+    } else if (row.key === 'library-update-notifications') {
+      this.showInfoDialog('更新提醒', '当前版本只保存前台检查结果，不会发送提醒。真正可投递的提醒会在权限、实现和设备验证齐备后再开放。')
     } else if (row.key === 'library-update') {
       this.checkLibraryUpdates()
     } else if (row.key === 'library-update-results') {
@@ -890,7 +903,7 @@ export struct SettingsPage {
       Text(this.rowDetail(row))
         .fontSize(13)
         .fontColor($r('app.color.koma_text_secondary'))
-        .maxLines(1)
+        .maxLines(this.rowDetailMaxLines(row))
         .textOverflow({ overflow: TextOverflow.Ellipsis })
       if (row.key === 'library-auto-update') {
         Toggle({ type: ToggleType.Switch, isOn: this.libraryUpdatePreferences.autoCheckEnabled })

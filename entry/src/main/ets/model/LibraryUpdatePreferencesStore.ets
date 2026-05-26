@@ -1,6 +1,8 @@
 import { common } from '@kit.AbilityKit'
 import { preferences } from '@kit.ArkData'
 
+export type LibraryUpdateNotificationStatus = 'disabled' | 'planned' | 'unavailable'
+
 export interface LibraryUpdatePreferences {
   autoCheckEnabled: boolean
   intervalHours: number
@@ -14,6 +16,7 @@ export const LIBRARY_UPDATE_INTERVAL_HOURS_KEY: string = 'libraryUpdate.interval
 export const LIBRARY_UPDATE_LAST_CHECKED_AT_KEY: string = 'libraryUpdate.lastCheckedAt'
 export const LIBRARY_UPDATE_LAST_SUMMARY_TEXT_KEY: string = 'libraryUpdate.lastSummaryText'
 export const LIBRARY_UPDATE_INTERVAL_OPTIONS: number[] = [12, 24, 48]
+export const LIBRARY_UPDATE_NOTIFICATION_STATUS: LibraryUpdateNotificationStatus = 'planned'
 
 export const DEFAULT_LIBRARY_UPDATE_PREFERENCES: LibraryUpdatePreferences = {
   autoCheckEnabled: false,
@@ -54,11 +57,62 @@ export function normalizeLibraryUpdateSummaryText(value: string | undefined): st
   return trimmed.length > 0 ? trimmed : undefined
 }
 
+export function formatLibraryUpdateTimestamp(value: number): string {
+  const date = new Date(value)
+  const year = `${date.getFullYear()}`
+  const month = `${date.getMonth() + 1}`.padStart(2, '0')
+  const day = `${date.getDate()}`.padStart(2, '0')
+  const hour = `${date.getHours()}`.padStart(2, '0')
+  const minute = `${date.getMinutes()}`.padStart(2, '0')
+  return `${year}-${month}-${day} ${hour}:${minute}`
+}
+
 export function getLibraryUpdateAutoCheckLabel(preferences: LibraryUpdatePreferences): string {
   if (!preferences.autoCheckEnabled) {
-    return '关闭'
+    return '关闭 · 仅手动前台检查'
   }
   return `每 ${preferences.intervalHours} 小时`
+}
+
+export function getLibraryUpdateNextDueAt(preferences: LibraryUpdatePreferences): number | undefined {
+  if (!preferences.autoCheckEnabled) {
+    return undefined
+  }
+  if (preferences.lastCheckedAt === undefined) {
+    return 0
+  }
+  return preferences.lastCheckedAt + preferences.intervalHours * 60 * 60 * 1000
+}
+
+export function getLibraryUpdateNextDueLabel(preferences: LibraryUpdatePreferences): string {
+  const nextDueAt = getLibraryUpdateNextDueAt(preferences)
+  if (nextDueAt === undefined) {
+    return '未开启自动检查'
+  }
+  if (nextDueAt === 0) {
+    return '下次打开设置时检查'
+  }
+  return `下次前台检查 ${formatLibraryUpdateTimestamp(nextDueAt)}`
+}
+
+export function getLibraryUpdateNotificationStatusLabel(status: LibraryUpdateNotificationStatus = LIBRARY_UPDATE_NOTIFICATION_STATUS): string {
+  if (status === 'disabled') {
+    return '关闭'
+  }
+  if (status === 'unavailable') {
+    return '不可用'
+  }
+  return '计划中 · 暂不发送'
+}
+
+export function isLibraryUpdateNotificationDeliveryEnabled(status: LibraryUpdateNotificationStatus = LIBRARY_UPDATE_NOTIFICATION_STATUS): boolean {
+  if (status === 'planned') {
+    return false
+  }
+  if (status === 'unavailable') {
+    return false
+  }
+  return false
 }
 
 export function isLibraryUpdateDue(preferences: LibraryUpdatePreferences, now: number): boolean {
