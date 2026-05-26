@@ -8,7 +8,7 @@ This spike defines a future credential storage boundary for tracker OAuth tokens
 
 Koma currently targets HarmonyOS `6.1.0(23)` in `build-profile.json5`. The entry module requests `INTERNET`, `GET_NETWORK_INFO`, and `VIBRATE`; it does not request `ohos.permission.STORE_PERSISTENT_DATA`.
 
-Current tracker state in `entry/src/main/ets/model/TrackerModels.ets` is limited to provider connection status and comic mapping metadata in Preferences. There are no tracker token fields today. That must remain true until a real secure storage implementation is reviewed and tested.
+Current tracker state in `entry/src/main/ets/model/TrackerModels.ets` contains provider account status, public profile metadata, opaque credential account references, OAuth preparation helpers, and comic mapping metadata in Preferences. There are no raw tracker token fields in normal persistence today. That must remain true until a real secure storage implementation is reviewed and tested.
 
 The backup service currently exports some existing remote server credential strings for Komga/WebDAV/OPDS from Preferences. That is legacy product behavior and is not an acceptable pattern for future tracker OAuth tokens, refresh tokens, authorization codes, API keys, client secrets, or passwords.
 
@@ -245,4 +245,4 @@ OAuth and tracker sync implementation remains blocked until all of these pass:
 
 ## Spike Result
 
-This spike recommends Asset Store Kit for the first real secure-storage implementation, with HUKS reserved as a fallback for a later encrypted-blob design. No secure storage is implemented by this document. No real credentials were added.
+This spike recommends Asset Store Kit for the first real secure-storage implementation, with HUKS reserved as a fallback for a later encrypted-blob design. D30 adds a fail-closed credential boundary, but no verified Asset Store backend. No real credentials were added.
