@@ -294,3 +294,4 @@ Implementation remains blocked until these gates are complete.
 - Kitsu JSON:API docs, OAuth2/token endpoint and manga/library resources, checked 2026-05-26: `https://hummingbird-me.github.io/api-docs/`
 - Bangumi API repo/OpenAPI docs and User-Agent guidance, checked 2026-05-26: `https://github.com/bangumi/api`
 - MangaUpdates API availability requires follow-up verification before implementation; no Koma implementation should rely on unaudited third-party wrappers.
+- Koma secure storage spike for future tracker credentials: `docs/research/secure-storage-spike.md`
