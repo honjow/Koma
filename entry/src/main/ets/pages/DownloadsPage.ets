@@ -231,8 +231,8 @@ export struct DownloadsPage {
       this.loadQueue()
       this.showToast('已重新下载')
     } catch (error) {
-      const e = error as Error
-      console.warn('[Downloads] step=retry_failed message=' + e.message)
+      void error
+      console.warn('[Downloads] step=retry_failed failed=true reason=download_retry')
       this.showToast('重新下载失败')
     } finally {
       this.busyKey = ''
@@ -250,7 +250,8 @@ export struct DownloadsPage {
         this.showToast('已移除下载')
       })
       .catch((error: Error) => {
-        console.warn('[Downloads] step=remove_failed message=' + error.message)
+        void error
+        console.warn('[Downloads] step=remove_failed failed=true reason=download_remove')
         this.showToast('移除失败')
       })
       .finally(() => {
@@ -281,8 +282,8 @@ export struct DownloadsPage {
       this.loadQueue()
       this.showToast(retried > 0 ? '已重试失败任务' : '没有可重试任务')
     } catch (error) {
-      const e = error as Error
-      console.warn('[Downloads] step=batch_retry_failed message=' + e.message)
+      void error
+      console.warn('[Downloads] step=batch_retry_failed failed=true reason=batch_retry')
       this.showToast('批量重试失败')
     } finally {
       this.busyKey = ''
@@ -316,8 +317,8 @@ export struct DownloadsPage {
       this.loadQueue()
       this.showToast(resumed > 0 ? '已继续排队任务' : '没有可继续任务')
     } catch (error) {
-      const e = error as Error
-      console.warn('[Downloads] step=batch_resume_failed message=' + e.message)
+      void error
+      console.warn('[Downloads] step=batch_resume_failed failed=true reason=batch_resume')
       this.showToast('继续队列失败')
     } finally {
       this.busyKey = ''
@@ -394,8 +395,8 @@ export struct DownloadsPage {
       this.loadQueue()
       this.showToast('已清理完成和失败任务')
     } catch (error) {
-      const e = error as Error
-      console.warn('[Downloads] step=batch_remove_failed message=' + e.message)
+      void error
+      console.warn('[Downloads] step=batch_remove_failed failed=true reason=batch_remove')
       this.showToast('批量清理失败')
     } finally {
       this.busyKey = ''

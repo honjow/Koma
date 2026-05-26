@@ -588,8 +588,8 @@ function resolveSourceRuntimeImageRequest(sourceRuntimeId: string, pageId: strin
       headers,
     }
   } catch (error) {
-    const e = error as Error
-    console.warn(`[ReaderCache] step=source_image_request failed=true source=${createShortReaderHash(sourceRuntimeId)} page=${createShortReaderHash(pageId)} reason=exception message=${e.message}`)
+    void error
+    console.warn(`[ReaderCache] step=source_image_request failed=true source=${createShortReaderHash(sourceRuntimeId)} page=${createShortReaderHash(pageId)} reason=exception`)
     return undefined
   }
 }

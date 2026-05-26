@@ -118,6 +118,9 @@ assertFunctionDoesNotContain(downloadsPageSource, 'retryableEntries', /OfflineDo
 assert.match(downloadsPageSource, /blockedHelpText\(entry: OfflineDownloadQueueEntry\)[\s\S]*failureReasonCode === 'pages_missing'[\s\S]*打开漫画详情页后重试下载/, 'DownloadsPage must explain pages_missing blocked rows instead of offering a dead-end retry')
 assert.match(downloadsPageSource, /removeDownload\(entry: OfflineDownloadQueueEntry\)[\s\S]*deleteChapterDownload/, 'DownloadsPage must remove queue rows and downloaded data where feasible')
 assert.doesNotMatch(downloadsPageSource, /后台|系统通知|通知权限|background scheduler|notification delivery/i, 'DownloadsPage copy must not claim background downloads or notification delivery')
+assert.doesNotMatch(downloadsPageSource, /\[Downloads\][^\n]*message=/, 'DownloadsPage recovery logs must use redacted reason codes instead of raw error messages')
+assert.match(downloadsPageSource, /step=retry_failed failed=true reason=download_retry/, 'DownloadsPage retry failure log must retain a redacted retry reason code')
+assert.match(downloadsPageSource, /step=batch_resume_failed failed=true reason=batch_resume/, 'DownloadsPage resume failure log must retain a redacted resume reason code')
 
 assert.match(chapterListSectionSource, /export enum ChapterBatchDownloadMode\s*{[\s\S]*ALL_VISIBLE[\s\S]*FAILED_ONLY[\s\S]*NOT_DOWNLOADED/, 'ChapterListSection must define visible chapter batch download modes')
 assert.match(chapterListSectionSource, /onDownloadChapter:\s*\(chapterId: string\) => void/, 'ChapterListSection must accept a per-chapter download callback')
