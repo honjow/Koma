@@ -4,6 +4,7 @@ import { fileIo as fs, picker } from '@kit.CoreFileKit'
 import {
   LIBRARY_STORE_PERSISTENCE_FILE_NAME,
   LIBRARY_STORE_PERSISTENCE_SCHEMA_VERSION,
+  assertValidLibraryStoreJson,
 } from './LibraryPersistence'
 import {
   READER_PROGRESS_PERSISTENCE_FILE_NAME,
@@ -41,7 +42,7 @@ export const BACKUP_INCLUDED_DOMAINS: string[] = [
   'reader and settings preferences',
 ]
 export const BACKUP_INCLUDED_DOMAIN_LABELS: string[] = [
-  '书架',
+  '书架与自定义分类',
   '阅读进度',
   '远程服务器配置',
   '源包与已清理的源设置',
@@ -171,7 +172,11 @@ function arrayFieldCount(source: Record<string, Object>, key: string): number {
 }
 
 function countLibraryCategories(libraryStore: Record<string, Object>): number {
+  const customCategories = libraryStore['customCategories']
   const comics = libraryStore['comics']
+  if (Array.isArray(customCategories)) {
+    return customCategories.length
+  }
   if (!Array.isArray(comics)) {
     return 0
   }
@@ -253,7 +258,7 @@ export class BackupService {
     if (typeof document.libraryStore !== 'string' || typeof document.readingProgress !== 'string') {
       throw new Error('Invalid backup payload')
     }
-    JSON.parse(document.libraryStore)
+    assertValidLibraryStoreJson(document.libraryStore)
     JSON.parse(document.readingProgress)
     writeText(this.libraryPath(), document.libraryStore)
     writeText(this.readerProgressPath(), document.readingProgress)

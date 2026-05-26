@@ -2,10 +2,17 @@ import {
   Chapter,
   Comic,
   ComicId,
+  CUSTOM_LIBRARY_CATEGORY_ID_PREFIX,
   ComicSourceKind,
+  CustomLibraryCategory,
+  LIBRARY_CATEGORY_NAME_MAX_LENGTH,
   Page,
   ReadingDirection,
+  isBuiltInLibraryCategoryId,
+  isBuiltInLibraryCategoryName,
+  libraryCategoryNameKey,
   normalizeCategoryIds,
+  normalizeLibraryCategoryName,
   withComicAddedCategoryId,
   withComicCategoryIds,
   withComicRemovedCategoryId,
@@ -18,7 +25,16 @@ export const LIBRARY_STORE_PERSISTENCE_FILE_NAME = 'library-store.v1.json'
 
 export interface PersistedLibraryStoreDocument {
   schemaVersion: number
+  customCategories?: PersistedLibraryCategory[]
   comics: PersistedComic[]
+}
+
+export interface PersistedLibraryCategory {
+  id: string
+  name: string
+  sortOrder: number
+  createdAt: number
+  updatedAt: number
 }
 
 export interface PersistedComic {
@@ -229,10 +245,17 @@ export function hydrateComic(row: PersistedComic): Comic {
 }
 
 export function createLibraryStorePersistenceDocument(libraryStore: LibraryStore): PersistedLibraryStoreDocument {
-  return {
+  const document: PersistedLibraryStoreDocument = {
     schemaVersion: LIBRARY_STORE_PERSISTENCE_SCHEMA_VERSION,
     comics: libraryStore.listComics().map((comic: Comic) => persistComic(comic)),
   }
+  const customCategories = libraryStore.listCustomCategories().map((category: CustomLibraryCategory): PersistedLibraryCategory => {
+    return persistLibraryCategory(category)
+  })
+  if (customCategories.length > 0) {
+    document.customCategories = customCategories
+  }
+  return document
 }
 
 export function serializeLibraryStore(libraryStore: LibraryStore): string {
@@ -365,19 +388,99 @@ function assertValidPersistedComic(row: PersistedComic): void {
   assertNumberField(row.lastImportedAt, 'comic.lastImportedAt')
 }
 
-function parseValidatedLibraryStoreComics(payload: string): Comic[] {
+function persistLibraryCategory(category: CustomLibraryCategory): PersistedLibraryCategory {
+  return {
+    id: category.id,
+    name: category.name,
+    sortOrder: category.sortOrder,
+    createdAt: category.createdAt,
+    updatedAt: category.updatedAt,
+  }
+}
+
+function hydrateLibraryCategory(row: PersistedLibraryCategory): CustomLibraryCategory {
+  assertValidPersistedLibraryCategory(row)
+  return {
+    id: row.id,
+    name: row.name,
+    sortOrder: row.sortOrder,
+    createdAt: row.createdAt,
+    updatedAt: row.updatedAt,
+  }
+}
+
+function assertValidPersistedLibraryCategory(row: PersistedLibraryCategory): void {
+  assertPersistedObject(row as Object, 'category')
+  assertStringField(row.id, 'category.id')
+  assertStringField(row.name, 'category.name')
+  assertNumberField(row.sortOrder, 'category.sortOrder')
+  assertNumberField(row.createdAt, 'category.createdAt')
+  assertNumberField(row.updatedAt, 'category.updatedAt')
+  if (!row.id.startsWith(CUSTOM_LIBRARY_CATEGORY_ID_PREFIX) || isBuiltInLibraryCategoryId(row.id)) {
+    throw new Error('Invalid library store persistence category.id: expected custom category id')
+  }
+  const normalizedName = normalizeLibraryCategoryName(row.name)
+  if (normalizedName.length === 0) {
+    throw new Error('Invalid library store persistence category.name: expected non-empty name')
+  }
+  if (normalizedName.length > LIBRARY_CATEGORY_NAME_MAX_LENGTH) {
+    throw new Error(`Invalid library store persistence category.name: expected at most ${LIBRARY_CATEGORY_NAME_MAX_LENGTH} characters`)
+  }
+  if (isBuiltInLibraryCategoryName(normalizedName)) {
+    throw new Error('Invalid library store persistence category.name: conflicts with built-in category')
+  }
+}
+
+function assertUniquePersistedLibraryCategories(rows: PersistedLibraryCategory[]): void {
+  const ids: string[] = []
+  const names: string[] = []
+  rows.forEach((row: PersistedLibraryCategory) => {
+    if (ids.includes(row.id)) {
+      throw new Error('Invalid library store persistence customCategories: duplicate category id')
+    }
+    ids.push(row.id)
+    const nameKey = libraryCategoryNameKey(row.name)
+    if (names.includes(nameKey)) {
+      throw new Error('Invalid library store persistence customCategories: duplicate category name')
+    }
+    names.push(nameKey)
+  })
+}
+
+function parseValidatedLibraryStoreDocument(payload: string): PersistedLibraryStoreDocument {
   const document = JSON.parse(payload) as PersistedLibraryStoreDocument
   assertPersistedObject(document as Object, 'document')
   assertSupportedLibraryStoreDocument(document)
+  if (document.customCategories !== undefined && !Array.isArray(document.customCategories)) {
+    throw new Error('Invalid library store persistence customCategories: expected array')
+  }
   if (!Array.isArray(document.comics)) {
     throw new Error('Invalid library store persistence comics: expected array')
   }
-  return document.comics.map((row: PersistedComic) => hydrateComic(row))
+  if (document.customCategories !== undefined) {
+    document.customCategories.forEach((row: PersistedLibraryCategory) => {
+      assertValidPersistedLibraryCategory(row)
+    })
+    assertUniquePersistedLibraryCategories(document.customCategories)
+  }
+  document.comics.forEach((row: PersistedComic) => {
+    assertValidPersistedComic(row)
+  })
+  return document
+}
+
+export function assertValidLibraryStoreJson(payload: string): void {
+  parseValidatedLibraryStoreDocument(payload)
 }
 
 export function hydrateLibraryStoreFromJson(libraryStore: LibraryStore, payload: string): void {
-  const comics = parseValidatedLibraryStoreComics(payload)
+  const document = parseValidatedLibraryStoreDocument(payload)
+  const customCategories = document.customCategories === undefined ? [] : document.customCategories.map((row: PersistedLibraryCategory) => {
+    return hydrateLibraryCategory(row)
+  })
+  const comics = document.comics.map((row: PersistedComic) => hydrateComic(row))
   libraryStore.clear()
+  libraryStore.replaceCustomCategories(customCategories)
   comics.forEach((comic: Comic) => {
     libraryStore.upsertComic(comic)
   })
@@ -528,6 +631,58 @@ export function updateComicCategoryMembershipAndPersistLibraryStore(
   try {
     persistenceService.persist()
     return changedCount
+  } catch (error) {
+    hydrateLibraryStoreFromJson(libraryStore, previousPayload)
+    throw error as Error
+  }
+}
+
+export function createCustomCategoryAndPersistLibraryStore(
+  libraryStore: LibraryStore,
+  persistenceService: LibraryStorePersistenceService,
+  name: string
+): CustomLibraryCategory {
+  const previousPayload = serializeLibraryStore(libraryStore)
+  const category = libraryStore.createCustomCategory(name)
+  try {
+    persistenceService.persist()
+    return category
+  } catch (error) {
+    hydrateLibraryStoreFromJson(libraryStore, previousPayload)
+    throw error as Error
+  }
+}
+
+export function renameCustomCategoryAndPersistLibraryStore(
+  libraryStore: LibraryStore,
+  persistenceService: LibraryStorePersistenceService,
+  categoryId: string,
+  name: string
+): CustomLibraryCategory {
+  const previousPayload = serializeLibraryStore(libraryStore)
+  const category = libraryStore.renameCustomCategory(categoryId, name)
+  try {
+    persistenceService.persist()
+    return category
+  } catch (error) {
+    hydrateLibraryStoreFromJson(libraryStore, previousPayload)
+    throw error as Error
+  }
+}
+
+export function deleteCustomCategoryAndPersistLibraryStore(
+  libraryStore: LibraryStore,
+  persistenceService: LibraryStorePersistenceService,
+  categoryId: string
+): boolean {
+  const previousPayload = serializeLibraryStore(libraryStore)
+  const deleted = libraryStore.deleteCustomCategory(categoryId)
+  if (!deleted) {
+    return false
+  }
+  try {
+    persistenceService.persist()
+    return true
   } catch (error) {
     hydrateLibraryStoreFromJson(libraryStore, previousPayload)
     throw error as Error
