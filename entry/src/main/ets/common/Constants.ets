@@ -17,6 +17,7 @@ export class RouteName {
   static readonly LIBRARY_UPDATE_RESULTS: string = 'LibraryUpdateResultPage'
   static readonly DOWNLOADS: string = 'DownloadsPage'
   static readonly BACKUP_MANAGEMENT: string = 'BackupManagementPage'
+  static readonly TRACKER_SETTINGS: string = 'TrackerSettingsPage'
 }
 
 export class TabLabel {
