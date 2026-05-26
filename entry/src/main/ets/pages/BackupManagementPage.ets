@@ -5,9 +5,13 @@ import {
   BACKUP_ENCRYPTION_PLAN_LABEL,
   BACKUP_ENCRYPTION_STATUS_LABEL,
   BACKUP_INCLUDED_DOMAIN_LABELS,
+  BACKUP_IMPORT_CONFLICT_POLICY,
+  BACKUP_IMPORT_PREVIEW_NOTE,
   BACKUP_MANAGEMENT_STORAGE_NOTE,
   BACKUP_SCHEMA_VERSION,
   BACKUP_UNENCRYPTED_EXPORT_WARNING,
+  BackupImportPreview,
+  BackupImportSelectionPreview,
   BackupService,
 } from '../model/BackupService'
 import { ThemeConstants } from '../theme/ThemeConstants'
@@ -15,6 +19,8 @@ import { ThemeConstants } from '../theme/ThemeConstants'
 @Component
 export struct BackupManagementPage {
   @State private busy: boolean = false
+  @State private selectedBackupPayload: string = ''
+  @State private selectedBackupPreview: BackupImportPreview | undefined = undefined
 
   private context(): common.UIAbilityContext {
     return getContext(this) as common.UIAbilityContext
@@ -71,12 +77,37 @@ export struct BackupManagementPage {
       return
     }
     this.busy = true
-    console.info('[BackupManagement] step=import_start')
-    void this.backupService().importFromPicker()
-      .then((restored: boolean) => {
-        if (restored) {
-          this.showInfoDialog('备份已导入', '书架、阅读进度、远程服务器配置、源包和偏好已恢复。')
+    this.selectedBackupPayload = ''
+    this.selectedBackupPreview = undefined
+    console.info('[BackupManagement] step=preview_start')
+    void this.backupService().selectImportPreviewFromPicker()
+      .then((selection: BackupImportSelectionPreview | undefined) => {
+        if (selection !== undefined) {
+          this.selectedBackupPayload = selection.payload
+          this.selectedBackupPreview = selection.preview
+          this.showToast('已读取备份预览，请确认后恢复')
         }
+      })
+      .catch((error: Error) => {
+        console.error('[BackupManagement] step=preview_failed message=' + error.message)
+        this.showInfoDialog('预览失败', error.message)
+      })
+      .finally(() => {
+        this.busy = false
+      })
+  }
+
+  private restoreSelectedBackup(): void {
+    if (this.busy || this.selectedBackupPayload.length === 0) {
+      return
+    }
+    this.busy = true
+    console.info('[BackupManagement] step=import_start')
+    void this.backupService().import(this.selectedBackupPayload)
+      .then(() => {
+        this.selectedBackupPayload = ''
+        this.selectedBackupPreview = undefined
+        this.showInfoDialog('备份已导入', '已按所选备份恢复书架、阅读进度、远程服务器配置、源包和偏好。')
       })
       .catch((error: Error) => {
         console.error('[BackupManagement] step=import_failed message=' + error.message)
@@ -198,7 +229,7 @@ export struct BackupManagementPage {
           this.exportBackup()
         })
 
-      Button(this.busy ? '处理中' : '导入/恢复备份')
+      Button(this.busy ? '处理中' : '选择备份并预览')
         .width('100%')
         .height(42)
         .borderRadius(8)
@@ -209,6 +240,83 @@ export struct BackupManagementPage {
         .onClick(() => {
           this.importBackup()
         })
+
+      Button(this.busy ? '处理中' : '恢复所选备份')
+        .width('100%')
+        .height(42)
+        .borderRadius(8)
+        .fontSize(15)
+        .fontColor(this.selectedBackupPayload.length > 0 ? Color.White : $r('app.color.koma_text_secondary'))
+        .backgroundColor(this.selectedBackupPayload.length > 0 ? $r('app.color.koma_accent') : '#00000000')
+        .enabled(!this.busy && this.selectedBackupPayload.length > 0)
+        .onClick(() => {
+          this.restoreSelectedBackup()
+        })
+    }
+    .width('100%')
+    .padding({ left: 16, right: 16, top: 16, bottom: 16 })
+    .borderRadius(8)
+    .backgroundColor($r('app.color.koma_card'))
+  }
+
+  @Builder
+  private ImportPreviewIntroCard() {
+    Column({ space: 8 }) {
+      Text('导入预览')
+        .width('100%')
+        .fontSize(15)
+        .fontWeight(FontWeight.Medium)
+        .fontColor($r('app.color.koma_text_primary'))
+      Text(BACKUP_IMPORT_PREVIEW_NOTE)
+        .width('100%')
+        .fontSize(13)
+        .fontColor($r('app.color.koma_text_secondary'))
+        .lineHeight(19)
+      Text(BACKUP_IMPORT_CONFLICT_POLICY)
+        .width('100%')
+        .fontSize(13)
+        .fontColor($r('app.color.koma_text_secondary'))
+        .lineHeight(19)
+    }
+    .width('100%')
+    .padding({ left: 16, right: 16, top: 16, bottom: 16 })
+    .borderRadius(8)
+    .backgroundColor($r('app.color.koma_card'))
+  }
+
+  @Builder
+  private PreviewRow(label: string, value: string) {
+    Row() {
+      Text(label)
+        .fontSize(14)
+        .fontColor($r('app.color.koma_text_secondary'))
+        .layoutWeight(1)
+      Text(value)
+        .fontSize(14)
+        .fontColor($r('app.color.koma_text_primary'))
+    }
+    .width('100%')
+  }
+
+  @Builder
+  private SelectedPreviewCard(preview: BackupImportPreview) {
+    Column({ space: 10 }) {
+      Text('已选择的备份')
+        .width('100%')
+        .fontSize(15)
+        .fontWeight(FontWeight.Medium)
+        .fontColor($r('app.color.koma_text_primary'))
+      this.PreviewRow('备份版本', `v${preview.schemaVersion}`)
+      this.PreviewRow('导出时间', preview.exportedAtText)
+      this.PreviewRow('加密状态', preview.encryptionText)
+      this.PreviewRow('书架项目', `${preview.libraryItemCount}`)
+      this.PreviewRow('阅读进度', `${preview.progressCount}`)
+      this.PreviewRow('设置项', `${preview.settingsCount}`)
+      this.PreviewRow('分类', `${preview.categoryCount}`)
+      this.PreviewRow('下载队列', preview.hasDownloadQueueCount ? `${preview.downloadQueueCount}` : '备份中未提供')
+      this.PreviewRow('追踪映射', preview.hasTrackerMappingCount ? `${preview.trackerMappingCount}` : '备份中未提供')
+      this.PreviewRow('源包元数据', `${preview.sourcePackageCount}`)
+      this.PreviewRow('源设置', `${preview.sourceSettingsCount}`)
     }
     .width('100%')
     .padding({ left: 16, right: 16, top: 16, bottom: 16 })
@@ -251,6 +359,14 @@ export struct BackupManagementPage {
         }
         ListItem() {
           this.DomainsCard()
+        }
+        ListItem() {
+          this.ImportPreviewIntroCard()
+        }
+        if (this.selectedBackupPreview !== undefined) {
+          ListItem() {
+            this.SelectedPreviewCard(this.selectedBackupPreview)
+          }
         }
         ListItem() {
           this.ActionsCard()
