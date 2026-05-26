@@ -1,6 +1,7 @@
 import { fileIo as fs, ListFileOptions } from '@kit.CoreFileKit'
 import {
   ComicId,
+  ComicSourceKind,
   PageId,
 } from './ComicModels'
 
@@ -17,9 +18,33 @@ export enum OfflineDownloadStatus {
   BLOCKED = 'blocked',
 }
 
+export enum OfflineDownloadedChapterStatus {
+  DOWNLOADED = 'downloaded',
+  PARTIAL = 'partial',
+  CORRUPT = 'corrupt',
+  MISSING = 'missing',
+}
+
+function parseOfflineDownloadStatus(value: string): OfflineDownloadStatus | undefined {
+  if (value === OfflineDownloadStatus.QUEUED ||
+    value === OfflineDownloadStatus.DOWNLOADING ||
+    value === OfflineDownloadStatus.DOWNLOADED ||
+    value === OfflineDownloadStatus.PARTIAL ||
+    value === OfflineDownloadStatus.FAILED ||
+    value === OfflineDownloadStatus.BLOCKED) {
+    return value
+  }
+  return undefined
+}
+
+function isReaderReadyOfflineDownloadStatus(status: OfflineDownloadStatus): boolean {
+  return status === OfflineDownloadStatus.DOWNLOADED || status === OfflineDownloadStatus.PARTIAL
+}
+
 export interface OfflineDownloadedPage {
   pageId: PageId
   pageIndex: number
+  fileName?: string
   localPath: string
   size: number
   updatedAt: number
@@ -27,13 +52,17 @@ export interface OfflineDownloadedPage {
 
 export interface OfflineChapterDownloadManifest {
   schemaVersion: number
+  sourceKind?: ComicSourceKind
+  sourceId?: string
   comicId: ComicId
+  seriesId: ComicId
   chapterId: string
   pageCount: number
   downloadedPageCount: number
   status: OfflineDownloadStatus
   updatedAt: number
   pages: OfflineDownloadedPage[]
+  integrityHash: string
   failureReasonCode?: string
 }
 
@@ -44,6 +73,23 @@ export interface OfflineDownloadSummary {
   downloadedPageCount: number
   status: OfflineDownloadStatus
   updatedAt: number
+}
+
+export interface OfflineChapterManifestIdentity {
+  sourceKind?: ComicSourceKind
+  sourceId?: string
+  seriesId?: ComicId
+}
+
+export interface OfflineDownloadManifestValidation {
+  comicId: ComicId
+  chapterId: string
+  status: OfflineDownloadedChapterStatus
+  manifest?: OfflineChapterDownloadManifest
+  pageCount: number
+  availablePageCount: number
+  missingPageCount: number
+  reasonCode?: string
 }
 
 function compareDeepestPathFirst(left: string, right: string): number {
@@ -100,6 +146,10 @@ function joinOfflineDownloadPath(parent: string, child: string): string {
   return right.length === 0 ? left : `${left}/${right}`
 }
 
+function pathBaseName(path: string): string {
+  return normalizeDownloadPath(path).split('/').pop() ?? ''
+}
+
 function closeFileQuietly(file: fs.File | undefined): void {
   if (file === undefined) {
     return
@@ -136,8 +186,34 @@ async function pathExists(path: string): Promise<boolean> {
 
 function safeParseManifest(payload: string): OfflineChapterDownloadManifest {
   const parsed = JSON.parse(payload) as OfflineChapterDownloadManifest
-  if (parsed.schemaVersion !== OFFLINE_DOWNLOAD_SCHEMA_VERSION || !Array.isArray(parsed.pages)) {
+  if (parsed.schemaVersion !== OFFLINE_DOWNLOAD_SCHEMA_VERSION ||
+    (parsed.sourceKind !== undefined && parsed.sourceKind !== ComicSourceKind.LOCAL_ARCHIVE &&
+      parsed.sourceKind !== ComicSourceKind.LOCAL_FOLDER &&
+      parsed.sourceKind !== ComicSourceKind.PRIVATE_LIBRARY &&
+      parsed.sourceKind !== ComicSourceKind.KOMGA_REMOTE &&
+      parsed.sourceKind !== ComicSourceKind.OPDS_REMOTE &&
+      parsed.sourceKind !== ComicSourceKind.WEBDAV_REMOTE) ||
+    (parsed.sourceId !== undefined && typeof parsed.sourceId !== 'string') ||
+    typeof parsed.comicId !== 'string' ||
+    typeof parsed.seriesId !== 'string' ||
+    typeof parsed.chapterId !== 'string' ||
+    typeof parsed.pageCount !== 'number' ||
+    typeof parsed.downloadedPageCount !== 'number' ||
+    typeof parsed.status !== 'string' ||
+    typeof parsed.updatedAt !== 'number' ||
+    !Array.isArray(parsed.pages) ||
+    typeof parsed.integrityHash !== 'string') {
     throw new Error('Unsupported offline download manifest')
+  }
+  for (let index = 0; index < parsed.pages.length; index += 1) {
+    const page = parsed.pages[index]
+    if (typeof page.pageId !== 'string' ||
+      typeof page.pageIndex !== 'number' ||
+      typeof page.localPath !== 'string' ||
+      typeof page.size !== 'number' ||
+      typeof page.updatedAt !== 'number') {
+      throw new Error('Unsupported offline download page manifest')
+    }
   }
   return parsed
 }
@@ -145,6 +221,34 @@ function safeParseManifest(payload: string): OfflineChapterDownloadManifest {
 function normalizeExtension(extension: string): string {
   const normalized = extension.toLocaleLowerCase().replace(/[^a-z0-9]/g, '')
   return normalized.length === 0 ? 'img' : normalized
+}
+
+function manifestIntegrityPayload(manifest: OfflineChapterDownloadManifest): string {
+  // The integrity hash excludes absolute sandbox prefixes; path safety is validated against the chapter dir.
+  const pages = manifest.pages.slice().sort((left: OfflineDownloadedPage, right: OfflineDownloadedPage): number => {
+    return left.pageIndex - right.pageIndex
+  }).map((page: OfflineDownloadedPage): string => {
+    return [
+      page.pageIndex,
+      page.pageId,
+      page.fileName ?? pathBaseName(page.localPath),
+      Math.max(0, Math.floor(page.size)),
+    ].join(':')
+  })
+  return [
+    OFFLINE_DOWNLOAD_SCHEMA_VERSION,
+    manifest.sourceKind ?? '',
+    manifest.sourceId ?? '',
+    manifest.comicId,
+    manifest.seriesId,
+    manifest.chapterId,
+    Math.max(0, Math.floor(manifest.pageCount)),
+    pages.join('|'),
+  ].join('\n')
+}
+
+function createManifestIntegrityHash(manifest: OfflineChapterDownloadManifest): string {
+  return createOfflineDownloadStableHash(manifestIntegrityPayload(manifest))
 }
 
 export class OfflineDownloadStore {
@@ -193,6 +297,193 @@ export class OfflineDownloadStore {
     }
   }
 
+  validateDownloadedChapter(comicId: ComicId, chapterId: string): OfflineDownloadManifestValidation {
+    const path = this.manifestPath(comicId, chapterId)
+    if (!fs.accessSync(path)) {
+      return {
+        comicId,
+        chapterId,
+        status: OfflineDownloadedChapterStatus.MISSING,
+        pageCount: 0,
+        availablePageCount: 0,
+        missingPageCount: 0,
+        reasonCode: 'manifest_missing',
+      }
+    }
+    let manifest: OfflineChapterDownloadManifest
+    try {
+      manifest = safeParseManifest(fs.readTextSync(path, { encoding: 'utf-8' }))
+    } catch (_err) {
+      return {
+        comicId,
+        chapterId,
+        status: OfflineDownloadedChapterStatus.CORRUPT,
+        pageCount: 0,
+        availablePageCount: 0,
+        missingPageCount: 0,
+        reasonCode: 'manifest_malformed',
+      }
+    }
+    if (manifest.comicId !== comicId || manifest.chapterId !== chapterId || manifest.seriesId !== comicId) {
+      return {
+        comicId,
+        chapterId,
+        status: OfflineDownloadedChapterStatus.CORRUPT,
+        manifest,
+        pageCount: Math.max(0, Math.floor(manifest.pageCount)),
+        availablePageCount: 0,
+        missingPageCount: Math.max(0, Math.floor(manifest.pageCount)),
+        reasonCode: 'identity_mismatch',
+      }
+    }
+    const pageCount = Math.max(0, Math.floor(manifest.pageCount))
+    const manifestStatus = parseOfflineDownloadStatus(manifest.status)
+    if (manifestStatus === undefined) {
+      return {
+        comicId,
+        chapterId,
+        status: OfflineDownloadedChapterStatus.CORRUPT,
+        manifest,
+        pageCount,
+        availablePageCount: 0,
+        missingPageCount: pageCount,
+        reasonCode: 'status_invalid',
+      }
+    }
+    if (!isReaderReadyOfflineDownloadStatus(manifestStatus)) {
+      return {
+        comicId,
+        chapterId,
+        status: OfflineDownloadedChapterStatus.MISSING,
+        manifest,
+        pageCount,
+        availablePageCount: 0,
+        missingPageCount: pageCount,
+        reasonCode: 'status_not_reader_ready',
+      }
+    }
+    if (manifest.integrityHash.trim().length === 0) {
+      return {
+        comicId,
+        chapterId,
+        status: OfflineDownloadedChapterStatus.CORRUPT,
+        manifest,
+        pageCount,
+        availablePageCount: 0,
+        missingPageCount: pageCount,
+        reasonCode: 'integrity_missing',
+      }
+    }
+    if (createManifestIntegrityHash(manifest) !== manifest.integrityHash) {
+      return {
+        comicId,
+        chapterId,
+        status: OfflineDownloadedChapterStatus.CORRUPT,
+        manifest,
+        pageCount,
+        availablePageCount: 0,
+        missingPageCount: pageCount,
+        reasonCode: 'integrity_mismatch',
+      }
+    }
+    if (pageCount <= 0 || manifest.pages.length === 0) {
+      return {
+        comicId,
+        chapterId,
+        status: OfflineDownloadedChapterStatus.MISSING,
+        manifest,
+        pageCount,
+        availablePageCount: 0,
+        missingPageCount: pageCount,
+        reasonCode: pageCount <= 0 ? 'page_count_empty' : 'pages_missing',
+      }
+    }
+    const chapterDir = this.chapterDir(comicId, chapterId)
+    let availablePageCount = 0
+    const seenIndexes: number[] = []
+    for (let index = 0; index < manifest.pages.length; index += 1) {
+      const page = manifest.pages[index]
+      try {
+        assertSafeOfflineDownloadRoot(this.filesDir, page.localPath)
+      } catch (_err) {
+        return {
+          comicId,
+          chapterId,
+          status: OfflineDownloadedChapterStatus.CORRUPT,
+          manifest,
+          pageCount: manifest.pageCount,
+          availablePageCount,
+          missingPageCount: Math.max(0, manifest.pageCount - availablePageCount),
+          reasonCode: 'unsafe_page_path',
+        }
+      }
+      if (!page.localPath.startsWith(`${chapterDir}/`) || hasTraversalSegment(pathBaseName(page.localPath))) {
+        return {
+          comicId,
+          chapterId,
+          status: OfflineDownloadedChapterStatus.CORRUPT,
+          manifest,
+          pageCount: manifest.pageCount,
+          availablePageCount,
+          missingPageCount: Math.max(0, manifest.pageCount - availablePageCount),
+          reasonCode: 'outside_chapter_dir',
+        }
+      }
+      if (page.pageIndex < 0 || page.pageIndex >= manifest.pageCount || seenIndexes.includes(page.pageIndex)) {
+        return {
+          comicId,
+          chapterId,
+          status: OfflineDownloadedChapterStatus.CORRUPT,
+          manifest,
+          pageCount: manifest.pageCount,
+          availablePageCount,
+          missingPageCount: Math.max(0, manifest.pageCount - availablePageCount),
+          reasonCode: 'page_index_invalid',
+        }
+      }
+      seenIndexes.push(page.pageIndex)
+      if (fs.accessSync(page.localPath)) {
+        const stat = fs.statSync(page.localPath)
+        if (stat.size !== Math.max(0, Math.floor(page.size))) {
+          return {
+            comicId,
+            chapterId,
+            status: OfflineDownloadedChapterStatus.CORRUPT,
+            manifest,
+            pageCount: manifest.pageCount,
+            availablePageCount,
+            missingPageCount: Math.max(0, manifest.pageCount - availablePageCount),
+            reasonCode: 'page_size_mismatch',
+          }
+        }
+        availablePageCount += 1
+      }
+    }
+    const missingPageCount = Math.max(0, manifest.pageCount - availablePageCount)
+    if (manifest.pageCount > 0 && availablePageCount === 0) {
+      return {
+        comicId,
+        chapterId,
+        status: OfflineDownloadedChapterStatus.MISSING,
+        manifest,
+        pageCount: manifest.pageCount,
+        availablePageCount,
+        missingPageCount,
+        reasonCode: 'pages_missing',
+      }
+    }
+    return {
+      comicId,
+      chapterId,
+      status: missingPageCount === 0 ? OfflineDownloadedChapterStatus.DOWNLOADED : OfflineDownloadedChapterStatus.PARTIAL,
+      manifest,
+      pageCount: manifest.pageCount,
+      availablePageCount,
+      missingPageCount,
+      reasonCode: missingPageCount === 0 ? undefined : 'page_file_missing',
+    }
+  }
+
   loadSummary(comicId: ComicId, chapterId: string): OfflineDownloadSummary | undefined {
     const manifest = this.loadManifest(comicId, chapterId)
     if (manifest === undefined) {
@@ -211,33 +502,62 @@ export class OfflineDownloadStore {
   saveManifest(manifest: OfflineChapterDownloadManifest): OfflineChapterDownloadManifest {
     const chapterDir = this.chapterDir(manifest.comicId, manifest.chapterId)
     ensureDirSync(chapterDir)
+    const pages = manifest.pages.slice().sort((left: OfflineDownloadedPage, right: OfflineDownloadedPage): number => {
+      return left.pageIndex - right.pageIndex
+    }).map((page: OfflineDownloadedPage): OfflineDownloadedPage => {
+      assertSafeOfflineDownloadRoot(this.filesDir, page.localPath)
+      if (!page.localPath.startsWith(`${chapterDir}/`)) {
+        throw new Error('offline download page path is outside chapter dir')
+      }
+      return {
+        pageId: page.pageId,
+        pageIndex: Math.max(0, Math.floor(page.pageIndex)),
+        fileName: page.fileName ?? pathBaseName(page.localPath),
+        localPath: page.localPath,
+        size: Math.max(0, Math.floor(page.size)),
+        updatedAt: page.updatedAt,
+      }
+    })
     const normalized: OfflineChapterDownloadManifest = {
       schemaVersion: OFFLINE_DOWNLOAD_SCHEMA_VERSION,
+      sourceKind: manifest.sourceKind,
+      sourceId: manifest.sourceId,
       comicId: manifest.comicId,
+      seriesId: manifest.seriesId,
       chapterId: manifest.chapterId,
       pageCount: Math.max(0, Math.floor(manifest.pageCount)),
-      downloadedPageCount: manifest.pages.length,
+      downloadedPageCount: pages.length,
       status: manifest.status,
       updatedAt: Date.now(),
-      pages: manifest.pages.slice().sort((left: OfflineDownloadedPage, right: OfflineDownloadedPage): number => {
-        return left.pageIndex - right.pageIndex
-      }),
+      pages,
+      integrityHash: '',
       failureReasonCode: manifest.failureReasonCode,
     }
+    normalized.integrityHash = createManifestIntegrityHash(normalized)
     writeTextSync(this.manifestPath(manifest.comicId, manifest.chapterId), JSON.stringify(normalized))
     return normalized
   }
 
-  createManifest(comicId: ComicId, chapterId: string, pageCount: number, status: OfflineDownloadStatus): OfflineChapterDownloadManifest {
+  createManifest(
+    comicId: ComicId,
+    chapterId: string,
+    pageCount: number,
+    status: OfflineDownloadStatus,
+    identity?: OfflineChapterManifestIdentity
+  ): OfflineChapterDownloadManifest {
     return this.saveManifest({
       schemaVersion: OFFLINE_DOWNLOAD_SCHEMA_VERSION,
+      sourceKind: identity?.sourceKind,
+      sourceId: identity?.sourceId,
       comicId,
+      seriesId: identity?.seriesId ?? comicId,
       chapterId,
       pageCount,
       downloadedPageCount: 0,
       status,
       updatedAt: Date.now(),
       pages: [],
+      integrityHash: '',
     })
   }
 
@@ -255,16 +575,21 @@ export class OfflineDownloadStore {
       status: manifest.status,
       updatedAt: Date.now(),
       pages,
+      sourceKind: manifest.sourceKind,
+      sourceId: manifest.sourceId,
+      seriesId: manifest.seriesId,
+      integrityHash: manifest.integrityHash,
+      failureReasonCode: manifest.failureReasonCode,
     })
   }
 
   resolveDownloadedPage(comicId: ComicId, chapterId: string, pageId: string, pageIndex: number): string | undefined {
-    const manifest = this.loadManifest(comicId, chapterId)
-    if (manifest === undefined ||
-      (manifest.status !== OfflineDownloadStatus.DOWNLOADED && manifest.status !== OfflineDownloadStatus.PARTIAL)) {
+    const validation = this.validateDownloadedChapter(comicId, chapterId)
+    if (validation.manifest === undefined ||
+      (validation.status !== OfflineDownloadedChapterStatus.DOWNLOADED && validation.status !== OfflineDownloadedChapterStatus.PARTIAL)) {
       return undefined
     }
-    const page = manifest.pages.find((item: OfflineDownloadedPage): boolean => {
+    const page = validation.manifest.pages.find((item: OfflineDownloadedPage): boolean => {
       return item.pageId === pageId || item.pageIndex === pageIndex
     })
     if (page === undefined) {

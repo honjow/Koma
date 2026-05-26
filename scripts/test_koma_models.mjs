@@ -511,13 +511,18 @@ assert.match(
 )
 assert.match(
   offlineDownloadStoreSource,
-  /export interface OfflineChapterDownloadManifest\s*{[\s\S]*status:\s*OfflineDownloadStatus[\s\S]*pageCount:\s*number[\s\S]*downloadedPageCount:\s*number/s,
-  'offline manifest must track status, pageCount, and downloadedPageCount',
+  /export interface OfflineChapterDownloadManifest\s*{[\s\S]*sourceKind\?: ComicSourceKind[\s\S]*sourceId\?: string[\s\S]*seriesId:[\s\S]*chapterId:[\s\S]*pageCount:\s*number[\s\S]*downloadedPageCount:\s*number[\s\S]*integrityHash:\s*string/s,
+  'offline manifest must track source/series/chapter identity, counts, and integrity',
 )
 assert.match(
   offlineDownloadStoreSource,
-  /resolveDownloadedPage[\s\S]*manifest\.status !== OfflineDownloadStatus\.DOWNLOADED[\s\S]*manifest\.status !== OfflineDownloadStatus\.PARTIAL[\s\S]*fs\.accessSync\(page\.localPath\)/,
-  'offline resolver must expose existing files for downloaded and partial chapters',
+  /export enum OfflineDownloadedChapterStatus\s*{[\s\S]*DOWNLOADED = 'downloaded'[\s\S]*PARTIAL = 'partial'[\s\S]*CORRUPT = 'corrupt'[\s\S]*MISSING = 'missing'/,
+  'offline manifest validation must classify downloaded, partial, corrupt, and missing chapters',
+)
+assert.match(
+  offlineDownloadStoreSource,
+  /resolveDownloadedPage[\s\S]*validateDownloadedChapter\(comicId, chapterId\)[\s\S]*OfflineDownloadedChapterStatus\.DOWNLOADED[\s\S]*OfflineDownloadedChapterStatus\.PARTIAL[\s\S]*fs\.accessSync\(page\.localPath\)/,
+  'offline resolver must expose validated existing files for downloaded and partial chapters',
 )
 assert.doesNotMatch(
   offlineDownloadStoreSource,

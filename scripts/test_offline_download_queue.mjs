@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict'
-import { existsSync, readFileSync } from 'node:fs'
-import { resolve } from 'node:path'
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join, resolve } from 'node:path'
 
 const root = resolve(import.meta.dirname, '..')
 const queueStorePath = resolve(root, 'entry/src/main/ets/model/OfflineDownloadQueueStore.ets')
@@ -75,8 +76,23 @@ for (const status of ['QUEUED', 'DOWNLOADING', 'DOWNLOADED', 'PARTIAL', 'FAILED'
 
 assert.match(offlineDownloadStoreSource, /deleteChapterDownload\([\s\S]*assertSafeOfflineDownloadRoot[\s\S]*(?:rmdir|rmdirSync|unlink|unlinkSync)/, 'offline download store must expose safe chapter cleanup under files/downloads')
 assert.match(offlineDownloadStoreSource, /assertSafeOfflineDownloadRoot[\s\S]*hasTraversalSegment/, 'offline download safe path contract must remain present')
+assertExport(offlineDownloadStoreSource, 'OfflineDownloadedChapterStatus')
+assertExport(offlineDownloadStoreSource, 'OfflineDownloadManifestValidation')
+assert.match(offlineDownloadStoreSource, /export enum OfflineDownloadedChapterStatus\s*{[\s\S]*DOWNLOADED = 'downloaded'[\s\S]*PARTIAL = 'partial'[\s\S]*CORRUPT = 'corrupt'[\s\S]*MISSING = 'missing'/, 'offline manifest validation must classify downloaded, partial, corrupt, and missing')
+assert.match(offlineDownloadStoreSource, /export interface OfflineChapterDownloadManifest\s*{[\s\S]*sourceKind\?: ComicSourceKind[\s\S]*sourceId\?: string[\s\S]*comicId:[\s\S]*seriesId:[\s\S]*chapterId:[\s\S]*pageCount:[\s\S]*pages:[\s\S]*integrityHash: string/, 'offline chapter manifests must identify source, series, chapter, page list, and integrity hash')
+assert.match(offlineDownloadStoreSource, /function manifestIntegrityPayload[\s\S]*page\.pageIndex[\s\S]*page\.pageId[\s\S]*page\.fileName[\s\S]*page\.size[\s\S]*createManifestIntegrityHash/, 'offline manifest integrity must be deterministic from bounded identity and page metadata')
+assert.match(offlineDownloadStoreSource, /validateDownloadedChapter\(comicId: ComicId, chapterId: string\): OfflineDownloadManifestValidation[\s\S]*manifest_missing[\s\S]*manifest_malformed[\s\S]*integrity_mismatch[\s\S]*page_file_missing/, 'offline store must expose reader-usable manifest discovery with missing, corrupt, and partial reasons')
+assert.match(offlineDownloadStoreSource, /typeof parsed\.seriesId !== 'string'[\s\S]*typeof parsed\.integrityHash !== 'string'/, 'offline manifest parsing must validate seriesId and integrityHash types instead of defaulting unsafe legacy values')
+assert.doesNotMatch(offlineDownloadStoreSource, /parsed\.integrityHash = ''/, 'offline manifest parsing must not default a missing integrity hash to an empty validated value')
+assert.match(offlineDownloadStoreSource, /function parseOfflineDownloadStatus\(value: string\): OfflineDownloadStatus \| undefined[\s\S]*OfflineDownloadStatus\.QUEUED[\s\S]*OfflineDownloadStatus\.DOWNLOADING[\s\S]*OfflineDownloadStatus\.DOWNLOADED[\s\S]*OfflineDownloadStatus\.PARTIAL[\s\S]*OfflineDownloadStatus\.FAILED[\s\S]*OfflineDownloadStatus\.BLOCKED/, 'offline manifest validation must parse persisted manifest.status through the production enum')
+assert.match(offlineDownloadStoreSource, /const manifestStatus = parseOfflineDownloadStatus\(manifest\.status\)[\s\S]*reasonCode: 'status_invalid'[\s\S]*!isReaderReadyOfflineDownloadStatus\(manifestStatus\)[\s\S]*reasonCode: 'status_not_reader_ready'[\s\S]*const chapterDir = this\.chapterDir/, 'offline manifest validation must reject invalid and non-reader-ready statuses before file availability can classify downloaded/partial')
+assert.match(offlineDownloadStoreSource, /manifest\.integrityHash\.trim\(\)\.length === 0[\s\S]*reasonCode: 'integrity_missing'[\s\S]*createManifestIntegrityHash\(manifest\) !== manifest\.integrityHash/, 'offline manifest validation must reject empty integrity hashes before integrity comparison')
+assert.match(offlineDownloadStoreSource, /if \(pageCount <= 0 \|\| manifest\.pages\.length === 0\)[\s\S]*reasonCode: pageCount <= 0 \? 'page_count_empty' : 'pages_missing'[\s\S]*status: missingPageCount === 0 \? OfflineDownloadedChapterStatus\.DOWNLOADED : OfflineDownloadedChapterStatus\.PARTIAL/, 'offline manifest validation must reject zero-page or empty-page manifests before downloaded/partial classification')
+assert.match(offlineDownloadStoreSource, /saveManifest\(manifest: OfflineChapterDownloadManifest\)[\s\S]*assertSafeOfflineDownloadRoot\(this\.filesDir, page\.localPath\)[\s\S]*page\.localPath\.startsWith\(`\$\{chapterDir\}\/`\)[\s\S]*normalized\.integrityHash = createManifestIntegrityHash/, 'manifest saves must keep page paths bounded to the chapter dir and stamp integrity')
+assert.match(offlineDownloadStoreSource, /recordPage\(manifest: OfflineChapterDownloadManifest, page: OfflineDownloadedPage\)[\s\S]*item\.pageId !== page\.pageId && item\.pageIndex !== page\.pageIndex/, 'recordPage must make duplicate page writes idempotent by page id or index')
 
 assert.match(offlineDownloadServiceSource, /new OfflineDownloadQueueStore\([\s\S]*downloadChapter\([\s\S]*queueStore\.upsert[\s\S]*OfflineDownloadStatus\.QUEUED[\s\S]*queueStore\.upsert[\s\S]*manifest/, 'download service must mirror queued/downloading/final status into the durable queue')
+assert.match(offlineDownloadServiceSource, /function manifestIdentityFromComic\(comic: Comic\): OfflineChapterManifestIdentity[\s\S]*sourceKind: comic\.sourceKind[\s\S]*sourceId: comic\.sourceRuntimeId \?\? comic\.remoteServerId \?\? comic\.sourceKind[\s\S]*seriesId: comic\.id/, 'download service must write source and series identity into chapter manifests without credentials')
 assert.match(offlineDownloadServiceSource, /const initialPreferences = this\.queueStore\.loadPreferences\(\)[\s\S]*this\.queueStore\.upsert\([\s\S]*if \(initialPreferences\.isPaused \|\| this\.queueStore\.loadPreferences\(\)\.isPaused\)/, 'download service pause guard must not depend on preferences after the initial queue upsert only')
 assert.match(offlineDownloadServiceSource, /queueStore\.loadPreferences\(\)\.isPaused[\s\S]*OfflineDownloadStatus\.QUEUED/, 'download service must honor paused foreground queue state before starting work')
 assert.match(offlineDownloadServiceSource, /for \(let index = 0; index < config\.totalPages; index \+= 1\)[\s\S]*queueStore\.loadPreferences\(\)\.isPaused[\s\S]*failureReasonCode = 'paused'/, 'download service must stop foreground page work when the queue is paused')
@@ -138,5 +154,254 @@ assert.match(mangaDetailPageSource, /ensureSourceChapterPages\(chapterId: string
 assert.match(mangaDetailPageSource, /step=batch_pages_unavailable failed=true reason=source_pages_(missing|lookup)/, 'MangaDetailPage batch source hydration failures must use redacted reason codes')
 assert.match(mangaDetailPageSource, /ChapterListSection\(\{[\s\S]*onOpenChapter:[\s\S]*onDownloadChapter:\s*\(chapterId: string\) => \{[\s\S]*this\.handleDownloadChapter\(chapterId\)/, 'MangaDetailPage must wire chapter row download action')
 assert.match(mangaDetailPageSource, /ChapterListSection\(\{[\s\S]*onDownloadVisibleChapters:\s*\(chapterIds: string\[\], mode: ChapterBatchDownloadMode\) => \{[\s\S]*this\.handleDownloadVisibleChapters\(chapterIds, mode\)/, 'MangaDetailPage must wire visible chapter batch download action')
+
+function stableHash(value) {
+  let hashA = 2166136261
+  let hashB = 2166136261 ^ 0x9e3779b9
+  for (let index = 0; index < value.length; index += 1) {
+    const code = value.charCodeAt(index)
+    hashA = Math.imul((hashA ^ code) >>> 0, 16777619) >>> 0
+    hashB = Math.imul((hashB ^ (code + index)) >>> 0, 16777619) >>> 0
+  }
+  return `${hashA.toString(16).padStart(8, '0')}${hashB.toString(16).padStart(8, '0')}`
+}
+
+function manifestIntegrityPayload(manifest) {
+  const pages = manifest.pages.slice().sort((left, right) => left.pageIndex - right.pageIndex).map((page) => {
+    return [page.pageIndex, page.pageId, page.fileName, Math.max(0, Math.floor(page.size))].join(':')
+  })
+  return [
+    1,
+    manifest.sourceKind ?? '',
+    manifest.sourceId ?? '',
+    manifest.comicId,
+    manifest.seriesId,
+    manifest.chapterId,
+    Math.max(0, Math.floor(manifest.pageCount)),
+    pages.join('|'),
+  ].join('\n')
+}
+
+function stampManifest(manifest) {
+  const normalized = {
+    ...manifest,
+    schemaVersion: 1,
+    downloadedPageCount: manifest.pages.length,
+    pages: manifest.pages.slice().sort((left, right) => left.pageIndex - right.pageIndex),
+    integrityHash: '',
+  }
+  normalized.integrityHash = stableHash(manifestIntegrityPayload(normalized))
+  return normalized
+}
+
+function validateFixtureManifest(path) {
+  let manifest
+  try {
+    manifest = JSON.parse(readFileSync(path, 'utf8'))
+  } catch (_err) {
+    return { status: 'corrupt', reasonCode: 'manifest_malformed' }
+  }
+  if (typeof manifest.seriesId !== 'string' || typeof manifest.integrityHash !== 'string') {
+    return { status: 'corrupt', reasonCode: 'manifest_malformed' }
+  }
+  const pageCount = Math.max(0, Math.floor(manifest.pageCount))
+  if (!['queued', 'downloading', 'downloaded', 'partial', 'failed', 'blocked'].includes(manifest.status)) {
+    return {
+      status: 'corrupt',
+      reasonCode: 'status_invalid',
+      availablePageCount: 0,
+      missingPageCount: pageCount,
+    }
+  }
+  if (!['downloaded', 'partial'].includes(manifest.status)) {
+    return {
+      status: 'missing',
+      reasonCode: 'status_not_reader_ready',
+      availablePageCount: 0,
+      missingPageCount: pageCount,
+    }
+  }
+  if (manifest.integrityHash.trim().length === 0) {
+    return { status: 'corrupt', reasonCode: 'integrity_missing' }
+  }
+  if (stableHash(manifestIntegrityPayload(manifest)) !== manifest.integrityHash) {
+    return { status: 'corrupt', reasonCode: 'integrity_mismatch' }
+  }
+  if (pageCount <= 0 || manifest.pages.length === 0) {
+    return {
+      status: 'missing',
+      reasonCode: pageCount <= 0 ? 'page_count_empty' : 'pages_missing',
+      availablePageCount: 0,
+      missingPageCount: pageCount,
+    }
+  }
+  let availablePageCount = 0
+  for (const page of manifest.pages) {
+    if (existsSync(page.localPath)) {
+      assert.equal(statSync(page.localPath).size, page.size)
+      availablePageCount += 1
+    }
+  }
+  if (pageCount > 0 && availablePageCount === 0) {
+    return { status: 'missing', reasonCode: 'pages_missing' }
+  }
+  const missingPageCount = Math.max(0, pageCount - availablePageCount)
+  return {
+    status: missingPageCount === 0 ? 'downloaded' : 'partial',
+    reasonCode: missingPageCount === 0 ? undefined : 'page_file_missing',
+    availablePageCount,
+    missingPageCount,
+  }
+}
+
+function recordFixturePage(manifest, page) {
+  return stampManifest({
+    ...manifest,
+    pages: manifest.pages.filter((item) => item.pageId !== page.pageId && item.pageIndex !== page.pageIndex).concat(page),
+  })
+}
+
+const fixtureRoot = mkdtempSync(join(tmpdir(), 'koma-d33-manifest-'))
+try {
+  const chapterDir = join(fixtureRoot, 'downloads', stableHash('comic-1'), stableHash('chapter-1'))
+  mkdirSync(chapterDir, { recursive: true })
+  const firstPage = join(chapterDir, '00001-a.jpg')
+  const secondPage = join(chapterDir, '00002-b.jpg')
+  writeFileSync(firstPage, 'page-a')
+  writeFileSync(secondPage, 'page-bb')
+  const manifestPath = join(chapterDir, 'manifest.v1.json')
+  const completeManifest = stampManifest({
+    schemaVersion: 1,
+    sourceKind: 'local_archive',
+    sourceId: 'local_archive',
+    comicId: 'comic-1',
+    seriesId: 'comic-1',
+    chapterId: 'chapter-1',
+    pageCount: 2,
+    downloadedPageCount: 0,
+    status: 'downloaded',
+    updatedAt: 1,
+    pages: [
+      { pageId: 'page-a', pageIndex: 0, fileName: '00001-a.jpg', localPath: firstPage, size: 6, updatedAt: 1 },
+      { pageId: 'page-b', pageIndex: 1, fileName: '00002-b.jpg', localPath: secondPage, size: 7, updatedAt: 1 },
+    ],
+    integrityHash: '',
+  })
+  writeFileSync(manifestPath, JSON.stringify(completeManifest))
+  assert.deepEqual(validateFixtureManifest(manifestPath), {
+    status: 'downloaded',
+    reasonCode: undefined,
+    availablePageCount: 2,
+    missingPageCount: 0,
+  }, 'complete manifest fixture must validate as downloaded')
+
+  for (const blockedStatus of ['queued', 'blocked', 'failed', 'downloading']) {
+    const blockedManifest = stampManifest({
+      ...completeManifest,
+      status: blockedStatus,
+      integrityHash: '',
+    })
+    writeFileSync(manifestPath, JSON.stringify(blockedManifest))
+    assert.deepEqual(validateFixtureManifest(manifestPath), {
+      status: 'missing',
+      reasonCode: 'status_not_reader_ready',
+      availablePageCount: 0,
+      missingPageCount: 2,
+    }, `${blockedStatus} manifest with present page files must not validate as downloaded or partial`)
+  }
+
+  const invalidStatusManifest = stampManifest({
+    ...completeManifest,
+    status: 'done',
+    integrityHash: '',
+  })
+  writeFileSync(manifestPath, JSON.stringify(invalidStatusManifest))
+  assert.deepEqual(validateFixtureManifest(manifestPath), {
+    status: 'corrupt',
+    reasonCode: 'status_invalid',
+    availablePageCount: 0,
+    missingPageCount: 2,
+  }, 'arbitrary invalid manifest status must validate as corrupt')
+
+  const zeroPageManifest = stampManifest({
+    ...completeManifest,
+    pageCount: 0,
+    downloadedPageCount: 0,
+    status: 'downloaded',
+    pages: [],
+    integrityHash: '',
+  })
+  writeFileSync(manifestPath, JSON.stringify(zeroPageManifest))
+  assert.deepEqual(validateFixtureManifest(manifestPath), {
+    status: 'missing',
+    reasonCode: 'page_count_empty',
+    availablePageCount: 0,
+    missingPageCount: 0,
+  }, 'zero-page downloaded manifest must not validate as downloaded')
+
+  const emptyPagesManifest = stampManifest({
+    ...completeManifest,
+    downloadedPageCount: 0,
+    status: 'downloaded',
+    pages: [],
+    integrityHash: '',
+  })
+  writeFileSync(manifestPath, JSON.stringify(emptyPagesManifest))
+  assert.deepEqual(validateFixtureManifest(manifestPath), {
+    status: 'missing',
+    reasonCode: 'pages_missing',
+    availablePageCount: 0,
+    missingPageCount: 2,
+  }, 'empty-page downloaded manifest must not validate as downloaded')
+
+  const emptyHashManifest = { ...completeManifest, integrityHash: '' }
+  writeFileSync(manifestPath, JSON.stringify(emptyHashManifest))
+  assert.deepEqual(validateFixtureManifest(manifestPath), {
+    status: 'corrupt',
+    reasonCode: 'integrity_missing',
+  }, 'empty-hash tampered manifest must not validate as downloaded or partial')
+  writeFileSync(manifestPath, JSON.stringify(completeManifest))
+
+  rmSync(secondPage)
+  assert.deepEqual(validateFixtureManifest(manifestPath), {
+    status: 'partial',
+    reasonCode: 'page_file_missing',
+    availablePageCount: 1,
+    missingPageCount: 1,
+  }, 'missing one page file must validate as partial')
+
+  rmSync(firstPage)
+  assert.deepEqual(validateFixtureManifest(manifestPath), {
+    status: 'missing',
+    reasonCode: 'pages_missing',
+  }, 'missing all page files must validate as missing')
+  writeFileSync(firstPage, 'page-a')
+
+  writeFileSync(manifestPath, '{')
+  assert.deepEqual(validateFixtureManifest(manifestPath), {
+    status: 'corrupt',
+    reasonCode: 'manifest_malformed',
+  }, 'malformed manifest JSON must validate as corrupt')
+
+  writeFileSync(secondPage, 'page-bb')
+  const duplicateUpdate = recordFixturePage(completeManifest, {
+    pageId: 'page-b',
+    pageIndex: 1,
+    fileName: '00002-b.jpg',
+    localPath: secondPage,
+    size: 7,
+    updatedAt: 2,
+  })
+  assert.equal(duplicateUpdate.pages.length, 2, 'duplicate page writes must update in place')
+  assert.equal(duplicateUpdate.downloadedPageCount, 2, 'duplicate page writes must keep downloaded count idempotent')
+  const tamperedManifest = { ...completeManifest, pageCount: 3 }
+  writeFileSync(manifestPath, JSON.stringify(tamperedManifest))
+  assert.deepEqual(validateFixtureManifest(manifestPath), {
+    status: 'corrupt',
+    reasonCode: 'integrity_mismatch',
+  }, 'tampered manifest content must validate as corrupt')
+} finally {
+  rmSync(fixtureRoot, { recursive: true, force: true })
+}
 
 console.log('offline download queue static checks passed')
