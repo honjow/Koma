@@ -44,7 +44,7 @@ assert.match(
 )
 assert.match(
   settingsPageSource,
-  /showInfoDialog\('更新提醒', '当前版本只保存前台检查结果，不会发送提醒。真正可投递的提醒会在权限、实现和设备验证齐备后再开放。'\)/,
+  /showInfoDialog\('更新提醒', '当前版本只保存前台检查结果和提醒摘要，不会发送提醒。真正可投递的提醒会在权限、实现和设备验证齐备后再开放。'\)/,
   'Settings reminder dialog must explain that delivery is unavailable in this lane',
 )
 
@@ -65,13 +65,38 @@ assert.match(
 )
 assert.match(
   preferencesSource,
-  /getLibraryUpdateNextDueAt\(preferences: LibraryUpdatePreferences\): number \| undefined[\s\S]*lastCheckedAt \+ preferences\.intervalHours \* 60 \* 60 \* 1000/,
-  'Next due time must be deterministic from lastCheckedAt and intervalHours',
+  /getLibraryUpdateNextDueAt\(preferences: LibraryUpdatePreferences\): number \| undefined[\s\S]*const intervalMs = preferences\.intervalHours \* 60 \* 60 \* 1000[\s\S]*const backoffMs = getLibraryUpdateBackoffHours\(preferences\) \* 60 \* 60 \* 1000[\s\S]*return preferences\.lastCheckedAt \+ intervalMs \+ backoffMs/,
+  'Next due time must be deterministic from lastCheckedAt, intervalHours, and failure backoff',
+)
+assert.match(
+  preferencesSource,
+  /getLibraryUpdateBackoffHours\(preferences: LibraryUpdatePreferences\): number[\s\S]*Math\.pow\(2, failureCount - 1\)[\s\S]*LIBRARY_UPDATE_MAX_BACKOFF_HOURS/,
+  'Failure backoff must be deterministic and capped',
+)
+assert.match(
+  preferencesSource,
+  /load\(\): Promise<LibraryUpdatePreferences>[\s\S]*LIBRARY_UPDATE_AUTO_CHECK_ENABLED_KEY[\s\S]*LIBRARY_UPDATE_INTERVAL_HOURS_KEY[\s\S]*LIBRARY_UPDATE_FOREGROUND_ONLY_KEY[\s\S]*LIBRARY_UPDATE_LAST_CHECKED_AT_KEY[\s\S]*LIBRARY_UPDATE_LAST_SUMMARY_TEXT_KEY[\s\S]*LIBRARY_UPDATE_FAILURE_COUNT_KEY[\s\S]*LIBRARY_UPDATE_LAST_FAILURE_CODE_KEY/,
+  'Settings persistence load must roundtrip every schedule field',
+)
+assert.match(
+  preferencesSource,
+  /save\(libraryUpdatePreferences: LibraryUpdatePreferences\): Promise<void>[\s\S]*LIBRARY_UPDATE_AUTO_CHECK_ENABLED_KEY[\s\S]*LIBRARY_UPDATE_INTERVAL_HOURS_KEY[\s\S]*LIBRARY_UPDATE_FOREGROUND_ONLY_KEY[\s\S]*LIBRARY_UPDATE_LAST_CHECKED_AT_KEY[\s\S]*LIBRARY_UPDATE_LAST_SUMMARY_TEXT_KEY[\s\S]*LIBRARY_UPDATE_FAILURE_COUNT_KEY[\s\S]*LIBRARY_UPDATE_LAST_FAILURE_CODE_KEY[\s\S]*store\.flush\(\)/,
+  'Settings persistence save must flush every schedule field',
 )
 assert.match(
   settingsPageSource,
   /getLibraryUpdateNextDueLabel\(this\.libraryUpdatePreferences\)/,
   'Settings rows must surface the next foreground due time when auto-check is enabled',
+)
+assert.match(
+  settingsPageSource,
+  /catch\(\(error: Error\) => \{[\s\S]*step=library_update_failed[\s\S]*this\.libraryUpdateSummary = undefined[\s\S]*this\.libraryUpdatePreferences = \{[\s\S]*lastCheckedAt: checkedAt[\s\S]*failureCount: normalizeLibraryUpdateFailureCount\(this\.libraryUpdatePreferences\.failureCount \+ 1\)[\s\S]*lastFailureCode: failureCode[\s\S]*saveFailedCheck\(checkedAt, failureCode\)/,
+  'Failed checks must clear the in-memory success summary and update failure prefs before async persistence completes',
+)
+assert.doesNotMatch(
+  settingsPageSource,
+  /catch\(\(error: Error\) => \{[\s\S]*step=library_update_failed[\s\S]*this\.libraryUpdatePreferences = \{[\s\S]*lastSummaryText[\s\S]*saveFailedCheck\(checkedAt, failureCode\)/,
+  'Failed checks must not carry forward stale in-memory success summary text',
 )
 assert.match(
   resultPageSource,
@@ -86,8 +111,106 @@ assert.match(
 )
 assert.match(
   resultStoreSource,
+  /redactLibraryUpdateFailureCode\(value: string \| undefined\): string[\s\S]*return 'timeout'[\s\S]*return 'storage_error'[\s\S]*return 'auth_error'[\s\S]*return 'network_error'[\s\S]*return 'source_runtime_error'[\s\S]*return clampString\('unknown', 64\)/,
+  'Notification-facing failure codes must use only coarse allowlisted buckets',
+)
+assert.match(
+  preferencesSource,
+  /saveFailedCheck\(checkedAt: number, failureCode: string\): Promise<LibraryUpdatePreferences>[\s\S]*lastFailureCode: normalizeLibraryUpdateFailureCode\(failureCode\) \?\? 'unknown'[\s\S]*await this\.save\(next\)/,
+  'Failed checks must persist a coarse failure code without carrying forward stale success summaries',
+)
+assert.doesNotMatch(
+  preferencesSource,
+  /saveFailedCheck\(checkedAt: number, failureCode: string\): Promise<LibraryUpdatePreferences>[\s\S]*next\.lastSummaryText = current\.lastSummaryText[\s\S]*await this\.save\(next\)/,
+  'Failed checks must clear stale success summaries before Settings renders the last result',
+)
+assert.match(
+  preferencesSource,
+  /getLibraryUpdateLastResultLabel\(preferences: LibraryUpdatePreferences\): string \{[\s\S]*normalizeLibraryUpdateFailureCount\(preferences\.failureCount\) > 0[\s\S]*上次检查失败[\s\S]*lastSummaryText/,
+  'Settings last result label must prioritize an active failure over an older success summary',
+)
+assert.match(
+  resultStoreSource,
+  /createLibraryUpdateNotificationSummary\(summary: LibraryUpdateSummary\): LibraryUpdateNotificationSummary[\s\S]*countLibraryUpdateNewChapters\(summary\)[\s\S]*systemDispatchEnabled: false/,
+  'Notification summary must expose counts while making system dispatch disabled explicit',
+)
+assert.match(
+  resultStoreSource,
   /hydrateLibraryUpdateSummaryFromJson\(jsonText: string\)[\s\S]*JSON\.parse\(jsonText\)[\s\S]*aggregateCountField\(record, 'totalCount', resultTotalCount\)/,
   'Existing update result persistence must continue to hydrate aggregate counts deterministically',
 )
+
+function getLibraryUpdateBackoffHours(preferences) {
+  const failureCount = Number.isFinite(preferences.failureCount) && preferences.failureCount > 0
+    ? Math.min(Math.floor(preferences.failureCount), 12)
+    : 0
+  if (failureCount <= 0) return 0
+  return Math.min(Math.pow(2, failureCount - 1), 24)
+}
+
+function getLibraryUpdateNextDueAt(preferences) {
+  if (!preferences.autoCheckEnabled) return undefined
+  if (preferences.lastCheckedAt === undefined) return 0
+  return preferences.lastCheckedAt + preferences.intervalHours * 60 * 60 * 1000 + getLibraryUpdateBackoffHours(preferences) * 60 * 60 * 1000
+}
+
+function isLibraryUpdateDue(preferences, now) {
+  if (!preferences.autoCheckEnabled) return false
+  if (preferences.lastCheckedAt === undefined) return true
+  const nextDueAt = getLibraryUpdateNextDueAt(preferences)
+  return nextDueAt !== undefined && nextDueAt > 0 && now >= nextDueAt
+}
+
+function redactLibraryUpdateFailureCode(value) {
+  if (value === undefined) return 'unknown'
+  const trimmed = value.trim().toLocaleLowerCase()
+  if (trimmed.length === 0) return 'unknown'
+  if (/timeout|timed\s*out|deadline|etimedout/.test(trimmed)) return 'timeout'
+  if (/storage|database|disk|quota|file|cache|path|directory|(^|\s)\/[^\s]+|(^|\s)[a-z]:[\\/]|enoent|eacces/.test(trimmed)) return 'storage_error'
+  if (/auth|unauthori[sz]ed|forbidden|permission|login|credential|tok(?:en)?|api[_\s-]?key|secret|401|403/.test(trimmed)) return 'auth_error'
+  if (/network|fetch|http|https|dns|socket|connection|econn|enotfound|eai_again|ssl|tls|remote/.test(trimmed)) return 'network_error'
+  if (/source|runtime|wasm|provider|plugin|script|exception|unavailable/.test(trimmed)) return 'source_runtime_error'
+  return 'unknown'
+}
+
+function getLibraryUpdateLastResultLabel(preferences) {
+  if (preferences.lastFailureCode !== undefined && preferences.lastCheckedAt !== undefined && preferences.failureCount > 0) {
+    return `上次检查失败 · ${preferences.lastFailureCode}`
+  }
+  if (preferences.lastSummaryText !== undefined && preferences.lastCheckedAt !== undefined) {
+    return `${preferences.lastSummaryText} · 上次`
+  }
+  return '尚无结果'
+}
+
+const checkedAt = Date.UTC(2026, 4, 26, 0, 0, 0)
+assert.equal(getLibraryUpdateNextDueAt({ autoCheckEnabled: true, intervalHours: 24, foregroundOnly: true, lastCheckedAt: checkedAt, failureCount: 0 }), checkedAt + 24 * 60 * 60 * 1000, 'next due timestamp must come from interval')
+assert.equal(getLibraryUpdateNextDueAt({ autoCheckEnabled: false, intervalHours: 24, foregroundOnly: true, lastCheckedAt: checkedAt, failureCount: 0 }), undefined, 'disabled state must never produce a due timestamp')
+assert.equal(isLibraryUpdateDue({ autoCheckEnabled: false, intervalHours: 24, foregroundOnly: true, lastCheckedAt: checkedAt, failureCount: 0 }, checkedAt + 99 * 60 * 60 * 1000), false, 'disabled state must never be due')
+assert.equal(getLibraryUpdateNextDueAt({ autoCheckEnabled: true, intervalHours: 24, foregroundOnly: true, lastCheckedAt: checkedAt, failureCount: 3 }), checkedAt + 28 * 60 * 60 * 1000, 'failure backoff must advance next due')
+const failureCodeCases = [
+  ['Provider MangaDex token sk_live_123 failed', 'auth_error'],
+  ['GET https://example.test/a?token=secret failed', 'auth_error'],
+  ['open /data/storage/el2/base/cache/file failed', 'storage_error'],
+  ['C:\\Users\\reader\\secret.cbz failed', 'storage_error'],
+  ['fetch failed: ENOTFOUND manga.example', 'network_error'],
+  ['source runtime threw ProviderException MangaDex', 'source_runtime_error'],
+]
+for (const [raw, expected] of failureCodeCases) {
+  const redacted = redactLibraryUpdateFailureCode(raw)
+  assert.equal(redacted, expected, `failure code should map ${raw} to ${expected}`)
+  assert.equal(/mangadex|sk_live|secret|https?:|example\.test|\/data\/storage|users|providerexception/i.test(redacted), false, 'failure code must not preserve sensitive raw words')
+}
+const failedLabel = getLibraryUpdateLastResultLabel({
+  autoCheckEnabled: true,
+  intervalHours: 24,
+  foregroundOnly: true,
+  lastCheckedAt: checkedAt,
+  lastSummaryText: '12 新章 · 3 更新 · 0 失败',
+  failureCount: 1,
+  lastFailureCode: 'network_error',
+})
+assert.match(failedLabel, /上次检查失败 · network_error/, 'Settings must show failure status after a failed check')
+assert.equal(failedLabel.includes('12 新章'), false, 'Settings must not show a stale success summary after a failed check')
 
 console.log('Library update notification UX static checks passed')

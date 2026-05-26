@@ -47,8 +47,8 @@ Koma 不是完成态。当前是 **HarmonyOS 私有/本地优先漫画阅读器�
 | 设置 | Komga/OPDS/WebDAV、reader prefs、theme、backup、about/license/source manager/cache clear | settings + backups | reader/download/library/tracking/storage 等大量设置 | Koma 设置功能化已开始，但深度远低于 Mihon。 |
 | 分类 Categories | Favorite / Read Later 与用户自定义分类过滤；多选批量 add/remove 多分类；Settings 分类管理支持创建/重命名/删除/上移下移排序 | 当前摘录未确认 | 明确支持 categories，多分类、批量设置 | 已有分类 MVP；仍缺分类专属显示策略。 |
 | Tracker | 本地-only tracker 设置骨架，无 MAL/AniList/Kitsu 等真实账号同步 | README：AniList、MyAnimeList | MAL/AniList/Kitsu/MangaUpdates/Shikimori/Bangumi；一向同步，离线后同步 | 可后置，但对标成熟 reader 必须有。 |
-| 自动更新库 | 前台 source-runtime 新章检查、app-open due-check 偏好、最新结果持久化；未做后台调度 | 当前摘录未确认 | Scheduled library updates | 缺后台定时/系统调度、通知、私有库刷新矩阵、失败退避。 |
-| 通知 | 暂无系统化通知 | 当前摘录未确认 | 下载/更新/错误通知成熟 | 缺新章、下载完成、失败通知。 |
+| 自动更新库 | 前台 source-runtime 新章检查、app-open due-check 偏好、最新结果持久化、失败退避；未做后台调度 | 当前摘录未确认 | Scheduled library updates | 缺后台定时/系统调度、私有库刷新矩阵。 |
+| 通知 | 书架更新有通知就绪摘要与失败码脱敏持久化；暂无系统通知投递 | 当前摘录未确认 | 下载/更新/错误通知成熟 | 缺新章/下载完成/失败的真实系统通知与权限态 QA。 |
 | 章节下载队列 | 前台下载队列 MVP、状态过滤、批量重试/清理、MangaDetail 单章/可见章节批量下载；source-backed 可见章节批量下载会逐章 hydrate pages；离线 Reader 路径存在 | Downloads | Download queue | 仍缺更细的暂停/并发策略、通知、下载目录/重扫、完整 source 离线 reader 真机 QA。 |
 | 扩展/源安全 | `.koma` archive validator、WAMR sandbox、host imports、fail-closed 测试 | WASM source system | Android extension APK，有恶意扩展风险提示 | Koma 技术路线更安全；仍缺用户可理解的权限提示、source capability UI、签名/信任策略。 |
 | UI 成熟度 | Aidoku 风格骨架；安全区持续修；功能优先 | iOS 成熟交互 | Android/Material 成熟 | Koma UI 可用但未 polished；当前策略应继续功能优先，只修 blocking UI。 |
