@@ -668,9 +668,9 @@ export struct SettingsPage {
     console.info('[Settings] step=reader_volume_key_navigation_sheet')
     this.getUIContext().showActionSheet({
       title: '音量键翻页',
-      message: '当前版本仅保存偏好，阅读器尚未接入音量键事件',
+      message: '开启后，阅读器获得焦点时音量上/下会执行上一页/下一页；未开启时不拦截系统音量键。',
       sheets: [
-        { title: '开启（仅保存）', action: () => { this.saveReaderVolumeKeyNavigationEnabled(true) } },
+        { title: '开启', action: () => { this.saveReaderVolumeKeyNavigationEnabled(true) } },
         { title: '关闭', action: () => { this.saveReaderVolumeKeyNavigationEnabled(false) } },
       ],
     })

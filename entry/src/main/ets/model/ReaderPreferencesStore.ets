@@ -219,7 +219,7 @@ export function getReaderWideImageModeLabel(mode: ReaderWideImageMode): string {
 }
 
 export function getReaderVolumeKeyNavigationLabel(volumeKeyNavigationEnabled: boolean): string {
-  return volumeKeyNavigationEnabled ? '已保存（待接入）' : '关闭'
+  return volumeKeyNavigationEnabled ? '开启' : '关闭'
 }
 
 export function readerModeFromPageMode(pageMode: ReaderPageMode): ReaderMode {
