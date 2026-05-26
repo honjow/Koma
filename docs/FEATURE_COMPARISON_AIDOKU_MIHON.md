@@ -1,7 +1,7 @@
 # Koma vs Aidoku vs Mihon 功能对比
 
 更新时间：2026-05-27
-Koma 基线：`lane-d31-download-pause-concurrency` / `624193e` 后续实现
+Koma 基线：`master` / `ea51414` 后续实现
 
 ## 证据来源
 
