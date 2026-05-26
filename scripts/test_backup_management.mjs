@@ -77,32 +77,32 @@ assert.match(
 assert.match(
   backupServiceSource,
   /export const BACKUP_ENCRYPTION_STATE:\s*string = 'unencrypted'[\s\S]*export const BACKUP_UNENCRYPTED_EXPORT_WARNING:[^\n]*未加密 JSON/,
-  'backup encryption skeleton must label current exports as unencrypted JSON',
+  'backup service must still label legacy JSON exports as unencrypted JSON',
 )
 assert.match(
   backupServiceSource,
   /encryption:\s*\{[\s\S]*state:\s*BACKUP_ENCRYPTION_STATE[\s\S]*algorithm:\s*'none'[\s\S]*\}/,
-  'exported backup JSON must carry explicit unencrypted metadata when crypto is not implemented',
+  'plaintext backup document inside legacy export or encrypted payload must carry explicit unencrypted metadata',
 )
-assert.doesNotMatch(
+assert.match(
   backupServiceSource,
-  /state:\s*'encrypted'|encrypted:\s*true|algorithm:\s*'(?!none')|encrypt(?:Backup|Json|Payload)\(/i,
-  'backup service must not claim or perform fake encryption',
+  /exportEncrypted\(passphrase: string\)[\s\S]*BackupEncryptionService\(\)\.encrypt/,
+  'backup service must route encrypted exports through BackupEncryptionService',
 )
 assert.match(
   backupPageSource,
-  /private EncryptionCard\(\)[\s\S]*BACKUP_ENCRYPTION_STATUS_LABEL[\s\S]*BACKUP_ENCRYPTION_PLAN_LABEL[\s\S]*Button\('加密备份（计划中）'\)[\s\S]*\.enabled\(false\)/,
-  'BackupManagementPage must surface encryption as planned/not enabled, not functional',
+  /private EncryptionCard\(\)[\s\S]*BACKUP_ENCRYPTION_STATUS_LABEL[\s\S]*TextInput\(\{ text: this\.exportPassphrase[\s\S]*InputType\.Password[\s\S]*导出加密备份/,
+  'BackupManagementPage must surface functional encrypted export controls with password input',
 )
 assert.match(
   backupPageSource,
   /showInfoDialog\('备份已导出',[\s\S]*BACKUP_UNENCRYPTED_EXPORT_WARNING/,
   'BackupManagementPage must warn successful exports are unencrypted',
 )
-assert.doesNotMatch(
+assert.match(
   backupPageSource,
-  /已加密|加密已启用|InputType\.Password|TextInput\(/,
-  'BackupManagementPage must not show fake encrypted status or password-entry UI',
+  /selectedEncryptedBackupPayload[\s\S]*TextInput\(\{ text: this\.importPassphrase[\s\S]*InputType\.Password[\s\S]*解密并预览/,
+  'BackupManagementPage must require passphrase before encrypted import preview',
 )
 assert.match(
   backupServiceSource,
@@ -111,7 +111,7 @@ assert.match(
 )
 assert.match(
   backupPageSource,
-  /selectImportPreviewFromPicker\(\)[\s\S]*selectedBackupPayload[\s\S]*selectedBackupPreview[\s\S]*restoreSelectedBackup\(\)[\s\S]*backupService\(\)\.import\(this\.selectedBackupPayload\)[\s\S]*this\.showInfoDialog\('备份已导入'/,
+  /selectImportPreviewFromPicker\(\)[\s\S]*selectedBackupPayload[\s\S]*selectedBackupPreview[\s\S]*restoreSelectedBackup\(\)[\s\S]*importPromise[\s\S]*backupService\(\)\.import\(this\.selectedBackupPayload\)[\s\S]*this\.showInfoDialog\('备份已导入'/,
   'BackupManagementPage must preview picker-selected backups before explicit restore',
 )
 assert.match(
@@ -126,8 +126,8 @@ assert.match(
 )
 assert.match(
   backupServiceSource,
-  /preview\(json: string\): BackupImportPreview[\s\S]*document\.schemaVersion !== BACKUP_SCHEMA_VERSION[\s\S]*document\.schemaVersion !== BACKUP_SCHEMA_VERSION_V2[\s\S]*document\.schemaVersion !== BACKUP_SCHEMA_VERSION_V1[\s\S]*formatBackupEncryption\(document\.encryption\)[\s\S]*libraryItemCount: arrayFieldCount\(libraryStore, 'comics'\)[\s\S]*progressCount: arrayFieldCount\(readingProgress, 'progress'\)/,
-  'backup preview must keep v1/v2/v3 compatibility and summarize without requiring new metadata',
+  /preview\(json: string\): BackupImportPreview[\s\S]*isEncryptedBackupPayload\(json\)[\s\S]*previewDocument\(json, false\)[\s\S]*formatBackupEncryption\(document\.encryption\)[\s\S]*libraryItemCount:[\s\S]*progressCount:/,
+  'backup preview must detect encrypted envelopes and keep v1/v2/v3 compatibility',
 )
 assert.match(
   backupPageSource,
@@ -141,12 +141,12 @@ const safeStatusAndDocs = [
 ].join('\n')
 assert.doesNotMatch(
   safeStatusAndDocs,
-  /\b(password|passwd|token|secret|cookie|credential|authorization|apikey|apiKey|api_key)\b/i,
-  'backup status/docs must not include credential-like keys',
+  /\b(passwd|token|secret|cookie|credential|authorization|apikey|apiKey|api_key)\b/i,
+  'backup status/docs must not include raw credential-like keys',
 )
 assert.match(
   backupServiceSource,
-  /if \(document\.schemaVersion !== BACKUP_SCHEMA_VERSION &&[\s\S]*document\.schemaVersion !== BACKUP_SCHEMA_VERSION_V2 &&[\s\S]*document\.schemaVersion !== BACKUP_SCHEMA_VERSION_V1\)/,
+  /function isAcceptedPlaintextSchemaVersion[\s\S]*schemaVersion === BACKUP_SCHEMA_VERSION[\s\S]*schemaVersion === BACKUP_SCHEMA_VERSION_V2[\s\S]*schemaVersion === BACKUP_SCHEMA_VERSION_V1/,
   'backup restore must continue accepting schema v1/v2/v3',
 )
 assert.doesNotMatch(

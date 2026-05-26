@@ -1,16 +1,17 @@
 # Backup Encryption Design
 
-This document specifies the future real encrypted backup path. It does not mark encrypted backups as available, does not add UI fields, and does not describe a fake encrypted export format for the current schema v3 JSON path.
+This document specifies the real encrypted backup path. Current code keeps the legacy schema v3 unencrypted JSON export/import path and adds a separate encrypted envelope v1 path for schema v4 backup payloads.
 
 ## Current State
 
-- Current exports are schema v3 unencrypted JSON with explicit `encryption.state = "unencrypted"` and `algorithm = "none"`.
-- Current import preview parses the unencrypted JSON payload before restore and shows schema, export time, encryption state, and safe counts.
+- Current unencrypted exports are schema v3 JSON with explicit `encryption.state = "unencrypted"` and `algorithm = "none"`.
+- Current encrypted exports wrap a schema v4 backup JSON payload in envelope v1 using PBKDF2-HMAC-SHA-256 and AES-256-GCM.
+- Current import preview parses unencrypted JSON before restore and shows schema, export time, encryption state, and safe counts. Encrypted preview shows only public envelope metadata until passphrase authentication succeeds.
 - Credential-like source settings are filtered before persistence and backup. This remains required for encrypted backups because encryption is not a substitute for safe export policy.
 
 ## Future Envelope
 
-Encrypted backups should use a new outer envelope instead of overloading the current unencrypted document. The first encrypted format should be a schema v4 payload wrapped by envelope version 1:
+Encrypted backups use a new outer envelope instead of overloading the current unencrypted document. The first encrypted format is a schema v4 payload wrapped by envelope version 1:
 
 ```json
 {
@@ -97,9 +98,9 @@ If future secure credential export is supported, it must be a distinct opt-in de
 ## Migration Path
 
 - Keep importing v1/v2/v3 unencrypted JSON for compatibility.
-- Keep exporting v3 unencrypted JSON until the encrypted implementation is complete; do not emit a v4 or encrypted-looking file from the current code.
-- Future encrypted export writes `kind = "koma.backup.encrypted"`, `envelopeVersion = 1`, and encrypted `contentSchemaVersion = 4`.
-- Future import detection order:
+- Keep exporting v3 unencrypted JSON for compatibility. Encrypted export writes schema v4 only inside the authenticated ciphertext.
+- Encrypted export writes `kind = "koma.backup.encrypted"`, `envelopeVersion = 1`, and encrypted `contentSchemaVersion = 4`.
+- Import detection order:
   1. Parse JSON.
   2. If `kind = "koma.backup.encrypted"`, use encrypted flow and require passphrase before payload preview or restore.
   3. Otherwise, treat as legacy unencrypted backup and apply existing v1/v2/v3 validation.

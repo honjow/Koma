@@ -1342,10 +1342,32 @@ assert.match(
 assert.match(backupServiceSource, /const BACKUP_SCHEMA_VERSION:\s*number = 3/, 'backup export must use schema v3')
 assert.match(backupServiceSource, /const BACKUP_SCHEMA_VERSION_V2:\s*number = 2/, 'backup import must keep schema v2 compatibility')
 assert.match(backupServiceSource, /const BACKUP_SCHEMA_VERSION_V1:\s*number = 1/, 'backup import must keep schema v1 compatibility')
+for (const version of [1, 2, 3]) {
+  assert.match(
+    backupServiceSource,
+    new RegExp(`isAcceptedPlaintextSchemaVersion[\\s\\S]*schemaVersion === BACKUP_SCHEMA_VERSION${version === 1 ? '_V1' : version === 2 ? '_V2' : ''}`),
+    `backup plaintext import/preview must continue accepting v${version}`,
+  )
+}
 assert.match(
   backupServiceSource,
-  /document\.schemaVersion !== BACKUP_SCHEMA_VERSION &&[\s\S]*document\.schemaVersion !== BACKUP_SCHEMA_VERSION_V2 &&[\s\S]*document\.schemaVersion !== BACKUP_SCHEMA_VERSION_V1/,
-  'backup import must accept v1, v2, and v3 schema versions',
+  /import\(json: string\): Promise<void> \{\s*await this\.importDocument\(json, false\)/,
+  'raw plaintext import must use the plaintext-only schema gate',
+)
+assert.match(
+  backupServiceSource,
+  /preview\(json: string\): BackupImportPreview[\s\S]*this\.previewDocument\(json, false\)/,
+  'raw plaintext preview must use the plaintext-only schema gate',
+)
+assert.match(
+  backupServiceSource,
+  /function isAcceptedDecryptedSchemaVersion[\s\S]*BACKUP_ENCRYPTED_SCHEMA_VERSION/,
+  'schema v4 must only be accepted by decrypted backup content gates',
+)
+assert.doesNotMatch(
+  backupServiceSource,
+  /function isAcceptedPlaintextSchemaVersion[^{]*\{[^}]*BACKUP_ENCRYPTED_SCHEMA_VERSION/,
+  'standalone unencrypted v4 JSON backups must not be accepted by plaintext gates',
 )
 assert.match(
   backupServiceSource,
