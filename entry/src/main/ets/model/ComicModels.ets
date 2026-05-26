@@ -71,16 +71,49 @@ export interface Comic {
 
 export const LIBRARY_CATEGORY_FAVORITE_ID: string = 'favorite'
 export const LIBRARY_CATEGORY_READ_LATER_ID: string = 'read_later'
+export const CUSTOM_LIBRARY_CATEGORY_ID_PREFIX: string = 'custom_'
+export const LIBRARY_CATEGORY_NAME_MAX_LENGTH: number = 40
 
 export interface LibraryCategoryDefinition {
   id: string
   name: string
+  sortOrder?: number
+  createdAt?: number
+  updatedAt?: number
+  builtIn?: boolean
 }
 
 export const BUILT_IN_LIBRARY_CATEGORIES: LibraryCategoryDefinition[] = [
-  { id: LIBRARY_CATEGORY_FAVORITE_ID, name: '收藏' },
-  { id: LIBRARY_CATEGORY_READ_LATER_ID, name: '稍后阅读' },
+  { id: LIBRARY_CATEGORY_FAVORITE_ID, name: '收藏', sortOrder: 0, builtIn: true },
+  { id: LIBRARY_CATEGORY_READ_LATER_ID, name: '稍后阅读', sortOrder: 1, builtIn: true },
 ]
+
+export interface CustomLibraryCategory {
+  id: string
+  name: string
+  sortOrder: number
+  createdAt: number
+  updatedAt: number
+}
+
+export function normalizeLibraryCategoryName(name: string): string {
+  return name.trim().replace(/\s+/g, ' ')
+}
+
+export function libraryCategoryNameKey(name: string): string {
+  return normalizeLibraryCategoryName(name).toLocaleLowerCase()
+}
+
+export function isBuiltInLibraryCategoryId(categoryId: string): boolean {
+  return categoryId === LIBRARY_CATEGORY_FAVORITE_ID || categoryId === LIBRARY_CATEGORY_READ_LATER_ID
+}
+
+export function isBuiltInLibraryCategoryName(name: string): boolean {
+  const key = libraryCategoryNameKey(name)
+  return BUILT_IN_LIBRARY_CATEGORIES.some((category: LibraryCategoryDefinition): boolean => {
+    return libraryCategoryNameKey(category.name) === key || category.id === key
+  })
+}
 
 export interface ReadingProgress {
   comicId: ComicId

@@ -53,6 +53,9 @@ function normalizeCategory(value: string): LibraryCategoryFilter {
   if (value === 'uncategorized' || value === 'favorite' || value === 'read_later') {
     return value
   }
+  if (value.trim().length > 0) {
+    return value.trim()
+  }
   return 'all'
 }
 

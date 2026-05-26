@@ -14,10 +14,12 @@ import {
   Comic,
   ComicId,
   ComicSourceKind,
+  CustomLibraryCategory,
   LibraryItem,
   ReadingProgress,
   LIBRARY_CATEGORY_FAVORITE_ID,
   LIBRARY_CATEGORY_READ_LATER_ID,
+  normalizeCategoryIds,
 } from '../model/ComicModels'
 import {
   LibraryCategoryFilter,
@@ -337,6 +339,12 @@ export struct LibraryPage {
     if (this.filterCategory === LIBRARY_CATEGORY_FAVORITE_ID) {
       return '收藏'
     }
+    const customCategory = this.libraryStore.listCustomCategories().find((category: CustomLibraryCategory): boolean => {
+      return category.id === this.filterCategory
+    })
+    if (customCategory !== undefined) {
+      return customCategory.name
+    }
     return '全部分类'
   }
 
@@ -346,6 +354,7 @@ export struct LibraryPage {
 
   private gridComics(): ComicCoverInfo[] {
     return this.viewModel().comics.map((comic: ComicCoverInfo): ComicCoverInfo => {
+      const sourceComic = this.libraryStore.getComic(comic.id)
       return {
         id: comic.id,
         title: comic.title,
@@ -355,9 +364,29 @@ export struct LibraryPage {
         accentColor: comic.accentColor,
         pageCount: comic.pageCount,
         coverUri: comic.coverUri,
-        categoryLabels: comic.categoryLabels,
+        categoryLabels: sourceComic === undefined ? comic.categoryLabels : this.categoryLabelsForComic(sourceComic),
       }
     })
+  }
+
+  private categoryLabelsForComic(comic: Comic): string[] {
+    const labels: string[] = []
+    const customCategories = this.libraryStore.listCustomCategories()
+    normalizeCategoryIds(comic.categoryIds).forEach((categoryId: string) => {
+      if (categoryId === LIBRARY_CATEGORY_FAVORITE_ID) {
+        labels.push('收藏')
+      } else if (categoryId === LIBRARY_CATEGORY_READ_LATER_ID) {
+        labels.push('稍后阅读')
+      } else {
+        const customCategory = customCategories.find((category: CustomLibraryCategory): boolean => {
+          return category.id === categoryId
+        })
+        if (customCategory !== undefined) {
+          labels.push(customCategory.name)
+        }
+      }
+    })
+    return labels
   }
 
   private hasLibraryContent(): boolean {
@@ -693,6 +722,12 @@ export struct LibraryPage {
         .onClick(() => {
           this.setCategoryFilter(LIBRARY_CATEGORY_FAVORITE_ID)
         })
+      ForEach(this.libraryStore.listCustomCategories(), (category: CustomLibraryCategory) => {
+        MenuItem({ content: category.name })
+          .onClick(() => {
+            this.setCategoryFilter(category.id)
+          })
+      }, (category: CustomLibraryCategory) => category.id)
     }
   }
 
@@ -715,6 +750,16 @@ export struct LibraryPage {
         .onClick(() => {
           this.removeSelectedCategory(LIBRARY_CATEGORY_READ_LATER_ID)
         })
+      ForEach(this.libraryStore.listCustomCategories(), (category: CustomLibraryCategory) => {
+        MenuItem({ content: `加入${category.name}` })
+          .onClick(() => {
+            this.addSelectedCategory(category.id)
+          })
+        MenuItem({ content: `移出${category.name}` })
+          .onClick(() => {
+            this.removeSelectedCategory(category.id)
+          })
+      }, (category: CustomLibraryCategory) => category.id)
       MenuItem({ content: '清除分类' })
         .onClick(() => {
           this.assignSelectedCategory(undefined)

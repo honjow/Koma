@@ -20,6 +20,7 @@ import { ImportPage } from './ImportPage'
 import { ReaderPage } from './ReaderPage'
 import { MangaDetailPage } from './MangaDetailPage'
 import { LibraryUpdateResultPage } from './LibraryUpdateResultPage'
+import { LibraryCategoryManagementPage } from './LibraryCategoryManagementPage'
 import { KomgaServerPage } from './KomgaServerPage'
 import { OpdsServerPage } from './OpdsServerPage'
 import { SourcePackageManagerPage } from './SourcePackageManagerPage'
@@ -365,6 +366,17 @@ struct Index {
         LibraryUpdateResultPage()
       }
       .titleBar(this.navDestTitleBarOpts('书架更新详情'))
+    } else if (name === RouteName.LIBRARY_CATEGORIES) {
+      HdsNavDestination() {
+        LibraryCategoryManagementPage({
+          libraryStore: this.libraryStore,
+          libraryPersistenceService: this.ensureLibraryPersistenceService(),
+          onLibraryChanged: () => {
+            this.refreshLibrarySnapshot()
+          }
+        })
+      }
+      .titleBar(this.navDestTitleBarOpts('书架分类'))
     } else if (name === RouteName.DOWNLOADS) {
       HdsNavDestination() {
         DownloadsPage({
@@ -473,6 +485,9 @@ struct Index {
             },
             onOpenLibraryUpdateResults: () => {
               this.openSettingsSecondary(RouteName.LIBRARY_UPDATE_RESULTS)
+            },
+            onOpenLibraryCategories: () => {
+              this.openSettingsSecondary(RouteName.LIBRARY_CATEGORIES)
             },
             onOpenDownloads: () => {
               this.openSettingsSecondary(RouteName.DOWNLOADS)

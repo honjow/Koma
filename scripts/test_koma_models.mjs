@@ -5,6 +5,7 @@ import { resolve } from 'node:path'
 const root = resolve(import.meta.dirname, '..')
 const modelPath = resolve(root, 'entry/src/main/ets/model/ComicModels.ets')
 const libraryStorePath = resolve(root, 'entry/src/main/ets/model/LibraryStore.ets')
+const libraryCategoryManagementPagePath = resolve(root, 'entry/src/main/ets/pages/LibraryCategoryManagementPage.ets')
 const progressStorePath = resolve(root, 'entry/src/main/ets/model/ReadingProgressStore.ets')
 const readerSessionStorePath = resolve(root, 'entry/src/main/ets/model/ReaderSessionStore.ets')
 const mockLibraryDataPath = resolve(root, 'entry/src/main/ets/model/MockLibraryData.ets')
@@ -61,6 +62,7 @@ const offlineDownloadServiceSource = readFileSync(offlineDownloadServicePath, 'u
 const entryAbilitySource = readFileSync(entryAbilityPath, 'utf8')
 const indexSource = readFileSync(indexPath, 'utf8')
 const libraryPageSource = readFileSync(libraryPagePath, 'utf8')
+const libraryCategoryManagementPageSource = readFileSync(libraryCategoryManagementPagePath, 'utf8')
 const browsePageSource = readFileSync(browsePagePath, 'utf8')
 const historyPageSource = readFileSync(historyPagePath, 'utf8')
 const searchPageSource = readFileSync(searchPagePath, 'utf8')
@@ -154,6 +156,58 @@ function normalizeCategoryIds(categoryIds) {
     }
   }
   return nextIds
+}
+
+function normalizeLibraryCategoryName(name) {
+  return name.trim().replace(/\s+/g, ' ')
+}
+
+function libraryCategoryNameKey(name) {
+  return normalizeLibraryCategoryName(name).toLocaleLowerCase()
+}
+
+function isBuiltInLibraryCategoryName(name) {
+  const key = libraryCategoryNameKey(name)
+  return key === '收藏' || key === '稍后阅读' || key === 'favorite' || key === 'read_later'
+}
+
+function isBuiltInLibraryCategoryId(categoryId) {
+  return categoryId === 'favorite' || categoryId === 'read_later'
+}
+
+const CUSTOM_LIBRARY_CATEGORY_ID_PREFIX = 'custom_'
+const LIBRARY_CATEGORY_NAME_MAX_LENGTH = 40
+
+function assertValidCustomCategoryShape(row) {
+  if (!row.id.startsWith(CUSTOM_LIBRARY_CATEGORY_ID_PREFIX) || isBuiltInLibraryCategoryId(row.id)) {
+    throw new Error('Invalid library store persistence category.id: expected custom category id')
+  }
+  const normalizedName = normalizeLibraryCategoryName(row.name)
+  if (normalizedName.length === 0) {
+    throw new Error('Invalid library store persistence category.name: expected non-empty name')
+  }
+  if (normalizedName.length > LIBRARY_CATEGORY_NAME_MAX_LENGTH) {
+    throw new Error(`Invalid library store persistence category.name: expected at most ${LIBRARY_CATEGORY_NAME_MAX_LENGTH} characters`)
+  }
+  if (isBuiltInLibraryCategoryName(normalizedName)) {
+    throw new Error('Invalid library store persistence category.name: conflicts with built-in category')
+  }
+}
+
+function assertUniquePersistedLibraryCategories(rows) {
+  const ids = []
+  const names = []
+  for (const row of rows) {
+    if (ids.includes(row.id)) {
+      throw new Error('Invalid library store persistence customCategories: duplicate category id')
+    }
+    ids.push(row.id)
+    const key = libraryCategoryNameKey(row.name)
+    if (names.includes(key)) {
+      throw new Error('Invalid library store persistence customCategories: duplicate category name')
+    }
+    names.push(key)
+  }
 }
 
 function withComicCategoryIds(comic, categoryIds) {
@@ -274,6 +328,8 @@ assertExport(modelSource, 'normalizeCategoryIds')
 assertExport(modelSource, 'withComicCategoryIds')
 assertExport(modelSource, 'withComicAddedCategoryId')
 assertExport(modelSource, 'withComicRemovedCategoryId')
+assertExport(modelSource, 'CustomLibraryCategory')
+assertExport(modelSource, 'LIBRARY_CATEGORY_NAME_MAX_LENGTH')
 assertExport(libraryStoreSource, 'LibraryStore')
 assertExport(libraryStoreSource, 'InMemoryLibraryStore')
 assertExport(progressStoreSource, 'ReadingProgressStore')
@@ -315,6 +371,9 @@ assertExport(libraryPersistenceSource, 'LibraryStorePersistenceService')
 assertExport(libraryPersistenceSource, 'upsertComicAndPersistLibraryStore')
 assertExport(libraryPersistenceSource, 'assignComicCategoriesAndPersistLibraryStore')
 assertExport(libraryPersistenceSource, 'updateComicCategoryMembershipAndPersistLibraryStore')
+assertExport(libraryPersistenceSource, 'createCustomCategoryAndPersistLibraryStore')
+assertExport(libraryPersistenceSource, 'renameCustomCategoryAndPersistLibraryStore')
+assertExport(libraryPersistenceSource, 'deleteCustomCategoryAndPersistLibraryStore')
 assertExport(libraryPersistenceSource, 'isRemovableLocalComic')
 assertExport(libraryPersistenceSource, 'removeComicAndPersistLibraryStore')
 assertExport(libraryUpdateServiceSource, 'LibraryUpdateResultStatus')
@@ -375,6 +434,7 @@ for (const [source, label] of [
   [searchPageSource, 'SearchPage'],
   [settingsPageSource, 'SettingsPage'],
   [libraryUpdateResultPageSource, 'LibraryUpdateResultPage'],
+  [libraryCategoryManagementPageSource, 'LibraryCategoryManagementPage'],
 ]) {
   assertUsesSecondaryListSafeArea(source, label)
 }
@@ -481,8 +541,38 @@ assert.match(
 )
 assert.match(
   libraryPageSource,
+  /this\.libraryStore\.listCustomCategories\(\)[\s\S]*this\.setCategoryFilter\(category\.id\)/,
+  'LibraryPage category filter menu must include custom categories',
+)
+assert.match(
+  libraryPageSource,
   /MenuItem\(\{ content: '加入收藏' \}\)[\s\S]*addSelectedCategory\(LIBRARY_CATEGORY_FAVORITE_ID\)[\s\S]*MenuItem\(\{ content: '移出收藏' \}\)[\s\S]*removeSelectedCategory\(LIBRARY_CATEGORY_FAVORITE_ID\)[\s\S]*MenuItem\(\{ content: '加入稍后' \}\)[\s\S]*addSelectedCategory\(LIBRARY_CATEGORY_READ_LATER_ID\)[\s\S]*MenuItem\(\{ content: '移出稍后' \}\)[\s\S]*removeSelectedCategory\(LIBRARY_CATEGORY_READ_LATER_ID\)[\s\S]*MenuItem\(\{ content: '清除分类' \}\)[\s\S]*assignSelectedCategory\(undefined\)/,
   'LibraryPage selection mode must expose bulk category add, remove, and clearing actions',
+)
+assert.match(
+  libraryPageSource,
+  /ForEach\(this\.libraryStore\.listCustomCategories\(\)[\s\S]*this\.addSelectedCategory\(category\.id\)[\s\S]*this\.removeSelectedCategory\(category\.id\)/,
+  'LibraryPage batch category menu must support custom category add and remove',
+)
+assert.match(
+  libraryStoreSource,
+  /createCustomCategory\(name: string[\s\S]*renameCustomCategory\(categoryId: string[\s\S]*deleteCustomCategory\(categoryId: string[\s\S]*isBuiltInLibraryCategoryName/,
+  'LibraryStore must manage durable custom categories and reject built-in name collisions',
+)
+assert.match(
+  libraryPersistenceSource,
+  /customCategories\?: PersistedLibraryCategory\[\][\s\S]*createCustomCategoryAndPersistLibraryStore[\s\S]*renameCustomCategoryAndPersistLibraryStore[\s\S]*deleteCustomCategoryAndPersistLibraryStore/,
+  'Library persistence must include custom categories and persistence helpers',
+)
+assert.match(
+  libraryCategoryManagementPageSource,
+  /createCustomCategoryAndPersistLibraryStore[\s\S]*deleteCustomCategoryAndPersistLibraryStore[\s\S]*renameCustomCategoryAndPersistLibraryStore[\s\S]*export struct LibraryCategoryManagementPage[\s\S]*TextInput/,
+  'LibraryCategoryManagementPage must expose list/create/rename/delete category management',
+)
+assert.match(
+  libraryCategoryManagementPageSource,
+  /删除“\$\{category\.name\}”[\s\S]*会从已有漫画中移除[\s\S]*收藏和稍后阅读不受影响/,
+  'custom category delete copy must clearly state membership cleanup and built-in safety',
 )
 assert.match(
   indexSource,
@@ -503,6 +593,11 @@ assert.match(
   settingsPageSource,
   /\{ key: 'library-update-results', title: '书架更新详情', detail: '尚无结果' \}/,
   'SettingsPage must expose a row for the latest library update result details',
+)
+assert.match(
+  settingsPageSource,
+  /\{ key: 'library-categories', title: '书架分类', detail: '管理自定义分类' \}[\s\S]*onOpenLibraryCategories:\s*\(\) => void = \(\) => \{\}[\s\S]*row\.key === 'library-categories'[\s\S]*this\.onOpenLibraryCategories\(\)/,
+  'SettingsPage must expose a Settings entry for custom category management',
 )
 assert.match(
   settingsPageSource,
@@ -643,6 +738,11 @@ assert.match(
   indexSource,
   /onOpenLibraryUpdateResults:\s*\(\) => \{[\s\S]*this\.openSettingsSecondary\(RouteName\.LIBRARY_UPDATE_RESULTS\)/,
   'Index must wire Settings detail callback to the top-level route',
+)
+assert.match(
+  indexSource,
+  /import \{ LibraryCategoryManagementPage \} from '\.\/LibraryCategoryManagementPage'[\s\S]*name === RouteName\.LIBRARY_CATEGORIES[\s\S]*LibraryCategoryManagementPage\(\{[\s\S]*libraryStore: this\.libraryStore[\s\S]*libraryPersistenceService: this\.ensureLibraryPersistenceService\(\)[\s\S]*onOpenLibraryCategories:\s*\(\) => \{[\s\S]*RouteName\.LIBRARY_CATEGORIES/,
+  'Index must route the Settings category management entry to a top-level page',
 )
 assert.match(
   indexSource,
@@ -789,7 +889,7 @@ assert.match(
 )
 assert.match(
   libraryPersistenceSource,
-  /function parseValidatedLibraryStoreComics[\s\S]*assertSupportedLibraryStoreDocument\(document\)[\s\S]*return document\.comics\.map[\s\S]*export function hydrateLibraryStoreFromJson[\s\S]*const comics = parseValidatedLibraryStoreComics\(payload\)[\s\S]*libraryStore\.clear\(\)/,
+  /function parseValidatedLibraryStoreDocument[\s\S]*assertSupportedLibraryStoreDocument\(document\)[\s\S]*customCategories[\s\S]*assertValidPersistedLibraryCategory[\s\S]*assertUniquePersistedLibraryCategories[\s\S]*document\.comics\.forEach[\s\S]*export function assertValidLibraryStoreJson[\s\S]*parseValidatedLibraryStoreDocument\(payload\)[\s\S]*export function hydrateLibraryStoreFromJson[\s\S]*const document = parseValidatedLibraryStoreDocument\(payload\)[\s\S]*libraryStore\.clear\(\)[\s\S]*libraryStore\.replaceCustomCategories/,
   'production hydrate path must validate schemaVersion and persisted rows before clearing the store',
 )
 assert.match(
@@ -1096,6 +1196,11 @@ assert.match(
   backupServiceSource,
   /document\.schemaVersion !== BACKUP_SCHEMA_VERSION &&[\s\S]*document\.schemaVersion !== BACKUP_SCHEMA_VERSION_V2 &&[\s\S]*document\.schemaVersion !== BACKUP_SCHEMA_VERSION_V1/,
   'backup import must accept v1, v2, and v3 schema versions',
+)
+assert.match(
+  backupServiceSource,
+  /assertValidLibraryStoreJson\(document\.libraryStore\)[\s\S]*JSON\.parse\(document\.readingProgress\)[\s\S]*writeText\(this\.libraryPath\(\), document\.libraryStore\)/,
+  'backup import must validate embedded libraryStore with production parser before writing restored categories',
 )
 assert.match(
   backupServiceSource,
@@ -1494,10 +1599,45 @@ function createMockComic(item, createdAt) {
 
 function createSeededStore() {
   const comics = new Map()
+  const customCategories = new Map()
   mockLibraryComics.forEach((item, index) => {
     const comic = createMockComic(item, index + 1)
     comics.set(comic.id, comic)
   })
+  function cloneCategory(category) {
+    return { ...category }
+  }
+  function validateCustomCategoryName(name, currentCategoryId) {
+    const normalizedName = normalizeLibraryCategoryName(name)
+    if (normalizedName.length === 0) throw new Error('分类名称不能为空')
+    if (normalizedName.length > 40) throw new Error('分类名称不能超过 40 个字符')
+    if (isBuiltInLibraryCategoryName(normalizedName)) throw new Error('分类名称不能与内置分类重复')
+    const key = libraryCategoryNameKey(normalizedName)
+    for (const category of customCategories.values()) {
+      if (category.id !== currentCategoryId && libraryCategoryNameKey(category.name) === key) {
+        throw new Error('分类名称已存在')
+      }
+    }
+    return normalizedName
+  }
+  function validateRestoredCustomCategory(category, nextCategories, nameKeys) {
+    if (!category.id.startsWith('custom_') || isBuiltInLibraryCategoryId(category.id)) {
+      throw new Error('Invalid custom category id')
+    }
+    if (nextCategories.has(category.id)) {
+      throw new Error('Duplicate custom category id')
+    }
+    const normalizedName = normalizeLibraryCategoryName(category.name)
+    if (normalizedName.length === 0) throw new Error('分类名称不能为空')
+    if (normalizedName.length > 40) throw new Error('分类名称不能超过 40 个字符')
+    if (isBuiltInLibraryCategoryName(normalizedName)) throw new Error('分类名称不能与内置分类重复')
+    const key = libraryCategoryNameKey(normalizedName)
+    if (nameKeys.includes(key)) {
+      throw new Error('分类名称已存在')
+    }
+    nameKeys.push(key)
+    return { ...category, name: normalizedName }
+  }
   return {
     upsertComic(comic) {
       comics.set(comic.id, comic)
@@ -1510,12 +1650,65 @@ function createSeededStore() {
     },
     clear() {
       comics.clear()
+      customCategories.clear()
     },
     getComic(comicId) {
       return comics.get(comicId)
     },
     removeComic(comicId) {
       comics.delete(comicId)
+    },
+    listCustomCategories() {
+      return Array.from(customCategories.values()).sort((a, b) => {
+        const sortCompare = a.sortOrder - b.sortOrder
+        return sortCompare !== 0 ? sortCompare : a.createdAt - b.createdAt
+      }).map((category) => cloneCategory(category))
+    },
+    replaceCustomCategories(categories) {
+      const nextCategories = new Map()
+      const nameKeys = []
+      for (const category of categories) {
+        const restoredCategory = validateRestoredCustomCategory(category, nextCategories, nameKeys)
+        nextCategories.set(restoredCategory.id, restoredCategory)
+      }
+      customCategories.clear()
+      for (const [categoryId, category] of nextCategories) {
+        customCategories.set(categoryId, cloneCategory(category))
+      }
+    },
+    createCustomCategory(name, now = Date.now()) {
+      const normalizedName = validateCustomCategoryName(name)
+      const categories = this.listCustomCategories()
+      const category = {
+        id: `custom_${now}_${customCategories.size + 1}`,
+        name: normalizedName,
+        sortOrder: categories.length === 0 ? 0 : categories.at(-1).sortOrder + 1,
+        createdAt: now,
+        updatedAt: now,
+      }
+      customCategories.set(category.id, cloneCategory(category))
+      return cloneCategory(category)
+    },
+    renameCustomCategory(categoryId, name, now = Date.now()) {
+      const previous = customCategories.get(categoryId)
+      if (previous === undefined) throw new Error('分类不存在')
+      const normalizedName = validateCustomCategoryName(name, categoryId)
+      const next = { ...previous, name: normalizedName, updatedAt: now }
+      customCategories.set(categoryId, next)
+      return cloneCategory(next)
+    },
+    deleteCustomCategory(categoryId) {
+      if (isBuiltInLibraryCategoryId(categoryId)) return false
+      if (!customCategories.has(categoryId)) return false
+      customCategories.delete(categoryId)
+      for (const [comicId, comic] of comics) {
+        const before = normalizeCategoryIds(comic.categoryIds)
+        const after = before.filter((item) => item !== categoryId)
+        if (after.length !== before.length) {
+          comics.set(comicId, withComicCategoryIds(comic, after))
+        }
+      }
+      return true
     },
   }
 }
@@ -1632,10 +1825,13 @@ function hydrateComic(row) {
 }
 
 function serializeLibraryStore(store) {
-  return JSON.stringify({
+  const document = {
     schemaVersion: 1,
     comics: store.listComics().map((item) => persistComic(item)),
-  })
+  }
+  const customCategories = store.listCustomCategories().map((category) => ({ ...category }))
+  if (customCategories.length > 0) document.customCategories = customCategories
+  return JSON.stringify(document)
 }
 
 function assertSupportedLibraryStoreDocument(document) {
@@ -1746,19 +1942,40 @@ function assertValidPersistedComic(row) {
   assertNumberField(row.lastImportedAt, 'comic.lastImportedAt')
 }
 
-function parseValidatedLibraryStoreComics(payload) {
+function assertValidPersistedLibraryCategory(row) {
+  assertPersistedObject(row, 'category')
+  assertStringField(row.id, 'category.id')
+  assertStringField(row.name, 'category.name')
+  assertNumberField(row.sortOrder, 'category.sortOrder')
+  assertNumberField(row.createdAt, 'category.createdAt')
+  assertNumberField(row.updatedAt, 'category.updatedAt')
+  assertValidCustomCategoryShape(row)
+}
+
+function parseValidatedLibraryStoreDocument(payload) {
   const document = JSON.parse(payload)
   assertPersistedObject(document, 'document')
   assertSupportedLibraryStoreDocument(document)
+  if (document.customCategories !== undefined && !Array.isArray(document.customCategories)) {
+    throw new Error('Invalid library store persistence customCategories: expected array')
+  }
   if (!Array.isArray(document.comics)) {
     throw new Error('Invalid library store persistence comics: expected array')
   }
-  return document.comics.map((row) => hydrateComic(row))
+  document.customCategories?.forEach((row) => assertValidPersistedLibraryCategory(row))
+  if (document.customCategories !== undefined) {
+    assertUniquePersistedLibraryCategories(document.customCategories)
+  }
+  document.comics.forEach((row) => assertValidPersistedComic(row))
+  return document
 }
 
 function hydrateLibraryStoreFromJson(store, payload) {
-  const comics = parseValidatedLibraryStoreComics(payload)
+  const document = parseValidatedLibraryStoreDocument(payload)
+  const customCategories = document.customCategories ?? []
+  const comics = document.comics.map((row) => hydrateComic(row))
   store.clear()
+  store.replaceCustomCategories(customCategories)
   comics.forEach((comic) => store.upsertComic(comic))
 }
 
@@ -1873,6 +2090,43 @@ function updateComicCategoryMembershipAndPersistLibraryStore(store, persistenceS
   try {
     persistenceService.persist()
     return changedCount
+  } catch (error) {
+    hydrateLibraryStoreFromJson(store, previousPayload)
+    throw error
+  }
+}
+
+function createCustomCategoryAndPersistLibraryStore(store, persistenceService, name) {
+  const previousPayload = serializeLibraryStore(store)
+  const category = store.createCustomCategory(name)
+  try {
+    persistenceService.persist()
+    return category
+  } catch (error) {
+    hydrateLibraryStoreFromJson(store, previousPayload)
+    throw error
+  }
+}
+
+function renameCustomCategoryAndPersistLibraryStore(store, persistenceService, categoryId, name) {
+  const previousPayload = serializeLibraryStore(store)
+  const category = store.renameCustomCategory(categoryId, name)
+  try {
+    persistenceService.persist()
+    return category
+  } catch (error) {
+    hydrateLibraryStoreFromJson(store, previousPayload)
+    throw error
+  }
+}
+
+function deleteCustomCategoryAndPersistLibraryStore(store, persistenceService, categoryId) {
+  const previousPayload = serializeLibraryStore(store)
+  const deleted = store.deleteCustomCategory(categoryId)
+  if (!deleted) return false
+  try {
+    persistenceService.persist()
+    return true
   } catch (error) {
     hydrateLibraryStoreFromJson(store, previousPayload)
     throw error
@@ -2263,6 +2517,72 @@ assert.equal(assignComicCategoriesAndPersistLibraryStore(categoryStore, category
 assert.equal(categoryStore.getComic('imported-01').categoryIds, undefined, 'clearing categories must return the comic to uncategorized')
 assert.equal(listLibraryItemsByCategory(categoryStore, 'uncategorized').some((item) => item.id === 'imported-01'), true, 'uncategorized filter must include cleared comics')
 
+const customCategory = createCustomCategoryAndPersistLibraryStore(categoryStore, categoryService, '  Favorites 2026  ')
+assert.equal(customCategory.name, 'Favorites 2026', 'custom category creation must trim names')
+assert.equal(categoryStore.listCustomCategories().length, 1, 'custom category creation must update the live store')
+assert.equal(JSON.parse(categoryAdapter.savedPayloads.at(-1)).customCategories[0].name, 'Favorites 2026', 'custom category definitions must persist')
+assert.throws(
+  () => createCustomCategoryAndPersistLibraryStore(categoryStore, categoryService, '收藏'),
+  /内置分类/,
+  'custom categories must not collide with built-in category names',
+)
+assert.throws(
+  () => createCustomCategoryAndPersistLibraryStore(categoryStore, categoryService, 'favorites 2026'),
+  /已存在/,
+  'custom categories must reject case-insensitive duplicate names',
+)
+assert.throws(
+  () => createCustomCategoryAndPersistLibraryStore(categoryStore, categoryService, 'x'.repeat(41)),
+  /不能超过 40/,
+  'custom categories must reject overlong names',
+)
+assert.equal(updateComicCategoryMembershipAndPersistLibraryStore(categoryStore, categoryService, ['imported-01'], customCategory.id, true), 1, 'batch add must accept custom category ids')
+assert.equal(updateComicCategoryMembershipAndPersistLibraryStore(categoryStore, categoryService, ['imported-01'], 'read_later', true), 1, 'batch add must still accept built-in Read Later')
+assert.equal(updateComicCategoryMembershipAndPersistLibraryStore(categoryStore, categoryService, ['imported-01'], 'favorite', true), 1, 'batch add must still accept built-in Favorite')
+assert.equal(listLibraryItemsByCategory(categoryStore, customCategory.id).some((item) => item.id === 'imported-01'), true, 'custom category filter must include matching comics')
+const renamedCategory = renameCustomCategoryAndPersistLibraryStore(categoryStore, categoryService, customCategory.id, 'Owned')
+assert.equal(renamedCategory.name, 'Owned', 'custom category rename must update the name')
+assert.equal(deleteCustomCategoryAndPersistLibraryStore(categoryStore, categoryService, customCategory.id), true, 'custom category delete must report success')
+assert.equal(categoryStore.listCustomCategories().length, 0, 'custom category delete must remove the definition')
+assert.equal(normalizeCategoryIds(categoryStore.getComic('imported-01').categoryIds).includes(customCategory.id), false, 'custom category delete must remove custom membership references')
+assert.equal(normalizeCategoryIds(categoryStore.getComic('imported-01').categoryIds).includes('read_later'), true, 'custom category delete must preserve existing Read Later membership')
+assert.equal(normalizeCategoryIds(categoryStore.getComic('imported-01').categoryIds).includes('favorite'), true, 'custom category delete must preserve existing Favorite membership')
+
+const categoryRestoreStore = createSeededStore()
+const categoryRestorePayload = categoryAdapter.savedPayloads.find((payload) => JSON.parse(payload).customCategories?.length === 1)
+hydrateLibraryStoreFromJson(categoryRestoreStore, categoryRestorePayload)
+assert.equal(categoryRestoreStore.listCustomCategories()[0].name, 'Favorites 2026', 'custom categories must restore from persisted library JSON')
+const maliciousBuiltInCategoryIdPayload = JSON.stringify({
+  ...JSON.parse(categoryRestorePayload),
+  customCategories: [{ id: 'favorite', name: 'Restored Favorite', sortOrder: 0, createdAt: 1, updatedAt: 1 }],
+})
+assert.throws(
+  () => hydrateLibraryStoreFromJson(createSeededStore(), maliciousBuiltInCategoryIdPayload),
+  /custom category id/,
+  'restored custom categories must reject built-in category ids',
+)
+const maliciousBuiltInCategoryNamePayload = JSON.stringify({
+  ...JSON.parse(categoryRestorePayload),
+  customCategories: [{ id: 'custom_bad', name: '收藏', sortOrder: 0, createdAt: 1, updatedAt: 1 }],
+})
+assert.throws(
+  () => hydrateLibraryStoreFromJson(createSeededStore(), maliciousBuiltInCategoryNamePayload),
+  /内置分类|built-in category/,
+  'restored custom categories must reject built-in category names',
+)
+const duplicateCustomCategoryPayload = JSON.stringify({
+  ...JSON.parse(categoryRestorePayload),
+  customCategories: [
+    { id: 'custom_one', name: 'Owned', sortOrder: 0, createdAt: 1, updatedAt: 1 },
+    { id: 'custom_two', name: ' owned ', sortOrder: 1, createdAt: 2, updatedAt: 2 },
+  ],
+})
+assert.throws(
+  () => hydrateLibraryStoreFromJson(createSeededStore(), duplicateCustomCategoryPayload),
+  /分类名称已存在|duplicate category name/,
+  'restored custom categories must reject duplicate names',
+)
+
 const throwingCategoryStore = createSeededStore()
 throwingCategoryStore.upsertComic(importedComic)
 const throwingCategoryAdapter = new MemoryLibraryStorePersistenceAdapter(undefined, new Error('disk full'))
@@ -2273,6 +2593,12 @@ assert.throws(
   'save failure during category assignment must be visible to the caller',
 )
 assert.equal(throwingCategoryStore.getComic('imported-01').categoryIds, undefined, 'failed category assignment must rollback the live store')
+assert.throws(
+  () => createCustomCategoryAndPersistLibraryStore(throwingCategoryStore, throwingCategoryService, 'Rollback'),
+  /disk full/,
+  'save failure during custom category creation must be visible to the caller',
+)
+assert.equal(throwingCategoryStore.listCustomCategories().length, 0, 'failed custom category creation must rollback the live store')
 
 assert.equal(isRemovableLocalComic(importedComic), true, 'imported local archive comics should be removable')
 assert.equal(isRemovableLocalComic(seededStore.getComic('local-01')), false, 'seed/demo comics must not be removable')

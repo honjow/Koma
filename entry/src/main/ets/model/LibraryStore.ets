@@ -2,10 +2,18 @@ import {
   Comic,
   ComicId,
   ComicSourceKind,
+  CustomLibraryCategory,
   LibraryItem,
   ReadingProgress,
+  CUSTOM_LIBRARY_CATEGORY_ID_PREFIX,
+  LIBRARY_CATEGORY_NAME_MAX_LENGTH,
+  isBuiltInLibraryCategoryId,
+  isBuiltInLibraryCategoryName,
+  libraryCategoryNameKey,
+  normalizeLibraryCategoryName,
   comicToLibraryItem,
   normalizeCategoryIds,
+  withComicCategoryIds,
 } from './ComicModels'
 
 export type LibrarySortBy = 'lastRead' | 'added' | 'title' | 'source'
@@ -27,6 +35,11 @@ export interface LibraryStore {
   addComic(comic: Comic): void
   upsertComic(comic: Comic): void
   removeComic(comicId: ComicId): void
+  listCustomCategories(): CustomLibraryCategory[]
+  replaceCustomCategories(categories: CustomLibraryCategory[]): void
+  createCustomCategory(name: string, now?: number): CustomLibraryCategory
+  renameCustomCategory(categoryId: string, name: string, now?: number): CustomLibraryCategory
+  deleteCustomCategory(categoryId: string): boolean
   clear(): void
   dumpJson(): string
   restoreJson(payload: string): void
@@ -34,6 +47,7 @@ export interface LibraryStore {
 
 export class InMemoryLibraryStore implements LibraryStore {
   private comics: Map<ComicId, Comic> = new Map<ComicId, Comic>()
+  private customCategories: Map<string, CustomLibraryCategory> = new Map<string, CustomLibraryCategory>()
 
   getComic(comicId: ComicId): Comic | undefined {
     return this.comics.get(comicId)
@@ -158,19 +172,186 @@ export class InMemoryLibraryStore implements LibraryStore {
     this.comics.delete(comicId)
   }
 
+  listCustomCategories(): CustomLibraryCategory[] {
+    return Array.from(this.customCategories.values()).sort((a: CustomLibraryCategory, b: CustomLibraryCategory): number => {
+      const sortCompare = a.sortOrder - b.sortOrder
+      if (sortCompare !== 0) {
+        return sortCompare
+      }
+      return a.createdAt - b.createdAt
+    }).map((category: CustomLibraryCategory): CustomLibraryCategory => {
+      return this.cloneCustomCategory(category)
+    })
+  }
+
+  replaceCustomCategories(categories: CustomLibraryCategory[]): void {
+    const nextCategories: Map<string, CustomLibraryCategory> = new Map<string, CustomLibraryCategory>()
+    const nameKeys: string[] = []
+    categories.forEach((category: CustomLibraryCategory) => {
+      const restoredCategory = this.validateRestoredCustomCategory(category, nextCategories, nameKeys)
+      nextCategories.set(restoredCategory.id, restoredCategory)
+    })
+    this.customCategories.clear()
+    nextCategories.forEach((category: CustomLibraryCategory, categoryId: string) => {
+      this.customCategories.set(categoryId, this.cloneCustomCategory(category))
+    })
+  }
+
+  createCustomCategory(name: string, now: number = Date.now()): CustomLibraryCategory {
+    const normalizedName = this.validateCustomCategoryName(name)
+    const category: CustomLibraryCategory = {
+      id: this.createCustomCategoryId(now),
+      name: normalizedName,
+      sortOrder: this.nextCustomCategorySortOrder(),
+      createdAt: now,
+      updatedAt: now,
+    }
+    this.customCategories.set(category.id, this.cloneCustomCategory(category))
+    return this.cloneCustomCategory(category)
+  }
+
+  renameCustomCategory(categoryId: string, name: string, now: number = Date.now()): CustomLibraryCategory {
+    const previous = this.customCategories.get(categoryId)
+    if (previous === undefined) {
+      throw new Error('分类不存在')
+    }
+    const normalizedName = this.validateCustomCategoryName(name, categoryId)
+    const next: CustomLibraryCategory = {
+      id: previous.id,
+      name: normalizedName,
+      sortOrder: previous.sortOrder,
+      createdAt: previous.createdAt,
+      updatedAt: now,
+    }
+    this.customCategories.set(categoryId, next)
+    return this.cloneCustomCategory(next)
+  }
+
+  deleteCustomCategory(categoryId: string): boolean {
+    if (isBuiltInLibraryCategoryId(categoryId)) {
+      return false
+    }
+    if (!this.customCategories.has(categoryId)) {
+      return false
+    }
+    this.customCategories.delete(categoryId)
+    this.comics.forEach((comic: Comic, comicId: ComicId) => {
+      const nextCategoryIds = normalizeCategoryIds(comic.categoryIds).filter((item: string): boolean => {
+        return item !== categoryId
+      })
+      if (normalizeCategoryIds(comic.categoryIds).length !== nextCategoryIds.length) {
+        this.comics.set(comicId, withComicCategoryIds(comic, nextCategoryIds))
+      }
+    })
+    return true
+  }
+
   clear(): void {
     this.comics.clear()
+    this.customCategories.clear()
   }
 
   dumpJson(): string {
-    return JSON.stringify(this.listComics())
+    return JSON.stringify({
+      comics: this.listComics(),
+      customCategories: this.listCustomCategories(),
+    })
   }
 
   restoreJson(payload: string): void {
     this.comics.clear()
-    const rows = JSON.parse(payload) as Comic[]
+    this.customCategories.clear()
+    const parsed = JSON.parse(payload) as Record<string, Object>
+    const rows = Array.isArray(parsed) ? parsed as Comic[] : parsed['comics'] as Comic[]
     rows.forEach((comic: Comic) => {
       this.comics.set(comic.id, comic)
     })
+    if (!Array.isArray(parsed) && Array.isArray(parsed['customCategories'])) {
+      this.replaceCustomCategories(parsed['customCategories'] as CustomLibraryCategory[])
+    }
+  }
+
+  private cloneCustomCategory(category: CustomLibraryCategory): CustomLibraryCategory {
+    return {
+      id: category.id,
+      name: category.name,
+      sortOrder: category.sortOrder,
+      createdAt: category.createdAt,
+      updatedAt: category.updatedAt,
+    }
+  }
+
+  private nextCustomCategorySortOrder(): number {
+    const categories = this.listCustomCategories()
+    if (categories.length === 0) {
+      return 0
+    }
+    return categories[categories.length - 1].sortOrder + 1
+  }
+
+  private createCustomCategoryId(now: number): string {
+    let index = this.customCategories.size + 1
+    let id = `${CUSTOM_LIBRARY_CATEGORY_ID_PREFIX}${now}_${index}`
+    while (this.customCategories.has(id)) {
+      index += 1
+      id = `${CUSTOM_LIBRARY_CATEGORY_ID_PREFIX}${now}_${index}`
+    }
+    return id
+  }
+
+  private validateRestoredCustomCategory(
+    category: CustomLibraryCategory,
+    nextCategories: Map<string, CustomLibraryCategory>,
+    nameKeys: string[]
+  ): CustomLibraryCategory {
+    if (!category.id.startsWith(CUSTOM_LIBRARY_CATEGORY_ID_PREFIX) || isBuiltInLibraryCategoryId(category.id)) {
+      throw new Error('Invalid custom category id')
+    }
+    if (nextCategories.has(category.id)) {
+      throw new Error('Duplicate custom category id')
+    }
+    const normalizedName = normalizeLibraryCategoryName(category.name)
+    if (normalizedName.length === 0) {
+      throw new Error('分类名称不能为空')
+    }
+    if (normalizedName.length > LIBRARY_CATEGORY_NAME_MAX_LENGTH) {
+      throw new Error(`分类名称不能超过 ${LIBRARY_CATEGORY_NAME_MAX_LENGTH} 个字符`)
+    }
+    if (isBuiltInLibraryCategoryName(normalizedName)) {
+      throw new Error('分类名称不能与内置分类重复')
+    }
+    const nameKey = libraryCategoryNameKey(normalizedName)
+    if (nameKeys.includes(nameKey)) {
+      throw new Error('分类名称已存在')
+    }
+    nameKeys.push(nameKey)
+    return {
+      id: category.id,
+      name: normalizedName,
+      sortOrder: category.sortOrder,
+      createdAt: category.createdAt,
+      updatedAt: category.updatedAt,
+    }
+  }
+
+  private validateCustomCategoryName(name: string, currentCategoryId?: string): string {
+    const normalizedName = normalizeLibraryCategoryName(name)
+    if (normalizedName.length === 0) {
+      throw new Error('分类名称不能为空')
+    }
+    if (normalizedName.length > LIBRARY_CATEGORY_NAME_MAX_LENGTH) {
+      throw new Error(`分类名称不能超过 ${LIBRARY_CATEGORY_NAME_MAX_LENGTH} 个字符`)
+    }
+    if (isBuiltInLibraryCategoryName(normalizedName)) {
+      throw new Error('分类名称不能与内置分类重复')
+    }
+    const key = libraryCategoryNameKey(normalizedName)
+    const duplicate = Array.from(this.customCategories.values()).some((category: CustomLibraryCategory): boolean => {
+      return category.id !== currentCategoryId && libraryCategoryNameKey(category.name) === key
+    })
+    if (duplicate) {
+      throw new Error('分类名称已存在')
+    }
+    return normalizedName
   }
 }

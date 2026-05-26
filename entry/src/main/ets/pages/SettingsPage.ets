@@ -111,6 +111,7 @@ const SETTINGS_SECTIONS: SettingsSection[] = [
       { key: 'library-update-notifications', title: '更新提醒', detail: '计划中 · 暂不发送' },
       { key: 'library-update', title: '检查书架更新', detail: '尚未检查' },
       { key: 'library-update-results', title: '书架更新详情', detail: '尚无结果' },
+      { key: 'library-categories', title: '书架分类', detail: '管理自定义分类' },
       { key: 'local-library-refresh', title: '刷新本地导入', detail: '需要重新选择本地文件' },
       { key: 'sources', title: '管理已安装的源包', detail: '暂未安装源包' },
       { key: 'downloads', title: '下载管理', detail: '离线章节与失败任务' },
@@ -137,6 +138,7 @@ export struct SettingsPage {
   onOpenWebDavSettings: () => void = () => {}
   onOpenSourcePackageManager: () => void = () => {}
   onOpenLibraryUpdateResults: () => void = () => {}
+  onOpenLibraryCategories: () => void = () => {}
   onOpenDownloads: () => void = () => {}
   onOpenBackupManagement: () => void = () => {}
   onOpenTrackerSettings: () => void = () => {}
@@ -257,6 +259,10 @@ export struct SettingsPage {
     }
     if (row.key === 'library-update-results') {
       return this.libraryUpdateSummary === undefined ? '尚无结果' : '查看最近检查结果'
+    }
+    if (row.key === 'library-categories') {
+      const count = this.libraryStore === undefined ? 0 : this.libraryStore.listCustomCategories().length
+      return count > 0 ? `${count} 个自定义分类` : '管理自定义分类'
     }
     if (row.key === 'local-library-refresh') {
       if (this.localLibraryRefreshBusy) {
@@ -958,6 +964,8 @@ export struct SettingsPage {
       this.checkLibraryUpdates()
     } else if (row.key === 'library-update-results') {
       this.openLibraryUpdateResults()
+    } else if (row.key === 'library-categories') {
+      this.onOpenLibraryCategories()
     } else if (row.key === 'local-library-refresh') {
       this.checkLocalLibraryRefresh()
     } else if (row.key === 'about') {
