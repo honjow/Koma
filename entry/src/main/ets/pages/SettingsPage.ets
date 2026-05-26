@@ -45,6 +45,8 @@ import {
   getReaderProgressControlsLabel,
   getReaderTapNavigationLabel,
   getReaderThemeModeLabel,
+  getReaderTrimPageMarginsLabel,
+  getReaderVolumeKeyNavigationLabel,
   getReadingDirectionLabel,
 } from '../model/ReaderPreferencesStore'
 import { listInstalled } from '../sourceRuntime/SourceRuntimeAppRegistry'
@@ -83,6 +85,8 @@ const SETTINGS_SECTIONS: SettingsSection[] = [
       { key: 'reader-image-fit', title: '图片适配', detail: '适合屏幕' },
       { key: 'reader-tap-navigation', title: '点击翻页', detail: '开启' },
       { key: 'reader-page-gap', title: '页面间距', detail: '标准' },
+      { key: 'reader-trim-page-margins', title: '收紧页边（不裁图）', detail: '关闭' },
+      { key: 'reader-volume-key-navigation', title: '音量键翻页', detail: '关闭' },
     ],
   },
   {
@@ -134,6 +138,8 @@ export struct SettingsPage {
   @State private readerImageFitMode: ReaderImageFitMode = 'contain'
   @State private readerTapNavigationEnabled: boolean = true
   @State private readerPageGapMode: ReaderPageGapMode = 'normal'
+  @State private readerTrimPageMarginsEnabled: boolean = false
+  @State private readerVolumeKeyNavigationEnabled: boolean = false
   @State private versionDetail: string = 'Koma 开发版'
   @State private imageCacheDetail: string = '0 B · 0 项'
   @State private libraryUpdateBusy: boolean = false
@@ -187,6 +193,12 @@ export struct SettingsPage {
     }
     if (row.key === 'reader-page-gap') {
       return getReaderPageGapModeLabel(this.readerPageGapMode)
+    }
+    if (row.key === 'reader-trim-page-margins') {
+      return getReaderTrimPageMarginsLabel(this.readerTrimPageMarginsEnabled)
+    }
+    if (row.key === 'reader-volume-key-navigation') {
+      return getReaderVolumeKeyNavigationLabel(this.readerVolumeKeyNavigationEnabled)
     }
     if (row.key === 'version') {
       return this.versionDetail
@@ -250,6 +262,8 @@ export struct SettingsPage {
         this.readerImageFitMode = preferences.imageFitMode
         this.readerTapNavigationEnabled = preferences.tapNavigationEnabled
         this.readerPageGapMode = preferences.pageGapMode
+        this.readerTrimPageMarginsEnabled = preferences.trimPageMarginsEnabled
+        this.readerVolumeKeyNavigationEnabled = preferences.volumeKeyNavigationEnabled
         console.info('[Settings] step=load_preferences')
       })
       .catch((error: Error) => {
@@ -561,6 +575,52 @@ export struct SettingsPage {
       })
   }
 
+  private showReaderTrimPageMarginsSheet(): void {
+    console.info('[Settings] step=reader_trim_page_margins_sheet')
+    this.getUIContext().showActionSheet({
+      title: '收紧页边（不裁图）',
+      message: '仅收紧阅读器页面容器留白，不裁切漫画图片内容',
+      sheets: [
+        { title: '开启', action: () => { this.saveReaderTrimPageMarginsEnabled(true) } },
+        { title: '关闭', action: () => { this.saveReaderTrimPageMarginsEnabled(false) } },
+      ],
+    })
+  }
+
+  private saveReaderTrimPageMarginsEnabled(trimPageMarginsEnabled: boolean): void {
+    this.readerTrimPageMarginsEnabled = trimPageMarginsEnabled
+    void this.preferencesStore().saveTrimPageMarginsEnabled(trimPageMarginsEnabled)
+      .then(() => {
+        console.info('[Settings] step=save_reader_trim_page_margins value=' + trimPageMarginsEnabled)
+      })
+      .catch((error: Error) => {
+        console.warn('[Settings] step=save_reader_trim_page_margins_failed message=' + error.message)
+      })
+  }
+
+  private showReaderVolumeKeyNavigationSheet(): void {
+    console.info('[Settings] step=reader_volume_key_navigation_sheet')
+    this.getUIContext().showActionSheet({
+      title: '音量键翻页',
+      message: '当前版本仅保存偏好，阅读器尚未接入音量键事件',
+      sheets: [
+        { title: '开启（仅保存）', action: () => { this.saveReaderVolumeKeyNavigationEnabled(true) } },
+        { title: '关闭', action: () => { this.saveReaderVolumeKeyNavigationEnabled(false) } },
+      ],
+    })
+  }
+
+  private saveReaderVolumeKeyNavigationEnabled(volumeKeyNavigationEnabled: boolean): void {
+    this.readerVolumeKeyNavigationEnabled = volumeKeyNavigationEnabled
+    void this.preferencesStore().saveVolumeKeyNavigationEnabled(volumeKeyNavigationEnabled)
+      .then(() => {
+        console.info('[Settings] step=save_reader_volume_key_navigation value=' + volumeKeyNavigationEnabled)
+      })
+      .catch((error: Error) => {
+        console.warn('[Settings] step=save_reader_volume_key_navigation_failed message=' + error.message)
+      })
+  }
+
   private showBackupSheet(): void {
     console.info('[Settings] step=backup_sheet')
     this.getUIContext().showActionSheet({
@@ -817,6 +877,10 @@ export struct SettingsPage {
       this.showReaderTapNavigationSheet()
     } else if (row.key === 'reader-page-gap') {
       this.showReaderPageGapSheet()
+    } else if (row.key === 'reader-trim-page-margins') {
+      this.showReaderTrimPageMarginsSheet()
+    } else if (row.key === 'reader-volume-key-navigation') {
+      this.showReaderVolumeKeyNavigationSheet()
     } else if (row.key === 'backup') {
       this.showBackupSheet()
     } else if (row.key === 'image-cache') {

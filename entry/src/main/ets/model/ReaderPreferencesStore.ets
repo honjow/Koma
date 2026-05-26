@@ -19,6 +19,8 @@ export interface ReaderPreferences {
   imageFitMode: ReaderImageFitMode
   tapNavigationEnabled: boolean
   pageGapMode: ReaderPageGapMode
+  trimPageMarginsEnabled: boolean
+  volumeKeyNavigationEnabled: boolean
 }
 
 export const READER_PREFERENCES_STORE_NAME: string = 'koma_reader_preferences_v1'
@@ -31,6 +33,8 @@ export const KEEP_SCREEN_AWAKE_KEY: string = 'reader.keepScreenAwake'
 export const IMAGE_FIT_MODE_KEY: string = 'reader.imageFitMode'
 export const TAP_NAVIGATION_ENABLED_KEY: string = 'reader.tapNavigationEnabled'
 export const PAGE_GAP_MODE_KEY: string = 'reader.pageGapMode'
+export const TRIM_PAGE_MARGINS_ENABLED_KEY: string = 'reader.trimPageMarginsEnabled'
+export const VOLUME_KEY_NAVIGATION_ENABLED_KEY: string = 'reader.volumeKeyNavigationEnabled'
 
 export const DEFAULT_READER_PREFERENCES: ReaderPreferences = {
   pageMode: 'single_page',
@@ -42,6 +46,8 @@ export const DEFAULT_READER_PREFERENCES: ReaderPreferences = {
   imageFitMode: 'contain',
   tapNavigationEnabled: true,
   pageGapMode: 'normal',
+  trimPageMarginsEnabled: false,
+  volumeKeyNavigationEnabled: false,
 }
 
 export function normalizeReaderPageMode(value: string): ReaderPageMode {
@@ -98,6 +104,20 @@ export function normalizeReaderTapNavigationEnabled(value: boolean | string | nu
     return false
   }
   return true
+}
+
+export function normalizeReaderTrimPageMarginsEnabled(value: boolean | string | number): boolean {
+  if (value === true || value === 'true' || value === 1 || value === '1') {
+    return true
+  }
+  return false
+}
+
+export function normalizeReaderVolumeKeyNavigationEnabled(value: boolean | string | number): boolean {
+  if (value === true || value === 'true' || value === 1 || value === '1') {
+    return true
+  }
+  return false
 }
 
 export function normalizeReaderReadingDirection(value: string): ReadingDirection {
@@ -176,6 +196,14 @@ export function getReaderPageGapModeLabel(mode: ReaderPageGapMode): string {
   return '标准'
 }
 
+export function getReaderTrimPageMarginsLabel(trimPageMarginsEnabled: boolean): string {
+  return trimPageMarginsEnabled ? '开启（不裁图）' : '关闭'
+}
+
+export function getReaderVolumeKeyNavigationLabel(volumeKeyNavigationEnabled: boolean): string {
+  return volumeKeyNavigationEnabled ? '已保存（待接入）' : '关闭'
+}
+
 export function readerModeFromPageMode(pageMode: ReaderPageMode): ReaderMode {
   if (pageMode === 'continuous_scroll') {
     return ReaderMode.CONTINUOUS_SCROLL
@@ -217,6 +245,10 @@ export class ReaderPreferencesStore {
     const tapNavigationEnabled =
       await store.get(TAP_NAVIGATION_ENABLED_KEY, DEFAULT_READER_PREFERENCES.tapNavigationEnabled) as boolean | string | number
     const pageGapMode = await store.get(PAGE_GAP_MODE_KEY, DEFAULT_READER_PREFERENCES.pageGapMode) as string
+    const trimPageMarginsEnabled =
+      await store.get(TRIM_PAGE_MARGINS_ENABLED_KEY, DEFAULT_READER_PREFERENCES.trimPageMarginsEnabled) as boolean | string | number
+    const volumeKeyNavigationEnabled =
+      await store.get(VOLUME_KEY_NAVIGATION_ENABLED_KEY, DEFAULT_READER_PREFERENCES.volumeKeyNavigationEnabled) as boolean | string | number
     return {
       pageMode: normalizeReaderPageMode(pageMode),
       readingDirection: normalizeReaderReadingDirection(readingDirection),
@@ -227,6 +259,8 @@ export class ReaderPreferencesStore {
       imageFitMode: normalizeReaderImageFitMode(imageFitMode),
       tapNavigationEnabled: normalizeReaderTapNavigationEnabled(tapNavigationEnabled),
       pageGapMode: normalizeReaderPageGapMode(pageGapMode),
+      trimPageMarginsEnabled: normalizeReaderTrimPageMarginsEnabled(trimPageMarginsEnabled),
+      volumeKeyNavigationEnabled: normalizeReaderVolumeKeyNavigationEnabled(volumeKeyNavigationEnabled),
     }
   }
 
@@ -284,6 +318,18 @@ export class ReaderPreferencesStore {
     await store.flush()
   }
 
+  async saveTrimPageMarginsEnabled(trimPageMarginsEnabled: boolean): Promise<void> {
+    const store = await this.preferences()
+    await store.put(TRIM_PAGE_MARGINS_ENABLED_KEY, normalizeReaderTrimPageMarginsEnabled(trimPageMarginsEnabled))
+    await store.flush()
+  }
+
+  async saveVolumeKeyNavigationEnabled(volumeKeyNavigationEnabled: boolean): Promise<void> {
+    const store = await this.preferences()
+    await store.put(VOLUME_KEY_NAVIGATION_ENABLED_KEY, normalizeReaderVolumeKeyNavigationEnabled(volumeKeyNavigationEnabled))
+    await store.flush()
+  }
+
   async save(preferences: ReaderPreferences): Promise<void> {
     const store = await this.preferences()
     await store.put(PAGE_MODE_KEY, normalizeReaderPageMode(preferences.pageMode))
@@ -295,6 +341,8 @@ export class ReaderPreferencesStore {
     await store.put(IMAGE_FIT_MODE_KEY, normalizeReaderImageFitMode(preferences.imageFitMode))
     await store.put(TAP_NAVIGATION_ENABLED_KEY, normalizeReaderTapNavigationEnabled(preferences.tapNavigationEnabled))
     await store.put(PAGE_GAP_MODE_KEY, normalizeReaderPageGapMode(preferences.pageGapMode))
+    await store.put(TRIM_PAGE_MARGINS_ENABLED_KEY, normalizeReaderTrimPageMarginsEnabled(preferences.trimPageMarginsEnabled))
+    await store.put(VOLUME_KEY_NAVIGATION_ENABLED_KEY, normalizeReaderVolumeKeyNavigationEnabled(preferences.volumeKeyNavigationEnabled))
     await store.flush()
   }
 

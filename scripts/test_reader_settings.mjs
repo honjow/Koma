@@ -40,8 +40,18 @@ assert.match(
 )
 assert.match(
   readerPreferencesStoreSource,
-  /DEFAULT_READER_PREFERENCES:[\s\S]*imageFitMode:\s*'contain'[\s\S]*tapNavigationEnabled:\s*true[\s\S]*pageGapMode:\s*'normal'/,
-  'new reader settings must default to current contain fit, enabled tap navigation, and normal spacing',
+  /TRIM_PAGE_MARGINS_ENABLED_KEY:\s*string = 'reader\.trimPageMarginsEnabled'/,
+  'trim page margins setting must have a stable persistence key',
+)
+assert.match(
+  readerPreferencesStoreSource,
+  /VOLUME_KEY_NAVIGATION_ENABLED_KEY:\s*string = 'reader\.volumeKeyNavigationEnabled'/,
+  'volume key navigation setting must have a stable persistence key',
+)
+assert.match(
+  readerPreferencesStoreSource,
+  /DEFAULT_READER_PREFERENCES:[\s\S]*imageFitMode:\s*'contain'[\s\S]*tapNavigationEnabled:\s*true[\s\S]*pageGapMode:\s*'normal'[\s\S]*trimPageMarginsEnabled:\s*false[\s\S]*volumeKeyNavigationEnabled:\s*false/,
+  'new reader settings must default to current contain fit, enabled tap navigation, normal spacing, no trim, and no volume-key navigation',
 )
 assert.match(
   readerPreferencesStoreSource,
@@ -60,6 +70,16 @@ assert.match(
 )
 assert.match(
   readerPreferencesStoreSource,
+  /normalizeReaderTrimPageMarginsEnabled\(value: boolean \| string \| number\)[\s\S]*value === true[\s\S]*return true[\s\S]*return false/,
+  'trim page margins loading must default to disabled for older preference stores',
+)
+assert.match(
+  readerPreferencesStoreSource,
+  /normalizeReaderVolumeKeyNavigationEnabled\(value: boolean \| string \| number\)[\s\S]*value === true[\s\S]*return true[\s\S]*return false/,
+  'volume key navigation loading must default to disabled for older preference stores',
+)
+assert.match(
+  readerPreferencesStoreSource,
   /store\.get\(IMAGE_FIT_MODE_KEY, DEFAULT_READER_PREFERENCES\.imageFitMode\)/,
   'reader preferences load must read persisted image fit mode',
 )
@@ -72,6 +92,16 @@ assert.match(
   readerPreferencesStoreSource,
   /store\.get\(PAGE_GAP_MODE_KEY, DEFAULT_READER_PREFERENCES\.pageGapMode\)/,
   'reader preferences load must read persisted page gap setting',
+)
+assert.match(
+  readerPreferencesStoreSource,
+  /store\.get\(TRIM_PAGE_MARGINS_ENABLED_KEY, DEFAULT_READER_PREFERENCES\.trimPageMarginsEnabled\)/,
+  'reader preferences load must read persisted trim page margins setting',
+)
+assert.match(
+  readerPreferencesStoreSource,
+  /store\.get\(VOLUME_KEY_NAVIGATION_ENABLED_KEY, DEFAULT_READER_PREFERENCES\.volumeKeyNavigationEnabled\)/,
+  'reader preferences load must read persisted volume key navigation setting',
 )
 assert.match(
   readerPreferencesStoreSource,
@@ -88,17 +118,31 @@ assert.match(
   /async savePageGapMode\(pageGapMode: ReaderPageGapMode\)/,
   'reader preferences store must persist page gap independently',
 )
+assert.match(
+  readerPreferencesStoreSource,
+  /async saveTrimPageMarginsEnabled\(trimPageMarginsEnabled: boolean\)/,
+  'reader preferences store must persist trim page margins independently',
+)
+assert.match(
+  readerPreferencesStoreSource,
+  /async saveVolumeKeyNavigationEnabled\(volumeKeyNavigationEnabled: boolean\)/,
+  'reader preferences store must persist volume key navigation independently',
+)
 
 assert.match(settingsPageSource, /key: 'reader-image-fit', title: '图片适配'/, 'Settings must expose an image fit row')
 assert.match(settingsPageSource, /key: 'reader-tap-navigation', title: '点击翻页'/, 'Settings must expose a tap navigation row')
 assert.match(settingsPageSource, /key: 'reader-page-gap', title: '页面间距'/, 'Settings must expose a page gap row')
+assert.match(settingsPageSource, /key: 'reader-trim-page-margins', title: '收紧页边（不裁图）'/, 'Settings must expose an honest non-cropping trim row')
+assert.match(settingsPageSource, /key: 'reader-volume-key-navigation', title: '音量键翻页'/, 'Settings must expose a volume-key navigation preference row')
 assert.match(settingsPageSource, /showReaderImageFitSheet\(\)[\s\S]*title: '适合屏幕'[\s\S]*title: '适合宽度'/, 'image fit sheet must expose contain and fit-width choices')
 assert.match(settingsPageSource, /showReaderTapNavigationSheet\(\)[\s\S]*title: '开启'[\s\S]*title: '关闭'/, 'tap navigation sheet must expose on/off choices')
 assert.match(settingsPageSource, /showReaderPageGapSheet\(\)[\s\S]*title: '紧凑'[\s\S]*title: '标准'[\s\S]*title: '宽松'/, 'page gap sheet must expose compact, normal, and wide choices')
+assert.match(settingsPageSource, /showReaderTrimPageMarginsSheet\(\)[\s\S]*不裁切漫画图片内容[\s\S]*title: '开启'[\s\S]*title: '关闭'/, 'trim sheet must honestly describe the non-cropping container behavior')
+assert.match(settingsPageSource, /showReaderVolumeKeyNavigationSheet\(\)[\s\S]*仅保存偏好[\s\S]*尚未接入音量键事件[\s\S]*title: '开启（仅保存）'[\s\S]*title: '关闭'/, 'volume-key sheet must label persisted-only support until key events are wired')
 
 assert.match(
   readerPageSource,
-  /imageFitMode = preferences\.imageFitMode[\s\S]*tapNavigationEnabled = preferences\.tapNavigationEnabled[\s\S]*pageGapMode = preferences\.pageGapMode/,
+  /imageFitMode = preferences\.imageFitMode[\s\S]*tapNavigationEnabled = preferences\.tapNavigationEnabled[\s\S]*pageGapMode = preferences\.pageGapMode[\s\S]*trimPageMarginsEnabled = preferences\.trimPageMarginsEnabled/,
   'ReaderPage must apply persisted advanced settings after load',
 )
 assert.match(
@@ -115,6 +159,21 @@ assert.doesNotMatch(
   readerPageSource,
   /imageObjectFit\(\): ImageFit[\s\S]*ImageFit\.Cover/,
   'fit-width must not map to crop-prone ImageFit.Cover',
+)
+assert.match(
+  readerPageSource,
+  /private pageContainerPadding\(compact: boolean\): number[\s\S]*this\.trimPageMarginsEnabled[\s\S]*return 0[\s\S]*return compact \? 8 : 10/,
+  'trim page margins must remove only Koma page-container inset without cropping image pixels',
+)
+assert.match(
+  readerPageSource,
+  /private pageContainerRadius\(compact: boolean\): number[\s\S]*this\.trimPageMarginsEnabled[\s\S]*return 0[\s\S]*return compact \? 22 : 28/,
+  'trim page margins must not combine zero inset with rounded clipped page containers',
+)
+assert.match(
+  readerPageSource,
+  /\.padding\(this\.pageContainerPadding\(compact\)\)[\s\S]*\.clip\(true\)/,
+  'reader pages must apply trim through container padding, not image crop mode',
 )
 assert.match(
   readerPageSource,
@@ -189,7 +248,7 @@ assert.doesNotMatch(
 
 assert.match(
   backupServiceSource,
-  /imageFitMode:\s*settings\.imageFitMode \?\? DEFAULT_READER_PREFERENCES\.imageFitMode[\s\S]*tapNavigationEnabled:\s*settings\.tapNavigationEnabled \?\? DEFAULT_READER_PREFERENCES\.tapNavigationEnabled[\s\S]*pageGapMode:\s*settings\.pageGapMode \?\? DEFAULT_READER_PREFERENCES\.pageGapMode/,
+  /imageFitMode:\s*settings\.imageFitMode \?\? DEFAULT_READER_PREFERENCES\.imageFitMode[\s\S]*tapNavigationEnabled:\s*settings\.tapNavigationEnabled \?\? DEFAULT_READER_PREFERENCES\.tapNavigationEnabled[\s\S]*pageGapMode:\s*settings\.pageGapMode \?\? DEFAULT_READER_PREFERENCES\.pageGapMode[\s\S]*trimPageMarginsEnabled:\s*settings\.trimPageMarginsEnabled \?\? DEFAULT_READER_PREFERENCES\.trimPageMarginsEnabled[\s\S]*volumeKeyNavigationEnabled:\s*settings\.volumeKeyNavigationEnabled \?\? DEFAULT_READER_PREFERENCES\.volumeKeyNavigationEnabled/,
   'backup import must preserve backward compatibility while restoring advanced reader settings',
 )
 
