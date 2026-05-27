@@ -6,6 +6,10 @@ export interface NaturalSortToken {
   numberValue?: number
 }
 
+export function normalizeSortKey(value: string): string {
+  return value.trim().toLocaleLowerCase()
+}
+
 function normalizePathSeparator(value: string): string {
   return value.replace(/\\/g, '/')
 }

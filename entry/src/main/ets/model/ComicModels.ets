@@ -1,3 +1,5 @@
+import { LocalLibraryStoredMetadata } from './LocalLibraryMetadataService'
+
 export type ComicId = string
 export type ChapterId = string
 export type PageId = string
@@ -59,6 +61,7 @@ export interface Comic {
   remoteServerId?: string
   remoteResourceId?: string
   coverUri?: string
+  localMetadata?: LocalLibraryStoredMetadata
   sortTitle: string
   preferredDirection: ReadingDirection
   chapters: Chapter[]
@@ -192,6 +195,9 @@ export function withComicCategoryIds(comic: Comic, categoryIds?: string[]): Comi
   }
   if (comic.coverUri !== undefined) {
     nextComic.coverUri = comic.coverUri
+  }
+  if (comic.localMetadata !== undefined) {
+    nextComic.localMetadata = comic.localMetadata
   }
   if (normalizedCategoryIds.length > 0) {
     nextComic.categoryIds = normalizedCategoryIds

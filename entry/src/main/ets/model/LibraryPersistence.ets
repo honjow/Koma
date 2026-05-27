@@ -22,6 +22,10 @@ import {
   LibraryCategoryDisplayStrategy,
   LibraryStore,
 } from './LibraryStore'
+import {
+  LocalLibraryStoredMetadata,
+  normalizeLocalLibraryStoredMetadata,
+} from './LocalLibraryMetadataService'
 
 export const LIBRARY_STORE_PERSISTENCE_SCHEMA_VERSION = 1
 export const LIBRARY_STORE_PERSISTENCE_FILE_NAME = 'library-store.v1.json'
@@ -60,6 +64,7 @@ export interface PersistedComic {
   remoteServerId?: string
   remoteResourceId?: string
   coverUri?: string
+  localMetadata?: LocalLibraryStoredMetadata
   sortTitle: string
   preferredDirection: ReadingDirection
   chapters: PersistedChapter[]
@@ -210,6 +215,9 @@ export function persistComic(comic: Comic): PersistedComic {
   if (comic.coverUri !== undefined) {
     row.coverUri = comic.coverUri
   }
+  if (comic.localMetadata !== undefined) {
+    row.localMetadata = normalizeLocalLibraryStoredMetadata(comic.localMetadata as Object)
+  }
   return row
 }
 
@@ -251,6 +259,9 @@ export function hydrateComic(row: PersistedComic): Comic {
   }
   if (row.coverUri !== undefined) {
     comic.coverUri = row.coverUri
+  }
+  if (row.localMetadata !== undefined) {
+    comic.localMetadata = normalizeLocalLibraryStoredMetadata(row.localMetadata as Object)
   }
   return comic
 }
@@ -405,6 +416,9 @@ function assertValidPersistedComic(row: PersistedComic): void {
   assertOptionalStringField(row.remoteServerId, 'comic.remoteServerId')
   assertOptionalStringField(row.remoteResourceId, 'comic.remoteResourceId')
   assertOptionalStringField(row.coverUri, 'comic.coverUri')
+  if (row.localMetadata !== undefined) {
+    normalizeLocalLibraryStoredMetadata(row.localMetadata as Object)
+  }
   assertStringField(row.sortTitle, 'comic.sortTitle')
   assertReadingDirection(row.preferredDirection, 'comic.preferredDirection')
   if (!Array.isArray(row.chapters)) {
