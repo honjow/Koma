@@ -636,22 +636,26 @@ export function prefetchReaderRemoteImage(source: ReaderPageRenderSource): void 
 }
 
 export function createReaderUriDiagnostics(uri: string, pageIndex: number = 0): ReaderPageRenderDiagnostics {
-  const normalized = normalizeReaderPageUri(uri)
+  const source = createReaderUriRenderSource(uri, pageIndex)
+  return createReaderSourceDiagnostics(source)
+}
+
+function createReaderSourceDiagnostics(source: ReaderPageRenderSource): ReaderPageRenderDiagnostics {
+  const normalized = normalizeReaderPageUri(source.uri)
   const path = stripFileUriScheme(normalized)
   const decodedPath = decodeFileUriPath(path)
-  const source = createReaderUriRenderSource(uri, pageIndex)
-  const imageSource = source.imageUri.length > 0 ? source.imageUri : ''
+  const imageSource = source.imageUri.length > 0 ? source.imageUri : normalized
   return {
-    pageIndex,
+    pageIndex: source.fallbackPageIndex,
     kind: source.kind,
     imageSourceForm: getReaderImageSourceForm(source),
     hasFileScheme: normalized.startsWith('file://'),
     hasRawFragmentOrQuery: normalized.includes('#') || normalized.includes('?'),
     matchedSandboxRoot: decodedPath.length > 0 ? matchReaderSandboxRoot(decodedPath) : 'none',
-    extension: getReaderUriExtension(uri),
+    extension: getReaderUriExtension(source.uri),
     uriHash: createShortReaderHash(normalized),
-    sourceHash: createShortReaderHash(imageSource.length > 0 ? imageSource : normalized),
-    redactedTail: createReaderRedactedTail(uri),
+    sourceHash: createShortReaderHash(imageSource),
+    redactedTail: createReaderRedactedTail(source.uri),
   }
 }
 
@@ -671,5 +675,5 @@ export function createReaderPageRenderSource(config: ReaderSessionConfig, pageIn
 }
 
 export function createReaderPageRenderDiagnostics(config: ReaderSessionConfig, pageIndex: number): ReaderPageRenderDiagnostics {
-  return createReaderUriDiagnostics(getReaderSessionPageUri(config, pageIndex), pageIndex)
+  return createReaderSourceDiagnostics(createReaderPageRenderSource(config, pageIndex))
 }
