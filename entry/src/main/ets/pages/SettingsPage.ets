@@ -50,6 +50,7 @@ import {
   ReaderPageGapMode,
   ReaderPageMode,
   ReaderPreferencesStore,
+  ReaderTapZonePreset,
   ReaderThemeMode,
   ReaderWideImageMode,
   applyReaderThemeMode,
@@ -60,6 +61,7 @@ import {
   getReaderPageModeLabel,
   getReaderProgressControlsLabel,
   getReaderTapNavigationLabel,
+  getReaderTapZonePresetLabel,
   getReaderThemeModeLabel,
   getReaderTrimPageMarginsLabel,
   getReaderWideImageModeLabel,
@@ -101,6 +103,7 @@ const SETTINGS_SECTIONS: SettingsSection[] = [
       { key: 'reader-keep-screen-awake', title: '屏幕常亮', detail: '开启' },
       { key: 'reader-image-fit', title: '图片适配', detail: '适合屏幕' },
       { key: 'reader-tap-navigation', title: '点击翻页', detail: '开启' },
+      { key: 'reader-tap-zone-preset', title: '点击区域', detail: '窄边缘' },
       { key: 'reader-page-gap', title: '页面间距', detail: '标准' },
       { key: 'reader-trim-page-margins', title: '收紧页边（不裁图）', detail: '关闭' },
       { key: 'reader-wide-image-mode', title: '宽图处理', detail: '保持单页' },
@@ -166,6 +169,7 @@ export struct SettingsPage {
   @State private keepReaderScreenAwake: boolean = true
   @State private readerImageFitMode: ReaderImageFitMode = 'contain'
   @State private readerTapNavigationEnabled: boolean = true
+  @State private readerTapZonePreset: ReaderTapZonePreset = 'edge'
   @State private readerPageGapMode: ReaderPageGapMode = 'normal'
   @State private readerTrimPageMarginsEnabled: boolean = false
   @State private readerWideImageMode: ReaderWideImageMode = 'keep_single'
@@ -218,6 +222,9 @@ export struct SettingsPage {
     }
     if (row.key === 'reader-tap-navigation') {
       return getReaderTapNavigationLabel(this.readerTapNavigationEnabled)
+    }
+    if (row.key === 'reader-tap-zone-preset') {
+      return getReaderTapZonePresetLabel(this.readerTapZonePreset)
     }
     if (row.key === 'reader-page-gap') {
       return getReaderPageGapModeLabel(this.readerPageGapMode)
@@ -341,6 +348,7 @@ export struct SettingsPage {
         this.keepReaderScreenAwake = preferences.keepScreenAwake
         this.readerImageFitMode = preferences.imageFitMode
         this.readerTapNavigationEnabled = preferences.tapNavigationEnabled
+        this.readerTapZonePreset = preferences.tapZonePreset
         this.readerPageGapMode = preferences.pageGapMode
         this.readerTrimPageMarginsEnabled = preferences.trimPageMarginsEnabled
         this.readerWideImageMode = preferences.wideImageMode
@@ -641,6 +649,29 @@ export struct SettingsPage {
       })
       .catch((error: Error) => {
         console.warn('[Settings] step=save_reader_tap_navigation_failed message=' + error.message)
+      })
+  }
+
+  private showReaderTapZonePresetSheet(): void {
+    console.info('[Settings] step=reader_tap_zone_preset_sheet')
+    this.getUIContext().showActionSheet({
+      title: '点击区域',
+      message: '选择左右翻页点击区域大小，中间区域仍用于显示或隐藏工具栏。',
+      sheets: [
+        { title: '窄边缘', action: () => { this.saveReaderTapZonePreset('edge') } },
+        { title: '宽侧区', action: () => { this.saveReaderTapZonePreset('wide_edges') } },
+      ],
+    })
+  }
+
+  private saveReaderTapZonePreset(tapZonePreset: ReaderTapZonePreset): void {
+    this.readerTapZonePreset = tapZonePreset
+    void this.preferencesStore().saveTapZonePreset(tapZonePreset)
+      .then(() => {
+        console.info('[Settings] step=save_reader_tap_zone_preset value=' + tapZonePreset)
+      })
+      .catch((error: Error) => {
+        console.warn('[Settings] step=save_reader_tap_zone_preset_failed message=' + error.message)
       })
   }
 
@@ -1036,6 +1067,8 @@ export struct SettingsPage {
       this.showReaderImageFitSheet()
     } else if (row.key === 'reader-tap-navigation') {
       this.showReaderTapNavigationSheet()
+    } else if (row.key === 'reader-tap-zone-preset') {
+      this.showReaderTapZonePresetSheet()
     } else if (row.key === 'reader-page-gap') {
       this.showReaderPageGapSheet()
     } else if (row.key === 'reader-trim-page-margins') {
