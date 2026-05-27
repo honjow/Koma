@@ -33,6 +33,11 @@ import {
   isEncryptedBackupPayload,
   previewEncryptedBackupEnvelope,
 } from './BackupEncryptionService'
+import {
+  LocalLibraryMetadataBackupEntry,
+  exportLocalLibraryMetadataBackupEntries,
+  restoreLocalLibraryMetadataBackupEntries,
+} from './LocalLibraryMetadataService'
 
 export const BACKUP_SCHEMA_VERSION: number = 3
 export const BACKUP_ENCRYPTED_SCHEMA_VERSION: number = BACKUP_ENCRYPTED_CONTENT_SCHEMA_VERSION
@@ -95,6 +100,7 @@ interface KomaBackupDocument {
   exportedAt: number
   encryption: BackupEncryptionMetadata
   libraryStore: string
+  localLibraryMetadata?: LocalLibraryMetadataBackupEntry[]
   readingProgress: string
   remoteServers: RemoteServerBackupDocument
   sourcePackages?: SourcePackageBackupEntry[]
@@ -302,6 +308,7 @@ export class BackupService {
       settings: await new ReaderPreferencesStore(this.context).load(),
       sourceIndexUrl: await this.exportSourceIndexUrl(),
     }
+    document.localLibraryMetadata = exportLocalLibraryMetadataBackupEntries(document.libraryStore)
     console.info('[Backup] step=export_json')
     return document
   }
@@ -325,9 +332,10 @@ export class BackupService {
     if (typeof document.libraryStore !== 'string' || typeof document.readingProgress !== 'string') {
       throw new Error('Invalid backup payload')
     }
-    assertValidLibraryStoreJson(document.libraryStore)
+    const libraryStorePayload = restoreLocalLibraryMetadataBackupEntries(document.libraryStore, document.localLibraryMetadata)
+    assertValidLibraryStoreJson(libraryStorePayload)
     JSON.parse(document.readingProgress)
-    writeText(this.libraryPath(), document.libraryStore)
+    writeText(this.libraryPath(), libraryStorePayload)
     writeText(this.readerProgressPath(), document.readingProgress)
     await this.importRemoteServers(document.remoteServers)
     if (document.schemaVersion >= BACKUP_SCHEMA_VERSION) {

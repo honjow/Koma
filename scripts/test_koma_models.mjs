@@ -1407,8 +1407,8 @@ assert.doesNotMatch(
 )
 assert.match(
   backupServiceSource,
-  /assertValidLibraryStoreJson\(document\.libraryStore\)[\s\S]*JSON\.parse\(document\.readingProgress\)[\s\S]*writeText\(this\.libraryPath\(\), document\.libraryStore\)/,
-  'backup import must validate embedded libraryStore with production parser before writing restored categories',
+  /const libraryStorePayload = restoreLocalLibraryMetadataBackupEntries\(document\.libraryStore, document\.localLibraryMetadata\)[\s\S]*assertValidLibraryStoreJson\(libraryStorePayload\)[\s\S]*JSON\.parse\(document\.readingProgress\)[\s\S]*writeText\(this\.libraryPath\(\), libraryStorePayload\)/,
+  'backup import must validate embedded libraryStore plus restored local metadata with production parser before writing restored categories',
 )
 assert.match(
   backupServiceSource,

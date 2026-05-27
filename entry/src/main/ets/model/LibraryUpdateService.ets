@@ -204,6 +204,9 @@ function updatedComicWithChapters(comic: Comic, chapters: Chapter[], now: number
   if (comic.coverUri !== undefined) {
     nextComic.coverUri = comic.coverUri
   }
+  if (comic.localMetadata !== undefined) {
+    nextComic.localMetadata = comic.localMetadata
+  }
   return nextComic
 }
 

@@ -288,6 +288,12 @@ function createSeries(seriesPath: string, candidates: ChapterCandidate[]): Local
   }
 }
 
+function addChapterCandidate(candidatesBySeriesPath: Map<string, ChapterCandidate[]>, candidate: ChapterCandidate): void {
+  const candidates = candidatesBySeriesPath.get(candidate.seriesPath) ?? []
+  candidates.push(candidate)
+  candidatesBySeriesPath.set(candidate.seriesPath, candidates)
+}
+
 export function scanLocalLibraryFolderEntries(entries: LocalLibraryFolderEntry[], rootName?: string): LocalLibraryFolderScanResult {
   const rejectedEntries: LocalLibraryFolderRejectedEntry[] = []
   const normalizedEntries = normalizeEntries(entries, rejectedEntries)
@@ -331,16 +337,10 @@ export function scanLocalLibraryFolderEntries(entries: LocalLibraryFolderEntry[]
   })
 
   const candidatesBySeriesPath = new Map<string, ChapterCandidate[]>()
-  function addCandidate(candidate: ChapterCandidate): void {
-    const candidates = candidatesBySeriesPath.get(candidate.seriesPath) ?? []
-    candidates.push(candidate)
-    candidatesBySeriesPath.set(candidate.seriesPath, candidates)
-  }
-
   archiveEntries.forEach((entry: NormalizedLocalLibraryEntry) => {
     const parentPath = dirname(entry.relativePath)
     const seriesPath = parentPath.length === 0 ? stripExtension(entry.relativePath) : parentPath
-    addCandidate({
+    addChapterCandidate(candidatesBySeriesPath, {
       kind: 'archive',
       seriesPath,
       chapterPath: entry.relativePath,
@@ -349,7 +349,7 @@ export function scanLocalLibraryFolderEntries(entries: LocalLibraryFolderEntry[]
     })
   })
   Array.from(imageFolders.values()).forEach((group: ImageFolderGroup) => {
-    addCandidate(inferImageFolderChapter(group, childChapterCounts))
+    addChapterCandidate(candidatesBySeriesPath, inferImageFolderChapter(group, childChapterCounts))
   })
 
   const series = Array.from(candidatesBySeriesPath.keys())
