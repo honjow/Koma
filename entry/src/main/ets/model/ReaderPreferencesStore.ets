@@ -7,6 +7,7 @@ export type ReaderPageMode = 'single_page' | 'double_page' | 'continuous_scroll'
 export type ReaderThemeMode = 'system' | 'light' | 'dark'
 export type ReaderBackgroundMode = 'black' | 'paper' | 'light'
 export type ReaderImageFitMode = 'contain' | 'fit_width'
+export type ReaderTapZonePreset = 'edge' | 'wide_edges'
 export type ReaderPageGapMode = 'compact' | 'normal' | 'wide'
 export type ReaderWideImageMode = 'keep_single' | 'rotate_wide_pages' | 'split_wide_pages'
 
@@ -19,6 +20,7 @@ export interface ReaderPreferences {
   keepScreenAwake: boolean
   imageFitMode: ReaderImageFitMode
   tapNavigationEnabled: boolean
+  tapZonePreset: ReaderTapZonePreset
   pageGapMode: ReaderPageGapMode
   trimPageMarginsEnabled: boolean
   wideImageMode: ReaderWideImageMode
@@ -34,6 +36,7 @@ export const SHOW_PROGRESS_CONTROLS_KEY: string = 'reader.showProgressControls'
 export const KEEP_SCREEN_AWAKE_KEY: string = 'reader.keepScreenAwake'
 export const IMAGE_FIT_MODE_KEY: string = 'reader.imageFitMode'
 export const TAP_NAVIGATION_ENABLED_KEY: string = 'reader.tapNavigationEnabled'
+export const TAP_ZONE_PRESET_KEY: string = 'reader.tapZonePreset'
 export const PAGE_GAP_MODE_KEY: string = 'reader.pageGapMode'
 export const TRIM_PAGE_MARGINS_ENABLED_KEY: string = 'reader.trimPageMarginsEnabled'
 export const WIDE_IMAGE_MODE_KEY: string = 'reader.wideImageMode'
@@ -48,6 +51,7 @@ export const DEFAULT_READER_PREFERENCES: ReaderPreferences = {
   keepScreenAwake: true,
   imageFitMode: 'contain',
   tapNavigationEnabled: true,
+  tapZonePreset: 'edge',
   pageGapMode: 'normal',
   trimPageMarginsEnabled: false,
   wideImageMode: 'keep_single',
@@ -80,6 +84,13 @@ export function normalizeReaderImageFitMode(value: string): ReaderImageFitMode {
     return value
   }
   return 'contain'
+}
+
+export function normalizeReaderTapZonePreset(value: string): ReaderTapZonePreset {
+  if (value === 'wide_edges') {
+    return value
+  }
+  return 'edge'
 }
 
 export function normalizeReaderPageGapMode(value: string): ReaderPageGapMode {
@@ -197,6 +208,13 @@ export function getReaderTapNavigationLabel(tapNavigationEnabled: boolean): stri
   return tapNavigationEnabled ? '开启' : '关闭'
 }
 
+export function getReaderTapZonePresetLabel(preset: ReaderTapZonePreset): string {
+  if (preset === 'wide_edges') {
+    return '宽侧区'
+  }
+  return '窄边缘'
+}
+
 export function getReaderPageGapModeLabel(mode: ReaderPageGapMode): string {
   if (mode === 'compact') {
     return '紧凑'
@@ -265,6 +283,7 @@ export class ReaderPreferencesStore {
     const imageFitMode = await store.get(IMAGE_FIT_MODE_KEY, DEFAULT_READER_PREFERENCES.imageFitMode) as string
     const tapNavigationEnabled =
       await store.get(TAP_NAVIGATION_ENABLED_KEY, DEFAULT_READER_PREFERENCES.tapNavigationEnabled) as boolean | string | number
+    const tapZonePreset = await store.get(TAP_ZONE_PRESET_KEY, DEFAULT_READER_PREFERENCES.tapZonePreset) as string
     const pageGapMode = await store.get(PAGE_GAP_MODE_KEY, DEFAULT_READER_PREFERENCES.pageGapMode) as string
     const trimPageMarginsEnabled =
       await store.get(TRIM_PAGE_MARGINS_ENABLED_KEY, DEFAULT_READER_PREFERENCES.trimPageMarginsEnabled) as boolean | string | number
@@ -280,6 +299,7 @@ export class ReaderPreferencesStore {
       keepScreenAwake: normalizeReaderKeepScreenAwake(keepScreenAwake),
       imageFitMode: normalizeReaderImageFitMode(imageFitMode),
       tapNavigationEnabled: normalizeReaderTapNavigationEnabled(tapNavigationEnabled),
+      tapZonePreset: normalizeReaderTapZonePreset(tapZonePreset),
       pageGapMode: normalizeReaderPageGapMode(pageGapMode),
       trimPageMarginsEnabled: normalizeReaderTrimPageMarginsEnabled(trimPageMarginsEnabled),
       wideImageMode: normalizeReaderWideImageMode(wideImageMode),
@@ -335,6 +355,12 @@ export class ReaderPreferencesStore {
     await store.flush()
   }
 
+  async saveTapZonePreset(tapZonePreset: ReaderTapZonePreset): Promise<void> {
+    const store = await this.preferences()
+    await store.put(TAP_ZONE_PRESET_KEY, normalizeReaderTapZonePreset(tapZonePreset))
+    await store.flush()
+  }
+
   async savePageGapMode(pageGapMode: ReaderPageGapMode): Promise<void> {
     const store = await this.preferences()
     await store.put(PAGE_GAP_MODE_KEY, normalizeReaderPageGapMode(pageGapMode))
@@ -369,6 +395,7 @@ export class ReaderPreferencesStore {
     await store.put(KEEP_SCREEN_AWAKE_KEY, normalizeReaderKeepScreenAwake(preferences.keepScreenAwake))
     await store.put(IMAGE_FIT_MODE_KEY, normalizeReaderImageFitMode(preferences.imageFitMode))
     await store.put(TAP_NAVIGATION_ENABLED_KEY, normalizeReaderTapNavigationEnabled(preferences.tapNavigationEnabled))
+    await store.put(TAP_ZONE_PRESET_KEY, normalizeReaderTapZonePreset(preferences.tapZonePreset))
     await store.put(PAGE_GAP_MODE_KEY, normalizeReaderPageGapMode(preferences.pageGapMode))
     await store.put(TRIM_PAGE_MARGINS_ENABLED_KEY, normalizeReaderTrimPageMarginsEnabled(preferences.trimPageMarginsEnabled))
     await store.put(WIDE_IMAGE_MODE_KEY, normalizeReaderWideImageMode(preferences.wideImageMode))

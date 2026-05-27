@@ -20,6 +20,11 @@ assert.match(
 )
 assert.match(
   readerPreferencesStoreSource,
+  /export type ReaderTapZonePreset = 'edge' \| 'wide_edges'/,
+  'reader preferences must model persisted tap-zone preset choices',
+)
+assert.match(
+  readerPreferencesStoreSource,
   /export type ReaderPageGapMode = 'compact' \| 'normal' \| 'wide'/,
   'reader preferences must model persisted page gap choices',
 )
@@ -37,6 +42,11 @@ assert.match(
   readerPreferencesStoreSource,
   /TAP_NAVIGATION_ENABLED_KEY:\s*string = 'reader\.tapNavigationEnabled'/,
   'tap navigation setting must have a stable persistence key',
+)
+assert.match(
+  readerPreferencesStoreSource,
+  /TAP_ZONE_PRESET_KEY:\s*string = 'reader\.tapZonePreset'/,
+  'tap zone preset must have a stable persistence key',
 )
 assert.match(
   readerPreferencesStoreSource,
@@ -60,8 +70,8 @@ assert.match(
 )
 assert.match(
   readerPreferencesStoreSource,
-  /DEFAULT_READER_PREFERENCES:[\s\S]*imageFitMode:\s*'contain'[\s\S]*tapNavigationEnabled:\s*true[\s\S]*pageGapMode:\s*'normal'[\s\S]*trimPageMarginsEnabled:\s*false[\s\S]*wideImageMode:\s*'keep_single'[\s\S]*volumeKeyNavigationEnabled:\s*false/,
-  'new reader settings must default to current contain fit, enabled tap navigation, normal spacing, no trim, keep-wide-as-single-page, and no volume-key navigation',
+  /DEFAULT_READER_PREFERENCES:[\s\S]*imageFitMode:\s*'contain'[\s\S]*tapNavigationEnabled:\s*true[\s\S]*tapZonePreset:\s*'edge'[\s\S]*pageGapMode:\s*'normal'[\s\S]*trimPageMarginsEnabled:\s*false[\s\S]*wideImageMode:\s*'keep_single'[\s\S]*volumeKeyNavigationEnabled:\s*false/,
+  'new reader settings must default to current contain fit, enabled narrow-edge tap navigation, normal spacing, no trim, keep-wide-as-single-page, and no volume-key navigation',
 )
 assert.match(
   readerPreferencesStoreSource,
@@ -72,6 +82,11 @@ assert.match(
   readerPreferencesStoreSource,
   /normalizeReaderTapNavigationEnabled\(value: boolean \| string \| number\)[\s\S]*value === false[\s\S]*return false[\s\S]*return true/,
   'tap navigation loading must default to enabled for older preference stores',
+)
+assert.match(
+  readerPreferencesStoreSource,
+  /normalizeReaderTapZonePreset\(value: string\): ReaderTapZonePreset[\s\S]*value === 'wide_edges'[\s\S]*return value[\s\S]*return 'edge'/,
+  'tap zone preset loading must normalize unsupported values back to the current narrow-edge behavior',
 )
 assert.match(
   readerPreferencesStoreSource,
@@ -100,6 +115,11 @@ assert.match(
 )
 assert.match(
   readerPreferencesStoreSource,
+  /getReaderTapZonePresetLabel\(preset: ReaderTapZonePreset\): string \{[\s\S]*preset === 'wide_edges'[\s\S]*return '宽侧区'[\s\S]*return '窄边缘'/,
+  'tap zone preset labels must be user-facing names instead of internal enum values',
+)
+assert.match(
+  readerPreferencesStoreSource,
   /store\.get\(IMAGE_FIT_MODE_KEY, DEFAULT_READER_PREFERENCES\.imageFitMode\)/,
   'reader preferences load must read persisted image fit mode',
 )
@@ -107,6 +127,11 @@ assert.match(
   readerPreferencesStoreSource,
   /store\.get\(TAP_NAVIGATION_ENABLED_KEY, DEFAULT_READER_PREFERENCES\.tapNavigationEnabled\)/,
   'reader preferences load must read persisted tap navigation setting',
+)
+assert.match(
+  readerPreferencesStoreSource,
+  /store\.get\(TAP_ZONE_PRESET_KEY, DEFAULT_READER_PREFERENCES\.tapZonePreset\)/,
+  'reader preferences load must read persisted tap zone preset',
 )
 assert.match(
   readerPreferencesStoreSource,
@@ -140,6 +165,11 @@ assert.match(
 )
 assert.match(
   readerPreferencesStoreSource,
+  /async saveTapZonePreset\(tapZonePreset: ReaderTapZonePreset\)/,
+  'reader preferences store must persist tap zone preset independently',
+)
+assert.match(
+  readerPreferencesStoreSource,
   /async savePageGapMode\(pageGapMode: ReaderPageGapMode\)/,
   'reader preferences store must persist page gap independently',
 )
@@ -161,12 +191,14 @@ assert.match(
 
 assert.match(settingsPageSource, /key: 'reader-image-fit', title: '图片适配'/, 'Settings must expose an image fit row')
 assert.match(settingsPageSource, /key: 'reader-tap-navigation', title: '点击翻页'/, 'Settings must expose a tap navigation row')
+assert.match(settingsPageSource, /key: 'reader-tap-zone-preset', title: '点击区域'/, 'Settings must expose a tap-zone preset row')
 assert.match(settingsPageSource, /key: 'reader-page-gap', title: '页面间距'/, 'Settings must expose a page gap row')
 assert.match(settingsPageSource, /key: 'reader-trim-page-margins', title: '收紧页边（不裁图）'/, 'Settings must expose an honest non-cropping trim row')
 assert.match(settingsPageSource, /key: 'reader-wide-image-mode', title: '宽图处理'/, 'Settings must expose a wide image handling row')
 assert.match(settingsPageSource, /key: 'reader-volume-key-navigation', title: '音量键翻页'/, 'Settings must expose a volume-key navigation preference row')
 assert.match(settingsPageSource, /showReaderImageFitSheet\(\)[\s\S]*title: '适合屏幕'[\s\S]*title: '适合宽度'/, 'image fit sheet must expose contain and fit-width choices')
 assert.match(settingsPageSource, /showReaderTapNavigationSheet\(\)[\s\S]*title: '开启'[\s\S]*title: '关闭'/, 'tap navigation sheet must expose on/off choices')
+assert.match(settingsPageSource, /showReaderTapZonePresetSheet\(\)[\s\S]*中间区域仍用于显示或隐藏工具栏[\s\S]*title: '窄边缘'[\s\S]*title: '宽侧区'/, 'tap zone preset sheet must expose user-facing preset names and preserve center chrome behavior')
 assert.match(settingsPageSource, /showReaderPageGapSheet\(\)[\s\S]*title: '紧凑'[\s\S]*title: '标准'[\s\S]*title: '宽松'/, 'page gap sheet must expose compact, normal, and wide choices')
 assert.match(settingsPageSource, /showReaderTrimPageMarginsSheet\(\)[\s\S]*不裁切漫画图片内容[\s\S]*title: '开启'[\s\S]*title: '关闭'/, 'trim sheet must honestly describe the non-cropping container behavior')
 assert.match(
@@ -178,8 +210,13 @@ assert.match(settingsPageSource, /showReaderVolumeKeyNavigationSheet\(\)[\s\S]*�
 
 assert.match(
   readerPageSource,
-  /imageFitMode = preferences\.imageFitMode[\s\S]*tapNavigationEnabled = preferences\.tapNavigationEnabled[\s\S]*pageGapMode = preferences\.pageGapMode[\s\S]*trimPageMarginsEnabled = preferences\.trimPageMarginsEnabled[\s\S]*wideImageMode = preferences\.wideImageMode/,
+  /imageFitMode = preferences\.imageFitMode[\s\S]*tapNavigationEnabled = preferences\.tapNavigationEnabled[\s\S]*tapZonePreset = preferences\.tapZonePreset[\s\S]*pageGapMode = preferences\.pageGapMode[\s\S]*trimPageMarginsEnabled = preferences\.trimPageMarginsEnabled[\s\S]*wideImageMode = preferences\.wideImageMode/,
   'ReaderPage must apply persisted advanced settings after load',
+)
+assert.match(
+  readerPageSource,
+  /@Link @Watch\('onReaderOpenChanged'\) readerOpen: boolean[\s\S]*private onReaderOpenChanged\(\): void[\s\S]*if \(this\.readerOpen\) \{[\s\S]*this\.loadReaderPreferences\(\)/,
+  'ReaderPage must reload reader preferences when the reader is opened so setting changes apply without app restart',
 )
 assert.match(
   readerPageSource,
@@ -338,8 +375,8 @@ assert.match(
 )
 assert.match(
   readerPageSource,
-  /private tapEdgeZoneWidth\(\): string[\s\S]*this\.tapNavigationEnabled[\s\S]*return '18%'[\s\S]*return '0%'/,
-  'tap navigation must use narrower explicit edge zones when enabled and ordinary full-surface chrome toggling when disabled',
+  /private tapEdgeZoneWidth\(\): string[\s\S]*!this\.tapNavigationEnabled[\s\S]*return '0%'[\s\S]*this\.tapZonePreset === 'wide_edges'[\s\S]*return '32%'[\s\S]*return '18%'/,
+  'tap navigation must use the persisted tap-zone preset for hit-test widths while preserving the current default edge width',
 )
 assert.match(
   readerPageSource,
@@ -354,7 +391,7 @@ assert.doesNotMatch(
 
 assert.match(
   backupServiceSource,
-  /imageFitMode:\s*settings\.imageFitMode \?\? DEFAULT_READER_PREFERENCES\.imageFitMode[\s\S]*tapNavigationEnabled:\s*settings\.tapNavigationEnabled \?\? DEFAULT_READER_PREFERENCES\.tapNavigationEnabled[\s\S]*pageGapMode:\s*settings\.pageGapMode \?\? DEFAULT_READER_PREFERENCES\.pageGapMode[\s\S]*trimPageMarginsEnabled:\s*settings\.trimPageMarginsEnabled \?\? DEFAULT_READER_PREFERENCES\.trimPageMarginsEnabled[\s\S]*wideImageMode:\s*settings\.wideImageMode \?\? DEFAULT_READER_PREFERENCES\.wideImageMode[\s\S]*volumeKeyNavigationEnabled:\s*settings\.volumeKeyNavigationEnabled \?\? DEFAULT_READER_PREFERENCES\.volumeKeyNavigationEnabled/,
+  /imageFitMode:\s*settings\.imageFitMode \?\? DEFAULT_READER_PREFERENCES\.imageFitMode[\s\S]*tapNavigationEnabled:\s*settings\.tapNavigationEnabled \?\? DEFAULT_READER_PREFERENCES\.tapNavigationEnabled[\s\S]*tapZonePreset:\s*settings\.tapZonePreset \?\? DEFAULT_READER_PREFERENCES\.tapZonePreset[\s\S]*pageGapMode:\s*settings\.pageGapMode \?\? DEFAULT_READER_PREFERENCES\.pageGapMode[\s\S]*trimPageMarginsEnabled:\s*settings\.trimPageMarginsEnabled \?\? DEFAULT_READER_PREFERENCES\.trimPageMarginsEnabled[\s\S]*wideImageMode:\s*settings\.wideImageMode \?\? DEFAULT_READER_PREFERENCES\.wideImageMode[\s\S]*volumeKeyNavigationEnabled:\s*settings\.volumeKeyNavigationEnabled \?\? DEFAULT_READER_PREFERENCES\.volumeKeyNavigationEnabled/,
   'backup import must preserve backward compatibility while restoring advanced reader settings',
 )
 
