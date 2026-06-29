@@ -50,7 +50,7 @@ Koma 已经具备本地/私有库优先漫画阅读器的主骨架：书架、Re
 
 验收：
 - 静态/脚本测试覆盖完整下载、缺页、损坏 manifest、重复下载 idempotent。
-- `bash dev.sh --build-only --non-interactive` PASS。
+- Linux host: `bash dev.sh --build-only --non-interactive` PASS。
 - 如 UI 有可见变化，103 设备 QA 截图 + layout。
 
 ### D34：离线 Reader QA
@@ -358,14 +358,14 @@ Koma 已经具备本地/私有库优先漫画阅读器的主骨架：书架、Re
 ### D57：Release build lane
 
 交付：
-- release bundle pipeline。
+- release build pipeline。
 - signing separation。
 - artifact naming。
 - install smoke。
 
 验收：
 - release build PASS。
-- debug/release bundleId 不混。
+- debug/release 共用 `com.honjow.koma` bundleId。
 
 ## 当前自主推进队列
 

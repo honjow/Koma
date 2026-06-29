@@ -49,13 +49,13 @@ case "$auth_code" in
   0) ;;
   2)
     cat > "$LANE_ART/result.json" <<JSON
-{"verdict":"BLOCKED","blocked_reason":"signing_auth_missing","artifact_dir":"$LANE_ART","action_required":"in main repo run: bash dev.sh --build-only (manual browser login)"}
+{"verdict":"BLOCKED","blocked_reason":"signing_auth_missing","artifact_dir":"$LANE_ART","action_required":"on Linux host, in main repo run: bash dev.sh --build-only (manual browser login)"}
 JSON
     echo "lane-preflight: AUTH_FILE missing → BLOCKED" >&2
     exit 1 ;;
   3)
     cat > "$LANE_ART/result.json" <<JSON
-{"verdict":"BLOCKED","blocked_reason":"signing_token_expired","artifact_dir":"$LANE_ART","action_required":"in main repo run: bash dev.sh --build-only (refresh Huawei AGC token via browser)"}
+{"verdict":"BLOCKED","blocked_reason":"signing_token_expired","artifact_dir":"$LANE_ART","action_required":"on Linux host, in main repo run: bash dev.sh --build-only (refresh Huawei AGC token via browser)"}
 JSON
     echo "lane-preflight: signing token expired → BLOCKED" >&2
     exit 1 ;;

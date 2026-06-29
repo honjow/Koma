@@ -45,15 +45,15 @@ Artifact 目录规范见 `docs/CONTROLLER_ARTIFACTS.md`。
 
 范围：
 
-- 保持 `dev.sh` 与 V2Next 完整开发流程一致。
+- 保持 Linux 开发机 `dev.sh` 与 V2Next 完整开发流程一致；macOS 不使用 `dev.sh`。
 - 检查 `--build-only`、`--refresh`、`--no-build`、`--launch`、`--log`。
 - 确认 ignored 签名材料不提交。
 
 验收：
 
 - `bash -n dev.sh` PASS。
-- `bash dev.sh --build-only --non-interactive` PASS。
-- `bash dev.sh -d 192.168.50.103:12345` PASS。
+- Linux host: `bash dev.sh --build-only --non-interactive` PASS。
+- Linux host: `bash dev.sh -d 192.168.50.103:12345` PASS。
 - git status 只剩 ignored build/sign artifacts。
 
 状态：已基本完成；后续只做回归。

@@ -30,7 +30,7 @@ HDC         = Path("/home/gamer/devtool/ohos/command-line-tools/sdk/default/open
 UNSIGNED_HAP = PROJ / "entry/build/default/outputs/default/entry-default-unsigned.hap"
 SIGNED_HAP  = PROJ / "entry/build/default/outputs/default/entry-default-signed.hap"
 
-BUNDLE_NAME = "com.honjow.koma.dev"
+BUNDLE_NAME = "com.honjow.koma"
 
 
 def _required_env(key: str) -> str:
@@ -38,7 +38,7 @@ def _required_env(key: str) -> str:
     if not v:
         sys.exit(
             f"sign.py: missing required env {key}. "
-            "Source scripts/dev.env first (e.g. `source scripts/dev.env` or run via dev.sh)."
+            "Source scripts/dev.env first (e.g. `source scripts/dev.env`; dev.sh is Linux-only)."
         )
     return v
 
@@ -406,8 +406,8 @@ def main():
     unsigned_bundle = verify_hap_bundle_name(UNSIGNED_HAP)
     if not no_install and unsigned_bundle != BUNDLE_NAME:
         raise RuntimeError(
-            f"拒绝安装非 debug 包名 HAP: expected={BUNDLE_NAME}, actual={unsigned_bundle}. "
-            "请重新运行 bash dev.sh 构建 debug 包，或只使用 --release-build-only 生成 release 包。"
+            f"拒绝安装非目标包名 HAP: expected={BUNDLE_NAME}, actual={unsigned_bundle}. "
+            "请在 Linux host 重新运行 bash dev.sh 构建。"
         )
 
     if CERT_FILE.exists() and PROFILE_FILE.exists() and not force_profile:

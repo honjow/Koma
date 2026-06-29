@@ -29,7 +29,7 @@ Koma 不是完成态。当前是 **HarmonyOS 私有/本地优先漫画阅读器�
 
 | 功能域 | Koma 当前状态 | Aidoku | Mihon | Koma 差距 / 下一步 |
 | --- | --- | --- | --- | --- |
-| 平台 | HarmonyOS NEXT 原生 ArkUI；debug bundle `com.honjow.koma.dev` | iOS / iPadOS | Android 8+ | 平台差异化成立；HarmonyOS 组件/安全区/设备行为仍需持续真机验证。 |
+| 平台 | HarmonyOS NEXT 原生 ArkUI；bundle `com.honjow.koma` | iOS / iPadOS | Android 8+ | 平台差异化成立；HarmonyOS 组件/安全区/设备行为仍需持续真机验证。 |
 | 产品边界 | 私有漫画书架 + 阅读器；不内置源、不源市场、不宣传聚合 | 在线阅读 + WASM/external source system | 本地 + 扩展源；官方不提供内容 | Koma 边界更保守，适合上架；功能补齐不能走内置源市场路线。 |
 | 本地漫画 | CBZ/ZIP 导入；多图片导入；导入后入书架 | 当前官方资料重点是 external sources，不是本地目录主线 | Local source：固定目录结构、文件夹/zip/chapter 结构 | Koma 已有导入，但缺 Mihon 式 local source 文件夹规范、重扫、元数据识别。 |
 | 书架 Library | 网格、继续阅读、历史、排序/过滤、移出、Favorite/Read Later 与用户自定义分类过滤、批量分类增删、自定义分类管理/排序、分类专属排序/阅读状态显示策略 | Library + bookmark/add to library | Library + categories + filters | 分类显示策略已有轻量版本；仍缺更多筛选维度。 |

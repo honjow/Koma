@@ -1,5 +1,5 @@
 #!/bin/bash
-# dev.sh - Koma 鸿蒙开发一键脚本
+# dev.sh - Koma 鸿蒙开发一键脚本（仅 Linux 开发机使用）
 #
 # 用法:
 #   bash dev.sh                   # debug 构建 + 签名 + 安装到缓存/选择的设备
@@ -20,6 +20,12 @@
 #   -d all 时安装到全部设备，缓存设备在线则同步刷新其缓存时效。
 
 set -e
+
+if [ "$(uname -s)" = "Darwin" ]; then
+  echo "错误: dev.sh 仅用于 Linux 开发机；macOS 请使用 DevEco Studio / macOS 专用构建入口。" >&2
+  exit 1
+fi
+
 PROJ="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # 加载共享 env（HarmonyOS 调试签名物料路径等）
 if [ -f "$PROJ/scripts/dev.env" ]; then
@@ -28,8 +34,8 @@ if [ -f "$PROJ/scripts/dev.env" ]; then
 fi
 export PATH="/home/gamer/devtool/ohos/command-line-tools/bin:$PATH"
 HDC=/home/gamer/devtool/ohos/command-line-tools/sdk/default/openharmony/toolchains/hdc
-BUNDLE=com.honjow.koma.dev
-DEBUG_BUNDLE=com.honjow.koma.dev
+BUNDLE=com.honjow.koma
+DEBUG_BUNDLE=com.honjow.koma
 RELEASE_BUNDLE=com.honjow.koma
 
 keep_awake() {
@@ -64,13 +70,13 @@ set_app_bundle_name() {
   local bundle_name="$1"
   python3 - "$PROJ/AppScope/app.json5" "$bundle_name" <<'PY'
 from pathlib import Path
+import re
 import sys
 
 path = Path(sys.argv[1])
 bundle = sys.argv[2]
 text = path.read_text(encoding="utf-8")
-text = text.replace('"bundleName": "com.honjow.koma.dev"', f'"bundleName": "{bundle}"')
-text = text.replace('"bundleName": "com.honjow.koma"', f'"bundleName": "{bundle}"')
+text = re.sub(r'"bundleName":\s*"[^"]+"', f'"bundleName": "{bundle}"', text, count=1)
 path.write_text(text, encoding="utf-8")
 PY
 }
@@ -127,7 +133,7 @@ assert_hap_bundle_name() {
 case "$1" in
   -h|--help)
     cat <<'EOF'
-dev.sh - Koma 鸿蒙开发一键脚本
+dev.sh - Koma 鸿蒙开发一键脚本（仅 Linux 开发机使用）
 
 用法:
   bash dev.sh                   debug 构建 + 签名 + 安装到缓存/选择的设备
@@ -180,7 +186,7 @@ EOF
     }
     trap cleanup_debug_packaging EXIT
     restore_debug_bundle_name
-    echo "==> Debug bundleName: $(current_app_bundle_name)"
+    echo "==> bundleName: $(current_app_bundle_name)"
     hvigorw assembleHap --mode module -p product=default -p buildMode=debug --no-daemon
     assert_hap_bundle_name "$PROJ/entry/build/default/outputs/default/entry-default-unsigned.hap" "$DEBUG_BUNDLE"
     cleanup_debug_packaging
@@ -224,7 +230,7 @@ EOF
     backup_release_build_profiles
     trap cleanup_release_packaging EXIT
     set_app_bundle_name "$RELEASE_BUNDLE"
-    echo "==> Release bundleName: $(current_app_bundle_name)"
+    echo "==> bundleName: $(current_app_bundle_name)"
     python3 "$PROJ/scripts/prune-release-media-resources.py" --apply
     hvigorw assembleHap --mode module -p product=default -p buildMode=release --no-daemon
     assert_hap_bundle_name "$PROJ/entry/build/default/outputs/default/entry-default-unsigned.hap" "$RELEASE_BUNDLE"
@@ -256,7 +262,7 @@ EOF
     }
     trap cleanup_debug_packaging EXIT
     restore_debug_bundle_name
-    echo "==> Debug bundleName: $(current_app_bundle_name)"
+    echo "==> bundleName: $(current_app_bundle_name)"
     hvigorw assembleHap --mode module -p product=default -p buildMode=debug --no-daemon
     assert_hap_bundle_name "$PROJ/entry/build/default/outputs/default/entry-default-unsigned.hap" "$DEBUG_BUNDLE"
     cleanup_debug_packaging

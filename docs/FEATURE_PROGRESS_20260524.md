@@ -23,7 +23,7 @@ Verified after reader image-cache management, content-list safe-area avoidance, 
 - `node scripts/test_reader_progress.mjs` PASS.
 - `bash scripts/validate-napi-source-runtime-sample.sh` PASS.
 - `bash dev.sh --build-only --non-interactive` PASS.
-- Debug HAP installed to `192.168.50.103:12345` as `com.honjow.koma.dev` PASS.
+- Debug HAP installed to `192.168.50.103:12345` as `com.honjow.koma` PASS.
 - Device smoke artifacts:
   - `.hermes-artifacts/20260525-0115-bf-device-smoke/` confirms Browse no longer exposes `Koma Fixture`.
   - `.hermes-artifacts/20260525-0140-bk-device-smoke/` confirms Settings backup copy includes source packages and settings.
@@ -37,7 +37,7 @@ Verified on device `192.168.50.103:12345`:
 
 - `bash dev.sh --build-only --non-interactive` PASS.
 - `node scripts/test_koma_models.mjs` PASS.
-- Signed debug HAP installs as `com.honjow.koma.dev` PASS.
+- Signed debug HAP installs as `com.honjow.koma` PASS.
 - HAP contains `libs/arm64-v8a/libkoma_source_runtime.so`.
 - 5-tab smoke screenshots captured for Library / Browse / History / Search / Settings.
 - Startup hilog includes:
