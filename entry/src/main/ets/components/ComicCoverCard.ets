@@ -12,9 +12,9 @@ export interface ComicCoverInfo {
   categoryLabels?: string[]
 }
 
-@Component
+@ComponentV2
 export struct ComicCoverCard {
-  @Prop comic: ComicCoverInfo = {
+  @Param comic: ComicCoverInfo = {
     id: '',
     title: '',
     subtitle: '',
@@ -22,13 +22,13 @@ export struct ComicCoverCard {
     coverColor: ThemeConstants.SOURCE_LOCAL_COLOR,
     accentColor: ThemeConstants.SOURCE_OPDS_COLOR
   }
-  @Prop title: string = ''
-  @Prop subtitle: string = ''
-  @Prop progressText: string = ''
-  @Prop coverColor: string = ''
-  @Prop accentColor: string = ''
-  @Prop categoryLabels: string[] = []
-  @Prop selected: boolean = false
+  @Param title: string = ''
+  @Param subtitle: string = ''
+  @Param progressText: string = ''
+  @Param coverColor: string = ''
+  @Param accentColor: string = ''
+  @Param categoryLabels: string[] = []
+  @Param selected: boolean = false
 
   private displayTitle(): string {
     return this.title.length > 0 ? this.title : this.comic.title

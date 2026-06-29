@@ -1,6 +1,6 @@
 import { common } from '@kit.AbilityKit'
 import { SecondaryListScaffold } from '../components/SecondaryListScaffold'
-import { StorageKeys } from '../constants/StorageKeys'
+import { connectRemoteProgressSyncState, RemoteProgressSyncState } from '../state/RemoteProgressSyncState'
 import { ThemeConstants } from '../theme/ThemeConstants'
 import {
   Chapter,
@@ -24,23 +24,25 @@ const MS_PER_DAY: number = 24 * MS_PER_HOUR
 const MS_PER_MONTH: number = 30 * MS_PER_DAY
 const MS_PER_YEAR: number = 365 * MS_PER_DAY
 
-@Component
+@ComponentV2
 export struct HistoryPage {
-  libraryStore: LibraryStore = createSeededLibraryStore()
-  @Prop @Watch('onActiveChanged') active: boolean = false
-  @StorageProp(StorageKeys.REMOTE_PROGRESS_SYNC_REV) @Watch('onRemoteProgressSyncRevChanged') remoteProgressSyncRev: number = 0
-  @State private historyItems: LibraryItem[] = []
-  @State private revision: number = 0
-  onOpenReader: (comicId: ComicId, chapterId?: string) => void = (_comicId: ComicId, _chapterId?: string) => {}
+  @Param libraryStore: LibraryStore = createSeededLibraryStore()
+  @Param active: boolean = false
+  @Local private remoteProgress: RemoteProgressSyncState = connectRemoteProgressSyncState()
+  @Local private historyItems: LibraryItem[] = []
+  @Local private revision: number = 0
+  @Event onOpenReader: (comicId: ComicId, chapterId?: string) => void = (_comicId: ComicId, _chapterId?: string) => {}
 
+  @Monitor('active')
   private onActiveChanged(): void {
     if (this.active) {
       this.reloadHistory('tab_active')
     }
   }
 
+  @Monitor('remoteProgress.syncRevision')
   private onRemoteProgressSyncRevChanged(): void {
-    void this.remoteProgressSyncRev
+    void this.remoteProgress.syncRevision
     this.reloadHistory('bootstrap_sync')
   }
 

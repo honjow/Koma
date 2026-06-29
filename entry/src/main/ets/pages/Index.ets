@@ -15,7 +15,7 @@ import { LibraryPage } from './LibraryPage'
 import { BrowsePage } from './BrowsePage'
 import { HistoryPage } from './HistoryPage'
 import { SearchPage } from './SearchPage'
-import { SettingsPage } from './SettingsPage'
+import { SettingsPage, SettingsPaneKey, settingsPaneTitle } from './SettingsPage'
 import { ImportPage } from './ImportPage'
 import { ReaderPage } from './ReaderPage'
 import { MangaDetailPage } from './MangaDetailPage'
@@ -73,17 +73,21 @@ const seededLibraryStore: LibraryStore = createSeededLibraryStore()
 const libraryPresentationByComicId: LibraryPresentationByComicId = createMockLibraryPresentationMap()
 const sourceRuntimeRegistry: SourceRuntimeRegistry = appSourceRuntimeRegistry
 
+interface SettingsPaneRouteParam {
+  pane: string
+}
+
 @Entry
-@Component
+@ComponentV2
 struct Index {
-  @State selectedTab: number = TabIndex.LIBRARY
-  @State private readerOpen: boolean = false
-  @State private readerPageIndex: number = 0
-  @State private readerChromeVisible: boolean = true
-  @State private readerWebtoonMode: boolean = false
-  @State private readerSessionConfig: ReaderSessionConfig = MOCK_LIBRARY_READER_SESSION
-  @State private libraryRevision: number = 0
-  @State private libraryComics: Comic[] = seededLibraryStore.listComics()
+  @Local selectedTab: number = TabIndex.LIBRARY
+  @Local private readerOpen: boolean = false
+  @Local private readerPageIndex: number = 0
+  @Local private readerChromeVisible: boolean = true
+  @Local private readerWebtoonMode: boolean = false
+  @Local private readerSessionConfig: ReaderSessionConfig = MOCK_LIBRARY_READER_SESSION
+  @Local private libraryRevision: number = 0
+  @Local private libraryComics: Comic[] = seededLibraryStore.listComics()
   private tabController: HdsTabsController = new HdsTabsController()
   private tabTitles: string[] = [TabLabel.LIBRARY, TabLabel.BROWSE, TabLabel.HISTORY, TabLabel.SEARCH, TabLabel.SETTINGS]
   private readerSessionStore: ReaderSessionStore = readerSessionStore
@@ -132,6 +136,27 @@ struct Index {
 
   private openSettingsSecondary(routeName: string): void {
     this.appPathStack.pushPath({ name: routeName })
+  }
+
+  private openSettingsPane(pane: SettingsPaneKey): void {
+    const routeParam: SettingsPaneRouteParam = { pane: pane }
+    this.appPathStack.pushPath({ name: RouteName.SETTINGS_PANE, param: routeParam })
+  }
+
+  private settingsPaneFromParam(param: Object): SettingsPaneKey {
+    const pane = (param as Record<string, string>)?.pane
+    if (pane === 'appearance' ||
+      pane === 'library' ||
+      pane === 'reader' ||
+      pane === 'services' ||
+      pane === 'downloads' ||
+      pane === 'tracking' ||
+      pane === 'backup' ||
+      pane === 'storage' ||
+      pane === 'about') {
+      return pane
+    }
+    return 'root'
   }
 
   private handleArchiveImportSucceeded(comic: Comic): void {
@@ -298,10 +323,10 @@ struct Index {
     if (name === RouteName.READER) {
       HdsNavDestination() {
         ReaderPage({
-          readerOpen: $readerOpen,
-          pageIndex: $readerPageIndex,
-          chromeVisible: $readerChromeVisible,
-          webtoonMode: $readerWebtoonMode,
+          readerOpen: this.readerOpen!!,
+          pageIndex: this.readerPageIndex!!,
+          chromeVisible: this.readerChromeVisible!!,
+          webtoonMode: this.readerWebtoonMode!!,
           sessionStore: this.readerSessionStore,
           sessionConfig: this.readerSessionConfig,
           onCloseReader: () => {
@@ -362,6 +387,49 @@ struct Index {
         SourcePackageManagerPage()
       }
       .titleBar(this.navDestTitleBarOpts('源包管理'))
+    } else if (name === RouteName.SETTINGS_PANE) {
+      HdsNavDestination() {
+        SettingsPage({
+          pane: this.settingsPaneFromParam(param),
+          libraryStore: this.libraryStore,
+          libraryPersistenceService: this.ensureLibraryPersistenceService(),
+          sourceRegistry: this.sourceRegistry,
+          onOpenSettingsPane: (nextPane: SettingsPaneKey) => {
+            this.openSettingsPane(nextPane)
+          },
+          onOpenKomgaSettings: () => {
+            this.openSettingsSecondary(RouteName.KOMGA_SERVER)
+          },
+          onOpenOpdsSettings: () => {
+            this.openSettingsSecondary(RouteName.OPDS_SERVER)
+          },
+          onOpenWebDavSettings: () => {
+            this.openSettingsSecondary(RouteName.WEBDAV_SERVER)
+          },
+          onOpenSourcePackageManager: () => {
+            this.openSettingsSecondary(RouteName.SOURCE_PACKAGE_MANAGER)
+          },
+          onOpenLibraryUpdateResults: () => {
+            this.openSettingsSecondary(RouteName.LIBRARY_UPDATE_RESULTS)
+          },
+          onOpenLibraryCategories: () => {
+            this.openSettingsSecondary(RouteName.LIBRARY_CATEGORIES)
+          },
+          onOpenDownloads: () => {
+            this.openSettingsSecondary(RouteName.DOWNLOADS)
+          },
+          onOpenBackupManagement: () => {
+            this.openSettingsSecondary(RouteName.BACKUP_MANAGEMENT)
+          },
+          onOpenTrackerSettings: () => {
+            this.openSettingsSecondary(RouteName.TRACKER_SETTINGS)
+          },
+          onLibraryChanged: () => {
+            this.refreshLibrarySnapshot()
+          }
+        })
+      }
+      .titleBar(this.navDestTitleBarOpts(settingsPaneTitle(this.settingsPaneFromParam(param))))
     } else if (name === RouteName.LIBRARY_UPDATE_RESULTS) {
       HdsNavDestination() {
         LibraryUpdateResultPage()
@@ -415,7 +483,6 @@ struct Index {
             libraryComics: this.libraryComics,
             libraryRevision: this.libraryRevision,
             presentationByComicId: this.presentationByComicId,
-            sessionStore: this.readerSessionStore,
             onOpenReader: (comicId: ComicId) => {
               void this.openReader(comicId)
             },
@@ -469,9 +536,13 @@ struct Index {
 
         TabContent() {
           SettingsPage({
+            pane: 'root',
             libraryStore: this.libraryStore,
             libraryPersistenceService: this.ensureLibraryPersistenceService(),
             sourceRegistry: this.sourceRegistry,
+            onOpenSettingsPane: (pane: SettingsPaneKey) => {
+              this.openSettingsPane(pane)
+            },
             onOpenKomgaSettings: () => {
               this.openSettingsSecondary(RouteName.KOMGA_SERVER)
             },

@@ -23,18 +23,18 @@ import { DavComicCandidateKind, DavResource } from '../remote/WebDavModels'
 import { WebDavClient, readWebDavUrlPath } from '../remote/WebDavClient'
 import { ThemeConstants } from '../theme/ThemeConstants'
 
-@Component
+@ComponentV2
 export struct WebDavBrowsePage {
-  @State private pathSegments: string[] = []
-  @State private folders: DavResource[] = []
-  @State private images: DavResource[] = []
-  @State private loading: boolean = true
-  @State private errorText: string = ''
-  @State private favoriteRevision: number = 0
+  @Local private pathSegments: string[] = []
+  @Local private folders: DavResource[] = []
+  @Local private images: DavResource[] = []
+  @Local private loading: boolean = true
+  @Local private errorText: string = ''
+  @Local private favoriteRevision: number = 0
   private record?: WebDavServerRecord
-  libraryStore: LibraryStore = createSeededLibraryStore()
-  libraryPersistenceService?: LibraryStorePersistenceService
-  onLibraryChanged: () => void = () => {}
+  @Param libraryStore: LibraryStore = createSeededLibraryStore()
+  @Param libraryPersistenceService?: LibraryStorePersistenceService = undefined
+  @Event onLibraryChanged: () => void = () => {}
 
   private store(): RemoteServerStore {
     return new RemoteServerStore(getContext(this) as common.UIAbilityContext)

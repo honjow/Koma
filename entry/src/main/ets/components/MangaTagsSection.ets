@@ -1,8 +1,8 @@
 import { ThemeConstants } from '../theme/ThemeConstants'
 
-@Component
+@ComponentV2
 export struct MangaTagsSection {
-  @Prop tags: string[] = []
+  @Param tags: string[] = []
 
   private hasTags(): boolean {
     return this.tags.length > 0

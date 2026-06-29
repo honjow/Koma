@@ -40,22 +40,22 @@ interface OpdsHistoryEntry {
   title: string
 }
 
-@Component
+@ComponentV2
 export struct OpdsBrowsePage {
-  @State private title: string = 'OPDS'
-  @State private currentUrl: string = ''
-  @State private history: OpdsHistoryEntry[] = []
-  @State private navigation: OpdsCatalogDto[] = []
-  @State private publications: OpdsBookDto[] = []
-  @State private selectedPublication: OpdsBookDto | undefined = undefined
-  @State private selectedImages: OpdsImageDto[] = []
-  @State private loading: boolean = true
-  @State private errorText: string = ''
-  @State private favoriteRevision: number = 0
+  @Local private title: string = 'OPDS'
+  @Local private currentUrl: string = ''
+  @Local private history: OpdsHistoryEntry[] = []
+  @Local private navigation: OpdsCatalogDto[] = []
+  @Local private publications: OpdsBookDto[] = []
+  @Local private selectedPublication: OpdsBookDto | undefined = undefined
+  @Local private selectedImages: OpdsImageDto[] = []
+  @Local private loading: boolean = true
+  @Local private errorText: string = ''
+  @Local private favoriteRevision: number = 0
   private record?: OpdsServerRecord
-  libraryStore: LibraryStore = createSeededLibraryStore()
-  libraryPersistenceService?: LibraryStorePersistenceService
-  onLibraryChanged: () => void = () => {}
+  @Param libraryStore: LibraryStore = createSeededLibraryStore()
+  @Param libraryPersistenceService?: LibraryStorePersistenceService = undefined
+  @Event onLibraryChanged: () => void = () => {}
 
   private store(): RemoteServerStore {
     return new RemoteServerStore(getContext(this) as common.UIAbilityContext)

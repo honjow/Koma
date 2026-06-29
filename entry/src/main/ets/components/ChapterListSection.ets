@@ -1,3 +1,4 @@
+import { Chip, ChipSize } from '@kit.ArkUI'
 import { ChapterSortOrder, MangaChapterItem } from '../model/MangaDetailModels'
 import { ThemeConstants } from '../theme/ThemeConstants'
 
@@ -51,22 +52,23 @@ class ChapterListDataSource implements IDataSource {
   }
 }
 
-@Component
+@ComponentV2
 export struct ChapterListSection {
-  @Prop @Watch('rebuildDataSource') chapters: MangaChapterItem[] = []
-  @State private sortOrder: ChapterSortOrder = ChapterSortOrder.NEWEST_FIRST
-  @State private readFilter: ChapterReadFilter = ChapterReadFilter.ALL
-  @State private sortedChapters: MangaChapterItem[] = []
+  @Param chapters: MangaChapterItem[] = []
+  @Local private sortOrder: ChapterSortOrder = ChapterSortOrder.NEWEST_FIRST
+  @Local private readFilter: ChapterReadFilter = ChapterReadFilter.ALL
+  @Local private sortedChapters: MangaChapterItem[] = []
   private dataSource: ChapterListDataSource = new ChapterListDataSource([])
-  onOpenChapter: (chapterId: string) => void = (_chapterId: string) => {}
-  onDownloadChapter: (chapterId: string) => void = (_chapterId: string) => {}
-  onDownloadVisibleChapters: (chapterIds: string[], mode: ChapterBatchDownloadMode) => void =
+  @Event onOpenChapter: (chapterId: string) => void = (_chapterId: string) => {}
+  @Event onDownloadChapter: (chapterId: string) => void = (_chapterId: string) => {}
+  @Event onDownloadVisibleChapters: (chapterIds: string[], mode: ChapterBatchDownloadMode) => void =
     (_chapterIds: string[], _mode: ChapterBatchDownloadMode) => {}
-  onMarkChapterReadState: (chapterId: string, isRead: boolean) => void =
+  @Event onMarkChapterReadState: (chapterId: string, isRead: boolean) => void =
     (_chapterId: string, _isRead: boolean) => {}
-  onMarkVisibleChaptersReadState: (chapterIds: string[], isRead: boolean) => void =
+  @Event onMarkVisibleChaptersReadState: (chapterIds: string[], isRead: boolean) => void =
     (_chapterIds: string[], _isRead: boolean) => {}
 
+  @Monitor('chapters')
   private rebuildDataSource(): void {
     this.sortedChapters = this.sortedChapterList()
     this.dataSource.update(this.sortedChapters)
@@ -320,25 +322,33 @@ export struct ChapterListSection {
           .fontColor(ThemeConstants.BRAND_PRIMARY)
       }
 
-      Button('↓')
+      Row() {
+        Text('↓')
+          .fontSize(ThemeConstants.FONT_SIZE_TITLE)
+          .fontWeight(FontWeight.Bold)
+          .fontColor(ThemeConstants.BRAND_PRIMARY)
+      }
         .width(ThemeConstants.FILTER_CHIP_HEIGHT)
         .height(ThemeConstants.FILTER_CHIP_HEIGHT)
         .borderRadius(ThemeConstants.RADIUS_CHIP)
-        .fontSize(ThemeConstants.FONT_SIZE_TITLE)
-        .fontWeight(FontWeight.Bold)
-        .fontColor(ThemeConstants.BRAND_PRIMARY)
         .backgroundColor(Color.Transparent)
+        .justifyContent(FlexAlign.Center)
+        .alignItems(VerticalAlign.Center)
         .onClick(() => {
           this.onDownloadChapter(chapter.id)
         })
 
-      Button('⋯')
+      Row() {
+        Text('⋯')
+          .fontSize(ThemeConstants.FONT_SIZE_HEADING)
+          .fontColor(ThemeConstants.BRAND_PRIMARY)
+      }
         .width(ThemeConstants.FILTER_CHIP_HEIGHT)
         .height(ThemeConstants.FILTER_CHIP_HEIGHT)
         .borderRadius(ThemeConstants.RADIUS_CHIP)
-        .fontSize(ThemeConstants.FONT_SIZE_HEADING)
-        .fontColor(ThemeConstants.BRAND_PRIMARY)
         .backgroundColor(Color.Transparent)
+        .justifyContent(FlexAlign.Center)
+        .alignItems(VerticalAlign.Center)
         .bindMenu(this.ReadStateMenu(chapter))
     }
     .width('100%')
@@ -356,43 +366,79 @@ export struct ChapterListSection {
             .fontWeight(FontWeight.Bold)
             .fontColor(ThemeConstants.TEXT_PRIMARY)
             .layoutWeight(1)
-          Button(`${this.filterLabel()} ▾`)
-            .height(ThemeConstants.FILTER_CHIP_HEIGHT)
-            .padding({ left: ThemeConstants.SPACE_MD, right: ThemeConstants.SPACE_MD })
-            .borderRadius(ThemeConstants.RADIUS_CHIP)
-            .fontSize(ThemeConstants.FONT_SIZE_META)
-            .fontColor(ThemeConstants.BRAND_PRIMARY)
-            .backgroundColor(Color.Transparent)
-            .bindMenu(this.FilterMenu())
-          Button(`${this.sortLabel()} ↕`)
-            .height(ThemeConstants.FILTER_CHIP_HEIGHT)
-            .padding({ left: ThemeConstants.SPACE_MD, right: ThemeConstants.SPACE_MD })
-            .borderRadius(ThemeConstants.RADIUS_CHIP)
-            .fontSize(ThemeConstants.FONT_SIZE_META)
-            .fontColor(ThemeConstants.BRAND_PRIMARY)
-            .backgroundColor(Color.Transparent)
-            .bindMenu(this.SortMenu())
+          Row() {
+            Chip({
+              label: {
+                text: `${this.filterLabel()} ▾`,
+                fontSize: ThemeConstants.FONT_SIZE_TAG,
+                fontColor: ThemeConstants.TEXT_PRIMARY,
+                activatedFontColor: ThemeConstants.TEXT_ON_BRAND,
+              },
+              activated: this.readFilter !== ChapterReadFilter.ALL,
+              size: ChipSize.SMALL,
+              backgroundColor: $r('sys.color.ohos_id_color_button_normal'),
+              activatedBackgroundColor: ThemeConstants.BRAND_PRIMARY,
+              borderRadius: ThemeConstants.RADIUS_ROUND,
+              allowClose: false,
+            })
+          }
+          .bindMenu(this.FilterMenu())
+          Row() {
+            Chip({
+              label: {
+                text: `${this.sortLabel()} ↕`,
+                fontSize: ThemeConstants.FONT_SIZE_TAG,
+                fontColor: ThemeConstants.TEXT_PRIMARY,
+                activatedFontColor: ThemeConstants.TEXT_ON_BRAND,
+              },
+              activated: this.sortOrder !== ChapterSortOrder.NEWEST_FIRST,
+              size: ChipSize.SMALL,
+              backgroundColor: $r('sys.color.ohos_id_color_button_normal'),
+              activatedBackgroundColor: ThemeConstants.BRAND_PRIMARY,
+              borderRadius: ThemeConstants.RADIUS_ROUND,
+              allowClose: false,
+            })
+          }
+          .bindMenu(this.SortMenu())
         }
         .width('100%')
         .alignItems(VerticalAlign.Center)
 
         Row() {
-          Button('标记 ▾')
-            .height(ThemeConstants.FILTER_CHIP_HEIGHT)
-            .padding({ left: ThemeConstants.SPACE_MD, right: ThemeConstants.SPACE_MD })
-            .borderRadius(ThemeConstants.RADIUS_CHIP)
-            .fontSize(ThemeConstants.FONT_SIZE_META)
-            .fontColor(ThemeConstants.BRAND_PRIMARY)
-            .backgroundColor(Color.Transparent)
-            .bindMenu(this.VisibleReadStateMenu())
-          Button('批量下载 ▾')
-            .height(ThemeConstants.FILTER_CHIP_HEIGHT)
-            .padding({ left: ThemeConstants.SPACE_MD, right: ThemeConstants.SPACE_MD })
-            .borderRadius(ThemeConstants.RADIUS_CHIP)
-            .fontSize(ThemeConstants.FONT_SIZE_META)
-            .fontColor(ThemeConstants.BRAND_PRIMARY)
-            .backgroundColor(Color.Transparent)
-            .bindMenu(this.BatchDownloadMenu())
+          Row() {
+            Chip({
+              label: {
+                text: '标记 ▾',
+                fontSize: ThemeConstants.FONT_SIZE_TAG,
+                fontColor: ThemeConstants.TEXT_PRIMARY,
+                activatedFontColor: ThemeConstants.TEXT_ON_BRAND,
+              },
+              activated: false,
+              size: ChipSize.SMALL,
+              backgroundColor: $r('sys.color.ohos_id_color_button_normal'),
+              activatedBackgroundColor: ThemeConstants.BRAND_PRIMARY,
+              borderRadius: ThemeConstants.RADIUS_ROUND,
+              allowClose: false,
+            })
+          }
+          .bindMenu(this.VisibleReadStateMenu())
+          Row() {
+            Chip({
+              label: {
+                text: '批量下载 ▾',
+                fontSize: ThemeConstants.FONT_SIZE_TAG,
+                fontColor: ThemeConstants.TEXT_PRIMARY,
+                activatedFontColor: ThemeConstants.TEXT_ON_BRAND,
+              },
+              activated: false,
+              size: ChipSize.SMALL,
+              backgroundColor: $r('sys.color.ohos_id_color_button_normal'),
+              activatedBackgroundColor: ThemeConstants.BRAND_PRIMARY,
+              borderRadius: ThemeConstants.RADIUS_ROUND,
+              allowClose: false,
+            })
+          }
+          .bindMenu(this.BatchDownloadMenu())
           Blank()
         }
         .width('100%')

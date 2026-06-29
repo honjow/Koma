@@ -32,17 +32,17 @@ interface SourceRouteParam {
   source: SourceRuntimeRegistryInstalledSourceSummary
 }
 
-@Component
+@ComponentV2
 export struct BrowsePage {
-  @State private viewModel: BrowseViewModel = new BrowseViewModel()
-  @State private refreshingSources: boolean = false
-  @State private komgaConfigured: boolean = false
-  @State private opdsConfigured: boolean = false
-  @State private webDavConfigured: boolean = false
-  sourceRegistry: SourceRuntimeRegistry = appSourceRuntimeRegistry
-  libraryStore: LibraryStore = createSeededLibraryStore()
-  libraryPersistenceService?: LibraryStorePersistenceService
-  onLibraryChanged: () => void = () => {}
+  @Local private viewModel: BrowseViewModel = new BrowseViewModel()
+  @Local private refreshingSources: boolean = false
+  @Local private komgaConfigured: boolean = false
+  @Local private opdsConfigured: boolean = false
+  @Local private webDavConfigured: boolean = false
+  @Param sourceRegistry: SourceRuntimeRegistry = appSourceRuntimeRegistry
+  @Param libraryStore: LibraryStore = createSeededLibraryStore()
+  @Param libraryPersistenceService?: LibraryStorePersistenceService = undefined
+  @Event onLibraryChanged: () => void = () => {}
   private browsePathStack: NavPathStack = new NavPathStack()
 
   private openSource(source: SourceRuntimeRegistryInstalledSourceSummary): void {

@@ -68,6 +68,7 @@ export class ThemeConstants {
   static readonly FONT_SIZE_TAG: number = 11
   static readonly FONT_SIZE_CAPTION: number = 12
   static readonly FONT_SIZE_META: number = 13
+  static readonly FONT_SIZE_LIST_ITEM: number = 13
   static readonly FONT_SIZE_BODY: number = 14
   static readonly FONT_SIZE_TITLE: number = 16
   static readonly FONT_SIZE_HEADING: number = 18

@@ -3,14 +3,14 @@ import { SecondaryListScaffold } from '../components/SecondaryListScaffold'
 import { RemoteServerStore } from '../model/RemoteServerStore'
 import { ThemeConstants } from '../theme/ThemeConstants'
 
-@Component
+@ComponentV2
 export struct WebDavServerPage {
-  @State private baseUrl: string = ''
-  @State private username: string = ''
-  @State private password: string = ''
-  @State private rootPath: string = ''
-  @State private testing: boolean = false
-  @State private statusText: string = ''
+  @Local private baseUrl: string = ''
+  @Local private username: string = ''
+  @Local private password: string = ''
+  @Local private rootPath: string = ''
+  @Local private testing: boolean = false
+  @Local private statusText: string = ''
 
   private store(): RemoteServerStore {
     return new RemoteServerStore(getContext(this) as common.UIAbilityContext)

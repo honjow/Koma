@@ -1,5 +1,8 @@
 import { common } from '@kit.AbilityKit'
+import { Chip, ChipSize } from '@kit.ArkUI'
 import { SecondaryListScaffold } from '../components/SecondaryListScaffold'
+import { KomaActionButton } from '../components/ui/KomaActionButton'
+import { KomaEmptyState } from '../components/ui/KomaEmptyState'
 import { ThemeConstants } from '../theme/ThemeConstants'
 import { Comic } from '../model/ComicModels'
 import { LibraryStore } from '../model/LibraryStore'
@@ -25,16 +28,16 @@ enum DownloadQueueFilter {
   DOWNLOADED = 'downloaded',
 }
 
-@Component
+@ComponentV2
 export struct DownloadsPage {
-  libraryStore?: LibraryStore
-  @State private entries: OfflineDownloadQueueEntry[] = []
-  @State private preferences: OfflineDownloadQueuePreferences = {
+  @Param libraryStore?: LibraryStore = undefined
+  @Local private entries: OfflineDownloadQueueEntry[] = []
+  @Local private preferences: OfflineDownloadQueuePreferences = {
     foregroundConcurrencyLimit: 1,
     isPaused: false,
   }
-  @State private busyKey: string = ''
-  @State private filter: DownloadQueueFilter = DownloadQueueFilter.ALL
+  @Local private busyKey: string = ''
+  @Local private filter: DownloadQueueFilter = DownloadQueueFilter.ALL
 
   private context(): common.UIAbilityContext {
     return getContext(this) as common.UIAbilityContext
@@ -467,21 +470,37 @@ export struct DownloadsPage {
         .textOverflow({ overflow: TextOverflow.Ellipsis })
 
       Row() {
-        Button(`状态 ${this.filterLabel()} ▾`)
-          .height(ThemeConstants.FILTER_CHIP_HEIGHT)
-          .padding({ left: ThemeConstants.SPACE_MD, right: ThemeConstants.SPACE_MD })
-          .borderRadius(ThemeConstants.RADIUS_CHIP)
-          .fontSize(ThemeConstants.FONT_SIZE_META)
-          .fontColor(this.filter !== DownloadQueueFilter.ALL ? ThemeConstants.TEXT_ON_BRAND : ThemeConstants.TEXT_PRIMARY)
-          .backgroundColor(this.filter !== DownloadQueueFilter.ALL ? ThemeConstants.BRAND_PRIMARY : ThemeConstants.CARD)
+        Row() {
+          Chip({
+            label: {
+              text: `状态 ${this.filterLabel()} ▾`,
+              fontSize: ThemeConstants.FONT_SIZE_TAG,
+              fontColor: ThemeConstants.TEXT_PRIMARY,
+              activatedFontColor: ThemeConstants.TEXT_ON_BRAND,
+            },
+            activated: this.filter !== DownloadQueueFilter.ALL,
+            size: ChipSize.SMALL,
+            backgroundColor: $r('sys.color.ohos_id_color_button_normal'),
+            activatedBackgroundColor: ThemeConstants.BRAND_PRIMARY,
+            borderRadius: ThemeConstants.RADIUS_ROUND,
+            allowClose: false,
+          })
+        }
           .bindMenu(this.FilterMenu())
-        Button(`并发 ${this.preferences.foregroundConcurrencyLimit} ▾`)
-          .height(ThemeConstants.FILTER_CHIP_HEIGHT)
-          .padding({ left: ThemeConstants.SPACE_MD, right: ThemeConstants.SPACE_MD })
-          .borderRadius(ThemeConstants.RADIUS_CHIP)
-          .fontSize(ThemeConstants.FONT_SIZE_META)
-          .fontColor(ThemeConstants.TEXT_PRIMARY)
-          .backgroundColor(ThemeConstants.CARD)
+        Row() {
+          Chip({
+            label: {
+              text: `并发 ${this.preferences.foregroundConcurrencyLimit} ▾`,
+              fontSize: ThemeConstants.FONT_SIZE_TAG,
+              fontColor: ThemeConstants.TEXT_PRIMARY,
+            },
+            activated: false,
+            size: ChipSize.SMALL,
+            backgroundColor: $r('sys.color.ohos_id_color_button_normal'),
+            borderRadius: ThemeConstants.RADIUS_ROUND,
+            allowClose: false,
+          })
+        }
           .enabled(this.busyKey.length === 0)
           .bindMenu(this.ConcurrencyMenu())
       }
@@ -489,43 +508,37 @@ export struct DownloadsPage {
       .width('100%')
 
       Row({ space: ThemeConstants.SPACE_SM }) {
-        Button(this.preferences.isPaused ? (this.busyKey === 'batch-resume' ? '继续中' : '继续队列') : '暂停队列')
-          .height(ThemeConstants.FILTER_CHIP_HEIGHT)
-          .padding({ left: ThemeConstants.SPACE_MD, right: ThemeConstants.SPACE_MD })
-          .borderRadius(ThemeConstants.RADIUS_CHIP)
-          .fontSize(ThemeConstants.FONT_SIZE_META)
-          .fontColor(this.preferences.isPaused ? ThemeConstants.TEXT_ON_BRAND : ThemeConstants.TEXT_SECONDARY)
-          .backgroundColor(this.preferences.isPaused ? ThemeConstants.BRAND_PRIMARY : Color.Transparent)
-          .enabled(!this.preferences.isPaused || this.busyKey.length === 0)
-          .onClick(() => {
+        KomaActionButton({
+          label: this.preferences.isPaused ? (this.busyKey === 'batch-resume' ? '继续中' : '继续队列') : '暂停队列',
+          kind: this.preferences.isPaused ? 'primary' : 'ghost',
+          isEnabled: !this.preferences.isPaused || this.busyKey.length === 0,
+          controlHeight: ThemeConstants.ACTION_CHIP_HEIGHT,
+          action: () => {
             if (this.preferences.isPaused) {
               this.resumeQueuedDownloads()
             } else {
               this.pauseQueuedDownloads()
             }
-          })
-        Button(this.busyKey === 'batch-retry' ? '重试中' : '重试失败')
-          .height(ThemeConstants.FILTER_CHIP_HEIGHT)
-          .padding({ left: ThemeConstants.SPACE_MD, right: ThemeConstants.SPACE_MD })
-          .borderRadius(ThemeConstants.RADIUS_CHIP)
-          .fontSize(ThemeConstants.FONT_SIZE_META)
-          .fontColor(ThemeConstants.BRAND_PRIMARY)
-          .backgroundColor(Color.Transparent)
-          .enabled(this.busyKey.length === 0 && !this.preferences.isPaused)
-          .onClick(() => {
+          },
+        })
+        KomaActionButton({
+          label: this.busyKey === 'batch-retry' ? '重试中' : '重试失败',
+          kind: 'ghost',
+          isEnabled: this.busyKey.length === 0 && !this.preferences.isPaused,
+          controlHeight: ThemeConstants.ACTION_CHIP_HEIGHT,
+          action: () => {
             this.retryFailedDownloads()
-          })
-        Button(this.busyKey === 'batch-remove' ? '清理中' : '清理完成/失败')
-          .height(ThemeConstants.FILTER_CHIP_HEIGHT)
-          .padding({ left: ThemeConstants.SPACE_MD, right: ThemeConstants.SPACE_MD })
-          .borderRadius(ThemeConstants.RADIUS_CHIP)
-          .fontSize(ThemeConstants.FONT_SIZE_META)
-          .fontColor(ThemeConstants.TEXT_SECONDARY)
-          .backgroundColor(Color.Transparent)
-          .enabled(this.busyKey.length === 0)
-          .onClick(() => {
+          },
+        })
+        KomaActionButton({
+          label: this.busyKey === 'batch-remove' ? '清理中' : '清理完成/失败',
+          kind: 'ghost',
+          isEnabled: this.busyKey.length === 0,
+          controlHeight: ThemeConstants.ACTION_CHIP_HEIGHT,
+          action: () => {
             this.removeCompletedFailedDownloads()
-          })
+          },
+        })
       }
       .width('100%')
     }
@@ -534,24 +547,10 @@ export struct DownloadsPage {
 
   @Builder
   private EmptyState() {
-    Column({ space: ThemeConstants.SPACE_SM }) {
-      Text('暂无下载任务')
-        .fontSize(ThemeConstants.FONT_SIZE_TITLE)
-        .fontWeight(FontWeight.Medium)
-        .fontColor(ThemeConstants.TEXT_PRIMARY)
-      Text('从漫画详情页选择章节下载后会显示在这里。')
-        .fontSize(ThemeConstants.FONT_SIZE_META)
-        .fontColor(ThemeConstants.TEXT_SECONDARY)
-    }
-    .width('100%')
-    .padding({
-      left: ThemeConstants.SPACE_LG,
-      right: ThemeConstants.SPACE_LG,
-      top: ThemeConstants.SPACE_XXL,
-      bottom: ThemeConstants.SPACE_XXL,
+    KomaEmptyState({
+      title: '暂无下载任务',
+      message: '从漫画详情页选择章节下载后会显示在这里。',
     })
-    .borderRadius(ThemeConstants.RADIUS_CARD)
-    .backgroundColor(ThemeConstants.CARD)
   }
 
   @Builder
@@ -592,30 +591,26 @@ export struct DownloadsPage {
 
       Row({ space: ThemeConstants.SPACE_MD }) {
         if (this.canRetry(entry)) {
-          Button(this.busyKey === this.rowKey(entry) ? '重试中' : '重试')
-            .height(ThemeConstants.ACTION_CHIP_HEIGHT)
-            .padding({ left: ThemeConstants.SPACE_MD, right: ThemeConstants.SPACE_MD })
-            .borderRadius(ThemeConstants.RADIUS_CHIP)
-            .fontSize(ThemeConstants.FONT_SIZE_META)
-            .fontColor(ThemeConstants.TEXT_ON_BRAND)
-            .backgroundColor(ThemeConstants.BRAND_PRIMARY)
-            .enabled(this.busyKey.length === 0 && !this.preferences.isPaused)
-            .onClick(() => {
+          KomaActionButton({
+            label: this.busyKey === this.rowKey(entry) ? '重试中' : '重试',
+            kind: 'primary',
+            isEnabled: this.busyKey.length === 0 && !this.preferences.isPaused,
+            controlHeight: ThemeConstants.ACTION_CHIP_HEIGHT,
+            action: () => {
               this.retryDownload(entry)
-            })
+            },
+          })
         }
         if (this.canRemove(entry)) {
-          Button('移除')
-            .height(ThemeConstants.ACTION_CHIP_HEIGHT)
-            .padding({ left: ThemeConstants.SPACE_MD, right: ThemeConstants.SPACE_MD })
-            .borderRadius(ThemeConstants.RADIUS_CHIP)
-            .fontSize(ThemeConstants.FONT_SIZE_META)
-            .fontColor(ThemeConstants.TEXT_SECONDARY)
-            .backgroundColor(Color.Transparent)
-            .enabled(this.busyKey.length === 0)
-            .onClick(() => {
+          KomaActionButton({
+            label: '移除',
+            kind: 'ghost',
+            isEnabled: this.busyKey.length === 0,
+            controlHeight: ThemeConstants.ACTION_CHIP_HEIGHT,
+            action: () => {
               this.removeDownload(entry)
-            })
+            },
+          })
         }
       }
       .width('100%')

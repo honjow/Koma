@@ -19,20 +19,20 @@ const SEARCH_DEBOUNCE_MS: number = 400
 const KOMGA_ROUTE_NAME: string = 'SearchKomgaSeriesPage'
 const OPDS_ROUTE_NAME: string = 'SearchOpdsBrowsePage'
 
-@Component
+@ComponentV2
 export struct SearchPage {
-  @State private queryText: string = ''
-  @State private sections: CrossSearchSection[] = []
-  @State private history: SearchHistoryEntry[] = []
-  @State private loading: boolean = false
-  @State private feedbackText: string = ''
+  @Local private queryText: string = ''
+  @Local private sections: CrossSearchSection[] = []
+  @Local private history: SearchHistoryEntry[] = []
+  @Local private loading: boolean = false
+  @Local private feedbackText: string = ''
   private searchTimer: number = 0
   private searchSerial: number = 0
   private service?: CrossSearchService
   private historyStore?: SearchHistoryStore
-  libraryStore: LibraryStore = createSeededLibraryStore()
-  libraryPersistenceService?: LibraryStorePersistenceService
-  onLibraryChanged: () => void = () => {}
+  @Param libraryStore: LibraryStore = createSeededLibraryStore()
+  @Param libraryPersistenceService?: LibraryStorePersistenceService = undefined
+  @Event onLibraryChanged: () => void = () => {}
   private searchPathStack: NavPathStack = new NavPathStack()
 
   aboutToAppear(): void {

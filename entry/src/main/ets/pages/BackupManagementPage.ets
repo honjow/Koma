@@ -1,5 +1,6 @@
 import { common } from '@kit.AbilityKit'
 import { SecondaryListScaffold } from '../components/SecondaryListScaffold'
+import { KomaActionButton } from '../components/ui/KomaActionButton'
 import {
   BACKUP_ACCEPTED_SCHEMA_VERSIONS,
   BACKUP_ENCRYPTED_EXPORT_SUCCESS,
@@ -18,15 +19,15 @@ import {
 } from '../model/BackupService'
 import { ThemeConstants } from '../theme/ThemeConstants'
 
-@Component
+@ComponentV2
 export struct BackupManagementPage {
-  @State private busy: boolean = false
-  @State private selectedBackupPayload: string = ''
-  @State private selectedEncryptedBackupPayload: string = ''
-  @State private selectedBackupPreview: BackupImportPreview | undefined = undefined
-  @State private exportPassphrase: string = ''
-  @State private exportPassphraseConfirm: string = ''
-  @State private importPassphrase: string = ''
+  @Local private busy: boolean = false
+  @Local private selectedBackupPayload: string = ''
+  @Local private selectedEncryptedBackupPayload: string = ''
+  @Local private selectedBackupPreview: BackupImportPreview | undefined = undefined
+  @Local private exportPassphrase: string = ''
+  @Local private exportPassphraseConfirm: string = ''
+  @Local private importPassphrase: string = ''
 
   private context(): common.UIAbilityContext {
     return getContext(this) as common.UIAbilityContext
@@ -278,17 +279,16 @@ export struct BackupManagementPage {
           this.exportPassphraseConfirm = value
         })
 
-      Button(this.busy ? '处理中' : '导出加密备份')
-        .width('100%')
-        .height(ThemeConstants.BUTTON_HEIGHT)
-        .borderRadius(ThemeConstants.RADIUS_CHIP)
-        .fontSize(ThemeConstants.FONT_SIZE_BODY)
-        .fontColor(ThemeConstants.TEXT_ON_BRAND)
-        .backgroundColor(ThemeConstants.BRAND_PRIMARY)
-        .enabled(!this.busy)
-        .onClick(() => {
+      KomaActionButton({
+        label: this.busy ? '处理中' : '导出加密备份',
+        kind: 'primary',
+        icon: $r('sys.symbol.doc_plaintext'),
+        isEnabled: !this.busy,
+        action: () => {
           this.exportEncryptedBackup()
-        })
+        },
+      })
+        .width('100%')
     }
     .width('100%')
     .padding({ left: ThemeConstants.SPACE_LG, right: ThemeConstants.SPACE_LG, top: ThemeConstants.SPACE_LG, bottom: ThemeConstants.SPACE_LG })
@@ -327,41 +327,38 @@ export struct BackupManagementPage {
   @Builder
   private ActionsCard() {
     Column({ space: ThemeConstants.SPACE_MD }) {
-      Button(this.busy ? '处理中' : '导出备份')
-        .width('100%')
-        .height(ThemeConstants.BUTTON_HEIGHT)
-        .borderRadius(ThemeConstants.RADIUS_CHIP)
-        .fontSize(ThemeConstants.FONT_SIZE_BODY)
-        .fontColor(ThemeConstants.TEXT_ON_BRAND)
-        .backgroundColor(ThemeConstants.BRAND_PRIMARY)
-        .enabled(!this.busy)
-        .onClick(() => {
+      KomaActionButton({
+        label: this.busy ? '处理中' : '导出备份',
+        kind: 'primary',
+        icon: $r('sys.symbol.doc_plaintext'),
+        isEnabled: !this.busy,
+        action: () => {
           this.exportBackup()
-        })
-
-      Button(this.busy ? '处理中' : '选择备份并预览')
+        },
+      })
         .width('100%')
-        .height(ThemeConstants.BUTTON_HEIGHT)
-        .borderRadius(ThemeConstants.RADIUS_CHIP)
-        .fontSize(ThemeConstants.FONT_SIZE_BODY)
-        .fontColor(ThemeConstants.BRAND_PRIMARY)
-        .backgroundColor(Color.Transparent)
-        .enabled(!this.busy)
-        .onClick(() => {
+
+      KomaActionButton({
+        label: this.busy ? '处理中' : '选择备份并预览',
+        kind: 'secondary',
+        icon: $r('sys.symbol.doc_plaintext'),
+        isEnabled: !this.busy,
+        action: () => {
           this.importBackup()
-        })
-
-      Button(this.busy ? '处理中' : '恢复所选备份')
+        },
+      })
         .width('100%')
-        .height(ThemeConstants.BUTTON_HEIGHT)
-        .borderRadius(ThemeConstants.RADIUS_CHIP)
-        .fontSize(ThemeConstants.FONT_SIZE_BODY)
-        .fontColor(this.selectedBackupPayload.length > 0 ? ThemeConstants.TEXT_ON_BRAND : ThemeConstants.TEXT_SECONDARY)
-        .backgroundColor(this.selectedBackupPayload.length > 0 ? ThemeConstants.BRAND_PRIMARY : Color.Transparent)
-        .enabled(!this.busy && this.selectedBackupPayload.length > 0)
-        .onClick(() => {
+
+      KomaActionButton({
+        label: this.busy ? '处理中' : '恢复所选备份',
+        kind: this.selectedBackupPayload.length > 0 ? 'primary' : 'secondary',
+        icon: $r('sys.symbol.arrow_clockwise'),
+        isEnabled: !this.busy && this.selectedBackupPayload.length > 0,
+        action: () => {
           this.restoreSelectedBackup()
-        })
+        },
+      })
+        .width('100%')
 
       if (this.selectedEncryptedBackupPayload.length > 0) {
         TextInput({ text: this.importPassphrase, placeholder: '输入口令解密预览' })
@@ -373,17 +370,16 @@ export struct BackupManagementPage {
             this.importPassphrase = value
           })
 
-        Button(this.busy ? '处理中' : '解密并预览')
-          .width('100%')
-          .height(ThemeConstants.BUTTON_HEIGHT)
-          .borderRadius(ThemeConstants.RADIUS_CHIP)
-          .fontSize(ThemeConstants.FONT_SIZE_BODY)
-          .fontColor(ThemeConstants.TEXT_ON_BRAND)
-          .backgroundColor(ThemeConstants.BRAND_PRIMARY)
-          .enabled(!this.busy)
-          .onClick(() => {
+        KomaActionButton({
+          label: this.busy ? '处理中' : '解密并预览',
+          kind: 'primary',
+          icon: $r('sys.symbol.doc_plaintext'),
+          isEnabled: !this.busy,
+          action: () => {
             this.decryptSelectedBackup()
-          })
+          },
+        })
+          .width('100%')
       }
     }
     .width('100%')

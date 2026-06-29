@@ -76,27 +76,27 @@ interface SourceDiagnosticsSettingCounts {
   saved: number
 }
 
-@Component
+@ComponentV2
 export struct SourcePackageManagerPage {
-  @State private packages: InstalledSourcePackage[] = []
-  @State private busy: boolean = false
-  @State private statusText: string = ''
-  @State private settingsSourceId: string = ''
-  @State private settingsSourceName: string = ''
-  @State private settingDescriptors: SourceSettingDescriptor[] = []
-  @State private settingDraft: SourceSettingsRecord = {}
-  @State private sourceIndexUrl: string = ''
-  @State private indexEntries: SourceIndexEntry[] = []
-  @State private indexFetchBusy: boolean = false
-  @State private indexInstallBusy: boolean = false
-  @State private indexStatusText: string = ''
-  @State private packageUpdateStatuses: SourcePackageUpdateStatus[] = []
-  @State private updateCheckBusy: boolean = false
-  @State private updateInstallSourceId: string = ''
-  @State private settingsAvailability: Record<string, string> = {}
-  @State private settingsValidationStatuses: SourceSettingsValidationStatus[] = []
-  @State private settingsValidationSourceId: string = ''
-  @State private diagnosticsSourceId: string = ''
+  @Local private packages: InstalledSourcePackage[] = []
+  @Local private busy: boolean = false
+  @Local private statusText: string = ''
+  @Local private settingsSourceId: string = ''
+  @Local private settingsSourceName: string = ''
+  @Local private settingDescriptors: SourceSettingDescriptor[] = []
+  @Local private settingDraft: SourceSettingsRecord = {}
+  @Local private sourceIndexUrl: string = ''
+  @Local private indexEntries: SourceIndexEntry[] = []
+  @Local private indexFetchBusy: boolean = false
+  @Local private indexInstallBusy: boolean = false
+  @Local private indexStatusText: string = ''
+  @Local private packageUpdateStatuses: SourcePackageUpdateStatus[] = []
+  @Local private updateCheckBusy: boolean = false
+  @Local private updateInstallSourceId: string = ''
+  @Local private settingsAvailability: Record<string, string> = {}
+  @Local private settingsValidationStatuses: SourceSettingsValidationStatus[] = []
+  @Local private settingsValidationSourceId: string = ''
+  @Local private diagnosticsSourceId: string = ''
   private sourceIndexService: SourceIndexService = new SourceIndexService(this.context())
 
   aboutToAppear(): void {

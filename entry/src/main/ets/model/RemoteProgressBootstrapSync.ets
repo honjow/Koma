@@ -1,5 +1,5 @@
 import { common } from '@kit.AbilityKit'
-import { StorageKeys } from '../constants/StorageKeys'
+import { RemoteProgressSyncBridge } from '../state/RemoteProgressSyncState'
 import {
   Comic,
   ComicSourceKind,
@@ -67,9 +67,7 @@ export class RemoteProgressBootstrapSync {
           failed: acc.failed + item.failed,
         }
       }, empty)
-      AppStorage.setOrCreate<number>(StorageKeys.REMOTE_PROGRESS_BOOTSTRAP_LAST_SUCCESS_AT, Date.now())
-      const rev = AppStorage.get<number>(StorageKeys.REMOTE_PROGRESS_SYNC_REV) ?? 0
-      AppStorage.setOrCreate<number>(StorageKeys.REMOTE_PROGRESS_SYNC_REV, rev + 1)
+      RemoteProgressSyncBridge.markSuccess()
       console.info(`[BootstrapSync] step=done updated=${total.updated} synced=${total.synced} failed=${total.failed}`)
       return total
     } catch (error) {
@@ -82,7 +80,7 @@ export class RemoteProgressBootstrapSync {
   }
 
   private isCoolingDown(): boolean {
-    const lastSuccessAt = AppStorage.get<number>(StorageKeys.REMOTE_PROGRESS_BOOTSTRAP_LAST_SUCCESS_AT) ?? 0
+    const lastSuccessAt = RemoteProgressSyncBridge.lastSuccessAt()
     return lastSuccessAt > 0 && Date.now() - lastSuccessAt < BOOTSTRAP_SYNC_COOLDOWN_MS
   }
 

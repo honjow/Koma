@@ -1,11 +1,11 @@
 import { UIAbility, Want, AbilityConstant } from '@kit.AbilityKit'
 import { window } from '@kit.ArkUI'
-import { StorageKeys } from '../constants/StorageKeys'
 import { ReaderPreferencesStore, applyReaderThemeMode } from '../model/ReaderPreferencesStore'
 import { RemoteProgressBootstrapSync } from '../model/RemoteProgressBootstrapSync'
 import { bootstrapSourceRuntimeAppRegistry } from '../sourceRuntime/SourceRuntimeAppRegistry'
 import { maybeRunSourceRuntimeDeviceSmoke } from '../sourceRuntime/SourceRuntimeDeviceSmoke'
 import { configureSourceSettingsStore } from '../sourceRuntime/SourceSettingsStore'
+import { LayoutSafeAreaBridge } from '../state/LayoutSafeAreaState'
 
 const TRANSPARENT_COLOR: string = '#00FFFFFF'
 const ENTRY_PAGE: string = 'pages/Index'
@@ -58,21 +58,16 @@ export default class EntryAbility extends UIAbility {
       const uiContext = win.getUIContext()
       const systemArea = win.getWindowAvoidArea(window.AvoidAreaType.TYPE_SYSTEM)
       const navigationArea = win.getWindowAvoidArea(window.AvoidAreaType.TYPE_NAVIGATION_INDICATOR)
-      AppStorage.setOrCreate<number>(
-        StorageKeys.TOP_AVOID_HEIGHT,
+      LayoutSafeAreaBridge.publishInsets(
         uiContext.px2vp(systemArea.topRect.height),
-      )
-      AppStorage.setOrCreate<number>(
-        StorageKeys.BOTTOM_AVOID_HEIGHT,
         uiContext.px2vp(navigationArea.bottomRect.height),
       )
-      AppStorage.setOrCreate<number>(StorageKeys.KEYBOARD_HEIGHT, 0)
+      LayoutSafeAreaBridge.publishKeyboardHeight(0)
     } catch (error) {
       const e = error as Error
       console.error('store avoid heights failed: ' + e.message)
-      AppStorage.setOrCreate<number>(StorageKeys.TOP_AVOID_HEIGHT, FALLBACK_TOP_AVOID)
-      AppStorage.setOrCreate<number>(StorageKeys.BOTTOM_AVOID_HEIGHT, FALLBACK_BOTTOM_AVOID)
-      AppStorage.setOrCreate<number>(StorageKeys.KEYBOARD_HEIGHT, 0)
+      LayoutSafeAreaBridge.publishInsets(FALLBACK_TOP_AVOID, FALLBACK_BOTTOM_AVOID)
+      LayoutSafeAreaBridge.publishKeyboardHeight(0)
     }
   }
 

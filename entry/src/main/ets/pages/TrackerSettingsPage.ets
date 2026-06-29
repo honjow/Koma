@@ -12,11 +12,11 @@ import {
 } from '../model/TrackerModels'
 import { ThemeConstants } from '../theme/ThemeConstants'
 
-@Component
+@ComponentV2
 export struct TrackerSettingsPage {
-  @State private accounts: TrackerAccount[] = DEFAULT_TRACKER_ACCOUNTS
-  @State private secureStorageAvailable: boolean = false
-  @State private authPreparationMessage: string = '安全存储未验证，追踪账号连接暂不可用'
+  @Local private accounts: TrackerAccount[] = DEFAULT_TRACKER_ACCOUNTS
+  @Local private secureStorageAvailable: boolean = false
+  @Local private authPreparationMessage: string = '安全存储未验证，追踪账号连接暂不可用'
 
   private context(): common.UIAbilityContext {
     return getContext(this) as common.UIAbilityContext

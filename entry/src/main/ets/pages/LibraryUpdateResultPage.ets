@@ -18,10 +18,10 @@ import {
 import { formatLibraryUpdateTimestamp } from '../model/LibraryUpdatePreferencesStore'
 import { ThemeConstants } from '../theme/ThemeConstants'
 
-@Component
+@ComponentV2
 export struct LibraryUpdateResultPage {
-  @State private summary?: LibraryUpdateSummary = undefined
-  @State private jobSnapshot?: LibraryUpdateJobSnapshot = undefined
+  @Local private summary?: LibraryUpdateSummary = undefined
+  @Local private jobSnapshot?: LibraryUpdateJobSnapshot = undefined
 
   private context(): common.UIAbilityContext {
     return getContext(this) as common.UIAbilityContext

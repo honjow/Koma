@@ -1,11 +1,15 @@
 import { TabIndex } from '../common/Constants'
 import { ThemeConstants } from '../theme/ThemeConstants'
 
-@Component
+const TAB_SYMBOL_SIZE: number = 28
+const TAB_SYMBOL_LAYOUT_OFFSET_VP: number = 3
+
+@ComponentV2
 export struct KomaTabIcon {
-  @Prop title: string = ''
-  @Prop idx: number = 0
-  @Prop currentIndex: number = 0
+  @Param title: string = ''
+  @Param idx: number = 0
+  @Param currentIndex: number = 0
+  @Event onSelectedClick?: (index: number) => void
 
   private iconForIndex(index: number): Resource {
     if (index === TabIndex.LIBRARY) {
@@ -22,19 +26,28 @@ export struct KomaTabIcon {
   }
 
   build() {
-    Column({ space: ThemeConstants.SPACE_XS }) {
-      SymbolGlyph(this.iconForIndex(this.idx))
-        .fontSize(ThemeConstants.FONT_SIZE_H2)
-        .fontColor([
-          this.currentIndex === this.idx
-            ? $r('sys.color.ohos_id_color_activated')
-            : $r('sys.color.font_secondary'),
-        ])
+    Column() {
+      Row() {
+        Blank().width(TAB_SYMBOL_LAYOUT_OFFSET_VP)
+        SymbolGlyph(this.iconForIndex(this.idx))
+          .fontSize(TAB_SYMBOL_SIZE - 6)
+          .renderingStrategy(SymbolRenderingStrategy.SINGLE)
+          .fontColor([
+            this.currentIndex === this.idx
+              ? ThemeConstants.BRAND_PRIMARY
+              : $r('sys.color.font_secondary'),
+          ])
+      }
+      .width(TAB_SYMBOL_SIZE)
+      .height(TAB_SYMBOL_SIZE - 2)
+      .justifyContent(FlexAlign.Start)
+      .alignItems(VerticalAlign.Center)
+
       Text(this.title)
         .fontSize(ThemeConstants.FONT_SIZE_TINY)
         .fontColor(
           this.currentIndex === this.idx
-            ? $r('sys.color.ohos_id_color_activated')
+            ? ThemeConstants.BRAND_PRIMARY
             : $r('sys.color.font_secondary'),
         )
     }
@@ -42,6 +55,11 @@ export struct KomaTabIcon {
     .justifyContent(FlexAlign.Center)
     .width('100%')
     .height('100%')
-    .padding({ top: ThemeConstants.SPACE_SM, bottom: ThemeConstants.SPACE_XS })
+    .padding({ top: ThemeConstants.SPACE_SM - 2, bottom: ThemeConstants.SPACE_XS })
+    .onClick(() => {
+      if (this.currentIndex === this.idx && this.onSelectedClick) {
+        this.onSelectedClick(this.idx)
+      }
+    })
   }
 }

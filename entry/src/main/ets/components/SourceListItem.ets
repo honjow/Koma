@@ -1,9 +1,9 @@
 import { SourceRuntimeRegistryInstalledSourceSummary } from '../sourceRuntime/SourceRuntimeRegistry'
 import { ThemeConstants } from '../theme/ThemeConstants'
 
-@Component
+@ComponentV2
 export struct SourceListItem {
-  @Prop source: SourceRuntimeRegistryInstalledSourceSummary = {
+  @Param source: SourceRuntimeRegistryInstalledSourceSummary = {
     sourceId: '',
     displayName: '',
     version: '',
@@ -17,8 +17,9 @@ export struct SourceListItem {
     status: 'staged',
     capabilities: [],
   }
-  @Prop languageBadge: string = 'SRC'
-  onSourceTap: (source: SourceRuntimeRegistryInstalledSourceSummary) => void = (_source: SourceRuntimeRegistryInstalledSourceSummary) => {}
+  @Param languageBadge: string = 'SRC'
+  @Event onSourceTap: (source: SourceRuntimeRegistryInstalledSourceSummary) => void =
+    (_source: SourceRuntimeRegistryInstalledSourceSummary) => {}
 
   private sourceInitial(): string {
     if (this.source.displayName.length === 0) {

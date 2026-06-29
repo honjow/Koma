@@ -4,15 +4,15 @@ import { RemoteServerStore } from '../model/RemoteServerStore'
 import { KomgaAuthKind } from '../remote/KomgaModels'
 import { ThemeConstants } from '../theme/ThemeConstants'
 
-@Component
+@ComponentV2
 export struct KomgaServerPage {
-  @State private baseUrl: string = ''
-  @State private authKind: KomgaAuthKind = KomgaAuthKind.BASIC
-  @State private apiKey: string = ''
-  @State private username: string = ''
-  @State private password: string = ''
-  @State private testing: boolean = false
-  @State private statusText: string = ''
+  @Local private baseUrl: string = ''
+  @Local private authKind: KomgaAuthKind = KomgaAuthKind.BASIC
+  @Local private apiKey: string = ''
+  @Local private username: string = ''
+  @Local private password: string = ''
+  @Local private testing: boolean = false
+  @Local private statusText: string = ''
 
   private store(): RemoteServerStore {
     return new RemoteServerStore(getContext(this) as common.UIAbilityContext)

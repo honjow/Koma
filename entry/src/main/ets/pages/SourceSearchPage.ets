@@ -1,13 +1,15 @@
 import { MangaGridItem } from '../components/MangaGridItem'
-import { StorageKeys } from '../constants/StorageKeys'
+import { KomaActionButton } from '../components/ui/KomaActionButton'
+import { KomaEmptyState } from '../components/ui/KomaEmptyState'
 import { SourceManga } from '../model/SourceModels'
+import { connectLayoutSafeArea, LayoutSafeAreaState } from '../state/LayoutSafeAreaState'
 import { ThemeConstants } from '../theme/ThemeConstants'
 import { BrowseViewModel } from '../viewmodel/BrowseViewModel'
 import { SourceRuntimeRegistryInstalledSourceSummary } from '../sourceRuntime/SourceRuntimeRegistry'
 
-@Component
+@ComponentV2
 export struct SourceSearchPage {
-  @Prop source: SourceRuntimeRegistryInstalledSourceSummary = {
+  @Param source: SourceRuntimeRegistryInstalledSourceSummary = {
     sourceId: '',
     displayName: '',
     version: '',
@@ -21,19 +23,18 @@ export struct SourceSearchPage {
     status: 'staged',
     capabilities: [],
   }
-  @ObjectLink viewModel: BrowseViewModel
-  @StorageProp(StorageKeys.TOP_AVOID_HEIGHT) topH: number = 0
-  @StorageProp(StorageKeys.BOTTOM_AVOID_HEIGHT) bottomH: number = 0
-  @State private query: string = ''
+  @Param viewModel: BrowseViewModel = new BrowseViewModel()
+  @Local private safeArea: LayoutSafeAreaState = connectLayoutSafeArea()
+  @Local private query: string = ''
   private searchTimer: number = 0
-  onMangaTap: (manga: SourceManga) => void = (_manga: SourceManga) => {}
+  @Event onMangaTap: (manga: SourceManga) => void = (_manga: SourceManga) => {}
 
   private topContentInset(): number {
-    return this.topH + ThemeConstants.TITLE_BAR_HEIGHT
+    return this.safeArea.topAvoidHeight + ThemeConstants.TITLE_BAR_HEIGHT
   }
 
   private bottomContentInset(): number {
-    return this.bottomH + ThemeConstants.FLOAT_BAR_HEIGHT + 20
+    return this.safeArea.bottomAvoidHeight + ThemeConstants.FLOAT_BAR_HEIGHT + 20
   }
 
   private scheduleSearch(value: string): void {
@@ -50,20 +51,10 @@ export struct SourceSearchPage {
 
   @Builder
   private EmptySearch() {
-    Column({ space: ThemeConstants.SPACE_SM }) {
-      Text(this.query.trim().length === 0 ? '输入关键词搜索' : '没有找到结果')
-        .fontSize(ThemeConstants.FONT_SIZE_HEADING)
-        .fontWeight(FontWeight.Medium)
-        .fontColor(ThemeConstants.TEXT_PRIMARY)
-      Text(this.query.trim().length === 0 ? '搜索当前源内的漫画。' : '换个关键词再试。')
-        .fontSize(ThemeConstants.FONT_SIZE_BODY)
-        .fontColor(ThemeConstants.TEXT_SECONDARY)
-    }
-    .width('100%')
-    .padding(ThemeConstants.SPACE_XL)
-    .borderRadius(ThemeConstants.RADIUS_CARD)
-    .backgroundColor(ThemeConstants.CARD)
-    .alignItems(HorizontalAlign.Center)
+    KomaEmptyState({
+      title: this.query.trim().length === 0 ? '输入关键词搜索' : '没有找到结果',
+      message: this.query.trim().length === 0 ? '搜索当前源内的漫画。' : '换个关键词再试。',
+    })
   }
 
   @Builder
@@ -141,16 +132,14 @@ export struct SourceSearchPage {
         } else {
           this.ResultsGrid(this.viewModel.searchResults)
           if (this.viewModel.hasMoreSearch) {
-            Button('加载更多')
-              .height(ThemeConstants.BUTTON_HEIGHT)
-              .width('100%')
-              .borderRadius(ThemeConstants.RADIUS_CHIP)
-              .fontSize(ThemeConstants.FONT_SIZE_BODY)
-              .fontColor(ThemeConstants.BRAND_PRIMARY)
-              .backgroundColor(ThemeConstants.CARD)
-              .onClick(() => {
+            KomaActionButton({
+              label: '加载更多',
+              kind: 'secondary',
+              fill: true,
+              action: () => {
                 void this.viewModel.loadMoreSearch()
-              })
+              },
+            })
           }
         }
       }

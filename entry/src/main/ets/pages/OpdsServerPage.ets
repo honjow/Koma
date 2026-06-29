@@ -4,14 +4,14 @@ import { RemoteServerStore } from '../model/RemoteServerStore'
 import { OpdsVersion } from '../remote/OpdsModels'
 import { ThemeConstants } from '../theme/ThemeConstants'
 
-@Component
+@ComponentV2
 export struct OpdsServerPage {
-  @State private rootUrl: string = ''
-  @State private username: string = ''
-  @State private password: string = ''
-  @State private detectedVersion: string = ''
-  @State private testing: boolean = false
-  @State private statusText: string = ''
+  @Local private rootUrl: string = ''
+  @Local private username: string = ''
+  @Local private password: string = ''
+  @Local private detectedVersion: string = ''
+  @Local private testing: boolean = false
+  @Local private statusText: string = ''
 
   private store(): RemoteServerStore {
     return new RemoteServerStore(getContext(this) as common.UIAbilityContext)

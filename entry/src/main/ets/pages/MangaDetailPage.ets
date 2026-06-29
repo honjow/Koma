@@ -2,6 +2,8 @@ import { MangaDetailHeader } from '../components/MangaDetailHeader'
 import { common } from '@kit.AbilityKit'
 import { MangaDescriptionSection } from '../components/MangaDescriptionSection'
 import { MangaTagsSection } from '../components/MangaTagsSection'
+import { KomaActionButton } from '../components/ui/KomaActionButton'
+import { KomaIconButton } from '../components/ui/KomaIconButton'
 import {
   ChapterBatchDownloadMode,
   ChapterListSection,
@@ -10,8 +12,8 @@ import {
   AppFilesChapterReadStatePersistenceAdapter,
   ChapterReadStateStore,
 } from '../model/ChapterReadStateStore'
-import { StorageKeys } from '../constants/StorageKeys'
 import { ThemeConstants } from '../theme/ThemeConstants'
+import { connectLayoutSafeArea, LayoutSafeAreaState } from '../state/LayoutSafeAreaState'
 import {
   MangaChapterItem,
   MangaDetail,
@@ -119,33 +121,32 @@ function executeMangaDetailSourceOperation(requestJson: string, wasmBytes: Uint8
   return JSON.stringify(response)
 }
 
-@Component
+@ComponentV2
 export struct MangaDetailPage {
-  @Prop params: MangaDetailRouteParams = {}
-  @State private manga: MangaDetail = _mockMangaDetail()
-  @State private chapters: MangaChapterItem[] = _mockChapterList()
-  @State private isInLibrary: boolean = false
-  @State private isLoading: boolean = false
-  @State private downloadBusy: boolean = false
-  @State private downloadStatusText: string = ''
-  @State private feedbackText: string = ''
-  @StorageProp(StorageKeys.TOP_AVOID_HEIGHT) topH: number = 0
-  @StorageProp(StorageKeys.BOTTOM_AVOID_HEIGHT) bottomH: number = 0
-  libraryStore?: LibraryStore
-  libraryPersistenceService?: LibraryStorePersistenceService
-  readerSessionStore: ReaderSessionStore = new InMemoryReaderSessionStore()
-  sourceRegistry: SourceRuntimeRegistry = new SourceRuntimeRegistry()
-  onBack: () => void = () => {}
-  onOpenReader: (mangaId: string, chapterId?: string) => void = (_mangaId: string, _chapterId?: string) => {}
-  onLibraryChanged: () => void = () => {}
+  @Param params: MangaDetailRouteParams = {}
+  @Local private manga: MangaDetail = _mockMangaDetail()
+  @Local private chapters: MangaChapterItem[] = _mockChapterList()
+  @Local private isInLibrary: boolean = false
+  @Local private isLoading: boolean = false
+  @Local private downloadBusy: boolean = false
+  @Local private downloadStatusText: string = ''
+  @Local private feedbackText: string = ''
+  @Local private safeArea: LayoutSafeAreaState = connectLayoutSafeArea()
+  @Param libraryStore?: LibraryStore = undefined
+  @Param libraryPersistenceService?: LibraryStorePersistenceService = undefined
+  @Param readerSessionStore: ReaderSessionStore = new InMemoryReaderSessionStore()
+  @Param sourceRegistry: SourceRuntimeRegistry = new SourceRuntimeRegistry()
+  @Event onBack: () => void = () => {}
+  @Event onOpenReader: (mangaId: string, chapterId?: string) => void = (_mangaId: string, _chapterId?: string) => {}
+  @Event onLibraryChanged: () => void = () => {}
   private chapterReadStateStore?: ChapterReadStateStore
 
   private topContentInset(): number {
-    return this.topH + 12
+    return this.safeArea.topAvoidHeight + 12
   }
 
   private bottomContentInset(): number {
-    return this.bottomH + ThemeConstants.FLOAT_BAR_HEIGHT + 20
+    return this.safeArea.bottomAvoidHeight + ThemeConstants.FLOAT_BAR_HEIGHT + 20
   }
 
   aboutToAppear(): void {
@@ -813,24 +814,23 @@ export struct MangaDetailPage {
   @Builder
   private Toolbar() {
     Row() {
-      Button('‹')
-        .width(ThemeConstants.ACTION_CHIP_HEIGHT)
-        .height(ThemeConstants.ACTION_CHIP_HEIGHT)
-        .borderRadius(ThemeConstants.RADIUS_CHIP)
-        .fontSize(30)
-        .fontColor(ThemeConstants.TEXT_PRIMARY)
-        .backgroundColor(Color.Transparent)
-        .onClick(() => {
+      KomaIconButton({
+        icon: $r('sys.symbol.chevron_left'),
+        controlSize: ThemeConstants.ACTION_CHIP_HEIGHT,
+        iconSize: ThemeConstants.FONT_SIZE_H2,
+        action: () => {
           this.onBack()
-        })
+        },
+      })
       Blank()
-      Button('…')
-        .width(ThemeConstants.ACTION_CHIP_HEIGHT)
-        .height(ThemeConstants.ACTION_CHIP_HEIGHT)
-        .borderRadius(ThemeConstants.RADIUS_CHIP)
-        .fontSize(ThemeConstants.FONT_SIZE_H1)
-        .fontColor(ThemeConstants.TEXT_PRIMARY)
-        .backgroundColor(Color.Transparent)
+      KomaIconButton({
+        icon: $r('sys.symbol.more'),
+        controlSize: ThemeConstants.ACTION_CHIP_HEIGHT,
+        iconSize: ThemeConstants.FONT_SIZE_H2,
+        action: () => {
+          this.showToast('更多操作稍后接入')
+        },
+      })
     }
     .width('100%')
     .height(ThemeConstants.SOURCE_ICON_SIZE)
@@ -840,41 +840,36 @@ export struct MangaDetailPage {
   @Builder
   private ActionButtons() {
     Row({ space: ThemeConstants.SPACE_MD }) {
-      Button(this.isInLibrary ? '已收藏' : '收藏书架', { type: ButtonType.Capsule })
-        .height(ThemeConstants.BUTTON_HEIGHT)
-        .layoutWeight(1)
-        .fontSize(ThemeConstants.FONT_SIZE_BODY)
-        .fontWeight(FontWeight.Medium)
-        .fontColor(this.isInLibrary ? ThemeConstants.TEXT_ON_BRAND : ThemeConstants.BRAND_PRIMARY)
-        .backgroundColor(this.isInLibrary ? ThemeConstants.BRAND_PRIMARY : Color.Transparent)
-        .border({ width: 1, color: ThemeConstants.BRAND_PRIMARY })
-        .onClick(() => {
+      KomaActionButton({
+        label: this.isInLibrary ? '已收藏' : '收藏书架',
+        kind: this.isInLibrary ? 'primary' : 'secondary',
+        icon: $r('sys.symbol.bookmark'),
+        fill: true,
+        action: () => {
           this.handleAddToLibrary()
-        })
+        },
+      })
 
-      Button(this.primaryReadLabel(), { type: ButtonType.Capsule })
-        .height(ThemeConstants.BUTTON_HEIGHT)
-        .layoutWeight(1)
-        .fontSize(ThemeConstants.FONT_SIZE_BODY)
-        .fontWeight(FontWeight.Medium)
-        .fontColor(ThemeConstants.TEXT_ON_BRAND)
-        .backgroundColor(ThemeConstants.BRAND_PRIMARY)
-        .onClick(() => {
+      KomaActionButton({
+        label: this.primaryReadLabel(),
+        kind: 'primary',
+        icon: $r('sys.symbol.doc_plaintext'),
+        fill: true,
+        action: () => {
           this.handleStartReading()
-        })
+        },
+      })
 
-      Button(this.downloadButtonLabel(), { type: ButtonType.Capsule })
-        .height(ThemeConstants.BUTTON_HEIGHT)
-        .layoutWeight(1)
-        .fontSize(ThemeConstants.FONT_SIZE_BODY)
-        .fontWeight(FontWeight.Medium)
-        .fontColor(ThemeConstants.BRAND_PRIMARY)
-        .backgroundColor(Color.Transparent)
-        .border({ width: 1, color: ThemeConstants.BRAND_PRIMARY })
-        .enabled(!this.downloadBusy)
-        .onClick(() => {
+      KomaActionButton({
+        label: this.downloadButtonLabel(),
+        kind: 'secondary',
+        icon: $r('sys.symbol.arrow_down_to_line'),
+        fill: true,
+        isEnabled: !this.downloadBusy,
+        action: () => {
           this.handleDownloadChapter()
-        })
+        },
+      })
     }
     .width('100%')
   }

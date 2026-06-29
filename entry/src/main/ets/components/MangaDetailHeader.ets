@@ -1,9 +1,9 @@
 import { MangaDetail, MangaStatus } from '../model/MangaDetailModels'
 import { ThemeConstants } from '../theme/ThemeConstants'
 
-@Component
+@ComponentV2
 export struct MangaDetailHeader {
-  @Prop manga: MangaDetail = {
+  @Param manga: MangaDetail = {
     id: '',
     title: '',
     chapterCount: 0,

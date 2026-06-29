@@ -1,9 +1,9 @@
 import { ThemeConstants } from '../theme/ThemeConstants'
 
-@Component
+@ComponentV2
 export struct MangaDescriptionSection {
-  @Prop description: string = ''
-  @State private expanded: boolean = false
+  @Param description: string = ''
+  @Local private expanded: boolean = false
 
   private hasDescription(): boolean {
     return this.description.trim().length > 0

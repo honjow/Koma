@@ -1,3 +1,4 @@
+import { Chip, ChipSize } from '@kit.ArkUI'
 import {
   Comic,
   CustomLibraryCategory,
@@ -21,17 +22,18 @@ import {
   setCategoryDisplayStrategyAndPersistLibraryStore,
 } from '../model/LibraryPersistence'
 import { SecondaryListScaffold } from '../components/SecondaryListScaffold'
+import { KomaActionButton } from '../components/ui/KomaActionButton'
 import { ThemeConstants } from '../theme/ThemeConstants'
 
-@Component
+@ComponentV2
 export struct LibraryCategoryManagementPage {
-  libraryStore?: LibraryStore
-  libraryPersistenceService?: LibraryStorePersistenceService
-  onLibraryChanged: () => void = () => {}
-  @State private categories: CustomLibraryCategory[] = []
-  @State private draftName: string = ''
-  @State private editingCategoryId: string = ''
-  @State private editingName: string = ''
+  @Param libraryStore?: LibraryStore = undefined
+  @Param libraryPersistenceService?: LibraryStorePersistenceService = undefined
+  @Event onLibraryChanged: () => void = () => {}
+  @Local private categories: CustomLibraryCategory[] = []
+  @Local private draftName: string = ''
+  @Local private editingCategoryId: string = ''
+  @Local private editingName: string = ''
 
   private refreshCategories(): void {
     this.categories = this.libraryStore === undefined ? [] : this.libraryStore.listCustomCategories()
@@ -256,21 +258,35 @@ export struct LibraryCategoryManagementPage {
       }
       .layoutWeight(1)
       .alignItems(HorizontalAlign.Start)
-      Button(this.sortLabel(this.categoryStrategy(categoryId).sortBy))
-        .height(ThemeConstants.ACTION_CHIP_HEIGHT)
-        .padding({ left: ThemeConstants.SPACE_MD, right: ThemeConstants.SPACE_MD })
-        .borderRadius(ThemeConstants.RADIUS_CHIP)
-        .fontSize(ThemeConstants.FONT_SIZE_BODY)
-        .fontColor(ThemeConstants.TEXT_PRIMARY)
-        .backgroundColor(ThemeConstants.SOFT_PRESSED)
+      Row() {
+        Chip({
+          label: {
+            text: this.sortLabel(this.categoryStrategy(categoryId).sortBy),
+            fontSize: ThemeConstants.FONT_SIZE_TAG,
+            fontColor: ThemeConstants.TEXT_PRIMARY,
+          },
+          activated: false,
+          size: ChipSize.SMALL,
+          backgroundColor: $r('sys.color.ohos_id_color_button_normal'),
+          borderRadius: ThemeConstants.RADIUS_ROUND,
+          allowClose: false,
+        })
+      }
         .bindMenu(this.CategorySortMenu(categoryId))
-      Button(this.readStateLabel(this.categoryStrategy(categoryId).readState))
-        .height(ThemeConstants.ACTION_CHIP_HEIGHT)
-        .padding({ left: ThemeConstants.SPACE_MD, right: ThemeConstants.SPACE_MD })
-        .borderRadius(ThemeConstants.RADIUS_CHIP)
-        .fontSize(ThemeConstants.FONT_SIZE_BODY)
-        .fontColor(ThemeConstants.TEXT_PRIMARY)
-        .backgroundColor(ThemeConstants.SOFT_PRESSED)
+      Row() {
+        Chip({
+          label: {
+            text: this.readStateLabel(this.categoryStrategy(categoryId).readState),
+            fontSize: ThemeConstants.FONT_SIZE_TAG,
+            fontColor: ThemeConstants.TEXT_PRIMARY,
+          },
+          activated: false,
+          size: ChipSize.SMALL,
+          backgroundColor: $r('sys.color.ohos_id_color_button_normal'),
+          borderRadius: ThemeConstants.RADIUS_ROUND,
+          allowClose: false,
+        })
+      }
         .bindMenu(this.CategoryReadStateMenu(categoryId))
     }
     .width('100%')
@@ -347,16 +363,13 @@ export struct LibraryCategoryManagementPage {
           .onChange((value: string) => {
             this.draftName = value
           })
-        Button('创建')
-          .height(ThemeConstants.BUTTON_HEIGHT)
-          .padding({ left: ThemeConstants.SPACE_LG, right: ThemeConstants.SPACE_LG })
-          .borderRadius(ThemeConstants.RADIUS_CHIP)
-          .fontSize(ThemeConstants.FONT_SIZE_BODY)
-          .fontColor(ThemeConstants.TEXT_ON_BRAND)
-          .backgroundColor(ThemeConstants.BRAND_PRIMARY)
-          .onClick(() => {
+        KomaActionButton({
+          label: '创建',
+          kind: 'primary',
+          action: () => {
             this.persistCreate()
-          })
+          },
+        })
       }
       .width('100%')
     }
@@ -377,26 +390,22 @@ export struct LibraryCategoryManagementPage {
             this.editingName = value
           })
         Row({ space: ThemeConstants.SPACE_MD }) {
-          Button('保存')
-            .height(ThemeConstants.ACTION_CHIP_HEIGHT)
-            .padding({ left: ThemeConstants.SPACE_LG, right: ThemeConstants.SPACE_LG })
-            .borderRadius(ThemeConstants.RADIUS_CHIP)
-            .fontSize(ThemeConstants.FONT_SIZE_BODY)
-            .fontColor(ThemeConstants.TEXT_ON_BRAND)
-            .backgroundColor(ThemeConstants.BRAND_PRIMARY)
-            .onClick(() => {
+          KomaActionButton({
+            label: '保存',
+            kind: 'primary',
+            controlHeight: ThemeConstants.ACTION_CHIP_HEIGHT,
+            action: () => {
               this.persistRename(category.id)
-            })
-          Button('取消')
-            .height(ThemeConstants.ACTION_CHIP_HEIGHT)
-            .padding({ left: ThemeConstants.SPACE_LG, right: ThemeConstants.SPACE_LG })
-            .borderRadius(ThemeConstants.RADIUS_CHIP)
-            .fontSize(ThemeConstants.FONT_SIZE_BODY)
-            .fontColor(ThemeConstants.TEXT_PRIMARY)
-            .backgroundColor(ThemeConstants.SOFT_PRESSED)
-            .onClick(() => {
+            },
+          })
+          KomaActionButton({
+            label: '取消',
+            kind: 'secondary',
+            controlHeight: ThemeConstants.ACTION_CHIP_HEIGHT,
+            action: () => {
               this.cancelRename()
-            })
+            },
+          })
         }
         .width('100%')
       } else {
@@ -414,50 +423,40 @@ export struct LibraryCategoryManagementPage {
           }
           .layoutWeight(1)
           .alignItems(HorizontalAlign.Start)
-          Button('上移')
-            .height(ThemeConstants.ACTION_CHIP_HEIGHT)
-            .padding({ left: ThemeConstants.SPACE_MD, right: ThemeConstants.SPACE_MD })
-            .borderRadius(ThemeConstants.RADIUS_CHIP)
-            .fontSize(ThemeConstants.FONT_SIZE_BODY)
-            .fontColor(ThemeConstants.TEXT_PRIMARY)
-            .backgroundColor(ThemeConstants.SOFT_PRESSED)
-            .enabled(!this.isFirstCategory(category))
-            .opacity(this.isFirstCategory(category) ? 0.45 : 1)
-            .onClick(() => {
+          KomaActionButton({
+            label: '上移',
+            kind: 'secondary',
+            isEnabled: !this.isFirstCategory(category),
+            controlHeight: ThemeConstants.ACTION_CHIP_HEIGHT,
+            action: () => {
               this.persistMove(category.id, 'up')
-            })
-          Button('下移')
-            .height(ThemeConstants.ACTION_CHIP_HEIGHT)
-            .padding({ left: ThemeConstants.SPACE_MD, right: ThemeConstants.SPACE_MD })
-            .borderRadius(ThemeConstants.RADIUS_CHIP)
-            .fontSize(ThemeConstants.FONT_SIZE_BODY)
-            .fontColor(ThemeConstants.TEXT_PRIMARY)
-            .backgroundColor(ThemeConstants.SOFT_PRESSED)
-            .enabled(!this.isLastCategory(category))
-            .opacity(this.isLastCategory(category) ? 0.45 : 1)
-            .onClick(() => {
+            },
+          })
+          KomaActionButton({
+            label: '下移',
+            kind: 'secondary',
+            isEnabled: !this.isLastCategory(category),
+            controlHeight: ThemeConstants.ACTION_CHIP_HEIGHT,
+            action: () => {
               this.persistMove(category.id, 'down')
-            })
-          Button('重命名')
-            .height(ThemeConstants.ACTION_CHIP_HEIGHT)
-            .padding({ left: ThemeConstants.SPACE_MD, right: ThemeConstants.SPACE_MD })
-            .borderRadius(ThemeConstants.RADIUS_CHIP)
-            .fontSize(ThemeConstants.FONT_SIZE_BODY)
-            .fontColor(ThemeConstants.TEXT_PRIMARY)
-            .backgroundColor(ThemeConstants.SOFT_PRESSED)
-            .onClick(() => {
+            },
+          })
+          KomaActionButton({
+            label: '重命名',
+            kind: 'secondary',
+            controlHeight: ThemeConstants.ACTION_CHIP_HEIGHT,
+            action: () => {
               this.startRename(category)
-            })
-          Button('删除')
-            .height(ThemeConstants.ACTION_CHIP_HEIGHT)
-            .padding({ left: ThemeConstants.SPACE_MD, right: ThemeConstants.SPACE_MD })
-            .borderRadius(ThemeConstants.RADIUS_CHIP)
-            .fontSize(ThemeConstants.FONT_SIZE_BODY)
-            .fontColor(ThemeConstants.TEXT_ON_BRAND)
-            .backgroundColor(ThemeConstants.DANGER)
-            .onClick(() => {
+            },
+          })
+          KomaActionButton({
+            label: '删除',
+            kind: 'danger',
+            controlHeight: ThemeConstants.ACTION_CHIP_HEIGHT,
+            action: () => {
               this.confirmDelete(category)
-            })
+            },
+          })
         }
         .width('100%')
       }

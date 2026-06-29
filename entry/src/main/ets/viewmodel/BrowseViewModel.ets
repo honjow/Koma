@@ -152,22 +152,22 @@ function parseSourceMangaListFromResponse(sourceId: string, response: SourceRunt
   return { manga, hasNextPage }
 }
 
-@Observed
+@ObservedV2
 export class BrowseViewModel {
-  sources: SourceRuntimeRegistryInstalledSourceSummary[] = []
-  popularManga: SourceManga[] = []
-  latestManga: SourceManga[] = []
-  searchResults: SourceManga[] = []
-  selectedSource?: SourceRuntimeRegistryInstalledSourceSummary
-  browsePage: number = 1
-  searchPage: number = 1
-  hasMoreBrowse: boolean = false
-  hasMoreSearch: boolean = false
-  loadingSources: boolean = false
-  loadingBrowse: boolean = false
-  loadingSearch: boolean = false
-  errorMessage: string = ''
-  searchQuery: string = ''
+  @Trace sources: SourceRuntimeRegistryInstalledSourceSummary[] = []
+  @Trace popularManga: SourceManga[] = []
+  @Trace latestManga: SourceManga[] = []
+  @Trace searchResults: SourceManga[] = []
+  @Trace selectedSource?: SourceRuntimeRegistryInstalledSourceSummary
+  @Trace browsePage: number = 1
+  @Trace searchPage: number = 1
+  @Trace hasMoreBrowse: boolean = false
+  @Trace hasMoreSearch: boolean = false
+  @Trace loadingSources: boolean = false
+  @Trace loadingBrowse: boolean = false
+  @Trace loadingSearch: boolean = false
+  @Trace errorMessage: string = ''
+  @Trace searchQuery: string = ''
 
   constructor(registry?: SourceRuntimeRegistry) {
     this.registry = registry ?? appSourceRuntimeRegistry

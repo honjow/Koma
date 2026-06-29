@@ -1,14 +1,14 @@
 import { SourceManga } from '../model/SourceModels'
 import { ThemeConstants } from '../theme/ThemeConstants'
 
-@Component
+@ComponentV2
 export struct MangaGridItem {
-  @Prop manga: SourceManga = {
+  @Param manga: SourceManga = {
     id: '',
     sourceId: '',
     title: '',
   }
-  onMangaTap: (manga: SourceManga) => void = (_manga: SourceManga) => {}
+  @Event onMangaTap: (manga: SourceManga) => void = (_manga: SourceManga) => {}
 
   private titleInitial(): string {
     if (this.manga.title.length === 0) {

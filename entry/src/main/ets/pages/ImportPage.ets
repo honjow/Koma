@@ -1,11 +1,12 @@
 import { common } from '@kit.AbilityKit'
-import { StorageKeys } from '../constants/StorageKeys'
 import { LocalImportCoordinator } from '../import/LocalImportCoordinator'
 import {
   LocalArchiveImportDebugEvent,
   formatLocalArchiveImportDebugEvent,
 } from '../import/LocalImportDebugModels'
 import { Comic } from '../model/ComicModels'
+import { KomaActionButton } from '../components/ui/KomaActionButton'
+import { connectLayoutSafeArea, LayoutSafeAreaState } from '../state/LayoutSafeAreaState'
 import { ThemeConstants } from '../theme/ThemeConstants'
 
 interface ImportEntryInfo {
@@ -26,22 +27,21 @@ const IMAGE_ENTRY: ImportEntryInfo = {
   accentColor: ThemeConstants.SOURCE_OPDS_COLOR,
 }
 
-@Component
+@ComponentV2
 export struct ImportPage {
-  @State private feedbackText: string = '选择本地漫画文件。'
-  @State private importing: boolean = false
-  @StorageProp(StorageKeys.TOP_AVOID_HEIGHT) topH: number = 0
-  @StorageProp(StorageKeys.BOTTOM_AVOID_HEIGHT) bottomH: number = 0
-  onArchiveImportSucceeded: (comic: Comic) => void = (_comic: Comic) => {}
-  onLocalImageImportSucceeded: (comic: Comic) => void = (_comic: Comic) => {}
+  @Local private feedbackText: string = '选择本地漫画文件。'
+  @Local private importing: boolean = false
+  @Local private safeArea: LayoutSafeAreaState = connectLayoutSafeArea()
+  @Event onArchiveImportSucceeded: (comic: Comic) => void = (_comic: Comic) => {}
+  @Event onLocalImageImportSucceeded: (comic: Comic) => void = (_comic: Comic) => {}
   private readonly localImportCoordinator: LocalImportCoordinator = new LocalImportCoordinator()
 
   private topContentInset(): number {
-    return this.topH + ThemeConstants.TITLE_BAR_HEIGHT
+    return this.safeArea.topAvoidHeight + ThemeConstants.TITLE_BAR_HEIGHT
   }
 
   private bottomContentInset(): number {
-    return this.bottomH + ThemeConstants.FLOAT_BAR_HEIGHT + 20
+    return this.safeArea.bottomAvoidHeight + ThemeConstants.FLOAT_BAR_HEIGHT + 20
   }
 
   private logImportDebugEvent(event: LocalArchiveImportDebugEvent): void {
@@ -177,22 +177,22 @@ export struct ImportPage {
       }
       .width('100%')
 
-      Button(this.importing ? '导入中...' : entry.actionText)
-        .height(42)
-        .width('100%')
-        .borderRadius(ThemeConstants.RADIUS_CHIP)
-        .fontSize(ThemeConstants.FONT_SIZE_BODY)
-        .fontWeight(FontWeight.Medium)
-        .fontColor(ThemeConstants.TEXT_ON_BRAND)
-        .backgroundColor(entry.accentColor)
-        .enabled(!this.importing)
-        .onClick(() => {
+      KomaActionButton({
+        label: this.importing ? '导入中...' : entry.actionText,
+        kind: 'primary',
+        accentColor: entry.accentColor,
+        icon: entry.title === IMAGE_ENTRY.title ? $r('sys.symbol.picture') : $r('sys.symbol.doc_plaintext'),
+        isEnabled: !this.importing,
+        controlHeight: 42,
+        action: () => {
           if (entry.title === IMAGE_ENTRY.title) {
             this.selectImagesFromPicker()
           } else {
             this.selectArchiveFromPicker()
           }
-        })
+        },
+      })
+        .width('100%')
       if (this.importing) {
         LoadingProgress()
           .width(22)

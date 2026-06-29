@@ -1,13 +1,14 @@
 import { MangaGridItem } from '../components/MangaGridItem'
-import { StorageKeys } from '../constants/StorageKeys'
+import { KomaActionButton } from '../components/ui/KomaActionButton'
 import { SourceManga } from '../model/SourceModels'
+import { connectLayoutSafeArea, LayoutSafeAreaState } from '../state/LayoutSafeAreaState'
 import { ThemeConstants } from '../theme/ThemeConstants'
 import { BrowseViewModel } from '../viewmodel/BrowseViewModel'
 import { SourceRuntimeRegistryInstalledSourceSummary } from '../sourceRuntime/SourceRuntimeRegistry'
 
-@Component
+@ComponentV2
 export struct SourceBrowsePage {
-  @Prop source: SourceRuntimeRegistryInstalledSourceSummary = {
+  @Param source: SourceRuntimeRegistryInstalledSourceSummary = {
     sourceId: '',
     displayName: '',
     version: '',
@@ -21,18 +22,18 @@ export struct SourceBrowsePage {
     status: 'staged',
     capabilities: [],
   }
-  @ObjectLink viewModel: BrowseViewModel
-  @StorageProp(StorageKeys.TOP_AVOID_HEIGHT) topH: number = 0
-  @StorageProp(StorageKeys.BOTTOM_AVOID_HEIGHT) bottomH: number = 0
-  onSearchRequested: (source: SourceRuntimeRegistryInstalledSourceSummary) => void = (_source: SourceRuntimeRegistryInstalledSourceSummary) => {}
-  onMangaTap: (manga: SourceManga) => void = (_manga: SourceManga) => {}
+  @Param viewModel: BrowseViewModel = new BrowseViewModel()
+  @Local private safeArea: LayoutSafeAreaState = connectLayoutSafeArea()
+  @Event onSearchRequested: (source: SourceRuntimeRegistryInstalledSourceSummary) => void =
+    (_source: SourceRuntimeRegistryInstalledSourceSummary) => {}
+  @Event onMangaTap: (manga: SourceManga) => void = (_manga: SourceManga) => {}
 
   private topContentInset(): number {
-    return this.topH + ThemeConstants.TITLE_BAR_HEIGHT
+    return this.safeArea.topAvoidHeight + ThemeConstants.TITLE_BAR_HEIGHT
   }
 
   private bottomContentInset(): number {
-    return this.bottomH + ThemeConstants.FLOAT_BAR_HEIGHT + 20
+    return this.safeArea.bottomAvoidHeight + ThemeConstants.FLOAT_BAR_HEIGHT + 20
   }
 
   private bottomFloatingTabViewportClearance(): number {
@@ -97,17 +98,13 @@ export struct SourceBrowsePage {
           .layoutWeight(1)
           .alignItems(HorizontalAlign.Start)
 
-          Button('搜索')
-            .height(ThemeConstants.ACTION_CHIP_HEIGHT)
-            .padding({ left: ThemeConstants.SPACE_LG, right: ThemeConstants.SPACE_LG })
-            .borderRadius(ThemeConstants.RADIUS_CHIP)
-            .fontSize(ThemeConstants.FONT_SIZE_BODY)
-            .fontWeight(FontWeight.Medium)
-            .fontColor(ThemeConstants.TEXT_ON_BRAND)
-            .backgroundColor(ThemeConstants.BRAND_PRIMARY)
-            .onClick(() => {
+          KomaActionButton({
+            label: '搜索',
+            kind: 'primary',
+            action: () => {
               this.onSearchRequested(this.source)
-            })
+            },
+          })
         }
         .width('100%')
         .alignItems(VerticalAlign.Center)
@@ -133,16 +130,15 @@ export struct SourceBrowsePage {
           this.MangaGrid(this.viewModel.latestManga)
 
           if (this.viewModel.hasMoreBrowse) {
-            Button(this.viewModel.loadingBrowse ? '加载中...' : '加载更多')
-              .height(ThemeConstants.BUTTON_HEIGHT)
-              .width('100%')
-              .borderRadius(ThemeConstants.RADIUS_CHIP)
-              .fontSize(ThemeConstants.FONT_SIZE_BODY)
-              .fontColor(ThemeConstants.BRAND_PRIMARY)
-              .backgroundColor(ThemeConstants.CARD)
-              .onClick(() => {
+            KomaActionButton({
+              label: this.viewModel.loadingBrowse ? '加载中...' : '加载更多',
+              kind: 'secondary',
+              fill: true,
+              isEnabled: !this.viewModel.loadingBrowse,
+              action: () => {
                 void this.viewModel.loadMoreBrowse()
-              })
+              },
+            })
           }
         }
       }

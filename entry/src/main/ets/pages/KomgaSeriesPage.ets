@@ -32,24 +32,24 @@ interface KomgaSeriesRouteParam {
   libraryId?: string
 }
 
-@Component
+@ComponentV2
 export struct KomgaSeriesPage {
-  @Prop params: KomgaSeriesRouteParam = {}
-  @State private libraries: KomgaLibraryDto[] = []
-  @State private selectedLibraryId: string = ''
-  @State private series: KomgaSeriesDto[] = []
-  @State private selectedSeries: KomgaSeriesDto | undefined = undefined
-  @State private books: KomgaBookDto[] = []
-  @State private loading: boolean = true
-  @State private loadingMore: boolean = false
-  @State private errorText: string = ''
-  @State private page: number = 0
-  @State private hasMore: boolean = true
-  @State private favoriteRevision: number = 0
+  @Param params: KomgaSeriesRouteParam = {}
+  @Local private libraries: KomgaLibraryDto[] = []
+  @Local private selectedLibraryId: string = ''
+  @Local private series: KomgaSeriesDto[] = []
+  @Local private selectedSeries: KomgaSeriesDto | undefined = undefined
+  @Local private books: KomgaBookDto[] = []
+  @Local private loading: boolean = true
+  @Local private loadingMore: boolean = false
+  @Local private errorText: string = ''
+  @Local private page: number = 0
+  @Local private hasMore: boolean = true
+  @Local private favoriteRevision: number = 0
   private record?: KomgaServerRecord
-  libraryStore: LibraryStore = createSeededLibraryStore()
-  libraryPersistenceService?: LibraryStorePersistenceService
-  onLibraryChanged: () => void = () => {}
+  @Param libraryStore: LibraryStore = createSeededLibraryStore()
+  @Param libraryPersistenceService?: LibraryStorePersistenceService = undefined
+  @Event onLibraryChanged: () => void = () => {}
 
   private store(): RemoteServerStore {
     return new RemoteServerStore(getContext(this) as common.UIAbilityContext)

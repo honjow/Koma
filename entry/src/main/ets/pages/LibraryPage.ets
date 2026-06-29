@@ -1,6 +1,9 @@
 import { common } from '@kit.AbilityKit'
+import { Chip, ChipSize } from '@kit.ArkUI'
 import { ComicCoverCard, ComicCoverInfo } from '../components/ComicCoverCard'
 import { SecondaryListScaffold } from '../components/SecondaryListScaffold'
+import { KomaActionButton } from '../components/ui/KomaActionButton'
+import { KomaEmptyState } from '../components/ui/KomaEmptyState'
 import { ThemeConstants } from '../theme/ThemeConstants'
 import {
   ContinueReadingCardViewModel,
@@ -33,7 +36,7 @@ import {
   LibraryFilterStore,
   LibrarySourceFilter,
 } from '../model/LibraryFilterStore'
-import { StorageKeys } from '../constants/StorageKeys'
+import { connectRemoteProgressSyncState, RemoteProgressSyncState } from '../state/RemoteProgressSyncState'
 import { isRemovableLocalComic } from '../model/LibraryPersistence'
 import {
   AppFilesReaderSessionPersistenceAdapter,
@@ -42,17 +45,17 @@ import {
   ReaderSessionStore,
 } from '../model/ReaderSessionStore'
 
-@Component
+@ComponentV2
 struct ContinueReadingShelfCard {
-  @Prop info: ContinueReadingCardViewModel = {
+  @Param info: ContinueReadingCardViewModel = {
     title: '',
     detail: '',
     progress: 0,
     color: ThemeConstants.SOURCE_LOCAL_COLOR,
     comicId: '',
   }
-  @Prop revision: number = 0
-  onOpenReader: (comicId: ComicId) => void = (_comicId: ComicId) => {}
+  @Param revision: number = 0
+  @Event onOpenReader: (comicId: ComicId) => void = (_comicId: ComicId) => {}
 
   build() {
     Row({ space: ThemeConstants.SPACE_MD }) {
@@ -101,41 +104,43 @@ struct ContinueReadingShelfCard {
   }
 }
 
-@Component
+@ComponentV2
 export struct LibraryPage {
-  libraryStore: LibraryStore = createSeededLibraryStore()
-  @Prop @Watch('syncDisplayedSnapshotFromProps') libraryComics: Comic[] = createSeededLibraryStore().listComics()
-  @Prop @Watch('syncDisplayedSnapshotFromProps') libraryRevision: number = 0
-  @State private displayedComics: Comic[] = createSeededLibraryStore().listComics()
-  @State private displayedRevision: number = 0
-  @State private selectionMode: boolean = false
-  @State private selectedIds: Set<ComicId> = new Set<ComicId>()
-  @State private suppressOpenComicId: ComicId = ''
-  @State private sortBy: LibrarySortBy = 'lastRead'
-  @State private filterSource: LibrarySourceFilter = 'all'
-  @State private filterReadState: LibraryReadStateFilter = 'all'
-  @State private filterCategory: LibraryCategoryFilter = 'all'
-  @StorageProp(StorageKeys.REMOTE_PROGRESS_SYNC_REV) @Watch('onRemoteProgressSyncRevChanged') remoteProgressSyncRev: number = 0
-  presentationByComicId: LibraryPresentationByComicId = createMockLibraryPresentationMap()
-  sessionStore: ReaderSessionStore = new InMemoryReaderSessionStore()
-  onOpenReader: (comicId: ComicId) => void = (_comicId: ComicId) => {}
-  onImportRequested: () => void = () => {}
-  onRemoveComicRequested: (comicId: ComicId) => boolean = (_comicId: ComicId) => false
-  onAssignCategoriesRequested: (comicIds: ComicId[], categoryIds?: string[]) => boolean =
+  @Param libraryStore: LibraryStore = createSeededLibraryStore()
+  @Param libraryComics: Comic[] = createSeededLibraryStore().listComics()
+  @Param libraryRevision: number = 0
+  @Local private displayedComics: Comic[] = createSeededLibraryStore().listComics()
+  @Local private displayedRevision: number = 0
+  @Local private selectionMode: boolean = false
+  @Local private selectedIds: Set<ComicId> = new Set<ComicId>()
+  @Local private suppressOpenComicId: ComicId = ''
+  @Local private sortBy: LibrarySortBy = 'lastRead'
+  @Local private filterSource: LibrarySourceFilter = 'all'
+  @Local private filterReadState: LibraryReadStateFilter = 'all'
+  @Local private filterCategory: LibraryCategoryFilter = 'all'
+  @Local private remoteProgress: RemoteProgressSyncState = connectRemoteProgressSyncState()
+  @Param presentationByComicId: LibraryPresentationByComicId = createMockLibraryPresentationMap()
+  private sessionStore: ReaderSessionStore = new InMemoryReaderSessionStore()
+  @Event onOpenReader: (comicId: ComicId) => void = (_comicId: ComicId) => {}
+  @Event onImportRequested: () => void = () => {}
+  @Event onRemoveComicRequested: (comicId: ComicId) => boolean = (_comicId: ComicId) => false
+  @Event onAssignCategoriesRequested: (comicIds: ComicId[], categoryIds?: string[]) => boolean =
     (_comicIds: ComicId[], _categoryIds?: string[]) => false
-  onUpdateCategoryMembershipRequested: (comicIds: ComicId[], categoryId: string, selected: boolean) => boolean =
+  @Event onUpdateCategoryMembershipRequested: (comicIds: ComicId[], categoryId: string, selected: boolean) => boolean =
     (_comicIds: ComicId[], _categoryId: string, _selected: boolean) => false
   private longPressTimer: number = 0
   private longPressComicId: ComicId = ''
 
+  @Monitor('libraryComics', 'libraryRevision')
   private syncDisplayedSnapshotFromProps(): void {
     this.refreshDisplayedSnapshotFromStore()
     this.displayedRevision = this.libraryRevision
     this.removeMissingSelectedComics()
   }
 
+  @Monitor('remoteProgress.syncRevision')
   private onRemoteProgressSyncRevChanged(): void {
-    void this.remoteProgressSyncRev
+    void this.remoteProgress.syncRevision
     this.reloadPersistentSessionStore('bootstrap_sync')
   }
 
@@ -803,90 +808,97 @@ export struct LibraryPage {
   @Builder
   private SortFilterBar() {
     Row({ space: ThemeConstants.SPACE_SM }) {
-      Button(`排序 ${this.sortLabel()} ▾`)
-        .height(ThemeConstants.FILTER_CHIP_HEIGHT)
-        .padding({ left: ThemeConstants.SPACE_MD, right: ThemeConstants.SPACE_MD })
-        .borderRadius(ThemeConstants.RADIUS_CHIP)
-        .fontSize(ThemeConstants.FONT_SIZE_META)
-        .fontColor(this.sortBy !== 'lastRead' ? ThemeConstants.TEXT_ON_BRAND : ThemeConstants.TEXT_PRIMARY)
-        .backgroundColor(this.sortBy !== 'lastRead' ? ThemeConstants.BRAND_PRIMARY : ThemeConstants.CARD)
-        .bindMenu(this.SortMenu())
-      Button(`${this.sourceLabel()} ▾`)
-        .height(ThemeConstants.FILTER_CHIP_HEIGHT)
-        .padding({ left: ThemeConstants.SPACE_MD, right: ThemeConstants.SPACE_MD })
-        .borderRadius(ThemeConstants.RADIUS_CHIP)
-        .fontSize(ThemeConstants.FONT_SIZE_META)
-        .fontColor(this.filterSource !== 'all' ? ThemeConstants.TEXT_ON_BRAND : ThemeConstants.TEXT_PRIMARY)
-        .backgroundColor(this.filterSource !== 'all' ? ThemeConstants.BRAND_PRIMARY : ThemeConstants.CARD)
-        .bindMenu(this.SourceMenu())
-      Button(`${this.readStateLabel()} ▾`)
-        .height(ThemeConstants.FILTER_CHIP_HEIGHT)
-        .padding({ left: ThemeConstants.SPACE_MD, right: ThemeConstants.SPACE_MD })
-        .borderRadius(ThemeConstants.RADIUS_CHIP)
-        .fontSize(ThemeConstants.FONT_SIZE_META)
-        .fontColor(this.filterReadState !== 'all' ? ThemeConstants.TEXT_ON_BRAND : ThemeConstants.TEXT_PRIMARY)
-        .backgroundColor(this.filterReadState !== 'all' ? ThemeConstants.BRAND_PRIMARY : ThemeConstants.CARD)
-        .bindMenu(this.ReadStateMenu())
-      Button(`${this.categoryLabel()} ▾`)
-        .height(ThemeConstants.FILTER_CHIP_HEIGHT)
-        .padding({ left: ThemeConstants.SPACE_MD, right: ThemeConstants.SPACE_MD })
-        .borderRadius(ThemeConstants.RADIUS_CHIP)
-        .fontSize(ThemeConstants.FONT_SIZE_META)
-        .fontColor(this.filterCategory !== 'all' ? ThemeConstants.TEXT_ON_BRAND : ThemeConstants.TEXT_PRIMARY)
-        .backgroundColor(this.filterCategory !== 'all' ? ThemeConstants.BRAND_PRIMARY : ThemeConstants.CARD)
-        .bindMenu(this.CategoryMenu())
+      Row() {
+        Chip({
+          label: {
+            text: `排序 ${this.sortLabel()} ▾`,
+            fontSize: ThemeConstants.FONT_SIZE_TAG,
+            fontColor: ThemeConstants.TEXT_PRIMARY,
+            activatedFontColor: ThemeConstants.TEXT_ON_BRAND,
+          },
+          activated: this.sortBy !== 'lastRead',
+          size: ChipSize.SMALL,
+          backgroundColor: $r('sys.color.ohos_id_color_button_normal'),
+          activatedBackgroundColor: ThemeConstants.BRAND_PRIMARY,
+          borderRadius: ThemeConstants.RADIUS_ROUND,
+          allowClose: false,
+        })
+      }
+      .bindMenu(this.SortMenu())
+      Row() {
+        Chip({
+          label: {
+            text: `${this.sourceLabel()} ▾`,
+            fontSize: ThemeConstants.FONT_SIZE_TAG,
+            fontColor: ThemeConstants.TEXT_PRIMARY,
+            activatedFontColor: ThemeConstants.TEXT_ON_BRAND,
+          },
+          activated: this.filterSource !== 'all',
+          size: ChipSize.SMALL,
+          backgroundColor: $r('sys.color.ohos_id_color_button_normal'),
+          activatedBackgroundColor: ThemeConstants.BRAND_PRIMARY,
+          borderRadius: ThemeConstants.RADIUS_ROUND,
+          allowClose: false,
+        })
+      }
+      .bindMenu(this.SourceMenu())
+      Row() {
+        Chip({
+          label: {
+            text: `${this.readStateLabel()} ▾`,
+            fontSize: ThemeConstants.FONT_SIZE_TAG,
+            fontColor: ThemeConstants.TEXT_PRIMARY,
+            activatedFontColor: ThemeConstants.TEXT_ON_BRAND,
+          },
+          activated: this.filterReadState !== 'all',
+          size: ChipSize.SMALL,
+          backgroundColor: $r('sys.color.ohos_id_color_button_normal'),
+          activatedBackgroundColor: ThemeConstants.BRAND_PRIMARY,
+          borderRadius: ThemeConstants.RADIUS_ROUND,
+          allowClose: false,
+        })
+      }
+      .bindMenu(this.ReadStateMenu())
+      Row() {
+        Chip({
+          label: {
+            text: `${this.categoryLabel()} ▾`,
+            fontSize: ThemeConstants.FONT_SIZE_TAG,
+            fontColor: ThemeConstants.TEXT_PRIMARY,
+            activatedFontColor: ThemeConstants.TEXT_ON_BRAND,
+          },
+          activated: this.filterCategory !== 'all',
+          size: ChipSize.SMALL,
+          backgroundColor: $r('sys.color.ohos_id_color_button_normal'),
+          activatedBackgroundColor: ThemeConstants.BRAND_PRIMARY,
+          borderRadius: ThemeConstants.RADIUS_ROUND,
+          allowClose: false,
+        })
+      }
+      .bindMenu(this.CategoryMenu())
     }
     .width('100%')
   }
 
   @Builder
   private EmptyLibrary() {
-    Column({ space: ThemeConstants.SPACE_MD }) {
-      Text('还没有漫画')
-        .fontSize(ThemeConstants.FONT_SIZE_H3)
-        .fontWeight(FontWeight.Medium)
-        .fontColor(ThemeConstants.TEXT_PRIMARY)
-      Text('导入本地 CBZ 或 ZIP 后会显示在书架中。')
-        .fontSize(ThemeConstants.FONT_SIZE_BODY)
-        .lineHeight(ThemeConstants.LINE_HEIGHT_TITLE)
-        .fontColor(ThemeConstants.TEXT_SECONDARY)
-        .textAlign(TextAlign.Center)
-      Button('导入')
-        .height(ThemeConstants.BUTTON_HEIGHT)
-        .padding({ left: 22, right: 22 })
-        .borderRadius(ThemeConstants.RADIUS_CHIP)
-        .fontSize(ThemeConstants.FONT_SIZE_BODY)
-        .fontColor(ThemeConstants.TEXT_ON_BRAND)
-        .backgroundColor(ThemeConstants.BRAND_PRIMARY)
-        .onClick(() => {
-          this.onImportRequested()
-        })
-    }
-    .width('100%')
-    .padding(ThemeConstants.SPACE_XL)
-    .borderRadius(ThemeConstants.RADIUS_CARD)
-    .backgroundColor(ThemeConstants.CARD)
-    .alignItems(HorizontalAlign.Center)
+    KomaEmptyState({
+      title: '还没有漫画',
+      message: '导入本地 CBZ 或 ZIP 后会显示在书架中。',
+      actionLabel: '导入',
+      showAction: true,
+      action: () => {
+        this.onImportRequested()
+      },
+    })
   }
 
   @Builder
   private EmptyFilteredLibrary() {
-    Column({ space: ThemeConstants.SPACE_MD }) {
-      Text('没有符合条件的漫画')
-        .fontSize(ThemeConstants.FONT_SIZE_HEADING)
-        .fontWeight(FontWeight.Medium)
-        .fontColor(ThemeConstants.TEXT_PRIMARY)
-      Text('调整排序或筛选条件后再试。')
-        .fontSize(ThemeConstants.FONT_SIZE_BODY)
-        .lineHeight(ThemeConstants.LINE_HEIGHT_TITLE)
-        .fontColor(ThemeConstants.TEXT_SECONDARY)
-        .textAlign(TextAlign.Center)
-    }
-    .width('100%')
-    .padding(ThemeConstants.SPACE_XL)
-    .borderRadius(ThemeConstants.RADIUS_CARD)
-    .backgroundColor(ThemeConstants.CARD)
-    .alignItems(HorizontalAlign.Center)
+    KomaEmptyState({
+      title: '没有符合条件的漫画',
+      message: '调整排序或筛选条件后再试。',
+    })
   }
 
   @Builder
@@ -898,49 +910,41 @@ export struct LibraryPage {
         .fontColor(ThemeConstants.TEXT_PRIMARY)
         .layoutWeight(1)
 
-      Button('全选')
-        .height(ThemeConstants.ACTION_CHIP_HEIGHT)
-        .padding({ left: ThemeConstants.SPACE_MD, right: ThemeConstants.SPACE_MD })
-        .borderRadius(ThemeConstants.RADIUS_CHIP)
-        .fontSize(ThemeConstants.FONT_SIZE_BODY)
-        .fontColor(ThemeConstants.TEXT_PRIMARY)
-        .backgroundColor(ThemeConstants.SOFT_PRESSED)
-        .onClick(() => {
+      KomaActionButton({
+        label: '全选',
+        kind: 'secondary',
+        controlHeight: ThemeConstants.ACTION_CHIP_HEIGHT,
+        action: () => {
           this.selectAllVisibleComics()
-        })
+        },
+      })
 
-      Button('取消')
-        .height(ThemeConstants.ACTION_CHIP_HEIGHT)
-        .padding({ left: 12, right: 12 })
-        .borderRadius(ThemeConstants.RADIUS_CHIP)
-        .fontSize(ThemeConstants.FONT_SIZE_BODY)
-        .fontColor(ThemeConstants.TEXT_PRIMARY)
-        .backgroundColor(ThemeConstants.SOFT_PRESSED)
-        .onClick(() => {
+      KomaActionButton({
+        label: '取消',
+        kind: 'secondary',
+        controlHeight: ThemeConstants.ACTION_CHIP_HEIGHT,
+        action: () => {
           this.exitSelectionMode()
-        })
+        },
+      })
 
-      Button('分类 ▾')
-        .height(ThemeConstants.ACTION_CHIP_HEIGHT)
-        .padding({ left: 12, right: 12 })
-        .borderRadius(ThemeConstants.RADIUS_CHIP)
-        .fontSize(ThemeConstants.FONT_SIZE_BODY)
-        .fontColor(ThemeConstants.TEXT_ON_BRAND)
-        .backgroundColor(ThemeConstants.BRAND_PRIMARY)
-        .enabled(this.selectedCount() > 0)
+      KomaActionButton({
+        label: '分类 ▾',
+        kind: 'primary',
+        isEnabled: this.selectedCount() > 0,
+        controlHeight: ThemeConstants.ACTION_CHIP_HEIGHT,
+      })
         .bindMenu(this.BatchCategoryMenu())
 
-      Button('删除')
-        .height(ThemeConstants.ACTION_CHIP_HEIGHT)
-        .padding({ left: 12, right: 12 })
-        .borderRadius(ThemeConstants.RADIUS_CHIP)
-        .fontSize(ThemeConstants.FONT_SIZE_BODY)
-        .fontColor(ThemeConstants.TEXT_ON_BRAND)
-        .backgroundColor(ThemeConstants.DANGER)
-        .enabled(this.selectedCount() > 0)
-        .onClick(() => {
+      KomaActionButton({
+        label: '删除',
+        kind: 'danger',
+        isEnabled: this.selectedCount() > 0,
+        controlHeight: ThemeConstants.ACTION_CHIP_HEIGHT,
+        action: () => {
           this.showBatchRemoveConfirmation()
-        })
+        },
+      })
     }
     .width('100%')
     .padding({ left: 14, right: 14, top: 12, bottom: 12 })
