@@ -1,4 +1,3 @@
-import { Chip, ChipSize } from '@kit.ArkUI'
 import {
   Comic,
   CustomLibraryCategory,
@@ -22,7 +21,12 @@ import {
   setCategoryDisplayStrategyAndPersistLibraryStore,
 } from '../model/LibraryPersistence'
 import { SecondaryListScaffold } from '../components/SecondaryListScaffold'
+import { ConciseListRow } from '../components/ui/ConciseListRow'
+import { GroupedListSection, ListDivider, SectionHeader } from '../components/ui/GroupedListSection'
 import { KomaActionButton } from '../components/ui/KomaActionButton'
+import { KomaDisclosureListRow } from '../components/ui/KomaDisclosureListRow'
+import { KomaFormTextField } from '../components/ui/KomaFormTextField'
+import { KomaMenuListRow } from '../components/ui/KomaMenuListRow'
 import { ThemeConstants } from '../theme/ThemeConstants'
 
 @ComponentV2
@@ -34,6 +38,8 @@ export struct LibraryCategoryManagementPage {
   @Local private draftName: string = ''
   @Local private editingCategoryId: string = ''
   @Local private editingName: string = ''
+  @Local private categoryMenuKey: string = ''
+  @Local private expandedStrategyCategoryId: LibraryCategoryDisplayCategoryId = 'all'
 
   private refreshCategories(): void {
     this.categories = this.libraryStore === undefined ? [] : this.libraryStore.listCustomCategories()
@@ -111,11 +117,31 @@ export struct LibraryCategoryManagementPage {
   private setCategorySort(categoryId: LibraryCategoryDisplayCategoryId, sortBy: LibrarySortBy): void {
     const strategy = this.categoryStrategy(categoryId)
     this.persistCategoryStrategy(categoryId, sortBy, strategy.readState)
+    this.categoryMenuKey = ''
   }
 
   private setCategoryReadState(categoryId: LibraryCategoryDisplayCategoryId, readState: LibraryReadStateFilter): void {
     const strategy = this.categoryStrategy(categoryId)
     this.persistCategoryStrategy(categoryId, strategy.sortBy, readState)
+    this.categoryMenuKey = ''
+  }
+
+  private strategyMenuKey(categoryId: LibraryCategoryDisplayCategoryId, kind: string): string {
+    return `${categoryId}:${kind}`
+  }
+
+  private categoryActionMenuKey(categoryId: string): string {
+    return `${categoryId}:actions`
+  }
+
+  private categoryStrategySummary(categoryId: LibraryCategoryDisplayCategoryId): string {
+    const strategy = this.categoryStrategy(categoryId)
+    return `${this.sortLabel(strategy.sortBy)} · ${this.readStateLabel(strategy.readState)}`
+  }
+
+  private toggleStrategyExpansion(categoryId: LibraryCategoryDisplayCategoryId): void {
+    this.expandedStrategyCategoryId = this.expandedStrategyCategoryId === categoryId ? '' : categoryId
+    this.categoryMenuKey = ''
   }
 
   private persistCreate(): void {
@@ -138,6 +164,7 @@ export struct LibraryCategoryManagementPage {
   private startRename(category: CustomLibraryCategory): void {
     this.editingCategoryId = category.id
     this.editingName = category.name
+    this.categoryMenuKey = ''
   }
 
   private cancelRename(): void {
@@ -188,6 +215,10 @@ export struct LibraryCategoryManagementPage {
     }
     try {
       if (deleteCustomCategoryAndPersistLibraryStore(this.libraryStore, this.libraryPersistenceService, categoryId)) {
+        if (this.expandedStrategyCategoryId === categoryId) {
+          this.expandedStrategyCategoryId = 'all'
+        }
+        this.categoryMenuKey = ''
         this.refreshCategories()
         this.onLibraryChanged()
         this.showToast('分类已删除')
@@ -243,73 +274,65 @@ export struct LibraryCategoryManagementPage {
   }
 
   @Builder
-  private StrategyRow(categoryId: LibraryCategoryDisplayCategoryId, title: string) {
-    Row({ space: ThemeConstants.SPACE_MD }) {
-      Column({ space: ThemeConstants.SPACE_XS }) {
-        Text(title)
-          .fontSize(ThemeConstants.FONT_SIZE_BODY)
-          .fontWeight(FontWeight.Medium)
-          .fontColor(ThemeConstants.TEXT_PRIMARY)
-          .maxLines(1)
-          .textOverflow({ overflow: TextOverflow.Ellipsis })
-        Text('打开分类时自动使用')
-          .fontSize(ThemeConstants.FONT_SIZE_META)
-          .fontColor(ThemeConstants.TEXT_SECONDARY)
+  private StrategySummaryRow(categoryId: LibraryCategoryDisplayCategoryId, title: string) {
+    KomaDisclosureListRow({
+      title,
+      subtitle: this.categoryStrategySummary(categoryId),
+      isExpanded: this.expandedStrategyCategoryId === categoryId,
+      toggle: () => {
+        this.toggleStrategyExpansion(categoryId)
+      },
+    }) {
+      KomaMenuListRow({
+        title: '默认排序',
+        trailingText: this.sortLabel(this.categoryStrategy(categoryId).sortBy),
+        trailingDropdown: true,
+        showChevron: false,
+        isMenuOpen: this.categoryMenuKey === this.strategyMenuKey(categoryId, 'sort'),
+        action: () => {
+          this.categoryMenuKey = this.strategyMenuKey(categoryId, 'sort')
+        },
+      }) {
+        this.CategorySortMenu(categoryId)
       }
-      .layoutWeight(1)
-      .alignItems(HorizontalAlign.Start)
-      Row() {
-        Chip({
-          label: {
-            text: this.sortLabel(this.categoryStrategy(categoryId).sortBy),
-            fontSize: ThemeConstants.FONT_SIZE_TAG,
-            fontColor: ThemeConstants.TEXT_PRIMARY,
-          },
-          activated: false,
-          size: ChipSize.SMALL,
-          backgroundColor: $r('sys.color.ohos_id_color_button_normal'),
-          borderRadius: ThemeConstants.RADIUS_ROUND,
-          allowClose: false,
-        })
+      ListDivider()
+      KomaMenuListRow({
+        title: '阅读状态',
+        trailingText: this.readStateLabel(this.categoryStrategy(categoryId).readState),
+        trailingDropdown: true,
+        showChevron: false,
+        isMenuOpen: this.categoryMenuKey === this.strategyMenuKey(categoryId, 'read'),
+        action: () => {
+          this.categoryMenuKey = this.strategyMenuKey(categoryId, 'read')
+        },
+      }) {
+        this.CategoryReadStateMenu(categoryId)
       }
-        .bindMenu(this.CategorySortMenu(categoryId))
-      Row() {
-        Chip({
-          label: {
-            text: this.readStateLabel(this.categoryStrategy(categoryId).readState),
-            fontSize: ThemeConstants.FONT_SIZE_TAG,
-            fontColor: ThemeConstants.TEXT_PRIMARY,
-          },
-          activated: false,
-          size: ChipSize.SMALL,
-          backgroundColor: $r('sys.color.ohos_id_color_button_normal'),
-          borderRadius: ThemeConstants.RADIUS_ROUND,
-          allowClose: false,
-        })
-      }
-        .bindMenu(this.CategoryReadStateMenu(categoryId))
     }
-    .width('100%')
-    .padding({ left: ThemeConstants.SPACE_LG, right: ThemeConstants.SPACE_LG, top: ThemeConstants.SPACE_LG, bottom: ThemeConstants.SPACE_LG })
-    .borderRadius(ThemeConstants.RADIUS_CARD)
-    .backgroundColor(ThemeConstants.CARD)
   }
 
   @Builder
   private DisplayStrategySection() {
-    Column({ space: ThemeConstants.SPACE_MD }) {
-      Text('分类显示方式')
-        .width('100%')
-        .fontSize(ThemeConstants.FONT_SIZE_BODY)
-        .fontWeight(FontWeight.Medium)
-        .fontColor(ThemeConstants.TEXT_PRIMARY)
-      this.StrategyRow('all', '全部分类')
-      this.StrategyRow('uncategorized', '未分类')
-      this.StrategyRow(LIBRARY_CATEGORY_FAVORITE_ID, '收藏')
-      this.StrategyRow(LIBRARY_CATEGORY_READ_LATER_ID, '稍后阅读')
-      ForEach(this.categories, (category: CustomLibraryCategory) => {
-        this.StrategyRow(category.id, category.name)
-      }, (category: CustomLibraryCategory) => category.id)
+    Column({ space: ThemeConstants.SPACE_XS }) {
+      SectionHeader({ title: '分类显示' })
+      GroupedListSection() {
+        this.StrategySummaryRow('all', '全部分类')
+        ListDivider()
+        this.StrategySummaryRow('uncategorized', '未分类')
+        ListDivider()
+        this.StrategySummaryRow(LIBRARY_CATEGORY_FAVORITE_ID, '收藏')
+        ListDivider()
+        this.StrategySummaryRow(LIBRARY_CATEGORY_READ_LATER_ID, '稍后阅读')
+        if (this.categories.length > 0) {
+          ListDivider()
+        }
+        ForEach(this.categories, (category: CustomLibraryCategory, index: number) => {
+          this.StrategySummaryRow(category.id, category.name)
+          if (index < this.categories.length - 1) {
+            ListDivider()
+          }
+        }, (category: CustomLibraryCategory) => category.id)
+      }
     }
     .width('100%')
   }
@@ -349,50 +372,104 @@ export struct LibraryCategoryManagementPage {
   }
 
   @Builder
-  private CreateCard() {
-    Column({ space: ThemeConstants.SPACE_MD }) {
-      Text('新建分类')
-        .width('100%')
-        .fontSize(ThemeConstants.FONT_SIZE_BODY)
-        .fontWeight(FontWeight.Medium)
-        .fontColor(ThemeConstants.TEXT_PRIMARY)
-      Row({ space: ThemeConstants.SPACE_MD }) {
-        TextInput({ placeholder: `最多 ${LIBRARY_CATEGORY_NAME_MAX_LENGTH} 个字符`, text: this.draftName })
-          .height(ThemeConstants.BUTTON_HEIGHT)
-          .layoutWeight(1)
-          .onChange((value: string) => {
-            this.draftName = value
-          })
-        KomaActionButton({
-          label: '创建',
-          kind: 'primary',
-          action: () => {
-            this.persistCreate()
-          },
+  private CategoryActionMenu(category: CustomLibraryCategory) {
+    Menu() {
+      MenuItem({ content: '重命名' })
+        .onClick(() => {
+          this.startRename(category)
         })
+      MenuItem({ content: '上移' })
+        .enabled(!this.isFirstCategory(category))
+        .onClick(() => {
+          this.persistMove(category.id, 'up')
+        })
+      MenuItem({ content: '下移' })
+        .enabled(!this.isLastCategory(category))
+        .onClick(() => {
+          this.persistMove(category.id, 'down')
+        })
+      MenuItem({ content: '删除' })
+        .onClick(() => {
+          this.confirmDelete(category)
+        })
+    }
+  }
+
+  @Builder
+  private CustomCategoriesSection() {
+    Column({ space: ThemeConstants.SPACE_XS }) {
+      SectionHeader({ title: '自定义分类' })
+      GroupedListSection() {
+        if (this.categories.length === 0) {
+          ConciseListRow({
+            title: '暂无自定义分类',
+            showChevron: false,
+          })
+        } else {
+          ForEach(this.categories, (category: CustomLibraryCategory, index: number) => {
+            this.CategoryRow(category)
+            if (index < this.categories.length - 1) {
+              ListDivider()
+            }
+          }, (category: CustomLibraryCategory) => category.id)
+        }
       }
-      .width('100%')
     }
     .width('100%')
-    .padding({ left: ThemeConstants.SPACE_LG, right: ThemeConstants.SPACE_LG, top: ThemeConstants.SPACE_LG, bottom: ThemeConstants.SPACE_LG })
-    .borderRadius(ThemeConstants.RADIUS_CARD)
-    .backgroundColor(ThemeConstants.CARD)
+  }
+
+  @Builder
+  private CreateSection() {
+    Column({ space: ThemeConstants.SPACE_XS }) {
+      SectionHeader({ title: '新建分类' })
+      GroupedListSection({ inset: ThemeConstants.SPACE_LG }) {
+        Column({ space: ThemeConstants.SPACE_MD }) {
+          KomaFormTextField({
+            label: '分类名称',
+            placeholder: `最多 ${LIBRARY_CATEGORY_NAME_MAX_LENGTH} 个字符`,
+            value: this.draftName,
+            submit: () => {
+              this.persistCreate()
+            },
+            change: (value: string) => {
+              this.draftName = value
+            },
+          })
+          KomaActionButton({
+            label: '创建',
+            kind: 'primary',
+            fullWidth: true,
+            isEnabled: this.draftName.trim().length > 0,
+            action: () => {
+              this.persistCreate()
+            },
+          })
+        }
+        .width('100%')
+      }
+    }
+    .width('100%')
   }
 
   @Builder
   private CategoryRow(category: CustomLibraryCategory) {
-    Column({ space: ThemeConstants.SPACE_MD }) {
-      if (this.editingCategoryId === category.id) {
-        TextInput({ text: this.editingName })
-          .width('100%')
-          .height(ThemeConstants.BUTTON_HEIGHT)
-          .onChange((value: string) => {
+    if (this.editingCategoryId === category.id) {
+      Column({ space: ThemeConstants.SPACE_MD }) {
+        KomaFormTextField({
+          label: '分类名称',
+          value: this.editingName,
+          submit: () => {
+            this.persistRename(category.id)
+          },
+          change: (value: string) => {
             this.editingName = value
-          })
+          },
+        })
         Row({ space: ThemeConstants.SPACE_MD }) {
           KomaActionButton({
             label: '保存',
             kind: 'primary',
+            fill: true,
             controlHeight: ThemeConstants.ACTION_CHIP_HEIGHT,
             action: () => {
               this.persistRename(category.id)
@@ -401,6 +478,7 @@ export struct LibraryCategoryManagementPage {
           KomaActionButton({
             label: '取消',
             kind: 'secondary',
+            fill: true,
             controlHeight: ThemeConstants.ACTION_CHIP_HEIGHT,
             action: () => {
               this.cancelRename()
@@ -408,75 +486,21 @@ export struct LibraryCategoryManagementPage {
           })
         }
         .width('100%')
-      } else {
-        Row({ space: ThemeConstants.SPACE_MD }) {
-          Column({ space: ThemeConstants.SPACE_XS }) {
-            Text(category.name)
-              .fontSize(ThemeConstants.FONT_SIZE_BODY)
-              .fontWeight(FontWeight.Medium)
-              .fontColor(ThemeConstants.TEXT_PRIMARY)
-              .maxLines(1)
-              .textOverflow({ overflow: TextOverflow.Ellipsis })
-            Text(`${this.categoryUsageCount(category.id)} 本漫画`)
-              .fontSize(ThemeConstants.FONT_SIZE_META)
-              .fontColor(ThemeConstants.TEXT_SECONDARY)
-          }
-          .layoutWeight(1)
-          .alignItems(HorizontalAlign.Start)
-          KomaActionButton({
-            label: '上移',
-            kind: 'secondary',
-            isEnabled: !this.isFirstCategory(category),
-            controlHeight: ThemeConstants.ACTION_CHIP_HEIGHT,
-            action: () => {
-              this.persistMove(category.id, 'up')
-            },
-          })
-          KomaActionButton({
-            label: '下移',
-            kind: 'secondary',
-            isEnabled: !this.isLastCategory(category),
-            controlHeight: ThemeConstants.ACTION_CHIP_HEIGHT,
-            action: () => {
-              this.persistMove(category.id, 'down')
-            },
-          })
-          KomaActionButton({
-            label: '重命名',
-            kind: 'secondary',
-            controlHeight: ThemeConstants.ACTION_CHIP_HEIGHT,
-            action: () => {
-              this.startRename(category)
-            },
-          })
-          KomaActionButton({
-            label: '删除',
-            kind: 'danger',
-            controlHeight: ThemeConstants.ACTION_CHIP_HEIGHT,
-            action: () => {
-              this.confirmDelete(category)
-            },
-          })
-        }
-        .width('100%')
+      }
+      .width('100%')
+      .padding({ left: ThemeConstants.SPACE_LG, right: ThemeConstants.SPACE_LG, top: ThemeConstants.SPACE_LG, bottom: ThemeConstants.SPACE_LG })
+    } else {
+      KomaMenuListRow({
+        title: category.name,
+        subtitle: `${this.categoryUsageCount(category.id)} 本漫画`,
+        isMenuOpen: this.categoryMenuKey === this.categoryActionMenuKey(category.id),
+        action: () => {
+          this.categoryMenuKey = this.categoryActionMenuKey(category.id)
+        },
+      }) {
+        this.CategoryActionMenu(category)
       }
     }
-    .width('100%')
-    .padding({ left: ThemeConstants.SPACE_LG, right: ThemeConstants.SPACE_LG, top: ThemeConstants.SPACE_LG, bottom: ThemeConstants.SPACE_LG })
-    .borderRadius(ThemeConstants.RADIUS_CARD)
-    .backgroundColor(ThemeConstants.CARD)
-  }
-
-  @Builder
-  private EmptyCard() {
-    Text('暂无自定义分类')
-      .width('100%')
-      .fontSize(ThemeConstants.FONT_SIZE_BODY)
-      .fontColor(ThemeConstants.TEXT_SECONDARY)
-      .textAlign(TextAlign.Center)
-      .padding({ left: ThemeConstants.SPACE_LG, right: ThemeConstants.SPACE_LG, top: ThemeConstants.SPACE_XL, bottom: ThemeConstants.SPACE_XL })
-      .borderRadius(ThemeConstants.RADIUS_CARD)
-      .backgroundColor(ThemeConstants.CARD)
   }
 
   aboutToAppear(): void {
@@ -494,18 +518,10 @@ export struct LibraryCategoryManagementPage {
           this.DisplayStrategySection()
         }
         ListItem() {
-          this.CreateCard()
+          this.CustomCategoriesSection()
         }
-        if (this.categories.length === 0) {
-          ListItem() {
-            this.EmptyCard()
-          }
-        } else {
-          ForEach(this.categories, (category: CustomLibraryCategory) => {
-            ListItem() {
-              this.CategoryRow(category)
-            }
-          }, (category: CustomLibraryCategory) => category.id)
+        ListItem() {
+          this.CreateSection()
         }
       }
     }

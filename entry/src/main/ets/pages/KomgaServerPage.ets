@@ -1,5 +1,9 @@
 import { common } from '@kit.AbilityKit'
 import { SecondaryListScaffold } from '../components/SecondaryListScaffold'
+import { GroupedListSection } from '../components/ui/GroupedListSection'
+import { KomaActionButton } from '../components/ui/KomaActionButton'
+import { KomaFormTextField } from '../components/ui/KomaFormTextField'
+import { KomaSegmentedControl } from '../components/ui/KomaSegmentedControl'
 import { RemoteServerStore } from '../model/RemoteServerStore'
 import { KomgaAuthKind } from '../remote/KomgaModels'
 import { ThemeConstants } from '../theme/ThemeConstants'
@@ -91,93 +95,77 @@ export struct KomgaServerPage {
     }
   }
 
-  @Builder
-  private Field(label: string, placeholder: string, value: string, password: boolean = false, onChange: (value: string) => void) {
-    Column({ space: ThemeConstants.SPACE_SM }) {
-      Text(label)
-        .fontSize(ThemeConstants.FONT_SIZE_META)
-        .fontWeight(FontWeight.Medium)
-        .fontColor(ThemeConstants.TEXT_SECONDARY)
-        .width('100%')
-      TextInput({ placeholder, text: value })
-        .type(password ? InputType.Password : InputType.Normal)
-        .height(ThemeConstants.BUTTON_HEIGHT)
-        .fontSize(ThemeConstants.FONT_SIZE_BODY)
-        .backgroundColor(ThemeConstants.BG_SUB)
-        .borderRadius(ThemeConstants.RADIUS_CHIP)
-        .onChange((next: string) => {
-          onChange(next)
-        })
+  private authIndex(): number {
+    if (this.authKind === KomgaAuthKind.API_KEY) {
+      return 1
     }
-    .width('100%')
+    if (this.authKind === KomgaAuthKind.NONE) {
+      return 2
+    }
+    return 0
   }
 
-  @Builder
-  private AuthButton(label: string, kind: KomgaAuthKind) {
-    Button(label)
-      .height(ThemeConstants.ACTION_CHIP_HEIGHT)
-      .layoutWeight(1)
-      .fontSize(ThemeConstants.FONT_SIZE_META)
-      .fontColor(this.authKind === kind ? ThemeConstants.TEXT_ON_BRAND : ThemeConstants.BRAND_PRIMARY)
-      .backgroundColor(this.authKind === kind ? ThemeConstants.BRAND_PRIMARY : Color.Transparent)
-      .border({ width: 1, color: ThemeConstants.BRAND_PRIMARY })
-      .borderRadius(ThemeConstants.RADIUS_CHIP)
-      .onClick(() => {
-        this.authKind = kind
-      })
+  private setAuthIndex(index: number): void {
+    if (index === 1) {
+      this.authKind = KomgaAuthKind.API_KEY
+    } else if (index === 2) {
+      this.authKind = KomgaAuthKind.NONE
+    } else {
+      this.authKind = KomgaAuthKind.BASIC
+    }
   }
 
   @Builder
   private FormCard() {
-    Column({ space: ThemeConstants.SPACE_LG }) {
-      this.Field('Server URL', 'https://demo.komga.org', this.baseUrl, false, (value: string) => {
+    GroupedListSection({ inset: ThemeConstants.SPACE_LG }) {
+      Column({ space: ThemeConstants.SPACE_LG }) {
+      KomaFormTextField({ label: 'Server URL', placeholder: 'https://demo.komga.org', value: this.baseUrl, change: (value: string) => {
         this.baseUrl = value
+      } })
+
+      KomaSegmentedControl({
+        labels: ['Basic', 'API key', '无认证'],
+        selectedIndex: this.authIndex(),
+        select: (index: number) => {
+          this.setAuthIndex(index)
+        },
       })
 
-      Row({ space: ThemeConstants.SPACE_SM }) {
-        this.AuthButton('Basic', KomgaAuthKind.BASIC)
-        this.AuthButton('API key', KomgaAuthKind.API_KEY)
-        this.AuthButton('无认证', KomgaAuthKind.NONE)
-      }
-      .width('100%')
-
       if (this.authKind === KomgaAuthKind.API_KEY) {
-        this.Field('API key', 'X-API-Key', this.apiKey, true, (value: string) => {
+        KomaFormTextField({ label: 'API key', placeholder: 'X-API-Key', value: this.apiKey, isPassword: true, change: (value: string) => {
           this.apiKey = value
-        })
+        } })
       } else if (this.authKind === KomgaAuthKind.BASIC) {
-        this.Field('用户名', 'demo@komga.org', this.username, false, (value: string) => {
+        KomaFormTextField({ label: '用户名', placeholder: 'demo@komga.org', value: this.username, change: (value: string) => {
           this.username = value
-        })
-        this.Field('密码', 'komga-demo', this.password, true, (value: string) => {
+        } })
+        KomaFormTextField({ label: '密码', placeholder: 'komga-demo', value: this.password, isPassword: true, change: (value: string) => {
           this.password = value
-        })
+        } })
       }
 
-      Button(this.testing ? '测试中...' : '保存并测试连接')
-        .height(ThemeConstants.BUTTON_HEIGHT)
-        .width('100%')
-        .fontSize(ThemeConstants.FONT_SIZE_BODY)
-        .fontWeight(FontWeight.Medium)
-        .fontColor(ThemeConstants.TEXT_ON_BRAND)
-        .enabled(!this.testing)
-        .backgroundColor(ThemeConstants.BRAND_PRIMARY)
-        .borderRadius(ThemeConstants.RADIUS_CHIP)
-        .onClick(() => {
+      KomaActionButton({
+        label: this.testing ? '测试中...' : '保存并测试连接',
+        kind: 'primary',
+        fullWidth: true,
+        isEnabled: !this.testing,
+        action: () => {
           this.saveAndTest()
-        })
-
-      Button('移除配置')
-        .height(ThemeConstants.ACTION_CHIP_HEIGHT)
+        },
+      })
         .width('100%')
-        .fontSize(ThemeConstants.FONT_SIZE_BODY)
-        .fontColor(ThemeConstants.TEXT_SECONDARY)
-        .backgroundColor(Color.Transparent)
-        .border({ width: 1, color: ThemeConstants.DIVIDER })
-        .borderRadius(ThemeConstants.RADIUS_CHIP)
-        .onClick(() => {
+
+      KomaActionButton({
+        label: '移除配置',
+        kind: 'ghost',
+        fullWidth: true,
+        accentColor: ThemeConstants.TEXT_SECONDARY,
+        controlHeight: ThemeConstants.ACTION_CHIP_HEIGHT,
+        action: () => {
           this.clearServer()
-        })
+        },
+      })
+        .width('100%')
 
       if (this.statusText.length > 0) {
         Text(this.statusText)
@@ -187,10 +175,8 @@ export struct KomgaServerPage {
           .fontColor(ThemeConstants.TEXT_SECONDARY)
       }
     }
-    .width('100%')
-    .padding(ThemeConstants.SPACE_LG)
-    .borderRadius(ThemeConstants.RADIUS_CARD)
-    .backgroundColor(ThemeConstants.CARD)
+      .width('100%')
+    }
   }
 
   build() {

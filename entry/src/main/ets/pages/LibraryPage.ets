@@ -4,6 +4,7 @@ import { ComicCoverCard, ComicCoverInfo } from '../components/ComicCoverCard'
 import { SecondaryListScaffold } from '../components/SecondaryListScaffold'
 import { KomaActionButton } from '../components/ui/KomaActionButton'
 import { KomaEmptyState } from '../components/ui/KomaEmptyState'
+import { KomaIconButton } from '../components/ui/KomaIconButton'
 import { ThemeConstants } from '../theme/ThemeConstants'
 import {
   ContinueReadingCardViewModel,
@@ -807,7 +808,7 @@ export struct LibraryPage {
 
   @Builder
   private SortFilterBar() {
-    Row({ space: ThemeConstants.SPACE_SM }) {
+    Flex({ wrap: FlexWrap.Wrap }) {
       Row() {
         Chip({
           label: {
@@ -824,6 +825,7 @@ export struct LibraryPage {
           allowClose: false,
         })
       }
+      .margin({ right: ThemeConstants.SPACE_SM, bottom: ThemeConstants.SPACE_SM })
       .bindMenu(this.SortMenu())
       Row() {
         Chip({
@@ -841,6 +843,7 @@ export struct LibraryPage {
           allowClose: false,
         })
       }
+      .margin({ right: ThemeConstants.SPACE_SM, bottom: ThemeConstants.SPACE_SM })
       .bindMenu(this.SourceMenu())
       Row() {
         Chip({
@@ -858,6 +861,7 @@ export struct LibraryPage {
           allowClose: false,
         })
       }
+      .margin({ right: ThemeConstants.SPACE_SM, bottom: ThemeConstants.SPACE_SM })
       .bindMenu(this.ReadStateMenu())
       Row() {
         Chip({
@@ -875,6 +879,7 @@ export struct LibraryPage {
           allowClose: false,
         })
       }
+      .margin({ right: ThemeConstants.SPACE_SM, bottom: ThemeConstants.SPACE_SM })
       .bindMenu(this.CategoryMenu())
     }
     .width('100%')
@@ -984,13 +989,12 @@ export struct LibraryPage {
                 ))
 
               if (!this.selectionMode) {
-                Button('…')
-                  .width(ThemeConstants.TOUCH_TARGET_SM)
-                  .height(ThemeConstants.TOUCH_TARGET_SM)
-                  .borderRadius(ThemeConstants.RADIUS_CHIP)
-                  .fontSize(ThemeConstants.FONT_SIZE_H3)
-                  .fontColor(ThemeConstants.TEXT_PRIMARY)
-                  .backgroundColor(ThemeConstants.CARD)
+                KomaIconButton({
+                  icon: $r('sys.symbol.more'),
+                  kind: 'secondary',
+                  controlSize: ThemeConstants.TOUCH_TARGET_SM,
+                  iconSize: ThemeConstants.FONT_SIZE_H3,
+                })
                   .margin({ top: ThemeConstants.SPACE_SM, right: ThemeConstants.SPACE_SM })
                   .bindMenu(this.ComicActionMenu(comic))
               }
@@ -1085,20 +1089,19 @@ export struct LibraryPage {
               Text(`${this.viewModel().comics.length} 本`)
                 .fontSize(ThemeConstants.FONT_SIZE_META)
                 .fontColor(ThemeConstants.TEXT_SECONDARY)
-              Button('+')
-                .width(ThemeConstants.TOUCH_TARGET_SM)
-                .height(ThemeConstants.TOUCH_TARGET_SM)
-                .borderRadius(ThemeConstants.RADIUS_CHIP)
-                .fontSize(ThemeConstants.FONT_SIZE_H2)
-                .fontColor(ThemeConstants.TEXT_PRIMARY)
-                .backgroundColor(ThemeConstants.CARD)
-                .margin({ left: 10 })
-                .enabled(!this.selectionMode)
-                .onClick(() => {
+              KomaIconButton({
+                icon: $r('sys.symbol.plus'),
+                kind: 'secondary',
+                controlSize: ThemeConstants.TOUCH_TARGET_SM,
+                iconSize: ThemeConstants.FONT_SIZE_H2,
+                isEnabled: !this.selectionMode,
+                action: () => {
                   if (!this.selectionMode) {
                     this.onImportRequested()
                   }
-                })
+                },
+              })
+                .margin({ left: 10 })
             }
             .width('100%')
           }

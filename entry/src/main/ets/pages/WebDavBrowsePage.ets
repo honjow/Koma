@@ -1,6 +1,7 @@
 import { common } from '@kit.AbilityKit'
 import { RouterHelper } from '../common/RouterHelper'
 import { SecondaryListScaffold } from '../components/SecondaryListScaffold'
+import { KomaActionButton } from '../components/ui/KomaActionButton'
 import {
   Chapter,
   Comic,
@@ -372,17 +373,17 @@ export struct WebDavBrowsePage {
   private HeaderCard() {
     Column({ space: ThemeConstants.SPACE_MD }) {
       Row({ space: ThemeConstants.SPACE_MD }) {
-        Button('上一级')
-          .height(ThemeConstants.FILTER_CHIP_HEIGHT)
-          .fontSize(ThemeConstants.FONT_SIZE_META)
-          .fontColor(this.pathSegments.length === 0 ? ThemeConstants.TEXT_SECONDARY : ThemeConstants.BRAND_PRIMARY)
-          .enabled(this.pathSegments.length > 0)
-          .backgroundColor(Color.Transparent)
-          .border({ width: 1, color: ThemeConstants.DIVIDER })
-          .borderRadius(ThemeConstants.RADIUS_CHIP)
-          .onClick(() => {
+        KomaActionButton({
+          label: '上一级',
+          kind: 'ghost',
+          compact: true,
+          controlHeight: ThemeConstants.FILTER_CHIP_HEIGHT,
+          accentColor: this.pathSegments.length === 0 ? ThemeConstants.TEXT_SECONDARY : ThemeConstants.BRAND_PRIMARY,
+          isEnabled: this.pathSegments.length > 0,
+          action: () => {
             this.goUp()
-          })
+          },
+        })
         Text(this.currentTitle())
           .fontSize(ThemeConstants.FONT_SIZE_HEADING)
           .fontWeight(FontWeight.Medium)
@@ -393,29 +394,22 @@ export struct WebDavBrowsePage {
       }
       .width('100%')
       if (this.images.length > 0) {
-        Button(this.isCurrentDirectoryFavorited() ? '已收藏' : '把此目录加入书架')
-          .height(ThemeConstants.ACTION_CHIP_HEIGHT)
-          .width('100%')
-          .fontSize(ThemeConstants.FONT_SIZE_BODY)
-          .fontWeight(FontWeight.Medium)
-          .fontColor(this.isCurrentDirectoryFavorited() ? ThemeConstants.TEXT_ON_BRAND : ThemeConstants.BRAND_PRIMARY)
-          .backgroundColor(this.isCurrentDirectoryFavorited() ? ThemeConstants.BRAND_PRIMARY : Color.Transparent)
-          .border({ width: 1, color: ThemeConstants.BRAND_PRIMARY })
-          .borderRadius(ThemeConstants.RADIUS_CHIP)
-          .onClick(() => {
+        KomaActionButton({
+          label: this.isCurrentDirectoryFavorited() ? '已收藏' : '把此目录加入书架',
+          kind: this.isCurrentDirectoryFavorited() ? 'primary' : 'secondary',
+          action: () => {
             this.addCurrentDirectoryToLibrary()
-          })
-        Button(`阅读 ${this.images.length} 页`)
-          .height(ThemeConstants.ACTION_CHIP_HEIGHT)
+          },
+        })
           .width('100%')
-          .fontSize(ThemeConstants.FONT_SIZE_BODY)
-          .fontWeight(FontWeight.Medium)
-          .fontColor(ThemeConstants.TEXT_ON_BRAND)
-          .backgroundColor(ThemeConstants.BRAND_PRIMARY)
-          .borderRadius(ThemeConstants.RADIUS_CHIP)
-          .onClick(() => {
+        KomaActionButton({
+          label: `阅读 ${this.images.length} 页`,
+          kind: 'primary',
+          action: () => {
             this.openReader()
-          })
+          },
+        })
+          .width('100%')
       }
     }
     .width('100%')
@@ -450,9 +444,9 @@ export struct WebDavBrowsePage {
       }
       .layoutWeight(1)
       .alignItems(HorizontalAlign.Start)
-      Text('>')
+      SymbolGlyph($r('sys.symbol.chevron_right'))
         .fontSize(ThemeConstants.FONT_SIZE_HEADING)
-        .fontColor(ThemeConstants.TEXT_SECONDARY)
+        .fontColor([ThemeConstants.TEXT_SECONDARY])
     }
     .width('100%')
     .padding(ThemeConstants.SPACE_LG)

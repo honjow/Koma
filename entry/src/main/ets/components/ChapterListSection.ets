@@ -1,4 +1,5 @@
 import { Chip, ChipSize } from '@kit.ArkUI'
+import { KomaIconButton } from './ui/KomaIconButton'
 import { ChapterSortOrder, MangaChapterItem } from '../model/MangaDetailModels'
 import { ThemeConstants } from '../theme/ThemeConstants'
 
@@ -322,33 +323,22 @@ export struct ChapterListSection {
           .fontColor(ThemeConstants.BRAND_PRIMARY)
       }
 
-      Row() {
-        Text('↓')
-          .fontSize(ThemeConstants.FONT_SIZE_TITLE)
-          .fontWeight(FontWeight.Bold)
-          .fontColor(ThemeConstants.BRAND_PRIMARY)
-      }
-        .width(ThemeConstants.FILTER_CHIP_HEIGHT)
-        .height(ThemeConstants.FILTER_CHIP_HEIGHT)
-        .borderRadius(ThemeConstants.RADIUS_CHIP)
-        .backgroundColor(Color.Transparent)
-        .justifyContent(FlexAlign.Center)
-        .alignItems(VerticalAlign.Center)
-        .onClick(() => {
+      KomaIconButton({
+        icon: $r('sys.symbol.arrow_down_to_line'),
+        controlSize: ThemeConstants.FILTER_CHIP_HEIGHT,
+        iconSize: ThemeConstants.FONT_SIZE_TITLE,
+        accentColor: ThemeConstants.BRAND_PRIMARY,
+        action: () => {
           this.onDownloadChapter(chapter.id)
-        })
+        },
+      })
 
-      Row() {
-        Text('⋯')
-          .fontSize(ThemeConstants.FONT_SIZE_HEADING)
-          .fontColor(ThemeConstants.BRAND_PRIMARY)
-      }
-        .width(ThemeConstants.FILTER_CHIP_HEIGHT)
-        .height(ThemeConstants.FILTER_CHIP_HEIGHT)
-        .borderRadius(ThemeConstants.RADIUS_CHIP)
-        .backgroundColor(Color.Transparent)
-        .justifyContent(FlexAlign.Center)
-        .alignItems(VerticalAlign.Center)
+      KomaIconButton({
+        icon: $r('sys.symbol.more'),
+        controlSize: ThemeConstants.FILTER_CHIP_HEIGHT,
+        iconSize: ThemeConstants.FONT_SIZE_HEADING,
+        accentColor: ThemeConstants.BRAND_PRIMARY,
+      })
         .bindMenu(this.ReadStateMenu(chapter))
     }
     .width('100%')

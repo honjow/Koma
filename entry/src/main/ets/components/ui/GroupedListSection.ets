@@ -40,10 +40,13 @@ export struct GroupedListSection {
 
 @ComponentV2
 export struct ListDivider {
+  @Param leftMargin: Length = ThemeConstants.SPACE_LG
+  @Param rightMargin: Length = 0
+
   build() {
     Divider()
       .strokeWidth(0.5)
       .color(ThemeConstants.DIVIDER)
-      .margin({ left: ThemeConstants.SPACE_LG, right: ThemeConstants.SPACE_LG })
+      .margin({ left: this.leftMargin, right: this.rightMargin })
   }
 }

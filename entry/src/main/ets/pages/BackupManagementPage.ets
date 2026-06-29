@@ -1,6 +1,7 @@
 import { common } from '@kit.AbilityKit'
 import { SecondaryListScaffold } from '../components/SecondaryListScaffold'
 import { KomaActionButton } from '../components/ui/KomaActionButton'
+import { KomaFormTextField } from '../components/ui/KomaFormTextField'
 import {
   BACKUP_ACCEPTED_SCHEMA_VERSIONS,
   BACKUP_ENCRYPTED_EXPORT_SUCCESS,
@@ -261,27 +262,28 @@ export struct BackupManagementPage {
         .fontColor(ThemeConstants.TEXT_SECONDARY)
         .lineHeight(ThemeConstants.LINE_HEIGHT_BODY)
 
-      TextInput({ text: this.exportPassphrase, placeholder: '加密口令' })
-        .width('100%')
-        .height(ThemeConstants.BUTTON_HEIGHT)
-        .type(InputType.Password)
-        .showPassword(false)
-        .onChange((value: string) => {
+      KomaFormTextField({
+        label: '加密口令',
+        value: this.exportPassphrase,
+        isPassword: true,
+        change: (value: string) => {
           this.exportPassphrase = value
-        })
+        },
+      })
 
-      TextInput({ text: this.exportPassphraseConfirm, placeholder: '再次输入口令' })
-        .width('100%')
-        .height(ThemeConstants.BUTTON_HEIGHT)
-        .type(InputType.Password)
-        .showPassword(false)
-        .onChange((value: string) => {
+      KomaFormTextField({
+        label: '确认口令',
+        value: this.exportPassphraseConfirm,
+        isPassword: true,
+        change: (value: string) => {
           this.exportPassphraseConfirm = value
-        })
+        },
+      })
 
       KomaActionButton({
         label: this.busy ? '处理中' : '导出加密备份',
         kind: 'primary',
+        fullWidth: true,
         icon: $r('sys.symbol.doc_plaintext'),
         isEnabled: !this.busy,
         action: () => {
@@ -330,6 +332,7 @@ export struct BackupManagementPage {
       KomaActionButton({
         label: this.busy ? '处理中' : '导出备份',
         kind: 'primary',
+        fullWidth: true,
         icon: $r('sys.symbol.doc_plaintext'),
         isEnabled: !this.busy,
         action: () => {
@@ -341,6 +344,7 @@ export struct BackupManagementPage {
       KomaActionButton({
         label: this.busy ? '处理中' : '选择备份并预览',
         kind: 'secondary',
+        fullWidth: true,
         icon: $r('sys.symbol.doc_plaintext'),
         isEnabled: !this.busy,
         action: () => {
@@ -352,6 +356,7 @@ export struct BackupManagementPage {
       KomaActionButton({
         label: this.busy ? '处理中' : '恢复所选备份',
         kind: this.selectedBackupPayload.length > 0 ? 'primary' : 'secondary',
+        fullWidth: true,
         icon: $r('sys.symbol.arrow_clockwise'),
         isEnabled: !this.busy && this.selectedBackupPayload.length > 0,
         action: () => {
@@ -361,18 +366,19 @@ export struct BackupManagementPage {
         .width('100%')
 
       if (this.selectedEncryptedBackupPayload.length > 0) {
-        TextInput({ text: this.importPassphrase, placeholder: '输入口令解密预览' })
-          .width('100%')
-          .height(ThemeConstants.BUTTON_HEIGHT)
-          .type(InputType.Password)
-          .showPassword(false)
-          .onChange((value: string) => {
+        KomaFormTextField({
+          label: '解密口令',
+          value: this.importPassphrase,
+          isPassword: true,
+          change: (value: string) => {
             this.importPassphrase = value
-          })
+          },
+        })
 
         KomaActionButton({
           label: this.busy ? '处理中' : '解密并预览',
           kind: 'primary',
+          fullWidth: true,
           icon: $r('sys.symbol.doc_plaintext'),
           isEnabled: !this.busy,
           action: () => {

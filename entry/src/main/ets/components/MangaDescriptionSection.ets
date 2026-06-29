@@ -1,4 +1,5 @@
 import { ThemeConstants } from '../theme/ThemeConstants'
+import { KomaActionButton } from './ui/KomaActionButton'
 
 @ComponentV2
 export struct MangaDescriptionSection {
@@ -31,16 +32,15 @@ export struct MangaDescriptionSection {
         .animation({ duration: 180, curve: Curve.EaseInOut })
 
       if (this.hasDescription()) {
-        Button(this.toggleLabel())
-          .height(ThemeConstants.ACTION_CHIP_HEIGHT)
-          .padding({ left: ThemeConstants.SPACE_MD, right: ThemeConstants.SPACE_MD })
-          .borderRadius(ThemeConstants.RADIUS_CHIP)
-          .fontSize(ThemeConstants.FONT_SIZE_META)
-          .fontColor(ThemeConstants.BRAND_PRIMARY)
-          .backgroundColor(Color.Transparent)
-          .onClick(() => {
+        KomaActionButton({
+          label: this.toggleLabel(),
+          kind: 'ghost',
+          compact: true,
+          controlHeight: ThemeConstants.ACTION_CHIP_HEIGHT,
+          action: () => {
             this.expanded = !this.expanded
-          })
+          },
+        })
       }
     }
     .width('100%')

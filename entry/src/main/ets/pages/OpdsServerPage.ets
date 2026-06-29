@@ -1,5 +1,8 @@
 import { common } from '@kit.AbilityKit'
 import { SecondaryListScaffold } from '../components/SecondaryListScaffold'
+import { GroupedListSection } from '../components/ui/GroupedListSection'
+import { KomaActionButton } from '../components/ui/KomaActionButton'
+import { KomaFormTextField } from '../components/ui/KomaFormTextField'
 import { RemoteServerStore } from '../model/RemoteServerStore'
 import { OpdsVersion } from '../remote/OpdsModels'
 import { ThemeConstants } from '../theme/ThemeConstants'
@@ -99,68 +102,46 @@ export struct OpdsServerPage {
   }
 
   @Builder
-  private Field(label: string, placeholder: string, value: string, password: boolean = false, onChange: (value: string) => void) {
-    Column({ space: ThemeConstants.SPACE_SM }) {
-      Text(label)
-        .fontSize(ThemeConstants.FONT_SIZE_META)
-        .fontWeight(FontWeight.Medium)
-        .fontColor(ThemeConstants.TEXT_SECONDARY)
-        .width('100%')
-      TextInput({ placeholder, text: value })
-        .type(password ? InputType.Password : InputType.Normal)
-        .height(ThemeConstants.BUTTON_HEIGHT)
-        .fontSize(ThemeConstants.FONT_SIZE_BODY)
-        .backgroundColor(ThemeConstants.BG_SUB)
-        .borderRadius(ThemeConstants.RADIUS_CHIP)
-        .onChange((next: string) => {
-          onChange(next)
-        })
-    }
-    .width('100%')
-  }
-
-  @Builder
   private FormCard() {
-    Column({ space: ThemeConstants.SPACE_LG }) {
-      this.Field('Catalog URL', 'https://demo.komga.org/opds/v2/catalog', this.rootUrl, false, (value: string) => {
+    GroupedListSection({ inset: ThemeConstants.SPACE_LG }) {
+      Column({ space: ThemeConstants.SPACE_LG }) {
+      KomaFormTextField({ label: 'Catalog URL', placeholder: 'https://demo.komga.org/opds/v2/catalog', value: this.rootUrl, change: (value: string) => {
         this.rootUrl = value
-      })
-      this.Field('用户名', '可留空', this.username, false, (value: string) => {
+      } })
+      KomaFormTextField({ label: '用户名', placeholder: '可留空', value: this.username, change: (value: string) => {
         this.username = value
-      })
-      this.Field('密码', '可留空', this.password, true, (value: string) => {
+      } })
+      KomaFormTextField({ label: '密码', placeholder: '可留空', value: this.password, isPassword: true, change: (value: string) => {
         this.password = value
-      })
+      } })
 
       Text(this.detectedVersion.length === 0 ? 'OPDS 版本：测试连接后自动检测' : `OPDS 版本：${this.versionLabel(this.detectedVersion)}`)
         .width('100%')
         .fontSize(ThemeConstants.FONT_SIZE_META)
         .fontColor(ThemeConstants.TEXT_SECONDARY)
 
-      Button(this.testing ? '测试中...' : '保存并测试连接')
-        .height(ThemeConstants.BUTTON_HEIGHT)
-        .width('100%')
-        .fontSize(ThemeConstants.FONT_SIZE_BODY)
-        .fontWeight(FontWeight.Medium)
-        .fontColor(ThemeConstants.TEXT_ON_BRAND)
-        .enabled(!this.testing)
-        .backgroundColor(ThemeConstants.BRAND_PRIMARY)
-        .borderRadius(ThemeConstants.RADIUS_CHIP)
-        .onClick(() => {
+      KomaActionButton({
+        label: this.testing ? '测试中...' : '保存并测试连接',
+        kind: 'primary',
+        fullWidth: true,
+        isEnabled: !this.testing,
+        action: () => {
           this.saveAndTest()
-        })
-
-      Button('移除配置')
-        .height(ThemeConstants.ACTION_CHIP_HEIGHT)
+        },
+      })
         .width('100%')
-        .fontSize(ThemeConstants.FONT_SIZE_BODY)
-        .fontColor(ThemeConstants.TEXT_SECONDARY)
-        .backgroundColor(Color.Transparent)
-        .border({ width: 1, color: ThemeConstants.DIVIDER })
-        .borderRadius(ThemeConstants.RADIUS_CHIP)
-        .onClick(() => {
+
+      KomaActionButton({
+        label: '移除配置',
+        kind: 'ghost',
+        fullWidth: true,
+        accentColor: ThemeConstants.TEXT_SECONDARY,
+        controlHeight: ThemeConstants.ACTION_CHIP_HEIGHT,
+        action: () => {
           this.clearServer()
-        })
+        },
+      })
+        .width('100%')
 
       if (this.statusText.length > 0) {
         Text(this.statusText)
@@ -170,10 +151,8 @@ export struct OpdsServerPage {
           .fontColor(ThemeConstants.TEXT_SECONDARY)
       }
     }
-    .width('100%')
-    .padding(ThemeConstants.SPACE_LG)
-    .borderRadius(ThemeConstants.RADIUS_CARD)
-    .backgroundColor(ThemeConstants.CARD)
+      .width('100%')
+    }
   }
 
   build() {

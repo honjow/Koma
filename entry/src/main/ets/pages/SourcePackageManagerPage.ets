@@ -1,5 +1,10 @@
 import { common } from '@kit.AbilityKit'
+import { SymbolGlyphModifier } from '@kit.ArkUI'
 import { SecondaryListScaffold } from '../components/SecondaryListScaffold'
+import { ConciseListRow } from '../components/ui/ConciseListRow'
+import { GroupedListSection, ListDivider } from '../components/ui/GroupedListSection'
+import { KomaActionButton } from '../components/ui/KomaActionButton'
+import { KomaFormTextField } from '../components/ui/KomaFormTextField'
 import { ThemeConstants } from '../theme/ThemeConstants'
 import {
   InstalledSourcePackage,
@@ -14,6 +19,7 @@ import {
 import { runRegisteredSourceRequestById } from '../sourceRuntime/SourceRuntimeService'
 import {
   SourceSettingDescriptor,
+  SourceSettingOption,
   SourceSettingValue,
   SourceSettingsRecord,
   appSourceSettingsStore,
@@ -97,6 +103,7 @@ export struct SourcePackageManagerPage {
   @Local private settingsValidationStatuses: SourceSettingsValidationStatus[] = []
   @Local private settingsValidationSourceId: string = ''
   @Local private diagnosticsSourceId: string = ''
+  @Local private settingMenuKey: string = ''
   private sourceIndexService: SourceIndexService = new SourceIndexService(this.context())
 
   aboutToAppear(): void {
@@ -927,16 +934,9 @@ export struct SourcePackageManagerPage {
     return option?.label ?? (selected.length > 0 ? selected : '未选择')
   }
 
-  private cycleSelectSetting(descriptor: SourceSettingDescriptor): void {
-    const options = descriptor.options ?? []
-    if (options.length === 0) {
-      return
-    }
-    const current = this.settingDraft[descriptor.id]
-    const currentId = typeof current === 'string' ? current : ''
-    const currentIndex = options.findIndex((item) => item.id === currentId)
-    const nextIndex = currentIndex < 0 || currentIndex >= options.length - 1 ? 0 : currentIndex + 1
-    this.updateSettingValue(descriptor.id, options[nextIndex].id)
+  private setSelectSetting(descriptor: SourceSettingDescriptor, optionId: string): void {
+    this.updateSettingValue(descriptor.id, optionId)
+    this.settingMenuKey = ''
   }
 
   private capabilityLabel(capability: string): string {
@@ -1070,6 +1070,21 @@ export struct SourcePackageManagerPage {
   }
 
   @Builder
+  private SettingSelectMenu(descriptor: SourceSettingDescriptor) {
+    Menu() {
+      ForEach(descriptor.options ?? [], (option: SourceSettingOption) => {
+        MenuItem({
+          content: option.label,
+          symbolEndIcon: this.settingStringValue(descriptor) === option.id ? new SymbolGlyphModifier($r('sys.symbol.checkmark')) : undefined,
+        })
+          .onClick(() => {
+            this.setSelectSetting(descriptor, option.id)
+          })
+      }, (option: SourceSettingOption) => option.id)
+    }
+  }
+
+  @Builder
   private IndexUrlCard() {
     Column({ space: ThemeConstants.SPACE_MD }) {
       Text('源索引地址')
@@ -1078,46 +1093,40 @@ export struct SourcePackageManagerPage {
         .fontWeight(FontWeight.Medium)
         .fontColor(ThemeConstants.TEXT_PRIMARY)
 
-      TextInput({ text: this.sourceIndexUrl, placeholder: 'https://…' })
-        .height(ThemeConstants.BUTTON_HEIGHT)
-        .width('100%')
-        .fontSize(ThemeConstants.FONT_SIZE_BODY)
-        .fontColor(ThemeConstants.TEXT_PRIMARY)
-        .placeholderColor(ThemeConstants.TEXT_SECONDARY)
-        .backgroundColor(ThemeConstants.CARD)
-        .borderRadius(ThemeConstants.RADIUS_CHIP)
-        .onChange((value: string) => {
-          this.sourceIndexUrl = value
-        })
-        .onSubmit(() => {
+      KomaFormTextField({
+        label: 'URL',
+        placeholder: 'https://...',
+        value: this.sourceIndexUrl,
+        submit: () => {
           this.fetchIndex()
-        })
+        },
+        change: (value: string) => {
+          this.sourceIndexUrl = value
+        },
+      })
 
       Row({ space: ThemeConstants.SPACE_MD }) {
-        Button(this.indexFetchBusy ? '加载中' : '加载源列表')
-          .height(ThemeConstants.BUTTON_HEIGHT)
-          .layoutWeight(1)
-          .fontSize(ThemeConstants.FONT_SIZE_BODY)
-          .fontColor(ThemeConstants.TEXT_ON_BRAND)
-          .enabled(!this.indexFetchBusy)
-          .backgroundColor(ThemeConstants.BRAND_PRIMARY)
-          .borderRadius(ThemeConstants.RADIUS_CHIP)
-          .onClick(() => {
+        KomaActionButton({
+          label: this.indexFetchBusy ? '加载中' : '加载源列表',
+          kind: 'primary',
+          fill: true,
+          isEnabled: !this.indexFetchBusy,
+          action: () => {
             this.fetchIndex()
-          })
+          },
+        })
 
-        Button(this.busy ? '导入中' : '本地导入')
-          .height(ThemeConstants.BUTTON_HEIGHT)
-          .layoutWeight(1)
-          .fontSize(ThemeConstants.FONT_SIZE_BODY)
-          .fontColor(ThemeConstants.TEXT_SECONDARY)
-          .enabled(!this.busy)
-          .backgroundColor(Color.Transparent)
-          .border({ width: 1, color: ThemeConstants.DIVIDER })
-          .borderRadius(ThemeConstants.RADIUS_CHIP)
-          .onClick(() => {
+        KomaActionButton({
+          label: this.busy ? '导入中' : '本地导入',
+          kind: 'secondary',
+          fill: true,
+          isEnabled: !this.busy,
+          accentColor: ThemeConstants.TEXT_SECONDARY,
+          strokeColor: ThemeConstants.DIVIDER,
+          action: () => {
             this.importPackage()
-          })
+          },
+        })
       }
       .width('100%')
 
@@ -1168,16 +1177,16 @@ export struct SourcePackageManagerPage {
         .alignItems(HorizontalAlign.Start)
 
         if (this.hasUpdate(entry)) {
-          Button(this.indexInstallBusy ? '更新中' : '更新')
-            .height(ThemeConstants.FILTER_CHIP_HEIGHT)
-            .fontSize(ThemeConstants.FONT_SIZE_META)
-            .fontColor(ThemeConstants.TEXT_ON_BRAND)
-            .enabled(!this.indexInstallBusy)
-            .backgroundColor(ThemeConstants.BRAND_PRIMARY)
-            .borderRadius(ThemeConstants.RADIUS_CHIP)
-            .onClick(() => {
+          KomaActionButton({
+            label: this.indexInstallBusy ? '更新中' : '更新',
+            kind: 'primary',
+            compact: true,
+            controlHeight: ThemeConstants.FILTER_CHIP_HEIGHT,
+            isEnabled: !this.indexInstallBusy,
+            action: () => {
               this.installIndexEntry(entry, true)
-            })
+            },
+          })
         } else if (this.isSourceInstalled(entry.id)) {
           Text('已安装')
             .fontSize(ThemeConstants.FONT_SIZE_CAPTION)
@@ -1186,16 +1195,16 @@ export struct SourcePackageManagerPage {
             .borderRadius(ThemeConstants.RADIUS_CHIP)
             .backgroundColor(ThemeConstants.SOFT_TINT)
         } else {
-          Button(this.indexInstallBusy ? '安装中' : '安装')
-            .height(ThemeConstants.FILTER_CHIP_HEIGHT)
-            .fontSize(ThemeConstants.FONT_SIZE_META)
-            .fontColor(ThemeConstants.TEXT_ON_BRAND)
-            .enabled(!this.indexInstallBusy)
-            .backgroundColor(ThemeConstants.BRAND_PRIMARY)
-            .borderRadius(ThemeConstants.RADIUS_CHIP)
-            .onClick(() => {
+          KomaActionButton({
+            label: this.indexInstallBusy ? '安装中' : '安装',
+            kind: 'primary',
+            compact: true,
+            controlHeight: ThemeConstants.FILTER_CHIP_HEIGHT,
+            isEnabled: !this.indexInstallBusy,
+            action: () => {
               this.installIndexEntry(entry)
-            })
+            },
+          })
         }
       }
       .width('100%')
@@ -1271,16 +1280,16 @@ export struct SourcePackageManagerPage {
         .layoutWeight(1)
         .alignItems(HorizontalAlign.Start)
 
-        Button(this.updateCheckBusy ? '检查中' : '检查更新')
-          .height(ThemeConstants.FILTER_CHIP_HEIGHT)
-          .fontSize(ThemeConstants.FONT_SIZE_META)
-          .fontColor(ThemeConstants.TEXT_ON_BRAND)
-          .enabled(!this.updateCheckBusy && !this.indexFetchBusy)
-          .backgroundColor(ThemeConstants.BRAND_PRIMARY)
-          .borderRadius(ThemeConstants.RADIUS_CHIP)
-          .onClick(() => {
+        KomaActionButton({
+          label: this.updateCheckBusy ? '检查中' : '检查更新',
+          kind: 'primary',
+          compact: true,
+          controlHeight: ThemeConstants.FILTER_CHIP_HEIGHT,
+          isEnabled: !this.updateCheckBusy && !this.indexFetchBusy,
+          action: () => {
             this.checkInstalledUpdates()
-          })
+          },
+        })
       }
       .width('100%')
 
@@ -1410,94 +1419,83 @@ export struct SourcePackageManagerPage {
 
       Row({ space: ThemeConstants.SPACE_SM }) {
         if (this.updateEntry(source.id) !== undefined) {
-          Button(this.updateActionLabel(source.id))
-            .height(ThemeConstants.ACTION_CHIP_HEIGHT)
-            .layoutWeight(1)
-            .fontSize(ThemeConstants.FONT_SIZE_META)
-            .fontColor(ThemeConstants.TEXT_ON_BRAND)
-            .enabled(this.updateInstallSourceId.length === 0 && !this.indexInstallBusy && !this.busy)
-            .backgroundColor(ThemeConstants.BRAND_PRIMARY)
-            .borderRadius(ThemeConstants.RADIUS_CHIP)
-            .onClick(() => {
+          KomaActionButton({
+            label: this.updateActionLabel(source.id),
+            kind: 'primary',
+            fill: true,
+            controlHeight: ThemeConstants.ACTION_CHIP_HEIGHT,
+            isEnabled: this.updateInstallSourceId.length === 0 && !this.indexInstallBusy && !this.busy,
+            action: () => {
               this.updateInstalledPackage(source)
-            })
+            },
+          })
         }
 
-        Button(source.enabled ? '停用' : '启用')
-          .height(ThemeConstants.ACTION_CHIP_HEIGHT)
-          .layoutWeight(1)
-          .fontSize(ThemeConstants.FONT_SIZE_META)
-          .fontColor(source.enabled ? ThemeConstants.TEXT_SECONDARY : ThemeConstants.TEXT_ON_BRAND)
-          .backgroundColor(source.enabled ? Color.Transparent : ThemeConstants.BRAND_PRIMARY)
-          .border({ width: 1, color: source.enabled ? ThemeConstants.DIVIDER : ThemeConstants.BRAND_PRIMARY })
-          .borderRadius(ThemeConstants.RADIUS_CHIP)
-          .onClick(() => {
+        KomaActionButton({
+          label: source.enabled ? '停用' : '启用',
+          kind: source.enabled ? 'secondary' : 'primary',
+          fill: true,
+          controlHeight: ThemeConstants.ACTION_CHIP_HEIGHT,
+          accentColor: source.enabled ? ThemeConstants.TEXT_SECONDARY : undefined,
+          strokeColor: source.enabled ? ThemeConstants.DIVIDER : undefined,
+          action: () => {
             this.togglePackage(source.id)
-          })
+          },
+        })
 
-        Button('Smoke')
-          .height(ThemeConstants.ACTION_CHIP_HEIGHT)
-          .layoutWeight(1)
-          .fontSize(ThemeConstants.FONT_SIZE_META)
-          .fontColor(ThemeConstants.BRAND_PRIMARY)
-          .backgroundColor(Color.Transparent)
-          .border({ width: 1, color: ThemeConstants.BRAND_PRIMARY })
-          .borderRadius(ThemeConstants.RADIUS_CHIP)
-          .onClick(() => {
+        KomaActionButton({
+          label: 'Smoke',
+          kind: 'secondary',
+          fill: true,
+          controlHeight: ThemeConstants.ACTION_CHIP_HEIGHT,
+          action: () => {
             this.smokePackage(source)
-          })
+          },
+        })
       }
       .width('100%')
 
       Row({ space: ThemeConstants.SPACE_SM }) {
-        Button('设置')
-          .height(ThemeConstants.ACTION_CHIP_HEIGHT)
-          .layoutWeight(1)
-          .fontSize(ThemeConstants.FONT_SIZE_META)
-          .fontColor(ThemeConstants.BRAND_PRIMARY)
-          .backgroundColor(Color.Transparent)
-          .border({ width: 1, color: ThemeConstants.BRAND_PRIMARY })
-          .borderRadius(ThemeConstants.RADIUS_CHIP)
-          .onClick(() => {
+        KomaActionButton({
+          label: '设置',
+          kind: 'secondary',
+          fill: true,
+          controlHeight: ThemeConstants.ACTION_CHIP_HEIGHT,
+          action: () => {
             this.openSettings(source)
-          })
+          },
+        })
 
-        Button(this.validateSettingsActionLabel(source.id))
-          .height(ThemeConstants.ACTION_CHIP_HEIGHT)
-          .layoutWeight(1)
-          .fontSize(ThemeConstants.FONT_SIZE_META)
-          .fontColor(ThemeConstants.BRAND_PRIMARY)
-          .enabled(this.settingsValidationSourceId.length === 0)
-          .backgroundColor(Color.Transparent)
-          .border({ width: 1, color: ThemeConstants.BRAND_PRIMARY })
-          .borderRadius(ThemeConstants.RADIUS_CHIP)
-          .onClick(() => {
+        KomaActionButton({
+          label: this.validateSettingsActionLabel(source.id),
+          kind: 'secondary',
+          fill: true,
+          controlHeight: ThemeConstants.ACTION_CHIP_HEIGHT,
+          isEnabled: this.settingsValidationSourceId.length === 0,
+          action: () => {
             this.validateSettings(source)
-          })
+          },
+        })
 
-        Button(this.isDiagnosticsOpen(source.id) ? '收起诊断' : '诊断')
-          .height(ThemeConstants.ACTION_CHIP_HEIGHT)
-          .layoutWeight(1)
-          .fontSize(ThemeConstants.FONT_SIZE_META)
-          .fontColor(ThemeConstants.BRAND_PRIMARY)
-          .backgroundColor(Color.Transparent)
-          .border({ width: 1, color: ThemeConstants.BRAND_PRIMARY })
-          .borderRadius(ThemeConstants.RADIUS_CHIP)
-          .onClick(() => {
+        KomaActionButton({
+          label: this.isDiagnosticsOpen(source.id) ? '收起诊断' : '诊断',
+          kind: 'secondary',
+          fill: true,
+          controlHeight: ThemeConstants.ACTION_CHIP_HEIGHT,
+          action: () => {
             this.toggleDiagnostics(source)
-          })
+          },
+        })
 
-        Button('删除')
-          .height(ThemeConstants.ACTION_CHIP_HEIGHT)
-          .layoutWeight(1)
-          .fontSize(ThemeConstants.FONT_SIZE_META)
-          .fontColor(ThemeConstants.DANGER)
-          .backgroundColor(Color.Transparent)
-          .border({ width: 1, color: ThemeConstants.DANGER })
-          .borderRadius(ThemeConstants.RADIUS_CHIP)
-          .onClick(() => {
+        KomaActionButton({
+          label: '删除',
+          kind: 'danger',
+          fill: true,
+          controlHeight: ThemeConstants.ACTION_CHIP_HEIGHT,
+          action: () => {
             this.removePackage(source)
-          })
+          },
+        })
       }
       .width('100%')
 
@@ -1521,16 +1519,15 @@ export struct SourcePackageManagerPage {
           .fontColor(ThemeConstants.TEXT_PRIMARY)
           .layoutWeight(1)
 
-        Button('刷新诊断')
-          .height(ThemeConstants.ACTION_CHIP_HEIGHT)
-          .fontSize(ThemeConstants.FONT_SIZE_META)
-          .fontColor(ThemeConstants.BRAND_PRIMARY)
-          .backgroundColor(Color.Transparent)
-          .border({ width: 1, color: ThemeConstants.BRAND_PRIMARY })
-          .borderRadius(ThemeConstants.RADIUS_CHIP)
-          .onClick(() => {
+        KomaActionButton({
+          label: '刷新诊断',
+          kind: 'secondary',
+          compact: true,
+          controlHeight: ThemeConstants.ACTION_CHIP_HEIGHT,
+          action: () => {
             this.refreshDiagnostics(source)
-          })
+          },
+        })
       }
       .width('100%')
 
@@ -1601,14 +1598,16 @@ export struct SourcePackageManagerPage {
           .layoutWeight(1)
           .alignItems(HorizontalAlign.Start)
 
-          Button('关闭')
-            .height(ThemeConstants.ACTION_CHIP_HEIGHT)
-            .fontSize(ThemeConstants.FONT_SIZE_META)
-            .fontColor(ThemeConstants.TEXT_SECONDARY)
-            .backgroundColor(Color.Transparent)
-            .onClick(() => {
+          KomaActionButton({
+            label: '关闭',
+            kind: 'ghost',
+            compact: true,
+            accentColor: ThemeConstants.TEXT_SECONDARY,
+            controlHeight: ThemeConstants.ACTION_CHIP_HEIGHT,
+            action: () => {
               this.closeSettings()
-            })
+            },
+          })
         }
         .width('100%')
 
@@ -1618,21 +1617,24 @@ export struct SourcePackageManagerPage {
             .fontSize(ThemeConstants.FONT_SIZE_META)
             .fontColor(ThemeConstants.TEXT_SECONDARY)
         } else {
-          ForEach(this.settingDescriptors, (descriptor: SourceSettingDescriptor) => {
-            this.SettingRow(descriptor)
-          }, (descriptor: SourceSettingDescriptor) => descriptor.id)
+          GroupedListSection({ inset: ThemeConstants.SPACE_SM }) {
+            ForEach(this.settingDescriptors, (descriptor: SourceSettingDescriptor, index: number) => {
+              this.SettingRow(descriptor)
+              if (index < this.settingDescriptors.length - 1) {
+                ListDivider()
+              }
+            }, (descriptor: SourceSettingDescriptor) => descriptor.id)
+          }
         }
 
-        Button('保存设置')
-          .height(ThemeConstants.BUTTON_HEIGHT)
-          .width('100%')
-          .fontSize(ThemeConstants.FONT_SIZE_BODY)
-          .fontColor(ThemeConstants.TEXT_ON_BRAND)
-          .backgroundColor(ThemeConstants.BRAND_PRIMARY)
-          .borderRadius(ThemeConstants.RADIUS_CHIP)
-          .onClick(() => {
+        KomaActionButton({
+          label: '保存设置',
+          kind: 'primary',
+          action: () => {
             this.saveSettings()
-          })
+          },
+        })
+          .width('100%')
       }
       .width('100%')
       .padding(ThemeConstants.SPACE_LG)
@@ -1643,74 +1645,55 @@ export struct SourcePackageManagerPage {
 
   @Builder
   private SettingRow(descriptor: SourceSettingDescriptor) {
-    Column({ space: ThemeConstants.SPACE_SM }) {
+    Column() {
       if (descriptor.sensitive || !descriptor.supported) {
-        Row({ space: ThemeConstants.SPACE_SM }) {
-          Text(descriptor.label)
-            .fontSize(ThemeConstants.FONT_SIZE_BODY)
-            .fontColor(ThemeConstants.TEXT_PRIMARY)
-            .layoutWeight(1)
-          Text(descriptor.sensitive ? '需要登录配置（暂未启用）' : '暂不支持')
-            .fontSize(ThemeConstants.FONT_SIZE_CAPTION)
-            .fontColor(ThemeConstants.TEXT_SECONDARY)
-        }
-        .width('100%')
+        ConciseListRow({
+          title: descriptor.label,
+          trailingText: descriptor.sensitive ? '需要登录配置' : '暂不支持',
+          showChevron: false,
+        })
       } else if (descriptor.kind === 'boolean') {
-        Row({ space: ThemeConstants.SPACE_SM }) {
-          Text(descriptor.label)
-            .fontSize(ThemeConstants.FONT_SIZE_BODY)
-            .fontColor(ThemeConstants.TEXT_PRIMARY)
-            .layoutWeight(1)
-          Toggle({ type: ToggleType.Switch, isOn: this.settingBooleanValue(descriptor) })
-            .onChange((isOn: boolean) => {
-              this.updateSettingValue(descriptor.id, isOn)
-            })
-        }
-        .width('100%')
+        ConciseListRow({
+          title: descriptor.label,
+          showChevron: false,
+          hasSwitch: true,
+          checked: this.settingBooleanValue(descriptor),
+          switchAction: (isOn: boolean) => {
+            this.updateSettingValue(descriptor.id, isOn)
+          },
+        })
       } else if (descriptor.kind === 'select') {
-        Row({ space: ThemeConstants.SPACE_SM }) {
-          Text(descriptor.label)
-            .fontSize(ThemeConstants.FONT_SIZE_BODY)
-            .fontColor(ThemeConstants.TEXT_PRIMARY)
-            .layoutWeight(1)
-          Button(this.settingSelectLabel(descriptor))
-            .height(ThemeConstants.ACTION_CHIP_HEIGHT)
-            .fontSize(ThemeConstants.FONT_SIZE_META)
-            .fontColor(ThemeConstants.BRAND_PRIMARY)
-            .backgroundColor(Color.Transparent)
-            .border({ width: 1, color: ThemeConstants.DIVIDER })
-            .borderRadius(ThemeConstants.RADIUS_CHIP)
-            .onClick(() => {
-              this.cycleSelectSetting(descriptor)
-            })
-        }
-        .width('100%')
-      } else if (descriptor.kind === 'group') {
-        Text(descriptor.label)
-          .width('100%')
-          .fontSize(ThemeConstants.FONT_SIZE_BODY)
-          .fontWeight(FontWeight.Medium)
-          .fontColor(ThemeConstants.TEXT_PRIMARY)
-        Text((descriptor.children ?? []).join(' / '))
-          .width('100%')
-          .fontSize(ThemeConstants.FONT_SIZE_CAPTION)
-          .fontColor(ThemeConstants.TEXT_SECONDARY)
-      } else {
-        Text(descriptor.label)
-          .width('100%')
-          .fontSize(ThemeConstants.FONT_SIZE_META)
-          .fontColor(ThemeConstants.TEXT_SECONDARY)
-        TextInput({ text: this.settingStringValue(descriptor) })
-          .height(ThemeConstants.ACTION_CHIP_HEIGHT)
-          .fontSize(ThemeConstants.FONT_SIZE_META)
-          .onChange((value: string) => {
-            this.updateSettingValue(descriptor.id, value)
+        Column() {
+          ConciseListRow({
+            title: descriptor.label,
+            trailingText: this.settingSelectLabel(descriptor),
+            trailingDropdown: true,
+            action: () => {
+              this.settingMenuKey = descriptor.id
+            },
           })
+        }
+          .bindMenu(this.settingMenuKey === descriptor.id, this.SettingSelectMenu(descriptor), {
+            placement: Placement.BottomRight,
+          })
+      } else if (descriptor.kind === 'group') {
+        ConciseListRow({
+          title: descriptor.label,
+          subtitle: (descriptor.children ?? []).join(' / '),
+          showChevron: false,
+        })
+      } else {
+        KomaFormTextField({
+          label: descriptor.label,
+          value: this.settingStringValue(descriptor),
+          change: (value: string) => {
+            this.updateSettingValue(descriptor.id, value)
+          },
+        })
+          .padding({ left: ThemeConstants.SPACE_MD, right: ThemeConstants.SPACE_MD, top: ThemeConstants.SPACE_SM, bottom: ThemeConstants.SPACE_SM })
       }
     }
     .width('100%')
-    .padding({ top: ThemeConstants.SPACE_SM, bottom: ThemeConstants.SPACE_SM })
-    .border({ width: { bottom: 1 }, color: ThemeConstants.DIVIDER })
   }
 
   build() {

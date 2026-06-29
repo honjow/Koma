@@ -157,10 +157,9 @@ export struct ImportPage {
     Column({ space: ThemeConstants.SPACE_LG }) {
       Row({ space: ThemeConstants.SPACE_MD }) {
         Stack({ alignContent: Alignment.Center }) {
-          Text('+')
+          SymbolGlyph($r('sys.symbol.plus'))
             .fontSize(ThemeConstants.FONT_SIZE_H3)
-            .fontWeight(FontWeight.Bold)
-            .fontColor(ThemeConstants.TEXT_ON_BRAND)
+            .fontColor([ThemeConstants.TEXT_ON_BRAND])
         }
         .width(ThemeConstants.SOURCE_ICON_SIZE)
         .height(ThemeConstants.SOURCE_ICON_SIZE)

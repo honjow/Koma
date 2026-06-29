@@ -342,6 +342,10 @@ export struct SettingsPage {
   @Local private localLibraryRefreshSummary?: LocalLibraryRefreshSummary = undefined
   @Local private settingsSearchText: string = ''
   @Local private settingsMenuKey: string = ''
+  @Local private downloadWifiOnly: boolean = false
+  @Local private trackerAutoSync: boolean = false
+  @Local private backupAutoExport: boolean = false
+  @Local private cacheAutoClean: boolean = false
 
   private context(): common.UIAbilityContext {
     return getContext(this) as common.UIAbilityContext
@@ -398,6 +402,18 @@ export struct SettingsPage {
     }
     if (row.key === 'reader-volume-key-navigation') {
       return getReaderVolumeKeyNavigationLabel(this.readerVolumeKeyNavigationEnabled)
+    }
+    if (row.key === 'download-wifi-only') {
+      return this.downloadWifiOnly ? '开启' : '关闭'
+    }
+    if (row.key === 'tracker-auto-sync') {
+      return this.trackerAutoSync ? '开启' : '关闭'
+    }
+    if (row.key === 'backup-auto-export') {
+      return this.backupAutoExport ? '开启' : '关闭'
+    }
+    if (row.key === 'cache-auto-clean') {
+      return this.cacheAutoClean ? '开启' : '关闭'
     }
     if (row.key === 'version') {
       return this.versionDetail
@@ -1185,16 +1201,89 @@ export struct SettingsPage {
       row.key === 'reading-direction' ||
       row.key === 'theme' ||
       row.key === 'reader-background' ||
-      row.key === 'reader-progress' ||
-      row.key === 'reader-keep-screen-awake' ||
       row.key === 'reader-image-fit' ||
-      row.key === 'reader-tap-navigation' ||
       row.key === 'reader-tap-zone-preset' ||
       row.key === 'reader-page-gap' ||
-      row.key === 'reader-trim-page-margins' ||
       row.key === 'reader-wide-image-mode' ||
-      row.key === 'reader-volume-key-navigation' ||
       row.key === 'library-update-interval'
+  }
+
+  private isSwitchRow(row: SettingsRow): boolean {
+    return row.key === 'library-auto-update' ||
+      row.key === 'reader-progress' ||
+      row.key === 'reader-keep-screen-awake' ||
+      row.key === 'reader-tap-navigation' ||
+      row.key === 'reader-trim-page-margins' ||
+      row.key === 'reader-volume-key-navigation' ||
+      row.key === 'download-wifi-only' ||
+      row.key === 'tracker-auto-sync' ||
+      row.key === 'backup-auto-export' ||
+      row.key === 'cache-auto-clean'
+  }
+
+  private switchRowValue(row: SettingsRow): boolean {
+    if (row.key === 'library-auto-update') {
+      return this.libraryUpdatePreferences.autoCheckEnabled
+    }
+    if (row.key === 'reader-progress') {
+      return this.showReaderProgressControls
+    }
+    if (row.key === 'reader-keep-screen-awake') {
+      return this.keepReaderScreenAwake
+    }
+    if (row.key === 'reader-tap-navigation') {
+      return this.readerTapNavigationEnabled
+    }
+    if (row.key === 'reader-trim-page-margins') {
+      return this.readerTrimPageMarginsEnabled
+    }
+    if (row.key === 'reader-volume-key-navigation') {
+      return this.readerVolumeKeyNavigationEnabled
+    }
+    if (row.key === 'download-wifi-only') {
+      return this.downloadWifiOnly
+    }
+    if (row.key === 'tracker-auto-sync') {
+      return this.trackerAutoSync
+    }
+    if (row.key === 'backup-auto-export') {
+      return this.backupAutoExport
+    }
+    if (row.key === 'cache-auto-clean') {
+      return this.cacheAutoClean
+    }
+    return false
+  }
+
+  private setPlaceholderSwitch(row: SettingsRow, value: boolean): void {
+    if (row.key === 'download-wifi-only') {
+      this.downloadWifiOnly = value
+    } else if (row.key === 'tracker-auto-sync') {
+      this.trackerAutoSync = value
+    } else if (row.key === 'backup-auto-export') {
+      this.backupAutoExport = value
+    } else if (row.key === 'cache-auto-clean') {
+      this.cacheAutoClean = value
+    }
+    this.showToast(`${row.title}稍后接入`)
+  }
+
+  private setSwitchRowValue(row: SettingsRow, value: boolean): void {
+    if (row.key === 'library-auto-update') {
+      this.setLibraryAutoUpdateEnabled(value)
+    } else if (row.key === 'reader-progress') {
+      this.saveReaderProgressControls(value)
+    } else if (row.key === 'reader-keep-screen-awake') {
+      this.saveReaderKeepScreenAwake(value)
+    } else if (row.key === 'reader-tap-navigation') {
+      this.saveReaderTapNavigationEnabled(value)
+    } else if (row.key === 'reader-trim-page-margins') {
+      this.saveReaderTrimPageMarginsEnabled(value)
+    } else if (row.key === 'reader-volume-key-navigation') {
+      this.saveReaderVolumeKeyNavigationEnabled(value)
+    } else {
+      this.setPlaceholderSwitch(row, value)
+    }
   }
 
   private canOpenSelectionMenu(row: SettingsRow): boolean {
@@ -1236,18 +1325,9 @@ export struct SettingsPage {
         this.SelectionMenuItem('黑色', this.readerBackgroundMode === 'black', () => { this.saveReaderBackgroundMode('black') })
         this.SelectionMenuItem('纸张', this.readerBackgroundMode === 'paper', () => { this.saveReaderBackgroundMode('paper') })
         this.SelectionMenuItem('浅色', this.readerBackgroundMode === 'light', () => { this.saveReaderBackgroundMode('light') })
-      } else if (row.key === 'reader-progress') {
-        this.SelectionMenuItem('显示', this.showReaderProgressControls, () => { this.saveReaderProgressControls(true) })
-        this.SelectionMenuItem('隐藏', !this.showReaderProgressControls, () => { this.saveReaderProgressControls(false) })
-      } else if (row.key === 'reader-keep-screen-awake') {
-        this.SelectionMenuItem('开启', this.keepReaderScreenAwake, () => { this.saveReaderKeepScreenAwake(true) })
-        this.SelectionMenuItem('关闭', !this.keepReaderScreenAwake, () => { this.saveReaderKeepScreenAwake(false) })
       } else if (row.key === 'reader-image-fit') {
         this.SelectionMenuItem('适合屏幕', this.readerImageFitMode === 'contain', () => { this.saveReaderImageFitMode('contain') })
         this.SelectionMenuItem('适合宽度', this.readerImageFitMode === 'fit_width', () => { this.saveReaderImageFitMode('fit_width') })
-      } else if (row.key === 'reader-tap-navigation') {
-        this.SelectionMenuItem('开启', this.readerTapNavigationEnabled, () => { this.saveReaderTapNavigationEnabled(true) })
-        this.SelectionMenuItem('关闭', !this.readerTapNavigationEnabled, () => { this.saveReaderTapNavigationEnabled(false) })
       } else if (row.key === 'reader-tap-zone-preset') {
         this.SelectionMenuItem('窄边缘', this.readerTapZonePreset === 'edge', () => { this.saveReaderTapZonePreset('edge') })
         this.SelectionMenuItem('宽侧区', this.readerTapZonePreset === 'wide_edges', () => { this.saveReaderTapZonePreset('wide_edges') })
@@ -1255,16 +1335,10 @@ export struct SettingsPage {
         this.SelectionMenuItem('紧凑', this.readerPageGapMode === 'compact', () => { this.saveReaderPageGapMode('compact') })
         this.SelectionMenuItem('标准', this.readerPageGapMode === 'normal', () => { this.saveReaderPageGapMode('normal') })
         this.SelectionMenuItem('宽松', this.readerPageGapMode === 'wide', () => { this.saveReaderPageGapMode('wide') })
-      } else if (row.key === 'reader-trim-page-margins') {
-        this.SelectionMenuItem('开启', this.readerTrimPageMarginsEnabled, () => { this.saveReaderTrimPageMarginsEnabled(true) })
-        this.SelectionMenuItem('关闭', !this.readerTrimPageMarginsEnabled, () => { this.saveReaderTrimPageMarginsEnabled(false) })
       } else if (row.key === 'reader-wide-image-mode') {
         this.SelectionMenuItem('保持单页', this.readerWideImageMode === 'keep_single', () => { this.saveReaderWideImageMode('keep_single') })
         this.SelectionMenuItem('拆分宽图', this.readerWideImageMode === 'split_wide_pages', () => { this.saveReaderWideImageMode('split_wide_pages') })
         this.SelectionMenuItem('旋转宽图', this.readerWideImageMode === 'rotate_wide_pages', () => { this.saveReaderWideImageMode('rotate_wide_pages') })
-      } else if (row.key === 'reader-volume-key-navigation') {
-        this.SelectionMenuItem('开启', this.readerVolumeKeyNavigationEnabled, () => { this.saveReaderVolumeKeyNavigationEnabled(true) })
-        this.SelectionMenuItem('关闭', !this.readerVolumeKeyNavigationEnabled, () => { this.saveReaderVolumeKeyNavigationEnabled(false) })
       } else if (row.key === 'library-update-interval') {
         this.SelectionMenuItem('每 12 小时', this.libraryUpdatePreferences.intervalHours === 12, () => { this.saveLibraryUpdateInterval(12) })
         this.SelectionMenuItem('每 24 小时', this.libraryUpdatePreferences.intervalHours === 24, () => { this.saveLibraryUpdateInterval(24) })
@@ -1334,15 +1408,15 @@ export struct SettingsPage {
 
   @Builder
   private SectionRow(row: SettingsRow) {
-    if (row.key === 'library-auto-update') {
+    if (this.isSwitchRow(row)) {
       ConciseListRow({
         title: row.title,
         subtitle: this.rowDetail(row),
         showChevron: false,
         hasSwitch: true,
-        checked: this.libraryUpdatePreferences.autoCheckEnabled,
+        checked: this.switchRowValue(row),
         switchAction: (isOn: boolean) => {
-          this.setLibraryAutoUpdateEnabled(isOn)
+          this.setSwitchRowValue(row, isOn)
         },
       })
     } else if (this.isSelectionRow(row) && this.canOpenSelectionMenu(row)) {

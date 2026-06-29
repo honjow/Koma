@@ -1,6 +1,7 @@
 import { common } from '@kit.AbilityKit'
 import { RouterHelper } from '../common/RouterHelper'
 import { SecondaryListScaffold } from '../components/SecondaryListScaffold'
+import { KomaActionButton } from '../components/ui/KomaActionButton'
 import {
   Chapter,
   Comic,
@@ -371,17 +372,17 @@ export struct OpdsBrowsePage {
   private HeaderCard() {
     Column({ space: ThemeConstants.SPACE_MD }) {
       Row({ space: ThemeConstants.SPACE_MD }) {
-        Button('上一级')
-          .height(ThemeConstants.FILTER_CHIP_HEIGHT)
-          .fontSize(ThemeConstants.FONT_SIZE_META)
-          .fontColor((this.history.length === 0 && this.selectedPublication === undefined) ? ThemeConstants.TEXT_SECONDARY : ThemeConstants.BRAND_PRIMARY)
-          .enabled(this.history.length > 0 || this.selectedPublication !== undefined)
-          .backgroundColor(Color.Transparent)
-          .border({ width: 1, color: ThemeConstants.DIVIDER })
-          .borderRadius(ThemeConstants.RADIUS_CHIP)
-          .onClick(() => {
+        KomaActionButton({
+          label: '上一级',
+          kind: 'ghost',
+          compact: true,
+          controlHeight: ThemeConstants.FILTER_CHIP_HEIGHT,
+          accentColor: (this.history.length === 0 && this.selectedPublication === undefined) ? ThemeConstants.TEXT_SECONDARY : ThemeConstants.BRAND_PRIMARY,
+          isEnabled: this.history.length > 0 || this.selectedPublication !== undefined,
+          action: () => {
             this.goUp()
-          })
+          },
+        })
         Text(this.selectedPublication === undefined ? this.title : this.selectedPublication.title)
           .fontSize(ThemeConstants.FONT_SIZE_HEADING)
           .fontWeight(FontWeight.Medium)
@@ -392,29 +393,22 @@ export struct OpdsBrowsePage {
       }
       .width('100%')
       if (this.selectedPublication !== undefined && this.selectedImages.length > 0) {
-        Button(this.isSelectedPublicationFavorited() ? '已收藏' : '加入书架')
-          .height(ThemeConstants.BUTTON_HEIGHT)
-          .width('100%')
-          .fontSize(ThemeConstants.FONT_SIZE_BODY)
-          .fontWeight(FontWeight.Medium)
-          .fontColor(this.isSelectedPublicationFavorited() ? ThemeConstants.TEXT_ON_BRAND : ThemeConstants.BRAND_PRIMARY)
-          .backgroundColor(this.isSelectedPublicationFavorited() ? ThemeConstants.BRAND_PRIMARY : Color.Transparent)
-          .border({ width: 1, color: ThemeConstants.BRAND_PRIMARY })
-          .borderRadius(ThemeConstants.RADIUS_CHIP)
-          .onClick(() => {
+        KomaActionButton({
+          label: this.isSelectedPublicationFavorited() ? '已收藏' : '加入书架',
+          kind: this.isSelectedPublicationFavorited() ? 'primary' : 'secondary',
+          action: () => {
             this.addSelectedPublicationToLibrary()
-          })
-        Button(`阅读 ${this.selectedImages.length} 张图片`)
-          .height(ThemeConstants.BUTTON_HEIGHT)
+          },
+        })
           .width('100%')
-          .fontSize(ThemeConstants.FONT_SIZE_BODY)
-          .fontWeight(FontWeight.Medium)
-          .fontColor(ThemeConstants.TEXT_ON_BRAND)
-          .backgroundColor(ThemeConstants.BRAND_PRIMARY)
-          .borderRadius(ThemeConstants.RADIUS_CHIP)
-          .onClick(() => {
+        KomaActionButton({
+          label: `阅读 ${this.selectedImages.length} 张图片`,
+          kind: 'primary',
+          action: () => {
             this.openReader()
-          })
+          },
+        })
+          .width('100%')
       }
     }
     .width('100%')
@@ -449,9 +443,9 @@ export struct OpdsBrowsePage {
       }
       .layoutWeight(1)
       .alignItems(HorizontalAlign.Start)
-      Text('>')
+      SymbolGlyph($r('sys.symbol.chevron_right'))
         .fontSize(ThemeConstants.FONT_SIZE_HEADING)
-        .fontColor(ThemeConstants.TEXT_SECONDARY)
+        .fontColor([ThemeConstants.TEXT_SECONDARY])
     }
     .width('100%')
     .padding(ThemeConstants.SPACE_LG)
@@ -488,9 +482,9 @@ export struct OpdsBrowsePage {
       }
       .layoutWeight(1)
       .alignItems(HorizontalAlign.Start)
-      Text('>')
+      SymbolGlyph($r('sys.symbol.chevron_right'))
         .fontSize(ThemeConstants.FONT_SIZE_HEADING)
-        .fontColor(ThemeConstants.TEXT_SECONDARY)
+        .fontColor([ThemeConstants.TEXT_SECONDARY])
     }
     .width('100%')
     .padding(ThemeConstants.SPACE_LG)

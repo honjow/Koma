@@ -1,6 +1,7 @@
 import { common } from '@kit.AbilityKit'
 import { RouterHelper } from '../common/RouterHelper'
 import { SecondaryListScaffold } from '../components/SecondaryListScaffold'
+import { KomaActionButton } from '../components/ui/KomaActionButton'
 import {
   CrossSearchResultItem,
   CrossSearchSection,
@@ -276,15 +277,15 @@ export struct SearchPage {
           .fontColor(ThemeConstants.TEXT_SECONDARY)
           .layoutWeight(1)
         if (this.history.length > 0) {
-          Button('清除')
-            .height(ThemeConstants.ACTION_CHIP_HEIGHT)
-            .borderRadius(ThemeConstants.RADIUS_CHIP)
-            .fontSize(ThemeConstants.FONT_SIZE_META)
-            .fontColor(ThemeConstants.BRAND_PRIMARY)
-            .backgroundColor(Color.Transparent)
-            .onClick(() => {
+          KomaActionButton({
+            label: '清除',
+            kind: 'ghost',
+            compact: true,
+            controlHeight: ThemeConstants.ACTION_CHIP_HEIGHT,
+            action: () => {
               this.clearHistory()
-            })
+            },
+          })
         }
       }
       .width('100%')
@@ -315,9 +316,9 @@ export struct SearchPage {
             }
             .layoutWeight(1)
             .alignItems(HorizontalAlign.Start)
-            Text('>')
+            SymbolGlyph($r('sys.symbol.chevron_right'))
               .fontSize(ThemeConstants.FONT_SIZE_TITLE)
-              .fontColor(ThemeConstants.BRAND_PRIMARY)
+              .fontColor([ThemeConstants.BRAND_PRIMARY])
           }
           .width('100%')
           .padding(ThemeConstants.SPACE_LG)

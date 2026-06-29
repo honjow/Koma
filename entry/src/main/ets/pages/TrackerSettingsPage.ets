@@ -1,5 +1,6 @@
 import { common } from '@kit.AbilityKit'
 import { SecondaryListScaffold } from '../components/SecondaryListScaffold'
+import { KomaActionButton } from '../components/ui/KomaActionButton'
 import {
   DEFAULT_TRACKER_ACCOUNTS,
   TRACKER_PROVIDER_CONFIGS,
@@ -159,17 +160,17 @@ export struct TrackerSettingsPage {
         .fontSize(ThemeConstants.FONT_SIZE_META)
         .fontColor(ThemeConstants.TEXT_SECONDARY)
 
-      Button(this.connectActionLabel(provider))
-        .height(ThemeConstants.ACTION_CHIP_HEIGHT)
-        .fontSize(ThemeConstants.FONT_SIZE_CAPTION)
-        .fontColor(this.canPrepareConnect(provider) ? ThemeConstants.TEXT_ON_BRAND : ThemeConstants.TEXT_SECONDARY)
-        .backgroundColor(this.canPrepareConnect(provider) ? ThemeConstants.BRAND_PRIMARY : Color.Transparent)
-        .border({ width: 1, color: this.canPrepareConnect(provider) ? ThemeConstants.BRAND_PRIMARY : ThemeConstants.TEXT_SECONDARY })
-        .borderRadius(ThemeConstants.RADIUS_CHIP)
-        .enabled(this.canPrepareConnect(provider))
-        .onClick(() => {
+      KomaActionButton({
+        label: this.connectActionLabel(provider),
+        kind: this.canPrepareConnect(provider) ? 'primary' : 'secondary',
+        compact: true,
+        controlHeight: ThemeConstants.ACTION_CHIP_HEIGHT,
+        isEnabled: this.canPrepareConnect(provider),
+        accentColor: this.canPrepareConnect(provider) ? undefined : ThemeConstants.TEXT_SECONDARY,
+        action: () => {
           this.prepareConnect(provider)
-        })
+        },
+      })
     }
     .width('100%')
     .padding({ left: ThemeConstants.SPACE_LG, right: ThemeConstants.SPACE_LG, top: ThemeConstants.SPACE_LG, bottom: ThemeConstants.SPACE_LG })

@@ -1,6 +1,7 @@
 import { common } from '@kit.AbilityKit'
 import { RouterHelper } from '../common/RouterHelper'
 import { SecondaryListScaffold } from '../components/SecondaryListScaffold'
+import { KomaActionButton } from '../components/ui/KomaActionButton'
 import { Chapter, Comic } from '../model/ComicModels'
 import { LibraryStore } from '../model/LibraryStore'
 import {
@@ -292,30 +293,30 @@ export struct KomgaSeriesPage {
         .fontWeight(FontWeight.Medium)
         .fontColor(ThemeConstants.BRAND_PRIMARY)
         .width('100%')
-      Row({ space: ThemeConstants.SPACE_SM }) {
-        Button('全部')
-          .height(ThemeConstants.FILTER_CHIP_HEIGHT)
-          .fontSize(ThemeConstants.FONT_SIZE_META)
-          .fontColor(this.selectedLibraryId.length === 0 ? ThemeConstants.TEXT_ON_BRAND : ThemeConstants.BRAND_PRIMARY)
-          .backgroundColor(this.selectedLibraryId.length === 0 ? ThemeConstants.BRAND_PRIMARY : Color.Transparent)
-          .border({ width: 1, color: ThemeConstants.BRAND_PRIMARY })
-          .borderRadius(ThemeConstants.RADIUS_CHIP)
-          .onClick(() => {
+      Flex({ wrap: FlexWrap.Wrap }) {
+        KomaActionButton({
+          label: '全部',
+          kind: this.selectedLibraryId.length === 0 ? 'primary' : 'ghost',
+          compact: true,
+          controlHeight: ThemeConstants.FILTER_CHIP_HEIGHT,
+          action: () => {
             this.selectedLibraryId = ''
             this.reloadSeries()
-          })
+          },
+        })
+          .margin({ right: ThemeConstants.SPACE_SM, bottom: ThemeConstants.SPACE_SM })
         ForEach(this.libraries, (library: KomgaLibraryDto) => {
-          Button(library.name)
-            .height(ThemeConstants.FILTER_CHIP_HEIGHT)
-            .fontSize(ThemeConstants.FONT_SIZE_META)
-            .fontColor(this.selectedLibraryId === library.id ? ThemeConstants.TEXT_ON_BRAND : ThemeConstants.BRAND_PRIMARY)
-            .backgroundColor(this.selectedLibraryId === library.id ? ThemeConstants.BRAND_PRIMARY : Color.Transparent)
-            .border({ width: 1, color: ThemeConstants.BRAND_PRIMARY })
-            .borderRadius(ThemeConstants.RADIUS_CHIP)
-            .onClick(() => {
+          KomaActionButton({
+            label: library.name,
+            kind: this.selectedLibraryId === library.id ? 'primary' : 'ghost',
+            compact: true,
+            controlHeight: ThemeConstants.FILTER_CHIP_HEIGHT,
+            action: () => {
               this.selectedLibraryId = library.id
               this.reloadSeries()
-            })
+            },
+          })
+            .margin({ right: ThemeConstants.SPACE_SM, bottom: ThemeConstants.SPACE_SM })
         }, (library: KomgaLibraryDto) => library.id)
       }
       .width('100%')
@@ -406,18 +407,14 @@ export struct KomgaSeriesPage {
             .fontWeight(FontWeight.Medium)
             .fontColor(ThemeConstants.TEXT_PRIMARY)
             .width('100%')
-          Button(this.isSelectedSeriesFavorited() ? '已收藏' : '加入书架')
-            .height(ThemeConstants.BUTTON_HEIGHT)
-            .width('100%')
-            .fontSize(ThemeConstants.FONT_SIZE_BODY)
-            .fontWeight(FontWeight.Medium)
-            .fontColor(this.isSelectedSeriesFavorited() ? ThemeConstants.TEXT_ON_BRAND : ThemeConstants.BRAND_PRIMARY)
-            .backgroundColor(this.isSelectedSeriesFavorited() ? ThemeConstants.BRAND_PRIMARY : Color.Transparent)
-            .border({ width: 1, color: ThemeConstants.BRAND_PRIMARY })
-            .borderRadius(ThemeConstants.RADIUS_CHIP)
-            .onClick(() => {
+          KomaActionButton({
+            label: this.isSelectedSeriesFavorited() ? '已收藏' : '加入书架',
+            kind: this.isSelectedSeriesFavorited() ? 'primary' : 'secondary',
+            action: () => {
               this.addSelectedSeriesToLibrary()
-            })
+            },
+          })
+            .width('100%')
           if (this.books.length === 0) {
             Text('暂无 books')
               .fontSize(ThemeConstants.FONT_SIZE_BODY)

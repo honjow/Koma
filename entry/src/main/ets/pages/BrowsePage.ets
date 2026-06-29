@@ -130,9 +130,9 @@ export struct BrowsePage {
           }
           .layoutWeight(1)
           .alignItems(HorizontalAlign.Start)
-          Text('>')
+          SymbolGlyph($r('sys.symbol.chevron_right'))
             .fontSize(ThemeConstants.FONT_SIZE_HEADING)
-            .fontColor(ThemeConstants.TEXT_SECONDARY)
+            .fontColor([ThemeConstants.TEXT_SECONDARY])
         }
         .width('100%')
         .padding(ThemeConstants.SPACE_MD)
@@ -180,9 +180,9 @@ export struct BrowsePage {
           }
           .layoutWeight(1)
           .alignItems(HorizontalAlign.Start)
-          Text('>')
+          SymbolGlyph($r('sys.symbol.chevron_right'))
             .fontSize(ThemeConstants.FONT_SIZE_HEADING)
-            .fontColor(ThemeConstants.TEXT_SECONDARY)
+            .fontColor([ThemeConstants.TEXT_SECONDARY])
         }
         .width('100%')
         .padding(ThemeConstants.SPACE_MD)
@@ -230,9 +230,9 @@ export struct BrowsePage {
           }
           .layoutWeight(1)
           .alignItems(HorizontalAlign.Start)
-          Text('>')
+          SymbolGlyph($r('sys.symbol.chevron_right'))
             .fontSize(ThemeConstants.FONT_SIZE_HEADING)
-            .fontColor(ThemeConstants.TEXT_SECONDARY)
+            .fontColor([ThemeConstants.TEXT_SECONDARY])
         }
         .width('100%')
         .padding(ThemeConstants.SPACE_MD)
