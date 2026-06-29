@@ -369,23 +369,23 @@ export struct OpdsBrowsePage {
 
   @Builder
   private HeaderCard() {
-    Column({ space: 10 }) {
-      Row({ space: 10 }) {
+    Column({ space: ThemeConstants.SPACE_MD }) {
+      Row({ space: ThemeConstants.SPACE_MD }) {
         Button('上一级')
-          .height(34)
-          .fontSize(13)
-          .fontColor((this.history.length === 0 && this.selectedPublication === undefined) ? $r('app.color.koma_text_secondary') : $r('app.color.koma_accent'))
+          .height(ThemeConstants.FILTER_CHIP_HEIGHT)
+          .fontSize(ThemeConstants.FONT_SIZE_META)
+          .fontColor((this.history.length === 0 && this.selectedPublication === undefined) ? ThemeConstants.TEXT_SECONDARY : ThemeConstants.BRAND_PRIMARY)
           .enabled(this.history.length > 0 || this.selectedPublication !== undefined)
-          .backgroundColor('#00000000')
-          .border({ width: 1, color: '#338F837D' })
-          .borderRadius(8)
+          .backgroundColor(Color.Transparent)
+          .border({ width: 1, color: ThemeConstants.DIVIDER })
+          .borderRadius(ThemeConstants.RADIUS_CHIP)
           .onClick(() => {
             this.goUp()
           })
         Text(this.selectedPublication === undefined ? this.title : this.selectedPublication.title)
-          .fontSize(18)
+          .fontSize(ThemeConstants.FONT_SIZE_HEADING)
           .fontWeight(FontWeight.Medium)
-          .fontColor($r('app.color.koma_text_primary'))
+          .fontColor(ThemeConstants.TEXT_PRIMARY)
           .layoutWeight(1)
           .maxLines(1)
           .textOverflow({ overflow: TextOverflow.Ellipsis })
@@ -393,70 +393,70 @@ export struct OpdsBrowsePage {
       .width('100%')
       if (this.selectedPublication !== undefined && this.selectedImages.length > 0) {
         Button(this.isSelectedPublicationFavorited() ? '已收藏' : '加入书架')
-          .height(40)
+          .height(ThemeConstants.BUTTON_HEIGHT)
           .width('100%')
-          .fontSize(14)
+          .fontSize(ThemeConstants.FONT_SIZE_BODY)
           .fontWeight(FontWeight.Medium)
-          .fontColor(this.isSelectedPublicationFavorited() ? Color.White : $r('app.color.koma_accent'))
-          .backgroundColor(this.isSelectedPublicationFavorited() ? $r('app.color.koma_accent') : '#00000000')
-          .border({ width: 1, color: $r('app.color.koma_accent') })
-          .borderRadius(8)
+          .fontColor(this.isSelectedPublicationFavorited() ? ThemeConstants.TEXT_ON_BRAND : ThemeConstants.BRAND_PRIMARY)
+          .backgroundColor(this.isSelectedPublicationFavorited() ? ThemeConstants.BRAND_PRIMARY : Color.Transparent)
+          .border({ width: 1, color: ThemeConstants.BRAND_PRIMARY })
+          .borderRadius(ThemeConstants.RADIUS_CHIP)
           .onClick(() => {
             this.addSelectedPublicationToLibrary()
           })
         Button(`阅读 ${this.selectedImages.length} 张图片`)
-          .height(40)
+          .height(ThemeConstants.BUTTON_HEIGHT)
           .width('100%')
-          .fontSize(14)
+          .fontSize(ThemeConstants.FONT_SIZE_BODY)
           .fontWeight(FontWeight.Medium)
-          .fontColor(Color.White)
-          .backgroundColor($r('app.color.koma_accent'))
-          .borderRadius(8)
+          .fontColor(ThemeConstants.TEXT_ON_BRAND)
+          .backgroundColor(ThemeConstants.BRAND_PRIMARY)
+          .borderRadius(ThemeConstants.RADIUS_CHIP)
           .onClick(() => {
             this.openReader()
           })
       }
     }
     .width('100%')
-    .padding(14)
-    .borderRadius(8)
-    .backgroundColor($r('app.color.koma_card'))
+    .padding(ThemeConstants.SPACE_LG)
+    .borderRadius(ThemeConstants.RADIUS_CARD)
+    .backgroundColor(ThemeConstants.CARD)
   }
 
   @Builder
   private NavigationRow(item: OpdsCatalogDto) {
-    Row({ space: 12 }) {
+    Row({ space: ThemeConstants.SPACE_MD }) {
       Text('C')
-        .fontSize(18)
+        .fontSize(ThemeConstants.FONT_SIZE_HEADING)
         .fontWeight(FontWeight.Bold)
-        .fontColor(Color.White)
-        .width(44)
-        .height(44)
+        .fontColor(ThemeConstants.TEXT_ON_BRAND)
+        .width(ThemeConstants.SOURCE_ICON_SIZE)
+        .height(ThemeConstants.SOURCE_ICON_SIZE)
         .textAlign(TextAlign.Center)
-        .backgroundColor('#16745F')
-        .borderRadius(8)
-      Column({ space: 4 }) {
+        .backgroundColor(ThemeConstants.BRAND_PRIMARY)
+        .borderRadius(ThemeConstants.RADIUS_THUMB)
+      Column({ space: ThemeConstants.SPACE_XS }) {
         Text(item.title)
-          .fontSize(16)
+          .fontSize(ThemeConstants.FONT_SIZE_TITLE)
           .fontWeight(FontWeight.Medium)
-          .fontColor($r('app.color.koma_text_primary'))
+          .fontColor(ThemeConstants.TEXT_PRIMARY)
           .maxLines(2)
           .textOverflow({ overflow: TextOverflow.Ellipsis })
           .width('100%')
         Text(item.type === undefined ? 'Catalog' : item.type)
-          .fontSize(13)
-          .fontColor($r('app.color.koma_text_secondary'))
+          .fontSize(ThemeConstants.FONT_SIZE_META)
+          .fontColor(ThemeConstants.TEXT_SECONDARY)
       }
       .layoutWeight(1)
       .alignItems(HorizontalAlign.Start)
       Text('>')
-        .fontSize(18)
-        .fontColor($r('app.color.koma_text_secondary'))
+        .fontSize(ThemeConstants.FONT_SIZE_HEADING)
+        .fontColor(ThemeConstants.TEXT_SECONDARY)
     }
     .width('100%')
-    .padding(14)
-    .borderRadius(8)
-    .backgroundColor($r('app.color.koma_card'))
+    .padding(ThemeConstants.SPACE_LG)
+    .borderRadius(ThemeConstants.RADIUS_CARD)
+    .backgroundColor(ThemeConstants.CARD)
     .onClick(() => {
       this.openNavigation(item)
     })
@@ -464,38 +464,38 @@ export struct OpdsBrowsePage {
 
   @Builder
   private PublicationRow(item: OpdsBookDto) {
-    Row({ space: 12 }) {
+    Row({ space: ThemeConstants.SPACE_MD }) {
       Text(item.title.substring(0, 1).toLocaleUpperCase())
-        .fontSize(18)
+        .fontSize(ThemeConstants.FONT_SIZE_HEADING)
         .fontWeight(FontWeight.Bold)
-        .fontColor(Color.White)
-        .width(44)
-        .height(56)
+        .fontColor(ThemeConstants.TEXT_ON_BRAND)
+        .width(ThemeConstants.LIST_COVER_WIDTH)
+        .height(ThemeConstants.LIST_COVER_HEIGHT)
         .textAlign(TextAlign.Center)
-        .backgroundColor('#5F5F9F')
-        .borderRadius(8)
-      Column({ space: 4 }) {
+        .backgroundColor(ThemeConstants.COVER_PLACEHOLDER)
+        .borderRadius(ThemeConstants.RADIUS_THUMB)
+      Column({ space: ThemeConstants.SPACE_XS }) {
         Text(item.title)
-          .fontSize(16)
+          .fontSize(ThemeConstants.FONT_SIZE_TITLE)
           .fontWeight(FontWeight.Medium)
-          .fontColor($r('app.color.koma_text_primary'))
+          .fontColor(ThemeConstants.TEXT_PRIMARY)
           .maxLines(2)
           .textOverflow({ overflow: TextOverflow.Ellipsis })
           .width('100%')
         Text(this.acquisitionText(item))
-          .fontSize(13)
-          .fontColor($r('app.color.koma_text_secondary'))
+          .fontSize(ThemeConstants.FONT_SIZE_META)
+          .fontColor(ThemeConstants.TEXT_SECONDARY)
       }
       .layoutWeight(1)
       .alignItems(HorizontalAlign.Start)
       Text('>')
-        .fontSize(18)
-        .fontColor($r('app.color.koma_text_secondary'))
+        .fontSize(ThemeConstants.FONT_SIZE_HEADING)
+        .fontColor(ThemeConstants.TEXT_SECONDARY)
     }
     .width('100%')
-    .padding(14)
-    .borderRadius(8)
-    .backgroundColor($r('app.color.koma_card'))
+    .padding(ThemeConstants.SPACE_LG)
+    .borderRadius(ThemeConstants.RADIUS_CARD)
+    .backgroundColor(ThemeConstants.CARD)
     .onClick(() => {
       this.openPublication(item)
     })
@@ -503,50 +503,53 @@ export struct OpdsBrowsePage {
 
   @Builder
   private PublicationDetail(publication: OpdsBookDto) {
-    Column({ space: 12 }) {
+    Column({ space: ThemeConstants.SPACE_MD }) {
       Text(publication.summary === undefined ? '无简介' : publication.summary)
         .width('100%')
-        .fontSize(14)
-        .lineHeight(22)
-        .fontColor($r('app.color.koma_text_secondary'))
+        .fontSize(ThemeConstants.FONT_SIZE_BODY)
+        .lineHeight(ThemeConstants.LINE_HEIGHT_TITLE)
+        .fontColor(ThemeConstants.TEXT_SECONDARY)
       ForEach(mapOpdsPublicationToAcquisitions(publication), (item: OpdsAcquisitionDto) => {
         Text(item.status === OpdsAcquisitionStatus.SUPPORTED ? `Acquisition：${item.type ?? item.href}` : `暂不支持：${item.type ?? item.href}`)
           .width('100%')
-          .fontSize(13)
-          .fontColor(item.status === OpdsAcquisitionStatus.SUPPORTED ? $r('app.color.koma_accent') : $r('app.color.koma_text_secondary'))
+          .fontSize(ThemeConstants.FONT_SIZE_META)
+          .fontColor(item.status === OpdsAcquisitionStatus.SUPPORTED ? ThemeConstants.BRAND_PRIMARY : ThemeConstants.TEXT_SECONDARY)
       }, (item: OpdsAcquisitionDto) => item.href)
       ForEach(this.selectedImages, (item: OpdsImageDto, index: number) => {
         Text(`${index + 1}. ${item.title ?? item.href}`)
           .width('100%')
-          .fontSize(13)
-          .fontColor($r('app.color.koma_text_secondary'))
+          .fontSize(ThemeConstants.FONT_SIZE_META)
+          .fontColor(ThemeConstants.TEXT_SECONDARY)
           .maxLines(2)
           .textOverflow({ overflow: TextOverflow.Ellipsis })
       }, (item: OpdsImageDto) => item.href)
       if (this.selectedImages.length === 0) {
         Text('未发现可直接阅读的 image / readingOrder / pageList URL')
           .width('100%')
-          .fontSize(13)
-          .fontColor($r('app.color.koma_text_secondary'))
+          .fontSize(ThemeConstants.FONT_SIZE_META)
+          .fontColor(ThemeConstants.TEXT_SECONDARY)
       }
     }
     .width('100%')
-    .padding(14)
-    .borderRadius(8)
-    .backgroundColor($r('app.color.koma_card'))
+    .padding(ThemeConstants.SPACE_LG)
+    .borderRadius(ThemeConstants.RADIUS_CARD)
+    .backgroundColor(ThemeConstants.CARD)
   }
 
   build() {
     Column() {
       SecondaryListScaffold({
-        listSpace: 12,
-        horizontalPadding: 20,
+        listSpace: ThemeConstants.SPACE_MD,
+        horizontalPadding: ThemeConstants.SPACE_XL,
         bottomPadding: ThemeConstants.FLOAT_BAR_HEIGHT + 20,
       }) {
         if (this.loading) {
           ListItem() {
             Row() {
-              LoadingProgress().width(32).height(32).color($r('app.color.koma_accent'))
+              LoadingProgress()
+                .width(ThemeConstants.SPACE_XXL)
+                .height(ThemeConstants.SPACE_XXL)
+                .color(ThemeConstants.BRAND_PRIMARY)
             }
             .width('100%')
             .justifyContent(FlexAlign.Center)
@@ -555,11 +558,11 @@ export struct OpdsBrowsePage {
           ListItem() {
             Text(this.errorText)
               .width('100%')
-              .padding(16)
-              .fontSize(14)
-              .fontColor($r('app.color.koma_text_secondary'))
-              .borderRadius(8)
-              .backgroundColor($r('app.color.koma_card'))
+              .padding(ThemeConstants.SPACE_LG)
+              .fontSize(ThemeConstants.FONT_SIZE_BODY)
+              .fontColor(ThemeConstants.TEXT_SECONDARY)
+              .borderRadius(ThemeConstants.RADIUS_CARD)
+              .backgroundColor(ThemeConstants.CARD)
           }
         } else {
           ListItem() {
@@ -584,11 +587,11 @@ export struct OpdsBrowsePage {
               ListItem() {
                 Text('当前 catalog 没有 navigation 或 publication')
                   .width('100%')
-                  .padding(16)
-                  .fontSize(14)
-                  .fontColor($r('app.color.koma_text_secondary'))
-                  .borderRadius(8)
-                  .backgroundColor($r('app.color.koma_card'))
+                  .padding(ThemeConstants.SPACE_LG)
+                  .fontSize(ThemeConstants.FONT_SIZE_BODY)
+                  .fontColor(ThemeConstants.TEXT_SECONDARY)
+                  .borderRadius(ThemeConstants.RADIUS_CARD)
+                  .backgroundColor(ThemeConstants.CARD)
               }
             }
           }
@@ -597,6 +600,6 @@ export struct OpdsBrowsePage {
     }
     .width('100%')
     .height('100%')
-    .backgroundColor($r('sys.color.ohos_id_color_sub_background'))
+    .backgroundColor(ThemeConstants.BG_SUB)
   }
 }

@@ -1071,21 +1071,21 @@ export struct SourcePackageManagerPage {
 
   @Builder
   private IndexUrlCard() {
-    Column({ space: 12 }) {
+    Column({ space: ThemeConstants.SPACE_MD }) {
       Text('源索引地址')
         .width('100%')
-        .fontSize(16)
+        .fontSize(ThemeConstants.FONT_SIZE_TITLE)
         .fontWeight(FontWeight.Medium)
-        .fontColor($r('app.color.koma_text_primary'))
+        .fontColor(ThemeConstants.TEXT_PRIMARY)
 
       TextInput({ text: this.sourceIndexUrl, placeholder: 'https://…' })
-        .height(40)
+        .height(ThemeConstants.BUTTON_HEIGHT)
         .width('100%')
-        .fontSize(14)
-        .fontColor($r('app.color.koma_text_primary'))
-        .placeholderColor($r('app.color.koma_text_secondary'))
-        .backgroundColor($r('app.color.koma_card'))
-        .borderRadius(8)
+        .fontSize(ThemeConstants.FONT_SIZE_BODY)
+        .fontColor(ThemeConstants.TEXT_PRIMARY)
+        .placeholderColor(ThemeConstants.TEXT_SECONDARY)
+        .backgroundColor(ThemeConstants.CARD)
+        .borderRadius(ThemeConstants.RADIUS_CHIP)
         .onChange((value: string) => {
           this.sourceIndexUrl = value
         })
@@ -1093,28 +1093,28 @@ export struct SourcePackageManagerPage {
           this.fetchIndex()
         })
 
-      Row({ space: 10 }) {
+      Row({ space: ThemeConstants.SPACE_MD }) {
         Button(this.indexFetchBusy ? '加载中' : '加载源列表')
-          .height(38)
+          .height(ThemeConstants.BUTTON_HEIGHT)
           .layoutWeight(1)
-          .fontSize(14)
-          .fontColor(Color.White)
+          .fontSize(ThemeConstants.FONT_SIZE_BODY)
+          .fontColor(ThemeConstants.TEXT_ON_BRAND)
           .enabled(!this.indexFetchBusy)
-          .backgroundColor($r('app.color.koma_accent'))
-          .borderRadius(8)
+          .backgroundColor(ThemeConstants.BRAND_PRIMARY)
+          .borderRadius(ThemeConstants.RADIUS_CHIP)
           .onClick(() => {
             this.fetchIndex()
           })
 
         Button(this.busy ? '导入中' : '本地导入')
-          .height(38)
+          .height(ThemeConstants.BUTTON_HEIGHT)
           .layoutWeight(1)
-          .fontSize(14)
-          .fontColor($r('app.color.koma_text_secondary'))
+          .fontSize(ThemeConstants.FONT_SIZE_BODY)
+          .fontColor(ThemeConstants.TEXT_SECONDARY)
           .enabled(!this.busy)
-          .backgroundColor('#00000000')
-          .border({ width: 1, color: '#338F837D' })
-          .borderRadius(8)
+          .backgroundColor(Color.Transparent)
+          .border({ width: 1, color: ThemeConstants.DIVIDER })
+          .borderRadius(ThemeConstants.RADIUS_CHIP)
           .onClick(() => {
             this.importPackage()
           })
@@ -1124,43 +1124,43 @@ export struct SourcePackageManagerPage {
       if (this.indexStatusText.length > 0) {
         Text(this.indexStatusText)
           .width('100%')
-          .fontSize(13)
-          .lineHeight(20)
-          .fontColor($r('app.color.koma_text_secondary'))
+          .fontSize(ThemeConstants.FONT_SIZE_META)
+          .lineHeight(ThemeConstants.LINE_HEIGHT_BODY)
+          .fontColor(ThemeConstants.TEXT_SECONDARY)
       }
 
       Text(SOURCE_PACKAGE_TRUST_BOUNDARY_NOTICE)
         .width('100%')
-        .fontSize(12)
+        .fontSize(ThemeConstants.FONT_SIZE_CAPTION)
         .lineHeight(18)
-        .fontColor($r('app.color.koma_text_secondary'))
+        .fontColor(ThemeConstants.TEXT_SECONDARY)
 
       Text('源包更新只会在你点按检查更新时读取当前填写或已保存的源索引地址；不会后台定时检查，也不会发送更新提醒。')
         .width('100%')
-        .fontSize(12)
+        .fontSize(ThemeConstants.FONT_SIZE_CAPTION)
         .lineHeight(18)
-        .fontColor($r('app.color.koma_text_secondary'))
+        .fontColor(ThemeConstants.TEXT_SECONDARY)
     }
     .width('100%')
-    .padding(16)
-    .borderRadius(8)
-    .backgroundColor($r('app.color.koma_card'))
+    .padding(ThemeConstants.SPACE_LG)
+    .borderRadius(ThemeConstants.RADIUS_CARD)
+    .backgroundColor(ThemeConstants.CARD)
   }
 
   @Builder
   private RemoteIndexCard(entry: SourceIndexEntry) {
-    Column({ space: 10 }) {
-      Row({ space: 12 }) {
-        Column({ space: 4 }) {
+    Column({ space: ThemeConstants.SPACE_MD }) {
+      Row({ space: ThemeConstants.SPACE_MD }) {
+        Column({ space: ThemeConstants.SPACE_XS }) {
           Text(entry.name)
-            .fontSize(15)
+            .fontSize(ThemeConstants.FONT_SIZE_BODY)
             .fontWeight(FontWeight.Medium)
-            .fontColor($r('app.color.koma_text_primary'))
+            .fontColor(ThemeConstants.TEXT_PRIMARY)
             .maxLines(1)
             .textOverflow({ overflow: TextOverflow.Ellipsis })
           Text(entry.id)
-            .fontSize(12)
-            .fontColor($r('app.color.koma_text_secondary'))
+            .fontSize(ThemeConstants.FONT_SIZE_CAPTION)
+            .fontColor(ThemeConstants.TEXT_SECONDARY)
             .maxLines(1)
             .textOverflow({ overflow: TextOverflow.Ellipsis })
         }
@@ -1169,30 +1169,30 @@ export struct SourcePackageManagerPage {
 
         if (this.hasUpdate(entry)) {
           Button(this.indexInstallBusy ? '更新中' : '更新')
-            .height(34)
-            .fontSize(13)
-            .fontColor(Color.White)
+            .height(ThemeConstants.FILTER_CHIP_HEIGHT)
+            .fontSize(ThemeConstants.FONT_SIZE_META)
+            .fontColor(ThemeConstants.TEXT_ON_BRAND)
             .enabled(!this.indexInstallBusy)
-            .backgroundColor($r('app.color.koma_accent'))
-            .borderRadius(8)
+            .backgroundColor(ThemeConstants.BRAND_PRIMARY)
+            .borderRadius(ThemeConstants.RADIUS_CHIP)
             .onClick(() => {
               this.installIndexEntry(entry, true)
             })
         } else if (this.isSourceInstalled(entry.id)) {
           Text('已安装')
-            .fontSize(12)
-            .fontColor($r('app.color.koma_accent'))
+            .fontSize(ThemeConstants.FONT_SIZE_CAPTION)
+            .fontColor(ThemeConstants.BRAND_PRIMARY)
             .padding({ left: 10, right: 10, top: 4, bottom: 4 })
-            .borderRadius(8)
-            .backgroundColor('#148F837D')
+            .borderRadius(ThemeConstants.RADIUS_CHIP)
+            .backgroundColor(ThemeConstants.SOFT_TINT)
         } else {
           Button(this.indexInstallBusy ? '安装中' : '安装')
-            .height(34)
-            .fontSize(13)
-            .fontColor(Color.White)
+            .height(ThemeConstants.FILTER_CHIP_HEIGHT)
+            .fontSize(ThemeConstants.FONT_SIZE_META)
+            .fontColor(ThemeConstants.TEXT_ON_BRAND)
             .enabled(!this.indexInstallBusy)
-            .backgroundColor($r('app.color.koma_accent'))
-            .borderRadius(8)
+            .backgroundColor(ThemeConstants.BRAND_PRIMARY)
+            .borderRadius(ThemeConstants.RADIUS_CHIP)
             .onClick(() => {
               this.installIndexEntry(entry)
             })
@@ -1200,30 +1200,30 @@ export struct SourcePackageManagerPage {
       }
       .width('100%')
 
-      Row({ space: 8 }) {
+      Row({ space: ThemeConstants.SPACE_SM }) {
         Text(this.indexVersionText(entry))
-          .fontSize(12)
-          .fontColor($r('app.color.koma_text_secondary'))
+          .fontSize(ThemeConstants.FONT_SIZE_CAPTION)
+          .fontColor(ThemeConstants.TEXT_SECONDARY)
         if (entry.lang.length > 0) {
           Text(entry.lang)
-            .fontSize(12)
-            .fontColor($r('app.color.koma_text_secondary'))
+            .fontSize(ThemeConstants.FONT_SIZE_CAPTION)
+            .fontColor(ThemeConstants.TEXT_SECONDARY)
         }
         if (entry.nsfw) {
           Text('NSFW')
-            .fontSize(11)
-            .fontColor(Color.White)
+            .fontSize(ThemeConstants.FONT_SIZE_TAG)
+            .fontColor(ThemeConstants.TEXT_ON_BRAND)
             .padding({ left: 6, right: 6, top: 2, bottom: 2 })
-            .borderRadius(4)
-            .backgroundColor('#A13D32')
+            .borderRadius(ThemeConstants.RADIUS_SM)
+            .backgroundColor(ThemeConstants.DANGER)
         }
         if (this.hasUpdate(entry)) {
           Text('可更新')
-            .fontSize(11)
-            .fontColor(Color.White)
+            .fontSize(ThemeConstants.FONT_SIZE_TAG)
+            .fontColor(ThemeConstants.TEXT_ON_BRAND)
             .padding({ left: 6, right: 6, top: 2, bottom: 2 })
-            .borderRadius(4)
-            .backgroundColor($r('app.color.koma_accent'))
+            .borderRadius(ThemeConstants.RADIUS_SM)
+            .backgroundColor(ThemeConstants.BRAND_PRIMARY)
         }
       }
       .width('100%')
@@ -1231,53 +1231,53 @@ export struct SourcePackageManagerPage {
       if (entry.description.length > 0) {
         Text(entry.description)
           .width('100%')
-          .fontSize(13)
+          .fontSize(ThemeConstants.FONT_SIZE_META)
           .maxLines(2)
           .textOverflow({ overflow: TextOverflow.Ellipsis })
-          .fontColor($r('app.color.koma_text_secondary'))
+          .fontColor(ThemeConstants.TEXT_SECONDARY)
       }
 
       Text(this.sourceIndexTrustMetaText(entry))
         .width('100%')
-        .fontSize(12)
-        .fontColor($r('app.color.koma_text_secondary'))
+        .fontSize(ThemeConstants.FONT_SIZE_CAPTION)
+        .fontColor(ThemeConstants.TEXT_SECONDARY)
         .maxLines(2)
         .textOverflow({ overflow: TextOverflow.Ellipsis })
 
       Text(this.sourceIndexTrustCapabilityText(entry))
         .width('100%')
-        .fontSize(12)
-        .fontColor($r('app.color.koma_text_secondary'))
+        .fontSize(ThemeConstants.FONT_SIZE_CAPTION)
+        .fontColor(ThemeConstants.TEXT_SECONDARY)
     }
     .width('100%')
-    .padding(16)
-    .borderRadius(8)
-    .backgroundColor($r('app.color.koma_card'))
+    .padding(ThemeConstants.SPACE_LG)
+    .borderRadius(ThemeConstants.RADIUS_CARD)
+    .backgroundColor(ThemeConstants.CARD)
   }
 
   @Builder
   private InstalledHeaderCard() {
-    Column({ space: 12 }) {
-      Row({ space: 12 }) {
-        Column({ space: 4 }) {
+    Column({ space: ThemeConstants.SPACE_MD }) {
+      Row({ space: ThemeConstants.SPACE_MD }) {
+        Column({ space: ThemeConstants.SPACE_XS }) {
           Text('已安装源包')
-            .fontSize(20)
+            .fontSize(ThemeConstants.FONT_SIZE_H3)
             .fontWeight(FontWeight.Bold)
-            .fontColor($r('app.color.koma_text_primary'))
+            .fontColor(ThemeConstants.TEXT_PRIMARY)
           Text(this.packages.length.toString() + ' 个源')
-            .fontSize(13)
-            .fontColor($r('app.color.koma_text_secondary'))
+            .fontSize(ThemeConstants.FONT_SIZE_META)
+            .fontColor(ThemeConstants.TEXT_SECONDARY)
         }
         .layoutWeight(1)
         .alignItems(HorizontalAlign.Start)
 
         Button(this.updateCheckBusy ? '检查中' : '检查更新')
-          .height(34)
-          .fontSize(13)
-          .fontColor(Color.White)
+          .height(ThemeConstants.FILTER_CHIP_HEIGHT)
+          .fontSize(ThemeConstants.FONT_SIZE_META)
+          .fontColor(ThemeConstants.TEXT_ON_BRAND)
           .enabled(!this.updateCheckBusy && !this.indexFetchBusy)
-          .backgroundColor($r('app.color.koma_accent'))
-          .borderRadius(8)
+          .backgroundColor(ThemeConstants.BRAND_PRIMARY)
+          .borderRadius(ThemeConstants.RADIUS_CHIP)
           .onClick(() => {
             this.checkInstalledUpdates()
           })
@@ -1287,60 +1287,60 @@ export struct SourcePackageManagerPage {
       if (this.statusText.length > 0) {
         Text(this.statusText)
           .width('100%')
-          .fontSize(13)
-          .lineHeight(20)
-          .fontColor($r('app.color.koma_text_secondary'))
+          .fontSize(ThemeConstants.FONT_SIZE_META)
+          .lineHeight(ThemeConstants.LINE_HEIGHT_BODY)
+          .fontColor(ThemeConstants.TEXT_SECONDARY)
       }
 
       Text(SOURCE_PACKAGE_TRUST_BOUNDARY_NOTICE)
         .width('100%')
-        .fontSize(12)
+        .fontSize(ThemeConstants.FONT_SIZE_CAPTION)
         .lineHeight(18)
-        .fontColor($r('app.color.koma_text_secondary'))
+        .fontColor(ThemeConstants.TEXT_SECONDARY)
 
       Text('检查更新为手动操作，仅对用户导入或用户配置索引中的源包生效。')
         .width('100%')
-        .fontSize(12)
+        .fontSize(ThemeConstants.FONT_SIZE_CAPTION)
         .lineHeight(18)
-        .fontColor($r('app.color.koma_text_secondary'))
+        .fontColor(ThemeConstants.TEXT_SECONDARY)
     }
     .width('100%')
-    .padding(16)
-    .borderRadius(8)
-    .backgroundColor($r('app.color.koma_card'))
+    .padding(ThemeConstants.SPACE_LG)
+    .borderRadius(ThemeConstants.RADIUS_CARD)
+    .backgroundColor(ThemeConstants.CARD)
   }
 
   @Builder
   private EmptyCard() {
-    Column({ space: 8 }) {
+    Column({ space: ThemeConstants.SPACE_SM }) {
       Text('暂无已安装源包')
-        .fontSize(16)
+        .fontSize(ThemeConstants.FONT_SIZE_TITLE)
         .fontWeight(FontWeight.Medium)
-        .fontColor($r('app.color.koma_text_primary'))
+        .fontColor(ThemeConstants.TEXT_PRIMARY)
       Text('输入源索引地址加载源列表，或通过本地导入打开 .koma / .koma-source.zip / .zip 源包。')
-        .fontSize(13)
-        .fontColor($r('app.color.koma_text_secondary'))
+        .fontSize(ThemeConstants.FONT_SIZE_META)
+        .fontColor(ThemeConstants.TEXT_SECONDARY)
     }
     .width('100%')
-    .padding(20)
-    .borderRadius(8)
-    .backgroundColor($r('app.color.koma_card'))
+    .padding(ThemeConstants.SPACE_XL)
+    .borderRadius(ThemeConstants.RADIUS_CARD)
+    .backgroundColor(ThemeConstants.CARD)
   }
 
   @Builder
   private PackageCard(source: InstalledSourcePackage) {
-    Column({ space: 12 }) {
-      Row({ space: 12 }) {
-        Column({ space: 5 }) {
+    Column({ space: ThemeConstants.SPACE_MD }) {
+      Row({ space: ThemeConstants.SPACE_MD }) {
+        Column({ space: ThemeConstants.SPACE_XS }) {
           Text(source.name)
-            .fontSize(16)
+            .fontSize(ThemeConstants.FONT_SIZE_TITLE)
             .fontWeight(FontWeight.Medium)
-            .fontColor($r('app.color.koma_text_primary'))
+            .fontColor(ThemeConstants.TEXT_PRIMARY)
             .maxLines(1)
             .textOverflow({ overflow: TextOverflow.Ellipsis })
           Text(source.id)
-            .fontSize(12)
-            .fontColor($r('app.color.koma_text_secondary'))
+            .fontSize(ThemeConstants.FONT_SIZE_CAPTION)
+            .fontColor(ThemeConstants.TEXT_SECONDARY)
             .maxLines(1)
             .textOverflow({ overflow: TextOverflow.Ellipsis })
         }
@@ -1348,153 +1348,153 @@ export struct SourcePackageManagerPage {
         .alignItems(HorizontalAlign.Start)
 
         Text(source.enabled ? '启用' : '停用')
-          .fontSize(12)
-          .fontColor(source.enabled ? Color.White : $r('app.color.koma_text_secondary'))
+          .fontSize(ThemeConstants.FONT_SIZE_CAPTION)
+          .fontColor(source.enabled ? ThemeConstants.TEXT_ON_BRAND : ThemeConstants.TEXT_SECONDARY)
           .padding({ left: 10, right: 10, top: 4, bottom: 4 })
-          .borderRadius(8)
-          .backgroundColor(source.enabled ? $r('app.color.koma_accent') : '#1F8F837D')
+          .borderRadius(ThemeConstants.RADIUS_CHIP)
+          .backgroundColor(source.enabled ? ThemeConstants.BRAND_PRIMARY : ThemeConstants.SOFT_TINT)
       }
       .width('100%')
 
       Text(this.sourceMetaText(source))
         .width('100%')
-        .fontSize(13)
-        .fontColor($r('app.color.koma_text_secondary'))
+        .fontSize(ThemeConstants.FONT_SIZE_META)
+        .fontColor(ThemeConstants.TEXT_SECONDARY)
 
       Text(this.installedTrustMetaText(source))
         .width('100%')
-        .fontSize(12)
-        .fontColor($r('app.color.koma_text_secondary'))
+        .fontSize(ThemeConstants.FONT_SIZE_CAPTION)
+        .fontColor(ThemeConstants.TEXT_SECONDARY)
         .maxLines(2)
         .textOverflow({ overflow: TextOverflow.Ellipsis })
 
       Text(this.updateStatusText(source))
         .width('100%')
-        .fontSize(12)
+        .fontSize(ThemeConstants.FONT_SIZE_CAPTION)
         .fontColor(this.updateStatusColor(source))
         .maxLines(2)
         .textOverflow({ overflow: TextOverflow.Ellipsis })
 
       Text('Smoke：' + source.smokeStatus + (source.lastDiagnosticMessage.length > 0 ? (' · ' + this.sourceReasonText(source.lastDiagnosticMessage)) : ''))
         .width('100%')
-        .fontSize(12)
-        .fontColor($r('app.color.koma_text_secondary'))
+        .fontSize(ThemeConstants.FONT_SIZE_CAPTION)
+        .fontColor(ThemeConstants.TEXT_SECONDARY)
         .maxLines(2)
         .textOverflow({ overflow: TextOverflow.Ellipsis })
 
       Text(this.sourceSettingsText(source))
         .width('100%')
-        .fontSize(12)
-        .fontColor($r('app.color.koma_text_secondary'))
+        .fontSize(ThemeConstants.FONT_SIZE_CAPTION)
+        .fontColor(ThemeConstants.TEXT_SECONDARY)
 
       Text(this.settingsValidationText(source))
         .width('100%')
-        .fontSize(12)
-        .fontColor($r('app.color.koma_text_secondary'))
+        .fontSize(ThemeConstants.FONT_SIZE_CAPTION)
+        .fontColor(ThemeConstants.TEXT_SECONDARY)
         .maxLines(2)
         .textOverflow({ overflow: TextOverflow.Ellipsis })
 
       Text(this.capsText(source))
         .width('100%')
-        .fontSize(12)
-        .fontColor($r('app.color.koma_text_secondary'))
+        .fontSize(ThemeConstants.FONT_SIZE_CAPTION)
+        .fontColor(ThemeConstants.TEXT_SECONDARY)
         .maxLines(2)
         .textOverflow({ overflow: TextOverflow.Ellipsis })
 
       Text(this.installedTrustCapabilityText(source))
         .width('100%')
-        .fontSize(12)
-        .fontColor($r('app.color.koma_text_secondary'))
+        .fontSize(ThemeConstants.FONT_SIZE_CAPTION)
+        .fontColor(ThemeConstants.TEXT_SECONDARY)
         .maxLines(2)
         .textOverflow({ overflow: TextOverflow.Ellipsis })
 
-      Row({ space: 8 }) {
+      Row({ space: ThemeConstants.SPACE_SM }) {
         if (this.updateEntry(source.id) !== undefined) {
           Button(this.updateActionLabel(source.id))
-            .height(36)
+            .height(ThemeConstants.ACTION_CHIP_HEIGHT)
             .layoutWeight(1)
-            .fontSize(13)
-            .fontColor(Color.White)
+            .fontSize(ThemeConstants.FONT_SIZE_META)
+            .fontColor(ThemeConstants.TEXT_ON_BRAND)
             .enabled(this.updateInstallSourceId.length === 0 && !this.indexInstallBusy && !this.busy)
-            .backgroundColor($r('app.color.koma_accent'))
-            .borderRadius(8)
+            .backgroundColor(ThemeConstants.BRAND_PRIMARY)
+            .borderRadius(ThemeConstants.RADIUS_CHIP)
             .onClick(() => {
               this.updateInstalledPackage(source)
             })
         }
 
         Button(source.enabled ? '停用' : '启用')
-          .height(36)
+          .height(ThemeConstants.ACTION_CHIP_HEIGHT)
           .layoutWeight(1)
-          .fontSize(13)
-          .fontColor(source.enabled ? $r('app.color.koma_text_secondary') : Color.White)
-          .backgroundColor(source.enabled ? '#00000000' : $r('app.color.koma_accent'))
-          .border({ width: 1, color: source.enabled ? '#338F837D' : $r('app.color.koma_accent') })
-          .borderRadius(8)
+          .fontSize(ThemeConstants.FONT_SIZE_META)
+          .fontColor(source.enabled ? ThemeConstants.TEXT_SECONDARY : ThemeConstants.TEXT_ON_BRAND)
+          .backgroundColor(source.enabled ? Color.Transparent : ThemeConstants.BRAND_PRIMARY)
+          .border({ width: 1, color: source.enabled ? ThemeConstants.DIVIDER : ThemeConstants.BRAND_PRIMARY })
+          .borderRadius(ThemeConstants.RADIUS_CHIP)
           .onClick(() => {
             this.togglePackage(source.id)
           })
 
         Button('Smoke')
-          .height(36)
+          .height(ThemeConstants.ACTION_CHIP_HEIGHT)
           .layoutWeight(1)
-          .fontSize(13)
-          .fontColor($r('app.color.koma_accent'))
-          .backgroundColor('#00000000')
-          .border({ width: 1, color: $r('app.color.koma_accent') })
-          .borderRadius(8)
+          .fontSize(ThemeConstants.FONT_SIZE_META)
+          .fontColor(ThemeConstants.BRAND_PRIMARY)
+          .backgroundColor(Color.Transparent)
+          .border({ width: 1, color: ThemeConstants.BRAND_PRIMARY })
+          .borderRadius(ThemeConstants.RADIUS_CHIP)
           .onClick(() => {
             this.smokePackage(source)
           })
       }
       .width('100%')
 
-      Row({ space: 8 }) {
+      Row({ space: ThemeConstants.SPACE_SM }) {
         Button('设置')
-          .height(36)
+          .height(ThemeConstants.ACTION_CHIP_HEIGHT)
           .layoutWeight(1)
-          .fontSize(13)
-          .fontColor($r('app.color.koma_accent'))
-          .backgroundColor('#00000000')
-          .border({ width: 1, color: $r('app.color.koma_accent') })
-          .borderRadius(8)
+          .fontSize(ThemeConstants.FONT_SIZE_META)
+          .fontColor(ThemeConstants.BRAND_PRIMARY)
+          .backgroundColor(Color.Transparent)
+          .border({ width: 1, color: ThemeConstants.BRAND_PRIMARY })
+          .borderRadius(ThemeConstants.RADIUS_CHIP)
           .onClick(() => {
             this.openSettings(source)
           })
 
         Button(this.validateSettingsActionLabel(source.id))
-          .height(36)
+          .height(ThemeConstants.ACTION_CHIP_HEIGHT)
           .layoutWeight(1)
-          .fontSize(13)
-          .fontColor($r('app.color.koma_accent'))
+          .fontSize(ThemeConstants.FONT_SIZE_META)
+          .fontColor(ThemeConstants.BRAND_PRIMARY)
           .enabled(this.settingsValidationSourceId.length === 0)
-          .backgroundColor('#00000000')
-          .border({ width: 1, color: $r('app.color.koma_accent') })
-          .borderRadius(8)
+          .backgroundColor(Color.Transparent)
+          .border({ width: 1, color: ThemeConstants.BRAND_PRIMARY })
+          .borderRadius(ThemeConstants.RADIUS_CHIP)
           .onClick(() => {
             this.validateSettings(source)
           })
 
         Button(this.isDiagnosticsOpen(source.id) ? '收起诊断' : '诊断')
-          .height(36)
+          .height(ThemeConstants.ACTION_CHIP_HEIGHT)
           .layoutWeight(1)
-          .fontSize(13)
-          .fontColor($r('app.color.koma_accent'))
-          .backgroundColor('#00000000')
-          .border({ width: 1, color: $r('app.color.koma_accent') })
-          .borderRadius(8)
+          .fontSize(ThemeConstants.FONT_SIZE_META)
+          .fontColor(ThemeConstants.BRAND_PRIMARY)
+          .backgroundColor(Color.Transparent)
+          .border({ width: 1, color: ThemeConstants.BRAND_PRIMARY })
+          .borderRadius(ThemeConstants.RADIUS_CHIP)
           .onClick(() => {
             this.toggleDiagnostics(source)
           })
 
         Button('删除')
-          .height(36)
+          .height(ThemeConstants.ACTION_CHIP_HEIGHT)
           .layoutWeight(1)
-          .fontSize(13)
-          .fontColor('#A13D32')
-          .backgroundColor('#00000000')
-          .border({ width: 1, color: '#33A13D32' })
-          .borderRadius(8)
+          .fontSize(ThemeConstants.FONT_SIZE_META)
+          .fontColor(ThemeConstants.DANGER)
+          .backgroundColor(Color.Transparent)
+          .border({ width: 1, color: ThemeConstants.DANGER })
+          .borderRadius(ThemeConstants.RADIUS_CHIP)
           .onClick(() => {
             this.removePackage(source)
           })
@@ -1506,28 +1506,28 @@ export struct SourcePackageManagerPage {
       }
     }
     .width('100%')
-    .padding(16)
-    .borderRadius(8)
-    .backgroundColor($r('app.color.koma_card'))
+    .padding(ThemeConstants.SPACE_LG)
+    .borderRadius(ThemeConstants.RADIUS_CARD)
+    .backgroundColor(ThemeConstants.CARD)
   }
 
   @Builder
   private DiagnosticsPanel(source: InstalledSourcePackage) {
-    Column({ space: 10 }) {
-      Row({ space: 10 }) {
+    Column({ space: ThemeConstants.SPACE_MD }) {
+      Row({ space: ThemeConstants.SPACE_MD }) {
         Text('源运行诊断')
-          .fontSize(15)
+          .fontSize(ThemeConstants.FONT_SIZE_BODY)
           .fontWeight(FontWeight.Medium)
-          .fontColor($r('app.color.koma_text_primary'))
+          .fontColor(ThemeConstants.TEXT_PRIMARY)
           .layoutWeight(1)
 
         Button('刷新诊断')
-          .height(32)
-          .fontSize(13)
-          .fontColor($r('app.color.koma_accent'))
-          .backgroundColor('#00000000')
-          .border({ width: 1, color: $r('app.color.koma_accent') })
-          .borderRadius(8)
+          .height(ThemeConstants.ACTION_CHIP_HEIGHT)
+          .fontSize(ThemeConstants.FONT_SIZE_META)
+          .fontColor(ThemeConstants.BRAND_PRIMARY)
+          .backgroundColor(Color.Transparent)
+          .border({ width: 1, color: ThemeConstants.BRAND_PRIMARY })
+          .borderRadius(ThemeConstants.RADIUS_CHIP)
           .onClick(() => {
             this.refreshDiagnostics(source)
           })
@@ -1536,76 +1536,76 @@ export struct SourcePackageManagerPage {
 
       Text(this.diagnosticsSourceMetaText(source))
         .width('100%')
-        .fontSize(12)
-        .fontColor($r('app.color.koma_text_secondary'))
+        .fontSize(ThemeConstants.FONT_SIZE_CAPTION)
+        .fontColor(ThemeConstants.TEXT_SECONDARY)
       Text(this.diagnosticsVersionText(source))
         .width('100%')
-        .fontSize(12)
-        .fontColor($r('app.color.koma_text_secondary'))
+        .fontSize(ThemeConstants.FONT_SIZE_CAPTION)
+        .fontColor(ThemeConstants.TEXT_SECONDARY)
       Text(this.diagnosticsTrustText(source))
         .width('100%')
-        .fontSize(12)
-        .fontColor($r('app.color.koma_text_secondary'))
+        .fontSize(ThemeConstants.FONT_SIZE_CAPTION)
+        .fontColor(ThemeConstants.TEXT_SECONDARY)
         .maxLines(2)
         .textOverflow({ overflow: TextOverflow.Ellipsis })
       Text(this.capsText(source))
         .width('100%')
-        .fontSize(12)
-        .fontColor($r('app.color.koma_text_secondary'))
+        .fontSize(ThemeConstants.FONT_SIZE_CAPTION)
+        .fontColor(ThemeConstants.TEXT_SECONDARY)
         .maxLines(3)
         .textOverflow({ overflow: TextOverflow.Ellipsis })
       Text(this.diagnosticsSmokeText(source))
         .width('100%')
-        .fontSize(12)
-        .fontColor($r('app.color.koma_text_secondary'))
+        .fontSize(ThemeConstants.FONT_SIZE_CAPTION)
+        .fontColor(ThemeConstants.TEXT_SECONDARY)
       Text(this.diagnosticsUpdateText(source))
         .width('100%')
-        .fontSize(12)
-        .fontColor($r('app.color.koma_text_secondary'))
+        .fontSize(ThemeConstants.FONT_SIZE_CAPTION)
+        .fontColor(ThemeConstants.TEXT_SECONDARY)
         .maxLines(2)
         .textOverflow({ overflow: TextOverflow.Ellipsis })
       Text(this.diagnosticsSettingsText(source))
         .width('100%')
-        .fontSize(12)
-        .fontColor($r('app.color.koma_text_secondary'))
+        .fontSize(ThemeConstants.FONT_SIZE_CAPTION)
+        .fontColor(ThemeConstants.TEXT_SECONDARY)
       Text(this.diagnosticsSettingsValidationText(source))
         .width('100%')
-        .fontSize(12)
-        .fontColor($r('app.color.koma_text_secondary'))
+        .fontSize(ThemeConstants.FONT_SIZE_CAPTION)
+        .fontColor(ThemeConstants.TEXT_SECONDARY)
         .maxLines(2)
         .textOverflow({ overflow: TextOverflow.Ellipsis })
     }
     .width('100%')
-    .padding(12)
-    .border({ width: 1, color: '#338F837D' })
-    .borderRadius(8)
-    .backgroundColor('#0A8F837D')
+    .padding(ThemeConstants.SPACE_MD)
+    .border({ width: 1, color: ThemeConstants.DIVIDER })
+    .borderRadius(ThemeConstants.RADIUS_CHIP)
+    .backgroundColor(ThemeConstants.SOFT_TINT)
   }
 
   @Builder
   private SettingsPanel() {
     if (this.settingsSourceId.length > 0) {
-      Column({ space: 12 }) {
-        Row({ space: 10 }) {
-          Column({ space: 4 }) {
+      Column({ space: ThemeConstants.SPACE_MD }) {
+        Row({ space: ThemeConstants.SPACE_MD }) {
+          Column({ space: ThemeConstants.SPACE_XS }) {
             Text(this.settingsSourceName)
-              .fontSize(16)
+              .fontSize(ThemeConstants.FONT_SIZE_TITLE)
               .fontWeight(FontWeight.Medium)
-              .fontColor($r('app.color.koma_text_primary'))
+              .fontColor(ThemeConstants.TEXT_PRIMARY)
               .maxLines(1)
               .textOverflow({ overflow: TextOverflow.Ellipsis })
             Text('源设置')
-              .fontSize(12)
-              .fontColor($r('app.color.koma_text_secondary'))
+              .fontSize(ThemeConstants.FONT_SIZE_CAPTION)
+              .fontColor(ThemeConstants.TEXT_SECONDARY)
           }
           .layoutWeight(1)
           .alignItems(HorizontalAlign.Start)
 
           Button('关闭')
-            .height(32)
-            .fontSize(13)
-            .fontColor($r('app.color.koma_text_secondary'))
-            .backgroundColor('#00000000')
+            .height(ThemeConstants.ACTION_CHIP_HEIGHT)
+            .fontSize(ThemeConstants.FONT_SIZE_META)
+            .fontColor(ThemeConstants.TEXT_SECONDARY)
+            .backgroundColor(Color.Transparent)
             .onClick(() => {
               this.closeSettings()
             })
@@ -1615,8 +1615,8 @@ export struct SourcePackageManagerPage {
         if (this.settingDescriptors.length === 0) {
           Text('此源包未提供设置项')
             .width('100%')
-            .fontSize(13)
-            .fontColor($r('app.color.koma_text_secondary'))
+            .fontSize(ThemeConstants.FONT_SIZE_META)
+            .fontColor(ThemeConstants.TEXT_SECONDARY)
         } else {
           ForEach(this.settingDescriptors, (descriptor: SourceSettingDescriptor) => {
             this.SettingRow(descriptor)
@@ -1624,42 +1624,42 @@ export struct SourcePackageManagerPage {
         }
 
         Button('保存设置')
-          .height(38)
+          .height(ThemeConstants.BUTTON_HEIGHT)
           .width('100%')
-          .fontSize(14)
-          .fontColor(Color.White)
-          .backgroundColor($r('app.color.koma_accent'))
-          .borderRadius(8)
+          .fontSize(ThemeConstants.FONT_SIZE_BODY)
+          .fontColor(ThemeConstants.TEXT_ON_BRAND)
+          .backgroundColor(ThemeConstants.BRAND_PRIMARY)
+          .borderRadius(ThemeConstants.RADIUS_CHIP)
           .onClick(() => {
             this.saveSettings()
           })
       }
       .width('100%')
-      .padding(16)
-      .borderRadius(8)
-      .backgroundColor($r('app.color.koma_card'))
+      .padding(ThemeConstants.SPACE_LG)
+      .borderRadius(ThemeConstants.RADIUS_CARD)
+      .backgroundColor(ThemeConstants.CARD)
     }
   }
 
   @Builder
   private SettingRow(descriptor: SourceSettingDescriptor) {
-    Column({ space: 6 }) {
+    Column({ space: ThemeConstants.SPACE_SM }) {
       if (descriptor.sensitive || !descriptor.supported) {
-        Row({ space: 8 }) {
+        Row({ space: ThemeConstants.SPACE_SM }) {
           Text(descriptor.label)
-            .fontSize(14)
-            .fontColor($r('app.color.koma_text_primary'))
+            .fontSize(ThemeConstants.FONT_SIZE_BODY)
+            .fontColor(ThemeConstants.TEXT_PRIMARY)
             .layoutWeight(1)
           Text(descriptor.sensitive ? '需要登录配置（暂未启用）' : '暂不支持')
-            .fontSize(12)
-            .fontColor($r('app.color.koma_text_secondary'))
+            .fontSize(ThemeConstants.FONT_SIZE_CAPTION)
+            .fontColor(ThemeConstants.TEXT_SECONDARY)
         }
         .width('100%')
       } else if (descriptor.kind === 'boolean') {
-        Row({ space: 8 }) {
+        Row({ space: ThemeConstants.SPACE_SM }) {
           Text(descriptor.label)
-            .fontSize(14)
-            .fontColor($r('app.color.koma_text_primary'))
+            .fontSize(ThemeConstants.FONT_SIZE_BODY)
+            .fontColor(ThemeConstants.TEXT_PRIMARY)
             .layoutWeight(1)
           Toggle({ type: ToggleType.Switch, isOn: this.settingBooleanValue(descriptor) })
             .onChange((isOn: boolean) => {
@@ -1668,18 +1668,18 @@ export struct SourcePackageManagerPage {
         }
         .width('100%')
       } else if (descriptor.kind === 'select') {
-        Row({ space: 8 }) {
+        Row({ space: ThemeConstants.SPACE_SM }) {
           Text(descriptor.label)
-            .fontSize(14)
-            .fontColor($r('app.color.koma_text_primary'))
+            .fontSize(ThemeConstants.FONT_SIZE_BODY)
+            .fontColor(ThemeConstants.TEXT_PRIMARY)
             .layoutWeight(1)
           Button(this.settingSelectLabel(descriptor))
-            .height(32)
-            .fontSize(13)
-            .fontColor($r('app.color.koma_accent'))
-            .backgroundColor('#00000000')
-            .border({ width: 1, color: '#338F837D' })
-            .borderRadius(8)
+            .height(ThemeConstants.ACTION_CHIP_HEIGHT)
+            .fontSize(ThemeConstants.FONT_SIZE_META)
+            .fontColor(ThemeConstants.BRAND_PRIMARY)
+            .backgroundColor(Color.Transparent)
+            .border({ width: 1, color: ThemeConstants.DIVIDER })
+            .borderRadius(ThemeConstants.RADIUS_CHIP)
             .onClick(() => {
               this.cycleSelectSetting(descriptor)
             })
@@ -1688,36 +1688,36 @@ export struct SourcePackageManagerPage {
       } else if (descriptor.kind === 'group') {
         Text(descriptor.label)
           .width('100%')
-          .fontSize(14)
+          .fontSize(ThemeConstants.FONT_SIZE_BODY)
           .fontWeight(FontWeight.Medium)
-          .fontColor($r('app.color.koma_text_primary'))
+          .fontColor(ThemeConstants.TEXT_PRIMARY)
         Text((descriptor.children ?? []).join(' / '))
           .width('100%')
-          .fontSize(12)
-          .fontColor($r('app.color.koma_text_secondary'))
+          .fontSize(ThemeConstants.FONT_SIZE_CAPTION)
+          .fontColor(ThemeConstants.TEXT_SECONDARY)
       } else {
         Text(descriptor.label)
           .width('100%')
-          .fontSize(13)
-          .fontColor($r('app.color.koma_text_secondary'))
+          .fontSize(ThemeConstants.FONT_SIZE_META)
+          .fontColor(ThemeConstants.TEXT_SECONDARY)
         TextInput({ text: this.settingStringValue(descriptor) })
-          .height(36)
-          .fontSize(13)
+          .height(ThemeConstants.ACTION_CHIP_HEIGHT)
+          .fontSize(ThemeConstants.FONT_SIZE_META)
           .onChange((value: string) => {
             this.updateSettingValue(descriptor.id, value)
           })
       }
     }
     .width('100%')
-    .padding({ top: 8, bottom: 8 })
-    .border({ width: { bottom: 1 }, color: '#148F837D' })
+    .padding({ top: ThemeConstants.SPACE_SM, bottom: ThemeConstants.SPACE_SM })
+    .border({ width: { bottom: 1 }, color: ThemeConstants.DIVIDER })
   }
 
   build() {
     Column() {
       SecondaryListScaffold({
-        listSpace: 14,
-        horizontalPadding: 20,
+        listSpace: ThemeConstants.SPACE_MD,
+        horizontalPadding: ThemeConstants.SPACE_XL,
         bottomPadding: ThemeConstants.FLOAT_BAR_HEIGHT + 20,
       }) {
         ListItem() {
@@ -1752,6 +1752,6 @@ export struct SourcePackageManagerPage {
     }
     .width('100%')
     .height('100%')
-    .backgroundColor($r('sys.color.ohos_id_color_sub_background'))
+    .backgroundColor(ThemeConstants.BG_SUB)
   }
 }

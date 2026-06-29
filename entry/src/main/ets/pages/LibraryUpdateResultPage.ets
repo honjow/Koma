@@ -124,33 +124,38 @@ export struct LibraryUpdateResultPage {
 
   private statusColor(status: LibraryUpdateResultStatus): ResourceColor {
     if (status === 'updated') {
-      return '#2F7D4F'
+      return ThemeConstants.STATUS_SUCCESS
     }
     if (status === 'failed') {
-      return '#B04444'
+      return ThemeConstants.STATUS_DANGER
     }
     if (status === 'skipped') {
-      return '#8D6A2E'
+      return ThemeConstants.STATUS_WARNING
     }
-    return $r('app.color.koma_text_secondary')
+    return ThemeConstants.TEXT_SECONDARY
   }
 
   @Builder
   private EmptyState() {
     ListItem() {
-      Column({ space: 8 }) {
+      Column({ space: ThemeConstants.SPACE_SM }) {
         Text(this.emptyStateTitle())
-          .fontSize(18)
+          .fontSize(ThemeConstants.FONT_SIZE_HEADING)
           .fontWeight(FontWeight.Medium)
-          .fontColor($r('app.color.koma_text_primary'))
+          .fontColor(ThemeConstants.TEXT_PRIMARY)
         Text(this.emptyStateMessage())
-          .fontSize(14)
-          .fontColor($r('app.color.koma_text_secondary'))
+          .fontSize(ThemeConstants.FONT_SIZE_BODY)
+          .fontColor(ThemeConstants.TEXT_SECONDARY)
       }
       .width('100%')
-      .padding({ left: 20, right: 20, top: 28, bottom: 28 })
-      .borderRadius(8)
-      .backgroundColor($r('app.color.koma_card'))
+      .padding({
+        left: ThemeConstants.SPACE_XL,
+        right: ThemeConstants.SPACE_XL,
+        top: ThemeConstants.SPACE_XXL,
+        bottom: ThemeConstants.SPACE_XXL,
+      })
+      .borderRadius(ThemeConstants.RADIUS_CARD)
+      .backgroundColor(ThemeConstants.CARD)
     }
   }
 
@@ -175,14 +180,14 @@ export struct LibraryUpdateResultPage {
 
   @Builder
   private SummaryMetric(label: string, value: number) {
-    Column({ space: 4 }) {
+    Column({ space: ThemeConstants.SPACE_XS }) {
       Text(`${value}`)
-        .fontSize(18)
+        .fontSize(ThemeConstants.FONT_SIZE_HEADING)
         .fontWeight(FontWeight.Medium)
-        .fontColor($r('app.color.koma_text_primary'))
+        .fontColor(ThemeConstants.TEXT_PRIMARY)
       Text(label)
-        .fontSize(12)
-        .fontColor($r('app.color.koma_text_secondary'))
+        .fontSize(ThemeConstants.FONT_SIZE_CAPTION)
+        .fontColor(ThemeConstants.TEXT_SECONDARY)
     }
     .layoutWeight(1)
   }
@@ -190,16 +195,16 @@ export struct LibraryUpdateResultPage {
   @Builder
   private SummaryCard(summary: LibraryUpdateSummary) {
     ListItem() {
-      Column({ space: 16 }) {
+      Column({ space: ThemeConstants.SPACE_LG }) {
         Row() {
           Text('最近检查')
-            .fontSize(15)
+            .fontSize(ThemeConstants.FONT_SIZE_BODY)
             .fontWeight(FontWeight.Medium)
-            .fontColor($r('app.color.koma_text_primary'))
+            .fontColor(ThemeConstants.TEXT_PRIMARY)
             .layoutWeight(1)
           Text(this.formatTimestamp(summary.checkedAt))
-            .fontSize(13)
-            .fontColor($r('app.color.koma_text_secondary'))
+            .fontSize(ThemeConstants.FONT_SIZE_META)
+            .fontColor(ThemeConstants.TEXT_SECONDARY)
         }
         .width('100%')
 
@@ -219,37 +224,37 @@ export struct LibraryUpdateResultPage {
         .width('100%')
       }
       .width('100%')
-      .padding({ left: 16, right: 16, top: 16, bottom: 16 })
-      .borderRadius(8)
-      .backgroundColor($r('app.color.koma_card'))
+      .padding({ left: ThemeConstants.SPACE_LG, right: ThemeConstants.SPACE_LG, top: ThemeConstants.SPACE_LG, bottom: ThemeConstants.SPACE_LG })
+      .borderRadius(ThemeConstants.RADIUS_CARD)
+      .backgroundColor(ThemeConstants.CARD)
     }
   }
 
   @Builder
   private ResultRow(result: LibraryUpdateComicResult) {
     ListItem() {
-      Column({ space: 8 }) {
-        Row({ space: 12 }) {
+      Column({ space: ThemeConstants.SPACE_SM }) {
+        Row({ space: ThemeConstants.SPACE_MD }) {
           Text(result.comicId)
-            .fontSize(15)
-            .fontColor($r('app.color.koma_text_primary'))
+            .fontSize(ThemeConstants.FONT_SIZE_BODY)
+            .fontColor(ThemeConstants.TEXT_PRIMARY)
             .maxLines(1)
             .textOverflow({ overflow: TextOverflow.Ellipsis })
             .layoutWeight(1)
           Text(this.statusLabel(result.status))
-            .fontSize(13)
+            .fontSize(ThemeConstants.FONT_SIZE_META)
             .fontWeight(FontWeight.Medium)
             .fontColor(this.statusColor(result.status))
         }
         .width('100%')
 
-        Row({ space: 12 }) {
+        Row({ space: ThemeConstants.SPACE_MD }) {
           Text(`${result.previousChapterCount} -> ${result.newChapterCount}`)
-            .fontSize(13)
-            .fontColor($r('app.color.koma_text_secondary'))
+            .fontSize(ThemeConstants.FONT_SIZE_META)
+            .fontColor(ThemeConstants.TEXT_SECONDARY)
           Text(result.message)
-            .fontSize(13)
-            .fontColor($r('app.color.koma_text_secondary'))
+            .fontSize(ThemeConstants.FONT_SIZE_META)
+            .fontColor(ThemeConstants.TEXT_SECONDARY)
             .maxLines(2)
             .textOverflow({ overflow: TextOverflow.Ellipsis })
             .layoutWeight(1)
@@ -257,17 +262,17 @@ export struct LibraryUpdateResultPage {
         .width('100%')
       }
       .width('100%')
-      .padding({ left: 16, right: 16, top: 14, bottom: 14 })
-      .borderRadius(8)
-      .backgroundColor($r('app.color.koma_card'))
+      .padding({ left: ThemeConstants.SPACE_LG, right: ThemeConstants.SPACE_LG, top: ThemeConstants.SPACE_LG, bottom: ThemeConstants.SPACE_LG })
+      .borderRadius(ThemeConstants.RADIUS_CARD)
+      .backgroundColor(ThemeConstants.CARD)
     }
   }
 
   build() {
     Column() {
       SecondaryListScaffold({
-        listSpace: 12,
-        horizontalPadding: 20,
+        listSpace: ThemeConstants.SPACE_MD,
+        horizontalPadding: ThemeConstants.SPACE_XL,
         bottomPadding: ThemeConstants.FLOAT_BAR_HEIGHT + 20 + ThemeConstants.SPACE_XL,
       }) {
         if (this.summary === undefined) {
@@ -282,6 +287,6 @@ export struct LibraryUpdateResultPage {
     }
     .width('100%')
     .height('100%')
-    .backgroundColor($r('sys.color.ohos_id_color_sub_background'))
+    .backgroundColor(ThemeConstants.BG_SUB)
   }
 }

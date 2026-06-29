@@ -370,23 +370,23 @@ export struct WebDavBrowsePage {
 
   @Builder
   private HeaderCard() {
-    Column({ space: 10 }) {
-      Row({ space: 10 }) {
+    Column({ space: ThemeConstants.SPACE_MD }) {
+      Row({ space: ThemeConstants.SPACE_MD }) {
         Button('上一级')
-          .height(34)
-          .fontSize(13)
-          .fontColor(this.pathSegments.length === 0 ? $r('app.color.koma_text_secondary') : $r('app.color.koma_accent'))
+          .height(ThemeConstants.FILTER_CHIP_HEIGHT)
+          .fontSize(ThemeConstants.FONT_SIZE_META)
+          .fontColor(this.pathSegments.length === 0 ? ThemeConstants.TEXT_SECONDARY : ThemeConstants.BRAND_PRIMARY)
           .enabled(this.pathSegments.length > 0)
-          .backgroundColor('#00000000')
-          .border({ width: 1, color: '#338F837D' })
-          .borderRadius(8)
+          .backgroundColor(Color.Transparent)
+          .border({ width: 1, color: ThemeConstants.DIVIDER })
+          .borderRadius(ThemeConstants.RADIUS_CHIP)
           .onClick(() => {
             this.goUp()
           })
         Text(this.currentTitle())
-          .fontSize(18)
+          .fontSize(ThemeConstants.FONT_SIZE_HEADING)
           .fontWeight(FontWeight.Medium)
-          .fontColor($r('app.color.koma_text_primary'))
+          .fontColor(ThemeConstants.TEXT_PRIMARY)
           .layoutWeight(1)
           .maxLines(1)
           .textOverflow({ overflow: TextOverflow.Ellipsis })
@@ -394,70 +394,70 @@ export struct WebDavBrowsePage {
       .width('100%')
       if (this.images.length > 0) {
         Button(this.isCurrentDirectoryFavorited() ? '已收藏' : '把此目录加入书架')
-          .height(40)
+          .height(ThemeConstants.ACTION_CHIP_HEIGHT)
           .width('100%')
-          .fontSize(14)
+          .fontSize(ThemeConstants.FONT_SIZE_BODY)
           .fontWeight(FontWeight.Medium)
-          .fontColor(this.isCurrentDirectoryFavorited() ? Color.White : $r('app.color.koma_accent'))
-          .backgroundColor(this.isCurrentDirectoryFavorited() ? $r('app.color.koma_accent') : '#00000000')
-          .border({ width: 1, color: $r('app.color.koma_accent') })
-          .borderRadius(8)
+          .fontColor(this.isCurrentDirectoryFavorited() ? ThemeConstants.TEXT_ON_BRAND : ThemeConstants.BRAND_PRIMARY)
+          .backgroundColor(this.isCurrentDirectoryFavorited() ? ThemeConstants.BRAND_PRIMARY : Color.Transparent)
+          .border({ width: 1, color: ThemeConstants.BRAND_PRIMARY })
+          .borderRadius(ThemeConstants.RADIUS_CHIP)
           .onClick(() => {
             this.addCurrentDirectoryToLibrary()
           })
         Button(`阅读 ${this.images.length} 页`)
-          .height(40)
+          .height(ThemeConstants.ACTION_CHIP_HEIGHT)
           .width('100%')
-          .fontSize(14)
+          .fontSize(ThemeConstants.FONT_SIZE_BODY)
           .fontWeight(FontWeight.Medium)
-          .fontColor(Color.White)
-          .backgroundColor($r('app.color.koma_accent'))
-          .borderRadius(8)
+          .fontColor(ThemeConstants.TEXT_ON_BRAND)
+          .backgroundColor(ThemeConstants.BRAND_PRIMARY)
+          .borderRadius(ThemeConstants.RADIUS_CHIP)
           .onClick(() => {
             this.openReader()
           })
       }
     }
     .width('100%')
-    .padding(14)
-    .borderRadius(8)
-    .backgroundColor($r('app.color.koma_card'))
+    .padding(ThemeConstants.SPACE_LG)
+    .borderRadius(ThemeConstants.RADIUS_CARD)
+    .backgroundColor(ThemeConstants.CARD)
   }
 
   @Builder
   private FolderRow(item: DavResource) {
-    Row({ space: 12 }) {
+    Row({ space: ThemeConstants.SPACE_MD }) {
       Text('D')
-        .fontSize(18)
+        .fontSize(ThemeConstants.FONT_SIZE_HEADING)
         .fontWeight(FontWeight.Bold)
-        .fontColor(Color.White)
-        .width(44)
-        .height(44)
+        .fontColor(ThemeConstants.TEXT_ON_BRAND)
+        .width(ThemeConstants.BUTTON_HEIGHT)
+        .height(ThemeConstants.BUTTON_HEIGHT)
         .textAlign(TextAlign.Center)
-        .backgroundColor('#16745F')
-        .borderRadius(8)
-      Column({ space: 4 }) {
+        .backgroundColor(ThemeConstants.BRAND_PRIMARY)
+        .borderRadius(ThemeConstants.RADIUS_CHIP)
+      Column({ space: ThemeConstants.SPACE_XS }) {
         Text(this.resourceName(item))
-          .fontSize(16)
+          .fontSize(ThemeConstants.FONT_SIZE_TITLE)
           .fontWeight(FontWeight.Medium)
-          .fontColor($r('app.color.koma_text_primary'))
+          .fontColor(ThemeConstants.TEXT_PRIMARY)
           .maxLines(2)
           .textOverflow({ overflow: TextOverflow.Ellipsis })
           .width('100%')
         Text('文件夹')
-          .fontSize(13)
-          .fontColor($r('app.color.koma_text_secondary'))
+          .fontSize(ThemeConstants.FONT_SIZE_META)
+          .fontColor(ThemeConstants.TEXT_SECONDARY)
       }
       .layoutWeight(1)
       .alignItems(HorizontalAlign.Start)
       Text('>')
-        .fontSize(18)
-        .fontColor($r('app.color.koma_text_secondary'))
+        .fontSize(ThemeConstants.FONT_SIZE_HEADING)
+        .fontColor(ThemeConstants.TEXT_SECONDARY)
     }
     .width('100%')
-    .padding(14)
-    .borderRadius(8)
-    .backgroundColor($r('app.color.koma_card'))
+    .padding(ThemeConstants.SPACE_LG)
+    .borderRadius(ThemeConstants.RADIUS_CARD)
+    .backgroundColor(ThemeConstants.CARD)
     .onClick(() => {
       this.openFolder(item)
     })
@@ -465,39 +465,39 @@ export struct WebDavBrowsePage {
 
   @Builder
   private ImageRow(item: DavResource, index: number) {
-    Row({ space: 12 }) {
+    Row({ space: ThemeConstants.SPACE_MD }) {
       Text(`${index + 1}`)
-        .fontSize(14)
+        .fontSize(ThemeConstants.FONT_SIZE_BODY)
         .fontWeight(FontWeight.Medium)
-        .fontColor($r('app.color.koma_accent'))
-        .width(44)
-        .height(44)
+        .fontColor(ThemeConstants.BRAND_PRIMARY)
+        .width(ThemeConstants.BUTTON_HEIGHT)
+        .height(ThemeConstants.BUTTON_HEIGHT)
         .textAlign(TextAlign.Center)
-        .backgroundColor($r('sys.color.ohos_id_color_sub_background'))
-        .borderRadius(8)
-      Column({ space: 4 }) {
+        .backgroundColor(ThemeConstants.BG_SUB)
+        .borderRadius(ThemeConstants.RADIUS_CHIP)
+      Column({ space: ThemeConstants.SPACE_XS }) {
         Text(this.resourceName(item))
-          .fontSize(15)
+          .fontSize(ThemeConstants.FONT_SIZE_BODY)
           .fontWeight(FontWeight.Medium)
-          .fontColor($r('app.color.koma_text_primary'))
+          .fontColor(ThemeConstants.TEXT_PRIMARY)
           .maxLines(2)
           .textOverflow({ overflow: TextOverflow.Ellipsis })
           .width('100%')
         Text(item.contentLength === undefined ? '图片' : `${item.contentLength} bytes`)
-          .fontSize(13)
-          .fontColor($r('app.color.koma_text_secondary'))
+          .fontSize(ThemeConstants.FONT_SIZE_META)
+          .fontColor(ThemeConstants.TEXT_SECONDARY)
       }
       .layoutWeight(1)
       .alignItems(HorizontalAlign.Start)
       Text('读')
-        .fontSize(13)
+        .fontSize(ThemeConstants.FONT_SIZE_META)
         .fontWeight(FontWeight.Medium)
-        .fontColor($r('app.color.koma_accent'))
+        .fontColor(ThemeConstants.BRAND_PRIMARY)
     }
     .width('100%')
-    .padding(14)
-    .borderRadius(8)
-    .backgroundColor($r('app.color.koma_card'))
+    .padding(ThemeConstants.SPACE_LG)
+    .borderRadius(ThemeConstants.RADIUS_CARD)
+    .backgroundColor(ThemeConstants.CARD)
     .onClick(() => {
       this.openReader()
     })
@@ -506,14 +506,17 @@ export struct WebDavBrowsePage {
   build() {
     Column() {
       SecondaryListScaffold({
-        listSpace: 12,
-        horizontalPadding: 20,
+        listSpace: ThemeConstants.SPACE_MD,
+        horizontalPadding: ThemeConstants.SPACE_XL,
         bottomPadding: ThemeConstants.FLOAT_BAR_HEIGHT + 20,
       }) {
         if (this.loading) {
           ListItem() {
             Row() {
-              LoadingProgress().width(32).height(32).color($r('app.color.koma_accent'))
+              LoadingProgress()
+                .width(ThemeConstants.SPACE_XXL)
+                .height(ThemeConstants.SPACE_XXL)
+                .color(ThemeConstants.BRAND_PRIMARY)
             }
             .width('100%')
             .justifyContent(FlexAlign.Center)
@@ -522,11 +525,11 @@ export struct WebDavBrowsePage {
           ListItem() {
             Text(this.errorText)
               .width('100%')
-              .padding(16)
-              .fontSize(14)
-              .fontColor($r('app.color.koma_text_secondary'))
-              .borderRadius(8)
-              .backgroundColor($r('app.color.koma_card'))
+              .padding(ThemeConstants.SPACE_LG)
+              .fontSize(ThemeConstants.FONT_SIZE_BODY)
+              .fontColor(ThemeConstants.TEXT_SECONDARY)
+              .borderRadius(ThemeConstants.RADIUS_CARD)
+              .backgroundColor(ThemeConstants.CARD)
           }
         } else {
           ListItem() {
@@ -546,11 +549,11 @@ export struct WebDavBrowsePage {
             ListItem() {
               Text('当前目录没有可阅读的图片或子目录')
                 .width('100%')
-                .padding(16)
-                .fontSize(14)
-                .fontColor($r('app.color.koma_text_secondary'))
-                .borderRadius(8)
-                .backgroundColor($r('app.color.koma_card'))
+                .padding(ThemeConstants.SPACE_LG)
+                .fontSize(ThemeConstants.FONT_SIZE_BODY)
+                .fontColor(ThemeConstants.TEXT_SECONDARY)
+                .borderRadius(ThemeConstants.RADIUS_CARD)
+                .backgroundColor(ThemeConstants.CARD)
             }
           }
         }
@@ -558,6 +561,6 @@ export struct WebDavBrowsePage {
     }
     .width('100%')
     .height('100%')
-    .backgroundColor($r('sys.color.ohos_id_color_sub_background'))
+    .backgroundColor(ThemeConstants.BG_SUB)
   }
 }

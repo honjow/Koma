@@ -52,7 +52,7 @@ export struct BackupManagementPage {
       title,
       message,
       buttons: [
-        { text: '确定', color: '#8D5A3B' },
+        { text: '确定', color: $r('app.color.koma_accent') },
       ],
     })
   }
@@ -203,66 +203,66 @@ export struct BackupManagementPage {
 
   @Builder
   private StatusCard() {
-    Column({ space: 12 }) {
+    Column({ space: ThemeConstants.SPACE_MD }) {
       Row() {
         Text('当前导出架构')
-          .fontSize(15)
+          .fontSize(ThemeConstants.FONT_SIZE_BODY)
           .fontWeight(FontWeight.Medium)
-          .fontColor($r('app.color.koma_text_primary'))
+          .fontColor(ThemeConstants.TEXT_PRIMARY)
           .layoutWeight(1)
         Text(`v${BACKUP_SCHEMA_VERSION}`)
-          .fontSize(14)
-          .fontColor($r('app.color.koma_accent'))
+          .fontSize(ThemeConstants.FONT_SIZE_BODY)
+          .fontColor(ThemeConstants.BRAND_PRIMARY)
       }
       .width('100%')
 
       Row() {
         Text('可恢复版本')
-          .fontSize(15)
-          .fontColor($r('app.color.koma_text_primary'))
+          .fontSize(ThemeConstants.FONT_SIZE_BODY)
+          .fontColor(ThemeConstants.TEXT_PRIMARY)
           .layoutWeight(1)
         Text(this.acceptedSchemaText())
-          .fontSize(14)
-          .fontColor($r('app.color.koma_text_secondary'))
+          .fontSize(ThemeConstants.FONT_SIZE_BODY)
+          .fontColor(ThemeConstants.TEXT_SECONDARY)
       }
       .width('100%')
     }
     .width('100%')
-    .padding({ left: 16, right: 16, top: 16, bottom: 16 })
-    .borderRadius(8)
-    .backgroundColor($r('app.color.koma_card'))
+    .padding({ left: ThemeConstants.SPACE_LG, right: ThemeConstants.SPACE_LG, top: ThemeConstants.SPACE_LG, bottom: ThemeConstants.SPACE_LG })
+    .borderRadius(ThemeConstants.RADIUS_CARD)
+    .backgroundColor(ThemeConstants.CARD)
   }
 
   @Builder
   private EncryptionCard() {
-    Column({ space: 12 }) {
+    Column({ space: ThemeConstants.SPACE_MD }) {
       Row() {
         Text('备份加密')
-          .fontSize(15)
+          .fontSize(ThemeConstants.FONT_SIZE_BODY)
           .fontWeight(FontWeight.Medium)
-          .fontColor($r('app.color.koma_text_primary'))
+          .fontColor(ThemeConstants.TEXT_PRIMARY)
           .layoutWeight(1)
         Text(BACKUP_ENCRYPTION_STATUS_LABEL)
-          .fontSize(14)
-          .fontColor($r('app.color.koma_accent'))
+          .fontSize(ThemeConstants.FONT_SIZE_BODY)
+          .fontColor(ThemeConstants.BRAND_PRIMARY)
       }
       .width('100%')
 
       Text(BACKUP_ENCRYPTION_PLAN_LABEL)
         .width('100%')
-        .fontSize(13)
-        .fontColor($r('app.color.koma_text_secondary'))
-        .lineHeight(19)
+        .fontSize(ThemeConstants.FONT_SIZE_META)
+        .fontColor(ThemeConstants.TEXT_SECONDARY)
+        .lineHeight(ThemeConstants.LINE_HEIGHT_BODY)
 
       Text(BACKUP_PASSPHRASE_HELP_TEXT)
         .width('100%')
-        .fontSize(13)
-        .fontColor($r('app.color.koma_text_secondary'))
-        .lineHeight(19)
+        .fontSize(ThemeConstants.FONT_SIZE_META)
+        .fontColor(ThemeConstants.TEXT_SECONDARY)
+        .lineHeight(ThemeConstants.LINE_HEIGHT_BODY)
 
       TextInput({ text: this.exportPassphrase, placeholder: '加密口令' })
         .width('100%')
-        .height(42)
+        .height(ThemeConstants.BUTTON_HEIGHT)
         .type(InputType.Password)
         .showPassword(false)
         .onChange((value: string) => {
@@ -271,7 +271,7 @@ export struct BackupManagementPage {
 
       TextInput({ text: this.exportPassphraseConfirm, placeholder: '再次输入口令' })
         .width('100%')
-        .height(42)
+        .height(ThemeConstants.BUTTON_HEIGHT)
         .type(InputType.Password)
         .showPassword(false)
         .onChange((value: string) => {
@@ -280,60 +280,60 @@ export struct BackupManagementPage {
 
       Button(this.busy ? '处理中' : '导出加密备份')
         .width('100%')
-        .height(42)
-        .borderRadius(8)
-        .fontSize(15)
-        .fontColor(Color.White)
-        .backgroundColor($r('app.color.koma_accent'))
+        .height(ThemeConstants.BUTTON_HEIGHT)
+        .borderRadius(ThemeConstants.RADIUS_CHIP)
+        .fontSize(ThemeConstants.FONT_SIZE_BODY)
+        .fontColor(ThemeConstants.TEXT_ON_BRAND)
+        .backgroundColor(ThemeConstants.BRAND_PRIMARY)
         .enabled(!this.busy)
         .onClick(() => {
           this.exportEncryptedBackup()
         })
     }
     .width('100%')
-    .padding({ left: 16, right: 16, top: 16, bottom: 16 })
-    .borderRadius(8)
-    .backgroundColor($r('app.color.koma_card'))
+    .padding({ left: ThemeConstants.SPACE_LG, right: ThemeConstants.SPACE_LG, top: ThemeConstants.SPACE_LG, bottom: ThemeConstants.SPACE_LG })
+    .borderRadius(ThemeConstants.RADIUS_CARD)
+    .backgroundColor(ThemeConstants.CARD)
   }
 
   @Builder
   private DomainsCard() {
-    Column({ space: 10 }) {
+    Column({ space: ThemeConstants.SPACE_MD }) {
       Text('包含的数据')
         .width('100%')
-        .fontSize(15)
+        .fontSize(ThemeConstants.FONT_SIZE_BODY)
         .fontWeight(FontWeight.Medium)
-        .fontColor($r('app.color.koma_text_primary'))
+        .fontColor(ThemeConstants.TEXT_PRIMARY)
 
       ForEach(BACKUP_INCLUDED_DOMAIN_LABELS, (domain: string) => {
-        Row({ space: 10 }) {
+        Row({ space: ThemeConstants.SPACE_MD }) {
           Text('-')
-            .fontSize(15)
-            .fontColor($r('app.color.koma_accent'))
+            .fontSize(ThemeConstants.FONT_SIZE_BODY)
+            .fontColor(ThemeConstants.BRAND_PRIMARY)
           Text(domain)
-            .fontSize(14)
-            .fontColor($r('app.color.koma_text_secondary'))
+            .fontSize(ThemeConstants.FONT_SIZE_BODY)
+            .fontColor(ThemeConstants.TEXT_SECONDARY)
             .layoutWeight(1)
         }
         .width('100%')
       }, (domain: string) => domain)
     }
     .width('100%')
-    .padding({ left: 16, right: 16, top: 16, bottom: 16 })
-    .borderRadius(8)
-    .backgroundColor($r('app.color.koma_card'))
+    .padding({ left: ThemeConstants.SPACE_LG, right: ThemeConstants.SPACE_LG, top: ThemeConstants.SPACE_LG, bottom: ThemeConstants.SPACE_LG })
+    .borderRadius(ThemeConstants.RADIUS_CARD)
+    .backgroundColor(ThemeConstants.CARD)
   }
 
   @Builder
   private ActionsCard() {
-    Column({ space: 10 }) {
+    Column({ space: ThemeConstants.SPACE_MD }) {
       Button(this.busy ? '处理中' : '导出备份')
         .width('100%')
-        .height(42)
-        .borderRadius(8)
-        .fontSize(15)
-        .fontColor(Color.White)
-        .backgroundColor($r('app.color.koma_accent'))
+        .height(ThemeConstants.BUTTON_HEIGHT)
+        .borderRadius(ThemeConstants.RADIUS_CHIP)
+        .fontSize(ThemeConstants.FONT_SIZE_BODY)
+        .fontColor(ThemeConstants.TEXT_ON_BRAND)
+        .backgroundColor(ThemeConstants.BRAND_PRIMARY)
         .enabled(!this.busy)
         .onClick(() => {
           this.exportBackup()
@@ -341,11 +341,11 @@ export struct BackupManagementPage {
 
       Button(this.busy ? '处理中' : '选择备份并预览')
         .width('100%')
-        .height(42)
-        .borderRadius(8)
-        .fontSize(15)
-        .fontColor($r('app.color.koma_accent'))
-        .backgroundColor('#00000000')
+        .height(ThemeConstants.BUTTON_HEIGHT)
+        .borderRadius(ThemeConstants.RADIUS_CHIP)
+        .fontSize(ThemeConstants.FONT_SIZE_BODY)
+        .fontColor(ThemeConstants.BRAND_PRIMARY)
+        .backgroundColor(Color.Transparent)
         .enabled(!this.busy)
         .onClick(() => {
           this.importBackup()
@@ -353,11 +353,11 @@ export struct BackupManagementPage {
 
       Button(this.busy ? '处理中' : '恢复所选备份')
         .width('100%')
-        .height(42)
-        .borderRadius(8)
-        .fontSize(15)
-        .fontColor(this.selectedBackupPayload.length > 0 ? Color.White : $r('app.color.koma_text_secondary'))
-        .backgroundColor(this.selectedBackupPayload.length > 0 ? $r('app.color.koma_accent') : '#00000000')
+        .height(ThemeConstants.BUTTON_HEIGHT)
+        .borderRadius(ThemeConstants.RADIUS_CHIP)
+        .fontSize(ThemeConstants.FONT_SIZE_BODY)
+        .fontColor(this.selectedBackupPayload.length > 0 ? ThemeConstants.TEXT_ON_BRAND : ThemeConstants.TEXT_SECONDARY)
+        .backgroundColor(this.selectedBackupPayload.length > 0 ? ThemeConstants.BRAND_PRIMARY : Color.Transparent)
         .enabled(!this.busy && this.selectedBackupPayload.length > 0)
         .onClick(() => {
           this.restoreSelectedBackup()
@@ -366,7 +366,7 @@ export struct BackupManagementPage {
       if (this.selectedEncryptedBackupPayload.length > 0) {
         TextInput({ text: this.importPassphrase, placeholder: '输入口令解密预览' })
           .width('100%')
-          .height(42)
+          .height(ThemeConstants.BUTTON_HEIGHT)
           .type(InputType.Password)
           .showPassword(false)
           .onChange((value: string) => {
@@ -375,11 +375,11 @@ export struct BackupManagementPage {
 
         Button(this.busy ? '处理中' : '解密并预览')
           .width('100%')
-          .height(42)
-          .borderRadius(8)
-          .fontSize(15)
-          .fontColor(Color.White)
-          .backgroundColor($r('app.color.koma_accent'))
+          .height(ThemeConstants.BUTTON_HEIGHT)
+          .borderRadius(ThemeConstants.RADIUS_CHIP)
+          .fontSize(ThemeConstants.FONT_SIZE_BODY)
+          .fontColor(ThemeConstants.TEXT_ON_BRAND)
+          .backgroundColor(ThemeConstants.BRAND_PRIMARY)
           .enabled(!this.busy)
           .onClick(() => {
             this.decryptSelectedBackup()
@@ -387,58 +387,58 @@ export struct BackupManagementPage {
       }
     }
     .width('100%')
-    .padding({ left: 16, right: 16, top: 16, bottom: 16 })
-    .borderRadius(8)
-    .backgroundColor($r('app.color.koma_card'))
+    .padding({ left: ThemeConstants.SPACE_LG, right: ThemeConstants.SPACE_LG, top: ThemeConstants.SPACE_LG, bottom: ThemeConstants.SPACE_LG })
+    .borderRadius(ThemeConstants.RADIUS_CARD)
+    .backgroundColor(ThemeConstants.CARD)
   }
 
   @Builder
   private ImportPreviewIntroCard() {
-    Column({ space: 8 }) {
+    Column({ space: ThemeConstants.SPACE_SM }) {
       Text('导入预览')
         .width('100%')
-        .fontSize(15)
+        .fontSize(ThemeConstants.FONT_SIZE_BODY)
         .fontWeight(FontWeight.Medium)
-        .fontColor($r('app.color.koma_text_primary'))
+        .fontColor(ThemeConstants.TEXT_PRIMARY)
       Text(BACKUP_IMPORT_PREVIEW_NOTE)
         .width('100%')
-        .fontSize(13)
-        .fontColor($r('app.color.koma_text_secondary'))
-        .lineHeight(19)
+        .fontSize(ThemeConstants.FONT_SIZE_META)
+        .fontColor(ThemeConstants.TEXT_SECONDARY)
+        .lineHeight(ThemeConstants.LINE_HEIGHT_BODY)
       Text(BACKUP_IMPORT_CONFLICT_POLICY)
         .width('100%')
-        .fontSize(13)
-        .fontColor($r('app.color.koma_text_secondary'))
-        .lineHeight(19)
+        .fontSize(ThemeConstants.FONT_SIZE_META)
+        .fontColor(ThemeConstants.TEXT_SECONDARY)
+        .lineHeight(ThemeConstants.LINE_HEIGHT_BODY)
     }
     .width('100%')
-    .padding({ left: 16, right: 16, top: 16, bottom: 16 })
-    .borderRadius(8)
-    .backgroundColor($r('app.color.koma_card'))
+    .padding({ left: ThemeConstants.SPACE_LG, right: ThemeConstants.SPACE_LG, top: ThemeConstants.SPACE_LG, bottom: ThemeConstants.SPACE_LG })
+    .borderRadius(ThemeConstants.RADIUS_CARD)
+    .backgroundColor(ThemeConstants.CARD)
   }
 
   @Builder
   private PreviewRow(label: string, value: string) {
     Row() {
       Text(label)
-        .fontSize(14)
-        .fontColor($r('app.color.koma_text_secondary'))
+        .fontSize(ThemeConstants.FONT_SIZE_BODY)
+        .fontColor(ThemeConstants.TEXT_SECONDARY)
         .layoutWeight(1)
       Text(value)
-        .fontSize(14)
-        .fontColor($r('app.color.koma_text_primary'))
+        .fontSize(ThemeConstants.FONT_SIZE_BODY)
+        .fontColor(ThemeConstants.TEXT_PRIMARY)
     }
     .width('100%')
   }
 
   @Builder
   private SelectedPreviewCard(preview: BackupImportPreview) {
-    Column({ space: 10 }) {
+    Column({ space: ThemeConstants.SPACE_MD }) {
       Text('已选择的备份')
         .width('100%')
-        .fontSize(15)
+        .fontSize(ThemeConstants.FONT_SIZE_BODY)
         .fontWeight(FontWeight.Medium)
-        .fontColor($r('app.color.koma_text_primary'))
+        .fontColor(ThemeConstants.TEXT_PRIMARY)
       this.PreviewRow('备份版本', `v${preview.schemaVersion}`)
       this.PreviewRow('导出时间', preview.exportedAtText)
       this.PreviewRow('加密状态', preview.encryptionText)
@@ -458,36 +458,36 @@ export struct BackupManagementPage {
       }
     }
     .width('100%')
-    .padding({ left: 16, right: 16, top: 16, bottom: 16 })
-    .borderRadius(8)
-    .backgroundColor($r('app.color.koma_card'))
+    .padding({ left: ThemeConstants.SPACE_LG, right: ThemeConstants.SPACE_LG, top: ThemeConstants.SPACE_LG, bottom: ThemeConstants.SPACE_LG })
+    .borderRadius(ThemeConstants.RADIUS_CARD)
+    .backgroundColor(ThemeConstants.CARD)
   }
 
   @Builder
   private StorageNoteCard() {
-    Column({ space: 8 }) {
+    Column({ space: ThemeConstants.SPACE_SM }) {
       Text('备份文件管理')
         .width('100%')
-        .fontSize(15)
+        .fontSize(ThemeConstants.FONT_SIZE_BODY)
         .fontWeight(FontWeight.Medium)
-        .fontColor($r('app.color.koma_text_primary'))
+        .fontColor(ThemeConstants.TEXT_PRIMARY)
       Text(BACKUP_MANAGEMENT_STORAGE_NOTE)
         .width('100%')
-        .fontSize(13)
-        .fontColor($r('app.color.koma_text_secondary'))
-        .lineHeight(19)
+        .fontSize(ThemeConstants.FONT_SIZE_META)
+        .fontColor(ThemeConstants.TEXT_SECONDARY)
+        .lineHeight(ThemeConstants.LINE_HEIGHT_BODY)
     }
     .width('100%')
-    .padding({ left: 16, right: 16, top: 16, bottom: 16 })
-    .borderRadius(8)
-    .backgroundColor($r('app.color.koma_card'))
+    .padding({ left: ThemeConstants.SPACE_LG, right: ThemeConstants.SPACE_LG, top: ThemeConstants.SPACE_LG, bottom: ThemeConstants.SPACE_LG })
+    .borderRadius(ThemeConstants.RADIUS_CARD)
+    .backgroundColor(ThemeConstants.CARD)
   }
 
   build() {
     Column() {
       SecondaryListScaffold({
-        listSpace: 12,
-        horizontalPadding: 20,
+        listSpace: ThemeConstants.SPACE_MD,
+        horizontalPadding: ThemeConstants.SPACE_XL,
         bottomPadding: ThemeConstants.FLOAT_BAR_HEIGHT + 20 + ThemeConstants.SPACE_XL,
       }) {
         ListItem() {
@@ -517,6 +517,6 @@ export struct BackupManagementPage {
     }
     .width('100%')
     .height('100%')
-    .backgroundColor($r('sys.color.ohos_id_color_sub_background'))
+    .backgroundColor(ThemeConstants.BG_SUB)
   }
 }

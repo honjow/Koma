@@ -1017,7 +1017,7 @@ export struct SettingsPage {
       title,
       message,
       buttons: [
-        { text: '确定', color: '#8D5A3B' },
+        { text: '确定', color: $r('app.color.koma_accent') },
       ],
     })
   }
@@ -1116,22 +1116,22 @@ export struct SettingsPage {
   private SectionTitle(title: string) {
     Text(title)
       .width('100%')
-      .fontSize(13)
+      .fontSize(ThemeConstants.FONT_SIZE_TAG)
       .fontWeight(FontWeight.Medium)
-      .fontColor($r('app.color.koma_accent'))
-      .padding({ left: 4, top: 8, bottom: 4 })
+      .fontColor(ThemeConstants.BRAND_PRIMARY)
+      .padding({ left: ThemeConstants.LIST_ROW_TEXT_INDENT, top: ThemeConstants.SPACE_SM, bottom: ThemeConstants.SPACE_XS })
   }
 
   @Builder
   private SectionRow(row: SettingsRow) {
-    Row({ space: 12 }) {
+    Row({ space: ThemeConstants.SPACE_MD }) {
       Text(row.title)
-        .fontSize(15)
-        .fontColor($r('app.color.koma_text_primary'))
+        .fontSize(ThemeConstants.FONT_SIZE_TITLE)
+        .fontColor(ThemeConstants.TEXT_PRIMARY)
         .layoutWeight(1)
       Text(this.rowDetail(row))
-        .fontSize(13)
-        .fontColor($r('app.color.koma_text_secondary'))
+        .fontSize(ThemeConstants.FONT_SIZE_META)
+        .fontColor(ThemeConstants.TEXT_SECONDARY)
         .maxLines(this.rowDetailMaxLines(row))
         .textOverflow({ overflow: TextOverflow.Ellipsis })
       if (row.key === 'library-auto-update') {
@@ -1142,7 +1142,7 @@ export struct SettingsPage {
       }
     }
     .width('100%')
-    .padding({ left: 16, right: 16, top: 14, bottom: 14 })
+    .padding({ left: ThemeConstants.SPACE_LG, right: ThemeConstants.SPACE_LG, top: ThemeConstants.SPACE_MD, bottom: ThemeConstants.SPACE_MD })
     .onClick(() => {
       if (row.key !== 'library-auto-update') {
         this.handleRowClick(row)
@@ -1169,14 +1169,14 @@ export struct SettingsPage {
           if (index < section.rows.length - 1) {
             Divider()
               .strokeWidth(0.5)
-              .color($r('app.color.koma_background'))
+              .color(ThemeConstants.DIVIDER)
               .margin({ left: 16, right: 16 })
           }
         }, (row: SettingsRow) => row.key)
       }
       .width('100%')
-      .borderRadius(8)
-      .backgroundColor($r('app.color.koma_card'))
+      .borderRadius(ThemeConstants.RADIUS_CARD)
+      .backgroundColor(ThemeConstants.CARD)
     }
     .width('100%')
   }
@@ -1184,8 +1184,8 @@ export struct SettingsPage {
   build() {
     Column() {
       SecondaryListScaffold({
-        listSpace: 18,
-        horizontalPadding: 20,
+        listSpace: ThemeConstants.SPACE_LG,
+        horizontalPadding: ThemeConstants.SPACE_XL,
         bottomPadding: ThemeConstants.FLOAT_BAR_HEIGHT + 20 + ThemeConstants.SPACE_XL,
       }) {
         ForEach(SETTINGS_SECTIONS, (section: SettingsSection) => {
@@ -1197,6 +1197,6 @@ export struct SettingsPage {
     }
     .width('100%')
     .height('100%')
-    .backgroundColor($r('sys.color.ohos_id_color_sub_background'))
+    .backgroundColor(ThemeConstants.BG_SUB)
   }
 }

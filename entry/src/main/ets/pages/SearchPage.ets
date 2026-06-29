@@ -216,28 +216,28 @@ export struct SearchPage {
 
   private badgeColor(item: CrossSearchResultItem): string {
     if (item.sourceKind === 'local') {
-      return '#16745F'
+      return ThemeConstants.SOURCE_LOCAL_COLOR
     }
     if (item.sourceKind === 'komga') {
-      return '#355F91'
+      return ThemeConstants.SOURCE_KOMGA_COLOR
     }
     if (item.sourceKind === 'opds') {
-      return '#8A5A2B'
+      return ThemeConstants.SOURCE_OPDS_COLOR
     }
     if (item.sourceKind === 'webdav') {
-      return '#5F5F9F'
+      return ThemeConstants.SOURCE_WEBDAV_COLOR
     }
-    return '#7A405D'
+    return ThemeConstants.SOURCE_WASM_COLOR
   }
 
   @Builder
   private SearchInput() {
     Search({ value: this.queryText, placeholder: '搜索标题、作者、标签...' })
       .width('100%')
-      .height(42)
-      .backgroundColor($r('app.color.koma_card'))
-      .placeholderColor($r('app.color.koma_text_secondary'))
-      .textFont({ size: 15, weight: FontWeight.Regular })
+      .height(ThemeConstants.BUTTON_HEIGHT)
+      .backgroundColor(ThemeConstants.CARD)
+      .placeholderColor(ThemeConstants.TEXT_SECONDARY)
+      .textFont({ size: ThemeConstants.FONT_SIZE_BODY, weight: FontWeight.Regular })
       .onChange((value: string) => {
         this.scheduleSearch(value)
       })
@@ -248,39 +248,39 @@ export struct SearchPage {
 
   @Builder
   private EmptyResults() {
-    Column({ space: 10 }) {
+    Column({ space: ThemeConstants.SPACE_MD }) {
       Text(this.queryText.trim().length === 0 ? '输入关键词开始搜索' : '没有匹配结果')
-        .fontSize(15)
+        .fontSize(ThemeConstants.FONT_SIZE_BODY)
         .fontWeight(FontWeight.Medium)
-        .fontColor($r('app.color.koma_text_primary'))
+        .fontColor(ThemeConstants.TEXT_PRIMARY)
       Text(this.queryText.trim().length === 0 ? '会同时搜索书架、私有库和已安装源。' : '换个关键词再试。')
-        .fontSize(13)
-        .lineHeight(20)
-        .fontColor($r('app.color.koma_text_secondary'))
+        .fontSize(ThemeConstants.FONT_SIZE_META)
+        .lineHeight(ThemeConstants.LINE_HEIGHT_BODY)
+        .fontColor(ThemeConstants.TEXT_SECONDARY)
         .textAlign(TextAlign.Center)
     }
     .width('100%')
-    .padding(24)
-    .borderRadius(8)
-    .backgroundColor($r('app.color.koma_card'))
+    .padding(ThemeConstants.SPACE_XL)
+    .borderRadius(ThemeConstants.RADIUS_CARD)
+    .backgroundColor(ThemeConstants.CARD)
     .alignItems(HorizontalAlign.Center)
   }
 
   @Builder
   private HistoryPanel() {
-    Column({ space: 10 }) {
+    Column({ space: ThemeConstants.SPACE_MD }) {
       Row() {
         Text('最近搜索')
-          .fontSize(14)
+          .fontSize(ThemeConstants.FONT_SIZE_BODY)
           .fontWeight(FontWeight.Medium)
-          .fontColor($r('sys.color.font_secondary'))
+          .fontColor(ThemeConstants.TEXT_SECONDARY)
           .layoutWeight(1)
         if (this.history.length > 0) {
           Button('清除')
-            .height(32)
-            .borderRadius(8)
-            .fontSize(13)
-            .fontColor($r('app.color.koma_accent'))
+            .height(ThemeConstants.ACTION_CHIP_HEIGHT)
+            .borderRadius(ThemeConstants.RADIUS_CHIP)
+            .fontSize(ThemeConstants.FONT_SIZE_META)
+            .fontColor(ThemeConstants.BRAND_PRIMARY)
             .backgroundColor(Color.Transparent)
             .onClick(() => {
               this.clearHistory()
@@ -292,37 +292,37 @@ export struct SearchPage {
       if (this.history.length === 0) {
         Text('暂无搜索历史')
           .width('100%')
-          .fontSize(13)
-          .fontColor($r('app.color.koma_text_secondary'))
-          .padding(16)
-          .borderRadius(8)
-          .backgroundColor($r('app.color.koma_card'))
+          .fontSize(ThemeConstants.FONT_SIZE_META)
+          .fontColor(ThemeConstants.TEXT_SECONDARY)
+          .padding(ThemeConstants.SPACE_LG)
+          .borderRadius(ThemeConstants.RADIUS_CARD)
+          .backgroundColor(ThemeConstants.CARD)
           .textAlign(TextAlign.Center)
       } else {
         ForEach(this.history, (entry: SearchHistoryEntry) => {
           Row() {
-            Column({ space: 4 }) {
+            Column({ space: ThemeConstants.SPACE_XS }) {
               Text(entry.query)
-                .fontSize(15)
+                .fontSize(ThemeConstants.FONT_SIZE_BODY)
                 .fontWeight(FontWeight.Medium)
-                .fontColor($r('app.color.koma_text_primary'))
+                .fontColor(ThemeConstants.TEXT_PRIMARY)
                 .maxLines(1)
                 .textOverflow({ overflow: TextOverflow.Ellipsis })
                 .width('100%')
               Text(this.formatHistoryTime(entry.updatedAt))
-                .fontSize(12)
-                .fontColor($r('app.color.koma_text_secondary'))
+                .fontSize(ThemeConstants.FONT_SIZE_CAPTION)
+                .fontColor(ThemeConstants.TEXT_SECONDARY)
             }
             .layoutWeight(1)
             .alignItems(HorizontalAlign.Start)
             Text('>')
-              .fontSize(16)
-              .fontColor($r('app.color.koma_accent'))
+              .fontSize(ThemeConstants.FONT_SIZE_TITLE)
+              .fontColor(ThemeConstants.BRAND_PRIMARY)
           }
           .width('100%')
-          .padding(14)
-          .borderRadius(8)
-          .backgroundColor($r('app.color.koma_card'))
+          .padding(ThemeConstants.SPACE_LG)
+          .borderRadius(ThemeConstants.RADIUS_CARD)
+          .backgroundColor(ThemeConstants.CARD)
           .onClick(() => {
             this.runHistoryQuery(entry.query)
           })
@@ -351,7 +351,7 @@ export struct SearchPage {
 
   @Builder
   private ResultRow(item: CrossSearchResultItem) {
-    Row({ space: 12 }) {
+    Row({ space: ThemeConstants.SPACE_MD }) {
       Stack({ alignContent: Alignment.Center }) {
         if (item.coverUri !== undefined && item.coverUri.length > 0) {
           Image(item.coverUri)
@@ -360,28 +360,28 @@ export struct SearchPage {
             .objectFit(ImageFit.Cover)
         } else {
           Text(this.badgeText(item))
-            .fontSize(18)
+            .fontSize(ThemeConstants.FONT_SIZE_HEADING)
             .fontWeight(FontWeight.Bold)
-            .fontColor(Color.White)
+            .fontColor(ThemeConstants.TEXT_ON_BRAND)
         }
       }
-      .width(48)
-      .height(64)
-      .borderRadius(8)
+      .width(ThemeConstants.LIST_COVER_WIDTH)
+      .height(ThemeConstants.LIST_COVER_HEIGHT)
+      .borderRadius(ThemeConstants.RADIUS_THUMB)
       .clip(true)
       .backgroundColor(this.badgeColor(item))
 
-      Column({ space: 5 }) {
+      Column({ space: ThemeConstants.SPACE_SM }) {
         Text(item.title)
-          .fontSize(16)
+          .fontSize(ThemeConstants.FONT_SIZE_TITLE)
           .fontWeight(FontWeight.Medium)
-          .fontColor($r('app.color.koma_text_primary'))
+          .fontColor(ThemeConstants.TEXT_PRIMARY)
           .maxLines(2)
           .textOverflow({ overflow: TextOverflow.Ellipsis })
           .width('100%')
         Text(item.subtitle.length === 0 ? item.sourceLabel : item.subtitle)
-          .fontSize(13)
-          .fontColor($r('app.color.koma_text_secondary'))
+          .fontSize(ThemeConstants.FONT_SIZE_META)
+          .fontColor(ThemeConstants.TEXT_SECONDARY)
           .maxLines(1)
           .textOverflow({ overflow: TextOverflow.Ellipsis })
           .width('100%')
@@ -390,14 +390,14 @@ export struct SearchPage {
       .alignItems(HorizontalAlign.Start)
 
       Text(item.sourceKind === 'webdav' ? '读' : '>')
-        .fontSize(16)
+        .fontSize(ThemeConstants.FONT_SIZE_TITLE)
         .fontWeight(FontWeight.Medium)
-        .fontColor($r('app.color.koma_accent'))
+        .fontColor(ThemeConstants.BRAND_PRIMARY)
     }
     .width('100%')
-    .padding(14)
-    .borderRadius(8)
-    .backgroundColor($r('app.color.koma_card'))
+    .padding(ThemeConstants.SPACE_LG)
+    .borderRadius(ThemeConstants.RADIUS_CARD)
+    .backgroundColor(ThemeConstants.CARD)
     .onClick(() => {
       void this.openResult(item)
     })
@@ -406,9 +406,9 @@ export struct SearchPage {
   @Builder
   private SectionHeader(title: string) {
     Text(title)
-      .fontSize(14)
+      .fontSize(ThemeConstants.FONT_SIZE_BODY)
       .fontWeight(FontWeight.Medium)
-      .fontColor($r('sys.color.font_secondary'))
+      .fontColor(ThemeConstants.TEXT_SECONDARY)
       .padding({ left: 4, right: 4, top: 4, bottom: 2 })
       .width('100%')
   }
@@ -444,8 +444,8 @@ export struct SearchPage {
     Navigation(this.searchPathStack) {
       Column() {
         SecondaryListScaffold({
-          listSpace: 12,
-          horizontalPadding: 20,
+          listSpace: ThemeConstants.SPACE_MD,
+          horizontalPadding: ThemeConstants.SPACE_XL,
           bottomPadding: ThemeConstants.FLOAT_BAR_HEIGHT + 20,
         }) {
           ListItem() {
@@ -455,11 +455,11 @@ export struct SearchPage {
             ListItem() {
               Text(this.feedbackText)
                 .width('100%')
-                .fontSize(14)
-                .fontColor($r('app.color.koma_danger'))
-                .padding(16)
-                .borderRadius(8)
-                .backgroundColor($r('app.color.koma_card'))
+                .fontSize(ThemeConstants.FONT_SIZE_BODY)
+                .fontColor(ThemeConstants.DANGER)
+                .padding(ThemeConstants.SPACE_LG)
+                .borderRadius(ThemeConstants.RADIUS_CARD)
+                .backgroundColor(ThemeConstants.CARD)
             }
           }
           if (!this.loading && this.queryText.trim().length > 0 && this.sections.length === 0 && this.totalResultCount() === 0 && this.feedbackText.length === 0) {
@@ -475,21 +475,21 @@ export struct SearchPage {
           ForEach(this.sections, (section: CrossSearchSection) => {
             if (section.state === 'running' || section.state === 'pending') {
               ListItem() {
-                Column({ space: 8 }) {
+                Column({ space: ThemeConstants.SPACE_SM }) {
                   this.SectionHeader(section.title)
-                  Row({ space: 10 }) {
+                  Row({ space: ThemeConstants.SPACE_MD }) {
                     LoadingProgress()
-                      .width(24)
-                      .height(24)
-                      .color($r('app.color.koma_accent'))
+                      .width(ThemeConstants.SPACE_XL)
+                      .height(ThemeConstants.SPACE_XL)
+                      .color(ThemeConstants.BRAND_PRIMARY)
                     Text(this.sectionStatusText(section))
-                      .fontSize(13)
-                      .fontColor($r('app.color.koma_text_secondary'))
+                      .fontSize(ThemeConstants.FONT_SIZE_META)
+                      .fontColor(ThemeConstants.TEXT_SECONDARY)
                   }
                   .width('100%')
-                  .padding(14)
-                  .borderRadius(8)
-                  .backgroundColor($r('app.color.koma_card'))
+                  .padding(ThemeConstants.SPACE_LG)
+                  .borderRadius(ThemeConstants.RADIUS_CARD)
+                  .backgroundColor(ThemeConstants.CARD)
                   .justifyContent(FlexAlign.Center)
                 }
                 .width('100%')
@@ -497,15 +497,15 @@ export struct SearchPage {
               }
             } else if (section.state === 'empty' || section.state === 'timeout' || section.state === 'failed' || section.state === 'unsupported') {
               ListItem() {
-                Column({ space: 8 }) {
+                Column({ space: ThemeConstants.SPACE_SM }) {
                   this.SectionHeader(section.title)
                   Text(this.sectionStatusText(section))
                     .width('100%')
-                    .fontSize(13)
-                    .fontColor($r('app.color.koma_text_secondary'))
-                    .padding(14)
-                    .borderRadius(8)
-                    .backgroundColor($r('app.color.koma_card'))
+                    .fontSize(ThemeConstants.FONT_SIZE_META)
+                    .fontColor(ThemeConstants.TEXT_SECONDARY)
+                    .padding(ThemeConstants.SPACE_LG)
+                    .borderRadius(ThemeConstants.RADIUS_CARD)
+                    .backgroundColor(ThemeConstants.CARD)
                 }
                 .width('100%')
                 .alignItems(HorizontalAlign.Start)
@@ -525,7 +525,7 @@ export struct SearchPage {
       }
       .width('100%')
       .height('100%')
-      .backgroundColor($r('sys.color.ohos_id_color_sub_background'))
+      .backgroundColor(ThemeConstants.BG_SUB)
     }
     .navDestination(this.SearchDestination)
     .mode(NavigationMode.Stack)

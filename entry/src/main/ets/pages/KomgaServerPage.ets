@@ -93,18 +93,18 @@ export struct KomgaServerPage {
 
   @Builder
   private Field(label: string, placeholder: string, value: string, password: boolean = false, onChange: (value: string) => void) {
-    Column({ space: 8 }) {
+    Column({ space: ThemeConstants.SPACE_SM }) {
       Text(label)
-        .fontSize(13)
+        .fontSize(ThemeConstants.FONT_SIZE_META)
         .fontWeight(FontWeight.Medium)
-        .fontColor($r('app.color.koma_text_secondary'))
+        .fontColor(ThemeConstants.TEXT_SECONDARY)
         .width('100%')
       TextInput({ placeholder, text: value })
         .type(password ? InputType.Password : InputType.Normal)
-        .height(44)
-        .fontSize(15)
-        .backgroundColor($r('sys.color.ohos_id_color_sub_background'))
-        .borderRadius(8)
+        .height(ThemeConstants.BUTTON_HEIGHT)
+        .fontSize(ThemeConstants.FONT_SIZE_BODY)
+        .backgroundColor(ThemeConstants.BG_SUB)
+        .borderRadius(ThemeConstants.RADIUS_CHIP)
         .onChange((next: string) => {
           onChange(next)
         })
@@ -115,13 +115,13 @@ export struct KomgaServerPage {
   @Builder
   private AuthButton(label: string, kind: KomgaAuthKind) {
     Button(label)
-      .height(36)
+      .height(ThemeConstants.ACTION_CHIP_HEIGHT)
       .layoutWeight(1)
-      .fontSize(13)
-      .fontColor(this.authKind === kind ? Color.White : $r('app.color.koma_accent'))
-      .backgroundColor(this.authKind === kind ? $r('app.color.koma_accent') : '#00000000')
-      .border({ width: 1, color: $r('app.color.koma_accent') })
-      .borderRadius(8)
+      .fontSize(ThemeConstants.FONT_SIZE_META)
+      .fontColor(this.authKind === kind ? ThemeConstants.TEXT_ON_BRAND : ThemeConstants.BRAND_PRIMARY)
+      .backgroundColor(this.authKind === kind ? ThemeConstants.BRAND_PRIMARY : Color.Transparent)
+      .border({ width: 1, color: ThemeConstants.BRAND_PRIMARY })
+      .borderRadius(ThemeConstants.RADIUS_CHIP)
       .onClick(() => {
         this.authKind = kind
       })
@@ -129,12 +129,12 @@ export struct KomgaServerPage {
 
   @Builder
   private FormCard() {
-    Column({ space: 16 }) {
+    Column({ space: ThemeConstants.SPACE_LG }) {
       this.Field('Server URL', 'https://demo.komga.org', this.baseUrl, false, (value: string) => {
         this.baseUrl = value
       })
 
-      Row({ space: 8 }) {
+      Row({ space: ThemeConstants.SPACE_SM }) {
         this.AuthButton('Basic', KomgaAuthKind.BASIC)
         this.AuthButton('API key', KomgaAuthKind.API_KEY)
         this.AuthButton('无认证', KomgaAuthKind.NONE)
@@ -155,26 +155,26 @@ export struct KomgaServerPage {
       }
 
       Button(this.testing ? '测试中...' : '保存并测试连接')
-        .height(44)
+        .height(ThemeConstants.BUTTON_HEIGHT)
         .width('100%')
-        .fontSize(15)
+        .fontSize(ThemeConstants.FONT_SIZE_BODY)
         .fontWeight(FontWeight.Medium)
-        .fontColor(Color.White)
+        .fontColor(ThemeConstants.TEXT_ON_BRAND)
         .enabled(!this.testing)
-        .backgroundColor($r('app.color.koma_accent'))
-        .borderRadius(8)
+        .backgroundColor(ThemeConstants.BRAND_PRIMARY)
+        .borderRadius(ThemeConstants.RADIUS_CHIP)
         .onClick(() => {
           this.saveAndTest()
         })
 
       Button('移除配置')
-        .height(40)
+        .height(ThemeConstants.ACTION_CHIP_HEIGHT)
         .width('100%')
-        .fontSize(14)
-        .fontColor($r('app.color.koma_text_secondary'))
-        .backgroundColor('#00000000')
-        .border({ width: 1, color: '#338F837D' })
-        .borderRadius(8)
+        .fontSize(ThemeConstants.FONT_SIZE_BODY)
+        .fontColor(ThemeConstants.TEXT_SECONDARY)
+        .backgroundColor(Color.Transparent)
+        .border({ width: 1, color: ThemeConstants.DIVIDER })
+        .borderRadius(ThemeConstants.RADIUS_CHIP)
         .onClick(() => {
           this.clearServer()
         })
@@ -182,22 +182,22 @@ export struct KomgaServerPage {
       if (this.statusText.length > 0) {
         Text(this.statusText)
           .width('100%')
-          .fontSize(13)
-          .lineHeight(20)
-          .fontColor($r('app.color.koma_text_secondary'))
+          .fontSize(ThemeConstants.FONT_SIZE_META)
+          .lineHeight(ThemeConstants.LINE_HEIGHT_BODY)
+          .fontColor(ThemeConstants.TEXT_SECONDARY)
       }
     }
     .width('100%')
-    .padding(16)
-    .borderRadius(8)
-    .backgroundColor($r('app.color.koma_card'))
+    .padding(ThemeConstants.SPACE_LG)
+    .borderRadius(ThemeConstants.RADIUS_CARD)
+    .backgroundColor(ThemeConstants.CARD)
   }
 
   build() {
     Column() {
       SecondaryListScaffold({
-        listSpace: 16,
-        horizontalPadding: 20,
+        listSpace: ThemeConstants.SPACE_LG,
+        horizontalPadding: ThemeConstants.SPACE_XL,
         bottomPadding: ThemeConstants.FLOAT_BAR_HEIGHT + 20,
         includeKeyboardPadding: true,
       }) {
@@ -208,6 +208,6 @@ export struct KomgaServerPage {
     }
     .width('100%')
     .height('100%')
-    .backgroundColor($r('sys.color.ohos_id_color_sub_background'))
+    .backgroundColor(ThemeConstants.BG_SUB)
   }
 }

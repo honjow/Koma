@@ -48,53 +48,53 @@ struct ContinueReadingShelfCard {
     title: '',
     detail: '',
     progress: 0,
-    color: '#16745F',
+    color: ThemeConstants.SOURCE_LOCAL_COLOR,
     comicId: '',
   }
   @Prop revision: number = 0
   onOpenReader: (comicId: ComicId) => void = (_comicId: ComicId) => {}
 
   build() {
-    Row({ space: 14 }) {
+    Row({ space: ThemeConstants.SPACE_MD }) {
       Stack({ alignContent: Alignment.Center }) {
         Text('K')
-          .fontSize(30)
+          .fontSize(ThemeConstants.SPACE_XXL)
           .fontWeight(FontWeight.Bold)
-          .fontColor(Color.White)
+          .fontColor(ThemeConstants.TEXT_ON_BRAND)
       }
       .width(76)
       .height(102)
-      .borderRadius(18)
+      .borderRadius(ThemeConstants.LIST_ROW_RADIUS)
       .backgroundColor(this.info.color)
 
-      Column({ space: 8 }) {
+      Column({ space: ThemeConstants.SPACE_SM }) {
         Text('继续阅读')
-          .fontSize(13)
+          .fontSize(ThemeConstants.FONT_SIZE_META)
           .fontWeight(FontWeight.Medium)
-          .fontColor($r('app.color.koma_accent'))
+          .fontColor(ThemeConstants.BRAND_PRIMARY)
         Text(this.info.title)
-          .fontSize(22)
+          .fontSize(ThemeConstants.FONT_SIZE_H2)
           .fontWeight(FontWeight.Bold)
-          .fontColor($r('app.color.koma_text_primary'))
+          .fontColor(ThemeConstants.TEXT_PRIMARY)
           .maxLines(1)
           .textOverflow({ overflow: TextOverflow.Ellipsis })
         Text(this.info.detail)
-          .fontSize(14)
-          .fontColor($r('app.color.koma_text_secondary'))
+          .fontSize(ThemeConstants.FONT_SIZE_BODY)
+          .fontColor(ThemeConstants.TEXT_SECONDARY)
           .maxLines(1)
           .textOverflow({ overflow: TextOverflow.Ellipsis })
         Progress({ value: this.info.progress, total: 100, type: ProgressType.Linear })
           .height(4)
-          .color($r('app.color.koma_accent'))
-          .backgroundColor('#1FE66A3A')
+          .color(ThemeConstants.BRAND_PRIMARY)
+          .backgroundColor(ThemeConstants.SOFT_TINT)
       }
       .layoutWeight(1)
       .alignItems(HorizontalAlign.Start)
     }
     .width('100%')
-    .padding(16)
-    .borderRadius(8)
-    .backgroundColor($r('app.color.koma_card'))
+    .padding(ThemeConstants.SPACE_LG)
+    .borderRadius(ThemeConstants.RADIUS_CARD)
+    .backgroundColor(ThemeConstants.CARD)
     .onClick(() => {
       this.onOpenReader(this.info.comicId)
     })
@@ -608,7 +608,7 @@ export struct LibraryPage {
       autoCancel: true,
       primaryButton: {
         value: '移出',
-        fontColor: $r('app.color.koma_danger'),
+        fontColor: ThemeConstants.DANGER,
         action: () => {
           this.removeSelectedComics()
         },
@@ -630,7 +630,7 @@ export struct LibraryPage {
       autoCancel: true,
       primaryButton: {
         value: '移出',
-        fontColor: $r('app.color.koma_danger'),
+        fontColor: ThemeConstants.DANGER,
         action: () => {
           if (this.onRemoveComicRequested(comic.id)) {
             this.refreshDisplayedSnapshotFromStore()
@@ -653,7 +653,7 @@ export struct LibraryPage {
             this.enterSelectionMode(comic.id)
           })
         MenuItem({ content: '移出书架' })
-          .contentFontColor($r('app.color.koma_danger'))
+          .contentFontColor(ThemeConstants.DANGER)
           .onClick(() => {
             this.showRemoveConfirmation(comic)
           })
@@ -802,38 +802,38 @@ export struct LibraryPage {
 
   @Builder
   private SortFilterBar() {
-    Row({ space: 8 }) {
+    Row({ space: ThemeConstants.SPACE_SM }) {
       Button(`排序 ${this.sortLabel()} ▾`)
-        .height(34)
-        .padding({ left: 12, right: 12 })
-        .borderRadius(8)
-        .fontSize(13)
-        .fontColor(this.sortBy !== 'lastRead' ? Color.White : $r('app.color.koma_text_primary'))
-        .backgroundColor(this.sortBy !== 'lastRead' ? $r('app.color.koma_accent') : $r('app.color.koma_card'))
+        .height(ThemeConstants.FILTER_CHIP_HEIGHT)
+        .padding({ left: ThemeConstants.SPACE_MD, right: ThemeConstants.SPACE_MD })
+        .borderRadius(ThemeConstants.RADIUS_CHIP)
+        .fontSize(ThemeConstants.FONT_SIZE_META)
+        .fontColor(this.sortBy !== 'lastRead' ? ThemeConstants.TEXT_ON_BRAND : ThemeConstants.TEXT_PRIMARY)
+        .backgroundColor(this.sortBy !== 'lastRead' ? ThemeConstants.BRAND_PRIMARY : ThemeConstants.CARD)
         .bindMenu(this.SortMenu())
       Button(`${this.sourceLabel()} ▾`)
-        .height(34)
-        .padding({ left: 12, right: 12 })
-        .borderRadius(8)
-        .fontSize(13)
-        .fontColor(this.filterSource !== 'all' ? Color.White : $r('app.color.koma_text_primary'))
-        .backgroundColor(this.filterSource !== 'all' ? $r('app.color.koma_accent') : $r('app.color.koma_card'))
+        .height(ThemeConstants.FILTER_CHIP_HEIGHT)
+        .padding({ left: ThemeConstants.SPACE_MD, right: ThemeConstants.SPACE_MD })
+        .borderRadius(ThemeConstants.RADIUS_CHIP)
+        .fontSize(ThemeConstants.FONT_SIZE_META)
+        .fontColor(this.filterSource !== 'all' ? ThemeConstants.TEXT_ON_BRAND : ThemeConstants.TEXT_PRIMARY)
+        .backgroundColor(this.filterSource !== 'all' ? ThemeConstants.BRAND_PRIMARY : ThemeConstants.CARD)
         .bindMenu(this.SourceMenu())
       Button(`${this.readStateLabel()} ▾`)
-        .height(34)
-        .padding({ left: 12, right: 12 })
-        .borderRadius(8)
-        .fontSize(13)
-        .fontColor(this.filterReadState !== 'all' ? Color.White : $r('app.color.koma_text_primary'))
-        .backgroundColor(this.filterReadState !== 'all' ? $r('app.color.koma_accent') : $r('app.color.koma_card'))
+        .height(ThemeConstants.FILTER_CHIP_HEIGHT)
+        .padding({ left: ThemeConstants.SPACE_MD, right: ThemeConstants.SPACE_MD })
+        .borderRadius(ThemeConstants.RADIUS_CHIP)
+        .fontSize(ThemeConstants.FONT_SIZE_META)
+        .fontColor(this.filterReadState !== 'all' ? ThemeConstants.TEXT_ON_BRAND : ThemeConstants.TEXT_PRIMARY)
+        .backgroundColor(this.filterReadState !== 'all' ? ThemeConstants.BRAND_PRIMARY : ThemeConstants.CARD)
         .bindMenu(this.ReadStateMenu())
       Button(`${this.categoryLabel()} ▾`)
-        .height(34)
-        .padding({ left: 12, right: 12 })
-        .borderRadius(8)
-        .fontSize(13)
-        .fontColor(this.filterCategory !== 'all' ? Color.White : $r('app.color.koma_text_primary'))
-        .backgroundColor(this.filterCategory !== 'all' ? $r('app.color.koma_accent') : $r('app.color.koma_card'))
+        .height(ThemeConstants.FILTER_CHIP_HEIGHT)
+        .padding({ left: ThemeConstants.SPACE_MD, right: ThemeConstants.SPACE_MD })
+        .borderRadius(ThemeConstants.RADIUS_CHIP)
+        .fontSize(ThemeConstants.FONT_SIZE_META)
+        .fontColor(this.filterCategory !== 'all' ? ThemeConstants.TEXT_ON_BRAND : ThemeConstants.TEXT_PRIMARY)
+        .backgroundColor(this.filterCategory !== 'all' ? ThemeConstants.BRAND_PRIMARY : ThemeConstants.CARD)
         .bindMenu(this.CategoryMenu())
     }
     .width('100%')
@@ -841,101 +841,102 @@ export struct LibraryPage {
 
   @Builder
   private EmptyLibrary() {
-    Column({ space: 12 }) {
+    Column({ space: ThemeConstants.SPACE_MD }) {
       Text('还没有漫画')
-        .fontSize(20)
+        .fontSize(ThemeConstants.FONT_SIZE_H3)
         .fontWeight(FontWeight.Medium)
-        .fontColor($r('app.color.koma_text_primary'))
+        .fontColor(ThemeConstants.TEXT_PRIMARY)
       Text('导入本地 CBZ 或 ZIP 后会显示在书架中。')
-        .fontSize(14)
-        .lineHeight(22)
-        .fontColor($r('app.color.koma_text_secondary'))
+        .fontSize(ThemeConstants.FONT_SIZE_BODY)
+        .lineHeight(ThemeConstants.LINE_HEIGHT_TITLE)
+        .fontColor(ThemeConstants.TEXT_SECONDARY)
         .textAlign(TextAlign.Center)
       Button('导入')
-        .height(40)
+        .height(ThemeConstants.BUTTON_HEIGHT)
         .padding({ left: 22, right: 22 })
-        .borderRadius(8)
-        .fontSize(15)
-        .backgroundColor($r('app.color.koma_accent'))
+        .borderRadius(ThemeConstants.RADIUS_CHIP)
+        .fontSize(ThemeConstants.FONT_SIZE_BODY)
+        .fontColor(ThemeConstants.TEXT_ON_BRAND)
+        .backgroundColor(ThemeConstants.BRAND_PRIMARY)
         .onClick(() => {
           this.onImportRequested()
         })
     }
     .width('100%')
-    .padding(24)
-    .borderRadius(8)
-    .backgroundColor($r('app.color.koma_card'))
+    .padding(ThemeConstants.SPACE_XL)
+    .borderRadius(ThemeConstants.RADIUS_CARD)
+    .backgroundColor(ThemeConstants.CARD)
     .alignItems(HorizontalAlign.Center)
   }
 
   @Builder
   private EmptyFilteredLibrary() {
-    Column({ space: 10 }) {
+    Column({ space: ThemeConstants.SPACE_MD }) {
       Text('没有符合条件的漫画')
-        .fontSize(18)
+        .fontSize(ThemeConstants.FONT_SIZE_HEADING)
         .fontWeight(FontWeight.Medium)
-        .fontColor($r('app.color.koma_text_primary'))
+        .fontColor(ThemeConstants.TEXT_PRIMARY)
       Text('调整排序或筛选条件后再试。')
-        .fontSize(14)
-        .lineHeight(22)
-        .fontColor($r('app.color.koma_text_secondary'))
+        .fontSize(ThemeConstants.FONT_SIZE_BODY)
+        .lineHeight(ThemeConstants.LINE_HEIGHT_TITLE)
+        .fontColor(ThemeConstants.TEXT_SECONDARY)
         .textAlign(TextAlign.Center)
     }
     .width('100%')
-    .padding(24)
-    .borderRadius(8)
-    .backgroundColor($r('app.color.koma_card'))
+    .padding(ThemeConstants.SPACE_XL)
+    .borderRadius(ThemeConstants.RADIUS_CARD)
+    .backgroundColor(ThemeConstants.CARD)
     .alignItems(HorizontalAlign.Center)
   }
 
   @Builder
   private BatchActionBar() {
-    Row({ space: 10 }) {
+    Row({ space: ThemeConstants.SPACE_MD }) {
       Text(`已选 ${this.selectedCount()}`)
-        .fontSize(16)
+        .fontSize(ThemeConstants.FONT_SIZE_TITLE)
         .fontWeight(FontWeight.Bold)
-        .fontColor($r('app.color.koma_text_primary'))
+        .fontColor(ThemeConstants.TEXT_PRIMARY)
         .layoutWeight(1)
 
       Button('全选')
-        .height(36)
-        .padding({ left: 12, right: 12 })
-        .borderRadius(8)
-        .fontSize(14)
-        .fontColor($r('app.color.koma_text_primary'))
-        .backgroundColor('#0F000000')
+        .height(ThemeConstants.ACTION_CHIP_HEIGHT)
+        .padding({ left: ThemeConstants.SPACE_MD, right: ThemeConstants.SPACE_MD })
+        .borderRadius(ThemeConstants.RADIUS_CHIP)
+        .fontSize(ThemeConstants.FONT_SIZE_BODY)
+        .fontColor(ThemeConstants.TEXT_PRIMARY)
+        .backgroundColor(ThemeConstants.SOFT_PRESSED)
         .onClick(() => {
           this.selectAllVisibleComics()
         })
 
       Button('取消')
-        .height(36)
+        .height(ThemeConstants.ACTION_CHIP_HEIGHT)
         .padding({ left: 12, right: 12 })
-        .borderRadius(8)
-        .fontSize(14)
-        .fontColor($r('app.color.koma_text_primary'))
-        .backgroundColor('#0F000000')
+        .borderRadius(ThemeConstants.RADIUS_CHIP)
+        .fontSize(ThemeConstants.FONT_SIZE_BODY)
+        .fontColor(ThemeConstants.TEXT_PRIMARY)
+        .backgroundColor(ThemeConstants.SOFT_PRESSED)
         .onClick(() => {
           this.exitSelectionMode()
         })
 
       Button('分类 ▾')
-        .height(36)
+        .height(ThemeConstants.ACTION_CHIP_HEIGHT)
         .padding({ left: 12, right: 12 })
-        .borderRadius(8)
-        .fontSize(14)
-        .fontColor(Color.White)
-        .backgroundColor($r('app.color.koma_accent'))
+        .borderRadius(ThemeConstants.RADIUS_CHIP)
+        .fontSize(ThemeConstants.FONT_SIZE_BODY)
+        .fontColor(ThemeConstants.TEXT_ON_BRAND)
+        .backgroundColor(ThemeConstants.BRAND_PRIMARY)
         .enabled(this.selectedCount() > 0)
         .bindMenu(this.BatchCategoryMenu())
 
       Button('删除')
-        .height(36)
+        .height(ThemeConstants.ACTION_CHIP_HEIGHT)
         .padding({ left: 12, right: 12 })
-        .borderRadius(8)
-        .fontSize(14)
-        .fontColor(Color.White)
-        .backgroundColor($r('app.color.koma_danger'))
+        .borderRadius(ThemeConstants.RADIUS_CHIP)
+        .fontSize(ThemeConstants.FONT_SIZE_BODY)
+        .fontColor(ThemeConstants.TEXT_ON_BRAND)
+        .backgroundColor(ThemeConstants.DANGER)
         .enabled(this.selectedCount() > 0)
         .onClick(() => {
           this.showBatchRemoveConfirmation()
@@ -943,8 +944,8 @@ export struct LibraryPage {
     }
     .width('100%')
     .padding({ left: 14, right: 14, top: 12, bottom: 12 })
-    .borderRadius(8)
-    .backgroundColor($r('app.color.koma_card'))
+    .borderRadius(ThemeConstants.RADIUS_CARD)
+    .backgroundColor(ThemeConstants.CARD)
   }
 
   @Builder
@@ -980,13 +981,13 @@ export struct LibraryPage {
 
               if (!this.selectionMode) {
                 Button('…')
-                  .width(32)
-                  .height(32)
-                  .borderRadius(8)
-                  .fontSize(20)
-                  .fontColor($r('app.color.koma_text_primary'))
-                  .backgroundColor($r('app.color.koma_card'))
-                  .margin({ top: 8, right: 8 })
+                  .width(ThemeConstants.TOUCH_TARGET_SM)
+                  .height(ThemeConstants.TOUCH_TARGET_SM)
+                  .borderRadius(ThemeConstants.RADIUS_CHIP)
+                  .fontSize(ThemeConstants.FONT_SIZE_H3)
+                  .fontColor(ThemeConstants.TEXT_PRIMARY)
+                  .backgroundColor(ThemeConstants.CARD)
+                  .margin({ top: ThemeConstants.SPACE_SM, right: ThemeConstants.SPACE_SM })
                   .bindMenu(this.ComicActionMenu(comic))
               }
             } else {
@@ -1045,8 +1046,8 @@ export struct LibraryPage {
   build() {
     Column() {
       SecondaryListScaffold({
-        listSpace: 20,
-        horizontalPadding: 20,
+        listSpace: ThemeConstants.SPACE_LG,
+        horizontalPadding: ThemeConstants.SPACE_XL,
         bottomPadding: ThemeConstants.FLOAT_BAR_HEIGHT + 20,
       }) {
         if (this.hasLibraryContent()) {
@@ -1073,20 +1074,20 @@ export struct LibraryPage {
           ListItem() {
             Row() {
               Text('书架')
-                .fontSize(20)
+                .fontSize(ThemeConstants.FONT_SIZE_H3)
                 .fontWeight(FontWeight.Bold)
-                .fontColor($r('app.color.koma_text_primary'))
+                .fontColor(ThemeConstants.TEXT_PRIMARY)
               Blank()
               Text(`${this.viewModel().comics.length} 本`)
-                .fontSize(13)
-                .fontColor($r('app.color.koma_text_secondary'))
+                .fontSize(ThemeConstants.FONT_SIZE_META)
+                .fontColor(ThemeConstants.TEXT_SECONDARY)
               Button('+')
-                .width(36)
-                .height(36)
-                .borderRadius(8)
-                .fontSize(22)
-                .fontColor($r('app.color.koma_text_primary'))
-                .backgroundColor($r('app.color.koma_card'))
+                .width(ThemeConstants.TOUCH_TARGET_SM)
+                .height(ThemeConstants.TOUCH_TARGET_SM)
+                .borderRadius(ThemeConstants.RADIUS_CHIP)
+                .fontSize(ThemeConstants.FONT_SIZE_H2)
+                .fontColor(ThemeConstants.TEXT_PRIMARY)
+                .backgroundColor(ThemeConstants.CARD)
                 .margin({ left: 10 })
                 .enabled(!this.selectionMode)
                 .onClick(() => {
@@ -1124,6 +1125,6 @@ export struct LibraryPage {
     }
     .width('100%')
     .height('100%')
-    .backgroundColor($r('sys.color.ohos_id_color_sub_background'))
+    .backgroundColor(ThemeConstants.BG_SUB)
   }
 }

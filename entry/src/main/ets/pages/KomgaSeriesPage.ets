@@ -286,32 +286,32 @@ export struct KomgaSeriesPage {
 
   @Builder
   private LibraryFilter() {
-    Column({ space: 10 }) {
+    Column({ space: ThemeConstants.SPACE_MD }) {
       Text('Libraries')
-        .fontSize(13)
+        .fontSize(ThemeConstants.FONT_SIZE_META)
         .fontWeight(FontWeight.Medium)
-        .fontColor($r('app.color.koma_accent'))
+        .fontColor(ThemeConstants.BRAND_PRIMARY)
         .width('100%')
-      Row({ space: 8 }) {
+      Row({ space: ThemeConstants.SPACE_SM }) {
         Button('全部')
-          .height(34)
-          .fontSize(13)
-          .fontColor(this.selectedLibraryId.length === 0 ? Color.White : $r('app.color.koma_accent'))
-          .backgroundColor(this.selectedLibraryId.length === 0 ? $r('app.color.koma_accent') : '#00000000')
-          .border({ width: 1, color: $r('app.color.koma_accent') })
-          .borderRadius(8)
+          .height(ThemeConstants.FILTER_CHIP_HEIGHT)
+          .fontSize(ThemeConstants.FONT_SIZE_META)
+          .fontColor(this.selectedLibraryId.length === 0 ? ThemeConstants.TEXT_ON_BRAND : ThemeConstants.BRAND_PRIMARY)
+          .backgroundColor(this.selectedLibraryId.length === 0 ? ThemeConstants.BRAND_PRIMARY : Color.Transparent)
+          .border({ width: 1, color: ThemeConstants.BRAND_PRIMARY })
+          .borderRadius(ThemeConstants.RADIUS_CHIP)
           .onClick(() => {
             this.selectedLibraryId = ''
             this.reloadSeries()
           })
         ForEach(this.libraries, (library: KomgaLibraryDto) => {
           Button(library.name)
-            .height(34)
-            .fontSize(13)
-            .fontColor(this.selectedLibraryId === library.id ? Color.White : $r('app.color.koma_accent'))
-            .backgroundColor(this.selectedLibraryId === library.id ? $r('app.color.koma_accent') : '#00000000')
-            .border({ width: 1, color: $r('app.color.koma_accent') })
-            .borderRadius(8)
+            .height(ThemeConstants.FILTER_CHIP_HEIGHT)
+            .fontSize(ThemeConstants.FONT_SIZE_META)
+            .fontColor(this.selectedLibraryId === library.id ? ThemeConstants.TEXT_ON_BRAND : ThemeConstants.BRAND_PRIMARY)
+            .backgroundColor(this.selectedLibraryId === library.id ? ThemeConstants.BRAND_PRIMARY : Color.Transparent)
+            .border({ width: 1, color: ThemeConstants.BRAND_PRIMARY })
+            .borderRadius(ThemeConstants.RADIUS_CHIP)
             .onClick(() => {
               this.selectedLibraryId = library.id
               this.reloadSeries()
@@ -321,45 +321,45 @@ export struct KomgaSeriesPage {
       .width('100%')
     }
     .width('100%')
-    .padding(14)
-    .borderRadius(8)
-    .backgroundColor($r('app.color.koma_card'))
+    .padding(ThemeConstants.SPACE_LG)
+    .borderRadius(ThemeConstants.RADIUS_CARD)
+    .backgroundColor(ThemeConstants.CARD)
   }
 
   @Builder
   private SeriesRow(item: KomgaSeriesDto) {
-    Row({ space: 12 }) {
+    Row({ space: ThemeConstants.SPACE_MD }) {
       Column() {
         Text(this.seriesTitle(item).substring(0, 1).toLocaleUpperCase())
-          .fontSize(20)
+          .fontSize(ThemeConstants.FONT_SIZE_H3)
           .fontWeight(FontWeight.Bold)
-          .fontColor(Color.White)
+          .fontColor(ThemeConstants.TEXT_ON_BRAND)
       }
-      .width(48)
-      .height(64)
+      .width(ThemeConstants.LIST_COVER_WIDTH)
+      .height(ThemeConstants.LIST_COVER_HEIGHT)
       .justifyContent(FlexAlign.Center)
-      .borderRadius(8)
-      .backgroundColor('#16745F')
+      .borderRadius(ThemeConstants.RADIUS_THUMB)
+      .backgroundColor(ThemeConstants.BRAND_PRIMARY)
 
-      Column({ space: 6 }) {
+      Column({ space: ThemeConstants.SPACE_SM }) {
         Text(this.seriesTitle(item))
-          .fontSize(16)
+          .fontSize(ThemeConstants.FONT_SIZE_TITLE)
           .fontWeight(FontWeight.Medium)
-          .fontColor($r('app.color.koma_text_primary'))
+          .fontColor(ThemeConstants.TEXT_PRIMARY)
           .maxLines(2)
           .textOverflow({ overflow: TextOverflow.Ellipsis })
           .width('100%')
         Text(`${item.booksCount === undefined ? 0 : item.booksCount} books`)
-          .fontSize(13)
-          .fontColor($r('app.color.koma_text_secondary'))
+          .fontSize(ThemeConstants.FONT_SIZE_META)
+          .fontColor(ThemeConstants.TEXT_SECONDARY)
       }
       .layoutWeight(1)
       .alignItems(HorizontalAlign.Start)
     }
     .width('100%')
-    .padding(14)
-    .borderRadius(8)
-    .backgroundColor($r('app.color.koma_card'))
+    .padding(ThemeConstants.SPACE_LG)
+    .borderRadius(ThemeConstants.RADIUS_CARD)
+    .backgroundColor(ThemeConstants.CARD)
     .onClick(() => {
       this.openSeries(item)
     })
@@ -367,30 +367,30 @@ export struct KomgaSeriesPage {
 
   @Builder
   private BookRow(item: KomgaBookDto) {
-    Row({ space: 12 }) {
-      Column({ space: 5 }) {
+    Row({ space: ThemeConstants.SPACE_MD }) {
+      Column({ space: ThemeConstants.SPACE_XS }) {
         Text(this.bookTitle(item))
-          .fontSize(15)
+          .fontSize(ThemeConstants.FONT_SIZE_BODY)
           .fontWeight(FontWeight.Medium)
-          .fontColor($r('app.color.koma_text_primary'))
+          .fontColor(ThemeConstants.TEXT_PRIMARY)
           .maxLines(2)
           .textOverflow({ overflow: TextOverflow.Ellipsis })
           .width('100%')
         Text(`${item.media?.pagesCount === undefined ? 0 : item.media.pagesCount} pages`)
-          .fontSize(13)
-          .fontColor($r('app.color.koma_text_secondary'))
+          .fontSize(ThemeConstants.FONT_SIZE_META)
+          .fontColor(ThemeConstants.TEXT_SECONDARY)
       }
       .layoutWeight(1)
       .alignItems(HorizontalAlign.Start)
       Text('读')
-        .fontSize(13)
+        .fontSize(ThemeConstants.FONT_SIZE_META)
         .fontWeight(FontWeight.Medium)
-        .fontColor($r('app.color.koma_accent'))
+        .fontColor(ThemeConstants.BRAND_PRIMARY)
     }
     .width('100%')
-    .padding(14)
-    .borderRadius(8)
-    .backgroundColor($r('app.color.koma_card'))
+    .padding(ThemeConstants.SPACE_LG)
+    .borderRadius(ThemeConstants.RADIUS_CARD)
+    .backgroundColor(ThemeConstants.CARD)
     .onClick(() => {
       this.openBook(item)
     })
@@ -400,32 +400,32 @@ export struct KomgaSeriesPage {
   private BooksPanel() {
     if (this.selectedSeries !== undefined) {
       ListItem() {
-        Column({ space: 10 }) {
+        Column({ space: ThemeConstants.SPACE_MD }) {
           Text(this.seriesTitle(this.selectedSeries))
-            .fontSize(18)
+            .fontSize(ThemeConstants.FONT_SIZE_HEADING)
             .fontWeight(FontWeight.Medium)
-            .fontColor($r('app.color.koma_text_primary'))
+            .fontColor(ThemeConstants.TEXT_PRIMARY)
             .width('100%')
           Button(this.isSelectedSeriesFavorited() ? '已收藏' : '加入书架')
-            .height(40)
+            .height(ThemeConstants.BUTTON_HEIGHT)
             .width('100%')
-            .fontSize(14)
+            .fontSize(ThemeConstants.FONT_SIZE_BODY)
             .fontWeight(FontWeight.Medium)
-            .fontColor(this.isSelectedSeriesFavorited() ? Color.White : $r('app.color.koma_accent'))
-            .backgroundColor(this.isSelectedSeriesFavorited() ? $r('app.color.koma_accent') : '#00000000')
-            .border({ width: 1, color: $r('app.color.koma_accent') })
-            .borderRadius(8)
+            .fontColor(this.isSelectedSeriesFavorited() ? ThemeConstants.TEXT_ON_BRAND : ThemeConstants.BRAND_PRIMARY)
+            .backgroundColor(this.isSelectedSeriesFavorited() ? ThemeConstants.BRAND_PRIMARY : Color.Transparent)
+            .border({ width: 1, color: ThemeConstants.BRAND_PRIMARY })
+            .borderRadius(ThemeConstants.RADIUS_CHIP)
             .onClick(() => {
               this.addSelectedSeriesToLibrary()
             })
           if (this.books.length === 0) {
             Text('暂无 books')
-              .fontSize(14)
-              .fontColor($r('app.color.koma_text_secondary'))
+              .fontSize(ThemeConstants.FONT_SIZE_BODY)
+              .fontColor(ThemeConstants.TEXT_SECONDARY)
               .width('100%')
-              .padding(16)
-              .borderRadius(8)
-              .backgroundColor($r('app.color.koma_card'))
+              .padding(ThemeConstants.SPACE_LG)
+              .borderRadius(ThemeConstants.RADIUS_CARD)
+              .backgroundColor(ThemeConstants.CARD)
           } else {
             ForEach(this.books, (book: KomgaBookDto) => {
               this.BookRow(book)
@@ -440,8 +440,8 @@ export struct KomgaSeriesPage {
   build() {
     Column() {
       SecondaryListScaffold({
-        listSpace: 12,
-        horizontalPadding: 20,
+        listSpace: ThemeConstants.SPACE_MD,
+        horizontalPadding: ThemeConstants.SPACE_XL,
         bottomPadding: ThemeConstants.FLOAT_BAR_HEIGHT + 20,
         onReachEnd: () => {
           this.loadMoreSeries()
@@ -450,7 +450,10 @@ export struct KomgaSeriesPage {
         if (this.loading) {
           ListItem() {
             Row() {
-              LoadingProgress().width(32).height(32).color($r('app.color.koma_accent'))
+              LoadingProgress()
+                .width(ThemeConstants.SPACE_XXL)
+                .height(ThemeConstants.SPACE_XXL)
+                .color(ThemeConstants.BRAND_PRIMARY)
             }
             .width('100%')
             .justifyContent(FlexAlign.Center)
@@ -459,11 +462,11 @@ export struct KomgaSeriesPage {
           ListItem() {
             Text(this.errorText)
               .width('100%')
-              .padding(16)
-              .fontSize(14)
-              .fontColor($r('app.color.koma_text_secondary'))
-              .borderRadius(8)
-              .backgroundColor($r('app.color.koma_card'))
+              .padding(ThemeConstants.SPACE_LG)
+              .fontSize(ThemeConstants.FONT_SIZE_BODY)
+              .fontColor(ThemeConstants.TEXT_SECONDARY)
+              .borderRadius(ThemeConstants.RADIUS_CARD)
+              .backgroundColor(ThemeConstants.CARD)
           }
         } else {
           ListItem() {
@@ -478,11 +481,14 @@ export struct KomgaSeriesPage {
           if (this.loadingMore) {
             ListItem() {
               Row() {
-                LoadingProgress().width(26).height(26).color($r('app.color.koma_accent'))
+                LoadingProgress()
+                  .width(ThemeConstants.SPACE_XL)
+                  .height(ThemeConstants.SPACE_XL)
+                  .color(ThemeConstants.BRAND_PRIMARY)
               }
               .width('100%')
               .justifyContent(FlexAlign.Center)
-              .padding(12)
+              .padding(ThemeConstants.SPACE_MD)
             }
           }
         }
@@ -490,6 +496,6 @@ export struct KomgaSeriesPage {
     }
     .width('100%')
     .height('100%')
-    .backgroundColor($r('sys.color.ohos_id_color_sub_background'))
+    .backgroundColor(ThemeConstants.BG_SUB)
   }
 }

@@ -1,4 +1,5 @@
 import { SourceRuntimeRegistryInstalledSourceSummary } from '../sourceRuntime/SourceRuntimeRegistry'
+import { ThemeConstants } from '../theme/ThemeConstants'
 
 @Component
 export struct SourceListItem {
@@ -27,42 +28,42 @@ export struct SourceListItem {
   }
 
   build() {
-    Row({ space: 14 }) {
+    Row({ space: ThemeConstants.SPACE_MD }) {
       Stack({ alignContent: Alignment.Center }) {
         Text(this.sourceInitial())
-          .fontSize(20)
+          .fontSize(ThemeConstants.FONT_SIZE_H3)
           .fontWeight(FontWeight.Bold)
-          .fontColor(Color.White)
+          .fontColor(ThemeConstants.TEXT_ON_BRAND)
       }
-      .width(48)
-      .height(48)
-      .borderRadius(24)
-      .backgroundColor($r('app.color.koma_accent'))
+      .width(ThemeConstants.SOURCE_ICON_SIZE)
+      .height(ThemeConstants.SOURCE_ICON_SIZE)
+      .borderRadius(ThemeConstants.RADIUS_ROUND)
+      .backgroundColor(ThemeConstants.BRAND_PRIMARY)
 
-      Column({ space: 5 }) {
-        Row({ space: 8 }) {
+      Column({ space: ThemeConstants.SPACE_XS }) {
+        Row({ space: ThemeConstants.SPACE_SM }) {
           Text(this.source.displayName)
-            .fontSize(17)
+            .fontSize(ThemeConstants.FONT_SIZE_TITLE)
             .fontWeight(FontWeight.Medium)
-            .fontColor($r('app.color.koma_text_primary'))
+            .fontColor(ThemeConstants.TEXT_PRIMARY)
             .maxLines(1)
             .textOverflow({ overflow: TextOverflow.Ellipsis })
             .layoutWeight(1)
 
           Text(this.languageBadge)
-            .fontSize(11)
+            .fontSize(ThemeConstants.FONT_SIZE_TAG)
             .fontWeight(FontWeight.Medium)
-            .fontColor($r('app.color.koma_accent'))
+            .fontColor(ThemeConstants.BRAND_PRIMARY)
             .padding({ left: 8, right: 8, top: 3, bottom: 3 })
-            .borderRadius(8)
-            .backgroundColor('#1F256E5D')
+            .borderRadius(ThemeConstants.RADIUS_CHIP)
+            .backgroundColor(ThemeConstants.SOFT_TINT)
         }
         .width('100%')
         .alignItems(VerticalAlign.Center)
 
         Text(`v${this.source.version} · ${this.source.importStatus}`)
-          .fontSize(13)
-          .fontColor($r('app.color.koma_text_secondary'))
+          .fontSize(ThemeConstants.FONT_SIZE_META)
+          .fontColor(ThemeConstants.TEXT_SECONDARY)
           .maxLines(1)
           .textOverflow({ overflow: TextOverflow.Ellipsis })
       }
@@ -70,13 +71,13 @@ export struct SourceListItem {
       .alignItems(HorizontalAlign.Start)
 
       Text('>')
-        .fontSize(18)
-        .fontColor($r('app.color.koma_text_secondary'))
+        .fontSize(ThemeConstants.FONT_SIZE_HEADING)
+        .fontColor(ThemeConstants.TEXT_SECONDARY)
     }
     .width('100%')
-    .padding(14)
-    .borderRadius(8)
-    .backgroundColor($r('app.color.koma_card'))
+    .padding(ThemeConstants.SPACE_MD)
+    .borderRadius(ThemeConstants.RADIUS_CARD)
+    .backgroundColor(ThemeConstants.CARD)
     .onClick(() => {
       this.onSourceTap(this.source)
     })

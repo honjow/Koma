@@ -43,13 +43,13 @@ export struct SourceBrowsePage {
   private SectionHeader(title: string, count: number) {
     Row() {
       Text(title)
-        .fontSize(20)
+        .fontSize(ThemeConstants.FONT_SIZE_H3)
         .fontWeight(FontWeight.Bold)
-        .fontColor($r('app.color.koma_text_primary'))
+        .fontColor(ThemeConstants.TEXT_PRIMARY)
       Blank()
       Text(`${count} 本`)
-        .fontSize(13)
-        .fontColor($r('app.color.koma_text_secondary'))
+        .fontSize(ThemeConstants.FONT_SIZE_META)
+        .fontColor(ThemeConstants.TEXT_SECONDARY)
     }
     .width('100%')
   }
@@ -70,8 +70,8 @@ export struct SourceBrowsePage {
     }
     .width('100%')
     .columnsTemplate('1fr 1fr 1fr')
-    .columnsGap(14)
-    .rowsGap(22)
+    .columnsGap(ThemeConstants.SPACE_LG)
+    .rowsGap(ThemeConstants.SPACE_XL)
     .cachedCount(12)
   }
 
@@ -81,30 +81,30 @@ export struct SourceBrowsePage {
 
   build() {
     Scroll() {
-      Column({ space: 18 }) {
-        Row({ space: 12 }) {
-          Column({ space: 4 }) {
+      Column({ space: ThemeConstants.SPACE_LG }) {
+        Row({ space: ThemeConstants.SPACE_MD }) {
+          Column({ space: ThemeConstants.SPACE_XS }) {
             Text(this.source.displayName)
-              .fontSize(30)
+              .fontSize(ThemeConstants.FONT_SIZE_H1)
               .fontWeight(FontWeight.Bold)
-              .fontColor($r('app.color.koma_text_primary'))
+              .fontColor(ThemeConstants.TEXT_PRIMARY)
               .maxLines(1)
               .textOverflow({ overflow: TextOverflow.Ellipsis })
             Text(`v${this.source.version}`)
-              .fontSize(14)
-              .fontColor($r('app.color.koma_text_secondary'))
+              .fontSize(ThemeConstants.FONT_SIZE_BODY)
+              .fontColor(ThemeConstants.TEXT_SECONDARY)
           }
           .layoutWeight(1)
           .alignItems(HorizontalAlign.Start)
 
           Button('搜索')
-            .height(40)
-            .padding({ left: 14, right: 14 })
-            .borderRadius(8)
-            .fontSize(14)
+            .height(ThemeConstants.ACTION_CHIP_HEIGHT)
+            .padding({ left: ThemeConstants.SPACE_LG, right: ThemeConstants.SPACE_LG })
+            .borderRadius(ThemeConstants.RADIUS_CHIP)
+            .fontSize(ThemeConstants.FONT_SIZE_BODY)
             .fontWeight(FontWeight.Medium)
-            .fontColor(Color.White)
-            .backgroundColor($r('app.color.koma_accent'))
+            .fontColor(ThemeConstants.TEXT_ON_BRAND)
+            .backgroundColor(ThemeConstants.BRAND_PRIMARY)
             .onClick(() => {
               this.onSearchRequested(this.source)
             })
@@ -114,17 +114,17 @@ export struct SourceBrowsePage {
 
         if (this.viewModel.loadingBrowse && this.viewModel.popularManga.length === 0 && this.viewModel.latestManga.length === 0) {
           LoadingProgress()
-            .width(36)
-            .height(36)
-            .color($r('app.color.koma_accent'))
+            .width(ThemeConstants.LOADING_SIZE_LARGE)
+            .height(ThemeConstants.LOADING_SIZE_LARGE)
+            .color(ThemeConstants.BRAND_PRIMARY)
         } else if (this.viewModel.errorMessage.length > 0) {
           Text(this.viewModel.errorMessage)
             .width('100%')
-            .fontSize(14)
-            .fontColor($r('app.color.koma_danger'))
-            .padding(16)
-            .borderRadius(8)
-            .backgroundColor($r('app.color.koma_card'))
+            .fontSize(ThemeConstants.FONT_SIZE_BODY)
+            .fontColor(ThemeConstants.DANGER)
+            .padding(ThemeConstants.SPACE_LG)
+            .borderRadius(ThemeConstants.RADIUS_CARD)
+            .backgroundColor(ThemeConstants.CARD)
         } else {
           this.SectionHeader('热门', this.viewModel.popularManga.length)
           this.MangaGrid(this.viewModel.popularManga)
@@ -134,12 +134,12 @@ export struct SourceBrowsePage {
 
           if (this.viewModel.hasMoreBrowse) {
             Button(this.viewModel.loadingBrowse ? '加载中...' : '加载更多')
-              .height(42)
+              .height(ThemeConstants.BUTTON_HEIGHT)
               .width('100%')
-              .borderRadius(8)
-              .fontSize(14)
-              .fontColor($r('app.color.koma_accent'))
-              .backgroundColor($r('app.color.koma_card'))
+              .borderRadius(ThemeConstants.RADIUS_CHIP)
+              .fontSize(ThemeConstants.FONT_SIZE_BODY)
+              .fontColor(ThemeConstants.BRAND_PRIMARY)
+              .backgroundColor(ThemeConstants.CARD)
               .onClick(() => {
                 void this.viewModel.loadMoreBrowse()
               })
@@ -147,13 +147,18 @@ export struct SourceBrowsePage {
         }
       }
       .width('100%')
-      .padding({ left: 20, right: 20, top: this.topContentInset(), bottom: this.bottomContentInset() })
+      .padding({
+        left: ThemeConstants.SPACE_XL,
+        right: ThemeConstants.SPACE_XL,
+        top: this.topContentInset(),
+        bottom: this.bottomContentInset(),
+      })
     }
     .width('100%')
     .height('100%')
     .padding({ bottom: this.bottomFloatingTabViewportClearance() })
     .clipContent(ContentClipMode.CONTENT_ONLY)
-    .backgroundColor($r('app.color.koma_background'))
+    .backgroundColor(ThemeConstants.BG_PRIMARY)
     .onReachEnd(() => {
       void this.viewModel.loadMoreBrowse()
     })

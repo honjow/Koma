@@ -73,21 +73,21 @@ export struct BrowsePage {
 
   @Builder
   private EmptySources() {
-    Column({ space: 10 }) {
+    Column({ space: ThemeConstants.SPACE_MD }) {
       Text('未安装源包')
-        .fontSize(20)
+        .fontSize(ThemeConstants.FONT_SIZE_H3)
         .fontWeight(FontWeight.Medium)
-        .fontColor($r('app.color.koma_text_primary'))
+        .fontColor(ThemeConstants.TEXT_PRIMARY)
       Text('从设置导入 .koma 源包')
-        .fontSize(14)
-        .lineHeight(22)
-        .fontColor($r('app.color.koma_text_secondary'))
+        .fontSize(ThemeConstants.FONT_SIZE_BODY)
+        .lineHeight(ThemeConstants.LINE_HEIGHT_TITLE)
+        .fontColor(ThemeConstants.TEXT_SECONDARY)
         .textAlign(TextAlign.Center)
     }
     .width('100%')
-    .padding(24)
-    .borderRadius(8)
-    .backgroundColor($r('app.color.koma_card'))
+    .padding(ThemeConstants.SPACE_XL)
+    .borderRadius(ThemeConstants.RADIUS_CARD)
+    .backgroundColor(ThemeConstants.CARD)
     .alignItems(HorizontalAlign.Center)
   }
 
@@ -95,49 +95,49 @@ export struct BrowsePage {
   private SourceListItems() {
     if (this.komgaConfigured) {
       ListItem() {
-        Row({ space: 14 }) {
+        Row({ space: ThemeConstants.SPACE_MD }) {
           Stack({ alignContent: Alignment.Center }) {
             Text('K')
-              .fontSize(20)
+              .fontSize(ThemeConstants.FONT_SIZE_H3)
               .fontWeight(FontWeight.Bold)
-              .fontColor(Color.White)
+              .fontColor(ThemeConstants.TEXT_ON_BRAND)
           }
-          .width(48)
-          .height(48)
-          .borderRadius(24)
-          .backgroundColor('#16745F')
+          .width(ThemeConstants.SOURCE_ICON_SIZE)
+          .height(ThemeConstants.SOURCE_ICON_SIZE)
+          .borderRadius(ThemeConstants.RADIUS_ROUND)
+          .backgroundColor(ThemeConstants.SOURCE_KOMGA_COLOR)
 
-          Column({ space: 5 }) {
-            Row({ space: 8 }) {
+          Column({ space: ThemeConstants.SPACE_XS }) {
+            Row({ space: ThemeConstants.SPACE_SM }) {
               Text('Komga')
-                .fontSize(17)
+                .fontSize(ThemeConstants.FONT_SIZE_TITLE)
                 .fontWeight(FontWeight.Medium)
-                .fontColor($r('app.color.koma_text_primary'))
+                .fontColor(ThemeConstants.TEXT_PRIMARY)
                 .layoutWeight(1)
               Text('私有库')
-                .fontSize(11)
+                .fontSize(ThemeConstants.FONT_SIZE_TAG)
                 .fontWeight(FontWeight.Medium)
-                .fontColor($r('app.color.koma_accent'))
+                .fontColor(ThemeConstants.BRAND_PRIMARY)
                 .padding({ left: 8, right: 8, top: 3, bottom: 3 })
-                .borderRadius(8)
-                .backgroundColor('#1F256E5D')
+                .borderRadius(ThemeConstants.RADIUS_CHIP)
+                .backgroundColor(ThemeConstants.SOFT_TINT)
             }
             .width('100%')
             .alignItems(VerticalAlign.Center)
             Text('浏览 libraries / series / books')
-              .fontSize(13)
-              .fontColor($r('app.color.koma_text_secondary'))
+              .fontSize(ThemeConstants.FONT_SIZE_META)
+              .fontColor(ThemeConstants.TEXT_SECONDARY)
           }
           .layoutWeight(1)
           .alignItems(HorizontalAlign.Start)
           Text('>')
-            .fontSize(18)
-            .fontColor($r('app.color.koma_text_secondary'))
+            .fontSize(ThemeConstants.FONT_SIZE_HEADING)
+            .fontColor(ThemeConstants.TEXT_SECONDARY)
         }
         .width('100%')
-        .padding(14)
-        .borderRadius(8)
-        .backgroundColor($r('app.color.koma_card'))
+        .padding(ThemeConstants.SPACE_MD)
+        .borderRadius(ThemeConstants.RADIUS_CARD)
+        .backgroundColor(ThemeConstants.CARD)
         .onClick(() => {
           this.openKomga()
         })
@@ -145,49 +145,49 @@ export struct BrowsePage {
     }
     if (this.webDavConfigured) {
       ListItem() {
-        Row({ space: 14 }) {
+        Row({ space: ThemeConstants.SPACE_MD }) {
           Stack({ alignContent: Alignment.Center }) {
             Text('W')
-              .fontSize(20)
+              .fontSize(ThemeConstants.FONT_SIZE_H3)
               .fontWeight(FontWeight.Bold)
-              .fontColor(Color.White)
+              .fontColor(ThemeConstants.TEXT_ON_BRAND)
           }
-          .width(48)
-          .height(48)
-          .borderRadius(24)
-          .backgroundColor('#5F5F9F')
+          .width(ThemeConstants.SOURCE_ICON_SIZE)
+          .height(ThemeConstants.SOURCE_ICON_SIZE)
+          .borderRadius(ThemeConstants.RADIUS_ROUND)
+          .backgroundColor(ThemeConstants.SOURCE_WEBDAV_COLOR)
 
-          Column({ space: 5 }) {
-            Row({ space: 8 }) {
+          Column({ space: ThemeConstants.SPACE_XS }) {
+            Row({ space: ThemeConstants.SPACE_SM }) {
               Text('WebDAV')
-                .fontSize(17)
+                .fontSize(ThemeConstants.FONT_SIZE_TITLE)
                 .fontWeight(FontWeight.Medium)
-                .fontColor($r('app.color.koma_text_primary'))
+                .fontColor(ThemeConstants.TEXT_PRIMARY)
                 .layoutWeight(1)
               Text('远程文件夹')
-                .fontSize(11)
+                .fontSize(ThemeConstants.FONT_SIZE_TAG)
                 .fontWeight(FontWeight.Medium)
-                .fontColor($r('app.color.koma_accent'))
+                .fontColor(ThemeConstants.BRAND_PRIMARY)
                 .padding({ left: 8, right: 8, top: 3, bottom: 3 })
-                .borderRadius(8)
-                .backgroundColor('#1F256E5D')
+                .borderRadius(ThemeConstants.RADIUS_CHIP)
+                .backgroundColor(ThemeConstants.SOFT_TINT)
             }
             .width('100%')
             .alignItems(VerticalAlign.Center)
             Text('浏览目录 / 图片文件夹 / Reader')
-              .fontSize(13)
-              .fontColor($r('app.color.koma_text_secondary'))
+              .fontSize(ThemeConstants.FONT_SIZE_META)
+              .fontColor(ThemeConstants.TEXT_SECONDARY)
           }
           .layoutWeight(1)
           .alignItems(HorizontalAlign.Start)
           Text('>')
-            .fontSize(18)
-            .fontColor($r('app.color.koma_text_secondary'))
+            .fontSize(ThemeConstants.FONT_SIZE_HEADING)
+            .fontColor(ThemeConstants.TEXT_SECONDARY)
         }
         .width('100%')
-        .padding(14)
-        .borderRadius(8)
-        .backgroundColor($r('app.color.koma_card'))
+        .padding(ThemeConstants.SPACE_MD)
+        .borderRadius(ThemeConstants.RADIUS_CARD)
+        .backgroundColor(ThemeConstants.CARD)
         .onClick(() => {
           this.openWebDav()
         })
@@ -195,49 +195,49 @@ export struct BrowsePage {
     }
     if (this.opdsConfigured) {
       ListItem() {
-        Row({ space: 14 }) {
+        Row({ space: ThemeConstants.SPACE_MD }) {
           Stack({ alignContent: Alignment.Center }) {
             Text('O')
-              .fontSize(20)
+              .fontSize(ThemeConstants.FONT_SIZE_H3)
               .fontWeight(FontWeight.Bold)
-              .fontColor(Color.White)
+              .fontColor(ThemeConstants.TEXT_ON_BRAND)
           }
-          .width(48)
-          .height(48)
-          .borderRadius(24)
-          .backgroundColor('#8A5A2B')
+          .width(ThemeConstants.SOURCE_ICON_SIZE)
+          .height(ThemeConstants.SOURCE_ICON_SIZE)
+          .borderRadius(ThemeConstants.RADIUS_ROUND)
+          .backgroundColor(ThemeConstants.SOURCE_OPDS_COLOR)
 
-          Column({ space: 5 }) {
-            Row({ space: 8 }) {
+          Column({ space: ThemeConstants.SPACE_XS }) {
+            Row({ space: ThemeConstants.SPACE_SM }) {
               Text('OPDS')
-                .fontSize(17)
+                .fontSize(ThemeConstants.FONT_SIZE_TITLE)
                 .fontWeight(FontWeight.Medium)
-                .fontColor($r('app.color.koma_text_primary'))
+                .fontColor(ThemeConstants.TEXT_PRIMARY)
                 .layoutWeight(1)
               Text('Catalog')
-                .fontSize(11)
+                .fontSize(ThemeConstants.FONT_SIZE_TAG)
                 .fontWeight(FontWeight.Medium)
-                .fontColor($r('app.color.koma_accent'))
+                .fontColor(ThemeConstants.BRAND_PRIMARY)
                 .padding({ left: 8, right: 8, top: 3, bottom: 3 })
-                .borderRadius(8)
-                .backgroundColor('#1F256E5D')
+                .borderRadius(ThemeConstants.RADIUS_CHIP)
+                .backgroundColor(ThemeConstants.SOFT_TINT)
             }
             .width('100%')
             .alignItems(VerticalAlign.Center)
             Text('浏览 catalog / acquisition / 图片')
-              .fontSize(13)
-              .fontColor($r('app.color.koma_text_secondary'))
+              .fontSize(ThemeConstants.FONT_SIZE_META)
+              .fontColor(ThemeConstants.TEXT_SECONDARY)
           }
           .layoutWeight(1)
           .alignItems(HorizontalAlign.Start)
           Text('>')
-            .fontSize(18)
-            .fontColor($r('app.color.koma_text_secondary'))
+            .fontSize(ThemeConstants.FONT_SIZE_HEADING)
+            .fontColor(ThemeConstants.TEXT_SECONDARY)
         }
         .width('100%')
-        .padding(14)
-        .borderRadius(8)
-        .backgroundColor($r('app.color.koma_card'))
+        .padding(ThemeConstants.SPACE_MD)
+        .borderRadius(ThemeConstants.RADIUS_CARD)
+        .backgroundColor(ThemeConstants.CARD)
         .onClick(() => {
           this.openOpds()
         })
@@ -357,17 +357,17 @@ export struct BrowsePage {
       Refresh({ refreshing: $$this.refreshingSources }) {
         Column() {
           SecondaryListScaffold({
-            listSpace: 18,
-            horizontalPadding: 20,
+            listSpace: ThemeConstants.SPACE_LG,
+            horizontalPadding: ThemeConstants.SPACE_XL,
             bottomPadding: ThemeConstants.FLOAT_BAR_HEIGHT + 20,
           }) {
             if (this.viewModel.loadingSources) {
               ListItem() {
                 Row() {
                   LoadingProgress()
-                    .width(36)
-                    .height(36)
-                    .color($r('app.color.koma_accent'))
+                    .width(ThemeConstants.LOADING_SIZE_LARGE)
+                    .height(ThemeConstants.LOADING_SIZE_LARGE)
+                    .color(ThemeConstants.BRAND_PRIMARY)
                 }
                 .width('100%')
                 .justifyContent(FlexAlign.Center)
@@ -383,7 +383,7 @@ export struct BrowsePage {
         }
         .width('100%')
         .height('100%')
-        .backgroundColor($r('sys.color.ohos_id_color_sub_background'))
+        .backgroundColor(ThemeConstants.BG_SUB)
       }
       .onRefreshing(() => {
         this.refreshSources()

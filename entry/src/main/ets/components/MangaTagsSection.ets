@@ -1,3 +1,5 @@
+import { ThemeConstants } from '../theme/ThemeConstants'
+
 @Component
 export struct MangaTagsSection {
   @Prop tags: string[] = []
@@ -7,24 +9,24 @@ export struct MangaTagsSection {
   }
 
   build() {
-    Column({ space: 12 }) {
+    Column({ space: ThemeConstants.SPACE_MD }) {
       Text('标签')
         .width('100%')
-        .fontSize(20)
+        .fontSize(ThemeConstants.FONT_SIZE_H3)
         .fontWeight(FontWeight.Bold)
-        .fontColor($r('app.color.koma_text_primary'))
+        .fontColor(ThemeConstants.TEXT_PRIMARY)
 
       if (this.hasTags()) {
         Flex({ wrap: FlexWrap.Wrap }) {
           ForEach(this.tags, (tag: string) => {
             Text(tag)
-              .fontSize(13)
+              .fontSize(ThemeConstants.FONT_SIZE_META)
               .fontWeight(FontWeight.Medium)
-              .fontColor($r('app.color.koma_accent'))
-              .padding({ left: 12, right: 12, top: 7, bottom: 7 })
-              .borderRadius(16)
-              .backgroundColor('#1A5CC8A8')
-              .margin({ right: 8, bottom: 8 })
+              .fontColor(ThemeConstants.BRAND_PRIMARY)
+              .padding({ left: ThemeConstants.SPACE_MD, right: ThemeConstants.SPACE_MD, top: 7, bottom: 7 })
+              .borderRadius(ThemeConstants.RADIUS_ROUND)
+              .backgroundColor(ThemeConstants.SOFT_TINT)
+              .margin({ right: ThemeConstants.SPACE_SM, bottom: ThemeConstants.SPACE_SM })
               .onClick(() => {})
           }, (tag: string) => tag)
         }
@@ -32,8 +34,8 @@ export struct MangaTagsSection {
       } else {
         Text('暂无标签')
           .width('100%')
-          .fontSize(14)
-          .fontColor($r('app.color.koma_text_secondary'))
+          .fontSize(ThemeConstants.FONT_SIZE_BODY)
+          .fontColor(ThemeConstants.TEXT_SECONDARY)
       }
     }
     .width('100%')

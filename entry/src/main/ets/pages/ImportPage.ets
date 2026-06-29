@@ -17,13 +17,13 @@ interface ImportEntryInfo {
 const ARCHIVE_ENTRY: ImportEntryInfo = {
   title: 'CBZ / ZIP',
   actionText: '选择文件',
-  accentColor: '#256E5D',
+  accentColor: ThemeConstants.SOURCE_LOCAL_COLOR,
 }
 
 const IMAGE_ENTRY: ImportEntryInfo = {
   title: '图片',
   actionText: '选择多张图片',
-  accentColor: '#80612D',
+  accentColor: ThemeConstants.SOURCE_OPDS_COLOR,
 }
 
 @Component
@@ -154,23 +154,23 @@ export struct ImportPage {
 
   @Builder
   private ImportEntryCard(entry: ImportEntryInfo) {
-    Column({ space: 16 }) {
-      Row({ space: 10 }) {
+    Column({ space: ThemeConstants.SPACE_LG }) {
+      Row({ space: ThemeConstants.SPACE_MD }) {
         Stack({ alignContent: Alignment.Center }) {
           Text('+')
-            .fontSize(20)
+            .fontSize(ThemeConstants.FONT_SIZE_H3)
             .fontWeight(FontWeight.Bold)
-            .fontColor(Color.White)
+            .fontColor(ThemeConstants.TEXT_ON_BRAND)
         }
-        .width(40)
-        .height(40)
-        .borderRadius(8)
+        .width(ThemeConstants.SOURCE_ICON_SIZE)
+        .height(ThemeConstants.SOURCE_ICON_SIZE)
+        .borderRadius(ThemeConstants.RADIUS_CHIP)
         .backgroundColor(entry.accentColor)
 
         Text(entry.title)
-          .fontSize(18)
+          .fontSize(ThemeConstants.FONT_SIZE_HEADING)
           .fontWeight(FontWeight.Medium)
-          .fontColor($r('app.color.koma_text_primary'))
+          .fontColor(ThemeConstants.TEXT_PRIMARY)
           .maxLines(1)
           .textOverflow({ overflow: TextOverflow.Ellipsis })
         .layoutWeight(1)
@@ -180,10 +180,10 @@ export struct ImportPage {
       Button(this.importing ? '导入中...' : entry.actionText)
         .height(42)
         .width('100%')
-        .borderRadius(8)
-        .fontSize(14)
+        .borderRadius(ThemeConstants.RADIUS_CHIP)
+        .fontSize(ThemeConstants.FONT_SIZE_BODY)
         .fontWeight(FontWeight.Medium)
-        .fontColor(Color.White)
+        .fontColor(ThemeConstants.TEXT_ON_BRAND)
         .backgroundColor(entry.accentColor)
         .enabled(!this.importing)
         .onClick(() => {
@@ -200,9 +200,9 @@ export struct ImportPage {
       }
     }
     .width('100%')
-    .padding(16)
-    .borderRadius(8)
-    .backgroundColor($r('app.color.koma_card'))
+    .padding(ThemeConstants.SPACE_LG)
+    .borderRadius(ThemeConstants.RADIUS_CARD)
+    .backgroundColor(ThemeConstants.CARD)
     .alignItems(HorizontalAlign.Start)
   }
 
@@ -211,30 +211,30 @@ export struct ImportPage {
       Column({ space: 18 }) {
         Column({ space: 6 }) {
           Text('导入')
-            .fontSize(30)
+            .fontSize(ThemeConstants.SPACE_XXL)
             .fontWeight(FontWeight.Bold)
-            .fontColor($r('app.color.koma_text_primary'))
+            .fontColor(ThemeConstants.TEXT_PRIMARY)
           Text('添加到书架')
-            .fontSize(15)
-            .fontColor($r('app.color.koma_text_secondary'))
+            .fontSize(ThemeConstants.FONT_SIZE_TITLE)
+            .fontColor(ThemeConstants.TEXT_SECONDARY)
         }
         .width('100%')
         .alignItems(HorizontalAlign.Start)
 
-        Column({ space: 10 }) {
+        Column({ space: ThemeConstants.SPACE_MD }) {
           Text('状态')
-            .fontSize(13)
+            .fontSize(ThemeConstants.FONT_SIZE_META)
             .fontWeight(FontWeight.Medium)
-            .fontColor($r('app.color.koma_accent'))
+            .fontColor(ThemeConstants.BRAND_PRIMARY)
           Text(this.feedbackText)
-            .fontSize(14)
-            .lineHeight(22)
-            .fontColor($r('app.color.koma_text_primary'))
+            .fontSize(ThemeConstants.FONT_SIZE_BODY)
+            .lineHeight(ThemeConstants.LINE_HEIGHT_TITLE)
+            .fontColor(ThemeConstants.TEXT_PRIMARY)
         }
         .width('100%')
-        .padding(16)
-        .borderRadius(8)
-        .backgroundColor($r('app.color.koma_card'))
+        .padding(ThemeConstants.SPACE_LG)
+        .borderRadius(ThemeConstants.RADIUS_CARD)
+        .backgroundColor(ThemeConstants.CARD)
         .alignItems(HorizontalAlign.Start)
 
         this.ImportEntryCard(ARCHIVE_ENTRY)
@@ -247,5 +247,6 @@ export struct ImportPage {
     }
     .width('100%')
     .height('100%')
+    .backgroundColor(ThemeConstants.BG_SUB)
   }
 }

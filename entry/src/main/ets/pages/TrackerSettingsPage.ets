@@ -116,63 +116,63 @@ export struct TrackerSettingsPage {
 
   @Builder
   private StatusCard() {
-    Column({ space: 8 }) {
+    Column({ space: ThemeConstants.SPACE_SM }) {
       Text('追踪账号')
         .width('100%')
-        .fontSize(16)
+        .fontSize(ThemeConstants.FONT_SIZE_TITLE)
         .fontWeight(FontWeight.Medium)
-        .fontColor($r('app.color.koma_text_primary'))
+        .fontColor(ThemeConstants.TEXT_PRIMARY)
       Text('当前只保存账号状态和公开资料。授权材料必须进入系统安全存储；安全存储未验证时不会把账号标记为已连接。')
         .width('100%')
-        .fontSize(13)
-        .lineHeight(19)
-        .fontColor($r('app.color.koma_text_secondary'))
+        .fontSize(ThemeConstants.FONT_SIZE_META)
+        .lineHeight(ThemeConstants.LINE_HEIGHT_BODY)
+        .fontColor(ThemeConstants.TEXT_SECONDARY)
       Text(this.authPreparationMessage)
         .width('100%')
-        .fontSize(12)
-        .lineHeight(18)
-        .fontColor($r('app.color.koma_text_secondary'))
+        .fontSize(ThemeConstants.FONT_SIZE_CAPTION)
+        .lineHeight(ThemeConstants.LINE_HEIGHT_BODY)
+        .fontColor(ThemeConstants.TEXT_SECONDARY)
     }
     .width('100%')
-    .padding({ left: 16, right: 16, top: 16, bottom: 16 })
-    .borderRadius(8)
-    .backgroundColor($r('app.color.koma_card'))
+    .padding({ left: ThemeConstants.SPACE_LG, right: ThemeConstants.SPACE_LG, top: ThemeConstants.SPACE_LG, bottom: ThemeConstants.SPACE_LG })
+    .borderRadius(ThemeConstants.RADIUS_CARD)
+    .backgroundColor(ThemeConstants.CARD)
   }
 
   @Builder
   private ProviderRow(provider: TrackerProviderConfig) {
-    Row({ space: 12 }) {
-      Column({ space: 3 }) {
+    Row({ space: ThemeConstants.SPACE_MD }) {
+      Column({ space: ThemeConstants.SPACE_XS }) {
         Text(provider.displayName)
           .width('100%')
-          .fontSize(15)
+          .fontSize(ThemeConstants.FONT_SIZE_BODY)
           .fontWeight(FontWeight.Medium)
-          .fontColor($r('app.color.koma_text_primary'))
+          .fontColor(ThemeConstants.TEXT_PRIMARY)
         Text(getTrackerAccountDetail(this.findAccount(provider), this.secureStorageAvailable))
           .width('100%')
-          .fontSize(12)
-          .fontColor($r('app.color.koma_text_secondary'))
+          .fontSize(ThemeConstants.FONT_SIZE_CAPTION)
+          .fontColor(ThemeConstants.TEXT_SECONDARY)
       }
       .layoutWeight(1)
 
       Text(getTrackerAccountStatusLabel(this.findAccount(provider).status))
-        .fontSize(13)
-        .fontColor($r('app.color.koma_text_secondary'))
+        .fontSize(ThemeConstants.FONT_SIZE_META)
+        .fontColor(ThemeConstants.TEXT_SECONDARY)
 
       Button(this.connectActionLabel(provider))
-        .height(32)
-        .fontSize(12)
-        .fontColor(this.canPrepareConnect(provider) ? Color.White : $r('app.color.koma_text_secondary'))
-        .backgroundColor(this.canPrepareConnect(provider) ? $r('app.color.koma_accent') : '#00000000')
-        .border({ width: 1, color: this.canPrepareConnect(provider) ? $r('app.color.koma_accent') : $r('app.color.koma_text_secondary') })
-        .borderRadius(8)
+        .height(ThemeConstants.ACTION_CHIP_HEIGHT)
+        .fontSize(ThemeConstants.FONT_SIZE_CAPTION)
+        .fontColor(this.canPrepareConnect(provider) ? ThemeConstants.TEXT_ON_BRAND : ThemeConstants.TEXT_SECONDARY)
+        .backgroundColor(this.canPrepareConnect(provider) ? ThemeConstants.BRAND_PRIMARY : Color.Transparent)
+        .border({ width: 1, color: this.canPrepareConnect(provider) ? ThemeConstants.BRAND_PRIMARY : ThemeConstants.TEXT_SECONDARY })
+        .borderRadius(ThemeConstants.RADIUS_CHIP)
         .enabled(this.canPrepareConnect(provider))
         .onClick(() => {
           this.prepareConnect(provider)
         })
     }
     .width('100%')
-    .padding({ left: 16, right: 16, top: 14, bottom: 14 })
+    .padding({ left: ThemeConstants.SPACE_LG, right: ThemeConstants.SPACE_LG, top: ThemeConstants.SPACE_LG, bottom: ThemeConstants.SPACE_LG })
   }
 
   @Builder
@@ -183,21 +183,21 @@ export struct TrackerSettingsPage {
         if (index < TRACKER_PROVIDER_CONFIGS.length - 1) {
           Divider()
             .strokeWidth(0.5)
-            .color($r('app.color.koma_background'))
-            .margin({ left: 16, right: 16 })
+            .color(ThemeConstants.DIVIDER)
+            .margin({ left: ThemeConstants.SPACE_LG, right: ThemeConstants.SPACE_LG })
         }
       }, (provider: TrackerProviderConfig) => provider.providerId)
     }
     .width('100%')
-    .borderRadius(8)
-    .backgroundColor($r('app.color.koma_card'))
+    .borderRadius(ThemeConstants.RADIUS_CARD)
+    .backgroundColor(ThemeConstants.CARD)
   }
 
   build() {
     Column() {
       SecondaryListScaffold({
-        listSpace: 12,
-        horizontalPadding: 20,
+        listSpace: ThemeConstants.SPACE_MD,
+        horizontalPadding: ThemeConstants.SPACE_XL,
         bottomPadding: ThemeConstants.FLOAT_BAR_HEIGHT + 20 + ThemeConstants.SPACE_XL,
       }) {
         ListItem() {
@@ -210,6 +210,6 @@ export struct TrackerSettingsPage {
     }
     .width('100%')
     .height('100%')
-    .backgroundColor($r('sys.color.ohos_id_color_sub_background'))
+    .backgroundColor(ThemeConstants.BG_SUB)
   }
 }

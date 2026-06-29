@@ -242,51 +242,51 @@ export struct LibraryCategoryManagementPage {
 
   @Builder
   private StrategyRow(categoryId: LibraryCategoryDisplayCategoryId, title: string) {
-    Row({ space: 10 }) {
-      Column({ space: 4 }) {
+    Row({ space: ThemeConstants.SPACE_MD }) {
+      Column({ space: ThemeConstants.SPACE_XS }) {
         Text(title)
-          .fontSize(15)
+          .fontSize(ThemeConstants.FONT_SIZE_BODY)
           .fontWeight(FontWeight.Medium)
-          .fontColor($r('app.color.koma_text_primary'))
+          .fontColor(ThemeConstants.TEXT_PRIMARY)
           .maxLines(1)
           .textOverflow({ overflow: TextOverflow.Ellipsis })
         Text('打开分类时自动使用')
-          .fontSize(13)
-          .fontColor($r('app.color.koma_text_secondary'))
+          .fontSize(ThemeConstants.FONT_SIZE_META)
+          .fontColor(ThemeConstants.TEXT_SECONDARY)
       }
       .layoutWeight(1)
       .alignItems(HorizontalAlign.Start)
       Button(this.sortLabel(this.categoryStrategy(categoryId).sortBy))
-        .height(36)
-        .padding({ left: 12, right: 12 })
-        .borderRadius(8)
-        .fontSize(14)
-        .fontColor($r('app.color.koma_text_primary'))
-        .backgroundColor('#0F000000')
+        .height(ThemeConstants.ACTION_CHIP_HEIGHT)
+        .padding({ left: ThemeConstants.SPACE_MD, right: ThemeConstants.SPACE_MD })
+        .borderRadius(ThemeConstants.RADIUS_CHIP)
+        .fontSize(ThemeConstants.FONT_SIZE_BODY)
+        .fontColor(ThemeConstants.TEXT_PRIMARY)
+        .backgroundColor(ThemeConstants.SOFT_PRESSED)
         .bindMenu(this.CategorySortMenu(categoryId))
       Button(this.readStateLabel(this.categoryStrategy(categoryId).readState))
-        .height(36)
-        .padding({ left: 12, right: 12 })
-        .borderRadius(8)
-        .fontSize(14)
-        .fontColor($r('app.color.koma_text_primary'))
-        .backgroundColor('#0F000000')
+        .height(ThemeConstants.ACTION_CHIP_HEIGHT)
+        .padding({ left: ThemeConstants.SPACE_MD, right: ThemeConstants.SPACE_MD })
+        .borderRadius(ThemeConstants.RADIUS_CHIP)
+        .fontSize(ThemeConstants.FONT_SIZE_BODY)
+        .fontColor(ThemeConstants.TEXT_PRIMARY)
+        .backgroundColor(ThemeConstants.SOFT_PRESSED)
         .bindMenu(this.CategoryReadStateMenu(categoryId))
     }
     .width('100%')
-    .padding({ left: 16, right: 16, top: 14, bottom: 14 })
-    .borderRadius(8)
-    .backgroundColor($r('app.color.koma_card'))
+    .padding({ left: ThemeConstants.SPACE_LG, right: ThemeConstants.SPACE_LG, top: ThemeConstants.SPACE_LG, bottom: ThemeConstants.SPACE_LG })
+    .borderRadius(ThemeConstants.RADIUS_CARD)
+    .backgroundColor(ThemeConstants.CARD)
   }
 
   @Builder
   private DisplayStrategySection() {
-    Column({ space: 10 }) {
+    Column({ space: ThemeConstants.SPACE_MD }) {
       Text('分类显示方式')
         .width('100%')
-        .fontSize(15)
+        .fontSize(ThemeConstants.FONT_SIZE_BODY)
         .fontWeight(FontWeight.Medium)
-        .fontColor($r('app.color.koma_text_primary'))
+        .fontColor(ThemeConstants.TEXT_PRIMARY)
       this.StrategyRow('all', '全部分类')
       this.StrategyRow('uncategorized', '未分类')
       this.StrategyRow(LIBRARY_CATEGORY_FAVORITE_ID, '收藏')
@@ -334,26 +334,26 @@ export struct LibraryCategoryManagementPage {
 
   @Builder
   private CreateCard() {
-    Column({ space: 12 }) {
+    Column({ space: ThemeConstants.SPACE_MD }) {
       Text('新建分类')
         .width('100%')
-        .fontSize(15)
+        .fontSize(ThemeConstants.FONT_SIZE_BODY)
         .fontWeight(FontWeight.Medium)
-        .fontColor($r('app.color.koma_text_primary'))
-      Row({ space: 10 }) {
+        .fontColor(ThemeConstants.TEXT_PRIMARY)
+      Row({ space: ThemeConstants.SPACE_MD }) {
         TextInput({ placeholder: `最多 ${LIBRARY_CATEGORY_NAME_MAX_LENGTH} 个字符`, text: this.draftName })
-          .height(42)
+          .height(ThemeConstants.BUTTON_HEIGHT)
           .layoutWeight(1)
           .onChange((value: string) => {
             this.draftName = value
           })
         Button('创建')
-          .height(42)
-          .padding({ left: 16, right: 16 })
-          .borderRadius(8)
-          .fontSize(15)
-          .fontColor(Color.White)
-          .backgroundColor($r('app.color.koma_accent'))
+          .height(ThemeConstants.BUTTON_HEIGHT)
+          .padding({ left: ThemeConstants.SPACE_LG, right: ThemeConstants.SPACE_LG })
+          .borderRadius(ThemeConstants.RADIUS_CHIP)
+          .fontSize(ThemeConstants.FONT_SIZE_BODY)
+          .fontColor(ThemeConstants.TEXT_ON_BRAND)
+          .backgroundColor(ThemeConstants.BRAND_PRIMARY)
           .onClick(() => {
             this.persistCreate()
           })
@@ -361,100 +361,100 @@ export struct LibraryCategoryManagementPage {
       .width('100%')
     }
     .width('100%')
-    .padding({ left: 16, right: 16, top: 16, bottom: 16 })
-    .borderRadius(8)
-    .backgroundColor($r('app.color.koma_card'))
+    .padding({ left: ThemeConstants.SPACE_LG, right: ThemeConstants.SPACE_LG, top: ThemeConstants.SPACE_LG, bottom: ThemeConstants.SPACE_LG })
+    .borderRadius(ThemeConstants.RADIUS_CARD)
+    .backgroundColor(ThemeConstants.CARD)
   }
 
   @Builder
   private CategoryRow(category: CustomLibraryCategory) {
-    Column({ space: 10 }) {
+    Column({ space: ThemeConstants.SPACE_MD }) {
       if (this.editingCategoryId === category.id) {
         TextInput({ text: this.editingName })
           .width('100%')
-          .height(42)
+          .height(ThemeConstants.BUTTON_HEIGHT)
           .onChange((value: string) => {
             this.editingName = value
           })
-        Row({ space: 10 }) {
+        Row({ space: ThemeConstants.SPACE_MD }) {
           Button('保存')
-            .height(36)
-            .padding({ left: 14, right: 14 })
-            .borderRadius(8)
-            .fontSize(14)
-            .fontColor(Color.White)
-            .backgroundColor($r('app.color.koma_accent'))
+            .height(ThemeConstants.ACTION_CHIP_HEIGHT)
+            .padding({ left: ThemeConstants.SPACE_LG, right: ThemeConstants.SPACE_LG })
+            .borderRadius(ThemeConstants.RADIUS_CHIP)
+            .fontSize(ThemeConstants.FONT_SIZE_BODY)
+            .fontColor(ThemeConstants.TEXT_ON_BRAND)
+            .backgroundColor(ThemeConstants.BRAND_PRIMARY)
             .onClick(() => {
               this.persistRename(category.id)
             })
           Button('取消')
-            .height(36)
-            .padding({ left: 14, right: 14 })
-            .borderRadius(8)
-            .fontSize(14)
-            .fontColor($r('app.color.koma_text_primary'))
-            .backgroundColor('#0F000000')
+            .height(ThemeConstants.ACTION_CHIP_HEIGHT)
+            .padding({ left: ThemeConstants.SPACE_LG, right: ThemeConstants.SPACE_LG })
+            .borderRadius(ThemeConstants.RADIUS_CHIP)
+            .fontSize(ThemeConstants.FONT_SIZE_BODY)
+            .fontColor(ThemeConstants.TEXT_PRIMARY)
+            .backgroundColor(ThemeConstants.SOFT_PRESSED)
             .onClick(() => {
               this.cancelRename()
             })
         }
         .width('100%')
       } else {
-        Row({ space: 10 }) {
-          Column({ space: 4 }) {
+        Row({ space: ThemeConstants.SPACE_MD }) {
+          Column({ space: ThemeConstants.SPACE_XS }) {
             Text(category.name)
-              .fontSize(15)
+              .fontSize(ThemeConstants.FONT_SIZE_BODY)
               .fontWeight(FontWeight.Medium)
-              .fontColor($r('app.color.koma_text_primary'))
+              .fontColor(ThemeConstants.TEXT_PRIMARY)
               .maxLines(1)
               .textOverflow({ overflow: TextOverflow.Ellipsis })
             Text(`${this.categoryUsageCount(category.id)} 本漫画`)
-              .fontSize(13)
-              .fontColor($r('app.color.koma_text_secondary'))
+              .fontSize(ThemeConstants.FONT_SIZE_META)
+              .fontColor(ThemeConstants.TEXT_SECONDARY)
           }
           .layoutWeight(1)
           .alignItems(HorizontalAlign.Start)
           Button('上移')
-            .height(36)
-            .padding({ left: 12, right: 12 })
-            .borderRadius(8)
-            .fontSize(14)
-            .fontColor($r('app.color.koma_text_primary'))
-            .backgroundColor('#0F000000')
+            .height(ThemeConstants.ACTION_CHIP_HEIGHT)
+            .padding({ left: ThemeConstants.SPACE_MD, right: ThemeConstants.SPACE_MD })
+            .borderRadius(ThemeConstants.RADIUS_CHIP)
+            .fontSize(ThemeConstants.FONT_SIZE_BODY)
+            .fontColor(ThemeConstants.TEXT_PRIMARY)
+            .backgroundColor(ThemeConstants.SOFT_PRESSED)
             .enabled(!this.isFirstCategory(category))
             .opacity(this.isFirstCategory(category) ? 0.45 : 1)
             .onClick(() => {
               this.persistMove(category.id, 'up')
             })
           Button('下移')
-            .height(36)
-            .padding({ left: 12, right: 12 })
-            .borderRadius(8)
-            .fontSize(14)
-            .fontColor($r('app.color.koma_text_primary'))
-            .backgroundColor('#0F000000')
+            .height(ThemeConstants.ACTION_CHIP_HEIGHT)
+            .padding({ left: ThemeConstants.SPACE_MD, right: ThemeConstants.SPACE_MD })
+            .borderRadius(ThemeConstants.RADIUS_CHIP)
+            .fontSize(ThemeConstants.FONT_SIZE_BODY)
+            .fontColor(ThemeConstants.TEXT_PRIMARY)
+            .backgroundColor(ThemeConstants.SOFT_PRESSED)
             .enabled(!this.isLastCategory(category))
             .opacity(this.isLastCategory(category) ? 0.45 : 1)
             .onClick(() => {
               this.persistMove(category.id, 'down')
             })
           Button('重命名')
-            .height(36)
-            .padding({ left: 12, right: 12 })
-            .borderRadius(8)
-            .fontSize(14)
-            .fontColor($r('app.color.koma_text_primary'))
-            .backgroundColor('#0F000000')
+            .height(ThemeConstants.ACTION_CHIP_HEIGHT)
+            .padding({ left: ThemeConstants.SPACE_MD, right: ThemeConstants.SPACE_MD })
+            .borderRadius(ThemeConstants.RADIUS_CHIP)
+            .fontSize(ThemeConstants.FONT_SIZE_BODY)
+            .fontColor(ThemeConstants.TEXT_PRIMARY)
+            .backgroundColor(ThemeConstants.SOFT_PRESSED)
             .onClick(() => {
               this.startRename(category)
             })
           Button('删除')
-            .height(36)
-            .padding({ left: 12, right: 12 })
-            .borderRadius(8)
-            .fontSize(14)
-            .fontColor(Color.White)
-            .backgroundColor($r('app.color.koma_danger'))
+            .height(ThemeConstants.ACTION_CHIP_HEIGHT)
+            .padding({ left: ThemeConstants.SPACE_MD, right: ThemeConstants.SPACE_MD })
+            .borderRadius(ThemeConstants.RADIUS_CHIP)
+            .fontSize(ThemeConstants.FONT_SIZE_BODY)
+            .fontColor(ThemeConstants.TEXT_ON_BRAND)
+            .backgroundColor(ThemeConstants.DANGER)
             .onClick(() => {
               this.confirmDelete(category)
             })
@@ -463,21 +463,21 @@ export struct LibraryCategoryManagementPage {
       }
     }
     .width('100%')
-    .padding({ left: 16, right: 16, top: 14, bottom: 14 })
-    .borderRadius(8)
-    .backgroundColor($r('app.color.koma_card'))
+    .padding({ left: ThemeConstants.SPACE_LG, right: ThemeConstants.SPACE_LG, top: ThemeConstants.SPACE_LG, bottom: ThemeConstants.SPACE_LG })
+    .borderRadius(ThemeConstants.RADIUS_CARD)
+    .backgroundColor(ThemeConstants.CARD)
   }
 
   @Builder
   private EmptyCard() {
     Text('暂无自定义分类')
       .width('100%')
-      .fontSize(15)
-      .fontColor($r('app.color.koma_text_secondary'))
+      .fontSize(ThemeConstants.FONT_SIZE_BODY)
+      .fontColor(ThemeConstants.TEXT_SECONDARY)
       .textAlign(TextAlign.Center)
-      .padding({ left: 16, right: 16, top: 24, bottom: 24 })
-      .borderRadius(8)
-      .backgroundColor($r('app.color.koma_card'))
+      .padding({ left: ThemeConstants.SPACE_LG, right: ThemeConstants.SPACE_LG, top: ThemeConstants.SPACE_XL, bottom: ThemeConstants.SPACE_XL })
+      .borderRadius(ThemeConstants.RADIUS_CARD)
+      .backgroundColor(ThemeConstants.CARD)
   }
 
   aboutToAppear(): void {
@@ -487,8 +487,8 @@ export struct LibraryCategoryManagementPage {
   build() {
     Column() {
       SecondaryListScaffold({
-        listSpace: 14,
-        horizontalPadding: 20,
+        listSpace: ThemeConstants.SPACE_LG,
+        horizontalPadding: ThemeConstants.SPACE_XL,
         bottomPadding: ThemeConstants.FLOAT_BAR_HEIGHT + 20,
       }) {
         ListItem() {
@@ -512,6 +512,6 @@ export struct LibraryCategoryManagementPage {
     }
     .width('100%')
     .height('100%')
-    .backgroundColor($r('sys.color.ohos_id_color_sub_background'))
+    .backgroundColor(ThemeConstants.BG_SUB)
   }
 }

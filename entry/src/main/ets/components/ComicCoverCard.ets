@@ -1,3 +1,5 @@
+import { ThemeConstants } from '../theme/ThemeConstants'
+
 export interface ComicCoverInfo {
   id: string
   title: string
@@ -17,8 +19,8 @@ export struct ComicCoverCard {
     title: '',
     subtitle: '',
     progressText: '',
-    coverColor: '#FFFFFF',
-    accentColor: '#E66A3A'
+    coverColor: ThemeConstants.SOURCE_LOCAL_COLOR,
+    accentColor: ThemeConstants.SOURCE_OPDS_COLOR
   }
   @Prop title: string = ''
   @Prop subtitle: string = ''
@@ -53,33 +55,33 @@ export struct ComicCoverCard {
   }
 
   build() {
-    Column({ space: 8 }) {
+    Column({ space: ThemeConstants.SPACE_SM }) {
       Stack({ alignContent: Alignment.BottomStart }) {
         Column() {
           Text(this.displayTitle())
-            .fontSize(17)
+            .fontSize(ThemeConstants.FONT_SIZE_TITLE)
             .fontWeight(FontWeight.Bold)
-            .fontColor(Color.White)
-            .lineHeight(22)
+            .fontColor(ThemeConstants.TEXT_ON_BRAND)
+            .lineHeight(ThemeConstants.LINE_HEIGHT_TITLE)
             .maxLines(3)
             .textOverflow({ overflow: TextOverflow.Ellipsis })
           Blank()
           Text('Koma')
-            .fontSize(12)
+            .fontSize(ThemeConstants.FONT_SIZE_CAPTION)
             .fontWeight(FontWeight.Medium)
-            .fontColor('#EAF8F1')
+            .fontColor(ThemeConstants.TEXT_ON_BRAND)
             .opacity(0.86)
         }
         .width('100%')
         .height('100%')
-        .padding(14)
+        .padding(ThemeConstants.SPACE_MD)
         .backgroundColor(this.displayCoverColor())
 
         Row() {
           Text(this.displayProgressText())
-            .fontSize(11)
+            .fontSize(ThemeConstants.FONT_SIZE_TAG)
             .fontWeight(FontWeight.Medium)
-            .fontColor(Color.White)
+            .fontColor(ThemeConstants.TEXT_ON_BRAND)
             .maxLines(1)
         }
         .height(26)
@@ -92,42 +94,42 @@ export struct ComicCoverCard {
           Column()
             .width('100%')
             .height('100%')
-            .backgroundColor('#66000000')
+            .backgroundColor(ThemeConstants.SELECTED_OVERLAY)
 
           Stack({ alignContent: Alignment.Center }) {
             Text('✓')
-              .fontSize(18)
+              .fontSize(ThemeConstants.FONT_SIZE_HEADING)
               .fontWeight(FontWeight.Bold)
-              .fontColor(Color.White)
+              .fontColor(ThemeConstants.TEXT_ON_BRAND)
           }
-          .width(34)
-          .height(34)
+          .width(ThemeConstants.FILTER_CHIP_HEIGHT)
+          .height(ThemeConstants.FILTER_CHIP_HEIGHT)
           .margin({ top: 10, right: 10 })
-          .borderRadius(17)
-          .backgroundColor($r('app.color.koma_accent'))
-          .border({ width: 2, color: Color.White })
+          .borderRadius(ThemeConstants.RADIUS_MD)
+          .backgroundColor(ThemeConstants.BRAND_PRIMARY)
+          .border({ width: 2, color: ThemeConstants.TEXT_ON_BRAND })
           .align(Alignment.TopEnd)
         }
       }
       .width('100%')
       .aspectRatio(0.68)
-      .borderRadius(22)
+      .borderRadius(ThemeConstants.RADIUS_MD)
       .clip(true)
-      .shadow({ radius: 14, color: '#1A000000', offsetY: 7 })
+      .shadow({ radius: 14, color: ThemeConstants.SHADOW_CARD, offsetY: 7 })
 
       Text(this.displayTitle())
         .width('100%')
-        .fontSize(14)
+        .fontSize(ThemeConstants.FONT_SIZE_BODY)
         .fontWeight(FontWeight.Medium)
-        .fontColor($r('app.color.koma_text_primary'))
+        .fontColor(ThemeConstants.TEXT_PRIMARY)
         .maxLines(2)
         .lineHeight(18)
         .textOverflow({ overflow: TextOverflow.Ellipsis })
 
       Text(this.displaySubtitle())
         .width('100%')
-        .fontSize(12)
-        .fontColor($r('app.color.koma_text_secondary'))
+        .fontSize(ThemeConstants.FONT_SIZE_CAPTION)
+        .fontColor(ThemeConstants.TEXT_SECONDARY)
         .maxLines(1)
         .textOverflow({ overflow: TextOverflow.Ellipsis })
 
@@ -137,10 +139,10 @@ export struct ComicCoverCard {
             Text(categoryLabel)
               .height(20)
               .padding({ left: 8, right: 8 })
-              .borderRadius(8)
-              .fontSize(11)
-              .fontColor($r('app.color.koma_accent'))
-              .backgroundColor('#1FE66A3A')
+              .borderRadius(ThemeConstants.RADIUS_CHIP)
+              .fontSize(ThemeConstants.FONT_SIZE_TAG)
+              .fontColor(ThemeConstants.BRAND_PRIMARY)
+              .backgroundColor(ThemeConstants.SOFT_TINT)
               .maxLines(1)
           }, (categoryLabel: string) => categoryLabel)
         }

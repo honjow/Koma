@@ -105,12 +105,11 @@ export struct HistoryPage {
   }
 
   private coverColor(item: LibraryItem): string {
-    const colors: string[] = ['#16745F', '#D45B3E', '#2D5E8B', '#8A5A2B', '#6E4A86', '#4D6B3C']
     let hash = 0
     for (let index = 0; index < item.comicId.length; index += 1) {
-      hash = (hash + item.comicId.charCodeAt(index)) % colors.length
+      hash = (hash + item.comicId.charCodeAt(index)) % ThemeConstants.COVER_PALETTE.length
     }
-    return colors[hash]
+    return ThemeConstants.COVER_PALETTE[hash]
   }
 
   private chapterText(item: LibraryItem): string {
@@ -144,22 +143,22 @@ export struct HistoryPage {
 
   @Builder
   private EmptyHistory() {
-    Column({ space: 10 }) {
+    Column({ space: ThemeConstants.SPACE_MD }) {
       Text('暂无阅读历史')
-        .fontSize(18)
+        .fontSize(ThemeConstants.FONT_SIZE_HEADING)
         .fontWeight(FontWeight.Medium)
-        .fontColor($r('app.color.koma_text_primary'))
+        .fontColor(ThemeConstants.TEXT_PRIMARY)
       Text('打开漫画读几页后，最近阅读会显示在这里。')
-        .fontSize(13)
-        .lineHeight(20)
-        .fontColor($r('app.color.koma_text_secondary'))
+        .fontSize(ThemeConstants.FONT_SIZE_META)
+        .lineHeight(ThemeConstants.LINE_HEIGHT_BODY)
+        .fontColor(ThemeConstants.TEXT_SECONDARY)
         .textAlign(TextAlign.Center)
     }
     .width('100%')
     .height(220)
-    .padding(24)
-    .borderRadius(8)
-    .backgroundColor($r('app.color.koma_card'))
+    .padding(ThemeConstants.SPACE_XL)
+    .borderRadius(ThemeConstants.RADIUS_CARD)
+    .backgroundColor(ThemeConstants.CARD)
     .justifyContent(FlexAlign.Center)
     .alignItems(HorizontalAlign.Center)
   }
@@ -174,43 +173,43 @@ export struct HistoryPage {
           .objectFit(ImageFit.Cover)
       } else {
         Text('K')
-          .fontSize(28)
+          .fontSize(ThemeConstants.FONT_SIZE_H1)
           .fontWeight(FontWeight.Bold)
-          .fontColor(Color.White)
+          .fontColor(ThemeConstants.TEXT_ON_BRAND)
       }
     }
     .width(64)
     .height(88)
-    .borderRadius(8)
+    .borderRadius(ThemeConstants.RADIUS_THUMB)
     .clip(true)
     .backgroundColor(this.coverColor(item))
   }
 
   @Builder
   private HistoryRow(item: LibraryItem) {
-    Row({ space: 14 }) {
+    Row({ space: ThemeConstants.SPACE_LG }) {
       this.Cover(item)
 
-      Column({ space: 7 }) {
+      Column({ space: ThemeConstants.SPACE_SM }) {
         Row() {
           Text(item.title)
-            .fontSize(16)
+            .fontSize(ThemeConstants.FONT_SIZE_TITLE)
             .fontWeight(FontWeight.Medium)
-            .fontColor($r('app.color.koma_text_primary'))
+            .fontColor(ThemeConstants.TEXT_PRIMARY)
             .maxLines(2)
             .textOverflow({ overflow: TextOverflow.Ellipsis })
             .layoutWeight(1)
           Text(this.relativeTime(item.lastReadAt))
-            .fontSize(12)
-            .fontColor($r('app.color.koma_text_secondary'))
-            .margin({ left: 10 })
+            .fontSize(ThemeConstants.FONT_SIZE_CAPTION)
+            .fontColor(ThemeConstants.TEXT_SECONDARY)
+            .margin({ left: ThemeConstants.SPACE_MD })
         }
         .width('100%')
         .alignItems(VerticalAlign.Top)
 
         Text(this.progressText(item))
-          .fontSize(13)
-          .fontColor($r('app.color.koma_text_secondary'))
+          .fontSize(ThemeConstants.FONT_SIZE_META)
+          .fontColor(ThemeConstants.TEXT_SECONDARY)
           .maxLines(1)
           .textOverflow({ overflow: TextOverflow.Ellipsis })
 
@@ -220,16 +219,16 @@ export struct HistoryPage {
           type: ProgressType.Linear,
         })
           .height(4)
-          .color($r('app.color.koma_accent'))
-          .backgroundColor('#1FE66A3A')
+          .color(ThemeConstants.BRAND_PRIMARY)
+          .backgroundColor(ThemeConstants.SOFT_TINT)
       }
       .layoutWeight(1)
       .alignItems(HorizontalAlign.Start)
     }
     .width('100%')
-    .padding(14)
-    .borderRadius(8)
-    .backgroundColor($r('app.color.koma_card'))
+    .padding(ThemeConstants.SPACE_LG)
+    .borderRadius(ThemeConstants.RADIUS_CARD)
+    .backgroundColor(ThemeConstants.CARD)
     .onClick(() => {
       this.openHistoryItem(item)
     })
@@ -246,8 +245,8 @@ export struct HistoryPage {
   build() {
     Column() {
       SecondaryListScaffold({
-        listSpace: 12,
-        horizontalPadding: 20,
+        listSpace: ThemeConstants.SPACE_MD,
+        horizontalPadding: ThemeConstants.SPACE_XL,
         bottomPadding: ThemeConstants.FLOAT_BAR_HEIGHT + 20,
       }) {
         if (this.historyItems.length === 0) {
@@ -265,6 +264,6 @@ export struct HistoryPage {
     }
     .width('100%')
     .height('100%')
-    .backgroundColor($r('sys.color.ohos_id_color_sub_background'))
+    .backgroundColor(ThemeConstants.BG_SUB)
   }
 }

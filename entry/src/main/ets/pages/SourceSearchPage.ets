@@ -50,19 +50,19 @@ export struct SourceSearchPage {
 
   @Builder
   private EmptySearch() {
-    Column({ space: 8 }) {
+    Column({ space: ThemeConstants.SPACE_SM }) {
       Text(this.query.trim().length === 0 ? '输入关键词搜索' : '没有找到结果')
-        .fontSize(18)
+        .fontSize(ThemeConstants.FONT_SIZE_HEADING)
         .fontWeight(FontWeight.Medium)
-        .fontColor($r('app.color.koma_text_primary'))
+        .fontColor(ThemeConstants.TEXT_PRIMARY)
       Text(this.query.trim().length === 0 ? '搜索当前源内的漫画。' : '换个关键词再试。')
-        .fontSize(14)
-        .fontColor($r('app.color.koma_text_secondary'))
+        .fontSize(ThemeConstants.FONT_SIZE_BODY)
+        .fontColor(ThemeConstants.TEXT_SECONDARY)
     }
     .width('100%')
-    .padding(24)
-    .borderRadius(8)
-    .backgroundColor($r('app.color.koma_card'))
+    .padding(ThemeConstants.SPACE_XL)
+    .borderRadius(ThemeConstants.RADIUS_CARD)
+    .backgroundColor(ThemeConstants.CARD)
     .alignItems(HorizontalAlign.Center)
   }
 
@@ -95,15 +95,15 @@ export struct SourceSearchPage {
 
   build() {
     Scroll() {
-      Column({ space: 16 }) {
-        Column({ space: 4 }) {
+      Column({ space: ThemeConstants.SPACE_LG }) {
+        Column({ space: ThemeConstants.SPACE_XS }) {
           Text('搜索')
-            .fontSize(30)
+            .fontSize(ThemeConstants.FONT_SIZE_H1)
             .fontWeight(FontWeight.Bold)
-            .fontColor($r('app.color.koma_text_primary'))
+            .fontColor(ThemeConstants.TEXT_PRIMARY)
           Text(this.source.displayName)
-            .fontSize(14)
-            .fontColor($r('app.color.koma_text_secondary'))
+            .fontSize(ThemeConstants.FONT_SIZE_BODY)
+            .fontColor(ThemeConstants.TEXT_SECONDARY)
             .maxLines(1)
             .textOverflow({ overflow: TextOverflow.Ellipsis })
         }
@@ -112,10 +112,10 @@ export struct SourceSearchPage {
 
         Search({ value: this.query, placeholder: '搜索漫画' })
           .width('100%')
-          .height(42)
-          .backgroundColor($r('app.color.koma_card'))
-          .placeholderColor($r('app.color.koma_text_secondary'))
-          .textFont({ size: 15, weight: FontWeight.Regular })
+          .height(ThemeConstants.BUTTON_HEIGHT)
+          .backgroundColor(ThemeConstants.CARD)
+          .placeholderColor(ThemeConstants.TEXT_SECONDARY)
+          .textFont({ size: ThemeConstants.FONT_SIZE_BODY, weight: FontWeight.Regular })
           .onChange((value: string) => {
             this.scheduleSearch(value)
           })
@@ -125,29 +125,29 @@ export struct SourceSearchPage {
 
         if (this.viewModel.loadingSearch) {
           LoadingProgress()
-            .width(36)
-            .height(36)
-            .color($r('app.color.koma_accent'))
+            .width(ThemeConstants.SPACE_XXL)
+            .height(ThemeConstants.SPACE_XXL)
+            .color(ThemeConstants.BRAND_PRIMARY)
         } else if (this.viewModel.errorMessage.length > 0) {
           Text(this.viewModel.errorMessage)
             .width('100%')
-            .fontSize(14)
-            .fontColor($r('app.color.koma_danger'))
-            .padding(16)
-            .borderRadius(8)
-            .backgroundColor($r('app.color.koma_card'))
+            .fontSize(ThemeConstants.FONT_SIZE_BODY)
+            .fontColor(ThemeConstants.DANGER)
+            .padding(ThemeConstants.SPACE_LG)
+            .borderRadius(ThemeConstants.RADIUS_CARD)
+            .backgroundColor(ThemeConstants.CARD)
         } else if (this.viewModel.searchResults.length === 0) {
           this.EmptySearch()
         } else {
           this.ResultsGrid(this.viewModel.searchResults)
           if (this.viewModel.hasMoreSearch) {
             Button('加载更多')
-              .height(42)
+              .height(ThemeConstants.BUTTON_HEIGHT)
               .width('100%')
-              .borderRadius(8)
-              .fontSize(14)
-              .fontColor($r('app.color.koma_accent'))
-              .backgroundColor($r('app.color.koma_card'))
+              .borderRadius(ThemeConstants.RADIUS_CHIP)
+              .fontSize(ThemeConstants.FONT_SIZE_BODY)
+              .fontColor(ThemeConstants.BRAND_PRIMARY)
+              .backgroundColor(ThemeConstants.CARD)
               .onClick(() => {
                 void this.viewModel.loadMoreSearch()
               })
@@ -155,11 +155,16 @@ export struct SourceSearchPage {
         }
       }
       .width('100%')
-      .padding({ left: 20, right: 20, top: this.topContentInset(), bottom: this.bottomContentInset() })
+      .padding({
+        left: ThemeConstants.SPACE_XL,
+        right: ThemeConstants.SPACE_XL,
+        top: this.topContentInset(),
+        bottom: this.bottomContentInset(),
+      })
     }
     .width('100%')
     .height('100%')
-    .backgroundColor($r('app.color.koma_background'))
+    .backgroundColor(ThemeConstants.BG_SUB)
     .onReachEnd(() => {
       void this.viewModel.loadMoreSearch()
     })

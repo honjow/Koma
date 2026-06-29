@@ -814,63 +814,63 @@ export struct MangaDetailPage {
   private Toolbar() {
     Row() {
       Button('‹')
-        .width(40)
-        .height(40)
-        .borderRadius(8)
+        .width(ThemeConstants.ACTION_CHIP_HEIGHT)
+        .height(ThemeConstants.ACTION_CHIP_HEIGHT)
+        .borderRadius(ThemeConstants.RADIUS_CHIP)
         .fontSize(30)
-        .fontColor($r('app.color.koma_text_primary'))
-        .backgroundColor('#00000000')
+        .fontColor(ThemeConstants.TEXT_PRIMARY)
+        .backgroundColor(Color.Transparent)
         .onClick(() => {
           this.onBack()
         })
       Blank()
       Button('…')
-        .width(40)
-        .height(40)
-        .borderRadius(8)
-        .fontSize(24)
-        .fontColor($r('app.color.koma_text_primary'))
-        .backgroundColor('#00000000')
+        .width(ThemeConstants.ACTION_CHIP_HEIGHT)
+        .height(ThemeConstants.ACTION_CHIP_HEIGHT)
+        .borderRadius(ThemeConstants.RADIUS_CHIP)
+        .fontSize(ThemeConstants.FONT_SIZE_H1)
+        .fontColor(ThemeConstants.TEXT_PRIMARY)
+        .backgroundColor(Color.Transparent)
     }
     .width('100%')
-    .height(48)
+    .height(ThemeConstants.SOURCE_ICON_SIZE)
     .alignItems(VerticalAlign.Center)
   }
 
   @Builder
   private ActionButtons() {
-    Row({ space: 12 }) {
+    Row({ space: ThemeConstants.SPACE_MD }) {
       Button(this.isInLibrary ? '已收藏' : '收藏书架', { type: ButtonType.Capsule })
-        .height(44)
+        .height(ThemeConstants.BUTTON_HEIGHT)
         .layoutWeight(1)
-        .fontSize(15)
+        .fontSize(ThemeConstants.FONT_SIZE_BODY)
         .fontWeight(FontWeight.Medium)
-        .fontColor(this.isInLibrary ? Color.White : $r('app.color.koma_accent'))
-        .backgroundColor(this.isInLibrary ? $r('app.color.koma_accent') : '#00000000')
-        .border({ width: 1, color: $r('app.color.koma_accent') })
+        .fontColor(this.isInLibrary ? ThemeConstants.TEXT_ON_BRAND : ThemeConstants.BRAND_PRIMARY)
+        .backgroundColor(this.isInLibrary ? ThemeConstants.BRAND_PRIMARY : Color.Transparent)
+        .border({ width: 1, color: ThemeConstants.BRAND_PRIMARY })
         .onClick(() => {
           this.handleAddToLibrary()
         })
 
       Button(this.primaryReadLabel(), { type: ButtonType.Capsule })
-        .height(44)
+        .height(ThemeConstants.BUTTON_HEIGHT)
         .layoutWeight(1)
-        .fontSize(15)
+        .fontSize(ThemeConstants.FONT_SIZE_BODY)
         .fontWeight(FontWeight.Medium)
-        .fontColor(Color.White)
-        .backgroundColor($r('app.color.koma_accent'))
+        .fontColor(ThemeConstants.TEXT_ON_BRAND)
+        .backgroundColor(ThemeConstants.BRAND_PRIMARY)
         .onClick(() => {
           this.handleStartReading()
         })
 
       Button(this.downloadButtonLabel(), { type: ButtonType.Capsule })
-        .height(44)
+        .height(ThemeConstants.BUTTON_HEIGHT)
         .layoutWeight(1)
-        .fontSize(15)
+        .fontSize(ThemeConstants.FONT_SIZE_BODY)
         .fontWeight(FontWeight.Medium)
-        .fontColor($r('app.color.koma_accent'))
-        .backgroundColor('#00000000')
-        .border({ width: 1, color: $r('app.color.koma_accent') })
+        .fontColor(ThemeConstants.BRAND_PRIMARY)
+        .backgroundColor(Color.Transparent)
+        .border({ width: 1, color: ThemeConstants.BRAND_PRIMARY })
         .enabled(!this.downloadBusy)
         .onClick(() => {
           this.handleDownloadChapter()
@@ -881,7 +881,7 @@ export struct MangaDetailPage {
 
   build() {
     Scroll() {
-      Column({ space: 24 }) {
+      Column({ space: ThemeConstants.SPACE_XL }) {
         this.Toolbar()
 
         MangaDetailHeader({
@@ -893,15 +893,15 @@ export struct MangaDetailPage {
         if (this.isLoading || this.feedbackText.length > 0) {
           Text(this.isLoading ? '加载中...' : this.feedbackText)
             .width('100%')
-            .fontSize(13)
-            .fontColor($r('app.color.koma_text_secondary'))
+            .fontSize(ThemeConstants.FONT_SIZE_META)
+            .fontColor(ThemeConstants.TEXT_SECONDARY)
         }
 
         if (this.downloadStatusText.length > 0) {
           Text(this.downloadStatusText)
             .width('100%')
-            .fontSize(13)
-            .fontColor($r('app.color.koma_text_secondary'))
+            .fontSize(ThemeConstants.FONT_SIZE_META)
+            .fontColor(ThemeConstants.TEXT_SECONDARY)
         }
 
         MangaDescriptionSection({
@@ -939,11 +939,11 @@ export struct MangaDetailPage {
         })
       }
       .width('100%')
-      .padding({ left: 20, right: 20, top: this.topContentInset(), bottom: this.bottomContentInset() })
+      .padding({ left: ThemeConstants.SPACE_XL, right: ThemeConstants.SPACE_XL, top: this.topContentInset(), bottom: this.bottomContentInset() })
     }
     .width('100%')
     .height('100%')
-    .backgroundColor($r('app.color.koma_background'))
+    .backgroundColor(ThemeConstants.BG_PRIMARY)
   }
 }
 

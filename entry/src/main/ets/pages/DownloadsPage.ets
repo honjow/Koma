@@ -458,44 +458,44 @@ export struct DownloadsPage {
 
   @Builder
   private QueueControls() {
-    Column({ space: 8 }) {
+    Column({ space: ThemeConstants.SPACE_SM }) {
       Text(this.queueStateText())
         .width('100%')
-        .fontSize(12)
-        .fontColor($r('app.color.koma_text_secondary'))
+        .fontSize(ThemeConstants.FONT_SIZE_CAPTION)
+        .fontColor(ThemeConstants.TEXT_SECONDARY)
         .maxLines(2)
         .textOverflow({ overflow: TextOverflow.Ellipsis })
 
       Row() {
         Button(`状态 ${this.filterLabel()} ▾`)
-          .height(34)
-          .padding({ left: 12, right: 12 })
-          .borderRadius(8)
-          .fontSize(13)
-          .fontColor(this.filter !== DownloadQueueFilter.ALL ? Color.White : $r('app.color.koma_text_primary'))
-          .backgroundColor(this.filter !== DownloadQueueFilter.ALL ? $r('app.color.koma_accent') : $r('app.color.koma_card'))
+          .height(ThemeConstants.FILTER_CHIP_HEIGHT)
+          .padding({ left: ThemeConstants.SPACE_MD, right: ThemeConstants.SPACE_MD })
+          .borderRadius(ThemeConstants.RADIUS_CHIP)
+          .fontSize(ThemeConstants.FONT_SIZE_META)
+          .fontColor(this.filter !== DownloadQueueFilter.ALL ? ThemeConstants.TEXT_ON_BRAND : ThemeConstants.TEXT_PRIMARY)
+          .backgroundColor(this.filter !== DownloadQueueFilter.ALL ? ThemeConstants.BRAND_PRIMARY : ThemeConstants.CARD)
           .bindMenu(this.FilterMenu())
         Button(`并发 ${this.preferences.foregroundConcurrencyLimit} ▾`)
-          .height(34)
-          .padding({ left: 12, right: 12 })
-          .borderRadius(8)
-          .fontSize(13)
-          .fontColor($r('app.color.koma_text_primary'))
-          .backgroundColor($r('app.color.koma_card'))
+          .height(ThemeConstants.FILTER_CHIP_HEIGHT)
+          .padding({ left: ThemeConstants.SPACE_MD, right: ThemeConstants.SPACE_MD })
+          .borderRadius(ThemeConstants.RADIUS_CHIP)
+          .fontSize(ThemeConstants.FONT_SIZE_META)
+          .fontColor(ThemeConstants.TEXT_PRIMARY)
+          .backgroundColor(ThemeConstants.CARD)
           .enabled(this.busyKey.length === 0)
           .bindMenu(this.ConcurrencyMenu())
       }
       .justifyContent(FlexAlign.SpaceBetween)
       .width('100%')
 
-      Row({ space: 8 }) {
+      Row({ space: ThemeConstants.SPACE_SM }) {
         Button(this.preferences.isPaused ? (this.busyKey === 'batch-resume' ? '继续中' : '继续队列') : '暂停队列')
-          .height(34)
-          .padding({ left: 12, right: 12 })
-          .borderRadius(8)
-          .fontSize(13)
-          .fontColor(this.preferences.isPaused ? Color.White : $r('app.color.koma_text_secondary'))
-          .backgroundColor(this.preferences.isPaused ? $r('app.color.koma_accent') : '#00000000')
+          .height(ThemeConstants.FILTER_CHIP_HEIGHT)
+          .padding({ left: ThemeConstants.SPACE_MD, right: ThemeConstants.SPACE_MD })
+          .borderRadius(ThemeConstants.RADIUS_CHIP)
+          .fontSize(ThemeConstants.FONT_SIZE_META)
+          .fontColor(this.preferences.isPaused ? ThemeConstants.TEXT_ON_BRAND : ThemeConstants.TEXT_SECONDARY)
+          .backgroundColor(this.preferences.isPaused ? ThemeConstants.BRAND_PRIMARY : Color.Transparent)
           .enabled(!this.preferences.isPaused || this.busyKey.length === 0)
           .onClick(() => {
             if (this.preferences.isPaused) {
@@ -505,23 +505,23 @@ export struct DownloadsPage {
             }
           })
         Button(this.busyKey === 'batch-retry' ? '重试中' : '重试失败')
-          .height(34)
-          .padding({ left: 12, right: 12 })
-          .borderRadius(8)
-          .fontSize(13)
-          .fontColor($r('app.color.koma_accent'))
-          .backgroundColor('#00000000')
+          .height(ThemeConstants.FILTER_CHIP_HEIGHT)
+          .padding({ left: ThemeConstants.SPACE_MD, right: ThemeConstants.SPACE_MD })
+          .borderRadius(ThemeConstants.RADIUS_CHIP)
+          .fontSize(ThemeConstants.FONT_SIZE_META)
+          .fontColor(ThemeConstants.BRAND_PRIMARY)
+          .backgroundColor(Color.Transparent)
           .enabled(this.busyKey.length === 0 && !this.preferences.isPaused)
           .onClick(() => {
             this.retryFailedDownloads()
           })
         Button(this.busyKey === 'batch-remove' ? '清理中' : '清理完成/失败')
-          .height(34)
-          .padding({ left: 12, right: 12 })
-          .borderRadius(8)
-          .fontSize(13)
-          .fontColor($r('app.color.koma_text_secondary'))
-          .backgroundColor('#00000000')
+          .height(ThemeConstants.FILTER_CHIP_HEIGHT)
+          .padding({ left: ThemeConstants.SPACE_MD, right: ThemeConstants.SPACE_MD })
+          .borderRadius(ThemeConstants.RADIUS_CHIP)
+          .fontSize(ThemeConstants.FONT_SIZE_META)
+          .fontColor(ThemeConstants.TEXT_SECONDARY)
+          .backgroundColor(Color.Transparent)
           .enabled(this.busyKey.length === 0)
           .onClick(() => {
             this.removeCompletedFailedDownloads()
@@ -534,44 +534,49 @@ export struct DownloadsPage {
 
   @Builder
   private EmptyState() {
-    Column({ space: 8 }) {
+    Column({ space: ThemeConstants.SPACE_SM }) {
       Text('暂无下载任务')
-        .fontSize(16)
+        .fontSize(ThemeConstants.FONT_SIZE_TITLE)
         .fontWeight(FontWeight.Medium)
-        .fontColor($r('app.color.koma_text_primary'))
+        .fontColor(ThemeConstants.TEXT_PRIMARY)
       Text('从漫画详情页选择章节下载后会显示在这里。')
-        .fontSize(13)
-        .fontColor($r('app.color.koma_text_secondary'))
+        .fontSize(ThemeConstants.FONT_SIZE_META)
+        .fontColor(ThemeConstants.TEXT_SECONDARY)
     }
     .width('100%')
-    .padding({ left: 16, right: 16, top: 28, bottom: 28 })
-    .borderRadius(8)
-    .backgroundColor($r('app.color.koma_card'))
+    .padding({
+      left: ThemeConstants.SPACE_LG,
+      right: ThemeConstants.SPACE_LG,
+      top: ThemeConstants.SPACE_XXL,
+      bottom: ThemeConstants.SPACE_XXL,
+    })
+    .borderRadius(ThemeConstants.RADIUS_CARD)
+    .backgroundColor(ThemeConstants.CARD)
   }
 
   @Builder
   private DownloadRow(entry: OfflineDownloadQueueEntry) {
-    Column({ space: 10 }) {
-      Row({ space: 12 }) {
-        Column({ space: 4 }) {
+    Column({ space: ThemeConstants.SPACE_MD }) {
+      Row({ space: ThemeConstants.SPACE_MD }) {
+        Column({ space: ThemeConstants.SPACE_XS }) {
           Text(this.rowTitle(entry))
             .width('100%')
-            .fontSize(15)
+            .fontSize(ThemeConstants.FONT_SIZE_BODY)
             .fontWeight(FontWeight.Medium)
-            .fontColor($r('app.color.koma_text_primary'))
+            .fontColor(ThemeConstants.TEXT_PRIMARY)
             .maxLines(1)
             .textOverflow({ overflow: TextOverflow.Ellipsis })
           Text(this.rowSubtitle(entry))
             .width('100%')
-            .fontSize(12)
-            .fontColor($r('app.color.koma_text_secondary'))
+            .fontSize(ThemeConstants.FONT_SIZE_CAPTION)
+            .fontColor(ThemeConstants.TEXT_SECONDARY)
             .maxLines(1)
             .textOverflow({ overflow: TextOverflow.Ellipsis })
           if (this.blockedHelpText(entry).length > 0) {
             Text(this.blockedHelpText(entry))
               .width('100%')
-              .fontSize(12)
-              .fontColor($r('app.color.koma_text_secondary'))
+              .fontSize(ThemeConstants.FONT_SIZE_CAPTION)
+              .fontColor(ThemeConstants.TEXT_SECONDARY)
               .maxLines(2)
               .textOverflow({ overflow: TextOverflow.Ellipsis })
           }
@@ -580,20 +585,20 @@ export struct DownloadsPage {
         .alignItems(HorizontalAlign.Start)
 
         Text(this.formatEntryStatus(entry))
-          .fontSize(12)
-          .fontColor($r('app.color.koma_accent'))
+          .fontSize(ThemeConstants.FONT_SIZE_CAPTION)
+          .fontColor(ThemeConstants.BRAND_PRIMARY)
       }
       .width('100%')
 
-      Row({ space: 10 }) {
+      Row({ space: ThemeConstants.SPACE_MD }) {
         if (this.canRetry(entry)) {
           Button(this.busyKey === this.rowKey(entry) ? '重试中' : '重试')
-            .height(32)
-            .padding({ left: 12, right: 12 })
-            .borderRadius(8)
-            .fontSize(13)
-            .fontColor(Color.White)
-            .backgroundColor($r('app.color.koma_accent'))
+            .height(ThemeConstants.ACTION_CHIP_HEIGHT)
+            .padding({ left: ThemeConstants.SPACE_MD, right: ThemeConstants.SPACE_MD })
+            .borderRadius(ThemeConstants.RADIUS_CHIP)
+            .fontSize(ThemeConstants.FONT_SIZE_META)
+            .fontColor(ThemeConstants.TEXT_ON_BRAND)
+            .backgroundColor(ThemeConstants.BRAND_PRIMARY)
             .enabled(this.busyKey.length === 0 && !this.preferences.isPaused)
             .onClick(() => {
               this.retryDownload(entry)
@@ -601,12 +606,12 @@ export struct DownloadsPage {
         }
         if (this.canRemove(entry)) {
           Button('移除')
-            .height(32)
-            .padding({ left: 12, right: 12 })
-            .borderRadius(8)
-            .fontSize(13)
-            .fontColor($r('app.color.koma_text_secondary'))
-            .backgroundColor('#00000000')
+            .height(ThemeConstants.ACTION_CHIP_HEIGHT)
+            .padding({ left: ThemeConstants.SPACE_MD, right: ThemeConstants.SPACE_MD })
+            .borderRadius(ThemeConstants.RADIUS_CHIP)
+            .fontSize(ThemeConstants.FONT_SIZE_META)
+            .fontColor(ThemeConstants.TEXT_SECONDARY)
+            .backgroundColor(Color.Transparent)
             .enabled(this.busyKey.length === 0)
             .onClick(() => {
               this.removeDownload(entry)
@@ -616,16 +621,21 @@ export struct DownloadsPage {
       .width('100%')
     }
     .width('100%')
-    .padding({ left: 16, right: 16, top: 14, bottom: 14 })
-    .borderRadius(8)
-    .backgroundColor($r('app.color.koma_card'))
+    .padding({
+      left: ThemeConstants.SPACE_LG,
+      right: ThemeConstants.SPACE_LG,
+      top: ThemeConstants.SPACE_LG,
+      bottom: ThemeConstants.SPACE_LG,
+    })
+    .borderRadius(ThemeConstants.RADIUS_CARD)
+    .backgroundColor(ThemeConstants.CARD)
   }
 
   build() {
     Column() {
       SecondaryListScaffold({
-        listSpace: 12,
-        horizontalPadding: 20,
+        listSpace: ThemeConstants.SPACE_MD,
+        horizontalPadding: ThemeConstants.SPACE_XL,
         bottomPadding: ThemeConstants.FLOAT_BAR_HEIGHT + 20 + ThemeConstants.SPACE_XL,
       }) {
         if (this.entries.length === 0) {
@@ -651,6 +661,6 @@ export struct DownloadsPage {
     }
     .width('100%')
     .height('100%')
-    .backgroundColor($r('sys.color.ohos_id_color_sub_background'))
+    .backgroundColor(ThemeConstants.BG_SUB)
   }
 }

@@ -1,4 +1,5 @@
 import { SourceManga } from '../model/SourceModels'
+import { ThemeConstants } from '../theme/ThemeConstants'
 
 @Component
 export struct MangaGridItem {
@@ -21,7 +22,7 @@ export struct MangaGridItem {
   }
 
   build() {
-    Column({ space: 8 }) {
+    Column({ space: ThemeConstants.SPACE_SM }) {
       Stack({ alignContent: Alignment.Center }) {
         if (this.hasCover()) {
           Image(this.manga.coverUrl)
@@ -29,36 +30,36 @@ export struct MangaGridItem {
             .height('100%')
             .objectFit(ImageFit.Cover)
         } else {
-          Column({ space: 8 }) {
+          Column({ space: ThemeConstants.SPACE_SM }) {
             Text(this.titleInitial())
-              .fontSize(28)
+              .fontSize(ThemeConstants.SPACE_XXL)
               .fontWeight(FontWeight.Bold)
-              .fontColor($r('app.color.koma_text_secondary'))
+              .fontColor(ThemeConstants.TEXT_SECONDARY)
             Text(this.manga.title)
-              .fontSize(12)
-              .fontColor($r('app.color.koma_text_secondary'))
+              .fontSize(ThemeConstants.FONT_SIZE_CAPTION)
+              .fontColor(ThemeConstants.TEXT_SECONDARY)
               .maxLines(2)
               .textOverflow({ overflow: TextOverflow.Ellipsis })
               .textAlign(TextAlign.Center)
           }
           .width('100%')
           .height('100%')
-          .padding(12)
+          .padding(ThemeConstants.SPACE_MD)
           .justifyContent(FlexAlign.Center)
-          .backgroundColor('#FFE6E8E6')
+          .backgroundColor(ThemeConstants.COVER_PLACEHOLDER)
         }
       }
       .width('100%')
       .aspectRatio(0.68)
-      .borderRadius(8)
+      .borderRadius(ThemeConstants.RADIUS_THUMB)
       .clip(true)
-      .backgroundColor('#FFE6E8E6')
+      .backgroundColor(ThemeConstants.COVER_PLACEHOLDER)
 
       Text(this.manga.title)
         .width('100%')
-        .fontSize(14)
+        .fontSize(ThemeConstants.FONT_SIZE_BODY)
         .fontWeight(FontWeight.Medium)
-        .fontColor($r('app.color.koma_text_primary'))
+        .fontColor(ThemeConstants.TEXT_PRIMARY)
         .maxLines(2)
         .lineHeight(18)
         .textOverflow({ overflow: TextOverflow.Ellipsis })

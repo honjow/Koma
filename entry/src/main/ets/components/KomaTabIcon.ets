@@ -1,4 +1,5 @@
 import { TabIndex } from '../common/Constants'
+import { ThemeConstants } from '../theme/ThemeConstants'
 
 @Component
 export struct KomaTabIcon {
@@ -21,16 +22,16 @@ export struct KomaTabIcon {
   }
 
   build() {
-    Column({ space: 4 }) {
+    Column({ space: ThemeConstants.SPACE_XS }) {
       SymbolGlyph(this.iconForIndex(this.idx))
-        .fontSize(22)
+        .fontSize(ThemeConstants.FONT_SIZE_H2)
         .fontColor([
           this.currentIndex === this.idx
             ? $r('sys.color.ohos_id_color_activated')
             : $r('sys.color.font_secondary'),
         ])
       Text(this.title)
-        .fontSize(10)
+        .fontSize(ThemeConstants.FONT_SIZE_TINY)
         .fontColor(
           this.currentIndex === this.idx
             ? $r('sys.color.ohos_id_color_activated')
@@ -41,6 +42,6 @@ export struct KomaTabIcon {
     .justifyContent(FlexAlign.Center)
     .width('100%')
     .height('100%')
-    .padding({ top: 6, bottom: 4 })
+    .padding({ top: ThemeConstants.SPACE_SM, bottom: ThemeConstants.SPACE_XS })
   }
 }

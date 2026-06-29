@@ -1,4 +1,5 @@
 import { ChapterSortOrder, MangaChapterItem } from '../model/MangaDetailModels'
+import { ThemeConstants } from '../theme/ThemeConstants'
 
 export enum ChapterReadFilter {
   ALL = 'all',
@@ -277,27 +278,28 @@ export struct ChapterListSection {
 
   @Builder
   private ChapterRow(chapter: MangaChapterItem) {
-    Row({ space: 10 }) {
-      Row({ space: 10 }) {
-        Circle()
-          .width(8)
-          .height(8)
-          .fill(chapter.isRead ? $r('app.color.koma_text_secondary') : $r('app.color.koma_accent'))
+    Row({ space: ThemeConstants.SPACE_MD }) {
+      Row({ space: ThemeConstants.SPACE_MD }) {
+        Blank()
+          .width(ThemeConstants.SPACE_SM)
+          .height(ThemeConstants.SPACE_SM)
+          .borderRadius(ThemeConstants.RADIUS_ROUND)
+          .backgroundColor(chapter.isRead ? ThemeConstants.TEXT_SECONDARY : ThemeConstants.BRAND_PRIMARY)
           .opacity(chapter.isRead ? 0.45 : 1)
 
-        Column({ space: 4 }) {
+        Column({ space: ThemeConstants.SPACE_XS }) {
           Text(this.chapterTitle(chapter))
             .width('100%')
-            .fontSize(15)
+            .fontSize(ThemeConstants.FONT_SIZE_TITLE)
             .fontWeight(chapter.isRead ? FontWeight.Regular : FontWeight.Medium)
-            .fontColor($r('app.color.koma_text_primary'))
+            .fontColor(ThemeConstants.TEXT_PRIMARY)
             .maxLines(1)
             .textOverflow({ overflow: TextOverflow.Ellipsis })
 
           Text(this.chapterSubtitle(chapter))
             .width('100%')
-            .fontSize(12)
-            .fontColor($r('app.color.koma_text_secondary'))
+            .fontSize(ThemeConstants.FONT_SIZE_CAPTION)
+            .fontColor(ThemeConstants.TEXT_SECONDARY)
             .maxLines(1)
             .textOverflow({ overflow: TextOverflow.Ellipsis })
         }
@@ -313,30 +315,30 @@ export struct ChapterListSection {
 
       if (chapter.isDownloaded) {
         Text('↓')
-          .fontSize(17)
+          .fontSize(ThemeConstants.FONT_SIZE_TITLE)
           .fontWeight(FontWeight.Bold)
-          .fontColor($r('app.color.koma_accent'))
+          .fontColor(ThemeConstants.BRAND_PRIMARY)
       }
 
       Button('↓')
-        .width(34)
-        .height(34)
-        .borderRadius(8)
-        .fontSize(16)
+        .width(ThemeConstants.FILTER_CHIP_HEIGHT)
+        .height(ThemeConstants.FILTER_CHIP_HEIGHT)
+        .borderRadius(ThemeConstants.RADIUS_CHIP)
+        .fontSize(ThemeConstants.FONT_SIZE_TITLE)
         .fontWeight(FontWeight.Bold)
-        .fontColor($r('app.color.koma_accent'))
-        .backgroundColor('#00000000')
+        .fontColor(ThemeConstants.BRAND_PRIMARY)
+        .backgroundColor(Color.Transparent)
         .onClick(() => {
           this.onDownloadChapter(chapter.id)
         })
 
       Button('⋯')
-        .width(34)
-        .height(34)
-        .borderRadius(8)
-        .fontSize(18)
-        .fontColor($r('app.color.koma_accent'))
-        .backgroundColor('#00000000')
+        .width(ThemeConstants.FILTER_CHIP_HEIGHT)
+        .height(ThemeConstants.FILTER_CHIP_HEIGHT)
+        .borderRadius(ThemeConstants.RADIUS_CHIP)
+        .fontSize(ThemeConstants.FONT_SIZE_HEADING)
+        .fontColor(ThemeConstants.BRAND_PRIMARY)
+        .backgroundColor(Color.Transparent)
         .bindMenu(this.ReadStateMenu(chapter))
     }
     .width('100%')
@@ -346,29 +348,29 @@ export struct ChapterListSection {
   }
 
   build() {
-    Column({ space: 12 }) {
-      Column({ space: 8 }) {
+    Column({ space: ThemeConstants.SPACE_MD }) {
+      Column({ space: ThemeConstants.SPACE_SM }) {
         Row() {
           Text(`章节 (${this.sortedChapters.length}/${this.chapters.length})`)
-            .fontSize(20)
+            .fontSize(ThemeConstants.FONT_SIZE_H3)
             .fontWeight(FontWeight.Bold)
-            .fontColor($r('app.color.koma_text_primary'))
+            .fontColor(ThemeConstants.TEXT_PRIMARY)
             .layoutWeight(1)
           Button(`${this.filterLabel()} ▾`)
-            .height(34)
-            .padding({ left: 12, right: 12 })
-            .borderRadius(8)
-            .fontSize(13)
-            .fontColor($r('app.color.koma_accent'))
-            .backgroundColor('#00000000')
+            .height(ThemeConstants.FILTER_CHIP_HEIGHT)
+            .padding({ left: ThemeConstants.SPACE_MD, right: ThemeConstants.SPACE_MD })
+            .borderRadius(ThemeConstants.RADIUS_CHIP)
+            .fontSize(ThemeConstants.FONT_SIZE_META)
+            .fontColor(ThemeConstants.BRAND_PRIMARY)
+            .backgroundColor(Color.Transparent)
             .bindMenu(this.FilterMenu())
           Button(`${this.sortLabel()} ↕`)
-            .height(34)
-            .padding({ left: 12, right: 12 })
-            .borderRadius(8)
-            .fontSize(13)
-            .fontColor($r('app.color.koma_accent'))
-            .backgroundColor('#00000000')
+            .height(ThemeConstants.FILTER_CHIP_HEIGHT)
+            .padding({ left: ThemeConstants.SPACE_MD, right: ThemeConstants.SPACE_MD })
+            .borderRadius(ThemeConstants.RADIUS_CHIP)
+            .fontSize(ThemeConstants.FONT_SIZE_META)
+            .fontColor(ThemeConstants.BRAND_PRIMARY)
+            .backgroundColor(Color.Transparent)
             .bindMenu(this.SortMenu())
         }
         .width('100%')
@@ -376,20 +378,20 @@ export struct ChapterListSection {
 
         Row() {
           Button('标记 ▾')
-            .height(34)
-            .padding({ left: 12, right: 12 })
-            .borderRadius(8)
-            .fontSize(13)
-            .fontColor($r('app.color.koma_accent'))
-            .backgroundColor('#00000000')
+            .height(ThemeConstants.FILTER_CHIP_HEIGHT)
+            .padding({ left: ThemeConstants.SPACE_MD, right: ThemeConstants.SPACE_MD })
+            .borderRadius(ThemeConstants.RADIUS_CHIP)
+            .fontSize(ThemeConstants.FONT_SIZE_META)
+            .fontColor(ThemeConstants.BRAND_PRIMARY)
+            .backgroundColor(Color.Transparent)
             .bindMenu(this.VisibleReadStateMenu())
           Button('批量下载 ▾')
-            .height(34)
-            .padding({ left: 12, right: 12 })
-            .borderRadius(8)
-            .fontSize(13)
-            .fontColor($r('app.color.koma_accent'))
-            .backgroundColor('#00000000')
+            .height(ThemeConstants.FILTER_CHIP_HEIGHT)
+            .padding({ left: ThemeConstants.SPACE_MD, right: ThemeConstants.SPACE_MD })
+            .borderRadius(ThemeConstants.RADIUS_CHIP)
+            .fontSize(ThemeConstants.FONT_SIZE_META)
+            .fontColor(ThemeConstants.BRAND_PRIMARY)
+            .backgroundColor(Color.Transparent)
             .bindMenu(this.BatchDownloadMenu())
           Blank()
         }
@@ -408,9 +410,9 @@ export struct ChapterListSection {
       }
       .width('100%')
       .height(460)
-      .divider({ strokeWidth: 1, color: '#12000000', startMargin: 14, endMargin: 14 })
-      .borderRadius(8)
-      .backgroundColor($r('app.color.koma_card'))
+      .divider({ strokeWidth: 1, color: ThemeConstants.DIVIDER, startMargin: ThemeConstants.SPACE_MD, endMargin: ThemeConstants.SPACE_MD })
+      .borderRadius(ThemeConstants.RADIUS_CARD)
+      .backgroundColor(ThemeConstants.CARD)
       .edgeEffect(EdgeEffect.Spring)
     }
     .width('100%')

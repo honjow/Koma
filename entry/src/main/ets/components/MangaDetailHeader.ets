@@ -1,4 +1,5 @@
 import { MangaDetail, MangaStatus } from '../model/MangaDetailModels'
+import { ThemeConstants } from '../theme/ThemeConstants'
 
 @Component
 export struct MangaDetailHeader {
@@ -49,21 +50,21 @@ export struct MangaDetailHeader {
     return '状态未知'
   }
 
-  private statusBackgroundColor(): string {
+  private statusBackgroundColor(): ResourceColor {
     const status = this.manga.status === undefined ? MangaStatus.UNKNOWN : this.manga.status
     if (status === MangaStatus.ONGOING) {
-      return '#1D7F5A'
+      return ThemeConstants.STATUS_SUCCESS
     }
     if (status === MangaStatus.COMPLETED) {
-      return '#3268B8'
+      return ThemeConstants.STATUS_INFO
     }
     if (status === MangaStatus.HIATUS) {
-      return '#6C706C'
+      return ThemeConstants.STATUS_MUTED
     }
     if (status === MangaStatus.CANCELLED) {
-      return '#8B3A34'
+      return ThemeConstants.STATUS_DANGER
     }
-    return '#777D78'
+    return ThemeConstants.TEXT_SECONDARY
   }
 
   @Builder
@@ -80,65 +81,65 @@ export struct MangaDetailHeader {
           Text(this.titleInitial())
             .fontSize(48)
             .fontWeight(FontWeight.Bold)
-            .fontColor(Color.White)
+            .fontColor(ThemeConstants.TEXT_ON_BRAND)
           Blank()
         }
         .width('100%')
         .height('100%')
-        .backgroundColor('#256E5D')
+        .backgroundColor(ThemeConstants.BRAND_PRIMARY)
       }
     }
     .width(120)
     .height(180)
-    .borderRadius(8)
+    .borderRadius(ThemeConstants.RADIUS_THUMB)
     .clip(true)
-    .shadow({ radius: 16, color: '#26000000', offsetY: 8 })
+    .shadow({ radius: 16, color: ThemeConstants.SHADOW_PROMINENT, offsetY: 8 })
   }
 
   build() {
-    Row({ space: 18 }) {
+    Row({ space: ThemeConstants.SPACE_LG }) {
       this.Cover()
 
-      Column({ space: 10 }) {
+      Column({ space: ThemeConstants.SPACE_SM }) {
         Text(this.manga.title)
-          .fontSize(24)
+          .fontSize(ThemeConstants.FONT_SIZE_H1)
           .lineHeight(30)
           .fontWeight(FontWeight.Bold)
-          .fontColor($r('app.color.koma_text_primary'))
+          .fontColor(ThemeConstants.TEXT_PRIMARY)
           .maxLines(2)
           .textOverflow({ overflow: TextOverflow.Ellipsis })
 
         Text(this.creatorText())
-          .fontSize(14)
-          .lineHeight(20)
-          .fontColor($r('app.color.koma_text_secondary'))
+          .fontSize(ThemeConstants.FONT_SIZE_BODY)
+          .lineHeight(ThemeConstants.LINE_HEIGHT_BODY)
+          .fontColor(ThemeConstants.TEXT_SECONDARY)
           .maxLines(2)
           .textOverflow({ overflow: TextOverflow.Ellipsis })
 
-        Row({ space: 8 }) {
+        Row({ space: ThemeConstants.SPACE_SM }) {
           Text(this.statusLabel())
-            .fontSize(12)
+            .fontSize(ThemeConstants.FONT_SIZE_CAPTION)
             .fontWeight(FontWeight.Medium)
-            .fontColor(Color.White)
-            .padding({ left: 10, right: 10, top: 5, bottom: 5 })
-            .borderRadius(13)
+            .fontColor(ThemeConstants.TEXT_ON_BRAND)
+            .padding({ left: ThemeConstants.SPACE_MD, right: ThemeConstants.SPACE_MD, top: ThemeConstants.SPACE_XS, bottom: ThemeConstants.SPACE_XS })
+            .borderRadius(ThemeConstants.RADIUS_ROUND)
             .backgroundColor(this.statusBackgroundColor())
 
           if (this.manga.sourceName !== undefined && this.manga.sourceName.length > 0) {
             Text(this.manga.sourceName)
-              .fontSize(12)
+              .fontSize(ThemeConstants.FONT_SIZE_CAPTION)
               .fontWeight(FontWeight.Medium)
-              .fontColor($r('app.color.koma_accent'))
-              .padding({ left: 10, right: 10, top: 5, bottom: 5 })
-              .borderRadius(13)
-              .backgroundColor('#1A5CC8A8')
+              .fontColor(ThemeConstants.BRAND_PRIMARY)
+              .padding({ left: ThemeConstants.SPACE_MD, right: ThemeConstants.SPACE_MD, top: ThemeConstants.SPACE_XS, bottom: ThemeConstants.SPACE_XS })
+              .borderRadius(ThemeConstants.RADIUS_ROUND)
+              .backgroundColor(ThemeConstants.SOFT_TINT)
           }
         }
         .width('100%')
 
         Text(`${this.manga.chapterCount} 章`)
-          .fontSize(13)
-          .fontColor($r('app.color.koma_text_secondary'))
+          .fontSize(ThemeConstants.FONT_SIZE_META)
+          .fontColor(ThemeConstants.TEXT_SECONDARY)
       }
       .layoutWeight(1)
       .alignItems(HorizontalAlign.Start)
