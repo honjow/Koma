@@ -26,6 +26,11 @@ import {
   mapKomgaSeriesToComic,
 } from '../remote/KomgaModels'
 import { ThemeConstants } from '../theme/ThemeConstants'
+import { AppStrings } from '../i18n/AppStrings'
+
+function s(name: string): string {
+  return AppStrings.get(name)
+}
 
 const KOMGA_PAGE_SIZE: number = 30
 
@@ -74,7 +79,7 @@ export struct KomgaSeriesPage {
       const store = this.store()
       const saved = await store.loadKomga()
       if (saved === undefined) {
-        throw new Error('请先在设置里配置 Komga')
+        throw new Error(s('komga_config_required'))
       }
       this.record = saved
       const client = store.createKomgaClient(saved)
@@ -204,7 +209,7 @@ export struct KomgaSeriesPage {
       return
     }
     if (this.libraryStore.findByRemote(record.server.id, series.id) !== undefined) {
-      this.showToast('已在书架中')
+      this.showToast(s('common_already_in_library'))
       return
     }
     try {
@@ -241,12 +246,12 @@ export struct KomgaSeriesPage {
       }
       this.favoriteRevision += 1
       this.onLibraryChanged()
-      this.showToast('已加入书架')
+      this.showToast(s('common_added_to_library'))
       console.info(`[Favorite] step=komga_add_ok chapters=${chapters.length} pages=${comic.pageCount}`)
     } catch (error) {
       const e = error as Error
       this.errorText = e.message
-      this.showToast('加入书架失败')
+      this.showToast(s('common_add_to_library_failed'))
       console.error('[Favorite] step=komga_add_failed message=' + e.message)
     }
   }
@@ -288,14 +293,14 @@ export struct KomgaSeriesPage {
   @Builder
   private LibraryFilter() {
     Column({ space: ThemeConstants.SPACE_MD }) {
-      Text('Libraries')
+      Text(s('komga_section_libraries'))
         .fontSize(ThemeConstants.FONT_SIZE_META)
         .fontWeight(FontWeight.Medium)
         .fontColor(ThemeConstants.BRAND_PRIMARY)
         .width('100%')
       Flex({ wrap: FlexWrap.Wrap }) {
         KomaActionButton({
-          label: '全部',
+          label: s('common_all'),
           kind: this.selectedLibraryId.length === 0 ? 'primary' : 'ghost',
           compact: true,
           controlHeight: ThemeConstants.FILTER_CHIP_HEIGHT,
@@ -350,7 +355,7 @@ export struct KomgaSeriesPage {
           .maxLines(2)
           .textOverflow({ overflow: TextOverflow.Ellipsis })
           .width('100%')
-        Text(`${item.booksCount === undefined ? 0 : item.booksCount} books`)
+        Text(s('komga_books_count').replace('%s', `${item.booksCount === undefined ? 0 : item.booksCount}`))
           .fontSize(ThemeConstants.FONT_SIZE_META)
           .fontColor(ThemeConstants.TEXT_SECONDARY)
       }
@@ -377,13 +382,13 @@ export struct KomgaSeriesPage {
           .maxLines(2)
           .textOverflow({ overflow: TextOverflow.Ellipsis })
           .width('100%')
-        Text(`${item.media?.pagesCount === undefined ? 0 : item.media.pagesCount} pages`)
+        Text(s('komga_pages_count').replace('%s', `${item.media?.pagesCount === undefined ? 0 : item.media.pagesCount}`))
           .fontSize(ThemeConstants.FONT_SIZE_META)
           .fontColor(ThemeConstants.TEXT_SECONDARY)
       }
       .layoutWeight(1)
       .alignItems(HorizontalAlign.Start)
-      Text('读')
+      Text(s('common_read'))
         .fontSize(ThemeConstants.FONT_SIZE_META)
         .fontWeight(FontWeight.Medium)
         .fontColor(ThemeConstants.BRAND_PRIMARY)
@@ -408,7 +413,7 @@ export struct KomgaSeriesPage {
             .fontColor(ThemeConstants.TEXT_PRIMARY)
             .width('100%')
           KomaActionButton({
-            label: this.isSelectedSeriesFavorited() ? '已收藏' : '加入书架',
+            label: this.isSelectedSeriesFavorited() ? s('common_in_library') : s('common_add_to_library'),
             kind: this.isSelectedSeriesFavorited() ? 'primary' : 'secondary',
             action: () => {
               this.addSelectedSeriesToLibrary()
@@ -416,7 +421,7 @@ export struct KomgaSeriesPage {
           })
             .width('100%')
           if (this.books.length === 0) {
-            Text('暂无 books')
+            Text(s('komga_books_empty'))
               .fontSize(ThemeConstants.FONT_SIZE_BODY)
               .fontColor(ThemeConstants.TEXT_SECONDARY)
               .width('100%')

@@ -16,6 +16,7 @@ import {
   PersistentReaderSessionStore,
   ReaderSessionStore,
 } from '../model/ReaderSessionStore'
+import { AppStrings } from '../i18n/AppStrings'
 
 const HISTORY_LIMIT: number = 50
 const MS_PER_MINUTE: number = 60 * 1000
@@ -23,6 +24,10 @@ const MS_PER_HOUR: number = 60 * MS_PER_MINUTE
 const MS_PER_DAY: number = 24 * MS_PER_HOUR
 const MS_PER_MONTH: number = 30 * MS_PER_DAY
 const MS_PER_YEAR: number = 365 * MS_PER_DAY
+
+function s(name: string): string {
+  return AppStrings.get(name)
+}
 
 @ComponentV2
 export struct HistoryPage {
@@ -89,21 +94,21 @@ export struct HistoryPage {
     }
     const diff = Math.max(0, Date.now() - timestampMs)
     if (diff < MS_PER_MINUTE) {
-      return '刚刚'
+      return s('history_relative_just_now')
     }
     if (diff < MS_PER_HOUR) {
-      return `${Math.floor(diff / MS_PER_MINUTE)} 分钟前`
+      return s('history_relative_minutes_ago').replace('%s', `${Math.floor(diff / MS_PER_MINUTE)}`)
     }
     if (diff < MS_PER_DAY) {
-      return `${Math.floor(diff / MS_PER_HOUR)} 小时前`
+      return s('history_relative_hours_ago').replace('%s', `${Math.floor(diff / MS_PER_HOUR)}`)
     }
     if (diff < MS_PER_MONTH) {
-      return `${Math.floor(diff / MS_PER_DAY)} 天前`
+      return s('history_relative_days_ago').replace('%s', `${Math.floor(diff / MS_PER_DAY)}`)
     }
     if (diff < MS_PER_YEAR) {
-      return `${Math.floor(diff / MS_PER_MONTH)} 个月前`
+      return s('history_relative_months_ago').replace('%s', `${Math.floor(diff / MS_PER_MONTH)}`)
     }
-    return `${Math.floor(diff / MS_PER_YEAR)} 年前`
+    return s('history_relative_years_ago').replace('%s', `${Math.floor(diff / MS_PER_YEAR)}`)
   }
 
   private coverColor(item: LibraryItem): string {
@@ -116,25 +121,32 @@ export struct HistoryPage {
 
   private chapterText(item: LibraryItem): string {
     if (item.progress === undefined) {
-      return `${item.chapterCount} 章`
+      return s('history_chapter_count').replace('%s', `${item.chapterCount}`)
     }
     const comic = this.libraryStore.getComic(item.comicId)
     const chapterIndex = comic === undefined ? -1 : comic.chapters.findIndex((chapter: Chapter) => {
       return chapter.id === item.progress?.chapterId
     })
     if (chapterIndex >= 0) {
-      return `第 ${chapterIndex + 1} 章`
+      return s('history_chapter_index').replace('%s', `${chapterIndex + 1}`)
     }
-    return item.progress.chapterId.length > 0 ? '已读章节' : `${item.chapterCount} 章`
+    return item.progress.chapterId.length > 0
+      ? s('history_chapter_read')
+      : s('history_chapter_count').replace('%s', `${item.chapterCount}`)
   }
 
   private progressText(item: LibraryItem): string {
     if (item.progress === undefined) {
-      return `${item.pageCount} 页 · ${item.chapterCount} 章`
+      return s('history_page_chapter_count')
+        .replace('%s', `${item.pageCount}`)
+        .replace('%s', `${item.chapterCount}`)
     }
     const page = item.progress.pageIndex + 1
     const total = item.progress.totalPages > 0 ? item.progress.totalPages : item.pageCount
-    return `第 ${page} / ${total} 页 · ${this.chapterText(item)}`
+    return s('history_page_progress')
+      .replace('%s', `${page}`)
+      .replace('%s', `${total}`)
+      .replace('%s', this.chapterText(item))
   }
 
   private openHistoryItem(item: LibraryItem): void {
@@ -146,11 +158,11 @@ export struct HistoryPage {
   @Builder
   private EmptyHistory() {
     Column({ space: ThemeConstants.SPACE_MD }) {
-      Text('暂无阅读历史')
+      Text(s('history_empty_title'))
         .fontSize(ThemeConstants.FONT_SIZE_HEADING)
         .fontWeight(FontWeight.Medium)
         .fontColor(ThemeConstants.TEXT_PRIMARY)
-      Text('打开漫画读几页后，最近阅读会显示在这里。')
+      Text(s('history_empty_message'))
         .fontSize(ThemeConstants.FONT_SIZE_META)
         .lineHeight(ThemeConstants.LINE_HEIGHT_BODY)
         .fontColor(ThemeConstants.TEXT_SECONDARY)

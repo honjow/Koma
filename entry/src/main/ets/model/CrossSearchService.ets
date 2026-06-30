@@ -41,6 +41,7 @@ import {
   safeSearchDiagnostic,
   searchStateUserText,
 } from './SearchStateMapper'
+import { AppStrings } from '../i18n/AppStrings'
 
 export type CrossSearchSourceKind = 'local' | 'komga' | 'opds' | 'webdav' | 'wasm'
 
@@ -100,10 +101,10 @@ export class CrossSearchService {
     }
     console.info(`[Search] step=query_start length=${normalizedQuery.length}`)
     const tasks: Promise<SourceSearchOutcome>[] = [
-      this.withTimeout(this.searchLocal(normalizedQuery), this.emptySection('local', '书架', 'local')),
-      this.withTimeout(this.searchKomga(normalizedQuery), this.emptySection('komga', 'Komga', 'komga')),
-      this.withTimeout(this.searchOpds(normalizedQuery), this.emptySection('opds', 'OPDS', 'opds')),
-      this.withTimeout(this.searchWebDav(normalizedQuery), this.emptySection('webdav', 'WebDAV', 'webdav')),
+      this.withTimeout(this.searchLocal(normalizedQuery), this.emptySection('local', AppStrings.get('tab_library'), 'local')),
+      this.withTimeout(this.searchKomga(normalizedQuery), this.emptySection('komga', AppStrings.get('route_komga_title'), 'komga')),
+      this.withTimeout(this.searchOpds(normalizedQuery), this.emptySection('opds', AppStrings.get('route_opds_title'), 'opds')),
+      this.withTimeout(this.searchWebDav(normalizedQuery), this.emptySection('webdav', AppStrings.get('route_webdav_title'), 'webdav')),
     ]
 
     const sourceTasks = appSourceRuntimeRegistry.listInstalledSourceSummaries().map((source: SourceRuntimeRegistryInstalledSourceSummary) => {
@@ -117,10 +118,10 @@ export class CrossSearchService {
 
   pendingSections(): CrossSearchSection[] {
     const sections: CrossSearchSection[] = [
-      this.stateSection('local', '书架', 'local', 'running'),
-      this.stateSection('komga', 'Komga', 'komga', 'running'),
-      this.stateSection('opds', 'OPDS', 'opds', 'running'),
-      this.stateSection('webdav', 'WebDAV', 'webdav', 'running'),
+      this.stateSection('local', AppStrings.get('tab_library'), 'local', 'running'),
+      this.stateSection('komga', AppStrings.get('route_komga_title'), 'komga', 'running'),
+      this.stateSection('opds', AppStrings.get('route_opds_title'), 'opds', 'running'),
+      this.stateSection('webdav', AppStrings.get('route_webdav_title'), 'webdav', 'running'),
     ]
     appSourceRuntimeRegistry.listInstalledSourceSummaries().forEach((source: SourceRuntimeRegistryInstalledSourceSummary) => {
       sections.push(this.sourceSupportsSearch(source) ?
@@ -136,7 +137,7 @@ export class CrossSearchService {
     }
     const record = await this.remoteStore.loadWebDav()
     if (record === undefined) {
-      throw new Error('请先在设置里配置 WebDAV')
+      throw new Error(AppStrings.get('search_webdav_config_required'))
     }
     const client = this.remoteStore.createWebDavClient(record)
     const pathSegments = item.webDavPathSegments ?? []
@@ -148,7 +149,7 @@ export class CrossSearchService {
       return resource.href === item.webDavHref && resource.candidateKind === DavComicCandidateKind.IMAGE_FILE
     }))
     if (images.length === 0) {
-      throw new Error('这个 WebDAV 结果没有可直接阅读的图片')
+      throw new Error(AppStrings.get('search_webdav_no_images'))
     }
     this.installWebDavReaderSession(record, client, pathSegments, item.title, images)
     console.info(`[Search] step=open_webdav_reader pages=${images.length}`)
@@ -165,22 +166,24 @@ export class CrossSearchService {
         return {
           id: `local:${comic.id}`,
           title: comic.title,
-          subtitle: comic.author ?? `${comic.chapterCount} 章 / ${comic.pageCount} 页`,
+          subtitle: comic.author ?? AppStrings.get('search_local_subtitle')
+            .replace('%s', `${comic.chapterCount}`)
+            .replace('%s', `${comic.pageCount}`),
           sourceKind: 'local',
-          sourceLabel: '书架',
+          sourceLabel: AppStrings.get('tab_library'),
           coverUri: comic.coverUri,
           localComicId: comic.id,
         }
       })
     console.info(`[Search] step=local_done count=${items.length}`)
-    return { section: this.section('local', '书架', 'local', items) }
+    return { section: this.section('local', AppStrings.get('tab_library'), 'local', items) }
   }
 
   private async searchKomga(query: string): Promise<SourceSearchOutcome> {
     try {
       const record = await this.remoteStore.loadKomga()
       if (record === undefined) {
-        return { section: this.stateSection('komga', 'Komga', 'komga', 'unsupported', 'not_configured') }
+        return { section: this.stateSection('komga', AppStrings.get('route_komga_title'), 'komga', 'unsupported', 'not_configured') }
       }
       const response = await this.remoteStore.createKomgaClient(record).listSeries({
         page: 0,
@@ -195,17 +198,17 @@ export class CrossSearchService {
           title,
           subtitle: `${series.booksCount === undefined ? 0 : series.booksCount} books`,
           sourceKind: 'komga',
-          sourceLabel: 'Komga',
+          sourceLabel: AppStrings.get('route_komga_title'),
           komgaSeriesId: series.id,
         }
       })
       console.info(`[Search] step=komga_done count=${items.length}`)
-      return { section: this.section('komga', 'Komga', 'komga', items) }
+      return { section: this.section('komga', AppStrings.get('route_komga_title'), 'komga', items) }
     } catch (error) {
       const e = error as Error
       const diagnostic = safeSearchDiagnostic(e)
       console.error('[Search] step=komga_failed code=' + diagnostic.code)
-      return { section: this.errorSection('komga', 'Komga', 'komga', diagnostic) }
+      return { section: this.errorSection('komga', AppStrings.get('route_komga_title'), 'komga', diagnostic) }
     }
   }
 
@@ -213,7 +216,7 @@ export class CrossSearchService {
     try {
       const record = await this.remoteStore.loadOpds()
       if (record === undefined) {
-        return { section: this.stateSection('opds', 'OPDS', 'opds', 'unsupported', 'not_configured') }
+        return { section: this.stateSection('opds', AppStrings.get('route_opds_title'), 'opds', 'unsupported', 'not_configured') }
       }
       const client = this.remoteStore.createOpdsClient(record)
       const root = await client.fetchCatalog()
@@ -221,12 +224,12 @@ export class CrossSearchService {
       const catalog = searchUrl.length === 0 ? root : await client.fetchCatalog(searchUrl)
       const items = this.filterOpdsPublications(client, catalog, query)
       console.info(`[Search] step=opds_done count=${items.length}`)
-      return { section: this.section('opds', 'OPDS', 'opds', items) }
+      return { section: this.section('opds', AppStrings.get('route_opds_title'), 'opds', items) }
     } catch (error) {
       const e = error as Error
       const diagnostic = safeSearchDiagnostic(e)
       console.error('[Search] step=opds_failed code=' + diagnostic.code)
-      return { section: this.errorSection('opds', 'OPDS', 'opds', diagnostic) }
+      return { section: this.errorSection('opds', AppStrings.get('route_opds_title'), 'opds', diagnostic) }
     }
   }
 
@@ -234,7 +237,7 @@ export class CrossSearchService {
     try {
       const record = await this.remoteStore.loadWebDav()
       if (record === undefined) {
-        return { section: this.stateSection('webdav', 'WebDAV', 'webdav', 'unsupported', 'not_configured') }
+        return { section: this.stateSection('webdav', AppStrings.get('route_webdav_title'), 'webdav', 'unsupported', 'not_configured') }
       }
       const client = this.remoteStore.createWebDavClient(record)
       const lowerQuery = query.toLocaleLowerCase()
@@ -250,21 +253,23 @@ export class CrossSearchService {
         return {
           id: `webdav:${resource.href}`,
           title: this.davResourceName(resource),
-          subtitle: resource.isCollection ? 'WebDAV 文件夹' : 'WebDAV 图片',
+          subtitle: resource.isCollection
+            ? AppStrings.get('search_webdav_folder')
+            : AppStrings.get('search_webdav_image'),
           sourceKind: 'webdav',
-          sourceLabel: 'WebDAV',
+          sourceLabel: AppStrings.get('route_webdav_title'),
           webDavHref: resource.href,
           webDavPathSegments: resource.isCollection ? this.webDavRelativeSegments(client, resource.href) : [],
           webDavIsCollection: resource.isCollection,
         }
       })
       console.info(`[Search] step=webdav_done count=${items.length}`)
-      return { section: this.section('webdav', 'WebDAV', 'webdav', items) }
+      return { section: this.section('webdav', AppStrings.get('route_webdav_title'), 'webdav', items) }
     } catch (error) {
       const e = error as Error
       const diagnostic = safeSearchDiagnostic(e)
       console.error('[Search] step=webdav_failed code=' + diagnostic.code)
-      return { section: this.errorSection('webdav', 'WebDAV', 'webdav', diagnostic) }
+      return { section: this.errorSection('webdav', AppStrings.get('route_webdav_title'), 'webdav', diagnostic) }
     }
   }
 
@@ -420,9 +425,9 @@ export class CrossSearchService {
       return {
         id: `opds:${this.shortHash(catalog.feedUrl)}:${publication.id}`,
         title: publication.title,
-        subtitle: publication.author ?? `${images.length} 张图片`,
+        subtitle: publication.author ?? AppStrings.get('search_opds_image_count').replace('%s', `${images.length}`),
         sourceKind: 'opds',
-        sourceLabel: 'OPDS',
+        sourceLabel: AppStrings.get('route_opds_title'),
         coverUri: images.length === 0 ? undefined : images[0].href,
         opdsFeedUrl: catalog.feedUrl,
         opdsPublicationId: publication.id,

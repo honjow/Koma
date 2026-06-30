@@ -1,3 +1,5 @@
+import { AppStrings } from '../i18n/AppStrings'
+
 export type CrossSearchSectionState = 'pending' | 'running' | 'empty' | 'timeout' | 'failed' | 'unsupported' | 'ready'
 
 export interface SearchDiagnostic {
@@ -7,22 +9,24 @@ export interface SearchDiagnostic {
 
 export function searchStateUserText(state: CrossSearchSectionState, diagnosticCode: string = ''): string {
   if (state === 'pending') {
-    return '等待搜索'
+    return AppStrings.get('search_state_pending')
   }
   if (state === 'running') {
-    return '正在搜索'
+    return AppStrings.get('search_state_running')
   }
   if (state === 'empty') {
-    return '没有匹配结果'
+    return AppStrings.get('search_state_empty')
   }
   if (state === 'timeout') {
-    return '搜索超时，请稍后重试。诊断：timeout'
+    return AppStrings.get('search_state_timeout')
   }
   if (state === 'unsupported') {
-    return diagnosticCode === 'not_configured' ? '未配置此来源' : '此来源暂不支持搜索'
+    return diagnosticCode === 'not_configured'
+      ? AppStrings.get('search_state_not_configured')
+      : AppStrings.get('search_state_unsupported')
   }
   if (state === 'failed') {
-    return '搜索失败。诊断：' + safeDiagnosticCode(diagnosticCode)
+    return AppStrings.get('search_state_failed').replace('%s', safeDiagnosticCode(diagnosticCode))
   }
   return ''
 }

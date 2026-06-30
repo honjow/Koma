@@ -35,6 +35,11 @@ import {
   OpdsParseResult,
 } from '../remote/OpdsModels'
 import { ThemeConstants } from '../theme/ThemeConstants'
+import { AppStrings } from '../i18n/AppStrings'
+
+function s(name: string): string {
+  return AppStrings.get(name)
+}
 
 interface OpdsHistoryEntry {
   url: string
@@ -43,7 +48,7 @@ interface OpdsHistoryEntry {
 
 @ComponentV2
 export struct OpdsBrowsePage {
-  @Local private title: string = 'OPDS'
+  @Local private title: string = s('route_opds_title')
   @Local private currentUrl: string = ''
   @Local private history: OpdsHistoryEntry[] = []
   @Local private navigation: OpdsCatalogDto[] = []
@@ -72,7 +77,7 @@ export struct OpdsBrowsePage {
     try {
       const saved = await this.store().loadOpds()
       if (saved === undefined) {
-        throw new Error('请先在设置里配置 OPDS')
+        throw new Error(s('opds_config_required'))
       }
       this.record = saved
       this.currentUrl = saved.server.rootUrl
@@ -113,7 +118,7 @@ export struct OpdsBrowsePage {
 
   private applyCatalog(catalog: OpdsParseResult): void {
     this.currentUrl = catalog.feedUrl
-    this.title = catalog.title === undefined || catalog.title.length === 0 ? 'OPDS' : catalog.title
+    this.title = catalog.title === undefined || catalog.title.length === 0 ? s('route_opds_title') : catalog.title
     this.navigation = catalog.navigation
     this.publications = catalog.publications
     this.selectedPublication = undefined
@@ -177,7 +182,7 @@ export struct OpdsBrowsePage {
     const record = this.record
     const publication = this.selectedPublication
     if (record === undefined || publication === undefined || this.selectedImages.length === 0) {
-      this.errorText = '这个 OPDS 条目没有可直接阅读的图片 URL'
+      this.errorText = s('opds_no_direct_images')
       return
     }
     const now = Date.now()
@@ -298,13 +303,13 @@ export struct OpdsBrowsePage {
       return
     }
     if (this.libraryStore.findByRemote(record.server.id, publication.id) !== undefined) {
-      this.showToast('已在书架中')
+      this.showToast(s('common_already_in_library'))
       return
     }
     const comic = this.createSelectedPublicationComic()
     if (comic === undefined) {
-      this.errorText = '这个 OPDS 条目没有可收藏的图片 URL'
-      this.showToast('没有可收藏图片')
+      this.errorText = s('opds_no_favoritable_images')
+      this.showToast(s('common_no_images_to_add'))
       return
     }
     try {
@@ -316,12 +321,12 @@ export struct OpdsBrowsePage {
       }
       this.favoriteRevision += 1
       this.onLibraryChanged()
-      this.showToast('已加入书架')
+      this.showToast(s('common_added_to_library'))
       console.info(`[Favorite] step=opds_add_ok pages=${comic.pageCount}`)
     } catch (error) {
       const e = error as Error
       this.errorText = e.message
-      this.showToast('加入书架失败')
+      this.showToast(s('common_add_to_library_failed'))
       console.error('[Favorite] step=opds_add_failed message=' + e.message)
     }
   }
@@ -353,10 +358,12 @@ export struct OpdsBrowsePage {
   private acquisitionText(publication: OpdsBookDto): string {
     const acquisitions = mapOpdsPublicationToAcquisitions(publication)
     if (acquisitions.length === 0) {
-      return '无 acquisition'
+      return s('opds_no_acquisition')
     }
     const supported = acquisitions.filter((item: OpdsAcquisitionDto): boolean => item.status === OpdsAcquisitionStatus.SUPPORTED).length
-    return supported > 0 ? `${supported} 个可获取文件` : 'acquisition 暂不支持'
+    return supported > 0
+      ? s('opds_supported_files_count').replace('%s', `${supported}`)
+      : s('opds_acquisition_unsupported')
   }
 
   private shortHash(value: string): string {
@@ -373,7 +380,7 @@ export struct OpdsBrowsePage {
     Column({ space: ThemeConstants.SPACE_MD }) {
       Row({ space: ThemeConstants.SPACE_MD }) {
         KomaActionButton({
-          label: '上一级',
+          label: s('common_back'),
           kind: 'ghost',
           compact: true,
           controlHeight: ThemeConstants.FILTER_CHIP_HEIGHT,
@@ -394,7 +401,7 @@ export struct OpdsBrowsePage {
       .width('100%')
       if (this.selectedPublication !== undefined && this.selectedImages.length > 0) {
         KomaActionButton({
-          label: this.isSelectedPublicationFavorited() ? '已收藏' : '加入书架',
+          label: this.isSelectedPublicationFavorited() ? s('common_in_library') : s('common_add_to_library'),
           kind: this.isSelectedPublicationFavorited() ? 'primary' : 'secondary',
           action: () => {
             this.addSelectedPublicationToLibrary()
@@ -402,7 +409,7 @@ export struct OpdsBrowsePage {
         })
           .width('100%')
         KomaActionButton({
-          label: `阅读 ${this.selectedImages.length} 张图片`,
+          label: s('opds_action_read_images').replace('%s', `${this.selectedImages.length}`),
           kind: 'primary',
           action: () => {
             this.openReader()
@@ -437,7 +444,7 @@ export struct OpdsBrowsePage {
           .maxLines(2)
           .textOverflow({ overflow: TextOverflow.Ellipsis })
           .width('100%')
-        Text(item.type === undefined ? 'Catalog' : item.type)
+        Text(item.type === undefined ? s('opds_catalog_label') : item.type)
           .fontSize(ThemeConstants.FONT_SIZE_META)
           .fontColor(ThemeConstants.TEXT_SECONDARY)
       }
@@ -498,13 +505,17 @@ export struct OpdsBrowsePage {
   @Builder
   private PublicationDetail(publication: OpdsBookDto) {
     Column({ space: ThemeConstants.SPACE_MD }) {
-      Text(publication.summary === undefined ? '无简介' : publication.summary)
+      Text(publication.summary === undefined ? s('common_no_summary') : publication.summary)
         .width('100%')
         .fontSize(ThemeConstants.FONT_SIZE_BODY)
         .lineHeight(ThemeConstants.LINE_HEIGHT_TITLE)
         .fontColor(ThemeConstants.TEXT_SECONDARY)
       ForEach(mapOpdsPublicationToAcquisitions(publication), (item: OpdsAcquisitionDto) => {
-        Text(item.status === OpdsAcquisitionStatus.SUPPORTED ? `Acquisition：${item.type ?? item.href}` : `暂不支持：${item.type ?? item.href}`)
+        Text(
+          item.status === OpdsAcquisitionStatus.SUPPORTED
+            ? s('opds_acquisition_supported_item').replace('%s', item.type ?? item.href)
+            : s('opds_acquisition_unsupported_item').replace('%s', item.type ?? item.href)
+        )
           .width('100%')
           .fontSize(ThemeConstants.FONT_SIZE_META)
           .fontColor(item.status === OpdsAcquisitionStatus.SUPPORTED ? ThemeConstants.BRAND_PRIMARY : ThemeConstants.TEXT_SECONDARY)
@@ -518,7 +529,7 @@ export struct OpdsBrowsePage {
           .textOverflow({ overflow: TextOverflow.Ellipsis })
       }, (item: OpdsImageDto) => item.href)
       if (this.selectedImages.length === 0) {
-        Text('未发现可直接阅读的 image / readingOrder / pageList URL')
+        Text(s('opds_no_readable_urls'))
           .width('100%')
           .fontSize(ThemeConstants.FONT_SIZE_META)
           .fontColor(ThemeConstants.TEXT_SECONDARY)
@@ -579,7 +590,7 @@ export struct OpdsBrowsePage {
             }, (item: OpdsBookDto) => item.id)
             if (this.navigation.length === 0 && this.publications.length === 0) {
               ListItem() {
-                Text('当前 catalog 没有 navigation 或 publication')
+                Text(s('opds_empty_catalog'))
                   .width('100%')
                   .padding(ThemeConstants.SPACE_LG)
                   .fontSize(ThemeConstants.FONT_SIZE_BODY)

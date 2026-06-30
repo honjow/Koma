@@ -12,12 +12,17 @@ import {
   getTrackerAccountStatusLabel,
 } from '../model/TrackerModels'
 import { ThemeConstants } from '../theme/ThemeConstants'
+import { AppStrings } from '../i18n/AppStrings'
+
+function s(name: string): string {
+  return AppStrings.get(name)
+}
 
 @ComponentV2
 export struct TrackerSettingsPage {
   @Local private accounts: TrackerAccount[] = DEFAULT_TRACKER_ACCOUNTS
   @Local private secureStorageAvailable: boolean = false
-  @Local private authPreparationMessage: string = '安全存储未验证，追踪账号连接暂不可用'
+  @Local private authPreparationMessage: string = s('tracker_message_secure_storage_unverified')
 
   private context(): common.UIAbilityContext {
     return getContext(this) as common.UIAbilityContext
@@ -34,7 +39,7 @@ export struct TrackerSettingsPage {
         console.info('[TrackerSettings] step=load accounts=' + preferences.accounts.length)
       })
       .catch((_error: Error) => {
-        this.authPreparationMessage = '追踪账号状态读取失败'
+        this.authPreparationMessage = s('tracker_message_load_failed')
         console.warn('[TrackerSettings] step=load_failed reason=redacted')
       })
   }
@@ -54,18 +59,18 @@ export struct TrackerSettingsPage {
 
   private connectActionLabel(provider: TrackerProviderConfig): string {
     if (provider.supportStatus === 'unsupported') {
-      return '不支持'
+      return s('tracker_action_unsupported')
     }
     if (provider.supportStatus === 'planned') {
-      return '计划中'
+      return s('tracker_action_planned')
     }
     if (!this.secureStorageAvailable) {
-      return '安全存储不可用'
+      return s('tracker_action_secure_storage_unavailable')
     }
     if (provider.clientId === undefined || provider.redirectUri === undefined) {
-      return '待配置'
+      return s('tracker_action_needs_config')
     }
-    return '连接'
+    return s('tracker_action_connect')
   }
 
   private canPrepareConnect(provider: TrackerProviderConfig): boolean {
@@ -77,35 +82,39 @@ export struct TrackerSettingsPage {
 
   private prepareConnect(provider: TrackerProviderConfig): void {
     if (!this.canPrepareConnect(provider)) {
-      this.authPreparationMessage = !this.secureStorageAvailable ? '账号连接暂不可用' : '当前版本暂不能开始授权'
+      this.authPreparationMessage = !this.secureStorageAvailable
+        ? s('tracker_message_connect_unavailable')
+        : s('tracker_message_auth_unavailable')
       this.showToast(this.authPreparationMessage)
       return
     }
     void this.trackerPreferencesStore().prepareConnect(provider.providerId)
       .then((result: TrackerOAuthStartPreparation) => {
-        this.authPreparationMessage = result.status === 'ready' ? '授权地址已准备' : this.authPrepareStatusLabel(result.status)
+        this.authPreparationMessage = result.status === 'ready'
+          ? s('tracker_message_auth_ready')
+          : this.authPrepareStatusLabel(result.status)
         this.showToast(this.authPreparationMessage)
       })
       .catch((_error: Error) => {
-        this.authPreparationMessage = '授权准备失败'
+        this.authPreparationMessage = s('tracker_message_auth_prepare_failed')
         this.showToast(this.authPreparationMessage)
       })
   }
 
   private authPrepareStatusLabel(status: string): string {
     if (status === 'secure_storage_unavailable') {
-      return '账号连接暂不可用'
+      return s('tracker_message_connect_unavailable')
     }
     if (status === 'provider_config_missing') {
-      return '当前版本暂不能开始授权'
+      return s('tracker_message_auth_unavailable')
     }
     if (status === 'provider_unsupported') {
-      return '当前服务暂不支持连接'
+      return s('tracker_message_provider_unsupported')
     }
     if (status === 'pkce_unavailable') {
-      return '当前版本暂不能开始授权'
+      return s('tracker_message_auth_unavailable')
     }
-    return '授权准备失败'
+    return s('tracker_message_auth_prepare_failed')
   }
 
   private showToast(message: string): void {
@@ -118,12 +127,12 @@ export struct TrackerSettingsPage {
   @Builder
   private StatusCard() {
     Column({ space: ThemeConstants.SPACE_SM }) {
-      Text('追踪账号')
+      Text(s('tracker_status_title'))
         .width('100%')
         .fontSize(ThemeConstants.FONT_SIZE_TITLE)
         .fontWeight(FontWeight.Medium)
         .fontColor(ThemeConstants.TEXT_PRIMARY)
-      Text('当前只保存账号状态和公开资料。授权材料必须进入系统安全存储；安全存储未验证时不会把账号标记为已连接。')
+      Text(s('tracker_status_message'))
         .width('100%')
         .fontSize(ThemeConstants.FONT_SIZE_META)
         .lineHeight(ThemeConstants.LINE_HEIGHT_BODY)

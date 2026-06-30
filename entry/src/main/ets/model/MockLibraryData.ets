@@ -13,6 +13,7 @@ import {
 } from './ComicModels'
 import { InMemoryLibraryStore, LibraryStore } from './LibraryStore'
 import { ReaderSessionConfig, ReaderSessionStore } from './ReaderSessionStore'
+import { AppStrings } from '../i18n/AppStrings'
 
 export interface MockLibraryComic {
   id: ComicId
@@ -258,16 +259,19 @@ export function formatLibraryProgressText(comic: MockLibraryComic, progress?: Re
     return comic.fallbackProgressText
   }
   if (progress.completed) {
-    return '已读完'
+    return AppStrings.get('library_progress_finished')
   }
   return `${progressPercent(progress)}%`
 }
 
 export function formatContinueReadingDetail(comic: MockLibraryComic, progress?: ReadingProgress): string {
   if (progress === undefined) {
-    return `继续阅读 ${comic.chapterTitle}`
+    return AppStrings.get('library_progress_continue_chapter').replace('%s', comic.chapterTitle)
   }
-  return `继续阅读 ${comic.chapterTitle} / 第 ${progress.pageIndex + 1} 页 · ${progressPercent(progress)}%`
+  return AppStrings.get('library_progress_continue_page')
+    .replace('%s', comic.chapterTitle)
+    .replace('%s', `${progress.pageIndex + 1}`)
+    .replace('%s', `${progressPercent(progress)}`)
 }
 
 function formatSourceSubtitle(comic: Comic): string {
@@ -275,12 +279,12 @@ function formatSourceSubtitle(comic: Comic): string {
     return comic.subtitle
   }
   if (comic.sourceKind === ComicSourceKind.LOCAL_FOLDER) {
-    return `图片文件夹 - ${comic.chapterCount} 章`
+    return AppStrings.get('library_source_subtitle_folder').replace('%s', `${comic.chapterCount}`)
   }
   if (comic.sourceKind === ComicSourceKind.PRIVATE_LIBRARY) {
-    return `私有库 - ${comic.chapterCount} 章`
+    return AppStrings.get('library_source_subtitle_private').replace('%s', `${comic.chapterCount}`)
   }
-  return `本地 ZIP - ${comic.chapterCount} 章`
+  return AppStrings.get('library_source_subtitle_archive').replace('%s', `${comic.chapterCount}`)
 }
 
 function createFallbackPresentation(comic: Comic): LibraryComicPresentation {
@@ -288,7 +292,7 @@ function createFallbackPresentation(comic: Comic): LibraryComicPresentation {
   return {
     subtitle: formatSourceSubtitle(comic),
     chapterTitle: comic.chapters.length === 0 ? comic.title : comic.chapters[0].title,
-    fallbackProgressText: '未读',
+    fallbackProgressText: AppStrings.get('library_progress_unread'),
     coverColor: FALLBACK_COVER_COLORS[colorIndex],
     accentColor: FALLBACK_ACCENT_COLORS[colorIndex],
   }
@@ -312,7 +316,7 @@ function formatProgressText(fallbackProgressText: string, progress?: ReadingProg
     return fallbackProgressText
   }
   if (progress.completed) {
-    return '已读完'
+    return AppStrings.get('library_progress_finished')
   }
   return `${progressPercent(progress)}%`
 }
@@ -321,9 +325,9 @@ function formatCategoryLabels(categoryIds?: string[]): string[] {
   const labels: string[] = []
   normalizeCategoryIds(categoryIds).forEach((categoryId: string) => {
     if (categoryId === LIBRARY_CATEGORY_FAVORITE_ID) {
-      labels.push('收藏')
+      labels.push(AppStrings.get('library_category_favorite'))
     } else if (categoryId === LIBRARY_CATEGORY_READ_LATER_ID) {
-      labels.push('稍后阅读')
+      labels.push(AppStrings.get('library_category_read_later'))
     }
   })
   return labels
@@ -331,9 +335,12 @@ function formatCategoryLabels(categoryIds?: string[]): string[] {
 
 function formatContinueDetail(chapterTitle: string, progress?: ReadingProgress): string {
   if (progress === undefined) {
-    return `继续阅读 ${chapterTitle}`
+    return AppStrings.get('library_progress_continue_chapter').replace('%s', chapterTitle)
   }
-  return `继续阅读 ${chapterTitle} / 第 ${progress.pageIndex + 1} 页 · ${progressPercent(progress)}%`
+  return AppStrings.get('library_progress_continue_page')
+    .replace('%s', chapterTitle)
+    .replace('%s', `${progress.pageIndex + 1}`)
+    .replace('%s', `${progressPercent(progress)}`)
 }
 
 export function createLibraryViewModelFromComics(

@@ -6,6 +6,11 @@ import { KomaFormTextField } from '../components/ui/KomaFormTextField'
 import { RemoteServerStore } from '../model/RemoteServerStore'
 import { OpdsVersion } from '../remote/OpdsModels'
 import { ThemeConstants } from '../theme/ThemeConstants'
+import { AppStrings } from '../i18n/AppStrings'
+
+function s(name: string): string {
+  return AppStrings.get(name)
+}
 
 @ComponentV2
 export struct OpdsServerPage {
@@ -45,7 +50,7 @@ export struct OpdsServerPage {
       return
     }
     this.testing = true
-    this.statusText = '正在测试连接...'
+    this.statusText = s('server_status_testing')
     try {
       const store = this.store()
       let record = await store.saveOpds({
@@ -62,14 +67,17 @@ export struct OpdsServerPage {
         version: catalog.version,
       })
       this.detectedVersion = record.server.version === undefined ? '' : record.server.version
-      this.statusText = `连接成功，检测到 ${this.versionLabel(catalog.version)}，${catalog.navigation.length} 个目录 / ${catalog.publications.length} 个条目`
+      this.statusText = s('opds_status_success')
+        .replace('%s', this.versionLabel(catalog.version))
+        .replace('%s', `${catalog.navigation.length}`)
+        .replace('%s', `${catalog.publications.length}`)
       console.info(`[OPDS] step=test_connection_ok version=${catalog.version} navigation=${catalog.navigation.length} publications=${catalog.publications.length}`)
-      this.showToast('OPDS 连接成功')
+      this.showToast(s('opds_toast_success'))
     } catch (error) {
       const e = error as Error
-      this.statusText = `连接失败：${e.message}`
+      this.statusText = s('opds_status_failed').replace('%s', e.message)
       console.error('[OPDS] step=test_connection_failed message=' + e.message)
-      this.showToast('OPDS 连接失败')
+      this.showToast(s('opds_toast_failed'))
     } finally {
       this.testing = false
     }
@@ -82,8 +90,8 @@ export struct OpdsServerPage {
       this.username = ''
       this.password = ''
       this.detectedVersion = ''
-      this.statusText = '已移除 OPDS 配置'
-      this.showToast('已移除 OPDS')
+      this.statusText = s('opds_status_removed')
+      this.showToast(s('opds_toast_removed'))
     } catch (error) {
       const e = error as Error
       this.statusText = e.message
@@ -91,7 +99,7 @@ export struct OpdsServerPage {
   }
 
   private versionLabel(version: OpdsVersion | string): string {
-    return version === OpdsVersion.OPDS_2 ? 'OPDS 2' : 'OPDS 1.x'
+    return version === OpdsVersion.OPDS_2 ? s('opds_version_2') : s('opds_version_1')
   }
 
   private showToast(message: string): void {
@@ -105,23 +113,25 @@ export struct OpdsServerPage {
   private FormCard() {
     GroupedListSection({ inset: ThemeConstants.SPACE_LG }) {
       Column({ space: ThemeConstants.SPACE_LG }) {
-      KomaFormTextField({ label: 'Catalog URL', placeholder: 'https://demo.komga.org/opds/v2/catalog', value: this.rootUrl, change: (value: string) => {
+      KomaFormTextField({ label: s('opds_label_catalog_url'), placeholder: 'https://demo.komga.org/opds/v2/catalog', value: this.rootUrl, change: (value: string) => {
         this.rootUrl = value
       } })
-      KomaFormTextField({ label: '用户名', placeholder: '可留空', value: this.username, change: (value: string) => {
+      KomaFormTextField({ label: s('common_username'), placeholder: s('common_optional_placeholder'), value: this.username, change: (value: string) => {
         this.username = value
       } })
-      KomaFormTextField({ label: '密码', placeholder: '可留空', value: this.password, isPassword: true, change: (value: string) => {
+      KomaFormTextField({ label: s('common_password'), placeholder: s('common_optional_placeholder'), value: this.password, isPassword: true, change: (value: string) => {
         this.password = value
       } })
 
-      Text(this.detectedVersion.length === 0 ? 'OPDS 版本：测试连接后自动检测' : `OPDS 版本：${this.versionLabel(this.detectedVersion)}`)
+      Text(this.detectedVersion.length === 0
+        ? s('opds_version_auto')
+        : s('opds_version_value').replace('%s', this.versionLabel(this.detectedVersion)))
         .width('100%')
         .fontSize(ThemeConstants.FONT_SIZE_META)
         .fontColor(ThemeConstants.TEXT_SECONDARY)
 
       KomaActionButton({
-        label: this.testing ? '测试中...' : '保存并测试连接',
+        label: this.testing ? s('common_testing') : s('server_action_save_and_test'),
         kind: 'primary',
         fullWidth: true,
         isEnabled: !this.testing,
@@ -132,7 +142,7 @@ export struct OpdsServerPage {
         .width('100%')
 
       KomaActionButton({
-        label: '移除配置',
+        label: s('server_action_remove_config'),
         kind: 'ghost',
         fullWidth: true,
         accentColor: ThemeConstants.TEXT_SECONDARY,

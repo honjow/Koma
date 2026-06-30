@@ -23,6 +23,11 @@ import { RemoteServerStore, WebDavServerRecord } from '../model/RemoteServerStor
 import { DavComicCandidateKind, DavResource } from '../remote/WebDavModels'
 import { WebDavClient, readWebDavUrlPath } from '../remote/WebDavClient'
 import { ThemeConstants } from '../theme/ThemeConstants'
+import { AppStrings } from '../i18n/AppStrings'
+
+function s(name: string): string {
+  return AppStrings.get(name)
+}
 
 @ComponentV2
 export struct WebDavBrowsePage {
@@ -58,7 +63,7 @@ export struct WebDavBrowsePage {
     try {
       const saved = await this.store().loadWebDav()
       if (saved === undefined) {
-        throw new Error('请先在设置里配置 WebDAV')
+        throw new Error(s('webdav_config_required'))
       }
       this.record = saved
       console.info('[WebDAV] step=load_initial')
@@ -250,12 +255,12 @@ export struct WebDavBrowsePage {
     }
     const resourceId = this.currentResourceId()
     if (this.libraryStore.findByRemote(record.server.id, resourceId) !== undefined) {
-      this.showToast('已在书架中')
+      this.showToast(s('common_already_in_library'))
       return
     }
     const comic = this.createCurrentDirectoryComic()
     if (comic === undefined) {
-      this.showToast('没有可收藏图片')
+      this.showToast(s('common_no_images_to_add'))
       return
     }
     try {
@@ -267,12 +272,12 @@ export struct WebDavBrowsePage {
       }
       this.favoriteRevision += 1
       this.onLibraryChanged()
-      this.showToast('已加入书架')
+      this.showToast(s('common_added_to_library'))
       console.info(`[Favorite] step=webdav_add_ok pages=${comic.pageCount}`)
     } catch (error) {
       const e = error as Error
       this.errorText = e.message
-      this.showToast('加入书架失败')
+      this.showToast(s('common_add_to_library_failed'))
       console.error('[Favorite] step=webdav_add_failed message=' + e.message)
     }
   }
@@ -341,7 +346,7 @@ export struct WebDavBrowsePage {
 
   private currentTitle(): string {
     if (this.pathSegments.length === 0) {
-      return 'WebDAV'
+      return s('route_webdav_title')
     }
     return this.pathSegments[this.pathSegments.length - 1]
   }
@@ -374,7 +379,7 @@ export struct WebDavBrowsePage {
     Column({ space: ThemeConstants.SPACE_MD }) {
       Row({ space: ThemeConstants.SPACE_MD }) {
         KomaActionButton({
-          label: '上一级',
+          label: s('common_back'),
           kind: 'ghost',
           compact: true,
           controlHeight: ThemeConstants.FILTER_CHIP_HEIGHT,
@@ -395,7 +400,7 @@ export struct WebDavBrowsePage {
       .width('100%')
       if (this.images.length > 0) {
         KomaActionButton({
-          label: this.isCurrentDirectoryFavorited() ? '已收藏' : '把此目录加入书架',
+          label: this.isCurrentDirectoryFavorited() ? s('common_in_library') : s('webdav_action_add_directory'),
           kind: this.isCurrentDirectoryFavorited() ? 'primary' : 'secondary',
           action: () => {
             this.addCurrentDirectoryToLibrary()
@@ -403,7 +408,7 @@ export struct WebDavBrowsePage {
         })
           .width('100%')
         KomaActionButton({
-          label: `阅读 ${this.images.length} 页`,
+          label: s('webdav_action_read_pages').replace('%s', `${this.images.length}`),
           kind: 'primary',
           action: () => {
             this.openReader()
@@ -438,7 +443,7 @@ export struct WebDavBrowsePage {
           .maxLines(2)
           .textOverflow({ overflow: TextOverflow.Ellipsis })
           .width('100%')
-        Text('文件夹')
+        Text(s('webdav_item_folder'))
           .fontSize(ThemeConstants.FONT_SIZE_META)
           .fontColor(ThemeConstants.TEXT_SECONDARY)
       }
@@ -477,13 +482,13 @@ export struct WebDavBrowsePage {
           .maxLines(2)
           .textOverflow({ overflow: TextOverflow.Ellipsis })
           .width('100%')
-        Text(item.contentLength === undefined ? '图片' : `${item.contentLength} bytes`)
+        Text(item.contentLength === undefined ? s('webdav_item_image') : s('webdav_item_bytes').replace('%s', `${item.contentLength}`))
           .fontSize(ThemeConstants.FONT_SIZE_META)
           .fontColor(ThemeConstants.TEXT_SECONDARY)
       }
       .layoutWeight(1)
       .alignItems(HorizontalAlign.Start)
-      Text('读')
+      Text(s('common_read'))
         .fontSize(ThemeConstants.FONT_SIZE_META)
         .fontWeight(FontWeight.Medium)
         .fontColor(ThemeConstants.BRAND_PRIMARY)
@@ -541,7 +546,7 @@ export struct WebDavBrowsePage {
           }, (item: DavResource) => item.href)
           if (this.folders.length === 0 && this.images.length === 0) {
             ListItem() {
-              Text('当前目录没有可阅读的图片或子目录')
+              Text(s('webdav_empty_directory'))
                 .width('100%')
                 .padding(ThemeConstants.SPACE_LG)
                 .fontSize(ThemeConstants.FONT_SIZE_BODY)

@@ -5,6 +5,11 @@ import { KomaActionButton } from '../components/ui/KomaActionButton'
 import { KomaFormTextField } from '../components/ui/KomaFormTextField'
 import { RemoteServerStore } from '../model/RemoteServerStore'
 import { ThemeConstants } from '../theme/ThemeConstants'
+import { AppStrings } from '../i18n/AppStrings'
+
+function s(name: string): string {
+  return AppStrings.get(name)
+}
 
 @ComponentV2
 export struct WebDavServerPage {
@@ -44,7 +49,7 @@ export struct WebDavServerPage {
       return
     }
     this.testing = true
-    this.statusText = '正在测试连接...'
+    this.statusText = s('server_status_testing')
     try {
       const store = this.store()
       const record = await store.saveWebDav({
@@ -55,14 +60,14 @@ export struct WebDavServerPage {
       })
       console.info('[WebDAV] step=test_connection_start')
       const resources = await store.createWebDavClient(record).propfind([], 0)
-      this.statusText = `连接成功，根目录可访问（${resources.length} 项属性）`
+      this.statusText = s('webdav_status_success').replace('%s', `${resources.length}`)
       console.info(`[WebDAV] step=test_connection_ok resources=${resources.length}`)
-      this.showToast('WebDAV 连接成功')
+      this.showToast(s('webdav_toast_success'))
     } catch (error) {
       const e = error as Error
-      this.statusText = `连接失败：${e.message}`
+      this.statusText = s('webdav_status_failed').replace('%s', e.message)
       console.error('[WebDAV] step=test_connection_failed message=' + e.message)
-      this.showToast('WebDAV 连接失败')
+      this.showToast(s('webdav_toast_failed'))
     } finally {
       this.testing = false
     }
@@ -75,8 +80,8 @@ export struct WebDavServerPage {
       this.username = ''
       this.password = ''
       this.rootPath = ''
-      this.statusText = '已移除 WebDAV 配置'
-      this.showToast('已移除 WebDAV')
+      this.statusText = s('webdav_status_removed')
+      this.showToast(s('webdav_toast_removed'))
     } catch (error) {
       const e = error as Error
       this.statusText = e.message
@@ -94,21 +99,21 @@ export struct WebDavServerPage {
   private FormCard() {
     GroupedListSection({ inset: ThemeConstants.SPACE_LG }) {
       Column({ space: ThemeConstants.SPACE_LG }) {
-      KomaFormTextField({ label: 'Server URL', placeholder: 'https://test.webdav.org/', value: this.baseUrl, change: (value: string) => {
+      KomaFormTextField({ label: s('common_server_url'), placeholder: 'https://test.webdav.org/', value: this.baseUrl, change: (value: string) => {
         this.baseUrl = value
       } })
-      KomaFormTextField({ label: '路径前缀', placeholder: 'manga 或 remote.php/dav/files/user/manga', value: this.rootPath, change: (value: string) => {
+      KomaFormTextField({ label: s('webdav_label_root_path'), placeholder: s('webdav_placeholder_root_path'), value: this.rootPath, change: (value: string) => {
         this.rootPath = value
       } })
-      KomaFormTextField({ label: '用户名', placeholder: '可留空', value: this.username, change: (value: string) => {
+      KomaFormTextField({ label: s('common_username'), placeholder: s('common_optional_placeholder'), value: this.username, change: (value: string) => {
         this.username = value
       } })
-      KomaFormTextField({ label: '密码', placeholder: '可留空', value: this.password, isPassword: true, change: (value: string) => {
+      KomaFormTextField({ label: s('common_password'), placeholder: s('common_optional_placeholder'), value: this.password, isPassword: true, change: (value: string) => {
         this.password = value
       } })
 
       KomaActionButton({
-        label: this.testing ? '测试中...' : '保存并测试连接',
+        label: this.testing ? s('common_testing') : s('server_action_save_and_test'),
         kind: 'primary',
         fullWidth: true,
         isEnabled: !this.testing,
@@ -119,7 +124,7 @@ export struct WebDavServerPage {
         .width('100%')
 
       KomaActionButton({
-        label: '移除配置',
+        label: s('server_action_remove_config'),
         kind: 'ghost',
         fullWidth: true,
         accentColor: ThemeConstants.TEXT_SECONDARY,

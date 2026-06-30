@@ -21,12 +21,17 @@ import { WebDavBrowsePage } from './WebDavBrowsePage'
 import { LibraryStore } from '../model/LibraryStore'
 import { LibraryStorePersistenceService } from '../model/LibraryPersistence'
 import { createSeededLibraryStore } from '../model/MockLibraryData'
+import { AppStrings } from '../i18n/AppStrings'
 
 const SOURCE_BROWSE_ROUTE_NAME: string = 'SourceBrowsePage'
 const SOURCE_SEARCH_ROUTE_NAME: string = 'SourceSearchPage'
 const KOMGA_ROUTE_NAME: string = 'KomgaSeriesPage'
 const OPDS_ROUTE_NAME: string = 'OpdsBrowsePage'
 const WEBDAV_ROUTE_NAME: string = 'WebDavBrowsePage'
+
+function s(name: string): string {
+  return AppStrings.get(name)
+}
 
 interface SourceRouteParam {
   source: SourceRuntimeRegistryInstalledSourceSummary
@@ -74,11 +79,11 @@ export struct BrowsePage {
   @Builder
   private EmptySources() {
     Column({ space: ThemeConstants.SPACE_MD }) {
-      Text('未安装源包')
+      Text(s('browse_empty_title'))
         .fontSize(ThemeConstants.FONT_SIZE_H3)
         .fontWeight(FontWeight.Medium)
         .fontColor(ThemeConstants.TEXT_PRIMARY)
-      Text('从设置导入 .koma 源包')
+      Text(s('browse_empty_message'))
         .fontSize(ThemeConstants.FONT_SIZE_BODY)
         .lineHeight(ThemeConstants.LINE_HEIGHT_TITLE)
         .fontColor(ThemeConstants.TEXT_SECONDARY)
@@ -114,7 +119,7 @@ export struct BrowsePage {
                 .fontWeight(FontWeight.Medium)
                 .fontColor(ThemeConstants.TEXT_PRIMARY)
                 .layoutWeight(1)
-              Text('私有库')
+              Text(s('browse_komga_tag'))
                 .fontSize(ThemeConstants.FONT_SIZE_TAG)
                 .fontWeight(FontWeight.Medium)
                 .fontColor(ThemeConstants.BRAND_PRIMARY)
@@ -124,7 +129,7 @@ export struct BrowsePage {
             }
             .width('100%')
             .alignItems(VerticalAlign.Center)
-            Text('浏览 libraries / series / books')
+            Text(s('browse_komga_detail'))
               .fontSize(ThemeConstants.FONT_SIZE_META)
               .fontColor(ThemeConstants.TEXT_SECONDARY)
           }
@@ -164,7 +169,7 @@ export struct BrowsePage {
                 .fontWeight(FontWeight.Medium)
                 .fontColor(ThemeConstants.TEXT_PRIMARY)
                 .layoutWeight(1)
-              Text('远程文件夹')
+              Text(s('browse_webdav_tag'))
                 .fontSize(ThemeConstants.FONT_SIZE_TAG)
                 .fontWeight(FontWeight.Medium)
                 .fontColor(ThemeConstants.BRAND_PRIMARY)
@@ -174,7 +179,7 @@ export struct BrowsePage {
             }
             .width('100%')
             .alignItems(VerticalAlign.Center)
-            Text('浏览目录 / 图片文件夹 / Reader')
+            Text(s('browse_webdav_detail'))
               .fontSize(ThemeConstants.FONT_SIZE_META)
               .fontColor(ThemeConstants.TEXT_SECONDARY)
           }
@@ -214,7 +219,7 @@ export struct BrowsePage {
                 .fontWeight(FontWeight.Medium)
                 .fontColor(ThemeConstants.TEXT_PRIMARY)
                 .layoutWeight(1)
-              Text('Catalog')
+              Text(s('browse_opds_tag'))
                 .fontSize(ThemeConstants.FONT_SIZE_TAG)
                 .fontWeight(FontWeight.Medium)
                 .fontColor(ThemeConstants.BRAND_PRIMARY)
@@ -224,7 +229,7 @@ export struct BrowsePage {
             }
             .width('100%')
             .alignItems(VerticalAlign.Center)
-            Text('浏览 catalog / acquisition / 图片')
+            Text(s('browse_opds_detail'))
               .fontSize(ThemeConstants.FONT_SIZE_META)
               .fontColor(ThemeConstants.TEXT_SECONDARY)
           }
@@ -282,7 +287,7 @@ export struct BrowsePage {
           },
         })
       }
-      .title('搜索')
+      .title(s('tab_search'))
     } else if (name === KOMGA_ROUTE_NAME) {
       NavDestination() {
         KomgaSeriesPage({
@@ -293,7 +298,7 @@ export struct BrowsePage {
           }
         })
       }
-      .title('Komga')
+      .title(s('route_komga_title'))
     } else if (name === WEBDAV_ROUTE_NAME) {
       NavDestination() {
         WebDavBrowsePage({
@@ -304,7 +309,7 @@ export struct BrowsePage {
           }
         })
       }
-      .title('WebDAV')
+      .title(s('route_webdav_title'))
     } else if (name === OPDS_ROUTE_NAME) {
       NavDestination() {
         OpdsBrowsePage({
@@ -315,7 +320,7 @@ export struct BrowsePage {
           }
         })
       }
-      .title('OPDS')
+      .title(s('route_opds_title'))
     }
   }
 

@@ -1,6 +1,11 @@
 import { common } from '@kit.AbilityKit'
 import { preferences } from '@kit.ArkData'
 import { ComicId } from './ComicModels'
+import { AppStrings } from '../i18n/AppStrings'
+
+function s(name: string): string {
+  return AppStrings.get(name)
+}
 
 export type TrackerProviderId = 'anilist' | 'myanimelist' | 'kitsu' | 'mangaupdates' | 'bangumi'
 export type TrackerAccountStatus = 'disconnected' | 'auth_pending' | 'connected' | 'expired' | 'error'
@@ -194,47 +199,47 @@ export function getTrackerProviderConfig(providerId: TrackerProviderId): Tracker
 
 export function getTrackerAccountStatusLabel(status: TrackerAccountStatus): string {
   if (status === 'auth_pending') {
-    return '授权待完成'
+    return s('tracker_status_auth_pending')
   }
   if (status === 'connected') {
-    return '已连接'
+    return s('tracker_status_connected')
   }
   if (status === 'expired') {
-    return '授权已过期'
+    return s('tracker_status_expired')
   }
   if (status === 'error') {
-    return '连接不可用'
+    return s('tracker_status_error')
   }
-  return '未连接'
+  return s('tracker_status_disconnected')
 }
 
 export function getTrackerAccountDetail(account: TrackerAccount, secureStorageAvailable: boolean): string {
   if (account.status === 'connected') {
-    return account.profile?.displayName ?? account.profile?.username ?? '公开账号资料已保存'
+    return account.profile?.displayName ?? account.profile?.username ?? s('tracker_detail_public_profile_saved')
   }
   if (!secureStorageAvailable) {
-    return '安全存储未验证，无法连接账号'
+    return s('tracker_detail_secure_storage_unavailable')
   }
   if (account.status === 'auth_pending') {
-    return '等待授权回调'
+    return s('tracker_detail_waiting_callback')
   }
   if (account.status === 'expired') {
-    return '需要重新授权'
+    return s('tracker_detail_reauth_required')
   }
   if (account.status === 'error') {
     return getTrackerAccountErrorDetail(account.statusReason)
   }
-  return '账号未连接'
+  return s('tracker_detail_disconnected')
 }
 
 function getTrackerAccountErrorDetail(reason: string | undefined): string {
   if (reason === 'secure_storage_unavailable' || reason === 'missing_credential_reference') {
-    return '账号状态暂不可用'
+    return s('tracker_detail_account_status_unavailable')
   }
   if (reason === 'provider_config_missing' || reason === 'pkce_unavailable') {
-    return '账号连接暂不可用'
+    return s('tracker_detail_connect_unavailable')
   }
-  return '连接失败'
+  return s('tracker_detail_connect_failed')
 }
 
 export function normalizeTrackerAccountStatus(value: string): TrackerAccountStatus {

@@ -7,6 +7,11 @@ import { KomaSegmentedControl } from '../components/ui/KomaSegmentedControl'
 import { RemoteServerStore } from '../model/RemoteServerStore'
 import { KomgaAuthKind } from '../remote/KomgaModels'
 import { ThemeConstants } from '../theme/ThemeConstants'
+import { AppStrings } from '../i18n/AppStrings'
+
+function s(name: string): string {
+  return AppStrings.get(name)
+}
 
 @ComponentV2
 export struct KomgaServerPage {
@@ -48,7 +53,7 @@ export struct KomgaServerPage {
       return
     }
     this.testing = true
-    this.statusText = '正在测试连接...'
+    this.statusText = s('server_status_testing')
     try {
       const store = this.store()
       const record = await store.saveKomga({
@@ -60,14 +65,14 @@ export struct KomgaServerPage {
       })
       console.info('[Komga] step=test_connection_start')
       const libraries = await store.createKomgaClient(record).listLibraries()
-      this.statusText = `连接成功，发现 ${libraries.length} 个库`
+      this.statusText = s('komga_status_success').replace('%s', `${libraries.length}`)
       console.info(`[Komga] step=test_connection_ok libraries=${libraries.length}`)
-      this.showToast('Komga 连接成功')
+      this.showToast(s('komga_toast_success'))
     } catch (error) {
       const e = error as Error
-      this.statusText = `连接失败：${e.message}`
+      this.statusText = s('komga_status_failed').replace('%s', e.message)
       console.error('[Komga] step=test_connection_failed message=' + e.message)
-      this.showToast('Komga 连接失败')
+      this.showToast(s('komga_toast_failed'))
     } finally {
       this.testing = false
     }
@@ -80,8 +85,8 @@ export struct KomgaServerPage {
       this.apiKey = ''
       this.username = ''
       this.password = ''
-      this.statusText = '已移除 Komga 配置'
-      this.showToast('已移除 Komga')
+      this.statusText = s('komga_status_removed')
+      this.showToast(s('komga_toast_removed'))
     } catch (error) {
       const e = error as Error
       this.statusText = e.message
@@ -119,12 +124,12 @@ export struct KomgaServerPage {
   private FormCard() {
     GroupedListSection({ inset: ThemeConstants.SPACE_LG }) {
       Column({ space: ThemeConstants.SPACE_LG }) {
-      KomaFormTextField({ label: 'Server URL', placeholder: 'https://demo.komga.org', value: this.baseUrl, change: (value: string) => {
+      KomaFormTextField({ label: s('common_server_url'), placeholder: 'https://demo.komga.org', value: this.baseUrl, change: (value: string) => {
         this.baseUrl = value
       } })
 
       KomaSegmentedControl({
-        labels: ['Basic', 'API key', '无认证'],
+        labels: [s('komga_auth_basic'), s('komga_auth_api_key'), s('komga_auth_none')],
         selectedIndex: this.authIndex(),
         select: (index: number) => {
           this.setAuthIndex(index)
@@ -132,20 +137,20 @@ export struct KomgaServerPage {
       })
 
       if (this.authKind === KomgaAuthKind.API_KEY) {
-        KomaFormTextField({ label: 'API key', placeholder: 'X-API-Key', value: this.apiKey, isPassword: true, change: (value: string) => {
+        KomaFormTextField({ label: s('komga_label_api_key'), placeholder: 'X-API-Key', value: this.apiKey, isPassword: true, change: (value: string) => {
           this.apiKey = value
         } })
       } else if (this.authKind === KomgaAuthKind.BASIC) {
-        KomaFormTextField({ label: '用户名', placeholder: 'demo@komga.org', value: this.username, change: (value: string) => {
+        KomaFormTextField({ label: s('common_username'), placeholder: 'demo@komga.org', value: this.username, change: (value: string) => {
           this.username = value
         } })
-        KomaFormTextField({ label: '密码', placeholder: 'komga-demo', value: this.password, isPassword: true, change: (value: string) => {
+        KomaFormTextField({ label: s('common_password'), placeholder: 'komga-demo', value: this.password, isPassword: true, change: (value: string) => {
           this.password = value
         } })
       }
 
       KomaActionButton({
-        label: this.testing ? '测试中...' : '保存并测试连接',
+        label: this.testing ? s('common_testing') : s('server_action_save_and_test'),
         kind: 'primary',
         fullWidth: true,
         isEnabled: !this.testing,
@@ -156,7 +161,7 @@ export struct KomgaServerPage {
         .width('100%')
 
       KomaActionButton({
-        label: '移除配置',
+        label: s('server_action_remove_config'),
         kind: 'ghost',
         fullWidth: true,
         accentColor: ThemeConstants.TEXT_SECONDARY,

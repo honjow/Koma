@@ -45,6 +45,11 @@ import {
   PersistentReaderSessionStore,
   ReaderSessionStore,
 } from '../model/ReaderSessionStore'
+import { AppStrings } from '../i18n/AppStrings'
+
+function s(name: string): string {
+  return AppStrings.get(name)
+}
 
 @ComponentV2
 struct ContinueReadingShelfCard {
@@ -72,7 +77,7 @@ struct ContinueReadingShelfCard {
       .backgroundColor(this.info.color)
 
       Column({ space: ThemeConstants.SPACE_SM }) {
-        Text('继续阅读')
+        Text(s('library_continue_reading'))
           .fontSize(ThemeConstants.FONT_SIZE_META)
           .fontWeight(FontWeight.Medium)
           .fontColor(ThemeConstants.BRAND_PRIMARY)
@@ -324,58 +329,58 @@ export struct LibraryPage {
 
   private sortLabel(): string {
     if (this.sortBy === 'added') {
-      return '最近加入'
+      return s('library_sort_added')
     }
     if (this.sortBy === 'title') {
-      return '标题'
+      return s('library_sort_title')
     }
     if (this.sortBy === 'source') {
-      return '来源'
+      return s('library_sort_source')
     }
-    return '最近阅读'
+    return s('library_sort_last_read')
   }
 
   private sourceLabel(): string {
     if (this.filterSource === 'local') {
-      return '本地'
+      return s('library_source_local')
     }
     if (this.filterSource === 'komga') {
-      return 'Komga'
+      return s('route_komga_title')
     }
     if (this.filterSource === 'opds') {
-      return 'OPDS'
+      return s('route_opds_title')
     }
     if (this.filterSource === 'webdav') {
-      return 'WebDAV'
+      return s('route_webdav_title')
     }
     if (this.filterSource === 'wasm') {
-      return 'wasm'
+      return s('library_source_wasm')
     }
-    return '全部来源'
+    return s('library_source_all')
   }
 
   private readStateLabel(): string {
     if (this.filterReadState === 'unread') {
-      return '未读'
+      return s('library_read_state_unread')
     }
     if (this.filterReadState === 'reading') {
-      return '读过'
+      return s('library_read_state_reading')
     }
     if (this.filterReadState === 'completed') {
-      return '已完成'
+      return s('library_read_state_completed')
     }
-    return '全部状态'
+    return s('library_read_state_all')
   }
 
   private categoryLabel(): string {
     if (this.filterCategory === 'uncategorized') {
-      return '未分类'
+      return s('library_category_uncategorized')
     }
     if (this.filterCategory === LIBRARY_CATEGORY_READ_LATER_ID) {
-      return '稍后阅读'
+      return s('library_category_read_later')
     }
     if (this.filterCategory === LIBRARY_CATEGORY_FAVORITE_ID) {
-      return '收藏'
+      return s('library_category_favorite')
     }
     const customCategory = this.libraryStore.listCustomCategories().find((category: CustomLibraryCategory): boolean => {
       return category.id === this.filterCategory
@@ -383,7 +388,7 @@ export struct LibraryPage {
     if (customCategory !== undefined) {
       return customCategory.name
     }
-    return '全部分类'
+    return s('library_category_all')
   }
 
   private viewModel(): LibraryViewModel {
@@ -412,9 +417,9 @@ export struct LibraryPage {
     const customCategories = this.libraryStore.listCustomCategories()
     normalizeCategoryIds(comic.categoryIds).forEach((categoryId: string) => {
       if (categoryId === LIBRARY_CATEGORY_FAVORITE_ID) {
-        labels.push('收藏')
+        labels.push(s('library_category_favorite'))
       } else if (categoryId === LIBRARY_CATEGORY_READ_LATER_ID) {
-        labels.push('稍后阅读')
+        labels.push(s('library_category_read_later'))
       } else {
         const customCategory = customCategories.find((category: CustomLibraryCategory): boolean => {
           return category.id === categoryId
@@ -609,18 +614,18 @@ export struct LibraryPage {
       return
     }
     this.getUIContext().showAlertDialog({
-      title: '批量移出书架',
-      message: `从书架中移出已选的 ${count} 本漫画？`,
+      title: s('library_batch_remove_title'),
+      message: s('library_batch_remove_message').replace('%s', `${count}`),
       autoCancel: true,
       primaryButton: {
-        value: '移出',
+        value: s('common_remove'),
         fontColor: ThemeConstants.DANGER,
         action: () => {
           this.removeSelectedComics()
         },
       },
       secondaryButton: {
-        value: '取消',
+        value: s('common_cancel'),
         action: () => {},
       },
     })
@@ -631,11 +636,11 @@ export struct LibraryPage {
       return
     }
     this.getUIContext().showAlertDialog({
-      title: '移出书架',
-      message: `从书架中移出《${comic.title}》？`,
+      title: s('library_remove_title'),
+      message: s('library_remove_message').replace('%s', comic.title),
       autoCancel: true,
       primaryButton: {
-        value: '移出',
+        value: s('common_remove'),
         fontColor: ThemeConstants.DANGER,
         action: () => {
           if (this.onRemoveComicRequested(comic.id)) {
@@ -644,7 +649,7 @@ export struct LibraryPage {
         },
       },
       secondaryButton: {
-        value: '取消',
+        value: s('common_cancel'),
         action: () => {},
       },
     })
@@ -654,11 +659,11 @@ export struct LibraryPage {
   private ComicActionMenu(comic: ComicCoverInfo) {
     Menu() {
       if (this.canRemoveComic(comic.id)) {
-        MenuItem({ content: '选择' })
+        MenuItem({ content: s('common_select') })
           .onClick(() => {
             this.enterSelectionMode(comic.id)
           })
-        MenuItem({ content: '移出书架' })
+        MenuItem({ content: s('library_action_remove_from_library') })
           .contentFontColor(ThemeConstants.DANGER)
           .onClick(() => {
             this.showRemoveConfirmation(comic)
@@ -670,19 +675,19 @@ export struct LibraryPage {
   @Builder
   private SortMenu() {
     Menu() {
-      MenuItem({ content: '最近阅读' })
+      MenuItem({ content: s('library_sort_last_read') })
         .onClick(() => {
           this.setSortBy('lastRead')
         })
-      MenuItem({ content: '最近加入' })
+      MenuItem({ content: s('library_sort_added') })
         .onClick(() => {
           this.setSortBy('added')
         })
-      MenuItem({ content: '标题' })
+      MenuItem({ content: s('library_sort_title') })
         .onClick(() => {
           this.setSortBy('title')
         })
-      MenuItem({ content: '来源' })
+      MenuItem({ content: s('library_sort_source') })
         .onClick(() => {
           this.setSortBy('source')
         })
@@ -692,27 +697,27 @@ export struct LibraryPage {
   @Builder
   private SourceMenu() {
     Menu() {
-      MenuItem({ content: '全部' })
+      MenuItem({ content: s('common_all') })
         .onClick(() => {
           this.setSourceFilter('all')
         })
-      MenuItem({ content: '本地' })
+      MenuItem({ content: s('library_source_local') })
         .onClick(() => {
           this.setSourceFilter('local')
         })
-      MenuItem({ content: 'Komga' })
+      MenuItem({ content: s('route_komga_title') })
         .onClick(() => {
           this.setSourceFilter('komga')
         })
-      MenuItem({ content: 'OPDS' })
+      MenuItem({ content: s('route_opds_title') })
         .onClick(() => {
           this.setSourceFilter('opds')
         })
-      MenuItem({ content: 'WebDAV' })
+      MenuItem({ content: s('route_webdav_title') })
         .onClick(() => {
           this.setSourceFilter('webdav')
         })
-      MenuItem({ content: 'wasm' })
+      MenuItem({ content: s('library_source_wasm') })
         .onClick(() => {
           this.setSourceFilter('wasm')
         })
@@ -722,19 +727,19 @@ export struct LibraryPage {
   @Builder
   private ReadStateMenu() {
     Menu() {
-      MenuItem({ content: '全部' })
+      MenuItem({ content: s('common_all') })
         .onClick(() => {
           this.setReadStateFilter('all')
         })
-      MenuItem({ content: '未读' })
+      MenuItem({ content: s('library_read_state_unread') })
         .onClick(() => {
           this.setReadStateFilter('unread')
         })
-      MenuItem({ content: '读过' })
+      MenuItem({ content: s('library_read_state_reading') })
         .onClick(() => {
           this.setReadStateFilter('reading')
         })
-      MenuItem({ content: '已完成' })
+      MenuItem({ content: s('library_read_state_completed') })
         .onClick(() => {
           this.setReadStateFilter('completed')
         })
@@ -744,19 +749,19 @@ export struct LibraryPage {
   @Builder
   private CategoryMenu() {
     Menu() {
-      MenuItem({ content: '全部' })
+      MenuItem({ content: s('common_all') })
         .onClick(() => {
           this.setCategoryFilter('all')
         })
-      MenuItem({ content: '未分类' })
+      MenuItem({ content: s('library_category_uncategorized') })
         .onClick(() => {
           this.setCategoryFilter('uncategorized')
         })
-      MenuItem({ content: '稍后阅读' })
+      MenuItem({ content: s('library_category_read_later') })
         .onClick(() => {
           this.setCategoryFilter(LIBRARY_CATEGORY_READ_LATER_ID)
         })
-      MenuItem({ content: '收藏' })
+      MenuItem({ content: s('library_category_favorite') })
         .onClick(() => {
           this.setCategoryFilter(LIBRARY_CATEGORY_FAVORITE_ID)
         })
@@ -772,33 +777,33 @@ export struct LibraryPage {
   @Builder
   private BatchCategoryMenu() {
     Menu() {
-      MenuItem({ content: '加入收藏' })
+      MenuItem({ content: s('library_batch_add_favorite') })
         .onClick(() => {
           this.addSelectedCategory(LIBRARY_CATEGORY_FAVORITE_ID)
         })
-      MenuItem({ content: '移出收藏' })
+      MenuItem({ content: s('library_batch_remove_favorite') })
         .onClick(() => {
           this.removeSelectedCategory(LIBRARY_CATEGORY_FAVORITE_ID)
         })
-      MenuItem({ content: '加入稍后' })
+      MenuItem({ content: s('library_batch_add_read_later') })
         .onClick(() => {
           this.addSelectedCategory(LIBRARY_CATEGORY_READ_LATER_ID)
         })
-      MenuItem({ content: '移出稍后' })
+      MenuItem({ content: s('library_batch_remove_read_later') })
         .onClick(() => {
           this.removeSelectedCategory(LIBRARY_CATEGORY_READ_LATER_ID)
         })
       ForEach(this.libraryStore.listCustomCategories(), (category: CustomLibraryCategory) => {
-        MenuItem({ content: `加入${category.name}` })
+        MenuItem({ content: s('library_batch_add_category').replace('%s', category.name) })
           .onClick(() => {
             this.addSelectedCategory(category.id)
           })
-        MenuItem({ content: `移出${category.name}` })
+        MenuItem({ content: s('library_batch_remove_category').replace('%s', category.name) })
           .onClick(() => {
             this.removeSelectedCategory(category.id)
           })
       }, (category: CustomLibraryCategory) => category.id)
-      MenuItem({ content: '清除分类' })
+      MenuItem({ content: s('library_batch_clear_categories') })
         .onClick(() => {
           this.assignSelectedCategory(undefined)
         })
@@ -812,7 +817,7 @@ export struct LibraryPage {
       Row() {
         Chip({
           label: {
-            text: `排序 ${this.sortLabel()} ▾`,
+            text: s('library_sort_chip').replace('%s', this.sortLabel()),
             fontSize: ThemeConstants.FONT_SIZE_TAG,
             fontColor: ThemeConstants.TEXT_PRIMARY,
             activatedFontColor: ThemeConstants.TEXT_ON_BRAND,
@@ -888,9 +893,9 @@ export struct LibraryPage {
   @Builder
   private EmptyLibrary() {
     KomaEmptyState({
-      title: '还没有漫画',
-      message: '导入本地 CBZ 或 ZIP 后会显示在书架中。',
-      actionLabel: '导入',
+      title: s('library_empty_title'),
+      message: s('library_empty_message'),
+      actionLabel: s('route_import_title'),
       showAction: true,
       action: () => {
         this.onImportRequested()
@@ -901,22 +906,22 @@ export struct LibraryPage {
   @Builder
   private EmptyFilteredLibrary() {
     KomaEmptyState({
-      title: '没有符合条件的漫画',
-      message: '调整排序或筛选条件后再试。',
+      title: s('library_filtered_empty_title'),
+      message: s('library_filtered_empty_message'),
     })
   }
 
   @Builder
   private BatchActionBar() {
     Row({ space: ThemeConstants.SPACE_MD }) {
-      Text(`已选 ${this.selectedCount()}`)
+      Text(s('library_selected_count').replace('%s', `${this.selectedCount()}`))
         .fontSize(ThemeConstants.FONT_SIZE_TITLE)
         .fontWeight(FontWeight.Bold)
         .fontColor(ThemeConstants.TEXT_PRIMARY)
         .layoutWeight(1)
 
       KomaActionButton({
-        label: '全选',
+        label: s('library_action_select_all'),
         kind: 'secondary',
         controlHeight: ThemeConstants.ACTION_CHIP_HEIGHT,
         action: () => {
@@ -925,7 +930,7 @@ export struct LibraryPage {
       })
 
       KomaActionButton({
-        label: '取消',
+        label: s('common_cancel'),
         kind: 'secondary',
         controlHeight: ThemeConstants.ACTION_CHIP_HEIGHT,
         action: () => {
@@ -934,7 +939,7 @@ export struct LibraryPage {
       })
 
       KomaActionButton({
-        label: '分类 ▾',
+        label: `${s('library_action_categories')} ▾`,
         kind: 'primary',
         isEnabled: this.selectedCount() > 0,
         controlHeight: ThemeConstants.ACTION_CHIP_HEIGHT,
@@ -942,7 +947,7 @@ export struct LibraryPage {
         .bindMenu(this.BatchCategoryMenu())
 
       KomaActionButton({
-        label: '删除',
+        label: s('common_remove'),
         kind: 'danger',
         isEnabled: this.selectedCount() > 0,
         controlHeight: ThemeConstants.ACTION_CHIP_HEIGHT,
@@ -1081,12 +1086,12 @@ export struct LibraryPage {
 
           ListItem() {
             Row() {
-              Text('书架')
+              Text(s('tab_library'))
                 .fontSize(ThemeConstants.FONT_SIZE_H3)
                 .fontWeight(FontWeight.Bold)
                 .fontColor(ThemeConstants.TEXT_PRIMARY)
               Blank()
-              Text(`${this.viewModel().comics.length} 本`)
+              Text(s('library_count_books').replace('%s', `${this.viewModel().comics.length}`))
                 .fontSize(ThemeConstants.FONT_SIZE_META)
                 .fontColor(ThemeConstants.TEXT_SECONDARY)
               KomaIconButton({

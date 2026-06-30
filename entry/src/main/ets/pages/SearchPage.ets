@@ -15,10 +15,15 @@ import { LibraryStorePersistenceService } from '../model/LibraryPersistence'
 import { createSeededLibraryStore } from '../model/MockLibraryData'
 import { SearchHistoryEntry, SearchHistoryStore } from '../model/SearchHistoryStore'
 import { safeSearchDiagnostic, searchStateUserText } from '../model/SearchStateMapper'
+import { AppStrings } from '../i18n/AppStrings'
 
 const SEARCH_DEBOUNCE_MS: number = 400
 const KOMGA_ROUTE_NAME: string = 'SearchKomgaSeriesPage'
 const OPDS_ROUTE_NAME: string = 'SearchOpdsBrowsePage'
+
+function s(name: string): string {
+  return AppStrings.get(name)
+}
 
 @ComponentV2
 export struct SearchPage {
@@ -233,7 +238,7 @@ export struct SearchPage {
 
   @Builder
   private SearchInput() {
-    Search({ value: this.queryText, placeholder: '搜索标题、作者、标签...' })
+    Search({ value: this.queryText, placeholder: s('search_placeholder') })
       .width('100%')
       .height(ThemeConstants.BUTTON_HEIGHT)
       .backgroundColor(ThemeConstants.CARD)
@@ -250,11 +255,11 @@ export struct SearchPage {
   @Builder
   private EmptyResults() {
     Column({ space: ThemeConstants.SPACE_MD }) {
-      Text(this.queryText.trim().length === 0 ? '输入关键词开始搜索' : '没有匹配结果')
+      Text(this.queryText.trim().length === 0 ? s('search_empty_idle_title') : s('search_empty_results_title'))
         .fontSize(ThemeConstants.FONT_SIZE_BODY)
         .fontWeight(FontWeight.Medium)
         .fontColor(ThemeConstants.TEXT_PRIMARY)
-      Text(this.queryText.trim().length === 0 ? '会同时搜索书架、私有库和已安装源。' : '换个关键词再试。')
+      Text(this.queryText.trim().length === 0 ? s('search_empty_idle_message') : s('search_empty_results_message'))
         .fontSize(ThemeConstants.FONT_SIZE_META)
         .lineHeight(ThemeConstants.LINE_HEIGHT_BODY)
         .fontColor(ThemeConstants.TEXT_SECONDARY)
@@ -271,14 +276,14 @@ export struct SearchPage {
   private HistoryPanel() {
     Column({ space: ThemeConstants.SPACE_MD }) {
       Row() {
-        Text('最近搜索')
+        Text(s('search_recent_title'))
           .fontSize(ThemeConstants.FONT_SIZE_BODY)
           .fontWeight(FontWeight.Medium)
           .fontColor(ThemeConstants.TEXT_SECONDARY)
           .layoutWeight(1)
         if (this.history.length > 0) {
           KomaActionButton({
-            label: '清除',
+            label: s('common_clear'),
             kind: 'ghost',
             compact: true,
             controlHeight: ThemeConstants.ACTION_CHIP_HEIGHT,
@@ -291,7 +296,7 @@ export struct SearchPage {
       .width('100%')
 
       if (this.history.length === 0) {
-        Text('暂无搜索历史')
+        Text(s('search_history_empty'))
           .width('100%')
           .fontSize(ThemeConstants.FONT_SIZE_META)
           .fontColor(ThemeConstants.TEXT_SECONDARY)
@@ -390,7 +395,7 @@ export struct SearchPage {
       .layoutWeight(1)
       .alignItems(HorizontalAlign.Start)
 
-      Text(item.sourceKind === 'webdav' ? '读' : '>')
+      Text(item.sourceKind === 'webdav' ? s('search_result_action_read') : '>')
         .fontSize(ThemeConstants.FONT_SIZE_TITLE)
         .fontWeight(FontWeight.Medium)
         .fontColor(ThemeConstants.BRAND_PRIMARY)
@@ -426,7 +431,7 @@ export struct SearchPage {
           }
         })
       }
-      .title('Komga')
+      .title(s('route_komga_title'))
     } else if (name === OPDS_ROUTE_NAME) {
       NavDestination() {
         OpdsBrowsePage({
@@ -437,7 +442,7 @@ export struct SearchPage {
           }
         })
       }
-      .title('OPDS')
+      .title(s('route_opds_title'))
     }
   }
 

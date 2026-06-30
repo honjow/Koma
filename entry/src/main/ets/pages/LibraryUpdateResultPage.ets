@@ -17,6 +17,11 @@ import {
 } from '../model/LibraryUpdateResultStore'
 import { formatLibraryUpdateTimestamp } from '../model/LibraryUpdatePreferencesStore'
 import { ThemeConstants } from '../theme/ThemeConstants'
+import { AppStrings } from '../i18n/AppStrings'
+
+function s(name: string): string {
+  return AppStrings.get(name)
+}
 
 @ComponentV2
 export struct LibraryUpdateResultPage {
@@ -111,15 +116,15 @@ export struct LibraryUpdateResultPage {
 
   private statusLabel(status: LibraryUpdateResultStatus): string {
     if (status === 'updated') {
-      return '更新'
+      return s('library_update_results_status_updated')
     }
     if (status === 'unchanged') {
-      return '未变化'
+      return s('library_update_results_status_unchanged')
     }
     if (status === 'skipped') {
-      return '跳过'
+      return s('library_update_results_status_skipped')
     }
-    return '失败'
+    return s('library_update_results_status_failed')
   }
 
   private statusColor(status: LibraryUpdateResultStatus): ResourceColor {
@@ -161,9 +166,11 @@ export struct LibraryUpdateResultPage {
 
   private emptyStateTitle(): string {
     if (this.isFailureJobSnapshot(this.jobSnapshot)) {
-      return (this.jobSnapshot as LibraryUpdateJobSnapshot).state === 'backed-off' ? '检查失败，已退避' : '检查失败'
+      return (this.jobSnapshot as LibraryUpdateJobSnapshot).state === 'backed-off'
+        ? s('library_update_results_empty_backed_off')
+        : s('library_update_results_empty_failed')
     }
-    return '尚无检查结果'
+    return s('library_update_results_empty_none')
   }
 
   private emptyStateMessage(): string {
@@ -171,11 +178,13 @@ export struct LibraryUpdateResultPage {
       const snapshot = this.jobSnapshot as LibraryUpdateJobSnapshot
       const code = snapshot.failureCode ?? 'unknown'
       if (snapshot.nextDueAt !== undefined && snapshot.nextDueAt > 0) {
-        return `最近一次检查失败：${code}。下次前台检查 ${this.formatTimestamp(snapshot.nextDueAt)}`
+        return s('library_update_results_failure_next_due')
+          .replace('%s', code)
+          .replace('%s', this.formatTimestamp(snapshot.nextDueAt))
       }
-      return `最近一次检查失败：${code}`
+      return s('library_update_results_failure_last').replace('%s', code)
     }
-    return '请先在设置中运行检查书架更新'
+    return s('library_update_results_run_first')
   }
 
   @Builder
@@ -197,7 +206,7 @@ export struct LibraryUpdateResultPage {
     ListItem() {
       Column({ space: ThemeConstants.SPACE_LG }) {
         Row() {
-          Text('最近检查')
+          Text(s('library_update_results_recent_check'))
             .fontSize(ThemeConstants.FONT_SIZE_BODY)
             .fontWeight(FontWeight.Medium)
             .fontColor(ThemeConstants.TEXT_PRIMARY)
@@ -209,15 +218,15 @@ export struct LibraryUpdateResultPage {
         .width('100%')
 
         Row() {
-          this.SummaryMetric('总计', summary.totalCount)
-          this.SummaryMetric('更新', summary.updatedCount)
-          this.SummaryMetric('未变化', summary.unchangedCount)
-          this.SummaryMetric('跳过', summary.skippedCount)
-          this.SummaryMetric('失败', summary.failedCount)
+          this.SummaryMetric(s('library_update_results_metric_total'), summary.totalCount)
+          this.SummaryMetric(s('library_update_results_metric_updated'), summary.updatedCount)
+          this.SummaryMetric(s('library_update_results_metric_unchanged'), summary.unchangedCount)
+          this.SummaryMetric(s('library_update_results_metric_skipped'), summary.skippedCount)
+          this.SummaryMetric(s('library_update_results_metric_failed'), summary.failedCount)
         }
         .width('100%')
         Row() {
-          this.SummaryMetric('新章', countLibraryUpdateNewChapters(summary))
+          this.SummaryMetric(s('library_update_results_metric_new_chapters'), countLibraryUpdateNewChapters(summary))
           Blank()
             .layoutWeight(4)
         }

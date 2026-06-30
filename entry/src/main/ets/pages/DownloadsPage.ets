@@ -18,6 +18,11 @@ import {
   OfflineDownloadQueueStore,
 } from '../model/OfflineDownloadQueueStore'
 import { installReaderRemoteHeadersForComic } from '../model/ReaderPageSourceAdapter'
+import { AppStrings } from '../i18n/AppStrings'
+
+function s(name: string): string {
+  return AppStrings.get(name)
+}
 
 enum DownloadQueueFilter {
   ALL = 'all',
@@ -81,21 +86,21 @@ export struct DownloadsPage {
 
   private filterLabel(): string {
     if (this.filter === DownloadQueueFilter.QUEUED) {
-      return 'queued'
+      return s('downloads_filter_queued')
     }
     if (this.filter === DownloadQueueFilter.DOWNLOADING) {
-      return 'downloading'
+      return s('downloads_filter_downloading')
     }
     if (this.filter === DownloadQueueFilter.FAILED) {
-      return 'failed'
+      return s('downloads_filter_failed')
     }
     if (this.filter === DownloadQueueFilter.BLOCKED) {
-      return 'blocked'
+      return s('downloads_filter_blocked')
     }
     if (this.filter === DownloadQueueFilter.DOWNLOADED) {
-      return 'downloaded'
+      return s('downloads_filter_downloaded')
     }
-    return 'all'
+    return s('common_all')
   }
 
   private setFilter(filter: DownloadQueueFilter): void {
@@ -111,47 +116,51 @@ export struct DownloadsPage {
 
   private rowSubtitle(entry: OfflineDownloadQueueEntry): string {
     const comicTitle = entry.comicTitle !== undefined && entry.comicTitle.length > 0 ? entry.comicTitle : entry.comicId
-    return `${comicTitle} · ${this.formatEntryStatus(entry)} · ${entry.downloadedPageCount}/${entry.pageCount} 页`
+    return s('downloads_row_subtitle')
+      .replace('%s', comicTitle)
+      .replace('%s', this.formatEntryStatus(entry))
+      .replace('%s', `${entry.downloadedPageCount}`)
+      .replace('%s', `${entry.pageCount}`)
   }
 
   private blockedHelpText(entry: OfflineDownloadQueueEntry): string {
     if (entry.status === OfflineDownloadStatus.BLOCKED && entry.failureReasonCode === 'pages_missing') {
-      return '缺少章节页数据，请打开漫画详情页后重试下载。'
+      return s('downloads_blocked_pages_missing')
     }
     if (entry.status === OfflineDownloadStatus.BLOCKED) {
-      return '该任务暂不可在下载管理中重试。'
+      return s('downloads_blocked_unretryable')
     }
     return ''
   }
 
   private formatStatus(status: OfflineDownloadStatus): string {
     if (status === OfflineDownloadStatus.QUEUED) {
-      return 'queued'
+      return s('downloads_status_queued')
     }
     if (status === OfflineDownloadStatus.DOWNLOADING) {
-      return 'downloading'
+      return s('downloads_status_downloading')
     }
     if (status === OfflineDownloadStatus.DOWNLOADED) {
-      return 'downloaded'
+      return s('downloads_status_downloaded')
     }
     if (status === OfflineDownloadStatus.PARTIAL) {
-      return 'partial'
+      return s('downloads_status_partial')
     }
     if (status === OfflineDownloadStatus.FAILED) {
-      return 'failed'
+      return s('downloads_status_failed')
     }
     if (status === OfflineDownloadStatus.BLOCKED) {
-      return 'blocked'
+      return s('downloads_status_blocked')
     }
-    return 'failed'
+    return s('downloads_status_failed')
   }
 
   private formatEntryStatus(entry: OfflineDownloadQueueEntry): string {
     if (entry.failureReasonCode === 'paused') {
-      return 'paused'
+      return s('downloads_status_paused')
     }
     if (this.preferences.isPaused && entry.status === OfflineDownloadStatus.QUEUED) {
-      return 'paused'
+      return s('downloads_status_paused')
     }
     return this.formatStatus(entry.status)
   }
@@ -169,8 +178,15 @@ export struct DownloadsPage {
     const blocked = this.entries.filter((entry: OfflineDownloadQueueEntry): boolean => {
       return entry.status === OfflineDownloadStatus.BLOCKED
     }).length
-    const state = this.preferences.isPaused ? 'paused' : (running > 0 || this.busyKey.length > 0 ? 'running' : 'queued')
-    return `${state} · queued ${queued} · failed ${failed} · blocked ${blocked} · concurrency ${this.preferences.foregroundConcurrencyLimit}`
+    const state = this.preferences.isPaused
+      ? s('downloads_queue_state_paused')
+      : (running > 0 || this.busyKey.length > 0 ? s('downloads_queue_state_running') : s('downloads_queue_state_queued'))
+    return s('downloads_queue_summary')
+      .replace('%s', state)
+      .replace('%s', `${queued}`)
+      .replace('%s', `${failed}`)
+      .replace('%s', `${blocked}`)
+      .replace('%s', `${this.preferences.foregroundConcurrencyLimit}`)
   }
 
   private queuedEntries(): OfflineDownloadQueueEntry[] {
@@ -205,12 +221,12 @@ export struct DownloadsPage {
       return
     }
     if (this.preferences.isPaused) {
-      this.showToast('队列已暂停')
+      this.showToast(s('downloads_toast_queue_paused'))
       return
     }
     const comic = this.libraryStore?.getComic(entry.comicId)
     if (comic === undefined) {
-      this.showToast('下载条目不可用')
+      this.showToast(s('downloads_toast_entry_unavailable'))
       return
     }
     this.busyKey = this.rowKey(entry)
@@ -232,11 +248,11 @@ export struct DownloadsPage {
         chapterTitle: entry.chapterTitle,
       })
       this.loadQueue()
-      this.showToast('已重新下载')
+      this.showToast(s('downloads_toast_retried'))
     } catch (error) {
       void error
       console.warn('[Downloads] step=retry_failed failed=true reason=download_retry')
-      this.showToast('重新下载失败')
+      this.showToast(s('downloads_toast_retry_failed'))
     } finally {
       this.busyKey = ''
     }
@@ -250,12 +266,12 @@ export struct DownloadsPage {
     void this.queueStore().deleteChapterDownload(entry.comicId, entry.chapterId)
       .then(() => {
         this.loadQueue()
-        this.showToast('已移除下载')
+        this.showToast(s('downloads_toast_removed'))
       })
       .catch((error: Error) => {
         void error
         console.warn('[Downloads] step=remove_failed failed=true reason=download_remove')
-        this.showToast('移除失败')
+        this.showToast(s('downloads_toast_remove_failed'))
       })
       .finally(() => {
         this.busyKey = ''
@@ -267,12 +283,12 @@ export struct DownloadsPage {
       return
     }
     if (this.preferences.isPaused) {
-      this.showToast('队列已暂停')
+      this.showToast(s('downloads_toast_queue_paused'))
       return
     }
     const targets = this.retryableEntries()
     if (targets.length === 0) {
-      this.showToast('没有可重试任务')
+      this.showToast(s('downloads_toast_no_retryable'))
       return
     }
     this.busyKey = 'batch-retry'
@@ -283,11 +299,11 @@ export struct DownloadsPage {
     try {
       const retried = await this.runForegroundDownloadBatch(targets)
       this.loadQueue()
-      this.showToast(retried > 0 ? '已重试失败任务' : '没有可重试任务')
+      this.showToast(retried > 0 ? s('downloads_toast_retried_failed') : s('downloads_toast_no_retryable'))
     } catch (error) {
       void error
       console.warn('[Downloads] step=batch_retry_failed failed=true reason=batch_retry')
-      this.showToast('批量重试失败')
+      this.showToast(s('downloads_toast_batch_retry_failed'))
     } finally {
       this.busyKey = ''
     }
@@ -296,7 +312,7 @@ export struct DownloadsPage {
   private pauseQueuedDownloads(): void {
     this.preferences = this.queueStore().pauseAllQueuedWork()
     this.loadQueue()
-    this.showToast('已暂停排队任务')
+    this.showToast(s('downloads_toast_paused_queued'))
   }
 
   private resumeQueuedDownloads(): void {
@@ -307,7 +323,7 @@ export struct DownloadsPage {
     const targets = this.queuedEntries()
     if (targets.length === 0) {
       this.loadQueue()
-      this.showToast('没有排队任务')
+      this.showToast(s('downloads_toast_no_queued'))
       return
     }
     this.busyKey = 'batch-resume'
@@ -318,11 +334,11 @@ export struct DownloadsPage {
     try {
       const resumed = await this.runForegroundDownloadBatch(targets)
       this.loadQueue()
-      this.showToast(resumed > 0 ? '已继续排队任务' : '没有可继续任务')
+      this.showToast(resumed > 0 ? s('downloads_toast_resumed_queued') : s('downloads_toast_no_resumable'))
     } catch (error) {
       void error
       console.warn('[Downloads] step=batch_resume_failed failed=true reason=batch_resume')
-      this.showToast('继续队列失败')
+      this.showToast(s('downloads_toast_resume_failed'))
     } finally {
       this.busyKey = ''
     }
@@ -377,7 +393,7 @@ export struct DownloadsPage {
     }
     const targets = this.removableCompletedFailedEntries()
     if (targets.length === 0) {
-      this.showToast('没有可清理任务')
+      this.showToast(s('downloads_toast_no_cleanup'))
       return
     }
     this.busyKey = 'batch-remove'
@@ -396,11 +412,11 @@ export struct DownloadsPage {
         }
       }
       this.loadQueue()
-      this.showToast('已清理完成和失败任务')
+      this.showToast(s('downloads_toast_cleanup_done'))
     } catch (error) {
       void error
       console.warn('[Downloads] step=batch_remove_failed failed=true reason=batch_remove')
-      this.showToast('批量清理失败')
+      this.showToast(s('downloads_toast_cleanup_failed'))
     } finally {
       this.busyKey = ''
     }
@@ -432,27 +448,27 @@ export struct DownloadsPage {
   @Builder
   private FilterMenu() {
     Menu() {
-      MenuItem({ content: '全部' })
+      MenuItem({ content: s('common_all') })
         .onClick(() => {
           this.setFilter(DownloadQueueFilter.ALL)
         })
-      MenuItem({ content: 'queued' })
+      MenuItem({ content: s('downloads_filter_queued') })
         .onClick(() => {
           this.setFilter(DownloadQueueFilter.QUEUED)
         })
-      MenuItem({ content: 'downloading' })
+      MenuItem({ content: s('downloads_filter_downloading') })
         .onClick(() => {
           this.setFilter(DownloadQueueFilter.DOWNLOADING)
         })
-      MenuItem({ content: 'failed' })
+      MenuItem({ content: s('downloads_filter_failed') })
         .onClick(() => {
           this.setFilter(DownloadQueueFilter.FAILED)
         })
-      MenuItem({ content: 'blocked' })
+      MenuItem({ content: s('downloads_filter_blocked') })
         .onClick(() => {
           this.setFilter(DownloadQueueFilter.BLOCKED)
         })
-      MenuItem({ content: 'downloaded' })
+      MenuItem({ content: s('downloads_filter_downloaded') })
         .onClick(() => {
           this.setFilter(DownloadQueueFilter.DOWNLOADED)
         })
@@ -473,7 +489,7 @@ export struct DownloadsPage {
         Row() {
           Chip({
             label: {
-              text: `状态 ${this.filterLabel()} ▾`,
+              text: s('downloads_filter_chip').replace('%s', this.filterLabel()),
               fontSize: ThemeConstants.FONT_SIZE_TAG,
               fontColor: ThemeConstants.TEXT_PRIMARY,
               activatedFontColor: ThemeConstants.TEXT_ON_BRAND,
@@ -490,7 +506,7 @@ export struct DownloadsPage {
         Row() {
           Chip({
             label: {
-              text: `并发 ${this.preferences.foregroundConcurrencyLimit} ▾`,
+              text: s('downloads_concurrency_chip').replace('%s', `${this.preferences.foregroundConcurrencyLimit}`),
               fontSize: ThemeConstants.FONT_SIZE_TAG,
               fontColor: ThemeConstants.TEXT_PRIMARY,
             },
@@ -509,7 +525,9 @@ export struct DownloadsPage {
 
       Row({ space: ThemeConstants.SPACE_SM }) {
         KomaActionButton({
-          label: this.preferences.isPaused ? (this.busyKey === 'batch-resume' ? '继续中' : '继续队列') : '暂停队列',
+          label: this.preferences.isPaused
+            ? (this.busyKey === 'batch-resume' ? s('downloads_action_resuming') : s('downloads_action_resume_queue'))
+            : s('downloads_action_pause_queue'),
           kind: this.preferences.isPaused ? 'primary' : 'ghost',
           isEnabled: !this.preferences.isPaused || this.busyKey.length === 0,
           controlHeight: ThemeConstants.ACTION_CHIP_HEIGHT,
@@ -522,7 +540,7 @@ export struct DownloadsPage {
           },
         })
         KomaActionButton({
-          label: this.busyKey === 'batch-retry' ? '重试中' : '重试失败',
+          label: this.busyKey === 'batch-retry' ? s('common_retrying') : s('downloads_action_retry_failed'),
           kind: 'ghost',
           isEnabled: this.busyKey.length === 0 && !this.preferences.isPaused,
           controlHeight: ThemeConstants.ACTION_CHIP_HEIGHT,
@@ -531,7 +549,7 @@ export struct DownloadsPage {
           },
         })
         KomaActionButton({
-          label: this.busyKey === 'batch-remove' ? '清理中' : '清理完成/失败',
+          label: this.busyKey === 'batch-remove' ? s('downloads_action_cleaning') : s('downloads_action_cleanup_finished_failed'),
           kind: 'ghost',
           isEnabled: this.busyKey.length === 0,
           controlHeight: ThemeConstants.ACTION_CHIP_HEIGHT,
@@ -548,8 +566,8 @@ export struct DownloadsPage {
   @Builder
   private EmptyState() {
     KomaEmptyState({
-      title: '暂无下载任务',
-      message: '从漫画详情页选择章节下载后会显示在这里。',
+      title: s('downloads_empty_title'),
+      message: s('downloads_empty_message'),
     })
   }
 
@@ -592,7 +610,7 @@ export struct DownloadsPage {
       Row({ space: ThemeConstants.SPACE_MD }) {
         if (this.canRetry(entry)) {
           KomaActionButton({
-            label: this.busyKey === this.rowKey(entry) ? '重试中' : '重试',
+            label: this.busyKey === this.rowKey(entry) ? s('common_retrying') : s('common_retry'),
             kind: 'primary',
             isEnabled: this.busyKey.length === 0 && !this.preferences.isPaused,
             controlHeight: ThemeConstants.ACTION_CHIP_HEIGHT,
@@ -603,7 +621,7 @@ export struct DownloadsPage {
         }
         if (this.canRemove(entry)) {
           KomaActionButton({
-            label: '移除',
+            label: s('common_remove'),
             kind: 'ghost',
             isEnabled: this.busyKey.length === 0,
             controlHeight: ThemeConstants.ACTION_CHIP_HEIGHT,
