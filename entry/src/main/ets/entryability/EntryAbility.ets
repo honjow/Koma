@@ -6,6 +6,8 @@ import { bootstrapSourceRuntimeAppRegistry } from '../sourceRuntime/SourceRuntim
 import { maybeRunSourceRuntimeDeviceSmoke } from '../sourceRuntime/SourceRuntimeDeviceSmoke'
 import { configureSourceSettingsStore } from '../sourceRuntime/SourceSettingsStore'
 import { LayoutSafeAreaBridge } from '../state/LayoutSafeAreaState'
+import { AppStrings } from '../i18n/AppStrings'
+import { LanguageSettings } from '../i18n/LanguageSettings'
 
 const TRANSPARENT_COLOR: string = '#00FFFFFF'
 const ENTRY_PAGE: string = 'pages/Index'
@@ -15,6 +17,8 @@ const FALLBACK_BOTTOM_AVOID: number = 0
 export default class EntryAbility extends UIAbility {
   onCreate(want: Want, launchParam: AbilityConstant.LaunchParam): void {
     void launchParam
+    AppStrings.init(this.context)
+    void LanguageSettings.restore(this.context)
     this.applySavedThemeMode()
     configureSourceSettingsStore(this.context)
     bootstrapSourceRuntimeAppRegistry(this.context)

@@ -1,5 +1,6 @@
 import { common } from '@kit.AbilityKit'
 import { preferences } from '@kit.ArkData'
+import { AppStrings } from '../i18n/AppStrings'
 
 export type LibraryUpdateNotificationStatus = 'disabled' | 'planned' | 'unavailable'
 
@@ -119,9 +120,9 @@ export function formatLibraryUpdateTimestamp(value: number): string {
 
 export function getLibraryUpdateAutoCheckLabel(preferences: LibraryUpdatePreferences): string {
   if (!preferences.autoCheckEnabled) {
-    return '关闭 · 仅手动前台检查'
+    return AppStrings.get('library_update_auto_check_off')
   }
-  return `每 ${preferences.intervalHours} 小时 · 前台检查`
+  return AppStrings.get('library_update_auto_check_every_hours').replace('%s', `${preferences.intervalHours}`)
 }
 
 export function getLibraryUpdateBackoffHours(preferences: LibraryUpdatePreferences): number {
@@ -147,16 +148,18 @@ export function getLibraryUpdateNextDueAt(preferences: LibraryUpdatePreferences)
 export function getLibraryUpdateNextDueLabel(preferences: LibraryUpdatePreferences): string {
   const nextDueAt = getLibraryUpdateNextDueAt(preferences)
   if (nextDueAt === undefined) {
-    return '未开启自动检查'
+    return AppStrings.get('library_update_next_due_disabled')
   }
   if (nextDueAt === 0) {
-    return '下次打开设置时检查'
+    return AppStrings.get('library_update_next_due_on_open')
   }
   const backoffHours = getLibraryUpdateBackoffHours(preferences)
   if (backoffHours > 0) {
-    return `下次前台检查 ${formatLibraryUpdateTimestamp(nextDueAt)} · 失败退避 ${backoffHours} 小时`
+    return AppStrings.get('library_update_next_due_backoff')
+      .replace('%s', formatLibraryUpdateTimestamp(nextDueAt))
+      .replace('%s', `${backoffHours}`)
   }
-  return `下次前台检查 ${formatLibraryUpdateTimestamp(nextDueAt)}`
+  return AppStrings.get('library_update_next_due_at').replace('%s', formatLibraryUpdateTimestamp(nextDueAt))
 }
 
 export function getLibraryUpdateLastResultLabel(preferences: LibraryUpdatePreferences): string {
@@ -165,25 +168,31 @@ export function getLibraryUpdateLastResultLabel(preferences: LibraryUpdatePrefer
       preferences.lastCheckedAt !== undefined &&
       normalizeLibraryUpdateFailureCount(preferences.failureCount) > 0
   ) {
-    return `上次检查失败 · ${preferences.lastFailureCode} · ${formatLibraryUpdateTimestamp(preferences.lastCheckedAt)}`
+    return AppStrings.get('library_update_last_failed')
+      .replace('%s', preferences.lastFailureCode)
+      .replace('%s', formatLibraryUpdateTimestamp(preferences.lastCheckedAt))
   }
   if (preferences.lastSummaryText !== undefined && preferences.lastCheckedAt !== undefined) {
-    return `${preferences.lastSummaryText} · 上次 ${formatLibraryUpdateTimestamp(preferences.lastCheckedAt)}`
+    return AppStrings.get('library_update_last_result')
+      .replace('%s', preferences.lastSummaryText)
+      .replace('%s', formatLibraryUpdateTimestamp(preferences.lastCheckedAt))
   }
   if (preferences.lastFailureCode !== undefined && preferences.lastCheckedAt !== undefined) {
-    return `上次检查失败 · ${preferences.lastFailureCode} · ${formatLibraryUpdateTimestamp(preferences.lastCheckedAt)}`
+    return AppStrings.get('library_update_last_failed')
+      .replace('%s', preferences.lastFailureCode)
+      .replace('%s', formatLibraryUpdateTimestamp(preferences.lastCheckedAt))
   }
-  return '尚无结果'
+  return AppStrings.get('library_update_no_result')
 }
 
 export function getLibraryUpdateNotificationStatusLabel(status: LibraryUpdateNotificationStatus = LIBRARY_UPDATE_NOTIFICATION_STATUS): string {
   if (status === 'disabled') {
-    return '关闭'
+    return AppStrings.get('common_off')
   }
   if (status === 'unavailable') {
-    return '不可用'
+    return AppStrings.get('library_update_notification_unavailable')
   }
-  return '计划中 · 暂不发送'
+  return AppStrings.get('library_update_notification_planned')
 }
 
 export function isLibraryUpdateNotificationDeliveryEnabled(status: LibraryUpdateNotificationStatus = LIBRARY_UPDATE_NOTIFICATION_STATUS): boolean {

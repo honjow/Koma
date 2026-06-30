@@ -71,6 +71,9 @@ import {
 } from '../model/ReaderPreferencesStore'
 import { listInstalled } from '../sourceRuntime/SourceRuntimeAppRegistry'
 import { SourceRuntimeRegistry } from '../sourceRuntime/SourceRuntimeRegistry'
+import { AppStrings } from '../i18n/AppStrings'
+import { LanguageSettings } from '../i18n/LanguageSettings'
+import { connectLanguageState, LanguageState } from '../state/LanguageState'
 
 interface SettingsRow {
   key: string
@@ -118,155 +121,163 @@ interface SettingsSearchResult {
   row: SettingsRow
 }
 
-const SETTINGS_SECTIONS: SettingsSection[] = [
-  {
-    key: 'appearance',
-    title: '外观',
-    rows: [
-      { key: 'theme', title: '主题', detail: '跟随系统' },
-      { key: 'theme-color', title: '主题色', detail: 'Koma 默认', placeholder: true },
-      { key: 'language', title: '语言', detail: '跟随系统', placeholder: true },
-      { key: 'list-density', title: '列表密度', detail: '标准', placeholder: true },
-    ],
-  },
-  {
-    key: 'reader',
-    title: '阅读器',
-    rows: [
-      { key: 'page-mode', title: '翻页模式', detail: '单页' },
-      { key: 'reading-direction', title: '阅读方向', detail: '从左到右' },
-      { key: 'reader-background', title: '阅读背景', detail: '黑色' },
-      { key: 'reader-progress', title: '页码与进度', detail: '显示' },
-      { key: 'reader-keep-screen-awake', title: '屏幕常亮', detail: '开启' },
-      { key: 'reader-image-fit', title: '图片适配', detail: '适合屏幕' },
-      { key: 'reader-tap-navigation', title: '点击翻页', detail: '开启' },
-      { key: 'reader-tap-zone-preset', title: '点击区域', detail: '窄边缘' },
-      { key: 'reader-page-gap', title: '页面间距', detail: '标准' },
-      { key: 'reader-trim-page-margins', title: '收紧页边（不裁图）', detail: '关闭' },
-      { key: 'reader-wide-image-mode', title: '宽图处理', detail: '保持单页' },
-      { key: 'reader-volume-key-navigation', title: '音量键翻页', detail: '关闭' },
-    ],
-  },
-  {
-    key: 'data',
-    title: '数据',
-    rows: [
-      { key: 'komga', title: 'Komga 私有库', detail: '服务器与认证' },
-      { key: 'opds', title: 'OPDS 私有库', detail: 'Catalog 与认证' },
-      { key: 'webdav', title: 'WebDAV 私有库', detail: '远程文件夹与认证' },
-      { key: 'library-auto-update', title: '自动检查更新', detail: '关闭' },
-      { key: 'library-update-interval', title: '检查间隔', detail: '每 24 小时' },
-      { key: 'library-update', title: '检查书架更新', detail: '尚未检查' },
-      { key: 'library-update-results', title: '书架更新详情', detail: '尚无结果' },
-      { key: 'library-categories', title: '书架分类', detail: '管理自定义分类' },
-      { key: 'library-view-mode', title: '书架视图', detail: '网格', placeholder: true },
-      { key: 'library-default-sort', title: '默认排序', detail: '最近阅读', placeholder: true },
-      { key: 'library-badges', title: '角标与进度', detail: '显示未读和阅读进度', placeholder: true },
-      { key: 'local-library-refresh', title: '刷新本地导入', detail: '需要重新选择本地文件' },
-      { key: 'sources', title: '管理已安装的源包', detail: '暂未安装源包' },
-      { key: 'downloads', title: '下载管理', detail: '离线章节与失败任务' },
-      { key: 'download-concurrency', title: '并发下载数', detail: '2', placeholder: true },
-      { key: 'download-retry-failed', title: '失败任务重试', detail: '手动', placeholder: true },
-      { key: 'download-wifi-only', title: '仅 WLAN 下载', detail: '关闭', placeholder: true },
-      { key: 'trackers', title: '追踪账号', detail: '安全存储未验证，账号未连接' },
-      { key: 'tracker-auto-sync', title: '自动同步进度', detail: '关闭', placeholder: true },
-      { key: 'tracker-update-strategy', title: '同步策略', detail: '阅读后同步', placeholder: true },
-      { key: 'backup', title: '备份与恢复', detail: '导出书架、进度、源包和设置' },
-      { key: 'backup-auto-export', title: '自动备份', detail: '关闭', placeholder: true },
-      { key: 'backup-include-settings', title: '备份范围', detail: '书架、进度、源包和设置', placeholder: true },
-      { key: 'image-cache', title: '图片缓存', detail: '0 B · 0 项' },
-      { key: 'cache-limit', title: '缓存上限', detail: '未限制', placeholder: true },
-      { key: 'cache-auto-clean', title: '自动清理缓存', detail: '关闭', placeholder: true },
-    ],
-  },
-  {
-    key: 'about',
-    title: '关于',
-    rows: [
-      { key: 'about', title: '关于', detail: 'Koma 与项目说明' },
-      { key: 'version', title: '版本', detail: 'Koma 开发版' },
-      { key: 'open-source', title: '开源许可', detail: '查看依赖与许可证' },
-    ],
-  },
-]
+function s(name: string): string {
+  return AppStrings.get(name)
+}
 
-const SETTINGS_ROOT_SECTIONS: SettingsPaneSection[] = [
-  {
-    key: 'primary',
-    title: '',
-    items: [
-      {
-        key: 'appearance',
-        title: '外观',
-        detail: '主题',
-        icon: $r('sys.symbol.gearshape'),
-        color: ThemeConstants.STATUS_INFO,
-      },
-      {
-        key: 'library',
-        title: '书架',
-        detail: '分类、更新、本地刷新',
-        icon: $r('sys.symbol.square_fill_grid_2x2'),
-        color: ThemeConstants.SOURCE_LOCAL_COLOR,
-      },
-      {
-        key: 'reader',
-        title: '阅读器',
-        detail: '翻页、方向、背景、点击区域',
-        icon: $r('sys.symbol.clock'),
-        color: ThemeConstants.STATUS_SUCCESS,
-      },
-      {
-        key: 'services',
-        title: '私有库与源',
-        detail: 'Komga、OPDS、WebDAV、源包',
-        icon: $r('sys.symbol.compass'),
-        color: ThemeConstants.SOURCE_KOMGA_COLOR,
-      },
-    ],
-  },
-  {
-    key: 'management',
-    title: '',
-    items: [
-      {
-        key: 'downloads',
-        title: '下载',
-        detail: '离线章节与失败任务',
-        icon: $r('sys.symbol.clock'),
-        color: ThemeConstants.STATUS_INFO,
-      },
-      {
-        key: 'tracking',
-        title: '追踪账号',
-        detail: 'Bangumi / AniList 等进度同步',
-        icon: $r('sys.symbol.magnifyingglass'),
-        color: ThemeConstants.STATUS_WARNING,
-      },
-      {
-        key: 'backup',
-        title: '备份与恢复',
-        detail: '书架、进度、源包和设置',
-        icon: $r('sys.symbol.gearshape'),
-        color: ThemeConstants.SOURCE_WEBDAV_COLOR,
-      },
-      {
-        key: 'storage',
-        title: '存储',
-        detail: '图片缓存、刷新状态',
-        icon: $r('sys.symbol.square_fill_grid_2x2'),
-        color: ThemeConstants.STATUS_MUTED,
-      },
-      {
-        key: 'about',
-        title: '关于',
-        detail: '版本、说明、开源许可',
-        icon: $r('sys.symbol.gearshape'),
-        color: ThemeConstants.STATUS_MUTED,
-      },
-    ],
-  },
-]
+function createSettingsSections(): SettingsSection[] {
+  return [
+    {
+      key: 'appearance',
+      title: s('settings_section_appearance'),
+      rows: [
+        { key: 'theme', title: s('settings_row_theme_title'), detail: s('settings_row_theme_detail') },
+        { key: 'theme-color', title: s('settings_row_theme_color_title'), detail: s('settings_row_theme_color_detail'), placeholder: true },
+        { key: 'language', title: s('settings_row_language_title'), detail: s('settings_row_language_detail') },
+        { key: 'list-density', title: s('settings_row_list_density_title'), detail: s('settings_row_list_density_detail'), placeholder: true },
+      ],
+    },
+    {
+      key: 'reader',
+      title: s('settings_section_reader'),
+      rows: [
+        { key: 'page-mode', title: s('settings_row_page_mode_title'), detail: s('settings_row_page_mode_detail') },
+        { key: 'reading-direction', title: s('settings_row_reading_direction_title'), detail: s('settings_row_reading_direction_detail') },
+        { key: 'reader-background', title: s('settings_row_reader_background_title'), detail: s('settings_row_reader_background_detail') },
+        { key: 'reader-progress', title: s('settings_row_reader_progress_title'), detail: s('settings_row_reader_progress_detail') },
+        { key: 'reader-keep-screen-awake', title: s('settings_row_reader_keep_screen_awake_title'), detail: s('settings_row_reader_keep_screen_awake_detail') },
+        { key: 'reader-image-fit', title: s('settings_row_reader_image_fit_title'), detail: s('settings_row_reader_image_fit_detail') },
+        { key: 'reader-tap-navigation', title: s('settings_row_reader_tap_navigation_title'), detail: s('settings_row_reader_tap_navigation_detail') },
+        { key: 'reader-tap-zone-preset', title: s('settings_row_reader_tap_zone_preset_title'), detail: s('settings_row_reader_tap_zone_preset_detail') },
+        { key: 'reader-page-gap', title: s('settings_row_reader_page_gap_title'), detail: s('settings_row_reader_page_gap_detail') },
+        { key: 'reader-trim-page-margins', title: s('settings_row_reader_trim_page_margins_title'), detail: s('settings_row_reader_trim_page_margins_detail') },
+        { key: 'reader-wide-image-mode', title: s('settings_row_reader_wide_image_mode_title'), detail: s('settings_row_reader_wide_image_mode_detail') },
+        { key: 'reader-volume-key-navigation', title: s('settings_row_reader_volume_key_navigation_title'), detail: s('settings_row_reader_volume_key_navigation_detail') },
+      ],
+    },
+    {
+      key: 'data',
+      title: s('settings_section_data'),
+      rows: [
+        { key: 'komga', title: s('settings_row_komga_title'), detail: s('settings_row_komga_detail') },
+        { key: 'opds', title: s('settings_row_opds_title'), detail: s('settings_row_opds_detail') },
+        { key: 'webdav', title: s('settings_row_webdav_title'), detail: s('settings_row_webdav_detail') },
+        { key: 'library-auto-update', title: s('settings_row_library_auto_update_title'), detail: s('settings_row_library_auto_update_detail') },
+        { key: 'library-update-interval', title: s('settings_row_library_update_interval_title'), detail: s('settings_row_library_update_interval_detail') },
+        { key: 'library-update', title: s('settings_row_library_update_title'), detail: s('settings_row_library_update_detail') },
+        { key: 'library-update-results', title: s('settings_row_library_update_results_title'), detail: s('settings_row_library_update_results_detail') },
+        { key: 'library-categories', title: s('settings_row_library_categories_title'), detail: s('settings_row_library_categories_detail') },
+        { key: 'library-view-mode', title: s('settings_row_library_view_mode_title'), detail: s('settings_row_library_view_mode_detail'), placeholder: true },
+        { key: 'library-default-sort', title: s('settings_row_library_default_sort_title'), detail: s('settings_row_library_default_sort_detail'), placeholder: true },
+        { key: 'library-badges', title: s('settings_row_library_badges_title'), detail: s('settings_row_library_badges_detail'), placeholder: true },
+        { key: 'local-library-refresh', title: s('settings_row_local_library_refresh_title'), detail: s('settings_row_local_library_refresh_detail') },
+        { key: 'sources', title: s('settings_row_sources_title'), detail: s('settings_row_sources_detail') },
+        { key: 'downloads', title: s('settings_row_downloads_title'), detail: s('settings_row_downloads_detail') },
+        { key: 'download-concurrency', title: s('settings_row_download_concurrency_title'), detail: s('settings_row_download_concurrency_detail'), placeholder: true },
+        { key: 'download-retry-failed', title: s('settings_row_download_retry_failed_title'), detail: s('settings_row_download_retry_failed_detail'), placeholder: true },
+        { key: 'download-wifi-only', title: s('settings_row_download_wifi_only_title'), detail: s('settings_row_download_wifi_only_detail'), placeholder: true },
+        { key: 'trackers', title: s('settings_row_trackers_title'), detail: s('settings_row_trackers_detail') },
+        { key: 'tracker-auto-sync', title: s('settings_row_tracker_auto_sync_title'), detail: s('settings_row_tracker_auto_sync_detail'), placeholder: true },
+        { key: 'tracker-update-strategy', title: s('settings_row_tracker_update_strategy_title'), detail: s('settings_row_tracker_update_strategy_detail'), placeholder: true },
+        { key: 'backup', title: s('settings_row_backup_title'), detail: s('settings_row_backup_detail') },
+        { key: 'backup-auto-export', title: s('settings_row_backup_auto_export_title'), detail: s('settings_row_backup_auto_export_detail'), placeholder: true },
+        { key: 'backup-include-settings', title: s('settings_row_backup_include_settings_title'), detail: s('settings_row_backup_include_settings_detail'), placeholder: true },
+        { key: 'image-cache', title: s('settings_row_image_cache_title'), detail: s('settings_row_image_cache_detail') },
+        { key: 'cache-limit', title: s('settings_row_cache_limit_title'), detail: s('settings_row_cache_limit_detail'), placeholder: true },
+        { key: 'cache-auto-clean', title: s('settings_row_cache_auto_clean_title'), detail: s('settings_row_cache_auto_clean_detail'), placeholder: true },
+      ],
+    },
+    {
+      key: 'about',
+      title: s('settings_section_about'),
+      rows: [
+        { key: 'about', title: s('settings_row_about_title'), detail: s('settings_row_about_detail') },
+        { key: 'version', title: s('settings_row_version_title'), detail: s('settings_row_version_detail') },
+        { key: 'open-source', title: s('settings_row_open_source_title'), detail: s('settings_row_open_source_detail') },
+      ],
+    },
+  ]
+}
+
+function createSettingsRootSections(): SettingsPaneSection[] {
+  return [
+    {
+      key: 'primary',
+      title: '',
+      items: [
+        {
+          key: 'appearance',
+          title: s('settings_pane_appearance_title'),
+          detail: s('settings_pane_appearance_detail'),
+          icon: $r('sys.symbol.gearshape'),
+          color: ThemeConstants.STATUS_INFO,
+        },
+        {
+          key: 'library',
+          title: s('settings_pane_library_title'),
+          detail: s('settings_pane_library_detail'),
+          icon: $r('sys.symbol.square_fill_grid_2x2'),
+          color: ThemeConstants.SOURCE_LOCAL_COLOR,
+        },
+        {
+          key: 'reader',
+          title: s('settings_pane_reader_title'),
+          detail: s('settings_pane_reader_detail'),
+          icon: $r('sys.symbol.clock'),
+          color: ThemeConstants.STATUS_SUCCESS,
+        },
+        {
+          key: 'services',
+          title: s('settings_pane_services_title'),
+          detail: s('settings_pane_services_detail'),
+          icon: $r('sys.symbol.compass'),
+          color: ThemeConstants.SOURCE_KOMGA_COLOR,
+        },
+      ],
+    },
+    {
+      key: 'management',
+      title: '',
+      items: [
+        {
+          key: 'downloads',
+          title: s('settings_pane_downloads_title'),
+          detail: s('settings_pane_downloads_detail'),
+          icon: $r('sys.symbol.clock'),
+          color: ThemeConstants.STATUS_INFO,
+        },
+        {
+          key: 'tracking',
+          title: s('settings_pane_tracking_title'),
+          detail: s('settings_pane_tracking_detail'),
+          icon: $r('sys.symbol.magnifyingglass'),
+          color: ThemeConstants.STATUS_WARNING,
+        },
+        {
+          key: 'backup',
+          title: s('settings_pane_backup_title'),
+          detail: s('settings_pane_backup_detail'),
+          icon: $r('sys.symbol.gearshape'),
+          color: ThemeConstants.SOURCE_WEBDAV_COLOR,
+        },
+        {
+          key: 'storage',
+          title: s('settings_pane_storage_title'),
+          detail: s('settings_pane_storage_detail'),
+          icon: $r('sys.symbol.square_fill_grid_2x2'),
+          color: ThemeConstants.STATUS_MUTED,
+        },
+        {
+          key: 'about',
+          title: s('settings_pane_about_title'),
+          detail: s('settings_pane_about_detail'),
+          icon: $r('sys.symbol.gearshape'),
+          color: ThemeConstants.STATUS_MUTED,
+        },
+      ],
+    },
+  ]
+}
 
 function safeSettingsErrorCode(error: Error): string {
   return normalizeLibraryUpdateFailureCode(error.name) ?? 'unknown'
@@ -274,33 +285,33 @@ function safeSettingsErrorCode(error: Error): string {
 
 export function settingsPaneTitle(pane: SettingsPaneKey): string {
   if (pane === 'appearance') {
-    return '外观'
+    return s('settings_pane_appearance_title')
   }
   if (pane === 'library') {
-    return '书架'
+    return s('settings_pane_library_title')
   }
   if (pane === 'reader') {
-    return '阅读器'
+    return s('settings_pane_reader_title')
   }
   if (pane === 'services') {
-    return '私有库与源'
+    return s('settings_pane_services_title')
   }
   if (pane === 'downloads') {
-    return '下载'
+    return s('settings_pane_downloads_title')
   }
   if (pane === 'tracking') {
-    return '追踪账号'
+    return s('settings_pane_tracking_title')
   }
   if (pane === 'backup') {
-    return '备份与恢复'
+    return s('settings_pane_backup_title')
   }
   if (pane === 'storage') {
-    return '存储'
+    return s('settings_pane_storage_title')
   }
   if (pane === 'about') {
-    return '关于'
+    return s('settings_pane_about_title')
   }
-  return '设置'
+  return s('tab_settings')
 }
 
 @ComponentV2
@@ -333,8 +344,9 @@ export struct SettingsPage {
   @Local private readerTrimPageMarginsEnabled: boolean = false
   @Local private readerWideImageMode: ReaderWideImageMode = 'keep_single'
   @Local private readerVolumeKeyNavigationEnabled: boolean = false
-  @Local private versionDetail: string = 'Koma 开发版'
-  @Local private imageCacheDetail: string = '0 B · 0 项'
+  @Local private language: LanguageState = connectLanguageState()
+  @Local private versionDetail: string = ''
+  @Local private imageCacheDetail: string = ''
   @Local private libraryUpdateBusy: boolean = false
   @Local private libraryUpdateSummary?: LibraryUpdateSummary = undefined
   @Local private libraryUpdatePreferences: LibraryUpdatePreferences = DEFAULT_LIBRARY_UPDATE_PREFERENCES
@@ -373,6 +385,9 @@ export struct SettingsPage {
     if (row.key === 'theme') {
       return getReaderThemeModeLabel(this.themeMode)
     }
+    if (row.key === 'language') {
+      return LanguageSettings.label(this.language.mode)
+    }
     if (row.key === 'reader-background') {
       return getReaderBackgroundModeLabel(this.readerBackgroundMode)
     }
@@ -404,23 +419,23 @@ export struct SettingsPage {
       return getReaderVolumeKeyNavigationLabel(this.readerVolumeKeyNavigationEnabled)
     }
     if (row.key === 'download-wifi-only') {
-      return this.downloadWifiOnly ? '开启' : '关闭'
+      return this.downloadWifiOnly ? s('common_on') : s('common_off')
     }
     if (row.key === 'tracker-auto-sync') {
-      return this.trackerAutoSync ? '开启' : '关闭'
+      return this.trackerAutoSync ? s('common_on') : s('common_off')
     }
     if (row.key === 'backup-auto-export') {
-      return this.backupAutoExport ? '开启' : '关闭'
+      return this.backupAutoExport ? s('common_on') : s('common_off')
     }
     if (row.key === 'cache-auto-clean') {
-      return this.cacheAutoClean ? '开启' : '关闭'
+      return this.cacheAutoClean ? s('common_on') : s('common_off')
     }
     if (row.key === 'version') {
       return this.versionDetail
     }
     if (row.key === 'sources') {
       const count = listInstalled().length
-      return count > 0 ? `${count} 个源包` : '暂未安装源包'
+      return count > 0 ? s('settings_sources_installed_count').replace('%s', `${count}`) : s('settings_sources_none')
     }
     if (row.key === 'image-cache') {
       return this.imageCacheDetail
@@ -430,13 +445,13 @@ export struct SettingsPage {
     }
     if (row.key === 'library-update-interval') {
       if (!this.libraryUpdatePreferences.autoCheckEnabled) {
-        return '开启后可设置'
+        return s('settings_library_update_enable_first')
       }
       return `${getLibraryUpdateAutoCheckLabel(this.libraryUpdatePreferences)} · ${getLibraryUpdateNextDueLabel(this.libraryUpdatePreferences)}`
     }
     if (row.key === 'library-update') {
       if (this.libraryUpdateBusy) {
-        return '检查中...'
+        return s('common_checking')
       }
       const effectiveSummary = this.getEffectiveLibraryUpdateSummary()
       const summaryText = formatLibraryUpdateSummary(effectiveSummary)
@@ -452,18 +467,18 @@ export struct SettingsPage {
         }
         return `${summaryText} · ${getLibraryUpdateNextDueLabel(this.libraryUpdatePreferences)}`
       }
-      return `${summaryText} · 上次 ${this.formatTimestamp(checkedAt)} · ${getLibraryUpdateNextDueLabel(this.libraryUpdatePreferences)}`
+      return `${summaryText} · ${s('common_last_checked')} ${this.formatTimestamp(checkedAt)} · ${getLibraryUpdateNextDueLabel(this.libraryUpdatePreferences)}`
     }
     if (row.key === 'library-update-results') {
-      return this.getEffectiveLibraryUpdateSummary() === undefined ? '尚无结果' : '查看最近检查结果'
+      return this.getEffectiveLibraryUpdateSummary() === undefined ? s('library_update_no_result') : s('settings_library_update_results_view')
     }
     if (row.key === 'library-categories') {
       const count = this.libraryStore === undefined ? 0 : this.libraryStore.listCustomCategories().length
-      return count > 0 ? `${count} 个自定义分类` : '管理自定义分类'
+      return count > 0 ? s('settings_library_categories_count').replace('%s', `${count}`) : s('settings_row_library_categories_detail')
     }
     if (row.key === 'local-library-refresh') {
       if (this.localLibraryRefreshBusy) {
-        return '检查中...'
+        return s('common_checking')
       }
       return formatLocalLibraryRefreshSummary(this.localLibraryRefreshSummary)
     }
@@ -491,7 +506,7 @@ export struct SettingsPage {
       return [
         {
           key: 'library-organization',
-          title: '整理',
+          title: s('settings_section_library_organization'),
           rows: this.rowsByKeys([
             'library-categories',
             'library-view-mode',
@@ -501,7 +516,7 @@ export struct SettingsPage {
         },
         {
           key: 'library-updates',
-          title: '更新',
+          title: s('settings_section_library_updates'),
           rows: this.rowsByKeys([
             'library-auto-update',
             'library-update-interval',
@@ -519,12 +534,12 @@ export struct SettingsPage {
       return [
         {
           key: 'private-libraries',
-          title: '私有库',
+          title: s('settings_section_private_libraries'),
           rows: this.rowsByKeys(['komga', 'opds', 'webdav']),
         },
         {
           key: 'source-runtime',
-          title: '源包',
+          title: s('settings_section_source_runtime'),
           rows: this.rowsByKeys(['sources']),
         },
       ]
@@ -533,7 +548,7 @@ export struct SettingsPage {
       return [
         {
           key: 'downloads',
-          title: '下载',
+          title: s('settings_section_downloads'),
           rows: this.rowsByKeys([
             'downloads',
             'download-concurrency',
@@ -547,7 +562,7 @@ export struct SettingsPage {
       return [
         {
           key: 'tracking',
-          title: '追踪',
+          title: s('settings_section_tracking'),
           rows: this.rowsByKeys([
             'trackers',
             'tracker-auto-sync',
@@ -560,7 +575,7 @@ export struct SettingsPage {
       return [
         {
           key: 'backup',
-          title: '备份',
+          title: s('settings_section_backup'),
           rows: this.rowsByKeys([
             'backup',
             'backup-auto-export',
@@ -573,7 +588,7 @@ export struct SettingsPage {
       return [
         {
           key: 'storage',
-          title: '缓存',
+          title: s('settings_section_storage'),
           rows: this.rowsByKeys([
             'image-cache',
             'cache-limit',
@@ -637,12 +652,12 @@ export struct SettingsPage {
   }
 
   private sectionsByKeys(keys: string[]): SettingsSection[] {
-    return SETTINGS_SECTIONS.filter((section: SettingsSection): boolean => keys.includes(section.key))
+    return createSettingsSections().filter((section: SettingsSection): boolean => keys.includes(section.key))
   }
 
   private rowsByKeys(keys: string[]): SettingsRow[] {
     const rows: SettingsRow[] = []
-    SETTINGS_SECTIONS.forEach((section: SettingsSection) => {
+    createSettingsSections().forEach((section: SettingsSection) => {
       section.rows.forEach((row: SettingsRow) => {
         if (keys.includes(row.key)) {
           rows.push(row)
@@ -761,7 +776,7 @@ export struct SettingsPage {
     } catch (error) {
       const e = error as Error
       console.warn('[Settings] step=version_failed message=' + e.message)
-      this.versionDetail = 'Koma 开发版'
+      this.versionDetail = s('settings_version_dev')
     }
   }
 
@@ -781,12 +796,12 @@ export struct SettingsPage {
   }
 
   private updateImageCacheDetail(stats: ReaderRemoteImageCacheStats): void {
-    this.imageCacheDetail = `${formatReaderRemoteImageCacheSize(stats.totalBytes)} · ${stats.entryCount} 项`
+    this.imageCacheDetail = `${formatReaderRemoteImageCacheSize(stats.totalBytes)} · ${stats.entryCount} ${s('common_items_unit')}`
   }
 
   private loadImageCacheStats(): void {
     if (!this.ensureReaderRemoteImageCache()) {
-      this.imageCacheDetail = '不可用'
+      this.imageCacheDetail = s('common_unavailable')
       return
     }
     void getReaderRemoteImageCacheStats()
@@ -795,7 +810,7 @@ export struct SettingsPage {
         console.info('[Settings] step=image_cache_stats totalBytes=' + stats.totalBytes + ' entryCount=' + stats.entryCount)
       })
       .catch((error: Error) => {
-        this.imageCacheDetail = '读取失败'
+        this.imageCacheDetail = s('common_load_failed')
         console.warn('[Settings] step=image_cache_stats_failed message=' + error.message)
       })
   }
@@ -836,6 +851,17 @@ export struct SettingsPage {
       })
       .catch((error: Error) => {
         console.warn('[Settings] step=save_theme_failed message=' + error.message)
+      })
+  }
+
+  private saveLanguageMode(mode: string): void {
+    void LanguageSettings.setMode(this.context(), mode)
+      .then(() => {
+        console.info('[Settings] step=save_language value=' + mode)
+      })
+      .catch((error: Error) => {
+        console.warn('[Settings] step=save_language_failed message=' + error.message)
+        this.showToast(s('settings_language_save_failed'))
       })
   }
 
@@ -951,7 +977,7 @@ export struct SettingsPage {
 
   private clearImageCache(): void {
     if (!this.ensureReaderRemoteImageCache()) {
-      this.showToast('图片缓存不可用')
+      this.showToast(s('settings_image_cache_unavailable'))
       return
     }
     console.info('[Settings] step=image_cache_clear_start')
@@ -959,11 +985,11 @@ export struct SettingsPage {
       .then((stats: ReaderRemoteImageCacheStats) => {
         this.updateImageCacheDetail(stats)
         console.info('[Settings] step=image_cache_clear_done totalBytes=' + stats.totalBytes + ' entryCount=' + stats.entryCount)
-        this.showToast('图片缓存已清理')
+        this.showToast(s('settings_image_cache_cleared'))
       })
       .catch((error: Error) => {
         console.warn('[Settings] step=image_cache_clear_failed message=' + error.message)
-        this.showToast('清理缓存失败')
+        this.showToast(s('settings_image_cache_clear_failed'))
       })
   }
 
@@ -1008,7 +1034,7 @@ export struct SettingsPage {
       })
       .catch((error: Error) => {
         console.warn('[Settings] step=save_library_auto_update_failed message=' + error.message)
-        this.showToast('保存自动检查设置失败')
+        this.showToast(s('settings_library_auto_update_save_failed'))
       })
   }
 
@@ -1037,7 +1063,7 @@ export struct SettingsPage {
       })
       .catch((error: Error) => {
         console.warn('[Settings] step=save_library_update_interval_failed code=' + safeSettingsErrorCode(error))
-        this.showToast('保存检查间隔失败')
+        this.showToast(s('settings_library_update_interval_save_failed'))
       })
   }
 
@@ -1046,7 +1072,7 @@ export struct SettingsPage {
       return
     }
     if (this.libraryStore === undefined || this.sourceRegistry === undefined) {
-      this.showToast('书架更新不可用')
+      this.showToast(s('settings_library_update_unavailable'))
       return
     }
     this.libraryUpdateBusy = true
@@ -1087,7 +1113,9 @@ export struct SettingsPage {
             console.warn('[Settings] step=save_library_update_summary_failed code=' + safeSettingsErrorCode(error))
           })
         if (reason === 'manual') {
-          this.showToast(summary.updatedCount > 0 ? `发现 ${summary.updatedCount} 本更新` : '书架已是最新')
+          this.showToast(summary.updatedCount > 0
+            ? s('settings_library_update_found_count').replace('%s', `${summary.updatedCount}`)
+            : s('settings_library_update_up_to_date'))
         }
       })
       .catch((error: Error) => {
@@ -1123,7 +1151,7 @@ export struct SettingsPage {
             console.warn('[Settings] step=save_library_update_failure_failed code=' + safeSettingsErrorCode(saveError))
           })
         if (reason === 'manual') {
-          this.showToast('检查书架更新失败')
+          this.showToast(s('settings_library_update_failed'))
         }
       })
       .finally(() => {
@@ -1136,7 +1164,7 @@ export struct SettingsPage {
       return
     }
     if (this.libraryStore === undefined) {
-      this.showToast('本地刷新不可用')
+      this.showToast(s('settings_local_library_refresh_unavailable'))
       return
     }
     this.localLibraryRefreshBusy = true
@@ -1149,16 +1177,16 @@ export struct SettingsPage {
           ' reselectRequired=' + summary.reselectRequiredCount
       )
       if (summary.totalCount === 0) {
-        this.showToast('没有本地导入项目')
+        this.showToast(s('settings_local_library_refresh_none'))
       } else if (summary.reselectRequiredCount > 0) {
-        this.showToast('刷新需要重新选择本地文件')
+        this.showToast(s('settings_local_library_refresh_reselect'))
       } else {
-        this.showToast('本地导入无需处理')
+        this.showToast(s('settings_local_library_refresh_clean'))
       }
     } catch (error) {
       const e = error as Error
       console.warn('[Settings] step=local_library_refresh_failed message=' + e.message)
-      this.showToast('检查本地刷新失败')
+      this.showToast(s('settings_local_library_refresh_failed'))
     } finally {
       this.localLibraryRefreshBusy = false
     }
@@ -1169,7 +1197,7 @@ export struct SettingsPage {
       title,
       message,
       buttons: [
-        { text: '确定', color: $r('app.color.koma_accent') },
+        { text: s('common_confirm'), color: $r('app.color.koma_accent') },
       ],
     })
   }
@@ -1183,23 +1211,24 @@ export struct SettingsPage {
 
   private showAboutDialog(): void {
     console.info('[Settings] step=about_dialog')
-    this.showInfoDialog('关于 Koma', 'Koma 是面向 HarmonyOS 的私有漫画书架与阅读器。')
+    this.showInfoDialog(s('settings_about_dialog_title'), s('settings_about_dialog_message'))
   }
 
   private showOpenSourceDialog(): void {
     console.info('[Settings] step=open_source_dialog')
-    this.showInfoDialog('开源许可', 'Koma 使用 HarmonyOS SDK 与项目内自有代码构建。\n\n第三方依赖许可将在后续版本补充完整清单。')
+    this.showInfoDialog(s('settings_open_source_dialog_title'), s('settings_open_source_dialog_message'))
   }
 
   private showVersionDialog(): void {
     console.info('[Settings] step=version_dialog')
-    this.showInfoDialog('版本', this.versionDetail)
+    this.showInfoDialog(s('settings_row_version_title'), this.versionDetail)
   }
 
   private isSelectionRow(row: SettingsRow): boolean {
     return row.key === 'page-mode' ||
       row.key === 'reading-direction' ||
       row.key === 'theme' ||
+      row.key === 'language' ||
       row.key === 'reader-background' ||
       row.key === 'reader-image-fit' ||
       row.key === 'reader-tap-zone-preset' ||
@@ -1265,7 +1294,7 @@ export struct SettingsPage {
     } else if (row.key === 'cache-auto-clean') {
       this.cacheAutoClean = value
     }
-    this.showToast(`${row.title}稍后接入`)
+    this.showToast(`${row.title}${s('settings_coming_soon_suffix')}`)
   }
 
   private setSwitchRowValue(row: SettingsRow, value: boolean): void {
@@ -1310,52 +1339,56 @@ export struct SettingsPage {
   private SettingsSelectionMenu(row: SettingsRow) {
     Menu() {
       if (row.key === 'page-mode') {
-        this.SelectionMenuItem('单页', this.pageMode === 'single_page', () => { this.savePageMode('single_page') })
-        this.SelectionMenuItem('双页', this.pageMode === 'double_page', () => { this.savePageMode('double_page') })
-        this.SelectionMenuItem('连续滚动', this.pageMode === 'continuous_scroll', () => { this.savePageMode('continuous_scroll') })
+        this.SelectionMenuItem(s('reader_page_mode_single'), this.pageMode === 'single_page', () => { this.savePageMode('single_page') })
+        this.SelectionMenuItem(s('reader_page_mode_double'), this.pageMode === 'double_page', () => { this.savePageMode('double_page') })
+        this.SelectionMenuItem(s('reader_page_mode_continuous'), this.pageMode === 'continuous_scroll', () => { this.savePageMode('continuous_scroll') })
       } else if (row.key === 'reading-direction') {
-        this.SelectionMenuItem('从左到右', this.readingDirection === ReadingDirection.LEFT_TO_RIGHT, () => { this.saveReadingDirection(ReadingDirection.LEFT_TO_RIGHT) })
-        this.SelectionMenuItem('从右到左', this.readingDirection === ReadingDirection.RIGHT_TO_LEFT, () => { this.saveReadingDirection(ReadingDirection.RIGHT_TO_LEFT) })
-        this.SelectionMenuItem('纵向', this.readingDirection === ReadingDirection.WEBTOON, () => { this.saveReadingDirection(ReadingDirection.WEBTOON) })
+        this.SelectionMenuItem(s('reader_direction_ltr'), this.readingDirection === ReadingDirection.LEFT_TO_RIGHT, () => { this.saveReadingDirection(ReadingDirection.LEFT_TO_RIGHT) })
+        this.SelectionMenuItem(s('reader_direction_rtl'), this.readingDirection === ReadingDirection.RIGHT_TO_LEFT, () => { this.saveReadingDirection(ReadingDirection.RIGHT_TO_LEFT) })
+        this.SelectionMenuItem(s('reader_direction_vertical'), this.readingDirection === ReadingDirection.WEBTOON, () => { this.saveReadingDirection(ReadingDirection.WEBTOON) })
       } else if (row.key === 'theme') {
-        this.SelectionMenuItem('跟随系统', this.themeMode === 'system', () => { this.saveThemeMode('system') })
-        this.SelectionMenuItem('浅色', this.themeMode === 'light', () => { this.saveThemeMode('light') })
-        this.SelectionMenuItem('深色', this.themeMode === 'dark', () => { this.saveThemeMode('dark') })
+        this.SelectionMenuItem(s('theme_system'), this.themeMode === 'system', () => { this.saveThemeMode('system') })
+        this.SelectionMenuItem(s('theme_light'), this.themeMode === 'light', () => { this.saveThemeMode('light') })
+        this.SelectionMenuItem(s('theme_dark'), this.themeMode === 'dark', () => { this.saveThemeMode('dark') })
+      } else if (row.key === 'language') {
+        this.SelectionMenuItem(s('language_system'), this.language.mode === LanguageSettings.MODE_SYSTEM, () => { this.saveLanguageMode(LanguageSettings.MODE_SYSTEM) })
+        this.SelectionMenuItem(s('language_zh_cn'), this.language.mode === LanguageSettings.MODE_ZH_CN, () => { this.saveLanguageMode(LanguageSettings.MODE_ZH_CN) })
+        this.SelectionMenuItem(s('language_en_us'), this.language.mode === LanguageSettings.MODE_EN_US, () => { this.saveLanguageMode(LanguageSettings.MODE_EN_US) })
       } else if (row.key === 'reader-background') {
-        this.SelectionMenuItem('黑色', this.readerBackgroundMode === 'black', () => { this.saveReaderBackgroundMode('black') })
-        this.SelectionMenuItem('纸张', this.readerBackgroundMode === 'paper', () => { this.saveReaderBackgroundMode('paper') })
-        this.SelectionMenuItem('浅色', this.readerBackgroundMode === 'light', () => { this.saveReaderBackgroundMode('light') })
+        this.SelectionMenuItem(s('reader_background_black'), this.readerBackgroundMode === 'black', () => { this.saveReaderBackgroundMode('black') })
+        this.SelectionMenuItem(s('reader_background_paper'), this.readerBackgroundMode === 'paper', () => { this.saveReaderBackgroundMode('paper') })
+        this.SelectionMenuItem(s('reader_background_light'), this.readerBackgroundMode === 'light', () => { this.saveReaderBackgroundMode('light') })
       } else if (row.key === 'reader-image-fit') {
-        this.SelectionMenuItem('适合屏幕', this.readerImageFitMode === 'contain', () => { this.saveReaderImageFitMode('contain') })
-        this.SelectionMenuItem('适合宽度', this.readerImageFitMode === 'fit_width', () => { this.saveReaderImageFitMode('fit_width') })
+        this.SelectionMenuItem(s('reader_image_fit_screen'), this.readerImageFitMode === 'contain', () => { this.saveReaderImageFitMode('contain') })
+        this.SelectionMenuItem(s('reader_image_fit_width'), this.readerImageFitMode === 'fit_width', () => { this.saveReaderImageFitMode('fit_width') })
       } else if (row.key === 'reader-tap-zone-preset') {
-        this.SelectionMenuItem('窄边缘', this.readerTapZonePreset === 'edge', () => { this.saveReaderTapZonePreset('edge') })
-        this.SelectionMenuItem('宽侧区', this.readerTapZonePreset === 'wide_edges', () => { this.saveReaderTapZonePreset('wide_edges') })
+        this.SelectionMenuItem(s('reader_tap_zone_edge'), this.readerTapZonePreset === 'edge', () => { this.saveReaderTapZonePreset('edge') })
+        this.SelectionMenuItem(s('reader_tap_zone_wide'), this.readerTapZonePreset === 'wide_edges', () => { this.saveReaderTapZonePreset('wide_edges') })
       } else if (row.key === 'reader-page-gap') {
-        this.SelectionMenuItem('紧凑', this.readerPageGapMode === 'compact', () => { this.saveReaderPageGapMode('compact') })
-        this.SelectionMenuItem('标准', this.readerPageGapMode === 'normal', () => { this.saveReaderPageGapMode('normal') })
-        this.SelectionMenuItem('宽松', this.readerPageGapMode === 'wide', () => { this.saveReaderPageGapMode('wide') })
+        this.SelectionMenuItem(s('reader_page_gap_compact'), this.readerPageGapMode === 'compact', () => { this.saveReaderPageGapMode('compact') })
+        this.SelectionMenuItem(s('common_standard'), this.readerPageGapMode === 'normal', () => { this.saveReaderPageGapMode('normal') })
+        this.SelectionMenuItem(s('reader_page_gap_wide'), this.readerPageGapMode === 'wide', () => { this.saveReaderPageGapMode('wide') })
       } else if (row.key === 'reader-wide-image-mode') {
-        this.SelectionMenuItem('保持单页', this.readerWideImageMode === 'keep_single', () => { this.saveReaderWideImageMode('keep_single') })
-        this.SelectionMenuItem('拆分宽图', this.readerWideImageMode === 'split_wide_pages', () => { this.saveReaderWideImageMode('split_wide_pages') })
-        this.SelectionMenuItem('旋转宽图', this.readerWideImageMode === 'rotate_wide_pages', () => { this.saveReaderWideImageMode('rotate_wide_pages') })
+        this.SelectionMenuItem(s('reader_wide_mode_keep_single'), this.readerWideImageMode === 'keep_single', () => { this.saveReaderWideImageMode('keep_single') })
+        this.SelectionMenuItem(s('reader_wide_mode_split'), this.readerWideImageMode === 'split_wide_pages', () => { this.saveReaderWideImageMode('split_wide_pages') })
+        this.SelectionMenuItem(s('reader_wide_mode_rotate'), this.readerWideImageMode === 'rotate_wide_pages', () => { this.saveReaderWideImageMode('rotate_wide_pages') })
       } else if (row.key === 'library-update-interval') {
-        this.SelectionMenuItem('每 12 小时', this.libraryUpdatePreferences.intervalHours === 12, () => { this.saveLibraryUpdateInterval(12) })
-        this.SelectionMenuItem('每 24 小时', this.libraryUpdatePreferences.intervalHours === 24, () => { this.saveLibraryUpdateInterval(24) })
-        this.SelectionMenuItem('每 48 小时', this.libraryUpdatePreferences.intervalHours === 48, () => { this.saveLibraryUpdateInterval(48) })
+        this.SelectionMenuItem(s('library_update_interval_12h'), this.libraryUpdatePreferences.intervalHours === 12, () => { this.saveLibraryUpdateInterval(12) })
+        this.SelectionMenuItem(s('library_update_interval_24h'), this.libraryUpdatePreferences.intervalHours === 24, () => { this.saveLibraryUpdateInterval(24) })
+        this.SelectionMenuItem(s('library_update_interval_48h'), this.libraryUpdatePreferences.intervalHours === 48, () => { this.saveLibraryUpdateInterval(48) })
       }
     }
   }
 
   private showImageCacheConfirm(): void {
     this.getUIContext().showAlertDialog({
-      message: `清理图片缓存？\n${this.imageCacheDetail}`,
+      message: `${s('settings_image_cache_confirm')}\n${this.imageCacheDetail}`,
       primaryButton: {
-        value: '取消',
+        value: s('common_cancel'),
         action: () => {},
       },
       secondaryButton: {
-        value: '清理缓存',
+        value: s('settings_image_cache_clear'),
         fontColor: Color.Red,
         action: () => {
           this.clearImageCache()
@@ -1373,7 +1406,7 @@ export struct SettingsPage {
       this.onOpenWebDavSettings()
     } else if (this.isSelectionRow(row)) {
       if (!this.canOpenSelectionMenu(row)) {
-        this.showToast('请先开启自动检查更新')
+        this.showToast(s('settings_library_update_enable_first'))
       }
     } else if (row.key === 'backup') {
       this.onOpenBackupManagement()
@@ -1402,7 +1435,7 @@ export struct SettingsPage {
     } else if (row.key === 'open-source') {
       this.showOpenSourceDialog()
     } else if (this.isPlaceholderRow(row)) {
-      this.showToast(`${row.title}稍后接入`)
+      this.showToast(`${row.title}${s('settings_coming_soon_suffix')}`)
     }
   }
 
@@ -1512,7 +1545,7 @@ export struct SettingsPage {
   @Builder
   private RootSettings() {
     Column({ space: ThemeConstants.SPACE_LG }) {
-      ForEach(SETTINGS_ROOT_SECTIONS, (section: SettingsPaneSection) => {
+      ForEach(createSettingsRootSections(), (section: SettingsPaneSection) => {
         this.RootSection(section)
       }, (section: SettingsPaneSection) => section.key)
     }
@@ -1532,11 +1565,11 @@ export struct SettingsPage {
   @Builder
   private SearchResults() {
     Column({ space: ThemeConstants.SPACE_XS }) {
-      SectionHeader({ title: '搜索结果' })
+      SectionHeader({ title: s('settings_section_search_results') })
       if (this.settingsSearchResults().length === 0) {
         GroupedListSection() {
           ConciseListRow({
-            title: '没有找到设置',
+            title: s('settings_search_empty_title'),
             subtitle: this.settingsSearchText,
             showChevron: false,
           })
@@ -1584,7 +1617,7 @@ export struct SettingsPage {
 
   @Builder
   private SettingsSearchField() {
-    Search({ value: this.settingsSearchText, placeholder: '搜索设置' })
+    Search({ value: this.settingsSearchText, placeholder: s('settings_search_placeholder') })
       .width('100%')
       .height(ThemeConstants.BUTTON_HEIGHT)
       .backgroundColor(ThemeConstants.CARD)

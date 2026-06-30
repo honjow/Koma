@@ -3,6 +3,7 @@ import {
   ComicSourceKind,
 } from './ComicModels'
 import { LibraryStore } from './LibraryStore'
+import { AppStrings } from '../i18n/AppStrings'
 
 export type LocalLibraryRefreshResultStatus = 'unchanged' | 'reselect_required' | 'skipped'
 
@@ -30,9 +31,9 @@ function isLocalRefreshCandidate(comic: Comic): boolean {
 
 function localRefreshUnavailableMessage(sourceKind: ComicSourceKind): string {
   if (sourceKind === ComicSourceKind.LOCAL_FOLDER) {
-    return '图片文件夹需要重新选择后才能刷新'
+    return AppStrings.get('local_library_refresh_folder_unavailable')
   }
-  return '本地压缩包需要重新选择后才能刷新'
+  return AppStrings.get('local_library_refresh_archive_unavailable')
 }
 
 function summarizeLocalRefreshResults(checkedAt: number, results: LocalLibraryRefreshComicResult[]): LocalLibraryRefreshSummary {
@@ -48,15 +49,17 @@ function summarizeLocalRefreshResults(checkedAt: number, results: LocalLibraryRe
 
 export function formatLocalLibraryRefreshSummary(summary?: LocalLibraryRefreshSummary): string {
   if (summary === undefined) {
-    return '尚未检查'
+    return AppStrings.get('local_library_refresh_not_checked')
   }
   if (summary.totalCount === 0) {
-    return '没有本地导入项目'
+    return AppStrings.get('local_library_refresh_none')
   }
   if (summary.reselectRequiredCount > 0) {
-    return `${summary.totalCount} 本地漫画 · ${summary.reselectRequiredCount} 本需要重新选择`
+    return AppStrings.get('local_library_refresh_reselect_required')
+      .replace('%s', `${summary.totalCount}`)
+      .replace('%s', `${summary.reselectRequiredCount}`)
   }
-  return `${summary.totalCount} 本地漫画 · 无需处理`
+  return AppStrings.get('local_library_refresh_clean').replace('%s', `${summary.totalCount}`)
 }
 
 export class LocalLibraryRefreshService {

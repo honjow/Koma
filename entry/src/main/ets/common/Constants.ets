@@ -1,3 +1,5 @@
+import { AppStrings } from '../i18n/AppStrings'
+
 export class TabIndex {
   static readonly LIBRARY: number = 0
   static readonly BROWSE: number = 1
@@ -22,10 +24,18 @@ export class RouteName {
   static readonly TRACKER_SETTINGS: string = 'TrackerSettingsPage'
 }
 
-export class TabLabel {
-  static readonly LIBRARY: string = '书架'
-  static readonly BROWSE: string = '浏览'
-  static readonly HISTORY: string = '历史'
-  static readonly SEARCH: string = '搜索'
-  static readonly SETTINGS: string = '设置'
+export function tabLabel(index: number): string {
+  if (index === TabIndex.LIBRARY) {
+    return AppStrings.get('tab_library')
+  }
+  if (index === TabIndex.BROWSE) {
+    return AppStrings.get('tab_browse')
+  }
+  if (index === TabIndex.HISTORY) {
+    return AppStrings.get('tab_history')
+  }
+  if (index === TabIndex.SEARCH) {
+    return AppStrings.get('tab_search')
+  }
+  return AppStrings.get('tab_settings')
 }

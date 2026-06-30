@@ -28,7 +28,7 @@ import { WebDavServerPage } from './WebDavServerPage'
 import { DownloadsPage } from './DownloadsPage'
 import { BackupManagementPage } from './BackupManagementPage'
 import { TrackerSettingsPage } from './TrackerSettingsPage'
-import { RouteName, TabIndex, TabLabel } from '../common/Constants'
+import { RouteName, TabIndex, tabLabel } from '../common/Constants'
 import { RouterHelper } from '../common/RouterHelper'
 import { KomaTabIcon } from '../components/KomaTabIcon'
 import {
@@ -67,6 +67,7 @@ import {
   bootstrapSourceRuntimeAppRegistry,
 } from '../sourceRuntime/SourceRuntimeAppRegistry'
 import { configureSourceSettingsStore } from '../sourceRuntime/SourceSettingsStore'
+import { AppStrings } from '../i18n/AppStrings'
 
 const readerSessionStore: ReaderSessionStore = new InMemoryReaderSessionStore()
 const seededLibraryStore: LibraryStore = createSeededLibraryStore()
@@ -89,7 +90,6 @@ struct Index {
   @Local private libraryRevision: number = 0
   @Local private libraryComics: Comic[] = seededLibraryStore.listComics()
   private tabController: HdsTabsController = new HdsTabsController()
-  private tabTitles: string[] = [TabLabel.LIBRARY, TabLabel.BROWSE, TabLabel.HISTORY, TabLabel.SEARCH, TabLabel.SETTINGS]
   private readerSessionStore: ReaderSessionStore = readerSessionStore
   private libraryStore: LibraryStore = seededLibraryStore
   private presentationByComicId: LibraryPresentationByComicId = libraryPresentationByComicId
@@ -352,7 +352,7 @@ struct Index {
           }
         })
       }
-      .titleBar(this.navDestTitleBarOpts('导入'))
+      .titleBar(this.navDestTitleBarOpts(AppStrings.get('route_import_title')))
     } else if (name === RouteName.MANGA_DETAIL) {
       HdsNavDestination() {
         MangaDetailPage({
@@ -371,22 +371,22 @@ struct Index {
       HdsNavDestination() {
         KomgaServerPage()
       }
-      .titleBar(this.navDestTitleBarOpts('Komga'))
+      .titleBar(this.navDestTitleBarOpts(AppStrings.get('route_komga_title')))
     } else if (name === RouteName.OPDS_SERVER) {
       HdsNavDestination() {
         OpdsServerPage()
       }
-      .titleBar(this.navDestTitleBarOpts('OPDS'))
+      .titleBar(this.navDestTitleBarOpts(AppStrings.get('route_opds_title')))
     } else if (name === RouteName.WEBDAV_SERVER) {
       HdsNavDestination() {
         WebDavServerPage()
       }
-      .titleBar(this.navDestTitleBarOpts('WebDAV'))
+      .titleBar(this.navDestTitleBarOpts(AppStrings.get('route_webdav_title')))
     } else if (name === RouteName.SOURCE_PACKAGE_MANAGER) {
       HdsNavDestination() {
         SourcePackageManagerPage()
       }
-      .titleBar(this.navDestTitleBarOpts('源包管理'))
+      .titleBar(this.navDestTitleBarOpts(AppStrings.get('route_source_package_manager_title')))
     } else if (name === RouteName.SETTINGS_PANE) {
       HdsNavDestination() {
         SettingsPage({
@@ -434,7 +434,7 @@ struct Index {
       HdsNavDestination() {
         LibraryUpdateResultPage()
       }
-      .titleBar(this.navDestTitleBarOpts('书架更新详情'))
+      .titleBar(this.navDestTitleBarOpts(AppStrings.get('route_library_update_results_title')))
     } else if (name === RouteName.LIBRARY_CATEGORIES) {
       HdsNavDestination() {
         LibraryCategoryManagementPage({
@@ -445,24 +445,24 @@ struct Index {
           }
         })
       }
-      .titleBar(this.navDestTitleBarOpts('书架分类'))
+      .titleBar(this.navDestTitleBarOpts(AppStrings.get('route_library_categories_title')))
     } else if (name === RouteName.DOWNLOADS) {
       HdsNavDestination() {
         DownloadsPage({
           libraryStore: this.libraryStore,
         })
       }
-      .titleBar(this.navDestTitleBarOpts('下载管理'))
+      .titleBar(this.navDestTitleBarOpts(AppStrings.get('route_downloads_title')))
     } else if (name === RouteName.BACKUP_MANAGEMENT) {
       HdsNavDestination() {
         BackupManagementPage()
       }
-      .titleBar(this.navDestTitleBarOpts('备份与恢复'))
+      .titleBar(this.navDestTitleBarOpts(AppStrings.get('route_backup_management_title')))
     } else if (name === RouteName.TRACKER_SETTINGS) {
       HdsNavDestination() {
         TrackerSettingsPage()
       }
-      .titleBar(this.navDestTitleBarOpts('追踪账号'))
+      .titleBar(this.navDestTitleBarOpts(AppStrings.get('route_tracker_settings_title')))
     }
   }
 
@@ -499,7 +499,7 @@ struct Index {
               return this.handleUpdateCategoryMembershipRequested(comicIds, categoryId, selected)
             }
           })
-        }.tabBar(this.TabIcon(TabLabel.LIBRARY, TabIndex.LIBRARY))
+        }.tabBar(this.TabIcon(tabLabel(TabIndex.LIBRARY), TabIndex.LIBRARY))
 
         TabContent() {
           BrowsePage({
@@ -511,7 +511,7 @@ struct Index {
               this.selectedTab = TabIndex.LIBRARY
             }
           })
-        }.tabBar(this.TabIcon(TabLabel.BROWSE, TabIndex.BROWSE))
+        }.tabBar(this.TabIcon(tabLabel(TabIndex.BROWSE), TabIndex.BROWSE))
 
         TabContent() {
           HistoryPage({
@@ -521,7 +521,7 @@ struct Index {
               void this.openReader(comicId, chapterId)
             }
           })
-        }.tabBar(this.TabIcon(TabLabel.HISTORY, TabIndex.HISTORY))
+        }.tabBar(this.TabIcon(tabLabel(TabIndex.HISTORY), TabIndex.HISTORY))
 
         TabContent() {
           SearchPage({
@@ -532,7 +532,7 @@ struct Index {
               this.selectedTab = TabIndex.LIBRARY
             }
           })
-        }.tabBar(this.TabIcon(TabLabel.SEARCH, TabIndex.SEARCH))
+        }.tabBar(this.TabIcon(tabLabel(TabIndex.SEARCH), TabIndex.SEARCH))
 
         TabContent() {
           SettingsPage({
@@ -574,7 +574,7 @@ struct Index {
               this.refreshLibrarySnapshot()
             }
           })
-        }.tabBar(this.TabIcon(TabLabel.SETTINGS, TabIndex.SETTINGS))
+        }.tabBar(this.TabIcon(tabLabel(TabIndex.SETTINGS), TabIndex.SETTINGS))
       }
       .barOverlap(true)
       .barPosition(BarPosition.End)
@@ -615,7 +615,7 @@ struct Index {
   }
 
   private titleBarOptions(): Record<string, Object> {
-    let titleInfo: Record<string, Object> = { 'mainTitle': this.tabTitles[this.selectedTab] }
+    let titleInfo: Record<string, Object> = { 'mainTitle': tabLabel(this.selectedTab) }
     let content: Record<string, Object> = { 'title': titleInfo }
     let mat: Record<string, Object> = {
       'materialType': hdsMaterial.MaterialType.ADAPTIVE,

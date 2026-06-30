@@ -18,6 +18,7 @@ import {
   SourceSettingsRecord,
   appSourceSettingsStore,
 } from '../sourceRuntime/SourceSettingsStore'
+import { AppStrings } from '../i18n/AppStrings'
 
 export type LibraryUpdateResultStatus = 'unchanged' | 'updated' | 'skipped' | 'failed'
 export type LibraryUpdateProviderKind = 'source_runtime' | 'local' | 'komga' | 'opds' | 'webdav' | 'private_library' | 'unsupported'
@@ -156,7 +157,9 @@ function mergeSourceChapters(comic: Comic, remoteChapters: MangaChapterItem[], n
     return {
       id: remote.id,
       comicId: comic.id,
-      title: remote.title.length > 0 ? remote.title : `第${index + 1}话`,
+      title: remote.title.length > 0
+        ? remote.title
+        : AppStrings.get('library_update_chapter_fallback_title').replace('%s', `${index + 1}`),
       index,
       sourcePath: `${comic.sourcePath}#${remote.id}`,
       sortKey: chapterSortKey(remote, index),
@@ -273,9 +276,13 @@ export function summarizeLibraryUpdateProviders(results: LibraryUpdateComicResul
 
 export function formatLibraryUpdateSummary(summary?: LibraryUpdateSummary): string {
   if (summary === undefined) {
-    return '尚未检查'
+    return AppStrings.get('library_update_not_checked')
   }
-  return `${summary.totalCount} 本 · ${countLibraryUpdateNewChapters(summary)} 新章 · ${summary.updatedCount} 更新 · ${summary.skippedCount} 跳过 · ${summary.failedCount} 失败`
+  return `${summary.totalCount} ${AppStrings.get('library_unit_books')} · ` +
+    `${countLibraryUpdateNewChapters(summary)} ${AppStrings.get('library_unit_new_chapters')} · ` +
+    `${summary.updatedCount} ${AppStrings.get('library_unit_updated')} · ` +
+    `${summary.skippedCount} ${AppStrings.get('library_unit_skipped')} · ` +
+    `${summary.failedCount} ${AppStrings.get('library_unit_failed')}`
 }
 
 function safeLibraryUpdateFailureCode(value: string | undefined): string {
@@ -399,22 +406,22 @@ export class LibraryUpdateService {
       return this.checkSourceRuntimeComic(comic, previousChapterCount)
     }
     if (comic.sourceKind === ComicSourceKind.LOCAL_ARCHIVE || comic.sourceKind === ComicSourceKind.LOCAL_FOLDER) {
-      return this.skippedResult(comic, previousChapterCount, '本地导入暂不支持远程更新')
+      return this.skippedResult(comic, previousChapterCount, AppStrings.get('library_update_skip_local_unsupported'))
     }
     if (comic.sourceKind === ComicSourceKind.KOMGA_REMOTE ||
       comic.sourceKind === ComicSourceKind.OPDS_REMOTE ||
       comic.sourceKind === ComicSourceKind.WEBDAV_REMOTE ||
       comic.sourceKind === ComicSourceKind.PRIVATE_LIBRARY) {
-      return this.skippedResult(comic, previousChapterCount, '该远程库暂未接入安全的元数据刷新')
+      return this.skippedResult(comic, previousChapterCount, AppStrings.get('library_update_skip_remote_library_unsupported'))
     }
-    return this.skippedResult(comic, previousChapterCount, '暂不支持该来源')
+    return this.skippedResult(comic, previousChapterCount, AppStrings.get('library_update_skip_source_kind_unsupported'))
   }
 
   private async checkSourceRuntimeComic(comic: Comic, previousChapterCount: number): Promise<LibraryUpdateComicResult> {
     const sourceRuntimeId = comic.sourceRuntimeId as string
     const mangaId = sourceMangaIdFromComic(comic)
     if (mangaId === undefined) {
-      return this.skippedResult(comic, previousChapterCount, '缺少源漫画标识')
+      return this.skippedResult(comic, previousChapterCount, AppStrings.get('library_update_skip_missing_source_manga_id'))
     }
     const lookup = this.sourceRegistry.lookup(sourceRuntimeId)
     if (!lookup.ok || lookup.entry === undefined) {
@@ -441,7 +448,7 @@ export class LibraryUpdateService {
           status: 'unchanged',
           previousChapterCount,
           newChapterCount: previousChapterCount,
-          message: '没有新章节',
+          message: AppStrings.get('library_update_no_new_chapters'),
         }
       }
       const now = Date.now()
@@ -454,7 +461,8 @@ export class LibraryUpdateService {
         status: 'updated',
         previousChapterCount,
         newChapterCount: mergedChapters.length,
-        message: `发现 ${Math.max(mergedChapters.length - previousChapterCount, 0)} 个新章节`,
+        message: AppStrings.get('library_update_found_new_chapters')
+          .replace('%s', `${Math.max(mergedChapters.length - previousChapterCount, 0)}`),
       }
     } catch (error) {
       const e = error as Error

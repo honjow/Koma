@@ -2,6 +2,7 @@ import { common, ConfigurationConstant } from '@kit.AbilityKit'
 import { preferences } from '@kit.ArkData'
 import { ReadingDirection } from './ComicModels'
 import { ReaderMode } from './ReaderSessionStore'
+import { AppStrings } from '../i18n/AppStrings'
 
 export type ReaderPageMode = 'single_page' | 'double_page' | 'continuous_scroll'
 export type ReaderThemeMode = 'system' | 'light' | 'dark'
@@ -151,96 +152,96 @@ export function normalizeReaderReadingDirection(value: string): ReadingDirection
 
 export function getReaderPageModeLabel(mode: ReaderPageMode): string {
   if (mode === 'continuous_scroll') {
-    return '连续滚动'
+    return AppStrings.get('reader_page_mode_continuous')
   }
   if (mode === 'double_page') {
-    return '双页'
+    return AppStrings.get('reader_page_mode_double')
   }
-  return '单页'
+  return AppStrings.get('reader_page_mode_single')
 }
 
 export function getReadingDirectionLabel(direction: ReadingDirection): string {
   if (direction === ReadingDirection.RIGHT_TO_LEFT) {
-    return '从右到左'
+    return AppStrings.get('reader_direction_rtl')
   }
   if (direction === ReadingDirection.WEBTOON) {
-    return '纵向'
+    return AppStrings.get('reader_direction_vertical')
   }
-  return '从左到右'
+  return AppStrings.get('reader_direction_ltr')
 }
 
 export function getReaderThemeModeLabel(mode: ReaderThemeMode): string {
   if (mode === 'dark') {
-    return '深色'
+    return AppStrings.get('theme_dark')
   }
   if (mode === 'light') {
-    return '浅色'
+    return AppStrings.get('theme_light')
   }
-  return '跟随系统'
+  return AppStrings.get('theme_system')
 }
 
 export function getReaderBackgroundModeLabel(mode: ReaderBackgroundMode): string {
   if (mode === 'paper') {
-    return '纸张'
+    return AppStrings.get('reader_background_paper')
   }
   if (mode === 'light') {
-    return '浅色'
+    return AppStrings.get('reader_background_light')
   }
-  return '黑色'
+  return AppStrings.get('reader_background_black')
 }
 
 export function getReaderProgressControlsLabel(showProgressControls: boolean): string {
-  return showProgressControls ? '显示' : '隐藏'
+  return showProgressControls ? AppStrings.get('common_show') : AppStrings.get('common_hide')
 }
 
 export function getReaderKeepScreenAwakeLabel(keepScreenAwake: boolean): string {
-  return keepScreenAwake ? '开启' : '关闭'
+  return keepScreenAwake ? AppStrings.get('common_on') : AppStrings.get('common_off')
 }
 
 export function getReaderImageFitModeLabel(mode: ReaderImageFitMode): string {
   if (mode === 'fit_width') {
-    return '适合宽度'
+    return AppStrings.get('reader_image_fit_width')
   }
-  return '适合屏幕'
+  return AppStrings.get('reader_image_fit_screen')
 }
 
 export function getReaderTapNavigationLabel(tapNavigationEnabled: boolean): string {
-  return tapNavigationEnabled ? '开启' : '关闭'
+  return tapNavigationEnabled ? AppStrings.get('common_on') : AppStrings.get('common_off')
 }
 
 export function getReaderTapZonePresetLabel(preset: ReaderTapZonePreset): string {
   if (preset === 'wide_edges') {
-    return '宽侧区'
+    return AppStrings.get('reader_tap_zone_wide')
   }
-  return '窄边缘'
+  return AppStrings.get('reader_tap_zone_edge')
 }
 
 export function getReaderPageGapModeLabel(mode: ReaderPageGapMode): string {
   if (mode === 'compact') {
-    return '紧凑'
+    return AppStrings.get('reader_page_gap_compact')
   }
   if (mode === 'wide') {
-    return '宽松'
+    return AppStrings.get('reader_page_gap_wide')
   }
-  return '标准'
+  return AppStrings.get('common_standard')
 }
 
 export function getReaderTrimPageMarginsLabel(trimPageMarginsEnabled: boolean): string {
-  return trimPageMarginsEnabled ? '开启（不裁图）' : '关闭'
+  return trimPageMarginsEnabled ? AppStrings.get('reader_trim_margins_on') : AppStrings.get('common_off')
 }
 
 export function getReaderWideImageModeLabel(mode: ReaderWideImageMode): string {
   if (mode === 'split_wide_pages') {
-    return '拆分宽图'
+    return AppStrings.get('reader_wide_mode_split')
   }
   if (mode === 'rotate_wide_pages') {
-    return '旋转宽图'
+    return AppStrings.get('reader_wide_mode_rotate')
   }
-  return '保持单页'
+  return AppStrings.get('reader_wide_mode_keep_single')
 }
 
 export function getReaderVolumeKeyNavigationLabel(volumeKeyNavigationEnabled: boolean): string {
-  return volumeKeyNavigationEnabled ? '开启' : '关闭'
+  return volumeKeyNavigationEnabled ? AppStrings.get('common_on') : AppStrings.get('common_off')
 }
 
 export function readerModeFromPageMode(pageMode: ReaderPageMode): ReaderMode {
