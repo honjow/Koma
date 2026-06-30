@@ -339,6 +339,7 @@
     { "name": "komga_auth_api_key", "value": "API key" },
     { "name": "komga_auth_none", "value": "No auth" },
     { "name": "komga_label_api_key", "value": "API key" },
+    { "name": "komga_error_missing_server_url", "value": "Please enter a Komga server URL" },
     { "name": "opds_status_success", "value": "Connected, detected %s, %s navigation items / %s publications" },
     { "name": "opds_toast_success", "value": "OPDS connected" },
     { "name": "opds_status_failed", "value": "Connection failed: %s" },
@@ -348,6 +349,7 @@
     { "name": "opds_version_2", "value": "OPDS 2" },
     { "name": "opds_version_1", "value": "OPDS 1.x" },
     { "name": "opds_label_catalog_url", "value": "Catalog URL" },
+    { "name": "opds_error_missing_catalog_url", "value": "Please enter an OPDS catalog URL" },
     { "name": "opds_version_auto", "value": "OPDS version: detected after test connection" },
     { "name": "opds_version_value", "value": "OPDS version: %s" },
     { "name": "webdav_status_success", "value": "Connected, root is accessible (%s properties)" },
@@ -358,6 +360,7 @@
     { "name": "webdav_toast_removed", "value": "WebDAV removed" },
     { "name": "webdav_label_root_path", "value": "Path prefix" },
     { "name": "webdav_placeholder_root_path", "value": "manga or remote.php/dav/files/user/manga" },
+    { "name": "webdav_error_missing_server_url", "value": "Please enter a WebDAV server URL" },
 
     { "name": "library_continue_reading", "value": "Continue reading" },
     { "name": "library_sort_added", "value": "Recently added" },

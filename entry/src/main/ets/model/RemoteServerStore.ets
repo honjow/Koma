@@ -3,6 +3,7 @@ import { preferences } from '@kit.ArkData'
 import { buffer } from '@kit.ArkTS'
 import { BusinessError } from '@kit.BasicServicesKit'
 import { http } from '@kit.NetworkKit'
+import { AppStrings } from '../i18n/AppStrings'
 import {
   KomgaAuthKind,
   KomgaResolvedCredential,
@@ -255,7 +256,7 @@ export class RemoteServerStore {
   async saveKomga(draft: KomgaServerDraft): Promise<KomgaServerRecord> {
     const baseUrl = normalizeKomgaBaseUrl(draft.baseUrl)
     if (baseUrl.length === 0) {
-      throw new Error('请输入 Komga Server URL')
+      throw new Error(AppStrings.get('komga_error_missing_server_url'))
     }
     const credential = this.createCredential(draft)
     const server: KomgaServerConfig = {
@@ -315,7 +316,7 @@ export class RemoteServerStore {
   async saveWebDav(draft: WebDavServerDraft): Promise<WebDavServerRecord> {
     const baseUrl = normalizeWebDavBaseUrl(draft.baseUrl)
     if (baseUrl.length === 0) {
-      throw new Error('请输入 WebDAV Server URL')
+      throw new Error(AppStrings.get('webdav_error_missing_server_url'))
     }
     const credential = this.createWebDavCredential(draft)
     const rootPath = draft.rootPath === undefined ? '' : draft.rootPath.trim()
@@ -377,7 +378,7 @@ export class RemoteServerStore {
   async saveOpds(draft: OpdsServerDraft): Promise<OpdsServerRecord> {
     const rootUrl = normalizeOpdsRootUrl(draft.rootUrl)
     if (rootUrl.length === 0) {
-      throw new Error('请输入 OPDS Catalog URL')
+      throw new Error(AppStrings.get('opds_error_missing_catalog_url'))
     }
     const credential = this.createOpdsCredential(draft)
     const server: OpdsServerConfig = {
