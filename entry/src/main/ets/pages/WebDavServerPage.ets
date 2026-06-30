@@ -18,7 +18,9 @@ export struct WebDavServerPage {
   @Local private password: string = ''
   @Local private rootPath: string = ''
   @Local private testing: boolean = false
-  @Local private statusText: string = ''
+  @Local private statusKey: string = ''
+  @Local private statusArgs: string[] = []
+  @Local private statusRawText: string = ''
 
   private store(): RemoteServerStore {
     return new RemoteServerStore(getContext(this) as common.UIAbilityContext)
@@ -39,7 +41,7 @@ export struct WebDavServerPage {
       console.info('[WebDAV] step=settings_load configured=true')
     } catch (error) {
       const e = error as Error
-      this.statusText = e.message
+      this.setRawStatus(e.message)
       console.error('[WebDAV] step=settings_load_error message=' + e.message)
     }
   }
@@ -49,7 +51,7 @@ export struct WebDavServerPage {
       return
     }
     this.testing = true
-    this.statusText = s('server_status_testing')
+    this.setStatus('server_status_testing')
     try {
       const store = this.store()
       const record = await store.saveWebDav({
@@ -60,12 +62,12 @@ export struct WebDavServerPage {
       })
       console.info('[WebDAV] step=test_connection_start')
       const resources = await store.createWebDavClient(record).propfind([], 0)
-      this.statusText = s('webdav_status_success').replace('%s', `${resources.length}`)
+      this.setStatus('webdav_status_success', [`${resources.length}`])
       console.info(`[WebDAV] step=test_connection_ok resources=${resources.length}`)
       this.showToast(s('webdav_toast_success'))
     } catch (error) {
       const e = error as Error
-      this.statusText = s('webdav_status_failed').replace('%s', e.message)
+      this.setStatus('webdav_status_failed', [e.message])
       console.error('[WebDAV] step=test_connection_failed message=' + e.message)
       this.showToast(s('webdav_toast_failed'))
     } finally {
@@ -80,12 +82,38 @@ export struct WebDavServerPage {
       this.username = ''
       this.password = ''
       this.rootPath = ''
-      this.statusText = s('webdav_status_removed')
+      this.setStatus('webdav_status_removed')
       this.showToast(s('webdav_toast_removed'))
     } catch (error) {
       const e = error as Error
-      this.statusText = e.message
+      this.setRawStatus(e.message)
     }
+  }
+
+  private setStatus(key: string, args: string[] = []): void {
+    this.statusKey = key
+    this.statusArgs = args
+    this.statusRawText = ''
+  }
+
+  private setRawStatus(message: string): void {
+    this.statusKey = ''
+    this.statusArgs = []
+    this.statusRawText = message
+  }
+
+  private statusText(): string {
+    if (this.statusRawText.length > 0) {
+      return this.statusRawText
+    }
+    if (this.statusKey.length === 0) {
+      return ''
+    }
+    let message = s(this.statusKey)
+    this.statusArgs.forEach((arg: string) => {
+      message = message.replace('%s', arg)
+    })
+    return message
   }
 
   private showToast(message: string): void {
@@ -135,8 +163,8 @@ export struct WebDavServerPage {
       })
         .width('100%')
 
-      if (this.statusText.length > 0) {
-        Text(this.statusText)
+      if (this.statusText().length > 0) {
+        Text(this.statusText())
           .width('100%')
           .fontSize(ThemeConstants.FONT_SIZE_META)
           .lineHeight(ThemeConstants.LINE_HEIGHT_BODY)

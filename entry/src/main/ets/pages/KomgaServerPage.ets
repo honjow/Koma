@@ -21,7 +21,9 @@ export struct KomgaServerPage {
   @Local private username: string = ''
   @Local private password: string = ''
   @Local private testing: boolean = false
-  @Local private statusText: string = ''
+  @Local private statusKey: string = ''
+  @Local private statusArgs: string[] = []
+  @Local private statusRawText: string = ''
 
   private store(): RemoteServerStore {
     return new RemoteServerStore(getContext(this) as common.UIAbilityContext)
@@ -43,7 +45,7 @@ export struct KomgaServerPage {
       console.info('[Komga] step=settings_load configured=true')
     } catch (error) {
       const e = error as Error
-      this.statusText = e.message
+      this.setRawStatus(e.message)
       console.error('[Komga] step=settings_load_error message=' + e.message)
     }
   }
@@ -53,7 +55,7 @@ export struct KomgaServerPage {
       return
     }
     this.testing = true
-    this.statusText = s('server_status_testing')
+    this.setStatus('server_status_testing')
     try {
       const store = this.store()
       const record = await store.saveKomga({
@@ -65,12 +67,12 @@ export struct KomgaServerPage {
       })
       console.info('[Komga] step=test_connection_start')
       const libraries = await store.createKomgaClient(record).listLibraries()
-      this.statusText = s('komga_status_success').replace('%s', `${libraries.length}`)
+      this.setStatus('komga_status_success', [`${libraries.length}`])
       console.info(`[Komga] step=test_connection_ok libraries=${libraries.length}`)
       this.showToast(s('komga_toast_success'))
     } catch (error) {
       const e = error as Error
-      this.statusText = s('komga_status_failed').replace('%s', e.message)
+      this.setStatus('komga_status_failed', [e.message])
       console.error('[Komga] step=test_connection_failed message=' + e.message)
       this.showToast(s('komga_toast_failed'))
     } finally {
@@ -85,12 +87,38 @@ export struct KomgaServerPage {
       this.apiKey = ''
       this.username = ''
       this.password = ''
-      this.statusText = s('komga_status_removed')
+      this.setStatus('komga_status_removed')
       this.showToast(s('komga_toast_removed'))
     } catch (error) {
       const e = error as Error
-      this.statusText = e.message
+      this.setRawStatus(e.message)
     }
+  }
+
+  private setStatus(key: string, args: string[] = []): void {
+    this.statusKey = key
+    this.statusArgs = args
+    this.statusRawText = ''
+  }
+
+  private setRawStatus(message: string): void {
+    this.statusKey = ''
+    this.statusArgs = []
+    this.statusRawText = message
+  }
+
+  private statusText(): string {
+    if (this.statusRawText.length > 0) {
+      return this.statusRawText
+    }
+    if (this.statusKey.length === 0) {
+      return ''
+    }
+    let message = s(this.statusKey)
+    this.statusArgs.forEach((arg: string) => {
+      message = message.replace('%s', arg)
+    })
+    return message
   }
 
   private showToast(message: string): void {
@@ -172,8 +200,8 @@ export struct KomgaServerPage {
       })
         .width('100%')
 
-      if (this.statusText.length > 0) {
-        Text(this.statusText)
+      if (this.statusText().length > 0) {
+        Text(this.statusText())
           .width('100%')
           .fontSize(ThemeConstants.FONT_SIZE_META)
           .lineHeight(ThemeConstants.LINE_HEIGHT_BODY)

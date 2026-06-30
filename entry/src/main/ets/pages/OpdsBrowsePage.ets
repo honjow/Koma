@@ -48,7 +48,7 @@ interface OpdsHistoryEntry {
 
 @ComponentV2
 export struct OpdsBrowsePage {
-  @Local private title: string = s('route_opds_title')
+  @Local private title: string = ''
   @Local private currentUrl: string = ''
   @Local private history: OpdsHistoryEntry[] = []
   @Local private navigation: OpdsCatalogDto[] = []
@@ -56,7 +56,8 @@ export struct OpdsBrowsePage {
   @Local private selectedPublication: OpdsBookDto | undefined = undefined
   @Local private selectedImages: OpdsImageDto[] = []
   @Local private loading: boolean = true
-  @Local private errorText: string = ''
+  @Local private errorKey: string = ''
+  @Local private errorRawText: string = ''
   @Local private favoriteRevision: number = 0
   private record?: OpdsServerRecord
   @Param libraryStore: LibraryStore = createSeededLibraryStore()
@@ -67,17 +68,44 @@ export struct OpdsBrowsePage {
     return new RemoteServerStore(getContext(this) as common.UIAbilityContext)
   }
 
+  private currentTitle(): string {
+    return this.title.length > 0 ? this.title : s('route_opds_title')
+  }
+
+  private clearError(): void {
+    this.errorKey = ''
+    this.errorRawText = ''
+  }
+
+  private setErrorKey(key: string): void {
+    this.errorKey = key
+    this.errorRawText = ''
+  }
+
+  private setErrorRaw(message: string): void {
+    this.errorKey = ''
+    this.errorRawText = message
+  }
+
+  private errorText(): string {
+    if (this.errorRawText.length > 0) {
+      return this.errorRawText
+    }
+    return this.errorKey.length > 0 ? s(this.errorKey) : ''
+  }
+
   aboutToAppear(): void {
     this.loadInitial()
   }
 
   private async loadInitial(): Promise<void> {
     this.loading = true
-    this.errorText = ''
+    this.clearError()
     try {
       const saved = await this.store().loadOpds()
       if (saved === undefined) {
-        throw new Error(s('opds_config_required'))
+        this.setErrorKey('opds_config_required')
+        return
       }
       this.record = saved
       this.currentUrl = saved.server.rootUrl
@@ -85,7 +113,7 @@ export struct OpdsBrowsePage {
       await this.loadCatalog(saved.server.rootUrl, false)
     } catch (error) {
       const e = error as Error
-      this.errorText = e.message
+      this.setErrorRaw(e.message)
       console.error('[OPDS] step=load_initial_failed message=' + e.message)
     } finally {
       this.loading = false
@@ -98,7 +126,7 @@ export struct OpdsBrowsePage {
       return
     }
     this.loading = true
-    this.errorText = ''
+    this.clearError()
     try {
       console.info(`[OPDS] step=load_catalog_start urlHash=${this.shortHash(url)}`)
       const catalog = await this.store().createOpdsClient(record).fetchCatalog(url)
@@ -109,7 +137,7 @@ export struct OpdsBrowsePage {
       console.info(`[OPDS] step=load_catalog_ok version=${catalog.version} navigation=${catalog.navigation.length} publications=${catalog.publications.length}`)
     } catch (error) {
       const e = error as Error
-      this.errorText = e.message
+      this.setErrorRaw(e.message)
       console.error('[OPDS] step=load_catalog_failed message=' + e.message)
     } finally {
       this.loading = false
@@ -118,7 +146,7 @@ export struct OpdsBrowsePage {
 
   private applyCatalog(catalog: OpdsParseResult): void {
     this.currentUrl = catalog.feedUrl
-    this.title = catalog.title === undefined || catalog.title.length === 0 ? s('route_opds_title') : catalog.title
+    this.title = catalog.title === undefined ? '' : catalog.title
     this.navigation = catalog.navigation
     this.publications = catalog.publications
     this.selectedPublication = undefined
@@ -182,7 +210,7 @@ export struct OpdsBrowsePage {
     const record = this.record
     const publication = this.selectedPublication
     if (record === undefined || publication === undefined || this.selectedImages.length === 0) {
-      this.errorText = s('opds_no_direct_images')
+      this.setErrorKey('opds_no_direct_images')
       return
     }
     const now = Date.now()
@@ -308,7 +336,7 @@ export struct OpdsBrowsePage {
     }
     const comic = this.createSelectedPublicationComic()
     if (comic === undefined) {
-      this.errorText = s('opds_no_favoritable_images')
+      this.setErrorKey('opds_no_favoritable_images')
       this.showToast(s('common_no_images_to_add'))
       return
     }
@@ -325,7 +353,7 @@ export struct OpdsBrowsePage {
       console.info(`[Favorite] step=opds_add_ok pages=${comic.pageCount}`)
     } catch (error) {
       const e = error as Error
-      this.errorText = e.message
+      this.setErrorRaw(e.message)
       this.showToast(s('common_add_to_library_failed'))
       console.error('[Favorite] step=opds_add_failed message=' + e.message)
     }
@@ -390,7 +418,7 @@ export struct OpdsBrowsePage {
             this.goUp()
           },
         })
-        Text(this.selectedPublication === undefined ? this.title : this.selectedPublication.title)
+        Text(this.selectedPublication === undefined ? this.currentTitle() : this.selectedPublication.title)
           .fontSize(ThemeConstants.FONT_SIZE_HEADING)
           .fontWeight(FontWeight.Medium)
           .fontColor(ThemeConstants.TEXT_PRIMARY)
@@ -559,9 +587,9 @@ export struct OpdsBrowsePage {
             .width('100%')
             .justifyContent(FlexAlign.Center)
           }
-        } else if (this.errorText.length > 0) {
+        } else if (this.errorText().length > 0) {
           ListItem() {
-            Text(this.errorText)
+            Text(this.errorText())
               .width('100%')
               .padding(ThemeConstants.SPACE_LG)
               .fontSize(ThemeConstants.FONT_SIZE_BODY)

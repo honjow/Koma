@@ -77,14 +77,14 @@ import { connectLanguageState, LanguageState } from '../state/LanguageState'
 
 interface SettingsRow {
   key: string
-  title: string
-  detail: string
+  titleKey: string
+  detailKey: string
   placeholder?: boolean
 }
 
 interface SettingsSection {
   key: string
-  title: string
+  titleKey: string
   rows: SettingsRow[]
 }
 
@@ -102,15 +102,15 @@ export type SettingsPaneKey =
 
 interface SettingsPaneItem {
   key: SettingsPaneKey
-  title: string
-  detail: string
+  titleKey: string
+  detailKey: string
   icon: Resource
   color: ResourceColor
 }
 
 interface SettingsPaneSection {
   key: string
-  title: string
+  titleKey: string
   items: SettingsPaneItem[]
 }
 
@@ -129,71 +129,71 @@ function createSettingsSections(): SettingsSection[] {
   return [
     {
       key: 'appearance',
-      title: s('settings_section_appearance'),
+      titleKey: 'settings_section_appearance',
       rows: [
-        { key: 'theme', title: s('settings_row_theme_title'), detail: s('settings_row_theme_detail') },
-        { key: 'theme-color', title: s('settings_row_theme_color_title'), detail: s('settings_row_theme_color_detail'), placeholder: true },
-        { key: 'language', title: s('settings_row_language_title'), detail: s('settings_row_language_detail') },
-        { key: 'list-density', title: s('settings_row_list_density_title'), detail: s('settings_row_list_density_detail'), placeholder: true },
+        { key: 'theme', titleKey: 'settings_row_theme_title', detailKey: 'settings_row_theme_detail' },
+        { key: 'theme-color', titleKey: 'settings_row_theme_color_title', detailKey: 'settings_row_theme_color_detail', placeholder: true },
+        { key: 'language', titleKey: 'settings_row_language_title', detailKey: 'settings_row_language_detail' },
+        { key: 'list-density', titleKey: 'settings_row_list_density_title', detailKey: 'settings_row_list_density_detail', placeholder: true },
       ],
     },
     {
       key: 'reader',
-      title: s('settings_section_reader'),
+      titleKey: 'settings_section_reader',
       rows: [
-        { key: 'page-mode', title: s('settings_row_page_mode_title'), detail: s('settings_row_page_mode_detail') },
-        { key: 'reading-direction', title: s('settings_row_reading_direction_title'), detail: s('settings_row_reading_direction_detail') },
-        { key: 'reader-background', title: s('settings_row_reader_background_title'), detail: s('settings_row_reader_background_detail') },
-        { key: 'reader-progress', title: s('settings_row_reader_progress_title'), detail: s('settings_row_reader_progress_detail') },
-        { key: 'reader-keep-screen-awake', title: s('settings_row_reader_keep_screen_awake_title'), detail: s('settings_row_reader_keep_screen_awake_detail') },
-        { key: 'reader-image-fit', title: s('settings_row_reader_image_fit_title'), detail: s('settings_row_reader_image_fit_detail') },
-        { key: 'reader-tap-navigation', title: s('settings_row_reader_tap_navigation_title'), detail: s('settings_row_reader_tap_navigation_detail') },
-        { key: 'reader-tap-zone-preset', title: s('settings_row_reader_tap_zone_preset_title'), detail: s('settings_row_reader_tap_zone_preset_detail') },
-        { key: 'reader-page-gap', title: s('settings_row_reader_page_gap_title'), detail: s('settings_row_reader_page_gap_detail') },
-        { key: 'reader-trim-page-margins', title: s('settings_row_reader_trim_page_margins_title'), detail: s('settings_row_reader_trim_page_margins_detail') },
-        { key: 'reader-wide-image-mode', title: s('settings_row_reader_wide_image_mode_title'), detail: s('settings_row_reader_wide_image_mode_detail') },
-        { key: 'reader-volume-key-navigation', title: s('settings_row_reader_volume_key_navigation_title'), detail: s('settings_row_reader_volume_key_navigation_detail') },
+        { key: 'page-mode', titleKey: 'settings_row_page_mode_title', detailKey: 'settings_row_page_mode_detail' },
+        { key: 'reading-direction', titleKey: 'settings_row_reading_direction_title', detailKey: 'settings_row_reading_direction_detail' },
+        { key: 'reader-background', titleKey: 'settings_row_reader_background_title', detailKey: 'settings_row_reader_background_detail' },
+        { key: 'reader-progress', titleKey: 'settings_row_reader_progress_title', detailKey: 'settings_row_reader_progress_detail' },
+        { key: 'reader-keep-screen-awake', titleKey: 'settings_row_reader_keep_screen_awake_title', detailKey: 'settings_row_reader_keep_screen_awake_detail' },
+        { key: 'reader-image-fit', titleKey: 'settings_row_reader_image_fit_title', detailKey: 'settings_row_reader_image_fit_detail' },
+        { key: 'reader-tap-navigation', titleKey: 'settings_row_reader_tap_navigation_title', detailKey: 'settings_row_reader_tap_navigation_detail' },
+        { key: 'reader-tap-zone-preset', titleKey: 'settings_row_reader_tap_zone_preset_title', detailKey: 'settings_row_reader_tap_zone_preset_detail' },
+        { key: 'reader-page-gap', titleKey: 'settings_row_reader_page_gap_title', detailKey: 'settings_row_reader_page_gap_detail' },
+        { key: 'reader-trim-page-margins', titleKey: 'settings_row_reader_trim_page_margins_title', detailKey: 'settings_row_reader_trim_page_margins_detail' },
+        { key: 'reader-wide-image-mode', titleKey: 'settings_row_reader_wide_image_mode_title', detailKey: 'settings_row_reader_wide_image_mode_detail' },
+        { key: 'reader-volume-key-navigation', titleKey: 'settings_row_reader_volume_key_navigation_title', detailKey: 'settings_row_reader_volume_key_navigation_detail' },
       ],
     },
     {
       key: 'data',
-      title: s('settings_section_data'),
+      titleKey: 'settings_section_data',
       rows: [
-        { key: 'komga', title: s('settings_row_komga_title'), detail: s('settings_row_komga_detail') },
-        { key: 'opds', title: s('settings_row_opds_title'), detail: s('settings_row_opds_detail') },
-        { key: 'webdav', title: s('settings_row_webdav_title'), detail: s('settings_row_webdav_detail') },
-        { key: 'library-auto-update', title: s('settings_row_library_auto_update_title'), detail: s('settings_row_library_auto_update_detail') },
-        { key: 'library-update-interval', title: s('settings_row_library_update_interval_title'), detail: s('settings_row_library_update_interval_detail') },
-        { key: 'library-update', title: s('settings_row_library_update_title'), detail: s('settings_row_library_update_detail') },
-        { key: 'library-update-results', title: s('settings_row_library_update_results_title'), detail: s('settings_row_library_update_results_detail') },
-        { key: 'library-categories', title: s('settings_row_library_categories_title'), detail: s('settings_row_library_categories_detail') },
-        { key: 'library-view-mode', title: s('settings_row_library_view_mode_title'), detail: s('settings_row_library_view_mode_detail'), placeholder: true },
-        { key: 'library-default-sort', title: s('settings_row_library_default_sort_title'), detail: s('settings_row_library_default_sort_detail'), placeholder: true },
-        { key: 'library-badges', title: s('settings_row_library_badges_title'), detail: s('settings_row_library_badges_detail'), placeholder: true },
-        { key: 'local-library-refresh', title: s('settings_row_local_library_refresh_title'), detail: s('settings_row_local_library_refresh_detail') },
-        { key: 'sources', title: s('settings_row_sources_title'), detail: s('settings_row_sources_detail') },
-        { key: 'downloads', title: s('settings_row_downloads_title'), detail: s('settings_row_downloads_detail') },
-        { key: 'download-concurrency', title: s('settings_row_download_concurrency_title'), detail: s('settings_row_download_concurrency_detail'), placeholder: true },
-        { key: 'download-retry-failed', title: s('settings_row_download_retry_failed_title'), detail: s('settings_row_download_retry_failed_detail'), placeholder: true },
-        { key: 'download-wifi-only', title: s('settings_row_download_wifi_only_title'), detail: s('settings_row_download_wifi_only_detail'), placeholder: true },
-        { key: 'trackers', title: s('settings_row_trackers_title'), detail: s('settings_row_trackers_detail') },
-        { key: 'tracker-auto-sync', title: s('settings_row_tracker_auto_sync_title'), detail: s('settings_row_tracker_auto_sync_detail'), placeholder: true },
-        { key: 'tracker-update-strategy', title: s('settings_row_tracker_update_strategy_title'), detail: s('settings_row_tracker_update_strategy_detail'), placeholder: true },
-        { key: 'backup', title: s('settings_row_backup_title'), detail: s('settings_row_backup_detail') },
-        { key: 'backup-auto-export', title: s('settings_row_backup_auto_export_title'), detail: s('settings_row_backup_auto_export_detail'), placeholder: true },
-        { key: 'backup-include-settings', title: s('settings_row_backup_include_settings_title'), detail: s('settings_row_backup_include_settings_detail'), placeholder: true },
-        { key: 'image-cache', title: s('settings_row_image_cache_title'), detail: s('settings_row_image_cache_detail') },
-        { key: 'cache-limit', title: s('settings_row_cache_limit_title'), detail: s('settings_row_cache_limit_detail'), placeholder: true },
-        { key: 'cache-auto-clean', title: s('settings_row_cache_auto_clean_title'), detail: s('settings_row_cache_auto_clean_detail'), placeholder: true },
+        { key: 'komga', titleKey: 'settings_row_komga_title', detailKey: 'settings_row_komga_detail' },
+        { key: 'opds', titleKey: 'settings_row_opds_title', detailKey: 'settings_row_opds_detail' },
+        { key: 'webdav', titleKey: 'settings_row_webdav_title', detailKey: 'settings_row_webdav_detail' },
+        { key: 'library-auto-update', titleKey: 'settings_row_library_auto_update_title', detailKey: 'settings_row_library_auto_update_detail' },
+        { key: 'library-update-interval', titleKey: 'settings_row_library_update_interval_title', detailKey: 'settings_row_library_update_interval_detail' },
+        { key: 'library-update', titleKey: 'settings_row_library_update_title', detailKey: 'settings_row_library_update_detail' },
+        { key: 'library-update-results', titleKey: 'settings_row_library_update_results_title', detailKey: 'settings_row_library_update_results_detail' },
+        { key: 'library-categories', titleKey: 'settings_row_library_categories_title', detailKey: 'settings_row_library_categories_detail' },
+        { key: 'library-view-mode', titleKey: 'settings_row_library_view_mode_title', detailKey: 'settings_row_library_view_mode_detail', placeholder: true },
+        { key: 'library-default-sort', titleKey: 'settings_row_library_default_sort_title', detailKey: 'settings_row_library_default_sort_detail', placeholder: true },
+        { key: 'library-badges', titleKey: 'settings_row_library_badges_title', detailKey: 'settings_row_library_badges_detail', placeholder: true },
+        { key: 'local-library-refresh', titleKey: 'settings_row_local_library_refresh_title', detailKey: 'settings_row_local_library_refresh_detail' },
+        { key: 'sources', titleKey: 'settings_row_sources_title', detailKey: 'settings_row_sources_detail' },
+        { key: 'downloads', titleKey: 'settings_row_downloads_title', detailKey: 'settings_row_downloads_detail' },
+        { key: 'download-concurrency', titleKey: 'settings_row_download_concurrency_title', detailKey: 'settings_row_download_concurrency_detail', placeholder: true },
+        { key: 'download-retry-failed', titleKey: 'settings_row_download_retry_failed_title', detailKey: 'settings_row_download_retry_failed_detail', placeholder: true },
+        { key: 'download-wifi-only', titleKey: 'settings_row_download_wifi_only_title', detailKey: 'settings_row_download_wifi_only_detail', placeholder: true },
+        { key: 'trackers', titleKey: 'settings_row_trackers_title', detailKey: 'settings_row_trackers_detail' },
+        { key: 'tracker-auto-sync', titleKey: 'settings_row_tracker_auto_sync_title', detailKey: 'settings_row_tracker_auto_sync_detail', placeholder: true },
+        { key: 'tracker-update-strategy', titleKey: 'settings_row_tracker_update_strategy_title', detailKey: 'settings_row_tracker_update_strategy_detail', placeholder: true },
+        { key: 'backup', titleKey: 'settings_row_backup_title', detailKey: 'settings_row_backup_detail' },
+        { key: 'backup-auto-export', titleKey: 'settings_row_backup_auto_export_title', detailKey: 'settings_row_backup_auto_export_detail', placeholder: true },
+        { key: 'backup-include-settings', titleKey: 'settings_row_backup_include_settings_title', detailKey: 'settings_row_backup_include_settings_detail', placeholder: true },
+        { key: 'image-cache', titleKey: 'settings_row_image_cache_title', detailKey: 'settings_row_image_cache_detail' },
+        { key: 'cache-limit', titleKey: 'settings_row_cache_limit_title', detailKey: 'settings_row_cache_limit_detail', placeholder: true },
+        { key: 'cache-auto-clean', titleKey: 'settings_row_cache_auto_clean_title', detailKey: 'settings_row_cache_auto_clean_detail', placeholder: true },
       ],
     },
     {
       key: 'about',
-      title: s('settings_section_about'),
+      titleKey: 'settings_section_about',
       rows: [
-        { key: 'about', title: s('settings_row_about_title'), detail: s('settings_row_about_detail') },
-        { key: 'version', title: s('settings_row_version_title'), detail: s('settings_row_version_detail') },
-        { key: 'open-source', title: s('settings_row_open_source_title'), detail: s('settings_row_open_source_detail') },
+        { key: 'about', titleKey: 'settings_row_about_title', detailKey: 'settings_row_about_detail' },
+        { key: 'version', titleKey: 'settings_row_version_title', detailKey: 'settings_row_version_detail' },
+        { key: 'open-source', titleKey: 'settings_row_open_source_title', detailKey: 'settings_row_open_source_detail' },
       ],
     },
   ]
@@ -203,33 +203,33 @@ function createSettingsRootSections(): SettingsPaneSection[] {
   return [
     {
       key: 'primary',
-      title: '',
+      titleKey: '',
       items: [
         {
           key: 'appearance',
-          title: s('settings_pane_appearance_title'),
-          detail: s('settings_pane_appearance_detail'),
+          titleKey: 'settings_pane_appearance_title',
+          detailKey: 'settings_pane_appearance_detail',
           icon: $r('sys.symbol.gearshape'),
           color: ThemeConstants.STATUS_INFO,
         },
         {
           key: 'library',
-          title: s('settings_pane_library_title'),
-          detail: s('settings_pane_library_detail'),
+          titleKey: 'settings_pane_library_title',
+          detailKey: 'settings_pane_library_detail',
           icon: $r('sys.symbol.square_fill_grid_2x2'),
           color: ThemeConstants.SOURCE_LOCAL_COLOR,
         },
         {
           key: 'reader',
-          title: s('settings_pane_reader_title'),
-          detail: s('settings_pane_reader_detail'),
+          titleKey: 'settings_pane_reader_title',
+          detailKey: 'settings_pane_reader_detail',
           icon: $r('sys.symbol.clock'),
           color: ThemeConstants.STATUS_SUCCESS,
         },
         {
           key: 'services',
-          title: s('settings_pane_services_title'),
-          detail: s('settings_pane_services_detail'),
+          titleKey: 'settings_pane_services_title',
+          detailKey: 'settings_pane_services_detail',
           icon: $r('sys.symbol.compass'),
           color: ThemeConstants.SOURCE_KOMGA_COLOR,
         },
@@ -237,40 +237,40 @@ function createSettingsRootSections(): SettingsPaneSection[] {
     },
     {
       key: 'management',
-      title: '',
+      titleKey: '',
       items: [
         {
           key: 'downloads',
-          title: s('settings_pane_downloads_title'),
-          detail: s('settings_pane_downloads_detail'),
+          titleKey: 'settings_pane_downloads_title',
+          detailKey: 'settings_pane_downloads_detail',
           icon: $r('sys.symbol.clock'),
           color: ThemeConstants.STATUS_INFO,
         },
         {
           key: 'tracking',
-          title: s('settings_pane_tracking_title'),
-          detail: s('settings_pane_tracking_detail'),
+          titleKey: 'settings_pane_tracking_title',
+          detailKey: 'settings_pane_tracking_detail',
           icon: $r('sys.symbol.magnifyingglass'),
           color: ThemeConstants.STATUS_WARNING,
         },
         {
           key: 'backup',
-          title: s('settings_pane_backup_title'),
-          detail: s('settings_pane_backup_detail'),
+          titleKey: 'settings_pane_backup_title',
+          detailKey: 'settings_pane_backup_detail',
           icon: $r('sys.symbol.gearshape'),
           color: ThemeConstants.SOURCE_WEBDAV_COLOR,
         },
         {
           key: 'storage',
-          title: s('settings_pane_storage_title'),
-          detail: s('settings_pane_storage_detail'),
+          titleKey: 'settings_pane_storage_title',
+          detailKey: 'settings_pane_storage_detail',
           icon: $r('sys.symbol.square_fill_grid_2x2'),
           color: ThemeConstants.STATUS_MUTED,
         },
         {
           key: 'about',
-          title: s('settings_pane_about_title'),
-          detail: s('settings_pane_about_detail'),
+          titleKey: 'settings_pane_about_title',
+          detailKey: 'settings_pane_about_detail',
           icon: $r('sys.symbol.gearshape'),
           color: ThemeConstants.STATUS_MUTED,
         },
@@ -346,7 +346,9 @@ export struct SettingsPage {
   @Local private readerVolumeKeyNavigationEnabled: boolean = false
   @Local private language: LanguageState = connectLanguageState()
   @Local private versionDetail: string = ''
-  @Local private imageCacheDetail: string = ''
+  @Local private versionLoadFailed: boolean = false
+  @Local private imageCacheStats?: ReaderRemoteImageCacheStats = undefined
+  @Local private imageCacheState: string = 'unavailable'
   @Local private libraryUpdateBusy: boolean = false
   @Local private libraryUpdateSummary?: LibraryUpdateSummary = undefined
   @Local private libraryUpdatePreferences: LibraryUpdatePreferences = DEFAULT_LIBRARY_UPDATE_PREFERENCES
@@ -373,6 +375,26 @@ export struct SettingsPage {
 
   private libraryUpdateResultStore(): LibraryUpdateResultStore {
     return new LibraryUpdateResultStore(this.context())
+  }
+
+  private rowTitle(row: SettingsRow): string {
+    return s(row.titleKey)
+  }
+
+  private rowBaseDetail(row: SettingsRow): string {
+    return s(row.detailKey)
+  }
+
+  private sectionTitle(section: SettingsSection): string {
+    return s(section.titleKey)
+  }
+
+  private paneItemTitle(item: SettingsPaneItem): string {
+    return s(item.titleKey)
+  }
+
+  private paneItemDetail(item: SettingsPaneItem): string {
+    return s(item.detailKey)
   }
 
   private rowDetail(row: SettingsRow): string {
@@ -431,14 +453,16 @@ export struct SettingsPage {
       return this.cacheAutoClean ? s('common_on') : s('common_off')
     }
     if (row.key === 'version') {
-      return this.versionDetail
+      return this.versionDetail.length > 0
+        ? this.versionDetail
+        : (this.versionLoadFailed ? s('settings_version_dev') : '')
     }
     if (row.key === 'sources') {
       const count = listInstalled().length
       return count > 0 ? s('settings_sources_installed_count').replace('%s', `${count}`) : s('settings_sources_none')
     }
     if (row.key === 'image-cache') {
-      return this.imageCacheDetail
+      return this.imageCacheDetailText()
     }
     if (row.key === 'library-auto-update') {
       return getLibraryUpdateAutoCheckLabel(this.libraryUpdatePreferences)
@@ -482,7 +506,7 @@ export struct SettingsPage {
       }
       return formatLocalLibraryRefreshSummary(this.localLibraryRefreshSummary)
     }
-    return row.detail
+    return this.rowBaseDetail(row)
   }
 
   private rowDetailMaxLines(row: SettingsRow): number {
@@ -506,7 +530,7 @@ export struct SettingsPage {
       return [
         {
           key: 'library-organization',
-          title: s('settings_section_library_organization'),
+          titleKey: 'settings_section_library_organization',
           rows: this.rowsByKeys([
             'library-categories',
             'library-view-mode',
@@ -516,7 +540,7 @@ export struct SettingsPage {
         },
         {
           key: 'library-updates',
-          title: s('settings_section_library_updates'),
+          titleKey: 'settings_section_library_updates',
           rows: this.rowsByKeys([
             'library-auto-update',
             'library-update-interval',
@@ -534,12 +558,12 @@ export struct SettingsPage {
       return [
         {
           key: 'private-libraries',
-          title: s('settings_section_private_libraries'),
+          titleKey: 'settings_section_private_libraries',
           rows: this.rowsByKeys(['komga', 'opds', 'webdav']),
         },
         {
           key: 'source-runtime',
-          title: s('settings_section_source_runtime'),
+          titleKey: 'settings_section_source_runtime',
           rows: this.rowsByKeys(['sources']),
         },
       ]
@@ -548,7 +572,7 @@ export struct SettingsPage {
       return [
         {
           key: 'downloads',
-          title: s('settings_section_downloads'),
+          titleKey: 'settings_section_downloads',
           rows: this.rowsByKeys([
             'downloads',
             'download-concurrency',
@@ -562,7 +586,7 @@ export struct SettingsPage {
       return [
         {
           key: 'tracking',
-          title: s('settings_section_tracking'),
+          titleKey: 'settings_section_tracking',
           rows: this.rowsByKeys([
             'trackers',
             'tracker-auto-sync',
@@ -575,7 +599,7 @@ export struct SettingsPage {
       return [
         {
           key: 'backup',
-          title: s('settings_section_backup'),
+          titleKey: 'settings_section_backup',
           rows: this.rowsByKeys([
             'backup',
             'backup-auto-export',
@@ -588,7 +612,7 @@ export struct SettingsPage {
       return [
         {
           key: 'storage',
-          title: s('settings_section_storage'),
+          titleKey: 'settings_section_storage',
           rows: this.rowsByKeys([
             'image-cache',
             'cache-limit',
@@ -626,12 +650,13 @@ export struct SettingsPage {
       this.paneSectionsFor(pane).forEach((section: SettingsSection) => {
         section.rows.forEach((row: SettingsRow) => {
           const currentDetail = this.rowDetail(row)
-          const haystack = `${paneTitle} ${section.title} ${row.title} ${row.detail} ${currentDetail}`.toLowerCase()
+          const haystack =
+            `${paneTitle} ${this.sectionTitle(section)} ${this.rowTitle(row)} ${this.rowBaseDetail(row)} ${currentDetail}`.toLowerCase()
           if (haystack.includes(query)) {
             results.push({
               key: `${pane}:${section.key}:${row.key}`,
               pane,
-              sectionTitle: section.title,
+              sectionTitle: this.sectionTitle(section),
               row,
             })
           }
@@ -773,10 +798,12 @@ export struct SettingsPage {
     try {
       const info = bundleManager.getBundleInfoForSelfSync(bundleManager.BundleFlag.GET_BUNDLE_INFO_DEFAULT)
       this.versionDetail = `${info.versionName} (${info.versionCode})`
+      this.versionLoadFailed = false
     } catch (error) {
       const e = error as Error
       console.warn('[Settings] step=version_failed message=' + e.message)
-      this.versionDetail = s('settings_version_dev')
+      this.versionDetail = ''
+      this.versionLoadFailed = true
     }
   }
 
@@ -796,12 +823,28 @@ export struct SettingsPage {
   }
 
   private updateImageCacheDetail(stats: ReaderRemoteImageCacheStats): void {
-    this.imageCacheDetail = `${formatReaderRemoteImageCacheSize(stats.totalBytes)} · ${stats.entryCount} ${s('common_items_unit')}`
+    this.imageCacheStats = stats
+    this.imageCacheState = 'ready'
+  }
+
+  private imageCacheDetailText(): string {
+    if (this.imageCacheState === 'load_failed') {
+      return s('common_load_failed')
+    }
+    if (this.imageCacheState === 'unavailable') {
+      return s('common_unavailable')
+    }
+    const stats = this.imageCacheStats
+    if (stats === undefined) {
+      return s('common_unavailable')
+    }
+    return `${formatReaderRemoteImageCacheSize(stats.totalBytes)} · ${stats.entryCount} ${s('common_items_unit')}`
   }
 
   private loadImageCacheStats(): void {
     if (!this.ensureReaderRemoteImageCache()) {
-      this.imageCacheDetail = s('common_unavailable')
+      this.imageCacheStats = undefined
+      this.imageCacheState = 'unavailable'
       return
     }
     void getReaderRemoteImageCacheStats()
@@ -810,7 +853,8 @@ export struct SettingsPage {
         console.info('[Settings] step=image_cache_stats totalBytes=' + stats.totalBytes + ' entryCount=' + stats.entryCount)
       })
       .catch((error: Error) => {
-        this.imageCacheDetail = s('common_load_failed')
+        this.imageCacheStats = undefined
+        this.imageCacheState = 'load_failed'
         console.warn('[Settings] step=image_cache_stats_failed message=' + error.message)
       })
   }
@@ -1294,7 +1338,7 @@ export struct SettingsPage {
     } else if (row.key === 'cache-auto-clean') {
       this.cacheAutoClean = value
     }
-    this.showToast(`${row.title}${s('settings_coming_soon_suffix')}`)
+    this.showToast(`${this.rowTitle(row)}${s('settings_coming_soon_suffix')}`)
   }
 
   private setSwitchRowValue(row: SettingsRow, value: boolean): void {
@@ -1382,7 +1426,7 @@ export struct SettingsPage {
 
   private showImageCacheConfirm(): void {
     this.getUIContext().showAlertDialog({
-      message: `${s('settings_image_cache_confirm')}\n${this.imageCacheDetail}`,
+      message: `${s('settings_image_cache_confirm')}\n${this.imageCacheDetailText()}`,
       primaryButton: {
         value: s('common_cancel'),
         action: () => {},
@@ -1435,7 +1479,7 @@ export struct SettingsPage {
     } else if (row.key === 'open-source') {
       this.showOpenSourceDialog()
     } else if (this.isPlaceholderRow(row)) {
-      this.showToast(`${row.title}${s('settings_coming_soon_suffix')}`)
+      this.showToast(`${this.rowTitle(row)}${s('settings_coming_soon_suffix')}`)
     }
   }
 
@@ -1443,7 +1487,7 @@ export struct SettingsPage {
   private SectionRow(row: SettingsRow) {
     if (this.isSwitchRow(row)) {
       ConciseListRow({
-        title: row.title,
+        title: this.rowTitle(row),
         subtitle: this.rowDetail(row),
         showChevron: false,
         hasSwitch: true,
@@ -1455,7 +1499,7 @@ export struct SettingsPage {
     } else if (this.isSelectionRow(row) && this.canOpenSelectionMenu(row)) {
       Column() {
         ConciseListRow({
-          title: row.title,
+          title: this.rowTitle(row),
           trailingText: this.rowDetail(row),
           trailingDropdown: true,
           showChevron: true,
@@ -1474,7 +1518,7 @@ export struct SettingsPage {
         })
     } else if (this.isSelectionRow(row)) {
       ConciseListRow({
-        title: row.title,
+        title: this.rowTitle(row),
         trailingText: this.rowDetail(row),
         showChevron: false,
         action: () => {
@@ -1483,7 +1527,7 @@ export struct SettingsPage {
       })
     } else if (this.isPlaceholderRow(row)) {
       ConciseListRow({
-        title: row.title,
+        title: this.rowTitle(row),
         trailingText: this.rowDetail(row),
         showChevron: false,
         action: () => {
@@ -1492,7 +1536,7 @@ export struct SettingsPage {
       })
     } else {
       ConciseListRow({
-        title: row.title,
+        title: this.rowTitle(row),
         trailingText: this.rowDetail(row),
         showChevron: true,
         action: () => {
@@ -1505,7 +1549,7 @@ export struct SettingsPage {
   @Builder
   private SearchResultRow(result: SettingsSearchResult) {
     ConciseListRow({
-      title: result.row.title,
+      title: this.rowTitle(result.row),
       subtitle: this.searchResultSubtitle(result),
       subtitleMaxLines: 2,
       showChevron: true,
@@ -1519,8 +1563,8 @@ export struct SettingsPage {
   @Builder
   private RootPaneRow(item: SettingsPaneItem) {
     ConciseListRow({
-      title: item.title,
-      subtitle: item.detail,
+      title: this.paneItemTitle(item),
+      subtitle: this.paneItemDetail(item),
       leadingIcon: item.icon,
       leadingIconBackgroundColor: item.color,
       showChevron: true,
@@ -1591,7 +1635,7 @@ export struct SettingsPage {
   @Builder
   private Section(section: SettingsSection) {
     Column({ space: ThemeConstants.SPACE_XS }) {
-      SectionHeader({ title: section.title })
+      SectionHeader({ title: this.sectionTitle(section) })
       GroupedListSection() {
         ForEach(section.rows, (row: SettingsRow, index: number) => {
           this.SectionRow(row)

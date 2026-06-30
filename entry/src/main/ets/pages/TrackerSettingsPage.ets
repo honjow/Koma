@@ -22,7 +22,7 @@ function s(name: string): string {
 export struct TrackerSettingsPage {
   @Local private accounts: TrackerAccount[] = DEFAULT_TRACKER_ACCOUNTS
   @Local private secureStorageAvailable: boolean = false
-  @Local private authPreparationMessage: string = s('tracker_message_secure_storage_unverified')
+  @Local private authPreparationMessageKey: string = 'tracker_message_secure_storage_unverified'
 
   private context(): common.UIAbilityContext {
     return getContext(this) as common.UIAbilityContext
@@ -39,7 +39,7 @@ export struct TrackerSettingsPage {
         console.info('[TrackerSettings] step=load accounts=' + preferences.accounts.length)
       })
       .catch((_error: Error) => {
-        this.authPreparationMessage = s('tracker_message_load_failed')
+        this.authPreparationMessageKey = 'tracker_message_load_failed'
         console.warn('[TrackerSettings] step=load_failed reason=redacted')
       })
   }
@@ -82,39 +82,39 @@ export struct TrackerSettingsPage {
 
   private prepareConnect(provider: TrackerProviderConfig): void {
     if (!this.canPrepareConnect(provider)) {
-      this.authPreparationMessage = !this.secureStorageAvailable
-        ? s('tracker_message_connect_unavailable')
-        : s('tracker_message_auth_unavailable')
-      this.showToast(this.authPreparationMessage)
+      this.authPreparationMessageKey = !this.secureStorageAvailable
+        ? 'tracker_message_connect_unavailable'
+        : 'tracker_message_auth_unavailable'
+      this.showToast(s(this.authPreparationMessageKey))
       return
     }
     void this.trackerPreferencesStore().prepareConnect(provider.providerId)
       .then((result: TrackerOAuthStartPreparation) => {
-        this.authPreparationMessage = result.status === 'ready'
-          ? s('tracker_message_auth_ready')
-          : this.authPrepareStatusLabel(result.status)
-        this.showToast(this.authPreparationMessage)
+        this.authPreparationMessageKey = result.status === 'ready'
+          ? 'tracker_message_auth_ready'
+          : this.authPrepareStatusKey(result.status)
+        this.showToast(s(this.authPreparationMessageKey))
       })
       .catch((_error: Error) => {
-        this.authPreparationMessage = s('tracker_message_auth_prepare_failed')
-        this.showToast(this.authPreparationMessage)
+        this.authPreparationMessageKey = 'tracker_message_auth_prepare_failed'
+        this.showToast(s(this.authPreparationMessageKey))
       })
   }
 
-  private authPrepareStatusLabel(status: string): string {
+  private authPrepareStatusKey(status: string): string {
     if (status === 'secure_storage_unavailable') {
-      return s('tracker_message_connect_unavailable')
+      return 'tracker_message_connect_unavailable'
     }
     if (status === 'provider_config_missing') {
-      return s('tracker_message_auth_unavailable')
+      return 'tracker_message_auth_unavailable'
     }
     if (status === 'provider_unsupported') {
-      return s('tracker_message_provider_unsupported')
+      return 'tracker_message_provider_unsupported'
     }
     if (status === 'pkce_unavailable') {
-      return s('tracker_message_auth_unavailable')
+      return 'tracker_message_auth_unavailable'
     }
-    return s('tracker_message_auth_prepare_failed')
+    return 'tracker_message_auth_prepare_failed'
   }
 
   private showToast(message: string): void {
@@ -137,7 +137,7 @@ export struct TrackerSettingsPage {
         .fontSize(ThemeConstants.FONT_SIZE_META)
         .lineHeight(ThemeConstants.LINE_HEIGHT_BODY)
         .fontColor(ThemeConstants.TEXT_SECONDARY)
-      Text(this.authPreparationMessage)
+      Text(s(this.authPreparationMessageKey))
         .width('100%')
         .fontSize(ThemeConstants.FONT_SIZE_CAPTION)
         .lineHeight(ThemeConstants.LINE_HEIGHT_BODY)

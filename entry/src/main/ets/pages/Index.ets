@@ -68,6 +68,7 @@ import {
 } from '../sourceRuntime/SourceRuntimeAppRegistry'
 import { configureSourceSettingsStore } from '../sourceRuntime/SourceSettingsStore'
 import { AppStrings } from '../i18n/AppStrings'
+import { connectLanguageState, LanguageState } from '../state/LanguageState'
 
 const readerSessionStore: ReaderSessionStore = new InMemoryReaderSessionStore()
 const seededLibraryStore: LibraryStore = createSeededLibraryStore()
@@ -82,6 +83,7 @@ interface SettingsPaneRouteParam {
 @ComponentV2
 struct Index {
   @Local selectedTab: number = TabIndex.LIBRARY
+  @Local private languageState: LanguageState = connectLanguageState()
   @Local private readerOpen: boolean = false
   @Local private readerPageIndex: number = 0
   @Local private readerChromeVisible: boolean = true
@@ -475,140 +477,147 @@ struct Index {
   }
 
   build() {
-    HdsNavigation(this.appPathStack) {
-      HdsTabs({ controller: this.tabController, index: this.selectedTab }) {
-        TabContent() {
-          LibraryPage({
-            libraryStore: this.libraryStore,
-            libraryComics: this.libraryComics,
-            libraryRevision: this.libraryRevision,
-            presentationByComicId: this.presentationByComicId,
-            onOpenReader: (comicId: ComicId) => {
-              void this.openReader(comicId)
-            },
-            onImportRequested: () => {
-              this.openImport()
-            },
-            onRemoveComicRequested: (comicId: ComicId) => {
-              return this.handleRemoveComicRequested(comicId)
-            },
-            onAssignCategoriesRequested: (comicIds: ComicId[], categoryIds?: string[]) => {
-              return this.handleAssignCategoriesRequested(comicIds, categoryIds)
-            },
-            onUpdateCategoryMembershipRequested: (comicIds: ComicId[], categoryId: string, selected: boolean) => {
-              return this.handleUpdateCategoryMembershipRequested(comicIds, categoryId, selected)
-            }
-          })
-        }.tabBar(this.TabIcon(tabLabel(TabIndex.LIBRARY), TabIndex.LIBRARY))
+    Stack() {
+      if (this.languageState.effectiveLocale.length >= 0) {
+        HdsNavigation(this.appPathStack) {
+          HdsTabs({ controller: this.tabController, index: this.selectedTab }) {
+            TabContent() {
+              LibraryPage({
+                libraryStore: this.libraryStore,
+                libraryComics: this.libraryComics,
+                libraryRevision: this.libraryRevision,
+                presentationByComicId: this.presentationByComicId,
+                onOpenReader: (comicId: ComicId) => {
+                  void this.openReader(comicId)
+                },
+                onImportRequested: () => {
+                  this.openImport()
+                },
+                onRemoveComicRequested: (comicId: ComicId) => {
+                  return this.handleRemoveComicRequested(comicId)
+                },
+                onAssignCategoriesRequested: (comicIds: ComicId[], categoryIds?: string[]) => {
+                  return this.handleAssignCategoriesRequested(comicIds, categoryIds)
+                },
+                onUpdateCategoryMembershipRequested: (comicIds: ComicId[], categoryId: string, selected: boolean) => {
+                  return this.handleUpdateCategoryMembershipRequested(comicIds, categoryId, selected)
+                }
+              })
+            }.tabBar(this.TabIcon(tabLabel(TabIndex.LIBRARY), TabIndex.LIBRARY))
 
-        TabContent() {
-          BrowsePage({
-            sourceRegistry: this.sourceRegistry,
-            libraryStore: this.libraryStore,
-            libraryPersistenceService: this.ensureLibraryPersistenceService(),
-            onLibraryChanged: () => {
-              this.refreshLibrarySnapshot()
-              this.selectedTab = TabIndex.LIBRARY
-            }
-          })
-        }.tabBar(this.TabIcon(tabLabel(TabIndex.BROWSE), TabIndex.BROWSE))
+            TabContent() {
+              BrowsePage({
+                sourceRegistry: this.sourceRegistry,
+                libraryStore: this.libraryStore,
+                libraryPersistenceService: this.ensureLibraryPersistenceService(),
+                onLibraryChanged: () => {
+                  this.refreshLibrarySnapshot()
+                  this.selectedTab = TabIndex.LIBRARY
+                }
+              })
+            }.tabBar(this.TabIcon(tabLabel(TabIndex.BROWSE), TabIndex.BROWSE))
 
-        TabContent() {
-          HistoryPage({
-            libraryStore: this.libraryStore,
-            active: this.selectedTab === TabIndex.HISTORY,
-            onOpenReader: (comicId: ComicId, chapterId?: string) => {
-              void this.openReader(comicId, chapterId)
-            }
-          })
-        }.tabBar(this.TabIcon(tabLabel(TabIndex.HISTORY), TabIndex.HISTORY))
+            TabContent() {
+              HistoryPage({
+                libraryStore: this.libraryStore,
+                active: this.selectedTab === TabIndex.HISTORY,
+                onOpenReader: (comicId: ComicId, chapterId?: string) => {
+                  void this.openReader(comicId, chapterId)
+                }
+              })
+            }.tabBar(this.TabIcon(tabLabel(TabIndex.HISTORY), TabIndex.HISTORY))
 
-        TabContent() {
-          SearchPage({
-            libraryStore: this.libraryStore,
-            libraryPersistenceService: this.ensureLibraryPersistenceService(),
-            onLibraryChanged: () => {
-              this.refreshLibrarySnapshot()
-              this.selectedTab = TabIndex.LIBRARY
-            }
-          })
-        }.tabBar(this.TabIcon(tabLabel(TabIndex.SEARCH), TabIndex.SEARCH))
+            TabContent() {
+              SearchPage({
+                libraryStore: this.libraryStore,
+                libraryPersistenceService: this.ensureLibraryPersistenceService(),
+                onLibraryChanged: () => {
+                  this.refreshLibrarySnapshot()
+                  this.selectedTab = TabIndex.LIBRARY
+                }
+              })
+            }.tabBar(this.TabIcon(tabLabel(TabIndex.SEARCH), TabIndex.SEARCH))
 
-        TabContent() {
-          SettingsPage({
-            pane: 'root',
-            libraryStore: this.libraryStore,
-            libraryPersistenceService: this.ensureLibraryPersistenceService(),
-            sourceRegistry: this.sourceRegistry,
-            onOpenSettingsPane: (pane: SettingsPaneKey) => {
-              this.openSettingsPane(pane)
+            TabContent() {
+              SettingsPage({
+                pane: 'root',
+                libraryStore: this.libraryStore,
+                libraryPersistenceService: this.ensureLibraryPersistenceService(),
+                sourceRegistry: this.sourceRegistry,
+                onOpenSettingsPane: (pane: SettingsPaneKey) => {
+                  this.openSettingsPane(pane)
+                },
+                onOpenKomgaSettings: () => {
+                  this.openSettingsSecondary(RouteName.KOMGA_SERVER)
+                },
+                onOpenOpdsSettings: () => {
+                  this.openSettingsSecondary(RouteName.OPDS_SERVER)
+                },
+                onOpenWebDavSettings: () => {
+                  this.openSettingsSecondary(RouteName.WEBDAV_SERVER)
+                },
+                onOpenSourcePackageManager: () => {
+                  this.openSettingsSecondary(RouteName.SOURCE_PACKAGE_MANAGER)
+                },
+                onOpenLibraryUpdateResults: () => {
+                  this.openSettingsSecondary(RouteName.LIBRARY_UPDATE_RESULTS)
+                },
+                onOpenLibraryCategories: () => {
+                  this.openSettingsSecondary(RouteName.LIBRARY_CATEGORIES)
+                },
+                onOpenDownloads: () => {
+                  this.openSettingsSecondary(RouteName.DOWNLOADS)
+                },
+                onOpenBackupManagement: () => {
+                  this.openSettingsSecondary(RouteName.BACKUP_MANAGEMENT)
+                },
+                onOpenTrackerSettings: () => {
+                  this.openSettingsSecondary(RouteName.TRACKER_SETTINGS)
+                },
+                onLibraryChanged: () => {
+                  this.refreshLibrarySnapshot()
+                }
+              })
+            }.tabBar(this.TabIcon(tabLabel(TabIndex.SETTINGS), TabIndex.SETTINGS))
+          }
+          .barOverlap(true)
+          .barPosition(BarPosition.End)
+          .barMode(BarMode.Fixed)
+          .scrollable(false)
+          .animationDuration(0)
+          .barFloatingStyle({
+            barBottomMargin: 16,
+            adaptToHandedness: true,
+            systemMaterialEffect: {
+              materialType: hdsMaterial.MaterialType.ADAPTIVE,
+              materialLevel: hdsMaterial.MaterialLevel.ADAPTIVE,
             },
-            onOpenKomgaSettings: () => {
-              this.openSettingsSecondary(RouteName.KOMGA_SERVER)
-            },
-            onOpenOpdsSettings: () => {
-              this.openSettingsSecondary(RouteName.OPDS_SERVER)
-            },
-            onOpenWebDavSettings: () => {
-              this.openSettingsSecondary(RouteName.WEBDAV_SERVER)
-            },
-            onOpenSourcePackageManager: () => {
-              this.openSettingsSecondary(RouteName.SOURCE_PACKAGE_MANAGER)
-            },
-            onOpenLibraryUpdateResults: () => {
-              this.openSettingsSecondary(RouteName.LIBRARY_UPDATE_RESULTS)
-            },
-            onOpenLibraryCategories: () => {
-              this.openSettingsSecondary(RouteName.LIBRARY_CATEGORIES)
-            },
-            onOpenDownloads: () => {
-              this.openSettingsSecondary(RouteName.DOWNLOADS)
-            },
-            onOpenBackupManagement: () => {
-              this.openSettingsSecondary(RouteName.BACKUP_MANAGEMENT)
-            },
-            onOpenTrackerSettings: () => {
-              this.openSettingsSecondary(RouteName.TRACKER_SETTINGS)
-            },
-            onLibraryChanged: () => {
-              this.refreshLibrarySnapshot()
-            }
+          } as HdsTabsFloatingStyle)
+          .onChange((index: number) => {
+            this.selectedTab = index
           })
-        }.tabBar(this.TabIcon(tabLabel(TabIndex.SETTINGS), TabIndex.SETTINGS))
+        }
+        .titleBar(this.titleBarOptions())
+        .titleMode(HdsNavigationTitleMode.MINI)
+        .hideBackButton(true)
+        .dynamicHideTitleBar({
+          hideTitleArea: false,
+          hideBottomBuilder: false,
+          hideStatusBar: false,
+          mode: HideMode.SCROLL_UP,
+        })
+        .ignoreLayoutSafeArea(
+          [LayoutSafeAreaType.SYSTEM],
+          [LayoutSafeAreaEdge.TOP, LayoutSafeAreaEdge.BOTTOM],
+        )
+        .expandSafeArea([SafeAreaType.SYSTEM], [SafeAreaEdge.TOP, SafeAreaEdge.BOTTOM])
+        .navDestination(this.AppDestination)
+        .mode(NavigationMode.Stack)
+        .width('100%')
+        .height('100%')
+        .backgroundColor($r('sys.color.ohos_id_color_sub_background'))
       }
-      .barOverlap(true)
-      .barPosition(BarPosition.End)
-      .barMode(BarMode.Fixed)
-      .scrollable(false)
-      .animationDuration(0)
-      .barFloatingStyle({
-        barBottomMargin: 16,
-        adaptToHandedness: true,
-        systemMaterialEffect: {
-          materialType: hdsMaterial.MaterialType.ADAPTIVE,
-          materialLevel: hdsMaterial.MaterialLevel.ADAPTIVE,
-        },
-      } as HdsTabsFloatingStyle)
-      .onChange((index: number) => {
-        this.selectedTab = index
-      })
     }
-    .titleBar(this.titleBarOptions())
-    .titleMode(HdsNavigationTitleMode.MINI)
-    .hideBackButton(true)
-    .dynamicHideTitleBar({
-      hideTitleArea: false,
-      hideBottomBuilder: false,
-      hideStatusBar: false,
-      mode: HideMode.SCROLL_UP,
-    })
-    .ignoreLayoutSafeArea(
-      [LayoutSafeAreaType.SYSTEM],
-      [LayoutSafeAreaEdge.TOP, LayoutSafeAreaEdge.BOTTOM],
-    )
-    .expandSafeArea([SafeAreaType.SYSTEM], [SafeAreaEdge.TOP, SafeAreaEdge.BOTTOM])
-    .navDestination(this.AppDestination)
-    .mode(NavigationMode.Stack)
     .width('100%')
     .height('100%')
     .backgroundColor($r('sys.color.ohos_id_color_sub_background'))

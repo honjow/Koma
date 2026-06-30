@@ -1,10 +1,12 @@
 import { connectLayoutSafeArea, LayoutSafeAreaState } from '../state/LayoutSafeAreaState'
+import { connectLanguageState, LanguageState } from '../state/LanguageState'
 import { ThemeConstants } from '../theme/ThemeConstants'
 
 @ComponentV2
 export struct SecondaryListScaffold {
   @BuilderParam content: () => void
   @Local private safeArea: LayoutSafeAreaState = connectLayoutSafeArea()
+  @Local private languageState: LanguageState = connectLanguageState()
   scroller: Scroller = new Scroller()
   @Param listSpace: number = ThemeConstants.SPACE_SM - 2
   @Param horizontalPadding: number = ThemeConstants.SPACE_MD
@@ -14,45 +16,51 @@ export struct SecondaryListScaffold {
   @Event onDidScroll?: (offset: number, state: ScrollState) => void
 
   build() {
-    List({ space: this.listSpace, scroller: this.scroller }) {
-      ListItem() {
-        Column() {
-          Blank().height(this.safeArea.topAvoidHeight + ThemeConstants.TITLE_BAR_HEIGHT)
-        }
-        .width('100%')
-      }
-      .clip(false)
+    Stack() {
+      if (this.languageState.effectiveLocale.length >= 0) {
+        List({ space: this.listSpace, scroller: this.scroller }) {
+          ListItem() {
+            Column() {
+              Blank().height(this.safeArea.topAvoidHeight + ThemeConstants.TITLE_BAR_HEIGHT)
+            }
+            .width('100%')
+          }
+          .clip(false)
 
-      this.content()
+          this.content()
 
-      ListItem() {
-        Column() {
-          Blank().height(this.safeArea.bottomAvoidHeight + this.bottomPadding + this.keyboardPadding())
+          ListItem() {
+            Column() {
+              Blank().height(this.safeArea.bottomAvoidHeight + this.bottomPadding + this.keyboardPadding())
+            }
+            .width('100%')
+          }
         }
+        .scrollBar(BarState.Off)
         .width('100%')
+        .height('100%')
+        .padding({ left: this.horizontalPadding, right: this.horizontalPadding })
+        .clip(false)
+        .edgeEffect(EdgeEffect.None)
+        .onDidScroll((_scrollOffset: number, scrollState: ScrollState) => {
+          if (this.onDidScroll) {
+            this.onDidScroll(this.scroller.currentOffset().yOffset, scrollState)
+          }
+        })
+        .onScrollIndex((_start: number, _end: number, _center: number) => {
+          if (this.onDidScroll) {
+            this.onDidScroll(this.scroller.currentOffset().yOffset, ScrollState.Scroll)
+          }
+        })
+        .onReachEnd(() => {
+          if (this.onReachEnd) {
+            this.onReachEnd()
+          }
+        })
       }
     }
-    .scrollBar(BarState.Off)
     .width('100%')
     .height('100%')
-    .padding({ left: this.horizontalPadding, right: this.horizontalPadding })
-    .clip(false)
-    .edgeEffect(EdgeEffect.None)
-    .onDidScroll((_scrollOffset: number, scrollState: ScrollState) => {
-      if (this.onDidScroll) {
-        this.onDidScroll(this.scroller.currentOffset().yOffset, scrollState)
-      }
-    })
-    .onScrollIndex((_start: number, _end: number, _center: number) => {
-      if (this.onDidScroll) {
-        this.onDidScroll(this.scroller.currentOffset().yOffset, ScrollState.Scroll)
-      }
-    })
-    .onReachEnd(() => {
-      if (this.onReachEnd) {
-        this.onReachEnd()
-      }
-    })
   }
 
   private keyboardPadding(): number {
