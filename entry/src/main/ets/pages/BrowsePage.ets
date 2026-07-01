@@ -22,6 +22,7 @@ import { LibraryStore } from '../model/LibraryStore'
 import { LibraryStorePersistenceService } from '../model/LibraryPersistence'
 import { createSeededLibraryStore } from '../model/MockLibraryData'
 import { AppStrings } from '../i18n/AppStrings'
+import { connectLanguageState, LanguageState } from '../state/LanguageState'
 
 const SOURCE_BROWSE_ROUTE_NAME: string = 'SourceBrowsePage'
 const SOURCE_SEARCH_ROUTE_NAME: string = 'SourceSearchPage'
@@ -39,6 +40,7 @@ interface SourceRouteParam {
 
 @ComponentV2
 export struct BrowsePage {
+  @Local private languageState: LanguageState = connectLanguageState()
   @Local private viewModel: BrowseViewModel = new BrowseViewModel()
   @Local private refreshingSources: boolean = false
   @Local private komgaConfigured: boolean = false

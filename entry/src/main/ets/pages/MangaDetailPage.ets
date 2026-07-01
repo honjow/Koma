@@ -12,8 +12,10 @@ import {
   AppFilesChapterReadStatePersistenceAdapter,
   ChapterReadStateStore,
 } from '../model/ChapterReadStateStore'
+import { AppStrings } from '../i18n/AppStrings'
 import { ThemeConstants } from '../theme/ThemeConstants'
 import { connectLayoutSafeArea, LayoutSafeAreaState } from '../state/LayoutSafeAreaState'
+import { connectLanguageState, LanguageState } from '../state/LanguageState'
 import {
   MangaChapterItem,
   MangaDetail,
@@ -121,6 +123,10 @@ function executeMangaDetailSourceOperation(requestJson: string, wasmBytes: Uint8
   return JSON.stringify(response)
 }
 
+function s(name: string): string {
+  return AppStrings.get(name)
+}
+
 @ComponentV2
 export struct MangaDetailPage {
   @Param params: MangaDetailRouteParams = {}
@@ -132,6 +138,7 @@ export struct MangaDetailPage {
   @Local private downloadStatusText: string = ''
   @Local private feedbackText: string = ''
   @Local private safeArea: LayoutSafeAreaState = connectLayoutSafeArea()
+  @Local private languageState: LanguageState = connectLanguageState()
   @Param libraryStore?: LibraryStore = undefined
   @Param libraryPersistenceService?: LibraryStorePersistenceService = undefined
   @Param readerSessionStore: ReaderSessionStore = new InMemoryReaderSessionStore()
@@ -147,6 +154,14 @@ export struct MangaDetailPage {
 
   private bottomContentInset(): number {
     return this.safeArea.bottomAvoidHeight + ThemeConstants.FLOAT_BAR_HEIGHT + 20
+  }
+
+  private formatString(key: string, args: Array<string | number>): string {
+    let text = s(key)
+    args.forEach((value: string | number) => {
+      text = text.replace('%s', `${value}`)
+    })
+    return text
   }
 
   aboutToAppear(): void {
@@ -266,7 +281,7 @@ export struct MangaDetailPage {
 
   private async loadSourceMangaDetail(sourceId: string, mangaId: string): Promise<void> {
     this.isLoading = true
-    this.feedbackText = '正在加载源详情...'
+    this.feedbackText = s('manga_detail_loading_source')
     try {
       const lookup = this.sourceRegistry.lookup(sourceId)
       if (!lookup.ok || lookup.entry === undefined) {
@@ -289,7 +304,7 @@ export struct MangaDetailPage {
       this.manga = _mockMangaDetail(mangaId, sourceId)
       this.chapters = this.decorateChapterStates(_mockChapterList())
       this.isInLibrary = false
-      this.feedbackText = '源详情加载失败，已显示占位内容。'
+      this.feedbackText = s('manga_detail_load_source_failed')
       this.downloadStatusText = ''
     } finally {
       this.isLoading = false
@@ -398,12 +413,12 @@ export struct MangaDetailPage {
 
   private async handleAddToLibrary(): Promise<boolean> {
     if (this.isInLibrary) {
-      this.showToast('已在书架中')
+      this.showToast(s('common_already_in_library'))
       return true
     }
     if (this.libraryStore === undefined) {
-      this.feedbackText = '书架不可用。'
-      this.showToast('书架不可用')
+      this.feedbackText = s('manga_detail_library_unavailable')
+      this.showToast(s('manga_detail_library_unavailable'))
       return false
     }
     const comic = comicFromSourceManga(this.manga, this.chapters, this.currentComicId())
@@ -415,16 +430,16 @@ export struct MangaDetailPage {
       }
       this.isInLibrary = true
       this.manga.isInLibrary = true
-      this.feedbackText = '已收藏到书架。'
+      this.feedbackText = s('common_added_to_library')
       this.onLibraryChanged()
       this.refreshDownloadStatus()
-      this.showToast('已收藏到书架')
+      this.showToast(s('common_added_to_library'))
       return true
     } catch (error) {
       const e = error as Error
       console.error('[manga-detail] add to library failed: ' + e.message)
-      this.feedbackText = '收藏失败。'
-      this.showToast('收藏失败')
+      this.feedbackText = s('common_add_to_library_failed')
+      this.showToast(s('common_add_to_library_failed'))
       return false
     }
   }
@@ -448,23 +463,23 @@ export struct MangaDetailPage {
     }
     const resolvedChapterId = chapterId ?? this.firstChapterId()
     if (resolvedChapterId === undefined) {
-      this.downloadStatusText = '暂无可下载章节'
-      this.showToast('暂无可下载章节')
+      this.downloadStatusText = s('manga_detail_download_empty')
+      this.showToast(s('manga_detail_download_empty'))
       return
     }
     const service = this.offlineDownloadService()
     if (service === undefined) {
-      this.downloadStatusText = '下载不可用'
-      this.showToast('下载不可用')
+      this.downloadStatusText = s('manga_detail_download_unavailable')
+      this.showToast(s('manga_detail_download_unavailable'))
       return
     }
     this.downloadBusy = true
-    this.downloadStatusText = '下载中...'
+    this.downloadStatusText = s('manga_detail_download_in_progress')
     try {
       if (!this.isInLibrary && this.manga.sourceId !== undefined) {
         const added = await this.handleAddToLibrary()
         if (!added) {
-          this.downloadStatusText = '下载已取消'
+          this.downloadStatusText = s('manga_detail_download_canceled')
           return
         }
       }
@@ -473,8 +488,8 @@ export struct MangaDetailPage {
       }
       const comic = this.libraryStore?.getComic(this.currentComicId())
       if (comic === undefined) {
-        this.downloadStatusText = '请先收藏到书架'
-        this.showToast('请先收藏到书架')
+        this.downloadStatusText = s('manga_detail_add_to_library_first')
+        this.showToast(s('manga_detail_add_to_library_first'))
         return
       }
       try {
@@ -497,7 +512,9 @@ export struct MangaDetailPage {
         status: manifest.status,
         updatedAt: manifest.updatedAt,
       })
-      this.showToast(manifest.status === OfflineDownloadStatus.DOWNLOADED ? '章节已下载' : '章节下载失败')
+      this.showToast(manifest.status === OfflineDownloadStatus.DOWNLOADED
+        ? s('manga_detail_chapter_downloaded')
+        : s('manga_detail_chapter_download_failed'))
     } finally {
       this.downloadBusy = false
     }
@@ -528,18 +545,18 @@ export struct MangaDetailPage {
     }
     const service = this.offlineDownloadService()
     if (service === undefined) {
-      this.downloadStatusText = '下载不可用'
-      this.showToast('下载不可用')
+      this.downloadStatusText = s('manga_detail_download_unavailable')
+      this.showToast(s('manga_detail_download_unavailable'))
       return
     }
     const targetChapterIds = this.batchDownloadChapterIds(chapterIds, mode)
     if (targetChapterIds.length === 0) {
-      this.downloadStatusText = '没有符合条件的章节'
-      this.showToast('没有符合条件的章节')
+      this.downloadStatusText = s('manga_detail_no_matching_chapters')
+      this.showToast(s('manga_detail_no_matching_chapters'))
       return
     }
     this.downloadBusy = true
-    this.downloadStatusText = `批量下载中 0/${targetChapterIds.length}`
+    this.downloadStatusText = this.formatString('manga_detail_batch_downloading', [0, targetChapterIds.length])
     let downloadedCount = 0
     let blockedCount = 0
     let failedCount = 0
@@ -547,14 +564,14 @@ export struct MangaDetailPage {
       if (!this.isInLibrary && this.manga.sourceId !== undefined) {
         const added = await this.handleAddToLibrary()
         if (!added) {
-          this.downloadStatusText = '下载已取消'
+          this.downloadStatusText = s('manga_detail_download_canceled')
           return
         }
       }
       const initialComic = this.libraryStore?.getComic(this.currentComicId())
       if (initialComic === undefined) {
-        this.downloadStatusText = '请先收藏到书架'
-        this.showToast('请先收藏到书架')
+        this.downloadStatusText = s('manga_detail_add_to_library_first')
+        this.showToast(s('manga_detail_add_to_library_first'))
         return
       }
       try {
@@ -577,7 +594,7 @@ export struct MangaDetailPage {
         const comic = this.libraryStore?.getComic(this.currentComicId())
         if (comic === undefined) {
           failedCount += 1
-          this.downloadStatusText = `批量下载中 ${index + 1}/${targetChapterIds.length}`
+          this.downloadStatusText = this.formatString('manga_detail_batch_downloading', [index + 1, targetChapterIds.length])
           continue
         }
         const chapterTitle = this.chapters.find((item: MangaChapterItem): boolean => item.id === chapterId)?.title
@@ -592,11 +609,11 @@ export struct MangaDetailPage {
         } else {
           failedCount += 1
         }
-        this.downloadStatusText = `批量下载中 ${index + 1}/${targetChapterIds.length}`
+        this.downloadStatusText = this.formatString('manga_detail_batch_downloading', [index + 1, targetChapterIds.length])
       }
       this.applyChapterStatesToCurrent()
-      this.downloadStatusText = `批量完成：已下载 ${downloadedCount}，受阻 ${blockedCount}，失败 ${failedCount}`
-      this.showToast(blockedCount > 0 ? '部分章节缺少页数据' : '批量下载完成')
+      this.downloadStatusText = this.formatString('manga_detail_batch_complete', [downloadedCount, blockedCount, failedCount])
+      this.showToast(blockedCount > 0 ? s('manga_detail_batch_missing_pages') : s('manga_detail_batch_complete_toast'))
     } finally {
       this.downloadBusy = false
     }
@@ -642,27 +659,27 @@ export struct MangaDetailPage {
     }
     const store = this.ensureChapterReadStateStore()
     if (store === undefined) {
-      this.showToast('阅读状态不可用')
+      this.showToast(s('manga_detail_read_state_unavailable'))
       return
     }
     const row = store.mark(this.currentComicId(), chapterId, isRead)
     if (row === undefined) {
-      this.showToast('阅读状态不可用')
+      this.showToast(s('manga_detail_read_state_unavailable'))
       return
     }
     this.applyChapterStatesToCurrent()
-    this.showToast(isRead ? '已标记为已读' : '已标记为未读')
+    this.showToast(isRead ? s('manga_detail_marked_read') : s('manga_detail_marked_unread'))
   }
 
   private markVisibleChaptersReadState(chapterIds: string[], isRead: boolean): void {
     const targetIds = chapterIds.filter((chapterId: string): boolean => chapterId.trim().length > 0)
     if (targetIds.length === 0) {
-      this.showToast('没有可标记章节')
+      this.showToast(s('manga_detail_no_markable_chapters'))
       return
     }
     const store = this.ensureChapterReadStateStore()
     if (store === undefined) {
-      this.showToast('阅读状态不可用')
+      this.showToast(s('manga_detail_read_state_unavailable'))
       return
     }
     const comicId = this.currentComicId()
@@ -674,7 +691,9 @@ export struct MangaDetailPage {
       }
     })
     this.applyChapterStatesToCurrent()
-    this.showToast(isRead ? `已标记 ${changedCount} 章为已读` : `已标记 ${changedCount} 章为未读`)
+    this.showToast(isRead
+      ? this.formatString('manga_detail_marked_count_read', [changedCount])
+      : this.formatString('manga_detail_marked_count_unread', [changedCount]))
   }
 
   private async runSourcePagesOperation(
@@ -774,7 +793,7 @@ export struct MangaDetailPage {
       status: this.manga.status,
       tags: this.manga.tags,
       sourceId: this.manga.sourceId,
-      sourceName: this.manga.sourceName,
+      sourceName: this.manga.sourceId === undefined ? s('tab_library') : this.manga.sourceName,
       chapterCount: this.chapters.length,
       isInLibrary: this.isInLibrary,
       url: this.manga.url,
@@ -782,7 +801,9 @@ export struct MangaDetailPage {
   }
 
   private primaryReadLabel(): string {
-    return this.chapters.some((chapter: MangaChapterItem): boolean => chapter.isRead) ? '继续阅读' : '开始阅读'
+    return this.chapters.some((chapter: MangaChapterItem): boolean => chapter.isRead)
+      ? s('library_continue_reading')
+      : s('common_start_reading')
   }
 
   private formatDownloadStatus(summary: OfflineDownloadSummary | undefined): string {
@@ -790,25 +811,33 @@ export struct MangaDetailPage {
       return ''
     }
     if (summary.status === OfflineDownloadStatus.DOWNLOADED) {
-      return `已下载 ${summary.downloadedPageCount}/${summary.pageCount} 页`
+      return this.formatString('manga_detail_download_status_downloaded', [summary.downloadedPageCount, summary.pageCount])
     }
     if (summary.status === OfflineDownloadStatus.DOWNLOADING || summary.status === OfflineDownloadStatus.QUEUED) {
-      return `下载中 ${summary.downloadedPageCount}/${summary.pageCount} 页`
+      return this.formatString('manga_detail_download_status_downloading', [summary.downloadedPageCount, summary.pageCount])
     }
     if (summary.status === OfflineDownloadStatus.PARTIAL) {
-      return `部分下载 ${summary.downloadedPageCount}/${summary.pageCount} 页`
+      return this.formatString('manga_detail_download_status_partial', [summary.downloadedPageCount, summary.pageCount])
     }
     if (summary.status === OfflineDownloadStatus.BLOCKED) {
-      return '暂无法下载'
+      return s('manga_detail_download_status_blocked')
     }
-    return '下载失败'
+    return s('manga_detail_download_status_failed')
   }
 
   private downloadButtonLabel(): string {
     if (this.downloadBusy) {
-      return '下载中'
+      return s('manga_detail_download_in_progress')
     }
-    return this.downloadStatusText.startsWith('已下载 ') ? '重新下载' : '下载章节'
+    const service = this.offlineDownloadService()
+    const chapterId = this.firstChapterId()
+    if (service !== undefined && chapterId !== undefined) {
+      const summary = service.getChapterSummary(this.currentComicId(), chapterId)
+      if (summary?.status === OfflineDownloadStatus.DOWNLOADED) {
+        return s('manga_detail_action_redownload')
+      }
+    }
+    return s('manga_detail_action_download_chapter')
   }
 
   @Builder
@@ -828,7 +857,7 @@ export struct MangaDetailPage {
         controlSize: ThemeConstants.ACTION_CHIP_HEIGHT,
         iconSize: ThemeConstants.FONT_SIZE_H2,
         action: () => {
-          this.showToast('更多操作稍后接入')
+          this.showToast(s('manga_detail_action_more_soon'))
         },
       })
     }
@@ -841,7 +870,7 @@ export struct MangaDetailPage {
   private ActionButtons() {
     Row({ space: ThemeConstants.SPACE_MD }) {
       KomaActionButton({
-        label: this.isInLibrary ? '已收藏' : '收藏书架',
+        label: this.isInLibrary ? s('common_in_library') : s('common_add_to_library'),
         kind: this.isInLibrary ? 'primary' : 'secondary',
         icon: $r('sys.symbol.bookmark'),
         fill: true,
@@ -875,70 +904,72 @@ export struct MangaDetailPage {
   }
 
   build() {
-    Scroll() {
-      Column({ space: ThemeConstants.SPACE_XL }) {
-        this.Toolbar()
+    if (this.languageState.effectiveLocale.length >= 0) {
+      Scroll() {
+        Column({ space: ThemeConstants.SPACE_XL }) {
+          this.Toolbar()
 
-        MangaDetailHeader({
-          manga: this.displayedManga(),
-        })
+          MangaDetailHeader({
+            manga: this.displayedManga(),
+          })
 
-        this.ActionButtons()
+          this.ActionButtons()
 
-        if (this.isLoading || this.feedbackText.length > 0) {
-          Text(this.isLoading ? '加载中...' : this.feedbackText)
-            .width('100%')
-            .fontSize(ThemeConstants.FONT_SIZE_META)
-            .fontColor(ThemeConstants.TEXT_SECONDARY)
+          if (this.isLoading || this.feedbackText.length > 0) {
+            Text(this.isLoading ? s('common_loading') : this.feedbackText)
+              .width('100%')
+              .fontSize(ThemeConstants.FONT_SIZE_META)
+              .fontColor(ThemeConstants.TEXT_SECONDARY)
+          }
+
+          if (this.downloadStatusText.length > 0) {
+            Text(this.downloadStatusText)
+              .width('100%')
+              .fontSize(ThemeConstants.FONT_SIZE_META)
+              .fontColor(ThemeConstants.TEXT_SECONDARY)
+          }
+
+          MangaDescriptionSection({
+            description: this.manga.description,
+          })
+
+          MangaTagsSection({
+            tags: this.manga.tags === undefined ? [] : this.manga.tags,
+          })
+
+          ChapterListSection({
+            chapters: this.chapters,
+            onOpenChapter: (chapterId: string) => {
+              void this.ensureSourceChapterPages(chapterId)
+                .then(() => {
+                  this.onOpenReader(this.currentComicId(), chapterId)
+                })
+                .catch((error: Error) => {
+                  console.error('[manga-detail] source pages load failed: ' + error.message)
+                  this.showToast(s('manga_detail_chapter_pages_load_failed'))
+                })
+            },
+            onDownloadChapter: (chapterId: string) => {
+              this.handleDownloadChapter(chapterId)
+            },
+            onDownloadVisibleChapters: (chapterIds: string[], mode: ChapterBatchDownloadMode) => {
+              this.handleDownloadVisibleChapters(chapterIds, mode)
+            },
+            onMarkChapterReadState: (chapterId: string, isRead: boolean) => {
+              this.markChapterReadState(chapterId, isRead)
+            },
+            onMarkVisibleChaptersReadState: (chapterIds: string[], isRead: boolean) => {
+              this.markVisibleChaptersReadState(chapterIds, isRead)
+            },
+          })
         }
-
-        if (this.downloadStatusText.length > 0) {
-          Text(this.downloadStatusText)
-            .width('100%')
-            .fontSize(ThemeConstants.FONT_SIZE_META)
-            .fontColor(ThemeConstants.TEXT_SECONDARY)
-        }
-
-        MangaDescriptionSection({
-          description: this.manga.description,
-        })
-
-        MangaTagsSection({
-          tags: this.manga.tags === undefined ? [] : this.manga.tags,
-        })
-
-        ChapterListSection({
-          chapters: this.chapters,
-          onOpenChapter: (chapterId: string) => {
-            void this.ensureSourceChapterPages(chapterId)
-              .then(() => {
-                this.onOpenReader(this.currentComicId(), chapterId)
-              })
-              .catch((error: Error) => {
-                console.error('[manga-detail] source pages load failed: ' + error.message)
-                this.showToast('章节页面加载失败')
-              })
-          },
-          onDownloadChapter: (chapterId: string) => {
-            this.handleDownloadChapter(chapterId)
-          },
-          onDownloadVisibleChapters: (chapterIds: string[], mode: ChapterBatchDownloadMode) => {
-            this.handleDownloadVisibleChapters(chapterIds, mode)
-          },
-          onMarkChapterReadState: (chapterId: string, isRead: boolean) => {
-            this.markChapterReadState(chapterId, isRead)
-          },
-          onMarkVisibleChaptersReadState: (chapterIds: string[], isRead: boolean) => {
-            this.markVisibleChaptersReadState(chapterIds, isRead)
-          },
-        })
+        .width('100%')
+        .padding({ left: ThemeConstants.SPACE_XL, right: ThemeConstants.SPACE_XL, top: this.topContentInset(), bottom: this.bottomContentInset() })
       }
       .width('100%')
-      .padding({ left: ThemeConstants.SPACE_XL, right: ThemeConstants.SPACE_XL, top: this.topContentInset(), bottom: this.bottomContentInset() })
+      .height('100%')
+      .backgroundColor(ThemeConstants.BG_PRIMARY)
     }
-    .width('100%')
-    .height('100%')
-    .backgroundColor(ThemeConstants.BG_PRIMARY)
   }
 }
 
@@ -953,7 +984,7 @@ function mangaDetailFromComic(comic: Comic): MangaDetail {
     chapterCount: comic.chapterCount,
     isInLibrary: true,
     sourceId: undefined,
-    sourceName: '书架',
+    sourceName: '',
     url: comic.sourcePath,
   }
 }
@@ -974,7 +1005,9 @@ function comicFromSourceManga(manga: MangaDetail, chapters: MangaChapterItem[], 
     return {
       id: chapter.id,
       comicId,
-      title: chapter.title.length > 0 ? chapter.title : `第${index + 1}话`,
+      title: chapter.title.length > 0
+        ? chapter.title
+        : AppStrings.get('library_update_chapter_fallback_title').replace('%s', `${index + 1}`),
       index,
       sourcePath: `${manga.url ?? manga.id}#${chapter.id}`,
       sortKey: chapter.chapterNumber === undefined ? `${index}` : `${chapter.chapterNumber}`,
@@ -984,16 +1017,17 @@ function comicFromSourceManga(manga: MangaDetail, chapters: MangaChapterItem[], 
       updatedAt: now,
     }
   })
+  const title = manga.title.length > 0 ? manga.title : AppStrings.get('manga_detail_title_fallback')
   return {
     id: comicId,
-    title: manga.title,
+    title,
     subtitle: manga.description,
     author: manga.author,
     sourceKind: ComicSourceKind.PRIVATE_LIBRARY,
     sourcePath: manga.url ?? `source://${manga.sourceId ?? 'unknown'}/${manga.id}`,
     sourceRuntimeId: manga.sourceId,
     coverUri: manga.coverUrl,
-    sortTitle: normalizeSortKey(manga.title),
+    sortTitle: normalizeSortKey(title),
     preferredDirection: ReadingDirection.RIGHT_TO_LEFT,
     chapters: comicChapters,
     chapterCount: comicChapters.length,
@@ -1029,7 +1063,7 @@ function _mockChapterList(): MangaChapterItem[] {
   for (let index = 128; index >= 1; index -= 1) {
     chapters.push({
       id: `chapter-${index}`,
-      title: `第${index}话 ${_mockChapterTitle(index)}`,
+      title: `${AppStrings.get('library_update_chapter_fallback_title').replace('%s', `${index}`)} ${_mockChapterTitle(index)}`,
       chapterNumber: index,
       scanlator: index % 3 === 0 ? 'Koma 汉化组' : '官方',
       dateUpload: startTime - (128 - index) * weekMs,

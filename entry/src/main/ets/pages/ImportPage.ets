@@ -4,34 +4,45 @@ import {
   LocalArchiveImportDebugEvent,
   formatLocalArchiveImportDebugEvent,
 } from '../import/LocalImportDebugModels'
+import { AppStrings } from '../i18n/AppStrings'
 import { Comic } from '../model/ComicModels'
 import { KomaActionButton } from '../components/ui/KomaActionButton'
 import { connectLayoutSafeArea, LayoutSafeAreaState } from '../state/LayoutSafeAreaState'
+import { connectLanguageState, LanguageState } from '../state/LanguageState'
 import { ThemeConstants } from '../theme/ThemeConstants'
 
 interface ImportEntryInfo {
-  title: string
-  actionText: string
+  titleKey: string
+  actionKey: string
   accentColor: string
 }
 
 const ARCHIVE_ENTRY: ImportEntryInfo = {
-  title: 'CBZ / ZIP',
-  actionText: '选择文件',
+  titleKey: 'import_archive_title',
+  actionKey: 'import_archive_action',
   accentColor: ThemeConstants.SOURCE_LOCAL_COLOR,
 }
 
 const IMAGE_ENTRY: ImportEntryInfo = {
-  title: '图片',
-  actionText: '选择多张图片',
+  titleKey: 'import_image_title',
+  actionKey: 'import_image_action',
   accentColor: ThemeConstants.SOURCE_OPDS_COLOR,
+}
+
+function t(name: string): string {
+  return AppStrings.get(name)
+}
+
+function tf(name: string, ...args: Array<string | number>): string {
+  return AppStrings.format(name, ...args)
 }
 
 @ComponentV2
 export struct ImportPage {
-  @Local private feedbackText: string = '选择本地漫画文件。'
+  @Local private feedbackText: string = ''
   @Local private importing: boolean = false
   @Local private safeArea: LayoutSafeAreaState = connectLayoutSafeArea()
+  @Local private languageState: LanguageState = connectLanguageState()
   @Event onArchiveImportSucceeded: (comic: Comic) => void = (_comic: Comic) => {}
   @Event onLocalImageImportSucceeded: (comic: Comic) => void = (_comic: Comic) => {}
   private readonly localImportCoordinator: LocalImportCoordinator = new LocalImportCoordinator()
@@ -56,12 +67,16 @@ export struct ImportPage {
     }
   }
 
+  private displayedFeedbackText(): string {
+    return this.feedbackText.length > 0 ? this.feedbackText : t('import_feedback_idle')
+  }
+
   private async selectArchiveFromPicker(): Promise<void> {
     if (this.importing) {
       return
     }
     this.importing = true
-    this.feedbackText = '正在导入...'
+    this.feedbackText = t('import_feedback_busy')
     console.info('[Import] step=archive_import_started path=')
     this.localImportCoordinator.setDebugSink((event: LocalArchiveImportDebugEvent) => {
       this.logImportDebugEvent(event)
@@ -84,20 +99,20 @@ export struct ImportPage {
         }
       })
       if (results.length === 0) {
-        this.feedbackText = '未选择文件。'
+        this.feedbackText = t('import_feedback_no_selection')
       } else if (failedCount === 0) {
-        this.feedbackText = `已导入 ${succeededCount} 本。`
+        this.feedbackText = tf('import_feedback_success', succeededCount)
         this.showToast(this.feedbackText)
       } else if (succeededCount === 0) {
-        this.feedbackText = `无法导入文件。失败 ${failedCount} 个。`
+        this.feedbackText = tf('import_feedback_failed_files', failedCount)
       } else {
-        this.feedbackText = `已导入 ${succeededCount} 本，失败 ${failedCount} 个。`
+        this.feedbackText = tf('import_feedback_partial', succeededCount, failedCount)
         this.showToast(this.feedbackText)
       }
       console.info(`[Import] step=archive_import_finished path= succeeded=${succeededCount} failed=${failedCount}`)
     } catch (error) {
       console.error('[Import] step=archive_import_failed path= error=' + `${error}`)
-      this.feedbackText = '无法导入文件。'
+      this.feedbackText = t('import_feedback_failed_file')
     } finally {
       this.localImportCoordinator.setDebugSink(undefined)
       this.importing = false
@@ -109,7 +124,7 @@ export struct ImportPage {
       return
     }
     this.importing = true
-    this.feedbackText = '正在导入...'
+    this.feedbackText = t('import_feedback_busy')
     console.info('[Import] step=image_import_started path=')
     this.localImportCoordinator.setDebugSink((event: LocalArchiveImportDebugEvent) => {
       this.logImportDebugEvent(event)
@@ -132,20 +147,20 @@ export struct ImportPage {
         }
       })
       if (results.length === 0) {
-        this.feedbackText = '未选择文件。'
+        this.feedbackText = t('import_feedback_no_selection')
       } else if (failedCount === 0) {
-        this.feedbackText = `已导入 ${succeededCount} 本。`
+        this.feedbackText = tf('import_feedback_success', succeededCount)
         this.showToast(this.feedbackText)
       } else if (succeededCount === 0) {
-        this.feedbackText = `无法导入图片。`
+        this.feedbackText = t('import_feedback_failed_images')
       } else {
-        this.feedbackText = `已导入 ${succeededCount} 本，失败 ${failedCount} 个。`
+        this.feedbackText = tf('import_feedback_partial', succeededCount, failedCount)
         this.showToast(this.feedbackText)
       }
       console.info(`[Import] step=image_import_finished path= succeeded=${succeededCount} failed=${failedCount}`)
     } catch (error) {
       console.error('[Import] step=image_import_failed path= error=' + `${error}`)
-      this.feedbackText = '无法导入图片。'
+      this.feedbackText = t('import_feedback_failed_images')
     } finally {
       this.localImportCoordinator.setDebugSink(undefined)
       this.importing = false
@@ -166,7 +181,7 @@ export struct ImportPage {
         .borderRadius(ThemeConstants.RADIUS_CHIP)
         .backgroundColor(entry.accentColor)
 
-        Text(entry.title)
+        Text(t(entry.titleKey))
           .fontSize(ThemeConstants.FONT_SIZE_HEADING)
           .fontWeight(FontWeight.Medium)
           .fontColor(ThemeConstants.TEXT_PRIMARY)
@@ -177,14 +192,14 @@ export struct ImportPage {
       .width('100%')
 
       KomaActionButton({
-        label: this.importing ? '导入中...' : entry.actionText,
+        label: this.importing ? t('import_button_busy') : t(entry.actionKey),
         kind: 'primary',
         accentColor: entry.accentColor,
-        icon: entry.title === IMAGE_ENTRY.title ? $r('sys.symbol.picture') : $r('sys.symbol.doc_plaintext'),
+        icon: entry.titleKey === IMAGE_ENTRY.titleKey ? $r('sys.symbol.picture') : $r('sys.symbol.doc_plaintext'),
         isEnabled: !this.importing,
         controlHeight: 42,
         action: () => {
-          if (entry.title === IMAGE_ENTRY.title) {
+          if (entry.titleKey === IMAGE_ENTRY.titleKey) {
             this.selectImagesFromPicker()
           } else {
             this.selectArchiveFromPicker()
@@ -206,46 +221,48 @@ export struct ImportPage {
   }
 
   build() {
-    Scroll() {
-      Column({ space: 18 }) {
-        Column({ space: 6 }) {
-          Text('导入')
-            .fontSize(ThemeConstants.SPACE_XXL)
-            .fontWeight(FontWeight.Bold)
-            .fontColor(ThemeConstants.TEXT_PRIMARY)
-          Text('添加到书架')
-            .fontSize(ThemeConstants.FONT_SIZE_TITLE)
-            .fontColor(ThemeConstants.TEXT_SECONDARY)
+    if (this.languageState.effectiveLocale.length >= 0) {
+      Scroll() {
+        Column({ space: 18 }) {
+          Column({ space: 6 }) {
+            Text(t('route_import_title'))
+              .fontSize(ThemeConstants.SPACE_XXL)
+              .fontWeight(FontWeight.Bold)
+              .fontColor(ThemeConstants.TEXT_PRIMARY)
+            Text(t('import_heading_detail'))
+              .fontSize(ThemeConstants.FONT_SIZE_TITLE)
+              .fontColor(ThemeConstants.TEXT_SECONDARY)
+          }
+          .width('100%')
+          .alignItems(HorizontalAlign.Start)
+
+          Column({ space: ThemeConstants.SPACE_MD }) {
+            Text(t('import_status_heading'))
+              .fontSize(ThemeConstants.FONT_SIZE_META)
+              .fontWeight(FontWeight.Medium)
+              .fontColor(ThemeConstants.BRAND_PRIMARY)
+            Text(this.displayedFeedbackText())
+              .fontSize(ThemeConstants.FONT_SIZE_BODY)
+              .lineHeight(ThemeConstants.LINE_HEIGHT_TITLE)
+              .fontColor(ThemeConstants.TEXT_PRIMARY)
+          }
+          .width('100%')
+          .padding(ThemeConstants.SPACE_LG)
+          .borderRadius(ThemeConstants.RADIUS_CARD)
+          .backgroundColor(ThemeConstants.CARD)
+          .alignItems(HorizontalAlign.Start)
+
+          this.ImportEntryCard(ARCHIVE_ENTRY)
+          this.ImportEntryCard(IMAGE_ENTRY)
         }
         .width('100%')
-        .alignItems(HorizontalAlign.Start)
-
-        Column({ space: ThemeConstants.SPACE_MD }) {
-          Text('状态')
-            .fontSize(ThemeConstants.FONT_SIZE_META)
-            .fontWeight(FontWeight.Medium)
-            .fontColor(ThemeConstants.BRAND_PRIMARY)
-          Text(this.feedbackText)
-            .fontSize(ThemeConstants.FONT_SIZE_BODY)
-            .lineHeight(ThemeConstants.LINE_HEIGHT_TITLE)
-            .fontColor(ThemeConstants.TEXT_PRIMARY)
-        }
-        .width('100%')
-        .padding(ThemeConstants.SPACE_LG)
-        .borderRadius(ThemeConstants.RADIUS_CARD)
-        .backgroundColor(ThemeConstants.CARD)
-        .alignItems(HorizontalAlign.Start)
-
-        this.ImportEntryCard(ARCHIVE_ENTRY)
-        this.ImportEntryCard(IMAGE_ENTRY)
+        .height('100%')
+        .padding({ left: 20, right: 20, top: this.topContentInset(), bottom: this.bottomContentInset() })
+        .justifyContent(FlexAlign.Start)
       }
       .width('100%')
       .height('100%')
-      .padding({ left: 20, right: 20, top: this.topContentInset(), bottom: this.bottomContentInset() })
-      .justifyContent(FlexAlign.Start)
+      .backgroundColor(ThemeConstants.BG_SUB)
     }
-    .width('100%')
-    .height('100%')
-    .backgroundColor(ThemeConstants.BG_SUB)
   }
 }

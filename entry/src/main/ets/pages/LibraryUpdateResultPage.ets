@@ -18,6 +18,7 @@ import {
 import { formatLibraryUpdateTimestamp } from '../model/LibraryUpdatePreferencesStore'
 import { ThemeConstants } from '../theme/ThemeConstants'
 import { AppStrings } from '../i18n/AppStrings'
+import { connectLanguageState, LanguageState } from '../state/LanguageState'
 
 function s(name: string): string {
   return AppStrings.get(name)
@@ -25,6 +26,7 @@ function s(name: string): string {
 
 @ComponentV2
 export struct LibraryUpdateResultPage {
+  @Local private languageState: LanguageState = connectLanguageState()
   @Local private summary?: LibraryUpdateSummary = undefined
   @Local private jobSnapshot?: LibraryUpdateJobSnapshot = undefined
 

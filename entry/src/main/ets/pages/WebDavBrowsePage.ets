@@ -24,6 +24,7 @@ import { DavComicCandidateKind, DavResource } from '../remote/WebDavModels'
 import { WebDavClient, readWebDavUrlPath } from '../remote/WebDavClient'
 import { ThemeConstants } from '../theme/ThemeConstants'
 import { AppStrings } from '../i18n/AppStrings'
+import { connectLanguageState, LanguageState } from '../state/LanguageState'
 
 function s(name: string): string {
   return AppStrings.get(name)
@@ -31,6 +32,7 @@ function s(name: string): string {
 
 @ComponentV2
 export struct WebDavBrowsePage {
+  @Local private languageState: LanguageState = connectLanguageState()
   @Local private pathSegments: string[] = []
   @Local private folders: DavResource[] = []
   @Local private images: DavResource[] = []

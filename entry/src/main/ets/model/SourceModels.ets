@@ -1,3 +1,4 @@
+import { AppStrings } from '../i18n/AppStrings'
 import { normalizeSourceDisplayText } from './SourceTextNormalizer'
 
 export type SourceMangaStatus = 'ongoing' | 'completed' | 'hiatus' | 'cancelled' | 'unknown'
@@ -159,7 +160,7 @@ function normalizeTags(payload: SourceRuntimeMangaPayload): string[] | undefined
 }
 
 export function normalizeSourceManga(sourceId: string, payload: SourceRuntimeMangaPayload): SourceManga {
-  const title = firstNonEmpty([payload.title, payload.subtitle, payload.id]) ?? '未命名漫画'
+  const title = firstNonEmpty([payload.title, payload.subtitle, payload.id]) ?? AppStrings.get('manga_detail_title_fallback')
   return {
     id: firstNonEmpty([payload.id, title]) ?? title,
     sourceId,
@@ -197,7 +198,7 @@ export function parseSourceChaptersJson(json: string): SourceChapter[] {
     const payload = JSON.parse(json) as SourceRuntimeChapterListPayload
     const rows = payload.chapters !== undefined ? payload.chapters : (payload.items ?? [])
     return rows.map((row: SourceRuntimeChapterPayload): SourceChapter => {
-      const title = firstNonEmpty([row.title, row.id]) ?? '未命名章节'
+      const title = firstNonEmpty([row.title, row.id]) ?? AppStrings.get('manga_detail_chapter_untitled')
       return {
         id: firstNonEmpty([row.id, row.title]) ?? 'chapter',
         title: normalizeSourceDisplayText(title) ?? title,
@@ -244,7 +245,7 @@ export function parseSourceFiltersJson(json: string): SourceFilter[] {
     return (payload.filters ?? []).map((row: SourceRuntimeFilterPayload): SourceFilter => {
       return {
         type: normalizeFilterType(row.type ?? row.kind),
-        name: firstNonEmpty([row.name, row.label]) ?? '筛选',
+        name: firstNonEmpty([row.name, row.label]) ?? AppStrings.get('common_filter'),
         options: normalizeFilterOptions(row.options),
         value: row.value,
       }

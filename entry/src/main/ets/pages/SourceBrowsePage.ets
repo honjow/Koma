@@ -1,10 +1,16 @@
 import { MangaGridItem } from '../components/MangaGridItem'
 import { KomaActionButton } from '../components/ui/KomaActionButton'
+import { AppStrings } from '../i18n/AppStrings'
 import { SourceManga } from '../model/SourceModels'
 import { connectLayoutSafeArea, LayoutSafeAreaState } from '../state/LayoutSafeAreaState'
+import { connectLanguageState, LanguageState } from '../state/LanguageState'
 import { ThemeConstants } from '../theme/ThemeConstants'
 import { BrowseViewModel } from '../viewmodel/BrowseViewModel'
 import { SourceRuntimeRegistryInstalledSourceSummary } from '../sourceRuntime/SourceRuntimeRegistry'
+
+function s(name: string): string {
+  return AppStrings.get(name)
+}
 
 @ComponentV2
 export struct SourceBrowsePage {
@@ -24,6 +30,7 @@ export struct SourceBrowsePage {
   }
   @Param viewModel: BrowseViewModel = new BrowseViewModel()
   @Local private safeArea: LayoutSafeAreaState = connectLayoutSafeArea()
+  @Local private languageState: LanguageState = connectLanguageState()
   @Event onSearchRequested: (source: SourceRuntimeRegistryInstalledSourceSummary) => void =
     (_source: SourceRuntimeRegistryInstalledSourceSummary) => {}
   @Event onMangaTap: (manga: SourceManga) => void = (_manga: SourceManga) => {}
@@ -48,7 +55,7 @@ export struct SourceBrowsePage {
         .fontWeight(FontWeight.Bold)
         .fontColor(ThemeConstants.TEXT_PRIMARY)
       Blank()
-      Text(`${count} 本`)
+      Text(s('library_count_books').replace('%s', `${count}`))
         .fontSize(ThemeConstants.FONT_SIZE_META)
         .fontColor(ThemeConstants.TEXT_SECONDARY)
     }
@@ -81,82 +88,86 @@ export struct SourceBrowsePage {
   }
 
   build() {
-    Scroll() {
-      Column({ space: ThemeConstants.SPACE_LG }) {
-        Row({ space: ThemeConstants.SPACE_MD }) {
-          Column({ space: ThemeConstants.SPACE_XS }) {
-            Text(this.source.displayName)
-              .fontSize(ThemeConstants.FONT_SIZE_H1)
-              .fontWeight(FontWeight.Bold)
-              .fontColor(ThemeConstants.TEXT_PRIMARY)
-              .maxLines(1)
-              .textOverflow({ overflow: TextOverflow.Ellipsis })
-            Text(`v${this.source.version}`)
-              .fontSize(ThemeConstants.FONT_SIZE_BODY)
-              .fontColor(ThemeConstants.TEXT_SECONDARY)
-          }
-          .layoutWeight(1)
-          .alignItems(HorizontalAlign.Start)
+    if (this.languageState.effectiveLocale.length >= 0) {
+      Scroll() {
+        Column({ space: ThemeConstants.SPACE_LG }) {
+          Row({ space: ThemeConstants.SPACE_MD }) {
+            Column({ space: ThemeConstants.SPACE_XS }) {
+              Text(this.source.displayName)
+                .fontSize(ThemeConstants.FONT_SIZE_H1)
+                .fontWeight(FontWeight.Bold)
+                .fontColor(ThemeConstants.TEXT_PRIMARY)
+                .maxLines(1)
+                .textOverflow({ overflow: TextOverflow.Ellipsis })
+              Text(`v${this.source.version}`)
+                .fontSize(ThemeConstants.FONT_SIZE_BODY)
+                .fontColor(ThemeConstants.TEXT_SECONDARY)
+            }
+            .layoutWeight(1)
+            .alignItems(HorizontalAlign.Start)
 
-          KomaActionButton({
-            label: '搜索',
-            kind: 'primary',
-            action: () => {
-              this.onSearchRequested(this.source)
-            },
-          })
-        }
-        .width('100%')
-        .alignItems(VerticalAlign.Center)
-
-        if (this.viewModel.loadingBrowse && this.viewModel.popularManga.length === 0 && this.viewModel.latestManga.length === 0) {
-          LoadingProgress()
-            .width(ThemeConstants.LOADING_SIZE_LARGE)
-            .height(ThemeConstants.LOADING_SIZE_LARGE)
-            .color(ThemeConstants.BRAND_PRIMARY)
-        } else if (this.viewModel.errorMessage.length > 0) {
-          Text(this.viewModel.errorMessage)
-            .width('100%')
-            .fontSize(ThemeConstants.FONT_SIZE_BODY)
-            .fontColor(ThemeConstants.DANGER)
-            .padding(ThemeConstants.SPACE_LG)
-            .borderRadius(ThemeConstants.RADIUS_CARD)
-            .backgroundColor(ThemeConstants.CARD)
-        } else {
-          this.SectionHeader('热门', this.viewModel.popularManga.length)
-          this.MangaGrid(this.viewModel.popularManga)
-
-          this.SectionHeader('最新', this.viewModel.latestManga.length)
-          this.MangaGrid(this.viewModel.latestManga)
-
-          if (this.viewModel.hasMoreBrowse) {
             KomaActionButton({
-              label: this.viewModel.loadingBrowse ? '加载中...' : '加载更多',
-              kind: 'secondary',
-              fill: true,
-              isEnabled: !this.viewModel.loadingBrowse,
+              label: s('tab_search'),
+              kind: 'primary',
               action: () => {
-                void this.viewModel.loadMoreBrowse()
+                this.onSearchRequested(this.source)
               },
             })
           }
+          .width('100%')
+          .alignItems(VerticalAlign.Center)
+
+          if (this.viewModel.loadingBrowse &&
+            this.viewModel.popularManga.length === 0 &&
+            this.viewModel.latestManga.length === 0) {
+            LoadingProgress()
+              .width(ThemeConstants.LOADING_SIZE_LARGE)
+              .height(ThemeConstants.LOADING_SIZE_LARGE)
+              .color(ThemeConstants.BRAND_PRIMARY)
+          } else if (this.viewModel.errorMessage.length > 0) {
+            Text(this.viewModel.errorMessage)
+              .width('100%')
+              .fontSize(ThemeConstants.FONT_SIZE_BODY)
+              .fontColor(ThemeConstants.DANGER)
+              .padding(ThemeConstants.SPACE_LG)
+              .borderRadius(ThemeConstants.RADIUS_CARD)
+              .backgroundColor(ThemeConstants.CARD)
+          } else {
+            this.SectionHeader(s('common_popular'), this.viewModel.popularManga.length)
+            this.MangaGrid(this.viewModel.popularManga)
+
+            this.SectionHeader(s('common_latest'), this.viewModel.latestManga.length)
+            this.MangaGrid(this.viewModel.latestManga)
+
+            if (this.viewModel.hasMoreBrowse) {
+              KomaActionButton({
+                label: this.viewModel.loadingBrowse ? s('common_loading_more') : s('common_load_more'),
+                kind: 'secondary',
+                fill: true,
+                isEnabled: !this.viewModel.loadingBrowse,
+                action: () => {
+                  void this.viewModel.loadMoreBrowse()
+                },
+              })
+            }
+          }
         }
+        .width('100%')
+        .padding({
+          left: ThemeConstants.SPACE_XL,
+          right: ThemeConstants.SPACE_XL,
+          top: this.topContentInset(),
+          bottom: this.bottomContentInset(),
+        })
       }
       .width('100%')
-      .padding({
-        left: ThemeConstants.SPACE_XL,
-        right: ThemeConstants.SPACE_XL,
-        top: this.topContentInset(),
-        bottom: this.bottomContentInset(),
+      .height('100%')
+      .padding({ bottom: this.bottomFloatingTabViewportClearance() })
+      .clipContent(ContentClipMode.CONTENT_ONLY)
+      .backgroundColor(ThemeConstants.BG_PRIMARY)
+      .onReachEnd(() => {
+        void this.viewModel.loadMoreBrowse()
       })
     }
-    .width('100%')
-    .height('100%')
-    .padding({ bottom: this.bottomFloatingTabViewportClearance() })
-    .clipContent(ContentClipMode.CONTENT_ONLY)
-    .backgroundColor(ThemeConstants.BG_PRIMARY)
-    .onReachEnd(() => {
-      void this.viewModel.loadMoreBrowse()
-    })
   }
 }

@@ -16,6 +16,7 @@ import { createSeededLibraryStore } from '../model/MockLibraryData'
 import { SearchHistoryEntry, SearchHistoryStore } from '../model/SearchHistoryStore'
 import { safeSearchDiagnostic, searchStateUserText } from '../model/SearchStateMapper'
 import { AppStrings } from '../i18n/AppStrings'
+import { connectLanguageState, LanguageState } from '../state/LanguageState'
 
 const SEARCH_DEBOUNCE_MS: number = 400
 const KOMGA_ROUTE_NAME: string = 'SearchKomgaSeriesPage'
@@ -27,6 +28,7 @@ function s(name: string): string {
 
 @ComponentV2
 export struct SearchPage {
+  @Local private languageState: LanguageState = connectLanguageState()
   @Local private queryText: string = ''
   @Local private sections: CrossSearchSection[] = []
   @Local private history: SearchHistoryEntry[] = []

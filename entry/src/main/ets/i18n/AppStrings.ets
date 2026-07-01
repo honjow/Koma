@@ -42,4 +42,12 @@ export class AppStrings {
       return name
     }
   }
+
+  static format(name: string, ...args: Array<string | number>): string {
+    let value = AppStrings.get(name)
+    args.forEach((arg: string | number) => {
+      value = value.replace('%s', `${arg}`)
+    })
+    return value
+  }
 }

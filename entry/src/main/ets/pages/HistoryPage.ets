@@ -17,6 +17,7 @@ import {
   ReaderSessionStore,
 } from '../model/ReaderSessionStore'
 import { AppStrings } from '../i18n/AppStrings'
+import { connectLanguageState, LanguageState } from '../state/LanguageState'
 
 const HISTORY_LIMIT: number = 50
 const MS_PER_MINUTE: number = 60 * 1000
@@ -33,6 +34,7 @@ function s(name: string): string {
 export struct HistoryPage {
   @Param libraryStore: LibraryStore = createSeededLibraryStore()
   @Param active: boolean = false
+  @Local private languageState: LanguageState = connectLanguageState()
   @Local private remoteProgress: RemoteProgressSyncState = connectRemoteProgressSyncState()
   @Local private historyItems: LibraryItem[] = []
   @Local private revision: number = 0

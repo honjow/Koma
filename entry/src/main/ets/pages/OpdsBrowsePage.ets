@@ -36,6 +36,7 @@ import {
 } from '../remote/OpdsModels'
 import { ThemeConstants } from '../theme/ThemeConstants'
 import { AppStrings } from '../i18n/AppStrings'
+import { connectLanguageState, LanguageState } from '../state/LanguageState'
 
 function s(name: string): string {
   return AppStrings.get(name)
@@ -48,6 +49,7 @@ interface OpdsHistoryEntry {
 
 @ComponentV2
 export struct OpdsBrowsePage {
+  @Local private languageState: LanguageState = connectLanguageState()
   @Local private title: string = ''
   @Local private currentUrl: string = ''
   @Local private history: OpdsHistoryEntry[] = []

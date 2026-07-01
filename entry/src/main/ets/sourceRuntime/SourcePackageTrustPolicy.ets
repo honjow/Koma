@@ -1,5 +1,6 @@
 import { InstalledSourcePackage } from './SourceRuntimeAppRegistry'
 import { SourceIndexEntry } from './SourceIndexService'
+import { AppStrings } from '../i18n/AppStrings'
 
 export interface SourcePackageTrustSummary {
   provenanceLabel: string
@@ -9,25 +10,31 @@ export interface SourcePackageTrustSummary {
   boundaryNotice: string
 }
 
-export const SOURCE_PACKAGE_TRUST_BOUNDARY_NOTICE: string = 'Koma 不提供默认公开源或预置源列表；源包来自用户导入或用户配置的索引地址；更新仅适用于这些用户导入或用户配置的源包。'
+function t(name: string): string {
+  return AppStrings.get(name)
+}
+
+export function sourcePackageTrustBoundaryNotice(): string {
+  return t('source_pkg_boundary_notice')
+}
 
 export function installedSourceTrustSummary(source: InstalledSourcePackage, capabilitySummary: string): SourcePackageTrustSummary {
   return {
-    provenanceLabel: source.status === 'imported' ? '用户导入' : '用户导入（未持久化）',
-    verificationLabel: '未验证签名',
-    identityLabel: '包 ID：' + source.id + ' · 版本：' + source.version,
-    capabilitySummaryLabel: '能力摘要（manifest 派生）：' + capabilitySummary,
-    boundaryNotice: SOURCE_PACKAGE_TRUST_BOUNDARY_NOTICE,
+    provenanceLabel: source.status === 'imported' ? t('source_pkg_provenance_imported') : t('source_pkg_provenance_staged'),
+    verificationLabel: t('source_pkg_verification_unsigned'),
+    identityLabel: t('source_pkg_label_package_id') + source.id + ' · ' + t('source_pkg_label_version') + source.version,
+    capabilitySummaryLabel: t('source_pkg_capability_summary_prefix') + capabilitySummary,
+    boundaryNotice: sourcePackageTrustBoundaryNotice(),
   }
 }
 
 export function sourceIndexCandidateTrustSummary(entry: SourceIndexEntry, isUpdateCandidate: boolean): SourcePackageTrustSummary {
   const version = entry.version.length > 0 ? entry.version : 'unknown'
   return {
-    provenanceLabel: isUpdateCandidate ? '用户配置索引更新候选' : '用户配置索引候选',
-    verificationLabel: '未验证签名',
-    identityLabel: '包 ID：' + entry.id + ' · 版本：' + version,
-    capabilitySummaryLabel: '能力摘要（manifest 派生）：安装校验后显示',
-    boundaryNotice: SOURCE_PACKAGE_TRUST_BOUNDARY_NOTICE,
+    provenanceLabel: isUpdateCandidate ? t('source_pkg_provenance_index_update') : t('source_pkg_provenance_index'),
+    verificationLabel: t('source_pkg_verification_unsigned'),
+    identityLabel: t('source_pkg_label_package_id') + entry.id + ' · ' + t('source_pkg_label_version') + version,
+    capabilitySummaryLabel: t('source_pkg_capability_summary_pending'),
+    boundaryNotice: sourcePackageTrustBoundaryNotice(),
   }
 }

@@ -1,6 +1,7 @@
 import { common } from '@kit.AbilityKit'
 import { preferences } from '@kit.ArkData'
 import { fileIo as fs, picker } from '@kit.CoreFileKit'
+import { AppStrings } from '../i18n/AppStrings'
 import {
   LIBRARY_STORE_PERSISTENCE_FILE_NAME,
   LIBRARY_STORE_PERSISTENCE_SCHEMA_VERSION,
@@ -55,22 +56,7 @@ export const BACKUP_INCLUDED_DOMAINS: string[] = [
   'source packages and sanitized source settings',
   'reader and settings preferences',
 ]
-export const BACKUP_INCLUDED_DOMAIN_LABELS: string[] = [
-  '书架与自定义分类',
-  '阅读进度',
-  '远程服务器配置',
-  '源包与已清理的源设置',
-  '阅读器与设置偏好',
-]
-export const BACKUP_MANAGEMENT_STORAGE_NOTE: string = '备份文件通过系统文件选择器保存和选择，当前页面不保留应用内备份历史。已导出的文件由用户在所选位置管理。'
 export const BACKUP_ENCRYPTION_STATE: string = 'unencrypted'
-export const BACKUP_ENCRYPTION_STATUS_LABEL: string = '可用'
-export const BACKUP_ENCRYPTION_PLAN_LABEL: string = '加密导出使用 PBKDF2-HMAC-SHA-256 和 AES-256-GCM；Koma 不保存口令，也无法找回。'
-export const BACKUP_UNENCRYPTED_EXPORT_WARNING: string = '当前导出的备份是未加密 JSON，可直接读取。请只保存到可信位置。'
-export const BACKUP_ENCRYPTED_EXPORT_SUCCESS: string = '加密备份已保存。请妥善保管口令；Koma 不保存也无法找回。'
-export const BACKUP_PASSPHRASE_HELP_TEXT: string = `加密备份口令至少 ${BACKUP_PASSPHRASE_MIN_LENGTH} 个字符。导入加密备份时，解密成功后仍需再次确认恢复。`
-export const BACKUP_IMPORT_PREVIEW_NOTE: string = '选择备份后会先显示版本、导出时间、加密状态和可识别的数据数量；加密备份在输入口令并认证通过前只显示公开信封信息。预览不会改动当前数据。'
-export const BACKUP_IMPORT_CONFLICT_POLICY: string = '恢复必须由用户再次确认。当前实现按备份内容恢复书架和阅读进度，并写入备份内配置；不会在预览时删除当前数据，也不会假装提供逐项冲突合并。'
 const REMOTE_SERVER_STORE_NAME: string = 'koma_remote_servers_v1'
 const SOURCE_INDEX_PREFS_STORE_NAME: string = 'koma_source_package_manager_v1'
 const SOURCE_INDEX_URL_KEY: string = 'source_index.url'
@@ -132,6 +118,48 @@ export interface BackupImportPreview {
 export interface BackupImportSelectionPreview {
   payload: string
   preview: BackupImportPreview
+}
+
+export function backupIncludedDomainLabels(): string[] {
+  return [
+    AppStrings.get('backup_domain_library_categories'),
+    AppStrings.get('backup_domain_progress'),
+    AppStrings.get('backup_domain_remote_servers'),
+    AppStrings.get('backup_domain_source_packages'),
+    AppStrings.get('backup_domain_reader_preferences'),
+  ]
+}
+
+export function backupManagementStorageNote(): string {
+  return AppStrings.get('backup_storage_note')
+}
+
+export function backupEncryptionStatusLabel(): string {
+  return AppStrings.get('backup_encryption_status_available')
+}
+
+export function backupEncryptionPlanLabel(): string {
+  return AppStrings.get('backup_encryption_plan')
+}
+
+export function backupUnencryptedExportWarning(): string {
+  return AppStrings.get('backup_unencrypted_warning')
+}
+
+export function backupEncryptedExportSuccess(): string {
+  return AppStrings.get('backup_encrypted_export_success')
+}
+
+export function backupPassphraseHelpText(): string {
+  return AppStrings.format('backup_passphrase_help', BACKUP_PASSPHRASE_MIN_LENGTH)
+}
+
+export function backupImportPreviewNote(): string {
+  return AppStrings.get('backup_import_preview_note')
+}
+
+export function backupImportConflictPolicy(): string {
+  return AppStrings.get('backup_import_conflict_policy')
 }
 
 function joinBackupPath(parent: string, child: string): string {
@@ -229,23 +257,23 @@ function countReaderPreferences(settings: ReaderPreferences | undefined): number
 
 function formatBackupExportedAt(exportedAt: number | undefined): string {
   if (exportedAt === undefined || !Number.isFinite(exportedAt) || exportedAt <= 0) {
-    return '未提供'
+    return AppStrings.get('backup_preview_not_provided')
   }
   return new Date(exportedAt).toLocaleString()
 }
 
 function formatBackupEncryption(encryption: BackupEncryptionMetadata | undefined): string {
   if (encryption !== undefined && encryption.state === BACKUP_ENCRYPTION_STATE && encryption.algorithm === 'none') {
-    return '未加密 JSON'
+    return AppStrings.get('backup_encryption_unencrypted_json')
   }
-  return '未加密状态未标注；旧版备份按未加密 JSON 处理'
+  return AppStrings.get('backup_encryption_unencrypted_legacy')
 }
 
 function emptyEncryptedCountsPreview(publicPreview: BackupEncryptedPublicPreview): BackupImportPreview {
   return {
     schemaVersion: publicPreview.contentSchemaVersion,
     exportedAtText: publicPreview.exportedAtText,
-    encryptionText: '已加密；需要口令解密后预览内容',
+    encryptionText: AppStrings.get('backup_encryption_encrypted_preview_needed'),
     encrypted: true,
     decrypted: false,
     algorithm: publicPreview.algorithm,
@@ -416,7 +444,7 @@ export class BackupService {
         hasTrackerMappingCount: preview.hasTrackerMappingCount,
         encrypted: true,
         decrypted: true,
-        encryptionText: '已加密；口令认证通过',
+        encryptionText: AppStrings.get('backup_encryption_encrypted_verified'),
       },
     }
   }
@@ -425,7 +453,7 @@ export class BackupService {
     const payload = await this.export()
     const options = new picker.DocumentSaveOptions()
     options.newFileNames = [`koma-backup-${Date.now()}.json`]
-    options.fileSuffixChoices = ['JSON 文件|.json']
+    options.fileSuffixChoices = [AppStrings.get('backup_file_choice_json')]
     const documentPicker = new picker.DocumentViewPicker(this.context)
     const result = await documentPicker.save(options)
     if (result.length === 0) {
@@ -441,7 +469,7 @@ export class BackupService {
     const payload = await this.exportEncrypted(passphrase)
     const options = new picker.DocumentSaveOptions()
     options.newFileNames = [`koma-backup-${Date.now()}.koma-backup`]
-    options.fileSuffixChoices = ['Koma 加密备份|.koma-backup']
+    options.fileSuffixChoices = [AppStrings.get('backup_file_choice_encrypted')]
     const documentPicker = new picker.DocumentViewPicker(this.context)
     const result = await documentPicker.save(options)
     if (result.length === 0) {

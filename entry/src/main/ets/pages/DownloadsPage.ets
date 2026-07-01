@@ -19,6 +19,7 @@ import {
 } from '../model/OfflineDownloadQueueStore'
 import { installReaderRemoteHeadersForComic } from '../model/ReaderPageSourceAdapter'
 import { AppStrings } from '../i18n/AppStrings'
+import { connectLanguageState, LanguageState } from '../state/LanguageState'
 
 function s(name: string): string {
   return AppStrings.get(name)
@@ -36,6 +37,7 @@ enum DownloadQueueFilter {
 @ComponentV2
 export struct DownloadsPage {
   @Param libraryStore?: LibraryStore = undefined
+  @Local private languageState: LanguageState = connectLanguageState()
   @Local private entries: OfflineDownloadQueueEntry[] = []
   @Local private preferences: OfflineDownloadQueuePreferences = {
     foregroundConcurrencyLimit: 1,

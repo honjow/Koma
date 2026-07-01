@@ -1,7 +1,13 @@
 import { Chip, ChipSize } from '@kit.ArkUI'
+import { AppStrings } from '../i18n/AppStrings'
+import { connectLanguageState, LanguageState } from '../state/LanguageState'
 import { KomaIconButton } from './ui/KomaIconButton'
 import { ChapterSortOrder, MangaChapterItem } from '../model/MangaDetailModels'
 import { ThemeConstants } from '../theme/ThemeConstants'
+
+function s(name: string): string {
+  return AppStrings.get(name)
+}
 
 export enum ChapterReadFilter {
   ALL = 'all',
@@ -56,6 +62,7 @@ class ChapterListDataSource implements IDataSource {
 @ComponentV2
 export struct ChapterListSection {
   @Param chapters: MangaChapterItem[] = []
+  @Local private languageState: LanguageState = connectLanguageState()
   @Local private sortOrder: ChapterSortOrder = ChapterSortOrder.NEWEST_FIRST
   @Local private readFilter: ChapterReadFilter = ChapterReadFilter.ALL
   @Local private sortedChapters: MangaChapterItem[] = []
@@ -115,28 +122,28 @@ export struct ChapterListSection {
 
   private sortLabel(): string {
     if (this.sortOrder === ChapterSortOrder.OLDEST_FIRST) {
-      return '最旧优先'
+      return s('chapter_list_sort_oldest')
     }
     if (this.sortOrder === ChapterSortOrder.BY_NUMBER_DESC) {
-      return '话数降序'
+      return s('chapter_list_sort_number_desc')
     }
     if (this.sortOrder === ChapterSortOrder.BY_NUMBER_ASC) {
-      return '话数升序'
+      return s('chapter_list_sort_number_asc')
     }
-    return '最新优先'
+    return s('chapter_list_sort_newest')
   }
 
   private filterLabel(): string {
     if (this.readFilter === ChapterReadFilter.UNREAD) {
-      return '未读'
+      return s('chapter_list_filter_unread')
     }
     if (this.readFilter === ChapterReadFilter.READ) {
-      return '已读'
+      return s('chapter_list_filter_read')
     }
     if (this.readFilter === ChapterReadFilter.DOWNLOADED) {
-      return '已下载'
+      return s('chapter_list_filter_downloaded')
     }
-    return '全部'
+    return s('chapter_list_filter_all')
   }
 
   private setSortOrder(sortOrder: ChapterSortOrder): void {
@@ -158,9 +165,9 @@ export struct ChapterListSection {
       return chapter.title
     }
     if (chapter.chapterNumber !== undefined) {
-      return `第${chapter.chapterNumber}话`
+      return s('library_update_chapter_fallback_title').replace('%s', `${chapter.chapterNumber}`)
     }
-    return '未命名章节'
+    return s('manga_detail_chapter_untitled')
   }
 
   private chapterSubtitle(chapter: MangaChapterItem): string {
@@ -185,6 +192,14 @@ export struct ChapterListSection {
     return value < 10 ? `0${value}` : `${value}`
   }
 
+  private formatString(key: string, args: Array<string | number>): string {
+    let text = s(key)
+    args.forEach((value: string | number) => {
+      text = text.replace('%s', `${value}`)
+    })
+    return text
+  }
+
   aboutToAppear(): void {
     this.rebuildDataSource()
   }
@@ -192,19 +207,19 @@ export struct ChapterListSection {
   @Builder
   private SortMenu() {
     Menu() {
-      MenuItem({ content: '最新优先' })
+      MenuItem({ content: s('chapter_list_sort_newest') })
         .onClick(() => {
           this.setSortOrder(ChapterSortOrder.NEWEST_FIRST)
         })
-      MenuItem({ content: '最旧优先' })
+      MenuItem({ content: s('chapter_list_sort_oldest') })
         .onClick(() => {
           this.setSortOrder(ChapterSortOrder.OLDEST_FIRST)
         })
-      MenuItem({ content: '话数降序' })
+      MenuItem({ content: s('chapter_list_sort_number_desc') })
         .onClick(() => {
           this.setSortOrder(ChapterSortOrder.BY_NUMBER_DESC)
         })
-      MenuItem({ content: '话数升序' })
+      MenuItem({ content: s('chapter_list_sort_number_asc') })
         .onClick(() => {
           this.setSortOrder(ChapterSortOrder.BY_NUMBER_ASC)
         })
@@ -214,15 +229,15 @@ export struct ChapterListSection {
   @Builder
   private BatchDownloadMenu() {
     Menu() {
-      MenuItem({ content: '下载可见章节' })
+      MenuItem({ content: s('chapter_list_menu_download_visible') })
         .onClick(() => {
           this.onDownloadVisibleChapters(this.visibleChapterIds(), ChapterBatchDownloadMode.ALL_VISIBLE)
         })
-      MenuItem({ content: '仅重试失败' })
+      MenuItem({ content: s('chapter_list_menu_retry_failed') })
         .onClick(() => {
           this.onDownloadVisibleChapters(this.visibleChapterIds(), ChapterBatchDownloadMode.FAILED_ONLY)
         })
-      MenuItem({ content: '下载未完成' })
+      MenuItem({ content: s('chapter_list_menu_download_incomplete') })
         .onClick(() => {
           this.onDownloadVisibleChapters(this.visibleChapterIds(), ChapterBatchDownloadMode.NOT_DOWNLOADED)
         })
@@ -232,19 +247,19 @@ export struct ChapterListSection {
   @Builder
   private FilterMenu() {
     Menu() {
-      MenuItem({ content: '全部' })
+      MenuItem({ content: s('chapter_list_filter_all') })
         .onClick(() => {
           this.setReadFilter(ChapterReadFilter.ALL)
         })
-      MenuItem({ content: '未读' })
+      MenuItem({ content: s('chapter_list_filter_unread') })
         .onClick(() => {
           this.setReadFilter(ChapterReadFilter.UNREAD)
         })
-      MenuItem({ content: '已读' })
+      MenuItem({ content: s('chapter_list_filter_read') })
         .onClick(() => {
           this.setReadFilter(ChapterReadFilter.READ)
         })
-      MenuItem({ content: '已下载' })
+      MenuItem({ content: s('chapter_list_filter_downloaded') })
         .onClick(() => {
           this.setReadFilter(ChapterReadFilter.DOWNLOADED)
         })
@@ -254,11 +269,11 @@ export struct ChapterListSection {
   @Builder
   private ReadStateMenu(chapter: MangaChapterItem) {
     Menu() {
-      MenuItem({ content: '标记已读' })
+      MenuItem({ content: s('chapter_list_menu_mark_read') })
         .onClick(() => {
           this.onMarkChapterReadState(chapter.id, true)
         })
-      MenuItem({ content: '标记未读' })
+      MenuItem({ content: s('chapter_list_menu_mark_unread') })
         .onClick(() => {
           this.onMarkChapterReadState(chapter.id, false)
         })
@@ -268,11 +283,11 @@ export struct ChapterListSection {
   @Builder
   private VisibleReadStateMenu() {
     Menu() {
-      MenuItem({ content: '可见章节标记已读' })
+      MenuItem({ content: s('chapter_list_menu_mark_visible_read') })
         .onClick(() => {
           this.onMarkVisibleChaptersReadState(this.visibleChapterIds(), true)
         })
-      MenuItem({ content: '可见章节标记未读' })
+      MenuItem({ content: s('chapter_list_menu_mark_visible_unread') })
         .onClick(() => {
           this.onMarkVisibleChaptersReadState(this.visibleChapterIds(), false)
         })
@@ -351,7 +366,7 @@ export struct ChapterListSection {
     Column({ space: ThemeConstants.SPACE_MD }) {
       Column({ space: ThemeConstants.SPACE_SM }) {
         Row() {
-          Text(`章节 (${this.sortedChapters.length}/${this.chapters.length})`)
+          Text(this.formatString('chapter_list_title', [this.sortedChapters.length, this.chapters.length]))
             .fontSize(ThemeConstants.FONT_SIZE_H3)
             .fontWeight(FontWeight.Bold)
             .fontColor(ThemeConstants.TEXT_PRIMARY)
@@ -398,7 +413,7 @@ export struct ChapterListSection {
           Row() {
             Chip({
               label: {
-                text: '标记 ▾',
+                text: `${s('chapter_list_action_mark')} ▾`,
                 fontSize: ThemeConstants.FONT_SIZE_TAG,
                 fontColor: ThemeConstants.TEXT_PRIMARY,
                 activatedFontColor: ThemeConstants.TEXT_ON_BRAND,
@@ -415,7 +430,7 @@ export struct ChapterListSection {
           Row() {
             Chip({
               label: {
-                text: '批量下载 ▾',
+                text: `${s('chapter_list_action_batch_download')} ▾`,
                 fontSize: ThemeConstants.FONT_SIZE_TAG,
                 fontColor: ThemeConstants.TEXT_PRIMARY,
                 activatedFontColor: ThemeConstants.TEXT_ON_BRAND,

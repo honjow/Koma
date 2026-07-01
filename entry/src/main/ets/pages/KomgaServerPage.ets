@@ -8,6 +8,7 @@ import { RemoteServerStore } from '../model/RemoteServerStore'
 import { KomgaAuthKind } from '../remote/KomgaModels'
 import { ThemeConstants } from '../theme/ThemeConstants'
 import { AppStrings } from '../i18n/AppStrings'
+import { connectLanguageState, LanguageState } from '../state/LanguageState'
 
 function s(name: string): string {
   return AppStrings.get(name)
@@ -15,6 +16,7 @@ function s(name: string): string {
 
 @ComponentV2
 export struct KomgaServerPage {
+  @Local private languageState: LanguageState = connectLanguageState()
   @Local private baseUrl: string = ''
   @Local private authKind: KomgaAuthKind = KomgaAuthKind.BASIC
   @Local private apiKey: string = ''

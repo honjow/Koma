@@ -5,6 +5,8 @@ import { ConciseListRow } from '../components/ui/ConciseListRow'
 import { GroupedListSection, ListDivider } from '../components/ui/GroupedListSection'
 import { KomaActionButton } from '../components/ui/KomaActionButton'
 import { KomaFormTextField } from '../components/ui/KomaFormTextField'
+import { AppStrings } from '../i18n/AppStrings'
+import { connectLanguageState, LanguageState } from '../state/LanguageState'
 import { ThemeConstants } from '../theme/ThemeConstants'
 import {
   InstalledSourcePackage,
@@ -36,8 +38,16 @@ import {
   installedSourceTrustSummary,
   SourcePackageTrustSummary,
   sourceIndexCandidateTrustSummary,
-  SOURCE_PACKAGE_TRUST_BOUNDARY_NOTICE,
+  sourcePackageTrustBoundaryNotice,
 } from '../sourceRuntime/SourcePackageTrustPolicy'
+
+function t(name: string): string {
+  return AppStrings.get(name)
+}
+
+function tf(name: string, ...args: Array<string | number>): string {
+  return AppStrings.format(name, ...args)
+}
 
 type SourcePackageUpdateState = 'unknown' | 'checking' | 'latest' | 'update' | 'missing' | 'failed'
 type SourceSettingsValidationState = 'unknown' | 'running' | 'pass' | 'fail'
@@ -104,6 +114,7 @@ export struct SourcePackageManagerPage {
   @Local private settingsValidationSourceId: string = ''
   @Local private diagnosticsSourceId: string = ''
   @Local private settingMenuKey: string = ''
+  @Local private languageState: LanguageState = connectLanguageState()
   private sourceIndexService: SourceIndexService = new SourceIndexService(this.context())
 
   aboutToAppear(): void {
@@ -123,10 +134,10 @@ export struct SourcePackageManagerPage {
     this.packages.forEach((source: InstalledSourcePackage) => {
       const descriptors = fetchSourceSettingDescriptors(appSourceRuntimeRegistry, source.id)
       if (descriptors.length === 0) {
-        availability[source.id] = '设置项：无'
+        availability[source.id] = t('source_pkg_settings_none')
       } else {
         const editable = descriptors.filter((descriptor: SourceSettingDescriptor): boolean => descriptor.supported && !descriptor.sensitive).length
-        availability[source.id] = '设置项：' + editable.toString() + '/' + descriptors.length.toString() + ' 可编辑'
+        availability[source.id] = tf('source_pkg_settings_editable', editable, descriptors.length)
       }
       const existing = this.settingsValidationStatuses.find((status: SourceSettingsValidationStatus): boolean => status.sourceId === source.id)
       if (existing !== undefined) {
@@ -290,18 +301,18 @@ export struct SourcePackageManagerPage {
     const status = this.updateStatus(source.id)
     switch (status.status) {
       case 'checking':
-        return '更新：检查中（手动）'
+        return t('source_pkg_update_status_checking')
       case 'latest':
-        return '更新：已是最新 v' + (status.localVersion ?? source.version)
+        return tf('source_pkg_update_status_latest', status.localVersion ?? source.version)
       case 'update':
-        return '更新：可更新 v' + (status.localVersion ?? source.version) + ' → v' + (status.remoteVersion ?? '')
+        return tf('source_pkg_update_status_available', status.localVersion ?? source.version, status.remoteVersion ?? '')
       case 'missing':
-        return '更新：索引中未找到（仅检查当前配置索引）'
+        return t('source_pkg_update_status_missing')
       case 'failed':
-        return '更新：检查失败：' + this.sourceRedactedReasonText(status.reasonCode)
+        return tf('source_pkg_update_status_failed', this.sourceRedactedReasonText(status.reasonCode))
       case 'unknown':
       default:
-        return '更新：未检查'
+        return t('source_pkg_update_status_unknown')
     }
   }
 
@@ -322,7 +333,7 @@ export struct SourcePackageManagerPage {
   }
 
   private updateActionLabel(sourceId: string): string {
-    return this.updateInstallSourceId === sourceId ? '更新中' : '更新'
+    return this.updateInstallSourceId === sourceId ? t('source_pkg_action_updating') : t('source_pkg_action_update')
   }
 
   private updateEntry(sourceId: string): SourceIndexEntry | undefined {
@@ -340,9 +351,9 @@ export struct SourcePackageManagerPage {
       }
     }
     if (url.length === 0) {
-      this.statusText = '请输入源索引地址'
-      this.indexStatusText = '请输入源索引地址'
-      this.showToast('请输入源索引地址')
+      this.statusText = t('source_pkg_prompt_index_url')
+      this.indexStatusText = t('source_pkg_prompt_index_url')
+      this.showToast(t('source_pkg_prompt_index_url'))
     }
     return url
   }
@@ -358,7 +369,7 @@ export struct SourcePackageManagerPage {
     const count = this.packages.length
     console.info('[SourcePackageUpdate] step=check_start count=' + count)
     this.updateCheckBusy = true
-    this.statusText = '正在检查更新...'
+    this.statusText = t('source_pkg_check_updates_running')
     this.packageUpdateStatuses = this.packages.map((source: InstalledSourcePackage): SourcePackageUpdateStatus => {
       return {
         sourceId: source.id,
@@ -378,13 +389,13 @@ export struct SourcePackageManagerPage {
             reasonCode: result.reasonCode,
           }
         })
-        this.statusText = '检查失败：' + this.sourceRedactedReasonText(result.reasonCode)
+        this.statusText = tf('source_pkg_check_failed', this.sourceRedactedReasonText(result.reasonCode))
         console.info('[SourcePackageUpdate] step=check_done update=0 latest=0 missing=0 failed=' + count)
         return
       }
 
       this.indexEntries = result.entries
-      this.indexStatusText = '已加载 ' + result.entries.length + ' 个源'
+      this.indexStatusText = tf('source_pkg_index_loaded', result.entries.length)
       let updateCount = 0
       let latestCount = 0
       let missingCount = 0
@@ -421,7 +432,7 @@ export struct SourcePackageManagerPage {
         })
       })
       this.packageUpdateStatuses = nextStatuses
-      this.statusText = '检查完成：可更新 ' + updateCount.toString() + '，最新 ' + latestCount.toString() + '，未找到 ' + missingCount.toString()
+      this.statusText = tf('source_pkg_check_complete', updateCount, latestCount, missingCount)
       console.info('[SourcePackageUpdate] step=check_done update=' + updateCount + ' latest=' + latestCount + ' missing=' + missingCount + ' failed=0')
     } catch (_error) {
       this.packageUpdateStatuses = this.packages.map((source: InstalledSourcePackage): SourcePackageUpdateStatus => {
@@ -432,7 +443,7 @@ export struct SourcePackageManagerPage {
           reasonCode: 'network_error',
         }
       })
-      this.statusText = '检查失败：' + this.sourceRedactedReasonText('network_error')
+      this.statusText = tf('source_pkg_check_failed', this.sourceRedactedReasonText('network_error'))
       console.info('[SourcePackageUpdate] step=check_done update=0 latest=0 missing=0 failed=' + count)
     } finally {
       this.updateCheckBusy = false
@@ -453,7 +464,7 @@ export struct SourcePackageManagerPage {
     }
     const wasEnabled = source.enabled
     this.updateInstallSourceId = source.id
-    this.statusText = '正在更新 ' + source.name + '...'
+    this.statusText = tf('source_pkg_update_running', source.name)
     console.info('[SourcePackageUpdate] step=install_start id=' + source.id)
     try {
       const result: SourceIndexInstallResult = await this.sourceIndexService.installPackage(url, entry)
@@ -470,8 +481,8 @@ export struct SourcePackageManagerPage {
           remoteVersion: entry.version,
           localVersion: installed?.version ?? entry.version,
         })
-        this.statusText = '已更新 ' + source.name
-        this.showToast('源包已更新')
+        this.statusText = tf('source_pkg_update_done', source.name)
+        this.showToast(t('source_pkg_toast_updated'))
         console.info('[SourcePackageUpdate] step=install_done id=' + source.id)
       } else {
         this.setUpdateStatus({
@@ -482,8 +493,8 @@ export struct SourcePackageManagerPage {
           localVersion: source.version,
           reasonCode: result.reasonCode,
         })
-        this.statusText = '更新失败：' + this.sourceRedactedReasonText(result.reasonCode)
-        this.showToast('源包安装失败')
+        this.statusText = tf('source_pkg_update_failed', this.sourceRedactedReasonText(result.reasonCode))
+        this.showToast(t('source_pkg_toast_install_failed'))
         console.error('[SourcePackageUpdate] step=install_failed id=' + source.id + ' reason=' + (result.reasonCode ?? 'unknown'))
       }
     } catch (_error) {
@@ -495,8 +506,8 @@ export struct SourcePackageManagerPage {
         localVersion: source.version,
         reasonCode: 'network_error',
       })
-      this.statusText = '更新失败：' + this.sourceRedactedReasonText('network_error')
-      this.showToast('源包安装失败')
+      this.statusText = tf('source_pkg_update_failed', this.sourceRedactedReasonText('network_error'))
+      this.showToast(t('source_pkg_toast_install_failed'))
       console.error('[SourcePackageUpdate] step=install_failed id=' + source.id + ' reason=network_error')
     } finally {
       this.updateInstallSourceId = ''
@@ -508,82 +519,82 @@ export struct SourcePackageManagerPage {
     if (installed === undefined) {
       return 'v' + entry.version
     }
-    return '已装 v' + installed.version + ' / 索引 v' + entry.version
+    return tf('source_pkg_index_version_installed', installed.version, entry.version)
   }
 
   private sourceReasonText(reasonCode: string | undefined): string {
     const code = reasonCode ?? 'unknown'
     switch (code) {
       case 'invalid_url':
-        return '索引地址必须是 http 或 https'
+        return t('source_pkg_reason_invalid_url')
       case 'network_error':
-        return '网络请求失败'
+        return t('source_pkg_reason_network_error')
       case 'http_error':
-        return '服务器返回错误状态'
+        return t('source_pkg_reason_http_error')
       case 'invalid_index_format':
-        return '源索引格式不正确'
+        return t('source_pkg_reason_invalid_index_format')
       case 'invalid_json':
-        return '源索引 JSON 无法解析'
+        return t('source_pkg_reason_invalid_json')
       case 'invalid_pkg_url':
-        return '源包地址不正确'
+        return t('source_pkg_reason_invalid_pkg_url')
       case 'invalid_response':
-        return '源包下载响应无效'
+        return t('source_pkg_reason_invalid_response')
       case 'empty_package':
-        return '源包为空'
+        return t('source_pkg_reason_empty_package')
       case 'checksum_mismatch':
-        return '源包校验和不匹配'
+        return t('source_pkg_reason_checksum_mismatch')
       case 'network_not_allowed':
-        return '源包请求了当前不允许的网络/安装能力'
+        return t('source_pkg_reason_network_not_allowed')
       case 'unsafe_archive_entry':
-        return '源包包含不安全文件路径'
+        return t('source_pkg_reason_unsafe_archive_entry')
       case 'missing_manifest':
-        return '源包缺少 manifest'
+        return t('source_pkg_reason_missing_manifest')
       case 'missing_wasm':
-        return '源包缺少 WASM 文件'
+        return t('source_pkg_reason_missing_wasm')
       case 'manifest_invalid':
-        return '源包 manifest 不符合要求'
+        return t('source_pkg_reason_manifest_invalid')
       case 'validation_failed':
-        return '源包校验失败'
+        return t('source_pkg_reason_validation_failed')
       case 'register_failed':
-        return '源包注册失败'
+        return t('source_pkg_reason_register_failed')
       case 'import_failed':
-        return '源包导入失败'
+        return t('source_pkg_reason_import_failed')
       case 'duplicate_source_id':
-        return '源 ID 已存在'
+        return t('source_pkg_reason_duplicate_source_id')
       case 'missing_source_id':
-        return '源 ID 缺失'
+        return t('source_pkg_reason_missing_source_id')
       case 'source_id_not_registered':
-        return '源包未注册'
+        return t('source_pkg_reason_source_id_not_registered')
       case 'source_id_mismatch':
-        return '请求源 ID 与源包不一致'
+        return t('source_pkg_reason_source_id_mismatch')
       case 'malformed_json':
-        return '运行请求格式错误'
+        return t('source_pkg_reason_malformed_json')
       case 'missing_or_invalid_operation':
-        return '运行请求缺少有效操作'
+        return t('source_pkg_reason_missing_or_invalid_operation')
       case 'request_too_large':
-        return '运行请求过大'
+        return t('source_pkg_reason_request_too_large')
       case 'result_too_large':
-        return '运行结果过大'
+        return t('source_pkg_reason_result_too_large')
       case 'malformed_result':
-        return '运行结果格式错误'
+        return t('source_pkg_reason_malformed_result')
       case 'cancelled':
-        return '运行已取消'
+        return t('source_pkg_reason_cancelled')
       case 'timeout':
-        return '运行超时'
+        return t('source_pkg_reason_timeout')
       case 'smoke_failed':
-        return 'Smoke 检查失败'
+        return t('source_pkg_reason_smoke_failed')
       case 'missing_response':
-        return '源运行未返回结果'
+        return t('source_pkg_reason_missing_response')
       case 'runtime_response_not_ok':
-        return '源运行返回失败'
+        return t('source_pkg_reason_runtime_response_not_ok')
       case 'settings_validation_failed':
-        return '设置验证失败'
+        return t('source_pkg_reason_settings_validation_failed')
       case 'ok':
-        return '正常'
+        return t('source_pkg_reason_ok')
       case 'unknown':
-        return '未知错误'
+        return t('source_pkg_reason_unknown')
       default:
-        return '错误代码：' + code
+        return tf('source_pkg_reason_code', code)
     }
   }
 
@@ -626,7 +637,7 @@ export struct SourcePackageManagerPage {
       case 'unknown':
         return this.sourceReasonText(code)
       default:
-        return '原因已隐藏（详情已写入诊断日志）'
+        return t('source_pkg_reason_redacted')
     }
   }
 
@@ -642,7 +653,7 @@ export struct SourcePackageManagerPage {
       return
     }
     this.busy = true
-    this.statusText = '正在导入源包...'
+    this.statusText = t('source_pkg_import_running')
     try {
       const uri = await pickSourcePackageArchive(this.context())
       if (uri === undefined) {
@@ -651,16 +662,16 @@ export struct SourcePackageManagerPage {
       }
       const result = await installFromArchive(this.context(), uri)
       if (result.ok) {
-        this.statusText = '导入成功'
-        this.showToast('源包已导入')
+        this.statusText = t('source_pkg_import_done')
+        this.showToast(t('source_pkg_toast_imported'))
       } else {
-        this.statusText = '导入失败：' + this.sourceReasonText(result.reasonCode)
-        this.showToast('源包校验失败')
+        this.statusText = tf('source_pkg_import_failed', this.sourceReasonText(result.reasonCode))
+        this.showToast(t('source_pkg_toast_validation_failed'))
       }
       this.reload()
     } catch (_error) {
-      this.statusText = '导入失败：' + this.sourceReasonText('import_failed')
-      this.showToast('源包导入失败')
+      this.statusText = tf('source_pkg_import_failed', this.sourceReasonText('import_failed'))
+      this.showToast(t('source_pkg_toast_import_failed'))
       this.reload()
     } finally {
       this.busy = false
@@ -673,23 +684,23 @@ export struct SourcePackageManagerPage {
     }
     const url = this.sourceIndexUrl.trim()
     if (url.length === 0) {
-      this.indexStatusText = '请输入源索引地址'
+      this.indexStatusText = t('source_pkg_prompt_index_url')
       return
     }
     this.indexFetchBusy = true
-    this.indexStatusText = '正在加载源列表...'
+    this.indexStatusText = t('source_pkg_index_loading')
     this.indexEntries = []
     try {
       await this.sourceIndexService.saveUrl(url)
       const result: SourceIndexFetchResult = await this.sourceIndexService.fetchIndex(url)
       if (result.ok) {
         this.indexEntries = result.entries
-        this.indexStatusText = '已加载 ' + result.entries.length + ' 个源'
+        this.indexStatusText = tf('source_pkg_index_loaded', result.entries.length)
       } else {
-        this.indexStatusText = '加载失败：' + this.sourceReasonText(result.reasonCode)
+        this.indexStatusText = tf('source_pkg_index_load_failed', this.sourceReasonText(result.reasonCode))
       }
     } catch (_error) {
-      this.indexStatusText = '加载失败：' + this.sourceReasonText('network_error')
+      this.indexStatusText = tf('source_pkg_index_load_failed', this.sourceReasonText('network_error'))
     } finally {
       this.indexFetchBusy = false
     }
@@ -701,11 +712,11 @@ export struct SourcePackageManagerPage {
     }
     const existing = this.installedPackage(entry.id)
     if (existing !== undefined && !replaceExisting) {
-      this.showToast('此源已安装')
+      this.showToast(t('source_pkg_toast_already_installed'))
       return
     }
     this.indexInstallBusy = true
-    this.indexStatusText = replaceExisting ? ('正在更新 ' + entry.name + '...') : ('正在安装 ' + entry.name + '...')
+    this.indexStatusText = replaceExisting ? tf('source_pkg_update_running', entry.name) : tf('source_pkg_install_running', entry.name)
     try {
       const result: SourceIndexInstallResult = await this.sourceIndexService.installPackage(
         this.sourceIndexUrl.trim(),
@@ -715,16 +726,20 @@ export struct SourcePackageManagerPage {
         if (existing !== undefined && !existing.enabled) {
           setEnabled(this.context(), existing.id, false)
         }
-        this.indexStatusText = replaceExisting ? ('已更新 ' + entry.name) : ('已安装 ' + entry.name)
-        this.showToast(replaceExisting ? '源包已更新' : '源包安装成功')
+        this.indexStatusText = replaceExisting ? tf('source_pkg_update_done', entry.name) : tf('source_pkg_install_done', entry.name)
+        this.showToast(replaceExisting ? t('source_pkg_toast_updated') : t('source_pkg_toast_install_success'))
         this.reload()
       } else {
-        this.indexStatusText = (replaceExisting ? '更新失败：' : '安装失败：') + this.sourceReasonText(result.reasonCode)
-        this.showToast('源包安装失败')
+        this.indexStatusText = replaceExisting
+          ? tf('source_pkg_update_failed', this.sourceReasonText(result.reasonCode))
+          : tf('source_pkg_install_failed', this.sourceReasonText(result.reasonCode))
+        this.showToast(t('source_pkg_toast_install_failed'))
       }
     } catch (_error) {
-      this.indexStatusText = (replaceExisting ? '更新失败：' : '安装失败：') + this.sourceReasonText('network_error')
-      this.showToast('源包安装失败')
+      this.indexStatusText = replaceExisting
+        ? tf('source_pkg_update_failed', this.sourceReasonText('network_error'))
+        : tf('source_pkg_install_failed', this.sourceReasonText('network_error'))
+      this.showToast(t('source_pkg_toast_install_failed'))
     } finally {
       this.indexInstallBusy = false
     }
@@ -733,15 +748,15 @@ export struct SourcePackageManagerPage {
   private togglePackage(id: string): void {
     const source = this.packages.find((item: InstalledSourcePackage): boolean => item.id === id)
     if (source === undefined) {
-      this.statusText = '源包不可用'
+      this.statusText = t('source_pkg_unavailable')
       return
     }
     const enabled = !source.enabled
     if (setEnabled(this.context(), source.id, enabled)) {
-      this.statusText = enabled ? '已启用' : '已停用'
+      this.statusText = enabled ? t('source_pkg_enabled') : t('source_pkg_disabled')
       this.reload()
     } else {
-      this.statusText = '源包不可用'
+      this.statusText = t('source_pkg_unavailable')
     }
   }
 
@@ -752,7 +767,7 @@ export struct SourcePackageManagerPage {
     this.busy = true
     try {
       const removed = await remove(this.context(), source.id)
-      this.statusText = removed ? '已删除源包' : '源包不可用'
+      this.statusText = removed ? t('source_pkg_removed') : t('source_pkg_unavailable')
       if (removed) {
         this.clearUpdateStatus(source.id)
         this.clearSettingsValidationStatus(source.id)
@@ -762,7 +777,7 @@ export struct SourcePackageManagerPage {
       }
       this.reload()
     } catch (_error) {
-      this.statusText = '删除失败：' + this.sourceReasonText('unknown')
+      this.statusText = tf('source_pkg_remove_failed', this.sourceReasonText('unknown'))
     } finally {
       this.busy = false
     }
@@ -771,32 +786,32 @@ export struct SourcePackageManagerPage {
   private smokePackage(source: InstalledSourcePackage): void {
     const result = runSmoke(source.id)
     if (result.ok) {
-      this.statusText = 'Smoke PASS'
-      this.showToast('Smoke PASS')
+      this.statusText = t('source_pkg_smoke_pass')
+      this.showToast(t('source_pkg_smoke_pass'))
     } else {
-      this.statusText = 'Smoke FAIL：' + this.sourceReasonText(result.reasonCode)
-      this.showToast('Smoke FAIL')
+      this.statusText = tf('source_pkg_smoke_fail', this.sourceReasonText(result.reasonCode))
+      this.showToast(t('source_pkg_smoke_fail_toast'))
     }
     this.reload()
   }
 
   private validateSettingsActionLabel(sourceId: string): string {
-    return this.settingsValidationSourceId === sourceId ? '验证中' : '验证设置'
+    return this.settingsValidationSourceId === sourceId ? t('source_pkg_settings_validation_running') : t('source_pkg_settings_validation_action')
   }
 
   private settingsValidationText(source: InstalledSourcePackage): string {
     const status = this.settingsValidationStatus(source.id)
-    const savedText = ' · 已保存 ' + status.savedCount.toString() + ' 项'
+    const savedText = tf('source_pkg_settings_saved_count', status.savedCount)
     switch (status.status) {
       case 'running':
-        return '设置验证：验证中' + savedText
+        return t('source_pkg_settings_validation_status_running') + savedText
       case 'pass':
-        return '设置验证：PASS' + savedText
+        return t('source_pkg_settings_validation_status_pass') + savedText
       case 'fail':
-        return '设置验证：FAIL：' + this.sourceReasonText(status.reasonCode) + savedText
+        return tf('source_pkg_settings_validation_status_fail', this.sourceReasonText(status.reasonCode)) + savedText
       case 'unknown':
       default:
-        return '设置验证：未运行' + savedText
+        return t('source_pkg_settings_validation_status_unknown') + savedText
     }
   }
 
@@ -833,8 +848,8 @@ export struct SourcePackageManagerPage {
           status: 'pass',
           savedCount,
         })
-        this.statusText = '设置验证 PASS'
-        this.showToast('设置验证 PASS')
+        this.statusText = t('source_pkg_settings_validation_toast_pass')
+        this.showToast(t('source_pkg_settings_validation_toast_pass'))
         console.info('[SourceSettingsValidation] step=done id=' + source.id + ' ok=true saved=' + savedCount)
         return
       }
@@ -845,8 +860,8 @@ export struct SourcePackageManagerPage {
         savedCount,
         reasonCode: reason,
       })
-      this.statusText = '设置验证失败：' + this.sourceReasonText(reason)
-      this.showToast('设置验证 FAIL')
+      this.statusText = tf('source_pkg_settings_validation_failed', this.sourceReasonText(reason))
+      this.showToast(t('source_pkg_settings_validation_toast_fail'))
       console.error('[SourceSettingsValidation] step=done id=' + source.id + ' ok=false reason=' + reason + ' saved=' + savedCount)
     } catch (_error) {
       const reason = 'settings_validation_failed'
@@ -856,8 +871,8 @@ export struct SourcePackageManagerPage {
         savedCount,
         reasonCode: reason,
       })
-      this.statusText = '设置验证失败：' + this.sourceReasonText(reason)
-      this.showToast('设置验证 FAIL')
+      this.statusText = tf('source_pkg_settings_validation_failed', this.sourceReasonText(reason))
+      this.showToast(t('source_pkg_settings_validation_toast_fail'))
       console.error('[SourceSettingsValidation] step=done id=' + source.id + ' ok=false reason=' + reason + ' saved=' + savedCount)
     } finally {
       this.settingsValidationSourceId = ''
@@ -882,7 +897,7 @@ export struct SourcePackageManagerPage {
       }
     })
     this.settingDraft = nextDraft
-    this.statusText = this.settingDescriptors.length === 0 ? '未发现可配置项' : '正在编辑源设置'
+    this.statusText = this.settingDescriptors.length === 0 ? t('source_pkg_settings_none_detected') : t('source_pkg_settings_editing')
   }
 
   private closeSettings(): void {
@@ -904,8 +919,8 @@ export struct SourcePackageManagerPage {
       savedCount,
     })
     this.reload()
-    this.statusText = '源设置已保存'
-    this.showToast('源设置已保存')
+    this.statusText = t('source_pkg_settings_saved')
+    this.showToast(t('source_pkg_settings_saved'))
     this.closeSettings()
   }
 
@@ -931,7 +946,7 @@ export struct SourcePackageManagerPage {
     const value = this.settingDraft[descriptor.id]
     const selected = typeof value === 'string' ? value : ''
     const option = descriptor.options?.find((item) => item.id === selected)
-    return option?.label ?? (selected.length > 0 ? selected : '未选择')
+    return option?.label ?? (selected.length > 0 ? selected : t('source_pkg_not_selected'))
   }
 
   private setSelectSetting(descriptor: SourceSettingDescriptor, optionId: string): void {
@@ -941,19 +956,19 @@ export struct SourcePackageManagerPage {
 
   private capabilityLabel(capability: string): string {
     if (capability.startsWith('hostImports:')) {
-      return '受控宿主接口 ' + capability.replace('hostImports:', '') + ' 项'
+      return tf('source_pkg_capability_host_imports', capability.replace('hostImports:', ''))
     }
     switch (capability) {
       case 'search':
-        return '搜索'
+        return t('source_pkg_capability_search')
       case 'detail':
-        return '详情'
+        return t('source_pkg_capability_detail')
       case 'chapters':
-        return '章节'
+        return t('source_pkg_capability_chapters')
       case 'pages':
-        return '页面'
+        return t('source_pkg_capability_pages')
       case 'network':
-        return '网络访问'
+        return t('source_pkg_capability_network')
       default:
         return capability
     }
@@ -965,17 +980,17 @@ export struct SourcePackageManagerPage {
 
   private capabilitySummaryText(capabilities: string[]): string {
     if (capabilities.length === 0) {
-      return '能力：未声明'
+      return t('source_pkg_capability_none')
     }
     const labels: string[] = []
     capabilities.forEach((capability: string) => {
       labels.push(this.capabilityLabel(capability))
     })
-    return '能力：' + labels.join(' / ')
+    return t('source_pkg_capability_prefix') + labels.join(' / ')
   }
 
   private installedTrustSummary(source: InstalledSourcePackage): SourcePackageTrustSummary {
-    return installedSourceTrustSummary(source, this.capabilitySummaryText(source.capabilities).replace('能力：', ''))
+    return installedSourceTrustSummary(source, this.capabilitySummaryText(source.capabilities).replace(t('source_pkg_capability_prefix'), ''))
   }
 
   private sourceIndexTrustSummary(entry: SourceIndexEntry): SourcePackageTrustSummary {
@@ -1007,13 +1022,13 @@ export struct SourcePackageManagerPage {
     if (source.lang.length > 0) {
       parts.push(source.lang)
     }
-    parts.push(source.nsfw ? 'NSFW' : '全年龄')
+    parts.push(source.nsfw ? 'NSFW' : t('source_pkg_rating_all_ages'))
     parts.push(source.status)
     return parts.join(' · ')
   }
 
   private sourceSettingsText(source: InstalledSourcePackage): string {
-    return this.settingsAvailability[source.id] ?? '设置项：未检查'
+    return this.settingsAvailability[source.id] ?? t('source_pkg_settings_unchecked')
   }
 
   private diagnosticsSourceMetaText(source: InstalledSourcePackage): string {
@@ -1021,52 +1036,69 @@ export struct SourcePackageManagerPage {
   }
 
   private diagnosticsVersionText(source: InstalledSourcePackage): string {
-    return 'version: ' + source.version + ' · language: ' + (source.lang.length > 0 ? source.lang : 'unknown') + ' · rating: ' + (source.nsfw ? 'NSFW' : '全年龄')
+    return tf(
+      'source_pkg_diagnostics_version',
+      source.version,
+      source.lang.length > 0 ? source.lang : t('common_unavailable'),
+      source.nsfw ? 'NSFW' : t('source_pkg_rating_all_ages'),
+    )
   }
 
   private diagnosticsSmokeText(source: InstalledSourcePackage): string {
-    const reason = source.lastDiagnosticMessage.length > 0 ? this.sourceReasonText(source.lastDiagnosticMessage) : '未运行'
-    return 'Smoke：' + source.smokeStatus + ' · ' + reason
+    const reason = source.lastDiagnosticMessage.length > 0 ? this.sourceReasonText(source.lastDiagnosticMessage) : t('source_pkg_not_run')
+    return tf('source_pkg_diagnostics_smoke', source.smokeStatus, reason)
   }
 
   private diagnosticsUpdateReasonText(status: SourcePackageUpdateStatus): string {
     switch (status.status) {
       case 'checking':
-        return '检查中'
+        return t('source_pkg_checking')
       case 'latest':
       case 'update':
         return this.sourceReasonText(status.reasonCode ?? 'ok')
       case 'missing':
-        return '索引中未找到'
+        return t('source_pkg_update_status_missing_brief')
       case 'failed':
         return this.sourceRedactedReasonText(status.reasonCode)
       case 'unknown':
       default:
-        return '未检查'
+        return t('source_pkg_not_checked')
     }
   }
 
   private diagnosticsUpdateText(source: InstalledSourcePackage): string {
     const status = this.updateStatus(source.id)
     const localVersion = status.localVersion ?? source.version
-    const remoteVersion = status.remoteVersion ?? 'unknown'
-    return 'Update：' + status.status + ' · localVersion=' + localVersion + ' · remoteVersion=' + remoteVersion + ' · ' + this.diagnosticsUpdateReasonText(status)
+    const remoteVersion = status.remoteVersion ?? t('common_unavailable')
+    return tf('source_pkg_diagnostics_update', status.status, localVersion, remoteVersion, this.diagnosticsUpdateReasonText(status))
   }
 
   private diagnosticsSettingsText(source: InstalledSourcePackage): string {
     const counts = this.diagnosticsSettingCounts(source.id)
-    return 'Settings descriptors：total=' + counts.total.toString() + ' · editable=' + counts.editable.toString() + ' · sensitive=' + counts.sensitive.toString() + ' · saved=' + counts.saved.toString()
+    return tf('source_pkg_diagnostics_settings', counts.total, counts.editable, counts.sensitive, counts.saved)
   }
 
   private diagnosticsSettingsValidationText(source: InstalledSourcePackage): string {
     const status = this.settingsValidationStatus(source.id)
-    const reason = status.status === 'fail' ? this.sourceReasonText(status.reasonCode) : (status.status === 'running' ? '验证中' : (status.status === 'pass' ? '正常' : '未运行'))
-    return 'Settings validation：' + status.status + ' · saved=' + status.savedCount.toString() + ' · ' + reason
+    const reason = status.status === 'fail'
+      ? this.sourceReasonText(status.reasonCode)
+      : (status.status === 'running'
+        ? t('source_pkg_settings_validation_running')
+        : (status.status === 'pass' ? t('source_pkg_reason_ok') : t('source_pkg_not_run')))
+    return tf('source_pkg_diagnostics_validation', status.status, status.savedCount, reason)
   }
 
   private diagnosticsTrustText(source: InstalledSourcePackage): string {
     const summary = this.installedTrustSummary(source)
-    return 'Trust：' + summary.provenanceLabel + ' · ' + summary.verificationLabel + ' · ' + summary.identityLabel
+    return tf('source_pkg_diagnostics_trust', summary.provenanceLabel + ' · ' + summary.verificationLabel + ' · ' + summary.identityLabel)
+  }
+
+  private packageSmokeText(source: InstalledSourcePackage): string {
+    const reason = source.lastDiagnosticMessage.length > 0 ? this.sourceReasonText(source.lastDiagnosticMessage) : ''
+    if (reason.length > 0) {
+      return tf('source_pkg_diagnostics_smoke', source.smokeStatus, reason)
+    }
+    return t('source_pkg_smoke_label') + source.smokeStatus
   }
 
   @Builder
@@ -1087,7 +1119,7 @@ export struct SourcePackageManagerPage {
   @Builder
   private IndexUrlCard() {
     Column({ space: ThemeConstants.SPACE_MD }) {
-      Text('源索引地址')
+      Text(t('source_pkg_index_url_heading'))
         .width('100%')
         .fontSize(ThemeConstants.FONT_SIZE_TITLE)
         .fontWeight(FontWeight.Medium)
@@ -1107,7 +1139,7 @@ export struct SourcePackageManagerPage {
 
       Row({ space: ThemeConstants.SPACE_MD }) {
         KomaActionButton({
-          label: this.indexFetchBusy ? '加载中' : '加载源列表',
+          label: this.indexFetchBusy ? t('source_pkg_loading') : t('source_pkg_load_sources'),
           kind: 'primary',
           fill: true,
           isEnabled: !this.indexFetchBusy,
@@ -1117,7 +1149,7 @@ export struct SourcePackageManagerPage {
         })
 
         KomaActionButton({
-          label: this.busy ? '导入中' : '本地导入',
+          label: this.busy ? t('source_pkg_importing') : t('source_pkg_local_import'),
           kind: 'secondary',
           fill: true,
           isEnabled: !this.busy,
@@ -1138,13 +1170,13 @@ export struct SourcePackageManagerPage {
           .fontColor(ThemeConstants.TEXT_SECONDARY)
       }
 
-      Text(SOURCE_PACKAGE_TRUST_BOUNDARY_NOTICE)
+      Text(sourcePackageTrustBoundaryNotice())
         .width('100%')
         .fontSize(ThemeConstants.FONT_SIZE_CAPTION)
         .lineHeight(18)
         .fontColor(ThemeConstants.TEXT_SECONDARY)
 
-      Text('源包更新只会在你点按检查更新时读取当前填写或已保存的源索引地址；不会后台定时检查，也不会发送更新提醒。')
+      Text(t('source_pkg_manual_update_notice'))
         .width('100%')
         .fontSize(ThemeConstants.FONT_SIZE_CAPTION)
         .lineHeight(18)
@@ -1178,7 +1210,7 @@ export struct SourcePackageManagerPage {
 
         if (this.hasUpdate(entry)) {
           KomaActionButton({
-            label: this.indexInstallBusy ? '更新中' : '更新',
+            label: this.indexInstallBusy ? t('source_pkg_action_updating') : t('source_pkg_action_update'),
             kind: 'primary',
             compact: true,
             controlHeight: ThemeConstants.FILTER_CHIP_HEIGHT,
@@ -1188,7 +1220,7 @@ export struct SourcePackageManagerPage {
             },
           })
         } else if (this.isSourceInstalled(entry.id)) {
-          Text('已安装')
+          Text(t('source_pkg_installed'))
             .fontSize(ThemeConstants.FONT_SIZE_CAPTION)
             .fontColor(ThemeConstants.BRAND_PRIMARY)
             .padding({ left: 10, right: 10, top: 4, bottom: 4 })
@@ -1196,7 +1228,7 @@ export struct SourcePackageManagerPage {
             .backgroundColor(ThemeConstants.SOFT_TINT)
         } else {
           KomaActionButton({
-            label: this.indexInstallBusy ? '安装中' : '安装',
+            label: this.indexInstallBusy ? t('source_pkg_installing') : t('source_pkg_install'),
             kind: 'primary',
             compact: true,
             controlHeight: ThemeConstants.FILTER_CHIP_HEIGHT,
@@ -1227,7 +1259,7 @@ export struct SourcePackageManagerPage {
             .backgroundColor(ThemeConstants.DANGER)
         }
         if (this.hasUpdate(entry)) {
-          Text('可更新')
+          Text(t('source_pkg_update_available'))
             .fontSize(ThemeConstants.FONT_SIZE_TAG)
             .fontColor(ThemeConstants.TEXT_ON_BRAND)
             .padding({ left: 6, right: 6, top: 2, bottom: 2 })
@@ -1269,11 +1301,11 @@ export struct SourcePackageManagerPage {
     Column({ space: ThemeConstants.SPACE_MD }) {
       Row({ space: ThemeConstants.SPACE_MD }) {
         Column({ space: ThemeConstants.SPACE_XS }) {
-          Text('已安装源包')
+          Text(t('source_pkg_installed_heading'))
             .fontSize(ThemeConstants.FONT_SIZE_H3)
             .fontWeight(FontWeight.Bold)
             .fontColor(ThemeConstants.TEXT_PRIMARY)
-          Text(this.packages.length.toString() + ' 个源')
+          Text(tf('source_pkg_source_count', this.packages.length))
             .fontSize(ThemeConstants.FONT_SIZE_META)
             .fontColor(ThemeConstants.TEXT_SECONDARY)
         }
@@ -1281,7 +1313,7 @@ export struct SourcePackageManagerPage {
         .alignItems(HorizontalAlign.Start)
 
         KomaActionButton({
-          label: this.updateCheckBusy ? '检查中' : '检查更新',
+          label: this.updateCheckBusy ? t('source_pkg_checking') : t('source_pkg_check_updates'),
           kind: 'primary',
           compact: true,
           controlHeight: ThemeConstants.FILTER_CHIP_HEIGHT,
@@ -1301,13 +1333,13 @@ export struct SourcePackageManagerPage {
           .fontColor(ThemeConstants.TEXT_SECONDARY)
       }
 
-      Text(SOURCE_PACKAGE_TRUST_BOUNDARY_NOTICE)
+      Text(sourcePackageTrustBoundaryNotice())
         .width('100%')
         .fontSize(ThemeConstants.FONT_SIZE_CAPTION)
         .lineHeight(18)
         .fontColor(ThemeConstants.TEXT_SECONDARY)
 
-      Text('检查更新为手动操作，仅对用户导入或用户配置索引中的源包生效。')
+      Text(t('source_pkg_manual_check_notice'))
         .width('100%')
         .fontSize(ThemeConstants.FONT_SIZE_CAPTION)
         .lineHeight(18)
@@ -1322,11 +1354,11 @@ export struct SourcePackageManagerPage {
   @Builder
   private EmptyCard() {
     Column({ space: ThemeConstants.SPACE_SM }) {
-      Text('暂无已安装源包')
+      Text(t('source_pkg_empty_title'))
         .fontSize(ThemeConstants.FONT_SIZE_TITLE)
         .fontWeight(FontWeight.Medium)
         .fontColor(ThemeConstants.TEXT_PRIMARY)
-      Text('输入源索引地址加载源列表，或通过本地导入打开 .koma / .koma-source.zip / .zip 源包。')
+      Text(t('source_pkg_empty_message'))
         .fontSize(ThemeConstants.FONT_SIZE_META)
         .fontColor(ThemeConstants.TEXT_SECONDARY)
     }
@@ -1356,7 +1388,7 @@ export struct SourcePackageManagerPage {
         .layoutWeight(1)
         .alignItems(HorizontalAlign.Start)
 
-        Text(source.enabled ? '启用' : '停用')
+        Text(source.enabled ? t('source_pkg_enabled') : t('source_pkg_disabled'))
           .fontSize(ThemeConstants.FONT_SIZE_CAPTION)
           .fontColor(source.enabled ? ThemeConstants.TEXT_ON_BRAND : ThemeConstants.TEXT_SECONDARY)
           .padding({ left: 10, right: 10, top: 4, bottom: 4 })
@@ -1384,7 +1416,7 @@ export struct SourcePackageManagerPage {
         .maxLines(2)
         .textOverflow({ overflow: TextOverflow.Ellipsis })
 
-      Text('Smoke：' + source.smokeStatus + (source.lastDiagnosticMessage.length > 0 ? (' · ' + this.sourceReasonText(source.lastDiagnosticMessage)) : ''))
+      Text(this.packageSmokeText(source))
         .width('100%')
         .fontSize(ThemeConstants.FONT_SIZE_CAPTION)
         .fontColor(ThemeConstants.TEXT_SECONDARY)
@@ -1432,7 +1464,7 @@ export struct SourcePackageManagerPage {
         }
 
         KomaActionButton({
-          label: source.enabled ? '停用' : '启用',
+          label: source.enabled ? t('source_pkg_disable') : t('source_pkg_enable'),
           kind: source.enabled ? 'secondary' : 'primary',
           fill: true,
           controlHeight: ThemeConstants.ACTION_CHIP_HEIGHT,
@@ -1457,7 +1489,7 @@ export struct SourcePackageManagerPage {
 
       Row({ space: ThemeConstants.SPACE_SM }) {
         KomaActionButton({
-          label: '设置',
+          label: t('source_pkg_settings'),
           kind: 'secondary',
           fill: true,
           controlHeight: ThemeConstants.ACTION_CHIP_HEIGHT,
@@ -1478,7 +1510,7 @@ export struct SourcePackageManagerPage {
         })
 
         KomaActionButton({
-          label: this.isDiagnosticsOpen(source.id) ? '收起诊断' : '诊断',
+          label: this.isDiagnosticsOpen(source.id) ? t('source_pkg_hide_diagnostics') : t('source_pkg_diagnostics'),
           kind: 'secondary',
           fill: true,
           controlHeight: ThemeConstants.ACTION_CHIP_HEIGHT,
@@ -1488,7 +1520,7 @@ export struct SourcePackageManagerPage {
         })
 
         KomaActionButton({
-          label: '删除',
+          label: t('source_pkg_delete'),
           kind: 'danger',
           fill: true,
           controlHeight: ThemeConstants.ACTION_CHIP_HEIGHT,
@@ -1513,14 +1545,14 @@ export struct SourcePackageManagerPage {
   private DiagnosticsPanel(source: InstalledSourcePackage) {
     Column({ space: ThemeConstants.SPACE_MD }) {
       Row({ space: ThemeConstants.SPACE_MD }) {
-        Text('源运行诊断')
+        Text(t('source_pkg_diagnostics_title'))
           .fontSize(ThemeConstants.FONT_SIZE_BODY)
           .fontWeight(FontWeight.Medium)
           .fontColor(ThemeConstants.TEXT_PRIMARY)
           .layoutWeight(1)
 
         KomaActionButton({
-          label: '刷新诊断',
+          label: t('source_pkg_refresh_diagnostics'),
           kind: 'secondary',
           compact: true,
           controlHeight: ThemeConstants.ACTION_CHIP_HEIGHT,
@@ -1591,7 +1623,7 @@ export struct SourcePackageManagerPage {
               .fontColor(ThemeConstants.TEXT_PRIMARY)
               .maxLines(1)
               .textOverflow({ overflow: TextOverflow.Ellipsis })
-            Text('源设置')
+            Text(t('source_pkg_settings_title'))
               .fontSize(ThemeConstants.FONT_SIZE_CAPTION)
               .fontColor(ThemeConstants.TEXT_SECONDARY)
           }
@@ -1599,7 +1631,7 @@ export struct SourcePackageManagerPage {
           .alignItems(HorizontalAlign.Start)
 
           KomaActionButton({
-            label: '关闭',
+            label: t('source_pkg_close'),
             kind: 'ghost',
             compact: true,
             accentColor: ThemeConstants.TEXT_SECONDARY,
@@ -1612,7 +1644,7 @@ export struct SourcePackageManagerPage {
         .width('100%')
 
         if (this.settingDescriptors.length === 0) {
-          Text('此源包未提供设置项')
+          Text(t('source_pkg_no_settings'))
             .width('100%')
             .fontSize(ThemeConstants.FONT_SIZE_META)
             .fontColor(ThemeConstants.TEXT_SECONDARY)
@@ -1628,7 +1660,7 @@ export struct SourcePackageManagerPage {
         }
 
         KomaActionButton({
-          label: '保存设置',
+          label: t('source_pkg_save_settings'),
           kind: 'primary',
           action: () => {
             this.saveSettings()
@@ -1649,7 +1681,7 @@ export struct SourcePackageManagerPage {
       if (descriptor.sensitive || !descriptor.supported) {
         ConciseListRow({
           title: descriptor.label,
-          trailingText: descriptor.sensitive ? '需要登录配置' : '暂不支持',
+          trailingText: descriptor.sensitive ? t('source_pkg_login_required') : t('source_pkg_unsupported'),
           showChevron: false,
         })
       } else if (descriptor.kind === 'boolean') {
@@ -1697,44 +1729,46 @@ export struct SourcePackageManagerPage {
   }
 
   build() {
-    Column() {
-      SecondaryListScaffold({
-        listSpace: ThemeConstants.SPACE_MD,
-        horizontalPadding: ThemeConstants.SPACE_XL,
-        bottomPadding: ThemeConstants.FLOAT_BAR_HEIGHT + 20,
-      }) {
-        ListItem() {
-          this.IndexUrlCard()
-        }
-        if (this.indexEntries.length > 0) {
-          ForEach(this.indexEntries, (entry: SourceIndexEntry) => {
+    if (this.languageState.effectiveLocale.length >= 0) {
+      Column() {
+        SecondaryListScaffold({
+          listSpace: ThemeConstants.SPACE_MD,
+          horizontalPadding: ThemeConstants.SPACE_XL,
+          bottomPadding: ThemeConstants.FLOAT_BAR_HEIGHT + 20,
+        }) {
+          ListItem() {
+            this.IndexUrlCard()
+          }
+          if (this.indexEntries.length > 0) {
+            ForEach(this.indexEntries, (entry: SourceIndexEntry) => {
+              ListItem() {
+                this.RemoteIndexCard(entry)
+              }
+            }, (entry: SourceIndexEntry) => entry.id)
+          }
+          ListItem() {
+            this.InstalledHeaderCard()
+          }
+          if (this.packages.length === 0) {
             ListItem() {
-              this.RemoteIndexCard(entry)
+              this.EmptyCard()
             }
-          }, (entry: SourceIndexEntry) => entry.id)
-        }
-        ListItem() {
-          this.InstalledHeaderCard()
-        }
-        if (this.packages.length === 0) {
-          ListItem() {
-            this.EmptyCard()
           }
-        }
-        if (this.settingsSourceId.length > 0) {
-          ListItem() {
-            this.SettingsPanel()
+          if (this.settingsSourceId.length > 0) {
+            ListItem() {
+              this.SettingsPanel()
+            }
           }
+          ForEach(this.packages, (source: InstalledSourcePackage) => {
+            ListItem() {
+              this.PackageCard(source)
+            }
+          }, (source: InstalledSourcePackage) => `${source.id}-${source.enabled}`)
         }
-        ForEach(this.packages, (source: InstalledSourcePackage) => {
-          ListItem() {
-            this.PackageCard(source)
-          }
-        }, (source: InstalledSourcePackage) => `${source.id}-${source.enabled}`)
       }
+      .width('100%')
+      .height('100%')
+      .backgroundColor(ThemeConstants.BG_SUB)
     }
-    .width('100%')
-    .height('100%')
-    .backgroundColor(ThemeConstants.BG_SUB)
   }
 }

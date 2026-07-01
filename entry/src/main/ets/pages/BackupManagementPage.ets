@@ -2,23 +2,33 @@ import { common } from '@kit.AbilityKit'
 import { SecondaryListScaffold } from '../components/SecondaryListScaffold'
 import { KomaActionButton } from '../components/ui/KomaActionButton'
 import { KomaFormTextField } from '../components/ui/KomaFormTextField'
+import { AppStrings } from '../i18n/AppStrings'
 import {
   BACKUP_ACCEPTED_SCHEMA_VERSIONS,
-  BACKUP_ENCRYPTED_EXPORT_SUCCESS,
-  BACKUP_ENCRYPTION_PLAN_LABEL,
-  BACKUP_ENCRYPTION_STATUS_LABEL,
-  BACKUP_INCLUDED_DOMAIN_LABELS,
-  BACKUP_IMPORT_CONFLICT_POLICY,
-  BACKUP_IMPORT_PREVIEW_NOTE,
-  BACKUP_MANAGEMENT_STORAGE_NOTE,
-  BACKUP_PASSPHRASE_HELP_TEXT,
   BACKUP_SCHEMA_VERSION,
-  BACKUP_UNENCRYPTED_EXPORT_WARNING,
   BackupImportPreview,
   BackupImportSelectionPreview,
   BackupService,
+  backupEncryptedExportSuccess,
+  backupEncryptionPlanLabel,
+  backupEncryptionStatusLabel,
+  backupImportConflictPolicy,
+  backupImportPreviewNote,
+  backupIncludedDomainLabels,
+  backupManagementStorageNote,
+  backupPassphraseHelpText,
+  backupUnencryptedExportWarning,
 } from '../model/BackupService'
+import { connectLanguageState, LanguageState } from '../state/LanguageState'
 import { ThemeConstants } from '../theme/ThemeConstants'
+
+function t(name: string): string {
+  return AppStrings.get(name)
+}
+
+function tf(name: string, ...args: Array<string | number>): string {
+  return AppStrings.format(name, ...args)
+}
 
 @ComponentV2
 export struct BackupManagementPage {
@@ -29,6 +39,7 @@ export struct BackupManagementPage {
   @Local private exportPassphrase: string = ''
   @Local private exportPassphraseConfirm: string = ''
   @Local private importPassphrase: string = ''
+  @Local private languageState: LanguageState = connectLanguageState()
 
   private context(): common.UIAbilityContext {
     return getContext(this) as common.UIAbilityContext
@@ -54,13 +65,13 @@ export struct BackupManagementPage {
       title,
       message,
       buttons: [
-        { text: '确定', color: $r('app.color.koma_accent') },
+        { text: t('common_confirm'), color: $r('app.color.koma_accent') },
       ],
     })
   }
 
   private backupFailureMessage(code: string): string {
-    return `操作未完成，请稍后重试或重新选择备份文件。错误码：${code}`
+    return tf('backup_failure_message', code)
   }
 
   private exportBackup(): void {
@@ -72,12 +83,15 @@ export struct BackupManagementPage {
     void this.backupService().exportToPicker()
       .then((uri: string | undefined) => {
         if (uri !== undefined) {
-          this.showInfoDialog('备份已导出', `备份 JSON 已保存到所选位置。\n${BACKUP_UNENCRYPTED_EXPORT_WARNING}`)
+          this.showInfoDialog(
+            t('backup_dialog_exported_title'),
+            `${t('backup_dialog_exported_message')}\n${backupUnencryptedExportWarning()}`,
+          )
         }
       })
       .catch((_error: Error) => {
         console.error('[BackupManagement] step=export_failed code=backup_export_failed')
-        this.showInfoDialog('导出失败', this.backupFailureMessage('backup_export_failed'))
+        this.showInfoDialog(t('backup_dialog_export_failed_title'), this.backupFailureMessage('backup_export_failed'))
       })
       .finally(() => {
         this.exportPassphrase = ''
@@ -91,11 +105,11 @@ export struct BackupManagementPage {
       return
     }
     if (this.exportPassphrase.length < 8) {
-      this.showInfoDialog('无法导出', '加密备份口令至少 8 个字符。')
+      this.showInfoDialog(t('backup_dialog_export_blocked_title'), t('backup_passphrase_too_short'))
       return
     }
     if (this.exportPassphrase !== this.exportPassphraseConfirm) {
-      this.showInfoDialog('无法导出', '两次输入的口令不一致。')
+      this.showInfoDialog(t('backup_dialog_export_blocked_title'), t('backup_passphrase_mismatch'))
       return
     }
     const passphrase = this.exportPassphrase
@@ -106,12 +120,12 @@ export struct BackupManagementPage {
         this.exportPassphrase = ''
         this.exportPassphraseConfirm = ''
         if (uri !== undefined) {
-          this.showInfoDialog('加密备份已导出', BACKUP_ENCRYPTED_EXPORT_SUCCESS)
+          this.showInfoDialog(t('backup_dialog_encrypted_exported_title'), backupEncryptedExportSuccess())
         }
       })
       .catch((_error: Error) => {
         console.error('[BackupManagement] step=export_encrypted_failed code=backup_export_failed')
-        this.showInfoDialog('导出失败', this.backupFailureMessage('backup_export_failed'))
+        this.showInfoDialog(t('backup_dialog_export_failed_title'), this.backupFailureMessage('backup_export_failed'))
       })
       .finally(() => {
         this.importPassphrase = ''
@@ -138,12 +152,12 @@ export struct BackupManagementPage {
             this.selectedBackupPayload = selection.payload
           }
           this.selectedBackupPreview = selection.preview
-          this.showToast('已读取备份预览，请确认后恢复')
+          this.showToast(t('backup_preview_loaded_toast'))
         }
       })
       .catch((_error: Error) => {
         console.error('[BackupManagement] step=preview_failed code=backup_preview_failed')
-        this.showInfoDialog('预览失败', this.backupFailureMessage('backup_preview_failed'))
+        this.showInfoDialog(t('backup_dialog_preview_failed_title'), this.backupFailureMessage('backup_preview_failed'))
       })
       .finally(() => {
         this.busy = false
@@ -155,7 +169,7 @@ export struct BackupManagementPage {
       return
     }
     if (this.importPassphrase.length < 8) {
-      this.showInfoDialog('无法解密', '请输入备份口令。')
+      this.showInfoDialog(t('backup_dialog_decrypt_blocked_title'), t('backup_enter_passphrase'))
       return
     }
     const passphrase = this.importPassphrase
@@ -167,11 +181,11 @@ export struct BackupManagementPage {
         this.selectedBackupPreview = selection.preview
         this.selectedEncryptedBackupPayload = ''
         this.importPassphrase = ''
-        this.showToast('加密备份已解密，请确认后恢复')
+        this.showToast(t('backup_decrypted_toast'))
       })
       .catch((_error: Error) => {
         console.error('[BackupManagement] step=decrypt_preview_failed code=backup_decrypt_failed')
-        this.showInfoDialog('解密失败', '无法解密备份。请确认文件和口令后重试。')
+        this.showInfoDialog(t('backup_dialog_decrypt_failed_title'), t('backup_decrypt_failed_message'))
       })
       .finally(() => {
         this.busy = false
@@ -192,11 +206,11 @@ export struct BackupManagementPage {
         this.selectedBackupPayload = ''
         this.selectedEncryptedBackupPayload = ''
         this.selectedBackupPreview = undefined
-        this.showInfoDialog('备份已导入', '已按所选备份恢复书架、阅读进度、远程服务器配置、源包和偏好。')
+        this.showInfoDialog(t('backup_dialog_imported_title'), t('backup_imported_message'))
       })
       .catch((_error: Error) => {
         console.error('[BackupManagement] step=import_failed code=backup_import_failed')
-        this.showInfoDialog('导入失败', this.backupFailureMessage('backup_import_failed'))
+        this.showInfoDialog(t('backup_dialog_import_failed_title'), this.backupFailureMessage('backup_import_failed'))
       })
       .finally(() => {
         this.busy = false
@@ -207,7 +221,7 @@ export struct BackupManagementPage {
   private StatusCard() {
     Column({ space: ThemeConstants.SPACE_MD }) {
       Row() {
-        Text('当前导出架构')
+        Text(t('backup_current_schema'))
           .fontSize(ThemeConstants.FONT_SIZE_BODY)
           .fontWeight(FontWeight.Medium)
           .fontColor(ThemeConstants.TEXT_PRIMARY)
@@ -219,7 +233,7 @@ export struct BackupManagementPage {
       .width('100%')
 
       Row() {
-        Text('可恢复版本')
+        Text(t('backup_supported_versions'))
           .fontSize(ThemeConstants.FONT_SIZE_BODY)
           .fontColor(ThemeConstants.TEXT_PRIMARY)
           .layoutWeight(1)
@@ -239,31 +253,31 @@ export struct BackupManagementPage {
   private EncryptionCard() {
     Column({ space: ThemeConstants.SPACE_MD }) {
       Row() {
-        Text('备份加密')
+        Text(t('backup_encryption_heading'))
           .fontSize(ThemeConstants.FONT_SIZE_BODY)
           .fontWeight(FontWeight.Medium)
           .fontColor(ThemeConstants.TEXT_PRIMARY)
           .layoutWeight(1)
-        Text(BACKUP_ENCRYPTION_STATUS_LABEL)
+        Text(backupEncryptionStatusLabel())
           .fontSize(ThemeConstants.FONT_SIZE_BODY)
           .fontColor(ThemeConstants.BRAND_PRIMARY)
       }
       .width('100%')
 
-      Text(BACKUP_ENCRYPTION_PLAN_LABEL)
+      Text(backupEncryptionPlanLabel())
         .width('100%')
         .fontSize(ThemeConstants.FONT_SIZE_META)
         .fontColor(ThemeConstants.TEXT_SECONDARY)
         .lineHeight(ThemeConstants.LINE_HEIGHT_BODY)
 
-      Text(BACKUP_PASSPHRASE_HELP_TEXT)
+      Text(backupPassphraseHelpText())
         .width('100%')
         .fontSize(ThemeConstants.FONT_SIZE_META)
         .fontColor(ThemeConstants.TEXT_SECONDARY)
         .lineHeight(ThemeConstants.LINE_HEIGHT_BODY)
 
       KomaFormTextField({
-        label: '加密口令',
+        label: t('backup_passphrase_label'),
         value: this.exportPassphrase,
         isPassword: true,
         change: (value: string) => {
@@ -272,7 +286,7 @@ export struct BackupManagementPage {
       })
 
       KomaFormTextField({
-        label: '确认口令',
+        label: t('backup_passphrase_confirm_label'),
         value: this.exportPassphraseConfirm,
         isPassword: true,
         change: (value: string) => {
@@ -281,7 +295,7 @@ export struct BackupManagementPage {
       })
 
       KomaActionButton({
-        label: this.busy ? '处理中' : '导出加密备份',
+        label: this.busy ? t('backup_processing') : t('backup_export_encrypted_action'),
         kind: 'primary',
         fullWidth: true,
         icon: $r('sys.symbol.doc_plaintext'),
@@ -301,13 +315,13 @@ export struct BackupManagementPage {
   @Builder
   private DomainsCard() {
     Column({ space: ThemeConstants.SPACE_MD }) {
-      Text('包含的数据')
+      Text(t('backup_included_data'))
         .width('100%')
         .fontSize(ThemeConstants.FONT_SIZE_BODY)
         .fontWeight(FontWeight.Medium)
         .fontColor(ThemeConstants.TEXT_PRIMARY)
 
-      ForEach(BACKUP_INCLUDED_DOMAIN_LABELS, (domain: string) => {
+      ForEach(backupIncludedDomainLabels(), (domain: string) => {
         Row({ space: ThemeConstants.SPACE_MD }) {
           Text('-')
             .fontSize(ThemeConstants.FONT_SIZE_BODY)
@@ -330,7 +344,7 @@ export struct BackupManagementPage {
   private ActionsCard() {
     Column({ space: ThemeConstants.SPACE_MD }) {
       KomaActionButton({
-        label: this.busy ? '处理中' : '导出备份',
+        label: this.busy ? t('backup_processing') : t('backup_export_action'),
         kind: 'primary',
         fullWidth: true,
         icon: $r('sys.symbol.doc_plaintext'),
@@ -342,7 +356,7 @@ export struct BackupManagementPage {
         .width('100%')
 
       KomaActionButton({
-        label: this.busy ? '处理中' : '选择备份并预览',
+        label: this.busy ? t('backup_processing') : t('backup_select_preview_action'),
         kind: 'secondary',
         fullWidth: true,
         icon: $r('sys.symbol.doc_plaintext'),
@@ -354,7 +368,7 @@ export struct BackupManagementPage {
         .width('100%')
 
       KomaActionButton({
-        label: this.busy ? '处理中' : '恢复所选备份',
+        label: this.busy ? t('backup_processing') : t('backup_restore_selected_action'),
         kind: this.selectedBackupPayload.length > 0 ? 'primary' : 'secondary',
         fullWidth: true,
         icon: $r('sys.symbol.arrow_clockwise'),
@@ -367,7 +381,7 @@ export struct BackupManagementPage {
 
       if (this.selectedEncryptedBackupPayload.length > 0) {
         KomaFormTextField({
-          label: '解密口令',
+          label: t('backup_decrypt_passphrase_label'),
           value: this.importPassphrase,
           isPassword: true,
           change: (value: string) => {
@@ -376,7 +390,7 @@ export struct BackupManagementPage {
         })
 
         KomaActionButton({
-          label: this.busy ? '处理中' : '解密并预览',
+          label: this.busy ? t('backup_processing') : t('backup_decrypt_preview_action'),
           kind: 'primary',
           fullWidth: true,
           icon: $r('sys.symbol.doc_plaintext'),
@@ -397,17 +411,17 @@ export struct BackupManagementPage {
   @Builder
   private ImportPreviewIntroCard() {
     Column({ space: ThemeConstants.SPACE_SM }) {
-      Text('导入预览')
+      Text(t('backup_import_preview_heading'))
         .width('100%')
         .fontSize(ThemeConstants.FONT_SIZE_BODY)
         .fontWeight(FontWeight.Medium)
         .fontColor(ThemeConstants.TEXT_PRIMARY)
-      Text(BACKUP_IMPORT_PREVIEW_NOTE)
+      Text(backupImportPreviewNote())
         .width('100%')
         .fontSize(ThemeConstants.FONT_SIZE_META)
         .fontColor(ThemeConstants.TEXT_SECONDARY)
         .lineHeight(ThemeConstants.LINE_HEIGHT_BODY)
-      Text(BACKUP_IMPORT_CONFLICT_POLICY)
+      Text(backupImportConflictPolicy())
         .width('100%')
         .fontSize(ThemeConstants.FONT_SIZE_META)
         .fontColor(ThemeConstants.TEXT_SECONDARY)
@@ -436,27 +450,33 @@ export struct BackupManagementPage {
   @Builder
   private SelectedPreviewCard(preview: BackupImportPreview) {
     Column({ space: ThemeConstants.SPACE_MD }) {
-      Text('已选择的备份')
+      Text(t('backup_selected_heading'))
         .width('100%')
         .fontSize(ThemeConstants.FONT_SIZE_BODY)
         .fontWeight(FontWeight.Medium)
         .fontColor(ThemeConstants.TEXT_PRIMARY)
-      this.PreviewRow('备份版本', `v${preview.schemaVersion}`)
-      this.PreviewRow('导出时间', preview.exportedAtText)
-      this.PreviewRow('加密状态', preview.encryptionText)
+      this.PreviewRow(t('backup_preview_version'), `v${preview.schemaVersion}`)
+      this.PreviewRow(t('backup_preview_exported_at'), preview.exportedAtText)
+      this.PreviewRow(t('backup_preview_encryption_status'), preview.encryptionText)
       if (preview.encrypted) {
-        this.PreviewRow('加密算法', preview.algorithm)
-        this.PreviewRow('密钥派生', preview.kdfId)
+        this.PreviewRow(t('backup_preview_algorithm'), preview.algorithm)
+        this.PreviewRow(t('backup_preview_kdf'), preview.kdfId)
       }
       if (!preview.encrypted || preview.decrypted) {
-        this.PreviewRow('书架项目', `${preview.libraryItemCount}`)
-        this.PreviewRow('阅读进度', `${preview.progressCount}`)
-        this.PreviewRow('设置项', `${preview.settingsCount}`)
-        this.PreviewRow('分类', `${preview.categoryCount}`)
-        this.PreviewRow('下载队列', preview.hasDownloadQueueCount ? `${preview.downloadQueueCount}` : '备份中未提供')
-        this.PreviewRow('追踪映射', preview.hasTrackerMappingCount ? `${preview.trackerMappingCount}` : '备份中未提供')
-        this.PreviewRow('源包元数据', `${preview.sourcePackageCount}`)
-        this.PreviewRow('源设置', `${preview.sourceSettingsCount}`)
+        this.PreviewRow(t('backup_preview_library_items'), `${preview.libraryItemCount}`)
+        this.PreviewRow(t('backup_preview_progress'), `${preview.progressCount}`)
+        this.PreviewRow(t('backup_preview_settings'), `${preview.settingsCount}`)
+        this.PreviewRow(t('backup_preview_categories'), `${preview.categoryCount}`)
+        this.PreviewRow(
+          t('backup_preview_download_queue'),
+          preview.hasDownloadQueueCount ? `${preview.downloadQueueCount}` : t('backup_preview_not_provided'),
+        )
+        this.PreviewRow(
+          t('backup_preview_tracker_mappings'),
+          preview.hasTrackerMappingCount ? `${preview.trackerMappingCount}` : t('backup_preview_not_provided'),
+        )
+        this.PreviewRow(t('backup_preview_source_package_metadata'), `${preview.sourcePackageCount}`)
+        this.PreviewRow(t('backup_preview_source_settings'), `${preview.sourceSettingsCount}`)
       }
     }
     .width('100%')
@@ -468,12 +488,12 @@ export struct BackupManagementPage {
   @Builder
   private StorageNoteCard() {
     Column({ space: ThemeConstants.SPACE_SM }) {
-      Text('备份文件管理')
+      Text(t('backup_file_management_heading'))
         .width('100%')
         .fontSize(ThemeConstants.FONT_SIZE_BODY)
         .fontWeight(FontWeight.Medium)
         .fontColor(ThemeConstants.TEXT_PRIMARY)
-      Text(BACKUP_MANAGEMENT_STORAGE_NOTE)
+      Text(backupManagementStorageNote())
         .width('100%')
         .fontSize(ThemeConstants.FONT_SIZE_META)
         .fontColor(ThemeConstants.TEXT_SECONDARY)
@@ -486,39 +506,41 @@ export struct BackupManagementPage {
   }
 
   build() {
-    Column() {
-      SecondaryListScaffold({
-        listSpace: ThemeConstants.SPACE_MD,
-        horizontalPadding: ThemeConstants.SPACE_XL,
-        bottomPadding: ThemeConstants.FLOAT_BAR_HEIGHT + 20 + ThemeConstants.SPACE_XL,
-      }) {
-        ListItem() {
-          this.StatusCard()
-        }
-        ListItem() {
-          this.EncryptionCard()
-        }
-        ListItem() {
-          this.DomainsCard()
-        }
-        ListItem() {
-          this.ImportPreviewIntroCard()
-        }
-        if (this.selectedBackupPreview !== undefined) {
+    if (this.languageState.effectiveLocale.length >= 0) {
+      Column() {
+        SecondaryListScaffold({
+          listSpace: ThemeConstants.SPACE_MD,
+          horizontalPadding: ThemeConstants.SPACE_XL,
+          bottomPadding: ThemeConstants.FLOAT_BAR_HEIGHT + 20 + ThemeConstants.SPACE_XL,
+        }) {
           ListItem() {
-            this.SelectedPreviewCard(this.selectedBackupPreview)
+            this.StatusCard()
+          }
+          ListItem() {
+            this.EncryptionCard()
+          }
+          ListItem() {
+            this.DomainsCard()
+          }
+          ListItem() {
+            this.ImportPreviewIntroCard()
+          }
+          if (this.selectedBackupPreview !== undefined) {
+            ListItem() {
+              this.SelectedPreviewCard(this.selectedBackupPreview)
+            }
+          }
+          ListItem() {
+            this.ActionsCard()
+          }
+          ListItem() {
+            this.StorageNoteCard()
           }
         }
-        ListItem() {
-          this.ActionsCard()
-        }
-        ListItem() {
-          this.StorageNoteCard()
-        }
       }
+      .width('100%')
+      .height('100%')
+      .backgroundColor(ThemeConstants.BG_SUB)
     }
-    .width('100%')
-    .height('100%')
-    .backgroundColor(ThemeConstants.BG_SUB)
   }
 }

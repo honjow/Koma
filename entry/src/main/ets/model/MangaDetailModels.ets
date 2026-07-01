@@ -1,3 +1,4 @@
+import { AppStrings } from '../i18n/AppStrings'
 import { normalizeSourceDisplayText } from './SourceTextNormalizer'
 
 export interface MangaDetail {
@@ -114,7 +115,7 @@ export function parseMangaDetailFromSourceItem(sourceId: string, item: SourceRun
     optionalSourceDisplayString(item['title']),
     optionalSourceDisplayString(item['name']),
     normalizeSourceDisplayText(id),
-  ]) ?? '未命名漫画'
+  ]) ?? AppStrings.get('manga_detail_title_fallback')
   return {
     id,
     title,
@@ -144,7 +145,8 @@ export function parseMangaChapterFromSourceItem(item: SourceRuntimeRecord): Mang
   const chapterNumber = optionalSourceNumber(item['chapter_number']) ?? optionalSourceNumber(item['chapterNumber'])
   return {
     id,
-    title: firstSourceString([optionalSourceDisplayString(item['title']), normalizeSourceDisplayText(id)]) ?? '未命名章节',
+    title: firstSourceString([optionalSourceDisplayString(item['title']), normalizeSourceDisplayText(id)]) ??
+      AppStrings.get('manga_detail_chapter_untitled'),
     chapterNumber,
     volumeNumber: firstSourceString([
       optionalSourceString(item['volume_number']),

@@ -6,6 +6,7 @@ import { KomaFormTextField } from '../components/ui/KomaFormTextField'
 import { RemoteServerStore } from '../model/RemoteServerStore'
 import { ThemeConstants } from '../theme/ThemeConstants'
 import { AppStrings } from '../i18n/AppStrings'
+import { connectLanguageState, LanguageState } from '../state/LanguageState'
 
 function s(name: string): string {
   return AppStrings.get(name)
@@ -13,6 +14,7 @@ function s(name: string): string {
 
 @ComponentV2
 export struct WebDavServerPage {
+  @Local private languageState: LanguageState = connectLanguageState()
   @Local private baseUrl: string = ''
   @Local private username: string = ''
   @Local private password: string = ''

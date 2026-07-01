@@ -13,6 +13,7 @@ import {
 } from '../model/TrackerModels'
 import { ThemeConstants } from '../theme/ThemeConstants'
 import { AppStrings } from '../i18n/AppStrings'
+import { connectLanguageState, LanguageState } from '../state/LanguageState'
 
 function s(name: string): string {
   return AppStrings.get(name)
@@ -20,6 +21,7 @@ function s(name: string): string {
 
 @ComponentV2
 export struct TrackerSettingsPage {
+  @Local private languageState: LanguageState = connectLanguageState()
   @Local private accounts: TrackerAccount[] = DEFAULT_TRACKER_ACCOUNTS
   @Local private secureStorageAvailable: boolean = false
   @Local private authPreparationMessageKey: string = 'tracker_message_secure_storage_unverified'

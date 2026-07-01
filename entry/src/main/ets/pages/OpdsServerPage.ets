@@ -7,6 +7,7 @@ import { RemoteServerStore } from '../model/RemoteServerStore'
 import { OpdsVersion } from '../remote/OpdsModels'
 import { ThemeConstants } from '../theme/ThemeConstants'
 import { AppStrings } from '../i18n/AppStrings'
+import { connectLanguageState, LanguageState } from '../state/LanguageState'
 
 function s(name: string): string {
   return AppStrings.get(name)
@@ -14,6 +15,7 @@ function s(name: string): string {
 
 @ComponentV2
 export struct OpdsServerPage {
+  @Local private languageState: LanguageState = connectLanguageState()
   @Local private rootUrl: string = ''
   @Local private username: string = ''
   @Local private password: string = ''

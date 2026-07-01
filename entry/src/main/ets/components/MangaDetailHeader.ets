@@ -1,5 +1,11 @@
+import { AppStrings } from '../i18n/AppStrings'
+import { connectLanguageState, LanguageState } from '../state/LanguageState'
 import { MangaDetail, MangaStatus } from '../model/MangaDetailModels'
 import { ThemeConstants } from '../theme/ThemeConstants'
+
+function s(name: string): string {
+  return AppStrings.get(name)
+}
 
 @ComponentV2
 export struct MangaDetailHeader {
@@ -9,13 +15,19 @@ export struct MangaDetailHeader {
     chapterCount: 0,
     isInLibrary: false,
   }
+  @Local private languageState: LanguageState = connectLanguageState()
 
   private hasCover(): boolean {
     return this.manga.coverUrl !== undefined && this.manga.coverUrl.length > 0
   }
 
+  private displayTitle(): string {
+    return this.manga.title.length > 0 ? this.manga.title : s('manga_detail_title_fallback')
+  }
+
   private titleInitial(): string {
-    return this.manga.title.length > 0 ? this.manga.title.substring(0, 1) : 'K'
+    const title = this.displayTitle()
+    return title.length > 0 ? title.substring(0, 1) : 'K'
   }
 
   private creatorText(): string {
@@ -30,24 +42,24 @@ export struct MangaDetailHeader {
     if (artist.length > 0) {
       return artist
     }
-    return '作者未知'
+    return s('manga_detail_creator_unknown')
   }
 
   private statusLabel(): string {
     const status = this.manga.status === undefined ? MangaStatus.UNKNOWN : this.manga.status
     if (status === MangaStatus.ONGOING) {
-      return '连载中'
+      return s('manga_status_ongoing')
     }
     if (status === MangaStatus.COMPLETED) {
-      return '已完结'
+      return s('manga_status_completed')
     }
     if (status === MangaStatus.HIATUS) {
-      return '暂停'
+      return s('manga_status_hiatus')
     }
     if (status === MangaStatus.CANCELLED) {
-      return '已取消'
+      return s('manga_status_cancelled')
     }
-    return '状态未知'
+    return s('manga_status_unknown')
   }
 
   private statusBackgroundColor(): ResourceColor {
@@ -101,7 +113,7 @@ export struct MangaDetailHeader {
       this.Cover()
 
       Column({ space: ThemeConstants.SPACE_SM }) {
-        Text(this.manga.title)
+        Text(this.displayTitle())
           .fontSize(ThemeConstants.FONT_SIZE_H1)
           .lineHeight(30)
           .fontWeight(FontWeight.Bold)
@@ -137,7 +149,7 @@ export struct MangaDetailHeader {
         }
         .width('100%')
 
-        Text(`${this.manga.chapterCount} 章`)
+        Text(s('manga_detail_chapter_count').replace('%s', `${this.manga.chapterCount}`))
           .fontSize(ThemeConstants.FONT_SIZE_META)
           .fontColor(ThemeConstants.TEXT_SECONDARY)
       }

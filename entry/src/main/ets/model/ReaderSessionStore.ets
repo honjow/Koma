@@ -11,6 +11,7 @@ import {
   InMemoryReadingProgressStore,
   ReadingProgressStore,
 } from './ReadingProgressStore'
+import { AppStrings } from '../i18n/AppStrings'
 
 export const READER_PROGRESS_PERSISTENCE_SCHEMA_VERSION = 1
 export const READER_PROGRESS_PERSISTENCE_FILE_NAME = 'reader-progress.v1.json'
@@ -57,12 +58,12 @@ export function isContinuousScrollReaderMode(mode: ReaderMode): boolean {
 
 export function getReaderModeLabel(mode: ReaderMode): string {
   if (mode === ReaderMode.CONTINUOUS_SCROLL) {
-    return '连续滚动'
+    return AppStrings.get('reader_page_mode_continuous')
   }
   if (mode === ReaderMode.DUAL_PAGE) {
-    return '双页'
+    return AppStrings.get('reader_page_mode_double')
   }
-  return '单页'
+  return AppStrings.get('reader_page_mode_single')
 }
 
 export interface ReaderSessionStore {

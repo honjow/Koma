@@ -46,6 +46,7 @@ import {
   ReaderSessionStore,
 } from '../model/ReaderSessionStore'
 import { AppStrings } from '../i18n/AppStrings'
+import { connectLanguageState, LanguageState } from '../state/LanguageState'
 
 function s(name: string): string {
   return AppStrings.get(name)
@@ -115,6 +116,7 @@ export struct LibraryPage {
   @Param libraryStore: LibraryStore = createSeededLibraryStore()
   @Param libraryComics: Comic[] = createSeededLibraryStore().listComics()
   @Param libraryRevision: number = 0
+  @Local private languageState: LanguageState = connectLanguageState()
   @Local private displayedComics: Comic[] = createSeededLibraryStore().listComics()
   @Local private displayedRevision: number = 0
   @Local private selectionMode: boolean = false

@@ -1,9 +1,16 @@
+import { AppStrings } from '../i18n/AppStrings'
+import { connectLanguageState, LanguageState } from '../state/LanguageState'
 import { ThemeConstants } from '../theme/ThemeConstants'
 import { KomaActionButton } from './ui/KomaActionButton'
+
+function s(name: string): string {
+  return AppStrings.get(name)
+}
 
 @ComponentV2
 export struct MangaDescriptionSection {
   @Param description: string = ''
+  @Local private languageState: LanguageState = connectLanguageState()
   @Local private expanded: boolean = false
 
   private hasDescription(): boolean {
@@ -11,18 +18,18 @@ export struct MangaDescriptionSection {
   }
 
   private toggleLabel(): string {
-    return this.expanded ? '收起' : '展开'
+    return this.expanded ? s('common_collapse') : s('common_expand')
   }
 
   build() {
     Column({ space: ThemeConstants.SPACE_MD }) {
-      Text('简介')
+      Text(s('common_description'))
         .width('100%')
         .fontSize(ThemeConstants.FONT_SIZE_H3)
         .fontWeight(FontWeight.Bold)
         .fontColor(ThemeConstants.TEXT_PRIMARY)
 
-      Text(this.hasDescription() ? this.description : '暂无简介')
+      Text(this.hasDescription() ? this.description : s('manga_detail_description_empty'))
         .width('100%')
         .fontSize(ThemeConstants.FONT_SIZE_BODY)
         .lineHeight(ThemeConstants.LINE_HEIGHT_TITLE)

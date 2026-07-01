@@ -1,11 +1,17 @@
 import { MangaGridItem } from '../components/MangaGridItem'
 import { KomaActionButton } from '../components/ui/KomaActionButton'
 import { KomaEmptyState } from '../components/ui/KomaEmptyState'
+import { AppStrings } from '../i18n/AppStrings'
 import { SourceManga } from '../model/SourceModels'
 import { connectLayoutSafeArea, LayoutSafeAreaState } from '../state/LayoutSafeAreaState'
+import { connectLanguageState, LanguageState } from '../state/LanguageState'
 import { ThemeConstants } from '../theme/ThemeConstants'
 import { BrowseViewModel } from '../viewmodel/BrowseViewModel'
 import { SourceRuntimeRegistryInstalledSourceSummary } from '../sourceRuntime/SourceRuntimeRegistry'
+
+function s(name: string): string {
+  return AppStrings.get(name)
+}
 
 @ComponentV2
 export struct SourceSearchPage {
@@ -25,6 +31,7 @@ export struct SourceSearchPage {
   }
   @Param viewModel: BrowseViewModel = new BrowseViewModel()
   @Local private safeArea: LayoutSafeAreaState = connectLayoutSafeArea()
+  @Local private languageState: LanguageState = connectLanguageState()
   @Local private query: string = ''
   private searchTimer: number = 0
   @Event onMangaTap: (manga: SourceManga) => void = (_manga: SourceManga) => {}
@@ -52,8 +59,8 @@ export struct SourceSearchPage {
   @Builder
   private EmptySearch() {
     KomaEmptyState({
-      title: this.query.trim().length === 0 ? '输入关键词搜索' : '没有找到结果',
-      message: this.query.trim().length === 0 ? '搜索当前源内的漫画。' : '换个关键词再试。',
+      title: this.query.trim().length === 0 ? s('source_search_empty_idle_title') : s('source_search_empty_results_title'),
+      message: this.query.trim().length === 0 ? s('source_search_empty_idle_message') : s('source_search_empty_results_message'),
     })
   }
 
@@ -85,77 +92,79 @@ export struct SourceSearchPage {
   }
 
   build() {
-    Scroll() {
-      Column({ space: ThemeConstants.SPACE_LG }) {
-        Column({ space: ThemeConstants.SPACE_XS }) {
-          Text('搜索')
-            .fontSize(ThemeConstants.FONT_SIZE_H1)
-            .fontWeight(FontWeight.Bold)
-            .fontColor(ThemeConstants.TEXT_PRIMARY)
-          Text(this.source.displayName)
-            .fontSize(ThemeConstants.FONT_SIZE_BODY)
-            .fontColor(ThemeConstants.TEXT_SECONDARY)
-            .maxLines(1)
-            .textOverflow({ overflow: TextOverflow.Ellipsis })
-        }
-        .width('100%')
-        .alignItems(HorizontalAlign.Start)
-
-        Search({ value: this.query, placeholder: '搜索漫画' })
+    if (this.languageState.effectiveLocale.length >= 0) {
+      Scroll() {
+        Column({ space: ThemeConstants.SPACE_LG }) {
+          Column({ space: ThemeConstants.SPACE_XS }) {
+            Text(s('tab_search'))
+              .fontSize(ThemeConstants.FONT_SIZE_H1)
+              .fontWeight(FontWeight.Bold)
+              .fontColor(ThemeConstants.TEXT_PRIMARY)
+            Text(this.source.displayName)
+              .fontSize(ThemeConstants.FONT_SIZE_BODY)
+              .fontColor(ThemeConstants.TEXT_SECONDARY)
+              .maxLines(1)
+              .textOverflow({ overflow: TextOverflow.Ellipsis })
+          }
           .width('100%')
-          .height(ThemeConstants.BUTTON_HEIGHT)
-          .backgroundColor(ThemeConstants.CARD)
-          .placeholderColor(ThemeConstants.TEXT_SECONDARY)
-          .textFont({ size: ThemeConstants.FONT_SIZE_BODY, weight: FontWeight.Regular })
-          .onChange((value: string) => {
-            this.scheduleSearch(value)
-          })
-          .onSubmit((value: string) => {
-            this.scheduleSearch(value)
-          })
+          .alignItems(HorizontalAlign.Start)
 
-        if (this.viewModel.loadingSearch) {
-          LoadingProgress()
-            .width(ThemeConstants.SPACE_XXL)
-            .height(ThemeConstants.SPACE_XXL)
-            .color(ThemeConstants.BRAND_PRIMARY)
-        } else if (this.viewModel.errorMessage.length > 0) {
-          Text(this.viewModel.errorMessage)
+          Search({ value: this.query, placeholder: s('source_search_placeholder') })
             .width('100%')
-            .fontSize(ThemeConstants.FONT_SIZE_BODY)
-            .fontColor(ThemeConstants.DANGER)
-            .padding(ThemeConstants.SPACE_LG)
-            .borderRadius(ThemeConstants.RADIUS_CARD)
+            .height(ThemeConstants.BUTTON_HEIGHT)
             .backgroundColor(ThemeConstants.CARD)
-        } else if (this.viewModel.searchResults.length === 0) {
-          this.EmptySearch()
-        } else {
-          this.ResultsGrid(this.viewModel.searchResults)
-          if (this.viewModel.hasMoreSearch) {
-            KomaActionButton({
-              label: '加载更多',
-              kind: 'secondary',
-              fill: true,
-              action: () => {
-                void this.viewModel.loadMoreSearch()
-              },
+            .placeholderColor(ThemeConstants.TEXT_SECONDARY)
+            .textFont({ size: ThemeConstants.FONT_SIZE_BODY, weight: FontWeight.Regular })
+            .onChange((value: string) => {
+              this.scheduleSearch(value)
             })
+            .onSubmit((value: string) => {
+              this.scheduleSearch(value)
+            })
+
+          if (this.viewModel.loadingSearch) {
+            LoadingProgress()
+              .width(ThemeConstants.SPACE_XXL)
+              .height(ThemeConstants.SPACE_XXL)
+              .color(ThemeConstants.BRAND_PRIMARY)
+          } else if (this.viewModel.errorMessage.length > 0) {
+            Text(this.viewModel.errorMessage)
+              .width('100%')
+              .fontSize(ThemeConstants.FONT_SIZE_BODY)
+              .fontColor(ThemeConstants.DANGER)
+              .padding(ThemeConstants.SPACE_LG)
+              .borderRadius(ThemeConstants.RADIUS_CARD)
+              .backgroundColor(ThemeConstants.CARD)
+          } else if (this.viewModel.searchResults.length === 0) {
+            this.EmptySearch()
+          } else {
+            this.ResultsGrid(this.viewModel.searchResults)
+            if (this.viewModel.hasMoreSearch) {
+              KomaActionButton({
+                label: s('common_load_more'),
+                kind: 'secondary',
+                fill: true,
+                action: () => {
+                  void this.viewModel.loadMoreSearch()
+                },
+              })
+            }
           }
         }
+        .width('100%')
+        .padding({
+          left: ThemeConstants.SPACE_XL,
+          right: ThemeConstants.SPACE_XL,
+          top: this.topContentInset(),
+          bottom: this.bottomContentInset(),
+        })
       }
       .width('100%')
-      .padding({
-        left: ThemeConstants.SPACE_XL,
-        right: ThemeConstants.SPACE_XL,
-        top: this.topContentInset(),
-        bottom: this.bottomContentInset(),
+      .height('100%')
+      .backgroundColor(ThemeConstants.BG_SUB)
+      .onReachEnd(() => {
+        void this.viewModel.loadMoreSearch()
       })
     }
-    .width('100%')
-    .height('100%')
-    .backgroundColor(ThemeConstants.BG_SUB)
-    .onReachEnd(() => {
-      void this.viewModel.loadMoreSearch()
-    })
   }
 }

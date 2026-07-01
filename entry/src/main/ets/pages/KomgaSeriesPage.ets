@@ -27,6 +27,7 @@ import {
 } from '../remote/KomgaModels'
 import { ThemeConstants } from '../theme/ThemeConstants'
 import { AppStrings } from '../i18n/AppStrings'
+import { connectLanguageState, LanguageState } from '../state/LanguageState'
 
 function s(name: string): string {
   return AppStrings.get(name)
@@ -41,6 +42,7 @@ interface KomgaSeriesRouteParam {
 @ComponentV2
 export struct KomgaSeriesPage {
   @Param params: KomgaSeriesRouteParam = {}
+  @Local private languageState: LanguageState = connectLanguageState()
   @Local private libraries: KomgaLibraryDto[] = []
   @Local private selectedLibraryId: string = ''
   @Local private series: KomgaSeriesDto[] = []
