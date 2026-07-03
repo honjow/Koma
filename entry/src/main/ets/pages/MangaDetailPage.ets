@@ -1042,12 +1042,12 @@ function _mockMangaDetail(mangaId?: string, sourceId?: string): MangaDetail {
   const resolvedSourceId = sourceId === undefined || sourceId.length === 0 ? 'mock-source' : sourceId
   return {
     id: mangaId === undefined || mangaId.length === 0 ? 'mock-rain-after-town' : mangaId,
-    title: '雨后街区',
-    author: '青井遥',
-    artist: '青井遥',
-    description: '一场漫长的梅雨结束后，旧城区的每个人都像重新学会呼吸。高中生真央在整理祖母留下的照相馆时，发现了一卷没有显影的胶片，也因此遇见了总在末班车前出现的少年。两个人沿着被雨水洗亮的街道，寻找照片里消失的夏天。',
+    title: 'Rain After Town',
+    author: 'Haruka Aoi',
+    artist: 'Haruka Aoi',
+    description: 'After a long rainy season, an old neighborhood learns to breathe again. Mao finds an undeveloped roll of film in her grandmother\'s photo studio and follows its missing summer through streets washed clean by rain.',
     status: MangaStatus.ONGOING,
-    tags: ['剧情', '青春', '日常', '治愈', '悬疑', '摄影', '城市'],
+    tags: ['Drama', 'Youth', 'Slice of life', 'Healing', 'Mystery', 'Photography', 'City'],
     sourceId: resolvedSourceId,
     sourceName: 'Mock Source',
     chapterCount: 128,
@@ -1065,7 +1065,7 @@ function _mockChapterList(): MangaChapterItem[] {
       id: `chapter-${index}`,
       title: `${AppStrings.get('library_update_chapter_fallback_title').replace('%s', `${index}`)} ${_mockChapterTitle(index)}`,
       chapterNumber: index,
-      scanlator: index % 3 === 0 ? 'Koma 汉化组' : '官方',
+      scanlator: index % 3 === 0 ? 'Koma Scanlation' : 'Official',
       dateUpload: startTime - (128 - index) * weekMs,
       isRead: index > 122,
       isDownloaded: index === 128 || index === 127,
@@ -1075,6 +1075,6 @@ function _mockChapterList(): MangaChapterItem[] {
 }
 
 function _mockChapterTitle(index: number): string {
-  const titles: string[] = ['雨停之后', '旧照片', '便利店灯光', '七分钟', '借来的伞', '河岸边', '暗房', '下一班车']
+  const titles: string[] = ['After the Rain', 'Old Photo', 'Convenience Store Lights', 'Seven Minutes', 'Borrowed Umbrella', 'Riverside', 'Darkroom', 'Next Train']
   return titles[index % titles.length]
 }

@@ -1757,29 +1757,29 @@ const mockLibraryReaderSession = {
 const mockLibraryComics = [
   {
     id: 'local-01',
-    title: '雨后街区',
-    subtitle: '本地 ZIP - 12 章',
-    chapterTitle: '第 8 话',
-    fallbackProgressText: '第 8 话',
+    title: 'Rain After Town',
+    subtitle: 'Local ZIP - 12 chapters',
+    chapterTitle: 'Chapter 8',
+    fallbackProgressText: 'Chapter 8',
     coverColor: '#16745F',
     accentColor: '#2FAE84',
     pageCount: 5,
   },
   {
     id: 'local-02',
-    title: '北窗短篇集',
-    subtitle: '图片文件夹 - 6 章',
-    chapterTitle: '第 1 话',
-    fallbackProgressText: '未读',
+    title: 'North Window Shorts',
+    subtitle: 'Image folder - 6 chapters',
+    chapterTitle: 'Chapter 1',
+    fallbackProgressText: 'Unread',
     coverColor: '#344E7A',
     accentColor: '#6E92CE',
     pageCount: 1,
   },
   {
     id: 'local-03',
-    title: '海边的慢速列车',
-    subtitle: 'CBZ - 4 章',
-    chapterTitle: '第 2 话',
+    title: 'Seaside Slow Train',
+    subtitle: 'CBZ - 4 chapters',
+    chapterTitle: 'Chapter 2',
     fallbackProgressText: '42%',
     coverColor: '#8A6240',
     accentColor: '#D39A62',
@@ -1787,30 +1787,30 @@ const mockLibraryComics = [
   },
   {
     id: 'local-04',
-    title: '午后三点的笔记',
-    subtitle: '本地 ZIP - 18 章',
-    chapterTitle: '第 3 话',
-    fallbackProgressText: '第 3 话',
+    title: 'Three PM Notes',
+    subtitle: 'Local ZIP - 18 chapters',
+    chapterTitle: 'Chapter 3',
+    fallbackProgressText: 'Chapter 3',
     coverColor: '#7A405D',
     accentColor: '#C46B92',
     pageCount: 1,
   },
   {
     id: 'local-05',
-    title: '旧书店巡礼',
-    subtitle: '图片文件夹 - 9 章',
-    chapterTitle: '第 1 话',
-    fallbackProgressText: '新加入',
+    title: 'Old Bookshop Tour',
+    subtitle: 'Image folder - 9 chapters',
+    chapterTitle: 'Chapter 1',
+    fallbackProgressText: 'Newly added',
     coverColor: '#51624D',
     accentColor: '#89A57D',
     pageCount: 1,
   },
   {
     id: 'local-06',
-    title: '银河便签',
-    subtitle: 'CBZ - 21 章',
-    chapterTitle: '第 15 话',
-    fallbackProgressText: '第 15 话',
+    title: 'Galaxy Notes',
+    subtitle: 'CBZ - 21 chapters',
+    chapterTitle: 'Chapter 15',
+    fallbackProgressText: 'Chapter 15',
     coverColor: '#4C4A70',
     accentColor: '#928FD2',
     pageCount: 1,
@@ -1824,7 +1824,7 @@ function progressPercent(progress) {
 
 function formatLibraryProgressText(comic, progress) {
   if (progress === undefined) return comic.fallbackProgressText
-  if (progress.completed) return '已读完'
+  if (progress.completed) return 'Finished'
   return `${progressPercent(progress)}%`
 }
 
@@ -2524,8 +2524,8 @@ function createLibraryViewModelFromComics(storeComics, progressByComicId, presen
     return {
       id: comic.id,
       title: comic.title,
-      subtitle: presentation?.subtitle ?? comic.subtitle ?? `本地 ZIP - ${comic.chapterCount} 章`,
-      progressText: formatLibraryProgressText(presentation ?? { fallbackProgressText: '未读' }, itemProgress),
+      subtitle: presentation?.subtitle ?? comic.subtitle ?? `Local ZIP - ${comic.chapterCount} chapters`,
+      progressText: formatLibraryProgressText(presentation ?? { fallbackProgressText: 'Unread' }, itemProgress),
       coverColor: presentation?.coverColor ?? '#16745F',
       accentColor: presentation?.accentColor ?? '#2FAE84',
       pageCount: comic.pageCount,
@@ -2559,7 +2559,7 @@ function createLibraryViewModelFromComics(storeComics, progressByComicId, presen
     comics,
     continueReading: {
       title: continueComic.title,
-      detail: continueProgress === undefined ? `继续阅读 ${chapterTitle}` : `继续阅读 ${chapterTitle} / 第 ${continueProgress.pageIndex + 1} 页 · ${progressPercent(continueProgress)}%`,
+      detail: continueProgress === undefined ? `Continue ${chapterTitle}` : `Continue ${chapterTitle} / Page ${continueProgress.pageIndex + 1} · ${progressPercent(continueProgress)}%`,
       progress: continueProgress === undefined ? 0 : progressPercent(continueProgress),
       color: continuePresentation?.coverColor ?? '#16745F',
       comicId: continueComic.id,
@@ -2581,12 +2581,12 @@ const sessionProgress = updateReadingProgress(
 const seededStore = createSeededStore()
 const seededVm = createLibraryViewModelFromStores(seededStore, new Map(), createPresentationMap())
 assert.equal(seededVm.comics.length, 6, 'initial mock seed should generate the current six-book shelf')
-assert.equal(seededVm.comics.find((item) => item.id === 'local-01').title, '雨后街区')
+assert.equal(seededVm.comics.find((item) => item.id === 'local-01').title, 'Rain After Town')
 assert.equal(seededVm.comics.find((item) => item.id === 'local-01').coverUri, 'mock://local-01/001.jpg')
 
 const libraryVm = createLibraryViewModelFromStores(seededStore, new Map([[sessionProgress.comicId, sessionProgress]]), createPresentationMap())
-assert.equal(libraryVm.continueReading.title, '雨后街区')
-assert.equal(libraryVm.continueReading.detail, '继续阅读 第 8 话 / 第 2 页 · 40%')
+assert.equal(libraryVm.continueReading.title, 'Rain After Town')
+assert.equal(libraryVm.continueReading.detail, 'Continue Chapter 8 / Page 2 · 40%')
 assert.equal(libraryVm.continueReading.progress, 40)
 assert.equal(libraryVm.continueReading.comicId, 'local-01')
 assert.equal(libraryVm.comics.find((item) => item.id === 'local-01').progressText, '40%')
@@ -2638,7 +2638,7 @@ const importedProgress = updateReadingProgress(
 )
 const importedProgressVm = createLibraryViewModelFromStores(seededStore, new Map([[importedProgress.comicId, importedProgress]]), createPresentationMap())
 assert.equal(importedProgressVm.continueReading.title, 'Imported Volume')
-assert.equal(importedProgressVm.continueReading.detail, '继续阅读 Imported Volume / 第 2 页 · 67%')
+assert.equal(importedProgressVm.continueReading.detail, 'Continue Imported Volume / Page 2 · 67%')
 assert.equal(importedProgressVm.continueReading.progress, 67)
 assert.equal(importedProgressVm.comics.find((item) => item.id === 'imported-01').progressText, '67%')
 
