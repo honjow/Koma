@@ -114,6 +114,7 @@
     { "name": "settings_library_auto_update_save_failed", "value": "Failed to save auto update setting" },
     { "name": "settings_library_update_interval_save_failed", "value": "Failed to save update interval" },
     { "name": "settings_download_concurrency_save_failed", "value": "Failed to save download concurrency" },
+    { "name": "settings_library_default_sort_save_failed", "value": "Failed to save default sort" },
     { "name": "settings_library_update_unavailable", "value": "Library unavailable" },
     { "name": "settings_library_update_found_count", "value": "Found updates for %s books" },
     { "name": "settings_library_update_up_to_date", "value": "No updates found" },

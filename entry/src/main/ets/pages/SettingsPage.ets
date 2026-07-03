@@ -5,8 +5,15 @@ import { ConciseListRow } from '../components/ui/ConciseListRow'
 import { GroupedListSection, ListDivider, SectionHeader } from '../components/ui/GroupedListSection'
 import { ThemeConstants } from '../theme/ThemeConstants'
 import { ReadingDirection } from '../model/ComicModels'
-import { LibraryStore } from '../model/LibraryStore'
+import {
+  LibrarySortBy,
+  LibraryStore,
+} from '../model/LibraryStore'
 import { LibraryStorePersistenceService } from '../model/LibraryPersistence'
+import {
+  LibraryFilterPreferences,
+  LibraryFilterStore,
+} from '../model/LibraryFilterStore'
 import {
   LibraryUpdateService,
   LibraryUpdateSummary,
@@ -172,7 +179,7 @@ function createSettingsSections(): SettingsSection[] {
         { key: 'library-update-results', titleKey: 'settings_row_library_update_results_title', detailKey: 'settings_row_library_update_results_detail' },
         { key: 'library-categories', titleKey: 'settings_row_library_categories_title', detailKey: 'settings_row_library_categories_detail' },
         { key: 'library-view-mode', titleKey: 'settings_row_library_view_mode_title', detailKey: 'settings_row_library_view_mode_detail', placeholder: true },
-        { key: 'library-default-sort', titleKey: 'settings_row_library_default_sort_title', detailKey: 'settings_row_library_default_sort_detail', placeholder: true },
+        { key: 'library-default-sort', titleKey: 'settings_row_library_default_sort_title', detailKey: 'settings_row_library_default_sort_detail' },
         { key: 'library-badges', titleKey: 'settings_row_library_badges_title', detailKey: 'settings_row_library_badges_detail', placeholder: true },
         { key: 'local-library-refresh', titleKey: 'settings_row_local_library_refresh_title', detailKey: 'settings_row_local_library_refresh_detail' },
         { key: 'sources', titleKey: 'settings_row_sources_title', detailKey: 'settings_row_sources_detail' },
@@ -361,6 +368,7 @@ export struct SettingsPage {
   @Local private settingsSearchText: string = ''
   @Local private settingsMenuKey: string = ''
   @Local private downloadForegroundConcurrencyLimit: number = 1
+  @Local private libraryDefaultSortBy: LibrarySortBy = 'lastRead'
 
   private context(): common.UIAbilityContext {
     return getContext(this) as common.UIAbilityContext
@@ -382,6 +390,10 @@ export struct SettingsPage {
     return new OfflineDownloadQueueStore(this.context().filesDir)
   }
 
+  private libraryFilterStore(): LibraryFilterStore {
+    return new LibraryFilterStore(this.context())
+  }
+
   private t(name: string): string {
     const token = `${this.language.mode}:${this.language.effectiveLocale}`
     if (token === '__koma_missing_locale__') {
@@ -396,6 +408,19 @@ export struct SettingsPage {
 
   private rowBaseDetail(row: SettingsRow): string {
     return this.t(row.detailKey)
+  }
+
+  private librarySortLabel(sortBy: LibrarySortBy): string {
+    if (sortBy === 'added') {
+      return this.t('library_sort_added')
+    }
+    if (sortBy === 'title') {
+      return this.t('library_sort_title')
+    }
+    if (sortBy === 'source') {
+      return this.t('library_sort_source')
+    }
+    return this.t('library_sort_last_read')
   }
 
   private sectionTitle(section: SettingsSection): string {
@@ -503,6 +528,9 @@ export struct SettingsPage {
     if (row.key === 'library-categories') {
       const count = this.libraryStore === undefined ? 0 : this.libraryStore.listCustomCategories().length
       return count > 0 ? this.t('settings_library_categories_count').replace('%s', `${count}`) : this.t('settings_row_library_categories_detail')
+    }
+    if (row.key === 'library-default-sort') {
+      return this.librarySortLabel(this.libraryDefaultSortBy)
     }
     if (row.key === 'local-library-refresh') {
       if (this.localLibraryRefreshBusy) {
@@ -793,6 +821,17 @@ export struct SettingsPage {
       const e = error as Error
       console.warn('[Settings] step=load_download_queue_preferences_failed message=' + e.message)
     }
+  }
+
+  private loadLibraryFilterPreferences(): void {
+    void this.libraryFilterStore().load()
+      .then((preferences: LibraryFilterPreferences) => {
+        this.libraryDefaultSortBy = preferences.sortBy
+        console.info('[Settings] step=load_library_filter_preferences sortBy=' + preferences.sortBy)
+      })
+      .catch((error: Error) => {
+        console.warn('[Settings] step=load_library_filter_preferences_failed message=' + error.message)
+      })
   }
 
   private loadLatestLibraryUpdateSummary(): void {
@@ -1162,6 +1201,22 @@ export struct SettingsPage {
     }
   }
 
+  private saveLibraryDefaultSort(sortBy: LibrarySortBy): void {
+    this.libraryDefaultSortBy = sortBy
+    void this.libraryFilterStore().load()
+      .then((preferences: LibraryFilterPreferences) => {
+        preferences.sortBy = sortBy
+        return this.libraryFilterStore().save(preferences)
+      })
+      .then(() => {
+        console.info('[Settings] step=save_library_default_sort sortBy=' + sortBy)
+      })
+      .catch((error: Error) => {
+        console.warn('[Settings] step=save_library_default_sort_failed message=' + error.message)
+        this.showToast(s('settings_library_default_sort_save_failed'))
+      })
+  }
+
   private checkLibraryUpdates(reason: string = 'manual'): void {
     if (this.libraryUpdateBusy) {
       return
@@ -1330,6 +1385,7 @@ export struct SettingsPage {
       row.key === 'reader-page-gap' ||
       row.key === 'reader-wide-image-mode' ||
       row.key === 'download-concurrency' ||
+      row.key === 'library-default-sort' ||
       row.key === 'library-update-interval'
   }
 
@@ -1445,6 +1501,11 @@ export struct SettingsPage {
             this.saveDownloadForegroundConcurrencyLimit(limit)
           })
         }, (limit: number) => `${limit}`)
+      } else if (row.key === 'library-default-sort') {
+        this.SelectionMenuItem(s('library_sort_last_read'), this.libraryDefaultSortBy === 'lastRead', () => { this.saveLibraryDefaultSort('lastRead') })
+        this.SelectionMenuItem(s('library_sort_added'), this.libraryDefaultSortBy === 'added', () => { this.saveLibraryDefaultSort('added') })
+        this.SelectionMenuItem(s('library_sort_title'), this.libraryDefaultSortBy === 'title', () => { this.saveLibraryDefaultSort('title') })
+        this.SelectionMenuItem(s('library_sort_source'), this.libraryDefaultSortBy === 'source', () => { this.saveLibraryDefaultSort('source') })
       } else if (row.key === 'library-update-interval') {
         this.SelectionMenuItem(s('library_update_interval_12h'), this.libraryUpdatePreferences.intervalHours === 12, () => { this.saveLibraryUpdateInterval(12) })
         this.SelectionMenuItem(s('library_update_interval_24h'), this.libraryUpdatePreferences.intervalHours === 24, () => { this.saveLibraryUpdateInterval(24) })
@@ -1710,6 +1771,7 @@ export struct SettingsPage {
     this.loadPreferences()
     this.loadLibraryUpdatePreferences()
     this.loadDownloadQueuePreferences()
+    this.loadLibraryFilterPreferences()
     this.loadImageCacheStats()
   }
 

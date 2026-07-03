@@ -114,6 +114,7 @@
     { "name": "settings_library_auto_update_save_failed", "value": "保存自动更新设置失败" },
     { "name": "settings_library_update_interval_save_failed", "value": "保存更新间隔失败" },
     { "name": "settings_download_concurrency_save_failed", "value": "保存下载并发失败" },
+    { "name": "settings_library_default_sort_save_failed", "value": "保存默认排序失败" },
     { "name": "settings_library_update_unavailable", "value": "书架不可用" },
     { "name": "settings_library_update_found_count", "value": "发现 %s 本有更新" },
     { "name": "settings_library_update_up_to_date", "value": "没有发现更新" },
