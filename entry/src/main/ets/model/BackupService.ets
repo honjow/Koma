@@ -120,6 +120,7 @@ interface KomaBackupDocument {
 
 export interface BackupImportPreview {
   schemaVersion: number
+  exportedAt: number
   exportedAtText: string
   encryptionText: string
   encrypted: boolean
@@ -521,6 +522,10 @@ function formatBackupExportedAt(exportedAt: number | undefined): string {
   return new Date(exportedAt).toLocaleString()
 }
 
+function normalizeBackupExportedAt(exportedAt: number | undefined): number {
+  return exportedAt === undefined || !Number.isFinite(exportedAt) || exportedAt <= 0 ? 0 : Math.floor(exportedAt)
+}
+
 function formatBackupEncryption(encryption: BackupEncryptionMetadata | undefined): string {
   if (encryption !== undefined && encryption.state === BACKUP_ENCRYPTION_STATE && encryption.algorithm === 'none') {
     return AppStrings.get('backup_encryption_unencrypted_json')
@@ -531,6 +536,7 @@ function formatBackupEncryption(encryption: BackupEncryptionMetadata | undefined
 function emptyEncryptedCountsPreview(publicPreview: BackupEncryptedPublicPreview): BackupImportPreview {
   return {
     schemaVersion: publicPreview.contentSchemaVersion,
+    exportedAt: normalizeBackupExportedAt(publicPreview.exportedAt),
     exportedAtText: publicPreview.exportedAtText,
     encryptionText: AppStrings.get('backup_encryption_encrypted_preview_needed'),
     encrypted: true,
@@ -667,7 +673,6 @@ export class BackupService {
     const fileNames = (await fs.listFile(this.localBackupsDir(), options))
       .map((name: string): string => name.replace(/\\/g, '/').replace(/^\/+/, '').replace(/\/+$/, ''))
       .filter((name: string): boolean => isLocalBackupFileName(name))
-      .sort((left: string, right: string): number => right.localeCompare(left))
     const records: BackupLocalFileRecord[] = []
     for (let index = 0; index < fileNames.length; index += 1) {
       const record = this.readLocalBackupRecord(fileNames[index])
@@ -675,7 +680,10 @@ export class BackupService {
         records.push(record)
       }
     }
-    return records
+    return records.sort((left: BackupLocalFileRecord, right: BackupLocalFileRecord): number => {
+      const exportedDiff = right.preview.exportedAt - left.preview.exportedAt
+      return exportedDiff !== 0 ? exportedDiff : right.fileName.localeCompare(left.fileName)
+    })
   }
 
   async renameLocalBackup(fileName: string, displayName: string): Promise<BackupLocalFileRecord> {
@@ -803,6 +811,7 @@ export class BackupService {
     const readingProgress = asJsonObject(JSON.parse(document.readingProgress) as Object, 'progress')
     return {
       schemaVersion: document.schemaVersion,
+      exportedAt: normalizeBackupExportedAt(document.exportedAt),
       exportedAtText: formatBackupExportedAt(document.exportedAt),
       encryptionText: formatBackupEncryption(document.encryption),
       encrypted: false,
@@ -829,6 +838,7 @@ export class BackupService {
       payload: plaintext,
       preview: {
         schemaVersion: preview.schemaVersion,
+        exportedAt: preview.exportedAt,
         exportedAtText: preview.exportedAtText,
         algorithm: preview.algorithm,
         kdfId: preview.kdfId,

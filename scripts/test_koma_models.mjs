@@ -1508,6 +1508,26 @@ assert.match(
   'raw plaintext preview must use the plaintext-only schema gate',
 )
 assert.match(
+  backupServiceSource,
+  /export interface BackupImportPreview\s*{[\s\S]*exportedAt:\s*number[\s\S]*exportedAtText:\s*string/,
+  'backup previews must keep numeric exportedAt for local backup retention ordering',
+)
+assert.match(
+  backupServiceSource,
+  /normalizeBackupExportedAt\(document\.exportedAt\)[\s\S]*exportedAtText:\s*formatBackupExportedAt\(document\.exportedAt\)/,
+  'plaintext backup preview must preserve exportedAt as a sortable timestamp',
+)
+assert.match(
+  backupEncryptionServiceSource,
+  /export interface BackupEncryptedPublicPreview\s*{[\s\S]*exportedAt:\s*number[\s\S]*exportedAtText:\s*string[\s\S]*previewEncryptedBackupEnvelope[\s\S]*exportedAt:\s*envelope\.createdAt/,
+  'encrypted backup envelope preview must expose createdAt as a sortable exportedAt timestamp',
+)
+assert.match(
+  backupServiceSource,
+  /listLocalBackups\(\): Promise<BackupLocalFileRecord\[\]>[\s\S]*const records: BackupLocalFileRecord\[\] = \[\][\s\S]*records\.push\(record\)[\s\S]*return records\.sort[\s\S]*right\.preview\.exportedAt - left\.preview\.exportedAt/,
+  'local backup list and retention must order by backup exportedAt metadata instead of mutable file names',
+)
+assert.match(
   backupEncryptionServiceSource,
   /AppStrings\.get\('backup_preview_not_provided'\)/,
   'encrypted backup envelope preview fallback text must use localized backup resources',

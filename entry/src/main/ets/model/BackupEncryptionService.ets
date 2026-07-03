@@ -51,6 +51,7 @@ export interface BackupEncryptedPublicPreview {
   kind: string
   envelopeVersion: number
   contentSchemaVersion: number
+  exportedAt: number
   exportedAtText: string
   algorithm: string
   kdfId: string
@@ -166,6 +167,7 @@ export function previewEncryptedBackupEnvelope(json: string): BackupEncryptedPub
     kind: envelope.kind,
     envelopeVersion: envelope.envelopeVersion,
     contentSchemaVersion: envelope.contentSchemaVersion,
+    exportedAt: envelope.createdAt,
     exportedAtText: envelope.createdAt > 0 ? new Date(envelope.createdAt).toLocaleString() : AppStrings.get('backup_preview_not_provided'),
     algorithm: envelope.algorithm,
     kdfId: envelope.kdf.id,
