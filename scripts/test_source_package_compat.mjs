@@ -261,8 +261,13 @@ assert.match(
   'BrowseViewModel must expose listing selection for SourceBrowsePage',
 )
 assert.match(
+  browseViewModelSource,
+  /resetBrowseFilters\(\): Promise<void> \{[\s\S]*this\.browseFilterValues = this\.defaultSourceFilterValues\(this\.filters\)[\s\S]*const listing = this\.currentListing\(\)[\s\S]*await this\.selectBrowseListing\(listing\)/,
+  'BrowseViewModel must let users restore source-defined default filters and reload the current listing',
+)
+assert.match(
   readFileSync(resolve(root, 'entry/src/main/ets/pages/SourceBrowsePage.ets'), 'utf8'),
-  /ListingSelector\(\)[\s\S]*ForEach\(this\.viewModel\.listings[\s\S]*selectBrowseListing\(listing\)[\s\S]*ForEach\(this\.viewModel\.homeSections[\s\S]*ForEach\(this\.viewModel\.browseSections/,
+  /ListingSelector\(\)[\s\S]*ForEach\(this\.viewModel\.listings[\s\S]*selectBrowseListing\(listing\)[\s\S]*SourceFilterControls\(\)[\s\S]*common_reset[\s\S]*resetBrowseFilters\(\)[\s\S]*ForEach\(this\.viewModel\.homeSections[\s\S]*ForEach\(this\.viewModel\.browseSections/,
   'SourceBrowsePage must render source-defined listing selectors, home sections, and browse sections',
 )
 assert.doesNotMatch(

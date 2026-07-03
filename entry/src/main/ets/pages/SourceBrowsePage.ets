@@ -227,6 +227,16 @@ export struct SourceBrowsePage {
                 })
             }
           }, (filter: SourceFilter) => filter.id)
+          KomaActionButton({
+            label: s('common_reset'),
+            kind: 'secondary',
+            compact: true,
+            controlHeight: ThemeConstants.ACTION_CHIP_HEIGHT,
+            isEnabled: !this.viewModel.loadingBrowse,
+            action: () => {
+              void this.viewModel.resetBrowseFilters()
+            },
+          })
         }
       }
       .width('100%')

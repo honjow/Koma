@@ -389,6 +389,17 @@ export class BrowseViewModel {
     }
   }
 
+  async resetBrowseFilters(): Promise<void> {
+    if (this.selectedSource === undefined || this.loadingBrowse) {
+      return
+    }
+    this.browseFilterValues = this.defaultSourceFilterValues(this.filters)
+    const listing = this.currentListing()
+    if (listing !== undefined) {
+      await this.selectBrowseListing(listing)
+    }
+  }
+
   async loadMoreBrowse(): Promise<void> {
     if (this.loadingBrowse || !this.hasMoreBrowse || this.selectedSource === undefined) {
       return

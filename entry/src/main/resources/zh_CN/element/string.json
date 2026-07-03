@@ -43,6 +43,7 @@
     { "name": "common_checking", "value": "检查中..." },
     { "name": "common_last_checked", "value": "上次检查" },
     { "name": "common_items_unit", "value": "项" },
+    { "name": "common_reset", "value": "重置" },
 
     { "name": "reader_page_mode_single", "value": "单页" },
     { "name": "reader_page_mode_double", "value": "双页" },

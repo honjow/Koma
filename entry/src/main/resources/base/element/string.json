@@ -43,6 +43,7 @@
     { "name": "common_checking", "value": "Checking..." },
     { "name": "common_last_checked", "value": "Last checked" },
     { "name": "common_items_unit", "value": "items" },
+    { "name": "common_reset", "value": "Reset" },
 
     { "name": "reader_page_mode_single", "value": "Single page" },
     { "name": "reader_page_mode_double", "value": "Double page" },
