@@ -76,7 +76,7 @@ assert.match(queueStoreSource, /upsert\([\s\S]*chapterId[\s\S]*saveDocument/, 'q
 assert.match(queueStoreSource, /remove\([\s\S]*chapterId[\s\S]*saveDocument/, 'queue store must support removing rows')
 assert.match(queueStoreSource, /upsert\(entry: OfflineDownloadQueueEntry\): OfflineDownloadQueueEntry \{[\s\S]*const document = this\.loadDocument\(\)[\s\S]*preferences: document\.preferences[\s\S]*entries,/, 'queue upsert must preserve existing queue preferences when only entries change')
 assert.match(queueStoreSource, /remove\(comicId: ComicId, chapterId: string\): void \{[\s\S]*const document = this\.loadDocument\(\)[\s\S]*preferences: document\.preferences[\s\S]*entries,/, 'queue remove must preserve existing queue preferences when only entries change')
-assert.match(queueStoreSource, /deleteChapterDownload\([\s\S]*remove\([\s\S]*OfflineDownloadStore/, 'queue store must support row removal with manifest/data cleanup')
+assert.match(queueStoreSource, /deleteChapterDownload\([\s\S]*const store = new OfflineDownloadStore\(this\.filesDir\)[\s\S]*await store\.deleteChapterDownload\(comicId, chapterId\)[\s\S]*this\.remove\(comicId, chapterId\)/, 'queue store must remove durable data before hiding the queue row')
 
 for (const status of ['QUEUED', 'DOWNLOADING', 'DOWNLOADED', 'PARTIAL', 'FAILED', 'BLOCKED']) {
   assert.match(queueStoreSource, new RegExp(`OfflineDownloadStatus\\.${status}`), `queue store must use existing OfflineDownloadStatus.${status}`)
