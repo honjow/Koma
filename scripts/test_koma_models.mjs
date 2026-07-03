@@ -1448,6 +1448,16 @@ assert.match(
 )
 assert.match(
   chapterListSectionSource,
+  /@Local private languageFilter: string = ''[\s\S]*@Local private groupFilter: string = ''[\s\S]*filteredChapterList\(\): MangaChapterItem\[\][\s\S]*this\.normalizeMetadataValue\(chapter\.language\) === this\.languageFilter[\s\S]*this\.normalizeMetadataValue\(chapter\.scanlator\) === this\.groupFilter/,
+  'ChapterListSection must filter chapters by language and scanlator group metadata',
+)
+assert.match(
+  chapterListSectionSource,
+  /LanguageFilterMenu\(\)[\s\S]*chapter_list_filter_language_all[\s\S]*ForEach\(this\.languageOptions\(\)[\s\S]*this\.setLanguageFilter\(language\)[\s\S]*GroupFilterMenu\(\)[\s\S]*chapter_list_filter_group_all[\s\S]*ForEach\(this\.groupOptions\(\)[\s\S]*this\.setGroupFilter\(group\)/,
+  'ChapterListSection must expose language and group filters as menus',
+)
+assert.match(
+  chapterListSectionSource,
   /VisibleReadStateMenu\(\)[\s\S]*onMarkVisibleChaptersReadState\(this\.visibleChapterIds\(\), true\)[\s\S]*onMarkVisibleChaptersReadState\(this\.visibleChapterIds\(\), false\)/,
   'ChapterListSection visible mark-read actions must target the current filtered visible chapter ids',
 )

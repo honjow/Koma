@@ -65,6 +65,8 @@ export struct ChapterListSection {
   @Local private languageState: LanguageState = connectLanguageState()
   @Local private sortOrder: ChapterSortOrder = ChapterSortOrder.NEWEST_FIRST
   @Local private readFilter: ChapterReadFilter = ChapterReadFilter.ALL
+  @Local private languageFilter: string = ''
+  @Local private groupFilter: string = ''
   @Local private sortedChapters: MangaChapterItem[] = []
   private dataSource: ChapterListDataSource = new ChapterListDataSource([])
   @Event onOpenChapter: (chapterId: string) => void = (_chapterId: string) => {}
@@ -78,6 +80,7 @@ export struct ChapterListSection {
 
   @Monitor('chapters')
   private rebuildDataSource(): void {
+    this.ensureMetadataFiltersAvailable()
     this.sortedChapters = this.sortedChapterList()
     this.dataSource.update(this.sortedChapters)
   }
@@ -100,16 +103,27 @@ export struct ChapterListSection {
   }
 
   private filteredChapterList(): MangaChapterItem[] {
+    let filtered = this.chapters.slice()
     if (this.readFilter === ChapterReadFilter.UNREAD) {
-      return this.chapters.filter((chapter: MangaChapterItem): boolean => !chapter.isRead)
+      filtered = filtered.filter((chapter: MangaChapterItem): boolean => !chapter.isRead)
     }
     if (this.readFilter === ChapterReadFilter.READ) {
-      return this.chapters.filter((chapter: MangaChapterItem): boolean => chapter.isRead)
+      filtered = filtered.filter((chapter: MangaChapterItem): boolean => chapter.isRead)
     }
     if (this.readFilter === ChapterReadFilter.DOWNLOADED) {
-      return this.chapters.filter((chapter: MangaChapterItem): boolean => chapter.isDownloaded)
+      filtered = filtered.filter((chapter: MangaChapterItem): boolean => chapter.isDownloaded)
     }
-    return this.chapters.slice()
+    if (this.languageFilter.length > 0) {
+      filtered = filtered.filter((chapter: MangaChapterItem): boolean => {
+        return this.normalizeMetadataValue(chapter.language) === this.languageFilter
+      })
+    }
+    if (this.groupFilter.length > 0) {
+      filtered = filtered.filter((chapter: MangaChapterItem): boolean => {
+        return this.normalizeMetadataValue(chapter.scanlator) === this.groupFilter
+      })
+    }
+    return filtered
   }
 
   private dateValue(chapter: MangaChapterItem): number {
@@ -146,6 +160,20 @@ export struct ChapterListSection {
     return s('chapter_list_filter_all')
   }
 
+  private languageFilterLabel(): string {
+    if (this.languageFilter.length === 0) {
+      return s('chapter_list_filter_language')
+    }
+    return `${s('chapter_list_filter_language')}: ${this.formatLanguage(this.languageFilter)}`
+  }
+
+  private groupFilterLabel(): string {
+    if (this.groupFilter.length === 0) {
+      return s('chapter_list_filter_group')
+    }
+    return `${s('chapter_list_filter_group')}: ${this.groupFilter}`
+  }
+
   private setSortOrder(sortOrder: ChapterSortOrder): void {
     this.sortOrder = sortOrder
     this.rebuildDataSource()
@@ -154,6 +182,53 @@ export struct ChapterListSection {
   private setReadFilter(readFilter: ChapterReadFilter): void {
     this.readFilter = readFilter
     this.rebuildDataSource()
+  }
+
+  private setLanguageFilter(language: string): void {
+    this.languageFilter = language
+    this.rebuildDataSource()
+  }
+
+  private setGroupFilter(group: string): void {
+    this.groupFilter = group
+    this.rebuildDataSource()
+  }
+
+  private ensureMetadataFiltersAvailable(): void {
+    if (this.languageFilter.length > 0 && !this.languageOptions().includes(this.languageFilter)) {
+      this.languageFilter = ''
+    }
+    if (this.groupFilter.length > 0 && !this.groupOptions().includes(this.groupFilter)) {
+      this.groupFilter = ''
+    }
+  }
+
+  private languageOptions(): string[] {
+    const values: string[] = []
+    this.chapters.forEach((chapter: MangaChapterItem) => {
+      const value = this.normalizeMetadataValue(chapter.language)
+      if (value.length > 0 && !values.includes(value)) {
+        values.push(value)
+      }
+    })
+    values.sort()
+    return values
+  }
+
+  private groupOptions(): string[] {
+    const values: string[] = []
+    this.chapters.forEach((chapter: MangaChapterItem) => {
+      const value = this.normalizeMetadataValue(chapter.scanlator)
+      if (value.length > 0 && !values.includes(value)) {
+        values.push(value)
+      }
+    })
+    values.sort()
+    return values
+  }
+
+  private normalizeMetadataValue(value: string | undefined): string {
+    return value === undefined ? '' : value.trim()
   }
 
   private visibleChapterIds(): string[] {
@@ -274,6 +349,38 @@ export struct ChapterListSection {
   }
 
   @Builder
+  private LanguageFilterMenu() {
+    Menu() {
+      MenuItem({ content: s('chapter_list_filter_language_all') })
+        .onClick(() => {
+          this.setLanguageFilter('')
+        })
+      ForEach(this.languageOptions(), (language: string) => {
+        MenuItem({ content: this.formatLanguage(language) })
+          .onClick(() => {
+            this.setLanguageFilter(language)
+          })
+      }, (language: string) => language)
+    }
+  }
+
+  @Builder
+  private GroupFilterMenu() {
+    Menu() {
+      MenuItem({ content: s('chapter_list_filter_group_all') })
+        .onClick(() => {
+          this.setGroupFilter('')
+        })
+      ForEach(this.groupOptions(), (group: string) => {
+        MenuItem({ content: group })
+          .onClick(() => {
+            this.setGroupFilter(group)
+          })
+      }, (group: string) => group)
+    }
+  }
+
+  @Builder
   private ReadStateMenu(chapter: MangaChapterItem) {
     Menu() {
       MenuItem({ content: s('chapter_list_menu_mark_read') })
@@ -378,6 +485,11 @@ export struct ChapterListSection {
             .fontWeight(FontWeight.Bold)
             .fontColor(ThemeConstants.TEXT_PRIMARY)
             .layoutWeight(1)
+        }
+        .width('100%')
+        .alignItems(VerticalAlign.Center)
+
+        Flex({ wrap: FlexWrap.Wrap }) {
           Row() {
             Chip({
               label: {
@@ -394,7 +506,44 @@ export struct ChapterListSection {
               allowClose: false,
             })
           }
+          .margin({ right: ThemeConstants.SPACE_SM, bottom: ThemeConstants.SPACE_SM })
           .bindMenu(this.FilterMenu())
+          Row() {
+            Chip({
+              label: {
+                text: `${this.languageFilterLabel()} ▾`,
+                fontSize: ThemeConstants.FONT_SIZE_TAG,
+                fontColor: ThemeConstants.TEXT_PRIMARY,
+                activatedFontColor: ThemeConstants.TEXT_ON_BRAND,
+              },
+              activated: this.languageFilter.length > 0,
+              size: ChipSize.SMALL,
+              backgroundColor: $r('sys.color.ohos_id_color_button_normal'),
+              activatedBackgroundColor: ThemeConstants.BRAND_PRIMARY,
+              borderRadius: ThemeConstants.RADIUS_ROUND,
+              allowClose: false,
+            })
+          }
+          .margin({ right: ThemeConstants.SPACE_SM, bottom: ThemeConstants.SPACE_SM })
+          .bindMenu(this.LanguageFilterMenu())
+          Row() {
+            Chip({
+              label: {
+                text: `${this.groupFilterLabel()} ▾`,
+                fontSize: ThemeConstants.FONT_SIZE_TAG,
+                fontColor: ThemeConstants.TEXT_PRIMARY,
+                activatedFontColor: ThemeConstants.TEXT_ON_BRAND,
+              },
+              activated: this.groupFilter.length > 0,
+              size: ChipSize.SMALL,
+              backgroundColor: $r('sys.color.ohos_id_color_button_normal'),
+              activatedBackgroundColor: ThemeConstants.BRAND_PRIMARY,
+              borderRadius: ThemeConstants.RADIUS_ROUND,
+              allowClose: false,
+            })
+          }
+          .margin({ right: ThemeConstants.SPACE_SM, bottom: ThemeConstants.SPACE_SM })
+          .bindMenu(this.GroupFilterMenu())
           Row() {
             Chip({
               label: {
@@ -411,10 +560,10 @@ export struct ChapterListSection {
               allowClose: false,
             })
           }
+          .margin({ right: ThemeConstants.SPACE_SM, bottom: ThemeConstants.SPACE_SM })
           .bindMenu(this.SortMenu())
         }
         .width('100%')
-        .alignItems(VerticalAlign.Center)
 
         Row() {
           Row() {
