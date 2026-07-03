@@ -39,6 +39,10 @@ import {
   normalizeLibraryUpdateFailureCount,
 } from '../model/LibraryUpdatePreferencesStore'
 import {
+  OFFLINE_DOWNLOAD_FOREGROUND_CONCURRENCY_LIMIT_OPTIONS,
+  OfflineDownloadQueueStore,
+} from '../model/OfflineDownloadQueueStore'
+import {
   ReaderRemoteImageCacheStats,
   clearReaderRemoteImageCache,
   configureReaderRemoteImageCache,
@@ -173,7 +177,7 @@ function createSettingsSections(): SettingsSection[] {
         { key: 'local-library-refresh', titleKey: 'settings_row_local_library_refresh_title', detailKey: 'settings_row_local_library_refresh_detail' },
         { key: 'sources', titleKey: 'settings_row_sources_title', detailKey: 'settings_row_sources_detail' },
         { key: 'downloads', titleKey: 'settings_row_downloads_title', detailKey: 'settings_row_downloads_detail' },
-        { key: 'download-concurrency', titleKey: 'settings_row_download_concurrency_title', detailKey: 'settings_row_download_concurrency_detail', placeholder: true },
+        { key: 'download-concurrency', titleKey: 'settings_row_download_concurrency_title', detailKey: 'settings_row_download_concurrency_detail' },
         { key: 'download-retry-failed', titleKey: 'settings_row_download_retry_failed_title', detailKey: 'settings_row_download_retry_failed_detail', placeholder: true },
         { key: 'download-wifi-only', titleKey: 'settings_row_download_wifi_only_title', detailKey: 'settings_row_download_wifi_only_detail', placeholder: true },
         { key: 'trackers', titleKey: 'settings_row_trackers_title', detailKey: 'settings_row_trackers_detail' },
@@ -356,10 +360,7 @@ export struct SettingsPage {
   @Local private localLibraryRefreshSummary?: LocalLibraryRefreshSummary = undefined
   @Local private settingsSearchText: string = ''
   @Local private settingsMenuKey: string = ''
-  @Local private downloadWifiOnly: boolean = false
-  @Local private trackerAutoSync: boolean = false
-  @Local private backupAutoExport: boolean = false
-  @Local private cacheAutoClean: boolean = false
+  @Local private downloadForegroundConcurrencyLimit: number = 1
 
   private context(): common.UIAbilityContext {
     return getContext(this) as common.UIAbilityContext
@@ -377,24 +378,36 @@ export struct SettingsPage {
     return new LibraryUpdateResultStore(this.context())
   }
 
+  private offlineDownloadQueueStore(): OfflineDownloadQueueStore {
+    return new OfflineDownloadQueueStore(this.context().filesDir)
+  }
+
+  private t(name: string): string {
+    const token = `${this.language.mode}:${this.language.effectiveLocale}`
+    if (token === '__koma_missing_locale__') {
+      return name
+    }
+    return AppStrings.get(name)
+  }
+
   private rowTitle(row: SettingsRow): string {
-    return s(row.titleKey)
+    return this.t(row.titleKey)
   }
 
   private rowBaseDetail(row: SettingsRow): string {
-    return s(row.detailKey)
+    return this.t(row.detailKey)
   }
 
   private sectionTitle(section: SettingsSection): string {
-    return s(section.titleKey)
+    return this.t(section.titleKey)
   }
 
   private paneItemTitle(item: SettingsPaneItem): string {
-    return s(item.titleKey)
+    return this.t(item.titleKey)
   }
 
   private paneItemDetail(item: SettingsPaneItem): string {
-    return s(item.detailKey)
+    return this.t(item.detailKey)
   }
 
   private rowDetail(row: SettingsRow): string {
@@ -440,26 +453,17 @@ export struct SettingsPage {
     if (row.key === 'reader-volume-key-navigation') {
       return getReaderVolumeKeyNavigationLabel(this.readerVolumeKeyNavigationEnabled)
     }
-    if (row.key === 'download-wifi-only') {
-      return this.downloadWifiOnly ? s('common_on') : s('common_off')
-    }
-    if (row.key === 'tracker-auto-sync') {
-      return this.trackerAutoSync ? s('common_on') : s('common_off')
-    }
-    if (row.key === 'backup-auto-export') {
-      return this.backupAutoExport ? s('common_on') : s('common_off')
-    }
-    if (row.key === 'cache-auto-clean') {
-      return this.cacheAutoClean ? s('common_on') : s('common_off')
+    if (row.key === 'download-concurrency') {
+      return `${this.downloadForegroundConcurrencyLimit}`
     }
     if (row.key === 'version') {
       return this.versionDetail.length > 0
         ? this.versionDetail
-        : (this.versionLoadFailed ? s('settings_version_dev') : '')
+        : (this.versionLoadFailed ? this.t('settings_version_dev') : '')
     }
     if (row.key === 'sources') {
       const count = listInstalled().length
-      return count > 0 ? s('settings_sources_installed_count').replace('%s', `${count}`) : s('settings_sources_none')
+      return count > 0 ? this.t('settings_sources_installed_count').replace('%s', `${count}`) : this.t('settings_sources_none')
     }
     if (row.key === 'image-cache') {
       return this.imageCacheDetailText()
@@ -469,13 +473,13 @@ export struct SettingsPage {
     }
     if (row.key === 'library-update-interval') {
       if (!this.libraryUpdatePreferences.autoCheckEnabled) {
-        return s('settings_library_update_enable_first')
+        return this.t('settings_library_update_enable_first')
       }
       return `${getLibraryUpdateAutoCheckLabel(this.libraryUpdatePreferences)} · ${getLibraryUpdateNextDueLabel(this.libraryUpdatePreferences)}`
     }
     if (row.key === 'library-update') {
       if (this.libraryUpdateBusy) {
-        return s('common_checking')
+        return this.t('common_checking')
       }
       const effectiveSummary = this.getEffectiveLibraryUpdateSummary()
       const summaryText = formatLibraryUpdateSummary(effectiveSummary)
@@ -491,18 +495,18 @@ export struct SettingsPage {
         }
         return `${summaryText} · ${getLibraryUpdateNextDueLabel(this.libraryUpdatePreferences)}`
       }
-      return `${summaryText} · ${s('common_last_checked')} ${this.formatTimestamp(checkedAt)} · ${getLibraryUpdateNextDueLabel(this.libraryUpdatePreferences)}`
+      return `${summaryText} · ${this.t('common_last_checked')} ${this.formatTimestamp(checkedAt)} · ${getLibraryUpdateNextDueLabel(this.libraryUpdatePreferences)}`
     }
     if (row.key === 'library-update-results') {
-      return this.getEffectiveLibraryUpdateSummary() === undefined ? s('library_update_no_result') : s('settings_library_update_results_view')
+      return this.getEffectiveLibraryUpdateSummary() === undefined ? this.t('library_update_no_result') : this.t('settings_library_update_results_view')
     }
     if (row.key === 'library-categories') {
       const count = this.libraryStore === undefined ? 0 : this.libraryStore.listCustomCategories().length
-      return count > 0 ? s('settings_library_categories_count').replace('%s', `${count}`) : s('settings_row_library_categories_detail')
+      return count > 0 ? this.t('settings_library_categories_count').replace('%s', `${count}`) : this.t('settings_row_library_categories_detail')
     }
     if (row.key === 'local-library-refresh') {
       if (this.localLibraryRefreshBusy) {
-        return s('common_checking')
+        return this.t('common_checking')
       }
       return formatLocalLibraryRefreshSummary(this.localLibraryRefreshSummary)
     }
@@ -667,7 +671,34 @@ export struct SettingsPage {
   }
 
   private paneTitle(pane: SettingsPaneKey): string {
-    return settingsPaneTitle(pane)
+    if (pane === 'appearance') {
+      return this.t('settings_pane_appearance_title')
+    }
+    if (pane === 'library') {
+      return this.t('settings_pane_library_title')
+    }
+    if (pane === 'reader') {
+      return this.t('settings_pane_reader_title')
+    }
+    if (pane === 'services') {
+      return this.t('settings_pane_services_title')
+    }
+    if (pane === 'downloads') {
+      return this.t('settings_pane_downloads_title')
+    }
+    if (pane === 'tracking') {
+      return this.t('settings_pane_tracking_title')
+    }
+    if (pane === 'backup') {
+      return this.t('settings_pane_backup_title')
+    }
+    if (pane === 'storage') {
+      return this.t('settings_pane_storage_title')
+    }
+    if (pane === 'about') {
+      return this.t('settings_pane_about_title')
+    }
+    return this.t('tab_settings')
   }
 
   private searchResultSubtitle(result: SettingsSearchResult): string {
@@ -753,6 +784,15 @@ export struct SettingsPage {
       .catch((error: Error) => {
         console.warn('[Settings] step=load_library_update_preferences_failed code=' + safeSettingsErrorCode(error))
       })
+  }
+
+  private loadDownloadQueuePreferences(): void {
+    try {
+      this.downloadForegroundConcurrencyLimit = this.offlineDownloadQueueStore().loadPreferences().foregroundConcurrencyLimit
+    } catch (error) {
+      const e = error as Error
+      console.warn('[Settings] step=load_download_queue_preferences_failed message=' + e.message)
+    }
   }
 
   private loadLatestLibraryUpdateSummary(): void {
@@ -1111,6 +1151,17 @@ export struct SettingsPage {
       })
   }
 
+  private saveDownloadForegroundConcurrencyLimit(limit: number): void {
+    try {
+      this.downloadForegroundConcurrencyLimit = this.offlineDownloadQueueStore().setForegroundConcurrencyLimit(limit).foregroundConcurrencyLimit
+      console.info('[Settings] step=save_download_concurrency limit=' + this.downloadForegroundConcurrencyLimit)
+    } catch (error) {
+      const e = error as Error
+      console.warn('[Settings] step=save_download_concurrency_failed message=' + e.message)
+      this.showToast(s('settings_download_concurrency_save_failed'))
+    }
+  }
+
   private checkLibraryUpdates(reason: string = 'manual'): void {
     if (this.libraryUpdateBusy) {
       return
@@ -1278,6 +1329,7 @@ export struct SettingsPage {
       row.key === 'reader-tap-zone-preset' ||
       row.key === 'reader-page-gap' ||
       row.key === 'reader-wide-image-mode' ||
+      row.key === 'download-concurrency' ||
       row.key === 'library-update-interval'
   }
 
@@ -1287,11 +1339,7 @@ export struct SettingsPage {
       row.key === 'reader-keep-screen-awake' ||
       row.key === 'reader-tap-navigation' ||
       row.key === 'reader-trim-page-margins' ||
-      row.key === 'reader-volume-key-navigation' ||
-      row.key === 'download-wifi-only' ||
-      row.key === 'tracker-auto-sync' ||
-      row.key === 'backup-auto-export' ||
-      row.key === 'cache-auto-clean'
+      row.key === 'reader-volume-key-navigation'
   }
 
   private switchRowValue(row: SettingsRow): boolean {
@@ -1313,32 +1361,7 @@ export struct SettingsPage {
     if (row.key === 'reader-volume-key-navigation') {
       return this.readerVolumeKeyNavigationEnabled
     }
-    if (row.key === 'download-wifi-only') {
-      return this.downloadWifiOnly
-    }
-    if (row.key === 'tracker-auto-sync') {
-      return this.trackerAutoSync
-    }
-    if (row.key === 'backup-auto-export') {
-      return this.backupAutoExport
-    }
-    if (row.key === 'cache-auto-clean') {
-      return this.cacheAutoClean
-    }
     return false
-  }
-
-  private setPlaceholderSwitch(row: SettingsRow, value: boolean): void {
-    if (row.key === 'download-wifi-only') {
-      this.downloadWifiOnly = value
-    } else if (row.key === 'tracker-auto-sync') {
-      this.trackerAutoSync = value
-    } else if (row.key === 'backup-auto-export') {
-      this.backupAutoExport = value
-    } else if (row.key === 'cache-auto-clean') {
-      this.cacheAutoClean = value
-    }
-    this.showToast(`${this.rowTitle(row)}${s('settings_coming_soon_suffix')}`)
   }
 
   private setSwitchRowValue(row: SettingsRow, value: boolean): void {
@@ -1355,7 +1378,7 @@ export struct SettingsPage {
     } else if (row.key === 'reader-volume-key-navigation') {
       this.saveReaderVolumeKeyNavigationEnabled(value)
     } else {
-      this.setPlaceholderSwitch(row, value)
+      this.showToast(`${this.rowTitle(row)}${s('settings_coming_soon_suffix')}`)
     }
   }
 
@@ -1416,6 +1439,12 @@ export struct SettingsPage {
         this.SelectionMenuItem(s('reader_wide_mode_keep_single'), this.readerWideImageMode === 'keep_single', () => { this.saveReaderWideImageMode('keep_single') })
         this.SelectionMenuItem(s('reader_wide_mode_split'), this.readerWideImageMode === 'split_wide_pages', () => { this.saveReaderWideImageMode('split_wide_pages') })
         this.SelectionMenuItem(s('reader_wide_mode_rotate'), this.readerWideImageMode === 'rotate_wide_pages', () => { this.saveReaderWideImageMode('rotate_wide_pages') })
+      } else if (row.key === 'download-concurrency') {
+        ForEach(OFFLINE_DOWNLOAD_FOREGROUND_CONCURRENCY_LIMIT_OPTIONS, (limit: number) => {
+          this.SelectionMenuItem(`${limit}`, this.downloadForegroundConcurrencyLimit === limit, () => {
+            this.saveDownloadForegroundConcurrencyLimit(limit)
+          })
+        }, (limit: number) => `${limit}`)
       } else if (row.key === 'library-update-interval') {
         this.SelectionMenuItem(s('library_update_interval_12h'), this.libraryUpdatePreferences.intervalHours === 12, () => { this.saveLibraryUpdateInterval(12) })
         this.SelectionMenuItem(s('library_update_interval_24h'), this.libraryUpdatePreferences.intervalHours === 24, () => { this.saveLibraryUpdateInterval(24) })
@@ -1680,6 +1709,7 @@ export struct SettingsPage {
     this.loadVersion()
     this.loadPreferences()
     this.loadLibraryUpdatePreferences()
+    this.loadDownloadQueuePreferences()
     this.loadImageCacheStats()
   }
 

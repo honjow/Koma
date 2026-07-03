@@ -27,6 +27,7 @@ export class AppStrings {
   }
 
   static get(name: string): string {
+    // Read the locale signal so computed labels repaint on in-app language switches.
     const observed: string = connectLanguageState().effectiveLocale
     if (observed.length < 0) {
       return name
