@@ -191,9 +191,8 @@ export class CrossSearchService {
   private async searchLocal(query: string): Promise<SourceSearchOutcome> {
     const libraryStore = this.loadLocalLibraryStore()
     const lowerQuery = query.toLocaleLowerCase()
-    const items = libraryStore.listComics()
+    const items = this.sortSearchResultItems(query, libraryStore.listComics()
       .filter((comic: Comic): boolean => this.localComicMatches(comic, lowerQuery))
-      .slice(0, SOURCE_PAGE_SIZE)
       .map((comic: Comic): CrossSearchResultItem => {
         return {
           id: `local:${comic.id}`,
@@ -206,7 +205,7 @@ export class CrossSearchService {
           coverUri: comic.coverUri,
           localComicId: comic.id,
         }
-      })
+      })).slice(0, SOURCE_PAGE_SIZE)
     console.info(`[Search] step=local_done count=${items.length}`)
     return { section: this.section('local', AppStrings.get('tab_library'), 'local', items) }
   }
@@ -223,7 +222,7 @@ export class CrossSearchService {
         search: query,
         sort: ['metadata.titleSort,asc'],
       })
-      const items = response.content.map((series: KomgaSeriesDto): CrossSearchResultItem => {
+      const items = this.sortSearchResultItems(query, response.content.map((series: KomgaSeriesDto): CrossSearchResultItem => {
         const title = this.komgaSeriesTitle(series)
         return {
           id: `komga:${record.server.id}:${series.id}`,
@@ -233,7 +232,7 @@ export class CrossSearchService {
           sourceLabel: AppStrings.get('route_komga_title'),
           komgaSeriesId: series.id,
         }
-      })
+      })).slice(0, SOURCE_PAGE_SIZE)
       console.info(`[Search] step=komga_done count=${items.length}`)
       return { section: this.section('komga', AppStrings.get('route_komga_title'), 'komga', items) }
     } catch (error) {
@@ -275,13 +274,13 @@ export class CrossSearchService {
       const lowerQuery = query.toLocaleLowerCase()
       const rootResources = await client.propfind([], 1)
       const resources = await this.collectWebDavSearchResources(client, rootResources)
-      const items = resources.filter((resource: DavResource): boolean => {
+      const matchedItems = resources.filter((resource: DavResource): boolean => {
         if (this.isCurrentWebDavResource(client, [], resource)) {
           return false
         }
         const supported = resource.isCollection || resource.candidateKind === DavComicCandidateKind.IMAGE_FILE
         return supported && this.davResourceName(resource).toLocaleLowerCase().indexOf(lowerQuery) >= 0
-      }).slice(0, SOURCE_PAGE_SIZE).map((resource: DavResource): CrossSearchResultItem => {
+      }).map((resource: DavResource): CrossSearchResultItem => {
         return {
           id: `webdav:${resource.href}`,
           title: this.davResourceName(resource),
@@ -295,6 +294,7 @@ export class CrossSearchService {
           webDavIsCollection: resource.isCollection,
         }
       })
+      const items = this.sortSearchResultItems(query, matchedItems).slice(0, SOURCE_PAGE_SIZE)
       console.info(`[Search] step=webdav_done count=${items.length}`)
       return { section: this.section('webdav', AppStrings.get('route_webdav_title'), 'webdav', items) }
     } catch (error) {
@@ -311,7 +311,7 @@ export class CrossSearchService {
         return { section: this.stateSection(`wasm:${source.sourceId}`, source.displayName, 'wasm', 'unsupported', 'search_not_supported') }
       }
       const result = await this.sourceViewModel.searchSource(source, query, 1)
-      const items = result.manga.slice(0, SOURCE_PAGE_SIZE).map((manga: SourceManga): CrossSearchResultItem => {
+      const items = this.sortSearchResultItems(query, result.manga.map((manga: SourceManga): CrossSearchResultItem => {
         return {
           id: `wasm:${manga.sourceId}:${manga.id}`,
           title: manga.title,
@@ -322,7 +322,7 @@ export class CrossSearchService {
           sourceId: manga.sourceId,
           sourceMangaId: manga.id,
         }
-      })
+      })).slice(0, SOURCE_PAGE_SIZE)
       console.info(`[Search] step=wasm_done source=${source.sourceId} count=${items.length}`)
       return { section: this.section(`wasm:${source.sourceId}`, source.displayName, 'wasm', items) }
     } catch (error) {
@@ -448,11 +448,11 @@ export class CrossSearchService {
 
   private filterOpdsPublications(client: OpdsClient, catalog: OpdsParseResult, query: string): CrossSearchResultItem[] {
     const lowerQuery = query.toLocaleLowerCase()
-    return catalog.publications.filter((publication: OpdsBookDto): boolean => {
+    const items = catalog.publications.filter((publication: OpdsBookDto): boolean => {
       return publication.title.toLocaleLowerCase().indexOf(lowerQuery) >= 0 ||
         (publication.author !== undefined && publication.author.toLocaleLowerCase().indexOf(lowerQuery) >= 0) ||
         (publication.summary !== undefined && publication.summary.toLocaleLowerCase().indexOf(lowerQuery) >= 0)
-    }).slice(0, SOURCE_PAGE_SIZE).map((publication: OpdsBookDto): CrossSearchResultItem => {
+    }).map((publication: OpdsBookDto): CrossSearchResultItem => {
       const images = mapOpdsPublicationToImages(publication)
       return {
         id: `opds:${this.shortHash(catalog.feedUrl)}:${publication.id}`,
@@ -465,6 +465,7 @@ export class CrossSearchService {
         opdsPublicationId: publication.id,
       }
     })
+    return this.sortSearchResultItems(query, items).slice(0, SOURCE_PAGE_SIZE)
   }
 
   private installWebDavReaderSession(
@@ -580,6 +581,35 @@ export class CrossSearchService {
     } catch (_err) {
       return resource.href
     }
+  }
+
+  private sortSearchResultItems(query: string, items: CrossSearchResultItem[]): CrossSearchResultItem[] {
+    const normalizedQuery = query.trim().toLocaleLowerCase()
+    return items.slice().sort((left: CrossSearchResultItem, right: CrossSearchResultItem): number => {
+      const scoreDiff = this.searchResultScore(left, normalizedQuery) - this.searchResultScore(right, normalizedQuery)
+      return scoreDiff !== 0 ? scoreDiff : left.title.localeCompare(right.title)
+    })
+  }
+
+  private searchResultScore(item: CrossSearchResultItem, normalizedQuery: string): number {
+    const title = item.title.toLocaleLowerCase()
+    const subtitle = item.subtitle.toLocaleLowerCase()
+    if (title === normalizedQuery) {
+      return 0
+    }
+    if (title.startsWith(normalizedQuery)) {
+      return 1
+    }
+    if (title.indexOf(normalizedQuery) >= 0) {
+      return 2
+    }
+    if (subtitle.startsWith(normalizedQuery)) {
+      return 3
+    }
+    if (subtitle.indexOf(normalizedQuery) >= 0) {
+      return 4
+    }
+    return 9
   }
 
   private komgaSeriesTitle(item: KomgaSeriesDto): string {

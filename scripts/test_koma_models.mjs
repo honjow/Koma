@@ -20,6 +20,7 @@ const libraryPersistencePath = resolve(root, 'entry/src/main/ets/model/LibraryPe
 const libraryUpdateServicePath = resolve(root, 'entry/src/main/ets/model/LibraryUpdateService.ets')
 const libraryUpdateResultStorePath = resolve(root, 'entry/src/main/ets/model/LibraryUpdateResultStore.ets')
 const libraryUpdatePreferencesStorePath = resolve(root, 'entry/src/main/ets/model/LibraryUpdatePreferencesStore.ets')
+const crossSearchServicePath = resolve(root, 'entry/src/main/ets/model/CrossSearchService.ets')
 const backupServicePath = resolve(root, 'entry/src/main/ets/model/BackupService.ets')
 const backupEncryptionServicePath = resolve(root, 'entry/src/main/ets/model/BackupEncryptionService.ets')
 const trackerModelsPath = resolve(root, 'entry/src/main/ets/model/TrackerModels.ets')
@@ -67,6 +68,7 @@ const libraryPersistenceSource = readFileSync(libraryPersistencePath, 'utf8')
 const libraryUpdateServiceSource = readFileSync(libraryUpdateServicePath, 'utf8')
 const libraryUpdateResultStoreSource = readFileSync(libraryUpdateResultStorePath, 'utf8')
 const libraryUpdatePreferencesStoreSource = readFileSync(libraryUpdatePreferencesStorePath, 'utf8')
+const crossSearchServiceSource = readFileSync(crossSearchServicePath, 'utf8')
 const backupServiceSource = readFileSync(backupServicePath, 'utf8')
 const backupEncryptionServiceSource = readFileSync(backupEncryptionServicePath, 'utf8')
 const trackerModelsSource = readFileSync(trackerModelsPath, 'utf8')
@@ -533,6 +535,21 @@ assert.match(
   searchPageSource,
   /KomaIconButton\(\{[\s\S]*icon: \$r\('sys\.symbol\.trash'\)[\s\S]*this\.removeHistoryEntry\(entry\.query\)/,
   'SearchPage history rows must use a trash icon button for single-entry deletion',
+)
+assert.match(
+  crossSearchServiceSource,
+  /private sortSearchResultItems\(query: string, items: CrossSearchResultItem\[\]\): CrossSearchResultItem\[\][\s\S]*this\.searchResultScore\(left, normalizedQuery\) - this\.searchResultScore\(right, normalizedQuery\)[\s\S]*left\.title\.localeCompare\(right\.title\)/,
+  'CrossSearchService must apply stable result scoring instead of raw provider order',
+)
+assert.match(
+  crossSearchServiceSource,
+  /private searchResultScore\(item: CrossSearchResultItem, normalizedQuery: string\): number[\s\S]*title === normalizedQuery[\s\S]*title\.startsWith\(normalizedQuery\)[\s\S]*title\.indexOf\(normalizedQuery\)[\s\S]*subtitle\.startsWith\(normalizedQuery\)[\s\S]*subtitle\.indexOf\(normalizedQuery\)/,
+  'CrossSearchService scoring must prioritize exact title, title prefix, title contains, then subtitle matches',
+)
+assert.match(
+  crossSearchServiceSource,
+  /searchLocal\(query: string\)[\s\S]*this\.sortSearchResultItems\(query, libraryStore\.listComics\(\)[\s\S]*searchKomga\(query: string\)[\s\S]*this\.sortSearchResultItems\(query, response\.content\.map[\s\S]*searchWebDav\(query: string\)[\s\S]*const matchedItems[\s\S]*this\.sortSearchResultItems\(query, matchedItems\)[\s\S]*searchWasmSource[\s\S]*this\.sortSearchResultItems\(query, result\.manga\.map[\s\S]*filterOpdsPublications[\s\S]*return this\.sortSearchResultItems\(query, items\)/,
+  'CrossSearchService must use shared scoring for local, Komga, WebDAV, WASM, and OPDS results',
 )
 
 assert.match(
