@@ -710,8 +710,13 @@ assert.match(
 )
 assert.match(
   libraryFilterStoreSource,
-  /export type LibraryAvailabilityFilter = 'all' \| 'downloaded' \| 'fully_downloaded' \| 'partially_downloaded' \| 'not_downloaded'[\s\S]*availability: LibraryAvailabilityFilter[\s\S]*LIBRARY_FILTER_AVAILABILITY_KEY[\s\S]*value === 'downloaded'[\s\S]*value === 'fully_downloaded'[\s\S]*value === 'partially_downloaded'[\s\S]*value === 'not_downloaded'[\s\S]*normalizeAvailability\(availability\)[\s\S]*store\.put\(LIBRARY_FILTER_AVAILABILITY_KEY, preferencesValue\.availability\)/,
+  /export type LibraryAvailabilityFilter = 'all' \| 'downloaded' \| 'fully_downloaded' \| 'partially_downloaded' \| 'not_downloaded'[\s\S]*availability: LibraryAvailabilityFilter[\s\S]*LIBRARY_FILTER_AVAILABILITY_KEY[\s\S]*value === 'downloaded'[\s\S]*value === 'fully_downloaded'[\s\S]*value === 'partially_downloaded'[\s\S]*value === 'not_downloaded'[\s\S]*normalizeAvailability\(availability\)[\s\S]*store\.put\(LIBRARY_FILTER_AVAILABILITY_KEY, normalizeAvailability\(preferencesValue\.availability\)\)/,
   'Library filter preferences must persist any/complete/partial/not-downloaded availability filters',
+)
+assert.match(
+  libraryFilterStoreSource,
+  /export type LibraryViewMode = 'grid' \| 'list'[\s\S]*LIBRARY_VIEW_MODE_KEY[\s\S]*viewMode: 'grid'[\s\S]*viewMode: normalizeViewMode\(viewMode\)[\s\S]*store\.put\(LIBRARY_VIEW_MODE_KEY, normalizeViewMode\(preferencesValue\.viewMode\)\)/,
+  'Library filter preferences must persist a real grid/list library view mode',
 )
 assert.match(
   libraryFilterStoreSource,
@@ -722,6 +727,11 @@ assert.match(
   libraryPageSource,
   /filterAvailability: LibraryAvailabilityFilter = 'all'[\s\S]*filterAvailabilityComics\(this\.filterPreciseSourceComics\(nextComics\)\)[\s\S]*private filterAvailabilityComics\(comics: Comic\[\]\): Comic\[\][\s\S]*this\.filterAvailability === 'downloaded'[\s\S]*downloadedComics\.has\(comic\.id\)[\s\S]*this\.filterAvailability === 'fully_downloaded'[\s\S]*OfflineDownloadStatus\.DOWNLOADED[\s\S]*this\.filterAvailability === 'partially_downloaded'[\s\S]*OfflineDownloadStatus\.PARTIAL[\s\S]*!downloadedComics\.has\(comic\.id\)[\s\S]*new OfflineDownloadQueueStore\(context\.filesDir\)\.reconcileWithManifests\(\)[\s\S]*entry\.status === OfflineDownloadStatus\.DOWNLOADED[\s\S]*entry\.status === OfflineDownloadStatus\.PARTIAL/,
   'LibraryPage availability filter must derive any/complete/partial/not-downloaded comics from reconciled download queue manifests',
+)
+assert.match(
+  libraryPageSource,
+  /@Local private viewMode: LibraryViewMode = 'grid'[\s\S]*this\.viewMode = preferencesValue\.viewMode[\s\S]*viewMode: this\.viewMode[\s\S]*private LibraryList\(comics: ComicCoverInfo\[\]\)[\s\S]*ConciseListRow\([\s\S]*this\.viewMode === 'list'[\s\S]*this\.LibraryList\(this\.gridComics\(\)\)/,
+  'LibraryPage must render persisted grid/list view mode with a reusable list row component',
 )
 assert.match(
   libraryPageSource,

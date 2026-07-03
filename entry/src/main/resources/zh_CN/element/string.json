@@ -123,6 +123,7 @@
     { "name": "settings_download_notification_disabled", "value": "系统通知未开启" },
     { "name": "settings_download_notification_failed", "value": "下载通知权限处理失败" },
     { "name": "settings_library_default_sort_save_failed", "value": "保存默认排序失败" },
+    { "name": "settings_library_view_mode_save_failed", "value": "保存书架视图模式失败" },
     { "name": "settings_library_update_unavailable", "value": "书架不可用" },
     { "name": "settings_library_update_found_count", "value": "发现 %s 本有更新" },
     { "name": "settings_library_update_up_to_date", "value": "没有发现更新" },
@@ -142,6 +143,8 @@
     { "name": "library_update_interval_12h", "value": "每 12 小时" },
     { "name": "library_update_interval_24h", "value": "每 24 小时" },
     { "name": "library_update_interval_48h", "value": "每 48 小时" },
+    { "name": "library_view_mode_grid", "value": "网格" },
+    { "name": "library_view_mode_list", "value": "列表" },
 
     { "name": "settings_pane_appearance_title", "value": "外观" },
     { "name": "settings_pane_appearance_detail", "value": "主题、语言、列表样式" },

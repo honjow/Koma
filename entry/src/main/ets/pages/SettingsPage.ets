@@ -13,6 +13,7 @@ import { LibraryStorePersistenceService } from '../model/LibraryPersistence'
 import {
   LibraryFilterPreferences,
   LibraryFilterStore,
+  LibraryViewMode,
 } from '../model/LibraryFilterStore'
 import {
   LibraryUpdateService,
@@ -198,7 +199,7 @@ function createSettingsSections(): SettingsSection[] {
         { key: 'library-update', titleKey: 'settings_row_library_update_title', detailKey: 'settings_row_library_update_detail' },
         { key: 'library-update-results', titleKey: 'settings_row_library_update_results_title', detailKey: 'settings_row_library_update_results_detail' },
         { key: 'library-categories', titleKey: 'settings_row_library_categories_title', detailKey: 'settings_row_library_categories_detail' },
-        { key: 'library-view-mode', titleKey: 'settings_row_library_view_mode_title', detailKey: 'settings_row_library_view_mode_detail', placeholder: true },
+        { key: 'library-view-mode', titleKey: 'settings_row_library_view_mode_title', detailKey: 'settings_row_library_view_mode_detail' },
         { key: 'library-default-sort', titleKey: 'settings_row_library_default_sort_title', detailKey: 'settings_row_library_default_sort_detail' },
         { key: 'library-badges', titleKey: 'settings_row_library_badges_title', detailKey: 'settings_row_library_badges_detail', placeholder: true },
         { key: 'local-library-refresh', titleKey: 'settings_row_local_library_refresh_title', detailKey: 'settings_row_local_library_refresh_detail' },
@@ -393,6 +394,7 @@ export struct SettingsPage {
   @Local private downloadWifiOnly: boolean = false
   @Local private downloadNotificationStatus: OfflineDownloadNotificationStatus = 'unavailable'
   @Local private libraryDefaultSortBy: LibrarySortBy = 'lastRead'
+  @Local private libraryViewMode: LibraryViewMode = 'grid'
 
   private context(): common.UIAbilityContext {
     return getContext(this) as common.UIAbilityContext
@@ -445,6 +447,13 @@ export struct SettingsPage {
       return this.t('library_sort_source')
     }
     return this.t('library_sort_last_read')
+  }
+
+  private libraryViewModeLabel(viewMode: LibraryViewMode): string {
+    if (viewMode === 'list') {
+      return this.t('library_view_mode_list')
+    }
+    return this.t('library_view_mode_grid')
   }
 
   private sectionTitle(section: SettingsSection): string {
@@ -564,6 +573,9 @@ export struct SettingsPage {
     }
     if (row.key === 'library-default-sort') {
       return this.librarySortLabel(this.libraryDefaultSortBy)
+    }
+    if (row.key === 'library-view-mode') {
+      return this.libraryViewModeLabel(this.libraryViewMode)
     }
     if (row.key === 'local-library-refresh') {
       if (this.localLibraryRefreshBusy) {
@@ -892,7 +904,8 @@ export struct SettingsPage {
     void this.libraryFilterStore().load()
       .then((preferences: LibraryFilterPreferences) => {
         this.libraryDefaultSortBy = preferences.sortBy
-        console.info('[Settings] step=load_library_filter_preferences sortBy=' + preferences.sortBy)
+        this.libraryViewMode = preferences.viewMode
+        console.info('[Settings] step=load_library_filter_preferences sortBy=' + preferences.sortBy + ' viewMode=' + preferences.viewMode)
       })
       .catch((error: Error) => {
         console.warn('[Settings] step=load_library_filter_preferences_failed message=' + error.message)
@@ -1346,6 +1359,22 @@ export struct SettingsPage {
       })
   }
 
+  private saveLibraryViewMode(viewMode: LibraryViewMode): void {
+    this.libraryViewMode = viewMode
+    void this.libraryFilterStore().load()
+      .then((preferences: LibraryFilterPreferences) => {
+        preferences.viewMode = viewMode
+        return this.libraryFilterStore().save(preferences)
+      })
+      .then(() => {
+        console.info('[Settings] step=save_library_view_mode viewMode=' + viewMode)
+      })
+      .catch((error: Error) => {
+        console.warn('[Settings] step=save_library_view_mode_failed message=' + error.message)
+        this.showToast(s('settings_library_view_mode_save_failed'))
+      })
+  }
+
   private handleLibraryUpdateNotificationDispatch(result: LibraryUpdateNotificationDispatchResult, reason: string): void {
     if (result.delivered) {
       this.libraryUpdateNotificationStatus = 'enabled'
@@ -1566,6 +1595,7 @@ export struct SettingsPage {
       row.key === 'reader-page-gap' ||
       row.key === 'reader-wide-image-mode' ||
       row.key === 'download-concurrency' ||
+      row.key === 'library-view-mode' ||
       row.key === 'library-default-sort' ||
       row.key === 'library-update-interval'
   }
@@ -1693,6 +1723,9 @@ export struct SettingsPage {
         this.SelectionMenuItem(s('library_sort_added'), this.libraryDefaultSortBy === 'added', () => { this.saveLibraryDefaultSort('added') })
         this.SelectionMenuItem(s('library_sort_title'), this.libraryDefaultSortBy === 'title', () => { this.saveLibraryDefaultSort('title') })
         this.SelectionMenuItem(s('library_sort_source'), this.libraryDefaultSortBy === 'source', () => { this.saveLibraryDefaultSort('source') })
+      } else if (row.key === 'library-view-mode') {
+        this.SelectionMenuItem(s('library_view_mode_grid'), this.libraryViewMode === 'grid', () => { this.saveLibraryViewMode('grid') })
+        this.SelectionMenuItem(s('library_view_mode_list'), this.libraryViewMode === 'list', () => { this.saveLibraryViewMode('list') })
       } else if (row.key === 'library-update-interval') {
         this.SelectionMenuItem(s('library_update_interval_12h'), this.libraryUpdatePreferences.intervalHours === 12, () => { this.saveLibraryUpdateInterval(12) })
         this.SelectionMenuItem(s('library_update_interval_24h'), this.libraryUpdatePreferences.intervalHours === 24, () => { this.saveLibraryUpdateInterval(24) })

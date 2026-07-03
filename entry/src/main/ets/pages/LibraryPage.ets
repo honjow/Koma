@@ -2,6 +2,7 @@ import { common } from '@kit.AbilityKit'
 import { Chip, ChipSize } from '@kit.ArkUI'
 import { ComicCoverCard, ComicCoverInfo } from '../components/ComicCoverCard'
 import { SecondaryListScaffold } from '../components/SecondaryListScaffold'
+import { ConciseListRow } from '../components/ui/ConciseListRow'
 import { KomaActionButton } from '../components/ui/KomaActionButton'
 import { KomaEmptyState } from '../components/ui/KomaEmptyState'
 import { KomaIconButton } from '../components/ui/KomaIconButton'
@@ -39,6 +40,7 @@ import {
   LibraryFilterPreferences,
   LibraryFilterStore,
   LibrarySourceFilter,
+  LibraryViewMode,
 } from '../model/LibraryFilterStore'
 import { OfflineDownloadQueueEntry, OfflineDownloadQueueStore } from '../model/OfflineDownloadQueueStore'
 import { OfflineDownloadStatus } from '../model/OfflineDownloadStore'
@@ -132,6 +134,7 @@ export struct LibraryPage {
   @Local private selectedIds: Set<ComicId> = new Set<ComicId>()
   @Local private suppressOpenComicId: ComicId = ''
   @Local private sortBy: LibrarySortBy = 'lastRead'
+  @Local private viewMode: LibraryViewMode = 'grid'
   @Local private filterSource: LibrarySourceFilter = 'all'
   @Local private filterReadState: LibraryReadStateFilter = 'all'
   @Local private filterCategory: LibraryCategoryFilter = 'all'
@@ -330,6 +333,7 @@ export struct LibraryPage {
       const context = getContext(this) as common.UIAbilityContext
       const preferencesValue = await new LibraryFilterStore(context).load()
       this.sortBy = preferencesValue.sortBy
+      this.viewMode = preferencesValue.viewMode
       this.filterSource = preferencesValue.source
       this.filterReadState = preferencesValue.readState
       this.filterCategory = preferencesValue.category
@@ -337,7 +341,7 @@ export struct LibraryPage {
       this.applyCategoryDisplayStrategy(this.validCategoryFilter())
       this.refreshDisplayedSnapshotFromStore()
       console.info(
-        `[Library] step=filter_restored sortBy=${this.sortBy} source=${this.filterSource} readState=${this.filterReadState} category=${this.filterCategory} availability=${this.filterAvailability}`
+        `[Library] step=filter_restored sortBy=${this.sortBy} viewMode=${this.viewMode} source=${this.filterSource} readState=${this.filterReadState} category=${this.filterCategory} availability=${this.filterAvailability}`
       )
     } catch (error) {
       const e = error as Error
@@ -350,6 +354,7 @@ export struct LibraryPage {
       const context = getContext(this) as common.UIAbilityContext
       const preferencesValue: LibraryFilterPreferences = {
         sortBy: this.sortBy,
+        viewMode: this.viewMode,
         source: this.filterSource,
         readState: this.filterReadState,
         category: this.filterCategory,
@@ -548,6 +553,13 @@ export struct LibraryPage {
     })
   }
 
+  private listRowSubtitle(comic: ComicCoverInfo): string {
+    if (comic.categoryLabels !== undefined && comic.categoryLabels.length > 0) {
+      return `${comic.subtitle} · ${comic.categoryLabels.join(' · ')}`
+    }
+    return comic.subtitle
+  }
+
   private categoryLabelsForComic(comic: Comic): string[] {
     const labels: string[] = []
     const customCategories = this.libraryStore.listCustomCategories()
@@ -586,6 +598,10 @@ export struct LibraryPage {
 
   private comicRenderKey(comic: ComicCoverInfo): string {
     return `${this.displayedRevision}:${comic.id}`
+  }
+
+  private listRowRenderKey(comic: ComicCoverInfo): string {
+    return `${this.displayedRevision}:list:${comic.id}`
   }
 
   private isEvenDisplayedRevision(): boolean {
@@ -1335,6 +1351,70 @@ export struct LibraryPage {
     this.LibraryGrid(comics)
   }
 
+  @Builder
+  private LibraryListCover(comic: ComicCoverInfo) {
+    Stack({ alignContent: Alignment.Center }) {
+      if (comic.coverUri !== undefined && comic.coverUri.length > 0) {
+        Image(comic.coverUri)
+          .width('100%')
+          .height('100%')
+          .objectFit(ImageFit.Cover)
+      } else {
+        Text('K')
+          .fontSize(ThemeConstants.FONT_SIZE_H2)
+          .fontWeight(FontWeight.Bold)
+          .fontColor(ThemeConstants.TEXT_ON_BRAND)
+      }
+    }
+    .width(48)
+    .height(68)
+    .borderRadius(ThemeConstants.LIST_ROW_RADIUS)
+    .clip(true)
+    .backgroundColor(comic.coverColor)
+  }
+
+  @Builder
+  private LibraryList(comics: ComicCoverInfo[]) {
+    Column({ space: ThemeConstants.SPACE_SM }) {
+      ForEach(comics, (comic: ComicCoverInfo) => {
+        Stack({ alignContent: Alignment.TopEnd }) {
+          ConciseListRow({
+            title: comic.title,
+            subtitle: this.listRowSubtitle(comic),
+            trailingText: comic.progressText,
+            showChevron: false,
+            isEnabled: !this.selectionMode || this.canSelectComic(comic.id),
+            action: () => {
+              this.handleComicClick(comic.id)
+            },
+            prefixBuilderParam: () => {
+              this.LibraryListCover(comic)
+            },
+          })
+            .padding({ top: ThemeConstants.SPACE_XS, bottom: ThemeConstants.SPACE_XS })
+            .borderRadius(ThemeConstants.LIST_ROW_RADIUS)
+            .backgroundColor(this.isComicSelected(comic.id) ? ThemeConstants.SOFT_TINT : ThemeConstants.CARD)
+            .onTouch((event: TouchEvent) => {
+              this.handleComicTouch(comic.id, event)
+            })
+
+          if (!this.selectionMode && this.canRemoveComic(comic.id)) {
+            KomaIconButton({
+              icon: $r('sys.symbol.more'),
+              kind: 'secondary',
+              controlSize: ThemeConstants.TOUCH_TARGET_SM,
+              iconSize: ThemeConstants.FONT_SIZE_H3,
+            })
+              .margin({ top: ThemeConstants.SPACE_SM, right: ThemeConstants.SPACE_SM })
+              .bindMenu(this.ComicActionMenu(comic))
+          }
+        }
+        .width('100%')
+      }, (comic: ComicCoverInfo) => this.listRowRenderKey(comic))
+    }
+    .width('100%')
+  }
+
   aboutToAppear(): void {
     this.syncDisplayedSnapshotFromProps()
     this.reloadPersistentSessionStore('appear')
@@ -1410,7 +1490,9 @@ export struct LibraryPage {
 
           if (this.hasVisibleLibraryContent()) {
             ListItem() {
-              if (this.isEvenDisplayedRevision()) {
+              if (this.viewMode === 'list') {
+                this.LibraryList(this.gridComics())
+              } else if (this.isEvenDisplayedRevision()) {
                 this.LibraryGridEven(this.gridComics())
               } else {
                 this.LibraryGridOdd(this.gridComics())

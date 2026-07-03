@@ -123,6 +123,7 @@
     { "name": "settings_download_notification_disabled", "value": "System notifications are disabled" },
     { "name": "settings_download_notification_failed", "value": "Failed to update download notification permission" },
     { "name": "settings_library_default_sort_save_failed", "value": "Failed to save default sort" },
+    { "name": "settings_library_view_mode_save_failed", "value": "Failed to save library view mode" },
     { "name": "settings_library_update_unavailable", "value": "Library unavailable" },
     { "name": "settings_library_update_found_count", "value": "Found updates for %s books" },
     { "name": "settings_library_update_up_to_date", "value": "No updates found" },
@@ -142,6 +143,8 @@
     { "name": "library_update_interval_12h", "value": "Every 12 hours" },
     { "name": "library_update_interval_24h", "value": "Every 24 hours" },
     { "name": "library_update_interval_48h", "value": "Every 48 hours" },
+    { "name": "library_view_mode_grid", "value": "Grid" },
+    { "name": "library_view_mode_list", "value": "List" },
 
     { "name": "settings_pane_appearance_title", "value": "Appearance" },
     { "name": "settings_pane_appearance_detail", "value": "Theme, language, list style" },
