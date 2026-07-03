@@ -1372,6 +1372,11 @@ assert.match(
   'ReaderPageSourceAdapter source image requests must inject per-source settings',
 )
 assert.match(
+  readerPageSourceAdapterSource,
+  /BLOCKED_SOURCE_IMAGE_HEADER_NAMES: string\[\] = \[[\s\S]*'content-length'[\s\S]*'host'[\s\S]*'transfer-encoding'[\s\S]*SOURCE_IMAGE_HEADER_MAX_COUNT[\s\S]*SOURCE_IMAGE_HEADER_VALUE_MAX_LENGTH[\s\S]*function normalizeSourceImageHeaders[\s\S]*isSafeSourceImageHeaderName\(normalizedName\)[\s\S]*isSafeSourceImageHeaderValue\(value\)[\s\S]*function isSafeSourceImageHeaderName\(name: string\): boolean[\s\S]*BLOCKED_SOURCE_IMAGE_HEADER_NAMES\.indexOf\(name\.toLocaleLowerCase\(\)\)[\s\S]*function isSafeSourceImageHeaderValue\(value: string\): boolean[\s\S]*value\.indexOf\('\\r'\) < 0[\s\S]*value\.indexOf\('\\n'\) < 0/,
+  'ReaderPageSourceAdapter must sanitize source image request headers before reader/download network fetches',
+)
+assert.match(
   mangaDetailPageSource,
   /const args: SourceMangaRequestArgs = \{ mangaId \}[\s\S]*this\.buildSourceDetailRequestJson\(entry\.sourceId, operation, args, \{ network: true \}\)/,
   'get_manga must send args.mangaId with network host hints',

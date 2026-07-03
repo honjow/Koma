@@ -129,6 +129,19 @@ interface ReaderSourceImageRequest {
   hostHints: ReaderSourceImageRequestHostHints
 }
 
+const BLOCKED_SOURCE_IMAGE_HEADER_NAMES: string[] = [
+  'connection',
+  'content-length',
+  'host',
+  'proxy-authorization',
+  'te',
+  'trailer',
+  'transfer-encoding',
+  'upgrade',
+]
+const SOURCE_IMAGE_HEADER_MAX_COUNT: number = 16
+const SOURCE_IMAGE_HEADER_VALUE_MAX_LENGTH: number = 4096
+
 const READER_SANDBOX_ROOTS: ReaderSandboxRoot[] = [
   { label: 'cache_haps_entry', path: '/data/storage/el2/base/haps/entry/cache/import/' },
   { label: 'files_haps_entry', path: '/data/storage/el2/base/haps/entry/files/import/' },
@@ -325,13 +338,31 @@ function normalizeSourceImageHeaders(raw: Record<string, string> | undefined): R
   }
   const headers: ReaderRemoteImageHeaders = {}
   Object.keys(raw).forEach((name: string) => {
+    if (Object.keys(headers).length >= SOURCE_IMAGE_HEADER_MAX_COUNT) {
+      return
+    }
     const normalizedName = name.trim()
     const value = raw[name]
-    if (normalizedName.length > 0 && typeof value === 'string') {
-      headers[normalizedName] = value
+    if (isSafeSourceImageHeaderName(normalizedName) && isSafeSourceImageHeaderValue(value)) {
+      headers[normalizedName] = value.trim()
     }
   })
   return Object.keys(headers).length === 0 ? undefined : headers
+}
+
+function isSafeSourceImageHeaderName(name: string): boolean {
+  if (name.length === 0 || BLOCKED_SOURCE_IMAGE_HEADER_NAMES.indexOf(name.toLocaleLowerCase()) >= 0) {
+    return false
+  }
+  return /^[A-Za-z0-9!#$%&'*+.^_`|~-]+$/.test(name)
+}
+
+function isSafeSourceImageHeaderValue(value: string): boolean {
+  return typeof value === 'string' &&
+    value.trim().length > 0 &&
+    value.length <= SOURCE_IMAGE_HEADER_VALUE_MAX_LENGTH &&
+    value.indexOf('\r') < 0 &&
+    value.indexOf('\n') < 0
 }
 
 async function fetchReaderRemoteImageBytes(url: string, headers: ReaderRemoteImageHeaders | undefined): Promise<ArrayBuffer> {
