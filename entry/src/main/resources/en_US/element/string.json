@@ -325,6 +325,7 @@
     { "name": "history_chapter_read", "value": "Read chapter" },
     { "name": "history_page_chapter_count", "value": "%s pages · %s chapters" },
     { "name": "history_page_progress", "value": "Page %s / %s · %s" },
+    { "name": "history_recent_title", "value": "Reading history" },
     { "name": "history_empty_title", "value": "No reading history yet" },
     { "name": "history_empty_message", "value": "Read a few pages and your recent items will show up here." },
 

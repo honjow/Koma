@@ -71,6 +71,7 @@ export interface ReaderSessionStore {
   restoreMode(config: ReaderSessionConfig): ReaderMode
   updatePageIndex(config: ReaderSessionConfig, pageIndex: number, pageId?: string): ReadingProgress
   saveProgress(progress: ReadingProgress): void
+  listProgress(): ReadingProgress[]
   removeProgress(comicId: ComicId): void
   updateMode(config: ReaderSessionConfig, mode: ReaderMode): void
   getProgress(comicId: ComicId): ReadingProgress | undefined
@@ -115,6 +116,10 @@ export class InMemoryReaderSessionStore implements ReaderSessionStore {
 
   saveProgress(progress: ReadingProgress): void {
     this.progressStore.save(progress)
+  }
+
+  listProgress(): ReadingProgress[] {
+    return this.progressStore.list()
   }
 
   removeProgress(comicId: ComicId): void {
@@ -281,6 +286,10 @@ export class PersistentReaderSessionStore implements ReaderSessionStore {
   saveProgress(progress: ReadingProgress): void {
     this.progressStore.save(progress)
     this.persist()
+  }
+
+  listProgress(): ReadingProgress[] {
+    return this.progressStore.list()
   }
 
   removeProgress(comicId: ComicId): void {

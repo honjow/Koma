@@ -368,6 +368,11 @@ assert.match(
   /removeProgress\(comicId: ComicId\): void[\s\S]*this\.progressStore\.remove\(comicId\)[\s\S]*this\.persist\(\)/,
   'ReaderSessionStore must expose persisted progress removal for mark-unread flows',
 )
+assert.match(
+  readerSessionStoreSource,
+  /listProgress\(\): ReadingProgress\[\][\s\S]*return this\.progressStore\.list\(\)/,
+  'ReaderSessionStore must expose persisted progress listing so history can clear progress without deleting reader mode rows',
+)
 assertExport(chapterReadStateStoreSource, 'ChapterReadStateStore')
 assertExport(chapterReadStateStoreSource, 'ChapterReadStateOverride')
 assertExport(chapterReadStateStoreSource, 'AppFilesChapterReadStatePersistenceAdapter')
@@ -548,6 +553,31 @@ assert.match(
   searchPageSource,
   /KomaIconButton\(\{[\s\S]*icon: \$r\('sys\.symbol\.trash'\)[\s\S]*this\.removeHistoryEntry\(entry\.query\)/,
   'SearchPage history rows must use a trash icon button for single-entry deletion',
+)
+assert.match(
+  historyPageSource,
+  /removeHistoryItem\(item: LibraryItem\): void[\s\S]*sessionStore\.removeProgress\(item\.comicId\)[\s\S]*historyItem\.comicId !== item\.comicId/,
+  'HistoryPage must remove a single reading-history row by deleting only that comic progress',
+)
+assert.match(
+  historyPageSource,
+  /clearHistory\(\): void[\s\S]*sessionStore\.listProgress\(\)\.forEach[\s\S]*sessionStore\.removeProgress\(progress\.comicId\)[\s\S]*this\.historyItems = \[\]/,
+  'HistoryPage clear must remove all progress rows without calling ReaderSessionStore.clear, which also deletes reader mode rows',
+)
+assert.doesNotMatch(
+  historyPageSource.match(/clearHistory\(\): void \{[\s\S]*?\n  \}/)?.[0] ?? '',
+  /sessionStore\.clear\(\)/,
+  'HistoryPage clear history must not wipe persisted reader mode preferences',
+)
+assert.match(
+  historyPageSource,
+  /KomaIconButton\(\{[\s\S]*icon: \$r\('sys\.symbol\.trash'\)[\s\S]*this\.removeHistoryItem\(item\)/,
+  'HistoryPage rows must expose a trash icon button for single-item reading-history removal',
+)
+assert.match(
+  historyPageSource,
+  /Row\(\{ space: ThemeConstants\.SPACE_LG \}\) \{[\s\S]*\.onClick\(\(\) => \{[\s\S]*this\.openHistoryItem\(item\)[\s\S]*KomaIconButton\(\{[\s\S]*this\.removeHistoryItem\(item\)/,
+  'HistoryPage must keep open-reader handling on the content area before the delete button',
 )
 assert.match(
   crossSearchServiceSource,

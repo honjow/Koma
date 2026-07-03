@@ -325,6 +325,7 @@
     { "name": "history_chapter_read", "value": "已读章节" },
     { "name": "history_page_chapter_count", "value": "%s 页 · %s 章" },
     { "name": "history_page_progress", "value": "第 %s / %s 页 · %s" },
+    { "name": "history_recent_title", "value": "阅读历史" },
     { "name": "history_empty_title", "value": "暂无阅读历史" },
     { "name": "history_empty_message", "value": "打开漫画读几页后，最近阅读会显示在这里。" },
 

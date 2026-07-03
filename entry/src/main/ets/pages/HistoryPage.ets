@@ -1,5 +1,7 @@
 import { common } from '@kit.AbilityKit'
 import { SecondaryListScaffold } from '../components/SecondaryListScaffold'
+import { KomaActionButton } from '../components/ui/KomaActionButton'
+import { KomaIconButton } from '../components/ui/KomaIconButton'
 import { connectRemoteProgressSyncState, RemoteProgressSyncState } from '../state/RemoteProgressSyncState'
 import { ThemeConstants } from '../theme/ThemeConstants'
 import {
@@ -157,6 +159,32 @@ export struct HistoryPage {
     this.onOpenReader(item.comicId, chapterId)
   }
 
+  private removeHistoryItem(item: LibraryItem): void {
+    const sessionStore = this.createReaderSessionStore()
+    if (sessionStore === undefined) {
+      return
+    }
+    sessionStore.removeProgress(item.comicId)
+    this.historyItems = this.historyItems.filter((historyItem: LibraryItem): boolean => {
+      return historyItem.comicId !== item.comicId
+    })
+    this.revision += 1
+    console.info('[History] step=remove_item')
+  }
+
+  private clearHistory(): void {
+    const sessionStore = this.createReaderSessionStore()
+    if (sessionStore === undefined) {
+      return
+    }
+    sessionStore.listProgress().forEach((progress: ReadingProgress) => {
+      sessionStore.removeProgress(progress.comicId)
+    })
+    this.historyItems = []
+    this.revision += 1
+    console.info('[History] step=clear')
+  }
+
   @Builder
   private EmptyHistory() {
     Column({ space: ThemeConstants.SPACE_MD }) {
@@ -204,50 +232,84 @@ export struct HistoryPage {
   @Builder
   private HistoryRow(item: LibraryItem) {
     Row({ space: ThemeConstants.SPACE_LG }) {
-      this.Cover(item)
+      Row({ space: ThemeConstants.SPACE_LG }) {
+        this.Cover(item)
 
-      Column({ space: ThemeConstants.SPACE_SM }) {
-        Row() {
-          Text(item.title)
-            .fontSize(ThemeConstants.FONT_SIZE_TITLE)
-            .fontWeight(FontWeight.Medium)
-            .fontColor(ThemeConstants.TEXT_PRIMARY)
-            .maxLines(2)
-            .textOverflow({ overflow: TextOverflow.Ellipsis })
-            .layoutWeight(1)
-          Text(this.relativeTime(item.lastReadAt))
-            .fontSize(ThemeConstants.FONT_SIZE_CAPTION)
+        Column({ space: ThemeConstants.SPACE_SM }) {
+          Row() {
+            Text(item.title)
+              .fontSize(ThemeConstants.FONT_SIZE_TITLE)
+              .fontWeight(FontWeight.Medium)
+              .fontColor(ThemeConstants.TEXT_PRIMARY)
+              .maxLines(2)
+              .textOverflow({ overflow: TextOverflow.Ellipsis })
+              .layoutWeight(1)
+            Text(this.relativeTime(item.lastReadAt))
+              .fontSize(ThemeConstants.FONT_SIZE_CAPTION)
+              .fontColor(ThemeConstants.TEXT_SECONDARY)
+              .margin({ left: ThemeConstants.SPACE_MD })
+          }
+          .width('100%')
+          .alignItems(VerticalAlign.Top)
+
+          Text(this.progressText(item))
+            .fontSize(ThemeConstants.FONT_SIZE_META)
             .fontColor(ThemeConstants.TEXT_SECONDARY)
-            .margin({ left: ThemeConstants.SPACE_MD })
+            .maxLines(1)
+            .textOverflow({ overflow: TextOverflow.Ellipsis })
+
+          Progress({
+            value: item.progress === undefined ? 0 : Math.round(item.progress.progressRatio * 100),
+            total: 100,
+            type: ProgressType.Linear,
+          })
+            .height(4)
+            .color(ThemeConstants.BRAND_PRIMARY)
+            .backgroundColor(ThemeConstants.SOFT_TINT)
         }
-        .width('100%')
-        .alignItems(VerticalAlign.Top)
-
-        Text(this.progressText(item))
-          .fontSize(ThemeConstants.FONT_SIZE_META)
-          .fontColor(ThemeConstants.TEXT_SECONDARY)
-          .maxLines(1)
-          .textOverflow({ overflow: TextOverflow.Ellipsis })
-
-        Progress({
-          value: item.progress === undefined ? 0 : Math.round(item.progress.progressRatio * 100),
-          total: 100,
-          type: ProgressType.Linear,
-        })
-          .height(4)
-          .color(ThemeConstants.BRAND_PRIMARY)
-          .backgroundColor(ThemeConstants.SOFT_TINT)
+        .layoutWeight(1)
+        .alignItems(HorizontalAlign.Start)
       }
       .layoutWeight(1)
-      .alignItems(HorizontalAlign.Start)
+      .onClick(() => {
+        this.openHistoryItem(item)
+      })
+
+      KomaIconButton({
+        icon: $r('sys.symbol.trash'),
+        kind: 'ghost',
+        accentColor: ThemeConstants.TEXT_SECONDARY,
+        action: () => {
+          this.removeHistoryItem(item)
+        },
+      })
     }
     .width('100%')
     .padding(ThemeConstants.SPACE_LG)
     .borderRadius(ThemeConstants.RADIUS_CARD)
     .backgroundColor(ThemeConstants.CARD)
-    .onClick(() => {
-      this.openHistoryItem(item)
-    })
+    .alignItems(VerticalAlign.Center)
+  }
+
+  @Builder
+  private HistoryHeader() {
+    Row() {
+      Text(s('history_recent_title'))
+        .fontSize(ThemeConstants.FONT_SIZE_TITLE)
+        .fontWeight(FontWeight.Medium)
+        .fontColor(ThemeConstants.TEXT_PRIMARY)
+        .layoutWeight(1)
+      KomaActionButton({
+        label: s('common_clear'),
+        kind: 'ghost',
+        compact: true,
+        controlHeight: ThemeConstants.ACTION_CHIP_HEIGHT,
+        action: () => {
+          this.clearHistory()
+        },
+      })
+    }
+    .width('100%')
   }
 
   aboutToAppear(): void {
@@ -270,6 +332,9 @@ export struct HistoryPage {
             this.EmptyHistory()
           }
         } else {
+          ListItem() {
+            this.HistoryHeader()
+          }
           ForEach(this.historyItems, (item: LibraryItem) => {
             ListItem() {
               this.HistoryRow(item)
