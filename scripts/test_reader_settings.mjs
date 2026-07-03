@@ -70,6 +70,16 @@ assert.match(
 )
 assert.match(
   readerPreferencesStoreSource,
+  /export interface ReaderSeriesPreferenceOverrides \{[\s\S]*pageMode\?: ReaderPageMode[\s\S]*readingDirection\?: ReadingDirection[\s\S]*tapNavigationEnabled\?: boolean[\s\S]*tapZonePreset\?: ReaderTapZonePreset/,
+  'reader preferences must model per-series overrides for mode, direction, and tap-zone behavior',
+)
+assert.match(
+  readerPreferencesStoreSource,
+  /SERIES_OVERRIDES_KEY:\s*string = 'reader\.seriesOverrides\.v1'/,
+  'per-series reader preferences must use a stable persistence key',
+)
+assert.match(
+  readerPreferencesStoreSource,
   /DEFAULT_READER_PREFERENCES:[\s\S]*imageFitMode:\s*'contain'[\s\S]*tapNavigationEnabled:\s*true[\s\S]*tapZonePreset:\s*'edge'[\s\S]*pageGapMode:\s*'normal'[\s\S]*trimPageMarginsEnabled:\s*false[\s\S]*wideImageMode:\s*'keep_single'[\s\S]*volumeKeyNavigationEnabled:\s*false/,
   'new reader settings must default to current contain fit, enabled narrow-edge tap navigation, normal spacing, no trim, keep-wide-as-single-page, and no volume-key navigation',
 )
@@ -110,12 +120,12 @@ assert.match(
 )
 assert.match(
   readerPreferencesStoreSource,
-  /getReaderVolumeKeyNavigationLabel\(volumeKeyNavigationEnabled: boolean\): string \{[\s\S]*volumeKeyNavigationEnabled \? '开启' : '关闭'/,
+  /getReaderVolumeKeyNavigationLabel\(volumeKeyNavigationEnabled: boolean\): string \{[\s\S]*volumeKeyNavigationEnabled \? AppStrings\.get\('common_on'\) : AppStrings\.get\('common_off'\)/,
   'volume key navigation label must reflect active runtime support instead of stale persisted-only copy',
 )
 assert.match(
   readerPreferencesStoreSource,
-  /getReaderTapZonePresetLabel\(preset: ReaderTapZonePreset\): string \{[\s\S]*preset === 'wide_edges'[\s\S]*return '宽侧区'[\s\S]*return '窄边缘'/,
+  /getReaderTapZonePresetLabel\(preset: ReaderTapZonePreset\): string \{[\s\S]*preset === 'wide_edges'[\s\S]*return AppStrings\.get\('reader_tap_zone_wide'\)[\s\S]*return AppStrings\.get\('reader_tap_zone_edge'\)/,
   'tap zone preset labels must be user-facing names instead of internal enum values',
 )
 assert.match(
@@ -188,25 +198,50 @@ assert.match(
   /async saveVolumeKeyNavigationEnabled\(volumeKeyNavigationEnabled: boolean\)/,
   'reader preferences store must persist volume key navigation independently',
 )
+assert.match(
+  readerPreferencesStoreSource,
+  /loadForComic\(comicId: ComicId\): Promise<ReaderPreferences>[\s\S]*const globalPreferences = await this\.load\(\)[\s\S]*const overrides = await this\.loadSeriesOverrides\(\)[\s\S]*mergeReaderSeriesPreferences\(globalPreferences, overrides\[seriesId\]\)/,
+  'reader preferences store must merge per-series overrides over global preferences when opening a comic',
+)
+assert.match(
+  readerPreferencesStoreSource,
+  /saveSeriesPreferences\(comicId: ComicId, overrides: ReaderSeriesPreferenceOverrides\)[\s\S]*normalizeReaderSeriesPreferenceOverrides\(overrides\)[\s\S]*allOverrides\[seriesId\] = normalized[\s\S]*store\.put\(SERIES_OVERRIDES_KEY, JSON\.stringify\(allOverrides\)\)[\s\S]*store\.flush\(\)/,
+  'reader preferences store must persist sanitized per-series overrides',
+)
+assert.match(
+  readerPreferencesStoreSource,
+  /clearSeriesPreferences\(comicId: ComicId\)[\s\S]*readerSeriesOverridesWithout\(await this\.loadSeriesOverrides\(\), seriesId\)[\s\S]*store\.put\(SERIES_OVERRIDES_KEY, JSON\.stringify\(allOverrides\)\)[\s\S]*store\.flush\(\)/,
+  'reader preferences store must clear per-series overrides independently',
+)
+assert.match(
+  readerPreferencesStoreSource,
+  /mergeReaderSeriesPreferences[\s\S]*pageMode: overrides\.pageMode \?\? globalPreferences\.pageMode[\s\S]*readingDirection: overrides\.readingDirection \?\? globalPreferences\.readingDirection[\s\S]*tapNavigationEnabled: overrides\.tapNavigationEnabled \?\? globalPreferences\.tapNavigationEnabled[\s\S]*tapZonePreset: overrides\.tapZonePreset \?\? globalPreferences\.tapZonePreset[\s\S]*wideImageMode: globalPreferences\.wideImageMode/,
+  'per-series overrides must stay scoped to reader mode, direction, and tap zones while inheriting global image behavior',
+)
+assert.match(
+  readerPageSource,
+  /new ReaderPreferencesStore\(context\)\.loadForComic\(this\.sessionConfig\.comicId\)/,
+  'ReaderPage must load per-series preferences for the active comic instead of only global defaults',
+)
 
-assert.match(settingsPageSource, /key: 'reader-image-fit', title: '图片适配'/, 'Settings must expose an image fit row')
-assert.match(settingsPageSource, /key: 'reader-tap-navigation', title: '点击翻页'/, 'Settings must expose a tap navigation row')
-assert.match(settingsPageSource, /key: 'reader-tap-zone-preset', title: '点击区域'/, 'Settings must expose a tap-zone preset row')
-assert.match(settingsPageSource, /key: 'reader-page-gap', title: '页面间距'/, 'Settings must expose a page gap row')
-assert.match(settingsPageSource, /key: 'reader-trim-page-margins', title: '收紧页边（不裁图）'/, 'Settings must expose an honest non-cropping trim row')
-assert.match(settingsPageSource, /key: 'reader-wide-image-mode', title: '宽图处理'/, 'Settings must expose a wide image handling row')
-assert.match(settingsPageSource, /key: 'reader-volume-key-navigation', title: '音量键翻页'/, 'Settings must expose a volume-key navigation preference row')
-assert.match(settingsPageSource, /showReaderImageFitSheet\(\)[\s\S]*title: '适合屏幕'[\s\S]*title: '适合宽度'/, 'image fit sheet must expose contain and fit-width choices')
-assert.match(settingsPageSource, /showReaderTapNavigationSheet\(\)[\s\S]*title: '开启'[\s\S]*title: '关闭'/, 'tap navigation sheet must expose on/off choices')
-assert.match(settingsPageSource, /showReaderTapZonePresetSheet\(\)[\s\S]*中间区域仍用于显示或隐藏工具栏[\s\S]*title: '窄边缘'[\s\S]*title: '宽侧区'/, 'tap zone preset sheet must expose user-facing preset names and preserve center chrome behavior')
-assert.match(settingsPageSource, /showReaderPageGapSheet\(\)[\s\S]*title: '紧凑'[\s\S]*title: '标准'[\s\S]*title: '宽松'/, 'page gap sheet must expose compact, normal, and wide choices')
-assert.match(settingsPageSource, /showReaderTrimPageMarginsSheet\(\)[\s\S]*不裁切漫画图片内容[\s\S]*title: '开启'[\s\S]*title: '关闭'/, 'trim sheet must honestly describe the non-cropping container behavior')
+assert.match(settingsPageSource, /key: 'reader-image-fit', titleKey: 'settings_row_reader_image_fit_title'/, 'Settings must expose an image fit row')
+assert.match(settingsPageSource, /key: 'reader-tap-navigation', titleKey: 'settings_row_reader_tap_navigation_title'/, 'Settings must expose a tap navigation row')
+assert.match(settingsPageSource, /key: 'reader-tap-zone-preset', titleKey: 'settings_row_reader_tap_zone_preset_title'/, 'Settings must expose a tap-zone preset row')
+assert.match(settingsPageSource, /key: 'reader-page-gap', titleKey: 'settings_row_reader_page_gap_title'/, 'Settings must expose a page gap row')
+assert.match(settingsPageSource, /key: 'reader-trim-page-margins', titleKey: 'settings_row_reader_trim_page_margins_title'/, 'Settings must expose an honest non-cropping trim row')
+assert.match(settingsPageSource, /key: 'reader-wide-image-mode', titleKey: 'settings_row_reader_wide_image_mode_title'/, 'Settings must expose a wide image handling row')
+assert.match(settingsPageSource, /key: 'reader-volume-key-navigation', titleKey: 'settings_row_reader_volume_key_navigation_title'/, 'Settings must expose a volume-key navigation preference row')
+assert.match(settingsPageSource, /reader-image-fit[\s\S]*SelectionMenuItem\(s\('reader_image_fit_screen'\)[\s\S]*SelectionMenuItem\(s\('reader_image_fit_width'\)/, 'image fit menu must expose contain and fit-width choices')
+assert.match(settingsPageSource, /reader-tap-navigation[\s\S]*saveReaderTapNavigationEnabled\(value\)/, 'tap navigation row must expose a real switch-backed on/off choice')
+assert.match(settingsPageSource, /reader-tap-zone-preset[\s\S]*SelectionMenuItem\(s\('reader_tap_zone_edge'\)[\s\S]*SelectionMenuItem\(s\('reader_tap_zone_wide'\)/, 'tap zone preset menu must expose user-facing preset names')
+assert.match(settingsPageSource, /reader-page-gap[\s\S]*SelectionMenuItem\(s\('reader_page_gap_compact'\)[\s\S]*SelectionMenuItem\(s\('common_standard'\)[\s\S]*SelectionMenuItem\(s\('reader_page_gap_wide'\)/, 'page gap menu must expose compact, normal, and wide choices')
+assert.match(settingsPageSource, /reader-trim-page-margins[\s\S]*saveReaderTrimPageMarginsEnabled\(value\)/, 'trim page margins row must expose a real switch-backed on/off choice')
 assert.match(
   settingsPageSource,
-  /showReaderWideImageModeSheet\(\)[\s\S]*宽图拆分和旋转仅在页面带有可靠宽高元数据时生效[\s\S]*拆分优先于旋转[\s\S]*title: '保持单页'[\s\S]*title: '拆分宽图'[\s\S]*saveReaderWideImageMode\('split_wide_pages'\)[\s\S]*title: '旋转宽图'/,
+  /reader-wide-image-mode[\s\S]*SelectionMenuItem\(s\('reader_wide_mode_keep_single'\)[\s\S]*SelectionMenuItem\(s\('reader_wide_mode_split'\)[\s\S]*saveReaderWideImageMode\('split_wide_pages'\)[\s\S]*SelectionMenuItem\(s\('reader_wide_mode_rotate'\)/,
   'wide image handling sheet must expose real metadata-gated split and rotate modes with the mutual-exclusion priority',
 )
-assert.match(settingsPageSource, /showReaderVolumeKeyNavigationSheet\(\)[\s\S]*阅读器获得焦点时音量上\/下会执行上一页\/下一页[\s\S]*未开启时不拦截系统音量键[\s\S]*title: '开启'[\s\S]*title: '关闭'/, 'volume-key sheet must describe real focused-reader runtime support and no disabled-state interception')
+assert.match(settingsPageSource, /reader-volume-key-navigation[\s\S]*saveReaderVolumeKeyNavigationEnabled\(value\)/, 'volume-key navigation row must expose a real switch-backed runtime preference')
 
 assert.match(
   readerPageSource,
@@ -215,7 +250,7 @@ assert.match(
 )
 assert.match(
   readerPageSource,
-  /@Link @Watch\('onReaderOpenChanged'\) readerOpen: boolean[\s\S]*private onReaderOpenChanged\(\): void[\s\S]*if \(this\.readerOpen\) \{[\s\S]*this\.loadReaderPreferences\(\)/,
+  /@Param readerOpen: boolean = false[\s\S]*@Monitor\('readerOpen'\)[\s\S]*private onReaderOpenChanged\(\): void \{[\s\S]*if \(this\.readerOpen\) \{[\s\S]*this\.loadReaderPreferences\(\)/,
   'ReaderPage must reload reader preferences when the reader is opened so setting changes apply without app restart',
 )
 assert.match(

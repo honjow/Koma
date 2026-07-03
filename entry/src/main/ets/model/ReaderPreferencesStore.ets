@@ -1,6 +1,6 @@
 import { common, ConfigurationConstant } from '@kit.AbilityKit'
 import { preferences } from '@kit.ArkData'
-import { ReadingDirection } from './ComicModels'
+import { ComicId, ReadingDirection } from './ComicModels'
 import { ReaderMode } from './ReaderSessionStore'
 import { AppStrings } from '../i18n/AppStrings'
 
@@ -28,6 +28,13 @@ export interface ReaderPreferences {
   volumeKeyNavigationEnabled: boolean
 }
 
+export interface ReaderSeriesPreferenceOverrides {
+  pageMode?: ReaderPageMode
+  readingDirection?: ReadingDirection
+  tapNavigationEnabled?: boolean
+  tapZonePreset?: ReaderTapZonePreset
+}
+
 export const READER_PREFERENCES_STORE_NAME: string = 'koma_reader_preferences_v1'
 export const PAGE_MODE_KEY: string = 'reader.pageMode'
 export const READING_DIRECTION_KEY: string = 'reader.readingDirection'
@@ -42,6 +49,7 @@ export const PAGE_GAP_MODE_KEY: string = 'reader.pageGapMode'
 export const TRIM_PAGE_MARGINS_ENABLED_KEY: string = 'reader.trimPageMarginsEnabled'
 export const WIDE_IMAGE_MODE_KEY: string = 'reader.wideImageMode'
 export const VOLUME_KEY_NAVIGATION_ENABLED_KEY: string = 'reader.volumeKeyNavigationEnabled'
+export const SERIES_OVERRIDES_KEY: string = 'reader.seriesOverrides.v1'
 
 export const DEFAULT_READER_PREFERENCES: ReaderPreferences = {
   pageMode: 'single_page',
@@ -254,6 +262,72 @@ export function readerModeFromPageMode(pageMode: ReaderPageMode): ReaderMode {
   return ReaderMode.SINGLE_PAGE
 }
 
+function sanitizeReaderSeriesId(comicId: ComicId): ComicId | undefined {
+  const trimmed = comicId.trim()
+  if (trimmed.length === 0 || trimmed.length > 160) {
+    return undefined
+  }
+  return trimmed
+}
+
+function normalizeReaderSeriesPreferenceOverrides(value: Object | undefined): ReaderSeriesPreferenceOverrides | undefined {
+  if (value === undefined || value === null || Array.isArray(value) || typeof value !== 'object') {
+    return undefined
+  }
+  const source = value as Record<string, Object>
+  const overrides: ReaderSeriesPreferenceOverrides = {}
+  if (typeof source['pageMode'] === 'string') {
+    overrides.pageMode = normalizeReaderPageMode(source['pageMode'] as string)
+  }
+  if (typeof source['readingDirection'] === 'string') {
+    overrides.readingDirection = normalizeReaderReadingDirection(source['readingDirection'] as string)
+  }
+  if (source['tapNavigationEnabled'] !== undefined) {
+    overrides.tapNavigationEnabled = normalizeReaderTapNavigationEnabled(source['tapNavigationEnabled'] as boolean | string | number)
+  }
+  if (typeof source['tapZonePreset'] === 'string') {
+    overrides.tapZonePreset = normalizeReaderTapZonePreset(source['tapZonePreset'] as string)
+  }
+  return Object.keys(overrides).length === 0 ? undefined : overrides
+}
+
+function mergeReaderSeriesPreferences(
+  globalPreferences: ReaderPreferences,
+  overrides: ReaderSeriesPreferenceOverrides | undefined,
+): ReaderPreferences {
+  if (overrides === undefined) {
+    return globalPreferences
+  }
+  return {
+    pageMode: overrides.pageMode ?? globalPreferences.pageMode,
+    readingDirection: overrides.readingDirection ?? globalPreferences.readingDirection,
+    themeMode: globalPreferences.themeMode,
+    backgroundMode: globalPreferences.backgroundMode,
+    showProgressControls: globalPreferences.showProgressControls,
+    keepScreenAwake: globalPreferences.keepScreenAwake,
+    imageFitMode: globalPreferences.imageFitMode,
+    tapNavigationEnabled: overrides.tapNavigationEnabled ?? globalPreferences.tapNavigationEnabled,
+    tapZonePreset: overrides.tapZonePreset ?? globalPreferences.tapZonePreset,
+    pageGapMode: globalPreferences.pageGapMode,
+    trimPageMarginsEnabled: globalPreferences.trimPageMarginsEnabled,
+    wideImageMode: globalPreferences.wideImageMode,
+    volumeKeyNavigationEnabled: globalPreferences.volumeKeyNavigationEnabled,
+  }
+}
+
+function readerSeriesOverridesWithout(
+  overrides: Record<string, ReaderSeriesPreferenceOverrides>,
+  comicId: ComicId,
+): Record<string, ReaderSeriesPreferenceOverrides> {
+  const next: Record<string, ReaderSeriesPreferenceOverrides> = {}
+  Object.keys(overrides).forEach((key: string): void => {
+    if (key !== comicId) {
+      next[key] = overrides[key]
+    }
+  })
+  return next
+}
+
 export function applyReaderThemeMode(context: common.UIAbilityContext, mode: ReaderThemeMode): void {
   let colorMode = ConfigurationConstant.ColorMode.COLOR_MODE_NOT_SET
   if (mode === 'dark') {
@@ -306,6 +380,69 @@ export class ReaderPreferencesStore {
       wideImageMode: normalizeReaderWideImageMode(wideImageMode),
       volumeKeyNavigationEnabled: normalizeReaderVolumeKeyNavigationEnabled(volumeKeyNavigationEnabled),
     }
+  }
+
+  async loadForComic(comicId: ComicId): Promise<ReaderPreferences> {
+    const globalPreferences = await this.load()
+    const seriesId = sanitizeReaderSeriesId(comicId)
+    if (seriesId === undefined) {
+      return globalPreferences
+    }
+    const overrides = await this.loadSeriesOverrides()
+    return mergeReaderSeriesPreferences(globalPreferences, overrides[seriesId])
+  }
+
+  async loadSeriesOverrides(): Promise<Record<string, ReaderSeriesPreferenceOverrides>> {
+    const store = await this.preferences()
+    const payload = await store.get(SERIES_OVERRIDES_KEY, '') as string
+    if (payload.length === 0) {
+      return {}
+    }
+    try {
+      const parsed = JSON.parse(payload) as Record<string, Object>
+      if (parsed === null || Array.isArray(parsed) || typeof parsed !== 'object') {
+        return {}
+      }
+      const result: Record<string, ReaderSeriesPreferenceOverrides> = {}
+      Object.keys(parsed).forEach((comicId: string): void => {
+        const safeId = sanitizeReaderSeriesId(comicId)
+        const overrides = normalizeReaderSeriesPreferenceOverrides(parsed[comicId])
+        if (safeId !== undefined && overrides !== undefined) {
+          result[safeId] = overrides
+        }
+      })
+      return result
+    } catch (_error) {
+      return {}
+    }
+  }
+
+  async saveSeriesPreferences(comicId: ComicId, overrides: ReaderSeriesPreferenceOverrides): Promise<void> {
+    const seriesId = sanitizeReaderSeriesId(comicId)
+    if (seriesId === undefined) {
+      return
+    }
+    const normalized = normalizeReaderSeriesPreferenceOverrides(overrides)
+    let allOverrides = await this.loadSeriesOverrides()
+    if (normalized === undefined) {
+      allOverrides = readerSeriesOverridesWithout(allOverrides, seriesId)
+    } else {
+      allOverrides[seriesId] = normalized
+    }
+    const store = await this.preferences()
+    await store.put(SERIES_OVERRIDES_KEY, JSON.stringify(allOverrides))
+    await store.flush()
+  }
+
+  async clearSeriesPreferences(comicId: ComicId): Promise<void> {
+    const seriesId = sanitizeReaderSeriesId(comicId)
+    if (seriesId === undefined) {
+      return
+    }
+    const allOverrides = readerSeriesOverridesWithout(await this.loadSeriesOverrides(), seriesId)
+    const store = await this.preferences()
+    await store.put(SERIES_OVERRIDES_KEY, JSON.stringify(allOverrides))
+    await store.flush()
   }
 
   async savePageMode(pageMode: ReaderPageMode): Promise<void> {
