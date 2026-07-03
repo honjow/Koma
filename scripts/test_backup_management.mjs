@@ -112,8 +112,8 @@ assert.match(
 )
 assert.match(
   backupServiceSource,
-  /export interface BackupContentPreferences[\s\S]*includeSettings:\s*boolean[\s\S]*DEFAULT_BACKUP_CONTENT_PREFERENCES[\s\S]*includeSettings:\s*true[\s\S]*loadContentPreferences\(\): Promise<BackupContentPreferences>[\s\S]*saveContentPreferences\(preferencesValue: BackupContentPreferences\): Promise<void>[\s\S]*BACKUP_CONTENT_INCLUDE_SETTINGS_KEY/,
-  'backup service must persist backup content preferences with settings included by default',
+  /export interface BackupContentPreferences[\s\S]*includeSettings:\s*boolean[\s\S]*includeDownloadQueue:\s*boolean[\s\S]*DEFAULT_BACKUP_CONTENT_PREFERENCES[\s\S]*includeSettings:\s*true[\s\S]*includeDownloadQueue:\s*true[\s\S]*loadContentPreferences\(\): Promise<BackupContentPreferences>[\s\S]*saveContentPreferences\(preferencesValue: BackupContentPreferences\): Promise<void>[\s\S]*BACKUP_CONTENT_INCLUDE_SETTINGS_KEY[\s\S]*BACKUP_CONTENT_INCLUDE_DOWNLOAD_QUEUE_KEY/,
+  'backup service must persist backup content preferences with settings and download queue metadata included by default',
 )
 assert.match(
   backupServiceSource,
@@ -129,6 +129,11 @@ assert.match(
   backupServiceSource,
   /const contentPreferences = await this\.loadContentPreferences\(\)[\s\S]*if \(contentPreferences\.includeSettings\) \{[\s\S]*document\.settings = await new ReaderPreferencesStore\(this\.context\)\.load\(\)[\s\S]*document\.sourceIndexUrl = await this\.exportSourceIndexUrl\(\)[\s\S]*document\.trackerSyncPreferences = await this\.exportTrackerSyncPreferences\(\)/,
   'backup export must include tracker sync preferences only with the settings domain',
+)
+assert.match(
+  backupServiceSource,
+  /if \(contentPreferences\.includeDownloadQueue\) \{[\s\S]*const downloadQueue = readTextIfExists\(this\.downloadQueuePath\(\), ''\)[\s\S]*document\.downloadQueue = normalizeBackupDownloadQueuePayload\(downloadQueue\)/,
+  'backup export must include download queue metadata only when content preferences allow it',
 )
 assert.match(
   backupServiceSource,
@@ -210,10 +215,20 @@ assert.match(
   /\{ key: 'backup-include-settings', titleKey: 'settings_row_backup_include_settings_title', detailKey: 'settings_row_backup_include_settings_detail' \}[\s\S]*loadBackupContentPreferences\(\)[\s\S]*row\.key === 'backup-include-settings'[\s\S]*saveBackupIncludeSettings\(value\)/,
   'Settings backup include row must be a real switch backed by backup content preferences',
 )
+assert.match(
+  settingsPageSource,
+  /\{ key: 'backup-include-download-queue', titleKey: 'settings_row_backup_include_download_queue_title', detailKey: 'settings_row_backup_include_download_queue_detail' \}[\s\S]*includeBackupDownloadQueue: boolean = DEFAULT_BACKUP_CONTENT_PREFERENCES\.includeDownloadQueue[\s\S]*row\.key === 'backup-include-download-queue'[\s\S]*saveBackupIncludeDownloadQueue\(value\)/,
+  'Settings backup download queue include row must be a real switch backed by backup content preferences',
+)
 assert.doesNotMatch(
   settingsPageSource,
   /\{ key: 'backup-include-settings'[^}]*placeholder:\s*true/,
   'Settings backup include row must not remain a placeholder',
+)
+assert.doesNotMatch(
+  settingsPageSource,
+  /\{ key: 'backup-include-download-queue'[^}]*placeholder:\s*true/,
+  'Settings backup download queue include row must not remain a placeholder',
 )
 assert.match(
   indexSource,

@@ -248,6 +248,7 @@ function createSettingsSections(): SettingsSection[] {
         { key: 'backup', titleKey: 'settings_row_backup_title', detailKey: 'settings_row_backup_detail' },
         { key: 'backup-auto-export', titleKey: 'settings_row_backup_auto_export_title', detailKey: 'settings_row_backup_auto_export_detail' },
         { key: 'backup-include-settings', titleKey: 'settings_row_backup_include_settings_title', detailKey: 'settings_row_backup_include_settings_detail' },
+        { key: 'backup-include-download-queue', titleKey: 'settings_row_backup_include_download_queue_title', detailKey: 'settings_row_backup_include_download_queue_detail' },
         { key: 'image-cache', titleKey: 'settings_row_image_cache_title', detailKey: 'settings_row_image_cache_detail' },
         { key: 'cache-limit', titleKey: 'settings_row_cache_limit_title', detailKey: 'settings_row_cache_limit_detail' },
         { key: 'cache-auto-clean', titleKey: 'settings_row_cache_auto_clean_title', detailKey: 'settings_row_cache_auto_clean_detail' },
@@ -437,6 +438,7 @@ export struct SettingsPage {
   @Local private trackerAutoSyncEnabled: boolean = DEFAULT_TRACKER_PREFERENCES.autoSyncEnabled
   @Local private trackerUpdateStrategy: TrackerUpdateStrategy = DEFAULT_TRACKER_PREFERENCES.updateStrategy
   @Local private includeBackupSettings: boolean = DEFAULT_BACKUP_CONTENT_PREFERENCES.includeSettings
+  @Local private includeBackupDownloadQueue: boolean = DEFAULT_BACKUP_CONTENT_PREFERENCES.includeDownloadQueue
 
   private context(): common.UIAbilityContext {
     return getContext(this) as common.UIAbilityContext
@@ -774,6 +776,7 @@ export struct SettingsPage {
             'backup',
             'backup-auto-export',
             'backup-include-settings',
+            'backup-include-download-queue',
           ]),
         },
       ]
@@ -1021,7 +1024,8 @@ export struct SettingsPage {
     void this.backupService().loadContentPreferences()
       .then((preferences: BackupContentPreferences) => {
         this.includeBackupSettings = preferences.includeSettings
-        console.info('[Settings] step=load_backup_content_preferences includeSettings=' + preferences.includeSettings)
+        this.includeBackupDownloadQueue = preferences.includeDownloadQueue
+        console.info('[Settings] step=load_backup_content_preferences includeSettings=' + preferences.includeSettings + ' includeDownloadQueue=' + preferences.includeDownloadQueue)
       })
       .catch((error: Error) => {
         console.warn('[Settings] step=load_backup_content_preferences_failed message=' + error.message)
@@ -1680,6 +1684,7 @@ export struct SettingsPage {
     this.includeBackupSettings = enabled
     void this.backupService().saveContentPreferences({
       includeSettings: enabled,
+      includeDownloadQueue: this.includeBackupDownloadQueue,
     })
       .then(() => {
         console.info('[Settings] step=save_backup_include_settings enabled=' + enabled)
@@ -1687,6 +1692,21 @@ export struct SettingsPage {
       .catch((error: Error) => {
         console.warn('[Settings] step=save_backup_include_settings_failed message=' + error.message)
         this.showToast(s('settings_backup_include_settings_save_failed'))
+      })
+  }
+
+  private saveBackupIncludeDownloadQueue(enabled: boolean): void {
+    this.includeBackupDownloadQueue = enabled
+    void this.backupService().saveContentPreferences({
+      includeSettings: this.includeBackupSettings,
+      includeDownloadQueue: enabled,
+    })
+      .then(() => {
+        console.info('[Settings] step=save_backup_include_download_queue enabled=' + enabled)
+      })
+      .catch((error: Error) => {
+        console.warn('[Settings] step=save_backup_include_download_queue_failed message=' + error.message)
+        this.showToast(s('settings_backup_include_download_queue_save_failed'))
       })
   }
 
@@ -1923,6 +1943,7 @@ export struct SettingsPage {
     return row.key === 'library-auto-update' ||
       row.key === 'library-badges' ||
       row.key === 'backup-include-settings' ||
+      row.key === 'backup-include-download-queue' ||
       row.key === 'cache-auto-clean' ||
       row.key === 'download-wifi-only' ||
       row.key === 'tracker-auto-sync' ||
@@ -1943,6 +1964,9 @@ export struct SettingsPage {
     }
     if (row.key === 'backup-include-settings') {
       return this.includeBackupSettings
+    }
+    if (row.key === 'backup-include-download-queue') {
+      return this.includeBackupDownloadQueue
     }
     if (row.key === 'cache-auto-clean') {
       return this.imageCacheAutoCleanEnabled
@@ -1981,6 +2005,8 @@ export struct SettingsPage {
       this.saveLibraryBadgesEnabled(value)
     } else if (row.key === 'backup-include-settings') {
       this.saveBackupIncludeSettings(value)
+    } else if (row.key === 'backup-include-download-queue') {
+      this.saveBackupIncludeDownloadQueue(value)
     } else if (row.key === 'cache-auto-clean') {
       this.saveImageCacheAutoCleanEnabled(value)
     } else if (row.key === 'reader-progress') {

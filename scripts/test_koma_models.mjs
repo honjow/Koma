@@ -1780,8 +1780,8 @@ assert.match(
 )
 assert.match(
   backupServiceSource,
-  /DEFAULT_BACKUP_CONTENT_PREFERENCES[\s\S]*includeSettings:\s*true[\s\S]*const contentPreferences = await this\.loadContentPreferences\(\)[\s\S]*if \(contentPreferences\.includeSettings\) \{[\s\S]*document\.settings = await new ReaderPreferencesStore\(this\.context\)\.load\(\)/,
-  'backup export must include SettingsPage reader preferences by default and allow excluding them',
+  /DEFAULT_BACKUP_CONTENT_PREFERENCES[\s\S]*includeSettings:\s*true[\s\S]*includeDownloadQueue:\s*true[\s\S]*const contentPreferences = await this\.loadContentPreferences\(\)[\s\S]*if \(contentPreferences\.includeSettings\) \{[\s\S]*document\.settings = await new ReaderPreferencesStore\(this\.context\)\.load\(\)[\s\S]*if \(contentPreferences\.includeDownloadQueue\) \{[\s\S]*document\.downloadQueue = normalizeBackupDownloadQueuePayload\(downloadQueue\)/,
+  'backup export must include reader preferences and download queue metadata by default and allow excluding them',
 )
 assert.match(
   backupServiceSource,
