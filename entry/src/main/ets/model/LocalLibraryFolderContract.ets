@@ -13,6 +13,14 @@ import {
   Page,
   ReadingDirection,
 } from './ComicModels'
+import {
+  LocalLibraryMetadataSeriesInput,
+  LocalLibrarySidecarMetadata,
+  createDerivedLocalLibraryMetadata,
+  parseLocalLibrarySidecarMetadata,
+  resolveLocalLibraryMetadata,
+  resolveLocalLibrarySeriesCoverReference,
+} from './LocalLibraryMetadataService'
 
 export const LOCAL_LIBRARY_FOLDER_CONTRACT_VERSION = 1
 export const LOCAL_LIBRARY_FOLDER_RUNTIME_PICKER_STATUS = 'NOT_IMPLEMENTED_DEFERRED'
@@ -34,6 +42,7 @@ export interface LocalLibraryFolderEntry {
   relativePath: string
   kind?: LocalLibraryFolderEntryKind
   byteSize?: number
+  textContent?: string
   exists?: boolean
 }
 
@@ -62,6 +71,7 @@ export interface LocalLibraryFolderSeries {
   id: string
   title: string
   relativePath: string
+  sidecarMetadata?: LocalLibrarySidecarMetadata
   chapters: LocalLibraryFolderChapter[]
   chapterCount: number
   pageCount: number
@@ -99,6 +109,7 @@ interface NormalizedLocalLibraryEntry {
   relativePath: string
   kind: LocalLibraryFolderEntryKind
   byteSize?: number
+  textContent?: string
 }
 
 interface ImageFolderGroup {
@@ -222,6 +233,7 @@ function normalizeEntries(entries: LocalLibraryFolderEntry[], rejectedEntries: L
         relativePath,
         kind: entry.kind ?? 'file',
         byteSize: entry.byteSize,
+        textContent: entry.textContent,
       })
     } catch (_err) {
       rejectedEntries.push({ relativePath: entry.relativePath, reason: 'unsafe_path' })
@@ -237,6 +249,14 @@ function folderName(path: string): string {
 
 function isExplicitImageChapterFolderName(path: string): boolean {
   return /^(chapter|chap|ch|episode|ep|volume|vol|book)\b/i.test(folderName(path))
+}
+
+function isLocalLibrarySidecarMetadataPath(path: string): boolean {
+  const name = getBaseName(path).toLocaleLowerCase()
+  return name === 'metadata.json' ||
+    name === 'series.json' ||
+    name === 'comicinfo.json' ||
+    name === 'koma-metadata.json'
 }
 
 function inferImageFolderChapter(folder: ImageFolderGroup, childChapterCounts: Map<string, number>): ChapterCandidate {
@@ -314,14 +334,25 @@ export function buildComicFromLocalLibraryFolderSeries(
       updatedAt: now,
     }
   })
-  const coverUri = chapters.find((chapter: Chapter): boolean => chapter.pages.length > 0)?.pages[0].uri
+  const metadataSeries: LocalLibraryMetadataSeriesInput = {
+    title: series.title,
+    relativePath: series.relativePath,
+  }
+  const resolvedMetadata = resolveLocalLibraryMetadata({
+    sidecar: series.sidecarMetadata,
+    derived: createDerivedLocalLibraryMetadata(metadataSeries),
+  })
+  let coverUri = chapters.find((chapter: Chapter): boolean => chapter.pages.length > 0)?.pages[0].uri
+  if (resolvedMetadata.coverReference !== undefined && resolvedMetadata.coverReferenceSource === 'valid_sidecar') {
+    coverUri = localLibraryFolderUri(options.rootUri, resolveLocalLibrarySeriesCoverReference(metadataSeries, resolvedMetadata.coverReference))
+  }
   const comic: Comic = {
     id: comicId,
-    title: series.title,
+    title: resolvedMetadata.title,
     sourceKind: ComicSourceKind.LOCAL_FOLDER,
     sourcePath,
     remoteResourceId: `${rootId}:${series.relativePath}`,
-    sortTitle: series.sortKey,
+    sortTitle: normalizeSortKey(resolvedMetadata.title),
     preferredDirection: ReadingDirection.RIGHT_TO_LEFT,
     chapters,
     chapterCount: chapters.length,
@@ -330,8 +361,26 @@ export function buildComicFromLocalLibraryFolderSeries(
     updatedAt: now,
     lastImportedAt: now,
   }
+  if (resolvedMetadata.authors.length > 0) {
+    comic.author = resolvedMetadata.authors.join(', ')
+  }
   if (coverUri !== undefined) {
     comic.coverUri = coverUri
+  }
+  if (series.sidecarMetadata !== undefined) {
+    comic.localMetadata = {}
+    if (series.sidecarMetadata.title !== undefined) {
+      comic.localMetadata.titleOverride = series.sidecarMetadata.title
+    }
+    if (series.sidecarMetadata.authors !== undefined) {
+      comic.localMetadata.authors = series.sidecarMetadata.authors
+    }
+    if (series.sidecarMetadata.status !== undefined) {
+      comic.localMetadata.status = series.sidecarMetadata.status
+    }
+    if (series.sidecarMetadata.coverPath !== undefined) {
+      comic.localMetadata.coverOverridePath = series.sidecarMetadata.coverPath
+    }
   }
   return comic
 }
@@ -374,13 +423,17 @@ function createChapter(candidate: ChapterCandidate, seriesId: string, index: num
   return chapter
 }
 
-function createSeries(seriesPath: string, candidates: ChapterCandidate[]): LocalLibraryFolderSeries {
+function createSeries(
+  seriesPath: string,
+  candidates: ChapterCandidate[],
+  sidecarMetadata?: LocalLibrarySidecarMetadata,
+): LocalLibraryFolderSeries {
   const seriesId = idFor('series', seriesPath)
   const chapters = candidates
     .slice()
     .sort((left: ChapterCandidate, right: ChapterCandidate): number => compareNaturalPath(left.chapterPath, right.chapterPath))
     .map((candidate: ChapterCandidate, index: number): LocalLibraryFolderChapter => createChapter(candidate, seriesId, index))
-  return {
+  const series: LocalLibraryFolderSeries = {
     id: seriesId,
     title: folderName(seriesPath),
     relativePath: seriesPath,
@@ -389,6 +442,10 @@ function createSeries(seriesPath: string, candidates: ChapterCandidate[]): Local
     pageCount: chapters.reduce((total: number, chapter: LocalLibraryFolderChapter): number => total + chapter.pageCount, 0),
     sortKey: normalizeSortKey(seriesPath),
   }
+  if (sidecarMetadata !== undefined) {
+    series.sidecarMetadata = sidecarMetadata
+  }
+  return series
 }
 
 function addChapterCandidate(candidatesBySeriesPath: Map<string, ChapterCandidate[]>, candidate: ChapterCandidate): void {
@@ -402,9 +459,28 @@ export function scanLocalLibraryFolderEntries(entries: LocalLibraryFolderEntry[]
   const normalizedEntries = normalizeEntries(entries, rejectedEntries)
   const imageFolders = new Map<string, ImageFolderGroup>()
   const archiveEntries: NormalizedLocalLibraryEntry[] = []
+  const sidecarMetadataBySeriesPath = new Map<string, LocalLibrarySidecarMetadata>()
 
   normalizedEntries.forEach((entry: NormalizedLocalLibraryEntry) => {
     if (entry.kind !== 'file') {
+      return
+    }
+    if (isLocalLibrarySidecarMetadataPath(entry.relativePath)) {
+      const seriesPath = dirname(entry.relativePath)
+      if (seriesPath.length === 0) {
+        rejectedEntries.push({ relativePath: entry.relativePath, reason: 'root_level_metadata' })
+        return
+      }
+      if (entry.textContent === undefined || entry.textContent.trim().length === 0) {
+        rejectedEntries.push({ relativePath: entry.relativePath, reason: 'metadata_missing' })
+        return
+      }
+      const parsed = parseLocalLibrarySidecarMetadata(entry.textContent)
+      if (parsed.status !== 'ok' || parsed.metadata === undefined) {
+        rejectedEntries.push({ relativePath: entry.relativePath, reason: 'metadata_invalid' })
+        return
+      }
+      sidecarMetadataBySeriesPath.set(seriesPath, parsed.metadata)
       return
     }
     if (isSupportedImagePath(entry.relativePath)) {
@@ -457,7 +533,9 @@ export function scanLocalLibraryFolderEntries(entries: LocalLibraryFolderEntry[]
 
   const series = Array.from(candidatesBySeriesPath.keys())
     .sort((left: string, right: string): number => compareNaturalPath(left, right))
-    .map((seriesPath: string): LocalLibraryFolderSeries => createSeries(seriesPath, candidatesBySeriesPath.get(seriesPath) ?? []))
+    .map((seriesPath: string): LocalLibraryFolderSeries => {
+      return createSeries(seriesPath, candidatesBySeriesPath.get(seriesPath) ?? [], sidecarMetadataBySeriesPath.get(seriesPath))
+    })
 
   return {
     contract: createLocalLibraryFolderRootContract(rootName),

@@ -1,7 +1,3 @@
-import {
-  LocalLibraryFolderSeries,
-  normalizeLocalLibraryRelativePath,
-} from './LocalLibraryFolderContract'
 import { isSupportedImagePath } from '../import/ImageSortUtils'
 
 export const LOCAL_LIBRARY_METADATA_CONTRACT_VERSION = 1
@@ -77,6 +73,11 @@ export interface LocalLibraryResolvedMetadata {
 export interface LocalLibraryMetadataBackupEntry {
   comicId: string
   metadata: LocalLibraryStoredMetadata
+}
+
+export interface LocalLibraryMetadataSeriesInput {
+  title: string
+  relativePath: string
 }
 
 interface ResolvedMetadataField<T> {
@@ -161,8 +162,41 @@ function hasHiddenPathSegment(path: string): boolean {
   return path.split('/').some((segment: string): boolean => segment.startsWith('.'))
 }
 
+function hasUnsafeControlCharacter(value: string): boolean {
+  for (let index = 0; index < value.length; index += 1) {
+    const code = value.charCodeAt(index)
+    if (code < 32 || code === 127) {
+      return true
+    }
+  }
+  return false
+}
+
+function normalizeLocalLibraryMetadataRelativePath(path: string): string {
+  const normalized = path.replace(/\\/g, '/').trim()
+  if (
+    normalized.length === 0 ||
+    normalized.startsWith('/') ||
+    normalized.includes('://') ||
+    /^[A-Za-z]:/.test(normalized) ||
+    hasUnsafeControlCharacter(normalized)
+  ) {
+    throw new Error(`Unsafe local library path: ${path}`)
+  }
+  const parts = normalized.split('/')
+  const safeParts: string[] = []
+  for (const part of parts) {
+    const trimmed = part.trim()
+    if (trimmed.length === 0 || trimmed === '.' || trimmed === '..' || trimmed.indexOf(':') >= 0) {
+      throw new Error(`Unsafe local library path segment: ${path}`)
+    }
+    safeParts.push(trimmed)
+  }
+  return safeParts.join('/')
+}
+
 export function validateLocalLibraryCoverOverridePath(path: string): string {
-  const normalized = normalizeLocalLibraryRelativePath(path)
+  const normalized = normalizeLocalLibraryMetadataRelativePath(path)
   if (hasHiddenPathSegment(normalized)) {
     throw new Error(`Unsafe local metadata cover path: ${path}`)
   }
@@ -359,15 +393,15 @@ export function resolveLocalLibraryMetadata(input: LocalLibraryMetadataResolutio
   return resolved
 }
 
-export function createDerivedLocalLibraryMetadata(series: LocalLibraryFolderSeries): LocalLibraryDerivedMetadata {
+export function createDerivedLocalLibraryMetadata(series: LocalLibraryMetadataSeriesInput): LocalLibraryDerivedMetadata {
   const derived: LocalLibraryDerivedMetadata = {
     title: series.title,
   }
   return derived
 }
 
-export function resolveLocalLibrarySeriesCoverReference(series: LocalLibraryFolderSeries, coverOverridePath: string): string {
-  const seriesPath = normalizeLocalLibraryRelativePath(series.relativePath)
+export function resolveLocalLibrarySeriesCoverReference(series: LocalLibraryMetadataSeriesInput, coverOverridePath: string): string {
+  const seriesPath = normalizeLocalLibraryMetadataRelativePath(series.relativePath)
   const coverPath = validateLocalLibraryCoverOverridePath(coverOverridePath)
   return `${seriesPath}/${coverPath}`
 }

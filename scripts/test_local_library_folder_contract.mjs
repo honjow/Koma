@@ -31,6 +31,9 @@ assert.match(contractSource, /trimmed === '\.' \|\| trimmed === '\.\.'/, 'normal
 // mirrors the public contract and pins production-only helper rules with source assertions.
 assert.match(contractSource, /function isExplicitImageChapterFolderName\(path: string\): boolean \{[\s\S]*\^\(chapter\|chap\|ch\|episode\|ep\|volume\|vol\|book\)\\b/, 'production helper must detect explicit chapter folder names')
 assert.match(contractSource, /parentPath\.length > 0 && \(siblingChapterCount > 1 \|\| isExplicitImageChapterFolderName\(folder\.folderPath\)\)/, 'single explicit nested image folders must be inferred as chapters under their parent series')
+assert.match(contractSource, /textContent\?: string/, 'production contract must accept model-provided sidecar text')
+assert.match(contractSource, /sidecarMetadata\?: LocalLibrarySidecarMetadata/, 'production scan series must carry parsed sidecar metadata')
+assert.match(contractSource, /parseLocalLibrarySidecarMetadata\(entry\.textContent\)/, 'production scanner must parse sidecar payloads through the metadata service')
 
 const archiveExts = new Set(['.cbz', '.zip'])
 const imageExts = new Set(['.jpg', '.jpeg', '.png', '.webp', '.gif', '.bmp', '.avif'])
@@ -118,6 +121,27 @@ function isExplicitImageChapterFolderName(path) {
   return /^(chapter|chap|ch|episode|ep|volume|vol|book)\b/i.test(getBaseName(path))
 }
 
+function isSidecarMetadataPath(path) {
+  const name = getBaseName(path).toLowerCase()
+  return ['metadata.json', 'series.json', 'comicinfo.json', 'koma-metadata.json'].includes(name)
+}
+
+function parseSidecarMetadata(payload) {
+  if (typeof payload !== 'string' || payload.trim().length === 0) return undefined
+  try {
+    const row = JSON.parse(payload)
+    if (!row || Array.isArray(row) || typeof row !== 'object') return undefined
+    const metadata = {}
+    if (typeof row.title === 'string' && row.title.trim().length > 0) metadata.title = row.title.trim()
+    if (Array.isArray(row.authors)) metadata.authors = [...new Set(row.authors.filter((author) => typeof author === 'string').map((author) => author.trim()).filter(Boolean))]
+    if (['ongoing', 'completed', 'hiatus', 'cancelled'].includes(row.status)) metadata.status = row.status
+    if (typeof row.coverPath === 'string' && imageExts.has(getExtension(row.coverPath)) && !row.coverPath.includes('..')) metadata.coverPath = row.coverPath
+    return Object.keys(metadata).length === 0 ? undefined : metadata
+  } catch {
+    return undefined
+  }
+}
+
 function normalizeLocalLibraryRelativePath(path) {
   const normalized = path.replace(/\\/g, '/').trim()
   if (
@@ -150,6 +174,7 @@ function scanLocalLibraryFolderEntries(entries, rootName = 'Local Library') {
   const seen = new Set()
   const imageFolders = new Map()
   const archiveEntries = []
+  const sidecarMetadataBySeriesPath = new Map()
 
   for (const entry of entries) {
     if (entry.exists === false) continue
@@ -169,6 +194,14 @@ function scanLocalLibraryFolderEntries(entries, rootName = 'Local Library') {
     if ((entry.kind ?? 'file') !== 'file') continue
 
     const extension = getExtension(relativePath)
+    if (isSidecarMetadataPath(relativePath)) {
+      const seriesPath = dirnameOf(relativePath)
+      const metadata = parseSidecarMetadata(entry.textContent)
+      if (seriesPath.length === 0) rejectedEntries.push({ relativePath, reason: 'root_level_metadata' })
+      else if (metadata === undefined) rejectedEntries.push({ relativePath, reason: 'metadata_invalid' })
+      else sidecarMetadataBySeriesPath.set(seriesPath, metadata)
+      continue
+    }
     if (imageExts.has(extension)) {
       const folderPath = dirnameOf(relativePath)
       if (folderPath.length === 0) {
@@ -250,6 +283,7 @@ function scanLocalLibraryFolderEntries(entries, rootName = 'Local Library') {
       id: seriesId,
       title: getBaseName(seriesPath),
       relativePath: seriesPath,
+      ...(sidecarMetadataBySeriesPath.has(seriesPath) ? { sidecarMetadata: sidecarMetadataBySeriesPath.get(seriesPath) } : {}),
       chapters,
       chapterCount: chapters.length,
       pageCount: chapters.reduce((total, chapter) => total + chapter.pageCount, 0),
@@ -284,6 +318,7 @@ const fixtureEntries = [
   { relativePath: 'Nested/Series Alpha/Chapter 01/001.jpg' },
   { relativePath: 'Nested/Series Alpha/Chapter 02.cbz' },
   { relativePath: 'Nested/Series Alpha/Chapter 03.zip' },
+  { relativePath: 'Nested/Series Alpha/metadata.json', textContent: JSON.stringify({ title: 'Alpha Sidecar', authors: ['A', 'A', 'B'], status: 'completed', coverPath: 'cover.png' }) },
   { relativePath: 'Single Nested Series/Chapter 01/001.jpg' },
   { relativePath: 'Loose Image Series/cover.png' },
   { relativePath: 'Loose Image Series/010.webp' },
@@ -324,6 +359,12 @@ assert.deepEqual(looseSeries.chapters[0].pages.map((page) => page.fileName), ['0
 
 const nestedSeries = firstScan.series.find((series) => series.relativePath === 'Nested/Series Alpha')
 assert.equal(nestedSeries.chapterCount, 3)
+assert.deepEqual(nestedSeries.sidecarMetadata, {
+  title: 'Alpha Sidecar',
+  authors: ['A', 'B'],
+  status: 'completed',
+  coverPath: 'cover.png',
+})
 assert.deepEqual(nestedSeries.chapters.map((chapter) => `${chapter.kind}:${chapter.relativePath}`), [
   'image_folder:Nested/Series Alpha/Chapter 01',
   'archive:Nested/Series Alpha/Chapter 02.cbz',
