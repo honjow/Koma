@@ -112,6 +112,16 @@ assert.match(
 )
 assert.match(
   backupServiceSource,
+  /export interface BackupContentPreferences[\s\S]*includeSettings:\s*boolean[\s\S]*DEFAULT_BACKUP_CONTENT_PREFERENCES[\s\S]*includeSettings:\s*true[\s\S]*loadContentPreferences\(\): Promise<BackupContentPreferences>[\s\S]*saveContentPreferences\(preferencesValue: BackupContentPreferences\): Promise<void>[\s\S]*BACKUP_CONTENT_INCLUDE_SETTINGS_KEY/,
+  'backup service must persist backup content preferences with settings included by default',
+)
+assert.match(
+  backupServiceSource,
+  /const contentPreferences = await this\.loadContentPreferences\(\)[\s\S]*if \(contentPreferences\.includeSettings\) \{[\s\S]*document\.settings = await new ReaderPreferencesStore\(this\.context\)\.load\(\)[\s\S]*document\.sourceIndexUrl = await this\.exportSourceIndexUrl\(\)/,
+  'backup export must include reader/settings preferences only when backup content settings allow it',
+)
+assert.match(
+  backupServiceSource,
   /runAutomaticLocalBackupIfDue\(now: number = Date\.now\(\)\): Promise<BackupAutomaticRunResult>[\s\S]*skippedReason: 'disabled'[\s\S]*skippedReason: 'not_due'[\s\S]*runAutomaticLocalBackupWithPreferences\(now, preferencesValue\)[\s\S]*runAutomaticLocalBackupNow\(now: number = Date\.now\(\)\): Promise<BackupAutomaticRunResult>/,
   'backup service must support app-open due checks plus an explicit run-now path',
 )
@@ -169,6 +179,16 @@ assert.match(
   settingsPageSource,
   /\{ key: 'backup-auto-export', titleKey: 'settings_row_backup_auto_export_title', detailKey: 'settings_row_backup_auto_export_detail' \}[\s\S]*row\.key === 'backup' \|\| row\.key === 'backup-auto-export'[\s\S]*this\.onOpenBackupManagement\(\)/,
   'Settings automatic backup row must open the real backup management page instead of remaining a placeholder',
+)
+assert.match(
+  settingsPageSource,
+  /\{ key: 'backup-include-settings', titleKey: 'settings_row_backup_include_settings_title', detailKey: 'settings_row_backup_include_settings_detail' \}[\s\S]*loadBackupContentPreferences\(\)[\s\S]*row\.key === 'backup-include-settings'[\s\S]*saveBackupIncludeSettings\(value\)/,
+  'Settings backup include row must be a real switch backed by backup content preferences',
+)
+assert.doesNotMatch(
+  settingsPageSource,
+  /\{ key: 'backup-include-settings'[^}]*placeholder:\s*true/,
+  'Settings backup include row must not remain a placeholder',
 )
 assert.match(
   indexSource,

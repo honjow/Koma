@@ -40,6 +40,11 @@ import {
   setLatestLibraryUpdateSummary,
 } from '../model/LibraryUpdateResultStore'
 import {
+  BackupContentPreferences,
+  BackupService,
+  DEFAULT_BACKUP_CONTENT_PREFERENCES,
+} from '../model/BackupService'
+import {
   DEFAULT_LIBRARY_UPDATE_PREFERENCES,
   LibraryUpdateNotificationStatus,
   LibraryUpdatePreferences,
@@ -214,7 +219,7 @@ function createSettingsSections(): SettingsSection[] {
         { key: 'tracker-update-strategy', titleKey: 'settings_row_tracker_update_strategy_title', detailKey: 'settings_row_tracker_update_strategy_detail', placeholder: true },
         { key: 'backup', titleKey: 'settings_row_backup_title', detailKey: 'settings_row_backup_detail' },
         { key: 'backup-auto-export', titleKey: 'settings_row_backup_auto_export_title', detailKey: 'settings_row_backup_auto_export_detail' },
-        { key: 'backup-include-settings', titleKey: 'settings_row_backup_include_settings_title', detailKey: 'settings_row_backup_include_settings_detail', placeholder: true },
+        { key: 'backup-include-settings', titleKey: 'settings_row_backup_include_settings_title', detailKey: 'settings_row_backup_include_settings_detail' },
         { key: 'image-cache', titleKey: 'settings_row_image_cache_title', detailKey: 'settings_row_image_cache_detail' },
         { key: 'cache-limit', titleKey: 'settings_row_cache_limit_title', detailKey: 'settings_row_cache_limit_detail', placeholder: true },
         { key: 'cache-auto-clean', titleKey: 'settings_row_cache_auto_clean_title', detailKey: 'settings_row_cache_auto_clean_detail', placeholder: true },
@@ -396,6 +401,7 @@ export struct SettingsPage {
   @Local private libraryDefaultSortBy: LibrarySortBy = 'lastRead'
   @Local private libraryViewMode: LibraryViewMode = 'grid'
   @Local private showLibraryBadges: boolean = true
+  @Local private includeBackupSettings: boolean = DEFAULT_BACKUP_CONTENT_PREFERENCES.includeSettings
 
   private context(): common.UIAbilityContext {
     return getContext(this) as common.UIAbilityContext
@@ -419,6 +425,10 @@ export struct SettingsPage {
 
   private libraryFilterStore(): LibraryFilterStore {
     return new LibraryFilterStore(this.context())
+  }
+
+  private backupService(): BackupService {
+    return new BackupService(this.context())
   }
 
   private t(name: string): string {
@@ -914,6 +924,17 @@ export struct SettingsPage {
       })
   }
 
+  private loadBackupContentPreferences(): void {
+    void this.backupService().loadContentPreferences()
+      .then((preferences: BackupContentPreferences) => {
+        this.includeBackupSettings = preferences.includeSettings
+        console.info('[Settings] step=load_backup_content_preferences includeSettings=' + preferences.includeSettings)
+      })
+      .catch((error: Error) => {
+        console.warn('[Settings] step=load_backup_content_preferences_failed message=' + error.message)
+      })
+  }
+
   private loadLatestLibraryUpdateSummary(): void {
     const latest = getLatestLibraryUpdateSummary()
     this.libraryUpdateSummary = this.isLibraryUpdateSummaryStaleAfterFailure(latest) ? undefined : latest
@@ -1393,6 +1414,20 @@ export struct SettingsPage {
       })
   }
 
+  private saveBackupIncludeSettings(enabled: boolean): void {
+    this.includeBackupSettings = enabled
+    void this.backupService().saveContentPreferences({
+      includeSettings: enabled,
+    })
+      .then(() => {
+        console.info('[Settings] step=save_backup_include_settings enabled=' + enabled)
+      })
+      .catch((error: Error) => {
+        console.warn('[Settings] step=save_backup_include_settings_failed message=' + error.message)
+        this.showToast(s('settings_backup_include_settings_save_failed'))
+      })
+  }
+
   private handleLibraryUpdateNotificationDispatch(result: LibraryUpdateNotificationDispatchResult, reason: string): void {
     if (result.delivered) {
       this.libraryUpdateNotificationStatus = 'enabled'
@@ -1621,6 +1656,7 @@ export struct SettingsPage {
   private isSwitchRow(row: SettingsRow): boolean {
     return row.key === 'library-auto-update' ||
       row.key === 'library-badges' ||
+      row.key === 'backup-include-settings' ||
       row.key === 'download-wifi-only' ||
       row.key === 'reader-progress' ||
       row.key === 'reader-keep-screen-awake' ||
@@ -1635,6 +1671,9 @@ export struct SettingsPage {
     }
     if (row.key === 'library-badges') {
       return this.showLibraryBadges
+    }
+    if (row.key === 'backup-include-settings') {
+      return this.includeBackupSettings
     }
     if (row.key === 'reader-progress') {
       return this.showReaderProgressControls
@@ -1662,6 +1701,8 @@ export struct SettingsPage {
       this.setLibraryAutoUpdateEnabled(value)
     } else if (row.key === 'library-badges') {
       this.saveLibraryBadgesEnabled(value)
+    } else if (row.key === 'backup-include-settings') {
+      this.saveBackupIncludeSettings(value)
     } else if (row.key === 'reader-progress') {
       this.saveReaderProgressControls(value)
     } else if (row.key === 'reader-keep-screen-awake') {
@@ -2024,6 +2065,7 @@ export struct SettingsPage {
     this.loadDownloadQueuePreferences()
     this.loadDownloadNotificationStatus()
     this.loadLibraryFilterPreferences()
+    this.loadBackupContentPreferences()
     this.loadImageCacheStats()
   }
 

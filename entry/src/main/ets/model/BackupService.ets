@@ -83,11 +83,13 @@ export const BACKUP_AUTOMATIC_RETENTION_COUNT_OPTIONS: number[] = [3, 5, 10]
 const REMOTE_SERVER_STORE_NAME: string = 'koma_remote_servers_v1'
 const SOURCE_INDEX_PREFS_STORE_NAME: string = 'koma_source_package_manager_v1'
 const BACKUP_AUTOMATIC_PREFS_STORE_NAME: string = 'koma_backup_automatic_v1'
+const BACKUP_CONTENT_PREFS_STORE_NAME: string = 'koma_backup_content_v1'
 const BACKUP_AUTOMATIC_ENABLED_KEY: string = 'backup.automatic.enabled'
 const BACKUP_AUTOMATIC_INTERVAL_HOURS_KEY: string = 'backup.automatic.intervalHours'
 const BACKUP_AUTOMATIC_RETENTION_COUNT_KEY: string = 'backup.automatic.retentionCount'
 const BACKUP_AUTOMATIC_LAST_RUN_AT_KEY: string = 'backup.automatic.lastRunAt'
 const BACKUP_AUTOMATIC_LAST_FAILURE_CODE_KEY: string = 'backup.automatic.lastFailureCode'
+const BACKUP_CONTENT_INCLUDE_SETTINGS_KEY: string = 'backup.content.includeSettings'
 const SOURCE_INDEX_URL_KEY: string = 'source_index.url'
 const KOMGA_SERVER_KEY: string = 'komga.server'
 const KOMGA_CREDENTIAL_KEY: string = 'komga.credential'
@@ -167,6 +169,10 @@ export interface BackupAutomaticPreferences {
   lastFailureCode: string
 }
 
+export interface BackupContentPreferences {
+  includeSettings: boolean
+}
+
 export interface BackupAutomaticRunResult {
   ran: boolean
   deletedCount: number
@@ -182,6 +188,10 @@ export const DEFAULT_BACKUP_AUTOMATIC_PREFERENCES: BackupAutomaticPreferences = 
   retentionCount: 5,
   lastRunAt: 0,
   lastFailureCode: '',
+}
+
+export const DEFAULT_BACKUP_CONTENT_PREFERENCES: BackupContentPreferences = {
+  includeSettings: true,
 }
 
 export function backupIncludedDomainLabels(): string[] {
@@ -366,6 +376,12 @@ function normalizeBackupAutomaticPreferences(value: BackupAutomaticPreferences):
     retentionCount: normalizeBackupAutomaticRetentionCount(value.retentionCount),
     lastRunAt: normalizeBackupAutomaticLastRunAt(value.lastRunAt),
     lastFailureCode: value.lastFailureCode.trim(),
+  }
+}
+
+function normalizeBackupContentPreferences(value: BackupContentPreferences): BackupContentPreferences {
+  return {
+    includeSettings: value.includeSettings !== false,
   }
 }
 
@@ -647,6 +663,22 @@ export class BackupService {
     await store.flush()
   }
 
+  async loadContentPreferences(): Promise<BackupContentPreferences> {
+    const store = await this.contentPreferences()
+    const includeSettings =
+      await store.get(BACKUP_CONTENT_INCLUDE_SETTINGS_KEY, DEFAULT_BACKUP_CONTENT_PREFERENCES.includeSettings) as boolean
+    return normalizeBackupContentPreferences({
+      includeSettings,
+    })
+  }
+
+  async saveContentPreferences(preferencesValue: BackupContentPreferences): Promise<void> {
+    const normalized = normalizeBackupContentPreferences(preferencesValue)
+    const store = await this.contentPreferences()
+    await store.put(BACKUP_CONTENT_INCLUDE_SETTINGS_KEY, normalized.includeSettings)
+    await store.flush()
+  }
+
   async runAutomaticLocalBackupIfDue(now: number = Date.now()): Promise<BackupAutomaticRunResult> {
     const preferencesValue = await this.loadAutomaticPreferences()
     if (!preferencesValue.enabled) {
@@ -743,6 +775,7 @@ export class BackupService {
   }
 
   private async buildBackupDocument(schemaVersion: number): Promise<KomaBackupDocument> {
+    const contentPreferences = await this.loadContentPreferences()
     const document: KomaBackupDocument = {
       schemaVersion,
       exportedAt: Date.now(),
@@ -755,9 +788,11 @@ export class BackupService {
       remoteServers: await this.exportRemoteServers(),
       sourcePackages: exportInstalledSourcePackages(),
       sourceSettings: appSourceSettingsStore.exportAll(),
-      settings: await new ReaderPreferencesStore(this.context).load(),
-      sourceIndexUrl: await this.exportSourceIndexUrl(),
       trackerMappings: await this.exportTrackerMappings(),
+    }
+    if (contentPreferences.includeSettings) {
+      document.settings = await new ReaderPreferencesStore(this.context).load()
+      document.sourceIndexUrl = await this.exportSourceIndexUrl()
     }
     const downloadQueue = readTextIfExists(this.downloadQueuePath(), '')
     if (downloadQueue.length > 0) {
@@ -1102,6 +1137,10 @@ export class BackupService {
 
   private async automaticPreferences(): Promise<preferences.Preferences> {
     return preferences.getPreferences(this.context, BACKUP_AUTOMATIC_PREFS_STORE_NAME)
+  }
+
+  private async contentPreferences(): Promise<preferences.Preferences> {
+    return preferences.getPreferences(this.context, BACKUP_CONTENT_PREFS_STORE_NAME)
   }
 
   private async runAutomaticLocalBackupWithPreferences(

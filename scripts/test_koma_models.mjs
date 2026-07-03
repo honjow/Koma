@@ -1725,8 +1725,8 @@ assert.match(
 )
 assert.match(
   backupServiceSource,
-  /settings:\s*await new ReaderPreferencesStore\(this\.context\)\.load\(\)/,
-  'backup export must include SettingsPage reader preferences',
+  /DEFAULT_BACKUP_CONTENT_PREFERENCES[\s\S]*includeSettings:\s*true[\s\S]*const contentPreferences = await this\.loadContentPreferences\(\)[\s\S]*if \(contentPreferences\.includeSettings\) \{[\s\S]*document\.settings = await new ReaderPreferencesStore\(this\.context\)\.load\(\)/,
+  'backup export must include SettingsPage reader preferences by default and allow excluding them',
 )
 assert.match(
   backupServiceSource,
