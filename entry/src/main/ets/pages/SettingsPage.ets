@@ -226,7 +226,7 @@ function createSettingsSections(): SettingsSection[] {
         { key: 'backup-include-settings', titleKey: 'settings_row_backup_include_settings_title', detailKey: 'settings_row_backup_include_settings_detail' },
         { key: 'image-cache', titleKey: 'settings_row_image_cache_title', detailKey: 'settings_row_image_cache_detail' },
         { key: 'cache-limit', titleKey: 'settings_row_cache_limit_title', detailKey: 'settings_row_cache_limit_detail' },
-        { key: 'cache-auto-clean', titleKey: 'settings_row_cache_auto_clean_title', detailKey: 'settings_row_cache_auto_clean_detail', placeholder: true },
+        { key: 'cache-auto-clean', titleKey: 'settings_row_cache_auto_clean_title', detailKey: 'settings_row_cache_auto_clean_detail' },
       ],
     },
     {
@@ -392,6 +392,7 @@ export struct SettingsPage {
   @Local private imageCacheStats?: ReaderRemoteImageCacheStats = undefined
   @Local private imageCacheState: string = 'unavailable'
   @Local private imageCacheMaxBytes: number = DEFAULT_READER_REMOTE_IMAGE_CACHE_PREFERENCES.maxBytes
+  @Local private imageCacheAutoCleanEnabled: boolean = DEFAULT_READER_REMOTE_IMAGE_CACHE_PREFERENCES.autoCleanEnabled
   @Local private libraryUpdateBusy: boolean = false
   @Local private libraryUpdateSummary?: LibraryUpdateSummary = undefined
   @Local private libraryUpdatePreferences: LibraryUpdatePreferences = DEFAULT_LIBRARY_UPDATE_PREFERENCES
@@ -550,6 +551,9 @@ export struct SettingsPage {
     }
     if (row.key === 'cache-limit') {
       return formatReaderRemoteImageCacheSize(this.imageCacheMaxBytes)
+    }
+    if (row.key === 'cache-auto-clean') {
+      return this.imageCacheAutoCleanEnabled ? this.t('common_on') : this.t('common_off')
     }
     if (row.key === 'library-auto-update') {
       return getLibraryUpdateAutoCheckLabel(this.libraryUpdatePreferences)
@@ -1001,7 +1005,7 @@ export struct SettingsPage {
       if (context.cacheDir === undefined || context.cacheDir.length === 0) {
         return false
       }
-      configureReaderRemoteImageCache(context.cacheDir, this.imageCacheMaxBytes)
+      configureReaderRemoteImageCache(context.cacheDir, this.imageCacheMaxBytes, this.imageCacheAutoCleanEnabled)
       return true
     } catch (error) {
       const e = error as Error
@@ -1051,6 +1055,7 @@ export struct SettingsPage {
     void new ReaderRemoteImageCachePreferencesStore(this.context()).load()
       .then((preferences: ReaderRemoteImageCachePreferences) => {
         this.imageCacheMaxBytes = preferences.maxBytes
+        this.imageCacheAutoCleanEnabled = preferences.autoCleanEnabled
         console.info('[Settings] step=load_image_cache_preferences maxBytes=' + preferences.maxBytes)
         this.loadImageCacheStats()
       })
@@ -1264,6 +1269,7 @@ export struct SettingsPage {
     void new ReaderRemoteImageCachePreferencesStore(this.context()).saveMaxBytes(maxBytes)
       .then((preferences: ReaderRemoteImageCachePreferences) => {
         this.imageCacheMaxBytes = preferences.maxBytes
+        this.imageCacheAutoCleanEnabled = preferences.autoCleanEnabled
         this.ensureReaderRemoteImageCache()
         this.loadImageCacheStats()
         console.info('[Settings] step=save_image_cache_limit maxBytes=' + preferences.maxBytes)
@@ -1271,6 +1277,22 @@ export struct SettingsPage {
       .catch((error: Error) => {
         console.warn('[Settings] step=save_image_cache_limit_failed message=' + error.message)
         this.showToast(s('settings_cache_limit_save_failed'))
+      })
+  }
+
+  private saveImageCacheAutoCleanEnabled(enabled: boolean): void {
+    this.imageCacheAutoCleanEnabled = enabled
+    void new ReaderRemoteImageCachePreferencesStore(this.context()).saveAutoCleanEnabled(enabled)
+      .then((preferences: ReaderRemoteImageCachePreferences) => {
+        this.imageCacheMaxBytes = preferences.maxBytes
+        this.imageCacheAutoCleanEnabled = preferences.autoCleanEnabled
+        this.ensureReaderRemoteImageCache()
+        this.loadImageCacheStats()
+        console.info('[Settings] step=save_image_cache_auto_clean enabled=' + preferences.autoCleanEnabled)
+      })
+      .catch((error: Error) => {
+        console.warn('[Settings] step=save_image_cache_auto_clean_failed message=' + error.message)
+        this.showToast(s('settings_cache_auto_clean_save_failed'))
       })
   }
 
@@ -1694,6 +1716,7 @@ export struct SettingsPage {
     return row.key === 'library-auto-update' ||
       row.key === 'library-badges' ||
       row.key === 'backup-include-settings' ||
+      row.key === 'cache-auto-clean' ||
       row.key === 'download-wifi-only' ||
       row.key === 'reader-progress' ||
       row.key === 'reader-keep-screen-awake' ||
@@ -1711,6 +1734,9 @@ export struct SettingsPage {
     }
     if (row.key === 'backup-include-settings') {
       return this.includeBackupSettings
+    }
+    if (row.key === 'cache-auto-clean') {
+      return this.imageCacheAutoCleanEnabled
     }
     if (row.key === 'reader-progress') {
       return this.showReaderProgressControls
@@ -1740,6 +1766,8 @@ export struct SettingsPage {
       this.saveLibraryBadgesEnabled(value)
     } else if (row.key === 'backup-include-settings') {
       this.saveBackupIncludeSettings(value)
+    } else if (row.key === 'cache-auto-clean') {
+      this.saveImageCacheAutoCleanEnabled(value)
     } else if (row.key === 'reader-progress') {
       this.saveReaderProgressControls(value)
     } else if (row.key === 'reader-keep-screen-awake') {

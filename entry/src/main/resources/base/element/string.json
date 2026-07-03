@@ -127,6 +127,7 @@
     { "name": "settings_library_badges_save_failed", "value": "Failed to save library badge setting" },
     { "name": "settings_backup_include_settings_save_failed", "value": "Failed to save backup content setting" },
     { "name": "settings_cache_limit_save_failed", "value": "Failed to save cache limit" },
+    { "name": "settings_cache_auto_clean_save_failed", "value": "Failed to save cache cleanup setting" },
     { "name": "settings_library_update_unavailable", "value": "Library unavailable" },
     { "name": "settings_library_update_found_count", "value": "Found updates for %s books" },
     { "name": "settings_library_update_up_to_date", "value": "No updates found" },

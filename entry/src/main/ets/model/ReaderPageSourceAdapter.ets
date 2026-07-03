@@ -38,13 +38,16 @@ export const READER_REMOTE_IMAGE_CACHE_MAX_BYTES_OPTIONS: number[] = [
 ]
 const READER_REMOTE_IMAGE_CACHE_PREFS_STORE_NAME: string = 'koma_reader_remote_image_cache_v1'
 const READER_REMOTE_IMAGE_CACHE_MAX_BYTES_KEY: string = 'reader.remoteImageCache.maxBytes'
+const READER_REMOTE_IMAGE_CACHE_AUTO_CLEAN_KEY: string = 'reader.remoteImageCache.autoCleanEnabled'
 
 export interface ReaderRemoteImageCachePreferences {
   maxBytes: number
+  autoCleanEnabled: boolean
 }
 
 export const DEFAULT_READER_REMOTE_IMAGE_CACHE_PREFERENCES: ReaderRemoteImageCachePreferences = {
   maxBytes: DEFAULT_REMOTE_IMAGE_CACHE_MAX_BYTES,
+  autoCleanEnabled: true,
 }
 
 export enum ReaderPageRenderKind {
@@ -133,6 +136,7 @@ const readerRemoteHeaderRules: ReaderRemoteHeaderRule[] = []
 let readerRemoteImageCacheStore: RemoteImageCacheStore | undefined = undefined
 let readerOfflineDownloadStore: OfflineDownloadStore | undefined = undefined
 let readerRemoteImageCacheMaxBytes: number = DEFAULT_REMOTE_IMAGE_CACHE_MAX_BYTES
+let readerRemoteImageCacheAutoCleanEnabled: boolean = true
 const readerPrefetchInFlight: string[] = []
 
 function normalizeReaderRemoteImageCacheMaxBytes(maxBytes: number): number {
@@ -147,6 +151,7 @@ function normalizeReaderRemoteImageCachePreferences(
 ): ReaderRemoteImageCachePreferences {
   return {
     maxBytes: normalizeReaderRemoteImageCacheMaxBytes(value.maxBytes),
+    autoCleanEnabled: value.autoCleanEnabled !== false,
   }
 }
 
@@ -161,8 +166,11 @@ export class ReaderRemoteImageCachePreferencesStore {
     const store = await preferences.getPreferences(this.context, READER_REMOTE_IMAGE_CACHE_PREFS_STORE_NAME)
     const maxBytes =
       await store.get(READER_REMOTE_IMAGE_CACHE_MAX_BYTES_KEY, DEFAULT_READER_REMOTE_IMAGE_CACHE_PREFERENCES.maxBytes) as number
+    const autoCleanEnabled =
+      await store.get(READER_REMOTE_IMAGE_CACHE_AUTO_CLEAN_KEY, DEFAULT_READER_REMOTE_IMAGE_CACHE_PREFERENCES.autoCleanEnabled) as boolean
     return normalizeReaderRemoteImageCachePreferences({
       maxBytes,
+      autoCleanEnabled,
     })
   }
 
@@ -170,12 +178,25 @@ export class ReaderRemoteImageCachePreferencesStore {
     const normalized = normalizeReaderRemoteImageCachePreferences(preferencesValue)
     const store = await preferences.getPreferences(this.context, READER_REMOTE_IMAGE_CACHE_PREFS_STORE_NAME)
     await store.put(READER_REMOTE_IMAGE_CACHE_MAX_BYTES_KEY, normalized.maxBytes)
+    await store.put(READER_REMOTE_IMAGE_CACHE_AUTO_CLEAN_KEY, normalized.autoCleanEnabled)
     await store.flush()
   }
 
   async saveMaxBytes(maxBytes: number): Promise<ReaderRemoteImageCachePreferences> {
+    const current = await this.load()
     const normalized = normalizeReaderRemoteImageCachePreferences({
       maxBytes,
+      autoCleanEnabled: current.autoCleanEnabled,
+    })
+    await this.save(normalized)
+    return normalized
+  }
+
+  async saveAutoCleanEnabled(autoCleanEnabled: boolean): Promise<ReaderRemoteImageCachePreferences> {
+    const current = await this.load()
+    const normalized = normalizeReaderRemoteImageCachePreferences({
+      maxBytes: current.maxBytes,
+      autoCleanEnabled,
     })
     await this.save(normalized)
     return normalized
@@ -518,7 +539,11 @@ export async function installReaderRemoteHeadersForComic(context: common.UIAbili
   console.info('[Favorite] step=reader_headers_installed kind=webdav')
 }
 
-export function configureReaderRemoteImageCache(cacheDir: string, maxBytes: number = DEFAULT_REMOTE_IMAGE_CACHE_MAX_BYTES): void {
+export function configureReaderRemoteImageCache(
+  cacheDir: string,
+  maxBytes: number = DEFAULT_REMOTE_IMAGE_CACHE_MAX_BYTES,
+  autoCleanEnabled: boolean = true,
+): void {
   if (cacheDir.length === 0) {
     return
   }
@@ -527,7 +552,10 @@ export function configureReaderRemoteImageCache(cacheDir: string, maxBytes: numb
     console.info('[ReaderCache] step=ready')
   }
   readerRemoteImageCacheMaxBytes = maxBytes
-  readerRemoteImageCacheStore.evictIfOver(readerRemoteImageCacheMaxBytes)
+  readerRemoteImageCacheAutoCleanEnabled = autoCleanEnabled
+  if (readerRemoteImageCacheAutoCleanEnabled) {
+    readerRemoteImageCacheStore.evictIfOver(readerRemoteImageCacheMaxBytes)
+  }
 }
 
 export function configureReaderOfflineDownloads(filesDir: string): void {
@@ -601,7 +629,9 @@ export async function fetchAndCacheReaderRemoteImage(url: string, headers?: Read
     throw new Error('Reader remote image cache is unavailable')
   }
   const path = await readerRemoteImageCacheStore.put(url, headers, bytes)
-  await readerRemoteImageCacheStore.evictIfOver(readerRemoteImageCacheMaxBytes)
+  if (readerRemoteImageCacheAutoCleanEnabled) {
+    await readerRemoteImageCacheStore.evictIfOver(readerRemoteImageCacheMaxBytes)
+  }
   return path
 }
 
