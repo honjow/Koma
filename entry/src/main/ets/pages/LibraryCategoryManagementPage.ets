@@ -28,6 +28,12 @@ import { KomaDisclosureListRow } from '../components/ui/KomaDisclosureListRow'
 import { KomaFormTextField } from '../components/ui/KomaFormTextField'
 import { KomaMenuListRow } from '../components/ui/KomaMenuListRow'
 import { ThemeConstants } from '../theme/ThemeConstants'
+import { AppStrings } from '../i18n/AppStrings'
+import { connectLanguageState, LanguageState } from '../state/LanguageState'
+
+function s(name: string): string {
+  return AppStrings.get(name)
+}
 
 @ComponentV2
 export struct LibraryCategoryManagementPage {
@@ -40,6 +46,7 @@ export struct LibraryCategoryManagementPage {
   @Local private editingName: string = ''
   @Local private categoryMenuKey: string = ''
   @Local private expandedStrategyCategoryId: LibraryCategoryDisplayCategoryId = 'all'
+  @Local private languageState: LanguageState = connectLanguageState()
 
   private refreshCategories(): void {
     this.categories = this.libraryStore === undefined ? [] : this.libraryStore.listCustomCategories()
@@ -67,28 +74,28 @@ export struct LibraryCategoryManagementPage {
 
   private sortLabel(sortBy: LibrarySortBy): string {
     if (sortBy === 'added') {
-      return '最近加入'
+      return s('library_sort_added')
     }
     if (sortBy === 'title') {
-      return '标题'
+      return s('library_sort_title')
     }
     if (sortBy === 'source') {
-      return '来源'
+      return s('library_sort_source')
     }
-    return '最近阅读'
+    return s('library_sort_last_read')
   }
 
   private readStateLabel(readState: LibraryReadStateFilter): string {
     if (readState === 'unread') {
-      return '未读'
+      return s('library_read_state_unread')
     }
     if (readState === 'reading') {
-      return '读过'
+      return s('library_read_state_reading')
     }
     if (readState === 'completed') {
-      return '已完成'
+      return s('library_read_state_completed')
     }
-    return '全部状态'
+    return s('library_read_state_all')
   }
 
   private persistCategoryStrategy(
@@ -97,7 +104,7 @@ export struct LibraryCategoryManagementPage {
     readState: LibraryReadStateFilter
   ): void {
     if (this.libraryStore === undefined || this.libraryPersistenceService === undefined) {
-      this.showToast('分类管理不可用')
+      this.showToast(s('library_category_management_unavailable'))
       return
     }
     try {
@@ -108,9 +115,9 @@ export struct LibraryCategoryManagementPage {
         updatedAt: Date.now(),
       })
       this.onLibraryChanged()
-      this.showToast('显示方式已更新')
+      this.showToast(s('library_category_display_updated'))
     } catch (_error) {
-      this.showToast('显示方式未保存')
+      this.showToast(s('library_category_display_save_failed'))
     }
   }
 
@@ -146,7 +153,7 @@ export struct LibraryCategoryManagementPage {
 
   private persistCreate(): void {
     if (this.libraryStore === undefined || this.libraryPersistenceService === undefined) {
-      this.showToast('分类管理不可用')
+      this.showToast(s('library_category_management_unavailable'))
       return
     }
     try {
@@ -154,7 +161,7 @@ export struct LibraryCategoryManagementPage {
       this.draftName = ''
       this.refreshCategories()
       this.onLibraryChanged()
-      this.showToast('分类已创建')
+      this.showToast(s('library_category_created'))
     } catch (error) {
       const e = error as Error
       this.showToast(e.message)
@@ -174,7 +181,7 @@ export struct LibraryCategoryManagementPage {
 
   private persistRename(categoryId: string): void {
     if (this.libraryStore === undefined || this.libraryPersistenceService === undefined) {
-      this.showToast('分类管理不可用')
+      this.showToast(s('library_category_management_unavailable'))
       return
     }
     try {
@@ -182,7 +189,7 @@ export struct LibraryCategoryManagementPage {
       this.cancelRename()
       this.refreshCategories()
       this.onLibraryChanged()
-      this.showToast('分类已重命名')
+      this.showToast(s('library_category_renamed'))
     } catch (error) {
       const e = error as Error
       this.showToast(e.message)
@@ -191,18 +198,18 @@ export struct LibraryCategoryManagementPage {
 
   private confirmDelete(category: CustomLibraryCategory): void {
     this.getUIContext().showAlertDialog({
-      title: '删除分类',
-      message: `删除“${category.name}”？该分类会从已有漫画中移除，收藏和稍后阅读不受影响。`,
+      title: s('library_category_delete_title'),
+      message: s('library_category_delete_message').replace('%s', category.name),
       autoCancel: true,
       primaryButton: {
-        value: '删除',
+        value: s('library_category_action_delete'),
         fontColor: $r('app.color.koma_danger'),
         action: () => {
           this.persistDelete(category.id)
         },
       },
       secondaryButton: {
-        value: '取消',
+        value: s('common_cancel'),
         action: () => {},
       },
     })
@@ -210,7 +217,7 @@ export struct LibraryCategoryManagementPage {
 
   private persistDelete(categoryId: string): void {
     if (this.libraryStore === undefined || this.libraryPersistenceService === undefined) {
-      this.showToast('分类管理不可用')
+      this.showToast(s('library_category_management_unavailable'))
       return
     }
     try {
@@ -221,7 +228,7 @@ export struct LibraryCategoryManagementPage {
         this.categoryMenuKey = ''
         this.refreshCategories()
         this.onLibraryChanged()
-        this.showToast('分类已删除')
+        this.showToast(s('library_category_deleted'))
       }
     } catch (error) {
       const e = error as Error
@@ -232,19 +239,19 @@ export struct LibraryCategoryManagementPage {
   @Builder
   private CategorySortMenu(categoryId: LibraryCategoryDisplayCategoryId) {
     Menu() {
-      MenuItem({ content: '最近阅读' })
+      MenuItem({ content: s('library_sort_last_read') })
         .onClick(() => {
           this.setCategorySort(categoryId, 'lastRead')
         })
-      MenuItem({ content: '最近加入' })
+      MenuItem({ content: s('library_sort_added') })
         .onClick(() => {
           this.setCategorySort(categoryId, 'added')
         })
-      MenuItem({ content: '标题' })
+      MenuItem({ content: s('library_sort_title') })
         .onClick(() => {
           this.setCategorySort(categoryId, 'title')
         })
-      MenuItem({ content: '来源' })
+      MenuItem({ content: s('library_sort_source') })
         .onClick(() => {
           this.setCategorySort(categoryId, 'source')
         })
@@ -254,19 +261,19 @@ export struct LibraryCategoryManagementPage {
   @Builder
   private CategoryReadStateMenu(categoryId: LibraryCategoryDisplayCategoryId) {
     Menu() {
-      MenuItem({ content: '全部状态' })
+      MenuItem({ content: s('library_read_state_all') })
         .onClick(() => {
           this.setCategoryReadState(categoryId, 'all')
         })
-      MenuItem({ content: '未读' })
+      MenuItem({ content: s('library_read_state_unread') })
         .onClick(() => {
           this.setCategoryReadState(categoryId, 'unread')
         })
-      MenuItem({ content: '读过' })
+      MenuItem({ content: s('library_read_state_reading') })
         .onClick(() => {
           this.setCategoryReadState(categoryId, 'reading')
         })
-      MenuItem({ content: '已完成' })
+      MenuItem({ content: s('library_read_state_completed') })
         .onClick(() => {
           this.setCategoryReadState(categoryId, 'completed')
         })
@@ -284,7 +291,7 @@ export struct LibraryCategoryManagementPage {
       },
     }) {
       KomaMenuListRow({
-        title: '默认排序',
+        title: s('settings_row_library_default_sort_title'),
         trailingText: this.sortLabel(this.categoryStrategy(categoryId).sortBy),
         trailingDropdown: true,
         showChevron: false,
@@ -297,7 +304,7 @@ export struct LibraryCategoryManagementPage {
       }
       ListDivider()
       KomaMenuListRow({
-        title: '阅读状态',
+        title: s('library_category_read_state_title'),
         trailingText: this.readStateLabel(this.categoryStrategy(categoryId).readState),
         trailingDropdown: true,
         showChevron: false,
@@ -314,15 +321,15 @@ export struct LibraryCategoryManagementPage {
   @Builder
   private DisplayStrategySection() {
     Column({ space: ThemeConstants.SPACE_XS }) {
-      SectionHeader({ title: '分类显示' })
+      SectionHeader({ title: s('library_category_display_section') })
       GroupedListSection() {
-        this.StrategySummaryRow('all', '全部分类')
+        this.StrategySummaryRow('all', s('library_category_all'))
         ListDivider()
-        this.StrategySummaryRow('uncategorized', '未分类')
+        this.StrategySummaryRow('uncategorized', s('library_category_uncategorized'))
         ListDivider()
-        this.StrategySummaryRow(LIBRARY_CATEGORY_FAVORITE_ID, '收藏')
+        this.StrategySummaryRow(LIBRARY_CATEGORY_FAVORITE_ID, s('library_category_favorite'))
         ListDivider()
-        this.StrategySummaryRow(LIBRARY_CATEGORY_READ_LATER_ID, '稍后阅读')
+        this.StrategySummaryRow(LIBRARY_CATEGORY_READ_LATER_ID, s('library_category_read_later'))
         if (this.categories.length > 0) {
           ListDivider()
         }
@@ -339,14 +346,14 @@ export struct LibraryCategoryManagementPage {
 
   private persistMove(categoryId: string, direction: 'up' | 'down'): void {
     if (this.libraryStore === undefined || this.libraryPersistenceService === undefined) {
-      this.showToast('分类管理不可用')
+      this.showToast(s('library_category_management_unavailable'))
       return
     }
     try {
       if (moveCustomCategoryAndPersistLibraryStore(this.libraryStore, this.libraryPersistenceService, categoryId, direction)) {
         this.refreshCategories()
         this.onLibraryChanged()
-        this.showToast('分类顺序已更新')
+        this.showToast(s('library_category_order_updated'))
       }
     } catch (error) {
       const e = error as Error
@@ -374,21 +381,21 @@ export struct LibraryCategoryManagementPage {
   @Builder
   private CategoryActionMenu(category: CustomLibraryCategory) {
     Menu() {
-      MenuItem({ content: '重命名' })
+      MenuItem({ content: s('library_category_action_rename') })
         .onClick(() => {
           this.startRename(category)
         })
-      MenuItem({ content: '上移' })
+      MenuItem({ content: s('library_category_action_move_up') })
         .enabled(!this.isFirstCategory(category))
         .onClick(() => {
           this.persistMove(category.id, 'up')
         })
-      MenuItem({ content: '下移' })
+      MenuItem({ content: s('library_category_action_move_down') })
         .enabled(!this.isLastCategory(category))
         .onClick(() => {
           this.persistMove(category.id, 'down')
         })
-      MenuItem({ content: '删除' })
+      MenuItem({ content: s('library_category_action_delete') })
         .onClick(() => {
           this.confirmDelete(category)
         })
@@ -398,11 +405,11 @@ export struct LibraryCategoryManagementPage {
   @Builder
   private CustomCategoriesSection() {
     Column({ space: ThemeConstants.SPACE_XS }) {
-      SectionHeader({ title: '自定义分类' })
+      SectionHeader({ title: s('library_category_custom_section') })
       GroupedListSection() {
         if (this.categories.length === 0) {
           ConciseListRow({
-            title: '暂无自定义分类',
+            title: s('library_category_empty_title'),
             showChevron: false,
           })
         } else {
@@ -421,12 +428,12 @@ export struct LibraryCategoryManagementPage {
   @Builder
   private CreateSection() {
     Column({ space: ThemeConstants.SPACE_XS }) {
-      SectionHeader({ title: '新建分类' })
+      SectionHeader({ title: s('library_category_create_section') })
       GroupedListSection({ inset: ThemeConstants.SPACE_LG }) {
         Column({ space: ThemeConstants.SPACE_MD }) {
           KomaFormTextField({
-            label: '分类名称',
-            placeholder: `最多 ${LIBRARY_CATEGORY_NAME_MAX_LENGTH} 个字符`,
+            label: s('library_category_name_label'),
+            placeholder: s('library_category_name_placeholder').replace('%s', `${LIBRARY_CATEGORY_NAME_MAX_LENGTH}`),
             value: this.draftName,
             submit: () => {
               this.persistCreate()
@@ -436,7 +443,7 @@ export struct LibraryCategoryManagementPage {
             },
           })
           KomaActionButton({
-            label: '创建',
+            label: s('library_category_action_create'),
             kind: 'primary',
             fullWidth: true,
             isEnabled: this.draftName.trim().length > 0,
@@ -456,7 +463,7 @@ export struct LibraryCategoryManagementPage {
     if (this.editingCategoryId === category.id) {
       Column({ space: ThemeConstants.SPACE_MD }) {
         KomaFormTextField({
-          label: '分类名称',
+          label: s('library_category_name_label'),
           value: this.editingName,
           submit: () => {
             this.persistRename(category.id)
@@ -467,7 +474,7 @@ export struct LibraryCategoryManagementPage {
         })
         Row({ space: ThemeConstants.SPACE_MD }) {
           KomaActionButton({
-            label: '保存',
+            label: s('library_category_action_save'),
             kind: 'primary',
             fill: true,
             controlHeight: ThemeConstants.ACTION_CHIP_HEIGHT,
@@ -476,7 +483,7 @@ export struct LibraryCategoryManagementPage {
             },
           })
           KomaActionButton({
-            label: '取消',
+            label: s('common_cancel'),
             kind: 'secondary',
             fill: true,
             controlHeight: ThemeConstants.ACTION_CHIP_HEIGHT,
@@ -492,7 +499,7 @@ export struct LibraryCategoryManagementPage {
     } else {
       KomaMenuListRow({
         title: category.name,
-        subtitle: `${this.categoryUsageCount(category.id)} 本漫画`,
+        subtitle: s('library_count_books').replace('%s', `${this.categoryUsageCount(category.id)}`),
         isMenuOpen: this.categoryMenuKey === this.categoryActionMenuKey(category.id),
         action: () => {
           this.categoryMenuKey = this.categoryActionMenuKey(category.id)

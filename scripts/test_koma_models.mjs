@@ -94,15 +94,15 @@ function assertUsesSecondaryListSafeArea(source, label) {
 }
 
 function assertUsesScrollContentSafeArea(source, label) {
-  assert.match(source, /@StorageProp\(StorageKeys\.TOP_AVOID_HEIGHT\)\s+topH:\s*number = 0/, `${label} must read top safe-area avoidance height`)
-  assert.match(source, /@StorageProp\(StorageKeys\.BOTTOM_AVOID_HEIGHT\)\s+bottomH:\s*number = 0/, `${label} must read bottom safe-area avoidance height`)
-  assert.match(source, /topContentInset\(\): number \{[\s\S]*this\.topH/, `${label} must calculate a top inset inside scroll content`)
-  assert.match(source, /bottomContentInset\(\): number \{[\s\S]*this\.bottomH[\s\S]*ThemeConstants\.FLOAT_BAR_HEIGHT/, `${label} must calculate bottom inset for floating chrome inside scroll content`)
+  assert.match(source, /connectLayoutSafeArea, LayoutSafeAreaState/, `${label} must import shared safe-area state`)
+  assert.match(source, /@Local private safeArea: LayoutSafeAreaState = connectLayoutSafeArea\(\)/, `${label} must connect shared safe-area state`)
+  assert.match(source, /topContentInset\(\): number \{[\s\S]*this\.safeArea\.topAvoidHeight/, `${label} must calculate a top inset inside scroll content`)
+  assert.match(source, /bottomContentInset\(\): number \{[\s\S]*this\.safeArea\.bottomAvoidHeight[\s\S]*ThemeConstants\.FLOAT_BAR_HEIGHT/, `${label} must calculate bottom inset for floating chrome inside scroll content`)
   assert.match(source, /\.padding\(\{[^}]*top:\s*this\.topContentInset\(\)[^}]*bottom:\s*this\.bottomContentInset\(\)[^}]*\}\)/, `${label} must apply safe-area avoidance as scroll content padding`)
 }
 
 function assertSourceBrowseFloatingTabViewportClearance(source) {
-  assert.match(source, /bottomContentInset\(\): number \{[\s\S]*this\.bottomH[\s\S]*ThemeConstants\.FLOAT_BAR_HEIGHT/, 'SourceBrowsePage must keep bottomContentInset for scroll-end clearance')
+  assert.match(source, /bottomContentInset\(\): number \{[\s\S]*this\.safeArea\.bottomAvoidHeight[\s\S]*ThemeConstants\.FLOAT_BAR_HEIGHT/, 'SourceBrowsePage must keep bottomContentInset for scroll-end clearance')
   assert.match(source, /bottomFloatingTabViewportClearance\(\): number \{[\s\S]*return this\.bottomContentInset\(\)/, 'SourceBrowsePage must expose a named floating tab viewport clearance')
   assert.match(source, /Scroll\(\)[\s\S]*\.padding\(\{\s*bottom:\s*this\.bottomFloatingTabViewportClearance\(\)\s*\}\)[\s\S]*\.clipContent\(ContentClipMode\.CONTENT_ONLY\)/, 'SourceBrowsePage scroll viewport must reserve and clip bottom content above floating tab chrome')
   assert.doesNotMatch(source, /\.expandSafeArea\(/, 'SourceBrowsePage must not change reader-style immersive safe-area expansion')
@@ -465,8 +465,8 @@ assert.match(entryAbilitySource, /navigationBarColor:\s*TRANSPARENT_COLOR/, 'Ent
 assert.match(indexSource, /\.ignoreLayoutSafeArea\(\s*\[\s*LayoutSafeAreaType\.SYSTEM\s*\][\s\S]*\[LayoutSafeAreaEdge\.TOP,\s*LayoutSafeAreaEdge\.BOTTOM\]/, 'root shell must continue drawing under system safe areas')
 assert.match(indexSource, /\.expandSafeArea\(\[SafeAreaType\.SYSTEM\], \[SafeAreaEdge\.TOP, SafeAreaEdge\.BOTTOM\]\)/, 'root shell must preserve immersive safe-area expansion')
 assert.doesNotMatch(indexSource, /HdsNavigation\(this\.appPathStack\)[\s\S]*\.(padding|margin)\(/, 'root app shell must not use root padding or margin to avoid safe areas')
-assert.match(secondaryListScaffoldSource, /Blank\(\)\.height\(this\.topH \+ ThemeConstants\.TITLE_BAR_HEIGHT\)/, 'shared list scaffold must include an internal top spacer')
-assert.match(secondaryListScaffoldSource, /Blank\(\)\.height\(this\.bottomH \+ this\.bottomPadding \+ this\.keyboardPadding\(\)\)/, 'shared list scaffold must include an internal bottom spacer')
+assert.match(secondaryListScaffoldSource, /Blank\(\)\.height\(this\.safeArea\.topAvoidHeight \+ ThemeConstants\.TITLE_BAR_HEIGHT\)/, 'shared list scaffold must include an internal top spacer')
+assert.match(secondaryListScaffoldSource, /Blank\(\)\.height\(this\.safeArea\.bottomAvoidHeight \+ this\.bottomPadding \+ this\.keyboardPadding\(\)\)/, 'shared list scaffold must include an internal bottom spacer')
 for (const [source, label] of [
   [libraryPageSource, 'LibraryPage'],
   [browsePageSource, 'BrowsePage'],
@@ -567,17 +567,17 @@ assert.match(
 )
 assert.match(
   mangaDetailPageSource,
-  /downloadButtonLabel\(\)[\s\S]*'下载中'[\s\S]*'重新下载'[\s\S]*'下载章节'/,
+  /downloadButtonLabel\(\)[\s\S]*s\('manga_detail_download_in_progress'\)[\s\S]*s\('manga_detail_action_redownload'\)[\s\S]*s\('manga_detail_action_download_chapter'\)/,
   'MangaDetailPage must label completed downloads as a redownload action',
 )
 assert.match(
   mangaDetailPageSource,
-  /Button\(this\.downloadButtonLabel\(\)[\s\S]*this\.handleDownloadChapter\(\)/,
+  /KomaActionButton\(\{[\s\S]*label: this\.downloadButtonLabel\(\)[\s\S]*this\.handleDownloadChapter\(\)/,
   'MangaDetailPage must expose a user-visible chapter download action',
 )
 assert.match(
   mangaDetailPageSource,
-  /已下载 \$\{summary\.downloadedPageCount\}\/\$\{summary\.pageCount\} 页/,
+  /formatString\('manga_detail_download_status_downloaded', \[summary\.downloadedPageCount, summary\.pageCount\]\)/,
   'MangaDetailPage must expose an explicit downloaded N/M page status',
 )
 assert.doesNotMatch(
@@ -607,7 +607,7 @@ assert.match(
 )
 assert.match(
   libraryPageSource,
-  /private categoryLabel\(\): string \{[\s\S]*'全部分类'[\s\S]*CategoryMenu[\s\S]*MenuItem\(\{ content: '未分类' \}\)[\s\S]*MenuItem\(\{ content: '稍后阅读' \}\)[\s\S]*MenuItem\(\{ content: '收藏' \}\)/,
+  /private categoryLabel\(\): string \{[\s\S]*s\('library_category_all'\)[\s\S]*CategoryMenu[\s\S]*MenuItem\(\{ content: s\('library_category_uncategorized'\) \}\)[\s\S]*MenuItem\(\{ content: s\('library_category_read_later'\) \}\)[\s\S]*MenuItem\(\{ content: s\('library_category_favorite'\) \}\)/,
   'LibraryPage must expose user-visible category filter labels',
 )
 assert.match(
@@ -617,7 +617,7 @@ assert.match(
 )
 assert.match(
   libraryPageSource,
-  /MenuItem\(\{ content: '加入收藏' \}\)[\s\S]*addSelectedCategory\(LIBRARY_CATEGORY_FAVORITE_ID\)[\s\S]*MenuItem\(\{ content: '移出收藏' \}\)[\s\S]*removeSelectedCategory\(LIBRARY_CATEGORY_FAVORITE_ID\)[\s\S]*MenuItem\(\{ content: '加入稍后' \}\)[\s\S]*addSelectedCategory\(LIBRARY_CATEGORY_READ_LATER_ID\)[\s\S]*MenuItem\(\{ content: '移出稍后' \}\)[\s\S]*removeSelectedCategory\(LIBRARY_CATEGORY_READ_LATER_ID\)[\s\S]*MenuItem\(\{ content: '清除分类' \}\)[\s\S]*assignSelectedCategory\(undefined\)/,
+  /MenuItem\(\{ content: s\('library_batch_add_favorite'\) \}\)[\s\S]*addSelectedCategory\(LIBRARY_CATEGORY_FAVORITE_ID\)[\s\S]*MenuItem\(\{ content: s\('library_batch_remove_favorite'\) \}\)[\s\S]*removeSelectedCategory\(LIBRARY_CATEGORY_FAVORITE_ID\)[\s\S]*MenuItem\(\{ content: s\('library_batch_add_read_later'\) \}\)[\s\S]*addSelectedCategory\(LIBRARY_CATEGORY_READ_LATER_ID\)[\s\S]*MenuItem\(\{ content: s\('library_batch_remove_read_later'\) \}\)[\s\S]*removeSelectedCategory\(LIBRARY_CATEGORY_READ_LATER_ID\)[\s\S]*MenuItem\(\{ content: s\('library_batch_clear_categories'\) \}\)[\s\S]*assignSelectedCategory\(undefined\)/,
   'LibraryPage selection mode must expose bulk category add, remove, and clearing actions',
 )
 assert.match(
@@ -637,12 +637,12 @@ assert.match(
 )
 assert.match(
   libraryCategoryManagementPageSource,
-  /createCustomCategoryAndPersistLibraryStore[\s\S]*deleteCustomCategoryAndPersistLibraryStore[\s\S]*renameCustomCategoryAndPersistLibraryStore[\s\S]*setCategoryDisplayStrategyAndPersistLibraryStore[\s\S]*export struct LibraryCategoryManagementPage[\s\S]*TextInput/,
+  /createCustomCategoryAndPersistLibraryStore[\s\S]*deleteCustomCategoryAndPersistLibraryStore[\s\S]*renameCustomCategoryAndPersistLibraryStore[\s\S]*setCategoryDisplayStrategyAndPersistLibraryStore[\s\S]*export struct LibraryCategoryManagementPage[\s\S]*KomaFormTextField/,
   'LibraryCategoryManagementPage must expose list/create/rename/delete category management and display strategy controls',
 )
 assert.match(
   libraryCategoryManagementPageSource,
-  /DisplayStrategySection\(\)[\s\S]*this\.StrategyRow\('all', '全部分类'\)[\s\S]*this\.StrategyRow\('uncategorized', '未分类'\)[\s\S]*this\.StrategyRow\(LIBRARY_CATEGORY_FAVORITE_ID, '收藏'\)[\s\S]*this\.StrategyRow\(LIBRARY_CATEGORY_READ_LATER_ID, '稍后阅读'\)[\s\S]*ForEach\(this\.categories/,
+  /DisplayStrategySection\(\)[\s\S]*this\.StrategySummaryRow\('all', s\('library_category_all'\)\)[\s\S]*this\.StrategySummaryRow\('uncategorized', s\('library_category_uncategorized'\)\)[\s\S]*this\.StrategySummaryRow\(LIBRARY_CATEGORY_FAVORITE_ID, s\('library_category_favorite'\)\)[\s\S]*this\.StrategySummaryRow\(LIBRARY_CATEGORY_READ_LATER_ID, s\('library_category_read_later'\)\)[\s\S]*ForEach\(this\.categories/,
   'LibraryCategoryManagementPage must expose display strategies for default, built-in, and custom categories',
 )
 assert.match(
@@ -652,7 +652,7 @@ assert.match(
 )
 assert.match(
   libraryCategoryManagementPageSource,
-  /删除“\$\{category\.name\}”[\s\S]*会从已有漫画中移除[\s\S]*收藏和稍后阅读不受影响/,
+  /s\('library_category_delete_message'\)\.replace\('%s', category\.name\)/,
   'custom category delete copy must clearly state membership cleanup and built-in safety',
 )
 assert.match(
@@ -667,38 +667,38 @@ assert.match(
 )
 assert.match(
   settingsPageSource,
-  /\{ key: 'library-update', title: '检查书架更新', detail: '尚未检查' \}/,
+  /\{ key: 'library-update', titleKey: 'settings_row_library_update_title', detailKey: 'settings_row_library_update_detail' \}/,
   'SettingsPage must expose a foreground library update entry under Data',
 )
 assert.match(
   settingsPageSource,
-  /\{ key: 'library-update-results', title: '书架更新详情', detail: '尚无结果' \}/,
+  /\{ key: 'library-update-results', titleKey: 'settings_row_library_update_results_title', detailKey: 'settings_row_library_update_results_detail' \}/,
   'SettingsPage must expose a row for the latest library update result details',
 )
 assert.match(
   settingsPageSource,
-  /\{ key: 'library-categories', title: '书架分类', detail: '管理自定义分类' \}[\s\S]*onOpenLibraryCategories:\s*\(\) => void = \(\) => \{\}[\s\S]*row\.key === 'library-categories'[\s\S]*this\.onOpenLibraryCategories\(\)/,
+  /\{ key: 'library-categories', titleKey: 'settings_row_library_categories_title', detailKey: 'settings_row_library_categories_detail' \}[\s\S]*onOpenLibraryCategories:\s*\(\) => void = \(\) => \{\}[\s\S]*row\.key === 'library-categories'[\s\S]*this\.onOpenLibraryCategories\(\)/,
   'SettingsPage must expose a Settings entry for custom category management',
 )
 assert.match(
   settingsPageSource,
-  /\{ key: 'library-auto-update', title: '自动检查更新', detail: '关闭' \}[\s\S]*\{ key: 'library-update-interval', title: '检查间隔', detail: '每 24 小时' \}[\s\S]*\{ key: 'library-update-notifications', title: '更新提醒', detail: '计划中 · 暂不发送' \}[\s\S]*\{ key: 'library-update', title: '检查书架更新', detail: '尚未检查' \}/,
+  /\{ key: 'library-auto-update', titleKey: 'settings_row_library_auto_update_title', detailKey: 'settings_row_library_auto_update_detail' \}[\s\S]*\{ key: 'library-update-interval', titleKey: 'settings_row_library_update_interval_title', detailKey: 'settings_row_library_update_interval_detail' \}[\s\S]*\{ key: 'library-update', titleKey: 'settings_row_library_update_title', detailKey: 'settings_row_library_update_detail' \}/,
   'SettingsPage must expose auto-check preferences next to the foreground library update entry',
+)
+assert.doesNotMatch(
+  settingsPageSource,
+  /library-update-notifications/,
+  'SettingsPage must not expose a fake update notification entry before delivery exists',
 )
 assert.match(
   settingsPageSource,
-  /Toggle\(\{ type: ToggleType\.Switch, isOn: this\.libraryUpdatePreferences\.autoCheckEnabled \}\)[\s\S]*setLibraryAutoUpdateEnabled\(isOn\)/,
+  /private isSwitchRow\(row: SettingsRow\): boolean \{[\s\S]*row\.key === 'library-auto-update'[\s\S]*private switchRowValue\(row: SettingsRow\): boolean \{[\s\S]*this\.libraryUpdatePreferences\.autoCheckEnabled[\s\S]*private setSwitchRowValue\(row: SettingsRow, value: boolean\): void \{[\s\S]*this\.setLibraryAutoUpdateEnabled\(value\)[\s\S]*ConciseListRow\(\{[\s\S]*hasSwitch: true[\s\S]*checked: this\.switchRowValue\(row\)[\s\S]*this\.setSwitchRowValue\(row, isOn\)/,
   'SettingsPage must use a switch row for library auto-check preference',
 )
 assert.match(
   settingsPageSource,
-  /title: '检查间隔'[\s\S]*message: '打开应用时自动检查书架更新'[\s\S]*每 12 小时[\s\S]*每 24 小时[\s\S]*每 48 小时/,
+  /row\.key === 'library-update-interval'[\s\S]*SelectionMenuItem\(s\('library_update_interval_12h'\)[\s\S]*SelectionMenuItem\(s\('library_update_interval_24h'\)[\s\S]*SelectionMenuItem\(s\('library_update_interval_48h'\)/,
   'SettingsPage interval selector copy must describe app-open foreground checks',
-)
-assert.match(
-  settingsPageSource,
-  /row\.key === 'library-update-notifications'[\s\S]*getLibraryUpdateNotificationStatusLabel\(\)[\s\S]*showInfoDialog\('更新提醒'[\s\S]*不会发送提醒/,
-  'SettingsPage must expose a non-delivering update reminder skeleton',
 )
 assert.match(
   settingsPageSource,
@@ -807,7 +807,7 @@ assert.doesNotMatch(
 )
 assert.match(
   libraryUpdatePreferencesStoreSource,
-  /getLibraryUpdateLastResultLabel\(preferences: LibraryUpdatePreferences\): string \{[\s\S]*normalizeLibraryUpdateFailureCount\(preferences\.failureCount\) > 0[\s\S]*上次检查失败[\s\S]*lastSummaryText/,
+  /getLibraryUpdateLastResultLabel\(preferences: LibraryUpdatePreferences\): string \{[\s\S]*normalizeLibraryUpdateFailureCount\(preferences\.failureCount\) > 0[\s\S]*AppStrings\.get\('library_update_last_failed'\)[\s\S]*lastSummaryText/,
   'LibraryUpdatePreferencesStore must prioritize an active failure over stale success summary text',
 )
 assert.match(
@@ -877,7 +877,7 @@ assert.match(
 )
 assert.match(
   indexSource,
-  /name === RouteName\.LIBRARY_UPDATE_RESULTS[\s\S]*HdsNavDestination\(\)[\s\S]*LibraryUpdateResultPage\(\)[\s\S]*\.titleBar\(this\.navDestTitleBarOpts\('书架更新详情'\)\)/,
+  /name === RouteName\.LIBRARY_UPDATE_RESULTS[\s\S]*HdsNavDestination\(\)[\s\S]*LibraryUpdateResultPage\(\)[\s\S]*\.titleBar\(this\.navDestTitleBarOpts\(AppStrings\.get\('route_library_update_results_title'\)\)\)/,
   'Index must render library update results as a top-level HDS destination',
 )
 assert.match(
@@ -907,12 +907,12 @@ assert.match(
 )
 assert.match(
   libraryUpdateResultPageSource,
-  /尚无检查结果[\s\S]*请先在设置中运行检查书架更新/,
+  /emptyStateTitle\(\): string \{[\s\S]*s\('library_update_results_empty_backed_off'\)[\s\S]*s\('library_update_results_empty_failed'\)[\s\S]*s\('library_update_results_empty_none'\)[\s\S]*emptyStateMessage\(\): string \{[\s\S]*s\('library_update_results_run_first'\)/,
   'LibraryUpdateResultPage must render the empty state copy',
 )
 assert.match(
   libraryUpdateResultPageSource,
-  /SummaryMetric\('总计', summary\.totalCount\)[\s\S]*SummaryMetric\('更新', summary\.updatedCount\)[\s\S]*SummaryMetric\('未变化', summary\.unchangedCount\)[\s\S]*SummaryMetric\('跳过', summary\.skippedCount\)[\s\S]*SummaryMetric\('失败', summary\.failedCount\)[\s\S]*SummaryMetric\('新章', countLibraryUpdateNewChapters\(summary\)\)/,
+  /SummaryMetric\(s\('library_update_results_metric_total'\), summary\.totalCount\)[\s\S]*SummaryMetric\(s\('library_update_results_metric_updated'\), summary\.updatedCount\)[\s\S]*SummaryMetric\(s\('library_update_results_metric_unchanged'\), summary\.unchangedCount\)[\s\S]*SummaryMetric\(s\('library_update_results_metric_skipped'\), summary\.skippedCount\)[\s\S]*SummaryMetric\(s\('library_update_results_metric_failed'\), summary\.failedCount\)[\s\S]*SummaryMetric\(s\('library_update_results_metric_new_chapters'\), countLibraryUpdateNewChapters\(summary\)\)/,
   'LibraryUpdateResultPage must render all aggregate counters',
 )
 assert.match(
@@ -922,17 +922,17 @@ assert.match(
 )
 assert.match(
   libraryUpdateResultPageSource,
-  /status === 'updated'[\s\S]*return '更新'[\s\S]*status === 'unchanged'[\s\S]*return '未变化'[\s\S]*status === 'skipped'[\s\S]*return '跳过'[\s\S]*return '失败'/,
+  /status === 'updated'[\s\S]*s\('library_update_results_status_updated'\)[\s\S]*status === 'unchanged'[\s\S]*s\('library_update_results_status_unchanged'\)[\s\S]*status === 'skipped'[\s\S]*s\('library_update_results_status_skipped'\)[\s\S]*s\('library_update_results_status_failed'\)/,
   'LibraryUpdateResultPage must expose required status labels',
 )
 assert.match(
   libraryUpdateServiceSource,
-  /ComicSourceKind\.LOCAL_ARCHIVE[\s\S]*ComicSourceKind\.LOCAL_FOLDER[\s\S]*本地导入暂不支持远程更新/,
+  /ComicSourceKind\.LOCAL_ARCHIVE[\s\S]*ComicSourceKind\.LOCAL_FOLDER[\s\S]*AppStrings\.get\('library_update_skip_local_unsupported'\)/,
   'LibraryUpdateService must skip local imports instead of faking update support',
 )
 assert.match(
   libraryUpdateServiceSource,
-  /ComicSourceKind\.KOMGA_REMOTE[\s\S]*ComicSourceKind\.OPDS_REMOTE[\s\S]*ComicSourceKind\.WEBDAV_REMOTE[\s\S]*该远程库暂未接入安全的元数据刷新/,
+  /ComicSourceKind\.KOMGA_REMOTE[\s\S]*ComicSourceKind\.OPDS_REMOTE[\s\S]*ComicSourceKind\.WEBDAV_REMOTE[\s\S]*AppStrings\.get\('library_update_skip_remote_library_unsupported'\)/,
   'LibraryUpdateService must skip unsupported private remote metadata refresh paths',
 )
 assert.match(
@@ -1050,7 +1050,7 @@ assert.match(
 )
 assert.match(
   indexSource,
-  /@State private libraryComics: Comic\[\][\s\S]*private refreshLibrarySnapshot\(\): void \{[\s\S]*this\.libraryComics = this\.libraryStore\.listComics\(\)[\s\S]*this\.libraryRevision \+= 1[\s\S]*private handleRemoveComicRequested\(comicId: ComicId\): boolean[\s\S]*removeComicAndPersistLibraryStore[\s\S]*this\.refreshLibrarySnapshot\(\)[\s\S]*return true/,
+  /@Local private libraryComics: Comic\[\][\s\S]*private refreshLibrarySnapshot\(\): void \{[\s\S]*this\.libraryComics = this\.libraryStore\.listComics\(\)[\s\S]*this\.libraryRevision \+= 1[\s\S]*private handleRemoveComicRequested\(comicId: ComicId\): boolean[\s\S]*removeComicAndPersistLibraryStore[\s\S]*this\.refreshLibrarySnapshot\(\)[\s\S]*return true/,
   'confirmed remove must publish a fresh comic array snapshot after successful persistence so the live shelf re-renders',
 )
 assert.match(
@@ -1070,7 +1070,7 @@ assert.doesNotMatch(
 )
 assert.match(
   libraryPageSource,
-  /@Prop @Watch\('syncDisplayedSnapshotFromProps'\) libraryComics: Comic\[\][\s\S]*@Prop @Watch\('syncDisplayedSnapshotFromProps'\) libraryRevision: number[\s\S]*@State private displayedComics: Comic\[\][\s\S]*@State private displayedRevision: number/,
+  /@Param libraryComics: Comic\[\][\s\S]*@Param libraryRevision: number[\s\S]*@Local private displayedComics: Comic\[\][\s\S]*@Local private displayedRevision: number[\s\S]*@Monitor\('libraryComics', 'libraryRevision'\)/,
   'LibraryPage must own a reactive displayed snapshot that can update while the mounted shelf stays alive',
 )
 assert.match(
@@ -1085,12 +1085,12 @@ assert.match(
 )
 assert.match(
   comicCoverCardSource,
-  /export struct ComicCoverCard \{[\s\S]*@Prop comic: ComicCoverInfo[\s\S]*@Prop title: string[\s\S]*@Prop subtitle: string[\s\S]*@Prop progressText: string[\s\S]*Text\(this\.displayTitle\(\)\)[\s\S]*Text\(this\.displaySubtitle\(\)\)/,
+  /export struct ComicCoverCard \{[\s\S]*@Param comic: ComicCoverInfo[\s\S]*@Param title: string[\s\S]*@Param subtitle: string[\s\S]*@Param progressText: string[\s\S]*Text\(this\.displayTitle\(\)\)[\s\S]*Text\(this\.displaySubtitle\(\)\)/,
   'ComicCoverCard must receive primitive reactive props for grid cells so reused card instances update after remove/reorder',
 )
 assert.match(
   libraryPageSource,
-  /struct ContinueReadingShelfCard \{[\s\S]*@Prop info: ContinueReadingCardViewModel[\s\S]*@Prop revision: number[\s\S]*Text\(this\.info\.title\)[\s\S]*onOpenReader\(this\.info\.comicId\)/,
+  /struct ContinueReadingShelfCard \{[\s\S]*@Param info: ContinueReadingCardViewModel[\s\S]*@Param revision: number[\s\S]*Text\(this\.info\.title\)[\s\S]*onOpenReader\(this\.info\.comicId\)/,
   'Continue Reading must render through reactive props so the live title changes when the first/latest comic is removed',
 )
 assert.match(
@@ -1110,7 +1110,7 @@ assert.match(
 )
 assert.match(
   libraryPageSource,
-  /showRemoveConfirmation[\s\S]*primaryButton:\s*\{[\s\S]*value:\s*'移出'[\s\S]*if \(this\.onRemoveComicRequested\(comic\.id\)\) \{[\s\S]*this\.refreshDisplayedSnapshotFromStore\(\)[\s\S]*secondaryButton:\s*\{[\s\S]*value:\s*'取消'/,
+  /showRemoveConfirmation[\s\S]*primaryButton:\s*\{[\s\S]*value:\s*s\('common_remove'\)[\s\S]*if \(this\.onRemoveComicRequested\(comic\.id\)\) \{[\s\S]*this\.refreshDisplayedSnapshotFromStore\(\)[\s\S]*secondaryButton:\s*\{[\s\S]*value:\s*s\('common_cancel'\)/,
   'destructive remove confirmation must refresh the mounted displayed snapshot only after the primary remove callback succeeds while cancel remains secondary',
 )
 assert.doesNotMatch(
@@ -1462,7 +1462,7 @@ assert.match(
 )
 assert.match(
   sourcePackageManagerPageSource,
-  /Button\(this\.updateCheckBusy \? '检查中' : '检查更新'\)[\s\S]*checkInstalledUpdates\(\)/,
+  /KomaActionButton\(\{[\s\S]*label: this\.updateCheckBusy \? t\('source_pkg_checking'\) : t\('source_pkg_check_updates'\)[\s\S]*checkInstalledUpdates\(\)/,
   'source package manager must expose a check-update action for installed source packages',
 )
 assert.match(
@@ -1477,12 +1477,12 @@ assert.match(
 )
 assert.match(
   sourcePackageManagerPageSource,
-  /updateStatusText\(source: InstalledSourcePackage\): string[\s\S]*更新：检查中[\s\S]*更新：已是最新 v[\s\S]*更新：可更新 v[\s\S]*更新：索引中未找到[\s\S]*更新：检查失败：[\s\S]*更新：未检查/,
+  /updateStatusText\(source: InstalledSourcePackage\): string[\s\S]*t\('source_pkg_update_status_checking'\)[\s\S]*tf\('source_pkg_update_status_latest'[\s\S]*tf\('source_pkg_update_status_available'[\s\S]*t\('source_pkg_update_status_missing'\)[\s\S]*tf\('source_pkg_update_status_failed'[\s\S]*t\('source_pkg_update_status_unknown'\)/,
   'installed source cards must render per-package update status text',
 )
 assert.match(
   sourcePackageManagerPageSource,
-  /if \(this\.updateEntry\(source\.id\) !== undefined\) \{[\s\S]*Button\(this\.updateActionLabel\(source\.id\)\)[\s\S]*this\.updateInstalledPackage\(source\)/,
+  /if \(this\.updateEntry\(source\.id\) !== undefined\) \{[\s\S]*KomaActionButton\(\{[\s\S]*label: this\.updateActionLabel\(source\.id\)[\s\S]*this\.updateInstalledPackage\(source\)/,
   'installed source cards must show an update button only when an update is available',
 )
 assert.match(
@@ -1497,12 +1497,12 @@ assert.match(
 )
 assert.match(
   sourcePackageManagerPageSource,
-  /settingsValidationText\(source: InstalledSourcePackage\): string[\s\S]*已保存 [\s\S]*设置验证：验证中[\s\S]*设置验证：PASS[\s\S]*设置验证：FAIL：[\s\S]*设置验证：未运行/,
+  /settingsValidationText\(source: InstalledSourcePackage\): string[\s\S]*tf\('source_pkg_settings_saved_count', status\.savedCount\)[\s\S]*case 'running':[\s\S]*t\('source_pkg_settings_validation_status_running'\)[\s\S]*case 'pass':[\s\S]*t\('source_pkg_settings_validation_status_pass'\)[\s\S]*case 'fail':[\s\S]*tf\('source_pkg_settings_validation_status_fail'[\s\S]*case 'unknown':[\s\S]*t\('source_pkg_settings_validation_status_unknown'\)/,
   'installed source cards must render unknown/running/PASS/FAIL settings validation text with saved count',
 )
 assert.match(
   sourcePackageManagerPageSource,
-  /Button\(this\.validateSettingsActionLabel\(source\.id\)\)[\s\S]*this\.validateSettings\(source\)/,
+  /KomaActionButton\(\{[\s\S]*label: this\.validateSettingsActionLabel\(source\.id\)[\s\S]*this\.validateSettings\(source\)/,
   'installed source cards must expose a settings validation action',
 )
 assert.match(
@@ -1512,12 +1512,12 @@ assert.match(
 )
 assert.match(
   sourcePackageManagerPageSource,
-  /Button\(this\.isDiagnosticsOpen\(source\.id\) \? '收起诊断' : '诊断'\)[\s\S]*this\.toggleDiagnostics\(source\)/,
+  /KomaActionButton\(\{[\s\S]*label: this\.isDiagnosticsOpen\(source\.id\) \? t\('source_pkg_hide_diagnostics'\) : t\('source_pkg_diagnostics'\)[\s\S]*this\.toggleDiagnostics\(source\)/,
   'installed source cards must expose a diagnostics action',
 )
 assert.match(
   sourcePackageManagerPageSource,
-  /DiagnosticsPanel\(source: InstalledSourcePackage\)[\s\S]*刷新诊断[\s\S]*diagnosticsSourceMetaText\(source\)[\s\S]*diagnosticsSmokeText\(source\)[\s\S]*diagnosticsUpdateText\(source\)[\s\S]*diagnosticsSettingsText\(source\)[\s\S]*diagnosticsSettingsValidationText\(source\)/,
+  /DiagnosticsPanel\(source: InstalledSourcePackage\)[\s\S]*t\('source_pkg_refresh_diagnostics'\)[\s\S]*diagnosticsSourceMetaText\(source\)[\s\S]*diagnosticsSmokeText\(source\)[\s\S]*diagnosticsUpdateText\(source\)[\s\S]*diagnosticsSettingsText\(source\)[\s\S]*diagnosticsSettingsValidationText\(source\)/,
   'diagnostics panel must render source id metadata, smoke, update, setting counts, and settings validation',
 )
 assert.match(
@@ -1547,7 +1547,7 @@ assert.match(
 )
 assert.match(
   sourcePackageTrustPolicySource,
-  /Koma 不提供默认公开源或预置源列表[\s\S]*用户导入[\s\S]*未验证签名[\s\S]*能力摘要（manifest 派生）/,
+  /sourcePackageTrustBoundaryNotice\(\): string \{[\s\S]*t\('source_pkg_boundary_notice'\)[\s\S]*installedSourceTrustSummary[\s\S]*t\('source_pkg_provenance_imported'\)[\s\S]*t\('source_pkg_verification_unsigned'\)[\s\S]*t\('source_pkg_capability_summary_prefix'\)[\s\S]*sourceIndexCandidateTrustSummary[\s\S]*t\('source_pkg_capability_summary_pending'\)/,
   'source trust policy labels must stay honest about user import, unverified signatures, manifest-derived capabilities, and no default public sources',
 )
 assert.doesNotMatch(
