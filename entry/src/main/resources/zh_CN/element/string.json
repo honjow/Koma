@@ -566,6 +566,9 @@
     { "name": "tracker_message_provider_unsupported", "value": "当前服务暂不支持连接" },
     { "name": "tracker_status_title", "value": "追踪账号" },
     { "name": "tracker_status_message", "value": "当前只保存账号状态和公开资料。授权材料必须进入系统安全存储；安全存储未验证时不会把账号标记为已连接。" },
+    { "name": "tracker_mapping_title", "value": "漫画映射" },
+    { "name": "tracker_mapping_message", "value": "漫画匹配关系与账号凭据分开保存，后续启用追踪同步后可以继续沿用。" },
+    { "name": "tracker_mapping_progress", "value": "已映射 %s · 已确认 %s · 候选 %s · 待复核 %s" },
 
     { "name": "downloads_filter_queued", "value": "排队中" },
     { "name": "downloads_filter_downloading", "value": "下载中" },

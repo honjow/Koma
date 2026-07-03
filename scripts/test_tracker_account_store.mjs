@@ -34,6 +34,61 @@ assert.doesNotMatch(
   'normal account persistence must not write token material or transient OAuth data',
 )
 
+const mappingNormalizeBlock = trackerModelsSource.match(/export function normalizeComicTrackerMappings\(values: ComicTrackerMapping\[\]\): ComicTrackerMapping\[\] \{[\s\S]*?\n\}/)?.[0] ?? ''
+assert.match(
+  trackerModelsSource,
+  /export type TrackerMappingState = 'unmapped' \| 'candidate' \| 'confirmed' \| 'rejected' \| 'stale'/,
+  'tracker mapping model must expose honest mapping states',
+)
+assert.match(
+  trackerModelsSource,
+  /export interface ComicTrackerMapping \{[\s\S]*comicId: ComicId[\s\S]*providerId: TrackerProviderId[\s\S]*providerTitleId: string[\s\S]*mappingState: TrackerMappingState/,
+  'comic tracker mapping must identify a local comic and remote provider title',
+)
+assert.match(
+  mappingNormalizeBlock,
+  /findIndex\(\(item: ComicTrackerMapping\): boolean => \{[\s\S]*item\.comicId === next\.comicId && item\.providerId === next\.providerId/,
+  'comic tracker mappings must be deduped by local comic and provider',
+)
+assert.match(
+  mappingNormalizeBlock,
+  /Math\.max\(0, Math\.min\(1, mapping\.confidence\)\)/,
+  'comic tracker mapping confidence must be clamped to 0..1',
+)
+assert.match(
+  trackerModelsSource,
+  /function shouldReplaceComicTrackerMapping\([\s\S]*next\.mappingState === 'confirmed'[\s\S]*return nextUpdatedAt >= currentUpdatedAt/,
+  'dedupe should prefer confirmed mappings, then the newest mapping',
+)
+assert.match(
+  trackerModelsSource,
+  /export function summarizeComicTrackerMappings\(mappings: ComicTrackerMapping\[\]\): TrackerComicMappingSummary[\s\S]*summary\.confirmed \+= 1[\s\S]*summary\.candidate \+= 1[\s\S]*summary\.stale \+= 1/,
+  'tracker mapping summary must count mapping states for UI and sync planning',
+)
+
+const mappingSaveBlock = trackerModelsSource.match(/async saveComicMappings\(mappings: ComicTrackerMapping\[\]\): Promise<TrackerPreferences> \{[\s\S]*?\n  \}/)?.[0] ?? ''
+assert.match(mappingSaveBlock, /TRACKER_COMIC_MAPPINGS_KEY/, 'mapping store must persist under the dedicated mapping key')
+assert.match(mappingSaveBlock, /JSON\.stringify\(next\.comicMappings\)/, 'mapping store must persist normalized mapping JSON')
+assert.doesNotMatch(
+  mappingSaveBlock,
+  /writeToken|secretBytes|readToken|authorizationUrl|codeVerifier|TRACKER_ACCOUNTS_KEY/,
+  'mapping persistence must not touch credentials or account records',
+)
+
+const mappingUpsertBlock = trackerModelsSource.match(/async upsertComicMapping\(mapping: ComicTrackerMapping\): Promise<TrackerPreferences> \{[\s\S]*?\n  \}/)?.[0] ?? ''
+assert.match(
+  mappingUpsertBlock,
+  /item\.comicId !== mapping\.comicId\.trim\(\) \|\| item\.providerId !== mapping\.providerId[\s\S]*nextMappings\.push\(mapping\)[\s\S]*saveComicMappings\(nextMappings\)/,
+  'upsert must replace the mapping for the same comic/provider pair',
+)
+
+const mappingRemoveBlock = trackerModelsSource.match(/async removeComicMapping\(comicId: ComicId, providerId: TrackerProviderId\): Promise<TrackerPreferences> \{[\s\S]*?\n  \}/)?.[0] ?? ''
+assert.match(
+  mappingRemoveBlock,
+  /mapping\.comicId !== normalizedComicId \|\| mapping\.providerId !== providerId[\s\S]*saveComicMappings\(nextMappings\)/,
+  'remove must delete only the requested comic/provider mapping',
+)
+
 assert.match(
   trackerModelsSource,
   /prepareTrackerOAuthStart\([\s\S]*!secureStorageAvailable[\s\S]*status: 'secure_storage_unavailable'/,

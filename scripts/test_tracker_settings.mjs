@@ -29,7 +29,7 @@ const trackerAccountDetailBlock = sourceSlice(
 )
 const trackerAuthPrepareStatusLabelBlock = sourceSlice(
   trackerPageSource,
-  'private authPrepareStatusLabel',
+  'private authPrepareStatusKey',
   'private showToast',
 )
 
@@ -70,8 +70,8 @@ assert.doesNotMatch(
 )
 assert.match(
   trackerAccountDetailBlock,
-  /账号状态暂不可用[\s\S]*账号连接暂不可用[\s\S]*连接失败/,
-  'account detail helper must include generic Chinese fallback text for errors',
+  /tracker_detail_account_status_unavailable[\s\S]*tracker_detail_connect_unavailable[\s\S]*tracker_detail_connect_failed/,
+  'account detail helper must route error reasons through generic localized copy',
 )
 assert.match(
   trackerModelsSource,
@@ -99,7 +99,7 @@ assert.match(trackerModelsSource, /displayName: 'Bangumi'/, 'tracker providers s
 
 assert.match(
   settingsPageSource,
-  /key: 'trackers', title: '追踪账号'/,
+  /key: 'trackers', titleKey: 'settings_row_trackers_title', detailKey: 'settings_row_trackers_detail'/,
   'Settings must expose a tracker management row',
 )
 assert.match(
@@ -124,7 +124,7 @@ assert.match(
 )
 assert.match(
   indexSource,
-  /name === RouteName\.TRACKER_SETTINGS[\s\S]*HdsNavDestination\(\)[\s\S]*TrackerSettingsPage\(\)[\s\S]*\.titleBar\(this\.navDestTitleBarOpts\('追踪账号'\)\)/,
+  /name === RouteName\.TRACKER_SETTINGS[\s\S]*HdsNavDestination\(\)[\s\S]*TrackerSettingsPage\(\)[\s\S]*\.titleBar\(this\.navDestTitleBarOpts\(AppStrings\.get\('route_tracker_settings_title'\)\)\)/,
   'Index must render tracker settings as a top-level HDS destination',
 )
 assert.match(
@@ -144,17 +144,17 @@ assert.doesNotMatch(
 )
 assert.match(
   trackerPageSource,
-  /安全存储未验证，追踪账号连接暂不可用/,
+  /tracker_message_secure_storage_unverified/,
   'TrackerSettingsPage must surface secure storage unavailability',
 )
 assert.match(
   trackerPageSource,
-  /账号连接暂不可用/,
+  /tracker_message_connect_unavailable/,
   'TrackerSettingsPage must use user-facing unavailable text for auth preparation failures',
 )
 assert.match(
   trackerPageSource,
-  /当前版本暂不能开始授权/,
+  /tracker_message_auth_unavailable/,
   'TrackerSettingsPage must use user-facing unavailable text for incomplete auth setup',
 )
 assert.doesNotMatch(
@@ -169,8 +169,33 @@ assert.match(
 )
 assert.match(
   trackerPageSource,
-  /\.enabled\(this\.canPrepareConnect\(provider\)\)/,
+  /isEnabled: this\.canPrepareConnect\(provider\)/,
   'connect action must be disabled unless config and secure storage are available',
+)
+assert.match(
+  trackerPageSource,
+  /ConciseListRow\(\{[\s\S]*title: provider\.displayName[\s\S]*subtitle: getTrackerAccountDetail/,
+  'provider rows must use the shared HDS-backed list row component',
+)
+assert.match(
+  trackerPageSource,
+  /summarizeComicTrackerMappings\(preferences\.comicMappings\)/,
+  'TrackerSettingsPage must surface tracker mapping state loaded from preferences',
+)
+assert.match(
+  trackerPageSource,
+  /tracker_mapping_title/,
+  'TrackerSettingsPage must title the comic mapping summary section',
+)
+assert.match(
+  trackerPageSource,
+  /tracker_mapping_message/,
+  'TrackerSettingsPage must describe the comic mapping summary honestly',
+)
+assert.match(
+  trackerPageSource,
+  /tracker_mapping_progress/,
+  'TrackerSettingsPage must include the comic mapping summary section',
 )
 assert.doesNotMatch(
   trackerPageSource,

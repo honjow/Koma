@@ -1,8 +1,10 @@
 import { common } from '@kit.AbilityKit'
 import { SecondaryListScaffold } from '../components/SecondaryListScaffold'
+import { ConciseListRow } from '../components/ui/ConciseListRow'
 import { KomaActionButton } from '../components/ui/KomaActionButton'
 import {
   DEFAULT_TRACKER_ACCOUNTS,
+  TrackerComicMappingSummary,
   TRACKER_PROVIDER_CONFIGS,
   TrackerAccount,
   TrackerOAuthStartPreparation,
@@ -10,6 +12,7 @@ import {
   TrackerProviderConfig,
   getTrackerAccountDetail,
   getTrackerAccountStatusLabel,
+  summarizeComicTrackerMappings,
 } from '../model/TrackerModels'
 import { ThemeConstants } from '../theme/ThemeConstants'
 import { AppStrings } from '../i18n/AppStrings'
@@ -23,6 +26,14 @@ function s(name: string): string {
 export struct TrackerSettingsPage {
   @Local private languageState: LanguageState = connectLanguageState()
   @Local private accounts: TrackerAccount[] = DEFAULT_TRACKER_ACCOUNTS
+  @Local private mappingSummary: TrackerComicMappingSummary = {
+    total: 0,
+    confirmed: 0,
+    candidate: 0,
+    stale: 0,
+    rejected: 0,
+    unmapped: 0,
+  }
   @Local private secureStorageAvailable: boolean = false
   @Local private authPreparationMessageKey: string = 'tracker_message_secure_storage_unverified'
 
@@ -38,7 +49,8 @@ export struct TrackerSettingsPage {
     void this.trackerPreferencesStore().load()
       .then((preferences) => {
         this.accounts = preferences.accounts
-        console.info('[TrackerSettings] step=load accounts=' + preferences.accounts.length)
+        this.mappingSummary = summarizeComicTrackerMappings(preferences.comicMappings)
+        console.info('[TrackerSettings] step=load accounts=' + preferences.accounts.length + ' mappings=' + preferences.comicMappings.length)
       })
       .catch((_error: Error) => {
         this.authPreparationMessageKey = 'tracker_message_load_failed'
@@ -126,6 +138,14 @@ export struct TrackerSettingsPage {
     }
   }
 
+  private mappingProgressText(): string {
+    return s('tracker_mapping_progress')
+      .replace('%s', `${this.mappingSummary.total}`)
+      .replace('%s', `${this.mappingSummary.confirmed}`)
+      .replace('%s', `${this.mappingSummary.candidate}`)
+      .replace('%s', `${this.mappingSummary.stale + this.mappingSummary.rejected}`)
+  }
+
   @Builder
   private StatusCard() {
     Column({ space: ThemeConstants.SPACE_SM }) {
@@ -153,23 +173,28 @@ export struct TrackerSettingsPage {
 
   @Builder
   private ProviderRow(provider: TrackerProviderConfig) {
-    Row({ space: ThemeConstants.SPACE_MD }) {
-      Column({ space: ThemeConstants.SPACE_XS }) {
-        Text(provider.displayName)
-          .width('100%')
-          .fontSize(ThemeConstants.FONT_SIZE_BODY)
-          .fontWeight(FontWeight.Medium)
-          .fontColor(ThemeConstants.TEXT_PRIMARY)
-        Text(getTrackerAccountDetail(this.findAccount(provider), this.secureStorageAvailable))
-          .width('100%')
-          .fontSize(ThemeConstants.FONT_SIZE_CAPTION)
-          .fontColor(ThemeConstants.TEXT_SECONDARY)
-      }
-      .layoutWeight(1)
+    ConciseListRow({
+      title: provider.displayName,
+      subtitle: getTrackerAccountDetail(this.findAccount(provider), this.secureStorageAvailable),
+      showChevron: false,
+      suffixPaddingRight: 0,
+      suffixBuilderParam: () => {
+        this.ProviderSuffix(provider)
+      },
+      action: () => {
+        this.prepareConnect(provider)
+      },
+    })
+  }
 
+  @Builder
+  private ProviderSuffix(provider: TrackerProviderConfig) {
+    Row({ space: ThemeConstants.SPACE_SM }) {
       Text(getTrackerAccountStatusLabel(this.findAccount(provider).status))
         .fontSize(ThemeConstants.FONT_SIZE_META)
         .fontColor(ThemeConstants.TEXT_SECONDARY)
+        .maxLines(1)
+        .textOverflow({ overflow: TextOverflow.Ellipsis })
 
       KomaActionButton({
         label: this.connectActionLabel(provider),
@@ -183,8 +208,7 @@ export struct TrackerSettingsPage {
         },
       })
     }
-    .width('100%')
-    .padding({ left: ThemeConstants.SPACE_LG, right: ThemeConstants.SPACE_LG, top: ThemeConstants.SPACE_LG, bottom: ThemeConstants.SPACE_LG })
+    .alignItems(VerticalAlign.Center)
   }
 
   @Builder
@@ -205,6 +229,31 @@ export struct TrackerSettingsPage {
     .backgroundColor(ThemeConstants.CARD)
   }
 
+  @Builder
+  private MappingSummaryCard() {
+    Column({ space: ThemeConstants.SPACE_SM }) {
+      Text(s('tracker_mapping_title'))
+        .width('100%')
+        .fontSize(ThemeConstants.FONT_SIZE_TITLE)
+        .fontWeight(FontWeight.Medium)
+        .fontColor(ThemeConstants.TEXT_PRIMARY)
+      Text(s('tracker_mapping_message'))
+        .width('100%')
+        .fontSize(ThemeConstants.FONT_SIZE_META)
+        .lineHeight(ThemeConstants.LINE_HEIGHT_BODY)
+        .fontColor(ThemeConstants.TEXT_SECONDARY)
+      Text(this.mappingProgressText())
+        .width('100%')
+        .fontSize(ThemeConstants.FONT_SIZE_CAPTION)
+        .lineHeight(ThemeConstants.LINE_HEIGHT_BODY)
+        .fontColor(ThemeConstants.TEXT_SECONDARY)
+    }
+    .width('100%')
+    .padding({ left: ThemeConstants.SPACE_LG, right: ThemeConstants.SPACE_LG, top: ThemeConstants.SPACE_LG, bottom: ThemeConstants.SPACE_LG })
+    .borderRadius(ThemeConstants.RADIUS_CARD)
+    .backgroundColor(ThemeConstants.CARD)
+  }
+
   build() {
     Column() {
       SecondaryListScaffold({
@@ -217,6 +266,9 @@ export struct TrackerSettingsPage {
         }
         ListItem() {
           this.ProvidersCard()
+        }
+        ListItem() {
+          this.MappingSummaryCard()
         }
       }
     }

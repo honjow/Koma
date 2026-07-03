@@ -10,6 +10,7 @@ function s(name: string): string {
 export type TrackerProviderId = 'anilist' | 'myanimelist' | 'kitsu' | 'mangaupdates' | 'bangumi'
 export type TrackerAccountStatus = 'disconnected' | 'auth_pending' | 'connected' | 'expired' | 'error'
 export type TrackerProviderSupportStatus = 'available' | 'planned' | 'unsupported'
+export type TrackerMappingState = 'unmapped' | 'candidate' | 'confirmed' | 'rejected' | 'stale'
 export type TrackerAuthPrepareStatus =
   'ready' |
   'provider_config_missing' |
@@ -123,11 +124,20 @@ export interface ComicTrackerMapping {
   providerId: TrackerProviderId
   providerTitleId: string
   providerTitle?: string
-  mappingState: 'unmapped' | 'candidate' | 'confirmed' | 'rejected' | 'stale'
+  mappingState: TrackerMappingState
   confidence?: number
   userConfirmed: boolean
   createdAt: number
   updatedAt?: number
+}
+
+export interface TrackerComicMappingSummary {
+  total: number
+  confirmed: number
+  candidate: number
+  stale: number
+  rejected: number
+  unmapped: number
 }
 
 export interface TrackerPreferences {
@@ -307,23 +317,66 @@ export function normalizeComicTrackerMappings(values: ComicTrackerMapping[]): Co
     const next: ComicTrackerMapping = {
       comicId: mapping.comicId.trim(),
       providerId: provider.providerId,
-      providerTitleId: mapping.providerTitleId.trim(),
+      providerTitleId: mapping.providerTitleId.trim().slice(0, 128),
       mappingState: state,
       userConfirmed: state === 'confirmed' ? mapping.userConfirmed : false,
       createdAt: mapping.createdAt > 0 ? mapping.createdAt : Date.now(),
     }
     if (mapping.providerTitle !== undefined && mapping.providerTitle.trim().length > 0) {
-      next.providerTitle = mapping.providerTitle.trim()
+      next.providerTitle = mapping.providerTitle.trim().slice(0, 200)
     }
-    if (mapping.confidence !== undefined && mapping.confidence >= 0 && mapping.confidence <= 1) {
-      next.confidence = mapping.confidence
+    if (mapping.confidence !== undefined && mapping.confidence === mapping.confidence) {
+      next.confidence = Math.max(0, Math.min(1, mapping.confidence))
     }
     if (mapping.updatedAt !== undefined && mapping.updatedAt > 0) {
       next.updatedAt = mapping.updatedAt
     }
-    mappings.push(next)
+    const existingIndex = mappings.findIndex((item: ComicTrackerMapping): boolean => {
+      return item.comicId === next.comicId && item.providerId === next.providerId
+    })
+    if (existingIndex < 0) {
+      mappings.push(next)
+    } else if (shouldReplaceComicTrackerMapping(mappings[existingIndex], next)) {
+      mappings[existingIndex] = next
+    }
   })
   return mappings
+}
+
+export function findComicTrackerMappings(comicId: ComicId, mappings: ComicTrackerMapping[]): ComicTrackerMapping[] {
+  const normalizedComicId = comicId.trim()
+  if (normalizedComicId.length === 0) {
+    return []
+  }
+  return normalizeComicTrackerMappings(mappings).filter((mapping: ComicTrackerMapping): boolean => {
+    return mapping.comicId === normalizedComicId
+  })
+}
+
+export function summarizeComicTrackerMappings(mappings: ComicTrackerMapping[]): TrackerComicMappingSummary {
+  const summary: TrackerComicMappingSummary = {
+    total: 0,
+    confirmed: 0,
+    candidate: 0,
+    stale: 0,
+    rejected: 0,
+    unmapped: 0,
+  }
+  normalizeComicTrackerMappings(mappings).forEach((mapping: ComicTrackerMapping) => {
+    summary.total += 1
+    if (mapping.mappingState === 'confirmed') {
+      summary.confirmed += 1
+    } else if (mapping.mappingState === 'candidate') {
+      summary.candidate += 1
+    } else if (mapping.mappingState === 'stale') {
+      summary.stale += 1
+    } else if (mapping.mappingState === 'rejected') {
+      summary.rejected += 1
+    } else {
+      summary.unmapped += 1
+    }
+  })
+  return summary
 }
 
 export function prepareTrackerOAuthStart(
@@ -506,6 +559,36 @@ export class TrackerPreferencesStore {
     return next
   }
 
+  async saveComicMappings(mappings: ComicTrackerMapping[]): Promise<TrackerPreferences> {
+    const current = await this.load()
+    const next: TrackerPreferences = {
+      accounts: current.accounts,
+      comicMappings: normalizeComicTrackerMappings(mappings),
+    }
+    const store = await this.preferences()
+    await store.put(TRACKER_COMIC_MAPPINGS_KEY, JSON.stringify(next.comicMappings))
+    await store.flush()
+    return next
+  }
+
+  async upsertComicMapping(mapping: ComicTrackerMapping): Promise<TrackerPreferences> {
+    const current = await this.load()
+    const nextMappings = current.comicMappings.filter((item: ComicTrackerMapping): boolean => {
+      return item.comicId !== mapping.comicId.trim() || item.providerId !== mapping.providerId
+    })
+    nextMappings.push(mapping)
+    return this.saveComicMappings(nextMappings)
+  }
+
+  async removeComicMapping(comicId: ComicId, providerId: TrackerProviderId): Promise<TrackerPreferences> {
+    const normalizedComicId = comicId.trim()
+    const current = await this.load()
+    const nextMappings = current.comicMappings.filter((mapping: ComicTrackerMapping): boolean => {
+      return mapping.comicId !== normalizedComicId || mapping.providerId !== providerId
+    })
+    return this.saveComicMappings(nextMappings)
+  }
+
   async prepareConnect(providerId: TrackerProviderId): Promise<TrackerOAuthStartPreparation> {
     return prepareTrackerOAuthStart({
       providerId,
@@ -591,6 +674,18 @@ function normalizeMappingState(value: string): 'unmapped' | 'candidate' | 'confi
     return value
   }
   return 'unmapped'
+}
+
+function shouldReplaceComicTrackerMapping(current: ComicTrackerMapping, next: ComicTrackerMapping): boolean {
+  if (next.mappingState === 'confirmed' && current.mappingState !== 'confirmed') {
+    return true
+  }
+  if (current.mappingState === 'confirmed' && next.mappingState !== 'confirmed') {
+    return false
+  }
+  const currentUpdatedAt = current.updatedAt ?? current.createdAt
+  const nextUpdatedAt = next.updatedAt ?? next.createdAt
+  return nextUpdatedAt >= currentUpdatedAt
 }
 
 function parseQuery(uri: string): Record<string, string> {

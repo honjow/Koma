@@ -566,6 +566,9 @@
     { "name": "tracker_message_provider_unsupported", "value": "This service does not support connection yet" },
     { "name": "tracker_status_title", "value": "Tracking accounts" },
     { "name": "tracker_status_message", "value": "Only account status and public profile are stored right now. Authorization secrets must stay in secure system storage, and accounts are not marked connected until that storage is verified." },
+    { "name": "tracker_mapping_title", "value": "Manga mappings" },
+    { "name": "tracker_mapping_message", "value": "Matched manga are kept separately from account credentials so sync can resume after tracker support is enabled." },
+    { "name": "tracker_mapping_progress", "value": "%s mapped · %s confirmed · %s candidates · %s need review" },
 
     { "name": "downloads_filter_queued", "value": "Queued" },
     { "name": "downloads_filter_downloading", "value": "Downloading" },
