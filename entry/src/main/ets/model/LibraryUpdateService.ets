@@ -3,6 +3,7 @@ import {
   Chapter,
   Comic,
   ComicSourceKind,
+  Page,
   normalizeSortKey,
 } from './ComicModels'
 import { LibraryStore } from './LibraryStore'
@@ -27,6 +28,15 @@ import {
   mapKomgaBookToChapter,
   mapKomgaPageToPage,
 } from '../remote/KomgaModels'
+import {
+  mapOpdsPublicationToImages,
+} from '../remote/OpdsParser'
+import {
+  OpdsBookDto,
+  OpdsImageDto,
+  OpdsLink,
+  OpdsLinkKind,
+} from '../remote/OpdsModels'
 import { RemoteServerStore } from './RemoteServerStore'
 
 export type LibraryUpdateResultStatus = 'unchanged' | 'updated' | 'skipped' | 'failed'
@@ -338,6 +348,15 @@ function safeLibraryUpdateSourceKey(value: string | undefined): string {
   return `source:${(hash >>> 0).toString(36)}`
 }
 
+function createLibraryUpdateStableHash(value: string): string {
+  let hash = 2166136261
+  for (let index = 0; index < value.length; index += 1) {
+    hash ^= value.charCodeAt(index)
+    hash = Math.imul(hash, 16777619)
+  }
+  return (hash >>> 0).toString(36)
+}
+
 function providerKindForComic(comic: Comic): LibraryUpdateProviderKind {
   if (comic.sourceRuntimeId !== undefined && comic.sourceRuntimeId.trim().length > 0) {
     return 'source_runtime'
@@ -429,8 +448,10 @@ export class LibraryUpdateService {
     if (comic.sourceKind === ComicSourceKind.KOMGA_REMOTE) {
       return this.checkKomgaComic(comic, previousChapterCount)
     }
-    if (comic.sourceKind === ComicSourceKind.OPDS_REMOTE ||
-      comic.sourceKind === ComicSourceKind.WEBDAV_REMOTE ||
+    if (comic.sourceKind === ComicSourceKind.OPDS_REMOTE) {
+      return this.checkOpdsComic(comic, previousChapterCount)
+    }
+    if (comic.sourceKind === ComicSourceKind.WEBDAV_REMOTE ||
       comic.sourceKind === ComicSourceKind.PRIVATE_LIBRARY) {
       return this.skippedResult(comic, previousChapterCount, AppStrings.get('library_update_skip_remote_library_unsupported'))
     }
@@ -625,6 +646,118 @@ export class LibraryUpdateService {
       return comic.id.substring(markerIndex + marker.length)
     }
     return undefined
+  }
+
+  private async checkOpdsComic(comic: Comic, previousChapterCount: number): Promise<LibraryUpdateComicResult> {
+    const remoteServerStore = this.remoteServerStore
+    if (remoteServerStore === undefined) {
+      return this.skippedResult(comic, previousChapterCount, AppStrings.get('library_update_skip_remote_library_unsupported'))
+    }
+    if (comic.remoteResourceId === undefined || comic.remoteResourceId.trim().length === 0) {
+      return this.skippedResult(comic, previousChapterCount, AppStrings.get('library_update_skip_missing_remote_resource_id'))
+    }
+    try {
+      const record = await remoteServerStore.loadOpds()
+      if (record === undefined || (comic.remoteServerId !== undefined && record.server.id !== comic.remoteServerId)) {
+        return {
+          comicId: comic.id,
+          providerKind: providerKindForComic(comic),
+          sourceKey: sourceKeyForComic(comic),
+          status: 'failed',
+          previousChapterCount,
+          newChapterCount: previousChapterCount,
+          message: safeLibraryUpdateFailureCode('server_unavailable'),
+        }
+      }
+      const client = remoteServerStore.createOpdsClient(record)
+      const catalog = await client.fetchCatalog(comic.sourcePath)
+      const publication = catalog.publications.find((item: OpdsBookDto): boolean => item.id === comic.remoteResourceId)
+      if (publication === undefined) {
+        return this.skippedResult(comic, previousChapterCount, AppStrings.get('library_update_skip_missing_remote_resource_id'))
+      }
+      let images = mapOpdsPublicationToImages(publication)
+      const manifestLink = this.findOpdsManifestLink(publication)
+      if (manifestLink !== undefined) {
+        const manifestImages = await client.fetchPublicationImages(manifestLink.href)
+        if (manifestImages.length > 0) {
+          images = manifestImages
+        }
+      }
+      if (images.length === 0) {
+        return this.skippedResult(comic, previousChapterCount, AppStrings.get('opds_no_direct_images'))
+      }
+      const existingChapter = comic.chapters.length > 0 ? comic.chapters[0] : undefined
+      const chapterId = existingChapter?.id ?? `opds:${record.server.id}:chapter:${createLibraryUpdateStableHash(publication.id + catalog.feedUrl)}`
+      const pages = images.map((image: OpdsImageDto, index: number): Page => {
+        const name = image.title === undefined || image.title.length === 0 ? `page-${index + 1}` : image.title
+        return {
+          id: `${chapterId}:page:${index + 1}`,
+          comicId: comic.id,
+          chapterId,
+          index,
+          fileName: name,
+          uri: image.href,
+          sortKey: normalizeSortKey(name),
+        }
+      })
+      const now = Date.now()
+      const chapter: Chapter = {
+        id: chapterId,
+        comicId: comic.id,
+        title: publication.title,
+        index: 0,
+        sourcePath: catalog.feedUrl,
+        sortKey: normalizeSortKey(publication.title),
+        pages,
+        pageCount: pages.length,
+        createdAt: existingChapter?.createdAt ?? now,
+        updatedAt: now,
+      }
+      if (existingChapter !== undefined &&
+        existingChapter.pageCount === pages.length &&
+        existingChapter.title === publication.title &&
+        existingChapter.pages.every((page: Page, index: number): boolean => page.uri === pages[index]?.uri)) {
+        return {
+          comicId: comic.id,
+          providerKind: providerKindForComic(comic),
+          sourceKey: sourceKeyForComic(comic),
+          status: 'unchanged',
+          previousChapterCount,
+          newChapterCount: previousChapterCount,
+          message: AppStrings.get('library_update_no_new_chapters'),
+        }
+      }
+      this.libraryStore.upsertComic(updatedComicWithChapters(comic, [chapter], now))
+      return {
+        comicId: comic.id,
+        providerKind: providerKindForComic(comic),
+        sourceKey: sourceKeyForComic(comic),
+        status: 'updated',
+        previousChapterCount,
+        newChapterCount: 1,
+        message: AppStrings.get('library_update_found_new_chapters')
+          .replace('%s', `${Math.max(1 - previousChapterCount, 0)}`),
+      }
+    } catch (error) {
+      const e = error as Error
+      return {
+        comicId: comic.id,
+        providerKind: providerKindForComic(comic),
+        sourceKey: sourceKeyForComic(comic),
+        status: 'failed',
+        previousChapterCount,
+        newChapterCount: previousChapterCount,
+        message: safeLibraryUpdateFailureCode(e.message),
+      }
+    }
+  }
+
+  private findOpdsManifestLink(publication: OpdsBookDto): OpdsLink | undefined {
+    return publication.links.find((link: OpdsLink): boolean => {
+      const type = link.type === undefined ? '' : link.type.toLocaleLowerCase()
+      return link.kind === OpdsLinkKind.SELF &&
+        (type.indexOf('json') >= 0 || type.indexOf('divina') >= 0 || type.indexOf('webpub') >= 0)
+    })
   }
 
   private skippedResult(comic: Comic, previousChapterCount: number, message: string): LibraryUpdateComicResult {

@@ -74,6 +74,16 @@ assert.match(
   'Komga update probe must recover a series id from persisted remoteResourceId or legacy comic id shape',
 )
 assert.match(
+  serviceSource,
+  /if \(comic\.sourceKind === ComicSourceKind\.OPDS_REMOTE\) \{[\s\S]*return this\.checkOpdsComic\(comic, previousChapterCount\)/,
+  'OPDS library updates must use a real provider probe instead of the generic remote-library skipped path',
+)
+assert.match(
+  serviceSource,
+  /checkOpdsComic\(comic: Comic, previousChapterCount: number\)[\s\S]*remoteServerStore\.loadOpds\(\)[\s\S]*client\.fetchCatalog\(comic\.sourcePath\)[\s\S]*catalog\.publications\.find[\s\S]*mapOpdsPublicationToImages\(publication\)[\s\S]*client\.fetchPublicationImages\(manifestLink\.href\)/,
+  'OPDS update probe must reload the source catalog, find the persisted publication, and refresh manifest images when available',
+)
+assert.match(
   settingsPageSource,
   /new LibraryUpdateService\([\s\S]*this\.libraryPersistenceService,[\s\S]*new RemoteServerStore\(this\.context\(\)\)/,
   'Settings foreground update runner must pass RemoteServerStore so Komga library items can refresh',
