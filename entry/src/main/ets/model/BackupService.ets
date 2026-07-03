@@ -51,6 +51,12 @@ import {
   exportLocalLibraryMetadataBackupEntries,
   restoreLocalLibraryMetadataBackupEntries,
 } from './LocalLibraryMetadataService'
+import {
+  TRACKER_COMIC_MAPPINGS_KEY,
+  TRACKER_PREFERENCES_STORE_NAME,
+  ComicTrackerMapping,
+  normalizeComicTrackerMappings,
+} from './TrackerModels'
 
 export const BACKUP_SCHEMA_VERSION: number = 3
 export const BACKUP_ENCRYPTED_SCHEMA_VERSION: number = BACKUP_ENCRYPTED_CONTENT_SCHEMA_VERSION
@@ -68,6 +74,7 @@ export const BACKUP_INCLUDED_DOMAINS: string[] = [
   'source packages and sanitized source settings',
   'reader and settings preferences',
   'download queue metadata',
+  'tracker comic mappings',
 ]
 export const BACKUP_ENCRYPTION_STATE: string = 'unencrypted'
 export const BACKUP_LOCAL_DIR_NAME: string = 'backups'
@@ -116,6 +123,7 @@ interface KomaBackupDocument {
   settings?: ReaderPreferences
   sourceIndexUrl?: string
   downloadQueue?: string
+  trackerMappings?: ComicTrackerMapping[]
 }
 
 export interface BackupImportPreview {
@@ -184,6 +192,7 @@ export function backupIncludedDomainLabels(): string[] {
     AppStrings.get('backup_domain_source_packages'),
     AppStrings.get('backup_domain_reader_preferences'),
     AppStrings.get('backup_domain_download_queue'),
+    AppStrings.get('backup_domain_tracker_mappings'),
   ]
 }
 
@@ -515,6 +524,13 @@ function countBackupDownloadQueueEntries(payload: string | undefined): number {
   return Array.isArray(document['entries']) ? document['entries'].length : 0
 }
 
+function countBackupTrackerMappings(mappings: ComicTrackerMapping[] | undefined): number {
+  if (mappings === undefined || !Array.isArray(mappings)) {
+    return 0
+  }
+  return normalizeComicTrackerMappings(mappings).length
+}
+
 function formatBackupExportedAt(exportedAt: number | undefined): string {
   if (exportedAt === undefined || !Number.isFinite(exportedAt) || exportedAt <= 0) {
     return AppStrings.get('backup_preview_not_provided')
@@ -738,6 +754,7 @@ export class BackupService {
       sourceSettings: appSourceSettingsStore.exportAll(),
       settings: await new ReaderPreferencesStore(this.context).load(),
       sourceIndexUrl: await this.exportSourceIndexUrl(),
+      trackerMappings: await this.exportTrackerMappings(),
     }
     const downloadQueue = readTextIfExists(this.downloadQueuePath(), '')
     if (downloadQueue.length > 0) {
@@ -777,6 +794,7 @@ export class BackupService {
       this.importSourceSettings(document.sourceSettings)
       await this.importSourceIndexUrl(document.sourceIndexUrl)
       this.importDownloadQueue(document.downloadQueue)
+      await this.importTrackerMappings(document.trackerMappings)
     }
     if (document.schemaVersion >= BACKUP_SCHEMA_VERSION_V2) {
       await this.importSourcePackages(document.sourcePackages)
@@ -823,11 +841,11 @@ export class BackupService {
       settingsCount: countReaderPreferences(document.settings),
       categoryCount: countLibraryCategories(libraryStore),
       downloadQueueCount: countBackupDownloadQueueEntries(document.downloadQueue),
-      trackerMappingCount: 0,
+      trackerMappingCount: countBackupTrackerMappings(document.trackerMappings),
       sourcePackageCount: Array.isArray(document.sourcePackages) ? document.sourcePackages.length : 0,
       sourceSettingsCount: document.sourceSettings === undefined ? 0 : Object.keys(document.sourceSettings).length,
       hasDownloadQueueCount: document.downloadQueue !== undefined,
-      hasTrackerMappingCount: false,
+      hasTrackerMappingCount: document.trackerMappings !== undefined,
     }
   }
 
@@ -1145,6 +1163,29 @@ export class BackupService {
       await store.flush()
     } catch (_err) {
     }
+  }
+
+  private async exportTrackerMappings(): Promise<ComicTrackerMapping[]> {
+    try {
+      const store = await preferences.getPreferences(this.context, TRACKER_PREFERENCES_STORE_NAME)
+      const payload = await store.get(TRACKER_COMIC_MAPPINGS_KEY, JSON.stringify([])) as string
+      const parsed = JSON.parse(payload) as ComicTrackerMapping[]
+      return Array.isArray(parsed) ? normalizeComicTrackerMappings(parsed) : []
+    } catch (_err) {
+      return []
+    }
+  }
+
+  private async importTrackerMappings(mappings: ComicTrackerMapping[] | undefined): Promise<void> {
+    if (mappings === undefined) {
+      return
+    }
+    if (!Array.isArray(mappings)) {
+      throw new Error('Invalid backup tracker mappings')
+    }
+    const store = await preferences.getPreferences(this.context, TRACKER_PREFERENCES_STORE_NAME)
+    await store.put(TRACKER_COMIC_MAPPINGS_KEY, JSON.stringify(normalizeComicTrackerMappings(mappings)))
+    await store.flush()
   }
 
   private importDownloadQueue(downloadQueue: string | undefined): void {

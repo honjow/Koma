@@ -793,6 +793,7 @@
     { "name": "backup_domain_source_packages", "value": "Source packages and sanitized source settings" },
     { "name": "backup_domain_reader_preferences", "value": "Reader and settings preferences" },
     { "name": "backup_domain_download_queue", "value": "Download queue metadata" },
+    { "name": "backup_domain_tracker_mappings", "value": "Tracker comic mappings without account credentials" },
     { "name": "backup_storage_note", "value": "Local backups are stored inside Koma app files. Picker exports are separate user-managed files at the selected location." },
     { "name": "backup_encryption_status_available", "value": "Available" },
     { "name": "backup_encryption_plan", "value": "Encrypted export uses PBKDF2-HMAC-SHA-256 and AES-256-GCM; Koma does not save or recover your passphrase." },

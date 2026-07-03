@@ -21,6 +21,7 @@ const libraryUpdateResultStorePath = resolve(root, 'entry/src/main/ets/model/Lib
 const libraryUpdatePreferencesStorePath = resolve(root, 'entry/src/main/ets/model/LibraryUpdatePreferencesStore.ets')
 const backupServicePath = resolve(root, 'entry/src/main/ets/model/BackupService.ets')
 const backupEncryptionServicePath = resolve(root, 'entry/src/main/ets/model/BackupEncryptionService.ets')
+const trackerModelsPath = resolve(root, 'entry/src/main/ets/model/TrackerModels.ets')
 const remoteServerStorePath = resolve(root, 'entry/src/main/ets/model/RemoteServerStore.ets')
 const readerPreferencesStorePath = resolve(root, 'entry/src/main/ets/model/ReaderPreferencesStore.ets')
 const offlineDownloadStorePath = resolve(root, 'entry/src/main/ets/model/OfflineDownloadStore.ets')
@@ -66,6 +67,7 @@ const libraryUpdateResultStoreSource = readFileSync(libraryUpdateResultStorePath
 const libraryUpdatePreferencesStoreSource = readFileSync(libraryUpdatePreferencesStorePath, 'utf8')
 const backupServiceSource = readFileSync(backupServicePath, 'utf8')
 const backupEncryptionServiceSource = readFileSync(backupEncryptionServicePath, 'utf8')
+const trackerModelsSource = readFileSync(trackerModelsPath, 'utf8')
 const remoteServerStoreSource = readFileSync(remoteServerStorePath, 'utf8')
 const readerPreferencesStoreSource = readFileSync(readerPreferencesStorePath, 'utf8')
 const offlineDownloadStoreSource = readFileSync(offlineDownloadStorePath, 'utf8')
@@ -1574,8 +1576,33 @@ assert.match(
 )
 assert.match(
   backupServiceSource,
-  /if \(document\.schemaVersion >= BACKUP_SCHEMA_VERSION\) \{[\s\S]*importSourceSettings\(document\.sourceSettings\)[\s\S]*importDownloadQueue\(document\.downloadQueue\)[\s\S]*if \(document\.schemaVersion >= BACKUP_SCHEMA_VERSION_V2\) \{[\s\S]*importSourcePackages\(document\.sourcePackages\)[\s\S]*importSettings\(document\.settings\)/,
-  'backup v3 import must restore source settings and download queue metadata while preserving v2 source package/settings restore',
+  /trackerMappings\?: ComicTrackerMapping\[\][\s\S]*trackerMappings:\s*await this\.exportTrackerMappings\(\)/,
+  'backup v3 export must include tracker comic mappings without account credentials',
+)
+assert.match(
+  backupServiceSource,
+  /exportTrackerMappings\(\): Promise<ComicTrackerMapping\[\]>[\s\S]*TRACKER_PREFERENCES_STORE_NAME[\s\S]*TRACKER_COMIC_MAPPINGS_KEY[\s\S]*normalizeComicTrackerMappings\(parsed\)/,
+  'backup tracker export must read and normalize only comic mapping preferences',
+)
+assert.match(
+  backupServiceSource,
+  /if \(document\.schemaVersion >= BACKUP_SCHEMA_VERSION\) \{[\s\S]*importSourceSettings\(document\.sourceSettings\)[\s\S]*importDownloadQueue\(document\.downloadQueue\)[\s\S]*importTrackerMappings\(document\.trackerMappings\)[\s\S]*if \(document\.schemaVersion >= BACKUP_SCHEMA_VERSION_V2\) \{[\s\S]*importSourcePackages\(document\.sourcePackages\)[\s\S]*importSettings\(document\.settings\)/,
+  'backup v3 import must restore source settings, download queue metadata, and tracker mappings while preserving v2 source package/settings restore',
+)
+assert.match(
+  backupServiceSource,
+  /importTrackerMappings\(mappings: ComicTrackerMapping\[\] \| undefined\): Promise<void>[\s\S]*TRACKER_PREFERENCES_STORE_NAME[\s\S]*TRACKER_COMIC_MAPPINGS_KEY[\s\S]*normalizeComicTrackerMappings\(mappings\)/,
+  'backup tracker import must write sanitized comic mappings into tracker preferences',
+)
+assert.match(
+  backupServiceSource,
+  /trackerMappingCount:\s*countBackupTrackerMappings\(document\.trackerMappings\)[\s\S]*hasTrackerMappingCount:\s*document\.trackerMappings !== undefined/,
+  'backup preview must report tracker mapping counts when v3 trackerMappings are present',
+)
+assert.doesNotMatch(
+  backupServiceSource,
+  /trackerAccounts|TRACKER_ACCOUNTS_KEY|credentialAccountKey|access_token|refresh_token/,
+  'backup service must not export tracker accounts, credential references, or token fields',
 )
 assert.match(
   backupServiceSource,

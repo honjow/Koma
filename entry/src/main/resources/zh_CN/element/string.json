@@ -793,6 +793,7 @@
     { "name": "backup_domain_source_packages", "value": "源包与已清理的源设置" },
     { "name": "backup_domain_reader_preferences", "value": "阅读器与设置偏好" },
     { "name": "backup_domain_download_queue", "value": "下载队列元数据" },
+    { "name": "backup_domain_tracker_mappings", "value": "不含账号凭据的追踪漫画映射" },
     { "name": "backup_storage_note", "value": "本地备份保存在 Koma 应用文件中。通过文件选择器导出的备份是独立的用户管理文件。" },
     { "name": "backup_encryption_status_available", "value": "可用" },
     { "name": "backup_encryption_plan", "value": "加密导出使用 PBKDF2-HMAC-SHA-256 和 AES-256-GCM；Koma 不保存口令，也无法找回。" },
