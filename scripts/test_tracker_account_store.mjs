@@ -211,10 +211,20 @@ assert.doesNotMatch(
 )
 
 const backupDocumentBlock = backupServiceSource.match(/interface KomaBackupDocument \{[\s\S]*?\n\}/)?.[0] ?? ''
+assert.match(
+  backupDocumentBlock,
+  /trackerMappings\?: ComicTrackerMapping\[\][\s\S]*trackerSyncPreferences\?: BackupTrackerSyncPreferences/,
+  'backup schema may include tracker mappings and non-secret sync preferences',
+)
 assert.doesNotMatch(
   backupDocumentBlock,
   /tracker.*(token|secret|credential|authorization|code)|accessToken|refreshToken|clientSecret/i,
   'backup schema must not include tracker credential material',
+)
+assert.match(
+  backupServiceSource,
+  /importTrackerSyncPreferences\(preferencesValue: BackupTrackerSyncPreferences \| undefined\): Promise<void>[\s\S]*TRACKER_AUTO_SYNC_ENABLED_KEY[\s\S]*TRACKER_UPDATE_STRATEGY_KEY[\s\S]*store\.flush\(\)/,
+  'backup restore must only write tracker sync preference keys, not accounts or credentials',
 )
 
 console.log('tracker account store checks PASS')

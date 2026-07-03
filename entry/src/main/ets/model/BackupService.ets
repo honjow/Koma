@@ -52,10 +52,15 @@ import {
   restoreLocalLibraryMetadataBackupEntries,
 } from './LocalLibraryMetadataService'
 import {
+  DEFAULT_TRACKER_PREFERENCES,
+  TRACKER_AUTO_SYNC_ENABLED_KEY,
   TRACKER_COMIC_MAPPINGS_KEY,
   TRACKER_PREFERENCES_STORE_NAME,
+  TRACKER_UPDATE_STRATEGY_KEY,
   ComicTrackerMapping,
+  TrackerUpdateStrategy,
   normalizeComicTrackerMappings,
+  normalizeTrackerUpdateStrategy,
 } from './TrackerModels'
 
 export const BACKUP_SCHEMA_VERSION: number = 3
@@ -126,6 +131,12 @@ interface KomaBackupDocument {
   sourceIndexUrl?: string
   downloadQueue?: string
   trackerMappings?: ComicTrackerMapping[]
+  trackerSyncPreferences?: BackupTrackerSyncPreferences
+}
+
+interface BackupTrackerSyncPreferences {
+  autoSyncEnabled: boolean
+  updateStrategy: TrackerUpdateStrategy
 }
 
 export interface BackupImportPreview {
@@ -448,6 +459,22 @@ function countReaderPreferences(settings: ReaderPreferences | undefined): number
     return 0
   }
   return Object.keys(settings).length
+}
+
+function countBackupTrackerSyncPreferences(preferencesValue: BackupTrackerSyncPreferences | undefined): number {
+  return preferencesValue === undefined ? 0 : 2
+}
+
+function normalizeBackupTrackerSyncPreferences(
+  preferencesValue: BackupTrackerSyncPreferences | undefined,
+): BackupTrackerSyncPreferences | undefined {
+  if (preferencesValue === undefined) {
+    return undefined
+  }
+  return {
+    autoSyncEnabled: preferencesValue.autoSyncEnabled === true,
+    updateStrategy: normalizeTrackerUpdateStrategy(preferencesValue.updateStrategy),
+  }
 }
 
 function normalizeBackupString(value: Object | undefined): string | undefined {
@@ -793,6 +820,7 @@ export class BackupService {
     if (contentPreferences.includeSettings) {
       document.settings = await new ReaderPreferencesStore(this.context).load()
       document.sourceIndexUrl = await this.exportSourceIndexUrl()
+      document.trackerSyncPreferences = await this.exportTrackerSyncPreferences()
     }
     const downloadQueue = readTextIfExists(this.downloadQueuePath(), '')
     if (downloadQueue.length > 0) {
@@ -833,6 +861,7 @@ export class BackupService {
       await this.importSourceIndexUrl(document.sourceIndexUrl)
       this.importDownloadQueue(document.downloadQueue)
       await this.importTrackerMappings(document.trackerMappings)
+      await this.importTrackerSyncPreferences(document.trackerSyncPreferences)
     }
     if (document.schemaVersion >= BACKUP_SCHEMA_VERSION_V2) {
       await this.importSourcePackages(document.sourcePackages)
@@ -876,7 +905,7 @@ export class BackupService {
       kdfId: '',
       libraryItemCount: arrayFieldCount(libraryStore, 'comics'),
       progressCount: arrayFieldCount(readingProgress, 'progress'),
-      settingsCount: countReaderPreferences(document.settings),
+      settingsCount: countReaderPreferences(document.settings) + countBackupTrackerSyncPreferences(document.trackerSyncPreferences),
       categoryCount: countLibraryCategories(libraryStore),
       downloadQueueCount: countBackupDownloadQueueEntries(document.downloadQueue),
       trackerMappingCount: countBackupTrackerMappings(document.trackerMappings),
@@ -1228,6 +1257,36 @@ export class BackupService {
     }
     const store = await preferences.getPreferences(this.context, TRACKER_PREFERENCES_STORE_NAME)
     await store.put(TRACKER_COMIC_MAPPINGS_KEY, JSON.stringify(normalizeComicTrackerMappings(mappings)))
+    await store.flush()
+  }
+
+  private async exportTrackerSyncPreferences(): Promise<BackupTrackerSyncPreferences> {
+    try {
+      const store = await preferences.getPreferences(this.context, TRACKER_PREFERENCES_STORE_NAME)
+      const autoSyncEnabled =
+        await store.get(TRACKER_AUTO_SYNC_ENABLED_KEY, DEFAULT_TRACKER_PREFERENCES.autoSyncEnabled) as boolean
+      const updateStrategy =
+        await store.get(TRACKER_UPDATE_STRATEGY_KEY, DEFAULT_TRACKER_PREFERENCES.updateStrategy) as string
+      return {
+        autoSyncEnabled: autoSyncEnabled === true,
+        updateStrategy: normalizeTrackerUpdateStrategy(updateStrategy),
+      }
+    } catch (_err) {
+      return {
+        autoSyncEnabled: DEFAULT_TRACKER_PREFERENCES.autoSyncEnabled,
+        updateStrategy: DEFAULT_TRACKER_PREFERENCES.updateStrategy,
+      }
+    }
+  }
+
+  private async importTrackerSyncPreferences(preferencesValue: BackupTrackerSyncPreferences | undefined): Promise<void> {
+    const normalized = normalizeBackupTrackerSyncPreferences(preferencesValue)
+    if (normalized === undefined) {
+      return
+    }
+    const store = await preferences.getPreferences(this.context, TRACKER_PREFERENCES_STORE_NAME)
+    await store.put(TRACKER_AUTO_SYNC_ENABLED_KEY, normalized.autoSyncEnabled)
+    await store.put(TRACKER_UPDATE_STRATEGY_KEY, normalized.updateStrategy)
     await store.flush()
   }
 

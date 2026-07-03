@@ -122,6 +122,31 @@ assert.match(
 )
 assert.match(
   backupServiceSource,
+  /trackerSyncPreferences\?: BackupTrackerSyncPreferences[\s\S]*interface BackupTrackerSyncPreferences \{[\s\S]*autoSyncEnabled: boolean[\s\S]*updateStrategy: TrackerUpdateStrategy/,
+  'backup schema may include non-secret tracker sync preferences',
+)
+assert.match(
+  backupServiceSource,
+  /const contentPreferences = await this\.loadContentPreferences\(\)[\s\S]*if \(contentPreferences\.includeSettings\) \{[\s\S]*document\.settings = await new ReaderPreferencesStore\(this\.context\)\.load\(\)[\s\S]*document\.sourceIndexUrl = await this\.exportSourceIndexUrl\(\)[\s\S]*document\.trackerSyncPreferences = await this\.exportTrackerSyncPreferences\(\)/,
+  'backup export must include tracker sync preferences only with the settings domain',
+)
+assert.match(
+  backupServiceSource,
+  /exportTrackerSyncPreferences\(\): Promise<BackupTrackerSyncPreferences>[\s\S]*TRACKER_AUTO_SYNC_ENABLED_KEY[\s\S]*TRACKER_UPDATE_STRATEGY_KEY[\s\S]*normalizeTrackerUpdateStrategy\(updateStrategy\)/,
+  'backup export must read and normalize tracker sync preference keys',
+)
+assert.match(
+  backupServiceSource,
+  /importTrackerSyncPreferences\(preferencesValue: BackupTrackerSyncPreferences \| undefined\): Promise<void>[\s\S]*normalizeBackupTrackerSyncPreferences\(preferencesValue\)[\s\S]*store\.put\(TRACKER_AUTO_SYNC_ENABLED_KEY, normalized\.autoSyncEnabled\)[\s\S]*store\.put\(TRACKER_UPDATE_STRATEGY_KEY, normalized\.updateStrategy\)/,
+  'backup import must restore only tracker sync preference keys',
+)
+assert.match(
+  backupServiceSource,
+  /await this\.importTrackerMappings\(document\.trackerMappings\)[\s\S]*await this\.importTrackerSyncPreferences\(document\.trackerSyncPreferences\)/,
+  'backup import must restore tracker mappings and sync preferences through separate safe paths',
+)
+assert.match(
+  backupServiceSource,
   /runAutomaticLocalBackupIfDue\(now: number = Date\.now\(\)\): Promise<BackupAutomaticRunResult>[\s\S]*skippedReason: 'disabled'[\s\S]*skippedReason: 'not_due'[\s\S]*runAutomaticLocalBackupWithPreferences\(now, preferencesValue\)[\s\S]*runAutomaticLocalBackupNow\(now: number = Date\.now\(\)\): Promise<BackupAutomaticRunResult>/,
   'backup service must support app-open due checks plus an explicit run-now path',
 )
@@ -247,6 +272,11 @@ assert.match(
   backupServiceSource,
   /preview\(json: string\): BackupImportPreview[\s\S]*isEncryptedBackupPayload\(json\)[\s\S]*previewDocument\(json, false\)[\s\S]*formatBackupEncryption\(document\.encryption\)[\s\S]*libraryItemCount:[\s\S]*progressCount:/,
   'backup preview must detect encrypted envelopes and keep v1/v2/v3 compatibility',
+)
+assert.match(
+  backupServiceSource,
+  /settingsCount: countReaderPreferences\(document\.settings\) \+ countBackupTrackerSyncPreferences\(document\.trackerSyncPreferences\)/,
+  'backup preview settings count must include tracker sync preferences when present',
 )
 assert.match(
   backupServiceSource,
