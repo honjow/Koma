@@ -1862,6 +1862,31 @@ assert.match(
   /AppStrings\.get\('browse_untitled_manga'\)[\s\S]*AppStrings\.get\('browse_error_load_sources'\)[\s\S]*AppStrings\.get\('browse_error_load_home'\)[\s\S]*AppStrings\.get\('browse_error_load_more'\)[\s\S]*AppStrings\.get\('browse_error_source_unavailable'\)[\s\S]*AppStrings\.format\('browse_error_source_runtime_failed'/,
   'BrowseViewModel source browse fallback errors must use localized resources',
 )
+assert.match(
+  sourceModelsSource,
+  /export interface SourceFilter \{[\s\S]*id: string[\s\S]*optionIds\?: string\[\][\s\S]*parseSourceFiltersJson[\s\S]*id: firstNonEmpty\(\[row\.id, row\.name, row\.label\]\)[\s\S]*optionIds: normalizeFilterOptionIds\(row\.options\)/,
+  'source filter parsing must preserve descriptor ids and option ids for runtime manga-list requests',
+)
+assert.match(
+  browseViewModelSource,
+  /@Trace filters: SourceFilter\[\] = \[\][\s\S]*@Trace browseFilterValues: SourceMangaListFilters = \{\}[\s\S]*this\.filters = await this\.loadSourceFilters\(source\)[\s\S]*this\.browseFilterValues = this\.defaultSourceFilterValues\(this\.filters\)[\s\S]*filters: this\.browseFilterValues/,
+  'BrowseViewModel must load source filters and pass active values into get_manga_list requests',
+)
+assert.match(
+  browseViewModelSource,
+  /setBrowseFilterValue\(filterId: string, value: SourceFilterValue \| undefined\)[\s\S]*const key = this\.filterRequestKey\(filter\)[\s\S]*nextValues\[key\] = this\.normalizeFilterRequestValue\(key, value\)[\s\S]*await this\.selectBrowseListing\(listing\)/,
+  'BrowseViewModel must update source filter values and reload the current listing',
+)
+assert.match(
+  browseViewModelSource,
+  /loadSourceFilters\(source: SourceRuntimeRegistryInstalledSourceSummary\): Promise<SourceFilter\[\]>[\s\S]*runSourceOperationResponse\(source\.sourceId, 'get_filters'[\s\S]*parseSourceFiltersJson\(JSON\.stringify\(response\.data \?\? \{\}\)\)/,
+  'BrowseViewModel must request get_filters descriptors from installed source runtimes',
+)
+assert.match(
+  browseViewModelSource,
+  /filterRequestKey\(filter: SourceFilter\): string[\s\S]*raw\.startsWith\('filter:'\)[\s\S]*normalizeFilterRequestValue\(key: string, value: SourceFilterValue\)[\s\S]*const prefix = `\$\{key\}:`[\s\S]*value\.substring\(prefix\.length\)/,
+  'BrowseViewModel must normalize fixture-style filter:sort and sort:popular ids before sending request filters',
+)
 assert.doesNotMatch(
   browseViewModelSource,
   /未命名漫画|无法加载源|源浏览失败|加载更多失败|源未安装或不可用|源运行失败/,

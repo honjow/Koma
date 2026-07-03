@@ -35,9 +35,11 @@ export interface SourceChapter {
 }
 
 export interface SourceFilter {
+  id: string
   type: 'select' | 'text' | 'check' | 'sort' | 'group'
   name: string
   options?: string[]
+  optionIds?: string[]
   value?: string | number | boolean
 }
 
@@ -102,6 +104,7 @@ interface SourceRuntimeFilterOptionPayload {
 }
 
 interface SourceRuntimeFilterPayload {
+  id?: string
   type?: string
   kind?: string
   name?: string
@@ -246,14 +249,32 @@ function normalizeFilterOptions(options: string[] | SourceRuntimeFilterOptionPay
   return labels.filter((label: string): boolean => label.trim().length > 0)
 }
 
+function normalizeFilterOptionIds(options: string[] | SourceRuntimeFilterOptionPayload[] | undefined): string[] | undefined {
+  if (options === undefined) {
+    return undefined
+  }
+  const ids: string[] = []
+  options.forEach((option: string | SourceRuntimeFilterOptionPayload) => {
+    if (typeof option === 'string') {
+      ids.push(option)
+      return
+    }
+    ids.push(firstNonEmpty([option.id, option.label, option.name]) ?? '')
+  })
+  return ids.filter((id: string): boolean => id.trim().length > 0)
+}
+
 export function parseSourceFiltersJson(json: string): SourceFilter[] {
   try {
     const payload = JSON.parse(json) as SourceRuntimeFiltersPayload
     return (payload.filters ?? []).map((row: SourceRuntimeFilterPayload): SourceFilter => {
+      const name = firstNonEmpty([row.name, row.label, row.id]) ?? AppStrings.get('common_filter')
       return {
+        id: firstNonEmpty([row.id, row.name, row.label]) ?? name,
         type: normalizeFilterType(row.type ?? row.kind),
-        name: firstNonEmpty([row.name, row.label]) ?? AppStrings.get('common_filter'),
+        name,
         options: normalizeFilterOptions(row.options),
+        optionIds: normalizeFilterOptionIds(row.options),
         value: row.value,
       }
     })

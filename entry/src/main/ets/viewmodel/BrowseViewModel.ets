@@ -1,6 +1,12 @@
 import { taskpool } from '@kit.ArkTS'
 import { AppStrings } from '../i18n/AppStrings'
-import { SourceManga, SourceMangaList, SourceMangaStatus } from '../model/SourceModels'
+import {
+  SourceFilter,
+  SourceManga,
+  SourceMangaList,
+  SourceMangaStatus,
+  parseSourceFiltersJson,
+} from '../model/SourceModels'
 import { normalizeSourceDisplayText } from '../model/SourceTextNormalizer'
 import { SourceRuntimeCallResponse } from '../sourceRuntime/NativeSourceRuntime'
 import { safeDiagnosticCode, safeSearchDiagnostic } from '../model/SearchStateMapper'
@@ -57,8 +63,8 @@ interface SourceSearchArgs {
   page: SourceOperationPageArg
 }
 
-interface SourceMangaListFilters {
-}
+type SourceFilterValue = string | number | boolean
+type SourceMangaListFilters = Record<string, SourceFilterValue>
 
 interface SourceMangaListArgs {
   listingId: string
@@ -257,6 +263,8 @@ export class BrowseViewModel {
   @Trace popularManga: SourceManga[] = []
   @Trace latestManga: SourceManga[] = []
   @Trace listings: SourceListingDescriptor[] = []
+  @Trace filters: SourceFilter[] = []
+  @Trace browseFilterValues: SourceMangaListFilters = {}
   @Trace homeSections: SourceHomeSectionState[] = []
   @Trace browseSections: BrowseSourceSectionState[] = []
   @Trace selectedListingId: string = ''
@@ -300,6 +308,8 @@ export class BrowseViewModel {
     this.latestManga = []
     this.homeSections = []
     this.browseSections = []
+    this.filters = []
+    this.browseFilterValues = {}
     this.browsePage = 1
     this.browseNextCursor = ''
     this.hasMoreBrowse = false
@@ -313,6 +323,8 @@ export class BrowseViewModel {
     this.errorMessage = ''
     try {
       this.listings = await this.loadSourceListings(source)
+      this.filters = await this.loadSourceFilters(source)
+      this.browseFilterValues = this.defaultSourceFilterValues(this.filters)
       this.homeSections = await this.loadSourceHomeSections(source)
       const listing = this.defaultListingForBrowse(this.listings)
       if (listing === undefined) {
@@ -352,6 +364,28 @@ export class BrowseViewModel {
       this.hasMoreBrowse = false
     } finally {
       this.loadingBrowse = false
+    }
+  }
+
+  async setBrowseFilterValue(filterId: string, value: SourceFilterValue | undefined): Promise<void> {
+    const filter = this.filters.find((item: SourceFilter): boolean => item.id === filterId)
+    if (filter === undefined) {
+      return
+    }
+    const key = this.filterRequestKey(filter)
+    const nextValues: SourceMangaListFilters = {}
+    Object.keys(this.browseFilterValues).forEach((itemKey: string) => {
+      if (itemKey !== key) {
+        nextValues[itemKey] = this.browseFilterValues[itemKey]
+      }
+    })
+    if (value !== undefined) {
+      nextValues[key] = this.normalizeFilterRequestValue(key, value)
+    }
+    this.browseFilterValues = nextValues
+    const listing = this.currentListing()
+    if (this.selectedSource !== undefined && listing !== undefined && !this.loadingBrowse) {
+      await this.selectBrowseListing(listing)
     }
   }
 
@@ -464,13 +498,22 @@ export class BrowseViewModel {
       cursor: this.pageCursor(page, cursor),
       limit: SOURCE_OPERATION_PAGE_SIZE,
     }
-    const filters: SourceMangaListFilters = {}
     const args: SourceMangaListArgs = {
       listingId,
       page: pageArg,
-      filters,
+      filters: this.browseFilterValues,
     }
     return this.runSourceOperation(source.sourceId, 'get_manga_list', args, page)
+  }
+
+  private async loadSourceFilters(source: SourceRuntimeRegistryInstalledSourceSummary): Promise<SourceFilter[]> {
+    try {
+      const args: SourceListingsArgs = {}
+      const response = await this.runSourceOperationResponse(source.sourceId, 'get_filters', args, 1)
+      return parseSourceFiltersJson(JSON.stringify(response.data ?? {}))
+    } catch (_error) {
+      return []
+    }
   }
 
   private async loadSourceListings(source: SourceRuntimeRegistryInstalledSourceSummary): Promise<SourceListingDescriptor[]> {
@@ -548,6 +591,30 @@ export class BrowseViewModel {
       { id: 'listing:popular', name: AppStrings.get('common_popular'), kind: 'popular' },
       { id: 'listing:latest', name: AppStrings.get('common_latest'), kind: 'latest' },
     ]
+  }
+
+  private defaultSourceFilterValues(filters: SourceFilter[]): SourceMangaListFilters {
+    const values: SourceMangaListFilters = {}
+    filters.forEach((filter: SourceFilter) => {
+      if (filter.value !== undefined) {
+        const key = this.filterRequestKey(filter)
+        values[key] = this.normalizeFilterRequestValue(key, filter.value)
+      }
+    })
+    return values
+  }
+
+  private filterRequestKey(filter: SourceFilter): string {
+    const raw = filter.id.length > 0 ? filter.id : filter.name
+    return raw.startsWith('filter:') ? raw.substring('filter:'.length) : raw
+  }
+
+  private normalizeFilterRequestValue(key: string, value: SourceFilterValue): SourceFilterValue {
+    if (typeof value !== 'string') {
+      return value
+    }
+    const prefix = `${key}:`
+    return value.startsWith(prefix) ? value.substring(prefix.length) : value
   }
 
   private pageCursor(page: number, cursor: string): string | null {
