@@ -1,4 +1,5 @@
 import { LocalLibraryStoredMetadata } from './LocalLibraryMetadataService'
+import { AppStrings } from '../i18n/AppStrings'
 
 export type ComicId = string
 export type ChapterId = string
@@ -87,8 +88,8 @@ export interface LibraryCategoryDefinition {
 }
 
 export const BUILT_IN_LIBRARY_CATEGORIES: LibraryCategoryDefinition[] = [
-  { id: LIBRARY_CATEGORY_FAVORITE_ID, name: '收藏', sortOrder: 0, builtIn: true },
-  { id: LIBRARY_CATEGORY_READ_LATER_ID, name: '稍后阅读', sortOrder: 1, builtIn: true },
+  { id: LIBRARY_CATEGORY_FAVORITE_ID, name: 'Favorite', sortOrder: 0, builtIn: true },
+  { id: LIBRARY_CATEGORY_READ_LATER_ID, name: 'Read later', sortOrder: 1, builtIn: true },
 ]
 
 export interface CustomLibraryCategory {
@@ -113,6 +114,11 @@ export function isBuiltInLibraryCategoryId(categoryId: string): boolean {
 
 export function isBuiltInLibraryCategoryName(name: string): boolean {
   const key = libraryCategoryNameKey(name)
+  const localizedFavoriteKey = libraryCategoryNameKey(AppStrings.get('library_category_favorite'))
+  const localizedReadLaterKey = libraryCategoryNameKey(AppStrings.get('library_category_read_later'))
+  if (key === localizedFavoriteKey || key === localizedReadLaterKey) {
+    return true
+  }
   return BUILT_IN_LIBRARY_CATEGORIES.some((category: LibraryCategoryDefinition): boolean => {
     return libraryCategoryNameKey(category.name) === key || category.id === key
   })

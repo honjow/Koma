@@ -180,7 +180,7 @@ function libraryCategoryNameKey(name) {
 
 function isBuiltInLibraryCategoryName(name) {
   const key = libraryCategoryNameKey(name)
-  return key === '收藏' || key === '稍后阅读' || key === 'favorite' || key === 'read_later'
+  return key === 'favorite' || key === 'read later' || key === 'read_later'
 }
 
 function isBuiltInLibraryCategoryId(categoryId) {
@@ -2885,7 +2885,7 @@ assert.equal(customCategory.name, 'Favorites 2026', 'custom category creation mu
 assert.equal(categoryStore.listCustomCategories().length, 1, 'custom category creation must update the live store')
 assert.equal(JSON.parse(categoryAdapter.savedPayloads.at(-1)).customCategories[0].name, 'Favorites 2026', 'custom category definitions must persist')
 assert.throws(
-  () => createCustomCategoryAndPersistLibraryStore(categoryStore, categoryService, '收藏'),
+  () => createCustomCategoryAndPersistLibraryStore(categoryStore, categoryService, 'Favorite'),
   /built-in category/,
   'custom categories must not collide with built-in category names',
 )
@@ -2949,7 +2949,7 @@ assert.throws(
 )
 const maliciousBuiltInCategoryNamePayload = JSON.stringify({
   ...JSON.parse(categoryRestorePayload),
-  customCategories: [{ id: 'custom_bad', name: '收藏', sortOrder: 0, createdAt: 1, updatedAt: 1 }],
+  customCategories: [{ id: 'custom_bad', name: 'Favorite', sortOrder: 0, createdAt: 1, updatedAt: 1 }],
 })
 assert.throws(
   () => hydrateLibraryStoreFromJson(createSeededStore(), maliciousBuiltInCategoryNamePayload),
