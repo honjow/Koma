@@ -998,6 +998,18 @@ export struct SourcePackageManagerPage {
     return descriptor.step !== undefined && descriptor.step > 0 ? descriptor.step : 1
   }
 
+  private rangeMin(descriptor: SourceSettingDescriptor): number {
+    return descriptor.minValue ?? 0
+  }
+
+  private rangeMax(descriptor: SourceSettingDescriptor): number {
+    const minValue = this.rangeMin(descriptor)
+    const step = this.rangeStep(descriptor)
+    const fallbackMax = Math.max(minValue + step, this.settingNumberValue(descriptor), minValue + step * 10)
+    const maxValue = descriptor.maxValue ?? fallbackMax
+    return maxValue > minValue ? maxValue : minValue + step
+  }
+
   private normalizeRangeSetting(descriptor: SourceSettingDescriptor, value: number): number {
     let next = Number.isFinite(value) ? value : 0
     if (descriptor.minValue !== undefined && next < descriptor.minValue) {
@@ -1009,10 +1021,8 @@ export struct SourcePackageManagerPage {
     return next
   }
 
-  private adjustRangeSetting(descriptor: SourceSettingDescriptor, direction: number): void {
-    const current = this.settingNumberValue(descriptor)
-    const delta = this.rangeStep(descriptor) * direction
-    const next = this.normalizeRangeSetting(descriptor, current + delta)
+  private setRangeSetting(descriptor: SourceSettingDescriptor, value: number): void {
+    const next = this.normalizeRangeSetting(descriptor, value)
     this.updateSettingValue(descriptor.id, next)
   }
 
@@ -1196,46 +1206,38 @@ export struct SourcePackageManagerPage {
 
   @Builder
   private SettingRangeRow(descriptor: SourceSettingDescriptor) {
-    Row({ space: ThemeConstants.SPACE_SM }) {
+    Column({ space: ThemeConstants.SPACE_SM }) {
       Column({ space: ThemeConstants.SPACE_XS }) {
         Text(descriptor.label)
+          .width('100%')
           .fontSize(ThemeConstants.FONT_SIZE_BODY)
           .fontWeight(FontWeight.Medium)
           .fontColor(ThemeConstants.TEXT_PRIMARY)
           .maxLines(1)
           .textOverflow({ overflow: TextOverflow.Ellipsis })
         Text(`${this.settingNumberValue(descriptor)}`)
+          .width('100%')
           .fontSize(ThemeConstants.FONT_SIZE_META)
           .fontColor(ThemeConstants.TEXT_SECONDARY)
       }
-      .layoutWeight(1)
+      .width('100%')
       .alignItems(HorizontalAlign.Start)
 
-      KomaActionButton({
-        label: '',
-        icon: $r('sys.symbol.minus'),
-        kind: 'secondary',
-        compact: true,
-        controlHeight: ThemeConstants.ACTION_CHIP_HEIGHT,
-        action: () => {
-          this.adjustRangeSetting(descriptor, -1)
-        },
+      Slider({
+        value: this.settingNumberValue(descriptor),
+        min: this.rangeMin(descriptor),
+        max: this.rangeMax(descriptor),
+        step: this.rangeStep(descriptor),
       })
-
-      KomaActionButton({
-        label: '',
-        icon: $r('sys.symbol.plus'),
-        kind: 'secondary',
-        compact: true,
-        controlHeight: ThemeConstants.ACTION_CHIP_HEIGHT,
-        action: () => {
-          this.adjustRangeSetting(descriptor, 1)
-        },
-      })
+        .width('100%')
+        .selectedColor(ThemeConstants.BRAND_PRIMARY)
+        .onChange((value: number) => {
+          this.setRangeSetting(descriptor, value)
+        })
     }
     .width('100%')
     .padding({ left: ThemeConstants.SPACE_MD, right: ThemeConstants.SPACE_MD, top: ThemeConstants.SPACE_SM, bottom: ThemeConstants.SPACE_SM })
-    .alignItems(VerticalAlign.Center)
+    .alignItems(HorizontalAlign.Start)
   }
 
   @Builder
