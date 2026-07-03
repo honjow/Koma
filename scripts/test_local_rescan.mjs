@@ -280,9 +280,23 @@ function chapterSignature(chapter) {
   ].join('\n')
 }
 
+function sidecarMetadataSignature(series) {
+  const metadata = series.sidecarMetadata
+  if (metadata === undefined) {
+    return ''
+  }
+  return [
+    metadata.title ?? '',
+    (metadata.authors ?? []).slice().sort(textCompare).join('|'),
+    metadata.status ?? '',
+    metadata.coverPath ?? '',
+  ].join('\n')
+}
+
 function seriesSignature(series) {
   return [
     series.relativePath,
+    sidecarMetadataSignature(series),
     String(series.chapterCount),
     String(series.pageCount),
     series.chapters.map(chapterSignature).slice().sort(textCompare).join('\n--chapter--\n'),
@@ -316,6 +330,8 @@ function buildChapterOutcomes(previousChapters, currentChapters) {
 
 function buildSeriesOutcome(previous, current) {
   const chapters = buildChapterOutcomes(previous?.chapters ?? [], current?.chapters ?? [])
+  const metadataChanged = previous !== undefined && current !== undefined &&
+    sidecarMetadataSignature(previous) !== sidecarMetadataSignature(current)
   const status = previous === undefined
     ? 'added'
     : current === undefined
@@ -337,6 +353,7 @@ function buildSeriesOutcome(previous, current) {
     missingChapterCount: chapters.filter((chapter) => chapter.status === 'missing').length,
     changedChapterCount: chapters.filter((chapter) => chapter.status === 'changed').length,
     unchangedChapterCount: chapters.filter((chapter) => chapter.status === 'unchanged').length,
+    metadataChanged,
     chapters,
   }
 }
@@ -373,6 +390,7 @@ function createLocalLibraryRescanSummary(previousKnownSeries, freshScan, failure
     missingChapterCount,
     changedChapterCount: outcomes.reduce((total, outcome) => total + outcome.changedChapterCount, 0),
     unchangedChapterCount: outcomes.reduce((total, outcome) => total + outcome.unchangedChapterCount, 0),
+    metadataChangedCount: outcomes.filter((outcome) => outcome.metadataChanged).length,
     rejectedEntryCount: freshScan.rejectedEntries.length,
     partialFailureCount: failures.filter((failure) => failure.status === 'partial_failure').length,
     outcomes,
@@ -403,6 +421,18 @@ const currentEntries = [
 const previousScan = scanLocalLibraryFolderEntries(previousEntries, 'D43 Fixture Root')
 const currentScan = scanLocalLibraryFolderEntries(currentEntries, 'D43 Fixture Root')
 assert.equal(previousScan.series.find((series) => series.relativePath === 'Large Fixture').chapterCount, 120, 'fixture must include at least 100 chapter candidates')
+previousScan.series.find((series) => series.relativePath === 'Large Fixture').sidecarMetadata = {
+  title: 'Large Fixture',
+  authors: ['Koma Fixture'],
+  status: 'ongoing',
+  coverPath: 'Large Fixture/cover-old.jpg',
+}
+currentScan.series.find((series) => series.relativePath === 'Large Fixture').sidecarMetadata = {
+  title: 'Large Fixture Revised',
+  authors: ['Koma Fixture'],
+  status: 'completed',
+  coverPath: 'Large Fixture/cover-new.jpg',
+}
 
 const started = performance.now()
 const summary = createLocalLibraryRescanSummary(previousScan.series, currentScan, [
@@ -431,6 +461,7 @@ assert.equal(summary.addedChapterCount, 3)
 assert.equal(summary.missingChapterCount, 2)
 assert.equal(summary.changedChapterCount, 1)
 assert.equal(summary.unchangedChapterCount, 121)
+assert.equal(summary.metadataChangedCount, 1)
 assert.equal(summary.rejectedEntryCount, 3)
 assert.equal(summary.partialFailureCount, 1)
 assert.deepEqual(summary.rejectedEntries.map((entry) => `${entry.reason}:${entry.relativePath}`), [
@@ -461,6 +492,7 @@ const largeFixture = summary.outcomes.find((outcome) => outcome.previousRelative
 assert.equal(largeFixture.status, 'changed')
 assert.equal(largeFixture.addedChapterCount, 1)
 assert.equal(largeFixture.unchangedChapterCount, 120)
+assert.equal(largeFixture.metadataChanged, true)
 
 mkdirSync(dirname(artifactPath), { recursive: true })
 writeFileSync(artifactPath, `${JSON.stringify({

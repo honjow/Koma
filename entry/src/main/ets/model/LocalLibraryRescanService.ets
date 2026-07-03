@@ -42,6 +42,7 @@ export interface LocalLibraryRescanSeriesOutcome {
   missingChapterCount: number
   changedChapterCount: number
   unchangedChapterCount: number
+  metadataChanged: boolean
   chapters: LocalLibraryRescanChapterOutcome[]
 }
 
@@ -62,6 +63,7 @@ export interface LocalLibraryRescanSummary {
   missingChapterCount: number
   changedChapterCount: number
   unchangedChapterCount: number
+  metadataChangedCount: number
   rejectedEntryCount: number
   partialFailureCount: number
   outcomes: LocalLibraryRescanSeriesOutcome[]
@@ -176,6 +178,8 @@ function buildSeriesOutcome(
   current: LocalLibraryFolderSeries | undefined,
 ): LocalLibraryRescanSeriesOutcome {
   const chapters = buildChapterOutcomes(previous?.chapters ?? [], current?.chapters ?? [])
+  const metadataChanged = previous !== undefined && current !== undefined &&
+    sidecarMetadataSignature(previous) !== sidecarMetadataSignature(current)
   const status: LocalLibraryRescanOutcomeStatus = previous === undefined
     ? 'added'
     : current === undefined
@@ -197,6 +201,7 @@ function buildSeriesOutcome(
     missingChapterCount: countChaptersWithStatus(chapters, 'missing'),
     changedChapterCount: countChaptersWithStatus(chapters, 'changed'),
     unchangedChapterCount: countChaptersWithStatus(chapters, 'unchanged'),
+    metadataChanged,
     chapters,
   }
 }
@@ -245,6 +250,7 @@ export function createLocalLibraryRescanSummary(
     missingChapterCount,
     changedChapterCount: outcomes.reduce((total, outcome): number => total + outcome.changedChapterCount, 0),
     unchangedChapterCount: outcomes.reduce((total, outcome): number => total + outcome.unchangedChapterCount, 0),
+    metadataChangedCount: outcomes.filter((outcome): boolean => outcome.metadataChanged).length,
     rejectedEntryCount: freshScan.rejectedEntries.length,
     partialFailureCount: failures.filter((failure): boolean => failure.status === 'partial_failure').length,
     outcomes,

@@ -2069,8 +2069,8 @@ assert.match(
 )
 assert.match(
   localLibraryRescanServiceSource,
-  /function sidecarMetadataSignature\(series: LocalLibraryFolderSeries\): string[\s\S]*metadata\.title[\s\S]*metadata\.authors[\s\S]*metadata\.status[\s\S]*metadata\.coverPath[\s\S]*seriesSignature\(series: LocalLibraryFolderSeries\)[\s\S]*sidecarMetadataSignature\(series\)/,
-  'local library rescan summaries must mark series changed when sidecar metadata changes',
+  /metadataChanged: boolean[\s\S]*metadataChangedCount: number[\s\S]*function sidecarMetadataSignature\(series: LocalLibraryFolderSeries\): string[\s\S]*metadata\.title[\s\S]*metadata\.authors[\s\S]*metadata\.status[\s\S]*metadata\.coverPath[\s\S]*seriesSignature\(series: LocalLibraryFolderSeries\)[\s\S]*sidecarMetadataSignature\(series\)[\s\S]*metadataChanged = previous !== undefined && current !== undefined[\s\S]*metadataChangedCount: outcomes\.filter/,
+  'local library rescan summaries must mark and count series metadata changes when sidecar metadata changes',
 )
 assert.match(
   sourcePackageManagerPageSource,
