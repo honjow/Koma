@@ -1887,6 +1887,11 @@ assert.match(
   /filterRequestKey\(filter: SourceFilter\): string[\s\S]*raw\.startsWith\('filter:'\)[\s\S]*normalizeFilterRequestValue\(key: string, value: SourceFilterValue\)[\s\S]*const prefix = `\$\{key\}:`[\s\S]*value\.substring\(prefix\.length\)/,
   'BrowseViewModel must normalize fixture-style filter:sort and sort:popular ids before sending request filters',
 )
+assert.match(
+  sourceBrowsePageSource,
+  /SourceFilterControls\(\)[\s\S]*filter\.type === 'check'[\s\S]*Toggle\(\{ type: ToggleType\.Switch[\s\S]*filter\.type === 'text'[\s\S]*TextInput\([\s\S]*\.onSubmit\(\(\) =>[\s\S]*else if \(\(filter\.options \?\? \[\]\)\.length > 0\)[\s\S]*bindMenu\(this\.activeFilterMenuId === filter\.id, this\.FilterOptionMenu\(filter\)/,
+  'SourceBrowsePage must render source filters with switch/text input/menu controls according to descriptor type',
+)
 assert.doesNotMatch(
   browseViewModelSource,
   /未命名漫画|无法加载源|源浏览失败|加载更多失败|源未安装或不可用|源运行失败/,
