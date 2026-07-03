@@ -8,6 +8,7 @@ import {
   ComicSourceKind,
 } from './ComicModels'
 import { common } from '@kit.AbilityKit'
+import { preferences } from '@kit.ArkData'
 import { http } from '@kit.NetworkKit'
 import {
   KomgaHeaders,
@@ -29,6 +30,22 @@ import { OfflineDownloadStore } from './OfflineDownloadStore'
 
 export type ReaderRemoteImageHeaders = Record<string, string>
 export type ReaderRemoteImageCacheStats = RemoteImageCacheStats
+
+export const READER_REMOTE_IMAGE_CACHE_MAX_BYTES_OPTIONS: number[] = [
+  100 * 1024 * 1024,
+  DEFAULT_REMOTE_IMAGE_CACHE_MAX_BYTES,
+  1024 * 1024 * 1024,
+]
+const READER_REMOTE_IMAGE_CACHE_PREFS_STORE_NAME: string = 'koma_reader_remote_image_cache_v1'
+const READER_REMOTE_IMAGE_CACHE_MAX_BYTES_KEY: string = 'reader.remoteImageCache.maxBytes'
+
+export interface ReaderRemoteImageCachePreferences {
+  maxBytes: number
+}
+
+export const DEFAULT_READER_REMOTE_IMAGE_CACHE_PREFERENCES: ReaderRemoteImageCachePreferences = {
+  maxBytes: DEFAULT_REMOTE_IMAGE_CACHE_MAX_BYTES,
+}
 
 export enum ReaderPageRenderKind {
   LOCAL_FILE_IMAGE = 'local_file_image',
@@ -117,6 +134,53 @@ let readerRemoteImageCacheStore: RemoteImageCacheStore | undefined = undefined
 let readerOfflineDownloadStore: OfflineDownloadStore | undefined = undefined
 let readerRemoteImageCacheMaxBytes: number = DEFAULT_REMOTE_IMAGE_CACHE_MAX_BYTES
 const readerPrefetchInFlight: string[] = []
+
+function normalizeReaderRemoteImageCacheMaxBytes(maxBytes: number): number {
+  const normalized = Number.isFinite(maxBytes) ? Math.floor(maxBytes) : DEFAULT_READER_REMOTE_IMAGE_CACHE_PREFERENCES.maxBytes
+  return READER_REMOTE_IMAGE_CACHE_MAX_BYTES_OPTIONS.indexOf(normalized) >= 0 ?
+    normalized :
+    DEFAULT_READER_REMOTE_IMAGE_CACHE_PREFERENCES.maxBytes
+}
+
+function normalizeReaderRemoteImageCachePreferences(
+  value: ReaderRemoteImageCachePreferences,
+): ReaderRemoteImageCachePreferences {
+  return {
+    maxBytes: normalizeReaderRemoteImageCacheMaxBytes(value.maxBytes),
+  }
+}
+
+export class ReaderRemoteImageCachePreferencesStore {
+  private readonly context: common.UIAbilityContext
+
+  constructor(context: common.UIAbilityContext) {
+    this.context = context
+  }
+
+  async load(): Promise<ReaderRemoteImageCachePreferences> {
+    const store = await preferences.getPreferences(this.context, READER_REMOTE_IMAGE_CACHE_PREFS_STORE_NAME)
+    const maxBytes =
+      await store.get(READER_REMOTE_IMAGE_CACHE_MAX_BYTES_KEY, DEFAULT_READER_REMOTE_IMAGE_CACHE_PREFERENCES.maxBytes) as number
+    return normalizeReaderRemoteImageCachePreferences({
+      maxBytes,
+    })
+  }
+
+  async save(preferencesValue: ReaderRemoteImageCachePreferences): Promise<void> {
+    const normalized = normalizeReaderRemoteImageCachePreferences(preferencesValue)
+    const store = await preferences.getPreferences(this.context, READER_REMOTE_IMAGE_CACHE_PREFS_STORE_NAME)
+    await store.put(READER_REMOTE_IMAGE_CACHE_MAX_BYTES_KEY, normalized.maxBytes)
+    await store.flush()
+  }
+
+  async saveMaxBytes(maxBytes: number): Promise<ReaderRemoteImageCachePreferences> {
+    const normalized = normalizeReaderRemoteImageCachePreferences({
+      maxBytes,
+    })
+    await this.save(normalized)
+    return normalized
+  }
+}
 
 function normalizeReaderPageUri(uri: string): string {
   return uri.trim().replace(/\\/g, '/')

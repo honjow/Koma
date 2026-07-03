@@ -73,10 +73,14 @@ import {
 import { RemoteServerStore } from '../model/RemoteServerStore'
 import {
   ReaderRemoteImageCacheStats,
+  DEFAULT_READER_REMOTE_IMAGE_CACHE_PREFERENCES,
+  READER_REMOTE_IMAGE_CACHE_MAX_BYTES_OPTIONS,
   clearReaderRemoteImageCache,
   configureReaderRemoteImageCache,
   formatReaderRemoteImageCacheSize,
   getReaderRemoteImageCacheStats,
+  ReaderRemoteImageCachePreferences,
+  ReaderRemoteImageCachePreferencesStore,
 } from '../model/ReaderPageSourceAdapter'
 import {
   DEFAULT_READER_PREFERENCES,
@@ -221,7 +225,7 @@ function createSettingsSections(): SettingsSection[] {
         { key: 'backup-auto-export', titleKey: 'settings_row_backup_auto_export_title', detailKey: 'settings_row_backup_auto_export_detail' },
         { key: 'backup-include-settings', titleKey: 'settings_row_backup_include_settings_title', detailKey: 'settings_row_backup_include_settings_detail' },
         { key: 'image-cache', titleKey: 'settings_row_image_cache_title', detailKey: 'settings_row_image_cache_detail' },
-        { key: 'cache-limit', titleKey: 'settings_row_cache_limit_title', detailKey: 'settings_row_cache_limit_detail', placeholder: true },
+        { key: 'cache-limit', titleKey: 'settings_row_cache_limit_title', detailKey: 'settings_row_cache_limit_detail' },
         { key: 'cache-auto-clean', titleKey: 'settings_row_cache_auto_clean_title', detailKey: 'settings_row_cache_auto_clean_detail', placeholder: true },
       ],
     },
@@ -387,6 +391,7 @@ export struct SettingsPage {
   @Local private versionLoadFailed: boolean = false
   @Local private imageCacheStats?: ReaderRemoteImageCacheStats = undefined
   @Local private imageCacheState: string = 'unavailable'
+  @Local private imageCacheMaxBytes: number = DEFAULT_READER_REMOTE_IMAGE_CACHE_PREFERENCES.maxBytes
   @Local private libraryUpdateBusy: boolean = false
   @Local private libraryUpdateSummary?: LibraryUpdateSummary = undefined
   @Local private libraryUpdatePreferences: LibraryUpdatePreferences = DEFAULT_LIBRARY_UPDATE_PREFERENCES
@@ -542,6 +547,9 @@ export struct SettingsPage {
     }
     if (row.key === 'image-cache') {
       return this.imageCacheDetailText()
+    }
+    if (row.key === 'cache-limit') {
+      return formatReaderRemoteImageCacheSize(this.imageCacheMaxBytes)
     }
     if (row.key === 'library-auto-update') {
       return getLibraryUpdateAutoCheckLabel(this.libraryUpdatePreferences)
@@ -993,7 +1001,7 @@ export struct SettingsPage {
       if (context.cacheDir === undefined || context.cacheDir.length === 0) {
         return false
       }
-      configureReaderRemoteImageCache(context.cacheDir)
+      configureReaderRemoteImageCache(context.cacheDir, this.imageCacheMaxBytes)
       return true
     } catch (error) {
       const e = error as Error
@@ -1036,6 +1044,19 @@ export struct SettingsPage {
         this.imageCacheStats = undefined
         this.imageCacheState = 'load_failed'
         console.warn('[Settings] step=image_cache_stats_failed message=' + error.message)
+      })
+  }
+
+  private loadImageCachePreferences(): void {
+    void new ReaderRemoteImageCachePreferencesStore(this.context()).load()
+      .then((preferences: ReaderRemoteImageCachePreferences) => {
+        this.imageCacheMaxBytes = preferences.maxBytes
+        console.info('[Settings] step=load_image_cache_preferences maxBytes=' + preferences.maxBytes)
+        this.loadImageCacheStats()
+      })
+      .catch((error: Error) => {
+        console.warn('[Settings] step=load_image_cache_preferences_failed message=' + error.message)
+        this.loadImageCacheStats()
       })
   }
 
@@ -1235,6 +1256,21 @@ export struct SettingsPage {
       .catch((error: Error) => {
         console.warn('[Settings] step=image_cache_clear_failed message=' + error.message)
         this.showToast(s('settings_image_cache_clear_failed'))
+      })
+  }
+
+  private saveImageCacheLimit(maxBytes: number): void {
+    this.imageCacheMaxBytes = maxBytes
+    void new ReaderRemoteImageCachePreferencesStore(this.context()).saveMaxBytes(maxBytes)
+      .then((preferences: ReaderRemoteImageCachePreferences) => {
+        this.imageCacheMaxBytes = preferences.maxBytes
+        this.ensureReaderRemoteImageCache()
+        this.loadImageCacheStats()
+        console.info('[Settings] step=save_image_cache_limit maxBytes=' + preferences.maxBytes)
+      })
+      .catch((error: Error) => {
+        console.warn('[Settings] step=save_image_cache_limit_failed message=' + error.message)
+        this.showToast(s('settings_cache_limit_save_failed'))
       })
   }
 
@@ -1648,6 +1684,7 @@ export struct SettingsPage {
       row.key === 'reader-page-gap' ||
       row.key === 'reader-wide-image-mode' ||
       row.key === 'download-concurrency' ||
+      row.key === 'cache-limit' ||
       row.key === 'library-view-mode' ||
       row.key === 'library-default-sort' ||
       row.key === 'library-update-interval'
@@ -1783,6 +1820,12 @@ export struct SettingsPage {
             this.saveDownloadForegroundConcurrencyLimit(limit)
           })
         }, (limit: number) => `${limit}`)
+      } else if (row.key === 'cache-limit') {
+        ForEach(READER_REMOTE_IMAGE_CACHE_MAX_BYTES_OPTIONS, (maxBytes: number) => {
+          this.SelectionMenuItem(formatReaderRemoteImageCacheSize(maxBytes), this.imageCacheMaxBytes === maxBytes, () => {
+            this.saveImageCacheLimit(maxBytes)
+          })
+        }, (maxBytes: number) => `${maxBytes}`)
       } else if (row.key === 'library-default-sort') {
         this.SelectionMenuItem(s('library_sort_last_read'), this.libraryDefaultSortBy === 'lastRead', () => { this.saveLibraryDefaultSort('lastRead') })
         this.SelectionMenuItem(s('library_sort_added'), this.libraryDefaultSortBy === 'added', () => { this.saveLibraryDefaultSort('added') })
@@ -2066,7 +2109,7 @@ export struct SettingsPage {
     this.loadDownloadNotificationStatus()
     this.loadLibraryFilterPreferences()
     this.loadBackupContentPreferences()
-    this.loadImageCacheStats()
+    this.loadImageCachePreferences()
   }
 
   build() {
