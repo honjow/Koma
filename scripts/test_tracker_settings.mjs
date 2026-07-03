@@ -207,6 +207,21 @@ assert.match(
   /tracker_mapping_progress/,
   'TrackerSettingsPage must include the comic mapping summary section',
 )
+assert.match(
+  trackerPageSource,
+  /@Local private mappings:\s*ComicTrackerMapping\[\][\s\S]*this\.mappings = preferences\.comicMappings[\s\S]*MappingRow\(mapping: ComicTrackerMapping\)/,
+  'TrackerSettingsPage must list non-secret comic mappings from preferences instead of summary only',
+)
+assert.match(
+  trackerPageSource,
+  /canReviewMapping\(mapping: ComicTrackerMapping\): boolean[\s\S]*mapping\.mappingState === 'candidate' \|\| mapping\.mappingState === 'stale'/,
+  'TrackerSettingsPage must only expose review actions for candidate or stale mappings',
+)
+assert.match(
+  trackerPageSource,
+  /updateMappingReview\(mapping: ComicTrackerMapping, confirmed: boolean\)[\s\S]*confirmComicMapping\(mapping\.comicId, mapping\.providerId\)[\s\S]*rejectComicMapping\(mapping\.comicId, mapping\.providerId\)[\s\S]*summarizeComicTrackerMappings\(preferences\.comicMappings\)/,
+  'TrackerSettingsPage review actions must update mapping state through TrackerPreferencesStore and refresh the summary',
+)
 assert.doesNotMatch(
   trackerPageSource,
   /TextInput\(|InputType\.Password|已连接.*Button|connected:\s*true/,

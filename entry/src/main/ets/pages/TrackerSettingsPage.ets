@@ -4,6 +4,7 @@ import { ConciseListRow } from '../components/ui/ConciseListRow'
 import { KomaActionButton } from '../components/ui/KomaActionButton'
 import {
   AssetStoreTrackerCredentialSecretStore,
+  ComicTrackerMapping,
   DEFAULT_TRACKER_ACCOUNTS,
   TrackerComicMappingSummary,
   TRACKER_PROVIDER_CONFIGS,
@@ -36,6 +37,8 @@ export struct TrackerSettingsPage {
     rejected: 0,
     unmapped: 0,
   }
+  @Local private mappings: ComicTrackerMapping[] = []
+  @Local private busyMappingKey: string = ''
   @Local private secureStorageAvailable: boolean = false
   @Local private authPreparationMessageKey: string = 'tracker_message_secure_storage_unverified'
   private credentialSecretStore: TrackerCredentialSecretStore = new AssetStoreTrackerCredentialSecretStore()
@@ -53,6 +56,7 @@ export struct TrackerSettingsPage {
     void this.trackerPreferencesStore().load()
       .then((preferences) => {
         this.accounts = preferences.accounts
+        this.mappings = preferences.comicMappings
         this.mappingSummary = summarizeComicTrackerMappings(preferences.comicMappings)
         console.info('[TrackerSettings] step=load accounts=' + preferences.accounts.length + ' mappings=' + preferences.comicMappings.length)
       })
@@ -73,6 +77,11 @@ export struct TrackerSettingsPage {
       providerId: provider.providerId,
       status: 'disconnected',
     }
+  }
+
+  private providerDisplayName(providerId: string): string {
+    const provider = TRACKER_PROVIDER_CONFIGS.find((item: TrackerProviderConfig): boolean => item.providerId === providerId)
+    return provider?.displayName ?? providerId
   }
 
   private connectActionLabel(provider: TrackerProviderConfig): string {
@@ -148,6 +157,68 @@ export struct TrackerSettingsPage {
       .replace('%s', `${this.mappingSummary.confirmed}`)
       .replace('%s', `${this.mappingSummary.candidate}`)
       .replace('%s', `${this.mappingSummary.stale + this.mappingSummary.rejected}`)
+  }
+
+  private mappingKey(mapping: ComicTrackerMapping): string {
+    return `${mapping.comicId}:${mapping.providerId}`
+  }
+
+  private mappingTitle(mapping: ComicTrackerMapping): string {
+    if (mapping.providerTitle !== undefined && mapping.providerTitle.length > 0) {
+      return mapping.providerTitle
+    }
+    return mapping.providerTitleId
+  }
+
+  private mappingStatusLabel(mapping: ComicTrackerMapping): string {
+    if (mapping.mappingState === 'confirmed') {
+      return s('tracker_mapping_status_confirmed')
+    }
+    if (mapping.mappingState === 'candidate') {
+      return s('tracker_mapping_status_candidate')
+    }
+    if (mapping.mappingState === 'stale') {
+      return s('tracker_mapping_status_stale')
+    }
+    if (mapping.mappingState === 'rejected') {
+      return s('tracker_mapping_status_rejected')
+    }
+    return s('tracker_mapping_status_unmapped')
+  }
+
+  private mappingSubtitle(mapping: ComicTrackerMapping): string {
+    const confidence = mapping.confidence === undefined
+      ? ''
+      : ` · ${Math.round(mapping.confidence * 100)}%`
+    return `${this.providerDisplayName(mapping.providerId)} · ${this.mappingStatusLabel(mapping)}${confidence}`
+  }
+
+  private canReviewMapping(mapping: ComicTrackerMapping): boolean {
+    return mapping.mappingState === 'candidate' || mapping.mappingState === 'stale'
+  }
+
+  private updateMappingReview(mapping: ComicTrackerMapping, confirmed: boolean): void {
+    if (!this.canReviewMapping(mapping) || this.busyMappingKey.length > 0) {
+      return
+    }
+    this.busyMappingKey = this.mappingKey(mapping)
+    const store = this.trackerPreferencesStore()
+    const task = confirmed
+      ? store.confirmComicMapping(mapping.comicId, mapping.providerId)
+      : store.rejectComicMapping(mapping.comicId, mapping.providerId)
+    void task
+      .then((preferences) => {
+        this.accounts = preferences.accounts
+        this.mappings = preferences.comicMappings
+        this.mappingSummary = summarizeComicTrackerMappings(preferences.comicMappings)
+        this.showToast(s(confirmed ? 'tracker_mapping_confirmed' : 'tracker_mapping_rejected'))
+      })
+      .catch((_error: Error) => {
+        this.showToast(s('tracker_mapping_update_failed'))
+      })
+      .finally(() => {
+        this.busyMappingKey = ''
+      })
   }
 
   @Builder
@@ -251,11 +322,71 @@ export struct TrackerSettingsPage {
         .fontSize(ThemeConstants.FONT_SIZE_CAPTION)
         .lineHeight(ThemeConstants.LINE_HEIGHT_BODY)
         .fontColor(ThemeConstants.TEXT_SECONDARY)
+      if (this.mappings.length === 0) {
+        Text(s('tracker_mapping_empty'))
+          .width('100%')
+          .fontSize(ThemeConstants.FONT_SIZE_CAPTION)
+          .fontColor(ThemeConstants.TEXT_SECONDARY)
+      } else {
+        Column() {
+          ForEach(this.mappings, (mapping: ComicTrackerMapping, index: number) => {
+            this.MappingRow(mapping)
+            if (index < this.mappings.length - 1) {
+              Divider()
+                .strokeWidth(0.5)
+                .color(ThemeConstants.DIVIDER)
+            }
+          }, (mapping: ComicTrackerMapping) => this.mappingKey(mapping))
+        }
+        .width('100%')
+      }
     }
     .width('100%')
     .padding({ left: ThemeConstants.SPACE_LG, right: ThemeConstants.SPACE_LG, top: ThemeConstants.SPACE_LG, bottom: ThemeConstants.SPACE_LG })
     .borderRadius(ThemeConstants.RADIUS_CARD)
     .backgroundColor(ThemeConstants.CARD)
+  }
+
+  @Builder
+  private MappingRow(mapping: ComicTrackerMapping) {
+    ConciseListRow({
+      title: this.mappingTitle(mapping),
+      subtitle: this.mappingSubtitle(mapping),
+      showChevron: false,
+      suffixPaddingRight: 0,
+      suffixBuilderParam: () => {
+        if (this.canReviewMapping(mapping)) {
+          this.MappingReviewActions(mapping)
+        }
+      },
+    })
+  }
+
+  @Builder
+  private MappingReviewActions(mapping: ComicTrackerMapping) {
+    Row({ space: ThemeConstants.SPACE_SM }) {
+      KomaActionButton({
+        label: s('tracker_mapping_confirm'),
+        kind: 'primary',
+        compact: true,
+        controlHeight: ThemeConstants.ACTION_CHIP_HEIGHT,
+        isEnabled: this.busyMappingKey.length === 0,
+        action: () => {
+          this.updateMappingReview(mapping, true)
+        },
+      })
+      KomaActionButton({
+        label: s('tracker_mapping_reject'),
+        kind: 'secondary',
+        compact: true,
+        controlHeight: ThemeConstants.ACTION_CHIP_HEIGHT,
+        isEnabled: this.busyMappingKey.length === 0,
+        action: () => {
+          this.updateMappingReview(mapping, false)
+        },
+      })
+    }
+    .alignItems(VerticalAlign.Center)
   }
 
   build() {
