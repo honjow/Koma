@@ -17,6 +17,9 @@ export interface SourceSettingDescriptor {
   label: string
   kind: string
   defaultValue?: SourceSettingValue
+  minValue?: number
+  maxValue?: number
+  step?: number
   options?: SourceSettingOption[]
   children?: string[]
   loginRefKey?: string
@@ -107,6 +110,10 @@ function optionalString(value: RuntimeValue | undefined): string | undefined {
     return undefined
   }
   return value
+}
+
+function optionalNumber(value: RuntimeValue | undefined): number | undefined {
+  return typeof value === 'number' && Number.isFinite(value) ? value : undefined
 }
 
 function descriptorIsCredentialLike(id: string, kind: string): boolean {
@@ -204,6 +211,9 @@ export function normalizeSourceSettingDescriptors(response: SourceRuntimeCallRes
       label: optionalString(record['label']) ?? id,
       kind,
       defaultValue: safeSettingValue(record['default']),
+      minValue: optionalNumber(record['min']),
+      maxValue: optionalNumber(record['max']),
+      step: optionalNumber(record['step']),
       options: normalizeOptions(record['options']),
       children: normalizeChildren(record['children']),
       loginRefKey: optionalString(record['loginRefKey']) ?? optionalString(record['login_ref_key']),

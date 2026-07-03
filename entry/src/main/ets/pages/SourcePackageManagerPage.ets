@@ -942,6 +942,17 @@ export struct SourcePackageManagerPage {
     return this.settingDraft[descriptor.id] === true
   }
 
+  private settingNumberValue(descriptor: SourceSettingDescriptor): number {
+    const value = this.settingDraft[descriptor.id]
+    if (typeof value === 'number' && Number.isFinite(value)) {
+      return value
+    }
+    if (typeof descriptor.defaultValue === 'number' && Number.isFinite(descriptor.defaultValue)) {
+      return this.normalizeRangeSetting(descriptor, descriptor.defaultValue)
+    }
+    return this.normalizeRangeSetting(descriptor, descriptor.minValue ?? 0)
+  }
+
   private settingSelectLabel(descriptor: SourceSettingDescriptor): string {
     const value = this.settingDraft[descriptor.id]
     const selected = typeof value === 'string' ? value : ''
@@ -980,6 +991,28 @@ export struct SourcePackageManagerPage {
     }
     const next = selected.slice()
     next.push(optionId)
+    this.updateSettingValue(descriptor.id, next)
+  }
+
+  private rangeStep(descriptor: SourceSettingDescriptor): number {
+    return descriptor.step !== undefined && descriptor.step > 0 ? descriptor.step : 1
+  }
+
+  private normalizeRangeSetting(descriptor: SourceSettingDescriptor, value: number): number {
+    let next = Number.isFinite(value) ? value : 0
+    if (descriptor.minValue !== undefined && next < descriptor.minValue) {
+      next = descriptor.minValue
+    }
+    if (descriptor.maxValue !== undefined && next > descriptor.maxValue) {
+      next = descriptor.maxValue
+    }
+    return next
+  }
+
+  private adjustRangeSetting(descriptor: SourceSettingDescriptor, direction: number): void {
+    const current = this.settingNumberValue(descriptor)
+    const delta = this.rangeStep(descriptor) * direction
+    const next = this.normalizeRangeSetting(descriptor, current + delta)
     this.updateSettingValue(descriptor.id, next)
   }
 
@@ -1159,6 +1192,50 @@ export struct SourcePackageManagerPage {
           })
       }, (option: SourceSettingOption) => option.id)
     }
+  }
+
+  @Builder
+  private SettingRangeRow(descriptor: SourceSettingDescriptor) {
+    Row({ space: ThemeConstants.SPACE_SM }) {
+      Column({ space: ThemeConstants.SPACE_XS }) {
+        Text(descriptor.label)
+          .fontSize(ThemeConstants.FONT_SIZE_BODY)
+          .fontWeight(FontWeight.Medium)
+          .fontColor(ThemeConstants.TEXT_PRIMARY)
+          .maxLines(1)
+          .textOverflow({ overflow: TextOverflow.Ellipsis })
+        Text(`${this.settingNumberValue(descriptor)}`)
+          .fontSize(ThemeConstants.FONT_SIZE_META)
+          .fontColor(ThemeConstants.TEXT_SECONDARY)
+      }
+      .layoutWeight(1)
+      .alignItems(HorizontalAlign.Start)
+
+      KomaActionButton({
+        label: '',
+        icon: $r('sys.symbol.minus'),
+        kind: 'secondary',
+        compact: true,
+        controlHeight: ThemeConstants.ACTION_CHIP_HEIGHT,
+        action: () => {
+          this.adjustRangeSetting(descriptor, -1)
+        },
+      })
+
+      KomaActionButton({
+        label: '',
+        icon: $r('sys.symbol.plus'),
+        kind: 'secondary',
+        compact: true,
+        controlHeight: ThemeConstants.ACTION_CHIP_HEIGHT,
+        action: () => {
+          this.adjustRangeSetting(descriptor, 1)
+        },
+      })
+    }
+    .width('100%')
+    .padding({ left: ThemeConstants.SPACE_MD, right: ThemeConstants.SPACE_MD, top: ThemeConstants.SPACE_SM, bottom: ThemeConstants.SPACE_SM })
+    .alignItems(VerticalAlign.Center)
   }
 
   @Builder
@@ -1767,6 +1844,8 @@ export struct SourcePackageManagerPage {
           .bindMenu(this.settingMenuKey === descriptor.id, this.SettingMultiSelectMenu(descriptor), {
             placement: Placement.BottomRight,
           })
+      } else if (descriptor.kind === 'range') {
+        this.SettingRangeRow(descriptor)
       } else if (descriptor.kind === 'group') {
         ConciseListRow({
           title: descriptor.label,
