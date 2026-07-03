@@ -538,7 +538,7 @@
     { "name": "manga_detail_chapter_count", "value": "%s chapters" },
     { "name": "manga_detail_chapter_untitled", "value": "Untitled chapter" },
     { "name": "manga_detail_loading_source", "value": "Loading source details..." },
-    { "name": "manga_detail_load_source_failed", "value": "Failed to load source details. Placeholder content is shown." },
+    { "name": "manga_detail_load_source_failed", "value": "Failed to load source details." },
     { "name": "manga_detail_library_unavailable", "value": "Library unavailable." },
     { "name": "manga_detail_download_empty", "value": "No downloadable chapters" },
     { "name": "manga_detail_download_unavailable", "value": "Downloads unavailable" },

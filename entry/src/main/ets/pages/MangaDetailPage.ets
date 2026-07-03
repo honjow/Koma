@@ -301,9 +301,10 @@ export struct MangaDetailPage {
       this.refreshDownloadStatus()
     } catch (error) {
       const e = error as Error
-      console.error('[manga-detail] source detail load failed: ' + e.message)
-      this.manga = _mockMangaDetail(mangaId, sourceId)
-      this.chapters = this.decorateChapterStates(_mockChapterList())
+      void e
+      console.warn('[manga-detail] source detail load failed reason=source_detail')
+      this.manga = sourceLoadFailedMangaDetail(mangaId, sourceId)
+      this.chapters = []
       this.isInLibrary = false
       this.feedbackText = s('manga_detail_load_source_failed')
       this.downloadStatusText = ''
@@ -1042,6 +1043,20 @@ function comicFromSourceManga(manga: MangaDetail, chapters: MangaChapterItem[], 
     createdAt: now,
     updatedAt: now,
     lastImportedAt: now,
+  }
+}
+
+function sourceLoadFailedMangaDetail(mangaId: string, sourceId: string): MangaDetail {
+  const normalizedMangaId = mangaId.trim()
+  const normalizedSourceId = sourceId.trim()
+  return {
+    id: normalizedMangaId.length > 0 ? normalizedMangaId : 'source-manga',
+    title: normalizedMangaId.length > 0 ? normalizedMangaId : AppStrings.get('manga_detail_title_fallback'),
+    status: MangaStatus.UNKNOWN,
+    sourceId: normalizedSourceId.length > 0 ? normalizedSourceId : undefined,
+    sourceName: normalizedSourceId,
+    chapterCount: 0,
+    isInLibrary: false,
   }
 }
 

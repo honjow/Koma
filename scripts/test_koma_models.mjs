@@ -1363,6 +1363,16 @@ assert.match(
 )
 assert.match(
   mangaDetailPageSource,
+  /catch \(error\)[\s\S]*reason=source_detail[\s\S]*sourceLoadFailedMangaDetail\(mangaId, sourceId\)[\s\S]*this\.chapters = \[\][\s\S]*manga_detail_load_source_failed/,
+  'MangaDetailPage source load failures must fail closed instead of showing mock manga or fake chapters',
+)
+assert.doesNotMatch(
+  mangaDetailPageSource,
+  /catch \(error\)[\s\S]*_mockMangaDetail\(mangaId, sourceId\)[\s\S]*_mockChapterList\(\)/,
+  'MangaDetailPage must not fall back to mock source detail content after a real source failure',
+)
+assert.match(
+  mangaDetailPageSource,
   /private sourceChapterResponseItems[\s\S]*response\.data\?\.items[\s\S]*response\.data\?\.chapters/,
   'get_chapters parsing must accept data.items and data.chapters',
 )
