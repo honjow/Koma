@@ -5,6 +5,7 @@ import {
 import {
   OFFLINE_DOWNLOAD_ROOT_DIR_NAME,
   OfflineChapterDownloadManifest,
+  OfflineDownloadedChapterStatus,
   OfflineDownloadStatus,
   OfflineDownloadStore,
   assertSafeOfflineDownloadRoot,
@@ -187,6 +188,17 @@ export function summarizeOfflineDownloadQueue(entries: OfflineDownloadQueueEntry
   return summary
 }
 
+function shouldReconcileEntry(entry: OfflineDownloadQueueEntry): boolean {
+  return entry.status === OfflineDownloadStatus.DOWNLOADED || entry.status === OfflineDownloadStatus.PARTIAL
+}
+
+function isSameEntry(left: OfflineDownloadQueueEntry, right: OfflineDownloadQueueEntry): boolean {
+  return left.status === right.status &&
+    left.pageCount === right.pageCount &&
+    left.downloadedPageCount === right.downloadedPageCount &&
+    left.failureReasonCode === right.failureReasonCode
+}
+
 export class OfflineDownloadQueueStore {
   private readonly filesDir: string
   private readonly rootDir: string
@@ -220,6 +232,51 @@ export class OfflineDownloadQueueStore {
 
   load(): OfflineDownloadQueueEntry[] {
     return this.loadDocument().entries
+  }
+
+  reconcileWithManifests(): OfflineDownloadQueueEntry[] {
+    const document = this.loadDocument()
+    const store = new OfflineDownloadStore(this.filesDir)
+    let changed = false
+    const entries = document.entries.map((entry: OfflineDownloadQueueEntry): OfflineDownloadQueueEntry => {
+      if (!shouldReconcileEntry(entry)) {
+        return entry
+      }
+      const validation = store.validateDownloadedChapter(entry.comicId, entry.chapterId)
+      const next: OfflineDownloadQueueEntry = normalizeEntry({
+        comicId: entry.comicId,
+        chapterId: entry.chapterId,
+        comicTitle: entry.comicTitle,
+        chapterTitle: entry.chapterTitle,
+        status: entry.status,
+        pageCount: validation.pageCount,
+        downloadedPageCount: validation.availablePageCount,
+        updatedAt: Date.now(),
+        failureReasonCode: entry.failureReasonCode,
+      })
+      if (validation.status === OfflineDownloadedChapterStatus.DOWNLOADED) {
+        next.status = OfflineDownloadStatus.DOWNLOADED
+        next.failureReasonCode = undefined
+      } else if (validation.status === OfflineDownloadedChapterStatus.PARTIAL) {
+        next.status = OfflineDownloadStatus.PARTIAL
+        next.failureReasonCode = validation.reasonCode ?? 'page_file_missing'
+      } else {
+        next.status = OfflineDownloadStatus.FAILED
+        next.failureReasonCode = validation.reasonCode ?? 'manifest_unavailable'
+      }
+      if (!isSameEntry(entry, next)) {
+        changed = true
+      }
+      return next
+    })
+    if (changed) {
+      this.saveDocument({
+        schemaVersion: OFFLINE_DOWNLOAD_QUEUE_SCHEMA_VERSION,
+        preferences: document.preferences,
+        entries,
+      })
+    }
+    return changed ? entries : document.entries
   }
 
   loadSummary(): OfflineDownloadQueueSummary {

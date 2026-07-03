@@ -58,7 +58,7 @@ export struct DownloadsPage {
 
   private loadQueue(): void {
     const store = this.queueStore()
-    this.entries = store.load()
+    this.entries = store.reconcileWithManifests()
     this.preferences = store.loadPreferences()
   }
 
