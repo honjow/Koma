@@ -2068,6 +2068,11 @@ assert.match(
   'local library rescan summaries must report missing rows without deleting shelf entries or user files',
 )
 assert.match(
+  localLibraryRescanServiceSource,
+  /function sidecarMetadataSignature\(series: LocalLibraryFolderSeries\): string[\s\S]*metadata\.title[\s\S]*metadata\.authors[\s\S]*metadata\.status[\s\S]*metadata\.coverPath[\s\S]*seriesSignature\(series: LocalLibraryFolderSeries\)[\s\S]*sidecarMetadataSignature\(series\)/,
+  'local library rescan summaries must mark series changed when sidecar metadata changes',
+)
+assert.match(
   sourcePackageManagerPageSource,
   /sourceReasonText\(reasonCode: string \| undefined\)[\s\S]*checksum_mismatch[\s\S]*network_not_allowed[\s\S]*unsafe_archive_entry[\s\S]*missing_manifest[\s\S]*smoke_failed/,
   'source package manager must map install/index/smoke reason codes to user-readable text',

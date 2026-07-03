@@ -87,6 +87,19 @@ function chapterSignature(chapter: LocalLibraryFolderChapter): string {
   ].join('\n')
 }
 
+function sidecarMetadataSignature(series: LocalLibraryFolderSeries): string {
+  const metadata = series.sidecarMetadata
+  if (metadata === undefined) {
+    return ''
+  }
+  return [
+    metadata.title ?? '',
+    (metadata.authors ?? []).slice().sort(compareText).join('|'),
+    metadata.status ?? '',
+    metadata.coverPath ?? '',
+  ].join('\n')
+}
+
 function seriesSignature(series: LocalLibraryFolderSeries): string {
   const chapters = series.chapters
     .map((chapter): string => chapterSignature(chapter))
@@ -95,6 +108,7 @@ function seriesSignature(series: LocalLibraryFolderSeries): string {
     .join('\n--chapter--\n')
   return [
     series.relativePath,
+    sidecarMetadataSignature(series),
     series.chapterCount.toString(),
     series.pageCount.toString(),
     chapters,
