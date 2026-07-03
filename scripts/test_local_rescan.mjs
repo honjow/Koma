@@ -6,9 +6,11 @@ import { performance } from 'node:perf_hooks'
 const root = resolve(import.meta.dirname, '..')
 const contractPath = resolve(root, 'entry/src/main/ets/model/LocalLibraryFolderContract.ets')
 const servicePath = resolve(root, 'entry/src/main/ets/model/LocalLibraryRescanService.ets')
+const libraryPersistencePath = resolve(root, 'entry/src/main/ets/model/LibraryPersistence.ets')
 const artifactPath = resolve(root, '.hermes-artifacts/20260527-d43-local-rescan/local-rescan-fixture.json')
 const serviceSource = readFileSync(servicePath, 'utf8')
 const contractSource = readFileSync(contractPath, 'utf8')
+const libraryPersistenceSource = readFileSync(libraryPersistencePath, 'utf8')
 
 function assertExport(source, symbol) {
   assert.match(source, new RegExp(`export (interface|class|function|enum|type|const) ${symbol}\\b`), `${symbol} must be exported`)
@@ -27,6 +29,11 @@ assert.match(serviceSource, /NO_DELETE_LIBRARY_ROWS_OR_USER_FILES/, 'rescan cont
 assert.match(serviceSource, /removedCount:\s*missingCount/, 'removed-from-scan must be represented as missing, not destructive deletion')
 assert.doesNotMatch(serviceSource, /unlink|rmdir|removeComputed|deleteFile|deleteComic|removeComic|upsertComic|LibraryStore|fileIo|fs\./, 'rescan service must not delete files or mutate library persistence')
 assert.match(contractSource, /LOCAL_LIBRARY_FOLDER_RUNTIME_PICKER_STATUS = 'NOT_IMPLEMENTED_DEFERRED'/, 'D42 picker persistence must remain deferred')
+assert.match(
+  libraryPersistenceSource,
+  /mergeLocalLibraryRescanComic\(previous: Comic \| undefined, fresh: Comic\)[\s\S]*createdAt: previous\.createdAt[\s\S]*const categoryIds = normalizeCategoryIds\(previous\.categoryIds\)[\s\S]*if \(categoryIds\.length > 0\) \{[\s\S]*merged\.categoryIds = categoryIds[\s\S]*libraryStore\.upsertComic\(mergeLocalLibraryRescanComic\(libraryStore\.getComic\(comic\.id\), comic\)\)/,
+  'rescan persistence must preserve existing shelf category membership and createdAt while refreshing scanned local folder metadata',
+)
 
 const archiveExts = new Set(['.cbz', '.zip'])
 const imageExts = new Set(['.jpg', '.jpeg', '.png', '.webp', '.gif', '.bmp', '.avif'])

@@ -736,6 +736,52 @@ export interface LocalLibraryFolderRescanPersistResult {
   upsertedCount: number
 }
 
+function mergeLocalLibraryRescanComic(previous: Comic | undefined, fresh: Comic): Comic {
+  if (previous === undefined) {
+    return fresh
+  }
+  const merged: Comic = {
+    id: fresh.id,
+    title: fresh.title,
+    sourceKind: fresh.sourceKind,
+    sourcePath: fresh.sourcePath,
+    sortTitle: fresh.sortTitle,
+    preferredDirection: fresh.preferredDirection,
+    chapters: fresh.chapters,
+    chapterCount: fresh.chapterCount,
+    pageCount: fresh.pageCount,
+    createdAt: previous.createdAt,
+    updatedAt: fresh.updatedAt,
+    lastImportedAt: fresh.lastImportedAt,
+  }
+  if (fresh.subtitle !== undefined) {
+    merged.subtitle = fresh.subtitle
+  }
+  if (fresh.author !== undefined) {
+    merged.author = fresh.author
+  }
+  const categoryIds = normalizeCategoryIds(previous.categoryIds)
+  if (categoryIds.length > 0) {
+    merged.categoryIds = categoryIds
+  }
+  if (fresh.sourceRuntimeId !== undefined) {
+    merged.sourceRuntimeId = fresh.sourceRuntimeId
+  }
+  if (fresh.remoteServerId !== undefined) {
+    merged.remoteServerId = fresh.remoteServerId
+  }
+  if (fresh.remoteResourceId !== undefined) {
+    merged.remoteResourceId = fresh.remoteResourceId
+  }
+  if (fresh.coverUri !== undefined) {
+    merged.coverUri = fresh.coverUri
+  }
+  if (fresh.localMetadata !== undefined) {
+    merged.localMetadata = fresh.localMetadata
+  }
+  return merged
+}
+
 export function upsertLocalLibraryFolderRescanAndPersistLibraryStore(
   libraryStore: LibraryStore,
   persistenceService: LibraryStorePersistenceService,
@@ -759,7 +805,7 @@ export function upsertLocalLibraryFolderRescanAndPersistLibraryStore(
   }
   const previousPayload = serializeLibraryStore(libraryStore)
   comics.forEach((comic: Comic) => {
-    libraryStore.upsertComic(comic)
+    libraryStore.upsertComic(mergeLocalLibraryRescanComic(libraryStore.getComic(comic.id), comic))
   })
   try {
     persistenceService.persist()

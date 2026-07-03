@@ -825,8 +825,8 @@ assert.match(
 )
 assert.match(
   libraryPersistenceSource,
-  /upsertLocalLibraryFolderRescanAndPersistLibraryStore[\s\S]*createLocalLibraryRescanSummary\(previousKnownSeries, freshScan, failures\)[\s\S]*outcome\.status === 'added' \|\| outcome\.status === 'changed'[\s\S]*buildComicsFromLocalLibraryFolderScan\(freshScan, rootUri, now\)[\s\S]*changedSeriesIds\.has\(comic\.id\)[\s\S]*libraryStore\.upsertComic\(comic\)[\s\S]*persistenceService\.persist\(\)[\s\S]*hydrateLibraryStoreFromJson\(libraryStore, previousPayload\)/,
-  'local library folder rescan persistence must upsert only added/changed scan results, return a summary, and rollback on save failure',
+  /mergeLocalLibraryRescanComic\(previous: Comic \| undefined, fresh: Comic\)[\s\S]*createdAt: previous\.createdAt[\s\S]*const categoryIds = normalizeCategoryIds\(previous\.categoryIds\)[\s\S]*if \(categoryIds\.length > 0\) \{[\s\S]*merged\.categoryIds = categoryIds[\s\S]*upsertLocalLibraryFolderRescanAndPersistLibraryStore[\s\S]*createLocalLibraryRescanSummary\(previousKnownSeries, freshScan, failures\)[\s\S]*outcome\.status === 'added' \|\| outcome\.status === 'changed'[\s\S]*buildComicsFromLocalLibraryFolderScan\(freshScan, rootUri, now\)[\s\S]*changedSeriesIds\.has\(comic\.id\)[\s\S]*libraryStore\.upsertComic\(mergeLocalLibraryRescanComic\(libraryStore\.getComic\(comic\.id\), comic\)\)[\s\S]*persistenceService\.persist\(\)[\s\S]*hydrateLibraryStoreFromJson\(libraryStore, previousPayload\)/,
+  'local library folder rescan persistence must upsert only added/changed scan results while preserving user category membership, createdAt, summary, and rollback behavior',
 )
 assert.doesNotMatch(
   libraryPersistenceSource,
