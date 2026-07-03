@@ -39,6 +39,7 @@ export struct TrackerSettingsPage {
   }
   @Local private mappings: ComicTrackerMapping[] = []
   @Local private busyMappingKey: string = ''
+  @Local private busyProviderId: string = ''
   @Local private secureStorageAvailable: boolean = false
   @Local private authPreparationMessageKey: string = 'tracker_message_secure_storage_unverified'
   private credentialSecretStore: TrackerCredentialSecretStore = new AssetStoreTrackerCredentialSecretStore()
@@ -107,6 +108,12 @@ export struct TrackerSettingsPage {
       provider.redirectUri !== undefined
   }
 
+  private canDisconnectProvider(provider: TrackerProviderConfig): boolean {
+    const account = this.findAccount(provider)
+    return account.status !== 'disconnected' &&
+      (account.credentialAccountKey === undefined || this.secureStorageAvailable)
+  }
+
   private prepareConnect(provider: TrackerProviderConfig): void {
     if (!this.canPrepareConnect(provider)) {
       this.authPreparationMessageKey = !this.secureStorageAvailable
@@ -125,6 +132,29 @@ export struct TrackerSettingsPage {
       .catch((_error: Error) => {
         this.authPreparationMessageKey = 'tracker_message_auth_prepare_failed'
         this.showToast(s(this.authPreparationMessageKey))
+      })
+  }
+
+  private disconnectAccount(provider: TrackerProviderConfig): void {
+    if (!this.canDisconnectProvider(provider) || this.busyProviderId.length > 0) {
+      return
+    }
+    this.busyProviderId = provider.providerId
+    void this.trackerPreferencesStore().disconnectAccount(provider.providerId)
+      .then((preferences) => {
+        this.accounts = preferences.accounts
+        const account = this.findAccount(provider)
+        if (account.status === 'disconnected') {
+          this.showToast(s('tracker_message_disconnected'))
+        } else {
+          this.showToast(s('tracker_message_disconnect_failed'))
+        }
+      })
+      .catch((_error: Error) => {
+        this.showToast(s('tracker_message_disconnect_failed'))
+      })
+      .finally(() => {
+        this.busyProviderId = ''
       })
   }
 
@@ -271,17 +301,30 @@ export struct TrackerSettingsPage {
         .maxLines(1)
         .textOverflow({ overflow: TextOverflow.Ellipsis })
 
-      KomaActionButton({
-        label: this.connectActionLabel(provider),
-        kind: this.canPrepareConnect(provider) ? 'primary' : 'secondary',
-        compact: true,
-        controlHeight: ThemeConstants.ACTION_CHIP_HEIGHT,
-        isEnabled: this.canPrepareConnect(provider),
-        accentColor: this.canPrepareConnect(provider) ? undefined : ThemeConstants.TEXT_SECONDARY,
-        action: () => {
-          this.prepareConnect(provider)
-        },
-      })
+      if (this.canDisconnectProvider(provider)) {
+        KomaActionButton({
+          label: s('tracker_action_disconnect'),
+          kind: 'danger',
+          compact: true,
+          controlHeight: ThemeConstants.ACTION_CHIP_HEIGHT,
+          isEnabled: this.busyProviderId.length === 0,
+          action: () => {
+            this.disconnectAccount(provider)
+          },
+        })
+      } else {
+        KomaActionButton({
+          label: this.connectActionLabel(provider),
+          kind: this.canPrepareConnect(provider) ? 'primary' : 'secondary',
+          compact: true,
+          controlHeight: ThemeConstants.ACTION_CHIP_HEIGHT,
+          isEnabled: this.canPrepareConnect(provider),
+          accentColor: this.canPrepareConnect(provider) ? undefined : ThemeConstants.TEXT_SECONDARY,
+          action: () => {
+            this.prepareConnect(provider)
+          },
+        })
+      }
     }
     .alignItems(VerticalAlign.Center)
   }

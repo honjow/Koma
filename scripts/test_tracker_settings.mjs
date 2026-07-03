@@ -83,6 +83,11 @@ assert.match(
   /parseTrackerOAuthCallback\(callbackUri: string, expectedState: string\)[\s\S]*codePresent: code !== undefined[\s\S]*reason: 'state_mismatch'/,
   'OAuth callback parser must reject state mismatch without returning the raw code',
 )
+assert.match(
+  trackerModelsSource,
+  /disconnectAccount\(providerId: TrackerProviderId\): Promise<TrackerPreferences>[\s\S]*this\.secretStore\.deleteAccount\(\{[\s\S]*providerId,[\s\S]*accountKey: account\.credentialAccountKey[\s\S]*!deleted\.ok[\s\S]*status: 'error'[\s\S]*statusReason: deleted\.error\?\.code \?\? 'storage_unavailable'[\s\S]*status: 'disconnected'/,
+  'TrackerPreferencesStore must delete secure account credentials before marking a tracker account disconnected',
+)
 assert.doesNotMatch(
   trackerModelsSource,
   /clientSecret|client_secret|accessToken|refreshToken|rawToken|authCode|authorizationCode|bearer/i,
@@ -246,6 +251,16 @@ assert.match(
   trackerPageSource,
   /canReviewMapping\(mapping: ComicTrackerMapping\): boolean[\s\S]*mapping\.mappingState === 'candidate' \|\| mapping\.mappingState === 'stale'/,
   'TrackerSettingsPage must only expose review actions for candidate or stale mappings',
+)
+assert.match(
+  trackerPageSource,
+  /canDisconnectProvider\(provider: TrackerProviderConfig\): boolean[\s\S]*account\.status !== 'disconnected'[\s\S]*account\.credentialAccountKey === undefined \|\| this\.secureStorageAvailable[\s\S]*disconnectAccount\(provider: TrackerProviderConfig\): void[\s\S]*trackerPreferencesStore\(\)\.disconnectAccount\(provider\.providerId\)[\s\S]*tracker_message_disconnected[\s\S]*tracker_message_disconnect_failed/,
+  'TrackerSettingsPage must expose a real disconnect action that clears secure tracker credentials and refreshes account state',
+)
+assert.match(
+  trackerPageSource,
+  /if \(this\.canDisconnectProvider\(provider\)\) \{[\s\S]*label: s\('tracker_action_disconnect'\)[\s\S]*kind: 'danger'[\s\S]*this\.disconnectAccount\(provider\)/,
+  'TrackerSettingsPage provider rows must show a destructive disconnect action for disconnectable accounts',
 )
 assert.match(
   trackerPageSource,

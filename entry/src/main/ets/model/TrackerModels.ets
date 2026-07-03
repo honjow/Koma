@@ -743,6 +743,41 @@ export class TrackerPreferencesStore {
     return next
   }
 
+  async disconnectAccount(providerId: TrackerProviderId): Promise<TrackerPreferences> {
+    const current = await this.load()
+    const account = current.accounts.find((item: TrackerAccount): boolean => item.providerId === providerId)
+    if (account === undefined || account.status === 'disconnected') {
+      return current
+    }
+    if (account.credentialAccountKey !== undefined) {
+      const deleted = await this.secretStore.deleteAccount({
+        providerId,
+        accountKey: account.credentialAccountKey,
+      })
+      if (!deleted.ok) {
+        return this.saveAccounts(current.accounts.map((item: TrackerAccount): TrackerAccount => {
+          if (item.providerId !== providerId) {
+            return item
+          }
+          return {
+            providerId,
+            status: 'error',
+            statusReason: deleted.error?.code ?? 'storage_unavailable',
+          }
+        }))
+      }
+    }
+    return this.saveAccounts(current.accounts.map((item: TrackerAccount): TrackerAccount => {
+      if (item.providerId !== providerId) {
+        return item
+      }
+      return {
+        providerId,
+        status: 'disconnected',
+      }
+    }))
+  }
+
   async saveComicMappings(mappings: ComicTrackerMapping[]): Promise<TrackerPreferences> {
     const current = await this.load()
     const next: TrackerPreferences = {
