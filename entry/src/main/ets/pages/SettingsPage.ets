@@ -203,7 +203,7 @@ function createSettingsSections(): SettingsSection[] {
         { key: 'downloads', titleKey: 'settings_row_downloads_title', detailKey: 'settings_row_downloads_detail' },
         { key: 'download-notifications', titleKey: 'settings_row_download_notifications_title', detailKey: 'settings_row_download_notifications_detail' },
         { key: 'download-concurrency', titleKey: 'settings_row_download_concurrency_title', detailKey: 'settings_row_download_concurrency_detail' },
-        { key: 'download-retry-failed', titleKey: 'settings_row_download_retry_failed_title', detailKey: 'settings_row_download_retry_failed_detail', placeholder: true },
+        { key: 'download-retry-failed', titleKey: 'settings_row_download_retry_failed_title', detailKey: 'settings_row_download_retry_failed_detail' },
         { key: 'download-wifi-only', titleKey: 'settings_row_download_wifi_only_title', detailKey: 'settings_row_download_wifi_only_detail', placeholder: true },
         { key: 'trackers', titleKey: 'settings_row_trackers_title', detailKey: 'settings_row_trackers_detail' },
         { key: 'tracker-auto-sync', titleKey: 'settings_row_tracker_auto_sync_title', detailKey: 'settings_row_tracker_auto_sync_detail', placeholder: true },
@@ -1686,7 +1686,7 @@ export struct SettingsPage {
       this.showImageCacheConfirm()
     } else if (row.key === 'sources') {
       this.showSourcesDialog()
-    } else if (row.key === 'downloads') {
+    } else if (row.key === 'downloads' || row.key === 'download-retry-failed') {
       this.onOpenDownloads()
     } else if (row.key === 'download-notifications') {
       this.requestDownloadNotifications()

@@ -128,6 +128,8 @@ assert.match(offlineDownloadServiceSource, /manifest\.status = OfflineDownloadSt
 assert.match(offlineDownloadServiceSource, /step=download_blocked[\s\S]*this\.publishNotification\(manifest/, 'download service must notify unretryable blocked download attempts')
 
 assert.match(settingsPageSource, /key: 'downloads', titleKey: 'settings_row_downloads_title'/, 'Settings must expose a Downloads row')
+assert.match(settingsPageSource, /key: 'download-retry-failed', titleKey: 'settings_row_download_retry_failed_title', detailKey: 'settings_row_download_retry_failed_detail' \}/, 'Settings retry-failed downloads row must be a real Downloads route entry, not a placeholder')
+assert.match(settingsPageSource, /row\.key === 'downloads' \|\| row\.key === 'download-retry-failed'[\s\S]*this\.onOpenDownloads\(\)/, 'Settings retry-failed downloads row must open the real queue page instead of pretending to retry in settings')
 assert.match(settingsPageSource, /key: 'download-notifications', titleKey: 'settings_row_download_notifications_title'[\s\S]*getOfflineDownloadNotificationStatusLabel\(this\.downloadNotificationStatus\)[\s\S]*requestOfflineDownloadNotificationPermission\(this\.context\(\)\)/, 'Settings must expose and request real download notification permission state')
 assert.match(settingsPageSource, /key: 'download-concurrency', titleKey: 'settings_row_download_concurrency_title'[^}]*}/, 'Settings must expose real download concurrency preferences')
 assert.match(settingsPageSource, /OFFLINE_DOWNLOAD_FOREGROUND_CONCURRENCY_LIMIT_OPTIONS[\s\S]*OfflineDownloadQueueStore/, 'Settings must reuse the durable download queue preference store')
