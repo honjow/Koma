@@ -519,6 +519,12 @@
 
     { "name": "reader_action_previous_page", "value": "上一页" },
     { "name": "reader_action_next_page", "value": "下一页" },
+    { "name": "reader_action_save_series_settings", "value": "应用到本系列" },
+    { "name": "reader_action_clear_series_settings", "value": "清除系列设置" },
+    { "name": "reader_series_settings_saved", "value": "已为本系列保存阅读设置" },
+    { "name": "reader_series_settings_save_failed", "value": "系列阅读设置保存失败" },
+    { "name": "reader_series_settings_cleared", "value": "已清除本系列阅读设置" },
+    { "name": "reader_series_settings_clear_failed", "value": "系列阅读设置清除失败" },
 
     { "name": "manga_status_ongoing", "value": "连载中" },
     { "name": "manga_status_completed", "value": "已完结" },

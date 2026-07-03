@@ -519,6 +519,12 @@
 
     { "name": "reader_action_previous_page", "value": "Previous page" },
     { "name": "reader_action_next_page", "value": "Next page" },
+    { "name": "reader_action_save_series_settings", "value": "Use for this series" },
+    { "name": "reader_action_clear_series_settings", "value": "Clear series settings" },
+    { "name": "reader_series_settings_saved", "value": "Reader settings saved for this series" },
+    { "name": "reader_series_settings_save_failed", "value": "Failed to save series reader settings" },
+    { "name": "reader_series_settings_cleared", "value": "Series reader settings cleared" },
+    { "name": "reader_series_settings_clear_failed", "value": "Failed to clear series reader settings" },
 
     { "name": "manga_status_ongoing", "value": "Ongoing" },
     { "name": "manga_status_completed", "value": "Completed" },

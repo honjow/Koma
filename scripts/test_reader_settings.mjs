@@ -5,11 +5,13 @@ import { resolve } from 'node:path'
 const root = resolve(import.meta.dirname, '..')
 const readerPreferencesStorePath = resolve(root, 'entry/src/main/ets/model/ReaderPreferencesStore.ets')
 const readerPagePath = resolve(root, 'entry/src/main/ets/pages/ReaderPage.ets')
+const readerChromePath = resolve(root, 'entry/src/main/ets/components/ReaderChrome.ets')
 const settingsPagePath = resolve(root, 'entry/src/main/ets/pages/SettingsPage.ets')
 const backupServicePath = resolve(root, 'entry/src/main/ets/model/BackupService.ets')
 
 const readerPreferencesStoreSource = readFileSync(readerPreferencesStorePath, 'utf8')
 const readerPageSource = readFileSync(readerPagePath, 'utf8')
+const readerChromeSource = readFileSync(readerChromePath, 'utf8')
 const settingsPageSource = readFileSync(settingsPagePath, 'utf8')
 const backupServiceSource = readFileSync(backupServicePath, 'utf8')
 
@@ -222,6 +224,26 @@ assert.match(
   readerPageSource,
   /new ReaderPreferencesStore\(context\)\.loadForComic\(this\.sessionConfig\.comicId\)/,
   'ReaderPage must load per-series preferences for the active comic instead of only global defaults',
+)
+assert.match(
+  readerPageSource,
+  /currentSeriesPreferenceOverrides\(\): ReaderSeriesPreferenceOverrides[\s\S]*pageMode: this\.pageModeForSeriesPreferences\(\)[\s\S]*readingDirection: this\.readingDirection[\s\S]*tapNavigationEnabled: this\.tapNavigationEnabled[\s\S]*tapZonePreset: this\.tapZonePreset/,
+  'ReaderPage must build per-series overrides from the current runtime reader controls',
+)
+assert.match(
+  readerPageSource,
+  /saveCurrentSeriesPreferences\(\): void[\s\S]*saveSeriesPreferences\([\s\S]*this\.sessionConfig\.comicId[\s\S]*this\.currentSeriesPreferenceOverrides\(\)[\s\S]*reader_series_settings_saved/,
+  'ReaderPage must let the user persist current reader controls as per-series settings',
+)
+assert.match(
+  readerPageSource,
+  /clearCurrentSeriesPreferences\(\): void[\s\S]*clearSeriesPreferences\(this\.sessionConfig\.comicId\)[\s\S]*reader_series_settings_cleared[\s\S]*this\.loadReaderPreferences\(\)/,
+  'ReaderPage must let the user clear per-series settings and immediately reload global preferences',
+)
+assert.match(
+  readerChromeSource,
+  /onSaveSeriesPreferences[\s\S]*onClearSeriesPreferences[\s\S]*reader_action_save_series_settings[\s\S]*this\.onSaveSeriesPreferences\(\)[\s\S]*reader_action_clear_series_settings[\s\S]*this\.onClearSeriesPreferences\(\)/,
+  'ReaderChrome must expose real per-series save and clear actions instead of leaving the store unreachable',
 )
 
 assert.match(settingsPageSource, /key: 'reader-image-fit', titleKey: 'settings_row_reader_image_fit_title'/, 'Settings must expose an image fit row')

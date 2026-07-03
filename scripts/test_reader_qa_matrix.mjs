@@ -328,7 +328,7 @@ function assertProductionStaticContracts() {
   )
   assert.match(
     readerSettingsTestSource,
-    /reader-tap-zone-preset[\s\S]*showReaderTapZonePresetSheet[\s\S]*窄边缘[\s\S]*宽侧区/,
+    /reader-tap-zone-preset[\s\S]*reader_tap_zone_edge[\s\S]*reader_tap_zone_wide[\s\S]*tap zone preset menu/,
     'D40 tap-zone setting UI coverage must remain in reader settings tests',
   )
   assert.match(
