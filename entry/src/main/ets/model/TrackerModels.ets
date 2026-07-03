@@ -1,5 +1,8 @@
 import { common } from '@kit.AbilityKit'
 import { preferences } from '@kit.ArkData'
+import { buffer } from '@kit.ArkTS'
+import { asset } from '@kit.AssetStoreKit'
+import { BusinessError } from '@kit.BasicServicesKit'
 import { ComicId } from './ComicModels'
 import { AppStrings } from '../i18n/AppStrings'
 
@@ -148,6 +151,8 @@ export interface TrackerPreferences {
 export const TRACKER_PREFERENCES_STORE_NAME: string = 'koma_tracker_preferences_v1'
 export const TRACKER_ACCOUNTS_KEY: string = 'tracker.accounts'
 export const TRACKER_COMIC_MAPPINGS_KEY: string = 'tracker.comicMappings'
+export const TRACKER_ASSET_ALIAS_PREFIX: string = 'koma.tracker'
+export const TRACKER_ASSET_GROUP_ID: string = 'koma-tracker-credentials'
 
 export const TRACKER_PROVIDER_CONFIGS: TrackerProviderConfig[] = [
   {
@@ -524,6 +529,155 @@ export class UnavailableTrackerCredentialSecretStore implements TrackerCredentia
         operation,
         providerId,
       },
+    }
+  }
+}
+
+function trackerUtf8Encode(value: string): Uint8Array {
+  return new Uint8Array(buffer.from(value, 'utf-8').buffer)
+}
+
+function trackerCredentialAlias(ref: TrackerCredentialSecretRef): string {
+  return `${TRACKER_ASSET_ALIAS_PREFIX}.${ref.providerId}.${ref.accountKey}.${ref.secretKind}`
+}
+
+function trackerAssetQuery(ref: TrackerCredentialSecretRef): asset.AssetMap {
+  const query: asset.AssetMap = new Map<asset.Tag, asset.Value>()
+  query.set(asset.Tag.ALIAS, trackerUtf8Encode(trackerCredentialAlias(ref)))
+  query.set(asset.Tag.DATA_LABEL_CRITICAL_1, trackerUtf8Encode(ref.providerId))
+  query.set(asset.Tag.DATA_LABEL_CRITICAL_2, trackerUtf8Encode(ref.accountKey))
+  query.set(asset.Tag.DATA_LABEL_CRITICAL_3, trackerUtf8Encode(ref.secretKind))
+  query.set(asset.Tag.GROUP_ID, trackerUtf8Encode(TRACKER_ASSET_GROUP_ID))
+  return query
+}
+
+function trackerAssetAccountQuery(ref: TrackerCredentialAccountRef): asset.AssetMap {
+  const query: asset.AssetMap = new Map<asset.Tag, asset.Value>()
+  query.set(asset.Tag.DATA_LABEL_CRITICAL_1, trackerUtf8Encode(ref.providerId))
+  query.set(asset.Tag.DATA_LABEL_CRITICAL_2, trackerUtf8Encode(ref.accountKey))
+  query.set(asset.Tag.GROUP_ID, trackerUtf8Encode(TRACKER_ASSET_GROUP_ID))
+  return query
+}
+
+function trackerCredentialErrorCode(error: BusinessError | undefined): TrackerCredentialErrorCode {
+  const code = error?.code
+  if (code === 201 || code === 24000004) {
+    return 'access_denied'
+  }
+  if (code === 401) {
+    return 'invalid_request'
+  }
+  if (code === 24000002) {
+    return 'not_found'
+  }
+  if (code === 24000005) {
+    return 'locked'
+  }
+  if (code === 24000006) {
+    return 'quota_exceeded'
+  }
+  if (code === 24000007) {
+    return 'corrupted'
+  }
+  if (code === 24000017) {
+    return 'unsupported'
+  }
+  if (code === 24000001 || code === 24000008 || code === 24000009 || code === 24000010 ||
+    code === 24000011 || code === 24000012 || code === 24000013 || code === 24000014 ||
+    code === 24000015) {
+    return 'storage_unavailable'
+  }
+  return 'unknown'
+}
+
+function trackerCredentialResult(
+  ok: boolean,
+  operation: 'write' | 'read' | 'delete',
+  providerId: TrackerProviderId,
+  error?: BusinessError,
+): TrackerCredentialStoreResult {
+  if (ok) {
+    return { ok: true }
+  }
+  const code = trackerCredentialErrorCode(error)
+  return trackerCredentialFailureResult(code, operation, providerId)
+}
+
+function trackerCredentialFailureResult(
+  code: TrackerCredentialErrorCode,
+  operation: 'write' | 'read' | 'delete',
+  providerId: TrackerProviderId,
+): TrackerCredentialStoreResult {
+  return {
+    ok: false,
+    error: {
+      code,
+      retryable: code === 'locked' || code === 'storage_unavailable' || code === 'unknown',
+      operation,
+      providerId,
+    },
+  }
+}
+
+export class AssetStoreTrackerCredentialSecretStore implements TrackerCredentialSecretStore {
+  isAvailable(): boolean {
+    return true
+  }
+
+  async writeToken(request: TrackerCredentialWriteRequest): Promise<TrackerCredentialStoreResult> {
+    if (request.secretBytes.byteLength === 0 || request.accountKey.trim().length === 0) {
+      return trackerCredentialFailureResult('invalid_request', 'write', request.providerId)
+    }
+    const attributes = trackerAssetQuery(request)
+    attributes.set(asset.Tag.SECRET, request.secretBytes)
+    attributes.set(asset.Tag.ACCESSIBILITY, asset.Accessibility.DEVICE_FIRST_UNLOCKED)
+    attributes.set(asset.Tag.CONFLICT_RESOLUTION, asset.ConflictResolution.OVERWRITE)
+    try {
+      await asset.add(attributes)
+      return trackerCredentialResult(true, 'write', request.providerId)
+    } catch (error) {
+      return trackerCredentialResult(false, 'write', request.providerId, error as BusinessError)
+    }
+  }
+
+  async readToken(ref: TrackerCredentialSecretRef): Promise<Uint8Array | undefined> {
+    const query = trackerAssetQuery(ref)
+    query.set(asset.Tag.RETURN_TYPE, asset.ReturnType.ALL)
+    query.set(asset.Tag.RETURN_LIMIT, 1)
+    try {
+      const rows = await asset.query(query)
+      if (rows.length === 0) {
+        return undefined
+      }
+      return rows[0].get(asset.Tag.SECRET) as Uint8Array | undefined
+    } catch (_error) {
+      return undefined
+    }
+  }
+
+  async deleteToken(ref: TrackerCredentialSecretRef): Promise<TrackerCredentialStoreResult> {
+    try {
+      await asset.remove(trackerAssetQuery(ref))
+      return trackerCredentialResult(true, 'delete', ref.providerId)
+    } catch (error) {
+      const code = trackerCredentialErrorCode(error as BusinessError)
+      if (code === 'not_found') {
+        return trackerCredentialResult(true, 'delete', ref.providerId)
+      }
+      return trackerCredentialResult(false, 'delete', ref.providerId, error as BusinessError)
+    }
+  }
+
+  async deleteAccount(ref: TrackerCredentialAccountRef): Promise<TrackerCredentialStoreResult> {
+    try {
+      await asset.remove(trackerAssetAccountQuery(ref))
+      return trackerCredentialResult(true, 'delete', ref.providerId)
+    } catch (error) {
+      const code = trackerCredentialErrorCode(error as BusinessError)
+      if (code === 'not_found') {
+        return trackerCredentialResult(true, 'delete', ref.providerId)
+      }
+      return trackerCredentialResult(false, 'delete', ref.providerId, error as BusinessError)
     }
   }
 }

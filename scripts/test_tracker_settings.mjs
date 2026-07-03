@@ -50,6 +50,11 @@ assert.match(
 )
 assert.match(
   trackerModelsSource,
+  /export class AssetStoreTrackerCredentialSecretStore implements TrackerCredentialSecretStore/,
+  'tracker model must include the HarmonyOS AssetStore-backed credential implementation',
+)
+assert.match(
+  trackerModelsSource,
   /class UnavailableTrackerCredentialSecretStore[\s\S]*isAvailable\(\): boolean \{[\s\S]*return false[\s\S]*writeToken[\s\S]*storage_unavailable/,
   'default tracker credential store must fail closed',
 )
@@ -141,6 +146,11 @@ assert.doesNotMatch(
   trackerPageSource,
   /(Navigation|NavDestination)\(/,
   'TrackerSettingsPage must not nest a Navigation/NavDestination inside Settings',
+)
+assert.match(
+  trackerPageSource,
+  /new AssetStoreTrackerCredentialSecretStore\(\)[\s\S]*new TrackerPreferencesStore\(this\.context\(\), this\.credentialSecretStore\)[\s\S]*this\.secureStorageAvailable = this\.credentialSecretStore\.isAvailable\(\)/,
+  'TrackerSettingsPage must wire the system secure credential store into tracker preferences',
 )
 assert.match(
   trackerPageSource,

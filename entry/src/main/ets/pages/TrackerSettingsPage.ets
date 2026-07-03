@@ -3,10 +3,12 @@ import { SecondaryListScaffold } from '../components/SecondaryListScaffold'
 import { ConciseListRow } from '../components/ui/ConciseListRow'
 import { KomaActionButton } from '../components/ui/KomaActionButton'
 import {
+  AssetStoreTrackerCredentialSecretStore,
   DEFAULT_TRACKER_ACCOUNTS,
   TrackerComicMappingSummary,
   TRACKER_PROVIDER_CONFIGS,
   TrackerAccount,
+  TrackerCredentialSecretStore,
   TrackerOAuthStartPreparation,
   TrackerPreferencesStore,
   TrackerProviderConfig,
@@ -36,16 +38,18 @@ export struct TrackerSettingsPage {
   }
   @Local private secureStorageAvailable: boolean = false
   @Local private authPreparationMessageKey: string = 'tracker_message_secure_storage_unverified'
+  private credentialSecretStore: TrackerCredentialSecretStore = new AssetStoreTrackerCredentialSecretStore()
 
   private context(): common.UIAbilityContext {
     return getContext(this) as common.UIAbilityContext
   }
 
   private trackerPreferencesStore(): TrackerPreferencesStore {
-    return new TrackerPreferencesStore(this.context())
+    return new TrackerPreferencesStore(this.context(), this.credentialSecretStore)
   }
 
   aboutToAppear(): void {
+    this.secureStorageAvailable = this.credentialSecretStore.isAvailable()
     void this.trackerPreferencesStore().load()
       .then((preferences) => {
         this.accounts = preferences.accounts

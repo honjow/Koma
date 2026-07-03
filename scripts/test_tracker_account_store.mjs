@@ -33,6 +33,31 @@ assert.doesNotMatch(
   /writeToken|secretBytes|readToken|authorizationUrl|codeVerifier/,
   'normal account persistence must not write token material or transient OAuth data',
 )
+assert.match(
+  trackerModelsSource,
+  /import \{ asset \} from '@kit\.AssetStoreKit'/,
+  'tracker credential store must use HarmonyOS AssetStoreKit for token storage',
+)
+assert.match(
+  trackerModelsSource,
+  /export class AssetStoreTrackerCredentialSecretStore implements TrackerCredentialSecretStore[\s\S]*asset\.add\(attributes\)[\s\S]*asset\.query\(query\)[\s\S]*asset\.remove\(trackerAssetQuery\(ref\)\)[\s\S]*asset\.remove\(trackerAssetAccountQuery\(ref\)\)/,
+  'asset-backed tracker credential store must implement write/read/delete/logout cleanup through AssetStoreKit',
+)
+assert.match(
+  trackerModelsSource,
+  /asset\.Tag\.ALIAS[\s\S]*asset\.Tag\.DATA_LABEL_CRITICAL_1[\s\S]*asset\.Tag\.DATA_LABEL_CRITICAL_2[\s\S]*asset\.Tag\.DATA_LABEL_CRITICAL_3[\s\S]*asset\.Tag\.GROUP_ID[\s\S]*attributes\.set\(asset\.Tag\.SECRET, request\.secretBytes\)/,
+  'tracker tokens must be stored as AssetStore secrets indexed only by alias and opaque labels',
+)
+assert.match(
+  trackerModelsSource,
+  /asset\.Tag\.RETURN_TYPE, asset\.ReturnType\.ALL[\s\S]*asset\.Tag\.RETURN_LIMIT, 1/,
+  'tracker token reads must request only one plaintext asset from AssetStore',
+)
+assert.match(
+  trackerModelsSource,
+  /function trackerCredentialErrorCode[\s\S]*24000002[\s\S]*'not_found'[\s\S]*24000005[\s\S]*'locked'[\s\S]*24000007[\s\S]*'corrupted'[\s\S]*24000017[\s\S]*'unsupported'/,
+  'asset-backed tracker credential store must bucket system errors into safe credential error codes',
+)
 
 const mappingNormalizeBlock = trackerModelsSource.match(/export function normalizeComicTrackerMappings\(values: ComicTrackerMapping\[\]\): ComicTrackerMapping\[\] \{[\s\S]*?\n\}/)?.[0] ?? ''
 assert.match(
