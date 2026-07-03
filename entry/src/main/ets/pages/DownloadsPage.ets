@@ -15,6 +15,7 @@ import {
   OFFLINE_DOWNLOAD_FOREGROUND_CONCURRENCY_LIMIT_OPTIONS,
   OfflineDownloadQueueEntry,
   OfflineDownloadQueuePreferences,
+  OfflineDownloadQueueRecoverySummary,
   OfflineDownloadQueueSummary,
   OfflineDownloadQueueStore,
   summarizeOfflineDownloadQueue,
@@ -48,6 +49,7 @@ export struct DownloadsPage {
   }
   @Local private busyKey: string = ''
   @Local private filter: DownloadQueueFilter = DownloadQueueFilter.ALL
+  @Local private recoveryText: string = ''
 
   private context(): common.UIAbilityContext {
     return getContext(this) as common.UIAbilityContext
@@ -420,6 +422,37 @@ export struct DownloadsPage {
     this.loadQueue()
   }
 
+  private formatRecoverySummary(summary: OfflineDownloadQueueRecoverySummary): string {
+    return s('downloads_toast_rescan_done')
+      .replace('%s', `${summary.scannedCount}`)
+      .replace('%s', `${summary.restoredCount}`)
+      .replace('%s', `${summary.updatedCount}`)
+      .replace('%s', `${summary.failedCount + summary.partialCount}`)
+  }
+
+  private rescanDownloads(): void {
+    if (this.busyKey.length > 0) {
+      return
+    }
+    this.busyKey = 'rescan'
+    void this.runRescanDownloads()
+  }
+
+  private async runRescanDownloads(): Promise<void> {
+    try {
+      const summary = await this.queueStore().recoverFromManifests()
+      this.loadQueue()
+      this.recoveryText = this.formatRecoverySummary(summary)
+      this.showToast(this.recoveryText)
+    } catch (error) {
+      void error
+      console.warn('[Downloads] step=rescan_failed failed=true reason=manifest_rescan')
+      this.showToast(s('downloads_toast_rescan_failed'))
+    } finally {
+      this.busyKey = ''
+    }
+  }
+
   private async runForegroundDownloadBatch(targets: OfflineDownloadQueueEntry[]): Promise<number> {
     const concurrencyLimit = Math.max(1, Math.min(3, Math.floor(this.preferences.foregroundConcurrencyLimit)))
     let nextIndex = 0
@@ -616,6 +649,10 @@ export struct DownloadsPage {
             this.retryFailedDownloads()
           },
         })
+      }
+      .width('100%')
+
+      Row({ space: ThemeConstants.SPACE_SM }) {
         KomaActionButton({
           label: this.busyKey === 'batch-remove' ? s('downloads_action_cleaning') : s('downloads_action_cleanup_finished_failed'),
           kind: 'ghost',
@@ -625,8 +662,26 @@ export struct DownloadsPage {
             this.removeCompletedFailedDownloads()
           },
         })
+        KomaActionButton({
+          label: this.busyKey === 'rescan' ? s('downloads_action_rescanning') : s('downloads_action_rescan'),
+          kind: 'ghost',
+          isEnabled: this.busyKey.length === 0,
+          controlHeight: ThemeConstants.ACTION_CHIP_HEIGHT,
+          action: () => {
+            this.rescanDownloads()
+          },
+        })
       }
       .width('100%')
+
+      if (this.recoveryText.length > 0) {
+        Text(this.recoveryText)
+          .width('100%')
+          .fontSize(ThemeConstants.FONT_SIZE_CAPTION)
+          .fontColor(ThemeConstants.TEXT_SECONDARY)
+          .maxLines(2)
+          .textOverflow({ overflow: TextOverflow.Ellipsis })
+      }
     }
     .width('100%')
   }
@@ -719,14 +774,14 @@ export struct DownloadsPage {
         horizontalPadding: ThemeConstants.SPACE_XL,
         bottomPadding: ThemeConstants.FLOAT_BAR_HEIGHT + 20 + ThemeConstants.SPACE_XL,
       }) {
+        ListItem() {
+          this.QueueControls()
+        }
         if (this.entries.length === 0) {
           ListItem() {
             this.EmptyState()
           }
         } else {
-          ListItem() {
-            this.QueueControls()
-          }
           if (this.visibleEntries().length === 0) {
             ListItem() {
               this.EmptyState()

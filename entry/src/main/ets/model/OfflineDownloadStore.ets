@@ -92,6 +92,12 @@ export interface OfflineDownloadManifestValidation {
   reasonCode?: string
 }
 
+export interface OfflineDownloadManifestScanResult {
+  validations: OfflineDownloadManifestValidation[]
+  scannedManifestCount: number
+  skippedManifestCount: number
+}
+
 function compareDeepestPathFirst(left: string, right: string): number {
   const leftDepth = left.split('/').length
   const rightDepth = right.split('/').length
@@ -538,6 +544,56 @@ export class OfflineDownloadStore {
       validation.pageCount > 0 &&
       validation.availablePageCount === validation.pageCount &&
       validation.missingPageCount === 0
+  }
+
+  async scanDownloadedChapterManifests(): Promise<OfflineDownloadManifestScanResult> {
+    if (!(await pathExists(this.rootDir))) {
+      return {
+        validations: [],
+        scannedManifestCount: 0,
+        skippedManifestCount: 0,
+      }
+    }
+    const options: ListFileOptions = {
+      recursion: true,
+      listNum: 0,
+    }
+    const validations: OfflineDownloadManifestValidation[] = []
+    const seenKeys: string[] = []
+    let scannedManifestCount = 0
+    let skippedManifestCount = 0
+    const entries = await fs.listFile(this.rootDir, options)
+    for (let index = 0; index < entries.length; index += 1) {
+      const entry = normalizeDownloadPath(entries[index]).replace(/^\/+/, '').replace(/\/+$/, '')
+      if (entry.length === 0 || entry.indexOf('..') >= 0 || pathBaseName(entry) !== OFFLINE_DOWNLOAD_MANIFEST_NAME) {
+        continue
+      }
+      scannedManifestCount += 1
+      const manifestPath = joinOfflineDownloadPath(this.rootDir, entry)
+      try {
+        assertSafeOfflineDownloadRoot(this.filesDir, manifestPath)
+        const manifest = safeParseManifest(fs.readTextSync(manifestPath, { encoding: 'utf-8' }))
+        const key = `${manifest.comicId}::${manifest.chapterId}`
+        if (seenKeys.includes(key)) {
+          skippedManifestCount += 1
+          continue
+        }
+        seenKeys.push(key)
+        const validation = this.validateDownloadedChapter(manifest.comicId, manifest.chapterId)
+        if (validation.manifest === undefined) {
+          skippedManifestCount += 1
+          continue
+        }
+        validations.push(validation)
+      } catch (_err) {
+        skippedManifestCount += 1
+      }
+    }
+    return {
+      validations,
+      scannedManifestCount,
+      skippedManifestCount,
+    }
   }
 
   saveManifest(manifest: OfflineChapterDownloadManifest): OfflineChapterDownloadManifest {

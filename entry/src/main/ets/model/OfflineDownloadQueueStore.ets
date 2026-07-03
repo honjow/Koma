@@ -6,6 +6,7 @@ import {
   OFFLINE_DOWNLOAD_ROOT_DIR_NAME,
   OfflineChapterDownloadManifest,
   OfflineDownloadedChapterStatus,
+  OfflineDownloadManifestValidation,
   OfflineDownloadStatus,
   OfflineDownloadStore,
   assertSafeOfflineDownloadRoot,
@@ -49,6 +50,16 @@ export interface OfflineDownloadQueueSummary {
   blockedCount: number
   pageCount: number
   downloadedPageCount: number
+}
+
+export interface OfflineDownloadQueueRecoverySummary {
+  scannedCount: number
+  restoredCount: number
+  updatedCount: number
+  downloadedCount: number
+  partialCount: number
+  failedCount: number
+  skippedCount: number
 }
 
 interface OfflineDownloadQueueDocument {
@@ -203,6 +214,39 @@ function isSameEntry(left: OfflineDownloadQueueEntry, right: OfflineDownloadQueu
     left.failureReasonCode === right.failureReasonCode
 }
 
+function entryFromManifestValidation(validation: OfflineDownloadManifestValidation): OfflineDownloadQueueEntry | undefined {
+  const manifest = validation.manifest
+  if (manifest === undefined) {
+    return undefined
+  }
+  let status = OfflineDownloadStatus.FAILED
+  let failureReasonCode = validation.reasonCode
+  let pageCount = validation.pageCount
+  let downloadedPageCount = validation.availablePageCount
+  if (validation.status === OfflineDownloadedChapterStatus.DOWNLOADED) {
+    status = OfflineDownloadStatus.DOWNLOADED
+    failureReasonCode = undefined
+  } else if (validation.status === OfflineDownloadedChapterStatus.PARTIAL) {
+    status = OfflineDownloadStatus.PARTIAL
+    failureReasonCode = validation.reasonCode ?? 'page_file_missing'
+  } else if (validation.status === OfflineDownloadedChapterStatus.MISSING &&
+    validation.reasonCode === 'status_not_reader_ready') {
+    status = manifest.status
+    failureReasonCode = manifest.failureReasonCode ?? validation.reasonCode
+    pageCount = manifest.pageCount
+    downloadedPageCount = manifest.downloadedPageCount
+  }
+  return normalizeEntry({
+    comicId: manifest.comicId,
+    chapterId: manifest.chapterId,
+    status,
+    pageCount,
+    downloadedPageCount,
+    updatedAt: manifest.updatedAt,
+    failureReasonCode,
+  })
+}
+
 export class OfflineDownloadQueueStore {
   private readonly filesDir: string
   private readonly rootDir: string
@@ -281,6 +325,71 @@ export class OfflineDownloadQueueStore {
       })
     }
     return changed ? entries : document.entries
+  }
+
+  async recoverFromManifests(): Promise<OfflineDownloadQueueRecoverySummary> {
+    const document = this.loadDocument()
+    const store = new OfflineDownloadStore(this.filesDir)
+    const scan = await store.scanDownloadedChapterManifests()
+    const entries = document.entries.slice()
+    const summary: OfflineDownloadQueueRecoverySummary = {
+      scannedCount: scan.scannedManifestCount,
+      restoredCount: 0,
+      updatedCount: 0,
+      downloadedCount: 0,
+      partialCount: 0,
+      failedCount: 0,
+      skippedCount: scan.skippedManifestCount,
+    }
+    let changed = false
+    scan.validations.forEach((validation: OfflineDownloadManifestValidation) => {
+      const recovered = entryFromManifestValidation(validation)
+      if (recovered === undefined) {
+        summary.skippedCount += 1
+        return
+      }
+      if (recovered.status === OfflineDownloadStatus.DOWNLOADED) {
+        summary.downloadedCount += 1
+      } else if (recovered.status === OfflineDownloadStatus.PARTIAL) {
+        summary.partialCount += 1
+      } else if (recovered.status === OfflineDownloadStatus.FAILED) {
+        summary.failedCount += 1
+      }
+      const existingIndex = entries.findIndex((entry: OfflineDownloadQueueEntry): boolean => {
+        return entry.comicId === recovered.comicId && entry.chapterId === recovered.chapterId
+      })
+      if (existingIndex < 0) {
+        entries.unshift(recovered)
+        summary.restoredCount += 1
+        changed = true
+        return
+      }
+      const existing = entries[existingIndex]
+      const next = normalizeEntry({
+        comicId: existing.comicId,
+        chapterId: existing.chapterId,
+        comicTitle: existing.comicTitle,
+        chapterTitle: existing.chapterTitle,
+        status: recovered.status,
+        pageCount: recovered.pageCount,
+        downloadedPageCount: recovered.downloadedPageCount,
+        updatedAt: recovered.updatedAt,
+        failureReasonCode: recovered.failureReasonCode,
+      })
+      if (!isSameEntry(existing, next)) {
+        entries[existingIndex] = next
+        summary.updatedCount += 1
+        changed = true
+      }
+    })
+    if (changed) {
+      this.saveDocument({
+        schemaVersion: OFFLINE_DOWNLOAD_QUEUE_SCHEMA_VERSION,
+        preferences: document.preferences,
+        entries,
+      })
+    }
+    return summary
   }
 
   loadSummary(): OfflineDownloadQueueSummary {
