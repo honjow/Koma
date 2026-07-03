@@ -8,6 +8,17 @@ const trackerModels = readFileSync(resolve(root, 'entry/src/main/ets/model/Track
 
 assert.match(source, /export class AniListTrackerClient/, 'AniList tracker client must exist')
 assert.match(source, /export interface AniListTrackerHttpAdapter[\s\S]*request\(request: AniListTrackerHttpRequest\): Promise<AniListTrackerHttpResponse>/, 'AniList tracker client must use an injectable HTTP adapter')
+assert.match(source, /import \{ http \} from '@kit\.NetworkKit'/, 'AniList tracker client must provide a Harmony NetworkKit adapter')
+assert.match(
+  source,
+  /export function aniListTrackerHeadersToHttpHeaderObject\(headers: AniListTrackerHeaders\)[\s\S]*"Authorization"[\s\S]*"Accept"[\s\S]*"Content-Type"/,
+  'AniList HTTP adapter must convert typed headers to Harmony request headers',
+)
+assert.match(
+  source,
+  /export class HarmonyAniListTrackerHttpAdapter implements AniListTrackerHttpAdapter[\s\S]*http\.createHttp\(\)[\s\S]*method: http\.RequestMethod\.POST[\s\S]*expectDataType: http\.HttpDataType\.STRING[\s\S]*header: aniListTrackerHeadersToHttpHeaderObject\(request\.headers\)[\s\S]*httpRequest\.destroy\(\)/,
+  'AniList Harmony adapter must POST GraphQL JSON and always destroy the request handle',
+)
 assert.match(source, /const ANILIST_GRAPHQL_ENDPOINT: string = 'https:\/\/graphql\.anilist\.co'/, 'AniList client must target the official GraphQL endpoint')
 assert.match(source, /ANILIST_VIEWER_QUERY[\s\S]*Viewer \{ id name \}/, 'AniList client must support profile fetch')
 assert.match(source, /ANILIST_SEARCH_QUERY[\s\S]*media\(type: MANGA, search: \$search\)/, 'AniList client must support manga search mapping')

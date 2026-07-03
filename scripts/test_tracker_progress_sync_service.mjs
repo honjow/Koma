@@ -10,8 +10,8 @@ assert.match(source, /export class TrackerProgressSyncService/, 'tracker progres
 assert.match(source, /AniListTrackerClient/, 'tracker progress sync service must depend on the AniList provider client')
 assert.match(
   source,
-  /constructor\(context: common\.UIAbilityContext, options: TrackerProgressSyncServiceOptions = \{\}\)[\s\S]*new AssetStoreTrackerCredentialSecretStore\(\)[\s\S]*options\.aniListClient/,
-  'tracker progress sync service must default to secure storage and accept an injected AniList client',
+  /constructor\(context: common\.UIAbilityContext, options: TrackerProgressSyncServiceOptions = \{\}\)[\s\S]*new AssetStoreTrackerCredentialSecretStore\(\)[\s\S]*options\.aniListClient \?\? new AniListTrackerClient\(new HarmonyAniListTrackerHttpAdapter\(\)\)/,
+  'tracker progress sync service must default to secure storage plus real AniList HTTP and accept an injected client',
 )
 assert.match(
   source,

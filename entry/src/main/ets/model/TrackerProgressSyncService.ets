@@ -4,6 +4,7 @@ import { ReadingProgress } from './ComicModels'
 import {
   AniListTrackerClient,
   AniListTrackerProgress,
+  HarmonyAniListTrackerHttpAdapter,
 } from './AniListTrackerClient'
 import {
   AssetStoreTrackerCredentialSecretStore,
@@ -54,7 +55,7 @@ export class TrackerProgressSyncService {
   constructor(context: common.UIAbilityContext, options: TrackerProgressSyncServiceOptions = {}) {
     this.context = context
     this.secretStore = options.secretStore ?? new AssetStoreTrackerCredentialSecretStore()
-    this.aniListClient = options.aniListClient
+    this.aniListClient = options.aniListClient ?? new AniListTrackerClient(new HarmonyAniListTrackerHttpAdapter())
   }
 
   async pushReadingProgress(progress: ReadingProgress, chapterIds: string[], now: number = Date.now()): Promise<TrackerProgressSyncResult> {

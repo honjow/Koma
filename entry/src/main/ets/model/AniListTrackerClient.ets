@@ -1,3 +1,4 @@
+import { http } from '@kit.NetworkKit'
 import { TrackerProviderId } from './TrackerModels'
 
 export type AniListTrackerErrorCode =
@@ -153,6 +154,20 @@ export function redactAniListTrackerRequest(request: AniListTrackerHttpRequest):
   }
 }
 
+export function aniListTrackerHeadersToHttpHeaderObject(headers: AniListTrackerHeaders): Object {
+  const entries: string[] = []
+  if (headers.authorization !== undefined) {
+    entries.push(`"Authorization":${JSON.stringify(headers.authorization)}`)
+  }
+  if (headers.accept !== undefined) {
+    entries.push(`"Accept":${JSON.stringify(headers.accept)}`)
+  }
+  if (headers.contentType !== undefined) {
+    entries.push(`"Content-Type":${JSON.stringify(headers.contentType)}`)
+  }
+  return JSON.parse(`{${entries.join(',')}}`) as Object
+}
+
 export function normalizeAniListTrackerSearchQuery(query: string): string {
   return query.trim().slice(0, 120)
 }
@@ -178,6 +193,30 @@ export function aniListTrackerErrorCode(response: AniListTrackerHttpResponse): A
     return 'provider_error'
   }
   return 'malformed_response'
+}
+
+export class HarmonyAniListTrackerHttpAdapter implements AniListTrackerHttpAdapter {
+  async request(request: AniListTrackerHttpRequest): Promise<AniListTrackerHttpResponse> {
+    const httpRequest = http.createHttp()
+    try {
+      const response = await httpRequest.request(request.url, {
+        method: http.RequestMethod.POST,
+        extraData: request.body,
+        expectDataType: http.HttpDataType.STRING,
+        usingCache: false,
+        header: aniListTrackerHeadersToHttpHeaderObject(request.headers),
+        readTimeout: 30000,
+        connectTimeout: 15000,
+      })
+      const body = typeof response.result === 'string' ? response.result : JSON.stringify(response.result)
+      return {
+        status: response.responseCode,
+        body,
+      }
+    } finally {
+      httpRequest.destroy()
+    }
+  }
 }
 
 export class AniListTrackerClient {
