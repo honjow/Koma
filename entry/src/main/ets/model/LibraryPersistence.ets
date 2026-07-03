@@ -26,6 +26,10 @@ import {
   LocalLibraryStoredMetadata,
   normalizeLocalLibraryStoredMetadata,
 } from './LocalLibraryMetadataService'
+import {
+  LocalLibraryFolderScanResult,
+  buildComicsFromLocalLibraryFolderScan,
+} from './LocalLibraryFolderContract'
 
 export const LIBRARY_STORE_PERSISTENCE_SCHEMA_VERSION = 1
 export const LIBRARY_STORE_PERSISTENCE_FILE_NAME = 'library-store.v1.json'
@@ -691,6 +695,30 @@ export function upsertComicAndPersistLibraryStore(
   libraryStore.addComic(comic)
   try {
     persistenceService.persist()
+  } catch (error) {
+    hydrateLibraryStoreFromJson(libraryStore, previousPayload)
+    throw error as Error
+  }
+}
+
+export function upsertLocalLibraryFolderScanAndPersistLibraryStore(
+  libraryStore: LibraryStore,
+  persistenceService: LibraryStorePersistenceService,
+  scanResult: LocalLibraryFolderScanResult,
+  rootUri: string,
+  now: number = Date.now()
+): number {
+  const comics = buildComicsFromLocalLibraryFolderScan(scanResult, rootUri, now)
+  if (comics.length === 0) {
+    return 0
+  }
+  const previousPayload = serializeLibraryStore(libraryStore)
+  comics.forEach((comic: Comic) => {
+    libraryStore.upsertComic(comic)
+  })
+  try {
+    persistenceService.persist()
+    return comics.length
   } catch (error) {
     hydrateLibraryStoreFromJson(libraryStore, previousPayload)
     throw error as Error
