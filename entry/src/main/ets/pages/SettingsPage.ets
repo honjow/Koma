@@ -1360,7 +1360,7 @@ export struct SettingsPage {
       }
     } catch (error) {
       const e = error as Error
-      console.warn('[Settings] step=local_library_refresh_failed message=' + e.message)
+      console.warn('[Settings] step=local_library_refresh_failed code=' + safeSettingsErrorCode(e))
       this.showToast(s('settings_local_library_refresh_failed'))
     } finally {
       this.localLibraryRefreshBusy = false

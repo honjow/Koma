@@ -43,8 +43,8 @@ assert.match(
 )
 assert.match(
   serviceSource,
-  /图片文件夹需要重新选择后才能刷新[\s\S]*本地压缩包需要重新选择后才能刷新/,
-  'local refresh must explain that user re-selection is required',
+  /AppStrings\.get\('local_library_refresh_folder_unavailable'\)[\s\S]*AppStrings\.get\('local_library_refresh_archive_unavailable'\)/,
+  'local refresh must explain unavailable local refresh through i18n strings',
 )
 assert.doesNotMatch(
   serviceSource,
@@ -64,7 +64,7 @@ assert.match(
 )
 assert.match(
   settingsSource,
-  /\{ key: 'local-library-refresh', title: '刷新本地导入', detail: '需要重新选择本地文件' \}/,
+  /\{ key: 'local-library-refresh', titleKey: 'settings_row_local_library_refresh_title', detailKey: 'settings_row_local_library_refresh_detail' \}/,
   'SettingsPage must expose a dedicated local import refresh row',
 )
 assert.match(
@@ -84,12 +84,22 @@ assert.match(
 )
 assert.match(
   settingsSource,
-  /刷新需要重新选择本地文件/,
+  /settings_local_library_refresh_reselect/,
   'SettingsPage must show honest user-facing reselect feedback',
+)
+assert.match(
+  settingsSource,
+  /step=local_library_refresh_failed code='\s*\+\s*safeSettingsErrorCode\(e\)/,
+  'SettingsPage local refresh failure logs must use a bounded error code',
+)
+assert.doesNotMatch(
+  settingsSource,
+  /step=local_library_refresh_failed message=/,
+  'SettingsPage local refresh failure logs must not emit raw exception messages',
 )
 
 assert.match(
   libraryUpdateServiceSource,
-  /ComicSourceKind\.LOCAL_ARCHIVE \|\| comic\.sourceKind === ComicSourceKind\.LOCAL_FOLDER[\s\S]*本地导入暂不支持远程更新/,
+  /ComicSourceKind\.LOCAL_ARCHIVE \|\| comic\.sourceKind === ComicSourceKind\.LOCAL_FOLDER[\s\S]*AppStrings\.get\('library_update_skip_local_unsupported'\)/,
   'existing remote/source update service must continue to skip local imports',
 )
