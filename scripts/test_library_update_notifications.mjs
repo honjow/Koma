@@ -8,6 +8,10 @@ const resultPageSource = readFileSync(resolve(root, 'entry/src/main/ets/pages/Li
 const serviceSource = readFileSync(resolve(root, 'entry/src/main/ets/model/LibraryUpdateService.ets'), 'utf8')
 const preferencesSource = readFileSync(resolve(root, 'entry/src/main/ets/model/LibraryUpdatePreferencesStore.ets'), 'utf8')
 const resultStoreSource = readFileSync(resolve(root, 'entry/src/main/ets/model/LibraryUpdateResultStore.ets'), 'utf8')
+const constantsSource = readFileSync(resolve(root, 'entry/src/main/ets/common/Constants.ets'), 'utf8')
+const routerHelperSource = readFileSync(resolve(root, 'entry/src/main/ets/common/RouterHelper.ets'), 'utf8')
+const entryAbilitySource = readFileSync(resolve(root, 'entry/src/main/ets/entryability/EntryAbility.ets'), 'utf8')
+const indexSource = readFileSync(resolve(root, 'entry/src/main/ets/pages/Index.ets'), 'utf8')
 const moduleSource = readFileSync(resolve(root, 'entry/src/main/module.json5'), 'utf8')
 
 assert.doesNotMatch(
@@ -226,8 +230,28 @@ assert.match(
 )
 assert.match(
   resultStoreSource,
-  /import \{ notificationManager \} from '@kit\.NotificationKit'[\s\S]*publishLibraryUpdateNotification\(summary: LibraryUpdateSummary\)[\s\S]*newChapterCount <= 0 && notificationSummary\.failedCount <= 0[\s\S]*notificationManager\.isNotificationEnabled\(\)[\s\S]*notificationManager\.ContentType\.NOTIFICATION_CONTENT_BASIC_TEXT[\s\S]*notificationManager\.publish\(request\)/,
-  'Library update notifications must use NotificationKit, skip boring checks, and publish a basic system notification',
+  /import \{ notificationManager \} from '@kit\.NotificationKit'[\s\S]*publishLibraryUpdateNotification\(summary: LibraryUpdateSummary\)[\s\S]*newChapterCount <= 0 && notificationSummary\.failedCount <= 0[\s\S]*notificationManager\.isNotificationEnabled\(\)[\s\S]*wantAgent: await createLibraryUpdateResultWantAgent\(\)[\s\S]*notificationManager\.ContentType\.NOTIFICATION_CONTENT_BASIC_TEXT[\s\S]*notificationManager\.publish\(request\)/,
+  'Library update notifications must use NotificationKit, skip boring checks, attach a detail-route WantAgent, and publish a basic system notification',
+)
+assert.match(
+  constantsSource,
+  /KOMA_LAUNCH_ROUTE_PARAM[\s\S]*KOMA_LAUNCH_ROUTE_LIBRARY_UPDATE_RESULTS/,
+  'Notification route parameters must use shared constants',
+)
+assert.match(
+  resultStoreSource,
+  /createLibraryUpdateResultWantAgent\(\): Promise<WantAgent>[\s\S]*parameters\[KOMA_LAUNCH_ROUTE_PARAM\] = KOMA_LAUNCH_ROUTE_LIBRARY_UPDATE_RESULTS[\s\S]*bundleName: KOMA_BUNDLE_NAME[\s\S]*abilityName: 'EntryAbility'[\s\S]*parameters,[\s\S]*wantAgent\.getWantAgent\(\{[\s\S]*wants: \[launchWant\][\s\S]*actionType: wantAgent\.OperationType\.START_ABILITY[\s\S]*UPDATE_PRESENT_FLAG/,
+  'Notification tap action must launch Koma back into the library update result route',
+)
+assert.match(
+  entryAbilitySource,
+  /openLaunchRouteFromWant\(want\)[\s\S]*KOMA_LAUNCH_ROUTE_PARAM[\s\S]*KOMA_LAUNCH_ROUTE_LIBRARY_UPDATE_RESULTS[\s\S]*RouterHelper\.pushLibraryUpdateResults\(\)/,
+  'EntryAbility must route notification launch wants to update results',
+)
+assert.match(
+  routerHelperSource + indexSource,
+  /pendingLaunchRoute[\s\S]*consumePendingLaunchRoute\(\)[\s\S]*pushLibraryUpdateResults\(\)[\s\S]*RouterHelper\.consumePendingLaunchRoute\(\)/,
+  'Notification launch routing must survive app cold start before the NavPathStack exists',
 )
 assert.match(
   settingsPageSource,

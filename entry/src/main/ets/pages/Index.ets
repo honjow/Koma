@@ -311,6 +311,7 @@ struct Index {
 
   aboutToAppear(): void {
     RouterHelper.setAppPathStack(this.appPathStack)
+    RouterHelper.consumePendingLaunchRoute()
     const context = getContext(this) as common.UIAbilityContext
     configureSourceSettingsStore(context)
     bootstrapSourceRuntimeAppRegistry(context)

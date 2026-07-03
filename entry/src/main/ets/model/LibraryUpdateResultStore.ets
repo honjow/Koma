@@ -1,7 +1,8 @@
-import { common } from '@kit.AbilityKit'
+import { common, wantAgent } from '@kit.AbilityKit'
 import { preferences } from '@kit.ArkData'
 import { BusinessError } from '@kit.BasicServicesKit'
 import { notificationManager } from '@kit.NotificationKit'
+import type { Want, WantAgent } from '@kit.AbilityKit'
 import {
   LibraryUpdateComicResult,
   LibraryUpdateProviderKind,
@@ -12,6 +13,11 @@ import {
   summarizeLibraryUpdateProviders,
 } from './LibraryUpdateService'
 import { isLibraryUpdateNotificationDeliveryEnabled } from './LibraryUpdatePreferencesStore'
+import {
+  KOMA_BUNDLE_NAME,
+  KOMA_LAUNCH_ROUTE_LIBRARY_UPDATE_RESULTS,
+  KOMA_LAUNCH_ROUTE_PARAM,
+} from '../common/Constants'
 import { AppStrings } from '../i18n/AppStrings'
 
 export const LIBRARY_UPDATE_RESULT_STORE_NAME: string = 'koma_library_update_results_v1'
@@ -320,6 +326,8 @@ async function publishLibraryUpdateNotificationText(
       label: 'koma.library_update',
       appMessageId: `koma.library_update.${checkedAt}`,
       notificationSlotType: notificationManager.SlotType.CONTENT_INFORMATION,
+      wantAgent: await createLibraryUpdateResultWantAgent(),
+      tapDismissed: true,
       content: {
         notificationContentType: notificationManager.ContentType.NOTIFICATION_CONTENT_BASIC_TEXT,
         normal: {
@@ -335,6 +343,22 @@ async function publishLibraryUpdateNotificationText(
     console.warn('[LibraryUpdateResultStore] step=publish_library_update_notification_failed code=' + businessError.code)
     return { delivered: false, code: 'publish_failed' }
   }
+}
+
+async function createLibraryUpdateResultWantAgent(): Promise<WantAgent> {
+  const parameters: Record<string, Object> = {}
+  parameters[KOMA_LAUNCH_ROUTE_PARAM] = KOMA_LAUNCH_ROUTE_LIBRARY_UPDATE_RESULTS
+  const launchWant: Want = {
+    bundleName: KOMA_BUNDLE_NAME,
+    abilityName: 'EntryAbility',
+    parameters,
+  }
+  return wantAgent.getWantAgent({
+    wants: [launchWant],
+    actionType: wantAgent.OperationType.START_ABILITY,
+    requestCode: 3801,
+    wantAgentFlags: [wantAgent.WantAgentFlags.UPDATE_PRESENT_FLAG],
+  })
 }
 
 export function serializeLibraryUpdateSummary(summary: LibraryUpdateSummary): string {

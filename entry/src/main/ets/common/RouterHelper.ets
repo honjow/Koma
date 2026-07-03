@@ -7,6 +7,7 @@ export interface MangaDetailRouteParam {
 
 export class RouterHelper {
   private static appPathStack: NavPathStack | undefined = undefined
+  private static pendingLaunchRoute: string | undefined = undefined
 
   static setAppPathStack(stack: NavPathStack): void {
     RouterHelper.appPathStack = stack
@@ -14,6 +15,24 @@ export class RouterHelper {
 
   static getAppPathStack(): NavPathStack | undefined {
     return RouterHelper.appPathStack
+  }
+
+  static openLaunchRoute(routeName: string): void {
+    const stack = RouterHelper.appPathStack
+    if (stack === undefined) {
+      RouterHelper.pendingLaunchRoute = routeName
+      return
+    }
+    stack.pushPath({ name: routeName })
+  }
+
+  static consumePendingLaunchRoute(): void {
+    const routeName = RouterHelper.pendingLaunchRoute
+    if (routeName === undefined) {
+      return
+    }
+    RouterHelper.pendingLaunchRoute = undefined
+    RouterHelper.openLaunchRoute(routeName)
   }
 
   static pushReader(): void {
@@ -30,6 +49,10 @@ export class RouterHelper {
       return
     }
     stack.pushPath({ name: RouteName.IMPORT })
+  }
+
+  static pushLibraryUpdateResults(): void {
+    RouterHelper.openLaunchRoute(RouteName.LIBRARY_UPDATE_RESULTS)
   }
 
   static pushMangaDetail(param: MangaDetailRouteParam): void {

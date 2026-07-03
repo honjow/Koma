@@ -1,5 +1,10 @@
 import { UIAbility, Want, AbilityConstant } from '@kit.AbilityKit'
 import { window } from '@kit.ArkUI'
+import {
+  KOMA_LAUNCH_ROUTE_LIBRARY_UPDATE_RESULTS,
+  KOMA_LAUNCH_ROUTE_PARAM,
+} from '../common/Constants'
+import { RouterHelper } from '../common/RouterHelper'
 import { ReaderPreferencesStore, applyReaderThemeMode } from '../model/ReaderPreferencesStore'
 import { RemoteProgressBootstrapSync } from '../model/RemoteProgressBootstrapSync'
 import { bootstrapSourceRuntimeAppRegistry } from '../sourceRuntime/SourceRuntimeAppRegistry'
@@ -22,11 +27,13 @@ export default class EntryAbility extends UIAbility {
     this.applySavedThemeMode()
     configureSourceSettingsStore(this.context)
     bootstrapSourceRuntimeAppRegistry(this.context)
+    this.openLaunchRouteFromWant(want)
     maybeRunSourceRuntimeDeviceSmoke(want, this.context.resourceManager, this.context)
   }
 
   onNewWant(want: Want, launchParam: AbilityConstant.LaunchParam): void {
     void launchParam
+    this.openLaunchRouteFromWant(want)
     maybeRunSourceRuntimeDeviceSmoke(want, this.context.resourceManager, this.context)
   }
 
@@ -88,5 +95,12 @@ export default class EntryAbility extends UIAbility {
       .catch((error: Error) => {
         console.warn('[Settings] step=apply_startup_theme_failed message=' + error.message)
       })
+  }
+
+  private openLaunchRouteFromWant(want: Want): void {
+    const route = want.parameters?.[KOMA_LAUNCH_ROUTE_PARAM]
+    if (route === KOMA_LAUNCH_ROUTE_LIBRARY_UPDATE_RESULTS) {
+      RouterHelper.pushLibraryUpdateResults()
+    }
   }
 }

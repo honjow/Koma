@@ -24,6 +24,10 @@ export class RouteName {
   static readonly TRACKER_SETTINGS: string = 'TrackerSettingsPage'
 }
 
+export const KOMA_BUNDLE_NAME: string = 'com.honjow.koma'
+export const KOMA_LAUNCH_ROUTE_PARAM: string = 'koma.launchRoute'
+export const KOMA_LAUNCH_ROUTE_LIBRARY_UPDATE_RESULTS: string = 'library_update_results'
+
 export function tabLabel(index: number): string {
   if (index === TabIndex.LIBRARY) {
     return AppStrings.get('tab_library')
