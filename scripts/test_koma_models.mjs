@@ -720,6 +720,11 @@ assert.match(
 )
 assert.match(
   libraryFilterStoreSource,
+  /LIBRARY_SHOW_BADGES_KEY[\s\S]*showBadges: true[\s\S]*function normalizeShowBadges\(value: boolean\): boolean[\s\S]*showBadges = await store\.get\(LIBRARY_SHOW_BADGES_KEY[\s\S]*showBadges: normalizeShowBadges\(showBadges\)[\s\S]*store\.put\(LIBRARY_SHOW_BADGES_KEY, normalizeShowBadges\(preferencesValue\.showBadges\)\)/,
+  'Library filter preferences must persist a real library badge visibility switch',
+)
+assert.match(
+  libraryFilterStoreSource,
   /export type LibrarySourceFilter = 'all' \| 'local' \| 'private' \| 'komga' \| 'opds' \| 'webdav' \| 'source_package'[\s\S]*if \(value === 'wasm'\) \{[\s\S]*return 'source_package'[\s\S]*value === 'private'[\s\S]*value === 'source_package'/,
   'Library source filter preferences must expose private libraries/source packages and migrate the legacy wasm value',
 )
@@ -732,6 +737,11 @@ assert.match(
   libraryPageSource,
   /@Local private viewMode: LibraryViewMode = 'grid'[\s\S]*this\.viewMode = preferencesValue\.viewMode[\s\S]*viewMode: this\.viewMode[\s\S]*private LibraryList\(comics: ComicCoverInfo\[\]\)[\s\S]*ConciseListRow\([\s\S]*this\.viewMode === 'list'[\s\S]*this\.LibraryList\(this\.gridComics\(\)\)/,
   'LibraryPage must render persisted grid/list view mode with a reusable list row component',
+)
+assert.match(
+  libraryPageSource,
+  /@Local private showLibraryBadges: boolean = true[\s\S]*this\.showLibraryBadges = preferencesValue\.showBadges[\s\S]*showBadges: this\.showLibraryBadges[\s\S]*categoryLabels: this\.showLibraryBadges \?[\s\S]*this\.categoryLabelsForComic\(sourceComic\)[\s\S]*\[\]/,
+  'LibraryPage must apply persisted library badge visibility before rendering cards and list rows',
 )
 assert.match(
   libraryPageSource,

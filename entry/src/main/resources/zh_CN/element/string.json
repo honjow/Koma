@@ -124,6 +124,7 @@
     { "name": "settings_download_notification_failed", "value": "下载通知权限处理失败" },
     { "name": "settings_library_default_sort_save_failed", "value": "保存默认排序失败" },
     { "name": "settings_library_view_mode_save_failed", "value": "保存书架视图模式失败" },
+    { "name": "settings_library_badges_save_failed", "value": "保存书架徽标设置失败" },
     { "name": "settings_library_update_unavailable", "value": "书架不可用" },
     { "name": "settings_library_update_found_count", "value": "发现 %s 本有更新" },
     { "name": "settings_library_update_up_to_date", "value": "没有发现更新" },

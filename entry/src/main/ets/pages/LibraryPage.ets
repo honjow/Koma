@@ -135,6 +135,7 @@ export struct LibraryPage {
   @Local private suppressOpenComicId: ComicId = ''
   @Local private sortBy: LibrarySortBy = 'lastRead'
   @Local private viewMode: LibraryViewMode = 'grid'
+  @Local private showLibraryBadges: boolean = true
   @Local private filterSource: LibrarySourceFilter = 'all'
   @Local private filterReadState: LibraryReadStateFilter = 'all'
   @Local private filterCategory: LibraryCategoryFilter = 'all'
@@ -334,6 +335,7 @@ export struct LibraryPage {
       const preferencesValue = await new LibraryFilterStore(context).load()
       this.sortBy = preferencesValue.sortBy
       this.viewMode = preferencesValue.viewMode
+      this.showLibraryBadges = preferencesValue.showBadges
       this.filterSource = preferencesValue.source
       this.filterReadState = preferencesValue.readState
       this.filterCategory = preferencesValue.category
@@ -341,7 +343,7 @@ export struct LibraryPage {
       this.applyCategoryDisplayStrategy(this.validCategoryFilter())
       this.refreshDisplayedSnapshotFromStore()
       console.info(
-        `[Library] step=filter_restored sortBy=${this.sortBy} viewMode=${this.viewMode} source=${this.filterSource} readState=${this.filterReadState} category=${this.filterCategory} availability=${this.filterAvailability}`
+        `[Library] step=filter_restored sortBy=${this.sortBy} viewMode=${this.viewMode} showBadges=${this.showLibraryBadges} source=${this.filterSource} readState=${this.filterReadState} category=${this.filterCategory} availability=${this.filterAvailability}`
       )
     } catch (error) {
       const e = error as Error
@@ -355,6 +357,7 @@ export struct LibraryPage {
       const preferencesValue: LibraryFilterPreferences = {
         sortBy: this.sortBy,
         viewMode: this.viewMode,
+        showBadges: this.showLibraryBadges,
         source: this.filterSource,
         readState: this.filterReadState,
         category: this.filterCategory,
@@ -548,7 +551,9 @@ export struct LibraryPage {
         accentColor: comic.accentColor,
         pageCount: comic.pageCount,
         coverUri: comic.coverUri,
-        categoryLabels: sourceComic === undefined ? comic.categoryLabels : this.categoryLabelsForComic(sourceComic),
+        categoryLabels: this.showLibraryBadges ?
+          (sourceComic === undefined ? comic.categoryLabels : this.categoryLabelsForComic(sourceComic)) :
+          [],
       }
     })
   }

@@ -201,7 +201,7 @@ function createSettingsSections(): SettingsSection[] {
         { key: 'library-categories', titleKey: 'settings_row_library_categories_title', detailKey: 'settings_row_library_categories_detail' },
         { key: 'library-view-mode', titleKey: 'settings_row_library_view_mode_title', detailKey: 'settings_row_library_view_mode_detail' },
         { key: 'library-default-sort', titleKey: 'settings_row_library_default_sort_title', detailKey: 'settings_row_library_default_sort_detail' },
-        { key: 'library-badges', titleKey: 'settings_row_library_badges_title', detailKey: 'settings_row_library_badges_detail', placeholder: true },
+        { key: 'library-badges', titleKey: 'settings_row_library_badges_title', detailKey: 'settings_row_library_badges_detail' },
         { key: 'local-library-refresh', titleKey: 'settings_row_local_library_refresh_title', detailKey: 'settings_row_local_library_refresh_detail' },
         { key: 'sources', titleKey: 'settings_row_sources_title', detailKey: 'settings_row_sources_detail' },
         { key: 'downloads', titleKey: 'settings_row_downloads_title', detailKey: 'settings_row_downloads_detail' },
@@ -395,6 +395,7 @@ export struct SettingsPage {
   @Local private downloadNotificationStatus: OfflineDownloadNotificationStatus = 'unavailable'
   @Local private libraryDefaultSortBy: LibrarySortBy = 'lastRead'
   @Local private libraryViewMode: LibraryViewMode = 'grid'
+  @Local private showLibraryBadges: boolean = true
 
   private context(): common.UIAbilityContext {
     return getContext(this) as common.UIAbilityContext
@@ -905,7 +906,8 @@ export struct SettingsPage {
       .then((preferences: LibraryFilterPreferences) => {
         this.libraryDefaultSortBy = preferences.sortBy
         this.libraryViewMode = preferences.viewMode
-        console.info('[Settings] step=load_library_filter_preferences sortBy=' + preferences.sortBy + ' viewMode=' + preferences.viewMode)
+        this.showLibraryBadges = preferences.showBadges
+        console.info('[Settings] step=load_library_filter_preferences sortBy=' + preferences.sortBy + ' viewMode=' + preferences.viewMode + ' showBadges=' + preferences.showBadges)
       })
       .catch((error: Error) => {
         console.warn('[Settings] step=load_library_filter_preferences_failed message=' + error.message)
@@ -1375,6 +1377,22 @@ export struct SettingsPage {
       })
   }
 
+  private saveLibraryBadgesEnabled(enabled: boolean): void {
+    this.showLibraryBadges = enabled
+    void this.libraryFilterStore().load()
+      .then((preferences: LibraryFilterPreferences) => {
+        preferences.showBadges = enabled
+        return this.libraryFilterStore().save(preferences)
+      })
+      .then(() => {
+        console.info('[Settings] step=save_library_badges enabled=' + enabled)
+      })
+      .catch((error: Error) => {
+        console.warn('[Settings] step=save_library_badges_failed message=' + error.message)
+        this.showToast(s('settings_library_badges_save_failed'))
+      })
+  }
+
   private handleLibraryUpdateNotificationDispatch(result: LibraryUpdateNotificationDispatchResult, reason: string): void {
     if (result.delivered) {
       this.libraryUpdateNotificationStatus = 'enabled'
@@ -1602,6 +1620,7 @@ export struct SettingsPage {
 
   private isSwitchRow(row: SettingsRow): boolean {
     return row.key === 'library-auto-update' ||
+      row.key === 'library-badges' ||
       row.key === 'download-wifi-only' ||
       row.key === 'reader-progress' ||
       row.key === 'reader-keep-screen-awake' ||
@@ -1613,6 +1632,9 @@ export struct SettingsPage {
   private switchRowValue(row: SettingsRow): boolean {
     if (row.key === 'library-auto-update') {
       return this.libraryUpdatePreferences.autoCheckEnabled
+    }
+    if (row.key === 'library-badges') {
+      return this.showLibraryBadges
     }
     if (row.key === 'reader-progress') {
       return this.showReaderProgressControls
@@ -1638,6 +1660,8 @@ export struct SettingsPage {
   private setSwitchRowValue(row: SettingsRow, value: boolean): void {
     if (row.key === 'library-auto-update') {
       this.setLibraryAutoUpdateEnabled(value)
+    } else if (row.key === 'library-badges') {
+      this.saveLibraryBadgesEnabled(value)
     } else if (row.key === 'reader-progress') {
       this.saveReaderProgressControls(value)
     } else if (row.key === 'reader-keep-screen-awake') {
