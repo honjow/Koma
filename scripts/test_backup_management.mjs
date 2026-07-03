@@ -102,6 +102,31 @@ assert.match(
 )
 assert.match(
   backupServiceSource,
+  /export interface BackupAutomaticPreferences[\s\S]*enabled:\s*boolean[\s\S]*intervalHours:\s*number[\s\S]*retentionCount:\s*number[\s\S]*lastRunAt:\s*number[\s\S]*lastFailureCode:\s*string[\s\S]*DEFAULT_BACKUP_AUTOMATIC_PREFERENCES[\s\S]*enabled:\s*false[\s\S]*intervalHours:\s*24[\s\S]*retentionCount:\s*5/,
+  'backup service must define durable automatic backup preferences with conservative defaults',
+)
+assert.match(
+  backupServiceSource,
+  /loadAutomaticPreferences\(\): Promise<BackupAutomaticPreferences>[\s\S]*BACKUP_AUTOMATIC_ENABLED_KEY[\s\S]*saveAutomaticPreferences\(preferencesValue: BackupAutomaticPreferences\): Promise<void>[\s\S]*store\.put\(BACKUP_AUTOMATIC_RETENTION_COUNT_KEY, normalized\.retentionCount\)/,
+  'backup service must persist automatic backup enabled, interval, retention, and run metadata',
+)
+assert.match(
+  backupServiceSource,
+  /runAutomaticLocalBackupIfDue\(now: number = Date\.now\(\)\): Promise<BackupAutomaticRunResult>[\s\S]*skippedReason: 'disabled'[\s\S]*skippedReason: 'not_due'[\s\S]*runAutomaticLocalBackupWithPreferences\(now, preferencesValue\)[\s\S]*runAutomaticLocalBackupNow\(now: number = Date\.now\(\)\): Promise<BackupAutomaticRunResult>/,
+  'backup service must support app-open due checks plus an explicit run-now path',
+)
+assert.match(
+  backupServiceSource,
+  /runAutomaticLocalBackupWithPreferences[\s\S]*const created = await this\.exportLocal\(\)[\s\S]*const deletedCount = await this\.pruneLocalBackups\(preferencesValue\.retentionCount\)[\s\S]*lastRunAt: normalizeBackupAutomaticLastRunAt\(now\)[\s\S]*lastFailureCode: ''[\s\S]*lastFailureCode: 'backup_auto_export_failed'/,
+  'automatic backup must create a local backup, retain only the configured count, and store safe failure codes',
+)
+assert.match(
+  backupServiceSource,
+  /pruneLocalBackups\(retentionCount: number\): Promise<number>[\s\S]*normalizeBackupAutomaticRetentionCount\(retentionCount\)[\s\S]*records\.slice\(keepCount\)[\s\S]*deleteLocalBackup\(staleRecords\[index\]\.fileName\)/,
+  'automatic backup retention must delete only bounded local backup file records',
+)
+assert.match(
+  backupServiceSource,
   /function isLocalBackupFileName\(fileName: string\): boolean[\s\S]*!fileName\.includes\('\/'\)[\s\S]*!fileName\.includes\('\\\\'\)[\s\S]*fileName\.endsWith\('\.json'\) \|\| fileName\.endsWith\('\.koma-backup'\)[\s\S]*private requireLocalBackupFileName\(fileName: string\): string[\s\S]*throw new Error\('backup_local_file_invalid'\)/,
   'local backup file operations must be bounded to safe backup file names',
 )
@@ -122,8 +147,33 @@ assert.match(
 )
 assert.match(
   backupPageSource,
+  /autoPreferences: BackupAutomaticPreferences = DEFAULT_BACKUP_AUTOMATIC_PREFERENCES[\s\S]*loadAutomaticPreferences\(\)[\s\S]*saveAutomaticPreferences\(preferencesValue: BackupAutomaticPreferences\)[\s\S]*setAutomaticBackupEnabled\(enabled: boolean\)/,
+  'BackupManagementPage must load and save real automatic backup preferences',
+)
+assert.match(
+  backupPageSource,
+  /private AutomaticBackupCard\(\)[\s\S]*Toggle\(\{ type: ToggleType\.Switch, isOn: this\.autoPreferences\.enabled \}\)[\s\S]*backup_auto_interval_label[\s\S]*AutomaticIntervalMenu\(\)[\s\S]*backup_auto_retention_label[\s\S]*AutomaticRetentionMenu\(\)[\s\S]*runAutomaticBackupNow\(\)/,
+  'BackupManagementPage must expose automatic backup as a switch plus interval, retention, and run-now controls',
+)
+assert.match(
+  backupPageSource,
+  /aboutToAppear\(\): void \{[\s\S]*this\.loadLocalBackups\(\)[\s\S]*this\.loadAutomaticPreferences\(\)/,
+  'BackupManagementPage must load automatic backup settings alongside local backups',
+)
+assert.match(
+  backupPageSource,
   /selectLocalBackup\(record: BackupLocalFileRecord\)[\s\S]*selectLocalBackup\(record\.fileName\)[\s\S]*selectedEncryptedBackupPayload[\s\S]*selectedBackupPreview[\s\S]*startRenameLocalBackup[\s\S]*renameLocalBackup\(fileName, displayName\)[\s\S]*confirmDeleteLocalBackup[\s\S]*deleteLocalBackup\(fileName\)/,
   'BackupManagementPage must allow local backup preview, rename, and delete without picker round-trips',
+)
+assert.match(
+  settingsPageSource,
+  /\{ key: 'backup-auto-export', titleKey: 'settings_row_backup_auto_export_title', detailKey: 'settings_row_backup_auto_export_detail' \}[\s\S]*row\.key === 'backup' \|\| row\.key === 'backup-auto-export'[\s\S]*this\.onOpenBackupManagement\(\)/,
+  'Settings automatic backup row must open the real backup management page instead of remaining a placeholder',
+)
+assert.match(
+  indexSource,
+  /import \{ BackupService, BackupAutomaticRunResult \} from '\.\.\/model\/BackupService'[\s\S]*automaticBackupChecked: boolean = false[\s\S]*triggerAutomaticBackup\(context: common\.UIAbilityContext\)[\s\S]*new BackupService\(context\)\.runAutomaticLocalBackupIfDue\(\)[\s\S]*this\.triggerAutomaticBackup\(context\)/,
+  'Index must trigger app-open automatic backup due checks after bootstrap',
 )
 assert.match(
   backupPageSource,

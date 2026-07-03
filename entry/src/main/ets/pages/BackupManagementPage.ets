@@ -5,11 +5,20 @@ import { KomaFormTextField } from '../components/ui/KomaFormTextField'
 import { AppStrings } from '../i18n/AppStrings'
 import {
   BACKUP_ACCEPTED_SCHEMA_VERSIONS,
+  BACKUP_AUTOMATIC_INTERVAL_HOUR_OPTIONS,
+  BACKUP_AUTOMATIC_RETENTION_COUNT_OPTIONS,
   BACKUP_SCHEMA_VERSION,
+  BackupAutomaticPreferences,
+  BackupAutomaticRunResult,
   BackupImportPreview,
   BackupImportSelectionPreview,
   BackupLocalFileRecord,
   BackupService,
+  DEFAULT_BACKUP_AUTOMATIC_PREFERENCES,
+  backupAutomaticIntervalLabel,
+  backupAutomaticLastFailureText,
+  backupAutomaticLastRunText,
+  backupAutomaticRetentionLabel,
   backupEncryptedExportSuccess,
   backupEncryptionPlanLabel,
   backupEncryptionStatusLabel,
@@ -39,6 +48,9 @@ export struct BackupManagementPage {
   @Local private selectedEncryptedBackupPayload: string = ''
   @Local private selectedBackupPreview: BackupImportPreview | undefined = undefined
   @Local private localBackups: BackupLocalFileRecord[] = []
+  @Local private autoPreferences: BackupAutomaticPreferences = DEFAULT_BACKUP_AUTOMATIC_PREFERENCES
+  @Local private autoIntervalMenuOpen: boolean = false
+  @Local private autoRetentionMenuOpen: boolean = false
   @Local private editingLocalBackupFileName: string = ''
   @Local private editingLocalBackupName: string = ''
   @Local private exportPassphrase: string = ''
@@ -65,6 +77,17 @@ export struct BackupManagementPage {
       })
   }
 
+  private loadAutomaticPreferences(): void {
+    void this.backupService().loadAutomaticPreferences()
+      .then((preferencesValue: BackupAutomaticPreferences) => {
+        this.autoPreferences = preferencesValue
+      })
+      .catch((_error: Error) => {
+        console.error('[BackupManagement] step=auto_preferences_load_failed code=backup_auto_preferences_failed')
+        this.autoPreferences = DEFAULT_BACKUP_AUTOMATIC_PREFERENCES
+      })
+  }
+
   private acceptedSchemaText(): string {
     return BACKUP_ACCEPTED_SCHEMA_VERSIONS.map((version: number) => `v${version}`).join(' / ')
   }
@@ -88,6 +111,77 @@ export struct BackupManagementPage {
 
   private backupFailureMessage(code: string): string {
     return tf('backup_failure_message', code)
+  }
+
+  private saveAutomaticPreferences(preferencesValue: BackupAutomaticPreferences): void {
+    void this.backupService().saveAutomaticPreferences(preferencesValue)
+      .then(() => {
+        this.autoPreferences = preferencesValue
+        this.showToast(t('backup_auto_saved_toast'))
+      })
+      .catch((_error: Error) => {
+        console.error('[BackupManagement] step=auto_preferences_save_failed code=backup_auto_preferences_failed')
+        this.showInfoDialog(t('backup_dialog_export_failed_title'), this.backupFailureMessage('backup_auto_preferences_failed'))
+      })
+  }
+
+  private setAutomaticBackupEnabled(enabled: boolean): void {
+    this.saveAutomaticPreferences({
+      intervalHours: this.autoPreferences.intervalHours,
+      retentionCount: this.autoPreferences.retentionCount,
+      lastRunAt: this.autoPreferences.lastRunAt,
+      lastFailureCode: this.autoPreferences.lastFailureCode,
+      enabled,
+    })
+  }
+
+  private setAutomaticBackupInterval(intervalHours: number): void {
+    this.autoIntervalMenuOpen = false
+    this.saveAutomaticPreferences({
+      enabled: this.autoPreferences.enabled,
+      retentionCount: this.autoPreferences.retentionCount,
+      lastRunAt: this.autoPreferences.lastRunAt,
+      lastFailureCode: this.autoPreferences.lastFailureCode,
+      intervalHours,
+    })
+  }
+
+  private setAutomaticBackupRetention(retentionCount: number): void {
+    this.autoRetentionMenuOpen = false
+    this.saveAutomaticPreferences({
+      enabled: this.autoPreferences.enabled,
+      intervalHours: this.autoPreferences.intervalHours,
+      lastRunAt: this.autoPreferences.lastRunAt,
+      lastFailureCode: this.autoPreferences.lastFailureCode,
+      retentionCount,
+    })
+  }
+
+  private runAutomaticBackupNow(): void {
+    if (this.busy) {
+      return
+    }
+    this.busy = true
+    console.info('[BackupManagement] step=auto_run_now_start')
+    void this.backupService().runAutomaticLocalBackupNow()
+      .then((result: BackupAutomaticRunResult) => {
+        this.autoPreferences = result.preferences
+        this.loadLocalBackups()
+        if (result.ran) {
+          this.showToast(t('backup_local_saved_toast'))
+        } else if (result.failureCode !== undefined) {
+          this.showInfoDialog(t('backup_dialog_export_failed_title'), this.backupFailureMessage(result.failureCode))
+        } else {
+          this.showToast(t('backup_auto_skipped_toast'))
+        }
+      })
+      .catch((_error: Error) => {
+        console.error('[BackupManagement] step=auto_run_now_failed code=backup_auto_export_failed')
+        this.showInfoDialog(t('backup_dialog_export_failed_title'), this.backupFailureMessage('backup_auto_export_failed'))
+      })
+      .finally(() => {
+        this.busy = false
+      })
   }
 
   private exportBackup(): void {
@@ -576,6 +670,127 @@ export struct BackupManagementPage {
   }
 
   @Builder
+  private AutomaticIntervalMenu() {
+    Menu() {
+      ForEach(BACKUP_AUTOMATIC_INTERVAL_HOUR_OPTIONS, (intervalHours: number) => {
+        MenuItem({ content: backupAutomaticIntervalLabel(intervalHours) })
+          .onClick(() => {
+            this.setAutomaticBackupInterval(intervalHours)
+          })
+      }, (intervalHours: number) => `${intervalHours}`)
+    }
+  }
+
+  @Builder
+  private AutomaticRetentionMenu() {
+    Menu() {
+      ForEach(BACKUP_AUTOMATIC_RETENTION_COUNT_OPTIONS, (retentionCount: number) => {
+        MenuItem({ content: backupAutomaticRetentionLabel(retentionCount) })
+          .onClick(() => {
+            this.setAutomaticBackupRetention(retentionCount)
+          })
+      }, (retentionCount: number) => `${retentionCount}`)
+    }
+  }
+
+  @Builder
+  private AutomaticBackupCard() {
+    Column({ space: ThemeConstants.SPACE_MD }) {
+      Text(t('backup_auto_heading'))
+        .width('100%')
+        .fontSize(ThemeConstants.FONT_SIZE_BODY)
+        .fontWeight(FontWeight.Medium)
+        .fontColor(ThemeConstants.TEXT_PRIMARY)
+      Text(t('backup_auto_description'))
+        .width('100%')
+        .fontSize(ThemeConstants.FONT_SIZE_META)
+        .fontColor(ThemeConstants.TEXT_SECONDARY)
+        .lineHeight(ThemeConstants.LINE_HEIGHT_BODY)
+
+      Row({ space: ThemeConstants.SPACE_MD }) {
+        Column({ space: ThemeConstants.SPACE_XS }) {
+          Text(t('backup_auto_enabled_title'))
+            .fontSize(ThemeConstants.FONT_SIZE_BODY)
+            .fontColor(ThemeConstants.TEXT_PRIMARY)
+          Text(t('backup_auto_enabled_detail'))
+            .fontSize(ThemeConstants.FONT_SIZE_META)
+            .fontColor(ThemeConstants.TEXT_SECONDARY)
+            .maxLines(2)
+            .textOverflow({ overflow: TextOverflow.Ellipsis })
+        }
+        .layoutWeight(1)
+        .alignItems(HorizontalAlign.Start)
+        Toggle({ type: ToggleType.Switch, isOn: this.autoPreferences.enabled })
+          .selectedColor(ThemeConstants.BRAND_PRIMARY)
+          .onChange((isOn: boolean) => {
+            this.setAutomaticBackupEnabled(isOn)
+          })
+      }
+      .width('100%')
+
+      Row({ space: ThemeConstants.SPACE_MD }) {
+        Text(t('backup_auto_interval_label'))
+          .fontSize(ThemeConstants.FONT_SIZE_BODY)
+          .fontColor(ThemeConstants.TEXT_PRIMARY)
+          .layoutWeight(1)
+        KomaActionButton({
+          label: backupAutomaticIntervalLabel(this.autoPreferences.intervalHours),
+          kind: 'secondary',
+          isEnabled: !this.busy,
+          action: () => {
+            this.autoIntervalMenuOpen = true
+          },
+        })
+          .bindMenu(this.autoIntervalMenuOpen, this.AutomaticIntervalMenu(), {
+            placement: Placement.BottomRight,
+            onDisappear: () => {
+              this.autoIntervalMenuOpen = false
+            },
+          })
+      }
+      .width('100%')
+
+      Row({ space: ThemeConstants.SPACE_MD }) {
+        Text(t('backup_auto_retention_label'))
+          .fontSize(ThemeConstants.FONT_SIZE_BODY)
+          .fontColor(ThemeConstants.TEXT_PRIMARY)
+          .layoutWeight(1)
+        KomaActionButton({
+          label: backupAutomaticRetentionLabel(this.autoPreferences.retentionCount),
+          kind: 'secondary',
+          isEnabled: !this.busy,
+          action: () => {
+            this.autoRetentionMenuOpen = true
+          },
+        })
+          .bindMenu(this.autoRetentionMenuOpen, this.AutomaticRetentionMenu(), {
+            placement: Placement.BottomRight,
+            onDisappear: () => {
+              this.autoRetentionMenuOpen = false
+            },
+          })
+      }
+      .width('100%')
+
+      this.PreviewRow(t('backup_auto_last_run_label'), backupAutomaticLastRunText(this.autoPreferences))
+      this.PreviewRow(t('backup_auto_last_failure_label'), backupAutomaticLastFailureText(this.autoPreferences))
+
+      KomaActionButton({
+        label: this.busy ? t('backup_processing') : t('backup_auto_run_now_action'),
+        kind: 'primary',
+        isEnabled: !this.busy,
+        action: () => {
+          this.runAutomaticBackupNow()
+        },
+      })
+    }
+    .width('100%')
+    .padding({ left: ThemeConstants.SPACE_LG, right: ThemeConstants.SPACE_LG, top: ThemeConstants.SPACE_LG, bottom: ThemeConstants.SPACE_LG })
+    .borderRadius(ThemeConstants.RADIUS_CARD)
+    .backgroundColor(ThemeConstants.CARD)
+  }
+
+  @Builder
   private LocalBackupRow(record: BackupLocalFileRecord) {
     Column({ space: ThemeConstants.SPACE_SM }) {
       if (this.editingLocalBackupFileName === record.fileName) {
@@ -821,6 +1036,9 @@ export struct BackupManagementPage {
             this.EncryptionCard()
           }
           ListItem() {
+            this.AutomaticBackupCard()
+          }
+          ListItem() {
             this.LocalBackupsCard()
           }
           ListItem() {
@@ -850,5 +1068,6 @@ export struct BackupManagementPage {
 
   aboutToAppear(): void {
     this.loadLocalBackups()
+    this.loadAutomaticPreferences()
   }
 }

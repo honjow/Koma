@@ -193,7 +193,7 @@ function createSettingsSections(): SettingsSection[] {
         { key: 'tracker-auto-sync', titleKey: 'settings_row_tracker_auto_sync_title', detailKey: 'settings_row_tracker_auto_sync_detail', placeholder: true },
         { key: 'tracker-update-strategy', titleKey: 'settings_row_tracker_update_strategy_title', detailKey: 'settings_row_tracker_update_strategy_detail', placeholder: true },
         { key: 'backup', titleKey: 'settings_row_backup_title', detailKey: 'settings_row_backup_detail' },
-        { key: 'backup-auto-export', titleKey: 'settings_row_backup_auto_export_title', detailKey: 'settings_row_backup_auto_export_detail', placeholder: true },
+        { key: 'backup-auto-export', titleKey: 'settings_row_backup_auto_export_title', detailKey: 'settings_row_backup_auto_export_detail' },
         { key: 'backup-include-settings', titleKey: 'settings_row_backup_include_settings_title', detailKey: 'settings_row_backup_include_settings_detail', placeholder: true },
         { key: 'image-cache', titleKey: 'settings_row_image_cache_title', detailKey: 'settings_row_image_cache_detail' },
         { key: 'cache-limit', titleKey: 'settings_row_cache_limit_title', detailKey: 'settings_row_cache_limit_detail', placeholder: true },
@@ -1567,7 +1567,7 @@ export struct SettingsPage {
       if (!this.canOpenSelectionMenu(row)) {
         this.showToast(s('settings_library_update_enable_first'))
       }
-    } else if (row.key === 'backup') {
+    } else if (row.key === 'backup' || row.key === 'backup-auto-export') {
       this.onOpenBackupManagement()
     } else if (row.key === 'trackers') {
       this.onOpenTrackerSettings()

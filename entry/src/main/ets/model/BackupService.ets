@@ -71,8 +71,16 @@ export const BACKUP_INCLUDED_DOMAINS: string[] = [
 ]
 export const BACKUP_ENCRYPTION_STATE: string = 'unencrypted'
 export const BACKUP_LOCAL_DIR_NAME: string = 'backups'
+export const BACKUP_AUTOMATIC_INTERVAL_HOUR_OPTIONS: number[] = [24, 72, 168]
+export const BACKUP_AUTOMATIC_RETENTION_COUNT_OPTIONS: number[] = [3, 5, 10]
 const REMOTE_SERVER_STORE_NAME: string = 'koma_remote_servers_v1'
 const SOURCE_INDEX_PREFS_STORE_NAME: string = 'koma_source_package_manager_v1'
+const BACKUP_AUTOMATIC_PREFS_STORE_NAME: string = 'koma_backup_automatic_v1'
+const BACKUP_AUTOMATIC_ENABLED_KEY: string = 'backup.automatic.enabled'
+const BACKUP_AUTOMATIC_INTERVAL_HOURS_KEY: string = 'backup.automatic.intervalHours'
+const BACKUP_AUTOMATIC_RETENTION_COUNT_KEY: string = 'backup.automatic.retentionCount'
+const BACKUP_AUTOMATIC_LAST_RUN_AT_KEY: string = 'backup.automatic.lastRunAt'
+const BACKUP_AUTOMATIC_LAST_FAILURE_CODE_KEY: string = 'backup.automatic.lastFailureCode'
 const SOURCE_INDEX_URL_KEY: string = 'source_index.url'
 const KOMGA_SERVER_KEY: string = 'komga.server'
 const KOMGA_CREDENTIAL_KEY: string = 'komga.credential'
@@ -140,6 +148,31 @@ export interface BackupLocalFileRecord {
   displayName: string
   sizeBytes: number
   preview: BackupImportPreview
+}
+
+export interface BackupAutomaticPreferences {
+  enabled: boolean
+  intervalHours: number
+  retentionCount: number
+  lastRunAt: number
+  lastFailureCode: string
+}
+
+export interface BackupAutomaticRunResult {
+  ran: boolean
+  deletedCount: number
+  preferences: BackupAutomaticPreferences
+  created?: BackupLocalFileRecord
+  skippedReason?: string
+  failureCode?: string
+}
+
+export const DEFAULT_BACKUP_AUTOMATIC_PREFERENCES: BackupAutomaticPreferences = {
+  enabled: false,
+  intervalHours: 24,
+  retentionCount: 5,
+  lastRunAt: 0,
+  lastFailureCode: '',
 }
 
 export function backupIncludedDomainLabels(): string[] {
@@ -238,6 +271,37 @@ export function backupLocalFileDetailText(record: BackupLocalFileRecord): string
   )
 }
 
+export function backupAutomaticIntervalLabel(intervalHours: number): string {
+  if (intervalHours === 24) {
+    return AppStrings.get('backup_auto_interval_24h')
+  }
+  if (intervalHours === 72) {
+    return AppStrings.get('backup_auto_interval_72h')
+  }
+  if (intervalHours === 168) {
+    return AppStrings.get('backup_auto_interval_168h')
+  }
+  return AppStrings.format('backup_auto_interval_hours', intervalHours)
+}
+
+export function backupAutomaticRetentionLabel(retentionCount: number): string {
+  return AppStrings.format('backup_auto_retention_count', retentionCount)
+}
+
+export function backupAutomaticLastRunText(preferencesValue: BackupAutomaticPreferences): string {
+  if (preferencesValue.lastRunAt <= 0) {
+    return AppStrings.get('backup_auto_last_run_never')
+  }
+  return formatBackupExportedAt(preferencesValue.lastRunAt)
+}
+
+export function backupAutomaticLastFailureText(preferencesValue: BackupAutomaticPreferences): string {
+  if (preferencesValue.lastFailureCode.length === 0) {
+    return AppStrings.get('backup_auto_no_failure')
+  }
+  return AppStrings.format('backup_failure_message', preferencesValue.lastFailureCode)
+}
+
 function normalizeLocalBackupName(value: string, fallback: string): string {
   const normalized = value.trim().replace(/\s+/g, '-').replace(/[^a-zA-Z0-9._-]/g, '-').replace(/-+/g, '-')
   if (normalized.length === 0 || normalized === '.' || normalized === '..') {
@@ -265,6 +329,34 @@ function isLocalBackupFileName(fileName: string): boolean {
     fileName !== '.' &&
     fileName !== '..' &&
     (fileName.endsWith('.json') || fileName.endsWith('.koma-backup'))
+}
+
+function normalizeBackupAutomaticIntervalHours(value: number): number {
+  const normalized = Number.isFinite(value) ? Math.floor(value) : DEFAULT_BACKUP_AUTOMATIC_PREFERENCES.intervalHours
+  return BACKUP_AUTOMATIC_INTERVAL_HOUR_OPTIONS.indexOf(normalized) >= 0 ?
+    normalized :
+    DEFAULT_BACKUP_AUTOMATIC_PREFERENCES.intervalHours
+}
+
+function normalizeBackupAutomaticRetentionCount(value: number): number {
+  const normalized = Number.isFinite(value) ? Math.floor(value) : DEFAULT_BACKUP_AUTOMATIC_PREFERENCES.retentionCount
+  return BACKUP_AUTOMATIC_RETENTION_COUNT_OPTIONS.indexOf(normalized) >= 0 ?
+    normalized :
+    DEFAULT_BACKUP_AUTOMATIC_PREFERENCES.retentionCount
+}
+
+function normalizeBackupAutomaticLastRunAt(value: number): number {
+  return Number.isFinite(value) && value > 0 ? Math.floor(value) : 0
+}
+
+function normalizeBackupAutomaticPreferences(value: BackupAutomaticPreferences): BackupAutomaticPreferences {
+  return {
+    enabled: value.enabled === true,
+    intervalHours: normalizeBackupAutomaticIntervalHours(value.intervalHours),
+    retentionCount: normalizeBackupAutomaticRetentionCount(value.retentionCount),
+    lastRunAt: normalizeBackupAutomaticLastRunAt(value.lastRunAt),
+    lastFailureCode: value.lastFailureCode.trim(),
+  }
 }
 
 function emptyLibraryStorePayload(): string {
@@ -501,6 +593,69 @@ export class BackupService {
     const record = this.writeLocalBackup(fileName, payload)
     console.info('[Backup] step=local_export_encrypted')
     return record
+  }
+
+  async loadAutomaticPreferences(): Promise<BackupAutomaticPreferences> {
+    const store = await this.automaticPreferences()
+    const enabled = await store.get(BACKUP_AUTOMATIC_ENABLED_KEY, DEFAULT_BACKUP_AUTOMATIC_PREFERENCES.enabled) as boolean
+    const intervalHours = await store.get(BACKUP_AUTOMATIC_INTERVAL_HOURS_KEY, DEFAULT_BACKUP_AUTOMATIC_PREFERENCES.intervalHours) as number
+    const retentionCount = await store.get(BACKUP_AUTOMATIC_RETENTION_COUNT_KEY, DEFAULT_BACKUP_AUTOMATIC_PREFERENCES.retentionCount) as number
+    const lastRunAt = await store.get(BACKUP_AUTOMATIC_LAST_RUN_AT_KEY, DEFAULT_BACKUP_AUTOMATIC_PREFERENCES.lastRunAt) as number
+    const lastFailureCode = await store.get(BACKUP_AUTOMATIC_LAST_FAILURE_CODE_KEY, DEFAULT_BACKUP_AUTOMATIC_PREFERENCES.lastFailureCode) as string
+    return normalizeBackupAutomaticPreferences({
+      enabled,
+      intervalHours,
+      retentionCount,
+      lastRunAt,
+      lastFailureCode,
+    })
+  }
+
+  async saveAutomaticPreferences(preferencesValue: BackupAutomaticPreferences): Promise<void> {
+    const normalized = normalizeBackupAutomaticPreferences(preferencesValue)
+    const store = await this.automaticPreferences()
+    await store.put(BACKUP_AUTOMATIC_ENABLED_KEY, normalized.enabled)
+    await store.put(BACKUP_AUTOMATIC_INTERVAL_HOURS_KEY, normalized.intervalHours)
+    await store.put(BACKUP_AUTOMATIC_RETENTION_COUNT_KEY, normalized.retentionCount)
+    await store.put(BACKUP_AUTOMATIC_LAST_RUN_AT_KEY, normalized.lastRunAt)
+    await store.put(BACKUP_AUTOMATIC_LAST_FAILURE_CODE_KEY, normalized.lastFailureCode)
+    await store.flush()
+  }
+
+  async runAutomaticLocalBackupIfDue(now: number = Date.now()): Promise<BackupAutomaticRunResult> {
+    const preferencesValue = await this.loadAutomaticPreferences()
+    if (!preferencesValue.enabled) {
+      return {
+        ran: false,
+        deletedCount: 0,
+        preferences: preferencesValue,
+        skippedReason: 'disabled',
+      }
+    }
+    const intervalMs = preferencesValue.intervalHours * 60 * 60 * 1000
+    if (preferencesValue.lastRunAt > 0 && now - preferencesValue.lastRunAt < intervalMs) {
+      return {
+        ran: false,
+        deletedCount: 0,
+        preferences: preferencesValue,
+        skippedReason: 'not_due',
+      }
+    }
+    return this.runAutomaticLocalBackupWithPreferences(now, preferencesValue)
+  }
+
+  async runAutomaticLocalBackupNow(now: number = Date.now()): Promise<BackupAutomaticRunResult> {
+    return this.runAutomaticLocalBackupWithPreferences(now, await this.loadAutomaticPreferences())
+  }
+
+  async pruneLocalBackups(retentionCount: number): Promise<number> {
+    const keepCount = normalizeBackupAutomaticRetentionCount(retentionCount)
+    const records = await this.listLocalBackups()
+    const staleRecords = records.slice(keepCount)
+    for (let index = 0; index < staleRecords.length; index += 1) {
+      await this.deleteLocalBackup(staleRecords[index].fileName)
+    }
+    return staleRecords.length
   }
 
   async listLocalBackups(): Promise<BackupLocalFileRecord[]> {
@@ -912,6 +1067,52 @@ export class BackupService {
       return
     }
     await store.put(key, value)
+  }
+
+  private async automaticPreferences(): Promise<preferences.Preferences> {
+    return preferences.getPreferences(this.context, BACKUP_AUTOMATIC_PREFS_STORE_NAME)
+  }
+
+  private async runAutomaticLocalBackupWithPreferences(
+    now: number,
+    preferencesValue: BackupAutomaticPreferences,
+  ): Promise<BackupAutomaticRunResult> {
+    try {
+      const created = await this.exportLocal()
+      const deletedCount = await this.pruneLocalBackups(preferencesValue.retentionCount)
+      const nextPreferences: BackupAutomaticPreferences = {
+        enabled: preferencesValue.enabled,
+        intervalHours: preferencesValue.intervalHours,
+        retentionCount: preferencesValue.retentionCount,
+        lastRunAt: normalizeBackupAutomaticLastRunAt(now),
+        lastFailureCode: '',
+      }
+      await this.saveAutomaticPreferences(nextPreferences)
+      console.info(`[Backup] step=auto_export deleted=${deletedCount}`)
+      return {
+        ran: true,
+        created,
+        deletedCount,
+        preferences: nextPreferences,
+      }
+    } catch (_error) {
+      const nextPreferences: BackupAutomaticPreferences = {
+        enabled: preferencesValue.enabled,
+        intervalHours: preferencesValue.intervalHours,
+        retentionCount: preferencesValue.retentionCount,
+        lastRunAt: preferencesValue.lastRunAt,
+        lastFailureCode: 'backup_auto_export_failed',
+      }
+      await this.saveAutomaticPreferences(nextPreferences)
+      console.error('[Backup] step=auto_export_failed code=backup_auto_export_failed')
+      return {
+        ran: false,
+        deletedCount: 0,
+        preferences: nextPreferences,
+        skippedReason: 'failed',
+        failureCode: 'backup_auto_export_failed',
+      }
+    }
   }
 
   private async exportSourceIndexUrl(): Promise<string | undefined> {

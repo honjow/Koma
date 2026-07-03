@@ -69,6 +69,7 @@ import {
 import { configureSourceSettingsStore } from '../sourceRuntime/SourceSettingsStore'
 import { AppStrings } from '../i18n/AppStrings'
 import { connectLanguageState, LanguageState } from '../state/LanguageState'
+import { BackupService, BackupAutomaticRunResult } from '../model/BackupService'
 
 const readerSessionStore: ReaderSessionStore = new InMemoryReaderSessionStore()
 const seededLibraryStore: LibraryStore = createSeededLibraryStore()
@@ -99,6 +100,7 @@ struct Index {
   private appPathStack: NavPathStack = new NavPathStack()
   private libraryPersistenceService?: LibraryStorePersistenceService
   private libraryPersistenceRestored: boolean = false
+  private automaticBackupChecked: boolean = false
 
   private refreshLibrarySnapshot(): void {
     this.libraryComics = this.libraryStore.listComics()
@@ -289,26 +291,43 @@ struct Index {
     return this.libraryPersistenceService
   }
 
+  private triggerAutomaticBackup(context: common.UIAbilityContext): void {
+    if (this.automaticBackupChecked) {
+      return
+    }
+    this.automaticBackupChecked = true
+    void new BackupService(context).runAutomaticLocalBackupIfDue()
+      .then((result: BackupAutomaticRunResult) => {
+        if (result.ran) {
+          console.info(`[Backup] step=app_open_auto_backup deleted=${result.deletedCount}`)
+        } else if (result.failureCode !== undefined) {
+          console.error(`[Backup] step=app_open_auto_backup_failed code=${result.failureCode}`)
+        }
+      })
+      .catch((_error: Error) => {
+        console.error('[Backup] step=app_open_auto_backup_failed code=backup_auto_export_failed')
+      })
+  }
+
   aboutToAppear(): void {
     RouterHelper.setAppPathStack(this.appPathStack)
     const context = getContext(this) as common.UIAbilityContext
     configureSourceSettingsStore(context)
     bootstrapSourceRuntimeAppRegistry(context)
-    if (this.libraryPersistenceRestored) {
-      return
+    if (!this.libraryPersistenceRestored) {
+      this.libraryPersistenceRestored = true
+      const persistenceService = this.ensureLibraryPersistenceService()
+      if (persistenceService !== undefined) {
+        try {
+          persistenceService.restore()
+          this.refreshLibrarySnapshot()
+        } catch (error) {
+          const e = error as Error
+          console.error('restore library store failed: ' + e.message)
+        }
+      }
     }
-    this.libraryPersistenceRestored = true
-    const persistenceService = this.ensureLibraryPersistenceService()
-    if (persistenceService === undefined) {
-      return
-    }
-    try {
-      persistenceService.restore()
-      this.refreshLibrarySnapshot()
-    } catch (error) {
-      const e = error as Error
-      console.error('restore library store failed: ' + e.message)
-    }
+    this.triggerAutomaticBackup(context)
   }
 
   @Builder
