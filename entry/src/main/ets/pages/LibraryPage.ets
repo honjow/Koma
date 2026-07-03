@@ -198,28 +198,37 @@ export struct LibraryPage {
     if (this.filterAvailability === 'all') {
       return comics
     }
-    const downloadedComicIds = this.downloadedComicIds()
+    const downloadedComics = this.downloadedComicAvailability()
     if (this.filterAvailability === 'downloaded') {
-      return comics.filter((comic: Comic): boolean => downloadedComicIds.has(comic.id))
+      return comics.filter((comic: Comic): boolean => downloadedComics.has(comic.id))
     }
-    return comics.filter((comic: Comic): boolean => !downloadedComicIds.has(comic.id))
+    if (this.filterAvailability === 'fully_downloaded') {
+      return comics.filter((comic: Comic): boolean => downloadedComics.get(comic.id) === OfflineDownloadStatus.DOWNLOADED)
+    }
+    if (this.filterAvailability === 'partially_downloaded') {
+      return comics.filter((comic: Comic): boolean => downloadedComics.get(comic.id) === OfflineDownloadStatus.PARTIAL)
+    }
+    return comics.filter((comic: Comic): boolean => !downloadedComics.has(comic.id))
   }
 
-  private downloadedComicIds(): Set<ComicId> {
-    const comicIds = new Set<ComicId>()
+  private downloadedComicAvailability(): Map<ComicId, OfflineDownloadStatus> {
+    const comicAvailability = new Map<ComicId, OfflineDownloadStatus>()
     try {
       const context = getContext(this) as common.UIAbilityContext
       const entries = new OfflineDownloadQueueStore(context.filesDir).reconcileWithManifests()
       entries.forEach((entry: OfflineDownloadQueueEntry) => {
-        if (entry.status === OfflineDownloadStatus.DOWNLOADED || entry.status === OfflineDownloadStatus.PARTIAL) {
-          comicIds.add(entry.comicId)
+        if (entry.status === OfflineDownloadStatus.DOWNLOADED) {
+          comicAvailability.set(entry.comicId, OfflineDownloadStatus.DOWNLOADED)
+        } else if (entry.status === OfflineDownloadStatus.PARTIAL &&
+          comicAvailability.get(entry.comicId) !== OfflineDownloadStatus.DOWNLOADED) {
+          comicAvailability.set(entry.comicId, OfflineDownloadStatus.PARTIAL)
         }
       })
     } catch (error) {
       const e = error as Error
       console.info('[Library] step=download_filter_load_failed reason=' + e.message)
     }
-    return comicIds
+    return comicAvailability
   }
 
   private filterPreciseSourceComics(comics: Comic[]): Comic[] {
@@ -483,6 +492,12 @@ export struct LibraryPage {
   private availabilityLabel(): string {
     if (this.filterAvailability === 'downloaded') {
       return s('library_availability_downloaded')
+    }
+    if (this.filterAvailability === 'fully_downloaded') {
+      return s('library_availability_fully_downloaded')
+    }
+    if (this.filterAvailability === 'partially_downloaded') {
+      return s('library_availability_partially_downloaded')
     }
     if (this.filterAvailability === 'not_downloaded') {
       return s('library_availability_not_downloaded')
@@ -934,6 +949,14 @@ export struct LibraryPage {
       MenuItem({ content: s('library_availability_downloaded') })
         .onClick(() => {
           this.setAvailabilityFilter('downloaded')
+        })
+      MenuItem({ content: s('library_availability_fully_downloaded') })
+        .onClick(() => {
+          this.setAvailabilityFilter('fully_downloaded')
+        })
+      MenuItem({ content: s('library_availability_partially_downloaded') })
+        .onClick(() => {
+          this.setAvailabilityFilter('partially_downloaded')
         })
       MenuItem({ content: s('library_availability_not_downloaded') })
         .onClick(() => {

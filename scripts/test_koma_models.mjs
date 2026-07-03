@@ -679,8 +679,8 @@ assert.match(
 )
 assert.match(
   libraryFilterStoreSource,
-  /export type LibraryAvailabilityFilter = 'all' \| 'downloaded' \| 'not_downloaded'[\s\S]*availability: LibraryAvailabilityFilter[\s\S]*LIBRARY_FILTER_AVAILABILITY_KEY[\s\S]*value === 'downloaded' \|\| value === 'not_downloaded'[\s\S]*normalizeAvailability\(availability\)[\s\S]*store\.put\(LIBRARY_FILTER_AVAILABILITY_KEY, preferencesValue\.availability\)/,
-  'Library filter preferences must persist downloaded and not-downloaded availability filters',
+  /export type LibraryAvailabilityFilter = 'all' \| 'downloaded' \| 'fully_downloaded' \| 'partially_downloaded' \| 'not_downloaded'[\s\S]*availability: LibraryAvailabilityFilter[\s\S]*LIBRARY_FILTER_AVAILABILITY_KEY[\s\S]*value === 'downloaded'[\s\S]*value === 'fully_downloaded'[\s\S]*value === 'partially_downloaded'[\s\S]*value === 'not_downloaded'[\s\S]*normalizeAvailability\(availability\)[\s\S]*store\.put\(LIBRARY_FILTER_AVAILABILITY_KEY, preferencesValue\.availability\)/,
+  'Library filter preferences must persist any/complete/partial/not-downloaded availability filters',
 )
 assert.match(
   libraryFilterStoreSource,
@@ -689,8 +689,8 @@ assert.match(
 )
 assert.match(
   libraryPageSource,
-  /filterAvailability: LibraryAvailabilityFilter = 'all'[\s\S]*filterAvailabilityComics\(this\.filterPreciseSourceComics\(nextComics\)\)[\s\S]*private filterAvailabilityComics\(comics: Comic\[\]\): Comic\[\][\s\S]*this\.filterAvailability === 'downloaded'[\s\S]*!downloadedComicIds\.has\(comic\.id\)[\s\S]*new OfflineDownloadQueueStore\(context\.filesDir\)\.reconcileWithManifests\(\)[\s\S]*OfflineDownloadStatus\.DOWNLOADED \|\| entry\.status === OfflineDownloadStatus\.PARTIAL/,
-  'LibraryPage availability filter must derive downloaded and not-downloaded comics from reconciled download queue manifests',
+  /filterAvailability: LibraryAvailabilityFilter = 'all'[\s\S]*filterAvailabilityComics\(this\.filterPreciseSourceComics\(nextComics\)\)[\s\S]*private filterAvailabilityComics\(comics: Comic\[\]\): Comic\[\][\s\S]*this\.filterAvailability === 'downloaded'[\s\S]*downloadedComics\.has\(comic\.id\)[\s\S]*this\.filterAvailability === 'fully_downloaded'[\s\S]*OfflineDownloadStatus\.DOWNLOADED[\s\S]*this\.filterAvailability === 'partially_downloaded'[\s\S]*OfflineDownloadStatus\.PARTIAL[\s\S]*!downloadedComics\.has\(comic\.id\)[\s\S]*new OfflineDownloadQueueStore\(context\.filesDir\)\.reconcileWithManifests\(\)[\s\S]*entry\.status === OfflineDownloadStatus\.DOWNLOADED[\s\S]*entry\.status === OfflineDownloadStatus\.PARTIAL/,
+  'LibraryPage availability filter must derive any/complete/partial/not-downloaded comics from reconciled download queue manifests',
 )
 assert.match(
   libraryPageSource,
@@ -704,8 +704,8 @@ assert.match(
 )
 assert.match(
   libraryPageSource,
-  /private AvailabilityMenu\(\)[\s\S]*setAvailabilityFilter\('all'\)[\s\S]*library_availability_downloaded[\s\S]*setAvailabilityFilter\('downloaded'\)[\s\S]*library_availability_not_downloaded[\s\S]*setAvailabilityFilter\('not_downloaded'\)[\s\S]*this\.availabilityLabel\(\)[\s\S]*this\.filterAvailability !== 'all'/,
-  'LibraryPage must expose user-visible downloaded and not-downloaded availability filter chips',
+  /private AvailabilityMenu\(\)[\s\S]*setAvailabilityFilter\('all'\)[\s\S]*library_availability_downloaded[\s\S]*setAvailabilityFilter\('downloaded'\)[\s\S]*library_availability_fully_downloaded[\s\S]*setAvailabilityFilter\('fully_downloaded'\)[\s\S]*library_availability_partially_downloaded[\s\S]*setAvailabilityFilter\('partially_downloaded'\)[\s\S]*library_availability_not_downloaded[\s\S]*setAvailabilityFilter\('not_downloaded'\)[\s\S]*this\.availabilityLabel\(\)[\s\S]*this\.filterAvailability !== 'all'/,
+  'LibraryPage must expose user-visible any/complete/partial/not-downloaded availability filter chips',
 )
 assert.match(
   libraryPageSource,

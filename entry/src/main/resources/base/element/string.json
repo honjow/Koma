@@ -408,6 +408,8 @@
     { "name": "library_read_state_completed", "value": "Completed" },
     { "name": "library_read_state_all", "value": "All states" },
     { "name": "library_availability_downloaded", "value": "Downloaded" },
+    { "name": "library_availability_fully_downloaded", "value": "Fully downloaded" },
+    { "name": "library_availability_partially_downloaded", "value": "Partially downloaded" },
     { "name": "library_availability_not_downloaded", "value": "Not downloaded" },
     { "name": "library_availability_all", "value": "All availability" },
     { "name": "library_category_uncategorized", "value": "Uncategorized" },
