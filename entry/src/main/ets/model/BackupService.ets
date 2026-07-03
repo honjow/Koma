@@ -479,6 +479,9 @@ function normalizeBackupDownloadQueuePayload(payload: string): string {
     isPaused: preferencesRecord === undefined ?
       DEFAULT_OFFLINE_DOWNLOAD_QUEUE_PREFERENCES.isPaused :
       preferencesRecord['isPaused'] === true,
+    wifiOnly: preferencesRecord === undefined ?
+      DEFAULT_OFFLINE_DOWNLOAD_QUEUE_PREFERENCES.wifiOnly :
+      preferencesRecord['wifiOnly'] === true,
   }
   const entries = (document['entries'] as Object[]).map((item: Object): OfflineDownloadQueueEntry => {
     const row = asJsonObject(item, 'download queue entry')

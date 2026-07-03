@@ -44,6 +44,7 @@ export struct DownloadsPage {
   @Local private preferences: OfflineDownloadQueuePreferences = {
     foregroundConcurrencyLimit: 1,
     isPaused: false,
+    wifiOnly: false,
   }
   @Local private busyKey: string = ''
   @Local private filter: DownloadQueueFilter = DownloadQueueFilter.ALL
@@ -162,6 +163,9 @@ export struct DownloadsPage {
   private formatEntryStatus(entry: OfflineDownloadQueueEntry): string {
     if (entry.failureReasonCode === 'paused') {
       return s('downloads_status_paused')
+    }
+    if (entry.failureReasonCode === 'wifi_only') {
+      return s('downloads_status_waiting_wifi')
     }
     if (this.preferences.isPaused && entry.status === OfflineDownloadStatus.QUEUED) {
       return s('downloads_status_paused')

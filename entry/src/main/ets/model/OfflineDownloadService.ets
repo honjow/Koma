@@ -1,4 +1,5 @@
 import { fileIo as fs } from '@kit.CoreFileKit'
+import { connection } from '@kit.NetworkKit'
 import {
   Chapter,
   Comic,
@@ -22,6 +23,7 @@ import {
   createOfflineDownloadStableHash,
 } from './OfflineDownloadStore'
 import {
+  OfflineDownloadQueuePreferences,
   OfflineDownloadQueueStore,
 } from './OfflineDownloadQueueStore'
 import {
@@ -99,6 +101,19 @@ function reusableDownloadedPage(pages: OfflineDownloadedPage[], pageId: string, 
   return page
 }
 
+function isDefaultNetworkWifi(): boolean {
+  try {
+    const netHandle = connection.getDefaultNetSync()
+    if (netHandle.netId === 0) {
+      return false
+    }
+    const capabilities = connection.getNetCapabilitiesSync(netHandle)
+    return capabilities.bearerTypes.indexOf(connection.NetBearType.BEARER_WIFI) >= 0
+  } catch (_error) {
+    return false
+  }
+}
+
 export class OfflineDownloadService {
   private readonly store: OfflineDownloadStore
   private readonly queueStore: OfflineDownloadQueueStore
@@ -124,13 +139,18 @@ export class OfflineDownloadService {
       downloadedPageCount: 0,
       updatedAt: Date.now(),
     })
-    if (initialPreferences.isPaused || this.queueStore.loadPreferences().isPaused) {
+    if (!this.canDownloadNow(initialPreferences) || !this.canDownloadNow(this.queueStore.loadPreferences())) {
       const existingManifest = this.store.loadManifest(comic.id, chapterId)
       if (existingManifest !== undefined) {
+        existingManifest.status = existingManifest.downloadedPageCount > 0 ? OfflineDownloadStatus.PARTIAL : OfflineDownloadStatus.QUEUED
+        existingManifest.failureReasonCode = initialPreferences.isPaused ? 'paused' : 'wifi_only'
+        this.store.saveManifest(existingManifest)
         this.queueStore.upsert(this.queueStore.fromManifest(existingManifest, labels?.comicTitle ?? comic.title, labels?.chapterTitle))
         return existingManifest
       }
       const queuedManifest = this.store.createManifest(comic.id, chapterId, 0, OfflineDownloadStatus.QUEUED, manifestIdentityFromComic(comic))
+      queuedManifest.failureReasonCode = initialPreferences.isPaused ? 'paused' : 'wifi_only'
+      this.store.saveManifest(queuedManifest)
       this.queueStore.upsert(this.queueStore.fromManifest(queuedManifest, labels?.comicTitle ?? comic.title, labels?.chapterTitle))
       return queuedManifest
     }
@@ -173,9 +193,10 @@ export class OfflineDownloadService {
     const config = createReaderSessionConfigFromComic(comic, chapterId)
     try {
       for (let index = 0; index < config.totalPages; index += 1) {
-        if (this.queueStore.loadPreferences().isPaused) {
+        const preferences = this.queueStore.loadPreferences()
+        if (!this.canDownloadNow(preferences)) {
           manifest.status = manifest.downloadedPageCount > 0 ? OfflineDownloadStatus.PARTIAL : OfflineDownloadStatus.QUEUED
-          manifest.failureReasonCode = 'paused'
+          manifest.failureReasonCode = preferences.isPaused ? 'paused' : 'wifi_only'
           manifest = this.store.saveManifest(manifest)
           this.queueStore.upsert(this.queueStore.fromManifest(manifest, labels?.comicTitle ?? comic.title, labels?.chapterTitle ?? chapter.title))
           return manifest
@@ -234,6 +255,10 @@ export class OfflineDownloadService {
       this.publishNotification(manifest, labels ?? { comicTitle: comic.title, chapterTitle: chapter.title })
       return manifest
     }
+  }
+
+  private canDownloadNow(preferences: OfflineDownloadQueuePreferences): boolean {
+    return !preferences.isPaused && (!preferences.wifiOnly || isDefaultNetworkWifi())
   }
 
   private publishNotification(manifest: OfflineChapterDownloadManifest, labels?: OfflineDownloadLabels): void {

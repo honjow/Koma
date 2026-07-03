@@ -207,7 +207,7 @@ function createSettingsSections(): SettingsSection[] {
         { key: 'download-notifications', titleKey: 'settings_row_download_notifications_title', detailKey: 'settings_row_download_notifications_detail' },
         { key: 'download-concurrency', titleKey: 'settings_row_download_concurrency_title', detailKey: 'settings_row_download_concurrency_detail' },
         { key: 'download-retry-failed', titleKey: 'settings_row_download_retry_failed_title', detailKey: 'settings_row_download_retry_failed_detail' },
-        { key: 'download-wifi-only', titleKey: 'settings_row_download_wifi_only_title', detailKey: 'settings_row_download_wifi_only_detail', placeholder: true },
+        { key: 'download-wifi-only', titleKey: 'settings_row_download_wifi_only_title', detailKey: 'settings_row_download_wifi_only_detail' },
         { key: 'trackers', titleKey: 'settings_row_trackers_title', detailKey: 'settings_row_trackers_detail' },
         { key: 'tracker-auto-sync', titleKey: 'settings_row_tracker_auto_sync_title', detailKey: 'settings_row_tracker_auto_sync_detail', placeholder: true },
         { key: 'tracker-update-strategy', titleKey: 'settings_row_tracker_update_strategy_title', detailKey: 'settings_row_tracker_update_strategy_detail', placeholder: true },
@@ -390,6 +390,7 @@ export struct SettingsPage {
   @Local private settingsSearchText: string = ''
   @Local private settingsMenuKey: string = ''
   @Local private downloadForegroundConcurrencyLimit: number = 1
+  @Local private downloadWifiOnly: boolean = false
   @Local private downloadNotificationStatus: OfflineDownloadNotificationStatus = 'unavailable'
   @Local private libraryDefaultSortBy: LibrarySortBy = 'lastRead'
 
@@ -503,6 +504,9 @@ export struct SettingsPage {
     }
     if (row.key === 'download-concurrency') {
       return `${this.downloadForegroundConcurrencyLimit}`
+    }
+    if (row.key === 'download-wifi-only') {
+      return this.downloadWifiOnly ? this.t('common_on') : this.t('common_off')
     }
     if (row.key === 'download-notifications') {
       return getOfflineDownloadNotificationStatusLabel(this.downloadNotificationStatus)
@@ -863,7 +867,9 @@ export struct SettingsPage {
 
   private loadDownloadQueuePreferences(): void {
     try {
-      this.downloadForegroundConcurrencyLimit = this.offlineDownloadQueueStore().loadPreferences().foregroundConcurrencyLimit
+      const preferences = this.offlineDownloadQueueStore().loadPreferences()
+      this.downloadForegroundConcurrencyLimit = preferences.foregroundConcurrencyLimit
+      this.downloadWifiOnly = preferences.wifiOnly
     } catch (error) {
       const e = error as Error
       console.warn('[Settings] step=load_download_queue_preferences_failed message=' + e.message)
@@ -1298,6 +1304,17 @@ export struct SettingsPage {
     }
   }
 
+  private saveDownloadWifiOnly(wifiOnly: boolean): void {
+    try {
+      this.downloadWifiOnly = this.offlineDownloadQueueStore().setWifiOnly(wifiOnly).wifiOnly
+      console.info('[Settings] step=save_download_wifi_only value=' + this.downloadWifiOnly)
+    } catch (error) {
+      const e = error as Error
+      console.warn('[Settings] step=save_download_wifi_only_failed message=' + e.message)
+      this.showToast(s('settings_download_wifi_only_save_failed'))
+    }
+  }
+
   private requestDownloadNotifications(): void {
     void requestOfflineDownloadNotificationPermission(this.context())
       .then((status: OfflineDownloadNotificationStatus) => {
@@ -1555,6 +1572,7 @@ export struct SettingsPage {
 
   private isSwitchRow(row: SettingsRow): boolean {
     return row.key === 'library-auto-update' ||
+      row.key === 'download-wifi-only' ||
       row.key === 'reader-progress' ||
       row.key === 'reader-keep-screen-awake' ||
       row.key === 'reader-tap-navigation' ||
@@ -1581,6 +1599,9 @@ export struct SettingsPage {
     if (row.key === 'reader-volume-key-navigation') {
       return this.readerVolumeKeyNavigationEnabled
     }
+    if (row.key === 'download-wifi-only') {
+      return this.downloadWifiOnly
+    }
     return false
   }
 
@@ -1597,6 +1618,8 @@ export struct SettingsPage {
       this.saveReaderTrimPageMarginsEnabled(value)
     } else if (row.key === 'reader-volume-key-navigation') {
       this.saveReaderVolumeKeyNavigationEnabled(value)
+    } else if (row.key === 'download-wifi-only') {
+      this.saveDownloadWifiOnly(value)
     } else {
       this.showToast(`${this.rowTitle(row)}${s('settings_coming_soon_suffix')}`)
     }

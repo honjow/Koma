@@ -17,6 +17,7 @@ export const OFFLINE_DOWNLOAD_FOREGROUND_CONCURRENCY_LIMIT_OPTIONS: number[] = [
 export const DEFAULT_OFFLINE_DOWNLOAD_QUEUE_PREFERENCES: OfflineDownloadQueuePreferences = {
   foregroundConcurrencyLimit: 1,
   isPaused: false,
+  wifiOnly: false,
 }
 const OFFLINE_DOWNLOAD_QUEUE_TEMP_FILE_NAME: string = 'queue.v1.json.tmp'
 
@@ -35,6 +36,7 @@ export interface OfflineDownloadQueueEntry {
 export interface OfflineDownloadQueuePreferences {
   foregroundConcurrencyLimit: number
   isPaused: boolean
+  wifiOnly: boolean
 }
 
 export interface OfflineDownloadQueueSummary {
@@ -146,11 +148,13 @@ function normalizePreferences(preferences?: OfflineDownloadQueuePreferences): Of
     return {
       foregroundConcurrencyLimit: DEFAULT_OFFLINE_DOWNLOAD_QUEUE_PREFERENCES.foregroundConcurrencyLimit,
       isPaused: DEFAULT_OFFLINE_DOWNLOAD_QUEUE_PREFERENCES.isPaused,
+      wifiOnly: DEFAULT_OFFLINE_DOWNLOAD_QUEUE_PREFERENCES.wifiOnly,
     }
   }
   return {
     foregroundConcurrencyLimit: normalizeForegroundConcurrencyLimit(preferences.foregroundConcurrencyLimit),
     isPaused: preferences.isPaused === true,
+    wifiOnly: preferences.wifiOnly === true,
   }
 }
 
@@ -313,6 +317,12 @@ export class OfflineDownloadQueueStore {
   resumeAllQueuedWork(): OfflineDownloadQueuePreferences {
     const preferences = this.loadPreferences()
     preferences.isPaused = false
+    return this.savePreferences(preferences)
+  }
+
+  setWifiOnly(wifiOnly: boolean): OfflineDownloadQueuePreferences {
+    const preferences = this.loadPreferences()
+    preferences.wifiOnly = wifiOnly
     return this.savePreferences(preferences)
   }
 
