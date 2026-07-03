@@ -202,6 +202,36 @@ export struct DownloadsPage {
     })
   }
 
+  private primaryQueueActionLabel(): string {
+    if (this.preferences.isPaused) {
+      return this.busyKey === 'batch-resume' ? s('downloads_action_resuming') : s('downloads_action_resume_queue')
+    }
+    if (this.busyKey.length > 0) {
+      return s('downloads_action_pause_queue')
+    }
+    return this.queuedEntries().length > 0 ? s('downloads_action_start_queue') : s('downloads_action_pause_queue')
+  }
+
+  private primaryQueueActionKind(): 'primary' | 'ghost' {
+    return this.preferences.isPaused || this.queuedEntries().length > 0 ? 'primary' : 'ghost'
+  }
+
+  private handlePrimaryQueueAction(): void {
+    if (this.preferences.isPaused) {
+      this.resumeQueuedDownloads()
+      return
+    }
+    if (this.busyKey.length > 0) {
+      this.pauseQueuedDownloads()
+      return
+    }
+    if (this.queuedEntries().length > 0) {
+      this.startQueuedDownloads()
+      return
+    }
+    this.pauseQueuedDownloads()
+  }
+
   private canRetry(entry: OfflineDownloadQueueEntry): boolean {
     return entry.status === OfflineDownloadStatus.FAILED ||
       entry.status === OfflineDownloadStatus.PARTIAL
@@ -320,6 +350,37 @@ export struct DownloadsPage {
     this.preferences = this.queueStore().pauseAllQueuedWork()
     this.loadQueue()
     this.showToast(s('downloads_toast_paused_queued'))
+  }
+
+  private startQueuedDownloads(): void {
+    if (this.busyKey.length > 0) {
+      return
+    }
+    if (this.preferences.isPaused) {
+      this.showToast(s('downloads_toast_queue_paused'))
+      return
+    }
+    const targets = this.queuedEntries()
+    if (targets.length === 0) {
+      this.showToast(s('downloads_toast_no_queued'))
+      return
+    }
+    this.busyKey = 'batch-start'
+    void this.runStartBatch(targets)
+  }
+
+  private async runStartBatch(targets: OfflineDownloadQueueEntry[]): Promise<void> {
+    try {
+      const started = await this.runForegroundDownloadBatch(targets)
+      this.loadQueue()
+      this.showToast(started > 0 ? s('downloads_toast_started_queued') : s('downloads_toast_no_queued'))
+    } catch (error) {
+      void error
+      console.warn('[Downloads] step=batch_start_failed failed=true reason=batch_start')
+      this.showToast(s('downloads_toast_start_failed'))
+    } finally {
+      this.busyKey = ''
+    }
   }
 
   private resumeQueuedDownloads(): void {
@@ -538,18 +599,12 @@ export struct DownloadsPage {
 
       Row({ space: ThemeConstants.SPACE_SM }) {
         KomaActionButton({
-          label: this.preferences.isPaused
-            ? (this.busyKey === 'batch-resume' ? s('downloads_action_resuming') : s('downloads_action_resume_queue'))
-            : s('downloads_action_pause_queue'),
-          kind: this.preferences.isPaused ? 'primary' : 'ghost',
+          label: this.primaryQueueActionLabel(),
+          kind: this.primaryQueueActionKind(),
           isEnabled: !this.preferences.isPaused || this.busyKey.length === 0,
           controlHeight: ThemeConstants.ACTION_CHIP_HEIGHT,
           action: () => {
-            if (this.preferences.isPaused) {
-              this.resumeQueuedDownloads()
-            } else {
-              this.pauseQueuedDownloads()
-            }
+            this.handlePrimaryQueueAction()
           },
         })
         KomaActionButton({
