@@ -45,17 +45,17 @@ assert.match(
 )
 assert.match(
   readerChromeSource,
-  /@Prop\s+canGoPrevious:\s*boolean = false[\s\S]*@Prop\s+canGoNext:\s*boolean = false/,
+  /@Param\s+canGoPrevious:\s*boolean = false[\s\S]*@Param\s+canGoNext:\s*boolean = false/,
   'ReaderChrome navigation enabled state must be supplied independently from physical page indexes',
 )
 assert.match(
   readerChromeSource,
-  /Button\('上一页'\)[\s\S]*\.enabled\(this\.canGoPrevious\)[\s\S]*if \(this\.canGoPrevious\) \{[\s\S]*this\.onPreviousPage\(\)/,
+  /KomaActionButton\(\{[\s\S]*label: s\('reader_action_previous_page'\)[\s\S]*isEnabled: this\.canGoPrevious[\s\S]*if \(this\.canGoPrevious\) \{[\s\S]*this\.onPreviousPage\(\)/,
   'ReaderChrome previous control must use split-aware canGoPrevious before invoking the callback',
 )
 assert.match(
   readerChromeSource,
-  /Button\('下一页'\)[\s\S]*\.enabled\(this\.canGoNext\)[\s\S]*if \(this\.canGoNext\) \{[\s\S]*this\.onNextPage\(\)/,
+  /KomaActionButton\(\{[\s\S]*label: s\('reader_action_next_page'\)[\s\S]*isEnabled: this\.canGoNext[\s\S]*if \(this\.canGoNext\) \{[\s\S]*this\.onNextPage\(\)/,
   'ReaderChrome next control must use split-aware canGoNext before invoking the callback',
 )
 assert.match(
@@ -521,16 +521,16 @@ assert.match(remoteImageCacheStoreSource, /async stats\(\): Promise<RemoteImageC
 assert.match(remoteImageCacheStoreSource, /totalBytes \+= entry\.size[\s\S]*entryCount \+= 1/, 'remote image cache stats must include total bytes and entry count')
 assert.match(remoteImageCacheStoreSource, /async clear\(\): Promise<void>[\s\S]*await fs\.unlink\(path\)[\s\S]*this\.entries\.clear\(\)[\s\S]*await fs\.unlink\(this\.manifestPath\)/, 'remote image cache clear must remove cached files, entries, and manifest through RemoteImageCacheStore')
 assert.doesNotMatch(remoteImageCacheStoreSource, /fs\.rmdir|rmdirSync|removeComputedArchiveImportCacheRoot|\/import\//, 'remote image cache clear must not recursively or broadly delete cache/import roots')
-assert.match(settingsPageSource, /key: 'image-cache', title: '图片缓存'/, 'Settings must expose the 图片缓存 row')
+assert.match(settingsPageSource, /key: 'image-cache', titleKey: 'settings_row_image_cache_title'/, 'Settings must expose the image cache row')
 assert.match(settingsPageSource, /configureReaderRemoteImageCache\(context\.cacheDir\)/, 'Settings must configure the reader remote image cache before stats or clear')
 assert.match(settingsPageSource, /getReaderRemoteImageCacheStats\(\)/, 'Settings must load remote image cache stats')
 assert.match(settingsPageSource, /clearReaderRemoteImageCache\(\)/, 'Settings must call the remote image cache clear API')
-assert.match(settingsPageSource, /title: '清理缓存'/, 'Settings must expose the 清理缓存 action')
+assert.match(settingsPageSource, /value: s\('settings_image_cache_clear'\)[\s\S]*this\.clearImageCache\(\)/, 'Settings must expose the clear cache action')
 assert.match(readerPageSource, /fetchAndCacheReaderRemoteSource\(this\.remoteSource\)/, 'reader image decode must route source runtime pages through the source-aware cache path')
 assert.match(readerPageSource, /configureReaderOfflineDownloads\(context\.filesDir\)/, 'ReaderPage must configure durable offline downloads before page source resolution')
-assert.match(readerPageSource, /PageErrorPlaceholder\(index: number, compact: boolean = false, detail: string = '页面文件不可用'\)[\s\S]*Text\(detail\)/, 'reader error placeholder must render explicit failure detail copy')
-assert.match(readerPageSource, /RemoteImagePage\(source: ReaderPageRenderSource[\s\S]*this\.hasImageLoadFailed\(source\.imageUri\)[\s\S]*this\.PageErrorPlaceholder\(index, compact, '离线或网络不可用'\)/, 'undownloaded remote reader failures must show honest offline/network unavailable copy')
-assert.match(readerPageSource, /LocalImagePage\(imageUri: string[\s\S]*this\.hasImageLoadFailed\(imageUri\)[\s\S]*this\.PageErrorPlaceholder\(index, compact, '本地页面不可用'\)/, 'local reader failures must not masquerade as remote network success')
+assert.match(readerPageSource, /PageErrorPlaceholder\(index: number, compact: boolean = false, detail: string = s\('reader_page_unavailable'\)\)[\s\S]*Text\(detail\)/, 'reader error placeholder must render explicit failure detail copy')
+assert.match(readerPageSource, /RemoteImagePage\(source: ReaderPageRenderSource[\s\S]*this\.hasImageLoadFailed\(source\.imageUri\)[\s\S]*this\.PageErrorPlaceholder\(index, compact, s\('reader_remote_page_unavailable'\)\)/, 'undownloaded remote reader failures must show honest offline/network unavailable copy')
+assert.match(readerPageSource, /LocalImagePage\(imageUri: string[\s\S]*this\.hasImageLoadFailed\(imageUri\)[\s\S]*this\.PageErrorPlaceholder\(index, compact, s\('reader_local_page_unavailable'\)\)/, 'local reader failures must not masquerade as remote network success')
 assert.match(indexSource, /createReaderSessionConfigFromComic/, 'index must open reader sessions from Comic records')
 assert.match(indexSource, /restorePageIndex\(this\.readerSessionConfig\)/, 'opening reader must restore from the selected session config')
 assert.match(indexSource, /sessionStore: this\.readerSessionStore/, 'library and reader must share the same session store')
@@ -552,8 +552,8 @@ assert.match(readerPageSource, /\[reader-image-error\]/, 'reader page must log r
 assert.match(readerPageSource, /expandSafeArea\(\[SafeAreaType\.SYSTEM\], \[SafeAreaEdge\.TOP, SafeAreaEdge\.BOTTOM\]\)/, 'reader background may extend into system safe areas')
 assert.match(readerPageSource, /currentReaderMode\(\) === ReaderMode\.CONTINUOUS_SCROLL/, 'reader page must render continuous scroll through the normalized reader mode contract')
 assert.match(readerChromeSource, /onCloseReader/, 'chrome return button must delegate to the reader route close callback')
-assert.match(readerChromeSource, /top: 24/, 'top reader chrome must reserve room for the status bar on fullscreen windows')
-assert.match(readerChromeSource, /bottom: 42/, 'bottom reader controls must reserve room for the navigation safe area on fullscreen windows')
+assert.match(readerChromeSource, /top: ThemeConstants\.SPACE_XL/, 'top reader chrome must reserve room for the status bar on fullscreen windows')
+assert.match(readerChromeSource, /bottom: ThemeConstants\.BUTTON_HEIGHT/, 'bottom reader controls must reserve room for the navigation safe area on fullscreen windows')
 assert.match(readerChromeSource, /onPreviousPage/, 'chrome previous button must use reader callback')
 assert.match(readerChromeSource, /onNextPage/, 'chrome next button must use reader callback')
 assert.match(readerChromeSource, /ReaderModeSelector/, 'reader chrome must expose a bounded in-reader mode selector')
@@ -574,23 +574,23 @@ assert.match(readerPreferencesStoreSource, /store\.get\(KEEP_SCREEN_AWAKE_KEY, D
 assert.match(readerPreferencesStoreSource, /async saveBackgroundMode\(backgroundMode: ReaderBackgroundMode\)/, 'reader preferences store must persist background mode independently')
 assert.match(readerPreferencesStoreSource, /async saveShowProgressControls\(showProgressControls: boolean\)/, 'reader preferences store must persist progress visibility independently')
 assert.match(readerPreferencesStoreSource, /async saveKeepScreenAwake\(keepScreenAwake: boolean\)/, 'reader preferences store must persist keep-screen-awake independently')
-assert.match(settingsPageSource, /key: 'reader-background', title: '阅读背景'/, 'Settings must expose a normal reader background row')
-assert.match(settingsPageSource, /key: 'reader-progress', title: '页码与进度'/, 'Settings must expose a normal page number/progress row')
-assert.match(settingsPageSource, /key: 'reader-keep-screen-awake', title: '屏幕常亮'/, 'Settings must expose a normal keep-screen-awake row')
-assert.match(settingsPageSource, /showReaderBackgroundSheet\(\)[\s\S]*title: '黑色'[\s\S]*title: '纸张'[\s\S]*title: '浅色'/, 'reader background sheet must expose black, paper, and light choices')
-assert.match(settingsPageSource, /showReaderProgressSheet\(\)[\s\S]*title: '显示'[\s\S]*title: '隐藏'/, 'reader progress sheet must expose show/hide choices')
-assert.match(settingsPageSource, /showReaderKeepScreenAwakeSheet\(\)[\s\S]*title: '开启'[\s\S]*title: '关闭'/, 'reader keep-screen-awake sheet must expose on/off choices')
+assert.match(settingsPageSource, /key: 'reader-background', titleKey: 'settings_row_reader_background_title'/, 'Settings must expose a normal reader background row')
+assert.match(settingsPageSource, /key: 'reader-progress', titleKey: 'settings_row_reader_progress_title'/, 'Settings must expose a normal page number/progress row')
+assert.match(settingsPageSource, /key: 'reader-keep-screen-awake', titleKey: 'settings_row_reader_keep_screen_awake_title'/, 'Settings must expose a normal keep-screen-awake row')
+assert.match(settingsPageSource, /SettingsSelectionMenu\(row: SettingsRow\)[\s\S]*row\.key === 'reader-background'[\s\S]*reader_background_black[\s\S]*reader_background_paper[\s\S]*reader_background_light/, 'reader background menu must expose black, paper, and light choices')
+assert.match(settingsPageSource, /isSwitchRow\(row: SettingsRow\)[\s\S]*row\.key === 'reader-progress'[\s\S]*row\.key === 'reader-keep-screen-awake'[\s\S]*setSwitchRowValue\(row: SettingsRow, value: boolean\)/, 'reader boolean rows must use the shared switch row path')
+assert.match(settingsPageSource, /SectionRow\(row: SettingsRow\)[\s\S]*this\.isSwitchRow\(row\)[\s\S]*ConciseListRow\(\{[\s\S]*hasSwitch: true[\s\S]*checked: this\.switchRowValue\(row\)[\s\S]*this\.setSwitchRowValue\(row, isOn\)/, 'reader boolean rows must render as switches instead of selection menus')
 assert.match(readerPageSource, /backgroundMode = preferences\.backgroundMode[\s\S]*showProgressControls = preferences\.showProgressControls[\s\S]*keepScreenAwake = preferences\.keepScreenAwake/, 'ReaderPage must apply persisted reader settings after load')
-assert.match(readerPageSource, /readerBackgroundColor\(\): string[\s\S]*this\.backgroundMode === 'paper'[\s\S]*this\.backgroundMode === 'light'[\s\S]*return '#0B0A09'/, 'ReaderPage must map reader background setting to visible background colors')
+assert.match(readerPageSource, /readerBackgroundColor\(\): ResourceColor[\s\S]*this\.backgroundMode === 'paper'[\s\S]*ThemeConstants\.READER_BG_PAPER[\s\S]*this\.backgroundMode === 'light'[\s\S]*ThemeConstants\.READER_BG_LIGHT[\s\S]*ThemeConstants\.READER_BG_DARK/, 'ReaderPage must map reader background setting to visible background colors')
 assert.match(readerPageSource, /\.backgroundColor\(this\.readerBackgroundColor\(\)\)/, 'ReaderPage must apply the reader background without changing root padding')
 assert.match(readerPageSource, /showProgressControls: this\.showProgressControls/, 'ReaderPage must pass progress visibility to ReaderChrome')
 assert.match(readerPageSource, /window\.getLastWindow\(context\)[\s\S]*setWindowKeepScreenOn\(keepScreenAwake\)/, 'ReaderPage must apply keep-screen-awake through localized window API')
 assert.match(readerPageSource, /aboutToAppear\(\): void \{[\s\S]*applyReaderKeepScreenAwake\(this\.keepScreenAwake, 'appear'\)/, 'ReaderPage must apply keep-screen-awake only while reader appears')
 assert.match(readerPageSource, /aboutToDisappear\(\): void \{[\s\S]*applyReaderKeepScreenAwake\(false, 'disappear'\)/, 'ReaderPage must restore screen timeout when leaving reader')
-assert.match(readerChromeSource, /@Prop\s+showProgressControls:\s*boolean = true/, 'ReaderChrome progress visibility must be reactive to ReaderPage preference updates')
+assert.match(readerChromeSource, /@Param\s+showProgressControls:\s*boolean = true/, 'ReaderChrome progress visibility must be reactive to ReaderPage preference updates')
 assert.match(readerChromeSource, /if \(this\.showProgressControls\) \{[\s\S]*Text\(`\$\{this\.pageIndex \+ 1\} \/ \$\{this\.pageTotal\}`\)/, 'ReaderChrome must hide the page number label when requested')
 assert.match(readerChromeSource, /if \(this\.showProgressControls\) \{[\s\S]*Progress\(\{ value: this\.progressValue\(\), total: 100, type: ProgressType\.Linear \}\)/, 'ReaderChrome must hide the progress bar when requested')
-assert.match(readerChromeSource, /Button\('上一页'\)[\s\S]*Button\('下一页'\)/, 'ReaderChrome must keep previous/next navigation controls available')
+assert.match(readerChromeSource, /KomaActionButton\(\{[\s\S]*reader_action_previous_page[\s\S]*KomaActionButton\(\{[\s\S]*reader_action_next_page/, 'ReaderChrome must keep previous/next navigation controls available')
 
 assert.equal(clampPageIndex(-5, 5), 0, 'negative page indexes clamp to first page')
 assert.equal(clampPageIndex(9, 5), 4, 'large page indexes clamp to last page')

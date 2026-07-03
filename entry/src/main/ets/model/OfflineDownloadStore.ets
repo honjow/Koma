@@ -485,9 +485,36 @@ export class OfflineDownloadStore {
   }
 
   loadSummary(comicId: ComicId, chapterId: string): OfflineDownloadSummary | undefined {
-    const manifest = this.loadManifest(comicId, chapterId)
+    const validation = this.validateDownloadedChapter(comicId, chapterId)
+    if (validation.status === OfflineDownloadedChapterStatus.MISSING &&
+      validation.reasonCode === 'manifest_missing') {
+      return undefined
+    }
+    const manifest = validation.manifest
+    if (validation.status === OfflineDownloadedChapterStatus.CORRUPT) {
+      return {
+        comicId,
+        chapterId,
+        pageCount: validation.pageCount,
+        downloadedPageCount: validation.availablePageCount,
+        status: OfflineDownloadStatus.FAILED,
+        updatedAt: manifest?.updatedAt ?? 0,
+      }
+    }
     if (manifest === undefined) {
       return undefined
+    }
+    if (validation.status === OfflineDownloadedChapterStatus.DOWNLOADED ||
+      validation.status === OfflineDownloadedChapterStatus.PARTIAL) {
+      return {
+        comicId: manifest.comicId,
+        chapterId: manifest.chapterId,
+        pageCount: validation.pageCount,
+        downloadedPageCount: validation.availablePageCount,
+        status: validation.status === OfflineDownloadedChapterStatus.DOWNLOADED ?
+          OfflineDownloadStatus.DOWNLOADED : OfflineDownloadStatus.PARTIAL,
+        updatedAt: manifest.updatedAt,
+      }
     }
     return {
       comicId: manifest.comicId,
