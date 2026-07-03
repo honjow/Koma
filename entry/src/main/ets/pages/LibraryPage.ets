@@ -189,17 +189,20 @@ export struct LibraryPage {
         nextComics.push(comic)
       }
     })
-    this.displayedComics = this.filterDownloadedComics(this.filterPreciseSourceComics(nextComics))
+    this.displayedComics = this.filterAvailabilityComics(this.filterPreciseSourceComics(nextComics))
     this.displayedRevision += 1
     this.removeMissingSelectedComics()
   }
 
-  private filterDownloadedComics(comics: Comic[]): Comic[] {
-    if (this.filterAvailability !== 'downloaded') {
+  private filterAvailabilityComics(comics: Comic[]): Comic[] {
+    if (this.filterAvailability === 'all') {
       return comics
     }
     const downloadedComicIds = this.downloadedComicIds()
-    return comics.filter((comic: Comic): boolean => downloadedComicIds.has(comic.id))
+    if (this.filterAvailability === 'downloaded') {
+      return comics.filter((comic: Comic): boolean => downloadedComicIds.has(comic.id))
+    }
+    return comics.filter((comic: Comic): boolean => !downloadedComicIds.has(comic.id))
   }
 
   private downloadedComicIds(): Set<ComicId> {
@@ -480,6 +483,9 @@ export struct LibraryPage {
   private availabilityLabel(): string {
     if (this.filterAvailability === 'downloaded') {
       return s('library_availability_downloaded')
+    }
+    if (this.filterAvailability === 'not_downloaded') {
+      return s('library_availability_not_downloaded')
     }
     return s('library_availability_all')
   }
@@ -928,6 +934,10 @@ export struct LibraryPage {
       MenuItem({ content: s('library_availability_downloaded') })
         .onClick(() => {
           this.setAvailabilityFilter('downloaded')
+        })
+      MenuItem({ content: s('library_availability_not_downloaded') })
+        .onClick(() => {
+          this.setAvailabilityFilter('not_downloaded')
         })
     }
   }

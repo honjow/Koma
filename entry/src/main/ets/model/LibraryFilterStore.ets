@@ -7,7 +7,7 @@ import {
 } from './LibraryStore'
 
 export type LibrarySourceFilter = 'all' | 'local' | 'private' | 'komga' | 'opds' | 'webdav' | 'source_package'
-export type LibraryAvailabilityFilter = 'all' | 'downloaded'
+export type LibraryAvailabilityFilter = 'all' | 'downloaded' | 'not_downloaded'
 
 export interface LibraryFilterPreferences {
   sortBy: LibrarySortBy
@@ -74,7 +74,7 @@ function normalizeCategory(value: string): LibraryCategoryFilter {
 }
 
 function normalizeAvailability(value: string): LibraryAvailabilityFilter {
-  if (value === 'downloaded') {
+  if (value === 'downloaded' || value === 'not_downloaded') {
     return value
   }
   return 'all'

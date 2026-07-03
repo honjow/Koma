@@ -624,8 +624,8 @@ assert.match(
 )
 assert.match(
   libraryFilterStoreSource,
-  /export type LibraryAvailabilityFilter = 'all' \| 'downloaded'[\s\S]*availability: LibraryAvailabilityFilter[\s\S]*LIBRARY_FILTER_AVAILABILITY_KEY[\s\S]*normalizeAvailability\(availability\)[\s\S]*store\.put\(LIBRARY_FILTER_AVAILABILITY_KEY, preferencesValue\.availability\)/,
-  'Library filter preferences must persist the downloaded availability filter',
+  /export type LibraryAvailabilityFilter = 'all' \| 'downloaded' \| 'not_downloaded'[\s\S]*availability: LibraryAvailabilityFilter[\s\S]*LIBRARY_FILTER_AVAILABILITY_KEY[\s\S]*value === 'downloaded' \|\| value === 'not_downloaded'[\s\S]*normalizeAvailability\(availability\)[\s\S]*store\.put\(LIBRARY_FILTER_AVAILABILITY_KEY, preferencesValue\.availability\)/,
+  'Library filter preferences must persist downloaded and not-downloaded availability filters',
 )
 assert.match(
   libraryFilterStoreSource,
@@ -634,12 +634,12 @@ assert.match(
 )
 assert.match(
   libraryPageSource,
-  /filterAvailability: LibraryAvailabilityFilter = 'all'[\s\S]*filterDownloadedComics\(this\.filterPreciseSourceComics\(nextComics\)\)[\s\S]*new OfflineDownloadQueueStore\(context\.filesDir\)\.reconcileWithManifests\(\)[\s\S]*OfflineDownloadStatus\.DOWNLOADED \|\| entry\.status === OfflineDownloadStatus\.PARTIAL/,
-  'LibraryPage downloaded filter must derive reader-ready comics from reconciled download queue manifests',
+  /filterAvailability: LibraryAvailabilityFilter = 'all'[\s\S]*filterAvailabilityComics\(this\.filterPreciseSourceComics\(nextComics\)\)[\s\S]*private filterAvailabilityComics\(comics: Comic\[\]\): Comic\[\][\s\S]*this\.filterAvailability === 'downloaded'[\s\S]*!downloadedComicIds\.has\(comic\.id\)[\s\S]*new OfflineDownloadQueueStore\(context\.filesDir\)\.reconcileWithManifests\(\)[\s\S]*OfflineDownloadStatus\.DOWNLOADED \|\| entry\.status === OfflineDownloadStatus\.PARTIAL/,
+  'LibraryPage availability filter must derive downloaded and not-downloaded comics from reconciled download queue manifests',
 )
 assert.match(
   libraryPageSource,
-  /filterDownloadedComics\(this\.filterPreciseSourceComics\(nextComics\)\)[\s\S]*private filterPreciseSourceComics\(comics: Comic\[\]\): Comic\[\][\s\S]*this\.filterSource === 'source_package'[\s\S]*this\.filterSource === 'private'[\s\S]*private isSourcePackageComic\(comic: Comic\): boolean[\s\S]*comic\.sourceKind === ComicSourceKind\.PRIVATE_LIBRARY[\s\S]*comic\.sourceRuntimeId\.trim\(\)\.length > 0[\s\S]*private isPrivateLibraryComic\(comic: Comic\): boolean[\s\S]*this\.isSourcePackageComic\(comic\)[\s\S]*ComicSourceKind\.KOMGA_REMOTE[\s\S]*ComicSourceKind\.OPDS_REMOTE[\s\S]*ComicSourceKind\.WEBDAV_REMOTE/,
+  /filterAvailabilityComics\(this\.filterPreciseSourceComics\(nextComics\)\)[\s\S]*private filterPreciseSourceComics\(comics: Comic\[\]\): Comic\[\][\s\S]*this\.filterSource === 'source_package'[\s\S]*this\.filterSource === 'private'[\s\S]*private isSourcePackageComic\(comic: Comic\): boolean[\s\S]*comic\.sourceKind === ComicSourceKind\.PRIVATE_LIBRARY[\s\S]*comic\.sourceRuntimeId\.trim\(\)\.length > 0[\s\S]*private isPrivateLibraryComic\(comic: Comic\): boolean[\s\S]*this\.isSourcePackageComic\(comic\)[\s\S]*ComicSourceKind\.KOMGA_REMOTE[\s\S]*ComicSourceKind\.OPDS_REMOTE[\s\S]*ComicSourceKind\.WEBDAV_REMOTE/,
   'LibraryPage source filters must split private-library and source-package comics instead of grouping all PRIVATE_LIBRARY rows together',
 )
 assert.match(
@@ -649,8 +649,8 @@ assert.match(
 )
 assert.match(
   libraryPageSource,
-  /private AvailabilityMenu\(\)[\s\S]*setAvailabilityFilter\('all'\)[\s\S]*library_availability_downloaded[\s\S]*setAvailabilityFilter\('downloaded'\)[\s\S]*this\.availabilityLabel\(\)[\s\S]*this\.filterAvailability !== 'all'/,
-  'LibraryPage must expose a user-visible downloaded availability filter chip',
+  /private AvailabilityMenu\(\)[\s\S]*setAvailabilityFilter\('all'\)[\s\S]*library_availability_downloaded[\s\S]*setAvailabilityFilter\('downloaded'\)[\s\S]*library_availability_not_downloaded[\s\S]*setAvailabilityFilter\('not_downloaded'\)[\s\S]*this\.availabilityLabel\(\)[\s\S]*this\.filterAvailability !== 'all'/,
+  'LibraryPage must expose user-visible downloaded and not-downloaded availability filter chips',
 )
 assert.match(
   libraryPageSource,
