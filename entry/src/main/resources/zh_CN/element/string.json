@@ -537,6 +537,7 @@
     { "name": "manga_detail_tags_empty", "value": "暂无标签" },
     { "name": "manga_detail_chapter_count", "value": "%s 章" },
     { "name": "manga_detail_chapter_untitled", "value": "未命名章节" },
+    { "name": "manga_detail_load_local_failed", "value": "书架中未找到该漫画。" },
     { "name": "manga_detail_loading_source", "value": "正在加载源详情..." },
     { "name": "manga_detail_load_source_failed", "value": "源详情加载失败。" },
     { "name": "manga_detail_library_unavailable", "value": "书架不可用。" },

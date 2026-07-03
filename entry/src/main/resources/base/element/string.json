@@ -537,6 +537,7 @@
     { "name": "manga_detail_tags_empty", "value": "No tags yet" },
     { "name": "manga_detail_chapter_count", "value": "%s chapters" },
     { "name": "manga_detail_chapter_untitled", "value": "Untitled chapter" },
+    { "name": "manga_detail_load_local_failed", "value": "Manga not found in the library." },
     { "name": "manga_detail_loading_source", "value": "Loading source details..." },
     { "name": "manga_detail_load_source_failed", "value": "Failed to load source details." },
     { "name": "manga_detail_library_unavailable", "value": "Library unavailable." },

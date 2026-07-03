@@ -130,8 +130,8 @@ function s(name: string): string {
 @ComponentV2
 export struct MangaDetailPage {
   @Param params: MangaDetailRouteParams = {}
-  @Local private manga: MangaDetail = _mockMangaDetail()
-  @Local private chapters: MangaChapterItem[] = _mockChapterList()
+  @Local private manga: MangaDetail = missingMangaDetail(undefined, undefined)
+  @Local private chapters: MangaChapterItem[] = []
   @Local private isInLibrary: boolean = false
   @Local private isLoading: boolean = false
   @Local private downloadBusy: boolean = false
@@ -258,17 +258,17 @@ export struct MangaDetailPage {
       await this.loadSourceMangaDetail(sourceId, mangaId)
       return
     }
-    this.loadLocalOrMockManga(mangaId)
+    this.loadLocalOrMissingManga(mangaId)
   }
 
-  private loadLocalOrMockManga(mangaId?: string): void {
+  private loadLocalOrMissingManga(mangaId?: string): void {
     const comic = mangaId === undefined || this.libraryStore === undefined ? undefined : this.libraryStore.getComic(mangaId)
     if (comic === undefined) {
-      this.manga = _mockMangaDetail(mangaId, this.params.sourceId)
-      this.chapters = this.decorateChapterStates(_mockChapterList())
-      this.isInLibrary = this.manga.isInLibrary
-      this.feedbackText = ''
-      this.refreshDownloadStatus()
+      this.manga = missingMangaDetail(mangaId, this.params.sourceId)
+      this.chapters = []
+      this.isInLibrary = false
+      this.feedbackText = mangaId === undefined || mangaId.trim().length === 0 ? '' : s('manga_detail_load_local_failed')
+      this.downloadStatusText = ''
       return
     }
     this.manga = mangaDetailFromComic(comic)
@@ -303,7 +303,7 @@ export struct MangaDetailPage {
       const e = error as Error
       void e
       console.warn('[manga-detail] source detail load failed reason=source_detail')
-      this.manga = sourceLoadFailedMangaDetail(mangaId, sourceId)
+      this.manga = missingMangaDetail(mangaId, sourceId)
       this.chapters = []
       this.isInLibrary = false
       this.feedbackText = s('manga_detail_load_source_failed')
@@ -1046,11 +1046,11 @@ function comicFromSourceManga(manga: MangaDetail, chapters: MangaChapterItem[], 
   }
 }
 
-function sourceLoadFailedMangaDetail(mangaId: string, sourceId: string): MangaDetail {
-  const normalizedMangaId = mangaId.trim()
-  const normalizedSourceId = sourceId.trim()
+function missingMangaDetail(mangaId: string | undefined, sourceId: string | undefined): MangaDetail {
+  const normalizedMangaId = mangaId?.trim() ?? ''
+  const normalizedSourceId = sourceId?.trim() ?? ''
   return {
-    id: normalizedMangaId.length > 0 ? normalizedMangaId : 'source-manga',
+    id: normalizedMangaId.length > 0 ? normalizedMangaId : 'missing-manga',
     title: normalizedMangaId.length > 0 ? normalizedMangaId : AppStrings.get('manga_detail_title_fallback'),
     status: MangaStatus.UNKNOWN,
     sourceId: normalizedSourceId.length > 0 ? normalizedSourceId : undefined,
@@ -1058,46 +1058,4 @@ function sourceLoadFailedMangaDetail(mangaId: string, sourceId: string): MangaDe
     chapterCount: 0,
     isInLibrary: false,
   }
-}
-
-function _mockMangaDetail(mangaId?: string, sourceId?: string): MangaDetail {
-  const resolvedSourceId = sourceId === undefined || sourceId.length === 0 ? 'mock-source' : sourceId
-  return {
-    id: mangaId === undefined || mangaId.length === 0 ? 'mock-rain-after-town' : mangaId,
-    title: 'Rain After Town',
-    author: 'Haruka Aoi',
-    artist: 'Haruka Aoi',
-    description: 'After a long rainy season, an old neighborhood learns to breathe again. Mao finds an undeveloped roll of film in her grandmother\'s photo studio and follows its missing summer through streets washed clean by rain.',
-    status: MangaStatus.ONGOING,
-    tags: ['Drama', 'Youth', 'Slice of life', 'Healing', 'Mystery', 'Photography', 'City'],
-    sourceId: resolvedSourceId,
-    sourceName: 'Mock Source',
-    chapterCount: 128,
-    isInLibrary: false,
-    url: 'https://example.invalid/manga/rain-after-town',
-  }
-}
-
-function _mockChapterList(): MangaChapterItem[] {
-  const chapters: MangaChapterItem[] = []
-  const startTime = new Date(2024, 0, 15).getTime()
-  const weekMs = 7 * 24 * 60 * 60 * 1000
-  for (let index = 128; index >= 1; index -= 1) {
-    chapters.push({
-      id: `chapter-${index}`,
-      title: `${AppStrings.get('library_update_chapter_fallback_title').replace('%s', `${index}`)} ${_mockChapterTitle(index)}`,
-      chapterNumber: index,
-      scanlator: index % 3 === 0 ? 'Koma Scanlation' : 'Official',
-      language: index % 5 === 0 ? 'zh' : 'en',
-      dateUpload: startTime - (128 - index) * weekMs,
-      isRead: index > 122,
-      isDownloaded: index === 128 || index === 127,
-    })
-  }
-  return chapters
-}
-
-function _mockChapterTitle(index: number): string {
-  const titles: string[] = ['After the Rain', 'Old Photo', 'Convenience Store Lights', 'Seven Minutes', 'Borrowed Umbrella', 'Riverside', 'Darkroom', 'Next Train']
-  return titles[index % titles.length]
 }

@@ -1363,13 +1363,18 @@ assert.match(
 )
 assert.match(
   mangaDetailPageSource,
-  /catch \(error\)[\s\S]*reason=source_detail[\s\S]*sourceLoadFailedMangaDetail\(mangaId, sourceId\)[\s\S]*this\.chapters = \[\][\s\S]*manga_detail_load_source_failed/,
+  /catch \(error\)[\s\S]*reason=source_detail[\s\S]*missingMangaDetail\(mangaId, sourceId\)[\s\S]*this\.chapters = \[\][\s\S]*manga_detail_load_source_failed/,
   'MangaDetailPage source load failures must fail closed instead of showing mock manga or fake chapters',
 )
 assert.doesNotMatch(
   mangaDetailPageSource,
-  /catch \(error\)[\s\S]*_mockMangaDetail\(mangaId, sourceId\)[\s\S]*_mockChapterList\(\)/,
-  'MangaDetailPage must not fall back to mock source detail content after a real source failure',
+  /_mockMangaDetail|_mockChapterList|Mock Source|mock-rain-after-town|Rain After Town/,
+  'MangaDetailPage must not keep production mock manga or fake chapter fallbacks',
+)
+assert.match(
+  mangaDetailPageSource,
+  /loadLocalOrMissingManga\(mangaId\?: string\)[\s\S]*missingMangaDetail\(mangaId, this\.params\.sourceId\)[\s\S]*this\.chapters = \[\][\s\S]*manga_detail_load_local_failed/,
+  'MangaDetailPage missing local detail routes must fail closed with an empty chapter list',
 )
 assert.match(
   mangaDetailPageSource,
