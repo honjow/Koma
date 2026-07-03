@@ -20,12 +20,28 @@ export type BrowseSourceSection = 'popular' | 'latest'
 type RuntimeValue = Object | string | number | boolean | null
 type RuntimeRecord = Record<string, RuntimeValue>
 
+export interface SourceListingDescriptor {
+  id: string
+  name: string
+  kind: string
+}
+
+export interface BrowseSourceSectionState {
+  listing: SourceListingDescriptor
+  manga: SourceManga[]
+  hasNextPage: boolean
+  page: number
+}
+
 interface SourceOperationPageArg {
   cursor: string | null
   limit: number
 }
 
 interface SourceHomeArgs {
+}
+
+interface SourceListingsArgs {
 }
 
 interface SourceSearchArgs {
@@ -42,7 +58,7 @@ interface SourceMangaListArgs {
   filters: SourceMangaListFilters
 }
 
-type SourceOperationArgs = SourceHomeArgs | SourceSearchArgs | SourceMangaListArgs
+type SourceOperationArgs = SourceHomeArgs | SourceListingsArgs | SourceSearchArgs | SourceMangaListArgs
 
 interface SourceOperationHostHints {
   network: boolean
@@ -153,11 +169,41 @@ function parseSourceMangaListFromResponse(sourceId: string, response: SourceRunt
   return { manga, hasNextPage }
 }
 
+function parseSourceListingsFromResponse(response: SourceRuntimeCallResponse): SourceListingDescriptor[] {
+  if (response.ok !== true) {
+    return []
+  }
+  const data = response.data as RuntimeRecord | undefined
+  const rawListings = data?.['listings'] ?? data?.['items']
+  const listings: SourceListingDescriptor[] = []
+  if (Array.isArray(rawListings)) {
+    rawListings.forEach((rawListing: RuntimeValue) => {
+      const listing = itemRecord(rawListing)
+      if (listing === undefined) {
+        return
+      }
+      const id = optionalString(listing['id'])
+      if (id === undefined) {
+        return
+      }
+      listings.push({
+        id,
+        name: normalizeSourceDisplayText(optionalString(listing['name']) ?? optionalString(listing['title']) ?? id) ?? id,
+        kind: optionalString(listing['kind']) ?? 'custom',
+      })
+    })
+  }
+  return listings
+}
+
 @ObservedV2
 export class BrowseViewModel {
   @Trace sources: SourceRuntimeRegistryInstalledSourceSummary[] = []
   @Trace popularManga: SourceManga[] = []
   @Trace latestManga: SourceManga[] = []
+  @Trace listings: SourceListingDescriptor[] = []
+  @Trace browseSections: BrowseSourceSectionState[] = []
+  @Trace selectedListingId: string = ''
   @Trace searchResults: SourceManga[] = []
   @Trace selectedSource?: SourceRuntimeRegistryInstalledSourceSummary
   @Trace browsePage: number = 1
@@ -194,8 +240,10 @@ export class BrowseViewModel {
     this.selectedSource = source
     this.popularManga = []
     this.latestManga = []
+    this.browseSections = []
     this.browsePage = 1
     this.hasMoreBrowse = false
+    this.selectedListingId = ''
     this.errorMessage = ''
   }
 
@@ -204,17 +252,40 @@ export class BrowseViewModel {
     this.loadingBrowse = true
     this.errorMessage = ''
     try {
-      const homeArgs: SourceHomeArgs = {}
-      const home = await this.runSourceOperation(source.sourceId, 'get_home', homeArgs, 1)
-      this.popularManga = home.manga
-      const latest = await this.loadMangaList(source, 'latest', 1)
-      this.latestManga = latest.manga
-      this.hasMoreBrowse = home.hasNextPage || latest.hasNextPage
+      this.listings = await this.loadSourceListings(source)
+      const listing = this.defaultListingForBrowse(this.listings)
+      if (listing === undefined) {
+        this.popularManga = []
+        this.latestManga = []
+        this.browseSections = []
+        this.hasMoreBrowse = false
+        return
+      }
+      await this.loadBrowseListing(source, listing, 1)
     } catch (error) {
       const e = error as Error
       this.errorMessage = e.message.length > 0 ? e.message : AppStrings.get('browse_error_load_home')
       this.popularManga = []
       this.latestManga = []
+      this.browseSections = []
+      this.hasMoreBrowse = false
+    } finally {
+      this.loadingBrowse = false
+    }
+  }
+
+  async selectBrowseListing(listing: SourceListingDescriptor): Promise<void> {
+    if (this.selectedSource === undefined || this.loadingBrowse) {
+      return
+    }
+    this.loadingBrowse = true
+    this.errorMessage = ''
+    try {
+      await this.loadBrowseListing(this.selectedSource, listing, 1)
+    } catch (error) {
+      const e = error as Error
+      this.errorMessage = e.message.length > 0 ? e.message : AppStrings.get('browse_error_load_home')
+      this.browseSections = []
       this.hasMoreBrowse = false
     } finally {
       this.loadingBrowse = false
@@ -229,8 +300,13 @@ export class BrowseViewModel {
     this.errorMessage = ''
     try {
       this.browsePage += 1
-      const more = await this.loadMangaList(this.selectedSource, 'popular', this.browsePage)
-      this.popularManga = this.popularManga.concat(more.manga)
+      const listing = this.currentListing()
+      if (listing === undefined) {
+        this.hasMoreBrowse = false
+        return
+      }
+      const more = await this.loadMangaListing(this.selectedSource, listing.id, this.browsePage)
+      this.mergeBrowseListingPage(listing, more, this.browsePage)
       this.hasMoreBrowse = more.hasNextPage
     } catch (error) {
       const e = error as Error
@@ -304,17 +380,89 @@ export class BrowseViewModel {
     section: BrowseSourceSection,
     page: number,
   ): Promise<SourceMangaList> {
+    return this.loadMangaListing(source, section === 'latest' ? 'listing:latest' : 'listing:popular', page)
+  }
+
+  async loadMangaListing(
+    source: SourceRuntimeRegistryInstalledSourceSummary,
+    listingId: string,
+    page: number,
+  ): Promise<SourceMangaList> {
     const pageArg: SourceOperationPageArg = {
       cursor: page <= 1 ? null : `${page}`,
       limit: SOURCE_OPERATION_PAGE_SIZE,
     }
     const filters: SourceMangaListFilters = {}
     const args: SourceMangaListArgs = {
-      listingId: section === 'latest' ? 'listing:latest' : 'listing:popular',
+      listingId,
       page: pageArg,
       filters,
     }
     return this.runSourceOperation(source.sourceId, 'get_manga_list', args, page)
+  }
+
+  private async loadSourceListings(source: SourceRuntimeRegistryInstalledSourceSummary): Promise<SourceListingDescriptor[]> {
+    try {
+      const args: SourceListingsArgs = {}
+      const response = await this.runSourceOperationResponse(source.sourceId, 'get_listings', args, 1)
+      const listings = parseSourceListingsFromResponse(response)
+      return listings.length > 0 ? listings : this.defaultListings()
+    } catch (_error) {
+      return this.defaultListings()
+    }
+  }
+
+  private async loadBrowseListing(
+    source: SourceRuntimeRegistryInstalledSourceSummary,
+    listing: SourceListingDescriptor,
+    page: number,
+  ): Promise<void> {
+    const result = await this.loadMangaListing(source, listing.id, page)
+    this.selectedListingId = listing.id
+    this.browsePage = page
+    this.popularManga = result.manga
+    this.latestManga = []
+    this.browseSections = [{
+      listing,
+      manga: result.manga,
+      hasNextPage: result.hasNextPage,
+      page,
+    }]
+    this.hasMoreBrowse = result.hasNextPage
+  }
+
+  private mergeBrowseListingPage(
+    listing: SourceListingDescriptor,
+    more: SourceMangaList,
+    page: number,
+  ): void {
+    const current = this.browseSections.find((section: BrowseSourceSectionState): boolean => section.listing.id === listing.id)
+    const manga = current === undefined ? more.manga : current.manga.concat(more.manga)
+    this.popularManga = manga
+    this.browseSections = [{
+      listing,
+      manga,
+      hasNextPage: more.hasNextPage,
+      page,
+    }]
+  }
+
+  private currentListing(): SourceListingDescriptor | undefined {
+    return this.listings.find((listing: SourceListingDescriptor): boolean => listing.id === this.selectedListingId) ??
+      this.browseSections[0]?.listing
+  }
+
+  private defaultListingForBrowse(listings: SourceListingDescriptor[]): SourceListingDescriptor | undefined {
+    return listings.find((listing: SourceListingDescriptor): boolean => listing.kind === 'popular') ??
+      listings.find((listing: SourceListingDescriptor): boolean => listing.id === 'listing:popular') ??
+      listings[0]
+  }
+
+  private defaultListings(): SourceListingDescriptor[] {
+    return [
+      { id: 'listing:popular', name: AppStrings.get('common_popular'), kind: 'popular' },
+      { id: 'listing:latest', name: AppStrings.get('common_latest'), kind: 'latest' },
+    ]
   }
 
   private async runSourceOperation(
@@ -335,6 +483,26 @@ export class BrowseViewModel {
       throw new Error(this.runtimeErrorMessage(response))
     }
     return parseSourceMangaListFromResponse(sourceId, response)
+  }
+
+  private async runSourceOperationResponse(
+    sourceId: string,
+    operation: string,
+    args: SourceOperationArgs,
+    page: number,
+  ): Promise<SourceRuntimeCallResponse> {
+    const lookup = this.registry.lookup(sourceId)
+    if (!lookup.ok || lookup.entry === undefined) {
+      throw new Error(AppStrings.get('browse_error_source_unavailable'))
+    }
+    const requestJson = this.buildRequestJson(sourceId, operation, args, page)
+    const wasmBytes = this.copyWasmBytes(lookup.entry)
+    const responseJson = await taskpool.execute(runBrowseSourceOperationTask, requestJson, wasmBytes) as string
+    const response = JSON.parse(responseJson) as SourceRuntimeCallResponse
+    if (response.ok !== true) {
+      throw new Error(this.runtimeErrorMessage(response))
+    }
+    return response
   }
 
   private buildRequestJson(

@@ -5,7 +5,7 @@ import { SourceManga } from '../model/SourceModels'
 import { connectLayoutSafeArea, LayoutSafeAreaState } from '../state/LayoutSafeAreaState'
 import { connectLanguageState, LanguageState } from '../state/LanguageState'
 import { ThemeConstants } from '../theme/ThemeConstants'
-import { BrowseViewModel } from '../viewmodel/BrowseViewModel'
+import { BrowseSourceSectionState, BrowseViewModel, SourceListingDescriptor } from '../viewmodel/BrowseViewModel'
 import { SourceRuntimeRegistryInstalledSourceSummary } from '../sourceRuntime/SourceRuntimeRegistry'
 
 function s(name: string): string {
@@ -48,6 +48,29 @@ export struct SourceBrowsePage {
   }
 
   @Builder
+  private ListingSelector() {
+    if (this.viewModel.listings.length > 1) {
+      Scroll() {
+        Row({ space: ThemeConstants.SPACE_SM }) {
+          ForEach(this.viewModel.listings, (listing: SourceListingDescriptor) => {
+            KomaActionButton({
+              label: listing.name,
+              kind: this.viewModel.selectedListingId === listing.id ? 'primary' : 'secondary',
+              compact: true,
+              action: () => {
+                void this.viewModel.selectBrowseListing(listing)
+              },
+            })
+          }, (listing: SourceListingDescriptor) => listing.id)
+        }
+      }
+      .width('100%')
+      .scrollable(ScrollDirection.Horizontal)
+      .scrollBar(BarState.Off)
+    }
+  }
+
+  @Builder
   private SectionHeader(title: string, count: number) {
     Row() {
       Text(title)
@@ -60,6 +83,12 @@ export struct SourceBrowsePage {
         .fontColor(ThemeConstants.TEXT_SECONDARY)
     }
     .width('100%')
+  }
+
+  @Builder
+  private BrowseSection(section: BrowseSourceSectionState) {
+    this.SectionHeader(section.listing.name, section.manga.length)
+    this.MangaGrid(section.manga)
   }
 
   @Builder
@@ -117,9 +146,9 @@ export struct SourceBrowsePage {
           .width('100%')
           .alignItems(VerticalAlign.Center)
 
-          if (this.viewModel.loadingBrowse &&
-            this.viewModel.popularManga.length === 0 &&
-            this.viewModel.latestManga.length === 0) {
+          this.ListingSelector()
+
+          if (this.viewModel.loadingBrowse && this.viewModel.browseSections.length === 0) {
             LoadingProgress()
               .width(ThemeConstants.LOADING_SIZE_LARGE)
               .height(ThemeConstants.LOADING_SIZE_LARGE)
@@ -133,11 +162,9 @@ export struct SourceBrowsePage {
               .borderRadius(ThemeConstants.RADIUS_CARD)
               .backgroundColor(ThemeConstants.CARD)
           } else {
-            this.SectionHeader(s('common_popular'), this.viewModel.popularManga.length)
-            this.MangaGrid(this.viewModel.popularManga)
-
-            this.SectionHeader(s('common_latest'), this.viewModel.latestManga.length)
-            this.MangaGrid(this.viewModel.latestManga)
+            ForEach(this.viewModel.browseSections, (section: BrowseSourceSectionState) => {
+              this.BrowseSection(section)
+            }, (section: BrowseSourceSectionState) => section.listing.id)
 
             if (this.viewModel.hasMoreBrowse) {
               KomaActionButton({

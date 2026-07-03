@@ -183,6 +183,31 @@ assert.match(
   /appSourceSettingsStore\.loadForSource\(sourceId\)[\s\S]*settings,/,
   'BrowseViewModel must load and inject per-source settings into source runtime requests',
 )
+assert.match(
+  browseViewModelSource,
+  /parseSourceListingsFromResponse[\s\S]*data\?\.\['listings'\][\s\S]*SourceListingDescriptor/,
+  'BrowseViewModel must normalize source-defined get_listings descriptors',
+)
+assert.match(
+  browseViewModelSource,
+  /loadSourceListings\(source: SourceRuntimeRegistryInstalledSourceSummary\)[\s\S]*runSourceOperationResponse\(source\.sourceId, 'get_listings'[\s\S]*defaultListings\(\)/,
+  'BrowseViewModel must load runtime listings and keep a safe popular/latest fallback',
+)
+assert.match(
+  browseViewModelSource,
+  /loadMangaListing\([\s\S]*listingId: string[\s\S]*listingId,[\s\S]*runSourceOperation\(source\.sourceId, 'get_manga_list'/,
+  'BrowseViewModel must request manga lists by source-defined listing id',
+)
+assert.match(
+  browseViewModelSource,
+  /selectBrowseListing\(listing: SourceListingDescriptor\)[\s\S]*loadBrowseListing\(this\.selectedSource, listing, 1\)/,
+  'BrowseViewModel must expose listing selection for SourceBrowsePage',
+)
+assert.match(
+  readFileSync(resolve(root, 'entry/src/main/ets/pages/SourceBrowsePage.ets'), 'utf8'),
+  /ListingSelector\(\)[\s\S]*ForEach\(this\.viewModel\.listings[\s\S]*selectBrowseListing\(listing\)[\s\S]*ForEach\(this\.viewModel\.browseSections/,
+  'SourceBrowsePage must render source-defined listing selectors and sections',
+)
 assert.doesNotMatch(
   browseViewModelSource,
   /const settings[^=]*=\s*\{\}/,
