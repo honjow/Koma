@@ -33,10 +33,13 @@ import {
   LibraryStore,
 } from '../model/LibraryStore'
 import {
+  LibraryAvailabilityFilter,
   LibraryFilterPreferences,
   LibraryFilterStore,
   LibrarySourceFilter,
 } from '../model/LibraryFilterStore'
+import { OfflineDownloadQueueEntry, OfflineDownloadQueueStore } from '../model/OfflineDownloadQueueStore'
+import { OfflineDownloadStatus } from '../model/OfflineDownloadStore'
 import { connectRemoteProgressSyncState, RemoteProgressSyncState } from '../state/RemoteProgressSyncState'
 import { isRemovableLocalComic } from '../model/LibraryPersistence'
 import {
@@ -126,6 +129,7 @@ export struct LibraryPage {
   @Local private filterSource: LibrarySourceFilter = 'all'
   @Local private filterReadState: LibraryReadStateFilter = 'all'
   @Local private filterCategory: LibraryCategoryFilter = 'all'
+  @Local private filterAvailability: LibraryAvailabilityFilter = 'all'
   @Local private remoteProgress: RemoteProgressSyncState = connectRemoteProgressSyncState()
   @Param presentationByComicId: LibraryPresentationByComicId = createMockLibraryPresentationMap()
   private sessionStore: ReaderSessionStore = new InMemoryReaderSessionStore()
@@ -179,9 +183,34 @@ export struct LibraryPage {
         nextComics.push(comic)
       }
     })
-    this.displayedComics = nextComics
+    this.displayedComics = this.filterDownloadedComics(nextComics)
     this.displayedRevision += 1
     this.removeMissingSelectedComics()
+  }
+
+  private filterDownloadedComics(comics: Comic[]): Comic[] {
+    if (this.filterAvailability !== 'downloaded') {
+      return comics
+    }
+    const downloadedComicIds = this.downloadedComicIds()
+    return comics.filter((comic: Comic): boolean => downloadedComicIds.has(comic.id))
+  }
+
+  private downloadedComicIds(): Set<ComicId> {
+    const comicIds = new Set<ComicId>()
+    try {
+      const context = getContext(this) as common.UIAbilityContext
+      const entries = new OfflineDownloadQueueStore(context.filesDir).reconcileWithManifests()
+      entries.forEach((entry: OfflineDownloadQueueEntry) => {
+        if (entry.status === OfflineDownloadStatus.DOWNLOADED || entry.status === OfflineDownloadStatus.PARTIAL) {
+          comicIds.add(entry.comicId)
+        }
+      })
+    } catch (error) {
+      const e = error as Error
+      console.info('[Library] step=download_filter_load_failed reason=' + e.message)
+    }
+    return comicIds
   }
 
   private progressByComicId(): Map<ComicId, ReadingProgress> {
@@ -252,10 +281,11 @@ export struct LibraryPage {
       this.filterSource = preferencesValue.source
       this.filterReadState = preferencesValue.readState
       this.filterCategory = preferencesValue.category
+      this.filterAvailability = preferencesValue.availability
       this.applyCategoryDisplayStrategy(this.validCategoryFilter())
       this.refreshDisplayedSnapshotFromStore()
       console.info(
-        `[Library] step=filter_restored sortBy=${this.sortBy} source=${this.filterSource} readState=${this.filterReadState} category=${this.filterCategory}`
+        `[Library] step=filter_restored sortBy=${this.sortBy} source=${this.filterSource} readState=${this.filterReadState} category=${this.filterCategory} availability=${this.filterAvailability}`
       )
     } catch (error) {
       const e = error as Error
@@ -271,6 +301,7 @@ export struct LibraryPage {
         source: this.filterSource,
         readState: this.filterReadState,
         category: this.filterCategory,
+        availability: this.filterAvailability,
       }
       void new LibraryFilterStore(context).save(preferencesValue)
     } catch (error) {
@@ -318,6 +349,16 @@ export struct LibraryPage {
     this.refreshDisplayedSnapshotFromStore()
     this.saveFilterPreferences()
     console.info(`[Library] step=filter_changed category=${category}`)
+  }
+
+  private setAvailabilityFilter(availability: LibraryAvailabilityFilter): void {
+    if (this.filterAvailability === availability) {
+      return
+    }
+    this.filterAvailability = availability
+    this.refreshDisplayedSnapshotFromStore()
+    this.saveFilterPreferences()
+    console.info(`[Library] step=filter_changed availability=${availability}`)
   }
 
   private applyCategoryDisplayStrategy(category: LibraryCategoryFilter): void {
@@ -391,6 +432,13 @@ export struct LibraryPage {
       return customCategory.name
     }
     return s('library_category_all')
+  }
+
+  private availabilityLabel(): string {
+    if (this.filterAvailability === 'downloaded') {
+      return s('library_availability_downloaded')
+    }
+    return s('library_availability_all')
   }
 
   private viewModel(): LibraryViewModel {
@@ -749,6 +797,20 @@ export struct LibraryPage {
   }
 
   @Builder
+  private AvailabilityMenu() {
+    Menu() {
+      MenuItem({ content: s('common_all') })
+        .onClick(() => {
+          this.setAvailabilityFilter('all')
+        })
+      MenuItem({ content: s('library_availability_downloaded') })
+        .onClick(() => {
+          this.setAvailabilityFilter('downloaded')
+        })
+    }
+  }
+
+  @Builder
   private CategoryMenu() {
     Menu() {
       MenuItem({ content: s('common_all') })
@@ -870,6 +932,24 @@ export struct LibraryPage {
       }
       .margin({ right: ThemeConstants.SPACE_SM, bottom: ThemeConstants.SPACE_SM })
       .bindMenu(this.ReadStateMenu())
+      Row() {
+        Chip({
+          label: {
+            text: `${this.availabilityLabel()} ▾`,
+            fontSize: ThemeConstants.FONT_SIZE_TAG,
+            fontColor: ThemeConstants.TEXT_PRIMARY,
+            activatedFontColor: ThemeConstants.TEXT_ON_BRAND,
+          },
+          activated: this.filterAvailability !== 'all',
+          size: ChipSize.SMALL,
+          backgroundColor: $r('sys.color.ohos_id_color_button_normal'),
+          activatedBackgroundColor: ThemeConstants.BRAND_PRIMARY,
+          borderRadius: ThemeConstants.RADIUS_ROUND,
+          allowClose: false,
+        })
+      }
+      .margin({ right: ThemeConstants.SPACE_SM, bottom: ThemeConstants.SPACE_SM })
+      .bindMenu(this.AvailabilityMenu())
       Row() {
         Chip({
           label: {

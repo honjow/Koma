@@ -386,6 +386,8 @@
     { "name": "library_read_state_reading", "value": "读过" },
     { "name": "library_read_state_completed", "value": "已完成" },
     { "name": "library_read_state_all", "value": "全部状态" },
+    { "name": "library_availability_downloaded", "value": "已下载" },
+    { "name": "library_availability_all", "value": "全部可用性" },
     { "name": "library_category_uncategorized", "value": "未分类" },
     { "name": "library_category_read_later", "value": "稍后阅读" },
     { "name": "library_category_favorite", "value": "收藏" },

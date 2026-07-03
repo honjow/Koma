@@ -5,6 +5,7 @@ import { resolve } from 'node:path'
 const root = resolve(import.meta.dirname, '..')
 const modelPath = resolve(root, 'entry/src/main/ets/model/ComicModels.ets')
 const libraryStorePath = resolve(root, 'entry/src/main/ets/model/LibraryStore.ets')
+const libraryFilterStorePath = resolve(root, 'entry/src/main/ets/model/LibraryFilterStore.ets')
 const libraryCategoryManagementPagePath = resolve(root, 'entry/src/main/ets/pages/LibraryCategoryManagementPage.ets')
 const progressStorePath = resolve(root, 'entry/src/main/ets/model/ReadingProgressStore.ets')
 const readerSessionStorePath = resolve(root, 'entry/src/main/ets/model/ReaderSessionStore.ets')
@@ -50,6 +51,7 @@ const sourcePackageTrustPolicyPath = resolve(root, 'entry/src/main/ets/sourceRun
 
 const modelSource = readFileSync(modelPath, 'utf8')
 const libraryStoreSource = readFileSync(libraryStorePath, 'utf8')
+const libraryFilterStoreSource = readFileSync(libraryFilterStorePath, 'utf8')
 const progressStoreSource = readFileSync(progressStorePath, 'utf8')
 const readerSessionStoreSource = readFileSync(readerSessionStorePath, 'utf8')
 const chapterReadStateStoreSource = readFileSync(chapterReadStateStorePath, 'utf8')
@@ -614,6 +616,21 @@ assert.match(
   libraryStoreSource,
   /filterCategoryId\?:\s*LibraryCategoryFilter[\s\S]*categoryFilter === 'uncategorized'[\s\S]*categoryIds\.includes\(categoryFilter\)/,
   'LibraryListOptions must support all, uncategorized, and concrete category filtering',
+)
+assert.match(
+  libraryFilterStoreSource,
+  /export type LibraryAvailabilityFilter = 'all' \| 'downloaded'[\s\S]*availability: LibraryAvailabilityFilter[\s\S]*LIBRARY_FILTER_AVAILABILITY_KEY[\s\S]*normalizeAvailability\(availability\)[\s\S]*store\.put\(LIBRARY_FILTER_AVAILABILITY_KEY, preferencesValue\.availability\)/,
+  'Library filter preferences must persist the downloaded availability filter',
+)
+assert.match(
+  libraryPageSource,
+  /filterAvailability: LibraryAvailabilityFilter = 'all'[\s\S]*filterDownloadedComics\(nextComics\)[\s\S]*new OfflineDownloadQueueStore\(context\.filesDir\)\.reconcileWithManifests\(\)[\s\S]*OfflineDownloadStatus\.DOWNLOADED \|\| entry\.status === OfflineDownloadStatus\.PARTIAL/,
+  'LibraryPage downloaded filter must derive reader-ready comics from reconciled download queue manifests',
+)
+assert.match(
+  libraryPageSource,
+  /private AvailabilityMenu\(\)[\s\S]*setAvailabilityFilter\('all'\)[\s\S]*library_availability_downloaded[\s\S]*setAvailabilityFilter\('downloaded'\)[\s\S]*this\.availabilityLabel\(\)[\s\S]*this\.filterAvailability !== 'all'/,
+  'LibraryPage must expose a user-visible downloaded availability filter chip',
 )
 assert.match(
   libraryPageSource,

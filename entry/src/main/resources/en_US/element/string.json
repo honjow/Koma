@@ -386,6 +386,8 @@
     { "name": "library_read_state_reading", "value": "Reading" },
     { "name": "library_read_state_completed", "value": "Completed" },
     { "name": "library_read_state_all", "value": "All states" },
+    { "name": "library_availability_downloaded", "value": "Downloaded" },
+    { "name": "library_availability_all", "value": "All availability" },
     { "name": "library_category_uncategorized", "value": "Uncategorized" },
     { "name": "library_category_read_later", "value": "Read later" },
     { "name": "library_category_favorite", "value": "Favorites" },
