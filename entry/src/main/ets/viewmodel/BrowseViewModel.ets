@@ -173,8 +173,16 @@ function parseSourceMangaListFromResponse(sourceId: string, response: SourceRunt
       manga.push(parseSourceMangaFromItem(sourceId, directItem))
     })
   }
-  const hasNextPage = data?.['hasNextPage'] === true || data?.['has_more'] === true || data?.['hasMore'] === true
-  return { manga, hasNextPage }
+  const rawPage = data?.['page']
+  const page = rawPage === undefined ? undefined : itemRecord(rawPage)
+  const nextCursor = optionalString(page?.['nextCursor']) ?? optionalString(page?.['next_cursor'])
+  const hasNextPage = data?.['hasNextPage'] === true ||
+    data?.['has_more'] === true ||
+    data?.['hasMore'] === true ||
+    page?.['hasMore'] === true ||
+    page?.['hasNextPage'] === true ||
+    nextCursor !== undefined
+  return { manga, hasNextPage, nextCursor }
 }
 
 function parseSourceListingsFromResponse(response: SourceRuntimeCallResponse): SourceListingDescriptor[] {
@@ -252,6 +260,7 @@ export class BrowseViewModel {
   @Trace homeSections: SourceHomeSectionState[] = []
   @Trace browseSections: BrowseSourceSectionState[] = []
   @Trace selectedListingId: string = ''
+  @Trace browseNextCursor: string = ''
   @Trace searchResults: SourceManga[] = []
   @Trace selectedSource?: SourceRuntimeRegistryInstalledSourceSummary
   @Trace browsePage: number = 1
@@ -263,6 +272,7 @@ export class BrowseViewModel {
   @Trace loadingSearch: boolean = false
   @Trace errorMessage: string = ''
   @Trace searchQuery: string = ''
+  @Trace searchNextCursor: string = ''
 
   constructor(registry?: SourceRuntimeRegistry) {
     this.registry = registry ?? appSourceRuntimeRegistry
@@ -291,6 +301,7 @@ export class BrowseViewModel {
     this.homeSections = []
     this.browseSections = []
     this.browsePage = 1
+    this.browseNextCursor = ''
     this.hasMoreBrowse = false
     this.selectedListingId = ''
     this.errorMessage = ''
@@ -357,7 +368,7 @@ export class BrowseViewModel {
         this.hasMoreBrowse = false
         return
       }
-      const more = await this.loadMangaListing(this.selectedSource, listing.id, this.browsePage)
+      const more = await this.loadMangaListing(this.selectedSource, listing.id, this.browsePage, this.browseNextCursor)
       this.mergeBrowseListingPage(listing, more, this.browsePage)
       this.hasMoreBrowse = more.hasNextPage
     } catch (error) {
@@ -385,11 +396,13 @@ export class BrowseViewModel {
       const result = await this.searchSource(source, normalizedQuery, 1)
       this.searchResults = result.manga
       this.hasMoreSearch = result.hasNextPage
+      this.searchNextCursor = result.nextCursor ?? ''
     } catch (error) {
       const e = error as Error
       this.errorMessage = safeSearchDiagnostic(e).userText
       this.searchResults = []
       this.hasMoreSearch = false
+      this.searchNextCursor = ''
     } finally {
       this.loadingSearch = false
     }
@@ -403,9 +416,10 @@ export class BrowseViewModel {
     this.errorMessage = ''
     try {
       this.searchPage += 1
-      const more = await this.searchSource(this.selectedSource, this.searchQuery.trim(), this.searchPage)
+      const more = await this.searchSource(this.selectedSource, this.searchQuery.trim(), this.searchPage, this.searchNextCursor)
       this.searchResults = this.searchResults.concat(more.manga)
       this.hasMoreSearch = more.hasNextPage
+      this.searchNextCursor = more.nextCursor ?? ''
     } catch (error) {
       const e = error as Error
       this.errorMessage = safeSearchDiagnostic(e).userText
@@ -415,9 +429,14 @@ export class BrowseViewModel {
     }
   }
 
-  async searchSource(source: SourceRuntimeRegistryInstalledSourceSummary, query: string, page: number): Promise<SourceMangaList> {
+  async searchSource(
+    source: SourceRuntimeRegistryInstalledSourceSummary,
+    query: string,
+    page: number,
+    cursor: string = '',
+  ): Promise<SourceMangaList> {
     const pageArg: SourceOperationPageArg = {
-      cursor: page <= 1 ? null : `${page}`,
+      cursor: this.pageCursor(page, cursor),
       limit: SOURCE_OPERATION_PAGE_SIZE,
     }
     const args: SourceSearchArgs = {
@@ -439,9 +458,10 @@ export class BrowseViewModel {
     source: SourceRuntimeRegistryInstalledSourceSummary,
     listingId: string,
     page: number,
+    cursor: string = '',
   ): Promise<SourceMangaList> {
     const pageArg: SourceOperationPageArg = {
-      cursor: page <= 1 ? null : `${page}`,
+      cursor: this.pageCursor(page, cursor),
       limit: SOURCE_OPERATION_PAGE_SIZE,
     }
     const filters: SourceMangaListFilters = {}
@@ -483,6 +503,7 @@ export class BrowseViewModel {
     const result = await this.loadMangaListing(source, listing.id, page)
     this.selectedListingId = listing.id
     this.browsePage = page
+    this.browseNextCursor = result.nextCursor ?? ''
     this.popularManga = result.manga
     this.latestManga = []
     this.browseSections = [{
@@ -502,6 +523,7 @@ export class BrowseViewModel {
     const current = this.browseSections.find((section: BrowseSourceSectionState): boolean => section.listing.id === listing.id)
     const manga = current === undefined ? more.manga : current.manga.concat(more.manga)
     this.popularManga = manga
+    this.browseNextCursor = more.nextCursor ?? ''
     this.browseSections = [{
       listing,
       manga,
@@ -526,6 +548,13 @@ export class BrowseViewModel {
       { id: 'listing:popular', name: AppStrings.get('common_popular'), kind: 'popular' },
       { id: 'listing:latest', name: AppStrings.get('common_latest'), kind: 'latest' },
     ]
+  }
+
+  private pageCursor(page: number, cursor: string): string | null {
+    if (page <= 1) {
+      return null
+    }
+    return cursor.length > 0 ? cursor : `${page}`
   }
 
   private async runSourceOperation(

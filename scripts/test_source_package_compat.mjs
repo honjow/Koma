@@ -210,6 +210,26 @@ assert.match(
 )
 assert.match(
   browseViewModelSource,
+  /parseSourceMangaListFromResponse[\s\S]*page\?\.\['hasMore'\] === true[\s\S]*nextCursor !== undefined[\s\S]*return \{ manga, hasNextPage, nextCursor \}/,
+  'BrowseViewModel must honor source runtime page.hasMore and nextCursor pagination',
+)
+assert.match(
+  browseViewModelSource,
+  /pageCursor\(page: number, cursor: string\)[\s\S]*cursor\.length > 0 \? cursor : `\$\{page\}`/,
+  'BrowseViewModel must prefer source-owned cursors with numeric-page fallback',
+)
+assert.match(
+  browseViewModelSource,
+  /loadMangaListing\(this\.selectedSource, listing\.id, this\.browsePage, this\.browseNextCursor\)/,
+  'BrowseViewModel must send source-owned cursors for browse pagination',
+)
+assert.match(
+  browseViewModelSource,
+  /searchSource\(this\.selectedSource, this\.searchQuery\.trim\(\), this\.searchPage, this\.searchNextCursor\)/,
+  'BrowseViewModel must send source-owned cursors for search pagination',
+)
+assert.match(
+  browseViewModelSource,
   /selectBrowseListing\(listing: SourceListingDescriptor\)[\s\S]*loadBrowseListing\(this\.selectedSource, listing, 1\)/,
   'BrowseViewModel must expose listing selection for SourceBrowsePage',
 )

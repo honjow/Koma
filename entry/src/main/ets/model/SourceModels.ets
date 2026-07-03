@@ -20,6 +20,7 @@ export interface SourceManga {
 export interface SourceMangaList {
   manga: SourceManga[]
   hasNextPage: boolean
+  nextCursor?: string
 }
 
 export interface SourceChapter {
@@ -187,6 +188,7 @@ export function parseSourceMangaListJson(sourceId: string, json: string): Source
     return {
       manga: rows.map((row: SourceRuntimeMangaPayload): SourceManga => normalizeSourceManga(sourceId, row)),
       hasNextPage,
+      nextCursor: optionalString(payload.page?.nextCursor === null ? undefined : payload.page?.nextCursor),
     }
   } catch (_err) {
     return { manga: [], hasNextPage: false }
