@@ -1,4 +1,5 @@
 import { taskpool } from '@kit.ArkTS'
+import { AppStrings } from '../i18n/AppStrings'
 import { SourceManga, SourceMangaList, SourceMangaStatus } from '../model/SourceModels'
 import { normalizeSourceDisplayText } from '../model/SourceTextNormalizer'
 import { SourceRuntimeCallResponse } from '../sourceRuntime/NativeSourceRuntime'
@@ -182,7 +183,7 @@ export class BrowseViewModel {
       this.sources = this.registry.listInstalledSourceSummaries()
     } catch (error) {
       const e = error as Error
-      this.errorMessage = e.message.length > 0 ? e.message : '无法加载源'
+      this.errorMessage = e.message.length > 0 ? e.message : AppStrings.get('browse_error_load_sources')
       this.sources = []
     } finally {
       this.loadingSources = false
@@ -211,7 +212,7 @@ export class BrowseViewModel {
       this.hasMoreBrowse = home.hasNextPage || latest.hasNextPage
     } catch (error) {
       const e = error as Error
-      this.errorMessage = e.message.length > 0 ? e.message : '源浏览失败'
+      this.errorMessage = e.message.length > 0 ? e.message : AppStrings.get('browse_error_load_home')
       this.popularManga = []
       this.latestManga = []
       this.hasMoreBrowse = false
@@ -233,7 +234,7 @@ export class BrowseViewModel {
       this.hasMoreBrowse = more.hasNextPage
     } catch (error) {
       const e = error as Error
-      this.errorMessage = e.message.length > 0 ? e.message : '加载更多失败'
+      this.errorMessage = e.message.length > 0 ? e.message : AppStrings.get('browse_error_load_more')
       this.hasMoreBrowse = false
     } finally {
       this.loadingBrowse = false
@@ -324,7 +325,7 @@ export class BrowseViewModel {
   ): Promise<SourceMangaList> {
     const lookup = this.registry.lookup(sourceId)
     if (!lookup.ok || lookup.entry === undefined) {
-      throw new Error('源未安装或不可用')
+      throw new Error(AppStrings.get('browse_error_source_unavailable'))
     }
     const requestJson = this.buildRequestJson(sourceId, operation, args, page)
     const wasmBytes = this.copyWasmBytes(lookup.entry)
@@ -365,13 +366,13 @@ export class BrowseViewModel {
 
   private runtimeErrorMessage(response: SourceRuntimeCallResponse): string {
     if (typeof response.reasonCode === 'string' && response.reasonCode.length > 0) {
-      return `源运行失败：${safeDiagnosticCode(response.reasonCode)}`
+      return AppStrings.format('browse_error_source_runtime_failed', safeDiagnosticCode(response.reasonCode))
     }
     const errorCode = response.error?.['code']
     if (typeof errorCode === 'string' && errorCode.length > 0) {
-      return `源运行失败：${safeDiagnosticCode(errorCode)}`
+      return AppStrings.format('browse_error_source_runtime_failed', safeDiagnosticCode(errorCode))
     }
-    return '源运行失败'
+    return AppStrings.get('browse_error_source_runtime_failed_generic')
   }
 
   sourceLanguageBadge(source: SourceRuntimeRegistryInstalledSourceSummary): string {

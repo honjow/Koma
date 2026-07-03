@@ -36,6 +36,8 @@ const importPagePath = resolve(root, 'entry/src/main/ets/pages/ImportPage.ets')
 const sourceBrowsePagePath = resolve(root, 'entry/src/main/ets/pages/SourceBrowsePage.ets')
 const sourceSearchPagePath = resolve(root, 'entry/src/main/ets/pages/SourceSearchPage.ets')
 const sourcePackageManagerPagePath = resolve(root, 'entry/src/main/ets/pages/SourcePackageManagerPage.ets')
+const browseViewModelPath = resolve(root, 'entry/src/main/ets/viewmodel/BrowseViewModel.ets')
+const localImportCoordinatorPath = resolve(root, 'entry/src/main/ets/import/LocalImportCoordinator.ets')
 const secondaryListScaffoldPath = resolve(root, 'entry/src/main/ets/components/SecondaryListScaffold.ets')
 const comicCoverCardPath = resolve(root, 'entry/src/main/ets/components/ComicCoverCard.ets')
 const chapterListSectionPath = resolve(root, 'entry/src/main/ets/components/ChapterListSection.ets')
@@ -79,6 +81,8 @@ const importPageSource = readFileSync(importPagePath, 'utf8')
 const sourceBrowsePageSource = readFileSync(sourceBrowsePagePath, 'utf8')
 const sourceSearchPageSource = readFileSync(sourceSearchPagePath, 'utf8')
 const sourcePackageManagerPageSource = readFileSync(sourcePackageManagerPagePath, 'utf8')
+const browseViewModelSource = readFileSync(browseViewModelPath, 'utf8')
+const localImportCoordinatorSource = readFileSync(localImportCoordinatorPath, 'utf8')
 const secondaryListScaffoldSource = readFileSync(secondaryListScaffoldPath, 'utf8')
 const comicCoverCardSource = readFileSync(comicCoverCardPath, 'utf8')
 const chapterListSectionSource = readFileSync(chapterListSectionPath, 'utf8')
@@ -1624,6 +1628,31 @@ assert.match(
   sourceRuntimeAppRegistrySource,
   /expectedSourceId\?: string[\s\S]*sourceId !== expectedSourceId[\s\S]*reason=source_id_mismatch[\s\S]*return \{ ok: false, reasonCode: 'source_id_mismatch' \}/,
   'source package replacement must verify the downloaded manifest source id before replacing an installed source',
+)
+assert.match(
+  sourceRuntimeAppRegistrySource,
+  /smokeStatus: diagnostic === undefined \? AppStrings\.get\('source_pkg_not_run'\)/,
+  'source package smoke status fallback must use localized source package resources',
+)
+assert.match(
+  browseViewModelSource,
+  /AppStrings\.get\('browse_error_load_sources'\)[\s\S]*AppStrings\.get\('browse_error_load_home'\)[\s\S]*AppStrings\.get\('browse_error_load_more'\)[\s\S]*AppStrings\.get\('browse_error_source_unavailable'\)[\s\S]*AppStrings\.format\('browse_error_source_runtime_failed'/,
+  'BrowseViewModel source browse fallback errors must use localized resources',
+)
+assert.doesNotMatch(
+  browseViewModelSource,
+  /无法加载源|源浏览失败|加载更多失败|源未安装或不可用|源运行失败/,
+  'BrowseViewModel must not hardcode Chinese browse/runtime fallback messages',
+)
+assert.match(
+  localImportCoordinatorSource,
+  /AppStrings\.get\('import_image_title'\)/,
+  'local image import fallback title must use localized import resources',
+)
+assert.doesNotMatch(
+  localImportCoordinatorSource,
+  /return '图片'|: '图片'/,
+  'local image import coordinator must not hardcode Chinese image fallback title',
 )
 assert.match(
   sourceIndexServiceSource,

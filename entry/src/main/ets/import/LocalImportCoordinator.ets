@@ -1,5 +1,6 @@
 import { common } from '@kit.AbilityKit'
 import { fileIo as fs, ListFileOptions, picker } from '@kit.CoreFileKit'
+import { AppStrings } from '../i18n/AppStrings'
 import {
   ArchiveExtractionResult,
   ArchiveExtractionService,
@@ -306,7 +307,7 @@ function decodePickerPathSegment(value: string): string {
 
 function createLocalImageImportTitle(sourceUris: string[]): string {
   if (sourceUris.length === 0) {
-    return '图片'
+    return AppStrings.get('import_image_title')
   }
   const normalized = sourceUris[0].replace(/\\/g, '/').split('?')[0].split('#')[0]
   const parts = normalized.split('/').filter((part: string) => part.length > 0)
@@ -317,7 +318,7 @@ function createLocalImageImportTitle(sourceUris: string[]): string {
     }
   }
   const fallback = stripExtension(getBaseName(normalized)).trim()
-  return fallback.length === 0 ? '图片' : decodePickerPathSegment(fallback)
+  return fallback.length === 0 ? AppStrings.get('import_image_title') : decodePickerPathSegment(fallback)
 }
 
 export async function copyPickedImageUriToSandbox(sourceUri: string, sandboxPath: string): Promise<void> {

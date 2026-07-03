@@ -2,6 +2,7 @@ import { common } from '@kit.AbilityKit'
 import { buffer } from '@kit.ArkTS'
 import { cryptoFramework } from '@kit.CryptoArchitectureKit'
 import { fileIo as fs, ListFileOptions, picker } from '@kit.CoreFileKit'
+import { AppStrings } from '../i18n/AppStrings'
 import {
   importLocalSourceArchive,
   LocalSourcePackageManifest,
@@ -246,7 +247,7 @@ function sourcePackageFromEntry(entry: SourceRuntimeRegistryEntry): InstalledSou
     nsfw: entry.nsfw,
     enabled: entry.enabled,
     status: entry.importStatus,
-    smokeStatus: diagnostic === undefined ? '未运行' : (diagnostic.ok ? 'PASS' : 'FAIL'),
+    smokeStatus: diagnostic === undefined ? AppStrings.get('source_pkg_not_run') : (diagnostic.ok ? 'PASS' : 'FAIL'),
     lastDiagnosticMessage: diagnostic === undefined ? '' : (diagnostic.reasonCode ?? 'ok'),
     capabilities: entry.capabilities,
   }

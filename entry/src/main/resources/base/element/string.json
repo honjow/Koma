@@ -264,6 +264,12 @@
     { "name": "browse_webdav_detail", "value": "Browse folders / image sets / reader" },
     { "name": "browse_opds_tag", "value": "Catalog" },
     { "name": "browse_opds_detail", "value": "Browse catalog / acquisitions / images" },
+    { "name": "browse_error_load_sources", "value": "Could not load sources" },
+    { "name": "browse_error_load_home", "value": "Source browse failed" },
+    { "name": "browse_error_load_more", "value": "Could not load more" },
+    { "name": "browse_error_source_unavailable", "value": "Source is not installed or unavailable" },
+    { "name": "browse_error_source_runtime_failed", "value": "Source runtime failed: %s" },
+    { "name": "browse_error_source_runtime_failed_generic", "value": "Source runtime failed" },
 
     { "name": "search_placeholder", "value": "Search titles, authors, tags..." },
     { "name": "search_empty_idle_title", "value": "Start searching with a keyword" },
