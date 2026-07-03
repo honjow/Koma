@@ -15,6 +15,7 @@ import {
   normalizeCategoryIds,
   withComicCategoryIds,
 } from './ComicModels'
+import { AppStrings } from '../i18n/AppStrings'
 
 export type LibrarySortBy = 'lastRead' | 'added' | 'title' | 'source'
 export type LibraryReadStateFilter = 'all' | 'unread' | 'reading' | 'completed'
@@ -227,7 +228,7 @@ export class InMemoryLibraryStore implements LibraryStore {
   renameCustomCategory(categoryId: string, name: string, now: number = Date.now()): CustomLibraryCategory {
     const previous = this.customCategories.get(categoryId)
     if (previous === undefined) {
-      throw new Error('分类不存在')
+      throw new Error(AppStrings.get('library_category_error_missing'))
     }
     const normalizedName = this.validateCustomCategoryName(name, categoryId)
     const next: CustomLibraryCategory = {
@@ -435,17 +436,17 @@ export class InMemoryLibraryStore implements LibraryStore {
     }
     const normalizedName = normalizeLibraryCategoryName(category.name)
     if (normalizedName.length === 0) {
-      throw new Error('分类名称不能为空')
+      throw new Error(AppStrings.get('library_category_error_name_empty'))
     }
     if (normalizedName.length > LIBRARY_CATEGORY_NAME_MAX_LENGTH) {
-      throw new Error(`分类名称不能超过 ${LIBRARY_CATEGORY_NAME_MAX_LENGTH} 个字符`)
+      throw new Error(AppStrings.format('library_category_error_name_too_long', LIBRARY_CATEGORY_NAME_MAX_LENGTH))
     }
     if (isBuiltInLibraryCategoryName(normalizedName)) {
-      throw new Error('分类名称不能与内置分类重复')
+      throw new Error(AppStrings.get('library_category_error_name_builtin'))
     }
     const nameKey = libraryCategoryNameKey(normalizedName)
     if (nameKeys.includes(nameKey)) {
-      throw new Error('分类名称已存在')
+      throw new Error(AppStrings.get('library_category_error_name_duplicate'))
     }
     nameKeys.push(nameKey)
     return {
@@ -460,20 +461,20 @@ export class InMemoryLibraryStore implements LibraryStore {
   private validateCustomCategoryName(name: string, currentCategoryId?: string): string {
     const normalizedName = normalizeLibraryCategoryName(name)
     if (normalizedName.length === 0) {
-      throw new Error('分类名称不能为空')
+      throw new Error(AppStrings.get('library_category_error_name_empty'))
     }
     if (normalizedName.length > LIBRARY_CATEGORY_NAME_MAX_LENGTH) {
-      throw new Error(`分类名称不能超过 ${LIBRARY_CATEGORY_NAME_MAX_LENGTH} 个字符`)
+      throw new Error(AppStrings.format('library_category_error_name_too_long', LIBRARY_CATEGORY_NAME_MAX_LENGTH))
     }
     if (isBuiltInLibraryCategoryName(normalizedName)) {
-      throw new Error('分类名称不能与内置分类重复')
+      throw new Error(AppStrings.get('library_category_error_name_builtin'))
     }
     const key = libraryCategoryNameKey(normalizedName)
     const duplicate = Array.from(this.customCategories.values()).some((category: CustomLibraryCategory): boolean => {
       return category.id !== currentCategoryId && libraryCategoryNameKey(category.name) === key
     })
     if (duplicate) {
-      throw new Error('分类名称已存在')
+      throw new Error(AppStrings.get('library_category_error_name_duplicate'))
     }
     return normalizedName
   }

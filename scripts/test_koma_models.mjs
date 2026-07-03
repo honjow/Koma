@@ -1809,6 +1809,11 @@ function createSeededStore() {
   const comics = new Map()
   const customCategories = new Map()
   const categoryDisplayStrategies = new Map()
+  const categoryErrorNameEmpty = 'Category name cannot be empty'
+  const categoryErrorNameTooLong = 'Category name cannot exceed 40 characters'
+  const categoryErrorNameBuiltin = 'Category name cannot match a built-in category'
+  const categoryErrorNameDuplicate = 'Category name already exists'
+  const categoryErrorMissing = 'Category does not exist'
   mockLibraryComics.forEach((item, index) => {
     const comic = createMockComic(item, index + 1)
     comics.set(comic.id, comic)
@@ -1818,13 +1823,13 @@ function createSeededStore() {
   }
   function validateCustomCategoryName(name, currentCategoryId) {
     const normalizedName = normalizeLibraryCategoryName(name)
-    if (normalizedName.length === 0) throw new Error('分类名称不能为空')
-    if (normalizedName.length > 40) throw new Error('分类名称不能超过 40 个字符')
-    if (isBuiltInLibraryCategoryName(normalizedName)) throw new Error('分类名称不能与内置分类重复')
+    if (normalizedName.length === 0) throw new Error(categoryErrorNameEmpty)
+    if (normalizedName.length > 40) throw new Error(categoryErrorNameTooLong)
+    if (isBuiltInLibraryCategoryName(normalizedName)) throw new Error(categoryErrorNameBuiltin)
     const key = libraryCategoryNameKey(normalizedName)
     for (const category of customCategories.values()) {
       if (category.id !== currentCategoryId && libraryCategoryNameKey(category.name) === key) {
-        throw new Error('分类名称已存在')
+        throw new Error(categoryErrorNameDuplicate)
       }
     }
     return normalizedName
@@ -1837,12 +1842,12 @@ function createSeededStore() {
       throw new Error('Duplicate custom category id')
     }
     const normalizedName = normalizeLibraryCategoryName(category.name)
-    if (normalizedName.length === 0) throw new Error('分类名称不能为空')
-    if (normalizedName.length > 40) throw new Error('分类名称不能超过 40 个字符')
-    if (isBuiltInLibraryCategoryName(normalizedName)) throw new Error('分类名称不能与内置分类重复')
+    if (normalizedName.length === 0) throw new Error(categoryErrorNameEmpty)
+    if (normalizedName.length > 40) throw new Error(categoryErrorNameTooLong)
+    if (isBuiltInLibraryCategoryName(normalizedName)) throw new Error(categoryErrorNameBuiltin)
     const key = libraryCategoryNameKey(normalizedName)
     if (nameKeys.includes(key)) {
-      throw new Error('分类名称已存在')
+      throw new Error(categoryErrorNameDuplicate)
     }
     nameKeys.push(key)
     return { ...category, name: normalizedName }
@@ -1900,7 +1905,7 @@ function createSeededStore() {
     },
     renameCustomCategory(categoryId, name, now = Date.now()) {
       const previous = customCategories.get(categoryId)
-      if (previous === undefined) throw new Error('分类不存在')
+      if (previous === undefined) throw new Error(categoryErrorMissing)
       const normalizedName = validateCustomCategoryName(name, categoryId)
       const next = { ...previous, name: normalizedName, updatedAt: now }
       customCategories.set(categoryId, next)
@@ -2818,17 +2823,17 @@ assert.equal(categoryStore.listCustomCategories().length, 1, 'custom category cr
 assert.equal(JSON.parse(categoryAdapter.savedPayloads.at(-1)).customCategories[0].name, 'Favorites 2026', 'custom category definitions must persist')
 assert.throws(
   () => createCustomCategoryAndPersistLibraryStore(categoryStore, categoryService, '收藏'),
-  /内置分类/,
+  /built-in category/,
   'custom categories must not collide with built-in category names',
 )
 assert.throws(
   () => createCustomCategoryAndPersistLibraryStore(categoryStore, categoryService, 'favorites 2026'),
-  /已存在/,
+  /already exists/,
   'custom categories must reject case-insensitive duplicate names',
 )
 assert.throws(
   () => createCustomCategoryAndPersistLibraryStore(categoryStore, categoryService, 'x'.repeat(41)),
-  /不能超过 40/,
+  /cannot exceed 40/,
   'custom categories must reject overlong names',
 )
 assert.equal(updateComicCategoryMembershipAndPersistLibraryStore(categoryStore, categoryService, ['imported-01'], customCategory.id, true), 1, 'batch add must accept custom category ids')
@@ -2885,7 +2890,7 @@ const maliciousBuiltInCategoryNamePayload = JSON.stringify({
 })
 assert.throws(
   () => hydrateLibraryStoreFromJson(createSeededStore(), maliciousBuiltInCategoryNamePayload),
-  /内置分类|built-in category/,
+  /built-in category/,
   'restored custom categories must reject built-in category names',
 )
 const duplicateCustomCategoryPayload = JSON.stringify({
@@ -2897,7 +2902,7 @@ const duplicateCustomCategoryPayload = JSON.stringify({
 })
 assert.throws(
   () => hydrateLibraryStoreFromJson(createSeededStore(), duplicateCustomCategoryPayload),
-  /分类名称已存在|duplicate category name/,
+  /already exists|duplicate category name/,
   'restored custom categories must reject duplicate names',
 )
 
