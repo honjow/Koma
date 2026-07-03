@@ -385,6 +385,7 @@ assertExport(readerPreferencesStoreSource, 'THEME_MODE_KEY')
 assertExport(readerPreferencesStoreSource, 'BACKGROUND_MODE_KEY')
 assertExport(readerPreferencesStoreSource, 'SHOW_PROGRESS_CONTROLS_KEY')
 assertExport(readerPreferencesStoreSource, 'KEEP_SCREEN_AWAKE_KEY')
+assertExport(readerPreferencesStoreSource, 'DEFAULT_READER_PREFERENCES')
 assertExport(offlineDownloadStoreSource, 'OfflineDownloadStore')
 assertExport(offlineDownloadStoreSource, 'OfflineDownloadStatus')
 assertExport(offlineDownloadStoreSource, 'OfflineChapterDownloadManifest')
@@ -861,6 +862,11 @@ assert.match(
   settingsPageSource,
   /private isSwitchRow\(row: SettingsRow\): boolean \{[\s\S]*row\.key === 'library-auto-update'[\s\S]*private switchRowValue\(row: SettingsRow\): boolean \{[\s\S]*this\.libraryUpdatePreferences\.autoCheckEnabled[\s\S]*private setSwitchRowValue\(row: SettingsRow, value: boolean\): void \{[\s\S]*this\.setLibraryAutoUpdateEnabled\(value\)[\s\S]*ConciseListRow\(\{[\s\S]*hasSwitch: true[\s\S]*checked: this\.switchRowValue\(row\)[\s\S]*this\.setSwitchRowValue\(row, isOn\)/,
   'SettingsPage must use a switch row for library auto-check preference',
+)
+assert.match(
+  settingsPageSource,
+  /\{ key: 'reader-reset-defaults', titleKey: 'settings_row_reader_reset_defaults_title', detailKey: 'settings_row_reader_reset_defaults_detail' \}[\s\S]*resetReaderPreferences\(\): void \{[\s\S]*DEFAULT_READER_PREFERENCES[\s\S]*this\.applyReaderPreferences\(defaults\)[\s\S]*applyReaderThemeMode\(this\.context\(\), defaults\.themeMode\)[\s\S]*this\.preferencesStore\(\)\.save\(defaults\)[\s\S]*row\.key === 'reader-reset-defaults'[\s\S]*this\.resetReaderPreferences\(\)/,
+  'SettingsPage must expose a reader defaults reset action backed by the shared default preferences',
 )
 assert.match(
   settingsPageSource,

@@ -73,10 +73,12 @@ import {
   getReaderRemoteImageCacheStats,
 } from '../model/ReaderPageSourceAdapter'
 import {
+  DEFAULT_READER_PREFERENCES,
   ReaderBackgroundMode,
   ReaderImageFitMode,
   ReaderPageGapMode,
   ReaderPageMode,
+  ReaderPreferences,
   ReaderPreferencesStore,
   ReaderTapZonePreset,
   ReaderThemeMode,
@@ -180,6 +182,7 @@ function createSettingsSections(): SettingsSection[] {
         { key: 'reader-trim-page-margins', titleKey: 'settings_row_reader_trim_page_margins_title', detailKey: 'settings_row_reader_trim_page_margins_detail' },
         { key: 'reader-wide-image-mode', titleKey: 'settings_row_reader_wide_image_mode_title', detailKey: 'settings_row_reader_wide_image_mode_detail' },
         { key: 'reader-volume-key-navigation', titleKey: 'settings_row_reader_volume_key_navigation_title', detailKey: 'settings_row_reader_volume_key_navigation_detail' },
+        { key: 'reader-reset-defaults', titleKey: 'settings_row_reader_reset_defaults_title', detailKey: 'settings_row_reader_reset_defaults_detail' },
       ],
     },
     {
@@ -808,25 +811,29 @@ export struct SettingsPage {
 
   private loadPreferences(): void {
     void this.preferencesStore().load()
-      .then((preferences) => {
-        this.pageMode = preferences.pageMode
-        this.readingDirection = preferences.readingDirection
-        this.themeMode = preferences.themeMode
-        this.readerBackgroundMode = preferences.backgroundMode
-        this.showReaderProgressControls = preferences.showProgressControls
-        this.keepReaderScreenAwake = preferences.keepScreenAwake
-        this.readerImageFitMode = preferences.imageFitMode
-        this.readerTapNavigationEnabled = preferences.tapNavigationEnabled
-        this.readerTapZonePreset = preferences.tapZonePreset
-        this.readerPageGapMode = preferences.pageGapMode
-        this.readerTrimPageMarginsEnabled = preferences.trimPageMarginsEnabled
-        this.readerWideImageMode = preferences.wideImageMode
-        this.readerVolumeKeyNavigationEnabled = preferences.volumeKeyNavigationEnabled
+      .then((preferences: ReaderPreferences) => {
+        this.applyReaderPreferences(preferences)
         console.info('[Settings] step=load_preferences')
       })
       .catch((error: Error) => {
         console.warn('[Settings] step=load_preferences_failed message=' + error.message)
       })
+  }
+
+  private applyReaderPreferences(preferences: ReaderPreferences): void {
+    this.pageMode = preferences.pageMode
+    this.readingDirection = preferences.readingDirection
+    this.themeMode = preferences.themeMode
+    this.readerBackgroundMode = preferences.backgroundMode
+    this.showReaderProgressControls = preferences.showProgressControls
+    this.keepReaderScreenAwake = preferences.keepScreenAwake
+    this.readerImageFitMode = preferences.imageFitMode
+    this.readerTapNavigationEnabled = preferences.tapNavigationEnabled
+    this.readerTapZonePreset = preferences.tapZonePreset
+    this.readerPageGapMode = preferences.pageGapMode
+    this.readerTrimPageMarginsEnabled = preferences.trimPageMarginsEnabled
+    this.readerWideImageMode = preferences.wideImageMode
+    this.readerVolumeKeyNavigationEnabled = preferences.volumeKeyNavigationEnabled
   }
 
   private loadLibraryUpdatePreferences(): void {
@@ -1147,6 +1154,27 @@ export struct SettingsPage {
       })
       .catch((error: Error) => {
         console.warn('[Settings] step=save_reader_volume_key_navigation_failed message=' + error.message)
+      })
+  }
+
+  private resetReaderPreferences(): void {
+    const defaults = DEFAULT_READER_PREFERENCES
+    this.applyReaderPreferences(defaults)
+    try {
+      applyReaderThemeMode(this.context(), defaults.themeMode)
+    } catch (error) {
+      const e = error as Error
+      console.warn('[Settings] step=apply_reader_defaults_theme_failed message=' + e.message)
+    }
+    void this.preferencesStore().save(defaults)
+      .then(() => {
+        console.info('[Settings] step=reset_reader_preferences')
+        this.showToast(s('settings_reader_defaults_reset'))
+      })
+      .catch((error: Error) => {
+        console.warn('[Settings] step=reset_reader_preferences_failed message=' + error.message)
+        this.showToast(s('settings_reader_defaults_reset_failed'))
+        this.loadPreferences()
       })
   }
 
@@ -1702,6 +1730,8 @@ export struct SettingsPage {
       this.onOpenLibraryCategories()
     } else if (row.key === 'local-library-refresh') {
       this.checkLocalLibraryRefresh()
+    } else if (row.key === 'reader-reset-defaults') {
+      this.resetReaderPreferences()
     } else if (row.key === 'about') {
       this.showAboutDialog()
     } else if (row.key === 'version') {
