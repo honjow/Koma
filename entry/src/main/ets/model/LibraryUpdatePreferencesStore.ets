@@ -2,7 +2,7 @@ import { common } from '@kit.AbilityKit'
 import { preferences } from '@kit.ArkData'
 import { AppStrings } from '../i18n/AppStrings'
 
-export type LibraryUpdateNotificationStatus = 'disabled' | 'planned' | 'unavailable'
+export type LibraryUpdateNotificationStatus = 'disabled' | 'enabled' | 'unavailable'
 
 export interface LibraryUpdatePreferences {
   autoCheckEnabled: boolean
@@ -33,7 +33,7 @@ export const LIBRARY_UPDATE_LAST_SUMMARY_FAILED_COUNT_KEY: string = 'libraryUpda
 export const LIBRARY_UPDATE_FAILURE_COUNT_KEY: string = 'libraryUpdate.failureCount'
 export const LIBRARY_UPDATE_LAST_FAILURE_CODE_KEY: string = 'libraryUpdate.lastFailureCode'
 export const LIBRARY_UPDATE_INTERVAL_OPTIONS: number[] = [12, 24, 48]
-export const LIBRARY_UPDATE_NOTIFICATION_STATUS: LibraryUpdateNotificationStatus = 'planned'
+export const LIBRARY_UPDATE_NOTIFICATION_STATUS: LibraryUpdateNotificationStatus = 'enabled'
 export const LIBRARY_UPDATE_MAX_BACKOFF_HOURS: number = 24
 
 export const DEFAULT_LIBRARY_UPDATE_PREFERENCES: LibraryUpdatePreferences = {
@@ -233,11 +233,14 @@ export function getLibraryUpdateNotificationStatusLabel(status: LibraryUpdateNot
   if (status === 'unavailable') {
     return AppStrings.get('library_update_notification_unavailable')
   }
-  return AppStrings.get('library_update_notification_planned')
+  return AppStrings.get('library_update_notification_enabled')
 }
 
 export function isLibraryUpdateNotificationDeliveryEnabled(status: LibraryUpdateNotificationStatus = LIBRARY_UPDATE_NOTIFICATION_STATUS): boolean {
-  if (status === 'planned') {
+  if (status === 'enabled') {
+    return true
+  }
+  if (status === 'disabled') {
     return false
   }
   if (status === 'unavailable') {

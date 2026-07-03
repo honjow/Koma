@@ -1,5 +1,7 @@
 import { common } from '@kit.AbilityKit'
 import { preferences } from '@kit.ArkData'
+import { BusinessError } from '@kit.BasicServicesKit'
+import { notificationManager } from '@kit.NotificationKit'
 import {
   LibraryUpdateComicResult,
   LibraryUpdateProviderKind,
@@ -9,6 +11,7 @@ import {
   countLibraryUpdateNewChapters,
   summarizeLibraryUpdateProviders,
 } from './LibraryUpdateService'
+import { isLibraryUpdateNotificationDeliveryEnabled } from './LibraryUpdatePreferencesStore'
 import { AppStrings } from '../i18n/AppStrings'
 
 export const LIBRARY_UPDATE_RESULT_STORE_NAME: string = 'koma_library_update_results_v1'
@@ -86,6 +89,17 @@ export interface LibraryUpdateNotificationSummary {
   failureCodes: string[]
   summaryText: string
   systemDispatchEnabled: boolean
+}
+
+export type LibraryUpdateNotificationDispatchCode =
+  'delivered' |
+    'disabled' |
+    'not_needed' |
+    'publish_failed'
+
+export interface LibraryUpdateNotificationDispatchResult {
+  delivered: boolean
+  code: LibraryUpdateNotificationDispatchCode
 }
 
 let latestLibraryUpdateSummary: LibraryUpdateSummary | undefined = undefined
@@ -253,7 +267,7 @@ export function createLibraryUpdateNotificationSummary(summary: LibraryUpdateSum
     failedCount: summary.failedCount,
     failureCodes,
     summaryText,
-    systemDispatchEnabled: false,
+    systemDispatchEnabled: isLibraryUpdateNotificationDeliveryEnabled(),
   }
 }
 
@@ -263,6 +277,64 @@ export function formatLibraryUpdateNotificationSummary(summary: LibraryUpdateSum
     return notificationSummary.summaryText
   }
   return `${notificationSummary.summaryText} · ${notificationSummary.failureCodes.join(',')}`
+}
+
+export async function publishLibraryUpdateNotification(summary: LibraryUpdateSummary): Promise<LibraryUpdateNotificationDispatchResult> {
+  const notificationSummary = createLibraryUpdateNotificationSummary(summary)
+  if (notificationSummary.newChapterCount <= 0 && notificationSummary.failedCount <= 0) {
+    return { delivered: false, code: 'not_needed' }
+  }
+  const title = notificationSummary.failedCount > 0 && notificationSummary.newChapterCount <= 0
+    ? AppStrings.get('library_update_notification_failed_title')
+    : AppStrings.get('library_update_notification_title')
+  return publishLibraryUpdateNotificationText(title, formatLibraryUpdateNotificationSummary(summary), notificationSummary.checkedAt)
+}
+
+export async function publishLibraryUpdateFailureNotification(
+  checkedAt: number,
+  failureCode: string,
+): Promise<LibraryUpdateNotificationDispatchResult> {
+  const safeFailureCode = redactLibraryUpdateFailureCode(failureCode)
+  return publishLibraryUpdateNotificationText(
+    AppStrings.get('library_update_notification_failed_title'),
+    safeFailureCode,
+    checkedAt,
+  )
+}
+
+async function publishLibraryUpdateNotificationText(
+  title: string,
+  text: string,
+  checkedAt: number,
+): Promise<LibraryUpdateNotificationDispatchResult> {
+  if (!isLibraryUpdateNotificationDeliveryEnabled()) {
+    return { delivered: false, code: 'disabled' }
+  }
+  try {
+    const enabled = await notificationManager.isNotificationEnabled()
+    if (!enabled) {
+      return { delivered: false, code: 'disabled' }
+    }
+    const request: notificationManager.NotificationRequest = {
+      id: 3801,
+      label: 'koma.library_update',
+      appMessageId: `koma.library_update.${checkedAt}`,
+      notificationSlotType: notificationManager.SlotType.CONTENT_INFORMATION,
+      content: {
+        notificationContentType: notificationManager.ContentType.NOTIFICATION_CONTENT_BASIC_TEXT,
+        normal: {
+          title,
+          text,
+        },
+      },
+    }
+    await notificationManager.publish(request)
+    return { delivered: true, code: 'delivered' }
+  } catch (error) {
+    const businessError = error as BusinessError
+    console.warn('[LibraryUpdateResultStore] step=publish_library_update_notification_failed code=' + businessError.code)
+    return { delivered: false, code: 'publish_failed' }
+  }
 }
 
 export function serializeLibraryUpdateSummary(summary: LibraryUpdateSummary): string {

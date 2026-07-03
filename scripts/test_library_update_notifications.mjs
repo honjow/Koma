@@ -13,29 +13,29 @@ const moduleSource = readFileSync(resolve(root, 'entry/src/main/module.json5'), 
 assert.doesNotMatch(
   moduleSource,
   /ohos\.permission\.NOTIFICATION|NOTIFICATION_CONTROLLER|PUBLISH_AGENT_REMINDER/i,
-  'D9 must not request notification/reminder permissions without a delivery implementation and device QA',
+  'Library update notifications must not request unsupported manifest notification, controller, or reminder permissions',
 )
 
 assert.doesNotMatch(
   settingsPageSource + serviceSource + preferencesSource,
-  /background\s*scheduler|后台自动更新|系统通知|通知权限|notificationManager|publishBasicNotification|requestEnableNotification|reminderAgentManager/i,
-  'Foreground library update UX must not claim a background scheduler or notification delivery',
+  /background\s*scheduler|后台自动更新|requestEnableNotification|reminderAgentManager/i,
+  'Foreground library update UX must not add a background scheduler, permission prompt, or reminder delivery',
 )
 
 assert.match(
   preferencesSource,
-  /export const LIBRARY_UPDATE_NOTIFICATION_STATUS: LibraryUpdateNotificationStatus = 'planned'/,
-  'Notification preference must be a planned skeleton until real delivery exists',
+  /export const LIBRARY_UPDATE_NOTIFICATION_STATUS: LibraryUpdateNotificationStatus = 'enabled'/,
+  'Notification preference must enable the implemented foreground delivery path',
 )
 assert.match(
   preferencesSource,
-  /getLibraryUpdateNotificationStatusLabel[\s\S]*library_update_notification_unavailable[\s\S]*library_update_notification_planned/,
-  'Notification preference label must stay localized and honest about non-delivery',
+  /getLibraryUpdateNotificationStatusLabel[\s\S]*library_update_notification_unavailable[\s\S]*library_update_notification_enabled/,
+  'Notification preference label must stay localized and honest about delivery',
 )
 assert.match(
   preferencesSource,
-  /isLibraryUpdateNotificationDeliveryEnabled[\s\S]*status === 'planned'[\s\S]*return false[\s\S]*status === 'unavailable'[\s\S]*return false[\s\S]*return false/,
-  'Notification helper must never fake enabled delivery',
+  /isLibraryUpdateNotificationDeliveryEnabled[\s\S]*status === 'enabled'[\s\S]*return true[\s\S]*status === 'disabled'[\s\S]*return false[\s\S]*status === 'unavailable'[\s\S]*return false/,
+  'Notification helper must expose only the implemented delivery state as enabled',
 )
 assert.match(
   settingsPageSource,
@@ -45,7 +45,7 @@ assert.match(
 assert.doesNotMatch(
   settingsPageSource,
   /library-update-notifications|更新提醒|通知权限|系统通知/,
-  'Settings must not expose a fake notification/reminder row before delivery exists',
+  'Settings must not expose a separate notification/reminder row before permission UX exists',
 )
 
 assert.match(
@@ -221,8 +221,18 @@ assert.match(
 )
 assert.match(
   resultStoreSource,
-  /createLibraryUpdateNotificationSummary\(summary: LibraryUpdateSummary\): LibraryUpdateNotificationSummary[\s\S]*countLibraryUpdateNewChapters\(summary\)[\s\S]*systemDispatchEnabled: false/,
-  'Notification summary must expose counts while making system dispatch disabled explicit',
+  /createLibraryUpdateNotificationSummary\(summary: LibraryUpdateSummary\): LibraryUpdateNotificationSummary[\s\S]*countLibraryUpdateNewChapters\(summary\)[\s\S]*systemDispatchEnabled: isLibraryUpdateNotificationDeliveryEnabled\(\)/,
+  'Notification summary must expose counts and the real system dispatch capability',
+)
+assert.match(
+  resultStoreSource,
+  /import \{ notificationManager \} from '@kit\.NotificationKit'[\s\S]*publishLibraryUpdateNotification\(summary: LibraryUpdateSummary\)[\s\S]*newChapterCount <= 0 && notificationSummary\.failedCount <= 0[\s\S]*notificationManager\.isNotificationEnabled\(\)[\s\S]*notificationManager\.ContentType\.NOTIFICATION_CONTENT_BASIC_TEXT[\s\S]*notificationManager\.publish\(request\)/,
+  'Library update notifications must use NotificationKit, skip boring checks, and publish a basic system notification',
+)
+assert.match(
+  settingsPageSource,
+  /publishLibraryUpdateNotification\(summary\)[\s\S]*step=library_update_notification[\s\S]*publishLibraryUpdateFailureNotification\(checkedAt, failureCode\)/,
+  'Settings checks must dispatch notifications for new update summaries and failed checks',
 )
 assert.match(
   resultStoreSource,

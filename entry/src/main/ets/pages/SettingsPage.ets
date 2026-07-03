@@ -30,6 +30,8 @@ import {
   clearLatestLibraryUpdateSummary,
   createLibraryUpdateJobSnapshot,
   getLatestLibraryUpdateSummary,
+  publishLibraryUpdateFailureNotification,
+  publishLibraryUpdateNotification,
   setLatestLibraryUpdateJobSnapshot,
   setLatestLibraryUpdateSummary,
 } from '../model/LibraryUpdateResultStore'
@@ -1289,6 +1291,10 @@ export struct SettingsPage {
           .catch((error: Error) => {
             console.warn('[Settings] step=save_library_update_summary_failed code=' + safeSettingsErrorCode(error))
           })
+        void publishLibraryUpdateNotification(summary)
+          .then((result) => {
+            console.info('[Settings] step=library_update_notification code=' + result.code)
+          })
         if (reason === 'manual') {
           this.showToast(summary.updatedCount > 0
             ? s('settings_library_update_found_count').replace('%s', `${summary.updatedCount}`)
@@ -1326,6 +1332,10 @@ export struct SettingsPage {
           })
           .catch((saveError: Error) => {
             console.warn('[Settings] step=save_library_update_failure_failed code=' + safeSettingsErrorCode(saveError))
+          })
+        void publishLibraryUpdateFailureNotification(checkedAt, failureCode)
+          .then((result) => {
+            console.info('[Settings] step=library_update_notification code=' + result.code)
           })
         if (reason === 'manual') {
           this.showToast(s('settings_library_update_failed'))

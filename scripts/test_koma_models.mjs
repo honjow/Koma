@@ -879,8 +879,8 @@ assert.match(
 )
 assert.match(
   libraryUpdateResultStoreSource,
-  /createLibraryUpdateNotificationSummary\(summary: LibraryUpdateSummary\): LibraryUpdateNotificationSummary[\s\S]*redactLibraryUpdateFailureCode\(result\.message\)[\s\S]*systemDispatchEnabled: false/,
-  'LibraryUpdateResultStore must expose a notification-ready summary without pretending system dispatch is enabled',
+  /createLibraryUpdateNotificationSummary\(summary: LibraryUpdateSummary\): LibraryUpdateNotificationSummary[\s\S]*redactLibraryUpdateFailureCode\(result\.message\)[\s\S]*systemDispatchEnabled: isLibraryUpdateNotificationDeliveryEnabled\(\)/,
+  'LibraryUpdateResultStore must expose notification-ready counts and the real delivery capability',
 )
 assert.match(
   libraryUpdateResultStoreSource,
@@ -914,8 +914,8 @@ assert.match(
 )
 assert.match(
   libraryUpdatePreferencesStoreSource,
-  /isLibraryUpdateNotificationDeliveryEnabled[\s\S]*return false/,
-  'LibraryUpdatePreferencesStore must not report enabled notification delivery without implementation support',
+  /isLibraryUpdateNotificationDeliveryEnabled[\s\S]*status === 'enabled'[\s\S]*return true[\s\S]*status === 'disabled'[\s\S]*return false[\s\S]*status === 'unavailable'[\s\S]*return false/,
+  'LibraryUpdatePreferencesStore must report only the implemented foreground notification path as enabled',
 )
 assert.match(
   libraryUpdatePreferencesStoreSource,
