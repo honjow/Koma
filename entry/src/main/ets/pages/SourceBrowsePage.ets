@@ -52,6 +52,24 @@ export struct SourceBrowsePage {
     return this.bottomContentInset()
   }
 
+  private listingForHomeSection(section: SourceHomeSectionState): SourceListingDescriptor | undefined {
+    if (section.listingId === undefined) {
+      return undefined
+    }
+    return this.viewModel.listings.find((listing: SourceListingDescriptor): boolean => listing.id === section.listingId)
+  }
+
+  private hasListingForHomeSection(section: SourceHomeSectionState): boolean {
+    return this.listingForHomeSection(section) !== undefined
+  }
+
+  private openHomeSectionListing(section: SourceHomeSectionState): void {
+    const listing = this.listingForHomeSection(section)
+    if (listing !== undefined) {
+      void this.viewModel.selectBrowseListing(listing)
+    }
+  }
+
   @Builder
   private ListingSelector() {
     if (this.viewModel.listings.length > 1) {
@@ -98,7 +116,29 @@ export struct SourceBrowsePage {
 
   @Builder
   private HomeSection(section: SourceHomeSectionState) {
-    this.SectionHeader(section.title, section.manga.length)
+    Row() {
+      Text(section.title)
+        .fontSize(ThemeConstants.FONT_SIZE_H3)
+        .fontWeight(FontWeight.Bold)
+        .fontColor(ThemeConstants.TEXT_PRIMARY)
+      Blank()
+      if (this.hasListingForHomeSection(section)) {
+        KomaActionButton({
+          label: s('browse_section_open_listing'),
+          kind: 'secondary',
+          compact: true,
+          isEnabled: !this.viewModel.loadingBrowse,
+          action: () => {
+            this.openHomeSectionListing(section)
+          },
+        })
+      } else {
+        Text(s('library_count_books').replace('%s', `${section.manga.length}`))
+          .fontSize(ThemeConstants.FONT_SIZE_META)
+          .fontColor(ThemeConstants.TEXT_SECONDARY)
+      }
+    }
+    .width('100%')
     this.MangaGrid(section.manga)
   }
 

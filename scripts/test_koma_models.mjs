@@ -520,6 +520,11 @@ for (const [source, label] of [
   assertUsesScrollContentSafeArea(source, label)
 }
 assertSourceBrowseFloatingTabViewportClearance(sourceBrowsePageSource)
+assert.match(
+  sourceBrowsePageSource,
+  /listingForHomeSection\(section: SourceHomeSectionState\): SourceListingDescriptor \| undefined[\s\S]*section\.listingId[\s\S]*this\.viewModel\.listings\.find[\s\S]*openHomeSectionListing\(section: SourceHomeSectionState\)[\s\S]*this\.viewModel\.selectBrowseListing\(listing\)[\s\S]*HomeSection\(section: SourceHomeSectionState\)[\s\S]*s\('browse_section_open_listing'\)[\s\S]*this\.openHomeSectionListing\(section\)/,
+  'SourceBrowsePage home sections with listingId must expose an action that opens the mapped runtime listing',
+)
 
 assert.match(
   searchHistoryStoreSource,
