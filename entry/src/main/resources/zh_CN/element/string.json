@@ -194,6 +194,8 @@
     { "name": "settings_row_language_detail", "value": "应用语言" },
     { "name": "settings_row_list_density_title", "value": "列表密度" },
     { "name": "settings_row_list_density_detail", "value": "列表紧凑程度" },
+    { "name": "library_list_density_compact", "value": "紧凑" },
+    { "name": "library_list_density_comfortable", "value": "宽松" },
     { "name": "settings_row_page_mode_title", "value": "翻页模式" },
     { "name": "settings_row_page_mode_detail", "value": "默认页面布局" },
     { "name": "settings_row_reading_direction_title", "value": "阅读方向" },

@@ -194,6 +194,8 @@
     { "name": "settings_row_language_detail", "value": "App language" },
     { "name": "settings_row_list_density_title", "value": "List density" },
     { "name": "settings_row_list_density_detail", "value": "List compactness" },
+    { "name": "library_list_density_compact", "value": "Compact" },
+    { "name": "library_list_density_comfortable", "value": "Comfortable" },
     { "name": "settings_row_page_mode_title", "value": "Page mode" },
     { "name": "settings_row_page_mode_detail", "value": "Default page layout" },
     { "name": "settings_row_reading_direction_title", "value": "Reading direction" },

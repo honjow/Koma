@@ -9,10 +9,12 @@ import {
 export type LibrarySourceFilter = 'all' | 'local' | 'private' | 'komga' | 'opds' | 'webdav' | 'source_package'
 export type LibraryAvailabilityFilter = 'all' | 'downloaded' | 'fully_downloaded' | 'partially_downloaded' | 'not_downloaded'
 export type LibraryViewMode = 'grid' | 'list'
+export type LibraryListDensity = 'compact' | 'standard' | 'comfortable'
 
 export interface LibraryFilterPreferences {
   sortBy: LibrarySortBy
   viewMode: LibraryViewMode
+  listDensity: LibraryListDensity
   showBadges: boolean
   source: LibrarySourceFilter
   readState: LibraryReadStateFilter
@@ -23,6 +25,7 @@ export interface LibraryFilterPreferences {
 const LIBRARY_FILTER_STORE_NAME: string = 'koma_library_filter_preferences'
 const LIBRARY_SORT_KEY: string = 'library.sort'
 const LIBRARY_VIEW_MODE_KEY: string = 'library.viewMode'
+const LIBRARY_LIST_DENSITY_KEY: string = 'library.listDensity'
 const LIBRARY_SHOW_BADGES_KEY: string = 'library.showBadges'
 const LIBRARY_FILTER_SOURCE_KEY: string = 'library.filter.source'
 const LIBRARY_FILTER_READ_STATE_KEY: string = 'library.filter.readState'
@@ -32,6 +35,7 @@ const LIBRARY_FILTER_AVAILABILITY_KEY: string = 'library.filter.availability'
 const DEFAULT_LIBRARY_FILTER_PREFERENCES: LibraryFilterPreferences = {
   sortBy: 'lastRead',
   viewMode: 'grid',
+  listDensity: 'standard',
   showBadges: true,
   source: 'all',
   readState: 'all',
@@ -51,6 +55,13 @@ function normalizeViewMode(value: string): LibraryViewMode {
     return 'list'
   }
   return 'grid'
+}
+
+function normalizeListDensity(value: string): LibraryListDensity {
+  if (value === 'compact' || value === 'comfortable') {
+    return value
+  }
+  return 'standard'
 }
 
 function normalizeShowBadges(value: boolean): boolean {
@@ -112,6 +123,7 @@ export class LibraryFilterStore {
     const store = await this.preferences()
     const sortBy = await store.get(LIBRARY_SORT_KEY, DEFAULT_LIBRARY_FILTER_PREFERENCES.sortBy) as string
     const viewMode = await store.get(LIBRARY_VIEW_MODE_KEY, DEFAULT_LIBRARY_FILTER_PREFERENCES.viewMode) as string
+    const listDensity = await store.get(LIBRARY_LIST_DENSITY_KEY, DEFAULT_LIBRARY_FILTER_PREFERENCES.listDensity) as string
     const showBadges = await store.get(LIBRARY_SHOW_BADGES_KEY, DEFAULT_LIBRARY_FILTER_PREFERENCES.showBadges) as boolean
     const source = await store.get(LIBRARY_FILTER_SOURCE_KEY, DEFAULT_LIBRARY_FILTER_PREFERENCES.source) as string
     const readState = await store.get(LIBRARY_FILTER_READ_STATE_KEY, DEFAULT_LIBRARY_FILTER_PREFERENCES.readState) as string
@@ -120,6 +132,7 @@ export class LibraryFilterStore {
     return {
       sortBy: normalizeSortBy(sortBy),
       viewMode: normalizeViewMode(viewMode),
+      listDensity: normalizeListDensity(listDensity),
       showBadges: normalizeShowBadges(showBadges),
       source: normalizeSource(source),
       readState: normalizeReadState(readState),
@@ -132,6 +145,7 @@ export class LibraryFilterStore {
     const store = await this.preferences()
     await store.put(LIBRARY_SORT_KEY, normalizeSortBy(preferencesValue.sortBy))
     await store.put(LIBRARY_VIEW_MODE_KEY, normalizeViewMode(preferencesValue.viewMode))
+    await store.put(LIBRARY_LIST_DENSITY_KEY, normalizeListDensity(preferencesValue.listDensity))
     await store.put(LIBRARY_SHOW_BADGES_KEY, normalizeShowBadges(preferencesValue.showBadges))
     await store.put(LIBRARY_FILTER_SOURCE_KEY, normalizeSource(preferencesValue.source))
     await store.put(LIBRARY_FILTER_READ_STATE_KEY, normalizeReadState(preferencesValue.readState))

@@ -725,6 +725,11 @@ assert.match(
 )
 assert.match(
   libraryFilterStoreSource,
+  /export type LibraryListDensity = 'compact' \| 'standard' \| 'comfortable'[\s\S]*LIBRARY_LIST_DENSITY_KEY[\s\S]*listDensity: 'standard'[\s\S]*function normalizeListDensity[\s\S]*listDensity: normalizeListDensity\(listDensity\)[\s\S]*store\.put\(LIBRARY_LIST_DENSITY_KEY, normalizeListDensity\(preferencesValue\.listDensity\)\)/,
+  'Library filter preferences must persist a real compact/standard/comfortable density setting',
+)
+assert.match(
+  libraryFilterStoreSource,
   /LIBRARY_SHOW_BADGES_KEY[\s\S]*showBadges: true[\s\S]*function normalizeShowBadges\(value: boolean\): boolean[\s\S]*showBadges = await store\.get\(LIBRARY_SHOW_BADGES_KEY[\s\S]*showBadges: normalizeShowBadges\(showBadges\)[\s\S]*store\.put\(LIBRARY_SHOW_BADGES_KEY, normalizeShowBadges\(preferencesValue\.showBadges\)\)/,
   'Library filter preferences must persist a real library badge visibility switch',
 )
@@ -742,6 +747,11 @@ assert.match(
   libraryPageSource,
   /@Local private viewMode: LibraryViewMode = 'grid'[\s\S]*this\.viewMode = preferencesValue\.viewMode[\s\S]*viewMode: this\.viewMode[\s\S]*private LibraryList\(comics: ComicCoverInfo\[\]\)[\s\S]*ConciseListRow\([\s\S]*this\.viewMode === 'list'[\s\S]*this\.LibraryList\(this\.gridComics\(\)\)/,
   'LibraryPage must render persisted grid/list view mode with a reusable list row component',
+)
+assert.match(
+  libraryPageSource,
+  /@Local private listDensity: LibraryListDensity = 'standard'[\s\S]*this\.listDensity = preferencesValue\.listDensity[\s\S]*listDensity: this\.listDensity[\s\S]*libraryGridColumnsTemplate\(\)[\s\S]*'1fr 1fr 1fr 1fr'[\s\S]*'1fr 1fr'[\s\S]*columnsTemplate\(this\.libraryGridColumnsTemplate\(\)\)[\s\S]*Column\(\{ space: this\.libraryListSpace\(\) \}/,
+  'LibraryPage must restore, persist, and apply density to grid/list layout',
 )
 assert.match(
   libraryPageSource,
@@ -872,6 +882,16 @@ assert.match(
   settingsPageSource,
   /\{ key: 'library-categories', titleKey: 'settings_row_library_categories_title', detailKey: 'settings_row_library_categories_detail' \}[\s\S]*onOpenLibraryCategories:\s*\(\) => void = \(\) => \{\}[\s\S]*row\.key === 'library-categories'[\s\S]*this\.onOpenLibraryCategories\(\)/,
   'SettingsPage must expose a Settings entry for custom category management',
+)
+assert.doesNotMatch(
+  settingsPageSource,
+  /key: 'list-density'[^}]*placeholder: true/,
+  'SettingsPage list density must not remain a placeholder',
+)
+assert.match(
+  settingsPageSource,
+  /LibraryListDensity[\s\S]*libraryListDensity: LibraryListDensity = 'standard'[\s\S]*saveLibraryListDensity\(listDensity: LibraryListDensity\)[\s\S]*preferences\.listDensity = listDensity[\s\S]*row\.key === 'list-density'[\s\S]*library_list_density_compact[\s\S]*saveLibraryListDensity\('compact'\)[\s\S]*common_standard[\s\S]*saveLibraryListDensity\('standard'\)[\s\S]*library_list_density_comfortable[\s\S]*saveLibraryListDensity\('comfortable'\)/,
+  'SettingsPage must expose list density as a real LibraryFilterStore-backed menu',
 )
 assert.match(
   settingsPageSource,

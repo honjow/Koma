@@ -39,6 +39,7 @@ import {
   LibraryAvailabilityFilter,
   LibraryFilterPreferences,
   LibraryFilterStore,
+  LibraryListDensity,
   LibrarySourceFilter,
   LibraryViewMode,
 } from '../model/LibraryFilterStore'
@@ -135,6 +136,7 @@ export struct LibraryPage {
   @Local private suppressOpenComicId: ComicId = ''
   @Local private sortBy: LibrarySortBy = 'lastRead'
   @Local private viewMode: LibraryViewMode = 'grid'
+  @Local private listDensity: LibraryListDensity = 'standard'
   @Local private showLibraryBadges: boolean = true
   @Local private filterSource: LibrarySourceFilter = 'all'
   @Local private filterReadState: LibraryReadStateFilter = 'all'
@@ -335,6 +337,7 @@ export struct LibraryPage {
       const preferencesValue = await new LibraryFilterStore(context).load()
       this.sortBy = preferencesValue.sortBy
       this.viewMode = preferencesValue.viewMode
+      this.listDensity = preferencesValue.listDensity
       this.showLibraryBadges = preferencesValue.showBadges
       this.filterSource = preferencesValue.source
       this.filterReadState = preferencesValue.readState
@@ -343,7 +346,7 @@ export struct LibraryPage {
       this.applyCategoryDisplayStrategy(this.validCategoryFilter())
       this.refreshDisplayedSnapshotFromStore()
       console.info(
-        `[Library] step=filter_restored sortBy=${this.sortBy} viewMode=${this.viewMode} showBadges=${this.showLibraryBadges} source=${this.filterSource} readState=${this.filterReadState} category=${this.filterCategory} availability=${this.filterAvailability}`
+        `[Library] step=filter_restored sortBy=${this.sortBy} viewMode=${this.viewMode} listDensity=${this.listDensity} showBadges=${this.showLibraryBadges} source=${this.filterSource} readState=${this.filterReadState} category=${this.filterCategory} availability=${this.filterAvailability}`
       )
     } catch (error) {
       const e = error as Error
@@ -357,6 +360,7 @@ export struct LibraryPage {
       const preferencesValue: LibraryFilterPreferences = {
         sortBy: this.sortBy,
         viewMode: this.viewMode,
+        listDensity: this.listDensity,
         showBadges: this.showLibraryBadges,
         source: this.filterSource,
         readState: this.filterReadState,
@@ -563,6 +567,66 @@ export struct LibraryPage {
       return `${comic.subtitle} · ${comic.categoryLabels.join(' · ')}`
     }
     return comic.subtitle
+  }
+
+  private libraryGridColumnsTemplate(): string {
+    if (this.listDensity === 'compact') {
+      return '1fr 1fr 1fr 1fr'
+    }
+    if (this.listDensity === 'comfortable') {
+      return '1fr 1fr'
+    }
+    return '1fr 1fr 1fr'
+  }
+
+  private libraryGridColumnGap(): number {
+    if (this.listDensity === 'compact') {
+      return ThemeConstants.SPACE_SM
+    }
+    if (this.listDensity === 'comfortable') {
+      return ThemeConstants.SPACE_XL
+    }
+    return ThemeConstants.SPACE_LG
+  }
+
+  private libraryGridRowGap(): number {
+    if (this.listDensity === 'compact') {
+      return ThemeConstants.SPACE_LG
+    }
+    if (this.listDensity === 'comfortable') {
+      return ThemeConstants.SPACE_XXL
+    }
+    return ThemeConstants.SPACE_XL
+  }
+
+  private libraryListSpace(): number {
+    if (this.listDensity === 'compact') {
+      return ThemeConstants.SPACE_XS
+    }
+    if (this.listDensity === 'comfortable') {
+      return ThemeConstants.SPACE_MD
+    }
+    return ThemeConstants.SPACE_SM
+  }
+
+  private libraryListCoverWidth(): number {
+    if (this.listDensity === 'compact') {
+      return 42
+    }
+    if (this.listDensity === 'comfortable') {
+      return 56
+    }
+    return 48
+  }
+
+  private libraryListCoverHeight(): number {
+    if (this.listDensity === 'compact') {
+      return 60
+    }
+    if (this.listDensity === 'comfortable') {
+      return 78
+    }
+    return 68
   }
 
   private categoryLabelsForComic(comic: Comic): string[] {
@@ -1341,9 +1405,9 @@ export struct LibraryPage {
       }, (comic: ComicCoverInfo) => this.comicRenderKey(comic))
     }
     .width('100%')
-    .columnsTemplate('1fr 1fr 1fr')
-    .columnsGap(14)
-    .rowsGap(22)
+    .columnsTemplate(this.libraryGridColumnsTemplate())
+    .columnsGap(this.libraryGridColumnGap())
+    .rowsGap(this.libraryGridRowGap())
   }
 
   @Builder
@@ -1371,8 +1435,8 @@ export struct LibraryPage {
           .fontColor(ThemeConstants.TEXT_ON_BRAND)
       }
     }
-    .width(48)
-    .height(68)
+    .width(this.libraryListCoverWidth())
+    .height(this.libraryListCoverHeight())
     .borderRadius(ThemeConstants.LIST_ROW_RADIUS)
     .clip(true)
     .backgroundColor(comic.coverColor)
@@ -1380,7 +1444,7 @@ export struct LibraryPage {
 
   @Builder
   private LibraryList(comics: ComicCoverInfo[]) {
-    Column({ space: ThemeConstants.SPACE_SM }) {
+    Column({ space: this.libraryListSpace() }) {
       ForEach(comics, (comic: ComicCoverInfo) => {
         Stack({ alignContent: Alignment.TopEnd }) {
           ConciseListRow({
