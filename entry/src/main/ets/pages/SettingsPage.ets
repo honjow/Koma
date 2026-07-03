@@ -17,6 +17,7 @@ import {
 import {
   LibraryUpdateService,
   LibraryUpdateSummary,
+  countLibraryUpdateNewChapters,
   formatLibraryUpdateSummary,
 } from '../model/LibraryUpdateService'
 import {
@@ -36,6 +37,7 @@ import {
   DEFAULT_LIBRARY_UPDATE_PREFERENCES,
   LibraryUpdatePreferences,
   LibraryUpdatePreferencesStore,
+  formatLibraryUpdateStoredSummary,
   getLibraryUpdateAutoCheckLabel,
   getLibraryUpdateLastResultLabel,
   getLibraryUpdateNextDueAt,
@@ -510,7 +512,7 @@ export struct SettingsPage {
       const summaryText = formatLibraryUpdateSummary(effectiveSummary)
       const checkedAt = effectiveSummary?.checkedAt
       if (checkedAt === undefined) {
-        const storedSummary = this.libraryUpdatePreferences.lastSummaryText
+        const storedSummary = formatLibraryUpdateStoredSummary(this.libraryUpdatePreferences)
         const storedCheckedAt = this.libraryUpdatePreferences.lastCheckedAt
         if (storedSummary !== undefined && storedCheckedAt !== undefined) {
           return `${getLibraryUpdateLastResultLabel(this.libraryUpdatePreferences)} · ${getLibraryUpdateNextDueLabel(this.libraryUpdatePreferences)}`
@@ -1130,6 +1132,27 @@ export struct SettingsPage {
     this.libraryUpdatePreferences = preferences
   }
 
+  private copyLibraryUpdateSummaryState(source: LibraryUpdatePreferences, target: LibraryUpdatePreferences): void {
+    if (source.lastSummaryText !== undefined) {
+      target.lastSummaryText = source.lastSummaryText
+    }
+    if (source.lastSummaryTotalCount !== undefined) {
+      target.lastSummaryTotalCount = source.lastSummaryTotalCount
+    }
+    if (source.lastSummaryNewChapterCount !== undefined) {
+      target.lastSummaryNewChapterCount = source.lastSummaryNewChapterCount
+    }
+    if (source.lastSummaryUpdatedCount !== undefined) {
+      target.lastSummaryUpdatedCount = source.lastSummaryUpdatedCount
+    }
+    if (source.lastSummarySkippedCount !== undefined) {
+      target.lastSummarySkippedCount = source.lastSummarySkippedCount
+    }
+    if (source.lastSummaryFailedCount !== undefined) {
+      target.lastSummaryFailedCount = source.lastSummaryFailedCount
+    }
+  }
+
   private setLibraryAutoUpdateEnabled(autoCheckEnabled: boolean): void {
     const nextPreferences: LibraryUpdatePreferences = {
       autoCheckEnabled,
@@ -1140,9 +1163,7 @@ export struct SettingsPage {
     if (this.libraryUpdatePreferences.lastCheckedAt !== undefined) {
       nextPreferences.lastCheckedAt = this.libraryUpdatePreferences.lastCheckedAt
     }
-    if (this.libraryUpdatePreferences.lastSummaryText !== undefined) {
-      nextPreferences.lastSummaryText = this.libraryUpdatePreferences.lastSummaryText
-    }
+    this.copyLibraryUpdateSummaryState(this.libraryUpdatePreferences, nextPreferences)
     if (this.libraryUpdatePreferences.lastFailureCode !== undefined) {
       nextPreferences.lastFailureCode = this.libraryUpdatePreferences.lastFailureCode
     }
@@ -1171,9 +1192,7 @@ export struct SettingsPage {
     if (this.libraryUpdatePreferences.lastCheckedAt !== undefined) {
       nextPreferences.lastCheckedAt = this.libraryUpdatePreferences.lastCheckedAt
     }
-    if (this.libraryUpdatePreferences.lastSummaryText !== undefined) {
-      nextPreferences.lastSummaryText = this.libraryUpdatePreferences.lastSummaryText
-    }
+    this.copyLibraryUpdateSummaryState(this.libraryUpdatePreferences, nextPreferences)
     if (this.libraryUpdatePreferences.lastFailureCode !== undefined) {
       nextPreferences.lastFailureCode = this.libraryUpdatePreferences.lastFailureCode
     }
@@ -1253,9 +1272,15 @@ export struct SettingsPage {
             console.warn('[Settings] step=save_library_update_results_failed code=' + safeSettingsErrorCode(error))
           })
         this.onLibraryChanged()
-        const summaryText = formatLibraryUpdateSummary(summary)
         console.info('[Settings] step=library_update_done reason=' + reason + ' total=' + summary.totalCount + ' updated=' + summary.updatedCount + ' failed=' + summary.failedCount)
-        void this.libraryUpdatePreferencesStore().saveLastSummary(summary.checkedAt, summaryText)
+        void this.libraryUpdatePreferencesStore().saveLastSummary(
+          summary.checkedAt,
+          summary.totalCount,
+          countLibraryUpdateNewChapters(summary),
+          summary.updatedCount,
+          summary.skippedCount,
+          summary.failedCount,
+        )
           .then((preferences: LibraryUpdatePreferences) => {
             this.saveLibraryUpdatePreferences(preferences)
           })

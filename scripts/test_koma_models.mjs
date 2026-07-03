@@ -442,6 +442,11 @@ assertExport(libraryUpdatePreferencesStoreSource, 'LIBRARY_UPDATE_INTERVAL_HOURS
 assertExport(libraryUpdatePreferencesStoreSource, 'LIBRARY_UPDATE_FOREGROUND_ONLY_KEY')
 assertExport(libraryUpdatePreferencesStoreSource, 'LIBRARY_UPDATE_LAST_CHECKED_AT_KEY')
 assertExport(libraryUpdatePreferencesStoreSource, 'LIBRARY_UPDATE_LAST_SUMMARY_TEXT_KEY')
+assertExport(libraryUpdatePreferencesStoreSource, 'LIBRARY_UPDATE_LAST_SUMMARY_TOTAL_COUNT_KEY')
+assertExport(libraryUpdatePreferencesStoreSource, 'LIBRARY_UPDATE_LAST_SUMMARY_NEW_CHAPTER_COUNT_KEY')
+assertExport(libraryUpdatePreferencesStoreSource, 'LIBRARY_UPDATE_LAST_SUMMARY_UPDATED_COUNT_KEY')
+assertExport(libraryUpdatePreferencesStoreSource, 'LIBRARY_UPDATE_LAST_SUMMARY_SKIPPED_COUNT_KEY')
+assertExport(libraryUpdatePreferencesStoreSource, 'LIBRARY_UPDATE_LAST_SUMMARY_FAILED_COUNT_KEY')
 assertExport(libraryUpdatePreferencesStoreSource, 'LIBRARY_UPDATE_FAILURE_COUNT_KEY')
 assertExport(libraryUpdatePreferencesStoreSource, 'LIBRARY_UPDATE_LAST_FAILURE_CODE_KEY')
 assertExport(libraryUpdatePreferencesStoreSource, 'LIBRARY_UPDATE_INTERVAL_OPTIONS')
@@ -453,8 +458,10 @@ assertExport(libraryUpdatePreferencesStoreSource, 'normalizeLibraryUpdateInterva
 assertExport(libraryUpdatePreferencesStoreSource, 'normalizeLibraryUpdateForegroundOnly')
 assertExport(libraryUpdatePreferencesStoreSource, 'normalizeLibraryUpdateTimestamp')
 assertExport(libraryUpdatePreferencesStoreSource, 'normalizeLibraryUpdateSummaryText')
+assertExport(libraryUpdatePreferencesStoreSource, 'normalizeLibraryUpdateSummaryCount')
 assertExport(libraryUpdatePreferencesStoreSource, 'normalizeLibraryUpdateFailureCount')
 assertExport(libraryUpdatePreferencesStoreSource, 'normalizeLibraryUpdateFailureCode')
+assertExport(libraryUpdatePreferencesStoreSource, 'formatLibraryUpdateStoredSummary')
 assertExport(libraryUpdatePreferencesStoreSource, 'formatLibraryUpdateTimestamp')
 assertExport(libraryUpdatePreferencesStoreSource, 'getLibraryUpdateAutoCheckLabel')
 assertExport(libraryUpdatePreferencesStoreSource, 'getLibraryUpdateBackoffHours')
@@ -725,8 +732,8 @@ assert.match(
 )
 assert.match(
   settingsPageSource,
-  /saveLastSummary\(summary\.checkedAt, summaryText\)/,
-  'SettingsPage must persist the latest manual or due update summary',
+  /saveLastSummary\([\s\S]*summary\.checkedAt[\s\S]*summary\.totalCount[\s\S]*countLibraryUpdateNewChapters\(summary\)[\s\S]*summary\.updatedCount[\s\S]*summary\.skippedCount[\s\S]*summary\.failedCount[\s\S]*\)/,
+  'SettingsPage must persist the latest manual or due update summary as locale-neutral counts',
 )
 assert.match(
   settingsPageSource,
@@ -815,13 +822,13 @@ assert.doesNotMatch(
 )
 assert.match(
   libraryUpdatePreferencesStoreSource,
-  /getLibraryUpdateLastResultLabel\(preferences: LibraryUpdatePreferences\): string \{[\s\S]*normalizeLibraryUpdateFailureCount\(preferences\.failureCount\) > 0[\s\S]*AppStrings\.get\('library_update_last_failed'\)[\s\S]*lastSummaryText/,
-  'LibraryUpdatePreferencesStore must prioritize an active failure over stale success summary text',
+  /getLibraryUpdateLastResultLabel\(preferences: LibraryUpdatePreferences\): string \{[\s\S]*normalizeLibraryUpdateFailureCount\(preferences\.failureCount\) > 0[\s\S]*AppStrings\.get\('library_update_last_failed'\)[\s\S]*formatLibraryUpdateStoredSummary\(preferences\)/,
+  'LibraryUpdatePreferencesStore must prioritize an active failure over stored success summary counts',
 )
 assert.match(
   libraryUpdatePreferencesStoreSource,
-  /saveLastSummary\(checkedAt: number, summaryText: string\): Promise<LibraryUpdatePreferences>[\s\S]*failureCount:\s*0/,
-  'LibraryUpdatePreferencesStore must clear failure backoff after a completed check summary',
+  /saveLastSummary\([\s\S]*checkedAt: number[\s\S]*totalCount: number[\s\S]*newChapterCount: number[\s\S]*updatedCount: number[\s\S]*skippedCount: number[\s\S]*failedCount: number[\s\S]*lastSummaryTotalCount[\s\S]*lastSummaryNewChapterCount[\s\S]*lastSummaryUpdatedCount[\s\S]*lastSummarySkippedCount[\s\S]*lastSummaryFailedCount[\s\S]*failureCount:\s*0/,
+  'LibraryUpdatePreferencesStore must clear failure backoff and persist locale-neutral counts after a completed check summary',
 )
 assert.match(
   libraryUpdateResultStoreSource,

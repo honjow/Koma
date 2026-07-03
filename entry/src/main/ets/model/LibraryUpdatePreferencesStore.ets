@@ -10,6 +10,11 @@ export interface LibraryUpdatePreferences {
   foregroundOnly: boolean
   lastCheckedAt?: number
   lastSummaryText?: string
+  lastSummaryTotalCount?: number
+  lastSummaryNewChapterCount?: number
+  lastSummaryUpdatedCount?: number
+  lastSummarySkippedCount?: number
+  lastSummaryFailedCount?: number
   failureCount: number
   lastFailureCode?: string
 }
@@ -20,6 +25,11 @@ export const LIBRARY_UPDATE_INTERVAL_HOURS_KEY: string = 'libraryUpdate.interval
 export const LIBRARY_UPDATE_FOREGROUND_ONLY_KEY: string = 'libraryUpdate.foregroundOnly'
 export const LIBRARY_UPDATE_LAST_CHECKED_AT_KEY: string = 'libraryUpdate.lastCheckedAt'
 export const LIBRARY_UPDATE_LAST_SUMMARY_TEXT_KEY: string = 'libraryUpdate.lastSummaryText'
+export const LIBRARY_UPDATE_LAST_SUMMARY_TOTAL_COUNT_KEY: string = 'libraryUpdate.lastSummaryTotalCount'
+export const LIBRARY_UPDATE_LAST_SUMMARY_NEW_CHAPTER_COUNT_KEY: string = 'libraryUpdate.lastSummaryNewChapterCount'
+export const LIBRARY_UPDATE_LAST_SUMMARY_UPDATED_COUNT_KEY: string = 'libraryUpdate.lastSummaryUpdatedCount'
+export const LIBRARY_UPDATE_LAST_SUMMARY_SKIPPED_COUNT_KEY: string = 'libraryUpdate.lastSummarySkippedCount'
+export const LIBRARY_UPDATE_LAST_SUMMARY_FAILED_COUNT_KEY: string = 'libraryUpdate.lastSummaryFailedCount'
 export const LIBRARY_UPDATE_FAILURE_COUNT_KEY: string = 'libraryUpdate.failureCount'
 export const LIBRARY_UPDATE_LAST_FAILURE_CODE_KEY: string = 'libraryUpdate.lastFailureCode'
 export const LIBRARY_UPDATE_INTERVAL_OPTIONS: number[] = [12, 24, 48]
@@ -71,6 +81,17 @@ export function normalizeLibraryUpdateSummaryText(value: string | undefined): st
   return trimmed.length > 0 ? trimmed : undefined
 }
 
+export function normalizeLibraryUpdateSummaryCount(value: number | string | undefined): number | undefined {
+  if (value === undefined) {
+    return undefined
+  }
+  const parsed = typeof value === 'number' ? value : Number.parseInt(value, 10)
+  if (Number.isFinite(parsed) && parsed >= 0) {
+    return Math.floor(parsed)
+  }
+  return undefined
+}
+
 export function normalizeLibraryUpdateFailureCount(value: number | string | undefined): number {
   if (value === undefined) {
     return 0
@@ -106,6 +127,25 @@ export function normalizeLibraryUpdateFailureCode(value: string | undefined): st
     return 'source_runtime_error'
   }
   return 'unknown'
+}
+
+function hasLibraryUpdateLastSummaryCounts(preferences: LibraryUpdatePreferences): boolean {
+  return preferences.lastSummaryTotalCount !== undefined &&
+    preferences.lastSummaryNewChapterCount !== undefined &&
+    preferences.lastSummaryUpdatedCount !== undefined &&
+    preferences.lastSummarySkippedCount !== undefined &&
+    preferences.lastSummaryFailedCount !== undefined
+}
+
+export function formatLibraryUpdateStoredSummary(preferences: LibraryUpdatePreferences): string | undefined {
+  if (hasLibraryUpdateLastSummaryCounts(preferences)) {
+    return `${preferences.lastSummaryTotalCount} ${AppStrings.get('library_unit_books')} · ` +
+      `${preferences.lastSummaryNewChapterCount} ${AppStrings.get('library_unit_new_chapters')} · ` +
+      `${preferences.lastSummaryUpdatedCount} ${AppStrings.get('library_unit_updated')} · ` +
+      `${preferences.lastSummarySkippedCount} ${AppStrings.get('library_unit_skipped')} · ` +
+      `${preferences.lastSummaryFailedCount} ${AppStrings.get('library_unit_failed')}`
+  }
+  return preferences.lastSummaryText
 }
 
 export function formatLibraryUpdateTimestamp(value: number): string {
@@ -172,9 +212,10 @@ export function getLibraryUpdateLastResultLabel(preferences: LibraryUpdatePrefer
       .replace('%s', preferences.lastFailureCode)
       .replace('%s', formatLibraryUpdateTimestamp(preferences.lastCheckedAt))
   }
-  if (preferences.lastSummaryText !== undefined && preferences.lastCheckedAt !== undefined) {
+  const storedSummary = formatLibraryUpdateStoredSummary(preferences)
+  if (storedSummary !== undefined && preferences.lastCheckedAt !== undefined) {
     return AppStrings.get('library_update_last_result')
-      .replace('%s', preferences.lastSummaryText)
+      .replace('%s', storedSummary)
       .replace('%s', formatLibraryUpdateTimestamp(preferences.lastCheckedAt))
   }
   if (preferences.lastFailureCode !== undefined && preferences.lastCheckedAt !== undefined) {
@@ -234,6 +275,11 @@ export class LibraryUpdatePreferencesStore {
         await store.get(LIBRARY_UPDATE_FOREGROUND_ONLY_KEY, DEFAULT_LIBRARY_UPDATE_PREFERENCES.foregroundOnly) as boolean | string | number
       const lastCheckedAt = await store.get(LIBRARY_UPDATE_LAST_CHECKED_AT_KEY, 0) as number | string
       const lastSummaryText = await store.get(LIBRARY_UPDATE_LAST_SUMMARY_TEXT_KEY, '') as string
+      const lastSummaryTotalCount = await store.get(LIBRARY_UPDATE_LAST_SUMMARY_TOTAL_COUNT_KEY, -1) as number | string
+      const lastSummaryNewChapterCount = await store.get(LIBRARY_UPDATE_LAST_SUMMARY_NEW_CHAPTER_COUNT_KEY, -1) as number | string
+      const lastSummaryUpdatedCount = await store.get(LIBRARY_UPDATE_LAST_SUMMARY_UPDATED_COUNT_KEY, -1) as number | string
+      const lastSummarySkippedCount = await store.get(LIBRARY_UPDATE_LAST_SUMMARY_SKIPPED_COUNT_KEY, -1) as number | string
+      const lastSummaryFailedCount = await store.get(LIBRARY_UPDATE_LAST_SUMMARY_FAILED_COUNT_KEY, -1) as number | string
       const failureCount = await store.get(LIBRARY_UPDATE_FAILURE_COUNT_KEY, 0) as number | string
       const lastFailureCode = await store.get(LIBRARY_UPDATE_LAST_FAILURE_CODE_KEY, '') as string
       const normalized: LibraryUpdatePreferences = {
@@ -249,6 +295,24 @@ export class LibraryUpdatePreferencesStore {
       const summaryText = normalizeLibraryUpdateSummaryText(lastSummaryText)
       if (summaryText !== undefined) {
         normalized.lastSummaryText = summaryText
+      }
+      const summaryTotalCount = normalizeLibraryUpdateSummaryCount(lastSummaryTotalCount)
+      const summaryNewChapterCount = normalizeLibraryUpdateSummaryCount(lastSummaryNewChapterCount)
+      const summaryUpdatedCount = normalizeLibraryUpdateSummaryCount(lastSummaryUpdatedCount)
+      const summarySkippedCount = normalizeLibraryUpdateSummaryCount(lastSummarySkippedCount)
+      const summaryFailedCount = normalizeLibraryUpdateSummaryCount(lastSummaryFailedCount)
+      if (
+        summaryTotalCount !== undefined &&
+          summaryNewChapterCount !== undefined &&
+          summaryUpdatedCount !== undefined &&
+          summarySkippedCount !== undefined &&
+          summaryFailedCount !== undefined
+      ) {
+        normalized.lastSummaryTotalCount = summaryTotalCount
+        normalized.lastSummaryNewChapterCount = summaryNewChapterCount
+        normalized.lastSummaryUpdatedCount = summaryUpdatedCount
+        normalized.lastSummarySkippedCount = summarySkippedCount
+        normalized.lastSummaryFailedCount = summaryFailedCount
       }
       const failureCode = normalizeLibraryUpdateFailureCode(lastFailureCode)
       if (failureCode !== undefined) {
@@ -279,6 +343,7 @@ export class LibraryUpdatePreferencesStore {
     if (current.lastSummaryText !== undefined) {
       next.lastSummaryText = current.lastSummaryText
     }
+    this.copyLastSummaryCounts(current, next)
     if (current.lastFailureCode !== undefined) {
       next.lastFailureCode = current.lastFailureCode
     }
@@ -300,6 +365,7 @@ export class LibraryUpdatePreferencesStore {
     if (current.lastSummaryText !== undefined) {
       next.lastSummaryText = current.lastSummaryText
     }
+    this.copyLastSummaryCounts(current, next)
     if (current.lastFailureCode !== undefined) {
       next.lastFailureCode = current.lastFailureCode
     }
@@ -307,14 +373,25 @@ export class LibraryUpdatePreferencesStore {
     return next
   }
 
-  async saveLastSummary(checkedAt: number, summaryText: string): Promise<LibraryUpdatePreferences> {
+  async saveLastSummary(
+    checkedAt: number,
+    totalCount: number,
+    newChapterCount: number,
+    updatedCount: number,
+    skippedCount: number,
+    failedCount: number,
+  ): Promise<LibraryUpdatePreferences> {
     const current = await this.load()
     const next: LibraryUpdatePreferences = {
       autoCheckEnabled: current.autoCheckEnabled,
       intervalHours: current.intervalHours,
       foregroundOnly: current.foregroundOnly,
       lastCheckedAt: checkedAt,
-      lastSummaryText: summaryText,
+      lastSummaryTotalCount: normalizeLibraryUpdateSummaryCount(totalCount) ?? 0,
+      lastSummaryNewChapterCount: normalizeLibraryUpdateSummaryCount(newChapterCount) ?? 0,
+      lastSummaryUpdatedCount: normalizeLibraryUpdateSummaryCount(updatedCount) ?? 0,
+      lastSummarySkippedCount: normalizeLibraryUpdateSummaryCount(skippedCount) ?? 0,
+      lastSummaryFailedCount: normalizeLibraryUpdateSummaryCount(failedCount) ?? 0,
       failureCount: 0,
     }
     await this.save(next)
@@ -356,6 +433,26 @@ export class LibraryUpdatePreferencesStore {
       normalizeLibraryUpdateSummaryText(libraryUpdatePreferences.lastSummaryText) ?? '',
     )
     await store.put(
+      LIBRARY_UPDATE_LAST_SUMMARY_TOTAL_COUNT_KEY,
+      normalizeLibraryUpdateSummaryCount(libraryUpdatePreferences.lastSummaryTotalCount) ?? -1,
+    )
+    await store.put(
+      LIBRARY_UPDATE_LAST_SUMMARY_NEW_CHAPTER_COUNT_KEY,
+      normalizeLibraryUpdateSummaryCount(libraryUpdatePreferences.lastSummaryNewChapterCount) ?? -1,
+    )
+    await store.put(
+      LIBRARY_UPDATE_LAST_SUMMARY_UPDATED_COUNT_KEY,
+      normalizeLibraryUpdateSummaryCount(libraryUpdatePreferences.lastSummaryUpdatedCount) ?? -1,
+    )
+    await store.put(
+      LIBRARY_UPDATE_LAST_SUMMARY_SKIPPED_COUNT_KEY,
+      normalizeLibraryUpdateSummaryCount(libraryUpdatePreferences.lastSummarySkippedCount) ?? -1,
+    )
+    await store.put(
+      LIBRARY_UPDATE_LAST_SUMMARY_FAILED_COUNT_KEY,
+      normalizeLibraryUpdateSummaryCount(libraryUpdatePreferences.lastSummaryFailedCount) ?? -1,
+    )
+    await store.put(
       LIBRARY_UPDATE_FAILURE_COUNT_KEY,
       normalizeLibraryUpdateFailureCount(libraryUpdatePreferences.failureCount),
     )
@@ -368,5 +465,23 @@ export class LibraryUpdatePreferencesStore {
 
   private async preferences(): Promise<preferences.Preferences> {
     return preferences.getPreferences(this.context, LIBRARY_UPDATE_PREFERENCES_STORE_NAME)
+  }
+
+  private copyLastSummaryCounts(source: LibraryUpdatePreferences, target: LibraryUpdatePreferences): void {
+    if (source.lastSummaryTotalCount !== undefined) {
+      target.lastSummaryTotalCount = source.lastSummaryTotalCount
+    }
+    if (source.lastSummaryNewChapterCount !== undefined) {
+      target.lastSummaryNewChapterCount = source.lastSummaryNewChapterCount
+    }
+    if (source.lastSummaryUpdatedCount !== undefined) {
+      target.lastSummaryUpdatedCount = source.lastSummaryUpdatedCount
+    }
+    if (source.lastSummarySkippedCount !== undefined) {
+      target.lastSummarySkippedCount = source.lastSummarySkippedCount
+    }
+    if (source.lastSummaryFailedCount !== undefined) {
+      target.lastSummaryFailedCount = source.lastSummaryFailedCount
+    }
   }
 }

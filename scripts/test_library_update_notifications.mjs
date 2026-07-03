@@ -29,8 +29,8 @@ assert.match(
 )
 assert.match(
   preferencesSource,
-  /getLibraryUpdateNotificationStatusLabel[\s\S]*return '计划中 · 暂不发送'/,
-  'Notification preference label must be honest about non-delivery',
+  /getLibraryUpdateNotificationStatusLabel[\s\S]*library_update_notification_unavailable[\s\S]*library_update_notification_planned/,
+  'Notification preference label must stay localized and honest about non-delivery',
 )
 assert.match(
   preferencesSource,
@@ -39,13 +39,13 @@ assert.match(
 )
 assert.match(
   settingsPageSource,
-  /\{ key: 'library-update-notifications', title: '更新提醒', detail: '计划中 · 暂不发送' \}/,
-  'Settings must expose the update reminder skeleton row',
+  /settings_row_library_update_results_title[\s\S]*settings_row_library_update_results_detail/,
+  'Settings must expose the update result row without a fake notification delivery entry',
 )
-assert.match(
+assert.doesNotMatch(
   settingsPageSource,
-  /showInfoDialog\('更新提醒', '当前版本只保存前台检查结果和提醒摘要，不会发送提醒。真正可投递的提醒会在权限、实现和设备验证齐备后再开放。'\)/,
-  'Settings reminder dialog must explain that delivery is unavailable in this lane',
+  /library-update-notifications|更新提醒|通知权限|系统通知/,
+  'Settings must not expose a fake notification/reminder row before delivery exists',
 )
 
 assert.match(
@@ -70,8 +70,8 @@ assert.match(
 )
 assert.match(
   serviceSource,
-  /return `\$\{summary\.totalCount\} 本 · \$\{countLibraryUpdateNewChapters\(summary\)\} 新章 · \$\{summary\.updatedCount\} 更新 · \$\{summary\.skippedCount\} 跳过 · \$\{summary\.failedCount\} 失败`/,
-  'Summary formatting must include new, updated, skipped, and failed counts in a stable order',
+  /formatLibraryUpdateSummary\(summary\?: LibraryUpdateSummary\): string[\s\S]*library_unit_books[\s\S]*library_unit_new_chapters[\s\S]*library_unit_updated[\s\S]*library_unit_skipped[\s\S]*library_unit_failed/,
+  'Summary formatting must include localized new, updated, skipped, and failed counts in a stable order',
 )
 assert.match(
   preferencesSource,
@@ -90,12 +90,12 @@ assert.match(
 )
 assert.match(
   preferencesSource,
-  /load\(\): Promise<LibraryUpdatePreferences>[\s\S]*LIBRARY_UPDATE_AUTO_CHECK_ENABLED_KEY[\s\S]*LIBRARY_UPDATE_INTERVAL_HOURS_KEY[\s\S]*LIBRARY_UPDATE_FOREGROUND_ONLY_KEY[\s\S]*LIBRARY_UPDATE_LAST_CHECKED_AT_KEY[\s\S]*LIBRARY_UPDATE_LAST_SUMMARY_TEXT_KEY[\s\S]*LIBRARY_UPDATE_FAILURE_COUNT_KEY[\s\S]*LIBRARY_UPDATE_LAST_FAILURE_CODE_KEY/,
+  /load\(\): Promise<LibraryUpdatePreferences>[\s\S]*LIBRARY_UPDATE_AUTO_CHECK_ENABLED_KEY[\s\S]*LIBRARY_UPDATE_INTERVAL_HOURS_KEY[\s\S]*LIBRARY_UPDATE_FOREGROUND_ONLY_KEY[\s\S]*LIBRARY_UPDATE_LAST_CHECKED_AT_KEY[\s\S]*LIBRARY_UPDATE_LAST_SUMMARY_TEXT_KEY[\s\S]*LIBRARY_UPDATE_LAST_SUMMARY_TOTAL_COUNT_KEY[\s\S]*LIBRARY_UPDATE_LAST_SUMMARY_NEW_CHAPTER_COUNT_KEY[\s\S]*LIBRARY_UPDATE_LAST_SUMMARY_UPDATED_COUNT_KEY[\s\S]*LIBRARY_UPDATE_LAST_SUMMARY_SKIPPED_COUNT_KEY[\s\S]*LIBRARY_UPDATE_LAST_SUMMARY_FAILED_COUNT_KEY[\s\S]*LIBRARY_UPDATE_FAILURE_COUNT_KEY[\s\S]*LIBRARY_UPDATE_LAST_FAILURE_CODE_KEY/,
   'Settings persistence load must roundtrip every schedule field',
 )
 assert.match(
   preferencesSource,
-  /save\(libraryUpdatePreferences: LibraryUpdatePreferences\): Promise<void>[\s\S]*LIBRARY_UPDATE_AUTO_CHECK_ENABLED_KEY[\s\S]*LIBRARY_UPDATE_INTERVAL_HOURS_KEY[\s\S]*LIBRARY_UPDATE_FOREGROUND_ONLY_KEY[\s\S]*LIBRARY_UPDATE_LAST_CHECKED_AT_KEY[\s\S]*LIBRARY_UPDATE_LAST_SUMMARY_TEXT_KEY[\s\S]*LIBRARY_UPDATE_FAILURE_COUNT_KEY[\s\S]*LIBRARY_UPDATE_LAST_FAILURE_CODE_KEY[\s\S]*store\.flush\(\)/,
+  /save\(libraryUpdatePreferences: LibraryUpdatePreferences\): Promise<void>[\s\S]*LIBRARY_UPDATE_AUTO_CHECK_ENABLED_KEY[\s\S]*LIBRARY_UPDATE_INTERVAL_HOURS_KEY[\s\S]*LIBRARY_UPDATE_FOREGROUND_ONLY_KEY[\s\S]*LIBRARY_UPDATE_LAST_CHECKED_AT_KEY[\s\S]*LIBRARY_UPDATE_LAST_SUMMARY_TEXT_KEY[\s\S]*LIBRARY_UPDATE_LAST_SUMMARY_TOTAL_COUNT_KEY[\s\S]*LIBRARY_UPDATE_LAST_SUMMARY_NEW_CHAPTER_COUNT_KEY[\s\S]*LIBRARY_UPDATE_LAST_SUMMARY_UPDATED_COUNT_KEY[\s\S]*LIBRARY_UPDATE_LAST_SUMMARY_SKIPPED_COUNT_KEY[\s\S]*LIBRARY_UPDATE_LAST_SUMMARY_FAILED_COUNT_KEY[\s\S]*LIBRARY_UPDATE_FAILURE_COUNT_KEY[\s\S]*LIBRARY_UPDATE_LAST_FAILURE_CODE_KEY[\s\S]*store\.flush\(\)/,
   'Settings persistence save must flush every schedule field',
 )
 assert.match(
@@ -115,7 +115,7 @@ assert.doesNotMatch(
 )
 assert.match(
   resultPageSource,
-  /SummaryMetric\('总计', summary\.totalCount\)[\s\S]*SummaryMetric\('更新', summary\.updatedCount\)[\s\S]*SummaryMetric\('未变化', summary\.unchangedCount\)[\s\S]*SummaryMetric\('跳过', summary\.skippedCount\)[\s\S]*SummaryMetric\('失败', summary\.failedCount\)[\s\S]*SummaryMetric\('新章', countLibraryUpdateNewChapters\(summary\)\)/,
+  /SummaryMetric\(s\('library_update_results_metric_total'\), summary\.totalCount\)[\s\S]*SummaryMetric\(s\('library_update_results_metric_updated'\), summary\.updatedCount\)[\s\S]*SummaryMetric\(s\('library_update_results_metric_unchanged'\), summary\.unchangedCount\)[\s\S]*SummaryMetric\(s\('library_update_results_metric_skipped'\), summary\.skippedCount\)[\s\S]*SummaryMetric\(s\('library_update_results_metric_failed'\), summary\.failedCount\)[\s\S]*SummaryMetric\(s\('library_update_results_metric_new_chapters'\), countLibraryUpdateNewChapters\(summary\)\)/,
   'Library update details must show all aggregate counts including new chapters',
 )
 
@@ -176,8 +176,8 @@ assert.doesNotMatch(
 )
 assert.match(
   preferencesSource,
-  /getLibraryUpdateLastResultLabel\(preferences: LibraryUpdatePreferences\): string \{[\s\S]*normalizeLibraryUpdateFailureCount\(preferences\.failureCount\) > 0[\s\S]*上次检查失败[\s\S]*lastSummaryText/,
-  'Settings last result label must prioritize an active failure over an older success summary',
+  /getLibraryUpdateLastResultLabel\(preferences: LibraryUpdatePreferences\): string \{[\s\S]*normalizeLibraryUpdateFailureCount\(preferences\.failureCount\) > 0[\s\S]*library_update_last_failed[\s\S]*formatLibraryUpdateStoredSummary\(preferences\)/,
+  'Settings last result label must prioritize an active failure over older success summary counts',
 )
 assert.match(
   resultStoreSource,
@@ -211,7 +211,7 @@ assert.match(
 )
 assert.match(
   resultPageSource,
-  /emptyStateTitle\(\): string[\s\S]*'检查失败，已退避'[\s\S]*emptyStateMessage\(\): string[\s\S]*最近一次检查失败/,
+  /emptyStateTitle\(\): string[\s\S]*library_update_results_empty_backed_off[\s\S]*library_update_results_empty_failed[\s\S]*emptyStateMessage\(\): string[\s\S]*library_update_results_failure_next_due[\s\S]*library_update_results_failure_last/,
   'LibraryUpdateResultPage must show an honest failure/backoff detail state instead of stale success',
 )
 
@@ -252,8 +252,8 @@ function getLibraryUpdateLastResultLabel(preferences) {
   if (preferences.lastFailureCode !== undefined && preferences.lastCheckedAt !== undefined && preferences.failureCount > 0) {
     return `上次检查失败 · ${preferences.lastFailureCode}`
   }
-  if (preferences.lastSummaryText !== undefined && preferences.lastCheckedAt !== undefined) {
-    return `${preferences.lastSummaryText} · 上次`
+  if (preferences.lastSummaryTotalCount !== undefined && preferences.lastCheckedAt !== undefined) {
+    return `${preferences.lastSummaryTotalCount} 总计 · ${preferences.lastSummaryNewChapterCount} 新章 · ${preferences.lastSummaryUpdatedCount} 更新 · ${preferences.lastSummarySkippedCount} 跳过 · ${preferences.lastSummaryFailedCount} 失败 · 上次`
   }
   return '尚无结果'
 }
@@ -291,7 +291,11 @@ const failedLabel = getLibraryUpdateLastResultLabel({
   intervalHours: 24,
   foregroundOnly: true,
   lastCheckedAt: checkedAt,
-  lastSummaryText: '12 新章 · 3 更新 · 0 失败',
+  lastSummaryTotalCount: 12,
+  lastSummaryNewChapterCount: 12,
+  lastSummaryUpdatedCount: 3,
+  lastSummarySkippedCount: 0,
+  lastSummaryFailedCount: 0,
   failureCount: 1,
   lastFailureCode: 'network_error',
 })
