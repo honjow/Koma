@@ -1,6 +1,6 @@
 import { common } from '@kit.AbilityKit'
 import { preferences } from '@kit.ArkData'
-import { fileIo as fs, picker } from '@kit.CoreFileKit'
+import { fileIo as fs, ListFileOptions, picker } from '@kit.CoreFileKit'
 import { AppStrings } from '../i18n/AppStrings'
 import {
   LIBRARY_STORE_PERSISTENCE_FILE_NAME,
@@ -70,6 +70,7 @@ export const BACKUP_INCLUDED_DOMAINS: string[] = [
   'download queue metadata',
 ]
 export const BACKUP_ENCRYPTION_STATE: string = 'unencrypted'
+export const BACKUP_LOCAL_DIR_NAME: string = 'backups'
 const REMOTE_SERVER_STORE_NAME: string = 'koma_remote_servers_v1'
 const SOURCE_INDEX_PREFS_STORE_NAME: string = 'koma_source_package_manager_v1'
 const SOURCE_INDEX_URL_KEY: string = 'source_index.url'
@@ -131,6 +132,13 @@ export interface BackupImportPreview {
 
 export interface BackupImportSelectionPreview {
   payload: string
+  preview: BackupImportPreview
+}
+
+export interface BackupLocalFileRecord {
+  fileName: string
+  displayName: string
+  sizeBytes: number
   preview: BackupImportPreview
 }
 
@@ -209,6 +217,54 @@ function ensureDir(path: string): void {
   if (!fs.accessSync(path)) {
     fs.mkdirSync(path, true)
   }
+}
+
+function backupFileSizeText(sizeBytes: number): string {
+  const size = Math.max(0, Math.floor(sizeBytes))
+  if (size >= 1024 * 1024) {
+    return `${Math.round(size / (1024 * 1024))} MB`
+  }
+  if (size >= 1024) {
+    return `${Math.round(size / 1024)} KB`
+  }
+  return `${size} B`
+}
+
+export function backupLocalFileDetailText(record: BackupLocalFileRecord): string {
+  return AppStrings.format(
+    'backup_local_file_detail',
+    record.preview.exportedAtText,
+    backupFileSizeText(record.sizeBytes),
+  )
+}
+
+function normalizeLocalBackupName(value: string, fallback: string): string {
+  const normalized = value.trim().replace(/\s+/g, '-').replace(/[^a-zA-Z0-9._-]/g, '-').replace(/-+/g, '-')
+  if (normalized.length === 0 || normalized === '.' || normalized === '..') {
+    return fallback
+  }
+  return normalized
+}
+
+function backupFileExtension(fileName: string): string {
+  return fileName.endsWith('.koma-backup') ? '.koma-backup' : '.json'
+}
+
+function normalizeLocalBackupFileName(value: string, fallback: string, extension: string): string {
+  let normalized = normalizeLocalBackupName(value, fallback)
+  if (!normalized.endsWith('.json') && !normalized.endsWith('.koma-backup')) {
+    normalized = `${normalized}${extension}`
+  }
+  return normalized
+}
+
+function isLocalBackupFileName(fileName: string): boolean {
+  return fileName.length > 0 &&
+    !fileName.includes('/') &&
+    !fileName.includes('\\') &&
+    fileName !== '.' &&
+    fileName !== '..' &&
+    (fileName.endsWith('.json') || fileName.endsWith('.koma-backup'))
 }
 
 function emptyLibraryStorePayload(): string {
@@ -431,6 +487,79 @@ export class BackupService {
     return payload
   }
 
+  async exportLocal(): Promise<BackupLocalFileRecord> {
+    const payload = await this.export()
+    const fileName = `koma-backup-${Date.now()}.json`
+    const record = this.writeLocalBackup(fileName, payload)
+    console.info('[Backup] step=local_export')
+    return record
+  }
+
+  async exportEncryptedLocal(passphrase: string): Promise<BackupLocalFileRecord> {
+    const payload = await this.exportEncrypted(passphrase)
+    const fileName = `koma-backup-${Date.now()}.koma-backup`
+    const record = this.writeLocalBackup(fileName, payload)
+    console.info('[Backup] step=local_export_encrypted')
+    return record
+  }
+
+  async listLocalBackups(): Promise<BackupLocalFileRecord[]> {
+    ensureDir(this.localBackupsDir())
+    const options: ListFileOptions = {
+      recursion: false,
+      listNum: 0,
+    }
+    const fileNames = (await fs.listFile(this.localBackupsDir(), options))
+      .map((name: string): string => name.replace(/\\/g, '/').replace(/^\/+/, '').replace(/\/+$/, ''))
+      .filter((name: string): boolean => isLocalBackupFileName(name))
+      .sort((left: string, right: string): number => right.localeCompare(left))
+    const records: BackupLocalFileRecord[] = []
+    for (let index = 0; index < fileNames.length; index += 1) {
+      const record = this.readLocalBackupRecord(fileNames[index])
+      if (record !== undefined) {
+        records.push(record)
+      }
+    }
+    return records
+  }
+
+  async renameLocalBackup(fileName: string, displayName: string): Promise<BackupLocalFileRecord> {
+    const sourceName = this.requireLocalBackupFileName(fileName)
+    const extension = backupFileExtension(sourceName)
+    const targetName = this.uniqueLocalBackupFileName(normalizeLocalBackupFileName(displayName, sourceName, extension), sourceName)
+    const sourcePath = this.localBackupPath(sourceName)
+    const targetPath = this.localBackupPath(targetName)
+    if (targetName !== sourceName) {
+      fs.moveFileSync(sourcePath, targetPath, 0)
+    }
+    const record = this.readLocalBackupRecord(targetName)
+    if (record === undefined) {
+      throw new Error('backup_local_rename_failed')
+    }
+    console.info('[Backup] step=local_rename')
+    return record
+  }
+
+  async deleteLocalBackup(fileName: string): Promise<void> {
+    const safeName = this.requireLocalBackupFileName(fileName)
+    const path = this.localBackupPath(safeName)
+    if (fs.accessSync(path)) {
+      fs.unlinkSync(path)
+    }
+    console.info('[Backup] step=local_delete')
+  }
+
+  async selectLocalBackup(fileName: string): Promise<BackupImportSelectionPreview> {
+    const safeName = this.requireLocalBackupFileName(fileName)
+    const payload = fs.readTextSync(this.localBackupPath(safeName), { encoding: 'utf-8' })
+    const preview = this.preview(payload)
+    console.info('[Backup] step=local_select')
+    return {
+      payload,
+      preview,
+    }
+  }
+
   private async buildBackupDocument(schemaVersion: number): Promise<KomaBackupDocument> {
     const document: KomaBackupDocument = {
       schemaVersion,
@@ -581,6 +710,57 @@ export class BackupService {
     return result[0]
   }
 
+  private writeLocalBackup(fileName: string, payload: string): BackupLocalFileRecord {
+    ensureDir(this.localBackupsDir())
+    const targetName = this.uniqueLocalBackupFileName(fileName)
+    writeText(this.localBackupPath(targetName), payload)
+    const record = this.readLocalBackupRecord(targetName)
+    if (record === undefined) {
+      throw new Error('backup_local_write_failed')
+    }
+    return record
+  }
+
+  private readLocalBackupRecord(fileName: string): BackupLocalFileRecord | undefined {
+    const safeName = this.requireLocalBackupFileName(fileName)
+    const path = this.localBackupPath(safeName)
+    if (!fs.accessSync(path)) {
+      return undefined
+    }
+    try {
+      const payload = fs.readTextSync(path, { encoding: 'utf-8' })
+      return {
+        fileName: safeName,
+        displayName: safeName.replace(/\.koma-backup$/, '').replace(/\.json$/, ''),
+        sizeBytes: fs.statSync(path).size,
+        preview: this.preview(payload),
+      }
+    } catch (_error) {
+      return undefined
+    }
+  }
+
+  private requireLocalBackupFileName(fileName: string): string {
+    const normalized = fileName.replace(/\\/g, '/').replace(/^\/+/, '').replace(/\/+$/, '')
+    if (!isLocalBackupFileName(normalized)) {
+      throw new Error('backup_local_file_invalid')
+    }
+    return normalized
+  }
+
+  private uniqueLocalBackupFileName(fileName: string, existingName?: string): string {
+    const safeName = this.requireLocalBackupFileName(fileName)
+    const extension = backupFileExtension(safeName)
+    const baseName = safeName.substring(0, safeName.length - extension.length)
+    let candidate = safeName
+    let index = 2
+    while (fs.accessSync(this.localBackupPath(candidate)) && candidate !== existingName) {
+      candidate = `${baseName}-${index}${extension}`
+      index += 1
+    }
+    return candidate
+  }
+
   async exportEncryptedToPicker(passphrase: string): Promise<string | undefined> {
     const payload = await this.exportEncrypted(passphrase)
     const options = new picker.DocumentSaveOptions()
@@ -632,6 +812,14 @@ export class BackupService {
 
   private libraryPath(): string {
     return joinBackupPath(this.context.filesDir, LIBRARY_STORE_PERSISTENCE_FILE_NAME)
+  }
+
+  private localBackupsDir(): string {
+    return joinBackupPath(this.context.filesDir, BACKUP_LOCAL_DIR_NAME)
+  }
+
+  private localBackupPath(fileName: string): string {
+    return joinBackupPath(this.localBackupsDir(), this.requireLocalBackupFileName(fileName))
   }
 
   private readerProgressPath(): string {

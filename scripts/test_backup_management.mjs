@@ -91,9 +91,44 @@ assert.match(
   'backup service must route encrypted exports through BackupEncryptionService',
 )
 assert.match(
+  backupServiceSource,
+  /export const BACKUP_LOCAL_DIR_NAME:\s*string = 'backups'[\s\S]*export interface BackupLocalFileRecord[\s\S]*fileName:\s*string[\s\S]*displayName:\s*string[\s\S]*sizeBytes:\s*number[\s\S]*preview:\s*BackupImportPreview/,
+  'backup service must expose local backup records without surfacing absolute sandbox paths',
+)
+assert.match(
+  backupServiceSource,
+  /exportLocal\(\): Promise<BackupLocalFileRecord>[\s\S]*writeLocalBackup[\s\S]*exportEncryptedLocal\(passphrase: string\): Promise<BackupLocalFileRecord>[\s\S]*listLocalBackups\(\): Promise<BackupLocalFileRecord\[\]>[\s\S]*renameLocalBackup\(fileName: string, displayName: string\): Promise<BackupLocalFileRecord>[\s\S]*deleteLocalBackup\(fileName: string\): Promise<void>[\s\S]*selectLocalBackup\(fileName: string\): Promise<BackupImportSelectionPreview>/,
+  'backup service must support local backup create, list, rename, delete, and preview selection flows',
+)
+assert.match(
+  backupServiceSource,
+  /function isLocalBackupFileName\(fileName: string\): boolean[\s\S]*!fileName\.includes\('\/'\)[\s\S]*!fileName\.includes\('\\\\'\)[\s\S]*fileName\.endsWith\('\.json'\) \|\| fileName\.endsWith\('\.koma-backup'\)[\s\S]*private requireLocalBackupFileName\(fileName: string\): string[\s\S]*throw new Error\('backup_local_file_invalid'\)/,
+  'local backup file operations must be bounded to safe backup file names',
+)
+assert.match(
+  backupServiceSource,
+  /preview\(json: string\): BackupImportPreview \{[\s\S]*isEncryptedBackupPayload\(json\)[\s\S]*emptyEncryptedCountsPreview\(previewEncryptedBackupEnvelope\(json\)\)[\s\S]*private readLocalBackupRecord\(fileName: string\): BackupLocalFileRecord \| undefined[\s\S]*preview: this\.preview\(payload\)/,
+  'local encrypted backup list preview must use public encrypted-envelope metadata until passphrase verification',
+)
+assert.match(
   backupPageSource,
   /private EncryptionCard\(\)[\s\S]*backupEncryptionStatusLabel\(\)[\s\S]*KomaFormTextField\(\{[\s\S]*value: this\.exportPassphrase[\s\S]*isPassword: true[\s\S]*backup_export_encrypted_action/,
   'BackupManagementPage must surface functional encrypted export controls with password input',
+)
+assert.match(
+  backupPageSource,
+  /localBackups: BackupLocalFileRecord\[\][\s\S]*loadLocalBackups\(\)[\s\S]*listLocalBackups\(\)[\s\S]*exportLocalBackup\(\)[\s\S]*exportLocal\(\)[\s\S]*exportEncryptedLocalBackup\(\)[\s\S]*exportEncryptedLocal\(passphrase\)/,
+  'BackupManagementPage must load and create local backup records',
+)
+assert.match(
+  backupPageSource,
+  /selectLocalBackup\(record: BackupLocalFileRecord\)[\s\S]*selectLocalBackup\(record\.fileName\)[\s\S]*selectedEncryptedBackupPayload[\s\S]*selectedBackupPreview[\s\S]*startRenameLocalBackup[\s\S]*renameLocalBackup\(fileName, displayName\)[\s\S]*confirmDeleteLocalBackup[\s\S]*deleteLocalBackup\(fileName\)/,
+  'BackupManagementPage must allow local backup preview, rename, and delete without picker round-trips',
+)
+assert.match(
+  backupPageSource,
+  /private LocalBackupRow\(record: BackupLocalFileRecord\)[\s\S]*backupLocalFileDetailText\(record\)[\s\S]*backup_local_preview_action[\s\S]*backup_local_rename_action[\s\S]*backup_local_delete_action[\s\S]*private LocalBackupsCard\(\)[\s\S]*backup_local_create_action[\s\S]*backup_local_create_encrypted_action[\s\S]*backup_local_empty/,
+  'BackupManagementPage must render local backup list actions and metadata',
 )
 assert.match(
   backupPageSource,

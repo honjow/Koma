@@ -8,6 +8,7 @@ import {
   BACKUP_SCHEMA_VERSION,
   BackupImportPreview,
   BackupImportSelectionPreview,
+  BackupLocalFileRecord,
   BackupService,
   backupEncryptedExportSuccess,
   backupEncryptionPlanLabel,
@@ -15,6 +16,7 @@ import {
   backupImportConflictPolicy,
   backupImportPreviewNote,
   backupIncludedDomainLabels,
+  backupLocalFileDetailText,
   backupManagementStorageNote,
   backupPassphraseHelpText,
   backupUnencryptedExportWarning,
@@ -36,6 +38,9 @@ export struct BackupManagementPage {
   @Local private selectedBackupPayload: string = ''
   @Local private selectedEncryptedBackupPayload: string = ''
   @Local private selectedBackupPreview: BackupImportPreview | undefined = undefined
+  @Local private localBackups: BackupLocalFileRecord[] = []
+  @Local private editingLocalBackupFileName: string = ''
+  @Local private editingLocalBackupName: string = ''
   @Local private exportPassphrase: string = ''
   @Local private exportPassphraseConfirm: string = ''
   @Local private importPassphrase: string = ''
@@ -47,6 +52,17 @@ export struct BackupManagementPage {
 
   private backupService(): BackupService {
     return new BackupService(this.context())
+  }
+
+  private loadLocalBackups(): void {
+    void this.backupService().listLocalBackups()
+      .then((records: BackupLocalFileRecord[]) => {
+        this.localBackups = records
+      })
+      .catch((_error: Error) => {
+        console.error('[BackupManagement] step=local_list_failed code=backup_local_list_failed')
+        this.localBackups = []
+      })
   }
 
   private acceptedSchemaText(): string {
@@ -133,6 +149,57 @@ export struct BackupManagementPage {
       })
   }
 
+  private exportLocalBackup(): void {
+    if (this.busy) {
+      return
+    }
+    this.busy = true
+    console.info('[BackupManagement] step=local_export_start')
+    void this.backupService().exportLocal()
+      .then((_record: BackupLocalFileRecord) => {
+        this.loadLocalBackups()
+        this.showToast(t('backup_local_saved_toast'))
+      })
+      .catch((_error: Error) => {
+        console.error('[BackupManagement] step=local_export_failed code=backup_local_export_failed')
+        this.showInfoDialog(t('backup_dialog_export_failed_title'), this.backupFailureMessage('backup_local_export_failed'))
+      })
+      .finally(() => {
+        this.busy = false
+      })
+  }
+
+  private exportEncryptedLocalBackup(): void {
+    if (this.busy) {
+      return
+    }
+    if (this.exportPassphrase.length < 8) {
+      this.showInfoDialog(t('backup_dialog_export_blocked_title'), t('backup_passphrase_too_short'))
+      return
+    }
+    if (this.exportPassphrase !== this.exportPassphraseConfirm) {
+      this.showInfoDialog(t('backup_dialog_export_blocked_title'), t('backup_passphrase_mismatch'))
+      return
+    }
+    const passphrase = this.exportPassphrase
+    this.busy = true
+    console.info('[BackupManagement] step=local_export_encrypted_start')
+    void this.backupService().exportEncryptedLocal(passphrase)
+      .then((_record: BackupLocalFileRecord) => {
+        this.exportPassphrase = ''
+        this.exportPassphraseConfirm = ''
+        this.loadLocalBackups()
+        this.showToast(t('backup_local_saved_toast'))
+      })
+      .catch((_error: Error) => {
+        console.error('[BackupManagement] step=local_export_encrypted_failed code=backup_local_export_failed')
+        this.showInfoDialog(t('backup_dialog_export_failed_title'), this.backupFailureMessage('backup_local_export_failed'))
+      })
+      .finally(() => {
+        this.busy = false
+      })
+  }
+
   private importBackup(): void {
     if (this.busy) {
       return
@@ -158,6 +225,106 @@ export struct BackupManagementPage {
       .catch((_error: Error) => {
         console.error('[BackupManagement] step=preview_failed code=backup_preview_failed')
         this.showInfoDialog(t('backup_dialog_preview_failed_title'), this.backupFailureMessage('backup_preview_failed'))
+      })
+      .finally(() => {
+        this.busy = false
+      })
+  }
+
+  private selectLocalBackup(record: BackupLocalFileRecord): void {
+    if (this.busy) {
+      return
+    }
+    this.busy = true
+    console.info('[BackupManagement] step=local_preview_start')
+    void this.backupService().selectLocalBackup(record.fileName)
+      .then((selection: BackupImportSelectionPreview) => {
+        if (selection.preview.encrypted && !selection.preview.decrypted) {
+          this.selectedEncryptedBackupPayload = selection.payload
+          this.selectedBackupPayload = ''
+        } else {
+          this.selectedBackupPayload = selection.payload
+          this.selectedEncryptedBackupPayload = ''
+        }
+        this.selectedBackupPreview = selection.preview
+        this.importPassphrase = ''
+        this.showToast(t('backup_preview_loaded_toast'))
+      })
+      .catch((_error: Error) => {
+        console.error('[BackupManagement] step=local_preview_failed code=backup_preview_failed')
+        this.showInfoDialog(t('backup_dialog_preview_failed_title'), this.backupFailureMessage('backup_preview_failed'))
+      })
+      .finally(() => {
+        this.busy = false
+      })
+  }
+
+  private startRenameLocalBackup(record: BackupLocalFileRecord): void {
+    this.editingLocalBackupFileName = record.fileName
+    this.editingLocalBackupName = record.displayName
+  }
+
+  private cancelRenameLocalBackup(): void {
+    this.editingLocalBackupFileName = ''
+    this.editingLocalBackupName = ''
+  }
+
+  private persistRenameLocalBackup(): void {
+    if (this.busy || this.editingLocalBackupFileName.length === 0) {
+      return
+    }
+    this.busy = true
+    const fileName = this.editingLocalBackupFileName
+    const displayName = this.editingLocalBackupName
+    console.info('[BackupManagement] step=local_rename_start')
+    void this.backupService().renameLocalBackup(fileName, displayName)
+      .then((_record: BackupLocalFileRecord) => {
+        this.cancelRenameLocalBackup()
+        this.loadLocalBackups()
+        this.showToast(t('backup_local_renamed_toast'))
+      })
+      .catch((_error: Error) => {
+        console.error('[BackupManagement] step=local_rename_failed code=backup_local_rename_failed')
+        this.showInfoDialog(t('backup_dialog_export_failed_title'), this.backupFailureMessage('backup_local_rename_failed'))
+      })
+      .finally(() => {
+        this.busy = false
+      })
+  }
+
+  private confirmDeleteLocalBackup(record: BackupLocalFileRecord): void {
+    this.getUIContext().showAlertDialog({
+      title: t('backup_local_delete_title'),
+      message: t('backup_local_delete_message').replace('%s', record.displayName),
+      autoCancel: true,
+      primaryButton: {
+        value: t('backup_local_delete_action'),
+        fontColor: $r('app.color.koma_danger'),
+        action: () => {
+          this.deleteLocalBackup(record.fileName)
+        },
+      },
+      secondaryButton: {
+        value: t('common_cancel'),
+        action: () => {},
+      },
+    })
+  }
+
+  private deleteLocalBackup(fileName: string): void {
+    if (this.busy) {
+      return
+    }
+    this.busy = true
+    console.info('[BackupManagement] step=local_delete_start')
+    void this.backupService().deleteLocalBackup(fileName)
+      .then(() => {
+        this.loadLocalBackups()
+        this.showToast(t('backup_local_deleted_toast'))
+      })
+      .catch((_error: Error) => {
+        console.error('[BackupManagement] step=local_delete_failed code=backup_local_delete_failed')
+        this.showInfoDialog(t('backup_dialog_export_failed_title'), this.backupFailureMessage('backup_local_delete_failed'))
       })
       .finally(() => {
         this.busy = false
@@ -409,6 +576,140 @@ export struct BackupManagementPage {
   }
 
   @Builder
+  private LocalBackupRow(record: BackupLocalFileRecord) {
+    Column({ space: ThemeConstants.SPACE_SM }) {
+      if (this.editingLocalBackupFileName === record.fileName) {
+        KomaFormTextField({
+          label: t('backup_local_rename_label'),
+          value: this.editingLocalBackupName,
+          change: (value: string) => {
+            this.editingLocalBackupName = value
+          },
+        })
+        Row({ space: ThemeConstants.SPACE_SM }) {
+          KomaActionButton({
+            label: t('common_confirm'),
+            kind: 'primary',
+            isEnabled: !this.busy,
+            action: () => {
+              this.persistRenameLocalBackup()
+            },
+          })
+          KomaActionButton({
+            label: t('common_cancel'),
+            kind: 'secondary',
+            isEnabled: !this.busy,
+            action: () => {
+              this.cancelRenameLocalBackup()
+            },
+          })
+        }
+      } else {
+        Row({ space: ThemeConstants.SPACE_MD }) {
+          Column({ space: ThemeConstants.SPACE_XS }) {
+            Text(record.displayName)
+              .fontSize(ThemeConstants.FONT_SIZE_BODY)
+              .fontWeight(FontWeight.Medium)
+              .fontColor(ThemeConstants.TEXT_PRIMARY)
+              .maxLines(1)
+              .textOverflow({ overflow: TextOverflow.Ellipsis })
+            Text(backupLocalFileDetailText(record))
+              .fontSize(ThemeConstants.FONT_SIZE_META)
+              .fontColor(ThemeConstants.TEXT_SECONDARY)
+              .maxLines(1)
+              .textOverflow({ overflow: TextOverflow.Ellipsis })
+            Text(record.preview.encryptionText)
+              .fontSize(ThemeConstants.FONT_SIZE_META)
+              .fontColor(record.preview.encrypted ? ThemeConstants.BRAND_PRIMARY : ThemeConstants.TEXT_SECONDARY)
+              .maxLines(1)
+              .textOverflow({ overflow: TextOverflow.Ellipsis })
+          }
+          .layoutWeight(1)
+          .alignItems(HorizontalAlign.Start)
+
+          KomaActionButton({
+            label: t('backup_local_preview_action'),
+            kind: 'secondary',
+            isEnabled: !this.busy,
+            action: () => {
+              this.selectLocalBackup(record)
+            },
+          })
+          KomaActionButton({
+            label: t('backup_local_rename_action'),
+            kind: 'secondary',
+            isEnabled: !this.busy,
+            action: () => {
+              this.startRenameLocalBackup(record)
+            },
+          })
+          KomaActionButton({
+            label: t('backup_local_delete_action'),
+            kind: 'danger',
+            isEnabled: !this.busy,
+            action: () => {
+              this.confirmDeleteLocalBackup(record)
+            },
+          })
+        }
+      }
+    }
+    .width('100%')
+    .padding({ top: ThemeConstants.SPACE_SM, bottom: ThemeConstants.SPACE_SM })
+  }
+
+  @Builder
+  private LocalBackupsCard() {
+    Column({ space: ThemeConstants.SPACE_MD }) {
+      Text(t('backup_local_heading'))
+        .width('100%')
+        .fontSize(ThemeConstants.FONT_SIZE_BODY)
+        .fontWeight(FontWeight.Medium)
+        .fontColor(ThemeConstants.TEXT_PRIMARY)
+      Text(t('backup_local_description'))
+        .width('100%')
+        .fontSize(ThemeConstants.FONT_SIZE_META)
+        .fontColor(ThemeConstants.TEXT_SECONDARY)
+        .lineHeight(ThemeConstants.LINE_HEIGHT_BODY)
+
+      Row({ space: ThemeConstants.SPACE_SM }) {
+        KomaActionButton({
+          label: this.busy ? t('backup_processing') : t('backup_local_create_action'),
+          kind: 'primary',
+          isEnabled: !this.busy,
+          action: () => {
+            this.exportLocalBackup()
+          },
+        })
+        KomaActionButton({
+          label: this.busy ? t('backup_processing') : t('backup_local_create_encrypted_action'),
+          kind: 'secondary',
+          isEnabled: !this.busy,
+          action: () => {
+            this.exportEncryptedLocalBackup()
+          },
+        })
+      }
+      .width('100%')
+
+      if (this.localBackups.length === 0) {
+        Text(t('backup_local_empty'))
+          .width('100%')
+          .fontSize(ThemeConstants.FONT_SIZE_BODY)
+          .fontColor(ThemeConstants.TEXT_SECONDARY)
+      } else {
+        ForEach(this.localBackups, (record: BackupLocalFileRecord) => {
+          this.LocalBackupRow(record)
+        }, (record: BackupLocalFileRecord) => record.fileName)
+      }
+    }
+    .width('100%')
+    .padding({ left: ThemeConstants.SPACE_LG, right: ThemeConstants.SPACE_LG, top: ThemeConstants.SPACE_LG, bottom: ThemeConstants.SPACE_LG })
+    .borderRadius(ThemeConstants.RADIUS_CARD)
+    .backgroundColor(ThemeConstants.CARD)
+  }
+
+  @Builder
   private ImportPreviewIntroCard() {
     Column({ space: ThemeConstants.SPACE_SM }) {
       Text(t('backup_import_preview_heading'))
@@ -520,6 +821,9 @@ export struct BackupManagementPage {
             this.EncryptionCard()
           }
           ListItem() {
+            this.LocalBackupsCard()
+          }
+          ListItem() {
             this.DomainsCard()
           }
           ListItem() {
@@ -542,5 +846,9 @@ export struct BackupManagementPage {
       .height('100%')
       .backgroundColor(ThemeConstants.BG_SUB)
     }
+  }
+
+  aboutToAppear(): void {
+    this.loadLocalBackups()
   }
 }
