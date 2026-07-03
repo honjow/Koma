@@ -84,6 +84,16 @@ assert.match(
   'OPDS update probe must reload the source catalog, find the persisted publication, and refresh manifest images when available',
 )
 assert.match(
+  serviceSource,
+  /if \(comic\.sourceKind === ComicSourceKind\.WEBDAV_REMOTE\) \{[\s\S]*return this\.checkWebDavComic\(comic, previousChapterCount\)/,
+  'WebDAV library updates must use a real provider probe instead of the generic remote-library skipped path',
+)
+assert.match(
+  serviceSource,
+  /checkWebDavComic\(comic: Comic, previousChapterCount: number\)[\s\S]*remoteServerStore\.loadWebDav\(\)[\s\S]*webDavPathSegmentsForComic\(client\.buildUrl\(\[\]\), comic\.remoteResourceId\)[\s\S]*client\.propfind\(pathSegments, 1\)[\s\S]*DavComicCandidateKind\.IMAGE_FILE[\s\S]*client\.getResourceUrl\(resource\)/,
+  'WebDAV update probe must reload the persisted directory and rebuild image pages from PROPFIND resources',
+)
+assert.match(
   settingsPageSource,
   /new LibraryUpdateService\([\s\S]*this\.libraryPersistenceService,[\s\S]*new RemoteServerStore\(this\.context\(\)\)/,
   'Settings foreground update runner must pass RemoteServerStore so Komga library items can refresh',

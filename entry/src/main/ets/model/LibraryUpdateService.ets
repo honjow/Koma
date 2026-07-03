@@ -37,6 +37,13 @@ import {
   OpdsLink,
   OpdsLinkKind,
 } from '../remote/OpdsModels'
+import {
+  readWebDavUrlPath,
+} from '../remote/WebDavClient'
+import {
+  DavComicCandidateKind,
+  DavResource,
+} from '../remote/WebDavModels'
 import { RemoteServerStore } from './RemoteServerStore'
 
 export type LibraryUpdateResultStatus = 'unchanged' | 'updated' | 'skipped' | 'failed'
@@ -451,8 +458,10 @@ export class LibraryUpdateService {
     if (comic.sourceKind === ComicSourceKind.OPDS_REMOTE) {
       return this.checkOpdsComic(comic, previousChapterCount)
     }
-    if (comic.sourceKind === ComicSourceKind.WEBDAV_REMOTE ||
-      comic.sourceKind === ComicSourceKind.PRIVATE_LIBRARY) {
+    if (comic.sourceKind === ComicSourceKind.WEBDAV_REMOTE) {
+      return this.checkWebDavComic(comic, previousChapterCount)
+    }
+    if (comic.sourceKind === ComicSourceKind.PRIVATE_LIBRARY) {
       return this.skippedResult(comic, previousChapterCount, AppStrings.get('library_update_skip_remote_library_unsupported'))
     }
     return this.skippedResult(comic, previousChapterCount, AppStrings.get('library_update_skip_source_kind_unsupported'))
@@ -758,6 +767,128 @@ export class LibraryUpdateService {
       return link.kind === OpdsLinkKind.SELF &&
         (type.indexOf('json') >= 0 || type.indexOf('divina') >= 0 || type.indexOf('webpub') >= 0)
     })
+  }
+
+  private async checkWebDavComic(comic: Comic, previousChapterCount: number): Promise<LibraryUpdateComicResult> {
+    const remoteServerStore = this.remoteServerStore
+    if (remoteServerStore === undefined) {
+      return this.skippedResult(comic, previousChapterCount, AppStrings.get('library_update_skip_remote_library_unsupported'))
+    }
+    if (comic.remoteResourceId === undefined || comic.remoteResourceId.trim().length === 0) {
+      return this.skippedResult(comic, previousChapterCount, AppStrings.get('library_update_skip_missing_remote_resource_id'))
+    }
+    try {
+      const record = await remoteServerStore.loadWebDav()
+      if (record === undefined || (comic.remoteServerId !== undefined && record.server.id !== comic.remoteServerId)) {
+        return {
+          comicId: comic.id,
+          providerKind: providerKindForComic(comic),
+          sourceKey: sourceKeyForComic(comic),
+          status: 'failed',
+          previousChapterCount,
+          newChapterCount: previousChapterCount,
+          message: safeLibraryUpdateFailureCode('server_unavailable'),
+        }
+      }
+      const client = remoteServerStore.createWebDavClient(record)
+      const pathSegments = this.webDavPathSegmentsForComic(client.buildUrl([]), comic.remoteResourceId)
+      const resources = await client.propfind(pathSegments, 1)
+      const images = resources
+        .filter((resource: DavResource): boolean => {
+          return !resource.isCollection && resource.candidateKind === DavComicCandidateKind.IMAGE_FILE
+        })
+        .sort((left: DavResource, right: DavResource): number => this.webDavResourceName(left).localeCompare(this.webDavResourceName(right)))
+      if (images.length === 0) {
+        return this.skippedResult(comic, previousChapterCount, AppStrings.get('common_no_images_to_add'))
+      }
+      const existingChapter = comic.chapters.length > 0 ? comic.chapters[0] : undefined
+      const directoryUrl = client.buildUrl(pathSegments)
+      const chapterId = existingChapter?.id ?? `webdav:${record.server.id}:chapter:${createLibraryUpdateStableHash(directoryUrl)}`
+      const pages = images.map((resource: DavResource, index: number): Page => {
+        const name = this.webDavResourceName(resource)
+        return {
+          id: `${chapterId}:page:${index + 1}`,
+          comicId: comic.id,
+          chapterId,
+          index,
+          fileName: name,
+          uri: client.getResourceUrl(resource),
+          sortKey: normalizeSortKey(name),
+          byteSize: resource.contentLength,
+        }
+      })
+      const now = Date.now()
+      const chapter: Chapter = {
+        id: chapterId,
+        comicId: comic.id,
+        title: comic.title,
+        index: 0,
+        sourcePath: directoryUrl,
+        sortKey: normalizeSortKey(comic.title),
+        pages,
+        pageCount: pages.length,
+        createdAt: existingChapter?.createdAt ?? now,
+        updatedAt: now,
+      }
+      if (existingChapter !== undefined &&
+        existingChapter.pageCount === pages.length &&
+        existingChapter.pages.every((page: Page, index: number): boolean => page.uri === pages[index]?.uri)) {
+        return {
+          comicId: comic.id,
+          providerKind: providerKindForComic(comic),
+          sourceKey: sourceKeyForComic(comic),
+          status: 'unchanged',
+          previousChapterCount,
+          newChapterCount: previousChapterCount,
+          message: AppStrings.get('library_update_no_new_chapters'),
+        }
+      }
+      this.libraryStore.upsertComic(updatedComicWithChapters(comic, [chapter], now))
+      return {
+        comicId: comic.id,
+        providerKind: providerKindForComic(comic),
+        sourceKey: sourceKeyForComic(comic),
+        status: 'updated',
+        previousChapterCount,
+        newChapterCount: 1,
+        message: AppStrings.get('library_update_found_new_chapters')
+          .replace('%s', `${Math.max(1 - previousChapterCount, 0)}`),
+      }
+    } catch (error) {
+      const e = error as Error
+      return {
+        comicId: comic.id,
+        providerKind: providerKindForComic(comic),
+        sourceKey: sourceKeyForComic(comic),
+        status: 'failed',
+        previousChapterCount,
+        newChapterCount: previousChapterCount,
+        message: safeLibraryUpdateFailureCode(e.message),
+      }
+    }
+  }
+
+  private webDavPathSegmentsForComic(rootUrl: string, resourceUrl: string): string[] {
+    const rootPath = readWebDavUrlPath(rootUrl).replace(/\/+$/, '')
+    const resourcePath = readWebDavUrlPath(resourceUrl).replace(/\/+$/, '')
+    if (resourcePath.length <= rootPath.length || !resourcePath.startsWith(rootPath)) {
+      return []
+    }
+    return resourcePath
+      .substring(rootPath.length)
+      .split('/')
+      .filter((segment: string): boolean => segment.length > 0)
+      .map((segment: string): string => decodeURIComponent(segment))
+  }
+
+  private webDavResourceName(resource: DavResource): string {
+    if (resource.displayname !== undefined && resource.displayname.length > 0) {
+      return resource.displayname
+    }
+    const path = readWebDavUrlPath(resource.href)
+    const trimmed = path.endsWith('/') ? path.substring(0, path.length - 1) : path
+    const name = trimmed.split('/').pop()
+    return name === undefined || name.length === 0 ? resource.href : decodeURIComponent(name)
   }
 
   private skippedResult(comic: Comic, previousChapterCount: number, message: string): LibraryUpdateComicResult {
