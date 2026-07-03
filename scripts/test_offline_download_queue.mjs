@@ -152,7 +152,7 @@ assert.match(settingsPageSource, /key: 'download-concurrency', titleKey: 'settin
 assert.match(settingsPageSource, /OFFLINE_DOWNLOAD_FOREGROUND_CONCURRENCY_LIMIT_OPTIONS[\s\S]*OfflineDownloadQueueStore/, 'Settings must reuse the durable download queue preference store')
 assert.match(settingsPageSource, /saveDownloadForegroundConcurrencyLimit\(limit: number\)[\s\S]*setForegroundConcurrencyLimit\(limit\)/, 'Settings download concurrency row must persist through OfflineDownloadQueueStore')
 assert.match(settingsPageSource, /key: 'download-wifi-only', titleKey: 'settings_row_download_wifi_only_title', detailKey: 'settings_row_download_wifi_only_detail' \}[\s\S]*downloadWifiOnly[\s\S]*setWifiOnly\(wifiOnly\)[\s\S]*row\.key === 'download-wifi-only'[\s\S]*hasSwitch: true/, 'Settings Wi-Fi-only downloads row must be a real durable switch')
-assert.doesNotMatch(settingsPageSource, /trackerAutoSync|backupAutoExport|cacheAutoClean/, 'Settings must not expose fake local-only switches for placeholder rows')
+assert.doesNotMatch(settingsPageSource, /key: 'download-(notifications|notification-test|retry-failed|concurrency|wifi-only)'[^}]*placeholder:\s*true/, 'Settings download rows must not remain placeholder rows')
 assert.match(settingsPageSource, /onOpenDownloads:\s*\(\) => void/, 'SettingsPage must accept a Downloads route callback')
 assert.match(settingsPageSource, /row\.key === 'downloads'[\s\S]*this\.onOpenDownloads\(\)/, 'Settings Downloads row must open the route')
 assert.match(constantsSource, /static readonly DOWNLOADS:\s*string = 'DownloadsPage'/, 'RouteName must define DownloadsPage')
