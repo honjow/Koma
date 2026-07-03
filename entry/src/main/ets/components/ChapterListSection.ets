@@ -1,6 +1,7 @@
 import { Chip, ChipSize } from '@kit.ArkUI'
 import { AppStrings } from '../i18n/AppStrings'
 import { connectLanguageState, LanguageState } from '../state/LanguageState'
+import { KomaActionButton } from './ui/KomaActionButton'
 import { KomaIconButton } from './ui/KomaIconButton'
 import { ChapterSortOrder, MangaChapterItem } from '../model/MangaDetailModels'
 import { ThemeConstants } from '../theme/ThemeConstants'
@@ -191,6 +192,24 @@ export struct ChapterListSection {
 
   private setGroupFilter(group: string): void {
     this.groupFilter = group
+    this.rebuildDataSource()
+  }
+
+  private hasActiveFilters(): boolean {
+    return this.sortOrder !== ChapterSortOrder.NEWEST_FIRST ||
+      this.readFilter !== ChapterReadFilter.ALL ||
+      this.languageFilter.length > 0 ||
+      this.groupFilter.length > 0
+  }
+
+  private resetFilters(): void {
+    if (!this.hasActiveFilters()) {
+      return
+    }
+    this.sortOrder = ChapterSortOrder.NEWEST_FIRST
+    this.readFilter = ChapterReadFilter.ALL
+    this.languageFilter = ''
+    this.groupFilter = ''
     this.rebuildDataSource()
   }
 
@@ -562,6 +581,18 @@ export struct ChapterListSection {
           }
           .margin({ right: ThemeConstants.SPACE_SM, bottom: ThemeConstants.SPACE_SM })
           .bindMenu(this.SortMenu())
+          if (this.hasActiveFilters()) {
+            KomaActionButton({
+              label: s('common_reset'),
+              kind: 'ghost',
+              compact: true,
+              controlHeight: ThemeConstants.ACTION_CHIP_HEIGHT,
+              action: () => {
+                this.resetFilters()
+              },
+            })
+              .margin({ right: ThemeConstants.SPACE_SM, bottom: ThemeConstants.SPACE_SM })
+          }
         }
         .width('100%')
 

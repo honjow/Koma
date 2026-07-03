@@ -1583,6 +1583,21 @@ assert.match(
 )
 assert.match(
   chapterListSectionSource,
+  /hasActiveFilters\(\): boolean[\s\S]*this\.sortOrder !== ChapterSortOrder\.NEWEST_FIRST[\s\S]*this\.readFilter !== ChapterReadFilter\.ALL[\s\S]*this\.languageFilter\.length > 0[\s\S]*this\.groupFilter\.length > 0/,
+  'ChapterListSection must know when sort/read/language/group filters are active',
+)
+assert.match(
+  chapterListSectionSource,
+  /resetFilters\(\): void[\s\S]*this\.sortOrder = ChapterSortOrder\.NEWEST_FIRST[\s\S]*this\.readFilter = ChapterReadFilter\.ALL[\s\S]*this\.languageFilter = ''[\s\S]*this\.groupFilter = ''[\s\S]*this\.rebuildDataSource\(\)/,
+  'ChapterListSection reset must restore default sort, read, language, and group filters',
+)
+assert.match(
+  chapterListSectionSource,
+  /if \(this\.hasActiveFilters\(\)\) \{[\s\S]*KomaActionButton\(\{[\s\S]*label: s\('common_reset'\)[\s\S]*this\.resetFilters\(\)/,
+  'ChapterListSection must expose a reset action when chapter filters are active',
+)
+assert.match(
+  chapterListSectionSource,
   /chapterSubtitle\(chapter: MangaChapterItem\): string[\s\S]*chapter\.scanlator[\s\S]*chapter\.language[\s\S]*formatLanguage\(chapter\.language\)[\s\S]*chapter\.dateUpload[\s\S]*formatDate\(chapter\.dateUpload\)/,
   'ChapterListSection subtitle must show scanlator, language, and upload date metadata',
 )
