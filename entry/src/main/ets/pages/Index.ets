@@ -54,6 +54,7 @@ import {
   updateComicCategoryMembershipAndPersistLibraryStore,
   upsertComicAndPersistLibraryStore,
 } from '../model/LibraryPersistence'
+import { OfflineDownloadQueueStore } from '../model/OfflineDownloadQueueStore'
 import {
   InMemoryReaderSessionStore,
   ReaderSessionConfig,
@@ -194,12 +195,14 @@ struct Index {
       }
       this.libraryStore.removeComic(comicId)
       this.refreshLibrarySnapshot()
+      this.cleanupRemovedComicDownloads(comicId)
       console.info('[library-remove] result removed=true persistence=unavailable')
       return true
     }
     try {
       if (removeComicAndPersistLibraryStore(this.libraryStore, persistenceService, comicId)) {
         this.refreshLibrarySnapshot()
+        this.cleanupRemovedComicDownloads(comicId)
         console.info('[library-remove] result removed=true persistence=available')
         return true
       } else {
@@ -210,6 +213,21 @@ struct Index {
       const e = error as Error
       console.error('persist removed comic failed: ' + e.message)
       throw e
+    }
+  }
+
+  private cleanupRemovedComicDownloads(comicId: ComicId): void {
+    try {
+      const context = getContext(this) as common.UIAbilityContext
+      void new OfflineDownloadQueueStore(context.filesDir).deleteComicDownloads(comicId)
+        .then((removedCount: number) => {
+          console.info(`[library-remove] downloads_cleanup removed=${removedCount}`)
+        })
+        .catch((_error: Error) => {
+          console.warn('[library-remove] downloads_cleanup_failed reason=delete_downloads')
+        })
+    } catch (_error) {
+      console.warn('[library-remove] downloads_cleanup_failed reason=context_unavailable')
     }
   }
 

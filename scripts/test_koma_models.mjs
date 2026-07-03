@@ -27,6 +27,7 @@ const trackerModelsPath = resolve(root, 'entry/src/main/ets/model/TrackerModels.
 const remoteServerStorePath = resolve(root, 'entry/src/main/ets/model/RemoteServerStore.ets')
 const readerPreferencesStorePath = resolve(root, 'entry/src/main/ets/model/ReaderPreferencesStore.ets')
 const offlineDownloadStorePath = resolve(root, 'entry/src/main/ets/model/OfflineDownloadStore.ets')
+const offlineDownloadQueueStorePath = resolve(root, 'entry/src/main/ets/model/OfflineDownloadQueueStore.ets')
 const offlineDownloadServicePath = resolve(root, 'entry/src/main/ets/model/OfflineDownloadService.ets')
 const entryAbilityPath = resolve(root, 'entry/src/main/ets/entryability/EntryAbility.ets')
 const indexPath = resolve(root, 'entry/src/main/ets/pages/Index.ets')
@@ -77,6 +78,7 @@ const trackerModelsSource = readFileSync(trackerModelsPath, 'utf8')
 const remoteServerStoreSource = readFileSync(remoteServerStorePath, 'utf8')
 const readerPreferencesStoreSource = readFileSync(readerPreferencesStorePath, 'utf8')
 const offlineDownloadStoreSource = readFileSync(offlineDownloadStorePath, 'utf8')
+const offlineDownloadQueueStoreSource = readFileSync(offlineDownloadQueueStorePath, 'utf8')
 const offlineDownloadServiceSource = readFileSync(offlineDownloadServicePath, 'utf8')
 const entryAbilitySource = readFileSync(entryAbilityPath, 'utf8')
 const indexSource = readFileSync(indexPath, 'utf8')
@@ -1186,6 +1188,21 @@ assert.match(
   indexSource,
   /@Local private libraryComics: Comic\[\][\s\S]*private refreshLibrarySnapshot\(\): void \{[\s\S]*this\.libraryComics = this\.libraryStore\.listComics\(\)[\s\S]*this\.libraryRevision \+= 1[\s\S]*private handleRemoveComicRequested\(comicId: ComicId\): boolean[\s\S]*removeComicAndPersistLibraryStore[\s\S]*this\.refreshLibrarySnapshot\(\)[\s\S]*return true/,
   'confirmed remove must publish a fresh comic array snapshot after successful persistence so the live shelf re-renders',
+)
+assert.match(
+  offlineDownloadStoreSource,
+  /deleteComicDownloads\(comicId: ComicId\): Promise<void>[\s\S]*const comicDir = this\.comicDir\(comicId\)[\s\S]*await this\.deleteDownloadDir\(comicDir\)/,
+  'offline download store must support safe whole-comic cleanup for removed local shelf rows',
+)
+assert.match(
+  offlineDownloadQueueStoreSource,
+  /removeComic\(comicId: ComicId\): number[\s\S]*item\.comicId !== comicId[\s\S]*preferences: document\.preferences[\s\S]*return removedCount[\s\S]*deleteComicDownloads\(comicId: ComicId\): Promise<number>[\s\S]*await store\.deleteComicDownloads\(comicId\)[\s\S]*return this\.removeComic\(comicId\)/,
+  'offline download queue store must clear all rows for a removed comic after deleting its app-sandbox downloads',
+)
+assert.match(
+  indexSource,
+  /private cleanupRemovedComicDownloads\(comicId: ComicId\): void[\s\S]*new OfflineDownloadQueueStore\(context\.filesDir\)\.deleteComicDownloads\(comicId\)[\s\S]*downloads_cleanup removed=\$\{removedCount\}[\s\S]*downloads_cleanup_failed reason=delete_downloads/,
+  'successful local comic remove must asynchronously clean orphaned offline downloads with redacted diagnostics',
 )
 assert.match(
   indexSource,

@@ -267,9 +267,15 @@ export class OfflineDownloadStore {
 
   chapterDir(comicId: ComicId, chapterId: string): string {
     const path = joinOfflineDownloadPath(
-      joinOfflineDownloadPath(this.rootDir, createOfflineDownloadStableHash(comicId)),
+      this.comicDir(comicId),
       createOfflineDownloadStableHash(chapterId)
     )
+    assertSafeOfflineDownloadRoot(this.filesDir, path)
+    return path
+  }
+
+  comicDir(comicId: ComicId): string {
+    const path = joinOfflineDownloadPath(this.rootDir, createOfflineDownloadStableHash(comicId))
     assertSafeOfflineDownloadRoot(this.filesDir, path)
     return path
   }
@@ -629,19 +635,30 @@ export class OfflineDownloadStore {
   async deleteChapterDownload(comicId: ComicId, chapterId: string): Promise<void> {
     const chapterDir = this.chapterDir(comicId, chapterId)
     assertSafeOfflineDownloadRoot(this.filesDir, chapterDir)
-    if (!(await pathExists(chapterDir))) {
+    await this.deleteDownloadDir(chapterDir)
+  }
+
+  async deleteComicDownloads(comicId: ComicId): Promise<void> {
+    const comicDir = this.comicDir(comicId)
+    assertSafeOfflineDownloadRoot(this.filesDir, comicDir)
+    await this.deleteDownloadDir(comicDir)
+  }
+
+  private async deleteDownloadDir(targetDir: string): Promise<void> {
+    assertSafeOfflineDownloadRoot(this.filesDir, targetDir)
+    if (!(await pathExists(targetDir))) {
       return
     }
     const options: ListFileOptions = {
       recursion: true,
       listNum: 0,
     }
-    const entries = (await fs.listFile(chapterDir, options))
+    const entries = (await fs.listFile(targetDir, options))
       .map((entry: string): string => entry.replace(/\\/g, '/').replace(/^\/+/, '').replace(/\/+$/, ''))
       .filter((entry: string): boolean => entry.length > 0 && entry.indexOf('..') < 0)
       .sort(compareDeepestPathFirst)
     for (let index = 0; index < entries.length; index += 1) {
-      const entryPath = joinOfflineDownloadPath(chapterDir, entries[index])
+      const entryPath = joinOfflineDownloadPath(targetDir, entries[index])
       assertSafeOfflineDownloadRoot(this.filesDir, entryPath)
       const stat = await fs.stat(entryPath)
       if (stat.isDirectory()) {
@@ -650,7 +667,7 @@ export class OfflineDownloadStore {
         await fs.unlink(entryPath)
       }
     }
-    await fs.rmdir(chapterDir)
+    await fs.rmdir(targetDir)
   }
 
   private ensureRoot(): void {

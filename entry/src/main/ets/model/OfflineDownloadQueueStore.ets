@@ -384,10 +384,31 @@ export class OfflineDownloadQueueStore {
     })
   }
 
+  removeComic(comicId: ComicId): number {
+    const document = this.loadDocument()
+    const entries = document.entries.filter((item: OfflineDownloadQueueEntry): boolean => item.comicId !== comicId)
+    const removedCount = document.entries.length - entries.length
+    if (removedCount <= 0) {
+      return 0
+    }
+    this.saveDocument({
+      schemaVersion: OFFLINE_DOWNLOAD_QUEUE_SCHEMA_VERSION,
+      preferences: document.preferences,
+      entries,
+    })
+    return removedCount
+  }
+
   async deleteChapterDownload(comicId: ComicId, chapterId: string): Promise<void> {
     const store = new OfflineDownloadStore(this.filesDir)
     await store.deleteChapterDownload(comicId, chapterId)
     this.remove(comicId, chapterId)
+  }
+
+  async deleteComicDownloads(comicId: ComicId): Promise<number> {
+    const store = new OfflineDownloadStore(this.filesDir)
+    await store.deleteComicDownloads(comicId)
+    return this.removeComic(comicId)
   }
 
   private saveDocument(document: OfflineDownloadQueueDocument): void {

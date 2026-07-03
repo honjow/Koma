@@ -83,12 +83,17 @@ assert.match(queueStoreSource, /remove\([\s\S]*chapterId[\s\S]*saveDocument/, 'q
 assert.match(queueStoreSource, /upsert\(entry: OfflineDownloadQueueEntry\): OfflineDownloadQueueEntry \{[\s\S]*const document = this\.loadDocument\(\)[\s\S]*preferences: document\.preferences[\s\S]*entries,/, 'queue upsert must preserve existing queue preferences when only entries change')
 assert.match(queueStoreSource, /remove\(comicId: ComicId, chapterId: string\): void \{[\s\S]*const document = this\.loadDocument\(\)[\s\S]*preferences: document\.preferences[\s\S]*entries,/, 'queue remove must preserve existing queue preferences when only entries change')
 assert.match(queueStoreSource, /deleteChapterDownload\([\s\S]*const store = new OfflineDownloadStore\(this\.filesDir\)[\s\S]*await store\.deleteChapterDownload\(comicId, chapterId\)[\s\S]*this\.remove\(comicId, chapterId\)/, 'queue store must remove durable data before hiding the queue row')
+assert.match(queueStoreSource, /removeComic\(comicId: ComicId\): number \{[\s\S]*const document = this\.loadDocument\(\)[\s\S]*item\.comicId !== comicId[\s\S]*preferences: document\.preferences[\s\S]*return removedCount/, 'queue store must remove all rows for a deleted comic while preserving preferences')
+assert.match(queueStoreSource, /deleteComicDownloads\(comicId: ComicId\): Promise<number>[\s\S]*await store\.deleteComicDownloads\(comicId\)[\s\S]*return this\.removeComic\(comicId\)/, 'queue store must delete app-sandbox comic downloads before removing all queue rows')
 
 for (const status of ['QUEUED', 'DOWNLOADING', 'DOWNLOADED', 'PARTIAL', 'FAILED', 'BLOCKED']) {
   assert.match(queueStoreSource, new RegExp(`OfflineDownloadStatus\\.${status}`), `queue store must use existing OfflineDownloadStatus.${status}`)
 }
 
 assert.match(offlineDownloadStoreSource, /deleteChapterDownload\([\s\S]*assertSafeOfflineDownloadRoot[\s\S]*(?:rmdir|rmdirSync|unlink|unlinkSync)/, 'offline download store must expose safe chapter cleanup under files/downloads')
+assert.match(offlineDownloadStoreSource, /comicDir\(comicId: ComicId\): string[\s\S]*createOfflineDownloadStableHash\(comicId\)[\s\S]*assertSafeOfflineDownloadRoot/, 'offline download store must derive a safe per-comic download directory')
+assert.match(offlineDownloadStoreSource, /deleteComicDownloads\(comicId: ComicId\): Promise<void>[\s\S]*const comicDir = this\.comicDir\(comicId\)[\s\S]*await this\.deleteDownloadDir\(comicDir\)/, 'offline download store must expose whole-comic cleanup under files/downloads')
+assert.match(offlineDownloadStoreSource, /private async deleteDownloadDir\(targetDir: string\): Promise<void>[\s\S]*assertSafeOfflineDownloadRoot\(this\.filesDir, targetDir\)[\s\S]*fs\.listFile\(targetDir[\s\S]*sort\(compareDeepestPathFirst\)[\s\S]*await fs\.rmdir\(targetDir\)/, 'offline download directory cleanup must stay bounded and remove deepest children first')
 assert.match(offlineDownloadStoreSource, /assertSafeOfflineDownloadRoot[\s\S]*hasTraversalSegment/, 'offline download safe path contract must remain present')
 assertExport(offlineDownloadStoreSource, 'OfflineDownloadedChapterStatus')
 assertExport(offlineDownloadStoreSource, 'OfflineDownloadManifestValidation')
