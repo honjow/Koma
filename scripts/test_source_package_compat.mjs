@@ -9,6 +9,7 @@ const backupServicePath = resolve(root, 'entry/src/main/ets/model/BackupService.
 const managerPagePath = resolve(root, 'entry/src/main/ets/pages/SourcePackageManagerPage.ets')
 const browseViewModelPath = resolve(root, 'entry/src/main/ets/viewmodel/BrowseViewModel.ets')
 const browsePagePath = resolve(root, 'entry/src/main/ets/pages/BrowsePage.ets')
+const sourceSearchPagePath = resolve(root, 'entry/src/main/ets/pages/SourceSearchPage.ets')
 const sourceSettingsStorePath = resolve(root, 'entry/src/main/ets/sourceRuntime/SourceSettingsStore.ets')
 const smokePath = resolve(root, 'entry/src/main/ets/sourceRuntime/SourceRuntimeDeviceSmoke.ets')
 const sourceRuntimeRegistryPath = resolve(root, 'entry/src/main/ets/sourceRuntime/SourceRuntimeRegistry.ets')
@@ -27,6 +28,7 @@ const backupServiceSource = readFileSync(backupServicePath, 'utf8')
 const managerPageSource = readFileSync(managerPagePath, 'utf8')
 const browseViewModelSource = readFileSync(browseViewModelPath, 'utf8')
 const browsePageSource = readFileSync(browsePagePath, 'utf8')
+const sourceSearchPageSource = readFileSync(sourceSearchPagePath, 'utf8')
 const sourceSettingsStoreSource = readFileSync(sourceSettingsStorePath, 'utf8')
 const smokeSource = readFileSync(smokePath, 'utf8')
 const sourceRuntimeRegistrySource = readFileSync(sourceRuntimeRegistryPath, 'utf8')
@@ -242,6 +244,16 @@ assert.match(
   browseViewModelSource,
   /searchSource\(this\.selectedSource, this\.searchQuery\.trim\(\), this\.searchPage, this\.searchNextCursor\)/,
   'BrowseViewModel must send source-owned cursors for search pagination',
+)
+assert.match(
+  browseViewModelSource,
+  /clearSearch\(source\?: SourceRuntimeRegistryInstalledSourceSummary\): void \{[\s\S]*this\.searchQuery = ''[\s\S]*this\.searchResults = \[\][\s\S]*this\.hasMoreSearch = false[\s\S]*this\.loadingSearch = false[\s\S]*this\.errorMessage = ''[\s\S]*this\.searchNextCursor = ''/,
+  'BrowseViewModel must expose an immediate clear path so blank source searches cannot leave stale results visible',
+)
+assert.match(
+  sourceSearchPageSource,
+  /scheduleSearch\(value: string\): void \{[\s\S]*clearTimeout\(this\.searchTimer\)[\s\S]*if \(value\.trim\(\)\.length === 0\) \{[\s\S]*this\.viewModel\.clearSearch\(this\.source\)[\s\S]*return[\s\S]*setTimeout/,
+  'SourceSearchPage must clear source search results immediately when the query becomes blank instead of waiting for debounce',
 )
 assert.match(
   browseViewModelSource,

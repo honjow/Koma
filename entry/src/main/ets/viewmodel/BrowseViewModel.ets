@@ -442,6 +442,19 @@ export class BrowseViewModel {
     }
   }
 
+  clearSearch(source?: SourceRuntimeRegistryInstalledSourceSummary): void {
+    if (source !== undefined) {
+      this.selectedSource = source
+    }
+    this.searchQuery = ''
+    this.searchPage = 1
+    this.searchResults = []
+    this.hasMoreSearch = false
+    this.loadingSearch = false
+    this.errorMessage = ''
+    this.searchNextCursor = ''
+  }
+
   async loadMoreSearch(): Promise<void> {
     if (this.loadingSearch || !this.hasMoreSearch || this.selectedSource === undefined || this.searchQuery.trim().length === 0) {
       return

@@ -50,6 +50,10 @@ export struct SourceSearchPage {
       clearTimeout(this.searchTimer)
       this.searchTimer = 0
     }
+    if (value.trim().length === 0) {
+      this.viewModel.clearSearch(this.source)
+      return
+    }
     this.searchTimer = setTimeout(() => {
       void this.viewModel.runSearch(this.source, this.query)
       this.searchTimer = 0
