@@ -163,6 +163,21 @@ assert.match(sourceSettingsStoreSource, /data\?\.\['settings'\] \?\? data\?\.\['
 assert.match(sourceSettingsStoreSource, /SAFE_SETTING_KINDS:\s*string\[\] = \['string', 'boolean', 'select', 'multiselect', 'range'\]/, 'source settings persistence must limit saved descriptor kinds to safe non-secret values')
 assert.match(sourceSettingsStoreSource, /export interface SourceSettingDescriptor\s*{[\s\S]*minValue\?: number[\s\S]*maxValue\?: number[\s\S]*step\?: number/, 'source setting descriptors must carry optional range min, max, and step metadata')
 assert.match(sourceSettingsStoreSource, /minValue: optionalNumber\(record\['min'\]\)[\s\S]*maxValue: optionalNumber\(record\['max'\]\)[\s\S]*step: optionalNumber\(record\['step'\]\)/, 'source settings normalization must parse range min, max, and step metadata')
+assert.match(
+  sourceSettingsStoreSource,
+  /sanitizeDescriptorSettingValue[\s\S]*descriptor\.kind === 'boolean'[\s\S]*typeof value === 'boolean'[\s\S]*descriptor\.kind === 'select'[\s\S]*optionIds\.includes\(value\)[\s\S]*descriptor\.kind === 'multiselect'[\s\S]*!selected\.includes\(item\)[\s\S]*descriptor\.kind === 'range'[\s\S]*normalizedRangeValue\(value, descriptor\)/,
+  'source settings persistence must validate values against descriptor kind and option ids before saving',
+)
+assert.match(
+  sourceSettingsStoreSource,
+  /normalizedRangeValue\(value: SourceSettingValue, descriptor: SourceSettingDescriptor\)[\s\S]*Math\.max\(descriptor\.minValue, normalized\)[\s\S]*Math\.min\(descriptor\.maxValue, normalized\)/,
+  'source settings range values must be clamped to descriptor min and max',
+)
+assert.match(
+  sourceSettingsStoreSource,
+  /filterSafeValues[\s\S]*const sanitized = sanitizeDescriptorSettingValue\(safe, descriptor\)[\s\S]*safeValues\[key\] = sanitized/,
+  'source settings store must apply descriptor-specific sanitization inside persistence filtering',
+)
 assert.match(managerPageSource, /KomaActionButton\(\{[\s\S]*label: t\('source_pkg_settings'\)[\s\S]*this\.openSettings\(source\)/, 'SourcePackageManagerPage must expose a settings action on package cards')
 assert.match(managerPageSource, /fetchSourceSettingDescriptors\(appSourceRuntimeRegistry, source\.id\)/, 'SourcePackageManagerPage settings action must fetch get_settings descriptors')
 assert.match(managerPageSource, /descriptor\.sensitive \? t\('source_pkg_login_required'\) : t\('source_pkg_unsupported'\)/, 'SourcePackageManagerPage must show auth-required placeholder for credential-like descriptors')

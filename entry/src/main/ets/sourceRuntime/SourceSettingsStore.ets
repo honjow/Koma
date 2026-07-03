@@ -143,6 +143,60 @@ function safeSettingValue(value: RuntimeValue | undefined): SourceSettingValue |
   return undefined
 }
 
+function settingOptionIds(descriptor: SourceSettingDescriptor): string[] {
+  return (descriptor.options ?? []).map((option: SourceSettingOption): string => option.id)
+}
+
+function normalizedRangeValue(value: SourceSettingValue, descriptor: SourceSettingDescriptor): number | undefined {
+  if (typeof value !== 'number' || !Number.isFinite(value)) {
+    return undefined
+  }
+  let normalized = value
+  if (descriptor.minValue !== undefined) {
+    normalized = Math.max(descriptor.minValue, normalized)
+  }
+  if (descriptor.maxValue !== undefined) {
+    normalized = Math.min(descriptor.maxValue, normalized)
+  }
+  return normalized
+}
+
+function sanitizeDescriptorSettingValue(
+  value: SourceSettingValue,
+  descriptor: SourceSettingDescriptor
+): SourceSettingValue | undefined {
+  if (descriptor.kind === 'boolean') {
+    return typeof value === 'boolean' ? value : undefined
+  }
+  if (descriptor.kind === 'string') {
+    return typeof value === 'string' ? value : undefined
+  }
+  if (descriptor.kind === 'select') {
+    if (typeof value !== 'string') {
+      return undefined
+    }
+    const optionIds = settingOptionIds(descriptor)
+    return optionIds.length === 0 || optionIds.includes(value) ? value : undefined
+  }
+  if (descriptor.kind === 'multiselect') {
+    if (!Array.isArray(value)) {
+      return undefined
+    }
+    const optionIds = settingOptionIds(descriptor)
+    const selected: string[] = []
+    value.forEach((item: string) => {
+      if ((optionIds.length === 0 || optionIds.includes(item)) && !selected.includes(item)) {
+        selected.push(item)
+      }
+    })
+    return selected
+  }
+  if (descriptor.kind === 'range') {
+    return normalizedRangeValue(value, descriptor)
+  }
+  return undefined
+}
+
 function normalizeOptions(value: RuntimeValue | undefined): SourceSettingOption[] | undefined {
   if (!Array.isArray(value)) {
     return undefined
@@ -307,9 +361,17 @@ export class SourceSettingsStore {
       }
       const value = values[key]
       const safe = safeSettingValue(value as RuntimeValue)
-      if (safe !== undefined) {
-        safeValues[key] = safe
+      if (safe === undefined) {
+        return
       }
+      if (descriptor !== undefined) {
+        const sanitized = sanitizeDescriptorSettingValue(safe, descriptor)
+        if (sanitized !== undefined) {
+          safeValues[key] = sanitized
+        }
+        return
+      }
+      safeValues[key] = safe
     })
     return safeValues
   }
