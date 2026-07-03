@@ -431,6 +431,8 @@
     { "name": "library_batch_add_category", "value": "加入%s" },
     { "name": "library_batch_remove_category", "value": "移出%s" },
     { "name": "library_batch_clear_categories", "value": "清除分类" },
+    { "name": "library_batch_mark_read", "value": "标记所选已读" },
+    { "name": "library_batch_mark_unread", "value": "标记所选未读" },
     { "name": "library_sort_chip", "value": "排序 %s ▾" },
     { "name": "library_empty_title", "value": "还没有漫画" },
     { "name": "library_empty_message", "value": "导入本地 CBZ 或 ZIP 后会显示在书架中。" },

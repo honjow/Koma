@@ -351,6 +351,11 @@ assertExport(progressStoreSource, 'InMemoryReadingProgressStore')
 assertExport(readerSessionStoreSource, 'ReaderSessionStore')
 assertExport(readerSessionStoreSource, 'getReaderSessionPageWidth')
 assertExport(readerSessionStoreSource, 'getReaderSessionPageHeight')
+assert.match(
+  readerSessionStoreSource,
+  /removeProgress\(comicId: ComicId\): void[\s\S]*this\.progressStore\.remove\(comicId\)[\s\S]*this\.persist\(\)/,
+  'ReaderSessionStore must expose persisted progress removal for mark-unread flows',
+)
 assertExport(chapterReadStateStoreSource, 'ChapterReadStateStore')
 assertExport(chapterReadStateStoreSource, 'ChapterReadStateOverride')
 assertExport(chapterReadStateStoreSource, 'AppFilesChapterReadStatePersistenceAdapter')
@@ -651,6 +656,16 @@ assert.match(
   libraryPageSource,
   /MenuItem\(\{ content: s\('library_batch_add_favorite'\) \}\)[\s\S]*addSelectedCategory\(LIBRARY_CATEGORY_FAVORITE_ID\)[\s\S]*MenuItem\(\{ content: s\('library_batch_remove_favorite'\) \}\)[\s\S]*removeSelectedCategory\(LIBRARY_CATEGORY_FAVORITE_ID\)[\s\S]*MenuItem\(\{ content: s\('library_batch_add_read_later'\) \}\)[\s\S]*addSelectedCategory\(LIBRARY_CATEGORY_READ_LATER_ID\)[\s\S]*MenuItem\(\{ content: s\('library_batch_remove_read_later'\) \}\)[\s\S]*removeSelectedCategory\(LIBRARY_CATEGORY_READ_LATER_ID\)[\s\S]*MenuItem\(\{ content: s\('library_batch_clear_categories'\) \}\)[\s\S]*assignSelectedCategory\(undefined\)/,
   'LibraryPage selection mode must expose bulk category add, remove, and clearing actions',
+)
+assert.match(
+  libraryPageSource,
+  /private canRemoveComic\(comicId: ComicId\): boolean[\s\S]*isRemovableLocalComic[\s\S]*private canSelectComic\(comicId: ComicId\): boolean[\s\S]*getComic\(comicId\) !== undefined[\s\S]*selectedRemovableCount\(\)[\s\S]*isEnabled: this\.selectedRemovableCount\(\) > 0/,
+  'LibraryPage selection must support non-removable comics while keeping destructive remove local-only',
+)
+assert.match(
+  libraryPageSource,
+  /private chapterReadStateStore\(\): ChapterReadStateStore \| undefined[\s\S]*new ChapterReadStateStore[\s\S]*private markSelectedReadState\(isRead: boolean\): void[\s\S]*this\.chapterReadStateStore\(\)[\s\S]*readStateStore\.mark\(comic\.id, chapter\.id, isRead\)[\s\S]*sessionStore\.saveProgress\(this\.completedProgressForComic\(comic\)\)[\s\S]*sessionStore\.removeProgress\(comic\.id\)[\s\S]*private BatchReadStateMenu\(\)[\s\S]*library_batch_mark_read[\s\S]*library_batch_mark_unread/,
+  'LibraryPage must batch mark selected comics read/unread through chapter overrides and comic-level progress',
 )
 assert.match(
   libraryPageSource,

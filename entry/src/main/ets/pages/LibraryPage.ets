@@ -15,11 +15,13 @@ import {
   createSeededLibraryStore,
 } from '../model/MockLibraryData'
 import {
+  Chapter,
   Comic,
   ComicId,
   ComicSourceKind,
   CustomLibraryCategory,
   LibraryItem,
+  Page,
   ReadingProgress,
   LIBRARY_CATEGORY_FAVORITE_ID,
   LIBRARY_CATEGORY_READ_LATER_ID,
@@ -48,6 +50,10 @@ import {
   PersistentReaderSessionStore,
   ReaderSessionStore,
 } from '../model/ReaderSessionStore'
+import {
+  AppFilesChapterReadStatePersistenceAdapter,
+  ChapterReadStateStore,
+} from '../model/ChapterReadStateStore'
 import { AppStrings } from '../i18n/AppStrings'
 import { connectLanguageState, LanguageState } from '../state/LanguageState'
 
@@ -494,6 +500,10 @@ export struct LibraryPage {
     return this.displayedRevision >= 0 && isRemovableLocalComic(this.libraryStore.getComic(comicId))
   }
 
+  private canSelectComic(comicId: ComicId): boolean {
+    return this.displayedRevision >= 0 && this.libraryStore.getComic(comicId) !== undefined
+  }
+
   private comicRenderKey(comic: ComicCoverInfo): string {
     return `${this.displayedRevision}:${comic.id}`
   }
@@ -519,7 +529,7 @@ export struct LibraryPage {
   }
 
   private enterSelectionMode(comicId: ComicId): void {
-    if (!this.canRemoveComic(comicId)) {
+    if (!this.canSelectComic(comicId)) {
       return
     }
     const nextSelectedIds = new Set<ComicId>()
@@ -559,7 +569,7 @@ export struct LibraryPage {
   }
 
   private handleComicTouch(comicId: ComicId, event: TouchEvent): void {
-    if (!this.canRemoveComic(comicId)) {
+    if (!this.canSelectComic(comicId)) {
       return
     }
     if (event.type === TouchType.Down) {
@@ -579,7 +589,7 @@ export struct LibraryPage {
   }
 
   private toggleSelection(comicId: ComicId): void {
-    if (!this.canRemoveComic(comicId)) {
+    if (!this.canSelectComic(comicId)) {
       return
     }
     const nextSelectedIds = new Set<ComicId>(this.selectedIds)
@@ -595,7 +605,7 @@ export struct LibraryPage {
   private selectAllVisibleComics(): void {
     const nextSelectedIds = new Set<ComicId>()
     this.gridComics().forEach((comic: ComicCoverInfo) => {
-      if (this.canRemoveComic(comic.id)) {
+      if (this.canSelectComic(comic.id)) {
         nextSelectedIds.add(comic.id)
       }
     })
@@ -607,8 +617,12 @@ export struct LibraryPage {
     return this.selectedIds.size
   }
 
+  private selectedRemovableCount(): number {
+    return Array.from(this.selectedIds).filter((comicId: ComicId): boolean => this.canRemoveComic(comicId)).length
+  }
+
   private removeSelectedComics(): void {
-    const comicIds = Array.from(this.selectedIds)
+    const comicIds = Array.from(this.selectedIds).filter((comicId: ComicId): boolean => this.canRemoveComic(comicId))
     if (comicIds.length === 0) {
       return
     }
@@ -658,8 +672,73 @@ export struct LibraryPage {
     }
   }
 
+  private chapterReadStateStore(): ChapterReadStateStore | undefined {
+    try {
+      const context = getContext(this) as common.UIAbilityContext
+      return new ChapterReadStateStore(new AppFilesChapterReadStatePersistenceAdapter(context.filesDir))
+    } catch (error) {
+      const e = error as Error
+      console.info('[Library] step=batch_read_state_store_failed reason=' + e.message)
+      return undefined
+    }
+  }
+
+  private markSelectedReadState(isRead: boolean): void {
+    const comicIds = Array.from(this.selectedIds)
+    if (comicIds.length === 0) {
+      return
+    }
+    const readStateStore = this.chapterReadStateStore()
+    if (readStateStore === undefined) {
+      return
+    }
+    let changedCount = 0
+    comicIds.forEach((comicId: ComicId) => {
+      const comic = this.libraryStore.getComic(comicId)
+      if (comic === undefined || comic.chapters.length === 0) {
+        return
+      }
+      comic.chapters.forEach((chapter: Chapter) => {
+        if (readStateStore.mark(comic.id, chapter.id, isRead) !== undefined) {
+          changedCount += 1
+        }
+      })
+      if (isRead) {
+        this.sessionStore.saveProgress(this.completedProgressForComic(comic))
+      } else {
+        this.sessionStore.removeProgress(comic.id)
+      }
+    })
+    if (changedCount > 0) {
+      console.info(`[Library] step=batch_read_state isRead=${isRead} comics=${comicIds.length} chapters=${changedCount}`)
+      this.exitSelectionMode()
+      this.refreshDisplayedSnapshotFromStore()
+    }
+  }
+
+  private completedProgressForComic(comic: Comic): ReadingProgress {
+    const chapter = comic.chapters[comic.chapters.length - 1]
+    const pages = chapter.pages.slice().sort((left: Page, right: Page): number => left.index - right.index)
+    const totalPages = chapter.pageCount > 0 ? chapter.pageCount : pages.length
+    const pageIndex = totalPages > 0 ? totalPages - 1 : 0
+    const pageId = pages.length > 0 ? pages[pages.length - 1].id : undefined
+    const progress: ReadingProgress = {
+      comicId: comic.id,
+      chapterId: chapter.id,
+      pageIndex,
+      totalPages,
+      progressRatio: totalPages > 0 ? 1 : 0,
+      completed: true,
+      updatedAt: Date.now(),
+    }
+    if (pageId !== undefined) {
+      progress.pageId = pageId
+    }
+    return progress
+  }
+
   private showBatchRemoveConfirmation(): void {
-    const count = this.selectedCount()
+    const count = this.selectedRemovableCount()
     if (count === 0) {
       return
     }
@@ -708,11 +787,13 @@ export struct LibraryPage {
   @Builder
   private ComicActionMenu(comic: ComicCoverInfo) {
     Menu() {
-      if (this.canRemoveComic(comic.id)) {
+      if (this.canSelectComic(comic.id)) {
         MenuItem({ content: s('common_select') })
           .onClick(() => {
             this.enterSelectionMode(comic.id)
           })
+      }
+      if (this.canRemoveComic(comic.id)) {
         MenuItem({ content: s('library_action_remove_from_library') })
           .contentFontColor(ThemeConstants.DANGER)
           .onClick(() => {
@@ -874,6 +955,20 @@ export struct LibraryPage {
     }
   }
 
+  @Builder
+  private BatchReadStateMenu() {
+    Menu() {
+      MenuItem({ content: s('library_batch_mark_read') })
+        .onClick(() => {
+          this.markSelectedReadState(true)
+        })
+      MenuItem({ content: s('library_batch_mark_unread') })
+        .onClick(() => {
+          this.markSelectedReadState(false)
+        })
+    }
+  }
+
 
   @Builder
   private SortFilterBar() {
@@ -1029,9 +1124,17 @@ export struct LibraryPage {
         .bindMenu(this.BatchCategoryMenu())
 
       KomaActionButton({
+        label: `${s('library_category_read_state_title')} ▾`,
+        kind: 'secondary',
+        isEnabled: this.selectedCount() > 0,
+        controlHeight: ThemeConstants.ACTION_CHIP_HEIGHT,
+      })
+        .bindMenu(this.BatchReadStateMenu())
+
+      KomaActionButton({
         label: s('common_remove'),
         kind: 'danger',
-        isEnabled: this.selectedCount() > 0,
+        isEnabled: this.selectedRemovableCount() > 0,
         controlHeight: ThemeConstants.ACTION_CHIP_HEIGHT,
         action: () => {
           this.showBatchRemoveConfirmation()
