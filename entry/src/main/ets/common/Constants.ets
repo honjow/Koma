@@ -27,6 +27,7 @@ export class RouteName {
 export const KOMA_BUNDLE_NAME: string = 'com.honjow.koma'
 export const KOMA_LAUNCH_ROUTE_PARAM: string = 'koma.launchRoute'
 export const KOMA_LAUNCH_ROUTE_LIBRARY_UPDATE_RESULTS: string = 'library_update_results'
+export const KOMA_LAUNCH_ROUTE_DOWNLOADS: string = 'downloads'
 
 export function tabLabel(index: number): string {
   if (index === TabIndex.LIBRARY) {

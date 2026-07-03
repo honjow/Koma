@@ -58,6 +58,12 @@ import {
   OFFLINE_DOWNLOAD_FOREGROUND_CONCURRENCY_LIMIT_OPTIONS,
   OfflineDownloadQueueStore,
 } from '../model/OfflineDownloadQueueStore'
+import {
+  OfflineDownloadNotificationStatus,
+  getOfflineDownloadNotificationStatus,
+  getOfflineDownloadNotificationStatusLabel,
+  requestOfflineDownloadNotificationPermission,
+} from '../model/OfflineDownloadNotificationStore'
 import { RemoteServerStore } from '../model/RemoteServerStore'
 import {
   ReaderRemoteImageCacheStats,
@@ -195,6 +201,7 @@ function createSettingsSections(): SettingsSection[] {
         { key: 'local-library-refresh', titleKey: 'settings_row_local_library_refresh_title', detailKey: 'settings_row_local_library_refresh_detail' },
         { key: 'sources', titleKey: 'settings_row_sources_title', detailKey: 'settings_row_sources_detail' },
         { key: 'downloads', titleKey: 'settings_row_downloads_title', detailKey: 'settings_row_downloads_detail' },
+        { key: 'download-notifications', titleKey: 'settings_row_download_notifications_title', detailKey: 'settings_row_download_notifications_detail' },
         { key: 'download-concurrency', titleKey: 'settings_row_download_concurrency_title', detailKey: 'settings_row_download_concurrency_detail' },
         { key: 'download-retry-failed', titleKey: 'settings_row_download_retry_failed_title', detailKey: 'settings_row_download_retry_failed_detail', placeholder: true },
         { key: 'download-wifi-only', titleKey: 'settings_row_download_wifi_only_title', detailKey: 'settings_row_download_wifi_only_detail', placeholder: true },
@@ -380,6 +387,7 @@ export struct SettingsPage {
   @Local private settingsSearchText: string = ''
   @Local private settingsMenuKey: string = ''
   @Local private downloadForegroundConcurrencyLimit: number = 1
+  @Local private downloadNotificationStatus: OfflineDownloadNotificationStatus = 'unavailable'
   @Local private libraryDefaultSortBy: LibrarySortBy = 'lastRead'
 
   private context(): common.UIAbilityContext {
@@ -492,6 +500,9 @@ export struct SettingsPage {
     }
     if (row.key === 'download-concurrency') {
       return `${this.downloadForegroundConcurrencyLimit}`
+    }
+    if (row.key === 'download-notifications') {
+      return getOfflineDownloadNotificationStatusLabel(this.downloadNotificationStatus)
     }
     if (row.key === 'version') {
       return this.versionDetail.length > 0
@@ -623,6 +634,7 @@ export struct SettingsPage {
           titleKey: 'settings_section_downloads',
           rows: this.rowsByKeys([
             'downloads',
+            'download-notifications',
             'download-concurrency',
             'download-retry-failed',
             'download-wifi-only',
@@ -849,6 +861,18 @@ export struct SettingsPage {
       const e = error as Error
       console.warn('[Settings] step=load_download_queue_preferences_failed message=' + e.message)
     }
+  }
+
+  private loadDownloadNotificationStatus(): void {
+    void getOfflineDownloadNotificationStatus()
+      .then((status: OfflineDownloadNotificationStatus) => {
+        this.downloadNotificationStatus = status
+        console.info('[Settings] step=load_download_notification_status status=' + status)
+      })
+      .catch((error: Error) => {
+        console.warn('[Settings] step=load_download_notification_status_failed code=' + safeSettingsErrorCode(error))
+        this.downloadNotificationStatus = 'unavailable'
+      })
   }
 
   private loadLibraryFilterPreferences(): void {
@@ -1244,6 +1268,21 @@ export struct SettingsPage {
       console.warn('[Settings] step=save_download_concurrency_failed message=' + e.message)
       this.showToast(s('settings_download_concurrency_save_failed'))
     }
+  }
+
+  private requestDownloadNotifications(): void {
+    void requestOfflineDownloadNotificationPermission(this.context())
+      .then((status: OfflineDownloadNotificationStatus) => {
+        this.downloadNotificationStatus = status
+        this.showToast(status === 'enabled'
+          ? s('settings_download_notification_enabled')
+          : s('settings_download_notification_disabled'))
+      })
+      .catch((error: Error) => {
+        console.warn('[Settings] step=request_download_notifications_failed code=' + safeSettingsErrorCode(error))
+        this.downloadNotificationStatus = 'unavailable'
+        this.showToast(s('settings_download_notification_failed'))
+      })
   }
 
   private saveLibraryDefaultSort(sortBy: LibrarySortBy): void {
@@ -1649,6 +1688,8 @@ export struct SettingsPage {
       this.showSourcesDialog()
     } else if (row.key === 'downloads') {
       this.onOpenDownloads()
+    } else if (row.key === 'download-notifications') {
+      this.requestDownloadNotifications()
     } else if (row.key === 'library-auto-update') {
       this.setLibraryAutoUpdateEnabled(!this.libraryUpdatePreferences.autoCheckEnabled)
     } else if (row.key === 'library-update-notifications') {
@@ -1871,6 +1912,7 @@ export struct SettingsPage {
     this.loadLibraryUpdatePreferences()
     this.loadLibraryUpdateNotificationStatus()
     this.loadDownloadQueuePreferences()
+    this.loadDownloadNotificationStatus()
     this.loadLibraryFilterPreferences()
     this.loadImageCacheStats()
   }

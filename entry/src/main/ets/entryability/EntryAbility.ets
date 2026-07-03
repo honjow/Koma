@@ -1,6 +1,7 @@
 import { UIAbility, Want, AbilityConstant } from '@kit.AbilityKit'
 import { window } from '@kit.ArkUI'
 import {
+  KOMA_LAUNCH_ROUTE_DOWNLOADS,
   KOMA_LAUNCH_ROUTE_LIBRARY_UPDATE_RESULTS,
   KOMA_LAUNCH_ROUTE_PARAM,
 } from '../common/Constants'
@@ -101,6 +102,8 @@ export default class EntryAbility extends UIAbility {
     const route = want.parameters?.[KOMA_LAUNCH_ROUTE_PARAM]
     if (route === KOMA_LAUNCH_ROUTE_LIBRARY_UPDATE_RESULTS) {
       RouterHelper.pushLibraryUpdateResults()
+    } else if (route === KOMA_LAUNCH_ROUTE_DOWNLOADS) {
+      RouterHelper.pushDownloads()
     }
   }
 }
