@@ -26,6 +26,7 @@ for (const domain of [
   'remote servers',
   'source packages and sanitized source settings',
   'reader and settings preferences',
+  'download queue metadata',
 ]) {
   assert.match(backupServiceSource, new RegExp(domain), `backup status constants must include ${domain}`)
 }
@@ -61,7 +62,7 @@ assert.match(
 )
 assert.match(
   indexSource,
-  /name === RouteName\.BACKUP_MANAGEMENT[\s\S]*HdsNavDestination\(\)[\s\S]*BackupManagementPage\(\)[\s\S]*\.titleBar\(this\.navDestTitleBarOpts\('备份与恢复'\)\)/,
+  /name === RouteName\.BACKUP_MANAGEMENT[\s\S]*HdsNavDestination\(\)[\s\S]*BackupManagementPage\(\)[\s\S]*\.titleBar\(this\.navDestTitleBarOpts\(AppStrings\.get\('route_backup_management_title'\)\)\)/,
   'Index must render backup management as a top-level HDS destination',
 )
 assert.match(
@@ -76,8 +77,8 @@ assert.match(
 )
 assert.match(
   backupServiceSource,
-  /export const BACKUP_ENCRYPTION_STATE:\s*string = 'unencrypted'[\s\S]*export const BACKUP_UNENCRYPTED_EXPORT_WARNING:[^\n]*未加密 JSON/,
-  'backup service must still label legacy JSON exports as unencrypted JSON',
+  /export const BACKUP_ENCRYPTION_STATE:\s*string = 'unencrypted'[\s\S]*function backupUnencryptedExportWarning\(\): string \{[\s\S]*AppStrings\.get\('backup_unencrypted_warning'\)/,
+  'backup service must still label legacy JSON exports through i18n',
 )
 assert.match(
   backupServiceSource,
@@ -91,12 +92,12 @@ assert.match(
 )
 assert.match(
   backupPageSource,
-  /private EncryptionCard\(\)[\s\S]*BACKUP_ENCRYPTION_STATUS_LABEL[\s\S]*TextInput\(\{ text: this\.exportPassphrase[\s\S]*InputType\.Password[\s\S]*导出加密备份/,
+  /private EncryptionCard\(\)[\s\S]*backupEncryptionStatusLabel\(\)[\s\S]*KomaFormTextField\(\{[\s\S]*value: this\.exportPassphrase[\s\S]*isPassword: true[\s\S]*backup_export_encrypted_action/,
   'BackupManagementPage must surface functional encrypted export controls with password input',
 )
 assert.match(
   backupPageSource,
-  /showInfoDialog\('备份已导出',[\s\S]*BACKUP_UNENCRYPTED_EXPORT_WARNING/,
+  /showInfoDialog\([\s\S]*t\('backup_dialog_exported_title'\)[\s\S]*backupUnencryptedExportWarning\(\)/,
   'BackupManagementPage must warn successful exports are unencrypted',
 )
 assert.doesNotMatch(
@@ -114,7 +115,7 @@ for (const code of [
 }
 assert.match(
   backupPageSource,
-  /selectedEncryptedBackupPayload[\s\S]*TextInput\(\{ text: this\.importPassphrase[\s\S]*InputType\.Password[\s\S]*解密并预览/,
+  /selectedEncryptedBackupPayload[\s\S]*KomaFormTextField\(\{[\s\S]*value: this\.importPassphrase[\s\S]*isPassword: true[\s\S]*backup_decrypt_preview_action/,
   'BackupManagementPage must require passphrase before encrypted import preview',
 )
 assert.match(
@@ -124,12 +125,12 @@ assert.match(
 )
 assert.match(
   backupPageSource,
-  /selectImportPreviewFromPicker\(\)[\s\S]*selectedBackupPayload[\s\S]*selectedBackupPreview[\s\S]*restoreSelectedBackup\(\)[\s\S]*importPromise[\s\S]*backupService\(\)\.import\(this\.selectedBackupPayload\)[\s\S]*this\.showInfoDialog\('备份已导入'/,
+  /selectImportPreviewFromPicker\(\)[\s\S]*selectedBackupPayload[\s\S]*selectedBackupPreview[\s\S]*restoreSelectedBackup\(\)[\s\S]*importPromise[\s\S]*backupService\(\)\.import\(this\.selectedBackupPayload\)[\s\S]*this\.showInfoDialog\(t\('backup_dialog_imported_title'\)/,
   'BackupManagementPage must preview picker-selected backups before explicit restore',
 )
 assert.match(
   backupPageSource,
-  /BACKUP_MANAGEMENT_STORAGE_NOTE/,
+  /backupManagementStorageNote\(\)/,
   'BackupManagementPage must explain picker-selected files are user-managed',
 )
 assert.match(
@@ -143,8 +144,23 @@ assert.match(
   'backup preview must detect encrypted envelopes and keep v1/v2/v3 compatibility',
 )
 assert.match(
+  backupServiceSource,
+  /OFFLINE_DOWNLOAD_QUEUE_FILE_NAME[\s\S]*downloadQueue\?: string[\s\S]*normalizeBackupDownloadQueuePayload[\s\S]*DEFAULT_OFFLINE_DOWNLOAD_QUEUE_PREFERENCES[\s\S]*document\.downloadQueue = normalizeBackupDownloadQueuePayload\(downloadQueue\)/,
+  'backup export must include normalized download queue metadata when present',
+)
+assert.match(
+  backupServiceSource,
+  /downloadQueueCount: countBackupDownloadQueueEntries\(document\.downloadQueue\)[\s\S]*hasDownloadQueueCount: document\.downloadQueue !== undefined/,
+  'backup preview must expose download queue count only when queue metadata is present',
+)
+assert.match(
+  backupServiceSource,
+  /importDownloadQueue\(document\.downloadQueue\)[\s\S]*normalizeBackupDownloadQueuePayload\(downloadQueue\)[\s\S]*writeText\(this\.downloadQueuePath\(\), payload\)/,
+  'backup import must restore normalized download queue metadata under app files',
+)
+assert.match(
   backupPageSource,
-  /恢复所选备份[\s\S]*BACKUP_IMPORT_PREVIEW_NOTE[\s\S]*BACKUP_IMPORT_CONFLICT_POLICY/,
+  /backup_restore_selected_action[\s\S]*backupImportPreviewNote\(\)[\s\S]*backupImportConflictPolicy\(\)/,
   'BackupManagementPage must state preview/conflict policy and require a separate restore action',
 )
 const safeStatusAndDocs = [

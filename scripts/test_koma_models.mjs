@@ -1462,8 +1462,13 @@ assert.match(
 )
 assert.match(
   backupServiceSource,
-  /if \(document\.schemaVersion >= BACKUP_SCHEMA_VERSION\) \{[\s\S]*importSourceSettings\(document\.sourceSettings\)[\s\S]*if \(document\.schemaVersion >= BACKUP_SCHEMA_VERSION_V2\) \{[\s\S]*importSourcePackages\(document\.sourcePackages\)[\s\S]*importSettings\(document\.settings\)/,
-  'backup v3 import must restore source settings while preserving v2 source package/settings restore',
+  /downloadQueue\?: string[\s\S]*document\.downloadQueue = normalizeBackupDownloadQueuePayload\(downloadQueue\)/,
+  'backup v3 export must include normalized download queue metadata when present',
+)
+assert.match(
+  backupServiceSource,
+  /if \(document\.schemaVersion >= BACKUP_SCHEMA_VERSION\) \{[\s\S]*importSourceSettings\(document\.sourceSettings\)[\s\S]*importDownloadQueue\(document\.downloadQueue\)[\s\S]*if \(document\.schemaVersion >= BACKUP_SCHEMA_VERSION_V2\) \{[\s\S]*importSourcePackages\(document\.sourcePackages\)[\s\S]*importSettings\(document\.settings\)/,
+  'backup v3 import must restore source settings and download queue metadata while preserving v2 source package/settings restore',
 )
 assert.match(
   backupServiceSource,

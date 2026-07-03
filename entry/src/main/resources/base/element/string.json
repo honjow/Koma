@@ -724,6 +724,7 @@
     { "name": "backup_domain_remote_servers", "value": "Remote server config" },
     { "name": "backup_domain_source_packages", "value": "Source packages and sanitized source settings" },
     { "name": "backup_domain_reader_preferences", "value": "Reader and settings preferences" },
+    { "name": "backup_domain_download_queue", "value": "Download queue metadata" },
     { "name": "backup_storage_note", "value": "Backup files are saved and selected through the system file picker. This page does not keep an in-app backup history. Exported files are managed by the user at the selected location." },
     { "name": "backup_encryption_status_available", "value": "Available" },
     { "name": "backup_encryption_plan", "value": "Encrypted export uses PBKDF2-HMAC-SHA-256 and AES-256-GCM; Koma does not save or recover your passphrase." },

@@ -35,6 +35,18 @@ import {
   previewEncryptedBackupEnvelope,
 } from './BackupEncryptionService'
 import {
+  OFFLINE_DOWNLOAD_ROOT_DIR_NAME,
+  OfflineDownloadStatus,
+} from './OfflineDownloadStore'
+import {
+  DEFAULT_OFFLINE_DOWNLOAD_QUEUE_PREFERENCES,
+  OFFLINE_DOWNLOAD_QUEUE_FILE_NAME,
+  OFFLINE_DOWNLOAD_FOREGROUND_CONCURRENCY_LIMIT_OPTIONS,
+  OFFLINE_DOWNLOAD_QUEUE_SCHEMA_VERSION,
+  OfflineDownloadQueueEntry,
+  OfflineDownloadQueuePreferences,
+} from './OfflineDownloadQueueStore'
+import {
   LocalLibraryMetadataBackupEntry,
   exportLocalLibraryMetadataBackupEntries,
   restoreLocalLibraryMetadataBackupEntries,
@@ -55,6 +67,7 @@ export const BACKUP_INCLUDED_DOMAINS: string[] = [
   'remote servers',
   'source packages and sanitized source settings',
   'reader and settings preferences',
+  'download queue metadata',
 ]
 export const BACKUP_ENCRYPTION_STATE: string = 'unencrypted'
 const REMOTE_SERVER_STORE_NAME: string = 'koma_remote_servers_v1'
@@ -93,6 +106,7 @@ interface KomaBackupDocument {
   sourceSettings?: Record<string, SourceSettingsRecord>
   settings?: ReaderPreferences
   sourceIndexUrl?: string
+  downloadQueue?: string
 }
 
 export interface BackupImportPreview {
@@ -127,6 +141,7 @@ export function backupIncludedDomainLabels(): string[] {
     AppStrings.get('backup_domain_remote_servers'),
     AppStrings.get('backup_domain_source_packages'),
     AppStrings.get('backup_domain_reader_preferences'),
+    AppStrings.get('backup_domain_download_queue'),
   ]
 }
 
@@ -187,6 +202,12 @@ function writeText(path: string, payload: string): void {
     if (file !== undefined) {
       fs.closeSync(file)
     }
+  }
+}
+
+function ensureDir(path: string): void {
+  if (!fs.accessSync(path)) {
+    fs.mkdirSync(path, true)
   }
 }
 
@@ -253,6 +274,96 @@ function countReaderPreferences(settings: ReaderPreferences | undefined): number
     return 0
   }
   return Object.keys(settings).length
+}
+
+function normalizeBackupString(value: Object | undefined): string | undefined {
+  return typeof value === 'string' && value.trim().length > 0 ? value : undefined
+}
+
+function normalizeBackupCount(value: Object | undefined): number {
+  return typeof value === 'number' && Number.isFinite(value) ? Math.max(0, Math.floor(value)) : 0
+}
+
+function normalizeBackupForegroundConcurrencyLimit(value: Object | undefined): number {
+  const normalized = normalizeBackupCount(value)
+  return OFFLINE_DOWNLOAD_FOREGROUND_CONCURRENCY_LIMIT_OPTIONS.indexOf(normalized) >= 0 ?
+    normalized :
+    DEFAULT_OFFLINE_DOWNLOAD_QUEUE_PREFERENCES.foregroundConcurrencyLimit
+}
+
+function normalizeBackupDownloadStatus(value: Object | undefined): OfflineDownloadStatus {
+  if (value === OfflineDownloadStatus.DOWNLOADED) {
+    return OfflineDownloadStatus.DOWNLOADED
+  }
+  if (value === OfflineDownloadStatus.PARTIAL) {
+    return OfflineDownloadStatus.PARTIAL
+  }
+  if (value === OfflineDownloadStatus.FAILED) {
+    return OfflineDownloadStatus.FAILED
+  }
+  if (value === OfflineDownloadStatus.BLOCKED) {
+    return OfflineDownloadStatus.BLOCKED
+  }
+  return OfflineDownloadStatus.QUEUED
+}
+
+function normalizeBackupDownloadQueuePayload(payload: string): string {
+  const document = asJsonObject(JSON.parse(payload) as Object, 'download queue')
+  if (document['schemaVersion'] !== OFFLINE_DOWNLOAD_QUEUE_SCHEMA_VERSION || !Array.isArray(document['entries'])) {
+    throw new Error('Invalid backup download queue')
+  }
+  const preferencesRecord = document['preferences'] === undefined ? undefined :
+    asJsonObject(document['preferences'] as Object, 'download queue preferences')
+  const preferences: OfflineDownloadQueuePreferences = {
+    foregroundConcurrencyLimit: preferencesRecord === undefined ?
+      DEFAULT_OFFLINE_DOWNLOAD_QUEUE_PREFERENCES.foregroundConcurrencyLimit :
+      normalizeBackupForegroundConcurrencyLimit(preferencesRecord['foregroundConcurrencyLimit']),
+    isPaused: preferencesRecord === undefined ?
+      DEFAULT_OFFLINE_DOWNLOAD_QUEUE_PREFERENCES.isPaused :
+      preferencesRecord['isPaused'] === true,
+  }
+  const entries = (document['entries'] as Object[]).map((item: Object): OfflineDownloadQueueEntry => {
+    const row = asJsonObject(item, 'download queue entry')
+    const comicId = normalizeBackupString(row['comicId'])
+    const chapterId = normalizeBackupString(row['chapterId'])
+    if (comicId === undefined || chapterId === undefined) {
+      throw new Error('Invalid backup download queue entry')
+    }
+    const entry: OfflineDownloadQueueEntry = {
+      comicId,
+      chapterId,
+      status: normalizeBackupDownloadStatus(row['status']),
+      pageCount: normalizeBackupCount(row['pageCount']),
+      downloadedPageCount: normalizeBackupCount(row['downloadedPageCount']),
+      updatedAt: normalizeBackupCount(row['updatedAt']),
+    }
+    const comicTitle = normalizeBackupString(row['comicTitle'])
+    if (comicTitle !== undefined) {
+      entry.comicTitle = comicTitle
+    }
+    const chapterTitle = normalizeBackupString(row['chapterTitle'])
+    if (chapterTitle !== undefined) {
+      entry.chapterTitle = chapterTitle
+    }
+    const failureReasonCode = normalizeBackupString(row['failureReasonCode'])
+    if (failureReasonCode !== undefined) {
+      entry.failureReasonCode = failureReasonCode
+    }
+    return entry
+  })
+  return JSON.stringify({
+    schemaVersion: OFFLINE_DOWNLOAD_QUEUE_SCHEMA_VERSION,
+    preferences,
+    entries,
+  })
+}
+
+function countBackupDownloadQueueEntries(payload: string | undefined): number {
+  if (payload === undefined || payload.length === 0) {
+    return 0
+  }
+  const document = asJsonObject(JSON.parse(normalizeBackupDownloadQueuePayload(payload)) as Object, 'download queue')
+  return Array.isArray(document['entries']) ? document['entries'].length : 0
 }
 
 function formatBackupExportedAt(exportedAt: number | undefined): string {
@@ -336,6 +447,10 @@ export class BackupService {
       settings: await new ReaderPreferencesStore(this.context).load(),
       sourceIndexUrl: await this.exportSourceIndexUrl(),
     }
+    const downloadQueue = readTextIfExists(this.downloadQueuePath(), '')
+    if (downloadQueue.length > 0) {
+      document.downloadQueue = normalizeBackupDownloadQueuePayload(downloadQueue)
+    }
     document.localLibraryMetadata = exportLocalLibraryMetadataBackupEntries(document.libraryStore)
     console.info('[Backup] step=export_json')
     return document
@@ -369,6 +484,7 @@ export class BackupService {
     if (document.schemaVersion >= BACKUP_SCHEMA_VERSION) {
       this.importSourceSettings(document.sourceSettings)
       await this.importSourceIndexUrl(document.sourceIndexUrl)
+      this.importDownloadQueue(document.downloadQueue)
     }
     if (document.schemaVersion >= BACKUP_SCHEMA_VERSION_V2) {
       await this.importSourcePackages(document.sourcePackages)
@@ -413,11 +529,11 @@ export class BackupService {
       progressCount: arrayFieldCount(readingProgress, 'progress'),
       settingsCount: countReaderPreferences(document.settings),
       categoryCount: countLibraryCategories(libraryStore),
-      downloadQueueCount: 0,
+      downloadQueueCount: countBackupDownloadQueueEntries(document.downloadQueue),
       trackerMappingCount: 0,
       sourcePackageCount: Array.isArray(document.sourcePackages) ? document.sourcePackages.length : 0,
       sourceSettingsCount: document.sourceSettings === undefined ? 0 : Object.keys(document.sourceSettings).length,
-      hasDownloadQueueCount: false,
+      hasDownloadQueueCount: document.downloadQueue !== undefined,
       hasTrackerMappingCount: false,
     }
   }
@@ -520,6 +636,10 @@ export class BackupService {
 
   private readerProgressPath(): string {
     return joinBackupPath(this.context.filesDir, READER_PROGRESS_PERSISTENCE_FILE_NAME)
+  }
+
+  private downloadQueuePath(): string {
+    return joinBackupPath(joinBackupPath(this.context.filesDir, OFFLINE_DOWNLOAD_ROOT_DIR_NAME), OFFLINE_DOWNLOAD_QUEUE_FILE_NAME)
   }
 
   private async exportRemoteServers(): Promise<RemoteServerBackupDocument> {
@@ -626,5 +746,14 @@ export class BackupService {
       await store.flush()
     } catch (_err) {
     }
+  }
+
+  private importDownloadQueue(downloadQueue: string | undefined): void {
+    if (downloadQueue === undefined || downloadQueue.length === 0) {
+      return
+    }
+    const payload = normalizeBackupDownloadQueuePayload(downloadQueue)
+    ensureDir(joinBackupPath(this.context.filesDir, OFFLINE_DOWNLOAD_ROOT_DIR_NAME))
+    writeText(this.downloadQueuePath(), payload)
   }
 }

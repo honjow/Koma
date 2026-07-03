@@ -724,6 +724,7 @@
     { "name": "backup_domain_remote_servers", "value": "远程服务器配置" },
     { "name": "backup_domain_source_packages", "value": "源包与已清理的源设置" },
     { "name": "backup_domain_reader_preferences", "value": "阅读器与设置偏好" },
+    { "name": "backup_domain_download_queue", "value": "下载队列元数据" },
     { "name": "backup_storage_note", "value": "备份文件通过系统文件选择器保存和选择，当前页面不保留应用内备份历史。已导出的文件由用户在所选位置管理。" },
     { "name": "backup_encryption_status_available", "value": "可用" },
     { "name": "backup_encryption_plan", "value": "加密导出使用 PBKDF2-HMAC-SHA-256 和 AES-256-GCM；Koma 不保存口令，也无法找回。" },
