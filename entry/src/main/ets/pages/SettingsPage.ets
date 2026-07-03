@@ -78,6 +78,14 @@ import {
 } from '../model/OfflineDownloadStore'
 import { RemoteServerStore } from '../model/RemoteServerStore'
 import {
+  AppearanceAccentColor,
+  AppearancePreferences,
+  AppearancePreferencesStore,
+  DEFAULT_APPEARANCE_PREFERENCES,
+  getAppearanceAccentColorLabel,
+  getAppearanceAccentColorValue,
+} from '../model/AppearancePreferencesStore'
+import {
   DEFAULT_TRACKER_PREFERENCES,
   TrackerPreferences,
   TrackerPreferencesStore,
@@ -185,7 +193,7 @@ function createSettingsSections(): SettingsSection[] {
       titleKey: 'settings_section_appearance',
       rows: [
         { key: 'theme', titleKey: 'settings_row_theme_title', detailKey: 'settings_row_theme_detail' },
-        { key: 'theme-color', titleKey: 'settings_row_theme_color_title', detailKey: 'settings_row_theme_color_detail', placeholder: true },
+        { key: 'theme-color', titleKey: 'settings_row_theme_color_title', detailKey: 'settings_row_theme_color_detail' },
         { key: 'language', titleKey: 'settings_row_language_title', detailKey: 'settings_row_language_detail' },
       ],
     },
@@ -392,6 +400,7 @@ export struct SettingsPage {
   @Local private pageMode: ReaderPageMode = 'single_page'
   @Local private readingDirection: ReadingDirection = ReadingDirection.LEFT_TO_RIGHT
   @Local private themeMode: ReaderThemeMode = 'system'
+  @Local private appearanceAccentColor: AppearanceAccentColor = DEFAULT_APPEARANCE_PREFERENCES.accentColor
   @Local private readerBackgroundMode: ReaderBackgroundMode = 'black'
   @Local private showReaderProgressControls: boolean = true
   @Local private keepReaderScreenAwake: boolean = true
@@ -435,6 +444,10 @@ export struct SettingsPage {
 
   private preferencesStore(): ReaderPreferencesStore {
     return new ReaderPreferencesStore(this.context())
+  }
+
+  private appearancePreferencesStore(): AppearancePreferencesStore {
+    return new AppearancePreferencesStore(this.context())
   }
 
   private libraryUpdatePreferencesStore(): LibraryUpdatePreferencesStore {
@@ -507,6 +520,10 @@ export struct SettingsPage {
     return this.t('common_standard')
   }
 
+  private appearanceAccentColorLabel(accentColor: AppearanceAccentColor): string {
+    return getAppearanceAccentColorLabel(accentColor)
+  }
+
   private sectionTitle(section: SettingsSection): string {
     return this.t(section.titleKey)
   }
@@ -528,6 +545,9 @@ export struct SettingsPage {
     }
     if (row.key === 'theme') {
       return getReaderThemeModeLabel(this.themeMode)
+    }
+    if (row.key === 'theme-color') {
+      return this.appearanceAccentColorLabel(this.appearanceAccentColor)
     }
     if (row.key === 'language') {
       return LanguageSettings.label(this.language.mode)
@@ -907,6 +927,17 @@ export struct SettingsPage {
       })
   }
 
+  private loadAppearancePreferences(): void {
+    void this.appearancePreferencesStore().load()
+      .then((preferences: AppearancePreferences) => {
+        this.appearanceAccentColor = preferences.accentColor
+        console.info('[Settings] step=load_appearance_preferences accent=' + preferences.accentColor)
+      })
+      .catch((error: Error) => {
+        console.warn('[Settings] step=load_appearance_preferences_failed message=' + error.message)
+      })
+  }
+
   private applyReaderPreferences(preferences: ReaderPreferences): void {
     this.pageMode = preferences.pageMode
     this.readingDirection = preferences.readingDirection
@@ -1163,6 +1194,20 @@ export struct SettingsPage {
       })
       .catch((error: Error) => {
         console.warn('[Settings] step=save_theme_failed message=' + error.message)
+      })
+  }
+
+  private saveAppearanceAccentColor(accentColor: AppearanceAccentColor): void {
+    this.appearanceAccentColor = accentColor
+    void this.appearancePreferencesStore().saveAccentColor(accentColor)
+      .then((preferences: AppearancePreferences) => {
+        this.appearanceAccentColor = preferences.accentColor
+        console.info('[Settings] step=save_appearance_accent value=' + preferences.accentColor)
+      })
+      .catch((error: Error) => {
+        console.warn('[Settings] step=save_appearance_accent_failed message=' + error.message)
+        this.showToast(s('settings_theme_color_save_failed'))
+        this.loadAppearancePreferences()
       })
   }
 
@@ -1858,6 +1903,7 @@ export struct SettingsPage {
     return row.key === 'page-mode' ||
       row.key === 'reading-direction' ||
       row.key === 'theme' ||
+      row.key === 'theme-color' ||
       row.key === 'language' ||
       row.key === 'reader-background' ||
       row.key === 'reader-image-fit' ||
@@ -1993,6 +2039,12 @@ export struct SettingsPage {
         this.SelectionMenuItem(s('theme_system'), this.themeMode === 'system', () => { this.saveThemeMode('system') })
         this.SelectionMenuItem(s('theme_light'), this.themeMode === 'light', () => { this.saveThemeMode('light') })
         this.SelectionMenuItem(s('theme_dark'), this.themeMode === 'dark', () => { this.saveThemeMode('dark') })
+      } else if (row.key === 'theme-color') {
+        this.SelectionMenuItem(s('appearance_accent_emerald'), this.appearanceAccentColor === 'emerald', () => { this.saveAppearanceAccentColor('emerald') })
+        this.SelectionMenuItem(s('appearance_accent_ocean'), this.appearanceAccentColor === 'ocean', () => { this.saveAppearanceAccentColor('ocean') })
+        this.SelectionMenuItem(s('appearance_accent_rose'), this.appearanceAccentColor === 'rose', () => { this.saveAppearanceAccentColor('rose') })
+        this.SelectionMenuItem(s('appearance_accent_amber'), this.appearanceAccentColor === 'amber', () => { this.saveAppearanceAccentColor('amber') })
+        this.SelectionMenuItem(s('appearance_accent_mono'), this.appearanceAccentColor === 'mono', () => { this.saveAppearanceAccentColor('mono') })
       } else if (row.key === 'language') {
         this.SelectionMenuItem(s('language_system'), this.language.mode === LanguageSettings.MODE_SYSTEM, () => { this.saveLanguageMode(LanguageSettings.MODE_SYSTEM) })
         this.SelectionMenuItem(s('language_zh_cn'), this.language.mode === LanguageSettings.MODE_ZH_CN, () => { this.saveLanguageMode(LanguageSettings.MODE_ZH_CN) })
@@ -2119,6 +2171,27 @@ export struct SettingsPage {
   }
 
   @Builder
+  private AccentColorSuffix() {
+    Row({ space: ThemeConstants.SPACE_SM }) {
+      Row() {}
+        .width(16)
+        .height(16)
+        .borderRadius(ThemeConstants.RADIUS_ROUND)
+        .backgroundColor(getAppearanceAccentColorValue(this.appearanceAccentColor))
+      Text(this.rowDetail({ key: 'theme-color', titleKey: 'settings_row_theme_color_title', detailKey: 'settings_row_theme_color_detail' }))
+        .fontSize(ThemeConstants.FONT_SIZE_BODY)
+        .fontColor(ThemeConstants.TEXT_SECONDARY)
+        .maxLines(1)
+        .textOverflow({ overflow: TextOverflow.Ellipsis })
+      SymbolGlyph($r('sys.symbol.arrowtriangle_down_fill'))
+        .fontSize(ThemeConstants.FONT_SIZE_TITLE)
+        .fontColor([$r('sys.color.font_tertiary')])
+        .padding({ left: 4, right: 12 })
+    }
+    .alignItems(VerticalAlign.Center)
+  }
+
+  @Builder
   private SectionRow(row: SettingsRow) {
     if (this.isSwitchRow(row)) {
       ConciseListRow({
@@ -2133,15 +2206,29 @@ export struct SettingsPage {
       })
     } else if (this.isSelectionRow(row) && this.canOpenSelectionMenu(row)) {
       Column() {
-        ConciseListRow({
-          title: this.rowTitle(row),
-          trailingText: this.rowDetail(row),
-          trailingDropdown: true,
-          showChevron: true,
-          action: () => {
-            this.settingsMenuKey = row.key
-          },
-        })
+        if (row.key === 'theme-color') {
+          ConciseListRow({
+            title: this.rowTitle(row),
+            trailingDropdown: true,
+            showChevron: true,
+            suffixBuilderParam: () => {
+              this.AccentColorSuffix()
+            },
+            action: () => {
+              this.settingsMenuKey = row.key
+            },
+          })
+        } else {
+          ConciseListRow({
+            title: this.rowTitle(row),
+            trailingText: this.rowDetail(row),
+            trailingDropdown: true,
+            showChevron: true,
+            action: () => {
+              this.settingsMenuKey = row.key
+            },
+          })
+        }
       }
         .bindMenu(this.settingsMenuKey === row.key, this.SettingsSelectionMenu(row), {
           placement: Placement.BottomRight,
@@ -2314,6 +2401,7 @@ export struct SettingsPage {
     this.loadLatestLibraryUpdateSummary()
     this.loadVersion()
     this.loadPreferences()
+    this.loadAppearancePreferences()
     this.loadLibraryUpdatePreferences()
     this.loadLibraryUpdateNotificationStatus()
     this.loadDownloadQueuePreferences()
