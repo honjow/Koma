@@ -744,13 +744,13 @@ assert.match(
 )
 assert.match(
   settingsPageSource,
-  /\{ key: 'library-auto-update', titleKey: 'settings_row_library_auto_update_title', detailKey: 'settings_row_library_auto_update_detail' \}[\s\S]*\{ key: 'library-update-interval', titleKey: 'settings_row_library_update_interval_title', detailKey: 'settings_row_library_update_interval_detail' \}[\s\S]*\{ key: 'library-update', titleKey: 'settings_row_library_update_title', detailKey: 'settings_row_library_update_detail' \}/,
+  /\{ key: 'library-auto-update', titleKey: 'settings_row_library_auto_update_title', detailKey: 'settings_row_library_auto_update_detail' \}[\s\S]*\{ key: 'library-update-interval', titleKey: 'settings_row_library_update_interval_title', detailKey: 'settings_row_library_update_interval_detail' \}[\s\S]*\{ key: 'library-update-notifications', titleKey: 'settings_row_library_update_notifications_title', detailKey: 'settings_row_library_update_notifications_detail' \}[\s\S]*\{ key: 'library-update', titleKey: 'settings_row_library_update_title', detailKey: 'settings_row_library_update_detail' \}/,
   'SettingsPage must expose auto-check preferences next to the foreground library update entry',
 )
-assert.doesNotMatch(
+assert.match(
   settingsPageSource,
-  /library-update-notifications/,
-  'SettingsPage must not expose a fake update notification entry before delivery exists',
+  /library-update-notifications[\s\S]*getLibraryUpdateNotificationStatusLabel\(this\.libraryUpdateNotificationStatus\)[\s\S]*requestLibraryUpdateNotificationPermission\(this\.context\(\)\)/,
+  'SettingsPage must expose a real update notification permission entry',
 )
 assert.match(
   settingsPageSource,

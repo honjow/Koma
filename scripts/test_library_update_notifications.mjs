@@ -22,8 +22,8 @@ assert.doesNotMatch(
 
 assert.doesNotMatch(
   settingsPageSource + serviceSource + preferencesSource,
-  /background\s*scheduler|后台自动更新|requestEnableNotification|reminderAgentManager/i,
-  'Foreground library update UX must not add a background scheduler, permission prompt, or reminder delivery',
+  /background\s*scheduler|后台自动更新|reminderAgentManager/i,
+  'Foreground library update UX must not add a background scheduler or reminder delivery',
 )
 
 assert.match(
@@ -44,12 +44,12 @@ assert.match(
 assert.match(
   settingsPageSource,
   /settings_row_library_update_results_title[\s\S]*settings_row_library_update_results_detail/,
-  'Settings must expose the update result row without a fake notification delivery entry',
+  'Settings must expose the update result row',
 )
-assert.doesNotMatch(
+assert.match(
   settingsPageSource,
-  /library-update-notifications|更新提醒|通知权限|系统通知/,
-  'Settings must not expose a separate notification/reminder row before permission UX exists',
+  /library-update-notifications[\s\S]*settings_row_library_update_notifications_title[\s\S]*settings_row_library_update_notifications_detail/,
+  'Settings must expose a real notification permission row for library updates',
 )
 
 assert.match(
@@ -234,6 +234,11 @@ assert.match(
   'Library update notifications must use NotificationKit, skip boring checks, attach a detail-route WantAgent, and publish a basic system notification',
 )
 assert.match(
+  resultStoreSource,
+  /getLibraryUpdateNotificationStatus\(\): Promise<LibraryUpdateNotificationStatus>[\s\S]*notificationManager\.isNotificationEnabled\(\)[\s\S]*requestLibraryUpdateNotificationPermission\(context: common\.UIAbilityContext\): Promise<LibraryUpdateNotificationStatus>[\s\S]*notificationManager\.requestEnableNotification\(context\)[\s\S]*return getLibraryUpdateNotificationStatus\(\)/,
+  'Library update notifications must expose real permission status and a UI-bound permission request helper',
+)
+assert.match(
   constantsSource,
   /KOMA_LAUNCH_ROUTE_PARAM[\s\S]*KOMA_LAUNCH_ROUTE_LIBRARY_UPDATE_RESULTS/,
   'Notification route parameters must use shared constants',
@@ -257,6 +262,16 @@ assert.match(
   settingsPageSource,
   /publishLibraryUpdateNotification\(summary\)[\s\S]*step=library_update_notification[\s\S]*publishLibraryUpdateFailureNotification\(checkedAt, failureCode\)/,
   'Settings checks must dispatch notifications for new update summaries and failed checks',
+)
+assert.match(
+  settingsPageSource,
+  /library-update-notifications[\s\S]*getLibraryUpdateNotificationStatusLabel\(this\.libraryUpdateNotificationStatus\)[\s\S]*loadLibraryUpdateNotificationStatus\(\): void[\s\S]*getLibraryUpdateNotificationStatus\(\)[\s\S]*requestLibraryUpdateNotifications\(\): void[\s\S]*requestLibraryUpdateNotificationPermission\(this\.context\(\)\)/,
+  'Settings must show and refresh the real system notification permission state',
+)
+assert.match(
+  settingsPageSource,
+  /handleLibraryUpdateNotificationDispatch\(result: LibraryUpdateNotificationDispatchResult, reason: string\)[\s\S]*result\.code === 'disabled'[\s\S]*settings_library_update_notification_disabled[\s\S]*result\.code === 'publish_failed'[\s\S]*settings_library_update_notification_failed/,
+  'Manual update checks must fail closed and tell the user when system notifications were not delivered',
 )
 assert.match(
   resultStoreSource,

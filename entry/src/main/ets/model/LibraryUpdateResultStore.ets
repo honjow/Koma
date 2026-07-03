@@ -12,7 +12,10 @@ import {
   countLibraryUpdateNewChapters,
   summarizeLibraryUpdateProviders,
 } from './LibraryUpdateService'
-import { isLibraryUpdateNotificationDeliveryEnabled } from './LibraryUpdatePreferencesStore'
+import {
+  LibraryUpdateNotificationStatus,
+  isLibraryUpdateNotificationDeliveryEnabled,
+} from './LibraryUpdatePreferencesStore'
 import {
   KOMA_BUNDLE_NAME,
   KOMA_LAUNCH_ROUTE_LIBRARY_UPDATE_RESULTS,
@@ -106,6 +109,32 @@ export type LibraryUpdateNotificationDispatchCode =
 export interface LibraryUpdateNotificationDispatchResult {
   delivered: boolean
   code: LibraryUpdateNotificationDispatchCode
+}
+
+export async function getLibraryUpdateNotificationStatus(): Promise<LibraryUpdateNotificationStatus> {
+  if (!isLibraryUpdateNotificationDeliveryEnabled()) {
+    return 'disabled'
+  }
+  try {
+    return await notificationManager.isNotificationEnabled() ? 'enabled' : 'unavailable'
+  } catch (error) {
+    const businessError = error as BusinessError
+    console.warn('[LibraryUpdateResultStore] step=query_library_update_notification_status_failed code=' + businessError.code)
+    return 'unavailable'
+  }
+}
+
+export async function requestLibraryUpdateNotificationPermission(context: common.UIAbilityContext): Promise<LibraryUpdateNotificationStatus> {
+  if (await getLibraryUpdateNotificationStatus() === 'enabled') {
+    return 'enabled'
+  }
+  try {
+    await notificationManager.requestEnableNotification(context)
+  } catch (error) {
+    const businessError = error as BusinessError
+    console.warn('[LibraryUpdateResultStore] step=request_library_update_notification_permission_failed code=' + businessError.code)
+  }
+  return getLibraryUpdateNotificationStatus()
 }
 
 let latestLibraryUpdateSummary: LibraryUpdateSummary | undefined = undefined

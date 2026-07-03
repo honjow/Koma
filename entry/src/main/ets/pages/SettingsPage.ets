@@ -27,16 +27,20 @@ import {
 } from '../model/LocalLibraryRefreshService'
 import {
   LibraryUpdateResultStore,
+  LibraryUpdateNotificationDispatchResult,
   clearLatestLibraryUpdateSummary,
   createLibraryUpdateJobSnapshot,
+  getLibraryUpdateNotificationStatus,
   getLatestLibraryUpdateSummary,
   publishLibraryUpdateFailureNotification,
   publishLibraryUpdateNotification,
+  requestLibraryUpdateNotificationPermission,
   setLatestLibraryUpdateJobSnapshot,
   setLatestLibraryUpdateSummary,
 } from '../model/LibraryUpdateResultStore'
 import {
   DEFAULT_LIBRARY_UPDATE_PREFERENCES,
+  LibraryUpdateNotificationStatus,
   LibraryUpdatePreferences,
   LibraryUpdatePreferencesStore,
   formatLibraryUpdateStoredSummary,
@@ -44,6 +48,7 @@ import {
   getLibraryUpdateLastResultLabel,
   getLibraryUpdateNextDueAt,
   getLibraryUpdateNextDueLabel,
+  getLibraryUpdateNotificationStatusLabel,
   formatLibraryUpdateTimestamp,
   isLibraryUpdateDue,
   normalizeLibraryUpdateFailureCode,
@@ -180,6 +185,7 @@ function createSettingsSections(): SettingsSection[] {
         { key: 'webdav', titleKey: 'settings_row_webdav_title', detailKey: 'settings_row_webdav_detail' },
         { key: 'library-auto-update', titleKey: 'settings_row_library_auto_update_title', detailKey: 'settings_row_library_auto_update_detail' },
         { key: 'library-update-interval', titleKey: 'settings_row_library_update_interval_title', detailKey: 'settings_row_library_update_interval_detail' },
+        { key: 'library-update-notifications', titleKey: 'settings_row_library_update_notifications_title', detailKey: 'settings_row_library_update_notifications_detail' },
         { key: 'library-update', titleKey: 'settings_row_library_update_title', detailKey: 'settings_row_library_update_detail' },
         { key: 'library-update-results', titleKey: 'settings_row_library_update_results_title', detailKey: 'settings_row_library_update_results_detail' },
         { key: 'library-categories', titleKey: 'settings_row_library_categories_title', detailKey: 'settings_row_library_categories_detail' },
@@ -368,6 +374,7 @@ export struct SettingsPage {
   @Local private libraryUpdateBusy: boolean = false
   @Local private libraryUpdateSummary?: LibraryUpdateSummary = undefined
   @Local private libraryUpdatePreferences: LibraryUpdatePreferences = DEFAULT_LIBRARY_UPDATE_PREFERENCES
+  @Local private libraryUpdateNotificationStatus: LibraryUpdateNotificationStatus = 'unavailable'
   @Local private localLibraryRefreshBusy: boolean = false
   @Local private localLibraryRefreshSummary?: LocalLibraryRefreshSummary = undefined
   @Local private settingsSearchText: string = ''
@@ -507,6 +514,9 @@ export struct SettingsPage {
       }
       return `${getLibraryUpdateAutoCheckLabel(this.libraryUpdatePreferences)} · ${getLibraryUpdateNextDueLabel(this.libraryUpdatePreferences)}`
     }
+    if (row.key === 'library-update-notifications') {
+      return getLibraryUpdateNotificationStatusLabel(this.libraryUpdateNotificationStatus)
+    }
     if (row.key === 'library-update') {
       if (this.libraryUpdateBusy) {
         return this.t('common_checking')
@@ -581,6 +591,7 @@ export struct SettingsPage {
           rows: this.rowsByKeys([
             'library-auto-update',
             'library-update-interval',
+            'library-update-notifications',
             'library-update',
             'library-update-results',
             'local-library-refresh',
@@ -816,6 +827,18 @@ export struct SettingsPage {
       })
       .catch((error: Error) => {
         console.warn('[Settings] step=load_library_update_preferences_failed code=' + safeSettingsErrorCode(error))
+      })
+  }
+
+  private loadLibraryUpdateNotificationStatus(): void {
+    void getLibraryUpdateNotificationStatus()
+      .then((status: LibraryUpdateNotificationStatus) => {
+        this.libraryUpdateNotificationStatus = status
+        console.info('[Settings] step=load_library_update_notification_status status=' + status)
+      })
+      .catch((error: Error) => {
+        console.warn('[Settings] step=load_library_update_notification_status_failed code=' + safeSettingsErrorCode(error))
+        this.libraryUpdateNotificationStatus = 'unavailable'
       })
   }
 
@@ -1239,6 +1262,41 @@ export struct SettingsPage {
       })
   }
 
+  private handleLibraryUpdateNotificationDispatch(result: LibraryUpdateNotificationDispatchResult, reason: string): void {
+    if (result.delivered) {
+      this.libraryUpdateNotificationStatus = 'enabled'
+      return
+    }
+    if (result.code === 'disabled') {
+      this.libraryUpdateNotificationStatus = 'unavailable'
+      if (reason === 'manual') {
+        this.showToast(s('settings_library_update_notification_disabled'))
+      }
+      return
+    }
+    if (result.code === 'publish_failed') {
+      if (reason === 'manual') {
+        this.showToast(s('settings_library_update_notification_failed'))
+      }
+      this.loadLibraryUpdateNotificationStatus()
+    }
+  }
+
+  private requestLibraryUpdateNotifications(): void {
+    void requestLibraryUpdateNotificationPermission(this.context())
+      .then((status: LibraryUpdateNotificationStatus) => {
+        this.libraryUpdateNotificationStatus = status
+        this.showToast(status === 'enabled'
+          ? s('settings_library_update_notification_enabled')
+          : s('settings_library_update_notification_disabled'))
+      })
+      .catch((error: Error) => {
+        console.warn('[Settings] step=request_library_update_notifications_failed code=' + safeSettingsErrorCode(error))
+        this.libraryUpdateNotificationStatus = 'unavailable'
+        this.showToast(s('settings_library_update_notification_failed'))
+      })
+  }
+
   private checkLibraryUpdates(reason: string = 'manual'): void {
     if (this.libraryUpdateBusy) {
       return
@@ -1294,6 +1352,7 @@ export struct SettingsPage {
         void publishLibraryUpdateNotification(summary)
           .then((result) => {
             console.info('[Settings] step=library_update_notification code=' + result.code)
+            this.handleLibraryUpdateNotificationDispatch(result, reason)
           })
         if (reason === 'manual') {
           this.showToast(summary.updatedCount > 0
@@ -1336,6 +1395,7 @@ export struct SettingsPage {
         void publishLibraryUpdateFailureNotification(checkedAt, failureCode)
           .then((result) => {
             console.info('[Settings] step=library_update_notification code=' + result.code)
+            this.handleLibraryUpdateNotificationDispatch(result, reason)
           })
         if (reason === 'manual') {
           this.showToast(s('settings_library_update_failed'))
@@ -1591,6 +1651,8 @@ export struct SettingsPage {
       this.onOpenDownloads()
     } else if (row.key === 'library-auto-update') {
       this.setLibraryAutoUpdateEnabled(!this.libraryUpdatePreferences.autoCheckEnabled)
+    } else if (row.key === 'library-update-notifications') {
+      this.requestLibraryUpdateNotifications()
     } else if (row.key === 'library-update') {
       this.checkLibraryUpdates()
     } else if (row.key === 'library-update-results') {
@@ -1807,6 +1869,7 @@ export struct SettingsPage {
     this.loadVersion()
     this.loadPreferences()
     this.loadLibraryUpdatePreferences()
+    this.loadLibraryUpdateNotificationStatus()
     this.loadDownloadQueuePreferences()
     this.loadLibraryFilterPreferences()
     this.loadImageCacheStats()
