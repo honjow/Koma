@@ -1598,6 +1598,16 @@ assert.match(
   'MangaDetailPage must wire per-chapter and visible chapter read-state actions',
 )
 assert.match(
+  mangaDetailPageSource,
+  /DetailMoreMenu\(\)[\s\S]*manga_detail_menu_download_all[\s\S]*handleDownloadVisibleChapters\(this\.allChapterIds\(\), ChapterBatchDownloadMode\.ALL_VISIBLE\)[\s\S]*manga_detail_menu_download_incomplete[\s\S]*ChapterBatchDownloadMode\.NOT_DOWNLOADED[\s\S]*manga_detail_menu_mark_all_read[\s\S]*markVisibleChaptersReadState\(this\.allChapterIds\(\), true\)[\s\S]*manga_detail_menu_mark_all_unread[\s\S]*markVisibleChaptersReadState\(this\.allChapterIds\(\), false\)/,
+  'MangaDetailPage more menu must expose real chapter batch actions instead of a coming-soon toast',
+)
+assert.doesNotMatch(
+  mangaDetailPageSource,
+  /manga_detail_action_more_soon|More actions are coming soon|更多操作稍后接入/,
+  'MangaDetailPage more action must not remain a placeholder',
+)
+assert.match(
   chapterListSectionSource,
   /export enum ChapterReadFilter\s*{[\s\S]*ALL[\s\S]*UNREAD[\s\S]*READ[\s\S]*DOWNLOADED/,
   'ChapterListSection must expose all/unread/read/downloaded chapter filters',

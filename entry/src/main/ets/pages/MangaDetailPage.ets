@@ -413,6 +413,10 @@ export struct MangaDetailPage {
     return this.chapters.length === 0 ? undefined : this.chapters[0].id
   }
 
+  private allChapterIds(): string[] {
+    return this.chapters.map((chapter: MangaChapterItem): string => chapter.id)
+  }
+
   private async handleAddToLibrary(): Promise<boolean> {
     if (this.isInLibrary) {
       this.showToast(s('common_already_in_library'))
@@ -843,6 +847,32 @@ export struct MangaDetailPage {
   }
 
   @Builder
+  private DetailMoreMenu() {
+    Menu() {
+      MenuItem({ content: this.isInLibrary ? s('common_in_library') : s('common_add_to_library') })
+        .onClick(() => {
+          this.handleAddToLibrary()
+        })
+      MenuItem({ content: s('manga_detail_menu_download_all') })
+        .onClick(() => {
+          this.handleDownloadVisibleChapters(this.allChapterIds(), ChapterBatchDownloadMode.ALL_VISIBLE)
+        })
+      MenuItem({ content: s('manga_detail_menu_download_incomplete') })
+        .onClick(() => {
+          this.handleDownloadVisibleChapters(this.allChapterIds(), ChapterBatchDownloadMode.NOT_DOWNLOADED)
+        })
+      MenuItem({ content: s('manga_detail_menu_mark_all_read') })
+        .onClick(() => {
+          this.markVisibleChaptersReadState(this.allChapterIds(), true)
+        })
+      MenuItem({ content: s('manga_detail_menu_mark_all_unread') })
+        .onClick(() => {
+          this.markVisibleChaptersReadState(this.allChapterIds(), false)
+        })
+    }
+  }
+
+  @Builder
   private Toolbar() {
     Row() {
       KomaIconButton({
@@ -858,10 +888,8 @@ export struct MangaDetailPage {
         icon: $r('sys.symbol.more'),
         controlSize: ThemeConstants.ACTION_CHIP_HEIGHT,
         iconSize: ThemeConstants.FONT_SIZE_H2,
-        action: () => {
-          this.showToast(s('manga_detail_action_more_soon'))
-        },
       })
+        .bindMenu(this.DetailMoreMenu())
     }
     .width('100%')
     .height(ThemeConstants.SOURCE_ICON_SIZE)
