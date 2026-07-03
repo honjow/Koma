@@ -42,6 +42,8 @@ const sourceSearchPagePath = resolve(root, 'entry/src/main/ets/pages/SourceSearc
 const sourcePackageManagerPagePath = resolve(root, 'entry/src/main/ets/pages/SourcePackageManagerPage.ets')
 const browseViewModelPath = resolve(root, 'entry/src/main/ets/viewmodel/BrowseViewModel.ets')
 const localImportCoordinatorPath = resolve(root, 'entry/src/main/ets/import/LocalImportCoordinator.ets')
+const localLibraryFolderContractPath = resolve(root, 'entry/src/main/ets/model/LocalLibraryFolderContract.ets')
+const localLibraryRescanServicePath = resolve(root, 'entry/src/main/ets/model/LocalLibraryRescanService.ets')
 const secondaryListScaffoldPath = resolve(root, 'entry/src/main/ets/components/SecondaryListScaffold.ets')
 const comicCoverCardPath = resolve(root, 'entry/src/main/ets/components/ComicCoverCard.ets')
 const chapterListSectionPath = resolve(root, 'entry/src/main/ets/components/ChapterListSection.ets')
@@ -91,6 +93,8 @@ const sourceSearchPageSource = readFileSync(sourceSearchPagePath, 'utf8')
 const sourcePackageManagerPageSource = readFileSync(sourcePackageManagerPagePath, 'utf8')
 const browseViewModelSource = readFileSync(browseViewModelPath, 'utf8')
 const localImportCoordinatorSource = readFileSync(localImportCoordinatorPath, 'utf8')
+const localLibraryFolderContractSource = readFileSync(localLibraryFolderContractPath, 'utf8')
+const localLibraryRescanServiceSource = readFileSync(localLibraryRescanServicePath, 'utf8')
 const secondaryListScaffoldSource = readFileSync(secondaryListScaffoldPath, 'utf8')
 const comicCoverCardSource = readFileSync(comicCoverCardPath, 'utf8')
 const chapterListSectionSource = readFileSync(chapterListSectionPath, 'utf8')
@@ -1844,6 +1848,29 @@ assert.match(
   sourceIndexServiceSource,
   /installFromBytes\(this\.context, archiveBytes, entry\.pkg, entry\.id\)/,
   'source index installs must pass the expected source id into package validation',
+)
+assertExport(localLibraryFolderContractSource, 'localLibraryFolderUri')
+assertExport(localLibraryFolderContractSource, 'buildComicFromLocalLibraryFolderSeries')
+assertExport(localLibraryFolderContractSource, 'buildComicsFromLocalLibraryFolderScan')
+assert.match(
+  localLibraryFolderContractSource,
+  /localLibraryFolderUri\(rootUri: string, relativePath: string\): string[\s\S]*normalizeLocalLibraryRelativePath\(relativePath\)[\s\S]*encodeRelativeUriPath\(safeRelativePath\)/,
+  'local library folder URIs must validate relative paths before encoding them',
+)
+assert.match(
+  localLibraryFolderContractSource,
+  /buildComicFromLocalLibraryFolderSeries[\s\S]*coverUri = chapters\.find[\s\S]*sourceKind: ComicSourceKind\.LOCAL_FOLDER[\s\S]*remoteResourceId: `\$\{rootId\}:\$\{series\.relativePath\}`[\s\S]*buildComicsFromLocalLibraryFolderScan/,
+  'local library folder scans must be convertible into LOCAL_FOLDER comics with stable resource ids and cover fallback',
+)
+assert.doesNotMatch(
+  localLibraryFolderContractSource,
+  /subtitle:\s*`[^`]*(chapter|chapters|本|卷|话)/,
+  'local library folder comic conversion must not hardcode user-visible subtitle copy in the model layer',
+)
+assert.match(
+  localLibraryRescanServiceSource,
+  /LOCAL_LIBRARY_RESCAN_UI_MUTATION_CONTRACT = 'MODEL_ONLY_NO_SYNC_UI_MUTATION'[\s\S]*LOCAL_LIBRARY_RESCAN_DESTRUCTIVE_ACTION_CONTRACT = 'NO_DELETE_LIBRARY_ROWS_OR_USER_FILES'[\s\S]*removedCount: missingCount[\s\S]*missingChapterCount/,
+  'local library rescan summaries must report missing rows without deleting shelf entries or user files',
 )
 assert.match(
   sourcePackageManagerPageSource,

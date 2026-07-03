@@ -6,6 +6,13 @@ import {
   normalizeSortKey,
   stripExtension,
 } from '../import/ImageSortUtils'
+import {
+  Chapter,
+  Comic,
+  ComicSourceKind,
+  Page,
+  ReadingDirection,
+} from './ComicModels'
 
 export const LOCAL_LIBRARY_FOLDER_CONTRACT_VERSION = 1
 export const LOCAL_LIBRARY_FOLDER_RUNTIME_PICKER_STATUS = 'NOT_IMPLEMENTED_DEFERRED'
@@ -82,6 +89,12 @@ export interface LocalLibraryFolderAvailability {
   status: LocalLibraryFolderAvailabilityStatus
 }
 
+export interface LocalLibraryFolderComicBuildOptions {
+  rootUri: string
+  rootId?: string
+  now?: number
+}
+
 interface NormalizedLocalLibraryEntry {
   relativePath: string
   kind: LocalLibraryFolderEntryKind
@@ -120,6 +133,14 @@ function normalizeSeparator(value: string): string {
 
 function trimSlashes(value: string): string {
   return normalizeSeparator(value).replace(/^\/+/, '').replace(/\/+$/, '')
+}
+
+function trimTrailingSlashes(value: string): string {
+  let trimmed = value.trim()
+  while (trimmed.endsWith('/')) {
+    trimmed = trimmed.substring(0, trimmed.length - 1)
+  }
+  return trimmed
 }
 
 function dirname(path: string): string {
@@ -245,6 +266,88 @@ function createPage(entry: NormalizedLocalLibraryEntry, chapterId: string, index
     index,
     sortKey: normalizeSortKey(entry.relativePath),
   }
+}
+
+function encodeRelativeUriPath(relativePath: string): string {
+  return relativePath.split('/').map((segment: string): string => encodeURIComponent(segment)).join('/')
+}
+
+export function localLibraryFolderUri(rootUri: string, relativePath: string): string {
+  const safeRelativePath = normalizeLocalLibraryRelativePath(relativePath)
+  const safeRootUri = trimTrailingSlashes(rootUri)
+  if (safeRootUri.length === 0) {
+    throw new Error('Local library root URI is required')
+  }
+  return `${safeRootUri}/${encodeRelativeUriPath(safeRelativePath)}`
+}
+
+export function buildComicFromLocalLibraryFolderSeries(
+  series: LocalLibraryFolderSeries,
+  options: LocalLibraryFolderComicBuildOptions,
+): Comic {
+  const now = options.now ?? Date.now()
+  const rootId = options.rootId ?? LOCAL_LIBRARY_FOLDER_ID_PREFIX
+  const comicId = series.id
+  const sourcePath = localLibraryFolderUri(options.rootUri, series.relativePath)
+  const chapters = series.chapters.map((folderChapter: LocalLibraryFolderChapter): Chapter => {
+    const pages = folderChapter.pages.map((folderPage: LocalLibraryFolderPage, pageIndex: number): Page => {
+      return {
+        id: folderPage.id,
+        comicId,
+        chapterId: folderChapter.id,
+        index: pageIndex,
+        fileName: folderPage.fileName,
+        uri: localLibraryFolderUri(options.rootUri, folderPage.relativePath),
+        sortKey: folderPage.sortKey,
+      }
+    })
+    return {
+      id: folderChapter.id,
+      comicId,
+      title: folderChapter.title,
+      index: folderChapter.index,
+      sourcePath: localLibraryFolderUri(options.rootUri, folderChapter.relativePath),
+      sortKey: folderChapter.sortKey,
+      pages,
+      pageCount: pages.length,
+      createdAt: now,
+      updatedAt: now,
+    }
+  })
+  const coverUri = chapters.find((chapter: Chapter): boolean => chapter.pages.length > 0)?.pages[0].uri
+  const comic: Comic = {
+    id: comicId,
+    title: series.title,
+    sourceKind: ComicSourceKind.LOCAL_FOLDER,
+    sourcePath,
+    remoteResourceId: `${rootId}:${series.relativePath}`,
+    sortTitle: series.sortKey,
+    preferredDirection: ReadingDirection.RIGHT_TO_LEFT,
+    chapters,
+    chapterCount: chapters.length,
+    pageCount: chapters.reduce((total: number, chapter: Chapter): number => total + chapter.pageCount, 0),
+    createdAt: now,
+    updatedAt: now,
+    lastImportedAt: now,
+  }
+  if (coverUri !== undefined) {
+    comic.coverUri = coverUri
+  }
+  return comic
+}
+
+export function buildComicsFromLocalLibraryFolderScan(
+  scanResult: LocalLibraryFolderScanResult,
+  rootUri: string,
+  now: number = Date.now(),
+): Comic[] {
+  return scanResult.series.map((series: LocalLibraryFolderSeries): Comic => {
+    return buildComicFromLocalLibraryFolderSeries(series, {
+      rootUri,
+      rootId: scanResult.contract.rootId,
+      now,
+    })
+  })
 }
 
 function createChapter(candidate: ChapterCandidate, seriesId: string, index: number): LocalLibraryFolderChapter {
