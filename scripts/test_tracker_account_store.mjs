@@ -113,6 +113,32 @@ assert.match(
   /mapping\.comicId !== normalizedComicId \|\| mapping\.providerId !== providerId[\s\S]*saveComicMappings\(nextMappings\)/,
   'remove must delete only the requested comic/provider mapping',
 )
+assert.match(
+  trackerModelsSource,
+  /async listComicMappings\(comicId: ComicId\): Promise<ComicTrackerMapping\[\]> \{[\s\S]*findComicTrackerMappings\(comicId, current\.comicMappings\)/,
+  'mapping store must list normalized mappings for a single local comic',
+)
+assert.match(
+  trackerModelsSource,
+  /async confirmComicMapping\(comicId: ComicId, providerId: TrackerProviderId, now: number = Date\.now\(\)\): Promise<TrackerPreferences> \{[\s\S]*updateComicMappingState\(comicId, providerId, 'confirmed', true, now\)/,
+  'mapping store must confirm an existing candidate without inventing a provider match',
+)
+assert.match(
+  trackerModelsSource,
+  /async rejectComicMapping\(comicId: ComicId, providerId: TrackerProviderId, now: number = Date\.now\(\)\): Promise<TrackerPreferences> \{[\s\S]*updateComicMappingState\(comicId, providerId, 'rejected', false, now\)/,
+  'mapping store must reject an existing candidate without deleting audit state',
+)
+const mappingStateUpdateBlock = trackerModelsSource.match(/private async updateComicMappingState\([\s\S]*?\n  \}/)?.[0] ?? ''
+assert.match(
+  mappingStateUpdateBlock,
+  /mapping\.comicId !== normalizedComicId \|\| mapping\.providerId !== providerId[\s\S]*mappingState[\s\S]*userConfirmed[\s\S]*updatedAt: now[\s\S]*saveComicMappings\(nextMappings\)/,
+  'mapping state updates must mutate only the requested comic/provider row and persist through the normalized mapping store',
+)
+assert.doesNotMatch(
+  mappingStateUpdateBlock,
+  /writeToken|readToken|deleteToken|TRACKER_ACCOUNTS_KEY|saveAccounts/,
+  'mapping state updates must not touch tracker credentials or account records',
+)
 
 assert.match(
   trackerModelsSource,

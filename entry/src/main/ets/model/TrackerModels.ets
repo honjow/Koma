@@ -734,11 +734,60 @@ export class TrackerPreferencesStore {
     return this.saveComicMappings(nextMappings)
   }
 
+  async listComicMappings(comicId: ComicId): Promise<ComicTrackerMapping[]> {
+    const current = await this.load()
+    return findComicTrackerMappings(comicId, current.comicMappings)
+  }
+
+  async confirmComicMapping(comicId: ComicId, providerId: TrackerProviderId, now: number = Date.now()): Promise<TrackerPreferences> {
+    return this.updateComicMappingState(comicId, providerId, 'confirmed', true, now)
+  }
+
+  async rejectComicMapping(comicId: ComicId, providerId: TrackerProviderId, now: number = Date.now()): Promise<TrackerPreferences> {
+    return this.updateComicMappingState(comicId, providerId, 'rejected', false, now)
+  }
+
   async removeComicMapping(comicId: ComicId, providerId: TrackerProviderId): Promise<TrackerPreferences> {
     const normalizedComicId = comicId.trim()
     const current = await this.load()
     const nextMappings = current.comicMappings.filter((mapping: ComicTrackerMapping): boolean => {
       return mapping.comicId !== normalizedComicId || mapping.providerId !== providerId
+    })
+    return this.saveComicMappings(nextMappings)
+  }
+
+  private async updateComicMappingState(
+    comicId: ComicId,
+    providerId: TrackerProviderId,
+    mappingState: TrackerMappingState,
+    userConfirmed: boolean,
+    now: number,
+  ): Promise<TrackerPreferences> {
+    const normalizedComicId = comicId.trim()
+    if (normalizedComicId.length === 0) {
+      return this.load()
+    }
+    const current = await this.load()
+    const nextMappings = current.comicMappings.map((mapping: ComicTrackerMapping): ComicTrackerMapping => {
+      if (mapping.comicId !== normalizedComicId || mapping.providerId !== providerId) {
+        return mapping
+      }
+      const next: ComicTrackerMapping = {
+        comicId: mapping.comicId,
+        providerId: mapping.providerId,
+        providerTitleId: mapping.providerTitleId,
+        mappingState,
+        userConfirmed,
+        createdAt: mapping.createdAt,
+        updatedAt: now,
+      }
+      if (mapping.providerTitle !== undefined) {
+        next.providerTitle = mapping.providerTitle
+      }
+      if (mapping.confidence !== undefined) {
+        next.confidence = mapping.confidence
+      }
+      return next
     })
     return this.saveComicMappings(nextMappings)
   }
