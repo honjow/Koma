@@ -648,6 +648,11 @@ assert.match(
   /resolveDownloadedPage[\s\S]*validateDownloadedChapter\(comicId, chapterId\)[\s\S]*OfflineDownloadedChapterStatus\.DOWNLOADED[\s\S]*OfflineDownloadedChapterStatus\.PARTIAL[\s\S]*fs\.accessSync\(page\.localPath\)/,
   'offline resolver must expose validated existing files for downloaded and partial chapters',
 )
+assert.match(
+  readerPageSourceAdapterSource,
+  /localPath === undefined[\s\S]*isOfflineManifestReaderOwned\(validation\)[\s\S]*ReaderPageRenderKind\.URI_PLACEHOLDER[\s\S]*offline-missing:\/\//,
+  'reader adapter must show an honest placeholder for missing pages inside an existing offline manifest instead of silently falling back to remote',
+)
 assert.doesNotMatch(
   offlineDownloadStoreSource,
   /reader-remote-image-cache|RemoteImageCacheStore|url:\s*string/,

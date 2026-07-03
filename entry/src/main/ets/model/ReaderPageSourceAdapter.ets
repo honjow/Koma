@@ -26,7 +26,11 @@ import {
   SourceSettingsRecord,
   appSourceSettingsStore,
 } from '../sourceRuntime/SourceSettingsStore'
-import { OfflineDownloadStore } from './OfflineDownloadStore'
+import {
+  OfflineDownloadedChapterStatus,
+  OfflineDownloadManifestValidation,
+  OfflineDownloadStore,
+} from './OfflineDownloadStore'
 
 export type ReaderRemoteImageHeaders = Record<string, string>
 export type ReaderRemoteImageCacheStats = RemoteImageCacheStats
@@ -573,8 +577,16 @@ function createReaderOfflineDownloadRenderSource(config: ReaderSessionConfig, pa
     return undefined
   }
   const pageId = getReaderSessionPageId(config, pageIndex)
+  const validation = readerOfflineDownloadStore.validateDownloadedChapter(config.comicId, config.chapterId)
+  if (validation.manifest === undefined && validation.reasonCode === 'manifest_missing') {
+    return undefined
+  }
   const localPath = readerOfflineDownloadStore.resolveDownloadedPage(config.comicId, config.chapterId, pageId, pageIndex)
   if (localPath === undefined) {
+    if (isOfflineManifestReaderOwned(validation)) {
+      console.warn(`[ReaderOffline] step=offline_page_unavailable comic=${createShortReaderHash(config.comicId)} chapter=${createShortReaderHash(config.chapterId)} page=${pageIndex} reason=${validation.reasonCode ?? 'page_unavailable'}`)
+      return createReaderOfflineUnavailableSource(config, pageIndex)
+    }
     return undefined
   }
   return {
@@ -583,6 +595,23 @@ function createReaderOfflineDownloadRenderSource(config: ReaderSessionConfig, pa
     imageUri: localPath,
     fallbackPageIndex: pageIndex,
     pageId,
+  }
+}
+
+function isOfflineManifestReaderOwned(validation: OfflineDownloadManifestValidation): boolean {
+  return validation.manifest !== undefined &&
+    (validation.status === OfflineDownloadedChapterStatus.DOWNLOADED ||
+      validation.status === OfflineDownloadedChapterStatus.PARTIAL ||
+      validation.status === OfflineDownloadedChapterStatus.CORRUPT)
+}
+
+function createReaderOfflineUnavailableSource(config: ReaderSessionConfig, pageIndex: number): ReaderPageRenderSource {
+  return {
+    kind: ReaderPageRenderKind.URI_PLACEHOLDER,
+    uri: `offline-missing://${createShortReaderHash(config.comicId)}/${createShortReaderHash(config.chapterId)}/${pageIndex}`,
+    imageUri: '',
+    fallbackPageIndex: pageIndex,
+    pageId: getReaderSessionPageId(config, pageIndex),
   }
 }
 
