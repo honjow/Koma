@@ -175,10 +175,17 @@ export struct ChapterListSection {
     if (chapter.scanlator !== undefined && chapter.scanlator.length > 0) {
       parts.push(chapter.scanlator)
     }
+    if (chapter.language !== undefined && chapter.language.length > 0) {
+      parts.push(this.formatLanguage(chapter.language))
+    }
     if (chapter.dateUpload !== undefined) {
       parts.push(this.formatDate(chapter.dateUpload))
     }
     return parts.join(' · ')
+  }
+
+  private formatLanguage(language: string): string {
+    return language.length <= 3 ? language.toLocaleUpperCase() : language
   }
 
   private formatDate(timestamp: number): string {

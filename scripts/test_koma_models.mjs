@@ -1373,8 +1373,8 @@ assert.match(
 )
 assert.match(
   sourceModelsSource,
-  /title:\s*normalizeSourceDisplayText\(title\) \?\? title[\s\S]*scanlator:\s*normalizeSourceDisplayText\(row\.scanlator\)/,
-  'SourceChapter normalization must decode source-provided chapter display strings',
+  /title:\s*normalizeSourceDisplayText\(title\) \?\? title[\s\S]*scanlator:\s*normalizeSourceDisplayText\(row\.scanlator\)[\s\S]*language:\s*optionalString\(firstNonEmpty\(\[row\.language, row\.lang\]\)\)[\s\S]*dateUpload:\s*optionalNumber\(row\.date_upload\) \?\? optionalNumber\(row\.dateUpload\)/,
+  'SourceChapter normalization must preserve chapter scanlator, language, and upload date metadata',
 )
 assert.match(
   mangaDetailModelsSource,
@@ -1390,6 +1390,11 @@ assert.match(
   mangaDetailModelsSource,
   /tags:\s*sourceStringList\(item\['tags'\]\)/,
   'Manga detail normalization must decode source-provided tags',
+)
+assert.match(
+  mangaDetailModelsSource,
+  /export interface MangaChapterItem[\s\S]*scanlator\?: string[\s\S]*language\?: string[\s\S]*dateUpload\?: number[\s\S]*parseMangaChapterFromSourceItem[\s\S]*language:\s*firstSourceString\(\[[\s\S]*item\['language'\][\s\S]*item\['lang'\][\s\S]*dateUpload:\s*optionalSourceNumber\(item\['date_upload'\]\) \?\? optionalSourceNumber\(item\['dateUpload'\]\)/,
+  'Manga chapter items must keep source-provided scanlator, language, and upload date metadata',
 )
 assert.match(
   chapterReadStateStoreSource,
@@ -1408,8 +1413,8 @@ assert.match(
 )
 assert.match(
   mangaDetailPageSource,
-  /decorateChapterStates\(chapters: MangaChapterItem\[\]\): MangaChapterItem\[\][\s\S]*readerSessionStore\.getProgress\(comicId\)[\s\S]*readStateStore\.isRead\(comicId, chapter\.id, progress\)[\s\S]*getChapterSummary\(comicId, chapter\.id\)[\s\S]*OfflineDownloadStatus\.DOWNLOADED/,
-  'MangaDetailPage must derive chapter read state from progress/overrides and downloaded state from durable download summaries',
+  /decorateChapterStates\(chapters: MangaChapterItem\[\]\): MangaChapterItem\[\][\s\S]*readerSessionStore\.getProgress\(comicId\)[\s\S]*scanlator: chapter\.scanlator[\s\S]*language: chapter\.language[\s\S]*dateUpload: chapter\.dateUpload[\s\S]*readStateStore\.isRead\(comicId, chapter\.id, progress\)[\s\S]*getChapterSummary\(comicId, chapter\.id\)[\s\S]*OfflineDownloadStatus\.DOWNLOADED/,
+  'MangaDetailPage must preserve chapter metadata while deriving read/downloaded state',
 )
 assert.match(
   mangaDetailPageSource,
@@ -1445,6 +1450,31 @@ assert.match(
   chapterListSectionSource,
   /VisibleReadStateMenu\(\)[\s\S]*onMarkVisibleChaptersReadState\(this\.visibleChapterIds\(\), true\)[\s\S]*onMarkVisibleChaptersReadState\(this\.visibleChapterIds\(\), false\)/,
   'ChapterListSection visible mark-read actions must target the current filtered visible chapter ids',
+)
+assert.match(
+  chapterListSectionSource,
+  /chapterSubtitle\(chapter: MangaChapterItem\): string[\s\S]*chapter\.scanlator[\s\S]*chapter\.language[\s\S]*formatLanguage\(chapter\.language\)[\s\S]*chapter\.dateUpload[\s\S]*formatDate\(chapter\.dateUpload\)/,
+  'ChapterListSection subtitle must show scanlator, language, and upload date metadata',
+)
+assert.match(
+  mangaDetailPageSource,
+  /mangaChapterItemFromComicChapter\(chapter: Chapter\): MangaChapterItem[\s\S]*scanlator: chapter\.scanlator[\s\S]*language: chapter\.language[\s\S]*dateUpload: chapter\.dateUpload/,
+  'MangaDetailPage must hydrate chapter metadata from library chapters',
+)
+assert.match(
+  mangaDetailPageSource,
+  /comicFromSourceManga\(manga: MangaDetail, chapters: MangaChapterItem\[\], comicId: string\): Comic[\s\S]*scanlator: chapter\.scanlator[\s\S]*language: chapter\.language[\s\S]*dateUpload: chapter\.dateUpload/,
+  'Adding source manga to library must persist chapter metadata into library chapters',
+)
+assert.match(
+  libraryUpdateServiceSource,
+  /mergeSourceChapters[\s\S]*scanlator: remote\.scanlator \?\? existing\.scanlator[\s\S]*language: remote\.language \?\? existing\.language[\s\S]*dateUpload: remote\.dateUpload \?\? existing\.dateUpload[\s\S]*pages: existing\.pages[\s\S]*pageCount: existing\.pageCount/,
+  'LibraryUpdateService must refresh chapter metadata without clearing older values and preserve downloaded pages',
+)
+assert.match(
+  libraryPersistenceSource,
+  /export interface PersistedChapter[\s\S]*scanlator\?: string[\s\S]*language\?: string[\s\S]*dateUpload\?: number[\s\S]*persistChapter\(chapter: Chapter\)[\s\S]*row\.scanlator = chapter\.scanlator[\s\S]*row\.language = chapter\.language[\s\S]*row\.dateUpload = chapter\.dateUpload[\s\S]*hydrateChapter\(row: PersistedChapter\)[\s\S]*chapter\.scanlator = row\.scanlator[\s\S]*chapter\.language = row\.language[\s\S]*chapter\.dateUpload = row\.dateUpload/,
+  'LibraryPersistence must round-trip chapter metadata',
 )
 
 assert.match(backupServiceSource, /const BACKUP_SCHEMA_VERSION:\s*number = 3/, 'backup export must use schema v3')
@@ -2123,7 +2153,7 @@ function hydratePage(row) {
 }
 
 function persistChapter(chapter) {
-  return {
+  const row = {
     id: chapter.id,
     comicId: chapter.comicId,
     title: chapter.title,
@@ -2135,11 +2165,15 @@ function persistChapter(chapter) {
     createdAt: chapter.createdAt,
     updatedAt: chapter.updatedAt,
   }
+  if (chapter.scanlator !== undefined) row.scanlator = chapter.scanlator
+  if (chapter.language !== undefined) row.language = chapter.language
+  if (chapter.dateUpload !== undefined) row.dateUpload = chapter.dateUpload
+  return row
 }
 
 function hydrateChapter(row) {
   assertValidPersistedChapter(row)
-  return {
+  const chapter = {
     id: row.id,
     comicId: row.comicId,
     title: row.title,
@@ -2151,6 +2185,10 @@ function hydrateChapter(row) {
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
   }
+  if (row.scanlator !== undefined) chapter.scanlator = row.scanlator
+  if (row.language !== undefined) chapter.language = row.language
+  if (row.dateUpload !== undefined) chapter.dateUpload = row.dateUpload
+  return chapter
 }
 
 function persistComic(comic) {
@@ -2288,6 +2326,9 @@ function assertValidPersistedChapter(row) {
   assertStringField(row.comicId, 'chapter.comicId')
   assertStringField(row.title, 'chapter.title')
   assertNumberField(row.index, 'chapter.index')
+  assertOptionalStringField(row.scanlator, 'chapter.scanlator')
+  assertOptionalStringField(row.language, 'chapter.language')
+  assertOptionalNumberField(row.dateUpload, 'chapter.dateUpload')
   assertStringField(row.sourcePath, 'chapter.sourcePath')
   assertStringField(row.sortKey, 'chapter.sortKey')
   if (!Array.isArray(row.pages)) {

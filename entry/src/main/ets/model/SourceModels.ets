@@ -27,6 +27,7 @@ export interface SourceChapter {
   id: string
   title: string
   scanlator?: string
+  language?: string
   dateUpload?: number
   chapterNumber?: number
   volumeNumber?: number
@@ -80,7 +81,10 @@ interface SourceRuntimeChapterPayload {
   id?: string
   title?: string
   scanlator?: string
-  dateUpload?: number
+  lang?: string
+  language?: string
+  date_upload?: number | string
+  dateUpload?: number | string
   chapterNumber?: number | string
   volumeNumber?: number | string
   url?: string
@@ -205,7 +209,8 @@ export function parseSourceChaptersJson(json: string): SourceChapter[] {
         id: firstNonEmpty([row.id, row.title]) ?? 'chapter',
         title: normalizeSourceDisplayText(title) ?? title,
         scanlator: normalizeSourceDisplayText(row.scanlator),
-        dateUpload: optionalNumber(row.dateUpload),
+        language: optionalString(firstNonEmpty([row.language, row.lang])),
+        dateUpload: optionalNumber(row.date_upload) ?? optionalNumber(row.dateUpload),
         chapterNumber: optionalNumber(row.chapterNumber),
         volumeNumber: optionalNumber(row.volumeNumber),
         url: optionalString(row.url),

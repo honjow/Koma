@@ -80,6 +80,9 @@ export interface PersistedChapter {
   comicId: string
   title: string
   index: number
+  scanlator?: string
+  language?: string
+  dateUpload?: number
   sourcePath: string
   sortKey: string
   pages: PersistedPage[]
@@ -147,7 +150,7 @@ function hydratePage(row: PersistedPage): Page {
 }
 
 function persistChapter(chapter: Chapter): PersistedChapter {
-  return {
+  const row: PersistedChapter = {
     id: chapter.id,
     comicId: chapter.comicId,
     title: chapter.title,
@@ -159,12 +162,22 @@ function persistChapter(chapter: Chapter): PersistedChapter {
     createdAt: chapter.createdAt,
     updatedAt: chapter.updatedAt,
   }
+  if (chapter.scanlator !== undefined) {
+    row.scanlator = chapter.scanlator
+  }
+  if (chapter.language !== undefined) {
+    row.language = chapter.language
+  }
+  if (chapter.dateUpload !== undefined) {
+    row.dateUpload = chapter.dateUpload
+  }
+  return row
 }
 
 function hydrateChapter(row: PersistedChapter): Chapter {
   assertValidPersistedChapter(row)
   const pages = row.pages.map((page: PersistedPage) => hydratePage(page))
-  return {
+  const chapter: Chapter = {
     id: row.id,
     comicId: row.comicId,
     title: row.title,
@@ -176,6 +189,16 @@ function hydrateChapter(row: PersistedChapter): Chapter {
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
   }
+  if (row.scanlator !== undefined) {
+    chapter.scanlator = row.scanlator
+  }
+  if (row.language !== undefined) {
+    chapter.language = row.language
+  }
+  if (row.dateUpload !== undefined) {
+    chapter.dateUpload = row.dateUpload
+  }
+  return chapter
 }
 
 export function persistComic(comic: Comic): PersistedComic {
@@ -393,6 +416,9 @@ function assertValidPersistedChapter(row: PersistedChapter): void {
   assertStringField(row.comicId, 'chapter.comicId')
   assertStringField(row.title, 'chapter.title')
   assertNumberField(row.index, 'chapter.index')
+  assertOptionalStringField(row.scanlator, 'chapter.scanlator')
+  assertOptionalStringField(row.language, 'chapter.language')
+  assertOptionalNumberField(row.dateUpload, 'chapter.dateUpload')
   assertStringField(row.sourcePath, 'chapter.sourcePath')
   assertStringField(row.sortKey, 'chapter.sortKey')
   if (!Array.isArray(row.pages)) {

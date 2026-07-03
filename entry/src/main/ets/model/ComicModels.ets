@@ -42,6 +42,9 @@ export interface Chapter {
   comicId: ComicId
   title: string
   index: number
+  scanlator?: string
+  language?: string
+  dateUpload?: number
   sourcePath: string
   sortKey: string
   pages: Page[]

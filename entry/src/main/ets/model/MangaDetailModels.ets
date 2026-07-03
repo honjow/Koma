@@ -31,6 +31,7 @@ export interface MangaChapterItem {
   chapterNumber?: number
   volumeNumber?: string
   scanlator?: string
+  language?: string
   dateUpload?: number
   isRead: boolean
   isDownloaded: boolean
@@ -153,6 +154,10 @@ export function parseMangaChapterFromSourceItem(item: SourceRuntimeRecord): Mang
       optionalSourceString(item['volumeNumber']),
     ]),
     scanlator: optionalSourceDisplayString(item['scanlator']),
+    language: firstSourceString([
+      optionalSourceString(item['language']),
+      optionalSourceString(item['lang']),
+    ]),
     dateUpload: optionalSourceNumber(item['date_upload']) ?? optionalSourceNumber(item['dateUpload']),
     isRead: false,
     isDownloaded: false,
