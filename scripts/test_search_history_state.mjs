@@ -41,19 +41,35 @@ assert.match(stateMapperSource, /safeDiagnosticCode\(diagnosticCode\)/, 'failed 
 assert.match(crossSearchSource, /state:\s*CrossSearchSectionState/, 'cross-search sections must carry explicit state')
 assert.match(crossSearchSource, /resultCount:\s*number/, 'cross-search sections must carry result count')
 assert.match(crossSearchSource, /diagnosticCode:\s*string/, 'cross-search sections must carry safe diagnostic code')
-assert.match(crossSearchSource, /pendingSections\(\): CrossSearchSection\[\]/, 'service must expose pending/running sections')
-assert.match(crossSearchSource, /stateSection\('komga', 'Komga', 'komga', 'unsupported', 'not_configured'\)/, 'unconfigured Komga must map to unsupported')
-assert.match(crossSearchSource, /stateSection\('opds', 'OPDS', 'opds', 'unsupported', 'not_configured'\)/, 'unconfigured OPDS must map to unsupported')
-assert.match(crossSearchSource, /stateSection\('webdav', 'WebDAV', 'webdav', 'unsupported', 'not_configured'\)/, 'unconfigured WebDAV must map to unsupported')
+assert.match(crossSearchSource, /pendingSections\(sourceFilter: CrossSearchSourceFilter = 'all'\): CrossSearchSection\[\]/, 'service must expose pending/running sections')
+assert.match(crossSearchSource, /stateSection\('komga', AppStrings\.get\('route_komga_title'\), 'komga', 'unsupported', 'not_configured'\)/, 'unconfigured Komga must map to unsupported')
+assert.match(crossSearchSource, /stateSection\('opds', AppStrings\.get\('route_opds_title'\), 'opds', 'unsupported', 'not_configured'\)/, 'unconfigured OPDS must map to unsupported')
+assert.match(crossSearchSource, /stateSection\('webdav', AppStrings\.get\('route_webdav_title'\), 'webdav', 'unsupported', 'not_configured'\)/, 'unconfigured WebDAV must map to unsupported')
 assert.match(crossSearchSource, /timeoutSection\(fallback\.id, fallback\.title, fallback\.sourceKind\)/, 'timeouts must be represented separately')
+assert.match(crossSearchSource, /export type CrossSearchSourceFilter = 'all' \| 'local' \| 'private' \| 'source'/, 'cross-search must expose source filter buckets')
+assert.match(
+  crossSearchSource,
+  /search\(query: string, sourceFilter: CrossSearchSourceFilter = 'all'\)[\s\S]*sourceMatchesFilter\('local', sourceFilter\)[\s\S]*sourceMatchesFilter\('komga', sourceFilter\)[\s\S]*sourceMatchesFilter\('opds', sourceFilter\)[\s\S]*sourceMatchesFilter\('webdav', sourceFilter\)[\s\S]*sourceMatchesFilter\('wasm', sourceFilter\)/,
+  'cross-search must avoid launching providers outside the selected source filter',
+)
+assert.match(
+  crossSearchSource,
+  /private sourceMatchesFilter\(sourceKind: CrossSearchSourceKind, sourceFilter: CrossSearchSourceFilter\): boolean[\s\S]*sourceFilter === 'local'[\s\S]*sourceKind === 'wasm'[\s\S]*sourceKind === 'komga' \|\| sourceKind === 'opds' \|\| sourceKind === 'webdav'/,
+  'cross-search source filter must split local, private library, and source package buckets',
+)
 assert.doesNotMatch(crossSearchSource, /errorText:\s*e\.message|message='\s*\+\s*e\.message|message=\$\{e\.message\}/, 'cross-search must not expose or log raw exception messages')
 
-assert.match(searchPageSource, /@State private history:\s*SearchHistoryEntry\[\]/, 'SearchPage must keep recent search history state')
+assert.match(searchPageSource, /@Local private history:\s*SearchHistoryEntry\[\]/, 'SearchPage must keep recent search history state')
 assert.match(searchPageSource, /new SearchHistoryStore\(context\)/, 'SearchPage must create persistent history store')
 assert.match(searchPageSource, /this\.recordHistory\(query\)/, 'SearchPage must record non-empty submitted searches')
 assert.match(searchPageSource, /this\.HistoryPanel\(\)/, 'SearchPage must render history for an empty query')
 assert.match(searchPageSource, /this\.runHistoryQuery\(entry\.query\)/, 'history rows must run searches when tapped')
 assert.match(searchPageSource, /this\.clearHistory\(\)/, 'SearchPage must expose clear-history action')
+assert.match(
+  searchPageSource,
+  /sourceFilter: CrossSearchSourceFilter = 'all'[\s\S]*service\.pendingSections\(this\.sourceFilter\)[\s\S]*service\.search\(query, this\.sourceFilter\)[\s\S]*private SourceFilterMenu\(\)[\s\S]*setSourceFilter\('local'\)[\s\S]*setSourceFilter\('private'\)[\s\S]*setSourceFilter\('source'\)[\s\S]*this\.SourceFilterBar\(\)/,
+  'SearchPage must expose and apply a source filter menu to pending and submitted searches',
+)
 assert.match(searchPageSource, /section\.state === 'running' \|\| section\.state === 'pending'/, 'SearchPage must render running/pending source states')
 assert.match(searchPageSource, /section\.state === 'empty' \|\| section\.state === 'timeout' \|\| section\.state === 'failed' \|\| section\.state === 'unsupported'/, 'SearchPage must distinguish terminal non-result states')
 assert.doesNotMatch(searchPageSource, /feedbackText\s*=\s*e\.message|message='\s*\+\s*e\.message/, 'SearchPage must not expose or log raw exception messages')

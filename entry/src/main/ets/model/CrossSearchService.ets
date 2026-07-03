@@ -44,6 +44,7 @@ import {
 import { AppStrings } from '../i18n/AppStrings'
 
 export type CrossSearchSourceKind = 'local' | 'komga' | 'opds' | 'webdav' | 'wasm'
+export type CrossSearchSourceFilter = 'all' | 'local' | 'private' | 'source'
 
 export interface CrossSearchResultItem {
   id: string
@@ -94,41 +95,72 @@ export class CrossSearchService {
     this.sourceViewModel = new BrowseViewModel(appSourceRuntimeRegistry)
   }
 
-  async search(query: string): Promise<CrossSearchSection[]> {
+  async search(query: string, sourceFilter: CrossSearchSourceFilter = 'all'): Promise<CrossSearchSection[]> {
     const normalizedQuery = query.trim()
     if (normalizedQuery.length === 0) {
       return []
     }
     console.info(`[Search] step=query_start length=${normalizedQuery.length}`)
-    const tasks: Promise<SourceSearchOutcome>[] = [
-      this.withTimeout(this.searchLocal(normalizedQuery), this.emptySection('local', AppStrings.get('tab_library'), 'local')),
-      this.withTimeout(this.searchKomga(normalizedQuery), this.emptySection('komga', AppStrings.get('route_komga_title'), 'komga')),
-      this.withTimeout(this.searchOpds(normalizedQuery), this.emptySection('opds', AppStrings.get('route_opds_title'), 'opds')),
-      this.withTimeout(this.searchWebDav(normalizedQuery), this.emptySection('webdav', AppStrings.get('route_webdav_title'), 'webdav')),
-    ]
+    const tasks: Promise<SourceSearchOutcome>[] = []
+    if (this.sourceMatchesFilter('local', sourceFilter)) {
+      tasks.push(this.withTimeout(this.searchLocal(normalizedQuery), this.emptySection('local', AppStrings.get('tab_library'), 'local')))
+    }
+    if (this.sourceMatchesFilter('komga', sourceFilter)) {
+      tasks.push(this.withTimeout(this.searchKomga(normalizedQuery), this.emptySection('komga', AppStrings.get('route_komga_title'), 'komga')))
+    }
+    if (this.sourceMatchesFilter('opds', sourceFilter)) {
+      tasks.push(this.withTimeout(this.searchOpds(normalizedQuery), this.emptySection('opds', AppStrings.get('route_opds_title'), 'opds')))
+    }
+    if (this.sourceMatchesFilter('webdav', sourceFilter)) {
+      tasks.push(this.withTimeout(this.searchWebDav(normalizedQuery), this.emptySection('webdav', AppStrings.get('route_webdav_title'), 'webdav')))
+    }
 
-    const sourceTasks = appSourceRuntimeRegistry.listInstalledSourceSummaries().map((source: SourceRuntimeRegistryInstalledSourceSummary) => {
-      return this.withTimeout(this.searchWasmSource(source, normalizedQuery), this.emptySection(`wasm:${source.sourceId}`, source.displayName, 'wasm'))
-    })
+    const sourceTasks: Promise<SourceSearchOutcome>[] = this.sourceMatchesFilter('wasm', sourceFilter) ?
+      appSourceRuntimeRegistry.listInstalledSourceSummaries().map((source: SourceRuntimeRegistryInstalledSourceSummary) => {
+        return this.withTimeout(this.searchWasmSource(source, normalizedQuery), this.emptySection(`wasm:${source.sourceId}`, source.displayName, 'wasm'))
+      }) :
+      []
     const outcomes = await Promise.all(tasks.concat(sourceTasks))
     const sections = outcomes.map((outcome: SourceSearchOutcome): CrossSearchSection => outcome.section)
     console.info(`[Search] step=query_done sections=${sections.length}`)
     return sections
   }
 
-  pendingSections(): CrossSearchSection[] {
-    const sections: CrossSearchSection[] = [
-      this.stateSection('local', AppStrings.get('tab_library'), 'local', 'running'),
-      this.stateSection('komga', AppStrings.get('route_komga_title'), 'komga', 'running'),
-      this.stateSection('opds', AppStrings.get('route_opds_title'), 'opds', 'running'),
-      this.stateSection('webdav', AppStrings.get('route_webdav_title'), 'webdav', 'running'),
-    ]
-    appSourceRuntimeRegistry.listInstalledSourceSummaries().forEach((source: SourceRuntimeRegistryInstalledSourceSummary) => {
-      sections.push(this.sourceSupportsSearch(source) ?
-        this.stateSection(`wasm:${source.sourceId}`, source.displayName, 'wasm', 'running') :
-        this.stateSection(`wasm:${source.sourceId}`, source.displayName, 'wasm', 'unsupported', 'search_not_supported'))
-    })
+  pendingSections(sourceFilter: CrossSearchSourceFilter = 'all'): CrossSearchSection[] {
+    const sections: CrossSearchSection[] = []
+    if (this.sourceMatchesFilter('local', sourceFilter)) {
+      sections.push(this.stateSection('local', AppStrings.get('tab_library'), 'local', 'running'))
+    }
+    if (this.sourceMatchesFilter('komga', sourceFilter)) {
+      sections.push(this.stateSection('komga', AppStrings.get('route_komga_title'), 'komga', 'running'))
+    }
+    if (this.sourceMatchesFilter('opds', sourceFilter)) {
+      sections.push(this.stateSection('opds', AppStrings.get('route_opds_title'), 'opds', 'running'))
+    }
+    if (this.sourceMatchesFilter('webdav', sourceFilter)) {
+      sections.push(this.stateSection('webdav', AppStrings.get('route_webdav_title'), 'webdav', 'running'))
+    }
+    if (this.sourceMatchesFilter('wasm', sourceFilter)) {
+      appSourceRuntimeRegistry.listInstalledSourceSummaries().forEach((source: SourceRuntimeRegistryInstalledSourceSummary) => {
+        sections.push(this.sourceSupportsSearch(source) ?
+          this.stateSection(`wasm:${source.sourceId}`, source.displayName, 'wasm', 'running') :
+          this.stateSection(`wasm:${source.sourceId}`, source.displayName, 'wasm', 'unsupported', 'search_not_supported'))
+      })
+    }
     return sections
+  }
+
+  private sourceMatchesFilter(sourceKind: CrossSearchSourceKind, sourceFilter: CrossSearchSourceFilter): boolean {
+    if (sourceFilter === 'all') {
+      return true
+    }
+    if (sourceFilter === 'local') {
+      return sourceKind === 'local'
+    }
+    if (sourceFilter === 'source') {
+      return sourceKind === 'wasm'
+    }
+    return sourceKind === 'komga' || sourceKind === 'opds' || sourceKind === 'webdav'
   }
 
   async openWebDavReader(item: CrossSearchResultItem): Promise<boolean> {

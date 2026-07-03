@@ -6,6 +6,7 @@ import {
   CrossSearchResultItem,
   CrossSearchSection,
   CrossSearchService,
+  CrossSearchSourceFilter,
 } from '../model/CrossSearchService'
 import { ThemeConstants } from '../theme/ThemeConstants'
 import { KomgaSeriesPage } from './KomgaSeriesPage'
@@ -34,6 +35,8 @@ export struct SearchPage {
   @Local private history: SearchHistoryEntry[] = []
   @Local private loading: boolean = false
   @Local private feedbackText: string = ''
+  @Local private sourceFilter: CrossSearchSourceFilter = 'all'
+  @Local private sourceFilterMenuOpen: boolean = false
   private searchTimer: number = 0
   private searchSerial: number = 0
   private service?: CrossSearchService
@@ -86,12 +89,12 @@ export struct SearchPage {
       return
     }
     this.loading = true
-    this.sections = service.pendingSections()
+    this.sections = service.pendingSections(this.sourceFilter)
     this.feedbackText = ''
     this.recordHistory(query)
     console.info(`[Search] step=ui_search_start serial=${serial}`)
     try {
-      const result = await service.search(query)
+      const result = await service.search(query, this.sourceFilter)
       if (serial !== this.searchSerial) {
         console.info(`[Search] step=ui_search_stale serial=${serial}`)
         return
@@ -157,6 +160,22 @@ export struct SearchPage {
     }
     this.queryText = query
     void this.runSearch(query)
+  }
+
+  private setSourceFilter(sourceFilter: CrossSearchSourceFilter): void {
+    if (this.sourceFilter === sourceFilter) {
+      this.sourceFilterMenuOpen = false
+      return
+    }
+    this.sourceFilter = sourceFilter
+    this.sourceFilterMenuOpen = false
+    if (this.queryText.trim().length > 0) {
+      if (this.searchTimer > 0) {
+        clearTimeout(this.searchTimer)
+        this.searchTimer = 0
+      }
+      void this.runSearch(this.queryText)
+    }
   }
 
   private async openResult(item: CrossSearchResultItem): Promise<void> {
@@ -238,6 +257,19 @@ export struct SearchPage {
     return ThemeConstants.SOURCE_WASM_COLOR
   }
 
+  private sourceFilterLabel(): string {
+    if (this.sourceFilter === 'local') {
+      return s('search_filter_local')
+    }
+    if (this.sourceFilter === 'private') {
+      return s('search_filter_private')
+    }
+    if (this.sourceFilter === 'source') {
+      return s('search_filter_source')
+    }
+    return s('search_filter_all')
+  }
+
   @Builder
   private SearchInput() {
     Search({ value: this.queryText, placeholder: s('search_placeholder') })
@@ -252,6 +284,54 @@ export struct SearchPage {
       .onSubmit((value: string) => {
         this.scheduleSearch(value)
       })
+  }
+
+  @Builder
+  private SourceFilterMenu() {
+    Menu() {
+      MenuItem({ content: s('search_filter_all') })
+        .onClick(() => {
+          this.setSourceFilter('all')
+        })
+      MenuItem({ content: s('search_filter_local') })
+        .onClick(() => {
+          this.setSourceFilter('local')
+        })
+      MenuItem({ content: s('search_filter_private') })
+        .onClick(() => {
+          this.setSourceFilter('private')
+        })
+      MenuItem({ content: s('search_filter_source') })
+        .onClick(() => {
+          this.setSourceFilter('source')
+        })
+    }
+  }
+
+  @Builder
+  private SourceFilterBar() {
+    Row() {
+      Text(s('search_filter_label'))
+        .fontSize(ThemeConstants.FONT_SIZE_META)
+        .fontColor(ThemeConstants.TEXT_SECONDARY)
+        .layoutWeight(1)
+      KomaActionButton({
+        label: this.sourceFilterLabel(),
+        kind: 'secondary',
+        compact: true,
+        controlHeight: ThemeConstants.ACTION_CHIP_HEIGHT,
+        action: () => {
+          this.sourceFilterMenuOpen = true
+        },
+      })
+        .bindMenu(this.sourceFilterMenuOpen, this.SourceFilterMenu(), {
+          placement: Placement.BottomRight,
+          onDisappear: () => {
+            this.sourceFilterMenuOpen = false
+          },
+        })
+    }
+    .width('100%')
   }
 
   @Builder
@@ -458,6 +538,9 @@ export struct SearchPage {
         }) {
           ListItem() {
             this.SearchInput()
+          }
+          ListItem() {
+            this.SourceFilterBar()
           }
           if (this.feedbackText.length > 0) {
             ListItem() {
