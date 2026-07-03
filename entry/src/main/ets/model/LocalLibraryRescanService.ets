@@ -111,8 +111,12 @@ function buildChapterOutcomes(
 ): LocalLibraryRescanChapterOutcome[] {
   const previousById = new Map<string, LocalLibraryFolderChapter>()
   const currentById = new Map<string, LocalLibraryFolderChapter>()
-  previousChapters.forEach((chapter): void => previousById.set(chapter.id, chapter))
-  currentChapters.forEach((chapter): void => currentById.set(chapter.id, chapter))
+  previousChapters.forEach((chapter): void => {
+    previousById.set(chapter.id, chapter)
+  })
+  currentChapters.forEach((chapter): void => {
+    currentById.set(chapter.id, chapter)
+  })
 
   const outcomes: LocalLibraryRescanChapterOutcome[] = []
   previousChapters.forEach((previous): void => {
@@ -190,11 +194,17 @@ export function createLocalLibraryRescanSummary(
 ): LocalLibraryRescanSummary {
   const previousById = new Map<string, LocalLibraryFolderSeries>()
   const currentById = new Map<string, LocalLibraryFolderSeries>()
-  previousKnownSeries.forEach((series): void => previousById.set(series.id, series))
-  freshScan.series.forEach((series): void => currentById.set(series.id, series))
+  previousKnownSeries.forEach((series): void => {
+    previousById.set(series.id, series)
+  })
+  freshScan.series.forEach((series): void => {
+    currentById.set(series.id, series)
+  })
 
   const outcomes: LocalLibraryRescanSeriesOutcome[] = []
-  previousKnownSeries.forEach((previous): void => outcomes.push(buildSeriesOutcome(previous, currentById.get(previous.id))))
+  previousKnownSeries.forEach((previous): void => {
+    outcomes.push(buildSeriesOutcome(previous, currentById.get(previous.id)))
+  })
   freshScan.series.forEach((current): void => {
     if (!previousById.has(current.id)) {
       outcomes.push(buildSeriesOutcome(undefined, current))

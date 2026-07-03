@@ -28,8 +28,14 @@ import {
 } from './LocalLibraryMetadataService'
 import {
   LocalLibraryFolderScanResult,
+  LocalLibraryFolderSeries,
   buildComicsFromLocalLibraryFolderScan,
 } from './LocalLibraryFolderContract'
+import {
+  LocalLibraryRescanFailure,
+  LocalLibraryRescanSummary,
+  createLocalLibraryRescanSummary,
+} from './LocalLibraryRescanService'
 
 export const LIBRARY_STORE_PERSISTENCE_SCHEMA_VERSION = 1
 export const LIBRARY_STORE_PERSISTENCE_FILE_NAME = 'library-store.v1.json'
@@ -719,6 +725,45 @@ export function upsertLocalLibraryFolderScanAndPersistLibraryStore(
   try {
     persistenceService.persist()
     return comics.length
+  } catch (error) {
+    hydrateLibraryStoreFromJson(libraryStore, previousPayload)
+    throw error as Error
+  }
+}
+
+export interface LocalLibraryFolderRescanPersistResult {
+  summary: LocalLibraryRescanSummary
+  upsertedCount: number
+}
+
+export function upsertLocalLibraryFolderRescanAndPersistLibraryStore(
+  libraryStore: LibraryStore,
+  persistenceService: LibraryStorePersistenceService,
+  previousKnownSeries: LocalLibraryFolderSeries[],
+  freshScan: LocalLibraryFolderScanResult,
+  rootUri: string,
+  failures: LocalLibraryRescanFailure[] = [],
+  now: number = Date.now()
+): LocalLibraryFolderRescanPersistResult {
+  const summary = createLocalLibraryRescanSummary(previousKnownSeries, freshScan, failures)
+  const changedSeriesIds = new Set<string>()
+  summary.outcomes.forEach((outcome) => {
+    if (outcome.status === 'added' || outcome.status === 'changed') {
+      changedSeriesIds.add(outcome.id)
+    }
+  })
+  const comics = buildComicsFromLocalLibraryFolderScan(freshScan, rootUri, now)
+    .filter((comic: Comic): boolean => changedSeriesIds.has(comic.id))
+  if (comics.length === 0) {
+    return { summary, upsertedCount: 0 }
+  }
+  const previousPayload = serializeLibraryStore(libraryStore)
+  comics.forEach((comic: Comic) => {
+    libraryStore.upsertComic(comic)
+  })
+  try {
+    persistenceService.persist()
+    return { summary, upsertedCount: comics.length }
   } catch (error) {
     hydrateLibraryStoreFromJson(libraryStore, previousPayload)
     throw error as Error

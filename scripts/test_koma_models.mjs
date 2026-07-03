@@ -413,6 +413,7 @@ assertExport(libraryPersistenceSource, 'createCustomCategoryAndPersistLibrarySto
 assertExport(libraryPersistenceSource, 'renameCustomCategoryAndPersistLibraryStore')
 assertExport(libraryPersistenceSource, 'deleteCustomCategoryAndPersistLibraryStore')
 assertExport(libraryPersistenceSource, 'upsertLocalLibraryFolderScanAndPersistLibraryStore')
+assertExport(libraryPersistenceSource, 'upsertLocalLibraryFolderRescanAndPersistLibraryStore')
 assertExport(libraryPersistenceSource, 'isRemovableLocalComic')
 assertExport(libraryPersistenceSource, 'removeComicAndPersistLibraryStore')
 assertExport(libraryUpdateServiceSource, 'LibraryUpdateResultStatus')
@@ -756,10 +757,20 @@ assert.match(
   /upsertLocalLibraryFolderScanAndPersistLibraryStore[\s\S]*buildComicsFromLocalLibraryFolderScan\(scanResult, rootUri, now\)[\s\S]*const previousPayload = serializeLibraryStore\(libraryStore\)[\s\S]*libraryStore\.upsertComic\(comic\)[\s\S]*persistenceService\.persist\(\)[\s\S]*hydrateLibraryStoreFromJson\(libraryStore, previousPayload\)/,
   'local library folder scan persistence must convert scan results, upsert comics, persist once, and rollback on save failure',
 )
+assert.match(
+  libraryPersistenceSource,
+  /upsertLocalLibraryFolderRescanAndPersistLibraryStore[\s\S]*createLocalLibraryRescanSummary\(previousKnownSeries, freshScan, failures\)[\s\S]*outcome\.status === 'added' \|\| outcome\.status === 'changed'[\s\S]*buildComicsFromLocalLibraryFolderScan\(freshScan, rootUri, now\)[\s\S]*changedSeriesIds\.has\(comic\.id\)[\s\S]*libraryStore\.upsertComic\(comic\)[\s\S]*persistenceService\.persist\(\)[\s\S]*hydrateLibraryStoreFromJson\(libraryStore, previousPayload\)/,
+  'local library folder rescan persistence must upsert only added/changed scan results, return a summary, and rollback on save failure',
+)
 assert.doesNotMatch(
   libraryPersistenceSource,
   /upsertLocalLibraryFolderScanAndPersistLibraryStore[\s\S]*?(removeComic|deleteLocal|deleteComic)[\s\S]*?export function assignComicCategoriesAndPersistLibraryStore/i,
   'local library folder scan persistence must not implicitly delete existing shelf rows',
+)
+assert.doesNotMatch(
+  libraryPersistenceSource,
+  /upsertLocalLibraryFolderRescanAndPersistLibraryStore[\s\S]*?(removeComic|deleteLocal|deleteComic|unlink|rmdir)[\s\S]*?export function assignComicCategoriesAndPersistLibraryStore/i,
+  'local library folder rescan persistence must report missing rows without deleting shelf rows or user files',
 )
 assert.match(
   libraryCategoryManagementPageSource,
