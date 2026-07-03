@@ -413,6 +413,28 @@ export struct LibraryPage {
     console.info(`[Library] step=filter_changed availability=${availability}`)
   }
 
+  private hasActiveFilters(): boolean {
+    return this.sortBy !== 'lastRead' ||
+      this.filterSource !== 'all' ||
+      this.filterReadState !== 'all' ||
+      this.filterCategory !== 'all' ||
+      this.filterAvailability !== 'all'
+  }
+
+  private resetFilters(): void {
+    if (!this.hasActiveFilters()) {
+      return
+    }
+    this.sortBy = 'lastRead'
+    this.filterSource = 'all'
+    this.filterReadState = 'all'
+    this.filterCategory = 'all'
+    this.filterAvailability = 'all'
+    this.refreshDisplayedSnapshotFromStore()
+    this.saveFilterPreferences()
+    console.info('[Library] step=filters_reset')
+  }
+
   private applyCategoryDisplayStrategy(category: LibraryCategoryFilter): void {
     const strategy = this.libraryStore.getCategoryDisplayStrategy(category)
     if (strategy === undefined) {
@@ -1137,6 +1159,18 @@ export struct LibraryPage {
       }
       .margin({ right: ThemeConstants.SPACE_SM, bottom: ThemeConstants.SPACE_SM })
       .bindMenu(this.CategoryMenu())
+      if (this.hasActiveFilters()) {
+        KomaActionButton({
+          label: s('common_reset'),
+          kind: 'ghost',
+          compact: true,
+          controlHeight: ThemeConstants.ACTION_CHIP_HEIGHT,
+          action: () => {
+            this.resetFilters()
+          },
+        })
+          .margin({ right: ThemeConstants.SPACE_SM, bottom: ThemeConstants.SPACE_SM })
+      }
     }
     .width('100%')
   }
