@@ -78,6 +78,13 @@ import {
 } from '../model/OfflineDownloadStore'
 import { RemoteServerStore } from '../model/RemoteServerStore'
 import {
+  DEFAULT_TRACKER_PREFERENCES,
+  TrackerPreferences,
+  TrackerPreferencesStore,
+  TrackerUpdateStrategy,
+  getTrackerUpdateStrategyLabel,
+} from '../model/TrackerModels'
+import {
   ReaderRemoteImageCacheStats,
   DEFAULT_READER_REMOTE_IMAGE_CACHE_PREFERENCES,
   READER_REMOTE_IMAGE_CACHE_MAX_BYTES_OPTIONS,
@@ -228,8 +235,8 @@ function createSettingsSections(): SettingsSection[] {
         { key: 'download-retry-failed', titleKey: 'settings_row_download_retry_failed_title', detailKey: 'settings_row_download_retry_failed_detail' },
         { key: 'download-wifi-only', titleKey: 'settings_row_download_wifi_only_title', detailKey: 'settings_row_download_wifi_only_detail' },
         { key: 'trackers', titleKey: 'settings_row_trackers_title', detailKey: 'settings_row_trackers_detail' },
-        { key: 'tracker-auto-sync', titleKey: 'settings_row_tracker_auto_sync_title', detailKey: 'settings_row_tracker_auto_sync_detail', placeholder: true },
-        { key: 'tracker-update-strategy', titleKey: 'settings_row_tracker_update_strategy_title', detailKey: 'settings_row_tracker_update_strategy_detail', placeholder: true },
+        { key: 'tracker-auto-sync', titleKey: 'settings_row_tracker_auto_sync_title', detailKey: 'settings_row_tracker_auto_sync_detail' },
+        { key: 'tracker-update-strategy', titleKey: 'settings_row_tracker_update_strategy_title', detailKey: 'settings_row_tracker_update_strategy_detail' },
         { key: 'backup', titleKey: 'settings_row_backup_title', detailKey: 'settings_row_backup_detail' },
         { key: 'backup-auto-export', titleKey: 'settings_row_backup_auto_export_title', detailKey: 'settings_row_backup_auto_export_detail' },
         { key: 'backup-include-settings', titleKey: 'settings_row_backup_include_settings_title', detailKey: 'settings_row_backup_include_settings_detail' },
@@ -418,6 +425,8 @@ export struct SettingsPage {
   @Local private libraryViewMode: LibraryViewMode = 'grid'
   @Local private libraryListDensity: LibraryListDensity = 'standard'
   @Local private showLibraryBadges: boolean = true
+  @Local private trackerAutoSyncEnabled: boolean = DEFAULT_TRACKER_PREFERENCES.autoSyncEnabled
+  @Local private trackerUpdateStrategy: TrackerUpdateStrategy = DEFAULT_TRACKER_PREFERENCES.updateStrategy
   @Local private includeBackupSettings: boolean = DEFAULT_BACKUP_CONTENT_PREFERENCES.includeSettings
 
   private context(): common.UIAbilityContext {
@@ -446,6 +455,10 @@ export struct SettingsPage {
 
   private backupService(): BackupService {
     return new BackupService(this.context())
+  }
+
+  private trackerPreferencesStore(): TrackerPreferencesStore {
+    return new TrackerPreferencesStore(this.context())
   }
 
   private t(name: string): string {
@@ -632,6 +645,12 @@ export struct SettingsPage {
         return this.t('common_checking')
       }
       return formatLocalLibraryRefreshSummary(this.localLibraryRefreshSummary)
+    }
+    if (row.key === 'tracker-auto-sync') {
+      return this.trackerAutoSyncEnabled ? this.t('common_on') : this.t('common_off')
+    }
+    if (row.key === 'tracker-update-strategy') {
+      return getTrackerUpdateStrategyLabel(this.trackerUpdateStrategy)
     }
     return this.rowBaseDetail(row)
   }
@@ -975,6 +994,18 @@ export struct SettingsPage {
       })
       .catch((error: Error) => {
         console.warn('[Settings] step=load_backup_content_preferences_failed message=' + error.message)
+      })
+  }
+
+  private loadTrackerPreferences(): void {
+    void this.trackerPreferencesStore().load()
+      .then((preferences: TrackerPreferences) => {
+        this.trackerAutoSyncEnabled = preferences.autoSyncEnabled
+        this.trackerUpdateStrategy = preferences.updateStrategy
+        console.info('[Settings] step=load_tracker_preferences autoSync=' + preferences.autoSyncEnabled + ' strategy=' + preferences.updateStrategy)
+      })
+      .catch((error: Error) => {
+        console.warn('[Settings] step=load_tracker_preferences_failed code=' + safeSettingsErrorCode(error))
       })
   }
 
@@ -1572,6 +1603,34 @@ export struct SettingsPage {
       })
   }
 
+  private saveTrackerAutoSyncEnabled(enabled: boolean): void {
+    this.trackerAutoSyncEnabled = enabled
+    void this.trackerPreferencesStore().saveSyncPreferences(enabled, this.trackerUpdateStrategy)
+      .then((preferences: TrackerPreferences) => {
+        this.trackerAutoSyncEnabled = preferences.autoSyncEnabled
+        this.trackerUpdateStrategy = preferences.updateStrategy
+        console.info('[Settings] step=save_tracker_auto_sync enabled=' + preferences.autoSyncEnabled)
+      })
+      .catch((error: Error) => {
+        console.warn('[Settings] step=save_tracker_auto_sync_failed code=' + safeSettingsErrorCode(error))
+        this.showToast(s('settings_tracker_sync_save_failed'))
+      })
+  }
+
+  private saveTrackerUpdateStrategy(strategy: TrackerUpdateStrategy): void {
+    this.trackerUpdateStrategy = strategy
+    void this.trackerPreferencesStore().saveSyncPreferences(this.trackerAutoSyncEnabled, strategy)
+      .then((preferences: TrackerPreferences) => {
+        this.trackerAutoSyncEnabled = preferences.autoSyncEnabled
+        this.trackerUpdateStrategy = preferences.updateStrategy
+        console.info('[Settings] step=save_tracker_update_strategy strategy=' + preferences.updateStrategy)
+      })
+      .catch((error: Error) => {
+        console.warn('[Settings] step=save_tracker_update_strategy_failed code=' + safeSettingsErrorCode(error))
+        this.showToast(s('settings_tracker_sync_save_failed'))
+      })
+  }
+
   private saveBackupIncludeSettings(enabled: boolean): void {
     this.includeBackupSettings = enabled
     void this.backupService().saveContentPreferences({
@@ -1810,7 +1869,8 @@ export struct SettingsPage {
       row.key === 'library-view-mode' ||
       row.key === 'list-density' ||
       row.key === 'library-default-sort' ||
-      row.key === 'library-update-interval'
+      row.key === 'library-update-interval' ||
+      row.key === 'tracker-update-strategy'
   }
 
   private isSwitchRow(row: SettingsRow): boolean {
@@ -1819,6 +1879,7 @@ export struct SettingsPage {
       row.key === 'backup-include-settings' ||
       row.key === 'cache-auto-clean' ||
       row.key === 'download-wifi-only' ||
+      row.key === 'tracker-auto-sync' ||
       row.key === 'reader-progress' ||
       row.key === 'reader-keep-screen-awake' ||
       row.key === 'reader-tap-navigation' ||
@@ -1861,6 +1922,9 @@ export struct SettingsPage {
     if (row.key === 'download-wifi-only') {
       return this.downloadWifiOnly
     }
+    if (row.key === 'tracker-auto-sync') {
+      return this.trackerAutoSyncEnabled
+    }
     return false
   }
 
@@ -1887,6 +1951,8 @@ export struct SettingsPage {
       this.saveReaderVolumeKeyNavigationEnabled(value)
     } else if (row.key === 'download-wifi-only') {
       this.saveDownloadWifiOnly(value)
+    } else if (row.key === 'tracker-auto-sync') {
+      this.saveTrackerAutoSyncEnabled(value)
     } else {
       this.showToast(`${this.rowTitle(row)}${s('settings_coming_soon_suffix')}`)
     }
@@ -1977,6 +2043,10 @@ export struct SettingsPage {
         this.SelectionMenuItem(s('library_update_interval_12h'), this.libraryUpdatePreferences.intervalHours === 12, () => { this.saveLibraryUpdateInterval(12) })
         this.SelectionMenuItem(s('library_update_interval_24h'), this.libraryUpdatePreferences.intervalHours === 24, () => { this.saveLibraryUpdateInterval(24) })
         this.SelectionMenuItem(s('library_update_interval_48h'), this.libraryUpdatePreferences.intervalHours === 48, () => { this.saveLibraryUpdateInterval(48) })
+      } else if (row.key === 'tracker-update-strategy') {
+        this.SelectionMenuItem(s('tracker_update_strategy_chapter_complete'), this.trackerUpdateStrategy === 'on_chapter_complete', () => { this.saveTrackerUpdateStrategy('on_chapter_complete') })
+        this.SelectionMenuItem(s('tracker_update_strategy_reader_close'), this.trackerUpdateStrategy === 'on_reader_close', () => { this.saveTrackerUpdateStrategy('on_reader_close') })
+        this.SelectionMenuItem(s('tracker_update_strategy_manual'), this.trackerUpdateStrategy === 'manual', () => { this.saveTrackerUpdateStrategy('manual') })
       }
     }
   }
@@ -2249,6 +2319,7 @@ export struct SettingsPage {
     this.loadDownloadQueuePreferences()
     this.loadDownloadNotificationStatus()
     this.loadLibraryFilterPreferences()
+    this.loadTrackerPreferences()
     this.loadBackupContentPreferences()
     this.loadImageCachePreferences()
   }

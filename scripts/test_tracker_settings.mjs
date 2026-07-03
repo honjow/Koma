@@ -117,6 +117,36 @@ assert.match(
   /row\.key === 'trackers'[\s\S]*this\.onOpenTrackerSettings\(\)/,
   'Settings tracker row must open the tracker settings page',
 )
+assert.doesNotMatch(
+  settingsPageSource,
+  /key: 'tracker-auto-sync'[^}]*placeholder: true|key: 'tracker-update-strategy'[^}]*placeholder: true/,
+  'Settings tracker sync rows must not remain placeholders',
+)
+assert.match(
+  settingsPageSource,
+  /DEFAULT_TRACKER_PREFERENCES[\s\S]*TrackerPreferencesStore[\s\S]*TrackerUpdateStrategy[\s\S]*trackerAutoSyncEnabled: boolean = DEFAULT_TRACKER_PREFERENCES\.autoSyncEnabled[\s\S]*trackerUpdateStrategy: TrackerUpdateStrategy = DEFAULT_TRACKER_PREFERENCES\.updateStrategy/,
+  'SettingsPage must keep tracker sync preferences as real typed state',
+)
+assert.match(
+  settingsPageSource,
+  /loadTrackerPreferences\(\): void[\s\S]*this\.trackerPreferencesStore\(\)\.load\(\)[\s\S]*this\.trackerAutoSyncEnabled = preferences\.autoSyncEnabled[\s\S]*this\.trackerUpdateStrategy = preferences\.updateStrategy/,
+  'SettingsPage must load tracker sync preferences from TrackerPreferencesStore',
+)
+assert.match(
+  settingsPageSource,
+  /isSwitchRow\(row: SettingsRow\)[\s\S]*row\.key === 'tracker-auto-sync'[\s\S]*switchRowValue\(row: SettingsRow\)[\s\S]*this\.trackerAutoSyncEnabled[\s\S]*setSwitchRowValue\(row: SettingsRow, value: boolean\)[\s\S]*saveTrackerAutoSyncEnabled\(value\)/,
+  'SettingsPage tracker auto sync must be a real switch row',
+)
+assert.match(
+  settingsPageSource,
+  /isSelectionRow\(row: SettingsRow\)[\s\S]*row\.key === 'tracker-update-strategy'[\s\S]*row\.key === 'tracker-update-strategy'[\s\S]*tracker_update_strategy_chapter_complete[\s\S]*saveTrackerUpdateStrategy\('on_chapter_complete'\)[\s\S]*tracker_update_strategy_reader_close[\s\S]*saveTrackerUpdateStrategy\('on_reader_close'\)[\s\S]*tracker_update_strategy_manual[\s\S]*saveTrackerUpdateStrategy\('manual'\)/,
+  'SettingsPage tracker update timing must be a real menu row with all strategy options',
+)
+assert.match(
+  settingsPageSource,
+  /saveTrackerAutoSyncEnabled\(enabled: boolean\): void[\s\S]*saveSyncPreferences\(enabled, this\.trackerUpdateStrategy\)[\s\S]*saveTrackerUpdateStrategy\(strategy: TrackerUpdateStrategy\): void[\s\S]*saveSyncPreferences\(this\.trackerAutoSyncEnabled, strategy\)/,
+  'SettingsPage must persist tracker sync controls through TrackerPreferencesStore',
+)
 assert.match(
   constantsSource,
   /static readonly TRACKER_SETTINGS: string = 'TrackerSettingsPage'/,

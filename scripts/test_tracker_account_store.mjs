@@ -28,10 +28,31 @@ assert.doesNotMatch(
 
 const storeWriteBlock = trackerModelsSource.match(/async saveAccounts\(accounts: TrackerAccount\[\]\): Promise<TrackerPreferences> \{[\s\S]*?\n  \}/)?.[0] ?? ''
 assert.match(storeWriteBlock, /JSON\.stringify\(next\.accounts\)/, 'account store must persist normalized account JSON')
+assert.match(storeWriteBlock, /autoSyncEnabled: current\.autoSyncEnabled[\s\S]*updateStrategy: current\.updateStrategy/, 'account store must preserve tracker sync preferences')
 assert.doesNotMatch(
   storeWriteBlock,
   /writeToken|secretBytes|readToken|authorizationUrl|codeVerifier/,
   'normal account persistence must not write token material or transient OAuth data',
+)
+assert.match(
+  trackerModelsSource,
+  /export type TrackerUpdateStrategy = 'on_chapter_complete' \| 'on_reader_close' \| 'manual'[\s\S]*TRACKER_AUTO_SYNC_ENABLED_KEY[\s\S]*TRACKER_UPDATE_STRATEGY_KEY[\s\S]*autoSyncEnabled: false[\s\S]*updateStrategy: 'on_chapter_complete'/,
+  'tracker preferences must define durable auto-sync and update strategy defaults',
+)
+assert.match(
+  trackerModelsSource,
+  /normalizeTrackerUpdateStrategy\(value: string\): TrackerUpdateStrategy[\s\S]*value === 'on_reader_close' \|\| value === 'manual'[\s\S]*return 'on_chapter_complete'/,
+  'tracker update strategy must normalize unknown persisted values to a safe default',
+)
+assert.match(
+  trackerModelsSource,
+  /async load\(\): Promise<TrackerPreferences>[\s\S]*TRACKER_AUTO_SYNC_ENABLED_KEY[\s\S]*TRACKER_UPDATE_STRATEGY_KEY[\s\S]*autoSyncEnabled: autoSyncEnabled === true[\s\S]*updateStrategy: normalizeTrackerUpdateStrategy\(updateStrategy\)/,
+  'tracker preferences load must hydrate sync preferences from dedicated preference keys',
+)
+assert.match(
+  trackerModelsSource,
+  /async saveSyncPreferences\(autoSyncEnabled: boolean, updateStrategy: TrackerUpdateStrategy\): Promise<TrackerPreferences>[\s\S]*accounts: current\.accounts[\s\S]*comicMappings: current\.comicMappings[\s\S]*store\.put\(TRACKER_AUTO_SYNC_ENABLED_KEY, next\.autoSyncEnabled\)[\s\S]*store\.put\(TRACKER_UPDATE_STRATEGY_KEY, next\.updateStrategy\)/,
+  'tracker sync preferences must persist without touching account secrets or mapping data',
 )
 assert.match(
   trackerModelsSource,
@@ -94,6 +115,7 @@ assert.match(
 const mappingSaveBlock = trackerModelsSource.match(/async saveComicMappings\(mappings: ComicTrackerMapping\[\]\): Promise<TrackerPreferences> \{[\s\S]*?\n  \}/)?.[0] ?? ''
 assert.match(mappingSaveBlock, /TRACKER_COMIC_MAPPINGS_KEY/, 'mapping store must persist under the dedicated mapping key')
 assert.match(mappingSaveBlock, /JSON\.stringify\(next\.comicMappings\)/, 'mapping store must persist normalized mapping JSON')
+assert.match(mappingSaveBlock, /autoSyncEnabled: current\.autoSyncEnabled[\s\S]*updateStrategy: current\.updateStrategy/, 'mapping store must preserve tracker sync preferences')
 assert.doesNotMatch(
   mappingSaveBlock,
   /writeToken|secretBytes|readToken|authorizationUrl|codeVerifier|TRACKER_ACCOUNTS_KEY/,

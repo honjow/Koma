@@ -14,6 +14,7 @@ export type TrackerProviderId = 'anilist' | 'myanimelist' | 'kitsu' | 'mangaupda
 export type TrackerAccountStatus = 'disconnected' | 'auth_pending' | 'connected' | 'expired' | 'error'
 export type TrackerProviderSupportStatus = 'available' | 'planned' | 'unsupported'
 export type TrackerMappingState = 'unmapped' | 'candidate' | 'confirmed' | 'rejected' | 'stale'
+export type TrackerUpdateStrategy = 'on_chapter_complete' | 'on_reader_close' | 'manual'
 export type TrackerAuthPrepareStatus =
   'ready' |
   'provider_config_missing' |
@@ -146,11 +147,15 @@ export interface TrackerComicMappingSummary {
 export interface TrackerPreferences {
   accounts: TrackerAccount[]
   comicMappings: ComicTrackerMapping[]
+  autoSyncEnabled: boolean
+  updateStrategy: TrackerUpdateStrategy
 }
 
 export const TRACKER_PREFERENCES_STORE_NAME: string = 'koma_tracker_preferences_v1'
 export const TRACKER_ACCOUNTS_KEY: string = 'tracker.accounts'
 export const TRACKER_COMIC_MAPPINGS_KEY: string = 'tracker.comicMappings'
+export const TRACKER_AUTO_SYNC_ENABLED_KEY: string = 'tracker.autoSyncEnabled'
+export const TRACKER_UPDATE_STRATEGY_KEY: string = 'tracker.updateStrategy'
 export const TRACKER_ASSET_ALIAS_PREFIX: string = 'koma.tracker'
 export const TRACKER_ASSET_GROUP_ID: string = 'koma-tracker-credentials'
 
@@ -204,6 +209,8 @@ export const DEFAULT_TRACKER_ACCOUNTS: TrackerAccount[] = TRACKER_PROVIDER_CONFI
 export const DEFAULT_TRACKER_PREFERENCES: TrackerPreferences = {
   accounts: DEFAULT_TRACKER_ACCOUNTS,
   comicMappings: [],
+  autoSyncEnabled: false,
+  updateStrategy: 'on_chapter_complete',
 }
 
 export function getTrackerProviderConfig(providerId: TrackerProviderId): TrackerProviderConfig | undefined {
@@ -226,6 +233,23 @@ export function getTrackerAccountStatusLabel(status: TrackerAccountStatus): stri
     return s('tracker_status_error')
   }
   return s('tracker_status_disconnected')
+}
+
+export function normalizeTrackerUpdateStrategy(value: string): TrackerUpdateStrategy {
+  if (value === 'on_reader_close' || value === 'manual') {
+    return value
+  }
+  return 'on_chapter_complete'
+}
+
+export function getTrackerUpdateStrategyLabel(strategy: TrackerUpdateStrategy): string {
+  if (strategy === 'on_reader_close') {
+    return s('tracker_update_strategy_reader_close')
+  }
+  if (strategy === 'manual') {
+    return s('tracker_update_strategy_manual')
+  }
+  return s('tracker_update_strategy_chapter_complete')
 }
 
 export function getTrackerAccountDetail(account: TrackerAccount, secureStorageAvailable: boolean): string {
@@ -695,9 +719,13 @@ export class TrackerPreferencesStore {
     const store = await this.preferences()
     const accountsJson = await store.get(TRACKER_ACCOUNTS_KEY, JSON.stringify(DEFAULT_TRACKER_ACCOUNTS)) as string
     const mappingsJson = await store.get(TRACKER_COMIC_MAPPINGS_KEY, JSON.stringify([])) as string
+    const autoSyncEnabled = await store.get(TRACKER_AUTO_SYNC_ENABLED_KEY, DEFAULT_TRACKER_PREFERENCES.autoSyncEnabled) as boolean
+    const updateStrategy = await store.get(TRACKER_UPDATE_STRATEGY_KEY, DEFAULT_TRACKER_PREFERENCES.updateStrategy) as string
     return {
       accounts: mergeTrackerAccounts(this.parseAccounts(accountsJson), this.secretStore.isAvailable()),
       comicMappings: normalizeComicTrackerMappings(this.parseMappings(mappingsJson)),
+      autoSyncEnabled: autoSyncEnabled === true,
+      updateStrategy: normalizeTrackerUpdateStrategy(updateStrategy),
     }
   }
 
@@ -706,6 +734,8 @@ export class TrackerPreferencesStore {
     const next: TrackerPreferences = {
       accounts: mergeTrackerAccounts(accounts, this.secretStore.isAvailable()),
       comicMappings: current.comicMappings,
+      autoSyncEnabled: current.autoSyncEnabled,
+      updateStrategy: current.updateStrategy,
     }
     const store = await this.preferences()
     await store.put(TRACKER_ACCOUNTS_KEY, JSON.stringify(next.accounts))
@@ -718,9 +748,26 @@ export class TrackerPreferencesStore {
     const next: TrackerPreferences = {
       accounts: current.accounts,
       comicMappings: normalizeComicTrackerMappings(mappings),
+      autoSyncEnabled: current.autoSyncEnabled,
+      updateStrategy: current.updateStrategy,
     }
     const store = await this.preferences()
     await store.put(TRACKER_COMIC_MAPPINGS_KEY, JSON.stringify(next.comicMappings))
+    await store.flush()
+    return next
+  }
+
+  async saveSyncPreferences(autoSyncEnabled: boolean, updateStrategy: TrackerUpdateStrategy): Promise<TrackerPreferences> {
+    const current = await this.load()
+    const next: TrackerPreferences = {
+      accounts: current.accounts,
+      comicMappings: current.comicMappings,
+      autoSyncEnabled,
+      updateStrategy: normalizeTrackerUpdateStrategy(updateStrategy),
+    }
+    const store = await this.preferences()
+    await store.put(TRACKER_AUTO_SYNC_ENABLED_KEY, next.autoSyncEnabled)
+    await store.put(TRACKER_UPDATE_STRATEGY_KEY, next.updateStrategy)
     await store.flush()
     return next
   }
