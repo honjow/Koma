@@ -33,6 +33,14 @@ export interface BrowseSourceSectionState {
   page: number
 }
 
+export interface SourceHomeSectionState {
+  id: string
+  title: string
+  kind: string
+  manga: SourceManga[]
+  listingId?: string
+}
+
 interface SourceOperationPageArg {
   cursor: string | null
   limit: number
@@ -196,12 +204,52 @@ function parseSourceListingsFromResponse(response: SourceRuntimeCallResponse): S
   return listings
 }
 
+function parseSourceHomeSectionsFromResponse(sourceId: string, response: SourceRuntimeCallResponse): SourceHomeSectionState[] {
+  if (response.ok !== true) {
+    return []
+  }
+  const data = response.data as RuntimeRecord | undefined
+  const rawSections = data?.['sections'] ?? data?.['items']
+  const sections: SourceHomeSectionState[] = []
+  if (Array.isArray(rawSections)) {
+    rawSections.forEach((rawSection: RuntimeValue) => {
+      const section = itemRecord(rawSection)
+      if (section === undefined) {
+        return
+      }
+      const id = optionalString(section['id'])
+      if (id === undefined) {
+        return
+      }
+      const rawItems = section['items']
+      const manga: SourceManga[] = []
+      if (Array.isArray(rawItems)) {
+        rawItems.forEach((rawItem: RuntimeValue) => {
+          const item = itemRecord(rawItem)
+          if (item !== undefined) {
+            manga.push(parseSourceMangaFromItem(sourceId, item))
+          }
+        })
+      }
+      sections.push({
+        id,
+        title: normalizeSourceDisplayText(optionalString(section['title']) ?? id) ?? id,
+        kind: optionalString(section['kind']) ?? 'mangaList',
+        manga,
+        listingId: optionalString(section['listingId']) ?? optionalString(section['listing_id']),
+      })
+    })
+  }
+  return sections
+}
+
 @ObservedV2
 export class BrowseViewModel {
   @Trace sources: SourceRuntimeRegistryInstalledSourceSummary[] = []
   @Trace popularManga: SourceManga[] = []
   @Trace latestManga: SourceManga[] = []
   @Trace listings: SourceListingDescriptor[] = []
+  @Trace homeSections: SourceHomeSectionState[] = []
   @Trace browseSections: BrowseSourceSectionState[] = []
   @Trace selectedListingId: string = ''
   @Trace searchResults: SourceManga[] = []
@@ -240,6 +288,7 @@ export class BrowseViewModel {
     this.selectedSource = source
     this.popularManga = []
     this.latestManga = []
+    this.homeSections = []
     this.browseSections = []
     this.browsePage = 1
     this.hasMoreBrowse = false
@@ -253,10 +302,12 @@ export class BrowseViewModel {
     this.errorMessage = ''
     try {
       this.listings = await this.loadSourceListings(source)
+      this.homeSections = await this.loadSourceHomeSections(source)
       const listing = this.defaultListingForBrowse(this.listings)
       if (listing === undefined) {
         this.popularManga = []
         this.latestManga = []
+        this.homeSections = []
         this.browseSections = []
         this.hasMoreBrowse = false
         return
@@ -267,6 +318,7 @@ export class BrowseViewModel {
       this.errorMessage = e.message.length > 0 ? e.message : AppStrings.get('browse_error_load_home')
       this.popularManga = []
       this.latestManga = []
+      this.homeSections = []
       this.browseSections = []
       this.hasMoreBrowse = false
     } finally {
@@ -409,6 +461,17 @@ export class BrowseViewModel {
       return listings.length > 0 ? listings : this.defaultListings()
     } catch (_error) {
       return this.defaultListings()
+    }
+  }
+
+  private async loadSourceHomeSections(source: SourceRuntimeRegistryInstalledSourceSummary): Promise<SourceHomeSectionState[]> {
+    try {
+      const args: SourceHomeArgs = {}
+      const response = await this.runSourceOperationResponse(source.sourceId, 'get_home', args, 1)
+      return parseSourceHomeSectionsFromResponse(source.sourceId, response)
+        .filter((section: SourceHomeSectionState): boolean => section.kind === 'mangaList' && section.manga.length > 0)
+    } catch (_error) {
+      return []
     }
   }
 

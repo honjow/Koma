@@ -5,7 +5,12 @@ import { SourceManga } from '../model/SourceModels'
 import { connectLayoutSafeArea, LayoutSafeAreaState } from '../state/LayoutSafeAreaState'
 import { connectLanguageState, LanguageState } from '../state/LanguageState'
 import { ThemeConstants } from '../theme/ThemeConstants'
-import { BrowseSourceSectionState, BrowseViewModel, SourceListingDescriptor } from '../viewmodel/BrowseViewModel'
+import {
+  BrowseSourceSectionState,
+  BrowseViewModel,
+  SourceHomeSectionState,
+  SourceListingDescriptor,
+} from '../viewmodel/BrowseViewModel'
 import { SourceRuntimeRegistryInstalledSourceSummary } from '../sourceRuntime/SourceRuntimeRegistry'
 
 function s(name: string): string {
@@ -92,6 +97,12 @@ export struct SourceBrowsePage {
   }
 
   @Builder
+  private HomeSection(section: SourceHomeSectionState) {
+    this.SectionHeader(section.title, section.manga.length)
+    this.MangaGrid(section.manga)
+  }
+
+  @Builder
   private MangaGrid(manga: SourceManga[]) {
     Grid() {
       ForEach(manga, (item: SourceManga) => {
@@ -148,7 +159,9 @@ export struct SourceBrowsePage {
 
           this.ListingSelector()
 
-          if (this.viewModel.loadingBrowse && this.viewModel.browseSections.length === 0) {
+          if (this.viewModel.loadingBrowse &&
+            this.viewModel.homeSections.length === 0 &&
+            this.viewModel.browseSections.length === 0) {
             LoadingProgress()
               .width(ThemeConstants.LOADING_SIZE_LARGE)
               .height(ThemeConstants.LOADING_SIZE_LARGE)
@@ -162,6 +175,10 @@ export struct SourceBrowsePage {
               .borderRadius(ThemeConstants.RADIUS_CARD)
               .backgroundColor(ThemeConstants.CARD)
           } else {
+            ForEach(this.viewModel.homeSections, (section: SourceHomeSectionState) => {
+              this.HomeSection(section)
+            }, (section: SourceHomeSectionState) => section.id)
+
             ForEach(this.viewModel.browseSections, (section: BrowseSourceSectionState) => {
               this.BrowseSection(section)
             }, (section: BrowseSourceSectionState) => section.listing.id)

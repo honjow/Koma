@@ -190,8 +190,18 @@ assert.match(
 )
 assert.match(
   browseViewModelSource,
+  /parseSourceHomeSectionsFromResponse\(sourceId: string[\s\S]*data\?\.\['sections'\][\s\S]*parseSourceMangaFromItem\(sourceId, item\)/,
+  'BrowseViewModel must normalize source-defined get_home manga sections',
+)
+assert.match(
+  browseViewModelSource,
   /loadSourceListings\(source: SourceRuntimeRegistryInstalledSourceSummary\)[\s\S]*runSourceOperationResponse\(source\.sourceId, 'get_listings'[\s\S]*defaultListings\(\)/,
   'BrowseViewModel must load runtime listings and keep a safe popular/latest fallback',
+)
+assert.match(
+  browseViewModelSource,
+  /loadSourceHomeSections\(source: SourceRuntimeRegistryInstalledSourceSummary\)[\s\S]*runSourceOperationResponse\(source\.sourceId, 'get_home'[\s\S]*section\.kind === 'mangaList'[\s\S]*catch \(_error\)[\s\S]*return \[\]/,
+  'BrowseViewModel must load source home sections as a fail-soft enhancement',
 )
 assert.match(
   browseViewModelSource,
@@ -205,8 +215,8 @@ assert.match(
 )
 assert.match(
   readFileSync(resolve(root, 'entry/src/main/ets/pages/SourceBrowsePage.ets'), 'utf8'),
-  /ListingSelector\(\)[\s\S]*ForEach\(this\.viewModel\.listings[\s\S]*selectBrowseListing\(listing\)[\s\S]*ForEach\(this\.viewModel\.browseSections/,
-  'SourceBrowsePage must render source-defined listing selectors and sections',
+  /ListingSelector\(\)[\s\S]*ForEach\(this\.viewModel\.listings[\s\S]*selectBrowseListing\(listing\)[\s\S]*ForEach\(this\.viewModel\.homeSections[\s\S]*ForEach\(this\.viewModel\.browseSections/,
+  'SourceBrowsePage must render source-defined listing selectors, home sections, and browse sections',
 )
 assert.doesNotMatch(
   browseViewModelSource,
