@@ -586,6 +586,7 @@
     { "name": "downloads_queue_state_running", "value": "Running" },
     { "name": "downloads_queue_state_queued", "value": "Queued" },
     { "name": "downloads_queue_summary", "value": "%s · queued %s · failed %s · blocked %s · concurrency %s" },
+    { "name": "downloads_queue_progress", "value": "%s/%s pages · %s chapters · %s complete · %s partial" },
     { "name": "downloads_toast_queue_paused", "value": "Queue is paused" },
     { "name": "downloads_toast_entry_unavailable", "value": "Download entry is unavailable" },
     { "name": "downloads_toast_retried", "value": "Download restarted" },

@@ -15,7 +15,9 @@ import {
   OFFLINE_DOWNLOAD_FOREGROUND_CONCURRENCY_LIMIT_OPTIONS,
   OfflineDownloadQueueEntry,
   OfflineDownloadQueuePreferences,
+  OfflineDownloadQueueSummary,
   OfflineDownloadQueueStore,
+  summarizeOfflineDownloadQueue,
 } from '../model/OfflineDownloadQueueStore'
 import { installReaderRemoteHeadersForComic } from '../model/ReaderPageSourceAdapter'
 import { AppStrings } from '../i18n/AppStrings'
@@ -168,27 +170,26 @@ export struct DownloadsPage {
   }
 
   private queueStateText(): string {
-    const running = this.entries.filter((entry: OfflineDownloadQueueEntry): boolean => {
-      return entry.status === OfflineDownloadStatus.DOWNLOADING
-    }).length
-    const queued = this.entries.filter((entry: OfflineDownloadQueueEntry): boolean => {
-      return entry.status === OfflineDownloadStatus.QUEUED
-    }).length
-    const failed = this.entries.filter((entry: OfflineDownloadQueueEntry): boolean => {
-      return entry.status === OfflineDownloadStatus.FAILED || entry.status === OfflineDownloadStatus.PARTIAL
-    }).length
-    const blocked = this.entries.filter((entry: OfflineDownloadQueueEntry): boolean => {
-      return entry.status === OfflineDownloadStatus.BLOCKED
-    }).length
+    const summary = summarizeOfflineDownloadQueue(this.entries)
     const state = this.preferences.isPaused
       ? s('downloads_queue_state_paused')
-      : (running > 0 || this.busyKey.length > 0 ? s('downloads_queue_state_running') : s('downloads_queue_state_queued'))
+      : (summary.downloadingCount > 0 || this.busyKey.length > 0 ? s('downloads_queue_state_running') : s('downloads_queue_state_queued'))
     return s('downloads_queue_summary')
       .replace('%s', state)
-      .replace('%s', `${queued}`)
-      .replace('%s', `${failed}`)
-      .replace('%s', `${blocked}`)
+      .replace('%s', `${summary.queuedCount}`)
+      .replace('%s', `${summary.failedCount + summary.partialCount}`)
+      .replace('%s', `${summary.blockedCount}`)
       .replace('%s', `${this.preferences.foregroundConcurrencyLimit}`)
+  }
+
+  private queueProgressText(): string {
+    const summary: OfflineDownloadQueueSummary = summarizeOfflineDownloadQueue(this.entries)
+    return s('downloads_queue_progress')
+      .replace('%s', `${summary.downloadedPageCount}`)
+      .replace('%s', `${summary.pageCount}`)
+      .replace('%s', `${summary.totalCount}`)
+      .replace('%s', `${summary.downloadedCount}`)
+      .replace('%s', `${summary.partialCount}`)
   }
 
   private queuedEntries(): OfflineDownloadQueueEntry[] {
@@ -481,6 +482,12 @@ export struct DownloadsPage {
   private QueueControls() {
     Column({ space: ThemeConstants.SPACE_SM }) {
       Text(this.queueStateText())
+        .width('100%')
+        .fontSize(ThemeConstants.FONT_SIZE_CAPTION)
+        .fontColor(ThemeConstants.TEXT_SECONDARY)
+        .maxLines(2)
+        .textOverflow({ overflow: TextOverflow.Ellipsis })
+      Text(this.queueProgressText())
         .width('100%')
         .fontSize(ThemeConstants.FONT_SIZE_CAPTION)
         .fontColor(ThemeConstants.TEXT_SECONDARY)

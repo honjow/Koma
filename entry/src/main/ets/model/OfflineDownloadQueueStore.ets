@@ -36,6 +36,18 @@ export interface OfflineDownloadQueuePreferences {
   isPaused: boolean
 }
 
+export interface OfflineDownloadQueueSummary {
+  totalCount: number
+  queuedCount: number
+  downloadingCount: number
+  downloadedCount: number
+  partialCount: number
+  failedCount: number
+  blockedCount: number
+  pageCount: number
+  downloadedPageCount: number
+}
+
 interface OfflineDownloadQueueDocument {
   schemaVersion: number
   preferences?: OfflineDownloadQueuePreferences
@@ -141,6 +153,40 @@ function normalizePreferences(preferences?: OfflineDownloadQueuePreferences): Of
   }
 }
 
+export function summarizeOfflineDownloadQueue(entries: OfflineDownloadQueueEntry[]): OfflineDownloadQueueSummary {
+  const summary: OfflineDownloadQueueSummary = {
+    totalCount: 0,
+    queuedCount: 0,
+    downloadingCount: 0,
+    downloadedCount: 0,
+    partialCount: 0,
+    failedCount: 0,
+    blockedCount: 0,
+    pageCount: 0,
+    downloadedPageCount: 0,
+  }
+  entries.forEach((entry: OfflineDownloadQueueEntry) => {
+    const normalized = normalizeEntry(entry)
+    summary.totalCount += 1
+    summary.pageCount += normalized.pageCount
+    summary.downloadedPageCount += Math.min(normalized.downloadedPageCount, normalized.pageCount)
+    if (normalized.status === OfflineDownloadStatus.QUEUED) {
+      summary.queuedCount += 1
+    } else if (normalized.status === OfflineDownloadStatus.DOWNLOADING) {
+      summary.downloadingCount += 1
+    } else if (normalized.status === OfflineDownloadStatus.DOWNLOADED) {
+      summary.downloadedCount += 1
+    } else if (normalized.status === OfflineDownloadStatus.PARTIAL) {
+      summary.partialCount += 1
+    } else if (normalized.status === OfflineDownloadStatus.BLOCKED) {
+      summary.blockedCount += 1
+    } else {
+      summary.failedCount += 1
+    }
+  })
+  return summary
+}
+
 export class OfflineDownloadQueueStore {
   private readonly filesDir: string
   private readonly rootDir: string
@@ -174,6 +220,10 @@ export class OfflineDownloadQueueStore {
 
   load(): OfflineDownloadQueueEntry[] {
     return this.loadDocument().entries
+  }
+
+  loadSummary(): OfflineDownloadQueueSummary {
+    return summarizeOfflineDownloadQueue(this.load())
   }
 
   loadPreferences(): OfflineDownloadQueuePreferences {

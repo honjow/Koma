@@ -586,6 +586,7 @@
     { "name": "downloads_queue_state_running", "value": "运行中" },
     { "name": "downloads_queue_state_queued", "value": "排队" },
     { "name": "downloads_queue_summary", "value": "%s · 排队 %s · 失败 %s · 受阻 %s · 并发 %s" },
+    { "name": "downloads_queue_progress", "value": "%s/%s 页 · %s 个章节 · %s 完成 · %s 部分完成" },
     { "name": "downloads_toast_queue_paused", "value": "队列已暂停" },
     { "name": "downloads_toast_entry_unavailable", "value": "下载条目不可用" },
     { "name": "downloads_toast_retried", "value": "已重新下载" },
