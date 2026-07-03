@@ -532,6 +532,14 @@ export class OfflineDownloadStore {
     }
   }
 
+  isChapterFullyDownloaded(comicId: ComicId, chapterId: string): boolean {
+    const validation = this.validateDownloadedChapter(comicId, chapterId)
+    return validation.status === OfflineDownloadedChapterStatus.DOWNLOADED &&
+      validation.pageCount > 0 &&
+      validation.availablePageCount === validation.pageCount &&
+      validation.missingPageCount === 0
+  }
+
   saveManifest(manifest: OfflineChapterDownloadManifest): OfflineChapterDownloadManifest {
     const chapterDir = this.chapterDir(manifest.comicId, manifest.chapterId)
     ensureDirSync(chapterDir)

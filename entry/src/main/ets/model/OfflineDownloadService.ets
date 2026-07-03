@@ -210,6 +210,16 @@ export class OfflineDownloadService {
       }
       manifest.status = OfflineDownloadStatus.DOWNLOADED
       manifest = this.store.saveManifest(manifest)
+      const finalValidation = this.store.validateDownloadedChapter(comic.id, chapterId)
+      if (!this.store.isChapterFullyDownloaded(comic.id, chapterId)) {
+        manifest.status = finalValidation.availablePageCount > 0 ? OfflineDownloadStatus.PARTIAL : OfflineDownloadStatus.FAILED
+        manifest.failureReasonCode = finalValidation.reasonCode ?? 'manifest_validation_failed'
+        manifest = this.store.saveManifest(manifest)
+        this.queueStore.upsert(this.queueStore.fromManifest(manifest, labels?.comicTitle ?? comic.title, labels?.chapterTitle ?? chapter.title))
+        console.warn(`[ReaderOffline] step=download_final_validation_failed comic=${createOfflineDownloadStableHash(comic.id)} chapter=${createOfflineDownloadStableHash(chapterId)} pages=${finalValidation.availablePageCount}/${finalValidation.pageCount} reason=${manifest.failureReasonCode}`)
+        this.publishNotification(manifest, labels ?? { comicTitle: comic.title, chapterTitle: chapter.title })
+        return manifest
+      }
       this.queueStore.upsert(this.queueStore.fromManifest(manifest, labels?.comicTitle ?? comic.title, labels?.chapterTitle ?? chapter.title))
       console.info(`[ReaderOffline] step=download_done comic=${createOfflineDownloadStableHash(comic.id)} chapter=${createOfflineDownloadStableHash(chapterId)} pages=${manifest.downloadedPageCount}/${manifest.pageCount}`)
       this.publishNotification(manifest, labels ?? { comicTitle: comic.title, chapterTitle: chapter.title })
