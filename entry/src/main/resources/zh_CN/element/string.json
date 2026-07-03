@@ -380,6 +380,8 @@
     { "name": "library_sort_source", "value": "来源" },
     { "name": "library_sort_last_read", "value": "最近阅读" },
     { "name": "library_source_local", "value": "本地" },
+    { "name": "library_source_private", "value": "私有库" },
+    { "name": "library_source_package", "value": "源包" },
     { "name": "library_source_wasm", "value": "源包" },
     { "name": "library_source_all", "value": "全部来源" },
     { "name": "library_read_state_unread", "value": "未读" },

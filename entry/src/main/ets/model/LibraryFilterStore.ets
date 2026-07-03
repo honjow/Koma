@@ -6,7 +6,7 @@ import {
   LibraryCategoryFilter,
 } from './LibraryStore'
 
-export type LibrarySourceFilter = 'all' | 'local' | 'komga' | 'opds' | 'webdav' | 'wasm'
+export type LibrarySourceFilter = 'all' | 'local' | 'private' | 'komga' | 'opds' | 'webdav' | 'source_package'
 export type LibraryAvailabilityFilter = 'all' | 'downloaded'
 
 export interface LibraryFilterPreferences {
@@ -40,7 +40,17 @@ function normalizeSortBy(value: string): LibrarySortBy {
 }
 
 function normalizeSource(value: string): LibrarySourceFilter {
-  if (value === 'local' || value === 'komga' || value === 'opds' || value === 'webdav' || value === 'wasm') {
+  if (value === 'wasm') {
+    return 'source_package'
+  }
+  if (
+    value === 'local' ||
+    value === 'private' ||
+    value === 'komga' ||
+    value === 'opds' ||
+    value === 'webdav' ||
+    value === 'source_package'
+  ) {
     return value
   }
   return 'all'

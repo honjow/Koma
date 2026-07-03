@@ -189,7 +189,7 @@ export struct LibraryPage {
         nextComics.push(comic)
       }
     })
-    this.displayedComics = this.filterDownloadedComics(nextComics)
+    this.displayedComics = this.filterDownloadedComics(this.filterPreciseSourceComics(nextComics))
     this.displayedRevision += 1
     this.removeMissingSelectedComics()
   }
@@ -217,6 +217,32 @@ export struct LibraryPage {
       console.info('[Library] step=download_filter_load_failed reason=' + e.message)
     }
     return comicIds
+  }
+
+  private filterPreciseSourceComics(comics: Comic[]): Comic[] {
+    if (this.filterSource === 'source_package') {
+      return comics.filter((comic: Comic): boolean => this.isSourcePackageComic(comic))
+    }
+    if (this.filterSource === 'private') {
+      return comics.filter((comic: Comic): boolean => this.isPrivateLibraryComic(comic))
+    }
+    return comics
+  }
+
+  private isSourcePackageComic(comic: Comic): boolean {
+    return comic.sourceKind === ComicSourceKind.PRIVATE_LIBRARY &&
+      comic.sourceRuntimeId !== undefined &&
+      comic.sourceRuntimeId.trim().length > 0
+  }
+
+  private isPrivateLibraryComic(comic: Comic): boolean {
+    if (this.isSourcePackageComic(comic)) {
+      return false
+    }
+    return comic.sourceKind === ComicSourceKind.PRIVATE_LIBRARY ||
+      comic.sourceKind === ComicSourceKind.KOMGA_REMOTE ||
+      comic.sourceKind === ComicSourceKind.OPDS_REMOTE ||
+      comic.sourceKind === ComicSourceKind.WEBDAV_REMOTE
   }
 
   private progressByComicId(): Map<ComicId, ReadingProgress> {
@@ -266,6 +292,14 @@ export struct LibraryPage {
     }
     if (this.filterSource === 'local') {
       return [ComicSourceKind.LOCAL_ARCHIVE, ComicSourceKind.LOCAL_FOLDER]
+    }
+    if (this.filterSource === 'private') {
+      return [
+        ComicSourceKind.PRIVATE_LIBRARY,
+        ComicSourceKind.KOMGA_REMOTE,
+        ComicSourceKind.OPDS_REMOTE,
+        ComicSourceKind.WEBDAV_REMOTE,
+      ]
     }
     if (this.filterSource === 'komga') {
       return [ComicSourceKind.KOMGA_REMOTE]
@@ -393,6 +427,9 @@ export struct LibraryPage {
     if (this.filterSource === 'local') {
       return s('library_source_local')
     }
+    if (this.filterSource === 'private') {
+      return s('library_source_private')
+    }
     if (this.filterSource === 'komga') {
       return s('route_komga_title')
     }
@@ -402,8 +439,8 @@ export struct LibraryPage {
     if (this.filterSource === 'webdav') {
       return s('route_webdav_title')
     }
-    if (this.filterSource === 'wasm') {
-      return s('library_source_wasm')
+    if (this.filterSource === 'source_package') {
+      return s('library_source_package')
     }
     return s('library_source_all')
   }
@@ -836,6 +873,10 @@ export struct LibraryPage {
         .onClick(() => {
           this.setSourceFilter('local')
         })
+      MenuItem({ content: s('library_source_private') })
+        .onClick(() => {
+          this.setSourceFilter('private')
+        })
       MenuItem({ content: s('route_komga_title') })
         .onClick(() => {
           this.setSourceFilter('komga')
@@ -848,9 +889,9 @@ export struct LibraryPage {
         .onClick(() => {
           this.setSourceFilter('webdav')
         })
-      MenuItem({ content: s('library_source_wasm') })
+      MenuItem({ content: s('library_source_package') })
         .onClick(() => {
-          this.setSourceFilter('wasm')
+          this.setSourceFilter('source_package')
         })
     }
   }

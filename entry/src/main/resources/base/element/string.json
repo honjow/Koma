@@ -380,6 +380,8 @@
     { "name": "library_sort_source", "value": "Source" },
     { "name": "library_sort_last_read", "value": "Recently read" },
     { "name": "library_source_local", "value": "Local" },
+    { "name": "library_source_private", "value": "Private libraries" },
+    { "name": "library_source_package", "value": "Source packages" },
     { "name": "library_source_wasm", "value": "Source packages" },
     { "name": "library_source_all", "value": "All sources" },
     { "name": "library_read_state_unread", "value": "Unread" },
