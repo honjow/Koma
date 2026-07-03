@@ -105,6 +105,7 @@ import {
   getReaderPageGapModeLabel,
   getReaderPageModeLabel,
   getReaderProgressControlsLabel,
+  getReaderSwipeNavigationLabel,
   getReaderTapNavigationLabel,
   getReaderTapZonePresetLabel,
   getReaderThemeModeLabel,
@@ -192,6 +193,7 @@ function createSettingsSections(): SettingsSection[] {
         { key: 'reader-keep-screen-awake', titleKey: 'settings_row_reader_keep_screen_awake_title', detailKey: 'settings_row_reader_keep_screen_awake_detail' },
         { key: 'reader-image-fit', titleKey: 'settings_row_reader_image_fit_title', detailKey: 'settings_row_reader_image_fit_detail' },
         { key: 'reader-tap-navigation', titleKey: 'settings_row_reader_tap_navigation_title', detailKey: 'settings_row_reader_tap_navigation_detail' },
+        { key: 'reader-swipe-navigation', titleKey: 'settings_row_reader_swipe_navigation_title', detailKey: 'settings_row_reader_swipe_navigation_detail' },
         { key: 'reader-tap-zone-preset', titleKey: 'settings_row_reader_tap_zone_preset_title', detailKey: 'settings_row_reader_tap_zone_preset_detail' },
         { key: 'reader-page-gap', titleKey: 'settings_row_reader_page_gap_title', detailKey: 'settings_row_reader_page_gap_detail' },
         { key: 'reader-trim-page-margins', titleKey: 'settings_row_reader_trim_page_margins_title', detailKey: 'settings_row_reader_trim_page_margins_detail' },
@@ -387,6 +389,7 @@ export struct SettingsPage {
   @Local private keepReaderScreenAwake: boolean = true
   @Local private readerImageFitMode: ReaderImageFitMode = 'contain'
   @Local private readerTapNavigationEnabled: boolean = true
+  @Local private readerSwipeNavigationEnabled: boolean = true
   @Local private readerTapZonePreset: ReaderTapZonePreset = 'edge'
   @Local private readerPageGapMode: ReaderPageGapMode = 'normal'
   @Local private readerTrimPageMarginsEnabled: boolean = false
@@ -518,6 +521,9 @@ export struct SettingsPage {
     }
     if (row.key === 'reader-tap-navigation') {
       return getReaderTapNavigationLabel(this.readerTapNavigationEnabled)
+    }
+    if (row.key === 'reader-swipe-navigation') {
+      return getReaderSwipeNavigationLabel(this.readerSwipeNavigationEnabled)
     }
     if (row.key === 'reader-tap-zone-preset') {
       return getReaderTapZonePresetLabel(this.readerTapZonePreset)
@@ -875,6 +881,7 @@ export struct SettingsPage {
     this.keepReaderScreenAwake = preferences.keepScreenAwake
     this.readerImageFitMode = preferences.imageFitMode
     this.readerTapNavigationEnabled = preferences.tapNavigationEnabled
+    this.readerSwipeNavigationEnabled = preferences.swipeNavigationEnabled
     this.readerTapZonePreset = preferences.tapZonePreset
     this.readerPageGapMode = preferences.pageGapMode
     this.readerTrimPageMarginsEnabled = preferences.trimPageMarginsEnabled
@@ -1174,6 +1181,17 @@ export struct SettingsPage {
       })
       .catch((error: Error) => {
         console.warn('[Settings] step=save_reader_tap_navigation_failed message=' + error.message)
+      })
+  }
+
+  private saveReaderSwipeNavigationEnabled(swipeNavigationEnabled: boolean): void {
+    this.readerSwipeNavigationEnabled = swipeNavigationEnabled
+    void this.preferencesStore().saveSwipeNavigationEnabled(swipeNavigationEnabled)
+      .then(() => {
+        console.info('[Settings] step=save_reader_swipe_navigation value=' + swipeNavigationEnabled)
+      })
+      .catch((error: Error) => {
+        console.warn('[Settings] step=save_reader_swipe_navigation_failed message=' + error.message)
       })
   }
 
@@ -1770,6 +1788,7 @@ export struct SettingsPage {
       row.key === 'reader-progress' ||
       row.key === 'reader-keep-screen-awake' ||
       row.key === 'reader-tap-navigation' ||
+      row.key === 'reader-swipe-navigation' ||
       row.key === 'reader-trim-page-margins' ||
       row.key === 'reader-volume-key-navigation'
   }
@@ -1795,6 +1814,9 @@ export struct SettingsPage {
     }
     if (row.key === 'reader-tap-navigation') {
       return this.readerTapNavigationEnabled
+    }
+    if (row.key === 'reader-swipe-navigation') {
+      return this.readerSwipeNavigationEnabled
     }
     if (row.key === 'reader-trim-page-margins') {
       return this.readerTrimPageMarginsEnabled
@@ -1823,6 +1845,8 @@ export struct SettingsPage {
       this.saveReaderKeepScreenAwake(value)
     } else if (row.key === 'reader-tap-navigation') {
       this.saveReaderTapNavigationEnabled(value)
+    } else if (row.key === 'reader-swipe-navigation') {
+      this.saveReaderSwipeNavigationEnabled(value)
     } else if (row.key === 'reader-trim-page-margins') {
       this.saveReaderTrimPageMarginsEnabled(value)
     } else if (row.key === 'reader-volume-key-navigation') {

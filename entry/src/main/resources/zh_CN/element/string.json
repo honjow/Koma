@@ -208,6 +208,8 @@
     { "name": "settings_row_reader_image_fit_detail", "value": "页面如何适应屏幕" },
     { "name": "settings_row_reader_tap_navigation_title", "value": "点击翻页" },
     { "name": "settings_row_reader_tap_navigation_detail", "value": "点击切换页面" },
+    { "name": "settings_row_reader_swipe_navigation_title", "value": "滑动翻页" },
+    { "name": "settings_row_reader_swipe_navigation_detail", "value": "拖动页面切换" },
     { "name": "settings_row_reader_tap_zone_preset_title", "value": "点击区域预设" },
     { "name": "settings_row_reader_tap_zone_preset_detail", "value": "点击区域布局" },
     { "name": "settings_row_reader_page_gap_title", "value": "页间距" },
