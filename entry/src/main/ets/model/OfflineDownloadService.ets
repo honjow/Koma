@@ -14,6 +14,7 @@ import { createReaderSessionConfigFromComic } from './ReaderSessionStore'
 import {
   OfflineChapterDownloadManifest,
   OfflineChapterManifestIdentity,
+  OfflineDownloadedChapterStatus,
   OfflineDownloadSummary,
   OfflineDownloadStatus,
   OfflineDownloadStore,
@@ -89,6 +90,16 @@ function manifestIdentityFromComic(comic: Comic): OfflineChapterManifestIdentity
   }
 }
 
+function reusableDownloadedPage(pages: OfflineDownloadedPage[], pageId: string, pageIndex: number): OfflineDownloadedPage | undefined {
+  const page = pages.find((item: OfflineDownloadedPage): boolean => {
+    return item.pageId === pageId || item.pageIndex === pageIndex
+  })
+  if (page === undefined || !fs.accessSync(page.localPath)) {
+    return undefined
+  }
+  return page
+}
+
 export class OfflineDownloadService {
   private readonly store: OfflineDownloadStore
   private readonly queueStore: OfflineDownloadQueueStore
@@ -152,6 +163,10 @@ export class OfflineDownloadService {
       return manifest
     }
 
+    const existingValidation = this.store.validateDownloadedChapter(comic.id, chapterId)
+    const reusablePages = existingValidation.status === OfflineDownloadedChapterStatus.PARTIAL && existingValidation.manifest !== undefined ?
+      existingValidation.manifest.pages :
+      []
     let manifest = this.store.createManifest(comic.id, chapterId, chapter.pages.length, OfflineDownloadStatus.DOWNLOADING, manifestIdentityFromComic(comic))
     this.queueStore.upsert(this.queueStore.fromManifest(manifest, labels?.comicTitle ?? comic.title, labels?.chapterTitle ?? chapter.title))
     const config = createReaderSessionConfigFromComic(comic, chapterId)
@@ -166,6 +181,19 @@ export class OfflineDownloadService {
         }
         const page = pageAtIndex(chapter, index)
         const pageId = page?.id ?? `page-${index + 1}`
+        const reusablePage = reusableDownloadedPage(reusablePages, pageId, index)
+        if (reusablePage !== undefined) {
+          manifest = this.store.recordPage(manifest, {
+            pageId,
+            pageIndex: index,
+            fileName: reusablePage.fileName,
+            localPath: reusablePage.localPath,
+            size: reusablePage.size,
+            updatedAt: reusablePage.updatedAt,
+          })
+          this.queueStore.upsert(this.queueStore.fromManifest(manifest, labels?.comicTitle ?? comic.title, labels?.chapterTitle ?? chapter.title))
+          continue
+        }
         const source = createReaderPageRenderSource(config, index, { preferOffline: false })
         const localPath = this.store.pageFilePath(comic.id, chapterId, pageId, index, extensionFromUri(source.uri.length > 0 ? source.uri : source.imageUri))
         const size = await this.writePage(source, localPath)
