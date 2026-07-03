@@ -471,7 +471,7 @@ export class RemoteServerStore {
     if (draft.authKind === KomgaAuthKind.API_KEY) {
       const apiKey = draft.apiKey === undefined ? '' : draft.apiKey.trim()
       if (apiKey.length === 0) {
-        throw new Error('请输入 API key')
+        throw new Error(AppStrings.get('server_error_missing_api_key'))
       }
       return {
         credentialRef: DEFAULT_KOMGA_CREDENTIAL_REF,
@@ -481,7 +481,7 @@ export class RemoteServerStore {
     const username = draft.username === undefined ? '' : draft.username.trim()
     const password = draft.password === undefined ? '' : draft.password
     if (username.length === 0 || password.length === 0) {
-      throw new Error('请输入用户名和密码')
+      throw new Error(AppStrings.get('server_error_missing_username_password'))
     }
     return {
       credentialRef: DEFAULT_KOMGA_CREDENTIAL_REF,
@@ -496,7 +496,7 @@ export class RemoteServerStore {
       return undefined
     }
     if (username.length === 0 || password.length === 0) {
-      throw new Error('请输入用户名和密码')
+      throw new Error(AppStrings.get('server_error_missing_username_password'))
     }
     return {
       credentialRef: DEFAULT_WEBDAV_CREDENTIAL_REF,
@@ -511,7 +511,7 @@ export class RemoteServerStore {
       return undefined
     }
     if (username.length === 0 || password.length === 0) {
-      throw new Error('请输入用户名和密码')
+      throw new Error(AppStrings.get('server_error_missing_username_password'))
     }
     return {
       credentialRef: DEFAULT_OPDS_CREDENTIAL_REF,

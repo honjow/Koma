@@ -331,6 +331,8 @@
     { "name": "server_status_testing", "value": "正在测试连接..." },
     { "name": "server_action_save_and_test", "value": "保存并测试连接" },
     { "name": "server_action_remove_config", "value": "移除配置" },
+    { "name": "server_error_missing_api_key", "value": "请输入 API key" },
+    { "name": "server_error_missing_username_password", "value": "请输入用户名和密码" },
     { "name": "komga_status_success", "value": "连接成功，发现 %s 个库" },
     { "name": "komga_toast_success", "value": "Komga 连接成功" },
     { "name": "komga_status_failed", "value": "连接失败：%s" },

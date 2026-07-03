@@ -19,6 +19,8 @@ const libraryUpdateServicePath = resolve(root, 'entry/src/main/ets/model/Library
 const libraryUpdateResultStorePath = resolve(root, 'entry/src/main/ets/model/LibraryUpdateResultStore.ets')
 const libraryUpdatePreferencesStorePath = resolve(root, 'entry/src/main/ets/model/LibraryUpdatePreferencesStore.ets')
 const backupServicePath = resolve(root, 'entry/src/main/ets/model/BackupService.ets')
+const backupEncryptionServicePath = resolve(root, 'entry/src/main/ets/model/BackupEncryptionService.ets')
+const remoteServerStorePath = resolve(root, 'entry/src/main/ets/model/RemoteServerStore.ets')
 const readerPreferencesStorePath = resolve(root, 'entry/src/main/ets/model/ReaderPreferencesStore.ets')
 const offlineDownloadStorePath = resolve(root, 'entry/src/main/ets/model/OfflineDownloadStore.ets')
 const offlineDownloadServicePath = resolve(root, 'entry/src/main/ets/model/OfflineDownloadService.ets')
@@ -59,6 +61,8 @@ const libraryUpdateServiceSource = readFileSync(libraryUpdateServicePath, 'utf8'
 const libraryUpdateResultStoreSource = readFileSync(libraryUpdateResultStorePath, 'utf8')
 const libraryUpdatePreferencesStoreSource = readFileSync(libraryUpdatePreferencesStorePath, 'utf8')
 const backupServiceSource = readFileSync(backupServicePath, 'utf8')
+const backupEncryptionServiceSource = readFileSync(backupEncryptionServicePath, 'utf8')
+const remoteServerStoreSource = readFileSync(remoteServerStorePath, 'utf8')
 const readerPreferencesStoreSource = readFileSync(readerPreferencesStorePath, 'utf8')
 const offlineDownloadStoreSource = readFileSync(offlineDownloadStorePath, 'utf8')
 const offlineDownloadServiceSource = readFileSync(offlineDownloadServicePath, 'utf8')
@@ -1396,6 +1400,16 @@ assert.match(
   'raw plaintext preview must use the plaintext-only schema gate',
 )
 assert.match(
+  backupEncryptionServiceSource,
+  /AppStrings\.get\('backup_preview_not_provided'\)/,
+  'encrypted backup envelope preview fallback text must use localized backup resources',
+)
+assert.doesNotMatch(
+  backupEncryptionServiceSource,
+  /'未提供'|"未提供"/,
+  'encrypted backup envelope preview must not hardcode Chinese fallback text',
+)
+assert.match(
   backupServiceSource,
   /function isAcceptedDecryptedSchemaVersion[\s\S]*BACKUP_ENCRYPTED_SCHEMA_VERSION/,
   'schema v4 must only be accepted by decrypted backup content gates',
@@ -1444,6 +1458,16 @@ assert.doesNotMatch(
   backupServiceSource,
   /console\.(?:info|warn|error)\([^)]*(?:libraryStore|readingProgress|remoteServers|sourcePackages|wasmBase64|payload)/,
   'backup service must not log raw backup payloads, credentials, or source package bytes',
+)
+assert.match(
+  remoteServerStoreSource,
+  /AppStrings\.get\('server_error_missing_api_key'\)[\s\S]*AppStrings\.get\('server_error_missing_username_password'\)/,
+  'remote server credential validation errors must use localized resources',
+)
+assert.doesNotMatch(
+  remoteServerStoreSource,
+  /请输入 API key|请输入用户名和密码/,
+  'remote server store must not hardcode Chinese credential validation errors',
 )
 assert.match(
   sourceSettingsStoreSource,

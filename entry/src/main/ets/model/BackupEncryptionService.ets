@@ -1,5 +1,6 @@
 import { buffer, util } from '@kit.ArkTS'
 import { cryptoFramework } from '@kit.CryptoArchitectureKit'
+import { AppStrings } from '../i18n/AppStrings'
 
 export const BACKUP_ENCRYPTED_KIND: string = 'koma.backup.encrypted'
 export const BACKUP_ENCRYPTED_KIND_V1: string = 'koma.backup.encrypted.v1'
@@ -165,7 +166,7 @@ export function previewEncryptedBackupEnvelope(json: string): BackupEncryptedPub
     kind: envelope.kind,
     envelopeVersion: envelope.envelopeVersion,
     contentSchemaVersion: envelope.contentSchemaVersion,
-    exportedAtText: envelope.createdAt > 0 ? new Date(envelope.createdAt).toLocaleString() : '未提供',
+    exportedAtText: envelope.createdAt > 0 ? new Date(envelope.createdAt).toLocaleString() : AppStrings.get('backup_preview_not_provided'),
     algorithm: envelope.algorithm,
     kdfId: envelope.kdf.id,
   }

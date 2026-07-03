@@ -331,6 +331,8 @@
     { "name": "server_status_testing", "value": "Testing connection..." },
     { "name": "server_action_save_and_test", "value": "Save and test connection" },
     { "name": "server_action_remove_config", "value": "Remove configuration" },
+    { "name": "server_error_missing_api_key", "value": "Please enter an API key" },
+    { "name": "server_error_missing_username_password", "value": "Please enter both username and password" },
     { "name": "komga_status_success", "value": "Connected, found %s libraries" },
     { "name": "komga_toast_success", "value": "Komga connected" },
     { "name": "komga_status_failed", "value": "Connection failed: %s" },

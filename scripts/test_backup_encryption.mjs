@@ -119,8 +119,8 @@ assert.match(serviceSource, /BACKUP_ENCRYPTION_NATIVE_CIPHER:\s*string = 'AES256
 assert.match(serviceSource, /aad:\s*\{\s*data:\s*aad\s*\}/, 'production GCM must bind AAD')
 assert.match(backupServiceSource, /exportEncrypted\(passphrase: string\)[\s\S]*BackupEncryptionService\(\)\.encrypt/, 'BackupService must expose encrypted export')
 assert.match(backupServiceSource, /decryptPreview\(json: string, passphrase: string\)[\s\S]*BackupEncryptionService\(\)\.decrypt/, 'BackupService must expose encrypted decrypt preview')
-assert.match(pageSource, /TextInput\(\{ text: this\.exportPassphrase[\s\S]*InputType\.Password/, 'UI must collect export passphrase as password input')
-assert.match(pageSource, /TextInput\(\{ text: this\.importPassphrase[\s\S]*InputType\.Password/, 'UI must collect import passphrase as password input')
+assert.match(pageSource, /KomaFormTextField\(\{[\s\S]*value:\s*this\.exportPassphrase[\s\S]*isPassword:\s*true/, 'UI must collect export passphrase as password input')
+assert.match(pageSource, /KomaFormTextField\(\{[\s\S]*value:\s*this\.importPassphrase[\s\S]*isPassword:\s*true/, 'UI must collect import passphrase as password input')
 assert.doesNotMatch(pageSource, /计划中|尚未启用|enabled\(false\)[\s\S]*加密备份/, 'UI must not leave encryption as placeholder-only')
 assert.doesNotMatch(`${serviceSource}\n${backupServiceSource}\n${pageSource}`, /console\.(info|error|warn)\([^)]*(passphrase|payload|ciphertext|uri=)/i, 'logs must not include passphrases, payloads, ciphertext, or raw paths')
 
