@@ -9,6 +9,7 @@ import {
   countLibraryUpdateNewChapters,
   summarizeLibraryUpdateProviders,
 } from './LibraryUpdateService'
+import { AppStrings } from '../i18n/AppStrings'
 
 export const LIBRARY_UPDATE_RESULT_STORE_NAME: string = 'koma_library_update_results_v1'
 export const LIBRARY_UPDATE_LATEST_RESULT_JSON_KEY: string = 'libraryUpdate.latestResultJson'
@@ -243,7 +244,7 @@ export function createLibraryUpdateNotificationSummary(summary: LibraryUpdateSum
     }
   })
   const newChapterCount = countLibraryUpdateNewChapters(summary)
-  const summaryText = `${newChapterCount} 新章 · ${summary.updatedCount} 更新 · ${summary.failedCount} 失败`
+  const summaryText = AppStrings.format('library_update_summary_counts', newChapterCount, summary.updatedCount, summary.failedCount)
   return {
     checkedAt: summary.checkedAt,
     totalCount: summary.totalCount,

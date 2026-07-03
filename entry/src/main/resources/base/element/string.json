@@ -318,6 +318,7 @@
     { "name": "library_update_results_metric_skipped", "value": "Skipped" },
     { "name": "library_update_results_metric_failed", "value": "Failed" },
     { "name": "library_update_results_metric_new_chapters", "value": "New chapters" },
+    { "name": "library_update_summary_counts", "value": "%s new chapters · %s updated · %s failed" },
 
     { "name": "common_testing", "value": "Testing..." },
     { "name": "common_clear", "value": "Clear" },

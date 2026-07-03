@@ -318,6 +318,7 @@
     { "name": "library_update_results_metric_skipped", "value": "跳过" },
     { "name": "library_update_results_metric_failed", "value": "失败" },
     { "name": "library_update_results_metric_new_chapters", "value": "新章" },
+    { "name": "library_update_summary_counts", "value": "%s 新章 · %s 更新 · %s 失败" },
 
     { "name": "common_testing", "value": "测试中..." },
     { "name": "common_clear", "value": "清除" },

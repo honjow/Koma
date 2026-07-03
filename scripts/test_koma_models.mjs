@@ -826,6 +826,16 @@ assert.match(
 )
 assert.match(
   libraryUpdateResultStoreSource,
+  /createLibraryUpdateNotificationSummary\(summary: LibraryUpdateSummary\): LibraryUpdateNotificationSummary[\s\S]*AppStrings\.format\('library_update_summary_counts', newChapterCount, summary\.updatedCount, summary\.failedCount\)/,
+  'LibraryUpdateResultStore notification summary text must use localized summary resources',
+)
+assert.doesNotMatch(
+  libraryUpdateResultStoreSource,
+  /新章 · \$\{summary\.updatedCount\} 更新 · \$\{summary\.failedCount\} 失败/,
+  'LibraryUpdateResultStore must not hardcode Chinese update summary labels',
+)
+assert.match(
+  libraryUpdateResultStoreSource,
   /persistLibraryUpdateResult\(result: LibraryUpdateComicResult\)[\s\S]*sanitizeLibraryUpdateResultMessage\(result\.status, result\.message\)/,
   'Persisted failed library update results must store redacted failure codes instead of raw provider reasons',
 )
