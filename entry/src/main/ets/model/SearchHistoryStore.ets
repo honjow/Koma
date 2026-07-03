@@ -63,6 +63,16 @@ export function addSearchHistoryEntry(entries: SearchHistoryEntry[], query: stri
   return normalizeSearchHistoryEntries(next)
 }
 
+export function removeSearchHistoryEntry(entries: SearchHistoryEntry[], query: string): SearchHistoryEntry[] {
+  const normalizedQuery = normalizeSearchQuery(query)
+  if (normalizedQuery.length === 0) {
+    return normalizeSearchHistoryEntries(entries)
+  }
+  return normalizeSearchHistoryEntries(entries).filter((entry: SearchHistoryEntry): boolean => {
+    return entry.query.toLocaleLowerCase() !== normalizedQuery.toLocaleLowerCase()
+  })
+}
+
 export class SearchHistoryStore {
   private context: common.UIAbilityContext
 
@@ -94,6 +104,12 @@ export class SearchHistoryStore {
     const store = await this.preferences()
     await store.put(SEARCH_HISTORY_QUERIES_KEY, '[]')
     await store.flush()
+  }
+
+  async remove(query: string): Promise<SearchHistoryEntry[]> {
+    const entries = removeSearchHistoryEntry(await this.load(), query)
+    await this.save(entries)
+    return entries
   }
 
   private async save(entries: SearchHistoryEntry[]): Promise<void> {

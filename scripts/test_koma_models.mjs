@@ -10,6 +10,7 @@ const libraryCategoryManagementPagePath = resolve(root, 'entry/src/main/ets/page
 const progressStorePath = resolve(root, 'entry/src/main/ets/model/ReadingProgressStore.ets')
 const readerSessionStorePath = resolve(root, 'entry/src/main/ets/model/ReaderSessionStore.ets')
 const chapterReadStateStorePath = resolve(root, 'entry/src/main/ets/model/ChapterReadStateStore.ets')
+const searchHistoryStorePath = resolve(root, 'entry/src/main/ets/model/SearchHistoryStore.ets')
 const mockLibraryDataPath = resolve(root, 'entry/src/main/ets/model/MockLibraryData.ets')
 const sourceModelsPath = resolve(root, 'entry/src/main/ets/model/SourceModels.ets')
 const sourceTextNormalizerPath = resolve(root, 'entry/src/main/ets/model/SourceTextNormalizer.ets')
@@ -56,6 +57,7 @@ const libraryFilterStoreSource = readFileSync(libraryFilterStorePath, 'utf8')
 const progressStoreSource = readFileSync(progressStorePath, 'utf8')
 const readerSessionStoreSource = readFileSync(readerSessionStorePath, 'utf8')
 const chapterReadStateStoreSource = readFileSync(chapterReadStateStorePath, 'utf8')
+const searchHistoryStoreSource = readFileSync(searchHistoryStorePath, 'utf8')
 const mockLibraryDataSource = readFileSync(mockLibraryDataPath, 'utf8')
 const sourceModelsSource = readFileSync(sourceModelsPath, 'utf8')
 const sourceTextNormalizerSource = readFileSync(sourceTextNormalizerPath, 'utf8')
@@ -511,6 +513,27 @@ for (const [source, label] of [
   assertUsesScrollContentSafeArea(source, label)
 }
 assertSourceBrowseFloatingTabViewportClearance(sourceBrowsePageSource)
+
+assert.match(
+  searchHistoryStoreSource,
+  /export function removeSearchHistoryEntry\(entries: SearchHistoryEntry\[\], query: string\): SearchHistoryEntry\[\][\s\S]*normalizeSearchQuery\(query\)[\s\S]*entry\.query\.toLocaleLowerCase\(\) !== normalizedQuery\.toLocaleLowerCase\(\)/,
+  'SearchHistoryStore must support case-insensitive removal of a single history query',
+)
+assert.match(
+  searchHistoryStoreSource,
+  /async remove\(query: string\): Promise<SearchHistoryEntry\[\]>[\s\S]*removeSearchHistoryEntry\(await this\.load\(\), query\)[\s\S]*await this\.save\(entries\)/,
+  'SearchHistoryStore.remove must persist the single-entry deletion',
+)
+assert.match(
+  searchPageSource,
+  /import \{ KomaIconButton \} from '..\/components\/ui\/KomaIconButton'[\s\S]*removeHistoryEntry\(query: string\): void[\s\S]*store\.remove\(query\)[\s\S]*this\.loadHistory\(\)/,
+  'SearchPage must expose single history entry deletion and reload on failure',
+)
+assert.match(
+  searchPageSource,
+  /KomaIconButton\(\{[\s\S]*icon: \$r\('sys\.symbol\.trash'\)[\s\S]*this\.removeHistoryEntry\(entry\.query\)/,
+  'SearchPage history rows must use a trash icon button for single-entry deletion',
+)
 
 assert.match(
   readerSessionStoreSource,

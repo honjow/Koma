@@ -2,6 +2,7 @@ import { common } from '@kit.AbilityKit'
 import { RouterHelper } from '../common/RouterHelper'
 import { SecondaryListScaffold } from '../components/SecondaryListScaffold'
 import { KomaActionButton } from '../components/ui/KomaActionButton'
+import { KomaIconButton } from '../components/ui/KomaIconButton'
 import {
   CrossSearchResultItem,
   CrossSearchSection,
@@ -150,6 +151,22 @@ export struct SearchPage {
     }
     void store.clear().catch((error: Error) => {
       console.error('[Search] step=history_clear_failed code=' + safeSearchDiagnostic(error).code)
+    })
+  }
+
+  private removeHistoryEntry(query: string): void {
+    const store = this.historyStore
+    this.history = this.history.filter((entry: SearchHistoryEntry): boolean => {
+      return entry.query.toLocaleLowerCase() !== query.trim().toLocaleLowerCase()
+    })
+    if (store === undefined) {
+      return
+    }
+    void store.remove(query).then((entries: SearchHistoryEntry[]) => {
+      this.history = entries
+    }).catch((error: Error) => {
+      console.error('[Search] step=history_remove_failed code=' + safeSearchDiagnostic(error).code)
+      this.loadHistory()
     })
   }
 
@@ -403,9 +420,14 @@ export struct SearchPage {
             }
             .layoutWeight(1)
             .alignItems(HorizontalAlign.Start)
-            SymbolGlyph($r('sys.symbol.chevron_right'))
-              .fontSize(ThemeConstants.FONT_SIZE_TITLE)
-              .fontColor([ThemeConstants.BRAND_PRIMARY])
+            KomaIconButton({
+              icon: $r('sys.symbol.trash'),
+              kind: 'ghost',
+              accentColor: ThemeConstants.TEXT_SECONDARY,
+              action: () => {
+                this.removeHistoryEntry(entry.query)
+              },
+            })
           }
           .width('100%')
           .padding(ThemeConstants.SPACE_LG)
