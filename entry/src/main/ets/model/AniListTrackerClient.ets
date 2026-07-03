@@ -123,6 +123,20 @@ interface AniListGraphqlResponseDto {
   errors?: AniListGraphqlError[]
 }
 
+interface AniListGraphqlVariables {
+  search?: string
+  page?: number
+  perPage?: number
+  mediaId?: number
+  progress?: number
+  status?: string
+}
+
+interface AniListGraphqlPayload {
+  query: string
+  variables: AniListGraphqlVariables
+}
+
 const ANILIST_GRAPHQL_ENDPOINT: string = 'https://graphql.anilist.co'
 const ANILIST_PROVIDER_ID: TrackerProviderId = 'anilist'
 
@@ -195,6 +209,11 @@ export function aniListTrackerErrorCode(response: AniListTrackerHttpResponse): A
   return 'malformed_response'
 }
 
+function emptyAniListGraphqlVariables(): AniListGraphqlVariables {
+  const variables: AniListGraphqlVariables = {}
+  return variables
+}
+
 export class HarmonyAniListTrackerHttpAdapter implements AniListTrackerHttpAdapter {
   async request(request: AniListTrackerHttpRequest): Promise<AniListTrackerHttpResponse> {
     const httpRequest = http.createHttp()
@@ -226,10 +245,14 @@ export class AniListTrackerClient {
     this.http = http
   }
 
-  buildGraphqlRequest(accessToken: string, query: string, variables: Object = {}): AniListTrackerHttpRequest {
+  buildGraphqlRequest(accessToken: string, query: string, variables: AniListGraphqlVariables = emptyAniListGraphqlVariables()): AniListTrackerHttpRequest {
     const token = accessToken.trim()
     if (token.length === 0) {
       throw new Error('tracker_auth_required')
+    }
+    const payload: AniListGraphqlPayload = {
+      query,
+      variables,
     }
     return {
       method: 'POST',
@@ -239,10 +262,7 @@ export class AniListTrackerClient {
         accept: 'application/json',
         contentType: 'application/json',
       },
-      body: JSON.stringify({
-        query,
-        variables,
-      }),
+      body: JSON.stringify(payload),
     }
   }
 
@@ -258,11 +278,12 @@ export class AniListTrackerClient {
         value: [],
       }
     }
-    const request = this.buildGraphqlRequest(accessToken, ANILIST_SEARCH_QUERY, {
+    const variables: AniListGraphqlVariables = {
       search: normalizedQuery,
       page: Math.max(1, Math.floor(page)),
       perPage: Math.max(1, Math.min(20, Math.floor(perPage))),
-    } as Object)
+    }
+    const request = this.buildGraphqlRequest(accessToken, ANILIST_SEARCH_QUERY, variables)
     return this.sendAndParseSearch(request)
   }
 
@@ -274,7 +295,8 @@ export class AniListTrackerClient {
         errorCode: 'not_found',
       }
     }
-    const request = this.buildGraphqlRequest(accessToken, ANILIST_PROGRESS_QUERY, { mediaId } as Object)
+    const variables: AniListGraphqlVariables = { mediaId }
+    const request = this.buildGraphqlRequest(accessToken, ANILIST_PROGRESS_QUERY, variables)
     return this.sendAndParseProgress(request, mediaId)
   }
 
@@ -286,11 +308,12 @@ export class AniListTrackerClient {
         errorCode: 'not_found',
       }
     }
-    const request = this.buildGraphqlRequest(accessToken, ANILIST_SAVE_PROGRESS_MUTATION, {
+    const variables: AniListGraphqlVariables = {
       mediaId,
       progress: normalizeAniListTrackerProgress(progress),
       status: completed ? 'COMPLETED' : 'CURRENT',
-    } as Object)
+    }
+    const request = this.buildGraphqlRequest(accessToken, ANILIST_SAVE_PROGRESS_MUTATION, variables)
     return this.sendAndParseSavedProgress(request, mediaId)
   }
 

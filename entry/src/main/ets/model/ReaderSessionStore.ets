@@ -21,6 +21,7 @@ export interface ReaderSessionConfig {
   chapterId: string
   title?: string
   chapterTitle?: string
+  chapterIds: string[]
   totalPages: number
   pageUris: string[]
   pageIds: string[]
@@ -34,6 +35,7 @@ export const EMPTY_READER_SESSION_CONFIG: ReaderSessionConfig = {
   chapterId: '',
   title: '',
   chapterTitle: '',
+  chapterIds: [],
   totalPages: 0,
   pageUris: [],
   pageIds: [],
@@ -331,6 +333,7 @@ export function createReaderSessionConfigFromComic(comic: Comic, chapterId?: str
       comicId: comic.id,
       chapterId: '',
       title: comic.title,
+      chapterIds: comic.chapters.map((item: Chapter): string => item.id),
       totalPages: 0,
       pageUris: [],
       pageIds: [],
@@ -346,6 +349,7 @@ export function createReaderSessionConfigFromComic(comic: Comic, chapterId?: str
     chapterId: chapter.id,
     title: comic.title,
     chapterTitle: chapter.title,
+    chapterIds: comic.chapters.map((item: Chapter): string => item.id),
     totalPages: pages.length,
     pageUris: pages.map((page: Page) => page.uri),
     pageIds: pages.map((page: Page) => page.id),

@@ -18,6 +18,7 @@ import {
 export type TrackerProgressSyncStatus = 'synced' | 'skipped' | 'failed'
 export type TrackerProgressSyncReason =
   'auto_sync_disabled' |
+  'strategy_not_due' |
   'mapping_missing' |
   'account_missing' |
   'credential_missing' |
@@ -62,6 +63,9 @@ export class TrackerProgressSyncService {
     const preferences = await this.preferencesStore().load()
     if (!preferences.autoSyncEnabled) {
       return this.skipped('auto_sync_disabled')
+    }
+    if (preferences.updateStrategy !== 'on_chapter_complete') {
+      return this.skipped('strategy_not_due')
     }
     const mapping = this.findConfirmedAniListMapping(preferences, progress.comicId)
     if (mapping === undefined) {

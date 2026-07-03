@@ -27,11 +27,11 @@ assert.match(source, /ANILIST_SAVE_PROGRESS_MUTATION[\s\S]*SaveMediaListEntry\(m
 
 assert.match(
   source,
-  /buildGraphqlRequest\(accessToken: string[\s\S]*authorization: `Bearer \$\{token\}`[\s\S]*body: JSON\.stringify\(\{[\s\S]*query,[\s\S]*variables,/,
+  /buildGraphqlRequest\(accessToken: string, query: string, variables: AniListGraphqlVariables = emptyAniListGraphqlVariables\(\)\)[\s\S]*const payload: AniListGraphqlPayload[\s\S]*authorization: `Bearer \$\{token\}`[\s\S]*body: JSON\.stringify\(payload\)/,
   'AniList requests must keep bearer tokens in headers and serialize only query variables in the body',
 )
 const buildRequestBlock = source.match(/buildGraphqlRequest\([\s\S]*?\n  \}/)?.[0] ?? ''
-const requestBodyBlock = buildRequestBlock.match(/body: JSON\.stringify\(\{[\s\S]*?\}\),/)?.[0] ?? ''
+const requestBodyBlock = buildRequestBlock.match(/const payload: AniListGraphqlPayload = \{[\s\S]*?\n    \}/)?.[0] ?? ''
 assert.doesNotMatch(
   requestBodyBlock,
   /accessToken|token|authorization|Bearer/,

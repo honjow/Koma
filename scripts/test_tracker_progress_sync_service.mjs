@@ -20,6 +20,11 @@ assert.match(
 )
 assert.match(
   source,
+  /preferences\.updateStrategy !== 'on_chapter_complete'[\s\S]*strategy_not_due/,
+  'tracker progress push from reader page changes must respect the configured update strategy',
+)
+assert.match(
+  source,
   /findConfirmedAniListMapping\(preferences[\s\S]*mapping\.providerId === 'anilist'[\s\S]*mapping\.mappingState === 'confirmed'[\s\S]*mapping\.userConfirmed/,
   'tracker progress sync must only use user-confirmed AniList mappings',
 )

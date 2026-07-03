@@ -67,6 +67,7 @@ export type LibraryPresentationByComicId = Map<ComicId, LibraryComicPresentation
 export const MOCK_LIBRARY_READER_SESSION: ReaderSessionConfig = {
   comicId: 'local-01',
   chapterId: 'chapter-8',
+  chapterIds: ['chapter-8'],
   totalPages: 5,
   pageUris: [
     'mock://local-01/001.jpg',
