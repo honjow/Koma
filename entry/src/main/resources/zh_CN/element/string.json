@@ -270,6 +270,7 @@
     { "name": "browse_error_source_unavailable", "value": "源未安装或不可用" },
     { "name": "browse_error_source_runtime_failed", "value": "源运行失败：%s" },
     { "name": "browse_error_source_runtime_failed_generic", "value": "源运行失败" },
+    { "name": "browse_untitled_manga", "value": "未命名漫画" },
 
     { "name": "search_placeholder", "value": "搜索标题、作者、标签..." },
     { "name": "search_empty_idle_title", "value": "输入关键词开始搜索" },

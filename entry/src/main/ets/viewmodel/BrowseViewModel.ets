@@ -107,7 +107,7 @@ function itemRecord(value: RuntimeValue): RuntimeRecord | undefined {
 }
 
 function parseSourceMangaFromItem(sourceId: string, item: RuntimeRecord): SourceManga {
-  const title = optionalString(item['title']) ?? optionalString(item['id']) ?? '未命名漫画'
+  const title = optionalString(item['title']) ?? optionalString(item['id']) ?? AppStrings.get('browse_untitled_manga')
   return {
     id: optionalString(item['id']) ?? title,
     sourceId,

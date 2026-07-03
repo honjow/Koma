@@ -1636,12 +1636,12 @@ assert.match(
 )
 assert.match(
   browseViewModelSource,
-  /AppStrings\.get\('browse_error_load_sources'\)[\s\S]*AppStrings\.get\('browse_error_load_home'\)[\s\S]*AppStrings\.get\('browse_error_load_more'\)[\s\S]*AppStrings\.get\('browse_error_source_unavailable'\)[\s\S]*AppStrings\.format\('browse_error_source_runtime_failed'/,
+  /AppStrings\.get\('browse_untitled_manga'\)[\s\S]*AppStrings\.get\('browse_error_load_sources'\)[\s\S]*AppStrings\.get\('browse_error_load_home'\)[\s\S]*AppStrings\.get\('browse_error_load_more'\)[\s\S]*AppStrings\.get\('browse_error_source_unavailable'\)[\s\S]*AppStrings\.format\('browse_error_source_runtime_failed'/,
   'BrowseViewModel source browse fallback errors must use localized resources',
 )
 assert.doesNotMatch(
   browseViewModelSource,
-  /无法加载源|源浏览失败|加载更多失败|源未安装或不可用|源运行失败/,
+  /未命名漫画|无法加载源|源浏览失败|加载更多失败|源未安装或不可用|源运行失败/,
   'BrowseViewModel must not hardcode Chinese browse/runtime fallback messages',
 )
 assert.match(
