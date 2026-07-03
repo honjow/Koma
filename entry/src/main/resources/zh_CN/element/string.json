@@ -84,6 +84,7 @@
     { "name": "library_update_skip_local_unsupported", "value": "本地导入暂不支持远程更新" },
     { "name": "library_update_skip_remote_library_unsupported", "value": "该远程库暂未接入安全的元数据刷新" },
     { "name": "library_update_skip_source_kind_unsupported", "value": "暂不支持该来源" },
+    { "name": "library_update_skip_missing_remote_resource_id", "value": "缺少远程库条目标识" },
     { "name": "library_update_skip_missing_source_manga_id", "value": "缺少源漫画标识" },
     { "name": "library_update_chapter_fallback_title", "value": "第%s话" },
     { "name": "library_update_no_new_chapters", "value": "没有新章节" },

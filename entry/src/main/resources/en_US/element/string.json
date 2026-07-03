@@ -84,6 +84,7 @@
     { "name": "library_update_skip_local_unsupported", "value": "Remote update unavailable for local imports" },
     { "name": "library_update_skip_remote_library_unsupported", "value": "Safe metadata refresh unavailable for this library" },
     { "name": "library_update_skip_source_kind_unsupported", "value": "Source not supported yet" },
+    { "name": "library_update_skip_missing_remote_resource_id", "value": "Missing remote library item ID" },
     { "name": "library_update_skip_missing_source_manga_id", "value": "Missing source manga ID" },
     { "name": "library_update_chapter_fallback_title", "value": "Chapter %s" },
     { "name": "library_update_no_new_chapters", "value": "No new chapters" },

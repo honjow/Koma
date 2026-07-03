@@ -19,6 +19,15 @@ import {
   appSourceSettingsStore,
 } from '../sourceRuntime/SourceSettingsStore'
 import { AppStrings } from '../i18n/AppStrings'
+import {
+  KomgaBookDto,
+  KomgaPageDto,
+  KomgaPageImageKind,
+  createKomgaChapterId,
+  mapKomgaBookToChapter,
+  mapKomgaPageToPage,
+} from '../remote/KomgaModels'
+import { RemoteServerStore } from './RemoteServerStore'
 
 export type LibraryUpdateResultStatus = 'unchanged' | 'updated' | 'skipped' | 'failed'
 export type LibraryUpdateProviderKind = 'source_runtime' | 'local' | 'komga' | 'opds' | 'webdav' | 'private_library' | 'unsupported'
@@ -365,15 +374,18 @@ export class LibraryUpdateService {
   private libraryStore: LibraryStore
   private sourceRegistry: SourceRuntimeRegistry
   private persistenceService?: LibraryStorePersistenceService
+  private remoteServerStore?: RemoteServerStore
 
   constructor(
     libraryStore: LibraryStore,
     sourceRegistry: SourceRuntimeRegistry,
     persistenceService?: LibraryStorePersistenceService,
+    remoteServerStore?: RemoteServerStore,
   ) {
     this.libraryStore = libraryStore
     this.sourceRegistry = sourceRegistry
     this.persistenceService = persistenceService
+    this.remoteServerStore = remoteServerStore
   }
 
   async checkLibraryUpdates(): Promise<LibraryUpdateSummary> {
@@ -414,8 +426,10 @@ export class LibraryUpdateService {
     if (comic.sourceKind === ComicSourceKind.LOCAL_ARCHIVE || comic.sourceKind === ComicSourceKind.LOCAL_FOLDER) {
       return this.skippedResult(comic, previousChapterCount, AppStrings.get('library_update_skip_local_unsupported'))
     }
-    if (comic.sourceKind === ComicSourceKind.KOMGA_REMOTE ||
-      comic.sourceKind === ComicSourceKind.OPDS_REMOTE ||
+    if (comic.sourceKind === ComicSourceKind.KOMGA_REMOTE) {
+      return this.checkKomgaComic(comic, previousChapterCount)
+    }
+    if (comic.sourceKind === ComicSourceKind.OPDS_REMOTE ||
       comic.sourceKind === ComicSourceKind.WEBDAV_REMOTE ||
       comic.sourceKind === ComicSourceKind.PRIVATE_LIBRARY) {
       return this.skippedResult(comic, previousChapterCount, AppStrings.get('library_update_skip_remote_library_unsupported'))
@@ -512,6 +526,105 @@ export class LibraryUpdateService {
       throw new Error(response.reasonCode ?? 'get_chapters_empty')
     }
     return rows.map((row: Record<string, Object>): MangaChapterItem => parseMangaChapterFromSourceItem(row))
+  }
+
+  private async checkKomgaComic(comic: Comic, previousChapterCount: number): Promise<LibraryUpdateComicResult> {
+    const remoteServerStore = this.remoteServerStore
+    if (remoteServerStore === undefined) {
+      return this.skippedResult(comic, previousChapterCount, AppStrings.get('library_update_skip_remote_library_unsupported'))
+    }
+    const seriesId = this.komgaSeriesIdForComic(comic)
+    if (seriesId === undefined) {
+      return this.skippedResult(comic, previousChapterCount, AppStrings.get('library_update_skip_missing_remote_resource_id'))
+    }
+    try {
+      const record = await remoteServerStore.loadKomga()
+      if (record === undefined || (comic.remoteServerId !== undefined && record.server.id !== comic.remoteServerId)) {
+        return {
+          comicId: comic.id,
+          providerKind: providerKindForComic(comic),
+          sourceKey: sourceKeyForComic(comic),
+          status: 'failed',
+          previousChapterCount,
+          newChapterCount: previousChapterCount,
+          message: safeLibraryUpdateFailureCode('server_unavailable'),
+        }
+      }
+      const client = remoteServerStore.createKomgaClient(record)
+      const response = await client.listBooks({
+        page: 0,
+        size: 100,
+        seriesIds: [seriesId],
+        sort: ['metadata.numberSort,asc'],
+      })
+      const books = response.content.filter((book: KomgaBookDto): boolean => book.seriesId === seriesId)
+      const remoteIds = books.map((book: KomgaBookDto): string => createKomgaChapterId(record.server.id, book.id))
+      const localIds = comic.chapters.map((chapter: Chapter): string => chapter.id)
+      const hasNewId = remoteIds.some((chapterId: string): boolean => !localIds.includes(chapterId))
+      if (books.length <= previousChapterCount && !hasNewId) {
+        return {
+          comicId: comic.id,
+          providerKind: providerKindForComic(comic),
+          sourceKey: sourceKeyForComic(comic),
+          status: 'unchanged',
+          previousChapterCount,
+          newChapterCount: previousChapterCount,
+          message: AppStrings.get('library_update_no_new_chapters'),
+        }
+      }
+      const now = Date.now()
+      const chapters: Chapter[] = []
+      for (let index = 0; index < books.length; index += 1) {
+        const book = books[index]
+        const chapterId = createKomgaChapterId(record.server.id, book.id)
+        const existing = comic.chapters.find((chapter: Chapter): boolean => chapter.id === chapterId)
+        if (existing !== undefined && existing.pages.length > 0) {
+          chapters.push(mapKomgaBookToChapter(record.server.id, book, comic.id, existing.pages, index, now))
+          continue
+        }
+        const pageDtos = await client.listBookPages(book.id)
+        const pages = pageDtos.map((page: KomgaPageDto) => {
+          const mapped = mapKomgaPageToPage(record.server.id, book.id, comic.id, chapterId, page)
+          mapped.uri = client.getPageImageUrl(book.id, page.number, KomgaPageImageKind.STREAM)
+          return mapped
+        })
+        chapters.push(mapKomgaBookToChapter(record.server.id, book, comic.id, pages, index, now))
+      }
+      this.libraryStore.upsertComic(updatedComicWithChapters(comic, chapters, now))
+      return {
+        comicId: comic.id,
+        providerKind: providerKindForComic(comic),
+        sourceKey: sourceKeyForComic(comic),
+        status: 'updated',
+        previousChapterCount,
+        newChapterCount: chapters.length,
+        message: AppStrings.get('library_update_found_new_chapters')
+          .replace('%s', `${Math.max(chapters.length - previousChapterCount, 0)}`),
+      }
+    } catch (error) {
+      const e = error as Error
+      return {
+        comicId: comic.id,
+        providerKind: providerKindForComic(comic),
+        sourceKey: sourceKeyForComic(comic),
+        status: 'failed',
+        previousChapterCount,
+        newChapterCount: previousChapterCount,
+        message: safeLibraryUpdateFailureCode(e.message),
+      }
+    }
+  }
+
+  private komgaSeriesIdForComic(comic: Comic): string | undefined {
+    if (comic.remoteResourceId !== undefined && comic.remoteResourceId.trim().length > 0) {
+      return comic.remoteResourceId
+    }
+    const marker = ':series:'
+    const markerIndex = comic.id.indexOf(marker)
+    if (markerIndex >= 0 && comic.id.length > markerIndex + marker.length) {
+      return comic.id.substring(markerIndex + marker.length)
+    }
+    return undefined
   }
 
   private skippedResult(comic: Comic, previousChapterCount: number, message: string): LibraryUpdateComicResult {

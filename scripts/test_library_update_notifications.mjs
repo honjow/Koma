@@ -60,6 +60,26 @@ assert.match(
 )
 assert.match(
   serviceSource,
+  /private remoteServerStore\?: RemoteServerStore[\s\S]*if \(comic\.sourceKind === ComicSourceKind\.KOMGA_REMOTE\) \{[\s\S]*return this\.checkKomgaComic\(comic, previousChapterCount\)/,
+  'Komga library updates must use a real provider probe instead of the generic remote-library skipped path',
+)
+assert.match(
+  serviceSource,
+  /checkKomgaComic\(comic: Comic, previousChapterCount: number\)[\s\S]*remoteServerStore\.loadKomga\(\)[\s\S]*client\.listBooks\(\{[\s\S]*seriesIds: \[seriesId\][\s\S]*client\.listBookPages\(book\.id\)[\s\S]*mapKomgaBookToChapter/,
+  'Komga update probe must load the configured server, list series books, hydrate missing pages, and map chapters',
+)
+assert.match(
+  serviceSource,
+  /komgaSeriesIdForComic\(comic: Comic\)[\s\S]*comic\.remoteResourceId[\s\S]*const marker = ':series:'[\s\S]*comic\.id\.substring/,
+  'Komga update probe must recover a series id from persisted remoteResourceId or legacy comic id shape',
+)
+assert.match(
+  settingsPageSource,
+  /new LibraryUpdateService\([\s\S]*this\.libraryPersistenceService,[\s\S]*new RemoteServerStore\(this\.context\(\)\)/,
+  'Settings foreground update runner must pass RemoteServerStore so Komga library items can refresh',
+)
+assert.match(
+  serviceSource,
   /safeLibraryUpdateSourceKey\(value: string \| undefined\): string[\s\S]*return `source:\$\{\(hash >>> 0\)\.toString\(36\)\}`/,
   'Library update source keys must be hashed instead of persisting raw source/provider identifiers',
 )

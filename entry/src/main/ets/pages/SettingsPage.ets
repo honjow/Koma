@@ -51,6 +51,7 @@ import {
   OFFLINE_DOWNLOAD_FOREGROUND_CONCURRENCY_LIMIT_OPTIONS,
   OfflineDownloadQueueStore,
 } from '../model/OfflineDownloadQueueStore'
+import { RemoteServerStore } from '../model/RemoteServerStore'
 import {
   ReaderRemoteImageCacheStats,
   clearReaderRemoteImageCache,
@@ -1257,6 +1258,7 @@ export struct SettingsPage {
       this.libraryStore,
       this.sourceRegistry,
       this.libraryPersistenceService,
+      new RemoteServerStore(this.context()),
     )
     void service.checkLibraryUpdates()
       .then((summary: LibraryUpdateSummary) => {
