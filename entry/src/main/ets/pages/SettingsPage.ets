@@ -65,11 +65,16 @@ import {
   OfflineDownloadQueueStore,
 } from '../model/OfflineDownloadQueueStore'
 import {
+  OfflineDownloadNotificationDispatchResult,
   OfflineDownloadNotificationStatus,
   getOfflineDownloadNotificationStatus,
   getOfflineDownloadNotificationStatusLabel,
+  publishOfflineDownloadNotification,
   requestOfflineDownloadNotificationPermission,
 } from '../model/OfflineDownloadNotificationStore'
+import {
+  OfflineDownloadStatus,
+} from '../model/OfflineDownloadStore'
 import { RemoteServerStore } from '../model/RemoteServerStore'
 import {
   ReaderRemoteImageCacheStats,
@@ -215,6 +220,7 @@ function createSettingsSections(): SettingsSection[] {
         { key: 'sources', titleKey: 'settings_row_sources_title', detailKey: 'settings_row_sources_detail' },
         { key: 'downloads', titleKey: 'settings_row_downloads_title', detailKey: 'settings_row_downloads_detail' },
         { key: 'download-notifications', titleKey: 'settings_row_download_notifications_title', detailKey: 'settings_row_download_notifications_detail' },
+        { key: 'download-notification-test', titleKey: 'settings_row_download_notification_test_title', detailKey: 'settings_row_download_notification_test_detail' },
         { key: 'download-concurrency', titleKey: 'settings_row_download_concurrency_title', detailKey: 'settings_row_download_concurrency_detail' },
         { key: 'download-retry-failed', titleKey: 'settings_row_download_retry_failed_title', detailKey: 'settings_row_download_retry_failed_detail' },
         { key: 'download-wifi-only', titleKey: 'settings_row_download_wifi_only_title', detailKey: 'settings_row_download_wifi_only_detail' },
@@ -677,6 +683,7 @@ export struct SettingsPage {
           rows: this.rowsByKeys([
             'downloads',
             'download-notifications',
+            'download-notification-test',
             'download-concurrency',
             'download-retry-failed',
             'download-wifi-only',
@@ -1424,6 +1431,48 @@ export struct SettingsPage {
       })
   }
 
+  private handleDownloadNotificationDispatch(result: OfflineDownloadNotificationDispatchResult): void {
+    if (result.delivered) {
+      this.downloadNotificationStatus = 'enabled'
+      this.showToast(s('settings_download_notification_test_sent'))
+      return
+    }
+    if (result.code === 'disabled') {
+      this.downloadNotificationStatus = 'unavailable'
+      this.showToast(s('settings_download_notification_test_disabled'))
+      return
+    }
+    this.showToast(s('settings_download_notification_test_failed'))
+    this.loadDownloadNotificationStatus()
+  }
+
+  private sendDownloadNotificationTest(): void {
+    void publishOfflineDownloadNotification({
+      schemaVersion: 1,
+      comicId: 'koma.notification.test',
+      seriesId: 'koma.notification.test',
+      chapterId: 'koma.notification.test.chapter',
+      pageCount: 1,
+      downloadedPageCount: 1,
+      status: OfflineDownloadStatus.DOWNLOADED,
+      updatedAt: Date.now(),
+      pages: [],
+      integrityHash: 'notification-test',
+    }, {
+      comicTitle: s('download_notification_test_comic'),
+      chapterTitle: s('download_notification_test_chapter'),
+    })
+      .then((result: OfflineDownloadNotificationDispatchResult) => {
+        console.info('[Settings] step=download_notification_test code=' + result.code)
+        this.handleDownloadNotificationDispatch(result)
+      })
+      .catch((error: Error) => {
+        console.warn('[Settings] step=download_notification_test_failed code=' + safeSettingsErrorCode(error))
+        this.showToast(s('settings_download_notification_test_failed'))
+        this.loadDownloadNotificationStatus()
+      })
+  }
+
   private saveLibraryDefaultSort(sortBy: LibrarySortBy): void {
     this.libraryDefaultSortBy = sortBy
     void this.libraryFilterStore().load()
@@ -1910,6 +1959,8 @@ export struct SettingsPage {
       this.onOpenDownloads()
     } else if (row.key === 'download-notifications') {
       this.requestDownloadNotifications()
+    } else if (row.key === 'download-notification-test') {
+      this.sendDownloadNotificationTest()
     } else if (row.key === 'library-auto-update') {
       this.setLibraryAutoUpdateEnabled(!this.libraryUpdatePreferences.autoCheckEnabled)
     } else if (row.key === 'library-update-notifications') {
