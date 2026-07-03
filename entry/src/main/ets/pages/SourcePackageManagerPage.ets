@@ -949,9 +949,38 @@ export struct SourcePackageManagerPage {
     return option?.label ?? (selected.length > 0 ? selected : t('source_pkg_not_selected'))
   }
 
+  private settingMultiSelectValue(descriptor: SourceSettingDescriptor): string[] {
+    const value = this.settingDraft[descriptor.id]
+    return Array.isArray(value) ? value : []
+  }
+
+  private settingMultiSelectLabel(descriptor: SourceSettingDescriptor): string {
+    const selected = this.settingMultiSelectValue(descriptor)
+    if (selected.length === 0) {
+      return t('source_pkg_not_selected')
+    }
+    const labels: string[] = []
+    selected.forEach((id: string) => {
+      const option = descriptor.options?.find((item: SourceSettingOption): boolean => item.id === id)
+      labels.push(option?.label ?? id)
+    })
+    return labels.join(' / ')
+  }
+
   private setSelectSetting(descriptor: SourceSettingDescriptor, optionId: string): void {
     this.updateSettingValue(descriptor.id, optionId)
     this.settingMenuKey = ''
+  }
+
+  private toggleMultiSelectSetting(descriptor: SourceSettingDescriptor, optionId: string): void {
+    const selected = this.settingMultiSelectValue(descriptor)
+    if (selected.includes(optionId)) {
+      this.updateSettingValue(descriptor.id, selected.filter((id: string): boolean => id !== optionId))
+      return
+    }
+    const next = selected.slice()
+    next.push(optionId)
+    this.updateSettingValue(descriptor.id, next)
   }
 
   private capabilityLabel(capability: string): string {
@@ -1111,6 +1140,22 @@ export struct SourcePackageManagerPage {
         })
           .onClick(() => {
             this.setSelectSetting(descriptor, option.id)
+          })
+      }, (option: SourceSettingOption) => option.id)
+    }
+  }
+
+  @Builder
+  private SettingMultiSelectMenu(descriptor: SourceSettingDescriptor) {
+    Menu() {
+      ForEach(descriptor.options ?? [], (option: SourceSettingOption) => {
+        MenuItem({
+          content: option.label,
+          symbolEndIcon: this.settingMultiSelectValue(descriptor).includes(option.id) ?
+            new SymbolGlyphModifier($r('sys.symbol.checkmark')) : undefined,
+        })
+          .onClick(() => {
+            this.toggleMultiSelectSetting(descriptor, option.id)
           })
       }, (option: SourceSettingOption) => option.id)
     }
@@ -1706,6 +1751,20 @@ export struct SourcePackageManagerPage {
           })
         }
           .bindMenu(this.settingMenuKey === descriptor.id, this.SettingSelectMenu(descriptor), {
+            placement: Placement.BottomRight,
+          })
+      } else if (descriptor.kind === 'multiselect') {
+        Column() {
+          ConciseListRow({
+            title: descriptor.label,
+            trailingText: this.settingMultiSelectLabel(descriptor),
+            trailingDropdown: true,
+            action: () => {
+              this.settingMenuKey = descriptor.id
+            },
+          })
+        }
+          .bindMenu(this.settingMenuKey === descriptor.id, this.SettingMultiSelectMenu(descriptor), {
             placement: Placement.BottomRight,
           })
       } else if (descriptor.kind === 'group') {

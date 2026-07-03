@@ -150,7 +150,7 @@ assert.match(importerSource, /SOURCE_REPO_PACKAGE_WASM_FILE:\s*string = 'source\
 assert.match(importerSource, /validateArchiveEntries[\s\S]*seen\.has\(name\)[\s\S]*unsafe_archive_entry/, 'duplicate or unsafe zip entries must stay rejected')
 assert.match(importerSource, /checksum_mismatch/, 'checksum mismatch rejection must stay wired')
 assert.match(importerSource, /network_not_allowed/, 'network permission rejection must stay wired')
-assert.match(managerPageSource, /\.koma \/ \.koma-source\.zip \/ \.zip/, 'manager UI copy must mention .koma / .koma-source.zip / .zip')
+assert.match(managerPageSource, /source_pkg_empty_message/, 'manager UI copy must mention supported source package import suffixes through localized copy')
 assert.match(sourceSettingsStoreSource, /export class SourceSettingsStore[\s\S]*loadForSource\(sourceId: string\)[\s\S]*saveForSource\(sourceId: string, values: SourceSettingsRecord/, 'source settings store must exist and scope values by sourceId')
 assert.match(sourceSettingsStoreSource, /SOURCE_SETTINGS_FILE_NAME:\s*string = 'source-settings\.json'[\s\S]*schemaVersion:\s*SOURCE_SETTINGS_SCHEMA_VERSION[\s\S]*sources:/, 'source settings store must persist a simple schema-versioned per-source document')
 assert.match(sourceSettingsStoreSource, /function descriptorIsCredentialLike[\s\S]*SECRET_ID_MARKERS[\s\S]*some/, 'source settings store must recognize credential-like descriptor ids')
@@ -161,9 +161,13 @@ assert.match(sourceSettingsStoreSource, /filterSafeValues[\s\S]*!descriptor\.sup
 assert.match(sourceSettingsStoreSource, /fetchSourceSettingDescriptors[\s\S]*operation: 'get_settings'[\s\S]*normalizeSourceSettingDescriptors\(summary\.response\)/, 'source settings helper must call get_settings and normalize descriptors')
 assert.match(sourceSettingsStoreSource, /data\?\.\['settings'\] \?\? data\?\.\['items'\]/, 'source settings helper must accept data.settings and data.items response shapes')
 assert.match(sourceSettingsStoreSource, /SAFE_SETTING_KINDS:\s*string\[\] = \['string', 'boolean', 'select', 'multiselect', 'range'\]/, 'source settings persistence must limit saved descriptor kinds to safe non-secret values')
-assert.match(managerPageSource, /Button\('设置'\)[\s\S]*this\.openSettings\(source\)/, 'SourcePackageManagerPage must expose a 设置 action on package cards')
+assert.match(managerPageSource, /KomaActionButton\(\{[\s\S]*label: t\('source_pkg_settings'\)[\s\S]*this\.openSettings\(source\)/, 'SourcePackageManagerPage must expose a settings action on package cards')
 assert.match(managerPageSource, /fetchSourceSettingDescriptors\(appSourceRuntimeRegistry, source\.id\)/, 'SourcePackageManagerPage settings action must fetch get_settings descriptors')
-assert.match(managerPageSource, /需要登录配置（暂未启用）/, 'SourcePackageManagerPage must show auth-required placeholder for credential-like descriptors')
+assert.match(managerPageSource, /descriptor\.sensitive \? t\('source_pkg_login_required'\) : t\('source_pkg_unsupported'\)/, 'SourcePackageManagerPage must show auth-required placeholder for credential-like descriptors')
+assert.match(managerPageSource, /descriptor\.kind === 'boolean'[\s\S]*hasSwitch: true[\s\S]*this\.updateSettingValue\(descriptor\.id, isOn\)/, 'SourcePackageManagerPage must render safe boolean source settings as switches')
+assert.match(managerPageSource, /descriptor\.kind === 'select'[\s\S]*trailingDropdown: true[\s\S]*this\.SettingSelectMenu\(descriptor\)/, 'SourcePackageManagerPage must render safe select source settings as a menu')
+assert.match(managerPageSource, /descriptor\.kind === 'multiselect'[\s\S]*trailingDropdown: true[\s\S]*this\.SettingMultiSelectMenu\(descriptor\)/, 'SourcePackageManagerPage must render safe multiselect source settings as a reusable menu')
+assert.match(managerPageSource, /toggleMultiSelectSetting\(descriptor: SourceSettingDescriptor, optionId: string\)[\s\S]*selected\.includes\(optionId\)[\s\S]*this\.updateSettingValue\(descriptor\.id, selected\.filter[\s\S]*next\.push\(optionId\)/, 'SourcePackageManagerPage multiselect settings must toggle individual option ids without collapsing into text input')
 assert.match(managerPageSource, /appSourceSettingsStore\.saveForSource\(this\.settingsSourceId, this\.settingDraft, this\.settingDescriptors\)/, 'SourcePackageManagerPage must save settings through the source settings store')
 assert.match(
   browseViewModelSource,
@@ -187,7 +191,7 @@ assert.doesNotMatch(
 )
 assert.match(
   browsePageSource,
-  /Text\('未安装源包'\)[\s\S]*Text\('从设置导入 \.koma 源包'\)/,
+  /Text\(s\('browse_empty_title'\)\)[\s\S]*Text\(s\('browse_empty_message'\)\)/,
   'empty Browse source inventory must guide users to import a .koma source package',
 )
 assert.match(smokeSource, /local_source_runtime_fixture\.koma/, 'device smoke must cover a .koma source archive')
@@ -217,9 +221,9 @@ assert.doesNotMatch(
   /https?:\/\/[^/\s]+\/source-index|https?:\/\/[^/\s]+\/index\.json/,
   'SourcePackageManagerPage must not include any default source index URL',
 )
-assert.match(managerPageSource, /加载源列表/, 'SourcePackageManagerPage must provide 加载源列表 action')
-assert.match(managerPageSource, /本地导入/, 'SourcePackageManagerPage must keep 本地导入 as secondary fallback')
-assert.match(managerPageSource, /源索引地址/, 'SourcePackageManagerPage must surface source index URL input')
+assert.match(managerPageSource, /source_pkg_load_sources/, 'SourcePackageManagerPage must provide load sources action')
+assert.match(managerPageSource, /source_pkg_local_import/, 'SourcePackageManagerPage must keep local import as secondary fallback')
+assert.match(managerPageSource, /source_pkg_index_url_heading/, 'SourcePackageManagerPage must surface source index URL input')
 assert.match(
   managerPageSource,
   /SourceIndexService/,
@@ -232,7 +236,7 @@ assert.match(
 )
 assert.match(
   managerPageSource,
-  /输入源索引地址加载源列表，或通过本地导入打开/,
+  /source_pkg_empty_message/,
   'empty state must mention source index URL first, local package import second',
 )
 assert.match(
@@ -252,27 +256,27 @@ assert.match(
 )
 assert.match(
   managerPageSource,
-  /capabilityLabel\(capability: string\)[\s\S]*受控宿主接口[\s\S]*搜索[\s\S]*详情[\s\S]*章节[\s\S]*页面/,
+  /capabilityLabel\(capability: string\)[\s\S]*source_pkg_capability_host_imports[\s\S]*source_pkg_capability_search[\s\S]*source_pkg_capability_detail[\s\S]*source_pkg_capability_chapters[\s\S]*source_pkg_capability_pages/,
   'source capability UI must translate runtime capability tokens into user-facing labels',
 )
 assert.match(
   sourcePackageTrustPolicySource,
-  /installedSourceTrustSummary[\s\S]*用户导入[\s\S]*未验证签名[\s\S]*包 ID：[\s\S]*版本：[\s\S]*能力摘要（manifest 派生）/,
+  /installedSourceTrustSummary[\s\S]*source_pkg_provenance_imported[\s\S]*source_pkg_verification_unsigned[\s\S]*source_pkg_label_package_id[\s\S]*source_pkg_label_version[\s\S]*source_pkg_capability_summary_prefix/,
   'installed source trust policy must use honest user-imported, unverified, id/version, and manifest-derived capability labels',
 )
 assert.match(
   sourcePackageTrustPolicySource,
-  /sourceIndexCandidateTrustSummary[\s\S]*用户配置索引更新候选[\s\S]*未验证签名[\s\S]*能力摘要（manifest 派生）：安装校验后显示/,
+  /sourceIndexCandidateTrustSummary[\s\S]*source_pkg_provenance_index_update[\s\S]*source_pkg_provenance_index[\s\S]*source_pkg_verification_unsigned[\s\S]*source_pkg_capability_summary_pending/,
   'source index update candidates must be labeled as unverified user-configured index candidates until manifest validation',
 )
 assert.match(
   sourcePackageTrustPolicySource,
-  /Koma 不提供默认公开源或预置源列表/,
+  /source_pkg_boundary_notice/,
   'source trust policy must warn that Koma has no default public source list',
 )
 assert.match(
   managerPageSource,
-  /SOURCE_PACKAGE_TRUST_BOUNDARY_NOTICE[\s\S]*RemoteIndexCard\(entry: SourceIndexEntry\)[\s\S]*sourceIndexTrustMetaText\(entry\)[\s\S]*sourceIndexTrustCapabilityText\(entry\)[\s\S]*PackageCard\(source: InstalledSourcePackage\)[\s\S]*installedTrustMetaText\(source\)[\s\S]*installedTrustCapabilityText\(source\)/,
+  /sourcePackageTrustBoundaryNotice[\s\S]*RemoteIndexCard\(entry: SourceIndexEntry\)[\s\S]*sourceIndexTrustMetaText\(entry\)[\s\S]*sourceIndexTrustCapabilityText\(entry\)[\s\S]*PackageCard\(source: InstalledSourcePackage\)[\s\S]*installedTrustMetaText\(source\)[\s\S]*installedTrustCapabilityText\(source\)/,
   'source package manager must render trust metadata for update/index candidates and installed packages',
 )
 assert.doesNotMatch(
