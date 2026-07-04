@@ -409,6 +409,9 @@ function providerKindForComic(comic: Comic): LibraryUpdateProviderKind {
   if (comic.sourceKind === ComicSourceKind.KOMGA_REMOTE) {
     return 'komga'
   }
+  if (comic.sourceKind === ComicSourceKind.KAVITA_REMOTE) {
+    return 'private_library'
+  }
   if (comic.sourceKind === ComicSourceKind.OPDS_REMOTE) {
     return 'opds'
   }

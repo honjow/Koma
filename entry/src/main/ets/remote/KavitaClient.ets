@@ -1,4 +1,5 @@
 import {
+  KavitaChapterInfoDto,
   KavitaLibraryDto,
   KavitaResolvedCredential,
   KavitaServerConfig,
@@ -63,6 +64,14 @@ export class KavitaPaths {
 
   static seriesVolumes(seriesId: number): string {
     return `/api/Series/volumes?seriesId=${seriesId}`
+  }
+
+  static chapterInfo(chapterId: number, includeDimensions: boolean = true, extractPdf: boolean = true): string {
+    return `/api/Reader/chapter-info?chapterId=${chapterId}&extractPdf=${extractPdf}&includeDimensions=${includeDimensions}`
+  }
+
+  static readerImage(chapterId: number, page: number, extractPdf: boolean = true): string {
+    return `/api/Reader/image?chapterId=${chapterId}&page=${page}&extractPdf=${extractPdf}`
   }
 }
 
@@ -183,6 +192,20 @@ export class KavitaClient {
       throw new Error(`kavita_http_status_${response.status}`)
     }
     return parseKavitaJson<KavitaVolumeDto[]>(response.body)
+  }
+
+  async getChapterInfo(chapterId: number): Promise<KavitaChapterInfoDto> {
+    const response = await this.request('GET', KavitaPaths.chapterInfo(chapterId), {
+      accept: 'application/json',
+    } as KavitaHeaders)
+    if (response.status < 200 || response.status >= 300) {
+      throw new Error(`kavita_http_status_${response.status}`)
+    }
+    return parseKavitaJson<KavitaChapterInfoDto>(response.body)
+  }
+
+  buildReaderImageUrl(chapterId: number, page: number): string {
+    return this.buildUrl(KavitaPaths.readerImage(chapterId, page))
   }
 
   private async request(method: 'GET' | 'POST', path: string, headers: KavitaHeaders, body?: string): Promise<KavitaHttpResponse> {

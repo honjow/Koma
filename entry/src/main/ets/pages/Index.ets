@@ -734,6 +734,9 @@ struct Index {
                   this.refreshLibrarySnapshot()
                   this.selectedTab = TabIndex.LIBRARY
                 },
+                onOpenReader: (comicId: string, chapterId?: string) => {
+                  void this.openReader(comicId, chapterId)
+                },
                 onOpenSourcePackageManager: () => {
                   this.openSettingsSecondary(RouteName.SOURCE_PACKAGE_MANAGER)
                 }

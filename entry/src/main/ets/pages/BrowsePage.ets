@@ -54,6 +54,7 @@ export struct BrowsePage {
   @Param libraryStore: LibraryStore = createSeededLibraryStore()
   @Param libraryPersistenceService?: LibraryStorePersistenceService = undefined
   @Event onLibraryChanged: () => void = () => {}
+  @Event onOpenReader: (comicId: string, chapterId?: string) => void = () => {}
   @Event onOpenSourcePackageManager: () => void = () => {}
   private browsePathStack: NavPathStack = new NavPathStack()
 
@@ -355,7 +356,16 @@ export struct BrowsePage {
       .title(s('route_komga_title'))
     } else if (name === KAVITA_ROUTE_NAME) {
       NavDestination() {
-        KavitaBrowsePage()
+        KavitaBrowsePage({
+          libraryStore: this.libraryStore,
+          libraryPersistenceService: this.libraryPersistenceService,
+          onLibraryChanged: () => {
+            this.onLibraryChanged()
+          },
+          onOpenReader: (comicId: string, chapterId?: string) => {
+            this.onOpenReader(comicId, chapterId)
+          }
+        })
       }
       .title(s('route_kavita_title'))
     } else if (name === WEBDAV_ROUTE_NAME) {

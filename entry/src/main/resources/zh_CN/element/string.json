@@ -483,6 +483,7 @@
     { "name": "kavita_volume_icon", "value": "V" },
     { "name": "kavita_chapter_range_title", "value": "第 %s 章" },
     { "name": "kavita_chapter_unknown_title", "value": "章节" },
+    { "name": "kavita_chapter_open_failed", "value": "无法打开这个 Kavita 章节" },
     { "name": "opds_status_success", "value": "连接成功，检测到 %s，%s 个目录 / %s 个条目" },
     { "name": "opds_toast_success", "value": "OPDS 连接成功" },
     { "name": "opds_status_failed", "value": "连接失败，请检查 OPDS 目录设置后重试。" },

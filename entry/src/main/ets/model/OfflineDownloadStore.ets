@@ -210,6 +210,7 @@ function safeParseManifest(payload: string): OfflineChapterDownloadManifest {
       parsed.sourceKind !== ComicSourceKind.LOCAL_FOLDER &&
       parsed.sourceKind !== ComicSourceKind.PRIVATE_LIBRARY &&
       parsed.sourceKind !== ComicSourceKind.KOMGA_REMOTE &&
+      parsed.sourceKind !== ComicSourceKind.KAVITA_REMOTE &&
       parsed.sourceKind !== ComicSourceKind.OPDS_REMOTE &&
       parsed.sourceKind !== ComicSourceKind.WEBDAV_REMOTE) ||
     (parsed.sourceId !== undefined && typeof parsed.sourceId !== 'string') ||

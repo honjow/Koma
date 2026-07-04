@@ -314,6 +314,7 @@ export struct LibraryPage {
     }
     return comic.sourceKind === ComicSourceKind.PRIVATE_LIBRARY ||
       comic.sourceKind === ComicSourceKind.KOMGA_REMOTE ||
+      comic.sourceKind === ComicSourceKind.KAVITA_REMOTE ||
       comic.sourceKind === ComicSourceKind.OPDS_REMOTE ||
       comic.sourceKind === ComicSourceKind.WEBDAV_REMOTE
   }
@@ -367,6 +368,7 @@ export struct LibraryPage {
       return [
         ComicSourceKind.PRIVATE_LIBRARY,
         ComicSourceKind.KOMGA_REMOTE,
+        ComicSourceKind.KAVITA_REMOTE,
         ComicSourceKind.OPDS_REMOTE,
         ComicSourceKind.WEBDAV_REMOTE,
       ]
@@ -381,6 +383,7 @@ export struct LibraryPage {
       return [
         ComicSourceKind.PRIVATE_LIBRARY,
         ComicSourceKind.KOMGA_REMOTE,
+        ComicSourceKind.KAVITA_REMOTE,
         ComicSourceKind.OPDS_REMOTE,
         ComicSourceKind.WEBDAV_REMOTE,
       ]
@@ -800,6 +803,9 @@ export struct LibraryPage {
   private privateServerFilterTitle(comic: Comic): string {
     if (comic.sourceKind === ComicSourceKind.KOMGA_REMOTE) {
       return s('library_source_server').replace('%s', s('route_komga_title'))
+    }
+    if (comic.sourceKind === ComicSourceKind.KAVITA_REMOTE) {
+      return s('library_source_server').replace('%s', s('route_kavita_title'))
     }
     if (comic.sourceKind === ComicSourceKind.OPDS_REMOTE) {
       return s('library_source_server').replace('%s', s('route_opds_title'))

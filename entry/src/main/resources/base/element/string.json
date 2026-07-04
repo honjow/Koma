@@ -483,6 +483,7 @@
     { "name": "kavita_volume_icon", "value": "V" },
     { "name": "kavita_chapter_range_title", "value": "Chapter %s" },
     { "name": "kavita_chapter_unknown_title", "value": "Chapter" },
+    { "name": "kavita_chapter_open_failed", "value": "Could not open this Kavita chapter" },
     { "name": "opds_status_success", "value": "Connected, detected %s, %s navigation items / %s publications" },
     { "name": "opds_toast_success", "value": "OPDS connected" },
     { "name": "opds_status_failed", "value": "Connection failed. Check the OPDS catalog settings and try again." },

@@ -379,6 +379,7 @@ function assertComicSourceKind(value: ComicSourceKind | undefined, label: string
     value !== ComicSourceKind.LOCAL_FOLDER &&
     value !== ComicSourceKind.PRIVATE_LIBRARY &&
     value !== ComicSourceKind.KOMGA_REMOTE &&
+    value !== ComicSourceKind.KAVITA_REMOTE &&
     value !== ComicSourceKind.OPDS_REMOTE &&
     value !== ComicSourceKind.WEBDAV_REMOTE
   ) {

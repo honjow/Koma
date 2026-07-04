@@ -2,10 +2,33 @@ import { common } from '@kit.AbilityKit'
 import { SecondaryListScaffold } from '../components/SecondaryListScaffold'
 import { KomaEmptyState } from '../components/ui/KomaEmptyState'
 import { RemoteServerStore, KavitaServerRecord } from '../model/RemoteServerStore'
-import { KavitaChapterDto, KavitaLibraryDto, KavitaSeriesDto, KavitaVolumeDto } from '../remote/KavitaModels'
+import {
+  createKavitaChapterId,
+  createKavitaComicId,
+  KavitaChapterDto,
+  KavitaChapterInfoDto,
+  KavitaFileDimensionDto,
+  KavitaLibraryDto,
+  KavitaSeriesDto,
+  KavitaVolumeDto,
+  mapKavitaChapterToChapter,
+  mapKavitaPageToPage,
+  mapKavitaSeriesToComic,
+} from '../remote/KavitaModels'
 import { ThemeConstants } from '../theme/ThemeConstants'
 import { AppStrings } from '../i18n/AppStrings'
 import { connectLanguageState, LanguageState } from '../state/LanguageState'
+import { LibraryStore } from '../model/LibraryStore'
+import {
+  LibraryStorePersistenceService,
+  upsertComicAndPersistLibraryStore,
+} from '../model/LibraryPersistence'
+import { createSeededLibraryStore } from '../model/MockLibraryData'
+import {
+  Chapter,
+  Comic,
+  Page,
+} from '../model/ComicModels'
 
 function s(name: string): string {
   return AppStrings.get(name)
@@ -25,6 +48,11 @@ export struct KavitaBrowsePage {
   @Local private errorKey: string = ''
   @Local private seriesErrorKey: string = ''
   @Local private volumesErrorKey: string = ''
+  @Local private openingChapterId: string = ''
+  @Param libraryStore: LibraryStore = createSeededLibraryStore()
+  @Param libraryPersistenceService?: LibraryStorePersistenceService = undefined
+  @Event onLibraryChanged: () => void = () => {}
+  @Event onOpenReader: (comicId: string, chapterId?: string) => void = () => {}
   private record?: KavitaServerRecord
 
   private store(): RemoteServerStore {
@@ -180,6 +208,112 @@ export struct KavitaBrowsePage {
     const pages = item.pages === undefined ? 0 : item.pages
     const read = item.pagesRead === undefined ? 0 : item.pagesRead
     return s('kavita_series_pages_progress').replace('%s', `${read}`).replace('%s', `${pages}`)
+  }
+
+  private knownChapters(): KavitaChapterDto[] {
+    const chapters: KavitaChapterDto[] = []
+    this.volumes.forEach((volume: KavitaVolumeDto) => {
+      if (volume.chapters !== undefined) {
+        volume.chapters.forEach((chapter: KavitaChapterDto) => {
+          if (chapters.find((item: KavitaChapterDto): boolean => item.id === chapter.id) === undefined) {
+            chapters.push(chapter)
+          }
+        })
+      }
+    })
+    return chapters
+  }
+
+  private dimensionForPageIndex(info: KavitaChapterInfoDto | undefined, pageIndex: number): KavitaFileDimensionDto | undefined {
+    const dimensions = info?.pageDimensions
+    if (dimensions === undefined || dimensions.length === 0) {
+      return undefined
+    }
+    const matched = dimensions.find((item: KavitaFileDimensionDto): boolean => {
+      return item.pageNumber === pageIndex || item.pageNumber === pageIndex + 1
+    })
+    return matched === undefined ? dimensions[pageIndex] : matched
+  }
+
+  private buildChapterPages(record: KavitaServerRecord, chapter: KavitaChapterDto, comicId: string, mappedChapterId: string, info?: KavitaChapterInfoDto): Page[] {
+    const client = this.store().createKavitaClient(record)
+    const pageCount = info?.pages === undefined ? chapter.pages === undefined ? 0 : chapter.pages : info.pages
+    const pages: Page[] = []
+    for (let index = 0; index < pageCount; index += 1) {
+      pages.push(mapKavitaPageToPage(
+        record.server.id,
+        chapter.id,
+        comicId,
+        mappedChapterId,
+        index,
+        client.buildReaderImageUrl(chapter.id, index),
+        this.dimensionForPageIndex(info, index),
+      ))
+    }
+    return pages
+  }
+
+  private createReaderComic(record: KavitaServerRecord, series: KavitaSeriesDto, selectedChapter: KavitaChapterDto, info: KavitaChapterInfoDto): Comic | undefined {
+    const knownChapters = this.knownChapters()
+    const sourceChapters = knownChapters.length === 0 ? [selectedChapter] : knownChapters
+    const comicId = createKavitaComicId(record.server.id, series.id)
+    const chapters: Chapter[] = []
+    sourceChapters.forEach((chapter: KavitaChapterDto) => {
+      const mappedChapterId = createKavitaChapterId(record.server.id, chapter.id)
+      const chapterInfo = chapter.id === selectedChapter.id ? info : undefined
+      const pages = this.buildChapterPages(record, chapter, comicId, mappedChapterId, chapterInfo)
+      chapters.push(mapKavitaChapterToChapter(record.server.id, chapter, comicId, pages, chapterInfo))
+    })
+    const selectedMappedChapter = chapters.find((chapter: Chapter): boolean => chapter.id === createKavitaChapterId(record.server.id, selectedChapter.id))
+    if (selectedMappedChapter === undefined || selectedMappedChapter.pageCount <= 0) {
+      return undefined
+    }
+    const comic = mapKavitaSeriesToComic(record.server.id, series, selectedMappedChapter, info)
+    comic.chapters = chapters.sort((left: Chapter, right: Chapter): number => left.index - right.index)
+    comic.chapterCount = comic.chapters.length
+    comic.pageCount = comic.chapters.reduce((total: number, chapter: Chapter): number => total + chapter.pageCount, 0)
+    return comic
+  }
+
+  private async openChapter(chapter: KavitaChapterDto): Promise<void> {
+    const record = this.record
+    const series = this.selectedSeries
+    if (record === undefined || series === undefined || this.openingChapterId.length > 0) {
+      return
+    }
+    this.openingChapterId = `${chapter.id}`
+    try {
+      const client = this.store().createKavitaClient(record)
+      console.info(`[Kavita] step=load_chapter_info_start chapter=${chapter.id}`)
+      const info = await client.getChapterInfo(chapter.id)
+      const comic = this.createReaderComic(record, series, chapter, info)
+      if (comic === undefined) {
+        this.showToast(s('common_no_images_to_add'))
+        console.warn('[Kavita] step=open_chapter_failed code=kavita_no_pages')
+        return
+      }
+      if (this.libraryPersistenceService === undefined) {
+        this.libraryStore.upsertComic(comic)
+      } else {
+        upsertComicAndPersistLibraryStore(this.libraryStore, this.libraryPersistenceService, comic)
+      }
+      this.onLibraryChanged()
+      this.onOpenReader(comic.id, createKavitaChapterId(record.server.id, chapter.id))
+      console.info(`[Kavita] step=open_chapter_ok chapters=${comic.chapterCount} pages=${comic.pageCount}`)
+    } catch (error) {
+      void error
+      this.showToast(s('kavita_chapter_open_failed'))
+      console.error('[Kavita] step=open_chapter_failed code=kavita_chapter_open_failed')
+    } finally {
+      this.openingChapterId = ''
+    }
+  }
+
+  private showToast(message: string): void {
+    try {
+      this.getUIContext().getPromptAction().showToast({ message: message })
+    } catch (_err) {
+    }
   }
 
   @Builder
@@ -344,9 +478,23 @@ export struct KavitaBrowsePage {
             Text(this.chapterDetail(chapter))
               .fontSize(ThemeConstants.FONT_SIZE_META)
               .fontColor(ThemeConstants.TEXT_SECONDARY)
+            if (this.openingChapterId === `${chapter.id}`) {
+              LoadingProgress()
+                .width(18)
+                .height(18)
+                .color(ThemeConstants.BRAND_PRIMARY)
+            } else {
+              SymbolGlyph($r('sys.symbol.chevron_right'))
+                .fontSize(ThemeConstants.FONT_SIZE_BODY)
+                .fontColor([ThemeConstants.TEXT_TERTIARY])
+                .opacity(0.35)
+            }
           }
           .width('100%')
           .padding({ left: ThemeConstants.SOURCE_ICON_SIZE + ThemeConstants.SPACE_MD, right: 0, top: ThemeConstants.SPACE_XS, bottom: ThemeConstants.SPACE_XS })
+          .onClick(() => {
+            this.openChapter(chapter)
+          })
         }, (chapter: KavitaChapterDto) => `${chapter.id}`)
       }
     }

@@ -631,6 +631,17 @@ export class RemoteServerStore {
     }).buildHeaders({ accept: 'image/*' } as KomgaHeaders)
   }
 
+  getKavitaImageHeaders(record: KavitaServerRecord): KomgaHeaders {
+    const kavitaHeaders: KavitaHeaders = new KavitaClient({
+      server: record.server,
+      credential: record.credential,
+    }).buildHeaders({ accept: 'image/*' } as KavitaHeaders)
+    return {
+      xApiKey: kavitaHeaders.xApiKey,
+      accept: kavitaHeaders.accept,
+    } as KomgaHeaders
+  }
+
   getWebDavImageHeaders(record: WebDavServerRecord): KomgaHeaders {
     const webDavHeaders: WebDavHeaders = new WebDavClient({
       server: record.server,

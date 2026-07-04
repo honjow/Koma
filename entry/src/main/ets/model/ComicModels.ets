@@ -14,6 +14,7 @@ export enum ComicSourceKind {
   LOCAL_FOLDER = 'local_folder',
   PRIVATE_LIBRARY = 'private_library',
   KOMGA_REMOTE = 'komga_remote',
+  KAVITA_REMOTE = 'kavita_remote',
   OPDS_REMOTE = 'opds_remote',
   WEBDAV_REMOTE = 'webdav_remote',
 }

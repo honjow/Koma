@@ -577,6 +577,7 @@ export function installReaderRemoteHeaders(prefix: string, headers: KomgaHeaders
 
 export async function installReaderRemoteHeadersForComic(context: common.UIAbilityContext, comic: Comic): Promise<void> {
   if (comic.sourceKind !== ComicSourceKind.KOMGA_REMOTE &&
+    comic.sourceKind !== ComicSourceKind.KAVITA_REMOTE &&
     comic.sourceKind !== ComicSourceKind.OPDS_REMOTE &&
     comic.sourceKind !== ComicSourceKind.WEBDAV_REMOTE) {
     return
@@ -589,6 +590,15 @@ export async function installReaderRemoteHeadersForComic(context: common.UIAbili
     }
     installReaderRemoteHeaders(store.createKomgaClient(record).getBaseUrl(), store.getKomgaImageHeaders(record))
     console.info('[Favorite] step=reader_headers_installed kind=komga')
+    return
+  }
+  if (comic.sourceKind === ComicSourceKind.KAVITA_REMOTE) {
+    const record = await store.loadKavita()
+    if (record === undefined) {
+      throw new Error('Kavita server is not configured')
+    }
+    installReaderRemoteHeaders(store.createKavitaClient(record).getBaseUrl(), store.getKavitaImageHeaders(record))
+    console.info('[Favorite] step=reader_headers_installed kind=kavita')
     return
   }
   if (comic.sourceKind === ComicSourceKind.OPDS_REMOTE) {
