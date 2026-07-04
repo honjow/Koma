@@ -34,6 +34,10 @@ export class RemoteProgressBootstrapSync {
   }
 
   async syncAllKomgaProgress(): Promise<RemoteProgressBootstrapSyncResult> {
+    return this.syncAllPrivateLibraryProgress()
+  }
+
+  async syncAllPrivateLibraryProgress(): Promise<RemoteProgressBootstrapSyncResult> {
     const empty: RemoteProgressBootstrapSyncResult = { synced: 0, updated: 0, failed: 0 }
     if (RemoteProgressBootstrapSync.running || this.isCoolingDown()) {
       return empty
@@ -52,7 +56,7 @@ export class RemoteProgressBootstrapSync {
         new AppFilesReaderSessionPersistenceAdapter(this.context.filesDir)
       )
       const remoteComics = libraryStore.listComics().filter((comic: Comic): boolean => {
-        return comic.sourceKind === ComicSourceKind.KOMGA_REMOTE
+        return comic.sourceKind === ComicSourceKind.KOMGA_REMOTE || comic.sourceKind === ComicSourceKind.KAVITA_REMOTE
       })
       const groups = this.groupByServer(remoteComics)
       const service = new RemoteProgressSyncService(this.context)

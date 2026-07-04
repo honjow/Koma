@@ -2174,6 +2174,16 @@ assert.doesNotMatch(
   /\[BootstrapSync\][^\n]*(message=|serverId=)|e\.message/,
   'remote progress bootstrap logs must not leak raw errors or private server identifiers',
 )
+assert.match(
+  remoteProgressBootstrapSyncSource,
+  /syncAllKomgaProgress\(\): Promise<RemoteProgressBootstrapSyncResult> \{[\s\S]*return this\.syncAllPrivateLibraryProgress\(\)[\s\S]*syncAllPrivateLibraryProgress\(\): Promise<RemoteProgressBootstrapSyncResult>[\s\S]*comic\.sourceKind === ComicSourceKind\.KOMGA_REMOTE \|\| comic\.sourceKind === ComicSourceKind\.KAVITA_REMOTE[\s\S]*service\.pull\(comic\)/,
+  'remote progress bootstrap must sync all supported private-library progress, including Kavita, while keeping the old Komga-named method as a compatibility wrapper',
+)
+assert.match(
+  entryAbilitySource,
+  /RemoteProgressBootstrapSync\(this\.context\)\.syncAllPrivateLibraryProgress\(\)/,
+  'EntryAbility startup progress bootstrap must use the provider-neutral private-library sync entrypoint',
+)
 for (const [label, source] of [
   ['Index', indexSource],
   ['BrowsePage', browsePageSource],

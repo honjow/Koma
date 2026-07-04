@@ -84,7 +84,7 @@ export default class EntryAbility extends UIAbility {
   }
 
   private syncRemoteProgressInBackground(): void {
-    void new RemoteProgressBootstrapSync(this.context).syncAllKomgaProgress()
+    void new RemoteProgressBootstrapSync(this.context).syncAllPrivateLibraryProgress()
   }
 
   private applySavedThemeMode(): void {
