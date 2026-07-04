@@ -191,9 +191,10 @@ export struct SourceSearchPage {
             this.ResultsGrid(this.viewModel.searchResults)
             if (this.viewModel.hasMoreSearch) {
               KomaActionButton({
-                label: s('common_load_more'),
+                label: this.viewModel.loadingSearch ? s('common_loading_more') : s('common_load_more'),
                 kind: 'secondary',
                 fill: true,
+                isEnabled: !this.viewModel.loadingSearch,
                 action: () => {
                   void this.viewModel.loadMoreSearch()
                 },

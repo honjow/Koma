@@ -388,6 +388,11 @@ assert.match(
   'SourceSearchPage must rerun the current search when a source filter changes or resets',
 )
 assert.match(
+  sourceSearchPageSource,
+  /if \(this\.viewModel\.hasMoreSearch\) \{[\s\S]*label: this\.viewModel\.loadingSearch \? s\('common_loading_more'\) : s\('common_load_more'\)[\s\S]*isEnabled: !this\.viewModel\.loadingSearch[\s\S]*this\.viewModel\.loadMoreSearch\(\)/,
+  'SourceSearchPage load-more action must expose a busy label and disable repeat taps while loading',
+)
+assert.match(
   browseViewModelSource,
   /selectBrowseListing\(listing: SourceListingDescriptor\)[\s\S]*const requestId = this\.browseRequestId \+ 1[\s\S]*loadBrowseListing\(this\.selectedSource, listing, 1, requestId\)/,
   'BrowseViewModel must expose listing selection for SourceBrowsePage',
