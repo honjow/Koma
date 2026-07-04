@@ -10,6 +10,7 @@ target="${KOMA_SMOKE_TARGET:-127.0.0.1:5557}"
 source_id="${KOMA_SOURCE_READER_SOURCE_ID:-org.mangadex.koma}"
 query="${KOMA_SOURCE_READER_QUERY:-Salt Friend}"
 phase="${KOMA_SOURCE_READER_PHASE:-source-index-visible-reader}"
+capture_ui="${KOMA_SOURCE_READER_CAPTURE_UI:-true}"
 dist_dir="${KOMA_SOURCES_DIST:-$repo/../koma-sources/dist}"
 port="${KOMA_SOURCE_INDEX_PORT:-8765}"
 index_url="${KOMA_SOURCE_INDEX_URL:-}"
@@ -114,7 +115,14 @@ if result.get('sourceIndexReaderSelectedSourceId') != source_id:
     raise SystemExit('source reader smoke failed: source id mismatch')
 if result.get('sourceIndexReaderSearchQuery') != query:
     raise SystemExit('source reader smoke failed: query mismatch')
-if 'download-reader' in phase:
+if 'download-corrupt-reader' in phase:
+    if result.get('sourceIndexDownloadStatus') != 'downloaded':
+        raise SystemExit('source reader smoke failed: corrupt download status mismatch')
+    if result.get('sourceIndexDownloadOfflineReaderKind') != 'uri_placeholder':
+        raise SystemExit('source reader smoke failed: corrupt offline reader did not use placeholder')
+    if result.get('sourceIndexDownloadCorruptReaderOk') is not True:
+        raise SystemExit('source reader smoke failed: corrupt offline reader check failed')
+elif 'download-reader' in phase:
     if result.get('sourceIndexDownloadStatus') != 'downloaded':
         raise SystemExit('source reader smoke failed: download status mismatch')
     if result.get('sourceIndexDownloadDownloadedPageCount') != result.get('sourceIndexReaderPageCount'):
@@ -134,6 +142,11 @@ PY
 done
 
 hdc_target shell hilog -x -e KOMA_SOURCE_RUNTIME_SMOKE_RESULT > "$artifact_dir/source-runtime-smoke-hilog.txt" || true
+
+if [ "$capture_ui" != "true" ]; then
+  echo "source reader smoke passed: $artifact_dir"
+  exit 0
+fi
 
 hdc_target shell uitest dumpLayout -p /data/local/tmp/koma-source-reader-library-layout.json -a
 hdc_target shell uitest screenCap -p /data/local/tmp/koma-source-reader-library-screen.png

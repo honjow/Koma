@@ -20,6 +20,7 @@ const sourceRuntimeRegistryPath = resolve(root, 'entry/src/main/ets/sourceRuntim
 const sourcePackageTrustPolicyPath = resolve(root, 'entry/src/main/ets/sourceRuntime/SourcePackageTrustPolicy.ets')
 const sourceReaderSmokeScriptPath = resolve(root, 'scripts/run_source_reader_smoke.sh')
 const sourceDownloadReaderSmokeScriptPath = resolve(root, 'scripts/run_source_download_reader_smoke.sh')
+const sourceCorruptDownloadReaderSmokeScriptPath = resolve(root, 'scripts/run_source_corrupt_download_reader_smoke.sh')
 const abiDocPath = resolve(root, 'docs/source-runtime-abi.md')
 const sdkDocPath = resolve(root, 'docs/source-package-sdk.md')
 const localKomaFixturePath = resolve(root, 'entry/src/main/resources/rawfile/test/local_source_runtime_fixture.koma')
@@ -45,6 +46,7 @@ const sourceRuntimeRegistrySource = readFileSync(sourceRuntimeRegistryPath, 'utf
 const sourcePackageTrustPolicySource = readFileSync(sourcePackageTrustPolicyPath, 'utf8')
 const sourceReaderSmokeScriptSource = readFileSync(sourceReaderSmokeScriptPath, 'utf8')
 const sourceDownloadReaderSmokeScriptSource = readFileSync(sourceDownloadReaderSmokeScriptPath, 'utf8')
+const sourceCorruptDownloadReaderSmokeScriptSource = readFileSync(sourceCorruptDownloadReaderSmokeScriptPath, 'utf8')
 const abiDocSource = readFileSync(abiDocPath, 'utf8')
 const sdkDocSource = readFileSync(sdkDocPath, 'utf8')
 
@@ -282,9 +284,19 @@ assert.match(
   'source download reader smoke script must reuse the source reader smoke with the visible download phase',
 )
 assert.match(
+  sourceCorruptDownloadReaderSmokeScriptSource,
+  /KOMA_SOURCE_READER_PHASE="\$\{KOMA_SOURCE_READER_PHASE:-source-index-download-corrupt-reader\}"[\s\S]*KOMA_SOURCE_READER_CAPTURE_UI="\$\{KOMA_SOURCE_READER_CAPTURE_UI:-false\}"[\s\S]*run_source_reader_smoke\.sh/,
+  'source corrupt download reader smoke script must reuse the source reader smoke without visible UI capture',
+)
+assert.match(
   sourceReaderSmokeScriptSource,
   /sourceIndexDownloadStatus[\s\S]*sourceIndexDownloadDownloadedPageCount[\s\S]*sourceIndexDownloadOfflineReaderKind[\s\S]*local_file_image/,
   'source reader smoke script must verify downloaded source chapters open through offline local files',
+)
+assert.match(
+  sourceReaderSmokeScriptSource,
+  /download-corrupt-reader[\s\S]*sourceIndexDownloadOfflineReaderKind[\s\S]*uri_placeholder[\s\S]*sourceIndexDownloadCorruptReaderOk/,
+  'source reader smoke script must verify corrupt downloaded source chapters fail closed to an offline placeholder',
 )
 assert.match(
   sourceReaderSmokeScriptSource,
