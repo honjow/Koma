@@ -342,6 +342,28 @@ export struct DownloadsPage {
       })
   }
 
+  private confirmRemoveDownload(entry: OfflineDownloadQueueEntry): void {
+    if (!this.canRemove(entry) || this.busyKey.length > 0) {
+      return
+    }
+    this.getUIContext().showAlertDialog({
+      title: s('downloads_remove_title'),
+      message: s('downloads_remove_message').replace('%s', this.rowTitle(entry)),
+      autoCancel: true,
+      primaryButton: {
+        value: s('common_remove'),
+        fontColor: ThemeConstants.DANGER,
+        action: () => {
+          this.removeDownload(entry)
+        },
+      },
+      secondaryButton: {
+        value: s('common_cancel'),
+        action: () => {},
+      },
+    })
+  }
+
   private retryFailedDownloads(): void {
     if (this.busyKey.length > 0) {
       return
@@ -530,6 +552,33 @@ export struct DownloadsPage {
     void this.runRemoveBatch(targets)
   }
 
+  private confirmRemoveCompletedFailedDownloads(): void {
+    if (this.busyKey.length > 0) {
+      return
+    }
+    const targets = this.removableSettledEntries()
+    if (targets.length === 0) {
+      this.showToast(s('downloads_toast_no_cleanup'))
+      return
+    }
+    this.getUIContext().showAlertDialog({
+      title: s('downloads_cleanup_title'),
+      message: s('downloads_cleanup_message').replace('%s', `${targets.length}`),
+      autoCancel: true,
+      primaryButton: {
+        value: s('common_clear'),
+        fontColor: ThemeConstants.DANGER,
+        action: () => {
+          this.removeCompletedFailedDownloads()
+        },
+      },
+      secondaryButton: {
+        value: s('common_cancel'),
+        action: () => {},
+      },
+    })
+  }
+
   private async runRemoveBatch(targets: OfflineDownloadQueueEntry[]): Promise<void> {
     try {
       const store = this.queueStore()
@@ -689,7 +738,7 @@ export struct DownloadsPage {
           isEnabled: this.busyKey.length === 0,
           controlHeight: ThemeConstants.ACTION_CHIP_HEIGHT,
           action: () => {
-            this.removeCompletedFailedDownloads()
+            this.confirmRemoveCompletedFailedDownloads()
           },
         })
         KomaActionButton({
@@ -779,7 +828,7 @@ export struct DownloadsPage {
             isEnabled: this.busyKey.length === 0,
             controlHeight: ThemeConstants.ACTION_CHIP_HEIGHT,
             action: () => {
-              this.removeDownload(entry)
+              this.confirmRemoveDownload(entry)
             },
           })
         }
