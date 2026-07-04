@@ -2073,8 +2073,8 @@ assert.match(
 )
 assert.match(
   trackerProgressSyncServiceSource,
-  /await this\.pendingStore\.removeProgressForComic\(mapping\.providerId, progress\.comicId\)[\s\S]*const syncedComicKeys: string\[\] = \[\][\s\S]*const comicKey = `\$\{entry\.providerId\}:\$\{entry\.comicId\}`[\s\S]*syncedComicKeys\.includes\(comicKey\)[\s\S]*summary\.skippedCount \+= 1[\s\S]*syncedComicKeys\.push\(comicKey\)/,
-  'tracker progress retry must not push stale older pending progress after a newer entry for the same provider/comic syncs',
+  /await this\.pendingStore\.removeProgressForComic\(mapping\.providerId, progress\.comicId\)[\s\S]*const syncedComicKeys: string\[\] = \[\][\s\S]*const comicKey = `\$\{entry\.providerId\}:\$\{entry\.comicId\}`[\s\S]*syncedComicKeys\.includes\(comicKey\)[\s\S]*summary\.skippedCount \+= 1[\s\S]*this\.pushReadingProgress\(progress, entry\.chapterIds, 'manual', now, entry\.providerId\)[\s\S]*syncedComicKeys\.push\(comicKey\)/,
+  'tracker progress retry must run as a manual drain and must not push stale older pending progress after a newer entry for the same provider/comic syncs',
 )
 assert.match(
   trackerModelsSource,

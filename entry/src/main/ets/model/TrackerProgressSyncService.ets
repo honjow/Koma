@@ -194,7 +194,7 @@ export class TrackerProgressSyncService {
         summary.skippedCount += 1
         continue
       }
-      const result = await this.pushReadingProgress(progress, entry.chapterIds, preferences.updateStrategy, now, entry.providerId)
+      const result = await this.pushReadingProgress(progress, entry.chapterIds, 'manual', now, entry.providerId)
       if (result.status === 'synced') {
         summary.syncedCount += 1
         syncedComicKeys.push(comicKey)
