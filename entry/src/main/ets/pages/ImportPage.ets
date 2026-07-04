@@ -2,7 +2,6 @@ import { common } from '@kit.AbilityKit'
 import { LocalImportCoordinator } from '../import/LocalImportCoordinator'
 import {
   LocalArchiveImportDebugEvent,
-  formatLocalArchiveImportDebugEvent,
 } from '../import/LocalImportDebugModels'
 import { AppStrings } from '../i18n/AppStrings'
 import { Comic } from '../model/ComicModels'
@@ -50,6 +49,11 @@ function tf(name: string, ...args: Array<string | number>): string {
   return AppStrings.format(name, ...args)
 }
 
+function importDebugEventSummary(event: LocalArchiveImportDebugEvent): string {
+  const errorState = event.error === undefined || event.error.length === 0 ? 'none' : 'redacted'
+  return `uris=${event.uriCount ?? 0} pages=${event.pageCount ?? 0} error=${errorState}`
+}
+
 @ComponentV2
 export struct ImportPage {
   @Local private feedbackText: string = ''
@@ -71,8 +75,7 @@ export struct ImportPage {
   }
 
   private logImportDebugEvent(event: LocalArchiveImportDebugEvent): void {
-    const path = event.sourceUri ?? event.extractionDir ?? event.sandboxZipPath ?? event.cacheRootDir ?? ''
-    console.info(`[Import] step=${event.step} path=${path} ${formatLocalArchiveImportDebugEvent(event)}`)
+    console.info(`[Import] step=${event.step} ${importDebugEventSummary(event)}`)
   }
 
   private showToast(message: string): void {
@@ -92,7 +95,7 @@ export struct ImportPage {
     }
     this.importing = true
     this.feedbackText = t('import_feedback_busy')
-    console.info('[Import] step=archive_import_started path=')
+    console.info('[Import] step=archive_import_started')
     this.localImportCoordinator.setDebugSink((event: LocalArchiveImportDebugEvent) => {
       this.logImportDebugEvent(event)
     })
@@ -124,9 +127,9 @@ export struct ImportPage {
         this.feedbackText = tf('import_feedback_partial', succeededCount, failedCount)
         this.showToast(this.feedbackText)
       }
-      console.info(`[Import] step=archive_import_finished path= succeeded=${succeededCount} failed=${failedCount}`)
+      console.info(`[Import] step=archive_import_finished succeeded=${succeededCount} failed=${failedCount}`)
     } catch (error) {
-      console.error('[Import] step=archive_import_failed path= error=' + `${error}`)
+      console.error('[Import] step=archive_import_failed code=archive_import_failed')
       this.feedbackText = t('import_feedback_failed_file')
     } finally {
       this.localImportCoordinator.setDebugSink(undefined)
@@ -140,7 +143,7 @@ export struct ImportPage {
     }
     this.importing = true
     this.feedbackText = t('import_feedback_busy')
-    console.info('[Import] step=image_import_started path=')
+    console.info('[Import] step=image_import_started')
     this.localImportCoordinator.setDebugSink((event: LocalArchiveImportDebugEvent) => {
       this.logImportDebugEvent(event)
     })
@@ -172,9 +175,9 @@ export struct ImportPage {
         this.feedbackText = tf('import_feedback_partial', succeededCount, failedCount)
         this.showToast(this.feedbackText)
       }
-      console.info(`[Import] step=image_import_finished path= succeeded=${succeededCount} failed=${failedCount}`)
+      console.info(`[Import] step=image_import_finished succeeded=${succeededCount} failed=${failedCount}`)
     } catch (error) {
-      console.error('[Import] step=image_import_failed path= error=' + `${error}`)
+      console.error('[Import] step=image_import_failed code=image_import_failed')
       this.feedbackText = t('import_feedback_failed_images')
     } finally {
       this.localImportCoordinator.setDebugSink(undefined)
@@ -188,7 +191,7 @@ export struct ImportPage {
     }
     this.importing = true
     this.feedbackText = t('import_feedback_busy')
-    console.info('[Import] step=folder_import_started path=')
+    console.info('[Import] step=folder_import_started')
     this.localImportCoordinator.setDebugSink((event: LocalArchiveImportDebugEvent) => {
       this.logImportDebugEvent(event)
     })
@@ -208,7 +211,7 @@ export struct ImportPage {
             missingCount += persistResult.missingCount
           } catch (error) {
             failedCount += 1
-            console.error('[Import] step=folder_import_persist_failed path= error=' + `${error}`)
+            console.error('[Import] step=folder_import_persist_failed code=library_persist_failed')
           }
           return
         }
@@ -236,9 +239,9 @@ export struct ImportPage {
       } else {
         this.feedbackText = t('import_feedback_folder_empty')
       }
-      console.info(`[Import] step=folder_import_finished path= imported=${importedCount} checked=${checkedCount} missing=${missingCount} failed=${failedCount}`)
+      console.info(`[Import] step=folder_import_finished imported=${importedCount} checked=${checkedCount} missing=${missingCount} failed=${failedCount}`)
     } catch (error) {
-      console.error('[Import] step=folder_import_failed path= error=' + `${error}`)
+      console.error('[Import] step=folder_import_failed code=folder_import_failed')
       this.feedbackText = t('import_feedback_folder_unavailable')
     } finally {
       this.localImportCoordinator.setDebugSink(undefined)
