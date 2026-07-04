@@ -77,7 +77,7 @@ export struct SourceSearchPage {
   private RuntimeFilterControls() {
     SourceFilterControls({
       filters: this.viewModel.filters,
-      values: this.viewModel.browseFilterValues,
+      values: this.viewModel.searchFilterValues,
       busy: this.viewModel.loadingSearch,
       onFilterChange: (filter: SourceFilter, value: SourceFilterControlValue | undefined) => {
         this.setSearchFilterValue(filter, value)

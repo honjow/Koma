@@ -266,6 +266,7 @@ export class BrowseViewModel {
   @Trace listings: SourceListingDescriptor[] = []
   @Trace filters: SourceFilter[] = []
   @Trace browseFilterValues: SourceMangaListFilters = {}
+  @Trace searchFilterValues: SourceMangaListFilters = {}
   @Trace homeSections: SourceHomeSectionState[] = []
   @Trace browseSections: BrowseSourceSectionState[] = []
   @Trace selectedListingId: string = ''
@@ -311,6 +312,7 @@ export class BrowseViewModel {
     this.browseSections = []
     this.filters = []
     this.browseFilterValues = {}
+    this.searchFilterValues = {}
     this.browsePage = 1
     this.browseNextCursor = ''
     this.hasMoreBrowse = false
@@ -326,6 +328,7 @@ export class BrowseViewModel {
       this.listings = await this.loadSourceListings(source)
       this.filters = await this.loadSourceFilters(source)
       this.browseFilterValues = this.defaultSourceFilterValues(this.filters)
+      this.searchFilterValues = this.defaultSourceFilterValues(this.filters)
       this.homeSections = await this.loadSourceHomeSections(source)
       const listing = this.defaultListingForBrowse(this.listings)
       if (listing === undefined) {
@@ -368,29 +371,30 @@ export class BrowseViewModel {
     }
   }
 
-  private updateFilterValue(filterId: string, value: SourceFilterValue | undefined): boolean {
+  private updateFilterValue(values: SourceMangaListFilters, filterId: string, value: SourceFilterValue | undefined): SourceMangaListFilters | undefined {
     const filter = this.filters.find((item: SourceFilter): boolean => item.id === filterId)
     if (filter === undefined) {
-      return false
+      return undefined
     }
     const key = this.filterRequestKey(filter)
     const nextValues: SourceMangaListFilters = {}
-    Object.keys(this.browseFilterValues).forEach((itemKey: string) => {
+    Object.keys(values).forEach((itemKey: string) => {
       if (itemKey !== key) {
-        nextValues[itemKey] = this.browseFilterValues[itemKey]
+        nextValues[itemKey] = values[itemKey]
       }
     })
     if (value !== undefined) {
       nextValues[key] = this.normalizeFilterRequestValue(key, value)
     }
-    this.browseFilterValues = nextValues
-    return true
+    return nextValues
   }
 
   async setBrowseFilterValue(filterId: string, value: SourceFilterValue | undefined): Promise<void> {
-    if (!this.updateFilterValue(filterId, value)) {
+    const nextValues = this.updateFilterValue(this.browseFilterValues, filterId, value)
+    if (nextValues === undefined) {
       return
     }
+    this.browseFilterValues = nextValues
     const listing = this.currentListing()
     if (this.selectedSource !== undefined && listing !== undefined && !this.loadingBrowse) {
       await this.selectBrowseListing(listing)
@@ -413,20 +417,29 @@ export class BrowseViewModel {
       this.selectedSource = source
       this.filters = []
       this.browseFilterValues = {}
+      this.searchFilterValues = {}
     }
     if (this.filters.length > 0) {
+      if (Object.keys(this.searchFilterValues).length === 0) {
+        this.searchFilterValues = this.defaultSourceFilterValues(this.filters)
+      }
       return
     }
     this.filters = await this.loadSourceFilters(source)
-    this.browseFilterValues = this.defaultSourceFilterValues(this.filters)
+    this.searchFilterValues = this.defaultSourceFilterValues(this.filters)
   }
 
   setSearchFilterValue(filterId: string, value: SourceFilterValue | undefined): boolean {
-    return this.updateFilterValue(filterId, value)
+    const nextValues = this.updateFilterValue(this.searchFilterValues, filterId, value)
+    if (nextValues === undefined) {
+      return false
+    }
+    this.searchFilterValues = nextValues
+    return true
   }
 
   resetSearchFilters(): void {
-    this.browseFilterValues = this.defaultSourceFilterValues(this.filters)
+    this.searchFilterValues = this.defaultSourceFilterValues(this.filters)
   }
 
   async loadMoreBrowse(): Promise<void> {
@@ -529,7 +542,7 @@ export class BrowseViewModel {
     const args: SourceSearchArgs = {
       query,
       page: pageArg,
-      filters: this.browseFilterValues,
+      filters: this.searchFilterValues,
     }
     return this.runSourceOperation(source.sourceId, 'search', args, page)
   }
