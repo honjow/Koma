@@ -783,6 +783,7 @@ export struct MangaDetailPage {
         downloadedPageCount: manifest.downloadedPageCount,
         status: manifest.status,
         updatedAt: manifest.updatedAt,
+        failureReasonCode: manifest.failureReasonCode,
       })
       this.showToast(manifest.status === OfflineDownloadStatus.DOWNLOADED
         ? s('manga_detail_chapter_downloaded')
@@ -839,13 +840,18 @@ export struct MangaDetailPage {
       const summary = service.getChapterSummary(comicId, chapterId)
       if (mode === ChapterBatchDownloadMode.FAILED_ONLY) {
         return summary?.status === OfflineDownloadStatus.FAILED ||
-          summary?.status === OfflineDownloadStatus.PARTIAL
+          summary?.status === OfflineDownloadStatus.PARTIAL ||
+          this.isRecoverableBlockedDownload(summary)
       }
       if (mode === ChapterBatchDownloadMode.NOT_DOWNLOADED) {
         return summary?.status !== OfflineDownloadStatus.DOWNLOADED
       }
       return true
     })
+  }
+
+  private isRecoverableBlockedDownload(summary: OfflineDownloadSummary | undefined): boolean {
+    return summary?.status === OfflineDownloadStatus.BLOCKED && summary.failureReasonCode === 'pages_missing'
   }
 
   private async handleDownloadVisibleChapters(chapterIds: string[], mode: ChapterBatchDownloadMode): Promise<void> {

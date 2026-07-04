@@ -75,6 +75,7 @@ export interface OfflineDownloadSummary {
   downloadedPageCount: number
   status: OfflineDownloadStatus
   updatedAt: number
+  failureReasonCode?: string
 }
 
 export interface OfflineChapterManifestIdentity {
@@ -532,6 +533,7 @@ export class OfflineDownloadStore {
         downloadedPageCount: validation.availablePageCount,
         status: OfflineDownloadStatus.FAILED,
         updatedAt: manifest?.updatedAt ?? 0,
+        failureReasonCode: validation.reasonCode,
       }
     }
     if (manifest === undefined) {
@@ -547,6 +549,7 @@ export class OfflineDownloadStore {
         status: validation.status === OfflineDownloadedChapterStatus.DOWNLOADED ?
           OfflineDownloadStatus.DOWNLOADED : OfflineDownloadStatus.PARTIAL,
         updatedAt: manifest.updatedAt,
+        failureReasonCode: validation.reasonCode,
       }
     }
     return {
@@ -556,6 +559,7 @@ export class OfflineDownloadStore {
       downloadedPageCount: manifest.downloadedPageCount,
       status: manifest.status,
       updatedAt: manifest.updatedAt,
+      failureReasonCode: manifest.failureReasonCode ?? validation.reasonCode,
     }
   }
 
