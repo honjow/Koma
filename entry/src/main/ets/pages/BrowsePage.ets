@@ -17,6 +17,7 @@ import { RouterHelper } from '../common/RouterHelper'
 import { common } from '@kit.AbilityKit'
 import { RemoteServerStore } from '../model/RemoteServerStore'
 import { KomgaSeriesPage } from './KomgaSeriesPage'
+import { KavitaBrowsePage } from './KavitaBrowsePage'
 import { OpdsBrowsePage } from './OpdsBrowsePage'
 import { WebDavBrowsePage } from './WebDavBrowsePage'
 import { LibraryStore } from '../model/LibraryStore'
@@ -28,6 +29,7 @@ import { connectLanguageState, LanguageState } from '../state/LanguageState'
 const SOURCE_BROWSE_ROUTE_NAME: string = 'SourceBrowsePage'
 const SOURCE_SEARCH_ROUTE_NAME: string = 'SourceSearchPage'
 const KOMGA_ROUTE_NAME: string = 'KomgaSeriesPage'
+const KAVITA_ROUTE_NAME: string = 'KavitaBrowsePage'
 const OPDS_ROUTE_NAME: string = 'OpdsBrowsePage'
 const WEBDAV_ROUTE_NAME: string = 'WebDavBrowsePage'
 
@@ -45,6 +47,7 @@ export struct BrowsePage {
   @Local private viewModel: BrowseViewModel = new BrowseViewModel()
   @Local private refreshingSources: boolean = false
   @Local private komgaConfigured: boolean = false
+  @Local private kavitaConfigured: boolean = false
   @Local private opdsConfigured: boolean = false
   @Local private webDavConfigured: boolean = false
   @Param sourceRegistry: SourceRuntimeRegistry = appSourceRuntimeRegistry
@@ -70,6 +73,10 @@ export struct BrowsePage {
 
   private openKomga(): void {
     this.browsePathStack.pushPath({ name: KOMGA_ROUTE_NAME })
+  }
+
+  private openKavita(): void {
+    this.browsePathStack.pushPath({ name: KAVITA_ROUTE_NAME })
   }
 
   private openWebDav(): void {
@@ -142,6 +149,56 @@ export struct BrowsePage {
         .backgroundColor(ThemeConstants.CARD)
         .onClick(() => {
           this.openKomga()
+        })
+      }
+    }
+    if (this.kavitaConfigured) {
+      ListItem() {
+        Row({ space: ThemeConstants.SPACE_MD }) {
+          Stack({ alignContent: Alignment.Center }) {
+            Text('K')
+              .fontSize(ThemeConstants.FONT_SIZE_H3)
+              .fontWeight(FontWeight.Bold)
+              .fontColor(ThemeConstants.TEXT_ON_BRAND)
+          }
+          .width(ThemeConstants.SOURCE_ICON_SIZE)
+          .height(ThemeConstants.SOURCE_ICON_SIZE)
+          .borderRadius(ThemeConstants.RADIUS_ROUND)
+          .backgroundColor(ThemeConstants.SOURCE_KAVITA_COLOR)
+
+          Column({ space: ThemeConstants.SPACE_XS }) {
+            Row({ space: ThemeConstants.SPACE_SM }) {
+              Text(s('route_kavita_title'))
+                .fontSize(ThemeConstants.FONT_SIZE_TITLE)
+                .fontWeight(FontWeight.Medium)
+                .fontColor(ThemeConstants.TEXT_PRIMARY)
+                .layoutWeight(1)
+              Text(s('browse_kavita_tag'))
+                .fontSize(ThemeConstants.FONT_SIZE_TAG)
+                .fontWeight(FontWeight.Medium)
+                .fontColor(ThemeConstants.BRAND_PRIMARY)
+                .padding({ left: 8, right: 8, top: 3, bottom: 3 })
+                .borderRadius(ThemeConstants.RADIUS_CHIP)
+                .backgroundColor(ThemeConstants.SOFT_TINT)
+            }
+            .width('100%')
+            .alignItems(VerticalAlign.Center)
+            Text(s('browse_kavita_detail'))
+              .fontSize(ThemeConstants.FONT_SIZE_META)
+              .fontColor(ThemeConstants.TEXT_SECONDARY)
+          }
+          .layoutWeight(1)
+          .alignItems(HorizontalAlign.Start)
+          SymbolGlyph($r('sys.symbol.chevron_right'))
+            .fontSize(ThemeConstants.FONT_SIZE_HEADING)
+            .fontColor([ThemeConstants.TEXT_SECONDARY])
+        }
+        .width('100%')
+        .padding(ThemeConstants.SPACE_MD)
+        .borderRadius(ThemeConstants.RADIUS_CARD)
+        .backgroundColor(ThemeConstants.CARD)
+        .onClick(() => {
+          this.openKavita()
         })
       }
     }
@@ -296,6 +353,11 @@ export struct BrowsePage {
         })
       }
       .title(s('route_komga_title'))
+    } else if (name === KAVITA_ROUTE_NAME) {
+      NavDestination() {
+        KavitaBrowsePage()
+      }
+      .title(s('route_kavita_title'))
     } else if (name === WEBDAV_ROUTE_NAME) {
       NavDestination() {
         WebDavBrowsePage({
@@ -331,17 +393,21 @@ export struct BrowsePage {
     try {
       const store = new RemoteServerStore(getContext(this) as common.UIAbilityContext)
       this.komgaConfigured = await store.loadKomga() !== undefined
+      this.kavitaConfigured = await store.loadKavita() !== undefined
       this.opdsConfigured = await store.loadOpds() !== undefined
       this.webDavConfigured = await store.loadWebDav() !== undefined
       console.info(`[Komga] step=browse_availability configured=${this.komgaConfigured}`)
+      console.info(`[Kavita] step=browse_availability configured=${this.kavitaConfigured}`)
       console.info(`[OPDS] step=browse_availability configured=${this.opdsConfigured}`)
       console.info(`[WebDAV] step=browse_availability configured=${this.webDavConfigured}`)
     } catch (error) {
       void error
       this.komgaConfigured = false
+      this.kavitaConfigured = false
       this.opdsConfigured = false
       this.webDavConfigured = false
       console.error('[Komga] step=browse_availability_failed code=availability_load_failed')
+      console.error('[Kavita] step=browse_availability_failed code=availability_load_failed')
       console.error('[OPDS] step=browse_availability_failed code=availability_load_failed')
       console.error('[WebDAV] step=browse_availability_failed code=availability_load_failed')
     }
@@ -374,7 +440,7 @@ export struct BrowsePage {
                 .width('100%')
                 .justifyContent(FlexAlign.Center)
               }
-            } else if (this.viewModel.sources.length === 0 && !this.komgaConfigured && !this.opdsConfigured && !this.webDavConfigured) {
+            } else if (this.viewModel.sources.length === 0 && !this.komgaConfigured && !this.kavitaConfigured && !this.opdsConfigured && !this.webDavConfigured) {
               ListItem() {
                 this.EmptySources()
               }

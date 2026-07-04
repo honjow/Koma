@@ -106,6 +106,8 @@ const BACKUP_CONTENT_INCLUDE_TRACKER_MAPPINGS_KEY: string = 'backup.content.incl
 const SOURCE_INDEX_URL_KEY: string = 'source_index.url'
 const KOMGA_SERVER_KEY: string = 'komga.server'
 const KOMGA_CREDENTIAL_KEY: string = 'komga.credential'
+const KAVITA_SERVER_KEY: string = 'kavita.server'
+const KAVITA_CREDENTIAL_KEY: string = 'kavita.credential'
 const WEBDAV_SERVER_KEY: string = 'webdav.server'
 const WEBDAV_CREDENTIAL_KEY: string = 'webdav.credential'
 const OPDS_SERVER_KEY: string = 'opds.server'
@@ -114,6 +116,8 @@ const OPDS_CREDENTIAL_KEY: string = 'opds.credential'
 interface RemoteServerBackupDocument {
   komgaServer: string
   komgaCredential: string
+  kavitaServer: string
+  kavitaCredential: string
   webDavServer: string
   webDavCredential: string
   opdsServer: string
@@ -1193,6 +1197,8 @@ export class BackupService {
     return {
       komgaServer: await store.get(KOMGA_SERVER_KEY, '') as string,
       komgaCredential: '',
+      kavitaServer: await store.get(KAVITA_SERVER_KEY, '') as string,
+      kavitaCredential: '',
       webDavServer: await store.get(WEBDAV_SERVER_KEY, '') as string,
       webDavCredential: '',
       opdsServer: await store.get(OPDS_SERVER_KEY, '') as string,
@@ -1205,6 +1211,8 @@ export class BackupService {
     const backup = remoteServers ?? {
       komgaServer: '',
       komgaCredential: '',
+      kavitaServer: '',
+      kavitaCredential: '',
       webDavServer: '',
       webDavCredential: '',
       opdsServer: '',
@@ -1212,6 +1220,8 @@ export class BackupService {
     }
     await this.putOrDelete(store, KOMGA_SERVER_KEY, backup.komgaServer)
     await this.putOrDelete(store, KOMGA_CREDENTIAL_KEY, backup.komgaCredential)
+    await this.putOrDelete(store, KAVITA_SERVER_KEY, backup.kavitaServer)
+    await this.putOrDelete(store, KAVITA_CREDENTIAL_KEY, backup.kavitaCredential)
     await this.putOrDelete(store, WEBDAV_SERVER_KEY, backup.webDavServer)
     await this.putOrDelete(store, WEBDAV_CREDENTIAL_KEY, backup.webDavCredential)
     await this.putOrDelete(store, OPDS_SERVER_KEY, backup.opdsServer)

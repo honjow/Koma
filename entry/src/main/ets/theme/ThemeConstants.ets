@@ -46,6 +46,7 @@ export class ThemeConstants {
 
   static readonly SOURCE_LOCAL_COLOR: string = '#16745F'
   static readonly SOURCE_KOMGA_COLOR: string = '#355F91'
+  static readonly SOURCE_KAVITA_COLOR: string = '#6B5B95'
   static readonly SOURCE_OPDS_COLOR: string = '#8A5A2B'
   static readonly SOURCE_WEBDAV_COLOR: string = '#5F5F9F'
   static readonly SOURCE_WASM_COLOR: string = '#7A405D'

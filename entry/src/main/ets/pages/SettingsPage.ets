@@ -226,6 +226,7 @@ function createSettingsSections(): SettingsSection[] {
       titleKey: 'settings_section_data',
       rows: [
         { key: 'komga', titleKey: 'settings_row_komga_title', detailKey: 'settings_row_komga_detail' },
+        { key: 'kavita', titleKey: 'settings_row_kavita_title', detailKey: 'settings_row_kavita_detail' },
         { key: 'opds', titleKey: 'settings_row_opds_title', detailKey: 'settings_row_opds_detail' },
         { key: 'webdav', titleKey: 'settings_row_webdav_title', detailKey: 'settings_row_webdav_detail' },
         { key: 'library-auto-update', titleKey: 'settings_row_library_auto_update_title', detailKey: 'settings_row_library_auto_update_detail' },
@@ -391,6 +392,7 @@ export function settingsPaneTitle(pane: SettingsPaneKey): string {
 export struct SettingsPage {
   @Event onOpenSettingsPane: (pane: SettingsPaneKey) => void = (_pane: SettingsPaneKey) => {}
   @Event onOpenKomgaSettings: () => void = () => {}
+  @Event onOpenKavitaSettings: () => void = () => {}
   @Event onOpenOpdsSettings: () => void = () => {}
   @Event onOpenWebDavSettings: () => void = () => {}
   @Event onOpenSourcePackageManager: () => void = () => {}
@@ -742,7 +744,7 @@ export struct SettingsPage {
         {
           key: 'private-libraries',
           titleKey: 'settings_section_private_libraries',
-          rows: this.rowsByKeys(['komga', 'opds', 'webdav']),
+          rows: this.rowsByKeys(['komga', 'kavita', 'opds', 'webdav']),
         },
         {
           key: 'source-runtime',
@@ -2276,6 +2278,8 @@ export struct SettingsPage {
   private handleRowClick(row: SettingsRow): void {
     if (row.key === 'komga') {
       this.onOpenKomgaSettings()
+    } else if (row.key === 'kavita') {
+      this.onOpenKavitaSettings()
     } else if (row.key === 'opds') {
       this.onOpenOpdsSettings()
     } else if (row.key === 'webdav') {

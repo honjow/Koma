@@ -20,6 +20,19 @@ import {
   normalizeKomgaBaseUrl,
 } from '../remote/KomgaClient'
 import {
+  KavitaClient,
+  KavitaHeaders,
+  KavitaHttpAdapter,
+  KavitaHttpRequest,
+  KavitaHttpResponse,
+  kavitaHeadersToHttpHeaderObject,
+  normalizeKavitaBaseUrl,
+} from '../remote/KavitaClient'
+import {
+  KavitaResolvedCredential,
+  KavitaServerConfig,
+} from '../remote/KavitaModels'
+import {
   WebDavClient,
   WebDavHeaders,
   WebDavHttpAdapter,
@@ -47,12 +60,16 @@ import { OpdsVersion } from '../remote/OpdsModels'
 const REMOTE_SERVER_STORE_NAME: string = 'koma_remote_servers_v1'
 const KOMGA_SERVER_KEY: string = 'komga.server'
 const KOMGA_CREDENTIAL_KEY: string = 'komga.credential'
+const KAVITA_SERVER_KEY: string = 'kavita.server'
+const KAVITA_CREDENTIAL_KEY: string = 'kavita.credential'
 const WEBDAV_SERVER_KEY: string = 'webdav.server'
 const WEBDAV_CREDENTIAL_KEY: string = 'webdav.credential'
 const OPDS_SERVER_KEY: string = 'opds.server'
 const OPDS_CREDENTIAL_KEY: string = 'opds.credential'
 const DEFAULT_KOMGA_SERVER_ID: string = 'komga-default'
 const DEFAULT_KOMGA_CREDENTIAL_REF: string = 'komga-default-credential'
+const DEFAULT_KAVITA_SERVER_ID: string = 'kavita-default'
+const DEFAULT_KAVITA_CREDENTIAL_REF: string = 'kavita-default-credential'
 const DEFAULT_WEBDAV_SERVER_ID: string = 'webdav-default'
 const DEFAULT_WEBDAV_CREDENTIAL_REF: string = 'webdav-default-credential'
 const DEFAULT_OPDS_SERVER_ID: string = 'opds-default'
@@ -71,6 +88,16 @@ export interface KomgaServerDraft {
 export interface KomgaServerRecord {
   server: KomgaServerConfig
   credential?: KomgaResolvedCredential
+}
+
+export interface KavitaServerDraft {
+  baseUrl: string
+  apiKey?: string
+}
+
+export interface KavitaServerRecord {
+  server: KavitaServerConfig
+  credential: KavitaResolvedCredential
 }
 
 export interface WebDavServerDraft {
@@ -117,6 +144,11 @@ interface StoredKomgaCredential {
   sessionToken?: string
 }
 
+interface StoredKavitaCredential {
+  credentialRef: string
+  apiKey: string
+}
+
 interface StoredWebDavCredential {
   credentialRef: string
   basicToken?: string
@@ -127,7 +159,7 @@ interface StoredOpdsCredential {
   basicToken?: string
 }
 
-type RemoteServerCredentialKind = 'komga' | 'webdav' | 'opds'
+type RemoteServerCredentialKind = 'komga' | 'kavita' | 'webdav' | 'opds'
 function remoteCredentialUtf8Encode(value: string): Uint8Array {
   return new Uint8Array(buffer.from(value, 'utf8').buffer)
 }
@@ -181,6 +213,35 @@ export class HarmonyHttpAdapter implements KomgaHttpAdapter {
       const e = error as BusinessError
       console.error(`[Komga] step=http_error code=${e.code}`)
       throw new Error(`komga_http_error_${e.code}`)
+    } finally {
+      httpRequest.destroy()
+    }
+  }
+}
+
+export class KavitaHarmonyHttpAdapter implements KavitaHttpAdapter {
+  async request(request: KavitaHttpRequest): Promise<KavitaHttpResponse> {
+    const httpRequest = http.createHttp()
+    const startedAt = Date.now()
+    try {
+      const response = await httpRequest.request(request.url, {
+        method: http.RequestMethod.GET,
+        expectDataType: http.HttpDataType.STRING,
+        usingCache: false,
+        header: kavitaHeadersToHttpHeaderObject(request.headers),
+        readTimeout: 60000,
+        connectTimeout: 30000,
+      })
+      const body = typeof response.result === 'string' ? response.result : JSON.stringify(response.result)
+      console.info(`[Kavita] step=http status=${response.responseCode} elapsed=${Date.now() - startedAt}`)
+      return {
+        status: response.responseCode,
+        body,
+      }
+    } catch (error) {
+      const e = error as BusinessError
+      console.error(`[Kavita] step=http_error code=${e.code}`)
+      throw new Error(`kavita_http_error_${e.code}`)
     } finally {
       httpRequest.destroy()
     }
@@ -328,6 +389,66 @@ export class RemoteServerStore {
     await this.saveSecureCredential(store, KOMGA_CREDENTIAL_KEY, 'komga', DEFAULT_KOMGA_CREDENTIAL_REF, undefined)
     await store.flush()
     console.info('[Komga] step=clear_server')
+  }
+
+  async loadKavita(): Promise<KavitaServerRecord | undefined> {
+    const store = await this.preferences()
+    const serverPayload = await store.get(KAVITA_SERVER_KEY, '') as string
+    if (serverPayload.length === 0) {
+      return undefined
+    }
+    const server = JSON.parse(serverPayload) as KavitaServerConfig
+    const credentialPayload = await this.loadSecureCredentialPayload(
+      store,
+      KAVITA_CREDENTIAL_KEY,
+      'kavita',
+      server.credentialRef,
+    )
+    if (credentialPayload === undefined) {
+      return undefined
+    }
+    const stored = JSON.parse(credentialPayload) as StoredKavitaCredential
+    if (stored === undefined || stored.credentialRef !== server.credentialRef || stored.apiKey.length === 0) {
+      return undefined
+    }
+    return {
+      server,
+      credential: {
+        credentialRef: stored.credentialRef,
+        apiKey: stored.apiKey,
+      },
+    }
+  }
+
+  async saveKavita(draft: KavitaServerDraft): Promise<KavitaServerRecord> {
+    const baseUrl = normalizeKavitaBaseUrl(draft.baseUrl)
+    if (baseUrl.length === 0) {
+      throw new Error(AppStrings.get('kavita_error_missing_server_url'))
+    }
+    const credential = this.createKavitaCredential(draft)
+    const server: KavitaServerConfig = {
+      id: DEFAULT_KAVITA_SERVER_ID,
+      name: 'Kavita',
+      baseUrl,
+      credentialRef: DEFAULT_KAVITA_CREDENTIAL_REF,
+    }
+    const store = await this.preferences()
+    await this.saveSecureCredential(store, KAVITA_CREDENTIAL_KEY, 'kavita', DEFAULT_KAVITA_CREDENTIAL_REF, JSON.stringify(credential))
+    await store.put(KAVITA_SERVER_KEY, JSON.stringify(server))
+    await store.flush()
+    console.info('[Kavita] step=save_server')
+    return {
+      server,
+      credential,
+    }
+  }
+
+  async clearKavita(): Promise<void> {
+    const store = await this.preferences()
+    await store.delete(KAVITA_SERVER_KEY)
+    await this.saveSecureCredential(store, KAVITA_CREDENTIAL_KEY, 'kavita', DEFAULT_KAVITA_CREDENTIAL_REF, undefined)
+    await store.flush()
+    console.info('[Kavita] step=clear_server')
   }
 
   async loadWebDav(): Promise<WebDavServerRecord | undefined> {
@@ -478,6 +599,14 @@ export class RemoteServerStore {
     })
   }
 
+  createKavitaClient(record: KavitaServerRecord): KavitaClient {
+    return new KavitaClient({
+      server: record.server,
+      credential: record.credential,
+      http: new KavitaHarmonyHttpAdapter(),
+    })
+  }
+
   createWebDavClient(record: WebDavServerRecord): WebDavClient {
     return new WebDavClient({
       server: record.server,
@@ -545,6 +674,17 @@ export class RemoteServerStore {
     return {
       credentialRef: DEFAULT_KOMGA_CREDENTIAL_REF,
       basicToken: buffer.from(`${username}:${password}`, 'utf8').toString('base64'),
+    }
+  }
+
+  private createKavitaCredential(draft: KavitaServerDraft): KavitaResolvedCredential {
+    const apiKey = draft.apiKey === undefined ? '' : draft.apiKey.trim()
+    if (apiKey.length === 0) {
+      throw new Error(AppStrings.get('server_error_missing_api_key'))
+    }
+    return {
+      credentialRef: DEFAULT_KAVITA_CREDENTIAL_REF,
+      apiKey,
     }
   }
 

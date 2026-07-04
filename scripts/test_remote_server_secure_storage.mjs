@@ -20,14 +20,14 @@ assert.match(
 
 assert.match(
   remoteServerStore,
-  /loadSecureCredentialPayload[\s\S]*KOMGA_CREDENTIAL_KEY[\s\S]*loadSecureCredentialPayload[\s\S]*WEBDAV_CREDENTIAL_KEY[\s\S]*loadSecureCredentialPayload[\s\S]*OPDS_CREDENTIAL_KEY/,
-  'Komga, WebDAV, and OPDS loads must use the secure credential loader',
+  /loadSecureCredentialPayload[\s\S]*KOMGA_CREDENTIAL_KEY[\s\S]*loadSecureCredentialPayload[\s\S]*KAVITA_CREDENTIAL_KEY[\s\S]*loadSecureCredentialPayload[\s\S]*WEBDAV_CREDENTIAL_KEY[\s\S]*loadSecureCredentialPayload[\s\S]*OPDS_CREDENTIAL_KEY/,
+  'Komga, Kavita, WebDAV, and OPDS loads must use the secure credential loader',
 )
 
 assert.match(
   remoteServerStore,
-  /saveSecureCredential\(store, KOMGA_CREDENTIAL_KEY, 'komga'[\s\S]*saveSecureCredential\(store, WEBDAV_CREDENTIAL_KEY, 'webdav'[\s\S]*saveSecureCredential\(store, OPDS_CREDENTIAL_KEY, 'opds'/,
-  'Komga, WebDAV, and OPDS saves must write credentials through the secure storage path',
+  /saveSecureCredential\(store, KOMGA_CREDENTIAL_KEY, 'komga'[\s\S]*saveSecureCredential\(store, KAVITA_CREDENTIAL_KEY, 'kavita'[\s\S]*saveSecureCredential\(store, WEBDAV_CREDENTIAL_KEY, 'webdav'[\s\S]*saveSecureCredential\(store, OPDS_CREDENTIAL_KEY, 'opds'/,
+  'Komga, Kavita, WebDAV, and OPDS saves must write credentials through the secure storage path',
 )
 
 assert.match(
@@ -42,7 +42,7 @@ assert.match(
   'legacy Preferences credentials must migrate into AssetStore on read',
 )
 
-for (const key of ['KOMGA_CREDENTIAL_KEY', 'WEBDAV_CREDENTIAL_KEY', 'OPDS_CREDENTIAL_KEY']) {
+for (const key of ['KOMGA_CREDENTIAL_KEY', 'KAVITA_CREDENTIAL_KEY', 'WEBDAV_CREDENTIAL_KEY', 'OPDS_CREDENTIAL_KEY']) {
   const putCredential = new RegExp(`store\\.put\\(${key},\\s*JSON\\.stringify\\(`)
   assert.doesNotMatch(
     remoteServerStore,
@@ -53,6 +53,6 @@ for (const key of ['KOMGA_CREDENTIAL_KEY', 'WEBDAV_CREDENTIAL_KEY', 'OPDS_CREDEN
 
 assert.match(
   backupService,
-  /komgaCredential:\s*''[\s\S]*webDavCredential:\s*''[\s\S]*opdsCredential:\s*''/,
+  /komgaCredential:\s*''[\s\S]*kavitaCredential:\s*''[\s\S]*webDavCredential:\s*''[\s\S]*opdsCredential:\s*''/,
   'backup export must continue excluding remote server credentials',
 )

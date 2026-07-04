@@ -13,6 +13,7 @@ export class RouteName {
   static readonly IMPORT: string = 'ImportPage'
   static readonly MANGA_DETAIL: string = 'MangaDetailPage'
   static readonly KOMGA_SERVER: string = 'KomgaServerPage'
+  static readonly KAVITA_SERVER: string = 'KavitaServerPage'
   static readonly OPDS_SERVER: string = 'OpdsServerPage'
   static readonly WEBDAV_SERVER: string = 'WebDavServerPage'
   static readonly SOURCE_PACKAGE_MANAGER: string = 'SourcePackageManagerPage'

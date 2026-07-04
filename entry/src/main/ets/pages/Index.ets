@@ -22,6 +22,7 @@ import { MangaDetailPage } from './MangaDetailPage'
 import { LibraryUpdateResultPage } from './LibraryUpdateResultPage'
 import { LibraryCategoryManagementPage } from './LibraryCategoryManagementPage'
 import { KomgaServerPage } from './KomgaServerPage'
+import { KavitaServerPage } from './KavitaServerPage'
 import { OpdsServerPage } from './OpdsServerPage'
 import { SourcePackageManagerPage } from './SourcePackageManagerPage'
 import { WebDavServerPage } from './WebDavServerPage'
@@ -575,6 +576,11 @@ struct Index {
         KomgaServerPage()
       }
       .titleBar(this.navDestTitleBarOpts(AppStrings.get('route_komga_title')))
+    } else if (name === RouteName.KAVITA_SERVER) {
+      HdsNavDestination() {
+        KavitaServerPage()
+      }
+      .titleBar(this.navDestTitleBarOpts(AppStrings.get('route_kavita_title')))
     } else if (name === RouteName.OPDS_SERVER) {
       HdsNavDestination() {
         OpdsServerPage()
@@ -602,6 +608,9 @@ struct Index {
           },
           onOpenKomgaSettings: () => {
             this.openSettingsSecondary(RouteName.KOMGA_SERVER)
+          },
+          onOpenKavitaSettings: () => {
+            this.openSettingsSecondary(RouteName.KAVITA_SERVER)
           },
           onOpenOpdsSettings: () => {
             this.openSettingsSecondary(RouteName.OPDS_SERVER)
@@ -765,6 +774,9 @@ struct Index {
                 },
                 onOpenKomgaSettings: () => {
                   this.openSettingsSecondary(RouteName.KOMGA_SERVER)
+                },
+                onOpenKavitaSettings: () => {
+                  this.openSettingsSecondary(RouteName.KAVITA_SERVER)
                 },
                 onOpenOpdsSettings: () => {
                   this.openSettingsSecondary(RouteName.OPDS_SERVER)
