@@ -218,7 +218,7 @@ export struct LibraryPage {
     if (this.filterAvailability === 'all') {
       return comics
     }
-    const downloadedComics = this.downloadedComicAvailability()
+    const downloadedComics = this.downloadedComicAvailability(comics)
     if (this.filterAvailability === 'downloaded') {
       return comics.filter((comic: Comic): boolean => downloadedComics.has(comic.id))
     }
@@ -231,18 +231,51 @@ export struct LibraryPage {
     return comics.filter((comic: Comic): boolean => !downloadedComics.has(comic.id))
   }
 
-  private downloadedComicAvailability(): Map<ComicId, OfflineDownloadStatus> {
+  private downloadedComicAvailability(comics: Comic[]): Map<ComicId, OfflineDownloadStatus> {
     const comicAvailability = new Map<ComicId, OfflineDownloadStatus>()
     try {
       const context = getContext(this) as common.UIAbilityContext
       const entries = new OfflineDownloadQueueStore(context.filesDir).reconcileWithManifests()
+      const entriesByComicId = new Map<ComicId, OfflineDownloadQueueEntry[]>()
       entries.forEach((entry: OfflineDownloadQueueEntry) => {
-        if (entry.status === OfflineDownloadStatus.PARTIAL) {
-          comicAvailability.set(entry.comicId, OfflineDownloadStatus.PARTIAL)
-        } else if (entry.status === OfflineDownloadStatus.DOWNLOADED &&
-          comicAvailability.get(entry.comicId) !== OfflineDownloadStatus.PARTIAL) {
-          comicAvailability.set(entry.comicId, OfflineDownloadStatus.DOWNLOADED)
+        if (entry.status !== OfflineDownloadStatus.DOWNLOADED && entry.status !== OfflineDownloadStatus.PARTIAL) {
+          return
         }
+        const existing = entriesByComicId.get(entry.comicId) ?? []
+        existing.push(entry)
+        entriesByComicId.set(entry.comicId, existing)
+      })
+      comics.forEach((comic: Comic) => {
+        const chapterIds = new Set<string>()
+        comic.chapters.forEach((chapter: Chapter) => {
+          if (chapter.id.trim().length > 0) {
+            chapterIds.add(chapter.id)
+          }
+        })
+        if (chapterIds.size === 0) {
+          return
+        }
+        const downloadedChapterIds = new Set<string>()
+        const chapterEntries = entriesByComicId.get(comic.id) ?? []
+        for (let index = 0; index < chapterEntries.length; index += 1) {
+          const entry = chapterEntries[index]
+          if (!chapterIds.has(entry.chapterId)) {
+            continue
+          }
+          if (entry.status === OfflineDownloadStatus.PARTIAL) {
+            comicAvailability.set(comic.id, OfflineDownloadStatus.PARTIAL)
+            return
+          }
+          downloadedChapterIds.add(entry.chapterId)
+        }
+        if (downloadedChapterIds.size === 0) {
+          return
+        }
+        if (downloadedChapterIds.size === chapterIds.size) {
+          comicAvailability.set(comic.id, OfflineDownloadStatus.DOWNLOADED)
+          return
+        }
+        comicAvailability.set(comic.id, OfflineDownloadStatus.PARTIAL)
       })
     } catch (error) {
       void error
