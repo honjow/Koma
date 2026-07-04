@@ -577,6 +577,8 @@ assert.match(
 assert.match(smokeSource, /local_source_runtime_fixture\.koma/, 'device smoke must cover a .koma source archive')
 assert.match(smokeSource, /SMOKE_PHASE_INSTALLED_SOURCE_READER/, 'device smoke must include a focused installed-source reader phase')
 assert.match(smokeSource, /SMOKE_PHASE_SOURCE_INDEX_READER/, 'device smoke must include a focused source-index reader phase')
+assert.match(smokeSource, /SMOKE_PHASE_SOURCE_INDEX_VISIBLE_READER/, 'device smoke must include a visible source-index library reader phase')
+assert.match(smokeSource, /SMOKE_QUERY_PARAM[\s\S]*sourceIndexReaderSearchQuery[\s\S]*JSON\.stringify\(\{ operation: 'search', query: searchRequestQuery \}\)/, 'source-index reader smoke must accept a source-specific search query instead of hardcoding the default test query')
 assert.match(smokeSource, /SMOKE_PHASE_SOURCE_INDEX_DOWNLOAD_READER/, 'device smoke must include a focused source-index download reader phase')
 assert.match(smokeSource, /SMOKE_PHASE_SOURCE_INDEX_DOWNLOAD_CORRUPT_READER/, 'device smoke must include a focused corrupt offline source-index reader phase')
 assert.match(
@@ -588,6 +590,26 @@ assert.match(
   smokeSource,
   /SourceIndexService[\s\S]*fetchIndex\(indexUrl\)[\s\S]*installPackage\(indexUrl, entry\)[\s\S]*runRealSourceSearchTask[\s\S]*get_pages[\s\S]*createReaderPageRenderSource/,
   'source-index reader smoke must fetch a user-provided index, install a selected package, run real source reader requests, and map pages into reader render sources',
+)
+assert.match(
+  smokeSource,
+  /verifySourceIndexLibraryReaderSmoke[\s\S]*upsertComicAndPersistLibraryStore[\s\S]*reloadedPersistence\.restore\(\)[\s\S]*createReaderSessionConfigFromComic\(reloadedComic, chapterId\)[\s\S]*ReaderPageRenderKind\.REMOTE_URL_IMAGE/,
+  'source-index reader smoke must persist a real source-backed comic into a library store, reload it, and verify reader rendering from the reloaded library comic',
+)
+assert.match(
+  smokeSource,
+  /verifySourceIndexVisibleLibraryReaderSmoke[\s\S]*LIBRARY_STORE_PERSISTENCE_FILE_NAME[\s\S]*upsertComicAndPersistLibraryStore[\s\S]*reloadedPersistence\.restore\(\)[\s\S]*createReaderSessionConfigFromComic\(reloadedComic, chapterId\)[\s\S]*ReaderPageRenderKind\.REMOTE_URL_IMAGE/,
+  'visible source-index reader smoke must persist the source-backed comic into the real app library store and verify reader rendering from the reloaded app library comic',
+)
+assert.match(
+  smokeSource,
+  /result\.sourceIndexLibraryPersistOk === true[\s\S]*result\.sourceIndexLibraryReloadOk === true[\s\S]*result\.sourceIndexLibraryReaderOk === true[\s\S]*result\.sourceIndexLibraryCleanupOk === true/,
+  'source-index reader smoke must fail unless source comic library persistence, reload, reader rendering, and cleanup all pass',
+)
+assert.match(
+  smokeSource,
+  /!isVisibleReaderPhase[\s\S]*result\.sourceIndexVisibleLibraryPersistOk === true[\s\S]*result\.sourceIndexVisibleLibraryReloadOk === true[\s\S]*result\.sourceIndexVisibleLibraryReaderOk === true/,
+  'visible source-index reader smoke must fail unless the visible app-library persistence, reload, and reader rendering checks all pass',
 )
 const checksumNegativeInstallIndex = smokeSource.indexOf('const checksumNegative = await sourceIndexService.installPackage(')
 const normalInstallIndex = smokeSource.indexOf('const install = await sourceIndexService.installPackage(indexUrl, entry)')
@@ -609,6 +631,16 @@ assert.match(
   smokeSource,
   /refuses to overwrite installed source/,
   'source-index reader smoke must refuse to overwrite an already installed user source',
+)
+assert.match(
+  smokeSource,
+  /alreadyInstalled && !isVisibleReaderPhase[\s\S]*alreadyInstalled && isVisibleReaderPhase[\s\S]*result\.sourceIndexReaderInstallOk = true/,
+  'visible source-index reader smoke must reuse an already installed source instead of failing or overwriting it',
+)
+assert.match(
+  smokeSource,
+  /result\.sourceIndexReaderCleanupOk = isVisibleReaderPhase \?[\s\S]*true[\s\S]*removeInstalledSourcePackage/,
+  'visible source-index reader smoke must leave the installed source available so the visible library comic remains readable',
 )
 assert.match(
   smokeSource,

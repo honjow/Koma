@@ -29,6 +29,15 @@ import {
   OfflineDownloadStore,
 } from '../model/OfflineDownloadStore'
 import {
+  AppFilesLibraryStorePersistenceAdapter,
+  LIBRARY_STORE_PERSISTENCE_FILE_NAME,
+  LibraryStorePersistenceService,
+  upsertComicAndPersistLibraryStore,
+} from '../model/LibraryPersistence'
+import {
+  InMemoryLibraryStore,
+} from '../model/LibraryStore'
+import {
   DEFAULT_OFFLINE_DOWNLOAD_QUEUE_PREFERENCES,
   OfflineDownloadQueueStore,
 } from '../model/OfflineDownloadQueueStore'
@@ -95,6 +104,7 @@ const SMOKE_TRIGGER_VALUE: string = 'run'
 const SMOKE_PHASE_PARAM: string = 'koma.sourceRuntimeSmoke.phase'
 const SMOKE_INDEX_URL_PARAM: string = 'koma.sourceRuntimeSmoke.indexUrl'
 const SMOKE_SOURCE_ID_PARAM: string = 'koma.sourceRuntimeSmoke.sourceId'
+const SMOKE_QUERY_PARAM: string = 'koma.sourceRuntimeSmoke.query'
 const SMOKE_PHASE_FULL: string = 'full'
 const SMOKE_PHASE_SETUP_PERSISTED_INVENTORY: string = 'setup-persisted-inventory'
 const SMOKE_PHASE_RELOAD_PERSISTED_INVENTORY: string = 'reload-persisted-inventory'
@@ -106,8 +116,11 @@ const SMOKE_PHASE_REAL_SOURCE_SEARCH: string = 'real-source-search'
 const SMOKE_PHASE_REAL_SOURCE_READER: string = 'real-source-reader'
 const SMOKE_PHASE_INSTALLED_SOURCE_READER: string = 'installed-source-reader'
 const SMOKE_PHASE_SOURCE_INDEX_READER: string = 'source-index-reader'
+const SMOKE_PHASE_SOURCE_INDEX_VISIBLE_READER: string = 'source-index-visible-reader'
 const SMOKE_PHASE_SOURCE_INDEX_DOWNLOAD_READER: string = 'source-index-download-reader'
 const SMOKE_PHASE_SOURCE_INDEX_DOWNLOAD_CORRUPT_READER: string = 'source-index-download-corrupt-reader'
+const SOURCE_INDEX_LIBRARY_SMOKE_FILE_NAME: string = 'source-index-library-smoke.v1.json'
+const SOURCE_RUNTIME_SMOKE_RESULT_FILE_NAME: string = 'source-runtime-smoke-result.json'
 const REAL_SOURCE_RAWFILE_PATH: string = 'test/baozimh.wasm'
 const MANGADEX_RAWFILE_PATH: string = 'test/mangadex.wasm'
 const REAL_SOURCE_SEARCH_REQUEST: string = '{"operation":"search","query":"test"}'
@@ -455,22 +468,39 @@ export interface SourceRuntimeSmokeResult {
   sourceIndexReaderFetchOk?: boolean
   sourceIndexReaderEntryCount?: number
   sourceIndexReaderSelectedSourceId?: string
+  sourceIndexReaderSearchQuery?: string
   sourceIndexReaderHashPinPresent?: boolean
   sourceIndexReaderChecksumMismatchRejected?: boolean
   sourceIndexReaderChecksumMismatchReasonCode?: string
   sourceIndexReaderInstallOk?: boolean
   sourceIndexReaderWasmBytes?: number
+  sourceIndexReaderReusedInstalledSource?: boolean
   sourceIndexReaderSearchOk?: boolean
   sourceIndexReaderSearchCount?: number
   sourceIndexReaderMangaId?: string
+  sourceIndexReaderMangaTitle?: string
   sourceIndexReaderDetailOk?: boolean
   sourceIndexReaderChaptersOk?: boolean
   sourceIndexReaderChapterCount?: number
   sourceIndexReaderChapterId?: string
+  sourceIndexReaderChapterTitle?: string
   sourceIndexReaderPagesOk?: boolean
   sourceIndexReaderPageCount?: number
   sourceIndexReaderPageId?: string
   sourceIndexReaderRenderSourceOk?: boolean
+  sourceIndexLibraryComicId?: string
+  sourceIndexLibraryPersistOk?: boolean
+  sourceIndexLibraryReloadOk?: boolean
+  sourceIndexLibraryReaderOk?: boolean
+  sourceIndexLibraryReaderKind?: string
+  sourceIndexLibraryCleanupOk?: boolean
+  sourceIndexVisibleLibraryStoreFileName?: string
+  sourceIndexVisibleLibraryComicId?: string
+  sourceIndexVisibleLibraryTitle?: string
+  sourceIndexVisibleLibraryPersistOk?: boolean
+  sourceIndexVisibleLibraryReloadOk?: boolean
+  sourceIndexVisibleLibraryReaderOk?: boolean
+  sourceIndexVisibleLibraryReaderKind?: string
   sourceIndexDownloadOk?: boolean
   sourceIndexDownloadStatus?: string
   sourceIndexDownloadPageCount?: number
@@ -482,6 +512,8 @@ export interface SourceRuntimeSmokeResult {
   sourceIndexReaderCleanupOk?: boolean
   mangadexWasmBytes?: number
   mangadexResponse?: SourceRuntimeCallResponse
+  sourceRuntimeSmokeResultFileName?: string
+  sourceRuntimeSmokeResultFileWriteOk?: boolean
   error?: string
 }
 
@@ -499,6 +531,15 @@ function responseDataRecord(response: SourceRuntimeCallResponse): Record<string,
 function responseItems(response: SourceRuntimeCallResponse): Record<string, Object>[] {
   const items = responseDataRecord(response)['items']
   return Array.isArray(items) ? items as Record<string, Object>[] : []
+}
+
+function responseItem(response: SourceRuntimeCallResponse): Record<string, Object> | undefined {
+  const data = responseDataRecord(response)
+  const item = data['item']
+  if (item !== undefined && typeof item === 'object' && !Array.isArray(item)) {
+    return item as Record<string, Object>
+  }
+  return responseItems(response)[0]
 }
 
 function responseChapters(response: SourceRuntimeCallResponse): Record<string, Object>[] {
@@ -561,9 +602,18 @@ function sourcePageRowsToComic(
   mangaId: string,
   chapterId: string,
   pages: Record<string, Object>[],
+  detail: Record<string, Object> | undefined = undefined,
+  chapters: Record<string, Object>[] = [],
 ): Comic {
   const now = Date.now()
-  const comicId = `source-index-download-smoke:${selectedSourceId}:${mangaId}`
+  const comicId = `source-index-smoke:${selectedSourceId}:${mangaId}`
+  const title = detail === undefined ?
+    'Source Index Smoke' :
+    (firstStringField([detail], 'title') || firstStringField([detail], 'name') || mangaId)
+  const author = detail === undefined ? '' : firstStringField([detail], 'author')
+  const description = detail === undefined ? '' : firstStringField([detail], 'description')
+  const coverUri = detail === undefined ? '' : (firstStringField([detail], 'cover_url') || firstStringField([detail], 'coverUrl'))
+  const chapterTitle = firstStringField(chapters, 'title') || 'Chapter'
   const chapterPages: Page[] = pages.map((page: Record<string, Object>, index: number): Page => {
     const pageId = firstStringField([page], 'id') || `${chapterId}:page:${index + 1}`
     return {
@@ -580,18 +630,21 @@ function sourcePageRowsToComic(
   })
   return {
     id: comicId,
-    title: 'Source Index Download Smoke',
+    title,
+    subtitle: description.length > 0 ? description : undefined,
+    author: author.length > 0 ? author : undefined,
     sourceKind: ComicSourceKind.PRIVATE_LIBRARY,
     sourcePath: `source://${selectedSourceId}/${mangaId}`,
     sourceRuntimeId: selectedSourceId,
     remoteResourceId: mangaId,
-    sortTitle: 'source index download smoke',
+    coverUri: coverUri.length > 0 ? coverUri : undefined,
+    sortTitle: title.toLocaleLowerCase(),
     preferredDirection: ReadingDirection.RIGHT_TO_LEFT,
     chapters: [
       {
         id: chapterId,
         comicId,
-        title: 'Chapter',
+        title: chapterTitle,
         index: 0,
         sourcePath: `source://${selectedSourceId}/${chapterId}`,
         sortKey: '000000',
@@ -606,6 +659,133 @@ function sourcePageRowsToComic(
     createdAt: now,
     updatedAt: now,
     lastImportedAt: now,
+  }
+}
+
+function sourceIndexLibrarySmokePath(filesDir: string): string {
+  return joinSourceRuntimeSmokePath(filesDir, SOURCE_INDEX_LIBRARY_SMOKE_FILE_NAME)
+}
+
+function cleanupSourceIndexLibrarySmoke(filesDir: string): boolean {
+  const path = sourceIndexLibrarySmokePath(filesDir)
+  try {
+    if (fs.accessSync(path)) {
+      fs.unlinkSync(path)
+    }
+    return !fs.accessSync(path)
+  } catch (_error) {
+    return false
+  }
+}
+
+function writeSourceRuntimeSmokeResultFile(filesDir: string, result: SourceRuntimeSmokeResult): boolean {
+  const path = joinSourceRuntimeSmokePath(filesDir, SOURCE_RUNTIME_SMOKE_RESULT_FILE_NAME)
+  result.sourceRuntimeSmokeResultFileName = SOURCE_RUNTIME_SMOKE_RESULT_FILE_NAME
+  result.sourceRuntimeSmokeResultFileWriteOk = false
+  let file: fs.File | undefined = undefined
+  try {
+    file = fs.openSync(path, fs.OpenMode.WRITE_ONLY | fs.OpenMode.CREATE | fs.OpenMode.TRUNC)
+    result.sourceRuntimeSmokeResultFileWriteOk = true
+    fs.writeSync(file.fd, JSON.stringify(result), { encoding: 'utf-8' })
+    return true
+  } catch (_error) {
+    result.sourceRuntimeSmokeResultFileWriteOk = false
+    return false
+  } finally {
+    if (file !== undefined) {
+      fs.closeSync(file)
+    }
+  }
+}
+
+function verifySourceIndexLibraryReaderSmoke(
+  filesDir: string,
+  comic: Comic,
+  chapterId: string,
+  selectedSourceId: string,
+  pageId: string,
+  result: SourceRuntimeSmokeResult,
+): void {
+  result.sourceIndexLibraryComicId = comic.id
+  cleanupSourceIndexLibrarySmoke(filesDir)
+  const libraryStore = new InMemoryLibraryStore()
+  const persistence = new LibraryStorePersistenceService(
+    libraryStore,
+    new AppFilesLibraryStorePersistenceAdapter(filesDir, SOURCE_INDEX_LIBRARY_SMOKE_FILE_NAME),
+  )
+  upsertComicAndPersistLibraryStore(libraryStore, persistence, comic)
+  result.sourceIndexLibraryPersistOk = libraryStore.getComic(comic.id)?.sourceRuntimeId === selectedSourceId
+
+  const reloadedStore = new InMemoryLibraryStore()
+  const reloadedPersistence = new LibraryStorePersistenceService(
+    reloadedStore,
+    new AppFilesLibraryStorePersistenceAdapter(filesDir, SOURCE_INDEX_LIBRARY_SMOKE_FILE_NAME),
+  )
+  reloadedPersistence.restore()
+  const reloadedComic = reloadedStore.getComic(comic.id)
+  result.sourceIndexLibraryReloadOk =
+    reloadedComic !== undefined &&
+      reloadedComic.sourceRuntimeId === selectedSourceId &&
+      reloadedComic.remoteResourceId === comic.remoteResourceId &&
+      reloadedComic.chapters.length === comic.chapters.length &&
+      reloadedComic.chapters[0]?.pages.length === comic.chapters[0]?.pages.length
+
+  if (reloadedComic !== undefined) {
+    const libraryConfig = createReaderSessionConfigFromComic(reloadedComic, chapterId)
+    const libraryRenderSource = createReaderPageRenderSource(libraryConfig, 0, { preferOffline: false })
+    result.sourceIndexLibraryReaderKind = libraryRenderSource.kind
+    result.sourceIndexLibraryReaderOk =
+      libraryRenderSource.kind === ReaderPageRenderKind.REMOTE_URL_IMAGE &&
+        libraryRenderSource.sourceRuntimeId === selectedSourceId &&
+        libraryRenderSource.pageId === pageId
+  }
+  result.sourceIndexLibraryCleanupOk = cleanupSourceIndexLibrarySmoke(filesDir)
+}
+
+function verifySourceIndexVisibleLibraryReaderSmoke(
+  filesDir: string,
+  comic: Comic,
+  chapterId: string,
+  selectedSourceId: string,
+  pageId: string,
+  result: SourceRuntimeSmokeResult,
+): void {
+  result.sourceIndexVisibleLibraryStoreFileName = LIBRARY_STORE_PERSISTENCE_FILE_NAME
+  result.sourceIndexVisibleLibraryComicId = comic.id
+  result.sourceIndexVisibleLibraryTitle = comic.title
+  const libraryStore = new InMemoryLibraryStore()
+  const persistence = new LibraryStorePersistenceService(
+    libraryStore,
+    new AppFilesLibraryStorePersistenceAdapter(filesDir),
+  )
+  persistence.restore()
+  upsertComicAndPersistLibraryStore(libraryStore, persistence, comic)
+  result.sourceIndexVisibleLibraryPersistOk =
+    libraryStore.getComic(comic.id)?.sourceRuntimeId === selectedSourceId
+
+  const reloadedStore = new InMemoryLibraryStore()
+  const reloadedPersistence = new LibraryStorePersistenceService(
+    reloadedStore,
+    new AppFilesLibraryStorePersistenceAdapter(filesDir),
+  )
+  reloadedPersistence.restore()
+  const reloadedComic = reloadedStore.getComic(comic.id)
+  result.sourceIndexVisibleLibraryReloadOk =
+    reloadedComic !== undefined &&
+      reloadedComic.title === comic.title &&
+      reloadedComic.sourceRuntimeId === selectedSourceId &&
+      reloadedComic.remoteResourceId === comic.remoteResourceId &&
+      reloadedComic.chapters.length === comic.chapters.length &&
+      reloadedComic.chapters[0]?.pages.length === comic.chapters[0]?.pages.length
+
+  if (reloadedComic !== undefined) {
+    const libraryConfig = createReaderSessionConfigFromComic(reloadedComic, chapterId)
+    const libraryRenderSource = createReaderPageRenderSource(libraryConfig, 0, { preferOffline: false })
+    result.sourceIndexVisibleLibraryReaderKind = libraryRenderSource.kind
+    result.sourceIndexVisibleLibraryReaderOk =
+      libraryRenderSource.kind === ReaderPageRenderKind.REMOTE_URL_IMAGE &&
+        libraryRenderSource.sourceRuntimeId === selectedSourceId &&
+        libraryRenderSource.pageId === pageId
   }
 }
 
@@ -1453,6 +1633,9 @@ export async function maybeRunSourceRuntimeDeviceSmoke(
         }
       }
       compactSmokeResultForHilog(result)
+      if (context !== undefined) {
+        writeSourceRuntimeSmokeResultFile(context.filesDir, result)
+      }
       console.info(SMOKE_LOG_PREFIX + JSON.stringify(result))
       return
     }
@@ -1469,6 +1652,9 @@ export async function maybeRunSourceRuntimeDeviceSmoke(
         }
       }
       compactSmokeResultForHilog(result)
+      if (context !== undefined) {
+        writeSourceRuntimeSmokeResultFile(context.filesDir, result)
+      }
       console.info(SMOKE_LOG_PREFIX + JSON.stringify(result))
       return
     }
@@ -1757,23 +1943,29 @@ export async function maybeRunSourceRuntimeDeviceSmoke(
     }
 
     if (result.smokePhase === SMOKE_PHASE_SOURCE_INDEX_READER ||
+      result.smokePhase === SMOKE_PHASE_SOURCE_INDEX_VISIBLE_READER ||
       result.smokePhase === SMOKE_PHASE_SOURCE_INDEX_DOWNLOAD_READER ||
       result.smokePhase === SMOKE_PHASE_SOURCE_INDEX_DOWNLOAD_CORRUPT_READER) {
       if (context === undefined) {
         result.error = `${result.smokePhase} phase requires ability context`
       } else {
+        const isVisibleReaderPhase = result.smokePhase === SMOKE_PHASE_SOURCE_INDEX_VISIBLE_READER
         const isDownloadReaderPhase = result.smokePhase === SMOKE_PHASE_SOURCE_INDEX_DOWNLOAD_READER ||
           result.smokePhase === SMOKE_PHASE_SOURCE_INDEX_DOWNLOAD_CORRUPT_READER
         const isCorruptReaderPhase = result.smokePhase === SMOKE_PHASE_SOURCE_INDEX_DOWNLOAD_CORRUPT_READER
         const indexUrl = smokeStringParam(want, SMOKE_INDEX_URL_PARAM)
         const requestedSourceId = smokeStringParam(want, SMOKE_SOURCE_ID_PARAM)
         const selectedSourceId = requestedSourceId.length > 0 ? requestedSourceId : SOURCE_INDEX_READER_DEFAULT_SOURCE_ID
+        const requestedSearchQuery = smokeStringParam(want, SMOKE_QUERY_PARAM)
+        const searchRequestQuery = requestedSearchQuery.length > 0 ? requestedSearchQuery : 'test'
         result.sourceIndexReaderIndexUrlProvided = indexUrl.length > 0
         result.sourceIndexReaderSelectedSourceId = selectedSourceId
+        result.sourceIndexReaderSearchQuery = searchRequestQuery
         const alreadyInstalled = appSourceRuntimeRegistry.lookup(selectedSourceId).ok
+        result.sourceIndexReaderReusedInstalledSource = isVisibleReaderPhase && alreadyInstalled
         if (indexUrl.length === 0) {
           result.error = `${result.smokePhase} requires indexUrl`
-        } else if (alreadyInstalled) {
+        } else if (alreadyInstalled && !isVisibleReaderPhase) {
           result.error = `${result.smokePhase} refuses to overwrite installed source`
         } else {
           const sourceIndexService = new SourceIndexService(context)
@@ -1785,18 +1977,22 @@ export async function maybeRunSourceRuntimeDeviceSmoke(
             result.error = 'source-index-reader source entry not found'
           } else {
             result.sourceIndexReaderHashPinPresent = entry.sha256.length > 0
-            const checksumNegative = await sourceIndexService.installPackage(
-              indexUrl,
-              sourceIndexEntryWithSha256(
-                entry,
-                '0000000000000000000000000000000000000000000000000000000000000000',
-              ),
-            )
-            result.sourceIndexReaderChecksumMismatchReasonCode = checksumNegative.reasonCode
-            result.sourceIndexReaderChecksumMismatchRejected =
-              checksumNegative.ok === false && checksumNegative.reasonCode === 'checksum_mismatch'
-            const install = await sourceIndexService.installPackage(indexUrl, entry)
-            result.sourceIndexReaderInstallOk = install.ok === true && install.install?.id === selectedSourceId
+            if (alreadyInstalled && isVisibleReaderPhase) {
+              result.sourceIndexReaderInstallOk = true
+            } else {
+              const checksumNegative = await sourceIndexService.installPackage(
+                indexUrl,
+                sourceIndexEntryWithSha256(
+                  entry,
+                  '0000000000000000000000000000000000000000000000000000000000000000',
+                ),
+              )
+              result.sourceIndexReaderChecksumMismatchReasonCode = checksumNegative.reasonCode
+              result.sourceIndexReaderChecksumMismatchRejected =
+                checksumNegative.ok === false && checksumNegative.reasonCode === 'checksum_mismatch'
+              const install = await sourceIndexService.installPackage(indexUrl, entry)
+              result.sourceIndexReaderInstallOk = install.ok === true && install.install?.id === selectedSourceId
+            }
             if (result.sourceIndexReaderInstallOk === true) {
               const lookup = appSourceRuntimeRegistry.lookup(selectedSourceId)
               const sourceBytes = lookup.entry?.wasmBytes
@@ -1804,7 +2000,7 @@ export async function maybeRunSourceRuntimeDeviceSmoke(
               if (sourceBytes !== undefined) {
                 const searchJson = await taskpool.execute(
                   runRealSourceSearchTask,
-                  REAL_SOURCE_SEARCH_REQUEST,
+                  JSON.stringify({ operation: 'search', query: searchRequestQuery }),
                   copySmokeWasmBytes(sourceBytes),
                 ) as string
                 const searchResponse: SourceRuntimeCallResponse = JSON.parse(searchJson) as SourceRuntimeCallResponse
@@ -1821,6 +2017,16 @@ export async function maybeRunSourceRuntimeDeviceSmoke(
                 ) as string
                 const detailResponse: SourceRuntimeCallResponse = JSON.parse(detailJson) as SourceRuntimeCallResponse
                 result.sourceIndexReaderDetailOk = detailResponse.ok === true
+                const detailItem = responseItem(detailResponse)
+                const searchItem = searchItems.length > 0 ? searchItems[0] : undefined
+                const detailTitle = detailItem === undefined ?
+                  '' :
+                  (firstStringField([detailItem], 'title') || firstStringField([detailItem], 'name'))
+                const searchTitle = searchItem === undefined ?
+                  '' :
+                  (firstStringField([searchItem], 'title') || firstStringField([searchItem], 'name'))
+                const comicDetailItem = detailTitle.length > 0 ? detailItem : searchItem
+                result.sourceIndexReaderMangaTitle = detailTitle.length > 0 ? detailTitle : searchTitle
 
                 const chaptersJson = await taskpool.execute(
                   runRealSourceSearchTask,
@@ -1833,6 +2039,7 @@ export async function maybeRunSourceRuntimeDeviceSmoke(
                 result.sourceIndexReaderChaptersOk = chaptersResponse.ok === true && chapterId.length > 0
                 result.sourceIndexReaderChapterCount = chapters.length
                 result.sourceIndexReaderChapterId = chapterId
+                result.sourceIndexReaderChapterTitle = firstStringField(chapters, 'title')
 
                 const pagesJson = await taskpool.execute(
                   runRealSourceSearchTask,
@@ -1864,8 +2071,28 @@ export async function maybeRunSourceRuntimeDeviceSmoke(
                   renderSource.kind === ReaderPageRenderKind.REMOTE_URL_IMAGE &&
                     renderSource.sourceRuntimeId === selectedSourceId &&
                     renderSource.pageId === pageId
+                const comic = sourcePageRowsToComic(selectedSourceId, mangaId, chapterId, pages, comicDetailItem, chapters)
+                if (result.sourceIndexReaderRenderSourceOk === true) {
+                  verifySourceIndexLibraryReaderSmoke(
+                    context.filesDir,
+                    comic,
+                    chapterId,
+                    selectedSourceId,
+                    pageId,
+                    result,
+                  )
+                  if (isVisibleReaderPhase) {
+                    verifySourceIndexVisibleLibraryReaderSmoke(
+                      context.filesDir,
+                      comic,
+                      chapterId,
+                      selectedSourceId,
+                      pageId,
+                      result,
+                    )
+                  }
+                }
                 if (isDownloadReaderPhase && result.sourceIndexReaderRenderSourceOk === true) {
-                  const comic = sourcePageRowsToComic(selectedSourceId, mangaId, chapterId, pages)
                   const downloadStore = new OfflineDownloadStore(context.filesDir)
                   const queueStore = new OfflineDownloadQueueStore(downloadStore.filesRootDir())
                   queueStore.savePreferences(DEFAULT_OFFLINE_DOWNLOAD_QUEUE_PREFERENCES)
@@ -1902,12 +2129,14 @@ export async function maybeRunSourceRuntimeDeviceSmoke(
                 }
               }
             }
-            result.sourceIndexReaderCleanupOk = await removeInstalledSourcePackage(context, selectedSourceId)
+            result.sourceIndexReaderCleanupOk = isVisibleReaderPhase ?
+              true :
+              await removeInstalledSourcePackage(context, selectedSourceId)
           }
         }
         result.ok = result.sourceIndexReaderIndexUrlProvided === true &&
           result.sourceIndexReaderFetchOk === true &&
-          result.sourceIndexReaderChecksumMismatchRejected === true &&
+          (isVisibleReaderPhase || result.sourceIndexReaderChecksumMismatchRejected === true) &&
           result.sourceIndexReaderInstallOk === true &&
           result.sourceIndexReaderSearchOk === true &&
           result.sourceIndexReaderDetailOk === true &&
@@ -1915,6 +2144,14 @@ export async function maybeRunSourceRuntimeDeviceSmoke(
           result.sourceIndexReaderPagesOk === true &&
           (result.sourceIndexReaderPageCount ?? 0) > 0 &&
           result.sourceIndexReaderRenderSourceOk === true &&
+          result.sourceIndexLibraryPersistOk === true &&
+          result.sourceIndexLibraryReloadOk === true &&
+          result.sourceIndexLibraryReaderOk === true &&
+          result.sourceIndexLibraryCleanupOk === true &&
+          (!isVisibleReaderPhase ||
+            (result.sourceIndexVisibleLibraryPersistOk === true &&
+              result.sourceIndexVisibleLibraryReloadOk === true &&
+              result.sourceIndexVisibleLibraryReaderOk === true)) &&
           (!isDownloadReaderPhase ||
             (result.sourceIndexDownloadOk === true &&
               result.sourceIndexDownloadOfflineReaderOk === true &&
@@ -1926,6 +2163,9 @@ export async function maybeRunSourceRuntimeDeviceSmoke(
         }
       }
       compactSmokeResultForHilog(result)
+      if (context !== undefined) {
+        writeSourceRuntimeSmokeResultFile(context.filesDir, result)
+      }
       console.info(SMOKE_LOG_PREFIX + JSON.stringify(result))
       return
     }
@@ -2023,5 +2263,8 @@ export async function maybeRunSourceRuntimeDeviceSmoke(
   }
 
   compactSmokeResultForHilog(result)
+  if (context !== undefined) {
+    writeSourceRuntimeSmokeResultFile(context.filesDir, result)
+  }
   console.info(SMOKE_LOG_PREFIX + JSON.stringify(result))
 }
