@@ -314,6 +314,11 @@ assert.match(
   'BrowseViewModel must expose an immediate clear path so blank source searches cannot leave stale results visible',
 )
 assert.match(
+  browseViewModelSource,
+  /private searchRequestId: number = 0[\s\S]*runSearch\(source: SourceRuntimeRegistryInstalledSourceSummary, query: string\): Promise<void> \{[\s\S]*const requestId = this\.searchRequestId \+ 1[\s\S]*this\.searchRequestId = requestId[\s\S]*await this\.searchSource\(source, normalizedQuery, 1\)[\s\S]*requestId !== this\.searchRequestId[\s\S]*catch \(error\)[\s\S]*requestId !== this\.searchRequestId[\s\S]*finally[\s\S]*requestId === this\.searchRequestId[\s\S]*clearSearch\(source\?: SourceRuntimeRegistryInstalledSourceSummary\): void \{[\s\S]*this\.searchRequestId \+= 1/,
+  'BrowseViewModel must ignore stale source search completions after newer searches or immediate clear',
+)
+assert.match(
   sourceSearchPageSource,
   /clearPendingSearchTimer\(\): void \{[\s\S]*clearTimeout\(this\.searchTimer\)[\s\S]*scheduleSearch\(value: string\): void \{[\s\S]*this\.clearPendingSearchTimer\(\)[\s\S]*if \(value\.trim\(\)\.length === 0\) \{[\s\S]*this\.viewModel\.clearSearch\(this\.source\)[\s\S]*return[\s\S]*setTimeout/,
   'SourceSearchPage must clear source search results immediately when the query becomes blank instead of waiting for debounce',

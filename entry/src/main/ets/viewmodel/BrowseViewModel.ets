@@ -291,6 +291,7 @@ export class BrowseViewModel {
   @Trace errorMessage: string = ''
   @Trace searchQuery: string = ''
   @Trace searchNextCursor: string = ''
+  private searchRequestId: number = 0
 
   constructor(registry?: SourceRuntimeRegistry) {
     this.registry = registry ?? appSourceRuntimeRegistry
@@ -481,6 +482,8 @@ export class BrowseViewModel {
   }
 
   async runSearch(source: SourceRuntimeRegistryInstalledSourceSummary, query: string): Promise<void> {
+    const requestId = this.searchRequestId + 1
+    this.searchRequestId = requestId
     this.selectedSource = source
     this.searchQuery = query
     this.searchPage = 1
@@ -494,21 +497,30 @@ export class BrowseViewModel {
         return
       }
       const result = await this.searchSource(source, normalizedQuery, 1)
+      if (requestId !== this.searchRequestId) {
+        return
+      }
       this.searchResults = result.manga
       this.hasMoreSearch = result.hasNextPage
       this.searchNextCursor = result.nextCursor ?? ''
     } catch (error) {
+      if (requestId !== this.searchRequestId) {
+        return
+      }
       const e = error as Error
       this.errorMessage = safeSearchDiagnostic(e).userText
       this.searchResults = []
       this.hasMoreSearch = false
       this.searchNextCursor = ''
     } finally {
-      this.loadingSearch = false
+      if (requestId === this.searchRequestId) {
+        this.loadingSearch = false
+      }
     }
   }
 
   clearSearch(source?: SourceRuntimeRegistryInstalledSourceSummary): void {
+    this.searchRequestId += 1
     if (source !== undefined) {
       this.selectedSource = source
     }
