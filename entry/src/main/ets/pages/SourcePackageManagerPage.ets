@@ -537,6 +537,8 @@ export struct SourcePackageManagerPage {
         return t('source_pkg_reason_invalid_json')
       case 'invalid_pkg_url':
         return t('source_pkg_reason_invalid_pkg_url')
+      case 'app_version_unsupported':
+        return t('source_pkg_reason_app_version_unsupported')
       case 'invalid_response':
         return t('source_pkg_reason_invalid_response')
       case 'empty_package':
@@ -607,6 +609,7 @@ export struct SourcePackageManagerPage {
       case 'invalid_index_format':
       case 'invalid_json':
       case 'invalid_pkg_url':
+      case 'app_version_unsupported':
       case 'invalid_response':
       case 'empty_package':
       case 'checksum_mismatch':

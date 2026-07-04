@@ -967,6 +967,7 @@
     { "name": "source_pkg_reason_invalid_index_format", "value": "源索引格式不正确" },
     { "name": "source_pkg_reason_invalid_json", "value": "源索引 JSON 无法解析" },
     { "name": "source_pkg_reason_invalid_pkg_url", "value": "源包地址不正确" },
+    { "name": "source_pkg_reason_app_version_unsupported", "value": "此源包需要更新版本的 Koma" },
     { "name": "source_pkg_reason_invalid_response", "value": "源包下载响应无效" },
     { "name": "source_pkg_reason_empty_package", "value": "源包为空" },
     { "name": "source_pkg_reason_checksum_mismatch", "value": "源包校验和不匹配" },

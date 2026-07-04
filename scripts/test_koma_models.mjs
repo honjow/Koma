@@ -1898,6 +1898,16 @@ assert.match(
   'installed source update checks must fetch the user-configured source index and compare remote/local versions',
 )
 assert.match(
+  readFileSync(resolve(root, 'entry/src/main/ets/sourceRuntime/SourceIndexService.ets'), 'utf8'),
+  /isMinAppVersionSatisfied\(entry\.minAppVersion\)[\s\S]*reasonCode: 'app_version_unsupported'[\s\S]*const pkgUrl = safeResolvePkgUrl/,
+  'source index install must fail closed on minAppVersion before downloading or replacing a source package',
+)
+assert.match(
+  sourcePackageManagerPageSource,
+  /case 'app_version_unsupported':[\s\S]*source_pkg_reason_app_version_unsupported/,
+  'source package manager must surface an app-version compatibility failure with localized copy',
+)
+assert.match(
   sourcePackageManagerPageSource,
   /\[SourcePackageUpdate\] step=check_start count=[\s\S]*\[SourcePackageUpdate\] step=check_done update=[\s\S]*\[SourcePackageUpdate\] step=install_start id=[\s\S]*\[SourcePackageUpdate\] step=install_done id=[\s\S]*\[SourcePackageUpdate\] step=install_failed id=/,
   'source package manager must log SourcePackageUpdate check and install lifecycle events',

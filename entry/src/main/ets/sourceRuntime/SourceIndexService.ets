@@ -1,4 +1,4 @@
-import { common } from '@kit.AbilityKit'
+import { bundleManager, common } from '@kit.AbilityKit'
 import { preferences } from '@kit.ArkData'
 import { BusinessError } from '@kit.BasicServicesKit'
 import { http } from '@kit.NetworkKit'
@@ -72,6 +72,44 @@ function safeString(value: Object | undefined): string {
 
 function safeBoolean(value: Object | undefined): boolean {
   return value === true
+}
+
+function compareVersion(left: string, right: string): number {
+  const leftParts = left.trim().split('.')
+  const rightParts = right.trim().split('.')
+  const count = Math.max(leftParts.length, rightParts.length)
+  for (let index = 0; index < count; index += 1) {
+    const leftValue = Number.parseInt(leftParts[index] ?? '0')
+    const rightValue = Number.parseInt(rightParts[index] ?? '0')
+    if (Number.isNaN(leftValue) || Number.isNaN(rightValue)) {
+      return left === right ? 0 : left.localeCompare(right)
+    }
+    if (leftValue !== rightValue) {
+      return leftValue > rightValue ? 1 : -1
+    }
+  }
+  return 0
+}
+
+function currentAppVersionName(): string {
+  try {
+    const info = bundleManager.getBundleInfoForSelfSync(bundleManager.BundleFlag.GET_BUNDLE_INFO_DEFAULT)
+    return info.versionName
+  } catch (_err) {
+    return ''
+  }
+}
+
+function isMinAppVersionSatisfied(minAppVersion: string): boolean {
+  const required = minAppVersion.trim()
+  if (required.length === 0) {
+    return true
+  }
+  const current = currentAppVersionName()
+  if (current.length === 0) {
+    return false
+  }
+  return compareVersion(current, required) >= 0
 }
 
 function parseIndexEntry(raw: Object): SourceIndexEntry | undefined {
@@ -192,6 +230,11 @@ export class SourceIndexService {
   }
 
   async installPackage(indexUrl: string, entry: SourceIndexEntry): Promise<SourceIndexInstallResult> {
+    if (!isMinAppVersionSatisfied(entry.minAppVersion)) {
+      console.error('[SourceIndex] step=install_blocked reason=app_version_unsupported')
+      return { ok: false, reasonCode: 'app_version_unsupported' }
+    }
+
     const pkgUrl = safeResolvePkgUrl(normalizeIndexUrl(indexUrl), entry.pkg)
     if (!isValidHttpUrl(pkgUrl)) {
       return { ok: false, reasonCode: 'invalid_pkg_url' }

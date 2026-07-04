@@ -353,6 +353,11 @@ assert.match(indexServiceSource, /installFromBytes/, 'SourceIndexService must de
 assert.match(indexServiceSource, /parseIndexEntry/, 'SourceIndexService must parse index entries safely')
 assert.match(
   indexServiceSource,
+  /isMinAppVersionSatisfied\(entry\.minAppVersion\)[\s\S]*reasonCode: 'app_version_unsupported'[\s\S]*const pkgUrl = safeResolvePkgUrl/,
+  'SourceIndexService must reject source index entries whose minAppVersion is newer before downloading the package',
+)
+assert.match(
+  indexServiceSource,
   /importLocalSourceArchive|installFromBytes/,
   'SourceIndexService must not bypass archive validation',
 )

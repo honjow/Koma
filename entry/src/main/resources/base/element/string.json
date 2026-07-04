@@ -967,6 +967,7 @@
     { "name": "source_pkg_reason_invalid_index_format", "value": "Invalid source index format" },
     { "name": "source_pkg_reason_invalid_json", "value": "Source index JSON could not be parsed" },
     { "name": "source_pkg_reason_invalid_pkg_url", "value": "Invalid source package URL" },
+    { "name": "source_pkg_reason_app_version_unsupported", "value": "This source package requires a newer Koma version" },
     { "name": "source_pkg_reason_invalid_response", "value": "Invalid source package download response" },
     { "name": "source_pkg_reason_empty_package", "value": "Source package is empty" },
     { "name": "source_pkg_reason_checksum_mismatch", "value": "Source package checksum mismatch" },
