@@ -127,6 +127,50 @@ export struct BackupManagementPage {
     return tf('backup_failure_message', code)
   }
 
+  private confirmExportBackup(): void {
+    if (this.busy) {
+      return
+    }
+    this.getUIContext().showAlertDialog({
+      title: t('backup_unencrypted_confirm_title'),
+      message: `${t('backup_unencrypted_confirm_message')}\n\n${backupUnencryptedExportWarning()}`,
+      autoCancel: true,
+      primaryButton: {
+        value: t('backup_unencrypted_confirm_action'),
+        fontColor: $r('app.color.koma_danger'),
+        action: () => {
+          this.exportBackup()
+        },
+      },
+      secondaryButton: {
+        value: t('common_cancel'),
+        action: () => {},
+      },
+    })
+  }
+
+  private confirmExportLocalBackup(): void {
+    if (this.busy) {
+      return
+    }
+    this.getUIContext().showAlertDialog({
+      title: t('backup_unencrypted_confirm_title'),
+      message: `${t('backup_unencrypted_local_confirm_message')}\n\n${backupUnencryptedExportWarning()}`,
+      autoCancel: true,
+      primaryButton: {
+        value: t('backup_unencrypted_confirm_action'),
+        fontColor: $r('app.color.koma_danger'),
+        action: () => {
+          this.exportLocalBackup()
+        },
+      },
+      secondaryButton: {
+        value: t('common_cancel'),
+        action: () => {},
+      },
+    })
+  }
+
   private saveAutomaticPreferences(preferencesValue: BackupAutomaticPreferences): void {
     void this.backupService().saveAutomaticPreferences(preferencesValue)
       .then(() => {
@@ -651,7 +695,7 @@ export struct BackupManagementPage {
         icon: $r('sys.symbol.doc_plaintext'),
         isEnabled: !this.busy,
         action: () => {
-          this.exportBackup()
+          this.confirmExportBackup()
         },
       })
         .width('100%')
@@ -933,7 +977,7 @@ export struct BackupManagementPage {
           kind: 'primary',
           isEnabled: !this.busy,
           action: () => {
-            this.exportLocalBackup()
+            this.confirmExportLocalBackup()
           },
         })
         KomaActionButton({

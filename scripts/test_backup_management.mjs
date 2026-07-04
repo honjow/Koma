@@ -19,6 +19,8 @@ function privateMethodSource(source, methodName) {
 
 const exportEncryptedBackupSource = privateMethodSource(backupPageSource, 'exportEncryptedBackup')
 const exportEncryptedLocalBackupSource = privateMethodSource(backupPageSource, 'exportEncryptedLocalBackup')
+const confirmExportBackupSource = privateMethodSource(backupPageSource, 'confirmExportBackup')
+const confirmExportLocalBackupSource = privateMethodSource(backupPageSource, 'confirmExportLocalBackup')
 
 assert.match(
   backupServiceSource,
@@ -90,6 +92,21 @@ assert.match(
   backupPageSource,
   /exportToPicker\(\)[\s\S]*selectImportPreviewFromPicker\(\)[\s\S]*restoreSelectedBackup\(\)/,
   'BackupManagementPage must expose export, import preview, and explicit restore actions',
+)
+assert.match(
+  confirmExportBackupSource,
+  /showAlertDialog\(\{[\s\S]*backup_unencrypted_confirm_title[\s\S]*backup_unencrypted_confirm_message[\s\S]*backupUnencryptedExportWarning\(\)[\s\S]*backup_unencrypted_confirm_action[\s\S]*this\.exportBackup\(\)/,
+  'BackupManagementPage must confirm plaintext picker export before writing an unencrypted backup',
+)
+assert.match(
+  confirmExportLocalBackupSource,
+  /showAlertDialog\(\{[\s\S]*backup_unencrypted_confirm_title[\s\S]*backup_unencrypted_local_confirm_message[\s\S]*backupUnencryptedExportWarning\(\)[\s\S]*backup_unencrypted_confirm_action[\s\S]*this\.exportLocalBackup\(\)/,
+  'BackupManagementPage must confirm plaintext local backup creation before writing an unencrypted backup',
+)
+assert.match(
+  backupPageSource,
+  /backup_export_action[\s\S]*this\.confirmExportBackup\(\)[\s\S]*backup_local_create_action[\s\S]*this\.confirmExportLocalBackup\(\)/,
+  'BackupManagementPage unencrypted export buttons must route through confirmation handlers',
 )
 assert.match(
   backupServiceSource,
