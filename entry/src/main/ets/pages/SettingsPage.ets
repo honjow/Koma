@@ -144,7 +144,6 @@ interface SettingsRow {
   key: string
   titleKey: string
   detailKey: string
-  placeholder?: boolean
 }
 
 interface SettingsSection {
@@ -2159,17 +2158,11 @@ export struct SettingsPage {
       this.saveDownloadWifiOnly(value)
     } else if (row.key === 'tracker-auto-sync') {
       this.saveTrackerAutoSyncEnabled(value)
-    } else {
-      this.showToast(`${this.rowTitle(row)}${s('settings_coming_soon_suffix')}`)
     }
   }
 
   private canOpenSelectionMenu(row: SettingsRow): boolean {
     return row.key !== 'library-update-interval' || this.libraryUpdatePreferences.autoCheckEnabled
-  }
-
-  private isPlaceholderRow(row: SettingsRow): boolean {
-    return row.placeholder === true
   }
 
   @Builder
@@ -2327,8 +2320,6 @@ export struct SettingsPage {
       this.showVersionDialog()
     } else if (row.key === 'open-source') {
       this.showOpenSourceDialog()
-    } else if (this.isPlaceholderRow(row)) {
-      this.showToast(`${this.rowTitle(row)}${s('settings_coming_soon_suffix')}`)
     }
   }
 
@@ -2401,15 +2392,6 @@ export struct SettingsPage {
           },
         })
     } else if (this.isSelectionRow(row)) {
-      ConciseListRow({
-        title: this.rowTitle(row),
-        trailingText: this.rowDetail(row),
-        showChevron: false,
-        action: () => {
-          this.handleRowClick(row)
-        },
-      })
-    } else if (this.isPlaceholderRow(row)) {
       ConciseListRow({
         title: this.rowTitle(row),
         trailingText: this.rowDetail(row),

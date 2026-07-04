@@ -60,13 +60,13 @@ assert.match(
 )
 assert.match(
   readerPageSource,
-  /private isSinglePageSplitMode\(\): boolean \{[\s\S]*this\.currentReaderMode\(\) === ReaderMode\.SINGLE_PAGE && this\.wideImageMode === 'split_wide_pages'[\s\S]*private canGoPreviousPage\(\): boolean \{[\s\S]*this\.readerDisplayIndex > 0[\s\S]*return this\.pageIndex > 0/,
-  'ReaderPage must preserve physical previous boundaries outside split single-page mode',
+  /private isSplitDisplayNavigationMode\(\): boolean \{[\s\S]*readerMode !== ReaderMode\.DUAL_PAGE && this\.wideImageMode === 'split_wide_pages'[\s\S]*private canGoPreviousPage\(\): boolean \{[\s\S]*this\.readerDisplayIndex > 0[\s\S]*return this\.pageIndex > 0/,
+  'ReaderPage must preserve physical previous boundaries outside split display navigation mode',
 )
 assert.match(
   readerPageSource,
-  /private canGoNextPage\(\): boolean \{[\s\S]*this\.readerDisplayIndex < this\.singlePageDisplayEntries\(\)\.length - 1[\s\S]*return this\.pageIndex < this\.pageTotal\(\) - 1/,
-  'ReaderPage must preserve physical next boundaries outside split single-page mode',
+  /private canGoNextPage\(\): boolean \{[\s\S]*this\.readerDisplayIndex < this\.currentDisplayEntries\(\)\.length - 1[\s\S]*return this\.pageIndex < this\.pageTotal\(\) - 1/,
+  'ReaderPage must preserve physical next boundaries outside split display navigation mode',
 )
 assert.match(
   readerPageSource,

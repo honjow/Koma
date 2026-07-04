@@ -999,6 +999,11 @@ assert.doesNotMatch(
   /key: 'list-density'[^}]*placeholder: true/,
   'SettingsPage list density must not remain a placeholder',
 )
+assert.doesNotMatch(
+  settingsPageSource,
+  /placeholder\?: boolean|isPlaceholderRow|settings_coming_soon_suffix/,
+  'SettingsPage must not keep placeholder rows or coming-soon fallbacks for settings entries',
+)
 assert.match(
   settingsPageSource,
   /LibraryListDensity[\s\S]*libraryListDensity: LibraryListDensity = 'standard'[\s\S]*saveLibraryListDensity\(listDensity: LibraryListDensity\)[\s\S]*preferences\.listDensity = listDensity[\s\S]*row\.key === 'list-density'[\s\S]*library_list_density_compact[\s\S]*saveLibraryListDensity\('compact'\)[\s\S]*common_standard[\s\S]*saveLibraryListDensity\('standard'\)[\s\S]*library_list_density_comfortable[\s\S]*saveLibraryListDensity\('comfortable'\)/,
