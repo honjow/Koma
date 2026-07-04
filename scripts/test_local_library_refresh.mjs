@@ -130,8 +130,18 @@ assert.doesNotMatch(
 
 assert.match(
   libraryUpdateServiceSource,
-  /ComicSourceKind\.LOCAL_ARCHIVE \|\| comic\.sourceKind === ComicSourceKind\.LOCAL_FOLDER[\s\S]*AppStrings\.get\('library_update_skip_local_unsupported'\)/,
-  'existing remote/source update service must continue to skip local imports',
+  /import \{[\s\S]*LocalLibraryRefreshComicResult[\s\S]*LocalLibraryRefreshService[\s\S]*\} from '\.\/LocalLibraryRefreshService'/,
+  'LibraryUpdateService must reuse the local refresh model instead of duplicating local refresh status',
+)
+assert.match(
+  libraryUpdateServiceSource,
+  /ComicSourceKind\.LOCAL_ARCHIVE \|\| comic\.sourceKind === ComicSourceKind\.LOCAL_FOLDER[\s\S]*return this\.checkLocalLibraryComic\(comic, previousChapterCount\)/,
+  'LibraryUpdateService must route local imports into the bounded local refresh check',
+)
+assert.match(
+  libraryUpdateServiceSource,
+  /checkLocalLibraryComic\(comic: Comic, previousChapterCount: number\): LibraryUpdateComicResult[\s\S]*new LocalLibraryRefreshService\(this\.libraryStore\)\.checkLocalComicRefresh\(comic\)[\s\S]*result\.status === 'unchanged'[\s\S]*status: 'unchanged'[\s\S]*return this\.skippedResult\(comic, previousChapterCount, result\.message\)/,
+  'LibraryUpdateService must count retained local archives as unchanged while preserving folder reselect as skipped',
 )
 
 assert.match(

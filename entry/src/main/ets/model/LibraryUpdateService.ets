@@ -46,6 +46,10 @@ import {
 } from '../remote/WebDavModels'
 import { RemoteServerStore } from './RemoteServerStore'
 import { compareNaturalPath } from '../import/ImageSortUtils'
+import {
+  LocalLibraryRefreshComicResult,
+  LocalLibraryRefreshService,
+} from './LocalLibraryRefreshService'
 
 export type LibraryUpdateResultStatus = 'unchanged' | 'updated' | 'skipped' | 'failed'
 export type LibraryUpdateProviderKind = 'source_runtime' | 'local' | 'komga' | 'opds' | 'webdav' | 'private_library' | 'unsupported'
@@ -481,7 +485,7 @@ export class LibraryUpdateService {
       return this.checkSourceRuntimeComic(comic, previousChapterCount)
     }
     if (comic.sourceKind === ComicSourceKind.LOCAL_ARCHIVE || comic.sourceKind === ComicSourceKind.LOCAL_FOLDER) {
-      return this.skippedResult(comic, previousChapterCount, AppStrings.get('library_update_skip_local_unsupported'))
+      return this.checkLocalLibraryComic(comic, previousChapterCount)
     }
     if (comic.sourceKind === ComicSourceKind.KOMGA_REMOTE) {
       return this.checkKomgaComic(comic, previousChapterCount)
@@ -496,6 +500,23 @@ export class LibraryUpdateService {
       return this.skippedResult(comic, previousChapterCount, AppStrings.get('library_update_skip_remote_library_unsupported'))
     }
     return this.skippedResult(comic, previousChapterCount, AppStrings.get('library_update_skip_source_kind_unsupported'))
+  }
+
+  private checkLocalLibraryComic(comic: Comic, previousChapterCount: number): LibraryUpdateComicResult {
+    const result: LocalLibraryRefreshComicResult =
+      new LocalLibraryRefreshService(this.libraryStore).checkLocalComicRefresh(comic)
+    if (result.status === 'unchanged') {
+      return {
+        comicId: comic.id,
+        providerKind: providerKindForComic(comic),
+        sourceKey: sourceKeyForComic(comic),
+        status: 'unchanged',
+        previousChapterCount,
+        newChapterCount: previousChapterCount,
+        message: result.message,
+      }
+    }
+    return this.skippedResult(comic, previousChapterCount, result.message)
   }
 
   private async checkSourceRuntimeComic(comic: Comic, previousChapterCount: number): Promise<LibraryUpdateComicResult> {

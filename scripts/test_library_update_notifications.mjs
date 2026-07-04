@@ -64,6 +64,11 @@ assert.match(
 )
 assert.match(
   serviceSource,
+  /ComicSourceKind\.LOCAL_ARCHIVE \|\| comic\.sourceKind === ComicSourceKind\.LOCAL_FOLDER[\s\S]*return this\.checkLocalLibraryComic\(comic, previousChapterCount\)[\s\S]*new LocalLibraryRefreshService\(this\.libraryStore\)\.checkLocalComicRefresh\(comic\)/,
+  'Local library update rows must use the local refresh model instead of the generic unsupported skip path',
+)
+assert.match(
+  serviceSource,
   /private remoteServerStore\?: RemoteServerStore[\s\S]*if \(comic\.sourceKind === ComicSourceKind\.KOMGA_REMOTE\) \{[\s\S]*return this\.checkKomgaComic\(comic, previousChapterCount\)/,
   'Komga library updates must use a real provider probe instead of the generic remote-library skipped path',
 )
