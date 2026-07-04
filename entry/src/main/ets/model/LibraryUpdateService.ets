@@ -29,6 +29,13 @@ import {
   mapKomgaPageToPage,
 } from '../remote/KomgaModels'
 import {
+  KavitaChapterDto,
+  KavitaVolumeDto,
+  createKavitaChapterId,
+  mapKavitaChapterToChapter,
+  mapKavitaPageToPage,
+} from '../remote/KavitaModels'
+import {
   mapOpdsPublicationToImages,
 } from '../remote/OpdsParser'
 import {
@@ -52,7 +59,7 @@ import {
 } from './LocalLibraryRefreshService'
 
 export type LibraryUpdateResultStatus = 'unchanged' | 'updated' | 'skipped' | 'failed'
-export type LibraryUpdateProviderKind = 'source_runtime' | 'local' | 'komga' | 'opds' | 'webdav' | 'private_library' | 'unsupported'
+export type LibraryUpdateProviderKind = 'source_runtime' | 'local' | 'komga' | 'kavita' | 'opds' | 'webdav' | 'private_library' | 'unsupported'
 
 export interface LibraryUpdateComicResult {
   comicId: string
@@ -410,7 +417,7 @@ function providerKindForComic(comic: Comic): LibraryUpdateProviderKind {
     return 'komga'
   }
   if (comic.sourceKind === ComicSourceKind.KAVITA_REMOTE) {
-    return 'private_library'
+    return 'kavita'
   }
   if (comic.sourceKind === ComicSourceKind.OPDS_REMOTE) {
     return 'opds'
@@ -492,6 +499,9 @@ export class LibraryUpdateService {
     }
     if (comic.sourceKind === ComicSourceKind.KOMGA_REMOTE) {
       return this.checkKomgaComic(comic, previousChapterCount)
+    }
+    if (comic.sourceKind === ComicSourceKind.KAVITA_REMOTE) {
+      return this.checkKavitaComic(comic, previousChapterCount)
     }
     if (comic.sourceKind === ComicSourceKind.OPDS_REMOTE) {
       return this.checkOpdsComic(comic, previousChapterCount)
@@ -731,6 +741,129 @@ export class LibraryUpdateService {
       return comic.id.substring(markerIndex + marker.length)
     }
     return undefined
+  }
+
+  private kavitaSeriesIdForComic(comic: Comic): number | undefined {
+    let raw = ''
+    if (comic.remoteResourceId !== undefined && comic.remoteResourceId.trim().length > 0) {
+      raw = comic.remoteResourceId
+    } else {
+      const marker = ':series:'
+      const markerIndex = comic.id.indexOf(marker)
+      if (markerIndex >= 0 && comic.id.length > markerIndex + marker.length) {
+        raw = comic.id.substring(markerIndex + marker.length)
+      }
+    }
+    const parsed = Number.parseInt(raw, 10)
+    if (!Number.isFinite(parsed) || parsed <= 0) {
+      return undefined
+    }
+    return parsed
+  }
+
+  private kavitaVolumeChapters(volumes: KavitaVolumeDto[]): KavitaChapterDto[] {
+    const chapters: KavitaChapterDto[] = []
+    volumes.forEach((volume: KavitaVolumeDto) => {
+      if (volume.chapters !== undefined) {
+        volume.chapters.forEach((chapter: KavitaChapterDto) => {
+          if (chapters.find((item: KavitaChapterDto): boolean => item.id === chapter.id) === undefined) {
+            chapters.push(chapter)
+          }
+        })
+      }
+    })
+    return chapters.sort((left: KavitaChapterDto, right: KavitaChapterDto): number => {
+      const leftIndex = left.sortOrder === undefined ? left.minNumber === undefined ? left.id : left.minNumber : left.sortOrder
+      const rightIndex = right.sortOrder === undefined ? right.minNumber === undefined ? right.id : right.minNumber : right.sortOrder
+      return leftIndex - rightIndex
+    })
+  }
+
+  private async checkKavitaComic(comic: Comic, previousChapterCount: number): Promise<LibraryUpdateComicResult> {
+    const remoteServerStore = this.remoteServerStore
+    if (remoteServerStore === undefined) {
+      return this.skippedResult(comic, previousChapterCount, AppStrings.get('library_update_skip_remote_library_unsupported'))
+    }
+    const seriesId = this.kavitaSeriesIdForComic(comic)
+    if (seriesId === undefined) {
+      return this.skippedResult(comic, previousChapterCount, AppStrings.get('library_update_skip_missing_remote_resource_id'))
+    }
+    try {
+      const record = await remoteServerStore.loadKavita()
+      if (record === undefined || (comic.remoteServerId !== undefined && record.server.id !== comic.remoteServerId)) {
+        return {
+          comicId: comic.id,
+          providerKind: providerKindForComic(comic),
+          sourceKey: sourceKeyForComic(comic),
+          status: 'failed',
+          previousChapterCount,
+          newChapterCount: previousChapterCount,
+          message: safeLibraryUpdateFailureCode('server_unavailable'),
+        }
+      }
+      const client = remoteServerStore.createKavitaClient(record)
+      const chapterDtos = this.kavitaVolumeChapters(await client.listVolumes(seriesId))
+      const remoteIds = chapterDtos.map((chapter: KavitaChapterDto): string => createKavitaChapterId(record.server.id, chapter.id))
+      const localIds = comic.chapters.map((chapter: Chapter): string => chapter.id)
+      const hasNewId = remoteIds.some((chapterId: string): boolean => !localIds.includes(chapterId))
+      if (chapterDtos.length <= previousChapterCount && !hasNewId) {
+        return {
+          comicId: comic.id,
+          providerKind: providerKindForComic(comic),
+          sourceKey: sourceKeyForComic(comic),
+          status: 'unchanged',
+          previousChapterCount,
+          newChapterCount: previousChapterCount,
+          message: AppStrings.get('library_update_no_new_chapters'),
+        }
+      }
+      const now = Date.now()
+      const chapters: Chapter[] = []
+      for (let index = 0; index < chapterDtos.length; index += 1) {
+        const chapterDto = chapterDtos[index]
+        const chapterId = createKavitaChapterId(record.server.id, chapterDto.id)
+        const existing = comic.chapters.find((chapter: Chapter): boolean => chapter.id === chapterId)
+        if (existing !== undefined && existing.pages.length > 0) {
+          chapters.push(mapKavitaChapterToChapter(record.server.id, chapterDto, comic.id, existing.pages, undefined, now))
+          continue
+        }
+        const pageCount = chapterDto.pages === undefined ? 0 : chapterDto.pages
+        const pages: Page[] = []
+        for (let pageIndex = 0; pageIndex < pageCount; pageIndex += 1) {
+          pages.push(mapKavitaPageToPage(
+            record.server.id,
+            chapterDto.id,
+            comic.id,
+            chapterId,
+            pageIndex,
+            client.buildReaderImageUrl(chapterDto.id, pageIndex),
+          ))
+        }
+        chapters.push(mapKavitaChapterToChapter(record.server.id, chapterDto, comic.id, pages, undefined, now))
+      }
+      this.libraryStore.upsertComic(updatedComicWithChapters(comic, chapters, now))
+      return {
+        comicId: comic.id,
+        providerKind: providerKindForComic(comic),
+        sourceKey: sourceKeyForComic(comic),
+        status: 'updated',
+        previousChapterCount,
+        newChapterCount: chapters.length,
+        message: AppStrings.get('library_update_found_new_chapters')
+          .replace('%s', `${Math.max(chapters.length - previousChapterCount, 0)}`),
+      }
+    } catch (error) {
+      const e = error as Error
+      return {
+        comicId: comic.id,
+        providerKind: providerKindForComic(comic),
+        sourceKey: sourceKeyForComic(comic),
+        status: 'failed',
+        previousChapterCount,
+        newChapterCount: previousChapterCount,
+        message: safeLibraryUpdateFailureCode(e.message),
+      }
+    }
   }
 
   private async checkOpdsComic(comic: Comic, previousChapterCount: number): Promise<LibraryUpdateComicResult> {
