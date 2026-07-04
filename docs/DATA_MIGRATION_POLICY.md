@@ -13,6 +13,7 @@ Koma 当前使用文件 JSON、Harmony Preferences、AssetStore 和本地备份�
 | Reader preferences | `ReaderPreferencesStore.ets` | `READER_PREFERENCES_STORE_NAME = koma_reader_preferences_v1` |
 | Per-series reader overrides | `ReaderPreferencesStore.ets` | `SERIES_OVERRIDES_KEY = reader.seriesOverrides.v1` |
 | Source settings | `SourceSettingsStore.ets` | `SOURCE_SETTINGS_SCHEMA_VERSION = 1`, `source-settings.json` |
+| Source filter preferences | `SourceFilterPreferencesStore.ets` | `SOURCE_FILTER_PREFS_SCHEMA_VERSION = 1`, `source-filter-preferences.json` |
 | Source registry | `SourceRuntimeRegistry.ets` / `SourceRuntimeAppRegistry.ets` | `schemaVersion = 1`, `source-runtime-registry.json` |
 | Offline downloads | `OfflineDownloadStore.ets` | `OFFLINE_DOWNLOAD_SCHEMA_VERSION = 1` |
 | Offline queue | `OfflineDownloadQueueStore.ets` | `OFFLINE_DOWNLOAD_QUEUE_SCHEMA_VERSION = 1`, `offline-download-queue.v1.json` |

@@ -233,6 +233,11 @@ assert.match(
   /filterSafeValues\(values: SourceFilterPreferenceRecord, filters: SourceFilter\[\]\)[\s\S]*filterByKey\[filterRequestKey\(filter\)\] = filter[\s\S]*const sanitized = sanitizeFilterValue\(safe, filter\)[\s\S]*safeValues\[key\] = sanitized/,
   'source filter preferences must drop values that no longer match active source filter descriptors',
 )
+assert.match(
+  sourceFilterPreferencesStoreSource,
+  /exportAll\(\): Record<string, SourceFilterPreferenceSourceRecord>[\s\S]*importAll\(sources: Record<string, SourceFilterPreferenceSourceRecord> \| undefined\)[\s\S]*filterSafeStoredValues\(sourceRecord\.browse\)[\s\S]*filterSafeStoredValues\(sourceRecord\.search\)[\s\S]*SOURCE_FILTER_PREFS_SCHEMA_VERSION/,
+  'source filter preferences must support backup export/import without trusting raw document values',
+)
 assert.match(managerPageSource, /KomaActionButton\(\{[\s\S]*label: t\('source_pkg_settings'\)[\s\S]*this\.openSettings\(source\)/, 'SourcePackageManagerPage must expose a settings action on package cards')
 assert.match(managerPageSource, /fetchSourceSettingDescriptors\(appSourceRuntimeRegistry, source\.id\)/, 'SourcePackageManagerPage settings action must fetch get_settings descriptors')
 assert.match(managerPageSource, /descriptor\.sensitive \? t\('source_pkg_login_required'\) : t\('source_pkg_unsupported'\)/, 'SourcePackageManagerPage must show auth-required placeholder for credential-like descriptors')

@@ -27,6 +27,11 @@ import {
   configureSourceSettingsStore,
 } from '../sourceRuntime/SourceSettingsStore'
 import {
+  SourceFilterPreferenceSourceRecord,
+  appSourceFilterPreferencesStore,
+  configureSourceFilterPreferencesStore,
+} from '../sourceRuntime/SourceFilterPreferencesStore'
+import {
   BACKUP_ENCRYPTED_CONTENT_SCHEMA_VERSION,
   BACKUP_PASSPHRASE_MIN_LENGTH,
   BackupEncryptedPublicPreview,
@@ -130,6 +135,7 @@ interface KomaBackupDocument {
   remoteServers: RemoteServerBackupDocument
   sourcePackages?: SourcePackageBackupEntry[]
   sourceSettings?: Record<string, SourceSettingsRecord>
+  sourceFilterPreferences?: Record<string, SourceFilterPreferenceSourceRecord>
   settings?: ReaderPreferences
   sourceIndexUrl?: string
   downloadQueue?: string
@@ -688,6 +694,7 @@ export class BackupService {
   constructor(context: common.UIAbilityContext) {
     this.context = context
     configureSourceSettingsStore(context)
+    configureSourceFilterPreferencesStore(context)
   }
 
   async export(): Promise<string> {
@@ -877,6 +884,7 @@ export class BackupService {
       remoteServers: await this.exportRemoteServers(),
       sourcePackages: exportInstalledSourcePackages(),
       sourceSettings: appSourceSettingsStore.exportAll(),
+      sourceFilterPreferences: appSourceFilterPreferencesStore.exportAll(),
     }
     if (contentPreferences.includeSettings) {
       document.settings = await new ReaderPreferencesStore(this.context).load()
@@ -924,6 +932,7 @@ export class BackupService {
     await this.importRemoteServers(document.remoteServers)
     if (document.schemaVersion >= BACKUP_SCHEMA_VERSION) {
       this.importSourceSettings(document.sourceSettings)
+      this.importSourceFilterPreferences(document.sourceFilterPreferences)
       await this.importSourceIndexUrl(document.sourceIndexUrl)
       this.importDownloadQueue(document.downloadQueue)
       await this.importTrackerMappings(document.trackerMappings)
@@ -986,7 +995,8 @@ export class BackupService {
       downloadQueueCount: countBackupDownloadQueueEntries(document.downloadQueue),
       trackerMappingCount: countBackupTrackerMappings(document.trackerMappings),
       sourcePackageCount: Array.isArray(document.sourcePackages) ? document.sourcePackages.length : 0,
-      sourceSettingsCount: document.sourceSettings === undefined ? 0 : Object.keys(document.sourceSettings).length,
+      sourceSettingsCount: (document.sourceSettings === undefined ? 0 : Object.keys(document.sourceSettings).length) +
+        (document.sourceFilterPreferences === undefined ? 0 : Object.keys(document.sourceFilterPreferences).length),
       hasDownloadQueueCount: document.downloadQueue !== undefined,
       hasTrackerMappingCount: document.trackerMappings !== undefined,
     }
@@ -1235,6 +1245,16 @@ export class BackupService {
       throw new Error('Invalid backup source settings')
     }
     appSourceSettingsStore.importAll(sourceSettings)
+  }
+
+  private importSourceFilterPreferences(sourceFilterPreferences: Record<string, SourceFilterPreferenceSourceRecord> | undefined): void {
+    if (sourceFilterPreferences === undefined) {
+      return
+    }
+    if (sourceFilterPreferences === null || Array.isArray(sourceFilterPreferences) || typeof sourceFilterPreferences !== 'object') {
+      throw new Error('Invalid backup source filter preferences')
+    }
+    appSourceFilterPreferencesStore.importAll(sourceFilterPreferences)
   }
 
   private async putOrDelete(store: preferences.Preferences, key: string, value: string | undefined): Promise<void> {

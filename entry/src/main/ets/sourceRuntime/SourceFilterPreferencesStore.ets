@@ -6,7 +6,7 @@ export type SourceFilterPreferenceValue = string | number | boolean | string[]
 export type SourceFilterPreferenceRecord = Record<string, SourceFilterPreferenceValue>
 export type SourceFilterPreferenceKind = 'browse' | 'search'
 
-interface SourceFilterPreferenceSourceRecord {
+export interface SourceFilterPreferenceSourceRecord {
   browse?: SourceFilterPreferenceRecord
   search?: SourceFilterPreferenceRecord
 }
@@ -238,6 +238,39 @@ export class SourceFilterPreferencesStore {
     this.writeDocument(document)
   }
 
+  exportAll(): Record<string, SourceFilterPreferenceSourceRecord> {
+    return this.readDocument().sources
+  }
+
+  importAll(sources: Record<string, SourceFilterPreferenceSourceRecord> | undefined): void {
+    if (sources === undefined || !this.isConfigured()) {
+      return
+    }
+    const sanitized: Record<string, SourceFilterPreferenceSourceRecord> = {}
+    Object.keys(sources).forEach((sourceId: string) => {
+      const sourceRecord = sources[sourceId]
+      if (sourceRecord === undefined || sourceRecord === null || Array.isArray(sourceRecord) || typeof sourceRecord !== 'object') {
+        return
+      }
+      const safeRecord: SourceFilterPreferenceSourceRecord = {}
+      const browse = this.filterSafeStoredValues(sourceRecord.browse)
+      const search = this.filterSafeStoredValues(sourceRecord.search)
+      if (Object.keys(browse).length > 0) {
+        safeRecord.browse = browse
+      }
+      if (Object.keys(search).length > 0) {
+        safeRecord.search = search
+      }
+      if (safeRecord.browse !== undefined || safeRecord.search !== undefined) {
+        sanitized[sourceId] = safeRecord
+      }
+    })
+    this.writeDocument({
+      schemaVersion: SOURCE_FILTER_PREFS_SCHEMA_VERSION,
+      sources: sanitized,
+    })
+  }
+
   private filterSafeValues(values: SourceFilterPreferenceRecord, filters: SourceFilter[]): SourceFilterPreferenceRecord {
     const filterByKey: Record<string, SourceFilter> = {}
     filters.forEach((filter: SourceFilter) => {
@@ -256,6 +289,20 @@ export class SourceFilterPreferencesStore {
       const sanitized = sanitizeFilterValue(safe, filter)
       if (sanitized !== undefined) {
         safeValues[key] = sanitized
+      }
+    })
+    return safeValues
+  }
+
+  private filterSafeStoredValues(values: SourceFilterPreferenceRecord | undefined): SourceFilterPreferenceRecord {
+    if (values === undefined || values === null || Array.isArray(values) || typeof values !== 'object') {
+      return {}
+    }
+    const safeValues: SourceFilterPreferenceRecord = {}
+    Object.keys(values).forEach((key: string) => {
+      const safe = safeFilterPreferenceValue(values[key] as RuntimeValue)
+      if (safe !== undefined) {
+        safeValues[key] = safe
       }
     })
     return safeValues

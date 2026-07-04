@@ -66,6 +66,7 @@ const readerPagePath = resolve(root, 'entry/src/main/ets/pages/ReaderPage.ets')
 const readerPageSourceAdapterPath = resolve(root, 'entry/src/main/ets/model/ReaderPageSourceAdapter.ets')
 const remoteImageCacheStorePath = resolve(root, 'entry/src/main/ets/model/RemoteImageCacheStore.ets')
 const sourceSettingsStorePath = resolve(root, 'entry/src/main/ets/sourceRuntime/SourceSettingsStore.ets')
+const sourceFilterPreferencesStorePath = resolve(root, 'entry/src/main/ets/sourceRuntime/SourceFilterPreferencesStore.ets')
 const sourceRuntimeAppRegistryPath = resolve(root, 'entry/src/main/ets/sourceRuntime/SourceRuntimeAppRegistry.ets')
 const sourceIndexServicePath = resolve(root, 'entry/src/main/ets/sourceRuntime/SourceIndexService.ets')
 const sourcePackageTrustPolicyPath = resolve(root, 'entry/src/main/ets/sourceRuntime/SourcePackageTrustPolicy.ets')
@@ -133,6 +134,7 @@ const readerPageSource = readFileSync(readerPagePath, 'utf8')
 const readerPageSourceAdapterSource = readFileSync(readerPageSourceAdapterPath, 'utf8')
 const remoteImageCacheStoreSource = readFileSync(remoteImageCacheStorePath, 'utf8')
 const sourceSettingsStoreSource = readFileSync(sourceSettingsStorePath, 'utf8')
+const sourceFilterPreferencesStoreSource = readFileSync(sourceFilterPreferencesStorePath, 'utf8')
 const sourceRuntimeAppRegistrySource = readFileSync(sourceRuntimeAppRegistryPath, 'utf8')
 const sourceIndexServiceSource = readFileSync(sourceIndexServicePath, 'utf8')
 const sourcePackageTrustPolicySource = readFileSync(sourcePackageTrustPolicyPath, 'utf8')
@@ -1957,6 +1959,16 @@ assert.match(
   'backup v3 export must include sanitized source settings',
 )
 assert.match(
+  sourceFilterPreferencesStoreSource,
+  /exportAll\(\): Record<string, SourceFilterPreferenceSourceRecord>[\s\S]*importAll\(sources: Record<string, SourceFilterPreferenceSourceRecord> \| undefined\)[\s\S]*filterSafeStoredValues\(sourceRecord\.browse\)[\s\S]*filterSafeStoredValues\(sourceRecord\.search\)/,
+  'source filter preferences store must export/import backup-safe browse and search preferences',
+)
+assert.match(
+  backupServiceSource,
+  /SourceFilterPreferenceSourceRecord[\s\S]*sourceFilterPreferences\?: Record<string, SourceFilterPreferenceSourceRecord>[\s\S]*configureSourceFilterPreferencesStore\(context\)[\s\S]*sourceFilterPreferences:\s*appSourceFilterPreferencesStore\.exportAll\(\)/,
+  'backup v3 export must include source filter preferences alongside source settings',
+)
+assert.match(
   backupServiceSource,
   /DEFAULT_BACKUP_CONTENT_PREFERENCES[\s\S]*includeSettings:\s*true[\s\S]*includeDownloadQueue:\s*true[\s\S]*includeTrackerMappings:\s*true[\s\S]*const contentPreferences = await this\.loadContentPreferences\(\)[\s\S]*if \(contentPreferences\.includeSettings\) \{[\s\S]*document\.settings = await new ReaderPreferencesStore\(this\.context\)\.load\(\)[\s\S]*if \(contentPreferences\.includeDownloadQueue\) \{[\s\S]*document\.downloadQueue = normalizeBackupDownloadQueuePayload\(downloadQueue\)[\s\S]*if \(contentPreferences\.includeTrackerMappings\) \{[\s\S]*document\.trackerMappings = await this\.exportTrackerMappings\(\)/,
   'backup export must include reader preferences, download queue metadata, and tracker mappings by default and allow excluding them',
@@ -1978,8 +1990,18 @@ assert.match(
 )
 assert.match(
   backupServiceSource,
-  /if \(document\.schemaVersion >= BACKUP_SCHEMA_VERSION\) \{[\s\S]*importSourceSettings\(document\.sourceSettings\)[\s\S]*importDownloadQueue\(document\.downloadQueue\)[\s\S]*importTrackerMappings\(document\.trackerMappings\)[\s\S]*if \(document\.schemaVersion >= BACKUP_SCHEMA_VERSION_V2\) \{[\s\S]*importSourcePackages\(document\.sourcePackages\)[\s\S]*importSettings\(document\.settings\)/,
-  'backup v3 import must restore source settings, download queue metadata, and tracker mappings while preserving v2 source package/settings restore',
+  /if \(document\.schemaVersion >= BACKUP_SCHEMA_VERSION\) \{[\s\S]*importSourceSettings\(document\.sourceSettings\)[\s\S]*importSourceFilterPreferences\(document\.sourceFilterPreferences\)[\s\S]*importDownloadQueue\(document\.downloadQueue\)[\s\S]*importTrackerMappings\(document\.trackerMappings\)[\s\S]*if \(document\.schemaVersion >= BACKUP_SCHEMA_VERSION_V2\) \{[\s\S]*importSourcePackages\(document\.sourcePackages\)[\s\S]*importSettings\(document\.settings\)/,
+  'backup v3 import must restore source settings, source filter preferences, download queue metadata, and tracker mappings while preserving v2 source package/settings restore',
+)
+assert.match(
+  backupServiceSource,
+  /importSourceFilterPreferences\(sourceFilterPreferences: Record<string, SourceFilterPreferenceSourceRecord> \| undefined\): void[\s\S]*Invalid backup source filter preferences[\s\S]*appSourceFilterPreferencesStore\.importAll\(sourceFilterPreferences\)/,
+  'backup source filter preference import must validate the backup field before writing it',
+)
+assert.match(
+  backupServiceSource,
+  /sourceSettingsCount:\s*\(document\.sourceSettings === undefined \? 0 : Object\.keys\(document\.sourceSettings\)\.length\) \+[\s\S]*document\.sourceFilterPreferences === undefined \? 0 : Object\.keys\(document\.sourceFilterPreferences\)\.length/,
+  'backup preview source settings count must include source filter preference records',
 )
 assert.match(
   backupServiceSource,
