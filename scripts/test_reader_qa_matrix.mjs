@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict'
-import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { relative, resolve } from 'node:path'
 
 const root = resolve(import.meta.dirname, '..')
@@ -12,6 +12,27 @@ const matrixPath = resolve(artifactDir, 'reader-qa-matrix.json')
 const readerPagePath = resolve(root, 'entry/src/main/ets/pages/ReaderPage.ets')
 const readerSettingsTestPath = resolve(root, 'scripts/test_reader_settings.mjs')
 const readerProgressTestPath = resolve(root, 'scripts/test_reader_progress.mjs')
+
+const runtimeEvidenceCandidates = [
+  {
+    id: 'source-reader',
+    result: '.hvigor/outputs/source-reader-smoke/source-runtime-smoke-result.json',
+    screenshot: '.hvigor/outputs/source-reader-smoke/reader-screen.png',
+    layout: '.hvigor/outputs/source-reader-smoke/reader-layout.json',
+  },
+  {
+    id: 'source-download-reader',
+    result: '.hvigor/outputs/source-download-reader-smoke/source-runtime-smoke-result.json',
+    screenshot: '.hvigor/outputs/source-download-reader-smoke/reader-screen.png',
+    layout: '.hvigor/outputs/source-download-reader-smoke/reader-layout.json',
+  },
+  {
+    id: 'source-corrupt-download-reader',
+    result: '.hvigor/outputs/source-corrupt-download-reader-smoke/source-runtime-smoke-result.json',
+    screenshot: '',
+    layout: '',
+  },
+]
 
 const ReaderMode = Object.freeze({
   SINGLE_PAGE: 'single_page',
@@ -215,6 +236,16 @@ function createCase(scenario, fixture) {
 
 function createMatrix() {
   const cases = scenarios.flatMap((scenario) => fixtures.map((fixture) => createCase(scenario, fixture)))
+  const runtimeEvidence = runtimeEvidenceCandidates
+    .map((candidate) => ({
+      id: candidate.id,
+      result: candidate.result,
+      screenshot: candidate.screenshot,
+      layout: candidate.layout,
+      available: existsSync(resolve(root, candidate.result)) &&
+        (candidate.screenshot.length === 0 || existsSync(resolve(root, candidate.screenshot))) &&
+        (candidate.layout.length === 0 || existsSync(resolve(root, candidate.layout))),
+    }))
   return {
     schemaVersion: 1,
     generatedAt: MATRIX_GENERATED_AT,
@@ -224,9 +255,12 @@ function createMatrix() {
       productionContract: 'entry/src/main/ets/pages/ReaderPage.ets',
     },
     screenshotCapture: {
-      status: 'BLOCKED',
-      reason: 'No device screenshot automation is available from this static matrix script.',
+      status: runtimeEvidence.some((item) => item.available) ? 'PARTIAL' : 'BLOCKED',
+      reason: runtimeEvidence.some((item) => item.available)
+        ? 'Existing Pura X reader/source smoke artifacts are linked; wide-split fixture screenshots still require a dedicated capture run.'
+        : 'No device screenshot artifacts are available from this static matrix script.',
       fakeScreenshots: false,
+      runtimeEvidence,
     },
     staticMatrix: {
       status: 'PASS',
@@ -352,13 +386,20 @@ function writeArtifacts(matrix) {
     '',
     'Verdict: PASS for generated static matrix.',
     '',
-    'Device screenshot capture: BLOCKED. This script has no real-device screenshot automation and does not create fake screenshots.',
+    `Device screenshot capture: ${matrix.screenshotCapture.status}. ${matrix.screenshotCapture.reason}`,
     '',
     `Static matrix cases: ${matrix.staticMatrix.cases.length}.`,
     `Fixtures: ${matrix.staticMatrix.fixtures.map((fixture) => fixture.id).join(', ')}.`,
     '',
     'Evidence:',
     `- ${relative(root, matrixPath)}`,
+    ...matrix.screenshotCapture.runtimeEvidence
+      .filter((item) => item.available)
+      .flatMap((item) => [
+        `- ${item.result}`,
+        ...(item.screenshot.length > 0 ? [`- ${item.screenshot}`] : []),
+        ...(item.layout.length > 0 ? [`- ${item.layout}`] : []),
+      ]),
     '- Production split helper/static tests were checked from source.',
     '- Existing D40 tap-zone coverage remains in scripts/test_reader_settings.mjs.',
     '',
@@ -366,7 +407,7 @@ function writeArtifacts(matrix) {
 
   const result = {
     verdict: 'PASS',
-    summary: 'Generated deterministic reader QA matrix; real device screenshot capture is explicitly BLOCKED/TODO.',
+    summary: `Generated deterministic reader QA matrix; device screenshot capture status is ${matrix.screenshotCapture.status}.`,
     changed_files: ['scripts/test_reader_qa_matrix.mjs'],
     commands: [
       {
@@ -379,10 +420,13 @@ function writeArtifacts(matrix) {
       relative(root, matrixPath),
       relative(root, notesPath),
       'Static matrix status: PASS',
-      'Screenshot capture status: BLOCKED; no fake screenshots emitted',
+      `Screenshot capture status: ${matrix.screenshotCapture.status}; no fake screenshots emitted`,
+      ...matrix.screenshotCapture.runtimeEvidence
+        .filter((item) => item.available)
+        .map((item) => item.result),
     ],
     risks: [
-      'Real device screenshot/layout capture remains blocked outside this static script.',
+      'Dedicated wide-split fixture screenshot capture still needs a device run.',
     ],
     commit: '',
   }
