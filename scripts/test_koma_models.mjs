@@ -2040,17 +2040,17 @@ assert.match(
 )
 assert.match(
   browseViewModelSource,
-  /interface SourceSearchArgs \{[\s\S]*filters: SourceMangaListFilters[\s\S]*searchSource\([\s\S]*const args: SourceSearchArgs = \{[\s\S]*filters: this\.browseFilterValues/,
+  /interface SourceSearchArgs \{[\s\S]*filters: SourceMangaListFilters[\s\S]*@Trace searchFilterValues: SourceMangaListFilters = \{\}[\s\S]*searchSource\([\s\S]*const args: SourceSearchArgs = \{[\s\S]*filters: this\.searchFilterValues/,
   'BrowseViewModel must pass active source filters into source search requests',
 )
 assert.match(
   browseViewModelSource,
-  /updateFilterValue\(filterId: string, value: SourceFilterValue \| undefined\): boolean[\s\S]*const key = this\.filterRequestKey\(filter\)[\s\S]*nextValues\[key\] = this\.normalizeFilterRequestValue\(key, value\)[\s\S]*setBrowseFilterValue\(filterId: string, value: SourceFilterValue \| undefined\)[\s\S]*this\.updateFilterValue\(filterId, value\)[\s\S]*await this\.selectBrowseListing\(listing\)/,
+  /updateFilterValue\(values: SourceMangaListFilters, filterId: string, value: SourceFilterValue \| undefined\): SourceMangaListFilters \| undefined[\s\S]*const key = this\.filterRequestKey\(filter\)[\s\S]*nextValues\[key\] = this\.normalizeFilterRequestValue\(key, value\)[\s\S]*setBrowseFilterValue\(filterId: string, value: SourceFilterValue \| undefined\)[\s\S]*this\.updateFilterValue\(this\.browseFilterValues, filterId, value\)[\s\S]*this\.browseFilterValues = nextValues[\s\S]*await this\.selectBrowseListing\(listing\)/,
   'BrowseViewModel must update source filter values and reload the current listing',
 )
 assert.match(
   browseViewModelSource,
-  /ensureSearchFilters\(source: SourceRuntimeRegistryInstalledSourceSummary\): Promise<void>[\s\S]*this\.filters = await this\.loadSourceFilters\(source\)[\s\S]*setSearchFilterValue\(filterId: string, value: SourceFilterValue \| undefined\): boolean[\s\S]*resetSearchFilters\(\): void \{/,
+  /ensureSearchFilters\(source: SourceRuntimeRegistryInstalledSourceSummary\): Promise<void>[\s\S]*this\.filters = await this\.loadSourceFilters\(source\)[\s\S]*this\.searchFilterValues = this\.defaultSourceFilterValues\(this\.filters\)[\s\S]*setSearchFilterValue\(filterId: string, value: SourceFilterValue \| undefined\): boolean[\s\S]*this\.updateFilterValue\(this\.searchFilterValues, filterId, value\)[\s\S]*resetSearchFilters\(\): void \{[\s\S]*this\.searchFilterValues = this\.defaultSourceFilterValues\(this\.filters\)/,
   'BrowseViewModel must expose search filter lifecycle without requiring a browse listing reload',
 )
 assert.match(
@@ -2075,7 +2075,7 @@ assert.match(
 )
 assert.match(
   sourceSearchPageSource,
-  /SourceFilterControls\(\{[\s\S]*filters: this\.viewModel\.filters[\s\S]*values: this\.viewModel\.browseFilterValues[\s\S]*busy: this\.viewModel\.loadingSearch[\s\S]*onFilterChange:[\s\S]*this\.setSearchFilterValue\(filter, value\)[\s\S]*onReset:[\s\S]*resetSearchFilters\(\)[\s\S]*aboutToAppear\(\): void \{[\s\S]*this\.viewModel\.ensureSearchFilters\(this\.source\)/,
+  /SourceFilterControls\(\{[\s\S]*filters: this\.viewModel\.filters[\s\S]*values: this\.viewModel\.searchFilterValues[\s\S]*busy: this\.viewModel\.loadingSearch[\s\S]*onFilterChange:[\s\S]*this\.setSearchFilterValue\(filter, value\)[\s\S]*onReset:[\s\S]*resetSearchFilters\(\)[\s\S]*aboutToAppear\(\): void \{[\s\S]*this\.viewModel\.ensureSearchFilters\(this\.source\)/,
   'SourceSearchPage must wire shared source filter controls to filtered search behavior',
 )
 assert.doesNotMatch(
