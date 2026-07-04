@@ -44,6 +44,10 @@ import {
   upsertComicAndPersistLibraryStore,
 } from '../model/LibraryPersistence'
 import {
+  LocalLibraryRefreshComicResult,
+  LocalLibraryRefreshService,
+} from '../model/LocalLibraryRefreshService'
+import {
   SourceRuntimeRegistry,
   SourceRuntimeRegistryEntry,
 } from '../sourceRuntime/SourceRuntimeRegistry'
@@ -146,7 +150,9 @@ export struct MangaDetailPage {
   @Local private downloadBusy: boolean = false
   @Local private trackerSyncBusy: boolean = false
   @Local private trackerMappingBusy: boolean = false
+  @Local private localRefreshBusy: boolean = false
   @Local private downloadStatusText: string = ''
+  @Local private localRefreshText: string = ''
   @Local private feedbackText: string = ''
   @Local private safeArea: LayoutSafeAreaState = connectLayoutSafeArea()
   @Local private languageState: LanguageState = connectLanguageState()
@@ -280,6 +286,7 @@ export struct MangaDetailPage {
       this.isInLibrary = false
       this.feedbackText = mangaId === undefined || mangaId.trim().length === 0 ? '' : s('manga_detail_load_local_failed')
       this.downloadStatusText = ''
+      this.localRefreshText = ''
       return
     }
     this.manga = mangaDetailFromComic(comic)
@@ -288,6 +295,7 @@ export struct MangaDetailPage {
     )
     this.isInLibrary = true
     this.feedbackText = ''
+    this.localRefreshText = ''
     this.refreshDownloadStatus()
   }
 
@@ -319,6 +327,7 @@ export struct MangaDetailPage {
       this.isInLibrary = false
       this.feedbackText = s('manga_detail_load_source_failed')
       this.downloadStatusText = ''
+      this.localRefreshText = ''
     } finally {
       this.isLoading = false
     }
@@ -534,6 +543,40 @@ export struct MangaDetailPage {
         : s('manga_detail_chapter_download_failed'))
     } finally {
       this.downloadBusy = false
+    }
+  }
+
+  private canCheckLocalLibraryRefresh(): boolean {
+    const comic = this.libraryStore?.getComic(this.currentComicId())
+    return comic !== undefined &&
+      (comic.sourceKind === ComicSourceKind.LOCAL_ARCHIVE || comic.sourceKind === ComicSourceKind.LOCAL_FOLDER)
+  }
+
+  private checkLocalLibraryRefreshNow(): void {
+    if (this.localRefreshBusy) {
+      return
+    }
+    const libraryStore = this.libraryStore
+    const comic = libraryStore?.getComic(this.currentComicId())
+    if (libraryStore === undefined || comic === undefined) {
+      this.localRefreshText = s('manga_detail_local_refresh_unavailable')
+      this.showToast(this.localRefreshText)
+      return
+    }
+    this.localRefreshBusy = true
+    this.localRefreshText = s('manga_detail_local_refresh_checking')
+    try {
+      const result: LocalLibraryRefreshComicResult =
+        new LocalLibraryRefreshService(libraryStore).checkLocalComicRefresh(comic)
+      this.localRefreshText = result.message
+      console.info(`[LocalLibraryRefresh] step=detail_check status=${result.status} chapters=${result.previousChapterCount} pages=${result.previousPageCount}`)
+      this.showToast(result.message)
+    } catch (_error) {
+      this.localRefreshText = s('manga_detail_local_refresh_unavailable')
+      console.warn('[LocalLibraryRefresh] step=detail_check_failed failed=true reason=local_refresh')
+      this.showToast(this.localRefreshText)
+    } finally {
+      this.localRefreshBusy = false
     }
   }
 
@@ -973,6 +1016,12 @@ export struct MangaDetailPage {
         .onClick(() => {
           this.markVisibleChaptersReadState(this.allChapterIds(), false)
         })
+      if (this.canCheckLocalLibraryRefresh()) {
+        MenuItem({ content: this.localRefreshBusy ? s('manga_detail_local_refresh_checking') : s('manga_detail_menu_check_local_refresh') })
+          .onClick(() => {
+            this.checkLocalLibraryRefreshNow()
+          })
+      }
       MenuItem({ content: s('manga_detail_menu_find_tracker_mapping') })
         .onClick(() => {
           this.refreshTrackerMappingCandidates()
@@ -1066,6 +1115,13 @@ export struct MangaDetailPage {
 
           if (this.downloadStatusText.length > 0) {
             Text(this.downloadStatusText)
+              .width('100%')
+              .fontSize(ThemeConstants.FONT_SIZE_META)
+              .fontColor(ThemeConstants.TEXT_SECONDARY)
+          }
+
+          if (this.localRefreshText.length > 0) {
+            Text(this.localRefreshText)
               .width('100%')
               .fontSize(ThemeConstants.FONT_SIZE_META)
               .fontColor(ThemeConstants.TEXT_SECONDARY)

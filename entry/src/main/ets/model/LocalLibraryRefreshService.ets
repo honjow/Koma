@@ -80,6 +80,20 @@ export class LocalLibraryRefreshService {
     return summary
   }
 
+  checkLocalComicRefresh(comic: Comic): LocalLibraryRefreshComicResult {
+    if (!isLocalRefreshCandidate(comic)) {
+      return {
+        comicId: comic.id,
+        sourceKind: comic.sourceKind,
+        status: 'skipped',
+        previousChapterCount: comic.chapterCount,
+        previousPageCount: comic.pageCount,
+        message: AppStrings.get('common_unavailable'),
+      }
+    }
+    return this.checkLocalComic(comic)
+  }
+
   private checkLocalComic(comic: Comic): LocalLibraryRefreshComicResult {
     return {
       comicId: comic.id,

@@ -6,10 +6,12 @@ const root = resolve(import.meta.dirname, '..')
 const servicePath = resolve(root, 'entry/src/main/ets/model/LocalLibraryRefreshService.ets')
 const settingsPath = resolve(root, 'entry/src/main/ets/pages/SettingsPage.ets')
 const libraryUpdateServicePath = resolve(root, 'entry/src/main/ets/model/LibraryUpdateService.ets')
+const mangaDetailPagePath = resolve(root, 'entry/src/main/ets/pages/MangaDetailPage.ets')
 
 const serviceSource = readFileSync(servicePath, 'utf8')
 const settingsSource = readFileSync(settingsPath, 'utf8')
 const libraryUpdateServiceSource = readFileSync(libraryUpdateServicePath, 'utf8')
+const mangaDetailPageSource = readFileSync(mangaDetailPagePath, 'utf8')
 
 function assertExport(source, symbol) {
   assert.match(source, new RegExp(`export (interface|class|function|enum|type|const) ${symbol}\\b`), `${symbol} must be exported`)
@@ -40,6 +42,11 @@ assert.match(
   serviceSource,
   /status: 'reselect_required'[\s\S]*localRefreshUnavailableMessage\(comic\.sourceKind\)/,
   'local refresh must honestly report reselect_required while persistent folder/archive handles are unavailable',
+)
+assert.match(
+  serviceSource,
+  /checkLocalComicRefresh\(comic: Comic\): LocalLibraryRefreshComicResult[\s\S]*!isLocalRefreshCandidate\(comic\)[\s\S]*status: 'skipped'[\s\S]*return this\.checkLocalComic\(comic\)/,
+  'local refresh must expose a single-comic check for detail-page actions without widening refresh scope',
 )
 assert.match(
   serviceSource,
@@ -102,4 +109,35 @@ assert.match(
   libraryUpdateServiceSource,
   /ComicSourceKind\.LOCAL_ARCHIVE \|\| comic\.sourceKind === ComicSourceKind\.LOCAL_FOLDER[\s\S]*AppStrings\.get\('library_update_skip_local_unsupported'\)/,
   'existing remote/source update service must continue to skip local imports',
+)
+
+assert.match(
+  mangaDetailPageSource,
+  /import \{[\s\S]*LocalLibraryRefreshComicResult[\s\S]*LocalLibraryRefreshService[\s\S]*\} from '..\/model\/LocalLibraryRefreshService'/,
+  'MangaDetailPage must import the local refresh service for item-level checks',
+)
+assert.match(
+  mangaDetailPageSource,
+  /localRefreshBusy: boolean = false[\s\S]*localRefreshText: string = ''/,
+  'MangaDetailPage must keep local refresh busy and visible result state',
+)
+assert.match(
+  mangaDetailPageSource,
+  /canCheckLocalLibraryRefresh\(\): boolean[\s\S]*ComicSourceKind\.LOCAL_ARCHIVE \|\| comic\.sourceKind === ComicSourceKind\.LOCAL_FOLDER/,
+  'MangaDetailPage must only show local refresh for local archive/folder comics',
+)
+assert.match(
+  mangaDetailPageSource,
+  /new LocalLibraryRefreshService\(libraryStore\)\.checkLocalComicRefresh\(comic\)[\s\S]*step=detail_check status=\$\{result\.status\} chapters=\$\{result\.previousChapterCount\} pages=\$\{result\.previousPageCount\}/,
+  'MangaDetailPage item-level refresh must use the service and log only bounded counts/status',
+)
+assert.doesNotMatch(
+  mangaDetailPageSource,
+  /step=detail_check[^\n]*(sourcePath|coverUri|uri|message|token|authorization)/i,
+  'MangaDetailPage local refresh logs must not expose paths, URIs, raw messages, or secrets',
+)
+assert.match(
+  mangaDetailPageSource,
+  /manga_detail_menu_check_local_refresh[\s\S]*this\.checkLocalLibraryRefreshNow\(\)[\s\S]*this\.localRefreshText\.length > 0/,
+  'MangaDetailPage must expose the local refresh menu item and render the result text',
 )
