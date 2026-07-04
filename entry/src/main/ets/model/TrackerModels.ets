@@ -594,6 +594,12 @@ function trackerUtf8Encode(value: string): Uint8Array {
   return new Uint8Array(buffer.from(value, 'utf-8').buffer)
 }
 
+export function decodeTrackerSecretBytes(bytes: Uint8Array): string {
+  const exact = new Uint8Array(bytes.byteLength)
+  exact.set(bytes)
+  return buffer.from(exact.buffer).toString('utf-8')
+}
+
 function trackerCredentialAlias(ref: TrackerCredentialSecretRef): string {
   return `${TRACKER_ASSET_ALIAS_PREFIX}.${ref.providerId}.${ref.accountKey}.${ref.secretKind}`
 }

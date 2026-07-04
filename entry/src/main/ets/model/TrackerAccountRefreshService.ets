@@ -1,5 +1,4 @@
 import { common } from '@kit.AbilityKit'
-import { buffer } from '@kit.ArkTS'
 import {
   AniListTrackerClient,
   AniListTrackerProfile,
@@ -17,6 +16,7 @@ import {
   TrackerPreferences,
   TrackerPreferencesStore,
   TrackerProviderId,
+  decodeTrackerSecretBytes,
 } from './TrackerModels'
 
 export type TrackerAccountRefreshStatus = 'refreshed' | 'skipped' | 'failed'
@@ -229,7 +229,7 @@ export class TrackerAccountRefreshService {
     if (tokenBytes === undefined || tokenBytes.byteLength === 0) {
       return undefined
     }
-    const token = buffer.from(tokenBytes.buffer).toString('utf-8').trim()
+    const token = decodeTrackerSecretBytes(tokenBytes).trim()
     return token.length === 0 ? undefined : token
   }
 

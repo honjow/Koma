@@ -1,5 +1,4 @@
 import { common } from '@kit.AbilityKit'
-import { buffer } from '@kit.ArkTS'
 import { ReadingProgress } from './ComicModels'
 import {
   AniListTrackerClient,
@@ -20,6 +19,7 @@ import {
   TrackerPreferencesStore,
   TrackerProviderId,
   TrackerUpdateStrategy,
+  decodeTrackerSecretBytes,
 } from './TrackerModels'
 import {
   readingProgressFromPendingEntry,
@@ -246,7 +246,7 @@ export class TrackerProgressSyncService {
     if (tokenBytes === undefined || tokenBytes.byteLength === 0) {
       return undefined
     }
-    const token = buffer.from(tokenBytes.buffer).toString('utf-8').trim()
+    const token = decodeTrackerSecretBytes(tokenBytes).trim()
     return token.length === 0 ? undefined : token
   }
 

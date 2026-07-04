@@ -86,6 +86,11 @@ assert.match(
 )
 assert.match(
   trackerModelsSource,
+  /export function decodeTrackerSecretBytes\(bytes: Uint8Array\): string \{[\s\S]*new Uint8Array\(bytes\.byteLength\)[\s\S]*exact\.set\(bytes\)[\s\S]*buffer\.from\(exact\.buffer\)\.toString\('utf-8'\)/,
+  'tracker secret decoding must copy the exact returned Uint8Array range before converting to text',
+)
+assert.match(
+  trackerModelsSource,
   /function trackerCredentialErrorCode[\s\S]*24000002[\s\S]*'not_found'[\s\S]*24000005[\s\S]*'locked'[\s\S]*24000007[\s\S]*'corrupted'[\s\S]*24000017[\s\S]*'unsupported'/,
   'asset-backed tracker credential store must bucket system errors into safe credential error codes',
 )

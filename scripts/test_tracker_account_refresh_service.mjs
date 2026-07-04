@@ -21,8 +21,8 @@ assert.match(
 )
 assert.match(
   serviceSource,
-  /private async readAccessToken\(account: TrackerAccount, providerId: TrackerProviderId\)[\s\S]*secretKind: 'access_token'[\s\S]*buffer\.from\(tokenBytes\.buffer\)\.toString\('utf-8'\)\.trim\(\)/,
-  'tracker account refresh must read access tokens from AssetStore at use time',
+  /private async readAccessToken\(account: TrackerAccount, providerId: TrackerProviderId\)[\s\S]*secretKind: 'access_token'[\s\S]*decodeTrackerSecretBytes\(tokenBytes\)\.trim\(\)/,
+  'tracker account refresh must read access tokens from AssetStore and decode only the returned byte range',
 )
 assert.match(
   serviceSource,

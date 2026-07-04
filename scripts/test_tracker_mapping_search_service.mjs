@@ -54,8 +54,8 @@ assert.match(
 )
 assert.match(
   source,
-  /readAccessToken\(account: TrackerAccount, providerId: TrackerProviderId\)[\s\S]*secretStore\.readToken\(\{[\s\S]*providerId,[\s\S]*accountKey: account\.credentialAccountKey,[\s\S]*secretKind: 'access_token'[\s\S]*buffer\.from\(tokenBytes\.buffer\)\.toString\('utf-8'\)/,
-  'mapping search must read provider credentials from secure storage at use time',
+  /readAccessToken\(account: TrackerAccount, providerId: TrackerProviderId\)[\s\S]*secretStore\.readToken\(\{[\s\S]*providerId,[\s\S]*accountKey: account\.credentialAccountKey,[\s\S]*secretKind: 'access_token'[\s\S]*decodeTrackerSecretBytes\(tokenBytes\)\.trim\(\)/,
+  'mapping search must read provider credentials from secure storage and decode only the returned byte range',
 )
 assert.match(
   source,

@@ -46,8 +46,8 @@ assert.match(
 )
 assert.match(
   source,
-  /readAccessToken\(account: TrackerAccount, providerId: TrackerProviderId\)[\s\S]*secretStore\.readToken\(\{[\s\S]*providerId,[\s\S]*secretKind: 'access_token'[\s\S]*buffer\.from\(tokenBytes\.buffer\)\.toString\('utf-8'\)/,
-  'tracker progress sync must read the mapped provider access token from secure storage at use time',
+  /readAccessToken\(account: TrackerAccount, providerId: TrackerProviderId\)[\s\S]*secretStore\.readToken\(\{[\s\S]*providerId,[\s\S]*secretKind: 'access_token'[\s\S]*decodeTrackerSecretBytes\(tokenBytes\)\.trim\(\)/,
+  'tracker progress sync must read the mapped provider access token from secure storage and decode only the returned byte range',
 )
 assert.doesNotMatch(
   source,
