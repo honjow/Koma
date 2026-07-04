@@ -108,7 +108,6 @@
     { "name": "local_library_refresh_detail_reselect", "value": "Checked %s local items: %s folders, %s archives, %s chapters, %s pages. %s folders need to be re-selected before Koma can rescan additions or deletions." },
     { "name": "local_library_refresh_detail_clean", "value": "Checked %s local items: %s folders, %s archives, %s chapters, %s pages. No folder reselect is required." },
 
-    { "name": "settings_coming_soon_suffix", "value": " coming soon" },
     { "name": "settings_search_placeholder", "value": "Search settings" },
     { "name": "settings_search_empty_title", "value": "No matching settings" },
     { "name": "settings_version_dev", "value": "Dev build" },
