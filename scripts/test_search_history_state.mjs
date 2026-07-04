@@ -24,14 +24,19 @@ assertExport(historyStoreSource, 'SearchHistoryRecord')
 assertExport(historyStoreSource, 'SearchHistoryStore')
 assertExport(historyStoreSource, 'SEARCH_HISTORY_STORE_NAME')
 assertExport(historyStoreSource, 'SEARCH_HISTORY_QUERIES_KEY')
+assertExport(historyStoreSource, 'SEARCH_SOURCE_FILTER_KEY')
 assertExport(historyStoreSource, 'MAX_SEARCH_HISTORY_COUNT')
 assertExport(historyStoreSource, 'normalizeSearchHistoryEntries')
+assertExport(historyStoreSource, 'normalizeSearchSourceFilter')
 assertExport(historyStoreSource, 'addSearchHistoryEntry')
 assert.match(historyStoreSource, /updatedAt:\s*number/, 'history entries must persist timestamps')
 assert.match(historyStoreSource, /slice\(0,\s*MAX_SEARCH_HISTORY_COUNT\)/, 'history must be bounded')
 assert.match(historyStoreSource, /toLocaleLowerCase\(\)[\s\S]*normalizedQuery\.toLocaleLowerCase\(\)/, 'history must dedupe repeated queries case-insensitively')
 assert.match(historyStoreSource, /preferences\.getPreferences\(this\.context,\s*SEARCH_HISTORY_STORE_NAME\)/, 'history must use persistent preferences')
 assert.match(historyStoreSource, /store\.put\(SEARCH_HISTORY_QUERIES_KEY,\s*JSON\.stringify/, 'history must serialize durable query records')
+assert.match(historyStoreSource, /normalizeSearchSourceFilter\(value: string \| undefined\): CrossSearchSourceFilter[\s\S]*value === 'local'[\s\S]*value === 'private'[\s\S]*value === 'source'[\s\S]*return 'all'/, 'search source filter normalization must safely fall back to all')
+assert.match(historyStoreSource, /loadSourceFilter\(\): Promise<CrossSearchSourceFilter>[\s\S]*store\.get\(SEARCH_SOURCE_FILTER_KEY, 'all'\)[\s\S]*normalizeSearchSourceFilter\(value\)/, 'search source filter must load from preferences')
+assert.match(historyStoreSource, /saveSourceFilter\(sourceFilter: CrossSearchSourceFilter\): Promise<CrossSearchSourceFilter>[\s\S]*normalizeSearchSourceFilter\(sourceFilter\)[\s\S]*store\.put\(SEARCH_SOURCE_FILTER_KEY, normalized\)[\s\S]*store\.flush\(\)/, 'search source filter must persist normalized preferences')
 
 assertExport(stateMapperSource, 'CrossSearchSectionState')
 assertExport(stateMapperSource, 'SearchDiagnostic')
@@ -131,6 +136,7 @@ assert.doesNotMatch(crossSearchSource, /errorText:\s*e\.message|message='\s*\+\s
 assert.match(searchPageSource, /@Local private history:\s*SearchHistoryEntry\[\]/, 'SearchPage must keep recent search history state')
 assert.match(searchPageSource, /@Param externalQuery: string = ''[\s\S]*@Param externalQuerySerial: number = 0/, 'SearchPage must accept an external query from app-level navigation')
 assert.match(searchPageSource, /new SearchHistoryStore\(context\)/, 'SearchPage must create persistent history store')
+assert.match(searchPageSource, /this\.loadHistory\(\)[\s\S]*this\.loadSourceFilter\(\)[\s\S]*this\.consumeExternalQuery\(\)/, 'SearchPage must restore search preferences before consuming external queries')
 assert.match(searchPageSource, /this\.recordHistory\(query\)/, 'SearchPage must record non-empty submitted searches')
 assert.match(
   searchPageSource,
@@ -159,11 +165,21 @@ assert.match(
   /@Monitor\('externalQuerySerial'\)[\s\S]*consumeExternalQuery\(\)[\s\S]*externalQuery\.trim\(\)[\s\S]*this\.runImmediateQuery\(query\)/,
   'SearchPage must immediately run externally supplied queries such as manga tag taps',
 )
+assert.match(
+  searchPageSource,
+  /sourceFilterLoaded: boolean = false[\s\S]*private loadSourceFilter\(\): void[\s\S]*store\.loadSourceFilter\(\)[\s\S]*this\.sourceFilter = sourceFilter[\s\S]*this\.sourceFilterLoaded = true[\s\S]*this\.consumeExternalQuery\(\)[\s\S]*private consumeExternalQuery\(\): void \{[\s\S]*!this\.sourceFilterLoaded[\s\S]*return/,
+  'SearchPage must delay externally supplied queries until the persisted source filter has been restored',
+)
 assert.match(searchPageSource, /this\.clearHistory\(\)/, 'SearchPage must expose clear-history action')
 assert.match(
   searchPageSource,
   /sourceFilter: CrossSearchSourceFilter = 'all'[\s\S]*service\.pendingSections\(this\.sourceFilter\)[\s\S]*service\.search\(query, this\.sourceFilter\)[\s\S]*private SourceFilterMenu\(\)[\s\S]*setSourceFilter\('local'\)[\s\S]*setSourceFilter\('private'\)[\s\S]*setSourceFilter\('source'\)[\s\S]*this\.SourceFilterBar\(\)/,
   'SearchPage must expose and apply a source filter menu to pending and submitted searches',
+)
+assert.match(
+  searchPageSource,
+  /private setSourceFilter\(sourceFilter: CrossSearchSourceFilter\): void[\s\S]*this\.sourceFilter = sourceFilter[\s\S]*this\.saveSourceFilter\(sourceFilter\)[\s\S]*private saveSourceFilter\(sourceFilter: CrossSearchSourceFilter\): void[\s\S]*store\.saveSourceFilter\(sourceFilter\)/,
+  'SearchPage must persist source filter changes',
 )
 assert.match(
   searchPageSource,

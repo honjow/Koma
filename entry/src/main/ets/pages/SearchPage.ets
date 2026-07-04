@@ -55,6 +55,7 @@ export struct SearchPage {
   private searchTimer: number = 0
   private searchSerial: number = 0
   private consumedExternalQuerySerial: number = 0
+  private sourceFilterLoaded: boolean = false
   private service?: CrossSearchService
   private historyStore?: SearchHistoryStore
   @Param libraryStore: LibraryStore = createSeededLibraryStore()
@@ -67,6 +68,7 @@ export struct SearchPage {
     this.service = new CrossSearchService(context)
     this.historyStore = new SearchHistoryStore(context)
     this.loadHistory()
+    this.loadSourceFilter()
     this.consumeExternalQuery()
     console.info('[Search] step=page_appear')
   }
@@ -170,6 +172,27 @@ export struct SearchPage {
     })
   }
 
+  private loadSourceFilter(): void {
+    const store = this.historyStore
+    if (store === undefined) {
+      this.sourceFilterLoaded = true
+      this.consumeExternalQuery()
+      return
+    }
+    void store.loadSourceFilter()
+      .then((sourceFilter: CrossSearchSourceFilter) => {
+        this.sourceFilter = sourceFilter
+        console.info('[Search] step=source_filter_restored value=' + sourceFilter)
+      })
+      .catch((error: Error) => {
+        console.error('[Search] step=source_filter_load_failed code=' + safeSearchDiagnostic(error).code)
+      })
+      .finally(() => {
+        this.sourceFilterLoaded = true
+        this.consumeExternalQuery()
+      })
+  }
+
   private confirmClearHistory(): void {
     if (this.history.length === 0) {
       return
@@ -227,6 +250,9 @@ export struct SearchPage {
   }
 
   private consumeExternalQuery(): void {
+    if (!this.sourceFilterLoaded) {
+      return
+    }
     if (this.externalQuerySerial === 0 || this.externalQuerySerial === this.consumedExternalQuerySerial) {
       return
     }
@@ -245,6 +271,7 @@ export struct SearchPage {
     }
     this.sourceFilter = sourceFilter
     this.sourceFilterMenuOpen = false
+    this.saveSourceFilter(sourceFilter)
     if (this.queryText.trim().length > 0) {
       if (this.searchTimer > 0) {
         clearTimeout(this.searchTimer)
@@ -252,6 +279,16 @@ export struct SearchPage {
       }
       void this.runSearch(this.queryText)
     }
+  }
+
+  private saveSourceFilter(sourceFilter: CrossSearchSourceFilter): void {
+    const store = this.historyStore
+    if (store === undefined) {
+      return
+    }
+    void store.saveSourceFilter(sourceFilter).catch((error: Error) => {
+      console.error('[Search] step=source_filter_save_failed code=' + safeSearchDiagnostic(error).code)
+    })
   }
 
   private async openResult(item: CrossSearchResultItem): Promise<void> {

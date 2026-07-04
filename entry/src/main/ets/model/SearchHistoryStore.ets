@@ -1,5 +1,6 @@
 import { common } from '@kit.AbilityKit'
 import { preferences } from '@kit.ArkData'
+import { CrossSearchSourceFilter } from './CrossSearchService'
 
 export interface SearchHistoryEntry {
   query: string
@@ -8,6 +9,7 @@ export interface SearchHistoryEntry {
 
 export const SEARCH_HISTORY_STORE_NAME: string = 'koma_search_history_v1'
 export const SEARCH_HISTORY_QUERIES_KEY: string = 'search.history.queries'
+export const SEARCH_SOURCE_FILTER_KEY: string = 'search.source.filter'
 export const MAX_SEARCH_HISTORY_COUNT: number = 20
 
 export interface SearchHistoryRecord {
@@ -24,6 +26,13 @@ function normalizeSearchHistoryTimestamp(value: number | undefined, fallback: nu
     return fallback
   }
   return Math.floor(value)
+}
+
+export function normalizeSearchSourceFilter(value: string | undefined): CrossSearchSourceFilter {
+  if (value === 'local' || value === 'private' || value === 'source') {
+    return value
+  }
+  return 'all'
 }
 
 export function normalizeSearchHistoryEntries(input: SearchHistoryRecord[], now: number = Date.now()): SearchHistoryEntry[] {
@@ -110,6 +119,20 @@ export class SearchHistoryStore {
     const entries = removeSearchHistoryEntry(await this.load(), query)
     await this.save(entries)
     return entries
+  }
+
+  async loadSourceFilter(): Promise<CrossSearchSourceFilter> {
+    const store = await this.preferences()
+    const value = await store.get(SEARCH_SOURCE_FILTER_KEY, 'all') as string
+    return normalizeSearchSourceFilter(value)
+  }
+
+  async saveSourceFilter(sourceFilter: CrossSearchSourceFilter): Promise<CrossSearchSourceFilter> {
+    const normalized = normalizeSearchSourceFilter(sourceFilter)
+    const store = await this.preferences()
+    await store.put(SEARCH_SOURCE_FILTER_KEY, normalized)
+    await store.flush()
+    return normalized
   }
 
   private async save(entries: SearchHistoryEntry[]): Promise<void> {
