@@ -224,7 +224,7 @@ struct Index {
       rejectedEntryCount = scanResult.rejectedEntries.length
     } else {
       try {
-        const previousKnownSeries = buildKnownLocalLibraryFolderSeriesFromComics(this.libraryStore.listComics())
+        const previousKnownSeries = buildKnownLocalLibraryFolderSeriesFromComics(this.libraryStore.listComics(), rootUri)
         if (previousKnownSeries.length === 0) {
           importedCount = upsertLocalLibraryFolderScanAndPersistLibraryStore(
             this.libraryStore,

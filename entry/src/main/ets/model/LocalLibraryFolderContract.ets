@@ -446,7 +446,8 @@ export function buildComicsFromLocalLibraryFolderScan(
   })
 }
 
-export function buildKnownLocalLibraryFolderSeriesFromComics(comics: Comic[]): LocalLibraryFolderSeries[] {
+export function buildKnownLocalLibraryFolderSeriesFromComics(comics: Comic[], rootUriFilter?: string): LocalLibraryFolderSeries[] {
+  const expectedRootUri = rootUriFilter === undefined ? undefined : trimTrailingSlashes(rootUriFilter)
   const seriesList: LocalLibraryFolderSeries[] = []
   comics.forEach((comic: Comic): void => {
     if (comic.sourceKind !== ComicSourceKind.LOCAL_FOLDER) {
@@ -458,6 +459,9 @@ export function buildKnownLocalLibraryFolderSeriesFromComics(comics: Comic[]): L
     }
     const rootUri = rootUriFromLocalLibraryFolderComic(comic, seriesRelativePath)
     if (rootUri === undefined) {
+      return
+    }
+    if (expectedRootUri !== undefined && trimTrailingSlashes(rootUri) !== expectedRootUri) {
       return
     }
     const chapters: LocalLibraryFolderChapter[] = []

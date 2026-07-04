@@ -2511,7 +2511,7 @@ assert.match(
 )
 assert.match(
   localLibraryFolderContractSource,
-  /buildKnownLocalLibraryFolderSeriesFromComics\(comics: Comic\[\]\): LocalLibraryFolderSeries\[\][\s\S]*const seriesList: LocalLibraryFolderSeries\[\] = \[\][\s\S]*comic\.sourceKind !== ComicSourceKind\.LOCAL_FOLDER[\s\S]*remoteResourceSeriesRelativePath\(comic\.remoteResourceId\)[\s\S]*rootUriFromLocalLibraryFolderComic\(comic, seriesRelativePath\)[\s\S]*localLibraryRelativePathFromUri\(rootUri, chapter\.sourcePath\)[\s\S]*localLibraryRelativePathFromUri\(rootUri, page\.uri\)[\s\S]*seriesList\.push\(series\)/,
+  /buildKnownLocalLibraryFolderSeriesFromComics\(comics: Comic\[\], rootUriFilter\?: string\): LocalLibraryFolderSeries\[\][\s\S]*const expectedRootUri = rootUriFilter === undefined \? undefined : trimTrailingSlashes\(rootUriFilter\)[\s\S]*const seriesList: LocalLibraryFolderSeries\[\] = \[\][\s\S]*comic\.sourceKind !== ComicSourceKind\.LOCAL_FOLDER[\s\S]*remoteResourceSeriesRelativePath\(comic\.remoteResourceId\)[\s\S]*rootUriFromLocalLibraryFolderComic\(comic, seriesRelativePath\)[\s\S]*expectedRootUri !== undefined && trimTrailingSlashes\(rootUri\) !== expectedRootUri[\s\S]*localLibraryRelativePathFromUri\(rootUri, chapter\.sourcePath\)[\s\S]*localLibraryRelativePathFromUri\(rootUri, page\.uri\)[\s\S]*seriesList\.push\(series\)/,
   'local library folder rescan must rebuild previous scan series from persisted LOCAL_FOLDER comics without reading external files',
 )
 assert.doesNotMatch(
@@ -2521,8 +2521,8 @@ assert.doesNotMatch(
 )
 assert.match(
   indexSource,
-  /buildKnownLocalLibraryFolderSeriesFromComics\(this\.libraryStore\.listComics\(\)\)[\s\S]*previousKnownSeries\.length === 0[\s\S]*upsertLocalLibraryFolderScanAndPersistLibraryStore[\s\S]*upsertLocalLibraryFolderRescanAndPersistLibraryStore[\s\S]*step=folder_rescan_persisted/,
-  'Index folder import must use rescan merge once existing local folder comics are present',
+  /buildKnownLocalLibraryFolderSeriesFromComics\(this\.libraryStore\.listComics\(\), rootUri\)[\s\S]*previousKnownSeries\.length === 0[\s\S]*upsertLocalLibraryFolderScanAndPersistLibraryStore[\s\S]*upsertLocalLibraryFolderRescanAndPersistLibraryStore[\s\S]*step=folder_rescan_persisted/,
+  'Index folder import must use root-scoped rescan merge once matching local folder comics are present',
 )
 assert.match(
   indexSource,
