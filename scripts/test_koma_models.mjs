@@ -742,8 +742,8 @@ assert.match(
 )
 assert.match(
   offlineDownloadStoreSource,
-  /resolveDownloadedPage[\s\S]*validateDownloadedChapter\(comicId, chapterId\)[\s\S]*OfflineDownloadedChapterStatus\.DOWNLOADED[\s\S]*OfflineDownloadedChapterStatus\.PARTIAL[\s\S]*fs\.accessSync\(page\.localPath\)/,
-  'offline resolver must expose validated existing files for downloaded and partial chapters',
+  /resolveDownloadedPage\([\s\S]*options\?: OfflineDownloadValidationOptions[\s\S]*validateDownloadedChapter\(comicId, chapterId, options\)[\s\S]*OfflineDownloadedChapterStatus\.DOWNLOADED[\s\S]*OfflineDownloadedChapterStatus\.PARTIAL[\s\S]*fs\.accessSync\(page\.localPath\)/,
+  'offline resolver must expose validated existing files for downloaded and partial chapters while preserving lightweight reader validation',
 )
 assert.match(
   readerPageSourceAdapterSource,

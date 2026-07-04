@@ -101,6 +101,10 @@ export interface OfflineDownloadManifestValidation {
   reasonCode?: string
 }
 
+export interface OfflineDownloadValidationOptions {
+  validateContentHash?: boolean
+}
+
 export interface OfflineDownloadManifestScanResult {
   validations: OfflineDownloadManifestValidation[]
   scannedManifestCount: number
@@ -363,7 +367,11 @@ export class OfflineDownloadStore {
     }
   }
 
-  validateDownloadedChapter(comicId: ComicId, chapterId: string): OfflineDownloadManifestValidation {
+  validateDownloadedChapter(
+    comicId: ComicId,
+    chapterId: string,
+    options?: OfflineDownloadValidationOptions
+  ): OfflineDownloadManifestValidation {
     const path = this.manifestPath(comicId, chapterId)
     if (!fs.accessSync(path)) {
       return {
@@ -534,7 +542,8 @@ export class OfflineDownloadStore {
             reasonCode: 'page_size_mismatch',
           }
         }
-        if ((page.contentHash ?? '').trim().length > 0 &&
+        if (options?.validateContentHash !== false &&
+          (page.contentHash ?? '').trim().length > 0 &&
           createOfflineDownloadFileContentHash(page.localPath) !== page.contentHash) {
           return {
             comicId,
@@ -821,8 +830,14 @@ export class OfflineDownloadStore {
     })
   }
 
-  resolveDownloadedPage(comicId: ComicId, chapterId: string, pageId: string, pageIndex: number): string | undefined {
-    const validation = this.validateDownloadedChapter(comicId, chapterId)
+  resolveDownloadedPage(
+    comicId: ComicId,
+    chapterId: string,
+    pageId: string,
+    pageIndex: number,
+    options?: OfflineDownloadValidationOptions
+  ): string | undefined {
+    const validation = this.validateDownloadedChapter(comicId, chapterId, options)
     if (validation.manifest === undefined ||
       (validation.status !== OfflineDownloadedChapterStatus.DOWNLOADED && validation.status !== OfflineDownloadedChapterStatus.PARTIAL)) {
       return undefined

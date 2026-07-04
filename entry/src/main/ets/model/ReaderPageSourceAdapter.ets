@@ -652,11 +652,15 @@ function createReaderOfflineDownloadRenderSource(config: ReaderSessionConfig, pa
     return undefined
   }
   const pageId = getReaderSessionPageId(config, pageIndex)
-  const validation = readerOfflineDownloadStore.validateDownloadedChapter(config.comicId, config.chapterId)
+  const validation = readerOfflineDownloadStore.validateDownloadedChapter(config.comicId, config.chapterId, {
+    validateContentHash: false,
+  })
   if (validation.manifest === undefined && validation.reasonCode === 'manifest_missing') {
     return undefined
   }
-  const localPath = readerOfflineDownloadStore.resolveDownloadedPage(config.comicId, config.chapterId, pageId, pageIndex)
+  const localPath = readerOfflineDownloadStore.resolveDownloadedPage(config.comicId, config.chapterId, pageId, pageIndex, {
+    validateContentHash: false,
+  })
   if (localPath === undefined) {
     if (isOfflineManifestReaderOwned(validation)) {
       console.warn(`[ReaderOffline] step=offline_page_unavailable comic=${createShortReaderHash(config.comicId)} chapter=${createShortReaderHash(config.chapterId)} page=${pageIndex} reason=${validation.reasonCode ?? 'page_unavailable'}`)

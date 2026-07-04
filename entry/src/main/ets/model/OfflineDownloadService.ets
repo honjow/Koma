@@ -317,8 +317,11 @@ export class OfflineDownloadService {
       }
       manifest.status = OfflineDownloadStatus.DOWNLOADED
       manifest = this.store.saveManifest(manifest)
-      const finalValidation = this.store.validateDownloadedChapter(comic.id, chapterId)
-      if (!this.store.isChapterFullyDownloaded(comic.id, chapterId)) {
+      const finalValidation = this.store.validateDownloadedChapter(comic.id, chapterId, { validateContentHash: false })
+      if (finalValidation.status !== OfflineDownloadedChapterStatus.DOWNLOADED ||
+        finalValidation.pageCount <= 0 ||
+        finalValidation.availablePageCount !== finalValidation.pageCount ||
+        finalValidation.missingPageCount !== 0) {
         manifest.status = finalValidation.availablePageCount > 0 ? OfflineDownloadStatus.PARTIAL : OfflineDownloadStatus.FAILED
         manifest.failureReasonCode = finalValidation.reasonCode ?? 'manifest_validation_failed'
         manifest = this.store.saveManifest(manifest)

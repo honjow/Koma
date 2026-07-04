@@ -19,7 +19,7 @@
 | Source 设置 | `Shared/Sources/SettingItem.swift`、`iOS/New/Views/Settings/Settings.swift` | `SourceSettingsStore.ets`、`SourcePackageManagerPage.ets`、`SettingsPage.ets` | Koma 已有设置描述与持久化/备份注入，UI 与真实 installed source 的设置体验还需要完整 QA。 |
 | 私有库 | `Shared/Sources/Komga/*`、`Shared/Sources/Kavita/*` | `entry/src/main/ets/remote/*`、`KomgaSeriesPage.ets`、`OpdsBrowsePage.ets`、`WebDavBrowsePage.ets` | Koma 的私有库方向更贴产品定位；Aidoku 的 Komga/Kavita 同时承担 source/tracker 角色，Koma 可参考能力边界，不照搬在线源入口。 |
 | 本地源 | `Shared/Sources/Local/LocalSource.swift` | `entry/src/main/ets/import/*`、`LocalLibraryMetadataService.ets` | Koma 有导入能力，但还不是 Aidoku/Mihon 那种可重扫、可维护的 local source。 |
-| 下载 | `Shared/Data/Downloads/DownloadManager.swift`、`DownloadQueue.swift`、`DownloadCache.swift` | `OfflineDownloadService.ets`、`OfflineDownloadStore.ets`、`OfflineDownloadQueueStore.ets`、`DownloadsPage.ets` | Koma 已有 manifest/队列/离线路径雏形；还缺下载管理成熟度、系统通知、异常恢复、离线 reader 全矩阵验证。 |
+| 下载 | `Shared/Data/Downloads/DownloadManager.swift`、`DownloadQueue.swift`、`DownloadCache.swift` | `OfflineDownloadService.ets`、`OfflineDownloadStore.ets`、`OfflineDownloadQueueStore.ets`、`DownloadsPage.ets` | Koma 已有 manifest/队列/离线路径，并已用 Pura X + MangaDex 真源验证下载后离线 Reader 打开和翻页；还缺下载管理成熟度、系统通知权限态、异常恢复和更广矩阵。 |
 | Reader | `iOS/UI/Reader/ReaderViewController.swift`、`iOS/New/Views/Reader/ReaderSettingsView.swift`、`iOS/UI/Reader/Page/*` | `ReaderPage.ets`、`ReaderPreferencesStore.ets`、`ReaderPageSourceAdapter.ets`、`ReaderChrome.ets` | Koma 已有单页/双页/Webtoon/RTL、宽图模式、tap/音量、tap zone preview、per-series overrides 等设置；还缺 crop/trim/wide image 质量矩阵和更多即时生效验证。 |
 | Library / 分类 | `Shared/Models/LibraryFilter.swift`、`Shared/Models/FilterGroup.swift`、`iOS/New/Views/Library/*` | `LibraryStore.ets`、`LibraryPage.ets`、`CategoryManagementPage.ets` | Koma 有分类和排序策略；还缺下载状态、来源、完成状态等更完整组合筛选与批量管理体验。 |
 | 搜索 / 浏览 | `iOS/New/Views/Browse/*`、`Search/*`、`Shared/Sources/SourceActor.swift` | `BrowsePage.ets`、`SearchPage.ets`、`SourceBrowsePage.ets`、`SourceSearchPage.ets` | Koma 已有跨本地/私有库/source runtime 搜索雏形；source home/listings/filters 的产品化还没到 Aidoku 水平。 |
@@ -49,7 +49,7 @@
 
 3. **下载闭环**
    - Aidoku 已有 download manager、queue、cache、下载目录与 CBZ/目录读取。
-   - Koma 已有 manifest 和队列，但还要补完整下载管理、通知权限态、断网 reader、缺页/损坏/重试/删除 QA。
+   - Koma 已有 manifest 和队列，且已在 Pura X 用 MangaDex 真源验证 source-backed 下载后 Reader 打开与翻页；还要补完整下载管理、通知权限态、断网 reader、缺页/损坏/重试/删除 QA。
 
 4. **Reader 成熟度**
    - Aidoku 有 per-manga reading mode、tap zones、UIKit reader controller 里的运行时观察和设置即时响应。
@@ -216,11 +216,12 @@
 2. **D50：Download offline QA**
    - 文件：`OfflineDownloadService.ets`、`OfflineDownloadStore.ets`、`DownloadsPage.ets`、`ReaderPage.ets`
    - 目标：断网 reader、损坏 manifest、下载状态管理。
+   - 当前：Pura X 已用真实 MangaDex `Salt Friend` 验证 source-backed 下载后 Reader 从 `1 / 13` 翻到 `2 / 13`，并修复下载完成/离线页解析时主线程全章节 hash 导致的 `THREAD_BLOCK_6S`。
 
 3. **D51：Source browsing parity**
    - 文件：`sourceRuntime/*`、`SourceBrowsePage.ets`、`SourceSearchPage.ets`、`SourcePackageManagerPage.ets`
    - 目标：home/listings/filters/settings 到 reader/download 的主路径。
-   - 当前：runtime browse 已用 Pura X + MangaDex source index 验证；UI 手动主路径已从 Browse -> MangaDex -> `Salt Friend` detail -> Reader 跑通。继续推进 source-backed 下载、per-source settings 编辑、更多真实源兼容。
+   - 当前：runtime browse 已用 Pura X + MangaDex source index 验证；UI 手动主路径已从 Browse -> MangaDex -> `Salt Friend` detail -> Reader 跑通，source-backed 下载后离线 Reader 也已跑通。继续推进 per-source settings 编辑和更多真实源兼容。
 
 4. **D52：Reader advanced QA**
    - 文件：`ReaderPreferencesStore.ets`、`ReaderSessionStore.ets`、`ReaderPage.ets`
