@@ -28,11 +28,13 @@ import {
   formatLocalLibraryRefreshSummary,
 } from '../model/LocalLibraryRefreshService'
 import {
+  LibraryUpdateJobSnapshot,
   LibraryUpdateResultStore,
   LibraryUpdateNotificationDispatchResult,
   clearLatestLibraryUpdateSummary,
   createLibraryUpdateJobSnapshot,
   getLibraryUpdateNotificationStatus,
+  getLatestLibraryUpdateJobSnapshot,
   getLatestLibraryUpdateSummary,
   publishLibraryUpdateFailureNotification,
   publishLibraryUpdateNotification,
@@ -425,6 +427,7 @@ export struct SettingsPage {
   @Local private imageCacheAutoCleanEnabled: boolean = DEFAULT_READER_REMOTE_IMAGE_CACHE_PREFERENCES.autoCleanEnabled
   @Local private libraryUpdateBusy: boolean = false
   @Local private libraryUpdateSummary?: LibraryUpdateSummary = undefined
+  @Local private libraryUpdateJobSnapshot?: LibraryUpdateJobSnapshot = undefined
   @Local private libraryUpdatePreferences: LibraryUpdatePreferences = DEFAULT_LIBRARY_UPDATE_PREFERENCES
   @Local private libraryUpdateNotificationStatus: LibraryUpdateNotificationStatus = 'unavailable'
   @Local private localLibraryRefreshBusy: boolean = false
@@ -901,10 +904,39 @@ export struct SettingsPage {
   }
 
   private getEffectiveLibraryUpdateSummary(): LibraryUpdateSummary | undefined {
-    if (this.isLibraryUpdateSummaryStaleAfterFailure(this.libraryUpdateSummary)) {
+    if (this.isLibraryUpdateSummaryStaleAfterFailure(this.libraryUpdateSummary) ||
+      this.isLibraryUpdateSummaryBlockedByJob(this.libraryUpdateSummary, this.libraryUpdateJobSnapshot)) {
       return undefined
     }
     return this.libraryUpdateSummary
+  }
+
+  private isFailureLibraryUpdateJobSnapshot(snapshot: LibraryUpdateJobSnapshot | undefined): boolean {
+    return snapshot !== undefined && (snapshot.state === 'failed' || snapshot.state === 'backed-off')
+  }
+
+  private isLibraryUpdateSummaryBlockedByJob(
+    summary: LibraryUpdateSummary | undefined,
+    snapshot: LibraryUpdateJobSnapshot | undefined,
+  ): boolean {
+    if (!this.isFailureLibraryUpdateJobSnapshot(snapshot)) {
+      return false
+    }
+    if (summary === undefined) {
+      return true
+    }
+    return (snapshot as LibraryUpdateJobSnapshot).updatedAt >= summary.checkedAt
+  }
+
+  private effectiveLibraryUpdateSummary(
+    summary: LibraryUpdateSummary | undefined,
+    snapshot: LibraryUpdateJobSnapshot | undefined,
+  ): LibraryUpdateSummary | undefined {
+    if (this.isLibraryUpdateSummaryStaleAfterFailure(summary) ||
+      this.isLibraryUpdateSummaryBlockedByJob(summary, snapshot)) {
+      return undefined
+    }
+    return summary
   }
 
   private isLibraryUpdateSummaryStaleAfterFailure(summary: LibraryUpdateSummary | undefined): boolean {
@@ -918,7 +950,7 @@ export struct SettingsPage {
   }
 
   private clearStaleLibraryUpdateSummaryAfterFailure(): void {
-    if (this.isLibraryUpdateSummaryStaleAfterFailure(this.libraryUpdateSummary)) {
+    if (this.effectiveLibraryUpdateSummary(this.libraryUpdateSummary, this.libraryUpdateJobSnapshot) === undefined) {
       this.libraryUpdateSummary = undefined
     }
   }
@@ -1049,8 +1081,32 @@ export struct SettingsPage {
   }
 
   private loadLatestLibraryUpdateSummary(): void {
+    const latestJob = getLatestLibraryUpdateJobSnapshot()
+    this.libraryUpdateJobSnapshot = latestJob
     const latest = getLatestLibraryUpdateSummary()
-    this.libraryUpdateSummary = this.isLibraryUpdateSummaryStaleAfterFailure(latest) ? undefined : latest
+    this.libraryUpdateSummary = this.effectiveLibraryUpdateSummary(latest, latestJob)
+    void this.libraryUpdateResultStore().loadJobSnapshot()
+      .then((snapshot: LibraryUpdateJobSnapshot | undefined) => {
+        const currentJob = getLatestLibraryUpdateJobSnapshot()
+        let effectiveJob = currentJob
+        if (snapshot !== undefined && (currentJob === undefined || snapshot.updatedAt > currentJob.updatedAt)) {
+          setLatestLibraryUpdateJobSnapshot(snapshot)
+          effectiveJob = snapshot
+        }
+        this.libraryUpdateJobSnapshot = effectiveJob
+        if (this.isLibraryUpdateSummaryBlockedByJob(this.libraryUpdateSummary, effectiveJob)) {
+          clearLatestLibraryUpdateSummary()
+          this.libraryUpdateSummary = undefined
+        }
+        this.loadPersistedLibraryUpdateSummary(effectiveJob)
+      })
+      .catch((error: Error) => {
+        console.warn('[Settings] step=load_library_update_job_failed code=' + safeSettingsErrorCode(error))
+        this.loadPersistedLibraryUpdateSummary(latestJob)
+      })
+  }
+
+  private loadPersistedLibraryUpdateSummary(jobSnapshot: LibraryUpdateJobSnapshot | undefined): void {
     void this.libraryUpdateResultStore().load()
       .then((summary: LibraryUpdateSummary | undefined) => {
         const current = getLatestLibraryUpdateSummary()
@@ -1059,7 +1115,7 @@ export struct SettingsPage {
           setLatestLibraryUpdateSummary(summary)
           effectiveSummary = summary
         }
-        this.libraryUpdateSummary = this.isLibraryUpdateSummaryStaleAfterFailure(effectiveSummary) ? undefined : effectiveSummary
+        this.libraryUpdateSummary = this.effectiveLibraryUpdateSummary(effectiveSummary, jobSnapshot)
         const total = this.libraryUpdateSummary === undefined ? 0 : this.libraryUpdateSummary.totalCount
         console.info('[Settings] step=load_library_update_results hasSummary=' + (this.libraryUpdateSummary !== undefined) + ' total=' + total)
       })

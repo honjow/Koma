@@ -299,6 +299,11 @@ assert.match(
   'Settings must not leave an in-memory latest success available for navigation after a newer failure',
 )
 assert.match(
+  settingsPageSource,
+  /getLatestLibraryUpdateJobSnapshot\(\)[\s\S]*loadJobSnapshot\(\)[\s\S]*isLibraryUpdateSummaryBlockedByJob\(this\.libraryUpdateSummary, effectiveJob\)[\s\S]*clearLatestLibraryUpdateSummary\(\)[\s\S]*loadPersistedLibraryUpdateSummary\(effectiveJob\)/,
+  'Settings must load persisted job snapshots before rendering latest results so newer failed/backed-off jobs hide stale success summaries',
+)
+assert.match(
   resultPageSource,
   /getLatestLibraryUpdateJobSnapshot\(\)[\s\S]*effectiveSummaryForJob\(getLatestLibraryUpdateSummary\(\), latestJob\)[\s\S]*loadJobSnapshot\(\)[\s\S]*isSummaryBlockedByJob\(this\.summary, effectiveJob\)[\s\S]*clearLatestLibraryUpdateSummary\(\)/,
   'LibraryUpdateResultPage must not display a persisted latest success when a newer failed/backed-off job snapshot exists',

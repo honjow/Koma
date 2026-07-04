@@ -1020,12 +1020,12 @@ assert.match(
 )
 assert.match(
   settingsPageSource,
-  /loadLatestLibraryUpdateSummary\(\): void \{[\s\S]*getLatestLibraryUpdateSummary\(\)[\s\S]*this\.isLibraryUpdateSummaryStaleAfterFailure\(latest\)[\s\S]*this\.libraryUpdateResultStore\(\)\.load\(\)[\s\S]*const current = getLatestLibraryUpdateSummary\(\)[\s\S]*setLatestLibraryUpdateSummary\(summary\)[\s\S]*this\.isLibraryUpdateSummaryStaleAfterFailure\(effectiveSummary\)[\s\S]*step=load_library_update_results hasSummary=/,
-  'SettingsPage must load persisted library update result details after checking fresh in-memory state and suppress stale success after newer failures',
+  /loadLatestLibraryUpdateSummary\(\): void \{[\s\S]*getLatestLibraryUpdateJobSnapshot\(\)[\s\S]*getLatestLibraryUpdateSummary\(\)[\s\S]*this\.effectiveLibraryUpdateSummary\(latest, latestJob\)[\s\S]*loadJobSnapshot\(\)[\s\S]*isLibraryUpdateSummaryBlockedByJob\(this\.libraryUpdateSummary, effectiveJob\)[\s\S]*loadPersistedLibraryUpdateSummary\(effectiveJob\)/,
+  'SettingsPage must load persisted library update job state before rendering latest result details and suppress stale success after newer failures',
 )
 assert.match(
   settingsPageSource,
-  /\.then\(\(summary: LibraryUpdateSummary \| undefined\) => \{[\s\S]*const current = getLatestLibraryUpdateSummary\(\)[\s\S]*if \(summary !== undefined && \(current === undefined \|\| summary\.checkedAt > current\.checkedAt\)\) \{[\s\S]*setLatestLibraryUpdateSummary\(summary\)[\s\S]*this\.isLibraryUpdateSummaryStaleAfterFailure\(effectiveSummary\)/,
+  /loadPersistedLibraryUpdateSummary\(jobSnapshot: LibraryUpdateJobSnapshot \| undefined\): void \{[\s\S]*\.then\(\(summary: LibraryUpdateSummary \| undefined\) => \{[\s\S]*const current = getLatestLibraryUpdateSummary\(\)[\s\S]*if \(summary !== undefined && \(current === undefined \|\| summary\.checkedAt > current\.checkedAt\)\) \{[\s\S]*setLatestLibraryUpdateSummary\(summary\)[\s\S]*this\.effectiveLibraryUpdateSummary\(effectiveSummary, jobSnapshot\)/,
   'SettingsPage must only use persisted library update results as fallback or when newer than fresh in-memory state at load resolution',
 )
 assert.match(
