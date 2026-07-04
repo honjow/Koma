@@ -124,6 +124,7 @@ import {
   getReaderPageModeLabel,
   getReaderProgressControlsLabel,
   getReaderSwipeNavigationLabel,
+  getReaderShowTapZonesLabel,
   getReaderTapNavigationLabel,
   getReaderTapZonePresetLabel,
   getReaderThemeModeLabel,
@@ -212,6 +213,7 @@ function createSettingsSections(): SettingsSection[] {
         { key: 'reader-tap-navigation', titleKey: 'settings_row_reader_tap_navigation_title', detailKey: 'settings_row_reader_tap_navigation_detail' },
         { key: 'reader-swipe-navigation', titleKey: 'settings_row_reader_swipe_navigation_title', detailKey: 'settings_row_reader_swipe_navigation_detail' },
         { key: 'reader-tap-zone-preset', titleKey: 'settings_row_reader_tap_zone_preset_title', detailKey: 'settings_row_reader_tap_zone_preset_detail' },
+        { key: 'reader-show-tap-zones', titleKey: 'settings_row_reader_show_tap_zones_title', detailKey: 'settings_row_reader_show_tap_zones_detail' },
         { key: 'reader-page-gap', titleKey: 'settings_row_reader_page_gap_title', detailKey: 'settings_row_reader_page_gap_detail' },
         { key: 'reader-trim-page-margins', titleKey: 'settings_row_reader_trim_page_margins_title', detailKey: 'settings_row_reader_trim_page_margins_detail' },
         { key: 'reader-wide-image-mode', titleKey: 'settings_row_reader_wide_image_mode_title', detailKey: 'settings_row_reader_wide_image_mode_detail' },
@@ -414,6 +416,7 @@ export struct SettingsPage {
   @Local private readerTapNavigationEnabled: boolean = true
   @Local private readerSwipeNavigationEnabled: boolean = true
   @Local private readerTapZonePreset: ReaderTapZonePreset = 'edge'
+  @Local private readerShowTapZones: boolean = false
   @Local private readerPageGapMode: ReaderPageGapMode = 'normal'
   @Local private readerTrimPageMarginsEnabled: boolean = false
   @Local private readerWideImageMode: ReaderWideImageMode = 'keep_single'
@@ -581,6 +584,9 @@ export struct SettingsPage {
     }
     if (row.key === 'reader-tap-zone-preset') {
       return getReaderTapZonePresetLabel(this.readerTapZonePreset)
+    }
+    if (row.key === 'reader-show-tap-zones') {
+      return getReaderShowTapZonesLabel(this.readerShowTapZones)
     }
     if (row.key === 'reader-page-gap') {
       return getReaderPageGapModeLabel(this.readerPageGapMode)
@@ -988,6 +994,7 @@ export struct SettingsPage {
     this.readerTapNavigationEnabled = preferences.tapNavigationEnabled
     this.readerSwipeNavigationEnabled = preferences.swipeNavigationEnabled
     this.readerTapZonePreset = preferences.tapZonePreset
+    this.readerShowTapZones = preferences.showTapZones
     this.readerPageGapMode = preferences.pageGapMode
     this.readerTrimPageMarginsEnabled = preferences.trimPageMarginsEnabled
     this.readerWideImageMode = preferences.wideImageMode
@@ -1357,6 +1364,17 @@ export struct SettingsPage {
       })
       .catch((error: Error) => {
         console.warn('[Settings] step=save_reader_tap_zone_preset_failed code=' + safeSettingsErrorCode(error))
+      })
+  }
+
+  private saveReaderShowTapZones(showTapZones: boolean): void {
+    this.readerShowTapZones = showTapZones
+    void this.preferencesStore().saveShowTapZones(showTapZones)
+      .then(() => {
+        console.info('[Settings] step=save_reader_show_tap_zones value=' + showTapZones)
+      })
+      .catch((error: Error) => {
+        console.warn('[Settings] step=save_reader_show_tap_zones_failed code=' + safeSettingsErrorCode(error))
       })
   }
 
@@ -2030,6 +2048,7 @@ export struct SettingsPage {
       row.key === 'reader-keep-screen-awake' ||
       row.key === 'reader-tap-navigation' ||
       row.key === 'reader-swipe-navigation' ||
+      row.key === 'reader-show-tap-zones' ||
       row.key === 'reader-trim-page-margins' ||
       row.key === 'reader-volume-key-navigation'
   }
@@ -2068,6 +2087,9 @@ export struct SettingsPage {
     if (row.key === 'reader-trim-page-margins') {
       return this.readerTrimPageMarginsEnabled
     }
+    if (row.key === 'reader-show-tap-zones') {
+      return this.readerShowTapZones
+    }
     if (row.key === 'reader-volume-key-navigation') {
       return this.readerVolumeKeyNavigationEnabled
     }
@@ -2101,6 +2123,8 @@ export struct SettingsPage {
       this.saveReaderTapNavigationEnabled(value)
     } else if (row.key === 'reader-swipe-navigation') {
       this.saveReaderSwipeNavigationEnabled(value)
+    } else if (row.key === 'reader-show-tap-zones') {
+      this.saveReaderShowTapZones(value)
     } else if (row.key === 'reader-trim-page-margins') {
       this.saveReaderTrimPageMarginsEnabled(value)
     } else if (row.key === 'reader-volume-key-navigation') {

@@ -229,6 +229,8 @@
     { "name": "settings_row_reader_swipe_navigation_detail", "value": "Drag pages to turn" },
     { "name": "settings_row_reader_tap_zone_preset_title", "value": "Tap zone preset" },
     { "name": "settings_row_reader_tap_zone_preset_detail", "value": "Tap zone layout" },
+    { "name": "settings_row_reader_show_tap_zones_title", "value": "Show tap zones" },
+    { "name": "settings_row_reader_show_tap_zones_detail", "value": "Display page-turn touch areas while reading" },
     { "name": "settings_row_reader_page_gap_title", "value": "Page gap" },
     { "name": "settings_row_reader_page_gap_detail", "value": "Spacing between pages" },
     { "name": "settings_row_reader_trim_page_margins_title", "value": "Trim page margins" },

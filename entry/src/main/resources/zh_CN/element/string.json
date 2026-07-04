@@ -229,6 +229,8 @@
     { "name": "settings_row_reader_swipe_navigation_detail", "value": "拖动页面切换" },
     { "name": "settings_row_reader_tap_zone_preset_title", "value": "点击区域预设" },
     { "name": "settings_row_reader_tap_zone_preset_detail", "value": "点击区域布局" },
+    { "name": "settings_row_reader_show_tap_zones_title", "value": "显示点击区域" },
+    { "name": "settings_row_reader_show_tap_zones_detail", "value": "阅读时显示左右翻页触摸区域" },
     { "name": "settings_row_reader_page_gap_title", "value": "页间距" },
     { "name": "settings_row_reader_page_gap_detail", "value": "页面之间的间距" },
     { "name": "settings_row_reader_trim_page_margins_title", "value": "裁剪页边空白" },

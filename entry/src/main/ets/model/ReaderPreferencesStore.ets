@@ -23,6 +23,7 @@ export interface ReaderPreferences {
   tapNavigationEnabled: boolean
   swipeNavigationEnabled: boolean
   tapZonePreset: ReaderTapZonePreset
+  showTapZones: boolean
   pageGapMode: ReaderPageGapMode
   trimPageMarginsEnabled: boolean
   wideImageMode: ReaderWideImageMode
@@ -47,6 +48,7 @@ export const IMAGE_FIT_MODE_KEY: string = 'reader.imageFitMode'
 export const TAP_NAVIGATION_ENABLED_KEY: string = 'reader.tapNavigationEnabled'
 export const SWIPE_NAVIGATION_ENABLED_KEY: string = 'reader.swipeNavigationEnabled'
 export const TAP_ZONE_PRESET_KEY: string = 'reader.tapZonePreset'
+export const SHOW_TAP_ZONES_KEY: string = 'reader.showTapZones'
 export const PAGE_GAP_MODE_KEY: string = 'reader.pageGapMode'
 export const TRIM_PAGE_MARGINS_ENABLED_KEY: string = 'reader.trimPageMarginsEnabled'
 export const WIDE_IMAGE_MODE_KEY: string = 'reader.wideImageMode'
@@ -64,6 +66,7 @@ export const DEFAULT_READER_PREFERENCES: ReaderPreferences = {
   tapNavigationEnabled: true,
   swipeNavigationEnabled: true,
   tapZonePreset: 'edge',
+  showTapZones: false,
   pageGapMode: 'normal',
   trimPageMarginsEnabled: false,
   wideImageMode: 'keep_single',
@@ -145,6 +148,13 @@ export function normalizeReaderSwipeNavigationEnabled(value: boolean | string | 
     return false
   }
   return true
+}
+
+export function normalizeReaderShowTapZones(value: boolean | string | number): boolean {
+  if (value === true || value === 'true' || value === 1 || value === '1') {
+    return true
+  }
+  return false
 }
 
 export function normalizeReaderTrimPageMarginsEnabled(value: boolean | string | number): boolean {
@@ -238,6 +248,10 @@ export function getReaderTapZonePresetLabel(preset: ReaderTapZonePreset): string
   return AppStrings.get('reader_tap_zone_edge')
 }
 
+export function getReaderShowTapZonesLabel(showTapZones: boolean): string {
+  return showTapZones ? AppStrings.get('common_show') : AppStrings.get('common_hide')
+}
+
 export function getReaderPageGapModeLabel(mode: ReaderPageGapMode): string {
   if (mode === 'compact') {
     return AppStrings.get('reader_page_gap_compact')
@@ -323,6 +337,7 @@ function mergeReaderSeriesPreferences(
     tapNavigationEnabled: overrides.tapNavigationEnabled ?? globalPreferences.tapNavigationEnabled,
     swipeNavigationEnabled: globalPreferences.swipeNavigationEnabled,
     tapZonePreset: overrides.tapZonePreset ?? globalPreferences.tapZonePreset,
+    showTapZones: globalPreferences.showTapZones,
     pageGapMode: globalPreferences.pageGapMode,
     trimPageMarginsEnabled: globalPreferences.trimPageMarginsEnabled,
     wideImageMode: globalPreferences.wideImageMode,
@@ -376,6 +391,8 @@ export class ReaderPreferencesStore {
     const swipeNavigationEnabled =
       await store.get(SWIPE_NAVIGATION_ENABLED_KEY, DEFAULT_READER_PREFERENCES.swipeNavigationEnabled) as boolean | string | number
     const tapZonePreset = await store.get(TAP_ZONE_PRESET_KEY, DEFAULT_READER_PREFERENCES.tapZonePreset) as string
+    const showTapZones =
+      await store.get(SHOW_TAP_ZONES_KEY, DEFAULT_READER_PREFERENCES.showTapZones) as boolean | string | number
     const pageGapMode = await store.get(PAGE_GAP_MODE_KEY, DEFAULT_READER_PREFERENCES.pageGapMode) as string
     const trimPageMarginsEnabled =
       await store.get(TRIM_PAGE_MARGINS_ENABLED_KEY, DEFAULT_READER_PREFERENCES.trimPageMarginsEnabled) as boolean | string | number
@@ -393,6 +410,7 @@ export class ReaderPreferencesStore {
       tapNavigationEnabled: normalizeReaderTapNavigationEnabled(tapNavigationEnabled),
       swipeNavigationEnabled: normalizeReaderSwipeNavigationEnabled(swipeNavigationEnabled),
       tapZonePreset: normalizeReaderTapZonePreset(tapZonePreset),
+      showTapZones: normalizeReaderShowTapZones(showTapZones),
       pageGapMode: normalizeReaderPageGapMode(pageGapMode),
       trimPageMarginsEnabled: normalizeReaderTrimPageMarginsEnabled(trimPageMarginsEnabled),
       wideImageMode: normalizeReaderWideImageMode(wideImageMode),
@@ -523,6 +541,12 @@ export class ReaderPreferencesStore {
     await store.flush()
   }
 
+  async saveShowTapZones(showTapZones: boolean): Promise<void> {
+    const store = await this.preferences()
+    await store.put(SHOW_TAP_ZONES_KEY, normalizeReaderShowTapZones(showTapZones))
+    await store.flush()
+  }
+
   async savePageGapMode(pageGapMode: ReaderPageGapMode): Promise<void> {
     const store = await this.preferences()
     await store.put(PAGE_GAP_MODE_KEY, normalizeReaderPageGapMode(pageGapMode))
@@ -559,6 +583,7 @@ export class ReaderPreferencesStore {
     await store.put(TAP_NAVIGATION_ENABLED_KEY, normalizeReaderTapNavigationEnabled(preferences.tapNavigationEnabled))
     await store.put(SWIPE_NAVIGATION_ENABLED_KEY, normalizeReaderSwipeNavigationEnabled(preferences.swipeNavigationEnabled))
     await store.put(TAP_ZONE_PRESET_KEY, normalizeReaderTapZonePreset(preferences.tapZonePreset))
+    await store.put(SHOW_TAP_ZONES_KEY, normalizeReaderShowTapZones(preferences.showTapZones))
     await store.put(PAGE_GAP_MODE_KEY, normalizeReaderPageGapMode(preferences.pageGapMode))
     await store.put(TRIM_PAGE_MARGINS_ENABLED_KEY, normalizeReaderTrimPageMarginsEnabled(preferences.trimPageMarginsEnabled))
     await store.put(WIDE_IMAGE_MODE_KEY, normalizeReaderWideImageMode(preferences.wideImageMode))

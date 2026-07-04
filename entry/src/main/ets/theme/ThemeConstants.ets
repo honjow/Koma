@@ -39,6 +39,7 @@ export class ThemeConstants {
   static readonly READER_TEXT_UNSELECTED: ResourceColor = '#EDE2DA'
   static readonly READER_ACCENT: ResourceColor = '#E66A3A'
   static readonly READER_ACCENT_LIGHT: ResourceColor = '#FF996F'
+  static readonly READER_TAP_ZONE_OVERLAY: ResourceColor = '#33E66A3A'
   static readonly READER_PROGRESS_BG: ResourceColor = '#40332C28'
   static readonly READER_BORDER: ResourceColor = '#4A332C28'
   static readonly READER_SHADOW: ResourceColor = '#33000000'
