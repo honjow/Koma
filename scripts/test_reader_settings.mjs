@@ -280,13 +280,13 @@ assert.match(
 )
 assert.match(
   readerChromeSource,
-  /tapNavigationEnabled[\s\S]*tapZonePreset: ReaderTapZonePreset[\s\S]*readingDirection: ReadingDirection[\s\S]*TapZonePreview\(\)[\s\S]*tapZoneActionLabel\(true\)[\s\S]*reader_tap_zone_center[\s\S]*tapZoneActionLabel\(false\)/,
-  'ReaderChrome must visualize the active tap-zone preset and RTL-aware left/right actions',
+  /tapNavigationEnabled[\s\S]*tapZonePreset: ReaderTapZonePreset[\s\S]*readingDirection: ReadingDirection[\s\S]*onTapZonePresetChange[\s\S]*TapZonePresetOption\([\s\S]*this\.setTapZonePreset\(preset\)[\s\S]*TapZonePreview\(\)[\s\S]*reader_tap_zone_edge[\s\S]*reader_tap_zone_wide[\s\S]*tapZoneActionLabel\(true\)[\s\S]*reader_tap_zone_center[\s\S]*tapZoneActionLabel\(false\)/,
+  'ReaderChrome must visualize and change the active tap-zone preset with RTL-aware left/right actions',
 )
 assert.match(
   readerPageSource,
-  /ReaderChrome\(\{[\s\S]*tapNavigationEnabled: this\.tapNavigationEnabled[\s\S]*tapZonePreset: this\.tapZonePreset[\s\S]*readingDirection: this\.readingDirection/,
-  'ReaderPage must pass live tap-zone preferences into ReaderChrome for runtime visualization',
+  /ReaderChrome\(\{[\s\S]*tapNavigationEnabled: this\.tapNavigationEnabled[\s\S]*tapZonePreset: this\.tapZonePreset[\s\S]*readingDirection: this\.readingDirection[\s\S]*onTapZonePresetChange: \(preset: ReaderTapZonePreset\) => \{[\s\S]*this\.tapZonePreset = preset/,
+  'ReaderPage must pass and apply live tap-zone preferences for runtime visualization',
 )
 allReaderStringSources.forEach((source, index) => {
   assert.match(source, /"name": "reader_tap_zone_center"/, `reader tap-zone center label must exist in locale ${index}`)
