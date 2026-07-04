@@ -61,6 +61,16 @@ assert.match(
 )
 assert.match(
   trackerModelsSource,
+  /import \{ cryptoFramework \} from '@kit\.CryptoArchitectureKit'/,
+  'tracker OAuth preparation must use platform crypto for random state and PKCE challenge generation',
+)
+assert.match(
+  trackerModelsSource,
+  /TrackerCredentialSecretKind = 'access_token' \| 'refresh_token' \| 'oauth_code_verifier'/,
+  'tracker credential store must reserve a secure secret kind for pending OAuth code verifiers',
+)
+assert.match(
+  trackerModelsSource,
   /export class AssetStoreTrackerCredentialSecretStore implements TrackerCredentialSecretStore[\s\S]*asset\.add\(attributes\)[\s\S]*asset\.query\(query\)[\s\S]*asset\.remove\(trackerAssetQuery\(ref\)\)[\s\S]*asset\.remove\(trackerAssetAccountQuery\(ref\)\)/,
   'asset-backed tracker credential store must implement write/read/delete/logout cleanup through AssetStoreKit',
 )
@@ -180,16 +190,36 @@ assert.doesNotMatch(
   /createDeterministicPkceForTest/,
   'deterministic PKCE helper must not be exported from production source',
 )
+assert.match(
+  trackerModelsSource,
+  /export function createTrackerOAuthState\(\): string \{[\s\S]*trackerRandomBase64Url\(TRACKER_OAUTH_STATE_BYTES\)/,
+  'production OAuth preparation must create an unpredictable state token',
+)
+assert.match(
+  trackerModelsSource,
+  /export function createTrackerPkcePair\(\): TrackerPkcePair \{[\s\S]*trackerRandomBase64Url\(TRACKER_PKCE_VERIFIER_BYTES\)[\s\S]*trackerSha256Base64Url\(codeVerifier\)/,
+  'production OAuth preparation must create a random PKCE verifier and SHA-256 code challenge',
+)
+assert.match(
+  trackerModelsSource,
+  /function trackerSha256Base64Url\(value: string\): string \{[\s\S]*cryptoFramework\.createMd\('SHA256'\)[\s\S]*md\.updateSync\(\{ data: trackerUtf8Encode\(value\) \}\)[\s\S]*trackerBase64UrlEncode\(md\.digestSync\(\)\.data\)/,
+  'PKCE code challenges must be SHA-256 base64url encoded',
+)
 const prepareConnectBlock = trackerModelsSource.match(/async prepareConnect\(providerId: TrackerProviderId\): Promise<TrackerOAuthStartPreparation> \{[\s\S]*?\n  \}/)?.[0] ?? ''
 assert.match(
   prepareConnectBlock,
-  /prepareTrackerOAuthStart\(\{[\s\S]*state: ''[\s\S]*codeChallenge: ''[\s\S]*this\.secretStore\.isAvailable\(\)/,
-  'production prepareConnect must fail closed when production PKCE/state generation is unavailable',
+  /const state = createTrackerOAuthState\(\)[\s\S]*const pkce = createTrackerPkcePair\(\)[\s\S]*prepareTrackerOAuthStart\(\{[\s\S]*state,[\s\S]*codeChallenge: pkce\.codeChallenge[\s\S]*this\.secretStore\.isAvailable\(\)/,
+  'production prepareConnect must use generated state and PKCE challenge when preparing OAuth',
+)
+assert.match(
+  prepareConnectBlock,
+  /preparation\.status !== 'ready'[\s\S]*return preparation[\s\S]*this\.secretStore\.writeToken\(\{[\s\S]*accountKey: state,[\s\S]*secretKind: 'oauth_code_verifier'[\s\S]*secretBytes: trackerUtf8Encode\(pkce\.codeVerifier\)/,
+  'production prepareConnect must store the PKCE verifier only after provider metadata and secure storage gates are ready',
 )
 assert.doesNotMatch(
   prepareConnectBlock,
-  /createDeterministicPkceForTest|tracker-\$\{providerId\}|authorizationUrl/,
-  'production prepareConnect must not use deterministic PKCE, predictable state, or produce an auth URL directly',
+  /createDeterministicPkceForTest|tracker-\$\{providerId\}|state: `|state: '/,
+  'production prepareConnect must not use deterministic PKCE or predictable state values',
 )
 assert.doesNotMatch(
   trackerModelsSource,

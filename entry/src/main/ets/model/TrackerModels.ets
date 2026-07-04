@@ -1,8 +1,9 @@
 import { common } from '@kit.AbilityKit'
 import { preferences } from '@kit.ArkData'
-import { buffer } from '@kit.ArkTS'
+import { buffer, util } from '@kit.ArkTS'
 import { asset } from '@kit.AssetStoreKit'
 import { BusinessError } from '@kit.BasicServicesKit'
+import { cryptoFramework } from '@kit.CryptoArchitectureKit'
 import { ComicId } from './ComicModels'
 import { AppStrings } from '../i18n/AppStrings'
 
@@ -22,7 +23,7 @@ export type TrackerAuthPrepareStatus =
   'provider_unsupported' |
   'pkce_unavailable'
 
-export type TrackerCredentialSecretKind = 'access_token' | 'refresh_token'
+export type TrackerCredentialSecretKind = 'access_token' | 'refresh_token' | 'oauth_code_verifier'
 export type TrackerCredentialErrorCode =
   'not_found' |
   'locked' |
@@ -158,6 +159,8 @@ export const TRACKER_AUTO_SYNC_ENABLED_KEY: string = 'tracker.autoSyncEnabled'
 export const TRACKER_UPDATE_STRATEGY_KEY: string = 'tracker.updateStrategy'
 export const TRACKER_ASSET_ALIAS_PREFIX: string = 'koma.tracker'
 export const TRACKER_ASSET_GROUP_ID: string = 'koma-tracker-credentials'
+export const TRACKER_OAUTH_STATE_BYTES: number = 32
+export const TRACKER_PKCE_VERIFIER_BYTES: number = 32
 
 export const TRACKER_PROVIDER_CONFIGS: TrackerProviderConfig[] = [
   {
@@ -523,6 +526,36 @@ export function parseTrackerOAuthCallback(callbackUri: string, expectedState: st
   }
 }
 
+function trackerBase64UrlEncode(bytes: Uint8Array): string {
+  const helper = new util.Base64Helper()
+  return helper.encodeToStringSync(bytes)
+    .replace(/\+/g, '-')
+    .replace(/\//g, '_')
+    .replace(/=+$/g, '')
+}
+
+function trackerRandomBase64Url(byteLength: number): string {
+  return trackerBase64UrlEncode(cryptoFramework.createRandom().generateRandomSync(byteLength).data)
+}
+
+function trackerSha256Base64Url(value: string): string {
+  const md = cryptoFramework.createMd('SHA256')
+  md.updateSync({ data: trackerUtf8Encode(value) })
+  return trackerBase64UrlEncode(md.digestSync().data)
+}
+
+export function createTrackerOAuthState(): string {
+  return trackerRandomBase64Url(TRACKER_OAUTH_STATE_BYTES)
+}
+
+export function createTrackerPkcePair(): TrackerPkcePair {
+  const codeVerifier = trackerRandomBase64Url(TRACKER_PKCE_VERIFIER_BYTES)
+  return {
+    codeVerifier,
+    codeChallenge: trackerSha256Base64Url(codeVerifier),
+  }
+}
+
 export class UnavailableTrackerCredentialSecretStore implements TrackerCredentialSecretStore {
   isAvailable(): boolean {
     return false
@@ -875,11 +908,30 @@ export class TrackerPreferencesStore {
   }
 
   async prepareConnect(providerId: TrackerProviderId): Promise<TrackerOAuthStartPreparation> {
-    return prepareTrackerOAuthStart({
+    const state = createTrackerOAuthState()
+    const pkce = createTrackerPkcePair()
+    const preparation = prepareTrackerOAuthStart({
       providerId,
-      state: '',
-      codeChallenge: '',
+      state,
+      codeChallenge: pkce.codeChallenge,
     }, this.secretStore.isAvailable())
+    if (preparation.status !== 'ready') {
+      return preparation
+    }
+    const written = await this.secretStore.writeToken({
+      providerId,
+      accountKey: state,
+      secretKind: 'oauth_code_verifier',
+      secretBytes: trackerUtf8Encode(pkce.codeVerifier),
+    })
+    if (!written.ok) {
+      return {
+        status: 'secure_storage_unavailable',
+        providerId,
+        message: written.error?.code ?? 'secure_storage_unavailable',
+      }
+    }
+    return preparation
   }
 
   private parseAccounts(value: string): TrackerAccount[] {
