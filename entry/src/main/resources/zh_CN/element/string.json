@@ -58,6 +58,7 @@
     { "name": "reader_image_fit_width", "value": "适应宽度" },
     { "name": "reader_tap_zone_edge", "value": "边缘" },
     { "name": "reader_tap_zone_wide", "value": "宽边缘" },
+    { "name": "reader_tap_zone_center", "value": "中心" },
     { "name": "reader_page_gap_compact", "value": "紧凑" },
     { "name": "reader_page_gap_wide", "value": "宽间距" },
     { "name": "reader_trim_margins_on", "value": "开启" },

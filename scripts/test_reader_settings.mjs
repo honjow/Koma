@@ -8,12 +8,20 @@ const readerPagePath = resolve(root, 'entry/src/main/ets/pages/ReaderPage.ets')
 const readerChromePath = resolve(root, 'entry/src/main/ets/components/ReaderChrome.ets')
 const settingsPagePath = resolve(root, 'entry/src/main/ets/pages/SettingsPage.ets')
 const backupServicePath = resolve(root, 'entry/src/main/ets/model/BackupService.ets')
+const baseStringsPath = resolve(root, 'entry/src/main/resources/base/element/string.json')
+const enStringsPath = resolve(root, 'entry/src/main/resources/en_US/element/string.json')
+const zhStringsPath = resolve(root, 'entry/src/main/resources/zh_CN/element/string.json')
 
 const readerPreferencesStoreSource = readFileSync(readerPreferencesStorePath, 'utf8')
 const readerPageSource = readFileSync(readerPagePath, 'utf8')
 const readerChromeSource = readFileSync(readerChromePath, 'utf8')
 const settingsPageSource = readFileSync(settingsPagePath, 'utf8')
 const backupServiceSource = readFileSync(backupServicePath, 'utf8')
+const allReaderStringSources = [
+  readFileSync(baseStringsPath, 'utf8'),
+  readFileSync(enStringsPath, 'utf8'),
+  readFileSync(zhStringsPath, 'utf8'),
+]
 
 assert.match(
   readerPreferencesStoreSource,
@@ -270,6 +278,19 @@ assert.match(
   /onSaveSeriesPreferences[\s\S]*onClearSeriesPreferences[\s\S]*reader_action_save_series_settings[\s\S]*this\.onSaveSeriesPreferences\(\)[\s\S]*reader_action_clear_series_settings[\s\S]*this\.onClearSeriesPreferences\(\)/,
   'ReaderChrome must expose real per-series save and clear actions instead of leaving the store unreachable',
 )
+assert.match(
+  readerChromeSource,
+  /tapNavigationEnabled[\s\S]*tapZonePreset: ReaderTapZonePreset[\s\S]*readingDirection: ReadingDirection[\s\S]*TapZonePreview\(\)[\s\S]*tapZoneActionLabel\(true\)[\s\S]*reader_tap_zone_center[\s\S]*tapZoneActionLabel\(false\)/,
+  'ReaderChrome must visualize the active tap-zone preset and RTL-aware left/right actions',
+)
+assert.match(
+  readerPageSource,
+  /ReaderChrome\(\{[\s\S]*tapNavigationEnabled: this\.tapNavigationEnabled[\s\S]*tapZonePreset: this\.tapZonePreset[\s\S]*readingDirection: this\.readingDirection/,
+  'ReaderPage must pass live tap-zone preferences into ReaderChrome for runtime visualization',
+)
+allReaderStringSources.forEach((source, index) => {
+  assert.match(source, /"name": "reader_tap_zone_center"/, `reader tap-zone center label must exist in locale ${index}`)
+})
 
 assert.match(settingsPageSource, /key: 'reader-image-fit', titleKey: 'settings_row_reader_image_fit_title'/, 'Settings must expose an image fit row')
 assert.match(settingsPageSource, /key: 'reader-tap-navigation', titleKey: 'settings_row_reader_tap_navigation_title'/, 'Settings must expose a tap navigation row')
