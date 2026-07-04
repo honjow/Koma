@@ -141,6 +141,11 @@ assert.match(searchPageSource, /this\.HistoryPanel\(\)/, 'SearchPage must render
 assert.match(searchPageSource, /this\.runHistoryQuery\(entry\.query\)/, 'history rows must run searches when tapped')
 assert.match(
   searchPageSource,
+  /\.onSubmit\(\(value: string\) => \{[\s\S]*this\.runImmediateQuery\(value\)/,
+  'SearchPage submitted queries must run immediately instead of waiting for debounce',
+)
+assert.match(
+  searchPageSource,
   /@Monitor\('externalQuerySerial'\)[\s\S]*consumeExternalQuery\(\)[\s\S]*externalQuery\.trim\(\)[\s\S]*this\.runImmediateQuery\(query\)/,
   'SearchPage must immediately run externally supplied queries such as manga tag taps',
 )

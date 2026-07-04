@@ -348,7 +348,7 @@ export struct SearchPage {
         this.scheduleSearch(value)
       })
       .onSubmit((value: string) => {
-        this.scheduleSearch(value)
+        this.runImmediateQuery(value)
       })
   }
 
