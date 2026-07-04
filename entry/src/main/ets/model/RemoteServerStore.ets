@@ -1,6 +1,7 @@
 import { common } from '@kit.AbilityKit'
 import { preferences } from '@kit.ArkData'
 import { buffer } from '@kit.ArkTS'
+import { asset } from '@kit.AssetStoreKit'
 import { BusinessError } from '@kit.BasicServicesKit'
 import { http } from '@kit.NetworkKit'
 import { AppStrings } from '../i18n/AppStrings'
@@ -56,6 +57,8 @@ const DEFAULT_WEBDAV_SERVER_ID: string = 'webdav-default'
 const DEFAULT_WEBDAV_CREDENTIAL_REF: string = 'webdav-default-credential'
 const DEFAULT_OPDS_SERVER_ID: string = 'opds-default'
 const DEFAULT_OPDS_CREDENTIAL_REF: string = 'opds-default-credential'
+const REMOTE_SERVER_CREDENTIAL_ASSET_GROUP_ID: string = 'koma-remote-server-credentials'
+const REMOTE_SERVER_CREDENTIAL_ASSET_ALIAS_PREFIX: string = 'koma.remote-server'
 
 export interface KomgaServerDraft {
   baseUrl: string
@@ -122,6 +125,35 @@ interface StoredWebDavCredential {
 interface StoredOpdsCredential {
   credentialRef: string
   basicToken?: string
+}
+
+type RemoteServerCredentialKind = 'komga' | 'webdav' | 'opds'
+function remoteCredentialUtf8Encode(value: string): Uint8Array {
+  return new Uint8Array(buffer.from(value, 'utf8').buffer)
+}
+
+function remoteCredentialUtf8Decode(bytes: Uint8Array): string {
+  const exact = new Uint8Array(bytes.byteLength)
+  exact.set(bytes)
+  return buffer.from(exact.buffer).toString('utf8')
+}
+
+function remoteCredentialAssetAlias(kind: RemoteServerCredentialKind, credentialRef: string): string {
+  return `${REMOTE_SERVER_CREDENTIAL_ASSET_ALIAS_PREFIX}.${kind}.${credentialRef}`
+}
+
+function remoteCredentialAssetQuery(kind: RemoteServerCredentialKind, credentialRef: string): asset.AssetMap {
+  const query: asset.AssetMap = new Map<asset.Tag, asset.Value>()
+  query.set(asset.Tag.ALIAS, remoteCredentialUtf8Encode(remoteCredentialAssetAlias(kind, credentialRef)))
+  query.set(asset.Tag.DATA_LABEL_CRITICAL_1, remoteCredentialUtf8Encode(kind))
+  query.set(asset.Tag.DATA_LABEL_CRITICAL_2, remoteCredentialUtf8Encode(credentialRef))
+  query.set(asset.Tag.GROUP_ID, remoteCredentialUtf8Encode(REMOTE_SERVER_CREDENTIAL_ASSET_GROUP_ID))
+  return query
+}
+
+function remoteCredentialFailureCode(error: Object): string {
+  const businessError = error as BusinessError
+  return businessError.code === undefined ? 'unknown' : `${businessError.code}`
 }
 
 export class HarmonyHttpAdapter implements KomgaHttpAdapter {
@@ -234,12 +266,20 @@ export class RemoteServerStore {
       return undefined
     }
     const server = JSON.parse(serverPayload) as KomgaServerConfig
-    const credentialPayload = await store.get(KOMGA_CREDENTIAL_KEY, '') as string
-    if (credentialPayload.length === 0 || server.credentialRef === undefined) {
+    if (server.credentialRef === undefined) {
+      return { server }
+    }
+    const credentialPayload = await this.loadSecureCredentialPayload(
+      store,
+      KOMGA_CREDENTIAL_KEY,
+      'komga',
+      server.credentialRef,
+    )
+    if (credentialPayload === undefined) {
       return { server }
     }
     const stored = JSON.parse(credentialPayload) as StoredKomgaCredential
-    if (stored.credentialRef !== server.credentialRef) {
+    if (stored === undefined || stored.credentialRef !== server.credentialRef) {
       return { server }
     }
     return {
@@ -267,11 +307,12 @@ export class RemoteServerStore {
       credentialRef: draft.authKind === KomgaAuthKind.NONE ? undefined : DEFAULT_KOMGA_CREDENTIAL_REF,
     }
     const store = await this.preferences()
+    if (credential !== undefined) {
+      await this.saveSecureCredential(store, KOMGA_CREDENTIAL_KEY, 'komga', DEFAULT_KOMGA_CREDENTIAL_REF, JSON.stringify(credential))
+    }
     await store.put(KOMGA_SERVER_KEY, JSON.stringify(server))
     if (credential === undefined) {
-      await store.delete(KOMGA_CREDENTIAL_KEY)
-    } else {
-      await store.put(KOMGA_CREDENTIAL_KEY, JSON.stringify(credential))
+      await this.saveSecureCredential(store, KOMGA_CREDENTIAL_KEY, 'komga', DEFAULT_KOMGA_CREDENTIAL_REF, undefined)
     }
     await store.flush()
     console.info('[Komga] step=save_server')
@@ -284,7 +325,7 @@ export class RemoteServerStore {
   async clearKomga(): Promise<void> {
     const store = await this.preferences()
     await store.delete(KOMGA_SERVER_KEY)
-    await store.delete(KOMGA_CREDENTIAL_KEY)
+    await this.saveSecureCredential(store, KOMGA_CREDENTIAL_KEY, 'komga', DEFAULT_KOMGA_CREDENTIAL_REF, undefined)
     await store.flush()
     console.info('[Komga] step=clear_server')
   }
@@ -296,12 +337,20 @@ export class RemoteServerStore {
       return undefined
     }
     const server = JSON.parse(serverPayload) as WebDavServerConfig
-    const credentialPayload = await store.get(WEBDAV_CREDENTIAL_KEY, '') as string
-    if (credentialPayload.length === 0 || server.credentialRef === undefined) {
+    if (server.credentialRef === undefined) {
+      return { server }
+    }
+    const credentialPayload = await this.loadSecureCredentialPayload(
+      store,
+      WEBDAV_CREDENTIAL_KEY,
+      'webdav',
+      server.credentialRef,
+    )
+    if (credentialPayload === undefined) {
       return { server }
     }
     const stored = JSON.parse(credentialPayload) as StoredWebDavCredential
-    if (stored.credentialRef !== server.credentialRef) {
+    if (stored === undefined || stored.credentialRef !== server.credentialRef) {
       return { server }
     }
     return {
@@ -329,11 +378,12 @@ export class RemoteServerStore {
       credentialRef: credential === undefined ? undefined : DEFAULT_WEBDAV_CREDENTIAL_REF,
     }
     const store = await this.preferences()
+    if (credential !== undefined) {
+      await this.saveSecureCredential(store, WEBDAV_CREDENTIAL_KEY, 'webdav', DEFAULT_WEBDAV_CREDENTIAL_REF, JSON.stringify(credential))
+    }
     await store.put(WEBDAV_SERVER_KEY, JSON.stringify(server))
     if (credential === undefined) {
-      await store.delete(WEBDAV_CREDENTIAL_KEY)
-    } else {
-      await store.put(WEBDAV_CREDENTIAL_KEY, JSON.stringify(credential))
+      await this.saveSecureCredential(store, WEBDAV_CREDENTIAL_KEY, 'webdav', DEFAULT_WEBDAV_CREDENTIAL_REF, undefined)
     }
     await store.flush()
     console.info('[WebDAV] step=save_server')
@@ -346,7 +396,7 @@ export class RemoteServerStore {
   async clearWebDav(): Promise<void> {
     const store = await this.preferences()
     await store.delete(WEBDAV_SERVER_KEY)
-    await store.delete(WEBDAV_CREDENTIAL_KEY)
+    await this.saveSecureCredential(store, WEBDAV_CREDENTIAL_KEY, 'webdav', DEFAULT_WEBDAV_CREDENTIAL_REF, undefined)
     await store.flush()
     console.info('[WebDAV] step=clear_server')
   }
@@ -358,12 +408,20 @@ export class RemoteServerStore {
       return undefined
     }
     const server = JSON.parse(serverPayload) as OpdsServerConfig
-    const credentialPayload = await store.get(OPDS_CREDENTIAL_KEY, '') as string
-    if (credentialPayload.length === 0 || server.credentialRef === undefined) {
+    if (server.credentialRef === undefined) {
+      return { server }
+    }
+    const credentialPayload = await this.loadSecureCredentialPayload(
+      store,
+      OPDS_CREDENTIAL_KEY,
+      'opds',
+      server.credentialRef,
+    )
+    if (credentialPayload === undefined) {
       return { server }
     }
     const stored = JSON.parse(credentialPayload) as StoredOpdsCredential
-    if (stored.credentialRef !== server.credentialRef) {
+    if (stored === undefined || stored.credentialRef !== server.credentialRef) {
       return { server }
     }
     return {
@@ -389,11 +447,12 @@ export class RemoteServerStore {
       credentialRef: credential === undefined ? undefined : DEFAULT_OPDS_CREDENTIAL_REF,
     }
     const store = await this.preferences()
+    if (credential !== undefined) {
+      await this.saveSecureCredential(store, OPDS_CREDENTIAL_KEY, 'opds', DEFAULT_OPDS_CREDENTIAL_REF, JSON.stringify(credential))
+    }
     await store.put(OPDS_SERVER_KEY, JSON.stringify(server))
     if (credential === undefined) {
-      await store.delete(OPDS_CREDENTIAL_KEY)
-    } else {
-      await store.put(OPDS_CREDENTIAL_KEY, JSON.stringify(credential))
+      await this.saveSecureCredential(store, OPDS_CREDENTIAL_KEY, 'opds', DEFAULT_OPDS_CREDENTIAL_REF, undefined)
     }
     await store.flush()
     console.info('[OPDS] step=save_server')
@@ -406,7 +465,7 @@ export class RemoteServerStore {
   async clearOpds(): Promise<void> {
     const store = await this.preferences()
     await store.delete(OPDS_SERVER_KEY)
-    await store.delete(OPDS_CREDENTIAL_KEY)
+    await this.saveSecureCredential(store, OPDS_CREDENTIAL_KEY, 'opds', DEFAULT_OPDS_CREDENTIAL_REF, undefined)
     await store.flush()
     console.info('[OPDS] step=clear_server')
   }
@@ -527,6 +586,99 @@ export class RemoteServerStore {
       throw new Error('OPDS Basic credential token is required')
     }
     return `Basic ${record.credential.basicToken}`
+  }
+
+  private async loadSecureCredentialPayload(
+    store: preferences.Preferences,
+    legacyKey: string,
+    kind: RemoteServerCredentialKind,
+    credentialRef: string,
+  ): Promise<string | undefined> {
+    const secure = await this.readCredentialAssetPayload(kind, credentialRef)
+    if (secure !== undefined) {
+      return secure
+    }
+    const legacyPayload = await store.get(legacyKey, '') as string
+    if (legacyPayload.length === 0) {
+      return undefined
+    }
+    const legacyCredential = JSON.parse(legacyPayload) as StoredKomgaCredential
+    if (legacyCredential.credentialRef !== credentialRef) {
+      return undefined
+    }
+    try {
+      await this.writeCredentialAsset(kind, credentialRef, legacyPayload)
+      await store.delete(legacyKey)
+      await store.flush()
+      console.info(`[RemoteServerStore] step=credential_migrated provider=${kind}`)
+    } catch (error) {
+      console.warn(`[RemoteServerStore] step=credential_migration_failed provider=${kind} code=${remoteCredentialFailureCode(error as Object)}`)
+    }
+    return legacyPayload
+  }
+
+  private async saveSecureCredential(
+    store: preferences.Preferences,
+    legacyKey: string,
+    kind: RemoteServerCredentialKind,
+    credentialRef: string,
+    credentialPayload: string | undefined,
+  ): Promise<void> {
+    if (credentialPayload === undefined) {
+      await this.deleteCredentialAsset(kind, credentialRef)
+      await store.delete(legacyKey)
+      return
+    }
+    await this.writeCredentialAsset(kind, credentialRef, credentialPayload)
+    await store.delete(legacyKey)
+  }
+
+  private async writeCredentialAsset(
+    kind: RemoteServerCredentialKind,
+    credentialRef: string,
+    payload: string,
+  ): Promise<void> {
+    const attributes = remoteCredentialAssetQuery(kind, credentialRef)
+    attributes.set(asset.Tag.SECRET, remoteCredentialUtf8Encode(payload))
+    attributes.set(asset.Tag.ACCESSIBILITY, asset.Accessibility.DEVICE_FIRST_UNLOCKED)
+    attributes.set(asset.Tag.CONFLICT_RESOLUTION, asset.ConflictResolution.OVERWRITE)
+    try {
+      await asset.add(attributes)
+    } catch (error) {
+      console.warn(`[RemoteServerStore] step=credential_write_failed provider=${kind} code=${remoteCredentialFailureCode(error as Object)}`)
+      throw new Error('remote_server_credential_write_failed')
+    }
+  }
+
+  private async readCredentialAssetPayload(
+    kind: RemoteServerCredentialKind,
+    credentialRef: string,
+  ): Promise<string | undefined> {
+    const query = remoteCredentialAssetQuery(kind, credentialRef)
+    query.set(asset.Tag.RETURN_TYPE, asset.ReturnType.ALL)
+    query.set(asset.Tag.RETURN_LIMIT, 1)
+    try {
+      const rows = await asset.query(query)
+      if (rows.length === 0) {
+        return undefined
+      }
+      const secret = rows[0].get(asset.Tag.SECRET) as Uint8Array | undefined
+      if (secret === undefined || secret.byteLength === 0) {
+        return undefined
+      }
+      return remoteCredentialUtf8Decode(secret)
+    } catch (error) {
+      console.warn(`[RemoteServerStore] step=credential_read_failed provider=${kind} code=${remoteCredentialFailureCode(error as Object)}`)
+      return undefined
+    }
+  }
+
+  private async deleteCredentialAsset(kind: RemoteServerCredentialKind, credentialRef: string): Promise<void> {
+    try {
+      await asset.remove(remoteCredentialAssetQuery(kind, credentialRef))
+    } catch (error) {
+      console.warn(`[RemoteServerStore] step=credential_delete_failed provider=${kind} code=${remoteCredentialFailureCode(error as Object)}`)
+    }
   }
 
   private async preferences(): Promise<preferences.Preferences> {
