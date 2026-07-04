@@ -64,6 +64,7 @@ const SMOKE_PHASE_SOURCE_API_V02: string = 'source-api-v02'
 const SMOKE_PHASE_SIZE_LIMIT_NEGATIVES: string = 'size-limit-negatives'
 const SMOKE_PHASE_CANCEL_TIMEOUT_NEGATIVES: string = 'cancel-timeout-negatives'
 const SMOKE_PHASE_REAL_SOURCE_SEARCH: string = 'real-source-search'
+const SMOKE_PHASE_REAL_SOURCE_READER: string = 'real-source-reader'
 const REAL_SOURCE_RAWFILE_PATH: string = 'test/baozimh.wasm'
 const MANGADEX_RAWFILE_PATH: string = 'test/mangadex.wasm'
 const REAL_SOURCE_SEARCH_REQUEST: string = '{"operation":"search","query":"test"}'
@@ -380,6 +381,14 @@ export interface SourceRuntimeSmokeResult {
   sourceRuntimeArchiveIngestionSourceIdMismatchAttemptedWamrExecution?: boolean
   realSourceWasmBytes?: number
   realSourceResponse?: SourceRuntimeCallResponse
+  realSourceReaderMangaId?: string
+  realSourceReaderChapterId?: string
+  realSourceReaderSearchCount?: number
+  realSourceReaderChapterCount?: number
+  realSourceReaderPageCount?: number
+  realSourceReaderDetailOk?: boolean
+  realSourceReaderChaptersOk?: boolean
+  realSourceReaderPagesOk?: boolean
   mangadexWasmBytes?: number
   mangadexResponse?: SourceRuntimeCallResponse
   error?: string
@@ -390,6 +399,34 @@ async function runRealSourceSearchTask(requestJson: string, wasmBytes: Uint8Arra
   const mod: Record<string, Object> = await import('libkoma_source_runtime.so') as Record<string, Object>
   const nativeRuntime = (mod.default ?? mod) as Record<string, Function>
   return nativeRuntime.runJsonCallFromBytes(requestJson, wasmBytes) as string
+}
+
+function responseDataRecord(response: SourceRuntimeCallResponse): Record<string, Object> {
+  return (response.data ?? {}) as Record<string, Object>
+}
+
+function responseItems(response: SourceRuntimeCallResponse): Record<string, Object>[] {
+  const items = responseDataRecord(response)['items']
+  return Array.isArray(items) ? items as Record<string, Object>[] : []
+}
+
+function responsePages(response: SourceRuntimeCallResponse): Record<string, Object>[] {
+  const pages = responseDataRecord(response)['pages']
+  return Array.isArray(pages) ? pages as Record<string, Object>[] : []
+}
+
+function firstStringField(rows: Record<string, Object>[], field: string): string {
+  if (rows.length === 0) {
+    return ''
+  }
+  const value = rows[0][field]
+  return typeof value === 'string' ? value : ''
+}
+
+function copySmokeWasmBytes(bytes: Uint8Array): Uint8Array {
+  const copy = new Uint8Array(bytes.byteLength)
+  copy.set(bytes)
+  return copy
 }
 
 function joinSourceRuntimeSmokePath(parent: string, child: string): string {
@@ -1328,6 +1365,71 @@ export async function maybeRunSourceRuntimeDeviceSmoke(
           if (!response?.ok) failures.push('baozimh')
           if (!mangadexResponse?.ok) failures.push('mangadex')
           result.error = 'real-source-search failed: ' + failures.join(', ')
+        }
+      }
+      compactSmokeResultForHilog(result)
+      console.info(SMOKE_LOG_PREFIX + JSON.stringify(result))
+      return
+    }
+
+    if (result.smokePhase === SMOKE_PHASE_REAL_SOURCE_READER) {
+      if (resourceMgr === undefined) {
+        result.error = 'real-source-reader phase requires resource manager'
+      } else {
+        const wasmBytes = resourceMgr.getRawFileContentSync(REAL_SOURCE_RAWFILE_PATH)
+        result.realSourceWasmBytes = wasmBytes.byteLength
+        console.info(SMOKE_LOG_PREFIX + '{"phase":"real-source-reader","source":"baozimh","status":"loading","bytes":' + wasmBytes.byteLength + '}')
+
+        const sourceBytes = new Uint8Array(wasmBytes.buffer)
+        const searchJson = await taskpool.execute(
+          runRealSourceSearchTask,
+          REAL_SOURCE_SEARCH_REQUEST,
+          copySmokeWasmBytes(sourceBytes),
+        ) as string
+        const searchResponse: SourceRuntimeCallResponse = JSON.parse(searchJson) as SourceRuntimeCallResponse
+        const searchItems = responseItems(searchResponse)
+        const mangaId = firstStringField(searchItems, 'id')
+        result.realSourceReaderSearchCount = searchItems.length
+        result.realSourceReaderMangaId = mangaId
+
+        const detailJson = await taskpool.execute(
+          runRealSourceSearchTask,
+          `{"operation":"get_manga","mangaId":"${mangaId}"}`,
+          copySmokeWasmBytes(sourceBytes),
+        ) as string
+        const detailResponse: SourceRuntimeCallResponse = JSON.parse(detailJson) as SourceRuntimeCallResponse
+        result.realSourceReaderDetailOk = detailResponse.ok === true
+
+        const chaptersJson = await taskpool.execute(
+          runRealSourceSearchTask,
+          `{"operation":"get_chapters","mangaId":"${mangaId}"}`,
+          copySmokeWasmBytes(sourceBytes),
+        ) as string
+        const chaptersResponse: SourceRuntimeCallResponse = JSON.parse(chaptersJson) as SourceRuntimeCallResponse
+        const chapters = responseItems(chaptersResponse)
+        const chapterId = firstStringField(chapters, 'id')
+        result.realSourceReaderChaptersOk = chaptersResponse.ok === true
+        result.realSourceReaderChapterCount = chapters.length
+        result.realSourceReaderChapterId = chapterId
+
+        const pagesJson = await taskpool.execute(
+          runRealSourceSearchTask,
+          `{"operation":"get_pages","chapterId":"${chapterId}"}`,
+          copySmokeWasmBytes(sourceBytes),
+        ) as string
+        const pagesResponse: SourceRuntimeCallResponse = JSON.parse(pagesJson) as SourceRuntimeCallResponse
+        result.realSourceReaderPagesOk = pagesResponse.ok === true
+        result.realSourceReaderPageCount = responsePages(pagesResponse).length
+
+        result.ok = searchResponse.ok === true &&
+          mangaId.length > 0 &&
+          result.realSourceReaderDetailOk === true &&
+          result.realSourceReaderChaptersOk === true &&
+          chapterId.length > 0 &&
+          result.realSourceReaderPagesOk === true &&
+          (result.realSourceReaderPageCount ?? 0) > 0
+        if (!result.ok && result.error === undefined) {
+          result.error = 'real-source-reader failed'
         }
       }
       compactSmokeResultForHilog(result)
