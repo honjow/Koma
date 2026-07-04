@@ -1004,6 +1004,14 @@ export struct LibraryPage {
     }
   }
 
+  private showToast(message: string): void {
+    try {
+      this.getUIContext().getPromptAction().showToast({ message: message })
+    } catch (error) {
+      void error
+    }
+  }
+
   private markSelectedReadState(isRead: boolean): void {
     const comicIds = Array.from(this.selectedIds)
     if (comicIds.length === 0) {
@@ -1011,6 +1019,7 @@ export struct LibraryPage {
     }
     const readStateStore = this.chapterReadStateStore()
     if (readStateStore === undefined) {
+      this.showToast(s('library_batch_read_state_unavailable'))
       return
     }
     const mutations: ChapterReadStateMutation[] = []
@@ -1032,9 +1041,14 @@ export struct LibraryPage {
         this.sessionStore.removeProgress(comic.id)
       }
     })
+    if (mutations.length === 0) {
+      this.showToast(s('library_batch_read_state_no_chapters'))
+      return
+    }
     const changedCount = readStateStore.markMany(mutations)
     if (changedCount > 0) {
       console.info(`[Library] step=batch_read_state isRead=${isRead} comics=${comicIds.length} chapters=${changedCount}`)
+      this.showToast(isRead ? s('library_batch_marked_read') : s('library_batch_marked_unread'))
       this.exitSelectionMode()
       this.refreshDisplayedSnapshotFromStore()
     }
