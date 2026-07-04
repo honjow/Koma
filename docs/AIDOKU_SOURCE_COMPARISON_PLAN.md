@@ -20,7 +20,7 @@
 | 私有库 | `Shared/Sources/Komga/*`、`Shared/Sources/Kavita/*` | `entry/src/main/ets/remote/*`、`KomgaSeriesPage.ets`、`OpdsBrowsePage.ets`、`WebDavBrowsePage.ets` | Koma 的私有库方向更贴产品定位；Aidoku 的 Komga/Kavita 同时承担 source/tracker 角色，Koma 可参考能力边界，不照搬在线源入口。 |
 | 本地源 | `Shared/Sources/Local/LocalSource.swift` | `entry/src/main/ets/import/*`、`LocalLibraryMetadataService.ets` | Koma 有导入能力，但还不是 Aidoku/Mihon 那种可重扫、可维护的 local source。 |
 | 下载 | `Shared/Data/Downloads/DownloadManager.swift`、`DownloadQueue.swift`、`DownloadCache.swift` | `OfflineDownloadService.ets`、`OfflineDownloadStore.ets`、`OfflineDownloadQueueStore.ets`、`DownloadsPage.ets` | Koma 已有 manifest/队列/离线路径雏形；还缺下载管理成熟度、系统通知、异常恢复、离线 reader 全矩阵验证。 |
-| Reader | `iOS/UI/Reader/ReaderViewController.swift`、`iOS/New/Views/Reader/ReaderSettingsView.swift`、`iOS/UI/Reader/Page/*` | `ReaderPage.ets`、`ReaderPreferencesStore.ets`、`ReaderPageSourceAdapter.ets` | Koma 已有单页/双页/Webtoon/RTL、宽图模式、tap/音量、per-series overrides 等设置；还缺 tap zone 可视化、crop/trim 质量矩阵和更多即时生效验证。 |
+| Reader | `iOS/UI/Reader/ReaderViewController.swift`、`iOS/New/Views/Reader/ReaderSettingsView.swift`、`iOS/UI/Reader/Page/*` | `ReaderPage.ets`、`ReaderPreferencesStore.ets`、`ReaderPageSourceAdapter.ets`、`ReaderChrome.ets` | Koma 已有单页/双页/Webtoon/RTL、宽图模式、tap/音量、tap zone preview、per-series overrides 等设置；还缺 crop/trim/wide image 质量矩阵和更多即时生效验证。 |
 | Library / 分类 | `Shared/Models/LibraryFilter.swift`、`Shared/Models/FilterGroup.swift`、`iOS/New/Views/Library/*` | `LibraryStore.ets`、`LibraryPage.ets`、`CategoryManagementPage.ets` | Koma 有分类和排序策略；还缺下载状态、来源、完成状态等更完整组合筛选与批量管理体验。 |
 | 搜索 / 浏览 | `iOS/New/Views/Browse/*`、`Search/*`、`Shared/Sources/SourceActor.swift` | `BrowsePage.ets`、`SearchPage.ets`、`SourceBrowsePage.ets`、`SourceSearchPage.ets` | Koma 已有跨本地/私有库/source runtime 搜索雏形；source home/listings/filters 的产品化还没到 Aidoku 水平。 |
 | 更新 / 通知 | `Shared/Managers/Manga/MangaUpdateManager.swift`、`Shared/Managers/NotificationManager.swift` | `LibraryUpdateService.ets`、`LibraryUpdatePreferencesStore.ets` | Koma 有更新状态与通知就绪摘要，但系统通知、后台策略、权限态和 provider 矩阵仍未闭环。 |
@@ -53,7 +53,7 @@
 
 4. **Reader 成熟度**
    - Aidoku 有 per-manga reading mode、tap zones、UIKit reader controller 里的运行时观察和设置即时响应。
-   - Koma 需要补 tap zone 可视化、crop/trim/wide image matrix，并继续确保设置切换即时生效。
+   - Koma 已有 tap zone preview 与音量键运行时处理；下一步应补 crop/trim/wide image matrix，并继续确保设置切换即时生效。
 
 5. **备份管理**
    - Aidoku 备份支持自动、内容选择、备份列表、rename/delete、restore 流程。
@@ -135,7 +135,7 @@
 目标：补齐 Aidoku/Mihon 级 reader 手感。
 
 交付：
-- tap zone 可视化设置，运行时即时生效。
+- tap zone / volume key / focus retention 的真实设备矩阵。
 - crop/trim、wide split、rotate wide pages 的互斥和优先级。
 - 异常比例图片 fixture。
 
@@ -223,7 +223,7 @@
 
 4. **D52：Reader advanced QA**
    - 文件：`ReaderPreferencesStore.ets`、`ReaderSessionStore.ets`、`ReaderPage.ets`
-   - 目标：tap zone 可视化、crop/trim/wide matrix、即时生效。
+   - 目标：tap zone / volume key focus、crop/trim/wide matrix、即时生效。
 
 5. **D53：Backup manager**
    - 文件：`BackupService.ets`、`BackupManagementPage.ets`

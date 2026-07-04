@@ -91,7 +91,9 @@ Verified on device `192.168.50.103:12345`:
 | Reader advanced settings | `031157a` | Settings adds image fit, tap navigation, and page gap controls; Reader consumes persisted settings with non-cropping fit-width and narrow edge tap zones. |
 | Downloads queue controls | `a61c63b` | MangaDetail visible-chapter batch download actions plus Downloads page status filters, batch retry for feasible failed/partial rows, and cleanup controls. |
 | Source package update UX / SDK docs | `54debb0` | Source Package Manager surfaces update/capability UX hooks, persisted capability summaries are bounded by manifest-derived allowlists, and `docs/source-package-sdk.md` documents the author contract. |
-| Reader trim/volume preferences | `08c203e` | Settings adds non-destructive trim-page-margins and volume-key-navigation preferences; trim removes container inset without rounded clipping, while volume-key runtime remains explicitly unwired. |
+| Reader trim/volume navigation | `08c203e` / current | Settings adds non-destructive trim-page-margins and volume-key-navigation preferences; trim removes container inset without rounded clipping, and Reader handles volume up/down key events on the focused reader surface. |
+| Source index visible download reader smoke | `fa6e6ec` | Pura X smoke installs a source from URL index, adds a real source manga to Library, downloads a chapter, and opens the downloaded chapter in Reader with visible page evidence. |
+| Offline resume hash preservation | `2438de3` | Partial download retry preserves reused page `contentHash` values so same-size page corruption remains detectable after resume. |
 | D6 backup management UI | `8bc42bf` | Settings opens a dedicated Backup Management page showing schema/status, included domains, export/import actions, picker-file ownership limits, and the current encrypted backup flow; cloud sync and scheduling remain out of scope. |
 | D8 tracker settings skeleton | `pending` | Settings opens a dedicated tracker page with AniList/MyAnimeList/Kitsu/MangaUpdates/Bangumi unavailable placeholders plus local-only provider/status and per-comic mapping models. Public tracker account sync, login, credential storage, and remote write APIs remain explicitly out of scope. |
 
@@ -116,9 +118,9 @@ Verified on device `192.168.50.103:12345`:
 - Progress persistence and resume.
 - Komga progress pull/push.
 - Remote image cache under app cache with LRU and prefetch.
-- Offline chapter download MVP records durable queue rows under app files, exposes a Settings Downloads page, lets MangaDetail trigger per-chapter and visible-chapter batch downloads, and supports queue status filters plus batch retry/cleanup for feasible rows. This is still an in-app foreground MVP, not an OS background downloader.
+- Offline chapter download records durable queue rows under app files, exposes a Settings Downloads page, lets MangaDetail and Downloads retry hydrate source chapter pages, supports queue status filters plus batch retry/cleanup, preserves page hashes across partial resume, and publishes completion/failure notifications when permission allows. This remains an in-app foreground downloader, not an OS background scheduler.
 - Advanced reader settings persist image fit mode, tap navigation, and page gap mode. `fit_width` widens the container without `Cover` cropping; tap navigation uses narrow edge zones and can be disabled.
-- Reader trim-page-margins and volume-key-navigation preferences persist and round-trip through backups. Trim is a presentation-only inset reduction with no rounded clipping when enabled; volume-key navigation is saved as a preference until Harmony key-event handling is wired.
+- Reader trim-page-margins and volume-key-navigation preferences persist and round-trip through backups. Trim is a presentation-only inset reduction with no rounded clipping when enabled; volume-key navigation is handled by Reader key events when the reader surface has focus.
 
 ### Private Libraries
 
@@ -141,7 +143,7 @@ Verified on device `192.168.50.103:12345`:
 - About / license / version dialogs.
 - Source package manager page.
 - Reader remote image cache stats and clear action.
-- Downloads page lists offline chapters / failed tasks from the durable queue, with retry for failed/partial rows and explicit guidance for blocked rows that need MangaDetail page hydration.
+- Downloads page lists offline chapters / failed tasks from the durable queue, with retry for failed/partial rows, direct read for readable offline rows, and source page hydration before retry for recoverable `pages_missing` rows.
 - Foreground library update check with last summary/status row, new-chapter count, updated/skipped/failed counts, and next-due text when app-open auto-check is enabled.
 - Library update details page shows the latest in-memory or persisted check summary and sanitized per-comic results from Settings.
 - Library update auto-check preferences are persisted and run only when Settings opens and a due interval has elapsed while the app is foregrounded.
@@ -175,10 +177,10 @@ Verified on device `192.168.50.103:12345`:
 6. Error-state UI is not unified across source types; intentionally deferred because the user asked to prioritize functionality over UI detail.
 7. Large CBZ / large remote chapter performance still needs stress testing.
 8. Backup JSON remains local user-initiated. Legacy JSON export is still unencrypted and labeled as such; encrypted export/import uses a passphrase-gated envelope path. Source settings backup is sanitized and excludes credential-like values.
-9. Downloads are foreground/in-app only: no OS background scheduler, no notifications, no pause/concurrency policy, and source-backed `pages_missing` rows still require opening MangaDetail to hydrate pages before retry.
+9. Downloads are foreground/in-app only: no OS background scheduler yet. Notification permission, pause/concurrency, queue retry/cleanup, and source-backed `pages_missing` retry hydration are implemented, but still need a broader permission/denied-state and interrupted-network device matrix.
 10. Library category runtime device QA covered empty-state/safe-area only because the device had no library rows; static tests cover category membership/filter contracts.
 11. Reader advanced settings still need real chapter visual QA for unusual image aspect ratios; static/build gates and Settings persistence device smoke pass.
 12. Source package update/capability UX was device-smoked only in empty-state because no installed source package was present; static tests cover tampered persisted capability metadata and update-state contracts.
-13. Volume-key reader navigation is preference-only; runtime key-event handling is still unwired.
+13. Volume-key reader navigation has runtime key-event handling; remaining risk is device matrix coverage for focus retention after overlays, route transitions, and system volume interception.
 14. Tracker settings is a local-only skeleton; real OAuth/account linking and public tracker sync remain future work.
 15. Library update scheduling remains foreground-only. Real background scheduling and notification delivery still require a verified Harmony API path, permissions, implementation tests, and device QA.

@@ -41,6 +41,8 @@ Koma 已经具备本地/私有库优先漫画阅读器的主骨架：书架、Re
 
 ### D33：下载目录与本地章节索引
 
+状态：已推进到可用闭环。下载 manifest、source/series/chapter/page identity、完整性 hash、downloaded/partial/corrupt/missing 分类、Reader 离线路径、重复下载复用、partial retry hash 保留均已落地并有静态合同；Pura X 已跑过真实 source index -> Library -> download -> Reader smoke。
+
 交付：
 - 定义下载章节落盘目录规范。
 - 为每个已下载章节写入 manifest：series/source/chapter/page count/page files/status/checksum 或等效完整性字段。
@@ -55,6 +57,8 @@ Koma 已经具备本地/私有库优先漫画阅读器的主骨架：书架、Re
 
 ### D34：离线 Reader QA
 
+状态：进行中。Reader 默认优先使用 downloaded pages；已有 offline/corrupt/source-index reader smoke。剩余不是重新实现，而是补更宽设备矩阵：断网、未下载章节、损坏/缺页、路由返回后的可见 UI 证据。
+
 交付：
 - Reader 优先使用 downloaded pages。
 - 网络不可用时不回退到远程请求。
@@ -66,6 +70,8 @@ Koma 已经具备本地/私有库优先漫画阅读器的主骨架：书架、Re
 - 截图、layout、相关日志进入 artifact。
 
 ### D35：下载通知与权限态
+
+状态：代码路径已接入。下载完成/失败通知、权限未开启 fail-closed 状态、通知点击 Downloads 已有合同覆盖；剩余是 Pura X/103 上 granted/denied 两态截图和日志矩阵。
 
 交付：
 - 下载完成/失败通知。
@@ -382,4 +388,9 @@ Koma 已经具备本地/私有库优先漫画阅读器的主骨架：书架、Re
 3. D39 宽图拆分 —— 等 D33 明确是否改 Reader adapter 后再启动，避免 Reader 文件冲突。
 4. D34 离线 Reader QA —— 依赖 D33 PASS 后启动。
 
-当前 controller 先启动 D33；D33 PASS 后进入 review/build/QA/integrate，再按本文件继续推进 D36/D39/D34。
+当前 controller 状态：
+
+1. D33 主体已闭合，后续只做回归和异常矩阵补证。
+2. D34/D35 已有实现，优先补真实设备矩阵，不再重复造下载/Reader 结构。
+3. 下一条功能推进优先转 D51 Source browsing parity：真实 `.koma` source 的 home/listings/filters/settings 到详情、阅读、下载的主路径 QA 与缺口修补。
+4. 随后推进 D52 Reader advanced QA：focus/音量键、tap zone、wide split/rotate/trim 的设备矩阵。
