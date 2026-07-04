@@ -369,9 +369,11 @@ export class BrowseViewModel {
     this.errorMessage = ''
     try {
       await this.loadBrowseListing(this.selectedSource, listing, 1)
+      this.homeSections = []
     } catch (error) {
       const e = error as Error
       this.errorMessage = safeSourceBrowseErrorText(e, 'browse_error_load_home')
+      this.homeSections = []
       this.browseSections = []
       this.hasMoreBrowse = false
     } finally {

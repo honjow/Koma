@@ -2310,6 +2310,11 @@ assert.match(
 )
 assert.match(
   browseViewModelSource,
+  /selectBrowseListing\(listing: SourceListingDescriptor\): Promise<void>[\s\S]*await this\.loadBrowseListing\(this\.selectedSource, listing, 1\)[\s\S]*this\.homeSections = \[\][\s\S]*catch \(error\)[\s\S]*this\.homeSections = \[\]/,
+  'BrowseViewModel must clear stale source home sections after a manual listing or filter reload',
+)
+assert.match(
+  browseViewModelSource,
   /ensureSearchFilters\(source: SourceRuntimeRegistryInstalledSourceSummary\): Promise<void>[\s\S]*this\.filters = await this\.loadSourceFilters\(source\)[\s\S]*this\.searchFilterValues = this\.defaultSourceFilterValues\(this\.filters\)[\s\S]*setSearchFilterValue\(filterId: string, value: SourceFilterValue \| undefined\): boolean[\s\S]*this\.updateFilterValue\(this\.searchFilterValues, filterId, value\)[\s\S]*resetSearchFilters\(\): void \{[\s\S]*this\.searchFilterValues = this\.defaultSourceFilterValues\(this\.filters\)/,
   'BrowseViewModel must expose search filter lifecycle without requiring a browse listing reload',
 )
