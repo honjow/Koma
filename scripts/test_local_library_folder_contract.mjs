@@ -34,6 +34,7 @@ assert.match(contractSource, /parentPath\.length > 0 && \(siblingChapterCount > 
 assert.match(contractSource, /textContent\?: string/, 'production contract must accept model-provided sidecar text')
 assert.match(contractSource, /sidecarMetadata\?: LocalLibrarySidecarMetadata/, 'production scan series must carry parsed sidecar metadata')
 assert.match(contractSource, /parseLocalLibrarySidecarMetadata\(entry\.textContent\)/, 'production scanner must parse sidecar payloads through the metadata service')
+assert.match(contractSource, /comicinfo\.xml/, 'production scanner must recognize ComicInfo.xml sidecar metadata')
 
 const archiveExts = new Set(['.cbz', '.zip'])
 const imageExts = new Set(['.jpg', '.jpeg', '.png', '.webp', '.gif', '.bmp', '.avif'])
@@ -123,13 +124,48 @@ function isExplicitImageChapterFolderName(path) {
 
 function isSidecarMetadataPath(path) {
   const name = getBaseName(path).toLowerCase()
-  return ['metadata.json', 'series.json', 'comicinfo.json', 'koma-metadata.json'].includes(name)
+  return ['metadata.json', 'series.json', 'comicinfo.json', 'comicinfo.xml', 'koma-metadata.json'].includes(name)
 }
 
 function parseSidecarMetadata(payload) {
   if (typeof payload !== 'string' || payload.trim().length === 0) return undefined
+  const trimmed = payload.trim()
+  if (trimmed.startsWith('<')) {
+    if (!/<\s*ComicInfo\b/i.test(trimmed)) return undefined
+    const firstTag = (tags) => {
+      for (const tag of tags) {
+        const match = new RegExp(`<${tag}\\b[^>]*>([\\s\\S]*?)<\\/${tag}>`, 'i').exec(trimmed)
+        if (match) {
+          const text = match[1]
+            .replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, '$1')
+            .replace(/<[^>]+>/g, '')
+            .replace(/&lt;/g, '<')
+            .replace(/&gt;/g, '>')
+            .replace(/&quot;/g, '"')
+            .replace(/&apos;/g, "'")
+            .replace(/&amp;/g, '&')
+            .trim()
+          if (text.length > 0) return text
+        }
+      }
+      return undefined
+    }
+    const metadata = {}
+    const title = firstTag(['Series', 'Title'])
+    const authors = firstTag(['Writer', 'Author'])
+    const status = firstTag(['Status'])?.toLowerCase()
+    const coverPath = firstTag(['CoverPath', 'Cover', 'Thumbnail'])
+    if (title) metadata.title = title
+    if (authors) metadata.authors = [...new Set(authors.split(/[,;\u3001]/).map((author) => author.trim()).filter(Boolean))]
+    if (status === 'ongoing' || status === 'continuing') metadata.status = 'ongoing'
+    if (status === 'completed' || status === 'complete' || status === 'ended') metadata.status = 'completed'
+    if (status === 'hiatus') metadata.status = 'hiatus'
+    if (status === 'cancelled' || status === 'canceled') metadata.status = 'cancelled'
+    if (typeof coverPath === 'string' && imageExts.has(getExtension(coverPath)) && !coverPath.includes('..')) metadata.coverPath = coverPath
+    return Object.keys(metadata).length === 0 ? undefined : metadata
+  }
   try {
-    const row = JSON.parse(payload)
+    const row = JSON.parse(trimmed)
     if (!row || Array.isArray(row) || typeof row !== 'object') return undefined
     const metadata = {}
     if (typeof row.title === 'string' && row.title.trim().length > 0) metadata.title = row.title.trim()
@@ -320,6 +356,7 @@ const fixtureEntries = [
   { relativePath: 'Nested/Series Alpha/Chapter 03.zip' },
   { relativePath: 'Nested/Series Alpha/metadata.json', textContent: JSON.stringify({ title: 'Alpha Sidecar', authors: ['A', 'A', 'B'], status: 'completed', coverPath: 'cover.png' }) },
   { relativePath: 'Single Nested Series/Chapter 01/001.jpg' },
+  { relativePath: 'Single Nested Series/ComicInfo.xml', textContent: '<ComicInfo><Series>Single XML Series</Series><Writer>Writer A; Writer B</Writer><Status>Continuing</Status><CoverPath>cover.jpg</CoverPath></ComicInfo>' },
   { relativePath: 'Loose Image Series/cover.png' },
   { relativePath: 'Loose Image Series/010.webp' },
   { relativePath: 'Top Level One Shot.cbz' },
@@ -374,6 +411,12 @@ assert.deepEqual(nestedSeries.chapters[0].pages.map((page) => page.fileName), ['
 
 const singleNestedSeries = firstScan.series.find((series) => series.relativePath === 'Single Nested Series')
 assert.equal(singleNestedSeries.chapterCount, 1)
+assert.deepEqual(singleNestedSeries.sidecarMetadata, {
+  title: 'Single XML Series',
+  authors: ['Writer A', 'Writer B'],
+  status: 'ongoing',
+  coverPath: 'cover.jpg',
+})
 assert.equal(singleNestedSeries.chapters[0].kind, 'image_folder')
 assert.equal(singleNestedSeries.chapters[0].relativePath, 'Single Nested Series/Chapter 01')
 assert.deepEqual(singleNestedSeries.chapters[0].pages.map((page) => page.relativePath), ['Single Nested Series/Chapter 01/001.jpg'])

@@ -158,6 +158,20 @@ function normalizeAuthors(value: Object | undefined, field: string, failures: Lo
   return authors.length === 0 ? undefined : authors
 }
 
+function normalizeAuthorTextList(value: string | undefined): string[] | undefined {
+  if (value === undefined) {
+    return undefined
+  }
+  const authors: string[] = []
+  value.split(/[,;\u3001]/).forEach((item: string): void => {
+    const normalized = normalizedText(item)
+    if (normalized !== undefined && !authors.includes(normalized)) {
+      authors.push(normalized)
+    }
+  })
+  return authors.length === 0 ? undefined : authors
+}
+
 function hasHiddenPathSegment(path: string): boolean {
   return path.split('/').some((segment: string): boolean => segment.startsWith('.'))
 }
@@ -232,11 +246,97 @@ function objectField(source: Record<string, Object>, keys: string[]): Object | u
   return undefined
 }
 
+function decodeXmlText(value: string): string {
+  return value
+    .replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, '$1')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/&apos;/g, "'")
+    .replace(/&amp;/g, '&')
+}
+
+function firstXmlTagText(payload: string, tags: string[]): string | undefined {
+  for (let index = 0; index < tags.length; index += 1) {
+    const tag = tags[index]
+    const pattern = new RegExp(`<${tag}\\b[^>]*>([\\s\\S]*?)<\\/${tag}>`, 'i')
+    const match = pattern.exec(payload)
+    if (match === null) {
+      continue
+    }
+    const normalized = normalizedText(decodeXmlText(match[1].replace(/<[^>]+>/g, '')))
+    if (normalized !== undefined) {
+      return normalized
+    }
+  }
+  return undefined
+}
+
+function normalizeComicInfoStatus(value: string | undefined): LocalLibraryMetadataStatus | undefined {
+  const normalized = normalizedText(value)?.toLocaleLowerCase()
+  if (normalized === undefined) {
+    return undefined
+  }
+  if (normalized === 'ongoing' || normalized === 'continuing') {
+    return 'ongoing'
+  }
+  if (normalized === 'completed' || normalized === 'complete' || normalized === 'ended') {
+    return 'completed'
+  }
+  if (normalized === 'hiatus') {
+    return 'hiatus'
+  }
+  if (normalized === 'cancelled' || normalized === 'canceled') {
+    return 'cancelled'
+  }
+  return undefined
+}
+
+function parseComicInfoXmlSidecarMetadata(payload: string): LocalLibrarySidecarParseResult {
+  if (!/<\s*ComicInfo\b/i.test(payload)) {
+    return { status: 'failure', failures: [{ field: 'document', reason: 'malformed_xml' }] }
+  }
+
+  const failures: LocalLibraryMetadataValidationFailure[] = []
+  const title = firstXmlTagText(payload, ['Series', 'Title'])
+  const authors = normalizeAuthorTextList(firstXmlTagText(payload, ['Writer', 'Author']))
+  const rawStatus = firstXmlTagText(payload, ['Status'])
+  const status = normalizeComicInfoStatus(rawStatus)
+  if (rawStatus !== undefined && status === undefined) {
+    failures.push({ field: 'status', reason: 'invalid_status' })
+  }
+  const rawCoverPath = firstXmlTagText(payload, ['CoverPath', 'Cover', 'Thumbnail'])
+  const coverPath = normalizeCoverPath(rawCoverPath, 'coverPath', failures)
+
+  if (failures.length > 0) {
+    return { status: 'failure', failures }
+  }
+
+  const metadata: LocalLibrarySidecarMetadata = {}
+  if (title !== undefined) {
+    metadata.title = title
+  }
+  if (authors !== undefined) {
+    metadata.authors = authors
+  }
+  if (status !== undefined) {
+    metadata.status = status
+  }
+  if (coverPath !== undefined) {
+    metadata.coverPath = coverPath
+  }
+  return { status: 'ok', metadata, failures: [] }
+}
+
 export function parseLocalLibrarySidecarMetadata(payload: string | Object | null): LocalLibrarySidecarParseResult {
   let source: Record<string, Object>
   if (typeof payload === 'string') {
+    const trimmed = payload.trim()
+    if (trimmed.startsWith('<')) {
+      return parseComicInfoXmlSidecarMetadata(trimmed)
+    }
     try {
-      const parsed = JSON.parse(payload) as Object
+      const parsed = JSON.parse(trimmed) as Object
       if (parsed === null || Array.isArray(parsed) || typeof parsed !== 'object') {
         return { status: 'failure', failures: [{ field: 'document', reason: 'expected_object' }] }
       }

@@ -256,6 +256,7 @@ function isLocalLibrarySidecarMetadataPath(path: string): boolean {
   return name === 'metadata.json' ||
     name === 'series.json' ||
     name === 'comicinfo.json' ||
+    name === 'comicinfo.xml' ||
     name === 'koma-metadata.json'
 }
 
