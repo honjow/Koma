@@ -1,4 +1,5 @@
 import { common } from '@kit.AbilityKit'
+import { RouterHelper } from '../common/RouterHelper'
 import { SecondaryListScaffold } from '../components/SecondaryListScaffold'
 import {
   LibraryUpdateComicResult,
@@ -166,6 +167,10 @@ export struct LibraryUpdateResultPage {
       return s('library_update_results_provider_no_failures')
     }
     return AppStrings.format('library_update_results_provider_failures', summary.failureCodes.join(','))
+  }
+
+  private openResultComic(result: LibraryUpdateComicResult): void {
+    RouterHelper.pushMangaDetail({ mangaId: result.comicId })
   }
 
   @Builder
@@ -342,6 +347,9 @@ export struct LibraryUpdateResultPage {
       .padding({ left: ThemeConstants.SPACE_LG, right: ThemeConstants.SPACE_LG, top: ThemeConstants.SPACE_LG, bottom: ThemeConstants.SPACE_LG })
       .borderRadius(ThemeConstants.RADIUS_CARD)
       .backgroundColor(ThemeConstants.CARD)
+      .onClick(() => {
+        this.openResultComic(result)
+      })
     }
   }
 

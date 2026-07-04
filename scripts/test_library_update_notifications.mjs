@@ -313,6 +313,11 @@ assert.match(
   /emptyStateTitle\(\): string[\s\S]*library_update_results_empty_backed_off[\s\S]*library_update_results_empty_failed[\s\S]*emptyStateMessage\(\): string[\s\S]*library_update_results_failure_next_due[\s\S]*library_update_results_failure_last/,
   'LibraryUpdateResultPage must show an honest failure/backoff detail state instead of stale success',
 )
+assert.match(
+  resultPageSource,
+  /import \{ RouterHelper \} from '\.\.\/common\/RouterHelper'[\s\S]*openResultComic\(result: LibraryUpdateComicResult\): void \{[\s\S]*RouterHelper\.pushMangaDetail\(\{ mangaId: result\.comicId \}\)[\s\S]*ResultRow\(result: LibraryUpdateComicResult\)[\s\S]*\.onClick\(\(\) => \{[\s\S]*this\.openResultComic\(result\)/,
+  'LibraryUpdateResultPage rows must open the corresponding manga detail instead of being a dead results list',
+)
 
 function getLibraryUpdateBackoffHours(preferences) {
   const failureCount = Number.isFinite(preferences.failureCount) && preferences.failureCount > 0
