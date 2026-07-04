@@ -2469,6 +2469,11 @@ assert.match(
   /SourceFilterControls\(\{[\s\S]*filters: this\.viewModel\.filters[\s\S]*values: this\.viewModel\.searchFilterValues[\s\S]*busy: this\.viewModel\.loadingSearch[\s\S]*onFilterChange:[\s\S]*this\.setSearchFilterValue\(filter, value\)[\s\S]*onReset:[\s\S]*resetSearchFilters\(\)[\s\S]*aboutToAppear\(\): void \{[\s\S]*this\.viewModel\.ensureSearchFilters\(this\.source\)/,
   'SourceSearchPage must wire shared source filter controls to filtered search behavior',
 )
+assert.match(
+  sourceSearchPageSource,
+  /this\.viewModel\.loadingSearch && this\.viewModel\.searchResults\.length === 0[\s\S]*this\.ResultsGrid\(this\.viewModel\.searchResults\)[\s\S]*this\.viewModel\.hasMoreSearch[\s\S]*this\.viewModel\.loadMoreSearch\(\)/,
+  'SourceSearchPage must keep existing search results visible while loading the next page',
+)
 assert.doesNotMatch(
   browseViewModelSource,
   /未命名漫画|无法加载源|源浏览失败|加载更多失败|源未安装或不可用|源运行失败/,

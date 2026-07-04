@@ -172,7 +172,7 @@ export struct SourceSearchPage {
 
           this.RuntimeFilterControls()
 
-          if (this.viewModel.loadingSearch) {
+          if (this.viewModel.loadingSearch && this.viewModel.searchResults.length === 0) {
             LoadingProgress()
               .width(ThemeConstants.SPACE_XXL)
               .height(ThemeConstants.SPACE_XXL)
