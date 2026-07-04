@@ -1683,6 +1683,16 @@ assert.match(
 )
 assert.match(
   mangaDetailPageSource,
+  /handleStartReading\(\): Promise<void> \{[\s\S]*const chapterId = this\.firstChapterId\(\)[\s\S]*manga_detail_no_readable_chapters[\s\S]*const hydrated = await this\.ensureSourceChapterPages\(chapterId\)[\s\S]*if \(!hydrated\) \{[\s\S]*manga_detail_chapter_pages_load_failed[\s\S]*return[\s\S]*this\.onOpenReader\(this\.currentComicId\(\), chapterId\)/,
+  'MangaDetailPage primary read action must not open Reader when source page hydration fails or no chapter exists',
+)
+assert.match(
+  mangaDetailPageSource,
+  /onOpenChapter:[\s\S]*ensureSourceChapterPages\(chapterId\)[\s\S]*\.then\(\(hydrated: boolean\) => \{[\s\S]*if \(hydrated\) \{[\s\S]*this\.onOpenReader\(this\.currentComicId\(\), chapterId\)[\s\S]*\} else \{[\s\S]*manga_detail_chapter_pages_load_failed/,
+  'MangaDetailPage chapter row open must wait for successful source page hydration before opening Reader',
+)
+assert.match(
+  mangaDetailPageSource,
   /DetailMoreMenu\(\)[\s\S]*manga_detail_menu_download_all[\s\S]*handleDownloadVisibleChapters\(this\.allChapterIds\(\), ChapterBatchDownloadMode\.ALL_VISIBLE\)[\s\S]*manga_detail_menu_download_incomplete[\s\S]*ChapterBatchDownloadMode\.NOT_DOWNLOADED[\s\S]*manga_detail_menu_mark_all_read[\s\S]*markVisibleChaptersReadState\(this\.allChapterIds\(\), true\)[\s\S]*manga_detail_menu_mark_all_unread[\s\S]*markVisibleChaptersReadState\(this\.allChapterIds\(\), false\)/,
   'MangaDetailPage more menu must expose real chapter batch actions instead of a coming-soon toast',
 )

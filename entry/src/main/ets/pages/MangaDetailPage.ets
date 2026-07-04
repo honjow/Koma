@@ -521,16 +521,25 @@ export struct MangaDetailPage {
   }
 
   private async handleStartReading(): Promise<void> {
+    const chapterId = this.firstChapterId()
+    if (chapterId === undefined) {
+      this.showToast(s('manga_detail_no_readable_chapters'))
+      return
+    }
     if (!this.isInLibrary && this.manga.sourceId !== undefined) {
       const added = await this.handleAddToLibrary()
       if (!added) {
         return
       }
     }
-    if (this.manga.sourceId !== undefined && this.firstChapterId() !== undefined) {
-      await this.ensureSourceChapterPages(this.firstChapterId() as string)
+    if (this.manga.sourceId !== undefined) {
+      const hydrated = await this.ensureSourceChapterPages(chapterId)
+      if (!hydrated) {
+        this.showToast(s('manga_detail_chapter_pages_load_failed'))
+        return
+      }
     }
-    this.onOpenReader(this.currentComicId(), this.firstChapterId())
+    this.onOpenReader(this.currentComicId(), chapterId)
   }
 
   private async handleDownloadChapter(chapterId?: string): Promise<void> {
@@ -1192,8 +1201,12 @@ export struct MangaDetailPage {
             chapters: this.chapters,
             onOpenChapter: (chapterId: string) => {
               void this.ensureSourceChapterPages(chapterId)
-                .then(() => {
-                  this.onOpenReader(this.currentComicId(), chapterId)
+                .then((hydrated: boolean) => {
+                  if (hydrated) {
+                    this.onOpenReader(this.currentComicId(), chapterId)
+                  } else {
+                    this.showToast(s('manga_detail_chapter_pages_load_failed'))
+                  }
                 })
                 .catch((error: Error) => {
                   console.error('[manga-detail] source pages load failed: ' + error.message)

@@ -609,6 +609,7 @@
     { "name": "manga_detail_tracker_sync_not_due", "value": "Tracker sync is not due" },
     { "name": "manga_detail_tracker_sync_failed", "value": "Tracker sync failed" },
     { "name": "manga_detail_no_matching_chapters", "value": "No chapters match the current condition" },
+    { "name": "manga_detail_no_readable_chapters", "value": "No readable chapters" },
     { "name": "manga_detail_batch_downloading", "value": "Batch download %s/%s" },
     { "name": "manga_detail_batch_complete", "value": "Batch complete: downloaded %s, blocked %s, failed %s" },
     { "name": "manga_detail_batch_missing_pages", "value": "Some chapters are missing page data" },

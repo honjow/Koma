@@ -609,6 +609,7 @@
     { "name": "manga_detail_tracker_sync_not_due", "value": "Tracker 同步暂未触发" },
     { "name": "manga_detail_tracker_sync_failed", "value": "Tracker 同步失败" },
     { "name": "manga_detail_no_matching_chapters", "value": "没有符合条件的章节" },
+    { "name": "manga_detail_no_readable_chapters", "value": "暂无可阅读章节" },
     { "name": "manga_detail_batch_downloading", "value": "批量下载中 %s/%s" },
     { "name": "manga_detail_batch_complete", "value": "批量完成：已下载 %s，受阻 %s，失败 %s" },
     { "name": "manga_detail_batch_missing_pages", "value": "部分章节缺少页数据" },
