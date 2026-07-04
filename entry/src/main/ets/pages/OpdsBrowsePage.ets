@@ -47,6 +47,11 @@ interface OpdsHistoryEntry {
   title: string
 }
 
+interface OpdsBrowseRouteParam {
+  feedUrl?: string
+  publicationId?: string
+}
+
 @ComponentV2
 export struct OpdsBrowsePage {
   @Local private languageState: LanguageState = connectLanguageState()
@@ -62,6 +67,8 @@ export struct OpdsBrowsePage {
   @Local private errorRawText: string = ''
   @Local private favoriteRevision: number = 0
   private record?: OpdsServerRecord
+  private initialPublicationOpened: boolean = false
+  @Param params: OpdsBrowseRouteParam = {}
   @Param libraryStore: LibraryStore = createSeededLibraryStore()
   @Param libraryPersistenceService?: LibraryStorePersistenceService = undefined
   @Event onLibraryChanged: () => void = () => {}
@@ -110,9 +117,10 @@ export struct OpdsBrowsePage {
         return
       }
       this.record = saved
-      this.currentUrl = saved.server.rootUrl
+      const initialUrl = this.initialCatalogUrl(saved.server.rootUrl)
+      this.currentUrl = initialUrl
       console.info('[OPDS] step=load_initial')
-      await this.loadCatalog(saved.server.rootUrl, false)
+      await this.loadCatalog(initialUrl, false)
     } catch (error) {
       const e = error as Error
       this.setErrorRaw(e.message)
@@ -136,6 +144,7 @@ export struct OpdsBrowsePage {
         this.history = this.history.concat([{ url: this.currentUrl, title: this.title }])
       }
       this.applyCatalog(catalog)
+      await this.openInitialPublicationIfNeeded()
       console.info(`[OPDS] step=load_catalog_ok version=${catalog.version} navigation=${catalog.navigation.length} publications=${catalog.publications.length}`)
     } catch (error) {
       const e = error as Error
@@ -153,6 +162,30 @@ export struct OpdsBrowsePage {
     this.publications = catalog.publications
     this.selectedPublication = undefined
     this.selectedImages = []
+  }
+
+  private initialCatalogUrl(rootUrl: string): string {
+    const feedUrl = this.params.feedUrl
+    if (feedUrl === undefined || feedUrl.trim().length === 0) {
+      return rootUrl
+    }
+    return feedUrl
+  }
+
+  private async openInitialPublicationIfNeeded(): Promise<void> {
+    if (this.initialPublicationOpened) {
+      return
+    }
+    const publicationId = this.params.publicationId
+    if (publicationId === undefined || publicationId.length === 0) {
+      return
+    }
+    const publication = this.publications.find((item: OpdsBookDto): boolean => item.id === publicationId)
+    if (publication === undefined) {
+      return
+    }
+    this.initialPublicationOpened = true
+    await this.openPublication(publication)
   }
 
   private openNavigation(item: OpdsCatalogDto): void {

@@ -24,6 +24,16 @@ const SEARCH_DEBOUNCE_MS: number = 400
 const KOMGA_ROUTE_NAME: string = 'SearchKomgaSeriesPage'
 const OPDS_ROUTE_NAME: string = 'SearchOpdsBrowsePage'
 
+interface SearchKomgaRouteParam {
+  seriesId?: string
+  seriesTitle?: string
+}
+
+interface SearchOpdsRouteParam {
+  feedUrl?: string
+  publicationId?: string
+}
+
 function s(name: string): string {
   return AppStrings.get(name)
 }
@@ -206,11 +216,19 @@ export struct SearchPage {
       return
     }
     if (item.sourceKind === 'komga') {
-      this.searchPathStack.pushPath({ name: KOMGA_ROUTE_NAME })
+      const param: SearchKomgaRouteParam = {
+        seriesId: item.komgaSeriesId,
+        seriesTitle: item.title,
+      }
+      this.searchPathStack.pushPath({ name: KOMGA_ROUTE_NAME, param: param })
       return
     }
     if (item.sourceKind === 'opds') {
-      this.searchPathStack.pushPath({ name: OPDS_ROUTE_NAME })
+      const param: SearchOpdsRouteParam = {
+        feedUrl: item.opdsFeedUrl,
+        publicationId: item.opdsPublicationId,
+      }
+      this.searchPathStack.pushPath({ name: OPDS_ROUTE_NAME, param: param })
       return
     }
     if (item.sourceKind === 'webdav') {
@@ -524,10 +542,11 @@ export struct SearchPage {
   }
 
   @Builder
-  private SearchDestination(name: string, _param: Object) {
+  private SearchDestination(name: string, param: Object) {
     if (name === KOMGA_ROUTE_NAME) {
       NavDestination() {
         KomgaSeriesPage({
+          params: param as SearchKomgaRouteParam,
           libraryStore: this.libraryStore,
           libraryPersistenceService: this.libraryPersistenceService,
           onLibraryChanged: () => {
@@ -539,6 +558,7 @@ export struct SearchPage {
     } else if (name === OPDS_ROUTE_NAME) {
       NavDestination() {
         OpdsBrowsePage({
+          params: param as SearchOpdsRouteParam,
           libraryStore: this.libraryStore,
           libraryPersistenceService: this.libraryPersistenceService,
           onLibraryChanged: () => {

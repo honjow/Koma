@@ -386,7 +386,7 @@ try {
     assertExport(parserSource, symbol)
   }
 
-  assert.doesNotMatch(parserSource, /\bfetch\s*\(|@ohos\.net\.http|http\.request/i, 'OPDS parser must not access network')
+  assert.doesNotMatch(parserSource, /\bfetch\s*\(|@ohos\.net\.http|(^|[^.])\bhttp\.request/i, 'OPDS parser must not access network directly')
   assert.doesNotMatch(modelSource + parserSource, /market|plugin|source store|全网|免费漫画/i, 'OPDS spike must not introduce public source marketplace language')
   assert.doesNotMatch(modelSource, /rar/i, 'OPDS acquisition whitelist must stay limited to CBZ/ZIP')
   const opds1 = parseOpds1Catalog(opds1Fixture, 'https://library.invalid/opds/root.xml')

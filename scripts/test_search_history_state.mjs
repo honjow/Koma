@@ -8,6 +8,8 @@ const stateMapperSource = readFileSync(resolve(root, 'entry/src/main/ets/model/S
 const crossSearchSource = readFileSync(resolve(root, 'entry/src/main/ets/model/CrossSearchService.ets'), 'utf8')
 const searchPageSource = readFileSync(resolve(root, 'entry/src/main/ets/pages/SearchPage.ets'), 'utf8')
 const browseViewModelSource = readFileSync(resolve(root, 'entry/src/main/ets/viewmodel/BrowseViewModel.ets'), 'utf8')
+const komgaSeriesPageSource = readFileSync(resolve(root, 'entry/src/main/ets/pages/KomgaSeriesPage.ets'), 'utf8')
+const opdsBrowsePageSource = readFileSync(resolve(root, 'entry/src/main/ets/pages/OpdsBrowsePage.ets'), 'utf8')
 
 function assertExport(source, symbol) {
   assert.match(source, new RegExp(`export (interface|class|function|type|const) ${symbol}\\b`), `${symbol} must be exported`)
@@ -67,6 +69,9 @@ assert.match(
   /webDavParentSegments\(client: WebDavClient, href: string\): string\[\][\s\S]*this\.webDavRelativeSegments\(client, href\)[\s\S]*segments\.slice\(0, segments\.length - 1\)/,
   'WebDAV image search must derive a stable parent directory path for direct image hits',
 )
+assert.match(crossSearchSource, /komgaSeriesId: series\.id/, 'Komga search results must retain the target series id')
+assert.match(crossSearchSource, /opdsFeedUrl: catalog\.feedUrl/, 'OPDS search results must retain the source feed url')
+assert.match(crossSearchSource, /opdsPublicationId: publication\.id/, 'OPDS search results must retain the target publication id')
 assert.doesNotMatch(crossSearchSource, /errorText:\s*e\.message|message='\s*\+\s*e\.message|message=\$\{e\.message\}/, 'cross-search must not expose or log raw exception messages')
 
 assert.match(searchPageSource, /@Local private history:\s*SearchHistoryEntry\[\]/, 'SearchPage must keep recent search history state')
@@ -80,6 +85,21 @@ assert.match(
   /sourceFilter: CrossSearchSourceFilter = 'all'[\s\S]*service\.pendingSections\(this\.sourceFilter\)[\s\S]*service\.search\(query, this\.sourceFilter\)[\s\S]*private SourceFilterMenu\(\)[\s\S]*setSourceFilter\('local'\)[\s\S]*setSourceFilter\('private'\)[\s\S]*setSourceFilter\('source'\)[\s\S]*this\.SourceFilterBar\(\)/,
   'SearchPage must expose and apply a source filter menu to pending and submitted searches',
 )
+assert.match(
+  searchPageSource,
+  /seriesId: item\.komgaSeriesId[\s\S]*seriesTitle: item\.title[\s\S]*pushPath\(\{ name: KOMGA_ROUTE_NAME, param: param \}\)/,
+  'Komga search result taps must route with the target series identity',
+)
+assert.match(
+  searchPageSource,
+  /feedUrl: item\.opdsFeedUrl[\s\S]*publicationId: item\.opdsPublicationId[\s\S]*pushPath\(\{ name: OPDS_ROUTE_NAME, param: param \}\)/,
+  'OPDS search result taps must route with the target feed and publication identity',
+)
+assert.match(
+  searchPageSource,
+  /private SearchDestination\(name: string, param: Object\)[\s\S]*KomgaSeriesPage\(\{[\s\S]*params: param as SearchKomgaRouteParam[\s\S]*OpdsBrowsePage\(\{[\s\S]*params: param as SearchOpdsRouteParam/,
+  'Search destinations must pass remote search route params into target pages',
+)
 assert.match(searchPageSource, /section\.state === 'running' \|\| section\.state === 'pending'/, 'SearchPage must render running/pending source states')
 assert.match(searchPageSource, /section\.state === 'empty' \|\| section\.state === 'timeout' \|\| section\.state === 'failed' \|\| section\.state === 'unsupported'/, 'SearchPage must distinguish terminal non-result states')
 assert.doesNotMatch(searchPageSource, /feedbackText\s*=\s*e\.message|message='\s*\+\s*e\.message/, 'SearchPage must not expose or log raw exception messages')
@@ -89,4 +109,29 @@ assert.doesNotMatch(
   browseViewModelSource.match(/runtimeErrorMessage\(response:[\s\S]*?\n  \}/)?.[0] ?? '',
   /errorMessage|error\?\.\['message'\]/,
   'source runtime search errors must not surface raw provider/runtime message bodies',
+)
+
+assert.match(komgaSeriesPageSource, /seriesId\?: string/, 'Komga route params must accept a target series id')
+assert.match(komgaSeriesPageSource, /seriesTitle\?: string/, 'Komga route params must accept a fallback series title')
+assert.match(
+  komgaSeriesPageSource,
+  /await this\.reloadSeries\(\)[\s\S]*await this\.openInitialSeriesIfNeeded\(\)/,
+  'Komga search entry must auto-open the target series after initial loading',
+)
+assert.match(
+  komgaSeriesPageSource,
+  /private async openInitialSeriesIfNeeded\(\): Promise<void>[\s\S]*this\.params\.seriesId[\s\S]*this\.series\.find[\s\S]*await this\.openSeries/,
+  'Komga initial target opening must find or synthesize the selected series',
+)
+assert.match(opdsBrowsePageSource, /publicationId\?: string/, 'OPDS route params must accept a target publication id')
+assert.match(opdsBrowsePageSource, /feedUrl\?: string/, 'OPDS route params must accept a target feed url')
+assert.match(
+  opdsBrowsePageSource,
+  /const initialUrl = this\.initialCatalogUrl\(saved\.server\.rootUrl\)[\s\S]*await this\.loadCatalog\(initialUrl, false\)/,
+  'OPDS search entry must load the result feed instead of always loading root',
+)
+assert.match(
+  opdsBrowsePageSource,
+  /this\.applyCatalog\(catalog\)[\s\S]*await this\.openInitialPublicationIfNeeded\(\)/,
+  'OPDS search entry must auto-open the target publication after loading the feed',
 )

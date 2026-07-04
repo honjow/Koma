@@ -37,6 +37,8 @@ const KOMGA_PAGE_SIZE: number = 30
 
 interface KomgaSeriesRouteParam {
   libraryId?: string
+  seriesId?: string
+  seriesTitle?: string
 }
 
 @ComponentV2
@@ -55,6 +57,7 @@ export struct KomgaSeriesPage {
   @Local private hasMore: boolean = true
   @Local private favoriteRevision: number = 0
   private record?: KomgaServerRecord
+  private initialSeriesOpened: boolean = false
   @Param libraryStore: LibraryStore = createSeededLibraryStore()
   @Param libraryPersistenceService?: LibraryStorePersistenceService = undefined
   @Event onLibraryChanged: () => void = () => {}
@@ -90,6 +93,7 @@ export struct KomgaSeriesPage {
       this.selectedLibraryId = this.params.libraryId === undefined ? '' : this.params.libraryId
       console.info(`[Komga] step=load_libraries_ok libraries=${this.libraries.length}`)
       await this.reloadSeries()
+      await this.openInitialSeriesIfNeeded()
     } catch (error) {
       const e = error as Error
       this.errorText = e.message
@@ -105,6 +109,7 @@ export struct KomgaSeriesPage {
     this.series = []
     this.selectedSeries = undefined
     this.books = []
+    this.initialSeriesOpened = false
     await this.loadMoreSeries()
   }
 
@@ -162,6 +167,26 @@ export struct KomgaSeriesPage {
       this.errorText = e.message
       console.error('[Komga] step=load_books_failed message=' + e.message)
     }
+  }
+
+  private async openInitialSeriesIfNeeded(): Promise<void> {
+    if (this.initialSeriesOpened) {
+      return
+    }
+    const seriesId = this.params.seriesId
+    if (seriesId === undefined || seriesId.length === 0) {
+      return
+    }
+    this.initialSeriesOpened = true
+    const loaded = this.series.find((item: KomgaSeriesDto): boolean => item.id === seriesId)
+    if (loaded !== undefined) {
+      await this.openSeries(loaded)
+      return
+    }
+    await this.openSeries({
+      id: seriesId,
+      name: this.params.seriesTitle === undefined || this.params.seriesTitle.length === 0 ? seriesId : this.params.seriesTitle,
+    } as KomgaSeriesDto)
   }
 
   private async openBook(book: KomgaBookDto): Promise<void> {
