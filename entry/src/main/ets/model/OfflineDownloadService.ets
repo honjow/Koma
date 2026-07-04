@@ -295,6 +295,7 @@ export class OfflineDownloadService {
             fileName: reusablePage.fileName,
             localPath: reusablePage.localPath,
             size: reusablePage.size,
+            contentHash: reusablePage.contentHash,
             updatedAt: reusablePage.updatedAt,
           })
           this.queueStore.upsert(this.queueStore.fromManifest(manifest, labels?.comicTitle ?? comic.title, labels?.chapterTitle ?? chapter.title))
