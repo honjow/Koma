@@ -2519,6 +2519,16 @@ assert.match(
   'Index folder import must use rescan merge once existing local folder comics are present',
 )
 assert.match(
+  indexSource,
+  /addedCount = result\.summary\.addedCount[\s\S]*changedCount = result\.summary\.changedCount[\s\S]*metadataChangedCount = result\.summary\.metadataChangedCount[\s\S]*rejectedEntryCount = result\.summary\.rejectedEntryCount[\s\S]*return \{[\s\S]*addedCount[\s\S]*changedCount[\s\S]*missingCount[\s\S]*metadataChangedCount[\s\S]*rejectedEntryCount/,
+  'Index folder rescan must return added, changed, metadata, missing, and rejected counts to the import UI',
+)
+assert.match(
+  importPageSource,
+  /addedCount \+= persistResult\.addedCount[\s\S]*changedCount \+= persistResult\.changedCount[\s\S]*metadataChangedCount \+= persistResult\.metadataChangedCount[\s\S]*rejectedEntryCount \+= persistResult\.rejectedEntryCount[\s\S]*import_feedback_folder_rescan_done'[\s\S]*addedCount, changedCount, metadataChangedCount, missingCount, rejectedEntryCount/,
+  'ImportPage folder rescan feedback must preserve detailed added, changed, metadata, missing, and rejected counts',
+)
+assert.match(
   localLibraryRescanServiceSource,
   /LOCAL_LIBRARY_RESCAN_UI_MUTATION_CONTRACT = 'MODEL_ONLY_NO_SYNC_UI_MUTATION'[\s\S]*LOCAL_LIBRARY_RESCAN_DESTRUCTIVE_ACTION_CONTRACT = 'NO_DELETE_LIBRARY_ROWS_OR_USER_FILES'[\s\S]*removedCount: missingCount[\s\S]*missingChapterCount/,
   'local library rescan summaries must report missing rows without deleting shelf entries or user files',

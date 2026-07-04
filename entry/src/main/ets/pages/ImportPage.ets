@@ -20,7 +20,11 @@ interface ImportEntryInfo {
 export interface LocalFolderImportPersistResult {
   importedCount: number
   checkedCount: number
+  addedCount: number
+  changedCount: number
   missingCount: number
+  metadataChangedCount: number
+  rejectedEntryCount: number
 }
 
 const ARCHIVE_ENTRY: ImportEntryInfo = {
@@ -63,7 +67,15 @@ export struct ImportPage {
   @Event onArchiveImportSucceeded: (comic: Comic) => void = (_comic: Comic) => {}
   @Event onLocalImageImportSucceeded: (comic: Comic) => void = (_comic: Comic) => {}
   @Event onLocalFolderImportSucceeded: (scanResult: LocalLibraryFolderScanResult, rootUri: string) => LocalFolderImportPersistResult =
-    (_scanResult: LocalLibraryFolderScanResult, _rootUri: string) => ({ importedCount: 0, checkedCount: 0, missingCount: 0 })
+    (_scanResult: LocalLibraryFolderScanResult, _rootUri: string) => ({
+      importedCount: 0,
+      checkedCount: 0,
+      addedCount: 0,
+      changedCount: 0,
+      missingCount: 0,
+      metadataChangedCount: 0,
+      rejectedEntryCount: 0,
+    })
   private readonly localImportCoordinator: LocalImportCoordinator = new LocalImportCoordinator()
 
   private topContentInset(): number {
@@ -200,7 +212,11 @@ export struct ImportPage {
       const results = await this.localImportCoordinator.pickAndScanFolders(context, 1)
       let importedCount = 0
       let checkedCount = 0
+      let addedCount = 0
+      let changedCount = 0
       let missingCount = 0
+      let metadataChangedCount = 0
+      let rejectedEntryCount = 0
       let failedCount = 0
       results.forEach((result) => {
         if (result.status === 'succeeded') {
@@ -208,7 +224,11 @@ export struct ImportPage {
             const persistResult = this.onLocalFolderImportSucceeded(result.scanResult, result.rootUri)
             importedCount += persistResult.importedCount
             checkedCount += persistResult.checkedCount
+            addedCount += persistResult.addedCount
+            changedCount += persistResult.changedCount
             missingCount += persistResult.missingCount
+            metadataChangedCount += persistResult.metadataChangedCount
+            rejectedEntryCount += persistResult.rejectedEntryCount
           } catch (error) {
             failedCount += 1
             console.error('[Import] step=folder_import_persist_failed code=library_persist_failed')
@@ -219,19 +239,20 @@ export struct ImportPage {
       })
       if (results.length === 0) {
         this.feedbackText = t('import_feedback_no_selection')
-      } else if (importedCount > 0 && failedCount === 0 && missingCount === 0) {
-        this.feedbackText = tf('import_feedback_success', importedCount)
+      } else if (importedCount > 0 && failedCount === 0 &&
+        (addedCount > 0 || changedCount > 0 || metadataChangedCount > 0 || missingCount > 0 || rejectedEntryCount > 0)) {
+        this.feedbackText = tf('import_feedback_folder_rescan_done', addedCount, changedCount, metadataChangedCount, missingCount, rejectedEntryCount)
         this.showToast(this.feedbackText)
       } else if (importedCount > 0 && failedCount === 0) {
-        this.feedbackText = tf('import_feedback_folder_rescan_done', importedCount, missingCount)
+        this.feedbackText = tf('import_feedback_success', importedCount)
         this.showToast(this.feedbackText)
       } else if (importedCount > 0) {
         this.feedbackText = tf('import_feedback_partial', importedCount, failedCount)
         this.showToast(this.feedbackText)
       } else if (failedCount > 0) {
         this.feedbackText = t('import_feedback_folder_unavailable')
-      } else if (checkedCount > 0 && missingCount > 0) {
-        this.feedbackText = tf('import_feedback_folder_rescan_missing', missingCount)
+      } else if (checkedCount > 0 && (missingCount > 0 || rejectedEntryCount > 0)) {
+        this.feedbackText = tf('import_feedback_folder_rescan_missing', missingCount, rejectedEntryCount)
         this.showToast(this.feedbackText)
       } else if (checkedCount > 0) {
         this.feedbackText = t('import_feedback_folder_rescan_unchanged')
@@ -239,7 +260,14 @@ export struct ImportPage {
       } else {
         this.feedbackText = t('import_feedback_folder_empty')
       }
-      console.info(`[Import] step=folder_import_finished imported=${importedCount} checked=${checkedCount} missing=${missingCount} failed=${failedCount}`)
+      console.info('[Import] step=folder_import_finished imported=' + importedCount +
+        ' checked=' + checkedCount +
+        ' added=' + addedCount +
+        ' changed=' + changedCount +
+        ' metadata_changed=' + metadataChangedCount +
+        ' missing=' + missingCount +
+        ' rejected=' + rejectedEntryCount +
+        ' failed=' + failedCount)
     } catch (error) {
       console.error('[Import] step=folder_import_failed code=folder_import_failed')
       this.feedbackText = t('import_feedback_folder_unavailable')

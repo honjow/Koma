@@ -210,13 +210,18 @@ struct Index {
     const persistenceService = this.ensureLibraryPersistenceService()
     let importedCount = 0
     let checkedCount = scanResult.series.length
+    let addedCount = 0
+    let changedCount = 0
     let missingCount = 0
+    let metadataChangedCount = 0
+    let rejectedEntryCount = 0
     if (persistenceService === undefined) {
       const comics = buildComicsFromLocalLibraryFolderScan(scanResult, rootUri)
       comics.forEach((comic: Comic) => {
         this.libraryStore.upsertComic(comic)
       })
       importedCount = comics.length
+      rejectedEntryCount = scanResult.rejectedEntries.length
     } else {
       try {
         const previousKnownSeries = buildKnownLocalLibraryFolderSeriesFromComics(this.libraryStore.listComics())
@@ -227,6 +232,7 @@ struct Index {
             scanResult,
             rootUri
           )
+          rejectedEntryCount = scanResult.rejectedEntries.length
         } else {
           const result = upsertLocalLibraryFolderRescanAndPersistLibraryStore(
             this.libraryStore,
@@ -237,10 +243,16 @@ struct Index {
           )
           importedCount = result.upsertedCount
           checkedCount = result.summary.previousSeriesCount
+          addedCount = result.summary.addedCount
+          changedCount = result.summary.changedCount
           missingCount = result.summary.missingCount
+          metadataChangedCount = result.summary.metadataChangedCount
+          rejectedEntryCount = result.summary.rejectedEntryCount
           console.info('[Import] step=folder_rescan_persisted added=' + result.summary.addedCount +
             ' changed=' + result.summary.changedCount +
+            ' metadata_changed=' + result.summary.metadataChangedCount +
             ' missing=' + result.summary.missingCount +
+            ' rejected=' + result.summary.rejectedEntryCount +
             ' upserted=' + result.upsertedCount)
         }
       } catch (error) {
@@ -255,7 +267,11 @@ struct Index {
     return {
       importedCount,
       checkedCount,
+      addedCount,
+      changedCount,
       missingCount,
+      metadataChangedCount,
+      rejectedEntryCount,
     }
   }
 
