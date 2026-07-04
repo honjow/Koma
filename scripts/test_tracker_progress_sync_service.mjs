@@ -5,13 +5,14 @@ import { resolve } from 'node:path'
 const root = resolve(import.meta.dirname, '..')
 const source = readFileSync(resolve(root, 'entry/src/main/ets/model/TrackerProgressSyncService.ets'), 'utf8')
 const clientSource = readFileSync(resolve(root, 'entry/src/main/ets/model/AniListTrackerClient.ets'), 'utf8')
+const pendingStoreSource = readFileSync(resolve(root, 'entry/src/main/ets/model/TrackerPendingSyncStore.ets'), 'utf8')
 
 assert.match(source, /export class TrackerProgressSyncService/, 'tracker progress sync service must exist')
 assert.match(source, /AniListTrackerClient/, 'tracker progress sync service must depend on the AniList provider client')
 assert.match(
   source,
-  /constructor\(context: common\.UIAbilityContext, options: TrackerProgressSyncServiceOptions = \{\}\)[\s\S]*new AssetStoreTrackerCredentialSecretStore\(\)[\s\S]*options\.aniListClient \?\? new AniListTrackerClient\(new HarmonyAniListTrackerHttpAdapter\(\)\)/,
-  'tracker progress sync service must default to secure storage plus real AniList HTTP and accept an injected client',
+  /constructor\(context: common\.UIAbilityContext, options: TrackerProgressSyncServiceOptions = \{\}\)[\s\S]*new AssetStoreTrackerCredentialSecretStore\(\)[\s\S]*options\.aniListClient \?\? new AniListTrackerClient\(new HarmonyAniListTrackerHttpAdapter\(\)\)[\s\S]*options\.pendingStore \?\? new TrackerPendingSyncStore\(context\)/,
+  'tracker progress sync service must default to secure storage, real AniList HTTP, and a durable pending sync queue while accepting injected fakes',
 )
 assert.match(
   source,
@@ -60,6 +61,31 @@ assert.match(
 )
 assert.match(
   source,
+  /failedWithPendingQueue\('account_missing'[\s\S]*failedWithPendingQueue\('client_unavailable'[\s\S]*failedWithPendingQueue\('credential_missing'[\s\S]*failedWithPendingQueue\('provider_failed'/,
+  'tracker progress push must queue retryable failures after a confirmed mapping exists',
+)
+assert.match(
+  source,
+  /await this\.pendingStore\.removeProgress\('anilist', progress\.comicId, progress\.chapterId\)/,
+  'successful tracker progress push must clear any retained pending sync item for the same chapter',
+)
+assert.match(
+  source,
+  /failedWithPendingQueue\([\s\S]*enqueueFailedProgress\(progress, chapterIds, providerProgress, reason, now\)[\s\S]*result\.queued = true/,
+  'failed tracker progress push must persist a retryable pending progress item and mark the result queued',
+)
+assert.doesNotMatch(
+  source,
+  /failedWithPendingQueue\('mapping_missing'|failedWithPendingQueue\('auto_sync_disabled'|failedWithPendingQueue\('strategy_not_due'/,
+  'tracker progress sync must not queue disabled, strategy-gated, or unmapped progress',
+)
+assert.match(
+  source,
+  /retryPendingProgress\(limit: number = 20[\s\S]*pendingStore\.loadPendingProgress\(\)[\s\S]*readingProgressFromPendingEntry\(entry, now\)[\s\S]*this\.pushReadingProgress\(progress, entry\.chapterIds, now\)[\s\S]*summary\.syncedCount \+= 1/,
+  'tracker progress sync service must expose a bounded drain path for retained offline progress',
+)
+assert.match(
+  source,
   /aniListClient\.fetchProgress\(accessToken, mapping\.providerTitleId\)/,
   'tracker progress pull must call AniList progress query with mapped provider title id',
 )
@@ -82,6 +108,26 @@ assert.match(
   clientSource,
   /pushProgress\(accessToken: string, providerTitleId: string, progress: number, completed: boolean\)/,
   'AniList client must expose pushProgress for the sync service',
+)
+assert.match(
+  pendingStoreSource,
+  /export class TrackerPendingSyncStore[\s\S]*TRACKER_PENDING_PROGRESS_QUEUE_KEY[\s\S]*enqueueFailedProgress\([\s\S]*savePendingProgress\([\s\S]*removeProgress\(/,
+  'tracker pending sync store must persist, dedupe, and remove pending progress entries',
+)
+assert.match(
+  pendingStoreSource,
+  /TRACKER_PENDING_PROGRESS_MAX_ENTRIES: number = 100[\s\S]*normalizeEntries[\s\S]*slice\(0, TRACKER_PENDING_PROGRESS_MAX_ENTRIES\)/,
+  'tracker pending sync store must bound retained progress entries',
+)
+assert.match(
+  pendingStoreSource,
+  /providerId: 'anilist'[\s\S]*comicId: progress\.comicId[\s\S]*chapterId: progress\.chapterId[\s\S]*chapterIds,[\s\S]*providerProgress,[\s\S]*lastReason: reason/,
+  'tracker pending sync entries must retain enough non-secret state to retry chapter progress later',
+)
+assert.doesNotMatch(
+  pendingStoreSource,
+  /token|authorization|Bearer|accessToken|refreshToken|providerTitleId|raw|message/i,
+  'tracker pending sync store must not persist tokens, provider title ids, raw messages, or authorization material',
 )
 
 console.log('tracker progress sync service checks PASS')

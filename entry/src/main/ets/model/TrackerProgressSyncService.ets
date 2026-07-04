@@ -14,6 +14,11 @@ import {
   TrackerPreferences,
   TrackerPreferencesStore,
 } from './TrackerModels'
+import {
+  readingProgressFromPendingEntry,
+  TrackerPendingProgressReason,
+  TrackerPendingSyncStore,
+} from './TrackerPendingSyncStore'
 
 export type TrackerProgressSyncStatus = 'synced' | 'skipped' | 'failed'
 export type TrackerProgressSyncReason =
@@ -33,11 +38,21 @@ export interface TrackerProgressSyncResult {
   providerTitleId?: string
   providerProgress?: number
   completed?: boolean
+  queued?: boolean
 }
 
 export interface TrackerProgressSyncServiceOptions {
   secretStore?: TrackerCredentialSecretStore
   aniListClient?: AniListTrackerClient
+  pendingStore?: TrackerPendingSyncStore
+}
+
+export interface TrackerPendingProgressDrainSummary {
+  scannedCount: number
+  syncedCount: number
+  retainedCount: number
+  failedCount: number
+  skippedCount: number
 }
 
 export function calculateAniListChapterProgress(progress: ReadingProgress, chapterIds: string[]): number {
@@ -52,11 +67,13 @@ export class TrackerProgressSyncService {
   private context: common.UIAbilityContext
   private secretStore: TrackerCredentialSecretStore
   private aniListClient?: AniListTrackerClient
+  private pendingStore: TrackerPendingSyncStore
 
   constructor(context: common.UIAbilityContext, options: TrackerProgressSyncServiceOptions = {}) {
     this.context = context
     this.secretStore = options.secretStore ?? new AssetStoreTrackerCredentialSecretStore()
     this.aniListClient = options.aniListClient ?? new AniListTrackerClient(new HarmonyAniListTrackerHttpAdapter())
+    this.pendingStore = options.pendingStore ?? new TrackerPendingSyncStore(context)
   }
 
   async pushReadingProgress(progress: ReadingProgress, chapterIds: string[], now: number = Date.now()): Promise<TrackerProgressSyncResult> {
@@ -71,23 +88,24 @@ export class TrackerProgressSyncService {
     if (mapping === undefined) {
       return this.skipped('mapping_missing')
     }
+    const providerProgress = calculateAniListChapterProgress(progress, chapterIds)
     const account = this.findConnectedAniListAccount(preferences)
     if (account === undefined || account.credentialAccountKey === undefined) {
-      return this.failed('account_missing', mapping)
+      return this.failedWithPendingQueue('account_missing', mapping, progress, chapterIds, providerProgress, now)
     }
     if (this.aniListClient === undefined) {
-      return this.failed('client_unavailable', mapping)
+      return this.failedWithPendingQueue('client_unavailable', mapping, progress, chapterIds, providerProgress, now)
     }
     const accessToken = await this.readAccessToken(account)
     if (accessToken === undefined) {
-      return this.failed('credential_missing', mapping)
+      return this.failedWithPendingQueue('credential_missing', mapping, progress, chapterIds, providerProgress, now)
     }
-    const providerProgress = calculateAniListChapterProgress(progress, chapterIds)
     const result = await this.aniListClient.pushProgress(accessToken, mapping.providerTitleId, providerProgress, progress.completed)
     if (!result.ok || result.value === undefined) {
-      return this.failed('provider_failed', mapping)
+      return this.failedWithPendingQueue('provider_failed', mapping, progress, chapterIds, providerProgress, now)
     }
     await this.markAniListAccountSynced(preferences, account, now)
+    await this.pendingStore.removeProgress('anilist', progress.comicId, progress.chapterId)
     return {
       status: 'synced',
       providerId: 'anilist',
@@ -120,6 +138,39 @@ export class TrackerProgressSyncService {
     }
     await this.markAniListAccountSynced(preferences, account, now)
     return this.progressResult(mapping, result.value)
+  }
+
+  async retryPendingProgress(limit: number = 20, now: number = Date.now()): Promise<TrackerPendingProgressDrainSummary> {
+    const pending = await this.pendingStore.loadPendingProgress()
+    const normalizedLimit = Math.max(0, Math.min(50, Math.floor(limit)))
+    const entries = pending.slice(0, normalizedLimit)
+    const summary: TrackerPendingProgressDrainSummary = {
+      scannedCount: entries.length,
+      syncedCount: 0,
+      retainedCount: 0,
+      failedCount: 0,
+      skippedCount: 0,
+    }
+    for (let index = 0; index < entries.length; index += 1) {
+      const entry = entries[index]
+      const progress = readingProgressFromPendingEntry(entry, now)
+      if (progress.comicId.length === 0 || progress.chapterId.length === 0) {
+        summary.skippedCount += 1
+        continue
+      }
+      const result = await this.pushReadingProgress(progress, entry.chapterIds, now)
+      if (result.status === 'synced') {
+        summary.syncedCount += 1
+      } else {
+        summary.retainedCount += 1
+        if (result.status === 'failed') {
+          summary.failedCount += 1
+        } else {
+          summary.skippedCount += 1
+        }
+      }
+    }
+    return summary
   }
 
   private preferencesStore(): TrackerPreferencesStore {
@@ -219,6 +270,20 @@ export class TrackerProgressSyncService {
     if (mapping !== undefined) {
       result.providerTitleId = mapping.providerTitleId
     }
+    return result
+  }
+
+  private async failedWithPendingQueue(
+    reason: TrackerPendingProgressReason,
+    mapping: ComicTrackerMapping,
+    progress: ReadingProgress,
+    chapterIds: string[],
+    providerProgress: number,
+    now: number,
+  ): Promise<TrackerProgressSyncResult> {
+    const result = this.failed(reason, mapping)
+    await this.pendingStore.enqueueFailedProgress(progress, chapterIds, providerProgress, reason, now)
+    result.queued = true
     return result
   }
 }
