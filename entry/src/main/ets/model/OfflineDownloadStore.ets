@@ -55,8 +55,10 @@ export interface OfflineChapterDownloadManifest {
   sourceKind?: ComicSourceKind
   sourceId?: string
   comicId: ComicId
+  comicTitle?: string
   seriesId: ComicId
   chapterId: string
+  chapterTitle?: string
   pageCount: number
   downloadedPageCount: number
   status: OfflineDownloadStatus
@@ -79,6 +81,11 @@ export interface OfflineChapterManifestIdentity {
   sourceKind?: ComicSourceKind
   sourceId?: string
   seriesId?: ComicId
+}
+
+export interface OfflineChapterManifestLabels {
+  comicTitle?: string
+  chapterTitle?: string
 }
 
 export interface OfflineDownloadManifestValidation {
@@ -109,6 +116,11 @@ function compareDeepestPathFirst(left: string, right: string): number {
 
 function normalizeDownloadPath(value: string): string {
   return value.replace(/\\/g, '/').trim()
+}
+
+function normalizeOptionalManifestLabel(value: string | undefined): string | undefined {
+  const normalized = value?.trim() ?? ''
+  return normalized.length > 0 ? normalized : undefined
 }
 
 function trimTrailingSlash(value: string): string {
@@ -201,8 +213,10 @@ function safeParseManifest(payload: string): OfflineChapterDownloadManifest {
       parsed.sourceKind !== ComicSourceKind.WEBDAV_REMOTE) ||
     (parsed.sourceId !== undefined && typeof parsed.sourceId !== 'string') ||
     typeof parsed.comicId !== 'string' ||
+    (parsed.comicTitle !== undefined && typeof parsed.comicTitle !== 'string') ||
     typeof parsed.seriesId !== 'string' ||
     typeof parsed.chapterId !== 'string' ||
+    (parsed.chapterTitle !== undefined && typeof parsed.chapterTitle !== 'string') ||
     typeof parsed.pageCount !== 'number' ||
     typeof parsed.downloadedPageCount !== 'number' ||
     typeof parsed.status !== 'string' ||
@@ -627,8 +641,10 @@ export class OfflineDownloadStore {
       sourceKind: manifest.sourceKind,
       sourceId: manifest.sourceId,
       comicId: manifest.comicId,
+      comicTitle: normalizeOptionalManifestLabel(manifest.comicTitle),
       seriesId: manifest.seriesId,
       chapterId: manifest.chapterId,
+      chapterTitle: normalizeOptionalManifestLabel(manifest.chapterTitle),
       pageCount: Math.max(0, Math.floor(manifest.pageCount)),
       downloadedPageCount: pages.length,
       status: manifest.status,
@@ -647,15 +663,18 @@ export class OfflineDownloadStore {
     chapterId: string,
     pageCount: number,
     status: OfflineDownloadStatus,
-    identity?: OfflineChapterManifestIdentity
+    identity?: OfflineChapterManifestIdentity,
+    labels?: OfflineChapterManifestLabels
   ): OfflineChapterDownloadManifest {
     return this.saveManifest({
       schemaVersion: OFFLINE_DOWNLOAD_SCHEMA_VERSION,
       sourceKind: identity?.sourceKind,
       sourceId: identity?.sourceId,
       comicId,
+      comicTitle: labels?.comicTitle,
       seriesId: identity?.seriesId ?? comicId,
       chapterId,
+      chapterTitle: labels?.chapterTitle,
       pageCount,
       downloadedPageCount: 0,
       status,
@@ -681,7 +700,9 @@ export class OfflineDownloadStore {
       pages,
       sourceKind: manifest.sourceKind,
       sourceId: manifest.sourceId,
+      comicTitle: manifest.comicTitle,
       seriesId: manifest.seriesId,
+      chapterTitle: manifest.chapterTitle,
       integrityHash: manifest.integrityHash,
       failureReasonCode: manifest.failureReasonCode,
     })

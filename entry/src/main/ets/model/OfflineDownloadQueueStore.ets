@@ -278,6 +278,8 @@ function entryFromManifestValidation(validation: OfflineDownloadManifestValidati
   return normalizeEntry({
     comicId: manifest.comicId,
     chapterId: manifest.chapterId,
+    comicTitle: manifest.comicTitle,
+    chapterTitle: manifest.chapterTitle,
     status,
     pageCount,
     downloadedPageCount,
@@ -306,8 +308,8 @@ export class OfflineDownloadQueueStore {
     const entry: OfflineDownloadQueueEntry = {
       comicId: manifest.comicId,
       chapterId: manifest.chapterId,
-      comicTitle,
-      chapterTitle,
+      comicTitle: comicTitle ?? manifest.comicTitle,
+      chapterTitle: chapterTitle ?? manifest.chapterTitle,
       status: manifest.status,
       pageCount: manifest.pageCount,
       downloadedPageCount: manifest.downloadedPageCount,

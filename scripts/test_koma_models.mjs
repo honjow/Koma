@@ -709,8 +709,8 @@ assert.match(
 )
 assert.match(
   offlineDownloadStoreSource,
-  /export interface OfflineChapterDownloadManifest\s*{[\s\S]*sourceKind\?: ComicSourceKind[\s\S]*sourceId\?: string[\s\S]*seriesId:[\s\S]*chapterId:[\s\S]*pageCount:\s*number[\s\S]*downloadedPageCount:\s*number[\s\S]*integrityHash:\s*string/s,
-  'offline manifest must track source/series/chapter identity, counts, and integrity',
+  /export interface OfflineChapterDownloadManifest\s*{[\s\S]*sourceKind\?: ComicSourceKind[\s\S]*sourceId\?: string[\s\S]*comicTitle\?: string[\s\S]*seriesId:[\s\S]*chapterId:[\s\S]*chapterTitle\?: string[\s\S]*pageCount:\s*number[\s\S]*downloadedPageCount:\s*number[\s\S]*integrityHash:\s*string/s,
+  'offline manifest must track source/series/chapter identity, display titles, counts, and integrity',
 )
 assert.match(
   offlineDownloadStoreSource,
@@ -744,8 +744,8 @@ assert.match(
 )
 assert.match(
   offlineDownloadServiceSource,
-  /existingValidation\.status === OfflineDownloadedChapterStatus\.DOWNLOADED[\s\S]*existingValidation\.manifest !== undefined[\s\S]*step=download_reused[\s\S]*return existingValidation\.manifest/,
-  'offline download service must make complete repeated downloads idempotent instead of refetching pages',
+  /existingValidation\.status === OfflineDownloadedChapterStatus\.DOWNLOADED[\s\S]*existingValidation\.manifest !== undefined[\s\S]*applyManifestLabels\(existingValidation\.manifest, comic, chapter, labels\)[\s\S]*step=download_reused[\s\S]*return manifest/,
+  'offline download service must make complete repeated downloads idempotent and backfill manifest titles instead of refetching pages',
 )
 assert.match(
   offlineDownloadServiceSource,

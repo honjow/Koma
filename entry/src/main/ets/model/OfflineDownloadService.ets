@@ -14,6 +14,7 @@ import {
 import { createReaderSessionConfigFromComic } from './ReaderSessionStore'
 import {
   OfflineChapterDownloadManifest,
+  OfflineChapterManifestLabels,
   OfflineChapterManifestIdentity,
   OfflineDownloadedChapterStatus,
   OfflineDownloadSummary,
@@ -91,6 +92,25 @@ function manifestIdentityFromComic(comic: Comic): OfflineChapterManifestIdentity
   }
 }
 
+function manifestLabelsFromDownload(comic: Comic, chapter?: Chapter, labels?: OfflineDownloadLabels): OfflineChapterManifestLabels {
+  return {
+    comicTitle: labels?.comicTitle ?? comic.title,
+    chapterTitle: labels?.chapterTitle ?? chapter?.title,
+  }
+}
+
+function applyManifestLabels(
+  manifest: OfflineChapterDownloadManifest,
+  comic: Comic,
+  chapter?: Chapter,
+  labels?: OfflineDownloadLabels
+): OfflineChapterDownloadManifest {
+  const manifestLabels = manifestLabelsFromDownload(comic, chapter, labels)
+  manifest.comicTitle = manifestLabels.comicTitle
+  manifest.chapterTitle = manifestLabels.chapterTitle
+  return manifest
+}
+
 function reusableDownloadedPage(pages: OfflineDownloadedPage[], pageId: string, pageIndex: number): OfflineDownloadedPage | undefined {
   const page = pages.find((item: OfflineDownloadedPage): boolean => {
     if (pageId.trim().length > 0) {
@@ -151,15 +171,22 @@ export class OfflineDownloadService {
     const latestCanDownload = this.canDownloadNow(latestPreferences)
     if (!initialCanDownload || !latestCanDownload) {
       const blockedReason = downloadBlockedReason(!latestCanDownload ? latestPreferences : initialPreferences)
-      const existingManifest = this.store.loadManifest(comic.id, chapterId)
+      let existingManifest = this.store.loadManifest(comic.id, chapterId)
       if (existingManifest !== undefined) {
         existingManifest.status = existingManifest.downloadedPageCount > 0 ? OfflineDownloadStatus.PARTIAL : OfflineDownloadStatus.QUEUED
         existingManifest.failureReasonCode = blockedReason
-        this.store.saveManifest(existingManifest)
+        existingManifest = this.store.saveManifest(applyManifestLabels(existingManifest, comic, undefined, labels))
         this.queueStore.upsert(this.queueStore.fromManifest(existingManifest, labels?.comicTitle ?? comic.title, labels?.chapterTitle))
         return existingManifest
       }
-      const queuedManifest = this.store.createManifest(comic.id, chapterId, 0, OfflineDownloadStatus.QUEUED, manifestIdentityFromComic(comic))
+      const queuedManifest = this.store.createManifest(
+        comic.id,
+        chapterId,
+        0,
+        OfflineDownloadStatus.QUEUED,
+        manifestIdentityFromComic(comic),
+        manifestLabelsFromDownload(comic, undefined, labels)
+      )
       queuedManifest.failureReasonCode = blockedReason
       this.store.saveManifest(queuedManifest)
       this.queueStore.upsert(this.queueStore.fromManifest(queuedManifest, labels?.comicTitle ?? comic.title, labels?.chapterTitle))
@@ -168,7 +195,14 @@ export class OfflineDownloadService {
     const chapter = comic.chapters.find((item: Chapter): boolean => item.id === chapterId)
     if (chapter === undefined) {
       console.warn(`[ReaderOffline] step=download_blocked comic=${createOfflineDownloadStableHash(comic.id)} chapter=${createOfflineDownloadStableHash(chapterId)} reason=chapter_missing`)
-      let manifest = this.store.createManifest(comic.id, chapterId, 0, OfflineDownloadStatus.BLOCKED, manifestIdentityFromComic(comic))
+      let manifest = this.store.createManifest(
+        comic.id,
+        chapterId,
+        0,
+        OfflineDownloadStatus.BLOCKED,
+        manifestIdentityFromComic(comic),
+        manifestLabelsFromDownload(comic, undefined, labels)
+      )
       manifest.failureReasonCode = 'chapter_missing'
       manifest = this.store.saveManifest(manifest)
       this.queueStore.upsert(this.queueStore.fromManifest(manifest, labels?.comicTitle ?? comic.title, labels?.chapterTitle))
@@ -182,8 +216,10 @@ export class OfflineDownloadService {
         sourceKind: comic.sourceKind,
         sourceId: comic.sourceRuntimeId ?? comic.remoteServerId ?? comic.sourceKind,
         comicId: comic.id,
+        comicTitle: manifestLabelsFromDownload(comic, chapter, labels).comicTitle,
         seriesId: comic.id,
         chapterId,
+        chapterTitle: manifestLabelsFromDownload(comic, chapter, labels).chapterTitle,
         pageCount: 0,
         downloadedPageCount: 0,
         status: OfflineDownloadStatus.BLOCKED,
@@ -200,14 +236,22 @@ export class OfflineDownloadService {
     const existingValidation = this.store.validateDownloadedChapter(comic.id, chapterId)
     if (existingValidation.status === OfflineDownloadedChapterStatus.DOWNLOADED &&
       existingValidation.manifest !== undefined) {
-      this.queueStore.upsert(this.queueStore.fromManifest(existingValidation.manifest, labels?.comicTitle ?? comic.title, labels?.chapterTitle ?? chapter.title))
+      const manifest = this.store.saveManifest(applyManifestLabels(existingValidation.manifest, comic, chapter, labels))
+      this.queueStore.upsert(this.queueStore.fromManifest(manifest, labels?.comicTitle ?? comic.title, labels?.chapterTitle ?? chapter.title))
       console.info(`[ReaderOffline] step=download_reused comic=${createOfflineDownloadStableHash(comic.id)} chapter=${createOfflineDownloadStableHash(chapterId)} pages=${existingValidation.availablePageCount}/${existingValidation.pageCount}`)
-      return existingValidation.manifest
+      return manifest
     }
     const reusablePages = existingValidation.status === OfflineDownloadedChapterStatus.PARTIAL && existingValidation.manifest !== undefined ?
       existingValidation.manifest.pages :
       []
-    let manifest = this.store.createManifest(comic.id, chapterId, chapter.pages.length, OfflineDownloadStatus.DOWNLOADING, manifestIdentityFromComic(comic))
+    let manifest = this.store.createManifest(
+      comic.id,
+      chapterId,
+      chapter.pages.length,
+      OfflineDownloadStatus.DOWNLOADING,
+      manifestIdentityFromComic(comic),
+      manifestLabelsFromDownload(comic, chapter, labels)
+    )
     this.queueStore.upsert(this.queueStore.fromManifest(manifest, labels?.comicTitle ?? comic.title, labels?.chapterTitle ?? chapter.title))
     const config = createReaderSessionConfigFromComic(comic, chapterId)
     try {
