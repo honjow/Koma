@@ -34,6 +34,11 @@ assert.match(
   /mergeLocalLibraryRescanComic\(previous: Comic \| undefined, fresh: Comic\)[\s\S]*createdAt: previous\.createdAt[\s\S]*const categoryIds = normalizeCategoryIds\(previous\.categoryIds\)[\s\S]*if \(categoryIds\.length > 0\) \{[\s\S]*merged\.categoryIds = categoryIds[\s\S]*libraryStore\.upsertComic\(mergeLocalLibraryRescanComic\(libraryStore\.getComic\(comic\.id\), comic\)\)/,
   'rescan persistence must preserve existing shelf category membership and createdAt while refreshing scanned local folder metadata',
 )
+assert.match(
+  libraryPersistenceSource,
+  /shouldPreservePreviousLocalMetadata[\s\S]*merged\.title = previous\.title[\s\S]*merged\.sortTitle = previous\.sortTitle[\s\S]*merged\.localMetadata = previous\.localMetadata/,
+  'rescan persistence must preserve previous local metadata when the fresh scan has no sidecar metadata',
+)
 
 const archiveExts = new Set(['.cbz', '.zip'])
 const imageExts = new Set(['.jpg', '.jpeg', '.png', '.webp', '.gif', '.bmp', '.avif'])

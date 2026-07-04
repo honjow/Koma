@@ -760,6 +760,18 @@ function mergeLocalLibraryRescanComic(previous: Comic | undefined, fresh: Comic)
   if (fresh.author !== undefined) {
     merged.author = fresh.author
   }
+  const shouldPreservePreviousLocalMetadata = fresh.localMetadata === undefined && previous.localMetadata !== undefined
+  if (shouldPreservePreviousLocalMetadata) {
+    merged.title = previous.title
+    merged.sortTitle = previous.sortTitle
+    if (previous.author !== undefined) {
+      merged.author = previous.author
+    }
+    if (previous.coverUri !== undefined) {
+      merged.coverUri = previous.coverUri
+    }
+    merged.localMetadata = previous.localMetadata
+  }
   const categoryIds = normalizeCategoryIds(previous.categoryIds)
   if (categoryIds.length > 0) {
     merged.categoryIds = categoryIds
@@ -773,7 +785,7 @@ function mergeLocalLibraryRescanComic(previous: Comic | undefined, fresh: Comic)
   if (fresh.remoteResourceId !== undefined) {
     merged.remoteResourceId = fresh.remoteResourceId
   }
-  if (fresh.coverUri !== undefined) {
+  if (fresh.coverUri !== undefined && !shouldPreservePreviousLocalMetadata) {
     merged.coverUri = fresh.coverUri
   }
   if (fresh.localMetadata !== undefined) {

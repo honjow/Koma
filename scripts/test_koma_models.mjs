@@ -830,6 +830,11 @@ assert.match(
   /mergeLocalLibraryRescanComic\(previous: Comic \| undefined, fresh: Comic\)[\s\S]*createdAt: previous\.createdAt[\s\S]*const categoryIds = normalizeCategoryIds\(previous\.categoryIds\)[\s\S]*if \(categoryIds\.length > 0\) \{[\s\S]*merged\.categoryIds = categoryIds[\s\S]*upsertLocalLibraryFolderRescanAndPersistLibraryStore[\s\S]*createLocalLibraryRescanSummary\(previousKnownSeries, freshScan, failures\)[\s\S]*outcome\.status === 'added' \|\| outcome\.status === 'changed'[\s\S]*buildComicsFromLocalLibraryFolderScan\(freshScan, rootUri, now\)[\s\S]*changedSeriesIds\.has\(comic\.id\)[\s\S]*libraryStore\.upsertComic\(mergeLocalLibraryRescanComic\(libraryStore\.getComic\(comic\.id\), comic\)\)[\s\S]*persistenceService\.persist\(\)[\s\S]*hydrateLibraryStoreFromJson\(libraryStore, previousPayload\)/,
   'local library folder rescan persistence must upsert only added/changed scan results while preserving user category membership, createdAt, summary, and rollback behavior',
 )
+assert.match(
+  libraryPersistenceSource,
+  /const shouldPreservePreviousLocalMetadata = fresh\.localMetadata === undefined && previous\.localMetadata !== undefined[\s\S]*merged\.title = previous\.title[\s\S]*merged\.sortTitle = previous\.sortTitle[\s\S]*merged\.author = previous\.author[\s\S]*merged\.coverUri = previous\.coverUri[\s\S]*merged\.localMetadata = previous\.localMetadata[\s\S]*fresh\.coverUri !== undefined && !shouldPreservePreviousLocalMetadata/,
+  'local library folder rescan must preserve previous local metadata projections when a fresh scan has no sidecar metadata',
+)
 assert.doesNotMatch(
   libraryPersistenceSource,
   /upsertLocalLibraryFolderScanAndPersistLibraryStore[\s\S]*?(removeComic|deleteLocal|deleteComic)[\s\S]*?export function assignComicCategoriesAndPersistLibraryStore/i,
