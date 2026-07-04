@@ -2385,8 +2385,8 @@ assert.match(
 )
 assert.match(
   sourcePackageManagerPageSource,
-  /validateSettings\(source: InstalledSourcePackage\): void[\s\S]*appSourceSettingsStore\.loadForSource\(source\.id\)[\s\S]*const args: SourceSettingsValidationArgs = \{\}[\s\S]*const hostHints: SourceSettingsValidationHostHints = \{ network: true \}[\s\S]*operation: 'get_home'[\s\S]*args,[\s\S]*settings: savedSettings[\s\S]*hostHints,[\s\S]*runRegisteredSourceRequestById\(appSourceRuntimeRegistry, source\.id, JSON\.stringify\(request\)\)/,
-  'source settings validation must use saved per-source settings in a runtime get_home envelope',
+  /validateSettings\(source: InstalledSourcePackage\): void[\s\S]*appSourceSettingsStore\.loadForSource\(source\.id\)[\s\S]*const args: SourceSettingsValidationArgs = \{\}[\s\S]*const hostHints: SourceSettingsValidationHostHints = \{ network: false \}[\s\S]*operation: 'get_settings'[\s\S]*args,[\s\S]*settings: savedSettings[\s\S]*hostHints,[\s\S]*runRegisteredSourceRequestById\(appSourceRuntimeRegistry, source\.id, JSON\.stringify\(request\)\)/,
+  'source settings validation must use saved per-source settings in a runtime get_settings envelope',
 )
 assert.match(
   sourcePackageManagerPageSource,

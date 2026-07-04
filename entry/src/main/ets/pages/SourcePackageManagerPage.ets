@@ -854,12 +854,12 @@ export struct SourcePackageManagerPage {
       savedCount,
     })
     const args: SourceSettingsValidationArgs = {}
-    const hostHints: SourceSettingsValidationHostHints = { network: true }
+    const hostHints: SourceSettingsValidationHostHints = { network: false }
     const request: SourceSettingsValidationRequest = {
       type: 'request',
       version: 1,
       requestId: 'settings-validation-' + source.id + '-' + Date.now().toString(),
-      operation: 'get_home',
+      operation: 'get_settings',
       sourceId: source.id,
       args,
       settings: savedSettings,
