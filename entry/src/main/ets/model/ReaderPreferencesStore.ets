@@ -501,7 +501,7 @@ export class ReaderPreferencesStore {
 
   async saveBackgroundMode(backgroundMode: ReaderBackgroundMode): Promise<void> {
     const store = await this.preferences()
-    await store.put(BACKGROUND_MODE_KEY, backgroundMode)
+    await store.put(BACKGROUND_MODE_KEY, normalizeReaderBackgroundMode(backgroundMode))
     await store.flush()
   }
 
