@@ -845,8 +845,13 @@ assert.match(
 )
 assert.match(
   libraryPageSource,
-  /filterAvailability: LibraryAvailabilityFilter = 'all'[\s\S]*filterAvailabilityComics\(this\.filterPreciseSourceComics\(nextComics\)\)[\s\S]*private filterAvailabilityComics\(comics: Comic\[\]\): Comic\[\][\s\S]*this\.filterAvailability === 'downloaded'[\s\S]*downloadedComics\.has\(comic\.id\)[\s\S]*this\.filterAvailability === 'fully_downloaded'[\s\S]*OfflineDownloadStatus\.DOWNLOADED[\s\S]*this\.filterAvailability === 'partially_downloaded'[\s\S]*OfflineDownloadStatus\.PARTIAL[\s\S]*!downloadedComics\.has\(comic\.id\)[\s\S]*new OfflineDownloadQueueStore\(context\.filesDir\)\.reconcileWithManifests\(\)[\s\S]*const entriesByComicId = new Map<ComicId, OfflineDownloadQueueEntry\[\]>\(\)[\s\S]*chapterIds\.add\(chapter\.id\)[\s\S]*entry\.status === OfflineDownloadStatus\.PARTIAL[\s\S]*comicAvailability\.set\(comic\.id, OfflineDownloadStatus\.PARTIAL\)[\s\S]*downloadedChapterIds\.size === chapterIds\.size[\s\S]*comicAvailability\.set\(comic\.id, OfflineDownloadStatus\.DOWNLOADED\)[\s\S]*comicAvailability\.set\(comic\.id, OfflineDownloadStatus\.PARTIAL\)/,
-  'LibraryPage availability filter must derive any/complete/partial/not-downloaded comics from reconciled download queue manifests with full-comic checks based on every known chapter',
+  /filterAvailability: LibraryAvailabilityFilter = 'all'[\s\S]*filterAvailabilityComics\(this\.filterPreciseSourceComics\(nextComics\)\)[\s\S]*private filterAvailabilityComics\(comics: Comic\[\]\): Comic\[\][\s\S]*this\.filterAvailability === 'downloaded'[\s\S]*downloadedComics\.has\(comic\.id\)[\s\S]*this\.filterAvailability === 'fully_downloaded'[\s\S]*OfflineDownloadStatus\.DOWNLOADED[\s\S]*this\.filterAvailability === 'partially_downloaded'[\s\S]*OfflineDownloadStatus\.PARTIAL[\s\S]*!downloadedComics\.has\(comic\.id\)[\s\S]*new OfflineDownloadQueueStore\(context\.filesDir\)\.loadReconciledSnapshot\(\)[\s\S]*const entriesByComicId = new Map<ComicId, OfflineDownloadQueueEntry\[\]>\(\)[\s\S]*chapterIds\.add\(chapter\.id\)[\s\S]*entry\.status === OfflineDownloadStatus\.PARTIAL[\s\S]*comicAvailability\.set\(comic\.id, OfflineDownloadStatus\.PARTIAL\)[\s\S]*downloadedChapterIds\.size === chapterIds\.size[\s\S]*comicAvailability\.set\(comic\.id, OfflineDownloadStatus\.DOWNLOADED\)[\s\S]*comicAvailability\.set\(comic\.id, OfflineDownloadStatus\.PARTIAL\)/,
+  'LibraryPage availability filter must derive any/complete/partial/not-downloaded comics from a read-only reconciled download queue snapshot with full-comic checks based on every known chapter',
+)
+assert.doesNotMatch(
+  libraryPageSource,
+  /downloadedComicAvailability\(comics: Comic\[\]\): Map<ComicId, OfflineDownloadStatus>[\s\S]*reconcileWithManifests\(\)/,
+  'LibraryPage availability filtering must not persist manifest reconciliation while rendering the shelf',
 )
 assert.match(
   libraryPageSource,

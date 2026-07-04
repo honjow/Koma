@@ -93,6 +93,11 @@ interface OfflineDownloadQueueDocument {
   entries: OfflineDownloadQueueEntry[]
 }
 
+interface OfflineDownloadQueueReconcileResult {
+  entries: OfflineDownloadQueueEntry[]
+  changed: boolean
+}
+
 function normalizePath(value: string): string {
   return value.replace(/\\/g, '/').trim()
 }
@@ -324,15 +329,33 @@ export class OfflineDownloadQueueStore {
     return this.loadDocument().entries
   }
 
+  loadReconciledSnapshot(): OfflineDownloadQueueEntry[] {
+    return this.reconciledEntries(this.loadDocument(), false).entries
+  }
+
   reconcileWithManifests(): OfflineDownloadQueueEntry[] {
     const document = this.loadDocument()
+    const result = this.reconciledEntries(document, true)
+    if (result.changed) {
+      this.saveDocument({
+        schemaVersion: OFFLINE_DOWNLOAD_QUEUE_SCHEMA_VERSION,
+        preferences: document.preferences,
+        entries: result.entries,
+      })
+    }
+    return result.changed ? result.entries : document.entries
+  }
+
+  private reconciledEntries(document: OfflineDownloadQueueDocument, persistManifestState: boolean): OfflineDownloadQueueReconcileResult {
     const store = new OfflineDownloadStore(this.filesDir)
     let changed = false
     const entries = document.entries.map((entry: OfflineDownloadQueueEntry): OfflineDownloadQueueEntry => {
       if (!shouldReconcileEntry(entry)) {
         return entry
       }
-      const validation = store.reconcileDownloadedChapter(entry.comicId, entry.chapterId)
+      const validation = persistManifestState ?
+        store.reconcileDownloadedChapter(entry.comicId, entry.chapterId) :
+        store.validateDownloadedChapter(entry.comicId, entry.chapterId)
       const next: OfflineDownloadQueueEntry = normalizeEntry({
         comicId: entry.comicId,
         chapterId: entry.chapterId,
@@ -365,14 +388,7 @@ export class OfflineDownloadQueueStore {
       }
       return next
     })
-    if (changed) {
-      this.saveDocument({
-        schemaVersion: OFFLINE_DOWNLOAD_QUEUE_SCHEMA_VERSION,
-        preferences: document.preferences,
-        entries,
-      })
-    }
-    return changed ? entries : document.entries
+    return { entries, changed }
   }
 
   async recoverFromManifests(): Promise<OfflineDownloadQueueRecoverySummary> {

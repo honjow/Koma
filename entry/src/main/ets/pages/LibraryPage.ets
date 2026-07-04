@@ -249,7 +249,7 @@ export struct LibraryPage {
     const comicAvailability = new Map<ComicId, OfflineDownloadStatus>()
     try {
       const context = getContext(this) as common.UIAbilityContext
-      const entries = new OfflineDownloadQueueStore(context.filesDir).reconcileWithManifests()
+      const entries = new OfflineDownloadQueueStore(context.filesDir).loadReconciledSnapshot()
       const entriesByComicId = new Map<ComicId, OfflineDownloadQueueEntry[]>()
       entries.forEach((entry: OfflineDownloadQueueEntry) => {
         if (entry.status !== OfflineDownloadStatus.DOWNLOADED && entry.status !== OfflineDownloadStatus.PARTIAL) {
