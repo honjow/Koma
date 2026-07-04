@@ -252,6 +252,16 @@ assert.match(
 )
 assert.match(
   trackerSettingsPageSource,
+  /confirmDisconnectAccount\(provider: TrackerProviderConfig\): void[\s\S]*showAlertDialog\(\{[\s\S]*tracker_disconnect_confirm_title[\s\S]*tracker_disconnect_confirm_message[\s\S]*provider\.displayName[\s\S]*primaryButton:[\s\S]*tracker_action_disconnect[\s\S]*this\.disconnectAccount\(provider\)/,
+  'TrackerSettingsPage must confirm before deleting tracker credentials and provider pending progress',
+)
+assert.match(
+  trackerSettingsPageSource,
+  /tracker_action_disconnect[\s\S]*this\.confirmDisconnectAccount\(provider\)/,
+  'TrackerSettingsPage disconnect button must route through confirmation',
+)
+assert.match(
+  trackerSettingsPageSource,
   /loadPendingProgressSummary\(\): void[\s\S]*this\.pendingSyncStore\(\)\.loadPendingProgress\(\)[\s\S]*summarizeTrackerPendingProgress\(entries\)/,
   'TrackerSettingsPage must load pending tracker progress from the durable queue',
 )

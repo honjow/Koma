@@ -704,6 +704,8 @@
     { "name": "tracker_action_connect", "value": "连接" },
     { "name": "tracker_action_refresh", "value": "刷新" },
     { "name": "tracker_action_disconnect", "value": "断开" },
+    { "name": "tracker_disconnect_confirm_title", "value": "断开 Tracker 账号？" },
+    { "name": "tracker_disconnect_confirm_message", "value": "断开 %s？这个 Tracker 的本机凭据和待同步进度会从本设备移除。" },
     { "name": "tracker_refresh_done", "value": "Tracker 账号已刷新" },
     { "name": "tracker_refresh_failed", "value": "Tracker 账号刷新失败" },
     { "name": "tracker_refresh_unavailable", "value": "Tracker 账号暂不可刷新" },

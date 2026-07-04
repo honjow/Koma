@@ -704,6 +704,8 @@
     { "name": "tracker_action_connect", "value": "Connect" },
     { "name": "tracker_action_refresh", "value": "Refresh" },
     { "name": "tracker_action_disconnect", "value": "Disconnect" },
+    { "name": "tracker_disconnect_confirm_title", "value": "Disconnect tracker account?" },
+    { "name": "tracker_disconnect_confirm_message", "value": "Disconnect %s? Local credentials and pending progress for this tracker will be removed from this device." },
     { "name": "tracker_refresh_done", "value": "Tracker account refreshed" },
     { "name": "tracker_refresh_failed", "value": "Failed to refresh tracker account" },
     { "name": "tracker_refresh_unavailable", "value": "Tracker account refresh unavailable" },

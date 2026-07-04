@@ -151,6 +151,28 @@ export struct TrackerSettingsPage {
       account.credentialAccountKey !== undefined
   }
 
+  private confirmDisconnectAccount(provider: TrackerProviderConfig): void {
+    if (!this.canDisconnectProvider(provider) || this.busyProviderId.length > 0) {
+      return
+    }
+    this.getUIContext().showAlertDialog({
+      title: s('tracker_disconnect_confirm_title'),
+      message: AppStrings.format('tracker_disconnect_confirm_message', provider.displayName),
+      autoCancel: true,
+      primaryButton: {
+        value: s('tracker_action_disconnect'),
+        fontColor: ThemeConstants.DANGER,
+        action: () => {
+          this.disconnectAccount(provider)
+        },
+      },
+      secondaryButton: {
+        value: s('common_cancel'),
+        action: () => {},
+      },
+    })
+  }
+
   private prepareConnect(provider: TrackerProviderConfig): void {
     if (!this.canPrepareConnect(provider)) {
       this.authPreparationMessageKey = !this.secureStorageAvailable
@@ -475,7 +497,7 @@ export struct TrackerSettingsPage {
           controlHeight: ThemeConstants.ACTION_CHIP_HEIGHT,
           isEnabled: this.busyProviderId.length === 0,
           action: () => {
-            this.disconnectAccount(provider)
+            this.confirmDisconnectAccount(provider)
           },
         })
       } else {
