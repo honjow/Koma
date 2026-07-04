@@ -60,12 +60,12 @@ assert.match(crossSearchSource, /timeoutSection\(fallback\.id, fallback\.title, 
 assert.match(crossSearchSource, /export type CrossSearchSourceFilter = 'all' \| 'local' \| 'private' \| 'source'/, 'cross-search must expose source filter buckets')
 assert.match(
   crossSearchSource,
-  /search\(query: string, sourceFilter: CrossSearchSourceFilter = 'all'\)[\s\S]*sourceMatchesFilter\('local', sourceFilter\)[\s\S]*sourceMatchesFilter\('komga', sourceFilter\)[\s\S]*sourceMatchesFilter\('opds', sourceFilter\)[\s\S]*sourceMatchesFilter\('webdav', sourceFilter\)[\s\S]*sourceMatchesFilter\('wasm', sourceFilter\)/,
+  /search\(query: string, sourceFilter: CrossSearchSourceFilter = 'all'\)[\s\S]*sourceMatchesFilter\('local', sourceFilter\)[\s\S]*sourceMatchesFilter\('komga', sourceFilter\)[\s\S]*sourceMatchesFilter\('kavita', sourceFilter\)[\s\S]*sourceMatchesFilter\('opds', sourceFilter\)[\s\S]*sourceMatchesFilter\('webdav', sourceFilter\)[\s\S]*sourceMatchesFilter\('wasm', sourceFilter\)/,
   'cross-search must avoid launching providers outside the selected source filter',
 )
 assert.match(
   crossSearchSource,
-  /private sourceMatchesFilter\(sourceKind: CrossSearchSourceKind, sourceFilter: CrossSearchSourceFilter\): boolean[\s\S]*sourceFilter === 'local'[\s\S]*sourceKind === 'wasm'[\s\S]*sourceKind === 'komga' \|\| sourceKind === 'opds' \|\| sourceKind === 'webdav'/,
+  /private sourceMatchesFilter\(sourceKind: CrossSearchSourceKind, sourceFilter: CrossSearchSourceFilter\): boolean[\s\S]*sourceFilter === 'local'[\s\S]*sourceKind === 'wasm'[\s\S]*sourceKind === 'komga' \|\| sourceKind === 'kavita' \|\| sourceKind === 'opds' \|\| sourceKind === 'webdav'/,
   'cross-search source filter must split local, private library, and source package buckets',
 )
 assert.match(

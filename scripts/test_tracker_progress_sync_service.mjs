@@ -91,7 +91,7 @@ assert.doesNotMatch(
 )
 assert.match(
   source,
-  /retryPendingProgress\(limit: number = 20[\s\S]*const preferences = await this\.preferencesStore\(\)\.load\(\)[\s\S]*!preferences\.autoSyncEnabled[\s\S]*readingProgressFromPendingEntry\(entry, now\)[\s\S]*this\.pushReadingProgress\(progress, entry\.chapterIds, 'manual', now, entry\.providerId\)[\s\S]*summary\.syncedCount \+= 1/,
+  /retryPendingProgress\([\s\S]*limit: number = 20,[\s\S]*allowWhenAutoSyncDisabled: boolean = false,[\s\S]*const preferences = await this\.preferencesStore\(\)\.load\(\)[\s\S]*!allowWhenAutoSyncDisabled && !preferences\.autoSyncEnabled[\s\S]*readingProgressFromPendingEntry\(entry, now\)[\s\S]*this\.pushReadingProgress\(progress, entry\.chapterIds, 'manual', now, entry\.providerId\)[\s\S]*summary\.syncedCount \+= 1/,
   'tracker progress sync service must expose a bounded manual drain path for retained offline progress while respecting the auto-sync master switch',
 )
 assert.match(
@@ -267,7 +267,7 @@ assert.match(
 )
 assert.match(
   trackerSettingsPageSource,
-  /retryPendingProgressNow\(\): void[\s\S]*new TrackerProgressSyncService\(this\.context\(\)\)\.retryPendingProgress\(20\)[\s\S]*tracker_pending_retry_done[\s\S]*this\.loadPendingProgressSummary\(\)/,
+  /retryPendingProgressNow\(\): void[\s\S]*new TrackerProgressSyncService\(this\.context\(\)\)\.retryPendingProgress\(20, Date\.now\(\), true\)[\s\S]*tracker_pending_retry_done[\s\S]*this\.loadPendingProgressSummary\(\)/,
   'TrackerSettingsPage must expose bounded manual retry and refresh pending queue state',
 )
 assert.match(
