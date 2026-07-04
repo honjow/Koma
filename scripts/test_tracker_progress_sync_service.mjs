@@ -176,13 +176,33 @@ assert.match(
 )
 assert.match(
   mangaDetailPageSource,
+  /latestTrackableMarkedReadProgress\(chapterIds: string\[\]\): ReadingProgress \| undefined[\s\S]*const currentProgress = this\.readerSessionStore\.getProgress\(this\.currentComicId\(\)\)[\s\S]*bestIndex < currentIndex[\s\S]*completedProgressForChapter\(bestChapterId\)/,
+  'MangaDetailPage marked-read tracker sync must choose the latest marked chapter and avoid pushing older progress',
+)
+assert.match(
+  mangaDetailPageSource,
+  /syncMarkedReadTrackerProgress\(chapterIds: string\[\]\): void[\s\S]*pushReadingProgress\([\s\S]*progress,[\s\S]*this\.allChapterIds\(\),[\s\S]*'on_chapter_complete'[\s\S]*step=marked_read_progress/,
+  'MangaDetailPage marked-read tracker sync must push completed chapter progress through the normal chapter-complete strategy',
+)
+assert.match(
+  mangaDetailPageSource,
+  /markChapterReadState\(chapterId: string, isRead: boolean\)[\s\S]*if \(isRead\) \{[\s\S]*this\.syncMarkedReadTrackerProgress\(\[chapterId\]\)[\s\S]*showToast/,
+  'MangaDetailPage per-chapter mark-read must trigger tracker sync after local state refresh',
+)
+assert.match(
+  mangaDetailPageSource,
+  /markVisibleChaptersReadState\(chapterIds: string\[\], isRead: boolean\)[\s\S]*if \(isRead\) \{[\s\S]*this\.syncMarkedReadTrackerProgress\(targetIds\)[\s\S]*showToast/,
+  'MangaDetailPage visible batch mark-read must trigger one bounded tracker sync from the visible target set',
+)
+assert.match(
+  mangaDetailPageSource,
   /manga_detail_menu_sync_tracker[\s\S]*this\.syncTrackerProgressNow\(\)/,
   'MangaDetailPage more menu must expose a real manual tracker sync action',
 )
 assert.doesNotMatch(
   mangaDetailPageSource,
-  /\[TrackerSync\] step=manual_progress[^\n]*(token|authorization|Bearer|providerTitleId|comic=|chapter=|message=)/i,
-  'MangaDetailPage manual tracker sync logs must not leak tokens, provider ids, local ids, or raw errors',
+  /\[TrackerSync\] step=(manual_progress|marked_read_progress)[^\n]*(token|authorization|Bearer|providerTitleId|comic=|chapter=|message=)/i,
+  'MangaDetailPage tracker sync logs must not leak tokens, provider ids, local ids, or raw errors',
 )
 
 assert.match(

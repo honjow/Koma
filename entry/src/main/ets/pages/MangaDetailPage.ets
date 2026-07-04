@@ -30,6 +30,7 @@ import {
   Page,
   ReadingDirection,
   ReadingProgress,
+  updateReadingProgress,
   normalizeSortKey,
 } from '../model/ComicModels'
 import { OfflineDownloadService } from '../model/OfflineDownloadService'
@@ -487,6 +488,71 @@ export struct MangaDetailPage {
     return this.chapters.map((chapter: MangaChapterItem): string => chapter.id)
   }
 
+  private completedProgressForChapter(chapterId: string): ReadingProgress | undefined {
+    const chapter = this.chapters.find((item: MangaChapterItem): boolean => item.id === chapterId)
+    if (chapter === undefined) {
+      return undefined
+    }
+    const pageCount = 1
+    const progress = updateReadingProgress({
+      comicId: this.currentComicId(),
+      chapterId,
+      pageIndex: 0,
+      totalPages: pageCount,
+      progressRatio: 0,
+      completed: false,
+      updatedAt: Date.now(),
+    }, pageCount - 1, undefined, pageCount)
+    return progress
+  }
+
+  private latestTrackableMarkedReadProgress(chapterIds: string[]): ReadingProgress | undefined {
+    const orderedChapterIds = this.allChapterIds()
+    let bestIndex = -1
+    let bestChapterId = ''
+    chapterIds.forEach((chapterId: string): void => {
+      const index = orderedChapterIds.indexOf(chapterId)
+      if (index > bestIndex) {
+        bestIndex = index
+        bestChapterId = chapterId
+      }
+    })
+    if (bestIndex < 0 || bestChapterId.length === 0) {
+      return undefined
+    }
+    const currentProgress = this.readerSessionStore.getProgress(this.currentComicId())
+    if (currentProgress !== undefined) {
+      const currentIndex = orderedChapterIds.indexOf(currentProgress.chapterId)
+      if (currentIndex >= 0 && bestIndex < currentIndex) {
+        return undefined
+      }
+    }
+    return this.completedProgressForChapter(bestChapterId)
+  }
+
+  private syncMarkedReadTrackerProgress(chapterIds: string[]): void {
+    const progress = this.latestTrackableMarkedReadProgress(chapterIds)
+    if (progress === undefined) {
+      return
+    }
+    try {
+      const context = getContext(this) as common.UIAbilityContext
+      void new TrackerProgressSyncService(context).pushReadingProgress(
+        progress,
+        this.allChapterIds(),
+        'on_chapter_complete',
+      )
+        .then((result) => {
+          console.info(`[TrackerSync] step=marked_read_progress status=${result.status} reason=${result.reason ?? 'none'} queued=${result.queued === true}`)
+        })
+        .catch((_error: Error) => {
+          console.warn('[TrackerSync] step=marked_read_progress failed=true reason=marked_read')
+        })
+    } catch (_error) {
+      console.warn('[TrackerSync] step=marked_read_progress failed=true reason=context')
+    }
+  }
+
   private async handleAddToLibrary(): Promise<boolean> {
     if (this.isInLibrary) {
       this.showToast(s('common_already_in_library'))
@@ -790,6 +856,9 @@ export struct MangaDetailPage {
       return
     }
     this.applyChapterStatesToCurrent()
+    if (isRead) {
+      this.syncMarkedReadTrackerProgress([chapterId])
+    }
     this.showToast(isRead ? s('manga_detail_marked_read') : s('manga_detail_marked_unread'))
   }
 
@@ -813,6 +882,9 @@ export struct MangaDetailPage {
       }
     })
     this.applyChapterStatesToCurrent()
+    if (isRead) {
+      this.syncMarkedReadTrackerProgress(targetIds)
+    }
     this.showToast(isRead
       ? this.formatString('manga_detail_marked_count_read', [changedCount])
       : this.formatString('manga_detail_marked_count_unread', [changedCount]))
