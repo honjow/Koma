@@ -9,6 +9,7 @@ hvigorw="${HVIGORW:-/Applications/DevEco-Studio.app/Contents/tools/hvigor/bin/hv
 target="${KOMA_SMOKE_TARGET:-127.0.0.1:5557}"
 source_id="${KOMA_SOURCE_READER_SOURCE_ID:-org.mangadex.koma}"
 query="${KOMA_SOURCE_READER_QUERY:-Salt Friend}"
+phase="${KOMA_SOURCE_READER_PHASE:-source-index-visible-reader}"
 dist_dir="${KOMA_SOURCES_DIST:-$repo/../koma-sources/dist}"
 port="${KOMA_SOURCE_INDEX_PORT:-8765}"
 index_url="${KOMA_SOURCE_INDEX_URL:-}"
@@ -85,7 +86,7 @@ hdc_target shell hilog -r
 hdc_target shell rm -f "$remote_smoke_result"
 hdc_target shell aa start -a EntryAbility -b com.honjow.koma \
   --ps koma.sourceRuntimeSmoke run \
-  --ps koma.sourceRuntimeSmoke.phase source-index-visible-reader \
+  --ps koma.sourceRuntimeSmoke.phase "$phase" \
   --ps koma.sourceRuntimeSmoke.indexUrl "$index_url" \
   --ps koma.sourceRuntimeSmoke.sourceId "$source_id" \
   --ps koma.sourceRuntimeSmoke.query "$query"
@@ -95,7 +96,7 @@ poll_count="${KOMA_SOURCE_READER_RESULT_POLL_COUNT:-18}"
 poll_delay="${KOMA_SOURCE_READER_RESULT_POLL_DELAY_SECONDS:-5}"
 for ((attempt = 1; attempt <= poll_count; attempt += 1)); do
   if hdc_target file recv "$remote_smoke_result" "$smoke_result" >/dev/null 2>&1; then
-    if [ -s "$smoke_result" ] && python3 - "$smoke_result" "$source_id" "$query" <<'PY'
+    if [ -s "$smoke_result" ] && python3 - "$smoke_result" "$source_id" "$query" "$phase" <<'PY'
 import json
 import pathlib
 import sys
@@ -103,13 +104,23 @@ import sys
 path = pathlib.Path(sys.argv[1])
 source_id = sys.argv[2]
 query = sys.argv[3]
+phase = sys.argv[4]
 result = json.loads(path.read_text(encoding='utf-8'))
 if result.get('ok') is not True:
     raise SystemExit('source reader smoke failed: result ok=false')
+if result.get('smokePhase') != phase:
+    raise SystemExit('source reader smoke failed: phase mismatch')
 if result.get('sourceIndexReaderSelectedSourceId') != source_id:
     raise SystemExit('source reader smoke failed: source id mismatch')
 if result.get('sourceIndexReaderSearchQuery') != query:
     raise SystemExit('source reader smoke failed: query mismatch')
+if 'download-reader' in phase:
+    if result.get('sourceIndexDownloadStatus') != 'downloaded':
+        raise SystemExit('source reader smoke failed: download status mismatch')
+    if result.get('sourceIndexDownloadDownloadedPageCount') != result.get('sourceIndexReaderPageCount'):
+        raise SystemExit('source reader smoke failed: downloaded page count mismatch')
+    if result.get('sourceIndexDownloadOfflineReaderKind') != 'local_file_image':
+        raise SystemExit('source reader smoke failed: offline reader did not use local file')
 PY
     then
       break

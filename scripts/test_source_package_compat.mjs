@@ -19,6 +19,7 @@ const smokePath = resolve(root, 'entry/src/main/ets/sourceRuntime/SourceRuntimeD
 const sourceRuntimeRegistryPath = resolve(root, 'entry/src/main/ets/sourceRuntime/SourceRuntimeRegistry.ets')
 const sourcePackageTrustPolicyPath = resolve(root, 'entry/src/main/ets/sourceRuntime/SourcePackageTrustPolicy.ets')
 const sourceReaderSmokeScriptPath = resolve(root, 'scripts/run_source_reader_smoke.sh')
+const sourceDownloadReaderSmokeScriptPath = resolve(root, 'scripts/run_source_download_reader_smoke.sh')
 const abiDocPath = resolve(root, 'docs/source-runtime-abi.md')
 const sdkDocPath = resolve(root, 'docs/source-package-sdk.md')
 const localKomaFixturePath = resolve(root, 'entry/src/main/resources/rawfile/test/local_source_runtime_fixture.koma')
@@ -43,6 +44,7 @@ const smokeSource = readFileSync(smokePath, 'utf8')
 const sourceRuntimeRegistrySource = readFileSync(sourceRuntimeRegistryPath, 'utf8')
 const sourcePackageTrustPolicySource = readFileSync(sourcePackageTrustPolicyPath, 'utf8')
 const sourceReaderSmokeScriptSource = readFileSync(sourceReaderSmokeScriptPath, 'utf8')
+const sourceDownloadReaderSmokeScriptSource = readFileSync(sourceDownloadReaderSmokeScriptPath, 'utf8')
 const abiDocSource = readFileSync(abiDocPath, 'utf8')
 const sdkDocSource = readFileSync(sdkDocPath, 'utf8')
 
@@ -271,8 +273,18 @@ assert.match(managerPageSource, /confirmRemovePackage\(source: InstalledSourcePa
 assert.match(managerPageSource, /label: t\('source_pkg_delete'\)[\s\S]*kind: 'danger'[\s\S]*this\.confirmRemovePackage\(source\)/, 'SourcePackageManagerPage package delete button must route through confirmation')
 assert.match(
   sourceReaderSmokeScriptSource,
-  /koma\.sourceRuntimeSmoke\.phase source-index-visible-reader/,
-  'source reader smoke script must run the visible source-index reader phase',
+  /phase="\$\{KOMA_SOURCE_READER_PHASE:-source-index-visible-reader\}"[\s\S]*koma\.sourceRuntimeSmoke\.phase "\$phase"/,
+  'source reader smoke script must default to the visible source-index reader phase',
+)
+assert.match(
+  sourceDownloadReaderSmokeScriptSource,
+  /KOMA_SOURCE_READER_PHASE="\$\{KOMA_SOURCE_READER_PHASE:-source-index-visible-download-reader\}"[\s\S]*run_source_reader_smoke\.sh/,
+  'source download reader smoke script must reuse the source reader smoke with the visible download phase',
+)
+assert.match(
+  sourceReaderSmokeScriptSource,
+  /sourceIndexDownloadStatus[\s\S]*sourceIndexDownloadDownloadedPageCount[\s\S]*sourceIndexDownloadOfflineReaderKind[\s\S]*local_file_image/,
+  'source reader smoke script must verify downloaded source chapters open through offline local files',
 )
 assert.match(
   sourceReaderSmokeScriptSource,
