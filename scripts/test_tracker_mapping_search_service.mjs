@@ -34,8 +34,8 @@ assert.match(
 )
 assert.match(
   source,
-  /searchableProviderIds\(preferences: TrackerPreferences, preferredProviderId\?: TrackerProviderId\)[\s\S]*account\.status !== 'connected'[\s\S]*preferredProviderId !== undefined && account\.providerId !== preferredProviderId[\s\S]*this\.isSupportedSearchProvider\(account\.providerId\)/,
-  'mapping search must only scan connected accounts for the requested implemented providers',
+  /searchableProviderIds\(preferences: TrackerPreferences, preferredProviderId\?: TrackerProviderId\)[\s\S]*preferredProviderId === undefined \|\| preferredProviderId === 'anilist'[\s\S]*ids\.push\('anilist'\)[\s\S]*account\.status !== 'connected'[\s\S]*this\.isSupportedSearchProvider\(account\.providerId\)/,
+  'mapping search must always allow public AniList candidate search while only adding other implemented providers from connected accounts',
 )
 assert.match(
   source,
@@ -49,8 +49,8 @@ assert.match(
 )
 assert.match(
   source,
-  /findConnectedAccount\(preferences[\s\S]*account\.providerId === providerId && account\.status === 'connected'/,
-  'mapping search must require a connected account before provider lookup',
+  /providerId !== 'anilist' && \(account === undefined \|\| account\.credentialAccountKey === undefined\)[\s\S]*account_missing[\s\S]*providerId !== 'anilist' && accessToken === undefined[\s\S]*credential_missing/,
+  'mapping search must require account credentials for non-public providers while allowing AniList public lookup',
 )
 assert.match(
   source,
@@ -64,8 +64,8 @@ assert.match(
 )
 assert.match(
   source,
-  /searchProvider\([\s\S]*providerId === 'myanimelist'[\s\S]*myAnimeListClient\.searchManga\(accessToken, query, 1, 8\)[\s\S]*aniListClient\.searchManga\(accessToken, query, 1, 8\)/,
-  'mapping search must call existing provider manga search APIs for MAL and AniList',
+  /searchProvider\([\s\S]*providerId === 'myanimelist'[\s\S]*myAnimeListClient === undefined \|\| accessToken === undefined[\s\S]*myAnimeListClient\.searchManga\(accessToken, query, 1, 8\)[\s\S]*accessToken === undefined[\s\S]*aniListClient\.searchPublicManga\(query, 1, 8\)[\s\S]*aniListClient\.searchManga\(accessToken, query, 1, 8\)/,
+  'mapping search must call authenticated MAL search and public-or-authenticated AniList search as available',
 )
 assert.match(
   source,
@@ -101,6 +101,11 @@ assert.match(
   aniListClientSource,
   /searchManga\(accessToken: string, query: string, page: number = 1, perPage: number = 10\)/,
   'AniList client must expose authenticated manga search for mapping candidates',
+)
+assert.match(
+  aniListClientSource,
+  /searchPublicManga\(query: string, page: number = 1, perPage: number = 10\)/,
+  'AniList client must expose public manga search so mapping candidates can be generated before account connection',
 )
 assert.match(
   myAnimeListClientSource,

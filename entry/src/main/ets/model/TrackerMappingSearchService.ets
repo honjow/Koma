@@ -130,14 +130,16 @@ export class TrackerMappingSearchService {
       return this.skipped(providerId, 'confirmed_mapping_exists')
     }
     const account = this.findConnectedAccount(preferences, providerId)
-    if (account === undefined || account.credentialAccountKey === undefined) {
+    if (providerId !== 'anilist' && (account === undefined || account.credentialAccountKey === undefined)) {
       return this.skipped(providerId, 'account_missing')
     }
     if (!this.hasSearchClient(providerId)) {
       return this.failed(providerId, 'client_unavailable')
     }
-    const accessToken = await this.readAccessToken(account, providerId)
-    if (accessToken === undefined) {
+    const accessToken = account === undefined || account.credentialAccountKey === undefined
+      ? undefined
+      : await this.readAccessToken(account, providerId)
+    if (providerId !== 'anilist' && accessToken === undefined) {
       return this.failed(providerId, 'credential_missing')
     }
     const providerResult = await this.searchProvider(providerId, accessToken, query)
@@ -174,6 +176,9 @@ export class TrackerMappingSearchService {
 
   private searchableProviderIds(preferences: TrackerPreferences, preferredProviderId?: TrackerProviderId): TrackerProviderId[] {
     const ids: TrackerProviderId[] = []
+    if (preferredProviderId === undefined || preferredProviderId === 'anilist') {
+      ids.push('anilist')
+    }
     preferences.accounts.forEach((account: TrackerAccount) => {
       if (account.status !== 'connected') {
         return
@@ -235,11 +240,11 @@ export class TrackerMappingSearchService {
 
   private async searchProvider(
     providerId: TrackerProviderId,
-    accessToken: string,
+    accessToken: string | undefined,
     query: string,
   ): Promise<TrackerProviderSearchResult> {
     if (providerId === 'myanimelist') {
-      if (this.myAnimeListClient === undefined) {
+      if (this.myAnimeListClient === undefined || accessToken === undefined) {
         return { ok: false }
       }
       const result = await this.myAnimeListClient.searchManga(accessToken, query, 1, 8)
@@ -258,7 +263,9 @@ export class TrackerMappingSearchService {
     if (this.aniListClient === undefined) {
       return { ok: false }
     }
-    const result = await this.aniListClient.searchManga(accessToken, query, 1, 8)
+    const result = accessToken === undefined
+      ? await this.aniListClient.searchPublicManga(query, 1, 8)
+      : await this.aniListClient.searchManga(accessToken, query, 1, 8)
     return {
       ok: result.ok,
       value: result.value?.map((item: AniListTrackerTitleSearchResult): TrackerTitleSearchCandidate => {

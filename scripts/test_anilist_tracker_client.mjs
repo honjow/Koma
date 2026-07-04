@@ -30,6 +30,17 @@ assert.match(
   /buildGraphqlRequest\(accessToken: string, query: string, variables: AniListGraphqlVariables = emptyAniListGraphqlVariables\(\)\)[\s\S]*const payload: AniListGraphqlPayload[\s\S]*authorization: `Bearer \$\{token\}`[\s\S]*body: JSON\.stringify\(payload\)/,
   'AniList requests must keep bearer tokens in headers and serialize only query variables in the body',
 )
+assert.match(
+  source,
+  /buildPublicGraphqlRequest\(query: string, variables: AniListGraphqlVariables = emptyAniListGraphqlVariables\(\)\)[\s\S]*headers: \{[\s\S]*accept: 'application\/json'[\s\S]*contentType: 'application\/json'[\s\S]*body: JSON\.stringify\(payload\)/,
+  'AniList public metadata requests must omit Authorization while preserving the same bounded GraphQL payload path',
+)
+const publicRequestBlock = source.match(/buildPublicGraphqlRequest\([\s\S]*?\n  \}/)?.[0] ?? ''
+assert.doesNotMatch(
+  publicRequestBlock,
+  /authorization|Bearer|accessToken|token/i,
+  'AniList public metadata requests must not require or serialize bearer material',
+)
 const buildRequestBlock = source.match(/buildGraphqlRequest\([\s\S]*?\n  \}/)?.[0] ?? ''
 const requestBodyBlock = buildRequestBlock.match(/const payload: AniListGraphqlPayload = \{[\s\S]*?\n    \}/)?.[0] ?? ''
 assert.doesNotMatch(
@@ -78,6 +89,11 @@ assert.match(
   source,
   /perPage: Math\.max\(1, Math\.min\(20, Math\.floor\(perPage\)\)\)/,
   'AniList search page size must be bounded',
+)
+assert.match(
+  source,
+  /searchPublicManga\(query: string, page: number = 1, perPage: number = 10\)[\s\S]*this\.buildPublicGraphqlRequest\(graphqlQuery, variables\)[\s\S]*searchMangaWithRequest/,
+  'AniList client must expose public manga metadata search for tracker mapping before account connection',
 )
 assert.match(
   source,

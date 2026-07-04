@@ -266,11 +266,44 @@ export class AniListTrackerClient {
     }
   }
 
+  buildPublicGraphqlRequest(query: string, variables: AniListGraphqlVariables = emptyAniListGraphqlVariables()): AniListTrackerHttpRequest {
+    const payload: AniListGraphqlPayload = {
+      query,
+      variables,
+    }
+    return {
+      method: 'POST',
+      url: ANILIST_GRAPHQL_ENDPOINT,
+      headers: {
+        accept: 'application/json',
+        contentType: 'application/json',
+      },
+      body: JSON.stringify(payload),
+    }
+  }
+
   async fetchProfile(accessToken: string): Promise<AniListTrackerResult<AniListTrackerProfile>> {
     return this.sendAndParseProfile(this.buildGraphqlRequest(accessToken, ANILIST_VIEWER_QUERY))
   }
 
   async searchManga(accessToken: string, query: string, page: number = 1, perPage: number = 10): Promise<AniListTrackerResult<AniListTrackerTitleSearchResult[]>> {
+    return this.searchMangaWithRequest((graphqlQuery: string, variables: AniListGraphqlVariables): AniListTrackerHttpRequest => {
+      return this.buildGraphqlRequest(accessToken, graphqlQuery, variables)
+    }, query, page, perPage)
+  }
+
+  async searchPublicManga(query: string, page: number = 1, perPage: number = 10): Promise<AniListTrackerResult<AniListTrackerTitleSearchResult[]>> {
+    return this.searchMangaWithRequest((graphqlQuery: string, variables: AniListGraphqlVariables): AniListTrackerHttpRequest => {
+      return this.buildPublicGraphqlRequest(graphqlQuery, variables)
+    }, query, page, perPage)
+  }
+
+  private async searchMangaWithRequest(
+    requestBuilder: (query: string, variables: AniListGraphqlVariables) => AniListTrackerHttpRequest,
+    query: string,
+    page: number,
+    perPage: number,
+  ): Promise<AniListTrackerResult<AniListTrackerTitleSearchResult[]>> {
     const normalizedQuery = normalizeAniListTrackerSearchQuery(query)
     if (normalizedQuery.length === 0) {
       return {
@@ -283,7 +316,7 @@ export class AniListTrackerClient {
       page: Math.max(1, Math.floor(page)),
       perPage: Math.max(1, Math.min(20, Math.floor(perPage))),
     }
-    const request = this.buildGraphqlRequest(accessToken, ANILIST_SEARCH_QUERY, variables)
+    const request = requestBuilder(ANILIST_SEARCH_QUERY, variables)
     return this.sendAndParseSearch(request)
   }
 
