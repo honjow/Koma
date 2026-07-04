@@ -36,6 +36,10 @@ function localRefreshUnavailableMessage(sourceKind: ComicSourceKind): string {
   return AppStrings.get('local_library_refresh_archive_unavailable')
 }
 
+function localRefreshStatus(sourceKind: ComicSourceKind): LocalLibraryRefreshResultStatus {
+  return sourceKind === ComicSourceKind.LOCAL_FOLDER ? 'reselect_required' : 'unchanged'
+}
+
 function summarizeLocalRefreshResults(checkedAt: number, results: LocalLibraryRefreshComicResult[]): LocalLibraryRefreshSummary {
   return {
     checkedAt,
@@ -98,7 +102,7 @@ export class LocalLibraryRefreshService {
     return {
       comicId: comic.id,
       sourceKind: comic.sourceKind,
-      status: 'reselect_required',
+      status: localRefreshStatus(comic.sourceKind),
       previousChapterCount: comic.chapterCount,
       previousPageCount: comic.pageCount,
       message: localRefreshUnavailableMessage(comic.sourceKind),

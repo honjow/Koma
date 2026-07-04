@@ -42,8 +42,8 @@ assert.doesNotMatch(
 )
 assert.match(
   serviceSource,
-  /status: 'reselect_required'[\s\S]*localRefreshUnavailableMessage\(comic\.sourceKind\)/,
-  'local refresh must honestly report reselect_required while persistent folder/archive handles are unavailable',
+  /function localRefreshStatus\(sourceKind: ComicSourceKind\): LocalLibraryRefreshResultStatus \{[\s\S]*sourceKind === ComicSourceKind\.LOCAL_FOLDER \? 'reselect_required' : 'unchanged'[\s\S]*status: localRefreshStatus\(comic\.sourceKind\)[\s\S]*localRefreshUnavailableMessage\(comic\.sourceKind\)/,
+  'local refresh must require reselect only for folder handles while treating archive imports as unchanged',
 )
 assert.match(
   serviceSource,
