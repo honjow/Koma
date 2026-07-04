@@ -47,6 +47,9 @@ const importPagePath = resolve(root, 'entry/src/main/ets/pages/ImportPage.ets')
 const sourceBrowsePagePath = resolve(root, 'entry/src/main/ets/pages/SourceBrowsePage.ets')
 const sourceSearchPagePath = resolve(root, 'entry/src/main/ets/pages/SourceSearchPage.ets')
 const sourcePackageManagerPagePath = resolve(root, 'entry/src/main/ets/pages/SourcePackageManagerPage.ets')
+const komgaSeriesPagePath = resolve(root, 'entry/src/main/ets/pages/KomgaSeriesPage.ets')
+const opdsBrowsePagePath = resolve(root, 'entry/src/main/ets/pages/OpdsBrowsePage.ets')
+const webDavBrowsePagePath = resolve(root, 'entry/src/main/ets/pages/WebDavBrowsePage.ets')
 const sourceFilterControlsPath = resolve(root, 'entry/src/main/ets/components/SourceFilterControls.ets')
 const privacyPermissionsDocPath = resolve(root, 'docs/PRIVACY_AND_PERMISSIONS.md')
 const browseViewModelPath = resolve(root, 'entry/src/main/ets/viewmodel/BrowseViewModel.ets')
@@ -57,6 +60,7 @@ const secondaryListScaffoldPath = resolve(root, 'entry/src/main/ets/components/S
 const comicCoverCardPath = resolve(root, 'entry/src/main/ets/components/ComicCoverCard.ets')
 const chapterListSectionPath = resolve(root, 'entry/src/main/ets/components/ChapterListSection.ets')
 const mangaDetailPagePath = resolve(root, 'entry/src/main/ets/pages/MangaDetailPage.ets')
+const readerPagePath = resolve(root, 'entry/src/main/ets/pages/ReaderPage.ets')
 const readerPageSourceAdapterPath = resolve(root, 'entry/src/main/ets/model/ReaderPageSourceAdapter.ets')
 const sourceSettingsStorePath = resolve(root, 'entry/src/main/ets/sourceRuntime/SourceSettingsStore.ets')
 const sourceRuntimeAppRegistryPath = resolve(root, 'entry/src/main/ets/sourceRuntime/SourceRuntimeAppRegistry.ets')
@@ -107,6 +111,9 @@ const importPageSource = readFileSync(importPagePath, 'utf8')
 const sourceBrowsePageSource = readFileSync(sourceBrowsePagePath, 'utf8')
 const sourceSearchPageSource = readFileSync(sourceSearchPagePath, 'utf8')
 const sourcePackageManagerPageSource = readFileSync(sourcePackageManagerPagePath, 'utf8')
+const komgaSeriesPageSource = readFileSync(komgaSeriesPagePath, 'utf8')
+const opdsBrowsePageSource = readFileSync(opdsBrowsePagePath, 'utf8')
+const webDavBrowsePageSource = readFileSync(webDavBrowsePagePath, 'utf8')
 const sourceFilterControlsSource = readFileSync(sourceFilterControlsPath, 'utf8')
 const privacyPermissionsDocSource = readFileSync(privacyPermissionsDocPath, 'utf8')
 const browseViewModelSource = readFileSync(browseViewModelPath, 'utf8')
@@ -117,6 +124,7 @@ const secondaryListScaffoldSource = readFileSync(secondaryListScaffoldPath, 'utf
 const comicCoverCardSource = readFileSync(comicCoverCardPath, 'utf8')
 const chapterListSectionSource = readFileSync(chapterListSectionPath, 'utf8')
 const mangaDetailPageSource = readFileSync(mangaDetailPagePath, 'utf8')
+const readerPageSource = readFileSync(readerPagePath, 'utf8')
 const readerPageSourceAdapterSource = readFileSync(readerPageSourceAdapterPath, 'utf8')
 const sourceSettingsStoreSource = readFileSync(sourceSettingsStorePath, 'utf8')
 const sourceRuntimeAppRegistrySource = readFileSync(sourceRuntimeAppRegistryPath, 'utf8')
@@ -1996,6 +2004,36 @@ assert.doesNotMatch(
   remoteProgressBootstrapSyncSource,
   /\[BootstrapSync\][^\n]*(message=|serverId=)|e\.message/,
   'remote progress bootstrap logs must not leak raw errors or private server identifiers',
+)
+for (const [label, source] of [
+  ['Index', indexSource],
+  ['BrowsePage', browsePageSource],
+  ['KomgaSeriesPage', komgaSeriesPageSource],
+  ['OpdsBrowsePage', opdsBrowsePageSource],
+  ['WebDavBrowsePage', webDavBrowsePageSource],
+  ['ReaderPage', readerPageSource],
+  ['ReaderPageSourceAdapter', readerPageSourceAdapterSource],
+]) {
+  assert.doesNotMatch(
+    source,
+    /message=|\.message\b|errorText\s*=\s*e\.message|setErrorRaw\(e\.message\)|persist .* failed|unavailable:|load failed:/,
+    `${label} private-library and reader diagnostics must not expose raw Error.message`,
+  )
+}
+assert.match(
+  komgaSeriesPageSource,
+  /this\.errorText = s\('common_load_failed'\)[\s\S]*step=load_series_failed code=komga_series_load_failed[\s\S]*this\.errorText = s\('common_add_to_library_failed'\)[\s\S]*step=komga_add_failed code=komga_add_failed/,
+  'Komga browse failures must show generic localized copy and log redacted codes',
+)
+assert.match(
+  opdsBrowsePageSource,
+  /this\.setErrorKey\('common_load_failed'\)[\s\S]*step=load_catalog_failed code=opds_catalog_load_failed[\s\S]*this\.setErrorKey\('common_add_to_library_failed'\)[\s\S]*step=opds_add_failed code=opds_add_failed/,
+  'OPDS browse failures must show generic localized copy and log redacted codes',
+)
+assert.match(
+  webDavBrowsePageSource,
+  /this\.errorText = s\('common_load_failed'\)[\s\S]*step=propfind_failed code=webdav_propfind_failed[\s\S]*this\.errorText = s\('common_add_to_library_failed'\)[\s\S]*step=webdav_add_failed code=webdav_add_failed/,
+  'WebDAV browse failures must show generic localized copy and log redacted codes',
 )
 assert.match(
   trackerModelsSource,

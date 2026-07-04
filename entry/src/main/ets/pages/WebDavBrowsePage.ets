@@ -65,15 +65,16 @@ export struct WebDavBrowsePage {
     try {
       const saved = await this.store().loadWebDav()
       if (saved === undefined) {
-        throw new Error(s('webdav_config_required'))
+        this.errorText = s('webdav_config_required')
+        return
       }
       this.record = saved
       console.info('[WebDAV] step=load_initial')
       await this.loadDirectory([])
     } catch (error) {
-      const e = error as Error
-      this.errorText = e.message
-      console.error('[WebDAV] step=load_initial_failed message=' + e.message)
+      void error
+      this.errorText = s('common_load_failed')
+      console.error('[WebDAV] step=load_initial_failed code=webdav_initial_load_failed')
     } finally {
       this.loading = false
     }
@@ -98,9 +99,9 @@ export struct WebDavBrowsePage {
       }))
       console.info(`[WebDAV] step=propfind_ok folders=${this.folders.length} images=${this.images.length}`)
     } catch (error) {
-      const e = error as Error
-      this.errorText = e.message
-      console.error('[WebDAV] step=propfind_failed message=' + e.message)
+      void error
+      this.errorText = s('common_load_failed')
+      console.error('[WebDAV] step=propfind_failed code=webdav_propfind_failed')
     } finally {
       this.loading = false
     }
@@ -277,10 +278,10 @@ export struct WebDavBrowsePage {
       this.showToast(s('common_added_to_library'))
       console.info(`[Favorite] step=webdav_add_ok pages=${comic.pageCount}`)
     } catch (error) {
-      const e = error as Error
-      this.errorText = e.message
+      void error
+      this.errorText = s('common_add_to_library_failed')
       this.showToast(s('common_add_to_library_failed'))
-      console.error('[Favorite] step=webdav_add_failed message=' + e.message)
+      console.error('[Favorite] step=webdav_add_failed code=webdav_add_failed')
     }
   }
 

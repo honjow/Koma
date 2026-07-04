@@ -337,13 +337,13 @@ export struct BrowsePage {
       console.info(`[OPDS] step=browse_availability configured=${this.opdsConfigured}`)
       console.info(`[WebDAV] step=browse_availability configured=${this.webDavConfigured}`)
     } catch (error) {
-      const e = error as Error
+      void error
       this.komgaConfigured = false
       this.opdsConfigured = false
       this.webDavConfigured = false
-      console.error('[Komga] step=browse_availability_failed message=' + e.message)
-      console.error('[OPDS] step=browse_availability_failed message=' + e.message)
-      console.error('[WebDAV] step=browse_availability_failed message=' + e.message)
+      console.error('[Komga] step=browse_availability_failed code=availability_load_failed')
+      console.error('[OPDS] step=browse_availability_failed code=availability_load_failed')
+      console.error('[WebDAV] step=browse_availability_failed code=availability_load_failed')
     }
   }
 

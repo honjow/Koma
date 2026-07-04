@@ -124,8 +124,8 @@ struct Index {
       try {
         await installReaderRemoteHeadersForComic(getContext(this) as common.UIAbilityContext, comic)
       } catch (error) {
-        const e = error as Error
-        console.error('[Favorite] step=open_remote_reader_headers_failed message=' + e.message)
+        void error
+        console.error('[Favorite] step=open_remote_reader_headers_failed code=remote_headers_failed')
       }
     }
     this.readerSessionConfig = comic === undefined ? MOCK_LIBRARY_READER_SESSION : createReaderSessionConfigFromComic(comic, chapterId)
@@ -183,7 +183,7 @@ struct Index {
         upsertComicAndPersistLibraryStore(this.libraryStore, persistenceService, comic)
       } catch (error) {
         const e = error as Error
-        console.error('persist imported comic failed: ' + e.message)
+        console.error('[Library] step=persist_imported_comic_failed code=library_persist_failed')
         throw e
       }
     }
@@ -230,7 +230,7 @@ struct Index {
         }
       } catch (error) {
         const e = error as Error
-        console.error('persist imported folder failed: ' + e.message)
+        console.error('[Library] step=persist_imported_folder_failed code=library_persist_failed')
         throw e
       }
     }
@@ -275,7 +275,7 @@ struct Index {
       }
     } catch (error) {
       const e = error as Error
-      console.error('persist removed comic failed: ' + e.message)
+      console.error('[Library] step=persist_removed_comic_failed code=library_persist_failed')
       throw e
     }
   }
@@ -313,7 +313,7 @@ struct Index {
       return removedIds.length
     } catch (error) {
       const e = error as Error
-      console.error('persist removed comics failed: ' + e.message)
+      console.error('[Library] step=persist_removed_comics_failed code=library_persist_failed')
       throw e
     }
   }
@@ -358,7 +358,7 @@ struct Index {
       return changedCount > 0
     } catch (error) {
       const e = error as Error
-      console.error('persist category assignment failed: ' + e.message)
+      console.error('[Library] step=persist_category_assignment_failed code=library_persist_failed')
       throw e
     }
   }
@@ -391,7 +391,7 @@ struct Index {
       return changedCount > 0
     } catch (error) {
       const e = error as Error
-      console.error('persist category membership failed: ' + e.message)
+      console.error('[Library] step=persist_category_membership_failed code=library_persist_failed')
       throw e
     }
   }
@@ -463,8 +463,8 @@ struct Index {
           persistenceService.restore()
           this.refreshLibrarySnapshot()
         } catch (error) {
-          const e = error as Error
-          console.error('restore library store failed: ' + e.message)
+          void error
+          console.error('[Library] step=restore_failed code=library_restore_failed')
         }
       }
     }

@@ -84,7 +84,8 @@ export struct KomgaSeriesPage {
       const store = this.store()
       const saved = await store.loadKomga()
       if (saved === undefined) {
-        throw new Error(s('komga_config_required'))
+        this.errorText = s('komga_config_required')
+        return
       }
       this.record = saved
       const client = store.createKomgaClient(saved)
@@ -95,9 +96,9 @@ export struct KomgaSeriesPage {
       await this.reloadSeries()
       await this.openInitialSeriesIfNeeded()
     } catch (error) {
-      const e = error as Error
-      this.errorText = e.message
-      console.error('[Komga] step=load_initial_failed message=' + e.message)
+      void error
+      this.errorText = s('common_load_failed')
+      console.error('[Komga] step=load_initial_failed code=komga_initial_load_failed')
     } finally {
       this.loading = false
     }
@@ -136,9 +137,9 @@ export struct KomgaSeriesPage {
       this.page += 1
       console.info(`[Komga] step=load_series_ok count=${response.content.length} total=${this.series.length}`)
     } catch (error) {
-      const e = error as Error
-      this.errorText = e.message
-      console.error('[Komga] step=load_series_failed message=' + e.message)
+      void error
+      this.errorText = s('common_load_failed')
+      console.error('[Komga] step=load_series_failed code=komga_series_load_failed')
     } finally {
       this.loadingMore = false
     }
@@ -163,9 +164,9 @@ export struct KomgaSeriesPage {
       this.books = response.content.filter((book: KomgaBookDto) => book.seriesId === series.id)
       console.info(`[Komga] step=load_books_ok books=${this.books.length}`)
     } catch (error) {
-      const e = error as Error
-      this.errorText = e.message
-      console.error('[Komga] step=load_books_failed message=' + e.message)
+      void error
+      this.errorText = s('common_load_failed')
+      console.error('[Komga] step=load_books_failed code=komga_books_load_failed')
     }
   }
 
@@ -213,9 +214,9 @@ export struct KomgaSeriesPage {
       console.info(`[Komga] step=open_reader book=${book.id} pages=${pages.length}`)
       RouterHelper.pushReader()
     } catch (error) {
-      const e = error as Error
-      this.errorText = e.message
-      console.error('[Komga] step=open_book_failed message=' + e.message)
+      void error
+      this.errorText = s('common_load_failed')
+      console.error('[Komga] step=open_book_failed code=komga_book_open_failed')
     }
   }
 
@@ -276,10 +277,10 @@ export struct KomgaSeriesPage {
       this.showToast(s('common_added_to_library'))
       console.info(`[Favorite] step=komga_add_ok chapters=${chapters.length} pages=${comic.pageCount}`)
     } catch (error) {
-      const e = error as Error
-      this.errorText = e.message
+      void error
+      this.errorText = s('common_add_to_library_failed')
       this.showToast(s('common_add_to_library_failed'))
-      console.error('[Favorite] step=komga_add_failed message=' + e.message)
+      console.error('[Favorite] step=komga_add_failed code=komga_add_failed')
     }
   }
 

@@ -122,9 +122,9 @@ export struct OpdsBrowsePage {
       console.info('[OPDS] step=load_initial')
       await this.loadCatalog(initialUrl, false)
     } catch (error) {
-      const e = error as Error
-      this.setErrorRaw(e.message)
-      console.error('[OPDS] step=load_initial_failed message=' + e.message)
+      void error
+      this.setErrorKey('common_load_failed')
+      console.error('[OPDS] step=load_initial_failed code=opds_initial_load_failed')
     } finally {
       this.loading = false
     }
@@ -147,9 +147,9 @@ export struct OpdsBrowsePage {
       await this.openInitialPublicationIfNeeded()
       console.info(`[OPDS] step=load_catalog_ok version=${catalog.version} navigation=${catalog.navigation.length} publications=${catalog.publications.length}`)
     } catch (error) {
-      const e = error as Error
-      this.setErrorRaw(e.message)
-      console.error('[OPDS] step=load_catalog_failed message=' + e.message)
+      void error
+      this.setErrorKey('common_load_failed')
+      console.error('[OPDS] step=load_catalog_failed code=opds_catalog_load_failed')
     } finally {
       this.loading = false
     }
@@ -228,8 +228,8 @@ export struct OpdsBrowsePage {
       }
       console.info(`[OPDS] step=load_publication_manifest_ok images=${manifestImages.length}`)
     } catch (error) {
-      const e = error as Error
-      console.error('[OPDS] step=load_publication_manifest_failed message=' + e.message)
+      void error
+      console.error('[OPDS] step=load_publication_manifest_failed code=opds_manifest_load_failed')
     }
   }
 
@@ -387,10 +387,10 @@ export struct OpdsBrowsePage {
       this.showToast(s('common_added_to_library'))
       console.info(`[Favorite] step=opds_add_ok pages=${comic.pageCount}`)
     } catch (error) {
-      const e = error as Error
-      this.setErrorRaw(e.message)
+      void error
+      this.setErrorKey('common_add_to_library_failed')
       this.showToast(s('common_add_to_library_failed'))
-      console.error('[Favorite] step=opds_add_failed message=' + e.message)
+      console.error('[Favorite] step=opds_add_failed code=opds_add_failed')
     }
   }
 

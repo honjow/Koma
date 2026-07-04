@@ -779,7 +779,8 @@ export function prefetchReaderRemoteImage(source: ReaderPageRenderSource): void 
       console.info(`[ReaderCache] step=prefetch_done key=${key} page=${source.fallbackPageIndex}`)
     })
     .catch((error: Error) => {
-      console.warn(`[ReaderCache] step=prefetch_done key=${key} page=${source.fallbackPageIndex} failed=true message=${error.message}`)
+      void error
+      console.warn(`[ReaderCache] step=prefetch_done key=${key} page=${source.fallbackPageIndex} failed=true code=reader_prefetch_failed`)
     })
     .finally(() => {
       const index = readerPrefetchInFlight.indexOf(key)
