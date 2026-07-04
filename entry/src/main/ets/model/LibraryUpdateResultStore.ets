@@ -116,7 +116,7 @@ export async function getLibraryUpdateNotificationStatus(): Promise<LibraryUpdat
     return 'disabled'
   }
   try {
-    return await notificationManager.isNotificationEnabled() ? 'enabled' : 'unavailable'
+    return await notificationManager.isNotificationEnabled() ? 'enabled' : 'disabled'
   } catch (error) {
     const businessError = error as BusinessError
     console.warn('[LibraryUpdateResultStore] step=query_library_update_notification_status_failed code=' + businessError.code)

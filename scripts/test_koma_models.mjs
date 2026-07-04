@@ -1118,6 +1118,11 @@ assert.match(
   'LibraryUpdatePreferencesStore must report only the implemented foreground notification path as enabled',
 )
 assert.match(
+  libraryUpdateResultStoreSource,
+  /getLibraryUpdateNotificationStatus\(\): Promise<LibraryUpdateNotificationStatus>[\s\S]*notificationManager\.isNotificationEnabled\(\) \? 'enabled' : 'disabled'[\s\S]*catch \(error\)[\s\S]*return 'unavailable'/,
+  'Library update notification status must distinguish user-disabled notification permission from unavailable notification capability',
+)
+assert.match(
   libraryUpdatePreferencesStoreSource,
   /catch \(_error\) \{[\s\S]*autoCheckEnabled: DEFAULT_LIBRARY_UPDATE_PREFERENCES\.autoCheckEnabled[\s\S]*intervalHours: DEFAULT_LIBRARY_UPDATE_PREFERENCES\.intervalHours[\s\S]*foregroundOnly: DEFAULT_LIBRARY_UPDATE_PREFERENCES\.foregroundOnly[\s\S]*failureCount: DEFAULT_LIBRARY_UPDATE_PREFERENCES\.failureCount/,
   'LibraryUpdatePreferencesStore must safely restore defaults when preference data cannot be read',

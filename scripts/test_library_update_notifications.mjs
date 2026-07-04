@@ -240,8 +240,8 @@ assert.match(
 )
 assert.match(
   resultStoreSource,
-  /getLibraryUpdateNotificationStatus\(\): Promise<LibraryUpdateNotificationStatus>[\s\S]*notificationManager\.isNotificationEnabled\(\)[\s\S]*requestLibraryUpdateNotificationPermission\(context: common\.UIAbilityContext\): Promise<LibraryUpdateNotificationStatus>[\s\S]*notificationManager\.requestEnableNotification\(context\)[\s\S]*return getLibraryUpdateNotificationStatus\(\)/,
-  'Library update notifications must expose real permission status and a UI-bound permission request helper',
+  /getLibraryUpdateNotificationStatus\(\): Promise<LibraryUpdateNotificationStatus>[\s\S]*notificationManager\.isNotificationEnabled\(\) \? 'enabled' : 'disabled'[\s\S]*requestLibraryUpdateNotificationPermission\(context: common\.UIAbilityContext\): Promise<LibraryUpdateNotificationStatus>[\s\S]*notificationManager\.requestEnableNotification\(context\)[\s\S]*return getLibraryUpdateNotificationStatus\(\)/,
+  'Library update notifications must distinguish system-disabled notifications from unavailable notification capability',
 )
 assert.match(
   constantsSource,
