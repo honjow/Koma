@@ -334,6 +334,8 @@ Koma 已经具备本地/私有库优先漫画阅读器的主骨架：书架、Re
 
 ### D55：i18n baseline
 
+状态：推进中。`scripts/check_i18n_duplicates.py` 已覆盖资源 key parity / duplicate，`scripts/check_ui_i18n_literals.py` 已加入页面/组件裸 UI 文案门禁，阻止新增中文裸字符串和明显的 `Text('...')` / `label: '...'` 等直写文案。
+
 交付：
 - 资源抽取。
 - zh-Hans/en baseline。
