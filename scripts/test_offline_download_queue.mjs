@@ -165,7 +165,7 @@ assert.match(indexSource, /onOpenDownloads:\s*\(\) => \{[\s\S]*this\.openSetting
 
 assert.match(downloadsPageSource, /SecondaryListScaffold\(\{[\s\S]*bottomPadding:\s*ThemeConstants\.FLOAT_BAR_HEIGHT \+ 20/, 'DownloadsPage must use secondary list scaffold bottom clearance')
 assert.match(downloadsPageSource, /new OfflineDownloadQueueStore\(this\.context\(\)\.filesDir\)/, 'DownloadsPage must load queue from app files dir')
-assert.match(downloadsPageSource, /const store = this\.queueStore\(\)[\s\S]*this\.entries = store\.reconcileWithManifests\(\)/, 'DownloadsPage must reconcile persisted queue entries against offline manifests before rendering')
+assert.match(downloadsPageSource, /loadQueue\(reconcileManifests: boolean = true\)[\s\S]*reconcileManifests \? store\.reconcileWithManifests\(\) : store\.load\(\)/, 'DownloadsPage must support loading a raw queue snapshot when active work should not be downgraded by manifest reconciliation')
 assert.match(downloadsPageSource, /rescanDownloads\(\): void[\s\S]*this\.busyKey = 'rescan'[\s\S]*runRescanDownloads\(\)/, 'DownloadsPage must expose a manual download manifest rescan action')
 assert.match(downloadsPageSource, /formatRecoverySummary\(summary: OfflineDownloadQueueRecoverySummary\): string[\s\S]*downloads_toast_rescan_done[\s\S]*restoredCount[\s\S]*updatedCount/, 'DownloadsPage must format a user-visible download rescan summary')
 assert.match(downloadsPageSource, /runRescanDownloads\(\): Promise<void>[\s\S]*recoverFromManifests\(\)[\s\S]*this\.loadQueue\(\)[\s\S]*formatRecoverySummary\(summary\)/, 'DownloadsPage rescan must recover queue rows from manifests and refresh visible queue state')
@@ -177,6 +177,7 @@ assert.match(downloadsPageSource, /queueProgressText\(\):\s*string[\s\S]*summari
 assert.match(downloadsPageSource, /QueueControls\(\)[\s\S]*Text\(this\.queueStateText\(\)\)[\s\S]*Text\(this\.queueProgressText\(\)\)/, 'DownloadsPage controls must render both queue state and total progress')
 assert.match(downloadsPageSource, /ConcurrencyMenu\(\)[\s\S]*OFFLINE_DOWNLOAD_FOREGROUND_CONCURRENCY_LIMIT_OPTIONS[\s\S]*setForegroundConcurrencyLimit\(limit\)/, 'DownloadsPage must expose foreground concurrency controls')
 assert.match(downloadsPageSource, /pauseQueuedDownloads\(\)[\s\S]*pauseAllQueuedWork\(\)/, 'DownloadsPage must expose pause-all queued work controls')
+assert.match(downloadsPageSource, /pauseQueuedDownloads\(\): void \{[\s\S]*pauseAllQueuedWork\(\)[\s\S]*this\.loadQueue\(false\)/, 'DownloadsPage pause must avoid immediate manifest reconciliation so in-flight downloads can settle as paused or partial instead of false failed')
 assertFunctionDoesNotContain(downloadsPageSource, 'pauseQueuedDownloads', /busyKey\.length > 0/, 'DownloadsPage must allow pause while a foreground batch is running')
 assert.match(downloadsPageSource, /primaryQueueActionLabel\(\):\s*string[\s\S]*downloads_action_start_queue[\s\S]*downloads_action_pause_queue/, 'DownloadsPage primary queue action must expose start queued work before falling back to pause')
 assert.match(downloadsPageSource, /handlePrimaryQueueAction\(\):\s*void[\s\S]*this\.resumeQueuedDownloads\(\)[\s\S]*this\.pauseQueuedDownloads\(\)[\s\S]*this\.startQueuedDownloads\(\)/, 'DownloadsPage primary queue control must resume, pause running work, or start queued work from one route')

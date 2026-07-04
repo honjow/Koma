@@ -59,9 +59,9 @@ export struct DownloadsPage {
     return new OfflineDownloadQueueStore(this.context().filesDir)
   }
 
-  private loadQueue(): void {
+  private loadQueue(reconcileManifests: boolean = true): void {
     const store = this.queueStore()
-    this.entries = store.reconcileWithManifests()
+    this.entries = reconcileManifests ? store.reconcileWithManifests() : store.load()
     this.preferences = store.loadPreferences()
   }
 
@@ -354,7 +354,7 @@ export struct DownloadsPage {
 
   private pauseQueuedDownloads(): void {
     this.preferences = this.queueStore().pauseAllQueuedWork()
-    this.loadQueue()
+    this.loadQueue(false)
     this.showToast(s('downloads_toast_paused_queued'))
   }
 
