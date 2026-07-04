@@ -137,6 +137,9 @@ export struct DownloadsPage {
     if (entry.status === OfflineDownloadStatus.BLOCKED && entry.failureReasonCode === 'chapter_missing') {
       return s('downloads_blocked_chapter_missing')
     }
+    if (entry.status === OfflineDownloadStatus.BLOCKED && entry.failureReasonCode === 'comic_missing') {
+      return s('downloads_blocked_comic_missing')
+    }
     if (entry.status === OfflineDownloadStatus.BLOCKED) {
       return s('downloads_blocked_unretryable')
     }
@@ -259,6 +262,23 @@ export struct DownloadsPage {
     return entry.status !== OfflineDownloadStatus.DOWNLOADING && entry.status !== OfflineDownloadStatus.QUEUED
   }
 
+  private blockUnavailableEntry(entry: OfflineDownloadQueueEntry): void {
+    const blocked = this.queueStore().upsert({
+      comicId: entry.comicId,
+      chapterId: entry.chapterId,
+      comicTitle: entry.comicTitle,
+      chapterTitle: entry.chapterTitle,
+      status: OfflineDownloadStatus.BLOCKED,
+      pageCount: entry.pageCount,
+      downloadedPageCount: entry.downloadedPageCount,
+      updatedAt: Date.now(),
+      failureReasonCode: 'comic_missing',
+    })
+    this.entries = this.entries.map((item: OfflineDownloadQueueEntry): OfflineDownloadQueueEntry => {
+      return this.rowKey(item) === this.rowKey(blocked) ? blocked : item
+    })
+  }
+
   private retryDownload(entry: OfflineDownloadQueueEntry): void {
     if (!this.canRetry(entry) || this.busyKey.length > 0) {
       return
@@ -269,6 +289,7 @@ export struct DownloadsPage {
     }
     const comic = this.libraryStore?.getComic(entry.comicId)
     if (comic === undefined) {
+      this.blockUnavailableEntry(entry)
       this.showToast(s('downloads_toast_entry_unavailable'))
       return
     }
@@ -466,7 +487,11 @@ export struct DownloadsPage {
         const entry = targets[nextIndex]
         nextIndex += 1
         const comic = this.libraryStore?.getComic(entry.comicId)
-        if (comic === undefined || entry.status === OfflineDownloadStatus.BLOCKED) {
+        if (entry.status === OfflineDownloadStatus.BLOCKED) {
+          continue
+        }
+        if (comic === undefined) {
+          this.blockUnavailableEntry(entry)
           continue
         }
         try {

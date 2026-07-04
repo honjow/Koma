@@ -732,6 +732,7 @@
     { "name": "downloads_row_subtitle", "value": "%s · %s · %s/%s pages" },
     { "name": "downloads_blocked_pages_missing", "value": "Missing chapter page data. Open the manga detail page and try downloading again." },
     { "name": "downloads_blocked_chapter_missing", "value": "This chapter is no longer in the library record. Refresh the manga detail page before downloading again." },
+    { "name": "downloads_blocked_comic_missing", "value": "This manga is no longer in the library. Remove this stale download entry or add it back before retrying." },
     { "name": "downloads_blocked_unretryable", "value": "This task cannot be retried from Downloads yet." },
     { "name": "downloads_status_queued", "value": "Queued" },
     { "name": "downloads_status_downloading", "value": "Downloading" },
