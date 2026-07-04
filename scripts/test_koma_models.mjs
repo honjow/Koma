@@ -52,6 +52,7 @@ const sourceBrowsePagePath = resolve(root, 'entry/src/main/ets/pages/SourceBrows
 const sourceSearchPagePath = resolve(root, 'entry/src/main/ets/pages/SourceSearchPage.ets')
 const sourcePackageManagerPagePath = resolve(root, 'entry/src/main/ets/pages/SourcePackageManagerPage.ets')
 const komgaSeriesPagePath = resolve(root, 'entry/src/main/ets/pages/KomgaSeriesPage.ets')
+const kavitaBrowsePagePath = resolve(root, 'entry/src/main/ets/pages/KavitaBrowsePage.ets')
 const opdsBrowsePagePath = resolve(root, 'entry/src/main/ets/pages/OpdsBrowsePage.ets')
 const webDavBrowsePagePath = resolve(root, 'entry/src/main/ets/pages/WebDavBrowsePage.ets')
 const sourceFilterControlsPath = resolve(root, 'entry/src/main/ets/components/SourceFilterControls.ets')
@@ -122,6 +123,7 @@ const sourceBrowsePageSource = readFileSync(sourceBrowsePagePath, 'utf8')
 const sourceSearchPageSource = readFileSync(sourceSearchPagePath, 'utf8')
 const sourcePackageManagerPageSource = readFileSync(sourcePackageManagerPagePath, 'utf8')
 const komgaSeriesPageSource = readFileSync(komgaSeriesPagePath, 'utf8')
+const kavitaBrowsePageSource = readFileSync(kavitaBrowsePagePath, 'utf8')
 const opdsBrowsePageSource = readFileSync(opdsBrowsePagePath, 'utf8')
 const webDavBrowsePageSource = readFileSync(webDavBrowsePagePath, 'utf8')
 const sourceFilterControlsSource = readFileSync(sourceFilterControlsPath, 'utf8')
@@ -2206,6 +2208,16 @@ assert.match(
   komgaSeriesPageSource,
   /this\.errorText = s\('common_load_failed'\)[\s\S]*step=load_series_failed code=komga_series_load_failed[\s\S]*this\.errorText = s\('common_add_to_library_failed'\)[\s\S]*step=komga_add_failed code=komga_add_failed/,
   'Komga browse failures must show generic localized copy and log redacted codes',
+)
+assert.match(
+  kavitaBrowsePageSource,
+  /step=load_libraries_failed code=kavita_libraries_load_failed[\s\S]*step=load_series_failed code=kavita_series_load_failed[\s\S]*showToast\(s\('common_add_to_library_failed'\)\)[\s\S]*step=kavita_add_failed code=kavita_add_failed/,
+  'Kavita browse failures must show generic localized copy and log redacted codes',
+)
+assert.match(
+  kavitaBrowsePageSource,
+  /isSelectedSeriesInLibrary\(\)[\s\S]*this\.libraryStore\.findByRemote\(record\.server\.id, `\$\{series\.id\}`\)[\s\S]*addSelectedSeriesToLibrary\(\)[\s\S]*listVolumes\(series\.id\)[\s\S]*createSeriesComic\(record, series, chapters\)[\s\S]*upsertComicAndPersistLibraryStore\(this\.libraryStore, this\.libraryPersistenceService, comic\)[\s\S]*showToast\(s\('common_added_to_library'\)\)[\s\S]*KomaActionButton\(\{[\s\S]*common_in_library[\s\S]*common_add_to_library/,
+  'Kavita series browse must expose a series-level add-to-library action instead of requiring users to open a chapter first',
 )
 assert.match(
   opdsBrowsePageSource,

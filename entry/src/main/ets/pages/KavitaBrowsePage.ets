@@ -1,5 +1,6 @@
 import { common } from '@kit.AbilityKit'
 import { SecondaryListScaffold } from '../components/SecondaryListScaffold'
+import { KomaActionButton } from '../components/ui/KomaActionButton'
 import { KomaEmptyState } from '../components/ui/KomaEmptyState'
 import { RemoteServerStore, KavitaServerRecord } from '../model/RemoteServerStore'
 import {
@@ -49,6 +50,8 @@ export struct KavitaBrowsePage {
   @Local private seriesErrorKey: string = ''
   @Local private volumesErrorKey: string = ''
   @Local private openingChapterId: string = ''
+  @Local private addingSelectedSeries: boolean = false
+  @Local private favoriteRevision: number = 0
   @Param libraryStore: LibraryStore = createSeededLibraryStore()
   @Param libraryPersistenceService?: LibraryStorePersistenceService = undefined
   @Event onLibraryChanged: () => void = () => {}
@@ -253,6 +256,27 @@ export struct KavitaBrowsePage {
     return pages
   }
 
+  private createSeriesComic(record: KavitaServerRecord, series: KavitaSeriesDto, sourceChapters: KavitaChapterDto[]): Comic | undefined {
+    const comicId = createKavitaComicId(record.server.id, series.id)
+    const chapters: Chapter[] = []
+    sourceChapters.forEach((chapter: KavitaChapterDto) => {
+      const mappedChapterId = createKavitaChapterId(record.server.id, chapter.id)
+      const pages = this.buildChapterPages(record, chapter, comicId, mappedChapterId)
+      if (pages.length > 0) {
+        chapters.push(mapKavitaChapterToChapter(record.server.id, chapter, comicId, pages))
+      }
+    })
+    const sortedChapters = chapters.sort((left: Chapter, right: Chapter): number => left.index - right.index)
+    if (sortedChapters.length === 0) {
+      return undefined
+    }
+    const comic = mapKavitaSeriesToComic(record.server.id, series, sortedChapters[0])
+    comic.chapters = sortedChapters
+    comic.chapterCount = sortedChapters.length
+    comic.pageCount = sortedChapters.reduce((total: number, chapter: Chapter): number => total + chapter.pageCount, 0)
+    return comic
+  }
+
   private createReaderComic(record: KavitaServerRecord, series: KavitaSeriesDto, selectedChapter: KavitaChapterDto, info: KavitaChapterInfoDto): Comic | undefined {
     const knownChapters = this.knownChapters()
     const sourceChapters = knownChapters.length === 0 ? [selectedChapter] : knownChapters
@@ -273,6 +297,58 @@ export struct KavitaBrowsePage {
     comic.chapterCount = comic.chapters.length
     comic.pageCount = comic.chapters.reduce((total: number, chapter: Chapter): number => total + chapter.pageCount, 0)
     return comic
+  }
+
+  private isSelectedSeriesInLibrary(): boolean {
+    const record = this.record
+    const series = this.selectedSeries
+    if (record === undefined || series === undefined || this.favoriteRevision < 0) {
+      return false
+    }
+    return this.libraryStore.findByRemote(record.server.id, `${series.id}`) !== undefined
+  }
+
+  private async addSelectedSeriesToLibrary(): Promise<void> {
+    const record = this.record
+    const series = this.selectedSeries
+    if (record === undefined || series === undefined || this.addingSelectedSeries) {
+      return
+    }
+    if (this.libraryStore.findByRemote(record.server.id, `${series.id}`) !== undefined) {
+      this.showToast(s('common_already_in_library'))
+      return
+    }
+    this.addingSelectedSeries = true
+    try {
+      console.info(`[Favorite] step=kavita_add_start server=${record.server.id} resource=${series.id}`)
+      let volumeRows = this.volumes
+      if (volumeRows.length === 0) {
+        volumeRows = await this.store().createKavitaClient(record).listVolumes(series.id)
+        this.volumes = volumeRows
+      }
+      const chapters = this.knownChapters()
+      const comic = this.createSeriesComic(record, series, chapters)
+      if (comic === undefined) {
+        this.showToast(s('common_no_images_to_add'))
+        console.warn('[Favorite] step=kavita_add_failed code=kavita_no_pages')
+        return
+      }
+      if (this.libraryPersistenceService === undefined) {
+        this.libraryStore.upsertComic(comic)
+      } else {
+        upsertComicAndPersistLibraryStore(this.libraryStore, this.libraryPersistenceService, comic)
+      }
+      this.favoriteRevision += 1
+      this.onLibraryChanged()
+      this.showToast(s('common_added_to_library'))
+      console.info(`[Favorite] step=kavita_add_ok chapters=${comic.chapterCount} pages=${comic.pageCount}`)
+    } catch (error) {
+      void error
+      this.showToast(s('common_add_to_library_failed'))
+      console.error('[Favorite] step=kavita_add_failed code=kavita_add_failed')
+    } finally {
+      this.addingSelectedSeries = false
+    }
   }
 
   private async openChapter(chapter: KavitaChapterDto): Promise<void> {
@@ -505,6 +581,31 @@ export struct KavitaBrowsePage {
   }
 
   @Builder
+  private SeriesHeader() {
+    if (this.selectedSeries !== undefined) {
+      Column({ space: ThemeConstants.SPACE_MD }) {
+        Text(this.seriesTitle(this.selectedSeries))
+          .fontSize(ThemeConstants.FONT_SIZE_HEADING)
+          .fontWeight(FontWeight.Medium)
+          .fontColor(ThemeConstants.TEXT_PRIMARY)
+          .width('100%')
+        KomaActionButton({
+          label: this.isSelectedSeriesInLibrary() ? s('common_in_library') : s('common_add_to_library'),
+          kind: this.isSelectedSeriesInLibrary() ? 'primary' : 'secondary',
+          action: () => {
+            this.addSelectedSeriesToLibrary()
+          },
+        })
+          .width('100%')
+      }
+      .width('100%')
+      .padding(ThemeConstants.SPACE_MD)
+      .borderRadius(ThemeConstants.RADIUS_CARD)
+      .backgroundColor(ThemeConstants.CARD)
+    }
+  }
+
+  @Builder
   private EmptyState() {
     KomaEmptyState({
       title: s(this.errorKey.length > 0 ? this.errorKey : 'kavita_browse_empty_title'),
@@ -559,6 +660,9 @@ export struct KavitaBrowsePage {
         if (this.selectedSeries !== undefined) {
           ListItem() {
             this.BackToSeriesRow()
+          }
+          ListItem() {
+            this.SeriesHeader()
           }
           if (this.volumesLoading) {
             ListItem() {
