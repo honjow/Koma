@@ -1919,6 +1919,21 @@ assert.doesNotMatch(
   /请输入 API key|请输入用户名和密码/,
   'remote server store must not hardcode Chinese credential validation errors',
 )
+assert.match(
+  trackerModelsSource,
+  /AssetStoreTrackerCredentialSecretStore[\s\S]*asset\.add\(attributes\)[\s\S]*readToken\(ref: TrackerCredentialSecretRef\)[\s\S]*asset\.query\(query\)[\s\S]*deleteAccount\(ref: TrackerCredentialAccountRef\)[\s\S]*asset\.remove\(trackerAssetAccountQuery\(ref\)\)/,
+  'tracker credential secret store must use AssetStore for write/read/delete instead of preferences',
+)
+assert.match(
+  trackerModelsSource,
+  /async prepareConnect\(providerId: TrackerProviderId\): Promise<TrackerOAuthStartPreparation>[\s\S]*secretKind: 'oauth_code_verifier'[\s\S]*secretBytes: trackerUtf8Encode\(pkce\.codeVerifier\)[\s\S]*await this\.saveAccounts\(current\.accounts\.map[\s\S]*status: 'auth_pending'[\s\S]*credentialAccountKey: state/,
+  'tracker prepareConnect must persist only the auth-pending credential account key while keeping the PKCE verifier in secure storage',
+)
+assert.match(
+  trackerModelsSource,
+  /async disconnectAccount\(providerId: TrackerProviderId\): Promise<TrackerPreferences>[\s\S]*account\.credentialAccountKey !== undefined[\s\S]*this\.secretStore\.deleteAccount\(\{[\s\S]*accountKey: account\.credentialAccountKey[\s\S]*status: 'disconnected'/,
+  'tracker disconnect must delete secure stored credentials before marking an account disconnected',
+)
 for (const [label, source, failedKey] of [
   ['KomgaServerPage', komgaServerPageSource, 'komga_status_failed'],
   ['OpdsServerPage', opdsServerPageSource, 'opds_status_failed'],

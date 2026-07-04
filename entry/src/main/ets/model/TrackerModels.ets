@@ -931,6 +931,26 @@ export class TrackerPreferencesStore {
         message: written.error?.code ?? 'secure_storage_unavailable',
       }
     }
+    try {
+      const current = await this.load()
+      await this.saveAccounts(current.accounts.map((account: TrackerAccount): TrackerAccount => {
+        if (account.providerId !== providerId) {
+          return account
+        }
+        return {
+          providerId,
+          status: 'auth_pending',
+          credentialAccountKey: state,
+        }
+      }))
+    } catch (error) {
+      await this.secretStore.deleteAccount({ providerId, accountKey: state })
+      return {
+        status: 'secure_storage_unavailable',
+        providerId,
+        message: 'auth_pending_save_failed',
+      }
+    }
     return preparation
   }
 
