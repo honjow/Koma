@@ -2469,6 +2469,11 @@ assert.match(
 )
 assert.match(
   browseViewModelSource,
+  /ensureSearchFilters\(source: SourceRuntimeRegistryInstalledSourceSummary\): Promise<void> \{[\s\S]*const sourceChanged = this\.selectedSource === undefined \|\| this\.selectedSource\.sourceId !== source\.sourceId[\s\S]*if \(sourceChanged\) \{[\s\S]*this\.clearSearch\(source\)[\s\S]*this\.filters = \[\][\s\S]*this\.searchFilterValues = \{\}/,
+  'BrowseViewModel must clear stale source search results when switching the source search page',
+)
+assert.match(
+  browseViewModelSource,
   /loadSourceFilters\(source: SourceRuntimeRegistryInstalledSourceSummary\): Promise<SourceFilter\[\]>[\s\S]*runSourceOperationResponse\(source\.sourceId, 'get_filters'[\s\S]*parseSourceFiltersJson\(JSON\.stringify\(response\.data \?\? \{\}\)\)/,
   'BrowseViewModel must request get_filters descriptors from installed source runtimes',
 )

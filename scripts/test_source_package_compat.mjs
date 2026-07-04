@@ -416,6 +416,11 @@ assert.match(
 )
 assert.match(
   browseViewModelSource,
+  /ensureSearchFilters\(source: SourceRuntimeRegistryInstalledSourceSummary\): Promise<void> \{[\s\S]*const sourceChanged = this\.selectedSource === undefined \|\| this\.selectedSource\.sourceId !== source\.sourceId[\s\S]*if \(sourceChanged\) \{[\s\S]*this\.clearSearch\(source\)[\s\S]*this\.filters = \[\][\s\S]*this\.searchFilterValues = \{\}/,
+  'BrowseViewModel must clear stale source search results when the search page switches to another source',
+)
+assert.match(
+  browseViewModelSource,
   /private searchRequestId: number = 0[\s\S]*runSearch\(source: SourceRuntimeRegistryInstalledSourceSummary, query: string\): Promise<void> \{[\s\S]*const requestId = this\.searchRequestId \+ 1[\s\S]*this\.searchRequestId = requestId[\s\S]*await this\.searchSource\(source, normalizedQuery, 1\)[\s\S]*requestId !== this\.searchRequestId[\s\S]*catch \(error\)[\s\S]*requestId !== this\.searchRequestId[\s\S]*finally[\s\S]*requestId === this\.searchRequestId[\s\S]*clearSearch\(source\?: SourceRuntimeRegistryInstalledSourceSummary\): void \{[\s\S]*this\.searchRequestId \+= 1/,
   'BrowseViewModel must ignore stale source search completions after newer searches or immediate clear',
 )

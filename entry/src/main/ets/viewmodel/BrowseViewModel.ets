@@ -491,8 +491,9 @@ export class BrowseViewModel {
   }
 
   async ensureSearchFilters(source: SourceRuntimeRegistryInstalledSourceSummary): Promise<void> {
-    if (this.selectedSource === undefined || this.selectedSource.sourceId !== source.sourceId) {
-      this.selectedSource = source
+    const sourceChanged = this.selectedSource === undefined || this.selectedSource.sourceId !== source.sourceId
+    if (sourceChanged) {
+      this.clearSearch(source)
       this.filters = []
       this.browseFilterValues = {}
       this.searchFilterValues = {}
