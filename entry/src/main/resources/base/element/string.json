@@ -468,6 +468,7 @@
     { "name": "library_category_management_unavailable", "value": "Category management unavailable" },
     { "name": "library_category_display_updated", "value": "Display updated" },
     { "name": "library_category_display_save_failed", "value": "Display was not saved" },
+    { "name": "library_category_save_failed", "value": "Category was not saved. Try again later." },
     { "name": "library_category_created", "value": "Category created" },
     { "name": "library_category_renamed", "value": "Category renamed" },
     { "name": "library_category_delete_title", "value": "Delete category" },

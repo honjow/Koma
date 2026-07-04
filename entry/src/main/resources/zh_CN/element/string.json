@@ -468,6 +468,7 @@
     { "name": "library_category_management_unavailable", "value": "分类管理不可用" },
     { "name": "library_category_display_updated", "value": "显示方式已更新" },
     { "name": "library_category_display_save_failed", "value": "显示方式未保存" },
+    { "name": "library_category_save_failed", "value": "分类未保存，请稍后重试。" },
     { "name": "library_category_created", "value": "分类已创建" },
     { "name": "library_category_renamed", "value": "分类已重命名" },
     { "name": "library_category_delete_title", "value": "删除分类" },

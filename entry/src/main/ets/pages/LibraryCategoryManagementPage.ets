@@ -59,6 +59,22 @@ export struct LibraryCategoryManagementPage {
     }
   }
 
+  private categoryMutationErrorMessage(error: Error): string {
+    const message = error.message
+    const allowedValidationMessages: string[] = [
+      s('library_category_error_missing'),
+      s('library_category_error_name_empty'),
+      AppStrings.format('library_category_error_name_too_long', LIBRARY_CATEGORY_NAME_MAX_LENGTH),
+      s('library_category_error_name_builtin'),
+      s('library_category_error_name_duplicate'),
+    ]
+    if (allowedValidationMessages.includes(message)) {
+      return message
+    }
+    console.warn('[LibraryCategory] step=mutation_failed reason=category_persist')
+    return s('library_category_save_failed')
+  }
+
   private categoryStrategy(categoryId: LibraryCategoryDisplayCategoryId): LibraryCategoryDisplayStrategy {
     const strategy = this.libraryStore?.getCategoryDisplayStrategy(categoryId)
     if (strategy !== undefined) {
@@ -164,7 +180,7 @@ export struct LibraryCategoryManagementPage {
       this.showToast(s('library_category_created'))
     } catch (error) {
       const e = error as Error
-      this.showToast(e.message)
+      this.showToast(this.categoryMutationErrorMessage(e))
     }
   }
 
@@ -192,7 +208,7 @@ export struct LibraryCategoryManagementPage {
       this.showToast(s('library_category_renamed'))
     } catch (error) {
       const e = error as Error
-      this.showToast(e.message)
+      this.showToast(this.categoryMutationErrorMessage(e))
     }
   }
 
@@ -232,7 +248,7 @@ export struct LibraryCategoryManagementPage {
       }
     } catch (error) {
       const e = error as Error
-      this.showToast(e.message)
+      this.showToast(this.categoryMutationErrorMessage(e))
     }
   }
 
@@ -357,7 +373,7 @@ export struct LibraryCategoryManagementPage {
       }
     } catch (error) {
       const e = error as Error
-      this.showToast(e.message)
+      this.showToast(this.categoryMutationErrorMessage(e))
     }
   }
 
