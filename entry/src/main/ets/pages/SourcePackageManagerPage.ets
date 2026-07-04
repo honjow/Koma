@@ -786,6 +786,28 @@ export struct SourcePackageManagerPage {
     }
   }
 
+  private confirmRemovePackage(source: InstalledSourcePackage): void {
+    if (this.busy) {
+      return
+    }
+    this.getUIContext().showAlertDialog({
+      title: t('source_pkg_remove_title'),
+      message: tf('source_pkg_remove_message', source.name),
+      autoCancel: true,
+      primaryButton: {
+        value: t('source_pkg_delete'),
+        fontColor: ThemeConstants.DANGER,
+        action: () => {
+          void this.removePackage(source)
+        },
+      },
+      secondaryButton: {
+        value: t('common_cancel'),
+        action: () => {},
+      },
+    })
+  }
+
   private smokePackage(source: InstalledSourcePackage): void {
     const result = runSmoke(source.id)
     if (result.ok) {
@@ -941,6 +963,28 @@ export struct SourcePackageManagerPage {
     this.statusText = t('source_pkg_settings_cleared')
     this.showToast(t('source_pkg_settings_cleared'))
     this.closeSettings()
+  }
+
+  private confirmClearSavedSettings(): void {
+    if (this.settingsSourceId.length === 0) {
+      return
+    }
+    this.getUIContext().showAlertDialog({
+      title: t('source_pkg_clear_settings_title'),
+      message: tf('source_pkg_clear_settings_message', this.settingsSourceName),
+      autoCancel: true,
+      primaryButton: {
+        value: t('source_pkg_clear_settings'),
+        fontColor: ThemeConstants.DANGER,
+        action: () => {
+          this.clearSavedSettings()
+        },
+      },
+      secondaryButton: {
+        value: t('common_cancel'),
+        action: () => {},
+      },
+    })
   }
 
   private updateSettingValue(id: string, value: SourceSettingValue): void {
@@ -1682,7 +1726,7 @@ export struct SourcePackageManagerPage {
           fill: true,
           controlHeight: ThemeConstants.ACTION_CHIP_HEIGHT,
           action: () => {
-            this.removePackage(source)
+            this.confirmRemovePackage(source)
           },
         })
       }
@@ -1822,7 +1866,7 @@ export struct SourcePackageManagerPage {
             kind: 'danger',
             compact: true,
             action: () => {
-              this.clearSavedSettings()
+              this.confirmClearSavedSettings()
             },
           })
             .layoutWeight(1)
