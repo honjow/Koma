@@ -927,6 +927,22 @@ export struct SourcePackageManagerPage {
     this.closeSettings()
   }
 
+  private clearSavedSettings(): void {
+    if (this.settingsSourceId.length === 0) {
+      return
+    }
+    appSourceSettingsStore.removeSource(this.settingsSourceId)
+    this.setSettingsValidationStatus({
+      sourceId: this.settingsSourceId,
+      status: 'unknown',
+      savedCount: 0,
+    })
+    this.reload()
+    this.statusText = t('source_pkg_settings_cleared')
+    this.showToast(t('source_pkg_settings_cleared'))
+    this.closeSettings()
+  }
+
   private updateSettingValue(id: string, value: SourceSettingValue): void {
     const nextDraft: SourceSettingsRecord = {}
     Object.keys(this.settingDraft).forEach((key: string) => {
@@ -1800,14 +1816,27 @@ export struct SourcePackageManagerPage {
           }
         }
 
-        KomaActionButton({
-          label: t('source_pkg_save_settings'),
-          kind: 'primary',
-          action: () => {
-            this.saveSettings()
-          },
-        })
-          .width('100%')
+        Row({ space: ThemeConstants.SPACE_SM }) {
+          KomaActionButton({
+            label: t('source_pkg_clear_settings'),
+            kind: 'danger',
+            compact: true,
+            action: () => {
+              this.clearSavedSettings()
+            },
+          })
+            .layoutWeight(1)
+          KomaActionButton({
+            label: t('source_pkg_save_settings'),
+            kind: 'primary',
+            compact: true,
+            action: () => {
+              this.saveSettings()
+            },
+          })
+            .layoutWeight(1)
+        }
+        .width('100%')
       }
       .width('100%')
       .padding(ThemeConstants.SPACE_LG)

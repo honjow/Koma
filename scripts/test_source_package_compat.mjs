@@ -216,6 +216,8 @@ assert.match(managerPageSource, /rangeMin\(descriptor: SourceSettingDescriptor\)
 assert.match(managerPageSource, /setRangeSetting\(descriptor: SourceSettingDescriptor, value: number\)[\s\S]*this\.normalizeRangeSetting\(descriptor, value\)[\s\S]*this\.updateSettingValue\(descriptor\.id, next\)/, 'SourcePackageManagerPage range settings must normalize slider values before saving')
 assert.match(managerPageSource, /SettingRangeRow\(descriptor: SourceSettingDescriptor\)[\s\S]*Slider\(\{[\s\S]*value: this\.settingNumberValue\(descriptor\)[\s\S]*min: this\.rangeMin\(descriptor\)[\s\S]*max: this\.rangeMax\(descriptor\)[\s\S]*step: this\.rangeStep\(descriptor\)[\s\S]*this\.setRangeSetting\(descriptor, value\)/, 'SourcePackageManagerPage range settings must use a Slider instead of hand-rolled buttons')
 assert.match(managerPageSource, /appSourceSettingsStore\.saveForSource\(this\.settingsSourceId, this\.settingDraft, this\.settingDescriptors\)/, 'SourcePackageManagerPage must save settings through the source settings store')
+assert.match(managerPageSource, /clearSavedSettings\(\): void[\s\S]*appSourceSettingsStore\.removeSource\(this\.settingsSourceId\)[\s\S]*savedCount: 0[\s\S]*source_pkg_settings_cleared[\s\S]*this\.closeSettings\(\)/, 'SourcePackageManagerPage must expose a real clear action for saved per-source settings')
+assert.match(managerPageSource, /source_pkg_clear_settings[\s\S]*kind: 'danger'[\s\S]*this\.clearSavedSettings\(\)[\s\S]*source_pkg_save_settings[\s\S]*this\.saveSettings\(\)/, 'SourcePackageManagerPage settings panel must show clear and save actions together')
 assert.match(
   browseViewModelSource,
   /loadInstalledSources\(\): void \{[\s\S]*this\.sources = this\.registry\.listInstalledSourceSummaries\(\)[\s\S]*\}/,
