@@ -101,11 +101,15 @@ interface ReaderRemoteHeaderRule {
 interface SourceRuntimeImageRequestDescriptor {
   url?: string
   headers?: Record<string, string>
+  headersRef?: string
+  cacheKey?: string
+  requiresAuth?: boolean
 }
 
 interface SourceRuntimeResolvedImageRequest {
   url: string
   headers?: ReaderRemoteImageHeaders
+  cacheKeySeed?: string
 }
 
 interface ReaderSourceImageRequestArgs {
@@ -130,14 +134,18 @@ interface ReaderSourceImageRequest {
 }
 
 const BLOCKED_SOURCE_IMAGE_HEADER_NAMES: string[] = [
+  'authorization',
   'connection',
   'content-length',
+  'cookie',
   'host',
   'proxy-authorization',
   'te',
   'trailer',
   'transfer-encoding',
   'upgrade',
+  'x-api-key',
+  'x-auth-token',
 ]
 const SOURCE_IMAGE_HEADER_MAX_COUNT: number = 16
 const SOURCE_IMAGE_HEADER_VALUE_MAX_LENGTH: number = 4096
@@ -348,6 +356,32 @@ function normalizeSourceImageHeaders(raw: Record<string, string> | undefined): R
     }
   })
   return Object.keys(headers).length === 0 ? undefined : headers
+}
+
+function safeSourceImageRef(value: string | undefined): string | undefined {
+  if (value === undefined) {
+    return undefined
+  }
+  const normalized = value.trim()
+  if (normalized.length === 0 ||
+    normalized.length > 256 ||
+    normalized.indexOf('\r') >= 0 ||
+    normalized.indexOf('\n') >= 0) {
+    return undefined
+  }
+  return normalized
+}
+
+function sourceImageCacheKeySeed(sourceRuntimeId: string, pageId: string, payload: SourceRuntimeImageRequestDescriptor): string | undefined {
+  const cacheKey = safeSourceImageRef(payload.cacheKey)
+  if (cacheKey !== undefined) {
+    return `source:${sourceRuntimeId}:image:${cacheKey}`
+  }
+  const headersRef = safeSourceImageRef(payload.headersRef)
+  if (headersRef !== undefined) {
+    return `source:${sourceRuntimeId}:image-ref:${headersRef}:${pageId}`
+  }
+  return undefined
 }
 
 function isSafeSourceImageHeaderName(name: string): boolean {
@@ -671,16 +705,16 @@ export function formatReaderRemoteImageCacheSize(totalBytes: number): string {
   return formatRemoteImageCacheSizeFromStore(totalBytes)
 }
 
-export async function resolveLocalCached(url: string, headers?: ReaderRemoteImageHeaders): Promise<string | undefined> {
+export async function resolveLocalCached(url: string, headers?: ReaderRemoteImageHeaders, cacheKeySeed?: string): Promise<string | undefined> {
   if (readerRemoteImageCacheStore === undefined) {
     console.info('[ReaderCache] step=miss reason=unconfigured')
     return undefined
   }
-  return readerRemoteImageCacheStore.get(url, headers)
+  return readerRemoteImageCacheStore.get(url, headers, cacheKeySeed)
 }
 
-export async function fetchAndCacheReaderRemoteImage(url: string, headers?: ReaderRemoteImageHeaders): Promise<string> {
-  const cachedPath = await resolveLocalCached(url, headers)
+export async function fetchAndCacheReaderRemoteImage(url: string, headers?: ReaderRemoteImageHeaders, cacheKeySeed?: string): Promise<string> {
+  const cachedPath = await resolveLocalCached(url, headers, cacheKeySeed)
   if (cachedPath !== undefined) {
     return cachedPath
   }
@@ -688,7 +722,7 @@ export async function fetchAndCacheReaderRemoteImage(url: string, headers?: Read
   if (readerRemoteImageCacheStore === undefined) {
     throw new Error('Reader remote image cache is unavailable')
   }
-  const path = await readerRemoteImageCacheStore.put(url, headers, bytes)
+  const path = await readerRemoteImageCacheStore.put(url, headers, bytes, cacheKeySeed)
   if (readerRemoteImageCacheAutoCleanEnabled) {
     await readerRemoteImageCacheStore.evictIfOver(readerRemoteImageCacheMaxBytes)
   }
@@ -736,10 +770,17 @@ function resolveSourceRuntimeImageRequest(sourceRuntimeId: string, pageId: strin
       return undefined
     }
     const headers = normalizeSourceImageHeaders(payload.headers)
+    const headersRef = safeSourceImageRef(payload.headersRef)
+    if (payload.requiresAuth === true && headersRef === undefined) {
+      console.warn(`[ReaderCache] step=source_image_request failed=true source=${createShortReaderHash(sourceRuntimeId)} page=${createShortReaderHash(pageId)} reason=missing_headers_ref`)
+      return undefined
+    }
+    const cacheKeySeed = sourceImageCacheKeySeed(sourceRuntimeId, pageId, payload)
     console.info(`[ReaderCache] step=source_image_request ok=true source=${createShortReaderHash(sourceRuntimeId)} page=${createShortReaderHash(pageId)} urlHash=${createShortReaderHash(payload.url)} headers=${headers === undefined ? 0 : Object.keys(headers).length}`)
     return {
       url: payload.url,
       headers,
+      cacheKeySeed,
     }
   } catch (error) {
     void error
@@ -752,7 +793,7 @@ export async function fetchAndCacheReaderRemoteSource(source: ReaderPageRenderSo
   if (source.sourceRuntimeId !== undefined && source.pageId !== undefined) {
     const resolved = resolveSourceRuntimeImageRequest(source.sourceRuntimeId, source.pageId, source.pageUri)
     if (resolved !== undefined) {
-      return fetchAndCacheReaderRemoteImage(resolved.url, resolved.headers)
+      return fetchAndCacheReaderRemoteImage(resolved.url, resolved.headers, resolved.cacheKeySeed)
     }
     if (source.pageUri === undefined || !isReaderRemoteImageSourceUri(source.pageUri)) {
       console.warn(`[ReaderCache] step=source_image_request_fallback allowed=false source=${createShortReaderHash(source.sourceRuntimeId)} page=${createShortReaderHash(source.pageId)}`)

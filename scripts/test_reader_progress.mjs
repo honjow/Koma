@@ -454,7 +454,10 @@ function stableHeadersKey(headers) {
   return names.map((name) => `${name.toLocaleLowerCase()}=${headers[name] ?? ''}`).join('\n')
 }
 
-function cacheKeyFor(url, headers) {
+function cacheKeyFor(url, headers, cacheKeySeed) {
+  if (cacheKeySeed !== undefined && cacheKeySeed.trim().length > 0) {
+    return createShortReaderHash(`seed\n${cacheKeySeed.trim()}`)
+  }
   return createShortReaderHash(`${url}\n${stableHeadersKey(headers)}`)
 }
 
@@ -732,6 +735,8 @@ assert.equal(fallbackUrlPage.pageUri, 'https://cdn.example.test/fallback/002.jpg
 const imageRequestPayload = sourceRuntimeImageRequestPayload({
   imageRequest: {
     url: 'https://images.example.test/page/001.jpg',
+    headersRef: 'defaultImage',
+    cacheKey: 'chapter-1-page-1',
     headers: {
       Referer: 'https://images.example.test/chapter',
       'User-Agent': 'KomaSource/1',
@@ -740,12 +745,16 @@ const imageRequestPayload = sourceRuntimeImageRequestPayload({
 })
 assert.equal(imageRequestPayload.url, 'https://images.example.test/page/001.jpg', 'source image_request resolves effective image URL')
 assert.equal(imageRequestPayload.headers.Referer, 'https://images.example.test/chapter', 'source image_request resolves request headers')
+assert.equal(imageRequestPayload.headersRef, 'defaultImage', 'source image_request preserves host-owned header references')
+assert.equal(imageRequestPayload.cacheKey, 'chapter-1-page-1', 'source image_request preserves source-owned cache keys')
 
 const baseCacheKey = cacheKeyFor('https://images.example.test/page/001.jpg', { Accept: 'image/webp' })
 const authCacheKey = cacheKeyFor('https://images.example.test/page/001.jpg', { Accept: 'image/webp', Cookie: 'session=opaque' })
 const urlCacheKey = cacheKeyFor('https://images.example.test/page/002.jpg', { Accept: 'image/webp' })
+const sourceCacheKey = cacheKeyFor('https://images.example.test/page/001.jpg', { Accept: 'image/webp' }, 'source:local.test.koma.fixture:image:chapter-1-page-1')
 assert.notEqual(baseCacheKey, authCacheKey, 'remote image cache key must vary by headers')
 assert.notEqual(baseCacheKey, urlCacheKey, 'remote image cache key must vary by effective URL')
+assert.notEqual(baseCacheKey, sourceCacheKey, 'source image cache key seed must isolate source-owned cache identities')
 assert.equal(stableHeadersKey({ 'User-Agent': 'A', Referer: 'B' }), 'referer=B\nuser-agent=A', 'header cache key is stable and sorted')
 
 const renderCases = [

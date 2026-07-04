@@ -109,7 +109,10 @@ function createStableCacheHash(value: string): string {
   return `${hashA.toString(16).padStart(8, '0')}${hashB.toString(16).padStart(8, '0')}`
 }
 
-function cacheKeyFor(url: string, headers: RemoteImageCacheHeaders | undefined): string {
+function cacheKeyFor(url: string, headers: RemoteImageCacheHeaders | undefined, cacheKeySeed?: string): string {
+  if (cacheKeySeed !== undefined && cacheKeySeed.trim().length > 0) {
+    return createStableCacheHash(`seed\n${cacheKeySeed.trim()}`)
+  }
   const source = readUrlSource(url)
   return createStableCacheHash(`${source}\n${url}\n${stableHeadersKey(headers)}`)
 }
@@ -161,8 +164,8 @@ export class RemoteImageCacheStore {
     this.restore()
   }
 
-  get(url: string, headers?: RemoteImageCacheHeaders): Promise<string | undefined> {
-    const key = cacheKeyFor(url, headers)
+  get(url: string, headers?: RemoteImageCacheHeaders, cacheKeySeed?: string): Promise<string | undefined> {
+    const key = cacheKeyFor(url, headers, cacheKeySeed)
     const entry = this.entries.get(key)
     if (entry === undefined) {
       console.info(`[ReaderCache] step=miss key=${key}`)
@@ -181,8 +184,8 @@ export class RemoteImageCacheStore {
     return Promise.resolve(entry.path)
   }
 
-  async put(url: string, headers: RemoteImageCacheHeaders | undefined, bytes: ArrayBuffer): Promise<string> {
-    const key = cacheKeyFor(url, headers)
+  async put(url: string, headers: RemoteImageCacheHeaders | undefined, bytes: ArrayBuffer, cacheKeySeed?: string): Promise<string> {
+    const key = cacheKeyFor(url, headers, cacheKeySeed)
     const filePath = joinSandboxPath(this.rootDir, `${key}.${extensionForUrl(url)}`)
     writeBytesSync(filePath, bytes)
     const stat = fs.statSync(filePath)

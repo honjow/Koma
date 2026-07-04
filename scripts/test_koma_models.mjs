@@ -64,6 +64,7 @@ const chapterListSectionPath = resolve(root, 'entry/src/main/ets/components/Chap
 const mangaDetailPagePath = resolve(root, 'entry/src/main/ets/pages/MangaDetailPage.ets')
 const readerPagePath = resolve(root, 'entry/src/main/ets/pages/ReaderPage.ets')
 const readerPageSourceAdapterPath = resolve(root, 'entry/src/main/ets/model/ReaderPageSourceAdapter.ets')
+const remoteImageCacheStorePath = resolve(root, 'entry/src/main/ets/model/RemoteImageCacheStore.ets')
 const sourceSettingsStorePath = resolve(root, 'entry/src/main/ets/sourceRuntime/SourceSettingsStore.ets')
 const sourceRuntimeAppRegistryPath = resolve(root, 'entry/src/main/ets/sourceRuntime/SourceRuntimeAppRegistry.ets')
 const sourceIndexServicePath = resolve(root, 'entry/src/main/ets/sourceRuntime/SourceIndexService.ets')
@@ -130,6 +131,7 @@ const chapterListSectionSource = readFileSync(chapterListSectionPath, 'utf8')
 const mangaDetailPageSource = readFileSync(mangaDetailPagePath, 'utf8')
 const readerPageSource = readFileSync(readerPagePath, 'utf8')
 const readerPageSourceAdapterSource = readFileSync(readerPageSourceAdapterPath, 'utf8')
+const remoteImageCacheStoreSource = readFileSync(remoteImageCacheStorePath, 'utf8')
 const sourceSettingsStoreSource = readFileSync(sourceSettingsStorePath, 'utf8')
 const sourceRuntimeAppRegistrySource = readFileSync(sourceRuntimeAppRegistryPath, 'utf8')
 const sourceIndexServiceSource = readFileSync(sourceIndexServicePath, 'utf8')
@@ -1483,8 +1485,18 @@ assert.match(
 )
 assert.match(
   readerPageSourceAdapterSource,
-  /BLOCKED_SOURCE_IMAGE_HEADER_NAMES: string\[\] = \[[\s\S]*'content-length'[\s\S]*'host'[\s\S]*'transfer-encoding'[\s\S]*SOURCE_IMAGE_HEADER_MAX_COUNT[\s\S]*SOURCE_IMAGE_HEADER_VALUE_MAX_LENGTH[\s\S]*function normalizeSourceImageHeaders[\s\S]*isSafeSourceImageHeaderName\(normalizedName\)[\s\S]*isSafeSourceImageHeaderValue\(value\)[\s\S]*function isSafeSourceImageHeaderName\(name: string\): boolean[\s\S]*BLOCKED_SOURCE_IMAGE_HEADER_NAMES\.indexOf\(name\.toLocaleLowerCase\(\)\)[\s\S]*function isSafeSourceImageHeaderValue\(value: string\): boolean[\s\S]*value\.indexOf\('\\r'\) < 0[\s\S]*value\.indexOf\('\\n'\) < 0/,
+  /BLOCKED_SOURCE_IMAGE_HEADER_NAMES: string\[\] = \[[\s\S]*'authorization'[\s\S]*'content-length'[\s\S]*'cookie'[\s\S]*'host'[\s\S]*'transfer-encoding'[\s\S]*'x-api-key'[\s\S]*SOURCE_IMAGE_HEADER_MAX_COUNT[\s\S]*SOURCE_IMAGE_HEADER_VALUE_MAX_LENGTH[\s\S]*function normalizeSourceImageHeaders[\s\S]*isSafeSourceImageHeaderName\(normalizedName\)[\s\S]*isSafeSourceImageHeaderValue\(value\)[\s\S]*function isSafeSourceImageHeaderName\(name: string\): boolean[\s\S]*BLOCKED_SOURCE_IMAGE_HEADER_NAMES\.indexOf\(name\.toLocaleLowerCase\(\)\)[\s\S]*function isSafeSourceImageHeaderValue\(value: string\): boolean[\s\S]*value\.indexOf\('\\r'\) < 0[\s\S]*value\.indexOf\('\\n'\) < 0/,
   'ReaderPageSourceAdapter must sanitize source image request headers before reader/download network fetches',
+)
+assert.match(
+  readerPageSourceAdapterSource,
+  /headersRef\?: string[\s\S]*cacheKey\?: string[\s\S]*requiresAuth\?: boolean[\s\S]*sourceImageCacheKeySeed\(sourceRuntimeId: string, pageId: string, payload: SourceRuntimeImageRequestDescriptor\)[\s\S]*source:\$\{sourceRuntimeId\}:image:\$\{cacheKey\}[\s\S]*source:\$\{sourceRuntimeId\}:image-ref:\$\{headersRef\}:\$\{pageId\}[\s\S]*payload\.requiresAuth === true && headersRef === undefined[\s\S]*reason=missing_headers_ref[\s\S]*fetchAndCacheReaderRemoteImage\(resolved\.url, resolved\.headers, resolved\.cacheKeySeed\)/,
+  'ReaderPageSourceAdapter must honor source image cache keys and fail closed when auth is requested without a host-owned headersRef',
+)
+assert.match(
+  remoteImageCacheStoreSource,
+  /function cacheKeyFor\(url: string, headers: RemoteImageCacheHeaders \| undefined, cacheKeySeed\?: string\): string[\s\S]*cacheKeySeed !== undefined && cacheKeySeed\.trim\(\)\.length > 0[\s\S]*createStableCacheHash\(`seed\\n\$\{cacheKeySeed\.trim\(\)\}`\)[\s\S]*get\(url: string, headers\?: RemoteImageCacheHeaders, cacheKeySeed\?: string\)[\s\S]*put\(url: string, headers: RemoteImageCacheHeaders \| undefined, bytes: ArrayBuffer, cacheKeySeed\?: string\)/,
+  'RemoteImageCacheStore must support source-owned cache key seeds while keeping URL/header cache keys for ordinary remote images',
 )
 assert.match(
   mangaDetailPageSource,
