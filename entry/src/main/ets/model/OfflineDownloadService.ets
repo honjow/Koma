@@ -195,6 +195,12 @@ export class OfflineDownloadService {
     }
 
     const existingValidation = this.store.validateDownloadedChapter(comic.id, chapterId)
+    if (existingValidation.status === OfflineDownloadedChapterStatus.DOWNLOADED &&
+      existingValidation.manifest !== undefined) {
+      this.queueStore.upsert(this.queueStore.fromManifest(existingValidation.manifest, labels?.comicTitle ?? comic.title, labels?.chapterTitle ?? chapter.title))
+      console.info(`[ReaderOffline] step=download_reused comic=${createOfflineDownloadStableHash(comic.id)} chapter=${createOfflineDownloadStableHash(chapterId)} pages=${existingValidation.availablePageCount}/${existingValidation.pageCount}`)
+      return existingValidation.manifest
+    }
     const reusablePages = existingValidation.status === OfflineDownloadedChapterStatus.PARTIAL && existingValidation.manifest !== undefined ?
       existingValidation.manifest.pages :
       []

@@ -715,6 +715,11 @@ assert.match(
 )
 assert.match(
   offlineDownloadServiceSource,
+  /existingValidation\.status === OfflineDownloadedChapterStatus\.DOWNLOADED[\s\S]*existingValidation\.manifest !== undefined[\s\S]*step=download_reused[\s\S]*return existingValidation\.manifest/,
+  'offline download service must make complete repeated downloads idempotent instead of refetching pages',
+)
+assert.match(
+  offlineDownloadServiceSource,
   /createReaderPageRenderSource\(config, index, \{ preferOffline: false \}\)/,
   'offline download service must bypass existing offline files while downloading pages',
 )
