@@ -113,9 +113,20 @@ if result.get('smokePhase') != phase:
     raise SystemExit('source reader smoke failed: phase mismatch')
 if result.get('sourceIndexReaderSelectedSourceId') != source_id:
     raise SystemExit('source reader smoke failed: source id mismatch')
-if result.get('sourceIndexReaderSearchQuery') != query:
+if phase != 'source-index-settings' and result.get('sourceIndexReaderSearchQuery') != query:
     raise SystemExit('source reader smoke failed: query mismatch')
-if 'download-corrupt-reader' in phase:
+if phase == 'source-index-settings':
+    if result.get('sourceIndexSettingsDescriptorCount', 0) <= 0:
+        raise SystemExit('source settings smoke failed: no descriptors')
+    if result.get('sourceIndexSettingsEditableCount', 0) <= 0:
+        raise SystemExit('source settings smoke failed: no editable descriptors')
+    if result.get('sourceIndexSettingsSelectCount', 0) <= 0:
+        raise SystemExit('source settings smoke failed: no select descriptor')
+    if result.get('sourceIndexSettingsBooleanCount', 0) <= 0:
+        raise SystemExit('source settings smoke failed: no boolean descriptor')
+    if result.get('sourceIndexSettingsPersistOk') is not True:
+        raise SystemExit('source settings smoke failed: settings did not persist')
+elif 'download-corrupt-reader' in phase:
     if result.get('sourceIndexDownloadStatus') != 'downloaded':
         raise SystemExit('source reader smoke failed: corrupt download status mismatch')
     if result.get('sourceIndexDownloadOfflineReaderKind') != 'uri_placeholder':

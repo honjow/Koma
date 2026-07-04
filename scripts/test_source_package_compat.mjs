@@ -19,6 +19,7 @@ const smokePath = resolve(root, 'entry/src/main/ets/sourceRuntime/SourceRuntimeD
 const sourceRuntimeRegistryPath = resolve(root, 'entry/src/main/ets/sourceRuntime/SourceRuntimeRegistry.ets')
 const sourcePackageTrustPolicyPath = resolve(root, 'entry/src/main/ets/sourceRuntime/SourcePackageTrustPolicy.ets')
 const sourceReaderSmokeScriptPath = resolve(root, 'scripts/run_source_reader_smoke.sh')
+const sourceSettingsSmokeScriptPath = resolve(root, 'scripts/run_source_settings_smoke.sh')
 const sourceDownloadReaderSmokeScriptPath = resolve(root, 'scripts/run_source_download_reader_smoke.sh')
 const sourceCorruptDownloadReaderSmokeScriptPath = resolve(root, 'scripts/run_source_corrupt_download_reader_smoke.sh')
 const abiDocPath = resolve(root, 'docs/source-runtime-abi.md')
@@ -45,6 +46,7 @@ const smokeSource = readFileSync(smokePath, 'utf8')
 const sourceRuntimeRegistrySource = readFileSync(sourceRuntimeRegistryPath, 'utf8')
 const sourcePackageTrustPolicySource = readFileSync(sourcePackageTrustPolicyPath, 'utf8')
 const sourceReaderSmokeScriptSource = readFileSync(sourceReaderSmokeScriptPath, 'utf8')
+const sourceSettingsSmokeScriptSource = readFileSync(sourceSettingsSmokeScriptPath, 'utf8')
 const sourceDownloadReaderSmokeScriptSource = readFileSync(sourceDownloadReaderSmokeScriptPath, 'utf8')
 const sourceCorruptDownloadReaderSmokeScriptSource = readFileSync(sourceCorruptDownloadReaderSmokeScriptPath, 'utf8')
 const abiDocSource = readFileSync(abiDocPath, 'utf8')
@@ -667,6 +669,16 @@ assert.match(
   smokeSource,
   /sourceIndexSettingsDescriptorCount[\s\S]*sourceIndexSettingsEditableCount[\s\S]*sourceIndexSettingsSelectCount[\s\S]*sourceIndexSettingsBooleanCount[\s\S]*sourceIndexSettingsPersistOk === true/,
   'source-index settings smoke must fail unless a real editable select and boolean setting persists',
+)
+assert.match(
+  sourceReaderSmokeScriptSource,
+  /phase == 'source-index-settings'[\s\S]*sourceIndexSettingsDescriptorCount[\s\S]*sourceIndexSettingsEditableCount[\s\S]*sourceIndexSettingsSelectCount[\s\S]*sourceIndexSettingsBooleanCount[\s\S]*sourceIndexSettingsPersistOk/,
+  'source reader smoke script must validate source-index settings descriptor and persistence fields',
+)
+assert.match(
+  sourceSettingsSmokeScriptSource,
+  /KOMA_SOURCE_READER_PHASE="\$\{KOMA_SOURCE_READER_PHASE:-source-index-settings\}"[\s\S]*KOMA_SOURCE_READER_CAPTURE_UI="\$\{KOMA_SOURCE_READER_CAPTURE_UI:-false\}"[\s\S]*KOMA_SOURCE_READER_ARTIFACT_DIR="\$\{KOMA_SOURCE_READER_ARTIFACT_DIR:-\.hvigor\/outputs\/source-settings-smoke\}"[\s\S]*scripts\/run_source_reader_smoke\.sh/,
+  'source settings smoke script must reuse the source reader smoke harness with the focused settings phase',
 )
 assert.match(
   smokeSource,
