@@ -41,6 +41,7 @@ const browsePagePath = resolve(root, 'entry/src/main/ets/pages/BrowsePage.ets')
 const historyPagePath = resolve(root, 'entry/src/main/ets/pages/HistoryPage.ets')
 const searchPagePath = resolve(root, 'entry/src/main/ets/pages/SearchPage.ets')
 const settingsPagePath = resolve(root, 'entry/src/main/ets/pages/SettingsPage.ets')
+const backupManagementPagePath = resolve(root, 'entry/src/main/ets/pages/BackupManagementPage.ets')
 const komgaServerPagePath = resolve(root, 'entry/src/main/ets/pages/KomgaServerPage.ets')
 const opdsServerPagePath = resolve(root, 'entry/src/main/ets/pages/OpdsServerPage.ets')
 const webDavServerPagePath = resolve(root, 'entry/src/main/ets/pages/WebDavServerPage.ets')
@@ -109,6 +110,7 @@ const browsePageSource = readFileSync(browsePagePath, 'utf8')
 const historyPageSource = readFileSync(historyPagePath, 'utf8')
 const searchPageSource = readFileSync(searchPagePath, 'utf8')
 const settingsPageSource = readFileSync(settingsPagePath, 'utf8')
+const backupManagementPageSource = readFileSync(backupManagementPagePath, 'utf8')
 const komgaServerPageSource = readFileSync(komgaServerPagePath, 'utf8')
 const opdsServerPageSource = readFileSync(opdsServerPagePath, 'utf8')
 const webDavServerPageSource = readFileSync(webDavServerPagePath, 'utf8')
@@ -1927,6 +1929,21 @@ assert.match(
   backupServiceSource,
   /normalizeBackupExportedAt\(document\.exportedAt\)[\s\S]*exportedAtText:\s*formatBackupExportedAt\(document\.exportedAt\)/,
   'plaintext backup preview must preserve exportedAt as a sortable timestamp',
+)
+assert.match(
+  backupServiceSource,
+  /libraryAddCount:\s*missingInRightCount\(backupComicIds, currentComicIds\)[\s\S]*libraryConflictCount:\s*overlapCount\(backupComicIds, currentComicIds\)[\s\S]*progressAddCount:\s*missingInRightCount\(backupProgressComicIds, currentProgressComicIds\)[\s\S]*progressConflictCount:\s*overlapCount\(backupProgressComicIds, currentProgressComicIds\)/,
+  'backup restore preview must distinguish new records from overwrite candidates before import',
+)
+assert.match(
+  backupManagementPageSource,
+  /backup_preview_library_additions[\s\S]*preview\.libraryAddCount[\s\S]*backup_preview_library_conflicts[\s\S]*preview\.libraryConflictCount[\s\S]*backup_preview_progress_additions[\s\S]*preview\.progressAddCount[\s\S]*backup_preview_progress_conflicts[\s\S]*preview\.progressConflictCount/,
+  'BackupManagementPage must show add and overwrite counts for library and progress restore preview',
+)
+assert.match(
+  backupManagementPageSource,
+  /backup_restore_confirm_message[\s\S]*preview\.libraryAddCount[\s\S]*preview\.libraryConflictCount[\s\S]*preview\.progressAddCount[\s\S]*preview\.progressConflictCount/,
+  'backup restore confirmation must include add and overwrite counts instead of only raw conflict counts',
 )
 assert.match(
   backupEncryptionServiceSource,

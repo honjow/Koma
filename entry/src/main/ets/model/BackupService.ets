@@ -161,7 +161,9 @@ export interface BackupImportPreview {
   progressCount: number
   currentLibraryItemCount: number
   currentProgressCount: number
+  libraryAddCount: number
   libraryConflictCount: number
+  progressAddCount: number
   progressConflictCount: number
   settingsCount: number
   categoryCount: number
@@ -482,6 +484,16 @@ function overlapCount(left: Set<string>, right: Set<string>): number {
   return count
 }
 
+function missingInRightCount(left: Set<string>, right: Set<string>): number {
+  let count = 0
+  left.forEach((id: string) => {
+    if (!right.has(id)) {
+      count += 1
+    }
+  })
+  return count
+}
+
 function countLibraryCategories(libraryStore: Record<string, Object>): number {
   const customCategories = libraryStore['customCategories']
   const comics = libraryStore['comics']
@@ -665,7 +677,9 @@ function emptyEncryptedCountsPreview(publicPreview: BackupEncryptedPublicPreview
     progressCount: 0,
     currentLibraryItemCount: 0,
     currentProgressCount: 0,
+    libraryAddCount: 0,
     libraryConflictCount: 0,
+    progressAddCount: 0,
     progressConflictCount: 0,
     settingsCount: 0,
     categoryCount: 0,
@@ -988,7 +1002,9 @@ export class BackupService {
       progressCount: arrayFieldCount(readingProgress, 'progress'),
       currentLibraryItemCount: arrayFieldCount(currentLibraryStore, 'comics'),
       currentProgressCount: arrayFieldCount(currentReadingProgress, 'progress'),
+      libraryAddCount: missingInRightCount(backupComicIds, currentComicIds),
       libraryConflictCount: overlapCount(backupComicIds, currentComicIds),
+      progressAddCount: missingInRightCount(backupProgressComicIds, currentProgressComicIds),
       progressConflictCount: overlapCount(backupProgressComicIds, currentProgressComicIds),
       settingsCount: countReaderPreferences(document.settings) + countBackupTrackerSyncPreferences(document.trackerSyncPreferences),
       categoryCount: countLibraryCategories(libraryStore),
@@ -1017,7 +1033,9 @@ export class BackupService {
         progressCount: preview.progressCount,
         currentLibraryItemCount: preview.currentLibraryItemCount,
         currentProgressCount: preview.currentProgressCount,
+        libraryAddCount: preview.libraryAddCount,
         libraryConflictCount: preview.libraryConflictCount,
+        progressAddCount: preview.progressAddCount,
         progressConflictCount: preview.progressConflictCount,
         settingsCount: preview.settingsCount,
         categoryCount: preview.categoryCount,

@@ -534,7 +534,13 @@ export struct BackupManagementPage {
   }
 
   private restoreConfirmationMessage(preview: BackupImportPreview): string {
-    return `${tf('backup_restore_confirm_message', preview.libraryConflictCount, preview.progressConflictCount)}\n\n${backupImportConflictPolicy()}`
+    return `${tf(
+      'backup_restore_confirm_message',
+      preview.libraryAddCount,
+      preview.libraryConflictCount,
+      preview.progressAddCount,
+      preview.progressConflictCount,
+    )}\n\n${backupImportConflictPolicy()}`
   }
 
   private runRestoreSelectedBackup(): void {
@@ -1065,9 +1071,11 @@ export struct BackupManagementPage {
       if (!preview.encrypted || preview.decrypted) {
         this.PreviewRow(t('backup_preview_library_items'), `${preview.libraryItemCount}`)
         this.PreviewRow(t('backup_preview_current_library_items'), `${preview.currentLibraryItemCount}`)
+        this.PreviewRow(t('backup_preview_library_additions'), `${preview.libraryAddCount}`)
         this.PreviewRow(t('backup_preview_library_conflicts'), `${preview.libraryConflictCount}`)
         this.PreviewRow(t('backup_preview_progress'), `${preview.progressCount}`)
         this.PreviewRow(t('backup_preview_current_progress'), `${preview.currentProgressCount}`)
+        this.PreviewRow(t('backup_preview_progress_additions'), `${preview.progressAddCount}`)
         this.PreviewRow(t('backup_preview_progress_conflicts'), `${preview.progressConflictCount}`)
         this.PreviewRow(t('backup_preview_settings'), `${preview.settingsCount}`)
         this.PreviewRow(t('backup_preview_categories'), `${preview.categoryCount}`)
