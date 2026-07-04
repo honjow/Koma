@@ -34,6 +34,7 @@ export const OFFLINE_DOWNLOAD_FAILURE_REASON_CODES: string[] = [
   'status_not_reader_ready',
   'integrity_missing',
   'integrity_mismatch',
+  'downloaded_count_mismatch',
   'page_count_empty',
   'pages_missing',
   'unsafe_page_path',

@@ -396,6 +396,18 @@ export class OfflineDownloadStore {
         reasonCode: 'status_not_reader_ready',
       }
     }
+    if (Math.max(0, Math.floor(manifest.downloadedPageCount)) !== manifest.pages.length) {
+      return {
+        comicId,
+        chapterId,
+        status: OfflineDownloadedChapterStatus.CORRUPT,
+        manifest,
+        pageCount,
+        availablePageCount: 0,
+        missingPageCount: pageCount,
+        reasonCode: 'downloaded_count_mismatch',
+      }
+    }
     if (manifest.integrityHash.trim().length === 0) {
       return {
         comicId,

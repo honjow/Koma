@@ -73,6 +73,7 @@ assert.match(queueStoreSource, /export interface OfflineDownloadQueueSummary\s*{
 assert.match(queueStoreSource, /interface OfflineDownloadQueueDocument\s*{[\s\S]*schemaVersion:\s*number[\s\S]*preferences\?:\s*OfflineDownloadQueuePreferences[\s\S]*entries:\s*OfflineDownloadQueueEntry\[\]/, 'queue document must include schemaVersion, optional preferences, and entries')
 assert.match(queueStoreSource, /export interface OfflineDownloadQueueEntry\s*{[\s\S]*comicId:[\s\S]*chapterId:[\s\S]*comicTitle\?:[\s\S]*chapterTitle\?:[\s\S]*status:\s*OfflineDownloadStatus[\s\S]*pageCount:\s*number[\s\S]*downloadedPageCount:\s*number[\s\S]*updatedAt:\s*number[\s\S]*failureReasonCode\?:\s*string/, 'queue entries must carry ids, title labels, status, counts, timestamp, and optional failure code')
 assert.match(queueStoreSource, /OFFLINE_DOWNLOAD_FAILURE_REASON_CODES: string\[\] = \[[\s\S]*'paused'[\s\S]*'wifi_only'[\s\S]*'download_interrupted'[\s\S]*'manifest_malformed'[\s\S]*'identity_mismatch'[\s\S]*'unsafe_page_path'[\s\S]*'outside_chapter_dir'[\s\S]*'page_index_invalid'[\s\S]*'page_size_mismatch'[\s\S]*'comic_missing'[\s\S]*'page_fetch_failed'[\s\S]*\]/, 'queue store must keep a bounded allowlist of persisted failure reason codes, including safe manifest validation reasons')
+assert.match(queueStoreSource, /OFFLINE_DOWNLOAD_FAILURE_REASON_CODES: string\[\] = \[[\s\S]*'downloaded_count_mismatch'[\s\S]*\]/, 'queue store must allowlist downloaded count mismatch as a coarse manifest validation failure')
 assert.match(queueStoreSource, /function normalizeOfflineDownloadFailureReasonCode\(value: string \| undefined\): string \| undefined \{[\s\S]*OFFLINE_DOWNLOAD_FAILURE_REASON_CODES\.indexOf\(value\) >= 0 \? value : undefined[\s\S]*const failureReasonCode = normalizeOfflineDownloadFailureReasonCode\(entry\.failureReasonCode\)/, 'queue entry normalization must drop unknown failure reason text before it can reach UI or notifications')
 assert.match(queueStoreSource, /fromManifest\([\s\S]*OfflineChapterDownloadManifest[\s\S]*OfflineDownloadQueueEntry/, 'queue store must map existing manifests into queue entries')
 assert.match(queueStoreSource, /load\(\):\s*OfflineDownloadQueueEntry\[\][\s\S]*loadDocument\(\)\.entries[\s\S]*private loadDocument\(\): OfflineDownloadQueueDocument[\s\S]*schemaVersion !== OFFLINE_DOWNLOAD_QUEUE_SCHEMA_VERSION/, 'queue load must enforce schema version and survive restart from disk')
@@ -120,6 +121,7 @@ assert.match(offlineDownloadStoreSource, /export interface OfflineChapterDownloa
 assert.match(offlineDownloadStoreSource, /function manifestIntegrityPayload[\s\S]*page\.pageIndex[\s\S]*page\.pageId[\s\S]*page\.fileName[\s\S]*page\.size[\s\S]*createManifestIntegrityHash/, 'offline manifest integrity must be deterministic from bounded identity and page metadata')
 assert.doesNotMatch(extractTopLevelFunction(offlineDownloadStoreSource, 'manifestIntegrityPayload'), /comicTitle|chapterTitle/, 'offline manifest integrity must not depend on display titles so metadata edits cannot corrupt downloaded pages')
 assert.match(offlineDownloadStoreSource, /validateDownloadedChapter\(comicId: ComicId, chapterId: string\): OfflineDownloadManifestValidation[\s\S]*manifest_missing[\s\S]*manifest_malformed[\s\S]*integrity_mismatch[\s\S]*page_file_missing/, 'offline store must expose reader-usable manifest discovery with missing, corrupt, and partial reasons')
+assert.match(offlineDownloadStoreSource, /Math\.max\(0, Math\.floor\(manifest\.downloadedPageCount\)\) !== manifest\.pages\.length[\s\S]*reasonCode: 'downloaded_count_mismatch'/, 'offline manifest validation must reject mismatched downloaded page counts before queue summaries trust them')
 assert.match(offlineDownloadStoreSource, /export interface OfflineDownloadSummary\s*{[\s\S]*status: OfflineDownloadStatus[\s\S]*updatedAt: number[\s\S]*failureReasonCode\?: string[\s\S]*loadSummary\(comicId: ComicId, chapterId: string\): OfflineDownloadSummary \| undefined \{[\s\S]*const validation = this\.validateDownloadedChapter\(comicId, chapterId\)[\s\S]*OfflineDownloadedChapterStatus\.CORRUPT[\s\S]*OfflineDownloadStatus\.FAILED[\s\S]*failureReasonCode: validation\.reasonCode[\s\S]*OfflineDownloadedChapterStatus\.DOWNLOADED[\s\S]*OfflineDownloadStatus\.PARTIAL[\s\S]*failureReasonCode: validation\.reasonCode[\s\S]*failureReasonCode: manifest\.failureReasonCode \?\? validation\.reasonCode/, 'offline summary must reuse manifest validation and carry coarse failure codes so detail and batch download UI cannot trust corrupt or incomplete downloaded manifests')
 assert.match(offlineDownloadStoreSource, /isChapterFullyDownloaded\(comicId: ComicId, chapterId: string\): boolean \{[\s\S]*validateDownloadedChapter\(comicId, chapterId\)[\s\S]*OfflineDownloadedChapterStatus\.DOWNLOADED[\s\S]*availablePageCount === validation\.pageCount[\s\S]*missingPageCount === 0/, 'offline store must expose a strict fully-downloaded predicate for completion-only flows')
 assert.match(offlineDownloadStoreSource, /typeof parsed\.seriesId !== 'string'[\s\S]*typeof parsed\.integrityHash !== 'string'/, 'offline manifest parsing must validate seriesId and integrityHash types instead of defaulting unsafe legacy values')
@@ -329,6 +331,14 @@ function validateFixtureManifest(path) {
       missingPageCount: pageCount,
     }
   }
+  if (Math.max(0, Math.floor(manifest.downloadedPageCount)) !== manifest.pages.length) {
+    return {
+      status: 'corrupt',
+      reasonCode: 'downloaded_count_mismatch',
+      availablePageCount: 0,
+      missingPageCount: pageCount,
+    }
+  }
   if (manifest.integrityHash.trim().length === 0) {
     return { status: 'corrupt', reasonCode: 'integrity_missing' }
   }
@@ -498,6 +508,15 @@ try {
     status: 'corrupt',
     reasonCode: 'integrity_missing',
   }, 'empty-hash tampered manifest must not validate as downloaded or partial')
+
+  const wrongDownloadedCountManifest = { ...completeManifest, downloadedPageCount: 1 }
+  writeFileSync(manifestPath, JSON.stringify(wrongDownloadedCountManifest))
+  assert.deepEqual(validateFixtureManifest(manifestPath), {
+    status: 'corrupt',
+    reasonCode: 'downloaded_count_mismatch',
+    availablePageCount: 0,
+    missingPageCount: 2,
+  }, 'downloaded page count mismatches must validate as corrupt even when page files and integrity payload look valid')
   writeFileSync(manifestPath, JSON.stringify(completeManifest))
 
   rmSync(secondPage)
