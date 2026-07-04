@@ -108,12 +108,13 @@ Source index entries are user-configured and have this shape:
   "description": "User-owned private adapter.",
   "contentRating": "safe",
   "pkg": "sources/example/example-0.1.0.koma",
+  "sha256": "<optional package sha256 hex>",
   "icon": "",
   "minAppVersion": ""
 }
 ```
 
-`pkg` may be relative to the configured index URL. Installs and updates downloaded from an index go through the same archive validator as local imports.
+`pkg` may be relative to the configured index URL. If `sha256` is present, Koma verifies the downloaded `.koma` bytes before import. Installs and updates downloaded from an index go through the same archive validator as local imports.
 
 ## Compatibility notes
 

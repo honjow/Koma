@@ -1075,6 +1075,7 @@
     { "name": "source_pkg_provenance_index_update", "value": "Configured index update candidate" },
     { "name": "source_pkg_provenance_index", "value": "Configured index candidate" },
     { "name": "source_pkg_verification_unsigned", "value": "Signature not verified" },
+    { "name": "source_pkg_verification_hash_pinned", "value": "Package hash pinned" },
     { "name": "source_pkg_label_package_id", "value": "Package ID: " },
     { "name": "source_pkg_label_version", "value": "Version: " },
     { "name": "source_pkg_capability_summary_prefix", "value": "Capability summary (from manifest): " },

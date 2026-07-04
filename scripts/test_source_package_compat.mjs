@@ -622,6 +622,11 @@ assert.match(indexServiceSource, /installFromBytes/, 'SourceIndexService must de
 assert.match(indexServiceSource, /parseIndexEntry/, 'SourceIndexService must parse index entries safely')
 assert.match(
   indexServiceSource,
+  /sha256: safeSha256\(record\['sha256'\]\)[\s\S]*if \(entry\.sha256\.length > 0 && sha256Hex\(archiveBytes\) !== entry\.sha256\)[\s\S]*reasonCode: 'checksum_mismatch'/,
+  'SourceIndexService must honor optional source-index package sha256 pins before archive import',
+)
+assert.match(
+  indexServiceSource,
   /isMinAppVersionSatisfied\(entry\.minAppVersion\)[\s\S]*reasonCode: 'app_version_unsupported'[\s\S]*const pkgUrl = safeResolvePkgUrl/,
   'SourceIndexService must reject source index entries whose minAppVersion is newer before downloading the package',
 )
@@ -686,8 +691,8 @@ assert.match(
 )
 assert.match(
   sourcePackageTrustPolicySource,
-  /sourceIndexCandidateTrustSummary[\s\S]*source_pkg_provenance_index_update[\s\S]*source_pkg_provenance_index[\s\S]*source_pkg_verification_unsigned[\s\S]*source_pkg_capability_summary_pending/,
-  'source index update candidates must be labeled as unverified user-configured index candidates until manifest validation',
+  /sourceIndexCandidateTrustSummary[\s\S]*source_pkg_provenance_index_update[\s\S]*source_pkg_provenance_index[\s\S]*entry\.sha256\.length > 0 \? t\('source_pkg_verification_hash_pinned'\) : t\('source_pkg_verification_unsigned'\)[\s\S]*source_pkg_capability_summary_pending/,
+  'source index update candidates must distinguish optional package hash pins from absent signature verification',
 )
 assert.match(
   sourcePackageTrustPolicySource,

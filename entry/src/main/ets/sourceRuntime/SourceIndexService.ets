@@ -1,6 +1,7 @@
 import { bundleManager, common } from '@kit.AbilityKit'
 import { preferences } from '@kit.ArkData'
 import { BusinessError } from '@kit.BasicServicesKit'
+import { cryptoFramework } from '@kit.CryptoArchitectureKit'
 import { http } from '@kit.NetworkKit'
 import { installFromBytes, SourcePackageInstallResult } from './SourceRuntimeAppRegistry'
 
@@ -17,6 +18,7 @@ export interface SourceIndexEntry {
   description: string
   contentRating: string
   pkg: string
+  sha256: string
   icon: string
   minAppVersion: string
 }
@@ -72,6 +74,25 @@ function safeString(value: Object | undefined): string {
 
 function safeBoolean(value: Object | undefined): boolean {
   return value === true
+}
+
+function safeSha256(value: Object | undefined): string {
+  if (typeof value !== 'string') {
+    return ''
+  }
+  const normalized = value.trim().toLowerCase()
+  return /^[0-9a-f]{64}$/.test(normalized) ? normalized : ''
+}
+
+function sha256Hex(bytes: Uint8Array): string {
+  const md = cryptoFramework.createMd('SHA256')
+  md.updateSync({ data: bytes })
+  const digest = md.digestSync().data
+  let result = ''
+  for (let index = 0; index < digest.length; index += 1) {
+    result += digest[index].toString(16).padStart(2, '0')
+  }
+  return result
 }
 
 function compareVersion(left: string, right: string): number {
@@ -133,6 +154,7 @@ function parseIndexEntry(raw: Object): SourceIndexEntry | undefined {
     description: safeString(record['description']),
     contentRating: safeString(record['contentRating']),
     pkg,
+    sha256: safeSha256(record['sha256']),
     icon: safeString(record['icon']),
     minAppVersion: safeString(record['minAppVersion']),
   }
@@ -266,6 +288,10 @@ export class SourceIndexService {
 
       if (archiveBytes.byteLength === 0) {
         return { ok: false, reasonCode: 'empty_package' }
+      }
+      if (entry.sha256.length > 0 && sha256Hex(archiveBytes) !== entry.sha256) {
+        console.error('[SourceIndex] step=download_fail reason=checksum_mismatch')
+        return { ok: false, reasonCode: 'checksum_mismatch' }
       }
 
       const install = await installFromBytes(this.context, archiveBytes, entry.pkg, entry.id)

@@ -32,7 +32,7 @@ export function sourceIndexCandidateTrustSummary(entry: SourceIndexEntry, isUpda
   const version = entry.version.length > 0 ? entry.version : 'unknown'
   return {
     provenanceLabel: isUpdateCandidate ? t('source_pkg_provenance_index_update') : t('source_pkg_provenance_index'),
-    verificationLabel: t('source_pkg_verification_unsigned'),
+    verificationLabel: entry.sha256.length > 0 ? t('source_pkg_verification_hash_pinned') : t('source_pkg_verification_unsigned'),
     identityLabel: t('source_pkg_label_package_id') + entry.id + ' · ' + t('source_pkg_label_version') + version,
     capabilitySummaryLabel: t('source_pkg_capability_summary_pending'),
     boundaryNotice: sourcePackageTrustBoundaryNotice(),

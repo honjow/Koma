@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict'
 import { execFileSync } from 'node:child_process'
+import { createHash } from 'node:crypto'
 import { existsSync, readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 
@@ -18,6 +19,16 @@ function isSafePkgPath(value) {
     !value.includes('\\') &&
     !value.split('/').includes('..') &&
     value.endsWith('.koma')
+}
+
+function normalizedSha256(value) {
+  if (typeof value !== 'string') return ''
+  const normalized = value.trim().toLowerCase()
+  return /^[0-9a-f]{64}$/.test(normalized) ? normalized : ''
+}
+
+function sha256File(path) {
+  return createHash('sha256').update(readFileSync(path)).digest('hex')
 }
 
 function readJson(path, label) {
@@ -67,6 +78,10 @@ sources.forEach((source, index) => {
   const pkgPath = resolve(distDir, source.pkg)
   assert.ok(pkgPath.startsWith(distDir), `pkg escapes dist dir: ${source.pkg}`)
   assert.ok(existsSync(pkgPath), `missing source package: ${source.pkg}`)
+  const pinnedHash = normalizedSha256(source.sha256)
+  if (pinnedHash.length > 0) {
+    assert.equal(sha256File(pkgPath), pinnedHash, `${source.pkg} sha256 must match index pin`)
+  }
 
   const entries = zipListing(pkgPath)
   assert.ok(entries.includes('manifest.json'), `${source.pkg} must contain manifest.json`)
