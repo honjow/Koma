@@ -15,7 +15,7 @@
 | 功能域 | Aidoku 源码证据 | Koma 当前对应 | 判断 |
 | --- | --- | --- | --- |
 | 数据模型与迁移 | `Shared/Aidoku.xcdatamodeld/*`、`Shared/Managers/CoreData/CoreDataManager*.swift` | `entry/src/main/ets/model/ComicModels.ets`、`LibraryPersistence.ets`、`ReaderSessionStore.ets`、`docs/DATA_MIGRATION_POLICY.md` | Aidoku 有长期 CoreData schema 演进；Koma 仍以 JSON/Preferences 为主，现已补迁移制度清单与静态 contract，后续还要按新字段持续扩展。 |
-| Source runtime | `Shared/Sources/Source.swift`、`SourceActor.swift`、`Shared/Wasm/Imports/*` | `entry/src/main/ets/sourceRuntime/*`、`entry/src/main/ets/model/SourceModels.ets` | 两者都走 WASM source 方向；Aidoku host import 与 source actor 更成熟，Koma 已有 WAMR/NAPI、安全校验、index/package 安装，但真实源能力闭环仍要补。 |
+| Source runtime | `Shared/Sources/Source.swift`、`SourceActor.swift`、`Shared/Wasm/Imports/*` | `entry/src/main/ets/sourceRuntime/*`、`entry/src/main/ets/model/SourceModels.ets` | 两者都走 WASM source 方向；Aidoku host import 与 source actor 更成熟，Koma 已有 WAMR/NAPI、安全校验、index/package 安装，并已在 Pura X 跑过真实 MangaDex source index browse/runtime smoke；剩余重点是 UI 主路径 QA 与缺口修补。 |
 | Source 设置 | `Shared/Sources/SettingItem.swift`、`iOS/New/Views/Settings/Settings.swift` | `SourceSettingsStore.ets`、`SourcePackageManagerPage.ets`、`SettingsPage.ets` | Koma 已有设置描述与持久化/备份注入，UI 与真实 installed source 的设置体验还需要完整 QA。 |
 | 私有库 | `Shared/Sources/Komga/*`、`Shared/Sources/Kavita/*` | `entry/src/main/ets/remote/*`、`KomgaSeriesPage.ets`、`OpdsBrowsePage.ets`、`WebDavBrowsePage.ets` | Koma 的私有库方向更贴产品定位；Aidoku 的 Komga/Kavita 同时承担 source/tracker 角色，Koma 可参考能力边界，不照搬在线源入口。 |
 | 本地源 | `Shared/Sources/Local/LocalSource.swift` | `entry/src/main/ets/import/*`、`LocalLibraryMetadataService.ets` | Koma 有导入能力，但还不是 Aidoku/Mihon 那种可重扫、可维护的 local source。 |
@@ -45,7 +45,7 @@
 
 2. **Source browsing 产品化**
    - Aidoku 的 source actor 把 listings、filters、manga list、details、chapters、pages、image request 串成主路径。
-   - Koma contract 已有，但 UI 还需要把 home/listings/filters/source settings 做成可日用，不只是测试面通过。
+   - Koma contract 已有，且 `source-index-browse` 已在 Pura X 用 `org.mangadex.koma` 验证 home/listings/filters/default listing/filtered listing。下一步是把 UI 主路径从 Browse 入口、详情、阅读、下载、source settings 做成可日用，并补手动/截图 QA。
 
 3. **下载闭环**
    - Aidoku 已有 download manager、queue、cache、下载目录与 CBZ/目录读取。
@@ -220,6 +220,7 @@
 3. **D51：Source browsing parity**
    - 文件：`sourceRuntime/*`、`SourceBrowsePage.ets`、`SourceSearchPage.ets`、`SourcePackageManagerPage.ets`
    - 目标：home/listings/filters/settings 到 reader/download 的主路径。
+   - 当前：runtime browse 已用 Pura X + MangaDex source index 验证；继续推进 UI 手动主路径和设置/下载入口 QA。
 
 4. **D52：Reader advanced QA**
    - 文件：`ReaderPreferencesStore.ets`、`ReaderSessionStore.ets`、`ReaderPage.ets`

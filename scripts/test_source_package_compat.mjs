@@ -582,6 +582,7 @@ assert.match(smokeSource, /SMOKE_QUERY_PARAM[\s\S]*sourceIndexReaderSearchQuery[
 assert.match(smokeSource, /SMOKE_PHASE_SOURCE_INDEX_DOWNLOAD_READER/, 'device smoke must include a focused source-index download reader phase')
 assert.match(smokeSource, /SMOKE_PHASE_SOURCE_INDEX_VISIBLE_DOWNLOAD_READER/, 'device smoke must include a visible source-index download reader phase that leaves a real source manga in the app library')
 assert.match(smokeSource, /SMOKE_PHASE_SOURCE_INDEX_DOWNLOAD_CORRUPT_READER/, 'device smoke must include a focused corrupt offline source-index reader phase')
+assert.match(smokeSource, /SMOKE_PHASE_SOURCE_INDEX_BROWSE/, 'device smoke must include a focused source-index browse phase')
 assert.match(
   smokeSource,
   /installFromBytes[\s\S]*runRegisteredSourceRequestById[\s\S]*get_manga[\s\S]*get_chapters[\s\S]*get_pages[\s\S]*createReaderPageRenderSource/,
@@ -591,6 +592,21 @@ assert.match(
   smokeSource,
   /SourceIndexService[\s\S]*fetchIndex\(indexUrl\)[\s\S]*installPackage\(indexUrl, entry\)[\s\S]*runRealSourceSearchTask[\s\S]*get_pages[\s\S]*createReaderPageRenderSource/,
   'source-index reader smoke must fetch a user-provided index, install a selected package, run real source reader requests, and map pages into reader render sources',
+)
+assert.match(
+  smokeSource,
+  /SMOKE_PHASE_SOURCE_INDEX_BROWSE[\s\S]*fetchIndex\(indexUrl\)[\s\S]*installPackage\(indexUrl, entry\)[\s\S]*get_listings[\s\S]*get_home[\s\S]*get_filters[\s\S]*get_manga_list[\s\S]*JSON\.stringify\(filterRequest\)/,
+  'source-index browse smoke must fetch a user-provided index, install a selected package, and run real source browse/listing/filter requests',
+)
+assert.match(
+  smokeSource,
+  /sourceIndexBrowseFirstFilterOption\(filter[\s\S]*firstStringField\(\[option\], 'value'\)[\s\S]*value !== 'all'/,
+  'source-index browse smoke must submit source filter option values and avoid default all labels',
+)
+assert.match(
+  smokeSource,
+  /sourceIndexBrowseListingsOk === true[\s\S]*sourceIndexBrowseHomeOk === true[\s\S]*sourceIndexBrowseFiltersOk === true[\s\S]*sourceIndexBrowseMangaListOk === true[\s\S]*sourceIndexBrowseFilteredMangaListOk === true/,
+  'source-index browse smoke must fail unless real listings, home, filters, default listing, and filtered listing all pass',
 )
 assert.match(
   smokeSource,
@@ -613,7 +629,7 @@ assert.match(
   'visible source-index reader smoke must fail unless the visible app-library persistence, reload, and reader rendering checks all pass',
 )
 const checksumNegativeInstallIndex = smokeSource.indexOf('const checksumNegative = await sourceIndexService.installPackage(')
-const normalInstallIndex = smokeSource.indexOf('const install = await sourceIndexService.installPackage(indexUrl, entry)')
+const normalInstallIndex = smokeSource.indexOf('const install = await sourceIndexService.installPackage(indexUrl, entry)', checksumNegativeInstallIndex)
 assert.ok(smokeSource.includes('sourceIndexEntryWithSha256'), 'source-index reader smoke must be able to pin a package hash for negative verification')
 assert.ok(smokeSource.includes("checksumNegative.reasonCode === 'checksum_mismatch'"), 'source-index reader smoke must require checksum_mismatch for the hash-pin negative')
 assert.ok(checksumNegativeInstallIndex >= 0 && normalInstallIndex > checksumNegativeInstallIndex, 'source-index reader smoke must verify package hash pins before normal install')

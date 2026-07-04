@@ -162,6 +162,7 @@ Verified on device `192.168.50.103:12345`:
 - Installed source cards can validate saved non-secret settings through a `get_settings` runtime request and show per-source PASS/FAIL state without exposing setting values.
 - Production Browse lists only user-installed/enabled packages; no bundled public source or test fixture is registered.
 - Source URL index import: user-configured index URL -> fetch `index.json` -> list packages -> download selected `pkg` -> install/enable via existing archive validator/registry. No built-in default source URL is included. Live device smoke verified with a locally served source index and `com.dm5.koma` install on `192.168.50.103:12345`.
+- Source browsing runtime smoke now covers a real URL source index on Pura X: locally served `/Users/honjow/git/koma-sources/dist/index.json`, `org.mangadex.koma`, `source-index-browse`, 21 index entries, 20 listings, 3 home sections / 30 manga, 4 filters, 20 default listing rows, and 20 filtered listing rows. Artifact: `.hvigor/outputs/source-index-browse-smoke/source-runtime-smoke-result.json`.
 - Installed source package update check/upgrade MVP uses the user-configured source index to show per-package latest/update/missing/failure status and update installed packages safely.
 - Installed source cards include an inline runtime diagnostics panel with safe smoke/update/capability/settings summary and refresh logging.
 - Source Package Manager exposes source-index/update controls, user-facing capability summaries, and source author SDK docs. Persisted capability summaries are display hints only and are bounded by manifest-derived capabilities plus an allowlist on reload.
@@ -184,3 +185,4 @@ Verified on device `192.168.50.103:12345`:
 13. Volume-key reader navigation has runtime key-event handling; remaining risk is device matrix coverage for focus retention after overlays, route transitions, and system volume interception.
 14. Tracker settings is a local-only skeleton; real OAuth/account linking and public tracker sync remain future work.
 15. Library update scheduling remains foreground-only. Real background scheduling and notification delivery still require a verified Harmony API path, permissions, implementation tests, and device QA.
+16. Source browsing has Pura X runtime evidence for MangaDex home/listings/filters/default listing/filtered listing; remaining product QA is hand-driven UI navigation from Browse to MangaDetail, Reader, download, and per-source settings editing with real installed sources.

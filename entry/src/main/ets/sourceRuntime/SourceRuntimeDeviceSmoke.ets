@@ -120,6 +120,7 @@ const SMOKE_PHASE_SOURCE_INDEX_VISIBLE_READER: string = 'source-index-visible-re
 const SMOKE_PHASE_SOURCE_INDEX_DOWNLOAD_READER: string = 'source-index-download-reader'
 const SMOKE_PHASE_SOURCE_INDEX_VISIBLE_DOWNLOAD_READER: string = 'source-index-visible-download-reader'
 const SMOKE_PHASE_SOURCE_INDEX_DOWNLOAD_CORRUPT_READER: string = 'source-index-download-corrupt-reader'
+const SMOKE_PHASE_SOURCE_INDEX_BROWSE: string = 'source-index-browse'
 const SOURCE_INDEX_LIBRARY_SMOKE_FILE_NAME: string = 'source-index-library-smoke.v1.json'
 const SOURCE_RUNTIME_SMOKE_RESULT_FILE_NAME: string = 'source-runtime-smoke-result.json'
 const REAL_SOURCE_RAWFILE_PATH: string = 'test/baozimh.wasm'
@@ -510,6 +511,19 @@ export interface SourceRuntimeSmokeResult {
   sourceIndexDownloadOfflineReaderKind?: string
   sourceIndexDownloadCorruptReaderOk?: boolean
   sourceIndexDownloadCleanupOk?: boolean
+  sourceIndexBrowseListingsOk?: boolean
+  sourceIndexBrowseListingCount?: number
+  sourceIndexBrowseSelectedListingId?: string
+  sourceIndexBrowseHomeOk?: boolean
+  sourceIndexBrowseHomeSectionCount?: number
+  sourceIndexBrowseHomeMangaCount?: number
+  sourceIndexBrowseFiltersOk?: boolean
+  sourceIndexBrowseFilterCount?: number
+  sourceIndexBrowseFilterKey?: string
+  sourceIndexBrowseMangaListOk?: boolean
+  sourceIndexBrowseMangaListCount?: number
+  sourceIndexBrowseFilteredMangaListOk?: boolean
+  sourceIndexBrowseFilteredMangaListCount?: number
   sourceIndexReaderCleanupOk?: boolean
   mangadexWasmBytes?: number
   mangadexResponse?: SourceRuntimeCallResponse
@@ -532,6 +546,21 @@ function responseDataRecord(response: SourceRuntimeCallResponse): Record<string,
 function responseItems(response: SourceRuntimeCallResponse): Record<string, Object>[] {
   const items = responseDataRecord(response)['items']
   return Array.isArray(items) ? items as Record<string, Object>[] : []
+}
+
+function responseRowsByField(response: SourceRuntimeCallResponse, field: string): Record<string, Object>[] {
+  const rows = responseDataRecord(response)[field]
+  return Array.isArray(rows) ? rows as Record<string, Object>[] : []
+}
+
+function firstRecordRows(row: Record<string, Object>, fields: string[]): Record<string, Object>[] {
+  for (let index = 0; index < fields.length; index += 1) {
+    const value = row[fields[index]]
+    if (Array.isArray(value)) {
+      return value as Record<string, Object>[]
+    }
+  }
+  return []
 }
 
 function responseItem(response: SourceRuntimeCallResponse): Record<string, Object> | undefined {
@@ -564,6 +593,81 @@ function firstStringField(rows: Record<string, Object>[], field: string): string
   }
   const value = rows[0][field]
   return typeof value === 'string' ? value : ''
+}
+
+function sourceIndexBrowseHomeMangaCount(response: SourceRuntimeCallResponse): number {
+  const sections = responseRowsByField(response, 'sections').concat(responseItems(response))
+  let count = 0
+  sections.forEach((section: Record<string, Object>) => {
+    count += firstRecordRows(section, ['manga', 'items']).length
+  })
+  return count
+}
+
+function sourceIndexBrowseFilterRows(response: SourceRuntimeCallResponse): Record<string, Object>[] {
+  return responseRowsByField(response, 'filters').concat(responseItems(response))
+}
+
+function sourceIndexBrowseFilterKey(filter: Record<string, Object>): string {
+  const raw = firstStringField([filter], 'id') || firstStringField([filter], 'name') || firstStringField([filter], 'label')
+  return raw.startsWith('filter:') ? raw.substring('filter:'.length) : raw
+}
+
+function sourceIndexBrowseFirstFilterOption(filter: Record<string, Object>): Object | undefined {
+  const options = firstRecordRows(filter, ['options'])
+  if (options.length === 0) {
+    return undefined
+  }
+  for (let index = 0; index < options.length; index += 1) {
+    const option = options[index]
+    const value = firstStringField([option], 'value') || firstStringField([option], 'id') ||
+      firstStringField([option], 'label') || firstStringField([option], 'name')
+    if (value.length > 0 && value !== 'all') {
+      return value
+    }
+  }
+  const first = options[0]
+  return firstStringField([first], 'value') || firstStringField([first], 'id') ||
+    firstStringField([first], 'label') || firstStringField([first], 'name')
+}
+
+function sourceIndexBrowseFilterValue(filter: Record<string, Object>): Object | undefined {
+  const rawValue = filter['value']
+  if (rawValue !== undefined) {
+    return rawValue
+  }
+  const type = firstStringField([filter], 'type') || firstStringField([filter], 'kind')
+  const option = sourceIndexBrowseFirstFilterOption(filter)
+  if (type === 'multiselect' || type === 'multi-select' || type === 'multiSelect') {
+    return option === undefined ? undefined : [option]
+  }
+  if (option !== undefined) {
+    return option
+  }
+  if (type === 'boolean' || type === 'check') {
+    return true
+  }
+  const min = filter['min'] ?? filter['minValue']
+  if (typeof min === 'number' || typeof min === 'string') {
+    return min
+  }
+  if (type === 'text') {
+    return 'test'
+  }
+  return undefined
+}
+
+function sourceIndexBrowseFilterRequest(filters: Record<string, Object>[]): Record<string, Object> {
+  for (let index = 0; index < filters.length; index += 1) {
+    const key = sourceIndexBrowseFilterKey(filters[index])
+    const value = sourceIndexBrowseFilterValue(filters[index])
+    if (key.length > 0 && value !== undefined) {
+      const request: Record<string, Object> = {}
+      request[key] = value
+      return request
+    }
+  }
+  return {}
 }
 
 function sourcePageImageUrl(page: Record<string, Object>): string {
@@ -1939,6 +2043,123 @@ export async function maybeRunSourceRuntimeDeviceSmoke(
         }
       }
       compactSmokeResultForHilog(result)
+      console.info(SMOKE_LOG_PREFIX + JSON.stringify(result))
+      return
+    }
+
+    if (result.smokePhase === SMOKE_PHASE_SOURCE_INDEX_BROWSE) {
+      if (context === undefined) {
+        result.error = 'source-index-browse phase requires ability context'
+      } else {
+        const indexUrl = smokeStringParam(want, SMOKE_INDEX_URL_PARAM)
+        const requestedSourceId = smokeStringParam(want, SMOKE_SOURCE_ID_PARAM)
+        const selectedSourceId = requestedSourceId.length > 0 ? requestedSourceId : SOURCE_INDEX_READER_DEFAULT_SOURCE_ID
+        result.sourceIndexReaderIndexUrlProvided = indexUrl.length > 0
+        result.sourceIndexReaderSelectedSourceId = selectedSourceId
+        const alreadyInstalled = appSourceRuntimeRegistry.lookup(selectedSourceId).ok
+        result.sourceIndexReaderReusedInstalledSource = alreadyInstalled
+        if (indexUrl.length === 0) {
+          result.error = 'source-index-browse requires indexUrl'
+        } else {
+          const sourceIndexService = new SourceIndexService(context)
+          const fetch = await sourceIndexService.fetchIndex(indexUrl)
+          result.sourceIndexReaderFetchOk = fetch.ok === true
+          result.sourceIndexReaderEntryCount = fetch.entries.length
+          const entry = fetch.entries.find((item: SourceIndexEntry): boolean => item.id === selectedSourceId)
+          if (!fetch.ok || entry === undefined) {
+            result.error = 'source-index-browse source entry not found'
+          } else {
+            result.sourceIndexReaderHashPinPresent = entry.sha256.length > 0
+            if (alreadyInstalled) {
+              result.sourceIndexReaderInstallOk = true
+            } else {
+              const install = await sourceIndexService.installPackage(indexUrl, entry)
+              result.sourceIndexReaderInstallOk = install.ok === true && install.install?.id === selectedSourceId
+            }
+            if (result.sourceIndexReaderInstallOk === true) {
+              const lookup = appSourceRuntimeRegistry.lookup(selectedSourceId)
+              const sourceBytes = lookup.entry?.wasmBytes
+              result.sourceIndexReaderWasmBytes = sourceBytes?.byteLength ?? 0
+              if (sourceBytes !== undefined) {
+                const listingsJson = await taskpool.execute(
+                  runRealSourceSearchTask,
+                  '{"operation":"get_listings"}',
+                  copySmokeWasmBytes(sourceBytes),
+                ) as string
+                const listingsResponse: SourceRuntimeCallResponse = JSON.parse(listingsJson) as SourceRuntimeCallResponse
+                const listings = responseItems(listingsResponse)
+                const selectedListingId = firstStringField(listings, 'id') || 'listing:popular'
+                result.sourceIndexBrowseListingCount = listings.length
+                result.sourceIndexBrowseSelectedListingId = selectedListingId
+                result.sourceIndexBrowseListingsOk = listingsResponse.ok === true && selectedListingId.length > 0
+
+                const homeJson = await taskpool.execute(
+                  runRealSourceSearchTask,
+                  '{"operation":"get_home"}',
+                  copySmokeWasmBytes(sourceBytes),
+                ) as string
+                const homeResponse: SourceRuntimeCallResponse = JSON.parse(homeJson) as SourceRuntimeCallResponse
+                result.sourceIndexBrowseHomeSectionCount =
+                  responseRowsByField(homeResponse, 'sections').concat(responseItems(homeResponse)).length
+                result.sourceIndexBrowseHomeMangaCount = sourceIndexBrowseHomeMangaCount(homeResponse)
+                result.sourceIndexBrowseHomeOk =
+                  homeResponse.ok === true && (result.sourceIndexBrowseHomeMangaCount ?? 0) > 0
+
+                const filtersJson = await taskpool.execute(
+                  runRealSourceSearchTask,
+                  '{"operation":"get_filters"}',
+                  copySmokeWasmBytes(sourceBytes),
+                ) as string
+                const filtersResponse: SourceRuntimeCallResponse = JSON.parse(filtersJson) as SourceRuntimeCallResponse
+                const filters = sourceIndexBrowseFilterRows(filtersResponse)
+                const filterRequest = sourceIndexBrowseFilterRequest(filters)
+                const filterKeys = Object.keys(filterRequest)
+                result.sourceIndexBrowseFilterCount = filters.length
+                result.sourceIndexBrowseFilterKey = filterKeys.length > 0 ? filterKeys[0] : ''
+                result.sourceIndexBrowseFiltersOk = filtersResponse.ok === true && filters.length > 0
+
+                const mangaListJson = await taskpool.execute(
+                  runRealSourceSearchTask,
+                  `{"operation":"get_manga_list","listingId":"${selectedListingId}","page":{"cursor":null,"limit":20},"filters":{}}`,
+                  copySmokeWasmBytes(sourceBytes),
+                ) as string
+                const mangaListResponse: SourceRuntimeCallResponse = JSON.parse(mangaListJson) as SourceRuntimeCallResponse
+                const mangaListItems = responseItems(mangaListResponse)
+                result.sourceIndexBrowseMangaListCount = mangaListItems.length
+                result.sourceIndexBrowseMangaListOk = mangaListResponse.ok === true && mangaListItems.length > 0
+
+                const filteredMangaListJson = await taskpool.execute(
+                  runRealSourceSearchTask,
+                  `{"operation":"get_manga_list","listingId":"${selectedListingId}","page":{"cursor":null,"limit":20},"filters":${JSON.stringify(filterRequest)}}`,
+                  copySmokeWasmBytes(sourceBytes),
+                ) as string
+                const filteredMangaListResponse: SourceRuntimeCallResponse =
+                  JSON.parse(filteredMangaListJson) as SourceRuntimeCallResponse
+                result.sourceIndexBrowseFilteredMangaListCount = responseItems(filteredMangaListResponse).length
+                result.sourceIndexBrowseFilteredMangaListOk =
+                  filteredMangaListResponse.ok === true && filterKeys.length > 0
+              }
+            }
+            result.sourceIndexReaderCleanupOk = true
+          }
+        }
+        result.ok = result.sourceIndexReaderIndexUrlProvided === true &&
+          result.sourceIndexReaderFetchOk === true &&
+          result.sourceIndexReaderInstallOk === true &&
+          result.sourceIndexBrowseListingsOk === true &&
+          result.sourceIndexBrowseHomeOk === true &&
+          result.sourceIndexBrowseFiltersOk === true &&
+          result.sourceIndexBrowseMangaListOk === true &&
+          result.sourceIndexBrowseFilteredMangaListOk === true &&
+          result.sourceIndexReaderCleanupOk === true
+        if (!result.ok && result.error === undefined) {
+          result.error = 'source-index-browse failed'
+        }
+      }
+      compactSmokeResultForHilog(result)
+      if (context !== undefined) {
+        writeSourceRuntimeSmokeResultFile(context.filesDir, result)
+      }
       console.info(SMOKE_LOG_PREFIX + JSON.stringify(result))
       return
     }
