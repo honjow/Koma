@@ -731,6 +731,7 @@
     { "name": "downloads_filter_downloaded", "value": "已下载" },
     { "name": "downloads_row_subtitle", "value": "%s · %s · %s/%s 页" },
     { "name": "downloads_blocked_pages_missing", "value": "缺少章节页数据，请打开漫画详情页后重试下载。" },
+    { "name": "downloads_blocked_chapter_missing", "value": "该章节已不在书架记录中，请刷新漫画详情页后再下载。" },
     { "name": "downloads_blocked_unretryable", "value": "该任务暂不可在下载管理中重试。" },
     { "name": "downloads_status_queued", "value": "排队中" },
     { "name": "downloads_status_downloading", "value": "下载中" },

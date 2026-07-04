@@ -157,7 +157,9 @@ export class OfflineDownloadService {
     const chapter = comic.chapters.find((item: Chapter): boolean => item.id === chapterId)
     if (chapter === undefined) {
       console.warn(`[ReaderOffline] step=download_blocked comic=${createOfflineDownloadStableHash(comic.id)} chapter=${createOfflineDownloadStableHash(chapterId)} reason=chapter_missing`)
-      const manifest = this.store.createManifest(comic.id, chapterId, 0, OfflineDownloadStatus.BLOCKED, manifestIdentityFromComic(comic))
+      let manifest = this.store.createManifest(comic.id, chapterId, 0, OfflineDownloadStatus.BLOCKED, manifestIdentityFromComic(comic))
+      manifest.failureReasonCode = 'chapter_missing'
+      manifest = this.store.saveManifest(manifest)
       this.queueStore.upsert(this.queueStore.fromManifest(manifest, labels?.comicTitle ?? comic.title, labels?.chapterTitle))
       this.publishNotification(manifest, labels ?? { comicTitle: comic.title })
       return manifest

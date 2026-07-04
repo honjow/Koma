@@ -134,6 +134,9 @@ export struct DownloadsPage {
     if (entry.status === OfflineDownloadStatus.BLOCKED && entry.failureReasonCode === 'pages_missing') {
       return s('downloads_blocked_pages_missing')
     }
+    if (entry.status === OfflineDownloadStatus.BLOCKED && entry.failureReasonCode === 'chapter_missing') {
+      return s('downloads_blocked_chapter_missing')
+    }
     if (entry.status === OfflineDownloadStatus.BLOCKED) {
       return s('downloads_blocked_unretryable')
     }
