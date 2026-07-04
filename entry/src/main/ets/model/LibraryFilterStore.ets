@@ -7,7 +7,8 @@ import {
 } from './LibraryStore'
 
 export type LibraryServerSourceFilter = string
-export type LibrarySourceFilter = 'all' | 'local' | 'private' | 'komga' | 'opds' | 'webdav' | 'source_package' | LibraryServerSourceFilter
+export type LibraryRuntimeSourceFilter = string
+export type LibrarySourceFilter = 'all' | 'local' | 'private' | 'komga' | 'opds' | 'webdav' | 'source_package' | LibraryServerSourceFilter | LibraryRuntimeSourceFilter
 export type LibraryAvailabilityFilter = 'all' | 'downloaded' | 'fully_downloaded' | 'partially_downloaded' | 'not_downloaded'
 export type LibraryViewMode = 'grid' | 'list'
 export type LibraryListDensity = 'compact' | 'standard' | 'comfortable'
@@ -73,12 +74,24 @@ export function libraryServerSourceFilter(serverId: string): LibraryServerSource
   return `server:${serverId.trim()}`
 }
 
+export function libraryRuntimeSourceFilter(sourceId: string): LibraryRuntimeSourceFilter {
+  return `source:${sourceId.trim()}`
+}
+
 export function libraryServerIdFromSourceFilter(value: string): string | undefined {
   if (!value.startsWith('server:')) {
     return undefined
   }
   const serverId = value.slice('server:'.length).trim()
   return serverId.length === 0 ? undefined : serverId
+}
+
+export function libraryRuntimeIdFromSourceFilter(value: string): string | undefined {
+  if (!value.startsWith('source:')) {
+    return undefined
+  }
+  const sourceId = value.slice('source:'.length).trim()
+  return sourceId.length === 0 ? undefined : sourceId
 }
 
 function normalizeSource(value: string): LibrarySourceFilter {
@@ -88,6 +101,10 @@ function normalizeSource(value: string): LibrarySourceFilter {
   const serverId = libraryServerIdFromSourceFilter(value)
   if (serverId !== undefined) {
     return libraryServerSourceFilter(serverId)
+  }
+  const sourceId = libraryRuntimeIdFromSourceFilter(value)
+  if (sourceId !== undefined) {
+    return libraryRuntimeSourceFilter(sourceId)
   }
   if (
     value === 'local' ||

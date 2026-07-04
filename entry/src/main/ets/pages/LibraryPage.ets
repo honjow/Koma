@@ -40,6 +40,8 @@ import {
   LibraryFilterPreferences,
   LibraryFilterStore,
   LibraryListDensity,
+  libraryRuntimeIdFromSourceFilter,
+  libraryRuntimeSourceFilter,
   libraryServerIdFromSourceFilter,
   libraryServerSourceFilter,
   LibrarySourceFilter,
@@ -61,6 +63,8 @@ import {
 } from '../model/ChapterReadStateStore'
 import { AppStrings } from '../i18n/AppStrings'
 import { connectLanguageState, LanguageState } from '../state/LanguageState'
+import { SourceRuntimeRegistry, SourceRuntimeRegistryInstalledSourceSummary } from '../sourceRuntime/SourceRuntimeRegistry'
+import { appSourceRuntimeRegistry } from '../sourceRuntime/SourceRuntimeAppRegistry'
 
 function s(name: string): string {
   return AppStrings.get(name)
@@ -151,6 +155,7 @@ export struct LibraryPage {
   @Local private filterAvailability: LibraryAvailabilityFilter = 'all'
   @Local private remoteProgress: RemoteProgressSyncState = connectRemoteProgressSyncState()
   @Param presentationByComicId: LibraryPresentationByComicId = createMockLibraryPresentationMap()
+  @Param sourceRegistry: SourceRuntimeRegistry = appSourceRuntimeRegistry
   private sessionStore: ReaderSessionStore = new InMemoryReaderSessionStore()
   @Event onOpenReader: (comicId: ComicId) => void = (_comicId: ComicId) => {}
   @Event onImportRequested: () => void = () => {}
@@ -249,6 +254,10 @@ export struct LibraryPage {
     if (serverId !== undefined) {
       return comics.filter((comic: Comic): boolean => comic.remoteServerId === serverId)
     }
+    const sourceId = libraryRuntimeIdFromSourceFilter(this.filterSource)
+    if (sourceId !== undefined) {
+      return comics.filter((comic: Comic): boolean => comic.sourceRuntimeId === sourceId)
+    }
     if (this.filterSource === 'source_package') {
       return comics.filter((comic: Comic): boolean => this.isSourcePackageComic(comic))
     }
@@ -326,6 +335,9 @@ export struct LibraryPage {
         ComicSourceKind.OPDS_REMOTE,
         ComicSourceKind.WEBDAV_REMOTE,
       ]
+    }
+    if (libraryRuntimeIdFromSourceFilter(this.filterSource) !== undefined) {
+      return [ComicSourceKind.PRIVATE_LIBRARY]
     }
     if (this.filterSource === 'local') {
       return [ComicSourceKind.LOCAL_ARCHIVE, ComicSourceKind.LOCAL_FOLDER]
@@ -489,6 +501,10 @@ export struct LibraryPage {
   }
 
   private sourceLabel(): string {
+    const runtimeLabel = this.runtimeSourceLabel()
+    if (runtimeLabel !== undefined) {
+      return runtimeLabel
+    }
     const serverLabel = this.serverSourceLabel()
     if (serverLabel !== undefined) {
       return serverLabel
@@ -523,6 +539,17 @@ export struct LibraryPage {
       return item.filter === this.filterSource
     })
     return option === undefined ? s('library_source_private_server') : option.title
+  }
+
+  private runtimeSourceLabel(): string | undefined {
+    const sourceId = libraryRuntimeIdFromSourceFilter(this.filterSource)
+    if (sourceId === undefined) {
+      return undefined
+    }
+    const option = this.runtimeSourceFilterOptions().find((item: LibraryServerSourceFilterOption): boolean => {
+      return item.filter === this.filterSource
+    })
+    return option === undefined ? s('library_source_package') : option.title
   }
 
   private readStateLabel(): string {
@@ -702,6 +729,34 @@ export struct LibraryPage {
       options.push({
         filter,
         title: this.privateServerFilterTitle(comic),
+      })
+    })
+    return options
+  }
+
+  private runtimeSourceFilterOptions(): LibraryServerSourceFilterOption[] {
+    const summaries = this.sourceRegistry.listInstalledSourceSummaries()
+    const seenFilters: string[] = []
+    const options: LibraryServerSourceFilterOption[] = []
+    this.libraryStore.listComics().forEach((comic: Comic) => {
+      if (!this.isSourcePackageComic(comic) || comic.sourceRuntimeId === undefined) {
+        return
+      }
+      const sourceId = comic.sourceRuntimeId.trim()
+      if (sourceId.length === 0) {
+        return
+      }
+      const filter = libraryRuntimeSourceFilter(sourceId)
+      if (seenFilters.includes(filter)) {
+        return
+      }
+      const summary = summaries.find((item: SourceRuntimeRegistryInstalledSourceSummary): boolean => {
+        return item.sourceId === sourceId
+      })
+      seenFilters.push(filter)
+      options.push({
+        filter,
+        title: summary?.displayName ?? s('library_source_package'),
       })
     })
     return options
@@ -1089,6 +1144,12 @@ export struct LibraryPage {
           this.setSourceFilter('webdav')
         })
       ForEach(this.privateServerFilterOptions(), (option: LibraryServerSourceFilterOption) => {
+        MenuItem({ content: option.title })
+          .onClick(() => {
+            this.setSourceFilter(option.filter)
+          })
+      }, (option: LibraryServerSourceFilterOption) => option.filter)
+      ForEach(this.runtimeSourceFilterOptions(), (option: LibraryServerSourceFilterOption) => {
         MenuItem({ content: option.title })
           .onClick(() => {
             this.setSourceFilter(option.filter)

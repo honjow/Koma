@@ -620,6 +620,7 @@ struct Index {
                 libraryComics: this.libraryComics,
                 libraryRevision: this.libraryRevision,
                 presentationByComicId: this.presentationByComicId,
+                sourceRegistry: this.sourceRegistry,
                 onOpenReader: (comicId: ComicId) => {
                   void this.openReader(comicId)
                 },
