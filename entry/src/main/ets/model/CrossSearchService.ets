@@ -101,6 +101,9 @@ export class CrossSearchService {
     if (normalizedQuery.length === 0) {
       return []
     }
+    if (this.normalizeSearchText(normalizedQuery).length === 0) {
+      return []
+    }
     console.info(`[Search] step=query_start length=${normalizedQuery.length}`)
     const tasks: Promise<SourceSearchOutcome>[] = []
     if (this.sourceMatchesFilter('local', sourceFilter)) {
@@ -191,9 +194,10 @@ export class CrossSearchService {
 
   private async searchLocal(query: string): Promise<SourceSearchOutcome> {
     const libraryStore = this.loadLocalLibraryStore()
-    const lowerQuery = query.toLocaleLowerCase()
+    const normalizedQuery = this.normalizeSearchText(query)
+    const compactQuery = this.compactSearchText(query)
     const items = this.sortSearchResultItems(query, libraryStore.listComics()
-      .filter((comic: Comic): boolean => this.localComicMatches(comic, lowerQuery))
+      .filter((comic: Comic): boolean => this.localComicMatches(comic, normalizedQuery, compactQuery))
       .map((comic: Comic): CrossSearchResultItem => {
         return {
           id: `local:${comic.id}`,
@@ -272,7 +276,8 @@ export class CrossSearchService {
         return { section: this.stateSection('webdav', AppStrings.get('route_webdav_title'), 'webdav', 'unsupported', 'not_configured') }
       }
       const client = this.remoteStore.createWebDavClient(record)
-      const lowerQuery = query.toLocaleLowerCase()
+      const normalizedQuery = this.normalizeSearchText(query)
+      const compactQuery = this.compactSearchText(query)
       const rootResources = await client.propfind([], 1)
       const resources = await this.collectWebDavSearchResources(client, rootResources)
       const matchedItems = resources.filter((resource: DavResource): boolean => {
@@ -280,7 +285,7 @@ export class CrossSearchService {
           return false
         }
         const supported = resource.isCollection || resource.candidateKind === DavComicCandidateKind.IMAGE_FILE
-        return supported && this.davResourceName(resource).toLocaleLowerCase().indexOf(lowerQuery) >= 0
+        return supported && this.textMatchesQuery(this.davResourceName(resource), normalizedQuery, compactQuery)
       }).map((resource: DavResource): CrossSearchResultItem => {
         return {
           id: `webdav:${resource.href}`,
@@ -411,18 +416,18 @@ export class CrossSearchService {
     }
   }
 
-  private localComicMatches(comic: Comic, lowerQuery: string): boolean {
-    if (comic.title.toLocaleLowerCase().indexOf(lowerQuery) >= 0) {
+  private localComicMatches(comic: Comic, normalizedQuery: string, compactQuery: string): boolean {
+    if (this.textMatchesQuery(comic.title, normalizedQuery, compactQuery)) {
       return true
     }
-    if (comic.subtitle !== undefined && comic.subtitle.toLocaleLowerCase().indexOf(lowerQuery) >= 0) {
+    if (comic.subtitle !== undefined && this.textMatchesQuery(comic.subtitle, normalizedQuery, compactQuery)) {
       return true
     }
-    if (comic.author !== undefined && comic.author.toLocaleLowerCase().indexOf(lowerQuery) >= 0) {
+    if (comic.author !== undefined && this.textMatchesQuery(comic.author, normalizedQuery, compactQuery)) {
       return true
     }
     return comic.chapters.some((chapter: Chapter): boolean => {
-      return chapter.title.toLocaleLowerCase().indexOf(lowerQuery) >= 0
+      return this.textMatchesQuery(chapter.title, normalizedQuery, compactQuery)
     })
   }
 
@@ -450,11 +455,12 @@ export class CrossSearchService {
   }
 
   private filterOpdsPublications(client: OpdsClient, catalog: OpdsParseResult, query: string): CrossSearchResultItem[] {
-    const lowerQuery = query.toLocaleLowerCase()
+    const normalizedQuery = this.normalizeSearchText(query)
+    const compactQuery = this.compactSearchText(query)
     const items = catalog.publications.filter((publication: OpdsBookDto): boolean => {
-      return publication.title.toLocaleLowerCase().indexOf(lowerQuery) >= 0 ||
-        (publication.author !== undefined && publication.author.toLocaleLowerCase().indexOf(lowerQuery) >= 0) ||
-        (publication.summary !== undefined && publication.summary.toLocaleLowerCase().indexOf(lowerQuery) >= 0)
+      return this.textMatchesQuery(publication.title, normalizedQuery, compactQuery) ||
+        (publication.author !== undefined && this.textMatchesQuery(publication.author, normalizedQuery, compactQuery)) ||
+        (publication.summary !== undefined && this.textMatchesQuery(publication.summary, normalizedQuery, compactQuery))
     }).map((publication: OpdsBookDto): CrossSearchResultItem => {
       const images = mapOpdsPublicationToImages(publication)
       return {
@@ -595,32 +601,68 @@ export class CrossSearchService {
   }
 
   private sortSearchResultItems(query: string, items: CrossSearchResultItem[]): CrossSearchResultItem[] {
-    const normalizedQuery = query.trim().toLocaleLowerCase()
+    const normalizedQuery = this.normalizeSearchText(query)
+    const compactQuery = this.compactSearchText(query)
     return items.slice().sort((left: CrossSearchResultItem, right: CrossSearchResultItem): number => {
-      const scoreDiff = this.searchResultScore(left, normalizedQuery) - this.searchResultScore(right, normalizedQuery)
+      const scoreDiff = this.searchResultScore(left, normalizedQuery, compactQuery) - this.searchResultScore(right, normalizedQuery, compactQuery)
       return scoreDiff !== 0 ? scoreDiff : left.title.localeCompare(right.title)
     })
   }
 
-  private searchResultScore(item: CrossSearchResultItem, normalizedQuery: string): number {
-    const title = item.title.toLocaleLowerCase()
-    const subtitle = item.subtitle.toLocaleLowerCase()
-    if (title === normalizedQuery) {
+  private searchResultScore(item: CrossSearchResultItem, normalizedQuery: string, compactQuery: string): number {
+    const title = this.normalizeSearchText(item.title)
+    const titleCompact = this.compactSearchText(item.title)
+    const subtitle = this.normalizeSearchText(item.subtitle)
+    const subtitleCompact = this.compactSearchText(item.subtitle)
+    if (title === normalizedQuery || titleCompact === compactQuery) {
       return 0
     }
-    if (title.startsWith(normalizedQuery)) {
+    if (title.startsWith(normalizedQuery) || titleCompact.startsWith(compactQuery)) {
       return 1
     }
-    if (title.indexOf(normalizedQuery) >= 0) {
+    if (title.indexOf(normalizedQuery) >= 0 || titleCompact.indexOf(compactQuery) >= 0) {
       return 2
     }
-    if (subtitle.startsWith(normalizedQuery)) {
+    if (subtitle.startsWith(normalizedQuery) || subtitleCompact.startsWith(compactQuery)) {
       return 3
     }
-    if (subtitle.indexOf(normalizedQuery) >= 0) {
+    if (subtitle.indexOf(normalizedQuery) >= 0 || subtitleCompact.indexOf(compactQuery) >= 0) {
       return 4
     }
     return 9
+  }
+
+  private textMatchesQuery(value: string, normalizedQuery: string, compactQuery: string): boolean {
+    const normalized = this.normalizeSearchText(value)
+    if (normalized.indexOf(normalizedQuery) >= 0) {
+      return true
+    }
+    return this.compactSearchText(value).indexOf(compactQuery) >= 0
+  }
+
+  private compactSearchText(value: string): string {
+    return this.normalizeSearchText(value).replace(/ /g, '')
+  }
+
+  private normalizeSearchText(value: string): string {
+    const lower = value.trim().toLocaleLowerCase()
+    let normalized = ''
+    let previousWasSpace = true
+    for (let index = 0; index < lower.length; index += 1) {
+      const ch = lower.charAt(index)
+      const code = lower.charCodeAt(index)
+      const isAsciiLetter = ch >= 'a' && ch <= 'z'
+      const isDigit = ch >= '0' && ch <= '9'
+      const isNonAsciiText = code > 127
+      if (isAsciiLetter || isDigit || isNonAsciiText) {
+        normalized += ch
+        previousWasSpace = false
+      } else if (!previousWasSpace) {
+        normalized += ' '
+        previousWasSpace = true
+      }
+    }
+    return previousWasSpace && normalized.length > 0 ? normalized.substring(0, normalized.length - 1) : normalized
   }
 
   private komgaSeriesTitle(item: KomgaSeriesDto): string {

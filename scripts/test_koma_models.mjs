@@ -586,13 +586,13 @@ assert.match(
 )
 assert.match(
   crossSearchServiceSource,
-  /private sortSearchResultItems\(query: string, items: CrossSearchResultItem\[\]\): CrossSearchResultItem\[\][\s\S]*this\.searchResultScore\(left, normalizedQuery\) - this\.searchResultScore\(right, normalizedQuery\)[\s\S]*left\.title\.localeCompare\(right\.title\)/,
+  /private sortSearchResultItems\(query: string, items: CrossSearchResultItem\[\]\): CrossSearchResultItem\[\][\s\S]*const compactQuery = this\.compactSearchText\(query\)[\s\S]*this\.searchResultScore\(left, normalizedQuery, compactQuery\) - this\.searchResultScore\(right, normalizedQuery, compactQuery\)[\s\S]*left\.title\.localeCompare\(right\.title\)/,
   'CrossSearchService must apply stable result scoring instead of raw provider order',
 )
 assert.match(
   crossSearchServiceSource,
-  /private searchResultScore\(item: CrossSearchResultItem, normalizedQuery: string\): number[\s\S]*title === normalizedQuery[\s\S]*title\.startsWith\(normalizedQuery\)[\s\S]*title\.indexOf\(normalizedQuery\)[\s\S]*subtitle\.startsWith\(normalizedQuery\)[\s\S]*subtitle\.indexOf\(normalizedQuery\)/,
-  'CrossSearchService scoring must prioritize exact title, title prefix, title contains, then subtitle matches',
+  /private searchResultScore\(item: CrossSearchResultItem, normalizedQuery: string, compactQuery: string\): number[\s\S]*titleCompact === compactQuery[\s\S]*title\.startsWith\(normalizedQuery\)[\s\S]*titleCompact\.startsWith\(compactQuery\)[\s\S]*subtitle\.startsWith\(normalizedQuery\)[\s\S]*subtitleCompact\.indexOf\(compactQuery\)/,
+  'CrossSearchService scoring must prioritize exact title, title prefix, title contains, then subtitle matches with compact query support',
 )
 assert.match(
   crossSearchServiceSource,

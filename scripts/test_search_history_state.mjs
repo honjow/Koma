@@ -61,6 +61,46 @@ assert.match(
 )
 assert.match(
   crossSearchSource,
+  /normalizeSearchText\(normalizedQuery\)\.length === 0[\s\S]*return \[\]/,
+  'punctuation-only search queries must not fan out into all providers',
+)
+assert.match(
+  crossSearchSource,
+  /private normalizeSearchText\(value: string\): string[\s\S]*isAsciiLetter[\s\S]*isDigit[\s\S]*isNonAsciiText[\s\S]*previousWasSpace/,
+  'cross-search must normalize punctuation and spacing before local ranking/matching',
+)
+assert.match(
+  crossSearchSource,
+  /private compactSearchText\(value: string\): string[\s\S]*normalizeSearchText\(value\)\.replace\(/,
+  'cross-search must support compact matching such as onepiece against One Piece',
+)
+assert.match(
+  crossSearchSource,
+  /private textMatchesQuery\(value: string, normalizedQuery: string, compactQuery: string\): boolean[\s\S]*normalizeSearchText\(value\)[\s\S]*compactSearchText\(value\)/,
+  'cross-search providers must share normalized and compact matching',
+)
+assert.match(
+  crossSearchSource,
+  /private localComicMatches\(comic: Comic, normalizedQuery: string, compactQuery: string\)[\s\S]*textMatchesQuery\(comic\.title[\s\S]*textMatchesQuery\(chapter\.title/,
+  'local search must match title, metadata, and chapter names through normalized search text',
+)
+assert.match(
+  crossSearchSource,
+  /filterOpdsPublications\(client: OpdsClient, catalog: OpdsParseResult, query: string\)[\s\S]*textMatchesQuery\(publication\.title[\s\S]*textMatchesQuery\(publication\.author[\s\S]*textMatchesQuery\(publication\.summary/,
+  'OPDS search filtering must use the same normalized matching as local search',
+)
+assert.match(
+  crossSearchSource,
+  /davResourceName\(resource\), normalizedQuery, compactQuery\)/,
+  'WebDAV search filtering must use normalized matching for file and folder names',
+)
+assert.match(
+  crossSearchSource,
+  /searchResultScore\(item: CrossSearchResultItem, normalizedQuery: string, compactQuery: string\)[\s\S]*titleCompact === compactQuery[\s\S]*subtitleCompact\.indexOf\(compactQuery\)/,
+  'cross-search ranking must score compact title and subtitle matches',
+)
+assert.match(
+  crossSearchSource,
   /webDavPathSegments: resource\.isCollection \?[\s\S]*this\.webDavRelativeSegments\(client, resource\.href\)[\s\S]*this\.webDavParentSegments\(client, resource\.href\)/,
   'WebDAV image search results must retain parent path segments so child images open from the right directory',
 )
