@@ -45,6 +45,7 @@ import {
   OFFLINE_DOWNLOAD_QUEUE_SCHEMA_VERSION,
   OfflineDownloadQueueEntry,
   OfflineDownloadQueuePreferences,
+  normalizeOfflineDownloadFailureReasonCode,
 } from './OfflineDownloadQueueStore'
 import {
   LocalLibraryMetadataBackupEntry,
@@ -598,7 +599,7 @@ function normalizeBackupDownloadQueuePayload(payload: string): string {
     if (chapterTitle !== undefined) {
       entry.chapterTitle = chapterTitle
     }
-    const failureReasonCode = normalizeBackupString(row['failureReasonCode'])
+    const failureReasonCode = normalizeOfflineDownloadFailureReasonCode(normalizeBackupString(row['failureReasonCode']))
     if (failureReasonCode !== undefined) {
       entry.failureReasonCode = failureReasonCode
     }

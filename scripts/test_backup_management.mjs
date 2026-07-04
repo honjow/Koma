@@ -375,6 +375,11 @@ assert.match(
   'backup import must restore normalized download queue metadata under app files',
 )
 assert.match(
+  backupServiceSource,
+  /normalizeOfflineDownloadFailureReasonCode[\s\S]*const failureReasonCode = normalizeOfflineDownloadFailureReasonCode\(normalizeBackupString\(row\['failureReasonCode'\]\)\)/,
+  'backup import must reuse the offline download failure allowlist before writing queue metadata back to disk',
+)
+assert.match(
   backupPageSource,
   /backup_restore_selected_action[\s\S]*backupImportPreviewNote\(\)[\s\S]*backupImportConflictPolicy\(\)/,
   'BackupManagementPage must state preview/conflict policy and require a separate restore action',

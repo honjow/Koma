@@ -21,7 +21,7 @@ export const DEFAULT_OFFLINE_DOWNLOAD_QUEUE_PREFERENCES: OfflineDownloadQueuePre
   wifiOnly: false,
 }
 const OFFLINE_DOWNLOAD_QUEUE_TEMP_FILE_NAME: string = 'queue.v1.json.tmp'
-const OFFLINE_DOWNLOAD_FAILURE_REASON_CODES: string[] = [
+export const OFFLINE_DOWNLOAD_FAILURE_REASON_CODES: string[] = [
   'paused',
   'wifi_only',
   'download_interrupted',
@@ -29,12 +29,17 @@ const OFFLINE_DOWNLOAD_FAILURE_REASON_CODES: string[] = [
   'manifest_malformed',
   'manifest_unavailable',
   'manifest_validation_failed',
+  'identity_mismatch',
   'status_invalid',
   'status_not_reader_ready',
   'integrity_missing',
   'integrity_mismatch',
   'page_count_empty',
   'pages_missing',
+  'unsafe_page_path',
+  'outside_chapter_dir',
+  'page_index_invalid',
+  'page_size_mismatch',
   'page_file_missing',
   'chapter_missing',
   'page_fetch_failed',
@@ -144,7 +149,7 @@ function normalizeCount(value: number): number {
   return Math.max(0, Math.floor(value))
 }
 
-function normalizeFailureReasonCode(value: string | undefined): string | undefined {
+export function normalizeOfflineDownloadFailureReasonCode(value: string | undefined): string | undefined {
   if (value === undefined) {
     return undefined
   }
@@ -166,7 +171,7 @@ function normalizeEntry(entry: OfflineDownloadQueueEntry): OfflineDownloadQueueE
   if (entry.chapterTitle !== undefined && entry.chapterTitle.length > 0) {
     next.chapterTitle = entry.chapterTitle
   }
-  const failureReasonCode = normalizeFailureReasonCode(entry.failureReasonCode)
+  const failureReasonCode = normalizeOfflineDownloadFailureReasonCode(entry.failureReasonCode)
   if (failureReasonCode !== undefined) {
     next.failureReasonCode = failureReasonCode
   }
