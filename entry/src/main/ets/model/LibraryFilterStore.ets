@@ -10,6 +10,7 @@ export type LibraryServerSourceFilter = string
 export type LibraryRuntimeSourceFilter = string
 export type LibrarySourceFilter = 'all' | 'local' | 'private' | 'komga' | 'kavita' | 'opds' | 'webdav' | 'source_package' | LibraryServerSourceFilter | LibraryRuntimeSourceFilter
 export type LibraryAvailabilityFilter = 'all' | 'downloaded' | 'fully_downloaded' | 'partially_downloaded' | 'not_downloaded'
+export type LibraryMetadataStatusFilter = 'all' | 'ongoing' | 'completed' | 'hiatus' | 'cancelled' | 'unknown'
 export type LibraryViewMode = 'grid' | 'list'
 export type LibraryListDensity = 'compact' | 'standard' | 'comfortable'
 
@@ -22,6 +23,7 @@ export interface LibraryFilterPreferences {
   readState: LibraryReadStateFilter
   category: LibraryCategoryFilter
   availability: LibraryAvailabilityFilter
+  metadataStatus: LibraryMetadataStatusFilter
 }
 
 const LIBRARY_FILTER_STORE_NAME: string = 'koma_library_filter_preferences'
@@ -33,6 +35,7 @@ const LIBRARY_FILTER_SOURCE_KEY: string = 'library.filter.source'
 const LIBRARY_FILTER_READ_STATE_KEY: string = 'library.filter.readState'
 const LIBRARY_FILTER_CATEGORY_KEY: string = 'library.filter.category'
 const LIBRARY_FILTER_AVAILABILITY_KEY: string = 'library.filter.availability'
+const LIBRARY_FILTER_METADATA_STATUS_KEY: string = 'library.filter.metadataStatus'
 
 const DEFAULT_LIBRARY_FILTER_PREFERENCES: LibraryFilterPreferences = {
   sortBy: 'lastRead',
@@ -43,6 +46,7 @@ const DEFAULT_LIBRARY_FILTER_PREFERENCES: LibraryFilterPreferences = {
   readState: 'all',
   category: 'all',
   availability: 'all',
+  metadataStatus: 'all',
 }
 
 function normalizeSortBy(value: string): LibrarySortBy {
@@ -147,6 +151,13 @@ function normalizeAvailability(value: string): LibraryAvailabilityFilter {
   return 'all'
 }
 
+function normalizeMetadataStatus(value: string): LibraryMetadataStatusFilter {
+  if (value === 'ongoing' || value === 'completed' || value === 'hiatus' || value === 'cancelled' || value === 'unknown') {
+    return value
+  }
+  return 'all'
+}
+
 export class LibraryFilterStore {
   private context: common.UIAbilityContext
 
@@ -164,6 +175,7 @@ export class LibraryFilterStore {
     const readState = await store.get(LIBRARY_FILTER_READ_STATE_KEY, DEFAULT_LIBRARY_FILTER_PREFERENCES.readState) as string
     const category = await store.get(LIBRARY_FILTER_CATEGORY_KEY, DEFAULT_LIBRARY_FILTER_PREFERENCES.category) as string
     const availability = await store.get(LIBRARY_FILTER_AVAILABILITY_KEY, DEFAULT_LIBRARY_FILTER_PREFERENCES.availability) as string
+    const metadataStatus = await store.get(LIBRARY_FILTER_METADATA_STATUS_KEY, DEFAULT_LIBRARY_FILTER_PREFERENCES.metadataStatus) as string
     return {
       sortBy: normalizeSortBy(sortBy),
       viewMode: normalizeViewMode(viewMode),
@@ -173,6 +185,7 @@ export class LibraryFilterStore {
       readState: normalizeReadState(readState),
       category: normalizeCategory(category),
       availability: normalizeAvailability(availability),
+      metadataStatus: normalizeMetadataStatus(metadataStatus),
     }
   }
 
@@ -186,6 +199,7 @@ export class LibraryFilterStore {
     await store.put(LIBRARY_FILTER_READ_STATE_KEY, normalizeReadState(preferencesValue.readState))
     await store.put(LIBRARY_FILTER_CATEGORY_KEY, normalizeCategory(preferencesValue.category))
     await store.put(LIBRARY_FILTER_AVAILABILITY_KEY, normalizeAvailability(preferencesValue.availability))
+    await store.put(LIBRARY_FILTER_METADATA_STATUS_KEY, normalizeMetadataStatus(preferencesValue.metadataStatus))
     await store.flush()
   }
 

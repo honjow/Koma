@@ -830,6 +830,11 @@ assert.match(
 )
 assert.match(
   libraryFilterStoreSource,
+  /export type LibraryMetadataStatusFilter = 'all' \| 'ongoing' \| 'completed' \| 'hiatus' \| 'cancelled' \| 'unknown'[\s\S]*LIBRARY_FILTER_METADATA_STATUS_KEY[\s\S]*metadataStatus: 'all'[\s\S]*function normalizeMetadataStatus[\s\S]*metadataStatus = await store\.get\(LIBRARY_FILTER_METADATA_STATUS_KEY[\s\S]*metadataStatus: normalizeMetadataStatus\(metadataStatus\)[\s\S]*store\.put\(LIBRARY_FILTER_METADATA_STATUS_KEY, normalizeMetadataStatus\(preferencesValue\.metadataStatus\)\)/,
+  'Library filter preferences must persist manga metadata status filters',
+)
+assert.match(
+  libraryFilterStoreSource,
   /LIBRARY_SHOW_BADGES_KEY[\s\S]*showBadges: true[\s\S]*function normalizeShowBadges\(value: boolean\): boolean[\s\S]*showBadges = await store\.get\(LIBRARY_SHOW_BADGES_KEY[\s\S]*showBadges: normalizeShowBadges\(showBadges\)[\s\S]*store\.put\(LIBRARY_SHOW_BADGES_KEY, normalizeShowBadges\(preferencesValue\.showBadges\)\)/,
   'Library filter preferences must persist a real library badge visibility switch',
 )
@@ -842,6 +847,11 @@ assert.match(
   libraryPageSource,
   /filterAvailability: LibraryAvailabilityFilter = 'all'[\s\S]*filterAvailabilityComics\(this\.filterPreciseSourceComics\(nextComics\)\)[\s\S]*private filterAvailabilityComics\(comics: Comic\[\]\): Comic\[\][\s\S]*this\.filterAvailability === 'downloaded'[\s\S]*downloadedComics\.has\(comic\.id\)[\s\S]*this\.filterAvailability === 'fully_downloaded'[\s\S]*OfflineDownloadStatus\.DOWNLOADED[\s\S]*this\.filterAvailability === 'partially_downloaded'[\s\S]*OfflineDownloadStatus\.PARTIAL[\s\S]*!downloadedComics\.has\(comic\.id\)[\s\S]*new OfflineDownloadQueueStore\(context\.filesDir\)\.reconcileWithManifests\(\)[\s\S]*const entriesByComicId = new Map<ComicId, OfflineDownloadQueueEntry\[\]>\(\)[\s\S]*chapterIds\.add\(chapter\.id\)[\s\S]*entry\.status === OfflineDownloadStatus\.PARTIAL[\s\S]*comicAvailability\.set\(comic\.id, OfflineDownloadStatus\.PARTIAL\)[\s\S]*downloadedChapterIds\.size === chapterIds\.size[\s\S]*comicAvailability\.set\(comic\.id, OfflineDownloadStatus\.DOWNLOADED\)[\s\S]*comicAvailability\.set\(comic\.id, OfflineDownloadStatus\.PARTIAL\)/,
   'LibraryPage availability filter must derive any/complete/partial/not-downloaded comics from reconciled download queue manifests with full-comic checks based on every known chapter',
+)
+assert.match(
+  libraryPageSource,
+  /filterMetadataStatus: LibraryMetadataStatusFilter = 'all'[\s\S]*filterMetadataStatusComics\([\s\S]*filterAvailabilityComics\(this\.filterPreciseSourceComics\(nextComics\)\)[\s\S]*private filterMetadataStatusComics\(comics: Comic\[\]\): Comic\[\][\s\S]*this\.filterMetadataStatus === 'unknown'[\s\S]*comic\.localMetadata\?\.status === undefined[\s\S]*comic\.localMetadata\?\.status === this\.filterMetadataStatus[\s\S]*metadataStatus: this\.filterMetadataStatus/,
+  'LibraryPage must filter library rows by local metadata status without treating unknown as completed/ongoing',
 )
 assert.match(
   libraryPageSource,
@@ -872,6 +882,11 @@ assert.match(
   libraryPageSource,
   /private AvailabilityMenu\(\)[\s\S]*setAvailabilityFilter\('all'\)[\s\S]*library_availability_downloaded[\s\S]*setAvailabilityFilter\('downloaded'\)[\s\S]*library_availability_fully_downloaded[\s\S]*setAvailabilityFilter\('fully_downloaded'\)[\s\S]*library_availability_partially_downloaded[\s\S]*setAvailabilityFilter\('partially_downloaded'\)[\s\S]*library_availability_not_downloaded[\s\S]*setAvailabilityFilter\('not_downloaded'\)[\s\S]*this\.availabilityLabel\(\)[\s\S]*this\.filterAvailability !== 'all'/,
   'LibraryPage must expose user-visible any/complete/partial/not-downloaded availability filter chips',
+)
+assert.match(
+  libraryPageSource,
+  /private MetadataStatusMenu\(\)[\s\S]*setMetadataStatusFilter\('all'\)[\s\S]*manga_status_ongoing[\s\S]*setMetadataStatusFilter\('ongoing'\)[\s\S]*manga_status_completed[\s\S]*setMetadataStatusFilter\('completed'\)[\s\S]*manga_status_hiatus[\s\S]*setMetadataStatusFilter\('hiatus'\)[\s\S]*manga_status_cancelled[\s\S]*setMetadataStatusFilter\('cancelled'\)[\s\S]*manga_status_unknown[\s\S]*setMetadataStatusFilter\('unknown'\)[\s\S]*this\.metadataStatusLabel\(\)[\s\S]*this\.filterMetadataStatus !== 'all'/,
+  'LibraryPage must expose metadata status as a real menu-backed filter chip',
 )
 assert.match(
   libraryPageSource,

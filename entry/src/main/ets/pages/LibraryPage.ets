@@ -40,6 +40,7 @@ import {
   LibraryFilterPreferences,
   LibraryFilterStore,
   LibraryListDensity,
+  LibraryMetadataStatusFilter,
   libraryRuntimeIdFromSourceFilter,
   libraryRuntimeSourceFilter,
   libraryServerIdFromSourceFilter,
@@ -154,6 +155,7 @@ export struct LibraryPage {
   @Local private filterReadState: LibraryReadStateFilter = 'all'
   @Local private filterCategory: LibraryCategoryFilter = 'all'
   @Local private filterAvailability: LibraryAvailabilityFilter = 'all'
+  @Local private filterMetadataStatus: LibraryMetadataStatusFilter = 'all'
   @Local private remoteProgress: RemoteProgressSyncState = connectRemoteProgressSyncState()
   @Param presentationByComicId: LibraryPresentationByComicId = createMockLibraryPresentationMap()
   @Param sourceRegistry: SourceRuntimeRegistry = appSourceRuntimeRegistry
@@ -209,9 +211,21 @@ export struct LibraryPage {
         nextComics.push(comic)
       }
     })
-    this.displayedComics = this.filterAvailabilityComics(this.filterPreciseSourceComics(nextComics))
+    this.displayedComics = this.filterMetadataStatusComics(
+      this.filterAvailabilityComics(this.filterPreciseSourceComics(nextComics))
+    )
     this.displayedRevision += 1
     this.removeMissingSelectedComics()
+  }
+
+  private filterMetadataStatusComics(comics: Comic[]): Comic[] {
+    if (this.filterMetadataStatus === 'all') {
+      return comics
+    }
+    if (this.filterMetadataStatus === 'unknown') {
+      return comics.filter((comic: Comic): boolean => comic.localMetadata?.status === undefined)
+    }
+    return comics.filter((comic: Comic): boolean => comic.localMetadata?.status === this.filterMetadataStatus)
   }
 
   private filterAvailabilityComics(comics: Comic[]): Comic[] {
@@ -415,10 +429,11 @@ export struct LibraryPage {
       this.filterReadState = preferencesValue.readState
       this.filterCategory = preferencesValue.category
       this.filterAvailability = preferencesValue.availability
+      this.filterMetadataStatus = preferencesValue.metadataStatus
       this.applyCategoryDisplayStrategy(this.validCategoryFilter())
       this.refreshDisplayedSnapshotFromStore()
       console.info(
-        `[Library] step=filter_restored sortBy=${this.sortBy} viewMode=${this.viewMode} listDensity=${this.listDensity} showBadges=${this.showLibraryBadges} source=${this.filterSource} readState=${this.filterReadState} category=${this.filterCategory} availability=${this.filterAvailability}`
+        `[Library] step=filter_restored sortBy=${this.sortBy} viewMode=${this.viewMode} listDensity=${this.listDensity} showBadges=${this.showLibraryBadges} source=${this.filterSource} readState=${this.filterReadState} category=${this.filterCategory} availability=${this.filterAvailability} metadataStatus=${this.filterMetadataStatus}`
       )
     } catch (error) {
       void error
@@ -438,6 +453,7 @@ export struct LibraryPage {
         readState: this.filterReadState,
         category: this.filterCategory,
         availability: this.filterAvailability,
+        metadataStatus: this.filterMetadataStatus,
       }
       void new LibraryFilterStore(context).save(preferencesValue)
     } catch (error) {
@@ -497,12 +513,23 @@ export struct LibraryPage {
     console.info(`[Library] step=filter_changed availability=${availability}`)
   }
 
+  private setMetadataStatusFilter(metadataStatus: LibraryMetadataStatusFilter): void {
+    if (this.filterMetadataStatus === metadataStatus) {
+      return
+    }
+    this.filterMetadataStatus = metadataStatus
+    this.refreshDisplayedSnapshotFromStore()
+    this.saveFilterPreferences()
+    console.info(`[Library] step=filter_changed metadataStatus=${metadataStatus}`)
+  }
+
   private hasActiveFilters(): boolean {
     return this.sortBy !== 'lastRead' ||
       this.filterSource !== 'all' ||
       this.filterReadState !== 'all' ||
       this.filterCategory !== 'all' ||
-      this.filterAvailability !== 'all'
+      this.filterAvailability !== 'all' ||
+      this.filterMetadataStatus !== 'all'
   }
 
   private resetFilters(): void {
@@ -514,6 +541,7 @@ export struct LibraryPage {
     this.filterReadState = 'all'
     this.filterCategory = 'all'
     this.filterAvailability = 'all'
+    this.filterMetadataStatus = 'all'
     this.refreshDisplayedSnapshotFromStore()
     this.saveFilterPreferences()
     console.info('[Library] step=filters_reset')
@@ -642,6 +670,25 @@ export struct LibraryPage {
       return s('library_availability_not_downloaded')
     }
     return s('library_availability_all')
+  }
+
+  private metadataStatusLabel(): string {
+    if (this.filterMetadataStatus === 'ongoing') {
+      return s('manga_status_ongoing')
+    }
+    if (this.filterMetadataStatus === 'completed') {
+      return s('manga_status_completed')
+    }
+    if (this.filterMetadataStatus === 'hiatus') {
+      return s('manga_status_hiatus')
+    }
+    if (this.filterMetadataStatus === 'cancelled') {
+      return s('manga_status_cancelled')
+    }
+    if (this.filterMetadataStatus === 'unknown') {
+      return s('manga_status_unknown')
+    }
+    return s('library_metadata_status_all')
   }
 
   private viewModel(): LibraryViewModel {
@@ -1274,6 +1321,36 @@ export struct LibraryPage {
   }
 
   @Builder
+  private MetadataStatusMenu() {
+    Menu() {
+      MenuItem({ content: s('common_all') })
+        .onClick(() => {
+          this.setMetadataStatusFilter('all')
+        })
+      MenuItem({ content: s('manga_status_ongoing') })
+        .onClick(() => {
+          this.setMetadataStatusFilter('ongoing')
+        })
+      MenuItem({ content: s('manga_status_completed') })
+        .onClick(() => {
+          this.setMetadataStatusFilter('completed')
+        })
+      MenuItem({ content: s('manga_status_hiatus') })
+        .onClick(() => {
+          this.setMetadataStatusFilter('hiatus')
+        })
+      MenuItem({ content: s('manga_status_cancelled') })
+        .onClick(() => {
+          this.setMetadataStatusFilter('cancelled')
+        })
+      MenuItem({ content: s('manga_status_unknown') })
+        .onClick(() => {
+          this.setMetadataStatusFilter('unknown')
+        })
+    }
+  }
+
+  @Builder
   private CategoryMenu() {
     Menu() {
       MenuItem({ content: s('common_all') })
@@ -1439,6 +1516,24 @@ export struct LibraryPage {
       }
       .margin({ right: ThemeConstants.SPACE_SM, bottom: ThemeConstants.SPACE_SM })
       .bindMenu(this.AvailabilityMenu())
+      Row() {
+        Chip({
+          label: {
+            text: `${this.metadataStatusLabel()} ▾`,
+            fontSize: ThemeConstants.FONT_SIZE_TAG,
+            fontColor: ThemeConstants.TEXT_PRIMARY,
+            activatedFontColor: ThemeConstants.TEXT_ON_BRAND,
+          },
+          activated: this.filterMetadataStatus !== 'all',
+          size: ChipSize.SMALL,
+          backgroundColor: $r('sys.color.ohos_id_color_button_normal'),
+          activatedBackgroundColor: ThemeConstants.BRAND_PRIMARY,
+          borderRadius: ThemeConstants.RADIUS_ROUND,
+          allowClose: false,
+        })
+      }
+      .margin({ right: ThemeConstants.SPACE_SM, bottom: ThemeConstants.SPACE_SM })
+      .bindMenu(this.MetadataStatusMenu())
       Row() {
         Chip({
           label: {
