@@ -980,7 +980,11 @@ export struct BackupManagementPage {
       }
       if (!preview.encrypted || preview.decrypted) {
         this.PreviewRow(t('backup_preview_library_items'), `${preview.libraryItemCount}`)
+        this.PreviewRow(t('backup_preview_current_library_items'), `${preview.currentLibraryItemCount}`)
+        this.PreviewRow(t('backup_preview_library_conflicts'), `${preview.libraryConflictCount}`)
         this.PreviewRow(t('backup_preview_progress'), `${preview.progressCount}`)
+        this.PreviewRow(t('backup_preview_current_progress'), `${preview.currentProgressCount}`)
+        this.PreviewRow(t('backup_preview_progress_conflicts'), `${preview.progressConflictCount}`)
         this.PreviewRow(t('backup_preview_settings'), `${preview.settingsCount}`)
         this.PreviewRow(t('backup_preview_categories'), `${preview.categoryCount}`)
         this.PreviewRow(

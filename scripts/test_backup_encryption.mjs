@@ -119,6 +119,7 @@ assert.match(serviceSource, /BACKUP_ENCRYPTION_NATIVE_CIPHER:\s*string = 'AES256
 assert.match(serviceSource, /aad:\s*\{\s*data:\s*aad\s*\}/, 'production GCM must bind AAD')
 assert.match(backupServiceSource, /exportEncrypted\(passphrase: string\)[\s\S]*BackupEncryptionService\(\)\.encrypt/, 'BackupService must expose encrypted export')
 assert.match(backupServiceSource, /decryptPreview\(json: string, passphrase: string\)[\s\S]*BackupEncryptionService\(\)\.decrypt/, 'BackupService must expose encrypted decrypt preview')
+assert.match(backupServiceSource, /decryptPreview\(json: string, passphrase: string\)[\s\S]*currentLibraryItemCount: preview\.currentLibraryItemCount[\s\S]*currentProgressCount: preview\.currentProgressCount[\s\S]*libraryConflictCount: preview\.libraryConflictCount[\s\S]*progressConflictCount: preview\.progressConflictCount/, 'encrypted backup decrypt preview must preserve restore conflict counts')
 assert.match(pageSource, /KomaFormTextField\(\{[\s\S]*value:\s*this\.exportPassphrase[\s\S]*isPassword:\s*true/, 'UI must collect export passphrase as password input')
 assert.match(pageSource, /KomaFormTextField\(\{[\s\S]*value:\s*this\.importPassphrase[\s\S]*isPassword:\s*true/, 'UI must collect import passphrase as password input')
 assert.doesNotMatch(pageSource, /计划中|尚未启用|enabled\(false\)[\s\S]*加密备份/, 'UI must not leave encryption as placeholder-only')

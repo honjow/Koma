@@ -280,13 +280,18 @@ assert.match(
 )
 assert.match(
   backupServiceSource,
-  /export interface BackupImportPreview[\s\S]*schemaVersion:\s*number[\s\S]*exportedAtText:\s*string[\s\S]*encryptionText:\s*string[\s\S]*libraryItemCount:\s*number[\s\S]*progressCount:\s*number[\s\S]*settingsCount:\s*number[\s\S]*categoryCount:\s*number[\s\S]*downloadQueueCount:\s*number[\s\S]*trackerMappingCount:\s*number[\s\S]*sourcePackageCount:\s*number/,
-  'backup import preview must expose version, exportedAt, encryption state, and core counts',
+  /export interface BackupImportPreview[\s\S]*schemaVersion:\s*number[\s\S]*exportedAtText:\s*string[\s\S]*encryptionText:\s*string[\s\S]*libraryItemCount:\s*number[\s\S]*progressCount:\s*number[\s\S]*currentLibraryItemCount:\s*number[\s\S]*currentProgressCount:\s*number[\s\S]*libraryConflictCount:\s*number[\s\S]*progressConflictCount:\s*number[\s\S]*settingsCount:\s*number[\s\S]*categoryCount:\s*number[\s\S]*downloadQueueCount:\s*number[\s\S]*trackerMappingCount:\s*number[\s\S]*sourcePackageCount:\s*number/,
+  'backup import preview must expose version, exportedAt, encryption state, core counts, and restore conflict counts',
 )
 assert.match(
   backupServiceSource,
-  /preview\(json: string\): BackupImportPreview[\s\S]*isEncryptedBackupPayload\(json\)[\s\S]*previewDocument\(json, false\)[\s\S]*formatBackupEncryption\(document\.encryption\)[\s\S]*libraryItemCount:[\s\S]*progressCount:/,
-  'backup preview must detect encrypted envelopes and keep v1/v2/v3 compatibility',
+  /preview\(json: string\): BackupImportPreview[\s\S]*isEncryptedBackupPayload\(json\)[\s\S]*previewDocument\(json, false\)[\s\S]*readTextIfExists\(this\.libraryPath\(\), emptyLibraryStorePayload\(\)\)[\s\S]*readTextIfExists\(this\.readerProgressPath\(\), emptyReaderProgressPayload\(\)\)[\s\S]*libraryConflictCount: overlapCount\(backupComicIds, currentComicIds\)[\s\S]*progressConflictCount: overlapCount\(backupProgressComicIds, currentProgressComicIds\)/,
+  'backup preview must detect encrypted envelopes, keep v1/v2/v3 compatibility, and compare restore data with current local state',
+)
+assert.match(
+  backupPageSource,
+  /SelectedPreviewCard\(preview: BackupImportPreview\)[\s\S]*backup_preview_current_library_items[\s\S]*backup_preview_library_conflicts[\s\S]*backup_preview_current_progress[\s\S]*backup_preview_progress_conflicts/,
+  'BackupManagementPage must show current local counts and restore overlap counts before restore',
 )
 assert.match(
   backupServiceSource,

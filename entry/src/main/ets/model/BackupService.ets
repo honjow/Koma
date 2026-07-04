@@ -151,6 +151,10 @@ export interface BackupImportPreview {
   kdfId: string
   libraryItemCount: number
   progressCount: number
+  currentLibraryItemCount: number
+  currentProgressCount: number
+  libraryConflictCount: number
+  progressConflictCount: number
   settingsCount: number
   categoryCount: number
   downloadQueueCount: number
@@ -430,6 +434,35 @@ function arrayFieldCount(source: Record<string, Object>, key: string): number {
   return value.length
 }
 
+function stringFieldSet(source: Record<string, Object>, arrayKey: string, fieldKey: string): Set<string> {
+  const value = source[arrayKey]
+  const ids = new Set<string>()
+  if (!Array.isArray(value)) {
+    return ids
+  }
+  const rows = value as Object[]
+  rows.forEach((row: Object) => {
+    if (row === null || Array.isArray(row) || typeof row !== 'object') {
+      return
+    }
+    const id = (row as Record<string, Object>)[fieldKey]
+    if (typeof id === 'string' && id.length > 0) {
+      ids.add(id)
+    }
+  })
+  return ids
+}
+
+function overlapCount(left: Set<string>, right: Set<string>): number {
+  let count = 0
+  left.forEach((id: string) => {
+    if (right.has(id)) {
+      count += 1
+    }
+  })
+  return count
+}
+
 function countLibraryCategories(libraryStore: Record<string, Object>): number {
   const customCategories = libraryStore['customCategories']
   const comics = libraryStore['comics']
@@ -611,6 +644,10 @@ function emptyEncryptedCountsPreview(publicPreview: BackupEncryptedPublicPreview
     kdfId: publicPreview.kdfId,
     libraryItemCount: 0,
     progressCount: 0,
+    currentLibraryItemCount: 0,
+    currentProgressCount: 0,
+    libraryConflictCount: 0,
+    progressConflictCount: 0,
     settingsCount: 0,
     categoryCount: 0,
     downloadQueueCount: 0,
@@ -904,6 +941,12 @@ export class BackupService {
     }
     const libraryStore = asJsonObject(JSON.parse(document.libraryStore) as Object, 'library')
     const readingProgress = asJsonObject(JSON.parse(document.readingProgress) as Object, 'progress')
+    const currentLibraryStore = asJsonObject(JSON.parse(readTextIfExists(this.libraryPath(), emptyLibraryStorePayload())) as Object, 'current library')
+    const currentReadingProgress = asJsonObject(JSON.parse(readTextIfExists(this.readerProgressPath(), emptyReaderProgressPayload())) as Object, 'current progress')
+    const backupComicIds = stringFieldSet(libraryStore, 'comics', 'id')
+    const backupProgressComicIds = stringFieldSet(readingProgress, 'progress', 'comicId')
+    const currentComicIds = stringFieldSet(currentLibraryStore, 'comics', 'id')
+    const currentProgressComicIds = stringFieldSet(currentReadingProgress, 'progress', 'comicId')
     return {
       schemaVersion: document.schemaVersion,
       exportedAt: normalizeBackupExportedAt(document.exportedAt),
@@ -915,6 +958,10 @@ export class BackupService {
       kdfId: '',
       libraryItemCount: arrayFieldCount(libraryStore, 'comics'),
       progressCount: arrayFieldCount(readingProgress, 'progress'),
+      currentLibraryItemCount: arrayFieldCount(currentLibraryStore, 'comics'),
+      currentProgressCount: arrayFieldCount(currentReadingProgress, 'progress'),
+      libraryConflictCount: overlapCount(backupComicIds, currentComicIds),
+      progressConflictCount: overlapCount(backupProgressComicIds, currentProgressComicIds),
       settingsCount: countReaderPreferences(document.settings) + countBackupTrackerSyncPreferences(document.trackerSyncPreferences),
       categoryCount: countLibraryCategories(libraryStore),
       downloadQueueCount: countBackupDownloadQueueEntries(document.downloadQueue),
@@ -939,6 +986,10 @@ export class BackupService {
         kdfId: preview.kdfId,
         libraryItemCount: preview.libraryItemCount,
         progressCount: preview.progressCount,
+        currentLibraryItemCount: preview.currentLibraryItemCount,
+        currentProgressCount: preview.currentProgressCount,
+        libraryConflictCount: preview.libraryConflictCount,
+        progressConflictCount: preview.progressConflictCount,
         settingsCount: preview.settingsCount,
         categoryCount: preview.categoryCount,
         downloadQueueCount: preview.downloadQueueCount,
