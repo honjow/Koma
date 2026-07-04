@@ -34,7 +34,7 @@ assert.match(historyStoreSource, /slice\(0,\s*MAX_SEARCH_HISTORY_COUNT\)/, 'hist
 assert.match(historyStoreSource, /toLocaleLowerCase\(\)[\s\S]*normalizedQuery\.toLocaleLowerCase\(\)/, 'history must dedupe repeated queries case-insensitively')
 assert.match(historyStoreSource, /preferences\.getPreferences\(this\.context,\s*SEARCH_HISTORY_STORE_NAME\)/, 'history must use persistent preferences')
 assert.match(historyStoreSource, /store\.put\(SEARCH_HISTORY_QUERIES_KEY,\s*JSON\.stringify/, 'history must serialize durable query records')
-assert.match(historyStoreSource, /normalizeSearchSourceFilter\(value: string \| undefined\): CrossSearchSourceFilter[\s\S]*value === 'local'[\s\S]*value === 'private'[\s\S]*value === 'source'[\s\S]*return 'all'/, 'search source filter normalization must safely fall back to all')
+assert.match(historyStoreSource, /normalizeSearchSourceFilter\(value: string \| undefined\): CrossSearchSourceFilter[\s\S]*value === 'wasm'[\s\S]*return 'source'[\s\S]*value === 'local'[\s\S]*value === 'private'[\s\S]*value === 'source'[\s\S]*return 'all'/, 'search source filter normalization must migrate legacy wasm to source packages and safely fall back to all')
 assert.match(historyStoreSource, /loadSourceFilter\(\): Promise<CrossSearchSourceFilter>[\s\S]*store\.get\(SEARCH_SOURCE_FILTER_KEY, 'all'\)[\s\S]*normalizeSearchSourceFilter\(value\)/, 'search source filter must load from preferences')
 assert.match(historyStoreSource, /saveSourceFilter\(sourceFilter: CrossSearchSourceFilter\): Promise<CrossSearchSourceFilter>[\s\S]*normalizeSearchSourceFilter\(sourceFilter\)[\s\S]*store\.put\(SEARCH_SOURCE_FILTER_KEY, normalized\)[\s\S]*store\.flush\(\)/, 'search source filter must persist normalized preferences')
 

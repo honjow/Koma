@@ -29,6 +29,9 @@ function normalizeSearchHistoryTimestamp(value: number | undefined, fallback: nu
 }
 
 export function normalizeSearchSourceFilter(value: string | undefined): CrossSearchSourceFilter {
+  if (value === 'wasm') {
+    return 'source'
+  }
   if (value === 'local' || value === 'private' || value === 'source') {
     return value
   }
