@@ -930,7 +930,7 @@ export struct SettingsPage {
         console.info('[Settings] step=load_preferences')
       })
       .catch((error: Error) => {
-        console.warn('[Settings] step=load_preferences_failed message=' + error.message)
+        console.warn('[Settings] step=load_preferences_failed code=' + safeSettingsErrorCode(error))
       })
   }
 
@@ -941,7 +941,7 @@ export struct SettingsPage {
         console.info('[Settings] step=load_appearance_preferences accent=' + preferences.accentColor)
       })
       .catch((error: Error) => {
-        console.warn('[Settings] step=load_appearance_preferences_failed message=' + error.message)
+        console.warn('[Settings] step=load_appearance_preferences_failed code=' + safeSettingsErrorCode(error))
       })
   }
 
@@ -993,8 +993,7 @@ export struct SettingsPage {
       this.downloadForegroundConcurrencyLimit = preferences.foregroundConcurrencyLimit
       this.downloadWifiOnly = preferences.wifiOnly
     } catch (error) {
-      const e = error as Error
-      console.warn('[Settings] step=load_download_queue_preferences_failed message=' + e.message)
+      console.warn('[Settings] step=load_download_queue_preferences_failed code=' + safeSettingsErrorCode(error as Error))
     }
   }
 
@@ -1020,7 +1019,7 @@ export struct SettingsPage {
         console.info('[Settings] step=load_library_filter_preferences sortBy=' + preferences.sortBy + ' viewMode=' + preferences.viewMode + ' listDensity=' + preferences.listDensity + ' showBadges=' + preferences.showBadges)
       })
       .catch((error: Error) => {
-        console.warn('[Settings] step=load_library_filter_preferences_failed message=' + error.message)
+        console.warn('[Settings] step=load_library_filter_preferences_failed code=' + safeSettingsErrorCode(error))
       })
   }
 
@@ -1033,7 +1032,7 @@ export struct SettingsPage {
         console.info('[Settings] step=load_backup_content_preferences includeSettings=' + preferences.includeSettings + ' includeDownloadQueue=' + preferences.includeDownloadQueue + ' includeTrackerMappings=' + preferences.includeTrackerMappings)
       })
       .catch((error: Error) => {
-        console.warn('[Settings] step=load_backup_content_preferences_failed message=' + error.message)
+        console.warn('[Settings] step=load_backup_content_preferences_failed code=' + safeSettingsErrorCode(error))
       })
   }
 
@@ -1094,8 +1093,7 @@ export struct SettingsPage {
       this.versionDetail = `${info.versionName} (${info.versionCode})`
       this.versionLoadFailed = false
     } catch (error) {
-      const e = error as Error
-      console.warn('[Settings] step=version_failed message=' + e.message)
+      console.warn('[Settings] step=version_failed code=' + safeSettingsErrorCode(error as Error))
       this.versionDetail = ''
       this.versionLoadFailed = true
     }
@@ -1110,8 +1108,7 @@ export struct SettingsPage {
       configureReaderRemoteImageCache(context.cacheDir, this.imageCacheMaxBytes, this.imageCacheAutoCleanEnabled)
       return true
     } catch (error) {
-      const e = error as Error
-      console.warn('[Settings] step=image_cache_configure_failed message=' + e.message)
+      console.warn('[Settings] step=image_cache_configure_failed code=' + safeSettingsErrorCode(error as Error))
       return false
     }
   }
@@ -1149,7 +1146,7 @@ export struct SettingsPage {
       .catch((error: Error) => {
         this.imageCacheStats = undefined
         this.imageCacheState = 'load_failed'
-        console.warn('[Settings] step=image_cache_stats_failed message=' + error.message)
+        console.warn('[Settings] step=image_cache_stats_failed code=' + safeSettingsErrorCode(error))
       })
   }
 
@@ -1162,7 +1159,7 @@ export struct SettingsPage {
         this.loadImageCacheStats()
       })
       .catch((error: Error) => {
-        console.warn('[Settings] step=load_image_cache_preferences_failed message=' + error.message)
+        console.warn('[Settings] step=load_image_cache_preferences_failed code=' + safeSettingsErrorCode(error))
         this.loadImageCacheStats()
       })
   }
@@ -1174,7 +1171,7 @@ export struct SettingsPage {
         console.info('[Settings] step=save_page_mode value=' + pageMode)
       })
       .catch((error: Error) => {
-        console.warn('[Settings] step=save_page_mode_failed message=' + error.message)
+        console.warn('[Settings] step=save_page_mode_failed code=' + safeSettingsErrorCode(error))
       })
   }
 
@@ -1185,7 +1182,7 @@ export struct SettingsPage {
         console.info('[Settings] step=save_reading_direction value=' + readingDirection)
       })
       .catch((error: Error) => {
-        console.warn('[Settings] step=save_reading_direction_failed message=' + error.message)
+        console.warn('[Settings] step=save_reading_direction_failed code=' + safeSettingsErrorCode(error))
       })
   }
 
@@ -1194,15 +1191,14 @@ export struct SettingsPage {
     try {
       applyReaderThemeMode(this.context(), themeMode)
     } catch (error) {
-      const e = error as Error
-      console.warn('[Settings] step=apply_theme_failed message=' + e.message)
+      console.warn('[Settings] step=apply_theme_failed code=' + safeSettingsErrorCode(error as Error))
     }
     void this.preferencesStore().saveThemeMode(themeMode)
       .then(() => {
         console.info('[Settings] step=save_theme value=' + themeMode)
       })
       .catch((error: Error) => {
-        console.warn('[Settings] step=save_theme_failed message=' + error.message)
+        console.warn('[Settings] step=save_theme_failed code=' + safeSettingsErrorCode(error))
       })
   }
 
@@ -1214,7 +1210,7 @@ export struct SettingsPage {
         console.info('[Settings] step=save_appearance_accent value=' + preferences.accentColor)
       })
       .catch((error: Error) => {
-        console.warn('[Settings] step=save_appearance_accent_failed message=' + error.message)
+        console.warn('[Settings] step=save_appearance_accent_failed code=' + safeSettingsErrorCode(error))
         this.showToast(s('settings_theme_color_save_failed'))
         this.loadAppearancePreferences()
       })
@@ -1226,7 +1222,7 @@ export struct SettingsPage {
         console.info('[Settings] step=save_language value=' + mode)
       })
       .catch((error: Error) => {
-        console.warn('[Settings] step=save_language_failed message=' + error.message)
+        console.warn('[Settings] step=save_language_failed code=' + safeSettingsErrorCode(error))
         this.showToast(s('settings_language_save_failed'))
       })
   }
@@ -1238,7 +1234,7 @@ export struct SettingsPage {
         console.info('[Settings] step=save_reader_background value=' + backgroundMode)
       })
       .catch((error: Error) => {
-        console.warn('[Settings] step=save_reader_background_failed message=' + error.message)
+        console.warn('[Settings] step=save_reader_background_failed code=' + safeSettingsErrorCode(error))
       })
   }
 
@@ -1249,7 +1245,7 @@ export struct SettingsPage {
         console.info('[Settings] step=save_reader_progress value=' + showProgressControls)
       })
       .catch((error: Error) => {
-        console.warn('[Settings] step=save_reader_progress_failed message=' + error.message)
+        console.warn('[Settings] step=save_reader_progress_failed code=' + safeSettingsErrorCode(error))
       })
   }
 
@@ -1260,7 +1256,7 @@ export struct SettingsPage {
         console.info('[Settings] step=save_reader_keep_screen_awake value=' + keepScreenAwake)
       })
       .catch((error: Error) => {
-        console.warn('[Settings] step=save_reader_keep_screen_awake_failed message=' + error.message)
+        console.warn('[Settings] step=save_reader_keep_screen_awake_failed code=' + safeSettingsErrorCode(error))
       })
   }
 
@@ -1271,7 +1267,7 @@ export struct SettingsPage {
         console.info('[Settings] step=save_reader_image_fit value=' + imageFitMode)
       })
       .catch((error: Error) => {
-        console.warn('[Settings] step=save_reader_image_fit_failed message=' + error.message)
+        console.warn('[Settings] step=save_reader_image_fit_failed code=' + safeSettingsErrorCode(error))
       })
   }
 
@@ -1282,7 +1278,7 @@ export struct SettingsPage {
         console.info('[Settings] step=save_reader_tap_navigation value=' + tapNavigationEnabled)
       })
       .catch((error: Error) => {
-        console.warn('[Settings] step=save_reader_tap_navigation_failed message=' + error.message)
+        console.warn('[Settings] step=save_reader_tap_navigation_failed code=' + safeSettingsErrorCode(error))
       })
   }
 
@@ -1293,7 +1289,7 @@ export struct SettingsPage {
         console.info('[Settings] step=save_reader_swipe_navigation value=' + swipeNavigationEnabled)
       })
       .catch((error: Error) => {
-        console.warn('[Settings] step=save_reader_swipe_navigation_failed message=' + error.message)
+        console.warn('[Settings] step=save_reader_swipe_navigation_failed code=' + safeSettingsErrorCode(error))
       })
   }
 
@@ -1304,7 +1300,7 @@ export struct SettingsPage {
         console.info('[Settings] step=save_reader_tap_zone_preset value=' + tapZonePreset)
       })
       .catch((error: Error) => {
-        console.warn('[Settings] step=save_reader_tap_zone_preset_failed message=' + error.message)
+        console.warn('[Settings] step=save_reader_tap_zone_preset_failed code=' + safeSettingsErrorCode(error))
       })
   }
 
@@ -1315,7 +1311,7 @@ export struct SettingsPage {
         console.info('[Settings] step=save_reader_page_gap value=' + pageGapMode)
       })
       .catch((error: Error) => {
-        console.warn('[Settings] step=save_reader_page_gap_failed message=' + error.message)
+        console.warn('[Settings] step=save_reader_page_gap_failed code=' + safeSettingsErrorCode(error))
       })
   }
 
@@ -1326,7 +1322,7 @@ export struct SettingsPage {
         console.info('[Settings] step=save_reader_trim_page_margins value=' + trimPageMarginsEnabled)
       })
       .catch((error: Error) => {
-        console.warn('[Settings] step=save_reader_trim_page_margins_failed message=' + error.message)
+        console.warn('[Settings] step=save_reader_trim_page_margins_failed code=' + safeSettingsErrorCode(error))
       })
   }
 
@@ -1337,7 +1333,7 @@ export struct SettingsPage {
         console.info('[Settings] step=save_reader_wide_image_mode value=' + wideImageMode)
       })
       .catch((error: Error) => {
-        console.warn('[Settings] step=save_reader_wide_image_mode_failed message=' + error.message)
+        console.warn('[Settings] step=save_reader_wide_image_mode_failed code=' + safeSettingsErrorCode(error))
       })
   }
 
@@ -1348,7 +1344,7 @@ export struct SettingsPage {
         console.info('[Settings] step=save_reader_volume_key_navigation value=' + volumeKeyNavigationEnabled)
       })
       .catch((error: Error) => {
-        console.warn('[Settings] step=save_reader_volume_key_navigation_failed message=' + error.message)
+        console.warn('[Settings] step=save_reader_volume_key_navigation_failed code=' + safeSettingsErrorCode(error))
       })
   }
 
@@ -1358,8 +1354,7 @@ export struct SettingsPage {
     try {
       applyReaderThemeMode(this.context(), defaults.themeMode)
     } catch (error) {
-      const e = error as Error
-      console.warn('[Settings] step=apply_reader_defaults_theme_failed message=' + e.message)
+      console.warn('[Settings] step=apply_reader_defaults_theme_failed code=' + safeSettingsErrorCode(error as Error))
     }
     void this.preferencesStore().save(defaults)
       .then(() => {
@@ -1367,7 +1362,7 @@ export struct SettingsPage {
         this.showToast(s('settings_reader_defaults_reset'))
       })
       .catch((error: Error) => {
-        console.warn('[Settings] step=reset_reader_preferences_failed message=' + error.message)
+        console.warn('[Settings] step=reset_reader_preferences_failed code=' + safeSettingsErrorCode(error))
         this.showToast(s('settings_reader_defaults_reset_failed'))
         this.loadPreferences()
       })
@@ -1386,7 +1381,7 @@ export struct SettingsPage {
         this.showToast(s('settings_image_cache_cleared'))
       })
       .catch((error: Error) => {
-        console.warn('[Settings] step=image_cache_clear_failed message=' + error.message)
+        console.warn('[Settings] step=image_cache_clear_failed code=' + safeSettingsErrorCode(error))
         this.showToast(s('settings_image_cache_clear_failed'))
       })
   }
@@ -1402,7 +1397,7 @@ export struct SettingsPage {
         console.info('[Settings] step=save_image_cache_limit maxBytes=' + preferences.maxBytes)
       })
       .catch((error: Error) => {
-        console.warn('[Settings] step=save_image_cache_limit_failed message=' + error.message)
+        console.warn('[Settings] step=save_image_cache_limit_failed code=' + safeSettingsErrorCode(error))
         this.showToast(s('settings_cache_limit_save_failed'))
       })
   }
@@ -1418,7 +1413,7 @@ export struct SettingsPage {
         console.info('[Settings] step=save_image_cache_auto_clean enabled=' + preferences.autoCleanEnabled)
       })
       .catch((error: Error) => {
-        console.warn('[Settings] step=save_image_cache_auto_clean_failed message=' + error.message)
+        console.warn('[Settings] step=save_image_cache_auto_clean_failed code=' + safeSettingsErrorCode(error))
         this.showToast(s('settings_cache_auto_clean_save_failed'))
       })
   }
@@ -1482,7 +1477,7 @@ export struct SettingsPage {
         }
       })
       .catch((error: Error) => {
-        console.warn('[Settings] step=save_library_auto_update_failed message=' + error.message)
+        console.warn('[Settings] step=save_library_auto_update_failed code=' + safeSettingsErrorCode(error))
         this.showToast(s('settings_library_auto_update_save_failed'))
       })
   }
@@ -1519,8 +1514,7 @@ export struct SettingsPage {
       this.downloadForegroundConcurrencyLimit = this.offlineDownloadQueueStore().setForegroundConcurrencyLimit(limit).foregroundConcurrencyLimit
       console.info('[Settings] step=save_download_concurrency limit=' + this.downloadForegroundConcurrencyLimit)
     } catch (error) {
-      const e = error as Error
-      console.warn('[Settings] step=save_download_concurrency_failed message=' + e.message)
+      console.warn('[Settings] step=save_download_concurrency_failed code=' + safeSettingsErrorCode(error as Error))
       this.showToast(s('settings_download_concurrency_save_failed'))
     }
   }
@@ -1530,8 +1524,7 @@ export struct SettingsPage {
       this.downloadWifiOnly = this.offlineDownloadQueueStore().setWifiOnly(wifiOnly).wifiOnly
       console.info('[Settings] step=save_download_wifi_only value=' + this.downloadWifiOnly)
     } catch (error) {
-      const e = error as Error
-      console.warn('[Settings] step=save_download_wifi_only_failed message=' + e.message)
+      console.warn('[Settings] step=save_download_wifi_only_failed code=' + safeSettingsErrorCode(error as Error))
       this.showToast(s('settings_download_wifi_only_save_failed'))
     }
   }
@@ -1604,7 +1597,7 @@ export struct SettingsPage {
         console.info('[Settings] step=save_library_default_sort sortBy=' + sortBy)
       })
       .catch((error: Error) => {
-        console.warn('[Settings] step=save_library_default_sort_failed message=' + error.message)
+        console.warn('[Settings] step=save_library_default_sort_failed code=' + safeSettingsErrorCode(error))
         this.showToast(s('settings_library_default_sort_save_failed'))
       })
   }
@@ -1620,7 +1613,7 @@ export struct SettingsPage {
         console.info('[Settings] step=save_library_view_mode viewMode=' + viewMode)
       })
       .catch((error: Error) => {
-        console.warn('[Settings] step=save_library_view_mode_failed message=' + error.message)
+        console.warn('[Settings] step=save_library_view_mode_failed code=' + safeSettingsErrorCode(error))
         this.showToast(s('settings_library_view_mode_save_failed'))
       })
   }
@@ -1636,7 +1629,7 @@ export struct SettingsPage {
         console.info('[Settings] step=save_library_list_density listDensity=' + listDensity)
       })
       .catch((error: Error) => {
-        console.warn('[Settings] step=save_library_list_density_failed message=' + error.message)
+        console.warn('[Settings] step=save_library_list_density_failed code=' + safeSettingsErrorCode(error))
         this.showToast(s('settings_library_list_density_save_failed'))
       })
   }
@@ -1652,7 +1645,7 @@ export struct SettingsPage {
         console.info('[Settings] step=save_library_badges enabled=' + enabled)
       })
       .catch((error: Error) => {
-        console.warn('[Settings] step=save_library_badges_failed message=' + error.message)
+        console.warn('[Settings] step=save_library_badges_failed code=' + safeSettingsErrorCode(error))
         this.showToast(s('settings_library_badges_save_failed'))
       })
   }
@@ -1696,7 +1689,7 @@ export struct SettingsPage {
         console.info('[Settings] step=save_backup_include_settings enabled=' + enabled)
       })
       .catch((error: Error) => {
-        console.warn('[Settings] step=save_backup_include_settings_failed message=' + error.message)
+        console.warn('[Settings] step=save_backup_include_settings_failed code=' + safeSettingsErrorCode(error))
         this.showToast(s('settings_backup_include_settings_save_failed'))
       })
   }
@@ -1712,7 +1705,7 @@ export struct SettingsPage {
         console.info('[Settings] step=save_backup_include_download_queue enabled=' + enabled)
       })
       .catch((error: Error) => {
-        console.warn('[Settings] step=save_backup_include_download_queue_failed message=' + error.message)
+        console.warn('[Settings] step=save_backup_include_download_queue_failed code=' + safeSettingsErrorCode(error))
         this.showToast(s('settings_backup_include_download_queue_save_failed'))
       })
   }
@@ -1728,7 +1721,7 @@ export struct SettingsPage {
         console.info('[Settings] step=save_backup_include_tracker_mappings enabled=' + enabled)
       })
       .catch((error: Error) => {
-        console.warn('[Settings] step=save_backup_include_tracker_mappings_failed message=' + error.message)
+        console.warn('[Settings] step=save_backup_include_tracker_mappings_failed code=' + safeSettingsErrorCode(error))
         this.showToast(s('settings_backup_include_tracker_mappings_save_failed'))
       })
   }
@@ -1805,7 +1798,7 @@ export struct SettingsPage {
             console.warn('[Settings] step=save_library_update_results_failed code=' + safeSettingsErrorCode(error))
           })
         this.onLibraryChanged()
-        console.info('[Settings] step=library_update_done reason=' + reason + ' total=' + summary.totalCount + ' updated=' + summary.updatedCount + ' failed=' + summary.failedCount)
+        console.info('[Settings] step=library_update_done trigger=' + reason + ' total=' + summary.totalCount + ' updated=' + summary.updatedCount + ' failed=' + summary.failedCount)
         void this.libraryUpdatePreferencesStore().saveLastSummary(
           summary.checkedAt,
           summary.totalCount,

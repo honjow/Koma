@@ -2039,6 +2039,7 @@ for (const [label, source] of [
   ['HistoryPage', historyPageSource],
   ['LibraryPage', libraryPageSource],
   ['MangaDetailPage', mangaDetailPageSource],
+  ['SettingsPage', settingsPageSource],
 ]) {
   assert.doesNotMatch(
     source,
