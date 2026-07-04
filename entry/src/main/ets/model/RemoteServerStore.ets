@@ -225,7 +225,8 @@ export class KavitaHarmonyHttpAdapter implements KavitaHttpAdapter {
     const startedAt = Date.now()
     try {
       const response = await httpRequest.request(request.url, {
-        method: http.RequestMethod.GET,
+        method: request.method === 'POST' ? http.RequestMethod.POST : http.RequestMethod.GET,
+        extraData: request.body,
         expectDataType: http.HttpDataType.STRING,
         usingCache: false,
         header: kavitaHeadersToHttpHeaderObject(request.headers),

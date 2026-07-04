@@ -2,6 +2,7 @@ import {
   KavitaLibraryDto,
   KavitaResolvedCredential,
   KavitaServerConfig,
+  KavitaSeriesDto,
 } from './KavitaModels'
 
 export interface KavitaHeaders {
@@ -11,9 +12,10 @@ export interface KavitaHeaders {
 }
 
 export interface KavitaHttpRequest {
-  method: 'GET'
+  method: 'GET' | 'POST'
   url: string
   headers: KavitaHeaders
+  body?: string
 }
 
 export interface KavitaHttpResponse {
@@ -31,9 +33,31 @@ export interface KavitaClientOptions {
   http?: KavitaHttpAdapter
 }
 
+interface KavitaSeriesFilterStatement {
+  comparison: number
+  field: number
+  value: string
+}
+
+interface KavitaSeriesSortOptions {
+  sortField: number
+  isAscending: boolean
+}
+
+interface KavitaSeriesFilterRequest {
+  statements: KavitaSeriesFilterStatement[]
+  combination: number
+  sortOptions: KavitaSeriesSortOptions
+  limitTo: number
+}
+
 export class KavitaPaths {
   static libraries(): string {
     return '/api/Library/libraries'
+  }
+
+  static librarySeries(pageNumber: number = 1, pageSize: number = 50): string {
+    return `/api/Series/all-v2?PageNumber=${pageNumber}&PageSize=${pageSize}`
   }
 }
 
@@ -112,7 +136,7 @@ export class KavitaClient {
   }
 
   async listLibraries(): Promise<KavitaLibraryDto[]> {
-    const response = await this.request(KavitaPaths.libraries(), {
+    const response = await this.request('GET', KavitaPaths.libraries(), {
       accept: 'application/json',
     } as KavitaHeaders)
     if (response.status < 200 || response.status >= 300) {
@@ -121,14 +145,40 @@ export class KavitaClient {
     return parseKavitaJson<KavitaLibraryDto[]>(response.body)
   }
 
-  private async request(path: string, headers: KavitaHeaders): Promise<KavitaHttpResponse> {
+  async listSeries(libraryId: number, pageNumber: number = 1, pageSize: number = 50): Promise<KavitaSeriesDto[]> {
+    const request: KavitaSeriesFilterRequest = {
+      statements: [{
+        comparison: 0,
+        field: 19,
+        value: `${libraryId}`,
+      }],
+      combination: 1,
+      sortOptions: {
+        sortField: 1,
+        isAscending: true,
+      },
+      limitTo: 0,
+    }
+    const body = JSON.stringify(request)
+    const response = await this.request('POST', KavitaPaths.librarySeries(pageNumber, pageSize), {
+      accept: 'application/json',
+      contentType: 'application/json',
+    } as KavitaHeaders, body)
+    if (response.status < 200 || response.status >= 300) {
+      throw new Error(`kavita_http_status_${response.status}`)
+    }
+    return parseKavitaJson<KavitaSeriesDto[]>(response.body)
+  }
+
+  private async request(method: 'GET' | 'POST', path: string, headers: KavitaHeaders, body?: string): Promise<KavitaHttpResponse> {
     if (this.http === undefined) {
       throw new Error('Kavita HTTP adapter is required')
     }
     return this.http.request({
-      method: 'GET',
+      method,
       url: this.buildUrl(path),
       headers: this.buildHeaders(headers),
+      body,
     })
   }
 }

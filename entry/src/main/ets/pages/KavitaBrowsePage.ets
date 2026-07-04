@@ -2,7 +2,7 @@ import { common } from '@kit.AbilityKit'
 import { SecondaryListScaffold } from '../components/SecondaryListScaffold'
 import { KomaEmptyState } from '../components/ui/KomaEmptyState'
 import { RemoteServerStore, KavitaServerRecord } from '../model/RemoteServerStore'
-import { KavitaLibraryDto } from '../remote/KavitaModels'
+import { KavitaLibraryDto, KavitaSeriesDto } from '../remote/KavitaModels'
 import { ThemeConstants } from '../theme/ThemeConstants'
 import { AppStrings } from '../i18n/AppStrings'
 import { connectLanguageState, LanguageState } from '../state/LanguageState'
@@ -15,8 +15,12 @@ function s(name: string): string {
 export struct KavitaBrowsePage {
   @Local private languageState: LanguageState = connectLanguageState()
   @Local private libraries: KavitaLibraryDto[] = []
+  @Local private selectedLibrary: KavitaLibraryDto | undefined = undefined
+  @Local private series: KavitaSeriesDto[] = []
   @Local private loading: boolean = true
+  @Local private seriesLoading: boolean = false
   @Local private errorKey: string = ''
+  @Local private seriesErrorKey: string = ''
   private record?: KavitaServerRecord
 
   private store(): RemoteServerStore {
@@ -52,11 +56,76 @@ export struct KavitaBrowsePage {
     }
   }
 
+  private async openLibrary(item: KavitaLibraryDto): Promise<void> {
+    if (this.record === undefined || this.seriesLoading) {
+      return
+    }
+    this.selectedLibrary = item
+    this.series = []
+    this.seriesErrorKey = ''
+    this.seriesLoading = true
+    try {
+      console.info(`[Kavita] step=load_series_start library=${item.id}`)
+      const record = this.record
+      if (record === undefined) {
+        return
+      }
+      this.series = await this.store().createKavitaClient(record).listSeries(item.id)
+      console.info(`[Kavita] step=load_series_ok library=${item.id} series=${this.series.length}`)
+    } catch (error) {
+      void error
+      this.seriesErrorKey = 'kavita_series_load_failed'
+      this.series = []
+      console.error('[Kavita] step=load_series_failed code=kavita_series_load_failed')
+    } finally {
+      this.seriesLoading = false
+    }
+  }
+
+  private backToLibraries(): void {
+    this.selectedLibrary = undefined
+    this.series = []
+    this.seriesErrorKey = ''
+  }
+
   private libraryTypeText(item: KavitaLibraryDto): string {
     if (item.type === undefined) {
       return s('kavita_library_type_unknown')
     }
     return s('kavita_library_type_value').replace('%s', `${item.type}`)
+  }
+
+  private seriesTitle(item: KavitaSeriesDto): string {
+    if (item.localizedName !== undefined && item.localizedName.length > 0) {
+      return item.localizedName
+    }
+    return item.name
+  }
+
+  private seriesDetail(item: KavitaSeriesDto): string {
+    const pages = item.pages === undefined ? 0 : item.pages
+    const read = item.pagesRead === undefined ? 0 : item.pagesRead
+    return s('kavita_series_pages_progress').replace('%s', `${read}`).replace('%s', `${pages}`)
+  }
+
+  @Builder
+  private BackRow() {
+    Row({ space: ThemeConstants.SPACE_SM }) {
+      SymbolGlyph($r('sys.symbol.chevron_left'))
+        .fontSize(ThemeConstants.FONT_SIZE_HEADING)
+        .fontColor([ThemeConstants.TEXT_SECONDARY])
+      Text(s('kavita_action_back_libraries'))
+        .fontSize(ThemeConstants.FONT_SIZE_BODY)
+        .fontWeight(FontWeight.Medium)
+        .fontColor(ThemeConstants.TEXT_PRIMARY)
+    }
+    .width('100%')
+    .padding(ThemeConstants.SPACE_MD)
+    .borderRadius(ThemeConstants.RADIUS_CARD)
+    .backgroundColor(ThemeConstants.CARD)
+    .onClick(() => {
+      this.backToLibraries()
+    })
   }
 
   @Builder
@@ -96,6 +165,43 @@ export struct KavitaBrowsePage {
     .padding(ThemeConstants.SPACE_MD)
     .borderRadius(ThemeConstants.RADIUS_CARD)
     .backgroundColor(ThemeConstants.CARD)
+    .onClick(() => {
+      this.openLibrary(item)
+    })
+  }
+
+  @Builder
+  private SeriesRow(item: KavitaSeriesDto) {
+    Row({ space: ThemeConstants.SPACE_MD }) {
+      Stack({ alignContent: Alignment.Center }) {
+        Text(s('kavita_series_icon'))
+          .fontSize(ThemeConstants.FONT_SIZE_H3)
+          .fontWeight(FontWeight.Bold)
+          .fontColor(ThemeConstants.TEXT_ON_BRAND)
+      }
+      .width(ThemeConstants.SOURCE_ICON_SIZE)
+      .height(ThemeConstants.SOURCE_ICON_SIZE)
+      .borderRadius(ThemeConstants.RADIUS_ROUND)
+      .backgroundColor(ThemeConstants.SOURCE_KAVITA_COLOR)
+
+      Column({ space: ThemeConstants.SPACE_XS }) {
+        Text(this.seriesTitle(item))
+          .fontSize(ThemeConstants.FONT_SIZE_TITLE)
+          .fontWeight(FontWeight.Medium)
+          .fontColor(ThemeConstants.TEXT_PRIMARY)
+          .maxLines(1)
+          .textOverflow({ overflow: TextOverflow.Ellipsis })
+        Text(this.seriesDetail(item))
+          .fontSize(ThemeConstants.FONT_SIZE_META)
+          .fontColor(ThemeConstants.TEXT_SECONDARY)
+      }
+      .layoutWeight(1)
+      .alignItems(HorizontalAlign.Start)
+    }
+    .width('100%')
+    .padding(ThemeConstants.SPACE_MD)
+    .borderRadius(ThemeConstants.RADIUS_CARD)
+    .backgroundColor(ThemeConstants.CARD)
   }
 
   @Builder
@@ -111,6 +217,22 @@ export struct KavitaBrowsePage {
     })
   }
 
+  @Builder
+  private SeriesEmptyState() {
+    KomaEmptyState({
+      title: s(this.seriesErrorKey.length > 0 ? this.seriesErrorKey : 'kavita_series_empty_title'),
+      message: s(this.seriesErrorKey.length > 0 ? 'kavita_browse_error_message' : 'kavita_series_empty_message'),
+      actionLabel: s('common_retry'),
+      showAction: this.seriesErrorKey.length > 0 && this.selectedLibrary !== undefined,
+      action: () => {
+        const library = this.selectedLibrary
+        if (library !== undefined) {
+          this.openLibrary(library)
+        }
+      },
+    })
+  }
+
   build() {
     Column() {
       SecondaryListScaffold({
@@ -118,7 +240,33 @@ export struct KavitaBrowsePage {
         horizontalPadding: ThemeConstants.SPACE_XL,
         bottomPadding: ThemeConstants.FLOAT_BAR_HEIGHT + 20,
       }) {
-        if (this.loading) {
+        if (this.selectedLibrary !== undefined) {
+          ListItem() {
+            this.BackRow()
+          }
+          if (this.seriesLoading) {
+            ListItem() {
+              Row() {
+                LoadingProgress()
+                  .width(ThemeConstants.LOADING_SIZE_LARGE)
+                  .height(ThemeConstants.LOADING_SIZE_LARGE)
+                  .color(ThemeConstants.BRAND_PRIMARY)
+              }
+              .width('100%')
+              .justifyContent(FlexAlign.Center)
+            }
+          } else if (this.series.length === 0) {
+            ListItem() {
+              this.SeriesEmptyState()
+            }
+          } else {
+            ForEach(this.series, (item: KavitaSeriesDto) => {
+              ListItem() {
+                this.SeriesRow(item)
+              }
+            }, (item: KavitaSeriesDto) => `${item.id}`)
+          }
+        } else if (this.loading) {
           ListItem() {
             Row() {
               LoadingProgress()
