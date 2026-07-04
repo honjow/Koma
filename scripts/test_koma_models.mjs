@@ -387,6 +387,7 @@ assert.match(
 )
 assertExport(chapterReadStateStoreSource, 'ChapterReadStateStore')
 assertExport(chapterReadStateStoreSource, 'ChapterReadStateOverride')
+assertExport(chapterReadStateStoreSource, 'ChapterReadStateMutation')
 assertExport(chapterReadStateStoreSource, 'AppFilesChapterReadStatePersistenceAdapter')
 assertExport(chapterReadStateStoreSource, 'isChapterReadFromState')
 assertExport(chapterReadStateStoreSource, 'CHAPTER_READ_STATE_SCHEMA_VERSION')
@@ -822,8 +823,8 @@ assert.match(
 )
 assert.match(
   libraryPageSource,
-  /private chapterReadStateStore\(\): ChapterReadStateStore \| undefined[\s\S]*new ChapterReadStateStore[\s\S]*private markSelectedReadState\(isRead: boolean\): void[\s\S]*this\.chapterReadStateStore\(\)[\s\S]*readStateStore\.mark\(comic\.id, chapter\.id, isRead\)[\s\S]*sessionStore\.saveProgress\(this\.completedProgressForComic\(comic\)\)[\s\S]*sessionStore\.removeProgress\(comic\.id\)[\s\S]*private BatchReadStateMenu\(\)[\s\S]*library_batch_mark_read[\s\S]*library_batch_mark_unread/,
-  'LibraryPage must batch mark selected comics read/unread through chapter overrides and comic-level progress',
+  /private chapterReadStateStore\(\): ChapterReadStateStore \| undefined[\s\S]*new ChapterReadStateStore[\s\S]*private markSelectedReadState\(isRead: boolean\): void[\s\S]*this\.chapterReadStateStore\(\)[\s\S]*const mutations: ChapterReadStateMutation\[\] = \[\][\s\S]*mutations\.push\(\{[\s\S]*comicId: comic\.id[\s\S]*chapterId: chapter\.id[\s\S]*isRead[\s\S]*sessionStore\.saveProgress\(this\.completedProgressForComic\(comic\)\)[\s\S]*sessionStore\.removeProgress\(comic\.id\)[\s\S]*readStateStore\.markMany\(mutations\)[\s\S]*private BatchReadStateMenu\(\)[\s\S]*library_batch_mark_read[\s\S]*library_batch_mark_unread/,
+  'LibraryPage must batch mark selected comics read/unread through one persisted chapter override batch and comic-level progress',
 )
 assert.match(
   libraryPageSource,
@@ -1668,6 +1669,11 @@ assert.match(
   chapterReadStateStoreSource,
   /mark\(comicId: ComicId, chapterId: string, isRead: boolean\)[\s\S]*this\.overrides\.set\(chapterReadStateKey\([\s\S]*this\.persist\(\)/,
   'chapter read-state store must persist explicit per-chapter read/unread overrides',
+)
+assert.match(
+  chapterReadStateStoreSource,
+  /markMany\(mutations: ChapterReadStateMutation\[\]\): number[\s\S]*mutations\.forEach\(\(mutation: ChapterReadStateMutation\)[\s\S]*this\.overrides\.set\(chapterReadStateKey\([\s\S]*changedCount \+= 1[\s\S]*if \(changedCount > 0\) \{[\s\S]*this\.persist\(\)[\s\S]*return changedCount/,
+  'chapter read-state store must persist selected-comic read-state batches with a single save',
 )
 assert.match(
   mangaDetailPageSource,

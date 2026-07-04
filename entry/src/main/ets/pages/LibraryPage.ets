@@ -59,6 +59,7 @@ import {
 } from '../model/ReaderSessionStore'
 import {
   AppFilesChapterReadStatePersistenceAdapter,
+  ChapterReadStateMutation,
   ChapterReadStateStore,
 } from '../model/ChapterReadStateStore'
 import { AppStrings } from '../i18n/AppStrings'
@@ -983,16 +984,18 @@ export struct LibraryPage {
     if (readStateStore === undefined) {
       return
     }
-    let changedCount = 0
+    const mutations: ChapterReadStateMutation[] = []
     comicIds.forEach((comicId: ComicId) => {
       const comic = this.libraryStore.getComic(comicId)
       if (comic === undefined || comic.chapters.length === 0) {
         return
       }
       comic.chapters.forEach((chapter: Chapter) => {
-        if (readStateStore.mark(comic.id, chapter.id, isRead) !== undefined) {
-          changedCount += 1
-        }
+        mutations.push({
+          comicId: comic.id,
+          chapterId: chapter.id,
+          isRead,
+        })
       })
       if (isRead) {
         this.sessionStore.saveProgress(this.completedProgressForComic(comic))
@@ -1000,6 +1003,7 @@ export struct LibraryPage {
         this.sessionStore.removeProgress(comic.id)
       }
     })
+    const changedCount = readStateStore.markMany(mutations)
     if (changedCount > 0) {
       console.info(`[Library] step=batch_read_state isRead=${isRead} comics=${comicIds.length} chapters=${changedCount}`)
       this.exitSelectionMode()

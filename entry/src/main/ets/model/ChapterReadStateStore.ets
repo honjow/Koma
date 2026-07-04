@@ -14,6 +14,12 @@ export interface ChapterReadStateOverride {
   updatedAt: number
 }
 
+export interface ChapterReadStateMutation {
+  comicId: ComicId
+  chapterId: string
+  isRead: boolean
+}
+
 interface ChapterReadStateDocument {
   schemaVersion: number
   overrides: ChapterReadStateOverride[]
@@ -158,5 +164,27 @@ export class ChapterReadStateStore {
     this.overrides.set(chapterReadStateKey(normalized.comicId, normalized.chapterId), normalized)
     this.persist()
     return normalized
+  }
+
+  markMany(mutations: ChapterReadStateMutation[]): number {
+    let changedCount = 0
+    const updatedAt = Date.now()
+    mutations.forEach((mutation: ChapterReadStateMutation) => {
+      const normalized = sanitizeOverride({
+        comicId: mutation.comicId,
+        chapterId: mutation.chapterId,
+        isRead: mutation.isRead,
+        updatedAt,
+      })
+      if (normalized === undefined) {
+        return
+      }
+      this.overrides.set(chapterReadStateKey(normalized.comicId, normalized.chapterId), normalized)
+      changedCount += 1
+    })
+    if (changedCount > 0) {
+      this.persist()
+    }
+    return changedCount
   }
 }
