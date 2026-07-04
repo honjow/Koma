@@ -13,6 +13,7 @@ import {
   libraryCategoryNameKey,
   normalizeCategoryIds,
   normalizeLibraryCategoryName,
+  normalizeSortKey,
   withComicAddedCategoryId,
   withComicCategoryIds,
   withComicRemovedCategoryId,
@@ -30,6 +31,7 @@ import {
   LocalLibraryFolderScanResult,
   LocalLibraryFolderSeries,
   buildComicsFromLocalLibraryFolderScan,
+  localLibraryFolderUri,
 } from './LocalLibraryFolderContract'
 import {
   LocalLibraryRescanFailure,
@@ -701,6 +703,123 @@ export function upsertComicAndPersistLibraryStore(
   libraryStore.addComic(comic)
   try {
     persistenceService.persist()
+  } catch (error) {
+    hydrateLibraryStoreFromJson(libraryStore, previousPayload)
+    throw error as Error
+  }
+}
+
+function localFolderSeriesRelativePath(comic: Comic): string | undefined {
+  const remoteResourceId = comic.remoteResourceId
+  if (remoteResourceId === undefined) {
+    return undefined
+  }
+  const separatorIndex = remoteResourceId.indexOf(':')
+  if (separatorIndex < 0 || separatorIndex >= remoteResourceId.length - 1) {
+    return undefined
+  }
+  return remoteResourceId.substring(separatorIndex + 1)
+}
+
+function localFolderRootUri(comic: Comic): string | undefined {
+  const seriesRelativePath = localFolderSeriesRelativePath(comic)
+  if (seriesRelativePath === undefined) {
+    return undefined
+  }
+  const encodedSeriesPath = seriesRelativePath.split('/').map((segment: string): string => encodeURIComponent(segment)).join('/')
+  const suffix = `/${encodedSeriesPath}`
+  if (!comic.sourcePath.endsWith(suffix)) {
+    return undefined
+  }
+  const rootUri = comic.sourcePath.substring(0, comic.sourcePath.length - suffix.length)
+  return rootUri.length === 0 ? undefined : rootUri
+}
+
+function localFolderCoverUri(comic: Comic, coverOverridePath: string | undefined): string | undefined {
+  if (coverOverridePath === undefined || comic.sourceKind !== ComicSourceKind.LOCAL_FOLDER) {
+    return undefined
+  }
+  const seriesRelativePath = localFolderSeriesRelativePath(comic)
+  const rootUri = localFolderRootUri(comic)
+  if (seriesRelativePath === undefined || rootUri === undefined) {
+    return undefined
+  }
+  return localLibraryFolderUri(rootUri, `${seriesRelativePath}/${coverOverridePath}`)
+}
+
+export function updateLocalLibraryMetadataAndPersistLibraryStore(
+  libraryStore: LibraryStore,
+  persistenceService: LibraryStorePersistenceService,
+  comicId: ComicId,
+  metadataInput: LocalLibraryStoredMetadata
+): Comic | undefined {
+  const previous = libraryStore.getComic(comicId)
+  if (previous === undefined ||
+    (previous.sourceKind !== ComicSourceKind.LOCAL_ARCHIVE && previous.sourceKind !== ComicSourceKind.LOCAL_FOLDER)) {
+    return undefined
+  }
+  const normalized = normalizeLocalLibraryStoredMetadata(metadataInput as Object) ?? {}
+  const next: Comic = {
+    id: previous.id,
+    title: previous.title,
+    sourceKind: previous.sourceKind,
+    sourcePath: previous.sourcePath,
+    sortTitle: previous.sortTitle,
+    preferredDirection: previous.preferredDirection,
+    chapters: previous.chapters,
+    chapterCount: previous.chapterCount,
+    pageCount: previous.pageCount,
+    createdAt: previous.createdAt,
+    updatedAt: Date.now(),
+    lastImportedAt: previous.lastImportedAt,
+  }
+  if (previous.subtitle !== undefined) {
+    next.subtitle = previous.subtitle
+  }
+  if (previous.author !== undefined) {
+    next.author = previous.author
+  }
+  const categoryIds = normalizeCategoryIds(previous.categoryIds)
+  if (categoryIds.length > 0) {
+    next.categoryIds = categoryIds
+  }
+  if (previous.sourceRuntimeId !== undefined) {
+    next.sourceRuntimeId = previous.sourceRuntimeId
+  }
+  if (previous.remoteServerId !== undefined) {
+    next.remoteServerId = previous.remoteServerId
+  }
+  if (previous.remoteResourceId !== undefined) {
+    next.remoteResourceId = previous.remoteResourceId
+  }
+  if (previous.coverUri !== undefined) {
+    next.coverUri = previous.coverUri
+  }
+  if (previous.localMetadata !== undefined) {
+    next.localMetadata = previous.localMetadata
+  }
+  next.localMetadata = normalized
+  if (normalized.titleOverride !== undefined) {
+    next.title = normalized.titleOverride
+    next.sortTitle = normalizeSortKey(normalized.titleOverride)
+  }
+  if (normalized.authors !== undefined) {
+    next.author = normalized.authors.join(', ')
+  } else if (previous.localMetadata?.authors !== undefined) {
+    next.author = undefined
+  }
+  const coverUri = localFolderCoverUri(previous, normalized.coverOverridePath)
+  if (coverUri !== undefined) {
+    next.coverUri = coverUri
+  } else if (previous.localMetadata?.coverOverridePath !== undefined && normalized.coverOverridePath === undefined) {
+    next.coverUri = undefined
+  }
+
+  const previousPayload = serializeLibraryStore(libraryStore)
+  libraryStore.upsertComic(next)
+  try {
+    persistenceService.persist()
+    return next
   } catch (error) {
     hydrateLibraryStoreFromJson(libraryStore, previousPayload)
     throw error as Error

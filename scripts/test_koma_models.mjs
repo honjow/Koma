@@ -922,6 +922,21 @@ assert.match(
   /const shouldPreservePreviousLocalMetadata = fresh\.localMetadata === undefined && previous\.localMetadata !== undefined[\s\S]*merged\.title = previous\.title[\s\S]*merged\.sortTitle = previous\.sortTitle[\s\S]*merged\.author = previous\.author[\s\S]*merged\.coverUri = previous\.coverUri[\s\S]*merged\.localMetadata = previous\.localMetadata[\s\S]*fresh\.coverUri !== undefined && !shouldPreservePreviousLocalMetadata/,
   'local library folder rescan must preserve previous local metadata projections when a fresh scan has no sidecar metadata',
 )
+assert.match(
+  libraryPersistenceSource,
+  /updateLocalLibraryMetadataAndPersistLibraryStore[\s\S]*normalizeLocalLibraryStoredMetadata\(metadataInput as Object\)[\s\S]*libraryStore\.upsertComic\(next\)[\s\S]*hydrateLibraryStoreFromJson\(libraryStore, previousPayload\)/,
+  'local library metadata override persistence must validate metadata, update the comic, and rollback on persistence failure',
+)
+assert.match(
+  mangaDetailPageSource,
+  /manga_detail_menu_edit_local_metadata[\s\S]*LocalMetadataEditor\(\)[\s\S]*KomaFormTextField/,
+  'MangaDetailPage must expose editable local metadata overrides backed by shared persistence',
+)
+assert.match(
+  mangaDetailPageSource,
+  /saveLocalMetadataOverride\(\): void[\s\S]*updateLocalLibraryMetadataAndPersistLibraryStore[\s\S]*this\.manga = mangaDetailFromComic\(updated\)/,
+  'MangaDetailPage local metadata save must use shared persistence and refresh the visible detail state',
+)
 assert.doesNotMatch(
   libraryPersistenceSource,
   /upsertLocalLibraryFolderScanAndPersistLibraryStore[\s\S]*?(removeComic|deleteLocal|deleteComic)[\s\S]*?export function assignComicCategoriesAndPersistLibraryStore/i,

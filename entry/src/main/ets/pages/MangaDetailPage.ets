@@ -3,6 +3,7 @@ import { common } from '@kit.AbilityKit'
 import { MangaDescriptionSection } from '../components/MangaDescriptionSection'
 import { MangaTagsSection } from '../components/MangaTagsSection'
 import { KomaActionButton } from '../components/ui/KomaActionButton'
+import { KomaFormTextField } from '../components/ui/KomaFormTextField'
 import { KomaIconButton } from '../components/ui/KomaIconButton'
 import {
   ChapterBatchDownloadMode,
@@ -42,8 +43,13 @@ import {
 import { LibraryStore } from '../model/LibraryStore'
 import {
   LibraryStorePersistenceService,
+  updateLocalLibraryMetadataAndPersistLibraryStore,
   upsertComicAndPersistLibraryStore,
 } from '../model/LibraryPersistence'
+import {
+  LocalLibraryMetadataStatus,
+  LocalLibraryStoredMetadata,
+} from '../model/LocalLibraryMetadataService'
 import {
   LocalLibraryRefreshComicResult,
   LocalLibraryRefreshService,
@@ -169,6 +175,11 @@ export struct MangaDetailPage {
   @Local private trackerSyncBusy: boolean = false
   @Local private trackerMappingBusy: boolean = false
   @Local private localRefreshBusy: boolean = false
+  @Local private localMetadataEditorVisible: boolean = false
+  @Local private localMetadataTitle: string = ''
+  @Local private localMetadataAuthors: string = ''
+  @Local private localMetadataStatus: LocalLibraryMetadataStatus | 'unknown' = 'unknown'
+  @Local private localMetadataCoverPath: string = ''
   @Local private downloadStatusText: string = ''
   @Local private localRefreshText: string = ''
   @Local private feedbackText: string = ''
@@ -316,6 +327,114 @@ export struct MangaDetailPage {
     this.feedbackText = ''
     this.localRefreshText = ''
     this.refreshDownloadStatus()
+  }
+
+  private canEditLocalMetadata(): boolean {
+    const comic = this.libraryStore?.getComic(this.currentComicId())
+    return comic !== undefined &&
+      (comic.sourceKind === ComicSourceKind.LOCAL_ARCHIVE || comic.sourceKind === ComicSourceKind.LOCAL_FOLDER)
+  }
+
+  private canEditLocalCoverPath(): boolean {
+    const comic = this.libraryStore?.getComic(this.currentComicId())
+    return comic?.sourceKind === ComicSourceKind.LOCAL_FOLDER
+  }
+
+  private openLocalMetadataEditor(): void {
+    const comic = this.libraryStore?.getComic(this.currentComicId())
+    if (comic === undefined) {
+      this.showToast(s('manga_detail_local_metadata_unavailable'))
+      return
+    }
+    this.localMetadataTitle = comic.localMetadata?.titleOverride ?? comic.title
+    this.localMetadataAuthors = comic.localMetadata?.authors?.join(', ') ?? comic.author ?? ''
+    this.localMetadataStatus = comic.localMetadata?.status ?? 'unknown'
+    this.localMetadataCoverPath = comic.localMetadata?.coverOverridePath ?? ''
+    this.localMetadataEditorVisible = true
+  }
+
+  private localMetadataStatusLabel(status: LocalLibraryMetadataStatus | 'unknown'): string {
+    if (status === 'ongoing') {
+      return s('manga_status_ongoing')
+    }
+    if (status === 'completed') {
+      return s('manga_status_completed')
+    }
+    if (status === 'hiatus') {
+      return s('manga_status_hiatus')
+    }
+    if (status === 'cancelled') {
+      return s('manga_status_cancelled')
+    }
+    return s('manga_status_unknown')
+  }
+
+  private localMetadataAuthorsList(): string[] | undefined {
+    const authors: string[] = []
+    this.localMetadataAuthors.split(/[,;\u3001]/).forEach((item: string): void => {
+      const normalized = item.trim().replace(/\s+/g, ' ')
+      if (normalized.length > 0 && !authors.includes(normalized)) {
+        authors.push(normalized)
+      }
+    })
+    return authors.length === 0 ? undefined : authors
+  }
+
+  private buildLocalMetadataOverride(): LocalLibraryStoredMetadata {
+    const metadata: LocalLibraryStoredMetadata = {}
+    const title = this.localMetadataTitle.trim().replace(/\s+/g, ' ')
+    if (title.length > 0) {
+      metadata.titleOverride = title
+    }
+    const authors = this.localMetadataAuthorsList()
+    if (authors !== undefined) {
+      metadata.authors = authors
+    }
+    if (this.localMetadataStatus !== 'unknown') {
+      metadata.status = this.localMetadataStatus
+    }
+    const coverPath = this.localMetadataCoverPath.trim()
+    if (coverPath.length > 0 && this.canEditLocalCoverPath()) {
+      metadata.coverOverridePath = coverPath
+    }
+    return metadata
+  }
+
+  private saveLocalMetadataOverride(): void {
+    if (this.libraryStore === undefined || this.libraryPersistenceService === undefined) {
+      this.showToast(s('manga_detail_local_metadata_unavailable'))
+      return
+    }
+    try {
+      const updated = updateLocalLibraryMetadataAndPersistLibraryStore(
+        this.libraryStore,
+        this.libraryPersistenceService,
+        this.currentComicId(),
+        this.buildLocalMetadataOverride(),
+      )
+      if (updated === undefined) {
+        this.showToast(s('manga_detail_local_metadata_unavailable'))
+        return
+      }
+      this.manga = mangaDetailFromComic(updated)
+      this.chapters = this.decorateChapterStates(
+        updated.chapters.map((chapter: Chapter): MangaChapterItem => mangaChapterItemFromComicChapter(chapter))
+      )
+      this.localMetadataEditorVisible = false
+      this.feedbackText = s('manga_detail_local_metadata_saved')
+      this.onLibraryChanged()
+      this.showToast(s('manga_detail_local_metadata_saved'))
+    } catch (_error) {
+      console.warn('[LocalMetadata] step=save_failed failed=true reason=metadata_validation')
+      this.showToast(s('manga_detail_local_metadata_save_failed'))
+    }
+  }
+
+  private resetLocalMetadataEditor(): void {
+    this.localMetadataTitle = ''
+    this.localMetadataAuthors = ''
+    this.localMetadataStatus = 'unknown'
+    this.localMetadataCoverPath = ''
   }
 
   private async loadSourceMangaDetail(sourceId: string, mangaId: string): Promise<void> {
@@ -1204,6 +1323,12 @@ export struct MangaDetailPage {
             this.checkLocalLibraryRefreshNow()
           })
       }
+      if (this.canEditLocalMetadata()) {
+        MenuItem({ content: s('manga_detail_menu_edit_local_metadata') })
+          .onClick(() => {
+            this.openLocalMetadataEditor()
+          })
+      }
       MenuItem({ content: s('manga_detail_menu_find_tracker_mapping') })
         .onClick(() => {
           this.refreshTrackerMappingCandidates()
@@ -1280,6 +1405,128 @@ export struct MangaDetailPage {
     .width('100%')
   }
 
+  @Builder
+  private LocalMetadataStatusMenu() {
+    Menu() {
+      MenuItem({ content: this.localMetadataStatusLabel('unknown') })
+        .onClick(() => {
+          this.localMetadataStatus = 'unknown'
+        })
+      MenuItem({ content: this.localMetadataStatusLabel('ongoing') })
+        .onClick(() => {
+          this.localMetadataStatus = 'ongoing'
+        })
+      MenuItem({ content: this.localMetadataStatusLabel('completed') })
+        .onClick(() => {
+          this.localMetadataStatus = 'completed'
+        })
+      MenuItem({ content: this.localMetadataStatusLabel('hiatus') })
+        .onClick(() => {
+          this.localMetadataStatus = 'hiatus'
+        })
+      MenuItem({ content: this.localMetadataStatusLabel('cancelled') })
+        .onClick(() => {
+          this.localMetadataStatus = 'cancelled'
+        })
+    }
+  }
+
+  @Builder
+  private LocalMetadataEditor() {
+    Column({ space: ThemeConstants.SPACE_MD }) {
+      Row() {
+        Text(s('manga_detail_local_metadata_title'))
+          .fontSize(ThemeConstants.FONT_SIZE_H3)
+          .fontWeight(FontWeight.Bold)
+          .fontColor(ThemeConstants.TEXT_PRIMARY)
+        Blank()
+        KomaIconButton({
+          icon: $r('sys.symbol.xmark'),
+          controlSize: ThemeConstants.ACTION_CHIP_HEIGHT,
+          iconSize: ThemeConstants.FONT_SIZE_BODY,
+          action: () => {
+            this.localMetadataEditorVisible = false
+          },
+        })
+      }
+      .width('100%')
+      .alignItems(VerticalAlign.Center)
+
+      KomaFormTextField({
+        label: s('manga_detail_local_metadata_field_title'),
+        placeholder: s('manga_detail_title_fallback'),
+        value: this.localMetadataTitle,
+        change: (value: string) => {
+          this.localMetadataTitle = value
+        },
+      })
+      KomaFormTextField({
+        label: s('manga_detail_local_metadata_field_authors'),
+        placeholder: s('manga_detail_creator_unknown'),
+        value: this.localMetadataAuthors,
+        change: (value: string) => {
+          this.localMetadataAuthors = value
+        },
+      })
+      Row() {
+        Column({ space: ThemeConstants.SPACE_XS }) {
+          Text(s('manga_detail_local_metadata_field_status'))
+            .fontSize(ThemeConstants.FONT_SIZE_LIST_ITEM)
+            .fontWeight(FontWeight.Medium)
+            .fontColor($r('sys.color.font_secondary'))
+          Text(this.localMetadataStatusLabel(this.localMetadataStatus))
+            .fontSize(ThemeConstants.FONT_SIZE_BODY)
+            .fontColor(ThemeConstants.TEXT_PRIMARY)
+        }
+        .layoutWeight(1)
+        KomaActionButton({
+          label: this.localMetadataStatusLabel(this.localMetadataStatus),
+          kind: 'secondary',
+          icon: $r('sys.symbol.chevron_down'),
+          action: () => {},
+        })
+          .bindMenu(this.LocalMetadataStatusMenu())
+      }
+      .width('100%')
+      .alignItems(VerticalAlign.Center)
+
+      if (this.canEditLocalCoverPath()) {
+        KomaFormTextField({
+          label: s('manga_detail_local_metadata_field_cover'),
+          placeholder: s('manga_detail_local_metadata_cover_placeholder'),
+          value: this.localMetadataCoverPath,
+          change: (value: string) => {
+            this.localMetadataCoverPath = value
+          },
+        })
+      }
+
+      Row({ space: ThemeConstants.SPACE_MD }) {
+        KomaActionButton({
+          label: s('common_reset'),
+          kind: 'ghost',
+          fill: true,
+          action: () => {
+            this.resetLocalMetadataEditor()
+          },
+        })
+        KomaActionButton({
+          label: s('common_confirm'),
+          kind: 'primary',
+          fill: true,
+          action: () => {
+            this.saveLocalMetadataOverride()
+          },
+        })
+      }
+      .width('100%')
+    }
+    .width('100%')
+    .padding(ThemeConstants.SPACE_LG)
+    .borderRadius(ThemeConstants.RADIUS_CARD)
+    .backgroundColor(ThemeConstants.CARD)
+  }
+
   build() {
     if (this.languageState.effectiveLocale.length >= 0) {
       Scroll() {
@@ -1311,6 +1558,10 @@ export struct MangaDetailPage {
               .width('100%')
               .fontSize(ThemeConstants.FONT_SIZE_META)
               .fontColor(ThemeConstants.TEXT_SECONDARY)
+          }
+
+          if (this.localMetadataEditorVisible) {
+            this.LocalMetadataEditor()
           }
 
           MangaDescriptionSection({
@@ -1366,13 +1617,23 @@ export struct MangaDetailPage {
 }
 
 function mangaDetailFromComic(comic: Comic): MangaDetail {
+  let status = MangaStatus.UNKNOWN
+  if (comic.localMetadata?.status === 'ongoing') {
+    status = MangaStatus.ONGOING
+  } else if (comic.localMetadata?.status === 'completed') {
+    status = MangaStatus.COMPLETED
+  } else if (comic.localMetadata?.status === 'hiatus') {
+    status = MangaStatus.HIATUS
+  } else if (comic.localMetadata?.status === 'cancelled') {
+    status = MangaStatus.CANCELLED
+  }
   return {
     id: comic.id,
     title: comic.title,
     author: comic.author,
     description: comic.subtitle,
     coverUrl: comic.coverUri,
-    status: MangaStatus.UNKNOWN,
+    status,
     chapterCount: comic.chapterCount,
     isInLibrary: true,
     sourceId: undefined,
