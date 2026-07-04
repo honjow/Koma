@@ -259,8 +259,18 @@ assert.match(
 )
 assert.match(
   browseViewModelSource,
-  /parseSourceMangaListFromResponse[\s\S]*page\?\.\['hasMore'\] === true[\s\S]*nextCursor !== undefined[\s\S]*return \{ manga, hasNextPage, nextCursor \}/,
+  /parseSourceMangaListFromResponse[\s\S]*page\?\.\['hasMore'\] === true[\s\S]*nextCursor !== undefined/,
   'BrowseViewModel must honor source runtime page.hasMore and nextCursor pagination',
+)
+assert.match(
+  browseViewModelSource,
+  /function sourceMangaIdentityKey\(manga: SourceManga\): string \{[\s\S]*manga\.sourceId[\s\S]*manga\.id[\s\S]*function appendUniqueSourceManga\(current: SourceManga\[\], incoming: SourceManga\[\]\): SourceManga\[\] \{[\s\S]*new Set<string>\(\)[\s\S]*seen\.has\(key\)[\s\S]*merged\.push\(manga\)/,
+  'BrowseViewModel must keep a shared source manga identity de-duplication helper',
+)
+assert.match(
+  browseViewModelSource,
+  /parseSourceMangaListFromResponse[\s\S]*return \{ manga: appendUniqueSourceManga\(\[\], manga\), hasNextPage, nextCursor \}/,
+  'BrowseViewModel must remove duplicate source manga items within each runtime page response',
 )
 assert.match(
   browseViewModelSource,
@@ -276,6 +286,16 @@ assert.match(
   browseViewModelSource,
   /loadMoreSearch\(\): Promise<void> \{[\s\S]*const source = this\.selectedSource[\s\S]*const query = this\.searchQuery\.trim\(\)[\s\S]*const page = this\.searchPage \+ 1[\s\S]*const cursor = this\.searchNextCursor[\s\S]*searchSource\(source, query, page, cursor\)/,
   'BrowseViewModel must send source-owned cursors for search pagination',
+)
+assert.match(
+  browseViewModelSource,
+  /loadMoreSearch\(\): Promise<void> \{[\s\S]*this\.searchResults = appendUniqueSourceManga\(this\.searchResults, more\.manga\)/,
+  'BrowseViewModel must append source search pagination without duplicating overlapping manga results',
+)
+assert.match(
+  browseViewModelSource,
+  /mergeBrowseListingPage\([\s\S]*appendUniqueSourceManga\(current === undefined \? \[\] : current\.manga, more\.manga\)[\s\S]*this\.browseSections = \[\{/,
+  'BrowseViewModel must append source browse pagination without duplicating overlapping manga results',
 )
 assert.match(
   browseViewModelSource,

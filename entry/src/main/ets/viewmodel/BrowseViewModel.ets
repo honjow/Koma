@@ -154,6 +154,32 @@ function parseSourceMangaFromItem(sourceId: string, item: RuntimeRecord): Source
   }
 }
 
+function sourceMangaIdentityKey(manga: SourceManga): string {
+  return `${manga.sourceId.length}:${manga.sourceId}${manga.id.length}:${manga.id}`
+}
+
+function appendUniqueSourceManga(current: SourceManga[], incoming: SourceManga[]): SourceManga[] {
+  const seen = new Set<string>()
+  const merged: SourceManga[] = []
+  current.forEach((manga: SourceManga) => {
+    const key = sourceMangaIdentityKey(manga)
+    if (seen.has(key)) {
+      return
+    }
+    seen.add(key)
+    merged.push(manga)
+  })
+  incoming.forEach((manga: SourceManga) => {
+    const key = sourceMangaIdentityKey(manga)
+    if (seen.has(key)) {
+      return
+    }
+    seen.add(key)
+    merged.push(manga)
+  })
+  return merged
+}
+
 function parseSourceMangaListFromResponse(sourceId: string, response: SourceRuntimeCallResponse): SourceMangaList {
   if (response.ok !== true) {
     return { manga: [], hasNextPage: false }
@@ -189,7 +215,7 @@ function parseSourceMangaListFromResponse(sourceId: string, response: SourceRunt
     page?.['hasMore'] === true ||
     page?.['hasNextPage'] === true ||
     nextCursor !== undefined
-  return { manga, hasNextPage, nextCursor }
+  return { manga: appendUniqueSourceManga([], manga), hasNextPage, nextCursor }
 }
 
 function parseSourceListingsFromResponse(response: SourceRuntimeCallResponse): SourceListingDescriptor[] {
@@ -592,7 +618,7 @@ export class BrowseViewModel {
         return
       }
       this.searchPage = page
-      this.searchResults = this.searchResults.concat(more.manga)
+      this.searchResults = appendUniqueSourceManga(this.searchResults, more.manga)
       this.hasMoreSearch = more.hasNextPage
       this.searchNextCursor = more.nextCursor ?? ''
     } catch (error) {
@@ -716,7 +742,7 @@ export class BrowseViewModel {
     page: number,
   ): void {
     const current = this.browseSections.find((section: BrowseSourceSectionState): boolean => section.listing.id === listing.id)
-    const manga = current === undefined ? more.manga : current.manga.concat(more.manga)
+    const manga = appendUniqueSourceManga(current === undefined ? [] : current.manga, more.manga)
     this.popularManga = manga
     this.browseNextCursor = more.nextCursor ?? ''
     this.browseSections = [{
