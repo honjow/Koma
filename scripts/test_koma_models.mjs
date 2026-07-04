@@ -1162,6 +1162,16 @@ assert.match(
 )
 assert.match(
   libraryUpdateResultPageSource,
+  /ProviderSummaryCard\(summary: LibraryUpdateSummary\)[\s\S]*summary\.providerSummaries[\s\S]*LibraryUpdateProviderSummary[\s\S]*providerTitle\(provider\)[\s\S]*providerCountsText\(provider\)[\s\S]*providerFailureText\(provider\)/,
+  'LibraryUpdateResultPage must render per-provider result summaries',
+)
+assert.match(
+  libraryUpdateResultPageSource,
+  /providerFailureText\(summary: LibraryUpdateProviderSummary\): string[\s\S]*summary\.failureCodes\.length === 0[\s\S]*library_update_results_provider_no_failures[\s\S]*library_update_results_provider_failures/,
+  'LibraryUpdateResultPage provider summaries must expose sanitized failure buckets without raw errors',
+)
+assert.match(
+  libraryUpdateResultPageSource,
   /result\.comicId[\s\S]*statusLabel\(result\.status\)[\s\S]*result\.previousChapterCount\} -> \$\{result\.newChapterCount\}[\s\S]*result\.message/,
   'LibraryUpdateResultPage must render per-comic ids, counts, status, and messages',
 )

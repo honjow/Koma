@@ -2,6 +2,7 @@ import { common } from '@kit.AbilityKit'
 import { SecondaryListScaffold } from '../components/SecondaryListScaffold'
 import {
   LibraryUpdateComicResult,
+  LibraryUpdateProviderSummary,
   LibraryUpdateResultStatus,
   LibraryUpdateSummary,
   countLibraryUpdateNewChapters,
@@ -142,6 +143,31 @@ export struct LibraryUpdateResultPage {
     return ThemeConstants.TEXT_SECONDARY
   }
 
+  private providerTitle(summary: LibraryUpdateProviderSummary): string {
+    if (summary.sourceKey === summary.providerKind) {
+      return summary.providerKind
+    }
+    return `${summary.providerKind} / ${summary.sourceKey}`
+  }
+
+  private providerCountsText(summary: LibraryUpdateProviderSummary): string {
+    return AppStrings.format(
+      'library_update_results_provider_counts',
+      summary.totalCount,
+      summary.updatedCount,
+      summary.skippedCount,
+      summary.failedCount,
+      summary.newChapterCount,
+    )
+  }
+
+  private providerFailureText(summary: LibraryUpdateProviderSummary): string {
+    if (summary.failureCodes.length === 0) {
+      return s('library_update_results_provider_no_failures')
+    }
+    return AppStrings.format('library_update_results_provider_failures', summary.failureCodes.join(','))
+  }
+
   @Builder
   private EmptyState() {
     ListItem() {
@@ -242,6 +268,46 @@ export struct LibraryUpdateResultPage {
   }
 
   @Builder
+  private ProviderSummaryCard(summary: LibraryUpdateSummary) {
+    ListItem() {
+      Column({ space: ThemeConstants.SPACE_MD }) {
+        Text(s('library_update_results_provider_heading'))
+          .width('100%')
+          .fontSize(ThemeConstants.FONT_SIZE_BODY)
+          .fontWeight(FontWeight.Medium)
+          .fontColor(ThemeConstants.TEXT_PRIMARY)
+        ForEach(summary.providerSummaries, (provider: LibraryUpdateProviderSummary) => {
+          Column({ space: ThemeConstants.SPACE_XS }) {
+            Text(this.providerTitle(provider))
+              .width('100%')
+              .fontSize(ThemeConstants.FONT_SIZE_BODY)
+              .fontColor(ThemeConstants.TEXT_PRIMARY)
+              .maxLines(1)
+              .textOverflow({ overflow: TextOverflow.Ellipsis })
+            Text(this.providerCountsText(provider))
+              .width('100%')
+              .fontSize(ThemeConstants.FONT_SIZE_META)
+              .fontColor(ThemeConstants.TEXT_SECONDARY)
+              .maxLines(2)
+              .textOverflow({ overflow: TextOverflow.Ellipsis })
+            Text(this.providerFailureText(provider))
+              .width('100%')
+              .fontSize(ThemeConstants.FONT_SIZE_META)
+              .fontColor(provider.failedCount > 0 ? ThemeConstants.STATUS_DANGER : ThemeConstants.TEXT_SECONDARY)
+              .maxLines(2)
+              .textOverflow({ overflow: TextOverflow.Ellipsis })
+          }
+          .width('100%')
+        }, (provider: LibraryUpdateProviderSummary) => `${provider.providerKind}:${provider.sourceKey}`)
+      }
+      .width('100%')
+      .padding({ left: ThemeConstants.SPACE_LG, right: ThemeConstants.SPACE_LG, top: ThemeConstants.SPACE_LG, bottom: ThemeConstants.SPACE_LG })
+      .borderRadius(ThemeConstants.RADIUS_CARD)
+      .backgroundColor(ThemeConstants.CARD)
+    }
+  }
+
+  @Builder
   private ResultRow(result: LibraryUpdateComicResult) {
     ListItem() {
       Column({ space: ThemeConstants.SPACE_SM }) {
@@ -290,6 +356,7 @@ export struct LibraryUpdateResultPage {
           this.EmptyState()
         } else {
           this.SummaryCard(this.summary as LibraryUpdateSummary)
+          this.ProviderSummaryCard(this.summary as LibraryUpdateSummary)
           ForEach((this.summary as LibraryUpdateSummary).results, (result: LibraryUpdateComicResult) => {
             this.ResultRow(result)
           }, (result: LibraryUpdateComicResult) => result.comicId)

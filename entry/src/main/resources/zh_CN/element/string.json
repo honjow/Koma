@@ -382,6 +382,10 @@
     { "name": "library_update_results_metric_skipped", "value": "跳过" },
     { "name": "library_update_results_metric_failed", "value": "失败" },
     { "name": "library_update_results_metric_new_chapters", "value": "新章" },
+    { "name": "library_update_results_provider_heading", "value": "来源摘要" },
+    { "name": "library_update_results_provider_counts", "value": "检查 %s · 更新 %s · 跳过 %s · 失败 %s · 新增 %s" },
+    { "name": "library_update_results_provider_no_failures", "value": "无失败" },
+    { "name": "library_update_results_provider_failures", "value": "失败：%s" },
     { "name": "library_update_summary_counts", "value": "%s 新章 · %s 更新 · %s 失败" },
 
     { "name": "common_testing", "value": "测试中..." },
