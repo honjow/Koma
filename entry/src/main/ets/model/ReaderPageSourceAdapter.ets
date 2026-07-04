@@ -873,3 +873,7 @@ export function createReaderPageRenderSource(config: ReaderSessionConfig, pageIn
 export function createReaderPageRenderDiagnostics(config: ReaderSessionConfig, pageIndex: number): ReaderPageRenderDiagnostics {
   return createReaderSourceDiagnostics(createReaderPageRenderSource(config, pageIndex))
 }
+
+export function createReaderPageSourceDiagnostics(source: ReaderPageRenderSource): ReaderPageRenderDiagnostics {
+  return createReaderSourceDiagnostics(source)
+}
