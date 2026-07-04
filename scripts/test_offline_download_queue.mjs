@@ -17,6 +17,11 @@ const routerHelperPath = resolve(root, 'entry/src/main/ets/common/RouterHelper.e
 const entryAbilityPath = resolve(root, 'entry/src/main/ets/entryability/EntryAbility.ets')
 const mangaDetailPagePath = resolve(root, 'entry/src/main/ets/pages/MangaDetailPage.ets')
 const chapterListSectionPath = resolve(root, 'entry/src/main/ets/components/ChapterListSection.ets')
+const stringResourcePaths = [
+  resolve(root, 'entry/src/main/resources/base/element/string.json'),
+  resolve(root, 'entry/src/main/resources/en_US/element/string.json'),
+  resolve(root, 'entry/src/main/resources/zh_CN/element/string.json'),
+]
 
 assert.ok(existsSync(queueStorePath), 'OfflineDownloadQueueStore.ets must exist')
 assert.ok(existsSync(downloadsPagePath), 'DownloadsPage.ets must exist')
@@ -34,6 +39,7 @@ const routerHelperSource = readFileSync(routerHelperPath, 'utf8')
 const entryAbilitySource = readFileSync(entryAbilityPath, 'utf8')
 const mangaDetailPageSource = readFileSync(mangaDetailPagePath, 'utf8')
 const chapterListSectionSource = readFileSync(chapterListSectionPath, 'utf8')
+const stringResourceSources = stringResourcePaths.map((path) => readFileSync(path, 'utf8'))
 
 function assertExport(source, symbol) {
   assert.match(source, new RegExp(`export (interface|class|function|enum|type|const) ${symbol}\\b`), `${symbol} must be exported`)
@@ -220,6 +226,13 @@ assert.match(downloadsPageSource, /if \(this\.canRead\(entry\)\) \{[\s\S]*KomaAc
 assert.match(downloadsPageSource, /retryDownload\(entry: OfflineDownloadQueueEntry\): void \{[\s\S]*comic === undefined[\s\S]*this\.blockUnavailableEntry\(entry\)[\s\S]*downloads_toast_entry_unavailable/, 'DownloadsPage single retry must block stale entries when the manga is no longer in the library')
 assert.match(downloadsPageSource, /runForegroundDownloadBatch\(targets: OfflineDownloadQueueEntry\[\]\): Promise<number>[\s\S]*comic === undefined[\s\S]*this\.blockUnavailableEntry\(entry\)[\s\S]*continue/, 'DownloadsPage batch start and resume must block stale entries when the manga is no longer in the library')
 assert.match(downloadsPageSource, /downloads_empty_title/, 'DownloadsPage must show an explicit empty state')
+assert.match(downloadsPageSource, /hasActiveFilter\(\): boolean \{[\s\S]*this\.filter !== DownloadQueueFilter\.ALL[\s\S]*resetFilter\(\): void \{[\s\S]*this\.setFilter\(DownloadQueueFilter\.ALL\)/, 'DownloadsPage must distinguish a filtered-empty queue from a truly empty queue and expose reset')
+assert.match(downloadsPageSource, /EmptyState\(filtered: boolean = false\)[\s\S]*downloads_filtered_empty_title[\s\S]*downloads_filtered_empty_message[\s\S]*actionLabel: s\('common_reset'\)[\s\S]*showAction: filtered[\s\S]*this\.resetFilter\(\)/, 'DownloadsPage filtered empty state must show a reset action through the shared empty-state component')
+assert.match(downloadsPageSource, /this\.entries\.length === 0[\s\S]*this\.EmptyState\(\)[\s\S]*this\.visibleEntries\(\)\.length === 0[\s\S]*this\.EmptyState\(this\.hasActiveFilter\(\)\)/, 'DownloadsPage must keep true-empty copy separate from filtered-empty copy')
+for (const source of stringResourceSources) {
+  assert.match(source, /"downloads_filtered_empty_title"/, 'all locales must include filtered downloads empty title')
+  assert.match(source, /"downloads_filtered_empty_message"/, 'all locales must include filtered downloads empty message')
+}
 assert.match(downloadsPageSource, /formatStatus\([\s\S]*queued[\s\S]*downloading[\s\S]*downloaded[\s\S]*partial[\s\S]*failed[\s\S]*blocked/, 'DownloadsPage must render all queue statuses')
 assert.match(downloadsPageSource, /formatEntryStatus\(entry: OfflineDownloadQueueEntry\): string[\s\S]*failureReasonCode === 'paused'[\s\S]*downloads_status_paused[\s\S]*failureReasonCode === 'wifi_only'[\s\S]*downloads_status_waiting_wifi/, 'DownloadsPage must render paused and Wi-Fi-only waiting rows clearly')
 assert.match(downloadsPageSource, /enum DownloadQueueFilter\s*{[\s\S]*QUEUED[\s\S]*DOWNLOADING[\s\S]*FAILED[\s\S]*BLOCKED[\s\S]*DOWNLOADED/, 'DownloadsPage must expose queue status filters')

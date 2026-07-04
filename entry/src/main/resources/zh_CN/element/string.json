@@ -833,6 +833,8 @@
     { "name": "downloads_action_rescan", "value": "重扫下载" },
     { "name": "downloads_empty_title", "value": "暂无下载任务" },
     { "name": "downloads_empty_message", "value": "从漫画详情页选择章节下载后会显示在这里。" },
+    { "name": "downloads_filtered_empty_title", "value": "没有匹配下载任务" },
+    { "name": "downloads_filtered_empty_message", "value": "重置筛选以显示全部下载任务。" },
     { "name": "download_notification_enabled", "value": "已开启" },
     { "name": "download_notification_unavailable", "value": "不可用" },
     { "name": "download_notification_complete_title", "value": "下载完成" },

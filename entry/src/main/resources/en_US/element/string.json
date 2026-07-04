@@ -833,6 +833,8 @@
     { "name": "downloads_action_rescan", "value": "Rescan downloads" },
     { "name": "downloads_empty_title", "value": "No downloads yet" },
     { "name": "downloads_empty_message", "value": "Download chapters from a manga detail page and they will show up here." },
+    { "name": "downloads_filtered_empty_title", "value": "No matching downloads" },
+    { "name": "downloads_filtered_empty_message", "value": "Reset filters to show every download task." },
     { "name": "download_notification_enabled", "value": "Enabled" },
     { "name": "download_notification_unavailable", "value": "Unavailable" },
     { "name": "download_notification_complete_title", "value": "Download complete" },

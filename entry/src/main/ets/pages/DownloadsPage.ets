@@ -117,6 +117,14 @@ export struct DownloadsPage {
     this.filter = filter
   }
 
+  private hasActiveFilter(): boolean {
+    return this.filter !== DownloadQueueFilter.ALL
+  }
+
+  private resetFilter(): void {
+    this.setFilter(DownloadQueueFilter.ALL)
+  }
+
   private rowTitle(entry: OfflineDownloadQueueEntry): string {
     if (entry.chapterTitle !== undefined && entry.chapterTitle.length > 0) {
       return entry.chapterTitle
@@ -861,10 +869,15 @@ export struct DownloadsPage {
   }
 
   @Builder
-  private EmptyState() {
+  private EmptyState(filtered: boolean = false) {
     KomaEmptyState({
-      title: s('downloads_empty_title'),
-      message: s('downloads_empty_message'),
+      title: filtered ? s('downloads_filtered_empty_title') : s('downloads_empty_title'),
+      message: filtered ? s('downloads_filtered_empty_message') : s('downloads_empty_message'),
+      actionLabel: s('common_reset'),
+      showAction: filtered,
+      action: () => {
+        this.resetFilter()
+      },
     })
   }
 
@@ -972,7 +985,7 @@ export struct DownloadsPage {
         } else {
           if (this.visibleEntries().length === 0) {
             ListItem() {
-              this.EmptyState()
+              this.EmptyState(this.hasActiveFilter())
             }
           }
           ForEach(this.visibleEntries(), (entry: OfflineDownloadQueueEntry) => {
