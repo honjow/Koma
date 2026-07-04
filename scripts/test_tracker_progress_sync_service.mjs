@@ -76,8 +76,8 @@ assert.match(
 )
 assert.match(
   source,
-  /await this\.pendingStore\.removeProgress\(mapping\.providerId, progress\.comicId, progress\.chapterId\)/,
-  'successful tracker progress push must clear any retained pending sync item for the same chapter',
+  /await this\.pendingStore\.removeProgressForComic\(mapping\.providerId, progress\.comicId\)/,
+  'successful tracker progress push must clear retained pending sync items for the same provider/comic',
 )
 assert.match(
   source,
@@ -93,6 +93,11 @@ assert.match(
   source,
   /retryPendingProgress\(limit: number = 20[\s\S]*const preferences = await this\.preferencesStore\(\)\.load\(\)[\s\S]*!preferences\.autoSyncEnabled[\s\S]*readingProgressFromPendingEntry\(entry, now\)[\s\S]*this\.pushReadingProgress\(progress, entry\.chapterIds, preferences\.updateStrategy, now, entry\.providerId\)[\s\S]*summary\.syncedCount \+= 1/,
   'tracker progress sync service must expose a bounded drain path for retained offline progress using the current sync strategy while respecting auto-sync',
+)
+assert.match(
+  source,
+  /const syncedComicKeys: string\[\] = \[\][\s\S]*const comicKey = `\$\{entry\.providerId\}:\$\{entry\.comicId\}`[\s\S]*syncedComicKeys\.includes\(comicKey\)[\s\S]*summary\.skippedCount \+= 1[\s\S]*syncedComicKeys\.push\(comicKey\)/,
+  'tracker pending retry must skip stale older entries for a provider/comic after a newer pending progress syncs',
 )
 assert.match(
   source,
@@ -128,6 +133,11 @@ assert.match(
   pendingStoreSource,
   /export class TrackerPendingSyncStore[\s\S]*TRACKER_PENDING_PROGRESS_QUEUE_KEY[\s\S]*enqueueFailedProgress\([\s\S]*savePendingProgress\([\s\S]*removeProgress\(/,
   'tracker pending sync store must persist, dedupe, and remove pending progress entries',
+)
+assert.match(
+  pendingStoreSource,
+  /removeProgressForComic\(providerId: TrackerProviderId, comicId: ComicId\): Promise<number>[\s\S]*entry\.providerId !== providerId \|\| entry\.comicId !== comicId[\s\S]*await this\.savePendingProgress\(next\)/,
+  'tracker pending sync store must remove stale entries by provider/comic after a successful sync',
 )
 assert.match(
   pendingStoreSource,

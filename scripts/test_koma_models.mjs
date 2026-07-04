@@ -24,6 +24,8 @@ const crossSearchServicePath = resolve(root, 'entry/src/main/ets/model/CrossSear
 const backupServicePath = resolve(root, 'entry/src/main/ets/model/BackupService.ets')
 const backupEncryptionServicePath = resolve(root, 'entry/src/main/ets/model/BackupEncryptionService.ets')
 const trackerModelsPath = resolve(root, 'entry/src/main/ets/model/TrackerModels.ets')
+const trackerPendingSyncStorePath = resolve(root, 'entry/src/main/ets/model/TrackerPendingSyncStore.ets')
+const trackerProgressSyncServicePath = resolve(root, 'entry/src/main/ets/model/TrackerProgressSyncService.ets')
 const remoteServerStorePath = resolve(root, 'entry/src/main/ets/model/RemoteServerStore.ets')
 const remoteProgressSyncServicePath = resolve(root, 'entry/src/main/ets/model/RemoteProgressSyncService.ets')
 const remoteProgressBootstrapSyncPath = resolve(root, 'entry/src/main/ets/model/RemoteProgressBootstrapSync.ets')
@@ -87,6 +89,8 @@ const crossSearchServiceSource = readFileSync(crossSearchServicePath, 'utf8')
 const backupServiceSource = readFileSync(backupServicePath, 'utf8')
 const backupEncryptionServiceSource = readFileSync(backupEncryptionServicePath, 'utf8')
 const trackerModelsSource = readFileSync(trackerModelsPath, 'utf8')
+const trackerPendingSyncStoreSource = readFileSync(trackerPendingSyncStorePath, 'utf8')
+const trackerProgressSyncServiceSource = readFileSync(trackerProgressSyncServicePath, 'utf8')
 const remoteServerStoreSource = readFileSync(remoteServerStorePath, 'utf8')
 const remoteProgressSyncServiceSource = readFileSync(remoteProgressSyncServicePath, 'utf8')
 const remoteProgressBootstrapSyncSource = readFileSync(remoteProgressBootstrapSyncPath, 'utf8')
@@ -2061,6 +2065,16 @@ assert.match(
   trackerModelsSource,
   /AssetStoreTrackerCredentialSecretStore[\s\S]*asset\.add\(attributes\)[\s\S]*readToken\(ref: TrackerCredentialSecretRef\)[\s\S]*asset\.query\(query\)[\s\S]*deleteAccount\(ref: TrackerCredentialAccountRef\)[\s\S]*asset\.remove\(trackerAssetAccountQuery\(ref\)\)/,
   'tracker credential secret store must use AssetStore for write/read/delete instead of preferences',
+)
+assert.match(
+  trackerPendingSyncStoreSource,
+  /removeProgressForComic\(providerId: TrackerProviderId, comicId: ComicId\): Promise<number>[\s\S]*entry\.providerId !== providerId \|\| entry\.comicId !== comicId[\s\S]*await this\.savePendingProgress\(next\)[\s\S]*return current\.length - next\.length/,
+  'tracker pending sync store must clear all stale pending progress for a provider/comic after a newer sync succeeds',
+)
+assert.match(
+  trackerProgressSyncServiceSource,
+  /await this\.pendingStore\.removeProgressForComic\(mapping\.providerId, progress\.comicId\)[\s\S]*const syncedComicKeys: string\[\] = \[\][\s\S]*const comicKey = `\$\{entry\.providerId\}:\$\{entry\.comicId\}`[\s\S]*syncedComicKeys\.includes\(comicKey\)[\s\S]*summary\.skippedCount \+= 1[\s\S]*syncedComicKeys\.push\(comicKey\)/,
+  'tracker progress retry must not push stale older pending progress after a newer entry for the same provider/comic syncs',
 )
 assert.match(
   trackerModelsSource,

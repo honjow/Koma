@@ -129,7 +129,7 @@ export class TrackerProgressSyncService {
       return this.failedWithPendingQueue('provider_failed', mapping, progress, chapterIds, providerProgress, now)
     }
     await this.markAccountSynced(preferences, account, now)
-    await this.pendingStore.removeProgress(mapping.providerId, progress.comicId, progress.chapterId)
+    await this.pendingStore.removeProgressForComic(mapping.providerId, progress.comicId)
     return {
       status: 'synced',
       providerId: mapping.providerId,
@@ -181,8 +181,14 @@ export class TrackerProgressSyncService {
       summary.skippedCount = entries.length
       return summary
     }
+    const syncedComicKeys: string[] = []
     for (let index = 0; index < entries.length; index += 1) {
       const entry = entries[index]
+      const comicKey = `${entry.providerId}:${entry.comicId}`
+      if (syncedComicKeys.includes(comicKey)) {
+        summary.skippedCount += 1
+        continue
+      }
       const progress = readingProgressFromPendingEntry(entry, now)
       if (progress.comicId.length === 0 || progress.chapterId.length === 0) {
         summary.skippedCount += 1
@@ -191,6 +197,7 @@ export class TrackerProgressSyncService {
       const result = await this.pushReadingProgress(progress, entry.chapterIds, preferences.updateStrategy, now, entry.providerId)
       if (result.status === 'synced') {
         summary.syncedCount += 1
+        syncedComicKeys.push(comicKey)
       } else {
         summary.retainedCount += 1
         if (result.status === 'failed') {

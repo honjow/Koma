@@ -261,6 +261,18 @@ export class TrackerPendingSyncStore {
     return current.length - next.length
   }
 
+  async removeProgressForComic(providerId: TrackerProviderId, comicId: ComicId): Promise<number> {
+    const current = await this.loadPendingProgress()
+    const next = current.filter((entry: TrackerPendingProgressSyncEntry): boolean => {
+      return entry.providerId !== providerId || entry.comicId !== comicId
+    })
+    if (next.length === current.length) {
+      return 0
+    }
+    await this.savePendingProgress(next)
+    return current.length - next.length
+  }
+
   async clear(): Promise<void> {
     await this.savePendingProgress([])
   }
