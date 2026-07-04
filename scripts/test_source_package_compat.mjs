@@ -265,12 +265,12 @@ assert.match(
 )
 assert.match(
   browseViewModelSource,
-  /loadMangaListing\(this\.selectedSource, listing\.id, this\.browsePage, this\.browseNextCursor\)/,
+  /loadMoreBrowse\(\): Promise<void> \{[\s\S]*const source = this\.selectedSource[\s\S]*const page = this\.browsePage \+ 1[\s\S]*const cursor = this\.browseNextCursor[\s\S]*loadMangaListing\(source, listing\.id, page, cursor\)/,
   'BrowseViewModel must send source-owned cursors for browse pagination',
 )
 assert.match(
   browseViewModelSource,
-  /searchSource\(this\.selectedSource, this\.searchQuery\.trim\(\), this\.searchPage, this\.searchNextCursor\)/,
+  /loadMoreSearch\(\): Promise<void> \{[\s\S]*const source = this\.selectedSource[\s\S]*const query = this\.searchQuery\.trim\(\)[\s\S]*const page = this\.searchPage \+ 1[\s\S]*const cursor = this\.searchNextCursor[\s\S]*searchSource\(source, query, page, cursor\)/,
   'BrowseViewModel must send source-owned cursors for search pagination',
 )
 assert.match(
@@ -319,6 +319,26 @@ assert.match(
   'BrowseViewModel must ignore stale source search completions after newer searches or immediate clear',
 )
 assert.match(
+  browseViewModelSource,
+  /private browseRequestId: number = 0[\s\S]*setSelectedSource\(source: SourceRuntimeRegistryInstalledSourceSummary\): void \{[\s\S]*this\.browseRequestId \+= 1[\s\S]*loadBrowseHome\(source: SourceRuntimeRegistryInstalledSourceSummary\): Promise<void> \{[\s\S]*const requestId = this\.browseRequestId[\s\S]*await this\.loadSourceListings\(source\)[\s\S]*requestId !== this\.browseRequestId[\s\S]*await this\.loadSourceFilters\(source\)[\s\S]*requestId !== this\.browseRequestId[\s\S]*await this\.loadSourceHomeSections\(source\)[\s\S]*requestId !== this\.browseRequestId[\s\S]*loadBrowseListing\(source, listing, 1, requestId\)[\s\S]*finally[\s\S]*requestId === this\.browseRequestId/,
+  'BrowseViewModel must ignore stale source home/listing completions after switching sources',
+)
+assert.match(
+  browseViewModelSource,
+  /selectBrowseListing\(listing: SourceListingDescriptor\): Promise<void> \{[\s\S]*const requestId = this\.browseRequestId \+ 1[\s\S]*this\.browseRequestId = requestId[\s\S]*loadBrowseListing\(this\.selectedSource, listing, 1, requestId\)[\s\S]*if \(!loaded\)[\s\S]*requestId !== this\.browseRequestId[\s\S]*finally[\s\S]*requestId === this\.browseRequestId[\s\S]*loadBrowseListing\([\s\S]*requestId: number = this\.browseRequestId[\s\S]*await this\.loadMangaListing\(source, listing\.id, page\)[\s\S]*requestId !== this\.browseRequestId[\s\S]*return false/,
+  'BrowseViewModel must guard stale manual listing selection writes through the shared listing loader',
+)
+assert.match(
+  browseViewModelSource,
+  /loadMoreBrowse\(\): Promise<void> \{[\s\S]*const requestId = this\.browseRequestId[\s\S]*const source = this\.selectedSource[\s\S]*const page = this\.browsePage \+ 1[\s\S]*const cursor = this\.browseNextCursor[\s\S]*await this\.loadMangaListing\(source, listing\.id, page, cursor\)[\s\S]*requestId !== this\.browseRequestId[\s\S]*this\.browsePage = page[\s\S]*finally[\s\S]*requestId === this\.browseRequestId/,
+  'BrowseViewModel must not append stale browse pagination after source/listing changes',
+)
+assert.match(
+  browseViewModelSource,
+  /loadMoreSearch\(\): Promise<void> \{[\s\S]*const requestId = this\.searchRequestId[\s\S]*const source = this\.selectedSource[\s\S]*const query = this\.searchQuery\.trim\(\)[\s\S]*const page = this\.searchPage \+ 1[\s\S]*const cursor = this\.searchNextCursor[\s\S]*await this\.searchSource\(source, query, page, cursor\)[\s\S]*requestId !== this\.searchRequestId[\s\S]*this\.searchPage = page[\s\S]*finally[\s\S]*requestId === this\.searchRequestId/,
+  'BrowseViewModel must not append stale search pagination after newer searches or clear',
+)
+assert.match(
   sourceSearchPageSource,
   /clearPendingSearchTimer\(\): void \{[\s\S]*clearTimeout\(this\.searchTimer\)[\s\S]*scheduleSearch\(value: string\): void \{[\s\S]*this\.clearPendingSearchTimer\(\)[\s\S]*if \(value\.trim\(\)\.length === 0\) \{[\s\S]*this\.viewModel\.clearSearch\(this\.source\)[\s\S]*return[\s\S]*setTimeout/,
   'SourceSearchPage must clear source search results immediately when the query becomes blank instead of waiting for debounce',
@@ -365,7 +385,7 @@ assert.match(
 )
 assert.match(
   browseViewModelSource,
-  /selectBrowseListing\(listing: SourceListingDescriptor\)[\s\S]*loadBrowseListing\(this\.selectedSource, listing, 1\)/,
+  /selectBrowseListing\(listing: SourceListingDescriptor\)[\s\S]*const requestId = this\.browseRequestId \+ 1[\s\S]*loadBrowseListing\(this\.selectedSource, listing, 1, requestId\)/,
   'BrowseViewModel must expose listing selection for SourceBrowsePage',
 )
 assert.match(

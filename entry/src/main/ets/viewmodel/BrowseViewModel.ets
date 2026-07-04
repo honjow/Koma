@@ -291,6 +291,7 @@ export class BrowseViewModel {
   @Trace errorMessage: string = ''
   @Trace searchQuery: string = ''
   @Trace searchNextCursor: string = ''
+  private browseRequestId: number = 0
   private searchRequestId: number = 0
 
   constructor(registry?: SourceRuntimeRegistry) {
@@ -314,6 +315,7 @@ export class BrowseViewModel {
   }
 
   setSelectedSource(source: SourceRuntimeRegistryInstalledSourceSummary): void {
+    this.browseRequestId += 1
     this.selectedSource = source
     this.popularManga = []
     this.latestManga = []
@@ -331,14 +333,27 @@ export class BrowseViewModel {
 
   async loadBrowseHome(source: SourceRuntimeRegistryInstalledSourceSummary): Promise<void> {
     this.setSelectedSource(source)
+    const requestId = this.browseRequestId
     this.loadingBrowse = true
     this.errorMessage = ''
     try {
-      this.listings = await this.loadSourceListings(source)
-      this.filters = await this.loadSourceFilters(source)
+      const listings = await this.loadSourceListings(source)
+      if (requestId !== this.browseRequestId) {
+        return
+      }
+      const filters = await this.loadSourceFilters(source)
+      if (requestId !== this.browseRequestId) {
+        return
+      }
+      const homeSections = await this.loadSourceHomeSections(source)
+      if (requestId !== this.browseRequestId) {
+        return
+      }
+      this.listings = listings
+      this.filters = filters
       this.browseFilterValues = this.defaultSourceFilterValues(this.filters)
       this.searchFilterValues = this.defaultSourceFilterValues(this.filters)
-      this.homeSections = await this.loadSourceHomeSections(source)
+      this.homeSections = homeSections
       const listing = this.defaultListingForBrowse(this.listings)
       if (listing === undefined) {
         this.popularManga = []
@@ -348,8 +363,11 @@ export class BrowseViewModel {
         this.hasMoreBrowse = false
         return
       }
-      await this.loadBrowseListing(source, listing, 1)
+      await this.loadBrowseListing(source, listing, 1, requestId)
     } catch (error) {
+      if (requestId !== this.browseRequestId) {
+        return
+      }
       const e = error as Error
       this.errorMessage = safeSourceBrowseErrorText(e, 'browse_error_load_home')
       this.popularManga = []
@@ -358,7 +376,9 @@ export class BrowseViewModel {
       this.browseSections = []
       this.hasMoreBrowse = false
     } finally {
-      this.loadingBrowse = false
+      if (requestId === this.browseRequestId) {
+        this.loadingBrowse = false
+      }
     }
   }
 
@@ -366,19 +386,29 @@ export class BrowseViewModel {
     if (this.selectedSource === undefined || this.loadingBrowse) {
       return
     }
+    const requestId = this.browseRequestId + 1
+    this.browseRequestId = requestId
     this.loadingBrowse = true
     this.errorMessage = ''
     try {
-      await this.loadBrowseListing(this.selectedSource, listing, 1)
+      const loaded = await this.loadBrowseListing(this.selectedSource, listing, 1, requestId)
+      if (!loaded) {
+        return
+      }
       this.homeSections = []
     } catch (error) {
+      if (requestId !== this.browseRequestId) {
+        return
+      }
       const e = error as Error
       this.errorMessage = safeSourceBrowseErrorText(e, 'browse_error_load_home')
       this.homeSections = []
       this.browseSections = []
       this.hasMoreBrowse = false
     } finally {
-      this.loadingBrowse = false
+      if (requestId === this.browseRequestId) {
+        this.loadingBrowse = false
+      }
     }
   }
 
@@ -460,24 +490,36 @@ export class BrowseViewModel {
     if (this.loadingBrowse || !this.hasMoreBrowse || this.selectedSource === undefined) {
       return
     }
+    const requestId = this.browseRequestId
+    const source = this.selectedSource
+    const page = this.browsePage + 1
+    const cursor = this.browseNextCursor
+    const listing = this.currentListing()
+    if (listing === undefined) {
+      this.hasMoreBrowse = false
+      return
+    }
     this.loadingBrowse = true
     this.errorMessage = ''
     try {
-      this.browsePage += 1
-      const listing = this.currentListing()
-      if (listing === undefined) {
-        this.hasMoreBrowse = false
+      const more = await this.loadMangaListing(source, listing.id, page, cursor)
+      if (requestId !== this.browseRequestId) {
         return
       }
-      const more = await this.loadMangaListing(this.selectedSource, listing.id, this.browsePage, this.browseNextCursor)
-      this.mergeBrowseListingPage(listing, more, this.browsePage)
+      this.browsePage = page
+      this.mergeBrowseListingPage(listing, more, page)
       this.hasMoreBrowse = more.hasNextPage
     } catch (error) {
+      if (requestId !== this.browseRequestId) {
+        return
+      }
       const e = error as Error
       this.errorMessage = safeSourceBrowseErrorText(e, 'browse_error_load_more')
       this.hasMoreBrowse = false
     } finally {
-      this.loadingBrowse = false
+      if (requestId === this.browseRequestId) {
+        this.loadingBrowse = false
+      }
     }
   }
 
@@ -537,20 +579,33 @@ export class BrowseViewModel {
     if (this.loadingSearch || !this.hasMoreSearch || this.selectedSource === undefined || this.searchQuery.trim().length === 0) {
       return
     }
+    const requestId = this.searchRequestId
+    const source = this.selectedSource
+    const query = this.searchQuery.trim()
+    const page = this.searchPage + 1
+    const cursor = this.searchNextCursor
     this.loadingSearch = true
     this.errorMessage = ''
     try {
-      this.searchPage += 1
-      const more = await this.searchSource(this.selectedSource, this.searchQuery.trim(), this.searchPage, this.searchNextCursor)
+      const more = await this.searchSource(source, query, page, cursor)
+      if (requestId !== this.searchRequestId) {
+        return
+      }
+      this.searchPage = page
       this.searchResults = this.searchResults.concat(more.manga)
       this.hasMoreSearch = more.hasNextPage
       this.searchNextCursor = more.nextCursor ?? ''
     } catch (error) {
+      if (requestId !== this.searchRequestId) {
+        return
+      }
       const e = error as Error
       this.errorMessage = safeSearchDiagnostic(e).userText
       this.hasMoreSearch = false
     } finally {
-      this.loadingSearch = false
+      if (requestId === this.searchRequestId) {
+        this.loadingSearch = false
+      }
     }
   }
 
@@ -634,8 +689,12 @@ export class BrowseViewModel {
     source: SourceRuntimeRegistryInstalledSourceSummary,
     listing: SourceListingDescriptor,
     page: number,
-  ): Promise<void> {
+    requestId: number = this.browseRequestId,
+  ): Promise<boolean> {
     const result = await this.loadMangaListing(source, listing.id, page)
+    if (requestId !== this.browseRequestId) {
+      return false
+    }
     this.selectedListingId = listing.id
     this.browsePage = page
     this.browseNextCursor = result.nextCursor ?? ''
@@ -648,6 +707,7 @@ export class BrowseViewModel {
       page,
     }]
     this.hasMoreBrowse = result.hasNextPage
+    return true
   }
 
   private mergeBrowseListingPage(

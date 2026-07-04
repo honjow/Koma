@@ -2295,7 +2295,7 @@ assert.match(
 )
 assert.match(
   browseViewModelSource,
-  /@Trace filters: SourceFilter\[\] = \[\][\s\S]*@Trace browseFilterValues: SourceMangaListFilters = \{\}[\s\S]*this\.filters = await this\.loadSourceFilters\(source\)[\s\S]*this\.browseFilterValues = this\.defaultSourceFilterValues\(this\.filters\)[\s\S]*filters: this\.browseFilterValues/,
+  /@Trace filters: SourceFilter\[\] = \[\][\s\S]*@Trace browseFilterValues: SourceMangaListFilters = \{\}[\s\S]*const filters = await this\.loadSourceFilters\(source\)[\s\S]*requestId !== this\.browseRequestId[\s\S]*this\.filters = filters[\s\S]*this\.browseFilterValues = this\.defaultSourceFilterValues\(this\.filters\)[\s\S]*filters: this\.browseFilterValues/,
   'BrowseViewModel must load source filters and pass active values into get_manga_list requests',
 )
 assert.match(
@@ -2310,7 +2310,7 @@ assert.match(
 )
 assert.match(
   browseViewModelSource,
-  /selectBrowseListing\(listing: SourceListingDescriptor\): Promise<void>[\s\S]*await this\.loadBrowseListing\(this\.selectedSource, listing, 1\)[\s\S]*this\.homeSections = \[\][\s\S]*catch \(error\)[\s\S]*this\.homeSections = \[\]/,
+  /selectBrowseListing\(listing: SourceListingDescriptor\): Promise<void>[\s\S]*const requestId = this\.browseRequestId \+ 1[\s\S]*const loaded = await this\.loadBrowseListing\(this\.selectedSource, listing, 1, requestId\)[\s\S]*if \(!loaded\)[\s\S]*return[\s\S]*this\.homeSections = \[\][\s\S]*catch \(error\)[\s\S]*requestId !== this\.browseRequestId[\s\S]*this\.homeSections = \[\]/,
   'BrowseViewModel must clear stale source home sections after a manual listing or filter reload',
 )
 assert.match(
