@@ -9,12 +9,16 @@ function s(name: string): string {
 
 @ComponentV2
 export struct MangaDescriptionSection {
-  @Param description: string = ''
+  @Param description: string | undefined = undefined
   @Local private languageState: LanguageState = connectLanguageState()
   @Local private expanded: boolean = false
 
+  private normalizedDescription(): string {
+    return this.description?.trim() ?? ''
+  }
+
   private hasDescription(): boolean {
-    return this.description.trim().length > 0
+    return this.normalizedDescription().length > 0
   }
 
   private toggleLabel(): string {
@@ -29,7 +33,7 @@ export struct MangaDescriptionSection {
         .fontWeight(FontWeight.Bold)
         .fontColor(ThemeConstants.TEXT_PRIMARY)
 
-      Text(this.hasDescription() ? this.description : s('manga_detail_description_empty'))
+      Text(this.hasDescription() ? this.normalizedDescription() : s('manga_detail_description_empty'))
         .width('100%')
         .fontSize(ThemeConstants.FONT_SIZE_BODY)
         .lineHeight(ThemeConstants.LINE_HEIGHT_TITLE)

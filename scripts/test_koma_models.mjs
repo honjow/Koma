@@ -65,6 +65,7 @@ const localLibraryRescanServicePath = resolve(root, 'entry/src/main/ets/model/Lo
 const secondaryListScaffoldPath = resolve(root, 'entry/src/main/ets/components/SecondaryListScaffold.ets')
 const comicCoverCardPath = resolve(root, 'entry/src/main/ets/components/ComicCoverCard.ets')
 const chapterListSectionPath = resolve(root, 'entry/src/main/ets/components/ChapterListSection.ets')
+const mangaDescriptionSectionPath = resolve(root, 'entry/src/main/ets/components/MangaDescriptionSection.ets')
 const mangaDetailPagePath = resolve(root, 'entry/src/main/ets/pages/MangaDetailPage.ets')
 const downloadsPagePath = resolve(root, 'entry/src/main/ets/pages/DownloadsPage.ets')
 const readerPagePath = resolve(root, 'entry/src/main/ets/pages/ReaderPage.ets')
@@ -138,6 +139,7 @@ const localLibraryRescanServiceSource = readFileSync(localLibraryRescanServicePa
 const secondaryListScaffoldSource = readFileSync(secondaryListScaffoldPath, 'utf8')
 const comicCoverCardSource = readFileSync(comicCoverCardPath, 'utf8')
 const chapterListSectionSource = readFileSync(chapterListSectionPath, 'utf8')
+const mangaDescriptionSectionSource = readFileSync(mangaDescriptionSectionPath, 'utf8')
 const mangaDetailPageSource = readFileSync(mangaDetailPagePath, 'utf8')
 const downloadsPageSource = readFileSync(downloadsPagePath, 'utf8')
 const readerPageSource = readFileSync(readerPagePath, 'utf8')
@@ -1836,6 +1838,11 @@ assert.match(
   mangaDetailModelsSource,
   /description:\s*optionalSourceDisplayString\(item\['description'\]\)/,
   'Manga detail normalization must decode source-provided description text',
+)
+assert.match(
+  mangaDescriptionSectionSource,
+  /@Param\s+description:\s*string\s*\|\s*undefined\s*=\s*undefined[\s\S]*private normalizedDescription\(\): string \{[\s\S]*this\.description\?\.trim\(\) \?\? ''[\s\S]*private hasDescription\(\): boolean \{[\s\S]*this\.normalizedDescription\(\)\.length > 0/,
+  'Manga description UI must tolerate source detail records without descriptions',
 )
 assert.match(
   mangaDetailModelsSource,

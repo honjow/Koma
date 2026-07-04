@@ -220,7 +220,7 @@
 3. **D51：Source browsing parity**
    - 文件：`sourceRuntime/*`、`SourceBrowsePage.ets`、`SourceSearchPage.ets`、`SourcePackageManagerPage.ets`
    - 目标：home/listings/filters/settings 到 reader/download 的主路径。
-   - 当前：runtime browse 已用 Pura X + MangaDex source index 验证；继续推进 UI 手动主路径和设置/下载入口 QA。
+   - 当前：runtime browse 已用 Pura X + MangaDex source index 验证；UI 手动主路径已从 Browse -> MangaDex -> `Salt Friend` detail -> Reader 跑通。继续推进 source-backed 下载、per-source settings 编辑、更多真实源兼容。
 
 4. **D52：Reader advanced QA**
    - 文件：`ReaderPreferencesStore.ets`、`ReaderSessionStore.ets`、`ReaderPage.ets`
