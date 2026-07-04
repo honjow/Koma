@@ -23,6 +23,7 @@ import {
 import { installReaderRemoteHeadersForComic } from '../model/ReaderPageSourceAdapter'
 import { AppStrings } from '../i18n/AppStrings'
 import { connectLanguageState, LanguageState } from '../state/LanguageState'
+import { RouterHelper } from '../common/RouterHelper'
 
 function s(name: string): string {
   return AppStrings.get(name)
@@ -277,6 +278,16 @@ export struct DownloadsPage {
     this.entries = this.entries.map((item: OfflineDownloadQueueEntry): OfflineDownloadQueueEntry => {
       return this.rowKey(item) === this.rowKey(blocked) ? blocked : item
     })
+  }
+
+  private openDownloadEntry(entry: OfflineDownloadQueueEntry): void {
+    const comic = this.libraryStore?.getComic(entry.comicId)
+    if (comic === undefined) {
+      this.blockUnavailableEntry(entry)
+      this.showToast(s('downloads_toast_entry_unavailable'))
+      return
+    }
+    RouterHelper.pushMangaDetail({ mangaId: entry.comicId })
   }
 
   private retryDownload(entry: OfflineDownloadQueueEntry): void {
@@ -808,6 +819,9 @@ export struct DownloadsPage {
           .fontColor(ThemeConstants.BRAND_PRIMARY)
       }
       .width('100%')
+      .onClick(() => {
+        this.openDownloadEntry(entry)
+      })
 
       Row({ space: ThemeConstants.SPACE_MD }) {
         if (this.canRetry(entry)) {
