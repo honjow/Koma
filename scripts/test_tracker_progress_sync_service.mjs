@@ -5,16 +5,18 @@ import { resolve } from 'node:path'
 const root = resolve(import.meta.dirname, '..')
 const source = readFileSync(resolve(root, 'entry/src/main/ets/model/TrackerProgressSyncService.ets'), 'utf8')
 const clientSource = readFileSync(resolve(root, 'entry/src/main/ets/model/AniListTrackerClient.ets'), 'utf8')
+const myAnimeListClientSource = readFileSync(resolve(root, 'entry/src/main/ets/model/MyAnimeListTrackerClient.ets'), 'utf8')
 const pendingStoreSource = readFileSync(resolve(root, 'entry/src/main/ets/model/TrackerPendingSyncStore.ets'), 'utf8')
 const indexSource = readFileSync(resolve(root, 'entry/src/main/ets/pages/Index.ets'), 'utf8')
 const mangaDetailPageSource = readFileSync(resolve(root, 'entry/src/main/ets/pages/MangaDetailPage.ets'), 'utf8')
 
 assert.match(source, /export class TrackerProgressSyncService/, 'tracker progress sync service must exist')
 assert.match(source, /AniListTrackerClient/, 'tracker progress sync service must depend on the AniList provider client')
+assert.match(source, /MyAnimeListTrackerClient/, 'tracker progress sync service must depend on the MyAnimeList provider client')
 assert.match(
   source,
-  /constructor\(context: common\.UIAbilityContext, options: TrackerProgressSyncServiceOptions = \{\}\)[\s\S]*new AssetStoreTrackerCredentialSecretStore\(\)[\s\S]*options\.aniListClient \?\? new AniListTrackerClient\(new HarmonyAniListTrackerHttpAdapter\(\)\)[\s\S]*options\.pendingStore \?\? new TrackerPendingSyncStore\(context\)/,
-  'tracker progress sync service must default to secure storage, real AniList HTTP, and a durable pending sync queue while accepting injected fakes',
+  /constructor\(context: common\.UIAbilityContext, options: TrackerProgressSyncServiceOptions = \{\}\)[\s\S]*new AssetStoreTrackerCredentialSecretStore\(\)[\s\S]*options\.aniListClient \?\? new AniListTrackerClient\(new HarmonyAniListTrackerHttpAdapter\(\)\)[\s\S]*options\.myAnimeListClient \?\? new MyAnimeListTrackerClient\(new HarmonyMyAnimeListTrackerHttpAdapter\(\)\)[\s\S]*options\.pendingStore \?\? new TrackerPendingSyncStore\(context\)/,
+  'tracker progress sync service must default to secure storage, real AniList/MyAnimeList HTTP, and a durable pending sync queue while accepting injected fakes',
 )
 assert.match(
   source,
@@ -28,18 +30,18 @@ assert.match(
 )
 assert.match(
   source,
-  /findConfirmedAniListMapping\(preferences[\s\S]*mapping\.providerId === 'anilist'[\s\S]*mapping\.mappingState === 'confirmed'[\s\S]*mapping\.userConfirmed/,
-  'tracker progress sync must only use user-confirmed AniList mappings',
+  /isSupportedProgressProvider\(providerId: TrackerProviderId\): boolean \{[\s\S]*providerId === 'anilist' \|\| providerId === 'myanimelist'[\s\S]*findConfirmedMapping\(preferences[\s\S]*this\.isSupportedProgressProvider\(mapping\.providerId\)[\s\S]*mapping\.mappingState === 'confirmed'[\s\S]*mapping\.userConfirmed/,
+  'tracker progress sync must only use user-confirmed mappings for implemented providers',
 )
 assert.match(
   source,
-  /findConnectedAniListAccount\(preferences[\s\S]*account\.providerId === 'anilist' && account\.status === 'connected'/,
-  'tracker progress sync must require a connected AniList account',
+  /findConnectedAccount\(preferences[\s\S]*account\.providerId === providerId && account\.status === 'connected'/,
+  'tracker progress sync must require a connected account for the mapped provider',
 )
 assert.match(
   source,
-  /secretStore\.readToken\(\{[\s\S]*providerId: 'anilist'[\s\S]*secretKind: 'access_token'[\s\S]*buffer\.from\(tokenBytes\.buffer\)\.toString\('utf-8'\)/,
-  'tracker progress sync must read the AniList access token from secure storage at use time',
+  /readAccessToken\(account: TrackerAccount, providerId: TrackerProviderId\)[\s\S]*secretStore\.readToken\(\{[\s\S]*providerId,[\s\S]*secretKind: 'access_token'[\s\S]*buffer\.from\(tokenBytes\.buffer\)\.toString\('utf-8'\)/,
+  'tracker progress sync must read the mapped provider access token from secure storage at use time',
 )
 assert.doesNotMatch(
   source,
@@ -53,13 +55,13 @@ assert.doesNotMatch(
 )
 assert.match(
   source,
-  /if \(this\.aniListClient === undefined\) \{[\s\S]*client_unavailable/,
-  'tracker progress sync must fail closed when no real AniList client is available',
+  /client_unavailable[\s\S]*hasClientForProvider\(providerId: TrackerProviderId\): boolean[\s\S]*providerId === 'anilist'[\s\S]*this\.aniListClient !== undefined[\s\S]*providerId === 'myanimelist'[\s\S]*this\.myAnimeListClient !== undefined/,
+  'tracker progress sync must fail closed when no real client is available for the mapped provider',
 )
 assert.match(
   source,
-  /aniListClient\.pushProgress\(accessToken, mapping\.providerTitleId, providerProgress, progress\.completed\)/,
-  'tracker progress push must call AniList progress mutation with mapped provider title id',
+  /pushProviderProgress\([\s\S]*providerId === 'myanimelist'[\s\S]*myAnimeListClient\.pushProgress\(accessToken, providerTitleId, providerProgress, completed\)[\s\S]*aniListClient\.pushProgress\(accessToken, providerTitleId, providerProgress, completed\)/,
+  'tracker progress push must call the mapped provider progress mutation with mapped provider title id',
 )
 assert.match(
   source,
@@ -68,12 +70,12 @@ assert.match(
 )
 assert.match(
   source,
-  /await this\.pendingStore\.removeProgress\('anilist', progress\.comicId, progress\.chapterId\)/,
+  /await this\.pendingStore\.removeProgress\(mapping\.providerId, progress\.comicId, progress\.chapterId\)/,
   'successful tracker progress push must clear any retained pending sync item for the same chapter',
 )
 assert.match(
   source,
-  /failedWithPendingQueue\([\s\S]*enqueueFailedProgress\(progress, chapterIds, providerProgress, reason, now\)[\s\S]*result\.queued = true/,
+  /failedWithPendingQueue\([\s\S]*enqueueFailedProgress\(mapping\.providerId, progress, chapterIds, providerProgress, reason, now\)[\s\S]*result\.queued = true/,
   'failed tracker progress push must persist a retryable pending progress item and mark the result queued',
 )
 assert.doesNotMatch(
@@ -83,17 +85,17 @@ assert.doesNotMatch(
 )
 assert.match(
   source,
-  /retryPendingProgress\(limit: number = 20[\s\S]*const preferences = await this\.preferencesStore\(\)\.load\(\)[\s\S]*!preferences\.autoSyncEnabled[\s\S]*readingProgressFromPendingEntry\(entry, now\)[\s\S]*this\.pushReadingProgress\(progress, entry\.chapterIds, preferences\.updateStrategy, now\)[\s\S]*summary\.syncedCount \+= 1/,
+  /retryPendingProgress\(limit: number = 20[\s\S]*const preferences = await this\.preferencesStore\(\)\.load\(\)[\s\S]*!preferences\.autoSyncEnabled[\s\S]*readingProgressFromPendingEntry\(entry, now\)[\s\S]*this\.pushReadingProgress\(progress, entry\.chapterIds, preferences\.updateStrategy, now, entry\.providerId\)[\s\S]*summary\.syncedCount \+= 1/,
   'tracker progress sync service must expose a bounded drain path for retained offline progress using the current sync strategy while respecting auto-sync',
 )
 assert.match(
   source,
-  /aniListClient\.fetchProgress\(accessToken, mapping\.providerTitleId\)/,
-  'tracker progress pull must call AniList progress query with mapped provider title id',
+  /fetchProviderProgress\([\s\S]*providerId === 'myanimelist'[\s\S]*myAnimeListClient\.fetchProgress\(accessToken, providerTitleId\)[\s\S]*aniListClient\.fetchProgress\(accessToken, providerTitleId\)/,
+  'tracker progress pull must call the mapped provider progress query with mapped provider title id',
 )
 assert.match(
   source,
-  /markAniListAccountSynced\(preferences, account, now\)[\s\S]*saveAccounts\(nextAccounts\)/,
+  /markAccountSynced\(preferences, account, now\)[\s\S]*saveAccounts\(nextAccounts\)/,
   'successful tracker sync must update account lastSyncAt without touching credentials',
 )
 assert.match(
@@ -112,6 +114,11 @@ assert.match(
   'AniList client must expose pushProgress for the sync service',
 )
 assert.match(
+  myAnimeListClientSource,
+  /pushProgress\(accessToken: string, providerTitleId: string, progress: number, completed: boolean\)/,
+  'MyAnimeList client must expose pushProgress for the sync service',
+)
+assert.match(
   pendingStoreSource,
   /export class TrackerPendingSyncStore[\s\S]*TRACKER_PENDING_PROGRESS_QUEUE_KEY[\s\S]*enqueueFailedProgress\([\s\S]*savePendingProgress\([\s\S]*removeProgress\(/,
   'tracker pending sync store must persist, dedupe, and remove pending progress entries',
@@ -123,8 +130,8 @@ assert.match(
 )
 assert.match(
   pendingStoreSource,
-  /providerId: 'anilist'[\s\S]*comicId: progress\.comicId[\s\S]*chapterId: progress\.chapterId[\s\S]*chapterIds,[\s\S]*providerProgress,[\s\S]*lastReason: reason/,
-  'tracker pending sync entries must retain enough non-secret state to retry chapter progress later',
+  /enqueueFailedProgress\([\s\S]*providerId: TrackerProviderId,[\s\S]*providerId,[\s\S]*comicId: progress\.comicId[\s\S]*chapterId: progress\.chapterId[\s\S]*chapterIds,[\s\S]*providerProgress,[\s\S]*lastReason: reason/,
+  'tracker pending sync entries must retain enough non-secret state to retry chapter progress later for the mapped provider',
 )
 assert.doesNotMatch(
   pendingStoreSource,

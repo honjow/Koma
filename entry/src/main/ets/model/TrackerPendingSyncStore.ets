@@ -32,6 +32,7 @@ export interface TrackerPendingProgressSyncEntry {
 export interface TrackerPendingProgressSummary {
   totalCount: number
   anilistCount: number
+  myAnimeListCount: number
   completedCount: number
   failedAttemptCount: number
 }
@@ -87,7 +88,7 @@ function normalizeReason(reason: TrackerPendingProgressReason): TrackerPendingPr
 function normalizeEntry(entry: TrackerPendingProgressSyncEntry): TrackerPendingProgressSyncEntry | undefined {
   const comicId = normalizeTextId(entry.comicId, 256)
   const chapterId = normalizeTextId(entry.chapterId, 256)
-  if (entry.providerId !== 'anilist' || comicId.length === 0 || chapterId.length === 0) {
+  if ((entry.providerId !== 'anilist' && entry.providerId !== 'myanimelist') || comicId.length === 0 || chapterId.length === 0) {
     return undefined
   }
   const totalPages = normalizeCount(entry.totalPages)
@@ -96,7 +97,7 @@ function normalizeEntry(entry: TrackerPendingProgressSyncEntry): TrackerPendingP
   const firstQueuedAt = normalizeFiniteNumber(entry.firstQueuedAt, Date.now())
   const updatedAt = normalizeFiniteNumber(entry.updatedAt, firstQueuedAt)
   return {
-    providerId: 'anilist',
+    providerId: entry.providerId,
     comicId,
     chapterId,
     chapterIds,
@@ -141,6 +142,7 @@ export function summarizeTrackerPendingProgress(entries: TrackerPendingProgressS
   const summary: TrackerPendingProgressSummary = {
     totalCount: 0,
     anilistCount: 0,
+    myAnimeListCount: 0,
     completedCount: 0,
     failedAttemptCount: 0,
   }
@@ -148,6 +150,8 @@ export function summarizeTrackerPendingProgress(entries: TrackerPendingProgressS
     summary.totalCount += 1
     if (entry.providerId === 'anilist') {
       summary.anilistCount += 1
+    } else if (entry.providerId === 'myanimelist') {
+      summary.myAnimeListCount += 1
     }
     if (entry.completed) {
       summary.completedCount += 1
@@ -203,6 +207,7 @@ export class TrackerPendingSyncStore {
   }
 
   async enqueueFailedProgress(
+    providerId: TrackerProviderId,
     progress: ReadingProgress,
     chapterIds: string[],
     providerProgress: number,
@@ -211,12 +216,12 @@ export class TrackerPendingSyncStore {
   ): Promise<TrackerPendingProgressSyncEntry> {
     const current = await this.loadPendingProgress()
     const existing = current.find((entry: TrackerPendingProgressSyncEntry): boolean => {
-      return entry.providerId === 'anilist' &&
+      return entry.providerId === providerId &&
         entry.comicId === progress.comicId &&
         entry.chapterId === progress.chapterId
     })
     const next: TrackerPendingProgressSyncEntry = {
-      providerId: 'anilist',
+      providerId,
       comicId: progress.comicId,
       chapterId: progress.chapterId,
       chapterIds,
@@ -231,14 +236,14 @@ export class TrackerPendingSyncStore {
       lastReason: reason,
     }
     const entries = current.filter((entry: TrackerPendingProgressSyncEntry): boolean => {
-      return entry.providerId !== 'anilist' ||
+      return entry.providerId !== providerId ||
         entry.comicId !== progress.comicId ||
         entry.chapterId !== progress.chapterId
     })
     entries.unshift(next)
     const saved = await this.savePendingProgress(entries)
     return saved.find((entry: TrackerPendingProgressSyncEntry): boolean => {
-      return entry.providerId === 'anilist' &&
+      return entry.providerId === providerId &&
         entry.comicId === progress.comicId &&
         entry.chapterId === progress.chapterId
     }) ?? next
