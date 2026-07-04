@@ -1977,8 +1977,8 @@ assert.match(
 )
 assert.match(
   mangaDetailPageSource,
-  /comicFromSourceManga\(manga: MangaDetail, chapters: MangaChapterItem\[\], comicId: string\): Comic[\s\S]*scanlator: chapter\.scanlator[\s\S]*language: chapter\.language[\s\S]*dateUpload: chapter\.dateUpload/,
-  'Adding source manga to library must persist chapter metadata into library chapters',
+  /comicFromSourceManga\(manga: MangaDetail, chapters: MangaChapterItem\[\], comicId: string\): Comic[\s\S]*scanlator: chapter\.scanlator[\s\S]*language: chapter\.language[\s\S]*dateUpload: chapter\.dateUpload[\s\S]*sourceRuntimeId: manga\.sourceId[\s\S]*remoteResourceId: manga\.id/,
+  'Adding source manga to library must persist chapter metadata and retain the source manga identity',
 )
 assert.match(
   libraryUpdateServiceSource,

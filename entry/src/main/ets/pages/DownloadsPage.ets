@@ -327,6 +327,12 @@ export struct DownloadsPage {
       this.showToast(s('downloads_toast_entry_unavailable'))
       return
     }
+    const sourceId = comic.sourceRuntimeId?.trim()
+    const sourceMangaId = comic.remoteResourceId?.trim()
+    if (sourceId !== undefined && sourceId.length > 0 && sourceMangaId !== undefined && sourceMangaId.length > 0) {
+      RouterHelper.pushMangaDetail({ mangaId: sourceMangaId, sourceId })
+      return
+    }
     RouterHelper.pushMangaDetail({ mangaId: entry.comicId })
   }
 
