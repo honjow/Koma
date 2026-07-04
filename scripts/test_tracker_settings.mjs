@@ -45,6 +45,21 @@ assert.match(
 )
 assert.match(
   trackerModelsSource,
+  /export interface TrackerProviderOAuthConfig \{[\s\S]*providerId: TrackerProviderId[\s\S]*clientId\?: string[\s\S]*redirectUri\?: string/,
+  'tracker model must expose non-secret provider OAuth registration config',
+)
+assert.match(
+  trackerModelsSource,
+  /TRACKER_PROVIDER_OAUTH_CONFIGS_KEY: string = 'tracker\.providerOAuthConfigs'[\s\S]*providerOAuthConfigs: \[\]/,
+  'tracker preferences must persist provider OAuth registration config separately from accounts and tokens',
+)
+assert.match(
+  trackerModelsSource,
+  /normalizeTrackerProviderOAuthConfigs\(values: TrackerProviderOAuthConfig\[\]\)[\s\S]*provider\.supportStatus !== 'available'[\s\S]*clientId[\s\S]*redirectUri[\s\S]*getConfiguredTrackerProviderConfig\([\s\S]*providerId: TrackerProviderId,[\s\S]*configs: TrackerProviderOAuthConfig\[\]/,
+  'tracker provider OAuth configs must be normalized and merged only for supported providers',
+)
+assert.match(
+  trackerModelsSource,
   /export interface TrackerCredentialSecretStore \{[\s\S]*isAvailable\(\): boolean[\s\S]*writeToken\(request: TrackerCredentialWriteRequest\): Promise<TrackerCredentialStoreResult>[\s\S]*readToken\(ref: TrackerCredentialSecretRef\): Promise<Uint8Array \| undefined>/,
   'tracker model must define a narrow secure-token boundary',
 )
@@ -186,6 +201,31 @@ assert.match(
   trackerPageSource,
   /new AssetStoreTrackerCredentialSecretStore\(\)[\s\S]*new TrackerPreferencesStore\(this\.context\(\), this\.credentialSecretStore\)[\s\S]*this\.secureStorageAvailable = this\.credentialSecretStore\.isAvailable\(\)/,
   'TrackerSettingsPage must wire the system secure credential store into tracker preferences',
+)
+assert.match(
+  trackerPageSource,
+  /@Local private providerOAuthConfigs: TrackerProviderOAuthConfig\[\] = \[\][\s\S]*this\.providerOAuthConfigs = preferences\.providerOAuthConfigs[\s\S]*configuredProvider\(provider: TrackerProviderConfig\)[\s\S]*getConfiguredTrackerProviderConfig\(provider\.providerId, this\.providerOAuthConfigs\)/,
+  'TrackerSettingsPage must load and use local provider OAuth registration config',
+)
+assert.match(
+  trackerPageSource,
+  /private canPrepareConnect\(provider: TrackerProviderConfig\): boolean \{[\s\S]*const configuredProvider = this\.configuredProvider\(provider\)[\s\S]*configuredProvider\.clientId !== undefined[\s\S]*configuredProvider\.redirectUri !== undefined/,
+  'TrackerSettingsPage connect readiness must use configured provider metadata',
+)
+assert.match(
+  trackerPageSource,
+  /saveProviderOAuthConfig\(provider: TrackerProviderConfig[\s\S]*trackerPreferencesStore\(\)\.saveProviderOAuthConfig\([\s\S]*provider\.providerId[\s\S]*this\.providerClientId\(provider\)[\s\S]*this\.providerRedirectUri\(provider\)[\s\S]*tracker_oauth_config_saved[\s\S]*tracker_oauth_config_save_failed/,
+  'TrackerSettingsPage must persist non-secret provider OAuth config through TrackerPreferencesStore',
+)
+assert.match(
+  trackerPageSource,
+  /prepareConnect\(provider: TrackerProviderConfig\): void[\s\S]*saveProviderOAuthConfig\(provider, false\)[\s\S]*trackerPreferencesStore\(\)\.prepareConnect\(provider\.providerId\)/,
+  'TrackerSettingsPage must save local OAuth registration config before preparing authorization',
+)
+assert.match(
+  trackerPageSource,
+  /ProviderOAuthConfigForm\(provider: TrackerProviderConfig\)[\s\S]*KomaFormTextField\(\{[\s\S]*tracker_oauth_client_id_label[\s\S]*this\.setProviderClientId\(provider, value\)[\s\S]*tracker_oauth_redirect_uri_label[\s\S]*this\.setProviderRedirectUri\(provider, value\)[\s\S]*common_save[\s\S]*this\.saveProviderOAuthConfig\(provider\)/,
+  'TrackerSettingsPage must expose non-secret client id and redirect URI fields for supported tracker providers',
 )
 assert.match(
   trackerPageSource,

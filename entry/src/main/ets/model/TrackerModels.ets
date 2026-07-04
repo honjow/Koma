@@ -47,6 +47,12 @@ export interface TrackerProviderConfig {
   supportsPkce: boolean
 }
 
+export interface TrackerProviderOAuthConfig {
+  providerId: TrackerProviderId
+  clientId?: string
+  redirectUri?: string
+}
+
 export interface TrackerPublicProfile {
   username?: string
   displayName?: string
@@ -101,6 +107,7 @@ export interface TrackerOAuthStartRequest {
   providerId: TrackerProviderId
   state: string
   codeChallenge: string
+  providerConfig?: TrackerProviderConfig
 }
 
 export interface TrackerOAuthStartPreparation {
@@ -148,6 +155,7 @@ export interface TrackerComicMappingSummary {
 export interface TrackerPreferences {
   accounts: TrackerAccount[]
   comicMappings: ComicTrackerMapping[]
+  providerOAuthConfigs: TrackerProviderOAuthConfig[]
   autoSyncEnabled: boolean
   updateStrategy: TrackerUpdateStrategy
 }
@@ -155,6 +163,7 @@ export interface TrackerPreferences {
 export const TRACKER_PREFERENCES_STORE_NAME: string = 'koma_tracker_preferences_v1'
 export const TRACKER_ACCOUNTS_KEY: string = 'tracker.accounts'
 export const TRACKER_COMIC_MAPPINGS_KEY: string = 'tracker.comicMappings'
+export const TRACKER_PROVIDER_OAUTH_CONFIGS_KEY: string = 'tracker.providerOAuthConfigs'
 export const TRACKER_AUTO_SYNC_ENABLED_KEY: string = 'tracker.autoSyncEnabled'
 export const TRACKER_UPDATE_STRATEGY_KEY: string = 'tracker.updateStrategy'
 export const TRACKER_ASSET_ALIAS_PREFIX: string = 'koma.tracker'
@@ -212,6 +221,7 @@ export const DEFAULT_TRACKER_ACCOUNTS: TrackerAccount[] = TRACKER_PROVIDER_CONFI
 export const DEFAULT_TRACKER_PREFERENCES: TrackerPreferences = {
   accounts: DEFAULT_TRACKER_ACCOUNTS,
   comicMappings: [],
+  providerOAuthConfigs: [],
   autoSyncEnabled: false,
   updateStrategy: 'on_chapter_complete',
 }
@@ -220,6 +230,83 @@ export function getTrackerProviderConfig(providerId: TrackerProviderId): Tracker
   return TRACKER_PROVIDER_CONFIGS.find((provider: TrackerProviderConfig): boolean => {
     return provider.providerId === providerId
   })
+}
+
+function normalizeTrackerOAuthText(value: string | undefined, maxLength: number): string | undefined {
+  if (value === undefined) {
+    return undefined
+  }
+  const normalized = value.trim().slice(0, maxLength)
+  return normalized.length === 0 ? undefined : normalized
+}
+
+export function normalizeTrackerProviderOAuthConfigs(values: TrackerProviderOAuthConfig[]): TrackerProviderOAuthConfig[] {
+  const configs: TrackerProviderOAuthConfig[] = []
+  values.forEach((config: TrackerProviderOAuthConfig) => {
+    const provider = getTrackerProviderConfig(config.providerId)
+    if (provider === undefined || provider.supportStatus !== 'available') {
+      return
+    }
+    const next: TrackerProviderOAuthConfig = {
+      providerId: provider.providerId,
+    }
+    const clientId = normalizeTrackerOAuthText(config.clientId, 160)
+    if (clientId !== undefined) {
+      next.clientId = clientId
+    }
+    const redirectUri = normalizeTrackerOAuthText(config.redirectUri, 240)
+    if (redirectUri !== undefined) {
+      next.redirectUri = redirectUri
+    }
+    if (next.clientId === undefined && next.redirectUri === undefined) {
+      return
+    }
+    const existingIndex = configs.findIndex((item: TrackerProviderOAuthConfig): boolean => item.providerId === next.providerId)
+    if (existingIndex < 0) {
+      configs.push(next)
+    } else {
+      configs[existingIndex] = next
+    }
+  })
+  return configs
+}
+
+export function getTrackerProviderOAuthConfig(
+  providerId: TrackerProviderId,
+  configs: TrackerProviderOAuthConfig[],
+): TrackerProviderOAuthConfig | undefined {
+  return normalizeTrackerProviderOAuthConfigs(configs).find((config: TrackerProviderOAuthConfig): boolean => {
+    return config.providerId === providerId
+  })
+}
+
+export function mergeTrackerProviderOAuthConfig(
+  provider: TrackerProviderConfig,
+  configs: TrackerProviderOAuthConfig[],
+): TrackerProviderConfig {
+  const override = getTrackerProviderOAuthConfig(provider.providerId, configs)
+  if (override === undefined) {
+    return provider
+  }
+  const merged: TrackerProviderConfig = {
+    providerId: provider.providerId,
+    displayName: provider.displayName,
+    supportStatus: provider.supportStatus,
+    authorizationEndpoint: provider.authorizationEndpoint,
+    clientId: override.clientId ?? provider.clientId,
+    redirectUri: override.redirectUri ?? provider.redirectUri,
+    scopes: provider.scopes,
+    supportsPkce: provider.supportsPkce,
+  }
+  return merged
+}
+
+export function getConfiguredTrackerProviderConfig(
+  providerId: TrackerProviderId,
+  configs: TrackerProviderOAuthConfig[],
+): TrackerProviderConfig | undefined {
+  const provider = getTrackerProviderConfig(providerId)
+  return provider === undefined ? undefined : mergeTrackerProviderOAuthConfig(provider, configs)
 }
 
 export function getTrackerAccountStatusLabel(status: TrackerAccountStatus): string {
@@ -415,7 +502,7 @@ export function prepareTrackerOAuthStart(
   request: TrackerOAuthStartRequest,
   secureStorageAvailable: boolean,
 ): TrackerOAuthStartPreparation {
-  const provider = getTrackerProviderConfig(request.providerId)
+  const provider = request.providerConfig ?? getTrackerProviderConfig(request.providerId)
   if (provider === undefined || provider.supportStatus === 'unsupported') {
     return {
       status: 'provider_unsupported',
@@ -758,11 +845,13 @@ export class TrackerPreferencesStore {
     const store = await this.preferences()
     const accountsJson = await store.get(TRACKER_ACCOUNTS_KEY, JSON.stringify(DEFAULT_TRACKER_ACCOUNTS)) as string
     const mappingsJson = await store.get(TRACKER_COMIC_MAPPINGS_KEY, JSON.stringify([])) as string
+    const providerOAuthConfigsJson = await store.get(TRACKER_PROVIDER_OAUTH_CONFIGS_KEY, JSON.stringify([])) as string
     const autoSyncEnabled = await store.get(TRACKER_AUTO_SYNC_ENABLED_KEY, DEFAULT_TRACKER_PREFERENCES.autoSyncEnabled) as boolean
     const updateStrategy = await store.get(TRACKER_UPDATE_STRATEGY_KEY, DEFAULT_TRACKER_PREFERENCES.updateStrategy) as string
     return {
       accounts: mergeTrackerAccounts(this.parseAccounts(accountsJson), this.secretStore.isAvailable()),
       comicMappings: normalizeComicTrackerMappings(this.parseMappings(mappingsJson)),
+      providerOAuthConfigs: normalizeTrackerProviderOAuthConfigs(this.parseProviderOAuthConfigs(providerOAuthConfigsJson)),
       autoSyncEnabled: autoSyncEnabled === true,
       updateStrategy: normalizeTrackerUpdateStrategy(updateStrategy),
     }
@@ -773,6 +862,7 @@ export class TrackerPreferencesStore {
     const next: TrackerPreferences = {
       accounts: mergeTrackerAccounts(accounts, this.secretStore.isAvailable()),
       comicMappings: current.comicMappings,
+      providerOAuthConfigs: current.providerOAuthConfigs,
       autoSyncEnabled: current.autoSyncEnabled,
       updateStrategy: current.updateStrategy,
     }
@@ -822,6 +912,7 @@ export class TrackerPreferencesStore {
     const next: TrackerPreferences = {
       accounts: current.accounts,
       comicMappings: normalizeComicTrackerMappings(mappings),
+      providerOAuthConfigs: current.providerOAuthConfigs,
       autoSyncEnabled: current.autoSyncEnabled,
       updateStrategy: current.updateStrategy,
     }
@@ -836,12 +927,36 @@ export class TrackerPreferencesStore {
     const next: TrackerPreferences = {
       accounts: current.accounts,
       comicMappings: current.comicMappings,
+      providerOAuthConfigs: current.providerOAuthConfigs,
       autoSyncEnabled,
       updateStrategy: normalizeTrackerUpdateStrategy(updateStrategy),
     }
     const store = await this.preferences()
     await store.put(TRACKER_AUTO_SYNC_ENABLED_KEY, next.autoSyncEnabled)
     await store.put(TRACKER_UPDATE_STRATEGY_KEY, next.updateStrategy)
+    await store.flush()
+    return next
+  }
+
+  async saveProviderOAuthConfig(
+    providerId: TrackerProviderId,
+    clientId: string,
+    redirectUri: string,
+  ): Promise<TrackerPreferences> {
+    const current = await this.load()
+    const nextConfigs = current.providerOAuthConfigs.filter((config: TrackerProviderOAuthConfig): boolean => {
+      return config.providerId !== providerId
+    })
+    nextConfigs.push({ providerId, clientId, redirectUri })
+    const next: TrackerPreferences = {
+      accounts: current.accounts,
+      comicMappings: current.comicMappings,
+      providerOAuthConfigs: normalizeTrackerProviderOAuthConfigs(nextConfigs),
+      autoSyncEnabled: current.autoSyncEnabled,
+      updateStrategy: current.updateStrategy,
+    }
+    const store = await this.preferences()
+    await store.put(TRACKER_PROVIDER_OAUTH_CONFIGS_KEY, JSON.stringify(next.providerOAuthConfigs))
     await store.flush()
     return next
   }
@@ -914,12 +1029,14 @@ export class TrackerPreferencesStore {
   }
 
   async prepareConnect(providerId: TrackerProviderId): Promise<TrackerOAuthStartPreparation> {
+    const current = await this.load()
     const state = createTrackerOAuthState()
     const pkce = createTrackerPkcePair()
     const preparation = prepareTrackerOAuthStart({
       providerId,
       state,
       codeChallenge: pkce.codeChallenge,
+      providerConfig: getConfiguredTrackerProviderConfig(providerId, current.providerOAuthConfigs),
     }, this.secretStore.isAvailable())
     if (preparation.status !== 'ready') {
       return preparation
@@ -938,7 +1055,6 @@ export class TrackerPreferencesStore {
       }
     }
     try {
-      const current = await this.load()
       await this.saveAccounts(current.accounts.map((account: TrackerAccount): TrackerAccount => {
         if (account.providerId !== providerId) {
           return account
@@ -975,6 +1091,18 @@ export class TrackerPreferencesStore {
   private parseMappings(value: string): ComicTrackerMapping[] {
     try {
       const parsed = JSON.parse(value) as ComicTrackerMapping[]
+      if (!Array.isArray(parsed)) {
+        return []
+      }
+      return parsed
+    } catch (_error) {
+      return []
+    }
+  }
+
+  private parseProviderOAuthConfigs(value: string): TrackerProviderOAuthConfig[] {
+    try {
+      const parsed = JSON.parse(value) as TrackerProviderOAuthConfig[]
       if (!Array.isArray(parsed)) {
         return []
       }

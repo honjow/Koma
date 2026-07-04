@@ -187,6 +187,11 @@ assert.match(
   /provider\.authorizationEndpoint === undefined \|\| provider\.clientId === undefined \|\| provider\.redirectUri === undefined[\s\S]*status: 'provider_config_missing'/,
   'OAuth preparation must require provider registration metadata without a client secret',
 )
+assert.match(
+  trackerModelsSource,
+  /export interface TrackerProviderOAuthConfig \{[\s\S]*providerId: TrackerProviderId[\s\S]*clientId\?: string[\s\S]*redirectUri\?: string[\s\S]*saveProviderOAuthConfig\([\s\S]*TRACKER_PROVIDER_OAUTH_CONFIGS_KEY[\s\S]*JSON\.stringify\(next\.providerOAuthConfigs\)/,
+  'provider OAuth registration metadata must be user-configurable and persisted as non-secret preferences',
+)
 const testPkce = createDeterministicPkceForTest('tracker-account-store')
 assert.equal(testPkce.codeVerifier, testPkce.codeChallenge, 'test-only PKCE helper should be deterministic for script fixtures')
 assert.match(testPkce.codeVerifier, /^koma-test-tracker-account-store-verifier-0+$/, 'test-only PKCE helper should sanitize stable seeds')
@@ -213,8 +218,8 @@ assert.match(
 const prepareConnectBlock = trackerModelsSource.match(/async prepareConnect\(providerId: TrackerProviderId\): Promise<TrackerOAuthStartPreparation> \{[\s\S]*?\n  \}/)?.[0] ?? ''
 assert.match(
   prepareConnectBlock,
-  /const state = createTrackerOAuthState\(\)[\s\S]*const pkce = createTrackerPkcePair\(\)[\s\S]*prepareTrackerOAuthStart\(\{[\s\S]*state,[\s\S]*codeChallenge: pkce\.codeChallenge[\s\S]*this\.secretStore\.isAvailable\(\)/,
-  'production prepareConnect must use generated state and PKCE challenge when preparing OAuth',
+  /const current = await this\.load\(\)[\s\S]*const state = createTrackerOAuthState\(\)[\s\S]*const pkce = createTrackerPkcePair\(\)[\s\S]*prepareTrackerOAuthStart\(\{[\s\S]*state,[\s\S]*codeChallenge: pkce\.codeChallenge[\s\S]*providerConfig: getConfiguredTrackerProviderConfig\(providerId, current\.providerOAuthConfigs\)[\s\S]*this\.secretStore\.isAvailable\(\)/,
+  'production prepareConnect must use generated state, PKCE challenge, and user-configured provider metadata when preparing OAuth',
 )
 assert.match(
   prepareConnectBlock,

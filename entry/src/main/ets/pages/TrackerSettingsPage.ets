@@ -3,6 +3,7 @@ import { pasteboard } from '@kit.BasicServicesKit'
 import { SecondaryListScaffold } from '../components/SecondaryListScaffold'
 import { ConciseListRow } from '../components/ui/ConciseListRow'
 import { KomaActionButton } from '../components/ui/KomaActionButton'
+import { KomaFormTextField } from '../components/ui/KomaFormTextField'
 import {
   AssetStoreTrackerCredentialSecretStore,
   ComicTrackerMapping,
@@ -14,8 +15,11 @@ import {
   TrackerOAuthStartPreparation,
   TrackerPreferencesStore,
   TrackerProviderConfig,
+  TrackerProviderOAuthConfig,
+  getConfiguredTrackerProviderConfig,
   getTrackerAccountDetail,
   getTrackerAccountStatusLabel,
+  getTrackerProviderOAuthConfig,
   summarizeComicTrackerMappings,
 } from '../model/TrackerModels'
 import {
@@ -43,6 +47,7 @@ function s(name: string): string {
 export struct TrackerSettingsPage {
   @Local private languageState: LanguageState = connectLanguageState()
   @Local private accounts: TrackerAccount[] = DEFAULT_TRACKER_ACCOUNTS
+  @Local private providerOAuthConfigs: TrackerProviderOAuthConfig[] = []
   @Local private mappingSummary: TrackerComicMappingSummary = {
     total: 0,
     confirmed: 0,
@@ -86,6 +91,7 @@ export struct TrackerSettingsPage {
     void this.trackerPreferencesStore().load()
       .then((preferences) => {
         this.accounts = preferences.accounts
+        this.providerOAuthConfigs = preferences.providerOAuthConfigs
         this.mappings = preferences.comicMappings
         this.mappingSummary = summarizeComicTrackerMappings(preferences.comicMappings)
         console.info('[TrackerSettings] step=load accounts=' + preferences.accounts.length + ' mappings=' + preferences.comicMappings.length)
@@ -115,7 +121,41 @@ export struct TrackerSettingsPage {
     return provider?.displayName ?? providerId
   }
 
+  private configuredProvider(provider: TrackerProviderConfig): TrackerProviderConfig {
+    return getConfiguredTrackerProviderConfig(provider.providerId, this.providerOAuthConfigs) ?? provider
+  }
+
+  private providerOAuthConfig(provider: TrackerProviderConfig): TrackerProviderOAuthConfig | undefined {
+    return getTrackerProviderOAuthConfig(provider.providerId, this.providerOAuthConfigs)
+  }
+
+  private providerClientId(provider: TrackerProviderConfig): string {
+    return this.providerOAuthConfig(provider)?.clientId ?? ''
+  }
+
+  private providerRedirectUri(provider: TrackerProviderConfig): string {
+    return this.providerOAuthConfig(provider)?.redirectUri ?? ''
+  }
+
+  private setProviderClientId(provider: TrackerProviderConfig, value: string): void {
+    this.upsertProviderOAuthConfig(provider, value, this.providerRedirectUri(provider))
+  }
+
+  private setProviderRedirectUri(provider: TrackerProviderConfig, value: string): void {
+    this.upsertProviderOAuthConfig(provider, this.providerClientId(provider), value)
+  }
+
+  private upsertProviderOAuthConfig(provider: TrackerProviderConfig, clientId: string, redirectUri: string): void {
+    const next = this.providerOAuthConfigs.filter((config: TrackerProviderOAuthConfig): boolean => {
+      return config.providerId !== provider.providerId
+    })
+    next.push({ providerId: provider.providerId, clientId, redirectUri })
+    this.providerOAuthConfigs = next
+    this.preparedAuthorizationUrl = ''
+  }
+
   private connectActionLabel(provider: TrackerProviderConfig): string {
+    const configuredProvider = this.configuredProvider(provider)
     if (provider.supportStatus === 'unsupported') {
       return s('tracker_action_unsupported')
     }
@@ -125,17 +165,18 @@ export struct TrackerSettingsPage {
     if (!this.secureStorageAvailable) {
       return s('tracker_action_secure_storage_unavailable')
     }
-    if (provider.clientId === undefined || provider.redirectUri === undefined) {
+    if (configuredProvider.clientId === undefined || configuredProvider.redirectUri === undefined) {
       return s('tracker_action_needs_config')
     }
     return s('tracker_action_connect')
   }
 
   private canPrepareConnect(provider: TrackerProviderConfig): boolean {
+    const configuredProvider = this.configuredProvider(provider)
     return provider.supportStatus === 'available' &&
       this.secureStorageAvailable &&
-      provider.clientId !== undefined &&
-      provider.redirectUri !== undefined
+      configuredProvider.clientId !== undefined &&
+      configuredProvider.redirectUri !== undefined
   }
 
   private canDisconnectProvider(provider: TrackerProviderConfig): boolean {
@@ -184,8 +225,20 @@ export struct TrackerSettingsPage {
       this.showToast(s(this.authPreparationMessageKey))
       return
     }
-    void this.trackerPreferencesStore().prepareConnect(provider.providerId)
-      .then((result: TrackerOAuthStartPreparation) => {
+    void this.saveProviderOAuthConfig(provider, false)
+      .then((saved: boolean) => {
+        if (!saved) {
+          this.preparedAuthorizationUrl = ''
+          this.authPreparationMessageKey = 'tracker_message_auth_prepare_failed'
+          this.showToast(s(this.authPreparationMessageKey))
+          return undefined
+        }
+        return this.trackerPreferencesStore().prepareConnect(provider.providerId)
+      })
+      .then((result: TrackerOAuthStartPreparation | undefined) => {
+        if (result === undefined) {
+          return
+        }
         this.preparedAuthorizationUrl = result.status === 'ready'
           ? result.authorizationUrl ?? ''
           : ''
@@ -201,6 +254,24 @@ export struct TrackerSettingsPage {
       })
   }
 
+  private async saveProviderOAuthConfig(provider: TrackerProviderConfig, showSuccessToast: boolean = true): Promise<boolean> {
+    try {
+      const preferences = await this.trackerPreferencesStore().saveProviderOAuthConfig(
+        provider.providerId,
+        this.providerClientId(provider),
+        this.providerRedirectUri(provider),
+      )
+      this.providerOAuthConfigs = preferences.providerOAuthConfigs
+      if (showSuccessToast) {
+        this.showToast(s('tracker_oauth_config_saved'))
+      }
+      return true
+    } catch (_error) {
+      this.showToast(s('tracker_oauth_config_save_failed'))
+      return false
+    }
+  }
+
   private disconnectAccount(provider: TrackerProviderConfig): void {
     if (!this.canDisconnectProvider(provider) || this.busyProviderId.length > 0) {
       return
@@ -209,6 +280,7 @@ export struct TrackerSettingsPage {
     void this.trackerPreferencesStore().disconnectAccount(provider.providerId)
       .then(async (preferences) => {
         this.accounts = preferences.accounts
+        this.providerOAuthConfigs = preferences.providerOAuthConfigs
         const account = this.findAccount(provider)
         if (account.status === 'disconnected') {
           await this.pendingSyncStore().removeProgressForProvider(provider.providerId)
@@ -237,6 +309,7 @@ export struct TrackerSettingsPage {
     }).refreshAccounts(provider.providerId)
       .then((summary: TrackerAccountRefreshSummary) => {
         this.accounts = summary.preferences.accounts
+        this.providerOAuthConfigs = summary.preferences.providerOAuthConfigs
         this.mappings = summary.preferences.comicMappings
         this.mappingSummary = summarizeComicTrackerMappings(summary.preferences.comicMappings)
         console.info(`[TrackerSettings] step=account_refresh provider=${provider.providerId} refreshed=${summary.refreshedCount} skipped=${summary.skippedCount} failed=${summary.failedCount}`)
@@ -438,6 +511,7 @@ export struct TrackerSettingsPage {
     void task
       .then((preferences) => {
         this.accounts = preferences.accounts
+        this.providerOAuthConfigs = preferences.providerOAuthConfigs
         this.mappings = preferences.comicMappings
         this.mappingSummary = summarizeComicTrackerMappings(preferences.comicMappings)
         this.showToast(s(confirmed ? 'tracker_mapping_confirmed' : 'tracker_mapping_rejected'))
@@ -559,10 +633,55 @@ export struct TrackerSettingsPage {
   }
 
   @Builder
+  private ProviderOAuthConfigForm(provider: TrackerProviderConfig) {
+    Column({ space: ThemeConstants.SPACE_SM }) {
+      Text(s('tracker_oauth_config_title'))
+        .width('100%')
+        .fontSize(ThemeConstants.FONT_SIZE_META)
+        .fontWeight(FontWeight.Medium)
+        .fontColor(ThemeConstants.TEXT_SECONDARY)
+      KomaFormTextField({
+        label: s('tracker_oauth_client_id_label'),
+        placeholder: s('tracker_oauth_client_id_placeholder'),
+        value: this.providerClientId(provider),
+        change: (value: string) => {
+          this.setProviderClientId(provider, value)
+        },
+      })
+      KomaFormTextField({
+        label: s('tracker_oauth_redirect_uri_label'),
+        placeholder: s('tracker_oauth_redirect_uri_placeholder'),
+        value: this.providerRedirectUri(provider),
+        change: (value: string) => {
+          this.setProviderRedirectUri(provider, value)
+        },
+      })
+      Row() {
+        Blank()
+        KomaActionButton({
+          label: s('common_save'),
+          kind: 'secondary',
+          compact: true,
+          controlHeight: ThemeConstants.ACTION_CHIP_HEIGHT,
+          action: () => {
+            void this.saveProviderOAuthConfig(provider)
+          },
+        })
+      }
+      .width('100%')
+    }
+    .width('100%')
+    .padding({ left: ThemeConstants.SPACE_LG, right: ThemeConstants.SPACE_LG, bottom: ThemeConstants.SPACE_MD })
+  }
+
+  @Builder
   private ProvidersCard() {
     Column() {
       ForEach(TRACKER_PROVIDER_CONFIGS, (provider: TrackerProviderConfig, index: number) => {
         this.ProviderRow(provider)
+        if (provider.supportStatus === 'available') {
+          this.ProviderOAuthConfigForm(provider)
+        }
         if (index < TRACKER_PROVIDER_CONFIGS.length - 1) {
           Divider()
             .strokeWidth(0.5)
