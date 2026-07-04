@@ -45,6 +45,10 @@ export struct SourceSearchPage {
     return this.safeArea.bottomAvoidHeight + ThemeConstants.FLOAT_BAR_HEIGHT + 20
   }
 
+  private bottomFloatingTabViewportClearance(): number {
+    return this.bottomContentInset()
+  }
+
   private clearPendingSearchTimer(): void {
     if (this.searchTimer > 0) {
       clearTimeout(this.searchTimer)
@@ -212,6 +216,8 @@ export struct SourceSearchPage {
       }
       .width('100%')
       .height('100%')
+      .padding({ bottom: this.bottomFloatingTabViewportClearance() })
+      .clipContent(ContentClipMode.CONTENT_ONLY)
       .backgroundColor(ThemeConstants.BG_SUB)
       .onReachEnd(() => {
         void this.viewModel.loadMoreSearch()

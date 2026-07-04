@@ -487,6 +487,11 @@ assert.match(
   /ListingSelector\(\)[\s\S]*ForEach\(this\.viewModel\.listings[\s\S]*selectBrowseListing\(listing\)[\s\S]*RuntimeFilterControls\(\)[\s\S]*SourceFilterControls\(\{[\s\S]*onFilterChange:[\s\S]*this\.setBrowseFilterValue\(filter, value\)[\s\S]*onReset:[\s\S]*resetBrowseFilters\(\)[\s\S]*EmptyBrowseResults\(\)[\s\S]*source_browse_empty_results_title[\s\S]*resetBrowseFilters\(\)[\s\S]*ForEach\(this\.viewModel\.homeSections[\s\S]*ForEach\(this\.viewModel\.browseSections/,
   'SourceBrowsePage must render source-defined listing selectors, empty state, home sections, and browse sections',
 )
+assert.match(
+  readFileSync(resolve(root, 'entry/src/main/ets/pages/SourceSearchPage.ets'), 'utf8'),
+  /bottomContentInset\(\): number \{[\s\S]*this\.safeArea\.bottomAvoidHeight \+ ThemeConstants\.FLOAT_BAR_HEIGHT[\s\S]*bottomFloatingTabViewportClearance\(\): number \{[\s\S]*return this\.bottomContentInset\(\)[\s\S]*Scroll\(\)[\s\S]*\.padding\(\{\s*bottom:\s*this\.bottomFloatingTabViewportClearance\(\)\s*\}\)[\s\S]*\.clipContent\(ContentClipMode\.CONTENT_ONLY\)/,
+  'SourceSearchPage must reserve bottom viewport clearance so source search results and load-more controls are not hidden behind floating tab chrome',
+)
 assert.doesNotMatch(
   browseViewModelSource,
   /const settings[^=]*=\s*\{\}/,
