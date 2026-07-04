@@ -141,6 +141,11 @@ assert.match(
 )
 assert.match(
   pendingStoreSource,
+  /removeProgressForProvider\(providerId: TrackerProviderId\): Promise<number>[\s\S]*entry\.providerId !== providerId[\s\S]*await this\.savePendingProgress\(next\)/,
+  'tracker pending sync store must remove all provider entries after a successful disconnect',
+)
+assert.match(
+  pendingStoreSource,
   /TRACKER_PENDING_PROGRESS_MAX_ENTRIES: number = 100[\s\S]*normalizeEntries[\s\S]*slice\(0, TRACKER_PENDING_PROGRESS_MAX_ENTRIES\)/,
   'tracker pending sync store must bound retained progress entries',
 )

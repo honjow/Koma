@@ -2068,8 +2068,8 @@ assert.match(
 )
 assert.match(
   trackerPendingSyncStoreSource,
-  /removeProgressForComic\(providerId: TrackerProviderId, comicId: ComicId\): Promise<number>[\s\S]*entry\.providerId !== providerId \|\| entry\.comicId !== comicId[\s\S]*await this\.savePendingProgress\(next\)[\s\S]*return current\.length - next\.length/,
-  'tracker pending sync store must clear all stale pending progress for a provider/comic after a newer sync succeeds',
+  /removeProgressForComic\(providerId: TrackerProviderId, comicId: ComicId\): Promise<number>[\s\S]*entry\.providerId !== providerId \|\| entry\.comicId !== comicId[\s\S]*await this\.savePendingProgress\(next\)[\s\S]*removeProgressForProvider\(providerId: TrackerProviderId\): Promise<number>[\s\S]*entry\.providerId !== providerId[\s\S]*await this\.savePendingProgress\(next\)/,
+  'tracker pending sync store must clear stale pending progress after a newer sync succeeds or a provider disconnects',
 )
 assert.match(
   trackerProgressSyncServiceSource,

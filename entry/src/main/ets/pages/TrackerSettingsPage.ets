@@ -178,10 +178,12 @@ export struct TrackerSettingsPage {
     }
     this.busyProviderId = provider.providerId
     void this.trackerPreferencesStore().disconnectAccount(provider.providerId)
-      .then((preferences) => {
+      .then(async (preferences) => {
         this.accounts = preferences.accounts
         const account = this.findAccount(provider)
         if (account.status === 'disconnected') {
+          await this.pendingSyncStore().removeProgressForProvider(provider.providerId)
+          this.loadPendingProgressSummary()
           this.showToast(s('tracker_message_disconnected'))
         } else {
           this.showToast(s('tracker_message_disconnect_failed'))

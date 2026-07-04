@@ -254,8 +254,8 @@ assert.match(
 )
 assert.match(
   trackerPageSource,
-  /canDisconnectProvider\(provider: TrackerProviderConfig\): boolean[\s\S]*account\.status !== 'disconnected'[\s\S]*account\.credentialAccountKey === undefined \|\| this\.secureStorageAvailable[\s\S]*disconnectAccount\(provider: TrackerProviderConfig\): void[\s\S]*trackerPreferencesStore\(\)\.disconnectAccount\(provider\.providerId\)[\s\S]*tracker_message_disconnected[\s\S]*tracker_message_disconnect_failed/,
-  'TrackerSettingsPage must expose a real disconnect action that clears secure tracker credentials and refreshes account state',
+  /canDisconnectProvider\(provider: TrackerProviderConfig\): boolean[\s\S]*account\.status !== 'disconnected'[\s\S]*account\.credentialAccountKey === undefined \|\| this\.secureStorageAvailable[\s\S]*disconnectAccount\(provider: TrackerProviderConfig\): void[\s\S]*trackerPreferencesStore\(\)\.disconnectAccount\(provider\.providerId\)[\s\S]*account\.status === 'disconnected'[\s\S]*pendingSyncStore\(\)\.removeProgressForProvider\(provider\.providerId\)[\s\S]*loadPendingProgressSummary\(\)[\s\S]*tracker_message_disconnected[\s\S]*tracker_message_disconnect_failed/,
+  'TrackerSettingsPage must expose a real disconnect action that clears secure tracker credentials, purges provider pending sync, and refreshes account state',
 )
 assert.match(
   trackerPageSource,
