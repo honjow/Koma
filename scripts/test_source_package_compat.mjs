@@ -321,8 +321,8 @@ assert.match(
 )
 assert.match(
   readFileSync(resolve(root, 'entry/src/main/ets/pages/SourceBrowsePage.ets'), 'utf8'),
-  /ListingSelector\(\)[\s\S]*ForEach\(this\.viewModel\.listings[\s\S]*selectBrowseListing\(listing\)[\s\S]*RuntimeFilterControls\(\)[\s\S]*SourceFilterControls\(\{[\s\S]*onFilterChange:[\s\S]*this\.setBrowseFilterValue\(filter, value\)[\s\S]*onReset:[\s\S]*resetBrowseFilters\(\)[\s\S]*ForEach\(this\.viewModel\.homeSections[\s\S]*ForEach\(this\.viewModel\.browseSections/,
-  'SourceBrowsePage must render source-defined listing selectors, home sections, and browse sections',
+  /ListingSelector\(\)[\s\S]*ForEach\(this\.viewModel\.listings[\s\S]*selectBrowseListing\(listing\)[\s\S]*RuntimeFilterControls\(\)[\s\S]*SourceFilterControls\(\{[\s\S]*onFilterChange:[\s\S]*this\.setBrowseFilterValue\(filter, value\)[\s\S]*onReset:[\s\S]*resetBrowseFilters\(\)[\s\S]*EmptyBrowseResults\(\)[\s\S]*source_browse_empty_results_title[\s\S]*resetBrowseFilters\(\)[\s\S]*ForEach\(this\.viewModel\.homeSections[\s\S]*ForEach\(this\.viewModel\.browseSections/,
+  'SourceBrowsePage must render source-defined listing selectors, empty state, home sections, and browse sections',
 )
 assert.doesNotMatch(
   browseViewModelSource,

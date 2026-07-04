@@ -322,6 +322,8 @@
     { "name": "browse_error_source_runtime_failed_generic", "value": "Source runtime failed" },
     { "name": "browse_untitled_manga", "value": "Untitled manga" },
     { "name": "browse_section_open_listing", "value": "Open list" },
+    { "name": "source_browse_empty_results_title", "value": "No manga found" },
+    { "name": "source_browse_empty_results_message", "value": "Try another listing or reset filters." },
 
     { "name": "search_placeholder", "value": "Search titles, authors, tags..." },
     { "name": "search_empty_idle_title", "value": "Start searching with a keyword" },

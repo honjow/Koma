@@ -1,5 +1,6 @@
 import { MangaGridItem } from '../components/MangaGridItem'
 import { KomaActionButton } from '../components/ui/KomaActionButton'
+import { KomaEmptyState } from '../components/ui/KomaEmptyState'
 import { SourceFilterControls, SourceFilterControlValue } from '../components/SourceFilterControls'
 import { AppStrings } from '../i18n/AppStrings'
 import { SourceFilter, SourceManga } from '../model/SourceModels'
@@ -69,6 +70,12 @@ export struct SourceBrowsePage {
     if (listing !== undefined) {
       void this.viewModel.selectBrowseListing(listing)
     }
+  }
+
+  private hasBrowseContent(): boolean {
+    return this.viewModel.homeSections.length > 0 || this.viewModel.browseSections.some((section: BrowseSourceSectionState): boolean => {
+      return section.manga.length > 0
+    })
   }
 
   private setBrowseFilterValue(filter: SourceFilter, value: SourceFilterControlValue | undefined): void {
@@ -183,6 +190,19 @@ export struct SourceBrowsePage {
     .cachedCount(12)
   }
 
+  @Builder
+  private EmptyBrowseResults() {
+    KomaEmptyState({
+      title: s('source_browse_empty_results_title'),
+      message: s('source_browse_empty_results_message'),
+      actionLabel: s('common_reset'),
+      showAction: this.viewModel.filters.length > 0,
+      action: () => {
+        void this.viewModel.resetBrowseFilters()
+      },
+    })
+  }
+
   aboutToAppear(): void {
     void this.viewModel.loadBrowseHome(this.source)
   }
@@ -236,6 +256,8 @@ export struct SourceBrowsePage {
               .padding(ThemeConstants.SPACE_LG)
               .borderRadius(ThemeConstants.RADIUS_CARD)
               .backgroundColor(ThemeConstants.CARD)
+          } else if (!this.hasBrowseContent()) {
+            this.EmptyBrowseResults()
           } else {
             ForEach(this.viewModel.homeSections, (section: SourceHomeSectionState) => {
               this.HomeSection(section)
