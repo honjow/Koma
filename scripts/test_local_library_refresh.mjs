@@ -48,8 +48,8 @@ assert.match(
 )
 assert.match(
   serviceSource,
-  /function localRefreshStatus\(sourceKind: ComicSourceKind\): LocalLibraryRefreshResultStatus \{[\s\S]*sourceKind === ComicSourceKind\.LOCAL_FOLDER \? 'reselect_required' : 'unchanged'[\s\S]*archiveCount: results\.filter\(\(result: LocalLibraryRefreshComicResult\): boolean => result\.sourceKind === ComicSourceKind\.LOCAL_ARCHIVE\)\.length[\s\S]*folderCount: results\.filter\(\(result: LocalLibraryRefreshComicResult\): boolean => result\.sourceKind === ComicSourceKind\.LOCAL_FOLDER\)\.length[\s\S]*chapterCount: results\.reduce\(\(total: number, result: LocalLibraryRefreshComicResult\): number => total \+ result\.previousChapterCount[\s\S]*pageCount: results\.reduce\(\(total: number, result: LocalLibraryRefreshComicResult\): number => total \+ result\.previousPageCount[\s\S]*status: localRefreshStatus\(comic\.sourceKind\)[\s\S]*localRefreshUnavailableMessage\(comic\.sourceKind\)/,
-  'local refresh must require reselect only for folder handles while treating archive imports as unchanged',
+  /function localFilePathFromUri\(uri: string\): string \| undefined \{[\s\S]*uri\.startsWith\('file:\/\/'\)[\s\S]*decodeURIComponent\(uri\.substring\('file:\/\/'\.length\)\)[\s\S]*function localPathExists\(path: string\): boolean \{[\s\S]*fs\.accessSync\(path\)[\s\S]*catch[\s\S]*return false[\s\S]*function allLocalFolderPagesAvailable\(comic: Comic\): boolean \{[\s\S]*comic\.pageCount <= 0[\s\S]*chapter\.pages[\s\S]*localFilePathFromUri\(page\.uri\)[\s\S]*localPathExists\(localPath\)[\s\S]*function localRefreshStatus\(comic: Comic\): LocalLibraryRefreshResultStatus \{[\s\S]*comic\.sourceKind !== ComicSourceKind\.LOCAL_FOLDER[\s\S]*allLocalFolderPagesAvailable\(comic\) \? 'unchanged' : 'reselect_required'[\s\S]*archiveCount: results\.filter\(\(result: LocalLibraryRefreshComicResult\): boolean => result\.sourceKind === ComicSourceKind\.LOCAL_ARCHIVE\)\.length[\s\S]*folderCount: results\.filter\(\(result: LocalLibraryRefreshComicResult\): boolean => result\.sourceKind === ComicSourceKind\.LOCAL_FOLDER\)\.length[\s\S]*chapterCount: results\.reduce\(\(total: number, result: LocalLibraryRefreshComicResult\): number => total \+ result\.previousChapterCount[\s\S]*pageCount: results\.reduce\(\(total: number, result: LocalLibraryRefreshComicResult\): number => total \+ result\.previousPageCount[\s\S]*const status = localRefreshStatus\(comic\)[\s\S]*status,[\s\S]*localRefreshMessage\(comic, status\)/,
+  'local refresh must verify app-readable local folder page files before requiring reselect while treating archive imports as unchanged',
 )
 assert.match(
   serviceSource,
@@ -58,8 +58,8 @@ assert.match(
 )
 assert.match(
   serviceSource,
-  /AppStrings\.get\('local_library_refresh_folder_reselect_detail'\)[\s\S]*AppStrings\.get\('local_library_refresh_archive_retained'\)/,
-  'local refresh must explain folder reselect and retained archive behavior through i18n strings',
+  /AppStrings\.get\('local_library_refresh_archive_retained'\)[\s\S]*AppStrings\.get\('local_library_refresh_folder_cached_available'\)[\s\S]*AppStrings\.get\('local_library_refresh_folder_reselect_detail'\)/,
+  'local refresh must explain cached folder availability, folder reselect, and retained archive behavior through i18n strings',
 )
 assert.match(
   serviceSource,
@@ -68,14 +68,69 @@ assert.match(
 )
 assert.doesNotMatch(
   serviceSource,
-  /fileIo|fs\.|unlink|rmdir|remove|delete|TRUNC|clearReaderRemoteImageCache|cacheDir/,
+  /unlink|rmdir|remove|delete|TRUNC|clearReaderRemoteImageCache|cacheDir/,
   'local refresh must not delete files, mutate external storage, or clear caches',
 )
 assert.doesNotMatch(
   serviceSource,
-  /sourcePath|coverUri|uri:/,
-  'local refresh logs/status fields must not expose paths or page URIs',
+  /console\.(info|warn|error)\([^)]*(sourcePath|coverUri|uri|localPath|page\.uri)/,
+  'local refresh logs must not expose paths or page URIs',
 )
+assert.doesNotMatch(
+  serviceSource,
+  /message:\s*(comic\.sourcePath|page\.uri|localPath)/,
+  'local refresh status messages must not expose paths or page URIs',
+)
+
+function filePathFromUri(uri) {
+  if (!uri.startsWith('file://')) return undefined
+  try {
+    const path = decodeURIComponent(uri.substring('file://'.length))
+    return path.trim().length === 0 ? undefined : path
+  } catch {
+    return undefined
+  }
+}
+
+function folderStatus(comic, existingPaths) {
+  if (comic.sourceKind !== 'local_folder') return 'unchanged'
+  if (comic.pageCount <= 0) return 'reselect_required'
+  for (const chapter of comic.chapters) {
+    for (const page of chapter.pages) {
+      const localPath = filePathFromUri(page.uri)
+      if (localPath === undefined || !existingPaths.has(localPath)) {
+        return 'reselect_required'
+      }
+    }
+  }
+  return 'unchanged'
+}
+
+const folderComic = {
+  sourceKind: 'local_folder',
+  pageCount: 2,
+  chapters: [{ pages: [
+    { uri: 'file:///data/storage/el2/base/haps/entry/cache/import/Page%201.jpg' },
+    { uri: 'file:///data/storage/el2/base/haps/entry/cache/import/Page%202.jpg' },
+  ] }],
+}
+assert.equal(folderStatus(folderComic, new Set([
+  '/data/storage/el2/base/haps/entry/cache/import/Page 1.jpg',
+  '/data/storage/el2/base/haps/entry/cache/import/Page 2.jpg',
+])), 'unchanged', 'cached local folder imports with all pages present must stay clean')
+assert.equal(folderStatus(folderComic, new Set([
+  '/data/storage/el2/base/haps/entry/cache/import/Page 1.jpg',
+])), 'reselect_required', 'cached local folder imports with missing pages must ask for reselect')
+assert.equal(folderStatus({
+  sourceKind: 'local_folder',
+  pageCount: 1,
+  chapters: [{ pages: [{ uri: 'content://picked/folder/page.jpg' }] }],
+}, new Set()), 'reselect_required', 'non-file folder imports still require reselect')
+assert.equal(folderStatus({
+  sourceKind: 'local_archive',
+  pageCount: 0,
+  chapters: [],
+}, new Set()), 'unchanged', 'archive imports remain retained and unchanged')
 
 assert.match(
   settingsSource,

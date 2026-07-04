@@ -1,6 +1,9 @@
+import { fileIo as fs } from '@kit.CoreFileKit'
 import {
+  Chapter,
   Comic,
   ComicSourceKind,
+  Page,
 } from './ComicModels'
 import { LibraryStore } from './LibraryStore'
 import { AppStrings } from '../i18n/AppStrings'
@@ -33,15 +36,58 @@ function isLocalRefreshCandidate(comic: Comic): boolean {
   return comic.sourceKind === ComicSourceKind.LOCAL_ARCHIVE || comic.sourceKind === ComicSourceKind.LOCAL_FOLDER
 }
 
-function localRefreshUnavailableMessage(sourceKind: ComicSourceKind): string {
-  if (sourceKind === ComicSourceKind.LOCAL_FOLDER) {
-    return AppStrings.get('local_library_refresh_folder_reselect_detail')
+function localFilePathFromUri(uri: string): string | undefined {
+  if (!uri.startsWith('file://')) {
+    return undefined
   }
-  return AppStrings.get('local_library_refresh_archive_retained')
+  try {
+    const path = decodeURIComponent(uri.substring('file://'.length))
+    return path.trim().length === 0 ? undefined : path
+  } catch (_error) {
+    return undefined
+  }
 }
 
-function localRefreshStatus(sourceKind: ComicSourceKind): LocalLibraryRefreshResultStatus {
-  return sourceKind === ComicSourceKind.LOCAL_FOLDER ? 'reselect_required' : 'unchanged'
+function localPathExists(path: string): boolean {
+  try {
+    return fs.accessSync(path)
+  } catch (_error) {
+    return false
+  }
+}
+
+function allLocalFolderPagesAvailable(comic: Comic): boolean {
+  if (comic.pageCount <= 0) {
+    return false
+  }
+  for (let chapterIndex = 0; chapterIndex < comic.chapters.length; chapterIndex += 1) {
+    const chapter: Chapter = comic.chapters[chapterIndex]
+    for (let pageIndex = 0; pageIndex < chapter.pages.length; pageIndex += 1) {
+      const page: Page = chapter.pages[pageIndex]
+      const localPath = localFilePathFromUri(page.uri)
+      if (localPath === undefined || !localPathExists(localPath)) {
+        return false
+      }
+    }
+  }
+  return true
+}
+
+function localRefreshStatus(comic: Comic): LocalLibraryRefreshResultStatus {
+  if (comic.sourceKind !== ComicSourceKind.LOCAL_FOLDER) {
+    return 'unchanged'
+  }
+  return allLocalFolderPagesAvailable(comic) ? 'unchanged' : 'reselect_required'
+}
+
+function localRefreshMessage(comic: Comic, status: LocalLibraryRefreshResultStatus): string {
+  if (comic.sourceKind !== ComicSourceKind.LOCAL_FOLDER) {
+    return AppStrings.get('local_library_refresh_archive_retained')
+  }
+  if (status === 'unchanged') {
+    return AppStrings.get('local_library_refresh_folder_cached_available')
+  }
+  return AppStrings.get('local_library_refresh_folder_reselect_detail')
 }
 
 function summarizeLocalRefreshResults(checkedAt: number, results: LocalLibraryRefreshComicResult[]): LocalLibraryRefreshSummary {
@@ -137,13 +183,14 @@ export class LocalLibraryRefreshService {
   }
 
   private checkLocalComic(comic: Comic): LocalLibraryRefreshComicResult {
+    const status = localRefreshStatus(comic)
     return {
       comicId: comic.id,
       sourceKind: comic.sourceKind,
-      status: localRefreshStatus(comic.sourceKind),
+      status,
       previousChapterCount: comic.chapterCount,
       previousPageCount: comic.pageCount,
-      message: localRefreshUnavailableMessage(comic.sourceKind),
+      message: localRefreshMessage(comic, status),
     }
   }
 }

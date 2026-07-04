@@ -97,6 +97,7 @@
     { "name": "local_library_refresh_folder_unavailable", "value": "文件夹访问不可用" },
     { "name": "local_library_refresh_archive_unavailable", "value": "压缩包来源无需刷新" },
     { "name": "local_library_refresh_folder_reselect_detail", "value": "从导入页重新选择该文件夹，以重扫新增和删除" },
+    { "name": "local_library_refresh_folder_cached_available", "value": "本地缓存页面仍可用" },
     { "name": "local_library_refresh_archive_retained", "value": "压缩包导入已保存在 Koma 内；需要替换时请重新导入文件" },
     { "name": "local_library_refresh_not_checked", "value": "尚未检查" },
     { "name": "local_library_refresh_none", "value": "没有本地书架" },
