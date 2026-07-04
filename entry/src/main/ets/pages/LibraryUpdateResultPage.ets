@@ -63,8 +63,8 @@ export struct LibraryUpdateResultPage {
         }
         this.loadPersistedSummary(effectiveJob)
       })
-      .catch((error: Error) => {
-        console.warn('[LibraryUpdateResults] step=load_job_failed message=' + error.message)
+      .catch((_error: Error) => {
+        console.warn('[LibraryUpdateResults] step=load_job_failed code=library_update_job_load_failed')
         this.loadPersistedSummary(latestJob)
       })
   }
@@ -85,8 +85,8 @@ export struct LibraryUpdateResultPage {
         const total = effectiveSummary === undefined ? 0 : effectiveSummary.totalCount
         console.info('[LibraryUpdateResults] step=load_persisted hasSummary=' + (effectiveSummary !== undefined) + ' total=' + total)
       })
-      .catch((error: Error) => {
-        console.warn('[LibraryUpdateResults] step=load_persisted_failed message=' + error.message)
+      .catch((_error: Error) => {
+        console.warn('[LibraryUpdateResults] step=load_persisted_failed code=library_update_result_load_failed')
       })
   }
 

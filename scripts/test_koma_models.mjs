@@ -2163,6 +2163,7 @@ assert.match(
 for (const [label, source] of [
   ['HistoryPage', historyPageSource],
   ['LibraryPage', libraryPageSource],
+  ['LibraryUpdateResultPage', libraryUpdateResultPageSource],
   ['MangaDetailPage', mangaDetailPageSource],
   ['SettingsPage', settingsPageSource],
 ]) {
