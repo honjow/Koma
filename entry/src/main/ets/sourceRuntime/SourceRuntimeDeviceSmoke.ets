@@ -126,6 +126,7 @@ const SMOKE_PHASE_SOURCE_INDEX_VISIBLE_READER: string = 'source-index-visible-re
 const SMOKE_PHASE_SOURCE_INDEX_DOWNLOAD_READER: string = 'source-index-download-reader'
 const SMOKE_PHASE_SOURCE_INDEX_VISIBLE_DOWNLOAD_READER: string = 'source-index-visible-download-reader'
 const SMOKE_PHASE_SOURCE_INDEX_DOWNLOAD_CORRUPT_READER: string = 'source-index-download-corrupt-reader'
+const SMOKE_PHASE_SOURCE_INDEX_UNDOWNLOADED_OFFLINE_READER: string = 'source-index-undownloaded-offline-reader'
 const SMOKE_PHASE_SOURCE_INDEX_BROWSE: string = 'source-index-browse'
 const SMOKE_PHASE_SOURCE_INDEX_SETTINGS: string = 'source-index-settings'
 const SOURCE_INDEX_LIBRARY_SMOKE_FILE_NAME: string = 'source-index-library-smoke.v1.json'
@@ -518,6 +519,9 @@ export interface SourceRuntimeSmokeResult {
   sourceIndexDownloadOfflineReaderKind?: string
   sourceIndexDownloadCorruptReaderOk?: boolean
   sourceIndexDownloadCleanupOk?: boolean
+  sourceIndexUndownloadedOfflineReaderOk?: boolean
+  sourceIndexUndownloadedOfflineReaderKind?: string
+  sourceIndexUndownloadedOfflineCleanupOk?: boolean
   sourceIndexBrowseListingsOk?: boolean
   sourceIndexBrowseListingCount?: number
   sourceIndexBrowseSelectedListingId?: string
@@ -2290,7 +2294,8 @@ export async function maybeRunSourceRuntimeDeviceSmoke(
       result.smokePhase === SMOKE_PHASE_SOURCE_INDEX_VISIBLE_READER ||
       result.smokePhase === SMOKE_PHASE_SOURCE_INDEX_DOWNLOAD_READER ||
       result.smokePhase === SMOKE_PHASE_SOURCE_INDEX_VISIBLE_DOWNLOAD_READER ||
-      result.smokePhase === SMOKE_PHASE_SOURCE_INDEX_DOWNLOAD_CORRUPT_READER) {
+      result.smokePhase === SMOKE_PHASE_SOURCE_INDEX_DOWNLOAD_CORRUPT_READER ||
+      result.smokePhase === SMOKE_PHASE_SOURCE_INDEX_UNDOWNLOADED_OFFLINE_READER) {
       if (context === undefined) {
         result.error = `${result.smokePhase} phase requires ability context`
       } else {
@@ -2300,6 +2305,8 @@ export async function maybeRunSourceRuntimeDeviceSmoke(
           result.smokePhase === SMOKE_PHASE_SOURCE_INDEX_VISIBLE_DOWNLOAD_READER ||
           result.smokePhase === SMOKE_PHASE_SOURCE_INDEX_DOWNLOAD_CORRUPT_READER
         const isCorruptReaderPhase = result.smokePhase === SMOKE_PHASE_SOURCE_INDEX_DOWNLOAD_CORRUPT_READER
+        const isUndownloadedOfflineReaderPhase =
+          result.smokePhase === SMOKE_PHASE_SOURCE_INDEX_UNDOWNLOADED_OFFLINE_READER
         const indexUrl = smokeStringParam(want, SMOKE_INDEX_URL_PARAM)
         const requestedSourceId = smokeStringParam(want, SMOKE_SOURCE_ID_PARAM)
         const selectedSourceId = requestedSourceId.length > 0 ? requestedSourceId : SOURCE_INDEX_READER_DEFAULT_SOURCE_ID
@@ -2472,6 +2479,18 @@ export async function maybeRunSourceRuntimeDeviceSmoke(
                   result.sourceIndexDownloadCleanupOk =
                     !downloadStore.isChapterFullyDownloaded(comic.id, chapterId)
                 }
+                if (isUndownloadedOfflineReaderPhase && result.sourceIndexReaderRenderSourceOk === true) {
+                  const downloadStore = new OfflineDownloadStore(context.filesDir)
+                  await downloadStore.deleteChapterDownload(comic.id, chapterId)
+                  configureReaderOfflineDownloads(context.filesDir)
+                  const offlineConfig = createReaderSessionConfigFromComic(comic, chapterId)
+                  const offlineSource = createReaderPageRenderSource(offlineConfig, 0, { offlineOnly: true })
+                  result.sourceIndexUndownloadedOfflineReaderKind = offlineSource.kind
+                  result.sourceIndexUndownloadedOfflineReaderOk =
+                    offlineSource.kind === ReaderPageRenderKind.URI_PLACEHOLDER
+                  result.sourceIndexUndownloadedOfflineCleanupOk =
+                    !downloadStore.isChapterFullyDownloaded(comic.id, chapterId)
+                }
               }
             }
             result.sourceIndexReaderCleanupOk = true
@@ -2500,6 +2519,9 @@ export async function maybeRunSourceRuntimeDeviceSmoke(
               result.sourceIndexDownloadOfflineReaderOk === true &&
               result.sourceIndexDownloadCorruptReaderOk === true &&
               result.sourceIndexDownloadCleanupOk === true)) &&
+          (!isUndownloadedOfflineReaderPhase ||
+            (result.sourceIndexUndownloadedOfflineReaderOk === true &&
+              result.sourceIndexUndownloadedOfflineCleanupOk === true)) &&
           result.sourceIndexReaderCleanupOk === true
         if (!result.ok && result.error === undefined) {
           result.error = `${result.smokePhase} failed`

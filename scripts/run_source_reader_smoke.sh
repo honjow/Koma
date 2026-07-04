@@ -126,6 +126,11 @@ if phase == 'source-index-settings':
         raise SystemExit('source settings smoke failed: no boolean descriptor')
     if result.get('sourceIndexSettingsPersistOk') is not True:
         raise SystemExit('source settings smoke failed: settings did not persist')
+elif 'undownloaded-offline-reader' in phase:
+    if result.get('sourceIndexUndownloadedOfflineReaderKind') != 'uri_placeholder':
+        raise SystemExit('source reader smoke failed: undownloaded offline reader did not use placeholder')
+    if result.get('sourceIndexUndownloadedOfflineReaderOk') is not True:
+        raise SystemExit('source reader smoke failed: undownloaded offline reader check failed')
 elif 'download-corrupt-reader' in phase:
     if result.get('sourceIndexDownloadStatus') != 'downloaded':
         raise SystemExit('source reader smoke failed: corrupt download status mismatch')

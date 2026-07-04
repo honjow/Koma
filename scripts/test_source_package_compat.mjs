@@ -22,6 +22,7 @@ const sourceReaderSmokeScriptPath = resolve(root, 'scripts/run_source_reader_smo
 const sourceSettingsSmokeScriptPath = resolve(root, 'scripts/run_source_settings_smoke.sh')
 const sourceDownloadReaderSmokeScriptPath = resolve(root, 'scripts/run_source_download_reader_smoke.sh')
 const sourceCorruptDownloadReaderSmokeScriptPath = resolve(root, 'scripts/run_source_corrupt_download_reader_smoke.sh')
+const sourceUndownloadedOfflineReaderSmokeScriptPath = resolve(root, 'scripts/run_source_undownloaded_offline_reader_smoke.sh')
 const abiDocPath = resolve(root, 'docs/source-runtime-abi.md')
 const sdkDocPath = resolve(root, 'docs/source-package-sdk.md')
 const localKomaFixturePath = resolve(root, 'entry/src/main/resources/rawfile/test/local_source_runtime_fixture.koma')
@@ -49,6 +50,7 @@ const sourceReaderSmokeScriptSource = readFileSync(sourceReaderSmokeScriptPath, 
 const sourceSettingsSmokeScriptSource = readFileSync(sourceSettingsSmokeScriptPath, 'utf8')
 const sourceDownloadReaderSmokeScriptSource = readFileSync(sourceDownloadReaderSmokeScriptPath, 'utf8')
 const sourceCorruptDownloadReaderSmokeScriptSource = readFileSync(sourceCorruptDownloadReaderSmokeScriptPath, 'utf8')
+const sourceUndownloadedOfflineReaderSmokeScriptSource = readFileSync(sourceUndownloadedOfflineReaderSmokeScriptPath, 'utf8')
 const abiDocSource = readFileSync(abiDocPath, 'utf8')
 const sdkDocSource = readFileSync(sdkDocPath, 'utf8')
 
@@ -633,6 +635,7 @@ assert.match(smokeSource, /SMOKE_QUERY_PARAM[\s\S]*sourceIndexReaderSearchQuery[
 assert.match(smokeSource, /SMOKE_PHASE_SOURCE_INDEX_DOWNLOAD_READER/, 'device smoke must include a focused source-index download reader phase')
 assert.match(smokeSource, /SMOKE_PHASE_SOURCE_INDEX_VISIBLE_DOWNLOAD_READER/, 'device smoke must include a visible source-index download reader phase that leaves a real source manga in the app library')
 assert.match(smokeSource, /SMOKE_PHASE_SOURCE_INDEX_DOWNLOAD_CORRUPT_READER/, 'device smoke must include a focused corrupt offline source-index reader phase')
+assert.match(smokeSource, /SMOKE_PHASE_SOURCE_INDEX_UNDOWNLOADED_OFFLINE_READER/, 'device smoke must include a focused undownloaded offline source-index reader phase')
 assert.match(smokeSource, /SMOKE_PHASE_SOURCE_INDEX_BROWSE/, 'device smoke must include a focused source-index browse phase')
 assert.match(smokeSource, /SMOKE_PHASE_SOURCE_INDEX_SETTINGS/, 'device smoke must include a focused source-index settings phase')
 assert.match(
@@ -720,6 +723,21 @@ assert.match(
   smokeSource,
   /SMOKE_PHASE_SOURCE_INDEX_DOWNLOAD_CORRUPT_READER[\s\S]*fs\.unlinkSync\(manifest\.pages\[0\]\.localPath\)[\s\S]*ReaderPageRenderKind\.URI_PLACEHOLDER/,
   'source-index corrupt offline reader smoke must delete a downloaded page and verify the reader reports an offline placeholder instead of falling back to remote',
+)
+assert.match(
+  smokeSource,
+  /SMOKE_PHASE_SOURCE_INDEX_UNDOWNLOADED_OFFLINE_READER[\s\S]*deleteChapterDownload\(comic\.id, chapterId\)[\s\S]*createReaderPageRenderSource\(offlineConfig, 0, \{ offlineOnly: true \}\)[\s\S]*ReaderPageRenderKind\.URI_PLACEHOLDER/,
+  'source-index undownloaded offline reader smoke must delete any stale download and fail closed to an offline placeholder instead of falling back to remote',
+)
+assert.match(
+  sourceReaderSmokeScriptSource,
+  /undownloaded-offline-reader[\s\S]*sourceIndexUndownloadedOfflineReaderKind[\s\S]*uri_placeholder[\s\S]*sourceIndexUndownloadedOfflineReaderOk/,
+  'source reader smoke script must verify undownloaded offline source chapters fail closed to an offline placeholder',
+)
+assert.match(
+  sourceUndownloadedOfflineReaderSmokeScriptSource,
+  /KOMA_SOURCE_READER_PHASE="\$\{KOMA_SOURCE_READER_PHASE:-source-index-undownloaded-offline-reader\}"[\s\S]*KOMA_SOURCE_READER_CAPTURE_UI="\$\{KOMA_SOURCE_READER_CAPTURE_UI:-false\}"[\s\S]*KOMA_SOURCE_READER_ARTIFACT_DIR="\$\{KOMA_SOURCE_READER_ARTIFACT_DIR:-\.hvigor\/outputs\/source-undownloaded-offline-reader-smoke\}"[\s\S]*scripts\/run_source_reader_smoke\.sh/,
+  'source undownloaded offline reader smoke script must reuse the source reader smoke harness with the focused offline phase',
 )
 assert.match(
   smokeSource,
