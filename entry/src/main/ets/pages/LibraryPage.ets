@@ -1461,6 +1461,11 @@ export struct LibraryPage {
     KomaEmptyState({
       title: s('library_filtered_empty_title'),
       message: s('library_filtered_empty_message'),
+      actionLabel: s('common_reset'),
+      showAction: true,
+      action: () => {
+        this.resetFilters()
+      },
     })
   }
 
