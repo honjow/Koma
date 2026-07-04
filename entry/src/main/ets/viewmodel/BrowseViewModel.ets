@@ -64,7 +64,7 @@ interface SourceSearchArgs {
   filters: SourceMangaListFilters
 }
 
-type SourceFilterValue = string | number | boolean
+type SourceFilterValue = string | number | boolean | string[]
 type SourceMangaListFilters = Record<string, SourceFilterValue>
 
 interface SourceMangaListArgs {
@@ -392,7 +392,10 @@ export class BrowseViewModel {
       }
     })
     if (value !== undefined) {
-      nextValues[key] = this.normalizeFilterRequestValue(key, value)
+      const normalized = this.normalizeFilterRequestValue(key, value)
+      if (!Array.isArray(normalized) || normalized.length > 0) {
+        nextValues[key] = normalized
+      }
     }
     return nextValues
   }
@@ -685,9 +688,23 @@ export class BrowseViewModel {
   }
 
   private normalizeFilterRequestValue(key: string, value: SourceFilterValue): SourceFilterValue {
+    if (Array.isArray(value)) {
+      const normalized: string[] = []
+      value.forEach((item: string) => {
+        const next = this.normalizeFilterStringRequestValue(key, item)
+        if (next.length > 0 && !normalized.includes(next)) {
+          normalized.push(next)
+        }
+      })
+      return normalized
+    }
     if (typeof value !== 'string') {
       return value
     }
+    return this.normalizeFilterStringRequestValue(key, value)
+  }
+
+  private normalizeFilterStringRequestValue(key: string, value: string): string {
     const prefix = `${key}:`
     return value.startsWith(prefix) ? value.substring(prefix.length) : value
   }

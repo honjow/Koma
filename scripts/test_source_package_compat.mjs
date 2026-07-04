@@ -11,6 +11,7 @@ const browseViewModelPath = resolve(root, 'entry/src/main/ets/viewmodel/BrowseVi
 const browsePagePath = resolve(root, 'entry/src/main/ets/pages/BrowsePage.ets')
 const sourceSearchPagePath = resolve(root, 'entry/src/main/ets/pages/SourceSearchPage.ets')
 const sourceFilterControlsPath = resolve(root, 'entry/src/main/ets/components/SourceFilterControls.ets')
+const sourceModelsPath = resolve(root, 'entry/src/main/ets/model/SourceModels.ets')
 const sourceSettingsStorePath = resolve(root, 'entry/src/main/ets/sourceRuntime/SourceSettingsStore.ets')
 const smokePath = resolve(root, 'entry/src/main/ets/sourceRuntime/SourceRuntimeDeviceSmoke.ets')
 const sourceRuntimeRegistryPath = resolve(root, 'entry/src/main/ets/sourceRuntime/SourceRuntimeRegistry.ets')
@@ -31,6 +32,7 @@ const browseViewModelSource = readFileSync(browseViewModelPath, 'utf8')
 const browsePageSource = readFileSync(browsePagePath, 'utf8')
 const sourceSearchPageSource = readFileSync(sourceSearchPagePath, 'utf8')
 const sourceFilterControlsSource = readFileSync(sourceFilterControlsPath, 'utf8')
+const sourceModelsSource = readFileSync(sourceModelsPath, 'utf8')
 const sourceSettingsStoreSource = readFileSync(sourceSettingsStorePath, 'utf8')
 const smokeSource = readFileSync(smokePath, 'utf8')
 const sourceRuntimeRegistrySource = readFileSync(sourceRuntimeRegistryPath, 'utf8')
@@ -325,9 +327,19 @@ assert.match(
   'SourceSearchPage submit handler must use the immediate search path',
 )
 assert.match(
+  sourceModelsSource,
+  /type: 'select' \| 'text' \| 'check' \| 'sort' \| 'multiselect' \| 'group'[\s\S]*value\?: string \| number \| boolean \| string\[\][\s\S]*value === 'multiselect' \|\| value === 'multi-select' \|\| value === 'multiSelect'/,
+  'SourceModels must parse source multi-select filter descriptors and values',
+)
+assert.match(
+  browseViewModelSource,
+  /type SourceFilterValue = string \| number \| boolean \| string\[\][\s\S]*Array\.isArray\(value\)[\s\S]*normalized\.push\(next\)[\s\S]*return normalized[\s\S]*normalizeFilterStringRequestValue/,
+  'BrowseViewModel must preserve multi-select source filters as normalized string arrays in runtime requests',
+)
+assert.match(
   sourceFilterControlsSource,
-  /export struct SourceFilterControls[\s\S]*filter\.type === 'check'[\s\S]*Toggle\(\{ type: ToggleType\.Switch[\s\S]*filter\.type === 'text'[\s\S]*TextInput\([\s\S]*else if \(\(filter\.options \?\? \[\]\)\.length > 0\)[\s\S]*bindMenu\(this\.activeFilterMenuId === filter\.id, this\.FilterOptionMenu\(filter\)/,
-  'SourceFilterControls must expose source-defined filters with switch, text, and menu controls',
+  /export type SourceFilterControlValue = string \| number \| boolean \| string\[\][\s\S]*filter\.type === 'multiselect'[\s\S]*toggleMultiSelectFilter\(filter, index\)[\s\S]*filter\.type === 'check'[\s\S]*Toggle\(\{ type: ToggleType\.Switch[\s\S]*filter\.type === 'text'[\s\S]*TextInput\([\s\S]*else if \(\(filter\.options \?\? \[\]\)\.length > 0\)[\s\S]*bindMenu\(this\.activeFilterMenuId === filter\.id, this\.FilterOptionMenu\(filter\)/,
+  'SourceFilterControls must expose source-defined filters with switch, text, single-select menu, and multi-select menu controls',
 )
 assert.match(
   sourceSearchPageSource,

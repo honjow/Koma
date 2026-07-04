@@ -36,11 +36,11 @@ export interface SourceChapter {
 
 export interface SourceFilter {
   id: string
-  type: 'select' | 'text' | 'check' | 'sort' | 'group'
+  type: 'select' | 'text' | 'check' | 'sort' | 'multiselect' | 'group'
   name: string
   options?: string[]
   optionIds?: string[]
-  value?: string | number | boolean
+  value?: string | number | boolean | string[]
 }
 
 interface SourceRuntimeCoverPayload {
@@ -110,7 +110,7 @@ interface SourceRuntimeFilterPayload {
   name?: string
   label?: string
   options?: string[] | SourceRuntimeFilterOptionPayload[]
-  value?: string | number | boolean
+  value?: string | number | boolean | string[]
 }
 
 interface SourceRuntimeFiltersPayload {
@@ -224,9 +224,12 @@ export function parseSourceChaptersJson(json: string): SourceChapter[] {
   }
 }
 
-function normalizeFilterType(value: string | undefined): 'select' | 'text' | 'check' | 'sort' | 'group' {
+function normalizeFilterType(value: string | undefined): 'select' | 'text' | 'check' | 'sort' | 'multiselect' | 'group' {
   if (value === 'select' || value === 'text' || value === 'sort' || value === 'group') {
     return value
+  }
+  if (value === 'multiselect' || value === 'multi-select' || value === 'multiSelect') {
+    return 'multiselect'
   }
   if (value === 'boolean' || value === 'check') {
     return 'check'

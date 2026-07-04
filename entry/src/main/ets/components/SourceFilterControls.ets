@@ -1,9 +1,10 @@
+import { SymbolGlyphModifier } from '@kit.ArkUI'
 import { KomaActionButton } from './ui/KomaActionButton'
 import { AppStrings } from '../i18n/AppStrings'
 import { SourceFilter } from '../model/SourceModels'
 import { ThemeConstants } from '../theme/ThemeConstants'
 
-export type SourceFilterControlValue = string | number | boolean
+export type SourceFilterControlValue = string | number | boolean | string[]
 export type SourceFilterControlValues = Record<string, SourceFilterControlValue>
 
 function s(name: string): string {
@@ -42,15 +43,28 @@ export struct SourceFilterControls {
     if (value === undefined) {
       return filter.name
     }
+    if (Array.isArray(value)) {
+      if (value.length === 0) {
+        return filter.name
+      }
+      const labels: string[] = []
+      value.forEach((item: string) => {
+        labels.push(this.filterOptionLabel(filter, item))
+      })
+      return `${filter.name}: ${labels.join(' / ')}`
+    }
+    return `${filter.name}: ${this.filterOptionLabel(filter, `${value}`)}`
+  }
+
+  private filterOptionLabel(filter: SourceFilter, valueText: string): string {
     const optionIds = filter.optionIds ?? []
     const options = filter.options ?? []
-    const valueText = `${value}`
     for (let index = 0; index < optionIds.length || index < options.length; index += 1) {
       if (this.filterOptionValue(filter, index) === valueText) {
-        return `${filter.name}: ${options[index] ?? valueText}`
+        return options[index] ?? valueText
       }
     }
-    return `${filter.name}: ${valueText}`
+    return valueText
   }
 
   private pendingTextFilterValue(filter: SourceFilter): string {
@@ -73,6 +87,32 @@ export struct SourceFilterControls {
     this.pendingTextFilters = next
   }
 
+  private multiSelectFilterValue(filter: SourceFilter): string[] {
+    const value = this.currentFilterValue(filter)
+    return Array.isArray(value) ? value : []
+  }
+
+  private isFilterOptionSelected(filter: SourceFilter, index: number): boolean {
+    const optionValue = this.filterOptionValue(filter, index)
+    const value = this.currentFilterValue(filter)
+    if (Array.isArray(value)) {
+      return value.includes(optionValue)
+    }
+    return `${value ?? ''}` === optionValue
+  }
+
+  private toggleMultiSelectFilter(filter: SourceFilter, index: number): void {
+    const optionValue = this.filterOptionValue(filter, index)
+    const selected = this.multiSelectFilterValue(filter)
+    if (selected.includes(optionValue)) {
+      this.onFilterChange(filter, selected.filter((item: string): boolean => item !== optionValue))
+      return
+    }
+    const next = selected.slice()
+    next.push(optionValue)
+    this.onFilterChange(filter, next)
+  }
+
   @Builder
   private FilterOptionMenu(filter: SourceFilter) {
     Menu() {
@@ -82,10 +122,18 @@ export struct SourceFilterControls {
           this.onFilterChange(filter, undefined)
         })
       ForEach(filter.options ?? [], (option: string, index: number) => {
-        MenuItem({ content: option })
+        MenuItem({
+          content: option,
+          symbolEndIcon: this.isFilterOptionSelected(filter, index) ?
+            new SymbolGlyphModifier($r('sys.symbol.checkmark')) : undefined,
+        })
           .onClick(() => {
-            this.activeFilterMenuId = ''
-            this.onFilterChange(filter, this.filterOptionValue(filter, index))
+            if (filter.type === 'multiselect') {
+              this.toggleMultiSelectFilter(filter, index)
+            } else {
+              this.activeFilterMenuId = ''
+              this.onFilterChange(filter, this.filterOptionValue(filter, index))
+            }
           })
       }, (option: string, index: number) => `${filter.id}:${index}:${option}`)
     }

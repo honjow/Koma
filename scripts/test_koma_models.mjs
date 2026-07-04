@@ -2100,7 +2100,7 @@ assert.match(
 )
 assert.match(
   browseViewModelSource,
-  /updateFilterValue\(values: SourceMangaListFilters, filterId: string, value: SourceFilterValue \| undefined\): SourceMangaListFilters \| undefined[\s\S]*const key = this\.filterRequestKey\(filter\)[\s\S]*nextValues\[key\] = this\.normalizeFilterRequestValue\(key, value\)[\s\S]*setBrowseFilterValue\(filterId: string, value: SourceFilterValue \| undefined\)[\s\S]*this\.updateFilterValue\(this\.browseFilterValues, filterId, value\)[\s\S]*this\.browseFilterValues = nextValues[\s\S]*await this\.selectBrowseListing\(listing\)/,
+  /updateFilterValue\(values: SourceMangaListFilters, filterId: string, value: SourceFilterValue \| undefined\): SourceMangaListFilters \| undefined[\s\S]*const key = this\.filterRequestKey\(filter\)[\s\S]*const normalized = this\.normalizeFilterRequestValue\(key, value\)[\s\S]*nextValues\[key\] = normalized[\s\S]*setBrowseFilterValue\(filterId: string, value: SourceFilterValue \| undefined\)[\s\S]*this\.updateFilterValue\(this\.browseFilterValues, filterId, value\)[\s\S]*this\.browseFilterValues = nextValues[\s\S]*await this\.selectBrowseListing\(listing\)/,
   'BrowseViewModel must update source filter values and reload the current listing',
 )
 assert.match(
@@ -2119,9 +2119,19 @@ assert.match(
   'BrowseViewModel must normalize fixture-style filter:sort and sort:popular ids before sending request filters',
 )
 assert.match(
+  sourceModelsSource,
+  /type: 'select' \| 'text' \| 'check' \| 'sort' \| 'multiselect' \| 'group'[\s\S]*value\?: string \| number \| boolean \| string\[\][\s\S]*value === 'multiselect' \|\| value === 'multi-select' \|\| value === 'multiSelect'/,
+  'source filter parsing must support multi-select descriptors and default values',
+)
+assert.match(
+  browseViewModelSource,
+  /type SourceFilterValue = string \| number \| boolean \| string\[\][\s\S]*Array\.isArray\(value\)[\s\S]*normalized\.push\(next\)[\s\S]*return normalized[\s\S]*normalizeFilterStringRequestValue/,
+  'BrowseViewModel must normalize source multi-select filters as de-duplicated request arrays',
+)
+assert.match(
   sourceFilterControlsSource,
-  /export struct SourceFilterControls[\s\S]*filter\.type === 'check'[\s\S]*Toggle\(\{ type: ToggleType\.Switch[\s\S]*filter\.type === 'text'[\s\S]*TextInput\([\s\S]*\.onSubmit\(\(\) =>[\s\S]*else if \(\(filter\.options \?\? \[\]\)\.length > 0\)[\s\S]*bindMenu\(this\.activeFilterMenuId === filter\.id, this\.FilterOptionMenu\(filter\)/,
-  'SourceFilterControls must render source filters with switch/text input/menu controls according to descriptor type',
+  /export type SourceFilterControlValue = string \| number \| boolean \| string\[\][\s\S]*filter\.type === 'multiselect'[\s\S]*toggleMultiSelectFilter\(filter, index\)[\s\S]*filter\.type === 'check'[\s\S]*Toggle\(\{ type: ToggleType\.Switch[\s\S]*filter\.type === 'text'[\s\S]*TextInput\([\s\S]*\.onSubmit\(\(\) =>[\s\S]*else if \(\(filter\.options \?\? \[\]\)\.length > 0\)[\s\S]*bindMenu\(this\.activeFilterMenuId === filter\.id, this\.FilterOptionMenu\(filter\)/,
+  'SourceFilterControls must render source filters with switch/text input/single-select menu/multi-select menu controls according to descriptor type',
 )
 assert.match(
   sourceBrowsePageSource,

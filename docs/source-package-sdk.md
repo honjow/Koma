@@ -68,6 +68,10 @@ Koma calls source runtimes with a JSON request envelope:
 
 Runtime responses must be JSON envelopes with `ok: true` and `data`, or `ok: false` and a safe `reasonCode`. Supported operations include search/detail/chapter/page flows plus descriptor discovery such as `get_settings`. Do not return raw filesystem paths, picker URIs, cookies, authorization headers, tokens, or secret values in responses, logs, cache keys, or diagnostics.
 
+## Filter descriptor rules
+
+`get_filters` may return descriptors under `data.filters`. Koma supports `text`, `boolean`/`check`, `select`, `sort`, `multiselect`/`multi-select`, and `group` descriptors. `select`, `sort`, and `multiselect` filters may provide `options` as strings or objects with `id` plus `label`/`name`; Koma displays labels but sends normalized ids in `args.filters`. Multi-select values are sent as string arrays.
+
 ## Settings descriptor rules
 
 `get_settings` may return descriptors under `data.settings` or `data.items`. Koma persists only safe descriptor kinds:
