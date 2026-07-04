@@ -499,6 +499,20 @@ export struct DownloadsPage {
     this.loadQueue()
   }
 
+  private setWifiOnly(wifiOnly: boolean): void {
+    if (this.busyKey.length > 0) {
+      return
+    }
+    try {
+      this.preferences = this.queueStore().setWifiOnly(wifiOnly)
+      this.loadQueue(false)
+    } catch (error) {
+      void error
+      console.warn('[Downloads] step=save_wifi_only_failed failed=true reason=queue_preference')
+      this.showToast(s('settings_download_wifi_only_save_failed'))
+    }
+  }
+
   private formatRecoverySummary(summary: OfflineDownloadQueueRecoverySummary): string {
     return s('downloads_toast_rescan_done')
       .replace('%s', `${summary.scannedCount}`)
@@ -686,6 +700,37 @@ export struct DownloadsPage {
   }
 
   @Builder
+  private WifiOnlyControl() {
+    Row({ space: ThemeConstants.SPACE_MD }) {
+      Column({ space: 2 }) {
+        Text(s('settings_row_download_wifi_only_title'))
+          .width('100%')
+          .fontSize(ThemeConstants.FONT_SIZE_BODY)
+          .fontColor(ThemeConstants.TEXT_PRIMARY)
+          .maxLines(1)
+          .textOverflow({ overflow: TextOverflow.Ellipsis })
+        Text(s('settings_row_download_wifi_only_detail'))
+          .width('100%')
+          .fontSize(ThemeConstants.FONT_SIZE_CAPTION)
+          .fontColor(ThemeConstants.TEXT_SECONDARY)
+          .maxLines(1)
+          .textOverflow({ overflow: TextOverflow.Ellipsis })
+      }
+      .layoutWeight(1)
+
+      Toggle({ type: ToggleType.Switch, isOn: this.preferences.wifiOnly })
+        .selectedColor(ThemeConstants.BRAND_PRIMARY)
+        .enabled(this.busyKey.length === 0)
+        .onChange((isOn: boolean) => {
+          this.setWifiOnly(isOn)
+        })
+    }
+    .width('100%')
+    .padding({ top: ThemeConstants.SPACE_XS, bottom: ThemeConstants.SPACE_XS })
+    .alignItems(VerticalAlign.Center)
+  }
+
+  @Builder
   private QueueControls() {
     Column({ space: ThemeConstants.SPACE_SM }) {
       Text(this.queueStateText())
@@ -700,6 +745,7 @@ export struct DownloadsPage {
         .fontColor(ThemeConstants.TEXT_SECONDARY)
         .maxLines(2)
         .textOverflow({ overflow: TextOverflow.Ellipsis })
+      this.WifiOnlyControl()
 
       Row() {
         Row() {
