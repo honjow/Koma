@@ -204,7 +204,9 @@ export function summarizeOfflineDownloadQueue(entries: OfflineDownloadQueueEntry
 }
 
 function shouldReconcileEntry(entry: OfflineDownloadQueueEntry): boolean {
-  return entry.status === OfflineDownloadStatus.DOWNLOADED || entry.status === OfflineDownloadStatus.PARTIAL
+  return entry.status === OfflineDownloadStatus.DOWNLOADING ||
+    entry.status === OfflineDownloadStatus.DOWNLOADED ||
+    entry.status === OfflineDownloadStatus.PARTIAL
 }
 
 function isSameEntry(left: OfflineDownloadQueueEntry, right: OfflineDownloadQueueEntry): boolean {
@@ -231,8 +233,13 @@ function entryFromManifestValidation(validation: OfflineDownloadManifestValidati
     failureReasonCode = validation.reasonCode ?? 'page_file_missing'
   } else if (validation.status === OfflineDownloadedChapterStatus.MISSING &&
     validation.reasonCode === 'status_not_reader_ready') {
-    status = manifest.status
-    failureReasonCode = manifest.failureReasonCode ?? validation.reasonCode
+    if (manifest.status === OfflineDownloadStatus.DOWNLOADING) {
+      status = OfflineDownloadStatus.FAILED
+      failureReasonCode = 'download_interrupted'
+    } else {
+      status = manifest.status
+      failureReasonCode = manifest.failureReasonCode ?? validation.reasonCode
+    }
     pageCount = manifest.pageCount
     downloadedPageCount = manifest.downloadedPageCount
   }
@@ -308,6 +315,10 @@ export class OfflineDownloadQueueStore {
       } else if (validation.status === OfflineDownloadedChapterStatus.PARTIAL) {
         next.status = OfflineDownloadStatus.PARTIAL
         next.failureReasonCode = validation.reasonCode ?? 'page_file_missing'
+      } else if (entry.status === OfflineDownloadStatus.DOWNLOADING &&
+        validation.reasonCode === 'status_not_reader_ready') {
+        next.status = OfflineDownloadStatus.FAILED
+        next.failureReasonCode = 'download_interrupted'
       } else {
         next.status = OfflineDownloadStatus.FAILED
         next.failureReasonCode = validation.reasonCode ?? 'manifest_unavailable'
