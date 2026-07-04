@@ -202,9 +202,7 @@ export class CrossSearchService {
         return {
           id: `local:${comic.id}`,
           title: comic.title,
-          subtitle: comic.author ?? AppStrings.get('search_local_subtitle')
-            .replace('%s', `${comic.chapterCount}`)
-            .replace('%s', `${comic.pageCount}`),
+          subtitle: this.localSearchSubtitle(comic, normalizedQuery, compactQuery),
           sourceKind: 'local',
           sourceLabel: AppStrings.get('tab_library'),
           coverUri: comic.coverUri,
@@ -426,9 +424,27 @@ export class CrossSearchService {
     if (comic.author !== undefined && this.textMatchesQuery(comic.author, normalizedQuery, compactQuery)) {
       return true
     }
-    return comic.chapters.some((chapter: Chapter): boolean => {
-      return this.textMatchesQuery(chapter.title, normalizedQuery, compactQuery)
+    return this.localMatchedChapterTitle(comic, normalizedQuery, compactQuery) !== undefined
+  }
+
+  private localSearchSubtitle(comic: Comic, normalizedQuery: string, compactQuery: string): string {
+    const titleMatches = this.textMatchesQuery(comic.title, normalizedQuery, compactQuery)
+    const subtitleMatches = comic.subtitle !== undefined && this.textMatchesQuery(comic.subtitle, normalizedQuery, compactQuery)
+    const authorMatches = comic.author !== undefined && this.textMatchesQuery(comic.author, normalizedQuery, compactQuery)
+    const matchedChapterTitle = this.localMatchedChapterTitle(comic, normalizedQuery, compactQuery)
+    if (!titleMatches && !subtitleMatches && !authorMatches && matchedChapterTitle !== undefined) {
+      return matchedChapterTitle
+    }
+    return comic.author ?? AppStrings.get('search_local_subtitle')
+      .replace('%s', `${comic.chapterCount}`)
+      .replace('%s', `${comic.pageCount}`)
+  }
+
+  private localMatchedChapterTitle(comic: Comic, normalizedQuery: string, compactQuery: string): string | undefined {
+    const chapter = comic.chapters.find((item: Chapter): boolean => {
+      return this.textMatchesQuery(item.title, normalizedQuery, compactQuery)
     })
+    return chapter?.title
   }
 
   private findOpdsSearchUrl(catalog: OpdsParseResult, query: string): string {

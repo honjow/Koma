@@ -81,8 +81,13 @@ assert.match(
 )
 assert.match(
   crossSearchSource,
-  /private localComicMatches\(comic: Comic, normalizedQuery: string, compactQuery: string\)[\s\S]*textMatchesQuery\(comic\.title[\s\S]*textMatchesQuery\(chapter\.title/,
+  /private localComicMatches\(comic: Comic, normalizedQuery: string, compactQuery: string\)[\s\S]*textMatchesQuery\(comic\.title[\s\S]*this\.localMatchedChapterTitle\(comic, normalizedQuery, compactQuery\) !== undefined[\s\S]*private localMatchedChapterTitle\(comic: Comic, normalizedQuery: string, compactQuery: string\): string \| undefined[\s\S]*textMatchesQuery\(item\.title/,
   'local search must match title, metadata, and chapter names through normalized search text',
+)
+assert.match(
+  crossSearchSource,
+  /subtitle: this\.localSearchSubtitle\(comic, normalizedQuery, compactQuery\)[\s\S]*private localSearchSubtitle\(comic: Comic, normalizedQuery: string, compactQuery: string\): string[\s\S]*matchedChapterTitle !== undefined[\s\S]*return matchedChapterTitle/,
+  'local search results must expose chapter-only matches in the scored subtitle field',
 )
 assert.match(
   crossSearchSource,
