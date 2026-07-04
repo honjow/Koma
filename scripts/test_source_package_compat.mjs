@@ -18,6 +18,7 @@ const sourceFilterPreferencesStorePath = resolve(root, 'entry/src/main/ets/sourc
 const smokePath = resolve(root, 'entry/src/main/ets/sourceRuntime/SourceRuntimeDeviceSmoke.ets')
 const sourceRuntimeRegistryPath = resolve(root, 'entry/src/main/ets/sourceRuntime/SourceRuntimeRegistry.ets')
 const sourcePackageTrustPolicyPath = resolve(root, 'entry/src/main/ets/sourceRuntime/SourcePackageTrustPolicy.ets')
+const sourceReaderSmokeScriptPath = resolve(root, 'scripts/run_source_reader_smoke.sh')
 const abiDocPath = resolve(root, 'docs/source-runtime-abi.md')
 const sdkDocPath = resolve(root, 'docs/source-package-sdk.md')
 const localKomaFixturePath = resolve(root, 'entry/src/main/resources/rawfile/test/local_source_runtime_fixture.koma')
@@ -41,6 +42,7 @@ const sourceFilterPreferencesStoreSource = readFileSync(sourceFilterPreferencesS
 const smokeSource = readFileSync(smokePath, 'utf8')
 const sourceRuntimeRegistrySource = readFileSync(sourceRuntimeRegistryPath, 'utf8')
 const sourcePackageTrustPolicySource = readFileSync(sourcePackageTrustPolicyPath, 'utf8')
+const sourceReaderSmokeScriptSource = readFileSync(sourceReaderSmokeScriptPath, 'utf8')
 const abiDocSource = readFileSync(abiDocPath, 'utf8')
 const sdkDocSource = readFileSync(sdkDocPath, 'utf8')
 
@@ -264,6 +266,26 @@ assert.match(managerPageSource, /source_pkg_clear_settings[\s\S]*kind: 'danger'[
 assert.match(managerPageSource, /removePackage\(source: InstalledSourcePackage\): Promise<void>[\s\S]*await remove\(this\.context\(\), source\.id\)[\s\S]*this\.clearUpdateStatus\(source\.id\)[\s\S]*this\.clearSettingsValidationStatus\(source\.id\)/, 'SourcePackageManagerPage must still remove source packages and clear related status state')
 assert.match(managerPageSource, /confirmRemovePackage\(source: InstalledSourcePackage\): void[\s\S]*source_pkg_remove_title[\s\S]*source_pkg_remove_message[\s\S]*primaryButton:[\s\S]*source_pkg_delete[\s\S]*this\.removePackage\(source\)/, 'SourcePackageManagerPage must confirm before deleting an installed source package')
 assert.match(managerPageSource, /label: t\('source_pkg_delete'\)[\s\S]*kind: 'danger'[\s\S]*this\.confirmRemovePackage\(source\)/, 'SourcePackageManagerPage package delete button must route through confirmation')
+assert.match(
+  sourceReaderSmokeScriptSource,
+  /koma\.sourceRuntimeSmoke\.phase source-index-visible-reader/,
+  'source reader smoke script must run the visible source-index reader phase',
+)
+assert.match(
+  sourceReaderSmokeScriptSource,
+  /KOMA_SOURCE_READER_SOURCE_ID:-org\.mangadex\.koma[\s\S]*KOMA_SOURCE_READER_QUERY:-Salt Friend/,
+  'source reader smoke script must default to a real MangaDex manga query',
+)
+assert.match(
+  sourceReaderSmokeScriptSource,
+  /library-screen\.png[\s\S]*uitest uiInput click 660 530[\s\S]*reader-screen\.png/,
+  'source reader smoke script must capture the visible library item and then open the reader',
+)
+assert.doesNotMatch(
+  sourceReaderSmokeScriptSource,
+  /dev\.sh|scripts\/dev\.env/,
+  'macOS source reader smoke script must not use Linux dev.sh or source signing env files',
+)
 assert.match(
   browseViewModelSource,
   /loadInstalledSources\(\): void \{[\s\S]*this\.sources = this\.registry\.listInstalledSourceSummaries\(\)[\s\S]*\}/,
