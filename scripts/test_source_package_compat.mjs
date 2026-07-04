@@ -580,6 +580,7 @@ assert.match(smokeSource, /SMOKE_PHASE_SOURCE_INDEX_READER/, 'device smoke must 
 assert.match(smokeSource, /SMOKE_PHASE_SOURCE_INDEX_VISIBLE_READER/, 'device smoke must include a visible source-index library reader phase')
 assert.match(smokeSource, /SMOKE_QUERY_PARAM[\s\S]*sourceIndexReaderSearchQuery[\s\S]*JSON\.stringify\(\{ operation: 'search', query: searchRequestQuery \}\)/, 'source-index reader smoke must accept a source-specific search query instead of hardcoding the default test query')
 assert.match(smokeSource, /SMOKE_PHASE_SOURCE_INDEX_DOWNLOAD_READER/, 'device smoke must include a focused source-index download reader phase')
+assert.match(smokeSource, /SMOKE_PHASE_SOURCE_INDEX_VISIBLE_DOWNLOAD_READER/, 'device smoke must include a visible source-index download reader phase that leaves a real source manga in the app library')
 assert.match(smokeSource, /SMOKE_PHASE_SOURCE_INDEX_DOWNLOAD_CORRUPT_READER/, 'device smoke must include a focused corrupt offline source-index reader phase')
 assert.match(
   smokeSource,
@@ -621,6 +622,11 @@ assert.match(
   smokeSource,
   /SMOKE_PHASE_SOURCE_INDEX_DOWNLOAD_READER[\s\S]*OfflineDownloadService[\s\S]*downloadChapter\(comic, chapterId[\s\S]*configureReaderOfflineDownloads\(context\.filesDir\)[\s\S]*ReaderPageRenderKind\.LOCAL_FILE_IMAGE/,
   'source-index download reader smoke must install from index, download real source pages, and verify the reader resolves an offline local file',
+)
+assert.match(
+  smokeSource,
+  /SMOKE_PHASE_SOURCE_INDEX_VISIBLE_DOWNLOAD_READER[\s\S]*isVisibleReaderPhase[\s\S]*SMOKE_PHASE_SOURCE_INDEX_VISIBLE_DOWNLOAD_READER[\s\S]*isDownloadReaderPhase/,
+  'visible source-index download smoke must combine app-library persistence with offline reader verification',
 )
 assert.match(
   smokeSource,

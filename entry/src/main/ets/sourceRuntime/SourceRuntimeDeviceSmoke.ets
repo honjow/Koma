@@ -118,6 +118,7 @@ const SMOKE_PHASE_INSTALLED_SOURCE_READER: string = 'installed-source-reader'
 const SMOKE_PHASE_SOURCE_INDEX_READER: string = 'source-index-reader'
 const SMOKE_PHASE_SOURCE_INDEX_VISIBLE_READER: string = 'source-index-visible-reader'
 const SMOKE_PHASE_SOURCE_INDEX_DOWNLOAD_READER: string = 'source-index-download-reader'
+const SMOKE_PHASE_SOURCE_INDEX_VISIBLE_DOWNLOAD_READER: string = 'source-index-visible-download-reader'
 const SMOKE_PHASE_SOURCE_INDEX_DOWNLOAD_CORRUPT_READER: string = 'source-index-download-corrupt-reader'
 const SOURCE_INDEX_LIBRARY_SMOKE_FILE_NAME: string = 'source-index-library-smoke.v1.json'
 const SOURCE_RUNTIME_SMOKE_RESULT_FILE_NAME: string = 'source-runtime-smoke-result.json'
@@ -1945,12 +1946,15 @@ export async function maybeRunSourceRuntimeDeviceSmoke(
     if (result.smokePhase === SMOKE_PHASE_SOURCE_INDEX_READER ||
       result.smokePhase === SMOKE_PHASE_SOURCE_INDEX_VISIBLE_READER ||
       result.smokePhase === SMOKE_PHASE_SOURCE_INDEX_DOWNLOAD_READER ||
+      result.smokePhase === SMOKE_PHASE_SOURCE_INDEX_VISIBLE_DOWNLOAD_READER ||
       result.smokePhase === SMOKE_PHASE_SOURCE_INDEX_DOWNLOAD_CORRUPT_READER) {
       if (context === undefined) {
         result.error = `${result.smokePhase} phase requires ability context`
       } else {
-        const isVisibleReaderPhase = result.smokePhase === SMOKE_PHASE_SOURCE_INDEX_VISIBLE_READER
+        const isVisibleReaderPhase = result.smokePhase === SMOKE_PHASE_SOURCE_INDEX_VISIBLE_READER ||
+          result.smokePhase === SMOKE_PHASE_SOURCE_INDEX_VISIBLE_DOWNLOAD_READER
         const isDownloadReaderPhase = result.smokePhase === SMOKE_PHASE_SOURCE_INDEX_DOWNLOAD_READER ||
+          result.smokePhase === SMOKE_PHASE_SOURCE_INDEX_VISIBLE_DOWNLOAD_READER ||
           result.smokePhase === SMOKE_PHASE_SOURCE_INDEX_DOWNLOAD_CORRUPT_READER
         const isCorruptReaderPhase = result.smokePhase === SMOKE_PHASE_SOURCE_INDEX_DOWNLOAD_CORRUPT_READER
         const indexUrl = smokeStringParam(want, SMOKE_INDEX_URL_PARAM)
