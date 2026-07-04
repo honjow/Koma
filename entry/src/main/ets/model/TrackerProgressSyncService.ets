@@ -13,6 +13,7 @@ import {
   TrackerCredentialSecretStore,
   TrackerPreferences,
   TrackerPreferencesStore,
+  TrackerUpdateStrategy,
 } from './TrackerModels'
 import {
   readingProgressFromPendingEntry,
@@ -76,12 +77,17 @@ export class TrackerProgressSyncService {
     this.pendingStore = options.pendingStore ?? new TrackerPendingSyncStore(context)
   }
 
-  async pushReadingProgress(progress: ReadingProgress, chapterIds: string[], now: number = Date.now()): Promise<TrackerProgressSyncResult> {
+  async pushReadingProgress(
+    progress: ReadingProgress,
+    chapterIds: string[],
+    trigger: TrackerUpdateStrategy = 'on_chapter_complete',
+    now: number = Date.now(),
+  ): Promise<TrackerProgressSyncResult> {
     const preferences = await this.preferencesStore().load()
     if (!preferences.autoSyncEnabled) {
       return this.skipped('auto_sync_disabled')
     }
-    if (preferences.updateStrategy !== 'on_chapter_complete') {
+    if (preferences.updateStrategy !== trigger) {
       return this.skipped('strategy_not_due')
     }
     const mapping = this.findConfirmedAniListMapping(preferences, progress.comicId)
@@ -144,12 +150,18 @@ export class TrackerProgressSyncService {
     const pending = await this.pendingStore.loadPendingProgress()
     const normalizedLimit = Math.max(0, Math.min(50, Math.floor(limit)))
     const entries = pending.slice(0, normalizedLimit)
+    const preferences = await this.preferencesStore().load()
     const summary: TrackerPendingProgressDrainSummary = {
       scannedCount: entries.length,
       syncedCount: 0,
       retainedCount: 0,
       failedCount: 0,
       skippedCount: 0,
+    }
+    if (!preferences.autoSyncEnabled) {
+      summary.retainedCount = entries.length
+      summary.skippedCount = entries.length
+      return summary
     }
     for (let index = 0; index < entries.length; index += 1) {
       const entry = entries[index]
@@ -158,7 +170,7 @@ export class TrackerProgressSyncService {
         summary.skippedCount += 1
         continue
       }
-      const result = await this.pushReadingProgress(progress, entry.chapterIds, now)
+      const result = await this.pushReadingProgress(progress, entry.chapterIds, preferences.updateStrategy, now)
       if (result.status === 'synced') {
         summary.syncedCount += 1
       } else {

@@ -17,13 +17,13 @@ assert.match(
 )
 assert.match(
   source,
-  /pushReadingProgress\(progress: ReadingProgress, chapterIds: string\[\][\s\S]*preferences\.autoSyncEnabled[\s\S]*auto_sync_disabled/,
+  /pushReadingProgress\([\s\S]*progress: ReadingProgress,[\s\S]*chapterIds: string\[\],[\s\S]*preferences\.autoSyncEnabled[\s\S]*auto_sync_disabled/,
   'tracker progress push must respect the durable auto-sync preference',
 )
 assert.match(
   source,
-  /preferences\.updateStrategy !== 'on_chapter_complete'[\s\S]*strategy_not_due/,
-  'tracker progress push from reader page changes must respect the configured update strategy',
+  /pushReadingProgress\([\s\S]*trigger: TrackerUpdateStrategy = 'on_chapter_complete'[\s\S]*preferences\.updateStrategy !== trigger[\s\S]*strategy_not_due/,
+  'tracker progress push must respect the configured update strategy for the current trigger',
 )
 assert.match(
   source,
@@ -82,8 +82,8 @@ assert.doesNotMatch(
 )
 assert.match(
   source,
-  /retryPendingProgress\(limit: number = 20[\s\S]*pendingStore\.loadPendingProgress\(\)[\s\S]*readingProgressFromPendingEntry\(entry, now\)[\s\S]*this\.pushReadingProgress\(progress, entry\.chapterIds, now\)[\s\S]*summary\.syncedCount \+= 1/,
-  'tracker progress sync service must expose a bounded drain path for retained offline progress',
+  /retryPendingProgress\(limit: number = 20[\s\S]*const preferences = await this\.preferencesStore\(\)\.load\(\)[\s\S]*!preferences\.autoSyncEnabled[\s\S]*readingProgressFromPendingEntry\(entry, now\)[\s\S]*this\.pushReadingProgress\(progress, entry\.chapterIds, preferences\.updateStrategy, now\)[\s\S]*summary\.syncedCount \+= 1/,
+  'tracker progress sync service must expose a bounded drain path for retained offline progress using the current sync strategy while respecting auto-sync',
 )
 assert.match(
   source,
