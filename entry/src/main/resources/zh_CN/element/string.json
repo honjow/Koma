@@ -384,6 +384,10 @@
     { "name": "history_group_older", "value": "更早" },
     { "name": "history_empty_title", "value": "暂无阅读历史" },
     { "name": "history_empty_message", "value": "打开漫画读几页后，最近阅读会显示在这里。" },
+    { "name": "history_remove_title", "value": "移除历史记录？" },
+    { "name": "history_remove_message", "value": "从阅读历史中移除“%s”？阅读模式偏好会保留。" },
+    { "name": "history_clear_title", "value": "清空阅读历史？" },
+    { "name": "history_clear_message", "value": "清空 %s 条阅读历史？阅读模式偏好会保留。" },
 
     { "name": "library_update_results_status_updated", "value": "更新" },
     { "name": "library_update_results_status_unchanged", "value": "未变化" },

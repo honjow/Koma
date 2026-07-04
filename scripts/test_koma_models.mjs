@@ -609,12 +609,22 @@ assert.doesNotMatch(
 )
 assert.match(
   historyPageSource,
-  /KomaIconButton\(\{[\s\S]*icon: \$r\('sys\.symbol\.trash'\)[\s\S]*this\.removeHistoryItem\(item\)/,
-  'HistoryPage rows must expose a trash icon button for single-item reading-history removal',
+  /confirmRemoveHistoryItem\(item: LibraryItem\): void[\s\S]*history_remove_title[\s\S]*history_remove_message[\s\S]*primaryButton:[\s\S]*common_remove[\s\S]*this\.removeHistoryItem\(item\)/,
+  'HistoryPage single-item removal must require confirmation before deleting progress',
 )
 assert.match(
   historyPageSource,
-  /Row\(\{ space: ThemeConstants\.SPACE_LG \}\) \{[\s\S]*\.onClick\(\(\) => \{[\s\S]*this\.openHistoryItem\(item\)[\s\S]*KomaIconButton\(\{[\s\S]*this\.removeHistoryItem\(item\)/,
+  /confirmClearHistory\(\): void[\s\S]*this\.historyItems\.length === 0[\s\S]*history_clear_title[\s\S]*history_clear_message[\s\S]*primaryButton:[\s\S]*common_clear[\s\S]*this\.clearHistory\(\)/,
+  'HistoryPage clear history must require confirmation before deleting all progress rows',
+)
+assert.match(
+  historyPageSource,
+  /KomaIconButton\(\{[\s\S]*icon: \$r\('sys\.symbol\.trash'\)[\s\S]*this\.confirmRemoveHistoryItem\(item\)/,
+  'HistoryPage rows must expose a trash icon button for confirmed single-item reading-history removal',
+)
+assert.match(
+  historyPageSource,
+  /Row\(\{ space: ThemeConstants\.SPACE_LG \}\) \{[\s\S]*\.onClick\(\(\) => \{[\s\S]*this\.openHistoryItem\(item\)[\s\S]*KomaIconButton\(\{[\s\S]*this\.confirmRemoveHistoryItem\(item\)/,
   'HistoryPage must keep open-reader handling on the content area before the delete button',
 )
 assert.match(

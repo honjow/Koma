@@ -181,6 +181,25 @@ export struct HistoryPage {
     console.info('[History] step=remove_item')
   }
 
+  private confirmRemoveHistoryItem(item: LibraryItem): void {
+    this.getUIContext().showAlertDialog({
+      title: s('history_remove_title'),
+      message: s('history_remove_message').replace('%s', item.title),
+      autoCancel: true,
+      primaryButton: {
+        value: s('common_remove'),
+        fontColor: ThemeConstants.DANGER,
+        action: () => {
+          this.removeHistoryItem(item)
+        },
+      },
+      secondaryButton: {
+        value: s('common_cancel'),
+        action: () => {},
+      },
+    })
+  }
+
   private clearHistory(): void {
     const sessionStore = this.createReaderSessionStore()
     if (sessionStore === undefined) {
@@ -192,6 +211,28 @@ export struct HistoryPage {
     this.historyItems = []
     this.revision += 1
     console.info('[History] step=clear')
+  }
+
+  private confirmClearHistory(): void {
+    if (this.historyItems.length === 0) {
+      return
+    }
+    this.getUIContext().showAlertDialog({
+      title: s('history_clear_title'),
+      message: s('history_clear_message').replace('%s', `${this.historyItems.length}`),
+      autoCancel: true,
+      primaryButton: {
+        value: s('common_clear'),
+        fontColor: ThemeConstants.DANGER,
+        action: () => {
+          this.clearHistory()
+        },
+      },
+      secondaryButton: {
+        value: s('common_cancel'),
+        action: () => {},
+      },
+    })
   }
 
   private todayStartMs(): number {
@@ -359,7 +400,7 @@ export struct HistoryPage {
         kind: 'ghost',
         accentColor: ThemeConstants.TEXT_SECONDARY,
         action: () => {
-          this.removeHistoryItem(item)
+          this.confirmRemoveHistoryItem(item)
         },
       })
     }
@@ -384,7 +425,7 @@ export struct HistoryPage {
         compact: true,
         controlHeight: ThemeConstants.ACTION_CHIP_HEIGHT,
         action: () => {
-          this.clearHistory()
+          this.confirmClearHistory()
         },
       })
     }

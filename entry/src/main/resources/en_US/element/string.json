@@ -384,6 +384,10 @@
     { "name": "history_group_older", "value": "Older" },
     { "name": "history_empty_title", "value": "No reading history yet" },
     { "name": "history_empty_message", "value": "Read a few pages and your recent items will show up here." },
+    { "name": "history_remove_title", "value": "Remove history item?" },
+    { "name": "history_remove_message", "value": "Remove \"%s\" from reading history? Reader mode preferences are kept." },
+    { "name": "history_clear_title", "value": "Clear reading history?" },
+    { "name": "history_clear_message", "value": "Clear %s reading history items? Reader mode preferences are kept." },
 
     { "name": "library_update_results_status_updated", "value": "Updated" },
     { "name": "library_update_results_status_unchanged", "value": "Unchanged" },
