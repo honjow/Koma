@@ -93,7 +93,10 @@ function manifestIdentityFromComic(comic: Comic): OfflineChapterManifestIdentity
 
 function reusableDownloadedPage(pages: OfflineDownloadedPage[], pageId: string, pageIndex: number): OfflineDownloadedPage | undefined {
   const page = pages.find((item: OfflineDownloadedPage): boolean => {
-    return item.pageId === pageId || item.pageIndex === pageIndex
+    if (pageId.trim().length > 0) {
+      return item.pageId === pageId
+    }
+    return item.pageIndex === pageIndex
   })
   if (page === undefined || !fs.accessSync(page.localPath)) {
     return undefined

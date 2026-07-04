@@ -124,13 +124,14 @@ assert.match(offlineDownloadStoreSource, /saveManifest\(manifest: OfflineChapter
 assert.match(offlineDownloadStoreSource, /recordPage\(manifest: OfflineChapterDownloadManifest, page: OfflineDownloadedPage\)[\s\S]*item\.pageId !== page\.pageId && item\.pageIndex !== page\.pageIndex/, 'recordPage must make duplicate page writes idempotent by page id or index')
 assert.match(offlineDownloadStoreSource, /scanDownloadedChapterManifests\(\): Promise<OfflineDownloadManifestScanResult>[\s\S]*fs\.listFile\(this\.rootDir[\s\S]*pathBaseName\(entry\) !== OFFLINE_DOWNLOAD_MANIFEST_NAME[\s\S]*safeParseManifest[\s\S]*validateDownloadedChapter\(manifest\.comicId, manifest\.chapterId\)/, 'offline store must scan the downloads directory for manifest records and revalidate them through the production validator')
 assert.match(offlineDownloadStoreSource, /scanDownloadedChapterManifests\(\): Promise<OfflineDownloadManifestScanResult>[\s\S]*assertSafeOfflineDownloadRoot\(this\.filesDir, manifestPath\)[\s\S]*skippedManifestCount \+= 1/, 'offline manifest scanning must stay bounded to the app download root and skip unsafe or malformed files')
+assert.match(offlineDownloadStoreSource, /function matchesDownloadedPage\(page: OfflineDownloadedPage, pageId: string, pageIndex: number\): boolean \{[\s\S]*pageId\.trim\(\)\.length > 0[\s\S]*return page\.pageId === pageId[\s\S]*return page\.pageIndex === pageIndex[\s\S]*resolveDownloadedPage[\s\S]*matchesDownloadedPage\(item, pageId, pageIndex\)/, 'offline reader page resolution must prefer strict pageId matches and only use page index as an empty-id fallback')
 assert.match(readerPageSourceAdapterSource, /options\?\.preferOffline !== false[\s\S]*createReaderOfflineDownloadRenderSource/, 'reader must keep offline resolution enabled by default')
 assert.match(readerPageSourceAdapterSource, /localPath === undefined[\s\S]*isOfflineManifestReaderOwned\(validation\)[\s\S]*createReaderOfflineUnavailableSource\(config, pageIndex\)[\s\S]*createReaderSourceRuntimeRenderSource/, 'reader must stop at an honest offline placeholder for partial or corrupt downloaded chapters instead of falling through to remote/source runtime')
 assert.match(readerPageSourceAdapterSource, /validation\.manifest === undefined && validation\.reasonCode === 'manifest_missing'[\s\S]*return undefined/, 'reader must allow normal online fallback only when no offline manifest exists')
 
 assert.match(offlineDownloadServiceSource, /new OfflineDownloadQueueStore\([\s\S]*downloadChapter\([\s\S]*queueStore\.upsert[\s\S]*OfflineDownloadStatus\.QUEUED[\s\S]*queueStore\.upsert[\s\S]*manifest/, 'download service must mirror queued/downloading/final status into the durable queue')
 assert.match(offlineDownloadServiceSource, /function manifestIdentityFromComic\(comic: Comic\): OfflineChapterManifestIdentity[\s\S]*sourceKind: comic\.sourceKind[\s\S]*sourceId: comic\.sourceRuntimeId \?\? comic\.remoteServerId \?\? comic\.sourceKind[\s\S]*seriesId: comic\.id/, 'download service must write source and series identity into chapter manifests without credentials')
-assert.match(offlineDownloadServiceSource, /function reusableDownloadedPage\(pages: OfflineDownloadedPage\[\], pageId: string, pageIndex: number\): OfflineDownloadedPage \| undefined[\s\S]*item\.pageId === pageId \|\| item\.pageIndex === pageIndex[\s\S]*fs\.accessSync\(page\.localPath\)/, 'download service must only reuse existing page files that are still present')
+assert.match(offlineDownloadServiceSource, /function reusableDownloadedPage\(pages: OfflineDownloadedPage\[\], pageId: string, pageIndex: number\): OfflineDownloadedPage \| undefined[\s\S]*pageId\.trim\(\)\.length > 0[\s\S]*return item\.pageId === pageId[\s\S]*return item\.pageIndex === pageIndex[\s\S]*fs\.accessSync\(page\.localPath\)/, 'download service must only reuse present page files that still match the requested page identity')
 assert.match(offlineDownloadServiceSource, /const existingValidation = this\.store\.validateDownloadedChapter\(comic\.id, chapterId\)[\s\S]*existingValidation\.status === OfflineDownloadedChapterStatus\.DOWNLOADED[\s\S]*existingValidation\.manifest !== undefined[\s\S]*queueStore\.upsert\(this\.queueStore\.fromManifest\(existingValidation\.manifest[\s\S]*step=download_reused[\s\S]*return existingValidation\.manifest[\s\S]*existingValidation\.status === OfflineDownloadedChapterStatus\.PARTIAL/, 'complete download retry must reuse the validated manifest instead of refetching pages')
 assert.match(offlineDownloadServiceSource, /const existingValidation = this\.store\.validateDownloadedChapter\(comic\.id, chapterId\)[\s\S]*existingValidation\.status === OfflineDownloadedChapterStatus\.PARTIAL[\s\S]*existingValidation\.manifest\.pages[\s\S]*const reusablePage = reusableDownloadedPage\(reusablePages, pageId, index\)[\s\S]*this\.store\.recordPage\(manifest, \{[\s\S]*localPath: reusablePage\.localPath[\s\S]*continue/, 'partial download retry must reuse validated existing pages and only fetch missing pages')
 assert.match(offlineDownloadServiceSource, /const initialPreferences = this\.queueStore\.loadPreferences\(\)[\s\S]*this\.queueStore\.upsert\([\s\S]*const latestPreferences = this\.queueStore\.loadPreferences\(\)[\s\S]*const initialCanDownload = this\.canDownloadNow\(initialPreferences\)[\s\S]*const latestCanDownload = this\.canDownloadNow\(latestPreferences\)[\s\S]*if \(!initialCanDownload \|\| !latestCanDownload\)/, 'download service start guard must compare both initial and latest preferences after the queue upsert')
@@ -342,6 +343,13 @@ function recordFixturePage(manifest, page) {
   })
 }
 
+function matchesFixtureDownloadedPage(page, pageId, pageIndex) {
+  if (pageId.trim().length > 0) {
+    return page.pageId === pageId
+  }
+  return page.pageIndex === pageIndex
+}
+
 const fixtureRoot = mkdtempSync(join(tmpdir(), 'koma-d33-manifest-'))
 try {
   const chapterDir = join(fixtureRoot, 'downloads', stableHash('comic-1'), stableHash('chapter-1'))
@@ -368,6 +376,16 @@ try {
     ],
     integrityHash: '',
   })
+  assert.equal(
+    matchesFixtureDownloadedPage(completeManifest.pages[0], 'different-page-id', 0),
+    false,
+    'offline page lookup must not use pageIndex when the requested pageId is non-empty but stale',
+  )
+  assert.equal(
+    matchesFixtureDownloadedPage(completeManifest.pages[0], '', 0),
+    true,
+    'offline page lookup may use pageIndex only for empty pageId fallback',
+  )
   writeFileSync(manifestPath, JSON.stringify(completeManifest))
   assert.deepEqual(validateFixtureManifest(manifestPath), {
     status: 'downloaded',

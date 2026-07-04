@@ -257,6 +257,13 @@ function createManifestIntegrityHash(manifest: OfflineChapterDownloadManifest): 
   return createOfflineDownloadStableHash(manifestIntegrityPayload(manifest))
 }
 
+function matchesDownloadedPage(page: OfflineDownloadedPage, pageId: string, pageIndex: number): boolean {
+  if (pageId.trim().length > 0) {
+    return page.pageId === pageId
+  }
+  return page.pageIndex === pageIndex
+}
+
 export class OfflineDownloadStore {
   private readonly filesDir: string
   private readonly rootDir: string
@@ -686,9 +693,8 @@ export class OfflineDownloadStore {
       (validation.status !== OfflineDownloadedChapterStatus.DOWNLOADED && validation.status !== OfflineDownloadedChapterStatus.PARTIAL)) {
       return undefined
     }
-    const page = validation.manifest.pages.find((item: OfflineDownloadedPage): boolean => {
-      return item.pageId === pageId || item.pageIndex === pageIndex
-    })
+    const page = validation.manifest.pages.find((item: OfflineDownloadedPage): boolean =>
+      matchesDownloadedPage(item, pageId, pageIndex))
     if (page === undefined) {
       return undefined
     }
