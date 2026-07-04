@@ -711,6 +711,8 @@
     { "name": "tracker_pending_summary", "value": "%s 条待同步 · %s 条已完成 · %s 次尝试" },
     { "name": "tracker_pending_retry_done", "value": "已重试 Tracker 进度：同步 %s，保留 %s" },
     { "name": "tracker_pending_retry_failed", "value": "Tracker 进度重试失败" },
+    { "name": "tracker_pending_clear_done", "value": "待同步 Tracker 进度已清空" },
+    { "name": "tracker_pending_clear_failed", "value": "清空待同步 Tracker 进度失败" },
 
     { "name": "downloads_filter_queued", "value": "排队中" },
     { "name": "downloads_filter_downloading", "value": "下载中" },

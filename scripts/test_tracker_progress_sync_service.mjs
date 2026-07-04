@@ -247,18 +247,23 @@ assert.match(
 )
 assert.match(
   trackerSettingsPageSource,
+  /clearPendingProgressNow\(\): void[\s\S]*this\.pendingSyncStore\(\)\.clear\(\)[\s\S]*tracker_pending_clear_done[\s\S]*this\.loadPendingProgressSummary\(\)/,
+  'TrackerSettingsPage must expose a clear action for retained pending tracker progress',
+)
+assert.match(
+  trackerSettingsPageSource,
   /step=settings_pending_retry scanned=\$\{summary\.scannedCount\} synced=\$\{summary\.syncedCount\} retained=\$\{summary\.retainedCount\} failed=\$\{summary\.failedCount\} skipped=\$\{summary\.skippedCount\}/,
   'TrackerSettingsPage pending retry logs must expose only aggregate counts',
 )
 assert.doesNotMatch(
   trackerSettingsPageSource,
-  /\[TrackerSync\] step=settings_pending_(loaded|retry|retry_failed)[^\n]*(token|authorization|Bearer|providerTitleId|comic=|chapter=|message=)/i,
+  /\[TrackerSync\] step=settings_pending_(loaded|retry|retry_failed|clear|clear_failed)[^\n]*(token|authorization|Bearer|providerTitleId|comic=|chapter=|message=)/i,
   'TrackerSettingsPage pending progress logs must not leak tokens, provider ids, local ids, or raw errors',
 )
 assert.match(
   trackerSettingsPageSource,
-  /PendingProgressCard\(\)[\s\S]*tracker_pending_title[\s\S]*tracker_pending_message[\s\S]*this\.retryPendingProgressNow\(\)[\s\S]*this\.pendingProgressText\(\)[\s\S]*this\.PendingProgressCard\(\)/,
-  'TrackerSettingsPage must render the pending progress card before mapping review',
+  /PendingProgressCard\(\)[\s\S]*tracker_pending_title[\s\S]*tracker_pending_message[\s\S]*this\.retryPendingProgressNow\(\)[\s\S]*this\.clearPendingProgressNow\(\)[\s\S]*this\.pendingProgressText\(\)[\s\S]*this\.PendingProgressCard\(\)/,
+  'TrackerSettingsPage must render pending retry and clear actions before mapping review',
 )
 
 console.log('tracker progress sync service checks PASS')

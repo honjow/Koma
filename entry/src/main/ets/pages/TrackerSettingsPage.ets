@@ -62,6 +62,7 @@ export struct TrackerSettingsPage {
   @Local private busyProviderId: string = ''
   @Local private refreshingProviderId: string = ''
   @Local private pendingRetryBusy: boolean = false
+  @Local private pendingClearBusy: boolean = false
   @Local private secureStorageAvailable: boolean = false
   @Local private authPreparationMessageKey: string = 'tracker_message_secure_storage_unverified'
   private credentialSecretStore: TrackerCredentialSecretStore = new AssetStoreTrackerCredentialSecretStore()
@@ -271,7 +272,7 @@ export struct TrackerSettingsPage {
   }
 
   private retryPendingProgressNow(): void {
-    if (this.pendingRetryBusy || this.pendingSummary.totalCount === 0) {
+    if (this.pendingRetryBusy || this.pendingClearBusy || this.pendingSummary.totalCount === 0) {
       return
     }
     this.pendingRetryBusy = true
@@ -289,6 +290,26 @@ export struct TrackerSettingsPage {
       })
       .finally(() => {
         this.pendingRetryBusy = false
+      })
+  }
+
+  private clearPendingProgressNow(): void {
+    if (this.pendingClearBusy || this.pendingRetryBusy || this.pendingSummary.totalCount === 0) {
+      return
+    }
+    this.pendingClearBusy = true
+    void this.pendingSyncStore().clear()
+      .then(() => {
+        console.info('[TrackerSync] step=settings_pending_clear cleared=true')
+        this.showToast(s('tracker_pending_clear_done'))
+        this.loadPendingProgressSummary()
+      })
+      .catch((_error: Error) => {
+        console.warn('[TrackerSync] step=settings_pending_clear_failed reason=redacted')
+        this.showToast(s('tracker_pending_clear_failed'))
+      })
+      .finally(() => {
+        this.pendingClearBusy = false
       })
   }
 
@@ -486,16 +507,29 @@ export struct TrackerSettingsPage {
         }
         .layoutWeight(1)
         .alignItems(HorizontalAlign.Start)
-        KomaActionButton({
-          label: this.pendingRetryBusy ? s('common_retrying') : s('common_retry'),
-          kind: 'secondary',
-          compact: true,
-          controlHeight: ThemeConstants.ACTION_CHIP_HEIGHT,
-          isEnabled: this.pendingSummary.totalCount > 0 && !this.pendingRetryBusy,
-          action: () => {
-            this.retryPendingProgressNow()
-          },
-        })
+        Row({ space: ThemeConstants.SPACE_SM }) {
+          KomaActionButton({
+            label: this.pendingRetryBusy ? s('common_retrying') : s('common_retry'),
+            kind: 'secondary',
+            compact: true,
+            controlHeight: ThemeConstants.ACTION_CHIP_HEIGHT,
+            isEnabled: this.pendingSummary.totalCount > 0 && !this.pendingRetryBusy && !this.pendingClearBusy,
+            action: () => {
+              this.retryPendingProgressNow()
+            },
+          })
+          KomaActionButton({
+            label: s('common_clear'),
+            kind: 'danger',
+            compact: true,
+            controlHeight: ThemeConstants.ACTION_CHIP_HEIGHT,
+            isEnabled: this.pendingSummary.totalCount > 0 && !this.pendingRetryBusy && !this.pendingClearBusy,
+            action: () => {
+              this.clearPendingProgressNow()
+            },
+          })
+        }
+        .alignItems(VerticalAlign.Center)
       }
       .width('100%')
       .alignItems(VerticalAlign.Center)
