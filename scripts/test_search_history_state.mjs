@@ -7,6 +7,10 @@ const historyStoreSource = readFileSync(resolve(root, 'entry/src/main/ets/model/
 const stateMapperSource = readFileSync(resolve(root, 'entry/src/main/ets/model/SearchStateMapper.ets'), 'utf8')
 const crossSearchSource = readFileSync(resolve(root, 'entry/src/main/ets/model/CrossSearchService.ets'), 'utf8')
 const searchPageSource = readFileSync(resolve(root, 'entry/src/main/ets/pages/SearchPage.ets'), 'utf8')
+const indexSource = readFileSync(resolve(root, 'entry/src/main/ets/pages/Index.ets'), 'utf8')
+const routerHelperSource = readFileSync(resolve(root, 'entry/src/main/ets/common/RouterHelper.ets'), 'utf8')
+const mangaDetailPageSource = readFileSync(resolve(root, 'entry/src/main/ets/pages/MangaDetailPage.ets'), 'utf8')
+const mangaTagsSectionSource = readFileSync(resolve(root, 'entry/src/main/ets/components/MangaTagsSection.ets'), 'utf8')
 const browseViewModelSource = readFileSync(resolve(root, 'entry/src/main/ets/viewmodel/BrowseViewModel.ets'), 'utf8')
 const komgaSeriesPageSource = readFileSync(resolve(root, 'entry/src/main/ets/pages/KomgaSeriesPage.ets'), 'utf8')
 const opdsBrowsePageSource = readFileSync(resolve(root, 'entry/src/main/ets/pages/OpdsBrowsePage.ets'), 'utf8')
@@ -106,7 +110,7 @@ assert.match(
 )
 assert.match(
   crossSearchSource,
-  /searchResultScore\(item: CrossSearchResultItem, normalizedQuery: string, compactQuery: string\)[\s\S]*titleCompact === compactQuery[\s\S]*subtitleCompact\.indexOf\(compactQuery\)/,
+  /searchResultMatchQuality\(item: CrossSearchResultItem, normalizedQuery: string, compactQuery: string\)[\s\S]*titleCompact === compactQuery[\s\S]*subtitleCompact\.indexOf\(compactQuery\)[\s\S]*searchResultScoreForQuality\(matchQuality: CrossSearchMatchQuality\)/,
   'cross-search ranking must score compact title and subtitle matches',
 )
 assert.match(
@@ -125,6 +129,7 @@ assert.match(crossSearchSource, /opdsPublicationId: publication\.id/, 'OPDS sear
 assert.doesNotMatch(crossSearchSource, /errorText:\s*e\.message|message='\s*\+\s*e\.message|message=\$\{e\.message\}/, 'cross-search must not expose or log raw exception messages')
 
 assert.match(searchPageSource, /@Local private history:\s*SearchHistoryEntry\[\]/, 'SearchPage must keep recent search history state')
+assert.match(searchPageSource, /@Param externalQuery: string = ''[\s\S]*@Param externalQuerySerial: number = 0/, 'SearchPage must accept an external query from app-level navigation')
 assert.match(searchPageSource, /new SearchHistoryStore\(context\)/, 'SearchPage must create persistent history store')
 assert.match(searchPageSource, /this\.recordHistory\(query\)/, 'SearchPage must record non-empty submitted searches')
 assert.match(
@@ -134,6 +139,11 @@ assert.match(
 )
 assert.match(searchPageSource, /this\.HistoryPanel\(\)/, 'SearchPage must render history for an empty query')
 assert.match(searchPageSource, /this\.runHistoryQuery\(entry\.query\)/, 'history rows must run searches when tapped')
+assert.match(
+  searchPageSource,
+  /@Monitor\('externalQuerySerial'\)[\s\S]*consumeExternalQuery\(\)[\s\S]*externalQuery\.trim\(\)[\s\S]*this\.runImmediateQuery\(query\)/,
+  'SearchPage must immediately run externally supplied queries such as manga tag taps',
+)
 assert.match(searchPageSource, /this\.clearHistory\(\)/, 'SearchPage must expose clear-history action')
 assert.match(
   searchPageSource,
@@ -158,6 +168,32 @@ assert.match(
 assert.match(searchPageSource, /section\.state === 'running' \|\| section\.state === 'pending'/, 'SearchPage must render running/pending source states')
 assert.match(searchPageSource, /section\.state === 'empty' \|\| section\.state === 'timeout' \|\| section\.state === 'failed' \|\| section\.state === 'unsupported'/, 'SearchPage must distinguish terminal non-result states')
 assert.doesNotMatch(searchPageSource, /feedbackText\s*=\s*e\.message|message='\s*\+\s*e\.message/, 'SearchPage must not expose or log raw exception messages')
+
+assert.match(
+  routerHelperSource,
+  /export interface SearchRouteParam \{[\s\S]*query: string[\s\S]*setSearchOpener\(opener: \(param: SearchRouteParam\) => void\)[\s\S]*openSearch\(param: SearchRouteParam\)/,
+  'RouterHelper must expose app-level search opening with a query param',
+)
+assert.match(
+  indexSource,
+  /openSearchQuery\(query: string\): void \{[\s\S]*this\.appPathStack\.clear\(\)[\s\S]*this\.searchRouteQuery = normalizedQuery[\s\S]*this\.searchRouteSerial \+= 1[\s\S]*this\.selectedTab = TabIndex\.SEARCH[\s\S]*this\.tabController\.changeIndex\(TabIndex\.SEARCH\)/,
+  'Index must open tag searches by returning to the root tab surface and selecting Search',
+)
+assert.match(
+  indexSource,
+  /RouterHelper\.setSearchOpener\(\(param\) => \{[\s\S]*this\.openSearchQuery\(param\.query\)[\s\S]*SearchPage\(\{[\s\S]*externalQuery: this\.searchRouteQuery,[\s\S]*externalQuerySerial: this\.searchRouteSerial/,
+  'Index must wire RouterHelper search requests into SearchPage external query props',
+)
+assert.match(
+  mangaTagsSectionSource,
+  /@Event onTagClick: \(tag: string\) => void[\s\S]*\.onClick\(\(\) => \{[\s\S]*this\.onTagClick\(tag\)/,
+  'MangaTagsSection tags must emit click events instead of using a no-op handler',
+)
+assert.match(
+  mangaDetailPageSource,
+  /MangaTagsSection\(\{[\s\S]*onTagClick: \(tag: string\) => \{[\s\S]*RouterHelper\.openSearch\(\{ query: tag \}\)/,
+  'Manga detail tag taps must open global search for that tag',
+)
 
 assert.match(browseViewModelSource, /safeSearchDiagnostic\(e\)\.userText/, 'source search page errors must use redacted user text')
 assert.doesNotMatch(

@@ -5,12 +5,21 @@ export interface MangaDetailRouteParam {
   sourceId?: string
 }
 
+export interface SearchRouteParam {
+  query: string
+}
+
 export class RouterHelper {
   private static appPathStack: NavPathStack | undefined = undefined
   private static pendingLaunchRoute: string | undefined = undefined
+  private static searchOpener: ((param: SearchRouteParam) => void) | undefined = undefined
 
   static setAppPathStack(stack: NavPathStack): void {
     RouterHelper.appPathStack = stack
+  }
+
+  static setSearchOpener(opener: (param: SearchRouteParam) => void): void {
+    RouterHelper.searchOpener = opener
   }
 
   static getAppPathStack(): NavPathStack | undefined {
@@ -65,6 +74,14 @@ export class RouterHelper {
       return
     }
     stack.pushPath({ name: RouteName.MANGA_DETAIL, param: param })
+  }
+
+  static openSearch(param: SearchRouteParam): void {
+    const opener = RouterHelper.searchOpener
+    if (opener === undefined) {
+      return
+    }
+    opener(param)
   }
 
   static pop(): void {

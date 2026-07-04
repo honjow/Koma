@@ -102,6 +102,8 @@ struct Index {
   @Local private readerSessionConfig: ReaderSessionConfig = MOCK_LIBRARY_READER_SESSION
   @Local private libraryRevision: number = 0
   @Local private libraryComics: Comic[] = seededLibraryStore.listComics()
+  @Local private searchRouteQuery: string = ''
+  @Local private searchRouteSerial: number = 0
   private tabController: HdsTabsController = new HdsTabsController()
   private readerSessionStore: ReaderSessionStore = readerSessionStore
   private libraryStore: LibraryStore = seededLibraryStore
@@ -156,6 +158,19 @@ struct Index {
   private openSettingsPane(pane: SettingsPaneKey): void {
     const routeParam: SettingsPaneRouteParam = { pane: pane }
     this.appPathStack.pushPath({ name: RouteName.SETTINGS_PANE, param: routeParam })
+  }
+
+  private openSearchQuery(query: string): void {
+    const normalizedQuery = query.trim()
+    if (normalizedQuery.length === 0) {
+      return
+    }
+    this.readerOpen = false
+    this.appPathStack.clear()
+    this.searchRouteQuery = normalizedQuery
+    this.searchRouteSerial += 1
+    this.selectedTab = TabIndex.SEARCH
+    this.tabController.changeIndex(TabIndex.SEARCH)
   }
 
   private settingsPaneFromParam(param: Object): SettingsPaneKey {
@@ -447,6 +462,9 @@ struct Index {
 
   aboutToAppear(): void {
     RouterHelper.setAppPathStack(this.appPathStack)
+    RouterHelper.setSearchOpener((param) => {
+      this.openSearchQuery(param.query)
+    })
     RouterHelper.consumePendingLaunchRoute()
     const context = getContext(this) as common.UIAbilityContext
     configureSourceSettingsStore(context)
@@ -704,6 +722,8 @@ struct Index {
 
             TabContent() {
               SearchPage({
+                externalQuery: this.searchRouteQuery,
+                externalQuerySerial: this.searchRouteSerial,
                 libraryStore: this.libraryStore,
                 libraryPersistenceService: this.ensureLibraryPersistenceService(),
                 onLibraryChanged: () => {

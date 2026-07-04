@@ -42,6 +42,8 @@ function s(name: string): string {
 
 @ComponentV2
 export struct SearchPage {
+  @Param externalQuery: string = ''
+  @Param externalQuerySerial: number = 0
   @Local private languageState: LanguageState = connectLanguageState()
   @Local private queryText: string = ''
   @Local private sections: CrossSearchSection[] = []
@@ -52,6 +54,7 @@ export struct SearchPage {
   @Local private sourceFilterMenuOpen: boolean = false
   private searchTimer: number = 0
   private searchSerial: number = 0
+  private consumedExternalQuerySerial: number = 0
   private service?: CrossSearchService
   private historyStore?: SearchHistoryStore
   @Param libraryStore: LibraryStore = createSeededLibraryStore()
@@ -64,6 +67,7 @@ export struct SearchPage {
     this.service = new CrossSearchService(context)
     this.historyStore = new SearchHistoryStore(context)
     this.loadHistory()
+    this.consumeExternalQuery()
     console.info('[Search] step=page_appear')
   }
 
@@ -183,12 +187,33 @@ export struct SearchPage {
   }
 
   private runHistoryQuery(query: string): void {
+    this.runImmediateQuery(query)
+  }
+
+  private runImmediateQuery(query: string): void {
     if (this.searchTimer > 0) {
       clearTimeout(this.searchTimer)
       this.searchTimer = 0
     }
     this.queryText = query
     void this.runSearch(query)
+  }
+
+  @Monitor('externalQuerySerial')
+  private onExternalQueryChanged(): void {
+    this.consumeExternalQuery()
+  }
+
+  private consumeExternalQuery(): void {
+    if (this.externalQuerySerial === 0 || this.externalQuerySerial === this.consumedExternalQuerySerial) {
+      return
+    }
+    const query = this.externalQuery.trim()
+    this.consumedExternalQuerySerial = this.externalQuerySerial
+    if (query.length === 0) {
+      return
+    }
+    this.runImmediateQuery(query)
   }
 
   private setSourceFilter(sourceFilter: CrossSearchSourceFilter): void {

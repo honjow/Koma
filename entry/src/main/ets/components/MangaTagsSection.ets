@@ -10,6 +10,7 @@ function s(name: string): string {
 export struct MangaTagsSection {
   @Param tags: string[] = []
   @Local private languageState: LanguageState = connectLanguageState()
+  @Event onTagClick: (tag: string) => void = (_tag: string) => {}
 
   private hasTags(): boolean {
     return this.tags.length > 0
@@ -34,7 +35,9 @@ export struct MangaTagsSection {
               .borderRadius(ThemeConstants.RADIUS_ROUND)
               .backgroundColor(ThemeConstants.SOFT_TINT)
               .margin({ right: ThemeConstants.SPACE_SM, bottom: ThemeConstants.SPACE_SM })
-              .onClick(() => {})
+              .onClick(() => {
+                this.onTagClick(tag)
+              })
           }, (tag: string) => tag)
         }
         .width('100%')

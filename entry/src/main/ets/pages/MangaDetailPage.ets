@@ -68,6 +68,7 @@ import {
   TrackerProgressSyncReason,
   TrackerProgressSyncService,
 } from '../model/TrackerProgressSyncService'
+import { RouterHelper } from '../common/RouterHelper'
 import {
   TrackerMappingSearchReason,
   TrackerMappingSearchService,
@@ -1318,6 +1319,9 @@ export struct MangaDetailPage {
 
           MangaTagsSection({
             tags: this.manga.tags === undefined ? [] : this.manga.tags,
+            onTagClick: (tag: string) => {
+              RouterHelper.openSearch({ query: tag })
+            },
           })
 
           ChapterListSection({
