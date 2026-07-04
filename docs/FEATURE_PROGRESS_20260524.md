@@ -158,6 +158,7 @@ Verified on device `192.168.50.103:12345`:
 - Local source package manager supports local archive import, enable/disable/remove, and smoke. Next source-import product path should be URL source-index import/load, not a bundled market and not local picker only; source index/package definitions are owned by `/home/gamer/git/koma-sources/dist/index.json`.
 - Source package manager page: URL index as primary source import path, local picker as secondary fallback.
 - App accepts source-repo `.koma` packages (`manifest.json` + `source.wasm`) and legacy/internal source archive layouts.
+- External source dist validation now checks `/Users/honjow/git/koma-sources/dist/index.json`, package zip structure, manifest/index parity, sha256 pins when present, and `koma-source-dev info` execution against every packaged `source.wasm`. Local source development was also compile-smoked with `koma_mangadex_source` targeting `wasm32-unknown-unknown`.
 - Reader integrates source `get_image_request` for source-owned image URL/header resolution.
 - Installed source packages can expose non-secret `get_settings` descriptors; Koma stores sanitized values per source id and injects them into Browse/detail/pages/image-request runtime envelopes.
 - Installed source cards can validate saved non-secret settings through a `get_settings` runtime request and show per-source PASS/FAIL state without exposing setting values.

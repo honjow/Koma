@@ -1,12 +1,14 @@
 import assert from 'node:assert/strict'
 import { execFileSync } from 'node:child_process'
 import { createHash } from 'node:crypto'
-import { existsSync, readFileSync } from 'node:fs'
+import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
 import { resolve } from 'node:path'
 
 const root = resolve(import.meta.dirname, '..')
 const distDir = resolve(process.env.KOMA_SOURCES_DIST ?? resolve(root, '../koma-sources/dist'))
 const indexPath = resolve(distDir, 'index.json')
+const devRunnerPath = resolve(process.env.KOMA_SOURCE_DEV ?? resolve(distDir, '../target/release/koma-source-dev'))
 
 function fail(message) {
   throw new Error(message)
@@ -47,6 +49,27 @@ function unzipText(zipPath, entryName) {
   }
 }
 
+function unzipBytes(zipPath, entryName) {
+  try {
+    return execFileSync('unzip', ['-p', zipPath, entryName])
+  } catch (_error) {
+    fail(`${zipPath} is missing ${entryName} or unzip is unavailable`)
+  }
+}
+
+function runSourceInfo(zipPath) {
+  const tempDir = mkdtempSync(resolve(tmpdir(), 'koma-source-dist-'))
+  const wasmPath = resolve(tempDir, 'source.wasm')
+  try {
+    writeFileSync(wasmPath, unzipBytes(zipPath, 'source.wasm'))
+    return readJsonFromText(execFileSync(devRunnerPath, ['info', wasmPath], { encoding: 'utf8' }), `${zipPath} source info`)
+  } catch (error) {
+    fail(`${zipPath} source.wasm failed source info smoke: ${error.message}`)
+  } finally {
+    rmSync(tempDir, { recursive: true, force: true })
+  }
+}
+
 function zipListing(zipPath) {
   try {
     return execFileSync('unzip', ['-Z1', zipPath], { encoding: 'utf8' })
@@ -59,6 +82,7 @@ function zipListing(zipPath) {
 }
 
 assert.ok(existsSync(indexPath), `missing source index: ${indexPath}`)
+assert.ok(existsSync(devRunnerPath), `missing source dev runner: ${devRunnerPath}`)
 
 const sourceIndex = readJson(indexPath, 'source index')
 const sources = Array.isArray(sourceIndex) ? sourceIndex : sourceIndex.sources
@@ -96,6 +120,12 @@ sources.forEach((source, index) => {
   assert.equal(manifest.id, source.id, `${source.pkg} manifest id must match index id`)
   assert.equal(manifest.version, source.version, `${source.pkg} manifest version must match index version`)
   assert.equal(manifest.name, source.name, `${source.pkg} manifest name must match index name`)
+
+  const info = runSourceInfo(pkgPath)
+  assert.equal(info?.ok, true, `${source.pkg} source info smoke must succeed`)
+  assert.equal(info?.data?.sourceInfo?.id, source.id, `${source.pkg} source info id must match index id`)
+  assert.equal(info?.data?.sourceInfo?.version, source.version, `${source.pkg} source info version must match index version`)
+  assert.equal(info?.data?.sourceInfo?.name, source.name, `${source.pkg} source info name must match index name`)
 })
 
 function readJsonFromText(text, label) {
