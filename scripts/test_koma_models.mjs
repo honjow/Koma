@@ -566,6 +566,11 @@ assert.match(
 )
 assert.match(
   searchPageSource,
+  /isCrossSearchQueryMeaningful[\s\S]*query\.length === 0 \|\| !isCrossSearchQueryMeaningful\(query\)[\s\S]*return[\s\S]*this\.recordHistory\(query\)/,
+  'SearchPage must not record or submit punctuation-only queries ignored by cross-search',
+)
+assert.match(
+  searchPageSource,
   /KomaIconButton\(\{[\s\S]*icon: \$r\('sys\.symbol\.trash'\)[\s\S]*this\.removeHistoryEntry\(entry\.query\)/,
   'SearchPage history rows must use a trash icon button for single-entry deletion',
 )
@@ -598,6 +603,11 @@ assert.match(
   crossSearchServiceSource,
   /private sortSearchResultItems\(query: string, items: CrossSearchResultItem\[\]\): CrossSearchResultItem\[\][\s\S]*const compactQuery = this\.compactSearchText\(query\)[\s\S]*this\.searchResultScore\(left, normalizedQuery, compactQuery\) - this\.searchResultScore\(right, normalizedQuery, compactQuery\)[\s\S]*left\.title\.localeCompare\(right\.title\)/,
   'CrossSearchService must apply stable result scoring instead of raw provider order',
+)
+assert.match(
+  crossSearchServiceSource,
+  /export function normalizeCrossSearchText\(value: string\): string[\s\S]*isAsciiLetter[\s\S]*isDigit[\s\S]*isNonAsciiText[\s\S]*previousWasSpace[\s\S]*export function isCrossSearchQueryMeaningful\(value: string\): boolean[\s\S]*normalizeCrossSearchText\(value\)\.length > 0[\s\S]*!isCrossSearchQueryMeaningful\(normalizedQuery\)[\s\S]*return \[\]/,
+  'CrossSearchService must expose a shared meaningful-query gate for punctuation-only inputs',
 )
 assert.match(
   crossSearchServiceSource,

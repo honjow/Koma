@@ -61,12 +61,17 @@ assert.match(
 )
 assert.match(
   crossSearchSource,
-  /normalizeSearchText\(normalizedQuery\)\.length === 0[\s\S]*return \[\]/,
+  /!isCrossSearchQueryMeaningful\(normalizedQuery\)[\s\S]*return \[\]/,
   'punctuation-only search queries must not fan out into all providers',
 )
 assert.match(
   crossSearchSource,
-  /private normalizeSearchText\(value: string\): string[\s\S]*isAsciiLetter[\s\S]*isDigit[\s\S]*isNonAsciiText[\s\S]*previousWasSpace/,
+  /export function isCrossSearchQueryMeaningful\(value: string\): boolean[\s\S]*normalizeCrossSearchText\(value\)\.length > 0/,
+  'cross-search must expose the same meaningful-query gate used by the service and UI',
+)
+assert.match(
+  crossSearchSource,
+  /export function normalizeCrossSearchText\(value: string\): string[\s\S]*isAsciiLetter[\s\S]*isDigit[\s\S]*isNonAsciiText[\s\S]*previousWasSpace[\s\S]*private normalizeSearchText\(value: string\): string[\s\S]*return normalizeCrossSearchText\(value\)/,
   'cross-search must normalize punctuation and spacing before local ranking/matching',
 )
 assert.match(
@@ -122,6 +127,11 @@ assert.doesNotMatch(crossSearchSource, /errorText:\s*e\.message|message='\s*\+\s
 assert.match(searchPageSource, /@Local private history:\s*SearchHistoryEntry\[\]/, 'SearchPage must keep recent search history state')
 assert.match(searchPageSource, /new SearchHistoryStore\(context\)/, 'SearchPage must create persistent history store')
 assert.match(searchPageSource, /this\.recordHistory\(query\)/, 'SearchPage must record non-empty submitted searches')
+assert.match(
+  searchPageSource,
+  /isCrossSearchQueryMeaningful[\s\S]*query\.length === 0 \|\| !isCrossSearchQueryMeaningful\(query\)[\s\S]*return[\s\S]*this\.recordHistory\(query\)/,
+  'SearchPage must not record or submit punctuation-only queries that the service will ignore',
+)
 assert.match(searchPageSource, /this\.HistoryPanel\(\)/, 'SearchPage must render history for an empty query')
 assert.match(searchPageSource, /this\.runHistoryQuery\(entry\.query\)/, 'history rows must run searches when tapped')
 assert.match(searchPageSource, /this\.clearHistory\(\)/, 'SearchPage must expose clear-history action')

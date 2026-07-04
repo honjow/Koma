@@ -8,6 +8,7 @@ import {
   CrossSearchSection,
   CrossSearchService,
   CrossSearchSourceFilter,
+  isCrossSearchQueryMeaningful,
 } from '../model/CrossSearchService'
 import { ThemeConstants } from '../theme/ThemeConstants'
 import { KomgaSeriesPage } from './KomgaSeriesPage'
@@ -88,11 +89,11 @@ export struct SearchPage {
     const query = value.trim()
     this.searchSerial += 1
     const serial = this.searchSerial
-    if (query.length === 0) {
+    if (query.length === 0 || !isCrossSearchQueryMeaningful(query)) {
       this.sections = []
       this.feedbackText = ''
       this.loading = false
-      console.info('[Search] step=query_cleared')
+      console.info(query.length === 0 ? '[Search] step=query_cleared' : '[Search] step=query_ignored reason=not_meaningful')
       return
     }
     const service = this.service
@@ -305,6 +306,10 @@ export struct SearchPage {
     return s('search_filter_all')
   }
 
+  private hasMeaningfulSearchQuery(): boolean {
+    return isCrossSearchQueryMeaningful(this.queryText)
+  }
+
   @Builder
   private SearchInput() {
     Search({ value: this.queryText, placeholder: s('search_placeholder') })
@@ -372,11 +377,11 @@ export struct SearchPage {
   @Builder
   private EmptyResults() {
     Column({ space: ThemeConstants.SPACE_MD }) {
-      Text(this.queryText.trim().length === 0 ? s('search_empty_idle_title') : s('search_empty_results_title'))
+      Text(!this.hasMeaningfulSearchQuery() ? s('search_empty_idle_title') : s('search_empty_results_title'))
         .fontSize(ThemeConstants.FONT_SIZE_BODY)
         .fontWeight(FontWeight.Medium)
         .fontColor(ThemeConstants.TEXT_PRIMARY)
-      Text(this.queryText.trim().length === 0 ? s('search_empty_idle_message') : s('search_empty_results_message'))
+      Text(!this.hasMeaningfulSearchQuery() ? s('search_empty_idle_message') : s('search_empty_results_message'))
         .fontSize(ThemeConstants.FONT_SIZE_META)
         .lineHeight(ThemeConstants.LINE_HEIGHT_BODY)
         .fontColor(ThemeConstants.TEXT_SECONDARY)

@@ -85,6 +85,31 @@ const SEARCH_TIMEOUT_MS: number = 5000
 const KOMGA_PAGE_SIZE: number = 20
 const SOURCE_PAGE_SIZE: number = 20
 
+export function normalizeCrossSearchText(value: string): string {
+  const lower = value.trim().toLocaleLowerCase()
+  let normalized = ''
+  let previousWasSpace = true
+  for (let index = 0; index < lower.length; index += 1) {
+    const ch = lower.charAt(index)
+    const code = lower.charCodeAt(index)
+    const isAsciiLetter = ch >= 'a' && ch <= 'z'
+    const isDigit = ch >= '0' && ch <= '9'
+    const isNonAsciiText = code > 127
+    if (isAsciiLetter || isDigit || isNonAsciiText) {
+      normalized += ch
+      previousWasSpace = false
+    } else if (!previousWasSpace) {
+      normalized += ' '
+      previousWasSpace = true
+    }
+  }
+  return previousWasSpace && normalized.length > 0 ? normalized.substring(0, normalized.length - 1) : normalized
+}
+
+export function isCrossSearchQueryMeaningful(value: string): boolean {
+  return normalizeCrossSearchText(value).length > 0
+}
+
 export class CrossSearchService {
   private context: common.UIAbilityContext
   private remoteStore: RemoteServerStore
@@ -101,7 +126,7 @@ export class CrossSearchService {
     if (normalizedQuery.length === 0) {
       return []
     }
-    if (this.normalizeSearchText(normalizedQuery).length === 0) {
+    if (!isCrossSearchQueryMeaningful(normalizedQuery)) {
       return []
     }
     console.info(`[Search] step=query_start length=${normalizedQuery.length}`)
@@ -661,24 +686,7 @@ export class CrossSearchService {
   }
 
   private normalizeSearchText(value: string): string {
-    const lower = value.trim().toLocaleLowerCase()
-    let normalized = ''
-    let previousWasSpace = true
-    for (let index = 0; index < lower.length; index += 1) {
-      const ch = lower.charAt(index)
-      const code = lower.charCodeAt(index)
-      const isAsciiLetter = ch >= 'a' && ch <= 'z'
-      const isDigit = ch >= '0' && ch <= '9'
-      const isNonAsciiText = code > 127
-      if (isAsciiLetter || isDigit || isNonAsciiText) {
-        normalized += ch
-        previousWasSpace = false
-      } else if (!previousWasSpace) {
-        normalized += ' '
-        previousWasSpace = true
-      }
-    }
-    return previousWasSpace && normalized.length > 0 ? normalized.substring(0, normalized.length - 1) : normalized
+    return normalizeCrossSearchText(value)
   }
 
   private komgaSeriesTitle(item: KomgaSeriesDto): string {
