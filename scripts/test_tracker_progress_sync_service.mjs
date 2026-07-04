@@ -6,6 +6,7 @@ const root = resolve(import.meta.dirname, '..')
 const source = readFileSync(resolve(root, 'entry/src/main/ets/model/TrackerProgressSyncService.ets'), 'utf8')
 const clientSource = readFileSync(resolve(root, 'entry/src/main/ets/model/AniListTrackerClient.ets'), 'utf8')
 const pendingStoreSource = readFileSync(resolve(root, 'entry/src/main/ets/model/TrackerPendingSyncStore.ets'), 'utf8')
+const indexSource = readFileSync(resolve(root, 'entry/src/main/ets/pages/Index.ets'), 'utf8')
 
 assert.match(source, /export class TrackerProgressSyncService/, 'tracker progress sync service must exist')
 assert.match(source, /AniListTrackerClient/, 'tracker progress sync service must depend on the AniList provider client')
@@ -128,6 +129,26 @@ assert.doesNotMatch(
   pendingStoreSource,
   /token|authorization|Bearer|accessToken|refreshToken|providerTitleId|raw|message/i,
   'tracker pending sync store must not persist tokens, provider title ids, raw messages, or authorization material',
+)
+assert.match(
+  indexSource,
+  /import \{ TrackerPendingProgressDrainSummary, TrackerProgressSyncService \} from '\.\.\/model\/TrackerProgressSyncService'/,
+  'Index must import tracker progress sync service for app-open pending progress recovery',
+)
+assert.match(
+  indexSource,
+  /pendingTrackerProgressChecked: boolean = false[\s\S]*triggerPendingTrackerProgressSync\(context: common\.UIAbilityContext\)[\s\S]*new TrackerProgressSyncService\(context\)\.retryPendingProgress\(10\)[\s\S]*this\.triggerPendingTrackerProgressSync\(context\)/,
+  'Index must run a bounded app-open drain for retained tracker progress',
+)
+assert.match(
+  indexSource,
+  /step=app_open_pending_progress scanned=[\s\S]*synced=[\s\S]*retained=[\s\S]*failed=[\s\S]*skipped=/,
+  'Index pending tracker progress recovery logs must expose only aggregate counts',
+)
+assert.doesNotMatch(
+  indexSource,
+  /\[TrackerSync\] step=app_open_pending_progress[^\n]*(token|authorization|Bearer|providerTitleId|comic=|chapter=|message=)/i,
+  'Index pending tracker progress recovery logs must not leak tokens, provider ids, local ids, or raw errors',
 )
 
 console.log('tracker progress sync service checks PASS')

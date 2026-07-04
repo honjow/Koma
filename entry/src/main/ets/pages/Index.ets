@@ -71,6 +71,7 @@ import { configureSourceSettingsStore } from '../sourceRuntime/SourceSettingsSto
 import { AppStrings } from '../i18n/AppStrings'
 import { connectLanguageState, LanguageState } from '../state/LanguageState'
 import { BackupService, BackupAutomaticRunResult } from '../model/BackupService'
+import { TrackerPendingProgressDrainSummary, TrackerProgressSyncService } from '../model/TrackerProgressSyncService'
 
 const readerSessionStore: ReaderSessionStore = new InMemoryReaderSessionStore()
 const seededLibraryStore: LibraryStore = createSeededLibraryStore()
@@ -102,6 +103,7 @@ struct Index {
   private libraryPersistenceService?: LibraryStorePersistenceService
   private libraryPersistenceRestored: boolean = false
   private automaticBackupChecked: boolean = false
+  private pendingTrackerProgressChecked: boolean = false
 
   private refreshLibrarySnapshot(): void {
     this.libraryComics = this.libraryStore.listComics()
@@ -327,6 +329,26 @@ struct Index {
       })
   }
 
+  private triggerPendingTrackerProgressSync(context: common.UIAbilityContext): void {
+    if (this.pendingTrackerProgressChecked) {
+      return
+    }
+    this.pendingTrackerProgressChecked = true
+    void new TrackerProgressSyncService(context).retryPendingProgress(10)
+      .then((summary: TrackerPendingProgressDrainSummary) => {
+        if (summary.scannedCount > 0) {
+          console.info('[TrackerSync] step=app_open_pending_progress scanned=' + summary.scannedCount +
+            ' synced=' + summary.syncedCount +
+            ' retained=' + summary.retainedCount +
+            ' failed=' + summary.failedCount +
+            ' skipped=' + summary.skippedCount)
+        }
+      })
+      .catch((_error: Error) => {
+        console.warn('[TrackerSync] step=app_open_pending_progress status=failed reason=provider_failed')
+      })
+  }
+
   aboutToAppear(): void {
     RouterHelper.setAppPathStack(this.appPathStack)
     RouterHelper.consumePendingLaunchRoute()
@@ -347,6 +369,7 @@ struct Index {
       }
     }
     this.triggerAutomaticBackup(context)
+    this.triggerPendingTrackerProgressSync(context)
   }
 
   @Builder
