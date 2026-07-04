@@ -328,7 +328,7 @@ assert.match(
 )
 assert.match(
   sourceModelsSource,
-  /type: 'select' \| 'text' \| 'check' \| 'sort' \| 'multiselect' \| 'range' \| 'group'[\s\S]*value\?: string \| number \| boolean \| string\[\][\s\S]*minValue\?: number[\s\S]*maxValue\?: number[\s\S]*step\?: number[\s\S]*filters\?: SourceRuntimeFilterPayload\[\][\s\S]*value === 'multiselect' \|\| value === 'multi-select' \|\| value === 'multiSelect'[\s\S]*appendSourceFilters\(filters, payload\.filters \?\? \[\]\)[\s\S]*if \(type === 'group'\)[\s\S]*appendSourceFilters\(target, row\.filters \?\? \[\]\)[\s\S]*minValue: optionalNumber\(row\.min\)[\s\S]*maxValue: optionalNumber\(row\.max\)[\s\S]*step: optionalNumber\(row\.step\)/,
+  /type: 'select' \| 'text' \| 'check' \| 'sort' \| 'multiselect' \| 'range' \| 'group'[\s\S]*value\?: string \| number \| boolean \| string\[\][\s\S]*minValue\?: number[\s\S]*maxValue\?: number[\s\S]*step\?: number[\s\S]*filters\?: SourceRuntimeFilterPayload\[\][\s\S]*items\?: SourceRuntimeFilterPayload\[\][\s\S]*value === 'multiselect' \|\| value === 'multi-select' \|\| value === 'multiSelect'[\s\S]*appendSourceFilters\(filters, payload\.filters \?\? \(payload\.items \?\? \[\]\)\)[\s\S]*if \(type === 'group'\)[\s\S]*appendSourceFilters\(target, row\.filters \?\? \[\]\)[\s\S]*minValue: optionalNumber\(row\.min\)[\s\S]*maxValue: optionalNumber\(row\.max\)[\s\S]*step: optionalNumber\(row\.step\)/,
   'SourceModels must parse source multi-select and range filter descriptors and values',
 )
 assert.match(

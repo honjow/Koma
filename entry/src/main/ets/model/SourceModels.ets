@@ -122,6 +122,7 @@ interface SourceRuntimeFilterPayload {
 
 interface SourceRuntimeFiltersPayload {
   filters?: SourceRuntimeFilterPayload[]
+  items?: SourceRuntimeFilterPayload[]
 }
 
 function normalizeSourceMangaStatus(value: string | undefined): SourceMangaStatus {
@@ -278,7 +279,7 @@ export function parseSourceFiltersJson(json: string): SourceFilter[] {
   try {
     const payload = JSON.parse(json) as SourceRuntimeFiltersPayload
     const filters: SourceFilter[] = []
-    appendSourceFilters(filters, payload.filters ?? [])
+    appendSourceFilters(filters, payload.filters ?? (payload.items ?? []))
     return filters
   } catch (_err) {
     return []
