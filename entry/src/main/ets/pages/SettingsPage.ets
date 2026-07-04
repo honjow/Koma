@@ -792,6 +792,7 @@ export struct SettingsPage {
             'backup-auto-export',
             'backup-include-settings',
             'backup-include-download-queue',
+            'backup-include-tracker-mappings',
           ]),
         },
       ]

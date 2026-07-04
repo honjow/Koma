@@ -279,6 +279,11 @@ assert.match(
   'BackupManagementPage included-data card must show core domains plus switchable optional domains',
 )
 assert.match(
+  settingsPageSource,
+  /pane === 'backup'[\s\S]*backup-include-settings[\s\S]*backup-include-download-queue[\s\S]*backup-include-tracker-mappings/,
+  'Settings backup pane must expose all backup content preference switches',
+)
+assert.match(
   backupPageSource,
   /autoPreferences: BackupAutomaticPreferences = DEFAULT_BACKUP_AUTOMATIC_PREFERENCES[\s\S]*loadAutomaticPreferences\(\)[\s\S]*saveAutomaticPreferences\(preferencesValue: BackupAutomaticPreferences\)[\s\S]*setAutomaticBackupEnabled\(enabled: boolean\)/,
   'BackupManagementPage must load and save real automatic backup preferences',
