@@ -41,6 +41,7 @@ const browsePagePath = resolve(root, 'entry/src/main/ets/pages/BrowsePage.ets')
 const historyPagePath = resolve(root, 'entry/src/main/ets/pages/HistoryPage.ets')
 const searchPagePath = resolve(root, 'entry/src/main/ets/pages/SearchPage.ets')
 const settingsPagePath = resolve(root, 'entry/src/main/ets/pages/SettingsPage.ets')
+const trackerSettingsPagePath = resolve(root, 'entry/src/main/ets/pages/TrackerSettingsPage.ets')
 const backupManagementPagePath = resolve(root, 'entry/src/main/ets/pages/BackupManagementPage.ets')
 const komgaServerPagePath = resolve(root, 'entry/src/main/ets/pages/KomgaServerPage.ets')
 const opdsServerPagePath = resolve(root, 'entry/src/main/ets/pages/OpdsServerPage.ets')
@@ -110,6 +111,7 @@ const browsePageSource = readFileSync(browsePagePath, 'utf8')
 const historyPageSource = readFileSync(historyPagePath, 'utf8')
 const searchPageSource = readFileSync(searchPagePath, 'utf8')
 const settingsPageSource = readFileSync(settingsPagePath, 'utf8')
+const trackerSettingsPageSource = readFileSync(trackerSettingsPagePath, 'utf8')
 const backupManagementPageSource = readFileSync(backupManagementPagePath, 'utf8')
 const komgaServerPageSource = readFileSync(komgaServerPagePath, 'utf8')
 const opdsServerPageSource = readFileSync(opdsServerPagePath, 'utf8')
@@ -2134,6 +2136,21 @@ assert.match(
   readerPageSource,
   /aboutToDisappear\(\): void \{[\s\S]*const progress = this\.setPageIndex\(this\.pageIndex\)[\s\S]*this\.remoteProgressSyncService\?\.flushPendingPushes\(\)[\s\S]*this\.pushTrackerProgress\(progress, 'on_reader_close'\)/,
   'Reader close must flush pending Komga progress before the debounced push can be dropped',
+)
+assert.match(
+  trackerProgressSyncServiceSource,
+  /pushReadingProgress\([\s\S]*trigger: TrackerUpdateStrategy = 'on_chapter_complete'[\s\S]*if \(trigger !== 'manual' && !preferences\.autoSyncEnabled\)[\s\S]*return this\.skipped\('auto_sync_disabled'\)/,
+  'Tracker manual progress sync must bypass the automatic-sync toggle while automatic reader triggers still respect it',
+)
+assert.match(
+  trackerProgressSyncServiceSource,
+  /retryPendingProgress\([\s\S]*allowWhenAutoSyncDisabled: boolean = false[\s\S]*if \(!allowWhenAutoSyncDisabled && !preferences\.autoSyncEnabled\)[\s\S]*summary\.retainedCount = entries\.length/,
+  'Tracker pending retry must default to respecting auto-sync but support explicit user-initiated retry',
+)
+assert.match(
+  trackerSettingsPageSource,
+  /retryPendingProgressNow\(\): void \{[\s\S]*retryPendingProgress\(20, Date\.now\(\), true\)/,
+  'Tracker settings retry button must run as an explicit manual retry even when automatic tracker sync is off',
 )
 assert.doesNotMatch(
   remoteProgressBootstrapSyncSource,

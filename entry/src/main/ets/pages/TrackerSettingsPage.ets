@@ -321,7 +321,7 @@ export struct TrackerSettingsPage {
       return
     }
     this.pendingRetryBusy = true
-    void new TrackerProgressSyncService(this.context()).retryPendingProgress(20)
+    void new TrackerProgressSyncService(this.context()).retryPendingProgress(20, Date.now(), true)
       .then((summary: TrackerPendingProgressDrainSummary) => {
         console.info(`[TrackerSync] step=settings_pending_retry scanned=${summary.scannedCount} synced=${summary.syncedCount} retained=${summary.retainedCount} failed=${summary.failedCount} skipped=${summary.skippedCount}`)
         this.showToast(s('tracker_pending_retry_done')

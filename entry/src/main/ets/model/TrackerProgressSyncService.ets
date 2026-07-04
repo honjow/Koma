@@ -99,7 +99,7 @@ export class TrackerProgressSyncService {
     preferredProviderId?: TrackerProviderId,
   ): Promise<TrackerProgressSyncResult> {
     const preferences = await this.preferencesStore().load()
-    if (!preferences.autoSyncEnabled) {
+    if (trigger !== 'manual' && !preferences.autoSyncEnabled) {
       return this.skipped('auto_sync_disabled')
     }
     if (trigger === 'on_chapter_complete' && !progress.completed) {
@@ -164,7 +164,11 @@ export class TrackerProgressSyncService {
     return this.progressResult(mapping, result.value)
   }
 
-  async retryPendingProgress(limit: number = 20, now: number = Date.now()): Promise<TrackerPendingProgressDrainSummary> {
+  async retryPendingProgress(
+    limit: number = 20,
+    now: number = Date.now(),
+    allowWhenAutoSyncDisabled: boolean = false,
+  ): Promise<TrackerPendingProgressDrainSummary> {
     const pending = await this.pendingStore.loadPendingProgress()
     const normalizedLimit = Math.max(0, Math.min(50, Math.floor(limit)))
     const entries = pending.slice(0, normalizedLimit)
@@ -176,7 +180,7 @@ export class TrackerProgressSyncService {
       failedCount: 0,
       skippedCount: 0,
     }
-    if (!preferences.autoSyncEnabled) {
+    if (!allowWhenAutoSyncDisabled && !preferences.autoSyncEnabled) {
       summary.retainedCount = entries.length
       summary.skippedCount = entries.length
       return summary
