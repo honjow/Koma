@@ -455,6 +455,9 @@ export interface SourceRuntimeSmokeResult {
   sourceIndexReaderFetchOk?: boolean
   sourceIndexReaderEntryCount?: number
   sourceIndexReaderSelectedSourceId?: string
+  sourceIndexReaderHashPinPresent?: boolean
+  sourceIndexReaderChecksumMismatchRejected?: boolean
+  sourceIndexReaderChecksumMismatchReasonCode?: string
   sourceIndexReaderInstallOk?: boolean
   sourceIndexReaderWasmBytes?: number
   sourceIndexReaderSearchOk?: boolean
@@ -603,6 +606,23 @@ function sourcePageRowsToComic(
     createdAt: now,
     updatedAt: now,
     lastImportedAt: now,
+  }
+}
+
+function sourceIndexEntryWithSha256(entry: SourceIndexEntry, sha256: string): SourceIndexEntry {
+  return {
+    id: entry.id,
+    name: entry.name,
+    version: entry.version,
+    lang: entry.lang,
+    nsfw: entry.nsfw,
+    author: entry.author,
+    description: entry.description,
+    contentRating: entry.contentRating,
+    pkg: entry.pkg,
+    sha256,
+    icon: entry.icon,
+    minAppVersion: entry.minAppVersion,
   }
 }
 
@@ -1764,6 +1784,17 @@ export async function maybeRunSourceRuntimeDeviceSmoke(
           if (!fetch.ok || entry === undefined) {
             result.error = 'source-index-reader source entry not found'
           } else {
+            result.sourceIndexReaderHashPinPresent = entry.sha256.length > 0
+            const checksumNegative = await sourceIndexService.installPackage(
+              indexUrl,
+              sourceIndexEntryWithSha256(
+                entry,
+                '0000000000000000000000000000000000000000000000000000000000000000',
+              ),
+            )
+            result.sourceIndexReaderChecksumMismatchReasonCode = checksumNegative.reasonCode
+            result.sourceIndexReaderChecksumMismatchRejected =
+              checksumNegative.ok === false && checksumNegative.reasonCode === 'checksum_mismatch'
             const install = await sourceIndexService.installPackage(indexUrl, entry)
             result.sourceIndexReaderInstallOk = install.ok === true && install.install?.id === selectedSourceId
             if (result.sourceIndexReaderInstallOk === true) {
@@ -1876,6 +1907,7 @@ export async function maybeRunSourceRuntimeDeviceSmoke(
         }
         result.ok = result.sourceIndexReaderIndexUrlProvided === true &&
           result.sourceIndexReaderFetchOk === true &&
+          result.sourceIndexReaderChecksumMismatchRejected === true &&
           result.sourceIndexReaderInstallOk === true &&
           result.sourceIndexReaderSearchOk === true &&
           result.sourceIndexReaderDetailOk === true &&

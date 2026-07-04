@@ -589,6 +589,12 @@ assert.match(
   /SourceIndexService[\s\S]*fetchIndex\(indexUrl\)[\s\S]*installPackage\(indexUrl, entry\)[\s\S]*runRealSourceSearchTask[\s\S]*get_pages[\s\S]*createReaderPageRenderSource/,
   'source-index reader smoke must fetch a user-provided index, install a selected package, run real source reader requests, and map pages into reader render sources',
 )
+const checksumNegativeInstallIndex = smokeSource.indexOf('const checksumNegative = await sourceIndexService.installPackage(')
+const normalInstallIndex = smokeSource.indexOf('const install = await sourceIndexService.installPackage(indexUrl, entry)')
+assert.ok(smokeSource.includes('sourceIndexEntryWithSha256'), 'source-index reader smoke must be able to pin a package hash for negative verification')
+assert.ok(smokeSource.includes("checksumNegative.reasonCode === 'checksum_mismatch'"), 'source-index reader smoke must require checksum_mismatch for the hash-pin negative')
+assert.ok(checksumNegativeInstallIndex >= 0 && normalInstallIndex > checksumNegativeInstallIndex, 'source-index reader smoke must verify package hash pins before normal install')
+assert.ok(smokeSource.includes('result.sourceIndexReaderChecksumMismatchRejected === true'), 'source-index reader smoke must fail if hash-pin rejection is not proven')
 assert.match(
   smokeSource,
   /SMOKE_PHASE_SOURCE_INDEX_DOWNLOAD_READER[\s\S]*OfflineDownloadService[\s\S]*downloadChapter\(comic, chapterId[\s\S]*configureReaderOfflineDownloads\(context\.filesDir\)[\s\S]*ReaderPageRenderKind\.LOCAL_FILE_IMAGE/,
