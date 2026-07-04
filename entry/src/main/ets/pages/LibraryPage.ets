@@ -237,11 +237,11 @@ export struct LibraryPage {
       const context = getContext(this) as common.UIAbilityContext
       const entries = new OfflineDownloadQueueStore(context.filesDir).reconcileWithManifests()
       entries.forEach((entry: OfflineDownloadQueueEntry) => {
-        if (entry.status === OfflineDownloadStatus.DOWNLOADED) {
-          comicAvailability.set(entry.comicId, OfflineDownloadStatus.DOWNLOADED)
-        } else if (entry.status === OfflineDownloadStatus.PARTIAL &&
-          comicAvailability.get(entry.comicId) !== OfflineDownloadStatus.DOWNLOADED) {
+        if (entry.status === OfflineDownloadStatus.PARTIAL) {
           comicAvailability.set(entry.comicId, OfflineDownloadStatus.PARTIAL)
+        } else if (entry.status === OfflineDownloadStatus.DOWNLOADED &&
+          comicAvailability.get(entry.comicId) !== OfflineDownloadStatus.PARTIAL) {
+          comicAvailability.set(entry.comicId, OfflineDownloadStatus.DOWNLOADED)
         }
       })
     } catch (error) {

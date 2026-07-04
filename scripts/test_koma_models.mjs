@@ -790,8 +790,8 @@ assert.match(
 )
 assert.match(
   libraryPageSource,
-  /filterAvailability: LibraryAvailabilityFilter = 'all'[\s\S]*filterAvailabilityComics\(this\.filterPreciseSourceComics\(nextComics\)\)[\s\S]*private filterAvailabilityComics\(comics: Comic\[\]\): Comic\[\][\s\S]*this\.filterAvailability === 'downloaded'[\s\S]*downloadedComics\.has\(comic\.id\)[\s\S]*this\.filterAvailability === 'fully_downloaded'[\s\S]*OfflineDownloadStatus\.DOWNLOADED[\s\S]*this\.filterAvailability === 'partially_downloaded'[\s\S]*OfflineDownloadStatus\.PARTIAL[\s\S]*!downloadedComics\.has\(comic\.id\)[\s\S]*new OfflineDownloadQueueStore\(context\.filesDir\)\.reconcileWithManifests\(\)[\s\S]*entry\.status === OfflineDownloadStatus\.DOWNLOADED[\s\S]*entry\.status === OfflineDownloadStatus\.PARTIAL/,
-  'LibraryPage availability filter must derive any/complete/partial/not-downloaded comics from reconciled download queue manifests',
+  /filterAvailability: LibraryAvailabilityFilter = 'all'[\s\S]*filterAvailabilityComics\(this\.filterPreciseSourceComics\(nextComics\)\)[\s\S]*private filterAvailabilityComics\(comics: Comic\[\]\): Comic\[\][\s\S]*this\.filterAvailability === 'downloaded'[\s\S]*downloadedComics\.has\(comic\.id\)[\s\S]*this\.filterAvailability === 'fully_downloaded'[\s\S]*OfflineDownloadStatus\.DOWNLOADED[\s\S]*this\.filterAvailability === 'partially_downloaded'[\s\S]*OfflineDownloadStatus\.PARTIAL[\s\S]*!downloadedComics\.has\(comic\.id\)[\s\S]*new OfflineDownloadQueueStore\(context\.filesDir\)\.reconcileWithManifests\(\)[\s\S]*entry\.status === OfflineDownloadStatus\.PARTIAL[\s\S]*comicAvailability\.set\(entry\.comicId, OfflineDownloadStatus\.PARTIAL\)[\s\S]*entry\.status === OfflineDownloadStatus\.DOWNLOADED[\s\S]*comicAvailability\.get\(entry\.comicId\) !== OfflineDownloadStatus\.PARTIAL/,
+  'LibraryPage availability filter must derive any/complete/partial/not-downloaded comics from reconciled download queue manifests with partial entries taking precedence over fully downloaded entries',
 )
 assert.match(
   libraryPageSource,
