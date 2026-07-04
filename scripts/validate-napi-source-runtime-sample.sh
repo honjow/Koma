@@ -554,6 +554,8 @@ python3 tools/wasm-runtime-spike/source-package/validate-local-source-archive-fi
 require_text "$smoke_file" 'nativeHelloOk'
 require_text "$smoke_file" 'nativeAddOk'
 require_text "$smoke_file" 'SMOKE_PHASE_INSTALLED_SOURCE_READER'
+require_text "$smoke_file" 'SMOKE_PHASE_SOURCE_INDEX_READER'
+require_text "$smoke_file" 'SourceIndexService'
 require_text "$smoke_file" 'installFromBytes'
 require_text "$smoke_file" 'createReaderPageRenderSource'
 require_text "$smoke_file" 'installedSourceReaderRenderSourceOk'

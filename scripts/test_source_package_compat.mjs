@@ -576,10 +576,21 @@ assert.match(
 )
 assert.match(smokeSource, /local_source_runtime_fixture\.koma/, 'device smoke must cover a .koma source archive')
 assert.match(smokeSource, /SMOKE_PHASE_INSTALLED_SOURCE_READER/, 'device smoke must include a focused installed-source reader phase')
+assert.match(smokeSource, /SMOKE_PHASE_SOURCE_INDEX_READER/, 'device smoke must include a focused source-index reader phase')
 assert.match(
   smokeSource,
   /installFromBytes[\s\S]*runRegisteredSourceRequestById[\s\S]*get_manga[\s\S]*get_chapters[\s\S]*get_pages[\s\S]*createReaderPageRenderSource/,
   'installed-source reader smoke must install a package, run detail/chapter/page source requests, and map pages into reader render sources',
+)
+assert.match(
+  smokeSource,
+  /SourceIndexService[\s\S]*fetchIndex\(indexUrl\)[\s\S]*installPackage\(indexUrl, entry\)[\s\S]*runRealSourceSearchTask[\s\S]*get_pages[\s\S]*createReaderPageRenderSource/,
+  'source-index reader smoke must fetch a user-provided index, install a selected package, run real source reader requests, and map pages into reader render sources',
+)
+assert.match(
+  smokeSource,
+  /refuses to overwrite installed source/,
+  'source-index reader smoke must refuse to overwrite an already installed user source',
 )
 assert.match(
   smokeSource,

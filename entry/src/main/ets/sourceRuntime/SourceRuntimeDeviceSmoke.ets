@@ -7,6 +7,10 @@ import {
   remove as removeInstalledSourcePackage,
 } from './SourceRuntimeAppRegistry'
 import {
+  SourceIndexEntry,
+  SourceIndexService,
+} from './SourceIndexService'
+import {
   NativeSourceRuntime,
   SourceRuntimeCallResponse,
 } from './NativeSourceRuntime'
@@ -69,6 +73,8 @@ import {
 const SMOKE_TRIGGER_PARAM: string = 'koma.sourceRuntimeSmoke'
 const SMOKE_TRIGGER_VALUE: string = 'run'
 const SMOKE_PHASE_PARAM: string = 'koma.sourceRuntimeSmoke.phase'
+const SMOKE_INDEX_URL_PARAM: string = 'koma.sourceRuntimeSmoke.indexUrl'
+const SMOKE_SOURCE_ID_PARAM: string = 'koma.sourceRuntimeSmoke.sourceId'
 const SMOKE_PHASE_FULL: string = 'full'
 const SMOKE_PHASE_SETUP_PERSISTED_INVENTORY: string = 'setup-persisted-inventory'
 const SMOKE_PHASE_RELOAD_PERSISTED_INVENTORY: string = 'reload-persisted-inventory'
@@ -79,9 +85,11 @@ const SMOKE_PHASE_CANCEL_TIMEOUT_NEGATIVES: string = 'cancel-timeout-negatives'
 const SMOKE_PHASE_REAL_SOURCE_SEARCH: string = 'real-source-search'
 const SMOKE_PHASE_REAL_SOURCE_READER: string = 'real-source-reader'
 const SMOKE_PHASE_INSTALLED_SOURCE_READER: string = 'installed-source-reader'
+const SMOKE_PHASE_SOURCE_INDEX_READER: string = 'source-index-reader'
 const REAL_SOURCE_RAWFILE_PATH: string = 'test/baozimh.wasm'
 const MANGADEX_RAWFILE_PATH: string = 'test/mangadex.wasm'
 const REAL_SOURCE_SEARCH_REQUEST: string = '{"operation":"search","query":"test"}'
+const SOURCE_INDEX_READER_DEFAULT_SOURCE_ID: string = 'online.baozimh.koma'
 const SMOKE_REQUEST_JSON: string = '{"operation":"search","query":"fixture","smoke":"koma-smoke"}'
 const RUST_SMOKE_REQUEST_JSON: string = '{"operation":"search","query":"fixture","smoke":"koma-rust-smoke"}'
 const PACKAGE_SMOKE_REQUEST_JSON: string = '{"operation":"search","query":"fixture","smoke":"koma-package-smoke"}'
@@ -421,6 +429,24 @@ export interface SourceRuntimeSmokeResult {
   installedSourceReaderRenderHasSourceRuntimeId?: boolean
   installedSourceReaderRenderHasPageId?: boolean
   installedSourceReaderCleanupOk?: boolean
+  sourceIndexReaderIndexUrlProvided?: boolean
+  sourceIndexReaderFetchOk?: boolean
+  sourceIndexReaderEntryCount?: number
+  sourceIndexReaderSelectedSourceId?: string
+  sourceIndexReaderInstallOk?: boolean
+  sourceIndexReaderWasmBytes?: number
+  sourceIndexReaderSearchOk?: boolean
+  sourceIndexReaderSearchCount?: number
+  sourceIndexReaderMangaId?: string
+  sourceIndexReaderDetailOk?: boolean
+  sourceIndexReaderChaptersOk?: boolean
+  sourceIndexReaderChapterCount?: number
+  sourceIndexReaderChapterId?: string
+  sourceIndexReaderPagesOk?: boolean
+  sourceIndexReaderPageCount?: number
+  sourceIndexReaderPageId?: string
+  sourceIndexReaderRenderSourceOk?: boolean
+  sourceIndexReaderCleanupOk?: boolean
   mangadexWasmBytes?: number
   mangadexResponse?: SourceRuntimeCallResponse
   error?: string
@@ -504,6 +530,11 @@ function smokePhase(want: Want): string {
   const parameters = wantParameters(want)
   const phase = parameters[SMOKE_PHASE_PARAM]
   return typeof phase === 'string' && phase.length > 0 ? phase : SMOKE_PHASE_FULL
+}
+
+function smokeStringParam(want: Want, name: string): string {
+  const value = wantParameters(want)[name]
+  return typeof value === 'string' ? value.trim() : ''
 }
 
 function applyPackageServiceSummary(
@@ -1602,6 +1633,122 @@ export async function maybeRunSourceRuntimeDeviceSmoke(
           result.installedSourceReaderCleanupOk === true
         if (!result.ok && result.error === undefined) {
           result.error = 'installed-source-reader failed'
+        }
+      }
+      compactSmokeResultForHilog(result)
+      console.info(SMOKE_LOG_PREFIX + JSON.stringify(result))
+      return
+    }
+
+    if (result.smokePhase === SMOKE_PHASE_SOURCE_INDEX_READER) {
+      if (context === undefined) {
+        result.error = 'source-index-reader phase requires ability context'
+      } else {
+        const indexUrl = smokeStringParam(want, SMOKE_INDEX_URL_PARAM)
+        const requestedSourceId = smokeStringParam(want, SMOKE_SOURCE_ID_PARAM)
+        const selectedSourceId = requestedSourceId.length > 0 ? requestedSourceId : SOURCE_INDEX_READER_DEFAULT_SOURCE_ID
+        result.sourceIndexReaderIndexUrlProvided = indexUrl.length > 0
+        result.sourceIndexReaderSelectedSourceId = selectedSourceId
+        const alreadyInstalled = appSourceRuntimeRegistry.lookup(selectedSourceId).ok
+        if (indexUrl.length === 0) {
+          result.error = 'source-index-reader requires indexUrl'
+        } else if (alreadyInstalled) {
+          result.error = 'source-index-reader refuses to overwrite installed source'
+        } else {
+          const sourceIndexService = new SourceIndexService(context)
+          const fetch = await sourceIndexService.fetchIndex(indexUrl)
+          result.sourceIndexReaderFetchOk = fetch.ok === true
+          result.sourceIndexReaderEntryCount = fetch.entries.length
+          const entry = fetch.entries.find((item: SourceIndexEntry): boolean => item.id === selectedSourceId)
+          if (!fetch.ok || entry === undefined) {
+            result.error = 'source-index-reader source entry not found'
+          } else {
+            const install = await sourceIndexService.installPackage(indexUrl, entry)
+            result.sourceIndexReaderInstallOk = install.ok === true && install.install?.id === selectedSourceId
+            if (result.sourceIndexReaderInstallOk === true) {
+              const lookup = appSourceRuntimeRegistry.lookup(selectedSourceId)
+              const sourceBytes = lookup.entry?.wasmBytes
+              result.sourceIndexReaderWasmBytes = sourceBytes?.byteLength ?? 0
+              if (sourceBytes !== undefined) {
+                const searchJson = await taskpool.execute(
+                  runRealSourceSearchTask,
+                  REAL_SOURCE_SEARCH_REQUEST,
+                  copySmokeWasmBytes(sourceBytes),
+                ) as string
+                const searchResponse: SourceRuntimeCallResponse = JSON.parse(searchJson) as SourceRuntimeCallResponse
+                const searchItems = responseItems(searchResponse)
+                const mangaId = firstStringField(searchItems, 'id')
+                result.sourceIndexReaderSearchOk = searchResponse.ok === true && mangaId.length > 0
+                result.sourceIndexReaderSearchCount = searchItems.length
+                result.sourceIndexReaderMangaId = mangaId
+
+                const detailJson = await taskpool.execute(
+                  runRealSourceSearchTask,
+                  `{"operation":"get_manga","mangaId":"${mangaId}"}`,
+                  copySmokeWasmBytes(sourceBytes),
+                ) as string
+                const detailResponse: SourceRuntimeCallResponse = JSON.parse(detailJson) as SourceRuntimeCallResponse
+                result.sourceIndexReaderDetailOk = detailResponse.ok === true
+
+                const chaptersJson = await taskpool.execute(
+                  runRealSourceSearchTask,
+                  `{"operation":"get_chapters","mangaId":"${mangaId}"}`,
+                  copySmokeWasmBytes(sourceBytes),
+                ) as string
+                const chaptersResponse: SourceRuntimeCallResponse = JSON.parse(chaptersJson) as SourceRuntimeCallResponse
+                const chapters = responseChapters(chaptersResponse)
+                const chapterId = firstStringField(chapters, 'id')
+                result.sourceIndexReaderChaptersOk = chaptersResponse.ok === true && chapterId.length > 0
+                result.sourceIndexReaderChapterCount = chapters.length
+                result.sourceIndexReaderChapterId = chapterId
+
+                const pagesJson = await taskpool.execute(
+                  runRealSourceSearchTask,
+                  `{"operation":"get_pages","chapterId":"${chapterId}"}`,
+                  copySmokeWasmBytes(sourceBytes),
+                ) as string
+                const pagesResponse: SourceRuntimeCallResponse = JSON.parse(pagesJson) as SourceRuntimeCallResponse
+                const pages = responsePages(pagesResponse)
+                const pageId = firstStringField(pages, 'id')
+                result.sourceIndexReaderPagesOk = pagesResponse.ok === true && pageId.length > 0
+                result.sourceIndexReaderPageCount = pages.length
+                result.sourceIndexReaderPageId = pageId
+
+                const readerConfig: ReaderSessionConfig = {
+                  comicId: mangaId,
+                  chapterId,
+                  title: 'Source Index Reader Smoke',
+                  chapterTitle: 'Chapter',
+                  chapterIds: [chapterId],
+                  totalPages: pages.length,
+                  pageUris: pages.map((page: Record<string, Object>): string => firstStringField([page], 'uri')),
+                  pageIds: pages.map((page: Record<string, Object>): string => firstStringField([page], 'id')),
+                  pageWidths: pages.map((page: Record<string, Object>): number | undefined => pageImageDimension(page, 'width')),
+                  pageHeights: pages.map((page: Record<string, Object>): number | undefined => pageImageDimension(page, 'height')),
+                  sourceRuntimeId: selectedSourceId,
+                }
+                const renderSource = createReaderPageRenderSource(readerConfig, 0, { preferOffline: false })
+                result.sourceIndexReaderRenderSourceOk =
+                  renderSource.kind === ReaderPageRenderKind.REMOTE_URL_IMAGE &&
+                    renderSource.sourceRuntimeId === selectedSourceId &&
+                    renderSource.pageId === pageId
+              }
+            }
+            result.sourceIndexReaderCleanupOk = await removeInstalledSourcePackage(context, selectedSourceId)
+          }
+        }
+        result.ok = result.sourceIndexReaderIndexUrlProvided === true &&
+          result.sourceIndexReaderFetchOk === true &&
+          result.sourceIndexReaderInstallOk === true &&
+          result.sourceIndexReaderSearchOk === true &&
+          result.sourceIndexReaderDetailOk === true &&
+          result.sourceIndexReaderChaptersOk === true &&
+          result.sourceIndexReaderPagesOk === true &&
+          (result.sourceIndexReaderPageCount ?? 0) > 0 &&
+          result.sourceIndexReaderRenderSourceOk === true &&
+          result.sourceIndexReaderCleanupOk === true
+        if (!result.ok && result.error === undefined) {
+          result.error = 'source-index-reader failed'
         }
       }
       compactSmokeResultForHilog(result)
