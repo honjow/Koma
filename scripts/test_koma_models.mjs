@@ -2000,6 +2000,16 @@ assert.match(
   /step=pull_fail page=0 code=remote_progress_pull_failed[\s\S]*step=push_fail page=\$\{page\} code=server_not_configured[\s\S]*step=push_fail page=\$\{page\} code=remote_progress_push_failed/,
   'Komga progress sync must keep separate redacted failure codes for pull, missing server, and push',
 )
+assert.match(
+  remoteProgressSyncServiceSource,
+  /flushPendingPushes\(\): void \{[\s\S]*Array\.from\(this\.pendingPushes\.values\(\)\)[\s\S]*clearTimeout\(timer\)[\s\S]*this\.pendingPushes\.clear\(\)[\s\S]*void this\.flushKomgaPush\(pending\)/,
+  'Komga progress sync must expose an immediate flush for debounced reader-close progress',
+)
+assert.match(
+  readerPageSource,
+  /aboutToDisappear\(\): void \{[\s\S]*const progress = this\.setPageIndex\(this\.pageIndex\)[\s\S]*this\.remoteProgressSyncService\?\.flushPendingPushes\(\)[\s\S]*this\.pushTrackerProgress\(progress, 'on_reader_close'\)/,
+  'Reader close must flush pending Komga progress before the debounced push can be dropped',
+)
 assert.doesNotMatch(
   remoteProgressBootstrapSyncSource,
   /\[BootstrapSync\][^\n]*(message=|serverId=)|e\.message/,

@@ -73,11 +73,19 @@ export class RemoteProgressSyncService {
   }
 
   dispose(): void {
+    this.flushPendingPushes()
+  }
+
+  flushPendingPushes(): void {
+    const pendingPushes = Array.from(this.pendingPushes.values())
     this.pushTimers.forEach((timer: number) => {
       clearTimeout(timer)
     })
     this.pushTimers.clear()
     this.pendingPushes.clear()
+    pendingPushes.forEach((pending: PendingKomgaProgressPush) => {
+      void this.flushKomgaPush(pending)
+    })
   }
 
   private async pullKomgaBook(
