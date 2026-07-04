@@ -9,6 +9,7 @@ const myAnimeListClientSource = readFileSync(resolve(root, 'entry/src/main/ets/m
 const pendingStoreSource = readFileSync(resolve(root, 'entry/src/main/ets/model/TrackerPendingSyncStore.ets'), 'utf8')
 const indexSource = readFileSync(resolve(root, 'entry/src/main/ets/pages/Index.ets'), 'utf8')
 const mangaDetailPageSource = readFileSync(resolve(root, 'entry/src/main/ets/pages/MangaDetailPage.ets'), 'utf8')
+const trackerSettingsPageSource = readFileSync(resolve(root, 'entry/src/main/ets/pages/TrackerSettingsPage.ets'), 'utf8')
 
 assert.match(source, /export class TrackerProgressSyncService/, 'tracker progress sync service must exist')
 assert.match(source, /AniListTrackerClient/, 'tracker progress sync service must depend on the AniList provider client')
@@ -177,6 +178,47 @@ assert.doesNotMatch(
   mangaDetailPageSource,
   /\[TrackerSync\] step=manual_progress[^\n]*(token|authorization|Bearer|providerTitleId|comic=|chapter=|message=)/i,
   'MangaDetailPage manual tracker sync logs must not leak tokens, provider ids, local ids, or raw errors',
+)
+
+assert.match(
+  trackerSettingsPageSource,
+  /import \{[\s\S]*summarizeTrackerPendingProgress,[\s\S]*TrackerPendingProgressSummary,[\s\S]*TrackerPendingSyncStore,[\s\S]*\} from '..\/model\/TrackerPendingSyncStore'/,
+  'TrackerSettingsPage must import pending tracker queue summary support',
+)
+assert.match(
+  trackerSettingsPageSource,
+  /import \{[\s\S]*TrackerPendingProgressDrainSummary,[\s\S]*TrackerProgressSyncService,[\s\S]*\} from '..\/model\/TrackerProgressSyncService'/,
+  'TrackerSettingsPage must import the tracker pending retry service',
+)
+assert.match(
+  trackerSettingsPageSource,
+  /pendingSummary: TrackerPendingProgressSummary[\s\S]*pendingRetryBusy: boolean = false/,
+  'TrackerSettingsPage must keep visible pending progress and retry state',
+)
+assert.match(
+  trackerSettingsPageSource,
+  /loadPendingProgressSummary\(\): void[\s\S]*this\.pendingSyncStore\(\)\.loadPendingProgress\(\)[\s\S]*summarizeTrackerPendingProgress\(entries\)/,
+  'TrackerSettingsPage must load pending tracker progress from the durable queue',
+)
+assert.match(
+  trackerSettingsPageSource,
+  /retryPendingProgressNow\(\): void[\s\S]*new TrackerProgressSyncService\(this\.context\(\)\)\.retryPendingProgress\(20\)[\s\S]*tracker_pending_retry_done[\s\S]*this\.loadPendingProgressSummary\(\)/,
+  'TrackerSettingsPage must expose bounded manual retry and refresh pending queue state',
+)
+assert.match(
+  trackerSettingsPageSource,
+  /step=settings_pending_retry scanned=\$\{summary\.scannedCount\} synced=\$\{summary\.syncedCount\} retained=\$\{summary\.retainedCount\} failed=\$\{summary\.failedCount\} skipped=\$\{summary\.skippedCount\}/,
+  'TrackerSettingsPage pending retry logs must expose only aggregate counts',
+)
+assert.doesNotMatch(
+  trackerSettingsPageSource,
+  /\[TrackerSync\] step=settings_pending_(loaded|retry|retry_failed)[^\n]*(token|authorization|Bearer|providerTitleId|comic=|chapter=|message=)/i,
+  'TrackerSettingsPage pending progress logs must not leak tokens, provider ids, local ids, or raw errors',
+)
+assert.match(
+  trackerSettingsPageSource,
+  /PendingProgressCard\(\)[\s\S]*tracker_pending_title[\s\S]*tracker_pending_message[\s\S]*this\.retryPendingProgressNow\(\)[\s\S]*this\.pendingProgressText\(\)[\s\S]*this\.PendingProgressCard\(\)/,
+  'TrackerSettingsPage must render the pending progress card before mapping review',
 )
 
 console.log('tracker progress sync service checks PASS')

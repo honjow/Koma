@@ -17,6 +17,15 @@ import {
   getTrackerAccountStatusLabel,
   summarizeComicTrackerMappings,
 } from '../model/TrackerModels'
+import {
+  summarizeTrackerPendingProgress,
+  TrackerPendingProgressSummary,
+  TrackerPendingSyncStore,
+} from '../model/TrackerPendingSyncStore'
+import {
+  TrackerPendingProgressDrainSummary,
+  TrackerProgressSyncService,
+} from '../model/TrackerProgressSyncService'
 import { ThemeConstants } from '../theme/ThemeConstants'
 import { AppStrings } from '../i18n/AppStrings'
 import { connectLanguageState, LanguageState } from '../state/LanguageState'
@@ -38,8 +47,16 @@ export struct TrackerSettingsPage {
     unmapped: 0,
   }
   @Local private mappings: ComicTrackerMapping[] = []
+  @Local private pendingSummary: TrackerPendingProgressSummary = {
+    totalCount: 0,
+    anilistCount: 0,
+    myAnimeListCount: 0,
+    completedCount: 0,
+    failedAttemptCount: 0,
+  }
   @Local private busyMappingKey: string = ''
   @Local private busyProviderId: string = ''
+  @Local private pendingRetryBusy: boolean = false
   @Local private secureStorageAvailable: boolean = false
   @Local private authPreparationMessageKey: string = 'tracker_message_secure_storage_unverified'
   private credentialSecretStore: TrackerCredentialSecretStore = new AssetStoreTrackerCredentialSecretStore()
@@ -50,6 +67,10 @@ export struct TrackerSettingsPage {
 
   private trackerPreferencesStore(): TrackerPreferencesStore {
     return new TrackerPreferencesStore(this.context(), this.credentialSecretStore)
+  }
+
+  private pendingSyncStore(): TrackerPendingSyncStore {
+    return new TrackerPendingSyncStore(this.context())
   }
 
   aboutToAppear(): void {
@@ -65,6 +86,7 @@ export struct TrackerSettingsPage {
         this.authPreparationMessageKey = 'tracker_message_load_failed'
         console.warn('[TrackerSettings] step=load_failed reason=redacted')
       })
+    this.loadPendingProgressSummary()
   }
 
   private findAccount(provider: TrackerProviderConfig): TrackerAccount {
@@ -179,6 +201,50 @@ export struct TrackerSettingsPage {
       this.getUIContext().getPromptAction().showToast({ message: message })
     } catch (_err) {
     }
+  }
+
+  private loadPendingProgressSummary(): void {
+    void this.pendingSyncStore().loadPendingProgress()
+      .then((entries) => {
+        this.pendingSummary = summarizeTrackerPendingProgress(entries)
+        console.info('[TrackerSync] step=settings_pending_loaded total=' + this.pendingSummary.totalCount)
+      })
+      .catch((_error: Error) => {
+        this.pendingSummary = summarizeTrackerPendingProgress([])
+        console.warn('[TrackerSync] step=settings_pending_load_failed reason=redacted')
+      })
+  }
+
+  private pendingProgressText(): string {
+    if (this.pendingSummary.totalCount === 0) {
+      return s('tracker_pending_empty')
+    }
+    return s('tracker_pending_summary')
+      .replace('%s', `${this.pendingSummary.totalCount}`)
+      .replace('%s', `${this.pendingSummary.completedCount}`)
+      .replace('%s', `${this.pendingSummary.failedAttemptCount}`)
+  }
+
+  private retryPendingProgressNow(): void {
+    if (this.pendingRetryBusy || this.pendingSummary.totalCount === 0) {
+      return
+    }
+    this.pendingRetryBusy = true
+    void new TrackerProgressSyncService(this.context()).retryPendingProgress(20)
+      .then((summary: TrackerPendingProgressDrainSummary) => {
+        console.info(`[TrackerSync] step=settings_pending_retry scanned=${summary.scannedCount} synced=${summary.syncedCount} retained=${summary.retainedCount} failed=${summary.failedCount} skipped=${summary.skippedCount}`)
+        this.showToast(s('tracker_pending_retry_done')
+          .replace('%s', `${summary.syncedCount}`)
+          .replace('%s', `${summary.retainedCount}`))
+        this.loadPendingProgressSummary()
+      })
+      .catch((_error: Error) => {
+        console.warn('[TrackerSync] step=settings_pending_retry_failed reason=redacted')
+        this.showToast(s('tracker_pending_retry_failed'))
+      })
+      .finally(() => {
+        this.pendingRetryBusy = false
+      })
   }
 
   private mappingProgressText(): string {
@@ -348,6 +414,49 @@ export struct TrackerSettingsPage {
   }
 
   @Builder
+  private PendingProgressCard() {
+    Column({ space: ThemeConstants.SPACE_SM }) {
+      Row({ space: ThemeConstants.SPACE_MD }) {
+        Column({ space: ThemeConstants.SPACE_XS }) {
+          Text(s('tracker_pending_title'))
+            .width('100%')
+            .fontSize(ThemeConstants.FONT_SIZE_TITLE)
+            .fontWeight(FontWeight.Medium)
+            .fontColor(ThemeConstants.TEXT_PRIMARY)
+          Text(s('tracker_pending_message'))
+            .width('100%')
+            .fontSize(ThemeConstants.FONT_SIZE_META)
+            .lineHeight(ThemeConstants.LINE_HEIGHT_BODY)
+            .fontColor(ThemeConstants.TEXT_SECONDARY)
+        }
+        .layoutWeight(1)
+        .alignItems(HorizontalAlign.Start)
+        KomaActionButton({
+          label: this.pendingRetryBusy ? s('common_retrying') : s('common_retry'),
+          kind: 'secondary',
+          compact: true,
+          controlHeight: ThemeConstants.ACTION_CHIP_HEIGHT,
+          isEnabled: this.pendingSummary.totalCount > 0 && !this.pendingRetryBusy,
+          action: () => {
+            this.retryPendingProgressNow()
+          },
+        })
+      }
+      .width('100%')
+      .alignItems(VerticalAlign.Center)
+      Text(this.pendingProgressText())
+        .width('100%')
+        .fontSize(ThemeConstants.FONT_SIZE_CAPTION)
+        .lineHeight(ThemeConstants.LINE_HEIGHT_BODY)
+        .fontColor(ThemeConstants.TEXT_SECONDARY)
+    }
+    .width('100%')
+    .padding({ left: ThemeConstants.SPACE_LG, right: ThemeConstants.SPACE_LG, top: ThemeConstants.SPACE_LG, bottom: ThemeConstants.SPACE_LG })
+    .borderRadius(ThemeConstants.RADIUS_CARD)
+    .backgroundColor(ThemeConstants.CARD)
+  }
+
+  @Builder
   private MappingSummaryCard() {
     Column({ space: ThemeConstants.SPACE_SM }) {
       Text(s('tracker_mapping_title'))
@@ -444,6 +553,9 @@ export struct TrackerSettingsPage {
         }
         ListItem() {
           this.ProvidersCard()
+        }
+        ListItem() {
+          this.PendingProgressCard()
         }
         ListItem() {
           this.MappingSummaryCard()

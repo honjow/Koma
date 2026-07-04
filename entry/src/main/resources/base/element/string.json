@@ -685,6 +685,12 @@
     { "name": "tracker_mapping_confirmed", "value": "Mapping confirmed" },
     { "name": "tracker_mapping_rejected", "value": "Mapping rejected" },
     { "name": "tracker_mapping_update_failed", "value": "Failed to update mapping" },
+    { "name": "tracker_pending_title", "value": "Pending progress" },
+    { "name": "tracker_pending_message", "value": "Failed tracker syncs are kept locally and can be retried." },
+    { "name": "tracker_pending_empty", "value": "No pending tracker progress" },
+    { "name": "tracker_pending_summary", "value": "%s pending · %s completed · %s attempts" },
+    { "name": "tracker_pending_retry_done", "value": "Retried tracker progress: synced %s, retained %s" },
+    { "name": "tracker_pending_retry_failed", "value": "Failed to retry tracker progress" },
 
     { "name": "downloads_filter_queued", "value": "Queued" },
     { "name": "downloads_filter_downloading", "value": "Downloading" },
