@@ -345,6 +345,8 @@ Koma 已经具备本地/私有库优先漫画阅读器的主骨架：书架、Re
 
 ### D56：Privacy / permissions / release docs
 
+状态：已推进。`docs/PRIVACY_AND_PERMISSIONS.md` 已落地，Settings/About 已有隐私与权限入口，`scripts/test_koma_models.mjs` 覆盖设置入口与文档关键声明。
+
 交付：
 - privacy policy。
 - permissions explanation。
@@ -356,6 +358,8 @@ Koma 已经具备本地/私有库优先漫画阅读器的主骨架：书架、Re
 - Settings About link。
 
 ### D57：Release build lane
+
+状态：进行中。`scripts/build_release_artifact.sh` 已建立 release artifact lane，必须同时传 `product=release` 与 `buildMode=release`，并校验 HAP 内 `bundleName=com.honjow.koma`、`buildMode=release`、`debug=false`。Pura X 对本地 release signingConfig 返回 `signature verification failed due to not trusted app source`；安装 smoke 当前使用 `product=default + buildMode=release` 的 non-debug HAP 通过安装。
 
 交付：
 - release build pipeline。
