@@ -2114,6 +2114,21 @@ for (const [label, source] of [
   )
 }
 assert.match(
+  readerPageSource,
+  /shouldSplitReaderWideImagePage\(mode: ReaderWideImageMode, readerMode: ReaderMode[\s\S]*mode === 'split_wide_pages' && readerMode !== ReaderMode\.DUAL_PAGE[\s\S]*readerWidePageSplitSidesForDirection\(direction: ReadingDirection\)[\s\S]*ReadingDirection\.RIGHT_TO_LEFT[\s\S]*\['right', 'left'\][\s\S]*\['left', 'right'\]/,
+  'ReaderPage wide split must stay enabled for non-dual modes and preserve RTL split ordering',
+)
+assert.match(
+  readerPageSource,
+  /currentDisplayEntries\(\): ReaderPageDisplayEntry\[\][\s\S]*readerDisplayEntries\(this\.currentReaderMode\(\)\)[\s\S]*isSplitDisplayNavigationMode\(\): boolean[\s\S]*readerMode !== ReaderMode\.DUAL_PAGE && this\.wideImageMode === 'split_wide_pages'[\s\S]*canGoNextPage\(\)[\s\S]*this\.readerDisplayIndex < this\.currentDisplayEntries\(\)\.length - 1[\s\S]*previousPage\(\)[\s\S]*this\.setReaderDisplayEntryIndex\(this\.readerDisplayIndex - 1, this\.currentReaderMode\(\)\)[\s\S]*nextPage\(\)[\s\S]*this\.setReaderDisplayEntryIndex\(this\.readerDisplayIndex \+ 1, this\.currentReaderMode\(\)\)/,
+  'ReaderPage split navigation must use current display entries so Webtoon split halves are not skipped',
+)
+assert.match(
+  readerPageSource,
+  /WebtoonReader\(\)[\s\S]*ForEach\(this\.webtoonDisplayEntries\(\), \(entry: ReaderPageDisplayEntry, displayIndex: number\)[\s\S]*this\.readerDisplayIndex = displayIndex[\s\S]*onVisibleAreaChange[\s\S]*displayIndex !== this\.readerDisplayIndex[\s\S]*this\.readerDisplayIndex = displayIndex[\s\S]*onScrollIndex[\s\S]*start !== this\.readerDisplayIndex[\s\S]*this\.readerDisplayIndex = start/,
+  'ReaderPage Webtoon split rendering must keep readerDisplayIndex aligned with the visible split half',
+)
+assert.match(
   komgaSeriesPageSource,
   /this\.errorText = s\('common_load_failed'\)[\s\S]*step=load_series_failed code=komga_series_load_failed[\s\S]*this\.errorText = s\('common_add_to_library_failed'\)[\s\S]*step=komga_add_failed code=komga_add_failed/,
   'Komga browse failures must show generic localized copy and log redacted codes',
