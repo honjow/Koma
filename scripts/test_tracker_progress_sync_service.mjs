@@ -7,6 +7,7 @@ const source = readFileSync(resolve(root, 'entry/src/main/ets/model/TrackerProgr
 const clientSource = readFileSync(resolve(root, 'entry/src/main/ets/model/AniListTrackerClient.ets'), 'utf8')
 const pendingStoreSource = readFileSync(resolve(root, 'entry/src/main/ets/model/TrackerPendingSyncStore.ets'), 'utf8')
 const indexSource = readFileSync(resolve(root, 'entry/src/main/ets/pages/Index.ets'), 'utf8')
+const mangaDetailPageSource = readFileSync(resolve(root, 'entry/src/main/ets/pages/MangaDetailPage.ets'), 'utf8')
 
 assert.match(source, /export class TrackerProgressSyncService/, 'tracker progress sync service must exist')
 assert.match(source, /AniListTrackerClient/, 'tracker progress sync service must depend on the AniList provider client')
@@ -22,8 +23,8 @@ assert.match(
 )
 assert.match(
   source,
-  /pushReadingProgress\([\s\S]*trigger: TrackerUpdateStrategy = 'on_chapter_complete'[\s\S]*preferences\.updateStrategy !== trigger[\s\S]*strategy_not_due/,
-  'tracker progress push must respect the configured update strategy for the current trigger',
+  /pushReadingProgress\([\s\S]*trigger: TrackerUpdateStrategy = 'on_chapter_complete'[\s\S]*trigger !== 'manual' && preferences\.updateStrategy !== trigger[\s\S]*strategy_not_due/,
+  'tracker progress push must respect automatic update strategies while allowing explicit manual sync',
 )
 assert.match(
   source,
@@ -149,6 +150,26 @@ assert.doesNotMatch(
   indexSource,
   /\[TrackerSync\] step=app_open_pending_progress[^\n]*(token|authorization|Bearer|providerTitleId|comic=|chapter=|message=)/i,
   'Index pending tracker progress recovery logs must not leak tokens, provider ids, local ids, or raw errors',
+)
+assert.match(
+  mangaDetailPageSource,
+  /import \{[\s\S]*TrackerProgressSyncReason,[\s\S]*TrackerProgressSyncService[\s\S]*\} from '..\/model\/TrackerProgressSyncService'/,
+  'MangaDetailPage must import the tracker progress sync service for explicit manual sync',
+)
+assert.match(
+  mangaDetailPageSource,
+  /syncTrackerProgressNow\(\): Promise<void>[\s\S]*readerSessionStore\.getProgress\(this\.currentComicId\(\)\)[\s\S]*pushReadingProgress\([\s\S]*progress,[\s\S]*this\.allChapterIds\(\),[\s\S]*'manual'/,
+  'MangaDetailPage manual tracker sync must push the current reader progress with the manual trigger',
+)
+assert.match(
+  mangaDetailPageSource,
+  /manga_detail_menu_sync_tracker[\s\S]*this\.syncTrackerProgressNow\(\)/,
+  'MangaDetailPage more menu must expose a real manual tracker sync action',
+)
+assert.doesNotMatch(
+  mangaDetailPageSource,
+  /\[TrackerSync\] step=manual_progress[^\n]*(token|authorization|Bearer|providerTitleId|comic=|chapter=|message=)/i,
+  'MangaDetailPage manual tracker sync logs must not leak tokens, provider ids, local ids, or raw errors',
 )
 
 console.log('tracker progress sync service checks PASS')

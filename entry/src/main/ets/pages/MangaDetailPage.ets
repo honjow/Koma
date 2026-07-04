@@ -58,6 +58,10 @@ import {
   InMemoryReaderSessionStore,
   ReaderSessionStore,
 } from '../model/ReaderSessionStore'
+import {
+  TrackerProgressSyncReason,
+  TrackerProgressSyncService,
+} from '../model/TrackerProgressSyncService'
 import { taskpool } from '@kit.ArkTS'
 
 export const MANGA_DETAIL_ROUTE_NAME: string = 'MangaDetailPage'
@@ -135,6 +139,7 @@ export struct MangaDetailPage {
   @Local private isInLibrary: boolean = false
   @Local private isLoading: boolean = false
   @Local private downloadBusy: boolean = false
+  @Local private trackerSyncBusy: boolean = false
   @Local private downloadStatusText: string = ''
   @Local private feedbackText: string = ''
   @Local private safeArea: LayoutSafeAreaState = connectLayoutSafeArea()
@@ -702,6 +707,59 @@ export struct MangaDetailPage {
       : this.formatString('manga_detail_marked_count_unread', [changedCount]))
   }
 
+  private trackerSyncSkippedText(reason: TrackerProgressSyncReason | undefined): string {
+    if (reason === 'mapping_missing') {
+      return s('manga_detail_tracker_sync_mapping_missing')
+    }
+    if (reason === 'auto_sync_disabled') {
+      return s('manga_detail_tracker_sync_disabled')
+    }
+    if (reason === 'strategy_not_due') {
+      return s('manga_detail_tracker_sync_not_due')
+    }
+    return s('manga_detail_tracker_sync_failed')
+  }
+
+  private async syncTrackerProgressNow(): Promise<void> {
+    if (this.trackerSyncBusy) {
+      return
+    }
+    const progress = this.readerSessionStore.getProgress(this.currentComicId())
+    if (progress === undefined) {
+      this.showToast(s('manga_detail_tracker_sync_no_progress'))
+      return
+    }
+    this.trackerSyncBusy = true
+    this.showToast(s('manga_detail_tracker_sync_in_progress'))
+    try {
+      const context = getContext(this) as common.UIAbilityContext
+      const result = await new TrackerProgressSyncService(context).pushReadingProgress(
+        progress,
+        this.allChapterIds(),
+        'manual',
+      )
+      console.info(`[TrackerSync] step=manual_progress status=${result.status} reason=${result.reason ?? 'none'} queued=${result.queued === true}`)
+      if (result.status === 'synced') {
+        this.showToast(s('manga_detail_tracker_sync_done'))
+        return
+      }
+      if (result.queued === true) {
+        this.showToast(s('manga_detail_tracker_sync_queued'))
+        return
+      }
+      if (result.status === 'skipped') {
+        this.showToast(this.trackerSyncSkippedText(result.reason))
+        return
+      }
+      this.showToast(s('manga_detail_tracker_sync_failed'))
+    } catch (_error) {
+      console.warn('[TrackerSync] step=manual_progress failed=true reason=manual_progress')
+      this.showToast(s('manga_detail_tracker_sync_failed'))
+    } finally {
+      this.trackerSyncBusy = false
+    }
+  }
+
   private async runSourcePagesOperation(
     entry: SourceRuntimeRegistryEntry,
     comicId: string,
@@ -868,6 +926,10 @@ export struct MangaDetailPage {
       MenuItem({ content: s('manga_detail_menu_mark_all_unread') })
         .onClick(() => {
           this.markVisibleChaptersReadState(this.allChapterIds(), false)
+        })
+      MenuItem({ content: s('manga_detail_menu_sync_tracker') })
+        .onClick(() => {
+          this.syncTrackerProgressNow()
         })
     }
   }

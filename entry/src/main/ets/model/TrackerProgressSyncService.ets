@@ -87,7 +87,7 @@ export class TrackerProgressSyncService {
     if (!preferences.autoSyncEnabled) {
       return this.skipped('auto_sync_disabled')
     }
-    if (preferences.updateStrategy !== trigger) {
+    if (trigger !== 'manual' && preferences.updateStrategy !== trigger) {
       return this.skipped('strategy_not_due')
     }
     const mapping = this.findConfirmedAniListMapping(preferences, progress.comicId)
