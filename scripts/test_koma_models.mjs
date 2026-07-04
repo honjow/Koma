@@ -1417,12 +1417,17 @@ assert.match(
 )
 assert.match(
   mangaDetailPageSource,
-  /const args: SourceChaptersRequestArgs = \{[\s\S]*mangaId,[\s\S]*cursor:\s*null,[\s\S]*limit:\s*100[\s\S]*this\.buildSourceDetailRequestJson\(entry\.sourceId, 'get_chapters', args, \{ network: true \}\)/,
+  /const args: SourceChaptersRequestArgs = \{[\s\S]*mangaId,[\s\S]*cursor,[\s\S]*limit: SOURCE_CHAPTER_PAGE_SIZE[\s\S]*this\.buildSourceDetailRequestJson\(entry\.sourceId, 'get_chapters', args, \{ network: true \}\)/,
   'get_chapters must send args.mangaId plus a page cursor/limit with network host hints',
 )
 assert.match(
   mangaDetailPageSource,
-  /private async runSourceChaptersOperation[\s\S]*const rows = this\.sourceChapterResponseItems\(response\)[\s\S]*if \(response\.ok !== true\) \{[\s\S]*throw new Error\('get_chapters failed'\)[\s\S]*return rows\.map/,
+  /SOURCE_CHAPTER_PAGE_SIZE: number = 100[\s\S]*SOURCE_CHAPTER_MAX_PAGES: number = 20[\s\S]*runSourceChaptersOperation[\s\S]*for \(let pageIndex = 1; pageIndex <= SOURCE_CHAPTER_MAX_PAGES; pageIndex \+= 1\)[\s\S]*runSourceChaptersPage\(entry, mangaId, cursor\)[\s\S]*sourcePageNextCursor\(response\)[\s\S]*sourcePageHasMore\(response, nextCursor\)[\s\S]*cursor = nextCursor \?\? `\$\{pageIndex \+ 1\}`/,
+  'MangaDetailPage must page through source chapters with a bounded cursor loop',
+)
+assert.match(
+  mangaDetailPageSource,
+  /private async runSourceChaptersPage[\s\S]*if \(response\.ok !== true\) \{[\s\S]*throw new Error\('get_chapters failed'\)[\s\S]*return response[\s\S]*private sourcePageHasMore[\s\S]*hasNextPage === true[\s\S]*hasMore === true[\s\S]*has_more === true[\s\S]*nextCursor !== undefined/,
   'MangaDetailPage must allow source details with zero chapters instead of failing the whole detail route',
 )
 assert.match(

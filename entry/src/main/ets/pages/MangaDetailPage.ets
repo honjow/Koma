@@ -86,6 +86,18 @@ interface SourceOperationDataPayload {
   items?: Record<string, Object>[]
   chapters?: Record<string, Object>[]
   pages?: Record<string, Object>[]
+  page?: SourceRuntimePagePayload
+  hasNextPage?: boolean
+  hasMore?: boolean
+  has_more?: boolean
+}
+
+interface SourceRuntimePagePayload {
+  hasMore?: boolean
+  hasNextPage?: boolean
+  has_more?: boolean
+  nextCursor?: string | null
+  next_cursor?: string | null
 }
 
 interface SourceOperationResponsePayload {
@@ -139,6 +151,9 @@ function executeMangaDetailSourceOperation(requestJson: string, wasmBytes: Uint8
 function s(name: string): string {
   return AppStrings.get(name)
 }
+
+const SOURCE_CHAPTER_PAGE_SIZE: number = 100
+const SOURCE_CHAPTER_MAX_PAGES: number = 20
 
 @ComponentV2
 export struct MangaDetailPage {
@@ -358,11 +373,33 @@ export struct MangaDetailPage {
     entry: SourceRuntimeRegistryEntry,
     mangaId: string
   ): Promise<MangaChapterItem[]> {
+    const chapters: MangaChapterItem[] = []
+    let cursor: string | null = null
+    for (let pageIndex = 1; pageIndex <= SOURCE_CHAPTER_MAX_PAGES; pageIndex += 1) {
+      const response = await this.runSourceChaptersPage(entry, mangaId, cursor)
+      const rows = this.sourceChapterResponseItems(response)
+      rows.forEach((item: Record<string, Object>) => {
+        chapters.push(parseMangaChapterFromSourceItem(item))
+      })
+      const nextCursor = this.sourcePageNextCursor(response)
+      if (!this.sourcePageHasMore(response, nextCursor)) {
+        break
+      }
+      cursor = nextCursor ?? `${pageIndex + 1}`
+    }
+    return chapters
+  }
+
+  private async runSourceChaptersPage(
+    entry: SourceRuntimeRegistryEntry,
+    mangaId: string,
+    cursor: string | null,
+  ): Promise<SourceOperationResponsePayload> {
     const args: SourceChaptersRequestArgs = {
       mangaId,
       page: {
-        cursor: null,
-        limit: 100,
+        cursor,
+        limit: SOURCE_CHAPTER_PAGE_SIZE,
       },
     }
     const request = this.buildSourceDetailRequestJson(entry.sourceId, 'get_chapters', args, { network: true })
@@ -372,13 +409,10 @@ export struct MangaDetailPage {
       this.copyWasmBytes(entry)
     ) as string
     const response = JSON.parse(responseJson) as SourceOperationResponsePayload
-    const rows = this.sourceChapterResponseItems(response)
     if (response.ok !== true) {
       throw new Error('get_chapters failed')
     }
-    return rows.map((item: Record<string, Object>): MangaChapterItem => {
-      return parseMangaChapterFromSourceItem(item)
-    })
+    return response
   }
 
   private buildSourceDetailRequestJson(
@@ -416,6 +450,21 @@ export struct MangaDetailPage {
       return response.data.items
     }
     return response.data?.chapters ?? []
+  }
+
+  private sourcePageNextCursor(response: SourceOperationResponsePayload): string | undefined {
+    const nextCursor = response.data?.page?.nextCursor ?? response.data?.page?.next_cursor
+    return nextCursor === null || nextCursor === undefined || nextCursor.trim().length === 0 ? undefined : nextCursor
+  }
+
+  private sourcePageHasMore(response: SourceOperationResponsePayload, nextCursor: string | undefined): boolean {
+    return response.data?.hasNextPage === true ||
+      response.data?.hasMore === true ||
+      response.data?.has_more === true ||
+      response.data?.page?.hasMore === true ||
+      response.data?.page?.hasNextPage === true ||
+      response.data?.page?.has_more === true ||
+      nextCursor !== undefined
   }
 
   private sourceComicId(sourceId: string | undefined, mangaId: string): string {
