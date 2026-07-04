@@ -128,6 +128,21 @@ hdc_target shell uitest dumpLayout -p /data/local/tmp/koma-source-reader-library
 hdc_target shell uitest screenCap -p /data/local/tmp/koma-source-reader-library-screen.png
 hdc_target file recv /data/local/tmp/koma-source-reader-library-layout.json "$artifact_dir/library-layout.json"
 hdc_target file recv /data/local/tmp/koma-source-reader-library-screen.png "$artifact_dir/library-screen.png"
+python3 - "$smoke_result" "$artifact_dir/library-layout.json" <<'PY'
+import json
+import pathlib
+import sys
+
+result = json.loads(pathlib.Path(sys.argv[1]).read_text(encoding='utf-8'))
+layout = json.loads(pathlib.Path(sys.argv[2]).read_text(encoding='utf-8'))
+text = json.dumps(layout, ensure_ascii=False)
+title = result.get('sourceIndexVisibleLibraryTitle')
+chapter = result.get('sourceIndexReaderChapterTitle')
+if not title or title not in text:
+    raise SystemExit('source reader smoke failed: library layout missing visible manga title')
+if not chapter or chapter not in text:
+    raise SystemExit('source reader smoke failed: library layout missing visible chapter title')
+PY
 
 hdc_target shell uitest uiInput click 660 530
 sleep "${KOMA_SOURCE_READER_OPEN_WAIT_SECONDS:-5}"
@@ -135,5 +150,25 @@ hdc_target shell uitest dumpLayout -p /data/local/tmp/koma-source-reader-reader-
 hdc_target shell uitest screenCap -p /data/local/tmp/koma-source-reader-reader-screen.png
 hdc_target file recv /data/local/tmp/koma-source-reader-reader-layout.json "$artifact_dir/reader-layout.json"
 hdc_target file recv /data/local/tmp/koma-source-reader-reader-screen.png "$artifact_dir/reader-screen.png"
+python3 - "$smoke_result" "$artifact_dir/reader-layout.json" <<'PY'
+import json
+import pathlib
+import sys
+
+result = json.loads(pathlib.Path(sys.argv[1]).read_text(encoding='utf-8'))
+layout = json.loads(pathlib.Path(sys.argv[2]).read_text(encoding='utf-8'))
+text = json.dumps(layout, ensure_ascii=False)
+title = result.get('sourceIndexReaderMangaTitle')
+chapter = result.get('sourceIndexReaderChapterTitle')
+page_count = result.get('sourceIndexReaderPageCount')
+if not title or title not in text:
+    raise SystemExit('source reader smoke failed: reader layout missing visible manga title')
+if not chapter or chapter not in text:
+    raise SystemExit('source reader smoke failed: reader layout missing visible chapter title')
+if not isinstance(page_count, int) or f' / {page_count}' not in text:
+    raise SystemExit('source reader smoke failed: reader layout missing visible page counter')
+if '"type": "Image"' not in text and '"type":"Image"' not in text:
+    raise SystemExit('source reader smoke failed: reader layout missing visible image node')
+PY
 
 echo "source reader smoke passed: $artifact_dir"
