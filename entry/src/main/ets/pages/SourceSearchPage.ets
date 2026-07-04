@@ -45,12 +45,16 @@ export struct SourceSearchPage {
     return this.safeArea.bottomAvoidHeight + ThemeConstants.FLOAT_BAR_HEIGHT + 20
   }
 
-  private scheduleSearch(value: string): void {
-    this.query = value
+  private clearPendingSearchTimer(): void {
     if (this.searchTimer > 0) {
       clearTimeout(this.searchTimer)
       this.searchTimer = 0
     }
+  }
+
+  private scheduleSearch(value: string): void {
+    this.query = value
+    this.clearPendingSearchTimer()
     if (value.trim().length === 0) {
       this.viewModel.clearSearch(this.source)
       return
@@ -59,6 +63,16 @@ export struct SourceSearchPage {
       void this.viewModel.runSearch(this.source, this.query)
       this.searchTimer = 0
     }, 300)
+  }
+
+  private submitSearch(value: string): void {
+    this.query = value
+    this.clearPendingSearchTimer()
+    if (value.trim().length === 0) {
+      this.viewModel.clearSearch(this.source)
+      return
+    }
+    void this.viewModel.runSearch(this.source, value)
   }
 
   private rerunSearchIfReady(): void {
@@ -118,10 +132,7 @@ export struct SourceSearchPage {
   }
 
   aboutToDisappear(): void {
-    if (this.searchTimer > 0) {
-      clearTimeout(this.searchTimer)
-      this.searchTimer = 0
-    }
+    this.clearPendingSearchTimer()
   }
 
   aboutToAppear(): void {
@@ -156,7 +167,7 @@ export struct SourceSearchPage {
               this.scheduleSearch(value)
             })
             .onSubmit((value: string) => {
-              this.scheduleSearch(value)
+              this.submitSearch(value)
             })
 
           this.RuntimeFilterControls()

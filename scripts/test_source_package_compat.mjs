@@ -296,8 +296,18 @@ assert.match(
 )
 assert.match(
   sourceSearchPageSource,
-  /scheduleSearch\(value: string\): void \{[\s\S]*clearTimeout\(this\.searchTimer\)[\s\S]*if \(value\.trim\(\)\.length === 0\) \{[\s\S]*this\.viewModel\.clearSearch\(this\.source\)[\s\S]*return[\s\S]*setTimeout/,
+  /clearPendingSearchTimer\(\): void \{[\s\S]*clearTimeout\(this\.searchTimer\)[\s\S]*scheduleSearch\(value: string\): void \{[\s\S]*this\.clearPendingSearchTimer\(\)[\s\S]*if \(value\.trim\(\)\.length === 0\) \{[\s\S]*this\.viewModel\.clearSearch\(this\.source\)[\s\S]*return[\s\S]*setTimeout/,
   'SourceSearchPage must clear source search results immediately when the query becomes blank instead of waiting for debounce',
+)
+assert.match(
+  sourceSearchPageSource,
+  /submitSearch\(value: string\): void \{[\s\S]*this\.query = value[\s\S]*this\.clearPendingSearchTimer\(\)[\s\S]*if \(value\.trim\(\)\.length === 0\) \{[\s\S]*this\.viewModel\.clearSearch\(this\.source\)[\s\S]*return[\s\S]*this\.viewModel\.runSearch\(this\.source, value\)/,
+  'SourceSearchPage must run submitted source searches immediately instead of waiting for the debounce timer',
+)
+assert.match(
+  sourceSearchPageSource,
+  /\.onSubmit\(\(value: string\) => \{[\s\S]*this\.submitSearch\(value\)/,
+  'SourceSearchPage submit handler must use the immediate search path',
 )
 assert.match(
   sourceFilterControlsSource,
