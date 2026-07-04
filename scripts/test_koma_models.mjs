@@ -805,8 +805,8 @@ assert.match(
 )
 assert.match(
   libraryPageSource,
-  /MenuItem\(\{ content: s\('library_batch_add_favorite'\) \}\)[\s\S]*addSelectedCategory\(LIBRARY_CATEGORY_FAVORITE_ID\)[\s\S]*MenuItem\(\{ content: s\('library_batch_remove_favorite'\) \}\)[\s\S]*removeSelectedCategory\(LIBRARY_CATEGORY_FAVORITE_ID\)[\s\S]*MenuItem\(\{ content: s\('library_batch_add_read_later'\) \}\)[\s\S]*addSelectedCategory\(LIBRARY_CATEGORY_READ_LATER_ID\)[\s\S]*MenuItem\(\{ content: s\('library_batch_remove_read_later'\) \}\)[\s\S]*removeSelectedCategory\(LIBRARY_CATEGORY_READ_LATER_ID\)[\s\S]*MenuItem\(\{ content: s\('library_batch_clear_categories'\) \}\)[\s\S]*assignSelectedCategory\(undefined\)/,
-  'LibraryPage selection mode must expose bulk category add, remove, and clearing actions',
+  /MenuItem\(\{ content: s\('library_batch_add_favorite'\) \}\)[\s\S]*addSelectedCategory\(LIBRARY_CATEGORY_FAVORITE_ID\)[\s\S]*MenuItem\(\{ content: s\('library_batch_move_favorite'\) \}\)[\s\S]*assignSelectedCategory\(\[LIBRARY_CATEGORY_FAVORITE_ID\]\)[\s\S]*MenuItem\(\{ content: s\('library_batch_remove_favorite'\) \}\)[\s\S]*removeSelectedCategory\(LIBRARY_CATEGORY_FAVORITE_ID\)[\s\S]*MenuItem\(\{ content: s\('library_batch_add_read_later'\) \}\)[\s\S]*addSelectedCategory\(LIBRARY_CATEGORY_READ_LATER_ID\)[\s\S]*MenuItem\(\{ content: s\('library_batch_move_read_later'\) \}\)[\s\S]*assignSelectedCategory\(\[LIBRARY_CATEGORY_READ_LATER_ID\]\)[\s\S]*MenuItem\(\{ content: s\('library_batch_remove_read_later'\) \}\)[\s\S]*removeSelectedCategory\(LIBRARY_CATEGORY_READ_LATER_ID\)[\s\S]*MenuItem\(\{ content: s\('library_batch_clear_categories'\) \}\)[\s\S]*assignSelectedCategory\(undefined\)/,
+  'LibraryPage selection mode must expose bulk category add, move, remove, and clearing actions',
 )
 assert.match(
   libraryPageSource,
@@ -820,8 +820,8 @@ assert.match(
 )
 assert.match(
   libraryPageSource,
-  /ForEach\(this\.libraryStore\.listCustomCategories\(\)[\s\S]*this\.addSelectedCategory\(category\.id\)[\s\S]*this\.removeSelectedCategory\(category\.id\)/,
-  'LibraryPage batch category menu must support custom category add and remove',
+  /ForEach\(this\.libraryStore\.listCustomCategories\(\)[\s\S]*this\.addSelectedCategory\(category\.id\)[\s\S]*this\.assignSelectedCategory\(\[category\.id\]\)[\s\S]*this\.removeSelectedCategory\(category\.id\)/,
+  'LibraryPage batch category menu must support custom category add, move, and remove',
 )
 assert.match(
   libraryStoreSource,

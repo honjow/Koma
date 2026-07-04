@@ -1245,6 +1245,10 @@ export struct LibraryPage {
         .onClick(() => {
           this.addSelectedCategory(LIBRARY_CATEGORY_FAVORITE_ID)
         })
+      MenuItem({ content: s('library_batch_move_favorite') })
+        .onClick(() => {
+          this.assignSelectedCategory([LIBRARY_CATEGORY_FAVORITE_ID])
+        })
       MenuItem({ content: s('library_batch_remove_favorite') })
         .onClick(() => {
           this.removeSelectedCategory(LIBRARY_CATEGORY_FAVORITE_ID)
@@ -1252,6 +1256,10 @@ export struct LibraryPage {
       MenuItem({ content: s('library_batch_add_read_later') })
         .onClick(() => {
           this.addSelectedCategory(LIBRARY_CATEGORY_READ_LATER_ID)
+        })
+      MenuItem({ content: s('library_batch_move_read_later') })
+        .onClick(() => {
+          this.assignSelectedCategory([LIBRARY_CATEGORY_READ_LATER_ID])
         })
       MenuItem({ content: s('library_batch_remove_read_later') })
         .onClick(() => {
@@ -1261,6 +1269,10 @@ export struct LibraryPage {
         MenuItem({ content: s('library_batch_add_category').replace('%s', category.name) })
           .onClick(() => {
             this.addSelectedCategory(category.id)
+          })
+        MenuItem({ content: s('library_batch_move_category').replace('%s', category.name) })
+          .onClick(() => {
+            this.assignSelectedCategory([category.id])
           })
         MenuItem({ content: s('library_batch_remove_category').replace('%s', category.name) })
           .onClick(() => {
