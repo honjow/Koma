@@ -243,11 +243,12 @@ export struct DownloadsPage {
     return this.visibleEntries().filter((entry: OfflineDownloadQueueEntry): boolean => this.canRetry(entry))
   }
 
-  private removableCompletedFailedEntries(): OfflineDownloadQueueEntry[] {
+  private removableSettledEntries(): OfflineDownloadQueueEntry[] {
     return this.entries.filter((entry: OfflineDownloadQueueEntry): boolean => {
       return entry.status === OfflineDownloadStatus.DOWNLOADED ||
         entry.status === OfflineDownloadStatus.FAILED ||
-        entry.status === OfflineDownloadStatus.PARTIAL
+        entry.status === OfflineDownloadStatus.PARTIAL ||
+        entry.status === OfflineDownloadStatus.BLOCKED
     })
   }
 
@@ -492,7 +493,7 @@ export struct DownloadsPage {
     if (this.busyKey.length > 0) {
       return
     }
-    const targets = this.removableCompletedFailedEntries()
+    const targets = this.removableSettledEntries()
     if (targets.length === 0) {
       this.showToast(s('downloads_toast_no_cleanup'))
       return
@@ -508,7 +509,8 @@ export struct DownloadsPage {
         const entry = targets[index]
         if (entry.status === OfflineDownloadStatus.DOWNLOADED ||
           entry.status === OfflineDownloadStatus.FAILED ||
-          entry.status === OfflineDownloadStatus.PARTIAL) {
+          entry.status === OfflineDownloadStatus.PARTIAL ||
+          entry.status === OfflineDownloadStatus.BLOCKED) {
           await store.deleteChapterDownload(entry.comicId, entry.chapterId)
         }
       }
