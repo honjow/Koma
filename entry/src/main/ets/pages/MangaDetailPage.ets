@@ -28,7 +28,6 @@ import {
   Chapter,
   Comic,
   ComicSourceKind,
-  Page,
   ReadingDirection,
   ReadingProgress,
   updateReadingProgress,
@@ -54,6 +53,7 @@ import {
   LocalLibraryRefreshComicResult,
   LocalLibraryRefreshService,
 } from '../model/LocalLibraryRefreshService'
+import { SourceChapterPageHydrator } from '../model/SourceChapterPageHydrator'
 import {
   SourceRuntimeRegistry,
   SourceRuntimeRegistryEntry,
@@ -114,10 +114,6 @@ interface SourceOperationResponsePayload {
   data?: SourceOperationDataPayload
 }
 
-interface SourcePagesRequestArgs {
-  chapterId: string
-}
-
 interface SourceMangaRequestArgs {
   mangaId: string
 }
@@ -136,19 +132,15 @@ interface SourceDetailRequestHostHints {
   network: boolean
 }
 
-interface SourcePagesRequestHostHints extends SourceDetailRequestHostHints {
-  imageStrategy: string
-}
-
 interface SourceDetailRequest {
   type: string
   version: number
   requestId: string
   operation: string
   sourceId: string
-  args: SourceMangaRequestArgs | SourceChaptersRequestArgs | SourcePagesRequestArgs
+  args: SourceMangaRequestArgs | SourceChaptersRequestArgs
   settings: SourceSettingsRecord
-  hostHints: SourceDetailRequestHostHints | SourcePagesRequestHostHints
+  hostHints: SourceDetailRequestHostHints
 }
 
 @Concurrent
@@ -540,8 +532,8 @@ export struct MangaDetailPage {
   private buildSourceDetailRequestJson(
     sourceId: string,
     operation: string,
-    args: SourceMangaRequestArgs | SourceChaptersRequestArgs | SourcePagesRequestArgs,
-    hostHints: SourceDetailRequestHostHints | SourcePagesRequestHostHints,
+    args: SourceMangaRequestArgs | SourceChaptersRequestArgs,
+    hostHints: SourceDetailRequestHostHints,
   ): string {
     const settings = appSourceSettingsStore.loadForSource(sourceId)
     const request: SourceDetailRequest = {
@@ -938,34 +930,15 @@ export struct MangaDetailPage {
     if (this.libraryStore === undefined || this.manga.sourceId === undefined) {
       return false
     }
-    const comic = this.libraryStore.getComic(this.currentComicId())
-    const chapter = comic?.chapters.find((item: Chapter): boolean => item.id === chapterId)
-    if (comic === undefined || chapter === undefined) {
-      return false
-    }
-    if (chapter.pages.length > 0) {
-      return true
-    }
-    const lookup = this.sourceRegistry.lookup(this.manga.sourceId)
-    if (!lookup.ok || lookup.entry === undefined) {
-      throw new Error(lookup.reasonCode ?? 'source lookup failed')
-    }
-    const pages = await this.runSourcePagesOperation(lookup.entry, comic.id, chapterId)
-    if (pages.length === 0) {
-      return false
-    }
-    chapter.pages = pages
-    chapter.pageCount = pages.length
-    chapter.updatedAt = Date.now()
-    comic.pageCount = comic.chapters.reduce((total: number, item: Chapter): number => total + item.pageCount, 0)
-    comic.updatedAt = chapter.updatedAt
-    if (this.libraryPersistenceService === undefined) {
-      this.libraryStore.upsertComic(comic)
-    } else {
-      upsertComicAndPersistLibraryStore(this.libraryStore, this.libraryPersistenceService, comic)
-    }
-    this.onLibraryChanged()
-    return true
+    const result = await new SourceChapterPageHydrator(
+      this.libraryStore,
+      this.sourceRegistry,
+      this.libraryPersistenceService,
+      () => {
+        this.onLibraryChanged()
+      },
+    ).ensureChapterPages(this.currentComicId(), this.manga.sourceId, chapterId)
+    return result.hydrated
   }
 
   private markChapterReadState(chapterId: string, isRead: boolean): void {
@@ -1156,48 +1129,6 @@ export struct MangaDetailPage {
     }
   }
 
-  private async runSourcePagesOperation(
-    entry: SourceRuntimeRegistryEntry,
-    comicId: string,
-    chapterId: string
-  ): Promise<Page[]> {
-    const args: SourcePagesRequestArgs = { chapterId }
-    const hostHints: SourcePagesRequestHostHints = { network: true, imageStrategy: 'descriptor-or-url' }
-    const request = this.buildSourceDetailRequestJson(entry.sourceId, 'get_pages', args, hostHints)
-    const responseJson = await taskpool.execute(
-      executeMangaDetailSourceOperation,
-      request,
-      this.copyWasmBytes(entry)
-    ) as string
-    const response = JSON.parse(responseJson) as SourceOperationResponsePayload
-    const rows = response.data?.pages !== undefined ? response.data.pages : (response.data?.items ?? [])
-    if (response.ok !== true || rows.length === 0) {
-      throw new Error('get_pages returned no pages')
-    }
-    return rows.map((item: Record<string, Object>, index: number): Page => {
-      const pageId = this.optionalSourceString(item['id']) ?? this.optionalSourceString(item['pageId']) ?? `${chapterId}:page:${index + 1}`
-      const url = this.sourcePageImageUrl(item) ?? ''
-      const page: Page = {
-        id: pageId,
-        comicId,
-        chapterId,
-        index,
-        fileName: `source-page-${index + 1}`,
-        uri: url,
-        sortKey: `${index}`.padStart(6, '0'),
-      }
-      const width = this.optionalSourceNumber(item['width'])
-      if (width !== undefined) {
-        page.width = width
-      }
-      const height = this.optionalSourceNumber(item['height'])
-      if (height !== undefined) {
-        page.height = height
-      }
-      return page
-    })
-  }
-
   private copyWasmBytes(entry: SourceRuntimeRegistryEntry): Uint8Array {
     const copy = new Uint8Array(entry.wasmBytes.byteLength)
     copy.set(entry.wasmBytes)
@@ -1209,30 +1140,6 @@ export struct MangaDetailPage {
       return undefined
     }
     return value
-  }
-
-  private sourcePageImageUrl(item: Record<string, Object>): string | undefined {
-    const directUrl = this.optionalSourceString(item['url']) ?? this.optionalSourceString(item['uri'])
-    if (directUrl !== undefined) {
-      return directUrl
-    }
-    const image = item['image']
-    if (image === undefined || image === null || Array.isArray(image) || typeof image !== 'object') {
-      return undefined
-    }
-    const imageRecord = image as Record<string, Object>
-    return this.optionalSourceString(imageRecord['url']) ?? this.optionalSourceString(imageRecord['uri'])
-  }
-
-  private optionalSourceNumber(value: Object | string | number | boolean | null | undefined): number | undefined {
-    if (typeof value === 'number' && Number.isFinite(value)) {
-      return value
-    }
-    if (typeof value !== 'string') {
-      return undefined
-    }
-    const parsed = Number(value)
-    return Number.isFinite(parsed) ? parsed : undefined
   }
 
   private showToast(message: string): void {

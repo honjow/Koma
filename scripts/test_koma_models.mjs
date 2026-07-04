@@ -34,6 +34,7 @@ const offlineDownloadStorePath = resolve(root, 'entry/src/main/ets/model/Offline
 const offlineDownloadQueueStorePath = resolve(root, 'entry/src/main/ets/model/OfflineDownloadQueueStore.ets')
 const offlineDownloadServicePath = resolve(root, 'entry/src/main/ets/model/OfflineDownloadService.ets')
 const offlineDownloadNotificationStorePath = resolve(root, 'entry/src/main/ets/model/OfflineDownloadNotificationStore.ets')
+const sourceChapterPageHydratorPath = resolve(root, 'entry/src/main/ets/model/SourceChapterPageHydrator.ets')
 const entryAbilityPath = resolve(root, 'entry/src/main/ets/entryability/EntryAbility.ets')
 const indexPath = resolve(root, 'entry/src/main/ets/pages/Index.ets')
 const libraryPagePath = resolve(root, 'entry/src/main/ets/pages/LibraryPage.ets')
@@ -65,6 +66,7 @@ const secondaryListScaffoldPath = resolve(root, 'entry/src/main/ets/components/S
 const comicCoverCardPath = resolve(root, 'entry/src/main/ets/components/ComicCoverCard.ets')
 const chapterListSectionPath = resolve(root, 'entry/src/main/ets/components/ChapterListSection.ets')
 const mangaDetailPagePath = resolve(root, 'entry/src/main/ets/pages/MangaDetailPage.ets')
+const downloadsPagePath = resolve(root, 'entry/src/main/ets/pages/DownloadsPage.ets')
 const readerPagePath = resolve(root, 'entry/src/main/ets/pages/ReaderPage.ets')
 const readerPageSourceAdapterPath = resolve(root, 'entry/src/main/ets/model/ReaderPageSourceAdapter.ets')
 const remoteImageCacheStorePath = resolve(root, 'entry/src/main/ets/model/RemoteImageCacheStore.ets')
@@ -104,6 +106,7 @@ const offlineDownloadStoreSource = readFileSync(offlineDownloadStorePath, 'utf8'
 const offlineDownloadQueueStoreSource = readFileSync(offlineDownloadQueueStorePath, 'utf8')
 const offlineDownloadServiceSource = readFileSync(offlineDownloadServicePath, 'utf8')
 const offlineDownloadNotificationStoreSource = readFileSync(offlineDownloadNotificationStorePath, 'utf8')
+const sourceChapterPageHydratorSource = readFileSync(sourceChapterPageHydratorPath, 'utf8')
 const entryAbilitySource = readFileSync(entryAbilityPath, 'utf8')
 const indexSource = readFileSync(indexPath, 'utf8')
 const libraryPageSource = readFileSync(libraryPagePath, 'utf8')
@@ -136,6 +139,7 @@ const secondaryListScaffoldSource = readFileSync(secondaryListScaffoldPath, 'utf
 const comicCoverCardSource = readFileSync(comicCoverCardPath, 'utf8')
 const chapterListSectionSource = readFileSync(chapterListSectionPath, 'utf8')
 const mangaDetailPageSource = readFileSync(mangaDetailPagePath, 'utf8')
+const downloadsPageSource = readFileSync(downloadsPagePath, 'utf8')
 const readerPageSource = readFileSync(readerPagePath, 'utf8')
 const readerPageSourceAdapterSource = readFileSync(readerPageSourceAdapterPath, 'utf8')
 const remoteImageCacheStoreSource = readFileSync(remoteImageCacheStorePath, 'utf8')
@@ -429,6 +433,7 @@ assertExport(offlineDownloadStoreSource, 'OfflineDownloadStore')
 assertExport(offlineDownloadStoreSource, 'OfflineDownloadStatus')
 assertExport(offlineDownloadStoreSource, 'OfflineChapterDownloadManifest')
 assertExport(offlineDownloadServiceSource, 'OfflineDownloadService')
+assertExport(sourceChapterPageHydratorSource, 'SourceChapterPageHydrator')
 assertExport(readerSessionStoreSource, 'InMemoryReaderSessionStore')
 assertExport(mockLibraryDataSource, 'MockLibraryComic')
 assertExport(mockLibraryDataSource, 'LibraryViewModel')
@@ -1569,7 +1574,12 @@ assert.doesNotMatch(
 assert.match(
   mangaDetailPageSource,
   /private buildSourceDetailRequestJson[\s\S]*appSourceSettingsStore\.loadForSource\(sourceId\)[\s\S]*type:\s*'request'[\s\S]*version:\s*1[\s\S]*requestId:\s*`detail-\$\{operation\}-\$\{sourceId\}-\$\{Date\.now\(\)\}`[\s\S]*operation,[\s\S]*sourceId,[\s\S]*args,[\s\S]*settings,[\s\S]*hostHints/,
-  'MangaDetailPage must build v1 source request envelopes for detail, chapters, and pages',
+  'MangaDetailPage must build v1 source request envelopes for detail and chapters',
+)
+assert.match(
+  sourceChapterPageHydratorSource,
+  /requestId:\s*`chapter-pages-\$\{entry\.sourceId\}-\$\{Date\.now\(\)\}`[\s\S]*operation:\s*'get_pages'[\s\S]*args:\s*\{ chapterId \}[\s\S]*appSourceSettingsStore\.loadForSource\(entry\.sourceId\)[\s\S]*hostHints:\s*\{ network: true, imageStrategy: 'descriptor-or-url' \}/,
+  'SourceChapterPageHydrator must build v1 get_pages envelopes with source settings and image host hints',
 )
 assert.match(
   readerPageSourceAdapterSource,
@@ -1637,13 +1647,13 @@ assert.match(
   'get_chapters parsing must accept data.items and data.chapters',
 )
 assert.match(
-  mangaDetailPageSource,
+  sourceChapterPageHydratorSource,
   /const rows = response\.data\?\.pages !== undefined \? response\.data\.pages : \(response\.data\?\.items \?\? \[\]\)/,
   'get_pages parsing must keep accepting data.pages and fixture data.items',
 )
 assert.match(
-  mangaDetailPageSource,
-  /private sourcePageImageUrl\(item: Record<string, Object>\): string \| undefined \{[\s\S]*this\.optionalSourceString\(item\['url'\]\) \?\? this\.optionalSourceString\(item\['uri'\]\)[\s\S]*const image = item\['image'\][\s\S]*imageRecord\['url'\]/,
+  sourceChapterPageHydratorSource,
+  /function sourcePageImageUrl\(item: Record<string, Object>\): string \| undefined \{[\s\S]*optionalSourceString\(item\['url'\]\) \?\? optionalSourceString\(item\['uri'\]\)[\s\S]*const image = item\['image'\][\s\S]*imageRecord\['url'\]/,
   'get_pages parsing must accept nested image.url while preserving top-level url/uri compatibility',
 )
 assert.match(
@@ -1673,8 +1683,33 @@ assert.doesNotMatch(
 )
 assert.equal(
   (mangaDetailPageSource.match(/this\.copyWasmBytes\(entry\)/g) ?? []).length,
-  3,
-  'MangaDetailPage must copy wasm bytes for get_manga, get_chapters, and get_pages taskpool calls',
+  2,
+  'MangaDetailPage must copy wasm bytes for get_manga and get_chapters taskpool calls',
+)
+assert.match(
+  sourceChapterPageHydratorSource,
+  /function cloneWasmBytes\(entry: SourceRuntimeRegistryEntry\): Uint8Array \{[\s\S]*new Uint8Array\(entry\.wasmBytes\.byteLength\)[\s\S]*copy\.set\(entry\.wasmBytes\)[\s\S]*cloneWasmBytes\(entry\)/,
+  'SourceChapterPageHydrator must copy wasm bytes for get_pages taskpool calls',
+)
+assert.match(
+  mangaDetailPageSource,
+  /new SourceChapterPageHydrator\([\s\S]*this\.libraryStore,[\s\S]*this\.sourceRegistry,[\s\S]*this\.libraryPersistenceService[\s\S]*ensureChapterPages\(this\.currentComicId\(\), this\.manga\.sourceId, chapterId\)/,
+  'MangaDetailPage must hydrate source chapter pages through the shared hydrator before reader/download actions',
+)
+assert.match(
+  downloadsPageSource,
+  /@Param sourceRegistry: SourceRuntimeRegistry = appSourceRuntimeRegistry[\s\S]*private async ensureSourcePagesForDownload\(comic: Comic, chapterId: string\)[\s\S]*new SourceChapterPageHydrator\([\s\S]*this\.libraryStore,[\s\S]*this\.sourceRegistry,[\s\S]*this\.libraryPersistenceService[\s\S]*ensureChapterPages\(comic\.id, sourceId, chapterId\)/,
+  'DownloadsPage must share the source chapter page hydrator with a real source registry and persistence path',
+)
+assert.match(
+  downloadsPageSource,
+  /private async runRetry\(comic: Comic, entry: OfflineDownloadQueueEntry\): Promise<void> \{[\s\S]*await this\.ensureSourcePagesForDownload\(comic, entry\.chapterId\)[\s\S]*await service\.downloadChapter\(comic, entry\.chapterId/,
+  'DownloadsPage single retry must hydrate source-backed chapter pages before invoking OfflineDownloadService',
+)
+assert.match(
+  downloadsPageSource,
+  /private async runForegroundDownloadBatch\(targets: OfflineDownloadQueueEntry\[\]\): Promise<number> \{[\s\S]*await this\.ensureSourcePagesForDownload\(comic, entry\.chapterId\)[\s\S]*await service\.downloadChapter\(comic, entry\.chapterId/,
+  'DownloadsPage queued batch start must hydrate source-backed chapter pages before invoking OfflineDownloadService',
 )
 
 const mangaRequest = JSON.parse(buildSourceDetailRequestJson(

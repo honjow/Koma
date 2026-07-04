@@ -665,8 +665,13 @@ struct Index {
       HdsNavDestination() {
         DownloadsPage({
           libraryStore: this.libraryStore,
+          libraryPersistenceService: this.ensureLibraryPersistenceService(),
+          sourceRegistry: this.sourceRegistry,
           onOpenReader: (comicId: ComicId, chapterId?: string) => {
             void this.openReader(comicId, chapterId)
+          },
+          onLibraryChanged: () => {
+            this.refreshLibrarySnapshot()
           },
         })
       }

@@ -6,6 +6,7 @@ import { KomaEmptyState } from '../components/ui/KomaEmptyState'
 import { ThemeConstants } from '../theme/ThemeConstants'
 import { Comic } from '../model/ComicModels'
 import { LibraryStore } from '../model/LibraryStore'
+import { LibraryStorePersistenceService } from '../model/LibraryPersistence'
 import { canRunOfflineDownloadQueueNow, OfflineDownloadService } from '../model/OfflineDownloadService'
 import {
   OfflineDownloadStatus,
@@ -21,9 +22,12 @@ import {
   summarizeOfflineDownloadQueue,
 } from '../model/OfflineDownloadQueueStore'
 import { installReaderRemoteHeadersForComic } from '../model/ReaderPageSourceAdapter'
+import { SourceChapterPageHydrator } from '../model/SourceChapterPageHydrator'
 import { AppStrings } from '../i18n/AppStrings'
 import { connectLanguageState, LanguageState } from '../state/LanguageState'
 import { RouterHelper } from '../common/RouterHelper'
+import { SourceRuntimeRegistry } from '../sourceRuntime/SourceRuntimeRegistry'
+import { appSourceRuntimeRegistry } from '../sourceRuntime/SourceRuntimeAppRegistry'
 
 function s(name: string): string {
   return AppStrings.get(name)
@@ -41,6 +45,8 @@ enum DownloadQueueFilter {
 @ComponentV2
 export struct DownloadsPage {
   @Param libraryStore?: LibraryStore = undefined
+  @Param libraryPersistenceService?: LibraryStorePersistenceService = undefined
+  @Param sourceRegistry: SourceRuntimeRegistry = appSourceRuntimeRegistry
   @Local private languageState: LanguageState = connectLanguageState()
   @Local private entries: OfflineDownloadQueueEntry[] = []
   @Local private preferences: OfflineDownloadQueuePreferences = {
@@ -53,6 +59,7 @@ export struct DownloadsPage {
   @Local private recoveryText: string = ''
   @Event onOpenReader: (comicId: string, chapterId?: string) => void =
     (_comicId: string, _chapterId?: string) => {}
+  @Event onLibraryChanged: () => void = () => {}
 
   private context(): common.UIAbilityContext {
     return getContext(this) as common.UIAbilityContext
@@ -355,6 +362,7 @@ export struct DownloadsPage {
 
   private async runRetry(comic: Comic, entry: OfflineDownloadQueueEntry): Promise<void> {
     try {
+      await this.ensureSourcePagesForDownload(comic, entry.chapterId)
       try {
         await installReaderRemoteHeadersForComic(this.context(), comic)
       } catch (_error) {
@@ -587,6 +595,7 @@ export struct DownloadsPage {
           this.blockUnavailableEntry(entry)
           continue
         }
+        await this.ensureSourcePagesForDownload(comic, entry.chapterId)
         try {
           await installReaderRemoteHeadersForComic(this.context(), comic)
         } catch (_error) {
@@ -608,6 +617,24 @@ export struct DownloadsPage {
     }
     await Promise.all(workers)
     return completed
+  }
+
+  private async ensureSourcePagesForDownload(comic: Comic, chapterId: string): Promise<void> {
+    const sourceId = comic.sourceRuntimeId
+    if (sourceId === undefined || sourceId.trim().length === 0 || this.libraryStore === undefined) {
+      return
+    }
+    const result = await new SourceChapterPageHydrator(
+      this.libraryStore,
+      this.sourceRegistry,
+      this.libraryPersistenceService,
+      () => {
+        this.onLibraryChanged()
+      },
+    ).ensureChapterPages(comic.id, sourceId, chapterId)
+    if (!result.hydrated) {
+      console.warn(`[Downloads] step=source_pages_hydrate_unavailable reason=${result.reasonCode ?? 'unknown'}`)
+    }
   }
 
   private removeCompletedFailedDownloads(): void {
