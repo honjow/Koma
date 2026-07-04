@@ -15,11 +15,30 @@ import {
   SourceRuntimeCallResponse,
 } from './NativeSourceRuntime'
 import {
+  Comic,
+  ComicSourceKind,
+  Page,
+  ReadingDirection,
+} from '../model/ComicModels'
+import {
+  OfflineDownloadService,
+} from '../model/OfflineDownloadService'
+import {
+  OfflineDownloadStatus,
+  OfflineDownloadStore,
+} from '../model/OfflineDownloadStore'
+import {
+  DEFAULT_OFFLINE_DOWNLOAD_QUEUE_PREFERENCES,
+  OfflineDownloadQueueStore,
+} from '../model/OfflineDownloadQueueStore'
+import {
   ReaderPageRenderKind,
+  configureReaderOfflineDownloads,
   createReaderPageRenderSource,
 } from '../model/ReaderPageSourceAdapter'
 import {
   ReaderSessionConfig,
+  createReaderSessionConfigFromComic,
 } from '../model/ReaderSessionStore'
 import {
   SourceArchiveNegativeCaseFixture,
@@ -86,6 +105,7 @@ const SMOKE_PHASE_REAL_SOURCE_SEARCH: string = 'real-source-search'
 const SMOKE_PHASE_REAL_SOURCE_READER: string = 'real-source-reader'
 const SMOKE_PHASE_INSTALLED_SOURCE_READER: string = 'installed-source-reader'
 const SMOKE_PHASE_SOURCE_INDEX_READER: string = 'source-index-reader'
+const SMOKE_PHASE_SOURCE_INDEX_DOWNLOAD_READER: string = 'source-index-download-reader'
 const REAL_SOURCE_RAWFILE_PATH: string = 'test/baozimh.wasm'
 const MANGADEX_RAWFILE_PATH: string = 'test/mangadex.wasm'
 const REAL_SOURCE_SEARCH_REQUEST: string = '{"operation":"search","query":"test"}'
@@ -446,6 +466,13 @@ export interface SourceRuntimeSmokeResult {
   sourceIndexReaderPageCount?: number
   sourceIndexReaderPageId?: string
   sourceIndexReaderRenderSourceOk?: boolean
+  sourceIndexDownloadOk?: boolean
+  sourceIndexDownloadStatus?: string
+  sourceIndexDownloadPageCount?: number
+  sourceIndexDownloadDownloadedPageCount?: number
+  sourceIndexDownloadOfflineReaderOk?: boolean
+  sourceIndexDownloadOfflineReaderKind?: string
+  sourceIndexDownloadCleanupOk?: boolean
   sourceIndexReaderCleanupOk?: boolean
   mangadexWasmBytes?: number
   mangadexResponse?: SourceRuntimeCallResponse
@@ -491,6 +518,19 @@ function firstStringField(rows: Record<string, Object>[], field: string): string
   return typeof value === 'string' ? value : ''
 }
 
+function sourcePageImageUrl(page: Record<string, Object>): string {
+  const directUrl = firstStringField([page], 'url') || firstStringField([page], 'uri')
+  if (directUrl.length > 0) {
+    return directUrl
+  }
+  const image = page['image']
+  if (image === undefined || typeof image !== 'object' || Array.isArray(image)) {
+    return ''
+  }
+  const imageRecord = image as Record<string, Object>
+  return firstStringField([imageRecord], 'url') || firstStringField([imageRecord], 'uri')
+}
+
 function copySmokeWasmBytes(bytes: Uint8Array): Uint8Array {
   const copy = new Uint8Array(bytes.byteLength)
   copy.set(bytes)
@@ -508,6 +548,59 @@ function pageImageDimension(page: Record<string, Object>, field: string): number
   }
   const value = (image as Record<string, Object>)[field]
   return typeof value === 'number' && Number.isFinite(value) ? value : undefined
+}
+
+function sourcePageRowsToComic(
+  selectedSourceId: string,
+  mangaId: string,
+  chapterId: string,
+  pages: Record<string, Object>[],
+): Comic {
+  const now = Date.now()
+  const comicId = `source-index-download-smoke:${selectedSourceId}:${mangaId}`
+  const chapterPages: Page[] = pages.map((page: Record<string, Object>, index: number): Page => {
+    const pageId = firstStringField([page], 'id') || `${chapterId}:page:${index + 1}`
+    return {
+      id: pageId,
+      comicId,
+      chapterId,
+      index,
+      fileName: `source-page-${index + 1}`,
+      uri: sourcePageImageUrl(page),
+      sortKey: `${index}`.padStart(6, '0'),
+      width: pageImageDimension(page, 'width'),
+      height: pageImageDimension(page, 'height'),
+    }
+  })
+  return {
+    id: comicId,
+    title: 'Source Index Download Smoke',
+    sourceKind: ComicSourceKind.PRIVATE_LIBRARY,
+    sourcePath: `source://${selectedSourceId}/${mangaId}`,
+    sourceRuntimeId: selectedSourceId,
+    remoteResourceId: mangaId,
+    sortTitle: 'source index download smoke',
+    preferredDirection: ReadingDirection.RIGHT_TO_LEFT,
+    chapters: [
+      {
+        id: chapterId,
+        comicId,
+        title: 'Chapter',
+        index: 0,
+        sourcePath: `source://${selectedSourceId}/${chapterId}`,
+        sortKey: '000000',
+        pages: chapterPages,
+        pageCount: chapterPages.length,
+        createdAt: now,
+        updatedAt: now,
+      },
+    ],
+    chapterCount: 1,
+    pageCount: chapterPages.length,
+    createdAt: now,
+    updatedAt: now,
+    lastImportedAt: now,
+  }
 }
 
 function joinSourceRuntimeSmokePath(parent: string, child: string): string {
@@ -1640,10 +1733,12 @@ export async function maybeRunSourceRuntimeDeviceSmoke(
       return
     }
 
-    if (result.smokePhase === SMOKE_PHASE_SOURCE_INDEX_READER) {
+    if (result.smokePhase === SMOKE_PHASE_SOURCE_INDEX_READER ||
+      result.smokePhase === SMOKE_PHASE_SOURCE_INDEX_DOWNLOAD_READER) {
       if (context === undefined) {
-        result.error = 'source-index-reader phase requires ability context'
+        result.error = `${result.smokePhase} phase requires ability context`
       } else {
+        const isDownloadReaderPhase = result.smokePhase === SMOKE_PHASE_SOURCE_INDEX_DOWNLOAD_READER
         const indexUrl = smokeStringParam(want, SMOKE_INDEX_URL_PARAM)
         const requestedSourceId = smokeStringParam(want, SMOKE_SOURCE_ID_PARAM)
         const selectedSourceId = requestedSourceId.length > 0 ? requestedSourceId : SOURCE_INDEX_READER_DEFAULT_SOURCE_ID
@@ -1651,9 +1746,9 @@ export async function maybeRunSourceRuntimeDeviceSmoke(
         result.sourceIndexReaderSelectedSourceId = selectedSourceId
         const alreadyInstalled = appSourceRuntimeRegistry.lookup(selectedSourceId).ok
         if (indexUrl.length === 0) {
-          result.error = 'source-index-reader requires indexUrl'
+          result.error = `${result.smokePhase} requires indexUrl`
         } else if (alreadyInstalled) {
-          result.error = 'source-index-reader refuses to overwrite installed source'
+          result.error = `${result.smokePhase} refuses to overwrite installed source`
         } else {
           const sourceIndexService = new SourceIndexService(context)
           const fetch = await sourceIndexService.fetchIndex(indexUrl)
@@ -1732,6 +1827,35 @@ export async function maybeRunSourceRuntimeDeviceSmoke(
                   renderSource.kind === ReaderPageRenderKind.REMOTE_URL_IMAGE &&
                     renderSource.sourceRuntimeId === selectedSourceId &&
                     renderSource.pageId === pageId
+                if (isDownloadReaderPhase && result.sourceIndexReaderRenderSourceOk === true) {
+                  const comic = sourcePageRowsToComic(selectedSourceId, mangaId, chapterId, pages)
+                  const downloadStore = new OfflineDownloadStore(context.filesDir)
+                  const queueStore = new OfflineDownloadQueueStore(downloadStore.filesRootDir())
+                  queueStore.savePreferences(DEFAULT_OFFLINE_DOWNLOAD_QUEUE_PREFERENCES)
+                  const downloadService = new OfflineDownloadService(downloadStore, queueStore)
+                  const manifest = await downloadService.downloadChapter(comic, chapterId, {
+                    comicTitle: comic.title,
+                    chapterTitle: comic.chapters[0].title,
+                  })
+                  result.sourceIndexDownloadStatus = manifest.status
+                  result.sourceIndexDownloadPageCount = manifest.pageCount
+                  result.sourceIndexDownloadDownloadedPageCount = manifest.downloadedPageCount
+                  result.sourceIndexDownloadOk =
+                    manifest.status === OfflineDownloadStatus.DOWNLOADED &&
+                      manifest.downloadedPageCount === pages.length &&
+                      downloadStore.isChapterFullyDownloaded(comic.id, chapterId)
+                  configureReaderOfflineDownloads(context.filesDir)
+                  const offlineConfig = createReaderSessionConfigFromComic(comic, chapterId)
+                  const offlineSource = createReaderPageRenderSource(offlineConfig, 0)
+                  result.sourceIndexDownloadOfflineReaderKind = offlineSource.kind
+                  result.sourceIndexDownloadOfflineReaderOk =
+                    offlineSource.kind === ReaderPageRenderKind.LOCAL_FILE_IMAGE &&
+                      offlineSource.pageId === pageId &&
+                      offlineSource.imageUri.length > 0
+                  await downloadStore.deleteChapterDownload(comic.id, chapterId)
+                  result.sourceIndexDownloadCleanupOk =
+                    !downloadStore.isChapterFullyDownloaded(comic.id, chapterId)
+                }
               }
             }
             result.sourceIndexReaderCleanupOk = await removeInstalledSourcePackage(context, selectedSourceId)
@@ -1746,9 +1870,13 @@ export async function maybeRunSourceRuntimeDeviceSmoke(
           result.sourceIndexReaderPagesOk === true &&
           (result.sourceIndexReaderPageCount ?? 0) > 0 &&
           result.sourceIndexReaderRenderSourceOk === true &&
+          (!isDownloadReaderPhase ||
+            (result.sourceIndexDownloadOk === true &&
+              result.sourceIndexDownloadOfflineReaderOk === true &&
+              result.sourceIndexDownloadCleanupOk === true)) &&
           result.sourceIndexReaderCleanupOk === true
         if (!result.ok && result.error === undefined) {
-          result.error = 'source-index-reader failed'
+          result.error = `${result.smokePhase} failed`
         }
       }
       compactSmokeResultForHilog(result)

@@ -555,10 +555,13 @@ require_text "$smoke_file" 'nativeHelloOk'
 require_text "$smoke_file" 'nativeAddOk'
 require_text "$smoke_file" 'SMOKE_PHASE_INSTALLED_SOURCE_READER'
 require_text "$smoke_file" 'SMOKE_PHASE_SOURCE_INDEX_READER'
+require_text "$smoke_file" 'SMOKE_PHASE_SOURCE_INDEX_DOWNLOAD_READER'
 require_text "$smoke_file" 'SourceIndexService'
 require_text "$smoke_file" 'installFromBytes'
 require_text "$smoke_file" 'createReaderPageRenderSource'
 require_text "$smoke_file" 'installedSourceReaderRenderSourceOk'
+require_text "$smoke_file" 'OfflineDownloadService'
+require_text "$smoke_file" 'ReaderPageRenderKind.LOCAL_FILE_IMAGE'
 
 if rg -q 'NativeSourceRuntime\\.runJsonCall' "$smoke_file"; then
   echo "device smoke route must execute through SourceRuntimeRunner, not direct native runtime calls" >&2
