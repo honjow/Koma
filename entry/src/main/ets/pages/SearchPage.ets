@@ -170,6 +170,28 @@ export struct SearchPage {
     })
   }
 
+  private confirmClearHistory(): void {
+    if (this.history.length === 0) {
+      return
+    }
+    this.getUIContext().showAlertDialog({
+      title: s('search_history_clear_title'),
+      message: s('search_history_clear_message').replace('%s', `${this.history.length}`),
+      autoCancel: true,
+      primaryButton: {
+        value: s('common_clear'),
+        fontColor: ThemeConstants.DANGER,
+        action: () => {
+          this.clearHistory()
+        },
+      },
+      secondaryButton: {
+        value: s('common_cancel'),
+        action: () => {},
+      },
+    })
+  }
+
   private removeHistoryEntry(query: string): void {
     const store = this.historyStore
     this.history = this.history.filter((entry: SearchHistoryEntry): boolean => {
@@ -436,7 +458,7 @@ export struct SearchPage {
             compact: true,
             controlHeight: ThemeConstants.ACTION_CHIP_HEIGHT,
             action: () => {
-              this.clearHistory()
+              this.confirmClearHistory()
             },
           })
         }

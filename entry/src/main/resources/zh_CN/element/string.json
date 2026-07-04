@@ -340,6 +340,8 @@
     { "name": "search_empty_results_message", "value": "换个关键词再试。" },
     { "name": "search_recent_title", "value": "最近搜索" },
     { "name": "search_history_empty", "value": "暂无搜索历史" },
+    { "name": "search_history_clear_title", "value": "清除搜索历史？" },
+    { "name": "search_history_clear_message", "value": "要从本设备清除 %s 条最近搜索记录吗？" },
     { "name": "search_result_action_read", "value": "读" },
     { "name": "search_filter_label", "value": "搜索范围" },
     { "name": "search_filter_all", "value": "全部来源" },

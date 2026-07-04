@@ -146,6 +146,16 @@ assert.match(
 )
 assert.match(
   searchPageSource,
+  /confirmClearHistory\(\): void \{[\s\S]*this\.history\.length === 0[\s\S]*showAlertDialog\(\{[\s\S]*search_history_clear_title[\s\S]*search_history_clear_message[\s\S]*primaryButton:[\s\S]*common_clear[\s\S]*this\.clearHistory\(\)/,
+  'SearchPage must confirm before clearing all recent search history',
+)
+assert.match(
+  searchPageSource,
+  /label: s\('common_clear'\)[\s\S]*action: \(\) => \{[\s\S]*this\.confirmClearHistory\(\)/,
+  'SearchPage clear-history button must route through confirmation',
+)
+assert.match(
+  searchPageSource,
   /@Monitor\('externalQuerySerial'\)[\s\S]*consumeExternalQuery\(\)[\s\S]*externalQuery\.trim\(\)[\s\S]*this\.runImmediateQuery\(query\)/,
   'SearchPage must immediately run externally supplied queries such as manga tag taps',
 )

@@ -340,6 +340,8 @@
     { "name": "search_empty_results_message", "value": "Try a different keyword." },
     { "name": "search_recent_title", "value": "Recent searches" },
     { "name": "search_history_empty", "value": "No search history yet" },
+    { "name": "search_history_clear_title", "value": "Clear search history?" },
+    { "name": "search_history_clear_message", "value": "Clear %s recent search entries from this device?" },
     { "name": "search_result_action_read", "value": "Read" },
     { "name": "search_filter_label", "value": "Search in" },
     { "name": "search_filter_all", "value": "All sources" },
