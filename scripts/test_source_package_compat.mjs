@@ -9,6 +9,7 @@ const backupServicePath = resolve(root, 'entry/src/main/ets/model/BackupService.
 const managerPagePath = resolve(root, 'entry/src/main/ets/pages/SourcePackageManagerPage.ets')
 const browseViewModelPath = resolve(root, 'entry/src/main/ets/viewmodel/BrowseViewModel.ets')
 const browsePagePath = resolve(root, 'entry/src/main/ets/pages/BrowsePage.ets')
+const sourceBrowsePagePath = resolve(root, 'entry/src/main/ets/pages/SourceBrowsePage.ets')
 const sourceSearchPagePath = resolve(root, 'entry/src/main/ets/pages/SourceSearchPage.ets')
 const sourceFilterControlsPath = resolve(root, 'entry/src/main/ets/components/SourceFilterControls.ets')
 const sourceModelsPath = resolve(root, 'entry/src/main/ets/model/SourceModels.ets')
@@ -31,6 +32,7 @@ const backupServiceSource = readFileSync(backupServicePath, 'utf8')
 const managerPageSource = readFileSync(managerPagePath, 'utf8')
 const browseViewModelSource = readFileSync(browseViewModelPath, 'utf8')
 const browsePageSource = readFileSync(browsePagePath, 'utf8')
+const sourceBrowsePageSource = readFileSync(sourceBrowsePagePath, 'utf8')
 const sourceSearchPageSource = readFileSync(sourceSearchPagePath, 'utf8')
 const sourceFilterControlsSource = readFileSync(sourceFilterControlsPath, 'utf8')
 const sourceModelsSource = readFileSync(sourceModelsPath, 'utf8')
@@ -322,6 +324,21 @@ assert.match(
   /loadMoreBrowse\(\): Promise<void> \{[\s\S]*const source = this\.selectedSource[\s\S]*const page = this\.browsePage \+ 1[\s\S]*const cursor = this\.browseNextCursor[\s\S]*loadMangaListing\(source, listing\.id, page, cursor\)/,
   'BrowseViewModel must send source-owned cursors for browse pagination',
 )
+{
+  const start = browseViewModelSource.indexOf('async loadMoreBrowse()')
+  const end = browseViewModelSource.indexOf('async runSearch(', start)
+  const block = browseViewModelSource.slice(start, end)
+  assert.match(
+    block,
+    /catch \(error\)[\s\S]*this\.errorMessage = safeSourceBrowseErrorText\(e, 'browse_error_load_more'\)/,
+    'BrowseViewModel browse pagination failures must use the safe load-more error copy',
+  )
+  assert.doesNotMatch(
+    block,
+    /catch \(error\)[\s\S]*this\.hasMoreBrowse = false/,
+    'BrowseViewModel must keep browse pagination retryable after a load-more failure',
+  )
+}
 assert.match(
   browseViewModelSource,
   /loadMoreSearch\(\): Promise<void> \{[\s\S]*const source = this\.selectedSource[\s\S]*const query = this\.searchQuery\.trim\(\)[\s\S]*const page = this\.searchPage \+ 1[\s\S]*const cursor = this\.searchNextCursor[\s\S]*searchSource\(source, query, page, cursor\)/,
@@ -494,8 +511,13 @@ assert.match(
 )
 assert.match(
   readFileSync(resolve(root, 'entry/src/main/ets/pages/SourceBrowsePage.ets'), 'utf8'),
-  /KomaIconButton\(\{[\s\S]*sys\.symbol\.arrow_clockwise[\s\S]*isEnabled: !this\.viewModel\.loadingBrowse[\s\S]*this\.reloadBrowse\(\)[\s\S]*browse_error_load_home[\s\S]*common_retry[\s\S]*this\.reloadBrowse\(\)/,
-  'SourceBrowsePage must expose explicit refresh and retry controls for source browse failures',
+  /retryBrowseError\(\): void \{[\s\S]*this\.hasBrowseContent\(\)[\s\S]*this\.viewModel\.loadMoreBrowse\(\)[\s\S]*this\.reloadBrowse\(\)[\s\S]*BrowseErrorState\(\)[\s\S]*common_retry[\s\S]*this\.retryBrowseError\(\)[\s\S]*KomaIconButton\(\{[\s\S]*sys\.symbol\.arrow_clockwise[\s\S]*isEnabled: !this\.viewModel\.loadingBrowse[\s\S]*this\.reloadBrowse\(\)/,
+  'SourceBrowsePage must expose explicit refresh and content-aware retry controls for source browse failures',
+)
+assert.match(
+  sourceBrowsePageSource,
+  /retryBrowseError\(\): void \{[\s\S]*this\.hasBrowseContent\(\)[\s\S]*this\.viewModel\.loadMoreBrowse\(\)[\s\S]*this\.reloadBrowse\(\)[\s\S]*BrowseErrorState\(\)[\s\S]*browse_error_load_more[\s\S]*common_retry[\s\S]*this\.retryBrowseError\(\)[\s\S]*this\.viewModel\.errorMessage\.length > 0 && !this\.hasBrowseContent\(\)[\s\S]*this\.BrowseErrorState\(\)[\s\S]*this\.viewModel\.errorMessage\.length > 0[\s\S]*this\.BrowseErrorState\(\)[\s\S]*else if \(this\.viewModel\.hasMoreBrowse\)/,
+  'SourceBrowsePage must keep existing browse content visible and expose retry when pagination fails',
 )
 assert.match(
   readFileSync(resolve(root, 'entry/src/main/ets/pages/SourceSearchPage.ets'), 'utf8'),

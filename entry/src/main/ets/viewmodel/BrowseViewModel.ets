@@ -553,7 +553,6 @@ export class BrowseViewModel {
       }
       const e = error as Error
       this.errorMessage = safeSourceBrowseErrorText(e, 'browse_error_load_more')
-      this.hasMoreBrowse = false
     } finally {
       if (requestId === this.browseRequestId) {
         this.loadingBrowse = false

@@ -577,8 +577,8 @@ assert.match(
 )
 assert.match(
   sourceBrowsePageSource,
-  /KomaIconButton\(\{[\s\S]*sys\.symbol\.arrow_clockwise[\s\S]*isEnabled: !this\.viewModel\.loadingBrowse[\s\S]*this\.reloadBrowse\(\)[\s\S]*browse_error_load_home[\s\S]*common_retry[\s\S]*this\.reloadBrowse\(\)/,
-  'SourceBrowsePage must expose refresh and retry controls for failed source browsing instead of a dead error label',
+  /retryBrowseError\(\): void \{[\s\S]*this\.hasBrowseContent\(\)[\s\S]*this\.viewModel\.loadMoreBrowse\(\)[\s\S]*this\.reloadBrowse\(\)[\s\S]*BrowseErrorState\(\)[\s\S]*common_retry[\s\S]*this\.retryBrowseError\(\)[\s\S]*KomaIconButton\(\{[\s\S]*sys\.symbol\.arrow_clockwise[\s\S]*isEnabled: !this\.viewModel\.loadingBrowse[\s\S]*this\.reloadBrowse\(\)/,
+  'SourceBrowsePage must expose refresh plus content-aware retry controls for failed source browsing',
 )
 
 assert.match(
@@ -2489,6 +2489,11 @@ assert.match(
   sourceBrowsePageSource,
   /SourceFilterControls\(\{[\s\S]*filters: this\.viewModel\.filters[\s\S]*values: this\.viewModel\.browseFilterValues[\s\S]*busy: this\.viewModel\.loadingBrowse[\s\S]*onFilterChange:[\s\S]*this\.setBrowseFilterValue\(filter, value\)[\s\S]*onReset:[\s\S]*resetBrowseFilters\(\)/,
   'SourceBrowsePage must wire shared source filter controls to browse reload behavior',
+)
+assert.match(
+  sourceBrowsePageSource,
+  /this\.viewModel\.errorMessage\.length > 0 && !this\.hasBrowseContent\(\)[\s\S]*this\.BrowseErrorState\(\)[\s\S]*ForEach\(this\.viewModel\.homeSections[\s\S]*ForEach\(this\.viewModel\.browseSections[\s\S]*this\.viewModel\.errorMessage\.length > 0[\s\S]*this\.BrowseErrorState\(\)[\s\S]*else if \(this\.viewModel\.hasMoreBrowse\)/,
+  'SourceBrowsePage must keep existing browse sections visible when source pagination reports an error',
 )
 assert.match(
   sourceSearchPageSource,

@@ -99,6 +99,14 @@ export struct SourceBrowsePage {
     void this.viewModel.loadBrowseHome(this.source)
   }
 
+  private retryBrowseError(): void {
+    if (this.hasBrowseContent()) {
+      void this.viewModel.loadMoreBrowse()
+      return
+    }
+    this.reloadBrowse()
+  }
+
   private setBrowseFilterValue(filter: SourceFilter, value: SourceFilterControlValue | undefined): void {
     void this.viewModel.setBrowseFilterValue(filter.id, value)
   }
@@ -224,6 +232,19 @@ export struct SourceBrowsePage {
     })
   }
 
+  @Builder
+  private BrowseErrorState() {
+    KomaEmptyState({
+      title: this.hasBrowseContent() ? s('browse_error_load_more') : s('browse_error_load_home'),
+      message: this.viewModel.errorMessage,
+      actionLabel: s('common_retry'),
+      showAction: true,
+      action: () => {
+        this.retryBrowseError()
+      },
+    })
+  }
+
   aboutToAppear(): void {
     if (this.shouldLoadBrowseOnAppear()) {
       this.reloadBrowse()
@@ -280,16 +301,8 @@ export struct SourceBrowsePage {
               .width(ThemeConstants.LOADING_SIZE_LARGE)
               .height(ThemeConstants.LOADING_SIZE_LARGE)
               .color(ThemeConstants.BRAND_PRIMARY)
-          } else if (this.viewModel.errorMessage.length > 0) {
-            KomaEmptyState({
-              title: s('browse_error_load_home'),
-              message: this.viewModel.errorMessage,
-              actionLabel: s('common_retry'),
-              showAction: true,
-              action: () => {
-                this.reloadBrowse()
-              },
-            })
+          } else if (this.viewModel.errorMessage.length > 0 && !this.hasBrowseContent()) {
+            this.BrowseErrorState()
           } else if (!this.hasBrowseContent()) {
             this.EmptyBrowseResults()
           } else {
@@ -301,7 +314,9 @@ export struct SourceBrowsePage {
               this.BrowseSection(section)
             }, (section: BrowseSourceSectionState) => section.listing.id)
 
-            if (this.viewModel.hasMoreBrowse) {
+            if (this.viewModel.errorMessage.length > 0) {
+              this.BrowseErrorState()
+            } else if (this.viewModel.hasMoreBrowse) {
               KomaActionButton({
                 label: this.viewModel.loadingBrowse ? s('common_loading_more') : s('common_load_more'),
                 kind: 'secondary',
