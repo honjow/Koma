@@ -295,6 +295,28 @@ export struct TrackerSettingsPage {
       })
   }
 
+  private confirmClearPendingProgress(): void {
+    if (this.pendingClearBusy || this.pendingRetryBusy || this.pendingSummary.totalCount === 0) {
+      return
+    }
+    this.getUIContext().showAlertDialog({
+      title: s('tracker_pending_clear_confirm_title'),
+      message: s('tracker_pending_clear_confirm_message'),
+      autoCancel: true,
+      primaryButton: {
+        value: s('common_clear'),
+        fontColor: ThemeConstants.DANGER,
+        action: () => {
+          this.clearPendingProgressNow()
+        },
+      },
+      secondaryButton: {
+        value: s('common_cancel'),
+        action: () => {},
+      },
+    })
+  }
+
   private clearPendingProgressNow(): void {
     if (this.pendingClearBusy || this.pendingRetryBusy || this.pendingSummary.totalCount === 0) {
       return
@@ -527,7 +549,7 @@ export struct TrackerSettingsPage {
             controlHeight: ThemeConstants.ACTION_CHIP_HEIGHT,
             isEnabled: this.pendingSummary.totalCount > 0 && !this.pendingRetryBusy && !this.pendingClearBusy,
             action: () => {
-              this.clearPendingProgressNow()
+              this.confirmClearPendingProgress()
             },
           })
         }

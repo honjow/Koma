@@ -267,6 +267,11 @@ assert.match(
 )
 assert.match(
   trackerSettingsPageSource,
+  /confirmClearPendingProgress\(\): void[\s\S]*showAlertDialog\(\{[\s\S]*tracker_pending_clear_confirm_title[\s\S]*tracker_pending_clear_confirm_message[\s\S]*primaryButton:[\s\S]*common_clear[\s\S]*this\.clearPendingProgressNow\(\)/,
+  'TrackerSettingsPage must confirm before clearing retained pending tracker progress',
+)
+assert.match(
+  trackerSettingsPageSource,
   /step=settings_pending_retry scanned=\$\{summary\.scannedCount\} synced=\$\{summary\.syncedCount\} retained=\$\{summary\.retainedCount\} failed=\$\{summary\.failedCount\} skipped=\$\{summary\.skippedCount\}/,
   'TrackerSettingsPage pending retry logs must expose only aggregate counts',
 )
@@ -277,7 +282,7 @@ assert.doesNotMatch(
 )
 assert.match(
   trackerSettingsPageSource,
-  /PendingProgressCard\(\)[\s\S]*tracker_pending_title[\s\S]*tracker_pending_message[\s\S]*this\.retryPendingProgressNow\(\)[\s\S]*this\.clearPendingProgressNow\(\)[\s\S]*this\.pendingProgressText\(\)[\s\S]*this\.PendingProgressCard\(\)/,
+  /PendingProgressCard\(\)[\s\S]*tracker_pending_title[\s\S]*tracker_pending_message[\s\S]*this\.retryPendingProgressNow\(\)[\s\S]*this\.confirmClearPendingProgress\(\)[\s\S]*this\.pendingProgressText\(\)[\s\S]*this\.PendingProgressCard\(\)/,
   'TrackerSettingsPage must render pending retry and clear actions before mapping review',
 )
 

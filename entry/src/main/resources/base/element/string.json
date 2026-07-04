@@ -739,6 +739,8 @@
     { "name": "tracker_pending_summary", "value": "%s pending · %s completed · %s attempts" },
     { "name": "tracker_pending_retry_done", "value": "Retried tracker progress: synced %s, retained %s" },
     { "name": "tracker_pending_retry_failed", "value": "Failed to retry tracker progress" },
+    { "name": "tracker_pending_clear_confirm_title", "value": "Clear pending progress?" },
+    { "name": "tracker_pending_clear_confirm_message", "value": "Pending tracker progress will be removed from this device and will not be retried automatically." },
     { "name": "tracker_pending_clear_done", "value": "Pending tracker progress cleared" },
     { "name": "tracker_pending_clear_failed", "value": "Failed to clear pending tracker progress" },
 
