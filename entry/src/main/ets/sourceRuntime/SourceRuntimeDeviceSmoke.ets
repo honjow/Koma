@@ -2,9 +2,21 @@ import { common, Want } from '@kit.AbilityKit'
 import { resourceManager } from '@kit.LocalizationKit'
 import { taskpool } from '@kit.ArkTS'
 import {
+  appSourceRuntimeRegistry,
+  installFromBytes,
+  remove as removeInstalledSourcePackage,
+} from './SourceRuntimeAppRegistry'
+import {
   NativeSourceRuntime,
   SourceRuntimeCallResponse,
 } from './NativeSourceRuntime'
+import {
+  ReaderPageRenderKind,
+  createReaderPageRenderSource,
+} from '../model/ReaderPageSourceAdapter'
+import {
+  ReaderSessionConfig,
+} from '../model/ReaderSessionStore'
 import {
   SourceArchiveNegativeCaseFixture,
   SourceArchiveNegativeImportResult,
@@ -18,6 +30,7 @@ import {
   persistReloadAndRunRegisteredSourcesById,
   reloadPersistedSourceInventoryAndRunRequestById,
   runRegisteredSourceApiOperationsById,
+  runRegisteredSourceRequestById,
   runStagedRawfileSourcePackage,
   runSourceRuntimeRegistryNegativeEvidence,
   stageAndRegisterRawfileSourcePackage,
@@ -65,6 +78,7 @@ const SMOKE_PHASE_SIZE_LIMIT_NEGATIVES: string = 'size-limit-negatives'
 const SMOKE_PHASE_CANCEL_TIMEOUT_NEGATIVES: string = 'cancel-timeout-negatives'
 const SMOKE_PHASE_REAL_SOURCE_SEARCH: string = 'real-source-search'
 const SMOKE_PHASE_REAL_SOURCE_READER: string = 'real-source-reader'
+const SMOKE_PHASE_INSTALLED_SOURCE_READER: string = 'installed-source-reader'
 const REAL_SOURCE_RAWFILE_PATH: string = 'test/baozimh.wasm'
 const MANGADEX_RAWFILE_PATH: string = 'test/mangadex.wasm'
 const REAL_SOURCE_SEARCH_REQUEST: string = '{"operation":"search","query":"test"}'
@@ -92,6 +106,7 @@ const PERSISTED_PAYLOAD_MISSING_METADATA_FILE: string = 'persisted-payload-missi
 const ARCHIVE_RAWFILE_PATH: string = 'test/local_source_runtime_fixture.koma'
 const ARCHIVE_SANDBOX_ZIP_FILE: string = 'local_source_runtime_fixture.koma.zip'
 const ARCHIVE_REQUEST_JSON: string = '{"operation":"search","query":"fixture","smoke":"koma-archive-smoke"}'
+const INSTALLED_READER_SOURCE_ID: string = 'local.test.koma.fixture'
 const ARCHIVE_INGESTION_SEARCH_REQUEST_JSON: string = `{"type":"request","version":1,"requestId":"device-archive-ingestion-search-001","operation":"search","sourceId":"${ARCHIVE_INGESTION_SOURCE_ID}","args":{"query":"fixture","page":{"cursor":null,"limit":20}},"settings":{},"hostHints":{"network":false}}`
 const ARCHIVE_INGESTION_NON_SEARCH_REQUEST_JSON: string = `{"type":"request","version":1,"requestId":"device-archive-ingestion-manga-001","operation":"get_manga","sourceId":"${ARCHIVE_INGESTION_SOURCE_ID}","args":{"mangaId":"manga:fixture-series"},"settings":{},"hostHints":{"network":false}}`
 const ARCHIVE_NEGATIVE_ROUTE_LABEL: string = 'app-local-source-archive-negative-test-only'
@@ -389,6 +404,23 @@ export interface SourceRuntimeSmokeResult {
   realSourceReaderDetailOk?: boolean
   realSourceReaderChaptersOk?: boolean
   realSourceReaderPagesOk?: boolean
+  installedSourceReaderInstallOk?: boolean
+  installedSourceReaderSourceId?: string
+  installedSourceReaderSearchOk?: boolean
+  installedSourceReaderDetailOk?: boolean
+  installedSourceReaderChaptersOk?: boolean
+  installedSourceReaderPagesOk?: boolean
+  installedSourceReaderMangaId?: string
+  installedSourceReaderChapterId?: string
+  installedSourceReaderPageId?: string
+  installedSourceReaderSearchCount?: number
+  installedSourceReaderChapterCount?: number
+  installedSourceReaderPageCount?: number
+  installedSourceReaderRenderSourceOk?: boolean
+  installedSourceReaderRenderKind?: string
+  installedSourceReaderRenderHasSourceRuntimeId?: boolean
+  installedSourceReaderRenderHasPageId?: boolean
+  installedSourceReaderCleanupOk?: boolean
   mangadexWasmBytes?: number
   mangadexResponse?: SourceRuntimeCallResponse
   error?: string
@@ -410,6 +442,16 @@ function responseItems(response: SourceRuntimeCallResponse): Record<string, Obje
   return Array.isArray(items) ? items as Record<string, Object>[] : []
 }
 
+function responseChapters(response: SourceRuntimeCallResponse): Record<string, Object>[] {
+  const data = responseDataRecord(response)
+  const chapters = data['chapters']
+  if (Array.isArray(chapters)) {
+    return chapters as Record<string, Object>[]
+  }
+  const items = data['items']
+  return Array.isArray(items) ? items as Record<string, Object>[] : []
+}
+
 function responsePages(response: SourceRuntimeCallResponse): Record<string, Object>[] {
   const pages = responseDataRecord(response)['pages']
   return Array.isArray(pages) ? pages as Record<string, Object>[] : []
@@ -427,6 +469,19 @@ function copySmokeWasmBytes(bytes: Uint8Array): Uint8Array {
   const copy = new Uint8Array(bytes.byteLength)
   copy.set(bytes)
   return copy
+}
+
+function sourceRuntimeRequest(sourceId: string, operation: string, args: string, requestId: string): string {
+  return `{"type":"request","version":1,"requestId":"${requestId}","operation":"${operation}","sourceId":"${sourceId}","args":${args},"settings":{},"hostHints":{"network":false,"imageStrategy":"descriptor-only"}}`
+}
+
+function pageImageDimension(page: Record<string, Object>, field: string): number | undefined {
+  const image = page['image']
+  if (image === undefined || typeof image !== 'object' || Array.isArray(image)) {
+    return undefined
+  }
+  const value = (image as Record<string, Object>)[field]
+  return typeof value === 'number' && Number.isFinite(value) ? value : undefined
 }
 
 function joinSourceRuntimeSmokePath(parent: string, child: string): string {
@@ -1430,6 +1485,123 @@ export async function maybeRunSourceRuntimeDeviceSmoke(
           (result.realSourceReaderPageCount ?? 0) > 0
         if (!result.ok && result.error === undefined) {
           result.error = 'real-source-reader failed'
+        }
+      }
+      compactSmokeResultForHilog(result)
+      console.info(SMOKE_LOG_PREFIX + JSON.stringify(result))
+      return
+    }
+
+    if (result.smokePhase === SMOKE_PHASE_INSTALLED_SOURCE_READER) {
+      if (resourceMgr === undefined || context === undefined) {
+        result.error = 'installed-source-reader phase requires resource manager and ability context'
+      } else {
+        const archiveBytes = resourceMgr.getRawFileContentSync(ARCHIVE_RAWFILE_PATH)
+        const install = await installFromBytes(
+          context,
+          new Uint8Array(archiveBytes.buffer),
+          ARCHIVE_SANDBOX_ZIP_FILE,
+          INSTALLED_READER_SOURCE_ID,
+        )
+        result.installedSourceReaderInstallOk = install.ok === true && install.id === INSTALLED_READER_SOURCE_ID
+        result.installedSourceReaderSourceId = install.id
+
+        if (result.installedSourceReaderInstallOk === true) {
+          const search = runRegisteredSourceRequestById(
+            appSourceRuntimeRegistry,
+            INSTALLED_READER_SOURCE_ID,
+            sourceRuntimeRequest(
+              INSTALLED_READER_SOURCE_ID,
+              'search',
+              '{"query":"fixture","page":{"cursor":null,"limit":20},"filters":{"tags":["fixture"]}}',
+              'installed-reader-search-001',
+            ),
+          )
+          const searchItems = search.response === undefined ? [] : responseItems(search.response)
+          const mangaId = firstStringField(searchItems, 'id')
+          result.installedSourceReaderSearchOk = search.ok === true && mangaId.length > 0
+          result.installedSourceReaderSearchCount = searchItems.length
+          result.installedSourceReaderMangaId = mangaId
+
+          const detail = runRegisteredSourceRequestById(
+            appSourceRuntimeRegistry,
+            INSTALLED_READER_SOURCE_ID,
+            sourceRuntimeRequest(
+              INSTALLED_READER_SOURCE_ID,
+              'get_manga',
+              `{"mangaId":"${mangaId}"}`,
+              'installed-reader-detail-001',
+            ),
+          )
+          result.installedSourceReaderDetailOk = detail.ok === true
+
+          const chapters = runRegisteredSourceRequestById(
+            appSourceRuntimeRegistry,
+            INSTALLED_READER_SOURCE_ID,
+            sourceRuntimeRequest(
+              INSTALLED_READER_SOURCE_ID,
+              'get_chapters',
+              `{"mangaId":"${mangaId}","page":{"cursor":null,"limit":100}}`,
+              'installed-reader-chapters-001',
+            ),
+          )
+          const chapterRows = chapters.response === undefined ? [] : responseChapters(chapters.response)
+          const chapterId = firstStringField(chapterRows, 'id')
+          result.installedSourceReaderChaptersOk = chapters.ok === true && chapterId.length > 0
+          result.installedSourceReaderChapterCount = chapterRows.length
+          result.installedSourceReaderChapterId = chapterId
+
+          const pages = runRegisteredSourceRequestById(
+            appSourceRuntimeRegistry,
+            INSTALLED_READER_SOURCE_ID,
+            sourceRuntimeRequest(
+              INSTALLED_READER_SOURCE_ID,
+              'get_pages',
+              `{"chapterId":"${chapterId}"}`,
+              'installed-reader-pages-001',
+            ),
+          )
+          const pageRows = pages.response === undefined ? [] : responsePages(pages.response)
+          const pageId = firstStringField(pageRows, 'id')
+          result.installedSourceReaderPagesOk = pages.ok === true && pageId.length > 0
+          result.installedSourceReaderPageCount = pageRows.length
+          result.installedSourceReaderPageId = pageId
+
+          const readerConfig: ReaderSessionConfig = {
+            comicId: mangaId,
+            chapterId,
+            title: 'Installed Source Reader Smoke',
+            chapterTitle: 'Chapter',
+            chapterIds: [chapterId],
+            totalPages: pageRows.length,
+            pageUris: pageRows.map((page: Record<string, Object>): string => firstStringField([page], 'uri')),
+            pageIds: pageRows.map((page: Record<string, Object>): string => firstStringField([page], 'id')),
+            pageWidths: pageRows.map((page: Record<string, Object>): number | undefined => pageImageDimension(page, 'width')),
+            pageHeights: pageRows.map((page: Record<string, Object>): number | undefined => pageImageDimension(page, 'height')),
+            sourceRuntimeId: INSTALLED_READER_SOURCE_ID,
+          }
+          const renderSource = createReaderPageRenderSource(readerConfig, 0, { preferOffline: false })
+          result.installedSourceReaderRenderKind = renderSource.kind
+          result.installedSourceReaderRenderHasSourceRuntimeId =
+            renderSource.sourceRuntimeId === INSTALLED_READER_SOURCE_ID
+          result.installedSourceReaderRenderHasPageId = renderSource.pageId === pageId
+          result.installedSourceReaderRenderSourceOk =
+            renderSource.kind === ReaderPageRenderKind.REMOTE_URL_IMAGE &&
+              result.installedSourceReaderRenderHasSourceRuntimeId === true &&
+              result.installedSourceReaderRenderHasPageId === true
+        }
+
+        result.installedSourceReaderCleanupOk = await removeInstalledSourcePackage(context, INSTALLED_READER_SOURCE_ID)
+        result.ok = result.installedSourceReaderInstallOk === true &&
+          result.installedSourceReaderSearchOk === true &&
+          result.installedSourceReaderDetailOk === true &&
+          result.installedSourceReaderChaptersOk === true &&
+          result.installedSourceReaderPagesOk === true &&
+          (result.installedSourceReaderPageCount ?? 0) > 0 &&
+          result.installedSourceReaderRenderSourceOk === true &&
+          result.installedSourceReaderCleanupOk === true
+        if (!result.ok && result.error === undefined) {
+          result.error = 'installed-source-reader failed'
         }
       }
       compactSmokeResultForHilog(result)

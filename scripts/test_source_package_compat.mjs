@@ -575,6 +575,17 @@ assert.match(
   'Browse empty source action must route to the existing SourcePackageManagerPage',
 )
 assert.match(smokeSource, /local_source_runtime_fixture\.koma/, 'device smoke must cover a .koma source archive')
+assert.match(smokeSource, /SMOKE_PHASE_INSTALLED_SOURCE_READER/, 'device smoke must include a focused installed-source reader phase')
+assert.match(
+  smokeSource,
+  /installFromBytes[\s\S]*runRegisteredSourceRequestById[\s\S]*get_manga[\s\S]*get_chapters[\s\S]*get_pages[\s\S]*createReaderPageRenderSource/,
+  'installed-source reader smoke must install a package, run detail/chapter/page source requests, and map pages into reader render sources',
+)
+assert.match(
+  smokeSource,
+  /ReaderPageRenderKind\.REMOTE_URL_IMAGE[\s\S]*installedSourceReaderRenderHasSourceRuntimeId[\s\S]*installedSourceReaderRenderHasPageId/,
+  'installed-source reader smoke must verify sourceRuntimeId and pageId survive into the reader render source',
+)
 assert.match(abiDocSource, /`\.koma`、`\.koma-source`、`\.koma-source\.zip` 和 `\.zip`/, 'source ABI docs must document supported import suffixes')
 
 const indexServicePath = resolve(root, 'entry/src/main/ets/sourceRuntime/SourceIndexService.ets')
