@@ -245,8 +245,38 @@ assert.match(
 )
 assert.match(
   backupPageSource,
-  /contentPreferences: BackupContentPreferences = DEFAULT_BACKUP_CONTENT_PREFERENCES[\s\S]*loadContentPreferences\(\)[\s\S]*this\.backupService\(\)\.loadContentPreferences\(\)[\s\S]*backupIncludedDomainLabels\(this\.contentPreferences\)[\s\S]*aboutToAppear\(\): void \{[\s\S]*this\.loadContentPreferences\(\)/,
+  /contentPreferences: BackupContentPreferences = DEFAULT_BACKUP_CONTENT_PREFERENCES[\s\S]*loadContentPreferences\(\)[\s\S]*this\.backupService\(\)\.loadContentPreferences\(\)[\s\S]*ContentPreferenceSwitchRow[\s\S]*aboutToAppear\(\): void \{[\s\S]*this\.loadContentPreferences\(\)/,
   'BackupManagementPage included-data card must reflect saved backup content preferences',
+)
+assert.match(
+  backupPageSource,
+  /saveContentPreferences\(preferencesValue: BackupContentPreferences\)[\s\S]*this\.backupService\(\)\.saveContentPreferences\(preferencesValue\)[\s\S]*this\.contentPreferences = preferencesValue/,
+  'BackupManagementPage must persist included-data preferences from the management page',
+)
+assert.match(
+  backupPageSource,
+  /setBackupIncludeSettings\(includeSettings: boolean\)[\s\S]*includeSettings,[\s\S]*includeDownloadQueue: this\.contentPreferences\.includeDownloadQueue[\s\S]*includeTrackerMappings: this\.contentPreferences\.includeTrackerMappings/,
+  'BackupManagementPage must expose a settings-domain include toggle backed by content preferences',
+)
+assert.match(
+  backupPageSource,
+  /setBackupIncludeDownloadQueue\(includeDownloadQueue: boolean\)[\s\S]*includeSettings: this\.contentPreferences\.includeSettings[\s\S]*includeDownloadQueue,[\s\S]*includeTrackerMappings: this\.contentPreferences\.includeTrackerMappings/,
+  'BackupManagementPage must expose a download-queue include toggle backed by content preferences',
+)
+assert.match(
+  backupPageSource,
+  /setBackupIncludeTrackerMappings\(includeTrackerMappings: boolean\)[\s\S]*includeSettings: this\.contentPreferences\.includeSettings[\s\S]*includeDownloadQueue: this\.contentPreferences\.includeDownloadQueue[\s\S]*includeTrackerMappings/,
+  'BackupManagementPage must expose a tracker-mapping include toggle backed by content preferences',
+)
+assert.match(
+  backupPageSource,
+  /ContentPreferenceSwitchRow\(label: string, checked: boolean, onChange: \(isOn: boolean\) => void\)[\s\S]*Toggle\(\{ type: ToggleType\.Switch, isOn: checked \}\)[\s\S]*onChange\(isOn\)/,
+  'BackupManagementPage content preferences must use real switches instead of static text or menus',
+)
+assert.match(
+  backupPageSource,
+  /backupIncludedDomainLabels\(\{[\s\S]*includeSettings: false,[\s\S]*includeDownloadQueue: false,[\s\S]*includeTrackerMappings: false,[\s\S]*ContentPreferenceSwitchRow\([\s\S]*backup_domain_reader_preferences[\s\S]*setBackupIncludeSettings[\s\S]*backup_domain_download_queue[\s\S]*setBackupIncludeDownloadQueue[\s\S]*backup_domain_tracker_mappings[\s\S]*setBackupIncludeTrackerMappings/,
+  'BackupManagementPage included-data card must show core domains plus switchable optional domains',
 )
 assert.match(
   backupPageSource,

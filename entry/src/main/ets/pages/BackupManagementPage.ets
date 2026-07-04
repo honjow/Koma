@@ -183,6 +183,42 @@ export struct BackupManagementPage {
       })
   }
 
+  private saveContentPreferences(preferencesValue: BackupContentPreferences): void {
+    void this.backupService().saveContentPreferences(preferencesValue)
+      .then(() => {
+        this.contentPreferences = preferencesValue
+        this.showToast(t('backup_auto_saved_toast'))
+      })
+      .catch((_error: Error) => {
+        console.error('[BackupManagement] step=content_preferences_save_failed code=backup_content_preferences_failed')
+        this.showInfoDialog(t('backup_dialog_export_failed_title'), this.backupFailureMessage('backup_content_preferences_failed'))
+      })
+  }
+
+  private setBackupIncludeSettings(includeSettings: boolean): void {
+    this.saveContentPreferences({
+      includeSettings,
+      includeDownloadQueue: this.contentPreferences.includeDownloadQueue,
+      includeTrackerMappings: this.contentPreferences.includeTrackerMappings,
+    })
+  }
+
+  private setBackupIncludeDownloadQueue(includeDownloadQueue: boolean): void {
+    this.saveContentPreferences({
+      includeSettings: this.contentPreferences.includeSettings,
+      includeDownloadQueue,
+      includeTrackerMappings: this.contentPreferences.includeTrackerMappings,
+    })
+  }
+
+  private setBackupIncludeTrackerMappings(includeTrackerMappings: boolean): void {
+    this.saveContentPreferences({
+      includeSettings: this.contentPreferences.includeSettings,
+      includeDownloadQueue: this.contentPreferences.includeDownloadQueue,
+      includeTrackerMappings,
+    })
+  }
+
   private setAutomaticBackupEnabled(enabled: boolean): void {
     this.saveAutomaticPreferences({
       intervalHours: this.autoPreferences.intervalHours,
@@ -664,6 +700,22 @@ export struct BackupManagementPage {
   }
 
   @Builder
+  private ContentPreferenceSwitchRow(label: string, checked: boolean, onChange: (isOn: boolean) => void) {
+    Row({ space: ThemeConstants.SPACE_MD }) {
+      Text(label)
+        .fontSize(ThemeConstants.FONT_SIZE_BODY)
+        .fontColor(ThemeConstants.TEXT_PRIMARY)
+        .layoutWeight(1)
+      Toggle({ type: ToggleType.Switch, isOn: checked })
+        .selectedColor(ThemeConstants.BRAND_PRIMARY)
+        .onChange((isOn: boolean) => {
+          onChange(isOn)
+        })
+    }
+    .width('100%')
+  }
+
+  @Builder
   private DomainsCard() {
     Column({ space: ThemeConstants.SPACE_MD }) {
       Text(t('backup_included_data'))
@@ -672,7 +724,11 @@ export struct BackupManagementPage {
         .fontWeight(FontWeight.Medium)
         .fontColor(ThemeConstants.TEXT_PRIMARY)
 
-      ForEach(backupIncludedDomainLabels(this.contentPreferences), (domain: string) => {
+      ForEach(backupIncludedDomainLabels({
+        includeSettings: false,
+        includeDownloadQueue: false,
+        includeTrackerMappings: false,
+      }), (domain: string) => {
         Row({ space: ThemeConstants.SPACE_MD }) {
           Text('-')
             .fontSize(ThemeConstants.FONT_SIZE_BODY)
@@ -684,6 +740,28 @@ export struct BackupManagementPage {
         }
         .width('100%')
       }, (domain: string) => domain)
+
+      this.ContentPreferenceSwitchRow(
+        t('backup_domain_reader_preferences'),
+        this.contentPreferences.includeSettings,
+        (isOn: boolean) => {
+          this.setBackupIncludeSettings(isOn)
+        },
+      )
+      this.ContentPreferenceSwitchRow(
+        t('backup_domain_download_queue'),
+        this.contentPreferences.includeDownloadQueue,
+        (isOn: boolean) => {
+          this.setBackupIncludeDownloadQueue(isOn)
+        },
+      )
+      this.ContentPreferenceSwitchRow(
+        t('backup_domain_tracker_mappings'),
+        this.contentPreferences.includeTrackerMappings,
+        (isOn: boolean) => {
+          this.setBackupIncludeTrackerMappings(isOn)
+        },
+      )
     }
     .width('100%')
     .padding({ left: ThemeConstants.SPACE_LG, right: ThemeConstants.SPACE_LG, top: ThemeConstants.SPACE_LG, bottom: ThemeConstants.SPACE_LG })
