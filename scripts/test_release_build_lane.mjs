@@ -19,6 +19,11 @@ assert.match(
 )
 assert.match(
   releaseScript,
+  /python3 scripts\/check_i18n_duplicates\.py[\s\S]*python3 scripts\/check_ui_i18n_literals\.py[\s\S]*"\$hvigorw"/,
+  'release artifact script must run i18n resource and UI literal gates before building',
+)
+assert.match(
+  releaseScript,
   /target_bundle="\$\{KOMA_BUNDLE_NAME:-com\.honjow\.koma\}"/,
   'release artifact script must default to the unified Koma bundle name',
 )
