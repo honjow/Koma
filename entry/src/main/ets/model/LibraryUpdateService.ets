@@ -86,6 +86,18 @@ export interface LibraryUpdateSummary {
 interface SourceOperationDataPayload {
   items?: Record<string, Object>[]
   chapters?: Record<string, Object>[]
+  page?: SourceRuntimePagePayload
+  hasNextPage?: boolean
+  hasMore?: boolean
+  has_more?: boolean
+}
+
+interface SourceRuntimePagePayload {
+  hasMore?: boolean
+  hasNextPage?: boolean
+  has_more?: boolean
+  nextCursor?: string | null
+  next_cursor?: string | null
 }
 
 interface SourceOperationResponsePayload {
@@ -131,11 +143,29 @@ function cloneWasmBytes(entry: SourceRuntimeRegistryEntry): Uint8Array {
   return copy
 }
 
+const SOURCE_UPDATE_CHAPTER_PAGE_SIZE: number = 100
+const SOURCE_UPDATE_CHAPTER_MAX_PAGES: number = 20
+
 function sourceChapterResponseItems(response: SourceOperationResponsePayload): Record<string, Object>[] {
   if (response.data?.items !== undefined) {
     return response.data.items
   }
   return response.data?.chapters ?? []
+}
+
+function sourcePageNextCursor(response: SourceOperationResponsePayload): string | undefined {
+  const nextCursor = response.data?.page?.nextCursor ?? response.data?.page?.next_cursor
+  return nextCursor === null || nextCursor === undefined || nextCursor.trim().length === 0 ? undefined : nextCursor
+}
+
+function sourcePageHasMore(response: SourceOperationResponsePayload, nextCursor: string | undefined): boolean {
+  return response.data?.hasNextPage === true ||
+    response.data?.hasMore === true ||
+    response.data?.has_more === true ||
+    response.data?.page?.hasMore === true ||
+    response.data?.page?.hasNextPage === true ||
+    response.data?.page?.has_more === true ||
+    nextCursor !== undefined
 }
 
 function sourceMangaIdFromComic(comic: Comic): string | undefined {
@@ -530,6 +560,28 @@ export class LibraryUpdateService {
   }
 
   private async fetchSourceRuntimeChapters(entry: SourceRuntimeRegistryEntry, mangaId: string): Promise<MangaChapterItem[]> {
+    const chapters: MangaChapterItem[] = []
+    let cursor: string | null = null
+    for (let pageIndex = 1; pageIndex <= SOURCE_UPDATE_CHAPTER_MAX_PAGES; pageIndex += 1) {
+      const response = await this.fetchSourceRuntimeChapterPage(entry, mangaId, cursor)
+      const rows = sourceChapterResponseItems(response)
+      rows.forEach((row: Record<string, Object>) => {
+        chapters.push(parseMangaChapterFromSourceItem(row))
+      })
+      const nextCursor = sourcePageNextCursor(response)
+      if (!sourcePageHasMore(response, nextCursor)) {
+        break
+      }
+      cursor = nextCursor ?? `${pageIndex + 1}`
+    }
+    return chapters
+  }
+
+  private async fetchSourceRuntimeChapterPage(
+    entry: SourceRuntimeRegistryEntry,
+    mangaId: string,
+    cursor: string | null,
+  ): Promise<SourceOperationResponsePayload> {
     const request: SourceDetailRequest = {
       type: 'request',
       version: 1,
@@ -539,8 +591,8 @@ export class LibraryUpdateService {
       args: {
         mangaId,
         page: {
-          cursor: null,
-          limit: 100,
+          cursor,
+          limit: SOURCE_UPDATE_CHAPTER_PAGE_SIZE,
         },
       },
       settings: appSourceSettingsStore.loadForSource(entry.sourceId),
@@ -552,11 +604,10 @@ export class LibraryUpdateService {
       cloneWasmBytes(entry)
     ) as string
     const response = JSON.parse(responseJson) as SourceOperationResponsePayload
-    const rows = sourceChapterResponseItems(response)
-    if (response.ok !== true || rows.length === 0) {
-      throw new Error(response.reasonCode ?? 'get_chapters_empty')
+    if (response.ok !== true) {
+      throw new Error(response.reasonCode ?? 'get_chapters_failed')
     }
-    return rows.map((row: Record<string, Object>): MangaChapterItem => parseMangaChapterFromSourceItem(row))
+    return response
   }
 
   private async checkKomgaComic(comic: Comic, previousChapterCount: number): Promise<LibraryUpdateComicResult> {

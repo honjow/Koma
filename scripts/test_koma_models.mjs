@@ -1203,6 +1203,16 @@ assert.match(
   'LibraryUpdateService must preserve existing pages when refreshing source-runtime chapter metadata',
 )
 assert.match(
+  libraryUpdateServiceSource,
+  /SOURCE_UPDATE_CHAPTER_PAGE_SIZE: number = 100[\s\S]*SOURCE_UPDATE_CHAPTER_MAX_PAGES: number = 20[\s\S]*fetchSourceRuntimeChapters[\s\S]*for \(let pageIndex = 1; pageIndex <= SOURCE_UPDATE_CHAPTER_MAX_PAGES; pageIndex \+= 1\)[\s\S]*fetchSourceRuntimeChapterPage\(entry, mangaId, cursor\)[\s\S]*sourcePageNextCursor\(response\)[\s\S]*sourcePageHasMore\(response, nextCursor\)[\s\S]*cursor = nextCursor \?\? `\$\{pageIndex \+ 1\}`/,
+  'LibraryUpdateService must page through source-runtime chapters instead of truncating long series',
+)
+assert.match(
+  libraryUpdateServiceSource,
+  /fetchSourceRuntimeChapterPage[\s\S]*limit: SOURCE_UPDATE_CHAPTER_PAGE_SIZE[\s\S]*if \(response\.ok !== true\) \{[\s\S]*throw new Error\(response\.reasonCode \?\? 'get_chapters_failed'\)[\s\S]*return response/,
+  'LibraryUpdateService must allow successful source-runtime updates with zero chapters while still failing runtime errors',
+)
+assert.match(
   libraryUpdateResultStoreSource,
   /preferences\.getPreferences\(this\.context, LIBRARY_UPDATE_RESULT_STORE_NAME\)/,
   'LibraryUpdateResultStore must use Harmony preferences with its dedicated store name',
