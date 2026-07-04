@@ -391,6 +391,9 @@ export struct LibraryPage {
     if (this.filterSource === 'komga') {
       return [ComicSourceKind.KOMGA_REMOTE]
     }
+    if (this.filterSource === 'kavita') {
+      return [ComicSourceKind.KAVITA_REMOTE]
+    }
     if (this.filterSource === 'opds') {
       return [ComicSourceKind.OPDS_REMOTE]
     }
@@ -555,6 +558,9 @@ export struct LibraryPage {
     }
     if (this.filterSource === 'komga') {
       return s('route_komga_title')
+    }
+    if (this.filterSource === 'kavita') {
+      return s('route_kavita_title')
     }
     if (this.filterSource === 'opds') {
       return s('route_opds_title')
@@ -1187,6 +1193,10 @@ export struct LibraryPage {
       MenuItem({ content: s('route_komga_title') })
         .onClick(() => {
           this.setSourceFilter('komga')
+        })
+      MenuItem({ content: s('route_kavita_title') })
+        .onClick(() => {
+          this.setSourceFilter('kavita')
         })
       MenuItem({ content: s('route_opds_title') })
         .onClick(() => {

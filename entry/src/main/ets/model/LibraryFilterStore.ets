@@ -8,7 +8,7 @@ import {
 
 export type LibraryServerSourceFilter = string
 export type LibraryRuntimeSourceFilter = string
-export type LibrarySourceFilter = 'all' | 'local' | 'private' | 'komga' | 'opds' | 'webdav' | 'source_package' | LibraryServerSourceFilter | LibraryRuntimeSourceFilter
+export type LibrarySourceFilter = 'all' | 'local' | 'private' | 'komga' | 'kavita' | 'opds' | 'webdav' | 'source_package' | LibraryServerSourceFilter | LibraryRuntimeSourceFilter
 export type LibraryAvailabilityFilter = 'all' | 'downloaded' | 'fully_downloaded' | 'partially_downloaded' | 'not_downloaded'
 export type LibraryViewMode = 'grid' | 'list'
 export type LibraryListDensity = 'compact' | 'standard' | 'comfortable'
@@ -110,6 +110,7 @@ function normalizeSource(value: string): LibrarySourceFilter {
     value === 'local' ||
     value === 'private' ||
     value === 'komga' ||
+    value === 'kavita' ||
     value === 'opds' ||
     value === 'webdav' ||
     value === 'source_package'
