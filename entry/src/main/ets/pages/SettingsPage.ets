@@ -249,6 +249,7 @@ function createSettingsSections(): SettingsSection[] {
         { key: 'backup-auto-export', titleKey: 'settings_row_backup_auto_export_title', detailKey: 'settings_row_backup_auto_export_detail' },
         { key: 'backup-include-settings', titleKey: 'settings_row_backup_include_settings_title', detailKey: 'settings_row_backup_include_settings_detail' },
         { key: 'backup-include-download-queue', titleKey: 'settings_row_backup_include_download_queue_title', detailKey: 'settings_row_backup_include_download_queue_detail' },
+        { key: 'backup-include-tracker-mappings', titleKey: 'settings_row_backup_include_tracker_mappings_title', detailKey: 'settings_row_backup_include_tracker_mappings_detail' },
         { key: 'image-cache', titleKey: 'settings_row_image_cache_title', detailKey: 'settings_row_image_cache_detail' },
         { key: 'cache-limit', titleKey: 'settings_row_cache_limit_title', detailKey: 'settings_row_cache_limit_detail' },
         { key: 'cache-auto-clean', titleKey: 'settings_row_cache_auto_clean_title', detailKey: 'settings_row_cache_auto_clean_detail' },
@@ -441,6 +442,7 @@ export struct SettingsPage {
   @Local private trackerUpdateStrategy: TrackerUpdateStrategy = DEFAULT_TRACKER_PREFERENCES.updateStrategy
   @Local private includeBackupSettings: boolean = DEFAULT_BACKUP_CONTENT_PREFERENCES.includeSettings
   @Local private includeBackupDownloadQueue: boolean = DEFAULT_BACKUP_CONTENT_PREFERENCES.includeDownloadQueue
+  @Local private includeBackupTrackerMappings: boolean = DEFAULT_BACKUP_CONTENT_PREFERENCES.includeTrackerMappings
 
   private context(): common.UIAbilityContext {
     return getContext(this) as common.UIAbilityContext
@@ -1027,7 +1029,8 @@ export struct SettingsPage {
       .then((preferences: BackupContentPreferences) => {
         this.includeBackupSettings = preferences.includeSettings
         this.includeBackupDownloadQueue = preferences.includeDownloadQueue
-        console.info('[Settings] step=load_backup_content_preferences includeSettings=' + preferences.includeSettings + ' includeDownloadQueue=' + preferences.includeDownloadQueue)
+        this.includeBackupTrackerMappings = preferences.includeTrackerMappings
+        console.info('[Settings] step=load_backup_content_preferences includeSettings=' + preferences.includeSettings + ' includeDownloadQueue=' + preferences.includeDownloadQueue + ' includeTrackerMappings=' + preferences.includeTrackerMappings)
       })
       .catch((error: Error) => {
         console.warn('[Settings] step=load_backup_content_preferences_failed message=' + error.message)
@@ -1687,6 +1690,7 @@ export struct SettingsPage {
     void this.backupService().saveContentPreferences({
       includeSettings: enabled,
       includeDownloadQueue: this.includeBackupDownloadQueue,
+      includeTrackerMappings: this.includeBackupTrackerMappings,
     })
       .then(() => {
         console.info('[Settings] step=save_backup_include_settings enabled=' + enabled)
@@ -1702,6 +1706,7 @@ export struct SettingsPage {
     void this.backupService().saveContentPreferences({
       includeSettings: this.includeBackupSettings,
       includeDownloadQueue: enabled,
+      includeTrackerMappings: this.includeBackupTrackerMappings,
     })
       .then(() => {
         console.info('[Settings] step=save_backup_include_download_queue enabled=' + enabled)
@@ -1709,6 +1714,22 @@ export struct SettingsPage {
       .catch((error: Error) => {
         console.warn('[Settings] step=save_backup_include_download_queue_failed message=' + error.message)
         this.showToast(s('settings_backup_include_download_queue_save_failed'))
+      })
+  }
+
+  private saveBackupIncludeTrackerMappings(enabled: boolean): void {
+    this.includeBackupTrackerMappings = enabled
+    void this.backupService().saveContentPreferences({
+      includeSettings: this.includeBackupSettings,
+      includeDownloadQueue: this.includeBackupDownloadQueue,
+      includeTrackerMappings: enabled,
+    })
+      .then(() => {
+        console.info('[Settings] step=save_backup_include_tracker_mappings enabled=' + enabled)
+      })
+      .catch((error: Error) => {
+        console.warn('[Settings] step=save_backup_include_tracker_mappings_failed message=' + error.message)
+        this.showToast(s('settings_backup_include_tracker_mappings_save_failed'))
       })
   }
 
@@ -1952,6 +1973,7 @@ export struct SettingsPage {
       row.key === 'library-badges' ||
       row.key === 'backup-include-settings' ||
       row.key === 'backup-include-download-queue' ||
+      row.key === 'backup-include-tracker-mappings' ||
       row.key === 'cache-auto-clean' ||
       row.key === 'download-wifi-only' ||
       row.key === 'tracker-auto-sync' ||
@@ -1975,6 +1997,9 @@ export struct SettingsPage {
     }
     if (row.key === 'backup-include-download-queue') {
       return this.includeBackupDownloadQueue
+    }
+    if (row.key === 'backup-include-tracker-mappings') {
+      return this.includeBackupTrackerMappings
     }
     if (row.key === 'cache-auto-clean') {
       return this.imageCacheAutoCleanEnabled
@@ -2015,6 +2040,8 @@ export struct SettingsPage {
       this.saveBackupIncludeSettings(value)
     } else if (row.key === 'backup-include-download-queue') {
       this.saveBackupIncludeDownloadQueue(value)
+    } else if (row.key === 'backup-include-tracker-mappings') {
+      this.saveBackupIncludeTrackerMappings(value)
     } else if (row.key === 'cache-auto-clean') {
       this.saveImageCacheAutoCleanEnabled(value)
     } else if (row.key === 'reader-progress') {

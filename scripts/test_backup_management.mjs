@@ -112,8 +112,8 @@ assert.match(
 )
 assert.match(
   backupServiceSource,
-  /export interface BackupContentPreferences[\s\S]*includeSettings:\s*boolean[\s\S]*includeDownloadQueue:\s*boolean[\s\S]*DEFAULT_BACKUP_CONTENT_PREFERENCES[\s\S]*includeSettings:\s*true[\s\S]*includeDownloadQueue:\s*true[\s\S]*loadContentPreferences\(\): Promise<BackupContentPreferences>[\s\S]*saveContentPreferences\(preferencesValue: BackupContentPreferences\): Promise<void>[\s\S]*BACKUP_CONTENT_INCLUDE_SETTINGS_KEY[\s\S]*BACKUP_CONTENT_INCLUDE_DOWNLOAD_QUEUE_KEY/,
-  'backup service must persist backup content preferences with settings and download queue metadata included by default',
+  /export interface BackupContentPreferences[\s\S]*includeSettings:\s*boolean[\s\S]*includeDownloadQueue:\s*boolean[\s\S]*includeTrackerMappings:\s*boolean[\s\S]*DEFAULT_BACKUP_CONTENT_PREFERENCES[\s\S]*includeSettings:\s*true[\s\S]*includeDownloadQueue:\s*true[\s\S]*includeTrackerMappings:\s*true[\s\S]*loadContentPreferences\(\): Promise<BackupContentPreferences>[\s\S]*saveContentPreferences\(preferencesValue: BackupContentPreferences\): Promise<void>[\s\S]*BACKUP_CONTENT_INCLUDE_SETTINGS_KEY[\s\S]*BACKUP_CONTENT_INCLUDE_DOWNLOAD_QUEUE_KEY[\s\S]*BACKUP_CONTENT_INCLUDE_TRACKER_MAPPINGS_KEY/,
+  'backup service must persist backup content preferences with settings, download queue metadata, and tracker mappings included by default',
 )
 assert.match(
   backupServiceSource,
@@ -134,6 +134,11 @@ assert.match(
   backupServiceSource,
   /if \(contentPreferences\.includeDownloadQueue\) \{[\s\S]*const downloadQueue = readTextIfExists\(this\.downloadQueuePath\(\), ''\)[\s\S]*document\.downloadQueue = normalizeBackupDownloadQueuePayload\(downloadQueue\)/,
   'backup export must include download queue metadata only when content preferences allow it',
+)
+assert.match(
+  backupServiceSource,
+  /if \(contentPreferences\.includeTrackerMappings\) \{[\s\S]*document\.trackerMappings = await this\.exportTrackerMappings\(\)/,
+  'backup export must include tracker mappings only when content preferences allow it',
 )
 assert.match(
   backupServiceSource,
@@ -220,6 +225,11 @@ assert.match(
   /\{ key: 'backup-include-download-queue', titleKey: 'settings_row_backup_include_download_queue_title', detailKey: 'settings_row_backup_include_download_queue_detail' \}[\s\S]*includeBackupDownloadQueue: boolean = DEFAULT_BACKUP_CONTENT_PREFERENCES\.includeDownloadQueue[\s\S]*row\.key === 'backup-include-download-queue'[\s\S]*saveBackupIncludeDownloadQueue\(value\)/,
   'Settings backup download queue include row must be a real switch backed by backup content preferences',
 )
+assert.match(
+  settingsPageSource,
+  /\{ key: 'backup-include-tracker-mappings', titleKey: 'settings_row_backup_include_tracker_mappings_title', detailKey: 'settings_row_backup_include_tracker_mappings_detail' \}[\s\S]*includeBackupTrackerMappings: boolean = DEFAULT_BACKUP_CONTENT_PREFERENCES\.includeTrackerMappings[\s\S]*row\.key === 'backup-include-tracker-mappings'[\s\S]*saveBackupIncludeTrackerMappings\(value\)/,
+  'Settings backup tracker mappings include row must be a real switch backed by backup content preferences',
+)
 assert.doesNotMatch(
   settingsPageSource,
   /\{ key: 'backup-include-settings'[^}]*placeholder:\s*true/,
@@ -229,6 +239,11 @@ assert.doesNotMatch(
   settingsPageSource,
   /\{ key: 'backup-include-download-queue'[^}]*placeholder:\s*true/,
   'Settings backup download queue include row must not remain a placeholder',
+)
+assert.doesNotMatch(
+  settingsPageSource,
+  /\{ key: 'backup-include-tracker-mappings'[^}]*placeholder:\s*true/,
+  'Settings backup tracker mappings include row must not remain a placeholder',
 )
 assert.match(
   indexSource,

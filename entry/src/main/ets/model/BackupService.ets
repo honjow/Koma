@@ -96,6 +96,7 @@ const BACKUP_AUTOMATIC_LAST_RUN_AT_KEY: string = 'backup.automatic.lastRunAt'
 const BACKUP_AUTOMATIC_LAST_FAILURE_CODE_KEY: string = 'backup.automatic.lastFailureCode'
 const BACKUP_CONTENT_INCLUDE_SETTINGS_KEY: string = 'backup.content.includeSettings'
 const BACKUP_CONTENT_INCLUDE_DOWNLOAD_QUEUE_KEY: string = 'backup.content.includeDownloadQueue'
+const BACKUP_CONTENT_INCLUDE_TRACKER_MAPPINGS_KEY: string = 'backup.content.includeTrackerMappings'
 const SOURCE_INDEX_URL_KEY: string = 'source_index.url'
 const KOMGA_SERVER_KEY: string = 'komga.server'
 const KOMGA_CREDENTIAL_KEY: string = 'komga.credential'
@@ -188,6 +189,7 @@ export interface BackupAutomaticPreferences {
 export interface BackupContentPreferences {
   includeSettings: boolean
   includeDownloadQueue: boolean
+  includeTrackerMappings: boolean
 }
 
 export interface BackupAutomaticRunResult {
@@ -210,6 +212,7 @@ export const DEFAULT_BACKUP_AUTOMATIC_PREFERENCES: BackupAutomaticPreferences = 
 export const DEFAULT_BACKUP_CONTENT_PREFERENCES: BackupContentPreferences = {
   includeSettings: true,
   includeDownloadQueue: true,
+  includeTrackerMappings: true,
 }
 
 export function backupIncludedDomainLabels(): string[] {
@@ -401,6 +404,7 @@ function normalizeBackupContentPreferences(value: BackupContentPreferences): Bac
   return {
     includeSettings: value.includeSettings !== false,
     includeDownloadQueue: value.includeDownloadQueue !== false,
+    includeTrackerMappings: value.includeTrackerMappings !== false,
   }
 }
 
@@ -737,9 +741,12 @@ export class BackupService {
       await store.get(BACKUP_CONTENT_INCLUDE_SETTINGS_KEY, DEFAULT_BACKUP_CONTENT_PREFERENCES.includeSettings) as boolean
     const includeDownloadQueue =
       await store.get(BACKUP_CONTENT_INCLUDE_DOWNLOAD_QUEUE_KEY, DEFAULT_BACKUP_CONTENT_PREFERENCES.includeDownloadQueue) as boolean
+    const includeTrackerMappings =
+      await store.get(BACKUP_CONTENT_INCLUDE_TRACKER_MAPPINGS_KEY, DEFAULT_BACKUP_CONTENT_PREFERENCES.includeTrackerMappings) as boolean
     return normalizeBackupContentPreferences({
       includeSettings,
       includeDownloadQueue,
+      includeTrackerMappings,
     })
   }
 
@@ -748,6 +755,7 @@ export class BackupService {
     const store = await this.contentPreferences()
     await store.put(BACKUP_CONTENT_INCLUDE_SETTINGS_KEY, normalized.includeSettings)
     await store.put(BACKUP_CONTENT_INCLUDE_DOWNLOAD_QUEUE_KEY, normalized.includeDownloadQueue)
+    await store.put(BACKUP_CONTENT_INCLUDE_TRACKER_MAPPINGS_KEY, normalized.includeTrackerMappings)
     await store.flush()
   }
 
@@ -860,7 +868,6 @@ export class BackupService {
       remoteServers: await this.exportRemoteServers(),
       sourcePackages: exportInstalledSourcePackages(),
       sourceSettings: appSourceSettingsStore.exportAll(),
-      trackerMappings: await this.exportTrackerMappings(),
     }
     if (contentPreferences.includeSettings) {
       document.settings = await new ReaderPreferencesStore(this.context).load()
@@ -872,6 +879,9 @@ export class BackupService {
       if (downloadQueue.length > 0) {
         document.downloadQueue = normalizeBackupDownloadQueuePayload(downloadQueue)
       }
+    }
+    if (contentPreferences.includeTrackerMappings) {
+      document.trackerMappings = await this.exportTrackerMappings()
     }
     document.localLibraryMetadata = exportLocalLibraryMetadataBackupEntries(document.libraryStore)
     console.info('[Backup] step=export_json')

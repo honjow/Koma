@@ -1850,8 +1850,8 @@ assert.match(
 )
 assert.match(
   backupServiceSource,
-  /DEFAULT_BACKUP_CONTENT_PREFERENCES[\s\S]*includeSettings:\s*true[\s\S]*includeDownloadQueue:\s*true[\s\S]*const contentPreferences = await this\.loadContentPreferences\(\)[\s\S]*if \(contentPreferences\.includeSettings\) \{[\s\S]*document\.settings = await new ReaderPreferencesStore\(this\.context\)\.load\(\)[\s\S]*if \(contentPreferences\.includeDownloadQueue\) \{[\s\S]*document\.downloadQueue = normalizeBackupDownloadQueuePayload\(downloadQueue\)/,
-  'backup export must include reader preferences and download queue metadata by default and allow excluding them',
+  /DEFAULT_BACKUP_CONTENT_PREFERENCES[\s\S]*includeSettings:\s*true[\s\S]*includeDownloadQueue:\s*true[\s\S]*includeTrackerMappings:\s*true[\s\S]*const contentPreferences = await this\.loadContentPreferences\(\)[\s\S]*if \(contentPreferences\.includeSettings\) \{[\s\S]*document\.settings = await new ReaderPreferencesStore\(this\.context\)\.load\(\)[\s\S]*if \(contentPreferences\.includeDownloadQueue\) \{[\s\S]*document\.downloadQueue = normalizeBackupDownloadQueuePayload\(downloadQueue\)[\s\S]*if \(contentPreferences\.includeTrackerMappings\) \{[\s\S]*document\.trackerMappings = await this\.exportTrackerMappings\(\)/,
+  'backup export must include reader preferences, download queue metadata, and tracker mappings by default and allow excluding them',
 )
 assert.match(
   backupServiceSource,
@@ -1860,8 +1860,8 @@ assert.match(
 )
 assert.match(
   backupServiceSource,
-  /trackerMappings\?: ComicTrackerMapping\[\][\s\S]*trackerMappings:\s*await this\.exportTrackerMappings\(\)/,
-  'backup v3 export must include tracker comic mappings without account credentials',
+  /trackerMappings\?: ComicTrackerMapping\[\][\s\S]*if \(contentPreferences\.includeTrackerMappings\) \{[\s\S]*document\.trackerMappings = await this\.exportTrackerMappings\(\)/,
+  'backup v3 export must include tracker comic mappings without account credentials when backup content preferences allow it',
 )
 assert.match(
   backupServiceSource,
