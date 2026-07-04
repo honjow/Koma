@@ -41,6 +41,7 @@ export const OFFLINE_DOWNLOAD_FAILURE_REASON_CODES: string[] = [
   'outside_chapter_dir',
   'page_index_invalid',
   'page_size_mismatch',
+  'page_hash_mismatch',
   'page_file_missing',
   'comic_missing',
   'chapter_missing',

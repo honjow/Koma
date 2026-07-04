@@ -78,7 +78,7 @@ assert.match(queueStoreSource, /export interface OfflineDownloadQueuePreferences
 assert.match(queueStoreSource, /export interface OfflineDownloadQueueSummary\s*{[\s\S]*totalCount:\s*number[\s\S]*queuedCount:\s*number[\s\S]*downloadingCount:\s*number[\s\S]*downloadedCount:\s*number[\s\S]*partialCount:\s*number[\s\S]*failedCount:\s*number[\s\S]*blockedCount:\s*number[\s\S]*pageCount:\s*number[\s\S]*downloadedPageCount:\s*number/, 'queue summary must expose status and page progress counts')
 assert.match(queueStoreSource, /interface OfflineDownloadQueueDocument\s*{[\s\S]*schemaVersion:\s*number[\s\S]*preferences\?:\s*OfflineDownloadQueuePreferences[\s\S]*entries:\s*OfflineDownloadQueueEntry\[\]/, 'queue document must include schemaVersion, optional preferences, and entries')
 assert.match(queueStoreSource, /export interface OfflineDownloadQueueEntry\s*{[\s\S]*comicId:[\s\S]*chapterId:[\s\S]*comicTitle\?:[\s\S]*chapterTitle\?:[\s\S]*status:\s*OfflineDownloadStatus[\s\S]*pageCount:\s*number[\s\S]*downloadedPageCount:\s*number[\s\S]*updatedAt:\s*number[\s\S]*failureReasonCode\?:\s*string/, 'queue entries must carry ids, title labels, status, counts, timestamp, and optional failure code')
-assert.match(queueStoreSource, /OFFLINE_DOWNLOAD_FAILURE_REASON_CODES: string\[\] = \[[\s\S]*'paused'[\s\S]*'wifi_only'[\s\S]*'download_interrupted'[\s\S]*'manifest_malformed'[\s\S]*'identity_mismatch'[\s\S]*'unsafe_page_path'[\s\S]*'outside_chapter_dir'[\s\S]*'page_index_invalid'[\s\S]*'page_size_mismatch'[\s\S]*'comic_missing'[\s\S]*'page_fetch_failed'[\s\S]*\]/, 'queue store must keep a bounded allowlist of persisted failure reason codes, including safe manifest validation reasons')
+assert.match(queueStoreSource, /OFFLINE_DOWNLOAD_FAILURE_REASON_CODES: string\[\] = \[[\s\S]*'paused'[\s\S]*'wifi_only'[\s\S]*'download_interrupted'[\s\S]*'manifest_malformed'[\s\S]*'identity_mismatch'[\s\S]*'unsafe_page_path'[\s\S]*'outside_chapter_dir'[\s\S]*'page_index_invalid'[\s\S]*'page_size_mismatch'[\s\S]*'page_hash_mismatch'[\s\S]*'comic_missing'[\s\S]*'page_fetch_failed'[\s\S]*\]/, 'queue store must keep a bounded allowlist of persisted failure reason codes, including safe manifest validation reasons')
 assert.match(queueStoreSource, /OFFLINE_DOWNLOAD_FAILURE_REASON_CODES: string\[\] = \[[\s\S]*'downloaded_count_mismatch'[\s\S]*\]/, 'queue store must allowlist downloaded count mismatch as a coarse manifest validation failure')
 assert.match(queueStoreSource, /function normalizeOfflineDownloadFailureReasonCode\(value: string \| undefined\): string \| undefined \{[\s\S]*OFFLINE_DOWNLOAD_FAILURE_REASON_CODES\.indexOf\(value\) >= 0 \? value : undefined[\s\S]*const failureReasonCode = normalizeOfflineDownloadFailureReasonCode\(entry\.failureReasonCode\)/, 'queue entry normalization must drop unknown failure reason text before it can reach UI or notifications')
 assert.match(queueStoreSource, /validation\.reasonCode === 'status_not_reader_ready' \?[\s\S]*validation\.manifest\?\.failureReasonCode \?\? 'manifest_unavailable'/, 'queue reconcile must preserve manifest failure reason codes after a reconciled failed manifest becomes not reader-ready')
@@ -126,9 +126,11 @@ assertExport(offlineDownloadStoreSource, 'OfflineDownloadManifestValidation')
 assertExport(offlineDownloadStoreSource, 'OfflineDownloadManifestScanResult')
 assert.match(offlineDownloadStoreSource, /export enum OfflineDownloadedChapterStatus\s*{[\s\S]*DOWNLOADED = 'downloaded'[\s\S]*PARTIAL = 'partial'[\s\S]*CORRUPT = 'corrupt'[\s\S]*MISSING = 'missing'/, 'offline manifest validation must classify downloaded, partial, corrupt, and missing')
 assert.match(offlineDownloadStoreSource, /export interface OfflineChapterDownloadManifest\s*{[\s\S]*sourceKind\?: ComicSourceKind[\s\S]*sourceId\?: string[\s\S]*comicId:[\s\S]*comicTitle\?: string[\s\S]*seriesId:[\s\S]*chapterId:[\s\S]*chapterTitle\?: string[\s\S]*pageCount:[\s\S]*pages:[\s\S]*integrityHash: string/, 'offline chapter manifests must identify source, series, titles, chapter, page list, and integrity hash')
-assert.match(offlineDownloadStoreSource, /function manifestIntegrityPayload[\s\S]*page\.pageIndex[\s\S]*page\.pageId[\s\S]*page\.fileName[\s\S]*page\.size[\s\S]*createManifestIntegrityHash/, 'offline manifest integrity must be deterministic from bounded identity and page metadata')
+assert.match(offlineDownloadStoreSource, /export interface OfflineDownloadedPage\s*{[\s\S]*size: number[\s\S]*contentHash\?: string[\s\S]*}/, 'offline downloaded pages must carry an optional content hash for newly written page files')
+assert.match(offlineDownloadStoreSource, /function manifestIntegrityPayload[\s\S]*page\.pageIndex[\s\S]*page\.pageId[\s\S]*page\.fileName[\s\S]*page\.size[\s\S]*page\.contentHash[\s\S]*createManifestIntegrityHash/, 'offline manifest integrity must be deterministic from bounded identity and page metadata')
 assert.doesNotMatch(extractTopLevelFunction(offlineDownloadStoreSource, 'manifestIntegrityPayload'), /comicTitle|chapterTitle/, 'offline manifest integrity must not depend on display titles so metadata edits cannot corrupt downloaded pages')
-assert.match(offlineDownloadStoreSource, /validateDownloadedChapter\(comicId: ComicId, chapterId: string\): OfflineDownloadManifestValidation[\s\S]*manifest_missing[\s\S]*manifest_malformed[\s\S]*integrity_mismatch[\s\S]*page_file_missing/, 'offline store must expose reader-usable manifest discovery with missing, corrupt, and partial reasons')
+assert.match(offlineDownloadStoreSource, /createOfflineDownloadFileContentHash\(page\.localPath\) !== page\.contentHash[\s\S]*reasonCode: 'page_hash_mismatch'/, 'offline manifest validation must reject same-size page file corruption when a content hash is present')
+assert.match(offlineDownloadStoreSource, /validateDownloadedChapter\(comicId: ComicId, chapterId: string\): OfflineDownloadManifestValidation[\s\S]*manifest_missing[\s\S]*manifest_malformed[\s\S]*integrity_mismatch[\s\S]*page_hash_mismatch[\s\S]*page_file_missing/, 'offline store must expose reader-usable manifest discovery with missing, corrupt, and partial reasons')
 assert.match(offlineDownloadStoreSource, /Math\.max\(0, Math\.floor\(manifest\.downloadedPageCount\)\) !== manifest\.pages\.length[\s\S]*reasonCode: 'downloaded_count_mismatch'/, 'offline manifest validation must reject mismatched downloaded page counts before queue summaries trust them')
 assert.match(offlineDownloadStoreSource, /export interface OfflineDownloadSummary\s*{[\s\S]*status: OfflineDownloadStatus[\s\S]*updatedAt: number[\s\S]*failureReasonCode\?: string[\s\S]*loadSummary\(comicId: ComicId, chapterId: string\): OfflineDownloadSummary \| undefined \{[\s\S]*const validation = this\.validateDownloadedChapter\(comicId, chapterId\)[\s\S]*OfflineDownloadedChapterStatus\.CORRUPT[\s\S]*OfflineDownloadStatus\.FAILED[\s\S]*failureReasonCode: validation\.reasonCode[\s\S]*OfflineDownloadedChapterStatus\.DOWNLOADED[\s\S]*OfflineDownloadStatus\.PARTIAL[\s\S]*failureReasonCode: validation\.reasonCode[\s\S]*failureReasonCode: manifest\.failureReasonCode \?\? validation\.reasonCode/, 'offline summary must reuse manifest validation and carry coarse failure codes so detail and batch download UI cannot trust corrupt or incomplete downloaded manifests')
 assert.match(offlineDownloadStoreSource, /reconcileDownloadedChapter\(comicId: ComicId, chapterId: string\): OfflineDownloadManifestValidation \{[\s\S]*validateDownloadedChapter\(comicId, chapterId\)[\s\S]*OfflineDownloadedChapterStatus\.CORRUPT[\s\S]*return validation[\s\S]*OfflineDownloadedChapterStatus\.PARTIAL[\s\S]*status: OfflineDownloadStatus\.PARTIAL[\s\S]*pages: manifest\.pages\.filter[\s\S]*failureReasonCode: validation\.reasonCode \?\? 'page_file_missing'[\s\S]*validation\.reasonCode === 'pages_missing'[\s\S]*OfflineDownloadStatus\.FAILED[\s\S]*download_interrupted/, 'offline store must persist partial and interrupted manifest reconciliation without masking corrupt manifests')
@@ -156,6 +158,7 @@ assert.match(offlineDownloadServiceSource, /createManifest\([\s\S]*manifestIdent
 assert.match(offlineDownloadServiceSource, /function reusableDownloadedPage\(pages: OfflineDownloadedPage\[\], pageId: string, pageIndex: number\): OfflineDownloadedPage \| undefined[\s\S]*pageId\.trim\(\)\.length > 0[\s\S]*return item\.pageId === pageId[\s\S]*return item\.pageIndex === pageIndex[\s\S]*fs\.accessSync\(page\.localPath\)/, 'download service must only reuse present page files that still match the requested page identity')
 assert.match(offlineDownloadServiceSource, /const existingValidation = this\.store\.validateDownloadedChapter\(comic\.id, chapterId\)[\s\S]*existingValidation\.status === OfflineDownloadedChapterStatus\.DOWNLOADED[\s\S]*existingValidation\.manifest !== undefined[\s\S]*applyManifestLabels\(existingValidation\.manifest, comic, chapter, labels\)[\s\S]*queueStore\.upsert\(this\.queueStore\.fromManifest\(manifest[\s\S]*step=download_reused[\s\S]*return manifest[\s\S]*existingValidation\.status === OfflineDownloadedChapterStatus\.PARTIAL/, 'complete download retry must reuse and label the validated manifest instead of refetching pages')
 assert.match(offlineDownloadServiceSource, /const existingValidation = this\.store\.validateDownloadedChapter\(comic\.id, chapterId\)[\s\S]*existingValidation\.status === OfflineDownloadedChapterStatus\.PARTIAL[\s\S]*existingValidation\.manifest\.pages[\s\S]*const reusablePage = reusableDownloadedPage\(reusablePages, pageId, index\)[\s\S]*this\.store\.recordPage\(manifest, \{[\s\S]*localPath: reusablePage\.localPath[\s\S]*continue/, 'partial download retry must reuse validated existing pages and only fetch missing pages')
+assert.match(offlineDownloadServiceSource, /createOfflineDownloadStableByteHash\(new Uint8Array\(bytes\)\)[\s\S]*contentHash: writtenPage\.contentHash/, 'offline download service must persist content hashes for newly written remote pages')
 assert.match(offlineDownloadServiceSource, /const initialPreferences = this\.queueStore\.loadPreferences\(\)[\s\S]*this\.queueStore\.upsert\([\s\S]*const latestPreferences = this\.queueStore\.loadPreferences\(\)[\s\S]*const initialCanDownload = this\.canDownloadNow\(initialPreferences\)[\s\S]*const latestCanDownload = this\.canDownloadNow\(latestPreferences\)[\s\S]*if \(!initialCanDownload \|\| !latestCanDownload\)/, 'download service start guard must compare both initial and latest preferences after the queue upsert')
 assert.match(offlineDownloadServiceSource, /const blockedReason = downloadBlockedReason\(!latestCanDownload \? latestPreferences : initialPreferences\)[\s\S]*OfflineDownloadStatus\.QUEUED/, 'download service must honor latest paused or non-Wi-Fi foreground queue state before starting work')
 assert.match(offlineDownloadServiceSource, /for \(let index = 0; index < config\.totalPages; index \+= 1\)[\s\S]*const preferences = this\.queueStore\.loadPreferences\(\)[\s\S]*!this\.canDownloadNow\(preferences\)[\s\S]*failureReasonCode = preferences\.isPaused \? 'paused' : 'wifi_only'/, 'download service must stop foreground page work when the queue is paused or waiting for Wi-Fi')
@@ -292,9 +295,20 @@ function stableHash(value) {
   return `${hashA.toString(16).padStart(8, '0')}${hashB.toString(16).padStart(8, '0')}`
 }
 
+function stableByteHash(bytes) {
+  let hashA = 2166136261
+  let hashB = 2166136261 ^ 0x9e3779b9
+  for (let index = 0; index < bytes.length; index += 1) {
+    const value = bytes[index]
+    hashA = Math.imul((hashA ^ value) >>> 0, 16777619) >>> 0
+    hashB = Math.imul((hashB ^ (value + index)) >>> 0, 16777619) >>> 0
+  }
+  return `${hashA.toString(16).padStart(8, '0')}${hashB.toString(16).padStart(8, '0')}`
+}
+
 function manifestIntegrityPayload(manifest) {
   const pages = manifest.pages.slice().sort((left, right) => left.pageIndex - right.pageIndex).map((page) => {
-    return [page.pageIndex, page.pageId, page.fileName, Math.max(0, Math.floor(page.size))].join(':')
+    return [page.pageIndex, page.pageId, page.fileName, Math.max(0, Math.floor(page.size)), page.contentHash ?? ''].join(':')
   })
   return [
     1,
@@ -373,6 +387,12 @@ function validateFixtureManifest(path) {
   for (const page of manifest.pages) {
     if (existsSync(page.localPath)) {
       assert.equal(statSync(page.localPath).size, page.size)
+      if ((page.contentHash ?? '').trim().length > 0) {
+        const bytes = readFileSync(page.localPath)
+        if (stableByteHash(bytes) !== page.contentHash) {
+          return { status: 'corrupt', reasonCode: 'page_hash_mismatch' }
+        }
+      }
       availablePageCount += 1
     }
   }
@@ -425,8 +445,8 @@ try {
     status: 'downloaded',
     updatedAt: 1,
     pages: [
-      { pageId: 'page-a', pageIndex: 0, fileName: '00001-a.jpg', localPath: firstPage, size: 6, updatedAt: 1 },
-      { pageId: 'page-b', pageIndex: 1, fileName: '00002-b.jpg', localPath: secondPage, size: 7, updatedAt: 1 },
+      { pageId: 'page-a', pageIndex: 0, fileName: '00001-a.jpg', localPath: firstPage, size: 6, contentHash: stableByteHash(readFileSync(firstPage)), updatedAt: 1 },
+      { pageId: 'page-b', pageIndex: 1, fileName: '00002-b.jpg', localPath: secondPage, size: 7, contentHash: stableByteHash(readFileSync(secondPage)), updatedAt: 1 },
     ],
     integrityHash: '',
   })
@@ -458,6 +478,12 @@ try {
     availablePageCount: 2,
     missingPageCount: 0,
   }, 'complete manifest fixture must validate as downloaded')
+  writeFileSync(firstPage, 'page-z')
+  assert.deepEqual(validateFixtureManifest(manifestPath), {
+    status: 'corrupt',
+    reasonCode: 'page_hash_mismatch',
+  }, 'same-size page file corruption must be rejected when contentHash is present')
+  writeFileSync(firstPage, 'page-a')
 
   for (const blockedStatus of ['queued', 'blocked', 'failed', 'downloading']) {
     const blockedManifest = stampManifest({

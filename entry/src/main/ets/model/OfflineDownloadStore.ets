@@ -47,6 +47,7 @@ export interface OfflineDownloadedPage {
   fileName?: string
   localPath: string
   size: number
+  contentHash?: string
   updatedAt: number
 }
 
@@ -159,6 +160,17 @@ export function createOfflineDownloadStableHash(value: string): string {
   return `${hashA.toString(16).padStart(8, '0')}${hashB.toString(16).padStart(8, '0')}`
 }
 
+export function createOfflineDownloadStableByteHash(bytes: Uint8Array): string {
+  let hashA = 2166136261
+  let hashB = 2166136261 ^ 0x9e3779b9
+  for (let index = 0; index < bytes.length; index += 1) {
+    const value = bytes[index]
+    hashA = Math.imul((hashA ^ value) >>> 0, 16777619) >>> 0
+    hashB = Math.imul((hashB ^ (value + index)) >>> 0, 16777619) >>> 0
+  }
+  return `${hashA.toString(16).padStart(8, '0')}${hashB.toString(16).padStart(8, '0')}`
+}
+
 function joinOfflineDownloadPath(parent: string, child: string): string {
   const left = trimTrailingSlash(parent)
   const right = normalizeDownloadPath(child).replace(/^\/+/, '').replace(/\/+$/, '')
@@ -177,6 +189,23 @@ function closeFileQuietly(file: fs.File | undefined): void {
     fs.closeSync(file)
   } catch (_err) {
   }
+}
+
+function readBytesSync(path: string): Uint8Array {
+  let file: fs.File | undefined = undefined
+  try {
+    const stat = fs.statSync(path)
+    const buffer = new ArrayBuffer(stat.size)
+    file = fs.openSync(path, fs.OpenMode.READ_ONLY)
+    const readBytes = fs.readSync(file.fd, buffer)
+    return new Uint8Array(buffer, 0, readBytes)
+  } finally {
+    closeFileQuietly(file)
+  }
+}
+
+export function createOfflineDownloadFileContentHash(path: string): string {
+  return createOfflineDownloadStableByteHash(readBytesSync(path))
 }
 
 function ensureDirSync(path: string): void {
@@ -233,6 +262,7 @@ function safeParseManifest(payload: string): OfflineChapterDownloadManifest {
       typeof page.pageIndex !== 'number' ||
       typeof page.localPath !== 'string' ||
       typeof page.size !== 'number' ||
+      (page.contentHash !== undefined && typeof page.contentHash !== 'string') ||
       typeof page.updatedAt !== 'number') {
       throw new Error('Unsupported offline download page manifest')
     }
@@ -255,6 +285,7 @@ function manifestIntegrityPayload(manifest: OfflineChapterDownloadManifest): str
       page.pageId,
       page.fileName ?? pathBaseName(page.localPath),
       Math.max(0, Math.floor(page.size)),
+      page.contentHash ?? '',
     ].join(':')
   })
   return [
@@ -503,6 +534,19 @@ export class OfflineDownloadStore {
             reasonCode: 'page_size_mismatch',
           }
         }
+        if ((page.contentHash ?? '').trim().length > 0 &&
+          createOfflineDownloadFileContentHash(page.localPath) !== page.contentHash) {
+          return {
+            comicId,
+            chapterId,
+            status: OfflineDownloadedChapterStatus.CORRUPT,
+            manifest,
+            pageCount: manifest.pageCount,
+            availablePageCount,
+            missingPageCount: Math.max(0, manifest.pageCount - availablePageCount),
+            reasonCode: 'page_hash_mismatch',
+          }
+        }
         availablePageCount += 1
       }
     }
@@ -701,6 +745,7 @@ export class OfflineDownloadStore {
         fileName: page.fileName ?? pathBaseName(page.localPath),
         localPath: page.localPath,
         size: Math.max(0, Math.floor(page.size)),
+        contentHash: page.contentHash?.trim(),
         updatedAt: page.updatedAt,
       }
     })

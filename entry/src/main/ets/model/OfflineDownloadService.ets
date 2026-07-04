@@ -21,6 +21,8 @@ import {
   OfflineDownloadStatus,
   OfflineDownloadStore,
   OfflineDownloadedPage,
+  createOfflineDownloadFileContentHash,
+  createOfflineDownloadStableByteHash,
   createOfflineDownloadStableHash,
 } from './OfflineDownloadStore'
 import {
@@ -42,7 +44,12 @@ function closeFileQuietly(file: fs.File | undefined): void {
   }
 }
 
-function writeBytesSync(path: string, bytes: ArrayBuffer): void {
+interface OfflineDownloadPageWriteResult {
+  size: number
+  contentHash: string
+}
+
+function writeBytesSync(path: string, bytes: ArrayBuffer): OfflineDownloadPageWriteResult {
   let file: fs.File | undefined = undefined
   try {
     file = fs.openSync(path, fs.OpenMode.WRITE_ONLY | fs.OpenMode.CREATE | fs.OpenMode.TRUNC)
@@ -50,11 +57,18 @@ function writeBytesSync(path: string, bytes: ArrayBuffer): void {
   } finally {
     closeFileQuietly(file)
   }
+  return {
+    size: fs.statSync(path).size,
+    contentHash: createOfflineDownloadStableByteHash(new Uint8Array(bytes)),
+  }
 }
 
-async function copyLocalFile(sourcePath: string, targetPath: string): Promise<number> {
+async function copyLocalFile(sourcePath: string, targetPath: string): Promise<OfflineDownloadPageWriteResult> {
   if (sourcePath === targetPath) {
-    return fs.statSync(targetPath).size
+    return {
+      size: fs.statSync(targetPath).size,
+      contentHash: createOfflineDownloadFileContentHash(targetPath),
+    }
   }
   let sourceFile: fs.File | undefined = undefined
   let targetFile: fs.File | undefined = undefined
@@ -66,7 +80,10 @@ async function copyLocalFile(sourcePath: string, targetPath: string): Promise<nu
     closeFileQuietly(sourceFile)
     closeFileQuietly(targetFile)
   }
-  return fs.statSync(targetPath).size
+  return {
+    size: fs.statSync(targetPath).size,
+    contentHash: createOfflineDownloadFileContentHash(targetPath),
+  }
 }
 
 function extensionFromUri(uri: string): string {
@@ -285,12 +302,13 @@ export class OfflineDownloadService {
         }
         const source = createReaderPageRenderSource(config, index, { preferOffline: false })
         const localPath = this.store.pageFilePath(comic.id, chapterId, pageId, index, extensionFromUri(source.uri.length > 0 ? source.uri : source.imageUri))
-        const size = await this.writePage(source, localPath)
+        const writtenPage = await this.writePage(source, localPath)
         const row: OfflineDownloadedPage = {
           pageId,
           pageIndex: index,
           localPath,
-          size,
+          size: writtenPage.size,
+          contentHash: writtenPage.contentHash,
           updatedAt: Date.now(),
         }
         manifest = this.store.recordPage(manifest, row)
@@ -335,7 +353,7 @@ export class OfflineDownloadService {
       })
   }
 
-  private async writePage(source: ReaderPageRenderSource, localPath: string): Promise<number> {
+  private async writePage(source: ReaderPageRenderSource, localPath: string): Promise<OfflineDownloadPageWriteResult> {
     if (source.kind === ReaderPageRenderKind.LOCAL_FILE_IMAGE) {
       return copyLocalFile(source.imageUri, localPath)
     }
@@ -343,7 +361,6 @@ export class OfflineDownloadService {
       throw new Error('unsupported page source')
     }
     const bytes = await fetchReaderRemoteSourceBytes(source)
-    writeBytesSync(localPath, bytes)
-    return fs.statSync(localPath).size
+    return writeBytesSync(localPath, bytes)
   }
 }
