@@ -399,10 +399,27 @@ function createReaderImageSourceUri(uri) {
   return decodeFileUriPath(stripFileUriScheme(normalized))
 }
 
-function createReaderPageRenderSource(config, pageIndex) {
+function createReaderPageRenderSource(config, pageIndex, options = {}) {
+  const uri = getReaderSessionPageUri(config, pageIndex)
+  if (options.offlineOnly === true) {
+    if (isReaderLocalImageSourceUri(uri)) {
+      return {
+        kind: ReaderPageRenderKind.LOCAL_FILE_IMAGE,
+        uri,
+        imageUri: createReaderImageSourceUri(uri),
+        fallbackPageIndex: pageIndex,
+      }
+    }
+    return {
+      kind: ReaderPageRenderKind.URI_PLACEHOLDER,
+      uri: `offline-missing://${createShortReaderHash(config.comicId)}/${createShortReaderHash(config.chapterId)}/${pageIndex}`,
+      imageUri: '',
+      fallbackPageIndex: pageIndex,
+      pageId: getReaderSessionPageId(config, pageIndex),
+    }
+  }
   if (config.sourceRuntimeId !== undefined && config.sourceRuntimeId.trim().length > 0) {
     const pageId = getReaderSessionPageId(config, pageIndex)
-    const uri = getReaderSessionPageUri(config, pageIndex)
     const isUrl = uri.toLocaleLowerCase().startsWith('http://') || uri.toLocaleLowerCase().startsWith('https://')
     return {
       kind: ReaderPageRenderKind.REMOTE_URL_IMAGE,
@@ -414,7 +431,6 @@ function createReaderPageRenderSource(config, pageIndex) {
       pageUri: uri,
     }
   }
-  const uri = getReaderSessionPageUri(config, pageIndex)
   if (uri.length === 0 || uri.startsWith('mock://')) {
     return {
       kind: ReaderPageRenderKind.URI_PLACEHOLDER,
@@ -515,14 +531,15 @@ assert.match(readerPageSourceAdapterSource, /readerRemoteImageCacheStore\.stats\
 assert.match(readerPageSourceAdapterSource, /readerRemoteImageCacheStore\.clear\(\)/, 'adapter must expose remote image cache clear through the configured store')
 assert.match(readerPageSourceAdapterSource, /let readerOfflineDownloadStore: OfflineDownloadStore \| undefined = undefined/, 'reader adapter must keep durable offline downloads separate from remote image cache')
 assert.match(readerPageSourceAdapterSource, /configureReaderOfflineDownloads\(filesDir: string\)[\s\S]*new OfflineDownloadStore\(filesDir\)/, 'reader adapter must configure offline downloads from filesDir')
-assert.match(readerPageSourceAdapterSource, /function createReaderOfflineDownloadRenderSource[\s\S]*resolveDownloadedPage\(config\.comicId, config\.chapterId, pageId, pageIndex\)[\s\S]*ReaderPageRenderKind\.LOCAL_FILE_IMAGE/, 'reader adapter must resolve offline pages as local images')
-assert.match(readerPageSourceAdapterSource, /export interface ReaderPageRenderSourceOptions\s*{[\s\S]*preferOffline\?: boolean[\s\S]*}/, 'reader page render source must expose an offline preference option')
-assert.match(readerPageSourceAdapterSource, /export function createReaderPageRenderSource\(config: ReaderSessionConfig, pageIndex: number, options\?: ReaderPageRenderSourceOptions\)[\s\S]*options\?\.preferOffline !== false[\s\S]*createReaderOfflineDownloadRenderSource\(config, pageIndex\)[\s\S]*return offlineDownloadSource[\s\S]*createReaderSourceRuntimeRenderSource/, 'reader page render source must prefer offline local files by default before source/runtime remote fallback')
-assert.match(readerPageSourceAdapterSource, /validateDownloadedChapter\(config\.comicId, config\.chapterId\)[\s\S]*reasonCode === 'manifest_missing'[\s\S]*return undefined[\s\S]*localPath === undefined[\s\S]*isOfflineManifestReaderOwned\(validation\)[\s\S]*createReaderOfflineUnavailableSource\(config, pageIndex\)/, 'reader adapter must not fall back to remote pages when an existing offline manifest owns the chapter but the requested page is unavailable')
+assert.match(readerPageSourceAdapterSource, /function createReaderOfflineDownloadRenderSource[\s\S]*resolveDownloadedPage\(config\.comicId, config\.chapterId, pageId, pageIndex, \{[\s\S]*validateContentHash: false[\s\S]*ReaderPageRenderKind\.LOCAL_FILE_IMAGE/, 'reader adapter must resolve offline pages as local images')
+assert.match(readerPageSourceAdapterSource, /export interface ReaderPageRenderSourceOptions\s*{[\s\S]*preferOffline\?: boolean[\s\S]*offlineOnly\?: boolean[\s\S]*}/, 'reader page render source must expose offline preference and offline-only options')
+assert.match(readerPageSourceAdapterSource, /export function createReaderPageRenderSource\(config: ReaderSessionConfig, pageIndex: number, options\?: ReaderPageRenderSourceOptions\)[\s\S]*options\?\.preferOffline !== false[\s\S]*createReaderOfflineDownloadRenderSource\(config, pageIndex\)[\s\S]*return offlineDownloadSource[\s\S]*options\?\.offlineOnly === true[\s\S]*createReaderUriRenderSource\(getReaderSessionPageUri\(config, pageIndex\), pageIndex\)[\s\S]*ReaderPageRenderKind\.LOCAL_FILE_IMAGE[\s\S]*createReaderOfflineUnavailableSource\(config, pageIndex\)[\s\S]*createReaderSourceRuntimeRenderSource/, 'reader page render source must prefer offline local files and fail closed before source/runtime remote fallback when offline-only')
+assert.match(readerPageSourceAdapterSource, /validateDownloadedChapter\(config\.comicId, config\.chapterId, \{[\s\S]*validateContentHash: false[\s\S]*reasonCode === 'manifest_missing'[\s\S]*return undefined[\s\S]*localPath === undefined[\s\S]*isOfflineManifestReaderOwned\(validation\)[\s\S]*createReaderOfflineUnavailableSource\(config, pageIndex\)/, 'reader adapter must not fall back to remote pages when an existing offline manifest owns the chapter but the requested page is unavailable')
+assert.match(readerPageSource, /isDefaultNetworkUnavailable\(\): boolean[\s\S]*connection\.getDefaultNetSync\(\)\.netId === 0[\s\S]*offlineOnly: isDefaultNetworkUnavailable\(\)/, 'ReaderPage must pass offline-only mode into page resolution when the platform reports no default network')
 assert.match(readerPageSourceAdapterSource, /function isOfflineManifestReaderOwned\(validation: OfflineDownloadManifestValidation\): boolean[\s\S]*OfflineDownloadedChapterStatus\.DOWNLOADED[\s\S]*OfflineDownloadedChapterStatus\.PARTIAL[\s\S]*OfflineDownloadedChapterStatus\.CORRUPT/, 'reader adapter offline ownership must cover downloaded, partial, and corrupt manifests')
 assert.match(readerPageSourceAdapterSource, /function createReaderOfflineUnavailableSource\(config: ReaderSessionConfig, pageIndex: number\): ReaderPageRenderSource[\s\S]*ReaderPageRenderKind\.URI_PLACEHOLDER[\s\S]*offline-missing:\/\//, 'reader adapter must expose missing offline pages as honest placeholders')
 assert.match(readerPageSourceAdapterSource, /export function createReaderPageRenderDiagnostics\(config: ReaderSessionConfig, pageIndex: number\): ReaderPageRenderDiagnostics \{[\s\S]*createReaderSourceDiagnostics\(createReaderPageRenderSource\(config, pageIndex\)\)/, 'reader source diagnostics must report the resolved local-first render source')
-assert.match(offlineDownloadStoreSource, /resolveDownloadedPage[\s\S]*validateDownloadedChapter\(comicId, chapterId\)[\s\S]*OfflineDownloadedChapterStatus\.DOWNLOADED[\s\S]*OfflineDownloadedChapterStatus\.PARTIAL[\s\S]*fs\.accessSync\(page\.localPath\)/, 'offline resolver must allow validated existing local pages from partial downloads')
+assert.match(offlineDownloadStoreSource, /resolveDownloadedPage[\s\S]*options\?: OfflineDownloadValidationOptions[\s\S]*validateDownloadedChapter\(comicId, chapterId, options\)[\s\S]*OfflineDownloadedChapterStatus\.DOWNLOADED[\s\S]*OfflineDownloadedChapterStatus\.PARTIAL[\s\S]*fs\.accessSync\(page\.localPath\)/, 'offline resolver must allow validated existing local pages from partial downloads')
 assert.match(remoteImageCacheStoreSource, /REMOTE_IMAGE_CACHE_DIR_NAME:\s*string = 'reader-remote-image-cache'/, 'remote image cache must remain under its dedicated cacheDir child')
 assert.match(offlineDownloadStoreSource, /OFFLINE_DOWNLOAD_ROOT_DIR_NAME:\s*string = 'downloads'/, 'offline download store must use a durable files/downloads root')
 assert.match(offlineDownloadStoreSource, /assertSafeOfflineDownloadRoot[\s\S]*hasTraversalSegment/, 'offline download store must include traversal-safe path validation')
@@ -570,7 +587,7 @@ assert.doesNotMatch(readerPageSource, /\[TrackerSync\][^\n]*(token|authorization
 assert.match(readerPageSource, /ReaderPageRenderKind\.LOCAL_FILE_IMAGE/, 'reader page must render accepted local file images through a distinct path')
 assert.match(readerPageSource, /ReaderPageRenderKind\.URI_PLACEHOLDER/, 'reader page must isolate URI rendering behind an explicit placeholder path')
 assert.match(readerPageSourceAdapterSource, /export function createReaderPageSourceDiagnostics\(source: ReaderPageRenderSource\): ReaderPageRenderDiagnostics \{[\s\S]*return createReaderSourceDiagnostics\(source\)/, 'reader adapter must expose diagnostics for an already-resolved render source')
-assert.match(readerPageSource, /interface ReaderPageRenderContext \{[\s\S]*source: ReaderPageRenderSource[\s\S]*diagnostics: ReaderPageRenderDiagnostics[\s\S]*createLoggedReaderPageRenderContext\(index: number\): ReaderPageRenderContext[\s\S]*const source = createReaderPageRenderSource\(this\.sessionConfig, index\)[\s\S]*const diagnostics = createReaderPageSourceDiagnostics\(source\)[\s\S]*ResolvedReaderPageSurface\(this\.createLoggedReaderPageRenderContext\(index\), index, compact, splitSide\)[\s\S]*context\.source\.kind === ReaderPageRenderKind\.LOCAL_FILE_IMAGE[\s\S]*this\.LocalImagePage\(context\.source\.imageUri, index, compact, context\.diagnostics, splitSide\)/, 'reader page must resolve each page source once and reuse the same diagnostics while rendering')
+assert.match(readerPageSource, /interface ReaderPageRenderContext \{[\s\S]*source: ReaderPageRenderSource[\s\S]*diagnostics: ReaderPageRenderDiagnostics[\s\S]*createLoggedReaderPageRenderContext\(index: number\): ReaderPageRenderContext[\s\S]*const source = createReaderPageRenderSource\(this\.sessionConfig, index, \{ offlineOnly: isDefaultNetworkUnavailable\(\) \}\)[\s\S]*const diagnostics = createReaderPageSourceDiagnostics\(source\)[\s\S]*ResolvedReaderPageSurface\(this\.createLoggedReaderPageRenderContext\(index\), index, compact, splitSide\)[\s\S]*context\.source\.kind === ReaderPageRenderKind\.LOCAL_FILE_IMAGE[\s\S]*this\.LocalImagePage\(context\.source\.imageUri, index, compact, context\.diagnostics, splitSide\)/, 'reader page must resolve each page source once and reuse the same diagnostics while rendering')
 assert.match(readerPageSource, /image\.createImageSource\(sourceUri\)/, 'reader page must decode accepted local image sources through ImageKit')
 assert.match(readerPageSource, /createPixelMap\(\)/, 'reader page must create a PixelMap for local image rendering')
 assert.match(readerPageSource, /Image\(this\.pixelMap\)/, 'reader page must pass decoded PixelMap objects to ArkUI Image')
@@ -733,6 +750,9 @@ assert.equal(descriptorPage.pageId, 'page:source:001', 'source runtime page inde
 assert.equal(descriptorPage.imageUri, 'source-runtime://local.test.koma.fixture/page%3Asource%3A001', 'source runtime descriptor page gets a stable non-secret render key')
 const fallbackUrlPage = createReaderPageRenderSource(sourceRuntimeConfig, 1)
 assert.equal(fallbackUrlPage.pageUri, 'https://cdn.example.test/fallback/002.jpg', 'ordinary URL page URI is preserved for fallback')
+const offlineSourceRuntimePage = createReaderPageRenderSource(sourceRuntimeConfig, 0, { offlineOnly: true })
+assert.equal(offlineSourceRuntimePage.kind, ReaderPageRenderKind.URI_PLACEHOLDER, 'offline-only reader must not render source runtime remote pages when no downloaded page is available')
+assert.match(offlineSourceRuntimePage.uri, /^offline-missing:\/\//, 'offline-only missing source pages must use an honest offline placeholder')
 
 const imageRequestPayload = sourceRuntimeImageRequestPayload({
   imageRequest: {
@@ -887,6 +907,15 @@ renderCases.forEach((item, index) => {
   assert.equal(source.kind, item.kind, item.label)
   assert.equal(source.imageUri, item.imageUri, `${item.label} imageUri`)
 })
+
+const offlineLocalPage = createReaderPageRenderSource({
+  comicId: 'offline-local',
+  chapterId: 'chapter-1',
+  totalPages: 1,
+  pageUris: ['/data/storage/el2/base/cache/import/demo-12345678/extract/001.jpg'],
+  pageIds: ['page-1'],
+}, 0, { offlineOnly: true })
+assert.equal(offlineLocalPage.kind, ReaderPageRenderKind.LOCAL_FILE_IMAGE, 'offline-only reader must still render app-sandbox local imported pages')
 
 const qaUri = 'file:///data/storage/el2/base/haps/entry/cache/import/koma-qa-import-real-image-1c7a8c1-1680328b/extract/001-normal.png'
 const qaDiagnostics = createReaderUriDiagnostics(qaUri, 0)

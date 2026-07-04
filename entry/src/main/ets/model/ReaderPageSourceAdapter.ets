@@ -73,6 +73,7 @@ export interface ReaderPageRenderSource {
 
 export interface ReaderPageRenderSourceOptions {
   preferOffline?: boolean
+  offlineOnly?: boolean
 }
 
 export interface ReaderPageRenderDiagnostics {
@@ -870,11 +871,19 @@ function createReaderSourceDiagnostics(source: ReaderPageRenderSource): ReaderPa
 }
 
 export function createReaderPageRenderSource(config: ReaderSessionConfig, pageIndex: number, options?: ReaderPageRenderSourceOptions): ReaderPageRenderSource {
+  let offlineDownloadSource: ReaderPageRenderSource | undefined = undefined
   if (options?.preferOffline !== false) {
-    const offlineDownloadSource = createReaderOfflineDownloadRenderSource(config, pageIndex)
+    offlineDownloadSource = createReaderOfflineDownloadRenderSource(config, pageIndex)
     if (offlineDownloadSource !== undefined) {
       return offlineDownloadSource
     }
+  }
+  if (options?.offlineOnly === true) {
+    const localSource = createReaderUriRenderSource(getReaderSessionPageUri(config, pageIndex), pageIndex)
+    if (localSource.kind === ReaderPageRenderKind.LOCAL_FILE_IMAGE) {
+      return localSource
+    }
+    return createReaderOfflineUnavailableSource(config, pageIndex)
   }
   const sourceRuntimeSource = createReaderSourceRuntimeRenderSource(config, pageIndex)
   if (sourceRuntimeSource !== undefined) {

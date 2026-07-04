@@ -120,6 +120,7 @@ Verified on device `192.168.50.103:12345`:
 - Komga progress pull/push.
 - Remote image cache under app cache with LRU and prefetch.
 - Offline chapter download records durable queue rows under app files, exposes a Settings Downloads page, lets MangaDetail and Downloads retry hydrate source chapter pages, supports queue status filters plus batch retry/cleanup, preserves page hashes across partial resume, and publishes completion/failure notifications when permission allows. This remains an in-app foreground downloader, not an OS background scheduler.
+- Reader page resolution now has an offline-only path: when Harmony reports no default network, Reader still uses downloaded pages or app-sandbox local imports, but source/runtime and remote URL pages resolve to an honest offline placeholder instead of starting remote fetches.
 - Advanced reader settings persist image fit mode, tap navigation, and page gap mode. `fit_width` widens the container without `Cover` cropping; tap navigation uses narrow edge zones and can be disabled.
 - Reader trim-page-margins and volume-key-navigation preferences persist and round-trip through backups. Trim is a presentation-only inset reduction with no rounded clipping when enabled; volume-key navigation is handled by Reader key events when the reader surface has focus.
 
@@ -189,4 +190,4 @@ Verified on device `192.168.50.103:12345`:
 13. Volume-key reader navigation has runtime key-event handling; remaining risk is device matrix coverage for focus retention after overlays, route transitions, and system volume interception.
 14. Tracker settings is a local-only skeleton; real OAuth/account linking and public tracker sync remain future work.
 15. Library update scheduling remains foreground-only. Real background scheduling and notification delivery still require a verified Harmony API path, permissions, implementation tests, and device QA.
-16. Source browsing has Pura X runtime and UI evidence for MangaDex home/listings/filters, MangaDetail, Reader, source-backed download, and offline Reader page turn. Remaining product QA is per-source settings editing, broader real-source compatibility, and wider interrupted-network/corrupt-download matrices.
+16. Source browsing has Pura X runtime and UI evidence for MangaDex home/listings/filters, MangaDetail, Reader, source-backed download, and offline Reader page turn. Reader now fails closed when the platform reports no default network, but remaining product QA is per-source settings editing, broader real-source compatibility, and wider real-device interrupted-network/corrupt-download matrices.

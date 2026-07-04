@@ -57,7 +57,7 @@ Koma 已经具备本地/私有库优先漫画阅读器的主骨架：书架、Re
 
 ### D34：离线 Reader QA
 
-状态：进行中。Reader 默认优先使用 downloaded pages；已有 offline/corrupt/source-index reader smoke。剩余不是重新实现，而是补更宽设备矩阵：断网、未下载章节、损坏/缺页、路由返回后的可见 UI 证据。
+状态：进行中。Reader 默认优先使用 downloaded pages；无默认网络时已 fail-closed 到 offline placeholder，不再生成 source/runtime 或远程 URL 渲染源；本地导入图片仍可读。已有 offline/corrupt/source-index reader smoke。剩余不是重新实现，而是补更宽设备矩阵：真实断网、未下载章节、损坏/缺页、路由返回后的可见 UI 证据。
 
 交付：
 - Reader 优先使用 downloaded pages。
