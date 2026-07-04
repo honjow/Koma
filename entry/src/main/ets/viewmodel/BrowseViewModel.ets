@@ -546,6 +546,10 @@ export class BrowseViewModel {
     this.clearSavedSourceFilterValues('search')
   }
 
+  hasSearchFilterChanges(): boolean {
+    return !this.sourceFilterValuesEqual(this.searchFilterValues, this.defaultSourceFilterValues(this.filters))
+  }
+
   async loadMoreBrowse(): Promise<void> {
     if (this.loadingBrowse || !this.hasMoreBrowse || this.selectedSource === undefined) {
       return
@@ -813,6 +817,36 @@ export class BrowseViewModel {
       }
     })
     return values
+  }
+
+  private sourceFilterValueEqual(left: SourceFilterValue | undefined, right: SourceFilterValue | undefined): boolean {
+    if (Array.isArray(left) || Array.isArray(right)) {
+      if (!Array.isArray(left) || !Array.isArray(right) || left.length !== right.length) {
+        return false
+      }
+      for (let index = 0; index < left.length; index += 1) {
+        if (left[index] !== right[index]) {
+          return false
+        }
+      }
+      return true
+    }
+    return left === right
+  }
+
+  private sourceFilterValuesEqual(left: SourceMangaListFilters, right: SourceMangaListFilters): boolean {
+    const leftKeys = Object.keys(left).sort()
+    const rightKeys = Object.keys(right).sort()
+    if (leftKeys.length !== rightKeys.length) {
+      return false
+    }
+    for (let index = 0; index < leftKeys.length; index += 1) {
+      const key = leftKeys[index]
+      if (key !== rightKeys[index] || !this.sourceFilterValueEqual(left[key], right[key])) {
+        return false
+      }
+    }
+    return true
   }
 
   private restoreSavedBrowseFilterValues(sourceId: string): void {

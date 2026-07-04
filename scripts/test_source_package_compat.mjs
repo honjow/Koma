@@ -410,6 +410,11 @@ assert.match(
   'BrowseViewModel must save search filter changes and clear saved search preferences on reset',
 )
 assert.match(
+  browseViewModelSource,
+  /hasSearchFilterChanges\(\): boolean \{[\s\S]*sourceFilterValuesEqual\(this\.searchFilterValues, this\.defaultSourceFilterValues\(this\.filters\)\)[\s\S]*sourceFilterValueEqual\(left: SourceFilterValue \| undefined, right: SourceFilterValue \| undefined\)[\s\S]*Array\.isArray\(left\) \|\| Array\.isArray\(right\)[\s\S]*sourceFilterValuesEqual\(left: SourceMangaListFilters, right: SourceMangaListFilters\)[\s\S]*Object\.keys\(left\)\.sort\(\)[\s\S]*Object\.keys\(right\)\.sort\(\)/,
+  'BrowseViewModel must distinguish changed search filters from source-provided default values',
+)
+assert.match(
   readFileSync(resolve(root, 'entry/src/main/ets/pages/Index.ets'), 'utf8'),
   /configureSourceSettingsStore\(context\)[\s\S]*configureSourceFilterPreferencesStore\(context\)[\s\S]*bootstrapSourceRuntimeAppRegistry\(context\)/,
   'Index must configure source filter preferences before source runtime bootstrap',
@@ -501,7 +506,7 @@ assert.match(
 )
 assert.match(
   sourceSearchPageSource,
-  /hasActiveSearchFilters\(\): boolean \{[\s\S]*this\.viewModel\.filters\.length > 0 && Object\.keys\(this\.viewModel\.searchFilterValues\)\.length > 0[\s\S]*isFilteredEmptySearch\(\): boolean \{[\s\S]*this\.query\.trim\(\)\.length > 0 && this\.hasActiveSearchFilters\(\)[\s\S]*resetSearchFilters\(\): void \{[\s\S]*this\.viewModel\.resetSearchFilters\(\)[\s\S]*this\.rerunSearchIfReady\(\)[\s\S]*emptySearchTitle\(\): string \{[\s\S]*source_search_filtered_empty_title[\s\S]*emptySearchMessage\(\): string \{[\s\S]*source_search_filtered_empty_message[\s\S]*EmptySearch\(\)[\s\S]*actionLabel: s\('common_reset'\)[\s\S]*showAction: this\.isFilteredEmptySearch\(\)[\s\S]*this\.resetSearchFilters\(\)/,
+  /hasActiveSearchFilters\(\): boolean \{[\s\S]*this\.viewModel\.hasSearchFilterChanges\(\)[\s\S]*isFilteredEmptySearch\(\): boolean \{[\s\S]*this\.query\.trim\(\)\.length > 0 && this\.hasActiveSearchFilters\(\)[\s\S]*resetSearchFilters\(\): void \{[\s\S]*this\.viewModel\.resetSearchFilters\(\)[\s\S]*this\.rerunSearchIfReady\(\)[\s\S]*emptySearchTitle\(\): string \{[\s\S]*source_search_filtered_empty_title[\s\S]*emptySearchMessage\(\): string \{[\s\S]*source_search_filtered_empty_message[\s\S]*EmptySearch\(\)[\s\S]*actionLabel: s\('common_reset'\)[\s\S]*showAction: this\.isFilteredEmptySearch\(\)[\s\S]*this\.resetSearchFilters\(\)/,
   'SourceSearchPage filtered-empty search state must explain active filters and expose a reset action',
 )
 assert.match(

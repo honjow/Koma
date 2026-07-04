@@ -100,7 +100,7 @@ export struct SourceSearchPage {
   }
 
   private hasActiveSearchFilters(): boolean {
-    return this.viewModel.filters.length > 0 && Object.keys(this.viewModel.searchFilterValues).length > 0
+    return this.viewModel.hasSearchFilterChanges()
   }
 
   private isFilteredEmptySearch(): boolean {
