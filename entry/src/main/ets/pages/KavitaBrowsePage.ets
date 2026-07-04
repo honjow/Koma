@@ -37,6 +37,12 @@ function s(name: string): string {
 
 const KAVITA_SERIES_PAGE_SIZE: number = 50
 
+export interface KavitaBrowseRouteParam {
+  libraryId?: number
+  seriesId?: string
+  seriesTitle?: string
+}
+
 @ComponentV2
 export struct KavitaBrowsePage {
   @Local private languageState: LanguageState = connectLanguageState()
@@ -57,6 +63,8 @@ export struct KavitaBrowsePage {
   @Local private openingChapterId: string = ''
   @Local private addingSelectedSeries: boolean = false
   @Local private favoriteRevision: number = 0
+  private autoOpenedRouteKey: string = ''
+  @Param params: KavitaBrowseRouteParam = {}
   @Param libraryStore: LibraryStore = createSeededLibraryStore()
   @Param libraryPersistenceService?: LibraryStorePersistenceService = undefined
   @Event onLibraryChanged: () => void = () => {}
@@ -85,6 +93,7 @@ export struct KavitaBrowsePage {
       this.record = saved
       console.info('[Kavita] step=load_libraries_start')
       this.libraries = await store.createKavitaClient(saved).listLibraries()
+      await this.openRouteParamTarget()
       console.info(`[Kavita] step=load_libraries_ok libraries=${this.libraries.length}`)
     } catch (error) {
       void error
@@ -93,6 +102,37 @@ export struct KavitaBrowsePage {
       console.error('[Kavita] step=load_libraries_failed code=kavita_libraries_load_failed')
     } finally {
       this.loading = false
+    }
+  }
+
+  private routeParamKey(): string {
+    const libraryId = this.params.libraryId
+    const seriesId = this.params.seriesId
+    if (libraryId === undefined || seriesId === undefined || seriesId.trim().length === 0) {
+      return ''
+    }
+    return `${libraryId}:${seriesId.trim()}`
+  }
+
+  private async openRouteParamTarget(): Promise<void> {
+    const key = this.routeParamKey()
+    if (key.length === 0 || this.autoOpenedRouteKey === key) {
+      return
+    }
+    const libraryId = this.params.libraryId as number
+    const seriesId = Number.parseInt(this.params.seriesId as string, 10)
+    if (!Number.isFinite(seriesId) || seriesId <= 0) {
+      return
+    }
+    const library = this.libraries.find((item: KavitaLibraryDto): boolean => item.id === libraryId)
+    if (library === undefined) {
+      return
+    }
+    this.autoOpenedRouteKey = key
+    await this.openLibrary(library)
+    const series = this.series.find((item: KavitaSeriesDto): boolean => item.id === seriesId)
+    if (series !== undefined) {
+      await this.openSeries(series)
     }
   }
 

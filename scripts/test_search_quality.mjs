@@ -12,6 +12,26 @@ const zhStrings = readFileSync(resolve(root, 'entry/src/main/resources/zh_CN/ele
 
 assert.match(
   crossSearchSource,
+  /export type CrossSearchSourceKind = 'local' \| 'komga' \| 'kavita' \| 'opds' \| 'webdav' \| 'wasm'/,
+  'cross-source search must include Kavita as a first-class private source kind',
+)
+assert.match(
+  crossSearchSource,
+  /sourceMatchesFilter\(sourceKind: CrossSearchSourceKind[\s\S]*sourceKind === 'komga' \|\| sourceKind === 'kavita' \|\| sourceKind === 'opds' \|\| sourceKind === 'webdav'/,
+  'private search filtering must include Kavita with Komga, OPDS, and WebDAV',
+)
+assert.match(
+  crossSearchSource,
+  /searchKavita\(query: string\)[\s\S]*remoteStore\.loadKavita\(\)[\s\S]*client\.listLibraries\(\)[\s\S]*client\.listSeries\(library\.id, 1, SOURCE_PAGE_SIZE\)[\s\S]*kavitaLibraryId: library\.id[\s\S]*kavitaSeriesId: `\$\{series\.id\}`/,
+  'Kavita search must load configured libraries, scan bounded series pages, and carry route ids in result rows',
+)
+assert.match(
+  searchPageSource,
+  /KavitaBrowsePage, KavitaBrowseRouteParam[\s\S]*KAVITA_ROUTE_NAME[\s\S]*item\.sourceKind === 'kavita'[\s\S]*libraryId: item\.kavitaLibraryId[\s\S]*KavitaBrowsePage\(\{[\s\S]*params: param as KavitaBrowseRouteParam/,
+  'SearchPage must open Kavita results through the Kavita browse route with library and series ids',
+)
+assert.match(
+  crossSearchSource,
   /export type CrossSearchMatchQuality = 'title_exact' \| 'title_prefix' \| 'title_contains' \| 'metadata_prefix' \| 'metadata_contains' \| 'weak'/,
   'cross-source search must expose a bounded match-quality enum',
 )

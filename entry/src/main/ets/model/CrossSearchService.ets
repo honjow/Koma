@@ -21,6 +21,10 @@ import { SourceManga } from './SourceModels'
 import { BrowseViewModel } from '../viewmodel/BrowseViewModel'
 import { KomgaSeriesDto } from '../remote/KomgaModels'
 import {
+  KavitaLibraryDto,
+  KavitaSeriesDto,
+} from '../remote/KavitaModels'
+import {
   OpdsClient,
   mapOpdsPublicationToImages,
   resolveOpdsHref,
@@ -44,7 +48,7 @@ import {
 import { AppStrings } from '../i18n/AppStrings'
 import { compareNaturalPath } from '../import/ImageSortUtils'
 
-export type CrossSearchSourceKind = 'local' | 'komga' | 'opds' | 'webdav' | 'wasm'
+export type CrossSearchSourceKind = 'local' | 'komga' | 'kavita' | 'opds' | 'webdav' | 'wasm'
 export type CrossSearchSourceFilter = 'all' | 'local' | 'private' | 'source'
 export type CrossSearchMatchQuality = 'title_exact' | 'title_prefix' | 'title_contains' | 'metadata_prefix' | 'metadata_contains' | 'weak'
 
@@ -59,6 +63,8 @@ export interface CrossSearchResultItem {
   sourceId?: string
   sourceMangaId?: string
   komgaSeriesId?: string
+  kavitaLibraryId?: number
+  kavitaSeriesId?: string
   opdsFeedUrl?: string
   opdsPublicationId?: string
   webDavHref?: string
@@ -87,6 +93,7 @@ interface SourceSearchOutcome {
 const SEARCH_TIMEOUT_MS: number = 5000
 const KOMGA_PAGE_SIZE: number = 20
 const SOURCE_PAGE_SIZE: number = 20
+const KAVITA_LIBRARY_SEARCH_LIMIT: number = 10
 
 export function normalizeCrossSearchText(value: string): string {
   const lower = value.trim().toLocaleLowerCase()
@@ -140,6 +147,9 @@ export class CrossSearchService {
     if (this.sourceMatchesFilter('komga', sourceFilter)) {
       tasks.push(this.withTimeout(this.searchKomga(normalizedQuery), this.emptySection('komga', AppStrings.get('route_komga_title'), 'komga')))
     }
+    if (this.sourceMatchesFilter('kavita', sourceFilter)) {
+      tasks.push(this.withTimeout(this.searchKavita(normalizedQuery), this.emptySection('kavita', AppStrings.get('route_kavita_title'), 'kavita')))
+    }
     if (this.sourceMatchesFilter('opds', sourceFilter)) {
       tasks.push(this.withTimeout(this.searchOpds(normalizedQuery), this.emptySection('opds', AppStrings.get('route_opds_title'), 'opds')))
     }
@@ -165,6 +175,9 @@ export class CrossSearchService {
     }
     if (this.sourceMatchesFilter('komga', sourceFilter)) {
       sections.push(this.stateSection('komga', AppStrings.get('route_komga_title'), 'komga', 'running'))
+    }
+    if (this.sourceMatchesFilter('kavita', sourceFilter)) {
+      sections.push(this.stateSection('kavita', AppStrings.get('route_kavita_title'), 'kavita', 'running'))
     }
     if (this.sourceMatchesFilter('opds', sourceFilter)) {
       sections.push(this.stateSection('opds', AppStrings.get('route_opds_title'), 'opds', 'running'))
@@ -192,7 +205,7 @@ export class CrossSearchService {
     if (sourceFilter === 'source') {
       return sourceKind === 'wasm'
     }
-    return sourceKind === 'komga' || sourceKind === 'opds' || sourceKind === 'webdav'
+    return sourceKind === 'komga' || sourceKind === 'kavita' || sourceKind === 'opds' || sourceKind === 'webdav'
   }
 
   async openWebDavReader(item: CrossSearchResultItem): Promise<boolean> {
@@ -271,6 +284,50 @@ export class CrossSearchService {
       const diagnostic = safeSearchDiagnostic(e)
       console.error('[Search] step=komga_failed code=' + diagnostic.code)
       return { section: this.errorSection('komga', AppStrings.get('route_komga_title'), 'komga', diagnostic) }
+    }
+  }
+
+  private async searchKavita(query: string): Promise<SourceSearchOutcome> {
+    try {
+      const record = await this.remoteStore.loadKavita()
+      if (record === undefined) {
+        return { section: this.stateSection('kavita', AppStrings.get('route_kavita_title'), 'kavita', 'unsupported', 'not_configured') }
+      }
+      const client = this.remoteStore.createKavitaClient(record)
+      const normalizedQuery = this.normalizeSearchText(query)
+      const compactQuery = this.compactSearchText(query)
+      const libraries = (await client.listLibraries()).slice(0, KAVITA_LIBRARY_SEARCH_LIMIT)
+      const matchedItems: CrossSearchResultItem[] = []
+      for (let index = 0; index < libraries.length; index += 1) {
+        const library = libraries[index]
+        const rows = await client.listSeries(library.id, 1, SOURCE_PAGE_SIZE)
+        rows.forEach((series: KavitaSeriesDto) => {
+          const title = this.kavitaSeriesTitle(series)
+          const metadata = `${library.name} ${series.sortName ?? ''}`
+          if (!this.textMatchesQuery(title, normalizedQuery, compactQuery) &&
+            !this.textMatchesQuery(metadata, normalizedQuery, compactQuery)) {
+            return
+          }
+          matchedItems.push({
+            id: `kavita:${record.server.id}:${library.id}:${series.id}`,
+            title,
+            subtitle: this.kavitaSeriesSubtitle(series, library),
+            sourceKind: 'kavita',
+            sourceLabel: AppStrings.get('route_kavita_title'),
+            coverUri: series.coverImage,
+            kavitaLibraryId: library.id,
+            kavitaSeriesId: `${series.id}`,
+          })
+        })
+      }
+      const items = this.sortSearchResultItems(query, matchedItems).slice(0, SOURCE_PAGE_SIZE)
+      console.info(`[Search] step=kavita_done libraries=${libraries.length} count=${items.length}`)
+      return { section: this.section('kavita', AppStrings.get('route_kavita_title'), 'kavita', items) }
+    } catch (error) {
+      const e = error as Error
+      const diagnostic = safeSearchDiagnostic(e)
+      console.error('[Search] step=kavita_failed code=' + diagnostic.code)
+      return { section: this.errorSection('kavita', AppStrings.get('route_kavita_title'), 'kavita', diagnostic) }
     }
   }
 
@@ -678,6 +735,8 @@ export class CrossSearchService {
       sourceId: item.sourceId,
       sourceMangaId: item.sourceMangaId,
       komgaSeriesId: item.komgaSeriesId,
+      kavitaLibraryId: item.kavitaLibraryId,
+      kavitaSeriesId: item.kavitaSeriesId,
       opdsFeedUrl: item.opdsFeedUrl,
       opdsPublicationId: item.opdsPublicationId,
       webDavHref: item.webDavHref,
@@ -751,6 +810,19 @@ export class CrossSearchService {
       return item.metadata.title
     }
     return item.name
+  }
+
+  private kavitaSeriesTitle(item: KavitaSeriesDto): string {
+    if (item.localizedName !== undefined && item.localizedName.length > 0) {
+      return item.localizedName
+    }
+    return item.name
+  }
+
+  private kavitaSeriesSubtitle(item: KavitaSeriesDto, library: KavitaLibraryDto): string {
+    const pages = item.pages === undefined ? 0 : item.pages
+    const read = item.pagesRead === undefined ? 0 : item.pagesRead
+    return `${library.name} · ${AppStrings.get('kavita_series_pages_progress').replace('%s', `${read}`).replace('%s', `${pages}`)}`
   }
 
   private section(id: string, title: string, kind: CrossSearchSourceKind, items: CrossSearchResultItem[]): CrossSearchSection {

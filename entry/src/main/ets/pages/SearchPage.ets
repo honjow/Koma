@@ -13,6 +13,7 @@ import {
 } from '../model/CrossSearchService'
 import { ThemeConstants } from '../theme/ThemeConstants'
 import { KomgaSeriesPage } from './KomgaSeriesPage'
+import { KavitaBrowsePage, KavitaBrowseRouteParam } from './KavitaBrowsePage'
 import { OpdsBrowsePage } from './OpdsBrowsePage'
 import { LibraryStore } from '../model/LibraryStore'
 import { LibraryStorePersistenceService } from '../model/LibraryPersistence'
@@ -24,6 +25,7 @@ import { connectLanguageState, LanguageState } from '../state/LanguageState'
 
 const SEARCH_DEBOUNCE_MS: number = 400
 const KOMGA_ROUTE_NAME: string = 'SearchKomgaSeriesPage'
+const KAVITA_ROUTE_NAME: string = 'SearchKavitaBrowsePage'
 const OPDS_ROUTE_NAME: string = 'SearchOpdsBrowsePage'
 
 interface SearchKomgaRouteParam {
@@ -309,6 +311,15 @@ export struct SearchPage {
       this.searchPathStack.pushPath({ name: KOMGA_ROUTE_NAME, param: param })
       return
     }
+    if (item.sourceKind === 'kavita') {
+      const param: KavitaBrowseRouteParam = {
+        libraryId: item.kavitaLibraryId,
+        seriesId: item.kavitaSeriesId,
+        seriesTitle: item.title,
+      }
+      this.searchPathStack.pushPath({ name: KAVITA_ROUTE_NAME, param: param })
+      return
+    }
     if (item.sourceKind === 'opds') {
       const param: SearchOpdsRouteParam = {
         feedUrl: item.opdsFeedUrl,
@@ -353,6 +364,9 @@ export struct SearchPage {
     if (item.sourceKind === 'komga') {
       return 'K'
     }
+    if (item.sourceKind === 'kavita') {
+      return 'V'
+    }
     if (item.sourceKind === 'opds') {
       return 'O'
     }
@@ -368,6 +382,9 @@ export struct SearchPage {
     }
     if (item.sourceKind === 'komga') {
       return ThemeConstants.SOURCE_KOMGA_COLOR
+    }
+    if (item.sourceKind === 'kavita') {
+      return ThemeConstants.SOURCE_KAVITA_COLOR
     }
     if (item.sourceKind === 'opds') {
       return ThemeConstants.SOURCE_OPDS_COLOR
@@ -670,6 +687,18 @@ export struct SearchPage {
         })
       }
       .title(s('route_komga_title'))
+    } else if (name === KAVITA_ROUTE_NAME) {
+      NavDestination() {
+        KavitaBrowsePage({
+          params: param as KavitaBrowseRouteParam,
+          libraryStore: this.libraryStore,
+          libraryPersistenceService: this.libraryPersistenceService,
+          onLibraryChanged: () => {
+            this.onLibraryChanged()
+          }
+        })
+      }
+      .title(s('route_kavita_title'))
     } else if (name === OPDS_ROUTE_NAME) {
       NavDestination() {
         OpdsBrowsePage({
