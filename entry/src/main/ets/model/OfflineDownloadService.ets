@@ -114,6 +114,10 @@ function isDefaultNetworkWifi(): boolean {
   }
 }
 
+function downloadBlockedReason(preferences: OfflineDownloadQueuePreferences): string {
+  return preferences.isPaused ? 'paused' : 'wifi_only'
+}
+
 export class OfflineDownloadService {
   private readonly store: OfflineDownloadStore
   private readonly queueStore: OfflineDownloadQueueStore
@@ -139,17 +143,21 @@ export class OfflineDownloadService {
       downloadedPageCount: 0,
       updatedAt: Date.now(),
     })
-    if (!this.canDownloadNow(initialPreferences) || !this.canDownloadNow(this.queueStore.loadPreferences())) {
+    const latestPreferences = this.queueStore.loadPreferences()
+    const initialCanDownload = this.canDownloadNow(initialPreferences)
+    const latestCanDownload = this.canDownloadNow(latestPreferences)
+    if (!initialCanDownload || !latestCanDownload) {
+      const blockedReason = downloadBlockedReason(!latestCanDownload ? latestPreferences : initialPreferences)
       const existingManifest = this.store.loadManifest(comic.id, chapterId)
       if (existingManifest !== undefined) {
         existingManifest.status = existingManifest.downloadedPageCount > 0 ? OfflineDownloadStatus.PARTIAL : OfflineDownloadStatus.QUEUED
-        existingManifest.failureReasonCode = initialPreferences.isPaused ? 'paused' : 'wifi_only'
+        existingManifest.failureReasonCode = blockedReason
         this.store.saveManifest(existingManifest)
         this.queueStore.upsert(this.queueStore.fromManifest(existingManifest, labels?.comicTitle ?? comic.title, labels?.chapterTitle))
         return existingManifest
       }
       const queuedManifest = this.store.createManifest(comic.id, chapterId, 0, OfflineDownloadStatus.QUEUED, manifestIdentityFromComic(comic))
-      queuedManifest.failureReasonCode = initialPreferences.isPaused ? 'paused' : 'wifi_only'
+      queuedManifest.failureReasonCode = blockedReason
       this.store.saveManifest(queuedManifest)
       this.queueStore.upsert(this.queueStore.fromManifest(queuedManifest, labels?.comicTitle ?? comic.title, labels?.chapterTitle))
       return queuedManifest
