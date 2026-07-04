@@ -117,6 +117,7 @@ interface SourceRuntimeFilterPayload {
   min?: number | string
   max?: number | string
   step?: number | string
+  filters?: SourceRuntimeFilterPayload[]
 }
 
 interface SourceRuntimeFiltersPayload {
@@ -276,21 +277,32 @@ function normalizeFilterOptionIds(options: string[] | SourceRuntimeFilterOptionP
 export function parseSourceFiltersJson(json: string): SourceFilter[] {
   try {
     const payload = JSON.parse(json) as SourceRuntimeFiltersPayload
-    return (payload.filters ?? []).map((row: SourceRuntimeFilterPayload): SourceFilter => {
-      const name = firstNonEmpty([row.name, row.label, row.id]) ?? AppStrings.get('common_filter')
-      return {
-        id: firstNonEmpty([row.id, row.name, row.label]) ?? name,
-        type: normalizeFilterType(row.type ?? row.kind),
-        name,
-        options: normalizeFilterOptions(row.options),
-        optionIds: normalizeFilterOptionIds(row.options),
-        value: row.value,
-        minValue: optionalNumber(row.min),
-        maxValue: optionalNumber(row.max),
-        step: optionalNumber(row.step),
-      }
-    })
+    const filters: SourceFilter[] = []
+    appendSourceFilters(filters, payload.filters ?? [])
+    return filters
   } catch (_err) {
     return []
   }
+}
+
+function appendSourceFilters(target: SourceFilter[], rows: SourceRuntimeFilterPayload[]): void {
+  rows.forEach((row: SourceRuntimeFilterPayload) => {
+    const type = normalizeFilterType(row.type ?? row.kind)
+    if (type === 'group') {
+      appendSourceFilters(target, row.filters ?? [])
+      return
+    }
+    const name = firstNonEmpty([row.name, row.label, row.id]) ?? AppStrings.get('common_filter')
+    target.push({
+      id: firstNonEmpty([row.id, row.name, row.label]) ?? name,
+      type,
+      name,
+      options: normalizeFilterOptions(row.options),
+      optionIds: normalizeFilterOptionIds(row.options),
+      value: row.value,
+      minValue: optionalNumber(row.min),
+      maxValue: optionalNumber(row.max),
+      step: optionalNumber(row.step),
+    })
+  })
 }

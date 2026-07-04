@@ -70,7 +70,7 @@ Runtime responses must be JSON envelopes with `ok: true` and `data`, or `ok: fal
 
 ## Filter descriptor rules
 
-`get_filters` may return descriptors under `data.filters`. Koma supports `text`, `boolean`/`check`, `select`, `sort`, `multiselect`/`multi-select`, `range`, and `group` descriptors. `select`, `sort`, and `multiselect` filters may provide `options` as strings or objects with `id` plus `label`/`name`; Koma displays labels but sends normalized ids in `args.filters`. Multi-select values are sent as string arrays. Range filters may provide `min`, `max`, and `step`; Koma sends range values as numbers in `args.filters`.
+`get_filters` may return descriptors under `data.filters`. Koma supports `text`, `boolean`/`check`, `select`, `sort`, `multiselect`/`multi-select`, `range`, and `group` descriptors. `select`, `sort`, and `multiselect` filters may provide `options` as strings or objects with `id` plus `label`/`name`; Koma displays labels but sends normalized ids in `args.filters`. Multi-select values are sent as string arrays. Range filters may provide `min`, `max`, and `step`; Koma sends range values as numbers in `args.filters`. Group descriptors may contain nested `filters`; Koma flattens those children into the filter bar and does not submit the group row itself.
 
 ## Settings descriptor rules
 
