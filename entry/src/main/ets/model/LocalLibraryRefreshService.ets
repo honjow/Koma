@@ -19,6 +19,8 @@ export interface LocalLibraryRefreshComicResult {
 export interface LocalLibraryRefreshSummary {
   checkedAt: number
   totalCount: number
+  archiveCount: number
+  folderCount: number
   reselectRequiredCount: number
   unchangedCount: number
   skippedCount: number
@@ -31,9 +33,9 @@ function isLocalRefreshCandidate(comic: Comic): boolean {
 
 function localRefreshUnavailableMessage(sourceKind: ComicSourceKind): string {
   if (sourceKind === ComicSourceKind.LOCAL_FOLDER) {
-    return AppStrings.get('local_library_refresh_folder_unavailable')
+    return AppStrings.get('local_library_refresh_folder_reselect_detail')
   }
-  return AppStrings.get('local_library_refresh_archive_unavailable')
+  return AppStrings.get('local_library_refresh_archive_retained')
 }
 
 function localRefreshStatus(sourceKind: ComicSourceKind): LocalLibraryRefreshResultStatus {
@@ -44,6 +46,8 @@ function summarizeLocalRefreshResults(checkedAt: number, results: LocalLibraryRe
   return {
     checkedAt,
     totalCount: results.length,
+    archiveCount: results.filter((result: LocalLibraryRefreshComicResult): boolean => result.sourceKind === ComicSourceKind.LOCAL_ARCHIVE).length,
+    folderCount: results.filter((result: LocalLibraryRefreshComicResult): boolean => result.sourceKind === ComicSourceKind.LOCAL_FOLDER).length,
     reselectRequiredCount: results.filter((result: LocalLibraryRefreshComicResult): boolean => result.status === 'reselect_required').length,
     unchangedCount: results.filter((result: LocalLibraryRefreshComicResult): boolean => result.status === 'unchanged').length,
     skippedCount: results.filter((result: LocalLibraryRefreshComicResult): boolean => result.status === 'skipped').length,
@@ -59,11 +63,14 @@ export function formatLocalLibraryRefreshSummary(summary?: LocalLibraryRefreshSu
     return AppStrings.get('local_library_refresh_none')
   }
   if (summary.reselectRequiredCount > 0) {
-    return AppStrings.get('local_library_refresh_reselect_required')
+    return AppStrings.get('local_library_refresh_reselect_required_detail')
       .replace('%s', `${summary.totalCount}`)
       .replace('%s', `${summary.reselectRequiredCount}`)
+      .replace('%s', `${summary.archiveCount}`)
   }
-  return AppStrings.get('local_library_refresh_clean').replace('%s', `${summary.totalCount}`)
+  return AppStrings.get('local_library_refresh_clean_detail')
+    .replace('%s', `${summary.totalCount}`)
+    .replace('%s', `${summary.archiveCount}`)
 }
 
 export class LocalLibraryRefreshService {

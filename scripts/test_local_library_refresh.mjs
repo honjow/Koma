@@ -42,7 +42,12 @@ assert.doesNotMatch(
 )
 assert.match(
   serviceSource,
-  /function localRefreshStatus\(sourceKind: ComicSourceKind\): LocalLibraryRefreshResultStatus \{[\s\S]*sourceKind === ComicSourceKind\.LOCAL_FOLDER \? 'reselect_required' : 'unchanged'[\s\S]*status: localRefreshStatus\(comic\.sourceKind\)[\s\S]*localRefreshUnavailableMessage\(comic\.sourceKind\)/,
+  /export interface LocalLibraryRefreshSummary \{[\s\S]*archiveCount: number[\s\S]*folderCount: number[\s\S]*reselectRequiredCount: number[\s\S]*unchangedCount: number/,
+  'local refresh summary must split archive and folder counts instead of only exposing a generic total',
+)
+assert.match(
+  serviceSource,
+  /function localRefreshStatus\(sourceKind: ComicSourceKind\): LocalLibraryRefreshResultStatus \{[\s\S]*sourceKind === ComicSourceKind\.LOCAL_FOLDER \? 'reselect_required' : 'unchanged'[\s\S]*archiveCount: results\.filter\(\(result: LocalLibraryRefreshComicResult\): boolean => result\.sourceKind === ComicSourceKind\.LOCAL_ARCHIVE\)\.length[\s\S]*folderCount: results\.filter\(\(result: LocalLibraryRefreshComicResult\): boolean => result\.sourceKind === ComicSourceKind\.LOCAL_FOLDER\)\.length[\s\S]*status: localRefreshStatus\(comic\.sourceKind\)[\s\S]*localRefreshUnavailableMessage\(comic\.sourceKind\)/,
   'local refresh must require reselect only for folder handles while treating archive imports as unchanged',
 )
 assert.match(
@@ -52,8 +57,13 @@ assert.match(
 )
 assert.match(
   serviceSource,
-  /AppStrings\.get\('local_library_refresh_folder_unavailable'\)[\s\S]*AppStrings\.get\('local_library_refresh_archive_unavailable'\)/,
-  'local refresh must explain unavailable local refresh through i18n strings',
+  /AppStrings\.get\('local_library_refresh_folder_reselect_detail'\)[\s\S]*AppStrings\.get\('local_library_refresh_archive_retained'\)/,
+  'local refresh must explain folder reselect and retained archive behavior through i18n strings',
+)
+assert.match(
+  serviceSource,
+  /formatLocalLibraryRefreshSummary\(summary\?: LocalLibraryRefreshSummary\): string[\s\S]*local_library_refresh_reselect_required_detail[\s\S]*summary\.reselectRequiredCount[\s\S]*summary\.archiveCount[\s\S]*local_library_refresh_clean_detail[\s\S]*summary\.archiveCount/,
+  'local refresh summary text must expose actionable folder reselect counts and retained archive counts',
 )
 assert.doesNotMatch(
   serviceSource,
