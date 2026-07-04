@@ -35,6 +35,8 @@ function s(name: string): string {
   return AppStrings.get(name)
 }
 
+const KAVITA_SERIES_PAGE_SIZE: number = 50
+
 @ComponentV2
 export struct KavitaBrowsePage {
   @Local private languageState: LanguageState = connectLanguageState()
@@ -45,6 +47,9 @@ export struct KavitaBrowsePage {
   @Local private volumes: KavitaVolumeDto[] = []
   @Local private loading: boolean = true
   @Local private seriesLoading: boolean = false
+  @Local private seriesLoadingMore: boolean = false
+  @Local private seriesHasMore: boolean = false
+  @Local private seriesPage: number = 1
   @Local private volumesLoading: boolean = false
   @Local private errorKey: string = ''
   @Local private seriesErrorKey: string = ''
@@ -98,6 +103,8 @@ export struct KavitaBrowsePage {
     this.selectedLibrary = item
     this.series = []
     this.seriesErrorKey = ''
+    this.seriesPage = 1
+    this.seriesHasMore = false
     this.seriesLoading = true
     try {
       console.info(`[Kavita] step=load_series_start library=${item.id}`)
@@ -105,7 +112,9 @@ export struct KavitaBrowsePage {
       if (record === undefined) {
         return
       }
-      this.series = await this.store().createKavitaClient(record).listSeries(item.id)
+      const rows = await this.store().createKavitaClient(record).listSeries(item.id, 1, KAVITA_SERIES_PAGE_SIZE)
+      this.series = rows
+      this.seriesHasMore = rows.length >= KAVITA_SERIES_PAGE_SIZE
       console.info(`[Kavita] step=load_series_ok library=${item.id} series=${this.series.length}`)
     } catch (error) {
       void error
@@ -122,8 +131,46 @@ export struct KavitaBrowsePage {
     this.selectedSeries = undefined
     this.series = []
     this.volumes = []
+    this.seriesPage = 1
+    this.seriesHasMore = false
+    this.seriesLoadingMore = false
     this.seriesErrorKey = ''
     this.volumesErrorKey = ''
+  }
+
+  private appendUniqueSeries(current: KavitaSeriesDto[], next: KavitaSeriesDto[]): KavitaSeriesDto[] {
+    const merged = current.slice()
+    next.forEach((item: KavitaSeriesDto) => {
+      if (merged.find((series: KavitaSeriesDto): boolean => series.id === item.id) === undefined) {
+        merged.push(item)
+      }
+    })
+    return merged
+  }
+
+  private async loadMoreSeries(): Promise<void> {
+    const record = this.record
+    const library = this.selectedLibrary
+    if (record === undefined || library === undefined || this.seriesLoading || this.seriesLoadingMore || !this.seriesHasMore) {
+      return
+    }
+    const nextPage = this.seriesPage + 1
+    this.seriesLoadingMore = true
+    this.seriesErrorKey = ''
+    try {
+      console.info(`[Kavita] step=load_more_series_start library=${library.id} page=${nextPage}`)
+      const rows = await this.store().createKavitaClient(record).listSeries(library.id, nextPage, KAVITA_SERIES_PAGE_SIZE)
+      this.series = this.appendUniqueSeries(this.series, rows)
+      this.seriesPage = nextPage
+      this.seriesHasMore = rows.length >= KAVITA_SERIES_PAGE_SIZE
+      console.info(`[Kavita] step=load_more_series_ok library=${library.id} page=${nextPage} series=${rows.length}`)
+    } catch (error) {
+      void error
+      this.seriesErrorKey = 'browse_error_load_more'
+      console.error('[Kavita] step=load_more_series_failed code=kavita_series_load_more_failed')
+    } finally {
+      this.seriesLoadingMore = false
+    }
   }
 
   private backToSeries(): void {
@@ -650,6 +697,20 @@ export struct KavitaBrowsePage {
     })
   }
 
+  @Builder
+  private LoadMoreSeriesRow() {
+    KomaActionButton({
+      label: this.seriesLoadingMore ? s('common_loading_more') : s('common_load_more'),
+      kind: 'secondary',
+      isEnabled: !this.seriesLoadingMore,
+      busy: this.seriesLoadingMore,
+      action: () => {
+        this.loadMoreSeries()
+      },
+    })
+      .width('100%')
+  }
+
   build() {
     Column() {
       SecondaryListScaffold({
@@ -711,6 +772,11 @@ export struct KavitaBrowsePage {
                 this.SeriesRow(item)
               }
             }, (item: KavitaSeriesDto) => `${item.id}`)
+            if (this.seriesHasMore) {
+              ListItem() {
+                this.LoadMoreSeriesRow()
+              }
+            }
           }
         } else if (this.loading) {
           ListItem() {

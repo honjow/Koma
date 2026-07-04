@@ -2220,6 +2220,11 @@ assert.match(
   'Kavita series browse must expose a series-level add-to-library action instead of requiring users to open a chapter first',
 )
 assert.match(
+  kavitaBrowsePageSource,
+  /KAVITA_SERIES_PAGE_SIZE: number = 50[\s\S]*listSeries\(item\.id, 1, KAVITA_SERIES_PAGE_SIZE\)[\s\S]*this\.seriesHasMore = rows\.length >= KAVITA_SERIES_PAGE_SIZE[\s\S]*appendUniqueSeries\(current: KavitaSeriesDto\[\], next: KavitaSeriesDto\[\]\)[\s\S]*loadMoreSeries\(\)[\s\S]*listSeries\(library\.id, nextPage, KAVITA_SERIES_PAGE_SIZE\)[\s\S]*this\.series = this\.appendUniqueSeries\(this\.series, rows\)[\s\S]*LoadMoreSeriesRow\(\)[\s\S]*common_loading_more[\s\S]*common_load_more[\s\S]*isEnabled: !this\.seriesLoadingMore/,
+  'Kavita browse must page through large series libraries instead of only showing the first 50 rows',
+)
+assert.match(
   opdsBrowsePageSource,
   /this\.setErrorKey\('common_load_failed'\)[\s\S]*step=load_catalog_failed code=opds_catalog_load_failed[\s\S]*this\.setErrorKey\('common_add_to_library_failed'\)[\s\S]*step=opds_add_failed code=opds_add_failed/,
   'OPDS browse failures must show generic localized copy and log redacted codes',
