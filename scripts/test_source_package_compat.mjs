@@ -149,6 +149,11 @@ assert.match(
   'source package backup manifests must preserve normalized operation capability summaries',
 )
 assert.match(
+  appRegistrySource,
+  /appSourceSettingsStore\.removeSource\(id\)[\s\S]*appSourceFilterPreferencesStore\.removeSource\(id\)[\s\S]*clearSourceRuntimeDiagnostic\(id\)/,
+  'removing an installed source package must clear source settings and saved source filter preferences',
+)
+assert.match(
   importerSource,
   /export function validateRestoredSourcePackage[\s\S]*validateNormalizedManifest\(manifest\)[\s\S]*validateImportedWasmBytes\(manifest, wasmBytes\)[\s\S]*checksum_mismatch/,
   'backup source restore must reuse source package manifest and wasm validation helpers',
