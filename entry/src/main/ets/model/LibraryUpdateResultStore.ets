@@ -225,7 +225,7 @@ function normalizeSourceKey(value: string | undefined): string {
     return 'source:unknown'
   }
   const trimmed = value.trim().toLocaleLowerCase()
-  if (/^(source:[a-z0-9]+|local|komga|opds|webdav|private_library|unsupported)$/.test(trimmed)) {
+  if (/^(source:[a-z0-9]+|local|komga|kavita|opds|webdav|private_library|unsupported)$/.test(trimmed)) {
     return clampString(trimmed, LIBRARY_UPDATE_RESULT_MAX_SOURCE_KEY_LENGTH)
   }
   return 'source:unknown'

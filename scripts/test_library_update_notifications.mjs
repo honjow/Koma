@@ -59,7 +59,7 @@ assert.match(
 )
 assert.match(
   serviceSource,
-  /export type LibraryUpdateProviderKind = 'source_runtime' \| 'local' \| 'komga' \| 'opds' \| 'webdav' \| 'private_library' \| 'unsupported'/,
+  /export type LibraryUpdateProviderKind = 'source_runtime' \| 'local' \| 'komga' \| 'kavita' \| 'opds' \| 'webdav' \| 'private_library' \| 'unsupported'/,
   'Library update results must use a bounded provider allowlist',
 )
 assert.match(
@@ -81,6 +81,21 @@ assert.match(
   serviceSource,
   /komgaSeriesIdForComic\(comic: Comic\)[\s\S]*comic\.remoteResourceId[\s\S]*const marker = ':series:'[\s\S]*comic\.id\.substring/,
   'Komga update probe must recover a series id from persisted remoteResourceId or legacy comic id shape',
+)
+assert.match(
+  serviceSource,
+  /if \(comic\.sourceKind === ComicSourceKind\.KAVITA_REMOTE\) \{[\s\S]*return this\.checkKavitaComic\(comic, previousChapterCount\)/,
+  'Kavita library updates must use a real provider probe instead of the generic remote-library skipped path',
+)
+assert.match(
+  serviceSource,
+  /checkKavitaComic\(comic: Comic, previousChapterCount: number\)[\s\S]*remoteServerStore\.loadKavita\(\)[\s\S]*client\.listVolumes\(seriesId\)[\s\S]*createKavitaChapterId\(record\.server\.id, chapterDto\.id\)[\s\S]*mapKavitaPageToPage\([\s\S]*client\.buildReaderImageUrl\(chapterDto\.id, pageIndex\)[\s\S]*mapKavitaChapterToChapter/,
+  'Kavita update probe must load the configured server, list series volumes, rebuild missing reader pages, and map chapters',
+)
+assert.match(
+  serviceSource,
+  /kavitaSeriesIdForComic\(comic: Comic\)[\s\S]*comic\.remoteResourceId[\s\S]*const marker = ':series:'[\s\S]*Number\.parseInt\(raw, 10\)/,
+  'Kavita update probe must recover a numeric series id from persisted remoteResourceId or legacy comic id shape',
 )
 assert.match(
   serviceSource,
@@ -200,7 +215,7 @@ assert.match(
 )
 assert.match(
   resultStoreSource,
-  /normalizeSourceKey\(value: string \| undefined\): string[\s\S]*\/\^\(source:\[a-z0-9\]\+\|local\|komga\|opds\|webdav\|private_library\|unsupported\)\$\/[\s\S]*return 'source:unknown'/,
+  /normalizeSourceKey\(value: string \| undefined\): string[\s\S]*\/\^\(source:\[a-z0-9\]\+\|local\|komga\|kavita\|opds\|webdav\|private_library\|unsupported\)\$\/[\s\S]*return 'source:unknown'/,
   'Persisted source keys must be allowlisted and fail closed',
 )
 assert.match(
