@@ -14,13 +14,13 @@
 
 | 功能域 | Aidoku 源码证据 | Koma 当前对应 | 判断 |
 | --- | --- | --- | --- |
-| 数据模型与迁移 | `Shared/Aidoku.xcdatamodeld/*`、`Shared/Managers/CoreData/CoreDataManager*.swift` | `entry/src/main/ets/model/ComicModels.ets`、`LibraryPersistence.ets`、`ReaderSessionStore.ets` | Aidoku 有长期 CoreData schema 演进；Koma 仍以 JSON/Preferences 为主，已有 schema version 但缺统一迁移制度。 |
+| 数据模型与迁移 | `Shared/Aidoku.xcdatamodeld/*`、`Shared/Managers/CoreData/CoreDataManager*.swift` | `entry/src/main/ets/model/ComicModels.ets`、`LibraryPersistence.ets`、`ReaderSessionStore.ets`、`docs/DATA_MIGRATION_POLICY.md` | Aidoku 有长期 CoreData schema 演进；Koma 仍以 JSON/Preferences 为主，现已补迁移制度清单与静态 contract，后续还要按新字段持续扩展。 |
 | Source runtime | `Shared/Sources/Source.swift`、`SourceActor.swift`、`Shared/Wasm/Imports/*` | `entry/src/main/ets/sourceRuntime/*`、`entry/src/main/ets/model/SourceModels.ets` | 两者都走 WASM source 方向；Aidoku host import 与 source actor 更成熟，Koma 已有 WAMR/NAPI、安全校验、index/package 安装，但真实源能力闭环仍要补。 |
 | Source 设置 | `Shared/Sources/SettingItem.swift`、`iOS/New/Views/Settings/Settings.swift` | `SourceSettingsStore.ets`、`SourcePackageManagerPage.ets`、`SettingsPage.ets` | Koma 已有设置描述与持久化/备份注入，UI 与真实 installed source 的设置体验还需要完整 QA。 |
 | 私有库 | `Shared/Sources/Komga/*`、`Shared/Sources/Kavita/*` | `entry/src/main/ets/remote/*`、`KomgaSeriesPage.ets`、`OpdsBrowsePage.ets`、`WebDavBrowsePage.ets` | Koma 的私有库方向更贴产品定位；Aidoku 的 Komga/Kavita 同时承担 source/tracker 角色，Koma 可参考能力边界，不照搬在线源入口。 |
 | 本地源 | `Shared/Sources/Local/LocalSource.swift` | `entry/src/main/ets/import/*`、`LocalLibraryMetadataService.ets` | Koma 有导入能力，但还不是 Aidoku/Mihon 那种可重扫、可维护的 local source。 |
 | 下载 | `Shared/Data/Downloads/DownloadManager.swift`、`DownloadQueue.swift`、`DownloadCache.swift` | `OfflineDownloadService.ets`、`OfflineDownloadStore.ets`、`OfflineDownloadQueueStore.ets`、`DownloadsPage.ets` | Koma 已有 manifest/队列/离线路径雏形；还缺下载管理成熟度、系统通知、异常恢复、离线 reader 全矩阵验证。 |
-| Reader | `iOS/UI/Reader/ReaderViewController.swift`、`iOS/New/Views/Reader/ReaderSettingsView.swift`、`iOS/UI/Reader/Page/*` | `ReaderPage.ets`、`ReaderPreferencesStore.ets`、`ReaderPageSourceAdapter.ets` | Koma 已有单页/双页/Webtoon/RTL、宽图模式、tap/音量等设置；还缺 per-series 设置、tap zone 可视化、crop/trim 质量矩阵和更多即时生效验证。 |
+| Reader | `iOS/UI/Reader/ReaderViewController.swift`、`iOS/New/Views/Reader/ReaderSettingsView.swift`、`iOS/UI/Reader/Page/*` | `ReaderPage.ets`、`ReaderPreferencesStore.ets`、`ReaderPageSourceAdapter.ets` | Koma 已有单页/双页/Webtoon/RTL、宽图模式、tap/音量、per-series overrides 等设置；还缺 tap zone 可视化、crop/trim 质量矩阵和更多即时生效验证。 |
 | Library / 分类 | `Shared/Models/LibraryFilter.swift`、`Shared/Models/FilterGroup.swift`、`iOS/New/Views/Library/*` | `LibraryStore.ets`、`LibraryPage.ets`、`CategoryManagementPage.ets` | Koma 有分类和排序策略；还缺下载状态、来源、完成状态等更完整组合筛选与批量管理体验。 |
 | 搜索 / 浏览 | `iOS/New/Views/Browse/*`、`Search/*`、`Shared/Sources/SourceActor.swift` | `BrowsePage.ets`、`SearchPage.ets`、`SourceBrowsePage.ets`、`SourceSearchPage.ets` | Koma 已有跨本地/私有库/source runtime 搜索雏形；source home/listings/filters 的产品化还没到 Aidoku 水平。 |
 | 更新 / 通知 | `Shared/Managers/Manga/MangaUpdateManager.swift`、`Shared/Managers/NotificationManager.swift` | `LibraryUpdateService.ets`、`LibraryUpdatePreferencesStore.ets` | Koma 有更新状态与通知就绪摘要，但系统通知、后台策略、权限态和 provider 矩阵仍未闭环。 |
@@ -41,7 +41,7 @@
 
 1. **数据演进制度**
    - Aidoku 通过 CoreData model versions 长期演进。
-   - Koma 分散在 JSON schema、Preferences key、backup schema 中，缺一份统一 migration policy 和回归测试矩阵。
+   - Koma 分散在 JSON schema、Preferences key、backup schema 中；现已用 `docs/DATA_MIGRATION_POLICY.md` 和 `scripts/test_data_migration_policy.mjs` 固定当前边界，后续每个存储字段变更必须跟随扩展。
 
 2. **Source browsing 产品化**
    - Aidoku 的 source actor 把 listings、filters、manga list、details、chapters、pages、image request 串成主路径。
@@ -53,7 +53,7 @@
 
 4. **Reader 成熟度**
    - Aidoku 有 per-manga reading mode、tap zones、UIKit reader controller 里的运行时观察和设置即时响应。
-   - Koma 需要补 per-series reader preference、tap zone 可视化、crop/trim/wide image matrix，并确保设置切换即时生效。
+   - Koma 需要补 tap zone 可视化、crop/trim/wide image matrix，并继续确保设置切换即时生效。
 
 5. **备份管理**
    - Aidoku 备份支持自动、内容选择、备份列表、rename/delete、restore 流程。
@@ -92,12 +92,12 @@
 目标：先让后续功能有稳定地基。
 
 交付：
-- 写一份 Koma migration policy：Library/Progress/Reader prefs/Source settings/Backup 各自 schema 与升级规则。
+- 扩展 Koma migration policy：Library/Progress/Reader prefs/Source settings/Backup 各自 schema 与升级规则。
 - 清理剩余硬编码设置文本，所有设置项走 i18n。
 - 设置页继续 HDS 化：布尔项用 switch，选择项用 menu/segmented/picker，危险操作独立确认。
 
 验收：
-- 新增 migration/normalizer contract tests。
+- migration/normalizer contract tests 持续覆盖新增持久层。
 - 切换语言后设置页可见文案即时刷新。
 - 设置页没有普通用户可见 debug/internal 文案。
 
@@ -135,7 +135,6 @@
 目标：补齐 Aidoku/Mihon 级 reader 手感。
 
 交付：
-- per-series reading mode / reader prefs。
 - tap zone 可视化设置，运行时即时生效。
 - crop/trim、wide split、rotate wide pages 的互斥和优先级。
 - 异常比例图片 fixture。
@@ -222,9 +221,9 @@
    - 文件：`sourceRuntime/*`、`SourceBrowsePage.ets`、`SourceSearchPage.ets`、`SourcePackageManagerPage.ets`
    - 目标：home/listings/filters/settings 到 reader/download 的主路径。
 
-4. **D52：Reader per-series settings**
+4. **D52：Reader advanced QA**
    - 文件：`ReaderPreferencesStore.ets`、`ReaderSessionStore.ets`、`ReaderPage.ets`
-   - 目标：per-series mode、tap zone 可视化、即时生效。
+   - 目标：tap zone 可视化、crop/trim/wide matrix、即时生效。
 
 5. **D53：Backup manager**
    - 文件：`BackupService.ets`、`BackupManagementPage.ets`
