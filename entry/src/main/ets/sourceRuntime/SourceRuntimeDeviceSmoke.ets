@@ -1,4 +1,5 @@
 import { common, Want } from '@kit.AbilityKit'
+import { fileIo as fs } from '@kit.CoreFileKit'
 import { resourceManager } from '@kit.LocalizationKit'
 import { taskpool } from '@kit.ArkTS'
 import {
@@ -106,6 +107,7 @@ const SMOKE_PHASE_REAL_SOURCE_READER: string = 'real-source-reader'
 const SMOKE_PHASE_INSTALLED_SOURCE_READER: string = 'installed-source-reader'
 const SMOKE_PHASE_SOURCE_INDEX_READER: string = 'source-index-reader'
 const SMOKE_PHASE_SOURCE_INDEX_DOWNLOAD_READER: string = 'source-index-download-reader'
+const SMOKE_PHASE_SOURCE_INDEX_DOWNLOAD_CORRUPT_READER: string = 'source-index-download-corrupt-reader'
 const REAL_SOURCE_RAWFILE_PATH: string = 'test/baozimh.wasm'
 const MANGADEX_RAWFILE_PATH: string = 'test/mangadex.wasm'
 const REAL_SOURCE_SEARCH_REQUEST: string = '{"operation":"search","query":"test"}'
@@ -472,6 +474,7 @@ export interface SourceRuntimeSmokeResult {
   sourceIndexDownloadDownloadedPageCount?: number
   sourceIndexDownloadOfflineReaderOk?: boolean
   sourceIndexDownloadOfflineReaderKind?: string
+  sourceIndexDownloadCorruptReaderOk?: boolean
   sourceIndexDownloadCleanupOk?: boolean
   sourceIndexReaderCleanupOk?: boolean
   mangadexWasmBytes?: number
@@ -1734,11 +1737,14 @@ export async function maybeRunSourceRuntimeDeviceSmoke(
     }
 
     if (result.smokePhase === SMOKE_PHASE_SOURCE_INDEX_READER ||
-      result.smokePhase === SMOKE_PHASE_SOURCE_INDEX_DOWNLOAD_READER) {
+      result.smokePhase === SMOKE_PHASE_SOURCE_INDEX_DOWNLOAD_READER ||
+      result.smokePhase === SMOKE_PHASE_SOURCE_INDEX_DOWNLOAD_CORRUPT_READER) {
       if (context === undefined) {
         result.error = `${result.smokePhase} phase requires ability context`
       } else {
-        const isDownloadReaderPhase = result.smokePhase === SMOKE_PHASE_SOURCE_INDEX_DOWNLOAD_READER
+        const isDownloadReaderPhase = result.smokePhase === SMOKE_PHASE_SOURCE_INDEX_DOWNLOAD_READER ||
+          result.smokePhase === SMOKE_PHASE_SOURCE_INDEX_DOWNLOAD_CORRUPT_READER
+        const isCorruptReaderPhase = result.smokePhase === SMOKE_PHASE_SOURCE_INDEX_DOWNLOAD_CORRUPT_READER
         const indexUrl = smokeStringParam(want, SMOKE_INDEX_URL_PARAM)
         const requestedSourceId = smokeStringParam(want, SMOKE_SOURCE_ID_PARAM)
         const selectedSourceId = requestedSourceId.length > 0 ? requestedSourceId : SOURCE_INDEX_READER_DEFAULT_SOURCE_ID
@@ -1844,14 +1850,21 @@ export async function maybeRunSourceRuntimeDeviceSmoke(
                     manifest.status === OfflineDownloadStatus.DOWNLOADED &&
                       manifest.downloadedPageCount === pages.length &&
                       downloadStore.isChapterFullyDownloaded(comic.id, chapterId)
+                  if (isCorruptReaderPhase && manifest.pages.length > 0) {
+                    fs.unlinkSync(manifest.pages[0].localPath)
+                  }
                   configureReaderOfflineDownloads(context.filesDir)
                   const offlineConfig = createReaderSessionConfigFromComic(comic, chapterId)
                   const offlineSource = createReaderPageRenderSource(offlineConfig, 0)
                   result.sourceIndexDownloadOfflineReaderKind = offlineSource.kind
                   result.sourceIndexDownloadOfflineReaderOk =
-                    offlineSource.kind === ReaderPageRenderKind.LOCAL_FILE_IMAGE &&
-                      offlineSource.pageId === pageId &&
-                      offlineSource.imageUri.length > 0
+                    isCorruptReaderPhase ?
+                      offlineSource.kind === ReaderPageRenderKind.URI_PLACEHOLDER :
+                      (offlineSource.kind === ReaderPageRenderKind.LOCAL_FILE_IMAGE &&
+                        offlineSource.pageId === pageId &&
+                        offlineSource.imageUri.length > 0)
+                  result.sourceIndexDownloadCorruptReaderOk =
+                    !isCorruptReaderPhase || offlineSource.kind === ReaderPageRenderKind.URI_PLACEHOLDER
                   await downloadStore.deleteChapterDownload(comic.id, chapterId)
                   result.sourceIndexDownloadCleanupOk =
                     !downloadStore.isChapterFullyDownloaded(comic.id, chapterId)
@@ -1873,6 +1886,7 @@ export async function maybeRunSourceRuntimeDeviceSmoke(
           (!isDownloadReaderPhase ||
             (result.sourceIndexDownloadOk === true &&
               result.sourceIndexDownloadOfflineReaderOk === true &&
+              result.sourceIndexDownloadCorruptReaderOk === true &&
               result.sourceIndexDownloadCleanupOk === true)) &&
           result.sourceIndexReaderCleanupOk === true
         if (!result.ok && result.error === undefined) {

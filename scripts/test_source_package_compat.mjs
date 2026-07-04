@@ -578,6 +578,7 @@ assert.match(smokeSource, /local_source_runtime_fixture\.koma/, 'device smoke mu
 assert.match(smokeSource, /SMOKE_PHASE_INSTALLED_SOURCE_READER/, 'device smoke must include a focused installed-source reader phase')
 assert.match(smokeSource, /SMOKE_PHASE_SOURCE_INDEX_READER/, 'device smoke must include a focused source-index reader phase')
 assert.match(smokeSource, /SMOKE_PHASE_SOURCE_INDEX_DOWNLOAD_READER/, 'device smoke must include a focused source-index download reader phase')
+assert.match(smokeSource, /SMOKE_PHASE_SOURCE_INDEX_DOWNLOAD_CORRUPT_READER/, 'device smoke must include a focused corrupt offline source-index reader phase')
 assert.match(
   smokeSource,
   /installFromBytes[\s\S]*runRegisteredSourceRequestById[\s\S]*get_manga[\s\S]*get_chapters[\s\S]*get_pages[\s\S]*createReaderPageRenderSource/,
@@ -592,6 +593,11 @@ assert.match(
   smokeSource,
   /SMOKE_PHASE_SOURCE_INDEX_DOWNLOAD_READER[\s\S]*OfflineDownloadService[\s\S]*downloadChapter\(comic, chapterId[\s\S]*configureReaderOfflineDownloads\(context\.filesDir\)[\s\S]*ReaderPageRenderKind\.LOCAL_FILE_IMAGE/,
   'source-index download reader smoke must install from index, download real source pages, and verify the reader resolves an offline local file',
+)
+assert.match(
+  smokeSource,
+  /SMOKE_PHASE_SOURCE_INDEX_DOWNLOAD_CORRUPT_READER[\s\S]*fs\.unlinkSync\(manifest\.pages\[0\]\.localPath\)[\s\S]*ReaderPageRenderKind\.URI_PLACEHOLDER/,
+  'source-index corrupt offline reader smoke must delete a downloaded page and verify the reader reports an offline placeholder instead of falling back to remote',
 )
 assert.match(
   smokeSource,
