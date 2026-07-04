@@ -105,6 +105,16 @@ export interface KavitaChapterInfoDto {
   pageDimensions?: KavitaFileDimensionDto[]
 }
 
+export interface KavitaProgressDto {
+  volumeId: KavitaVolumeId
+  chapterId: KavitaChapterId
+  pageNum: number
+  seriesId: KavitaSeriesId
+  libraryId: KavitaLibraryId
+  bookScrollId?: string
+  lastModifiedUtc?: string
+}
+
 export function createKavitaComicId(serverId: KavitaServerId, seriesId: KavitaSeriesId): string {
   return `kavita:${serverId}:series:${seriesId}`
 }

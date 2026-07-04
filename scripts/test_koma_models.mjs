@@ -2119,8 +2119,8 @@ assert.match(
 )
 assert.doesNotMatch(
   remoteProgressSyncServiceSource,
-  /\[KomgaSync\][^\n]*message=|e\.message|Komga server is not configured/,
-  'Komga progress sync logs must use redacted reason codes instead of raw server errors',
+  /\[(?:KomgaSync|KavitaSync)\][^\n]*message=|e\.message|(?:Komga|Kavita) server is not configured/,
+  'private library progress sync logs must use redacted reason codes instead of raw server errors',
 )
 assert.match(
   remoteProgressSyncServiceSource,
@@ -2129,13 +2129,28 @@ assert.match(
 )
 assert.match(
   remoteProgressSyncServiceSource,
-  /flushPendingPushes\(\): void \{[\s\S]*Array\.from\(this\.pendingPushes\.values\(\)\)[\s\S]*clearTimeout\(timer\)[\s\S]*this\.pendingPushes\.clear\(\)[\s\S]*void this\.flushKomgaPush\(pending\)/,
-  'Komga progress sync must expose an immediate flush for debounced reader-close progress',
+  /flushPendingPushes\(\): void \{[\s\S]*Array\.from\(this\.pendingPushes\.values\(\)\)[\s\S]*clearTimeout\(timer\)[\s\S]*this\.pendingPushes\.clear\(\)[\s\S]*void this\.flushKomgaPush\(pending\)[\s\S]*Array\.from\(this\.pendingKavitaPushes\.values\(\)\)[\s\S]*this\.kavitaPushTimers\.clear\(\)[\s\S]*void this\.flushKavitaPush\(pending\)/,
+  'private library progress sync must expose an immediate flush for debounced reader-close progress',
+)
+assert.match(
+  remoteProgressSyncServiceSource,
+  /ComicSourceKind\.KAVITA_REMOTE[\s\S]*pullKavitaComic\(comic\)[\s\S]*isKavitaSession\(config\)[\s\S]*pullKavitaChapter\(kavitaChapterId, config\.comicId, config\.chapterId, config\.totalPages, config\.pageIds\)[\s\S]*scheduleKavitaPush\(kavitaChapterId, progress\)/,
+  'Kavita remote comics must participate in the same reader progress pull/push flow as Komga',
+)
+assert.match(
+  remoteProgressSyncServiceSource,
+  /getReadProgress\(chapterId\)[\s\S]*remote\.pageNum <= 0[\s\S]*mapKavitaProgress[\s\S]*remote\.pageNum - 1[\s\S]*completed: totalPages <= 0 \|\| remote\.pageNum >= totalPages/,
+  'Kavita progress pull must treat pageNum as pages-read and avoid applying empty remote progress',
+)
+assert.match(
+  remoteProgressSyncServiceSource,
+  /flushKavitaPush\(pending: PendingKavitaProgressPush\)[\s\S]*const page = this\.toKavitaPageNum\(pending\.progress\)[\s\S]*client\.getChapterInfo\(pending\.chapterId\)[\s\S]*client\.saveReadProgress\(this\.createKavitaProgressPayload\(pending\.chapterId, page, info\)\)[\s\S]*toKavitaPageNum\(progress: ReadingProgress\)[\s\S]*return progress\.pageIndex \+ 1[\s\S]*createKavitaProgressPayload[\s\S]*volumeId: info\.volumeId[\s\S]*seriesId: info\.seriesId[\s\S]*libraryId: info\.libraryId/,
+  'Kavita progress push must post official ProgressDto context and convert the local 0-based page index to pages-read',
 )
 assert.match(
   readerPageSource,
   /aboutToDisappear\(\): void \{[\s\S]*const progress = this\.setPageIndex\(this\.pageIndex\)[\s\S]*this\.remoteProgressSyncService\?\.flushPendingPushes\(\)[\s\S]*this\.pushTrackerProgress\(progress, 'on_reader_close'\)/,
-  'Reader close must flush pending Komga progress before the debounced push can be dropped',
+  'Reader close must flush pending private-library progress before the debounced push can be dropped',
 )
 assert.match(
   trackerProgressSyncServiceSource,

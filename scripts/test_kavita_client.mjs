@@ -41,11 +41,15 @@ assert.match(clientSource, /static librarySeries\(pageNumber: number = 1, pageSi
 assert.match(clientSource, /static seriesVolumes\(seriesId: number\): string \{[\s\S]*\/api\/Series\/volumes\?seriesId=\$\{seriesId\}/, 'Kavita client must use the documented volumes endpoint')
 assert.match(clientSource, /static chapterInfo\(chapterId: number[\s\S]*\/api\/Reader\/chapter-info\?chapterId=\$\{chapterId\}&extractPdf=\$\{extractPdf\}&includeDimensions=\$\{includeDimensions\}/, 'Kavita client must use the documented reader chapter-info endpoint')
 assert.match(clientSource, /static readerImage\(chapterId: number, page: number[\s\S]*\/api\/Reader\/image\?chapterId=\$\{chapterId\}&page=\$\{page\}&extractPdf=\$\{extractPdf\}/, 'Kavita client must use the documented reader image endpoint')
+assert.match(clientSource, /static readerProgress\(chapterId: number\): string \{[\s\S]*\/api\/Reader\/get-progress\?chapterId=\$\{chapterId\}/, 'Kavita client must use the documented reader progress endpoint')
+assert.match(clientSource, /static saveReaderProgress\(\): string \{[\s\S]*return '\/api\/Reader\/progress'/, 'Kavita client must use the documented reader progress save endpoint')
 assert.match(clientSource, /headers\.xApiKey[\s\S]*"x-api-key"/, 'Kavita client must send Auth Key as x-api-key header')
 assert.match(clientSource, /http\.request\(\{[\s\S]*method,[\s\S]*url: this\.buildUrl\(path\)[\s\S]*headers: this\.buildHeaders\(headers\)[\s\S]*body,/, 'Kavita client must delegate requests through the injected adapter')
 assert.match(clientSource, /listSeries\(libraryId: number[\s\S]*field: 19[\s\S]*value: `\$\{libraryId\}`[\s\S]*sortField: 1[\s\S]*this\.request\('POST', KavitaPaths\.librarySeries/, 'Kavita series listing must filter by library id and sort by name')
 assert.match(clientSource, /listVolumes\(seriesId: number\)[\s\S]*this\.request\('GET', KavitaPaths\.seriesVolumes\(seriesId\)/, 'Kavita volume listing must fetch volumes by series id')
 assert.match(clientSource, /getChapterInfo\(chapterId: number\)[\s\S]*this\.request\('GET', KavitaPaths\.chapterInfo\(chapterId\)/, 'Kavita client must fetch reader chapter metadata before opening Reader')
+assert.match(clientSource, /getReadProgress\(chapterId: number\)[\s\S]*this\.request\('GET', KavitaPaths\.readerProgress\(chapterId\)/, 'Kavita client must fetch chapter read progress before applying remote progress')
+assert.match(clientSource, /saveReadProgress\(progress: KavitaProgressDto\)[\s\S]*this\.request\('POST', KavitaPaths\.saveReaderProgress\(\)[\s\S]*JSON\.stringify\(progress\)/, 'Kavita client must post official ProgressDto payloads to save reader progress')
 assert.match(clientSource, /buildReaderImageUrl\(chapterId: number, page: number\)[\s\S]*this\.buildUrl\(KavitaPaths\.readerImage\(chapterId, page\)\)/, 'Kavita client must generate reader image URLs without leaking the Auth Key in the URL')
 assert.doesNotMatch(clientSource, /\bfetch\s*\(/, 'Kavita client must not call fetch directly')
 
@@ -62,6 +66,7 @@ assert.match(libraryUpdateServiceSource, /LibraryUpdateProviderKind = [\s\S]*'ka
 assert.match(libraryUpdateServiceSource, /checkKavitaComic\(comic: Comic, previousChapterCount: number\)[\s\S]*remoteServerStore\.loadKavita\(\)[\s\S]*client\.listVolumes\(seriesId\)[\s\S]*createKavitaChapterId\(record\.server\.id, chapterDto\.id\)/, 'Library update service must refresh Kavita chapters from the documented volumes endpoint')
 assert.match(libraryUpdateServiceSource, /existing !== undefined && existing\.pages\.length > 0[\s\S]*mapKavitaChapterToChapter\(record\.server\.id, chapterDto, comic\.id, existing\.pages/, 'Kavita library updates must preserve already hydrated reader pages')
 assert.match(libraryUpdateServiceSource, /client\.buildReaderImageUrl\(chapterDto\.id, pageIndex\)[\s\S]*mapKavitaChapterToChapter\(record\.server\.id, chapterDto, comic\.id, pages/, 'Kavita library updates must generate reader image URLs for newly discovered chapters')
+assert.match(modelSource, /export interface KavitaProgressDto[\s\S]*volumeId: KavitaVolumeId[\s\S]*chapterId: KavitaChapterId[\s\S]*pageNum: number[\s\S]*seriesId: KavitaSeriesId[\s\S]*libraryId: KavitaLibraryId/, 'Kavita progress model must match the official ProgressDto required fields')
 
 assert.match(settingsSource, /settings_row_kavita_title[\s\S]*rowsByKeys\(\['komga', 'kavita', 'opds', 'webdav'\]\)[\s\S]*onOpenKavitaSettings/, 'Settings must expose Kavita in private library services')
 assert.match(indexSource, /KavitaServerPage[\s\S]*RouteName\.KAVITA_SERVER[\s\S]*route_kavita_title/, 'Index route stack must include Kavita settings page')

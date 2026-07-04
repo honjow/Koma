@@ -1,6 +1,7 @@
 import {
   KavitaChapterInfoDto,
   KavitaLibraryDto,
+  KavitaProgressDto,
   KavitaResolvedCredential,
   KavitaServerConfig,
   KavitaSeriesDto,
@@ -72,6 +73,14 @@ export class KavitaPaths {
 
   static readerImage(chapterId: number, page: number, extractPdf: boolean = true): string {
     return `/api/Reader/image?chapterId=${chapterId}&page=${page}&extractPdf=${extractPdf}`
+  }
+
+  static readerProgress(chapterId: number): string {
+    return `/api/Reader/get-progress?chapterId=${chapterId}`
+  }
+
+  static saveReaderProgress(): string {
+    return '/api/Reader/progress'
   }
 }
 
@@ -202,6 +211,26 @@ export class KavitaClient {
       throw new Error(`kavita_http_status_${response.status}`)
     }
     return parseKavitaJson<KavitaChapterInfoDto>(response.body)
+  }
+
+  async getReadProgress(chapterId: number): Promise<KavitaProgressDto> {
+    const response = await this.request('GET', KavitaPaths.readerProgress(chapterId), {
+      accept: 'application/json',
+    } as KavitaHeaders)
+    if (response.status < 200 || response.status >= 300) {
+      throw new Error(`kavita_http_status_${response.status}`)
+    }
+    return parseKavitaJson<KavitaProgressDto>(response.body)
+  }
+
+  async saveReadProgress(progress: KavitaProgressDto): Promise<void> {
+    const response = await this.request('POST', KavitaPaths.saveReaderProgress(), {
+      accept: 'application/json',
+      contentType: 'application/json',
+    } as KavitaHeaders, JSON.stringify(progress))
+    if (response.status < 200 || response.status >= 300) {
+      throw new Error(`kavita_http_status_${response.status}`)
+    }
   }
 
   buildReaderImageUrl(chapterId: number, page: number): string {
