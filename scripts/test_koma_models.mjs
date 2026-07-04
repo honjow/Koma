@@ -1684,8 +1684,8 @@ assert.match(
 )
 assert.match(
   sourceModelsSource,
-  /title:\s*normalizeSourceDisplayText\(title\) \?\? title[\s\S]*scanlator:\s*normalizeSourceDisplayText\(row\.scanlator\)[\s\S]*language:\s*optionalString\(firstNonEmpty\(\[row\.language, row\.lang\]\)\)[\s\S]*dateUpload:\s*optionalNumber\(row\.date_upload\) \?\? optionalNumber\(row\.dateUpload\)/,
-  'SourceChapter normalization must preserve chapter scanlator, language, and upload date metadata',
+  /title:\s*normalizeSourceDisplayText\(title\) \?\? title[\s\S]*scanlator:\s*firstNonEmptyList\(\[row\.scanlator, row\.scanlators, row\.group, row\.groups\]\)[\s\S]*language:\s*optionalString\(firstNonEmpty\(\[row\.language, row\.lang, row\.translatedLanguage, row\.locale\]\)\)[\s\S]*dateUpload:\s*firstTimestamp\(\[row\.date_upload, row\.dateUpload, row\.uploadDate, row\.uploadedAt, row\.updatedAt\]\)[\s\S]*chapterNumber:\s*firstNumber\(\[row\.chapterNumber, row\.chapter, row\.index\]\)[\s\S]*volumeNumber:\s*firstNumber\(\[row\.volumeNumber, row\.volume\]\)/,
+  'SourceChapter normalization must preserve common chapter metadata aliases for group, language, dates, and numeric ordering',
 )
 assert.match(
   mangaDetailModelsSource,
@@ -1704,8 +1704,8 @@ assert.match(
 )
 assert.match(
   mangaDetailModelsSource,
-  /export interface MangaChapterItem[\s\S]*scanlator\?: string[\s\S]*language\?: string[\s\S]*dateUpload\?: number[\s\S]*parseMangaChapterFromSourceItem[\s\S]*language:\s*firstSourceString\(\[[\s\S]*item\['language'\][\s\S]*item\['lang'\][\s\S]*dateUpload:\s*optionalSourceNumber\(item\['date_upload'\]\) \?\? optionalSourceNumber\(item\['dateUpload'\]\)/,
-  'Manga chapter items must keep source-provided scanlator, language, and upload date metadata',
+  /export interface MangaChapterItem[\s\S]*scanlator\?: string[\s\S]*language\?: string[\s\S]*dateUpload\?: number[\s\S]*parseMangaChapterFromSourceItem[\s\S]*chapterNumber = firstSourceNumber\(\[[\s\S]*item\['chapter_number'\][\s\S]*item\['chapterNumber'\][\s\S]*item\['chapter'\][\s\S]*item\['index'\][\s\S]*scanlator:\s*firstSourceDisplayString\(\[[\s\S]*item\['scanlator'\][\s\S]*item\['scanlators'\][\s\S]*item\['group'\][\s\S]*item\['groups'\][\s\S]*language:\s*firstSourceString\(\[[\s\S]*item\['language'\][\s\S]*item\['lang'\][\s\S]*item\['translatedLanguage'\][\s\S]*item\['locale'\][\s\S]*dateUpload:\s*firstSourceTimestamp\(\[[\s\S]*item\['date_upload'\][\s\S]*item\['dateUpload'\][\s\S]*item\['uploadDate'\][\s\S]*item\['uploadedAt'\][\s\S]*item\['updatedAt'\]/,
+  'Manga chapter items must keep common source-provided chapter metadata aliases',
 )
 assert.match(
   chapterReadStateStoreSource,

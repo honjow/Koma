@@ -86,10 +86,21 @@ interface SourceRuntimeChapterPayload {
   id?: string
   title?: string
   scanlator?: string
+  scanlators?: string[]
+  group?: string
+  groups?: string[]
   lang?: string
   language?: string
+  translatedLanguage?: string
+  locale?: string
   date_upload?: number | string
   dateUpload?: number | string
+  uploadDate?: number | string
+  uploadedAt?: number | string
+  updatedAt?: number | string
+  chapter?: number | string
+  index?: number | string
+  volume?: number | string
   chapterNumber?: number | string
   volumeNumber?: number | string
   url?: string
@@ -150,11 +161,67 @@ function optionalNumber(value: number | string | undefined): number | undefined 
   return Number.isFinite(parsed) ? parsed : undefined
 }
 
+function optionalTimestamp(value: number | string | undefined): number | undefined {
+  const numeric = optionalNumber(value)
+  if (numeric !== undefined) {
+    return numeric > 0 && numeric < 100000000000 ? numeric * 1000 : numeric
+  }
+  if (typeof value !== 'string') {
+    return undefined
+  }
+  const parsed = Date.parse(value)
+  return Number.isFinite(parsed) ? parsed : undefined
+}
+
 function firstNonEmpty(values: (string | undefined)[]): string | undefined {
   for (let index = 0; index < values.length; index += 1) {
     const normalized = optionalString(values[index])
     if (normalized !== undefined) {
       return normalized
+    }
+  }
+  return undefined
+}
+
+function firstNumber(values: (number | string | undefined)[]): number | undefined {
+  for (let index = 0; index < values.length; index += 1) {
+    const value = optionalNumber(values[index])
+    if (value !== undefined) {
+      return value
+    }
+  }
+  return undefined
+}
+
+function firstTimestamp(values: (number | string | undefined)[]): number | undefined {
+  for (let index = 0; index < values.length; index += 1) {
+    const value = optionalTimestamp(values[index])
+    if (value !== undefined) {
+      return value
+    }
+  }
+  return undefined
+}
+
+function firstNonEmptyList(values: (string | string[] | undefined)[]): string | undefined {
+  for (let index = 0; index < values.length; index += 1) {
+    const value = values[index]
+    if (typeof value === 'string') {
+      const normalized = normalizeSourceDisplayText(value)
+      if (normalized !== undefined) {
+        return normalized
+      }
+    } else if (Array.isArray(value)) {
+      const normalizedValues: string[] = []
+      value.forEach((item: string) => {
+        const normalized = normalizeSourceDisplayText(item)
+        if (normalized !== undefined) {
+          normalizedValues.push(normalized)
+        }
+      })
+      if (normalizedValues.length > 0) {
+        return normalizedValues.join(', ')
+      }
     }
   }
   return undefined
@@ -219,11 +286,11 @@ export function parseSourceChaptersJson(json: string): SourceChapter[] {
       return {
         id: firstNonEmpty([row.id, row.title]) ?? 'chapter',
         title: normalizeSourceDisplayText(title) ?? title,
-        scanlator: normalizeSourceDisplayText(row.scanlator),
-        language: optionalString(firstNonEmpty([row.language, row.lang])),
-        dateUpload: optionalNumber(row.date_upload) ?? optionalNumber(row.dateUpload),
-        chapterNumber: optionalNumber(row.chapterNumber),
-        volumeNumber: optionalNumber(row.volumeNumber),
+        scanlator: firstNonEmptyList([row.scanlator, row.scanlators, row.group, row.groups]),
+        language: optionalString(firstNonEmpty([row.language, row.lang, row.translatedLanguage, row.locale])),
+        dateUpload: firstTimestamp([row.date_upload, row.dateUpload, row.uploadDate, row.uploadedAt, row.updatedAt]),
+        chapterNumber: firstNumber([row.chapterNumber, row.chapter, row.index]),
+        volumeNumber: firstNumber([row.volumeNumber, row.volume]),
         url: optionalString(row.url),
       }
     })

@@ -72,6 +72,18 @@ function optionalSourceNumber(value: Object | undefined): number | undefined {
   return Number.isFinite(parsed) ? parsed : undefined
 }
 
+function optionalSourceTimestamp(value: Object | undefined): number | undefined {
+  const numeric = optionalSourceNumber(value)
+  if (numeric !== undefined) {
+    return numeric > 0 && numeric < 100000000000 ? numeric * 1000 : numeric
+  }
+  if (typeof value !== 'string') {
+    return undefined
+  }
+  const parsed = Date.parse(value)
+  return Number.isFinite(parsed) ? parsed : undefined
+}
+
 function sourceStringList(value: Object | undefined): string[] | undefined {
   if (!Array.isArray(value)) {
     return undefined
@@ -84,6 +96,21 @@ function sourceStringList(value: Object | undefined): string[] | undefined {
     }
   })
   return result.length === 0 ? undefined : result
+}
+
+function firstSourceDisplayString(values: (Object | undefined)[]): string | undefined {
+  for (let index = 0; index < values.length; index += 1) {
+    const value = values[index]
+    const direct = optionalSourceDisplayString(value)
+    if (direct !== undefined && direct.trim().length > 0) {
+      return direct
+    }
+    const list = sourceStringList(value)
+    if (list !== undefined && list.length > 0) {
+      return list.join(', ')
+    }
+  }
+  return undefined
 }
 
 function sourceStatus(value: string | undefined): MangaStatus {
@@ -100,6 +127,26 @@ function firstSourceString(values: (string | undefined)[]): string | undefined {
   for (let index = 0; index < values.length; index += 1) {
     const value = values[index]
     if (value !== undefined && value.trim().length > 0) {
+      return value
+    }
+  }
+  return undefined
+}
+
+function firstSourceNumber(values: (Object | undefined)[]): number | undefined {
+  for (let index = 0; index < values.length; index += 1) {
+    const value = optionalSourceNumber(values[index])
+    if (value !== undefined) {
+      return value
+    }
+  }
+  return undefined
+}
+
+function firstSourceTimestamp(values: (Object | undefined)[]): number | undefined {
+  for (let index = 0; index < values.length; index += 1) {
+    const value = optionalSourceTimestamp(values[index])
+    if (value !== undefined) {
       return value
     }
   }
@@ -143,7 +190,12 @@ export function parseMangaChapterFromSourceItem(item: SourceRuntimeRecord): Mang
     optionalSourceString(item['chapter_id']),
     optionalSourceString(item['title']),
   ]) ?? 'source-chapter'
-  const chapterNumber = optionalSourceNumber(item['chapter_number']) ?? optionalSourceNumber(item['chapterNumber'])
+  const chapterNumber = firstSourceNumber([
+    item['chapter_number'],
+    item['chapterNumber'],
+    item['chapter'],
+    item['index'],
+  ])
   return {
     id,
     title: firstSourceString([optionalSourceDisplayString(item['title']), normalizeSourceDisplayText(id)]) ??
@@ -152,13 +204,27 @@ export function parseMangaChapterFromSourceItem(item: SourceRuntimeRecord): Mang
     volumeNumber: firstSourceString([
       optionalSourceString(item['volume_number']),
       optionalSourceString(item['volumeNumber']),
+      optionalSourceString(item['volume']),
     ]),
-    scanlator: optionalSourceDisplayString(item['scanlator']),
+    scanlator: firstSourceDisplayString([
+      item['scanlator'],
+      item['scanlators'],
+      item['group'],
+      item['groups'],
+    ]),
     language: firstSourceString([
       optionalSourceString(item['language']),
       optionalSourceString(item['lang']),
+      optionalSourceString(item['translatedLanguage']),
+      optionalSourceString(item['locale']),
     ]),
-    dateUpload: optionalSourceNumber(item['date_upload']) ?? optionalSourceNumber(item['dateUpload']),
+    dateUpload: firstSourceTimestamp([
+      item['date_upload'],
+      item['dateUpload'],
+      item['uploadDate'],
+      item['uploadedAt'],
+      item['updatedAt'],
+    ]),
     isRead: false,
     isDownloaded: false,
   }
