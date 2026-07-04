@@ -246,7 +246,12 @@ export struct DownloadsPage {
 
   private canRetry(entry: OfflineDownloadQueueEntry): boolean {
     return entry.status === OfflineDownloadStatus.FAILED ||
-      entry.status === OfflineDownloadStatus.PARTIAL
+      entry.status === OfflineDownloadStatus.PARTIAL ||
+      this.isRecoverableBlockedEntry(entry)
+  }
+
+  private isRecoverableBlockedEntry(entry: OfflineDownloadQueueEntry): boolean {
+    return entry.status === OfflineDownloadStatus.BLOCKED && entry.failureReasonCode === 'pages_missing'
   }
 
   private canStartQueueWork(): boolean {
@@ -567,7 +572,7 @@ export struct DownloadsPage {
         const entry = targets[nextIndex]
         nextIndex += 1
         const comic = this.libraryStore?.getComic(entry.comicId)
-        if (entry.status === OfflineDownloadStatus.BLOCKED) {
+        if (entry.status === OfflineDownloadStatus.BLOCKED && !this.isRecoverableBlockedEntry(entry)) {
           continue
         }
         if (comic === undefined) {
