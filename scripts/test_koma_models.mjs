@@ -435,6 +435,7 @@ assertExport(libraryPersistenceSource, 'upsertLocalLibraryFolderScanAndPersistLi
 assertExport(libraryPersistenceSource, 'upsertLocalLibraryFolderRescanAndPersistLibraryStore')
 assertExport(libraryPersistenceSource, 'isRemovableLocalComic')
 assertExport(libraryPersistenceSource, 'removeComicAndPersistLibraryStore')
+assertExport(libraryPersistenceSource, 'removeComicsAndPersistLibraryStore')
 assertExport(libraryUpdateServiceSource, 'LibraryUpdateResultStatus')
 assertExport(libraryUpdateServiceSource, 'LibraryUpdateProviderKind')
 assertExport(libraryUpdateServiceSource, 'LibraryUpdateComicResult')
@@ -820,6 +821,11 @@ assert.match(
   libraryPageSource,
   /private canRemoveComic\(comicId: ComicId\): boolean[\s\S]*isRemovableLocalComic[\s\S]*private canSelectComic\(comicId: ComicId\): boolean[\s\S]*getComic\(comicId\) !== undefined[\s\S]*selectedRemovableCount\(\)[\s\S]*isEnabled: this\.selectedRemovableCount\(\) > 0/,
   'LibraryPage selection must support non-removable comics while keeping destructive remove local-only',
+)
+assert.match(
+  libraryPageSource,
+  /@Event onRemoveComicsRequested: \(comicIds: ComicId\[\]\) => number[\s\S]*private removeSelectedComics\(\): void[\s\S]*const comicIds = Array\.from\(this\.selectedIds\)\.filter[\s\S]*const removedCount = this\.onRemoveComicsRequested\(comicIds\)[\s\S]*if \(removedCount > 0\) \{[\s\S]*this\.refreshDisplayedSnapshotFromStore\(\)/,
+  'LibraryPage selected remove must use the batch remove callback instead of deleting one comic per persistence write',
 )
 assert.match(
   libraryPageSource,
@@ -1335,9 +1341,19 @@ assert.match(
   'save-after-remove helper must no-op missing or protected rows and rollback the live store when persistence fails',
 )
 assert.match(
+  libraryPersistenceSource,
+  /export function removeComicsAndPersistLibraryStore[\s\S]*removedIds\.includes\(comicId\)[\s\S]*isRemovableLocalComic\(libraryStore\.getComic\(comicId\)\)[\s\S]*const previousPayload = serializeLibraryStore\(libraryStore\)[\s\S]*removedIds\.forEach\(\(comicId: ComicId\)[\s\S]*libraryStore\.removeComic\(comicId\)[\s\S]*persistenceService\.persist\(\)[\s\S]*hydrateLibraryStoreFromJson\(libraryStore, previousPayload\)/,
+  'batch remove helper must filter protected rows, persist once, and rollback the live store when persistence fails',
+)
+assert.match(
   indexSource,
   /@Local private libraryComics: Comic\[\][\s\S]*private refreshLibrarySnapshot\(\): void \{[\s\S]*this\.libraryComics = this\.libraryStore\.listComics\(\)[\s\S]*this\.libraryRevision \+= 1[\s\S]*private handleRemoveComicRequested\(comicId: ComicId\): boolean[\s\S]*removeComicAndPersistLibraryStore[\s\S]*this\.refreshLibrarySnapshot\(\)[\s\S]*return true/,
   'confirmed remove must publish a fresh comic array snapshot after successful persistence so the live shelf re-renders',
+)
+assert.match(
+  indexSource,
+  /private handleRemoveComicsRequested\(comicIds: ComicId\[\]\): number[\s\S]*isRemovableLocalComic\(this\.libraryStore\.getComic\(comicId\)\)[\s\S]*removeComicsAndPersistLibraryStore\(this\.libraryStore, persistenceService, removableIds\)[\s\S]*removedIds\.forEach\(\(comicId: ComicId\)[\s\S]*cleanupRemovedComicDownloads\(comicId\)[\s\S]*onRemoveComicsRequested:\s*\(comicIds: ComicId\[\]\) => \{[\s\S]*return this\.handleRemoveComicsRequested\(comicIds\)/,
+  'Index must batch-remove selected local comics with one persistence write and per-comic download cleanup',
 )
 assert.match(
   offlineDownloadStoreSource,
@@ -3027,6 +3043,28 @@ function removeComicAndPersistLibraryStore(store, persistenceService, comicId) {
   }
 }
 
+function removeComicsAndPersistLibraryStore(store, persistenceService, comicIds) {
+  const removedIds = []
+  comicIds.forEach((comicId) => {
+    if (removedIds.includes(comicId)) return
+    if (isRemovableLocalComic(store.getComic(comicId))) {
+      removedIds.push(comicId)
+    }
+  })
+  if (removedIds.length === 0) return []
+  const previousPayload = serializeLibraryStore(store)
+  removedIds.forEach((comicId) => {
+    store.removeComic(comicId)
+  })
+  try {
+    persistenceService.persist()
+    return removedIds
+  } catch (error) {
+    hydrateLibraryStoreFromJson(store, previousPayload)
+    throw error
+  }
+}
+
 function assignComicCategoriesAndPersistLibraryStore(store, persistenceService, comicIds, categoryIds) {
   const normalizedCategoryIds = normalizeCategoryIds(categoryIds)
   const previousPayload = serializeLibraryStore(store)
@@ -3647,6 +3685,22 @@ const removeRestoredStore = createSeededStore()
 hydrateLibraryStoreFromJson(removeRestoredStore, removeAdapter.savedPayloads[0])
 assert.equal(removeRestoredStore.getComic('imported-01'), undefined, 'restore after remove must keep the comic absent')
 
+const batchRemoveStore = createSeededStore()
+const importedComicTwo = { ...importedComic, id: 'imported-02', title: 'Imported Volume 2' }
+batchRemoveStore.upsertComic(importedComic)
+batchRemoveStore.upsertComic(importedComicTwo)
+const batchRemoveAdapter = new MemoryLibraryStorePersistenceAdapter(undefined)
+const batchRemoveService = new LibraryStorePersistenceService(batchRemoveStore, batchRemoveAdapter)
+assert.deepEqual(
+  removeComicsAndPersistLibraryStore(batchRemoveStore, batchRemoveService, ['imported-01', 'local-01', 'imported-02', 'imported-01']),
+  ['imported-01', 'imported-02'],
+  'batch remove must remove only unique imported local comics and skip protected seed rows',
+)
+assert.equal(batchRemoveStore.getComic('imported-01'), undefined, 'batch remove must remove the first imported comic')
+assert.equal(batchRemoveStore.getComic('imported-02'), undefined, 'batch remove must remove the second imported comic')
+assert.notEqual(batchRemoveStore.getComic('local-01'), undefined, 'batch remove must preserve protected seed rows')
+assert.equal(batchRemoveAdapter.savedPayloads.length, 1, 'batch remove must persist exactly once for multiple removed comics')
+
 const missingRemoveStore = createSeededStore()
 const missingRemoveAdapter = new MemoryLibraryStorePersistenceAdapter(undefined)
 const missingRemoveService = new LibraryStorePersistenceService(missingRemoveStore, missingRemoveAdapter)
@@ -3679,5 +3733,22 @@ assert.deepEqual(
   'save failure during remove persistence must rollback the in-memory deletion',
 )
 assert.equal(throwingRemoveStore.getComic('imported-01').title, 'Imported Volume', 'failed remove must keep the imported comic visible')
+
+const throwingBatchRemoveStore = createSeededStore()
+throwingBatchRemoveStore.upsertComic(importedComic)
+throwingBatchRemoveStore.upsertComic(importedComicTwo)
+const throwingBatchRemoveBefore = throwingBatchRemoveStore.listComics().map((item) => item.id)
+const throwingBatchRemoveAdapter = new MemoryLibraryStorePersistenceAdapter(undefined, new Error('disk full'))
+const throwingBatchRemoveService = new LibraryStorePersistenceService(throwingBatchRemoveStore, throwingBatchRemoveAdapter)
+assert.throws(
+  () => removeComicsAndPersistLibraryStore(throwingBatchRemoveStore, throwingBatchRemoveService, ['imported-01', 'imported-02']),
+  /disk full/,
+  'save failure during batch remove persistence must be visible to the caller',
+)
+assert.deepEqual(
+  throwingBatchRemoveStore.listComics().map((item) => item.id),
+  throwingBatchRemoveBefore,
+  'save failure during batch remove persistence must rollback every deleted comic',
+)
 
 console.log('PASS Koma model contracts')

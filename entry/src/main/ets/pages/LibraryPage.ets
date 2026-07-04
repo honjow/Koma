@@ -161,6 +161,7 @@ export struct LibraryPage {
   @Event onOpenReader: (comicId: ComicId) => void = (_comicId: ComicId) => {}
   @Event onImportRequested: () => void = () => {}
   @Event onRemoveComicRequested: (comicId: ComicId) => boolean = (_comicId: ComicId) => false
+  @Event onRemoveComicsRequested: (comicIds: ComicId[]) => number = (_comicIds: ComicId[]) => 0
   @Event onAssignCategoriesRequested: (comicIds: ComicId[], categoryIds?: string[]) => boolean =
     (_comicIds: ComicId[], _categoryIds?: string[]) => false
   @Event onUpdateCategoryMembershipRequested: (comicIds: ComicId[], categoryId: string, selected: boolean) => boolean =
@@ -919,12 +920,7 @@ export struct LibraryPage {
       return
     }
     console.info(`[Library] step=batch_remove count=${comicIds.length}`)
-    let removedCount = 0
-    comicIds.forEach((comicId: ComicId) => {
-      if (this.onRemoveComicRequested(comicId)) {
-        removedCount += 1
-      }
-    })
+    const removedCount = this.onRemoveComicsRequested(comicIds)
     this.exitSelectionMode()
     if (removedCount > 0) {
       this.refreshDisplayedSnapshotFromStore()

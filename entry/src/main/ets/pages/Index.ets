@@ -56,6 +56,7 @@ import {
   assignComicCategoriesAndPersistLibraryStore,
   isRemovableLocalComic,
   removeComicAndPersistLibraryStore,
+  removeComicsAndPersistLibraryStore,
   updateComicCategoryMembershipAndPersistLibraryStore,
   upsertComicAndPersistLibraryStore,
   upsertLocalLibraryFolderScanAndPersistLibraryStore,
@@ -275,6 +276,44 @@ struct Index {
     } catch (error) {
       const e = error as Error
       console.error('persist removed comic failed: ' + e.message)
+      throw e
+    }
+  }
+
+  private handleRemoveComicsRequested(comicIds: ComicId[]): number {
+    const removableIds = comicIds.filter((comicId: ComicId): boolean => {
+      return isRemovableLocalComic(this.libraryStore.getComic(comicId))
+    })
+    console.info(`[library-remove] batch_requested count=${comicIds.length} removable=${removableIds.length}`)
+    if (removableIds.length === 0) {
+      console.info('[library-remove] batch_result removed=0')
+      return 0
+    }
+    const persistenceService = this.ensureLibraryPersistenceService()
+    if (persistenceService === undefined) {
+      removableIds.forEach((comicId: ComicId) => {
+        this.libraryStore.removeComic(comicId)
+      })
+      this.refreshLibrarySnapshot()
+      removableIds.forEach((comicId: ComicId) => {
+        this.cleanupRemovedComicDownloads(comicId)
+      })
+      console.info(`[library-remove] batch_result removed=${removableIds.length} persistence=unavailable`)
+      return removableIds.length
+    }
+    try {
+      const removedIds = removeComicsAndPersistLibraryStore(this.libraryStore, persistenceService, removableIds)
+      if (removedIds.length > 0) {
+        this.refreshLibrarySnapshot()
+        removedIds.forEach((comicId: ComicId) => {
+          this.cleanupRemovedComicDownloads(comicId)
+        })
+      }
+      console.info(`[library-remove] batch_result removed=${removedIds.length} persistence=available`)
+      return removedIds.length
+    } catch (error) {
+      const e = error as Error
+      console.error('persist removed comics failed: ' + e.message)
       throw e
     }
   }
@@ -629,6 +668,9 @@ struct Index {
                 },
                 onRemoveComicRequested: (comicId: ComicId) => {
                   return this.handleRemoveComicRequested(comicId)
+                },
+                onRemoveComicsRequested: (comicIds: ComicId[]) => {
+                  return this.handleRemoveComicsRequested(comicIds)
                 },
                 onAssignCategoriesRequested: (comicIds: ComicId[], categoryIds?: string[]) => {
                   return this.handleAssignCategoriesRequested(comicIds, categoryIds)

@@ -998,3 +998,33 @@ export function removeComicAndPersistLibraryStore(
     throw error as Error
   }
 }
+
+export function removeComicsAndPersistLibraryStore(
+  libraryStore: LibraryStore,
+  persistenceService: LibraryStorePersistenceService,
+  comicIds: ComicId[]
+): ComicId[] {
+  const removedIds: ComicId[] = []
+  comicIds.forEach((comicId: ComicId) => {
+    if (removedIds.includes(comicId)) {
+      return
+    }
+    if (isRemovableLocalComic(libraryStore.getComic(comicId))) {
+      removedIds.push(comicId)
+    }
+  })
+  if (removedIds.length === 0) {
+    return []
+  }
+  const previousPayload = serializeLibraryStore(libraryStore)
+  removedIds.forEach((comicId: ComicId) => {
+    libraryStore.removeComic(comicId)
+  })
+  try {
+    persistenceService.persist()
+    return removedIds
+  } catch (error) {
+    hydrateLibraryStoreFromJson(libraryStore, previousPayload)
+    throw error as Error
+  }
+}
