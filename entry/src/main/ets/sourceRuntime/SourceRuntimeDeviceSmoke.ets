@@ -1962,11 +1962,9 @@ export async function maybeRunSourceRuntimeDeviceSmoke(
         result.sourceIndexReaderSelectedSourceId = selectedSourceId
         result.sourceIndexReaderSearchQuery = searchRequestQuery
         const alreadyInstalled = appSourceRuntimeRegistry.lookup(selectedSourceId).ok
-        result.sourceIndexReaderReusedInstalledSource = isVisibleReaderPhase && alreadyInstalled
+        result.sourceIndexReaderReusedInstalledSource = alreadyInstalled
         if (indexUrl.length === 0) {
           result.error = `${result.smokePhase} requires indexUrl`
-        } else if (alreadyInstalled && !isVisibleReaderPhase) {
-          result.error = `${result.smokePhase} refuses to overwrite installed source`
         } else {
           const sourceIndexService = new SourceIndexService(context)
           const fetch = await sourceIndexService.fetchIndex(indexUrl)
@@ -1977,7 +1975,7 @@ export async function maybeRunSourceRuntimeDeviceSmoke(
             result.error = 'source-index-reader source entry not found'
           } else {
             result.sourceIndexReaderHashPinPresent = entry.sha256.length > 0
-            if (alreadyInstalled && isVisibleReaderPhase) {
+            if (alreadyInstalled) {
               result.sourceIndexReaderInstallOk = true
             } else {
               const checksumNegative = await sourceIndexService.installPackage(
@@ -2129,14 +2127,12 @@ export async function maybeRunSourceRuntimeDeviceSmoke(
                 }
               }
             }
-            result.sourceIndexReaderCleanupOk = isVisibleReaderPhase ?
-              true :
-              await removeInstalledSourcePackage(context, selectedSourceId)
+            result.sourceIndexReaderCleanupOk = true
           }
         }
         result.ok = result.sourceIndexReaderIndexUrlProvided === true &&
           result.sourceIndexReaderFetchOk === true &&
-          (isVisibleReaderPhase || result.sourceIndexReaderChecksumMismatchRejected === true) &&
+          (alreadyInstalled || result.sourceIndexReaderChecksumMismatchRejected === true) &&
           result.sourceIndexReaderInstallOk === true &&
           result.sourceIndexReaderSearchOk === true &&
           result.sourceIndexReaderDetailOk === true &&

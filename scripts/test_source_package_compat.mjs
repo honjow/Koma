@@ -629,18 +629,18 @@ assert.match(
 )
 assert.match(
   smokeSource,
-  /refuses to overwrite installed source/,
-  'source-index reader smoke must refuse to overwrite an already installed user source',
+  /result\.sourceIndexReaderReusedInstalledSource = alreadyInstalled[\s\S]*if \(alreadyInstalled\)[\s\S]*result\.sourceIndexReaderInstallOk = true/,
+  'source-index reader smokes must reuse an already installed source instead of failing or overwriting it',
 )
 assert.match(
   smokeSource,
-  /alreadyInstalled && !isVisibleReaderPhase[\s\S]*alreadyInstalled && isVisibleReaderPhase[\s\S]*result\.sourceIndexReaderInstallOk = true/,
-  'visible source-index reader smoke must reuse an already installed source instead of failing or overwriting it',
+  /alreadyInstalled \|\| result\.sourceIndexReaderChecksumMismatchRejected === true/,
+  'source-index reader smokes must require checksum negative evidence only when they install a fresh source',
 )
 assert.match(
   smokeSource,
-  /result\.sourceIndexReaderCleanupOk = isVisibleReaderPhase \?[\s\S]*true[\s\S]*removeInstalledSourcePackage/,
-  'visible source-index reader smoke must leave the installed source available so the visible library comic remains readable',
+  /result\.sourceIndexReaderCleanupOk = true/,
+  'source-index reader smokes must leave the installed source available for repeatable visible/download reader QA',
 )
 assert.match(
   smokeSource,
