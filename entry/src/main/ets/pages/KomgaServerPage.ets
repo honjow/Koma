@@ -25,7 +25,6 @@ export struct KomgaServerPage {
   @Local private testing: boolean = false
   @Local private statusKey: string = ''
   @Local private statusArgs: string[] = []
-  @Local private statusRawText: string = ''
 
   private store(): RemoteServerStore {
     return new RemoteServerStore(getContext(this) as common.UIAbilityContext)
@@ -46,9 +45,9 @@ export struct KomgaServerPage {
       this.apiKey = saved.credential?.apiKey === undefined ? '' : saved.credential.apiKey
       console.info('[Komga] step=settings_load configured=true')
     } catch (error) {
-      const e = error as Error
-      this.setRawStatus(e.message)
-      console.error('[Komga] step=settings_load_error message=' + e.message)
+      void error
+      this.setStatus('server_status_load_failed')
+      console.error('[Komga] step=settings_load_error reason=settings_load')
     }
   }
 
@@ -73,9 +72,9 @@ export struct KomgaServerPage {
       console.info(`[Komga] step=test_connection_ok libraries=${libraries.length}`)
       this.showToast(s('komga_toast_success'))
     } catch (error) {
-      const e = error as Error
-      this.setStatus('komga_status_failed', [e.message])
-      console.error('[Komga] step=test_connection_failed message=' + e.message)
+      void error
+      this.setStatus('komga_status_failed')
+      console.error('[Komga] step=test_connection_failed reason=connection_test')
       this.showToast(s('komga_toast_failed'))
     } finally {
       this.testing = false
@@ -92,27 +91,17 @@ export struct KomgaServerPage {
       this.setStatus('komga_status_removed')
       this.showToast(s('komga_toast_removed'))
     } catch (error) {
-      const e = error as Error
-      this.setRawStatus(e.message)
+      void error
+      this.setStatus('server_status_load_failed')
     }
   }
 
   private setStatus(key: string, args: string[] = []): void {
     this.statusKey = key
     this.statusArgs = args
-    this.statusRawText = ''
-  }
-
-  private setRawStatus(message: string): void {
-    this.statusKey = ''
-    this.statusArgs = []
-    this.statusRawText = message
   }
 
   private statusText(): string {
-    if (this.statusRawText.length > 0) {
-      return this.statusRawText
-    }
     if (this.statusKey.length === 0) {
       return ''
     }

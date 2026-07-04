@@ -36,6 +36,9 @@ const browsePagePath = resolve(root, 'entry/src/main/ets/pages/BrowsePage.ets')
 const historyPagePath = resolve(root, 'entry/src/main/ets/pages/HistoryPage.ets')
 const searchPagePath = resolve(root, 'entry/src/main/ets/pages/SearchPage.ets')
 const settingsPagePath = resolve(root, 'entry/src/main/ets/pages/SettingsPage.ets')
+const komgaServerPagePath = resolve(root, 'entry/src/main/ets/pages/KomgaServerPage.ets')
+const opdsServerPagePath = resolve(root, 'entry/src/main/ets/pages/OpdsServerPage.ets')
+const webDavServerPagePath = resolve(root, 'entry/src/main/ets/pages/WebDavServerPage.ets')
 const libraryUpdateResultPagePath = resolve(root, 'entry/src/main/ets/pages/LibraryUpdateResultPage.ets')
 const importPagePath = resolve(root, 'entry/src/main/ets/pages/ImportPage.ets')
 const sourceBrowsePagePath = resolve(root, 'entry/src/main/ets/pages/SourceBrowsePage.ets')
@@ -90,6 +93,9 @@ const browsePageSource = readFileSync(browsePagePath, 'utf8')
 const historyPageSource = readFileSync(historyPagePath, 'utf8')
 const searchPageSource = readFileSync(searchPagePath, 'utf8')
 const settingsPageSource = readFileSync(settingsPagePath, 'utf8')
+const komgaServerPageSource = readFileSync(komgaServerPagePath, 'utf8')
+const opdsServerPageSource = readFileSync(opdsServerPagePath, 'utf8')
+const webDavServerPageSource = readFileSync(webDavServerPagePath, 'utf8')
 const libraryUpdateResultPageSource = readFileSync(libraryUpdateResultPagePath, 'utf8')
 const importPageSource = readFileSync(importPagePath, 'utf8')
 const sourceBrowsePageSource = readFileSync(sourceBrowsePagePath, 'utf8')
@@ -1913,6 +1919,32 @@ assert.doesNotMatch(
   /请输入 API key|请输入用户名和密码/,
   'remote server store must not hardcode Chinese credential validation errors',
 )
+for (const [label, source, failedKey] of [
+  ['KomgaServerPage', komgaServerPageSource, 'komga_status_failed'],
+  ['OpdsServerPage', opdsServerPageSource, 'opds_status_failed'],
+  ['WebDavServerPage', webDavServerPageSource, 'webdav_status_failed'],
+]) {
+  assert.doesNotMatch(
+    source,
+    /statusRawText|setRawStatus/,
+    `${label} must not expose raw provider errors through UI status text`,
+  )
+  assert.match(
+    source,
+    new RegExp(`setStatus\\('${failedKey}'\\)[\\s\\S]*reason=connection_test`),
+    `${label} connection failures must use generic localized copy and redacted reason logs`,
+  )
+  assert.match(
+    source,
+    /setStatus\('server_status_load_failed'\)[\s\S]*settings_load_error reason=settings_load/,
+    `${label} settings load failures must use generic localized copy and redacted reason logs`,
+  )
+  assert.doesNotMatch(
+    source,
+    /(setStatus\('[^']+',\s*\[[^\]]*\.message|console\.(?:error|warn|info)\([^)]*message=['"]?\s*\+\s*\w+\.message|statusText\(\): string \{[\s\S]*\.message)/,
+    `${label} must not pass raw Error.message into visible status or server diagnostics logs`,
+  )
+}
 assert.match(
   sourceSettingsStoreSource,
   /filterSafeValues[\s\S]*descriptorIsCredentialLike\(key, ''\)/,

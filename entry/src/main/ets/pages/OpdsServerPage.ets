@@ -23,7 +23,6 @@ export struct OpdsServerPage {
   @Local private testing: boolean = false
   @Local private statusKey: string = ''
   @Local private statusArgs: string[] = []
-  @Local private statusRawText: string = ''
 
   private store(): RemoteServerStore {
     return new RemoteServerStore(getContext(this) as common.UIAbilityContext)
@@ -43,9 +42,9 @@ export struct OpdsServerPage {
       this.detectedVersion = saved.server.version === undefined ? '' : saved.server.version
       console.info('[OPDS] step=settings_load configured=true')
     } catch (error) {
-      const e = error as Error
-      this.setRawStatus(e.message)
-      console.error('[OPDS] step=settings_load_error message=' + e.message)
+      void error
+      this.setStatus('server_status_load_failed')
+      console.error('[OPDS] step=settings_load_error reason=settings_load')
     }
   }
 
@@ -79,9 +78,9 @@ export struct OpdsServerPage {
       console.info(`[OPDS] step=test_connection_ok version=${catalog.version} navigation=${catalog.navigation.length} publications=${catalog.publications.length}`)
       this.showToast(s('opds_toast_success'))
     } catch (error) {
-      const e = error as Error
-      this.setStatus('opds_status_failed', [e.message])
-      console.error('[OPDS] step=test_connection_failed message=' + e.message)
+      void error
+      this.setStatus('opds_status_failed')
+      console.error('[OPDS] step=test_connection_failed reason=connection_test')
       this.showToast(s('opds_toast_failed'))
     } finally {
       this.testing = false
@@ -98,27 +97,17 @@ export struct OpdsServerPage {
       this.setStatus('opds_status_removed')
       this.showToast(s('opds_toast_removed'))
     } catch (error) {
-      const e = error as Error
-      this.setRawStatus(e.message)
+      void error
+      this.setStatus('server_status_load_failed')
     }
   }
 
   private setStatus(key: string, args: string[] = []): void {
     this.statusKey = key
     this.statusArgs = args
-    this.statusRawText = ''
-  }
-
-  private setRawStatus(message: string): void {
-    this.statusKey = ''
-    this.statusArgs = []
-    this.statusRawText = message
   }
 
   private statusText(): string {
-    if (this.statusRawText.length > 0) {
-      return this.statusRawText
-    }
     if (this.statusKey.length === 0) {
       return ''
     }
