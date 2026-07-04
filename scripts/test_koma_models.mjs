@@ -2035,6 +2035,17 @@ assert.match(
   /this\.errorText = s\('common_load_failed'\)[\s\S]*step=propfind_failed code=webdav_propfind_failed[\s\S]*this\.errorText = s\('common_add_to_library_failed'\)[\s\S]*step=webdav_add_failed code=webdav_add_failed/,
   'WebDAV browse failures must show generic localized copy and log redacted codes',
 )
+for (const [label, source] of [
+  ['HistoryPage', historyPageSource],
+  ['LibraryPage', libraryPageSource],
+  ['MangaDetailPage', mangaDetailPageSource],
+]) {
+  assert.doesNotMatch(
+    source,
+    /console\.(?:info|warn|error)\([^\n]*(?:\.message|message=|failed: ' \+|reason=' \+)/,
+    `${label} diagnostics must log fixed reason codes instead of raw Error.message`,
+  )
+}
 assert.match(
   trackerModelsSource,
   /AssetStoreTrackerCredentialSecretStore[\s\S]*asset\.add\(attributes\)[\s\S]*readToken\(ref: TrackerCredentialSecretRef\)[\s\S]*asset\.query\(query\)[\s\S]*deleteAccount\(ref: TrackerCredentialAccountRef\)[\s\S]*asset\.remove\(trackerAssetAccountQuery\(ref\)\)/,

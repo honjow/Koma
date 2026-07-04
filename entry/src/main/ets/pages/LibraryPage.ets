@@ -194,8 +194,8 @@ export struct LibraryPage {
       this.refreshDisplayedSnapshotFromStore()
       console.info(`[Library] step=progress_reload reason=${reason}`)
     } catch (error) {
-      const e = error as Error
-      console.info('[Library] step=progress_reload_failed reason=' + e.message)
+      void error
+      console.info('[Library] step=progress_reload_failed reason=session_store')
     }
   }
 
@@ -245,8 +245,8 @@ export struct LibraryPage {
         }
       })
     } catch (error) {
-      const e = error as Error
-      console.info('[Library] step=download_filter_load_failed reason=' + e.message)
+      void error
+      console.info('[Library] step=download_filter_load_failed reason=download_filter')
     }
     return comicAvailability
   }
@@ -382,8 +382,8 @@ export struct LibraryPage {
         `[Library] step=filter_restored sortBy=${this.sortBy} viewMode=${this.viewMode} listDensity=${this.listDensity} showBadges=${this.showLibraryBadges} source=${this.filterSource} readState=${this.filterReadState} category=${this.filterCategory} availability=${this.filterAvailability}`
       )
     } catch (error) {
-      const e = error as Error
-      console.info('[Library] step=filter_restore_failed reason=' + e.message)
+      void error
+      console.info('[Library] step=filter_restore_failed reason=filter_restore')
     }
   }
 
@@ -402,8 +402,8 @@ export struct LibraryPage {
       }
       void new LibraryFilterStore(context).save(preferencesValue)
     } catch (error) {
-      const e = error as Error
-      console.info('[Library] step=filter_save_failed reason=' + e.message)
+      void error
+      console.info('[Library] step=filter_save_failed reason=filter_save')
     }
   }
 
@@ -965,8 +965,8 @@ export struct LibraryPage {
       const context = getContext(this) as common.UIAbilityContext
       return new ChapterReadStateStore(new AppFilesChapterReadStatePersistenceAdapter(context.filesDir))
     } catch (error) {
-      const e = error as Error
-      console.info('[Library] step=batch_read_state_store_failed reason=' + e.message)
+      void error
+      console.info('[Library] step=batch_read_state_store_failed reason=read_state_store')
       return undefined
     }
   }

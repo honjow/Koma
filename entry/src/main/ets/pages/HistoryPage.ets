@@ -66,8 +66,8 @@ export struct HistoryPage {
         new AppFilesReaderSessionPersistenceAdapter(context.filesDir)
       )
     } catch (error) {
-      const e = error as Error
-      console.info('[History] step=session_store_unavailable reason=' + e.message)
+      void error
+      console.info('[History] step=session_store_unavailable reason=context')
       return undefined
     }
   }

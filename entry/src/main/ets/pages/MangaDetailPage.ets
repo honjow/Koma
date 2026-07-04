@@ -579,8 +579,8 @@ export struct MangaDetailPage {
       this.showToast(s('common_added_to_library'))
       return true
     } catch (error) {
-      const e = error as Error
-      console.error('[manga-detail] add to library failed: ' + e.message)
+      void error
+      console.error('[manga-detail] step=add_to_library_failed reason=library_persist')
       this.feedbackText = s('common_add_to_library_failed')
       this.showToast(s('common_add_to_library_failed'))
       return false
@@ -1332,7 +1332,8 @@ export struct MangaDetailPage {
                   }
                 })
                 .catch((error: Error) => {
-                  console.error('[manga-detail] source pages load failed: ' + error.message)
+                  void error
+                  console.error('[manga-detail] step=source_pages_load_failed reason=source_pages')
                   this.showToast(s('manga_detail_chapter_pages_load_failed'))
                 })
             },
