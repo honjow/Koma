@@ -1422,6 +1422,11 @@ assert.match(
 )
 assert.match(
   mangaDetailPageSource,
+  /private async runSourceChaptersOperation[\s\S]*const rows = this\.sourceChapterResponseItems\(response\)[\s\S]*if \(response\.ok !== true\) \{[\s\S]*throw new Error\('get_chapters failed'\)[\s\S]*return rows\.map/,
+  'MangaDetailPage must allow source details with zero chapters instead of failing the whole detail route',
+)
+assert.match(
+  mangaDetailPageSource,
   /private sourceMangaResponseItem[\s\S]*response\.data\?\.manga[\s\S]*response\.data\?\.item[\s\S]*response\.data\?\.items/,
   'get_manga parsing must accept data.manga, data.item, and data.items[0]',
 )
@@ -1705,6 +1710,11 @@ assert.match(
   chapterListSectionSource,
   /resetFilters\(\): void[\s\S]*this\.sortOrder = ChapterSortOrder\.NEWEST_FIRST[\s\S]*this\.readFilter = ChapterReadFilter\.ALL[\s\S]*this\.languageFilter = ''[\s\S]*this\.groupFilter = ''[\s\S]*this\.rebuildDataSource\(\)/,
   'ChapterListSection reset must restore default sort, read, language, and group filters',
+)
+assert.match(
+  chapterListSectionSource,
+  /EmptyChapters\(\)[\s\S]*chapter_list_empty_title[\s\S]*chapter_list_filtered_empty_title[\s\S]*showAction: this\.chapters\.length > 0 && this\.hasActiveFilters\(\)[\s\S]*this\.resetFilters\(\)[\s\S]*if \(this\.sortedChapters\.length === 0\) \{[\s\S]*this\.EmptyChapters\(\)/,
+  'ChapterListSection must show an empty state for zero or fully filtered chapter lists',
 )
 assert.match(
   chapterListSectionSource,

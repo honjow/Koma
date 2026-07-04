@@ -2,6 +2,7 @@ import { Chip, ChipSize } from '@kit.ArkUI'
 import { AppStrings } from '../i18n/AppStrings'
 import { connectLanguageState, LanguageState } from '../state/LanguageState'
 import { KomaActionButton } from './ui/KomaActionButton'
+import { KomaEmptyState } from './ui/KomaEmptyState'
 import { KomaIconButton } from './ui/KomaIconButton'
 import { ChapterSortOrder, MangaChapterItem } from '../model/MangaDetailModels'
 import { ThemeConstants } from '../theme/ThemeConstants'
@@ -428,6 +429,19 @@ export struct ChapterListSection {
   }
 
   @Builder
+  private EmptyChapters() {
+    KomaEmptyState({
+      title: this.chapters.length === 0 ? s('chapter_list_empty_title') : s('chapter_list_filtered_empty_title'),
+      message: this.chapters.length === 0 ? s('chapter_list_empty_message') : s('chapter_list_filtered_empty_message'),
+      actionLabel: s('common_reset'),
+      showAction: this.chapters.length > 0 && this.hasActiveFilters(),
+      action: () => {
+        this.resetFilters()
+      },
+    })
+  }
+
+  @Builder
   private ChapterRow(chapter: MangaChapterItem) {
     Row({ space: ThemeConstants.SPACE_MD }) {
       Row({ space: ThemeConstants.SPACE_MD }) {
@@ -639,19 +653,23 @@ export struct ChapterListSection {
       .width('100%')
       .alignItems(HorizontalAlign.Start)
 
-      List() {
-        LazyForEach(this.dataSource, (chapter: MangaChapterItem) => {
-          ListItem() {
-            this.ChapterRow(chapter)
-          }
-        }, (chapter: MangaChapterItem) => chapter.id)
+      if (this.sortedChapters.length === 0) {
+        this.EmptyChapters()
+      } else {
+        List() {
+          LazyForEach(this.dataSource, (chapter: MangaChapterItem) => {
+            ListItem() {
+              this.ChapterRow(chapter)
+            }
+          }, (chapter: MangaChapterItem) => chapter.id)
+        }
+        .width('100%')
+        .height(460)
+        .divider({ strokeWidth: 1, color: ThemeConstants.DIVIDER, startMargin: ThemeConstants.SPACE_MD, endMargin: ThemeConstants.SPACE_MD })
+        .borderRadius(ThemeConstants.RADIUS_CARD)
+        .backgroundColor(ThemeConstants.CARD)
+        .edgeEffect(EdgeEffect.Spring)
       }
-      .width('100%')
-      .height(460)
-      .divider({ strokeWidth: 1, color: ThemeConstants.DIVIDER, startMargin: ThemeConstants.SPACE_MD, endMargin: ThemeConstants.SPACE_MD })
-      .borderRadius(ThemeConstants.RADIUS_CARD)
-      .backgroundColor(ThemeConstants.CARD)
-      .edgeEffect(EdgeEffect.Spring)
     }
     .width('100%')
     .alignItems(HorizontalAlign.Start)

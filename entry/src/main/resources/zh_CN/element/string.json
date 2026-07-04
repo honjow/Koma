@@ -643,6 +643,10 @@
     { "name": "chapter_list_menu_mark_visible_unread", "value": "可见章节标记未读" },
     { "name": "chapter_list_action_mark", "value": "标记" },
     { "name": "chapter_list_action_batch_download", "value": "批量下载" },
+    { "name": "chapter_list_empty_title", "value": "暂无章节" },
+    { "name": "chapter_list_empty_message", "value": "该源返回了作品详情，但没有章节条目。" },
+    { "name": "chapter_list_filtered_empty_title", "value": "没有匹配章节" },
+    { "name": "chapter_list_filtered_empty_message", "value": "重置筛选以显示全部章节。" },
 
     { "name": "tracker_status_auth_pending", "value": "授权待完成" },
     { "name": "tracker_status_connected", "value": "已连接" },

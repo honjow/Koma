@@ -643,6 +643,10 @@
     { "name": "chapter_list_menu_mark_visible_unread", "value": "Mark visible chapters as unread" },
     { "name": "chapter_list_action_mark", "value": "Mark" },
     { "name": "chapter_list_action_batch_download", "value": "Batch download" },
+    { "name": "chapter_list_empty_title", "value": "No chapters yet" },
+    { "name": "chapter_list_empty_message", "value": "This source returned details without chapter entries." },
+    { "name": "chapter_list_filtered_empty_title", "value": "No matching chapters" },
+    { "name": "chapter_list_filtered_empty_message", "value": "Reset filters to show all chapters." },
 
     { "name": "tracker_status_auth_pending", "value": "Authorization pending" },
     { "name": "tracker_status_connected", "value": "Connected" },

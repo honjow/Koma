@@ -373,8 +373,8 @@ export struct MangaDetailPage {
     ) as string
     const response = JSON.parse(responseJson) as SourceOperationResponsePayload
     const rows = this.sourceChapterResponseItems(response)
-    if (response.ok !== true || rows.length === 0) {
-      throw new Error('get_chapters returned no items')
+    if (response.ok !== true) {
+      throw new Error('get_chapters failed')
     }
     return rows.map((item: Record<string, Object>): MangaChapterItem => {
       return parseMangaChapterFromSourceItem(item)
