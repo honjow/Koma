@@ -328,8 +328,8 @@ assert.match(
 )
 assert.match(
   sourceModelsSource,
-  /type: 'select' \| 'text' \| 'check' \| 'sort' \| 'multiselect' \| 'group'[\s\S]*value\?: string \| number \| boolean \| string\[\][\s\S]*value === 'multiselect' \|\| value === 'multi-select' \|\| value === 'multiSelect'/,
-  'SourceModels must parse source multi-select filter descriptors and values',
+  /type: 'select' \| 'text' \| 'check' \| 'sort' \| 'multiselect' \| 'range' \| 'group'[\s\S]*value\?: string \| number \| boolean \| string\[\][\s\S]*minValue\?: number[\s\S]*maxValue\?: number[\s\S]*step\?: number[\s\S]*value === 'multiselect' \|\| value === 'multi-select' \|\| value === 'multiSelect'[\s\S]*minValue: optionalNumber\(row\.min\)[\s\S]*maxValue: optionalNumber\(row\.max\)[\s\S]*step: optionalNumber\(row\.step\)/,
+  'SourceModels must parse source multi-select and range filter descriptors and values',
 )
 assert.match(
   browseViewModelSource,
@@ -338,8 +338,18 @@ assert.match(
 )
 assert.match(
   sourceFilterControlsSource,
-  /export type SourceFilterControlValue = string \| number \| boolean \| string\[\][\s\S]*filter\.type === 'multiselect'[\s\S]*toggleMultiSelectFilter\(filter, index\)[\s\S]*filter\.type === 'check'[\s\S]*Toggle\(\{ type: ToggleType\.Switch[\s\S]*filter\.type === 'text'[\s\S]*TextInput\([\s\S]*else if \(\(filter\.options \?\? \[\]\)\.length > 0\)[\s\S]*bindMenu\(this\.activeFilterMenuId === filter\.id, this\.FilterOptionMenu\(filter\)/,
-  'SourceFilterControls must expose source-defined filters with switch, text, single-select menu, and multi-select menu controls',
+  /export type SourceFilterControlValue = string \| number \| boolean \| string\[\][\s\S]*filter\.type === 'multiselect'[\s\S]*toggleMultiSelectFilter\(filter, index\)[\s\S]*bindMenu\(this\.activeFilterMenuId === filter\.id, this\.FilterOptionMenu\(filter\)/,
+  'SourceFilterControls must expose source-defined filters with single-select and multi-select menu controls',
+)
+assert.match(
+  sourceFilterControlsSource,
+  /rangeMin\(filter: SourceFilter\)[\s\S]*rangeMax\(filter: SourceFilter\)[\s\S]*setRangeFilter\(filter: SourceFilter, value: number\)[\s\S]*filter\.type === 'range'[\s\S]*Slider\(\{[\s\S]*this\.setRangeFilter\(filter, value\)/,
+  'SourceFilterControls must expose source-defined range filters with a slider control',
+)
+assert.match(
+  sourceFilterControlsSource,
+  /filter\.type === 'check'[\s\S]*Toggle\(\{ type: ToggleType\.Switch[\s\S]*filter\.type === 'text'[\s\S]*TextInput\(/,
+  'SourceFilterControls must keep switch and text controls for boolean and text source filters',
 )
 assert.match(
   sourceSearchPageSource,

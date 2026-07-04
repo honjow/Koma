@@ -36,11 +36,14 @@ export interface SourceChapter {
 
 export interface SourceFilter {
   id: string
-  type: 'select' | 'text' | 'check' | 'sort' | 'multiselect' | 'group'
+  type: 'select' | 'text' | 'check' | 'sort' | 'multiselect' | 'range' | 'group'
   name: string
   options?: string[]
   optionIds?: string[]
   value?: string | number | boolean | string[]
+  minValue?: number
+  maxValue?: number
+  step?: number
 }
 
 interface SourceRuntimeCoverPayload {
@@ -111,6 +114,9 @@ interface SourceRuntimeFilterPayload {
   label?: string
   options?: string[] | SourceRuntimeFilterOptionPayload[]
   value?: string | number | boolean | string[]
+  min?: number | string
+  max?: number | string
+  step?: number | string
 }
 
 interface SourceRuntimeFiltersPayload {
@@ -224,8 +230,8 @@ export function parseSourceChaptersJson(json: string): SourceChapter[] {
   }
 }
 
-function normalizeFilterType(value: string | undefined): 'select' | 'text' | 'check' | 'sort' | 'multiselect' | 'group' {
-  if (value === 'select' || value === 'text' || value === 'sort' || value === 'group') {
+function normalizeFilterType(value: string | undefined): 'select' | 'text' | 'check' | 'sort' | 'multiselect' | 'range' | 'group' {
+  if (value === 'select' || value === 'text' || value === 'sort' || value === 'range' || value === 'group') {
     return value
   }
   if (value === 'multiselect' || value === 'multi-select' || value === 'multiSelect') {
@@ -279,6 +285,9 @@ export function parseSourceFiltersJson(json: string): SourceFilter[] {
         options: normalizeFilterOptions(row.options),
         optionIds: normalizeFilterOptionIds(row.options),
         value: row.value,
+        minValue: optionalNumber(row.min),
+        maxValue: optionalNumber(row.max),
+        step: optionalNumber(row.step),
       }
     })
   } catch (_err) {

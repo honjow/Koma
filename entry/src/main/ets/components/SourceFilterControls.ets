@@ -113,6 +113,49 @@ export struct SourceFilterControls {
     this.onFilterChange(filter, next)
   }
 
+  private rangeStep(filter: SourceFilter): number {
+    return filter.step !== undefined && filter.step > 0 ? filter.step : 1
+  }
+
+  private rangeMin(filter: SourceFilter): number {
+    return filter.minValue ?? 0
+  }
+
+  private rangeMax(filter: SourceFilter): number {
+    const minValue = this.rangeMin(filter)
+    const step = this.rangeStep(filter)
+    const value = this.rangeValue(filter)
+    const fallbackMax = Math.max(minValue + step, value, minValue + step * 10)
+    const maxValue = filter.maxValue ?? fallbackMax
+    return maxValue > minValue ? maxValue : minValue + step
+  }
+
+  private rangeValue(filter: SourceFilter): number {
+    const value = this.currentFilterValue(filter)
+    if (typeof value === 'number' && Number.isFinite(value)) {
+      return this.normalizeRangeValue(filter, value)
+    }
+    if (typeof filter.value === 'number' && Number.isFinite(filter.value)) {
+      return this.normalizeRangeValue(filter, filter.value)
+    }
+    return this.normalizeRangeValue(filter, this.rangeMin(filter))
+  }
+
+  private normalizeRangeValue(filter: SourceFilter, value: number): number {
+    let next = Number.isFinite(value) ? value : this.rangeMin(filter)
+    if (filter.minValue !== undefined && next < filter.minValue) {
+      next = filter.minValue
+    }
+    if (filter.maxValue !== undefined && next > filter.maxValue) {
+      next = filter.maxValue
+    }
+    return next
+  }
+
+  private setRangeFilter(filter: SourceFilter, value: number): void {
+    this.onFilterChange(filter, this.normalizeRangeValue(filter, value))
+  }
+
   @Builder
   private FilterOptionMenu(filter: SourceFilter) {
     Menu() {
@@ -178,6 +221,38 @@ export struct SourceFilterControls {
                   const value = this.pendingTextFilterValue(filter).trim()
                   this.onFilterChange(filter, value.length > 0 ? value : undefined)
                 })
+            } else if (filter.type === 'range') {
+              Column({ space: ThemeConstants.SPACE_XS }) {
+                Row({ space: ThemeConstants.SPACE_SM }) {
+                  Text(filter.name)
+                    .fontSize(ThemeConstants.FONT_SIZE_TAG)
+                    .fontColor(ThemeConstants.TEXT_PRIMARY)
+                    .maxLines(1)
+                    .textOverflow({ overflow: TextOverflow.Ellipsis })
+                    .layoutWeight(1)
+                  Text(`${this.rangeValue(filter)}`)
+                    .fontSize(ThemeConstants.FONT_SIZE_META)
+                    .fontColor(ThemeConstants.TEXT_SECONDARY)
+                }
+                .width('100%')
+
+                Slider({
+                  value: this.rangeValue(filter),
+                  min: this.rangeMin(filter),
+                  max: this.rangeMax(filter),
+                  step: this.rangeStep(filter),
+                })
+                  .width('100%')
+                  .selectedColor(ThemeConstants.BRAND_PRIMARY)
+                  .onChange((value: number) => {
+                    this.setRangeFilter(filter, value)
+                  })
+              }
+              .width(200)
+              .padding({ left: ThemeConstants.SPACE_SM, right: ThemeConstants.SPACE_SM })
+              .height(ThemeConstants.ACTION_CHIP_HEIGHT * 2)
+              .borderRadius(ThemeConstants.RADIUS_CHIP)
+              .backgroundColor(ThemeConstants.CARD)
             } else if ((filter.options ?? []).length > 0) {
               KomaActionButton({
                 label: this.filterButtonLabel(filter),
