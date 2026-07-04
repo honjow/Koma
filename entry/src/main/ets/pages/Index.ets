@@ -182,9 +182,8 @@ struct Index {
       try {
         upsertComicAndPersistLibraryStore(this.libraryStore, persistenceService, comic)
       } catch (error) {
-        const e = error as Error
         console.error('[Library] step=persist_imported_comic_failed code=library_persist_failed')
-        throw e
+        throw error as Error
       }
     }
     this.refreshLibrarySnapshot()
@@ -229,9 +228,8 @@ struct Index {
             ' upserted=' + result.upsertedCount)
         }
       } catch (error) {
-        const e = error as Error
         console.error('[Library] step=persist_imported_folder_failed code=library_persist_failed')
-        throw e
+        throw error as Error
       }
     }
     if (importedCount > 0) {
@@ -274,9 +272,8 @@ struct Index {
         return false
       }
     } catch (error) {
-      const e = error as Error
       console.error('[Library] step=persist_removed_comic_failed code=library_persist_failed')
-      throw e
+      throw error as Error
     }
   }
 
@@ -312,9 +309,8 @@ struct Index {
       console.info(`[library-remove] batch_result removed=${removedIds.length} persistence=available`)
       return removedIds.length
     } catch (error) {
-      const e = error as Error
       console.error('[Library] step=persist_removed_comics_failed code=library_persist_failed')
-      throw e
+      throw error as Error
     }
   }
 
