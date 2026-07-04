@@ -483,7 +483,7 @@ export class BrowseViewModel {
       return
     }
     this.browseFilterValues = this.defaultSourceFilterValues(this.filters)
-    this.saveSourceFilterValues('browse', this.browseFilterValues)
+    this.clearSavedSourceFilterValues('browse')
     const listing = this.currentListing()
     if (listing !== undefined) {
       await this.selectBrowseListing(listing)
@@ -521,7 +521,7 @@ export class BrowseViewModel {
 
   resetSearchFilters(): void {
     this.searchFilterValues = this.defaultSourceFilterValues(this.filters)
-    this.saveSourceFilterValues('search', this.searchFilterValues)
+    this.clearSavedSourceFilterValues('search')
   }
 
   async loadMoreBrowse(): Promise<void> {
@@ -824,6 +824,14 @@ export class BrowseViewModel {
       return
     }
     appSourceFilterPreferencesStore.saveForSource(sourceId, kind, values, this.filters)
+  }
+
+  private clearSavedSourceFilterValues(kind: SourceFilterPreferenceKind): void {
+    const sourceId = this.selectedSource?.sourceId
+    if (sourceId === undefined) {
+      return
+    }
+    appSourceFilterPreferencesStore.clearForSource(sourceId, kind)
   }
 
   private filterRequestKey(filter: SourceFilter): string {

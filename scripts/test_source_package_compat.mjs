@@ -213,6 +213,7 @@ assert.match(
 )
 assert.match(sourceFilterPreferencesStoreSource, /export class SourceFilterPreferencesStore[\s\S]*loadForSource\(sourceId: string, kind: SourceFilterPreferenceKind, filters: SourceFilter\[\]\)[\s\S]*saveForSource\(\s*sourceId: string,\s*kind: SourceFilterPreferenceKind,\s*values: SourceFilterPreferenceRecord,\s*filters: SourceFilter\[\]/, 'source filter preferences store must persist browse/search filter values by sourceId')
 assert.match(sourceFilterPreferencesStoreSource, /SOURCE_FILTER_PREFS_FILE_NAME:\s*string = 'source-filter-preferences\.json'[\s\S]*schemaVersion:\s*SOURCE_FILTER_PREFS_SCHEMA_VERSION[\s\S]*sources:/, 'source filter preferences store must persist a schema-versioned per-source document')
+assert.match(sourceFilterPreferencesStoreSource, /clearForSource\(sourceId: string, kind: SourceFilterPreferenceKind\): void[\s\S]*if \(kind === 'browse'[\s\S]*nextRecord\.search = sourceRecord\.search[\s\S]*if \(kind === 'search'[\s\S]*nextRecord\.browse = sourceRecord\.browse[\s\S]*document\.sources = nextSources/, 'source filter preferences reset must clear only the requested browse/search scope without dropping the sibling scope')
 assert.match(
   sourceFilterPreferencesStoreSource,
   /filterRequestKey\(filter: SourceFilter\)[\s\S]*raw\.startsWith\('filter:'\)[\s\S]*filterOptionValue\(filter: SourceFilter, index: number\)[\s\S]*raw\.startsWith\(keyPrefix\)/,
@@ -373,13 +374,13 @@ assert.match(
 )
 assert.match(
   browseViewModelSource,
-  /setBrowseFilterValue\(filterId: string, value: SourceFilterValue \| undefined\): Promise<void>[\s\S]*this\.browseFilterValues = nextValues[\s\S]*this\.saveSourceFilterValues\('browse', nextValues\)[\s\S]*resetBrowseFilters\(\): Promise<void>[\s\S]*this\.browseFilterValues = this\.defaultSourceFilterValues\(this\.filters\)[\s\S]*this\.saveSourceFilterValues\('browse', this\.browseFilterValues\)/,
-  'BrowseViewModel must save browse filter changes and resets to source filter preferences',
+  /setBrowseFilterValue\(filterId: string, value: SourceFilterValue \| undefined\): Promise<void>[\s\S]*this\.browseFilterValues = nextValues[\s\S]*this\.saveSourceFilterValues\('browse', nextValues\)[\s\S]*resetBrowseFilters\(\): Promise<void>[\s\S]*this\.browseFilterValues = this\.defaultSourceFilterValues\(this\.filters\)[\s\S]*this\.clearSavedSourceFilterValues\('browse'\)/,
+  'BrowseViewModel must save browse filter changes and clear saved browse preferences on reset',
 )
 assert.match(
   browseViewModelSource,
-  /setSearchFilterValue\(filterId: string, value: SourceFilterValue \| undefined\): boolean[\s\S]*this\.searchFilterValues = nextValues[\s\S]*this\.saveSourceFilterValues\('search', nextValues\)[\s\S]*resetSearchFilters\(\): void \{[\s\S]*this\.searchFilterValues = this\.defaultSourceFilterValues\(this\.filters\)[\s\S]*this\.saveSourceFilterValues\('search', this\.searchFilterValues\)/,
-  'BrowseViewModel must save search filter changes and resets to source filter preferences',
+  /setSearchFilterValue\(filterId: string, value: SourceFilterValue \| undefined\): boolean[\s\S]*this\.searchFilterValues = nextValues[\s\S]*this\.saveSourceFilterValues\('search', nextValues\)[\s\S]*resetSearchFilters\(\): void \{[\s\S]*this\.searchFilterValues = this\.defaultSourceFilterValues\(this\.filters\)[\s\S]*this\.clearSavedSourceFilterValues\('search'\)/,
+  'BrowseViewModel must save search filter changes and clear saved search preferences on reset',
 )
 assert.match(
   readFileSync(resolve(root, 'entry/src/main/ets/pages/Index.ets'), 'utf8'),

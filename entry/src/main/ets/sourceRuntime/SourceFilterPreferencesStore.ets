@@ -238,6 +238,36 @@ export class SourceFilterPreferencesStore {
     this.writeDocument(document)
   }
 
+  clearForSource(sourceId: string, kind: SourceFilterPreferenceKind): void {
+    const normalizedSourceId = sourceId.trim()
+    if (normalizedSourceId.length === 0 || !this.isConfigured()) {
+      return
+    }
+    const document = this.readDocument()
+    const sourceRecord = document.sources[normalizedSourceId]
+    if (sourceRecord === undefined) {
+      return
+    }
+    const nextRecord: SourceFilterPreferenceSourceRecord = {}
+    if (kind === 'browse' && sourceRecord.search !== undefined) {
+      nextRecord.search = sourceRecord.search
+    }
+    if (kind === 'search' && sourceRecord.browse !== undefined) {
+      nextRecord.browse = sourceRecord.browse
+    }
+    const nextSources: Record<string, SourceFilterPreferenceSourceRecord> = {}
+    Object.keys(document.sources).forEach((key: string) => {
+      if (key !== normalizedSourceId) {
+        nextSources[key] = document.sources[key]
+      }
+    })
+    if (nextRecord.browse !== undefined || nextRecord.search !== undefined) {
+      nextSources[normalizedSourceId] = nextRecord
+    }
+    document.sources = nextSources
+    this.writeDocument(document)
+  }
+
   exportAll(): Record<string, SourceFilterPreferenceSourceRecord> {
     return this.readDocument().sources
   }
