@@ -646,6 +646,9 @@ struct Index {
                 onLibraryChanged: () => {
                   this.refreshLibrarySnapshot()
                   this.selectedTab = TabIndex.LIBRARY
+                },
+                onOpenSourcePackageManager: () => {
+                  this.openSettingsSecondary(RouteName.SOURCE_PACKAGE_MANAGER)
                 }
               })
             }.tabBar(this.TabIcon(tabLabel(TabIndex.BROWSE), TabIndex.BROWSE))

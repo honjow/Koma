@@ -307,7 +307,8 @@
     { "name": "settings_row_open_source_detail", "value": "第三方许可与声明" },
 
     { "name": "browse_empty_title", "value": "未安装源包" },
-    { "name": "browse_empty_message", "value": "从设置导入 .koma 源包" },
+    { "name": "browse_empty_message", "value": "添加用户配置的源索引，或导入本地 .koma 源包。" },
+    { "name": "browse_empty_action_manage_sources", "value": "管理源包" },
     { "name": "browse_komga_tag", "value": "私有库" },
     { "name": "browse_komga_detail", "value": "浏览 libraries / series / books" },
     { "name": "browse_webdav_tag", "value": "远程文件夹" },

@@ -383,8 +383,13 @@ assert.doesNotMatch(
 )
 assert.match(
   browsePageSource,
-  /Text\(s\('browse_empty_title'\)\)[\s\S]*Text\(s\('browse_empty_message'\)\)/,
-  'empty Browse source inventory must guide users to import a .koma source package',
+  /KomaEmptyState\(\{[\s\S]*title: s\('browse_empty_title'\)[\s\S]*message: s\('browse_empty_message'\)[\s\S]*actionLabel: s\('browse_empty_action_manage_sources'\)[\s\S]*this\.onOpenSourcePackageManager\(\)/,
+  'empty Browse source inventory must offer a real route into source package management',
+)
+assert.match(
+  readFileSync(resolve(root, 'entry/src/main/ets/pages/Index.ets'), 'utf8'),
+  /BrowsePage\(\{[\s\S]*onOpenSourcePackageManager:\s*\(\) => \{[\s\S]*this\.openSettingsSecondary\(RouteName\.SOURCE_PACKAGE_MANAGER\)/,
+  'Browse empty source action must route to the existing SourcePackageManagerPage',
 )
 assert.match(smokeSource, /local_source_runtime_fixture\.koma/, 'device smoke must cover a .koma source archive')
 assert.match(abiDocSource, /`\.koma`、`\.koma-source`、`\.koma-source\.zip` 和 `\.zip`/, 'source ABI docs must document supported import suffixes')

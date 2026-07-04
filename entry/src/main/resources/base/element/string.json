@@ -307,7 +307,8 @@
     { "name": "settings_row_open_source_detail", "value": "Third-party licenses and notices" },
 
     { "name": "browse_empty_title", "value": "No source packages installed" },
-    { "name": "browse_empty_message", "value": "Import a .koma package from Settings" },
+    { "name": "browse_empty_message", "value": "Add a user-configured source index or import a local .koma package." },
+    { "name": "browse_empty_action_manage_sources", "value": "Manage source packages" },
     { "name": "browse_komga_tag", "value": "Private library" },
     { "name": "browse_komga_detail", "value": "Browse libraries / series / books" },
     { "name": "browse_webdav_tag", "value": "Remote folder" },

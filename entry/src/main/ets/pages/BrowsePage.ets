@@ -5,6 +5,7 @@ import {
 } from '@kit.UIDesignKit'
 import { SecondaryListScaffold } from '../components/SecondaryListScaffold'
 import { SourceListItem } from '../components/SourceListItem'
+import { KomaEmptyState } from '../components/ui/KomaEmptyState'
 import { ThemeConstants } from '../theme/ThemeConstants'
 import { BrowseViewModel } from '../viewmodel/BrowseViewModel'
 import { SourceRuntimeRegistry, SourceRuntimeRegistryInstalledSourceSummary } from '../sourceRuntime/SourceRuntimeRegistry'
@@ -50,6 +51,7 @@ export struct BrowsePage {
   @Param libraryStore: LibraryStore = createSeededLibraryStore()
   @Param libraryPersistenceService?: LibraryStorePersistenceService = undefined
   @Event onLibraryChanged: () => void = () => {}
+  @Event onOpenSourcePackageManager: () => void = () => {}
   private browsePathStack: NavPathStack = new NavPathStack()
 
   private openSource(source: SourceRuntimeRegistryInstalledSourceSummary): void {
@@ -80,22 +82,15 @@ export struct BrowsePage {
 
   @Builder
   private EmptySources() {
-    Column({ space: ThemeConstants.SPACE_MD }) {
-      Text(s('browse_empty_title'))
-        .fontSize(ThemeConstants.FONT_SIZE_H3)
-        .fontWeight(FontWeight.Medium)
-        .fontColor(ThemeConstants.TEXT_PRIMARY)
-      Text(s('browse_empty_message'))
-        .fontSize(ThemeConstants.FONT_SIZE_BODY)
-        .lineHeight(ThemeConstants.LINE_HEIGHT_TITLE)
-        .fontColor(ThemeConstants.TEXT_SECONDARY)
-        .textAlign(TextAlign.Center)
-    }
-    .width('100%')
-    .padding(ThemeConstants.SPACE_XL)
-    .borderRadius(ThemeConstants.RADIUS_CARD)
-    .backgroundColor(ThemeConstants.CARD)
-    .alignItems(HorizontalAlign.Center)
+    KomaEmptyState({
+      title: s('browse_empty_title'),
+      message: s('browse_empty_message'),
+      actionLabel: s('browse_empty_action_manage_sources'),
+      showAction: true,
+      action: () => {
+        this.onOpenSourcePackageManager()
+      },
+    })
   }
 
   @Builder
