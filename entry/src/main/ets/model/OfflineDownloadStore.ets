@@ -576,6 +576,57 @@ export class OfflineDownloadStore {
     }
   }
 
+  reconcileDownloadedChapter(comicId: ComicId, chapterId: string): OfflineDownloadManifestValidation {
+    const validation = this.validateDownloadedChapter(comicId, chapterId)
+    const manifest = validation.manifest
+    if (manifest === undefined || validation.status === OfflineDownloadedChapterStatus.DOWNLOADED ||
+      validation.status === OfflineDownloadedChapterStatus.CORRUPT) {
+      return validation
+    }
+    if (validation.status === OfflineDownloadedChapterStatus.PARTIAL) {
+      this.saveManifest({
+        schemaVersion: manifest.schemaVersion,
+        sourceKind: manifest.sourceKind,
+        sourceId: manifest.sourceId,
+        comicId: manifest.comicId,
+        comicTitle: manifest.comicTitle,
+        seriesId: manifest.seriesId,
+        chapterId: manifest.chapterId,
+        chapterTitle: manifest.chapterTitle,
+        pageCount: manifest.pageCount,
+        downloadedPageCount: manifest.downloadedPageCount,
+        status: OfflineDownloadStatus.PARTIAL,
+        updatedAt: manifest.updatedAt,
+        pages: manifest.pages.filter((page: OfflineDownloadedPage): boolean => fs.accessSync(page.localPath)),
+        integrityHash: manifest.integrityHash,
+        failureReasonCode: validation.reasonCode ?? 'page_file_missing',
+      })
+      return this.validateDownloadedChapter(comicId, chapterId)
+    }
+    if (validation.reasonCode === 'pages_missing' ||
+      (validation.reasonCode === 'status_not_reader_ready' && manifest.status === OfflineDownloadStatus.DOWNLOADING)) {
+      this.saveManifest({
+        schemaVersion: manifest.schemaVersion,
+        sourceKind: manifest.sourceKind,
+        sourceId: manifest.sourceId,
+        comicId: manifest.comicId,
+        comicTitle: manifest.comicTitle,
+        seriesId: manifest.seriesId,
+        chapterId: manifest.chapterId,
+        chapterTitle: manifest.chapterTitle,
+        pageCount: manifest.pageCount,
+        downloadedPageCount: manifest.downloadedPageCount,
+        status: OfflineDownloadStatus.FAILED,
+        updatedAt: manifest.updatedAt,
+        pages: [],
+        integrityHash: manifest.integrityHash,
+        failureReasonCode: validation.reasonCode === 'pages_missing' ? 'pages_missing' : 'download_interrupted',
+      })
+      return this.validateDownloadedChapter(comicId, chapterId)
+    }
+    return validation
+  }
+
   isChapterFullyDownloaded(comicId: ComicId, chapterId: string): boolean {
     const validation = this.validateDownloadedChapter(comicId, chapterId)
     return validation.status === OfflineDownloadedChapterStatus.DOWNLOADED &&

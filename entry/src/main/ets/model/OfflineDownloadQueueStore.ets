@@ -332,7 +332,7 @@ export class OfflineDownloadQueueStore {
       if (!shouldReconcileEntry(entry)) {
         return entry
       }
-      const validation = store.validateDownloadedChapter(entry.comicId, entry.chapterId)
+      const validation = store.reconcileDownloadedChapter(entry.comicId, entry.chapterId)
       const next: OfflineDownloadQueueEntry = normalizeEntry({
         comicId: entry.comicId,
         chapterId: entry.chapterId,
@@ -356,7 +356,9 @@ export class OfflineDownloadQueueStore {
         next.failureReasonCode = 'download_interrupted'
       } else {
         next.status = OfflineDownloadStatus.FAILED
-        next.failureReasonCode = validation.reasonCode ?? 'manifest_unavailable'
+        next.failureReasonCode = validation.reasonCode === 'status_not_reader_ready' ?
+          validation.manifest?.failureReasonCode ?? 'manifest_unavailable' :
+          validation.reasonCode ?? 'manifest_unavailable'
       }
       if (!isSameEntry(entry, next)) {
         changed = true
