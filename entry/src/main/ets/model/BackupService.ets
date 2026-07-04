@@ -215,16 +215,24 @@ export const DEFAULT_BACKUP_CONTENT_PREFERENCES: BackupContentPreferences = {
   includeTrackerMappings: true,
 }
 
-export function backupIncludedDomainLabels(): string[] {
-  return [
+export function backupIncludedDomainLabels(preferencesValue: BackupContentPreferences = DEFAULT_BACKUP_CONTENT_PREFERENCES): string[] {
+  const labels: string[] = [
     AppStrings.get('backup_domain_library_categories'),
     AppStrings.get('backup_domain_progress'),
     AppStrings.get('backup_domain_remote_servers'),
     AppStrings.get('backup_domain_source_packages'),
-    AppStrings.get('backup_domain_reader_preferences'),
-    AppStrings.get('backup_domain_download_queue'),
-    AppStrings.get('backup_domain_tracker_mappings'),
   ]
+  const normalized = normalizeBackupContentPreferences(preferencesValue)
+  if (normalized.includeSettings) {
+    labels.push(AppStrings.get('backup_domain_reader_preferences'))
+  }
+  if (normalized.includeDownloadQueue) {
+    labels.push(AppStrings.get('backup_domain_download_queue'))
+  }
+  if (normalized.includeTrackerMappings) {
+    labels.push(AppStrings.get('backup_domain_tracker_mappings'))
+  }
+  return labels
 }
 
 export function backupManagementStorageNote(): string {

@@ -27,9 +27,15 @@ for (const domain of [
   'source packages and sanitized source settings',
   'reader and settings preferences',
   'download queue metadata',
+  'tracker comic mappings',
 ]) {
   assert.match(backupServiceSource, new RegExp(domain), `backup status constants must include ${domain}`)
 }
+assert.match(
+  backupServiceSource,
+  /backupIncludedDomainLabels\(preferencesValue: BackupContentPreferences = DEFAULT_BACKUP_CONTENT_PREFERENCES\)[\s\S]*normalizeBackupContentPreferences\(preferencesValue\)[\s\S]*if \(normalized\.includeSettings\)[\s\S]*backup_domain_reader_preferences[\s\S]*if \(normalized\.includeDownloadQueue\)[\s\S]*backup_domain_download_queue[\s\S]*if \(normalized\.includeTrackerMappings\)[\s\S]*backup_domain_tracker_mappings/,
+  'backup included-domain labels must respect content preferences instead of always showing optional domains',
+)
 assert.match(
   backupPageSource,
   /SecondaryListScaffold\(\{[\s\S]*bottomPadding:\s*ThemeConstants\.FLOAT_BAR_HEIGHT \+ 20 \+ ThemeConstants\.SPACE_XL/,
@@ -189,6 +195,11 @@ assert.match(
   backupPageSource,
   /localBackups: BackupLocalFileRecord\[\][\s\S]*loadLocalBackups\(\)[\s\S]*listLocalBackups\(\)[\s\S]*exportLocalBackup\(\)[\s\S]*exportLocal\(\)[\s\S]*exportEncryptedLocalBackup\(\)[\s\S]*exportEncryptedLocal\(passphrase\)/,
   'BackupManagementPage must load and create local backup records',
+)
+assert.match(
+  backupPageSource,
+  /contentPreferences: BackupContentPreferences = DEFAULT_BACKUP_CONTENT_PREFERENCES[\s\S]*loadContentPreferences\(\)[\s\S]*this\.backupService\(\)\.loadContentPreferences\(\)[\s\S]*backupIncludedDomainLabels\(this\.contentPreferences\)[\s\S]*aboutToAppear\(\): void \{[\s\S]*this\.loadContentPreferences\(\)/,
+  'BackupManagementPage included-data card must reflect saved backup content preferences',
 )
 assert.match(
   backupPageSource,

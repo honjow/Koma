@@ -10,11 +10,13 @@ import {
   BACKUP_SCHEMA_VERSION,
   BackupAutomaticPreferences,
   BackupAutomaticRunResult,
+  BackupContentPreferences,
   BackupImportPreview,
   BackupImportSelectionPreview,
   BackupLocalFileRecord,
   BackupService,
   DEFAULT_BACKUP_AUTOMATIC_PREFERENCES,
+  DEFAULT_BACKUP_CONTENT_PREFERENCES,
   backupAutomaticIntervalLabel,
   backupAutomaticLastFailureText,
   backupAutomaticLastRunText,
@@ -49,6 +51,7 @@ export struct BackupManagementPage {
   @Local private selectedBackupPreview: BackupImportPreview | undefined = undefined
   @Local private localBackups: BackupLocalFileRecord[] = []
   @Local private autoPreferences: BackupAutomaticPreferences = DEFAULT_BACKUP_AUTOMATIC_PREFERENCES
+  @Local private contentPreferences: BackupContentPreferences = DEFAULT_BACKUP_CONTENT_PREFERENCES
   @Local private autoIntervalMenuOpen: boolean = false
   @Local private autoRetentionMenuOpen: boolean = false
   @Local private editingLocalBackupFileName: string = ''
@@ -85,6 +88,17 @@ export struct BackupManagementPage {
       .catch((_error: Error) => {
         console.error('[BackupManagement] step=auto_preferences_load_failed code=backup_auto_preferences_failed')
         this.autoPreferences = DEFAULT_BACKUP_AUTOMATIC_PREFERENCES
+      })
+  }
+
+  private loadContentPreferences(): void {
+    void this.backupService().loadContentPreferences()
+      .then((preferencesValue: BackupContentPreferences) => {
+        this.contentPreferences = preferencesValue
+      })
+      .catch((_error: Error) => {
+        console.warn('[BackupManagement] step=content_preferences_load_failed code=backup_content_preferences_failed')
+        this.contentPreferences = DEFAULT_BACKUP_CONTENT_PREFERENCES
       })
   }
 
@@ -609,7 +623,7 @@ export struct BackupManagementPage {
         .fontWeight(FontWeight.Medium)
         .fontColor(ThemeConstants.TEXT_PRIMARY)
 
-      ForEach(backupIncludedDomainLabels(), (domain: string) => {
+      ForEach(backupIncludedDomainLabels(this.contentPreferences), (domain: string) => {
         Row({ space: ThemeConstants.SPACE_MD }) {
           Text('-')
             .fontSize(ThemeConstants.FONT_SIZE_BODY)
@@ -1100,5 +1114,6 @@ export struct BackupManagementPage {
   aboutToAppear(): void {
     this.loadLocalBackups()
     this.loadAutomaticPreferences()
+    this.loadContentPreferences()
   }
 }
