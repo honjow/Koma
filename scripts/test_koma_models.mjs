@@ -750,8 +750,8 @@ assert.match(
 )
 assert.match(
   libraryFilterStoreSource,
-  /export type LibrarySourceFilter = 'all' \| 'local' \| 'private' \| 'komga' \| 'opds' \| 'webdav' \| 'source_package'[\s\S]*if \(value === 'wasm'\) \{[\s\S]*return 'source_package'[\s\S]*value === 'private'[\s\S]*value === 'source_package'/,
-  'Library source filter preferences must expose private libraries/source packages and migrate the legacy wasm value',
+  /export type LibraryServerSourceFilter = string[\s\S]*export type LibrarySourceFilter = 'all' \| 'local' \| 'private' \| 'komga' \| 'opds' \| 'webdav' \| 'source_package' \| LibraryServerSourceFilter[\s\S]*libraryServerSourceFilter\(serverId: string\)[\s\S]*return `server:\$\{serverId\.trim\(\)\}`[\s\S]*libraryServerIdFromSourceFilter\(value: string\)[\s\S]*value\.startsWith\('server:'\)[\s\S]*if \(value === 'wasm'\) \{[\s\S]*return 'source_package'[\s\S]*const serverId = libraryServerIdFromSourceFilter\(value\)[\s\S]*return libraryServerSourceFilter\(serverId\)[\s\S]*value === 'private'[\s\S]*value === 'source_package'/,
+  'Library source filter preferences must expose private libraries/source packages, per-server filters, and migrate the legacy wasm value',
 )
 assert.match(
   libraryPageSource,
@@ -775,12 +775,12 @@ assert.match(
 )
 assert.match(
   libraryPageSource,
-  /filterAvailabilityComics\(this\.filterPreciseSourceComics\(nextComics\)\)[\s\S]*private filterPreciseSourceComics\(comics: Comic\[\]\): Comic\[\][\s\S]*this\.filterSource === 'source_package'[\s\S]*this\.filterSource === 'private'[\s\S]*private isSourcePackageComic\(comic: Comic\): boolean[\s\S]*comic\.sourceKind === ComicSourceKind\.PRIVATE_LIBRARY[\s\S]*comic\.sourceRuntimeId\.trim\(\)\.length > 0[\s\S]*private isPrivateLibraryComic\(comic: Comic\): boolean[\s\S]*this\.isSourcePackageComic\(comic\)[\s\S]*ComicSourceKind\.KOMGA_REMOTE[\s\S]*ComicSourceKind\.OPDS_REMOTE[\s\S]*ComicSourceKind\.WEBDAV_REMOTE/,
-  'LibraryPage source filters must split private-library and source-package comics instead of grouping all PRIVATE_LIBRARY rows together',
+  /filterAvailabilityComics\(this\.filterPreciseSourceComics\(nextComics\)\)[\s\S]*private filterPreciseSourceComics\(comics: Comic\[\]\): Comic\[\][\s\S]*libraryServerIdFromSourceFilter\(this\.filterSource\)[\s\S]*comic\.remoteServerId === serverId[\s\S]*this\.filterSource === 'source_package'[\s\S]*this\.filterSource === 'private'[\s\S]*private isSourcePackageComic\(comic: Comic\): boolean[\s\S]*comic\.sourceKind === ComicSourceKind\.PRIVATE_LIBRARY[\s\S]*comic\.sourceRuntimeId\.trim\(\)\.length > 0[\s\S]*private isPrivateLibraryComic\(comic: Comic\): boolean[\s\S]*this\.isSourcePackageComic\(comic\)[\s\S]*ComicSourceKind\.KOMGA_REMOTE[\s\S]*ComicSourceKind\.OPDS_REMOTE[\s\S]*ComicSourceKind\.WEBDAV_REMOTE/,
+  'LibraryPage source filters must split private-library, concrete private-server, and source-package comics instead of grouping all PRIVATE_LIBRARY rows together',
 )
 assert.match(
   libraryPageSource,
-  /private SourceMenu\(\)[\s\S]*setSourceFilter\('local'\)[\s\S]*library_source_private[\s\S]*setSourceFilter\('private'\)[\s\S]*route_komga_title[\s\S]*route_opds_title[\s\S]*route_webdav_title[\s\S]*library_source_package[\s\S]*setSourceFilter\('source_package'\)/,
+  /private SourceMenu\(\)[\s\S]*setSourceFilter\('local'\)[\s\S]*library_source_private[\s\S]*setSourceFilter\('private'\)[\s\S]*route_komga_title[\s\S]*route_opds_title[\s\S]*route_webdav_title[\s\S]*privateServerFilterOptions\(\)[\s\S]*setSourceFilter\(option\.filter\)[\s\S]*library_source_package[\s\S]*setSourceFilter\('source_package'\)/,
   'LibraryPage must expose source filter menu entries for local, private libraries, individual servers, and source packages',
 )
 assert.match(

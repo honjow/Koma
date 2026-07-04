@@ -40,6 +40,8 @@ import {
   LibraryFilterPreferences,
   LibraryFilterStore,
   LibraryListDensity,
+  libraryServerIdFromSourceFilter,
+  libraryServerSourceFilter,
   LibrarySourceFilter,
   LibraryViewMode,
 } from '../model/LibraryFilterStore'
@@ -62,6 +64,11 @@ import { connectLanguageState, LanguageState } from '../state/LanguageState'
 
 function s(name: string): string {
   return AppStrings.get(name)
+}
+
+interface LibraryServerSourceFilterOption {
+  filter: LibrarySourceFilter
+  title: string
 }
 
 @ComponentV2
@@ -238,6 +245,10 @@ export struct LibraryPage {
   }
 
   private filterPreciseSourceComics(comics: Comic[]): Comic[] {
+    const serverId = libraryServerIdFromSourceFilter(this.filterSource)
+    if (serverId !== undefined) {
+      return comics.filter((comic: Comic): boolean => comic.remoteServerId === serverId)
+    }
     if (this.filterSource === 'source_package') {
       return comics.filter((comic: Comic): boolean => this.isSourcePackageComic(comic))
     }
@@ -307,6 +318,14 @@ export struct LibraryPage {
   private sourceKindsForFilter(): ComicSourceKind[] | undefined {
     if (this.filterSource === 'all') {
       return undefined
+    }
+    if (libraryServerIdFromSourceFilter(this.filterSource) !== undefined) {
+      return [
+        ComicSourceKind.PRIVATE_LIBRARY,
+        ComicSourceKind.KOMGA_REMOTE,
+        ComicSourceKind.OPDS_REMOTE,
+        ComicSourceKind.WEBDAV_REMOTE,
+      ]
     }
     if (this.filterSource === 'local') {
       return [ComicSourceKind.LOCAL_ARCHIVE, ComicSourceKind.LOCAL_FOLDER]
@@ -470,6 +489,10 @@ export struct LibraryPage {
   }
 
   private sourceLabel(): string {
+    const serverLabel = this.serverSourceLabel()
+    if (serverLabel !== undefined) {
+      return serverLabel
+    }
     if (this.filterSource === 'local') {
       return s('library_source_local')
     }
@@ -489,6 +512,17 @@ export struct LibraryPage {
       return s('library_source_package')
     }
     return s('library_source_all')
+  }
+
+  private serverSourceLabel(): string | undefined {
+    const serverId = libraryServerIdFromSourceFilter(this.filterSource)
+    if (serverId === undefined) {
+      return undefined
+    }
+    const option = this.privateServerFilterOptions().find((item: LibraryServerSourceFilterOption): boolean => {
+      return item.filter === this.filterSource
+    })
+    return option === undefined ? s('library_source_private_server') : option.title
   }
 
   private readStateLabel(): string {
@@ -647,6 +681,43 @@ export struct LibraryPage {
       }
     })
     return labels
+  }
+
+  private privateServerFilterOptions(): LibraryServerSourceFilterOption[] {
+    const seenFilters: string[] = []
+    const options: LibraryServerSourceFilterOption[] = []
+    this.libraryStore.listComics().forEach((comic: Comic) => {
+      if (!this.isPrivateLibraryComic(comic) || comic.remoteServerId === undefined) {
+        return
+      }
+      const serverId = comic.remoteServerId.trim()
+      if (serverId.length === 0) {
+        return
+      }
+      const filter = libraryServerSourceFilter(serverId)
+      if (seenFilters.includes(filter)) {
+        return
+      }
+      seenFilters.push(filter)
+      options.push({
+        filter,
+        title: this.privateServerFilterTitle(comic),
+      })
+    })
+    return options
+  }
+
+  private privateServerFilterTitle(comic: Comic): string {
+    if (comic.sourceKind === ComicSourceKind.KOMGA_REMOTE) {
+      return s('library_source_server').replace('%s', s('route_komga_title'))
+    }
+    if (comic.sourceKind === ComicSourceKind.OPDS_REMOTE) {
+      return s('library_source_server').replace('%s', s('route_opds_title'))
+    }
+    if (comic.sourceKind === ComicSourceKind.WEBDAV_REMOTE) {
+      return s('library_source_server').replace('%s', s('route_webdav_title'))
+    }
+    return s('library_source_private_server')
   }
 
   private hasLibraryContent(): boolean {
@@ -1017,6 +1088,12 @@ export struct LibraryPage {
         .onClick(() => {
           this.setSourceFilter('webdav')
         })
+      ForEach(this.privateServerFilterOptions(), (option: LibraryServerSourceFilterOption) => {
+        MenuItem({ content: option.title })
+          .onClick(() => {
+            this.setSourceFilter(option.filter)
+          })
+      }, (option: LibraryServerSourceFilterOption) => option.filter)
       MenuItem({ content: s('library_source_package') })
         .onClick(() => {
           this.setSourceFilter('source_package')

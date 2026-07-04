@@ -6,7 +6,8 @@ import {
   LibraryCategoryFilter,
 } from './LibraryStore'
 
-export type LibrarySourceFilter = 'all' | 'local' | 'private' | 'komga' | 'opds' | 'webdav' | 'source_package'
+export type LibraryServerSourceFilter = string
+export type LibrarySourceFilter = 'all' | 'local' | 'private' | 'komga' | 'opds' | 'webdav' | 'source_package' | LibraryServerSourceFilter
 export type LibraryAvailabilityFilter = 'all' | 'downloaded' | 'fully_downloaded' | 'partially_downloaded' | 'not_downloaded'
 export type LibraryViewMode = 'grid' | 'list'
 export type LibraryListDensity = 'compact' | 'standard' | 'comfortable'
@@ -68,9 +69,25 @@ function normalizeShowBadges(value: boolean): boolean {
   return value === false ? false : true
 }
 
+export function libraryServerSourceFilter(serverId: string): LibraryServerSourceFilter {
+  return `server:${serverId.trim()}`
+}
+
+export function libraryServerIdFromSourceFilter(value: string): string | undefined {
+  if (!value.startsWith('server:')) {
+    return undefined
+  }
+  const serverId = value.slice('server:'.length).trim()
+  return serverId.length === 0 ? undefined : serverId
+}
+
 function normalizeSource(value: string): LibrarySourceFilter {
   if (value === 'wasm') {
     return 'source_package'
+  }
+  const serverId = libraryServerIdFromSourceFilter(value)
+  if (serverId !== undefined) {
+    return libraryServerSourceFilter(serverId)
   }
   if (
     value === 'local' ||
