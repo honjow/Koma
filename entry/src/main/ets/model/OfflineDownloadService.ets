@@ -137,8 +137,12 @@ function isDefaultNetworkWifi(): boolean {
   }
 }
 
-function downloadBlockedReason(preferences: OfflineDownloadQueuePreferences): string {
+export function downloadBlockedReason(preferences: OfflineDownloadQueuePreferences): string {
   return preferences.isPaused ? 'paused' : 'wifi_only'
+}
+
+export function canRunOfflineDownloadQueueNow(preferences: OfflineDownloadQueuePreferences): boolean {
+  return !preferences.isPaused && (!preferences.wifiOnly || isDefaultNetworkWifi())
 }
 
 export class OfflineDownloadService {
@@ -321,7 +325,7 @@ export class OfflineDownloadService {
   }
 
   private canDownloadNow(preferences: OfflineDownloadQueuePreferences): boolean {
-    return !preferences.isPaused && (!preferences.wifiOnly || isDefaultNetworkWifi())
+    return canRunOfflineDownloadQueueNow(preferences)
   }
 
   private publishNotification(manifest: OfflineChapterDownloadManifest, labels?: OfflineDownloadLabels): void {

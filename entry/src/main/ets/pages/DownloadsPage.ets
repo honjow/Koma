@@ -6,7 +6,7 @@ import { KomaEmptyState } from '../components/ui/KomaEmptyState'
 import { ThemeConstants } from '../theme/ThemeConstants'
 import { Comic } from '../model/ComicModels'
 import { LibraryStore } from '../model/LibraryStore'
-import { OfflineDownloadService } from '../model/OfflineDownloadService'
+import { canRunOfflineDownloadQueueNow, OfflineDownloadService } from '../model/OfflineDownloadService'
 import {
   OfflineDownloadStatus,
   OfflineDownloadStore,
@@ -248,6 +248,18 @@ export struct DownloadsPage {
       entry.status === OfflineDownloadStatus.PARTIAL
   }
 
+  private canStartQueueWork(): boolean {
+    if (this.preferences.isPaused) {
+      this.showToast(s('downloads_toast_queue_paused'))
+      return false
+    }
+    if (!canRunOfflineDownloadQueueNow(this.preferences)) {
+      this.showToast(s('downloads_status_waiting_wifi'))
+      return false
+    }
+    return true
+  }
+
   private retryableEntries(): OfflineDownloadQueueEntry[] {
     return this.visibleEntries().filter((entry: OfflineDownloadQueueEntry): boolean => this.canRetry(entry))
   }
@@ -313,8 +325,7 @@ export struct DownloadsPage {
     if (!this.canRetry(entry) || this.busyKey.length > 0) {
       return
     }
-    if (this.preferences.isPaused) {
-      this.showToast(s('downloads_toast_queue_paused'))
+    if (!this.canStartQueueWork()) {
       return
     }
     const comic = this.libraryStore?.getComic(entry.comicId)
@@ -398,8 +409,7 @@ export struct DownloadsPage {
     if (this.busyKey.length > 0) {
       return
     }
-    if (this.preferences.isPaused) {
-      this.showToast(s('downloads_toast_queue_paused'))
+    if (!this.canStartQueueWork()) {
       return
     }
     const targets = this.retryableEntries()
@@ -435,8 +445,7 @@ export struct DownloadsPage {
     if (this.busyKey.length > 0) {
       return
     }
-    if (this.preferences.isPaused) {
-      this.showToast(s('downloads_toast_queue_paused'))
+    if (!this.canStartQueueWork()) {
       return
     }
     const targets = this.queuedEntries()
@@ -467,6 +476,9 @@ export struct DownloadsPage {
       return
     }
     this.preferences = this.queueStore().resumeAllQueuedWork()
+    if (!this.canStartQueueWork()) {
+      return
+    }
     const targets = this.queuedEntries()
     if (targets.length === 0) {
       this.loadQueue()
