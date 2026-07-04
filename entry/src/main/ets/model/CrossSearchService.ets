@@ -291,7 +291,9 @@ export class CrossSearchService {
           sourceKind: 'webdav',
           sourceLabel: AppStrings.get('route_webdav_title'),
           webDavHref: resource.href,
-          webDavPathSegments: resource.isCollection ? this.webDavRelativeSegments(client, resource.href) : [],
+          webDavPathSegments: resource.isCollection ?
+            this.webDavRelativeSegments(client, resource.href) :
+            this.webDavParentSegments(client, resource.href),
           webDavIsCollection: resource.isCollection,
         }
       })
@@ -562,6 +564,14 @@ export class CrossSearchService {
     } catch (_err) {
       return []
     }
+  }
+
+  private webDavParentSegments(client: WebDavClient, href: string): string[] {
+    const segments = this.webDavRelativeSegments(client, href)
+    if (segments.length === 0) {
+      return []
+    }
+    return segments.slice(0, segments.length - 1)
   }
 
   private sortDavResources(resources: DavResource[]): DavResource[] {

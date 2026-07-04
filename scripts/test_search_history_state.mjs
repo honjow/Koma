@@ -57,6 +57,16 @@ assert.match(
   /private sourceMatchesFilter\(sourceKind: CrossSearchSourceKind, sourceFilter: CrossSearchSourceFilter\): boolean[\s\S]*sourceFilter === 'local'[\s\S]*sourceKind === 'wasm'[\s\S]*sourceKind === 'komga' \|\| sourceKind === 'opds' \|\| sourceKind === 'webdav'/,
   'cross-search source filter must split local, private library, and source package buckets',
 )
+assert.match(
+  crossSearchSource,
+  /webDavPathSegments: resource\.isCollection \?[\s\S]*this\.webDavRelativeSegments\(client, resource\.href\)[\s\S]*this\.webDavParentSegments\(client, resource\.href\)/,
+  'WebDAV image search results must retain parent path segments so child images open from the right directory',
+)
+assert.match(
+  crossSearchSource,
+  /webDavParentSegments\(client: WebDavClient, href: string\): string\[\][\s\S]*this\.webDavRelativeSegments\(client, href\)[\s\S]*segments\.slice\(0, segments\.length - 1\)/,
+  'WebDAV image search must derive a stable parent directory path for direct image hits',
+)
 assert.doesNotMatch(crossSearchSource, /errorText:\s*e\.message|message='\s*\+\s*e\.message|message=\$\{e\.message\}/, 'cross-search must not expose or log raw exception messages')
 
 assert.match(searchPageSource, /@Local private history:\s*SearchHistoryEntry\[\]/, 'SearchPage must keep recent search history state')
