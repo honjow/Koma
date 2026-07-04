@@ -21,6 +21,8 @@ export interface LocalLibraryRefreshSummary {
   totalCount: number
   archiveCount: number
   folderCount: number
+  chapterCount: number
+  pageCount: number
   reselectRequiredCount: number
   unchangedCount: number
   skippedCount: number
@@ -48,11 +50,21 @@ function summarizeLocalRefreshResults(checkedAt: number, results: LocalLibraryRe
     totalCount: results.length,
     archiveCount: results.filter((result: LocalLibraryRefreshComicResult): boolean => result.sourceKind === ComicSourceKind.LOCAL_ARCHIVE).length,
     folderCount: results.filter((result: LocalLibraryRefreshComicResult): boolean => result.sourceKind === ComicSourceKind.LOCAL_FOLDER).length,
+    chapterCount: results.reduce((total: number, result: LocalLibraryRefreshComicResult): number => total + result.previousChapterCount, 0),
+    pageCount: results.reduce((total: number, result: LocalLibraryRefreshComicResult): number => total + result.previousPageCount, 0),
     reselectRequiredCount: results.filter((result: LocalLibraryRefreshComicResult): boolean => result.status === 'reselect_required').length,
     unchangedCount: results.filter((result: LocalLibraryRefreshComicResult): boolean => result.status === 'unchanged').length,
     skippedCount: results.filter((result: LocalLibraryRefreshComicResult): boolean => result.status === 'skipped').length,
     results,
   }
+}
+
+function formatLocalLibraryRefreshText(key: string, values: string[]): string {
+  let text = AppStrings.get(key)
+  values.forEach((value: string): void => {
+    text = text.replace('%s', value)
+  })
+  return text
 }
 
 export function formatLocalLibraryRefreshSummary(summary?: LocalLibraryRefreshSummary): string {
@@ -63,14 +75,33 @@ export function formatLocalLibraryRefreshSummary(summary?: LocalLibraryRefreshSu
     return AppStrings.get('local_library_refresh_none')
   }
   if (summary.reselectRequiredCount > 0) {
-    return AppStrings.get('local_library_refresh_reselect_required_detail')
-      .replace('%s', `${summary.totalCount}`)
-      .replace('%s', `${summary.reselectRequiredCount}`)
-      .replace('%s', `${summary.archiveCount}`)
+    return formatLocalLibraryRefreshText('local_library_refresh_reselect_required_detail', [
+      `${summary.totalCount}`,
+      `${summary.reselectRequiredCount}`,
+      `${summary.archiveCount}`,
+    ])
   }
-  return AppStrings.get('local_library_refresh_clean_detail')
-    .replace('%s', `${summary.totalCount}`)
-    .replace('%s', `${summary.archiveCount}`)
+  return formatLocalLibraryRefreshText('local_library_refresh_clean_detail', [
+    `${summary.totalCount}`,
+    `${summary.archiveCount}`,
+  ])
+}
+
+export function formatLocalLibraryRefreshDetail(summary: LocalLibraryRefreshSummary): string {
+  if (summary.totalCount === 0) {
+    return AppStrings.get('local_library_refresh_detail_empty')
+  }
+  const key = summary.reselectRequiredCount > 0
+    ? 'local_library_refresh_detail_reselect'
+    : 'local_library_refresh_detail_clean'
+  return formatLocalLibraryRefreshText(key, [
+    `${summary.totalCount}`,
+    `${summary.folderCount}`,
+    `${summary.archiveCount}`,
+    `${summary.chapterCount}`,
+    `${summary.pageCount}`,
+    `${summary.reselectRequiredCount}`,
+  ])
 }
 
 export class LocalLibraryRefreshService {

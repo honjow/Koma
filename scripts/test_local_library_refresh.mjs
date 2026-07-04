@@ -22,6 +22,7 @@ function assertExport(source, symbol) {
 assertExport(serviceSource, 'LocalLibraryRefreshResultStatus')
 assertExport(serviceSource, 'LocalLibraryRefreshComicResult')
 assertExport(serviceSource, 'LocalLibraryRefreshSummary')
+assertExport(serviceSource, 'formatLocalLibraryRefreshDetail')
 assertExport(serviceSource, 'formatLocalLibraryRefreshSummary')
 assertExport(serviceSource, 'LocalLibraryRefreshService')
 
@@ -42,12 +43,12 @@ assert.doesNotMatch(
 )
 assert.match(
   serviceSource,
-  /export interface LocalLibraryRefreshSummary \{[\s\S]*archiveCount: number[\s\S]*folderCount: number[\s\S]*reselectRequiredCount: number[\s\S]*unchangedCount: number/,
-  'local refresh summary must split archive and folder counts instead of only exposing a generic total',
+  /export interface LocalLibraryRefreshSummary \{[\s\S]*archiveCount: number[\s\S]*folderCount: number[\s\S]*chapterCount: number[\s\S]*pageCount: number[\s\S]*reselectRequiredCount: number[\s\S]*unchangedCount: number/,
+  'local refresh summary must split archive/folder counts and include bounded chapter/page totals',
 )
 assert.match(
   serviceSource,
-  /function localRefreshStatus\(sourceKind: ComicSourceKind\): LocalLibraryRefreshResultStatus \{[\s\S]*sourceKind === ComicSourceKind\.LOCAL_FOLDER \? 'reselect_required' : 'unchanged'[\s\S]*archiveCount: results\.filter\(\(result: LocalLibraryRefreshComicResult\): boolean => result\.sourceKind === ComicSourceKind\.LOCAL_ARCHIVE\)\.length[\s\S]*folderCount: results\.filter\(\(result: LocalLibraryRefreshComicResult\): boolean => result\.sourceKind === ComicSourceKind\.LOCAL_FOLDER\)\.length[\s\S]*status: localRefreshStatus\(comic\.sourceKind\)[\s\S]*localRefreshUnavailableMessage\(comic\.sourceKind\)/,
+  /function localRefreshStatus\(sourceKind: ComicSourceKind\): LocalLibraryRefreshResultStatus \{[\s\S]*sourceKind === ComicSourceKind\.LOCAL_FOLDER \? 'reselect_required' : 'unchanged'[\s\S]*archiveCount: results\.filter\(\(result: LocalLibraryRefreshComicResult\): boolean => result\.sourceKind === ComicSourceKind\.LOCAL_ARCHIVE\)\.length[\s\S]*folderCount: results\.filter\(\(result: LocalLibraryRefreshComicResult\): boolean => result\.sourceKind === ComicSourceKind\.LOCAL_FOLDER\)\.length[\s\S]*chapterCount: results\.reduce\(\(total: number, result: LocalLibraryRefreshComicResult\): number => total \+ result\.previousChapterCount[\s\S]*pageCount: results\.reduce\(\(total: number, result: LocalLibraryRefreshComicResult\): number => total \+ result\.previousPageCount[\s\S]*status: localRefreshStatus\(comic\.sourceKind\)[\s\S]*localRefreshUnavailableMessage\(comic\.sourceKind\)/,
   'local refresh must require reselect only for folder handles while treating archive imports as unchanged',
 )
 assert.match(
@@ -62,7 +63,7 @@ assert.match(
 )
 assert.match(
   serviceSource,
-  /formatLocalLibraryRefreshSummary\(summary\?: LocalLibraryRefreshSummary\): string[\s\S]*local_library_refresh_reselect_required_detail[\s\S]*summary\.reselectRequiredCount[\s\S]*summary\.archiveCount[\s\S]*local_library_refresh_clean_detail[\s\S]*summary\.archiveCount/,
+  /formatLocalLibraryRefreshSummary\(summary\?: LocalLibraryRefreshSummary\): string[\s\S]*local_library_refresh_reselect_required_detail[\s\S]*summary\.reselectRequiredCount[\s\S]*summary\.archiveCount[\s\S]*local_library_refresh_clean_detail[\s\S]*summary\.archiveCount[\s\S]*formatLocalLibraryRefreshDetail\(summary: LocalLibraryRefreshSummary\): string[\s\S]*local_library_refresh_detail_empty[\s\S]*local_library_refresh_detail_reselect[\s\S]*local_library_refresh_detail_clean[\s\S]*summary\.chapterCount[\s\S]*summary\.pageCount/,
   'local refresh summary text must expose actionable folder reselect counts and retained archive counts',
 )
 assert.doesNotMatch(
@@ -78,7 +79,7 @@ assert.doesNotMatch(
 
 assert.match(
   settingsSource,
-  /import \{[\s\S]*LocalLibraryRefreshService[\s\S]*LocalLibraryRefreshSummary[\s\S]*formatLocalLibraryRefreshSummary[\s\S]*\} from '..\/model\/LocalLibraryRefreshService'/,
+  /import \{[\s\S]*LocalLibraryRefreshService[\s\S]*LocalLibraryRefreshSummary[\s\S]*formatLocalLibraryRefreshDetail[\s\S]*formatLocalLibraryRefreshSummary[\s\S]*\} from '..\/model\/LocalLibraryRefreshService'/,
   'SettingsPage must import the local refresh model separately from library update',
 )
 assert.match(
@@ -113,8 +114,8 @@ assert.match(
 )
 assert.match(
   settingsSource,
-  /summary\.reselectRequiredCount > 0[\s\S]*this\.showToast\(s\('settings_local_library_refresh_reselect'\)\)[\s\S]*this\.onOpenImportRequested\(\)/,
-  'SettingsPage local refresh must route users to the import flow when reselect is required',
+  /summary\.reselectRequiredCount > 0[\s\S]*this\.showToast\(s\('settings_local_library_refresh_reselect'\)\)[\s\S]*this\.showLocalLibraryRefreshResult\(summary\)[\s\S]*showLocalLibraryRefreshResult\(summary: LocalLibraryRefreshSummary\): void[\s\S]*formatLocalLibraryRefreshDetail\(summary\)[\s\S]*showAlertDialog\([\s\S]*primaryButton:[\s\S]*value: s\('route_import_title'\)[\s\S]*this\.onOpenImportRequested\(\)/,
+  'SettingsPage local refresh must show a bounded result dialog and route users to the import flow when reselect is required',
 )
 assert.match(
   settingsSource,

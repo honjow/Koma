@@ -104,6 +104,9 @@
     { "name": "local_library_refresh_reselect_required_detail", "value": "共检查 %s 个本地条目：%s 个文件夹需要重新选择，%s 个压缩包已保留" },
     { "name": "local_library_refresh_clean", "value": "共 %s 本，无需重新选择" },
     { "name": "local_library_refresh_clean_detail", "value": "共检查 %s 个本地条目，%s 个压缩包已保留" },
+    { "name": "local_library_refresh_detail_empty", "value": "没有找到本地压缩包或文件夹导入项。" },
+    { "name": "local_library_refresh_detail_reselect", "value": "共检查 %s 个本地条目：%s 个文件夹、%s 个压缩包、%s 个章节、%s 页。%s 个文件夹需要重新选择后，Koma 才能重扫新增或删除。" },
+    { "name": "local_library_refresh_detail_clean", "value": "共检查 %s 个本地条目：%s 个文件夹、%s 个压缩包、%s 个章节、%s 页。当前不需要重新选择文件夹。" },
 
     { "name": "settings_coming_soon_suffix", "value": "稍后接入" },
     { "name": "settings_search_placeholder", "value": "搜索设置" },

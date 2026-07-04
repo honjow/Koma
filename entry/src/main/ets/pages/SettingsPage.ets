@@ -25,6 +25,7 @@ import {
 import {
   LocalLibraryRefreshService,
   LocalLibraryRefreshSummary,
+  formatLocalLibraryRefreshDetail,
   formatLocalLibraryRefreshSummary,
 } from '../model/LocalLibraryRefreshService'
 import {
@@ -1965,9 +1966,10 @@ export struct SettingsPage {
         this.showToast(s('settings_local_library_refresh_none'))
       } else if (summary.reselectRequiredCount > 0) {
         this.showToast(s('settings_local_library_refresh_reselect'))
-        this.onOpenImportRequested()
+        this.showLocalLibraryRefreshResult(summary)
       } else {
         this.showToast(s('settings_local_library_refresh_clean'))
+        this.showLocalLibraryRefreshResult(summary)
       }
     } catch (error) {
       const e = error as Error
@@ -1986,6 +1988,30 @@ export struct SettingsPage {
         { text: s('common_confirm'), color: $r('app.color.koma_accent') },
       ],
     })
+  }
+
+  private showLocalLibraryRefreshResult(summary: LocalLibraryRefreshSummary): void {
+    const title = s('settings_row_local_library_refresh_title')
+    const message = formatLocalLibraryRefreshDetail(summary)
+    if (summary.reselectRequiredCount > 0) {
+      this.getUIContext().showAlertDialog({
+        title,
+        message,
+        autoCancel: true,
+        primaryButton: {
+          value: s('route_import_title'),
+          action: () => {
+            this.onOpenImportRequested()
+          },
+        },
+        secondaryButton: {
+          value: s('common_cancel'),
+          action: () => {},
+        },
+      })
+      return
+    }
+    this.showInfoDialog(title, message)
   }
 
   private showToast(message: string): void {

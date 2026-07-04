@@ -104,6 +104,9 @@
     { "name": "local_library_refresh_reselect_required_detail", "value": "Checked %s local items: %s folders need reselect, %s archives retained" },
     { "name": "local_library_refresh_clean", "value": "Checked %s, all clean" },
     { "name": "local_library_refresh_clean_detail", "value": "Checked %s local items, %s archives retained" },
+    { "name": "local_library_refresh_detail_empty", "value": "No local archive or folder imports were found." },
+    { "name": "local_library_refresh_detail_reselect", "value": "Checked %s local items: %s folders, %s archives, %s chapters, %s pages. %s folders need to be re-selected before Koma can rescan additions or deletions." },
+    { "name": "local_library_refresh_detail_clean", "value": "Checked %s local items: %s folders, %s archives, %s chapters, %s pages. No folder reselect is required." },
 
     { "name": "settings_coming_soon_suffix", "value": " coming soon" },
     { "name": "settings_search_placeholder", "value": "Search settings" },
