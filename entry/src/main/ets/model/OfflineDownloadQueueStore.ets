@@ -21,6 +21,24 @@ export const DEFAULT_OFFLINE_DOWNLOAD_QUEUE_PREFERENCES: OfflineDownloadQueuePre
   wifiOnly: false,
 }
 const OFFLINE_DOWNLOAD_QUEUE_TEMP_FILE_NAME: string = 'queue.v1.json.tmp'
+const OFFLINE_DOWNLOAD_FAILURE_REASON_CODES: string[] = [
+  'paused',
+  'wifi_only',
+  'download_interrupted',
+  'manifest_missing',
+  'manifest_malformed',
+  'manifest_unavailable',
+  'manifest_validation_failed',
+  'status_invalid',
+  'status_not_reader_ready',
+  'integrity_missing',
+  'integrity_mismatch',
+  'page_count_empty',
+  'pages_missing',
+  'page_file_missing',
+  'chapter_missing',
+  'page_fetch_failed',
+]
 
 export interface OfflineDownloadQueueEntry {
   comicId: ComicId
@@ -126,6 +144,13 @@ function normalizeCount(value: number): number {
   return Math.max(0, Math.floor(value))
 }
 
+function normalizeFailureReasonCode(value: string | undefined): string | undefined {
+  if (value === undefined) {
+    return undefined
+  }
+  return OFFLINE_DOWNLOAD_FAILURE_REASON_CODES.indexOf(value) >= 0 ? value : undefined
+}
+
 function normalizeEntry(entry: OfflineDownloadQueueEntry): OfflineDownloadQueueEntry {
   const next: OfflineDownloadQueueEntry = {
     comicId: entry.comicId,
@@ -141,8 +166,9 @@ function normalizeEntry(entry: OfflineDownloadQueueEntry): OfflineDownloadQueueE
   if (entry.chapterTitle !== undefined && entry.chapterTitle.length > 0) {
     next.chapterTitle = entry.chapterTitle
   }
-  if (entry.failureReasonCode !== undefined && entry.failureReasonCode.length > 0) {
-    next.failureReasonCode = entry.failureReasonCode
+  const failureReasonCode = normalizeFailureReasonCode(entry.failureReasonCode)
+  if (failureReasonCode !== undefined) {
+    next.failureReasonCode = failureReasonCode
   }
   return next
 }
