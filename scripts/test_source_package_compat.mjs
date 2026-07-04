@@ -271,6 +271,16 @@ assert.match(
 )
 assert.match(
   browseViewModelSource,
+  /sourceLanguageBadgeFromLanguage\(language: string\)[\s\S]*language\.trim\(\)[\s\S]*split\(\/\[-_\]\/\)\[0\][\s\S]*primary === 'zh'[\s\S]*return 'ZH'[\s\S]*primary === 'ja'[\s\S]*return 'JA'[\s\S]*primary === 'en'[\s\S]*return 'EN'/,
+  'Browse source badges must normalize manifest language values before falling back to source id heuristics',
+)
+assert.match(
+  browseViewModelSource,
+  /sourceLanguageBadge\(source: SourceRuntimeRegistryInstalledSourceSummary\): string \{[\s\S]*sourceLanguageBadgeFromLanguage\(source\.language\)[\s\S]*manifestLanguageBadge !== undefined[\s\S]*return manifestLanguageBadge[\s\S]*source\.sourceId\.toLocaleLowerCase\(\)/,
+  'BrowseViewModel sourceLanguageBadge must prefer the source manifest language over guessing from source id',
+)
+assert.match(
+  browseViewModelSource,
   /appSourceSettingsStore\.loadForSource\(sourceId\)[\s\S]*settings,/,
   'BrowseViewModel must load and inject per-source settings into source runtime requests',
 )
