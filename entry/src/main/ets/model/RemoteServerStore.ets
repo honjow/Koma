@@ -147,8 +147,8 @@ export class HarmonyHttpAdapter implements KomgaHttpAdapter {
       }
     } catch (error) {
       const e = error as BusinessError
-      console.error(`[Komga] step=http_error code=${e.code} message=${e.message}`)
-      throw new Error(e.message)
+      console.error(`[Komga] step=http_error code=${e.code}`)
+      throw new Error(`komga_http_error_${e.code}`)
     } finally {
       httpRequest.destroy()
     }
@@ -179,8 +179,8 @@ export class WebDavHarmonyHttpAdapter implements WebDavHttpAdapter {
       }
     } catch (error) {
       const e = error as BusinessError
-      console.error(`[WebDAV] step=http_error method=${request.method} code=${e.code} message=${e.message}`)
-      throw new Error(e.message)
+      console.error(`[WebDAV] step=http_error method=${request.method} code=${e.code}`)
+      throw new Error(`webdav_http_error_${e.code}`)
     } finally {
       httpRequest.destroy()
     }
@@ -212,8 +212,8 @@ export class OpdsHarmonyHttpAdapter implements OpdsHttpAdapter {
       }
     } catch (error) {
       const e = error as BusinessError
-      console.error(`[OPDS] step=http_error code=${e.code} message=${e.message}`)
-      throw new Error(e.message)
+      console.error(`[OPDS] step=http_error code=${e.code}`)
+      throw new Error(`opds_http_error_${e.code}`)
     } finally {
       httpRequest.destroy()
     }

@@ -25,6 +25,8 @@ const backupServicePath = resolve(root, 'entry/src/main/ets/model/BackupService.
 const backupEncryptionServicePath = resolve(root, 'entry/src/main/ets/model/BackupEncryptionService.ets')
 const trackerModelsPath = resolve(root, 'entry/src/main/ets/model/TrackerModels.ets')
 const remoteServerStorePath = resolve(root, 'entry/src/main/ets/model/RemoteServerStore.ets')
+const remoteProgressSyncServicePath = resolve(root, 'entry/src/main/ets/model/RemoteProgressSyncService.ets')
+const remoteProgressBootstrapSyncPath = resolve(root, 'entry/src/main/ets/model/RemoteProgressBootstrapSync.ets')
 const readerPreferencesStorePath = resolve(root, 'entry/src/main/ets/model/ReaderPreferencesStore.ets')
 const offlineDownloadStorePath = resolve(root, 'entry/src/main/ets/model/OfflineDownloadStore.ets')
 const offlineDownloadQueueStorePath = resolve(root, 'entry/src/main/ets/model/OfflineDownloadQueueStore.ets')
@@ -82,6 +84,8 @@ const backupServiceSource = readFileSync(backupServicePath, 'utf8')
 const backupEncryptionServiceSource = readFileSync(backupEncryptionServicePath, 'utf8')
 const trackerModelsSource = readFileSync(trackerModelsPath, 'utf8')
 const remoteServerStoreSource = readFileSync(remoteServerStorePath, 'utf8')
+const remoteProgressSyncServiceSource = readFileSync(remoteProgressSyncServicePath, 'utf8')
+const remoteProgressBootstrapSyncSource = readFileSync(remoteProgressBootstrapSyncPath, 'utf8')
 const readerPreferencesStoreSource = readFileSync(readerPreferencesStorePath, 'utf8')
 const offlineDownloadStoreSource = readFileSync(offlineDownloadStorePath, 'utf8')
 const offlineDownloadQueueStoreSource = readFileSync(offlineDownloadQueueStorePath, 'utf8')
@@ -1962,6 +1966,36 @@ assert.doesNotMatch(
   remoteServerStoreSource,
   /请输入 API key|请输入用户名和密码/,
   'remote server store must not hardcode Chinese credential validation errors',
+)
+assert.doesNotMatch(
+  entryAbilitySource,
+  /configure window failed|store avoid heights failed|loadContent failed|JSON\.stringify\(err\)|message='\s*\+\s*error\.message|message='\s*\+\s*e\.message/,
+  'EntryAbility startup diagnostics must use fixed redacted codes instead of raw platform error messages',
+)
+assert.doesNotMatch(
+  remoteServerStoreSource,
+  /step=http_error[^\n]*message=|throw new Error\(e\.message\)/,
+  'private library HTTP adapters must not log or rethrow raw platform error messages',
+)
+assert.match(
+  remoteServerStoreSource,
+  /Komga\] step=http_error code=\$\{e\.code\}[\s\S]*throw new Error\(`komga_http_error_\$\{e\.code\}`\)[\s\S]*WebDAV\] step=http_error method=\$\{request\.method\} code=\$\{e\.code\}[\s\S]*throw new Error\(`webdav_http_error_\$\{e\.code\}`\)[\s\S]*OPDS\] step=http_error code=\$\{e\.code\}[\s\S]*throw new Error\(`opds_http_error_\$\{e\.code\}`\)/,
+  'private library HTTP adapters must preserve provider/system bucket codes without leaking raw messages',
+)
+assert.doesNotMatch(
+  remoteProgressSyncServiceSource,
+  /\[KomgaSync\][^\n]*message=|e\.message|Komga server is not configured/,
+  'Komga progress sync logs must use redacted reason codes instead of raw server errors',
+)
+assert.match(
+  remoteProgressSyncServiceSource,
+  /step=pull_fail page=0 code=remote_progress_pull_failed[\s\S]*step=push_fail page=\$\{page\} code=server_not_configured[\s\S]*step=push_fail page=\$\{page\} code=remote_progress_push_failed/,
+  'Komga progress sync must keep separate redacted failure codes for pull, missing server, and push',
+)
+assert.doesNotMatch(
+  remoteProgressBootstrapSyncSource,
+  /\[BootstrapSync\][^\n]*(message=|serverId=)|e\.message/,
+  'remote progress bootstrap logs must not leak raw errors or private server identifiers',
 )
 assert.match(
   trackerModelsSource,

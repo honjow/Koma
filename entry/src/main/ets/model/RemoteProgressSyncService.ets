@@ -100,8 +100,8 @@ export class RemoteProgressSyncService {
       console.info(`[KomgaSync] step=pull_ok page=${remote.page}`)
       return progress
     } catch (error) {
-      const e = error as Error
-      console.warn(`[KomgaSync] step=pull_fail page=0 message=${e.message}`)
+      void error
+      console.warn('[KomgaSync] step=pull_fail page=0 code=remote_progress_pull_failed')
       return undefined
     }
   }
@@ -131,14 +131,14 @@ export class RemoteProgressSyncService {
       const store = new RemoteServerStore(this.context)
       const record = await store.loadKomga()
       if (record === undefined) {
-        console.warn(`[KomgaSync] step=push_fail page=${page} message=Komga server is not configured`)
+        console.warn(`[KomgaSync] step=push_fail page=${page} code=server_not_configured`)
         return
       }
       await store.createKomgaClient(record).patchBookReadProgress(pending.bookId, page, pending.progress.completed)
       console.info(`[KomgaSync] step=push_ok page=${page}`)
     } catch (error) {
-      const e = error as Error
-      console.warn(`[KomgaSync] step=push_fail page=${page} message=${e.message}`)
+      void error
+      console.warn(`[KomgaSync] step=push_fail page=${page} code=remote_progress_push_failed`)
     }
   }
 

@@ -47,13 +47,13 @@ export default class EntryAbility extends UIAbility {
         navigationBarColor: TRANSPARENT_COLOR,
       })
     } catch (error) {
-      const e = error as Error
-      console.error('configure window failed: ' + e.message)
+      void error
+      console.error('[EntryAbility] step=configure_window_failed code=window_configure_failed')
     }
 
     windowStage.loadContent(ENTRY_PAGE, (err) => {
       if (err.code) {
-        console.error('loadContent failed: ' + JSON.stringify(err))
+        console.error('[EntryAbility] step=load_content_failed code=load_content_failed')
       }
       this.storeAvoidHeights(windowStage)
       this.syncRemoteProgressInBackground()
@@ -76,8 +76,8 @@ export default class EntryAbility extends UIAbility {
       )
       LayoutSafeAreaBridge.publishKeyboardHeight(0)
     } catch (error) {
-      const e = error as Error
-      console.error('store avoid heights failed: ' + e.message)
+      void error
+      console.error('[EntryAbility] step=store_avoid_heights_failed code=avoid_area_failed')
       LayoutSafeAreaBridge.publishInsets(FALLBACK_TOP_AVOID, FALLBACK_BOTTOM_AVOID)
       LayoutSafeAreaBridge.publishKeyboardHeight(0)
     }
@@ -94,7 +94,8 @@ export default class EntryAbility extends UIAbility {
         console.info('[Settings] step=apply_startup_theme value=' + preferences.themeMode)
       })
       .catch((error: Error) => {
-        console.warn('[Settings] step=apply_startup_theme_failed message=' + error.message)
+        void error
+        console.warn('[Settings] step=apply_startup_theme_failed code=theme_apply_failed')
       })
   }
 

@@ -71,8 +71,8 @@ export class RemoteProgressBootstrapSync {
       console.info(`[BootstrapSync] step=done updated=${total.updated} synced=${total.synced} failed=${total.failed}`)
       return total
     } catch (error) {
-      const e = error as Error
-      console.warn(`[BootstrapSync] step=done updated=0 synced=0 failed=1 message=${e.message}`)
+      void error
+      console.warn('[BootstrapSync] step=done updated=0 synced=0 failed=1 code=bootstrap_sync_failed')
       return { synced: 0, updated: 0, failed: 1 }
     } finally {
       RemoteProgressBootstrapSync.running = false
@@ -121,11 +121,12 @@ export class RemoteProgressBootstrapSync {
           failed += 1
         }
       }
-      console.info(`[BootstrapSync] step=server_ok serverId=${serverId} synced=${synced} updated=${updated} failed=${failed}`)
+      void serverId
+      console.info(`[BootstrapSync] step=server_ok synced=${synced} updated=${updated} failed=${failed}`)
       return { synced, updated, failed }
     } catch (error) {
-      const e = error as Error
-      console.warn(`[BootstrapSync] step=server_fail serverId=${serverId} message=${e.message}`)
+      void error
+      console.warn('[BootstrapSync] step=server_fail code=remote_progress_server_failed')
       return { synced, updated, failed: failed + comics.length - synced }
     }
   }
