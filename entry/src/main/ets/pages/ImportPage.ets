@@ -18,6 +18,12 @@ interface ImportEntryInfo {
   accentColor: string
 }
 
+export interface LocalFolderImportPersistResult {
+  importedCount: number
+  checkedCount: number
+  missingCount: number
+}
+
 const ARCHIVE_ENTRY: ImportEntryInfo = {
   titleKey: 'import_archive_title',
   actionKey: 'import_archive_action',
@@ -52,8 +58,8 @@ export struct ImportPage {
   @Local private languageState: LanguageState = connectLanguageState()
   @Event onArchiveImportSucceeded: (comic: Comic) => void = (_comic: Comic) => {}
   @Event onLocalImageImportSucceeded: (comic: Comic) => void = (_comic: Comic) => {}
-  @Event onLocalFolderImportSucceeded: (scanResult: LocalLibraryFolderScanResult, rootUri: string) => number =
-    (_scanResult: LocalLibraryFolderScanResult, _rootUri: string) => 0
+  @Event onLocalFolderImportSucceeded: (scanResult: LocalLibraryFolderScanResult, rootUri: string) => LocalFolderImportPersistResult =
+    (_scanResult: LocalLibraryFolderScanResult, _rootUri: string) => ({ importedCount: 0, checkedCount: 0, missingCount: 0 })
   private readonly localImportCoordinator: LocalImportCoordinator = new LocalImportCoordinator()
 
   private topContentInset(): number {
@@ -190,11 +196,16 @@ export struct ImportPage {
       const context = this.getUIContext().getHostContext() as common.UIAbilityContext
       const results = await this.localImportCoordinator.pickAndScanFolders(context, 1)
       let importedCount = 0
+      let checkedCount = 0
+      let missingCount = 0
       let failedCount = 0
       results.forEach((result) => {
         if (result.status === 'succeeded') {
           try {
-            importedCount += this.onLocalFolderImportSucceeded(result.scanResult, result.rootUri)
+            const persistResult = this.onLocalFolderImportSucceeded(result.scanResult, result.rootUri)
+            importedCount += persistResult.importedCount
+            checkedCount += persistResult.checkedCount
+            missingCount += persistResult.missingCount
           } catch (error) {
             failedCount += 1
             console.error('[Import] step=folder_import_persist_failed path= error=' + `${error}`)
@@ -205,18 +216,27 @@ export struct ImportPage {
       })
       if (results.length === 0) {
         this.feedbackText = t('import_feedback_no_selection')
-      } else if (importedCount > 0 && failedCount === 0) {
+      } else if (importedCount > 0 && failedCount === 0 && missingCount === 0) {
         this.feedbackText = tf('import_feedback_success', importedCount)
+        this.showToast(this.feedbackText)
+      } else if (importedCount > 0 && failedCount === 0) {
+        this.feedbackText = tf('import_feedback_folder_rescan_done', importedCount, missingCount)
         this.showToast(this.feedbackText)
       } else if (importedCount > 0) {
         this.feedbackText = tf('import_feedback_partial', importedCount, failedCount)
         this.showToast(this.feedbackText)
       } else if (failedCount > 0) {
         this.feedbackText = t('import_feedback_folder_unavailable')
+      } else if (checkedCount > 0 && missingCount > 0) {
+        this.feedbackText = tf('import_feedback_folder_rescan_missing', missingCount)
+        this.showToast(this.feedbackText)
+      } else if (checkedCount > 0) {
+        this.feedbackText = t('import_feedback_folder_rescan_unchanged')
+        this.showToast(this.feedbackText)
       } else {
         this.feedbackText = t('import_feedback_folder_empty')
       }
-      console.info(`[Import] step=folder_import_finished path= imported=${importedCount} failed=${failedCount}`)
+      console.info(`[Import] step=folder_import_finished path= imported=${importedCount} checked=${checkedCount} missing=${missingCount} failed=${failedCount}`)
     } catch (error) {
       console.error('[Import] step=folder_import_failed path= error=' + `${error}`)
       this.feedbackText = t('import_feedback_folder_unavailable')

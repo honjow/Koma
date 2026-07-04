@@ -162,6 +162,7 @@ export struct MangaDetailPage {
   @Param sourceRegistry: SourceRuntimeRegistry = new SourceRuntimeRegistry()
   @Event onBack: () => void = () => {}
   @Event onOpenReader: (mangaId: string, chapterId?: string) => void = (_mangaId: string, _chapterId?: string) => {}
+  @Event onOpenImportRequested: () => void = () => {}
   @Event onLibraryChanged: () => void = () => {}
   private chapterReadStateStore?: ChapterReadStateStore
 
@@ -571,6 +572,9 @@ export struct MangaDetailPage {
       this.localRefreshText = result.message
       console.info(`[LocalLibraryRefresh] step=detail_check status=${result.status} chapters=${result.previousChapterCount} pages=${result.previousPageCount}`)
       this.showToast(result.message)
+      if (result.status === 'reselect_required') {
+        this.onOpenImportRequested()
+      }
     } catch (_error) {
       this.localRefreshText = s('manga_detail_local_refresh_unavailable')
       console.warn('[LocalLibraryRefresh] step=detail_check_failed failed=true reason=local_refresh')

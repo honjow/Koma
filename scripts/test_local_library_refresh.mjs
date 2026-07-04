@@ -12,6 +12,8 @@ const serviceSource = readFileSync(servicePath, 'utf8')
 const settingsSource = readFileSync(settingsPath, 'utf8')
 const libraryUpdateServiceSource = readFileSync(libraryUpdateServicePath, 'utf8')
 const mangaDetailPageSource = readFileSync(mangaDetailPagePath, 'utf8')
+const indexPath = resolve(root, 'entry/src/main/ets/pages/Index.ets')
+const indexSource = readFileSync(indexPath, 'utf8')
 
 function assertExport(source, symbol) {
   assert.match(source, new RegExp(`export (interface|class|function|enum|type|const) ${symbol}\\b`), `${symbol} must be exported`)
@@ -96,6 +98,16 @@ assert.match(
 )
 assert.match(
   settingsSource,
+  /@Event onOpenImportRequested: \(\) => void = \(\) => \{\}/,
+  'SettingsPage must expose a route callback for manual local folder reselect',
+)
+assert.match(
+  settingsSource,
+  /summary\.reselectRequiredCount > 0[\s\S]*this\.showToast\(s\('settings_local_library_refresh_reselect'\)\)[\s\S]*this\.onOpenImportRequested\(\)/,
+  'SettingsPage local refresh must route users to the import flow when reselect is required',
+)
+assert.match(
+  settingsSource,
   /step=local_library_refresh_failed code='\s*\+\s*safeSettingsErrorCode\(e\)/,
   'SettingsPage local refresh failure logs must use a bounded error code',
 )
@@ -140,4 +152,20 @@ assert.match(
   mangaDetailPageSource,
   /manga_detail_menu_check_local_refresh[\s\S]*this\.checkLocalLibraryRefreshNow\(\)[\s\S]*this\.localRefreshText\.length > 0/,
   'MangaDetailPage must expose the local refresh menu item and render the result text',
+)
+assert.match(
+  mangaDetailPageSource,
+  /@Event onOpenImportRequested: \(\) => void = \(\) => \{\}/,
+  'MangaDetailPage must expose a route callback for local folder reselect',
+)
+assert.match(
+  mangaDetailPageSource,
+  /result\.status === 'reselect_required'[\s\S]*this\.onOpenImportRequested\(\)/,
+  'MangaDetailPage local refresh must route users to the import flow when reselect is required',
+)
+
+assert.match(
+  indexSource,
+  /onOpenImportRequested: \(\) => \{[\s\S]*this\.openImport\(\)[\s\S]*\}/,
+  'Index must wire local refresh reselect callbacks to the existing import route',
 )

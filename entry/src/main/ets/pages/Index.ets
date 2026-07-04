@@ -16,7 +16,7 @@ import { BrowsePage } from './BrowsePage'
 import { HistoryPage } from './HistoryPage'
 import { SearchPage } from './SearchPage'
 import { SettingsPage, SettingsPaneKey, settingsPaneTitle } from './SettingsPage'
-import { ImportPage } from './ImportPage'
+import { ImportPage, LocalFolderImportPersistResult } from './ImportPage'
 import { ReaderPage } from './ReaderPage'
 import { MangaDetailPage } from './MangaDetailPage'
 import { LibraryUpdateResultPage } from './LibraryUpdateResultPage'
@@ -46,6 +46,7 @@ import {
 } from '../model/ComicModels'
 import {
   LocalLibraryFolderScanResult,
+  buildKnownLocalLibraryFolderSeriesFromComics,
   buildComicsFromLocalLibraryFolderScan,
 } from '../model/LocalLibraryFolderContract'
 import { LibraryStore } from '../model/LibraryStore'
@@ -58,6 +59,7 @@ import {
   updateComicCategoryMembershipAndPersistLibraryStore,
   upsertComicAndPersistLibraryStore,
   upsertLocalLibraryFolderScanAndPersistLibraryStore,
+  upsertLocalLibraryFolderRescanAndPersistLibraryStore,
 } from '../model/LibraryPersistence'
 import { OfflineDownloadQueueStore } from '../model/OfflineDownloadQueueStore'
 import {
@@ -188,9 +190,11 @@ struct Index {
     this.selectedTab = 0
   }
 
-  private handleLocalFolderImportSucceeded(scanResult: LocalLibraryFolderScanResult, rootUri: string): number {
+  private handleLocalFolderImportSucceeded(scanResult: LocalLibraryFolderScanResult, rootUri: string): LocalFolderImportPersistResult {
     const persistenceService = this.ensureLibraryPersistenceService()
     let importedCount = 0
+    let checkedCount = scanResult.series.length
+    let missingCount = 0
     if (persistenceService === undefined) {
       const comics = buildComicsFromLocalLibraryFolderScan(scanResult, rootUri)
       comics.forEach((comic: Comic) => {
@@ -199,12 +203,30 @@ struct Index {
       importedCount = comics.length
     } else {
       try {
-        importedCount = upsertLocalLibraryFolderScanAndPersistLibraryStore(
-          this.libraryStore,
-          persistenceService,
-          scanResult,
-          rootUri
-        )
+        const previousKnownSeries = buildKnownLocalLibraryFolderSeriesFromComics(this.libraryStore.listComics())
+        if (previousKnownSeries.length === 0) {
+          importedCount = upsertLocalLibraryFolderScanAndPersistLibraryStore(
+            this.libraryStore,
+            persistenceService,
+            scanResult,
+            rootUri
+          )
+        } else {
+          const result = upsertLocalLibraryFolderRescanAndPersistLibraryStore(
+            this.libraryStore,
+            persistenceService,
+            previousKnownSeries,
+            scanResult,
+            rootUri
+          )
+          importedCount = result.upsertedCount
+          checkedCount = result.summary.previousSeriesCount
+          missingCount = result.summary.missingCount
+          console.info('[Import] step=folder_rescan_persisted added=' + result.summary.addedCount +
+            ' changed=' + result.summary.changedCount +
+            ' missing=' + result.summary.missingCount +
+            ' upserted=' + result.upsertedCount)
+        }
       } catch (error) {
         const e = error as Error
         console.error('persist imported folder failed: ' + e.message)
@@ -215,7 +237,11 @@ struct Index {
       this.refreshLibrarySnapshot()
       this.selectedTab = 0
     }
-    return importedCount
+    return {
+      importedCount,
+      checkedCount,
+      missingCount,
+    }
   }
 
   private handleRemoveComicRequested(comicId: ComicId): boolean {
@@ -448,12 +474,12 @@ struct Index {
             this.handleArchiveImportSucceeded(comic)
             this.appPathStack.pop(false)
           },
-          onLocalFolderImportSucceeded: (scanResult: LocalLibraryFolderScanResult, rootUri: string): number => {
-            const importedCount = this.handleLocalFolderImportSucceeded(scanResult, rootUri)
-            if (importedCount > 0) {
+          onLocalFolderImportSucceeded: (scanResult: LocalLibraryFolderScanResult, rootUri: string): LocalFolderImportPersistResult => {
+            const result = this.handleLocalFolderImportSucceeded(scanResult, rootUri)
+            if (result.importedCount > 0) {
               this.appPathStack.pop(false)
             }
-            return importedCount
+            return result
           }
         })
       }
@@ -468,6 +494,7 @@ struct Index {
           sourceRegistry: this.sourceRegistry,
           onBack: () => { this.appPathStack.pop(false) },
           onOpenReader: (mangaId: string, chapterId?: string) => { void this.openReader(mangaId, chapterId) },
+          onOpenImportRequested: () => { this.openImport() },
           onLibraryChanged: () => { this.refreshLibrarySnapshot() }
         })
       }
@@ -528,6 +555,9 @@ struct Index {
           },
           onOpenTrackerSettings: () => {
             this.openSettingsSecondary(RouteName.TRACKER_SETTINGS)
+          },
+          onOpenImportRequested: () => {
+            this.openImport()
           },
           onLibraryChanged: () => {
             this.refreshLibrarySnapshot()
@@ -676,6 +706,9 @@ struct Index {
                 },
                 onOpenTrackerSettings: () => {
                   this.openSettingsSecondary(RouteName.TRACKER_SETTINGS)
+                },
+                onOpenImportRequested: () => {
+                  this.openImport()
                 },
                 onLibraryChanged: () => {
                   this.refreshLibrarySnapshot()

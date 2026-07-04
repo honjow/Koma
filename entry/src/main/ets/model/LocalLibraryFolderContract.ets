@@ -292,6 +292,52 @@ function encodeRelativeUriPath(relativePath: string): string {
   return relativePath.split('/').map((segment: string): string => encodeURIComponent(segment)).join('/')
 }
 
+function decodeRelativeUriPath(relativePath: string): string {
+  return relativePath.split('/').map((segment: string): string => decodeURIComponent(segment)).join('/')
+}
+
+function remoteResourceSeriesRelativePath(remoteResourceId: string | undefined): string | undefined {
+  if (remoteResourceId === undefined) {
+    return undefined
+  }
+  const separatorIndex = remoteResourceId.indexOf(':')
+  if (separatorIndex < 0 || separatorIndex >= remoteResourceId.length - 1) {
+    return undefined
+  }
+  try {
+    return normalizeLocalLibraryRelativePath(remoteResourceId.substring(separatorIndex + 1))
+  } catch (_error) {
+    return undefined
+  }
+}
+
+function rootUriFromLocalLibraryFolderComic(comic: Comic, seriesRelativePath: string): string | undefined {
+  const encodedSeriesPath = encodeRelativeUriPath(seriesRelativePath)
+  const suffix = `/${encodedSeriesPath}`
+  if (!comic.sourcePath.endsWith(suffix)) {
+    return undefined
+  }
+  const rootUri = comic.sourcePath.substring(0, comic.sourcePath.length - suffix.length)
+  return rootUri.length === 0 ? undefined : rootUri
+}
+
+function localLibraryRelativePathFromUri(rootUri: string, uri: string): string | undefined {
+  const normalizedRootUri = trimTrailingSlashes(rootUri)
+  const prefix = `${normalizedRootUri}/`
+  if (!uri.startsWith(prefix)) {
+    return undefined
+  }
+  try {
+    return normalizeLocalLibraryRelativePath(decodeRelativeUriPath(uri.substring(prefix.length)))
+  } catch (_error) {
+    return undefined
+  }
+}
+
+function chapterKindFromRelativePath(relativePath: string): LocalLibraryFolderChapterKind {
+  return isSupportedArchivePath(relativePath) ? 'archive' : 'image_folder'
+}
+
 export function localLibraryFolderUri(rootUri: string, relativePath: string): string {
   const safeRelativePath = normalizeLocalLibraryRelativePath(relativePath)
   const safeRootUri = trimTrailingSlashes(rootUri)
@@ -397,6 +443,74 @@ export function buildComicsFromLocalLibraryFolderScan(
       now,
     })
   })
+}
+
+export function buildKnownLocalLibraryFolderSeriesFromComics(comics: Comic[]): LocalLibraryFolderSeries[] {
+  const seriesList: LocalLibraryFolderSeries[] = []
+  comics.forEach((comic: Comic): void => {
+    if (comic.sourceKind !== ComicSourceKind.LOCAL_FOLDER) {
+      return
+    }
+    const seriesRelativePath = remoteResourceSeriesRelativePath(comic.remoteResourceId)
+    if (seriesRelativePath === undefined) {
+      return
+    }
+    const rootUri = rootUriFromLocalLibraryFolderComic(comic, seriesRelativePath)
+    if (rootUri === undefined) {
+      return
+    }
+    const chapters: LocalLibraryFolderChapter[] = []
+    comic.chapters.forEach((chapter: Chapter): void => {
+      const chapterRelativePath = localLibraryRelativePathFromUri(rootUri, chapter.sourcePath)
+      if (chapterRelativePath === undefined) {
+        return
+      }
+      const pages: LocalLibraryFolderPage[] = []
+      chapter.pages.forEach((page: Page, pageIndex: number): void => {
+        const pageRelativePath = localLibraryRelativePathFromUri(rootUri, page.uri)
+        if (pageRelativePath === undefined) {
+          return
+        }
+        pages.push({
+            id: page.id,
+            relativePath: pageRelativePath,
+            fileName: page.fileName,
+            index: pageIndex,
+            sortKey: page.sortKey,
+        })
+      })
+      chapters.push({
+        id: chapter.id,
+        seriesId: comic.id,
+        title: chapter.title,
+        kind: chapterKindFromRelativePath(chapterRelativePath),
+        relativePath: chapterRelativePath,
+        index: chapter.index,
+        pageCount: pages.length,
+        pages,
+        sortKey: chapter.sortKey,
+      })
+    })
+    const series: LocalLibraryFolderSeries = {
+      id: comic.id,
+      title: comic.title,
+      relativePath: seriesRelativePath,
+      chapters,
+      chapterCount: chapters.length,
+      pageCount: chapters.reduce((total: number, chapter: LocalLibraryFolderChapter): number => total + chapter.pageCount, 0),
+      sortKey: comic.sortTitle,
+    }
+    if (comic.localMetadata !== undefined) {
+      series.sidecarMetadata = {
+        title: comic.localMetadata.titleOverride,
+        authors: comic.localMetadata.authors,
+        status: comic.localMetadata.status,
+        coverPath: comic.localMetadata.coverOverridePath,
+      }
+    }
+    seriesList.push(series)
+  })
+  return seriesList.sort((left: LocalLibraryFolderSeries, right: LocalLibraryFolderSeries): number => compareNaturalPath(left.relativePath, right.relativePath))
 }
 
 function createChapter(candidate: ChapterCandidate, seriesId: string, index: number): LocalLibraryFolderChapter {

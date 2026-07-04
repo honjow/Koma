@@ -394,6 +394,7 @@ export struct SettingsPage {
   @Event onOpenDownloads: () => void = () => {}
   @Event onOpenBackupManagement: () => void = () => {}
   @Event onOpenTrackerSettings: () => void = () => {}
+  @Event onOpenImportRequested: () => void = () => {}
   @Event onLibraryChanged: () => void = () => {}
   @Param libraryStore?: LibraryStore = undefined
   @Param libraryPersistenceService?: LibraryStorePersistenceService = undefined
@@ -1876,6 +1877,7 @@ export struct SettingsPage {
         this.showToast(s('settings_local_library_refresh_none'))
       } else if (summary.reselectRequiredCount > 0) {
         this.showToast(s('settings_local_library_refresh_reselect'))
+        this.onOpenImportRequested()
       } else {
         this.showToast(s('settings_local_library_refresh_clean'))
       }

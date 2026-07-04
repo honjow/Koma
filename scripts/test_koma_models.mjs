@@ -2101,6 +2101,7 @@ assert.match(
 assertExport(localLibraryFolderContractSource, 'localLibraryFolderUri')
 assertExport(localLibraryFolderContractSource, 'buildComicFromLocalLibraryFolderSeries')
 assertExport(localLibraryFolderContractSource, 'buildComicsFromLocalLibraryFolderScan')
+assertExport(localLibraryFolderContractSource, 'buildKnownLocalLibraryFolderSeriesFromComics')
 assert.match(
   localLibraryFolderContractSource,
   /localLibraryFolderUri\(rootUri: string, relativePath: string\): string[\s\S]*normalizeLocalLibraryRelativePath\(relativePath\)[\s\S]*encodeRelativeUriPath\(safeRelativePath\)/,
@@ -2111,10 +2112,20 @@ assert.match(
   /buildComicFromLocalLibraryFolderSeries[\s\S]*coverUri = chapters\.find[\s\S]*sourceKind: ComicSourceKind\.LOCAL_FOLDER[\s\S]*remoteResourceId: `\$\{rootId\}:\$\{series\.relativePath\}`[\s\S]*buildComicsFromLocalLibraryFolderScan/,
   'local library folder scans must be convertible into LOCAL_FOLDER comics with stable resource ids and cover fallback',
 )
+assert.match(
+  localLibraryFolderContractSource,
+  /buildKnownLocalLibraryFolderSeriesFromComics\(comics: Comic\[\]\): LocalLibraryFolderSeries\[\][\s\S]*const seriesList: LocalLibraryFolderSeries\[\] = \[\][\s\S]*comic\.sourceKind !== ComicSourceKind\.LOCAL_FOLDER[\s\S]*remoteResourceSeriesRelativePath\(comic\.remoteResourceId\)[\s\S]*rootUriFromLocalLibraryFolderComic\(comic, seriesRelativePath\)[\s\S]*localLibraryRelativePathFromUri\(rootUri, chapter\.sourcePath\)[\s\S]*localLibraryRelativePathFromUri\(rootUri, page\.uri\)[\s\S]*seriesList\.push\(series\)/,
+  'local library folder rescan must rebuild previous scan series from persisted LOCAL_FOLDER comics without reading external files',
+)
 assert.doesNotMatch(
   localLibraryFolderContractSource,
   /subtitle:\s*`[^`]*(chapter|chapters|本|卷|话)/,
   'local library folder comic conversion must not hardcode user-visible subtitle copy in the model layer',
+)
+assert.match(
+  indexSource,
+  /buildKnownLocalLibraryFolderSeriesFromComics\(this\.libraryStore\.listComics\(\)\)[\s\S]*previousKnownSeries\.length === 0[\s\S]*upsertLocalLibraryFolderScanAndPersistLibraryStore[\s\S]*upsertLocalLibraryFolderRescanAndPersistLibraryStore[\s\S]*step=folder_rescan_persisted/,
+  'Index folder import must use rescan merge once existing local folder comics are present',
 )
 assert.match(
   localLibraryRescanServiceSource,
