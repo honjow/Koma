@@ -176,6 +176,21 @@ assert.match(
 )
 assert.match(
   mangaDetailPageSource,
+  /localProgressFromTrackerResult\(result: TrackerProgressSyncResult\): ReadingProgress \| undefined[\s\S]*result\.providerProgress === undefined \|\| result\.providerProgress <= 0[\s\S]*Math\.floor\(result\.providerProgress\) - 1[\s\S]*completedProgressForChapter\(chapterIds\[chapterIndex\]\)/,
+  'MangaDetailPage must convert pulled tracker chapter progress into a completed local reader progress row',
+)
+assert.match(
+  mangaDetailPageSource,
+  /pullTrackerProgressNow\(\): Promise<void>[\s\S]*pullReadingProgress\(this\.currentComicId\(\)\)[\s\S]*localProgressFromTrackerResult\(result\)[\s\S]*readerSessionStore\.saveProgress\(progress\)[\s\S]*applyChapterStatesToCurrent\(\)/,
+  'MangaDetailPage tracker pull must fetch mapped remote progress, save local reader progress, and refresh chapter state',
+)
+assert.match(
+  mangaDetailPageSource,
+  /manga_detail_menu_pull_tracker[\s\S]*this\.pullTrackerProgressNow\(\)/,
+  'MangaDetailPage more menu must expose a real pull-tracker-progress action',
+)
+assert.match(
+  mangaDetailPageSource,
   /latestTrackableMarkedReadProgress\(chapterIds: string\[\]\): ReadingProgress \| undefined[\s\S]*const currentProgress = this\.readerSessionStore\.getProgress\(this\.currentComicId\(\)\)[\s\S]*bestIndex < currentIndex[\s\S]*completedProgressForChapter\(bestChapterId\)/,
   'MangaDetailPage marked-read tracker sync must choose the latest marked chapter and avoid pushing older progress',
 )
@@ -201,7 +216,7 @@ assert.match(
 )
 assert.doesNotMatch(
   mangaDetailPageSource,
-  /\[TrackerSync\] step=(manual_progress|marked_read_progress)[^\n]*(token|authorization|Bearer|providerTitleId|comic=|chapter=|message=)/i,
+  /\[TrackerSync\] step=(manual_progress|marked_read_progress|manual_pull_progress)[^\n]*(token|authorization|Bearer|providerTitleId|comic=|chapter=|message=)/i,
   'MangaDetailPage tracker sync logs must not leak tokens, provider ids, local ids, or raw errors',
 )
 

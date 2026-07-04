@@ -1666,9 +1666,10 @@ assert.match(
   /markChapterReadState\(chapterId: string, isRead: boolean\)[\s\S]*store\.mark\(this\.currentComicId\(\), chapterId, isRead\)[\s\S]*applyChapterStatesToCurrent\(\)/,
   'MangaDetailPage mark-read must persist explicit chapter overrides and refresh visible state',
 )
+const markChapterReadStateBlock = mangaDetailPageSource.match(/private markChapterReadState\(chapterId: string, isRead: boolean\): void \{[\s\S]*?\n  \}/)?.[0] ?? ''
 assert.doesNotMatch(
-  mangaDetailPageSource,
-  /markChapterReadState\(chapterId: string, isRead: boolean\)[\s\S]*readerSessionStore\.saveProgress/,
+  markChapterReadStateBlock,
+  /readerSessionStore\.saveProgress/,
   'MangaDetailPage manual mark-read must not overwrite comic reader progress',
 )
 assert.match(
