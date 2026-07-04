@@ -599,6 +599,11 @@ assert.match(
   /searchLocal\(query: string\)[\s\S]*this\.sortSearchResultItems\(query, libraryStore\.listComics\(\)[\s\S]*searchKomga\(query: string\)[\s\S]*this\.sortSearchResultItems\(query, response\.content\.map[\s\S]*searchWebDav\(query: string\)[\s\S]*const matchedItems[\s\S]*this\.sortSearchResultItems\(query, matchedItems\)[\s\S]*searchWasmSource[\s\S]*this\.sortSearchResultItems\(query, result\.manga\.map[\s\S]*filterOpdsPublications[\s\S]*return this\.sortSearchResultItems\(query, items\)/,
   'CrossSearchService must use shared scoring for local, Komga, WebDAV, WASM, and OPDS results',
 )
+assert.match(
+  crossSearchServiceSource,
+  /sortDavResources\(resources: DavResource\[\]\)[\s\S]*compareNaturalPath\(this\.davResourceName\(left\), this\.davResourceName\(right\)\)/,
+  'WebDAV image directory reader sessions must use natural file order',
+)
 
 assert.match(
   readerSessionStoreSource,

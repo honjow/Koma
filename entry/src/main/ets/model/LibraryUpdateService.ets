@@ -45,6 +45,7 @@ import {
   DavResource,
 } from '../remote/WebDavModels'
 import { RemoteServerStore } from './RemoteServerStore'
+import { compareNaturalPath } from '../import/ImageSortUtils'
 
 export type LibraryUpdateResultStatus = 'unchanged' | 'updated' | 'skipped' | 'failed'
 export type LibraryUpdateProviderKind = 'source_runtime' | 'local' | 'komga' | 'opds' | 'webdav' | 'private_library' | 'unsupported'
@@ -797,7 +798,7 @@ export class LibraryUpdateService {
         .filter((resource: DavResource): boolean => {
           return !resource.isCollection && resource.candidateKind === DavComicCandidateKind.IMAGE_FILE
         })
-        .sort((left: DavResource, right: DavResource): number => this.webDavResourceName(left).localeCompare(this.webDavResourceName(right)))
+        .sort((left: DavResource, right: DavResource): number => compareNaturalPath(this.webDavResourceName(left), this.webDavResourceName(right)))
       if (images.length === 0) {
         return this.skippedResult(comic, previousChapterCount, AppStrings.get('common_no_images_to_add'))
       }

@@ -98,6 +98,11 @@ assert.match(
   'WebDAV update probe must reload the persisted directory and rebuild image pages from PROPFIND resources',
 )
 assert.match(
+  serviceSource,
+  /compareNaturalPath\(this\.webDavResourceName\(left\), this\.webDavResourceName\(right\)\)/,
+  'WebDAV update probe must preserve natural image order when rebuilding remote chapters',
+)
+assert.match(
   settingsPageSource,
   /new LibraryUpdateService\([\s\S]*this\.libraryPersistenceService,[\s\S]*new RemoteServerStore\(this\.context\(\)\)/,
   'Settings foreground update runner must pass RemoteServerStore so Komga library items can refresh',

@@ -42,6 +42,7 @@ import {
   searchStateUserText,
 } from './SearchStateMapper'
 import { AppStrings } from '../i18n/AppStrings'
+import { compareNaturalPath } from '../import/ImageSortUtils'
 
 export type CrossSearchSourceKind = 'local' | 'komga' | 'opds' | 'webdav' | 'wasm'
 export type CrossSearchSourceFilter = 'all' | 'local' | 'private' | 'source'
@@ -565,7 +566,7 @@ export class CrossSearchService {
 
   private sortDavResources(resources: DavResource[]): DavResource[] {
     return resources.slice().sort((left: DavResource, right: DavResource): number => {
-      return this.davResourceName(left).localeCompare(this.davResourceName(right))
+      return compareNaturalPath(this.davResourceName(left), this.davResourceName(right))
     })
   }
 
