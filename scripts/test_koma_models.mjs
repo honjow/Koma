@@ -570,6 +570,16 @@ assert.match(
   /listingForHomeSection\(section: SourceHomeSectionState\): SourceListingDescriptor \| undefined[\s\S]*section\.listingId[\s\S]*this\.viewModel\.listings\.find[\s\S]*openHomeSectionListing\(section: SourceHomeSectionState\)[\s\S]*this\.viewModel\.selectBrowseListing\(listing\)[\s\S]*HomeSection\(section: SourceHomeSectionState\)[\s\S]*s\('browse_section_open_listing'\)[\s\S]*this\.openHomeSectionListing\(section\)/,
   'SourceBrowsePage home sections with listingId must expose an action that opens the mapped runtime listing',
 )
+assert.match(
+  sourceBrowsePageSource,
+  /shouldLoadBrowseOnAppear\(\): boolean[\s\S]*this\.viewModel\.loadingBrowse[\s\S]*selectedSource\?\.sourceId !== this\.source\.sourceId[\s\S]*!this\.hasBrowseContent\(\)[\s\S]*reloadBrowse\(\): void[\s\S]*this\.viewModel\.loadBrowseHome\(this\.source\)[\s\S]*aboutToAppear\(\): void \{[\s\S]*this\.shouldLoadBrowseOnAppear\(\)[\s\S]*this\.reloadBrowse\(\)/,
+  'SourceBrowsePage must avoid clearing loaded source browse state on return and keep explicit reload as the recovery path',
+)
+assert.match(
+  sourceBrowsePageSource,
+  /KomaIconButton\(\{[\s\S]*sys\.symbol\.arrow_clockwise[\s\S]*isEnabled: !this\.viewModel\.loadingBrowse[\s\S]*this\.reloadBrowse\(\)[\s\S]*browse_error_load_home[\s\S]*common_retry[\s\S]*this\.reloadBrowse\(\)/,
+  'SourceBrowsePage must expose refresh and retry controls for failed source browsing instead of a dead error label',
+)
 
 assert.match(
   searchHistoryStoreSource,

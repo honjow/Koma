@@ -488,6 +488,16 @@ assert.match(
   'SourceBrowsePage must render source-defined listing selectors, empty state, home sections, and browse sections',
 )
 assert.match(
+  readFileSync(resolve(root, 'entry/src/main/ets/pages/SourceBrowsePage.ets'), 'utf8'),
+  /shouldLoadBrowseOnAppear\(\): boolean[\s\S]*selectedSource\?\.sourceId !== this\.source\.sourceId[\s\S]*!this\.hasBrowseContent\(\)[\s\S]*reloadBrowse\(\): void[\s\S]*this\.viewModel\.loadBrowseHome\(this\.source\)[\s\S]*aboutToAppear\(\): void \{[\s\S]*this\.shouldLoadBrowseOnAppear\(\)[\s\S]*this\.reloadBrowse\(\)/,
+  'SourceBrowsePage must preserve loaded browse state on return and only reload when the current source has no loaded state',
+)
+assert.match(
+  readFileSync(resolve(root, 'entry/src/main/ets/pages/SourceBrowsePage.ets'), 'utf8'),
+  /KomaIconButton\(\{[\s\S]*sys\.symbol\.arrow_clockwise[\s\S]*isEnabled: !this\.viewModel\.loadingBrowse[\s\S]*this\.reloadBrowse\(\)[\s\S]*browse_error_load_home[\s\S]*common_retry[\s\S]*this\.reloadBrowse\(\)/,
+  'SourceBrowsePage must expose explicit refresh and retry controls for source browse failures',
+)
+assert.match(
   readFileSync(resolve(root, 'entry/src/main/ets/pages/SourceSearchPage.ets'), 'utf8'),
   /bottomContentInset\(\): number \{[\s\S]*this\.safeArea\.bottomAvoidHeight \+ ThemeConstants\.FLOAT_BAR_HEIGHT[\s\S]*bottomFloatingTabViewportClearance\(\): number \{[\s\S]*return this\.bottomContentInset\(\)[\s\S]*Scroll\(\)[\s\S]*\.padding\(\{\s*bottom:\s*this\.bottomFloatingTabViewportClearance\(\)\s*\}\)[\s\S]*\.clipContent\(ContentClipMode\.CONTENT_ONLY\)/,
   'SourceSearchPage must reserve bottom viewport clearance so source search results and load-more controls are not hidden behind floating tab chrome',

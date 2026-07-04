@@ -1,6 +1,7 @@
 import { MangaGridItem } from '../components/MangaGridItem'
 import { KomaActionButton } from '../components/ui/KomaActionButton'
 import { KomaEmptyState } from '../components/ui/KomaEmptyState'
+import { KomaIconButton } from '../components/ui/KomaIconButton'
 import { SourceFilterControls, SourceFilterControlValue } from '../components/SourceFilterControls'
 import { AppStrings } from '../i18n/AppStrings'
 import { SourceFilter, SourceManga } from '../model/SourceModels'
@@ -76,6 +77,26 @@ export struct SourceBrowsePage {
     return this.viewModel.homeSections.length > 0 || this.viewModel.browseSections.some((section: BrowseSourceSectionState): boolean => {
       return section.manga.length > 0
     })
+  }
+
+  private shouldLoadBrowseOnAppear(): boolean {
+    if (this.viewModel.loadingBrowse) {
+      return false
+    }
+    if (this.viewModel.selectedSource?.sourceId !== this.source.sourceId) {
+      return true
+    }
+    return !this.hasBrowseContent() &&
+      this.viewModel.errorMessage.length === 0 &&
+      this.viewModel.selectedListingId.length === 0 &&
+      this.viewModel.listings.length === 0
+  }
+
+  private reloadBrowse(): void {
+    if (this.viewModel.loadingBrowse) {
+      return
+    }
+    void this.viewModel.loadBrowseHome(this.source)
   }
 
   private setBrowseFilterValue(filter: SourceFilter, value: SourceFilterControlValue | undefined): void {
@@ -204,7 +225,9 @@ export struct SourceBrowsePage {
   }
 
   aboutToAppear(): void {
-    void this.viewModel.loadBrowseHome(this.source)
+    if (this.shouldLoadBrowseOnAppear()) {
+      this.reloadBrowse()
+    }
   }
 
   build() {
@@ -233,6 +256,15 @@ export struct SourceBrowsePage {
                 this.onSearchRequested(this.source)
               },
             })
+
+            KomaIconButton({
+              icon: $r('sys.symbol.arrow_clockwise'),
+              kind: 'secondary',
+              isEnabled: !this.viewModel.loadingBrowse,
+              action: () => {
+                this.reloadBrowse()
+              },
+            })
           }
           .width('100%')
           .alignItems(VerticalAlign.Center)
@@ -249,13 +281,15 @@ export struct SourceBrowsePage {
               .height(ThemeConstants.LOADING_SIZE_LARGE)
               .color(ThemeConstants.BRAND_PRIMARY)
           } else if (this.viewModel.errorMessage.length > 0) {
-            Text(this.viewModel.errorMessage)
-              .width('100%')
-              .fontSize(ThemeConstants.FONT_SIZE_BODY)
-              .fontColor(ThemeConstants.DANGER)
-              .padding(ThemeConstants.SPACE_LG)
-              .borderRadius(ThemeConstants.RADIUS_CARD)
-              .backgroundColor(ThemeConstants.CARD)
+            KomaEmptyState({
+              title: s('browse_error_load_home'),
+              message: this.viewModel.errorMessage,
+              actionLabel: s('common_retry'),
+              showAction: true,
+              action: () => {
+                this.reloadBrowse()
+              },
+            })
           } else if (!this.hasBrowseContent()) {
             this.EmptyBrowseResults()
           } else {
