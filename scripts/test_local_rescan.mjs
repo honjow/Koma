@@ -271,7 +271,7 @@ function scanLocalLibraryFolderEntries(entries, rootName = 'Local Library') {
       rootName,
       rootId: idFor('root', normalizeSortKey(rootName)),
       directoryConvention: 'root/{series path}/{chapter folder pages | chapter.cbz | chapter.zip}; image-only series folders are one chapter',
-      runtimeFolderPicker: 'NOT_IMPLEMENTED_DEFERRED',
+      runtimeFolderPicker: 'BEST_EFFORT_DOCUMENT_PICKER',
     },
     series,
     rejectedEntries: rejectedEntries.sort((a, b) => compareNaturalPath(a.relativePath, b.relativePath)),
@@ -387,7 +387,7 @@ function createLocalLibraryRescanSummary(previousKnownSeries, freshScan, failure
   const missingChapterCount = outcomes.reduce((total, outcome) => total + outcome.missingChapterCount, 0)
   return {
     contractVersion: 1,
-    runtimeFolderPicker: 'NOT_IMPLEMENTED_DEFERRED',
+    runtimeFolderPicker: 'BEST_EFFORT_DOCUMENT_PICKER',
     uiMutationContract: 'MODEL_ONLY_NO_SYNC_UI_MUTATION',
     destructiveActionContract: 'NO_DELETE_LIBRARY_ROWS_OR_USER_FILES',
     previousSeriesCount: previousKnownSeries.length,
@@ -459,7 +459,7 @@ const duplicateSummary = createLocalLibraryRescanSummary(previousScan.series, cu
 
 assert.deepEqual(duplicateSummary, summary, 'duplicate rescan summaries must be idempotent')
 assert.ok(runtimeMs < 250, `100+ chapter rescan should be non-pathological, took ${runtimeMs}ms`)
-assert.equal(summary.runtimeFolderPicker, 'NOT_IMPLEMENTED_DEFERRED')
+assert.equal(summary.runtimeFolderPicker, 'BEST_EFFORT_DOCUMENT_PICKER')
 assert.equal(summary.uiMutationContract, 'MODEL_ONLY_NO_SYNC_UI_MUTATION')
 assert.equal(summary.destructiveActionContract, 'NO_DELETE_LIBRARY_ROWS_OR_USER_FILES')
 assert.equal(summary.previousSeriesCount, 4)

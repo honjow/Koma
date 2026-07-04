@@ -337,7 +337,7 @@ function scanLocalLibraryFolderEntries(entries, rootName = 'Local Library') {
       rootName,
       rootId: idFor('root', normalizeSortKey(rootName)),
       directoryConvention: 'root/{series path}/{chapter folder pages | chapter.cbz | chapter.zip}; image-only series folders are one chapter',
-      runtimeFolderPicker: 'NOT_IMPLEMENTED_DEFERRED',
+      runtimeFolderPicker: 'BEST_EFFORT_DOCUMENT_PICKER',
     },
     series,
     rejectedEntries: rejectedEntries.sort((a, b) => compareNaturalPath(a.relativePath, b.relativePath)),
@@ -384,7 +384,7 @@ const firstScan = scanLocalLibraryFolderEntries(fixtureEntries, 'Fixture Root')
 const secondScan = scanLocalLibraryFolderEntries(fixtureEntries, 'Fixture Root')
 assert.deepEqual(secondScan, firstScan, 'duplicate scans must be idempotent')
 
-assert.equal(firstScan.contract.runtimeFolderPicker, 'NOT_IMPLEMENTED_DEFERRED')
+assert.equal(firstScan.contract.runtimeFolderPicker, 'BEST_EFFORT_DOCUMENT_PICKER')
 assert.equal(firstScan.sourceEntryCount, fixtureEntries.length)
 assert.deepEqual(firstScan.series.map((series) => series.relativePath), [
   'Loose Image Series',
@@ -462,7 +462,7 @@ assert.deepEqual(
 mkdirSync(dirname(artifactPath), { recursive: true })
 writeFileSync(artifactPath, `${JSON.stringify({
   verdict: 'PASS',
-  summary: 'Static local library folder contract fixture scan passed; runtime folder picker NOT_IMPLEMENTED_DEFERRED.',
+  summary: 'Static local library folder contract fixture scan passed; runtime folder picker BEST_EFFORT_DOCUMENT_PICKER.',
   scan: firstScan,
   deletedFixtureAvailability: reconcileLocalLibraryFolderAvailability(firstScan.series.map((series) => ({ id: series.id })), scanAfterDelete),
 }, null, 2)}\n`)
