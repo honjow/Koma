@@ -587,6 +587,8 @@
     { "name": "source_search_empty_idle_message", "value": "搜索当前源内的漫画。" },
     { "name": "source_search_empty_results_title", "value": "没有找到结果" },
     { "name": "source_search_empty_results_message", "value": "换个关键词再试。" },
+    { "name": "source_search_filtered_empty_title", "value": "当前筛选下没有匹配结果" },
+    { "name": "source_search_filtered_empty_message", "value": "重置筛选或换个关键词再试。" },
 
     { "name": "reader_action_previous_page", "value": "上一页" },
     { "name": "reader_action_next_page", "value": "下一页" },

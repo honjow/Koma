@@ -99,6 +99,33 @@ export struct SourceSearchPage {
     }
   }
 
+  private hasActiveSearchFilters(): boolean {
+    return this.viewModel.filters.length > 0 && Object.keys(this.viewModel.searchFilterValues).length > 0
+  }
+
+  private isFilteredEmptySearch(): boolean {
+    return this.query.trim().length > 0 && this.hasActiveSearchFilters()
+  }
+
+  private resetSearchFilters(): void {
+    this.viewModel.resetSearchFilters()
+    this.rerunSearchIfReady()
+  }
+
+  private emptySearchTitle(): string {
+    if (this.query.trim().length === 0) {
+      return s('source_search_empty_idle_title')
+    }
+    return this.isFilteredEmptySearch() ? s('source_search_filtered_empty_title') : s('source_search_empty_results_title')
+  }
+
+  private emptySearchMessage(): string {
+    if (this.query.trim().length === 0) {
+      return s('source_search_empty_idle_message')
+    }
+    return this.isFilteredEmptySearch() ? s('source_search_filtered_empty_message') : s('source_search_empty_results_message')
+  }
+
   @Builder
   private RuntimeFilterControls() {
     SourceFilterControls({
@@ -109,8 +136,7 @@ export struct SourceSearchPage {
         this.setSearchFilterValue(filter, value)
       },
       onReset: () => {
-        this.viewModel.resetSearchFilters()
-        this.rerunSearchIfReady()
+        this.resetSearchFilters()
       },
     })
   }
@@ -118,8 +144,13 @@ export struct SourceSearchPage {
   @Builder
   private EmptySearch() {
     KomaEmptyState({
-      title: this.query.trim().length === 0 ? s('source_search_empty_idle_title') : s('source_search_empty_results_title'),
-      message: this.query.trim().length === 0 ? s('source_search_empty_idle_message') : s('source_search_empty_results_message'),
+      title: this.emptySearchTitle(),
+      message: this.emptySearchMessage(),
+      actionLabel: s('common_reset'),
+      showAction: this.isFilteredEmptySearch(),
+      action: () => {
+        this.resetSearchFilters()
+      },
     })
   }
 

@@ -496,8 +496,13 @@ assert.match(
 )
 assert.match(
   sourceSearchPageSource,
-  /SourceFilterControls\(\{[\s\S]*filters: this\.viewModel\.filters[\s\S]*values: this\.viewModel\.searchFilterValues[\s\S]*busy: this\.viewModel\.loadingSearch[\s\S]*onFilterChange:[\s\S]*this\.setSearchFilterValue\(filter, value\)[\s\S]*onReset:[\s\S]*this\.viewModel\.resetSearchFilters\(\)[\s\S]*this\.rerunSearchIfReady\(\)[\s\S]*aboutToAppear\(\): void \{[\s\S]*this\.viewModel\.ensureSearchFilters\(this\.source\)/,
+  /resetSearchFilters\(\): void \{[\s\S]*this\.viewModel\.resetSearchFilters\(\)[\s\S]*this\.rerunSearchIfReady\(\)[\s\S]*SourceFilterControls\(\{[\s\S]*filters: this\.viewModel\.filters[\s\S]*values: this\.viewModel\.searchFilterValues[\s\S]*busy: this\.viewModel\.loadingSearch[\s\S]*onFilterChange:[\s\S]*this\.setSearchFilterValue\(filter, value\)[\s\S]*onReset:[\s\S]*this\.resetSearchFilters\(\)[\s\S]*aboutToAppear\(\): void \{[\s\S]*this\.viewModel\.ensureSearchFilters\(this\.source\)/,
   'SourceSearchPage must rerun the current search when a source filter changes or resets',
+)
+assert.match(
+  sourceSearchPageSource,
+  /hasActiveSearchFilters\(\): boolean \{[\s\S]*this\.viewModel\.filters\.length > 0 && Object\.keys\(this\.viewModel\.searchFilterValues\)\.length > 0[\s\S]*isFilteredEmptySearch\(\): boolean \{[\s\S]*this\.query\.trim\(\)\.length > 0 && this\.hasActiveSearchFilters\(\)[\s\S]*resetSearchFilters\(\): void \{[\s\S]*this\.viewModel\.resetSearchFilters\(\)[\s\S]*this\.rerunSearchIfReady\(\)[\s\S]*emptySearchTitle\(\): string \{[\s\S]*source_search_filtered_empty_title[\s\S]*emptySearchMessage\(\): string \{[\s\S]*source_search_filtered_empty_message[\s\S]*EmptySearch\(\)[\s\S]*actionLabel: s\('common_reset'\)[\s\S]*showAction: this\.isFilteredEmptySearch\(\)[\s\S]*this\.resetSearchFilters\(\)/,
+  'SourceSearchPage filtered-empty search state must explain active filters and expose a reset action',
 )
 assert.match(
   sourceSearchPageSource,

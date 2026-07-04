@@ -587,6 +587,8 @@
     { "name": "source_search_empty_idle_message", "value": "Search within the current source." },
     { "name": "source_search_empty_results_title", "value": "No results found" },
     { "name": "source_search_empty_results_message", "value": "Try a different keyword." },
+    { "name": "source_search_filtered_empty_title", "value": "No matches for the current filters" },
+    { "name": "source_search_filtered_empty_message", "value": "Reset filters or try a different keyword." },
 
     { "name": "reader_action_previous_page", "value": "Previous page" },
     { "name": "reader_action_next_page", "value": "Next page" },
