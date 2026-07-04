@@ -132,7 +132,7 @@ Non-interactive probe on `192.168.50.103:12345`:
   - `SystemCapability.FileManagement.AppFileService.FolderAuthorization = true`
 - exact `SystemCapability.FileManagement.UserFileService.FolderSelection` was not present in the grep output.
 
-This is enough to proceed with image and ZIP/CBZ picker implementation. Folder import remains a runtime/device validation item because docs require a more specific capability than the observed generic `UserFileService`.
+This is enough to proceed with image and ZIP/CBZ picker implementation. Folder import can be exposed only as a best-effort runtime path because docs require a more specific capability than the observed generic `UserFileService`.
 
 ## Implementation Decision
 
@@ -140,7 +140,7 @@ For Lane 1C, implement import plumbing in this order:
 
 1. `DocumentViewPicker` archive flow for `.cbz,.zip`, copy URI to sandbox, then feed Lane 1B archive reader.
 2. `PhotoViewPicker` image flow, return `photoUris`, derive page list with natural sort, and copy/cache thumbnails as needed.
-3. Folder flow only after a dedicated interactive smoke test proves returned folder URIs can be enumerated or copied on the actual target class.
+3. Folder flow may call `DocumentViewPicker` with `DocumentSelectMode.FOLDER`, then immediately verify whether the returned folder URI can be enumerated with `fs.listFile`. If enumeration fails, the UI must say folder access is unavailable and keep ZIP/CBZ plus image selection as the reliable fallback.
 
 Do not implement `fileAccess` ExtensionAbility for Koma. It is for system/file-manager integration and third-party configuration is documented as ineffective.
 
@@ -155,3 +155,14 @@ Do not implement `fileAccess` ExtensionAbility for Koma. It is for system/file-m
 - `importPickedArchive()` creates `cache/import/<archive>-<hash>/archive.zip`, copies the selected URI there, then calls `ArchiveExtractionService.extractArchive`.
 
 The Import page is wired to launch this flow from the CBZ/ZIP button, but automated validation intentionally does not click through the system picker. A real file selection remains a manual QA proof point: select a small `.cbz` and `.zip`, confirm `archive.zip` appears in app cache, and confirm extraction produces image entries.
+
+## Folder Import Update
+
+`entry/src/main/ets/import/LocalImportCoordinator.ets` now exposes a best-effort folder path:
+
+- `createFolderDocumentSelectOptions()` sets `DocumentSelectMode.FOLDER` only for the folder action, keeping archive/image picker options free of the FolderSelection syscap.
+- `pickAndScanFolders()` selects one folder, attempts `fs.listFile(rootUri, { recursion: true })`, maps entries into `LocalLibraryFolderEntry`, and reuses `scanLocalLibraryFolderEntries()`.
+- `ImportPage` has a third "Folder" action and delegates successful scans to `Index`, which persists via `upsertLocalLibraryFolderScanAndPersistLibraryStore()`.
+- `LOCAL_LIBRARY_FOLDER_RUNTIME_PICKER_STATUS` is now `BEST_EFFORT_DOCUMENT_PICKER`.
+
+Validation on 2026-07-04: build/install succeeded on `HUAWEI Pura X Max 典藏版` (`192.168.50.200:12345`, API 24), but foreground launch was blocked by the device lock screen (`aa start` error `10106102`). Folder picker interaction still needs an unlocked Pura X smoke test.

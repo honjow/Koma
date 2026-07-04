@@ -23,7 +23,7 @@ import {
 } from './LocalLibraryMetadataService'
 
 export const LOCAL_LIBRARY_FOLDER_CONTRACT_VERSION = 1
-export const LOCAL_LIBRARY_FOLDER_RUNTIME_PICKER_STATUS = 'NOT_IMPLEMENTED_DEFERRED'
+export const LOCAL_LIBRARY_FOLDER_RUNTIME_PICKER_STATUS = 'BEST_EFFORT_DOCUMENT_PICKER'
 export const LOCAL_LIBRARY_FOLDER_ID_PREFIX = 'local-library-folder'
 
 export type LocalLibraryFolderEntryKind = 'file' | 'directory'

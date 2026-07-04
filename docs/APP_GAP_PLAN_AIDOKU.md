@@ -165,7 +165,7 @@ Koma 已经具备本地/私有库优先漫画阅读器的主骨架：书架、Re
 
 目标：把“导入”升级为可维护本地库。
 
-已有：CBZ/ZIP 导入、多图片导入、导入后入书架。
+已有：CBZ/ZIP 导入、多图片导入、导入后入书架；本地目录已有 best-effort picker/scan/persist 入口，仍需解锁 Pura X 后补交互 smoke。
 
 ### D42：Local library folder contract
 

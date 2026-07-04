@@ -6,6 +6,7 @@ import {
 } from '../import/LocalImportDebugModels'
 import { AppStrings } from '../i18n/AppStrings'
 import { Comic } from '../model/ComicModels'
+import { LocalLibraryFolderScanResult } from '../model/LocalLibraryFolderContract'
 import { KomaActionButton } from '../components/ui/KomaActionButton'
 import { connectLayoutSafeArea, LayoutSafeAreaState } from '../state/LayoutSafeAreaState'
 import { connectLanguageState, LanguageState } from '../state/LanguageState'
@@ -29,6 +30,12 @@ const IMAGE_ENTRY: ImportEntryInfo = {
   accentColor: ThemeConstants.SOURCE_OPDS_COLOR,
 }
 
+const FOLDER_ENTRY: ImportEntryInfo = {
+  titleKey: 'import_folder_title',
+  actionKey: 'import_folder_action',
+  accentColor: ThemeConstants.SOURCE_WEBDAV_COLOR,
+}
+
 function t(name: string): string {
   return AppStrings.get(name)
 }
@@ -45,6 +52,8 @@ export struct ImportPage {
   @Local private languageState: LanguageState = connectLanguageState()
   @Event onArchiveImportSucceeded: (comic: Comic) => void = (_comic: Comic) => {}
   @Event onLocalImageImportSucceeded: (comic: Comic) => void = (_comic: Comic) => {}
+  @Event onLocalFolderImportSucceeded: (scanResult: LocalLibraryFolderScanResult, rootUri: string) => number =
+    (_scanResult: LocalLibraryFolderScanResult, _rootUri: string) => 0
   private readonly localImportCoordinator: LocalImportCoordinator = new LocalImportCoordinator()
 
   private topContentInset(): number {
@@ -167,6 +176,56 @@ export struct ImportPage {
     }
   }
 
+  private async selectFolderFromPicker(): Promise<void> {
+    if (this.importing) {
+      return
+    }
+    this.importing = true
+    this.feedbackText = t('import_feedback_busy')
+    console.info('[Import] step=folder_import_started path=')
+    this.localImportCoordinator.setDebugSink((event: LocalArchiveImportDebugEvent) => {
+      this.logImportDebugEvent(event)
+    })
+    try {
+      const context = this.getUIContext().getHostContext() as common.UIAbilityContext
+      const results = await this.localImportCoordinator.pickAndScanFolders(context, 1)
+      let importedCount = 0
+      let failedCount = 0
+      results.forEach((result) => {
+        if (result.status === 'succeeded') {
+          try {
+            importedCount += this.onLocalFolderImportSucceeded(result.scanResult, result.rootUri)
+          } catch (error) {
+            failedCount += 1
+            console.error('[Import] step=folder_import_persist_failed path= error=' + `${error}`)
+          }
+          return
+        }
+        failedCount += 1
+      })
+      if (results.length === 0) {
+        this.feedbackText = t('import_feedback_no_selection')
+      } else if (importedCount > 0 && failedCount === 0) {
+        this.feedbackText = tf('import_feedback_success', importedCount)
+        this.showToast(this.feedbackText)
+      } else if (importedCount > 0) {
+        this.feedbackText = tf('import_feedback_partial', importedCount, failedCount)
+        this.showToast(this.feedbackText)
+      } else if (failedCount > 0) {
+        this.feedbackText = t('import_feedback_folder_unavailable')
+      } else {
+        this.feedbackText = t('import_feedback_folder_empty')
+      }
+      console.info(`[Import] step=folder_import_finished path= imported=${importedCount} failed=${failedCount}`)
+    } catch (error) {
+      console.error('[Import] step=folder_import_failed path= error=' + `${error}`)
+      this.feedbackText = t('import_feedback_folder_unavailable')
+    } finally {
+      this.localImportCoordinator.setDebugSink(undefined)
+      this.importing = false
+    }
+  }
+
   @Builder
   private ImportEntryCard(entry: ImportEntryInfo) {
     Column({ space: ThemeConstants.SPACE_LG }) {
@@ -195,12 +254,18 @@ export struct ImportPage {
         label: this.importing ? t('import_button_busy') : t(entry.actionKey),
         kind: 'primary',
         accentColor: entry.accentColor,
-        icon: entry.titleKey === IMAGE_ENTRY.titleKey ? $r('sys.symbol.picture') : $r('sys.symbol.doc_plaintext'),
+        icon: entry.titleKey === IMAGE_ENTRY.titleKey
+          ? $r('sys.symbol.picture')
+          : entry.titleKey === FOLDER_ENTRY.titleKey
+            ? $r('sys.symbol.folder')
+            : $r('sys.symbol.doc_plaintext'),
         isEnabled: !this.importing,
         controlHeight: 42,
         action: () => {
           if (entry.titleKey === IMAGE_ENTRY.titleKey) {
             this.selectImagesFromPicker()
+          } else if (entry.titleKey === FOLDER_ENTRY.titleKey) {
+            this.selectFolderFromPicker()
           } else {
             this.selectArchiveFromPicker()
           }
@@ -254,6 +319,7 @@ export struct ImportPage {
 
           this.ImportEntryCard(ARCHIVE_ENTRY)
           this.ImportEntryCard(IMAGE_ENTRY)
+          this.ImportEntryCard(FOLDER_ENTRY)
         }
         .width('100%')
         .height('100%')

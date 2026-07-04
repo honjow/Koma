@@ -44,6 +44,10 @@ import {
   withComicCategoryIds,
   withComicRemovedCategoryId,
 } from '../model/ComicModels'
+import {
+  LocalLibraryFolderScanResult,
+  buildComicsFromLocalLibraryFolderScan,
+} from '../model/LocalLibraryFolderContract'
 import { LibraryStore } from '../model/LibraryStore'
 import {
   AppFilesLibraryStorePersistenceAdapter,
@@ -53,6 +57,7 @@ import {
   removeComicAndPersistLibraryStore,
   updateComicCategoryMembershipAndPersistLibraryStore,
   upsertComicAndPersistLibraryStore,
+  upsertLocalLibraryFolderScanAndPersistLibraryStore,
 } from '../model/LibraryPersistence'
 import { OfflineDownloadQueueStore } from '../model/OfflineDownloadQueueStore'
 import {
@@ -181,6 +186,36 @@ struct Index {
     }
     this.refreshLibrarySnapshot()
     this.selectedTab = 0
+  }
+
+  private handleLocalFolderImportSucceeded(scanResult: LocalLibraryFolderScanResult, rootUri: string): number {
+    const persistenceService = this.ensureLibraryPersistenceService()
+    let importedCount = 0
+    if (persistenceService === undefined) {
+      const comics = buildComicsFromLocalLibraryFolderScan(scanResult, rootUri)
+      comics.forEach((comic: Comic) => {
+        this.libraryStore.upsertComic(comic)
+      })
+      importedCount = comics.length
+    } else {
+      try {
+        importedCount = upsertLocalLibraryFolderScanAndPersistLibraryStore(
+          this.libraryStore,
+          persistenceService,
+          scanResult,
+          rootUri
+        )
+      } catch (error) {
+        const e = error as Error
+        console.error('persist imported folder failed: ' + e.message)
+        throw e
+      }
+    }
+    if (importedCount > 0) {
+      this.refreshLibrarySnapshot()
+      this.selectedTab = 0
+    }
+    return importedCount
   }
 
   private handleRemoveComicRequested(comicId: ComicId): boolean {
@@ -412,6 +447,13 @@ struct Index {
           onLocalImageImportSucceeded: (comic: Comic) => {
             this.handleArchiveImportSucceeded(comic)
             this.appPathStack.pop(false)
+          },
+          onLocalFolderImportSucceeded: (scanResult: LocalLibraryFolderScanResult, rootUri: string): number => {
+            const importedCount = this.handleLocalFolderImportSucceeded(scanResult, rootUri)
+            if (importedCount > 0) {
+              this.appPathStack.pop(false)
+            }
+            return importedCount
           }
         })
       }

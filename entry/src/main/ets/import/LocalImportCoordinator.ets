@@ -18,6 +18,11 @@ import {
   buildComicFromLocalImages,
 } from './LocalImageImportService'
 import {
+  LocalLibraryFolderEntry,
+  LocalLibraryFolderScanResult,
+  scanLocalLibraryFolderEntries,
+} from '../model/LocalLibraryFolderContract'
+import {
   LOCAL_ARCHIVE_DEBUG_STEP_CACHE_PATHS,
   LOCAL_ARCHIVE_DEBUG_STEP_COPY_FAILED,
   LOCAL_ARCHIVE_DEBUG_STEP_COPY_STARTED,
@@ -93,6 +98,20 @@ export interface LocalImageImportRequest {
   comicId?: string
   importedAt?: number
 }
+
+export interface LocalFolderImportSucceededResult {
+  status: 'succeeded'
+  rootUri: string
+  scanResult: LocalLibraryFolderScanResult
+}
+
+export interface LocalFolderImportFailedResult {
+  status: 'failed'
+  rootUri?: string
+  error: string
+}
+
+export type LocalFolderImportItemResult = LocalFolderImportSucceededResult | LocalFolderImportFailedResult
 
 export const ARCHIVE_FILE_SUFFIX_FILTER = 'Comic archives(.zip, .cbz)|.zip,.cbz'
 export const IMAGE_FILE_SUFFIX_FILTER = 'Images(.jpg, .jpeg, .png, .webp, .gif, .bmp, .avif)|.jpg,.jpeg,.png,.webp,.gif,.bmp,.avif'
@@ -240,6 +259,13 @@ export function createImageDocumentSelectOptions(maxSelectNumber: number = 300):
   return options
 }
 
+export function createFolderDocumentSelectOptions(maxSelectNumber: number = 1): picker.DocumentSelectOptions {
+  const options = new picker.DocumentSelectOptions()
+  options.selectMode = picker.DocumentSelectMode.FOLDER
+  options.maxSelectNumber = maxSelectNumber
+  return options
+}
+
 export async function pickArchiveUris(context: common.UIAbilityContext, maxSelectNumber: number = 100): Promise<string[]> {
   const documentPicker = new picker.DocumentViewPicker(context)
   return documentPicker.select(createArchiveDocumentSelectOptions(maxSelectNumber))
@@ -248,6 +274,11 @@ export async function pickArchiveUris(context: common.UIAbilityContext, maxSelec
 export async function pickImageUris(context: common.UIAbilityContext, maxSelectNumber: number = 300): Promise<string[]> {
   const documentPicker = new picker.DocumentViewPicker(context)
   return documentPicker.select(createImageDocumentSelectOptions(maxSelectNumber))
+}
+
+export async function pickFolderUris(context: common.UIAbilityContext, maxSelectNumber: number = 1): Promise<string[]> {
+  const documentPicker = new picker.DocumentViewPicker(context)
+  return documentPicker.select(createFolderDocumentSelectOptions(maxSelectNumber))
 }
 
 export async function copyPickedArchiveUriToSandbox(sourceUri: string, sandboxZipPath: string): Promise<void> {
@@ -319,6 +350,76 @@ function createLocalImageImportTitle(sourceUris: string[]): string {
   }
   const fallback = stripExtension(getBaseName(normalized)).trim()
   return fallback.length === 0 ? AppStrings.get('import_image_title') : decodePickerPathSegment(fallback)
+}
+
+function createPickedFolderRootName(rootUri: string): string {
+  const normalized = rootUri.replace(/\\/g, '/').split('?')[0].split('#')[0]
+  const fallback = decodePickerPathSegment(getBaseName(normalized)).trim()
+  return fallback.length === 0 ? AppStrings.get('import_folder_title') : fallback
+}
+
+function normalizePickedFolderRelativePath(rootUri: string, listedPath: string): string {
+  const normalizedRoot = normalizeImportCachePath(rootUri).replace(/\/+$/, '')
+  let normalizedPath = normalizeImportCachePath(listedPath)
+  if (normalizedPath.startsWith(`${normalizedRoot}/`)) {
+    normalizedPath = normalizedPath.substring(normalizedRoot.length + 1)
+  }
+  normalizedPath = normalizedPath.replace(/^\/+/, '')
+  return normalizedPath.split('/').map((segment: string): string => decodePickerPathSegment(segment)).join('/')
+}
+
+function joinPickedFolderUri(rootUri: string, relativePath: string): string {
+  return `${normalizeImportCachePath(rootUri).replace(/\/+$/, '')}/${relativePath.split('/').map((segment: string): string => encodeURIComponent(segment)).join('/')}`
+}
+
+function isLocalLibraryMetadataPath(relativePath: string): boolean {
+  const baseName = getBaseName(relativePath).toLocaleLowerCase()
+  return baseName === 'metadata.json' ||
+    baseName === 'series.json' ||
+    baseName === 'comicinfo.json' ||
+    baseName === 'koma-metadata.json'
+}
+
+function readPickedFolderTextIfNeeded(entryUri: string, relativePath: string, byteSize?: number): string | undefined {
+  if (!isLocalLibraryMetadataPath(relativePath) || (byteSize !== undefined && byteSize > 1024 * 1024)) {
+    return undefined
+  }
+  try {
+    return fs.readTextSync(entryUri, { encoding: 'utf-8' })
+  } catch (_err) {
+    return undefined
+  }
+}
+
+export async function scanPickedFolderUri(rootUri: string): Promise<LocalLibraryFolderScanResult> {
+  const listFileOptions: ListFileOptions = {
+    recursion: true,
+    listNum: 0,
+  }
+  const listedEntries = await fs.listFile(rootUri, listFileOptions)
+  const entries: LocalLibraryFolderEntry[] = []
+  for (const listedEntry of listedEntries) {
+    const relativePath = normalizePickedFolderRelativePath(rootUri, listedEntry)
+    if (relativePath.length === 0) {
+      continue
+    }
+    const entryUri = listedEntry.includes('://') ? listedEntry : joinPickedFolderUri(rootUri, relativePath)
+    try {
+      const stat = await fs.stat(entryUri)
+      entries.push({
+        relativePath,
+        kind: stat.isDirectory() ? 'directory' : 'file',
+        byteSize: stat.isDirectory() ? undefined : stat.size,
+        textContent: stat.isDirectory() ? undefined : readPickedFolderTextIfNeeded(entryUri, relativePath, stat.size),
+      })
+    } catch (_err) {
+      entries.push({
+        relativePath,
+        exists: false,
+      })
+    }
+  }
+  return scanLocalLibraryFolderEntries(entries, createPickedFolderRootName(rootUri))
 }
 
 export async function copyPickedImageUriToSandbox(sourceUri: string, sandboxPath: string): Promise<void> {
@@ -616,5 +717,46 @@ export class LocalImportCoordinator {
         error: `${error}`,
       }]
     }
+  }
+
+  async pickAndScanFolders(context: common.UIAbilityContext, maxSelectNumber: number = 1): Promise<LocalFolderImportItemResult[]> {
+    this.reportDebugEvent({
+      step: LOCAL_ARCHIVE_DEBUG_STEP_PICKER_STARTED,
+    })
+    let folderUris: string[]
+    try {
+      folderUris = await pickFolderUris(context, maxSelectNumber)
+    } catch (error) {
+      return [{
+        status: 'failed',
+        error: `${error}`,
+      }]
+    }
+    this.reportDebugEvent({
+      step: LOCAL_ARCHIVE_DEBUG_STEP_PICKER_RETURNED,
+      uriCount: folderUris.length,
+    })
+    const results: LocalFolderImportItemResult[] = []
+    for (const rootUri of folderUris) {
+      this.reportDebugEvent({
+        step: LOCAL_ARCHIVE_DEBUG_STEP_PICKER_RETURNED,
+        sourceUri: rootUri,
+      })
+      try {
+        const scanResult = await scanPickedFolderUri(rootUri)
+        results.push({
+          status: 'succeeded',
+          rootUri,
+          scanResult,
+        })
+      } catch (error) {
+        results.push({
+          status: 'failed',
+          rootUri,
+          error: `${error}`,
+        })
+      }
+    }
+    return results
   }
 }

@@ -21,7 +21,7 @@ assertExport(contractSource, 'createLocalLibraryFolderRootContract')
 assertExport(contractSource, 'scanLocalLibraryFolderEntries')
 assertExport(contractSource, 'reconcileLocalLibraryFolderAvailability')
 
-assert.match(contractSource, /LOCAL_LIBRARY_FOLDER_RUNTIME_PICKER_STATUS = 'NOT_IMPLEMENTED_DEFERRED'/, 'runtime picker support must be honestly deferred')
+assert.match(contractSource, /LOCAL_LIBRARY_FOLDER_RUNTIME_PICKER_STATUS = 'BEST_EFFORT_DOCUMENT_PICKER'/, 'runtime picker support must be exposed as a best-effort document picker path')
 assert.match(contractSource, /root\/\{series path\}\/\{chapter folder pages \| chapter\.cbz \| chapter\.zip\}/, 'contract must document deterministic series/chapter/page layout')
 assert.doesNotMatch(contractSource, /fileIo|fs\.|unlink|rmdir|removeComputed|TRUNC|cacheDir/, 'folder contract must not delete or mutate files')
 assert.match(contractSource, /idFor\('series', seriesPath\)/, 'series ids must derive from normalized relative series paths')

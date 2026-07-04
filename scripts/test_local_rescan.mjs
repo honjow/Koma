@@ -28,7 +28,7 @@ assert.match(serviceSource, /MODEL_ONLY_NO_SYNC_UI_MUTATION/, 'rescan summary mu
 assert.match(serviceSource, /NO_DELETE_LIBRARY_ROWS_OR_USER_FILES/, 'rescan contract must forbid destructive cleanup')
 assert.match(serviceSource, /removedCount:\s*missingCount/, 'removed-from-scan must be represented as missing, not destructive deletion')
 assert.doesNotMatch(serviceSource, /unlink|rmdir|removeComputed|deleteFile|deleteComic|removeComic|upsertComic|LibraryStore|fileIo|fs\./, 'rescan service must not delete files or mutate library persistence')
-assert.match(contractSource, /LOCAL_LIBRARY_FOLDER_RUNTIME_PICKER_STATUS = 'NOT_IMPLEMENTED_DEFERRED'/, 'D42 picker persistence must remain deferred')
+assert.match(contractSource, /LOCAL_LIBRARY_FOLDER_RUNTIME_PICKER_STATUS = 'BEST_EFFORT_DOCUMENT_PICKER'/, 'D42 picker persistence must advertise the best-effort document picker path')
 assert.match(
   libraryPersistenceSource,
   /mergeLocalLibraryRescanComic\(previous: Comic \| undefined, fresh: Comic\)[\s\S]*createdAt: previous\.createdAt[\s\S]*const categoryIds = normalizeCategoryIds\(previous\.categoryIds\)[\s\S]*if \(categoryIds\.length > 0\) \{[\s\S]*merged\.categoryIds = categoryIds[\s\S]*libraryStore\.upsertComic\(mergeLocalLibraryRescanComic\(libraryStore\.getComic\(comic\.id\), comic\)\)/,
