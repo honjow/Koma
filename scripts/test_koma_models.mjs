@@ -1357,6 +1357,11 @@ assert.match(
 )
 assert.match(
   libraryUpdateServiceSource,
+  /function sourceMangaIdFromComic\(comic: Comic\): string \| undefined \{[\s\S]*const remoteResourceId = comic\.remoteResourceId\?\.trim\(\)[\s\S]*remoteResourceId !== undefined && remoteResourceId\.length > 0[\s\S]*return remoteResourceId[\s\S]*const prefix = `\$\{sourceRuntimeId\}:`/,
+  'LibraryUpdateService must refresh source-runtime comics by persisted remoteResourceId before falling back to legacy comic id parsing',
+)
+assert.match(
+  libraryUpdateServiceSource,
   /mergeSourceChapters[\s\S]*pages: existing\.pages[\s\S]*pageCount: existing\.pageCount/,
   'LibraryUpdateService must preserve existing pages when refreshing source-runtime chapter metadata',
 )

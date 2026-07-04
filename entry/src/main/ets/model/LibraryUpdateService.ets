@@ -184,6 +184,10 @@ function sourceMangaIdFromComic(comic: Comic): string | undefined {
   if (sourceRuntimeId === undefined || sourceRuntimeId.trim().length === 0) {
     return undefined
   }
+  const remoteResourceId = comic.remoteResourceId?.trim()
+  if (remoteResourceId !== undefined && remoteResourceId.length > 0) {
+    return remoteResourceId
+  }
   const prefix = `${sourceRuntimeId}:`
   if (comic.id.startsWith(prefix) && comic.id.length > prefix.length) {
     return comic.id.substring(prefix.length)

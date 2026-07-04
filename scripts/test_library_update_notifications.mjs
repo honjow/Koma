@@ -84,6 +84,11 @@ assert.match(
 )
 assert.match(
   serviceSource,
+  /function sourceMangaIdFromComic\(comic: Comic\): string \| undefined \{[\s\S]*comic\.remoteResourceId\?\.trim\(\)[\s\S]*return remoteResourceId[\s\S]*comic\.id\.startsWith\(prefix\)/,
+  'Source runtime library updates must use persisted remoteResourceId instead of depending on a synthesized local comic id',
+)
+assert.match(
+  serviceSource,
   /if \(comic\.sourceKind === ComicSourceKind\.KAVITA_REMOTE\) \{[\s\S]*return this\.checkKavitaComic\(comic, previousChapterCount\)/,
   'Kavita library updates must use a real provider probe instead of the generic remote-library skipped path',
 )
