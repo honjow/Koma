@@ -241,8 +241,6 @@ export struct BackupManagementPage {
     console.info('[BackupManagement] step=export_encrypted_start')
     void this.backupService().exportEncryptedToPicker(passphrase)
       .then((uri: string | undefined) => {
-        this.exportPassphrase = ''
-        this.exportPassphraseConfirm = ''
         if (uri !== undefined) {
           this.showInfoDialog(t('backup_dialog_encrypted_exported_title'), backupEncryptedExportSuccess())
         }
@@ -252,7 +250,8 @@ export struct BackupManagementPage {
         this.showInfoDialog(t('backup_dialog_export_failed_title'), this.backupFailureMessage('backup_export_failed'))
       })
       .finally(() => {
-        this.importPassphrase = ''
+        this.exportPassphrase = ''
+        this.exportPassphraseConfirm = ''
         this.busy = false
       })
   }
@@ -294,8 +293,6 @@ export struct BackupManagementPage {
     console.info('[BackupManagement] step=local_export_encrypted_start')
     void this.backupService().exportEncryptedLocal(passphrase)
       .then((_record: BackupLocalFileRecord) => {
-        this.exportPassphrase = ''
-        this.exportPassphraseConfirm = ''
         this.loadLocalBackups()
         this.showToast(t('backup_local_saved_toast'))
       })
@@ -304,6 +301,8 @@ export struct BackupManagementPage {
         this.showInfoDialog(t('backup_dialog_export_failed_title'), this.backupFailureMessage('backup_local_export_failed'))
       })
       .finally(() => {
+        this.exportPassphrase = ''
+        this.exportPassphraseConfirm = ''
         this.busy = false
       })
   }

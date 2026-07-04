@@ -10,6 +10,16 @@ const indexSource = readFileSync(resolve(root, 'entry/src/main/ets/pages/Index.e
 const constantsSource = readFileSync(resolve(root, 'entry/src/main/ets/common/Constants.ets'), 'utf8')
 const progressDocSource = readFileSync(resolve(root, 'docs/FEATURE_PROGRESS_20260524.md'), 'utf8')
 
+function privateMethodSource(source, methodName) {
+  const start = source.indexOf(`private ${methodName}(`)
+  assert.notEqual(start, -1, `${methodName} must exist`)
+  const next = source.indexOf('\n  private ', start + 1)
+  return source.slice(start, next === -1 ? source.length : next)
+}
+
+const exportEncryptedBackupSource = privateMethodSource(backupPageSource, 'exportEncryptedBackup')
+const exportEncryptedLocalBackupSource = privateMethodSource(backupPageSource, 'exportEncryptedLocalBackup')
+
 assert.match(
   backupServiceSource,
   /export const BACKUP_SCHEMA_VERSION:\s*number = 3/,
@@ -190,6 +200,26 @@ assert.match(
   backupPageSource,
   /private EncryptionCard\(\)[\s\S]*backupEncryptionStatusLabel\(\)[\s\S]*KomaFormTextField\(\{[\s\S]*value: this\.exportPassphrase[\s\S]*isPassword: true[\s\S]*backup_export_encrypted_action/,
   'BackupManagementPage must surface functional encrypted export controls with password input',
+)
+assert.match(
+  exportEncryptedBackupSource,
+  /const passphrase = this\.exportPassphrase[\s\S]*exportEncryptedToPicker\(passphrase\)[\s\S]*\.finally\(\(\) => \{[\s\S]*this\.exportPassphrase = ''[\s\S]*this\.exportPassphraseConfirm = ''[\s\S]*this\.busy = false/,
+  'encrypted picker export must clear export passphrases in finally, including failure and cancellation paths',
+)
+assert.doesNotMatch(
+  exportEncryptedBackupSource,
+  /this\.importPassphrase = ''/,
+  'encrypted picker export must not clear import passphrase state',
+)
+assert.match(
+  exportEncryptedLocalBackupSource,
+  /const passphrase = this\.exportPassphrase[\s\S]*exportEncryptedLocal\(passphrase\)[\s\S]*\.finally\(\(\) => \{[\s\S]*this\.exportPassphrase = ''[\s\S]*this\.exportPassphraseConfirm = ''[\s\S]*this\.busy = false/,
+  'encrypted local export must clear export passphrases in finally, including failure paths',
+)
+assert.doesNotMatch(
+  exportEncryptedLocalBackupSource,
+  /this\.importPassphrase = ''/,
+  'encrypted local export must not clear import passphrase state',
 )
 assert.match(
   backupPageSource,
