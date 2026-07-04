@@ -85,6 +85,14 @@ export struct SourceSearchPage {
     }
   }
 
+  private retrySearch(): void {
+    this.clearPendingSearchTimer()
+    if (this.query.trim().length === 0) {
+      return
+    }
+    void this.viewModel.runSearch(this.source, this.query)
+  }
+
   private setSearchFilterValue(filter: SourceFilter, value: SourceFilterControlValue | undefined): void {
     if (this.viewModel.setSearchFilterValue(filter.id, value)) {
       this.rerunSearchIfReady()
@@ -112,6 +120,19 @@ export struct SourceSearchPage {
     KomaEmptyState({
       title: this.query.trim().length === 0 ? s('source_search_empty_idle_title') : s('source_search_empty_results_title'),
       message: this.query.trim().length === 0 ? s('source_search_empty_idle_message') : s('source_search_empty_results_message'),
+    })
+  }
+
+  @Builder
+  private SearchErrorState() {
+    KomaEmptyState({
+      title: s('source_search_error_title'),
+      message: this.viewModel.errorMessage,
+      actionLabel: s('common_retry'),
+      showAction: this.query.trim().length > 0,
+      action: () => {
+        this.retrySearch()
+      },
     })
   }
 
@@ -181,18 +202,15 @@ export struct SourceSearchPage {
               .width(ThemeConstants.SPACE_XXL)
               .height(ThemeConstants.SPACE_XXL)
               .color(ThemeConstants.BRAND_PRIMARY)
-          } else if (this.viewModel.errorMessage.length > 0) {
-            Text(this.viewModel.errorMessage)
-              .width('100%')
-              .fontSize(ThemeConstants.FONT_SIZE_BODY)
-              .fontColor(ThemeConstants.DANGER)
-              .padding(ThemeConstants.SPACE_LG)
-              .borderRadius(ThemeConstants.RADIUS_CARD)
-              .backgroundColor(ThemeConstants.CARD)
+          } else if (this.viewModel.errorMessage.length > 0 && this.viewModel.searchResults.length === 0) {
+            this.SearchErrorState()
           } else if (this.viewModel.searchResults.length === 0) {
             this.EmptySearch()
           } else {
             this.ResultsGrid(this.viewModel.searchResults)
+            if (this.viewModel.errorMessage.length > 0) {
+              this.SearchErrorState()
+            }
             if (this.viewModel.hasMoreSearch) {
               KomaActionButton({
                 label: this.viewModel.loadingSearch ? s('common_loading_more') : s('common_load_more'),

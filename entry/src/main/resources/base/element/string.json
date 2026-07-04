@@ -337,6 +337,7 @@
     { "name": "browse_section_open_listing", "value": "Open list" },
     { "name": "source_browse_empty_results_title", "value": "No manga found" },
     { "name": "source_browse_empty_results_message", "value": "Try another listing or reset filters." },
+    { "name": "source_search_error_title", "value": "Source search failed" },
 
     { "name": "search_placeholder", "value": "Search titles, authors, tags..." },
     { "name": "search_empty_idle_title", "value": "Start searching with a keyword" },

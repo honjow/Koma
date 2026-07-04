@@ -502,6 +502,11 @@ assert.match(
   /bottomContentInset\(\): number \{[\s\S]*this\.safeArea\.bottomAvoidHeight \+ ThemeConstants\.FLOAT_BAR_HEIGHT[\s\S]*bottomFloatingTabViewportClearance\(\): number \{[\s\S]*return this\.bottomContentInset\(\)[\s\S]*Scroll\(\)[\s\S]*\.padding\(\{\s*bottom:\s*this\.bottomFloatingTabViewportClearance\(\)\s*\}\)[\s\S]*\.clipContent\(ContentClipMode\.CONTENT_ONLY\)/,
   'SourceSearchPage must reserve bottom viewport clearance so source search results and load-more controls are not hidden behind floating tab chrome',
 )
+assert.match(
+  readFileSync(resolve(root, 'entry/src/main/ets/pages/SourceSearchPage.ets'), 'utf8'),
+  /retrySearch\(\): void \{[\s\S]*clearPendingSearchTimer\(\)[\s\S]*query\.trim\(\)\.length === 0[\s\S]*this\.viewModel\.runSearch\(this\.source, this\.query\)[\s\S]*SearchErrorState\(\)[\s\S]*source_search_error_title[\s\S]*common_retry[\s\S]*this\.retrySearch\(\)[\s\S]*errorMessage\.length > 0 && this\.viewModel\.searchResults\.length === 0[\s\S]*this\.SearchErrorState\(\)[\s\S]*this\.ResultsGrid\(this\.viewModel\.searchResults\)[\s\S]*errorMessage\.length > 0[\s\S]*this\.SearchErrorState\(\)/,
+  'SourceSearchPage must expose retry for failed searches and keep existing results visible when later pagination fails',
+)
 assert.doesNotMatch(
   browseViewModelSource,
   /const settings[^=]*=\s*\{\}/,

@@ -337,6 +337,7 @@
     { "name": "browse_section_open_listing", "value": "打开列表" },
     { "name": "source_browse_empty_results_title", "value": "没有找到漫画" },
     { "name": "source_browse_empty_results_message", "value": "试试其他列表，或重置筛选。" },
+    { "name": "source_search_error_title", "value": "源搜索失败" },
 
     { "name": "search_placeholder", "value": "搜索标题、作者、标签..." },
     { "name": "search_empty_idle_title", "value": "输入关键词开始搜索" },

@@ -2500,6 +2500,11 @@ assert.match(
   /this\.viewModel\.loadingSearch && this\.viewModel\.searchResults\.length === 0[\s\S]*this\.ResultsGrid\(this\.viewModel\.searchResults\)[\s\S]*this\.viewModel\.hasMoreSearch[\s\S]*this\.viewModel\.loadMoreSearch\(\)/,
   'SourceSearchPage must keep existing search results visible while loading the next page',
 )
+assert.match(
+  sourceSearchPageSource,
+  /retrySearch\(\): void \{[\s\S]*this\.clearPendingSearchTimer\(\)[\s\S]*this\.query\.trim\(\)\.length === 0[\s\S]*this\.viewModel\.runSearch\(this\.source, this\.query\)[\s\S]*SearchErrorState\(\)[\s\S]*source_search_error_title[\s\S]*common_retry[\s\S]*this\.retrySearch\(\)[\s\S]*this\.viewModel\.errorMessage\.length > 0 && this\.viewModel\.searchResults\.length === 0[\s\S]*this\.SearchErrorState\(\)[\s\S]*this\.ResultsGrid\(this\.viewModel\.searchResults\)[\s\S]*this\.viewModel\.errorMessage\.length > 0[\s\S]*this\.SearchErrorState\(\)/,
+  'SourceSearchPage must expose retry for failed searches and keep existing results visible when pagination reports an error',
+)
 assert.doesNotMatch(
   browseViewModelSource,
   /未命名漫画|无法加载源|源浏览失败|加载更多失败|源未安装或不可用|源运行失败/,
