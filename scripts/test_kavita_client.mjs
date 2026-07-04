@@ -32,9 +32,11 @@ assert.match(modelSource, /export interface KavitaServerConfig[\s\S]*baseUrl: st
 assert.match(modelSource, /export interface KavitaResolvedCredential[\s\S]*apiKey: string/, 'Kavita credentials must model the Auth Key only')
 assert.match(clientSource, /static libraries\(\): string \{\s*return '\/api\/Library\/libraries'\s*\}/, 'Kavita client must use the documented libraries endpoint for connection tests')
 assert.match(clientSource, /static librarySeries\(pageNumber: number = 1, pageSize: number = 50\): string \{[\s\S]*\/api\/Series\/all-v2\?PageNumber=\$\{pageNumber\}&PageSize=\$\{pageSize\}/, 'Kavita client must use the documented all-v2 series endpoint')
+assert.match(clientSource, /static seriesVolumes\(seriesId: number\): string \{[\s\S]*\/api\/Series\/volumes\?seriesId=\$\{seriesId\}/, 'Kavita client must use the documented volumes endpoint')
 assert.match(clientSource, /headers\.xApiKey[\s\S]*"x-api-key"/, 'Kavita client must send Auth Key as x-api-key header')
 assert.match(clientSource, /http\.request\(\{[\s\S]*method,[\s\S]*url: this\.buildUrl\(path\)[\s\S]*headers: this\.buildHeaders\(headers\)[\s\S]*body,/, 'Kavita client must delegate requests through the injected adapter')
 assert.match(clientSource, /listSeries\(libraryId: number[\s\S]*field: 19[\s\S]*value: `\$\{libraryId\}`[\s\S]*sortField: 1[\s\S]*this\.request\('POST', KavitaPaths\.librarySeries/, 'Kavita series listing must filter by library id and sort by name')
+assert.match(clientSource, /listVolumes\(seriesId: number\)[\s\S]*this\.request\('GET', KavitaPaths\.seriesVolumes\(seriesId\)/, 'Kavita volume listing must fetch volumes by series id')
 assert.doesNotMatch(clientSource, /\bfetch\s*\(/, 'Kavita client must not call fetch directly')
 
 assert.equal(normalizeKavitaBaseUrl(' https://reader.example/kavita/// '), 'https://reader.example/kavita')
@@ -49,3 +51,4 @@ assert.match(indexSource, /KavitaServerPage[\s\S]*RouteName\.KAVITA_SERVER[\s\S]
 assert.match(browseSource, /KavitaBrowsePage[\s\S]*kavitaConfigured[\s\S]*browse_kavita_detail/, 'Browse must render configured Kavita library entries')
 assert.match(browseSource, /this\.kavitaConfigured = await store\.loadKavita\(\) !== undefined/, 'Browse availability must check saved Kavita configuration')
 assert.match(kavitaBrowseSource, /openLibrary\(item: KavitaLibraryDto\)[\s\S]*listSeries\(item\.id\)[\s\S]*SeriesRow\(item: KavitaSeriesDto\)/, 'Kavita browse page must drill from libraries into series list without faking reader support')
+assert.match(kavitaBrowseSource, /openSeries\(item: KavitaSeriesDto\)[\s\S]*listVolumes\(item\.id\)[\s\S]*VolumeRow\(item: KavitaVolumeDto\)/, 'Kavita browse page must drill from series into volume and chapter metadata without faking reader support')

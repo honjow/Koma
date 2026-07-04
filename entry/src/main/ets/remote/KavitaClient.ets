@@ -3,6 +3,7 @@ import {
   KavitaResolvedCredential,
   KavitaServerConfig,
   KavitaSeriesDto,
+  KavitaVolumeDto,
 } from './KavitaModels'
 
 export interface KavitaHeaders {
@@ -58,6 +59,10 @@ export class KavitaPaths {
 
   static librarySeries(pageNumber: number = 1, pageSize: number = 50): string {
     return `/api/Series/all-v2?PageNumber=${pageNumber}&PageSize=${pageSize}`
+  }
+
+  static seriesVolumes(seriesId: number): string {
+    return `/api/Series/volumes?seriesId=${seriesId}`
   }
 }
 
@@ -168,6 +173,16 @@ export class KavitaClient {
       throw new Error(`kavita_http_status_${response.status}`)
     }
     return parseKavitaJson<KavitaSeriesDto[]>(response.body)
+  }
+
+  async listVolumes(seriesId: number): Promise<KavitaVolumeDto[]> {
+    const response = await this.request('GET', KavitaPaths.seriesVolumes(seriesId), {
+      accept: 'application/json',
+    } as KavitaHeaders)
+    if (response.status < 200 || response.status >= 300) {
+      throw new Error(`kavita_http_status_${response.status}`)
+    }
+    return parseKavitaJson<KavitaVolumeDto[]>(response.body)
   }
 
   private async request(method: 'GET' | 'POST', path: string, headers: KavitaHeaders, body?: string): Promise<KavitaHttpResponse> {
