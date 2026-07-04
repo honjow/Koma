@@ -82,6 +82,12 @@ import {
   SourceRuntimeRegistryInstalledSourceSummary,
 } from './SourceRuntimeRegistry'
 import {
+  appSourceSettingsStore,
+  fetchSourceSettingDescriptors,
+  SourceSettingDescriptor,
+  SourceSettingsRecord,
+} from './SourceSettingsStore'
+import {
   responseReachedFixture,
   runBundledSourceOperation,
   runSourceApiFixtureOperationsFromBytes,
@@ -121,6 +127,7 @@ const SMOKE_PHASE_SOURCE_INDEX_DOWNLOAD_READER: string = 'source-index-download-
 const SMOKE_PHASE_SOURCE_INDEX_VISIBLE_DOWNLOAD_READER: string = 'source-index-visible-download-reader'
 const SMOKE_PHASE_SOURCE_INDEX_DOWNLOAD_CORRUPT_READER: string = 'source-index-download-corrupt-reader'
 const SMOKE_PHASE_SOURCE_INDEX_BROWSE: string = 'source-index-browse'
+const SMOKE_PHASE_SOURCE_INDEX_SETTINGS: string = 'source-index-settings'
 const SOURCE_INDEX_LIBRARY_SMOKE_FILE_NAME: string = 'source-index-library-smoke.v1.json'
 const SOURCE_RUNTIME_SMOKE_RESULT_FILE_NAME: string = 'source-runtime-smoke-result.json'
 const REAL_SOURCE_RAWFILE_PATH: string = 'test/baozimh.wasm'
@@ -524,6 +531,15 @@ export interface SourceRuntimeSmokeResult {
   sourceIndexBrowseMangaListCount?: number
   sourceIndexBrowseFilteredMangaListOk?: boolean
   sourceIndexBrowseFilteredMangaListCount?: number
+  sourceIndexSettingsDescriptorCount?: number
+  sourceIndexSettingsEditableCount?: number
+  sourceIndexSettingsSelectCount?: number
+  sourceIndexSettingsBooleanCount?: number
+  sourceIndexSettingsSavedCount?: number
+  sourceIndexSettingsSavedDefaultCount?: number
+  sourceIndexSettingsLabelsOk?: boolean
+  sourceIndexSettingsBooleanDefaultOk?: boolean
+  sourceIndexSettingsPersistOk?: boolean
   sourceIndexReaderCleanupOk?: boolean
   mangadexWasmBytes?: number
   mangadexResponse?: SourceRuntimeCallResponse
@@ -668,6 +684,37 @@ function sourceIndexBrowseFilterRequest(filters: Record<string, Object>[]): Reco
     }
   }
   return {}
+}
+
+function sourceIndexSettingsDraft(descriptors: SourceSettingDescriptor[]): SourceSettingsRecord {
+  const draft: SourceSettingsRecord = {}
+  descriptors.forEach((descriptor: SourceSettingDescriptor) => {
+    if (!descriptor.supported || descriptor.sensitive || descriptor.defaultValue === undefined) {
+      return
+    }
+    draft[descriptor.id] = descriptor.defaultValue
+  })
+  return draft
+}
+
+function sourceIndexSettingsLabelsOk(descriptors: SourceSettingDescriptor[]): boolean {
+  for (let index = 0; index < descriptors.length; index += 1) {
+    const descriptor = descriptors[index]
+    if (descriptor.supported && !descriptor.sensitive && descriptor.label === descriptor.id) {
+      return false
+    }
+  }
+  return true
+}
+
+function sourceIndexSettingsBooleanDefaultOk(descriptors: SourceSettingDescriptor[]): boolean {
+  for (let index = 0; index < descriptors.length; index += 1) {
+    const descriptor = descriptors[index]
+    if (descriptor.kind === 'boolean') {
+      return descriptor.defaultValue === undefined || typeof descriptor.defaultValue === 'boolean'
+    }
+  }
+  return true
 }
 
 function sourcePageImageUrl(page: Record<string, Object>): string {
@@ -2154,6 +2201,81 @@ export async function maybeRunSourceRuntimeDeviceSmoke(
           result.sourceIndexReaderCleanupOk === true
         if (!result.ok && result.error === undefined) {
           result.error = 'source-index-browse failed'
+        }
+      }
+      compactSmokeResultForHilog(result)
+      if (context !== undefined) {
+        writeSourceRuntimeSmokeResultFile(context.filesDir, result)
+      }
+      console.info(SMOKE_LOG_PREFIX + JSON.stringify(result))
+      return
+    }
+
+    if (result.smokePhase === SMOKE_PHASE_SOURCE_INDEX_SETTINGS) {
+      if (context === undefined) {
+        result.error = 'source-index-settings phase requires ability context'
+      } else {
+        const indexUrl = smokeStringParam(want, SMOKE_INDEX_URL_PARAM)
+        const requestedSourceId = smokeStringParam(want, SMOKE_SOURCE_ID_PARAM)
+        const selectedSourceId = requestedSourceId.length > 0 ? requestedSourceId : SOURCE_INDEX_READER_DEFAULT_SOURCE_ID
+        result.sourceIndexReaderIndexUrlProvided = indexUrl.length > 0
+        result.sourceIndexReaderSelectedSourceId = selectedSourceId
+        const alreadyInstalled = appSourceRuntimeRegistry.lookup(selectedSourceId).ok
+        result.sourceIndexReaderReusedInstalledSource = alreadyInstalled
+        if (indexUrl.length === 0) {
+          result.error = 'source-index-settings requires indexUrl'
+        } else {
+          const sourceIndexService = new SourceIndexService(context)
+          const fetch = await sourceIndexService.fetchIndex(indexUrl)
+          result.sourceIndexReaderFetchOk = fetch.ok === true
+          result.sourceIndexReaderEntryCount = fetch.entries.length
+          const entry = fetch.entries.find((item: SourceIndexEntry): boolean => item.id === selectedSourceId)
+          if (!fetch.ok || entry === undefined) {
+            result.error = 'source-index-settings source entry not found'
+          } else {
+            result.sourceIndexReaderHashPinPresent = entry.sha256.length > 0
+            if (alreadyInstalled) {
+              result.sourceIndexReaderInstallOk = true
+            } else {
+              const install = await sourceIndexService.installPackage(indexUrl, entry)
+              result.sourceIndexReaderInstallOk = install.ok === true && install.install?.id === selectedSourceId
+            }
+            if (result.sourceIndexReaderInstallOk === true) {
+              const descriptors = fetchSourceSettingDescriptors(appSourceRuntimeRegistry, selectedSourceId)
+              const editable = descriptors.filter((descriptor: SourceSettingDescriptor): boolean =>
+                descriptor.supported && !descriptor.sensitive)
+              const draft = sourceIndexSettingsDraft(descriptors)
+              appSourceSettingsStore.saveForSource(selectedSourceId, draft, descriptors)
+              const saved = appSourceSettingsStore.loadForSource(selectedSourceId)
+              result.sourceIndexSettingsDescriptorCount = descriptors.length
+              result.sourceIndexSettingsEditableCount = editable.length
+              result.sourceIndexSettingsSelectCount =
+                descriptors.filter((descriptor: SourceSettingDescriptor): boolean => descriptor.kind === 'select').length
+              result.sourceIndexSettingsBooleanCount =
+                descriptors.filter((descriptor: SourceSettingDescriptor): boolean => descriptor.kind === 'boolean').length
+              result.sourceIndexSettingsSavedDefaultCount = Object.keys(draft).length
+              result.sourceIndexSettingsSavedCount = Object.keys(saved).length
+              result.sourceIndexSettingsLabelsOk = sourceIndexSettingsLabelsOk(descriptors)
+              result.sourceIndexSettingsBooleanDefaultOk = sourceIndexSettingsBooleanDefaultOk(descriptors)
+              result.sourceIndexSettingsPersistOk =
+                result.sourceIndexSettingsSavedCount === result.sourceIndexSettingsSavedDefaultCount
+            }
+            result.sourceIndexReaderCleanupOk = true
+          }
+        }
+        result.ok = result.sourceIndexReaderIndexUrlProvided === true &&
+          result.sourceIndexReaderFetchOk === true &&
+          result.sourceIndexReaderInstallOk === true &&
+          (result.sourceIndexSettingsDescriptorCount ?? 0) > 0 &&
+          (result.sourceIndexSettingsEditableCount ?? 0) > 0 &&
+          (result.sourceIndexSettingsSelectCount ?? 0) > 0 &&
+          (result.sourceIndexSettingsBooleanCount ?? 0) > 0 &&
+          result.sourceIndexSettingsLabelsOk === true &&
+          result.sourceIndexSettingsBooleanDefaultOk === true &&
+          result.sourceIndexSettingsPersistOk === true &&
+          result.sourceIndexReaderCleanupOk === true
+        if (!result.ok && result.error === undefined) {
+          result.error = 'source-index-settings failed'
         }
       }
       compactSmokeResultForHilog(result)

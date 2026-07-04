@@ -198,6 +198,9 @@ assert.match(sourceSettingsStoreSource, /filterSafeValues[\s\S]*!descriptor\.sup
 assert.match(sourceSettingsStoreSource, /fetchSourceSettingDescriptors[\s\S]*operation: 'get_settings'[\s\S]*normalizeSourceSettingDescriptors\(summary\.response\)/, 'source settings helper must call get_settings and normalize descriptors')
 assert.match(sourceSettingsStoreSource, /data\?\.\['settings'\] \?\? data\?\.\['items'\]/, 'source settings helper must accept data.settings and data.items response shapes')
 assert.match(sourceSettingsStoreSource, /SAFE_SETTING_KINDS:\s*string\[\] = \['string', 'boolean', 'select', 'multiselect', 'range'\]/, 'source settings persistence must limit saved descriptor kinds to safe non-secret values')
+assert.match(sourceSettingsStoreSource, /function displayLabel\(record: RuntimeRecord, fallback: string\): string[\s\S]*record\['label'\][\s\S]*record\['name'\][\s\S]*record\['title'\]/, 'source settings normalization must accept label, name, and title display fields from real source packages')
+assert.match(sourceSettingsStoreSource, /function normalizeSourceSettingKind\(kind: string\): string[\s\S]*kind === 'toggle'[\s\S]*return 'boolean'[\s\S]*kind === 'text'[\s\S]*return 'string'/, 'source settings normalization must map real source toggle/text kinds onto supported Koma controls')
+assert.match(sourceSettingsStoreSource, /function normalizedDefaultValue\(value: RuntimeValue \| undefined, kind: string\): SourceSettingValue \| undefined[\s\S]*kind === 'boolean'[\s\S]*normalized === 'true'[\s\S]*return true[\s\S]*normalized === 'false'[\s\S]*return false/, 'source settings normalization must coerce string boolean defaults for toggle settings')
 assert.match(sourceSettingsStoreSource, /export interface SourceSettingDescriptor\s*{[\s\S]*minValue\?: number[\s\S]*maxValue\?: number[\s\S]*step\?: number/, 'source setting descriptors must carry optional range min, max, and step metadata')
 assert.match(sourceSettingsStoreSource, /minValue: optionalNumber\(record\['min'\]\)[\s\S]*maxValue: optionalNumber\(record\['max'\]\)[\s\S]*step: optionalNumber\(record\['step'\]\)/, 'source settings normalization must parse range min, max, and step metadata')
 assert.match(
@@ -605,6 +608,7 @@ assert.match(smokeSource, /SMOKE_PHASE_SOURCE_INDEX_DOWNLOAD_READER/, 'device sm
 assert.match(smokeSource, /SMOKE_PHASE_SOURCE_INDEX_VISIBLE_DOWNLOAD_READER/, 'device smoke must include a visible source-index download reader phase that leaves a real source manga in the app library')
 assert.match(smokeSource, /SMOKE_PHASE_SOURCE_INDEX_DOWNLOAD_CORRUPT_READER/, 'device smoke must include a focused corrupt offline source-index reader phase')
 assert.match(smokeSource, /SMOKE_PHASE_SOURCE_INDEX_BROWSE/, 'device smoke must include a focused source-index browse phase')
+assert.match(smokeSource, /SMOKE_PHASE_SOURCE_INDEX_SETTINGS/, 'device smoke must include a focused source-index settings phase')
 assert.match(
   smokeSource,
   /installFromBytes[\s\S]*runRegisteredSourceRequestById[\s\S]*get_manga[\s\S]*get_chapters[\s\S]*get_pages[\s\S]*createReaderPageRenderSource/,
@@ -629,6 +633,16 @@ assert.match(
   smokeSource,
   /sourceIndexBrowseListingsOk === true[\s\S]*sourceIndexBrowseHomeOk === true[\s\S]*sourceIndexBrowseFiltersOk === true[\s\S]*sourceIndexBrowseMangaListOk === true[\s\S]*sourceIndexBrowseFilteredMangaListOk === true/,
   'source-index browse smoke must fail unless real listings, home, filters, default listing, and filtered listing all pass',
+)
+assert.match(
+  smokeSource,
+  /SMOKE_PHASE_SOURCE_INDEX_SETTINGS[\s\S]*fetchSourceSettingDescriptors\(appSourceRuntimeRegistry, selectedSourceId\)[\s\S]*appSourceSettingsStore\.saveForSource\(selectedSourceId, draft, descriptors\)[\s\S]*sourceIndexSettingsLabelsOk\(descriptors\)[\s\S]*sourceIndexSettingsBooleanDefaultOk\(descriptors\)[\s\S]*sourceIndexSettingsPersistOk/,
+  'source-index settings smoke must fetch real descriptors, verify normalized labels/boolean defaults, and persist safe source settings',
+)
+assert.match(
+  smokeSource,
+  /sourceIndexSettingsDescriptorCount[\s\S]*sourceIndexSettingsEditableCount[\s\S]*sourceIndexSettingsSelectCount[\s\S]*sourceIndexSettingsBooleanCount[\s\S]*sourceIndexSettingsPersistOk === true/,
+  'source-index settings smoke must fail unless a real editable select and boolean setting persists',
 )
 assert.match(
   smokeSource,

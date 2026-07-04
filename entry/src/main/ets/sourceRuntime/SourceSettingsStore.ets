@@ -116,6 +116,20 @@ function optionalNumber(value: RuntimeValue | undefined): number | undefined {
   return typeof value === 'number' && Number.isFinite(value) ? value : undefined
 }
 
+function displayLabel(record: RuntimeRecord, fallback: string): string {
+  return optionalString(record['label']) ?? optionalString(record['name']) ?? optionalString(record['title']) ?? fallback
+}
+
+function normalizeSourceSettingKind(kind: string): string {
+  if (kind === 'toggle') {
+    return 'boolean'
+  }
+  if (kind === 'text') {
+    return 'string'
+  }
+  return kind
+}
+
 function descriptorIsCredentialLike(id: string, kind: string): boolean {
   if (CREDENTIAL_SETTING_KINDS.includes(kind)) {
     return true
@@ -141,6 +155,19 @@ function safeSettingValue(value: RuntimeValue | undefined): SourceSettingValue |
     return values
   }
   return undefined
+}
+
+function normalizedDefaultValue(value: RuntimeValue | undefined, kind: string): SourceSettingValue | undefined {
+  if (kind === 'boolean' && typeof value === 'string') {
+    const normalized = value.toLocaleLowerCase()
+    if (normalized === 'true') {
+      return true
+    }
+    if (normalized === 'false') {
+      return false
+    }
+  }
+  return safeSettingValue(value)
 }
 
 function settingOptionIds(descriptor: SourceSettingDescriptor): string[] {
@@ -213,7 +240,7 @@ function normalizeOptions(value: RuntimeValue | undefined): SourceSettingOption[
     }
     options.push({
       id,
-      label: optionalString(record['label']) ?? id,
+      label: displayLabel(record, id),
     })
   })
   return options.length === 0 ? undefined : options
@@ -255,16 +282,17 @@ export function normalizeSourceSettingDescriptors(response: SourceRuntimeCallRes
     }
     const record = raw as RuntimeRecord
     const id = optionalString(record['id'])
-    const kind = optionalString(record['kind'])
-    if (id === undefined || kind === undefined) {
+    const rawKind = optionalString(record['kind'])
+    if (id === undefined || rawKind === undefined) {
       return
     }
+    const kind = normalizeSourceSettingKind(rawKind)
     const sensitive = descriptorIsCredentialLike(id, kind)
     descriptors.push({
       id,
-      label: optionalString(record['label']) ?? id,
+      label: displayLabel(record, id),
       kind,
-      defaultValue: safeSettingValue(record['default']),
+      defaultValue: normalizedDefaultValue(record['default'], kind),
       minValue: optionalNumber(record['min']),
       maxValue: optionalNumber(record['max']),
       step: optionalNumber(record['step']),
