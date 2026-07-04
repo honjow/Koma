@@ -26,6 +26,10 @@ import {
   TrackerPendingProgressDrainSummary,
   TrackerProgressSyncService,
 } from '../model/TrackerProgressSyncService'
+import {
+  TrackerAccountRefreshService,
+  TrackerAccountRefreshSummary,
+} from '../model/TrackerAccountRefreshService'
 import { ThemeConstants } from '../theme/ThemeConstants'
 import { AppStrings } from '../i18n/AppStrings'
 import { connectLanguageState, LanguageState } from '../state/LanguageState'
@@ -56,6 +60,7 @@ export struct TrackerSettingsPage {
   }
   @Local private busyMappingKey: string = ''
   @Local private busyProviderId: string = ''
+  @Local private refreshingProviderId: string = ''
   @Local private pendingRetryBusy: boolean = false
   @Local private secureStorageAvailable: boolean = false
   @Local private authPreparationMessageKey: string = 'tracker_message_secure_storage_unverified'
@@ -136,6 +141,15 @@ export struct TrackerSettingsPage {
       (account.credentialAccountKey === undefined || this.secureStorageAvailable)
   }
 
+  private canRefreshProvider(provider: TrackerProviderConfig): boolean {
+    const account = this.findAccount(provider)
+    return this.secureStorageAvailable &&
+      this.refreshingProviderId.length === 0 &&
+      provider.supportStatus === 'available' &&
+      (provider.providerId === 'anilist' || provider.providerId === 'myanimelist') &&
+      account.credentialAccountKey !== undefined
+  }
+
   private prepareConnect(provider: TrackerProviderConfig): void {
     if (!this.canPrepareConnect(provider)) {
       this.authPreparationMessageKey = !this.secureStorageAvailable
@@ -177,6 +191,37 @@ export struct TrackerSettingsPage {
       })
       .finally(() => {
         this.busyProviderId = ''
+      })
+  }
+
+  private refreshAccount(provider: TrackerProviderConfig): void {
+    if (!this.canRefreshProvider(provider)) {
+      this.showToast(s('tracker_refresh_unavailable'))
+      return
+    }
+    this.refreshingProviderId = provider.providerId
+    void new TrackerAccountRefreshService(this.context(), {
+      secretStore: this.credentialSecretStore,
+    }).refreshAccounts(provider.providerId)
+      .then((summary: TrackerAccountRefreshSummary) => {
+        this.accounts = summary.preferences.accounts
+        this.mappings = summary.preferences.comicMappings
+        this.mappingSummary = summarizeComicTrackerMappings(summary.preferences.comicMappings)
+        console.info(`[TrackerSettings] step=account_refresh provider=${provider.providerId} refreshed=${summary.refreshedCount} skipped=${summary.skippedCount} failed=${summary.failedCount}`)
+        if (summary.refreshedCount > 0) {
+          this.showToast(s('tracker_refresh_done'))
+        } else if (summary.failedCount > 0) {
+          this.showToast(s('tracker_refresh_failed'))
+        } else {
+          this.showToast(s('tracker_refresh_unavailable'))
+        }
+      })
+      .catch((_error: Error) => {
+        console.warn('[TrackerSettings] step=account_refresh_failed reason=redacted')
+        this.showToast(s('tracker_refresh_failed'))
+      })
+      .finally(() => {
+        this.refreshingProviderId = ''
       })
   }
 
@@ -368,6 +413,16 @@ export struct TrackerSettingsPage {
         .textOverflow({ overflow: TextOverflow.Ellipsis })
 
       if (this.canDisconnectProvider(provider)) {
+        KomaActionButton({
+          label: this.refreshingProviderId === provider.providerId ? s('common_checking') : s('tracker_action_refresh'),
+          kind: 'secondary',
+          compact: true,
+          controlHeight: ThemeConstants.ACTION_CHIP_HEIGHT,
+          isEnabled: this.canRefreshProvider(provider),
+          action: () => {
+            this.refreshAccount(provider)
+          },
+        })
         KomaActionButton({
           label: s('tracker_action_disconnect'),
           kind: 'danger',
