@@ -1137,6 +1137,8 @@
     { "name": "source_pkg_update_status_missing_brief", "value": "索引中未找到" },
     { "name": "source_pkg_not_checked", "value": "未检查" },
     { "name": "source_pkg_index_url_heading", "value": "源索引地址" },
+    { "name": "source_pkg_index_url_label", "value": "URL" },
+    { "name": "source_pkg_index_url_placeholder", "value": "https://example.com/index.json" },
     { "name": "source_pkg_loading", "value": "加载中" },
     { "name": "source_pkg_load_sources", "value": "加载源列表" },
     { "name": "source_pkg_importing", "value": "导入中" },

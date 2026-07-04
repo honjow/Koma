@@ -1137,6 +1137,8 @@
     { "name": "source_pkg_update_status_missing_brief", "value": "Not found in index" },
     { "name": "source_pkg_not_checked", "value": "Not checked" },
     { "name": "source_pkg_index_url_heading", "value": "Source index URL" },
+    { "name": "source_pkg_index_url_label", "value": "URL" },
+    { "name": "source_pkg_index_url_placeholder", "value": "https://example.com/index.json" },
     { "name": "source_pkg_loading", "value": "Loading" },
     { "name": "source_pkg_load_sources", "value": "Load sources" },
     { "name": "source_pkg_importing", "value": "Importing" },

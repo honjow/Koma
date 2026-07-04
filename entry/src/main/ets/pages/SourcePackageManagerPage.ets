@@ -1327,8 +1327,8 @@ export struct SourcePackageManagerPage {
         .fontColor(ThemeConstants.TEXT_PRIMARY)
 
       KomaFormTextField({
-        label: 'URL',
-        placeholder: 'https://...',
+        label: t('source_pkg_index_url_label'),
+        placeholder: t('source_pkg_index_url_placeholder'),
         value: this.sourceIndexUrl,
         submit: () => {
           this.fetchIndex()

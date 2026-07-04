@@ -541,6 +541,7 @@ assert.doesNotMatch(
 assert.match(managerPageSource, /source_pkg_load_sources/, 'SourcePackageManagerPage must provide load sources action')
 assert.match(managerPageSource, /source_pkg_local_import/, 'SourcePackageManagerPage must keep local import as secondary fallback')
 assert.match(managerPageSource, /source_pkg_index_url_heading/, 'SourcePackageManagerPage must surface source index URL input')
+assert.match(managerPageSource, /label: t\('source_pkg_index_url_label'\)[\s\S]*placeholder: t\('source_pkg_index_url_placeholder'\)/, 'SourcePackageManagerPage source index URL field must use i18n label and placeholder')
 assert.match(
   managerPageSource,
   /SourceIndexService/,
