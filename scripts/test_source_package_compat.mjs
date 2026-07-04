@@ -10,6 +10,7 @@ const managerPagePath = resolve(root, 'entry/src/main/ets/pages/SourcePackageMan
 const browseViewModelPath = resolve(root, 'entry/src/main/ets/viewmodel/BrowseViewModel.ets')
 const browsePagePath = resolve(root, 'entry/src/main/ets/pages/BrowsePage.ets')
 const sourceSearchPagePath = resolve(root, 'entry/src/main/ets/pages/SourceSearchPage.ets')
+const sourceFilterControlsPath = resolve(root, 'entry/src/main/ets/components/SourceFilterControls.ets')
 const sourceSettingsStorePath = resolve(root, 'entry/src/main/ets/sourceRuntime/SourceSettingsStore.ets')
 const smokePath = resolve(root, 'entry/src/main/ets/sourceRuntime/SourceRuntimeDeviceSmoke.ets')
 const sourceRuntimeRegistryPath = resolve(root, 'entry/src/main/ets/sourceRuntime/SourceRuntimeRegistry.ets')
@@ -29,6 +30,7 @@ const managerPageSource = readFileSync(managerPagePath, 'utf8')
 const browseViewModelSource = readFileSync(browseViewModelPath, 'utf8')
 const browsePageSource = readFileSync(browsePagePath, 'utf8')
 const sourceSearchPageSource = readFileSync(sourceSearchPagePath, 'utf8')
+const sourceFilterControlsSource = readFileSync(sourceFilterControlsPath, 'utf8')
 const sourceSettingsStoreSource = readFileSync(sourceSettingsStorePath, 'utf8')
 const smokeSource = readFileSync(smokePath, 'utf8')
 const sourceRuntimeRegistrySource = readFileSync(sourceRuntimeRegistryPath, 'utf8')
@@ -269,6 +271,16 @@ assert.match(
 )
 assert.match(
   browseViewModelSource,
+  /interface SourceSearchArgs \{[\s\S]*query: string[\s\S]*page: SourceOperationPageArg[\s\S]*filters: SourceMangaListFilters[\s\S]*searchSource\([\s\S]*const args: SourceSearchArgs = \{[\s\S]*query,[\s\S]*page: pageArg,[\s\S]*filters: this\.browseFilterValues/,
+  'BrowseViewModel must pass active source-defined filters into source search requests',
+)
+assert.match(
+  browseViewModelSource,
+  /ensureSearchFilters\(source: SourceRuntimeRegistryInstalledSourceSummary\): Promise<void>[\s\S]*this\.filters = await this\.loadSourceFilters\(source\)[\s\S]*this\.browseFilterValues = this\.defaultSourceFilterValues\(this\.filters\)[\s\S]*setSearchFilterValue\(filterId: string, value: SourceFilterValue \| undefined\): boolean[\s\S]*return this\.updateFilterValue\(filterId, value\)[\s\S]*resetSearchFilters\(\): void \{[\s\S]*this\.browseFilterValues = this\.defaultSourceFilterValues\(this\.filters\)/,
+  'BrowseViewModel must expose search-safe source filter loading, updates, and reset without forcing browse listing reloads',
+)
+assert.match(
+  browseViewModelSource,
   /clearSearch\(source\?: SourceRuntimeRegistryInstalledSourceSummary\): void \{[\s\S]*this\.searchQuery = ''[\s\S]*this\.searchResults = \[\][\s\S]*this\.hasMoreSearch = false[\s\S]*this\.loadingSearch = false[\s\S]*this\.errorMessage = ''[\s\S]*this\.searchNextCursor = ''/,
   'BrowseViewModel must expose an immediate clear path so blank source searches cannot leave stale results visible',
 )
@@ -276,6 +288,16 @@ assert.match(
   sourceSearchPageSource,
   /scheduleSearch\(value: string\): void \{[\s\S]*clearTimeout\(this\.searchTimer\)[\s\S]*if \(value\.trim\(\)\.length === 0\) \{[\s\S]*this\.viewModel\.clearSearch\(this\.source\)[\s\S]*return[\s\S]*setTimeout/,
   'SourceSearchPage must clear source search results immediately when the query becomes blank instead of waiting for debounce',
+)
+assert.match(
+  sourceFilterControlsSource,
+  /export struct SourceFilterControls[\s\S]*filter\.type === 'check'[\s\S]*Toggle\(\{ type: ToggleType\.Switch[\s\S]*filter\.type === 'text'[\s\S]*TextInput\([\s\S]*else if \(\(filter\.options \?\? \[\]\)\.length > 0\)[\s\S]*bindMenu\(this\.activeFilterMenuId === filter\.id, this\.FilterOptionMenu\(filter\)/,
+  'SourceFilterControls must expose source-defined filters with switch, text, and menu controls',
+)
+assert.match(
+  sourceSearchPageSource,
+  /SourceFilterControls\(\{[\s\S]*filters: this\.viewModel\.filters[\s\S]*values: this\.viewModel\.browseFilterValues[\s\S]*busy: this\.viewModel\.loadingSearch[\s\S]*onFilterChange:[\s\S]*this\.setSearchFilterValue\(filter, value\)[\s\S]*onReset:[\s\S]*this\.viewModel\.resetSearchFilters\(\)[\s\S]*this\.rerunSearchIfReady\(\)[\s\S]*aboutToAppear\(\): void \{[\s\S]*this\.viewModel\.ensureSearchFilters\(this\.source\)/,
+  'SourceSearchPage must rerun the current search when a source filter changes or resets',
 )
 assert.match(
   browseViewModelSource,
@@ -289,7 +311,7 @@ assert.match(
 )
 assert.match(
   readFileSync(resolve(root, 'entry/src/main/ets/pages/SourceBrowsePage.ets'), 'utf8'),
-  /ListingSelector\(\)[\s\S]*ForEach\(this\.viewModel\.listings[\s\S]*selectBrowseListing\(listing\)[\s\S]*SourceFilterControls\(\)[\s\S]*common_reset[\s\S]*resetBrowseFilters\(\)[\s\S]*ForEach\(this\.viewModel\.homeSections[\s\S]*ForEach\(this\.viewModel\.browseSections/,
+  /ListingSelector\(\)[\s\S]*ForEach\(this\.viewModel\.listings[\s\S]*selectBrowseListing\(listing\)[\s\S]*RuntimeFilterControls\(\)[\s\S]*SourceFilterControls\(\{[\s\S]*onFilterChange:[\s\S]*this\.setBrowseFilterValue\(filter, value\)[\s\S]*onReset:[\s\S]*resetBrowseFilters\(\)[\s\S]*ForEach\(this\.viewModel\.homeSections[\s\S]*ForEach\(this\.viewModel\.browseSections/,
   'SourceBrowsePage must render source-defined listing selectors, home sections, and browse sections',
 )
 assert.doesNotMatch(

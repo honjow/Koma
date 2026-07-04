@@ -1,0 +1,169 @@
+import { KomaActionButton } from './ui/KomaActionButton'
+import { AppStrings } from '../i18n/AppStrings'
+import { SourceFilter } from '../model/SourceModels'
+import { ThemeConstants } from '../theme/ThemeConstants'
+
+export type SourceFilterControlValue = string | number | boolean
+export type SourceFilterControlValues = Record<string, SourceFilterControlValue>
+
+function s(name: string): string {
+  return AppStrings.get(name)
+}
+
+@ComponentV2
+export struct SourceFilterControls {
+  @Param filters: SourceFilter[] = []
+  @Param values: SourceFilterControlValues = {}
+  @Param busy: boolean = false
+  @Local private activeFilterMenuId: string = ''
+  @Local private pendingTextFilters: Record<string, string> = {}
+  @Event onFilterChange: (filter: SourceFilter, value: SourceFilterControlValue | undefined) => void =
+    (_filter: SourceFilter, _value: SourceFilterControlValue | undefined) => {}
+  @Event onReset: () => void = () => {}
+
+  private filterRequestKey(filter: SourceFilter): string {
+    return filter.id.startsWith('filter:') ? filter.id.substring('filter:'.length) : filter.id
+  }
+
+  private currentFilterValue(filter: SourceFilter): SourceFilterControlValue | undefined {
+    return this.values[this.filterRequestKey(filter)]
+  }
+
+  private filterOptionValue(filter: SourceFilter, index: number): string {
+    const optionIds = filter.optionIds ?? []
+    const options = filter.options ?? []
+    const raw = optionIds[index] ?? options[index] ?? ''
+    const keyPrefix = `${this.filterRequestKey(filter)}:`
+    return raw.startsWith(keyPrefix) ? raw.substring(keyPrefix.length) : raw
+  }
+
+  private filterButtonLabel(filter: SourceFilter): string {
+    const value = this.currentFilterValue(filter)
+    if (value === undefined) {
+      return filter.name
+    }
+    const optionIds = filter.optionIds ?? []
+    const options = filter.options ?? []
+    const valueText = `${value}`
+    for (let index = 0; index < optionIds.length || index < options.length; index += 1) {
+      if (this.filterOptionValue(filter, index) === valueText) {
+        return `${filter.name}: ${options[index] ?? valueText}`
+      }
+    }
+    return `${filter.name}: ${valueText}`
+  }
+
+  private pendingTextFilterValue(filter: SourceFilter): string {
+    const key = this.filterRequestKey(filter)
+    const pending = this.pendingTextFilters[key]
+    if (pending !== undefined) {
+      return pending
+    }
+    const value = this.currentFilterValue(filter)
+    return typeof value === 'string' ? value : ''
+  }
+
+  private setPendingTextFilterValue(filter: SourceFilter, value: string): void {
+    const key = this.filterRequestKey(filter)
+    const next: Record<string, string> = {}
+    Object.keys(this.pendingTextFilters).forEach((itemKey: string) => {
+      next[itemKey] = this.pendingTextFilters[itemKey]
+    })
+    next[key] = value
+    this.pendingTextFilters = next
+  }
+
+  @Builder
+  private FilterOptionMenu(filter: SourceFilter) {
+    Menu() {
+      MenuItem({ content: s('common_all') })
+        .onClick(() => {
+          this.activeFilterMenuId = ''
+          this.onFilterChange(filter, undefined)
+        })
+      ForEach(filter.options ?? [], (option: string, index: number) => {
+        MenuItem({ content: option })
+          .onClick(() => {
+            this.activeFilterMenuId = ''
+            this.onFilterChange(filter, this.filterOptionValue(filter, index))
+          })
+      }, (option: string, index: number) => `${filter.id}:${index}:${option}`)
+    }
+  }
+
+  build() {
+    if (this.filters.length > 0) {
+      Scroll() {
+        Row({ space: ThemeConstants.SPACE_SM }) {
+          ForEach(this.filters, (filter: SourceFilter) => {
+            if (filter.type === 'check') {
+              Row({ space: ThemeConstants.SPACE_SM }) {
+                Text(filter.name)
+                  .fontSize(ThemeConstants.FONT_SIZE_TAG)
+                  .fontColor(ThemeConstants.TEXT_PRIMARY)
+                  .maxLines(1)
+                  .textOverflow({ overflow: TextOverflow.Ellipsis })
+                Toggle({ type: ToggleType.Switch, isOn: this.currentFilterValue(filter) === true })
+                  .selectedColor(ThemeConstants.BRAND_PRIMARY)
+                  .onChange((isOn: boolean) => {
+                    this.onFilterChange(filter, isOn ? true : undefined)
+                  })
+              }
+              .padding({ left: ThemeConstants.SPACE_SM, right: ThemeConstants.SPACE_SM })
+              .height(ThemeConstants.ACTION_CHIP_HEIGHT)
+              .borderRadius(ThemeConstants.RADIUS_ROUND)
+              .backgroundColor(ThemeConstants.CARD)
+            } else if (filter.type === 'text') {
+              TextInput({
+                placeholder: filter.name,
+                text: this.pendingTextFilterValue(filter),
+              })
+                .width(180)
+                .height(ThemeConstants.ACTION_CHIP_HEIGHT)
+                .fontSize(ThemeConstants.FONT_SIZE_TAG)
+                .backgroundColor(ThemeConstants.CARD)
+                .borderRadius(ThemeConstants.RADIUS_ROUND)
+                .onChange((value: string) => {
+                  this.setPendingTextFilterValue(filter, value)
+                })
+                .onSubmit(() => {
+                  const value = this.pendingTextFilterValue(filter).trim()
+                  this.onFilterChange(filter, value.length > 0 ? value : undefined)
+                })
+            } else if ((filter.options ?? []).length > 0) {
+              KomaActionButton({
+                label: this.filterButtonLabel(filter),
+                kind: this.currentFilterValue(filter) === undefined ? 'secondary' : 'primary',
+                compact: true,
+                controlHeight: ThemeConstants.ACTION_CHIP_HEIGHT,
+                action: () => {
+                  this.activeFilterMenuId = filter.id
+                },
+              })
+                .bindMenu(this.activeFilterMenuId === filter.id, this.FilterOptionMenu(filter), {
+                  placement: Placement.BottomLeft,
+                  onDisappear: () => {
+                    this.activeFilterMenuId = ''
+                  },
+                })
+            }
+          }, (filter: SourceFilter) => filter.id)
+          KomaActionButton({
+            label: s('common_reset'),
+            kind: 'secondary',
+            compact: true,
+            controlHeight: ThemeConstants.ACTION_CHIP_HEIGHT,
+            isEnabled: !this.busy,
+            action: () => {
+              this.pendingTextFilters = {}
+              this.onReset()
+            },
+          })
+        }
+      }
+      .width('100%')
+      .scrollable(ScrollDirection.Horizontal)
+      .scrollBar(BarState.Off)
+    }
+  }
+}

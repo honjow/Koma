@@ -1,8 +1,9 @@
 import { MangaGridItem } from '../components/MangaGridItem'
 import { KomaActionButton } from '../components/ui/KomaActionButton'
 import { KomaEmptyState } from '../components/ui/KomaEmptyState'
+import { SourceFilterControls, SourceFilterControlValue } from '../components/SourceFilterControls'
 import { AppStrings } from '../i18n/AppStrings'
-import { SourceManga } from '../model/SourceModels'
+import { SourceFilter, SourceManga } from '../model/SourceModels'
 import { connectLayoutSafeArea, LayoutSafeAreaState } from '../state/LayoutSafeAreaState'
 import { connectLanguageState, LanguageState } from '../state/LanguageState'
 import { ThemeConstants } from '../theme/ThemeConstants'
@@ -60,6 +61,34 @@ export struct SourceSearchPage {
     }, 300)
   }
 
+  private rerunSearchIfReady(): void {
+    if (this.query.trim().length > 0) {
+      void this.viewModel.runSearch(this.source, this.query)
+    }
+  }
+
+  private setSearchFilterValue(filter: SourceFilter, value: SourceFilterControlValue | undefined): void {
+    if (this.viewModel.setSearchFilterValue(filter.id, value)) {
+      this.rerunSearchIfReady()
+    }
+  }
+
+  @Builder
+  private RuntimeFilterControls() {
+    SourceFilterControls({
+      filters: this.viewModel.filters,
+      values: this.viewModel.browseFilterValues,
+      busy: this.viewModel.loadingSearch,
+      onFilterChange: (filter: SourceFilter, value: SourceFilterControlValue | undefined) => {
+        this.setSearchFilterValue(filter, value)
+      },
+      onReset: () => {
+        this.viewModel.resetSearchFilters()
+        this.rerunSearchIfReady()
+      },
+    })
+  }
+
   @Builder
   private EmptySearch() {
     KomaEmptyState({
@@ -95,6 +124,10 @@ export struct SourceSearchPage {
     }
   }
 
+  aboutToAppear(): void {
+    void this.viewModel.ensureSearchFilters(this.source)
+  }
+
   build() {
     if (this.languageState.effectiveLocale.length >= 0) {
       Scroll() {
@@ -125,6 +158,8 @@ export struct SourceSearchPage {
             .onSubmit((value: string) => {
               this.scheduleSearch(value)
             })
+
+          this.RuntimeFilterControls()
 
           if (this.viewModel.loadingSearch) {
             LoadingProgress()

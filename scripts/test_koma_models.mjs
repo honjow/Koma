@@ -41,6 +41,7 @@ const importPagePath = resolve(root, 'entry/src/main/ets/pages/ImportPage.ets')
 const sourceBrowsePagePath = resolve(root, 'entry/src/main/ets/pages/SourceBrowsePage.ets')
 const sourceSearchPagePath = resolve(root, 'entry/src/main/ets/pages/SourceSearchPage.ets')
 const sourcePackageManagerPagePath = resolve(root, 'entry/src/main/ets/pages/SourcePackageManagerPage.ets')
+const sourceFilterControlsPath = resolve(root, 'entry/src/main/ets/components/SourceFilterControls.ets')
 const privacyPermissionsDocPath = resolve(root, 'docs/PRIVACY_AND_PERMISSIONS.md')
 const browseViewModelPath = resolve(root, 'entry/src/main/ets/viewmodel/BrowseViewModel.ets')
 const localImportCoordinatorPath = resolve(root, 'entry/src/main/ets/import/LocalImportCoordinator.ets')
@@ -94,6 +95,7 @@ const importPageSource = readFileSync(importPagePath, 'utf8')
 const sourceBrowsePageSource = readFileSync(sourceBrowsePagePath, 'utf8')
 const sourceSearchPageSource = readFileSync(sourceSearchPagePath, 'utf8')
 const sourcePackageManagerPageSource = readFileSync(sourcePackageManagerPagePath, 'utf8')
+const sourceFilterControlsSource = readFileSync(sourceFilterControlsPath, 'utf8')
 const privacyPermissionsDocSource = readFileSync(privacyPermissionsDocPath, 'utf8')
 const browseViewModelSource = readFileSync(browseViewModelPath, 'utf8')
 const localImportCoordinatorSource = readFileSync(localImportCoordinatorPath, 'utf8')
@@ -2038,8 +2040,18 @@ assert.match(
 )
 assert.match(
   browseViewModelSource,
-  /setBrowseFilterValue\(filterId: string, value: SourceFilterValue \| undefined\)[\s\S]*const key = this\.filterRequestKey\(filter\)[\s\S]*nextValues\[key\] = this\.normalizeFilterRequestValue\(key, value\)[\s\S]*await this\.selectBrowseListing\(listing\)/,
+  /interface SourceSearchArgs \{[\s\S]*filters: SourceMangaListFilters[\s\S]*searchSource\([\s\S]*const args: SourceSearchArgs = \{[\s\S]*filters: this\.browseFilterValues/,
+  'BrowseViewModel must pass active source filters into source search requests',
+)
+assert.match(
+  browseViewModelSource,
+  /updateFilterValue\(filterId: string, value: SourceFilterValue \| undefined\): boolean[\s\S]*const key = this\.filterRequestKey\(filter\)[\s\S]*nextValues\[key\] = this\.normalizeFilterRequestValue\(key, value\)[\s\S]*setBrowseFilterValue\(filterId: string, value: SourceFilterValue \| undefined\)[\s\S]*this\.updateFilterValue\(filterId, value\)[\s\S]*await this\.selectBrowseListing\(listing\)/,
   'BrowseViewModel must update source filter values and reload the current listing',
+)
+assert.match(
+  browseViewModelSource,
+  /ensureSearchFilters\(source: SourceRuntimeRegistryInstalledSourceSummary\): Promise<void>[\s\S]*this\.filters = await this\.loadSourceFilters\(source\)[\s\S]*setSearchFilterValue\(filterId: string, value: SourceFilterValue \| undefined\): boolean[\s\S]*resetSearchFilters\(\): void \{/,
+  'BrowseViewModel must expose search filter lifecycle without requiring a browse listing reload',
 )
 assert.match(
   browseViewModelSource,
@@ -2052,9 +2064,19 @@ assert.match(
   'BrowseViewModel must normalize fixture-style filter:sort and sort:popular ids before sending request filters',
 )
 assert.match(
+  sourceFilterControlsSource,
+  /export struct SourceFilterControls[\s\S]*filter\.type === 'check'[\s\S]*Toggle\(\{ type: ToggleType\.Switch[\s\S]*filter\.type === 'text'[\s\S]*TextInput\([\s\S]*\.onSubmit\(\(\) =>[\s\S]*else if \(\(filter\.options \?\? \[\]\)\.length > 0\)[\s\S]*bindMenu\(this\.activeFilterMenuId === filter\.id, this\.FilterOptionMenu\(filter\)/,
+  'SourceFilterControls must render source filters with switch/text input/menu controls according to descriptor type',
+)
+assert.match(
   sourceBrowsePageSource,
-  /SourceFilterControls\(\)[\s\S]*filter\.type === 'check'[\s\S]*Toggle\(\{ type: ToggleType\.Switch[\s\S]*filter\.type === 'text'[\s\S]*TextInput\([\s\S]*\.onSubmit\(\(\) =>[\s\S]*else if \(\(filter\.options \?\? \[\]\)\.length > 0\)[\s\S]*bindMenu\(this\.activeFilterMenuId === filter\.id, this\.FilterOptionMenu\(filter\)/,
-  'SourceBrowsePage must render source filters with switch/text input/menu controls according to descriptor type',
+  /SourceFilterControls\(\{[\s\S]*filters: this\.viewModel\.filters[\s\S]*values: this\.viewModel\.browseFilterValues[\s\S]*busy: this\.viewModel\.loadingBrowse[\s\S]*onFilterChange:[\s\S]*this\.setBrowseFilterValue\(filter, value\)[\s\S]*onReset:[\s\S]*resetBrowseFilters\(\)/,
+  'SourceBrowsePage must wire shared source filter controls to browse reload behavior',
+)
+assert.match(
+  sourceSearchPageSource,
+  /SourceFilterControls\(\{[\s\S]*filters: this\.viewModel\.filters[\s\S]*values: this\.viewModel\.browseFilterValues[\s\S]*busy: this\.viewModel\.loadingSearch[\s\S]*onFilterChange:[\s\S]*this\.setSearchFilterValue\(filter, value\)[\s\S]*onReset:[\s\S]*resetSearchFilters\(\)[\s\S]*aboutToAppear\(\): void \{[\s\S]*this\.viewModel\.ensureSearchFilters\(this\.source\)/,
+  'SourceSearchPage must wire shared source filter controls to filtered search behavior',
 )
 assert.doesNotMatch(
   browseViewModelSource,
