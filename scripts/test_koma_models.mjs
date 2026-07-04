@@ -41,6 +41,7 @@ const importPagePath = resolve(root, 'entry/src/main/ets/pages/ImportPage.ets')
 const sourceBrowsePagePath = resolve(root, 'entry/src/main/ets/pages/SourceBrowsePage.ets')
 const sourceSearchPagePath = resolve(root, 'entry/src/main/ets/pages/SourceSearchPage.ets')
 const sourcePackageManagerPagePath = resolve(root, 'entry/src/main/ets/pages/SourcePackageManagerPage.ets')
+const privacyPermissionsDocPath = resolve(root, 'docs/PRIVACY_AND_PERMISSIONS.md')
 const browseViewModelPath = resolve(root, 'entry/src/main/ets/viewmodel/BrowseViewModel.ets')
 const localImportCoordinatorPath = resolve(root, 'entry/src/main/ets/import/LocalImportCoordinator.ets')
 const localLibraryFolderContractPath = resolve(root, 'entry/src/main/ets/model/LocalLibraryFolderContract.ets')
@@ -93,6 +94,7 @@ const importPageSource = readFileSync(importPagePath, 'utf8')
 const sourceBrowsePageSource = readFileSync(sourceBrowsePagePath, 'utf8')
 const sourceSearchPageSource = readFileSync(sourceSearchPagePath, 'utf8')
 const sourcePackageManagerPageSource = readFileSync(sourcePackageManagerPagePath, 'utf8')
+const privacyPermissionsDocSource = readFileSync(privacyPermissionsDocPath, 'utf8')
 const browseViewModelSource = readFileSync(browseViewModelPath, 'utf8')
 const localImportCoordinatorSource = readFileSync(localImportCoordinatorPath, 'utf8')
 const localLibraryFolderContractSource = readFileSync(localLibraryFolderContractPath, 'utf8')
@@ -902,6 +904,16 @@ assert.match(
   settingsPageSource,
   /library-update-notifications[\s\S]*getLibraryUpdateNotificationStatusLabel\(this\.libraryUpdateNotificationStatus\)[\s\S]*requestLibraryUpdateNotificationPermission\(this\.context\(\)\)/,
   'SettingsPage must expose a real update notification permission entry',
+)
+assert.match(
+  settingsPageSource,
+  /\{ key: 'privacy-permissions', titleKey: 'settings_row_privacy_permissions_title', detailKey: 'settings_row_privacy_permissions_detail' \}[\s\S]*showPrivacyPermissionsDialog\(\): void \{[\s\S]*settings_privacy_permissions_dialog_title[\s\S]*settings_privacy_permissions_dialog_message[\s\S]*row\.key === 'privacy-permissions'[\s\S]*this\.showPrivacyPermissionsDialog\(\)/,
+  'SettingsPage About must expose a visible privacy and permissions entry',
+)
+assert.match(
+  privacyPermissionsDocSource,
+  /ohos\.permission\.INTERNET[\s\S]*ohos\.permission\.GET_NETWORK_INFO[\s\S]*ohos\.permission\.VIBRATE[\s\S]*picker grants access[\s\S]*must not include passwords, API keys, bearer tokens, cookies, OAuth codes[\s\S]*Settings exposes a visible Privacy and Permissions entry/,
+  'Privacy and permissions release doc must cover declared permissions, picker-scoped local access, secret exclusion, and Settings discoverability',
 )
 assert.match(
   settingsPageSource,

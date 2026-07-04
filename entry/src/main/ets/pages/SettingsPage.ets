@@ -259,6 +259,7 @@ function createSettingsSections(): SettingsSection[] {
       titleKey: 'settings_section_about',
       rows: [
         { key: 'about', titleKey: 'settings_row_about_title', detailKey: 'settings_row_about_detail' },
+        { key: 'privacy-permissions', titleKey: 'settings_row_privacy_permissions_title', detailKey: 'settings_row_privacy_permissions_detail' },
         { key: 'version', titleKey: 'settings_row_version_title', detailKey: 'settings_row_version_detail' },
         { key: 'open-source', titleKey: 'settings_row_open_source_title', detailKey: 'settings_row_open_source_detail' },
       ],
@@ -1909,6 +1910,11 @@ export struct SettingsPage {
     this.showInfoDialog(s('settings_about_dialog_title'), s('settings_about_dialog_message'))
   }
 
+  private showPrivacyPermissionsDialog(): void {
+    console.info('[Settings] step=privacy_permissions_dialog')
+    this.showInfoDialog(s('settings_privacy_permissions_dialog_title'), s('settings_privacy_permissions_dialog_message'))
+  }
+
   private showOpenSourceDialog(): void {
     console.info('[Settings] step=open_source_dialog')
     this.showInfoDialog(s('settings_open_source_dialog_title'), s('settings_open_source_dialog_message'))
@@ -2187,6 +2193,8 @@ export struct SettingsPage {
       this.resetReaderPreferences()
     } else if (row.key === 'about') {
       this.showAboutDialog()
+    } else if (row.key === 'privacy-permissions') {
+      this.showPrivacyPermissionsDialog()
     } else if (row.key === 'version') {
       this.showVersionDialog()
     } else if (row.key === 'open-source') {
