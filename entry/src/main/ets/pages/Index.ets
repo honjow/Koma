@@ -638,6 +638,9 @@ struct Index {
       HdsNavDestination() {
         DownloadsPage({
           libraryStore: this.libraryStore,
+          onOpenReader: (comicId: ComicId, chapterId?: string) => {
+            void this.openReader(comicId, chapterId)
+          },
         })
       }
       .titleBar(this.navDestTitleBarOpts(AppStrings.get('route_downloads_title')))

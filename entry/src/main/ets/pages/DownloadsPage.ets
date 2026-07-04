@@ -51,6 +51,8 @@ export struct DownloadsPage {
   @Local private busyKey: string = ''
   @Local private filter: DownloadQueueFilter = DownloadQueueFilter.ALL
   @Local private recoveryText: string = ''
+  @Event onOpenReader: (comicId: string, chapterId?: string) => void =
+    (_comicId: string, _chapterId?: string) => {}
 
   private context(): common.UIAbilityContext {
     return getContext(this) as common.UIAbilityContext
@@ -263,6 +265,10 @@ export struct DownloadsPage {
     return entry.status !== OfflineDownloadStatus.DOWNLOADING && entry.status !== OfflineDownloadStatus.QUEUED
   }
 
+  private canRead(entry: OfflineDownloadQueueEntry): boolean {
+    return entry.status === OfflineDownloadStatus.DOWNLOADED
+  }
+
   private blockUnavailableEntry(entry: OfflineDownloadQueueEntry): void {
     const blocked = this.queueStore().upsert({
       comicId: entry.comicId,
@@ -288,6 +294,19 @@ export struct DownloadsPage {
       return
     }
     RouterHelper.pushMangaDetail({ mangaId: entry.comicId })
+  }
+
+  private openDownloadedChapter(entry: OfflineDownloadQueueEntry): void {
+    if (!this.canRead(entry)) {
+      return
+    }
+    const comic = this.libraryStore?.getComic(entry.comicId)
+    if (comic === undefined) {
+      this.blockUnavailableEntry(entry)
+      this.showToast(s('downloads_toast_entry_unavailable'))
+      return
+    }
+    this.onOpenReader(entry.comicId, entry.chapterId)
   }
 
   private retryDownload(entry: OfflineDownloadQueueEntry): void {
@@ -824,6 +843,17 @@ export struct DownloadsPage {
       })
 
       Row({ space: ThemeConstants.SPACE_MD }) {
+        if (this.canRead(entry)) {
+          KomaActionButton({
+            label: s('common_read'),
+            kind: 'primary',
+            isEnabled: this.busyKey.length === 0,
+            controlHeight: ThemeConstants.ACTION_CHIP_HEIGHT,
+            action: () => {
+              this.openDownloadedChapter(entry)
+            },
+          })
+        }
         if (this.canRetry(entry)) {
           KomaActionButton({
             label: this.busyKey === this.rowKey(entry) ? s('common_retrying') : s('common_retry'),
