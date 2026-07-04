@@ -31,6 +31,11 @@ assert.match(
 )
 assert.match(
   source,
+  /pushReadingProgress\([\s\S]*trigger === 'on_chapter_complete' && !progress\.completed[\s\S]*strategy_not_due[\s\S]*trigger !== 'manual' && preferences\.updateStrategy !== trigger/,
+  'tracker progress push must not send normal page-turn progress through the chapter-complete strategy',
+)
+assert.match(
+  source,
   /isSupportedProgressProvider\(providerId: TrackerProviderId\): boolean \{[\s\S]*providerId === 'anilist' \|\| providerId === 'myanimelist'[\s\S]*findConfirmedMapping\(preferences[\s\S]*this\.isSupportedProgressProvider\(mapping\.providerId\)[\s\S]*mapping\.mappingState === 'confirmed'[\s\S]*mapping\.userConfirmed/,
   'tracker progress sync must only use user-confirmed mappings for implemented providers',
 )

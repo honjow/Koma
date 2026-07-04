@@ -102,6 +102,9 @@ export class TrackerProgressSyncService {
     if (!preferences.autoSyncEnabled) {
       return this.skipped('auto_sync_disabled')
     }
+    if (trigger === 'on_chapter_complete' && !progress.completed) {
+      return this.skipped('strategy_not_due')
+    }
     if (trigger !== 'manual' && preferences.updateStrategy !== trigger) {
       return this.skipped('strategy_not_due')
     }
