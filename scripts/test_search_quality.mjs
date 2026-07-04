@@ -36,6 +36,11 @@ assert.match(
   'search quality scores must keep title matches ahead of metadata matches and weak matches last',
 )
 assert.match(
+  crossSearchSource,
+  /localSearchSubtitle\(comic: Comic, normalizedQuery: string, compactQuery: string\)[\s\S]*if \(!titleMatches && subtitleMatches && comic\.subtitle !== undefined\) \{[\s\S]*return comic\.subtitle[\s\S]*if \(!titleMatches && authorMatches && comic\.author !== undefined\) \{[\s\S]*return comic\.author[\s\S]*matchedChapterTitle !== undefined[\s\S]*return matchedChapterTitle/,
+  'local search subtitles must preserve the matched metadata text so match quality does not degrade to weak',
+)
+assert.match(
   searchPageSource,
   /CrossSearchMatchQuality[\s\S]*matchQualityLabel\(matchQuality: CrossSearchMatchQuality \| undefined\)[\s\S]*search_match_title_exact[\s\S]*search_match_metadata_contains[\s\S]*search_match_weak/,
   'SearchPage must render a localized match-quality label instead of hiding result scoring',
@@ -146,6 +151,35 @@ assert.deepEqual(
   examples.map((item) => matchQuality(item, 'One')),
   ['metadata_contains', 'title_exact', 'title_prefix', 'title_contains', 'metadata_prefix', 'metadata_contains'],
   'search quality fixture must classify title matches ahead of metadata matches',
+)
+
+function localSearchSubtitle(comic, query) {
+  const normalizedQuery = normalizeText(query)
+  const compactQuery = compactText(query)
+  const titleMatches = matchQuality({ title: comic.title, subtitle: '' }, query) !== 'weak'
+  const subtitleMatches = comic.subtitle !== undefined && (normalizeText(comic.subtitle).includes(normalizedQuery) || compactText(comic.subtitle).includes(compactQuery))
+  const authorMatches = comic.author !== undefined && (normalizeText(comic.author).includes(normalizedQuery) || compactText(comic.author).includes(compactQuery))
+  const matchedChapter = comic.chapters.find((chapter) => normalizeText(chapter.title).includes(normalizedQuery) || compactText(chapter.title).includes(compactQuery))
+  if (!titleMatches && subtitleMatches && comic.subtitle !== undefined) return comic.subtitle
+  if (!titleMatches && authorMatches && comic.author !== undefined) return comic.author
+  if (!titleMatches && !subtitleMatches && !authorMatches && matchedChapter !== undefined) return matchedChapter.title
+  return comic.author ?? 'fallback'
+}
+
+assert.equal(
+  localSearchSubtitle({ title: 'Other', subtitle: 'One-shot collection', author: 'Someone Else', chapters: [] }, 'one shot'),
+  'One-shot collection',
+  'local search must show the matched subtitle instead of unrelated author text',
+)
+assert.equal(
+  localSearchSubtitle({ title: 'Other', subtitle: 'Elsewhere', author: 'One Author', chapters: [] }, 'one author'),
+  'One Author',
+  'local search must show the matched author when subtitle does not match',
+)
+assert.equal(
+  localSearchSubtitle({ title: 'Other', subtitle: 'Elsewhere', author: 'Someone Else', chapters: [{ title: 'Chapter One' }] }, 'chapter one'),
+  'Chapter One',
+  'local search must still surface a matched chapter title after subtitle and author miss',
 )
 
 console.log('search quality checks PASS')

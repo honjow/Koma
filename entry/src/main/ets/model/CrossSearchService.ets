@@ -460,6 +460,12 @@ export class CrossSearchService {
     const subtitleMatches = comic.subtitle !== undefined && this.textMatchesQuery(comic.subtitle, normalizedQuery, compactQuery)
     const authorMatches = comic.author !== undefined && this.textMatchesQuery(comic.author, normalizedQuery, compactQuery)
     const matchedChapterTitle = this.localMatchedChapterTitle(comic, normalizedQuery, compactQuery)
+    if (!titleMatches && subtitleMatches && comic.subtitle !== undefined) {
+      return comic.subtitle
+    }
+    if (!titleMatches && authorMatches && comic.author !== undefined) {
+      return comic.author
+    }
     if (!titleMatches && !subtitleMatches && !authorMatches && matchedChapterTitle !== undefined) {
       return matchedChapterTitle
     }
