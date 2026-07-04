@@ -189,6 +189,16 @@ assert.match(
 )
 assert.match(
   trackerPageSource,
+  /import \{ pasteboard \} from '@kit\.BasicServicesKit'/,
+  'TrackerSettingsPage must use the system pasteboard for user-triggered authorization URL copy',
+)
+assert.match(
+  trackerPageSource,
+  /@Local private preparedAuthorizationUrl: string = ''/,
+  'TrackerSettingsPage must keep prepared authorization URLs in page-local state only',
+)
+assert.match(
+  trackerPageSource,
   /tracker_message_secure_storage_unverified/,
   'TrackerSettingsPage must surface secure storage unavailability',
 )
@@ -216,6 +226,21 @@ assert.match(
   trackerPageSource,
   /isEnabled: this\.canPrepareConnect\(provider\)/,
   'connect action must be disabled unless config and secure storage are available',
+)
+assert.match(
+  trackerPageSource,
+  /prepareConnect\(provider: TrackerProviderConfig\): void[\s\S]*this\.preparedAuthorizationUrl = ''[\s\S]*prepareConnect\(provider\.providerId\)[\s\S]*this\.preparedAuthorizationUrl = result\.status === 'ready'[\s\S]*result\.authorizationUrl[\s\S]*this\.preparedAuthorizationUrl = ''[\s\S]*tracker_message_auth_prepare_failed/,
+  'TrackerSettingsPage must expose a prepared authorization URL only for ready OAuth preparation and clear it on unavailable or failed attempts',
+)
+assert.match(
+  trackerPageSource,
+  /copyPreparedAuthorizationUrl\(\): void[\s\S]*pasteboard\.createData\(pasteboard\.MIMETYPE_TEXT_PLAIN, this\.preparedAuthorizationUrl\)[\s\S]*pasteboard\.getSystemPasteboard\(\)\.setData\(data\)[\s\S]*tracker_auth_url_copied[\s\S]*tracker_auth_url_copy_failed/,
+  'TrackerSettingsPage must provide a real clipboard copy action for the prepared authorization URL',
+)
+assert.match(
+  trackerPageSource,
+  /if \(this\.preparedAuthorizationUrl\.length > 0\) \{[\s\S]*tracker_auth_url_ready_detail[\s\S]*KomaActionButton\(\{[\s\S]*tracker_auth_url_copy[\s\S]*this\.copyPreparedAuthorizationUrl\(\)/,
+  'TrackerSettingsPage status card must show a user-actionable copy control when an authorization URL is ready',
 )
 assert.match(
   trackerPageSource,
@@ -259,8 +284,8 @@ assert.match(
 )
 assert.match(
   trackerPageSource,
-  /if \(this\.canDisconnectProvider\(provider\)\) \{[\s\S]*label: s\('tracker_action_disconnect'\)[\s\S]*kind: 'danger'[\s\S]*this\.disconnectAccount\(provider\)/,
-  'TrackerSettingsPage provider rows must show a destructive disconnect action for disconnectable accounts',
+  /if \(this\.canDisconnectProvider\(provider\)\) \{[\s\S]*label: s\('tracker_action_disconnect'\)[\s\S]*kind: 'danger'[\s\S]*this\.confirmDisconnectAccount\(provider\)/,
+  'TrackerSettingsPage provider rows must show a destructive disconnect action that opens confirmation for disconnectable accounts',
 )
 assert.match(
   trackerPageSource,

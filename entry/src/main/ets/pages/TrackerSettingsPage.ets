@@ -1,4 +1,5 @@
 import { common } from '@kit.AbilityKit'
+import { pasteboard } from '@kit.BasicServicesKit'
 import { SecondaryListScaffold } from '../components/SecondaryListScaffold'
 import { ConciseListRow } from '../components/ui/ConciseListRow'
 import { KomaActionButton } from '../components/ui/KomaActionButton'
@@ -65,6 +66,7 @@ export struct TrackerSettingsPage {
   @Local private pendingClearBusy: boolean = false
   @Local private secureStorageAvailable: boolean = false
   @Local private authPreparationMessageKey: string = 'tracker_message_secure_storage_unverified'
+  @Local private preparedAuthorizationUrl: string = ''
   private credentialSecretStore: TrackerCredentialSecretStore = new AssetStoreTrackerCredentialSecretStore()
 
   private context(): common.UIAbilityContext {
@@ -175,6 +177,7 @@ export struct TrackerSettingsPage {
 
   private prepareConnect(provider: TrackerProviderConfig): void {
     if (!this.canPrepareConnect(provider)) {
+      this.preparedAuthorizationUrl = ''
       this.authPreparationMessageKey = !this.secureStorageAvailable
         ? 'tracker_message_connect_unavailable'
         : 'tracker_message_auth_unavailable'
@@ -183,12 +186,16 @@ export struct TrackerSettingsPage {
     }
     void this.trackerPreferencesStore().prepareConnect(provider.providerId)
       .then((result: TrackerOAuthStartPreparation) => {
+        this.preparedAuthorizationUrl = result.status === 'ready'
+          ? result.authorizationUrl ?? ''
+          : ''
         this.authPreparationMessageKey = result.status === 'ready'
           ? 'tracker_message_auth_ready'
           : this.authPrepareStatusKey(result.status)
         this.showToast(s(this.authPreparationMessageKey))
       })
       .catch((_error: Error) => {
+        this.preparedAuthorizationUrl = ''
         this.authPreparationMessageKey = 'tracker_message_auth_prepare_failed'
         this.showToast(s(this.authPreparationMessageKey))
       })
@@ -271,6 +278,20 @@ export struct TrackerSettingsPage {
       this.getUIContext().getPromptAction().showToast({ message: message })
     } catch (_err) {
     }
+  }
+
+  private copyPreparedAuthorizationUrl(): void {
+    if (this.preparedAuthorizationUrl.length === 0) {
+      return
+    }
+    const data = pasteboard.createData(pasteboard.MIMETYPE_TEXT_PLAIN, this.preparedAuthorizationUrl)
+    void pasteboard.getSystemPasteboard().setData(data)
+      .then(() => {
+        this.showToast(s('tracker_auth_url_copied'))
+      })
+      .catch((_error: Error) => {
+        this.showToast(s('tracker_auth_url_copy_failed'))
+      })
   }
 
   private loadPendingProgressSummary(): void {
@@ -447,6 +468,26 @@ export struct TrackerSettingsPage {
         .fontSize(ThemeConstants.FONT_SIZE_CAPTION)
         .lineHeight(ThemeConstants.LINE_HEIGHT_BODY)
         .fontColor(ThemeConstants.TEXT_SECONDARY)
+      if (this.preparedAuthorizationUrl.length > 0) {
+        Row({ space: ThemeConstants.SPACE_MD }) {
+          Text(s('tracker_auth_url_ready_detail'))
+            .layoutWeight(1)
+            .fontSize(ThemeConstants.FONT_SIZE_META)
+            .lineHeight(ThemeConstants.LINE_HEIGHT_BODY)
+            .fontColor(ThemeConstants.TEXT_SECONDARY)
+          KomaActionButton({
+            label: s('tracker_auth_url_copy'),
+            kind: 'secondary',
+            compact: true,
+            controlHeight: ThemeConstants.ACTION_CHIP_HEIGHT,
+            action: () => {
+              this.copyPreparedAuthorizationUrl()
+            },
+          })
+        }
+        .width('100%')
+        .alignItems(VerticalAlign.Center)
+      }
     }
     .width('100%')
     .padding({ left: ThemeConstants.SPACE_LG, right: ThemeConstants.SPACE_LG, top: ThemeConstants.SPACE_LG, bottom: ThemeConstants.SPACE_LG })
