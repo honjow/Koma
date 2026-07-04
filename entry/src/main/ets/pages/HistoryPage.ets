@@ -25,11 +25,20 @@ const HISTORY_LIMIT: number = 50
 const MS_PER_MINUTE: number = 60 * 1000
 const MS_PER_HOUR: number = 60 * MS_PER_MINUTE
 const MS_PER_DAY: number = 24 * MS_PER_HOUR
+const MS_PER_WEEK: number = 7 * MS_PER_DAY
 const MS_PER_MONTH: number = 30 * MS_PER_DAY
 const MS_PER_YEAR: number = 365 * MS_PER_DAY
 
 function s(name: string): string {
   return AppStrings.get(name)
+}
+
+type HistoryGroupKey = 'today' | 'yesterday' | 'last_7_days' | 'older'
+
+interface HistorySection {
+  key: HistoryGroupKey
+  title: string
+  items: LibraryItem[]
 }
 
 @ComponentV2
@@ -185,6 +194,60 @@ export struct HistoryPage {
     console.info('[History] step=clear')
   }
 
+  private todayStartMs(): number {
+    const now = new Date()
+    return new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime()
+  }
+
+  private historyGroupKey(timestampMs: number | undefined): HistoryGroupKey {
+    if (timestampMs === undefined || timestampMs <= 0) {
+      return 'older'
+    }
+    const todayStart = this.todayStartMs()
+    if (timestampMs >= todayStart) {
+      return 'today'
+    }
+    if (timestampMs >= todayStart - MS_PER_DAY) {
+      return 'yesterday'
+    }
+    if (timestampMs >= todayStart - MS_PER_WEEK) {
+      return 'last_7_days'
+    }
+    return 'older'
+  }
+
+  private historyGroupTitle(key: HistoryGroupKey): string {
+    if (key === 'today') {
+      return s('history_group_today')
+    }
+    if (key === 'yesterday') {
+      return s('history_group_yesterday')
+    }
+    if (key === 'last_7_days') {
+      return s('history_group_last_7_days')
+    }
+    return s('history_group_older')
+  }
+
+  private historySections(): HistorySection[] {
+    const sectionKeys: HistoryGroupKey[] = ['today', 'yesterday', 'last_7_days', 'older']
+    const sections: HistorySection[] = sectionKeys.map((key: HistoryGroupKey): HistorySection => {
+      return {
+        key,
+        title: this.historyGroupTitle(key),
+        items: [],
+      }
+    })
+    this.historyItems.forEach((item: LibraryItem) => {
+      const key = this.historyGroupKey(item.lastReadAt)
+      const section = sections.find((candidate: HistorySection): boolean => candidate.key === key)
+      if (section !== undefined) {
+        section.items.push(item)
+      }
+    })
+    return sections.filter((section: HistorySection): boolean => section.items.length > 0)
+  }
+
   @Builder
   private EmptyHistory() {
     Column({ space: ThemeConstants.SPACE_MD }) {
@@ -227,6 +290,22 @@ export struct HistoryPage {
     .borderRadius(ThemeConstants.RADIUS_THUMB)
     .clip(true)
     .backgroundColor(this.coverColor(item))
+  }
+
+  @Builder
+  private HistoryGroupHeader(section: HistorySection) {
+    Row() {
+      Text(section.title)
+        .fontSize(ThemeConstants.FONT_SIZE_META)
+        .fontWeight(FontWeight.Medium)
+        .fontColor(ThemeConstants.TEXT_SECONDARY)
+        .layoutWeight(1)
+      Text(s('library_count_books').replace('%s', `${section.items.length}`))
+        .fontSize(ThemeConstants.FONT_SIZE_META)
+        .fontColor(ThemeConstants.TEXT_SECONDARY)
+    }
+    .width('100%')
+    .padding({ left: ThemeConstants.SPACE_XS, right: ThemeConstants.SPACE_XS })
   }
 
   @Builder
@@ -335,11 +414,16 @@ export struct HistoryPage {
           ListItem() {
             this.HistoryHeader()
           }
-          ForEach(this.historyItems, (item: LibraryItem) => {
+          ForEach(this.historySections(), (section: HistorySection) => {
             ListItem() {
-              this.HistoryRow(item)
+              this.HistoryGroupHeader(section)
             }
-          }, (item: LibraryItem) => `${this.revision}:${item.comicId}:${item.lastReadAt ?? 0}`)
+            ForEach(section.items, (item: LibraryItem) => {
+              ListItem() {
+                this.HistoryRow(item)
+              }
+            }, (item: LibraryItem) => `${this.revision}:${section.key}:${item.comicId}:${item.lastReadAt ?? 0}`)
+          }, (section: HistorySection) => `${this.revision}:${section.key}`)
         }
       }
     }

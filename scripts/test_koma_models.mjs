@@ -618,6 +618,21 @@ assert.match(
   'HistoryPage must keep open-reader handling on the content area before the delete button',
 )
 assert.match(
+  historyPageSource,
+  /type HistoryGroupKey = 'today' \| 'yesterday' \| 'last_7_days' \| 'older'[\s\S]*historyGroupKey\(timestampMs: number \| undefined\): HistoryGroupKey[\s\S]*todayStartMs\(\)[\s\S]*MS_PER_DAY[\s\S]*MS_PER_WEEK[\s\S]*historyGroupTitle\(key: HistoryGroupKey\)[\s\S]*history_group_today[\s\S]*history_group_yesterday[\s\S]*history_group_last_7_days[\s\S]*history_group_older/,
+  'HistoryPage must group reading history into stable local-date buckets',
+)
+assert.match(
+  historyPageSource,
+  /historySections\(\): HistorySection\[\][\s\S]*const sectionKeys: HistoryGroupKey\[\] = \['today', 'yesterday', 'last_7_days', 'older'\][\s\S]*this\.historyItems\.forEach[\s\S]*section\.items\.push\(item\)[\s\S]*sections\.filter/,
+  'HistoryPage must derive ordered non-empty reading-history sections from the flat history list',
+)
+assert.match(
+  historyPageSource,
+  /HistoryGroupHeader\(section: HistorySection\)[\s\S]*Text\(section\.title\)[\s\S]*library_count_books[\s\S]*ForEach\(this\.historySections\(\), \(section: HistorySection\)[\s\S]*this\.HistoryGroupHeader\(section\)[\s\S]*ForEach\(section\.items, \(item: LibraryItem\)[\s\S]*this\.HistoryRow\(item\)/,
+  'HistoryPage must render grouped reading-history section headers before row lists',
+)
+assert.match(
   crossSearchServiceSource,
   /private sortSearchResultItems\(query: string, items: CrossSearchResultItem\[\]\): CrossSearchResultItem\[\][\s\S]*const compactQuery = this\.compactSearchText\(query\)[\s\S]*this\.searchResultWithMatchQuality\(item, normalizedQuery, compactQuery\)[\s\S]*const scoreDiff = \(left\.matchScore \?\? 9\) - \(right\.matchScore \?\? 9\)[\s\S]*left\.title\.localeCompare\(right\.title\)/,
   'CrossSearchService must enrich and sort results by stable match quality instead of raw provider order',
