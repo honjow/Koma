@@ -49,7 +49,8 @@ koma-source/
     "network": true,
     "cache": true,
     "cookies": false,
-    "credentials": "user-configured"
+    "credentials": "user-configured",
+    "operations": ["search", "get_manga", "get_chapters", "get_pages", "get_home", "get_filters"]
   },
   "limits": {
     "timeoutMs": 8000,

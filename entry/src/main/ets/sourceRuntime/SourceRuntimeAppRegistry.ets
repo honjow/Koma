@@ -6,6 +6,7 @@ import { AppStrings } from '../i18n/AppStrings'
 import {
   importLocalSourceArchive,
   LocalSourcePackageManifest,
+  normalizeSourceOperationCapabilityTokens,
   SOURCE_PACKAGE_WASM_FILE,
   SOURCE_REPO_PACKAGE_WASM_FILE,
   validateRestoredSourcePackage,
@@ -284,6 +285,7 @@ function manifestFromRegistryEntry(entry: SourceRuntimeRegistryEntry): LocalSour
       network: false,
       hostImports: [],
     },
+    operationCapabilities: normalizeSourceOperationCapabilityTokens(entry.capabilities),
     contentPolicy: {
       publicIndex: false,
       marketplace: false,
@@ -515,6 +517,7 @@ export function reloadInstalledSourcePackages(context: common.UIAbilityContext):
           network: false,
           hostImports: [],
         },
+        operationCapabilities: normalizeSourceOperationCapabilityTokens(entry.capabilities),
         contentPolicy: {
           publicIndex: false,
           marketplace: false,

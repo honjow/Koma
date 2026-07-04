@@ -74,6 +74,7 @@ export interface LocalSourcePackageManifest {
   runtime: LocalSourcePackageRuntime
   permissions: LocalSourcePackagePermissions
   contentPolicy: LocalSourcePackageContentPolicy
+  operationCapabilities?: string[]
 }
 
 interface SourceRepoPackageManifest {
@@ -94,6 +95,7 @@ interface SourceRepoPackageManifest {
 
 interface SourceRepoPackageCapabilities {
   network?: boolean
+  operations?: string[]
 }
 
 interface SourceRepoPackageContentPolicy {
@@ -339,6 +341,73 @@ function optionalNumber(value: Object | undefined, fallback: number): number {
   return typeof value === 'number' && Number.isFinite(value) ? value : fallback
 }
 
+function optionalStringArray(value: Object | undefined): string[] {
+  if (!Array.isArray(value)) {
+    return []
+  }
+  const result: string[] = []
+  const values = value as Object[]
+  values.forEach((item: Object) => {
+    if (typeof item === 'string') {
+      result.push(item)
+    }
+  })
+  return result
+}
+
+export function normalizeSourceOperationCapabilityToken(value: string): string | undefined {
+  switch (value.trim()) {
+    case 'source_info':
+    case 'sourceInfo':
+      return 'sourceInfo'
+    case 'search':
+      return 'search'
+    case 'get_manga':
+    case 'detail':
+      return 'detail'
+    case 'get_chapters':
+    case 'chapters':
+      return 'chapters'
+    case 'get_pages':
+    case 'pages':
+      return 'pages'
+    case 'get_listings':
+    case 'listings':
+      return 'listings'
+    case 'get_manga_list':
+    case 'mangaList':
+      return 'mangaList'
+    case 'get_home':
+    case 'home':
+      return 'home'
+    case 'get_filters':
+    case 'filters':
+      return 'filters'
+    case 'get_settings':
+    case 'settings':
+      return 'settings'
+    case 'get_image_request':
+    case 'imageRequest':
+      return 'imageRequest'
+    default:
+      return undefined
+  }
+}
+
+export function normalizeSourceOperationCapabilityTokens(input: string[] | undefined): string[] {
+  if (input === undefined || input.length === 0) {
+    return []
+  }
+  const tokens: string[] = []
+  input.forEach((item: string) => {
+    const token = normalizeSourceOperationCapabilityToken(item)
+    if (token !== undefined && tokens.indexOf(token) < 0) {
+      tokens.push(token)
+    }
+  })
+  return tokens
+}
+
 function parseSourceRepoPackageManifest(raw: string, wasmSize: number): LocalSourcePackageManifest | undefined {
   const parsed = JSON.parse(raw) as SourceRepoPackageManifest
   const id = nonEmptyString(parsed.id)
@@ -374,6 +443,7 @@ function parseSourceRepoPackageManifest(raw: string, wasmSize: number): LocalSou
       network: optionalBoolean(capabilities?.network, false),
       hostImports: [],
     },
+    operationCapabilities: normalizeSourceOperationCapabilityTokens(optionalStringArray(capabilities?.operations as Object | undefined)),
     contentPolicy: {
       publicIndex: optionalBoolean(contentPolicy?.publicIndex, false),
       marketplace: optionalBoolean(contentPolicy?.marketplace, false),
@@ -394,6 +464,10 @@ export function validateNormalizedManifest(manifest: LocalSourcePackageManifest)
     return 'network_not_allowed'
   }
   if (manifest.runtime.wasmPath !== SOURCE_PACKAGE_WASM_FILE && manifest.runtime.wasmPath !== SOURCE_REPO_PACKAGE_WASM_FILE) {
+    return 'manifest_invalid'
+  }
+  if (manifest.operationCapabilities !== undefined &&
+    normalizeSourceOperationCapabilityTokens(manifest.operationCapabilities).length !== manifest.operationCapabilities.length) {
     return 'manifest_invalid'
   }
   return undefined
@@ -444,6 +518,19 @@ function buildLocalSourcePackageManifest(wasmSize: number): LocalSourcePackageMa
       network: false,
       hostImports: ['koma_host.log', 'koma_host.check_cancel'],
     },
+    operationCapabilities: [
+      'sourceInfo',
+      'search',
+      'detail',
+      'chapters',
+      'pages',
+      'listings',
+      'mangaList',
+      'home',
+      'filters',
+      'settings',
+      'imageRequest',
+    ],
     contentPolicy: {
       publicIndex: false,
       marketplace: false,

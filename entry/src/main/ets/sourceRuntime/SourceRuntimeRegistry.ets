@@ -1,5 +1,9 @@
 import { fileIo as fs } from '@kit.CoreFileKit'
-import { LocalSourcePackageManifest } from './SourcePackageImporter'
+import {
+  LocalSourcePackageManifest,
+  normalizeSourceOperationCapabilityToken,
+  normalizeSourceOperationCapabilityTokens,
+} from './SourcePackageImporter'
 
 export type SourceRuntimeRegistryRouteStatus = 'staged' | 'imported'
 
@@ -132,6 +136,12 @@ function sourceRuntimeRegistryEvidence(input: SourceRuntimeRegistryEntryInput): 
 
 function capabilitiesFromManifest(manifest: LocalSourcePackageManifest): string[] {
   const capabilities: string[] = ['search', 'detail', 'chapters', 'pages']
+  const operationCapabilities = normalizeSourceOperationCapabilityTokens(manifest.operationCapabilities)
+  operationCapabilities.forEach((capability: string) => {
+    if (capabilities.indexOf(capability) < 0) {
+      capabilities.push(capability)
+    }
+  })
   if (manifest.permissions.network) {
     capabilities.push('network')
   }
@@ -142,10 +152,7 @@ function capabilitiesFromManifest(manifest: LocalSourcePackageManifest): string[
 }
 
 function displayCapabilityTokenAllowed(token: string): boolean {
-  return token === 'search' ||
-    token === 'detail' ||
-    token === 'chapters' ||
-    token === 'pages' ||
+  return normalizeSourceOperationCapabilityToken(token) === token ||
     token === 'network' ||
     token.startsWith('hostImports:')
 }
@@ -247,6 +254,7 @@ function manifestForReload(entry: SourceRuntimeRegistryPersistedEntry): LocalSou
       network: false,
       hostImports: [],
     },
+    operationCapabilities: normalizeSourceOperationCapabilityTokens(entry.capabilities),
     contentPolicy: {
       publicIndex: false,
       marketplace: false,

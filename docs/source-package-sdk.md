@@ -22,7 +22,19 @@ Source-repo packages use `manifest.json` plus `source.wasm`. The app normalizes 
   "wasmSha256": "<optional sha256 hex>",
   "maxWasmBytes": 131072,
   "capabilities": {
-    "network": false
+    "network": false,
+    "operations": [
+      "search",
+      "get_manga",
+      "get_chapters",
+      "get_pages",
+      "get_listings",
+      "get_manga_list",
+      "get_home",
+      "get_filters",
+      "get_settings",
+      "get_image_request"
+    ]
   },
   "contentPolicy": {
     "publicIndex": false,
@@ -33,7 +45,7 @@ Source-repo packages use `manifest.json` plus `source.wasm`. The app normalizes 
 }
 ```
 
-`id`, `name`, and `version` are required. `id` must be non-empty and at most 96 characters. Koma currently rejects packages that request network access, marketplace behavior, built-in-source behavior, remote install behavior, unsafe archive entries, missing WASM, or checksum mismatches.
+`id`, `name`, and `version` are required. `id` must be non-empty and at most 96 characters. `capabilities.operations` is optional and may declare supported runtime operations using operation names such as `get_home`, `get_filters`, or `get_settings`; Koma normalizes these into a bounded display summary and ignores unknown operation names. Koma currently rejects packages that request network access, marketplace behavior, built-in-source behavior, remote install behavior, unsafe archive entries, missing WASM, or checksum mismatches.
 
 ## Runtime request envelope
 

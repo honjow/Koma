@@ -1039,6 +1039,20 @@ export struct SourcePackageManagerPage {
         return t('source_pkg_capability_chapters')
       case 'pages':
         return t('source_pkg_capability_pages')
+      case 'sourceInfo':
+        return t('source_pkg_capability_source_info')
+      case 'listings':
+        return t('source_pkg_capability_listings')
+      case 'mangaList':
+        return t('source_pkg_capability_manga_list')
+      case 'home':
+        return t('source_pkg_capability_home')
+      case 'filters':
+        return t('source_pkg_capability_filters')
+      case 'settings':
+        return t('source_pkg_capability_settings')
+      case 'imageRequest':
+        return t('source_pkg_capability_image_request')
       case 'network':
         return t('source_pkg_capability_network')
       default:

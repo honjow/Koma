@@ -124,6 +124,26 @@ assert.match(
 )
 assert.match(
   importerSource,
+  /operationCapabilities: normalizeSourceOperationCapabilityTokens\(optionalStringArray\(capabilities\?\.operations as Object \| undefined\)\)/,
+  'source package importer must normalize manifest capabilities.operations into bounded operation capability tokens',
+)
+assert.match(
+  importerSource,
+  /normalizeSourceOperationCapabilityToken[\s\S]*case 'get_home':[\s\S]*return 'home'[\s\S]*case 'get_settings':[\s\S]*return 'settings'[\s\S]*case 'get_image_request':[\s\S]*return 'imageRequest'/,
+  'source operation capability normalization must cover browse, settings, and image-request operations',
+)
+assert.match(
+  importerSource,
+  /validateNormalizedManifest[\s\S]*manifest\.operationCapabilities[\s\S]*normalizeSourceOperationCapabilityTokens\(manifest\.operationCapabilities\)\.length !== manifest\.operationCapabilities\.length[\s\S]*manifest_invalid/,
+  'source package validation must reject unnormalized operation capability metadata',
+)
+assert.match(
+  appRegistrySource,
+  /manifestFromRegistryEntry[\s\S]*operationCapabilities: normalizeSourceOperationCapabilityTokens\(entry\.capabilities\)/,
+  'source package backup manifests must preserve normalized operation capability summaries',
+)
+assert.match(
+  importerSource,
   /export function validateRestoredSourcePackage[\s\S]*validateNormalizedManifest\(manifest\)[\s\S]*validateImportedWasmBytes\(manifest, wasmBytes\)[\s\S]*checksum_mismatch/,
   'backup source restore must reuse source package manifest and wasm validation helpers',
 )
@@ -349,8 +369,8 @@ assert.match(
 )
 assert.match(
   managerPageSource,
-  /capabilityLabel\(capability: string\)[\s\S]*source_pkg_capability_host_imports[\s\S]*source_pkg_capability_search[\s\S]*source_pkg_capability_detail[\s\S]*source_pkg_capability_chapters[\s\S]*source_pkg_capability_pages/,
-  'source capability UI must translate runtime capability tokens into user-facing labels',
+  /capabilityLabel\(capability: string\)[\s\S]*source_pkg_capability_host_imports[\s\S]*source_pkg_capability_search[\s\S]*source_pkg_capability_detail[\s\S]*source_pkg_capability_chapters[\s\S]*source_pkg_capability_pages[\s\S]*source_pkg_capability_home[\s\S]*source_pkg_capability_filters[\s\S]*source_pkg_capability_settings[\s\S]*source_pkg_capability_image_request/,
+  'source capability UI must translate runtime capability tokens into user-facing labels including browse, settings, and image-request features',
 )
 assert.match(
   sourcePackageTrustPolicySource,
@@ -389,7 +409,7 @@ assert.match(
 )
 assert.match(
   sourceRuntimeRegistrySource,
-  /displayCapabilityTokenAllowed\(token: string\)[\s\S]*token === 'search'[\s\S]*token === 'pages'[\s\S]*token === 'network'[\s\S]*token\.startsWith\('hostImports:'\)/,
+  /displayCapabilityTokenAllowed\(token: string\)[\s\S]*normalizeSourceOperationCapabilityToken\(token\) === token[\s\S]*token === 'network'[\s\S]*token\.startsWith\('hostImports:'\)/,
   'source registry capability display tokens must be bounded by an explicit allowlist',
 )
 assert.match(
@@ -403,13 +423,10 @@ assert.match(
   'metadata reload may pass persisted capabilities only through manifest-bound registry sanitization',
 )
 {
-  const manifestDerivedCapabilities = ['search', 'detail', 'chapters', 'pages']
-  const tamperedPersistedCapabilities = ['search', ' network ', 'hostImports:2', 'sourceSecrets', '']
+  const manifestDerivedCapabilities = ['search', 'detail', 'chapters', 'pages', 'home', 'settings']
+  const tamperedPersistedCapabilities = ['search', ' network ', 'home', 'settings', 'hostImports:2', 'sourceSecrets', '']
   const allowedDisplayCapability = (token) => (
-    token === 'search' ||
-    token === 'detail' ||
-    token === 'chapters' ||
-    token === 'pages' ||
+    ['sourceInfo', 'search', 'detail', 'chapters', 'pages', 'listings', 'mangaList', 'home', 'filters', 'settings', 'imageRequest'].includes(token) ||
     token === 'network' ||
     token.startsWith('hostImports:')
   )
@@ -422,8 +439,8 @@ assert.match(
     ))
   assert.deepEqual(
     sanitizedCapabilities,
-    ['search'],
-    'tampered persisted capabilities must drop unknown, network, and hostImports when the reconstructed manifest does not grant them',
+    ['search', 'home', 'settings'],
+    'tampered persisted capabilities must drop unknown, network, and hostImports while preserving manifest-granted operation capabilities',
   )
 }
 
@@ -437,6 +454,7 @@ for (const marker of [
   'Manifest shape',
   'Runtime request envelope',
   'Settings descriptor rules',
+  'capabilities.operations',
   'Package archive layout',
   'Compatibility notes',
   'No built-in source market',
