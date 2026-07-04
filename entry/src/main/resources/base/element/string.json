@@ -355,6 +355,12 @@
     { "name": "search_webdav_folder", "value": "WebDAV folder" },
     { "name": "search_webdav_image", "value": "WebDAV image" },
     { "name": "search_opds_image_count", "value": "%s images" },
+    { "name": "search_match_title_exact", "value": "Exact title match" },
+    { "name": "search_match_title_prefix", "value": "Title starts with query" },
+    { "name": "search_match_title_contains", "value": "Title contains query" },
+    { "name": "search_match_metadata_prefix", "value": "Metadata starts with query" },
+    { "name": "search_match_metadata_contains", "value": "Metadata contains query" },
+    { "name": "search_match_weak", "value": "Related match" },
 
     { "name": "history_relative_just_now", "value": "Just now" },
     { "name": "history_relative_minutes_ago", "value": "%s min ago" },

@@ -355,6 +355,12 @@
     { "name": "search_webdav_folder", "value": "WebDAV 文件夹" },
     { "name": "search_webdav_image", "value": "WebDAV 图片" },
     { "name": "search_opds_image_count", "value": "%s 张图片" },
+    { "name": "search_match_title_exact", "value": "标题精确匹配" },
+    { "name": "search_match_title_prefix", "value": "标题开头匹配" },
+    { "name": "search_match_title_contains", "value": "标题包含关键词" },
+    { "name": "search_match_metadata_prefix", "value": "元数据开头匹配" },
+    { "name": "search_match_metadata_contains", "value": "元数据包含关键词" },
+    { "name": "search_match_weak", "value": "相关匹配" },
 
     { "name": "history_relative_just_now", "value": "刚刚" },
     { "name": "history_relative_minutes_ago", "value": "%s 分钟前" },

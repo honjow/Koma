@@ -4,6 +4,7 @@ import { SecondaryListScaffold } from '../components/SecondaryListScaffold'
 import { KomaActionButton } from '../components/ui/KomaActionButton'
 import { KomaIconButton } from '../components/ui/KomaIconButton'
 import {
+  CrossSearchMatchQuality,
   CrossSearchResultItem,
   CrossSearchSection,
   CrossSearchService,
@@ -482,6 +483,25 @@ export struct SearchPage {
     return searchStateUserText(section.state, section.diagnosticCode)
   }
 
+  private matchQualityLabel(matchQuality: CrossSearchMatchQuality | undefined): string {
+    if (matchQuality === 'title_exact') {
+      return s('search_match_title_exact')
+    }
+    if (matchQuality === 'title_prefix') {
+      return s('search_match_title_prefix')
+    }
+    if (matchQuality === 'title_contains') {
+      return s('search_match_title_contains')
+    }
+    if (matchQuality === 'metadata_prefix') {
+      return s('search_match_metadata_prefix')
+    }
+    if (matchQuality === 'metadata_contains') {
+      return s('search_match_metadata_contains')
+    }
+    return s('search_match_weak')
+  }
+
   @Builder
   private ResultRow(item: CrossSearchResultItem) {
     Row({ space: ThemeConstants.SPACE_MD }) {
@@ -514,6 +534,12 @@ export struct SearchPage {
           .width('100%')
         Text(item.subtitle.length === 0 ? item.sourceLabel : item.subtitle)
           .fontSize(ThemeConstants.FONT_SIZE_META)
+          .fontColor(ThemeConstants.TEXT_SECONDARY)
+          .maxLines(1)
+          .textOverflow({ overflow: TextOverflow.Ellipsis })
+          .width('100%')
+        Text(this.matchQualityLabel(item.matchQuality))
+          .fontSize(ThemeConstants.FONT_SIZE_CAPTION)
           .fontColor(ThemeConstants.TEXT_SECONDARY)
           .maxLines(1)
           .textOverflow({ overflow: TextOverflow.Ellipsis })

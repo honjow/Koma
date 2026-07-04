@@ -46,6 +46,7 @@ import { compareNaturalPath } from '../import/ImageSortUtils'
 
 export type CrossSearchSourceKind = 'local' | 'komga' | 'opds' | 'webdav' | 'wasm'
 export type CrossSearchSourceFilter = 'all' | 'local' | 'private' | 'source'
+export type CrossSearchMatchQuality = 'title_exact' | 'title_prefix' | 'title_contains' | 'metadata_prefix' | 'metadata_contains' | 'weak'
 
 export interface CrossSearchResultItem {
   id: string
@@ -63,6 +64,8 @@ export interface CrossSearchResultItem {
   webDavHref?: string
   webDavPathSegments?: string[]
   webDavIsCollection?: boolean
+  matchQuality?: CrossSearchMatchQuality
+  matchScore?: number
 }
 
 export interface CrossSearchSection {
@@ -644,30 +647,78 @@ export class CrossSearchService {
   private sortSearchResultItems(query: string, items: CrossSearchResultItem[]): CrossSearchResultItem[] {
     const normalizedQuery = this.normalizeSearchText(query)
     const compactQuery = this.compactSearchText(query)
-    return items.slice().sort((left: CrossSearchResultItem, right: CrossSearchResultItem): number => {
-      const scoreDiff = this.searchResultScore(left, normalizedQuery, compactQuery) - this.searchResultScore(right, normalizedQuery, compactQuery)
+    return items.map((item: CrossSearchResultItem): CrossSearchResultItem => {
+      return this.searchResultWithMatchQuality(item, normalizedQuery, compactQuery)
+    }).sort((left: CrossSearchResultItem, right: CrossSearchResultItem): number => {
+      const scoreDiff = (left.matchScore ?? 9) - (right.matchScore ?? 9)
       return scoreDiff !== 0 ? scoreDiff : left.title.localeCompare(right.title)
     })
   }
 
-  private searchResultScore(item: CrossSearchResultItem, normalizedQuery: string, compactQuery: string): number {
+  private searchResultWithMatchQuality(
+    item: CrossSearchResultItem,
+    normalizedQuery: string,
+    compactQuery: string,
+  ): CrossSearchResultItem {
+    const matchQuality = this.searchResultMatchQuality(item, normalizedQuery, compactQuery)
+    return {
+      id: item.id,
+      title: item.title,
+      subtitle: item.subtitle,
+      sourceKind: item.sourceKind,
+      sourceLabel: item.sourceLabel,
+      coverUri: item.coverUri,
+      localComicId: item.localComicId,
+      sourceId: item.sourceId,
+      sourceMangaId: item.sourceMangaId,
+      komgaSeriesId: item.komgaSeriesId,
+      opdsFeedUrl: item.opdsFeedUrl,
+      opdsPublicationId: item.opdsPublicationId,
+      webDavHref: item.webDavHref,
+      webDavPathSegments: item.webDavPathSegments,
+      webDavIsCollection: item.webDavIsCollection,
+      matchQuality,
+      matchScore: this.searchResultScoreForQuality(matchQuality),
+    }
+  }
+
+  private searchResultMatchQuality(item: CrossSearchResultItem, normalizedQuery: string, compactQuery: string): CrossSearchMatchQuality {
     const title = this.normalizeSearchText(item.title)
     const titleCompact = this.compactSearchText(item.title)
     const subtitle = this.normalizeSearchText(item.subtitle)
     const subtitleCompact = this.compactSearchText(item.subtitle)
     if (title === normalizedQuery || titleCompact === compactQuery) {
-      return 0
+      return 'title_exact'
     }
     if (title.startsWith(normalizedQuery) || titleCompact.startsWith(compactQuery)) {
-      return 1
+      return 'title_prefix'
     }
     if (title.indexOf(normalizedQuery) >= 0 || titleCompact.indexOf(compactQuery) >= 0) {
-      return 2
+      return 'title_contains'
     }
     if (subtitle.startsWith(normalizedQuery) || subtitleCompact.startsWith(compactQuery)) {
-      return 3
+      return 'metadata_prefix'
     }
     if (subtitle.indexOf(normalizedQuery) >= 0 || subtitleCompact.indexOf(compactQuery) >= 0) {
+      return 'metadata_contains'
+    }
+    return 'weak'
+  }
+
+  private searchResultScoreForQuality(matchQuality: CrossSearchMatchQuality): number {
+    if (matchQuality === 'title_exact') {
+      return 0
+    }
+    if (matchQuality === 'title_prefix') {
+      return 1
+    }
+    if (matchQuality === 'title_contains') {
+      return 2
+    }
+    if (matchQuality === 'metadata_prefix') {
+      return 3
+    }
+    if (matchQuality === 'metadata_contains') {
       return 4
     }
     return 9

@@ -617,8 +617,8 @@ assert.match(
 )
 assert.match(
   crossSearchServiceSource,
-  /private sortSearchResultItems\(query: string, items: CrossSearchResultItem\[\]\): CrossSearchResultItem\[\][\s\S]*const compactQuery = this\.compactSearchText\(query\)[\s\S]*this\.searchResultScore\(left, normalizedQuery, compactQuery\) - this\.searchResultScore\(right, normalizedQuery, compactQuery\)[\s\S]*left\.title\.localeCompare\(right\.title\)/,
-  'CrossSearchService must apply stable result scoring instead of raw provider order',
+  /private sortSearchResultItems\(query: string, items: CrossSearchResultItem\[\]\): CrossSearchResultItem\[\][\s\S]*const compactQuery = this\.compactSearchText\(query\)[\s\S]*this\.searchResultWithMatchQuality\(item, normalizedQuery, compactQuery\)[\s\S]*const scoreDiff = \(left\.matchScore \?\? 9\) - \(right\.matchScore \?\? 9\)[\s\S]*left\.title\.localeCompare\(right\.title\)/,
+  'CrossSearchService must enrich and sort results by stable match quality instead of raw provider order',
 )
 assert.match(
   crossSearchServiceSource,
@@ -627,8 +627,8 @@ assert.match(
 )
 assert.match(
   crossSearchServiceSource,
-  /private searchResultScore\(item: CrossSearchResultItem, normalizedQuery: string, compactQuery: string\): number[\s\S]*titleCompact === compactQuery[\s\S]*title\.startsWith\(normalizedQuery\)[\s\S]*titleCompact\.startsWith\(compactQuery\)[\s\S]*subtitle\.startsWith\(normalizedQuery\)[\s\S]*subtitleCompact\.indexOf\(compactQuery\)/,
-  'CrossSearchService scoring must prioritize exact title, title prefix, title contains, then subtitle matches with compact query support',
+  /private searchResultMatchQuality\(item: CrossSearchResultItem, normalizedQuery: string, compactQuery: string\): CrossSearchMatchQuality[\s\S]*titleCompact === compactQuery[\s\S]*return 'title_exact'[\s\S]*title\.startsWith\(normalizedQuery\)[\s\S]*return 'title_prefix'[\s\S]*return 'title_contains'[\s\S]*return 'metadata_prefix'[\s\S]*return 'metadata_contains'/,
+  'CrossSearchService scoring must prioritize exact title, title prefix, title contains, then metadata matches with compact query support',
 )
 assert.match(
   crossSearchServiceSource,
