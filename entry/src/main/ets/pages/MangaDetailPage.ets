@@ -62,6 +62,11 @@ import {
   TrackerProgressSyncReason,
   TrackerProgressSyncService,
 } from '../model/TrackerProgressSyncService'
+import {
+  TrackerMappingSearchReason,
+  TrackerMappingSearchService,
+  TrackerMappingSearchSummary,
+} from '../model/TrackerMappingSearchService'
 import { taskpool } from '@kit.ArkTS'
 
 export const MANGA_DETAIL_ROUTE_NAME: string = 'MangaDetailPage'
@@ -140,6 +145,7 @@ export struct MangaDetailPage {
   @Local private isLoading: boolean = false
   @Local private downloadBusy: boolean = false
   @Local private trackerSyncBusy: boolean = false
+  @Local private trackerMappingBusy: boolean = false
   @Local private downloadStatusText: string = ''
   @Local private feedbackText: string = ''
   @Local private safeArea: LayoutSafeAreaState = connectLayoutSafeArea()
@@ -720,6 +726,46 @@ export struct MangaDetailPage {
     return s('manga_detail_tracker_sync_failed')
   }
 
+  private trackerMappingSkippedText(reason: TrackerMappingSearchReason | undefined): string {
+    if (reason === 'account_missing' || reason === 'credential_missing') {
+      return s('manga_detail_tracker_mapping_account_missing')
+    }
+    if (reason === 'confirmed_mapping_exists') {
+      return s('manga_detail_tracker_mapping_confirmed_exists')
+    }
+    if (reason === 'results_empty' || reason === 'query_missing') {
+      return s('manga_detail_tracker_mapping_not_found')
+    }
+    return s('manga_detail_tracker_mapping_failed')
+  }
+
+  private async refreshTrackerMappingCandidates(): Promise<void> {
+    if (this.trackerMappingBusy) {
+      return
+    }
+    this.trackerMappingBusy = true
+    this.showToast(s('manga_detail_tracker_mapping_searching'))
+    try {
+      const context = getContext(this) as common.UIAbilityContext
+      const comic = this.libraryStore?.getComic(this.currentComicId()) ??
+        comicFromSourceManga(this.manga, this.chapters, this.currentComicId())
+      const summary: TrackerMappingSearchSummary =
+        await new TrackerMappingSearchService(context).refreshComicMappingCandidates(comic)
+      console.info(`[TrackerMapping] step=manual_candidate_refresh scanned=${summary.scannedCount} mapped=${summary.mappedCount} failed=${summary.failedCount} skipped=${summary.skippedCount}`)
+      if (summary.mappedCount > 0) {
+        this.showToast(this.formatString('manga_detail_tracker_mapping_found', [summary.mappedCount]))
+        return
+      }
+      const reason = summary.results.length === 0 ? undefined : summary.results[0].reason
+      this.showToast(this.trackerMappingSkippedText(summary.failedCount > 0 ? 'provider_failed' : reason))
+    } catch (_error) {
+      console.warn('[TrackerMapping] step=manual_candidate_refresh failed=true')
+      this.showToast(s('manga_detail_tracker_mapping_failed'))
+    } finally {
+      this.trackerMappingBusy = false
+    }
+  }
+
   private async syncTrackerProgressNow(): Promise<void> {
     if (this.trackerSyncBusy) {
       return
@@ -926,6 +972,10 @@ export struct MangaDetailPage {
       MenuItem({ content: s('manga_detail_menu_mark_all_unread') })
         .onClick(() => {
           this.markVisibleChaptersReadState(this.allChapterIds(), false)
+        })
+      MenuItem({ content: s('manga_detail_menu_find_tracker_mapping') })
+        .onClick(() => {
+          this.refreshTrackerMappingCandidates()
         })
       MenuItem({ content: s('manga_detail_menu_sync_tracker') })
         .onClick(() => {
