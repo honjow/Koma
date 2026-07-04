@@ -188,7 +188,8 @@ export struct DownloadsPage {
     const summary = summarizeOfflineDownloadQueue(this.entries)
     const state = this.preferences.isPaused
       ? s('downloads_queue_state_paused')
-      : (summary.downloadingCount > 0 || this.busyKey.length > 0 ? s('downloads_queue_state_running') : s('downloads_queue_state_queued'))
+      : (!canRunOfflineDownloadQueueNow(this.preferences) ? s('downloads_status_waiting_wifi') :
+        (summary.downloadingCount > 0 || this.busyKey.length > 0 ? s('downloads_queue_state_running') : s('downloads_queue_state_queued')))
     return s('downloads_queue_summary')
       .replace('%s', state)
       .replace('%s', `${summary.queuedCount}`)
