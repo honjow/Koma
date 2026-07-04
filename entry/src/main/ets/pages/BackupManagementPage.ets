@@ -454,6 +454,33 @@ export struct BackupManagementPage {
   }
 
   private restoreSelectedBackup(): void {
+    const preview = this.selectedBackupPreview
+    if (this.busy || this.selectedBackupPayload.length === 0 || preview === undefined) {
+      return
+    }
+    this.getUIContext().showAlertDialog({
+      title: t('backup_restore_confirm_title'),
+      message: this.restoreConfirmationMessage(preview),
+      autoCancel: true,
+      primaryButton: {
+        value: t('backup_restore_confirm_action'),
+        fontColor: $r('app.color.koma_danger'),
+        action: () => {
+          this.runRestoreSelectedBackup()
+        },
+      },
+      secondaryButton: {
+        value: t('common_cancel'),
+        action: () => {},
+      },
+    })
+  }
+
+  private restoreConfirmationMessage(preview: BackupImportPreview): string {
+    return `${tf('backup_restore_confirm_message', preview.libraryConflictCount, preview.progressConflictCount)}\n\n${backupImportConflictPolicy()}`
+  }
+
+  private runRestoreSelectedBackup(): void {
     if (this.busy || this.selectedBackupPayload.length === 0) {
       return
     }

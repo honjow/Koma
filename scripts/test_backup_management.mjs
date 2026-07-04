@@ -270,8 +270,13 @@ assert.match(
 )
 assert.match(
   backupPageSource,
-  /selectImportPreviewFromPicker\(\)[\s\S]*selectedBackupPayload[\s\S]*selectedBackupPreview[\s\S]*restoreSelectedBackup\(\)[\s\S]*importPromise[\s\S]*backupService\(\)\.import\(this\.selectedBackupPayload\)[\s\S]*this\.showInfoDialog\(t\('backup_dialog_imported_title'\)/,
-  'BackupManagementPage must preview picker-selected backups before explicit restore',
+  /selectImportPreviewFromPicker\(\)[\s\S]*selectedBackupPayload[\s\S]*selectedBackupPreview[\s\S]*restoreSelectedBackup\(\)[\s\S]*showAlertDialog\(\{[\s\S]*backup_restore_confirm_title[\s\S]*restoreConfirmationMessage\(preview\)[\s\S]*backup_restore_confirm_action[\s\S]*runRestoreSelectedBackup\(\)[\s\S]*importPromise[\s\S]*backupService\(\)\.import\(this\.selectedBackupPayload\)[\s\S]*this\.showInfoDialog\(t\('backup_dialog_imported_title'\)/,
+  'BackupManagementPage must preview picker-selected backups and require confirmation before restore',
+)
+assert.match(
+  backupPageSource,
+  /restoreConfirmationMessage\(preview: BackupImportPreview\): string[\s\S]*backup_restore_confirm_message[\s\S]*preview\.libraryConflictCount[\s\S]*preview\.progressConflictCount[\s\S]*backupImportConflictPolicy\(\)/,
+  'BackupManagementPage restore confirmation must include conflict counts and restore policy',
 )
 assert.match(
   backupPageSource,
