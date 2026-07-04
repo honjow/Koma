@@ -279,7 +279,8 @@ export struct DownloadsPage {
   }
 
   private canRead(entry: OfflineDownloadQueueEntry): boolean {
-    return entry.status === OfflineDownloadStatus.DOWNLOADED
+    return entry.status === OfflineDownloadStatus.DOWNLOADED ||
+      entry.status === OfflineDownloadStatus.PARTIAL
   }
 
   private blockUnavailableEntry(entry: OfflineDownloadQueueEntry): void {
