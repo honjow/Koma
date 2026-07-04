@@ -385,6 +385,7 @@ function isLocalLibraryMetadataPath(relativePath: string): boolean {
   return baseName === 'metadata.json' ||
     baseName === 'series.json' ||
     baseName === 'comicinfo.json' ||
+    baseName === 'comicinfo.xml' ||
     baseName === 'koma-metadata.json'
 }
 

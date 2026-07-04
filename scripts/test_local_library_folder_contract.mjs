@@ -4,8 +4,10 @@ import { dirname, resolve } from 'node:path'
 
 const root = resolve(import.meta.dirname, '..')
 const contractPath = resolve(root, 'entry/src/main/ets/model/LocalLibraryFolderContract.ets')
+const localImportCoordinatorPath = resolve(root, 'entry/src/main/ets/import/LocalImportCoordinator.ets')
 const artifactPath = resolve(root, '.hermes-artifacts/20260527-d42-local-library-folder-contract/fixture-scan.json')
 const contractSource = readFileSync(contractPath, 'utf8')
+const localImportCoordinatorSource = readFileSync(localImportCoordinatorPath, 'utf8')
 
 function assertExport(source, symbol) {
   assert.match(source, new RegExp(`export (interface|class|function|enum|type|const) ${symbol}\\b`), `${symbol} must be exported`)
@@ -35,6 +37,8 @@ assert.match(contractSource, /textContent\?: string/, 'production contract must 
 assert.match(contractSource, /sidecarMetadata\?: LocalLibrarySidecarMetadata/, 'production scan series must carry parsed sidecar metadata')
 assert.match(contractSource, /parseLocalLibrarySidecarMetadata\(entry\.textContent\)/, 'production scanner must parse sidecar payloads through the metadata service')
 assert.match(contractSource, /comicinfo\.xml/, 'production scanner must recognize ComicInfo.xml sidecar metadata')
+assert.match(localImportCoordinatorSource, /isLocalLibraryMetadataPath[\s\S]*comicinfo\.xml/, 'picked-folder runtime scan must read ComicInfo.xml sidecar text')
+assert.match(localImportCoordinatorSource, /readPickedFolderTextIfNeeded[\s\S]*byteSize > 1024 \* 1024[\s\S]*fs\.readTextSync/, 'picked-folder runtime sidecar IO must stay bounded to small text files')
 
 const archiveExts = new Set(['.cbz', '.zip'])
 const imageExts = new Set(['.jpg', '.jpeg', '.png', '.webp', '.gif', '.bmp', '.avif'])

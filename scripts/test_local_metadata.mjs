@@ -40,7 +40,7 @@ assertExport(serviceSource, 'exportLocalLibraryMetadataBackupEntries')
 assertExport(serviceSource, 'restoreLocalLibraryMetadataBackupEntries')
 assertExport(serviceSource, 'LocalLibraryMetadataService')
 
-assert.match(serviceSource, /LOCAL_LIBRARY_METADATA_IO_CONTRACT = 'MODEL_ONLY_NO_SIDECAR_RUNTIME_IO'/, 'metadata service must not claim runtime sidecar IO')
+assert.match(serviceSource, /LOCAL_LIBRARY_METADATA_IO_CONTRACT = 'PICKED_FOLDER_SIDECAR_TEXT_READ_ONLY_1MB'/, 'metadata service must honestly document bounded runtime sidecar text IO')
 assert.match(serviceSource, /LOCAL_LIBRARY_METADATA_DESTRUCTIVE_ACTION_CONTRACT = 'NO_DELETE_LIBRARY_ROWS_OR_USER_FILES'/, 'metadata service must document no destructive actions')
 assert.match(serviceSource, /'user_override'[\s\S]*'valid_sidecar'[\s\S]*'derived_folder_series'[\s\S]*'existing_library_import'/, 'fallback order must be explicit and stable')
 assert.match(serviceSource, /type LocalLibraryMetadataStatus = 'ongoing' \| 'completed' \| 'hiatus' \| 'cancelled'/, 'metadata status must be a closed manga status union')
