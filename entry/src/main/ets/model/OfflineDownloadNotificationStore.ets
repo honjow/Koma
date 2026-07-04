@@ -13,7 +13,7 @@ import {
   OfflineDownloadStatus,
 } from './OfflineDownloadStore'
 
-export type OfflineDownloadNotificationStatus = 'enabled' | 'unavailable'
+export type OfflineDownloadNotificationStatus = 'enabled' | 'disabled' | 'unavailable'
 
 export type OfflineDownloadNotificationDispatchCode =
   'delivered' |
@@ -39,14 +39,18 @@ function firstNonEmpty(left: string | undefined, right: string): string {
 }
 
 export function getOfflineDownloadNotificationStatusLabel(status: OfflineDownloadNotificationStatus): string {
-  return status === 'enabled'
-    ? AppStrings.get('download_notification_enabled')
-    : AppStrings.get('download_notification_unavailable')
+  if (status === 'enabled') {
+    return AppStrings.get('download_notification_enabled')
+  }
+  if (status === 'disabled') {
+    return AppStrings.get('common_off')
+  }
+  return AppStrings.get('download_notification_unavailable')
 }
 
 export async function getOfflineDownloadNotificationStatus(): Promise<OfflineDownloadNotificationStatus> {
   try {
-    return await notificationManager.isNotificationEnabled() ? 'enabled' : 'unavailable'
+    return await notificationManager.isNotificationEnabled() ? 'enabled' : 'disabled'
   } catch (error) {
     const businessError = error as BusinessError
     console.warn('[OfflineDownloadNotificationStore] step=query_download_notification_status_failed code=' + businessError.code)

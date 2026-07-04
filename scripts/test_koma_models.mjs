@@ -29,6 +29,7 @@ const readerPreferencesStorePath = resolve(root, 'entry/src/main/ets/model/Reade
 const offlineDownloadStorePath = resolve(root, 'entry/src/main/ets/model/OfflineDownloadStore.ets')
 const offlineDownloadQueueStorePath = resolve(root, 'entry/src/main/ets/model/OfflineDownloadQueueStore.ets')
 const offlineDownloadServicePath = resolve(root, 'entry/src/main/ets/model/OfflineDownloadService.ets')
+const offlineDownloadNotificationStorePath = resolve(root, 'entry/src/main/ets/model/OfflineDownloadNotificationStore.ets')
 const entryAbilityPath = resolve(root, 'entry/src/main/ets/entryability/EntryAbility.ets')
 const indexPath = resolve(root, 'entry/src/main/ets/pages/Index.ets')
 const libraryPagePath = resolve(root, 'entry/src/main/ets/pages/LibraryPage.ets')
@@ -85,6 +86,7 @@ const readerPreferencesStoreSource = readFileSync(readerPreferencesStorePath, 'u
 const offlineDownloadStoreSource = readFileSync(offlineDownloadStorePath, 'utf8')
 const offlineDownloadQueueStoreSource = readFileSync(offlineDownloadQueueStorePath, 'utf8')
 const offlineDownloadServiceSource = readFileSync(offlineDownloadServicePath, 'utf8')
+const offlineDownloadNotificationStoreSource = readFileSync(offlineDownloadNotificationStorePath, 'utf8')
 const entryAbilitySource = readFileSync(entryAbilityPath, 'utf8')
 const indexSource = readFileSync(indexPath, 'utf8')
 const libraryPageSource = readFileSync(libraryPagePath, 'utf8')
@@ -692,6 +694,11 @@ assert.match(
   offlineDownloadServiceSource,
   /copyLocalFile\(sourcePath: string, targetPath: string\)[\s\S]*sourcePath === targetPath[\s\S]*fs\.statSync\(targetPath\)\.size[\s\S]*OpenMode\.TRUNC/,
   'offline download service must not truncate a file by copying it onto itself',
+)
+assert.match(
+  offlineDownloadNotificationStoreSource,
+  /export type OfflineDownloadNotificationStatus = 'enabled' \| 'disabled' \| 'unavailable'[\s\S]*getOfflineDownloadNotificationStatusLabel[\s\S]*status === 'disabled'[\s\S]*AppStrings\.get\('common_off'\)[\s\S]*notificationManager\.isNotificationEnabled\(\) \? 'enabled' : 'disabled'/,
+  'offline download notification status must distinguish system-disabled notifications from unavailable notification capability',
 )
 assert.match(
   mangaDetailPageSource,
