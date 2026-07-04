@@ -331,6 +331,13 @@ assert.match(settingsPageSource, /reader-tap-navigation[\s\S]*saveReaderTapNavig
 assert.match(settingsPageSource, /reader-swipe-navigation[\s\S]*saveReaderSwipeNavigationEnabled\(value\)/, 'swipe navigation row must expose a real switch-backed on/off choice')
 assert.match(settingsPageSource, /reader-tap-zone-preset[\s\S]*SelectionMenuItem\(s\('reader_tap_zone_edge'\)[\s\S]*SelectionMenuItem\(s\('reader_tap_zone_wide'\)/, 'tap zone preset menu must expose user-facing preset names')
 assert.match(settingsPageSource, /reader-show-tap-zones[\s\S]*saveReaderShowTapZones\(value\)/, 'tap zone visualization row must expose a real switch-backed on/off choice')
+assert.match(
+  settingsPageSource,
+  /tapZonePreviewEdgeWidth\(\)[\s\S]*tapZonePreviewLeftLabel\(\)[\s\S]*tapZonePreviewRightLabel\(\)[\s\S]*private ReaderTapZonePreview\(\)[\s\S]*settings_row_reader_tap_zone_preset_title[\s\S]*reader_tap_zone_center[\s\S]*section\.key === 'reader'[\s\S]*this\.ReaderTapZonePreview\(\)/,
+  'Settings reader pane must include a tap-zone preview tied to the persisted preset and current reading direction',
+)
+assert.match(settingsPageSource, /readerTapZonePreset === 'wide_edges' \? '32%' : '18%'/, 'Settings tap-zone preview must use the same narrow and wide edge ratios as the reader hit zones')
+assert.match(settingsPageSource, /ReadingDirection\.RIGHT_TO_LEFT[\s\S]*reader_action_next_page[\s\S]*reader_action_previous_page/, 'Settings tap-zone preview must label edge actions with RTL-aware page direction')
 assert.match(settingsPageSource, /reader-page-gap[\s\S]*SelectionMenuItem\(s\('reader_page_gap_compact'\)[\s\S]*SelectionMenuItem\(s\('common_standard'\)[\s\S]*SelectionMenuItem\(s\('reader_page_gap_wide'\)/, 'page gap menu must expose compact, normal, and wide choices')
 assert.match(settingsPageSource, /reader-trim-page-margins[\s\S]*saveReaderTrimPageMarginsEnabled\(value\)/, 'trim page margins row must expose a real switch-backed on/off choice')
 assert.match(

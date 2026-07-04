@@ -2412,6 +2412,86 @@ export struct SettingsPage {
     }
   }
 
+  private tapZonePreviewEdgeWidth(): string {
+    if (!this.readerTapNavigationEnabled) {
+      return '0%'
+    }
+    return this.readerTapZonePreset === 'wide_edges' ? '32%' : '18%'
+  }
+
+  private tapZonePreviewEdgeColor(): ResourceColor {
+    return this.readerShowTapZones ? ThemeConstants.READER_TAP_ZONE_OVERLAY : ThemeConstants.SOFT_TINT
+  }
+
+  private tapZonePreviewLeftLabel(): string {
+    return this.readingDirection === ReadingDirection.RIGHT_TO_LEFT
+      ? s('reader_action_next_page')
+      : s('reader_action_previous_page')
+  }
+
+  private tapZonePreviewRightLabel(): string {
+    return this.readingDirection === ReadingDirection.RIGHT_TO_LEFT
+      ? s('reader_action_previous_page')
+      : s('reader_action_next_page')
+  }
+
+  @Builder
+  private ReaderTapZonePreview() {
+    Column({ space: ThemeConstants.SPACE_SM }) {
+      Text(s('settings_row_reader_tap_zone_preset_title'))
+        .fontSize(ThemeConstants.FONT_SIZE_CAPTION)
+        .fontColor(ThemeConstants.TEXT_TERTIARY)
+        .fontWeight(FontWeight.Medium)
+      Row() {
+        Column() {
+          if (this.readerTapNavigationEnabled) {
+            Text(this.tapZonePreviewLeftLabel())
+              .fontSize(ThemeConstants.FONT_SIZE_CAPTION)
+              .fontColor(ThemeConstants.READER_TEXT_PRIMARY)
+              .maxLines(2)
+              .textAlign(TextAlign.Center)
+          }
+        }
+        .width(this.tapZonePreviewEdgeWidth())
+        .height('100%')
+        .justifyContent(FlexAlign.Center)
+        .backgroundColor(this.tapZonePreviewEdgeColor())
+
+        Column() {
+          Text(s('reader_tap_zone_center'))
+            .fontSize(ThemeConstants.FONT_SIZE_CAPTION)
+            .fontColor(ThemeConstants.TEXT_SECONDARY)
+            .maxLines(1)
+        }
+        .layoutWeight(1)
+        .height('100%')
+        .justifyContent(FlexAlign.Center)
+
+        Column() {
+          if (this.readerTapNavigationEnabled) {
+            Text(this.tapZonePreviewRightLabel())
+              .fontSize(ThemeConstants.FONT_SIZE_CAPTION)
+              .fontColor(ThemeConstants.READER_TEXT_PRIMARY)
+              .maxLines(2)
+              .textAlign(TextAlign.Center)
+          }
+        }
+        .width(this.tapZonePreviewEdgeWidth())
+        .height('100%')
+        .justifyContent(FlexAlign.Center)
+        .backgroundColor(this.tapZonePreviewEdgeColor())
+      }
+      .width('100%')
+      .height(96)
+      .clip(true)
+      .borderRadius(ThemeConstants.RADIUS_CHIP)
+      .backgroundColor(ThemeConstants.CARD)
+      .border({ width: 1, color: ThemeConstants.DIVIDER })
+    }
+    .width('100%')
+    .padding({ left: ThemeConstants.SPACE_SM, right: ThemeConstants.SPACE_SM })
+  }
+
   @Builder
   private SearchResultRow(result: SettingsSearchResult) {
     ConciseListRow({
@@ -2509,6 +2589,9 @@ export struct SettingsPage {
             ListDivider()
           }
         }, (row: SettingsRow) => row.key)
+      }
+      if (section.key === 'reader') {
+        this.ReaderTapZonePreview()
       }
     }
     .width('100%')
