@@ -271,6 +271,21 @@ assert.match(
 )
 assert.match(
   browseViewModelSource,
+  /safeSourceBrowseErrorText\(error: Error, fallbackKey: string\): string \{[\s\S]*safeSearchDiagnostic\(error\)[\s\S]*AppStrings\.get\(fallbackKey\)[\s\S]*diagnostic\.userText/,
+  'BrowseViewModel must map source browse failures to safe user-facing text with localized fallbacks',
+)
+assert.match(
+  browseViewModelSource,
+  /loadBrowseHome[\s\S]*safeSourceBrowseErrorText\(e, 'browse_error_load_home'\)[\s\S]*selectBrowseListing[\s\S]*safeSourceBrowseErrorText\(e, 'browse_error_load_home'\)[\s\S]*loadMoreBrowse[\s\S]*safeSourceBrowseErrorText\(e, 'browse_error_load_more'\)/,
+  'BrowseViewModel browse home, listing changes, and load-more failures must use safe error text',
+)
+assert.doesNotMatch(
+  browseViewModelSource,
+  /errorMessage\s*=\s*e\.message|e\.message\.length\s*>\s*0\s*\?\s*e\.message/,
+  'BrowseViewModel must not surface raw Error.message values in source browse/search UI state',
+)
+assert.match(
+  browseViewModelSource,
   /interface SourceSearchArgs \{[\s\S]*query: string[\s\S]*page: SourceOperationPageArg[\s\S]*filters: SourceMangaListFilters[\s\S]*searchSource\([\s\S]*const args: SourceSearchArgs = \{[\s\S]*query,[\s\S]*page: pageArg,[\s\S]*filters: this\.searchFilterValues/,
   'BrowseViewModel must pass active source-defined filters into source search requests',
 )

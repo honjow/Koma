@@ -258,6 +258,14 @@ function parseSourceHomeSectionsFromResponse(sourceId: string, response: SourceR
   return sections
 }
 
+function safeSourceBrowseErrorText(error: Error, fallbackKey: string): string {
+  const diagnostic = safeSearchDiagnostic(error)
+  if (diagnostic.code === 'search_failed') {
+    return AppStrings.get(fallbackKey)
+  }
+  return diagnostic.userText
+}
+
 @ObservedV2
 export class BrowseViewModel {
   @Trace sources: SourceRuntimeRegistryInstalledSourceSummary[] = []
@@ -297,7 +305,7 @@ export class BrowseViewModel {
       this.sources = this.registry.listInstalledSourceSummaries()
     } catch (error) {
       const e = error as Error
-      this.errorMessage = e.message.length > 0 ? e.message : AppStrings.get('browse_error_load_sources')
+      this.errorMessage = safeSourceBrowseErrorText(e, 'browse_error_load_sources')
       this.sources = []
     } finally {
       this.loadingSources = false
@@ -342,7 +350,7 @@ export class BrowseViewModel {
       await this.loadBrowseListing(source, listing, 1)
     } catch (error) {
       const e = error as Error
-      this.errorMessage = e.message.length > 0 ? e.message : AppStrings.get('browse_error_load_home')
+      this.errorMessage = safeSourceBrowseErrorText(e, 'browse_error_load_home')
       this.popularManga = []
       this.latestManga = []
       this.homeSections = []
@@ -363,7 +371,7 @@ export class BrowseViewModel {
       await this.loadBrowseListing(this.selectedSource, listing, 1)
     } catch (error) {
       const e = error as Error
-      this.errorMessage = e.message.length > 0 ? e.message : AppStrings.get('browse_error_load_home')
+      this.errorMessage = safeSourceBrowseErrorText(e, 'browse_error_load_home')
       this.browseSections = []
       this.hasMoreBrowse = false
     } finally {
@@ -460,7 +468,7 @@ export class BrowseViewModel {
       this.hasMoreBrowse = more.hasNextPage
     } catch (error) {
       const e = error as Error
-      this.errorMessage = e.message.length > 0 ? e.message : AppStrings.get('browse_error_load_more')
+      this.errorMessage = safeSourceBrowseErrorText(e, 'browse_error_load_more')
       this.hasMoreBrowse = false
     } finally {
       this.loadingBrowse = false

@@ -2075,8 +2075,13 @@ assert.match(
 )
 assert.match(
   browseViewModelSource,
-  /AppStrings\.get\('browse_untitled_manga'\)[\s\S]*AppStrings\.get\('browse_error_load_sources'\)[\s\S]*AppStrings\.get\('browse_error_load_home'\)[\s\S]*AppStrings\.get\('browse_error_load_more'\)[\s\S]*AppStrings\.get\('browse_error_source_unavailable'\)[\s\S]*AppStrings\.format\('browse_error_source_runtime_failed'/,
+  /AppStrings\.get\('browse_untitled_manga'\)[\s\S]*safeSourceBrowseErrorText\(error: Error, fallbackKey: string\)[\s\S]*AppStrings\.get\(fallbackKey\)[\s\S]*safeSourceBrowseErrorText\(e, 'browse_error_load_sources'\)[\s\S]*safeSourceBrowseErrorText\(e, 'browse_error_load_home'\)[\s\S]*safeSourceBrowseErrorText\(e, 'browse_error_load_more'\)[\s\S]*AppStrings\.get\('browse_error_source_unavailable'\)[\s\S]*AppStrings\.format\('browse_error_source_runtime_failed'/,
   'BrowseViewModel source browse fallback errors must use localized resources',
+)
+assert.doesNotMatch(
+  browseViewModelSource,
+  /errorMessage\s*=\s*e\.message|e\.message\.length\s*>\s*0\s*\?\s*e\.message/,
+  'BrowseViewModel source browse errors must not surface raw Error.message in UI state',
 )
 assert.match(
   sourceModelsSource,
