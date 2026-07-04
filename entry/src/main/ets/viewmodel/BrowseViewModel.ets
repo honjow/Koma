@@ -16,6 +16,10 @@ import {
   appSourceSettingsStore,
 } from '../sourceRuntime/SourceSettingsStore'
 import {
+  SourceFilterPreferenceKind,
+  appSourceFilterPreferencesStore,
+} from '../sourceRuntime/SourceFilterPreferencesStore'
+import {
   SourceRuntimeRegistryEntry,
   SourceRuntimeRegistry,
   SourceRuntimeRegistryInstalledSourceSummary,
@@ -379,6 +383,8 @@ export class BrowseViewModel {
       this.filters = filters
       this.browseFilterValues = this.defaultSourceFilterValues(this.filters)
       this.searchFilterValues = this.defaultSourceFilterValues(this.filters)
+      this.restoreSavedBrowseFilterValues(source.sourceId)
+      this.restoreSavedSearchFilterValues(source.sourceId)
       this.homeSections = homeSections
       const listing = this.defaultListingForBrowse(this.listings)
       if (listing === undefined) {
@@ -465,6 +471,7 @@ export class BrowseViewModel {
       return
     }
     this.browseFilterValues = nextValues
+    this.saveSourceFilterValues('browse', nextValues)
     const listing = this.currentListing()
     if (this.selectedSource !== undefined && listing !== undefined && !this.loadingBrowse) {
       await this.selectBrowseListing(listing)
@@ -476,6 +483,7 @@ export class BrowseViewModel {
       return
     }
     this.browseFilterValues = this.defaultSourceFilterValues(this.filters)
+    this.saveSourceFilterValues('browse', this.browseFilterValues)
     const listing = this.currentListing()
     if (listing !== undefined) {
       await this.selectBrowseListing(listing)
@@ -492,11 +500,13 @@ export class BrowseViewModel {
     if (this.filters.length > 0) {
       if (Object.keys(this.searchFilterValues).length === 0) {
         this.searchFilterValues = this.defaultSourceFilterValues(this.filters)
+        this.restoreSavedSearchFilterValues(source.sourceId)
       }
       return
     }
     this.filters = await this.loadSourceFilters(source)
     this.searchFilterValues = this.defaultSourceFilterValues(this.filters)
+    this.restoreSavedSearchFilterValues(source.sourceId)
   }
 
   setSearchFilterValue(filterId: string, value: SourceFilterValue | undefined): boolean {
@@ -505,11 +515,13 @@ export class BrowseViewModel {
       return false
     }
     this.searchFilterValues = nextValues
+    this.saveSourceFilterValues('search', nextValues)
     return true
   }
 
   resetSearchFilters(): void {
     this.searchFilterValues = this.defaultSourceFilterValues(this.filters)
+    this.saveSourceFilterValues('search', this.searchFilterValues)
   }
 
   async loadMoreBrowse(): Promise<void> {
@@ -780,6 +792,38 @@ export class BrowseViewModel {
       }
     })
     return values
+  }
+
+  private restoreSavedBrowseFilterValues(sourceId: string): void {
+    this.browseFilterValues = this.mergeSavedSourceFilterValues(sourceId, 'browse', this.browseFilterValues)
+  }
+
+  private restoreSavedSearchFilterValues(sourceId: string): void {
+    this.searchFilterValues = this.mergeSavedSourceFilterValues(sourceId, 'search', this.searchFilterValues)
+  }
+
+  private mergeSavedSourceFilterValues(
+    sourceId: string,
+    kind: SourceFilterPreferenceKind,
+    defaults: SourceMangaListFilters,
+  ): SourceMangaListFilters {
+    const saved = appSourceFilterPreferencesStore.loadForSource(sourceId, kind, this.filters)
+    const values: SourceMangaListFilters = {}
+    Object.keys(defaults).forEach((key: string) => {
+      values[key] = defaults[key]
+    })
+    Object.keys(saved).forEach((key: string) => {
+      values[key] = saved[key]
+    })
+    return values
+  }
+
+  private saveSourceFilterValues(kind: SourceFilterPreferenceKind, values: SourceMangaListFilters): void {
+    const sourceId = this.selectedSource?.sourceId
+    if (sourceId === undefined) {
+      return
+    }
+    appSourceFilterPreferencesStore.saveForSource(sourceId, kind, values, this.filters)
   }
 
   private filterRequestKey(filter: SourceFilter): string {

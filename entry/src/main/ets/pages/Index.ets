@@ -76,6 +76,7 @@ import {
   bootstrapSourceRuntimeAppRegistry,
 } from '../sourceRuntime/SourceRuntimeAppRegistry'
 import { configureSourceSettingsStore } from '../sourceRuntime/SourceSettingsStore'
+import { configureSourceFilterPreferencesStore } from '../sourceRuntime/SourceFilterPreferencesStore'
 import { AppStrings } from '../i18n/AppStrings'
 import { connectLanguageState, LanguageState } from '../state/LanguageState'
 import { BackupService, BackupAutomaticRunResult } from '../model/BackupService'
@@ -468,6 +469,7 @@ struct Index {
     RouterHelper.consumePendingLaunchRoute()
     const context = getContext(this) as common.UIAbilityContext
     configureSourceSettingsStore(context)
+    configureSourceFilterPreferencesStore(context)
     bootstrapSourceRuntimeAppRegistry(context)
     if (!this.libraryPersistenceRestored) {
       this.libraryPersistenceRestored = true

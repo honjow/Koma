@@ -13,6 +13,7 @@ const sourceSearchPagePath = resolve(root, 'entry/src/main/ets/pages/SourceSearc
 const sourceFilterControlsPath = resolve(root, 'entry/src/main/ets/components/SourceFilterControls.ets')
 const sourceModelsPath = resolve(root, 'entry/src/main/ets/model/SourceModels.ets')
 const sourceSettingsStorePath = resolve(root, 'entry/src/main/ets/sourceRuntime/SourceSettingsStore.ets')
+const sourceFilterPreferencesStorePath = resolve(root, 'entry/src/main/ets/sourceRuntime/SourceFilterPreferencesStore.ets')
 const smokePath = resolve(root, 'entry/src/main/ets/sourceRuntime/SourceRuntimeDeviceSmoke.ets')
 const sourceRuntimeRegistryPath = resolve(root, 'entry/src/main/ets/sourceRuntime/SourceRuntimeRegistry.ets')
 const sourcePackageTrustPolicyPath = resolve(root, 'entry/src/main/ets/sourceRuntime/SourcePackageTrustPolicy.ets')
@@ -34,6 +35,7 @@ const sourceSearchPageSource = readFileSync(sourceSearchPagePath, 'utf8')
 const sourceFilterControlsSource = readFileSync(sourceFilterControlsPath, 'utf8')
 const sourceModelsSource = readFileSync(sourceModelsPath, 'utf8')
 const sourceSettingsStoreSource = readFileSync(sourceSettingsStorePath, 'utf8')
+const sourceFilterPreferencesStoreSource = readFileSync(sourceFilterPreferencesStorePath, 'utf8')
 const smokeSource = readFileSync(smokePath, 'utf8')
 const sourceRuntimeRegistrySource = readFileSync(sourceRuntimeRegistryPath, 'utf8')
 const sourcePackageTrustPolicySource = readFileSync(sourcePackageTrustPolicyPath, 'utf8')
@@ -204,6 +206,33 @@ assert.match(
   /filterSafeValues[\s\S]*const sanitized = sanitizeDescriptorSettingValue\(safe, descriptor\)[\s\S]*safeValues\[key\] = sanitized/,
   'source settings store must apply descriptor-specific sanitization inside persistence filtering',
 )
+assert.match(sourceFilterPreferencesStoreSource, /export class SourceFilterPreferencesStore[\s\S]*loadForSource\(sourceId: string, kind: SourceFilterPreferenceKind, filters: SourceFilter\[\]\)[\s\S]*saveForSource\(\s*sourceId: string,\s*kind: SourceFilterPreferenceKind,\s*values: SourceFilterPreferenceRecord,\s*filters: SourceFilter\[\]/, 'source filter preferences store must persist browse/search filter values by sourceId')
+assert.match(sourceFilterPreferencesStoreSource, /SOURCE_FILTER_PREFS_FILE_NAME:\s*string = 'source-filter-preferences\.json'[\s\S]*schemaVersion:\s*SOURCE_FILTER_PREFS_SCHEMA_VERSION[\s\S]*sources:/, 'source filter preferences store must persist a schema-versioned per-source document')
+assert.match(
+  sourceFilterPreferencesStoreSource,
+  /filterRequestKey\(filter: SourceFilter\)[\s\S]*raw\.startsWith\('filter:'\)[\s\S]*filterOptionValue\(filter: SourceFilter, index: number\)[\s\S]*raw\.startsWith\(keyPrefix\)/,
+  'source filter preferences must normalize filter request keys and option ids before saving',
+)
+assert.match(
+  sourceFilterPreferencesStoreSource,
+  /sanitizeFilterValue\(value: SourceFilterPreferenceValue, filter: SourceFilter\)[\s\S]*filter\.type === 'check'[\s\S]*typeof value === 'boolean'[\s\S]*filter\.type === 'text'[\s\S]*substring\(0, 160\)[\s\S]*filter\.type === 'select' \|\| filter\.type === 'sort'[\s\S]*filter\.type === 'multiselect'[\s\S]*filter\.type === 'range'/,
+  'source filter preferences must sanitize persisted values by source filter type',
+)
+assert.match(
+  sourceFilterPreferencesStoreSource,
+  /sanitizeChoiceFilterValue[\s\S]*const allowed = filterOptionValues\(filter\)[\s\S]*allowed\.includes\(normalized\)[\s\S]*sanitizeMultiSelectFilterValue[\s\S]*selected\.includes\(normalized\)[\s\S]*allowed\.includes\(normalized\)/,
+  'source filter preferences must validate select and multiselect values against source option ids',
+)
+assert.match(
+  sourceFilterPreferencesStoreSource,
+  /normalizedRangeFilterValue\(value: SourceFilterPreferenceValue, filter: SourceFilter\)[\s\S]*Math\.max\(filter\.minValue, next\)[\s\S]*Math\.min\(filter\.maxValue, next\)/,
+  'source filter preferences must clamp persisted range values to source-provided bounds',
+)
+assert.match(
+  sourceFilterPreferencesStoreSource,
+  /filterSafeValues\(values: SourceFilterPreferenceRecord, filters: SourceFilter\[\]\)[\s\S]*filterByKey\[filterRequestKey\(filter\)\] = filter[\s\S]*const sanitized = sanitizeFilterValue\(safe, filter\)[\s\S]*safeValues\[key\] = sanitized/,
+  'source filter preferences must drop values that no longer match active source filter descriptors',
+)
 assert.match(managerPageSource, /KomaActionButton\(\{[\s\S]*label: t\('source_pkg_settings'\)[\s\S]*this\.openSettings\(source\)/, 'SourcePackageManagerPage must expose a settings action on package cards')
 assert.match(managerPageSource, /fetchSourceSettingDescriptors\(appSourceRuntimeRegistry, source\.id\)/, 'SourcePackageManagerPage settings action must fetch get_settings descriptors')
 assert.match(managerPageSource, /descriptor\.sensitive \? t\('source_pkg_login_required'\) : t\('source_pkg_unsupported'\)/, 'SourcePackageManagerPage must show auth-required placeholder for credential-like descriptors')
@@ -326,6 +355,26 @@ assert.match(
   browseViewModelSource,
   /@Trace browseFilterValues: SourceMangaListFilters = \{\}[\s\S]*@Trace searchFilterValues: SourceMangaListFilters = \{\}[\s\S]*setBrowseFilterValue\(filterId: string, value: SourceFilterValue \| undefined\): Promise<void>[\s\S]*this\.updateFilterValue\(this\.browseFilterValues, filterId, value\)[\s\S]*setSearchFilterValue\(filterId: string, value: SourceFilterValue \| undefined\): boolean[\s\S]*this\.updateFilterValue\(this\.searchFilterValues, filterId, value\)/,
   'BrowseViewModel must keep browse and search filter values isolated while sharing source descriptors',
+)
+assert.match(
+  browseViewModelSource,
+  /appSourceFilterPreferencesStore[\s\S]*restoreSavedBrowseFilterValues\(source\.sourceId\)[\s\S]*restoreSavedSearchFilterValues\(source\.sourceId\)[\s\S]*mergeSavedSourceFilterValues\([\s\S]*sourceId: string,[\s\S]*appSourceFilterPreferencesStore\.loadForSource\(sourceId, kind, this\.filters\)/,
+  'BrowseViewModel must restore saved source filter preferences after loading source descriptors',
+)
+assert.match(
+  browseViewModelSource,
+  /setBrowseFilterValue\(filterId: string, value: SourceFilterValue \| undefined\): Promise<void>[\s\S]*this\.browseFilterValues = nextValues[\s\S]*this\.saveSourceFilterValues\('browse', nextValues\)[\s\S]*resetBrowseFilters\(\): Promise<void>[\s\S]*this\.browseFilterValues = this\.defaultSourceFilterValues\(this\.filters\)[\s\S]*this\.saveSourceFilterValues\('browse', this\.browseFilterValues\)/,
+  'BrowseViewModel must save browse filter changes and resets to source filter preferences',
+)
+assert.match(
+  browseViewModelSource,
+  /setSearchFilterValue\(filterId: string, value: SourceFilterValue \| undefined\): boolean[\s\S]*this\.searchFilterValues = nextValues[\s\S]*this\.saveSourceFilterValues\('search', nextValues\)[\s\S]*resetSearchFilters\(\): void \{[\s\S]*this\.searchFilterValues = this\.defaultSourceFilterValues\(this\.filters\)[\s\S]*this\.saveSourceFilterValues\('search', this\.searchFilterValues\)/,
+  'BrowseViewModel must save search filter changes and resets to source filter preferences',
+)
+assert.match(
+  readFileSync(resolve(root, 'entry/src/main/ets/pages/Index.ets'), 'utf8'),
+  /configureSourceSettingsStore\(context\)[\s\S]*configureSourceFilterPreferencesStore\(context\)[\s\S]*bootstrapSourceRuntimeAppRegistry\(context\)/,
+  'Index must configure source filter preferences before source runtime bootstrap',
 )
 assert.match(
   sourceSearchPageSource,
