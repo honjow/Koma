@@ -473,7 +473,9 @@ assert.match(serviceSource, /encodeURIComponent\(segment\)/, 'extracted file URI
 assert.match(readerPageSourceAdapterSource, /endsWith\('\.avif'\)/, 'reader local image allowlist must match imported AVIF pages')
 assert.match(localImportCoordinatorSource, /export interface LocalArchiveImportFailedResult[\s\S]*status: 'failed'[\s\S]*error: string/, 'local import must expose failed item results for partial multi-selection')
 assert.match(localImportCoordinatorSource, /export type LocalArchiveImportItemResult = LocalArchiveImportResult \| LocalArchiveImportFailedResult/, 'local import must use an explicit success/failure result union')
-assert.match(localImportCoordinatorSource, /for \(const uri of uris\) \{[\s\S]*try \{[\s\S]*results\.push\(await this\.importPickedArchive[\s\S]*\} catch \(error\) \{[\s\S]*status: 'failed'[\s\S]*sourceUri: uri[\s\S]*error: `\$\{error\}`/, 'multi-archive import must continue after per-item failures')
+assert.match(localImportCoordinatorSource, /const LOCAL_IMPORT_ERROR_ARCHIVE_IMPORT_FAILED = 'archive_import_failed'[\s\S]*const LOCAL_IMPORT_ERROR_IMAGE_IMPORT_FAILED = 'image_import_failed'[\s\S]*const LOCAL_IMPORT_ERROR_FOLDER_PICKER_FAILED = 'folder_picker_failed'[\s\S]*const LOCAL_IMPORT_ERROR_FOLDER_SCAN_FAILED = 'folder_scan_failed'/, 'local import failures must use fixed redacted failure codes')
+assert.match(localImportCoordinatorSource, /for \(const uri of uris\) \{[\s\S]*try \{[\s\S]*results\.push\(await this\.importPickedArchive[\s\S]*\} catch \(error\) \{[\s\S]*status: 'failed'[\s\S]*sourceUri: uri[\s\S]*error: LOCAL_IMPORT_ERROR_ARCHIVE_IMPORT_FAILED/, 'multi-archive import must continue after per-item failures with redacted error codes')
+assert.doesNotMatch(localImportCoordinatorSource, /error: `\$\{error\}`|throw new Error\(`\$\{error\}`\)/, 'local import coordinator must not persist or rethrow raw exception strings')
 assert.match(localImportCoordinatorSource, /setDebugSink\(debugSink\?: LocalArchiveImportDebugSink\)/, 'coordinator must expose an optional debug sink for QA surfaces')
 assert.match(localImportCoordinatorSource, /LOCAL_ARCHIVE_DEBUG_STEP_PICKER_STARTED/, 'coordinator must report picker start')
 assert.match(localImportCoordinatorSource, /LOCAL_ARCHIVE_DEBUG_STEP_PICKER_RETURNED/, 'coordinator must report picker returned URI count and source URI lines')
@@ -671,7 +673,7 @@ notifySuccessfulArchiveImports([
   {
     status: 'failed',
     sourceUri: '/library/broken.zip',
-    error: 'Archive contains no supported image pages: /library/broken.zip',
+    error: 'archive_import_failed',
   },
 ], (comic) => {
   importedComics.set(comic.id, comic)
@@ -689,7 +691,7 @@ const mixedImportResults = [
   {
     status: 'failed',
     sourceUri: '/library/corrupt.zip',
-    error: 'Error: failed to decompress archive',
+    error: 'archive_import_failed',
   },
 ]
 const mixedImportedComics = new Map()

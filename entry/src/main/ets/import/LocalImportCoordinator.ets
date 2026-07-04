@@ -116,6 +116,14 @@ export type LocalFolderImportItemResult = LocalFolderImportSucceededResult | Loc
 export const ARCHIVE_FILE_SUFFIX_FILTER = 'Comic archives(.zip, .cbz)|.zip,.cbz'
 export const IMAGE_FILE_SUFFIX_FILTER = 'Images(.jpg, .jpeg, .png, .webp, .gif, .bmp, .avif)|.jpg,.jpeg,.png,.webp,.gif,.bmp,.avif'
 
+const LOCAL_IMPORT_ERROR_COPY_FAILED = 'copy_failed'
+const LOCAL_IMPORT_ERROR_EXTRACTION_FAILED = 'extraction_failed'
+const LOCAL_IMPORT_ERROR_IMPORT_FAILED = 'import_failed'
+const LOCAL_IMPORT_ERROR_ARCHIVE_IMPORT_FAILED = 'archive_import_failed'
+const LOCAL_IMPORT_ERROR_IMAGE_IMPORT_FAILED = 'image_import_failed'
+const LOCAL_IMPORT_ERROR_FOLDER_PICKER_FAILED = 'folder_picker_failed'
+const LOCAL_IMPORT_ERROR_FOLDER_SCAN_FAILED = 'folder_scan_failed'
+
 function assertSupportedPickedArchive(sourceUri: string): void {
   if (!isSupportedArchivePath(sourceUri)) {
     throw new Error(`Unsupported archive picker result: ${sourceUri}`)
@@ -486,9 +494,9 @@ export class LocalImportCoordinator {
         step: LOCAL_ARCHIVE_DEBUG_STEP_COPY_FAILED,
         sourceUri: request.sourceUri,
         sandboxZipPath: paths.archiveZipPath,
-        error: `${error}`,
+        error: LOCAL_IMPORT_ERROR_COPY_FAILED,
       })
-      throw new Error(`${error}`)
+      throw new Error(LOCAL_IMPORT_ERROR_COPY_FAILED)
     }
     return {
       sourceUri: request.sourceUri,
@@ -530,9 +538,9 @@ export class LocalImportCoordinator {
           sourceUri: selection.sourceUri,
           sandboxZipPath: selection.sandboxZipPath,
           extractionDir: selection.extractionDir,
-          error: `${error}`,
+          error: LOCAL_IMPORT_ERROR_EXTRACTION_FAILED,
         })
-        throw new Error(`${error}`)
+        throw new Error(LOCAL_IMPORT_ERROR_EXTRACTION_FAILED)
       }
 
       this.reportDebugEvent({
@@ -556,9 +564,9 @@ export class LocalImportCoordinator {
       this.reportDebugEvent({
         step: LOCAL_ARCHIVE_DEBUG_STEP_IMPORT_FAILED,
         sourceUri: request.sourceUri,
-        error: `${error}`,
+        error: LOCAL_IMPORT_ERROR_IMPORT_FAILED,
       })
-      throw new Error(`${error}`)
+      throw new Error(LOCAL_IMPORT_ERROR_IMPORT_FAILED)
     }
   }
 
@@ -586,7 +594,7 @@ export class LocalImportCoordinator {
         results.push({
           status: 'failed',
           sourceUri: uri,
-          error: `${error}`,
+          error: LOCAL_IMPORT_ERROR_ARCHIVE_IMPORT_FAILED,
         })
       }
     }
@@ -635,9 +643,9 @@ export class LocalImportCoordinator {
           step: LOCAL_ARCHIVE_DEBUG_STEP_COPY_FAILED,
           sourceUri,
           extractionDir: selection.extractionDir,
-          error: `${error}`,
+          error: LOCAL_IMPORT_ERROR_COPY_FAILED,
         })
-        throw new Error(`${error}`)
+        throw new Error(LOCAL_IMPORT_ERROR_COPY_FAILED)
       }
     }
 
@@ -686,9 +694,9 @@ export class LocalImportCoordinator {
       this.reportDebugEvent({
         step: LOCAL_ARCHIVE_DEBUG_STEP_IMPORT_FAILED,
         sourceUri: request.sourceUris.join(','),
-        error: `${error}`,
+        error: LOCAL_IMPORT_ERROR_IMPORT_FAILED,
       })
-      throw new Error(`${error}`)
+      throw new Error(LOCAL_IMPORT_ERROR_IMPORT_FAILED)
     }
   }
 
@@ -714,7 +722,7 @@ export class LocalImportCoordinator {
       return [{
         status: 'failed',
         sourceUris: uris,
-        error: `${error}`,
+        error: LOCAL_IMPORT_ERROR_IMAGE_IMPORT_FAILED,
       }]
     }
   }
@@ -729,7 +737,7 @@ export class LocalImportCoordinator {
     } catch (error) {
       return [{
         status: 'failed',
-        error: `${error}`,
+        error: LOCAL_IMPORT_ERROR_FOLDER_PICKER_FAILED,
       }]
     }
     this.reportDebugEvent({
@@ -753,7 +761,7 @@ export class LocalImportCoordinator {
         results.push({
           status: 'failed',
           rootUri,
-          error: `${error}`,
+          error: LOCAL_IMPORT_ERROR_FOLDER_SCAN_FAILED,
         })
       }
     }
