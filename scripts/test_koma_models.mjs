@@ -684,6 +684,11 @@ assert.match(
   'ReaderPage must support previous/next chapter navigation through the existing reader opening route',
 )
 assert.match(
+  readerPageSource,
+  /canGoPreviousPage\(\): boolean \{[\s\S]*this\.canGoPreviousChapter\(\)[\s\S]*canGoNextPage\(\): boolean \{[\s\S]*this\.canGoNextChapter\(\)[\s\S]*previousPage\(\)[\s\S]*this\.previousChapter\(\)[\s\S]*nextPage\(\)[\s\S]*this\.nextChapter\(\)/,
+  'ReaderPage page navigation must continue across chapter boundaries instead of dead-ending at the first or last page',
+)
+assert.match(
   readerChromeSource,
   /@Param chapterIndex: number[\s\S]*@Param chapterTotal: number[\s\S]*@Event onPreviousChapter[\s\S]*@Event onNextChapter[\s\S]*reader_control_chapter[\s\S]*reader_action_previous_chapter[\s\S]*reader_action_next_chapter/,
   'ReaderChrome must surface visible chapter controls instead of hiding chapter jumps in settings',
