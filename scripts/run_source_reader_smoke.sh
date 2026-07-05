@@ -12,6 +12,7 @@ source_id="${KOMA_SOURCE_READER_SOURCE_ID:-org.mangadex.koma}"
 query="${KOMA_SOURCE_READER_QUERY:-Salt Friend}"
 phase="${KOMA_SOURCE_READER_PHASE:-source-index-visible-reader}"
 capture_ui="${KOMA_SOURCE_READER_CAPTURE_UI:-true}"
+offline_download_visible_phase="source-index-visible-offline-download-reader"
 dist_dir="${KOMA_SOURCES_DIST:-$repo/../koma-sources/dist}"
 port="${KOMA_SOURCE_INDEX_PORT:-8765}"
 index_url="${KOMA_SOURCE_INDEX_URL:-}"
@@ -173,6 +174,12 @@ if [ "$capture_ui" != "true" ]; then
   exit 0
 fi
 
+if [ "$phase" = "$offline_download_visible_phase" ] && [ -n "$server_pid" ]; then
+  kill "$server_pid" 2>/dev/null || true
+  wait "$server_pid" 2>/dev/null || true
+  server_pid=""
+fi
+
 hdc_target shell aa force-stop com.honjow.koma
 hdc_target shell aa start -u "$user_id" -a EntryAbility -b com.honjow.koma -m entry
 library_poll_count="${KOMA_SOURCE_READER_FOREGROUND_POLL_COUNT:-8}"
@@ -286,6 +293,9 @@ if phase == 'source-index-download-corrupt-reader':
     if '"type": "Image"' in text or '"type":"Image"' in text:
         raise SystemExit('source reader smoke failed: corrupt reader unexpectedly rendered an image node')
     raise SystemExit(0)
+if phase == 'source-index-visible-offline-download-reader':
+    if result.get('sourceIndexDownloadOfflineReaderKind') != 'local_file_image':
+        raise SystemExit('source reader smoke failed: visible offline reader did not use local file')
 if '"type": "Image"' not in text and '"type":"Image"' not in text:
     raise SystemExit('source reader smoke failed: reader layout missing visible image node')
 PY
