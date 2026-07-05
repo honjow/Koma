@@ -122,7 +122,7 @@ if result.get('smokePhase') != phase:
     raise SystemExit('source reader smoke failed: phase mismatch')
 if result.get('sourceIndexReaderSelectedSourceId') != source_id:
     raise SystemExit('source reader smoke failed: source id mismatch')
-if phase != 'source-index-settings' and result.get('sourceIndexReaderSearchQuery') != query:
+if phase not in ('source-index-settings', 'source-index-browse') and result.get('sourceIndexReaderSearchQuery') != query:
     raise SystemExit('source reader smoke failed: query mismatch')
 if phase == 'source-index-settings':
     if result.get('sourceIndexSettingsDescriptorCount', 0) <= 0:

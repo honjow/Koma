@@ -23,6 +23,7 @@ const sourceSettingsSmokeScriptPath = resolve(root, 'scripts/run_source_settings
 const sourceDownloadReaderSmokeScriptPath = resolve(root, 'scripts/run_source_download_reader_smoke.sh')
 const sourceCorruptDownloadReaderSmokeScriptPath = resolve(root, 'scripts/run_source_corrupt_download_reader_smoke.sh')
 const sourceUndownloadedOfflineReaderSmokeScriptPath = resolve(root, 'scripts/run_source_undownloaded_offline_reader_smoke.sh')
+const sourceBrowseDetailReaderSmokeScriptPath = resolve(root, 'scripts/run_source_browse_detail_reader_smoke.sh')
 const abiDocPath = resolve(root, 'docs/source-runtime-abi.md')
 const sdkDocPath = resolve(root, 'docs/source-package-sdk.md')
 const localKomaFixturePath = resolve(root, 'entry/src/main/resources/rawfile/test/local_source_runtime_fixture.koma')
@@ -51,6 +52,7 @@ const sourceSettingsSmokeScriptSource = readFileSync(sourceSettingsSmokeScriptPa
 const sourceDownloadReaderSmokeScriptSource = readFileSync(sourceDownloadReaderSmokeScriptPath, 'utf8')
 const sourceCorruptDownloadReaderSmokeScriptSource = readFileSync(sourceCorruptDownloadReaderSmokeScriptPath, 'utf8')
 const sourceUndownloadedOfflineReaderSmokeScriptSource = readFileSync(sourceUndownloadedOfflineReaderSmokeScriptPath, 'utf8')
+const sourceBrowseDetailReaderSmokeScriptSource = readFileSync(sourceBrowseDetailReaderSmokeScriptPath, 'utf8')
 const abiDocSource = readFileSync(abiDocPath, 'utf8')
 const sdkDocSource = readFileSync(sdkDocPath, 'utf8')
 
@@ -697,6 +699,21 @@ assert.match(
   sourceSettingsSmokeScriptSource,
   /KOMA_SOURCE_READER_PHASE="\$\{KOMA_SOURCE_READER_PHASE:-source-index-settings\}"[\s\S]*KOMA_SOURCE_READER_CAPTURE_UI="\$\{KOMA_SOURCE_READER_CAPTURE_UI:-false\}"[\s\S]*KOMA_SOURCE_READER_ARTIFACT_DIR="\$\{KOMA_SOURCE_READER_ARTIFACT_DIR:-\.hvigor\/outputs\/source-settings-smoke\}"[\s\S]*scripts\/run_source_reader_smoke\.sh/,
   'source settings smoke script must reuse the source reader smoke harness with the focused settings phase',
+)
+assert.match(
+  sourceReaderSmokeScriptSource,
+  /phase not in \('source-index-settings', 'source-index-browse'\) and result\.get\('sourceIndexReaderSearchQuery'\) != query/,
+  'source reader smoke script must not require reader search query fields for browse/settings-only source phases',
+)
+assert.match(
+  sourceBrowseDetailReaderSmokeScriptSource,
+  /KOMA_SOURCE_READER_PHASE=source-index-browse[\s\S]*scripts\/run_source_reader_smoke\.sh[\s\S]*aa start[\s\S]*click_from_layout[\s\S]*Browse[\s\S]*click_from_layout[\s\S]*"\$source_display"[\s\S]*click_first_source_manga[\s\S]*Start reading[\s\S]*source-browse-reader-layout\.json/,
+  'source browse detail reader smoke must seed a real source package, drive Browse UI to a source manga detail, start Reader, and capture reader layout evidence',
+)
+assert.match(
+  sourceBrowseDetailReaderSmokeScriptSource,
+  /capture_layout "source-browse-home"[\s\S]*capture_layout "source-browse-list"[\s\S]*capture_layout "source-browse-source"[\s\S]*capture_layout "source-browse-detail"[\s\S]*capture_layout "source-browse-reader"/,
+  'source browse detail reader smoke must retain visible screenshots for browse, source list, source detail, and reader states',
 )
 assert.match(
   smokeSource,
