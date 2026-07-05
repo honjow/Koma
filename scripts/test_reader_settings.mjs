@@ -335,6 +335,11 @@ assert.match(
 )
 assert.match(
   readerChromeSource,
+  /private QuickSettingsPanel\(\)[\s\S]*Scroll\(\)[\s\S]*constraintSize\(\{ maxHeight: 420 \}\)[\s\S]*scrollable\(ScrollDirection\.Vertical\)/,
+  'ReaderChrome quick settings must scroll vertically instead of clipping controls on small screens',
+)
+assert.match(
+  readerChromeSource,
   /KomaSegmentedControl\(\{[\s\S]*getReaderImageFitModeLabel\('contain'\)[\s\S]*getReaderBackgroundModeLabel\('black'\)[\s\S]*getReaderPageGapModeLabel\('compact'\)[\s\S]*getReaderWideImageModeLabel\('split_wide_pages'\)[\s\S]*getReaderTapZonePresetLabel\('wide_edges'\)/,
   'ReaderChrome quick settings must use reusable segmented controls for reader display choices',
 )
