@@ -181,6 +181,11 @@ export function parseMangaDetailFromSourceItem(sourceId: string, item: SourceRun
     coverUrl: firstSourceString([
       optionalSourceString(item['cover_url']),
       optionalSourceString(item['coverUrl']),
+      optionalSourceString(item['cover_uri']),
+      optionalSourceString(item['coverUri']),
+      optionalSourceString(item['thumbnail']),
+      optionalSourceString(item['thumbnailUrl']),
+      optionalSourceString(item['imageUrl']),
       nestedSourceString(item, 'cover', 'url'),
       nestedSourceString(item, 'cover', 'uri'),
     ]),

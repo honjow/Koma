@@ -86,7 +86,12 @@ function optionalSourceNumber(value: Object | string | number | boolean | null |
 }
 
 function sourcePageImageUrl(item: Record<string, Object>): string | undefined {
-  const directUrl = optionalSourceString(item['url']) ?? optionalSourceString(item['uri'])
+  const directUrl = optionalSourceString(item['url']) ??
+    optionalSourceString(item['uri']) ??
+    optionalSourceString(item['imageUrl']) ??
+    optionalSourceString(item['image_url']) ??
+    optionalSourceString(item['src']) ??
+    optionalSourceString(item['href'])
   if (directUrl !== undefined) {
     return directUrl
   }
@@ -95,7 +100,10 @@ function sourcePageImageUrl(item: Record<string, Object>): string | undefined {
     return undefined
   }
   const imageRecord = image as Record<string, Object>
-  return optionalSourceString(imageRecord['url']) ?? optionalSourceString(imageRecord['uri'])
+  return optionalSourceString(imageRecord['url']) ??
+    optionalSourceString(imageRecord['uri']) ??
+    optionalSourceString(imageRecord['src']) ??
+    optionalSourceString(imageRecord['href'])
 }
 
 function pagesFromSourceRows(comicId: string, chapterId: string, rows: Record<string, Object>[]): Page[] {

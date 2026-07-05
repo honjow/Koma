@@ -322,11 +322,19 @@ function optionalSourceString(value) {
 }
 
 function sourcePageImageUrl(item) {
-  const directUrl = optionalSourceString(item.url) ?? optionalSourceString(item.uri)
+  const directUrl = optionalSourceString(item.url) ??
+    optionalSourceString(item.uri) ??
+    optionalSourceString(item.imageUrl) ??
+    optionalSourceString(item.image_url) ??
+    optionalSourceString(item.src) ??
+    optionalSourceString(item.href)
   if (directUrl !== undefined) return directUrl
   const image = item.image
   if (image === undefined || image === null || Array.isArray(image) || typeof image !== 'object') return undefined
-  return optionalSourceString(image.url) ?? optionalSourceString(image.uri)
+  return optionalSourceString(image.url) ??
+    optionalSourceString(image.uri) ??
+    optionalSourceString(image.src) ??
+    optionalSourceString(image.href)
 }
 
 function isReaderRemoteImageSourceUri(uri) {
@@ -1630,8 +1638,13 @@ assert.match(
 )
 assert.match(
   sourceChapterPageHydratorSource,
-  /function sourcePageImageUrl\(item: Record<string, Object>\): string \| undefined \{[\s\S]*optionalSourceString\(item\['url'\]\) \?\? optionalSourceString\(item\['uri'\]\)[\s\S]*const image = item\['image'\][\s\S]*imageRecord\['url'\]/,
-  'get_pages parsing must accept nested image.url while preserving top-level url/uri compatibility',
+  /function sourcePageImageUrl\(item: Record<string, Object>\): string \| undefined \{[\s\S]*optionalSourceString\(item\['url'\]\)[\s\S]*optionalSourceString\(item\['uri'\]\)[\s\S]*optionalSourceString\(item\['imageUrl'\]\)[\s\S]*optionalSourceString\(item\['image_url'\]\)[\s\S]*optionalSourceString\(item\['src'\]\)[\s\S]*optionalSourceString\(item\['href'\]\)[\s\S]*const image = item\['image'\][\s\S]*optionalSourceString\(imageRecord\['url'\]\)[\s\S]*optionalSourceString\(imageRecord\['uri'\]\)[\s\S]*optionalSourceString\(imageRecord\['src'\]\)[\s\S]*optionalSourceString\(imageRecord\['href'\]\)/,
+  'get_pages parsing must accept common top-level and nested page image URL fields while preserving url/uri compatibility',
+)
+assert.match(
+  mangaDetailModelsSource,
+  /coverUrl: firstSourceString\(\[[\s\S]*optionalSourceString\(item\['cover_url'\]\)[\s\S]*optionalSourceString\(item\['coverUrl'\]\)[\s\S]*optionalSourceString\(item\['cover_uri'\]\)[\s\S]*optionalSourceString\(item\['coverUri'\]\)[\s\S]*optionalSourceString\(item\['thumbnail'\]\)[\s\S]*optionalSourceString\(item\['thumbnailUrl'\]\)[\s\S]*optionalSourceString\(item\['imageUrl'\]\)[\s\S]*nestedSourceString\(item, 'cover', 'url'\)[\s\S]*nestedSourceString\(item, 'cover', 'uri'\)/,
+  'source detail parsing must keep the same broad cover URL compatibility as source browse/search results before adding a manga to the library',
 )
 assert.match(
   readerPageSourceAdapterSource,
@@ -1756,6 +1769,16 @@ assert.equal(
   sourcePageImageUrl({ id: 'page:1', url: 'https://cdn.example.test/top-level.jpg', image: { url: 'https://cdn.example.test/nested.jpg' } }),
   'https://cdn.example.test/top-level.jpg',
   'source pages must keep top-level url precedence for compatibility',
+)
+assert.equal(
+  sourcePageImageUrl({ id: 'page:2', imageUrl: 'https://cdn.example.test/image-url.jpg' }),
+  'https://cdn.example.test/image-url.jpg',
+  'source pages must accept top-level imageUrl from source runtime responses',
+)
+assert.equal(
+  sourcePageImageUrl({ id: 'page:3', image: { src: 'https://cdn.example.test/nested-src.jpg' } }),
+  'https://cdn.example.test/nested-src.jpg',
+  'source pages must accept nested image.src from HTML-derived source responses',
 )
 assert.deepEqual(
   buildReaderSourceImageRequestArgs('page:0', 'https://uploads.mangadex.org/data/hash/001.jpg'),
