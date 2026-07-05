@@ -24,6 +24,7 @@ const entryAbilityPath = resolve(root, 'entry/src/main/ets/entryability/EntryAbi
 const sourceReaderSmokeScriptPath = resolve(root, 'scripts/run_source_reader_smoke.sh')
 const sourceSettingsSmokeScriptPath = resolve(root, 'scripts/run_source_settings_smoke.sh')
 const sourceSettingsUiSmokeScriptPath = resolve(root, 'scripts/run_source_settings_ui_smoke.sh')
+const sourcePackageUpdateUiSmokeScriptPath = resolve(root, 'scripts/run_source_package_update_ui_smoke.sh')
 const sourceDownloadReaderSmokeScriptPath = resolve(root, 'scripts/run_source_download_reader_smoke.sh')
 const sourceOfflineDownloadReaderSmokeScriptPath = resolve(root, 'scripts/run_source_offline_download_reader_smoke.sh')
 const sourceCorruptDownloadReaderSmokeScriptPath = resolve(root, 'scripts/run_source_corrupt_download_reader_smoke.sh')
@@ -59,6 +60,7 @@ const entryAbilitySource = readFileSync(entryAbilityPath, 'utf8')
 const sourceReaderSmokeScriptSource = readFileSync(sourceReaderSmokeScriptPath, 'utf8')
 const sourceSettingsSmokeScriptSource = readFileSync(sourceSettingsSmokeScriptPath, 'utf8')
 const sourceSettingsUiSmokeScriptSource = readFileSync(sourceSettingsUiSmokeScriptPath, 'utf8')
+const sourcePackageUpdateUiSmokeScriptSource = readFileSync(sourcePackageUpdateUiSmokeScriptPath, 'utf8')
 const sourceDownloadReaderSmokeScriptSource = readFileSync(sourceDownloadReaderSmokeScriptPath, 'utf8')
 const sourceOfflineDownloadReaderSmokeScriptSource = readFileSync(sourceOfflineDownloadReaderSmokeScriptPath, 'utf8')
 const sourceCorruptDownloadReaderSmokeScriptSource = readFileSync(sourceCorruptDownloadReaderSmokeScriptPath, 'utf8')
@@ -725,6 +727,11 @@ assert.match(
   sourceSettingsUiSmokeScriptSource,
   /KOMA_SOURCE_READER_PHASE=source-index-settings[\s\S]*scripts\/run_source_reader_smoke\.sh[\s\S]*--ps koma\.launchRoute source_package_manager[\s\S]*click_from_layout[\s\S]*Settings[\s\S]*设置[\s\S]*Save settings[\s\S]*保存设置[\s\S]*Validate settings[\s\S]*验证设置[\s\S]*Settings validation: PASS[\s\S]*设置验证：PASS/,
   'source settings UI smoke must seed a real source, open SourcePackageManagerPage by launch route, save settings, and validate PASS from the visible UI',
+)
+assert.match(
+  sourcePackageUpdateUiSmokeScriptSource,
+  /KOMA_SOURCE_READER_PHASE=source-index-settings[\s\S]*scripts\/run_source_reader_smoke\.sh[\s\S]*--ps koma\.launchRoute source_package_manager[\s\S]*click_from_layout[\s\S]*Check updates[\s\S]*检查更新[\s\S]*Updates: latest[\s\S]*更新：已是最新/,
+  'source package update UI smoke must seed a real source, open SourcePackageManagerPage, check installed updates, and require a visible latest status',
 )
 assert.match(
   sourceReaderSmokeScriptSource,
