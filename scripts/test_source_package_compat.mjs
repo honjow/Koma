@@ -27,6 +27,7 @@ const sourceSettingsUiSmokeScriptPath = resolve(root, 'scripts/run_source_settin
 const sourcePackageUpdateUiSmokeScriptPath = resolve(root, 'scripts/run_source_package_update_ui_smoke.sh')
 const sourceDownloadReaderSmokeScriptPath = resolve(root, 'scripts/run_source_download_reader_smoke.sh')
 const sourceOfflineDownloadReaderSmokeScriptPath = resolve(root, 'scripts/run_source_offline_download_reader_smoke.sh')
+const localSourcePackageOfflineDownloadReaderSmokeScriptPath = resolve(root, 'scripts/run_local_source_package_offline_download_reader_smoke.sh')
 const sourceCorruptDownloadReaderSmokeScriptPath = resolve(root, 'scripts/run_source_corrupt_download_reader_smoke.sh')
 const sourceUndownloadedOfflineReaderSmokeScriptPath = resolve(root, 'scripts/run_source_undownloaded_offline_reader_smoke.sh')
 const sourceBrowseDetailReaderSmokeScriptPath = resolve(root, 'scripts/run_source_browse_detail_reader_smoke.sh')
@@ -63,6 +64,7 @@ const sourceSettingsUiSmokeScriptSource = readFileSync(sourceSettingsUiSmokeScri
 const sourcePackageUpdateUiSmokeScriptSource = readFileSync(sourcePackageUpdateUiSmokeScriptPath, 'utf8')
 const sourceDownloadReaderSmokeScriptSource = readFileSync(sourceDownloadReaderSmokeScriptPath, 'utf8')
 const sourceOfflineDownloadReaderSmokeScriptSource = readFileSync(sourceOfflineDownloadReaderSmokeScriptPath, 'utf8')
+const localSourcePackageOfflineDownloadReaderSmokeScriptSource = readFileSync(localSourcePackageOfflineDownloadReaderSmokeScriptPath, 'utf8')
 const sourceCorruptDownloadReaderSmokeScriptSource = readFileSync(sourceCorruptDownloadReaderSmokeScriptPath, 'utf8')
 const sourceUndownloadedOfflineReaderSmokeScriptSource = readFileSync(sourceUndownloadedOfflineReaderSmokeScriptPath, 'utf8')
 const sourceBrowseDetailReaderSmokeScriptSource = readFileSync(sourceBrowseDetailReaderSmokeScriptPath, 'utf8')
@@ -302,6 +304,21 @@ assert.match(
   'source reader smoke script must default to the visible source-index reader phase',
 )
 assert.match(
+  sourceReaderSmokeScriptSource,
+  /aa_start_args=\([\s\S]*koma\.sourceRuntimeSmoke\.phase "\$phase"[\s\S]*if \[ -n "\$index_url" \]; then[\s\S]*if \[ -n "\$source_package_base64" \]; then[\s\S]*hdc_target "\$\{aa_start_args\[@\]\}"/,
+  'source reader smoke script must build aa start args without empty --ps values',
+)
+assert.match(
+  sourceReaderSmokeScriptSource,
+  /KOMA_HDC_COMMAND_TIMEOUT_SECONDS[\s\S]*subprocess\.TimeoutExpired[\s\S]*"\$hdc" kill[\s\S]*"\$hdc" start/,
+  'source reader smoke script must bound hung hdc calls and restart hdc before retrying',
+)
+assert.match(
+  sourceReaderSmokeScriptSource,
+  /hvigor_args=\([\s\S]*assembleHap[\s\S]*KOMA_HVIGOR_TIMEOUT_SECONDS[\s\S]*subprocess\.TimeoutExpired/,
+  'source reader smoke script must bound hung hvigor builds before device QA',
+)
+assert.match(
   sourceDownloadReaderSmokeScriptSource,
   /KOMA_SOURCE_READER_PHASE="\$\{KOMA_SOURCE_READER_PHASE:-source-index-visible-download-reader\}"[\s\S]*run_source_reader_smoke\.sh/,
   'source download reader smoke script must reuse the source reader smoke with the visible download phase',
@@ -310,6 +327,11 @@ assert.match(
   sourceOfflineDownloadReaderSmokeScriptSource,
   /KOMA_SOURCE_READER_PHASE="\$\{KOMA_SOURCE_READER_PHASE:-source-index-visible-offline-download-reader\}"[\s\S]*KOMA_SOURCE_READER_CAPTURE_UI="\$\{KOMA_SOURCE_READER_CAPTURE_UI:-true\}"[\s\S]*run_source_reader_smoke\.sh/,
   'source offline download reader smoke script must reuse the source reader smoke with the visible offline download phase',
+)
+assert.match(
+  localSourcePackageOfflineDownloadReaderSmokeScriptSource,
+  /KOMA_SOURCE_READER_PHASE="\$\{KOMA_SOURCE_READER_PHASE:-local-source-package-visible-offline-download-reader\}"[\s\S]*KOMA_SOURCE_READER_REQUIRES_INDEX="\$\{KOMA_SOURCE_READER_REQUIRES_INDEX:-false\}"[\s\S]*KOMA_SOURCE_PACKAGE_PATH="\$\{KOMA_SOURCE_PACKAGE_PATH:-\$repo\/\.\.\/koma-sources\/dist\/sources\/mangadex\/mangadex-0\.1\.0\.koma\}"[\s\S]*run_source_reader_smoke\.sh/,
+  'local source package offline download smoke must reuse the source reader smoke with a real source-project package and no index server',
 )
 assert.match(
   sourceCorruptDownloadReaderSmokeScriptSource,
@@ -801,8 +823,18 @@ assert.match(
 )
 assert.match(
   sourceReaderSmokeScriptSource,
-  /offline_download_visible_phase="source-index-visible-offline-download-reader"[\s\S]*kill "\$server_pid"[\s\S]*phase == 'source-index-visible-offline-download-reader'[\s\S]*local_file_image/,
+  /offline_download_visible_phase="source-index-visible-offline-download-reader"[\s\S]*kill "\$server_pid"[\s\S]*phase in \('source-index-visible-offline-download-reader', 'local-source-package-visible-offline-download-reader'\)[\s\S]*local_file_image/,
   'source reader smoke script must stop the local index server before visible offline download Reader QA and require a local file source',
+)
+assert.match(
+  sourceReaderSmokeScriptSource,
+  /local_source_package_offline_download_visible_phase="local-source-package-visible-offline-download-reader"[\s\S]*requires_index="false"[\s\S]*phase in \('source-index-visible-offline-download-reader', 'local-source-package-visible-offline-download-reader'\)[\s\S]*local_file_image/,
+  'source reader smoke script must run local source package offline reader QA without a source index server and require a local file source',
+)
+assert.match(
+  sourceReaderSmokeScriptSource,
+  /python3 - "\$smoke_result" "\$reader_layout" "\$reader_screen"[\s\S]*reader evidence missing visible image node or detailed screenshot/,
+  'source reader smoke script must use reader screenshot evidence when layout metadata omits the image node',
 )
 assert.match(
   smokeSource,

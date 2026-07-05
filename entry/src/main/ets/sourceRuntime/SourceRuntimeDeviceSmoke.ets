@@ -134,6 +134,7 @@ const SMOKE_PHASE_REAL_SOURCE_SEARCH: string = 'real-source-search'
 const SMOKE_PHASE_REAL_SOURCE_READER: string = 'real-source-reader'
 const SMOKE_PHASE_REAL_SOURCE_VISIBLE_READER: string = 'real-source-visible-reader'
 const SMOKE_PHASE_LOCAL_SOURCE_PACKAGE_VISIBLE_READER: string = 'local-source-package-visible-reader'
+const SMOKE_PHASE_LOCAL_SOURCE_PACKAGE_VISIBLE_OFFLINE_DOWNLOAD_READER: string = 'local-source-package-visible-offline-download-reader'
 const SMOKE_PHASE_INSTALLED_SOURCE_READER: string = 'installed-source-reader'
 const SMOKE_PHASE_SOURCE_INDEX_READER: string = 'source-index-reader'
 const SMOKE_PHASE_SOURCE_INDEX_VISIBLE_READER: string = 'source-index-visible-reader'
@@ -2210,11 +2211,16 @@ export async function maybeRunSourceRuntimeDeviceSmoke(
     }
 
     if (result.smokePhase === SMOKE_PHASE_REAL_SOURCE_VISIBLE_READER ||
-      result.smokePhase === SMOKE_PHASE_LOCAL_SOURCE_PACKAGE_VISIBLE_READER) {
+      result.smokePhase === SMOKE_PHASE_LOCAL_SOURCE_PACKAGE_VISIBLE_READER ||
+      result.smokePhase === SMOKE_PHASE_LOCAL_SOURCE_PACKAGE_VISIBLE_OFFLINE_DOWNLOAD_READER) {
       if (resourceMgr === undefined || context === undefined) {
         result.error = `${result.smokePhase} phase requires resource manager and ability context`
       } else {
-        const isLocalSourcePackagePhase = result.smokePhase === SMOKE_PHASE_LOCAL_SOURCE_PACKAGE_VISIBLE_READER
+        const isLocalSourcePackagePhase =
+          result.smokePhase === SMOKE_PHASE_LOCAL_SOURCE_PACKAGE_VISIBLE_READER ||
+            result.smokePhase === SMOKE_PHASE_LOCAL_SOURCE_PACKAGE_VISIBLE_OFFLINE_DOWNLOAD_READER
+        const isLocalOfflineDownloadPhase =
+          result.smokePhase === SMOKE_PHASE_LOCAL_SOURCE_PACKAGE_VISIBLE_OFFLINE_DOWNLOAD_READER
         const requestedSourceId = smokeStringParam(want, SMOKE_SOURCE_ID_PARAM)
         let selectedSourceId = requestedSourceId.length > 0 ? requestedSourceId : 'org.mangadex.koma'
         const requestedSearchQuery = smokeStringParam(want, SMOKE_QUERY_PARAM)
@@ -2241,7 +2247,7 @@ export async function maybeRunSourceRuntimeDeviceSmoke(
           result.sourceIndexReaderPackageBytes = archiveBytes?.byteLength ?? 0
           if (archiveBytes === undefined || archiveBytes.byteLength === 0) {
             result.sourceIndexReaderInstallOk = false
-            result.error = 'local-source-package-visible-reader package missing'
+            result.error = `${result.smokePhase} package missing`
           } else {
             const install = await installFromBytes(
               context,
@@ -2370,6 +2376,33 @@ export async function maybeRunSourceRuntimeDeviceSmoke(
                 result,
               )
             }
+            if (isLocalOfflineDownloadPhase && result.sourceIndexReaderRenderSourceOk === true) {
+              const downloadStore = new OfflineDownloadStore(context.filesDir)
+              const queueStore = new OfflineDownloadQueueStore(downloadStore.filesRootDir())
+              queueStore.savePreferences(DEFAULT_OFFLINE_DOWNLOAD_QUEUE_PREFERENCES)
+              const downloadService = new OfflineDownloadService(downloadStore, queueStore)
+              const manifest = await downloadService.downloadChapter(comic, chapterId, {
+                comicTitle: comic.title,
+                chapterTitle: comic.chapters[0].title,
+              })
+              result.sourceIndexDownloadStatus = manifest.status
+              result.sourceIndexDownloadPageCount = manifest.pageCount
+              result.sourceIndexDownloadDownloadedPageCount = manifest.downloadedPageCount
+              result.sourceIndexDownloadOk =
+                manifest.status === OfflineDownloadStatus.DOWNLOADED &&
+                  manifest.downloadedPageCount === pages.length
+              configureReaderOfflineDownloads(context.filesDir)
+              const offlineConfig = createReaderSessionConfigFromComic(comic, chapterId)
+              const offlineSource = createReaderPageRenderSource(offlineConfig, 0)
+              result.sourceIndexDownloadOfflineReaderKind = offlineSource.kind
+              result.sourceIndexDownloadOfflineReaderOk =
+                offlineSource.kind === ReaderPageRenderKind.LOCAL_FILE_IMAGE &&
+                  offlineSource.pageId === pageId &&
+                  offlineSource.imageUri.length > 0
+              result.sourceIndexDownloadCleanupOk =
+                manifest.status === OfflineDownloadStatus.DOWNLOADED &&
+                  manifest.downloadedPageCount === pages.length
+            }
             result.sourceIndexReaderCleanupOk = true
           }
         }
@@ -2388,6 +2421,10 @@ export async function maybeRunSourceRuntimeDeviceSmoke(
           result.sourceIndexVisibleLibraryPersistOk === true &&
           result.sourceIndexVisibleLibraryReloadOk === true &&
           result.sourceIndexVisibleLibraryReaderOk === true &&
+          (!isLocalOfflineDownloadPhase ||
+            (result.sourceIndexDownloadOk === true &&
+              result.sourceIndexDownloadOfflineReaderOk === true &&
+              result.sourceIndexDownloadCleanupOk === true)) &&
           result.sourceIndexReaderCleanupOk === true
         if (!result.ok && result.error === undefined) {
           result.error = `${result.smokePhase} failed`

@@ -14,8 +14,11 @@ phase="${KOMA_SOURCE_READER_PHASE:-source-index-visible-reader}"
 capture_ui="${KOMA_SOURCE_READER_CAPTURE_UI:-true}"
 offline_download_visible_phase="source-index-visible-offline-download-reader"
 local_source_package_visible_phase="local-source-package-visible-reader"
+local_source_package_offline_download_visible_phase="local-source-package-visible-offline-download-reader"
 requires_index="${KOMA_SOURCE_READER_REQUIRES_INDEX:-true}"
-if [ "$phase" = "real-source-visible-reader" ] || [ "$phase" = "$local_source_package_visible_phase" ]; then
+if [ "$phase" = "real-source-visible-reader" ] ||
+  [ "$phase" = "$local_source_package_visible_phase" ] ||
+  [ "$phase" = "$local_source_package_offline_download_visible_phase" ]; then
   requires_index="false"
 fi
 dist_dir="${KOMA_SOURCES_DIST:-$repo/../koma-sources/dist}"
@@ -58,9 +61,10 @@ if [ "$requires_index" = "true" ] && [ ! -f "$dist_dir/index.json" ]; then
   echo "source reader smoke failed: missing source index at $dist_dir/index.json" >&2
   exit 1
 fi
-if [ "$phase" = "$local_source_package_visible_phase" ]; then
+if [ "$phase" = "$local_source_package_visible_phase" ] ||
+  [ "$phase" = "$local_source_package_offline_download_visible_phase" ]; then
   if [ -z "$source_package_path" ]; then
-    echo "source reader smoke failed: set KOMA_SOURCE_PACKAGE_PATH for $local_source_package_visible_phase" >&2
+    echo "source reader smoke failed: set KOMA_SOURCE_PACKAGE_PATH for $phase" >&2
     exit 1
   fi
   if [ ! -f "$source_package_path" ]; then
@@ -110,42 +114,80 @@ hdc_target() {
   local attempt=1
   local max_attempts="${KOMA_HDC_RETRY_COUNT:-3}"
   while true; do
-    if "$hdc" -t "$target" "$@"; then
+    if python3 - "$hdc" "$target" "$@" <<'PY'
+import os
+import subprocess
+import sys
+
+timeout = int(os.environ.get('KOMA_HDC_COMMAND_TIMEOUT_SECONDS', '45'))
+cmd = [sys.argv[1], '-t', sys.argv[2], *sys.argv[3:]]
+try:
+    raise SystemExit(subprocess.run(cmd, timeout=timeout).returncode)
+except subprocess.TimeoutExpired:
+    print(f"source reader smoke failed: hdc command timed out after {timeout}s: {' '.join(cmd[:5])}", file=sys.stderr)
+    raise SystemExit(124)
+PY
+    then
       return 0
     fi
     if [ "$attempt" -ge "$max_attempts" ]; then
       return 1
     fi
+    "$hdc" kill >/dev/null 2>&1 || true
+    "$hdc" start >/dev/null 2>&1 || true
     attempt=$((attempt + 1))
     sleep 2
   done
 }
 
-if [ "$phase" = "$local_source_package_visible_phase" ] && [ -n "$source_package_rawfile_path" ]; then
+if { [ "$phase" = "$local_source_package_visible_phase" ] ||
+  [ "$phase" = "$local_source_package_offline_download_visible_phase" ]; } &&
+  [ -n "$source_package_rawfile_path" ]; then
   mkdir -p "$(dirname "$source_package_rawfile_path")"
   cp "$source_package_path" "$source_package_rawfile_path"
   temp_source_package_rawfile="$source_package_rawfile_path"
 fi
 
-"$hvigorw" --no-daemon --warn --mode module \
-  -p product=default \
-  -p buildMode=debug \
-  -p module=entry@default \
+hvigor_args=(
+  "$hvigorw" --no-daemon --warn --mode module
+  -p product=default
+  -p buildMode=debug
+  -p module=entry@default
   assembleHap
+)
+python3 - "${hvigor_args[@]}" <<'PY'
+import os
+import subprocess
+import sys
+
+timeout = int(os.environ.get('KOMA_HVIGOR_TIMEOUT_SECONDS', '240'))
+try:
+    raise SystemExit(subprocess.run(sys.argv[1:], timeout=timeout).returncode)
+except subprocess.TimeoutExpired:
+    print(f"source reader smoke failed: hvigor build timed out after {timeout}s", file=sys.stderr)
+    raise SystemExit(124)
+PY
 
 hdc_target install -r entry/build/default/outputs/default/entry-default-signed.hap
 hdc_target shell hilog -r
 hdc_target shell rm -f "$remote_smoke_result"
-hdc_target shell aa start -a EntryAbility -b com.honjow.koma \
-  -m entry \
-  --ps koma.sourceRuntimeSmoke run \
-  --ps koma.sourceRuntimeSmoke.phase "$phase" \
-  --ps koma.sourceRuntimeSmoke.indexUrl "$index_url" \
-  --ps koma.sourceRuntimeSmoke.packageFile "$source_package_file" \
-  --ps koma.sourceRuntimeSmoke.packageBase64 "$source_package_base64" \
-  --ps koma.sourceRuntimeSmoke.packageRawfile "$source_package_rawfile" \
-  --ps koma.sourceRuntimeSmoke.sourceId "$source_id" \
+aa_start_args=(
+  shell aa start -a EntryAbility -b com.honjow.koma
+  -m entry
+  --ps koma.sourceRuntimeSmoke run
+  --ps koma.sourceRuntimeSmoke.phase "$phase"
+  --ps koma.sourceRuntimeSmoke.packageFile "$source_package_file"
+  --ps koma.sourceRuntimeSmoke.packageRawfile "$source_package_rawfile"
+  --ps koma.sourceRuntimeSmoke.sourceId "$source_id"
   --ps koma.sourceRuntimeSmoke.query "$query"
+)
+if [ -n "$index_url" ]; then
+  aa_start_args+=(--ps koma.sourceRuntimeSmoke.indexUrl "$index_url")
+fi
+if [ -n "$source_package_base64" ]; then
+  aa_start_args+=(--ps koma.sourceRuntimeSmoke.packageBase64 "$source_package_base64")
+fi
+hdc_target "${aa_start_args[@]}"
 
 poll_count="${KOMA_SOURCE_READER_RESULT_POLL_COUNT:-18}"
 poll_delay="${KOMA_SOURCE_READER_RESULT_POLL_DELAY_SECONDS:-5}"
@@ -168,7 +210,7 @@ if result.get('smokePhase') != phase:
     raise SystemExit('source reader smoke failed: phase mismatch')
 if result.get('sourceIndexReaderSelectedSourceId') != source_id:
     raise SystemExit('source reader smoke failed: source id mismatch')
-if phase == 'local-source-package-visible-reader':
+if phase in ('local-source-package-visible-reader', 'local-source-package-visible-offline-download-reader'):
     if result.get('sourceIndexReaderPackageBytes', 0) <= 0:
         raise SystemExit('source reader smoke failed: local source package was not read')
 if phase not in ('source-index-settings', 'source-index-browse') and result.get('sourceIndexReaderSearchQuery') != query:
@@ -317,13 +359,14 @@ hdc_target shell uitest screenCap -p /data/local/tmp/koma-source-reader-reader-s
 rm -f "$reader_layout" "$reader_screen"
 hdc_target file recv /data/local/tmp/koma-source-reader-reader-layout.json "$reader_layout"
 hdc_target file recv /data/local/tmp/koma-source-reader-reader-screen.png "$reader_screen"
-python3 - "$smoke_result" "$reader_layout" <<'PY'
+python3 - "$smoke_result" "$reader_layout" "$reader_screen" <<'PY'
 import json
 import pathlib
 import sys
 
 result = json.loads(pathlib.Path(sys.argv[1]).read_text(encoding='utf-8'))
 layout = json.loads(pathlib.Path(sys.argv[2]).read_text(encoding='utf-8'))
+screen_path = pathlib.Path(sys.argv[3])
 text = json.dumps(layout, ensure_ascii=False)
 phase = result.get('smokePhase')
 title = result.get('sourceIndexReaderMangaTitle')
@@ -343,11 +386,11 @@ if phase == 'source-index-download-corrupt-reader':
     if 'Unable to load page' not in text and '无法加载页面' not in text:
         raise SystemExit('source reader smoke failed: corrupt reader missing visible error')
     raise SystemExit(0)
-if phase == 'source-index-visible-offline-download-reader':
+if phase in ('source-index-visible-offline-download-reader', 'local-source-package-visible-offline-download-reader'):
     if result.get('sourceIndexDownloadOfflineReaderKind') != 'local_file_image':
         raise SystemExit('source reader smoke failed: visible offline reader did not use local file')
-if '"type": "Image"' not in text and '"type":"Image"' not in text:
-    raise SystemExit('source reader smoke failed: reader layout missing visible image node')
+if '"type": "Image"' not in text and '"type":"Image"' not in text and screen_path.stat().st_size < 500000:
+    raise SystemExit('source reader smoke failed: reader evidence missing visible image node or detailed screenshot')
 PY
 
 echo "source reader smoke passed: $artifact_dir"
