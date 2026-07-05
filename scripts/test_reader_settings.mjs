@@ -611,8 +611,8 @@ assert.match(
 )
 assert.match(
   readerPageSource,
-  /private ReaderInputLayer\(\)[\s\S]*\.zIndex\(12\)[\s\S]*\.gesture\(GestureGroup\(GestureMode\.Parallel,[\s\S]*PinchGesture\(\{ fingers: 2 \}\)[\s\S]*PanGesture\(\{ fingers: 1, direction: PanDirection\.All, distance: 2 \}\)[\s\S]*GestureGroup\(GestureMode\.Exclusive,[\s\S]*TapGesture\(\{ count: 2, distanceThreshold: 8 \}\)[\s\S]*this\.onReaderDoubleTap[\s\S]*TapGesture\(\{ count: 1 \}\)[\s\S]*this\.onReaderTap/,
-  'reader input layer must own pinch, double-tap zoom, pan, and single-tap navigation gestures below the chrome layer',
+  /private ReaderInputLayer\(\)[\s\S]*\.zIndex\(12\)[\s\S]*\.gesture\(GestureGroup\(GestureMode\.Exclusive,[\s\S]*TapGesture\(\{ count: 2, distanceThreshold: 8 \}\)[\s\S]*this\.onReaderDoubleTap[\s\S]*TapGesture\(\{ count: 1 \}\)[\s\S]*this\.onReaderTap[\s\S]*\.scale\(\{ x: this\.zoomScale, y: this\.zoomScale \}\)[\s\S]*\.translate\(\{ x: this\.zoomOffsetX, y: this\.zoomOffsetY \}\)[\s\S]*\.gesture\(GestureGroup\(GestureMode\.Parallel,[\s\S]*PinchGesture\(\{ fingers: 2 \}\)[\s\S]*PanGesture\(\{ fingers: 1, direction: PanDirection\.All, distance: 2 \}\)/,
+  'reader tap input layer must stay below chrome while the content surface owns pinch and zoomed pan gestures',
 )
 assert.doesNotMatch(
   readerPageSource,
