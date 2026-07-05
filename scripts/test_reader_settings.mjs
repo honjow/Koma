@@ -330,13 +330,18 @@ assert.match(
 )
 assert.match(
   readerChromeSource,
-  /SettingsMenu\(\)[\s\S]*reader_action_save_series_settings[\s\S]*onSaveSeriesSettings\(\)[\s\S]*reader_action_clear_series_settings[\s\S]*onClearSeriesSettings\(\)/,
-  'ReaderChrome must expose per-series reader settings from the immersive settings menu',
+  /@Local private quickSettingsVisible: boolean = false[\s\S]*private QuickSettingsPanel\(\)[\s\S]*reader_action_save_series_settings[\s\S]*onSaveSeriesSettings\(\)[\s\S]*reader_action_clear_series_settings[\s\S]*onClearSeriesSettings\(\)/,
+  'ReaderChrome must expose per-series actions from the immersive quick settings panel',
 )
-assert.doesNotMatch(
+assert.match(
   readerChromeSource,
-  /TapZonePresetOption|TapZonePreview|reader_tap_zone_edge|reader_tap_zone_wide/,
-  'ReaderChrome must not expose tap-zone settings inside the reader chrome',
+  /KomaSegmentedControl\(\{[\s\S]*getReaderImageFitModeLabel\('contain'\)[\s\S]*getReaderBackgroundModeLabel\('black'\)[\s\S]*getReaderPageGapModeLabel\('compact'\)[\s\S]*getReaderWideImageModeLabel\('split_wide_pages'\)[\s\S]*getReaderTapZonePresetLabel\('wide_edges'\)/,
+  'ReaderChrome quick settings must use reusable segmented controls for reader display choices',
+)
+assert.match(
+  readerChromeSource,
+  /QuickSettingsToggle\(s\('settings_row_reader_tap_navigation_title'\)[\s\S]*onTapNavigationEnabledChange\(enabled\)[\s\S]*QuickSettingsToggle\(s\('settings_row_reader_swipe_navigation_title'\)[\s\S]*onSwipeNavigationEnabledChange\(enabled\)[\s\S]*QuickSettingsToggle\(s\('settings_row_reader_show_tap_zones_title'\)[\s\S]*onShowTapZonesChange\(enabled\)/,
+  'ReaderChrome quick settings must use switch controls for binary reader interaction settings',
 )
 assert.match(
   readerPageSource,
@@ -373,10 +378,10 @@ assert.match(
   /ReaderPage\(\{[\s\S]*chromeVisible: this\.readerChromeVisible!!/,
   'ReaderPage chrome visibility must use V2 two-way binding into the parent route state',
 )
-assert.doesNotMatch(
+assert.match(
   readerPageSource,
-  /ReaderChrome\(\{[\s\S]*tapNavigationEnabled: this\.tapNavigationEnabled[\s\S]*tapZonePreset: this\.tapZonePreset/,
-  'ReaderPage must keep tap-zone runtime state in the reader input layer instead of pushing it into chrome',
+  /ReaderChrome\(\{[\s\S]*backgroundMode: this\.backgroundMode[\s\S]*imageFitMode: this\.imageFitMode[\s\S]*tapNavigationEnabled: this\.tapNavigationEnabled[\s\S]*swipeNavigationEnabled: this\.swipeNavigationEnabled[\s\S]*tapZonePreset: this\.tapZonePreset[\s\S]*showTapZones: this\.showTapZones[\s\S]*pageGapMode: this\.pageGapMode[\s\S]*wideImageMode: this\.wideImageMode/,
+  'ReaderPage must pass live reader display and interaction settings into the immersive quick settings panel',
 )
 allReaderStringSources.forEach((source, index) => {
   assert.match(source, /"name": "reader_tap_zone_center"/, `reader tap-zone center label must exist in locale ${index}`)
@@ -418,6 +423,31 @@ assert.match(
   readerPageSource,
   /backgroundMode = preferences\.backgroundMode[\s\S]*imageFitMode = preferences\.imageFitMode[\s\S]*tapNavigationEnabled = preferences\.tapNavigationEnabled[\s\S]*swipeNavigationEnabled = preferences\.swipeNavigationEnabled[\s\S]*tapZonePreset = preferences\.tapZonePreset[\s\S]*showTapZones = preferences\.showTapZones[\s\S]*pageGapMode = preferences\.pageGapMode[\s\S]*trimPageMarginsEnabled = preferences\.trimPageMarginsEnabled[\s\S]*wideImageMode = preferences\.wideImageMode/,
   'ReaderPage must apply persisted advanced settings after load',
+)
+assert.match(
+  readerPageSource,
+  /private saveReaderPreference\(action: \(store: ReaderPreferencesStore\) => Promise<void>, reason: string\): void[\s\S]*new ReaderPreferencesStore\(context\)[\s\S]*quick_setting_saved[\s\S]*quick_setting_save_failed/,
+  'ReaderPage quick settings must persist through ReaderPreferencesStore with fail-closed logging',
+)
+assert.match(
+  readerPageSource,
+  /private setReaderImageFitMode\(imageFitMode: ReaderImageFitMode\): void[\s\S]*this\.imageFitMode = imageFitMode[\s\S]*this\.resetReaderZoom\(false\)[\s\S]*this\.syncReaderDisplayAfterSettingChange\(\)[\s\S]*store\.saveImageFitMode\(imageFitMode\)/,
+  'ReaderPage quick image-fit changes must apply immediately, reset zoom, sync the viewport, and persist',
+)
+assert.match(
+  readerPageSource,
+  /private setReaderTapNavigationEnabled\(tapNavigationEnabled: boolean\): void[\s\S]*this\.tapNavigationEnabled = tapNavigationEnabled[\s\S]*store\.saveTapNavigationEnabled\(tapNavigationEnabled\)[\s\S]*private setReaderSwipeNavigationEnabled\(swipeNavigationEnabled: boolean\): void[\s\S]*this\.swipeNavigationEnabled = swipeNavigationEnabled[\s\S]*store\.saveSwipeNavigationEnabled\(swipeNavigationEnabled\)/,
+  'ReaderPage quick interaction switches must apply immediately and persist',
+)
+assert.match(
+  readerPageSource,
+  /private setReaderWideImageMode\(wideImageMode: ReaderWideImageMode\): void[\s\S]*this\.wideImageMode = wideImageMode[\s\S]*this\.resetReaderZoom\(false\)[\s\S]*this\.syncReaderDisplayAfterSettingChange\(\)[\s\S]*store\.saveWideImageMode\(wideImageMode\)/,
+  'ReaderPage quick wide-image mode changes must resync split display navigation and persist',
+)
+assert.match(
+  readerPageSource,
+  /onBackgroundModeChange: \(mode: ReaderBackgroundMode\) => \{[\s\S]*this\.setReaderBackgroundMode\(mode\)[\s\S]*onImageFitModeChange: \(mode: ReaderImageFitMode\) => \{[\s\S]*this\.setReaderImageFitMode\(mode\)[\s\S]*onWideImageModeChange: \(mode: ReaderWideImageMode\) => \{[\s\S]*this\.setReaderWideImageMode\(mode\)/,
+  'ReaderPage must wire ReaderChrome quick settings callbacks into immediate preference updates',
 )
 assert.match(
   readerPageSource,
@@ -546,7 +576,7 @@ assert.match(
 )
 assert.match(
   readerPageSource,
-  /private webtoonPageWidth\(\): string[\s\S]*return '100%'[\s\S]*return '100%'/,
+  /private webtoonPageWidth\(\): string \{[\s\S]*return '100%'[\s\S]*\}/,
   'webtoon page width must use the full reader viewport width',
 )
 assert.match(

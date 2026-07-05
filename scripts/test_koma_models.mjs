@@ -2308,8 +2308,8 @@ assert.match(
 )
 assert.match(
   readerPageSource,
-  /singlePageWidth\(\): string \{[\s\S]*this\.imageFitMode === 'fit_width'[\s\S]*return '100%'[\s\S]*return '88%'[\s\S]*singlePageMaxWidth\(\): number \{[\s\S]*this\.imageFitMode === 'fit_width'[\s\S]*return 4096[\s\S]*return 980[\s\S]*webtoonPageWidth\(\): string \{[\s\S]*this\.imageFitMode === 'fit_width'[\s\S]*return '100%'[\s\S]*return '88%'[\s\S]*webtoonPageMaxWidth\(\): number \{[\s\S]*this\.imageFitMode === 'fit_width'[\s\S]*return 4096[\s\S]*return 980/,
-  'ReaderPage image fit preference must visibly affect single-page and continuous-scroll page width instead of leaving both modes at 100%',
+  /singlePageWidth\(\): string \{[\s\S]*this\.imageFitMode === 'fit_width'[\s\S]*return '100%'[\s\S]*return '88%'[\s\S]*singlePageMaxWidth\(\): number \{[\s\S]*this\.imageFitMode === 'fit_width'[\s\S]*return 4096[\s\S]*return 980[\s\S]*webtoonPageWidth\(\): string \{[\s\S]*return '100%'[\s\S]*webtoonPageMaxWidth\(\): number \{[\s\S]*this\.imageFitMode === 'fit_width'[\s\S]*return 4096[\s\S]*return 980/,
+  'ReaderPage image fit preference must keep single-page sizing adjustable while continuous-scroll pages stay full-width',
 )
 assert.match(
   trackerProgressSyncServiceSource,
