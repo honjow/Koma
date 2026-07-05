@@ -1650,7 +1650,7 @@ assert.match(
 )
 assert.match(
   mangaDetailModelsSource,
-  /coverUrl: firstSourceString\(\[[\s\S]*optionalSourceString\(item\['cover_url'\]\)[\s\S]*optionalSourceString\(item\['coverUrl'\]\)[\s\S]*optionalSourceString\(item\['cover_uri'\]\)[\s\S]*optionalSourceString\(item\['coverUri'\]\)[\s\S]*optionalSourceString\(item\['thumbnail'\]\)[\s\S]*optionalSourceString\(item\['thumbnailUrl'\]\)[\s\S]*optionalSourceString\(item\['imageUrl'\]\)[\s\S]*nestedSourceString\(item, 'cover', 'url'\)[\s\S]*nestedSourceString\(item, 'cover', 'uri'\)/,
+  /coverUrl: firstSourceString\(\[[\s\S]*optionalSourceString\(item\['cover_url'\]\)[\s\S]*optionalSourceString\(item\['coverUrl'\]\)[\s\S]*optionalSourceString\(item\['cover_uri'\]\)[\s\S]*optionalSourceString\(item\['coverUri'\]\)[\s\S]*optionalSourceString\(item\['thumbnail'\]\)[\s\S]*optionalSourceString\(item\['thumbnailUrl'\]\)[\s\S]*optionalSourceString\(item\['imageUrl'\]\)[\s\S]*optionalSourceString\(item\['image_url'\]\)[\s\S]*nestedSourceString\(item, 'cover', 'url'\)[\s\S]*nestedSourceString\(item, 'cover', 'uri'\)[\s\S]*nestedSourceString\(item, 'cover', 'src'\)[\s\S]*nestedSourceString\(item, 'cover', 'href'\)[\s\S]*nestedSourceString\(item, 'image', 'url'\)[\s\S]*nestedSourceString\(item, 'image', 'uri'\)[\s\S]*nestedSourceString\(item, 'image', 'src'\)[\s\S]*nestedSourceString\(item, 'image', 'href'\)/,
   'source detail parsing must keep the same broad cover URL compatibility as source browse/search results before adding a manga to the library',
 )
 assert.match(
@@ -1871,8 +1871,8 @@ assert.match(
 )
 assert.match(
   mangaDetailModelsSource,
-  /coverUrl:\s*firstSourceString\(\[[\s\S]*optionalSourceString\(item\['cover_url'\]\)[\s\S]*optionalSourceString\(item\['coverUrl'\]\)[\s\S]*nestedSourceString\(item, 'cover', 'url'\)[\s\S]*nestedSourceString\(item, 'cover', 'uri'\)/,
-  'Manga detail normalization must preserve nested cover.url and cover.uri from source detail responses',
+  /coverUrl:\s*firstSourceString\(\[[\s\S]*optionalSourceString\(item\['cover_url'\]\)[\s\S]*optionalSourceString\(item\['coverUrl'\]\)[\s\S]*optionalSourceString\(item\['image_url'\]\)[\s\S]*nestedSourceString\(item, 'cover', 'url'\)[\s\S]*nestedSourceString\(item, 'cover', 'uri'\)[\s\S]*nestedSourceString\(item, 'cover', 'src'\)[\s\S]*nestedSourceString\(item, 'cover', 'href'\)[\s\S]*nestedSourceString\(item, 'image', 'url'\)[\s\S]*nestedSourceString\(item, 'image', 'href'\)/,
+  'Manga detail normalization must preserve broad cover/image URL aliases from source detail responses',
 )
 assert.match(
   mangaDescriptionSectionSource,
