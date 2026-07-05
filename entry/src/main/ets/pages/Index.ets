@@ -41,8 +41,10 @@ import {
   createSeededLibraryStore,
 } from '../model/MockLibraryData'
 import {
+  Chapter,
   Comic,
   ComicId,
+  ComicSourceKind,
   withComicAddedCategoryId,
   withComicCategoryIds,
   withComicRemovedCategoryId,
@@ -76,8 +78,10 @@ import {
   ReaderSessionConfig,
   ReaderSessionStore,
   createReaderSessionConfigFromComic,
+  sortedReaderChapters,
 } from '../model/ReaderSessionStore'
 import { installReaderRemoteHeadersForComic } from '../model/ReaderPageSourceAdapter'
+import { SourceChapterPageHydrator } from '../model/SourceChapterPageHydrator'
 import { SourceRuntimeRegistry } from '../sourceRuntime/SourceRuntimeRegistry'
 import { SourceRuntimeRegistryInstalledSourceSummary } from '../sourceRuntime/SourceRuntimeRegistry'
 import { SourceManga } from '../model/SourceModels'
@@ -135,9 +139,66 @@ struct Index {
     this.libraryRevision += 1
   }
 
+  private readerChapterIdForOpen(comic: Comic, requestedChapterId?: string): string | undefined {
+    if (requestedChapterId !== undefined && requestedChapterId.trim().length > 0) {
+      return requestedChapterId
+    }
+    const progress = this.readerSessionStore.getProgress(comic.id)
+    if (progress !== undefined && comic.chapters.some((chapter: Chapter): boolean => chapter.id === progress.chapterId)) {
+      return progress.chapterId
+    }
+    const firstChapter = sortedReaderChapters(comic.chapters)[0]
+    return firstChapter?.id
+  }
+
+  private chapterNeedsReaderSourcePages(comic: Comic, chapterId: string | undefined): boolean {
+    if (chapterId === undefined ||
+      comic.sourceKind !== ComicSourceKind.PRIVATE_LIBRARY ||
+      comic.sourceRuntimeId === undefined ||
+      comic.sourceRuntimeId.trim().length === 0) {
+      return false
+    }
+    const chapter = comic.chapters.find((item: Chapter): boolean => item.id === chapterId)
+    return chapter !== undefined && chapter.pages.length === 0
+  }
+
+  private logReaderSourcePagesUnavailable(reasonCode?: string): void {
+    if (reasonCode === 'pages_missing' ||
+      reasonCode === 'chapter_missing' ||
+      reasonCode === 'source_missing') {
+      console.warn(`[Reader] step=open_source_pages_unavailable failed=true reason=${reasonCode}`)
+      return
+    }
+    console.warn('[Reader] step=open_source_pages_unavailable failed=true reason=source_pages_unavailable')
+  }
+
+  private async ensureReaderSourceChapterPages(comic: Comic, chapterId: string | undefined): Promise<void> {
+    if (!this.chapterNeedsReaderSourcePages(comic, chapterId)) {
+      return
+    }
+    try {
+      const result = await new SourceChapterPageHydrator(
+        this.libraryStore,
+        this.sourceRegistry,
+        this.ensureLibraryPersistenceService(),
+        () => {
+          this.refreshLibrarySnapshot()
+        },
+      ).ensureChapterPages(comic.id, comic.sourceRuntimeId, chapterId as string)
+      if (!result.hydrated) {
+        this.logReaderSourcePagesUnavailable(result.reasonCode)
+      }
+    } catch (_error) {
+      this.logReaderSourcePagesUnavailable('source_pages_lookup')
+    }
+  }
+
   private async openReader(comicId: ComicId, chapterId?: string): Promise<void> {
-    const comic = this.libraryStore.getComic(comicId)
+    let comic = this.libraryStore.getComic(comicId)
+    const targetChapterId = comic === undefined ? chapterId : this.readerChapterIdForOpen(comic, chapterId)
     if (comic !== undefined) {
+      await this.ensureReaderSourceChapterPages(comic, targetChapterId)
+      comic = this.libraryStore.getComic(comicId) ?? comic
       try {
         await installReaderRemoteHeadersForComic(getContext(this) as common.UIAbilityContext, comic)
       } catch (error) {
@@ -145,7 +206,7 @@ struct Index {
         console.error('[Favorite] step=open_remote_reader_headers_failed code=remote_headers_failed')
       }
     }
-    this.readerSessionConfig = comic === undefined ? MOCK_LIBRARY_READER_SESSION : this.createReaderSessionConfigForOpen(comic, chapterId)
+    this.readerSessionConfig = comic === undefined ? MOCK_LIBRARY_READER_SESSION : this.createReaderSessionConfigForOpen(comic, targetChapterId)
     this.readerPageIndex = this.readerSessionStore.restorePageIndex(this.readerSessionConfig)
     this.readerChromeVisible = false
     if (!this.readerOpen) {

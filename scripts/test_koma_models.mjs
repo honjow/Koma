@@ -699,6 +699,11 @@ assert.match(
   'Index must reopen the active reader session on a requested adjacent chapter without leaving the reader route',
 )
 assert.match(
+  indexSource,
+  /private readerChapterIdForOpen\(comic: Comic, requestedChapterId\?: string\): string \| undefined \{[\s\S]*this\.readerSessionStore\.getProgress\(comic\.id\)[\s\S]*sortedReaderChapters\(comic\.chapters\)\[0\][\s\S]*private async ensureReaderSourceChapterPages\(comic: Comic, chapterId: string \| undefined\): Promise<void> \{[\s\S]*new SourceChapterPageHydrator\([\s\S]*this\.libraryStore,[\s\S]*this\.sourceRegistry,[\s\S]*this\.ensureLibraryPersistenceService\(\)[\s\S]*ensureChapterPages\(comic\.id, comic\.sourceRuntimeId, chapterId as string\)[\s\S]*comic = this\.libraryStore\.getComic\(comicId\) \?\? comic[\s\S]*createReaderSessionConfigForOpen\(comic, targetChapterId\)/,
+  'Index openReader must hydrate source-backed target chapters and honor saved chapter progress before building Reader sessions',
+)
+assert.match(
   readerSessionStoreSource,
   /export function getReaderSessionPageWidth\(config: ReaderSessionConfig, pageIndex: number\): number \| undefined[\s\S]*resolvedPageIndex >= config\.pageWidths\.length[\s\S]*return undefined[\s\S]*return config\.pageWidths\[resolvedPageIndex\]/,
   'ReaderSessionStore must expose fail-open page width lookup for missing metadata',
