@@ -47,6 +47,9 @@ import {
   createReaderPageRenderSource,
 } from '../model/ReaderPageSourceAdapter'
 import {
+  ReaderPreferencesStore,
+} from '../model/ReaderPreferencesStore'
+import {
   ReaderSessionConfig,
   createReaderSessionConfigFromComic,
 } from '../model/ReaderSessionStore'
@@ -111,6 +114,7 @@ const SMOKE_PHASE_PARAM: string = 'koma.sourceRuntimeSmoke.phase'
 const SMOKE_INDEX_URL_PARAM: string = 'koma.sourceRuntimeSmoke.indexUrl'
 const SMOKE_SOURCE_ID_PARAM: string = 'koma.sourceRuntimeSmoke.sourceId'
 const SMOKE_QUERY_PARAM: string = 'koma.sourceRuntimeSmoke.query'
+const SMOKE_WIDE_IMAGE_URL_PARAM: string = 'koma.sourceRuntimeSmoke.wideImageUrl'
 const SMOKE_PHASE_FULL: string = 'full'
 const SMOKE_PHASE_SETUP_PERSISTED_INVENTORY: string = 'setup-persisted-inventory'
 const SMOKE_PHASE_RELOAD_PERSISTED_INVENTORY: string = 'reload-persisted-inventory'
@@ -129,6 +133,7 @@ const SMOKE_PHASE_SOURCE_INDEX_DOWNLOAD_CORRUPT_READER: string = 'source-index-d
 const SMOKE_PHASE_SOURCE_INDEX_UNDOWNLOADED_OFFLINE_READER: string = 'source-index-undownloaded-offline-reader'
 const SMOKE_PHASE_SOURCE_INDEX_BROWSE: string = 'source-index-browse'
 const SMOKE_PHASE_SOURCE_INDEX_SETTINGS: string = 'source-index-settings'
+const SMOKE_PHASE_READER_WIDE_SPLIT_FIXTURE: string = 'reader-wide-split-fixture'
 const SOURCE_INDEX_LIBRARY_SMOKE_FILE_NAME: string = 'source-index-library-smoke.v1.json'
 const SOURCE_RUNTIME_SMOKE_RESULT_FILE_NAME: string = 'source-runtime-smoke-result.json'
 const REAL_SOURCE_RAWFILE_PATH: string = 'test/baozimh.wasm'
@@ -545,6 +550,15 @@ export interface SourceRuntimeSmokeResult {
   sourceIndexSettingsBooleanDefaultOk?: boolean
   sourceIndexSettingsPersistOk?: boolean
   sourceIndexReaderCleanupOk?: boolean
+  readerWideSplitFixtureImageUrlProvided?: boolean
+  readerWideSplitFixtureComicId?: string
+  readerWideSplitFixtureTitle?: string
+  readerWideSplitFixtureChapterTitle?: string
+  readerWideSplitFixturePersistOk?: boolean
+  readerWideSplitFixturePreferenceOk?: boolean
+  readerWideSplitFixtureWidth?: number
+  readerWideSplitFixtureHeight?: number
+  readerWideSplitFixtureExpectedSplitCount?: number
   mangadexWasmBytes?: number
   mangadexResponse?: SourceRuntimeCallResponse
   sourceRuntimeSmokeResultFileName?: string
@@ -943,6 +957,107 @@ function verifySourceIndexVisibleLibraryReaderSmoke(
         libraryRenderSource.sourceRuntimeId === selectedSourceId &&
         libraryRenderSource.pageId === pageId
   }
+}
+
+async function installReaderWideSplitFixture(
+  context: common.UIAbilityContext,
+  imageUrl: string,
+  result: SourceRuntimeSmokeResult,
+): Promise<void> {
+  const now = Date.now()
+  const comicId = 'reader-wide-split-fixture'
+  const chapterId = 'reader-wide-split-fixture-chapter'
+  const pageId = 'reader-wide-split-page-1'
+  const title = 'Reader Wide Split Fixture'
+  const chapterTitle = 'Wide landscape page'
+  const width = 1920
+  const height = 1080
+  const comic: Comic = {
+    id: comicId,
+    title,
+    subtitle: 'Reader QA',
+    sourceKind: ComicSourceKind.PRIVATE_LIBRARY,
+    sourcePath: imageUrl,
+    sourceRuntimeId: 'reader-wide-split-fixture',
+    remoteResourceId: comicId,
+    coverUri: imageUrl,
+    sortTitle: 'reader wide split fixture',
+    preferredDirection: ReadingDirection.LEFT_TO_RIGHT,
+    chapters: [
+      {
+        id: chapterId,
+        comicId,
+        title: chapterTitle,
+        index: 0,
+        sourcePath: imageUrl,
+        sortKey: '000000',
+        pages: [
+          {
+            id: pageId,
+            comicId,
+            chapterId,
+            index: 0,
+            fileName: 'wide-split-fixture.png',
+            uri: imageUrl,
+            sortKey: '000000',
+            width,
+            height,
+          },
+        ],
+        pageCount: 1,
+        createdAt: now,
+        updatedAt: now,
+      },
+    ],
+    chapterCount: 1,
+    pageCount: 1,
+    createdAt: now,
+    updatedAt: now,
+    lastImportedAt: now,
+  }
+
+  const libraryStore = new InMemoryLibraryStore()
+  const persistence = new LibraryStorePersistenceService(
+    libraryStore,
+    new AppFilesLibraryStorePersistenceAdapter(context.filesDir),
+  )
+  persistence.restore()
+  upsertComicAndPersistLibraryStore(libraryStore, persistence, comic)
+
+  const reloadedStore = new InMemoryLibraryStore()
+  const reloadedPersistence = new LibraryStorePersistenceService(
+    reloadedStore,
+    new AppFilesLibraryStorePersistenceAdapter(context.filesDir),
+  )
+  reloadedPersistence.restore()
+  const reloadedComic = reloadedStore.getComic(comicId)
+
+  const preferencesStore = new ReaderPreferencesStore(context)
+  await preferencesStore.savePageMode('single_page')
+  await preferencesStore.saveReadingDirection(ReadingDirection.LEFT_TO_RIGHT)
+  await preferencesStore.saveWideImageMode('split_wide_pages')
+  await preferencesStore.saveImageFitMode('contain')
+  await preferencesStore.saveShowProgressControls(true)
+  const preferences = await preferencesStore.loadForComic(comicId)
+
+  result.readerWideSplitFixtureComicId = comicId
+  result.readerWideSplitFixtureTitle = title
+  result.readerWideSplitFixtureChapterTitle = chapterTitle
+  result.readerWideSplitFixtureWidth = width
+  result.readerWideSplitFixtureHeight = height
+  result.readerWideSplitFixtureExpectedSplitCount = 2
+  result.readerWideSplitFixturePersistOk =
+    reloadedComic !== undefined &&
+      reloadedComic.title === title &&
+      reloadedComic.chapters[0]?.pages[0]?.uri === imageUrl &&
+      reloadedComic.chapters[0]?.pages[0]?.width === width &&
+      reloadedComic.chapters[0]?.pages[0]?.height === height
+  result.readerWideSplitFixturePreferenceOk =
+    preferences.pageMode === 'single_page' &&
+      preferences.readingDirection === ReadingDirection.LEFT_TO_RIGHT &&
+      preferences.wideImageMode === 'split_wide_pages' &&
+      preferences.imageFitMode === 'contain' &&
+      preferences.showProgressControls === true
 }
 
 function sourceIndexEntryWithSha256(entry: SourceIndexEntry, sha256: string): SourceIndexEntry {
@@ -2094,6 +2209,34 @@ export async function maybeRunSourceRuntimeDeviceSmoke(
         }
       }
       compactSmokeResultForHilog(result)
+      console.info(SMOKE_LOG_PREFIX + JSON.stringify(result))
+      return
+    }
+
+    if (result.smokePhase === SMOKE_PHASE_READER_WIDE_SPLIT_FIXTURE) {
+      if (context === undefined) {
+        result.error = 'reader-wide-split-fixture phase requires ability context'
+      } else {
+        const imageUrl = smokeStringParam(want, SMOKE_WIDE_IMAGE_URL_PARAM)
+        result.readerWideSplitFixtureImageUrlProvided = imageUrl.length > 0
+        if (imageUrl.length === 0) {
+          result.error = 'reader-wide-split-fixture requires wideImageUrl'
+        } else {
+          await installReaderWideSplitFixture(context, imageUrl, result)
+        }
+        result.ok =
+          result.readerWideSplitFixtureImageUrlProvided === true &&
+            result.readerWideSplitFixturePersistOk === true &&
+            result.readerWideSplitFixturePreferenceOk === true &&
+            result.readerWideSplitFixtureExpectedSplitCount === 2
+        if (!result.ok && result.error === undefined) {
+          result.error = 'reader-wide-split-fixture failed'
+        }
+      }
+      compactSmokeResultForHilog(result)
+      if (context !== undefined) {
+        writeSourceRuntimeSmokeResultFile(context.filesDir, result)
+      }
       console.info(SMOKE_LOG_PREFIX + JSON.stringify(result))
       return
     }

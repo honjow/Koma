@@ -12,6 +12,8 @@ const matrixPath = resolve(artifactDir, 'reader-qa-matrix.json')
 const readerPagePath = resolve(root, 'entry/src/main/ets/pages/ReaderPage.ets')
 const readerSettingsTestPath = resolve(root, 'scripts/test_reader_settings.mjs')
 const readerProgressTestPath = resolve(root, 'scripts/test_reader_progress.mjs')
+const readerWideSplitSmokeScriptPath = resolve(root, 'scripts/run_reader_wide_split_smoke.sh')
+const sourceRuntimeSmokePath = resolve(root, 'entry/src/main/ets/sourceRuntime/SourceRuntimeDeviceSmoke.ets')
 
 const runtimeEvidenceCandidates = [
   {
@@ -31,6 +33,12 @@ const runtimeEvidenceCandidates = [
     result: '.hvigor/outputs/source-corrupt-download-reader-smoke/source-runtime-smoke-result.json',
     screenshot: '',
     layout: '',
+  },
+  {
+    id: 'reader-wide-split-fixture',
+    result: '.hvigor/outputs/reader-wide-split-smoke/source-runtime-smoke-result.json',
+    screenshot: '.hvigor/outputs/reader-wide-split-smoke/reader-screen.png',
+    layout: '.hvigor/outputs/reader-wide-split-smoke/reader-layout.json',
   },
 ]
 
@@ -246,6 +254,8 @@ function createMatrix() {
         (candidate.screenshot.length === 0 || existsSync(resolve(root, candidate.screenshot))) &&
         (candidate.layout.length === 0 || existsSync(resolve(root, candidate.layout))),
     }))
+  const hasAnyRuntimeEvidence = runtimeEvidence.some((item) => item.available)
+  const hasWideSplitEvidence = runtimeEvidence.some((item) => item.id === 'reader-wide-split-fixture' && item.available)
   return {
     schemaVersion: 1,
     generatedAt: MATRIX_GENERATED_AT,
@@ -255,8 +265,10 @@ function createMatrix() {
       productionContract: 'entry/src/main/ets/pages/ReaderPage.ets',
     },
     screenshotCapture: {
-      status: runtimeEvidence.some((item) => item.available) ? 'PARTIAL' : 'BLOCKED',
-      reason: runtimeEvidence.some((item) => item.available)
+      status: hasWideSplitEvidence ? 'PASS' : (hasAnyRuntimeEvidence ? 'PARTIAL' : 'BLOCKED'),
+      reason: hasWideSplitEvidence
+        ? 'Dedicated Pura X wide-split fixture artifacts are linked.'
+        : hasAnyRuntimeEvidence
         ? 'Existing Pura X reader/source smoke artifacts are linked; wide-split fixture screenshots still require a dedicated capture run.'
         : 'No device screenshot artifacts are available from this static matrix script.',
       fakeScreenshots: false,
@@ -344,6 +356,8 @@ function assertProductionStaticContracts() {
   const readerPageSource = readFileSync(readerPagePath, 'utf8')
   const readerSettingsTestSource = readFileSync(readerSettingsTestPath, 'utf8')
   const readerProgressTestSource = readFileSync(readerProgressTestPath, 'utf8')
+  const readerWideSplitSmokeScript = readFileSync(readerWideSplitSmokeScriptPath, 'utf8')
+  const sourceRuntimeSmokeSource = readFileSync(sourceRuntimeSmokePath, 'utf8')
 
   assert.match(
     readerPageSource,
@@ -374,6 +388,21 @@ function assertProductionStaticContracts() {
     readerProgressTestSource,
     /splitAwareCanGoPrevious[\s\S]*splitAwareCanGoNext/,
     'reader progress tests must continue covering split-aware navigation',
+  )
+  assert.match(
+    sourceRuntimeSmokeSource,
+    /SMOKE_PHASE_READER_WIDE_SPLIT_FIXTURE[\s\S]*reader-wide-split-fixture[\s\S]*installReaderWideSplitFixture[\s\S]*saveWideImageMode\('split_wide_pages'\)/,
+    'device smoke must be able to install a real wide split fixture and persist split-wide reader preferences',
+  )
+  assert.match(
+    readerWideSplitSmokeScript,
+    /koma\.sourceRuntimeSmoke\.phase reader-wide-split-fixture[\s\S]*koma\.sourceRuntimeSmoke\.wideImageUrl[\s\S]*readerWideSplitFixtureExpectedSplitCount/,
+    'wide-split smoke script must launch the dedicated fixture phase and validate split count evidence',
+  )
+  assert.match(
+    readerWideSplitSmokeScript,
+    /reader-screen\.png[\s\S]*reader-layout\.json[\s\S]*1 \/ 2/,
+    'wide-split smoke script must capture reader artifacts and validate the split page counter',
   )
 }
 
@@ -425,7 +454,7 @@ function writeArtifacts(matrix) {
         .filter((item) => item.available)
         .map((item) => item.result),
     ],
-    risks: [
+    risks: matrix.screenshotCapture.status === 'PASS' ? [] : [
       'Dedicated wide-split fixture screenshot capture still needs a device run.',
     ],
     commit: '',
