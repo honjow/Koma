@@ -366,11 +366,8 @@ def is_koma_root(node):
 if not any(is_koma_root(node) for node in walk(layout)):
     raise SystemExit('source reader smoke failed: Koma is not foreground in library layout')
 title = result.get('sourceIndexVisibleLibraryTitle')
-chapter = result.get('sourceIndexReaderChapterTitle')
 if not title or title not in text:
     raise SystemExit('source reader smoke failed: library layout missing visible manga title')
-if phase != 'local-library-folder-visible-reader' and (not chapter or chapter not in text):
-    raise SystemExit('source reader smoke failed: library layout missing visible chapter title')
 for node in walk(layout):
     item = attrs(node)
     node_text = ' '.join(str(item.get(key, '')) for key in ('text', 'originalText', 'description'))

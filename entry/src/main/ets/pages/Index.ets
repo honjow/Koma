@@ -65,6 +65,11 @@ import {
 } from '../model/LibraryPersistence'
 import { OfflineDownloadQueueStore } from '../model/OfflineDownloadQueueStore'
 import {
+  OfflineDownloadedChapterStatus,
+  OfflineDownloadedPage,
+  OfflineDownloadStore,
+} from '../model/OfflineDownloadStore'
+import {
   InMemoryReaderSessionStore,
   ReaderSessionConfig,
   ReaderSessionStore,
@@ -132,13 +137,74 @@ struct Index {
         console.error('[Favorite] step=open_remote_reader_headers_failed code=remote_headers_failed')
       }
     }
-    this.readerSessionConfig = comic === undefined ? MOCK_LIBRARY_READER_SESSION : createReaderSessionConfigFromComic(comic, chapterId)
+    this.readerSessionConfig = comic === undefined ? MOCK_LIBRARY_READER_SESSION : this.createReaderSessionConfigForOpen(comic, chapterId)
     this.readerPageIndex = this.readerSessionStore.restorePageIndex(this.readerSessionConfig)
     this.readerChromeVisible = true
     if (!this.readerOpen) {
       this.appPathStack.pushPath({ name: RouteName.READER })
     }
     this.readerOpen = true
+  }
+
+  private createReaderSessionConfigForOpen(comic: Comic, chapterId?: string): ReaderSessionConfig {
+    const config = createReaderSessionConfigFromComic(comic, chapterId)
+    const offlineChapterId = chapterId ?? config.chapterId
+    if (config.totalPages > 0 || offlineChapterId.length === 0) {
+      return config
+    }
+    return this.createOfflineDownloadReaderSessionConfig(comic, offlineChapterId, config) ?? config
+  }
+
+  private createOfflineDownloadReaderSessionConfig(
+    comic: Comic,
+    chapterId: string,
+    baseConfig: ReaderSessionConfig
+  ): ReaderSessionConfig | undefined {
+    try {
+      const context = getContext(this) as common.UIAbilityContext
+      if (context === undefined || context.filesDir === undefined || context.filesDir.length === 0) {
+        return undefined
+      }
+      const store = new OfflineDownloadStore(context.filesDir)
+      const validation = store.validateDownloadedChapter(comic.id, chapterId, { validateContentHash: false })
+      if (validation.manifest === undefined ||
+        (validation.status !== OfflineDownloadedChapterStatus.DOWNLOADED &&
+          validation.status !== OfflineDownloadedChapterStatus.PARTIAL) ||
+        validation.pageCount <= 0 ||
+        validation.availablePageCount <= 0) {
+        return undefined
+      }
+      const pageUris: string[] = []
+      const pageIds: string[] = []
+      const pageWidths: Array<number | undefined> = []
+      const pageHeights: Array<number | undefined> = []
+      for (let index = 0; index < validation.pageCount; index += 1) {
+        const page = validation.manifest.pages.find((item: OfflineDownloadedPage): boolean => item.pageIndex === index)
+        const pageId = page?.pageId ?? `page-${index + 1}`
+        pageIds.push(pageId)
+        pageUris.push(store.resolveDownloadedPage(comic.id, chapterId, pageId, index, { validateContentHash: false }) ?? '')
+        pageWidths.push(undefined)
+        pageHeights.push(undefined)
+      }
+      const chapterIds = baseConfig.chapterIds.includes(chapterId) ? baseConfig.chapterIds : baseConfig.chapterIds.concat([chapterId])
+      console.info(`[ReaderOffline] step=open_from_manifest pages=${validation.availablePageCount}/${validation.pageCount}`)
+      return {
+        comicId: comic.id,
+        chapterId,
+        title: comic.title,
+        chapterTitle: baseConfig.chapterTitle ?? validation.manifest.chapterTitle,
+        chapterIds,
+        totalPages: validation.pageCount,
+        pageUris,
+        pageIds,
+        pageWidths,
+        pageHeights,
+        sourceRuntimeId: comic.sourceRuntimeId,
+      }
+    } catch (_error) {
+      console.warn('[ReaderOffline] step=open_from_manifest failed=true reason=manifest_session')
+      return undefined
+    }
   }
 
   private closeReader(): void {
