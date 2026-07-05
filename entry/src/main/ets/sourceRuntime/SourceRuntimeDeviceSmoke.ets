@@ -3059,6 +3059,7 @@ export async function maybeRunSourceRuntimeDeviceSmoke(
         result.sourceIndexReaderIndexUrlProvided = indexUrl.length > 0
         result.sourceIndexReaderSelectedSourceId = selectedSourceId
         result.sourceIndexReaderSearchQuery = searchRequestQuery
+        await removeInstalledSourcePackage(context, selectedSourceId)
         const alreadyInstalled = appSourceRuntimeRegistry.lookup(selectedSourceId).ok
         result.sourceIndexReaderReusedInstalledSource = alreadyInstalled
         if (indexUrl.length === 0) {

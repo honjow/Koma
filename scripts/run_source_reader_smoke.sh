@@ -406,6 +406,74 @@ hdc_target shell uitest screenCap -p /data/local/tmp/koma-source-reader-reader-s
 rm -f "$reader_layout" "$reader_screen"
 hdc_target file recv /data/local/tmp/koma-source-reader-reader-layout.json "$reader_layout"
 hdc_target file recv /data/local/tmp/koma-source-reader-reader-screen.png "$reader_screen"
+if python3 - "$smoke_result" "$reader_layout" "$reader_click" <<'PY'
+import json
+import pathlib
+import re
+import sys
+
+result = json.loads(pathlib.Path(sys.argv[1]).read_text(encoding='utf-8'))
+layout = json.loads(pathlib.Path(sys.argv[2]).read_text(encoding='utf-8'))
+click_path = pathlib.Path(sys.argv[3])
+text = json.dumps(layout, ensure_ascii=False)
+title = result.get('sourceIndexReaderMangaTitle')
+chapter = result.get('sourceIndexReaderChapterTitle')
+page_count = result.get('sourceIndexReaderPageCount')
+if title and chapter and isinstance(page_count, int) and title in text and chapter in text and f' / {page_count}' in text:
+    raise SystemExit(1)
+
+def attrs(node):
+    if not isinstance(node, dict):
+        return {}
+    value = node.get('attributes')
+    return value if isinstance(value, dict) else node
+
+def walk(node):
+    if isinstance(node, dict):
+        yield node
+        for value in node.values():
+            yield from walk(value)
+    elif isinstance(node, list):
+        for item in node:
+            yield from walk(item)
+
+def bounds(value):
+    if isinstance(value, list) and len(value) >= 4:
+        return [int(float(v)) for v in value[:4]]
+    if isinstance(value, dict):
+        keys = ('left', 'top', 'right', 'bottom')
+        if all(k in value for k in keys):
+            return [int(float(value[k])) for k in keys]
+    if isinstance(value, str):
+        nums = [int(float(v)) for v in re.findall(r'-?\d+(?:\.\d+)?', value)]
+        if len(nums) >= 4:
+            return nums[:4]
+    return None
+
+boxes = []
+for node in walk(layout):
+    item = attrs(node)
+    box = bounds(item.get('bounds')) or bounds(item.get('origBounds')) or bounds(item.get('rect'))
+    if box is not None:
+        boxes.append(box)
+if not boxes:
+    raise SystemExit(1)
+click_path.write_text(
+    f'{(min(box[0] for box in boxes) + max(box[2] for box in boxes)) // 2} '
+    f'{(min(box[1] for box in boxes) + max(box[3] for box in boxes)) // 2}\n',
+    encoding='utf-8',
+)
+PY
+then
+  read -r reader_x reader_y < "$reader_click"
+  hdc_target shell uitest uiInput click "$reader_x" "$reader_y"
+  sleep "${KOMA_SOURCE_READER_CHROME_WAIT_SECONDS:-1}"
+  hdc_target shell uitest dumpLayout -p /data/local/tmp/koma-source-reader-reader-layout.json -a
+  hdc_target shell uitest screenCap -p /data/local/tmp/koma-source-reader-reader-screen.png
+  rm -f "$reader_layout" "$reader_screen"
+  hdc_target file recv /data/local/tmp/koma-source-reader-reader-layout.json "$reader_layout"
+  hdc_target file recv /data/local/tmp/koma-source-reader-reader-screen.png "$reader_screen"
+fi
 python3 - "$smoke_result" "$reader_layout" "$reader_screen" <<'PY'
 import json
 import pathlib

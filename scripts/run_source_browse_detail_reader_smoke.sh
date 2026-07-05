@@ -412,7 +412,65 @@ else
 fi
 
 capture_layout "source-browse-reader"
-python3 - "$artifact_dir/source-browse-reader-layout.json" <<'PY'
+python3 - "$artifact_dir/source-browse-reader-layout.json" "$artifact_dir/click-reader-center.txt" <<'PY'
+import json
+import pathlib
+import re
+import sys
+
+layout = json.loads(pathlib.Path(sys.argv[1]).read_text(encoding='utf-8'))
+click_path = pathlib.Path(sys.argv[2])
+text = json.dumps(layout, ensure_ascii=False)
+if '"type": "Image"' not in text and '"type":"Image"' not in text:
+    raise SystemExit('source browse detail reader smoke failed: reader layout missing image node')
+
+def attrs(node):
+    if not isinstance(node, dict):
+        return {}
+    value = node.get('attributes')
+    return value if isinstance(value, dict) else node
+
+def walk(node):
+    if isinstance(node, dict):
+        yield node
+        for value in node.values():
+            yield from walk(value)
+    elif isinstance(node, list):
+        for item in node:
+            yield from walk(item)
+
+def bounds(value):
+    if isinstance(value, list) and len(value) >= 4:
+        return [int(float(v)) for v in value[:4]]
+    if isinstance(value, dict):
+        keys = ('left', 'top', 'right', 'bottom')
+        if all(k in value for k in keys):
+            return [int(float(value[k])) for k in keys]
+    if isinstance(value, str):
+        nums = [int(float(v)) for v in re.findall(r'-?\d+(?:\.\d+)?', value)]
+        if len(nums) >= 4:
+            return nums[:4]
+    return None
+
+boxes = []
+for node in walk(layout):
+    item = attrs(node)
+    box = bounds(item.get('bounds')) or bounds(item.get('origBounds')) or bounds(item.get('rect'))
+    if box is not None:
+        boxes.append(box)
+if not boxes:
+    raise SystemExit('source browse detail reader smoke failed: reader layout missing bounds')
+left = min(box[0] for box in boxes)
+top = min(box[1] for box in boxes)
+right = max(box[2] for box in boxes)
+bottom = max(box[3] for box in boxes)
+click_path.write_text(f'{(left + right) // 2} {(top + bottom) // 2}\n', encoding='utf-8')
+PY
+read -r reader_x reader_y < "$artifact_dir/click-reader-center.txt"
+hdc_target shell uitest uiInput click "$reader_x" "$reader_y"
+sleep "${KOMA_SOURCE_BROWSE_CHROME_WAIT_SECONDS:-1}"
+capture_layout "source-browse-reader-chrome"
+python3 - "$artifact_dir/source-browse-reader-chrome-layout.json" <<'PY'
 import json
 import pathlib
 import sys
@@ -420,9 +478,7 @@ import sys
 layout = json.loads(pathlib.Path(sys.argv[1]).read_text(encoding='utf-8'))
 text = json.dumps(layout, ensure_ascii=False)
 if ' / ' not in text:
-    raise SystemExit('source browse detail reader smoke failed: reader layout missing page counter')
-if '"type": "Image"' not in text and '"type":"Image"' not in text:
-    raise SystemExit('source browse detail reader smoke failed: reader layout missing image node')
+    raise SystemExit('source browse detail reader smoke failed: reader chrome layout missing page counter')
 PY
 
 echo "source browse detail reader smoke passed: $artifact_dir"
