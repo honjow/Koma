@@ -31,8 +31,8 @@ const runtimeEvidenceCandidates = [
   {
     id: 'source-corrupt-download-reader',
     result: '.hvigor/outputs/source-corrupt-download-reader-smoke/source-runtime-smoke-result.json',
-    screenshot: '',
-    layout: '',
+    screenshot: '.hvigor/outputs/source-corrupt-download-reader-smoke/reader-screen.png',
+    layout: '.hvigor/outputs/source-corrupt-download-reader-smoke/reader-layout.json',
   },
   {
     id: 'reader-wide-split-fixture',

@@ -32,6 +32,12 @@ if [ ! -x "$hvigorw" ]; then
 fi
 
 mkdir -p "$artifact_dir"
+smoke_result="$artifact_dir/source-runtime-smoke-result.json"
+library_layout="$artifact_dir/library-layout.json"
+library_screen="$artifact_dir/library-screen.png"
+reader_layout="$artifact_dir/reader-layout.json"
+reader_screen="$artifact_dir/reader-screen.png"
+rm -f "$smoke_result" "$library_layout" "$library_screen" "$reader_layout" "$reader_screen"
 python3 - "$artifact_dir/wide-split-fixture.png" <<'PY'
 import pathlib
 import struct
@@ -96,14 +102,15 @@ hdc_target install -r entry/build/default/outputs/default/entry-default-signed.h
 hdc_target shell hilog -r
 hdc_target shell rm -f "$remote_smoke_result"
 hdc_target shell aa start -a EntryAbility -b com.honjow.koma \
+  -m entry \
   --ps koma.sourceRuntimeSmoke run \
   --ps koma.sourceRuntimeSmoke.phase reader-wide-split-fixture \
   --ps koma.sourceRuntimeSmoke.wideImageUrl "$image_url"
 
-smoke_result="$artifact_dir/source-runtime-smoke-result.json"
 poll_count="${KOMA_READER_WIDE_SPLIT_RESULT_POLL_COUNT:-18}"
 poll_delay="${KOMA_READER_WIDE_SPLIT_RESULT_POLL_DELAY_SECONDS:-3}"
 for ((attempt = 1; attempt <= poll_count; attempt += 1)); do
+  rm -f "$smoke_result"
   if hdc_target file recv "$remote_smoke_result" "$smoke_result" >/dev/null 2>&1; then
     if [ -s "$smoke_result" ] && python3 - "$smoke_result" <<'PY'
 import json
@@ -134,9 +141,10 @@ done
 
 hdc_target shell uitest dumpLayout -p /data/local/tmp/koma-reader-wide-split-library-layout.json -a
 hdc_target shell uitest screenCap -p /data/local/tmp/koma-reader-wide-split-library-screen.png
-hdc_target file recv /data/local/tmp/koma-reader-wide-split-library-layout.json "$artifact_dir/library-layout.json"
-hdc_target file recv /data/local/tmp/koma-reader-wide-split-library-screen.png "$artifact_dir/library-screen.png"
-python3 - "$artifact_dir/library-layout.json" "$artifact_dir/fixture-click.txt" <<'PY'
+rm -f "$library_layout" "$library_screen"
+hdc_target file recv /data/local/tmp/koma-reader-wide-split-library-layout.json "$library_layout"
+hdc_target file recv /data/local/tmp/koma-reader-wide-split-library-screen.png "$library_screen"
+python3 - "$library_layout" "$artifact_dir/fixture-click.txt" <<'PY'
 import json
 import pathlib
 import re
@@ -190,9 +198,10 @@ hdc_target shell uitest uiInput click "$click_x" "$click_y"
 sleep "${KOMA_READER_WIDE_SPLIT_OPEN_WAIT_SECONDS:-5}"
 hdc_target shell uitest dumpLayout -p /data/local/tmp/koma-reader-wide-split-reader-layout.json -a
 hdc_target shell uitest screenCap -p /data/local/tmp/koma-reader-wide-split-reader-screen.png
-hdc_target file recv /data/local/tmp/koma-reader-wide-split-reader-layout.json "$artifact_dir/reader-layout.json"
-hdc_target file recv /data/local/tmp/koma-reader-wide-split-reader-screen.png "$artifact_dir/reader-screen.png"
-python3 - "$artifact_dir/reader-layout.json" <<'PY'
+rm -f "$reader_layout" "$reader_screen"
+hdc_target file recv /data/local/tmp/koma-reader-wide-split-reader-layout.json "$reader_layout"
+hdc_target file recv /data/local/tmp/koma-reader-wide-split-reader-screen.png "$reader_screen"
+python3 - "$reader_layout" <<'PY'
 import json
 import pathlib
 import sys

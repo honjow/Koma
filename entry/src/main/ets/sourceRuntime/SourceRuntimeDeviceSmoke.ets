@@ -50,6 +50,8 @@ import {
   ReaderPreferencesStore,
 } from '../model/ReaderPreferencesStore'
 import {
+  AppFilesReaderSessionPersistenceAdapter,
+  PersistentReaderSessionStore,
   ReaderSessionConfig,
   createReaderSessionConfigFromComic,
 } from '../model/ReaderSessionStore'
@@ -777,9 +779,10 @@ function sourcePageRowsToComic(
 ): Comic {
   const now = Date.now()
   const comicId = `source-index-smoke:${selectedSourceId}:${mangaId}`
-  const title = detail === undefined ?
+  const sourceTitle = detail === undefined ?
     'Source Index Smoke' :
     (firstStringField([detail], 'title') || firstStringField([detail], 'name') || mangaId)
+  const title = `${sourceTitle} Source Smoke`
   const author = detail === undefined ? '' : firstStringField([detail], 'author')
   const description = detail === undefined ? '' : firstStringField([detail], 'description')
   const coverUri = detail === undefined ? '' : (firstStringField([detail], 'cover_url') || firstStringField([detail], 'coverUrl'))
@@ -930,6 +933,9 @@ function verifySourceIndexVisibleLibraryReaderSmoke(
   )
   persistence.restore()
   upsertComicAndPersistLibraryStore(libraryStore, persistence, comic)
+  new PersistentReaderSessionStore(
+    new AppFilesReaderSessionPersistenceAdapter(filesDir),
+  ).removeProgress(comic.id)
   result.sourceIndexVisibleLibraryPersistOk =
     libraryStore.getComic(comic.id)?.sourceRuntimeId === selectedSourceId
 
@@ -2443,7 +2449,8 @@ export async function maybeRunSourceRuntimeDeviceSmoke(
         result.error = `${result.smokePhase} phase requires ability context`
       } else {
         const isVisibleReaderPhase = result.smokePhase === SMOKE_PHASE_SOURCE_INDEX_VISIBLE_READER ||
-          result.smokePhase === SMOKE_PHASE_SOURCE_INDEX_VISIBLE_DOWNLOAD_READER
+          result.smokePhase === SMOKE_PHASE_SOURCE_INDEX_VISIBLE_DOWNLOAD_READER ||
+          result.smokePhase === SMOKE_PHASE_SOURCE_INDEX_DOWNLOAD_CORRUPT_READER
         const isDownloadReaderPhase = result.smokePhase === SMOKE_PHASE_SOURCE_INDEX_DOWNLOAD_READER ||
           result.smokePhase === SMOKE_PHASE_SOURCE_INDEX_VISIBLE_DOWNLOAD_READER ||
           result.smokePhase === SMOKE_PHASE_SOURCE_INDEX_DOWNLOAD_CORRUPT_READER
@@ -2618,9 +2625,13 @@ export async function maybeRunSourceRuntimeDeviceSmoke(
                         offlineSource.imageUri.length > 0)
                   result.sourceIndexDownloadCorruptReaderOk =
                     !isCorruptReaderPhase || offlineSource.kind === ReaderPageRenderKind.URI_PLACEHOLDER
-                  await downloadStore.deleteChapterDownload(comic.id, chapterId)
-                  result.sourceIndexDownloadCleanupOk =
-                    !downloadStore.isChapterFullyDownloaded(comic.id, chapterId)
+                  if (isCorruptReaderPhase) {
+                    result.sourceIndexDownloadCleanupOk = true
+                  } else {
+                    await downloadStore.deleteChapterDownload(comic.id, chapterId)
+                    result.sourceIndexDownloadCleanupOk =
+                      !downloadStore.isChapterFullyDownloaded(comic.id, chapterId)
+                  }
                 }
                 if (isUndownloadedOfflineReaderPhase && result.sourceIndexReaderRenderSourceOk === true) {
                   const downloadStore = new OfflineDownloadStore(context.filesDir)

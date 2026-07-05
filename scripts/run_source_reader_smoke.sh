@@ -7,6 +7,7 @@ cd "$repo"
 hdc="${HDC:-/Applications/DevEco-Studio.app/Contents/sdk/default/openharmony/toolchains/hdc}"
 hvigorw="${HVIGORW:-/Applications/DevEco-Studio.app/Contents/tools/hvigor/bin/hvigorw}"
 target="${KOMA_SMOKE_TARGET:-127.0.0.1:5557}"
+user_id="${KOMA_SMOKE_USER_ID:-100}"
 source_id="${KOMA_SOURCE_READER_SOURCE_ID:-org.mangadex.koma}"
 query="${KOMA_SOURCE_READER_QUERY:-Salt Friend}"
 phase="${KOMA_SOURCE_READER_PHASE:-source-index-visible-reader}"
@@ -47,6 +48,13 @@ if [ ! -f "$dist_dir/index.json" ]; then
 fi
 
 mkdir -p "$artifact_dir"
+smoke_result="$artifact_dir/source-runtime-smoke-result.json"
+library_layout="$artifact_dir/library-layout.json"
+library_screen="$artifact_dir/library-screen.png"
+reader_layout="$artifact_dir/reader-layout.json"
+reader_screen="$artifact_dir/reader-screen.png"
+reader_click="$artifact_dir/source-reader-click.txt"
+rm -f "$smoke_result" "$library_layout" "$library_screen" "$reader_layout" "$reader_screen" "$reader_click"
 
 server_pid=""
 if [ -z "${KOMA_SOURCE_INDEX_URL:-}" ]; then
@@ -86,16 +94,17 @@ hdc_target install -r entry/build/default/outputs/default/entry-default-signed.h
 hdc_target shell hilog -r
 hdc_target shell rm -f "$remote_smoke_result"
 hdc_target shell aa start -a EntryAbility -b com.honjow.koma \
+  -m entry \
   --ps koma.sourceRuntimeSmoke run \
   --ps koma.sourceRuntimeSmoke.phase "$phase" \
   --ps koma.sourceRuntimeSmoke.indexUrl "$index_url" \
   --ps koma.sourceRuntimeSmoke.sourceId "$source_id" \
   --ps koma.sourceRuntimeSmoke.query "$query"
 
-smoke_result="$artifact_dir/source-runtime-smoke-result.json"
 poll_count="${KOMA_SOURCE_READER_RESULT_POLL_COUNT:-18}"
 poll_delay="${KOMA_SOURCE_READER_RESULT_POLL_DELAY_SECONDS:-5}"
 for ((attempt = 1; attempt <= poll_count; attempt += 1)); do
+  rm -f "$smoke_result"
   if hdc_target file recv "$remote_smoke_result" "$smoke_result" >/dev/null 2>&1; then
     if [ -s "$smoke_result" ] && python3 - "$smoke_result" "$source_id" "$query" "$phase" <<'PY'
 import json
@@ -164,33 +173,96 @@ if [ "$capture_ui" != "true" ]; then
   exit 0
 fi
 
-hdc_target shell uitest dumpLayout -p /data/local/tmp/koma-source-reader-library-layout.json -a
-hdc_target shell uitest screenCap -p /data/local/tmp/koma-source-reader-library-screen.png
-hdc_target file recv /data/local/tmp/koma-source-reader-library-layout.json "$artifact_dir/library-layout.json"
-hdc_target file recv /data/local/tmp/koma-source-reader-library-screen.png "$artifact_dir/library-screen.png"
-python3 - "$smoke_result" "$artifact_dir/library-layout.json" <<'PY'
+hdc_target shell aa force-stop com.honjow.koma
+hdc_target shell aa start -u "$user_id" -a EntryAbility -b com.honjow.koma -m entry
+library_poll_count="${KOMA_SOURCE_READER_FOREGROUND_POLL_COUNT:-8}"
+library_poll_delay="${KOMA_SOURCE_READER_FOREGROUND_WAIT_SECONDS:-3}"
+for ((attempt = 1; attempt <= library_poll_count; attempt += 1)); do
+  sleep "$library_poll_delay"
+  hdc_target shell uitest dumpLayout -p /data/local/tmp/koma-source-reader-library-layout.json -a
+  hdc_target shell uitest screenCap -p /data/local/tmp/koma-source-reader-library-screen.png
+  rm -f "$library_layout" "$library_screen" "$reader_click"
+  hdc_target file recv /data/local/tmp/koma-source-reader-library-layout.json "$library_layout"
+  hdc_target file recv /data/local/tmp/koma-source-reader-library-screen.png "$library_screen"
+  if python3 - "$smoke_result" "$library_layout" "$reader_click" <<'PY'
 import json
 import pathlib
+import re
 import sys
 
 result = json.loads(pathlib.Path(sys.argv[1]).read_text(encoding='utf-8'))
 layout = json.loads(pathlib.Path(sys.argv[2]).read_text(encoding='utf-8'))
+click_path = pathlib.Path(sys.argv[3])
 text = json.dumps(layout, ensure_ascii=False)
+
+def attrs(node):
+    if not isinstance(node, dict):
+        return {}
+    value = node.get('attributes')
+    return value if isinstance(value, dict) else node
+
+def walk(node):
+    if isinstance(node, dict):
+        yield node
+        for value in node.values():
+            yield from walk(value)
+    elif isinstance(node, list):
+        for item in node:
+            yield from walk(item)
+
+def bounds(value):
+    if isinstance(value, list) and len(value) >= 4:
+        return [int(float(v)) for v in value[:4]]
+    if isinstance(value, dict):
+        keys = ('left', 'top', 'right', 'bottom')
+        if all(k in value for k in keys):
+            return [int(float(value[k])) for k in keys]
+    if isinstance(value, str):
+        nums = [int(float(v)) for v in re.findall(r'-?\d+(?:\.\d+)?', value)]
+        if len(nums) >= 4:
+            return nums[:4]
+    return None
+
+def is_koma_root(node):
+    item = attrs(node)
+    return item.get('bundleName') == 'com.honjow.koma' and item.get('pagePath') == 'pages/Index'
+
+if not any(is_koma_root(node) for node in walk(layout)):
+    raise SystemExit('source reader smoke failed: Koma is not foreground in library layout')
 title = result.get('sourceIndexVisibleLibraryTitle')
 chapter = result.get('sourceIndexReaderChapterTitle')
 if not title or title not in text:
     raise SystemExit('source reader smoke failed: library layout missing visible manga title')
 if not chapter or chapter not in text:
     raise SystemExit('source reader smoke failed: library layout missing visible chapter title')
+for node in walk(layout):
+    item = attrs(node)
+    node_text = ' '.join(str(item.get(key, '')) for key in ('text', 'originalText', 'description'))
+    if title in node_text:
+        box = bounds(item.get('bounds')) or bounds(item.get('origBounds')) or bounds(item.get('rect'))
+        if box is not None:
+            click_path.write_text(f'{(box[0] + box[2]) // 2} {(box[1] + box[3]) // 2}\n', encoding='utf-8')
+            raise SystemExit(0)
+raise SystemExit('source reader smoke failed: library layout missing visible manga title bounds')
 PY
+  then
+    break
+  fi
+  if [ "$attempt" -eq "$library_poll_count" ]; then
+    echo "source reader smoke failed: Koma library UI did not become ready" >&2
+    exit 1
+  fi
+done
 
-hdc_target shell uitest uiInput click 660 530
+read -r click_x click_y < "$reader_click"
+hdc_target shell uitest uiInput click "$click_x" "$click_y"
 sleep "${KOMA_SOURCE_READER_OPEN_WAIT_SECONDS:-5}"
 hdc_target shell uitest dumpLayout -p /data/local/tmp/koma-source-reader-reader-layout.json -a
 hdc_target shell uitest screenCap -p /data/local/tmp/koma-source-reader-reader-screen.png
-hdc_target file recv /data/local/tmp/koma-source-reader-reader-layout.json "$artifact_dir/reader-layout.json"
-hdc_target file recv /data/local/tmp/koma-source-reader-reader-screen.png "$artifact_dir/reader-screen.png"
-python3 - "$smoke_result" "$artifact_dir/reader-layout.json" <<'PY'
+rm -f "$reader_layout" "$reader_screen"
+hdc_target file recv /data/local/tmp/koma-source-reader-reader-layout.json "$reader_layout"
+hdc_target file recv /data/local/tmp/koma-source-reader-reader-screen.png "$reader_screen"
+python3 - "$smoke_result" "$reader_layout" <<'PY'
 import json
 import pathlib
 import sys
@@ -198,6 +270,7 @@ import sys
 result = json.loads(pathlib.Path(sys.argv[1]).read_text(encoding='utf-8'))
 layout = json.loads(pathlib.Path(sys.argv[2]).read_text(encoding='utf-8'))
 text = json.dumps(layout, ensure_ascii=False)
+phase = result.get('smokePhase')
 title = result.get('sourceIndexReaderMangaTitle')
 chapter = result.get('sourceIndexReaderChapterTitle')
 page_count = result.get('sourceIndexReaderPageCount')
@@ -207,6 +280,12 @@ if not chapter or chapter not in text:
     raise SystemExit('source reader smoke failed: reader layout missing visible chapter title')
 if not isinstance(page_count, int) or f' / {page_count}' not in text:
     raise SystemExit('source reader smoke failed: reader layout missing visible page counter')
+if phase == 'source-index-download-corrupt-reader':
+    if result.get('sourceIndexDownloadOfflineReaderKind') != 'uri_placeholder':
+        raise SystemExit('source reader smoke failed: corrupt reader did not report offline placeholder')
+    if '"type": "Image"' in text or '"type":"Image"' in text:
+        raise SystemExit('source reader smoke failed: corrupt reader unexpectedly rendered an image node')
+    raise SystemExit(0)
 if '"type": "Image"' not in text and '"type":"Image"' not in text:
     raise SystemExit('source reader smoke failed: reader layout missing visible image node')
 PY

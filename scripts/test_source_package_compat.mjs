@@ -289,8 +289,8 @@ assert.match(
 )
 assert.match(
   sourceCorruptDownloadReaderSmokeScriptSource,
-  /KOMA_SOURCE_READER_PHASE="\$\{KOMA_SOURCE_READER_PHASE:-source-index-download-corrupt-reader\}"[\s\S]*KOMA_SOURCE_READER_CAPTURE_UI="\$\{KOMA_SOURCE_READER_CAPTURE_UI:-false\}"[\s\S]*run_source_reader_smoke\.sh/,
-  'source corrupt download reader smoke script must reuse the source reader smoke without visible UI capture',
+  /KOMA_SOURCE_READER_PHASE="\$\{KOMA_SOURCE_READER_PHASE:-source-index-download-corrupt-reader\}"[\s\S]*KOMA_SOURCE_READER_CAPTURE_UI="\$\{KOMA_SOURCE_READER_CAPTURE_UI:-true\}"[\s\S]*run_source_reader_smoke\.sh/,
+  'source corrupt download reader smoke script must reuse the source reader smoke with visible UI capture',
 )
 assert.match(
   sourceReaderSmokeScriptSource,
@@ -309,8 +309,23 @@ assert.match(
 )
 assert.match(
   sourceReaderSmokeScriptSource,
-  /library-screen\.png[\s\S]*uitest uiInput click 660 530[\s\S]*reader-screen\.png/,
-  'source reader smoke script must capture the visible library item and then open the reader',
+  /library-screen\.png[\s\S]*source-reader-click\.txt[\s\S]*uitest uiInput click "\$click_x" "\$click_y"[\s\S]*reader-screen\.png/,
+  'source reader smoke script must capture the visible library item and open the reader from layout bounds',
+)
+assert.match(
+  sourceReaderSmokeScriptSource,
+  /smoke_result="\$artifact_dir\/source-runtime-smoke-result\.json"[\s\S]*rm -f "\$smoke_result" "\$library_layout" "\$library_screen" "\$reader_layout" "\$reader_screen" "\$reader_click"[\s\S]*for \(\(attempt[\s\S]*rm -f "\$smoke_result"[\s\S]*file recv "\$remote_smoke_result" "\$smoke_result"/,
+  'source reader smoke script must remove stale local artifacts before receiving device results',
+)
+assert.match(
+  sourceReaderSmokeScriptSource,
+  /aa start -a EntryAbility -b com\.honjow\.koma[\s\S]*koma\.sourceRuntimeSmoke/,
+  'source reader smoke script must launch the smoke phase without forcing the UI user id',
+)
+assert.match(
+  sourceReaderSmokeScriptSource,
+  /KOMA_SMOKE_USER_ID:-100[\s\S]*aa force-stop com\.honjow\.koma[\s\S]*aa start -u "\$user_id" -a EntryAbility -b com\.honjow\.koma[\s\S]*-m entry[\s\S]*bundleName'\) == 'com\.honjow\.koma'[\s\S]*pagePath'\) == 'pages\/Index'/,
+  'source reader smoke script must restart the entry module and reject launcher icon captures',
 )
 assert.doesNotMatch(
   sourceReaderSmokeScriptSource,
@@ -690,8 +705,8 @@ assert.match(
 )
 assert.match(
   smokeSource,
-  /verifySourceIndexVisibleLibraryReaderSmoke[\s\S]*LIBRARY_STORE_PERSISTENCE_FILE_NAME[\s\S]*upsertComicAndPersistLibraryStore[\s\S]*reloadedPersistence\.restore\(\)[\s\S]*createReaderSessionConfigFromComic\(reloadedComic, chapterId\)[\s\S]*ReaderPageRenderKind\.REMOTE_URL_IMAGE/,
-  'visible source-index reader smoke must persist the source-backed comic into the real app library store and verify reader rendering from the reloaded app library comic',
+  /sourceTitle[\s\S]*`\$\{sourceTitle\} Source Smoke`[\s\S]*verifySourceIndexVisibleLibraryReaderSmoke[\s\S]*LIBRARY_STORE_PERSISTENCE_FILE_NAME[\s\S]*upsertComicAndPersistLibraryStore[\s\S]*PersistentReaderSessionStore[\s\S]*removeProgress\(comic\.id\)[\s\S]*reloadedPersistence\.restore\(\)[\s\S]*createReaderSessionConfigFromComic\(reloadedComic, chapterId\)[\s\S]*ReaderPageRenderKind\.REMOTE_URL_IMAGE/,
+  'visible source-index reader smoke must persist a uniquely titled source-backed comic into the real app library store, reset stale smoke progress, and verify reader rendering from the reloaded app library comic',
 )
 assert.match(
   smokeSource,
@@ -721,8 +736,13 @@ assert.match(
 )
 assert.match(
   smokeSource,
-  /SMOKE_PHASE_SOURCE_INDEX_DOWNLOAD_CORRUPT_READER[\s\S]*fs\.unlinkSync\(manifest\.pages\[0\]\.localPath\)[\s\S]*ReaderPageRenderKind\.URI_PLACEHOLDER/,
-  'source-index corrupt offline reader smoke must delete a downloaded page and verify the reader reports an offline placeholder instead of falling back to remote',
+  /SMOKE_PHASE_SOURCE_INDEX_DOWNLOAD_CORRUPT_READER[\s\S]*fs\.unlinkSync\(manifest\.pages\[0\]\.localPath\)[\s\S]*ReaderPageRenderKind\.URI_PLACEHOLDER[\s\S]*if \(isCorruptReaderPhase\) \{[\s\S]*result\.sourceIndexDownloadCleanupOk = true/,
+  'source-index corrupt offline reader smoke must preserve a corrupt manifest long enough for visible Reader UI QA',
+)
+assert.match(
+  smokeSource,
+  /SMOKE_PHASE_SOURCE_INDEX_VISIBLE_DOWNLOAD_READER \|\|[\s\S]*SMOKE_PHASE_SOURCE_INDEX_DOWNLOAD_CORRUPT_READER/,
+  'source-index corrupt offline reader smoke must persist a visible library row so device QA can open the honest offline placeholder UI',
 )
 assert.match(
   smokeSource,
@@ -733,6 +753,16 @@ assert.match(
   sourceReaderSmokeScriptSource,
   /undownloaded-offline-reader[\s\S]*sourceIndexUndownloadedOfflineReaderKind[\s\S]*uri_placeholder[\s\S]*sourceIndexUndownloadedOfflineReaderOk/,
   'source reader smoke script must verify undownloaded offline source chapters fail closed to an offline placeholder',
+)
+assert.match(
+  sourceReaderSmokeScriptSource,
+  /phase == 'source-index-download-corrupt-reader'[\s\S]*sourceIndexDownloadOfflineReaderKind[\s\S]*uri_placeholder[\s\S]*unexpectedly rendered an image node/,
+  'source reader smoke script must validate corrupt offline reader UI as a visible placeholder instead of an image',
+)
+assert.match(
+  sourceReaderSmokeScriptSource,
+  /KOMA_SOURCE_READER_FOREGROUND_WAIT_SECONDS[\s\S]*Koma is not foreground in library layout/,
+  'source reader visible UI smoke must bring Koma foreground and reject launcher/sceneboard captures',
 )
 assert.match(
   sourceUndownloadedOfflineReaderSmokeScriptSource,
