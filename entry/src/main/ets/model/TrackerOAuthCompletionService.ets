@@ -64,20 +64,21 @@ interface TrackerTokenResponsePayload {
   refresh_token?: string
 }
 
-const TRACKER_TOKEN_ENDPOINTS: Record<string, string> = {
-  anilist: 'https://anilist.co/api/v2/oauth/token',
-  myanimelist: 'https://myanimelist.net/v1/oauth2/token',
-}
-
 function utf8Bytes(value: string): Uint8Array {
   return new Uint8Array(buffer.from(value, 'utf-8').buffer)
 }
 
-function formEncode(fields: Record<string, string>): string {
+function appendFormField(pairs: string[], key: string, value: string): void {
+  pairs.push(`${encodeURIComponent(key)}=${encodeURIComponent(value)}`)
+}
+
+function formEncodeTokenRequest(provider: TrackerProviderConfig, code: string, codeVerifier: string): string {
   const pairs: string[] = []
-  Object.keys(fields).forEach((key: string) => {
-    pairs.push(`${encodeURIComponent(key)}=${encodeURIComponent(fields[key])}`)
-  })
+  appendFormField(pairs, 'grant_type', 'authorization_code')
+  appendFormField(pairs, 'client_id', provider.clientId ?? '')
+  appendFormField(pairs, 'redirect_uri', provider.redirectUri ?? '')
+  appendFormField(pairs, 'code', code)
+  appendFormField(pairs, 'code_verifier', codeVerifier)
   return pairs.join('&')
 }
 
@@ -104,7 +105,13 @@ function parseCallbackFields(callbackUri: string): TrackerOAuthCallbackFields {
 }
 
 function tokenEndpoint(providerId: TrackerProviderId): string | undefined {
-  return TRACKER_TOKEN_ENDPOINTS[providerId]
+  if (providerId === 'anilist') {
+    return 'https://anilist.co/api/v2/oauth/token'
+  }
+  if (providerId === 'myanimelist') {
+    return 'https://myanimelist.net/v1/oauth2/token'
+  }
+  return undefined
 }
 
 export class HarmonyTrackerOAuthTokenExchanger implements TrackerOAuthTokenExchanger {
@@ -121,13 +128,7 @@ export class HarmonyTrackerOAuthTokenExchanger implements TrackerOAuthTokenExcha
     try {
       const response = await request.request(endpoint, {
         method: http.RequestMethod.POST,
-        extraData: formEncode({
-          grant_type: 'authorization_code',
-          client_id: provider.clientId,
-          redirect_uri: provider.redirectUri,
-          code,
-          code_verifier: codeVerifier,
-        }),
+        extraData: formEncodeTokenRequest(provider, code, codeVerifier),
         expectDataType: http.HttpDataType.STRING,
         usingCache: false,
         header: {

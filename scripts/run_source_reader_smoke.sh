@@ -13,6 +13,10 @@ query="${KOMA_SOURCE_READER_QUERY:-Salt Friend}"
 phase="${KOMA_SOURCE_READER_PHASE:-source-index-visible-reader}"
 capture_ui="${KOMA_SOURCE_READER_CAPTURE_UI:-true}"
 offline_download_visible_phase="source-index-visible-offline-download-reader"
+requires_index="${KOMA_SOURCE_READER_REQUIRES_INDEX:-true}"
+if [ "$phase" = "real-source-visible-reader" ]; then
+  requires_index="false"
+fi
 dist_dir="${KOMA_SOURCES_DIST:-$repo/../koma-sources/dist}"
 port="${KOMA_SOURCE_INDEX_PORT:-8765}"
 index_url="${KOMA_SOURCE_INDEX_URL:-}"
@@ -20,18 +24,18 @@ host_ip="${KOMA_SOURCE_INDEX_HOST:-}"
 artifact_dir="${KOMA_SOURCE_READER_ARTIFACT_DIR:-.hvigor/outputs/source-reader-smoke}"
 remote_smoke_result="${KOMA_SOURCE_READER_REMOTE_RESULT:-/data/app/el2/100/base/com.honjow.koma/haps/entry/files/source-runtime-smoke-result.json}"
 
-if [ -z "$index_url" ] && [ -z "$host_ip" ]; then
+if [ "$requires_index" = "true" ] && [ -z "$index_url" ] && [ -z "$host_ip" ]; then
   host_ip="$(ipconfig getifaddr en0 2>/dev/null || true)"
 fi
-if [ -z "$index_url" ] && [ -z "$host_ip" ]; then
+if [ "$requires_index" = "true" ] && [ -z "$index_url" ] && [ -z "$host_ip" ]; then
   host_ip="$(ipconfig getifaddr en1 2>/dev/null || true)"
 fi
-if [ -z "$index_url" ] && [ -z "$host_ip" ]; then
+if [ "$requires_index" = "true" ] && [ -z "$index_url" ] && [ -z "$host_ip" ]; then
   echo "source reader smoke failed: set KOMA_SOURCE_INDEX_HOST to the host IP reachable from the emulator" >&2
   exit 1
 fi
 
-if [ -z "$index_url" ]; then
+if [ "$requires_index" = "true" ] && [ -z "$index_url" ]; then
   index_url="http://$host_ip:$port/index.json"
 fi
 
@@ -43,7 +47,7 @@ if [ ! -x "$hvigorw" ]; then
   echo "source reader smoke failed: hvigorw not found or not executable: $hvigorw" >&2
   exit 1
 fi
-if [ ! -f "$dist_dir/index.json" ]; then
+if [ "$requires_index" = "true" ] && [ ! -f "$dist_dir/index.json" ]; then
   echo "source reader smoke failed: missing source index at $dist_dir/index.json" >&2
   exit 1
 fi
@@ -58,9 +62,15 @@ reader_click="$artifact_dir/source-reader-click.txt"
 rm -f "$smoke_result" "$library_layout" "$library_screen" "$reader_layout" "$reader_screen" "$reader_click"
 
 server_pid=""
-if [ -z "${KOMA_SOURCE_INDEX_URL:-}" ]; then
+if [ "$requires_index" = "true" ] && [ -z "${KOMA_SOURCE_INDEX_URL:-}" ]; then
   python3 -m http.server "$port" --bind 0.0.0.0 --directory "$dist_dir" > "$artifact_dir/source-index-http.log" 2>&1 &
   server_pid="$!"
+  sleep 1
+  if ! kill -0 "$server_pid" 2>/dev/null; then
+    echo "source reader smoke failed: source index server did not start" >&2
+    sed -n '1,80p' "$artifact_dir/source-index-http.log" >&2 || true
+    exit 1
+  fi
 fi
 
 cleanup() {

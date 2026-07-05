@@ -42,7 +42,7 @@ assert.match(
 )
 assert.match(
   serviceSource,
-  /TRACKER_TOKEN_ENDPOINTS[\s\S]*anilist: 'https:\/\/anilist\.co\/api\/v2\/oauth\/token'[\s\S]*myanimelist: 'https:\/\/myanimelist\.net\/v1\/oauth2\/token'/,
+  /function tokenEndpoint\(providerId: TrackerProviderId\): string \| undefined \{[\s\S]*providerId === 'anilist'[\s\S]*https:\/\/anilist\.co\/api\/v2\/oauth\/token[\s\S]*providerId === 'myanimelist'[\s\S]*https:\/\/myanimelist\.net\/v1\/oauth2\/token/,
   'OAuth completion must support AniList and MyAnimeList token endpoints',
 )
 assert.doesNotMatch(

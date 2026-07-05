@@ -56,6 +56,7 @@ import {
   createReaderSessionConfigFromComic,
 } from '../model/ReaderSessionStore'
 import {
+  LocalSourcePackageManifest,
   SourceArchiveNegativeCaseFixture,
   SourceArchiveNegativeImportResult,
 } from './SourcePackageImporter'
@@ -126,6 +127,7 @@ const SMOKE_PHASE_SIZE_LIMIT_NEGATIVES: string = 'size-limit-negatives'
 const SMOKE_PHASE_CANCEL_TIMEOUT_NEGATIVES: string = 'cancel-timeout-negatives'
 const SMOKE_PHASE_REAL_SOURCE_SEARCH: string = 'real-source-search'
 const SMOKE_PHASE_REAL_SOURCE_READER: string = 'real-source-reader'
+const SMOKE_PHASE_REAL_SOURCE_VISIBLE_READER: string = 'real-source-visible-reader'
 const SMOKE_PHASE_INSTALLED_SOURCE_READER: string = 'installed-source-reader'
 const SMOKE_PHASE_SOURCE_INDEX_READER: string = 'source-index-reader'
 const SMOKE_PHASE_SOURCE_INDEX_VISIBLE_READER: string = 'source-index-visible-reader'
@@ -749,6 +751,55 @@ function sourcePageImageUrl(page: Record<string, Object>): string {
   }
   const imageRecord = image as Record<string, Object>
   return firstStringField([imageRecord], 'url') || firstStringField([imageRecord], 'uri')
+}
+
+function registerRealSourceSmokeWasm(sourceId: string, sourceBytes: Uint8Array): boolean {
+  const existing = appSourceRuntimeRegistry.lookup(sourceId)
+  if (existing.ok) {
+    return true
+  }
+  const manifest: LocalSourcePackageManifest = {
+    schemaVersion: 1,
+    package: {
+      id: sourceId,
+      name: 'MangaDex',
+      version: '0.1.0',
+      language: 'en',
+      type: 'manga',
+      nsfw: true,
+    },
+    runtime: {
+      abi: 'koma-source-abi-v0.1',
+      hostAbi: 'koma-host-v0.1',
+      wasmPath: MANGADEX_RAWFILE_PATH,
+      wasmSha256: '',
+      wasmSizeBytes: sourceBytes.byteLength,
+      maxWasmBytes: sourceBytes.byteLength,
+    },
+    permissions: {
+      network: false,
+      hostImports: [],
+    },
+    operationCapabilities: ['search', 'get_manga', 'get_chapters', 'get_pages'],
+    contentPolicy: {
+      publicIndex: false,
+      marketplace: false,
+      builtInSource: false,
+      remoteInstall: false,
+    },
+  }
+  const registered = appSourceRuntimeRegistry.register({
+    sourceId,
+    route: 'app-real-source-visible-reader-smoke',
+    importStatus: 'staged',
+    manifest,
+    wasmBytes: sourceBytes,
+    hashOk: true,
+    network: false,
+    enabled: true,
+    capabilities: ['search', 'get_manga', 'get_chapters', 'get_pages'],
+  })
+  return registered.ok
 }
 
 function copySmokeWasmBytes(bytes: Uint8Array): Uint8Array {
@@ -2099,6 +2150,143 @@ export async function maybeRunSourceRuntimeDeviceSmoke(
         }
       }
       compactSmokeResultForHilog(result)
+      console.info(SMOKE_LOG_PREFIX + JSON.stringify(result))
+      return
+    }
+
+    if (result.smokePhase === SMOKE_PHASE_REAL_SOURCE_VISIBLE_READER) {
+      if (resourceMgr === undefined || context === undefined) {
+        result.error = 'real-source-visible-reader phase requires resource manager and ability context'
+      } else {
+        const requestedSourceId = smokeStringParam(want, SMOKE_SOURCE_ID_PARAM)
+        const selectedSourceId = requestedSourceId.length > 0 ? requestedSourceId : 'org.mangadex.koma'
+        const requestedSearchQuery = smokeStringParam(want, SMOKE_QUERY_PARAM)
+        const searchRequestQuery = requestedSearchQuery.length > 0 ? requestedSearchQuery : 'Salt Friend'
+        const wasmBytes = resourceMgr.getRawFileContentSync(MANGADEX_RAWFILE_PATH)
+        const sourceBytes = new Uint8Array(wasmBytes.buffer)
+        result.sourceIndexReaderSelectedSourceId = selectedSourceId
+        result.sourceIndexReaderSearchQuery = searchRequestQuery
+        result.sourceIndexReaderWasmBytes = sourceBytes.byteLength
+        result.sourceIndexReaderInstallOk = registerRealSourceSmokeWasm(selectedSourceId, copySmokeWasmBytes(sourceBytes))
+        if (result.sourceIndexReaderInstallOk === true) {
+          const searchJson = await taskpool.execute(
+            runRealSourceSearchTask,
+            JSON.stringify({ operation: 'search', query: searchRequestQuery }),
+            copySmokeWasmBytes(sourceBytes),
+          ) as string
+          const searchResponse: SourceRuntimeCallResponse = JSON.parse(searchJson) as SourceRuntimeCallResponse
+          const searchItems = responseItems(searchResponse)
+          const mangaId = firstStringField(searchItems, 'id')
+          result.sourceIndexReaderSearchOk = searchResponse.ok === true && mangaId.length > 0
+          result.sourceIndexReaderSearchCount = searchItems.length
+          result.sourceIndexReaderMangaId = mangaId
+
+          const detailJson = await taskpool.execute(
+            runRealSourceSearchTask,
+            `{"operation":"get_manga","mangaId":"${mangaId}"}`,
+            copySmokeWasmBytes(sourceBytes),
+          ) as string
+          const detailResponse: SourceRuntimeCallResponse = JSON.parse(detailJson) as SourceRuntimeCallResponse
+          result.sourceIndexReaderDetailOk = detailResponse.ok === true
+          const detailItem = responseItem(detailResponse)
+          const searchItem = searchItems.length > 0 ? searchItems[0] : undefined
+          const detailTitle = detailItem === undefined ?
+            '' :
+            (firstStringField([detailItem], 'title') || firstStringField([detailItem], 'name'))
+          const searchTitle = searchItem === undefined ?
+            '' :
+            (firstStringField([searchItem], 'title') || firstStringField([searchItem], 'name'))
+          const comicDetailItem = detailTitle.length > 0 ? detailItem : searchItem
+          result.sourceIndexReaderMangaTitle = detailTitle.length > 0 ? detailTitle : searchTitle
+
+          const chaptersJson = await taskpool.execute(
+            runRealSourceSearchTask,
+            `{"operation":"get_chapters","mangaId":"${mangaId}"}`,
+            copySmokeWasmBytes(sourceBytes),
+          ) as string
+          const chaptersResponse: SourceRuntimeCallResponse = JSON.parse(chaptersJson) as SourceRuntimeCallResponse
+          const chapters = responseChapters(chaptersResponse)
+          const chapterId = firstStringField(chapters, 'id')
+          const chapterTitle = firstStringField(chapters, 'title') || 'Chapter'
+          result.sourceIndexReaderChaptersOk = chaptersResponse.ok === true && chapterId.length > 0
+          result.sourceIndexReaderChapterCount = chapters.length
+          result.sourceIndexReaderChapterId = chapterId
+          result.sourceIndexReaderChapterTitle = chapterTitle
+
+          const pagesJson = await taskpool.execute(
+            runRealSourceSearchTask,
+            `{"operation":"get_pages","chapterId":"${chapterId}"}`,
+            copySmokeWasmBytes(sourceBytes),
+          ) as string
+          const pagesResponse: SourceRuntimeCallResponse = JSON.parse(pagesJson) as SourceRuntimeCallResponse
+          const pages = responsePages(pagesResponse)
+          const pageId = firstStringField(pages, 'id')
+          result.sourceIndexReaderPagesOk = pagesResponse.ok === true && pageId.length > 0
+          result.sourceIndexReaderPageCount = pages.length
+          result.sourceIndexReaderPageId = pageId
+
+          const readerConfig: ReaderSessionConfig = {
+            comicId: mangaId,
+            chapterId,
+            title: 'Real Source Reader Smoke',
+            chapterTitle,
+            chapterIds: [chapterId],
+            totalPages: pages.length,
+            pageUris: pages.map((page: Record<string, Object>): string => sourcePageImageUrl(page)),
+            pageIds: pages.map((page: Record<string, Object>): string => firstStringField([page], 'id')),
+            pageWidths: pages.map((page: Record<string, Object>): number | undefined => pageImageDimension(page, 'width')),
+            pageHeights: pages.map((page: Record<string, Object>): number | undefined => pageImageDimension(page, 'height')),
+            sourceRuntimeId: selectedSourceId,
+          }
+          const renderSource = createReaderPageRenderSource(readerConfig, 0, { preferOffline: false })
+          result.sourceIndexReaderRenderSourceOk =
+            renderSource.kind === ReaderPageRenderKind.REMOTE_URL_IMAGE &&
+              renderSource.sourceRuntimeId === selectedSourceId &&
+              renderSource.pageId === pageId
+          const comic = sourcePageRowsToComic(selectedSourceId, mangaId, chapterId, pages, comicDetailItem, chapters)
+          if (result.sourceIndexReaderRenderSourceOk === true) {
+            verifySourceIndexLibraryReaderSmoke(
+              context.filesDir,
+              comic,
+              chapterId,
+              selectedSourceId,
+              pageId,
+              result,
+            )
+            verifySourceIndexVisibleLibraryReaderSmoke(
+              context.filesDir,
+              comic,
+              chapterId,
+              selectedSourceId,
+              pageId,
+              result,
+            )
+          }
+          result.sourceIndexReaderCleanupOk = true
+        }
+        result.ok = result.sourceIndexReaderInstallOk === true &&
+          result.sourceIndexReaderSearchOk === true &&
+          result.sourceIndexReaderDetailOk === true &&
+          result.sourceIndexReaderChaptersOk === true &&
+          result.sourceIndexReaderPagesOk === true &&
+          (result.sourceIndexReaderPageCount ?? 0) > 0 &&
+          result.sourceIndexReaderRenderSourceOk === true &&
+          result.sourceIndexLibraryPersistOk === true &&
+          result.sourceIndexLibraryReloadOk === true &&
+          result.sourceIndexLibraryReaderOk === true &&
+          result.sourceIndexLibraryCleanupOk === true &&
+          result.sourceIndexVisibleLibraryPersistOk === true &&
+          result.sourceIndexVisibleLibraryReloadOk === true &&
+          result.sourceIndexVisibleLibraryReaderOk === true &&
+          result.sourceIndexReaderCleanupOk === true
+        if (!result.ok && result.error === undefined) {
+          result.error = 'real-source-visible-reader failed'
+        }
+      }
+      compactSmokeResultForHilog(result)
+      if (context !== undefined) {
+        writeSourceRuntimeSmokeResultFile(context.filesDir, result)
+      }
       console.info(SMOKE_LOG_PREFIX + JSON.stringify(result))
       return
     }
