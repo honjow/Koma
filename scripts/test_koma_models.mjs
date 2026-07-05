@@ -2119,6 +2119,16 @@ assert.match(
   'ChapterListSection subtitle must show scanlator, language, and upload date metadata',
 )
 assert.match(
+  chapterListSectionSource,
+  /if \(chapter\.isDownloaded\) \{[\s\S]*SymbolGlyph\(\$r\('sys\.symbol\.checkmark'\)\)[\s\S]*Text\(s\('downloads_status_downloaded'\)\)[\s\S]*ThemeConstants\.SOFT_TINT/,
+  'ChapterListSection downloaded state must use a reusable symbol status pill instead of a handwritten glyph',
+)
+assert.doesNotMatch(
+  chapterListSectionSource,
+  /Text\('↓'\)/,
+  'ChapterListSection must not use a handwritten arrow as the downloaded state indicator',
+)
+assert.match(
   mangaDetailPageSource,
   /chapterPagesAreLocalOffline\(sourceKind: ComicSourceKind\): boolean[\s\S]*ComicSourceKind\.LOCAL_ARCHIVE[\s\S]*ComicSourceKind\.LOCAL_FOLDER[\s\S]*mangaChapterItemFromComicChapter\(chapter: Chapter, sourceKind: ComicSourceKind\): MangaChapterItem[\s\S]*scanlator: chapter\.scanlator[\s\S]*language: chapter\.language[\s\S]*dateUpload: chapter\.dateUpload[\s\S]*isDownloaded: chapterPagesAreLocalOffline\(sourceKind\) && chapter\.pageCount > 0/,
   'MangaDetailPage must hydrate chapter metadata from library chapters',

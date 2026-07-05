@@ -440,10 +440,20 @@ export struct ChapterListSection {
       })
 
       if (chapter.isDownloaded) {
-        Text('↓')
-          .fontSize(ThemeConstants.FONT_SIZE_TITLE)
-          .fontWeight(FontWeight.Bold)
-          .fontColor(ThemeConstants.BRAND_PRIMARY)
+        Row({ space: ThemeConstants.SPACE_XS }) {
+          SymbolGlyph($r('sys.symbol.checkmark'))
+            .fontSize(ThemeConstants.FONT_SIZE_TITLE)
+            .fontColor([ThemeConstants.BRAND_PRIMARY])
+          Text(s('downloads_status_downloaded'))
+            .fontSize(ThemeConstants.FONT_SIZE_CAPTION)
+            .fontWeight(FontWeight.Medium)
+            .fontColor(ThemeConstants.BRAND_PRIMARY)
+            .maxLines(1)
+        }
+        .height(ThemeConstants.FILTER_CHIP_HEIGHT)
+        .padding({ left: ThemeConstants.SPACE_SM, right: ThemeConstants.SPACE_SM })
+        .borderRadius(ThemeConstants.RADIUS_ROUND)
+        .backgroundColor(ThemeConstants.SOFT_TINT)
       }
 
       KomaIconButton({
