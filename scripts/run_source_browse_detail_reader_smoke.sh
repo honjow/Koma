@@ -548,6 +548,55 @@ PY
   return 1
 }
 
+capture_download_manifest_summary() {
+  local title="$1"
+  local paths="$artifact_dir/download-manifest-paths.txt"
+  rm -f "$paths" "$artifact_dir"/download-manifest-*.json "$artifact_dir/download-manifest-summary.json"
+  hdc_target shell find "/data/app/el2/$user_id/base/com.honjow.koma/haps/entry/files/downloads" -name manifest.v1.json > "$paths"
+  local index=0
+  local remote_manifest
+  while IFS= read -r remote_manifest; do
+    [ -n "$remote_manifest" ] || continue
+    index=$((index + 1))
+    hdc_target file recv "$remote_manifest" "$artifact_dir/download-manifest-$index.json" >/dev/null 2>&1 || true
+  done < "$paths"
+  python3 - "$artifact_dir" "$title" <<'PY'
+import glob
+import json
+import pathlib
+import sys
+
+artifact_dir = pathlib.Path(sys.argv[1])
+title = sys.argv[2]
+matches = []
+for path in glob.glob(str(artifact_dir / 'download-manifest-*.json')):
+    try:
+        manifest = json.loads(pathlib.Path(path).read_text(encoding='utf-8'))
+    except Exception:
+        continue
+    if manifest.get('comicTitle') != title:
+        continue
+    page_count = manifest.get('pageCount')
+    downloaded = manifest.get('downloadedPageCount')
+    pages = manifest.get('pages')
+    if manifest.get('status') != 'downloaded' or not isinstance(page_count, int) or page_count <= 0:
+        continue
+    if downloaded != page_count or not isinstance(pages, list) or len(pages) < page_count:
+        continue
+    matches.append({
+        'comicTitle': title,
+        'chapterId': manifest.get('chapterId'),
+        'status': manifest.get('status'),
+        'pageCount': page_count,
+        'downloadedPageCount': downloaded,
+        'localPageCount': len(pages),
+    })
+if not matches:
+    raise SystemExit('source browse detail reader smoke failed: missing downloaded local manifest for selected manga')
+(artifact_dir / 'download-manifest-summary.json').write_text(json.dumps(matches[0], ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
+PY
+}
+
 rm -f "$artifact_dir"/*.json "$artifact_dir"/*.png "$artifact_dir"/*.txt
 
 if [ "$build_source_first" = "true" ]; then
@@ -622,6 +671,7 @@ if [ "$download_first" = "true" ]; then
   click_from_layout "$artifact_dir/source-browse-detail-layout.json" "$artifact_dir/click-download-chapter.txt" "Download chapter" "下载章节" "Download again" "重新下载"
   wait_layout_contains_any "source-browse-download" "Download again" "重新下载" "Downloaded" "已下载"
   detail_action_layout="$artifact_dir/source-browse-download-layout.json"
+  capture_download_manifest_summary "$source_manga_title"
 fi
 assert_layout_contains_any "$detail_action_layout" "Add to library" "加入书架" "In library" "已在书架"
 click_from_layout "$detail_action_layout" "$artifact_dir/click-add-to-library.txt" "Add to library" "加入书架" "In library" "已在书架"
