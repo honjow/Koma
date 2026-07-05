@@ -9,6 +9,7 @@ import { LibraryStore } from '../model/LibraryStore'
 import { LibraryStorePersistenceService } from '../model/LibraryPersistence'
 import { canRunOfflineDownloadQueueNow, OfflineDownloadService } from '../model/OfflineDownloadService'
 import {
+  OfflineDownloadedChapterStatus,
   OfflineDownloadStatus,
   OfflineDownloadStore,
 } from '../model/OfflineDownloadStore'
@@ -303,6 +304,20 @@ export struct DownloadsPage {
       entry.status === OfflineDownloadStatus.PARTIAL
   }
 
+  private hasReadableDownloadedManifest(entry: OfflineDownloadQueueEntry): boolean {
+    try {
+      const validation = new OfflineDownloadStore(this.context().filesDir)
+        .validateDownloadedChapter(entry.comicId, entry.chapterId, { validateContentHash: false })
+      return validation.manifest !== undefined &&
+        validation.availablePageCount > 0 &&
+        (validation.status === OfflineDownloadedChapterStatus.DOWNLOADED ||
+          validation.status === OfflineDownloadedChapterStatus.PARTIAL)
+    } catch (_error) {
+      console.warn('[Downloads] step=read_manifest_validation_failed failed=true reason=download_manifest')
+      return false
+    }
+  }
+
   private blockUnavailableEntry(entry: OfflineDownloadQueueEntry): void {
     const blocked = this.queueStore().upsert({
       comicId: entry.comicId,
@@ -338,6 +353,11 @@ export struct DownloadsPage {
 
   private openDownloadedChapter(entry: OfflineDownloadQueueEntry): void {
     if (!this.canRead(entry)) {
+      return
+    }
+    if (!this.hasReadableDownloadedManifest(entry)) {
+      this.loadQueue()
+      this.showToast(s('downloads_toast_entry_unavailable'))
       return
     }
     const comic = this.libraryStore?.getComic(entry.comicId)

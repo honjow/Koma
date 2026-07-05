@@ -1826,6 +1826,16 @@ assert.match(
   /private async runForegroundDownloadBatch\(targets: OfflineDownloadQueueEntry\[\]\): Promise<number> \{[\s\S]*await this\.ensureSourcePagesForDownload\(comic, entry\.chapterId\)[\s\S]*await service\.downloadChapter\(comic, entry\.chapterId/,
   'DownloadsPage queued batch start must hydrate source-backed chapter pages before invoking OfflineDownloadService',
 )
+assert.match(
+  downloadsPageSource,
+  /OfflineDownloadedChapterStatus,[\s\S]*private hasReadableDownloadedManifest\(entry: OfflineDownloadQueueEntry\): boolean \{[\s\S]*validateDownloadedChapter\(entry\.comicId, entry\.chapterId, \{ validateContentHash: false \}\)[\s\S]*validation\.manifest !== undefined[\s\S]*validation\.availablePageCount > 0[\s\S]*OfflineDownloadedChapterStatus\.DOWNLOADED[\s\S]*OfflineDownloadedChapterStatus\.PARTIAL/,
+  'DownloadsPage must validate the current offline manifest before treating a queued chapter as readable',
+)
+assert.match(
+  downloadsPageSource,
+  /private openDownloadedChapter\(entry: OfflineDownloadQueueEntry\): void \{[\s\S]*if \(!this\.canRead\(entry\)\) \{[\s\S]*return[\s\S]*if \(!this\.hasReadableDownloadedManifest\(entry\)\) \{[\s\S]*this\.loadQueue\(\)[\s\S]*this\.showToast\(s\('downloads_toast_entry_unavailable'\)\)[\s\S]*return[\s\S]*this\.onOpenReader\(entry\.comicId, entry\.chapterId\)/,
+  'DownloadsPage must block stale or unreadable offline rows before opening Reader',
+)
 
 const mangaRequest = JSON.parse(buildSourceDetailRequestJson(
   'local.test.koma.fixture',
