@@ -279,9 +279,11 @@ Koma 已经具备本地/私有库优先漫画阅读器的主骨架：书架、Re
 
 ## P6：Tracker 真实闭环
 
-当前已有：tracker 设置骨架、OAuth/account store fail-closed、不假连接、internal auth states 已隐藏。
+当前已有：tracker 设置、OAuth 准备/account store fail-closed、不假连接、internal auth states 已隐藏；AniList/MAL client、mapping search、progress push/pull、pending retry 已接入合同。OAuth callback completion 已补到模型层：校验 pending state + PKCE verifier，换取 token 后只写 AssetStore，并通过 profile refresh 确认 connected；仍缺真实 test/sandbox 账号与 provider callback 设备矩阵。
 
 ### D50：Secure storage credential path
+
+状态：主体已接入。token/refresh token/PKCE verifier 只走 AssetStore；logout/disconnect 清理 provider credential account 与 pending sync；备份不包含 credential material。剩余是设备侧 AssetStore 不可用/锁定/拒绝权限矩阵。
 
 交付：
 - token 进入系统安全存储。
@@ -296,6 +298,8 @@ Koma 已经具备本地/私有库优先漫画阅读器的主骨架：书架、Re
 
 ### D51：AniList MVP
 
+状态：进行中。已具备授权 URL 准备、callback completion 服务、profile refresh、manga search mapping、progress push/pull 与 pending retry；缺 test/sandbox 账号完成真实 OAuth callback 设备验证。
+
 交付：
 - connect。
 - profile fetch。
@@ -308,6 +312,8 @@ Koma 已经具备本地/私有库优先漫画阅读器的主骨架：书架、Re
 - sync conflict 明示。
 
 ### D52：MAL MVP
+
+状态：进行中。与 AniList 独立 client/endpoint/进度 API 已接入；缺 test/sandbox 账号完成真实 OAuth callback 与进度同步设备验证。
 
 同 D51，独立 lane，不和 AniList 混线。
 

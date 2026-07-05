@@ -72,6 +72,10 @@ export class RouterHelper {
     RouterHelper.openLaunchRoute(RouteName.SOURCE_PACKAGE_MANAGER)
   }
 
+  static pushTrackerSettings(): void {
+    RouterHelper.openLaunchRoute(RouteName.TRACKER_SETTINGS)
+  }
+
   static pushMangaDetail(param: MangaDetailRouteParam): void {
     const stack = RouterHelper.appPathStack
     if (stack === undefined) {
