@@ -25,7 +25,10 @@ if [ "$phase" = "real-source-visible-reader" ] ||
   [ "$phase" = "$local_library_folder_visible_reader_phase" ]; then
   requires_index="false"
 fi
-dist_dir="${KOMA_SOURCES_DIST:-$repo/../koma-sources/dist}"
+source_repo="${KOMA_SOURCES_REPO:-$repo/../koma-sources}"
+source_build_name="${KOMA_SOURCE_READER_BUILD_SOURCE:-mangadex}"
+build_source_first="${KOMA_SOURCE_READER_BUILD_SOURCE_FIRST:-false}"
+dist_dir="${KOMA_SOURCES_DIST:-$source_repo/dist}"
 port="${KOMA_SOURCE_INDEX_PORT:-8765}"
 index_url="${KOMA_SOURCE_INDEX_URL:-}"
 host_ip="${KOMA_SOURCE_INDEX_HOST:-}"
@@ -51,6 +54,14 @@ fi
 
 if [ "$requires_index" = "true" ] && [ -z "$index_url" ]; then
   index_url="http://$host_ip:$port/index.json"
+fi
+
+if [ "$build_source_first" = "true" ]; then
+  if [ ! -x "$source_repo/build.sh" ]; then
+    echo "source reader smoke failed: source build script not found: $source_repo/build.sh" >&2
+    exit 1
+  fi
+  (cd "$source_repo" && ./build.sh --source "$source_build_name")
 fi
 
 if [ ! -x "$hdc" ]; then

@@ -85,6 +85,11 @@ assert.match(
 )
 assert.match(
   script,
+  /source_repo="\$\{KOMA_SOURCES_REPO:-\$repo\/\.\.\/koma-sources\}"[\s\S]*source_build_name="\$\{KOMA_SOURCE_READER_BUILD_SOURCE:-mangadex\}"[\s\S]*build_source_first="\$\{KOMA_SOURCE_READER_BUILD_SOURCE_FIRST:-false\}"[\s\S]*\.\/build\.sh --source "\$source_build_name"/,
+  'source reader smoke script must optionally build the local source project before package/index validation',
+)
+assert.match(
+  script,
   /source_package_rawfile="\$\{KOMA_SOURCE_PACKAGE_RAWFILE:-test\/source-smoke-package\.koma\}"/,
   'source reader smoke script must define a temporary rawfile package path',
 )
