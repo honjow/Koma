@@ -11,6 +11,7 @@ source_id="${KOMA_SOURCE_READER_SOURCE_ID:-org.mangadex.koma}"
 source_display="${KOMA_SOURCE_BROWSE_DISPLAY_NAME:-MangaDex}"
 artifact_dir="${KOMA_SOURCE_BROWSE_READER_ARTIFACT_DIR:-.hvigor/outputs/source-browse-detail-reader-smoke}"
 download_first="${KOMA_SOURCE_BROWSE_DOWNLOAD_FIRST:-false}"
+ui_enable_source_first="${KOMA_SOURCE_BROWSE_ENABLE_SOURCE_VIA_UI:-false}"
 entry_mode="${KOMA_SOURCE_BROWSE_ENTRY:-browse}"
 source_search_query="${KOMA_SOURCE_BROWSE_SEARCH_QUERY:-1}"
 seed_mode="${KOMA_SOURCE_BROWSE_SEED_MODE:-local-package}"
@@ -638,6 +639,18 @@ make_source_unavailable() {
   printf '%s\n' "$source_id" > "$source_disabled_marker"
 }
 
+enable_source_via_ui() {
+  make_source_unavailable
+  restore_source_available
+  hdc_target shell aa force-stop com.honjow.koma
+  hdc_target shell aa start -u "$user_id" -a EntryAbility -b com.honjow.koma -m entry \
+    --ps koma.launchRoute source_package_manager
+  sleep "${KOMA_SOURCE_BROWSE_START_WAIT_SECONDS:-4}"
+  capture_layout "source-browse-source-manager-enabled-before-browse"
+  assert_layout_contains_any "$artifact_dir/source-browse-source-manager-enabled-before-browse-layout.json" "$source_display"
+  assert_layout_contains_any "$artifact_dir/source-browse-source-manager-enabled-before-browse-layout.json" "Enabled" "已启用" "Disable" "停用"
+}
+
 assert_reader_image_and_prepare_center() {
   local layout="$1"
   local click_path="$2"
@@ -729,6 +742,10 @@ else
   KOMA_SOURCE_READER_SOURCE_ID="$source_id" \
   KOMA_SOURCE_PACKAGE_PATH="$source_package_path" \
     scripts/run_source_reader_smoke.sh
+fi
+
+if [ "$ui_enable_source_first" = "true" ]; then
+  enable_source_via_ui
 fi
 
 hdc_target shell aa force-stop com.honjow.koma

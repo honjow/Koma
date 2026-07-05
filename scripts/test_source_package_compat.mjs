@@ -777,6 +777,11 @@ assert.match(
 )
 assert.match(
   sourceBrowseDetailReaderSmokeScriptSource,
+  /ui_enable_source_first="\$\{KOMA_SOURCE_BROWSE_ENABLE_SOURCE_VIA_UI:-false\}"[\s\S]*enable_source_via_ui\(\)[\s\S]*make_source_unavailable[\s\S]*restore_source_available[\s\S]*source-browse-source-manager-enabled-before-browse-layout\.json[\s\S]*"Enabled" "已启用" "Disable" "停用"[\s\S]*if \[ "\$ui_enable_source_first" = "true" \]/,
+  'source browse detail reader smoke must be able to enable the real installed source through the visible SourcePackageManager before browsing',
+)
+assert.match(
+  sourceBrowseDetailReaderSmokeScriptSource,
   /download_first="\$\{KOMA_SOURCE_BROWSE_DOWNLOAD_FIRST:-false\}"[\s\S]*click_from_layout[\s\S]*Download chapter[\s\S]*下载章节[\s\S]*wait_layout_contains_any "source-browse-download"[\s\S]*Download again[\s\S]*重新下载[\s\S]*Downloaded[\s\S]*已下载[\s\S]*detail_action_layout="\$artifact_dir\/source-browse-download-layout\.json"/,
   'source browse detail reader smoke must optionally click the real detail download action, wait for downloaded UI state, and read from the refreshed layout',
 )
