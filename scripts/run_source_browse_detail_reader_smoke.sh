@@ -701,6 +701,8 @@ click_path = pathlib.Path(sys.argv[2])
 text = json.dumps(layout, ensure_ascii=False)
 if '"type": "Image"' not in text and '"type":"Image"' not in text:
     raise SystemExit('source browse detail reader smoke failed: reader layout missing image node')
+if pathlib.Path(sys.argv[1]).with_name('download-manifest-summary.json').exists() and 'reader-page-local-file-image' not in text:
+    raise SystemExit('source browse detail reader smoke failed: downloaded reader did not use local file image')
 
 def attrs(node):
     if not isinstance(node, dict):
