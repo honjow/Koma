@@ -54,28 +54,45 @@ export struct ComicCoverCard {
     return this.categoryLabels.length > 0 ? this.categoryLabels : (this.comic.categoryLabels ?? [])
   }
 
+  private displayCoverUri(): string {
+    return this.comic.coverUri ?? ''
+  }
+
+  @Builder
+  private CoverPlaceholder() {
+    Column() {
+      Text(this.displayTitle())
+        .fontSize(ThemeConstants.FONT_SIZE_TITLE)
+        .fontWeight(FontWeight.Bold)
+        .fontColor(ThemeConstants.TEXT_ON_BRAND)
+        .lineHeight(ThemeConstants.LINE_HEIGHT_TITLE)
+        .maxLines(3)
+        .textOverflow({ overflow: TextOverflow.Ellipsis })
+      Blank()
+      Text('Koma')
+        .fontSize(ThemeConstants.FONT_SIZE_CAPTION)
+        .fontWeight(FontWeight.Medium)
+        .fontColor(ThemeConstants.TEXT_ON_BRAND)
+        .opacity(0.86)
+    }
+    .width('100%')
+    .height('100%')
+    .padding(ThemeConstants.SPACE_MD)
+    .backgroundColor(this.displayCoverColor())
+  }
+
   build() {
     Column({ space: ThemeConstants.SPACE_SM }) {
       Stack({ alignContent: Alignment.BottomStart }) {
-        Column() {
-          Text(this.displayTitle())
-            .fontSize(ThemeConstants.FONT_SIZE_TITLE)
-            .fontWeight(FontWeight.Bold)
-            .fontColor(ThemeConstants.TEXT_ON_BRAND)
-            .lineHeight(ThemeConstants.LINE_HEIGHT_TITLE)
-            .maxLines(3)
-            .textOverflow({ overflow: TextOverflow.Ellipsis })
-          Blank()
-          Text('Koma')
-            .fontSize(ThemeConstants.FONT_SIZE_CAPTION)
-            .fontWeight(FontWeight.Medium)
-            .fontColor(ThemeConstants.TEXT_ON_BRAND)
-            .opacity(0.86)
+        this.CoverPlaceholder()
+
+        if (this.displayCoverUri().length > 0) {
+          Image(this.displayCoverUri())
+            .width('100%')
+            .height('100%')
+            .objectFit(ImageFit.Cover)
+            .interpolation(ImageInterpolation.Medium)
         }
-        .width('100%')
-        .height('100%')
-        .padding(ThemeConstants.SPACE_MD)
-        .backgroundColor(this.displayCoverColor())
 
         Row() {
           Text(this.displayProgressText())

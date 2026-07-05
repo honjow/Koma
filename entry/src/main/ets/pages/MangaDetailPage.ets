@@ -5,6 +5,7 @@ import { MangaTagsSection } from '../components/MangaTagsSection'
 import { KomaActionButton } from '../components/ui/KomaActionButton'
 import { KomaFormTextField } from '../components/ui/KomaFormTextField'
 import { KomaIconButton } from '../components/ui/KomaIconButton'
+import { SecondaryListScaffold } from '../components/SecondaryListScaffold'
 import {
   ChapterBatchDownloadMode,
   ChapterListSection,
@@ -15,7 +16,6 @@ import {
 } from '../model/ChapterReadStateStore'
 import { AppStrings } from '../i18n/AppStrings'
 import { ThemeConstants } from '../theme/ThemeConstants'
-import { connectLayoutSafeArea, LayoutSafeAreaState } from '../state/LayoutSafeAreaState'
 import { connectLanguageState, LanguageState } from '../state/LanguageState'
 import {
   MangaChapterItem,
@@ -175,7 +175,6 @@ export struct MangaDetailPage {
   @Local private downloadStatusText: string = ''
   @Local private localRefreshText: string = ''
   @Local private feedbackText: string = ''
-  @Local private safeArea: LayoutSafeAreaState = connectLayoutSafeArea()
   @Local private languageState: LanguageState = connectLanguageState()
   @Param libraryStore?: LibraryStore = undefined
   @Param libraryPersistenceService?: LibraryStorePersistenceService = undefined
@@ -186,14 +185,6 @@ export struct MangaDetailPage {
   @Event onOpenImportRequested: () => void = () => {}
   @Event onLibraryChanged: () => void = () => {}
   private chapterReadStateStore?: ChapterReadStateStore
-
-  private topContentInset(): number {
-    return this.safeArea.topAvoidHeight + 12
-  }
-
-  private bottomContentInset(): number {
-    return this.safeArea.bottomAvoidHeight + ThemeConstants.FLOAT_BAR_HEIGHT + 20
-  }
 
   private formatString(key: string, args: Array<string | number>): string {
     let text = s(key)
@@ -703,6 +694,26 @@ export struct MangaDetailPage {
     const chapterId = this.firstChapterId()
     if (chapterId === undefined) {
       this.showToast(s('manga_detail_no_readable_chapters'))
+      return
+    }
+    if (!this.isInLibrary && this.manga.sourceId !== undefined) {
+      const added = await this.handleAddToLibrary()
+      if (!added) {
+        return
+      }
+    }
+    if (this.manga.sourceId !== undefined) {
+      const hydrated = await this.ensureSourceChapterPages(chapterId)
+      if (!hydrated) {
+        this.showToast(s('manga_detail_chapter_pages_load_failed'))
+        return
+      }
+    }
+    this.onOpenReader(this.currentComicId(), chapterId)
+  }
+
+  private async handleOpenChapter(chapterId: string): Promise<void> {
+    if (chapterId.trim().length === 0) {
       return
     }
     if (!this.isInLibrary && this.manga.sourceId !== undefined) {
@@ -1442,63 +1453,79 @@ export struct MangaDetailPage {
 
   build() {
     if (this.languageState.effectiveLocale.length >= 0) {
-      Scroll() {
-        Column({ space: ThemeConstants.SPACE_XL }) {
+      SecondaryListScaffold({
+        listSpace: ThemeConstants.SPACE_XL,
+        horizontalPadding: ThemeConstants.SPACE_XL,
+        bottomPadding: ThemeConstants.FLOAT_BAR_HEIGHT + 20,
+        reserveTitleBar: false,
+      }) {
+        ListItem() {
           this.Toolbar()
+        }
 
+        ListItem() {
           MangaDetailHeader({
             manga: this.displayedManga(),
           })
+        }
 
+        ListItem() {
           this.ActionButtons()
+        }
 
-          if (this.isLoading || this.feedbackText.length > 0) {
+        if (this.isLoading || this.feedbackText.length > 0) {
+          ListItem() {
             Text(this.isLoading ? s('common_loading') : this.feedbackText)
               .width('100%')
               .fontSize(ThemeConstants.FONT_SIZE_META)
               .fontColor(ThemeConstants.TEXT_SECONDARY)
           }
+        }
 
-          if (this.downloadStatusText.length > 0) {
+        if (this.downloadStatusText.length > 0) {
+          ListItem() {
             Text(this.downloadStatusText)
               .width('100%')
               .fontSize(ThemeConstants.FONT_SIZE_META)
               .fontColor(ThemeConstants.TEXT_SECONDARY)
           }
+        }
 
-          if (this.localRefreshText.length > 0) {
+        if (this.localRefreshText.length > 0) {
+          ListItem() {
             Text(this.localRefreshText)
               .width('100%')
               .fontSize(ThemeConstants.FONT_SIZE_META)
               .fontColor(ThemeConstants.TEXT_SECONDARY)
           }
+        }
 
-          if (this.localMetadataEditorVisible) {
+        if (this.localMetadataEditorVisible) {
+          ListItem() {
             this.LocalMetadataEditor()
           }
+        }
 
+        ListItem() {
           MangaDescriptionSection({
             description: this.manga.description,
           })
+        }
 
+        ListItem() {
           MangaTagsSection({
             tags: this.manga.tags === undefined ? [] : this.manga.tags,
             onTagClick: (tag: string) => {
               RouterHelper.openSearch({ query: tag })
             },
           })
+        }
 
+        ListItem() {
           ChapterListSection({
             chapters: this.chapters,
             onOpenChapter: (chapterId: string) => {
-              void this.ensureSourceChapterPages(chapterId)
-                .then((hydrated: boolean) => {
-                  if (hydrated) {
-                    this.onOpenReader(this.currentComicId(), chapterId)
-                  } else {
-                    this.showToast(s('manga_detail_chapter_pages_load_failed'))
-                  }
-                })
+              void this.handleOpenChapter(chapterId)
                 .catch((error: Error) => {
                   void error
                   console.error('[manga-detail] step=source_pages_load_failed reason=source_pages')
@@ -1519,12 +1546,7 @@ export struct MangaDetailPage {
             },
           })
         }
-        .width('100%')
-        .padding({ left: ThemeConstants.SPACE_XL, right: ThemeConstants.SPACE_XL, top: this.topContentInset(), bottom: this.bottomContentInset() })
       }
-      .width('100%')
-      .height('100%')
-      .backgroundColor(ThemeConstants.BG_PRIMARY)
     }
   }
 }

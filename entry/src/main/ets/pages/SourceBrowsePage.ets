@@ -2,10 +2,10 @@ import { MangaGridItem } from '../components/MangaGridItem'
 import { KomaActionButton } from '../components/ui/KomaActionButton'
 import { KomaEmptyState } from '../components/ui/KomaEmptyState'
 import { KomaIconButton } from '../components/ui/KomaIconButton'
+import { SecondaryListScaffold } from '../components/SecondaryListScaffold'
 import { SourceFilterControls, SourceFilterControlValue } from '../components/SourceFilterControls'
 import { AppStrings } from '../i18n/AppStrings'
 import { SourceFilter, SourceManga } from '../model/SourceModels'
-import { connectLayoutSafeArea, LayoutSafeAreaState } from '../state/LayoutSafeAreaState'
 import { connectLanguageState, LanguageState } from '../state/LanguageState'
 import { ThemeConstants } from '../theme/ThemeConstants'
 import {
@@ -37,23 +37,12 @@ export struct SourceBrowsePage {
     capabilities: [],
   }
   @Param viewModel: BrowseViewModel = new BrowseViewModel()
-  @Local private safeArea: LayoutSafeAreaState = connectLayoutSafeArea()
   @Local private languageState: LanguageState = connectLanguageState()
+  @Local private filtersExpanded: boolean = false
   @Event onSearchRequested: (source: SourceRuntimeRegistryInstalledSourceSummary) => void =
     (_source: SourceRuntimeRegistryInstalledSourceSummary) => {}
   @Event onMangaTap: (manga: SourceManga) => void = (_manga: SourceManga) => {}
-
-  private topContentInset(): number {
-    return this.safeArea.topAvoidHeight + ThemeConstants.TITLE_BAR_HEIGHT
-  }
-
-  private bottomContentInset(): number {
-    return this.safeArea.bottomAvoidHeight + ThemeConstants.FLOAT_BAR_HEIGHT + 20
-  }
-
-  private bottomFloatingTabViewportClearance(): number {
-    return this.bottomContentInset()
-  }
+  @Event onBack: () => void = () => {}
 
   private listingForHomeSection(section: SourceHomeSectionState): SourceListingDescriptor | undefined {
     if (section.listingId === undefined) {
@@ -111,6 +100,14 @@ export struct SourceBrowsePage {
     void this.viewModel.setBrowseFilterValue(filter.id, value)
   }
 
+  private hasRuntimeFilters(): boolean {
+    return this.viewModel.filters.length > 0
+  }
+
+  private toggleFilters(): void {
+    this.filtersExpanded = !this.filtersExpanded
+  }
+
   @Builder
   private ListingSelector() {
     if (this.viewModel.listings.length > 1) {
@@ -166,36 +163,44 @@ export struct SourceBrowsePage {
 
   @Builder
   private BrowseSection(section: BrowseSourceSectionState) {
-    this.SectionHeader(section.listing.name, section.manga.length)
-    this.MangaGrid(section.manga)
+    Column({ space: ThemeConstants.SPACE_MD }) {
+      this.SectionHeader(section.listing.name, section.manga.length)
+      this.MangaGrid(section.manga)
+    }
+    .width('100%')
+    .alignItems(HorizontalAlign.Start)
   }
 
   @Builder
   private HomeSection(section: SourceHomeSectionState) {
-    Row() {
-      Text(section.title)
-        .fontSize(ThemeConstants.FONT_SIZE_H3)
-        .fontWeight(FontWeight.Bold)
-        .fontColor(ThemeConstants.TEXT_PRIMARY)
-      Blank()
-      if (this.hasListingForHomeSection(section)) {
-        KomaActionButton({
-          label: s('browse_section_open_listing'),
-          kind: 'secondary',
-          compact: true,
-          isEnabled: !this.viewModel.loadingBrowse,
-          action: () => {
-            this.openHomeSectionListing(section)
-          },
-        })
-      } else {
-        Text(s('library_count_books').replace('%s', `${section.manga.length}`))
-          .fontSize(ThemeConstants.FONT_SIZE_META)
-          .fontColor(ThemeConstants.TEXT_SECONDARY)
+    Column({ space: ThemeConstants.SPACE_MD }) {
+      Row() {
+        Text(section.title)
+          .fontSize(ThemeConstants.FONT_SIZE_H3)
+          .fontWeight(FontWeight.Bold)
+          .fontColor(ThemeConstants.TEXT_PRIMARY)
+        Blank()
+        if (this.hasListingForHomeSection(section)) {
+          KomaActionButton({
+            label: s('browse_section_open_listing'),
+            kind: 'secondary',
+            compact: true,
+            isEnabled: !this.viewModel.loadingBrowse,
+            action: () => {
+              this.openHomeSectionListing(section)
+            },
+          })
+        } else {
+          Text(s('library_count_books').replace('%s', `${section.manga.length}`))
+            .fontSize(ThemeConstants.FONT_SIZE_META)
+            .fontColor(ThemeConstants.TEXT_SECONDARY)
+        }
       }
+      .width('100%')
+      this.MangaGrid(section.manga)
     }
     .width('100%')
-    this.MangaGrid(section.manga)
+    .alignItems(HorizontalAlign.Start)
   }
 
   @Builder
@@ -213,9 +218,9 @@ export struct SourceBrowsePage {
       }, (item: SourceManga) => `${item.sourceId}:${item.id}`)
     }
     .width('100%')
-    .columnsTemplate('1fr 1fr 1fr')
+    .columnsTemplate('1fr 1fr')
     .columnsGap(ThemeConstants.SPACE_LG)
-    .rowsGap(ThemeConstants.SPACE_XL)
+    .rowsGap(ThemeConstants.SPACE_LG)
     .cachedCount(12)
   }
 
@@ -253,9 +258,24 @@ export struct SourceBrowsePage {
 
   build() {
     if (this.languageState.effectiveLocale.length >= 0) {
-      Scroll() {
-        Column({ space: ThemeConstants.SPACE_LG }) {
+      SecondaryListScaffold({
+        listSpace: ThemeConstants.SPACE_LG,
+        horizontalPadding: ThemeConstants.SPACE_XL,
+        bottomPadding: ThemeConstants.FLOAT_BAR_HEIGHT + 20,
+        onReachEnd: () => {
+          void this.viewModel.loadMoreBrowse()
+        },
+      }) {
+        ListItem() {
           Row({ space: ThemeConstants.SPACE_MD }) {
+            KomaIconButton({
+              icon: $r('sys.symbol.chevron_left'),
+              kind: 'secondary',
+              action: () => {
+                this.onBack()
+              },
+            })
+
             Column({ space: ThemeConstants.SPACE_XS }) {
               Text(this.source.displayName)
                 .fontSize(ThemeConstants.FONT_SIZE_H1)
@@ -278,6 +298,17 @@ export struct SourceBrowsePage {
               },
             })
 
+            if (this.hasRuntimeFilters()) {
+              KomaActionButton({
+                label: s('common_filter'),
+                kind: this.filtersExpanded ? 'primary' : 'secondary',
+                compact: true,
+                action: () => {
+                  this.toggleFilters()
+                },
+              })
+            }
+
             KomaIconButton({
               icon: $r('sys.symbol.arrow_clockwise'),
               kind: 'secondary',
@@ -289,34 +320,56 @@ export struct SourceBrowsePage {
           }
           .width('100%')
           .alignItems(VerticalAlign.Center)
+        }
 
-          this.ListingSelector()
+        if (this.viewModel.listings.length > 1) {
+          ListItem() {
+            this.ListingSelector()
+          }
+        }
 
-          this.RuntimeFilterControls()
+        if (this.hasRuntimeFilters() && this.filtersExpanded) {
+          ListItem() {
+            this.RuntimeFilterControls()
+          }
+        }
 
-          if (this.viewModel.loadingBrowse &&
-            this.viewModel.homeSections.length === 0 &&
-            this.viewModel.browseSections.length === 0) {
+        if (this.viewModel.loadingBrowse &&
+          this.viewModel.homeSections.length === 0 &&
+          this.viewModel.browseSections.length === 0) {
+          ListItem() {
             LoadingProgress()
               .width(ThemeConstants.LOADING_SIZE_LARGE)
               .height(ThemeConstants.LOADING_SIZE_LARGE)
               .color(ThemeConstants.BRAND_PRIMARY)
-          } else if (this.viewModel.errorMessage.length > 0 && !this.hasBrowseContent()) {
+          }
+        } else if (this.viewModel.errorMessage.length > 0 && !this.hasBrowseContent()) {
+          ListItem() {
             this.BrowseErrorState()
-          } else if (!this.hasBrowseContent()) {
+          }
+        } else if (!this.hasBrowseContent()) {
+          ListItem() {
             this.EmptyBrowseResults()
-          } else {
-            ForEach(this.viewModel.homeSections, (section: SourceHomeSectionState) => {
+          }
+        } else {
+          ForEach(this.viewModel.homeSections, (section: SourceHomeSectionState) => {
+            ListItem() {
               this.HomeSection(section)
-            }, (section: SourceHomeSectionState) => section.id)
+            }
+          }, (section: SourceHomeSectionState) => section.id)
 
-            ForEach(this.viewModel.browseSections, (section: BrowseSourceSectionState) => {
+          ForEach(this.viewModel.browseSections, (section: BrowseSourceSectionState) => {
+            ListItem() {
               this.BrowseSection(section)
-            }, (section: BrowseSourceSectionState) => section.listing.id)
+            }
+          }, (section: BrowseSourceSectionState) => section.listing.id)
 
-            if (this.viewModel.errorMessage.length > 0) {
+          if (this.viewModel.errorMessage.length > 0) {
+            ListItem() {
               this.BrowseErrorState()
-            } else if (this.viewModel.hasMoreBrowse) {
+            }
+          } else if (this.viewModel.hasMoreBrowse) {
+            ListItem() {
               KomaActionButton({
                 label: this.viewModel.loadingBrowse ? s('common_loading_more') : s('common_load_more'),
                 kind: 'secondary',
@@ -329,22 +382,7 @@ export struct SourceBrowsePage {
             }
           }
         }
-        .width('100%')
-        .padding({
-          left: ThemeConstants.SPACE_XL,
-          right: ThemeConstants.SPACE_XL,
-          top: this.topContentInset(),
-          bottom: this.bottomContentInset(),
-        })
       }
-      .width('100%')
-      .height('100%')
-      .padding({ bottom: this.bottomFloatingTabViewportClearance() })
-      .clipContent(ContentClipMode.CONTENT_ONLY)
-      .backgroundColor(ThemeConstants.BG_PRIMARY)
-      .onReachEnd(() => {
-        void this.viewModel.loadMoreBrowse()
-      })
     }
   }
 }

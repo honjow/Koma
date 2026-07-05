@@ -141,6 +141,15 @@ function itemRecord(value: RuntimeValue): RuntimeRecord | undefined {
   return value as RuntimeRecord
 }
 
+function sourceItemCoverUrl(item: RuntimeRecord): string | undefined {
+  const direct = optionalString(item['cover_url']) ?? optionalString(item['coverUrl'])
+  if (direct !== undefined) {
+    return direct
+  }
+  const cover = itemRecord(item['cover'])
+  return cover === undefined ? undefined : optionalString(cover['url'])
+}
+
 function parseSourceMangaFromItem(sourceId: string, item: RuntimeRecord): SourceManga {
   const title = optionalString(item['title']) ?? optionalString(item['id']) ?? AppStrings.get('browse_untitled_manga')
   return {
@@ -150,7 +159,7 @@ function parseSourceMangaFromItem(sourceId: string, item: RuntimeRecord): Source
     author: normalizeSourceDisplayText(optionalString(item['author'])),
     artist: normalizeSourceDisplayText(optionalString(item['artist'])),
     description: normalizeSourceDisplayText(optionalString(item['description'])),
-    coverUrl: optionalString(item['cover_url']) ?? optionalString(item['coverUrl']),
+    coverUrl: sourceItemCoverUrl(item),
     status: normalizeStatus(item['status']),
     contentRating: normalizeSourceDisplayText(optionalString(item['content_rating']) ?? optionalString(item['contentRating'])),
     tags: normalizeStringArray(item['tags']),

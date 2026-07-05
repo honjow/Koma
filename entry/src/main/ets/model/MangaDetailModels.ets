@@ -133,6 +133,14 @@ function firstSourceString(values: (string | undefined)[]): string | undefined {
   return undefined
 }
 
+function nestedSourceString(record: SourceRuntimeRecord, key: string, nestedKey: string): string | undefined {
+  const value = record[key]
+  if (value === undefined || value === null || Array.isArray(value) || typeof value !== 'object') {
+    return undefined
+  }
+  return optionalSourceString((value as SourceRuntimeRecord)[nestedKey])
+}
+
 function firstSourceNumber(values: (Object | undefined)[]): number | undefined {
   for (let index = 0; index < values.length; index += 1) {
     const value = optionalSourceNumber(values[index])
@@ -173,6 +181,8 @@ export function parseMangaDetailFromSourceItem(sourceId: string, item: SourceRun
     coverUrl: firstSourceString([
       optionalSourceString(item['cover_url']),
       optionalSourceString(item['coverUrl']),
+      nestedSourceString(item, 'cover', 'url'),
+      nestedSourceString(item, 'cover', 'uri'),
     ]),
     status: sourceStatus(optionalSourceString(item['status'])),
     tags: sourceStringList(item['tags']),

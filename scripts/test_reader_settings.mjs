@@ -328,10 +328,10 @@ assert.match(
   /clearCurrentSeriesPreferences\(\): void[\s\S]*clearSeriesPreferences\(this\.sessionConfig\.comicId\)[\s\S]*reader_series_settings_cleared[\s\S]*this\.loadReaderPreferences\(\)/,
   'ReaderPage must let the user clear per-series settings and immediately reload global preferences',
 )
-assert.doesNotMatch(
+assert.match(
   readerChromeSource,
-  /reader_action_save_series_settings|reader_action_clear_series_settings|onSaveSeriesPreferences|onClearSeriesPreferences/,
-  'ReaderChrome must stay an immersive reading overlay instead of hosting per-series settings actions',
+  /SettingsMenu\(\)[\s\S]*reader_action_save_series_settings[\s\S]*onSaveSeriesSettings\(\)[\s\S]*reader_action_clear_series_settings[\s\S]*onClearSeriesSettings\(\)/,
+  'ReaderChrome must expose per-series reader settings from the immersive settings menu',
 )
 assert.doesNotMatch(
   readerChromeSource,
@@ -611,8 +611,8 @@ assert.match(
 )
 assert.match(
   readerPageSource,
-  /private ReaderTapLayer\(\)[\s\S]*Button\(\{ type: ButtonType\.Normal, stateEffect: false \}\)[\s\S]*\.backgroundColor\('#01000000'\)[\s\S]*\.hitTestBehavior\(HitTestMode\.Block\)[\s\S]*\.onClick\(\(event: ClickEvent\) => \{[\s\S]*this\.onReaderTap\(event\.windowX, event\.windowY\)/,
-  'tap overlay must use a real full-screen button target instead of clickable layout columns',
+  /\.gesture\(GestureGroup\(GestureMode\.Parallel,[\s\S]*PinchGesture\(\{ fingers: 2 \}\)[\s\S]*PanGesture\(\{ fingers: 1, direction: PanDirection\.All, distance: 2 \}\)[\s\S]*TapGesture\(\{ count: 2, distanceThreshold: 8 \}\)[\s\S]*this\.onReaderDoubleTap[\s\S]*TapGesture\(\{ count: 1 \}\)[\s\S]*this\.onReaderTap/,
+  'reader root must own pinch, double-tap zoom, pan, and single-tap navigation gestures',
 )
 assert.doesNotMatch(
   readerPageSource,

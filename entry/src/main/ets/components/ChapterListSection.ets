@@ -24,43 +24,6 @@ export enum ChapterBatchDownloadMode {
   NOT_DOWNLOADED = 'not_downloaded',
 }
 
-class ChapterListDataSource implements IDataSource {
-  private listeners: DataChangeListener[] = []
-  private chapters: MangaChapterItem[] = []
-
-  constructor(chapters: MangaChapterItem[]) {
-    this.chapters = chapters
-  }
-
-  totalCount(): number {
-    return this.chapters.length
-  }
-
-  getData(index: number): MangaChapterItem {
-    return this.chapters[index]
-  }
-
-  registerDataChangeListener(listener: DataChangeListener): void {
-    if (this.listeners.indexOf(listener) < 0) {
-      this.listeners.push(listener)
-    }
-  }
-
-  unregisterDataChangeListener(listener: DataChangeListener): void {
-    const index = this.listeners.indexOf(listener)
-    if (index >= 0) {
-      this.listeners.splice(index, 1)
-    }
-  }
-
-  update(chapters: MangaChapterItem[]): void {
-    this.chapters = chapters
-    this.listeners.forEach((listener: DataChangeListener) => {
-      listener.onDataReloaded()
-    })
-  }
-}
-
 @ComponentV2
 export struct ChapterListSection {
   @Param chapters: MangaChapterItem[] = []
@@ -70,7 +33,6 @@ export struct ChapterListSection {
   @Local private languageFilter: string = ''
   @Local private groupFilter: string = ''
   @Local private sortedChapters: MangaChapterItem[] = []
-  private dataSource: ChapterListDataSource = new ChapterListDataSource([])
   @Event onOpenChapter: (chapterId: string) => void = (_chapterId: string) => {}
   @Event onDownloadChapter: (chapterId: string) => void = (_chapterId: string) => {}
   @Event onDownloadVisibleChapters: (chapterIds: string[], mode: ChapterBatchDownloadMode) => void =
@@ -84,7 +46,6 @@ export struct ChapterListSection {
   private rebuildDataSource(): void {
     this.ensureMetadataFiltersAvailable()
     this.sortedChapters = this.sortedChapterList()
-    this.dataSource.update(this.sortedChapters)
   }
 
   private sortedChapterList(): MangaChapterItem[] {
@@ -656,19 +617,20 @@ export struct ChapterListSection {
       if (this.sortedChapters.length === 0) {
         this.EmptyChapters()
       } else {
-        List() {
-          LazyForEach(this.dataSource, (chapter: MangaChapterItem) => {
-            ListItem() {
-              this.ChapterRow(chapter)
+        Column() {
+          ForEach(this.sortedChapters, (chapter: MangaChapterItem, index: number) => {
+            this.ChapterRow(chapter)
+            if (index < this.sortedChapters.length - 1) {
+              Divider()
+                .strokeWidth(1)
+                .color(ThemeConstants.DIVIDER)
+                .margin({ left: ThemeConstants.SPACE_MD, right: ThemeConstants.SPACE_MD })
             }
           }, (chapter: MangaChapterItem) => chapter.id)
         }
         .width('100%')
-        .height(460)
-        .divider({ strokeWidth: 1, color: ThemeConstants.DIVIDER, startMargin: ThemeConstants.SPACE_MD, endMargin: ThemeConstants.SPACE_MD })
-        .borderRadius(ThemeConstants.RADIUS_CARD)
-        .backgroundColor(ThemeConstants.CARD)
-        .edgeEffect(EdgeEffect.Spring)
+        .borderRadius(ThemeConstants.RADIUS_MD)
+        .clip(true)
       }
     }
     .width('100%')

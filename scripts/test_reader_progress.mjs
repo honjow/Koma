@@ -50,12 +50,12 @@ assert.match(
 )
 assert.match(
   readerChromeSource,
-  /ChromeButton\(label: string, enabled: boolean, primary: boolean, action: \(\) => void\)[\s\S]*if \(enabled\) \{[\s\S]*action\(\)[\s\S]*ChromeButton\(s\('reader_action_previous_page'\), this\.canGoPrevious, false, \(\) => \{[\s\S]*this\.onPreviousPage\(\)/,
+  /RoundIconButton\(icon: Resource, enabled: boolean, action: \(\) => void\)[\s\S]*if \(enabled\) \{[\s\S]*action\(\)[\s\S]*RoundIconButton\(\$r\('sys\.symbol\.chevron_left'\), this\.canGoPrevious, \(\) => \{[\s\S]*this\.onPreviousPage\(\)/,
   'ReaderChrome previous control must use split-aware canGoPrevious before invoking the callback',
 )
 assert.match(
   readerChromeSource,
-  /ChromeButton\(label: string, enabled: boolean, primary: boolean, action: \(\) => void\)[\s\S]*if \(enabled\) \{[\s\S]*action\(\)[\s\S]*ChromeButton\(s\('reader_action_next_page'\), this\.canGoNext, true, \(\) => \{[\s\S]*this\.onNextPage\(\)/,
+  /RoundIconButton\(icon: Resource, enabled: boolean, action: \(\) => void\)[\s\S]*if \(enabled\) \{[\s\S]*action\(\)[\s\S]*RoundIconButton\(\$r\('sys\.symbol\.chevron_right'\), this\.canGoNext, \(\) => \{[\s\S]*this\.onNextPage\(\)/,
   'ReaderChrome next control must use split-aware canGoNext before invoking the callback',
 )
 assert.match(
@@ -608,7 +608,7 @@ assert.match(readerChromeSource, /top: ThemeConstants\.SPACE_XL/, 'top reader ch
 assert.match(readerChromeSource, /bottom: ThemeConstants\.SPACE_XL/, 'bottom reader controls must reserve room for the navigation safe area on fullscreen windows')
 assert.match(readerChromeSource, /onPreviousPage/, 'chrome previous button must use reader callback')
 assert.match(readerChromeSource, /onNextPage/, 'chrome next button must use reader callback')
-assert.match(readerChromeSource, /ModeSwitch/, 'reader chrome must expose a bounded in-reader mode selector')
+assert.match(readerChromeSource, /ModeMenu\(\)[\s\S]*MenuItem\(\{ content: getReaderModeLabel\(ReaderMode\.SINGLE_PAGE\) \}\)[\s\S]*ReaderMode\.DUAL_PAGE[\s\S]*ReaderMode\.CONTINUOUS_SCROLL/, 'reader chrome must expose a bounded in-reader mode selector')
 assert.match(readerChromeSource, /getReaderModeLabel\(ReaderMode\.SINGLE_PAGE\)/, 'reader chrome must expose the 单页 mode label from the mode contract')
 assert.match(readerChromeSource, /getReaderModeLabel\(ReaderMode\.CONTINUOUS_SCROLL\)/, 'reader chrome must expose the 连续滚动 mode label from the mode contract')
 assert.doesNotMatch(readerChromeSource, /Webtoon 纵向预览|纵向/, 'reader chrome must avoid internal/webtoon wording in visible labels')
@@ -644,7 +644,9 @@ assert.match(readerPageSource, /aboutToDisappear\(\): void \{[\s\S]*applyReaderK
 assert.match(readerChromeSource, /@Param\s+showProgressControls:\s*boolean = true/, 'ReaderChrome progress visibility must be reactive to ReaderPage preference updates')
 assert.match(readerChromeSource, /if \(this\.showProgressControls\) \{[\s\S]*Text\(`\$\{this\.pageIndex \+ 1\} \/ \$\{this\.pageTotal\}`\)/, 'ReaderChrome must hide the page number label when requested')
 assert.match(readerChromeSource, /if \(this\.showProgressControls\) \{[\s\S]*Progress\(\{ value: this\.progressValue\(\), total: 100, type: ProgressType\.Linear \}\)/, 'ReaderChrome must hide the progress bar when requested')
-assert.match(readerChromeSource, /ChromeButton\(s\('reader_action_previous_page'\), this\.canGoPrevious, false[\s\S]*ChromeButton\(s\('reader_action_next_page'\), this\.canGoNext, true/, 'ReaderChrome must keep previous/next navigation controls available')
+assert.match(readerChromeSource, /RoundIconButton\(\$r\('sys\.symbol\.chevron_left'\), this\.canGoPrevious[\s\S]*RoundIconButton\(\$r\('sys\.symbol\.chevron_right'\), this\.canGoNext/, 'ReaderChrome must keep previous/next navigation controls available')
+assert.match(readerChromeSource, /ModeMenu\(\)[\s\S]*ReaderMode\.SINGLE_PAGE[\s\S]*ReaderMode\.DUAL_PAGE[\s\S]*ReaderMode\.CONTINUOUS_SCROLL/, 'ReaderChrome must expose reader mode switching beyond previous and next page buttons')
+assert.match(readerChromeSource, /@Param\s+zoomScale:\s*number = 1[\s\S]*reader_action_reset_zoom[\s\S]*onResetZoom\(\)/, 'ReaderChrome must expose reset zoom when the reader is zoomed')
 assert.match(readerChromeSource, /@Event onDismissChrome: \(\) => void = \(\) => \{\}[\s\S]*private hideChrome\(\): void \{[\s\S]*this\.onDismissChrome\(\)[\s\S]*this\.\$visible\(false\)[\s\S]*private MiddleDismissSurface\(\)[\s\S]*Button\(\{ type: ButtonType\.Normal, stateEffect: false \}\)[\s\S]*\.backgroundColor\('#01000000'\)[\s\S]*\.hitTestBehavior\(HitTestMode\.Block\)[\s\S]*\.onClick\(\(\) => \{[\s\S]*this\.hideChrome\(\)[\s\S]*this\.MiddleDismissSurface\(\)/, 'ReaderChrome middle blank area must close chrome through a real transparent hit target instead of swallowing reader taps')
 assert.match(readerPageSource, /onDismissChrome: \(\) => \{[\s\S]*this\.activeChromeVisible = false[\s\S]*this\.\$chromeVisible\(false\)/, 'ReaderPage must bind ReaderChrome middle-dismiss clicks back to the parent chrome state')
 

@@ -12,6 +12,8 @@ export struct SecondaryListScaffold {
   @Param horizontalPadding: number = ThemeConstants.SPACE_MD
   @Param bottomPadding: number = ThemeConstants.SPACE_XL
   @Param includeKeyboardPadding: boolean = false
+  @Param reserveTitleBar: boolean = true
+  @Param reserveBottomViewport: boolean = true
   @Event onReachEnd?: () => void
   @Event onDidScroll?: (offset: number, state: ScrollState) => void
 
@@ -21,7 +23,7 @@ export struct SecondaryListScaffold {
         List({ space: this.listSpace, scroller: this.scroller }) {
           ListItem() {
             Column() {
-              Blank().height(this.safeArea.topAvoidHeight + ThemeConstants.TITLE_BAR_HEIGHT)
+              Blank().height(this.safeArea.topAvoidHeight + this.titleBarPadding())
             }
             .width('100%')
           }
@@ -39,8 +41,12 @@ export struct SecondaryListScaffold {
         .scrollBar(BarState.Off)
         .width('100%')
         .height('100%')
-        .padding({ left: this.horizontalPadding, right: this.horizontalPadding })
-        .clip(false)
+        .padding({
+          left: this.horizontalPadding,
+          right: this.horizontalPadding,
+          bottom: this.bottomViewportPadding(),
+        })
+        .clipContent(ContentClipMode.CONTENT_ONLY)
         .edgeEffect(EdgeEffect.None)
         .onDidScroll((_scrollOffset: number, scrollState: ScrollState) => {
           if (this.onDidScroll) {
@@ -61,6 +67,7 @@ export struct SecondaryListScaffold {
     }
     .width('100%')
     .height('100%')
+    .backgroundColor(ThemeConstants.BG_PRIMARY)
   }
 
   private keyboardPadding(): number {
@@ -68,5 +75,13 @@ export struct SecondaryListScaffold {
       return 0
     }
     return Math.max(0, this.safeArea.keyboardHeight)
+  }
+
+  private titleBarPadding(): number {
+    return this.reserveTitleBar ? ThemeConstants.TITLE_BAR_HEIGHT : 0
+  }
+
+  private bottomViewportPadding(): number {
+    return this.reserveBottomViewport ? this.bottomPadding : 0
   }
 }

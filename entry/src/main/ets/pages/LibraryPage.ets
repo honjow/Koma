@@ -1523,129 +1523,127 @@ export struct LibraryPage {
 
   @Builder
   private SortFilterBar() {
-    Flex({ wrap: FlexWrap.Wrap }) {
-      Row() {
-        Chip({
-          label: {
-            text: s('library_sort_chip').replace('%s', this.sortLabel()),
-            fontSize: ThemeConstants.FONT_SIZE_TAG,
-            fontColor: ThemeConstants.TEXT_PRIMARY,
-            activatedFontColor: ThemeConstants.TEXT_ON_BRAND,
-          },
-          activated: this.sortBy !== 'lastRead',
-          size: ChipSize.SMALL,
-          backgroundColor: $r('sys.color.ohos_id_color_button_normal'),
-          activatedBackgroundColor: ThemeConstants.BRAND_PRIMARY,
-          borderRadius: ThemeConstants.RADIUS_ROUND,
-          allowClose: false,
-        })
+    Scroll() {
+      Row({ space: ThemeConstants.SPACE_SM }) {
+        Row() {
+          Chip({
+            label: {
+              text: s('library_sort_chip').replace('%s', this.sortLabel()),
+              fontSize: ThemeConstants.FONT_SIZE_TAG,
+              fontColor: ThemeConstants.TEXT_PRIMARY,
+              activatedFontColor: ThemeConstants.TEXT_ON_BRAND,
+            },
+            activated: this.sortBy !== 'lastRead',
+            size: ChipSize.SMALL,
+            backgroundColor: $r('sys.color.ohos_id_color_button_normal'),
+            activatedBackgroundColor: ThemeConstants.BRAND_PRIMARY,
+            borderRadius: ThemeConstants.RADIUS_ROUND,
+            allowClose: false,
+          })
+        }
+        .bindMenu(this.SortMenu())
+        Row() {
+          Chip({
+            label: {
+              text: `${this.sourceLabel()} ▾`,
+              fontSize: ThemeConstants.FONT_SIZE_TAG,
+              fontColor: ThemeConstants.TEXT_PRIMARY,
+              activatedFontColor: ThemeConstants.TEXT_ON_BRAND,
+            },
+            activated: this.filterSource !== 'all',
+            size: ChipSize.SMALL,
+            backgroundColor: $r('sys.color.ohos_id_color_button_normal'),
+            activatedBackgroundColor: ThemeConstants.BRAND_PRIMARY,
+            borderRadius: ThemeConstants.RADIUS_ROUND,
+            allowClose: false,
+          })
+        }
+        .bindMenu(this.SourceMenu())
+        Row() {
+          Chip({
+            label: {
+              text: `${this.readStateLabel()} ▾`,
+              fontSize: ThemeConstants.FONT_SIZE_TAG,
+              fontColor: ThemeConstants.TEXT_PRIMARY,
+              activatedFontColor: ThemeConstants.TEXT_ON_BRAND,
+            },
+            activated: this.filterReadState !== 'all',
+            size: ChipSize.SMALL,
+            backgroundColor: $r('sys.color.ohos_id_color_button_normal'),
+            activatedBackgroundColor: ThemeConstants.BRAND_PRIMARY,
+            borderRadius: ThemeConstants.RADIUS_ROUND,
+            allowClose: false,
+          })
+        }
+        .bindMenu(this.ReadStateMenu())
+        Row() {
+          Chip({
+            label: {
+              text: `${this.availabilityLabel()} ▾`,
+              fontSize: ThemeConstants.FONT_SIZE_TAG,
+              fontColor: ThemeConstants.TEXT_PRIMARY,
+              activatedFontColor: ThemeConstants.TEXT_ON_BRAND,
+            },
+            activated: this.filterAvailability !== 'all',
+            size: ChipSize.SMALL,
+            backgroundColor: $r('sys.color.ohos_id_color_button_normal'),
+            activatedBackgroundColor: ThemeConstants.BRAND_PRIMARY,
+            borderRadius: ThemeConstants.RADIUS_ROUND,
+            allowClose: false,
+          })
+        }
+        .bindMenu(this.AvailabilityMenu())
+        Row() {
+          Chip({
+            label: {
+              text: `${this.metadataStatusLabel()} ▾`,
+              fontSize: ThemeConstants.FONT_SIZE_TAG,
+              fontColor: ThemeConstants.TEXT_PRIMARY,
+              activatedFontColor: ThemeConstants.TEXT_ON_BRAND,
+            },
+            activated: this.filterMetadataStatus !== 'all',
+            size: ChipSize.SMALL,
+            backgroundColor: $r('sys.color.ohos_id_color_button_normal'),
+            activatedBackgroundColor: ThemeConstants.BRAND_PRIMARY,
+            borderRadius: ThemeConstants.RADIUS_ROUND,
+            allowClose: false,
+          })
+        }
+        .bindMenu(this.MetadataStatusMenu())
+        Row() {
+          Chip({
+            label: {
+              text: `${this.categoryLabel()} ▾`,
+              fontSize: ThemeConstants.FONT_SIZE_TAG,
+              fontColor: ThemeConstants.TEXT_PRIMARY,
+              activatedFontColor: ThemeConstants.TEXT_ON_BRAND,
+            },
+            activated: this.filterCategory !== 'all',
+            size: ChipSize.SMALL,
+            backgroundColor: $r('sys.color.ohos_id_color_button_normal'),
+            activatedBackgroundColor: ThemeConstants.BRAND_PRIMARY,
+            borderRadius: ThemeConstants.RADIUS_ROUND,
+            allowClose: false,
+          })
+        }
+        .bindMenu(this.CategoryMenu())
+        if (this.hasActiveFilters()) {
+          KomaActionButton({
+            label: s('common_reset'),
+            kind: 'ghost',
+            compact: true,
+            controlHeight: ThemeConstants.ACTION_CHIP_HEIGHT,
+            action: () => {
+              this.resetFilters()
+            },
+          })
+        }
       }
-      .margin({ right: ThemeConstants.SPACE_SM, bottom: ThemeConstants.SPACE_SM })
-      .bindMenu(this.SortMenu())
-      Row() {
-        Chip({
-          label: {
-            text: `${this.sourceLabel()} ▾`,
-            fontSize: ThemeConstants.FONT_SIZE_TAG,
-            fontColor: ThemeConstants.TEXT_PRIMARY,
-            activatedFontColor: ThemeConstants.TEXT_ON_BRAND,
-          },
-          activated: this.filterSource !== 'all',
-          size: ChipSize.SMALL,
-          backgroundColor: $r('sys.color.ohos_id_color_button_normal'),
-          activatedBackgroundColor: ThemeConstants.BRAND_PRIMARY,
-          borderRadius: ThemeConstants.RADIUS_ROUND,
-          allowClose: false,
-        })
-      }
-      .margin({ right: ThemeConstants.SPACE_SM, bottom: ThemeConstants.SPACE_SM })
-      .bindMenu(this.SourceMenu())
-      Row() {
-        Chip({
-          label: {
-            text: `${this.readStateLabel()} ▾`,
-            fontSize: ThemeConstants.FONT_SIZE_TAG,
-            fontColor: ThemeConstants.TEXT_PRIMARY,
-            activatedFontColor: ThemeConstants.TEXT_ON_BRAND,
-          },
-          activated: this.filterReadState !== 'all',
-          size: ChipSize.SMALL,
-          backgroundColor: $r('sys.color.ohos_id_color_button_normal'),
-          activatedBackgroundColor: ThemeConstants.BRAND_PRIMARY,
-          borderRadius: ThemeConstants.RADIUS_ROUND,
-          allowClose: false,
-        })
-      }
-      .margin({ right: ThemeConstants.SPACE_SM, bottom: ThemeConstants.SPACE_SM })
-      .bindMenu(this.ReadStateMenu())
-      Row() {
-        Chip({
-          label: {
-            text: `${this.availabilityLabel()} ▾`,
-            fontSize: ThemeConstants.FONT_SIZE_TAG,
-            fontColor: ThemeConstants.TEXT_PRIMARY,
-            activatedFontColor: ThemeConstants.TEXT_ON_BRAND,
-          },
-          activated: this.filterAvailability !== 'all',
-          size: ChipSize.SMALL,
-          backgroundColor: $r('sys.color.ohos_id_color_button_normal'),
-          activatedBackgroundColor: ThemeConstants.BRAND_PRIMARY,
-          borderRadius: ThemeConstants.RADIUS_ROUND,
-          allowClose: false,
-        })
-      }
-      .margin({ right: ThemeConstants.SPACE_SM, bottom: ThemeConstants.SPACE_SM })
-      .bindMenu(this.AvailabilityMenu())
-      Row() {
-        Chip({
-          label: {
-            text: `${this.metadataStatusLabel()} ▾`,
-            fontSize: ThemeConstants.FONT_SIZE_TAG,
-            fontColor: ThemeConstants.TEXT_PRIMARY,
-            activatedFontColor: ThemeConstants.TEXT_ON_BRAND,
-          },
-          activated: this.filterMetadataStatus !== 'all',
-          size: ChipSize.SMALL,
-          backgroundColor: $r('sys.color.ohos_id_color_button_normal'),
-          activatedBackgroundColor: ThemeConstants.BRAND_PRIMARY,
-          borderRadius: ThemeConstants.RADIUS_ROUND,
-          allowClose: false,
-        })
-      }
-      .margin({ right: ThemeConstants.SPACE_SM, bottom: ThemeConstants.SPACE_SM })
-      .bindMenu(this.MetadataStatusMenu())
-      Row() {
-        Chip({
-          label: {
-            text: `${this.categoryLabel()} ▾`,
-            fontSize: ThemeConstants.FONT_SIZE_TAG,
-            fontColor: ThemeConstants.TEXT_PRIMARY,
-            activatedFontColor: ThemeConstants.TEXT_ON_BRAND,
-          },
-          activated: this.filterCategory !== 'all',
-          size: ChipSize.SMALL,
-          backgroundColor: $r('sys.color.ohos_id_color_button_normal'),
-          activatedBackgroundColor: ThemeConstants.BRAND_PRIMARY,
-          borderRadius: ThemeConstants.RADIUS_ROUND,
-          allowClose: false,
-        })
-      }
-      .margin({ right: ThemeConstants.SPACE_SM, bottom: ThemeConstants.SPACE_SM })
-      .bindMenu(this.CategoryMenu())
-      if (this.hasActiveFilters()) {
-        KomaActionButton({
-          label: s('common_reset'),
-          kind: 'ghost',
-          compact: true,
-          controlHeight: ThemeConstants.ACTION_CHIP_HEIGHT,
-          action: () => {
-            this.resetFilters()
-          },
-        })
-          .margin({ right: ThemeConstants.SPACE_SM, bottom: ThemeConstants.SPACE_SM })
-      }
+      .width('auto')
     }
     .width('100%')
+    .scrollable(ScrollDirection.Horizontal)
+    .scrollBar(BarState.Off)
   }
 
   @Builder

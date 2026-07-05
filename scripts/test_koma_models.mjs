@@ -168,9 +168,9 @@ function assertUsesScrollContentSafeArea(source, label) {
 }
 
 function assertSourceBrowseFloatingTabViewportClearance(source) {
-  assert.match(source, /bottomContentInset\(\): number \{[\s\S]*this\.safeArea\.bottomAvoidHeight[\s\S]*ThemeConstants\.FLOAT_BAR_HEIGHT/, 'SourceBrowsePage must keep bottomContentInset for scroll-end clearance')
-  assert.match(source, /bottomFloatingTabViewportClearance\(\): number \{[\s\S]*return this\.bottomContentInset\(\)/, 'SourceBrowsePage must expose a named floating tab viewport clearance')
-  assert.match(source, /Scroll\(\)[\s\S]*\.padding\(\{\s*bottom:\s*this\.bottomFloatingTabViewportClearance\(\)\s*\}\)[\s\S]*\.clipContent\(ContentClipMode\.CONTENT_ONLY\)/, 'SourceBrowsePage scroll viewport must reserve and clip bottom content above floating tab chrome')
+  assert.match(source, /import \{ SecondaryListScaffold \} from '\.\.\/components\/SecondaryListScaffold'/, 'SourceBrowsePage must use the shared safe-area list scaffold')
+  assert.match(source, /SecondaryListScaffold\(\{[\s\S]*bottomPadding:\s*ThemeConstants\.FLOAT_BAR_HEIGHT \+ 20[\s\S]*onReachEnd:[\s\S]*this\.viewModel\.loadMoreBrowse\(\)/, 'SourceBrowsePage must reserve bottom chrome space through the shared scaffold')
+  assert.doesNotMatch(source, /bottomFloatingTabViewportClearance\(\)/, 'SourceBrowsePage must not keep a page-local floating-tab padding workaround')
   assert.doesNotMatch(source, /\.expandSafeArea\(/, 'SourceBrowsePage must not change reader-style immersive safe-area expansion')
 }
 
@@ -554,8 +554,10 @@ assert.match(entryAbilitySource, /navigationBarColor:\s*TRANSPARENT_COLOR/, 'Ent
 assert.match(indexSource, /\.ignoreLayoutSafeArea\(\s*\[\s*LayoutSafeAreaType\.SYSTEM\s*\][\s\S]*\[LayoutSafeAreaEdge\.TOP,\s*LayoutSafeAreaEdge\.BOTTOM\]/, 'root shell must continue drawing under system safe areas')
 assert.match(indexSource, /\.expandSafeArea\(\[SafeAreaType\.SYSTEM\], \[SafeAreaEdge\.TOP, SafeAreaEdge\.BOTTOM\]\)/, 'root shell must preserve immersive safe-area expansion')
 assert.doesNotMatch(indexSource, /HdsNavigation\(this\.appPathStack\)[\s\S]*\.(padding|margin)\(/, 'root app shell must not use root padding or margin to avoid safe areas')
-assert.match(secondaryListScaffoldSource, /Blank\(\)\.height\(this\.safeArea\.topAvoidHeight \+ ThemeConstants\.TITLE_BAR_HEIGHT\)/, 'shared list scaffold must include an internal top spacer')
+assert.match(secondaryListScaffoldSource, /Blank\(\)\.height\(this\.safeArea\.topAvoidHeight \+ this\.titleBarPadding\(\)\)/, 'shared list scaffold must include an internal top spacer')
 assert.match(secondaryListScaffoldSource, /Blank\(\)\.height\(this\.safeArea\.bottomAvoidHeight \+ this\.bottomPadding \+ this\.keyboardPadding\(\)\)/, 'shared list scaffold must include an internal bottom spacer')
+assert.match(secondaryListScaffoldSource, /reserveTitleBar: boolean = true[\s\S]*titleBarPadding\(\): number[\s\S]*this\.reserveTitleBar \? ThemeConstants\.TITLE_BAR_HEIGHT : 0/, 'shared list scaffold must let nested navigation destinations skip the title spacer')
+assert.match(secondaryListScaffoldSource, /reserveBottomViewport: boolean = true[\s\S]*bottomViewportPadding\(\): number[\s\S]*this\.reserveBottomViewport \? this\.bottomPadding : 0/, 'shared list scaffold must reserve floating chrome in the viewport, not only at scroll end')
 for (const [source, label] of [
   [libraryPageSource, 'LibraryPage'],
   [browsePageSource, 'BrowsePage'],
@@ -564,18 +566,30 @@ for (const [source, label] of [
   [settingsPageSource, 'SettingsPage'],
   [libraryUpdateResultPageSource, 'LibraryUpdateResultPage'],
   [libraryCategoryManagementPageSource, 'LibraryCategoryManagementPage'],
+  [sourceBrowsePageSource, 'SourceBrowsePage'],
+  [mangaDetailPageSource, 'MangaDetailPage'],
 ]) {
   assertUsesSecondaryListSafeArea(source, label)
 }
 for (const [source, label] of [
   [importPageSource, 'ImportPage'],
-  [sourceBrowsePageSource, 'SourceBrowsePage'],
   [sourceSearchPageSource, 'SourceSearchPage'],
-  [mangaDetailPageSource, 'MangaDetailPage'],
 ]) {
   assertUsesScrollContentSafeArea(source, label)
 }
 assertSourceBrowseFloatingTabViewportClearance(sourceBrowsePageSource)
+assert.doesNotMatch(sourceBrowsePageSource, /SecondaryListScaffold\(\{[\s\S]*reserveTitleBar:\s*false/, 'SourceBrowsePage must keep the shared title spacer when its parent hides the nested title bar')
+assert.match(
+  browsePageSource,
+  /SourceBrowsePage\(\{[\s\S]*onBack:\s*\(\) => \{[\s\S]*this\.browsePathStack\.pop\(false\)[\s\S]*\}\s*,[\s\S]*\}\)[\s\S]*\}\s*\n\s*\.title\(\(param as SourceRouteParam\)\.source\.displayName\)[\s\S]*\.hideTitleBar\(true\)/,
+  'BrowsePage must hide the nested source title bar and let SourceBrowsePage own its visible back/header row',
+)
+assert.match(
+  sourceBrowsePageSource,
+  /@Event onBack:[\s\S]*KomaIconButton\(\{[\s\S]*sys\.symbol\.chevron_left[\s\S]*this\.onBack\(\)/,
+  'SourceBrowsePage must expose an in-content back affordance when the nested title bar is hidden',
+)
+assert.match(mangaDetailPageSource, /SecondaryListScaffold\(\{[\s\S]*reserveTitleBar:\s*false/, 'MangaDetailPage must skip root title spacer inside its HdsNavDestination')
 assert.match(
   sourceBrowsePageSource,
   /listingForHomeSection\(section: SourceHomeSectionState\): SourceListingDescriptor \| undefined[\s\S]*section\.listingId[\s\S]*this\.viewModel\.listings\.find[\s\S]*openHomeSectionListing\(section: SourceHomeSectionState\)[\s\S]*this\.viewModel\.selectBrowseListing\(listing\)[\s\S]*HomeSection\(section: SourceHomeSectionState\)[\s\S]*s\('browse_section_open_listing'\)[\s\S]*this\.openHomeSectionListing\(section\)/,
@@ -874,6 +888,11 @@ assert.match(
   libraryPageSource,
   /@Local private listDensity: LibraryListDensity = 'standard'[\s\S]*this\.listDensity = preferencesValue\.listDensity[\s\S]*listDensity: this\.listDensity[\s\S]*libraryGridColumnsTemplate\(\)[\s\S]*'1fr 1fr 1fr 1fr'[\s\S]*'1fr 1fr'[\s\S]*columnsTemplate\(this\.libraryGridColumnsTemplate\(\)\)[\s\S]*Column\(\{ space: this\.libraryListSpace\(\) \}/,
   'LibraryPage must restore, persist, and apply density to grid/list layout',
+)
+assert.match(
+  libraryPageSource,
+  /private SortFilterBar\(\)[\s\S]*Scroll\(\) \{[\s\S]*Row\(\{ space: ThemeConstants\.SPACE_SM \}\)[\s\S]*\.scrollable\(ScrollDirection\.Horizontal\)[\s\S]*\.scrollBar\(BarState\.Off\)/,
+  'LibraryPage filter controls must stay in one horizontal strip instead of wrapping into a tall multi-row block',
 )
 assert.match(
   libraryPageSource,
@@ -1549,6 +1568,11 @@ assert.match(
   'ComicCoverCard must receive primitive reactive props for grid cells so reused card instances update after remove/reorder',
 )
 assert.match(
+  comicCoverCardSource,
+  /displayCoverUri\(\): string[\s\S]*this\.comic\.coverUri[\s\S]*Image\(this\.displayCoverUri\(\)\)[\s\S]*objectFit\(ImageFit\.Cover\)/,
+  'ComicCoverCard must render a real coverUri image before falling back to the generated placeholder',
+)
+assert.match(
   libraryPageSource,
   /struct ContinueReadingShelfCard \{[\s\S]*@Param info: ContinueReadingCardViewModel[\s\S]*@Param revision: number[\s\S]*Text\(this\.info\.title\)[\s\S]*onOpenReader\(this\.info\.comicId\)/,
   'Continue Reading must render through reactive props so the live title changes when the first/latest comic is removed',
@@ -1600,7 +1624,7 @@ assert.match(
 )
 assert.match(
   readerPageSourceAdapterSource,
-  /headersRef\?: string[\s\S]*cacheKey\?: string[\s\S]*requiresAuth\?: boolean[\s\S]*sourceImageCacheKeySeed\(sourceRuntimeId: string, pageId: string, payload: SourceRuntimeImageRequestDescriptor\)[\s\S]*source:\$\{sourceRuntimeId\}:image:\$\{cacheKey\}[\s\S]*source:\$\{sourceRuntimeId\}:image-ref:\$\{headersRef\}:\$\{pageId\}[\s\S]*payload\.requiresAuth === true && headersRef === undefined[\s\S]*reason=missing_headers_ref[\s\S]*fetchAndCacheReaderRemoteImage\(resolved\.url, resolved\.headers, resolved\.cacheKeySeed\)/,
+  /headersRef\?: string[\s\S]*cacheKey\?: string[\s\S]*requiresAuth\?: boolean[\s\S]*sourceImageCacheKeySeed\(sourceRuntimeId: string, pageId: string, payload: SourceRuntimeImageRequestDescriptor\)[\s\S]*source:\$\{sourceRuntimeId\}:image:\$\{cacheKey\}[\s\S]*source:\$\{sourceRuntimeId\}:image-ref:\$\{headersRef\}:\$\{pageId\}[\s\S]*payload\.requiresAuth === true && \(headersRef === undefined \|\| hostHeaders === undefined\)[\s\S]*reason=missing_headers_ref[\s\S]*fetchAndCacheReaderRemoteImage\(resolved\.url, resolved\.headers, resolved\.cacheKeySeed\)/,
   'ReaderPageSourceAdapter must honor source image cache keys and fail closed when auth is requested without a host-owned headersRef',
 )
 assert.match(
@@ -1860,6 +1884,11 @@ assert.match(
   'Manga detail normalization must decode source-provided description text',
 )
 assert.match(
+  mangaDetailModelsSource,
+  /coverUrl:\s*firstSourceString\(\[[\s\S]*optionalSourceString\(item\['cover_url'\]\)[\s\S]*optionalSourceString\(item\['coverUrl'\]\)[\s\S]*nestedSourceString\(item, 'cover', 'url'\)[\s\S]*nestedSourceString\(item, 'cover', 'uri'\)/,
+  'Manga detail normalization must preserve nested cover.url and cover.uri from source detail responses',
+)
+assert.match(
   mangaDescriptionSectionSource,
   /@Param\s+description:\s*string\s*\|\s*undefined\s*=\s*undefined[\s\S]*private normalizedDescription\(\): string \{[\s\S]*this\.description\?\.trim\(\) \?\? ''[\s\S]*private hasDescription\(\): boolean \{[\s\S]*this\.normalizedDescription\(\)\.length > 0/,
   'Manga description UI must tolerate source detail records without descriptions',
@@ -1927,8 +1956,8 @@ assert.match(
 )
 assert.match(
   mangaDetailPageSource,
-  /onOpenChapter:[\s\S]*ensureSourceChapterPages\(chapterId\)[\s\S]*\.then\(\(hydrated: boolean\) => \{[\s\S]*if \(hydrated\) \{[\s\S]*this\.onOpenReader\(this\.currentComicId\(\), chapterId\)[\s\S]*\} else \{[\s\S]*manga_detail_chapter_pages_load_failed/,
-  'MangaDetailPage chapter row open must wait for successful source page hydration before opening Reader',
+  /handleOpenChapter\(chapterId: string\): Promise<void> \{[\s\S]*!this\.isInLibrary && this\.manga\.sourceId !== undefined[\s\S]*const added = await this\.handleAddToLibrary\(\)[\s\S]*const hydrated = await this\.ensureSourceChapterPages\(chapterId\)[\s\S]*if \(!hydrated\) \{[\s\S]*manga_detail_chapter_pages_load_failed[\s\S]*return[\s\S]*this\.onOpenReader\(this\.currentComicId\(\), chapterId\)[\s\S]*onOpenChapter:[\s\S]*this\.handleOpenChapter\(chapterId\)/,
+  'MangaDetailPage chapter row open must add source manga to the library, hydrate pages, and only then open Reader',
 )
 assert.match(
   mangaDetailPageSource,
@@ -1979,6 +2008,16 @@ assert.match(
   chapterListSectionSource,
   /EmptyChapters\(\)[\s\S]*chapter_list_empty_title[\s\S]*chapter_list_filtered_empty_title[\s\S]*showAction: this\.chapters\.length > 0 && this\.hasActiveFilters\(\)[\s\S]*this\.resetFilters\(\)[\s\S]*if \(this\.sortedChapters\.length === 0\) \{[\s\S]*this\.EmptyChapters\(\)/,
   'ChapterListSection must show an empty state for zero or fully filtered chapter lists',
+)
+assert.doesNotMatch(
+  chapterListSectionSource,
+  /List\(\)[\s\S]*LazyForEach\(this\.dataSource/,
+  'ChapterListSection must not nest a fixed-height List inside the detail page scroll',
+)
+assert.match(
+  chapterListSectionSource,
+  /Column\(\)[\s\S]*ForEach\(this\.sortedChapters[\s\S]*this\.ChapterRow\(chapter\)[\s\S]*Divider\(\)/,
+  'ChapterListSection must render visible chapters in the parent detail scroll with row dividers',
 )
 assert.match(
   chapterListSectionSource,
@@ -2288,12 +2327,12 @@ assert.match(
 )
 assert.match(
   readerPageSource,
-  /currentDisplayEntries\(\): ReaderPageDisplayEntry\[\][\s\S]*readerDisplayEntries\(this\.currentReaderMode\(\)\)[\s\S]*isSplitDisplayNavigationMode\(\): boolean[\s\S]*readerMode !== ReaderMode\.DUAL_PAGE && this\.wideImageMode === 'split_wide_pages'[\s\S]*canGoNextPage\(\)[\s\S]*this\.readerDisplayIndex < this\.currentDisplayEntries\(\)\.length - 1[\s\S]*previousPage\(\)[\s\S]*this\.setReaderDisplayEntryIndex\(this\.readerDisplayIndex - 1, this\.currentReaderMode\(\)\)[\s\S]*nextPage\(\)[\s\S]*this\.setReaderDisplayEntryIndex\(this\.readerDisplayIndex \+ 1, this\.currentReaderMode\(\)\)/,
+  /currentDisplayEntries\(\): ReaderPageDisplayEntry\[\][\s\S]*readerDisplayEntries\(this\.currentReaderMode\(\)\)[\s\S]*isSplitDisplayNavigationMode\(\): boolean[\s\S]*readerMode !== ReaderMode\.DUAL_PAGE && this\.wideImageMode === 'split_wide_pages'[\s\S]*canGoNextPage\(\)[\s\S]*this\.readerDisplayIndex < this\.currentDisplayEntries\(\)\.length - 1[\s\S]*previousPage\(\)[\s\S]*const displayIndex = this\.currentLinearDisplayIndex\(readerMode\)[\s\S]*this\.setReaderDisplayEntryIndex\(displayIndex - 1, readerMode, true\)[\s\S]*nextPage\(\)[\s\S]*this\.setReaderDisplayEntryIndex\(displayIndex \+ 1, readerMode, true\)/,
   'ReaderPage split navigation must use current display entries so Webtoon split halves are not skipped',
 )
 assert.match(
   readerPageSource,
-  /WebtoonReader\(\)[\s\S]*ForEach\(this\.webtoonDisplayEntries\(\), \(entry: ReaderPageDisplayEntry, displayIndex: number\)[\s\S]*this\.readerDisplayIndex = displayIndex[\s\S]*onVisibleAreaChange[\s\S]*displayIndex !== this\.readerDisplayIndex[\s\S]*this\.readerDisplayIndex = displayIndex[\s\S]*onScrollIndex[\s\S]*start !== this\.readerDisplayIndex[\s\S]*this\.readerDisplayIndex = start/,
+  /ContinuousReaderViewport\(\)[\s\S]*ForEach\(this\.webtoonDisplayEntries\(\), \(entry: ReaderPageDisplayEntry, displayIndex: number\)[\s\S]*onVisibleAreaChange[\s\S]*displayIndex !== this\.readerDisplayIndex[\s\S]*this\.readerDisplayIndex = displayIndex[\s\S]*onScrollIndex[\s\S]*start !== this\.readerDisplayIndex[\s\S]*this\.readerDisplayIndex = start/,
   'ReaderPage Webtoon split rendering must keep readerDisplayIndex aligned with the visible split half',
 )
 assert.match(

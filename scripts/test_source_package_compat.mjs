@@ -410,6 +410,11 @@ assert.match(
 )
 assert.match(
   browseViewModelSource,
+  /sourceItemCoverUrl\(item: RuntimeRecord\): string \| undefined[\s\S]*optionalString\(item\['cover_url'\]\)[\s\S]*optionalString\(item\['coverUrl'\]\)[\s\S]*itemRecord\(item\['cover'\]\)[\s\S]*optionalString\(cover\['url'\]\)/,
+  'BrowseViewModel must preserve source cover URLs from snake_case, camelCase, and cover object payloads',
+)
+assert.match(
+  browseViewModelSource,
   /loadSourceListings\(source: SourceRuntimeRegistryInstalledSourceSummary\)[\s\S]*runSourceOperationResponse\(source\.sourceId, 'get_listings'[\s\S]*defaultListings\(\)/,
   'BrowseViewModel must load runtime listings and keep a safe popular/latest fallback',
 )

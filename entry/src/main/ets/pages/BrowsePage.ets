@@ -329,9 +329,13 @@ export struct BrowsePage {
           onMangaTap: (manga: SourceManga) => {
             RouterHelper.pushMangaDetail({ mangaId: manga.id, sourceId: manga.sourceId })
           },
+          onBack: () => {
+            this.browsePathStack.pop(false)
+          },
         })
       }
       .title((param as SourceRouteParam).source.displayName)
+      .hideTitleBar(true)
     } else if (name === SOURCE_SEARCH_ROUTE_NAME) {
       NavDestination() {
         SourceSearchPage({
