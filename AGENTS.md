@@ -4,7 +4,7 @@ Index only. Open the relevant guide for the current task.
 
 ## Always Read First
 
-- [Koma agent rules](docs/agent-guides/koma-rules.md) — 项目方向、设备/签名、artifact 规范、删除边界。
+- [Koma agent rules](docs/agent-guides/koma-rules.md) — 项目方向、执行纪律、设备/签名、artifact 规范、删除边界。
 
 ## Product & Planning
 
