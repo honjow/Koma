@@ -2272,6 +2272,11 @@ assert.match(
   'ReaderPage must wire ReaderChrome page seeking to the active reader viewport for split, dual, single, and continuous modes',
 )
 assert.match(
+  readerPageSource,
+  /singlePageWidth\(\): string \{[\s\S]*this\.imageFitMode === 'fit_width'[\s\S]*return '100%'[\s\S]*return '88%'[\s\S]*singlePageMaxWidth\(\): number \{[\s\S]*this\.imageFitMode === 'fit_width'[\s\S]*return 4096[\s\S]*return 980[\s\S]*webtoonPageWidth\(\): string \{[\s\S]*this\.imageFitMode === 'fit_width'[\s\S]*return '100%'[\s\S]*return '88%'[\s\S]*webtoonPageMaxWidth\(\): number \{[\s\S]*this\.imageFitMode === 'fit_width'[\s\S]*return 4096[\s\S]*return 980/,
+  'ReaderPage image fit preference must visibly affect single-page and continuous-scroll page width instead of leaving both modes at 100%',
+)
+assert.match(
   trackerProgressSyncServiceSource,
   /pushReadingProgress\([\s\S]*trigger: TrackerUpdateStrategy = 'on_chapter_complete'[\s\S]*if \(trigger !== 'manual' && !preferences\.autoSyncEnabled\)[\s\S]*return this\.skipped\('auto_sync_disabled'\)/,
   'Tracker manual progress sync must bypass the automatic-sync toggle while automatic reader triggers still respect it',
