@@ -13,14 +13,21 @@ query="${KOMA_SOURCE_READER_QUERY:-Salt Friend}"
 phase="${KOMA_SOURCE_READER_PHASE:-source-index-visible-reader}"
 capture_ui="${KOMA_SOURCE_READER_CAPTURE_UI:-true}"
 offline_download_visible_phase="source-index-visible-offline-download-reader"
+local_source_package_visible_phase="local-source-package-visible-reader"
 requires_index="${KOMA_SOURCE_READER_REQUIRES_INDEX:-true}"
-if [ "$phase" = "real-source-visible-reader" ]; then
+if [ "$phase" = "real-source-visible-reader" ] || [ "$phase" = "$local_source_package_visible_phase" ]; then
   requires_index="false"
 fi
 dist_dir="${KOMA_SOURCES_DIST:-$repo/../koma-sources/dist}"
 port="${KOMA_SOURCE_INDEX_PORT:-8765}"
 index_url="${KOMA_SOURCE_INDEX_URL:-}"
 host_ip="${KOMA_SOURCE_INDEX_HOST:-}"
+source_package_path="${KOMA_SOURCE_PACKAGE_PATH:-}"
+source_package_file="${KOMA_SOURCE_PACKAGE_FILE:-}"
+source_package_base64="${KOMA_SOURCE_PACKAGE_BASE64:-}"
+source_package_rawfile="${KOMA_SOURCE_PACKAGE_RAWFILE:-test/source-smoke-package.koma}"
+source_package_rawfile_path=""
+temp_source_package_rawfile=""
 artifact_dir="${KOMA_SOURCE_READER_ARTIFACT_DIR:-.hvigor/outputs/source-reader-smoke}"
 remote_smoke_result="${KOMA_SOURCE_READER_REMOTE_RESULT:-/data/app/el2/100/base/com.honjow.koma/haps/entry/files/source-runtime-smoke-result.json}"
 
@@ -51,6 +58,22 @@ if [ "$requires_index" = "true" ] && [ ! -f "$dist_dir/index.json" ]; then
   echo "source reader smoke failed: missing source index at $dist_dir/index.json" >&2
   exit 1
 fi
+if [ "$phase" = "$local_source_package_visible_phase" ]; then
+  if [ -z "$source_package_path" ]; then
+    echo "source reader smoke failed: set KOMA_SOURCE_PACKAGE_PATH for $local_source_package_visible_phase" >&2
+    exit 1
+  fi
+  if [ ! -f "$source_package_path" ]; then
+    echo "source reader smoke failed: source package not found: $source_package_path" >&2
+    exit 1
+  fi
+  if [ -z "$source_package_file" ]; then
+    source_package_file="$(basename "$source_package_path")"
+  fi
+  if [ -z "$source_package_base64" ]; then
+    source_package_rawfile_path="entry/src/main/resources/rawfile/$source_package_rawfile"
+  fi
+fi
 
 mkdir -p "$artifact_dir"
 smoke_result="$artifact_dir/source-runtime-smoke-result.json"
@@ -77,6 +100,9 @@ cleanup() {
   if [ -n "$server_pid" ]; then
     kill "$server_pid" 2>/dev/null || true
   fi
+  if [ -n "$temp_source_package_rawfile" ]; then
+    rm -f "$temp_source_package_rawfile" 2>/dev/null || true
+  fi
 }
 trap cleanup EXIT
 
@@ -95,6 +121,12 @@ hdc_target() {
   done
 }
 
+if [ "$phase" = "$local_source_package_visible_phase" ] && [ -n "$source_package_rawfile_path" ]; then
+  mkdir -p "$(dirname "$source_package_rawfile_path")"
+  cp "$source_package_path" "$source_package_rawfile_path"
+  temp_source_package_rawfile="$source_package_rawfile_path"
+fi
+
 "$hvigorw" --no-daemon --warn --mode module \
   -p product=default \
   -p buildMode=debug \
@@ -109,6 +141,9 @@ hdc_target shell aa start -a EntryAbility -b com.honjow.koma \
   --ps koma.sourceRuntimeSmoke run \
   --ps koma.sourceRuntimeSmoke.phase "$phase" \
   --ps koma.sourceRuntimeSmoke.indexUrl "$index_url" \
+  --ps koma.sourceRuntimeSmoke.packageFile "$source_package_file" \
+  --ps koma.sourceRuntimeSmoke.packageBase64 "$source_package_base64" \
+  --ps koma.sourceRuntimeSmoke.packageRawfile "$source_package_rawfile" \
   --ps koma.sourceRuntimeSmoke.sourceId "$source_id" \
   --ps koma.sourceRuntimeSmoke.query "$query"
 
@@ -133,6 +168,9 @@ if result.get('smokePhase') != phase:
     raise SystemExit('source reader smoke failed: phase mismatch')
 if result.get('sourceIndexReaderSelectedSourceId') != source_id:
     raise SystemExit('source reader smoke failed: source id mismatch')
+if phase == 'local-source-package-visible-reader':
+    if result.get('sourceIndexReaderPackageBytes', 0) <= 0:
+        raise SystemExit('source reader smoke failed: local source package was not read')
 if phase not in ('source-index-settings', 'source-index-browse') and result.get('sourceIndexReaderSearchQuery') != query:
     raise SystemExit('source reader smoke failed: query mismatch')
 if phase == 'source-index-settings':

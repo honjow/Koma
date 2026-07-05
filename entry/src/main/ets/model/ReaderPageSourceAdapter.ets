@@ -874,7 +874,7 @@ export function createReaderPageRenderSource(config: ReaderSessionConfig, pageIn
   let offlineDownloadSource: ReaderPageRenderSource | undefined = undefined
   if (options?.preferOffline !== false) {
     offlineDownloadSource = createReaderOfflineDownloadRenderSource(config, pageIndex)
-    if (offlineDownloadSource !== undefined) {
+    if (offlineDownloadSource !== undefined && offlineDownloadSource.kind !== ReaderPageRenderKind.URI_PLACEHOLDER) {
       return offlineDownloadSource
     }
   }
