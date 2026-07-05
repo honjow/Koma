@@ -97,6 +97,7 @@ export class ThemeConstants {
   static readonly ACTION_CHIP_HEIGHT: number = 36
   static readonly TOUCH_TARGET_SM: number = 36
   static readonly LOADING_SIZE_LARGE: number = 36
+  static readonly SOURCE_RESULT_GRID_COLUMNS: string = '1fr 1fr'
   static readonly LINE_HEIGHT_TITLE: number = 22
   static readonly LINE_HEIGHT_BODY: number = 20
 }

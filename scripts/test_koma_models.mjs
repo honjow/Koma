@@ -57,6 +57,8 @@ const kavitaBrowsePagePath = resolve(root, 'entry/src/main/ets/pages/KavitaBrows
 const opdsBrowsePagePath = resolve(root, 'entry/src/main/ets/pages/OpdsBrowsePage.ets')
 const webDavBrowsePagePath = resolve(root, 'entry/src/main/ets/pages/WebDavBrowsePage.ets')
 const sourceFilterControlsPath = resolve(root, 'entry/src/main/ets/components/SourceFilterControls.ets')
+const sourceListItemPath = resolve(root, 'entry/src/main/ets/components/SourceListItem.ets')
+const themeConstantsPath = resolve(root, 'entry/src/main/ets/theme/ThemeConstants.ets')
 const privacyPermissionsDocPath = resolve(root, 'docs/PRIVACY_AND_PERMISSIONS.md')
 const browseViewModelPath = resolve(root, 'entry/src/main/ets/viewmodel/BrowseViewModel.ets')
 const localImportCoordinatorPath = resolve(root, 'entry/src/main/ets/import/LocalImportCoordinator.ets')
@@ -134,6 +136,8 @@ const kavitaBrowsePageSource = readFileSync(kavitaBrowsePagePath, 'utf8')
 const opdsBrowsePageSource = readFileSync(opdsBrowsePagePath, 'utf8')
 const webDavBrowsePageSource = readFileSync(webDavBrowsePagePath, 'utf8')
 const sourceFilterControlsSource = readFileSync(sourceFilterControlsPath, 'utf8')
+const sourceListItemSource = readFileSync(sourceListItemPath, 'utf8')
+const themeConstantsSource = readFileSync(themeConstantsPath, 'utf8')
 const privacyPermissionsDocSource = readFileSync(privacyPermissionsDocPath, 'utf8')
 const browseViewModelSource = readFileSync(browseViewModelPath, 'utf8')
 const localImportCoordinatorSource = readFileSync(localImportCoordinatorPath, 'utf8')
@@ -564,6 +568,36 @@ assert.match(
   sourceBrowsePageSource,
   /retryBrowseError\(\): void \{[\s\S]*this\.hasBrowseContent\(\)[\s\S]*this\.viewModel\.loadMoreBrowse\(\)[\s\S]*this\.reloadBrowse\(\)[\s\S]*BrowseErrorState\(\)[\s\S]*common_retry[\s\S]*this\.retryBrowseError\(\)[\s\S]*KomaIconButton\(\{[\s\S]*sys\.symbol\.arrow_clockwise[\s\S]*isEnabled: !this\.viewModel\.loadingBrowse[\s\S]*this\.reloadBrowse\(\)/,
   'SourceBrowsePage must expose refresh plus content-aware retry controls for failed source browsing',
+)
+assert.match(
+  themeConstantsSource,
+  /static readonly SOURCE_RESULT_GRID_COLUMNS: string = '1fr 1fr'/,
+  'Source result grids must use the shared phone-safe two-column template instead of page-local hardcoded three-column layouts',
+)
+assert.match(
+  sourceBrowsePageSource,
+  /columnsTemplate\(ThemeConstants\.SOURCE_RESULT_GRID_COLUMNS\)[\s\S]*columnsGap\(ThemeConstants\.SPACE_MD\)[\s\S]*rowsGap\(ThemeConstants\.SPACE_LG\)/,
+  'SourceBrowsePage manga grid must use the shared source result grid token',
+)
+assert.match(
+  sourceSearchPageSource,
+  /columnsTemplate\(ThemeConstants\.SOURCE_RESULT_GRID_COLUMNS\)[\s\S]*columnsGap\(ThemeConstants\.SPACE_MD\)[\s\S]*rowsGap\(ThemeConstants\.SPACE_LG\)/,
+  'SourceSearchPage result grid must use the shared source result grid token',
+)
+assert.match(
+  sourceListItemSource,
+  /@Event onSourceSearch[\s\S]*KomaIconButton\(\{[\s\S]*sys\.symbol\.magnifyingglass[\s\S]*this\.onSourceSearch\(this\.source\)/,
+  'SourceListItem must expose a direct source search button instead of forcing users through browse first',
+)
+assert.match(
+  browsePageSource,
+  /openSourceSearch\(source: SourceRuntimeRegistryInstalledSourceSummary\): void \{[\s\S]*RouterHelper\.pushSourceSearch\(\{ source: source \}\)[\s\S]*SourceListItem\(\{[\s\S]*onSourceTap:[\s\S]*this\.openSource\(selected\)[\s\S]*onSourceSearch:[\s\S]*this\.openSourceSearch\(selected\)/,
+  'BrowsePage source rows must wire direct source search into the SourceSearch route',
+)
+assert.doesNotMatch(
+  `${sourceBrowsePageSource}\n${sourceSearchPageSource}`,
+  /columnsTemplate\('1fr 1fr 1fr'\)/,
+  'Source browse/search result grids must not regress to hardcoded three-column phone layouts',
 )
 
 assert.match(

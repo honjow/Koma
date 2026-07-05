@@ -242,7 +242,7 @@ export struct SourceBrowsePage {
       }, (item: SourceManga) => `${item.sourceId}:${item.id}`)
     }
     .width('100%')
-    .columnsTemplate('1fr 1fr 1fr')
+    .columnsTemplate(ThemeConstants.SOURCE_RESULT_GRID_COLUMNS)
     .columnsGap(ThemeConstants.SPACE_MD)
     .rowsGap(ThemeConstants.SPACE_LG)
     .cachedCount(12)

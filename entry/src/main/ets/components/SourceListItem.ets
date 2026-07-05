@@ -1,5 +1,6 @@
 import { SourceRuntimeRegistryInstalledSourceSummary } from '../sourceRuntime/SourceRuntimeRegistry'
 import { ThemeConstants } from '../theme/ThemeConstants'
+import { KomaIconButton } from './ui/KomaIconButton'
 
 @ComponentV2
 export struct SourceListItem {
@@ -19,6 +20,8 @@ export struct SourceListItem {
   }
   @Param languageBadge: string = 'SRC'
   @Event onSourceTap: (source: SourceRuntimeRegistryInstalledSourceSummary) => void =
+    (_source: SourceRuntimeRegistryInstalledSourceSummary) => {}
+  @Event onSourceSearch: (source: SourceRuntimeRegistryInstalledSourceSummary) => void =
     (_source: SourceRuntimeRegistryInstalledSourceSummary) => {}
 
   private sourceInitial(): string {
@@ -70,6 +73,17 @@ export struct SourceListItem {
       }
       .layoutWeight(1)
       .alignItems(HorizontalAlign.Start)
+
+      KomaIconButton({
+        icon: $r('sys.symbol.magnifyingglass'),
+        kind: 'secondary',
+        controlSize: ThemeConstants.TOUCH_TARGET_SM,
+        iconSize: ThemeConstants.FONT_SIZE_HEADING,
+        accentColor: ThemeConstants.BRAND_PRIMARY,
+        action: () => {
+          this.onSourceSearch(this.source)
+        },
+      })
 
       SymbolGlyph($r('sys.symbol.chevron_right'))
         .fontSize(ThemeConstants.FONT_SIZE_HEADING)

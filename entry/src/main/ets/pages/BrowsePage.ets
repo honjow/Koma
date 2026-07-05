@@ -296,6 +296,9 @@ export struct BrowsePage {
           onSourceTap: (selected: SourceRuntimeRegistryInstalledSourceSummary) => {
             this.openSource(selected)
           },
+          onSourceSearch: (selected: SourceRuntimeRegistryInstalledSourceSummary) => {
+            this.openSourceSearch(selected)
+          },
         })
       }
     }, (source: SourceRuntimeRegistryInstalledSourceSummary) => source.sourceId)
