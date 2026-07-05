@@ -128,6 +128,7 @@ const SMOKE_PACKAGE_FILE_PARAM: string = 'koma.sourceRuntimeSmoke.packageFile'
 const SMOKE_PACKAGE_BASE64_PARAM: string = 'koma.sourceRuntimeSmoke.packageBase64'
 const SMOKE_PACKAGE_RAWFILE_PARAM: string = 'koma.sourceRuntimeSmoke.packageRawfile'
 const SMOKE_WIDE_IMAGE_URL_PARAM: string = 'koma.sourceRuntimeSmoke.wideImageUrl'
+const SMOKE_WIDE_IMAGE_RAWFILE_PARAM: string = 'koma.sourceRuntimeSmoke.wideImageRawfile'
 const SMOKE_PHASE_FULL: string = 'full'
 const SMOKE_PHASE_SETUP_PERSISTED_INVENTORY: string = 'setup-persisted-inventory'
 const SMOKE_PHASE_RELOAD_PERSISTED_INVENTORY: string = 'reload-persisted-inventory'
@@ -158,6 +159,7 @@ const LOCAL_LIBRARY_FOLDER_SMOKE_FILE_NAME: string = 'local-library-folder-smoke
 const SOURCE_RUNTIME_SMOKE_RESULT_FILE_NAME: string = 'source-runtime-smoke-result.json'
 const LOCAL_LIBRARY_FOLDER_SMOKE_ROOT: string = 'import/local-library-folder-smoke-root/extract'
 const LOCAL_LIBRARY_FOLDER_SMOKE_PAGE_BASE64: string = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAFgwJ/lWnzWQAAAABJRU5ErkJggg=='
+const READER_WIDE_SPLIT_SMOKE_IMAGE_PATH: string = 'import/reader-wide-split-fixture/extract/wide-split-fixture.png'
 const REAL_SOURCE_RAWFILE_PATH: string = 'test/baozimh.wasm'
 const MANGADEX_RAWFILE_PATH: string = 'test/mangadex.wasm'
 const REAL_SOURCE_SEARCH_REQUEST: string = '{"operation":"search","query":"test"}'
@@ -1119,8 +1121,6 @@ async function installReaderWideSplitFixture(
     subtitle: 'Reader QA',
     sourceKind: ComicSourceKind.PRIVATE_LIBRARY,
     sourcePath: imageUrl,
-    sourceRuntimeId: 'reader-wide-split-fixture',
-    remoteResourceId: comicId,
     coverUri: imageUrl,
     sortTitle: 'reader wide split fixture',
     preferredDirection: ReadingDirection.LEFT_TO_RIGHT,
@@ -1281,6 +1281,21 @@ function materializeLocalLibraryFolderSmokeImages(filesDir: string): boolean {
   } catch (_error) {
     return false
   }
+}
+
+function materializeReaderWideSplitRawfileImage(
+  resourceMgr: resourceManager.ResourceManager,
+  filesDir: string,
+  rawfilePath: string,
+): string {
+  const bytes = resourceMgr.getRawFileContentSync(rawfilePath)
+  const imagePath = joinSourceRuntimeSmokePath(filesDir, READER_WIDE_SPLIT_SMOKE_IMAGE_PATH)
+  const parent = dirnameSourceRuntimeSmokePath(imagePath)
+  if (parent.length > 0) {
+    ensureSourceRuntimeSmokeDir(parent)
+  }
+  writeSourceRuntimeSmokeBytes(imagePath, bytes)
+  return `file://${imagePath}`
 }
 
 function verifyLocalLibraryFolderReaderSmoke(
@@ -2765,10 +2780,14 @@ export async function maybeRunSourceRuntimeDeviceSmoke(
       if (context === undefined) {
         result.error = 'reader-wide-split-fixture phase requires ability context'
       } else {
-        const imageUrl = smokeStringParam(want, SMOKE_WIDE_IMAGE_URL_PARAM)
+        let imageUrl = smokeStringParam(want, SMOKE_WIDE_IMAGE_URL_PARAM)
+        const rawfilePath = smokeStringParam(want, SMOKE_WIDE_IMAGE_RAWFILE_PARAM)
+        if (imageUrl.length === 0 && rawfilePath.length > 0 && resourceMgr !== undefined) {
+          imageUrl = materializeReaderWideSplitRawfileImage(resourceMgr, context.filesDir, rawfilePath)
+        }
         result.readerWideSplitFixtureImageUrlProvided = imageUrl.length > 0
         if (imageUrl.length === 0) {
-          result.error = 'reader-wide-split-fixture requires wideImageUrl'
+          result.error = 'reader-wide-split-fixture requires wideImageUrl or wideImageRawfile'
         } else {
           await installReaderWideSplitFixture(context, imageUrl, result)
         }

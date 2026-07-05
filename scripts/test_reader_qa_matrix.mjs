@@ -391,18 +391,38 @@ function assertProductionStaticContracts() {
   )
   assert.match(
     sourceRuntimeSmokeSource,
-    /SMOKE_PHASE_READER_WIDE_SPLIT_FIXTURE[\s\S]*reader-wide-split-fixture[\s\S]*installReaderWideSplitFixture[\s\S]*saveWideImageMode\('split_wide_pages'\)/,
-    'device smoke must be able to install a real wide split fixture and persist split-wide reader preferences',
+    /READER_WIDE_SPLIT_SMOKE_IMAGE_PATH: string = 'import\/reader-wide-split-fixture\/extract\/wide-split-fixture\.png'/,
+    'device smoke wide fixture must use the app import/extract sandbox path accepted by Reader',
+  )
+  assert.match(
+    sourceRuntimeSmokeSource,
+    /SMOKE_WIDE_IMAGE_RAWFILE_PARAM[\s\S]*materializeReaderWideSplitRawfileImage[\s\S]*writeSourceRuntimeSmokeBytes/,
+    'device smoke must materialize a rawfile wide image fixture inside the app sandbox',
+  )
+  assert.match(
+    sourceRuntimeSmokeSource,
+    /installReaderWideSplitFixture[\s\S]*saveWideImageMode\('split_wide_pages'\)/,
+    'device smoke must persist split-wide reader preferences for the fixture',
+  )
+  assert.doesNotMatch(
+    sourceRuntimeSmokeSource,
+    /sourceRuntimeId: 'reader-wide-split-fixture'/,
+    'wide-split fixture must stay on the local file reader path instead of a fake source runtime path',
+  )
+  assert.match(
+    sourceRuntimeSmokeSource,
+    /SMOKE_PHASE_READER_WIDE_SPLIT_FIXTURE[\s\S]*SMOKE_WIDE_IMAGE_RAWFILE_PARAM[\s\S]*materializeReaderWideSplitRawfileImage[\s\S]*installReaderWideSplitFixture/,
+    'device smoke phase must accept rawfile wide image fixtures',
   )
   assert.match(
     readerWideSplitSmokeScript,
-    /koma\.sourceRuntimeSmoke\.phase reader-wide-split-fixture[\s\S]*koma\.sourceRuntimeSmoke\.wideImageUrl[\s\S]*readerWideSplitFixtureExpectedSplitCount/,
-    'wide-split smoke script must launch the dedicated fixture phase and validate split count evidence',
+    /wide_image_rawfile="\$\{KOMA_READER_WIDE_SPLIT_RAWFILE:-test\/wide-split-fixture\.png\}"[\s\S]*koma\.sourceRuntimeSmoke\.phase reader-wide-split-fixture[\s\S]*koma\.sourceRuntimeSmoke\.wideImageRawfile "\$wide_image_rawfile"[\s\S]*readerWideSplitFixtureExpectedSplitCount/,
+    'wide-split smoke script must launch the dedicated rawfile fixture phase and validate split count evidence',
   )
   assert.match(
     readerWideSplitSmokeScript,
-    /reader-screen\.png[\s\S]*reader-layout\.json[\s\S]*1 \/ 2/,
-    'wide-split smoke script must capture reader artifacts and validate the split page counter',
+    /reader-screen\.png[\s\S]*reader-layout\.json[\s\S]*无法加载页面[\s\S]*1 \/ 2[\s\S]*"type": "Image"/,
+    'wide-split smoke script must capture reader artifacts and reject load-error false positives before validating the split image',
   )
 }
 

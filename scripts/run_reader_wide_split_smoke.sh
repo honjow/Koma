@@ -7,21 +7,11 @@ cd "$repo"
 hdc="${HDC:-/Applications/DevEco-Studio.app/Contents/sdk/default/openharmony/toolchains/hdc}"
 hvigorw="${HVIGORW:-/Applications/DevEco-Studio.app/Contents/tools/hvigor/bin/hvigorw}"
 target="${KOMA_SMOKE_TARGET:-127.0.0.1:5557}"
-port="${KOMA_READER_WIDE_SPLIT_PORT:-8771}"
-host_ip="${KOMA_READER_WIDE_SPLIT_HOST:-}"
 artifact_dir="${KOMA_READER_WIDE_SPLIT_ARTIFACT_DIR:-.hvigor/outputs/reader-wide-split-smoke}"
 remote_smoke_result="${KOMA_READER_WIDE_SPLIT_REMOTE_RESULT:-/data/app/el2/100/base/com.honjow.koma/haps/entry/files/source-runtime-smoke-result.json}"
+wide_image_rawfile="${KOMA_READER_WIDE_SPLIT_RAWFILE:-test/wide-split-fixture.png}"
+wide_image_rawfile_path="entry/src/main/resources/rawfile/$wide_image_rawfile"
 
-if [ -z "$host_ip" ]; then
-  host_ip="$(ipconfig getifaddr en0 2>/dev/null || true)"
-fi
-if [ -z "$host_ip" ]; then
-  host_ip="$(ipconfig getifaddr en1 2>/dev/null || true)"
-fi
-if [ -z "$host_ip" ]; then
-  echo "reader wide split smoke failed: set KOMA_READER_WIDE_SPLIT_HOST to the host IP reachable from the emulator" >&2
-  exit 1
-fi
 if [ ! -x "$hdc" ]; then
   echo "reader wide split smoke failed: hdc not found or not executable: $hdc" >&2
   exit 1
@@ -38,7 +28,8 @@ library_screen="$artifact_dir/library-screen.png"
 reader_layout="$artifact_dir/reader-layout.json"
 reader_screen="$artifact_dir/reader-screen.png"
 rm -f "$smoke_result" "$library_layout" "$library_screen" "$reader_layout" "$reader_screen"
-python3 - "$artifact_dir/wide-split-fixture.png" <<'PY'
+mkdir -p "$(dirname "$wide_image_rawfile_path")"
+python3 - "$wide_image_rawfile_path" <<'PY'
 import pathlib
 import struct
 import sys
@@ -65,14 +56,8 @@ path.write_bytes(
 )
 PY
 
-server_pid=""
-python3 -m http.server "$port" --bind 0.0.0.0 --directory "$artifact_dir" > "$artifact_dir/http.log" 2>&1 &
-server_pid="$!"
-
 cleanup() {
-  if [ -n "$server_pid" ]; then
-    kill "$server_pid" 2>/dev/null || true
-  fi
+  rm -f "$wide_image_rawfile_path"
 }
 trap cleanup EXIT
 
@@ -97,7 +82,6 @@ hdc_target() {
   -p module=entry@default \
   assembleHap
 
-image_url="http://$host_ip:$port/wide-split-fixture.png"
 hdc_target install -r entry/build/default/outputs/default/entry-default-signed.hap
 hdc_target shell hilog -r
 hdc_target shell rm -f "$remote_smoke_result"
@@ -105,7 +89,7 @@ hdc_target shell aa start -a EntryAbility -b com.honjow.koma \
   -m entry \
   --ps koma.sourceRuntimeSmoke run \
   --ps koma.sourceRuntimeSmoke.phase reader-wide-split-fixture \
-  --ps koma.sourceRuntimeSmoke.wideImageUrl "$image_url"
+  --ps koma.sourceRuntimeSmoke.wideImageRawfile "$wide_image_rawfile"
 
 poll_count="${KOMA_READER_WIDE_SPLIT_RESULT_POLL_COUNT:-18}"
 poll_delay="${KOMA_READER_WIDE_SPLIT_RESULT_POLL_DELAY_SECONDS:-3}"
@@ -210,6 +194,9 @@ text = json.dumps(json.loads(pathlib.Path(sys.argv[1]).read_text(encoding="utf-8
 for needle in ("Reader Wide Split Fixture", "Wide landscape page"):
     if needle not in text:
         raise SystemExit(f"reader wide split smoke failed: reader layout missing {needle}")
+for needle in ("无法加载页面", "离线或网络不可用", "Unable to load page", "reader_page_unavailable"):
+    if needle in text:
+        raise SystemExit(f"reader wide split smoke failed: reader layout shows load error: {needle}")
 if "1 / 2" not in text and "2 / 2" not in text:
     raise SystemExit("reader wide split smoke failed: reader layout missing split page counter")
 if '"type": "Image"' not in text and '"type":"Image"' not in text:
