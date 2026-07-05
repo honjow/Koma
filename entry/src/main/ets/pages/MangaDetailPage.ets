@@ -626,8 +626,37 @@ export struct MangaDetailPage {
     return this.sourceComicId(this.manga.sourceId, this.manga.id)
   }
 
+  private earliestNumberedChapter(): MangaChapterItem | undefined {
+    let selected: MangaChapterItem | undefined = undefined
+    this.chapters.forEach((chapter: MangaChapterItem): void => {
+      if (chapter.chapterNumber === undefined) {
+        return
+      }
+      if (selected === undefined || (selected.chapterNumber !== undefined && chapter.chapterNumber < selected.chapterNumber)) {
+        selected = chapter
+      }
+    })
+    return selected
+  }
+
+  private oldestDatedChapter(): MangaChapterItem | undefined {
+    let selected: MangaChapterItem | undefined = undefined
+    this.chapters.forEach((chapter: MangaChapterItem): void => {
+      if (chapter.dateUpload === undefined) {
+        return
+      }
+      if (selected === undefined || (selected.dateUpload !== undefined && chapter.dateUpload < selected.dateUpload)) {
+        selected = chapter
+      }
+    })
+    return selected
+  }
+
   private firstChapterId(): string | undefined {
-    return this.chapters.length === 0 ? undefined : this.chapters[0].id
+    if (this.chapters.length === 0) {
+      return undefined
+    }
+    return (this.earliestNumberedChapter() ?? this.oldestDatedChapter() ?? this.chapters[0]).id
   }
 
   private allChapterIds(): string[] {

@@ -1942,6 +1942,11 @@ assert.match(
 )
 assert.match(
   mangaDetailPageSource,
+  /earliestNumberedChapter\(\): MangaChapterItem \| undefined \{[\s\S]*chapter\.chapterNumber === undefined[\s\S]*chapter\.chapterNumber < selected\.chapterNumber[\s\S]*oldestDatedChapter\(\): MangaChapterItem \| undefined \{[\s\S]*chapter\.dateUpload === undefined[\s\S]*chapter\.dateUpload < selected\.dateUpload[\s\S]*firstChapterId\(\): string \| undefined \{[\s\S]*this\.earliestNumberedChapter\(\) \?\? this\.oldestDatedChapter\(\) \?\? this\.chapters\[0\]/,
+  'MangaDetailPage start-reading default must choose the earliest chapter by number or upload date instead of blindly opening the first returned row',
+)
+assert.match(
+  mangaDetailPageSource,
   /handleOpenChapter\(chapterId: string\): Promise<void> \{[\s\S]*!this\.isInLibrary && this\.manga\.sourceId !== undefined[\s\S]*const added = await this\.handleAddToLibrary\(\)[\s\S]*const hydrated = await this\.ensureSourceChapterPages\(chapterId\)[\s\S]*if \(!hydrated\) \{[\s\S]*manga_detail_chapter_pages_load_failed[\s\S]*return[\s\S]*this\.onOpenReader\(this\.currentComicId\(\), chapterId\)[\s\S]*onOpenChapter:[\s\S]*this\.handleOpenChapter\(chapterId\)/,
   'MangaDetailPage chapter row open must add source manga to the library, hydrate pages, and only then open Reader',
 )
