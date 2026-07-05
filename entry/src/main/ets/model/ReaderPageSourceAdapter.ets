@@ -99,6 +99,12 @@ interface ReaderRemoteHeaderRule {
   headers: ReaderRemoteImageHeaders
 }
 
+interface SourceRuntimeImageHeaderRule {
+  sourceRuntimeId: string
+  headersRef: string
+  headers: ReaderRemoteImageHeaders
+}
+
 interface SourceRuntimeImageRequestDescriptor {
   url?: string
   headers?: Record<string, string>
@@ -159,6 +165,7 @@ const READER_SANDBOX_ROOTS: ReaderSandboxRoot[] = [
 ]
 
 const readerRemoteHeaderRules: ReaderRemoteHeaderRule[] = []
+const sourceRuntimeImageHeaderRules: SourceRuntimeImageHeaderRule[] = []
 let readerRemoteImageCacheStore: RemoteImageCacheStore | undefined = undefined
 let readerOfflineDownloadStore: OfflineDownloadStore | undefined = undefined
 let readerRemoteImageCacheMaxBytes: number = DEFAULT_REMOTE_IMAGE_CACHE_MAX_BYTES
@@ -385,6 +392,26 @@ function sourceImageCacheKeySeed(sourceRuntimeId: string, pageId: string, payloa
   return undefined
 }
 
+function mergeReaderRemoteImageHeaders(
+  sourceHeaders: ReaderRemoteImageHeaders | undefined,
+  hostHeaders: ReaderRemoteImageHeaders | undefined,
+): ReaderRemoteImageHeaders | undefined {
+  if (sourceHeaders === undefined) {
+    return hostHeaders
+  }
+  if (hostHeaders === undefined) {
+    return sourceHeaders
+  }
+  const merged: ReaderRemoteImageHeaders = {}
+  Object.keys(sourceHeaders).forEach((name: string) => {
+    merged[name] = sourceHeaders[name]
+  })
+  Object.keys(hostHeaders).forEach((name: string) => {
+    merged[name] = hostHeaders[name]
+  })
+  return merged
+}
+
 function isSafeSourceImageHeaderName(name: string): boolean {
   if (name.length === 0 || BLOCKED_SOURCE_IMAGE_HEADER_NAMES.indexOf(name.toLocaleLowerCase()) >= 0) {
     return false
@@ -574,6 +601,43 @@ export function installReaderRemoteHeaders(prefix: string, headers: KomgaHeaders
     readerRemoteHeaderRules.push(rule)
   }
   console.info('[Reader] remote headers installed')
+}
+
+export function installSourceRuntimeImageHeaders(
+  sourceRuntimeId: string,
+  headersRef: string,
+  headers: ReaderRemoteImageHeaders,
+): void {
+  const normalizedSourceId = sourceRuntimeId.trim()
+  const normalizedRef = safeSourceImageRef(headersRef)
+  if (normalizedSourceId.length === 0 || normalizedRef === undefined || Object.keys(headers).length === 0) {
+    return
+  }
+  const rule: SourceRuntimeImageHeaderRule = {
+    sourceRuntimeId: normalizedSourceId,
+    headersRef: normalizedRef,
+    headers,
+  }
+  const index = sourceRuntimeImageHeaderRules.findIndex((item: SourceRuntimeImageHeaderRule): boolean => {
+    return item.sourceRuntimeId === normalizedSourceId && item.headersRef === normalizedRef
+  })
+  if (index >= 0) {
+    sourceRuntimeImageHeaderRules[index] = rule
+  } else {
+    sourceRuntimeImageHeaderRules.push(rule)
+  }
+  console.info('[ReaderCache] step=source_image_headers_installed')
+}
+
+function resolveSourceRuntimeImageHeaders(sourceRuntimeId: string, headersRef: string | undefined): ReaderRemoteImageHeaders | undefined {
+  const normalizedRef = safeSourceImageRef(headersRef)
+  if (normalizedRef === undefined) {
+    return undefined
+  }
+  const matched = sourceRuntimeImageHeaderRules.find((item: SourceRuntimeImageHeaderRule): boolean => {
+    return item.sourceRuntimeId === sourceRuntimeId && item.headersRef === normalizedRef
+  })
+  return matched?.headers
 }
 
 export async function installReaderRemoteHeadersForComic(context: common.UIAbilityContext, comic: Comic): Promise<void> {
@@ -786,15 +850,17 @@ function resolveSourceRuntimeImageRequest(sourceRuntimeId: string, pageId: strin
     }
     const headers = normalizeSourceImageHeaders(payload.headers)
     const headersRef = safeSourceImageRef(payload.headersRef)
-    if (payload.requiresAuth === true && headersRef === undefined) {
+    const hostHeaders = resolveSourceRuntimeImageHeaders(sourceRuntimeId, headersRef)
+    if (payload.requiresAuth === true && (headersRef === undefined || hostHeaders === undefined)) {
       console.warn(`[ReaderCache] step=source_image_request failed=true source=${createShortReaderHash(sourceRuntimeId)} page=${createShortReaderHash(pageId)} reason=missing_headers_ref`)
       return undefined
     }
+    const resolvedHeaders = mergeReaderRemoteImageHeaders(headers, hostHeaders)
     const cacheKeySeed = sourceImageCacheKeySeed(sourceRuntimeId, pageId, payload)
-    console.info(`[ReaderCache] step=source_image_request ok=true source=${createShortReaderHash(sourceRuntimeId)} page=${createShortReaderHash(pageId)} urlHash=${createShortReaderHash(payload.url)} headers=${headers === undefined ? 0 : Object.keys(headers).length}`)
+    console.info(`[ReaderCache] step=source_image_request ok=true source=${createShortReaderHash(sourceRuntimeId)} page=${createShortReaderHash(pageId)} urlHash=${createShortReaderHash(payload.url)} headers=${resolvedHeaders === undefined ? 0 : Object.keys(resolvedHeaders).length}`)
     return {
       url: payload.url,
-      headers,
+      headers: resolvedHeaders,
       cacheKeySeed,
     }
   } catch (error) {

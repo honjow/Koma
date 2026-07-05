@@ -84,6 +84,10 @@ Runtime responses must be JSON envelopes with `ok: true` and `data`, or `ok: fal
 
 Credential-like descriptors are treated as sensitive and are not saved by the current UI. Descriptor ids or kinds containing markers such as `password`, `token`, `cookie`, `authorization`, `api_key`, `secret`, `credential`, or `session` are blocked from normal persistence, backup, and display values.
 
+## Image request rules
+
+`get_image_request` may return a final image URL plus safe non-secret headers. For authenticated image requests, return a `headersRef` such as `default` and set `requiresAuth: true`; Koma resolves that reference only from host-owned header profiles. Source packages must not return raw cookies, authorization headers, API keys, passwords, tokens, or session material.
+
 ## Package archive layout
 
 The source-repo package archive must contain exactly:

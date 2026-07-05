@@ -1053,6 +1053,7 @@ for (const marker of [
   'Manifest shape',
   'Runtime request envelope',
   'Settings descriptor rules',
+  'Image request rules',
   'capabilities.operations',
   'Package archive layout',
   'Compatibility notes',
@@ -1060,6 +1061,11 @@ for (const marker of [
 ]) {
   assert.match(sdkDocSource, new RegExp(marker), `source package SDK doc must include ${marker}`)
 }
+assert.match(
+  sdkDocSource,
+  /get_image_request[\s\S]*headersRef[\s\S]*requiresAuth: true[\s\S]*host-owned header profiles[\s\S]*must not return raw cookies, authorization headers, API keys, passwords, tokens, or session material/,
+  'source package SDK doc must define image header refs as host-owned and reject raw source-returned secrets',
+)
 
 assertSourceRepoShape(localKomaFixturePath)
 
