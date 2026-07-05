@@ -392,5 +392,5 @@ Koma 已经具备本地/私有库优先漫画阅读器的主骨架：书架、Re
 
 1. D33 主体已闭合，后续只做回归和异常矩阵补证。
 2. D34/D35 已有实现，优先补真实设备矩阵，不再重复造下载/Reader 结构。
-3. D51 Source browsing parity 已补 Pura X runtime smoke：真实 MangaDex `.koma` source 的 source index、home、listings、filters、默认 listing、filtered listing 均通过；下一步继续补 Browse UI 到详情、阅读、下载、source settings 的手动主路径 QA 与缺口修补。
+3. D51 Source browsing parity 已补 Pura X runtime smoke：真实 MangaDex `.koma` source 的 source index、home、listings、filters、默认 listing、filtered listing 均通过；Browse UI 到详情、加入书架、阅读、下载后阅读的主路径也已在 Pura X 通过。下一步继续补 source settings 的手动主路径 QA 与缺口修补。
 4. 随后推进 D52 Reader advanced QA：focus/音量键、tap zone、wide split/rotate/trim 的设备矩阵。
