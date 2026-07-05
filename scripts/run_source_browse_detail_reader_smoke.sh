@@ -10,6 +10,7 @@ user_id="${KOMA_SMOKE_USER_ID:-100}"
 source_id="${KOMA_SOURCE_READER_SOURCE_ID:-org.mangadex.koma}"
 source_display="${KOMA_SOURCE_BROWSE_DISPLAY_NAME:-MangaDex}"
 artifact_dir="${KOMA_SOURCE_BROWSE_READER_ARTIFACT_DIR:-.hvigor/outputs/source-browse-detail-reader-smoke}"
+download_first="${KOMA_SOURCE_BROWSE_DOWNLOAD_FIRST:-false}"
 
 mkdir -p "$artifact_dir"
 
@@ -218,6 +219,32 @@ if not any(needle in text for needle in sys.argv[2:]):
 PY
 }
 
+wait_layout_contains_any() {
+  local name="$1"
+  shift
+  local poll_count="${KOMA_SOURCE_BROWSE_DOWNLOAD_POLL_COUNT:-18}"
+  local poll_delay="${KOMA_SOURCE_BROWSE_DOWNLOAD_POLL_DELAY_SECONDS:-5}"
+  for ((attempt = 1; attempt <= poll_count; attempt += 1)); do
+    sleep "$poll_delay"
+    capture_layout "$name"
+    if python3 - "$artifact_dir/$name-layout.json" "$@" <<'PY'
+import json
+import pathlib
+import sys
+
+layout = json.loads(pathlib.Path(sys.argv[1]).read_text(encoding='utf-8'))
+text = json.dumps(layout, ensure_ascii=False)
+if not any(needle in text for needle in sys.argv[2:]):
+    raise SystemExit(1)
+PY
+    then
+      return 0
+    fi
+  done
+  echo "source browse detail reader smoke failed: timed out waiting for $*" >&2
+  return 1
+}
+
 rm -f "$artifact_dir"/*.json "$artifact_dir"/*.png "$artifact_dir"/*.txt
 
 KOMA_SOURCE_READER_PHASE=source-index-browse \
@@ -245,7 +272,14 @@ sleep "${KOMA_SOURCE_BROWSE_DETAIL_WAIT_SECONDS:-8}"
 
 capture_layout "source-browse-detail"
 assert_layout_contains_any "$artifact_dir/source-browse-detail-layout.json" "Start reading" "开始阅读"
-click_from_layout "$artifact_dir/source-browse-detail-layout.json" "$artifact_dir/click-start-reading.txt" "Start reading" "开始阅读"
+if [ "$download_first" = "true" ]; then
+  click_from_layout "$artifact_dir/source-browse-detail-layout.json" "$artifact_dir/click-download-chapter.txt" "Download chapter" "下载章节" "Download again" "重新下载"
+  wait_layout_contains_any "source-browse-download" "Download again" "重新下载" "Downloaded" "已下载"
+  detail_action_layout="$artifact_dir/source-browse-download-layout.json"
+else
+  detail_action_layout="$artifact_dir/source-browse-detail-layout.json"
+fi
+click_from_layout "$detail_action_layout" "$artifact_dir/click-start-reading.txt" "Start reading" "开始阅读"
 sleep "${KOMA_SOURCE_BROWSE_READER_WAIT_SECONDS:-10}"
 
 capture_layout "source-browse-reader"

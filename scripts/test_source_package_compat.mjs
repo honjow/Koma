@@ -24,6 +24,7 @@ const sourceDownloadReaderSmokeScriptPath = resolve(root, 'scripts/run_source_do
 const sourceCorruptDownloadReaderSmokeScriptPath = resolve(root, 'scripts/run_source_corrupt_download_reader_smoke.sh')
 const sourceUndownloadedOfflineReaderSmokeScriptPath = resolve(root, 'scripts/run_source_undownloaded_offline_reader_smoke.sh')
 const sourceBrowseDetailReaderSmokeScriptPath = resolve(root, 'scripts/run_source_browse_detail_reader_smoke.sh')
+const sourceBrowseDetailDownloadReaderSmokeScriptPath = resolve(root, 'scripts/run_source_browse_detail_download_reader_smoke.sh')
 const abiDocPath = resolve(root, 'docs/source-runtime-abi.md')
 const sdkDocPath = resolve(root, 'docs/source-package-sdk.md')
 const localKomaFixturePath = resolve(root, 'entry/src/main/resources/rawfile/test/local_source_runtime_fixture.koma')
@@ -53,6 +54,7 @@ const sourceDownloadReaderSmokeScriptSource = readFileSync(sourceDownloadReaderS
 const sourceCorruptDownloadReaderSmokeScriptSource = readFileSync(sourceCorruptDownloadReaderSmokeScriptPath, 'utf8')
 const sourceUndownloadedOfflineReaderSmokeScriptSource = readFileSync(sourceUndownloadedOfflineReaderSmokeScriptPath, 'utf8')
 const sourceBrowseDetailReaderSmokeScriptSource = readFileSync(sourceBrowseDetailReaderSmokeScriptPath, 'utf8')
+const sourceBrowseDetailDownloadReaderSmokeScriptSource = readFileSync(sourceBrowseDetailDownloadReaderSmokeScriptPath, 'utf8')
 const abiDocSource = readFileSync(abiDocPath, 'utf8')
 const sdkDocSource = readFileSync(sdkDocPath, 'utf8')
 
@@ -714,6 +716,16 @@ assert.match(
   sourceBrowseDetailReaderSmokeScriptSource,
   /capture_layout "source-browse-home"[\s\S]*capture_layout "source-browse-list"[\s\S]*capture_layout "source-browse-source"[\s\S]*capture_layout "source-browse-detail"[\s\S]*capture_layout "source-browse-reader"/,
   'source browse detail reader smoke must retain visible screenshots for browse, source list, source detail, and reader states',
+)
+assert.match(
+  sourceBrowseDetailReaderSmokeScriptSource,
+  /download_first="\$\{KOMA_SOURCE_BROWSE_DOWNLOAD_FIRST:-false\}"[\s\S]*click_from_layout[\s\S]*Download chapter[\s\S]*下载章节[\s\S]*wait_layout_contains_any "source-browse-download"[\s\S]*Download again[\s\S]*重新下载[\s\S]*Downloaded[\s\S]*已下载[\s\S]*detail_action_layout="\$artifact_dir\/source-browse-download-layout\.json"/,
+  'source browse detail reader smoke must optionally click the real detail download action, wait for downloaded UI state, and read from the refreshed layout',
+)
+assert.match(
+  sourceBrowseDetailDownloadReaderSmokeScriptSource,
+  /KOMA_SOURCE_BROWSE_DOWNLOAD_FIRST="\$\{KOMA_SOURCE_BROWSE_DOWNLOAD_FIRST:-true\}"[\s\S]*KOMA_SOURCE_BROWSE_READER_ARTIFACT_DIR="\$\{KOMA_SOURCE_BROWSE_READER_ARTIFACT_DIR:-\.hvigor\/outputs\/source-browse-detail-download-reader-smoke\}"[\s\S]*run_source_browse_detail_reader_smoke\.sh/,
+  'source browse detail download reader smoke must reuse the UI browse/detail/reader smoke with the detail download path enabled',
 )
 assert.match(
   smokeSource,
