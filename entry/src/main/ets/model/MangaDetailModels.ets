@@ -175,9 +175,9 @@ export function parseMangaDetailFromSourceItem(sourceId: string, item: SourceRun
   return {
     id,
     title,
-    author: optionalSourceDisplayString(item['author']),
-    artist: optionalSourceDisplayString(item['artist']),
-    description: optionalSourceDisplayString(item['description']),
+    author: firstSourceDisplayString([item['author'], item['authors']]),
+    artist: firstSourceDisplayString([item['artist'], item['artists']]),
+    description: firstSourceDisplayString([item['description'], item['summary'], item['synopsis']]),
     coverUrl: firstSourceString([
       optionalSourceString(item['cover_url']),
       optionalSourceString(item['coverUrl']),

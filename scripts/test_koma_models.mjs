@@ -1647,6 +1647,11 @@ assert.match(
   'source detail parsing must keep the same broad cover URL compatibility as source browse/search results before adding a manga to the library',
 )
 assert.match(
+  mangaDetailModelsSource,
+  /author: firstSourceDisplayString\(\[item\['author'\], item\['authors'\]\]\)[\s\S]*artist: firstSourceDisplayString\(\[item\['artist'\], item\['artists'\]\]\)[\s\S]*description: firstSourceDisplayString\(\[item\['description'\], item\['summary'\], item\['synopsis'\]\]\)/,
+  'source detail parsing must accept source runtime ABI authors/artists arrays and summary text instead of dropping real detail metadata',
+)
+assert.match(
   readerPageSourceAdapterSource,
   /interface ReaderSourceImageRequestArgs \{[\s\S]*pageId: string[\s\S]*url\?: string[\s\S]*pageUri\?: string[\s\S]*\}/,
   'reader source image request args must include pageId plus optional URL fields',
@@ -1849,8 +1854,8 @@ assert.match(
 )
 assert.match(
   mangaDetailModelsSource,
-  /description:\s*optionalSourceDisplayString\(item\['description'\]\)/,
-  'Manga detail normalization must decode source-provided description text',
+  /description:\s*firstSourceDisplayString\(\[item\['description'\], item\['summary'\], item\['synopsis'\]\]\)/,
+  'Manga detail normalization must decode source-provided description, summary, and synopsis text',
 )
 assert.match(
   mangaDetailModelsSource,
