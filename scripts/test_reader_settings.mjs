@@ -614,6 +614,16 @@ assert.match(
   /private ReaderInputLayer\(\)[\s\S]*\.zIndex\(12\)[\s\S]*\.gesture\(GestureGroup\(GestureMode\.Exclusive,[\s\S]*TapGesture\(\{ count: 2, distanceThreshold: 8 \}\)[\s\S]*this\.onReaderDoubleTap[\s\S]*TapGesture\(\{ count: 1 \}\)[\s\S]*this\.onReaderTap[\s\S]*\.scale\(\{ x: this\.zoomScale, y: this\.zoomScale \}\)[\s\S]*\.translate\(\{ x: this\.zoomOffsetX, y: this\.zoomOffsetY \}\)[\s\S]*\.gesture\(GestureGroup\(GestureMode\.Parallel,[\s\S]*PinchGesture\(\{ fingers: 2 \}\)[\s\S]*PanGesture\(\{ fingers: 1, direction: PanDirection\.All, distance: 2 \}\)/,
   'reader tap input layer must stay below chrome while the content surface owns pinch and zoomed pan gestures',
 )
+assert.match(
+  readerPageSource,
+  /const READER_ZOOM_EDGE_PAGE_DRAG_RATIO: number = 0\.16[\s\S]*type ReaderHorizontalEdge = 'left' \| 'right'[\s\S]*private onReaderPanUpdate\(event\?: GestureEvent\): void \{[\s\S]*this\.zoomPanLatestOffsetX = event\.offsetX as number[\s\S]*private onReaderPanEnd\(\): void \{[\s\S]*!this\.swipeNavigationEnabled \|\| this\.currentReaderMode\(\) === ReaderMode\.CONTINUOUS_SCROLL[\s\S]*pulledLeftEdge[\s\S]*this\.canNavigateFromReaderHorizontalEdge\('left'\)[\s\S]*this\.navigateFromReaderHorizontalEdge\('left'\)[\s\S]*pulledRightEdge[\s\S]*this\.canNavigateFromReaderHorizontalEdge\('right'\)[\s\S]*this\.navigateFromReaderHorizontalEdge\('right'\)/,
+  'zoomed reader pan must turn an edge pull into direction-aware page navigation instead of trapping the user on the zoomed page',
+)
+assert.match(
+  readerPageSource,
+  /PanGesture\(\{ fingers: 1, direction: PanDirection\.All, distance: 2 \}\)[\s\S]*this\.onReaderPanUpdate\(event\)[\s\S]*\.onActionEnd\(\(\) => \{[\s\S]*this\.onReaderPanEnd\(\)[\s\S]*\.onActionCancel\(\(\) => \{[\s\S]*this\.onReaderPanEnd\(\)/,
+  'reader pan gesture must run zoom edge navigation on both end and cancel paths',
+)
 assert.doesNotMatch(
   readerPageSource,
   /private ReaderTapLayer\(\)[\s\S]*\.onClick\(\(\) => \{[\s\S]*this\.tapRightZone\(\)/,
