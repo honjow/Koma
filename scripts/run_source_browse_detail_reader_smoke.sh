@@ -11,6 +11,8 @@ source_id="${KOMA_SOURCE_READER_SOURCE_ID:-org.mangadex.koma}"
 source_display="${KOMA_SOURCE_BROWSE_DISPLAY_NAME:-MangaDex}"
 artifact_dir="${KOMA_SOURCE_BROWSE_READER_ARTIFACT_DIR:-.hvigor/outputs/source-browse-detail-reader-smoke}"
 download_first="${KOMA_SOURCE_BROWSE_DOWNLOAD_FIRST:-false}"
+seed_mode="${KOMA_SOURCE_BROWSE_SEED_MODE:-local-package}"
+source_package_path="${KOMA_SOURCE_PACKAGE_PATH:-$repo/../koma-sources/dist/sources/mangadex/mangadex-0.1.0.koma}"
 
 mkdir -p "$artifact_dir"
 
@@ -333,11 +335,25 @@ PY
 
 rm -f "$artifact_dir"/*.json "$artifact_dir"/*.png "$artifact_dir"/*.txt
 
-KOMA_SOURCE_READER_PHASE=source-index-browse \
-KOMA_SOURCE_READER_CAPTURE_UI=false \
-KOMA_SOURCE_READER_ARTIFACT_DIR="$artifact_dir/source-seed" \
-KOMA_SOURCE_READER_SOURCE_ID="$source_id" \
-  scripts/run_source_reader_smoke.sh
+if [ "$seed_mode" = "index" ]; then
+  KOMA_SOURCE_READER_PHASE=source-index-browse \
+  KOMA_SOURCE_READER_CAPTURE_UI=false \
+  KOMA_SOURCE_READER_ARTIFACT_DIR="$artifact_dir/source-seed" \
+  KOMA_SOURCE_READER_SOURCE_ID="$source_id" \
+    scripts/run_source_reader_smoke.sh
+else
+  if [ ! -f "$source_package_path" ]; then
+    echo "source browse detail reader smoke failed: source package not found: $source_package_path" >&2
+    exit 1
+  fi
+  KOMA_SOURCE_READER_PHASE=local-source-package-visible-reader \
+  KOMA_SOURCE_READER_REQUIRES_INDEX=false \
+  KOMA_SOURCE_READER_CAPTURE_UI=false \
+  KOMA_SOURCE_READER_ARTIFACT_DIR="$artifact_dir/source-seed" \
+  KOMA_SOURCE_READER_SOURCE_ID="$source_id" \
+  KOMA_SOURCE_PACKAGE_PATH="$source_package_path" \
+    scripts/run_source_reader_smoke.sh
+fi
 
 hdc_target shell aa force-stop com.honjow.koma
 hdc_target shell aa start -u "$user_id" -a EntryAbility -b com.honjow.koma -m entry
