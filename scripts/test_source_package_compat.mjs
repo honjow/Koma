@@ -781,6 +781,11 @@ assert.match(
   'source browse detail reader smoke must optionally click the real detail download action, wait for downloaded UI state, and read from the refreshed layout',
 )
 assert.match(
+  sourceBrowseDetailReaderSmokeScriptSource,
+  /make_source_unavailable[\s\S]*aa force-stop com\.honjow\.koma[\s\S]*source-browse-source-unavailable-library-layout\.json[\s\S]*click-library-source-manga-after-source-unavailable[\s\S]*assert_reader_image_and_prepare_center[\s\S]*source-browse-source-unavailable-reader-layout\.json[\s\S]*true/,
+  'source browse detail reader smoke must make the installed source unavailable, restart the app, reopen the same library manga, and require local reader pages',
+)
+assert.match(
   sourceBrowseDetailDownloadReaderSmokeScriptSource,
   /KOMA_SOURCE_BROWSE_DOWNLOAD_FIRST="\$\{KOMA_SOURCE_BROWSE_DOWNLOAD_FIRST:-true\}"[\s\S]*KOMA_SOURCE_BROWSE_READER_ARTIFACT_DIR="\$\{KOMA_SOURCE_BROWSE_READER_ARTIFACT_DIR:-\.hvigor\/outputs\/source-browse-detail-download-reader-smoke\}"[\s\S]*run_source_browse_detail_reader_smoke\.sh/,
   'source browse detail download reader smoke must reuse the UI browse/detail/reader smoke with the detail download path enabled',

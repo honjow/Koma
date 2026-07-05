@@ -18,6 +18,7 @@ source_repo="${KOMA_SOURCES_REPO:-$repo/../koma-sources}"
 source_build_name="${KOMA_SOURCE_BROWSE_BUILD_SOURCE:-mangadex}"
 build_source_first="${KOMA_SOURCE_BROWSE_BUILD_SOURCE_FIRST:-false}"
 source_package_path="${KOMA_SOURCE_PACKAGE_PATH:-$source_repo/dist/sources/mangadex/mangadex-0.1.0.koma}"
+source_disabled_marker="$artifact_dir/source-disabled-by-smoke.txt"
 
 mkdir -p "$artifact_dir"
 
@@ -40,6 +41,20 @@ hdc_target() {
     sleep 2
   done
 }
+
+restore_source_available() {
+  [ -f "$source_disabled_marker" ] || return 0
+  hdc_target shell aa force-stop com.honjow.koma || true
+  hdc_target shell aa start -u "$user_id" -a EntryAbility -b com.honjow.koma -m entry \
+    --ps koma.launchRoute source_package_manager || true
+  sleep "${KOMA_SOURCE_BROWSE_START_WAIT_SECONDS:-4}"
+  if click_from_layout_or_after_scroll "source-browse-source-manager-restore" "$artifact_dir/click-source-enable-restore.txt" "Enable" "启用"; then
+    sleep "${KOMA_SOURCE_BROWSE_SOURCE_TOGGLE_WAIT_SECONDS:-2}"
+    rm -f "$source_disabled_marker"
+  fi
+}
+
+trap 'restore_source_available || true' EXIT
 
 capture_layout() {
   local name="$1"
@@ -522,6 +537,20 @@ if not all(needle in text for needle in sys.argv[2:]):
 PY
 }
 
+click_from_layout_or_after_scroll() {
+  local name="$1"
+  local output="$2"
+  shift 2
+  capture_layout "$name"
+  if click_from_layout "$artifact_dir/$name-layout.json" "$output" "$@"; then
+    return 0
+  fi
+  hdc_target shell uitest uiInput swipe 660 1750 660 650 800
+  sleep "${KOMA_SOURCE_BROWSE_SCROLL_WAIT_SECONDS:-1}"
+  capture_layout "$name-scroll"
+  click_from_layout "$artifact_dir/$name-scroll-layout.json" "$output" "$@"
+}
+
 wait_layout_contains_any() {
   local name="$1"
   shift
@@ -594,6 +623,81 @@ for path in glob.glob(str(artifact_dir / 'download-manifest-*.json')):
 if not matches:
     raise SystemExit('source browse detail reader smoke failed: missing downloaded local manifest for selected manga')
 (artifact_dir / 'download-manifest-summary.json').write_text(json.dumps(matches[0], ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
+PY
+}
+
+make_source_unavailable() {
+  hdc_target shell aa force-stop com.honjow.koma
+  hdc_target shell aa start -u "$user_id" -a EntryAbility -b com.honjow.koma -m entry \
+    --ps koma.launchRoute source_package_manager
+  sleep "${KOMA_SOURCE_BROWSE_START_WAIT_SECONDS:-4}"
+  capture_layout "source-browse-source-manager-before-disable"
+  assert_layout_contains_any "$artifact_dir/source-browse-source-manager-before-disable-layout.json" "$source_display"
+  click_from_layout_or_after_scroll "source-browse-source-manager-disable" "$artifact_dir/click-source-disable.txt" "Disable" "停用"
+  wait_layout_contains_any "source-browse-source-manager-disabled" "Disabled" "已停用" "Enable" "启用"
+  printf '%s\n' "$source_id" > "$source_disabled_marker"
+}
+
+assert_reader_image_and_prepare_center() {
+  local layout="$1"
+  local click_path="$2"
+  local require_local="${3:-false}"
+  python3 - "$layout" "$click_path" "$require_local" <<'PY'
+import json
+import pathlib
+import re
+import sys
+
+layout = json.loads(pathlib.Path(sys.argv[1]).read_text(encoding='utf-8'))
+click_path = pathlib.Path(sys.argv[2])
+require_local = sys.argv[3] == 'true'
+text = json.dumps(layout, ensure_ascii=False)
+if '"type": "Image"' not in text and '"type":"Image"' not in text:
+    raise SystemExit('source browse detail reader smoke failed: reader layout missing image node')
+if require_local and 'reader-page-local-file-image' not in text:
+    raise SystemExit('source browse detail reader smoke failed: downloaded reader did not use local file image')
+
+def attrs(node):
+    if not isinstance(node, dict):
+        return {}
+    value = node.get('attributes')
+    return value if isinstance(value, dict) else node
+
+def walk(node):
+    if isinstance(node, dict):
+        yield node
+        for value in node.values():
+            yield from walk(value)
+    elif isinstance(node, list):
+        for item in node:
+            yield from walk(item)
+
+def bounds(value):
+    if isinstance(value, list) and len(value) >= 4:
+        return [int(float(v)) for v in value[:4]]
+    if isinstance(value, dict):
+        keys = ('left', 'top', 'right', 'bottom')
+        if all(k in value for k in keys):
+            return [int(float(value[k])) for k in keys]
+    if isinstance(value, str):
+        nums = [int(float(v)) for v in re.findall(r'-?\d+(?:\.\d+)?', value)]
+        if len(nums) >= 4:
+            return nums[:4]
+    return None
+
+boxes = []
+for node in walk(layout):
+    item = attrs(node)
+    box = bounds(item.get('bounds')) or bounds(item.get('origBounds')) or bounds(item.get('rect'))
+    if box is not None:
+        boxes.append(box)
+if not boxes:
+    raise SystemExit('source browse detail reader smoke failed: reader layout missing bounds')
+left = min(box[0] for box in boxes)
+top = min(box[1] for box in boxes)
+right = max(box[2] for box in boxes)
+bottom = max(box[3] for box in boxes)
+click_path.write_text(f'{(left + right) // 2} {(top + bottom) // 2}\n', encoding='utf-8')
 PY
 }
 
@@ -690,62 +794,7 @@ click_from_layout "$artifact_dir/source-browse-library-after-add-layout.json" "$
 sleep "${KOMA_SOURCE_BROWSE_READER_WAIT_SECONDS:-10}"
 
 capture_layout "source-browse-reader"
-python3 - "$artifact_dir/source-browse-reader-layout.json" "$artifact_dir/click-reader-center.txt" <<'PY'
-import json
-import pathlib
-import re
-import sys
-
-layout = json.loads(pathlib.Path(sys.argv[1]).read_text(encoding='utf-8'))
-click_path = pathlib.Path(sys.argv[2])
-text = json.dumps(layout, ensure_ascii=False)
-if '"type": "Image"' not in text and '"type":"Image"' not in text:
-    raise SystemExit('source browse detail reader smoke failed: reader layout missing image node')
-if pathlib.Path(sys.argv[1]).with_name('download-manifest-summary.json').exists() and 'reader-page-local-file-image' not in text:
-    raise SystemExit('source browse detail reader smoke failed: downloaded reader did not use local file image')
-
-def attrs(node):
-    if not isinstance(node, dict):
-        return {}
-    value = node.get('attributes')
-    return value if isinstance(value, dict) else node
-
-def walk(node):
-    if isinstance(node, dict):
-        yield node
-        for value in node.values():
-            yield from walk(value)
-    elif isinstance(node, list):
-        for item in node:
-            yield from walk(item)
-
-def bounds(value):
-    if isinstance(value, list) and len(value) >= 4:
-        return [int(float(v)) for v in value[:4]]
-    if isinstance(value, dict):
-        keys = ('left', 'top', 'right', 'bottom')
-        if all(k in value for k in keys):
-            return [int(float(value[k])) for k in keys]
-    if isinstance(value, str):
-        nums = [int(float(v)) for v in re.findall(r'-?\d+(?:\.\d+)?', value)]
-        if len(nums) >= 4:
-            return nums[:4]
-    return None
-
-boxes = []
-for node in walk(layout):
-    item = attrs(node)
-    box = bounds(item.get('bounds')) or bounds(item.get('origBounds')) or bounds(item.get('rect'))
-    if box is not None:
-        boxes.append(box)
-if not boxes:
-    raise SystemExit('source browse detail reader smoke failed: reader layout missing bounds')
-left = min(box[0] for box in boxes)
-top = min(box[1] for box in boxes)
-right = max(box[2] for box in boxes)
-bottom = max(box[3] for box in boxes)
-click_path.write_text(f'{(left + right) // 2} {(top + bottom) // 2}\n', encoding='utf-8')
-PY
+assert_reader_image_and_prepare_center "$artifact_dir/source-browse-reader-layout.json" "$artifact_dir/click-reader-center.txt" "$download_first"
 read -r reader_x reader_y < "$artifact_dir/click-reader-center.txt"
 hdc_target shell uitest uiInput click "$reader_x" "$reader_y"
 sleep "${KOMA_SOURCE_BROWSE_CHROME_WAIT_SECONDS:-1}"
@@ -760,5 +809,41 @@ text = json.dumps(layout, ensure_ascii=False)
 if ' / ' not in text:
     raise SystemExit('source browse detail reader smoke failed: reader chrome layout missing page counter')
 PY
+
+if [ "$download_first" = "true" ]; then
+  make_source_unavailable
+  hdc_target shell aa force-stop com.honjow.koma
+  hdc_target shell aa start -u "$user_id" -a EntryAbility -b com.honjow.koma -m entry
+  sleep "${KOMA_SOURCE_BROWSE_START_WAIT_SECONDS:-4}"
+  capture_layout "source-browse-source-unavailable-home"
+  if ! layout_contains_all "$artifact_dir/source-browse-source-unavailable-home-layout.json" "$source_manga_title"; then
+    click_from_layout "$artifact_dir/source-browse-source-unavailable-home-layout.json" "$artifact_dir/click-library-tab-after-source-unavailable.txt" Library 书架
+    sleep "${KOMA_SOURCE_BROWSE_LIBRARY_WAIT_SECONDS:-3}"
+    capture_layout "source-browse-source-unavailable-library"
+  else
+    cp "$artifact_dir/source-browse-source-unavailable-home-layout.json" "$artifact_dir/source-browse-source-unavailable-library-layout.json"
+    cp "$artifact_dir/source-browse-source-unavailable-home-screen.png" "$artifact_dir/source-browse-source-unavailable-library-screen.png"
+  fi
+  assert_layout_contains "$artifact_dir/source-browse-source-unavailable-library-layout.json" "$source_manga_title"
+  click_from_layout "$artifact_dir/source-browse-source-unavailable-library-layout.json" "$artifact_dir/click-library-source-manga-after-source-unavailable.txt" "$source_manga_title"
+  sleep "${KOMA_SOURCE_BROWSE_READER_WAIT_SECONDS:-10}"
+  capture_layout "source-browse-source-unavailable-reader"
+  assert_reader_image_and_prepare_center "$artifact_dir/source-browse-source-unavailable-reader-layout.json" "$artifact_dir/click-reader-center-after-source-unavailable.txt" true
+  read -r reader_x reader_y < "$artifact_dir/click-reader-center-after-source-unavailable.txt"
+  hdc_target shell uitest uiInput click "$reader_x" "$reader_y"
+  sleep "${KOMA_SOURCE_BROWSE_CHROME_WAIT_SECONDS:-1}"
+  capture_layout "source-browse-source-unavailable-reader-chrome"
+  python3 - "$artifact_dir/source-browse-source-unavailable-reader-chrome-layout.json" <<'PY'
+import json
+import pathlib
+import sys
+
+layout = json.loads(pathlib.Path(sys.argv[1]).read_text(encoding='utf-8'))
+text = json.dumps(layout, ensure_ascii=False)
+if ' / ' not in text:
+    raise SystemExit('source browse detail reader smoke failed: source-unavailable reader chrome layout missing page counter')
+PY
+  restore_source_available
+fi
 
 echo "source browse detail reader smoke passed: $artifact_dir"
