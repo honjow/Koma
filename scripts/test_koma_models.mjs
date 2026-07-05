@@ -66,6 +66,7 @@ const secondaryListScaffoldPath = resolve(root, 'entry/src/main/ets/components/S
 const comicCoverCardPath = resolve(root, 'entry/src/main/ets/components/ComicCoverCard.ets')
 const chapterListSectionPath = resolve(root, 'entry/src/main/ets/components/ChapterListSection.ets')
 const mangaDescriptionSectionPath = resolve(root, 'entry/src/main/ets/components/MangaDescriptionSection.ets')
+const readerChromePath = resolve(root, 'entry/src/main/ets/components/ReaderChrome.ets')
 const mangaDetailPagePath = resolve(root, 'entry/src/main/ets/pages/MangaDetailPage.ets')
 const downloadsPagePath = resolve(root, 'entry/src/main/ets/pages/DownloadsPage.ets')
 const readerPagePath = resolve(root, 'entry/src/main/ets/pages/ReaderPage.ets')
@@ -140,6 +141,7 @@ const secondaryListScaffoldSource = readFileSync(secondaryListScaffoldPath, 'utf
 const comicCoverCardSource = readFileSync(comicCoverCardPath, 'utf8')
 const chapterListSectionSource = readFileSync(chapterListSectionPath, 'utf8')
 const mangaDescriptionSectionSource = readFileSync(mangaDescriptionSectionPath, 'utf8')
+const readerChromeSource = readFileSync(readerChromePath, 'utf8')
 const mangaDetailPageSource = readFileSync(mangaDetailPagePath, 'utf8')
 const downloadsPageSource = readFileSync(downloadsPagePath, 'utf8')
 const readerPageSource = readFileSync(readerPagePath, 'utf8')
@@ -2258,6 +2260,16 @@ assert.match(
   readerPageSource,
   /aboutToDisappear\(\): void \{[\s\S]*const progress = this\.setPageIndex\(this\.pageIndex\)[\s\S]*this\.remoteProgressSyncService\?\.flushPendingPushes\(\)[\s\S]*this\.pushTrackerProgress\(progress, 'on_reader_close'\)/,
   'Reader close must flush pending private-library progress before the debounced push can be dropped',
+)
+assert.match(
+  readerChromeSource,
+  /@Event onSeekPage: \(pageIndex: number\) => void[\s\S]*sliderPageValue\(\): number[\s\S]*seekToPageValue\(value: number\): void[\s\S]*this\.onSeekPage\(target\)[\s\S]*Slider\(\{[\s\S]*value: this\.sliderPageValue\(\)[\s\S]*step: 1[\s\S]*\.onChange\(\(value: number\) => \{[\s\S]*this\.seekToPageValue\(value\)/,
+  'ReaderChrome bottom controls must expose a real draggable page slider instead of a display-only progress bar',
+)
+assert.match(
+  readerPageSource,
+  /seekChromePage\(pageIndex: number\): void \{[\s\S]*const mode = this\.currentReaderMode\(\)[\s\S]*const target = Math\.max\(0, Math\.min\(pageIndex, this\.chromePageTotal\(\) - 1\)\)[\s\S]*this\.isSplitDisplayNavigationMode\(\)[\s\S]*this\.setReaderDisplayEntryIndex\(target, mode, true\)[\s\S]*mode === ReaderMode\.DUAL_PAGE[\s\S]*this\.setPageIndex\(target\)[\s\S]*this\.syncReaderViewportToDisplayIndex\(this\.dualPairIndexForPage\(target\), mode\)[\s\S]*this\.setReaderDisplayEntryIndex\(this\.displayIndexForPage\(target, mode\), mode, true\)[\s\S]*onSeekPage: \(pageIndex: number\) => \{[\s\S]*this\.seekChromePage\(pageIndex\)/,
+  'ReaderPage must wire ReaderChrome page seeking to the active reader viewport for split, dual, single, and continuous modes',
 )
 assert.match(
   trackerProgressSyncServiceSource,
