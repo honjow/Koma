@@ -319,10 +319,50 @@ function sortedPages(chapter: Chapter): Page[] {
   })
 }
 
+function optionalReaderChapterSortNumber(chapter: Chapter): number | undefined {
+  const value = chapter.sortKey.trim()
+  if (value.length === 0) {
+    return undefined
+  }
+  const parsed = Number(value)
+  return Number.isFinite(parsed) ? parsed : undefined
+}
+
+export function sortedReaderChapters(chapters: Chapter[]): Chapter[] {
+  return chapters.slice().sort((a: Chapter, b: Chapter): number => {
+    const leftNumber = optionalReaderChapterSortNumber(a)
+    const rightNumber = optionalReaderChapterSortNumber(b)
+    if (leftNumber !== undefined && rightNumber !== undefined && leftNumber !== rightNumber) {
+      return leftNumber - rightNumber
+    }
+    if (leftNumber !== undefined && rightNumber === undefined) {
+      return -1
+    }
+    if (leftNumber === undefined && rightNumber !== undefined) {
+      return 1
+    }
+    if (a.dateUpload !== undefined && b.dateUpload !== undefined && a.dateUpload !== b.dateUpload) {
+      return a.dateUpload - b.dateUpload
+    }
+    if (a.dateUpload !== undefined && b.dateUpload === undefined) {
+      return -1
+    }
+    if (a.dateUpload === undefined && b.dateUpload !== undefined) {
+      return 1
+    }
+    if (a.index !== b.index) {
+      return a.index - b.index
+    }
+    return a.sortKey.localeCompare(b.sortKey)
+  })
+}
+
 export function createReaderSessionConfigFromComic(comic: Comic, chapterId?: string): ReaderSessionConfig {
-  let chapter = comic.chapters.length === 0 ? undefined : comic.chapters[0]
+  const orderedChapters = sortedReaderChapters(comic.chapters)
+  const chapterIds = orderedChapters.map((item: Chapter): string => item.id)
+  let chapter = orderedChapters.length === 0 ? undefined : orderedChapters[0]
   if (chapterId !== undefined) {
-    const matchedChapter = comic.chapters.find((item: Chapter) => item.id === chapterId)
+    const matchedChapter = orderedChapters.find((item: Chapter) => item.id === chapterId)
     if (matchedChapter !== undefined) {
       chapter = matchedChapter
     }
@@ -333,7 +373,7 @@ export function createReaderSessionConfigFromComic(comic: Comic, chapterId?: str
       comicId: comic.id,
       chapterId: '',
       title: comic.title,
-      chapterIds: comic.chapters.map((item: Chapter): string => item.id),
+      chapterIds,
       totalPages: 0,
       pageUris: [],
       pageIds: [],
@@ -349,7 +389,7 @@ export function createReaderSessionConfigFromComic(comic: Comic, chapterId?: str
     chapterId: chapter.id,
     title: comic.title,
     chapterTitle: chapter.title,
-    chapterIds: comic.chapters.map((item: Chapter): string => item.id),
+    chapterIds,
     totalPages: pages.length,
     pageUris: pages.map((page: Page) => page.uri),
     pageIds: pages.map((page: Page) => page.id),

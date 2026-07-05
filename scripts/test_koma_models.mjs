@@ -675,6 +675,26 @@ assert.match(
 )
 assert.match(
   readerSessionStoreSource,
+  /export function sortedReaderChapters\(chapters: Chapter\[\]\): Chapter\[\][\s\S]*optionalReaderChapterSortNumber\(a\)[\s\S]*dateUpload[\s\S]*return a\.index - b\.index[\s\S]*const orderedChapters = sortedReaderChapters\(comic\.chapters\)[\s\S]*chapterIds,/,
+  'reader sessions must expose chronological chapter ids for adjacent chapter navigation and tracker progress',
+)
+assert.match(
+  readerPageSource,
+  /@Event onOpenChapter: \(chapterId: string\) => void[\s\S]*currentChapterIndex\(\): number[\s\S]*canGoPreviousChapter\(\): boolean[\s\S]*canGoNextChapter\(\): boolean[\s\S]*openAdjacentChapter\(delta: number\): void[\s\S]*this\.onOpenChapter\(this\.sessionConfig\.chapterIds\[targetIndex\]\)/,
+  'ReaderPage must support previous/next chapter navigation through the existing reader opening route',
+)
+assert.match(
+  readerChromeSource,
+  /@Param chapterIndex: number[\s\S]*@Param chapterTotal: number[\s\S]*@Event onPreviousChapter[\s\S]*@Event onNextChapter[\s\S]*reader_control_chapter[\s\S]*reader_action_previous_chapter[\s\S]*reader_action_next_chapter/,
+  'ReaderChrome must surface visible chapter controls instead of hiding chapter jumps in settings',
+)
+assert.match(
+  indexSource,
+  /onOpenChapter: \(chapterId: string\) => \{[\s\S]*this\.readerSessionConfig\.comicId\.length > 0[\s\S]*void this\.openReader\(this\.readerSessionConfig\.comicId, chapterId\)/,
+  'Index must reopen the active reader session on a requested adjacent chapter without leaving the reader route',
+)
+assert.match(
+  readerSessionStoreSource,
   /export function getReaderSessionPageWidth\(config: ReaderSessionConfig, pageIndex: number\): number \| undefined[\s\S]*resolvedPageIndex >= config\.pageWidths\.length[\s\S]*return undefined[\s\S]*return config\.pageWidths\[resolvedPageIndex\]/,
   'ReaderSessionStore must expose fail-open page width lookup for missing metadata',
 )

@@ -629,9 +629,12 @@
 
     { "name": "reader_action_previous_page", "value": "Previous page" },
     { "name": "reader_action_next_page", "value": "Next page" },
+    { "name": "reader_action_previous_chapter", "value": "Previous chapter" },
+    { "name": "reader_action_next_chapter", "value": "Next chapter" },
     { "name": "reader_action_save_series_settings", "value": "Use for this series" },
     { "name": "reader_action_clear_series_settings", "value": "Clear series settings" },
     { "name": "reader_action_reset_zoom", "value": "Reset zoom" },
+    { "name": "reader_control_chapter", "value": "Chapter" },
     { "name": "reader_control_mode", "value": "Mode" },
     { "name": "reader_control_zoom", "value": "Zoom" },
     { "name": "reader_series_settings_saved", "value": "Reader settings saved for this series" },

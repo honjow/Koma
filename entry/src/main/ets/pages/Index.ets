@@ -601,6 +601,11 @@ struct Index {
           sessionConfig: this.readerSessionConfig,
           onCloseReader: () => {
             this.closeReader()
+          },
+          onOpenChapter: (chapterId: string) => {
+            if (this.readerSessionConfig.comicId.length > 0) {
+              void this.openReader(this.readerSessionConfig.comicId, chapterId)
+            }
           }
         })
       }
