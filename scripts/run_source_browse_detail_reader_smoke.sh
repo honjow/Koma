@@ -617,29 +617,27 @@ capture_layout "source-browse-detail"
 extract_source_detail_title "$artifact_dir/source-browse-detail-layout.json" "$artifact_dir/source-manga-title.txt"
 source_manga_title="$(sed -n '1p' "$artifact_dir/source-manga-title.txt")"
 assert_layout_contains_any "$artifact_dir/source-browse-detail-layout.json" "Start reading" "开始阅读"
+detail_action_layout="$artifact_dir/source-browse-detail-layout.json"
 if [ "$download_first" = "true" ]; then
   click_from_layout "$artifact_dir/source-browse-detail-layout.json" "$artifact_dir/click-download-chapter.txt" "Download chapter" "下载章节" "Download again" "重新下载"
   wait_layout_contains_any "source-browse-download" "Download again" "重新下载" "Downloaded" "已下载"
   detail_action_layout="$artifact_dir/source-browse-download-layout.json"
-  click_from_layout "$detail_action_layout" "$artifact_dir/click-start-reading.txt" "Start reading" "开始阅读"
-  sleep "${KOMA_SOURCE_BROWSE_READER_WAIT_SECONDS:-10}"
-else
-  assert_layout_contains_any "$artifact_dir/source-browse-detail-layout.json" "Add to library" "加入书架" "In library" "已在书架"
-  click_from_layout "$artifact_dir/source-browse-detail-layout.json" "$artifact_dir/click-add-to-library.txt" "Add to library" "加入书架" "In library" "已在书架"
-  sleep "${KOMA_SOURCE_BROWSE_ADD_WAIT_SECONDS:-4}"
-  capture_layout "source-browse-library-after-add"
-  if ! layout_contains_all "$artifact_dir/source-browse-library-after-add-layout.json" "$source_manga_title" "浏览"; then
-    hdc_target shell uitest uiInput keyEvent Back || true
-    sleep "${KOMA_SOURCE_BROWSE_BACK_WAIT_SECONDS:-2}"
-    capture_layout "source-browse-after-add-back"
-    click_from_layout "$artifact_dir/source-browse-after-add-back-layout.json" "$artifact_dir/click-library-tab.txt" Library 书架
-    sleep "${KOMA_SOURCE_BROWSE_LIBRARY_WAIT_SECONDS:-3}"
-    capture_layout "source-browse-library-after-add"
-  fi
-  assert_layout_contains "$artifact_dir/source-browse-library-after-add-layout.json" "$source_manga_title"
-  click_from_layout "$artifact_dir/source-browse-library-after-add-layout.json" "$artifact_dir/click-library-source-manga.txt" "$source_manga_title"
-  sleep "${KOMA_SOURCE_BROWSE_READER_WAIT_SECONDS:-10}"
 fi
+assert_layout_contains_any "$detail_action_layout" "Add to library" "加入书架" "In library" "已在书架"
+click_from_layout "$detail_action_layout" "$artifact_dir/click-add-to-library.txt" "Add to library" "加入书架" "In library" "已在书架"
+sleep "${KOMA_SOURCE_BROWSE_ADD_WAIT_SECONDS:-4}"
+capture_layout "source-browse-library-after-add"
+if ! layout_contains_all "$artifact_dir/source-browse-library-after-add-layout.json" "$source_manga_title" "浏览"; then
+  hdc_target shell uitest uiInput keyEvent Back || true
+  sleep "${KOMA_SOURCE_BROWSE_BACK_WAIT_SECONDS:-2}"
+  capture_layout "source-browse-after-add-back"
+  click_from_layout "$artifact_dir/source-browse-after-add-back-layout.json" "$artifact_dir/click-library-tab.txt" Library 书架
+  sleep "${KOMA_SOURCE_BROWSE_LIBRARY_WAIT_SECONDS:-3}"
+  capture_layout "source-browse-library-after-add"
+fi
+assert_layout_contains "$artifact_dir/source-browse-library-after-add-layout.json" "$source_manga_title"
+click_from_layout "$artifact_dir/source-browse-library-after-add-layout.json" "$artifact_dir/click-library-source-manga.txt" "$source_manga_title"
+sleep "${KOMA_SOURCE_BROWSE_READER_WAIT_SECONDS:-10}"
 
 capture_layout "source-browse-reader"
 python3 - "$artifact_dir/source-browse-reader-layout.json" "$artifact_dir/click-reader-center.txt" <<'PY'
