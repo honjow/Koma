@@ -4,6 +4,7 @@ import {
   KOMA_LAUNCH_ROUTE_DOWNLOADS,
   KOMA_LAUNCH_ROUTE_LIBRARY_UPDATE_RESULTS,
   KOMA_LAUNCH_ROUTE_PARAM,
+  KOMA_LAUNCH_ROUTE_SOURCE_PACKAGE_MANAGER,
 } from '../common/Constants'
 import { RouterHelper } from '../common/RouterHelper'
 import { ReaderPreferencesStore, applyReaderThemeMode } from '../model/ReaderPreferencesStore'
@@ -105,6 +106,8 @@ export default class EntryAbility extends UIAbility {
       RouterHelper.pushLibraryUpdateResults()
     } else if (route === KOMA_LAUNCH_ROUTE_DOWNLOADS) {
       RouterHelper.pushDownloads()
+    } else if (route === KOMA_LAUNCH_ROUTE_SOURCE_PACKAGE_MANAGER) {
+      RouterHelper.pushSourcePackageManager()
     }
   }
 }

@@ -18,8 +18,12 @@ const sourceFilterPreferencesStorePath = resolve(root, 'entry/src/main/ets/sourc
 const smokePath = resolve(root, 'entry/src/main/ets/sourceRuntime/SourceRuntimeDeviceSmoke.ets')
 const sourceRuntimeRegistryPath = resolve(root, 'entry/src/main/ets/sourceRuntime/SourceRuntimeRegistry.ets')
 const sourcePackageTrustPolicyPath = resolve(root, 'entry/src/main/ets/sourceRuntime/SourcePackageTrustPolicy.ets')
+const constantsPath = resolve(root, 'entry/src/main/ets/common/Constants.ets')
+const routerHelperPath = resolve(root, 'entry/src/main/ets/common/RouterHelper.ets')
+const entryAbilityPath = resolve(root, 'entry/src/main/ets/entryability/EntryAbility.ets')
 const sourceReaderSmokeScriptPath = resolve(root, 'scripts/run_source_reader_smoke.sh')
 const sourceSettingsSmokeScriptPath = resolve(root, 'scripts/run_source_settings_smoke.sh')
+const sourceSettingsUiSmokeScriptPath = resolve(root, 'scripts/run_source_settings_ui_smoke.sh')
 const sourceDownloadReaderSmokeScriptPath = resolve(root, 'scripts/run_source_download_reader_smoke.sh')
 const sourceCorruptDownloadReaderSmokeScriptPath = resolve(root, 'scripts/run_source_corrupt_download_reader_smoke.sh')
 const sourceUndownloadedOfflineReaderSmokeScriptPath = resolve(root, 'scripts/run_source_undownloaded_offline_reader_smoke.sh')
@@ -48,8 +52,12 @@ const sourceFilterPreferencesStoreSource = readFileSync(sourceFilterPreferencesS
 const smokeSource = readFileSync(smokePath, 'utf8')
 const sourceRuntimeRegistrySource = readFileSync(sourceRuntimeRegistryPath, 'utf8')
 const sourcePackageTrustPolicySource = readFileSync(sourcePackageTrustPolicyPath, 'utf8')
+const constantsSource = readFileSync(constantsPath, 'utf8')
+const routerHelperSource = readFileSync(routerHelperPath, 'utf8')
+const entryAbilitySource = readFileSync(entryAbilityPath, 'utf8')
 const sourceReaderSmokeScriptSource = readFileSync(sourceReaderSmokeScriptPath, 'utf8')
 const sourceSettingsSmokeScriptSource = readFileSync(sourceSettingsSmokeScriptPath, 'utf8')
+const sourceSettingsUiSmokeScriptSource = readFileSync(sourceSettingsUiSmokeScriptPath, 'utf8')
 const sourceDownloadReaderSmokeScriptSource = readFileSync(sourceDownloadReaderSmokeScriptPath, 'utf8')
 const sourceCorruptDownloadReaderSmokeScriptSource = readFileSync(sourceCorruptDownloadReaderSmokeScriptPath, 'utf8')
 const sourceUndownloadedOfflineReaderSmokeScriptSource = readFileSync(sourceUndownloadedOfflineReaderSmokeScriptPath, 'utf8')
@@ -278,6 +286,9 @@ assert.match(managerPageSource, /appSourceSettingsStore\.saveForSource\(this\.se
 assert.match(managerPageSource, /clearSavedSettings\(\): void[\s\S]*appSourceSettingsStore\.removeSource\(this\.settingsSourceId\)[\s\S]*savedCount: 0[\s\S]*source_pkg_settings_cleared[\s\S]*this\.closeSettings\(\)/, 'SourcePackageManagerPage must expose a real clear action for saved per-source settings')
 assert.match(managerPageSource, /confirmClearSavedSettings\(\): void[\s\S]*source_pkg_clear_settings_title[\s\S]*source_pkg_clear_settings_message[\s\S]*primaryButton:[\s\S]*source_pkg_clear_settings[\s\S]*this\.clearSavedSettings\(\)/, 'SourcePackageManagerPage must confirm before clearing saved per-source settings')
 assert.match(managerPageSource, /source_pkg_clear_settings[\s\S]*kind: 'danger'[\s\S]*this\.confirmClearSavedSettings\(\)[\s\S]*source_pkg_save_settings[\s\S]*this\.saveSettings\(\)/, 'SourcePackageManagerPage settings panel must show confirmed clear and save actions together')
+assert.match(constantsSource, /KOMA_LAUNCH_ROUTE_SOURCE_PACKAGE_MANAGER:\s*string = 'source_package_manager'/, 'launch route constants must include the source package manager route for source settings UI QA')
+assert.match(routerHelperSource, /pushSourcePackageManager\(\): void \{[\s\S]*RouteName\.SOURCE_PACKAGE_MANAGER/, 'RouterHelper must expose a launch-safe SourcePackageManager route push')
+assert.match(entryAbilitySource, /KOMA_LAUNCH_ROUTE_SOURCE_PACKAGE_MANAGER[\s\S]*RouterHelper\.pushSourcePackageManager\(\)/, 'EntryAbility must route source package manager launch wants to SourcePackageManagerPage')
 assert.match(managerPageSource, /removePackage\(source: InstalledSourcePackage\): Promise<void>[\s\S]*await remove\(this\.context\(\), source\.id\)[\s\S]*this\.clearUpdateStatus\(source\.id\)[\s\S]*this\.clearSettingsValidationStatus\(source\.id\)/, 'SourcePackageManagerPage must still remove source packages and clear related status state')
 assert.match(managerPageSource, /confirmRemovePackage\(source: InstalledSourcePackage\): void[\s\S]*source_pkg_remove_title[\s\S]*source_pkg_remove_message[\s\S]*primaryButton:[\s\S]*source_pkg_delete[\s\S]*this\.removePackage\(source\)/, 'SourcePackageManagerPage must confirm before deleting an installed source package')
 assert.match(managerPageSource, /label: t\('source_pkg_delete'\)[\s\S]*kind: 'danger'[\s\S]*this\.confirmRemovePackage\(source\)/, 'SourcePackageManagerPage package delete button must route through confirmation')
@@ -703,19 +714,24 @@ assert.match(
   'source settings smoke script must reuse the source reader smoke harness with the focused settings phase',
 )
 assert.match(
+  sourceSettingsUiSmokeScriptSource,
+  /KOMA_SOURCE_READER_PHASE=source-index-settings[\s\S]*scripts\/run_source_reader_smoke\.sh[\s\S]*--ps koma\.launchRoute source_package_manager[\s\S]*click_from_layout[\s\S]*Settings[\s\S]*设置[\s\S]*Save settings[\s\S]*保存设置[\s\S]*Validate settings[\s\S]*验证设置[\s\S]*Settings validation: PASS[\s\S]*设置验证：PASS/,
+  'source settings UI smoke must seed a real source, open SourcePackageManagerPage by launch route, save settings, and validate PASS from the visible UI',
+)
+assert.match(
   sourceReaderSmokeScriptSource,
   /phase not in \('source-index-settings', 'source-index-browse'\) and result\.get\('sourceIndexReaderSearchQuery'\) != query/,
   'source reader smoke script must not require reader search query fields for browse/settings-only source phases',
 )
 assert.match(
   sourceBrowseDetailReaderSmokeScriptSource,
-  /KOMA_SOURCE_READER_PHASE=source-index-browse[\s\S]*scripts\/run_source_reader_smoke\.sh[\s\S]*aa start[\s\S]*click_from_layout[\s\S]*Browse[\s\S]*click_from_layout[\s\S]*"\$source_display"[\s\S]*click_first_source_manga[\s\S]*Start reading[\s\S]*source-browse-reader-layout\.json/,
-  'source browse detail reader smoke must seed a real source package, drive Browse UI to a source manga detail, start Reader, and capture reader layout evidence',
+  /KOMA_SOURCE_READER_PHASE=source-index-browse[\s\S]*scripts\/run_source_reader_smoke\.sh[\s\S]*aa start[\s\S]*click_from_layout[\s\S]*Browse[\s\S]*click_from_layout[\s\S]*"\$source_display"[\s\S]*click_first_source_manga[\s\S]*Add to library[\s\S]*加入书架[\s\S]*source-browse-library-after-add-layout\.json[\s\S]*click-library-source-manga[\s\S]*source-browse-reader-layout\.json/,
+  'source browse detail reader smoke must seed a real source package, add a source manga to the visible library, open it from the library, and capture reader layout evidence',
 )
 assert.match(
   sourceBrowseDetailReaderSmokeScriptSource,
-  /capture_layout "source-browse-home"[\s\S]*capture_layout "source-browse-list"[\s\S]*capture_layout "source-browse-source"[\s\S]*capture_layout "source-browse-detail"[\s\S]*capture_layout "source-browse-reader"/,
-  'source browse detail reader smoke must retain visible screenshots for browse, source list, source detail, and reader states',
+  /capture_layout "source-browse-home"[\s\S]*capture_layout "source-browse-list"[\s\S]*capture_layout "source-browse-source"[\s\S]*capture_layout "source-browse-detail"[\s\S]*capture_layout "source-browse-library-after-add"[\s\S]*capture_layout "source-browse-reader"/,
+  'source browse detail reader smoke must retain visible screenshots for browse, source list, source detail, source-added library, and reader states',
 )
 assert.match(
   sourceBrowseDetailReaderSmokeScriptSource,

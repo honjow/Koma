@@ -68,6 +68,10 @@ export class RouterHelper {
     RouterHelper.openLaunchRoute(RouteName.DOWNLOADS)
   }
 
+  static pushSourcePackageManager(): void {
+    RouterHelper.openLaunchRoute(RouteName.SOURCE_PACKAGE_MANAGER)
+  }
+
   static pushMangaDetail(param: MangaDetailRouteParam): void {
     const stack = RouterHelper.appPathStack
     if (stack === undefined) {
