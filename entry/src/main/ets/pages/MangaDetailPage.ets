@@ -830,7 +830,12 @@ export struct MangaDetailPage {
         }
       }
       if (this.manga.sourceId !== undefined) {
-        await this.ensureSourceChapterPages(resolvedChapterId)
+        const hydrated = await this.ensureSourceChapterPages(resolvedChapterId)
+        if (!hydrated) {
+          this.downloadStatusText = s('manga_detail_chapter_pages_load_failed')
+          this.showToast(s('manga_detail_chapter_pages_load_failed'))
+          return
+        }
       }
       const comic = this.libraryStore?.getComic(this.currentComicId())
       if (comic === undefined) {

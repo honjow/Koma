@@ -837,6 +837,11 @@ assert.match(
 )
 assert.match(
   mangaDetailPageSource,
+  /handleDownloadChapter\(chapterId\?: string\): Promise<void> \{[\s\S]*if \(this\.manga\.sourceId !== undefined\) \{[\s\S]*const hydrated = await this\.ensureSourceChapterPages\(resolvedChapterId\)[\s\S]*if \(!hydrated\) \{[\s\S]*this\.downloadStatusText = s\('manga_detail_chapter_pages_load_failed'\)[\s\S]*this\.showToast\(s\('manga_detail_chapter_pages_load_failed'\)\)[\s\S]*return/,
+  'MangaDetailPage single chapter download must stop with an honest page-load error when source page hydration fails',
+)
+assert.match(
+  mangaDetailPageSource,
   /formatString\('manga_detail_download_status_downloaded', \[summary\.downloadedPageCount, summary\.pageCount\]\)/,
   'MangaDetailPage must expose an explicit downloaded N/M page status',
 )
