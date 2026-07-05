@@ -656,6 +656,7 @@
     { "name": "manga_detail_load_local_failed", "value": "书架中未找到该漫画。" },
     { "name": "manga_detail_loading_source", "value": "正在加载源详情..." },
     { "name": "manga_detail_load_source_failed", "value": "源详情加载失败。" },
+    { "name": "manga_detail_load_source_chapters_failed", "value": "详情已加载，但章节加载失败。" },
     { "name": "manga_detail_library_unavailable", "value": "书架不可用。" },
     { "name": "manga_detail_download_empty", "value": "暂无可下载章节" },
     { "name": "manga_detail_download_unavailable", "value": "下载不可用" },

@@ -429,7 +429,14 @@ export struct MangaDetailPage {
         throw new Error(lookup.reasonCode ?? 'source lookup failed')
       }
       const detail = await this.runSourceMangaOperation(lookup.entry, 'get_manga', mangaId)
-      const chapters = await this.runSourceChaptersOperation(lookup.entry, mangaId)
+      let chapters: MangaChapterItem[] = []
+      let chaptersLoadFailed = false
+      try {
+        chapters = await this.runSourceChaptersOperation(lookup.entry, mangaId)
+      } catch (_error) {
+        chaptersLoadFailed = true
+        console.warn('[manga-detail] source chapters load failed reason=source_chapters')
+      }
       const comicId = this.sourceComicId(sourceId, mangaId)
       detail.chapterCount = chapters.length
       detail.isInLibrary = this.libraryStore?.getComic(comicId) !== undefined
@@ -437,7 +444,7 @@ export struct MangaDetailPage {
       this.manga = detail
       this.chapters = this.decorateChapterStates(chapters)
       this.isInLibrary = detail.isInLibrary
-      this.feedbackText = ''
+      this.feedbackText = chaptersLoadFailed ? s('manga_detail_load_source_chapters_failed') : ''
       this.refreshDownloadStatus()
     } catch (error) {
       const e = error as Error

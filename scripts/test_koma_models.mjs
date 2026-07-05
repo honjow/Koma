@@ -1654,6 +1654,11 @@ assert.match(
 )
 assert.match(
   mangaDetailPageSource,
+  /const detail = await this\.runSourceMangaOperation\(lookup\.entry, 'get_manga', mangaId\)[\s\S]*let chapters: MangaChapterItem\[\] = \[\][\s\S]*let chaptersLoadFailed = false[\s\S]*try \{[\s\S]*chapters = await this\.runSourceChaptersOperation\(lookup\.entry, mangaId\)[\s\S]*\} catch \(_error\) \{[\s\S]*chaptersLoadFailed = true[\s\S]*reason=source_chapters[\s\S]*this\.manga = detail[\s\S]*this\.chapters = this\.decorateChapterStates\(chapters\)[\s\S]*manga_detail_load_source_chapters_failed/,
+  'MangaDetailPage must keep a successful source detail visible when chapter loading fails',
+)
+assert.match(
+  mangaDetailPageSource,
   /private sourceMangaResponseItem[\s\S]*response\.data\?\.manga[\s\S]*response\.data\?\.item[\s\S]*response\.data\?\.items/,
   'get_manga parsing must accept data.manga, data.item, and data.items[0]',
 )
