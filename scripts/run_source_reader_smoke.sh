@@ -292,6 +292,8 @@ if phase == 'source-index-download-corrupt-reader':
         raise SystemExit('source reader smoke failed: corrupt reader did not report offline placeholder')
     if '"type": "Image"' in text or '"type":"Image"' in text:
         raise SystemExit('source reader smoke failed: corrupt reader unexpectedly rendered an image node')
+    if 'Unable to load page' not in text and '无法加载页面' not in text:
+        raise SystemExit('source reader smoke failed: corrupt reader missing visible error')
     raise SystemExit(0)
 if phase == 'source-index-visible-offline-download-reader':
     if result.get('sourceIndexDownloadOfflineReaderKind') != 'local_file_image':

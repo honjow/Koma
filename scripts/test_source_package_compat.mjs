@@ -819,8 +819,8 @@ assert.match(
 )
 assert.match(
   sourceReaderSmokeScriptSource,
-  /phase == 'source-index-download-corrupt-reader'[\s\S]*sourceIndexDownloadOfflineReaderKind[\s\S]*uri_placeholder[\s\S]*unexpectedly rendered an image node/,
-  'source reader smoke script must validate corrupt offline reader UI as a visible placeholder instead of an image',
+  /phase == 'source-index-download-corrupt-reader'[\s\S]*sourceIndexDownloadOfflineReaderKind[\s\S]*uri_placeholder[\s\S]*unexpectedly rendered an image node[\s\S]*Unable to load page[\s\S]*无法加载页面/,
+  'source reader smoke script must validate corrupt offline reader UI as a visible honest error placeholder instead of an image',
 )
 assert.match(
   sourceReaderSmokeScriptSource,
