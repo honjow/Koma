@@ -425,8 +425,8 @@ assert.match(
 )
 assert.match(
   browseViewModelSource,
-  /sourceItemCoverUrl\(item: RuntimeRecord\): string \| undefined[\s\S]*optionalString\(item\['cover_url'\]\)[\s\S]*optionalString\(item\['coverUrl'\]\)[\s\S]*optionalString\(item\['cover_uri'\]\)[\s\S]*optionalString\(item\['coverUri'\]\)[\s\S]*optionalString\(item\['thumbnail'\]\)[\s\S]*itemRecord\(item\['cover'\]\)[\s\S]*optionalString\(cover\['url'\]\)[\s\S]*optionalString\(cover\['uri'\]\)/,
-  'BrowseViewModel must preserve source cover URLs from snake_case, camelCase, thumbnail, and cover object payloads',
+  /sourceItemCoverUrl\(item: RuntimeRecord\): string \| undefined[\s\S]*optionalString\(item\['cover_url'\]\)[\s\S]*optionalString\(item\['coverUrl'\]\)[\s\S]*optionalString\(item\['cover_uri'\]\)[\s\S]*optionalString\(item\['coverUri'\]\)[\s\S]*optionalString\(item\['thumbnail'\]\)[\s\S]*optionalString\(item\['image_url'\]\)[\s\S]*itemRecord\(item\['cover'\]\)[\s\S]*optionalString\(cover\['src'\]\)[\s\S]*const image = itemRecord\(item\['image'\]\)[\s\S]*optionalString\(image\['href'\]\)/,
+  'BrowseViewModel must preserve source cover URLs from snake_case, camelCase, thumbnail, cover object, and image object payloads',
 )
 assert.match(
   browseViewModelSource,

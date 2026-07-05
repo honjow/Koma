@@ -49,6 +49,8 @@ export interface SourceFilter {
 interface SourceRuntimeCoverPayload {
   url?: string
   uri?: string
+  src?: string
+  href?: string
   kind?: string
 }
 
@@ -59,6 +61,8 @@ interface SourceRuntimeMangaPayload {
   author?: string
   artist?: string
   description?: string
+  summary?: string
+  synopsis?: string
   cover_url?: string
   coverUrl?: string
   cover_uri?: string
@@ -66,11 +70,14 @@ interface SourceRuntimeMangaPayload {
   thumbnail?: string
   thumbnailUrl?: string
   imageUrl?: string
+  image_url?: string
   cover?: SourceRuntimeCoverPayload
+  image?: SourceRuntimeCoverPayload
   authors?: string[]
   artists?: string[]
   status?: string
   contentRating?: string
+  content_rating?: string
   tags?: string[]
   sourceTags?: string[]
   url?: string
@@ -255,9 +262,9 @@ export function normalizeSourceManga(sourceId: string, payload: SourceRuntimeMan
     id: firstNonEmpty([payload.id, title]) ?? title,
     sourceId,
     title: normalizeSourceDisplayText(title) ?? title,
-    author: normalizeSourceDisplayText(firstNonEmpty([payload.author, payload.authors === undefined ? undefined : payload.authors.join(', ')])),
-    artist: normalizeSourceDisplayText(firstNonEmpty([payload.artist, payload.artists === undefined ? undefined : payload.artists.join(', ')])),
-    description: normalizeSourceDisplayText(payload.description),
+    author: firstNonEmptyList([payload.author, payload.authors]),
+    artist: firstNonEmptyList([payload.artist, payload.artists]),
+    description: normalizeSourceDisplayText(firstNonEmpty([payload.description, payload.summary, payload.synopsis])),
     coverUrl: firstNonEmpty([
       payload.cover_url,
       payload.coverUrl,
@@ -266,11 +273,18 @@ export function normalizeSourceManga(sourceId: string, payload: SourceRuntimeMan
       payload.thumbnail,
       payload.thumbnailUrl,
       payload.imageUrl,
+      payload.image_url,
       payload.cover === undefined ? undefined : payload.cover.url,
       payload.cover === undefined ? undefined : payload.cover.uri,
+      payload.cover === undefined ? undefined : payload.cover.src,
+      payload.cover === undefined ? undefined : payload.cover.href,
+      payload.image === undefined ? undefined : payload.image.url,
+      payload.image === undefined ? undefined : payload.image.uri,
+      payload.image === undefined ? undefined : payload.image.src,
+      payload.image === undefined ? undefined : payload.image.href,
     ]),
     status: normalizeSourceMangaStatus(payload.status),
-    contentRating: optionalString(payload.contentRating),
+    contentRating: optionalString(payload.contentRating ?? payload.content_rating),
     tags: normalizeTags(payload),
     url: optionalString(payload.url),
   }

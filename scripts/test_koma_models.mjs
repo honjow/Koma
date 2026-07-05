@@ -1839,8 +1839,13 @@ assert.equal(
 )
 assert.match(
   sourceModelsSource,
-  /title:\s*normalizeSourceDisplayText\(title\) \?\? title[\s\S]*description:\s*normalizeSourceDisplayText\(payload\.description\)[\s\S]*tags:\s*normalizeTags\(payload\)/,
-  'SourceManga list normalization must decode source-provided title, description, and tags at model boundary',
+  /title:\s*normalizeSourceDisplayText\(title\) \?\? title[\s\S]*author:\s*firstNonEmptyList\(\[payload\.author, payload\.authors\]\)[\s\S]*artist:\s*firstNonEmptyList\(\[payload\.artist, payload\.artists\]\)[\s\S]*description:\s*normalizeSourceDisplayText\(firstNonEmpty\(\[payload\.description, payload\.summary, payload\.synopsis\]\)\)[\s\S]*payload\.image_url[\s\S]*payload\.cover === undefined \? undefined : payload\.cover\.src[\s\S]*payload\.image === undefined \? undefined : payload\.image\.href[\s\S]*contentRating:\s*optionalString\(payload\.contentRating \?\? payload\.content_rating\)[\s\S]*tags:\s*normalizeTags\(payload\)/,
+  'SourceManga list normalization must decode source title, authors, summary aliases, broad cover/image URLs, content rating, and tags at model boundary',
+)
+assert.match(
+  browseViewModelSource,
+  /function firstDisplayText\(values: \(RuntimeValue \| undefined\)\[\]\): string \| undefined[\s\S]*Array\.isArray\(value\)[\s\S]*normalizedItems\.join\(', '\)[\s\S]*function sourceItemCoverUrl\(item: RuntimeRecord\): string \| undefined[\s\S]*optionalString\(item\['image_url'\]\)[\s\S]*optionalString\(cover\['src'\]\)[\s\S]*const image = itemRecord\(item\['image'\]\)[\s\S]*optionalString\(image\['href'\]\)[\s\S]*author:\s*firstDisplayText\(\[item\['author'\], item\['authors'\]\]\)[\s\S]*artist:\s*firstDisplayText\(\[item\['artist'\], item\['artists'\]\]\)[\s\S]*description:\s*firstDisplayText\(\[item\['description'\], item\['summary'\], item\['synopsis'\]\]\)/,
+  'BrowseViewModel must preserve source browse/search manga authors, summary aliases, and nested image cover URLs before opening detail',
 )
 assert.match(
   sourceModelsSource,

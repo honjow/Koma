@@ -163,6 +163,33 @@ function normalizeStringArray(value: RuntimeValue | undefined): string[] | undef
   return tags.length > 0 ? tags : undefined
 }
 
+function firstDisplayText(values: (RuntimeValue | undefined)[]): string | undefined {
+  for (let index = 0; index < values.length; index += 1) {
+    const value = values[index]
+    if (typeof value === 'string') {
+      const normalized = normalizeSourceDisplayText(value)
+      if (normalized !== undefined) {
+        return normalized
+      }
+    } else if (Array.isArray(value)) {
+      const normalizedItems: string[] = []
+      value.forEach((item: RuntimeValue) => {
+        if (typeof item !== 'string') {
+          return
+        }
+        const normalized = normalizeSourceDisplayText(item)
+        if (normalized !== undefined) {
+          normalizedItems.push(normalized)
+        }
+      })
+      if (normalizedItems.length > 0) {
+        return normalizedItems.join(', ')
+      }
+    }
+  }
+  return undefined
+}
+
 function itemRecord(value: RuntimeValue): RuntimeRecord | undefined {
   if (value === null || Array.isArray(value) || typeof value !== 'object') {
     return undefined
@@ -177,12 +204,28 @@ function sourceItemCoverUrl(item: RuntimeRecord): string | undefined {
     optionalString(item['coverUri']) ??
     optionalString(item['thumbnail']) ??
     optionalString(item['thumbnailUrl']) ??
-    optionalString(item['imageUrl'])
+    optionalString(item['imageUrl']) ??
+    optionalString(item['image_url'])
   if (direct !== undefined) {
     return direct
   }
   const cover = itemRecord(item['cover'])
-  return cover === undefined ? undefined : (optionalString(cover['url']) ?? optionalString(cover['uri']))
+  const coverUrl = cover === undefined ? undefined : (
+    optionalString(cover['url']) ??
+      optionalString(cover['uri']) ??
+      optionalString(cover['src']) ??
+      optionalString(cover['href'])
+  )
+  if (coverUrl !== undefined) {
+    return coverUrl
+  }
+  const image = itemRecord(item['image'])
+  return image === undefined ? undefined : (
+    optionalString(image['url']) ??
+      optionalString(image['uri']) ??
+      optionalString(image['src']) ??
+      optionalString(image['href'])
+  )
 }
 
 function parseSourceMangaFromItem(sourceId: string, item: RuntimeRecord): SourceManga {
@@ -191,9 +234,9 @@ function parseSourceMangaFromItem(sourceId: string, item: RuntimeRecord): Source
     id: optionalString(item['id']) ?? title,
     sourceId,
     title: normalizeSourceDisplayText(title) ?? title,
-    author: normalizeSourceDisplayText(optionalString(item['author'])),
-    artist: normalizeSourceDisplayText(optionalString(item['artist'])),
-    description: normalizeSourceDisplayText(optionalString(item['description'])),
+    author: firstDisplayText([item['author'], item['authors']]),
+    artist: firstDisplayText([item['artist'], item['artists']]),
+    description: firstDisplayText([item['description'], item['summary'], item['synopsis']]),
     coverUrl: sourceItemCoverUrl(item),
     status: normalizeStatus(item['status']),
     contentRating: normalizeSourceDisplayText(optionalString(item['content_rating']) ?? optionalString(item['contentRating'])),
