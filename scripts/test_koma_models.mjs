@@ -1603,13 +1603,18 @@ assert.match(
 )
 assert.match(
   mangaDetailPageSource,
-  /const detail = await this\.runSourceMangaOperation\(lookup\.entry, 'get_manga', mangaId\)[\s\S]*let chapters: MangaChapterItem\[\] = \[\][\s\S]*let chaptersLoadFailed = false[\s\S]*try \{[\s\S]*chapters = await this\.runSourceChaptersOperation\(lookup\.entry, mangaId\)[\s\S]*\} catch \(_error\) \{[\s\S]*chaptersLoadFailed = true[\s\S]*reason=source_chapters[\s\S]*this\.manga = detail[\s\S]*this\.chapters = this\.decorateChapterStates\(chapters\)[\s\S]*manga_detail_load_source_chapters_failed/,
-  'MangaDetailPage must keep a successful source detail visible when chapter loading fails',
+  /const loaded = await this\.runSourceMangaOperation\(lookup\.entry, 'get_manga', mangaId\)[\s\S]*const detail = loaded\.detail[\s\S]*let chapters: MangaChapterItem\[\] = loaded\.embeddedChapters[\s\S]*let chaptersLoadFailed = false[\s\S]*try \{[\s\S]*const remoteChapters = await this\.runSourceChaptersOperation\(lookup\.entry, mangaId\)[\s\S]*if \(remoteChapters\.length > 0\) \{[\s\S]*chapters = remoteChapters[\s\S]*\} catch \(_error\) \{[\s\S]*chaptersLoadFailed = true[\s\S]*reason=source_chapters[\s\S]*this\.manga = detail[\s\S]*this\.chapters = this\.decorateChapterStates\(chapters\)[\s\S]*manga_detail_load_source_chapters_failed/,
+  'MangaDetailPage must keep a successful source detail visible and fall back to embedded detail chapters when separate chapter loading fails or returns empty',
 )
 assert.match(
   mangaDetailPageSource,
   /private sourceMangaResponseItem[\s\S]*response\.data\?\.manga[\s\S]*response\.data\?\.item[\s\S]*response\.data\?\.items/,
   'get_manga parsing must accept data.manga, data.item, and data.items[0]',
+)
+assert.match(
+  mangaDetailPageSource,
+  /interface SourceMangaDetailLoadResult \{[\s\S]*detail: MangaDetail[\s\S]*embeddedChapters: MangaChapterItem\[\][\s\S]*private async runSourceMangaOperation[\s\S]*embeddedChapters: this\.sourceEmbeddedChapterItems\(response, item\)[\s\S]*parseMangaChapterFromSourceItem\(chapter\)[\s\S]*private runtimeRecordArray\(value: Object \| undefined\): Record<string, Object>\[\][\s\S]*private sourceEmbeddedChapterItems\(response: SourceOperationResponsePayload, item: Record<string, Object>\): Record<string, Object>\[\][\s\S]*response\.data\?\.chapters[\s\S]*item\['chapters'\]/,
+  'get_manga parsing must retain ABI detail-result chapters from data.chapters or manga.chapters so sources without get_chapters still expose readable chapters',
 )
 assert.match(
   mangaDetailPageSource,

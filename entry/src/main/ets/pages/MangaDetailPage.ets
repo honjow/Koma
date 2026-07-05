@@ -114,6 +114,11 @@ interface SourceOperationResponsePayload {
   data?: SourceOperationDataPayload
 }
 
+interface SourceMangaDetailLoadResult {
+  detail: MangaDetail
+  embeddedChapters: MangaChapterItem[]
+}
+
 interface SourceMangaRequestArgs {
   mangaId: string
 }
@@ -428,11 +433,15 @@ export struct MangaDetailPage {
       if (!lookup.ok || lookup.entry === undefined) {
         throw new Error(lookup.reasonCode ?? 'source lookup failed')
       }
-      const detail = await this.runSourceMangaOperation(lookup.entry, 'get_manga', mangaId)
-      let chapters: MangaChapterItem[] = []
+      const loaded = await this.runSourceMangaOperation(lookup.entry, 'get_manga', mangaId)
+      const detail = loaded.detail
+      let chapters: MangaChapterItem[] = loaded.embeddedChapters
       let chaptersLoadFailed = false
       try {
-        chapters = await this.runSourceChaptersOperation(lookup.entry, mangaId)
+        const remoteChapters = await this.runSourceChaptersOperation(lookup.entry, mangaId)
+        if (remoteChapters.length > 0) {
+          chapters = remoteChapters
+        }
       } catch (_error) {
         chaptersLoadFailed = true
         console.warn('[manga-detail] source chapters load failed reason=source_chapters')
@@ -465,7 +474,7 @@ export struct MangaDetailPage {
     entry: SourceRuntimeRegistryEntry,
     operation: string,
     mangaId: string
-  ): Promise<MangaDetail> {
+  ): Promise<SourceMangaDetailLoadResult> {
     const args: SourceMangaRequestArgs = { mangaId }
     const request = this.buildSourceDetailRequestJson(entry.sourceId, operation, args, { network: true })
     const responseJson = await taskpool.execute(
@@ -478,7 +487,11 @@ export struct MangaDetailPage {
     if (response.ok !== true || item === undefined) {
       throw new Error('get_manga returned no item')
     }
-    return parseMangaDetailFromSourceItem(entry.sourceId, item)
+    return {
+      detail: parseMangaDetailFromSourceItem(entry.sourceId, item),
+      embeddedChapters: this.sourceEmbeddedChapterItems(response, item)
+        .map((chapter: Record<string, Object>): MangaChapterItem => parseMangaChapterFromSourceItem(chapter)),
+    }
   }
 
   private async runSourceChaptersOperation(
@@ -562,6 +575,28 @@ export struct MangaDetailPage {
       return response.data.items
     }
     return response.data?.chapters ?? []
+  }
+
+  private runtimeRecordArray(value: Object | undefined): Record<string, Object>[] {
+    if (!Array.isArray(value)) {
+      return []
+    }
+    const records: Record<string, Object>[] = []
+    value.forEach((item: Object): void => {
+      if (item === undefined || item === null || Array.isArray(item) || typeof item !== 'object') {
+        return
+      }
+      records.push(item as Record<string, Object>)
+    })
+    return records
+  }
+
+  private sourceEmbeddedChapterItems(response: SourceOperationResponsePayload, item: Record<string, Object>): Record<string, Object>[] {
+    const dataChapters = response.data?.chapters
+    if (dataChapters !== undefined && dataChapters.length > 0) {
+      return dataChapters
+    }
+    return this.runtimeRecordArray(item['chapters'])
   }
 
   private sourcePageNextCursor(response: SourceOperationResponsePayload): string | undefined {
