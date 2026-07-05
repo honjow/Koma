@@ -1,3 +1,4 @@
+import { CachedCoverImage } from './CachedCoverImage'
 import { AppStrings } from '../i18n/AppStrings'
 import { connectLanguageState, LanguageState } from '../state/LanguageState'
 import { MangaDetail, MangaStatus } from '../model/MangaDetailModels'
@@ -85,14 +86,13 @@ export struct MangaDetailHeader {
   private Cover() {
     Stack({ alignContent: Alignment.Center }) {
       if (this.hasCover()) {
-        Image(this.manga.coverUrl)
-          .width('100%')
-          .height('100%')
-          .objectFit(ImageFit.Cover)
-          .interpolation(ImageInterpolation.Medium)
-          .onError(() => {
+        CachedCoverImage({
+          uri: this.manga.coverUrl ?? '',
+          objectFit: ImageFit.Cover,
+          onError: () => {
             this.failedCoverUrl = this.manga.coverUrl ?? ''
-          })
+          },
+        })
       } else {
         Column() {
           Blank()

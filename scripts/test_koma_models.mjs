@@ -67,6 +67,7 @@ const localLibraryRescanServicePath = resolve(root, 'entry/src/main/ets/model/Lo
 const secondaryListScaffoldPath = resolve(root, 'entry/src/main/ets/components/SecondaryListScaffold.ets')
 const comicCoverCardPath = resolve(root, 'entry/src/main/ets/components/ComicCoverCard.ets')
 const mangaGridItemPath = resolve(root, 'entry/src/main/ets/components/MangaGridItem.ets')
+const cachedCoverImagePath = resolve(root, 'entry/src/main/ets/components/CachedCoverImage.ets')
 const mangaDetailHeaderPath = resolve(root, 'entry/src/main/ets/components/MangaDetailHeader.ets')
 const chapterListSectionPath = resolve(root, 'entry/src/main/ets/components/ChapterListSection.ets')
 const mangaDescriptionSectionPath = resolve(root, 'entry/src/main/ets/components/MangaDescriptionSection.ets')
@@ -146,6 +147,7 @@ const localLibraryRescanServiceSource = readFileSync(localLibraryRescanServicePa
 const secondaryListScaffoldSource = readFileSync(secondaryListScaffoldPath, 'utf8')
 const comicCoverCardSource = readFileSync(comicCoverCardPath, 'utf8')
 const mangaGridItemSource = readFileSync(mangaGridItemPath, 'utf8')
+const cachedCoverImageSource = readFileSync(cachedCoverImagePath, 'utf8')
 const mangaDetailHeaderSource = readFileSync(mangaDetailHeaderPath, 'utf8')
 const chapterListSectionSource = readFileSync(chapterListSectionPath, 'utf8')
 const mangaDescriptionSectionSource = readFileSync(mangaDescriptionSectionPath, 'utf8')
@@ -1598,13 +1600,18 @@ assert.match(
 )
 assert.match(
   mangaGridItemSource,
-  /@Local private failedCoverUrl: string = ''[\s\S]*hasCover\(\): boolean[\s\S]*this\.failedCoverUrl !== coverUrl[\s\S]*Image\(this\.manga\.coverUrl\)[\s\S]*\.onError\(\(\) => \{[\s\S]*this\.failedCoverUrl = this\.manga\.coverUrl \?\? ''/,
-  'Source manga grid covers must fail closed to the generated placeholder instead of leaving blank cover cells',
+  /import \{ CachedCoverImage \} from '\.\/CachedCoverImage'[\s\S]*@Local private failedCoverUrl: string = ''[\s\S]*hasCover\(\): boolean[\s\S]*this\.failedCoverUrl !== coverUrl[\s\S]*CachedCoverImage\(\{[\s\S]*uri: this\.manga\.coverUrl \?\? ''[\s\S]*objectFit: ImageFit\.Cover[\s\S]*onError: \(\) => \{[\s\S]*this\.failedCoverUrl = this\.manga\.coverUrl \?\? ''/,
+  'Source manga grid covers must use the cached cover image path and fail closed to the generated placeholder',
 )
 assert.match(
   mangaDetailHeaderSource,
-  /@Local private failedCoverUrl: string = ''[\s\S]*hasCover\(\): boolean[\s\S]*this\.failedCoverUrl !== coverUrl[\s\S]*Image\(this\.manga\.coverUrl\)[\s\S]*\.onError\(\(\) => \{[\s\S]*this\.failedCoverUrl = this\.manga\.coverUrl \?\? ''/,
-  'Manga detail header covers must fail closed to the generated placeholder when a source cover URL is unavailable',
+  /import \{ CachedCoverImage \} from '\.\/CachedCoverImage'[\s\S]*@Local private failedCoverUrl: string = ''[\s\S]*hasCover\(\): boolean[\s\S]*this\.failedCoverUrl !== coverUrl[\s\S]*CachedCoverImage\(\{[\s\S]*uri: this\.manga\.coverUrl \?\? ''[\s\S]*objectFit: ImageFit\.Cover[\s\S]*onError: \(\) => \{[\s\S]*this\.failedCoverUrl = this\.manga\.coverUrl \?\? ''/,
+  'Manga detail header covers must use the cached cover image path and fail closed when a source cover URL is unavailable',
+)
+assert.match(
+  cachedCoverImageSource,
+  /export struct CachedCoverImage[\s\S]*configureReaderRemoteImageCache\(context\.cacheDir\)[\s\S]*fetchAndCacheReaderRemoteImage\(uri\)[\s\S]*image\.createImageSource\(resolvedUri\)[\s\S]*createPixelMap\(\)[\s\S]*this\.onError\(\)[\s\S]*Image\(this\.pixelMap\)[\s\S]*objectFit\(this\.objectFit\)/,
+  'CachedCoverImage must materialize remote source covers through the shared remote image cache before ArkUI rendering',
 )
 assert.match(
   searchPageSource,

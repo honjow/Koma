@@ -1,3 +1,4 @@
+import { CachedCoverImage } from './CachedCoverImage'
 import { SourceManga } from '../model/SourceModels'
 import { ThemeConstants } from '../theme/ThemeConstants'
 
@@ -27,14 +28,13 @@ export struct MangaGridItem {
     Column({ space: ThemeConstants.SPACE_SM }) {
       Stack({ alignContent: Alignment.Center }) {
         if (this.hasCover()) {
-          Image(this.manga.coverUrl)
-            .width('100%')
-            .height('100%')
-            .objectFit(ImageFit.Cover)
-            .interpolation(ImageInterpolation.Medium)
-            .onError(() => {
+          CachedCoverImage({
+            uri: this.manga.coverUrl ?? '',
+            objectFit: ImageFit.Cover,
+            onError: () => {
               this.failedCoverUrl = this.manga.coverUrl ?? ''
-            })
+            },
+          })
         } else {
           Column({ space: ThemeConstants.SPACE_SM }) {
             Text(this.titleInitial())
