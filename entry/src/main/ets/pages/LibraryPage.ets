@@ -161,6 +161,7 @@ export struct LibraryPage {
   @Local private filterCategory: LibraryCategoryFilter = 'all'
   @Local private filterAvailability: LibraryAvailabilityFilter = 'all'
   @Local private filterMetadataStatus: LibraryMetadataStatusFilter = 'all'
+  @Local private failedCoverUris: string[] = []
   @Local private remoteProgress: RemoteProgressSyncState = connectRemoteProgressSyncState()
   @Param presentationByComicId: LibraryPresentationByComicId = createMockLibraryPresentationMap()
   @Param sourceRegistry: SourceRuntimeRegistry = appSourceRuntimeRegistry
@@ -1850,14 +1851,30 @@ export struct LibraryPage {
     this.LibraryGrid(comics)
   }
 
+  private shouldShowCoverUri(coverUri: string | undefined): boolean {
+    const normalized = coverUri ?? ''
+    return normalized.length > 0 && this.failedCoverUris.indexOf(normalized) < 0
+  }
+
+  private markCoverUriFailed(coverUri: string | undefined): void {
+    const normalized = coverUri ?? ''
+    if (normalized.length > 0 && this.failedCoverUris.indexOf(normalized) < 0) {
+      this.failedCoverUris = this.failedCoverUris.concat([normalized])
+    }
+  }
+
   @Builder
   private LibraryListCover(comic: ComicCoverInfo) {
     Stack({ alignContent: Alignment.Center }) {
-      if (comic.coverUri !== undefined && comic.coverUri.length > 0) {
+      if (this.shouldShowCoverUri(comic.coverUri)) {
         Image(comic.coverUri)
           .width('100%')
           .height('100%')
           .objectFit(ImageFit.Cover)
+          .interpolation(ImageInterpolation.Medium)
+          .onError(() => {
+            this.markCoverUriFailed(comic.coverUri)
+          })
       } else {
         Text('K')
           .fontSize(ThemeConstants.FONT_SIZE_H2)

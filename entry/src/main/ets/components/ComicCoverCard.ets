@@ -29,6 +29,7 @@ export struct ComicCoverCard {
   @Param accentColor: string = ''
   @Param categoryLabels: string[] = []
   @Param selected: boolean = false
+  @Local private failedCoverUri: string = ''
 
   private displayTitle(): string {
     return this.title.length > 0 ? this.title : this.comic.title
@@ -56,6 +57,11 @@ export struct ComicCoverCard {
 
   private displayCoverUri(): string {
     return this.comic.coverUri ?? ''
+  }
+
+  private shouldDisplayCoverImage(): boolean {
+    const coverUri = this.displayCoverUri()
+    return coverUri.length > 0 && this.failedCoverUri !== coverUri
   }
 
   private titleInitial(): string {
@@ -88,12 +94,15 @@ export struct ComicCoverCard {
       Stack({ alignContent: Alignment.BottomStart }) {
         this.CoverPlaceholder()
 
-        if (this.displayCoverUri().length > 0) {
+        if (this.shouldDisplayCoverImage()) {
           Image(this.displayCoverUri())
             .width('100%')
             .height('100%')
             .objectFit(ImageFit.Cover)
             .interpolation(ImageInterpolation.Medium)
+            .onError(() => {
+              this.failedCoverUri = this.displayCoverUri()
+            })
         }
 
         if (this.displayProgressText().length > 0) {

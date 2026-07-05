@@ -54,6 +54,7 @@ export struct SearchPage {
   @Local private feedbackText: string = ''
   @Local private sourceFilter: CrossSearchSourceFilter = 'all'
   @Local private sourceFilterMenuOpen: boolean = false
+  @Local private failedCoverUris: string[] = []
   private searchTimer: number = 0
   private searchSerial: number = 0
   private consumedExternalQuerySerial: number = 0
@@ -610,15 +611,31 @@ export struct SearchPage {
     return s('search_match_weak')
   }
 
+  private shouldShowCoverUri(coverUri: string | undefined): boolean {
+    const normalized = coverUri ?? ''
+    return normalized.length > 0 && this.failedCoverUris.indexOf(normalized) < 0
+  }
+
+  private markCoverUriFailed(coverUri: string | undefined): void {
+    const normalized = coverUri ?? ''
+    if (normalized.length > 0 && this.failedCoverUris.indexOf(normalized) < 0) {
+      this.failedCoverUris = this.failedCoverUris.concat([normalized])
+    }
+  }
+
   @Builder
   private ResultRow(item: CrossSearchResultItem) {
     Row({ space: ThemeConstants.SPACE_MD }) {
       Stack({ alignContent: Alignment.Center }) {
-        if (item.coverUri !== undefined && item.coverUri.length > 0) {
+        if (this.shouldShowCoverUri(item.coverUri)) {
           Image(item.coverUri)
             .width('100%')
             .height('100%')
             .objectFit(ImageFit.Cover)
+            .interpolation(ImageInterpolation.Medium)
+            .onError(() => {
+              this.markCoverUriFailed(item.coverUri)
+            })
         } else {
           Text(this.badgeText(item))
             .fontSize(ThemeConstants.FONT_SIZE_HEADING)

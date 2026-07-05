@@ -49,6 +49,7 @@ export struct HistoryPage {
   @Local private remoteProgress: RemoteProgressSyncState = connectRemoteProgressSyncState()
   @Local private historyItems: LibraryItem[] = []
   @Local private revision: number = 0
+  @Local private failedCoverUris: string[] = []
   @Event onOpenReader: (comicId: ComicId, chapterId?: string) => void = (_comicId: ComicId, _chapterId?: string) => {}
 
   @Monitor('active')
@@ -289,6 +290,18 @@ export struct HistoryPage {
     return sections.filter((section: HistorySection): boolean => section.items.length > 0)
   }
 
+  private shouldShowCoverUri(coverUri: string | undefined): boolean {
+    const normalized = coverUri ?? ''
+    return normalized.length > 0 && this.failedCoverUris.indexOf(normalized) < 0
+  }
+
+  private markCoverUriFailed(coverUri: string | undefined): void {
+    const normalized = coverUri ?? ''
+    if (normalized.length > 0 && this.failedCoverUris.indexOf(normalized) < 0) {
+      this.failedCoverUris = this.failedCoverUris.concat([normalized])
+    }
+  }
+
   @Builder
   private EmptyHistory() {
     Column({ space: ThemeConstants.SPACE_MD }) {
@@ -314,11 +327,15 @@ export struct HistoryPage {
   @Builder
   private Cover(item: LibraryItem) {
     Stack({ alignContent: Alignment.Center }) {
-      if (item.coverUri !== undefined && item.coverUri.length > 0) {
+      if (this.shouldShowCoverUri(item.coverUri)) {
         Image(item.coverUri)
           .width('100%')
           .height('100%')
           .objectFit(ImageFit.Cover)
+          .interpolation(ImageInterpolation.Medium)
+          .onError(() => {
+            this.markCoverUriFailed(item.coverUri)
+          })
       } else {
         Text('K')
           .fontSize(ThemeConstants.FONT_SIZE_H1)

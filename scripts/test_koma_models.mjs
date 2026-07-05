@@ -64,6 +64,8 @@ const localLibraryFolderContractPath = resolve(root, 'entry/src/main/ets/model/L
 const localLibraryRescanServicePath = resolve(root, 'entry/src/main/ets/model/LocalLibraryRescanService.ets')
 const secondaryListScaffoldPath = resolve(root, 'entry/src/main/ets/components/SecondaryListScaffold.ets')
 const comicCoverCardPath = resolve(root, 'entry/src/main/ets/components/ComicCoverCard.ets')
+const mangaGridItemPath = resolve(root, 'entry/src/main/ets/components/MangaGridItem.ets')
+const mangaDetailHeaderPath = resolve(root, 'entry/src/main/ets/components/MangaDetailHeader.ets')
 const chapterListSectionPath = resolve(root, 'entry/src/main/ets/components/ChapterListSection.ets')
 const mangaDescriptionSectionPath = resolve(root, 'entry/src/main/ets/components/MangaDescriptionSection.ets')
 const readerChromePath = resolve(root, 'entry/src/main/ets/components/ReaderChrome.ets')
@@ -139,6 +141,8 @@ const localLibraryFolderContractSource = readFileSync(localLibraryFolderContract
 const localLibraryRescanServiceSource = readFileSync(localLibraryRescanServicePath, 'utf8')
 const secondaryListScaffoldSource = readFileSync(secondaryListScaffoldPath, 'utf8')
 const comicCoverCardSource = readFileSync(comicCoverCardPath, 'utf8')
+const mangaGridItemSource = readFileSync(mangaGridItemPath, 'utf8')
+const mangaDetailHeaderSource = readFileSync(mangaDetailHeaderPath, 'utf8')
 const chapterListSectionSource = readFileSync(chapterListSectionPath, 'utf8')
 const mangaDescriptionSectionSource = readFileSync(mangaDescriptionSectionPath, 'utf8')
 const readerChromeSource = readFileSync(readerChromePath, 'utf8')
@@ -1552,6 +1556,36 @@ assert.match(
   comicCoverCardSource,
   /displayCoverUri\(\): string[\s\S]*this\.comic\.coverUri[\s\S]*Image\(this\.displayCoverUri\(\)\)[\s\S]*objectFit\(ImageFit\.Cover\)/,
   'ComicCoverCard must render a real coverUri image before falling back to the generated placeholder',
+)
+assert.match(
+  comicCoverCardSource,
+  /@Local private failedCoverUri: string = ''[\s\S]*shouldDisplayCoverImage\(\): boolean[\s\S]*this\.failedCoverUri !== coverUri[\s\S]*\.onError\(\(\) => \{[\s\S]*this\.failedCoverUri = this\.displayCoverUri\(\)/,
+  'ComicCoverCard must fall back to its placeholder when a persisted cover URI fails to load',
+)
+assert.match(
+  mangaGridItemSource,
+  /@Local private failedCoverUrl: string = ''[\s\S]*hasCover\(\): boolean[\s\S]*this\.failedCoverUrl !== coverUrl[\s\S]*Image\(this\.manga\.coverUrl\)[\s\S]*\.onError\(\(\) => \{[\s\S]*this\.failedCoverUrl = this\.manga\.coverUrl \?\? ''/,
+  'Source manga grid covers must fail closed to the generated placeholder instead of leaving blank cover cells',
+)
+assert.match(
+  mangaDetailHeaderSource,
+  /@Local private failedCoverUrl: string = ''[\s\S]*hasCover\(\): boolean[\s\S]*this\.failedCoverUrl !== coverUrl[\s\S]*Image\(this\.manga\.coverUrl\)[\s\S]*\.onError\(\(\) => \{[\s\S]*this\.failedCoverUrl = this\.manga\.coverUrl \?\? ''/,
+  'Manga detail header covers must fail closed to the generated placeholder when a source cover URL is unavailable',
+)
+assert.match(
+  searchPageSource,
+  /@Local private failedCoverUris: string\[\] = \[\][\s\S]*shouldShowCoverUri\(coverUri: string \| undefined\): boolean[\s\S]*markCoverUriFailed\(coverUri: string \| undefined\): void[\s\S]*Image\(item\.coverUri\)[\s\S]*\.onError\(\(\) => \{[\s\S]*this\.markCoverUriFailed\(item\.coverUri\)/,
+  'Cross-search cover thumbnails must remember failed URLs and fall back to source badges',
+)
+assert.match(
+  historyPageSource,
+  /@Local private failedCoverUris: string\[\] = \[\][\s\S]*shouldShowCoverUri\(coverUri: string \| undefined\): boolean[\s\S]*markCoverUriFailed\(coverUri: string \| undefined\): void[\s\S]*Image\(item\.coverUri\)[\s\S]*\.onError\(\(\) => \{[\s\S]*this\.markCoverUriFailed\(item\.coverUri\)/,
+  'History cover thumbnails must fall back when a stored cover URI fails to load',
+)
+assert.match(
+  libraryPageSource,
+  /@Local private failedCoverUris: string\[\] = \[\][\s\S]*shouldShowCoverUri\(coverUri: string \| undefined\): boolean[\s\S]*markCoverUriFailed\(coverUri: string \| undefined\): void[\s\S]*Image\(comic\.coverUri\)[\s\S]*\.onError\(\(\) => \{[\s\S]*this\.markCoverUriFailed\(comic\.coverUri\)/,
+  'Library list cover thumbnails must fall back when a stored cover URI fails to load',
 )
 assert.match(
   libraryPageSource,

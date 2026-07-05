@@ -16,9 +16,11 @@ export struct MangaDetailHeader {
     isInLibrary: false,
   }
   @Local private languageState: LanguageState = connectLanguageState()
+  @Local private failedCoverUrl: string = ''
 
   private hasCover(): boolean {
-    return this.manga.coverUrl !== undefined && this.manga.coverUrl.length > 0
+    const coverUrl = this.manga.coverUrl ?? ''
+    return coverUrl.length > 0 && this.failedCoverUrl !== coverUrl
   }
 
   private displayTitle(): string {
@@ -87,6 +89,10 @@ export struct MangaDetailHeader {
           .width('100%')
           .height('100%')
           .objectFit(ImageFit.Cover)
+          .interpolation(ImageInterpolation.Medium)
+          .onError(() => {
+            this.failedCoverUrl = this.manga.coverUrl ?? ''
+          })
       } else {
         Column() {
           Blank()

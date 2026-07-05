@@ -9,6 +9,7 @@ export struct MangaGridItem {
     title: '',
   }
   @Event onMangaTap: (manga: SourceManga) => void = (_manga: SourceManga) => {}
+  @Local private failedCoverUrl: string = ''
 
   private titleInitial(): string {
     if (this.manga.title.length === 0) {
@@ -18,7 +19,8 @@ export struct MangaGridItem {
   }
 
   private hasCover(): boolean {
-    return this.manga.coverUrl !== undefined && this.manga.coverUrl.length > 0
+    const coverUrl = this.manga.coverUrl ?? ''
+    return coverUrl.length > 0 && this.failedCoverUrl !== coverUrl
   }
 
   build() {
@@ -29,6 +31,10 @@ export struct MangaGridItem {
             .width('100%')
             .height('100%')
             .objectFit(ImageFit.Cover)
+            .interpolation(ImageInterpolation.Medium)
+            .onError(() => {
+              this.failedCoverUrl = this.manga.coverUrl ?? ''
+            })
         } else {
           Column({ space: ThemeConstants.SPACE_SM }) {
             Text(this.titleInitial())
