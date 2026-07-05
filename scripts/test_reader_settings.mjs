@@ -345,7 +345,7 @@ assert.match(
 )
 assert.match(
   readerChromeSource,
-  /private TopBar\(\)[\s\S]*private BottomBar\(\)[\s\S]*this\.TopBar\(\)[\s\S]*Blank\(\)[\s\S]*this\.BottomBar\(\)/,
+  /private MiddleDismissSurface\(\)[\s\S]*private TopBar\(\)[\s\S]*private BottomBar\(\)[\s\S]*this\.TopBar\(\)[\s\S]*this\.MiddleDismissSurface\(\)[\s\S]*this\.BottomBar\(\)/,
   'ReaderChrome must use a compact immersive top and bottom shell instead of a full-height settings panel',
 )
 assert.match(
@@ -621,8 +621,13 @@ assert.doesNotMatch(
 )
 assert.match(
   readerPageSource,
-  /private readerNavigationActionAt\(tapX: number, tapY: number\): ReaderNavigationAction[\s\S]*const x = this\.clampTapRatio\(tapX \/ width\)[\s\S]*const y = this\.clampTapRatio\(tapY \/ height\)[\s\S]*x <= edge[\s\S]*return 'left'[\s\S]*x >= 1 - edge[\s\S]*return 'right'[\s\S]*y <= 0\.2[\s\S]*return 'previous'[\s\S]*y >= 0\.8[\s\S]*return 'next'[\s\S]*return 'menu'/,
-  'reader navigation must map normalized tap coordinates into Mihon-style navigation regions',
+  /const READER_WEBTOON_TAP_ROW_RATIO: number = 0\.33[\s\S]*private readerNavigationActionAt\(tapX: number, tapY: number\): ReaderNavigationAction[\s\S]*const x = this\.clampTapRatio\(tapX \/ width\)[\s\S]*const y = this\.clampTapRatio\(tapY \/ height\)[\s\S]*this\.currentReaderMode\(\) === ReaderMode\.CONTINUOUS_SCROLL[\s\S]*y <= READER_WEBTOON_TAP_ROW_RATIO[\s\S]*return 'previous'[\s\S]*y >= 1 - READER_WEBTOON_TAP_ROW_RATIO[\s\S]*return 'next'[\s\S]*x <= READER_WEBTOON_TAP_ROW_RATIO[\s\S]*return 'left'[\s\S]*x >= 1 - READER_WEBTOON_TAP_ROW_RATIO[\s\S]*return 'right'[\s\S]*x <= edge[\s\S]*return 'left'[\s\S]*x >= 1 - edge[\s\S]*return 'right'[\s\S]*return 'menu'/,
+  'reader navigation must use Mihon-style mode-specific tap regions instead of one layout for every reader mode',
+)
+assert.match(
+  readerPageSource,
+  /private ReaderTapZoneVisualOverlay\(\)[\s\S]*this\.currentReaderMode\(\) === ReaderMode\.CONTINUOUS_SCROLL[\s\S]*this\.WebtoonTapZoneVisualOverlay\(\)[\s\S]*this\.PagerTapZoneVisualOverlay\(\)[\s\S]*private PagerTapZoneVisualOverlay\(\)[\s\S]*\.width\(this\.tapEdgeZoneWidth\(\)\)[\s\S]*private WebtoonTapZoneVisualOverlay\(\)[\s\S]*\.height\('33%'\)[\s\S]*\.width\('33%'\)/,
+  'tap-zone visualization must mirror the active Mihon-style paged or webtoon navigation regions',
 )
 assert.match(
   readerPageSource,

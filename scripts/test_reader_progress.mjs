@@ -645,6 +645,8 @@ assert.match(readerChromeSource, /@Param\s+showProgressControls:\s*boolean = tru
 assert.match(readerChromeSource, /if \(this\.showProgressControls\) \{[\s\S]*Text\(`\$\{this\.pageIndex \+ 1\} \/ \$\{this\.pageTotal\}`\)/, 'ReaderChrome must hide the page number label when requested')
 assert.match(readerChromeSource, /if \(this\.showProgressControls\) \{[\s\S]*Progress\(\{ value: this\.progressValue\(\), total: 100, type: ProgressType\.Linear \}\)/, 'ReaderChrome must hide the progress bar when requested')
 assert.match(readerChromeSource, /ChromeButton\(s\('reader_action_previous_page'\), this\.canGoPrevious, false[\s\S]*ChromeButton\(s\('reader_action_next_page'\), this\.canGoNext, true/, 'ReaderChrome must keep previous/next navigation controls available')
+assert.match(readerChromeSource, /@Event onDismissChrome: \(\) => void = \(\) => \{\}[\s\S]*private hideChrome\(\): void \{[\s\S]*this\.onDismissChrome\(\)[\s\S]*this\.\$visible\(false\)[\s\S]*private MiddleDismissSurface\(\)[\s\S]*Button\(\{ type: ButtonType\.Normal, stateEffect: false \}\)[\s\S]*\.backgroundColor\('#01000000'\)[\s\S]*\.hitTestBehavior\(HitTestMode\.Block\)[\s\S]*\.onClick\(\(\) => \{[\s\S]*this\.hideChrome\(\)[\s\S]*this\.MiddleDismissSurface\(\)/, 'ReaderChrome middle blank area must close chrome through a real transparent hit target instead of swallowing reader taps')
+assert.match(readerPageSource, /onDismissChrome: \(\) => \{[\s\S]*this\.activeChromeVisible = false[\s\S]*this\.\$chromeVisible\(false\)/, 'ReaderPage must bind ReaderChrome middle-dismiss clicks back to the parent chrome state')
 
 assert.equal(clampPageIndex(-5, 5), 0, 'negative page indexes clamp to first page')
 assert.equal(clampPageIndex(9, 5), 4, 'large page indexes clamp to last page')
