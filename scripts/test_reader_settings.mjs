@@ -110,8 +110,8 @@ assert.match(
 )
 assert.match(
   readerPreferencesStoreSource,
-  /DEFAULT_READER_PREFERENCES:[\s\S]*backgroundMode:\s*'black'[\s\S]*imageFitMode:\s*'contain'[\s\S]*tapNavigationEnabled:\s*true[\s\S]*swipeNavigationEnabled:\s*true[\s\S]*tapZonePreset:\s*'edge'[\s\S]*showTapZones:\s*false[\s\S]*pageGapMode:\s*'normal'[\s\S]*trimPageMarginsEnabled:\s*false[\s\S]*wideImageMode:\s*'keep_single'[\s\S]*volumeKeyNavigationEnabled:\s*false/,
-  'new reader settings must default to black background, contain fit, enabled narrow-edge tap and swipe navigation, hidden tap-zone overlay, normal spacing, no trim, keep-wide-as-single-page, and no volume-key navigation',
+  /DEFAULT_READER_PREFERENCES:[\s\S]*backgroundMode:\s*'black'[\s\S]*imageFitMode:\s*'fit_width'[\s\S]*tapNavigationEnabled:\s*true[\s\S]*swipeNavigationEnabled:\s*true[\s\S]*tapZonePreset:\s*'edge'[\s\S]*showTapZones:\s*false[\s\S]*pageGapMode:\s*'normal'[\s\S]*trimPageMarginsEnabled:\s*false[\s\S]*wideImageMode:\s*'keep_single'[\s\S]*volumeKeyNavigationEnabled:\s*false/,
+  'new reader settings must default to black background, full-width image fit, enabled narrow-edge tap and swipe navigation, hidden tap-zone overlay, normal spacing, no trim, keep-wide-as-single-page, and no volume-key navigation',
 )
 assert.match(
   readerPreferencesStoreSource,
@@ -596,8 +596,8 @@ assert.match(
 )
 assert.match(
   readerPageSource,
-  /\.disableSwipe\(!this\.swipeNavigationEnabled\)/,
-  'paged reader swipers must honor the swipe navigation switch without disabling tap or hardware navigation',
+  /\.disableSwipe\(!this\.swipeNavigationEnabled \|\| this\.zoomScale > 1\.01\)/,
+  'paged reader swipers must honor the swipe navigation switch and pause swiping while zoomed so pan gestures do not flip pages',
 )
 assert.match(
   readerPageSource,
@@ -611,8 +611,8 @@ assert.match(
 )
 assert.match(
   readerPageSource,
-  /\.gesture\(GestureGroup\(GestureMode\.Parallel,[\s\S]*PinchGesture\(\{ fingers: 2 \}\)[\s\S]*PanGesture\(\{ fingers: 1, direction: PanDirection\.All, distance: 2 \}\)[\s\S]*TapGesture\(\{ count: 2, distanceThreshold: 8 \}\)[\s\S]*this\.onReaderDoubleTap[\s\S]*TapGesture\(\{ count: 1 \}\)[\s\S]*this\.onReaderTap/,
-  'reader root must own pinch, double-tap zoom, pan, and single-tap navigation gestures',
+  /private ReaderInputLayer\(\)[\s\S]*\.zIndex\(12\)[\s\S]*\.gesture\(GestureGroup\(GestureMode\.Parallel,[\s\S]*PinchGesture\(\{ fingers: 2 \}\)[\s\S]*PanGesture\(\{ fingers: 1, direction: PanDirection\.All, distance: 2 \}\)[\s\S]*GestureGroup\(GestureMode\.Exclusive,[\s\S]*TapGesture\(\{ count: 2, distanceThreshold: 8 \}\)[\s\S]*this\.onReaderDoubleTap[\s\S]*TapGesture\(\{ count: 1 \}\)[\s\S]*this\.onReaderTap/,
+  'reader input layer must own pinch, double-tap zoom, pan, and single-tap navigation gestures below the chrome layer',
 )
 assert.doesNotMatch(
   readerPageSource,
