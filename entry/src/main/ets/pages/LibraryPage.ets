@@ -727,14 +727,14 @@ export struct LibraryPage {
     return comic.subtitle
   }
 
-  private libraryGridColumnsTemplate(): string {
+  private libraryGridColumnCount(): number {
     if (this.listDensity === 'compact') {
-      return '1fr 1fr 1fr 1fr'
+      return 4
     }
     if (this.listDensity === 'comfortable') {
-      return '1fr 1fr'
+      return 2
     }
-    return '1fr 1fr 1fr'
+    return 3
   }
 
   private libraryGridColumnGap(): number {
@@ -755,6 +755,31 @@ export struct LibraryPage {
       return ThemeConstants.SPACE_XXL
     }
     return ThemeConstants.SPACE_XL
+  }
+
+  private libraryGridRowIndexes(comics: ComicCoverInfo[]): number[] {
+    const rows: number[] = []
+    const columnCount = this.libraryGridColumnCount()
+    const rowCount = Math.ceil(comics.length / columnCount)
+    for (let index = 0; index < rowCount; index += 1) {
+      rows.push(index)
+    }
+    return rows
+  }
+
+  private libraryGridRowComics(comics: ComicCoverInfo[], rowIndex: number): ComicCoverInfo[] {
+    const columnCount = this.libraryGridColumnCount()
+    const start = rowIndex * columnCount
+    return comics.slice(start, start + columnCount)
+  }
+
+  private libraryGridMissingCells(rowComics: ComicCoverInfo[]): number[] {
+    const cells: number[] = []
+    const missing = Math.max(0, this.libraryGridColumnCount() - rowComics.length)
+    for (let index = 0; index < missing; index += 1) {
+      cells.push(index)
+    }
+    return cells
   }
 
   private libraryListSpace(): number {
@@ -1732,73 +1757,87 @@ export struct LibraryPage {
   }
 
   @Builder
-  private LibraryGrid(comics: ComicCoverInfo[]) {
-    Grid() {
-      ForEach(comics, (comic: ComicCoverInfo) => {
-        GridItem() {
-          Stack({ alignContent: Alignment.TopEnd }) {
-            if (this.canRemoveComic(comic.id)) {
-              ComicCoverCard({
-                comic: comic,
-                title: comic.title,
-                subtitle: comic.subtitle,
-                progressText: comic.progressText,
-                coverColor: comic.coverColor,
-                accentColor: comic.accentColor,
-                categoryLabels: comic.categoryLabels ?? [],
-                selected: this.isComicSelected(comic.id),
+  private LibraryGridCell(comic: ComicCoverInfo) {
+    Stack({ alignContent: Alignment.TopEnd }) {
+      if (this.canRemoveComic(comic.id)) {
+        ComicCoverCard({
+          comic: comic,
+          title: comic.title,
+          subtitle: comic.subtitle,
+          progressText: comic.progressText,
+          coverColor: comic.coverColor,
+          accentColor: comic.accentColor,
+          categoryLabels: comic.categoryLabels ?? [],
+          selected: this.isComicSelected(comic.id),
+        })
+          .onTouch((event: TouchEvent) => {
+            this.handleComicTouch(comic.id, event)
+          })
+          .priorityGesture(GestureGroup(GestureMode.Exclusive,
+            LongPressGesture({ fingers: 1, repeat: false, duration: 500 })
+              .onAction(() => {
+                this.enterSelectionMode(comic.id)
+              }),
+            TapGesture()
+              .onAction(() => {
+                this.handleComicClick(comic.id)
               })
-                .onTouch((event: TouchEvent) => {
-                  this.handleComicTouch(comic.id, event)
-                })
-                .priorityGesture(GestureGroup(GestureMode.Exclusive,
-                  LongPressGesture({ fingers: 1, repeat: false, duration: 500 })
-                    .onAction(() => {
-                      this.enterSelectionMode(comic.id)
-                    }),
-                  TapGesture()
-                    .onAction(() => {
-                      this.handleComicClick(comic.id)
-                    })
-                ))
+          ))
 
-              if (!this.selectionMode) {
-                KomaIconButton({
-                  icon: $r('sys.symbol.more'),
-                  kind: 'secondary',
-                  controlSize: ThemeConstants.TOUCH_TARGET_SM,
-                  iconSize: ThemeConstants.FONT_SIZE_H3,
-                })
-                  .margin({ top: ThemeConstants.SPACE_SM, right: ThemeConstants.SPACE_SM })
-                  .bindMenu(this.ComicActionMenu(comic))
-              }
-            } else {
-              ComicCoverCard({
-                comic: comic,
-                title: comic.title,
-                subtitle: comic.subtitle,
-                progressText: comic.progressText,
-                coverColor: comic.coverColor,
-                accentColor: comic.accentColor,
-                categoryLabels: comic.categoryLabels ?? [],
-                selected: false,
-              })
-                .gesture(TapGesture()
-                  .onAction(() => {
-                    if (!this.selectionMode) {
-                      void this.openComicFromLibrary(comic.id)
-                    }
-                  }))
-            }
-          }
-          .width('100%')
+        if (!this.selectionMode) {
+          KomaIconButton({
+            icon: $r('sys.symbol.more'),
+            kind: 'secondary',
+            controlSize: ThemeConstants.TOUCH_TARGET_SM,
+            iconSize: ThemeConstants.FONT_SIZE_H3,
+          })
+            .margin({ top: ThemeConstants.SPACE_SM, right: ThemeConstants.SPACE_SM })
+            .bindMenu(this.ComicActionMenu(comic))
         }
-      }, (comic: ComicCoverInfo) => this.comicRenderKey(comic))
+      } else {
+        ComicCoverCard({
+          comic: comic,
+          title: comic.title,
+          subtitle: comic.subtitle,
+          progressText: comic.progressText,
+          coverColor: comic.coverColor,
+          accentColor: comic.accentColor,
+          categoryLabels: comic.categoryLabels ?? [],
+          selected: false,
+        })
+          .gesture(TapGesture()
+            .onAction(() => {
+              if (!this.selectionMode) {
+                void this.openComicFromLibrary(comic.id)
+              }
+            }))
+      }
     }
     .width('100%')
-    .columnsTemplate(this.libraryGridColumnsTemplate())
-    .columnsGap(this.libraryGridColumnGap())
-    .rowsGap(this.libraryGridRowGap())
+  }
+
+  @Builder
+  private LibraryGrid(comics: ComicCoverInfo[]) {
+    Column({ space: this.libraryGridRowGap() }) {
+      ForEach(this.libraryGridRowIndexes(comics), (rowIndex: number) => {
+        Row({ space: this.libraryGridColumnGap() }) {
+          ForEach(this.libraryGridRowComics(comics, rowIndex), (comic: ComicCoverInfo) => {
+            Column() {
+              this.LibraryGridCell(comic)
+            }
+            .layoutWeight(1)
+          }, (comic: ComicCoverInfo) => this.comicRenderKey(comic))
+
+          ForEach(this.libraryGridMissingCells(this.libraryGridRowComics(comics, rowIndex)), (_index: number) => {
+            Blank()
+              .layoutWeight(1)
+          }, (index: number) => `blank-${rowIndex}-${index}`)
+        }
+        .width('100%')
+        .alignItems(VerticalAlign.Top)
+      }, (rowIndex: number) => `row-${rowIndex}`)
+    }
+    .width('100%')
   }
 
   @Builder
@@ -1894,7 +1933,8 @@ export struct LibraryPage {
       SecondaryListScaffold({
         listSpace: ThemeConstants.SPACE_LG,
         horizontalPadding: ThemeConstants.SPACE_XL,
-        bottomPadding: ThemeConstants.FLOAT_BAR_HEIGHT + 20,
+        bottomPadding: ThemeConstants.SPACE_XL,
+        floatingTabTailPadding: ThemeConstants.SPACE_XXL * 3,
       }) {
         if (this.hasLibraryContent()) {
           if (this.hasVisibleLibraryContent()) {

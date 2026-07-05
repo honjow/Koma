@@ -1,10 +1,10 @@
 import { MangaGridItem } from '../components/MangaGridItem'
 import { KomaActionButton } from '../components/ui/KomaActionButton'
 import { KomaEmptyState } from '../components/ui/KomaEmptyState'
+import { SecondaryListScaffold } from '../components/SecondaryListScaffold'
 import { SourceFilterControls, SourceFilterControlValue } from '../components/SourceFilterControls'
 import { AppStrings } from '../i18n/AppStrings'
 import { SourceFilter, SourceManga } from '../model/SourceModels'
-import { connectLayoutSafeArea, LayoutSafeAreaState } from '../state/LayoutSafeAreaState'
 import { connectLanguageState, LanguageState } from '../state/LanguageState'
 import { ThemeConstants } from '../theme/ThemeConstants'
 import { BrowseViewModel } from '../viewmodel/BrowseViewModel'
@@ -31,22 +31,13 @@ export struct SourceSearchPage {
     capabilities: [],
   }
   @Param viewModel: BrowseViewModel = new BrowseViewModel()
-  @Local private safeArea: LayoutSafeAreaState = connectLayoutSafeArea()
   @Local private languageState: LanguageState = connectLanguageState()
   @Local private query: string = ''
   private searchTimer: number = 0
   @Event onMangaTap: (manga: SourceManga) => void = (_manga: SourceManga) => {}
 
-  private topContentInset(): number {
-    return this.safeArea.topAvoidHeight + ThemeConstants.TITLE_BAR_HEIGHT
-  }
-
-  private bottomContentInset(): number {
-    return this.safeArea.bottomAvoidHeight + ThemeConstants.FLOAT_BAR_HEIGHT + 20
-  }
-
-  private bottomFloatingTabViewportClearance(): number {
-    return this.bottomContentInset()
+  private currentSource(): SourceRuntimeRegistryInstalledSourceSummary {
+    return this.viewModel.sourceSummaryForId(this.source.sourceId) ?? this.source
   }
 
   private clearPendingSearchTimer(): void {
@@ -60,11 +51,11 @@ export struct SourceSearchPage {
     this.query = value
     this.clearPendingSearchTimer()
     if (value.trim().length === 0) {
-      this.viewModel.clearSearch(this.source)
+      this.viewModel.clearSearch(this.currentSource())
       return
     }
     this.searchTimer = setTimeout(() => {
-      void this.viewModel.runSearch(this.source, this.query)
+      void this.viewModel.runSearch(this.currentSource(), this.query)
       this.searchTimer = 0
     }, 300)
   }
@@ -73,15 +64,15 @@ export struct SourceSearchPage {
     this.query = value
     this.clearPendingSearchTimer()
     if (value.trim().length === 0) {
-      this.viewModel.clearSearch(this.source)
+      this.viewModel.clearSearch(this.currentSource())
       return
     }
-    void this.viewModel.runSearch(this.source, value)
+    void this.viewModel.runSearch(this.currentSource(), value)
   }
 
   private rerunSearchIfReady(): void {
     if (this.query.trim().length > 0) {
-      void this.viewModel.runSearch(this.source, this.query)
+      void this.viewModel.runSearch(this.currentSource(), this.query)
     }
   }
 
@@ -90,7 +81,7 @@ export struct SourceSearchPage {
     if (this.query.trim().length === 0) {
       return
     }
-    void this.viewModel.runSearch(this.source, this.query)
+    void this.viewModel.runSearch(this.currentSource(), this.query)
   }
 
   private setSearchFilterValue(filter: SourceFilter, value: SourceFilterControlValue | undefined): void {
@@ -192,27 +183,28 @@ export struct SourceSearchPage {
   }
 
   aboutToAppear(): void {
-    void this.viewModel.ensureSearchFilters(this.source)
+    this.viewModel.loadInstalledSources()
+    void this.viewModel.ensureSearchFilters(this.currentSource())
   }
 
   build() {
     if (this.languageState.effectiveLocale.length >= 0) {
-      Scroll() {
-        Column({ space: ThemeConstants.SPACE_LG }) {
-          Column({ space: ThemeConstants.SPACE_XS }) {
-            Text(s('tab_search'))
-              .fontSize(ThemeConstants.FONT_SIZE_H1)
-              .fontWeight(FontWeight.Bold)
-              .fontColor(ThemeConstants.TEXT_PRIMARY)
-            Text(this.source.displayName)
-              .fontSize(ThemeConstants.FONT_SIZE_BODY)
-              .fontColor(ThemeConstants.TEXT_SECONDARY)
-              .maxLines(1)
-              .textOverflow({ overflow: TextOverflow.Ellipsis })
-          }
-          .width('100%')
-          .alignItems(HorizontalAlign.Start)
-
+      SecondaryListScaffold({
+        listSpace: ThemeConstants.SPACE_MD,
+        horizontalPadding: ThemeConstants.SPACE_XL,
+        bottomPadding: ThemeConstants.SPACE_XL,
+        onReachEnd: () => {
+          void this.viewModel.loadMoreSearch()
+        },
+      }) {
+        ListItem() {
+          Text(this.currentSource().displayName)
+            .fontSize(ThemeConstants.FONT_SIZE_META)
+            .fontColor(ThemeConstants.TEXT_SECONDARY)
+            .maxLines(1)
+            .textOverflow({ overflow: TextOverflow.Ellipsis })
+        }
+        ListItem() {
           Search({ value: this.query, placeholder: s('source_search_placeholder') })
             .width('100%')
             .height(ThemeConstants.BUTTON_HEIGHT)
@@ -225,24 +217,36 @@ export struct SourceSearchPage {
             .onSubmit((value: string) => {
               this.submitSearch(value)
             })
-
+        }
+        ListItem() {
           this.RuntimeFilterControls()
-
-          if (this.viewModel.loadingSearch && this.viewModel.searchResults.length === 0) {
+        }
+        if (this.viewModel.loadingSearch && this.viewModel.searchResults.length === 0) {
+          ListItem() {
             LoadingProgress()
               .width(ThemeConstants.SPACE_XXL)
               .height(ThemeConstants.SPACE_XXL)
               .color(ThemeConstants.BRAND_PRIMARY)
-          } else if (this.viewModel.errorMessage.length > 0 && this.viewModel.searchResults.length === 0) {
+          }
+        } else if (this.viewModel.errorMessage.length > 0 && this.viewModel.searchResults.length === 0) {
+          ListItem() {
             this.SearchErrorState()
-          } else if (this.viewModel.searchResults.length === 0) {
+          }
+        } else if (this.viewModel.searchResults.length === 0) {
+          ListItem() {
             this.EmptySearch()
-          } else {
+          }
+        } else {
+          ListItem() {
             this.ResultsGrid(this.viewModel.searchResults)
-            if (this.viewModel.errorMessage.length > 0) {
+          }
+          if (this.viewModel.errorMessage.length > 0) {
+            ListItem() {
               this.SearchErrorState()
             }
-            if (this.viewModel.hasMoreSearch) {
+          }
+          if (this.viewModel.hasMoreSearch) {
+            ListItem() {
               KomaActionButton({
                 label: this.viewModel.loadingSearch ? s('common_loading_more') : s('common_load_more'),
                 kind: 'secondary',
@@ -255,22 +259,7 @@ export struct SourceSearchPage {
             }
           }
         }
-        .width('100%')
-        .padding({
-          left: ThemeConstants.SPACE_XL,
-          right: ThemeConstants.SPACE_XL,
-          top: this.topContentInset(),
-          bottom: this.bottomContentInset(),
-        })
       }
-      .width('100%')
-      .height('100%')
-      .padding({ bottom: this.bottomFloatingTabViewportClearance() })
-      .clipContent(ContentClipMode.CONTENT_ONLY)
-      .backgroundColor(ThemeConstants.BG_SUB)
-      .onReachEnd(() => {
-        void this.viewModel.loadMoreSearch()
-      })
     }
   }
 }

@@ -193,11 +193,6 @@ assert.match(
   /onOpenTrackerSettings:\s*\(\) => \{[\s\S]*this\.openSettingsSecondary\(RouteName\.TRACKER_SETTINGS\)/,
   'Index must wire Settings tracker callback through the secondary route helper',
 )
-assert.match(
-  trackerPageSource,
-  /SecondaryListScaffold\(\{[\s\S]*bottomPadding:\s*ThemeConstants\.FLOAT_BAR_HEIGHT \+ 20 \+ ThemeConstants\.SPACE_XL/,
-  'TrackerSettingsPage must use the safe secondary page scaffold',
-)
 assert.doesNotMatch(
   trackerPageSource,
   /(Navigation|NavDestination)\(/,

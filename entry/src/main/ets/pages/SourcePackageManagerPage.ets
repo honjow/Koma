@@ -1534,12 +1534,6 @@ export struct SourcePackageManagerPage {
           .fontColor(ThemeConstants.TEXT_SECONDARY)
       }
 
-      Text(sourcePackageTrustBoundaryNotice())
-        .width('100%')
-        .fontSize(ThemeConstants.FONT_SIZE_CAPTION)
-        .lineHeight(18)
-        .fontColor(ThemeConstants.TEXT_SECONDARY)
-
       Text(t('source_pkg_manual_check_notice'))
         .width('100%')
         .fontSize(ThemeConstants.FONT_SIZE_CAPTION)
@@ -1964,7 +1958,7 @@ export struct SourcePackageManagerPage {
         SecondaryListScaffold({
           listSpace: ThemeConstants.SPACE_MD,
           horizontalPadding: ThemeConstants.SPACE_XL,
-          bottomPadding: ThemeConstants.FLOAT_BAR_HEIGHT + 20,
+          bottomPadding: ThemeConstants.SPACE_XL,
         }) {
           ListItem() {
             this.IndexUrlCard()

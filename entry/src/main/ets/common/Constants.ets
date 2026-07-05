@@ -12,6 +12,8 @@ export class RouteName {
   static readonly READER: string = 'ReaderPage'
   static readonly IMPORT: string = 'ImportPage'
   static readonly MANGA_DETAIL: string = 'MangaDetailPage'
+  static readonly SOURCE_BROWSE: string = 'SourceBrowsePage'
+  static readonly SOURCE_SEARCH: string = 'SourceSearchPage'
   static readonly KOMGA_SERVER: string = 'KomgaServerPage'
   static readonly KAVITA_SERVER: string = 'KavitaServerPage'
   static readonly OPDS_SERVER: string = 'OpdsServerPage'

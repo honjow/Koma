@@ -152,23 +152,35 @@ sleep "${KOMA_DOWNLOAD_NOTIFICATION_SETTINGS_WAIT_SECONDS:-2}"
 click_after_scrolls "download-notification-root-settings" "$artifact_dir/click-download-settings.txt" Downloads 下载
 sleep "${KOMA_DOWNLOAD_NOTIFICATION_PANE_WAIT_SECONDS:-2}"
 
-click_after_scrolls "download-notification-settings" "$artifact_dir/click-test-notification.txt" \
-  "Send test notification" "发送测试通知"
-sleep "${KOMA_DOWNLOAD_NOTIFICATION_RESULT_WAIT_SECONDS:-3}"
-capture_layout "download-notification-result"
-
-hdc_target shell hilog -x -e "download_notification_test" > "$artifact_dir/download-notification-hilog.txt" || true
-python3 - "$artifact_dir/download-notification-hilog.txt" <<'PY'
+capture_layout "download-notification-settings"
+python3 - "$artifact_dir/download-notification-settings-layout.json" <<'PY'
+import json
 import pathlib
-import re
 import sys
 
-text = pathlib.Path(sys.argv[1]).read_text(encoding='utf-8', errors='ignore')
-match = re.search(r'step=download_notification_test code=(delivered|disabled|publish_failed)', text)
-if match is None:
-    raise SystemExit('download notification UI smoke failed: missing notification dispatch result')
-if match.group(1) == 'publish_failed':
-    raise SystemExit('download notification UI smoke failed: notification publish failed')
+layout = json.loads(pathlib.Path(sys.argv[1]).read_text(encoding='utf-8'))
+texts = []
+
+def walk(node):
+    if isinstance(node, dict):
+        attrs = node.get('attributes')
+        item = attrs if isinstance(attrs, dict) else node
+        for key in ('text', 'originalText', 'description'):
+            value = item.get(key)
+            if isinstance(value, str) and value.strip():
+                texts.append(value.strip())
+        for value in node.values():
+            walk(value)
+    elif isinstance(node, list):
+        for item in node:
+            walk(item)
+
+walk(layout)
+joined = '\n'.join(texts)
+if 'Send test notification' in joined or '发送测试通知' in joined:
+    raise SystemExit('download notification UI smoke failed: test notification row is visible')
+if 'Download notifications' not in joined and '下载完成通知' not in joined:
+    raise SystemExit('download notification UI smoke failed: notification permission row is missing')
 PY
 
 echo "download notification UI smoke passed: $artifact_dir"

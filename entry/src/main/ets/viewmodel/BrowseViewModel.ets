@@ -95,12 +95,41 @@ interface SourceOperationRequest {
 }
 
 const SOURCE_OPERATION_PAGE_SIZE: number = 20
+const SOURCE_OPERATION_TIMEOUT_MS: number = 10000
 
 @Concurrent
 async function runBrowseSourceOperationTask(requestJson: string, wasmBytes: Uint8Array): Promise<string> {
   const mod: Record<string, Object> = await import('libkoma_source_runtime.so') as Record<string, Object>
   const nativeRuntime = (mod.default ?? mod) as Record<string, Function>
   return nativeRuntime.runJsonCallFromBytes(requestJson, wasmBytes) as string
+}
+
+function withSourceOperationTimeout(promise: Promise<string>, operation: string): Promise<string> {
+  return new Promise<string>((resolve, reject) => {
+    let settled = false
+    const timer = setTimeout(() => {
+      if (settled) {
+        return
+      }
+      settled = true
+      reject(new Error(`${operation} timed out`))
+    }, SOURCE_OPERATION_TIMEOUT_MS)
+    promise.then((value: string) => {
+      if (settled) {
+        return
+      }
+      settled = true
+      clearTimeout(timer)
+      resolve(value)
+    }).catch((error: Error) => {
+      if (settled) {
+        return
+      }
+      settled = true
+      clearTimeout(timer)
+      reject(error)
+    })
+  })
 }
 
 function optionalString(value: RuntimeValue | undefined): string | undefined {
@@ -372,6 +401,22 @@ export class BrowseViewModel {
     } finally {
       this.loadingSources = false
     }
+  }
+
+  sourceSummaryForId(sourceId: string): SourceRuntimeRegistryInstalledSourceSummary | undefined {
+    const normalized = sourceId.trim()
+    if (normalized.length === 0) {
+      return undefined
+    }
+    const current = this.registry.listInstalledSourceSummaries().find((source: SourceRuntimeRegistryInstalledSourceSummary): boolean => {
+      return source.sourceId === normalized
+    })
+    if (current !== undefined) {
+      return current
+    }
+    return this.sources.find((source: SourceRuntimeRegistryInstalledSourceSummary): boolean => {
+      return source.sourceId === normalized
+    })
   }
 
   setSelectedSource(source: SourceRuntimeRegistryInstalledSourceSummary): void {
@@ -944,7 +989,10 @@ export class BrowseViewModel {
     }
     const requestJson = this.buildRequestJson(sourceId, operation, args, page)
     const wasmBytes = this.copyWasmBytes(lookup.entry)
-    const responseJson = await taskpool.execute(runBrowseSourceOperationTask, requestJson, wasmBytes) as string
+    const responseJson = await withSourceOperationTimeout(
+      taskpool.execute(runBrowseSourceOperationTask, requestJson, wasmBytes) as Promise<string>,
+      operation,
+    )
     const response = JSON.parse(responseJson) as SourceRuntimeCallResponse
     if (response.ok !== true) {
       throw new Error(this.runtimeErrorMessage(response))
@@ -964,7 +1012,10 @@ export class BrowseViewModel {
     }
     const requestJson = this.buildRequestJson(sourceId, operation, args, page)
     const wasmBytes = this.copyWasmBytes(lookup.entry)
-    const responseJson = await taskpool.execute(runBrowseSourceOperationTask, requestJson, wasmBytes) as string
+    const responseJson = await withSourceOperationTimeout(
+      taskpool.execute(runBrowseSourceOperationTask, requestJson, wasmBytes) as Promise<string>,
+      operation,
+    )
     const response = JSON.parse(responseJson) as SourceRuntimeCallResponse
     if (response.ok !== true) {
       throw new Error(this.runtimeErrorMessage(response))

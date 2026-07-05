@@ -42,7 +42,6 @@ export struct SourceBrowsePage {
   @Event onSearchRequested: (source: SourceRuntimeRegistryInstalledSourceSummary) => void =
     (_source: SourceRuntimeRegistryInstalledSourceSummary) => {}
   @Event onMangaTap: (manga: SourceManga) => void = (_manga: SourceManga) => {}
-  @Event onBack: () => void = () => {}
 
   private listingForHomeSection(section: SourceHomeSectionState): SourceListingDescriptor | undefined {
     if (section.listingId === undefined) {
@@ -81,11 +80,16 @@ export struct SourceBrowsePage {
       this.viewModel.listings.length === 0
   }
 
+  private currentSource(): SourceRuntimeRegistryInstalledSourceSummary {
+    return this.viewModel.sourceSummaryForId(this.source.sourceId) ?? this.source
+  }
+
   private reloadBrowse(): void {
     if (this.viewModel.loadingBrowse) {
       return
     }
-    void this.viewModel.loadBrowseHome(this.source)
+    this.viewModel.loadInstalledSources()
+    void this.viewModel.loadBrowseHome(this.currentSource())
   }
 
   private retryBrowseError(): void {
@@ -114,14 +118,7 @@ export struct SourceBrowsePage {
       Scroll() {
         Row({ space: ThemeConstants.SPACE_SM }) {
           ForEach(this.viewModel.listings, (listing: SourceListingDescriptor) => {
-            KomaActionButton({
-              label: listing.name,
-              kind: this.viewModel.selectedListingId === listing.id ? 'primary' : 'secondary',
-              compact: true,
-              action: () => {
-                void this.viewModel.selectBrowseListing(listing)
-              },
-            })
+            this.ListingChip(listing)
           }, (listing: SourceListingDescriptor) => listing.id)
         }
       }
@@ -129,6 +126,33 @@ export struct SourceBrowsePage {
       .scrollable(ScrollDirection.Horizontal)
       .scrollBar(BarState.Off)
     }
+  }
+
+  @Builder
+  private ListingChip(listing: SourceListingDescriptor) {
+    Button({ type: ButtonType.Capsule, stateEffect: true }) {
+      Text(listing.name)
+        .fontSize(ThemeConstants.FONT_SIZE_BODY)
+        .fontWeight(FontWeight.Medium)
+        .fontColor(this.viewModel.selectedListingId === listing.id ?
+          ThemeConstants.TEXT_ON_BRAND :
+          ThemeConstants.BRAND_PRIMARY)
+        .maxLines(1)
+        .textOverflow({ overflow: TextOverflow.Ellipsis })
+        .padding({ left: ThemeConstants.SPACE_MD, right: ThemeConstants.SPACE_MD })
+    }
+    .height(ThemeConstants.ACTION_CHIP_HEIGHT)
+    .constraintSize({ maxWidth: 220 })
+    .backgroundColor(this.viewModel.selectedListingId === listing.id ?
+      ThemeConstants.BRAND_PRIMARY :
+      $r('sys.color.ohos_id_color_button_normal'))
+    .border({
+      width: this.viewModel.selectedListingId === listing.id ? 0 : 1,
+      color: this.viewModel.selectedListingId === listing.id ? Color.Transparent : ThemeConstants.BRAND_PRIMARY,
+    })
+    .onClick(() => {
+      void this.viewModel.selectBrowseListing(listing)
+    })
   }
 
   @Builder
@@ -218,8 +242,8 @@ export struct SourceBrowsePage {
       }, (item: SourceManga) => `${item.sourceId}:${item.id}`)
     }
     .width('100%')
-    .columnsTemplate('1fr 1fr')
-    .columnsGap(ThemeConstants.SPACE_LG)
+    .columnsTemplate('1fr 1fr 1fr')
+    .columnsGap(ThemeConstants.SPACE_MD)
     .rowsGap(ThemeConstants.SPACE_LG)
     .cachedCount(12)
   }
@@ -259,42 +283,29 @@ export struct SourceBrowsePage {
   build() {
     if (this.languageState.effectiveLocale.length >= 0) {
       SecondaryListScaffold({
-        listSpace: ThemeConstants.SPACE_LG,
+        listSpace: ThemeConstants.SPACE_MD,
         horizontalPadding: ThemeConstants.SPACE_XL,
-        bottomPadding: ThemeConstants.FLOAT_BAR_HEIGHT + 20,
+        bottomPadding: ThemeConstants.SPACE_XL,
         onReachEnd: () => {
           void this.viewModel.loadMoreBrowse()
         },
       }) {
         ListItem() {
           Row({ space: ThemeConstants.SPACE_MD }) {
-            KomaIconButton({
-              icon: $r('sys.symbol.chevron_left'),
-              kind: 'secondary',
-              action: () => {
-                this.onBack()
-              },
-            })
-
-            Column({ space: ThemeConstants.SPACE_XS }) {
-              Text(this.source.displayName)
-                .fontSize(ThemeConstants.FONT_SIZE_H1)
-                .fontWeight(FontWeight.Bold)
-                .fontColor(ThemeConstants.TEXT_PRIMARY)
-                .maxLines(1)
-                .textOverflow({ overflow: TextOverflow.Ellipsis })
-              Text(`v${this.source.version}`)
-                .fontSize(ThemeConstants.FONT_SIZE_BODY)
-                .fontColor(ThemeConstants.TEXT_SECONDARY)
-            }
-            .layoutWeight(1)
-            .alignItems(HorizontalAlign.Start)
-
+            Text(`${this.currentSource().displayName} · v${this.currentSource().version}`)
+              .fontSize(ThemeConstants.FONT_SIZE_META)
+              .fontWeight(FontWeight.Medium)
+              .fontColor(ThemeConstants.TEXT_SECONDARY)
+              .maxLines(1)
+              .textOverflow({ overflow: TextOverflow.Ellipsis })
+              .layoutWeight(1)
             KomaActionButton({
               label: s('tab_search'),
               kind: 'primary',
+              compact: true,
+              controlHeight: ThemeConstants.ACTION_CHIP_HEIGHT,
               action: () => {
-                this.onSearchRequested(this.source)
+                this.onSearchRequested(this.currentSource())
               },
             })
 

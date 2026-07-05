@@ -385,6 +385,21 @@ assert.match(
 )
 assert.match(
   browseViewModelSource,
+  /sourceSummaryForId\(sourceId: string\): SourceRuntimeRegistryInstalledSourceSummary \| undefined \{[\s\S]*this\.registry\.listInstalledSourceSummaries\(\)\.find[\s\S]*this\.sources\.find/,
+  'BrowseViewModel must resolve the current source summary from the registry before falling back to cached source rows',
+)
+assert.match(
+  sourceBrowsePageSource,
+  /currentSource\(\): SourceRuntimeRegistryInstalledSourceSummary[\s\S]*this\.viewModel\.sourceSummaryForId\(this\.source\.sourceId\)[\s\S]*reloadBrowse\(\): void \{[\s\S]*this\.viewModel\.loadInstalledSources\(\)[\s\S]*this\.viewModel\.loadBrowseHome\(this\.currentSource\(\)\)[\s\S]*Text\(`v\$\{this\.currentSource\(\)\.version\}`\)[\s\S]*this\.onSearchRequested\(this\.currentSource\(\)\)/,
+  'SourceBrowsePage must use the current registry source summary after a package update, including visible version, reload, and search handoff',
+)
+assert.match(
+  sourceSearchPageSource,
+  /currentSource\(\): SourceRuntimeRegistryInstalledSourceSummary[\s\S]*this\.viewModel\.sourceSummaryForId\(this\.source\.sourceId\)[\s\S]*runSearch\(this\.currentSource\(\),[\s\S]*aboutToAppear\(\): void \{[\s\S]*this\.viewModel\.loadInstalledSources\(\)[\s\S]*this\.viewModel\.ensureSearchFilters\(this\.currentSource\(\)\)/,
+  'SourceSearchPage must search with the current registry source summary instead of stale navigation params',
+)
+assert.match(
+  browseViewModelSource,
   /sourceLanguageBadgeFromLanguage\(language: string\)[\s\S]*language\.trim\(\)[\s\S]*split\(\/\[-_\]\/\)\[0\][\s\S]*primary === 'zh'[\s\S]*return 'ZH'[\s\S]*primary === 'ja'[\s\S]*return 'JA'[\s\S]*primary === 'en'[\s\S]*return 'EN'/,
   'Browse source badges must normalize manifest language values before falling back to source id heuristics',
 )
@@ -580,12 +595,12 @@ assert.match(
 )
 assert.match(
   sourceSearchPageSource,
-  /clearPendingSearchTimer\(\): void \{[\s\S]*clearTimeout\(this\.searchTimer\)[\s\S]*scheduleSearch\(value: string\): void \{[\s\S]*this\.clearPendingSearchTimer\(\)[\s\S]*if \(value\.trim\(\)\.length === 0\) \{[\s\S]*this\.viewModel\.clearSearch\(this\.source\)[\s\S]*return[\s\S]*setTimeout/,
+  /clearPendingSearchTimer\(\): void \{[\s\S]*clearTimeout\(this\.searchTimer\)[\s\S]*scheduleSearch\(value: string\): void \{[\s\S]*this\.clearPendingSearchTimer\(\)[\s\S]*if \(value\.trim\(\)\.length === 0\) \{[\s\S]*this\.viewModel\.clearSearch\(this\.currentSource\(\)\)[\s\S]*return[\s\S]*setTimeout/,
   'SourceSearchPage must clear source search results immediately when the query becomes blank instead of waiting for debounce',
 )
 assert.match(
   sourceSearchPageSource,
-  /submitSearch\(value: string\): void \{[\s\S]*this\.query = value[\s\S]*this\.clearPendingSearchTimer\(\)[\s\S]*if \(value\.trim\(\)\.length === 0\) \{[\s\S]*this\.viewModel\.clearSearch\(this\.source\)[\s\S]*return[\s\S]*this\.viewModel\.runSearch\(this\.source, value\)/,
+  /submitSearch\(value: string\): void \{[\s\S]*this\.query = value[\s\S]*this\.clearPendingSearchTimer\(\)[\s\S]*if \(value\.trim\(\)\.length === 0\) \{[\s\S]*this\.viewModel\.clearSearch\(this\.currentSource\(\)\)[\s\S]*return[\s\S]*this\.viewModel\.runSearch\(this\.currentSource\(\), value\)/,
   'SourceSearchPage must run submitted source searches immediately instead of waiting for the debounce timer',
 )
 assert.match(
@@ -620,7 +635,7 @@ assert.match(
 )
 assert.match(
   sourceSearchPageSource,
-  /resetSearchFilters\(\): void \{[\s\S]*this\.viewModel\.resetSearchFilters\(\)[\s\S]*this\.rerunSearchIfReady\(\)[\s\S]*SourceFilterControls\(\{[\s\S]*filters: this\.viewModel\.filters[\s\S]*values: this\.viewModel\.searchFilterValues[\s\S]*busy: this\.viewModel\.loadingSearch[\s\S]*onFilterChange:[\s\S]*this\.setSearchFilterValue\(filter, value\)[\s\S]*onReset:[\s\S]*this\.resetSearchFilters\(\)[\s\S]*aboutToAppear\(\): void \{[\s\S]*this\.viewModel\.ensureSearchFilters\(this\.source\)/,
+  /resetSearchFilters\(\): void \{[\s\S]*this\.viewModel\.resetSearchFilters\(\)[\s\S]*this\.rerunSearchIfReady\(\)[\s\S]*SourceFilterControls\(\{[\s\S]*filters: this\.viewModel\.filters[\s\S]*values: this\.viewModel\.searchFilterValues[\s\S]*busy: this\.viewModel\.loadingSearch[\s\S]*onFilterChange:[\s\S]*this\.setSearchFilterValue\(filter, value\)[\s\S]*onReset:[\s\S]*this\.resetSearchFilters\(\)[\s\S]*aboutToAppear\(\): void \{[\s\S]*this\.viewModel\.ensureSearchFilters\(this\.currentSource\(\)\)/,
   'SourceSearchPage must rerun the current search when a source filter changes or resets',
 )
 assert.match(
@@ -650,8 +665,8 @@ assert.match(
 )
 assert.match(
   readFileSync(resolve(root, 'entry/src/main/ets/pages/SourceBrowsePage.ets'), 'utf8'),
-  /shouldLoadBrowseOnAppear\(\): boolean[\s\S]*selectedSource\?\.sourceId !== this\.source\.sourceId[\s\S]*!this\.hasBrowseContent\(\)[\s\S]*reloadBrowse\(\): void[\s\S]*this\.viewModel\.loadBrowseHome\(this\.source\)[\s\S]*aboutToAppear\(\): void \{[\s\S]*this\.shouldLoadBrowseOnAppear\(\)[\s\S]*this\.reloadBrowse\(\)/,
-  'SourceBrowsePage must preserve loaded browse state on return and only reload when the current source has no loaded state',
+  /shouldLoadBrowseOnAppear\(\): boolean[\s\S]*selectedSource\?\.sourceId !== this\.source\.sourceId[\s\S]*!this\.hasBrowseContent\(\)[\s\S]*currentSource\(\): SourceRuntimeRegistryInstalledSourceSummary[\s\S]*reloadBrowse\(\): void[\s\S]*this\.viewModel\.loadInstalledSources\(\)[\s\S]*this\.viewModel\.loadBrowseHome\(this\.currentSource\(\)\)[\s\S]*aboutToAppear\(\): void \{[\s\S]*this\.shouldLoadBrowseOnAppear\(\)[\s\S]*this\.reloadBrowse\(\)/,
+  'SourceBrowsePage must preserve loaded browse state on return and use the current registry source on explicit reload',
 )
 assert.match(
   readFileSync(resolve(root, 'entry/src/main/ets/pages/SourceBrowsePage.ets'), 'utf8'),
@@ -665,12 +680,7 @@ assert.match(
 )
 assert.match(
   readFileSync(resolve(root, 'entry/src/main/ets/pages/SourceSearchPage.ets'), 'utf8'),
-  /bottomContentInset\(\): number \{[\s\S]*this\.safeArea\.bottomAvoidHeight \+ ThemeConstants\.FLOAT_BAR_HEIGHT[\s\S]*bottomFloatingTabViewportClearance\(\): number \{[\s\S]*return this\.bottomContentInset\(\)[\s\S]*Scroll\(\)[\s\S]*\.padding\(\{\s*bottom:\s*this\.bottomFloatingTabViewportClearance\(\)\s*\}\)[\s\S]*\.clipContent\(ContentClipMode\.CONTENT_ONLY\)/,
-  'SourceSearchPage must reserve bottom viewport clearance so source search results and load-more controls are not hidden behind floating tab chrome',
-)
-assert.match(
-  readFileSync(resolve(root, 'entry/src/main/ets/pages/SourceSearchPage.ets'), 'utf8'),
-  /retrySearch\(\): void \{[\s\S]*clearPendingSearchTimer\(\)[\s\S]*query\.trim\(\)\.length === 0[\s\S]*this\.viewModel\.runSearch\(this\.source, this\.query\)[\s\S]*SearchErrorState\(\)[\s\S]*source_search_error_title[\s\S]*common_retry[\s\S]*this\.retrySearch\(\)[\s\S]*errorMessage\.length > 0 && this\.viewModel\.searchResults\.length === 0[\s\S]*this\.SearchErrorState\(\)[\s\S]*this\.ResultsGrid\(this\.viewModel\.searchResults\)[\s\S]*errorMessage\.length > 0[\s\S]*this\.SearchErrorState\(\)/,
+  /retrySearch\(\): void \{[\s\S]*clearPendingSearchTimer\(\)[\s\S]*query\.trim\(\)\.length === 0[\s\S]*this\.viewModel\.runSearch\(this\.currentSource\(\), this\.query\)[\s\S]*SearchErrorState\(\)[\s\S]*source_search_error_title[\s\S]*common_retry[\s\S]*this\.retrySearch\(\)[\s\S]*errorMessage\.length > 0 && this\.viewModel\.searchResults\.length === 0[\s\S]*this\.SearchErrorState\(\)[\s\S]*this\.ResultsGrid\(this\.viewModel\.searchResults\)[\s\S]*errorMessage\.length > 0[\s\S]*this\.SearchErrorState\(\)/,
   'SourceSearchPage must expose retry for failed searches and keep existing results visible when later pagination fails',
 )
 assert.doesNotMatch(

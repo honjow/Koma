@@ -452,28 +452,35 @@ export struct SearchPage {
 
   @Builder
   private SourceFilterBar() {
-    Row() {
+    Column({ space: ThemeConstants.SPACE_SM }) {
       Text(s('search_filter_label'))
         .fontSize(ThemeConstants.FONT_SIZE_META)
         .fontColor(ThemeConstants.TEXT_SECONDARY)
-        .layoutWeight(1)
-      KomaActionButton({
-        label: this.sourceFilterLabel(),
-        kind: 'secondary',
-        compact: true,
-        controlHeight: ThemeConstants.ACTION_CHIP_HEIGHT,
-        action: () => {
-          this.sourceFilterMenuOpen = true
-        },
-      })
-        .bindMenu(this.sourceFilterMenuOpen, this.SourceFilterMenu(), {
-          placement: Placement.BottomRight,
-          onDisappear: () => {
-            this.sourceFilterMenuOpen = false
-          },
-        })
+        .width('100%')
+      Row({ space: ThemeConstants.SPACE_SM }) {
+        this.SourceFilterChip('all', s('search_filter_all'))
+        this.SourceFilterChip('local', s('search_filter_local'))
+        this.SourceFilterChip('private', s('search_filter_private'))
+        this.SourceFilterChip('source', s('search_filter_source'))
+      }
+      .width('100%')
     }
     .width('100%')
+    .alignItems(HorizontalAlign.Start)
+  }
+
+  @Builder
+  private SourceFilterChip(sourceFilter: CrossSearchSourceFilter, label: ResourceStr) {
+    KomaActionButton({
+      label,
+      kind: this.sourceFilter === sourceFilter ? 'primary' : 'secondary',
+      compact: true,
+      fill: true,
+      controlHeight: ThemeConstants.ACTION_CHIP_HEIGHT,
+      action: () => {
+        this.setSourceFilter(sourceFilter)
+      },
+    })
   }
 
   @Builder
@@ -649,10 +656,16 @@ export struct SearchPage {
       .layoutWeight(1)
       .alignItems(HorizontalAlign.Start)
 
-      Text(item.sourceKind === 'webdav' ? s('search_result_action_read') : '>')
-        .fontSize(ThemeConstants.FONT_SIZE_TITLE)
-        .fontWeight(FontWeight.Medium)
-        .fontColor(ThemeConstants.BRAND_PRIMARY)
+      if (item.sourceKind === 'webdav') {
+        Text(s('search_result_action_read'))
+          .fontSize(ThemeConstants.FONT_SIZE_META)
+          .fontWeight(FontWeight.Medium)
+          .fontColor(ThemeConstants.BRAND_PRIMARY)
+      } else {
+        SymbolGlyph($r('sys.symbol.chevron_right'))
+          .fontSize(ThemeConstants.FONT_SIZE_H2)
+          .fontColor([ThemeConstants.BRAND_PRIMARY])
+      }
     }
     .width('100%')
     .padding(ThemeConstants.SPACE_LG)
@@ -720,7 +733,8 @@ export struct SearchPage {
         SecondaryListScaffold({
           listSpace: ThemeConstants.SPACE_MD,
           horizontalPadding: ThemeConstants.SPACE_XL,
-          bottomPadding: ThemeConstants.FLOAT_BAR_HEIGHT + 20,
+          bottomPadding: ThemeConstants.SPACE_XL,
+          floatingTabTailPadding: ThemeConstants.SPACE_XXL * 3,
         }) {
           ListItem() {
             this.SearchInput()

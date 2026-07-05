@@ -62,7 +62,7 @@ export const DEFAULT_READER_PREFERENCES: ReaderPreferences = {
   backgroundMode: 'black',
   showProgressControls: true,
   keepScreenAwake: true,
-  imageFitMode: 'contain',
+  imageFitMode: 'fit_width',
   tapNavigationEnabled: true,
   swipeNavigationEnabled: true,
   tapZonePreset: 'edge',

@@ -19,6 +19,8 @@ import { SettingsPage, SettingsPaneKey, settingsPaneTitle } from './SettingsPage
 import { ImportPage, LocalFolderImportPersistResult } from './ImportPage'
 import { ReaderPage } from './ReaderPage'
 import { MangaDetailPage } from './MangaDetailPage'
+import { SourceBrowsePage } from './SourceBrowsePage'
+import { SourceSearchPage } from './SourceSearchPage'
 import { LibraryUpdateResultPage } from './LibraryUpdateResultPage'
 import { LibraryCategoryManagementPage } from './LibraryCategoryManagementPage'
 import { KomgaServerPage } from './KomgaServerPage'
@@ -77,6 +79,8 @@ import {
 } from '../model/ReaderSessionStore'
 import { installReaderRemoteHeadersForComic } from '../model/ReaderPageSourceAdapter'
 import { SourceRuntimeRegistry } from '../sourceRuntime/SourceRuntimeRegistry'
+import { SourceRuntimeRegistryInstalledSourceSummary } from '../sourceRuntime/SourceRuntimeRegistry'
+import { SourceManga } from '../model/SourceModels'
 import {
   appSourceRuntimeRegistry,
   bootstrapSourceRuntimeAppRegistry,
@@ -95,6 +99,10 @@ const sourceRuntimeRegistry: SourceRuntimeRegistry = appSourceRuntimeRegistry
 
 interface SettingsPaneRouteParam {
   pane: string
+}
+
+interface SourceRouteParam {
+  source: SourceRuntimeRegistryInstalledSourceSummary
 }
 
 @Entry
@@ -637,6 +645,29 @@ struct Index {
         })
       }
       .hideTitleBar(true)
+    } else if (name === RouteName.SOURCE_BROWSE) {
+      HdsNavDestination() {
+        SourceBrowsePage({
+          source: (param as SourceRouteParam).source,
+          onSearchRequested: (source: SourceRuntimeRegistryInstalledSourceSummary) => {
+            RouterHelper.pushSourceSearch({ source: source })
+          },
+          onMangaTap: (manga: SourceManga) => {
+            RouterHelper.pushMangaDetail({ mangaId: manga.id, sourceId: manga.sourceId })
+          },
+        })
+      }
+      .titleBar(this.navDestTitleBarOpts((param as SourceRouteParam).source.displayName))
+    } else if (name === RouteName.SOURCE_SEARCH) {
+      HdsNavDestination() {
+        SourceSearchPage({
+          source: (param as SourceRouteParam).source,
+          onMangaTap: (manga: SourceManga) => {
+            RouterHelper.pushMangaDetail({ mangaId: manga.id, sourceId: manga.sourceId })
+          },
+        })
+      }
+      .titleBar(this.navDestTitleBarOpts(AppStrings.get('tab_search')))
     } else if (name === RouteName.KOMGA_SERVER) {
       HdsNavDestination() {
         KomgaServerPage()

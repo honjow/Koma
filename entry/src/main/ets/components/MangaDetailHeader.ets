@@ -101,21 +101,21 @@ export struct MangaDetailHeader {
         .backgroundColor(ThemeConstants.BRAND_PRIMARY)
       }
     }
-    .width(120)
-    .height(180)
+    .width(104)
+    .height(148)
     .borderRadius(ThemeConstants.RADIUS_THUMB)
     .clip(true)
-    .shadow({ radius: 16, color: ThemeConstants.SHADOW_PROMINENT, offsetY: 8 })
+    .shadow({ radius: 10, color: ThemeConstants.SHADOW_CARD, offsetY: 4 })
   }
 
   build() {
-    Row({ space: ThemeConstants.SPACE_LG }) {
+    Row({ space: ThemeConstants.SPACE_MD }) {
       this.Cover()
 
       Column({ space: ThemeConstants.SPACE_SM }) {
         Text(this.displayTitle())
-          .fontSize(ThemeConstants.FONT_SIZE_H1)
-          .lineHeight(30)
+          .fontSize(ThemeConstants.FONT_SIZE_H2)
+          .lineHeight(28)
           .fontWeight(FontWeight.Bold)
           .fontColor(ThemeConstants.TEXT_PRIMARY)
           .maxLines(2)
@@ -158,6 +158,6 @@ export struct MangaDetailHeader {
       .justifyContent(FlexAlign.Center)
     }
     .width('100%')
-    .alignItems(VerticalAlign.Top)
+    .alignItems(VerticalAlign.Center)
   }
 }

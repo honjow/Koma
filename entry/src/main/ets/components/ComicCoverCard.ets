@@ -58,26 +58,28 @@ export struct ComicCoverCard {
     return this.comic.coverUri ?? ''
   }
 
+  private titleInitial(): string {
+    const title = this.displayTitle().trim()
+    if (title.length === 0) {
+      return 'K'
+    }
+    return title.substring(0, 1).toLocaleUpperCase()
+  }
+
   @Builder
   private CoverPlaceholder() {
     Column() {
-      Text(this.displayTitle())
-        .fontSize(ThemeConstants.FONT_SIZE_TITLE)
+      Text(this.titleInitial())
+        .fontSize(42)
         .fontWeight(FontWeight.Bold)
         .fontColor(ThemeConstants.TEXT_ON_BRAND)
-        .lineHeight(ThemeConstants.LINE_HEIGHT_TITLE)
-        .maxLines(3)
-        .textOverflow({ overflow: TextOverflow.Ellipsis })
-      Blank()
-      Text('Koma')
-        .fontSize(ThemeConstants.FONT_SIZE_CAPTION)
-        .fontWeight(FontWeight.Medium)
-        .fontColor(ThemeConstants.TEXT_ON_BRAND)
-        .opacity(0.86)
+        .opacity(0.94)
     }
     .width('100%')
     .height('100%')
     .padding(ThemeConstants.SPACE_MD)
+    .justifyContent(FlexAlign.Center)
+    .alignItems(HorizontalAlign.Center)
     .backgroundColor(this.displayCoverColor())
   }
 
@@ -94,18 +96,20 @@ export struct ComicCoverCard {
             .interpolation(ImageInterpolation.Medium)
         }
 
-        Row() {
-          Text(this.displayProgressText())
-            .fontSize(ThemeConstants.FONT_SIZE_TAG)
-            .fontWeight(FontWeight.Medium)
-            .fontColor(ThemeConstants.TEXT_ON_BRAND)
-            .maxLines(1)
+        if (this.displayProgressText().length > 0) {
+          Row() {
+            Text(this.displayProgressText())
+              .fontSize(ThemeConstants.FONT_SIZE_TAG)
+              .fontWeight(FontWeight.Medium)
+              .fontColor(ThemeConstants.TEXT_ON_BRAND)
+              .maxLines(1)
+          }
+          .height(26)
+          .padding({ left: 10, right: 10 })
+          .margin({ left: 10, bottom: 10 })
+          .borderRadius(13)
+          .backgroundColor(this.displayAccentColor())
         }
-        .height(26)
-        .padding({ left: 10, right: 10 })
-        .margin({ left: 10, bottom: 10 })
-        .borderRadius(13)
-        .backgroundColor(this.displayAccentColor())
 
         if (this.selected) {
           Column()
@@ -114,10 +118,9 @@ export struct ComicCoverCard {
             .backgroundColor(ThemeConstants.SELECTED_OVERLAY)
 
           Stack({ alignContent: Alignment.Center }) {
-            Text('✓')
+            SymbolGlyph($r('sys.symbol.checkmark'))
               .fontSize(ThemeConstants.FONT_SIZE_HEADING)
-              .fontWeight(FontWeight.Bold)
-              .fontColor(ThemeConstants.TEXT_ON_BRAND)
+              .fontColor([ThemeConstants.TEXT_ON_BRAND])
           }
           .width(ThemeConstants.FILTER_CHIP_HEIGHT)
           .height(ThemeConstants.FILTER_CHIP_HEIGHT)

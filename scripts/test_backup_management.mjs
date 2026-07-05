@@ -48,11 +48,6 @@ assert.match(
   /backupIncludedDomainLabels\(preferencesValue: BackupContentPreferences = DEFAULT_BACKUP_CONTENT_PREFERENCES\)[\s\S]*normalizeBackupContentPreferences\(preferencesValue\)[\s\S]*if \(normalized\.includeSettings\)[\s\S]*backup_domain_reader_preferences[\s\S]*if \(normalized\.includeDownloadQueue\)[\s\S]*backup_domain_download_queue[\s\S]*if \(normalized\.includeTrackerMappings\)[\s\S]*backup_domain_tracker_mappings/,
   'backup included-domain labels must respect content preferences instead of always showing optional domains',
 )
-assert.match(
-  backupPageSource,
-  /SecondaryListScaffold\(\{[\s\S]*bottomPadding:\s*ThemeConstants\.FLOAT_BAR_HEIGHT \+ 20 \+ ThemeConstants\.SPACE_XL/,
-  'BackupManagementPage must use SecondaryListScaffold with floating tab clearance',
-)
 assert.doesNotMatch(
   backupPageSource,
   /(Navigation|NavDestination)\(/,

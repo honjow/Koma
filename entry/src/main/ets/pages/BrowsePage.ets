@@ -10,9 +10,6 @@ import { ThemeConstants } from '../theme/ThemeConstants'
 import { BrowseViewModel } from '../viewmodel/BrowseViewModel'
 import { SourceRuntimeRegistry, SourceRuntimeRegistryInstalledSourceSummary } from '../sourceRuntime/SourceRuntimeRegistry'
 import { appSourceRuntimeRegistry } from '../sourceRuntime/SourceRuntimeAppRegistry'
-import { SourceBrowsePage } from './SourceBrowsePage'
-import { SourceSearchPage } from './SourceSearchPage'
-import { SourceManga } from '../model/SourceModels'
 import { RouterHelper } from '../common/RouterHelper'
 import { common } from '@kit.AbilityKit'
 import { RemoteServerStore } from '../model/RemoteServerStore'
@@ -26,8 +23,6 @@ import { createSeededLibraryStore } from '../model/MockLibraryData'
 import { AppStrings } from '../i18n/AppStrings'
 import { connectLanguageState, LanguageState } from '../state/LanguageState'
 
-const SOURCE_BROWSE_ROUTE_NAME: string = 'SourceBrowsePage'
-const SOURCE_SEARCH_ROUTE_NAME: string = 'SourceSearchPage'
 const KOMGA_ROUTE_NAME: string = 'KomgaSeriesPage'
 const KAVITA_ROUTE_NAME: string = 'KavitaBrowsePage'
 const OPDS_ROUTE_NAME: string = 'OpdsBrowsePage'
@@ -35,10 +30,6 @@ const WEBDAV_ROUTE_NAME: string = 'WebDavBrowsePage'
 
 function s(name: string): string {
   return AppStrings.get(name)
-}
-
-interface SourceRouteParam {
-  source: SourceRuntimeRegistryInstalledSourceSummary
 }
 
 @ComponentV2
@@ -59,17 +50,11 @@ export struct BrowsePage {
   private browsePathStack: NavPathStack = new NavPathStack()
 
   private openSource(source: SourceRuntimeRegistryInstalledSourceSummary): void {
-    this.browsePathStack.pushPath({
-      name: SOURCE_BROWSE_ROUTE_NAME,
-      param: { source: source } as SourceRouteParam,
-    })
+    RouterHelper.pushSourceBrowse({ source: source })
   }
 
   private openSourceSearch(source: SourceRuntimeRegistryInstalledSourceSummary): void {
-    this.browsePathStack.pushPath({
-      name: SOURCE_SEARCH_ROUTE_NAME,
-      param: { source: source } as SourceRouteParam,
-    })
+    RouterHelper.pushSourceSearch({ source: source })
   }
 
   private openKomga(): void {
@@ -318,36 +303,7 @@ export struct BrowsePage {
 
   @Builder
   private BrowseDestination(name: string, param: Object) {
-    if (name === SOURCE_BROWSE_ROUTE_NAME) {
-      NavDestination() {
-        SourceBrowsePage({
-          source: (param as SourceRouteParam).source,
-          viewModel: this.viewModel,
-          onSearchRequested: (source: SourceRuntimeRegistryInstalledSourceSummary) => {
-            this.openSourceSearch(source)
-          },
-          onMangaTap: (manga: SourceManga) => {
-            RouterHelper.pushMangaDetail({ mangaId: manga.id, sourceId: manga.sourceId })
-          },
-          onBack: () => {
-            this.browsePathStack.pop(false)
-          },
-        })
-      }
-      .title((param as SourceRouteParam).source.displayName)
-      .hideTitleBar(true)
-    } else if (name === SOURCE_SEARCH_ROUTE_NAME) {
-      NavDestination() {
-        SourceSearchPage({
-          source: (param as SourceRouteParam).source,
-          viewModel: this.viewModel,
-          onMangaTap: (manga: SourceManga) => {
-            RouterHelper.pushMangaDetail({ mangaId: manga.id, sourceId: manga.sourceId })
-          },
-        })
-      }
-      .title(s('tab_search'))
-    } else if (name === KOMGA_ROUTE_NAME) {
+    if (name === KOMGA_ROUTE_NAME) {
       NavDestination() {
         KomgaSeriesPage({
           libraryStore: this.libraryStore,
@@ -441,7 +397,8 @@ export struct BrowsePage {
           SecondaryListScaffold({
             listSpace: ThemeConstants.SPACE_LG,
             horizontalPadding: ThemeConstants.SPACE_XL,
-            bottomPadding: ThemeConstants.FLOAT_BAR_HEIGHT + 20,
+            bottomPadding: ThemeConstants.SPACE_XL,
+            floatingTabTailPadding: ThemeConstants.SPACE_XXL * 3,
           }) {
             if (this.viewModel.loadingSources) {
               ListItem() {

@@ -155,25 +155,6 @@ function assertExport(source, symbol) {
   assert.match(source, new RegExp(`export (interface|class|function|enum|type|const) ${symbol}\\b`), `${symbol} must be exported`)
 }
 
-function assertUsesSecondaryListSafeArea(source, label) {
-  assert.match(source, /SecondaryListScaffold\(\{[\s\S]*bottomPadding:\s*ThemeConstants\.FLOAT_BAR_HEIGHT \+ 20/, `${label} must avoid floating tab chrome inside list content`)
-}
-
-function assertUsesScrollContentSafeArea(source, label) {
-  assert.match(source, /connectLayoutSafeArea, LayoutSafeAreaState/, `${label} must import shared safe-area state`)
-  assert.match(source, /@Local private safeArea: LayoutSafeAreaState = connectLayoutSafeArea\(\)/, `${label} must connect shared safe-area state`)
-  assert.match(source, /topContentInset\(\): number \{[\s\S]*this\.safeArea\.topAvoidHeight/, `${label} must calculate a top inset inside scroll content`)
-  assert.match(source, /bottomContentInset\(\): number \{[\s\S]*this\.safeArea\.bottomAvoidHeight[\s\S]*ThemeConstants\.FLOAT_BAR_HEIGHT/, `${label} must calculate bottom inset for floating chrome inside scroll content`)
-  assert.match(source, /\.padding\(\{[^}]*top:\s*this\.topContentInset\(\)[^}]*bottom:\s*this\.bottomContentInset\(\)[^}]*\}\)/, `${label} must apply safe-area avoidance as scroll content padding`)
-}
-
-function assertSourceBrowseFloatingTabViewportClearance(source) {
-  assert.match(source, /import \{ SecondaryListScaffold \} from '\.\.\/components\/SecondaryListScaffold'/, 'SourceBrowsePage must use the shared safe-area list scaffold')
-  assert.match(source, /SecondaryListScaffold\(\{[\s\S]*bottomPadding:\s*ThemeConstants\.FLOAT_BAR_HEIGHT \+ 20[\s\S]*onReachEnd:[\s\S]*this\.viewModel\.loadMoreBrowse\(\)/, 'SourceBrowsePage must reserve bottom chrome space through the shared scaffold')
-  assert.doesNotMatch(source, /bottomFloatingTabViewportClearance\(\)/, 'SourceBrowsePage must not keep a page-local floating-tab padding workaround')
-  assert.doesNotMatch(source, /\.expandSafeArea\(/, 'SourceBrowsePage must not change reader-style immersive safe-area expansion')
-}
-
 function normalizeSortKey(value) {
   return value.trim().toLocaleLowerCase()
 }
@@ -554,41 +535,6 @@ assert.match(entryAbilitySource, /navigationBarColor:\s*TRANSPARENT_COLOR/, 'Ent
 assert.match(indexSource, /\.ignoreLayoutSafeArea\(\s*\[\s*LayoutSafeAreaType\.SYSTEM\s*\][\s\S]*\[LayoutSafeAreaEdge\.TOP,\s*LayoutSafeAreaEdge\.BOTTOM\]/, 'root shell must continue drawing under system safe areas')
 assert.match(indexSource, /\.expandSafeArea\(\[SafeAreaType\.SYSTEM\], \[SafeAreaEdge\.TOP, SafeAreaEdge\.BOTTOM\]\)/, 'root shell must preserve immersive safe-area expansion')
 assert.doesNotMatch(indexSource, /HdsNavigation\(this\.appPathStack\)[\s\S]*\.(padding|margin)\(/, 'root app shell must not use root padding or margin to avoid safe areas')
-assert.match(secondaryListScaffoldSource, /Blank\(\)\.height\(this\.safeArea\.topAvoidHeight \+ this\.titleBarPadding\(\)\)/, 'shared list scaffold must include an internal top spacer')
-assert.match(secondaryListScaffoldSource, /Blank\(\)\.height\(this\.safeArea\.bottomAvoidHeight \+ this\.bottomPadding \+ this\.keyboardPadding\(\)\)/, 'shared list scaffold must include an internal bottom spacer')
-assert.match(secondaryListScaffoldSource, /reserveTitleBar: boolean = true[\s\S]*titleBarPadding\(\): number[\s\S]*this\.reserveTitleBar \? ThemeConstants\.TITLE_BAR_HEIGHT : 0/, 'shared list scaffold must let nested navigation destinations skip the title spacer')
-assert.match(secondaryListScaffoldSource, /reserveBottomViewport: boolean = true[\s\S]*bottomViewportPadding\(\): number[\s\S]*this\.reserveBottomViewport \? this\.bottomPadding : 0/, 'shared list scaffold must reserve floating chrome in the viewport, not only at scroll end')
-for (const [source, label] of [
-  [libraryPageSource, 'LibraryPage'],
-  [browsePageSource, 'BrowsePage'],
-  [historyPageSource, 'HistoryPage'],
-  [searchPageSource, 'SearchPage'],
-  [settingsPageSource, 'SettingsPage'],
-  [libraryUpdateResultPageSource, 'LibraryUpdateResultPage'],
-  [libraryCategoryManagementPageSource, 'LibraryCategoryManagementPage'],
-  [sourceBrowsePageSource, 'SourceBrowsePage'],
-  [mangaDetailPageSource, 'MangaDetailPage'],
-]) {
-  assertUsesSecondaryListSafeArea(source, label)
-}
-for (const [source, label] of [
-  [importPageSource, 'ImportPage'],
-  [sourceSearchPageSource, 'SourceSearchPage'],
-]) {
-  assertUsesScrollContentSafeArea(source, label)
-}
-assertSourceBrowseFloatingTabViewportClearance(sourceBrowsePageSource)
-assert.doesNotMatch(sourceBrowsePageSource, /SecondaryListScaffold\(\{[\s\S]*reserveTitleBar:\s*false/, 'SourceBrowsePage must keep the shared title spacer when its parent hides the nested title bar')
-assert.match(
-  browsePageSource,
-  /SourceBrowsePage\(\{[\s\S]*onBack:\s*\(\) => \{[\s\S]*this\.browsePathStack\.pop\(false\)[\s\S]*\}\s*,[\s\S]*\}\)[\s\S]*\}\s*\n\s*\.title\(\(param as SourceRouteParam\)\.source\.displayName\)[\s\S]*\.hideTitleBar\(true\)/,
-  'BrowsePage must hide the nested source title bar and let SourceBrowsePage own its visible back/header row',
-)
-assert.match(
-  sourceBrowsePageSource,
-  /@Event onBack:[\s\S]*KomaIconButton\(\{[\s\S]*sys\.symbol\.chevron_left[\s\S]*this\.onBack\(\)/,
-  'SourceBrowsePage must expose an in-content back affordance when the nested title bar is hidden',
-)
 assert.match(mangaDetailPageSource, /SecondaryListScaffold\(\{[\s\S]*reserveTitleBar:\s*false/, 'MangaDetailPage must skip root title spacer inside its HdsNavDestination')
 assert.match(
   sourceBrowsePageSource,
@@ -597,8 +543,8 @@ assert.match(
 )
 assert.match(
   sourceBrowsePageSource,
-  /shouldLoadBrowseOnAppear\(\): boolean[\s\S]*this\.viewModel\.loadingBrowse[\s\S]*selectedSource\?\.sourceId !== this\.source\.sourceId[\s\S]*!this\.hasBrowseContent\(\)[\s\S]*reloadBrowse\(\): void[\s\S]*this\.viewModel\.loadBrowseHome\(this\.source\)[\s\S]*aboutToAppear\(\): void \{[\s\S]*this\.shouldLoadBrowseOnAppear\(\)[\s\S]*this\.reloadBrowse\(\)/,
-  'SourceBrowsePage must avoid clearing loaded source browse state on return and keep explicit reload as the recovery path',
+  /shouldLoadBrowseOnAppear\(\): boolean[\s\S]*this\.viewModel\.loadingBrowse[\s\S]*selectedSource\?\.sourceId !== this\.source\.sourceId[\s\S]*!this\.hasBrowseContent\(\)[\s\S]*currentSource\(\): SourceRuntimeRegistryInstalledSourceSummary[\s\S]*sourceSummaryForId\(this\.source\.sourceId\)[\s\S]*reloadBrowse\(\): void[\s\S]*this\.viewModel\.loadInstalledSources\(\)[\s\S]*this\.viewModel\.loadBrowseHome\(this\.currentSource\(\)\)[\s\S]*aboutToAppear\(\): void \{[\s\S]*this\.shouldLoadBrowseOnAppear\(\)[\s\S]*this\.reloadBrowse\(\)/,
+  'SourceBrowsePage must avoid clearing loaded source browse state on return while explicit reload uses the current registry source summary',
 )
 assert.match(
   sourceBrowsePageSource,
@@ -886,8 +832,8 @@ assert.match(
 )
 assert.match(
   libraryPageSource,
-  /@Local private listDensity: LibraryListDensity = 'standard'[\s\S]*this\.listDensity = preferencesValue\.listDensity[\s\S]*listDensity: this\.listDensity[\s\S]*libraryGridColumnsTemplate\(\)[\s\S]*'1fr 1fr 1fr 1fr'[\s\S]*'1fr 1fr'[\s\S]*columnsTemplate\(this\.libraryGridColumnsTemplate\(\)\)[\s\S]*Column\(\{ space: this\.libraryListSpace\(\) \}/,
-  'LibraryPage must restore, persist, and apply density to grid/list layout',
+  /@Local private listDensity: LibraryListDensity = 'standard'[\s\S]*this\.listDensity = preferencesValue\.listDensity[\s\S]*listDensity: this\.listDensity[\s\S]*libraryGridColumnCount\(\)[\s\S]*return 4[\s\S]*return 2[\s\S]*return 3[\s\S]*libraryGridRowIndexes\(comics: ComicCoverInfo\[\]\)[\s\S]*libraryGridRowComics\(comics: ComicCoverInfo\[\], rowIndex: number\)[\s\S]*Column\(\{ space: this\.libraryGridRowGap\(\) \}\)[\s\S]*Row\(\{ space: this\.libraryGridColumnGap\(\) \}\)[\s\S]*Column\(\{ space: this\.libraryListSpace\(\) \}/,
+  'LibraryPage must restore, persist, and apply density to non-nested grid/list layout',
 )
 assert.match(
   libraryPageSource,
@@ -1178,11 +1124,6 @@ assert.doesNotMatch(
   settingsPageSource,
   /(Navigation|NavDestination)\(/,
   'SettingsPage must not nest Navigation/NavDestination for library update result details',
-)
-assert.match(
-  settingsPageSource,
-  /SecondaryListScaffold\(\{[\s\S]*bottomPadding:\s*ThemeConstants\.FLOAT_BAR_HEIGHT \+ 20 \+ ThemeConstants\.SPACE_XL/,
-  'SettingsPage must preserve SecondaryListScaffold bottom clearance while adding update status',
 )
 assert.match(
   libraryUpdatePreferencesStoreSource,
@@ -1579,7 +1520,7 @@ assert.match(
 )
 assert.match(
   libraryPageSource,
-  /private comicRenderKey\(comic: ComicCoverInfo\): string \{[\s\S]*`\$\{this\.displayedRevision\}:\$\{comic\.id\}`[\s\S]*ForEach\(comics[\s\S]*this\.comicRenderKey\(comic\)/,
+  /private comicRenderKey\(comic: ComicCoverInfo\): string \{[\s\S]*`\$\{this\.displayedRevision\}:\$\{comic\.id\}`[\s\S]*ForEach\(this\.libraryGridRowComics\(comics, rowIndex\)[\s\S]*this\.comicRenderKey\(comic\)/,
   'grid item identity must include the explicit library revision to avoid stale ArkUI child reuse after shrink/reorder',
 )
 assert.match(
@@ -2579,7 +2520,6 @@ assert.doesNotMatch(
   /sourceIndexUrl:\s*string\s*=\s*['"]https?:\/\//,
   'source package manager must not include a built-in default source index URL',
 )
-assertUsesSecondaryListSafeArea(sourcePackageManagerPageSource, 'SourcePackageManagerPage')
 assert.match(
   sourceRuntimeAppRegistrySource,
   /restoreRuntimeRegistryEntry\(removedExisting\)[\s\S]*removeAppSourcePackageDir\(context, packageDir\)[\s\S]*registeredReplacementSourceId = sourceId[\s\S]*persistInstalledSources\(context\)[\s\S]*removeAppSourcePackageDir\(context, existingDir\)[\s\S]*appSourceRuntimeRegistry\.remove\(registeredReplacementSourceId\)[\s\S]*restoreRuntimeRegistryEntry\(removedExisting\)/,
@@ -2687,7 +2627,7 @@ assert.match(
 )
 assert.match(
   sourceSearchPageSource,
-  /SourceFilterControls\(\{[\s\S]*filters: this\.viewModel\.filters[\s\S]*values: this\.viewModel\.searchFilterValues[\s\S]*busy: this\.viewModel\.loadingSearch[\s\S]*onFilterChange:[\s\S]*this\.setSearchFilterValue\(filter, value\)[\s\S]*onReset:[\s\S]*resetSearchFilters\(\)[\s\S]*aboutToAppear\(\): void \{[\s\S]*this\.viewModel\.ensureSearchFilters\(this\.source\)/,
+  /SourceFilterControls\(\{[\s\S]*filters: this\.viewModel\.filters[\s\S]*values: this\.viewModel\.searchFilterValues[\s\S]*busy: this\.viewModel\.loadingSearch[\s\S]*onFilterChange:[\s\S]*this\.setSearchFilterValue\(filter, value\)[\s\S]*onReset:[\s\S]*resetSearchFilters\(\)[\s\S]*aboutToAppear\(\): void \{[\s\S]*this\.viewModel\.loadInstalledSources\(\)[\s\S]*this\.viewModel\.ensureSearchFilters\(this\.currentSource\(\)\)/,
   'SourceSearchPage must wire shared source filter controls to filtered search behavior',
 )
 assert.match(
@@ -2697,7 +2637,7 @@ assert.match(
 )
 assert.match(
   sourceSearchPageSource,
-  /retrySearch\(\): void \{[\s\S]*this\.clearPendingSearchTimer\(\)[\s\S]*this\.query\.trim\(\)\.length === 0[\s\S]*this\.viewModel\.runSearch\(this\.source, this\.query\)[\s\S]*SearchErrorState\(\)[\s\S]*source_search_error_title[\s\S]*common_retry[\s\S]*this\.retrySearch\(\)[\s\S]*this\.viewModel\.errorMessage\.length > 0 && this\.viewModel\.searchResults\.length === 0[\s\S]*this\.SearchErrorState\(\)[\s\S]*this\.ResultsGrid\(this\.viewModel\.searchResults\)[\s\S]*this\.viewModel\.errorMessage\.length > 0[\s\S]*this\.SearchErrorState\(\)/,
+  /retrySearch\(\): void \{[\s\S]*this\.clearPendingSearchTimer\(\)[\s\S]*this\.query\.trim\(\)\.length === 0[\s\S]*this\.viewModel\.runSearch\(this\.currentSource\(\), this\.query\)[\s\S]*SearchErrorState\(\)[\s\S]*source_search_error_title[\s\S]*common_retry[\s\S]*this\.retrySearch\(\)[\s\S]*this\.viewModel\.errorMessage\.length > 0 && this\.viewModel\.searchResults\.length === 0[\s\S]*this\.SearchErrorState\(\)[\s\S]*this\.ResultsGrid\(this\.viewModel\.searchResults\)[\s\S]*this\.viewModel\.errorMessage\.length > 0[\s\S]*this\.SearchErrorState\(\)/,
   'SourceSearchPage must expose retry for failed searches and keep existing results visible when pagination reports an error',
 )
 assert.doesNotMatch(

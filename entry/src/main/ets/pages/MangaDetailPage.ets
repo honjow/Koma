@@ -1302,11 +1302,10 @@ export struct MangaDetailPage {
   @Builder
   private ActionButtons() {
     Row({ space: ThemeConstants.SPACE_MD }) {
-      KomaActionButton({
-        label: this.isInLibrary ? s('common_in_library') : s('common_add_to_library'),
-        kind: this.isInLibrary ? 'primary' : 'secondary',
+      KomaIconButton({
         icon: $r('sys.symbol.bookmark'),
-        fill: true,
+        kind: this.isInLibrary ? 'primary' : 'secondary',
+        controlSize: ThemeConstants.BUTTON_HEIGHT,
         action: () => {
           this.handleAddToLibrary()
         },
@@ -1317,6 +1316,7 @@ export struct MangaDetailPage {
         kind: 'primary',
         icon: $r('sys.symbol.doc_plaintext'),
         fill: true,
+        compact: true,
         action: () => {
           this.handleStartReading()
         },
@@ -1326,7 +1326,7 @@ export struct MangaDetailPage {
         label: this.downloadButtonLabel(),
         kind: 'secondary',
         icon: $r('sys.symbol.arrow_down_to_line'),
-        fill: true,
+        compact: true,
         isEnabled: !this.downloadBusy,
         action: () => {
           this.handleDownloadChapter()
@@ -1461,9 +1461,9 @@ export struct MangaDetailPage {
   build() {
     if (this.languageState.effectiveLocale.length >= 0) {
       SecondaryListScaffold({
-        listSpace: ThemeConstants.SPACE_XL,
+        listSpace: ThemeConstants.SPACE_LG,
         horizontalPadding: ThemeConstants.SPACE_XL,
-        bottomPadding: ThemeConstants.FLOAT_BAR_HEIGHT + 20,
+        bottomPadding: ThemeConstants.SPACE_XL,
         reserveTitleBar: false,
       }) {
         ListItem() {

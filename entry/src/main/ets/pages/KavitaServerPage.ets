@@ -160,7 +160,7 @@ export struct KavitaServerPage {
       SecondaryListScaffold({
         listSpace: ThemeConstants.SPACE_LG,
         horizontalPadding: ThemeConstants.SPACE_XL,
-        bottomPadding: ThemeConstants.FLOAT_BAR_HEIGHT + 20,
+        bottomPadding: ThemeConstants.SPACE_XL,
         includeKeyboardPadding: true,
       }) {
         ListItem() {

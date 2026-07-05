@@ -6,8 +6,8 @@ import {
 import { AppStrings } from '../i18n/AppStrings'
 import { Comic } from '../model/ComicModels'
 import { LocalLibraryFolderScanResult } from '../model/LocalLibraryFolderContract'
+import { SecondaryListScaffold } from '../components/SecondaryListScaffold'
 import { KomaActionButton } from '../components/ui/KomaActionButton'
-import { connectLayoutSafeArea, LayoutSafeAreaState } from '../state/LayoutSafeAreaState'
 import { connectLanguageState, LanguageState } from '../state/LanguageState'
 import { ThemeConstants } from '../theme/ThemeConstants'
 
@@ -62,7 +62,6 @@ function importDebugEventSummary(event: LocalArchiveImportDebugEvent): string {
 export struct ImportPage {
   @Local private feedbackText: string = ''
   @Local private importing: boolean = false
-  @Local private safeArea: LayoutSafeAreaState = connectLayoutSafeArea()
   @Local private languageState: LanguageState = connectLanguageState()
   @Event onArchiveImportSucceeded: (comic: Comic) => void = (_comic: Comic) => {}
   @Event onLocalImageImportSucceeded: (comic: Comic) => void = (_comic: Comic) => {}
@@ -77,14 +76,6 @@ export struct ImportPage {
       rejectedEntryCount: 0,
     })
   private readonly localImportCoordinator: LocalImportCoordinator = new LocalImportCoordinator()
-
-  private topContentInset(): number {
-    return this.safeArea.topAvoidHeight + ThemeConstants.TITLE_BAR_HEIGHT
-  }
-
-  private bottomContentInset(): number {
-    return this.safeArea.bottomAvoidHeight + ThemeConstants.FLOAT_BAR_HEIGHT + 20
-  }
 
   private logImportDebugEvent(event: LocalArchiveImportDebugEvent): void {
     console.info(`[Import] step=${event.step} ${importDebugEventSummary(event)}`)
@@ -338,20 +329,21 @@ export struct ImportPage {
 
   build() {
     if (this.languageState.effectiveLocale.length >= 0) {
-      Scroll() {
-        Column({ space: 18 }) {
+      SecondaryListScaffold({
+        listSpace: ThemeConstants.SPACE_MD,
+        horizontalPadding: ThemeConstants.SPACE_XL,
+        bottomPadding: ThemeConstants.SPACE_XL,
+      }) {
+        ListItem() {
           Column({ space: 6 }) {
-            Text(t('route_import_title'))
-              .fontSize(ThemeConstants.SPACE_XXL)
-              .fontWeight(FontWeight.Bold)
-              .fontColor(ThemeConstants.TEXT_PRIMARY)
             Text(t('import_heading_detail'))
               .fontSize(ThemeConstants.FONT_SIZE_TITLE)
               .fontColor(ThemeConstants.TEXT_SECONDARY)
           }
           .width('100%')
           .alignItems(HorizontalAlign.Start)
-
+        }
+        ListItem() {
           Column({ space: ThemeConstants.SPACE_MD }) {
             Text(t('import_status_heading'))
               .fontSize(ThemeConstants.FONT_SIZE_META)
@@ -367,19 +359,17 @@ export struct ImportPage {
           .borderRadius(ThemeConstants.RADIUS_CARD)
           .backgroundColor(ThemeConstants.CARD)
           .alignItems(HorizontalAlign.Start)
-
+        }
+        ListItem() {
           this.ImportEntryCard(ARCHIVE_ENTRY)
+        }
+        ListItem() {
           this.ImportEntryCard(IMAGE_ENTRY)
+        }
+        ListItem() {
           this.ImportEntryCard(FOLDER_ENTRY)
         }
-        .width('100%')
-        .height('100%')
-        .padding({ left: 20, right: 20, top: this.topContentInset(), bottom: this.bottomContentInset() })
-        .justifyContent(FlexAlign.Start)
       }
-      .width('100%')
-      .height('100%')
-      .backgroundColor(ThemeConstants.BG_SUB)
     }
   }
 }

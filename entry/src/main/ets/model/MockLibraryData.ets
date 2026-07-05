@@ -322,6 +322,17 @@ function formatProgressText(fallbackProgressText: string, progress?: ReadingProg
   return `${progressPercent(progress)}%`
 }
 
+function isTechnicalChapterTitle(chapterTitle: string): boolean {
+  const trimmed = chapterTitle.trim()
+  if (trimmed.length === 0) {
+    return true
+  }
+  if (trimmed.startsWith('ch:')) {
+    return true
+  }
+  return trimmed.length >= 32 && trimmed.includes('-')
+}
+
 function formatCategoryLabels(categoryIds?: string[]): string[] {
   const labels: string[] = []
   normalizeCategoryIds(categoryIds).forEach((categoryId: string) => {
@@ -336,7 +347,14 @@ function formatCategoryLabels(categoryIds?: string[]): string[] {
 
 function formatContinueDetail(chapterTitle: string, progress?: ReadingProgress): string {
   if (progress === undefined) {
-    return AppStrings.get('library_progress_continue_chapter').replace('%s', chapterTitle)
+    return isTechnicalChapterTitle(chapterTitle) ?
+      AppStrings.get('library_progress_continue_generic') :
+      AppStrings.get('library_progress_continue_chapter').replace('%s', chapterTitle)
+  }
+  if (isTechnicalChapterTitle(chapterTitle)) {
+    return AppStrings.get('library_progress_continue_page_only')
+      .replace('%s', `${progress.pageIndex + 1}`)
+      .replace('%s', `${progressPercent(progress)}`)
   }
   return AppStrings.get('library_progress_continue_page')
     .replace('%s', chapterTitle)

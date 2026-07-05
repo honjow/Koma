@@ -1,4 +1,5 @@
 import { RouteName } from './Constants'
+import { SourceRuntimeRegistryInstalledSourceSummary } from '../sourceRuntime/SourceRuntimeRegistry'
 
 export interface MangaDetailRouteParam {
   mangaId: string
@@ -7,6 +8,10 @@ export interface MangaDetailRouteParam {
 
 export interface SearchRouteParam {
   query: string
+}
+
+export interface SourceRouteParam {
+  source: SourceRuntimeRegistryInstalledSourceSummary
 }
 
 export class RouterHelper {
@@ -82,6 +87,22 @@ export class RouterHelper {
       return
     }
     stack.pushPath({ name: RouteName.MANGA_DETAIL, param: param })
+  }
+
+  static pushSourceBrowse(param: SourceRouteParam): void {
+    const stack = RouterHelper.appPathStack
+    if (stack === undefined) {
+      return
+    }
+    stack.pushPath({ name: RouteName.SOURCE_BROWSE, param: param })
+  }
+
+  static pushSourceSearch(param: SourceRouteParam): void {
+    const stack = RouterHelper.appPathStack
+    if (stack === undefined) {
+      return
+    }
+    stack.pushPath({ name: RouteName.SOURCE_SEARCH, param: param })
   }
 
   static openSearch(param: SearchRouteParam): void {

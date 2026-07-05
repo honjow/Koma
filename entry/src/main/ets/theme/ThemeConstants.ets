@@ -89,7 +89,6 @@ export class ThemeConstants {
   static readonly LIST_ROW_TEXT_INDENT: number = 8
 
   static readonly TITLE_BAR_HEIGHT: number = 56
-  static readonly FLOAT_BAR_HEIGHT: number = 76
   static readonly BUTTON_HEIGHT: number = 46
   static readonly SOURCE_ICON_SIZE: number = 48
   static readonly LIST_COVER_WIDTH: number = 48

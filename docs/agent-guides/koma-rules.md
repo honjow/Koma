@@ -32,6 +32,7 @@ Always-loaded rules for Koma. Open relevant per-task docs (`docs/PRODUCT_PLAN.md
 - Claude Code `-p` mode 在 background 下必须用 tmux 或 stdin pipe (`cat prompt.md | claude -p ...`)，直接 nohup 不会写 stdout。
 - Claude Code 有 session limit → fallback Codex。
 - 应用开发遵循鸿蒙应用开发规范，**优先使用 HDS 组件**。
+- 悬浮底部导航只属于根 `HdsTabs` shell：页面不得按底栏高度缩小 viewport，不得引用固定底栏高度常量，不得在每个页面塞底栏避让空白；页面只处理自身滚动内容、系统安全区和必要的内容尾部呼吸。子页面必须走 app-level `HdsNavDestination`，不得在 tab root 里套出重复根标题。
 
 ## Project Direction
 

@@ -11,9 +11,9 @@ export struct SecondaryListScaffold {
   @Param listSpace: number = ThemeConstants.SPACE_SM - 2
   @Param horizontalPadding: number = ThemeConstants.SPACE_MD
   @Param bottomPadding: number = ThemeConstants.SPACE_XL
+  @Param floatingTabTailPadding: number = 0
   @Param includeKeyboardPadding: boolean = false
   @Param reserveTitleBar: boolean = true
-  @Param reserveBottomViewport: boolean = true
   @Event onReachEnd?: () => void
   @Event onDidScroll?: (offset: number, state: ScrollState) => void
 
@@ -33,7 +33,7 @@ export struct SecondaryListScaffold {
 
           ListItem() {
             Column() {
-              Blank().height(this.safeArea.bottomAvoidHeight + this.bottomPadding + this.keyboardPadding())
+              Blank().height(this.safeArea.bottomAvoidHeight + this.bottomPadding + this.floatingTabTailPadding + this.keyboardPadding())
             }
             .width('100%')
           }
@@ -44,7 +44,6 @@ export struct SecondaryListScaffold {
         .padding({
           left: this.horizontalPadding,
           right: this.horizontalPadding,
-          bottom: this.bottomViewportPadding(),
         })
         .clipContent(ContentClipMode.CONTENT_ONLY)
         .edgeEffect(EdgeEffect.None)
@@ -79,9 +78,5 @@ export struct SecondaryListScaffold {
 
   private titleBarPadding(): number {
     return this.reserveTitleBar ? ThemeConstants.TITLE_BAR_HEIGHT : 0
-  }
-
-  private bottomViewportPadding(): number {
-    return this.reserveBottomViewport ? this.bottomPadding : 0
   }
 }
