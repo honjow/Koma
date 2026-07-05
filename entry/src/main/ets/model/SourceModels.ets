@@ -48,6 +48,7 @@ export interface SourceFilter {
 
 interface SourceRuntimeCoverPayload {
   url?: string
+  uri?: string
   kind?: string
 }
 
@@ -58,7 +59,13 @@ interface SourceRuntimeMangaPayload {
   author?: string
   artist?: string
   description?: string
+  cover_url?: string
   coverUrl?: string
+  cover_uri?: string
+  coverUri?: string
+  thumbnail?: string
+  thumbnailUrl?: string
+  imageUrl?: string
   cover?: SourceRuntimeCoverPayload
   authors?: string[]
   artists?: string[]
@@ -251,7 +258,17 @@ export function normalizeSourceManga(sourceId: string, payload: SourceRuntimeMan
     author: normalizeSourceDisplayText(firstNonEmpty([payload.author, payload.authors === undefined ? undefined : payload.authors.join(', ')])),
     artist: normalizeSourceDisplayText(firstNonEmpty([payload.artist, payload.artists === undefined ? undefined : payload.artists.join(', ')])),
     description: normalizeSourceDisplayText(payload.description),
-    coverUrl: firstNonEmpty([payload.coverUrl, payload.cover === undefined ? undefined : payload.cover.url]),
+    coverUrl: firstNonEmpty([
+      payload.cover_url,
+      payload.coverUrl,
+      payload.cover_uri,
+      payload.coverUri,
+      payload.thumbnail,
+      payload.thumbnailUrl,
+      payload.imageUrl,
+      payload.cover === undefined ? undefined : payload.cover.url,
+      payload.cover === undefined ? undefined : payload.cover.uri,
+    ]),
     status: normalizeSourceMangaStatus(payload.status),
     contentRating: optionalString(payload.contentRating),
     tags: normalizeTags(payload),

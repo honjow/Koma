@@ -171,12 +171,18 @@ function itemRecord(value: RuntimeValue): RuntimeRecord | undefined {
 }
 
 function sourceItemCoverUrl(item: RuntimeRecord): string | undefined {
-  const direct = optionalString(item['cover_url']) ?? optionalString(item['coverUrl'])
+  const direct = optionalString(item['cover_url']) ??
+    optionalString(item['coverUrl']) ??
+    optionalString(item['cover_uri']) ??
+    optionalString(item['coverUri']) ??
+    optionalString(item['thumbnail']) ??
+    optionalString(item['thumbnailUrl']) ??
+    optionalString(item['imageUrl'])
   if (direct !== undefined) {
     return direct
   }
   const cover = itemRecord(item['cover'])
-  return cover === undefined ? undefined : optionalString(cover['url'])
+  return cover === undefined ? undefined : (optionalString(cover['url']) ?? optionalString(cover['uri']))
 }
 
 function parseSourceMangaFromItem(sourceId: string, item: RuntimeRecord): SourceManga {
