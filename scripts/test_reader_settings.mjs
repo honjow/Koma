@@ -496,13 +496,13 @@ assert.match(
 )
 assert.match(
   readerPageSource,
-  /private singlePageWidth\(\): string[\s\S]*this\.imageFitMode === 'fit_width'[\s\S]*return '96%'[\s\S]*return '82%'/,
-  'single-page fit-width must visibly use more reader width than the default contain width',
+  /private singlePageWidth\(\): string[\s\S]*this\.imageFitMode === 'fit_width'[\s\S]*return '98%'[\s\S]*this\.pageGapMode === 'compact'[\s\S]*return '96%'[\s\S]*this\.pageGapMode === 'wide'[\s\S]*return '90%'[\s\S]*return '94%'/,
+  'single-page reader must default to a real reading width while preserving wider fit-width mode',
 )
 assert.match(
   readerPageSource,
-  /private singlePageMaxWidth\(\): number[\s\S]*this\.imageFitMode === 'fit_width'[\s\S]*return 720[\s\S]*return 430/,
-  'single-page fit-width must raise the max card width without changing object-fit to cover',
+  /private singlePageMaxWidth\(\): number[\s\S]*this\.imageFitMode === 'fit_width'[\s\S]*return 900[\s\S]*return 720/,
+  'single-page default max width must not regress to thumbnail-sized reader cards',
 )
 assert.match(
   readerPageSource,
@@ -511,8 +511,8 @@ assert.match(
 )
 assert.match(
   readerPageSource,
-  /private webtoonPageWidth\(\): string[\s\S]*this\.imageFitMode === 'fit_width'[\s\S]*return '94%'[\s\S]*return '76%'/,
-  'webtoon page width must depend on imageFitMode instead of staying fixed at 76%',
+  /private webtoonPageWidth\(\): string[\s\S]*this\.imageFitMode === 'fit_width'[\s\S]*return '98%'[\s\S]*return '94%'/,
+  'webtoon page width must default to a real reading width and still widen for fit-width',
 )
 assert.match(
   readerPageSource,

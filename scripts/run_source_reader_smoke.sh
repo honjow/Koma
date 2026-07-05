@@ -40,6 +40,7 @@ source_package_rawfile_path=""
 temp_source_package_rawfile=""
 artifact_dir="${KOMA_SOURCE_READER_ARTIFACT_DIR:-.hvigor/outputs/source-reader-smoke}"
 remote_smoke_result="${KOMA_SOURCE_READER_REMOTE_RESULT:-/data/app/el2/100/base/com.honjow.koma/haps/entry/files/source-runtime-smoke-result.json}"
+remote_smoke_dir="${remote_smoke_result%/*}"
 
 if [ "$requires_index" = "true" ] && [ -z "$index_url" ] && [ -z "$host_ip" ]; then
   host_ip="$(ipconfig getifaddr en0 2>/dev/null || true)"
@@ -155,6 +156,15 @@ PY
   done
 }
 
+capture_result_failure_evidence() {
+  KOMA_HDC_RETRY_COUNT=1 KOMA_HDC_COMMAND_TIMEOUT_SECONDS="${KOMA_HDC_EVIDENCE_TIMEOUT_SECONDS:-6}" \
+    hdc_target shell aa dump -l > "$artifact_dir/source-runtime-smoke-aa-dump.txt" 2>&1 || true
+  KOMA_HDC_RETRY_COUNT=1 KOMA_HDC_COMMAND_TIMEOUT_SECONDS="${KOMA_HDC_EVIDENCE_TIMEOUT_SECONDS:-6}" \
+    hdc_target shell ls -la "$remote_smoke_dir" > "$artifact_dir/source-runtime-smoke-files.txt" 2>&1 || true
+  KOMA_HDC_RETRY_COUNT=1 KOMA_HDC_COMMAND_TIMEOUT_SECONDS="${KOMA_HDC_EVIDENCE_TIMEOUT_SECONDS:-6}" \
+    hdc_target shell hilog -x -T 500 > "$artifact_dir/source-runtime-smoke-failure-hilog.txt" 2>&1 || true
+}
+
 if { [ "$phase" = "$local_source_package_visible_phase" ] ||
   [ "$phase" = "$local_source_package_offline_download_visible_phase" ]; } &&
   [ -n "$source_package_rawfile_path" ]; then
@@ -204,8 +214,8 @@ if [ -n "$source_package_base64" ]; then
 fi
 hdc_target "${aa_start_args[@]}"
 
-poll_count="${KOMA_SOURCE_READER_RESULT_POLL_COUNT:-18}"
-poll_delay="${KOMA_SOURCE_READER_RESULT_POLL_DELAY_SECONDS:-5}"
+poll_count="${KOMA_SOURCE_READER_RESULT_POLL_COUNT:-8}"
+poll_delay="${KOMA_SOURCE_READER_RESULT_POLL_DELAY_SECONDS:-3}"
 for ((attempt = 1; attempt <= poll_count; attempt += 1)); do
   rm -f "$smoke_result"
   if hdc_target file recv "$remote_smoke_result" "$smoke_result" >/dev/null 2>&1; then
@@ -289,6 +299,7 @@ PY
     fi
   fi
   if [ "$attempt" -eq "$poll_count" ]; then
+    capture_result_failure_evidence
     echo "source reader smoke failed: missing successful result file at $remote_smoke_result" >&2
     exit 1
   fi
