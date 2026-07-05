@@ -328,20 +328,55 @@ assert.match(
   /clearCurrentSeriesPreferences\(\): void[\s\S]*clearSeriesPreferences\(this\.sessionConfig\.comicId\)[\s\S]*reader_series_settings_cleared[\s\S]*this\.loadReaderPreferences\(\)/,
   'ReaderPage must let the user clear per-series settings and immediately reload global preferences',
 )
-assert.match(
+assert.doesNotMatch(
   readerChromeSource,
-  /onSaveSeriesPreferences[\s\S]*onClearSeriesPreferences[\s\S]*reader_action_save_series_settings[\s\S]*this\.onSaveSeriesPreferences\(\)[\s\S]*reader_action_clear_series_settings[\s\S]*this\.onClearSeriesPreferences\(\)/,
-  'ReaderChrome must expose real per-series save and clear actions instead of leaving the store unreachable',
+  /reader_action_save_series_settings|reader_action_clear_series_settings|onSaveSeriesPreferences|onClearSeriesPreferences/,
+  'ReaderChrome must stay an immersive reading overlay instead of hosting per-series settings actions',
 )
-assert.match(
+assert.doesNotMatch(
   readerChromeSource,
-  /tapNavigationEnabled[\s\S]*tapZonePreset: ReaderTapZonePreset[\s\S]*readingDirection: ReadingDirection[\s\S]*onTapZonePresetChange[\s\S]*TapZonePresetOption\([\s\S]*this\.setTapZonePreset\(preset\)[\s\S]*TapZonePreview\(\)[\s\S]*reader_tap_zone_edge[\s\S]*reader_tap_zone_wide[\s\S]*tapZoneActionLabel\(true\)[\s\S]*reader_tap_zone_center[\s\S]*tapZoneActionLabel\(false\)/,
-  'ReaderChrome must visualize and change the active tap-zone preset with RTL-aware left/right actions',
+  /TapZonePresetOption|TapZonePreview|reader_tap_zone_edge|reader_tap_zone_wide/,
+  'ReaderChrome must not expose tap-zone settings inside the reader chrome',
 )
 assert.match(
   readerPageSource,
-  /ReaderChrome\(\{[\s\S]*tapNavigationEnabled: this\.tapNavigationEnabled[\s\S]*tapZonePreset: this\.tapZonePreset[\s\S]*readingDirection: this\.readingDirection[\s\S]*onTapZonePresetChange: \(preset: ReaderTapZonePreset\) => \{[\s\S]*this\.tapZonePreset = preset/,
-  'ReaderPage must pass and apply live tap-zone preferences for runtime visualization',
+  /private tapLeftZone\(\): void[\s\S]*ReadingDirection\.RIGHT_TO_LEFT[\s\S]*this\.nextPage\(\)[\s\S]*this\.previousPage\(\)[\s\S]*private tapRightZone\(\): void[\s\S]*ReadingDirection\.RIGHT_TO_LEFT[\s\S]*this\.previousPage\(\)[\s\S]*this\.nextPage\(\)/,
+  'ReaderPage left/right tap navigation must remain reading-direction aware',
+)
+assert.match(
+  readerChromeSource,
+  /private TopBar\(\)[\s\S]*private BottomBar\(\)[\s\S]*this\.TopBar\(\)[\s\S]*Blank\(\)[\s\S]*this\.BottomBar\(\)/,
+  'ReaderChrome must use a compact immersive top and bottom shell instead of a full-height settings panel',
+)
+assert.match(
+  readerPageSource,
+  /@Param chromeVisible: boolean = true/,
+  'ReaderPage must keep chrome visibility controlled by the parent route state',
+)
+assert.match(
+  readerPageSource,
+  /@Local private activeChromeVisible: boolean = false[\s\S]*private toggleChrome\(\)[\s\S]*const nextVisible = !this\.activeChromeVisible[\s\S]*this\.activeChromeVisible = nextVisible[\s\S]*this\.\$chromeVisible\(nextVisible\)[\s\S]*visible: this\.activeChromeVisible/,
+  'ReaderPage must render chrome from an immediate local state while syncing route state',
+)
+assert.match(
+  readerPageSource,
+  /private lastChromeToggleAt: number = 0[\s\S]*private toggleChrome\(\)[\s\S]*Date\.now\(\)[\s\S]*now - this\.lastChromeToggleAt < 250[\s\S]*this\.lastChromeToggleAt = now/,
+  'ReaderPage chrome toggle must debounce duplicate platform click events from a single reader tap',
+)
+assert.match(
+  readFileSync(resolve(root, 'entry/src/main/ets/pages/Index.ets'), 'utf8'),
+  /@Local private readerChromeVisible: boolean = false[\s\S]*this\.readerChromeVisible = false[\s\S]*this\.readerOpen = true/,
+  'Reader should open into immersive reading mode and show chrome only after an explicit reader tap',
+)
+assert.match(
+  readFileSync(resolve(root, 'entry/src/main/ets/pages/Index.ets'), 'utf8'),
+  /ReaderPage\(\{[\s\S]*chromeVisible: this\.readerChromeVisible!!/,
+  'ReaderPage chrome visibility must use V2 two-way binding into the parent route state',
+)
+assert.doesNotMatch(
+  readerPageSource,
+  /ReaderChrome\(\{[\s\S]*tapNavigationEnabled: this\.tapNavigationEnabled[\s\S]*tapZonePreset: this\.tapZonePreset/,
+  'ReaderPage must keep tap-zone runtime state in the reader input layer instead of pushing it into chrome',
 )
 allReaderStringSources.forEach((source, index) => {
   assert.match(source, /"name": "reader_tap_zone_center"/, `reader tap-zone center label must exist in locale ${index}`)
@@ -481,13 +516,13 @@ assert.doesNotMatch(
 )
 assert.match(
   readerPageSource,
-  /private pageContainerPadding\(compact: boolean\): number[\s\S]*this\.trimPageMarginsEnabled[\s\S]*return 0[\s\S]*return compact \? 8 : 10/,
-  'trim page margins must remove only Koma page-container inset without cropping image pixels',
+  /private pageContainerPadding\(compact: boolean\): number[\s\S]*this\.trimPageMarginsEnabled[\s\S]*return 0[\s\S]*return compact \? 0 : 0/,
+  'reader pages must not add card padding around the image viewport',
 )
 assert.match(
   readerPageSource,
-  /private pageContainerRadius\(compact: boolean\): number[\s\S]*this\.trimPageMarginsEnabled[\s\S]*return 0[\s\S]*return compact \? 22 : 28/,
-  'trim page margins must not combine zero inset with rounded clipped page containers',
+  /private pageContainerRadius\(compact: boolean\): number[\s\S]*return 0/,
+  'reader pages must not use rounded card clipping in the main viewport',
 )
 assert.match(
   readerPageSource,
@@ -496,13 +531,13 @@ assert.match(
 )
 assert.match(
   readerPageSource,
-  /private singlePageWidth\(\): string[\s\S]*this\.imageFitMode === 'fit_width'[\s\S]*return '98%'[\s\S]*this\.pageGapMode === 'compact'[\s\S]*return '96%'[\s\S]*this\.pageGapMode === 'wide'[\s\S]*return '90%'[\s\S]*return '94%'/,
-  'single-page reader must default to a real reading width while preserving wider fit-width mode',
+  /private singlePageWidth\(\): string[\s\S]*return '100%'/,
+  'single-page reader must use the full reader viewport width',
 )
 assert.match(
   readerPageSource,
-  /private singlePageMaxWidth\(\): number[\s\S]*this\.imageFitMode === 'fit_width'[\s\S]*return 900[\s\S]*return 720/,
-  'single-page default max width must not regress to thumbnail-sized reader cards',
+  /private singlePageMaxWidth\(\): number[\s\S]*return 4096/,
+  'single-page reader must not clamp phone/tablet pages to old card widths',
 )
 assert.match(
   readerPageSource,
@@ -511,8 +546,8 @@ assert.match(
 )
 assert.match(
   readerPageSource,
-  /private webtoonPageWidth\(\): string[\s\S]*this\.imageFitMode === 'fit_width'[\s\S]*return '98%'[\s\S]*return '94%'/,
-  'webtoon page width must default to a real reading width and still widen for fit-width',
+  /private webtoonPageWidth\(\): string[\s\S]*return '100%'[\s\S]*return '100%'/,
+  'webtoon page width must use the full reader viewport width',
 )
 assert.match(
   readerPageSource,
@@ -566,13 +601,33 @@ assert.match(
 )
 assert.match(
   readerPageSource,
-  /private TapNavigationOverlay\(\)[\s\S]*\.width\(this\.tapEdgeZoneWidth\(\)\)[\s\S]*\.backgroundColor\(this\.tapZoneOverlayColor\(\)\)[\s\S]*\.layoutWeight\(1\)[\s\S]*\.backgroundColor\(Color\.Transparent\)[\s\S]*\.width\(this\.tapEdgeZoneWidth\(\)\)[\s\S]*\.backgroundColor\(this\.tapZoneOverlayColor\(\)\)/,
-  'tap overlay must size only the center with layout weight, keep left/right as explicit edge zones, and visualize only the page-turn areas',
+  /private syncReaderViewportToDisplayIndex\(displayIndex: number, readerMode: ReaderMode\): void[\s\S]*readerMode === ReaderMode\.CONTINUOUS_SCROLL[\s\S]*this\.webtoonScroller\.scrollToIndex\(displayIndex, true, ScrollAlign\.CENTER\)[\s\S]*this\.swiperController\.changeIndex\(displayIndex, true\)/,
+  'programmatic reader navigation must move the visible webtoon list or paged swiper, not only persisted progress',
+)
+assert.match(
+  readerPageSource,
+  /private previousPage\(\)[\s\S]*const readerMode = this\.currentReaderMode\(\)[\s\S]*this\.setDualPairIndex\(pairIndex - 1, true\)[\s\S]*this\.setReaderDisplayEntryIndex\(displayIndex - 1, readerMode, true\)[\s\S]*private nextPage\(\)[\s\S]*this\.setDualPairIndex\(pairIndex \+ 1, true\)[\s\S]*this\.setReaderDisplayEntryIndex\(displayIndex \+ 1, readerMode, true\)/,
+  'tap, chrome, and volume-key previous/next actions must synchronize the visible reader viewport',
+)
+assert.match(
+  readerPageSource,
+  /private ReaderTapLayer\(\)[\s\S]*Button\(\{ type: ButtonType\.Normal, stateEffect: false \}\)[\s\S]*\.backgroundColor\('#01000000'\)[\s\S]*\.hitTestBehavior\(HitTestMode\.Block\)[\s\S]*\.onClick\(\(event: ClickEvent\) => \{[\s\S]*this\.onReaderTap\(event\.windowX, event\.windowY\)/,
+  'tap overlay must use a real full-screen button target instead of clickable layout columns',
 )
 assert.doesNotMatch(
   readerPageSource,
-  /Row\(\) \{\s*Column\(\)[\s\S]*?\.layoutWeight\(1\)[\s\S]*?Column\(\)[\s\S]*?\.layoutWeight\(1\)[\s\S]*?Column\(\)[\s\S]*?\.layoutWeight\(1\)[\s\S]*?this\.tapRightZone\(\)/,
-  'tap overlay must not use three equal full-height layoutWeight(1) columns for left/center/right',
+  /private ReaderTapLayer\(\)[\s\S]*\.onClick\(\(\) => \{[\s\S]*this\.tapRightZone\(\)/,
+  'tap overlay must not regress to click-column navigation',
+)
+assert.match(
+  readerPageSource,
+  /private readerNavigationActionAt\(tapX: number, tapY: number\): ReaderNavigationAction[\s\S]*const x = this\.clampTapRatio\(tapX \/ width\)[\s\S]*const y = this\.clampTapRatio\(tapY \/ height\)[\s\S]*x <= edge[\s\S]*return 'left'[\s\S]*x >= 1 - edge[\s\S]*return 'right'[\s\S]*y <= 0\.2[\s\S]*return 'previous'[\s\S]*y >= 0\.8[\s\S]*return 'next'[\s\S]*return 'menu'/,
+  'reader navigation must map normalized tap coordinates into Mihon-style navigation regions',
+)
+assert.match(
+  readerPageSource,
+  /private readDefaultDisplayWidthVp\(\): number[\s\S]*this\.getUIContext\(\)\.px2vp\(defaultDisplay\.width\)[\s\S]*private readDefaultDisplayHeightVp\(\): number[\s\S]*this\.getUIContext\(\)\.px2vp\(defaultDisplay\.height\)[\s\S]*const height = this\.readerSurfaceHeightVp > 0 \? this\.readerSurfaceHeightVp : this\.readDefaultDisplayHeightVp\(\)/,
+  'reader tap navigation must keep display fallback size in vp so center taps do not become edge zones',
 )
 
 assert.match(

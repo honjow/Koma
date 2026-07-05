@@ -104,7 +104,7 @@ struct Index {
   @Local private languageState: LanguageState = connectLanguageState()
   @Local private readerOpen: boolean = false
   @Local private readerPageIndex: number = 0
-  @Local private readerChromeVisible: boolean = true
+  @Local private readerChromeVisible: boolean = false
   @Local private readerWebtoonMode: boolean = false
   @Local private readerSessionConfig: ReaderSessionConfig = MOCK_LIBRARY_READER_SESSION
   @Local private libraryRevision: number = 0
@@ -139,7 +139,7 @@ struct Index {
     }
     this.readerSessionConfig = comic === undefined ? MOCK_LIBRARY_READER_SESSION : this.createReaderSessionConfigForOpen(comic, chapterId)
     this.readerPageIndex = this.readerSessionStore.restorePageIndex(this.readerSessionConfig)
-    this.readerChromeVisible = true
+    this.readerChromeVisible = false
     if (!this.readerOpen) {
       this.appPathStack.pushPath({ name: RouteName.READER })
     }

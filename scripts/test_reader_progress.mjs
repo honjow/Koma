@@ -50,12 +50,12 @@ assert.match(
 )
 assert.match(
   readerChromeSource,
-  /KomaActionButton\(\{[\s\S]*label: s\('reader_action_previous_page'\)[\s\S]*isEnabled: this\.canGoPrevious[\s\S]*if \(this\.canGoPrevious\) \{[\s\S]*this\.onPreviousPage\(\)/,
+  /ChromeButton\(label: string, enabled: boolean, primary: boolean, action: \(\) => void\)[\s\S]*if \(enabled\) \{[\s\S]*action\(\)[\s\S]*ChromeButton\(s\('reader_action_previous_page'\), this\.canGoPrevious, false, \(\) => \{[\s\S]*this\.onPreviousPage\(\)/,
   'ReaderChrome previous control must use split-aware canGoPrevious before invoking the callback',
 )
 assert.match(
   readerChromeSource,
-  /KomaActionButton\(\{[\s\S]*label: s\('reader_action_next_page'\)[\s\S]*isEnabled: this\.canGoNext[\s\S]*if \(this\.canGoNext\) \{[\s\S]*this\.onNextPage\(\)/,
+  /ChromeButton\(label: string, enabled: boolean, primary: boolean, action: \(\) => void\)[\s\S]*if \(enabled\) \{[\s\S]*action\(\)[\s\S]*ChromeButton\(s\('reader_action_next_page'\), this\.canGoNext, true, \(\) => \{[\s\S]*this\.onNextPage\(\)/,
   'ReaderChrome next control must use split-aware canGoNext before invoking the callback',
 )
 assert.match(
@@ -561,7 +561,7 @@ assert.match(settingsPageSource, /clearReaderRemoteImageCache\(\)/, 'Settings mu
 assert.match(settingsPageSource, /value: s\('settings_image_cache_clear'\)[\s\S]*this\.clearImageCache\(\)/, 'Settings must expose the clear cache action')
 assert.match(readerPageSource, /fetchAndCacheReaderRemoteSource\(this\.remoteSource\)/, 'reader image decode must route source runtime pages through the source-aware cache path')
 assert.match(readerPageSource, /configureReaderOfflineDownloads\(context\.filesDir\)/, 'ReaderPage must configure durable offline downloads before page source resolution')
-assert.match(readerPageSource, /PageErrorPlaceholder\(index: number, compact: boolean = false, detail: string = s\('reader_page_unavailable'\)\)[\s\S]*Text\(detail\)/, 'reader error placeholder must render explicit failure detail copy')
+assert.match(readerPageSource, /PageErrorPlaceholderContent\(index: number, compact: boolean = false, detail: string = s\('reader_page_unavailable'\)\)[\s\S]*Text\(detail\)/, 'reader error placeholder must render explicit failure detail copy')
 assert.match(readerPageSource, /RemoteImagePage\(source: ReaderPageRenderSource[\s\S]*this\.hasImageLoadFailed\(source\.imageUri\)[\s\S]*this\.PageErrorPlaceholder\(index, compact, s\('reader_remote_page_unavailable'\)\)/, 'undownloaded remote reader failures must show honest offline/network unavailable copy')
 assert.match(readerPageSource, /LocalImagePage\(imageUri: string[\s\S]*this\.hasImageLoadFailed\(imageUri\)[\s\S]*this\.PageErrorPlaceholder\(index, compact, s\('reader_local_page_unavailable'\)\)/, 'local reader failures must not masquerade as remote network success')
 assert.match(indexSource, /createReaderSessionConfigFromComic/, 'index must open reader sessions from Comic records')
@@ -604,10 +604,10 @@ assert.match(readerPageSource, /expandSafeArea\(\[SafeAreaType\.SYSTEM\], \[Safe
 assert.match(readerPageSource, /currentReaderMode\(\) === ReaderMode\.CONTINUOUS_SCROLL/, 'reader page must render continuous scroll through the normalized reader mode contract')
 assert.match(readerChromeSource, /onCloseReader/, 'chrome return button must delegate to the reader route close callback')
 assert.match(readerChromeSource, /top: ThemeConstants\.SPACE_XL/, 'top reader chrome must reserve room for the status bar on fullscreen windows')
-assert.match(readerChromeSource, /bottom: ThemeConstants\.BUTTON_HEIGHT/, 'bottom reader controls must reserve room for the navigation safe area on fullscreen windows')
+assert.match(readerChromeSource, /bottom: ThemeConstants\.SPACE_XL/, 'bottom reader controls must reserve room for the navigation safe area on fullscreen windows')
 assert.match(readerChromeSource, /onPreviousPage/, 'chrome previous button must use reader callback')
 assert.match(readerChromeSource, /onNextPage/, 'chrome next button must use reader callback')
-assert.match(readerChromeSource, /ReaderModeSelector/, 'reader chrome must expose a bounded in-reader mode selector')
+assert.match(readerChromeSource, /ModeSwitch/, 'reader chrome must expose a bounded in-reader mode selector')
 assert.match(readerChromeSource, /getReaderModeLabel\(ReaderMode\.SINGLE_PAGE\)/, 'reader chrome must expose the 单页 mode label from the mode contract')
 assert.match(readerChromeSource, /getReaderModeLabel\(ReaderMode\.CONTINUOUS_SCROLL\)/, 'reader chrome must expose the 连续滚动 mode label from the mode contract')
 assert.doesNotMatch(readerChromeSource, /Webtoon 纵向预览|纵向/, 'reader chrome must avoid internal/webtoon wording in visible labels')
@@ -643,7 +643,7 @@ assert.match(readerPageSource, /aboutToDisappear\(\): void \{[\s\S]*applyReaderK
 assert.match(readerChromeSource, /@Param\s+showProgressControls:\s*boolean = true/, 'ReaderChrome progress visibility must be reactive to ReaderPage preference updates')
 assert.match(readerChromeSource, /if \(this\.showProgressControls\) \{[\s\S]*Text\(`\$\{this\.pageIndex \+ 1\} \/ \$\{this\.pageTotal\}`\)/, 'ReaderChrome must hide the page number label when requested')
 assert.match(readerChromeSource, /if \(this\.showProgressControls\) \{[\s\S]*Progress\(\{ value: this\.progressValue\(\), total: 100, type: ProgressType\.Linear \}\)/, 'ReaderChrome must hide the progress bar when requested')
-assert.match(readerChromeSource, /KomaActionButton\(\{[\s\S]*reader_action_previous_page[\s\S]*KomaActionButton\(\{[\s\S]*reader_action_next_page/, 'ReaderChrome must keep previous/next navigation controls available')
+assert.match(readerChromeSource, /ChromeButton\(s\('reader_action_previous_page'\), this\.canGoPrevious, false[\s\S]*ChromeButton\(s\('reader_action_next_page'\), this\.canGoNext, true/, 'ReaderChrome must keep previous/next navigation controls available')
 
 assert.equal(clampPageIndex(-5, 5), 0, 'negative page indexes clamp to first page')
 assert.equal(clampPageIndex(9, 5), 4, 'large page indexes clamp to last page')
