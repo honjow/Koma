@@ -12,7 +12,10 @@ source_display="${KOMA_SOURCE_BROWSE_DISPLAY_NAME:-MangaDex}"
 artifact_dir="${KOMA_SOURCE_BROWSE_READER_ARTIFACT_DIR:-.hvigor/outputs/source-browse-detail-reader-smoke}"
 download_first="${KOMA_SOURCE_BROWSE_DOWNLOAD_FIRST:-false}"
 seed_mode="${KOMA_SOURCE_BROWSE_SEED_MODE:-local-package}"
-source_package_path="${KOMA_SOURCE_PACKAGE_PATH:-$repo/../koma-sources/dist/sources/mangadex/mangadex-0.1.0.koma}"
+source_repo="${KOMA_SOURCES_REPO:-$repo/../koma-sources}"
+source_build_name="${KOMA_SOURCE_BROWSE_BUILD_SOURCE:-mangadex}"
+build_source_first="${KOMA_SOURCE_BROWSE_BUILD_SOURCE_FIRST:-false}"
+source_package_path="${KOMA_SOURCE_PACKAGE_PATH:-$source_repo/dist/sources/mangadex/mangadex-0.1.0.koma}"
 
 mkdir -p "$artifact_dir"
 
@@ -334,6 +337,14 @@ PY
 }
 
 rm -f "$artifact_dir"/*.json "$artifact_dir"/*.png "$artifact_dir"/*.txt
+
+if [ "$build_source_first" = "true" ]; then
+  if [ ! -x "$source_repo/build.sh" ]; then
+    echo "source browse detail reader smoke failed: source build script not found: $source_repo/build.sh" >&2
+    exit 1
+  fi
+  (cd "$source_repo" && ./build.sh --source "$source_build_name")
+fi
 
 if [ "$seed_mode" = "index" ]; then
   KOMA_SOURCE_READER_PHASE=source-index-browse \

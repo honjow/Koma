@@ -762,7 +762,7 @@ assert.match(
 )
 assert.match(
   sourceBrowseDetailReaderSmokeScriptSource,
-  /seed_mode="\$\{KOMA_SOURCE_BROWSE_SEED_MODE:-local-package\}"[\s\S]*KOMA_SOURCE_READER_PHASE=source-index-browse[\s\S]*KOMA_SOURCE_READER_PHASE=local-source-package-visible-reader[\s\S]*KOMA_SOURCE_PACKAGE_PATH="\$source_package_path"[\s\S]*aa start[\s\S]*click_from_layout[\s\S]*Browse[\s\S]*click_from_layout[\s\S]*"\$source_display"[\s\S]*click_first_source_manga[\s\S]*Add to library[\s\S]*加入书架[\s\S]*source-browse-library-after-add-layout\.json[\s\S]*click-library-source-manga[\s\S]*source-browse-reader-layout\.json/,
+  /seed_mode="\$\{KOMA_SOURCE_BROWSE_SEED_MODE:-local-package\}"[\s\S]*build_source_first="\$\{KOMA_SOURCE_BROWSE_BUILD_SOURCE_FIRST:-false\}"[\s\S]*\.\/build\.sh --source "\$source_build_name"[\s\S]*KOMA_SOURCE_READER_PHASE=source-index-browse[\s\S]*KOMA_SOURCE_READER_PHASE=local-source-package-visible-reader[\s\S]*KOMA_SOURCE_PACKAGE_PATH="\$source_package_path"[\s\S]*aa start[\s\S]*click_from_layout[\s\S]*Browse[\s\S]*click_from_layout[\s\S]*"\$source_display"[\s\S]*click_first_source_manga[\s\S]*Add to library[\s\S]*加入书架[\s\S]*source-browse-library-after-add-layout\.json[\s\S]*click-library-source-manga[\s\S]*source-browse-reader-layout\.json/,
   'source browse detail reader smoke must seed a real source package, add a source manga to the visible library, open it from the library, and capture reader layout evidence',
 )
 assert.match(
