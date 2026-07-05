@@ -709,8 +709,9 @@ struct Index {
                 libraryRevision: this.libraryRevision,
                 presentationByComicId: this.presentationByComicId,
                 sourceRegistry: this.sourceRegistry,
-                onOpenReader: (comicId: ComicId) => {
-                  void this.openReader(comicId)
+                libraryPersistenceService: this.ensureLibraryPersistenceService(),
+                onOpenReader: (comicId: ComicId, chapterId?: string) => {
+                  void this.openReader(comicId, chapterId)
                 },
                 onImportRequested: () => {
                   this.openImport()

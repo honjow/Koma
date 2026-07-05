@@ -51,7 +51,11 @@ import {
 import { OfflineDownloadQueueEntry, OfflineDownloadQueueStore } from '../model/OfflineDownloadQueueStore'
 import { OfflineDownloadStatus } from '../model/OfflineDownloadStore'
 import { connectRemoteProgressSyncState, RemoteProgressSyncState } from '../state/RemoteProgressSyncState'
-import { isRemovableLocalComic } from '../model/LibraryPersistence'
+import {
+  isRemovableLocalComic,
+  LibraryStorePersistenceService,
+} from '../model/LibraryPersistence'
+import { SourceChapterPageHydrator } from '../model/SourceChapterPageHydrator'
 import {
   AppFilesReaderSessionPersistenceAdapter,
   InMemoryReaderSessionStore,
@@ -87,7 +91,7 @@ struct ContinueReadingShelfCard {
     comicId: '',
   }
   @Param revision: number = 0
-  @Event onOpenReader: (comicId: ComicId) => void = (_comicId: ComicId) => {}
+  @Event onOpenReader: (comicId: ComicId, chapterId?: string) => void = (_comicId: ComicId, _chapterId?: string) => {}
 
   build() {
     Row({ space: ThemeConstants.SPACE_MD }) {
@@ -147,6 +151,7 @@ export struct LibraryPage {
   @Local private selectionMode: boolean = false
   @Local private selectedIds: Set<ComicId> = new Set<ComicId>()
   @Local private suppressOpenComicId: ComicId = ''
+  @Local private openingComicId: ComicId = ''
   @Local private sortBy: LibrarySortBy = 'lastRead'
   @Local private viewMode: LibraryViewMode = 'grid'
   @Local private listDensity: LibraryListDensity = 'standard'
@@ -159,8 +164,9 @@ export struct LibraryPage {
   @Local private remoteProgress: RemoteProgressSyncState = connectRemoteProgressSyncState()
   @Param presentationByComicId: LibraryPresentationByComicId = createMockLibraryPresentationMap()
   @Param sourceRegistry: SourceRuntimeRegistry = appSourceRuntimeRegistry
+  @Param libraryPersistenceService?: LibraryStorePersistenceService = undefined
   private sessionStore: ReaderSessionStore = new InMemoryReaderSessionStore()
-  @Event onOpenReader: (comicId: ComicId) => void = (_comicId: ComicId) => {}
+  @Event onOpenReader: (comicId: ComicId, chapterId?: string) => void = (_comicId: ComicId, _chapterId?: string) => {}
   @Event onImportRequested: () => void = () => {}
   @Event onRemoveComicRequested: (comicId: ComicId) => boolean = (_comicId: ComicId) => false
   @Event onRemoveComicsRequested: (comicIds: ComicId[]) => number = (_comicIds: ComicId[]) => 0
@@ -941,7 +947,81 @@ export struct LibraryPage {
     if (this.selectionMode) {
       this.toggleSelection(comicId)
     } else {
-      this.onOpenReader(comicId)
+      void this.openComicFromLibrary(comicId)
+    }
+  }
+
+  private readerChapterIdForComic(comic: Comic): string | undefined {
+    const progress = this.sessionStore.getProgress(comic.id)
+    if (progress !== undefined && comic.chapters.some((chapter: Chapter): boolean => chapter.id === progress.chapterId)) {
+      return progress.chapterId
+    }
+    return comic.chapters.length === 0 ? undefined : comic.chapters[0].id
+  }
+
+  private chapterNeedsSourcePages(comic: Comic, chapterId: string | undefined): boolean {
+    if (chapterId === undefined ||
+      comic.sourceKind !== ComicSourceKind.PRIVATE_LIBRARY ||
+      comic.sourceRuntimeId === undefined ||
+      comic.sourceRuntimeId.trim().length === 0) {
+      return false
+    }
+    const chapter = comic.chapters.find((item: Chapter): boolean => item.id === chapterId)
+    return chapter !== undefined && chapter.pages.length === 0
+  }
+
+  private logSourceReaderPagesUnavailable(reasonCode?: string): void {
+    if (reasonCode === 'pages_missing') {
+      console.warn('[Library] step=source_reader_pages_unavailable failed=true reason=pages_missing')
+      return
+    }
+    if (reasonCode === 'chapter_missing') {
+      console.warn('[Library] step=source_reader_pages_unavailable failed=true reason=chapter_missing')
+      return
+    }
+    if (reasonCode === 'source_missing') {
+      console.warn('[Library] step=source_reader_pages_unavailable failed=true reason=source_missing')
+      return
+    }
+    console.warn('[Library] step=source_reader_pages_unavailable failed=true reason=source_pages_unavailable')
+  }
+
+  private async openComicFromLibrary(comicId: ComicId): Promise<void> {
+    if (this.openingComicId === comicId) {
+      return
+    }
+    const comic = this.libraryStore.getComic(comicId)
+    if (comic === undefined) {
+      this.showToast(s('common_unavailable'))
+      return
+    }
+    const chapterId = this.readerChapterIdForComic(comic)
+    if (!this.chapterNeedsSourcePages(comic, chapterId)) {
+      this.onOpenReader(comicId, chapterId)
+      return
+    }
+    this.openingComicId = comicId
+    this.showToast(s('source_pkg_loading'))
+    try {
+      const result = await new SourceChapterPageHydrator(
+        this.libraryStore,
+        this.sourceRegistry,
+        this.libraryPersistenceService,
+        () => {
+          this.refreshDisplayedSnapshotFromStore()
+        },
+      ).ensureChapterPages(comicId, comic.sourceRuntimeId, chapterId as string)
+      if (!result.hydrated) {
+        this.logSourceReaderPagesUnavailable(result.reasonCode)
+        this.showToast(s('manga_detail_chapter_pages_load_failed'))
+        return
+      }
+      this.onOpenReader(comicId, chapterId)
+    } catch (_error) {
+      this.logSourceReaderPagesUnavailable('source_pages_lookup')
+      this.showToast(s('manga_detail_chapter_pages_load_failed'))
+    } finally {
+      this.openingComicId = ''
     }
   }
 
@@ -1708,7 +1788,7 @@ export struct LibraryPage {
                 .gesture(TapGesture()
                   .onAction(() => {
                     if (!this.selectionMode) {
-                      this.onOpenReader(comic.id)
+                      void this.openComicFromLibrary(comic.id)
                     }
                   }))
             }
@@ -1826,7 +1906,7 @@ export struct LibraryPage {
                 revision: this.displayedRevision,
                 onOpenReader: (comicId: ComicId) => {
                   if (!this.selectionMode) {
-                    this.onOpenReader(comicId)
+                    void this.openComicFromLibrary(comicId)
                   }
                 },
               })

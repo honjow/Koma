@@ -1704,6 +1704,21 @@ assert.match(
   'MangaDetailPage must hydrate source chapter pages through the shared hydrator before reader/download actions',
 )
 assert.match(
+  libraryPageSource,
+  /@Param libraryPersistenceService\?: LibraryStorePersistenceService[\s\S]*private async openComicFromLibrary\(comicId: ComicId\): Promise<void>[\s\S]*chapterNeedsSourcePages\(comic, chapterId\)[\s\S]*new SourceChapterPageHydrator\([\s\S]*this\.libraryStore,[\s\S]*this\.sourceRegistry,[\s\S]*this\.libraryPersistenceService[\s\S]*ensureChapterPages\(comicId, comic\.sourceRuntimeId, chapterId as string\)[\s\S]*this\.onOpenReader\(comicId, chapterId\)/,
+  'LibraryPage must hydrate source-backed chapter pages before opening a shelf item in Reader',
+)
+assert.match(
+  libraryPageSource,
+  /handleComicClick\(comicId: ComicId\)[\s\S]*void this\.openComicFromLibrary\(comicId\)[\s\S]*ContinueReadingShelfCard\(\{[\s\S]*void this\.openComicFromLibrary\(comicId\)/,
+  'LibraryPage shelf grid/list and continue-reading entries must route through the same source hydration opener',
+)
+assert.match(
+  indexSource,
+  /LibraryPage\(\{[\s\S]*sourceRegistry: this\.sourceRegistry,[\s\S]*libraryPersistenceService: this\.ensureLibraryPersistenceService\(\)[\s\S]*onOpenReader: \(comicId: ComicId, chapterId\?: string\) => \{[\s\S]*this\.openReader\(comicId, chapterId\)/,
+  'Index must give LibraryPage the persistent library store path and shared reader opener for hydrated source chapters',
+)
+assert.match(
   downloadsPageSource,
   /@Param sourceRegistry: SourceRuntimeRegistry = appSourceRuntimeRegistry[\s\S]*private async ensureSourcePagesForDownload\(comic: Comic, chapterId: string\)[\s\S]*new SourceChapterPageHydrator\([\s\S]*this\.libraryStore,[\s\S]*this\.sourceRegistry,[\s\S]*this\.libraryPersistenceService[\s\S]*ensureChapterPages\(comic\.id, sourceId, chapterId\)/,
   'DownloadsPage must share the source chapter page hydrator with a real source registry and persistence path',
