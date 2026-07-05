@@ -53,6 +53,8 @@ Koma 是 HarmonyOS 私有漫画书架/阅读器：
 
 - 设备 QA 使用 `192.168.50.103:12345`，避免 V2Next 共享测试机 `192.168.50.237:12345`。
 - 103 HDC 出现 unauthorized 时，先在 host 上 `hdc kill` / `hdc start` / `hdc tconn`，确认仍 unauthorized 再向用户求助。
+- 不得自行停止、重启或启动模拟器。需要模拟器生命周期操作时，先说明原因并等待用户明确授权。
+- 不得凭 HDC 端口号推断设备型号或把 `5555` / `5557` 直接称为 Pura X。Pura X 验证必须来自用户指定 target 或可核对的设备身份/模拟器运行证据。
 - 调试签名物料放在用户目录 `~/.config/harmony/debug-signing/`（账号级共享），跨 OH 项目复用同一份 cert 避免撞 AGC 调试证书配额。
 - 证书名 `honjow-debug`（开发者身份级，所有 OH 项目共用），Profile 仍按 bundleId 独立生成并放在 `${HARMONY_DEBUG_DIR}/profiles/`。
 - 路径由 `scripts/dev.env` 声明的 `HARMONY_DEBUG_*` env 控制；Linux 开发机上的 `dev.sh` 和 `scripts/lane-preflight.sh` 自动 source。macOS 不使用 `dev.sh`。手动调 `python3 scripts/sign.py` 必须先 source dev.env，否则 sign.py 立即报错退出。

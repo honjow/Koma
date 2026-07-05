@@ -15,6 +15,7 @@ import {
   TrackerOAuthStartPreparation,
   TrackerPreferencesStore,
   TrackerProviderConfig,
+  TrackerProviderId,
   TrackerProviderOAuthConfig,
   getConfiguredTrackerProviderConfig,
   getTrackerAccountDetail,
@@ -35,6 +36,10 @@ import {
   TrackerAccountRefreshService,
   TrackerAccountRefreshSummary,
 } from '../model/TrackerAccountRefreshService'
+import {
+  TrackerOAuthCompletionReason,
+  TrackerOAuthCompletionService,
+} from '../model/TrackerOAuthCompletionService'
 import { ThemeConstants } from '../theme/ThemeConstants'
 import { AppStrings } from '../i18n/AppStrings'
 import { connectLanguageState, LanguageState } from '../state/LanguageState'
@@ -72,6 +77,8 @@ export struct TrackerSettingsPage {
   @Local private secureStorageAvailable: boolean = false
   @Local private authPreparationMessageKey: string = 'tracker_message_secure_storage_unverified'
   @Local private preparedAuthorizationUrl: string = ''
+  @Local private oauthCallbackUris: Record<string, string> = {}
+  @Local private completingProviderId: string = ''
   private credentialSecretStore: TrackerCredentialSecretStore = new AssetStoreTrackerCredentialSecretStore()
 
   private context(): common.UIAbilityContext {
@@ -145,6 +152,19 @@ export struct TrackerSettingsPage {
     this.upsertProviderOAuthConfig(provider, this.providerClientId(provider), value)
   }
 
+  private providerOAuthCallbackUri(provider: TrackerProviderConfig): string {
+    return this.oauthCallbackUris[provider.providerId] ?? ''
+  }
+
+  private setProviderOAuthCallbackUri(provider: TrackerProviderConfig, value: string): void {
+    const next: Record<string, string> = {}
+    Object.keys(this.oauthCallbackUris).forEach((key: string) => {
+      next[key] = this.oauthCallbackUris[key]
+    })
+    next[provider.providerId] = value
+    this.oauthCallbackUris = next
+  }
+
   private upsertProviderOAuthConfig(provider: TrackerProviderConfig, clientId: string, redirectUri: string): void {
     const next = this.providerOAuthConfigs.filter((config: TrackerProviderOAuthConfig): boolean => {
       return config.providerId !== provider.providerId
@@ -192,6 +212,15 @@ export struct TrackerSettingsPage {
       provider.supportStatus === 'available' &&
       (provider.providerId === 'anilist' || provider.providerId === 'myanimelist') &&
       account.credentialAccountKey !== undefined
+  }
+
+  private canCompleteOAuthCallback(provider: TrackerProviderConfig): boolean {
+    const account = this.findAccount(provider)
+    return this.secureStorageAvailable &&
+      this.completingProviderId.length === 0 &&
+      account.status === 'auth_pending' &&
+      account.credentialAccountKey !== undefined &&
+      this.providerOAuthCallbackUri(provider).trim().length > 0
   }
 
   private confirmDisconnectAccount(provider: TrackerProviderConfig): void {
@@ -328,6 +357,53 @@ export struct TrackerSettingsPage {
       .finally(() => {
         this.refreshingProviderId = ''
       })
+  }
+
+  private completeOAuthCallback(provider: TrackerProviderConfig): void {
+    if (!this.canCompleteOAuthCallback(provider)) {
+      this.showToast(s('tracker_callback_unavailable'))
+      return
+    }
+    this.completingProviderId = provider.providerId
+    void new TrackerOAuthCompletionService(this.context(), {
+      secretStore: this.credentialSecretStore,
+    }).completeCallback(provider.providerId as TrackerProviderId, this.providerOAuthCallbackUri(provider).trim())
+      .then((result) => {
+        this.accounts = result.preferences.accounts
+        this.providerOAuthConfigs = result.preferences.providerOAuthConfigs
+        this.mappings = result.preferences.comicMappings
+        this.mappingSummary = summarizeComicTrackerMappings(result.preferences.comicMappings)
+        if (result.status === 'connected') {
+          this.preparedAuthorizationUrl = ''
+          this.setProviderOAuthCallbackUri(provider, '')
+          this.showToast(s('tracker_callback_connected'))
+        } else {
+          this.showToast(s(this.oauthCompletionReasonKey(result.reason)))
+        }
+      })
+      .catch((_error: Error) => {
+        this.showToast(s('tracker_callback_failed'))
+      })
+      .finally(() => {
+        this.completingProviderId = ''
+      })
+  }
+
+  private oauthCompletionReasonKey(reason: TrackerOAuthCompletionReason | undefined): string {
+    if (reason === 'account_missing') {
+      return 'tracker_callback_account_missing'
+    }
+    if (reason === 'invalid_callback' || reason === 'state_mismatch' ||
+      reason === 'provider_error' || reason === 'missing_code') {
+      return 'tracker_callback_invalid'
+    }
+    if (reason === 'provider_config_missing' || reason === 'verifier_missing') {
+      return 'tracker_callback_unavailable'
+    }
+    if (reason === 'credential_store_failed') {
+      return 'tracker_callback_storage_failed'
+    }
+    return 'tracker_callback_failed'
   }
 
   private authPrepareStatusKey(status: string): string {
@@ -669,6 +745,31 @@ export struct TrackerSettingsPage {
         })
       }
       .width('100%')
+
+      if (this.findAccount(provider).status === 'auth_pending') {
+        KomaFormTextField({
+          label: s('tracker_callback_uri_label'),
+          placeholder: s('tracker_callback_uri_placeholder'),
+          value: this.providerOAuthCallbackUri(provider),
+          change: (value: string) => {
+            this.setProviderOAuthCallbackUri(provider, value)
+          },
+        })
+        Row() {
+          Blank()
+          KomaActionButton({
+            label: this.completingProviderId === provider.providerId ? s('common_checking') : s('tracker_callback_complete'),
+            kind: 'primary',
+            compact: true,
+            controlHeight: ThemeConstants.ACTION_CHIP_HEIGHT,
+            isEnabled: this.canCompleteOAuthCallback(provider),
+            action: () => {
+              this.completeOAuthCallback(provider)
+            },
+          })
+        }
+        .width('100%')
+      }
     }
     .width('100%')
     .padding({ left: ThemeConstants.SPACE_LG, right: ThemeConstants.SPACE_LG, bottom: ThemeConstants.SPACE_MD })

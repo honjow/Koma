@@ -8,12 +8,18 @@ const trackerPagePath = resolve(root, 'entry/src/main/ets/pages/TrackerSettingsP
 const settingsPagePath = resolve(root, 'entry/src/main/ets/pages/SettingsPage.ets')
 const indexPath = resolve(root, 'entry/src/main/ets/pages/Index.ets')
 const constantsPath = resolve(root, 'entry/src/main/ets/common/Constants.ets')
+const localeStringPaths = [
+  resolve(root, 'entry/src/main/resources/base/element/string.json'),
+  resolve(root, 'entry/src/main/resources/en_US/element/string.json'),
+  resolve(root, 'entry/src/main/resources/zh_CN/element/string.json'),
+]
 
 const trackerModelsSource = readFileSync(trackerModelsPath, 'utf8')
 const trackerPageSource = readFileSync(trackerPagePath, 'utf8')
 const settingsPageSource = readFileSync(settingsPagePath, 'utf8')
 const indexSource = readFileSync(indexPath, 'utf8')
 const constantsSource = readFileSync(constantsPath, 'utf8')
+const localeStringSources = localeStringPaths.map((path) => readFileSync(path, 'utf8'))
 
 function sourceSlice(source, startNeedle, endNeedle) {
   const start = source.indexOf(startNeedle)
@@ -279,6 +285,26 @@ assert.match(
 )
 assert.match(
   trackerPageSource,
+  /import \{[\s\S]*TrackerOAuthCompletionReason[\s\S]*TrackerOAuthCompletionService[\s\S]*\} from '..\/model\/TrackerOAuthCompletionService'/,
+  'TrackerSettingsPage must import the real OAuth completion service',
+)
+assert.match(
+  trackerPageSource,
+  /canCompleteOAuthCallback\(provider: TrackerProviderConfig\): boolean[\s\S]*account\.status === 'auth_pending'[\s\S]*credentialAccountKey !== undefined[\s\S]*providerOAuthCallbackUri\(provider\)\.trim\(\)\.length > 0/,
+  'TrackerSettingsPage must only complete OAuth callbacks for pending accounts with a returned URL',
+)
+assert.match(
+  trackerPageSource,
+  /completeOAuthCallback\(provider: TrackerProviderConfig\): void[\s\S]*new TrackerOAuthCompletionService\(this\.context\(\), \{[\s\S]*secretStore: this\.credentialSecretStore[\s\S]*completeCallback\(provider\.providerId[\s\S]*providerOAuthCallbackUri\(provider\)\.trim\(\)[\s\S]*result\.status === 'connected'[\s\S]*tracker_callback_connected/,
+  'TrackerSettingsPage must complete callback URLs through the secure completion service and refresh visible state',
+)
+assert.match(
+  trackerPageSource,
+  /ProviderOAuthConfigForm\(provider: TrackerProviderConfig\)[\s\S]*this\.findAccount\(provider\)\.status === 'auth_pending'[\s\S]*tracker_callback_uri_label[\s\S]*this\.setProviderOAuthCallbackUri\(provider, value\)[\s\S]*tracker_callback_complete[\s\S]*this\.completeOAuthCallback\(provider\)/,
+  'TrackerSettingsPage must expose callback completion UI only while provider authorization is pending',
+)
+assert.match(
+  trackerPageSource,
   /if \(this\.preparedAuthorizationUrl\.length > 0\) \{[\s\S]*tracker_auth_url_ready_detail[\s\S]*KomaActionButton\(\{[\s\S]*tracker_auth_url_copy[\s\S]*this\.copyPreparedAuthorizationUrl\(\)/,
   'TrackerSettingsPage status card must show a user-actionable copy control when an authorization URL is ready',
 )
@@ -337,5 +363,20 @@ assert.doesNotMatch(
   /TextInput\(|InputType\.Password|已连接.*Button|connected:\s*true/,
   'TrackerSettingsPage must not collect secrets or fake connected state',
 )
+for (const localeSource of localeStringSources) {
+  for (const key of [
+    'tracker_callback_uri_label',
+    'tracker_callback_uri_placeholder',
+    'tracker_callback_complete',
+    'tracker_callback_connected',
+    'tracker_callback_invalid',
+    'tracker_callback_unavailable',
+    'tracker_callback_account_missing',
+    'tracker_callback_storage_failed',
+    'tracker_callback_failed',
+  ]) {
+    assert.match(localeSource, new RegExp(`"name": "${key}"`), `locale strings must include ${key}`)
+  }
+}
 
 console.log('tracker settings checks PASS')
