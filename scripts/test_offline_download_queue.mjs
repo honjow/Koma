@@ -19,6 +19,7 @@ const entryAbilityPath = resolve(root, 'entry/src/main/ets/entryability/EntryAbi
 const mangaDetailPagePath = resolve(root, 'entry/src/main/ets/pages/MangaDetailPage.ets')
 const chapterListSectionPath = resolve(root, 'entry/src/main/ets/components/ChapterListSection.ets')
 const downloadNotificationUiSmokePath = resolve(root, 'scripts/run_download_notification_ui_smoke.sh')
+const downloadNotificationRouteSmokePath = resolve(root, 'scripts/run_download_notification_route_smoke.sh')
 const stringResourcePaths = [
   resolve(root, 'entry/src/main/resources/base/element/string.json'),
   resolve(root, 'entry/src/main/resources/en_US/element/string.json'),
@@ -43,6 +44,7 @@ const entryAbilitySource = readFileSync(entryAbilityPath, 'utf8')
 const mangaDetailPageSource = readFileSync(mangaDetailPagePath, 'utf8')
 const chapterListSectionSource = readFileSync(chapterListSectionPath, 'utf8')
 const downloadNotificationUiSmokeSource = readFileSync(downloadNotificationUiSmokePath, 'utf8')
+const downloadNotificationRouteSmokeSource = readFileSync(downloadNotificationRouteSmokePath, 'utf8')
 const stringResourceSources = stringResourcePaths.map((path) => readFileSync(path, 'utf8'))
 
 function assertExport(source, symbol) {
@@ -191,6 +193,9 @@ assert.match(settingsPageSource, /key: 'download-notification-test', titleKey: '
 assert.match(settingsPageSource, /handleDownloadNotificationDispatch\(result: OfflineDownloadNotificationDispatchResult\)[\s\S]*result\.delivered[\s\S]*settings_download_notification_test_sent[\s\S]*result\.code === 'disabled'[\s\S]*settings_download_notification_test_disabled[\s\S]*settings_download_notification_test_failed/, 'Settings test notification must fail closed for disabled or failed notification delivery')
 assert.match(downloadNotificationUiSmokeSource, /hvigorw[\s\S]*assembleHap[\s\S]*aa start[\s\S]*click_from_layout[\s\S]*Settings[\s\S]*click_after_scrolls[\s\S]*Downloads[\s\S]*下载[\s\S]*click_after_scrolls[\s\S]*Send test notification[\s\S]*发送测试通知[\s\S]*hilog -x -e "download_notification_test"[\s\S]*code=\(delivered\|disabled\|publish_failed\)/, 'download notification UI smoke must install Koma, drive Settings > Downloads test notification from visible UI, and assert a real dispatch result')
 assert.doesNotMatch(downloadNotificationUiSmokeSource, /dev\.sh|settings_download_notification_test_sent/, 'macOS download notification smoke must not use dev.sh or assume the toast says success')
+assert.match(downloadNotificationRouteSmokeSource, /aa start[\s\S]*--ps koma\.launchRoute downloads[\s\S]*Downloads\|下载管理[\s\S]*Rescan downloads\|重扫下载[\s\S]*No downloads yet\|暂无下载任务/, 'download notification route smoke must launch the same downloads route used by notification taps and verify the real Downloads page')
+assert.match(downloadNotificationRouteSmokeSource, /capture_layout\(\)[\s\S]*dumpLayout[\s\S]*\|\| return 1[\s\S]*file recv[\s\S]*\|\| return 1[\s\S]*\[ -s "\$artifact_dir\/\$name-layout\.json" \][\s\S]*if capture_layout "\$name" && assert_layout_contains_any/, 'download notification route smoke must fail cleanly when HDC cannot capture layout evidence')
+assert.doesNotMatch(downloadNotificationRouteSmokeSource, /dev\.sh/, 'macOS download notification route smoke must not use dev.sh')
 assert.match(settingsPageSource, /key: 'download-concurrency', titleKey: 'settings_row_download_concurrency_title'[^}]*}/, 'Settings must expose real download concurrency preferences')
 assert.match(settingsPageSource, /OFFLINE_DOWNLOAD_FOREGROUND_CONCURRENCY_LIMIT_OPTIONS[\s\S]*OfflineDownloadQueueStore/, 'Settings must reuse the durable download queue preference store')
 assert.match(settingsPageSource, /saveDownloadForegroundConcurrencyLimit\(limit: number\)[\s\S]*setForegroundConcurrencyLimit\(limit\)/, 'Settings download concurrency row must persist through OfflineDownloadQueueStore')
