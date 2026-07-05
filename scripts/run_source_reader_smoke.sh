@@ -15,10 +15,12 @@ capture_ui="${KOMA_SOURCE_READER_CAPTURE_UI:-true}"
 offline_download_visible_phase="source-index-visible-offline-download-reader"
 local_source_package_visible_phase="local-source-package-visible-reader"
 local_source_package_offline_download_visible_phase="local-source-package-visible-offline-download-reader"
+local_library_folder_reader_phase="local-library-folder-reader"
 requires_index="${KOMA_SOURCE_READER_REQUIRES_INDEX:-true}"
 if [ "$phase" = "real-source-visible-reader" ] ||
   [ "$phase" = "$local_source_package_visible_phase" ] ||
-  [ "$phase" = "$local_source_package_offline_download_visible_phase" ]; then
+  [ "$phase" = "$local_source_package_offline_download_visible_phase" ] ||
+  [ "$phase" = "$local_library_folder_reader_phase" ]; then
   requires_index="false"
 fi
 dist_dir="${KOMA_SOURCES_DIST:-$repo/../koma-sources/dist}"
@@ -208,6 +210,18 @@ if result.get('ok') is not True:
     raise SystemExit('source reader smoke failed: result ok=false')
 if result.get('smokePhase') != phase:
     raise SystemExit('source reader smoke failed: phase mismatch')
+if phase == 'local-library-folder-reader':
+    if result.get('localLibraryFolderScanOk') is not True:
+        raise SystemExit('local library folder reader smoke failed: scan check failed')
+    if result.get('localLibraryFolderPersistOk') is not True:
+        raise SystemExit('local library folder reader smoke failed: persist check failed')
+    if result.get('localLibraryFolderReloadOk') is not True:
+        raise SystemExit('local library folder reader smoke failed: reload check failed')
+    if result.get('localLibraryFolderReaderKind') != 'local_file_image':
+        raise SystemExit('local library folder reader smoke failed: reader did not use local file')
+    if result.get('localLibraryFolderReaderOk') is not True:
+        raise SystemExit('local library folder reader smoke failed: reader check failed')
+    raise SystemExit(0)
 if result.get('sourceIndexReaderSelectedSourceId') != source_id:
     raise SystemExit('source reader smoke failed: source id mismatch')
 if phase in ('local-source-package-visible-reader', 'local-source-package-visible-offline-download-reader'):

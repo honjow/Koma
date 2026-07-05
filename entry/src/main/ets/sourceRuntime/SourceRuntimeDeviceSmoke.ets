@@ -33,10 +33,15 @@ import {
   LIBRARY_STORE_PERSISTENCE_FILE_NAME,
   LibraryStorePersistenceService,
   upsertComicAndPersistLibraryStore,
+  upsertLocalLibraryFolderScanAndPersistLibraryStore,
 } from '../model/LibraryPersistence'
 import {
   InMemoryLibraryStore,
 } from '../model/LibraryStore'
+import {
+  LocalLibraryFolderEntry,
+  scanLocalLibraryFolderEntries,
+} from '../model/LocalLibraryFolderContract'
 import {
   DEFAULT_OFFLINE_DOWNLOAD_QUEUE_PREFERENCES,
   OfflineDownloadQueueStore,
@@ -146,7 +151,9 @@ const SMOKE_PHASE_SOURCE_INDEX_UNDOWNLOADED_OFFLINE_READER: string = 'source-ind
 const SMOKE_PHASE_SOURCE_INDEX_BROWSE: string = 'source-index-browse'
 const SMOKE_PHASE_SOURCE_INDEX_SETTINGS: string = 'source-index-settings'
 const SMOKE_PHASE_READER_WIDE_SPLIT_FIXTURE: string = 'reader-wide-split-fixture'
+const SMOKE_PHASE_LOCAL_LIBRARY_FOLDER_READER: string = 'local-library-folder-reader'
 const SOURCE_INDEX_LIBRARY_SMOKE_FILE_NAME: string = 'source-index-library-smoke.v1.json'
+const LOCAL_LIBRARY_FOLDER_SMOKE_FILE_NAME: string = 'local-library-folder-smoke.v1.json'
 const SOURCE_RUNTIME_SMOKE_RESULT_FILE_NAME: string = 'source-runtime-smoke-result.json'
 const REAL_SOURCE_RAWFILE_PATH: string = 'test/baozimh.wasm'
 const MANGADEX_RAWFILE_PATH: string = 'test/mangadex.wasm'
@@ -576,6 +583,18 @@ export interface SourceRuntimeSmokeResult {
   readerWideSplitFixtureWidth?: number
   readerWideSplitFixtureHeight?: number
   readerWideSplitFixtureExpectedSplitCount?: number
+  localLibraryFolderScanOk?: boolean
+  localLibraryFolderSeriesCount?: number
+  localLibraryFolderChapterCount?: number
+  localLibraryFolderPageCount?: number
+  localLibraryFolderRejectedEntryCount?: number
+  localLibraryFolderPersistOk?: boolean
+  localLibraryFolderReloadOk?: boolean
+  localLibraryFolderReaderOk?: boolean
+  localLibraryFolderReaderKind?: string
+  localLibraryFolderTitle?: string
+  localLibraryFolderChapterTitle?: string
+  localLibraryFolderStoreFileName?: string
   mangadexWasmBytes?: number
   mangadexResponse?: SourceRuntimeCallResponse
   sourceRuntimeSmokeResultFileName?: string
@@ -1195,6 +1214,71 @@ function joinSourceRuntimeSmokePath(parent: string, child: string): string {
   const left = parent.replace(/\\/g, '/').replace(/\/+$/, '')
   const right = child.replace(/\\/g, '/').replace(/^\/+/, '')
   return left.length === 0 ? right : `${left}/${right}`
+}
+
+function verifyLocalLibraryFolderReaderSmoke(context: common.UIAbilityContext, result: SourceRuntimeSmokeResult): void {
+  const entries: LocalLibraryFolderEntry[] = [
+    {
+      relativePath: 'Fixture Series/metadata.json',
+      textContent: '{"title":"Local Folder Smoke","authors":["Koma"],"status":"ongoing","coverPath":"Chapter 01/001.png"}',
+    },
+    { relativePath: 'Fixture Series/Chapter 01/001.png' },
+    { relativePath: 'Fixture Series/Chapter 01/002.png' },
+    { relativePath: 'Fixture Series/Chapter 02/001.png' },
+    { relativePath: 'notes.txt' },
+  ]
+  const scanResult = scanLocalLibraryFolderEntries(entries, 'Local Folder Smoke Root')
+  const series = scanResult.series[0]
+  const chapter = series?.chapters[0]
+  result.localLibraryFolderSeriesCount = scanResult.series.length
+  result.localLibraryFolderChapterCount = series?.chapterCount ?? 0
+  result.localLibraryFolderPageCount = series?.pageCount ?? 0
+  result.localLibraryFolderRejectedEntryCount = scanResult.rejectedEntries.length
+  result.localLibraryFolderScanOk =
+    scanResult.series.length === 1 &&
+      series !== undefined &&
+      series.chapterCount === 2 &&
+      series.pageCount === 3 &&
+      chapter !== undefined &&
+      chapter.pageCount === 2
+
+  const rootUri = `file://${joinSourceRuntimeSmokePath(context.filesDir, 'import/local-library-folder-smoke-root/extract')}`
+  const libraryStore = new InMemoryLibraryStore()
+  const persistence = new LibraryStorePersistenceService(
+    libraryStore,
+    new AppFilesLibraryStorePersistenceAdapter(context.filesDir, LOCAL_LIBRARY_FOLDER_SMOKE_FILE_NAME),
+  )
+  const importedCount = upsertLocalLibraryFolderScanAndPersistLibraryStore(libraryStore, persistence, scanResult, rootUri)
+  const comic = libraryStore.listComics()[0]
+  result.localLibraryFolderStoreFileName = LOCAL_LIBRARY_FOLDER_SMOKE_FILE_NAME
+  result.localLibraryFolderPersistOk =
+    importedCount === 1 &&
+      comic !== undefined &&
+      comic.sourceKind === ComicSourceKind.LOCAL_FOLDER &&
+      comic.chapters.length === 2 &&
+      comic.pageCount === 3
+
+  const reloadedStore = new InMemoryLibraryStore()
+  const reloadedPersistence = new LibraryStorePersistenceService(
+    reloadedStore,
+    new AppFilesLibraryStorePersistenceAdapter(context.filesDir, LOCAL_LIBRARY_FOLDER_SMOKE_FILE_NAME),
+  )
+  reloadedPersistence.restore()
+  const reloadedComic = comic === undefined ? undefined : reloadedStore.getComic(comic.id)
+  result.localLibraryFolderReloadOk = reloadedComic !== undefined && reloadedComic.pageCount === 3
+  result.localLibraryFolderTitle = reloadedComic?.title
+  result.localLibraryFolderChapterTitle = reloadedComic?.chapters[0]?.title
+
+  if (reloadedComic !== undefined) {
+    const config = createReaderSessionConfigFromComic(reloadedComic, reloadedComic.chapters[0]?.id)
+    const source = createReaderPageRenderSource(config, 0, { offlineOnly: true })
+    result.localLibraryFolderReaderKind = source.kind
+    result.localLibraryFolderReaderOk =
+      source.kind === ReaderPageRenderKind.LOCAL_FILE_IMAGE &&
+        source.uri.startsWith(rootUri) &&
+        source.imageUri.length > 0 &&
+        config.totalPages === 2
+  }
 }
 
 function wantParameters(want: Want): WantParameters {
@@ -2573,6 +2657,28 @@ export async function maybeRunSourceRuntimeDeviceSmoke(
             result.readerWideSplitFixtureExpectedSplitCount === 2
         if (!result.ok && result.error === undefined) {
           result.error = 'reader-wide-split-fixture failed'
+        }
+      }
+      compactSmokeResultForHilog(result)
+      if (context !== undefined) {
+        writeSourceRuntimeSmokeResultFile(context.filesDir, result)
+      }
+      console.info(SMOKE_LOG_PREFIX + JSON.stringify(result))
+      return
+    }
+
+    if (result.smokePhase === SMOKE_PHASE_LOCAL_LIBRARY_FOLDER_READER) {
+      if (context === undefined) {
+        result.error = 'local-library-folder-reader phase requires ability context'
+      } else {
+        verifyLocalLibraryFolderReaderSmoke(context, result)
+        result.ok =
+          result.localLibraryFolderScanOk === true &&
+            result.localLibraryFolderPersistOk === true &&
+            result.localLibraryFolderReloadOk === true &&
+            result.localLibraryFolderReaderOk === true
+        if (!result.ok && result.error === undefined) {
+          result.error = 'local-library-folder-reader failed'
         }
       }
       compactSmokeResultForHilog(result)

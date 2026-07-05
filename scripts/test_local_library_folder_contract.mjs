@@ -5,9 +5,15 @@ import { dirname, resolve } from 'node:path'
 const root = resolve(import.meta.dirname, '..')
 const contractPath = resolve(root, 'entry/src/main/ets/model/LocalLibraryFolderContract.ets')
 const localImportCoordinatorPath = resolve(root, 'entry/src/main/ets/import/LocalImportCoordinator.ets')
+const smokePath = resolve(root, 'entry/src/main/ets/sourceRuntime/SourceRuntimeDeviceSmoke.ets')
+const sourceReaderSmokeScriptPath = resolve(root, 'scripts/run_source_reader_smoke.sh')
+const localLibraryFolderReaderSmokeScriptPath = resolve(root, 'scripts/run_local_library_folder_reader_smoke.sh')
 const artifactPath = resolve(root, '.hermes-artifacts/20260527-d42-local-library-folder-contract/fixture-scan.json')
 const contractSource = readFileSync(contractPath, 'utf8')
 const localImportCoordinatorSource = readFileSync(localImportCoordinatorPath, 'utf8')
+const smokeSource = readFileSync(smokePath, 'utf8')
+const sourceReaderSmokeScriptSource = readFileSync(sourceReaderSmokeScriptPath, 'utf8')
+const localLibraryFolderReaderSmokeScriptSource = readFileSync(localLibraryFolderReaderSmokeScriptPath, 'utf8')
 
 function assertExport(source, symbol) {
   assert.match(source, new RegExp(`export (interface|class|function|enum|type|const) ${symbol}\\b`), `${symbol} must be exported`)
@@ -39,6 +45,27 @@ assert.match(contractSource, /parseLocalLibrarySidecarMetadata\(entry\.textConte
 assert.match(contractSource, /comicinfo\.xml/, 'production scanner must recognize ComicInfo.xml sidecar metadata')
 assert.match(localImportCoordinatorSource, /isLocalLibraryMetadataPath[\s\S]*comicinfo\.xml/, 'picked-folder runtime scan must read ComicInfo.xml sidecar text')
 assert.match(localImportCoordinatorSource, /readPickedFolderTextIfNeeded[\s\S]*byteSize > 1024 \* 1024[\s\S]*fs\.readTextSync/, 'picked-folder runtime sidecar IO must stay bounded to small text files')
+assert.match(smokeSource, /SMOKE_PHASE_LOCAL_LIBRARY_FOLDER_READER: string = 'local-library-folder-reader'/, 'device smoke must expose a local library folder reader phase')
+assert.match(
+  smokeSource,
+  /verifyLocalLibraryFolderReaderSmoke[\s\S]*scanLocalLibraryFolderEntries[\s\S]*upsertLocalLibraryFolderScanAndPersistLibraryStore[\s\S]*reloadedPersistence\.restore\(\)[\s\S]*createReaderSessionConfigFromComic[\s\S]*ReaderPageRenderKind\.LOCAL_FILE_IMAGE/,
+  'local library folder reader smoke must scan a folder fixture, persist it, reload it, and verify Reader resolves a local image',
+)
+assert.match(
+  smokeSource,
+  /localLibraryFolderScanOk === true[\s\S]*localLibraryFolderPersistOk === true[\s\S]*localLibraryFolderReloadOk === true[\s\S]*localLibraryFolderReaderOk === true/,
+  'local library folder reader smoke must fail unless scan, persist, reload, and reader checks all pass',
+)
+assert.match(
+  sourceReaderSmokeScriptSource,
+  /local_library_folder_reader_phase="local-library-folder-reader"[\s\S]*requires_index="false"[\s\S]*phase == 'local-library-folder-reader'[\s\S]*localLibraryFolderReaderKind[\s\S]*local_file_image/,
+  'source reader smoke harness must run the local folder reader phase without a source index and require a local file reader source',
+)
+assert.match(
+  localLibraryFolderReaderSmokeScriptSource,
+  /KOMA_SOURCE_READER_PHASE="\$\{KOMA_SOURCE_READER_PHASE:-local-library-folder-reader\}"[\s\S]*KOMA_SOURCE_READER_REQUIRES_INDEX="\$\{KOMA_SOURCE_READER_REQUIRES_INDEX:-false\}"[\s\S]*KOMA_SOURCE_READER_CAPTURE_UI="\$\{KOMA_SOURCE_READER_CAPTURE_UI:-false\}"[\s\S]*run_source_reader_smoke\.sh/,
+  'local library folder reader smoke wrapper must reuse the shared source reader smoke harness',
+)
 
 const archiveExts = new Set(['.cbz', '.zip'])
 const imageExts = new Set(['.jpg', '.jpeg', '.png', '.webp', '.gif', '.bmp', '.avif'])
