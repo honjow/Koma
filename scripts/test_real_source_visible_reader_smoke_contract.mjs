@@ -5,6 +5,7 @@ import { resolve } from 'node:path'
 const root = resolve(import.meta.dirname, '..')
 const smoke = readFileSync(resolve(root, 'entry/src/main/ets/sourceRuntime/SourceRuntimeDeviceSmoke.ets'), 'utf8')
 const script = readFileSync(resolve(root, 'scripts/run_source_reader_smoke.sh'), 'utf8')
+const localReaderScript = readFileSync(resolve(root, 'scripts/run_local_source_package_reader_smoke.sh'), 'utf8')
 const localOfflineScript = readFileSync(resolve(root, 'scripts/run_local_source_package_offline_download_reader_smoke.sh'), 'utf8')
 
 assert.match(
@@ -136,6 +137,16 @@ assert.match(
   script,
   /KOMA_HVIGOR_TIMEOUT_SECONDS[\s\S]*source reader smoke failed: hvigor build timed out/,
   'source reader smoke script must bound hung hvigor builds',
+)
+assert.match(
+  localReaderScript,
+  /KOMA_SOURCE_READER_PHASE="\$\{KOMA_SOURCE_READER_PHASE:-local-source-package-visible-reader\}"[\s\S]*KOMA_SOURCE_READER_REQUIRES_INDEX="\$\{KOMA_SOURCE_READER_REQUIRES_INDEX:-false\}"/,
+  'local source package reader smoke wrapper must default to the no-index local package visible reader phase',
+)
+assert.match(
+  localReaderScript,
+  /KOMA_SOURCE_PACKAGE_PATH="\$\{KOMA_SOURCE_PACKAGE_PATH:-\$repo\/\.\.\/koma-sources\/dist\/sources\/mangadex\/mangadex-0\.1\.0\.koma\}"/,
+  'local source package reader smoke wrapper must default to the source-project MangaDex package',
 )
 assert.match(
   localOfflineScript,

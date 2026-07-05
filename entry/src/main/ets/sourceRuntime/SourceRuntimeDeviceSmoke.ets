@@ -152,9 +152,12 @@ const SMOKE_PHASE_SOURCE_INDEX_BROWSE: string = 'source-index-browse'
 const SMOKE_PHASE_SOURCE_INDEX_SETTINGS: string = 'source-index-settings'
 const SMOKE_PHASE_READER_WIDE_SPLIT_FIXTURE: string = 'reader-wide-split-fixture'
 const SMOKE_PHASE_LOCAL_LIBRARY_FOLDER_READER: string = 'local-library-folder-reader'
+const SMOKE_PHASE_LOCAL_LIBRARY_FOLDER_VISIBLE_READER: string = 'local-library-folder-visible-reader'
 const SOURCE_INDEX_LIBRARY_SMOKE_FILE_NAME: string = 'source-index-library-smoke.v1.json'
 const LOCAL_LIBRARY_FOLDER_SMOKE_FILE_NAME: string = 'local-library-folder-smoke.v1.json'
 const SOURCE_RUNTIME_SMOKE_RESULT_FILE_NAME: string = 'source-runtime-smoke-result.json'
+const LOCAL_LIBRARY_FOLDER_SMOKE_ROOT: string = 'import/local-library-folder-smoke-root/extract'
+const LOCAL_LIBRARY_FOLDER_SMOKE_PAGE_BASE64: string = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAFgwJ/lWnzWQAAAABJRU5ErkJggg=='
 const REAL_SOURCE_RAWFILE_PATH: string = 'test/baozimh.wasm'
 const MANGADEX_RAWFILE_PATH: string = 'test/mangadex.wasm'
 const REAL_SOURCE_SEARCH_REQUEST: string = '{"operation":"search","query":"test"}'
@@ -595,6 +598,11 @@ export interface SourceRuntimeSmokeResult {
   localLibraryFolderTitle?: string
   localLibraryFolderChapterTitle?: string
   localLibraryFolderStoreFileName?: string
+  localLibraryFolderImageFilesOk?: boolean
+  localLibraryFolderVisiblePersistOk?: boolean
+  localLibraryFolderVisibleReloadOk?: boolean
+  localLibraryFolderVisibleReaderOk?: boolean
+  localLibraryFolderVisibleReaderKind?: string
   mangadexWasmBytes?: number
   mangadexResponse?: SourceRuntimeCallResponse
   sourceRuntimeSmokeResultFileName?: string
@@ -1216,7 +1224,70 @@ function joinSourceRuntimeSmokePath(parent: string, child: string): string {
   return left.length === 0 ? right : `${left}/${right}`
 }
 
-function verifyLocalLibraryFolderReaderSmoke(context: common.UIAbilityContext, result: SourceRuntimeSmokeResult): void {
+function dirnameSourceRuntimeSmokePath(path: string): string {
+  const normalized = path.replace(/\\/g, '/').replace(/\/+$/, '')
+  const slash = normalized.lastIndexOf('/')
+  return slash <= 0 ? '' : normalized.substring(0, slash)
+}
+
+function bytesToExactArrayBuffer(bytes: Uint8Array): ArrayBuffer {
+  const exact = new Uint8Array(bytes.byteLength)
+  exact.set(bytes)
+  return exact.buffer
+}
+
+function writeSourceRuntimeSmokeBytes(path: string, bytes: Uint8Array): void {
+  let file: fs.File | undefined = undefined
+  try {
+    file = fs.openSync(path, fs.OpenMode.WRITE_ONLY | fs.OpenMode.CREATE | fs.OpenMode.TRUNC)
+    fs.writeSync(file.fd, bytesToExactArrayBuffer(bytes))
+  } finally {
+    if (file !== undefined) {
+      fs.closeSync(file)
+    }
+  }
+}
+
+function ensureSourceRuntimeSmokeDir(path: string): void {
+  if (fs.accessSync(path)) {
+    return
+  }
+  fs.mkdirSync(path, true)
+}
+
+function materializeLocalLibraryFolderSmokeImages(filesDir: string): boolean {
+  const bytes = decodeSmokeBase64Bytes(LOCAL_LIBRARY_FOLDER_SMOKE_PAGE_BASE64)
+  if (bytes === undefined || bytes.byteLength === 0) {
+    return false
+  }
+  const root = joinSourceRuntimeSmokePath(filesDir, LOCAL_LIBRARY_FOLDER_SMOKE_ROOT)
+  const relativePaths = [
+    'Fixture Series/Chapter 01/001.png',
+    'Fixture Series/Chapter 01/002.png',
+    'Fixture Series/Chapter 02/001.png',
+  ]
+  try {
+    relativePaths.forEach((relativePath: string): void => {
+      const path = joinSourceRuntimeSmokePath(root, relativePath)
+      const parent = dirnameSourceRuntimeSmokePath(path)
+      if (parent.length > 0) {
+        ensureSourceRuntimeSmokeDir(parent)
+      }
+      writeSourceRuntimeSmokeBytes(path, bytes)
+    })
+    return relativePaths.every((relativePath: string): boolean => {
+      return fs.accessSync(joinSourceRuntimeSmokePath(root, relativePath))
+    })
+  } catch (_error) {
+    return false
+  }
+}
+
+function verifyLocalLibraryFolderReaderSmoke(
+  context: common.UIAbilityContext,
+  result: SourceRuntimeSmokeResult,
+  visible: boolean = false,
+): void {
   const entries: LocalLibraryFolderEntry[] = [
     {
       relativePath: 'Fixture Series/metadata.json',
@@ -1242,7 +1313,8 @@ function verifyLocalLibraryFolderReaderSmoke(context: common.UIAbilityContext, r
       chapter !== undefined &&
       chapter.pageCount === 2
 
-  const rootUri = `file://${joinSourceRuntimeSmokePath(context.filesDir, 'import/local-library-folder-smoke-root/extract')}`
+  result.localLibraryFolderImageFilesOk = materializeLocalLibraryFolderSmokeImages(context.filesDir)
+  const rootUri = `file://${joinSourceRuntimeSmokePath(context.filesDir, LOCAL_LIBRARY_FOLDER_SMOKE_ROOT)}`
   const libraryStore = new InMemoryLibraryStore()
   const persistence = new LibraryStorePersistenceService(
     libraryStore,
@@ -1278,6 +1350,56 @@ function verifyLocalLibraryFolderReaderSmoke(context: common.UIAbilityContext, r
         source.uri.startsWith(rootUri) &&
         source.imageUri.length > 0 &&
         config.totalPages === 2
+  }
+
+  if (!visible || comic === undefined) {
+    return
+  }
+
+  const visibleStore = new InMemoryLibraryStore()
+  const visiblePersistence = new LibraryStorePersistenceService(
+    visibleStore,
+    new AppFilesLibraryStorePersistenceAdapter(context.filesDir),
+  )
+  visiblePersistence.restore()
+  upsertLocalLibraryFolderScanAndPersistLibraryStore(visibleStore, visiblePersistence, scanResult, rootUri)
+  const visibleComic = visibleStore.getComic(comic.id)
+  result.localLibraryFolderVisiblePersistOk =
+    visibleComic !== undefined &&
+      visibleComic.sourceKind === ComicSourceKind.LOCAL_FOLDER &&
+      visibleComic.pageCount === 3
+
+  const visibleReloadedStore = new InMemoryLibraryStore()
+  const visibleReloadedPersistence = new LibraryStorePersistenceService(
+    visibleReloadedStore,
+    new AppFilesLibraryStorePersistenceAdapter(context.filesDir),
+  )
+  visibleReloadedPersistence.restore()
+  const visibleReloadedComic = visibleReloadedStore.getComic(comic.id)
+  result.localLibraryFolderVisibleReloadOk =
+    visibleReloadedComic !== undefined &&
+      visibleReloadedComic.title === 'Local Folder Smoke' &&
+      visibleReloadedComic.chapters[0]?.pages.length === 2
+
+  if (visibleReloadedComic !== undefined) {
+    const visibleConfig = createReaderSessionConfigFromComic(visibleReloadedComic, visibleReloadedComic.chapters[0]?.id)
+    const visibleSource = createReaderPageRenderSource(visibleConfig, 0, { offlineOnly: true })
+    result.localLibraryFolderVisibleReaderKind = visibleSource.kind
+    result.localLibraryFolderVisibleReaderOk =
+      visibleSource.kind === ReaderPageRenderKind.LOCAL_FILE_IMAGE &&
+        visibleSource.imageUri.length > 0 &&
+        visibleConfig.totalPages === 2
+    if (visibleConfig.totalPages > 0) {
+      new PersistentReaderSessionStore(
+        new AppFilesReaderSessionPersistenceAdapter(context.filesDir),
+      ).updatePageIndex(visibleConfig, 0, visibleConfig.pageIds[0])
+    }
+    result.sourceIndexVisibleLibraryStoreFileName = LIBRARY_STORE_PERSISTENCE_FILE_NAME
+    result.sourceIndexVisibleLibraryComicId = visibleReloadedComic.id
+    result.sourceIndexVisibleLibraryTitle = visibleReloadedComic.title
+    result.sourceIndexReaderMangaTitle = visibleReloadedComic.title
+    result.sourceIndexReaderChapterTitle = visibleReloadedComic.chapters[0]?.title
+    result.sourceIndexReaderPageCount = visibleConfig.totalPages
   }
 }
 
@@ -2667,18 +2789,25 @@ export async function maybeRunSourceRuntimeDeviceSmoke(
       return
     }
 
-    if (result.smokePhase === SMOKE_PHASE_LOCAL_LIBRARY_FOLDER_READER) {
+    if (result.smokePhase === SMOKE_PHASE_LOCAL_LIBRARY_FOLDER_READER ||
+      result.smokePhase === SMOKE_PHASE_LOCAL_LIBRARY_FOLDER_VISIBLE_READER) {
       if (context === undefined) {
-        result.error = 'local-library-folder-reader phase requires ability context'
+        result.error = `${result.smokePhase} phase requires ability context`
       } else {
-        verifyLocalLibraryFolderReaderSmoke(context, result)
+        const isVisibleLocalLibraryFolderPhase = result.smokePhase === SMOKE_PHASE_LOCAL_LIBRARY_FOLDER_VISIBLE_READER
+        verifyLocalLibraryFolderReaderSmoke(context, result, isVisibleLocalLibraryFolderPhase)
         result.ok =
           result.localLibraryFolderScanOk === true &&
+            result.localLibraryFolderImageFilesOk === true &&
             result.localLibraryFolderPersistOk === true &&
             result.localLibraryFolderReloadOk === true &&
-            result.localLibraryFolderReaderOk === true
+            result.localLibraryFolderReaderOk === true &&
+            (!isVisibleLocalLibraryFolderPhase ||
+              (result.localLibraryFolderVisiblePersistOk === true &&
+                result.localLibraryFolderVisibleReloadOk === true &&
+                result.localLibraryFolderVisibleReaderOk === true))
         if (!result.ok && result.error === undefined) {
-          result.error = 'local-library-folder-reader failed'
+          result.error = `${result.smokePhase} failed`
         }
       }
       compactSmokeResultForHilog(result)

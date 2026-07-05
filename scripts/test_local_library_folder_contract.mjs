@@ -46,25 +46,31 @@ assert.match(contractSource, /comicinfo\.xml/, 'production scanner must recogniz
 assert.match(localImportCoordinatorSource, /isLocalLibraryMetadataPath[\s\S]*comicinfo\.xml/, 'picked-folder runtime scan must read ComicInfo.xml sidecar text')
 assert.match(localImportCoordinatorSource, /readPickedFolderTextIfNeeded[\s\S]*byteSize > 1024 \* 1024[\s\S]*fs\.readTextSync/, 'picked-folder runtime sidecar IO must stay bounded to small text files')
 assert.match(smokeSource, /SMOKE_PHASE_LOCAL_LIBRARY_FOLDER_READER: string = 'local-library-folder-reader'/, 'device smoke must expose a local library folder reader phase')
+assert.match(smokeSource, /SMOKE_PHASE_LOCAL_LIBRARY_FOLDER_VISIBLE_READER: string = 'local-library-folder-visible-reader'/, 'device smoke must expose a visible local library folder reader phase')
 assert.match(
   smokeSource,
-  /verifyLocalLibraryFolderReaderSmoke[\s\S]*scanLocalLibraryFolderEntries[\s\S]*upsertLocalLibraryFolderScanAndPersistLibraryStore[\s\S]*reloadedPersistence\.restore\(\)[\s\S]*createReaderSessionConfigFromComic[\s\S]*ReaderPageRenderKind\.LOCAL_FILE_IMAGE/,
-  'local library folder reader smoke must scan a folder fixture, persist it, reload it, and verify Reader resolves a local image',
+  /ensureSourceRuntimeSmokeDir[\s\S]*fs\.mkdirSync[\s\S]*materializeLocalLibraryFolderSmokeImages[\s\S]*decodeSmokeBase64Bytes[\s\S]*ensureSourceRuntimeSmokeDir[\s\S]*writeSourceRuntimeSmokeBytes/,
+  'local library folder reader smoke must write real sandbox image files before visible Reader QA',
 )
 assert.match(
   smokeSource,
-  /localLibraryFolderScanOk === true[\s\S]*localLibraryFolderPersistOk === true[\s\S]*localLibraryFolderReloadOk === true[\s\S]*localLibraryFolderReaderOk === true/,
-  'local library folder reader smoke must fail unless scan, persist, reload, and reader checks all pass',
+  /verifyLocalLibraryFolderReaderSmoke[\s\S]*scanLocalLibraryFolderEntries[\s\S]*upsertLocalLibraryFolderScanAndPersistLibraryStore[\s\S]*reloadedPersistence\.restore\(\)[\s\S]*createReaderSessionConfigFromComic[\s\S]*ReaderPageRenderKind\.LOCAL_FILE_IMAGE[\s\S]*PersistentReaderSessionStore[\s\S]*updatePageIndex/,
+  'local library folder reader smoke must scan a folder fixture, persist it, reload it, seed progress, and verify Reader resolves a local image',
+)
+assert.match(
+  smokeSource,
+  /localLibraryFolderScanOk === true[\s\S]*localLibraryFolderImageFilesOk === true[\s\S]*localLibraryFolderPersistOk === true[\s\S]*localLibraryFolderReloadOk === true[\s\S]*localLibraryFolderReaderOk === true[\s\S]*localLibraryFolderVisiblePersistOk === true[\s\S]*localLibraryFolderVisibleReloadOk === true[\s\S]*localLibraryFolderVisibleReaderOk === true/,
+  'visible local library folder reader smoke must fail unless image files, scan, persist, reload, visible library, and reader checks all pass',
 )
 assert.match(
   sourceReaderSmokeScriptSource,
-  /local_library_folder_reader_phase="local-library-folder-reader"[\s\S]*requires_index="false"[\s\S]*phase == 'local-library-folder-reader'[\s\S]*localLibraryFolderReaderKind[\s\S]*local_file_image/,
-  'source reader smoke harness must run the local folder reader phase without a source index and require a local file reader source',
+  /local_library_folder_visible_reader_phase="local-library-folder-visible-reader"[\s\S]*requires_index="false"[\s\S]*phase in \('local-library-folder-reader', 'local-library-folder-visible-reader'\)[\s\S]*localLibraryFolderImageFilesOk[\s\S]*localLibraryFolderVisibleReaderKind[\s\S]*local_file_image/,
+  'source reader smoke harness must run local folder reader phases without a source index and require real local image files',
 )
 assert.match(
   localLibraryFolderReaderSmokeScriptSource,
-  /KOMA_SOURCE_READER_PHASE="\$\{KOMA_SOURCE_READER_PHASE:-local-library-folder-reader\}"[\s\S]*KOMA_SOURCE_READER_REQUIRES_INDEX="\$\{KOMA_SOURCE_READER_REQUIRES_INDEX:-false\}"[\s\S]*KOMA_SOURCE_READER_CAPTURE_UI="\$\{KOMA_SOURCE_READER_CAPTURE_UI:-false\}"[\s\S]*run_source_reader_smoke\.sh/,
-  'local library folder reader smoke wrapper must reuse the shared source reader smoke harness',
+  /KOMA_SOURCE_READER_PHASE="\$\{KOMA_SOURCE_READER_PHASE:-local-library-folder-visible-reader\}"[\s\S]*KOMA_SOURCE_READER_REQUIRES_INDEX="\$\{KOMA_SOURCE_READER_REQUIRES_INDEX:-false\}"[\s\S]*KOMA_SOURCE_READER_CAPTURE_UI="\$\{KOMA_SOURCE_READER_CAPTURE_UI:-true\}"[\s\S]*run_source_reader_smoke\.sh/,
+  'local library folder reader smoke wrapper must reuse the shared source reader smoke harness with visible Reader capture enabled',
 )
 
 const archiveExts = new Set(['.cbz', '.zip'])

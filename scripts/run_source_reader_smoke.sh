@@ -16,11 +16,13 @@ offline_download_visible_phase="source-index-visible-offline-download-reader"
 local_source_package_visible_phase="local-source-package-visible-reader"
 local_source_package_offline_download_visible_phase="local-source-package-visible-offline-download-reader"
 local_library_folder_reader_phase="local-library-folder-reader"
+local_library_folder_visible_reader_phase="local-library-folder-visible-reader"
 requires_index="${KOMA_SOURCE_READER_REQUIRES_INDEX:-true}"
 if [ "$phase" = "real-source-visible-reader" ] ||
   [ "$phase" = "$local_source_package_visible_phase" ] ||
   [ "$phase" = "$local_source_package_offline_download_visible_phase" ] ||
-  [ "$phase" = "$local_library_folder_reader_phase" ]; then
+  [ "$phase" = "$local_library_folder_reader_phase" ] ||
+  [ "$phase" = "$local_library_folder_visible_reader_phase" ]; then
   requires_index="false"
 fi
 dist_dir="${KOMA_SOURCES_DIST:-$repo/../koma-sources/dist}"
@@ -210,9 +212,11 @@ if result.get('ok') is not True:
     raise SystemExit('source reader smoke failed: result ok=false')
 if result.get('smokePhase') != phase:
     raise SystemExit('source reader smoke failed: phase mismatch')
-if phase == 'local-library-folder-reader':
+if phase in ('local-library-folder-reader', 'local-library-folder-visible-reader'):
     if result.get('localLibraryFolderScanOk') is not True:
         raise SystemExit('local library folder reader smoke failed: scan check failed')
+    if result.get('localLibraryFolderImageFilesOk') is not True:
+        raise SystemExit('local library folder reader smoke failed: image fixture files were not written')
     if result.get('localLibraryFolderPersistOk') is not True:
         raise SystemExit('local library folder reader smoke failed: persist check failed')
     if result.get('localLibraryFolderReloadOk') is not True:
@@ -221,6 +225,15 @@ if phase == 'local-library-folder-reader':
         raise SystemExit('local library folder reader smoke failed: reader did not use local file')
     if result.get('localLibraryFolderReaderOk') is not True:
         raise SystemExit('local library folder reader smoke failed: reader check failed')
+    if phase == 'local-library-folder-visible-reader':
+        if result.get('localLibraryFolderVisiblePersistOk') is not True:
+            raise SystemExit('local library folder visible reader smoke failed: visible persist check failed')
+        if result.get('localLibraryFolderVisibleReloadOk') is not True:
+            raise SystemExit('local library folder visible reader smoke failed: visible reload check failed')
+        if result.get('localLibraryFolderVisibleReaderKind') != 'local_file_image':
+            raise SystemExit('local library folder visible reader smoke failed: visible reader did not use local file')
+        if result.get('localLibraryFolderVisibleReaderOk') is not True:
+            raise SystemExit('local library folder visible reader smoke failed: visible reader check failed')
     raise SystemExit(0)
 if result.get('sourceIndexReaderSelectedSourceId') != source_id:
     raise SystemExit('source reader smoke failed: source id mismatch')
@@ -295,7 +308,7 @@ for ((attempt = 1; attempt <= library_poll_count; attempt += 1)); do
   rm -f "$library_layout" "$library_screen" "$reader_click"
   hdc_target file recv /data/local/tmp/koma-source-reader-library-layout.json "$library_layout"
   hdc_target file recv /data/local/tmp/koma-source-reader-library-screen.png "$library_screen"
-  if python3 - "$smoke_result" "$library_layout" "$reader_click" <<'PY'
+  if python3 - "$smoke_result" "$library_layout" "$reader_click" "$phase" <<'PY'
 import json
 import pathlib
 import re
@@ -304,6 +317,7 @@ import sys
 result = json.loads(pathlib.Path(sys.argv[1]).read_text(encoding='utf-8'))
 layout = json.loads(pathlib.Path(sys.argv[2]).read_text(encoding='utf-8'))
 click_path = pathlib.Path(sys.argv[3])
+phase = sys.argv[4]
 text = json.dumps(layout, ensure_ascii=False)
 
 def attrs(node):
@@ -344,7 +358,7 @@ title = result.get('sourceIndexVisibleLibraryTitle')
 chapter = result.get('sourceIndexReaderChapterTitle')
 if not title or title not in text:
     raise SystemExit('source reader smoke failed: library layout missing visible manga title')
-if not chapter or chapter not in text:
+if phase != 'local-library-folder-visible-reader' and (not chapter or chapter not in text):
     raise SystemExit('source reader smoke failed: library layout missing visible chapter title')
 for node in walk(layout):
     item = attrs(node)
@@ -403,6 +417,9 @@ if phase == 'source-index-download-corrupt-reader':
 if phase in ('source-index-visible-offline-download-reader', 'local-source-package-visible-offline-download-reader'):
     if result.get('sourceIndexDownloadOfflineReaderKind') != 'local_file_image':
         raise SystemExit('source reader smoke failed: visible offline reader did not use local file')
+if phase == 'local-library-folder-visible-reader':
+    if result.get('localLibraryFolderVisibleReaderKind') != 'local_file_image':
+        raise SystemExit('source reader smoke failed: visible local folder reader did not use local file')
 if '"type": "Image"' not in text and '"type":"Image"' not in text and screen_path.stat().st_size < 500000:
     raise SystemExit('source reader smoke failed: reader evidence missing visible image node or detailed screenshot')
 PY
