@@ -2599,7 +2599,6 @@ export struct SettingsPage {
         listSpace: ThemeConstants.SPACE_LG,
         horizontalPadding: ThemeConstants.SPACE_XL,
         bottomPadding: ThemeConstants.SPACE_XL,
-        floatingTabTailPadding: this.pane === 'root' ? ThemeConstants.SPACE_XXL * 3 : 0,
       }) {
         if (this.pane === 'root') {
           ListItem() {

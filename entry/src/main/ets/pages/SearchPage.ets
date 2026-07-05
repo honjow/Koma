@@ -734,7 +734,6 @@ export struct SearchPage {
           listSpace: ThemeConstants.SPACE_MD,
           horizontalPadding: ThemeConstants.SPACE_XL,
           bottomPadding: ThemeConstants.SPACE_XL,
-          floatingTabTailPadding: ThemeConstants.SPACE_XXL * 3,
         }) {
           ListItem() {
             this.SearchInput()

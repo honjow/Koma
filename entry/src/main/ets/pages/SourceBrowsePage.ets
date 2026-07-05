@@ -274,6 +274,48 @@ export struct SourceBrowsePage {
     })
   }
 
+  @Builder
+  private SourceToolbar() {
+    Row() {
+      Blank()
+      Text(`v${this.currentSource().version}`)
+        .fontSize(ThemeConstants.FONT_SIZE_META)
+        .fontColor(ThemeConstants.TEXT_SECONDARY)
+        .maxLines(1)
+        .textOverflow({ overflow: TextOverflow.Ellipsis })
+      KomaActionButton({
+        label: s('tab_search'),
+        kind: 'primary',
+        compact: true,
+        controlHeight: ThemeConstants.ACTION_CHIP_HEIGHT,
+        action: () => {
+          this.onSearchRequested(this.currentSource())
+        },
+      })
+      if (this.hasRuntimeFilters()) {
+        KomaActionButton({
+          label: s('common_filter'),
+          kind: this.filtersExpanded ? 'primary' : 'secondary',
+          compact: true,
+          controlHeight: ThemeConstants.ACTION_CHIP_HEIGHT,
+          action: () => {
+            this.toggleFilters()
+          },
+        })
+      }
+      KomaIconButton({
+        icon: $r('sys.symbol.arrow_clockwise'),
+        kind: 'secondary',
+        isEnabled: !this.viewModel.loadingBrowse,
+        action: () => {
+          this.reloadBrowse()
+        },
+      })
+    }
+    .width('100%')
+    .alignItems(VerticalAlign.Center)
+  }
+
   aboutToAppear(): void {
     if (this.shouldLoadBrowseOnAppear()) {
       this.reloadBrowse()
@@ -291,46 +333,7 @@ export struct SourceBrowsePage {
         },
       }) {
         ListItem() {
-          Row({ space: ThemeConstants.SPACE_MD }) {
-            Text(`${this.currentSource().displayName} · v${this.currentSource().version}`)
-              .fontSize(ThemeConstants.FONT_SIZE_META)
-              .fontWeight(FontWeight.Medium)
-              .fontColor(ThemeConstants.TEXT_SECONDARY)
-              .maxLines(1)
-              .textOverflow({ overflow: TextOverflow.Ellipsis })
-              .layoutWeight(1)
-            KomaActionButton({
-              label: s('tab_search'),
-              kind: 'primary',
-              compact: true,
-              controlHeight: ThemeConstants.ACTION_CHIP_HEIGHT,
-              action: () => {
-                this.onSearchRequested(this.currentSource())
-              },
-            })
-
-            if (this.hasRuntimeFilters()) {
-              KomaActionButton({
-                label: s('common_filter'),
-                kind: this.filtersExpanded ? 'primary' : 'secondary',
-                compact: true,
-                action: () => {
-                  this.toggleFilters()
-                },
-              })
-            }
-
-            KomaIconButton({
-              icon: $r('sys.symbol.arrow_clockwise'),
-              kind: 'secondary',
-              isEnabled: !this.viewModel.loadingBrowse,
-              action: () => {
-                this.reloadBrowse()
-              },
-            })
-          }
-          .width('100%')
-          .alignItems(VerticalAlign.Center)
+          this.SourceToolbar()
         }
 
         if (this.viewModel.listings.length > 1) {
