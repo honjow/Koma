@@ -309,7 +309,7 @@ export struct MangaDetailPage {
     }
     this.manga = mangaDetailFromComic(comic)
     this.chapters = this.decorateChapterStates(
-      comic.chapters.map((chapter: Chapter): MangaChapterItem => mangaChapterItemFromComicChapter(chapter))
+      comic.chapters.map((chapter: Chapter): MangaChapterItem => mangaChapterItemFromComicChapter(chapter, comic.sourceKind))
     )
     this.isInLibrary = true
     this.feedbackText = ''
@@ -406,7 +406,7 @@ export struct MangaDetailPage {
       }
       this.manga = mangaDetailFromComic(updated)
       this.chapters = this.decorateChapterStates(
-        updated.chapters.map((chapter: Chapter): MangaChapterItem => mangaChapterItemFromComicChapter(chapter))
+        updated.chapters.map((chapter: Chapter): MangaChapterItem => mangaChapterItemFromComicChapter(chapter, updated.sourceKind))
       )
       this.localMetadataEditorVisible = false
       this.feedbackText = s('manga_detail_local_metadata_saved')
@@ -1648,7 +1648,11 @@ function mangaDetailFromComic(comic: Comic): MangaDetail {
   }
 }
 
-function mangaChapterItemFromComicChapter(chapter: Chapter): MangaChapterItem {
+function chapterPagesAreLocalOffline(sourceKind: ComicSourceKind): boolean {
+  return sourceKind === ComicSourceKind.LOCAL_ARCHIVE || sourceKind === ComicSourceKind.LOCAL_FOLDER
+}
+
+function mangaChapterItemFromComicChapter(chapter: Chapter, sourceKind: ComicSourceKind): MangaChapterItem {
   return {
     id: chapter.id,
     title: chapter.title,
@@ -1657,7 +1661,7 @@ function mangaChapterItemFromComicChapter(chapter: Chapter): MangaChapterItem {
     language: chapter.language,
     dateUpload: chapter.dateUpload,
     isRead: false,
-    isDownloaded: chapter.pageCount > 0,
+    isDownloaded: chapterPagesAreLocalOffline(sourceKind) && chapter.pageCount > 0,
   }
 }
 

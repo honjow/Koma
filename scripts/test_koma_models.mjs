@@ -2120,8 +2120,13 @@ assert.match(
 )
 assert.match(
   mangaDetailPageSource,
-  /mangaChapterItemFromComicChapter\(chapter: Chapter\): MangaChapterItem[\s\S]*scanlator: chapter\.scanlator[\s\S]*language: chapter\.language[\s\S]*dateUpload: chapter\.dateUpload/,
+  /chapterPagesAreLocalOffline\(sourceKind: ComicSourceKind\): boolean[\s\S]*ComicSourceKind\.LOCAL_ARCHIVE[\s\S]*ComicSourceKind\.LOCAL_FOLDER[\s\S]*mangaChapterItemFromComicChapter\(chapter: Chapter, sourceKind: ComicSourceKind\): MangaChapterItem[\s\S]*scanlator: chapter\.scanlator[\s\S]*language: chapter\.language[\s\S]*dateUpload: chapter\.dateUpload[\s\S]*isDownloaded: chapterPagesAreLocalOffline\(sourceKind\) && chapter\.pageCount > 0/,
   'MangaDetailPage must hydrate chapter metadata from library chapters',
+)
+assert.match(
+  mangaDetailPageSource,
+  /comic\.chapters\.map\(\(chapter: Chapter\): MangaChapterItem => mangaChapterItemFromComicChapter\(chapter, comic\.sourceKind\)\)[\s\S]*updated\.chapters\.map\(\(chapter: Chapter\): MangaChapterItem => mangaChapterItemFromComicChapter\(chapter, updated\.sourceKind\)\)/,
+  'MangaDetailPage must not mark hydrated source chapters as downloaded without an offline download manifest',
 )
 assert.match(
   mangaDetailPageSource,
