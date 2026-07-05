@@ -169,7 +169,13 @@ export class SourceChapterPageHydrator {
     if (!lookup.ok || lookup.entry === undefined) {
       return { hydrated: false, pageCount: 0, reasonCode: lookup.reasonCode ?? 'source_lookup_failed' }
     }
-    const pages = await this.fetchChapterPages(lookup.entry, comic.id, chapterId)
+    let pages: Page[] = []
+    try {
+      pages = await this.fetchChapterPages(lookup.entry, comic.id, chapterId)
+    } catch (_error) {
+      console.warn('[SourceChapterPageHydrator] step=fetch_pages_failed failed=true reason=source_pages_failed')
+      return { hydrated: false, pageCount: 0, reasonCode: 'source_pages_failed' }
+    }
     if (pages.length === 0) {
       return { hydrated: false, pageCount: 0, reasonCode: 'pages_missing' }
     }

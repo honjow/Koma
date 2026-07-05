@@ -1674,6 +1674,11 @@ assert.match(
   'SourceChapterPageHydrator must build v1 get_pages envelopes with source settings and image host hints',
 )
 assert.match(
+  sourceChapterPageHydratorSource,
+  /try \{[\s\S]*pages = await this\.fetchChapterPages\(lookup\.entry, comic\.id, chapterId\)[\s\S]*\} catch \(_error\) \{[\s\S]*reason=source_pages_failed[\s\S]*return \{ hydrated: false, pageCount: 0, reasonCode: 'source_pages_failed' \}/,
+  'SourceChapterPageHydrator must fail closed with a reasonCode when source get_pages throws',
+)
+assert.match(
   readerPageSourceAdapterSource,
   /appSourceSettingsStore\.loadForSource\(sourceRuntimeId\)[\s\S]*operation: 'get_image_request'[\s\S]*settings,/,
   'ReaderPageSourceAdapter source image requests must inject per-source settings',
