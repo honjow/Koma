@@ -1702,8 +1702,8 @@ assert.match(
 )
 assert.match(
   comicCoverCardSource,
-  /import \{ CachedCoverImage, cachedCoverFailureKey \} from '\.\/CachedCoverImage'[\s\S]*sourceRuntimeId\?: string[\s\S]*sourceImageId\?: string[\s\S]*shouldUseSourceAwareCover\(\): boolean[\s\S]*this\.isRemoteCoverUri\(\) && this\.displaySourceRuntimeId\(\)\.trim\(\)\.length > 0[\s\S]*coverFailureKey\(\): string[\s\S]*cachedCoverFailureKey\(this\.displayCoverUri\(\), this\.displaySourceRuntimeId\(\), this\.comic\.sourceImageId \?\? this\.comic\.id\)[\s\S]*CachedCoverImage\(\{[\s\S]*uri: this\.displayCoverUri\(\)[\s\S]*sourceRuntimeId: this\.displaySourceRuntimeId\(\)[\s\S]*sourceImageId: this\.comic\.sourceImageId \?\? this\.comic\.id/,
-  'ComicCoverCard must use the raw source image id when rendering source package library covers',
+  /import \{ CachedCoverImage, cachedCoverFailureKey \} from '\.\/CachedCoverImage'[\s\S]*sourceRuntimeId\?: string[\s\S]*sourceImageId\?: string[\s\S]*shouldUseSourceAwareCover\(\): boolean[\s\S]*this\.displayCoverUri\(\)\.trim\(\)\.length > 0 && this\.displaySourceRuntimeId\(\)\.trim\(\)\.length > 0[\s\S]*coverFailureKey\(\): string[\s\S]*cachedCoverFailureKey\(this\.displayCoverUri\(\), this\.displaySourceRuntimeId\(\), this\.comic\.sourceImageId \?\? this\.comic\.id\)[\s\S]*CachedCoverImage\(\{[\s\S]*uri: this\.displayCoverUri\(\)[\s\S]*sourceRuntimeId: this\.displaySourceRuntimeId\(\)[\s\S]*sourceImageId: this\.comic\.sourceImageId \?\? this\.comic\.id/,
+  'ComicCoverCard must use the raw source image id when rendering source package library covers, including relative cover refs',
 )
 assert.match(
   comicCoverCardSource,

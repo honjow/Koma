@@ -305,9 +305,9 @@ export struct HistoryPage {
   }
 
   private isSourceAwareCover(item: LibraryItem): boolean {
-    const coverUri = item.coverUri?.toLocaleLowerCase() ?? ''
+    const coverUri = item.coverUri?.trim() ?? ''
     const sourceRuntimeId = item.sourceRuntimeId?.trim() ?? ''
-    return sourceRuntimeId.length > 0 && (coverUri.startsWith('http://') || coverUri.startsWith('https://'))
+    return sourceRuntimeId.length > 0 && coverUri.length > 0
   }
 
   private sourceImageIdForItem(item: LibraryItem): string {

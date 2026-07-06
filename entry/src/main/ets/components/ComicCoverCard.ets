@@ -66,13 +66,8 @@ export struct ComicCoverCard {
     return this.comic.sourceRuntimeId ?? ''
   }
 
-  private isRemoteCoverUri(): boolean {
-    const coverUri = this.displayCoverUri().toLocaleLowerCase()
-    return coverUri.startsWith('http://') || coverUri.startsWith('https://')
-  }
-
   private shouldUseSourceAwareCover(): boolean {
-    return this.isRemoteCoverUri() && this.displaySourceRuntimeId().trim().length > 0
+    return this.displayCoverUri().trim().length > 0 && this.displaySourceRuntimeId().trim().length > 0
   }
 
   private shouldDisplayCoverImage(): boolean {

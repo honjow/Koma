@@ -1854,8 +1854,8 @@ export struct LibraryPage {
 
   private isSourceAwareCover(comic: ComicCoverInfo): boolean {
     const sourceRuntimeId = comic.sourceRuntimeId?.trim() ?? ''
-    const coverUri = comic.coverUri?.toLocaleLowerCase() ?? ''
-    return sourceRuntimeId.length > 0 && (coverUri.startsWith('http://') || coverUri.startsWith('https://'))
+    const coverUri = comic.coverUri?.trim() ?? ''
+    return sourceRuntimeId.length > 0 && coverUri.length > 0
   }
 
   private sourceImageIdForComic(comic: ComicCoverInfo): string {

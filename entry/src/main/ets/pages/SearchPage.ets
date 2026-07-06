@@ -626,9 +626,9 @@ export struct SearchPage {
   }
 
   private isSourceAwareCover(item: CrossSearchResultItem): boolean {
-    const coverUri = item.coverUri?.toLocaleLowerCase() ?? ''
+    const coverUri = item.coverUri?.trim() ?? ''
     const sourceId = item.sourceId?.trim() ?? ''
-    return item.sourceKind === 'wasm' && sourceId.length > 0 && (coverUri.startsWith('http://') || coverUri.startsWith('https://'))
+    return item.sourceKind === 'wasm' && sourceId.length > 0 && coverUri.length > 0
   }
 
   @Builder
