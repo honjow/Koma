@@ -280,6 +280,8 @@ const ReaderPageUnavailableReason = {
   OFFLINE_MISSING: 'offline_missing',
 }
 
+const READER_OFFLINE_MISSING_URI_PREFIX = 'offline-missing://'
+
 function normalizeReaderPageUri(uri) {
   return uri.trim().replace(/\\/g, '/')
 }
@@ -435,6 +437,15 @@ function createReaderImageSourceUri(uri) {
 
 function createReaderPageRenderSource(config, pageIndex, options = {}) {
   const uri = getReaderSessionPageUri(config, pageIndex)
+  if (uri.startsWith(READER_OFFLINE_MISSING_URI_PREFIX)) {
+    return {
+      kind: ReaderPageRenderKind.URI_PLACEHOLDER,
+      uri,
+      imageUri: '',
+      fallbackPageIndex: pageIndex,
+      unavailableReason: ReaderPageUnavailableReason.OFFLINE_MISSING,
+    }
+  }
   if (options.offlineOnly === true) {
     if (isReaderLocalImageSourceUri(uri)) {
       return {
@@ -573,12 +584,15 @@ assert.match(readerPageSourceAdapterSource, /function createReaderOfflineDownloa
 assert.match(readerPageSourceAdapterSource, /export interface ReaderPageRenderSourceOptions\s*{[\s\S]*preferOffline\?: boolean[\s\S]*offlineOnly\?: boolean[\s\S]*}/, 'reader page render source must expose offline preference and offline-only options')
 assert.match(readerPageSourceAdapterSource, /export enum ReaderPageUnavailableReason \{[\s\S]*OFFLINE_MISSING = 'offline_missing'[\s\S]*SOURCE_UNAVAILABLE = 'source_unavailable'/, 'reader placeholders must distinguish not-downloaded offline pages from source page lookup failures')
 assert.match(readerPageSourceAdapterSource, /const READER_SOURCE_UNAVAILABLE_URI_PREFIX:\s*string = 'source-placeholder:\/\/'/, 'reader source-unavailable placeholders must use an internal URI prefix')
+assert.match(readerPageSourceAdapterSource, /const READER_OFFLINE_MISSING_URI_PREFIX:\s*string = 'offline-missing:\/\/'/, 'reader offline-missing placeholders must use an internal URI prefix')
 assert.match(readerPageSourceAdapterSource, /function createReaderUriRenderSource\(uri: string, pageIndex: number\)[\s\S]*uri\.startsWith\(READER_SOURCE_UNAVAILABLE_URI_PREFIX\)[\s\S]*ReaderPageRenderKind\.URI_PLACEHOLDER[\s\S]*unavailableReason:\s*ReaderPageUnavailableReason\.SOURCE_UNAVAILABLE/, 'reader adapter must resolve source-unavailable URIs directly as source failure placeholders')
-assert.match(readerPageSourceAdapterSource, /export function createReaderPageRenderSource\(config: ReaderSessionConfig, pageIndex: number, options\?: ReaderPageRenderSourceOptions\)[\s\S]*options\?\.preferOffline !== false[\s\S]*createReaderOfflineDownloadRenderSource\(config, pageIndex, options\?\.offlineOnly === true\)[\s\S]*offlineDownloadSource !== undefined[\s\S]*return offlineDownloadSource[\s\S]*const uri = getReaderSessionPageUri\(config, pageIndex\)[\s\S]*uri\.startsWith\(READER_SOURCE_UNAVAILABLE_URI_PREFIX\)[\s\S]*return createReaderUriRenderSource\(uri, pageIndex\)[\s\S]*options\?\.offlineOnly === true[\s\S]*createReaderUriRenderSource\(uri, pageIndex\)[\s\S]*ReaderPageRenderKind\.LOCAL_FILE_IMAGE[\s\S]*createReaderOfflineUnavailableSource\(config, pageIndex\)[\s\S]*createReaderSourceRuntimeRenderSource/, 'reader page render source must prefer owned offline local files and must not turn source-unavailable placeholders into source runtime fetches')
+assert.match(readerPageSourceAdapterSource, /function createReaderUriRenderSource\(uri: string, pageIndex: number\)[\s\S]*uri\.startsWith\(READER_OFFLINE_MISSING_URI_PREFIX\)[\s\S]*ReaderPageRenderKind\.URI_PLACEHOLDER[\s\S]*unavailableReason:\s*ReaderPageUnavailableReason\.OFFLINE_MISSING/, 'reader adapter must resolve offline-missing URIs directly as offline missing placeholders')
+assert.match(readerPageSourceAdapterSource, /export function createReaderPageRenderSource\(config: ReaderSessionConfig, pageIndex: number, options\?: ReaderPageRenderSourceOptions\)[\s\S]*options\?\.preferOffline !== false[\s\S]*createReaderOfflineDownloadRenderSource\(config, pageIndex, options\?\.offlineOnly === true\)[\s\S]*offlineDownloadSource !== undefined[\s\S]*return offlineDownloadSource[\s\S]*const uri = getReaderSessionPageUri\(config, pageIndex\)[\s\S]*uri\.startsWith\(READER_SOURCE_UNAVAILABLE_URI_PREFIX\)[\s\S]*return createReaderUriRenderSource\(uri, pageIndex\)[\s\S]*uri\.startsWith\(READER_OFFLINE_MISSING_URI_PREFIX\)[\s\S]*return createReaderUriRenderSource\(uri, pageIndex\)[\s\S]*options\?\.offlineOnly === true[\s\S]*createReaderUriRenderSource\(uri, pageIndex\)[\s\S]*ReaderPageRenderKind\.LOCAL_FILE_IMAGE[\s\S]*createReaderOfflineUnavailableSource\(config, pageIndex\)[\s\S]*createReaderSourceRuntimeRenderSource/, 'reader page render source must prefer owned offline local files and must not turn internal unavailable placeholders into source runtime fetches')
 assert.match(readerPageSourceAdapterSource, /function createReaderOfflineDownloadRenderSource\(config: ReaderSessionConfig, pageIndex: number, offlineOnly: boolean = false\)[\s\S]*localPath === undefined[\s\S]*offlineOnly && isOfflineManifestReaderOwned\(validation\)[\s\S]*createReaderOfflineUnavailableSource\(config, pageIndex\)[\s\S]*return undefined/, 'reader adapter must surface offline manifest page gaps as placeholders only for offline-only reads')
 assert.match(readerPageSource, /isDefaultNetworkUnavailable\(\): boolean[\s\S]*connection\.getDefaultNetSync\(\)\.netId === 0[\s\S]*offlineOnly: isDefaultNetworkUnavailable\(\)/, 'ReaderPage must pass offline-only mode into page resolution when the platform reports no default network')
 assert.match(readerPageSourceAdapterSource, /function isOfflineManifestReaderOwned\(validation: OfflineDownloadManifestValidation\): boolean[\s\S]*OfflineDownloadedChapterStatus\.DOWNLOADED[\s\S]*OfflineDownloadedChapterStatus\.PARTIAL[\s\S]*OfflineDownloadedChapterStatus\.CORRUPT/, 'reader adapter offline ownership must cover downloaded, partial, and corrupt manifests')
-assert.match(readerPageSourceAdapterSource, /function createReaderOfflineUnavailableSource\(config: ReaderSessionConfig, pageIndex: number\): ReaderPageRenderSource[\s\S]*ReaderPageRenderKind\.URI_PLACEHOLDER[\s\S]*offline-missing:\/\//, 'reader adapter must expose missing offline pages as honest placeholders')
+assert.match(readerPageSourceAdapterSource, /export function createReaderOfflineMissingUri\(comicId: string, chapterId: string, pageIndex: number\): string[\s\S]*READER_OFFLINE_MISSING_URI_PREFIX/, 'reader adapter must expose a shared offline missing URI builder for manifest-backed sessions')
+assert.match(readerPageSourceAdapterSource, /function createReaderOfflineUnavailableSource\(config: ReaderSessionConfig, pageIndex: number\): ReaderPageRenderSource[\s\S]*ReaderPageRenderKind\.URI_PLACEHOLDER[\s\S]*createReaderOfflineMissingUri\(config\.comicId, config\.chapterId, pageIndex\)/, 'reader adapter must expose missing offline pages as honest placeholders')
 assert.match(readerPageSourceAdapterSource, /function createReaderOfflineUnavailableSource\(config: ReaderSessionConfig, pageIndex: number\): ReaderPageRenderSource[\s\S]*unavailableReason:\s*ReaderPageUnavailableReason\.OFFLINE_MISSING/, 'reader adapter must label offline missing placeholders with a user-facing reason')
 assert.match(readerPageSource, /readerPlaceholderDetail\(source: ReaderPageRenderSource\): string[\s\S]*ReaderPageUnavailableReason\.OFFLINE_MISSING[\s\S]*reader_offline_page_missing[\s\S]*ReaderPageUnavailableReason\.SOURCE_UNAVAILABLE[\s\S]*reader_source_page_unavailable/, 'ReaderPage must render specific messages for offline missing and source-unavailable reader placeholders')
 assert.match(readerPageSource, /import \{ KomaActionButton \} from '\.\.\/components\/ui\/KomaActionButton'/, 'ReaderPage error recovery must use the shared action button component')
@@ -624,6 +638,7 @@ assert.match(readerPageSource, /private createSourceSignature\(sourceUri: string
 assert.match(readerPageSource, /remoteImageFailureDetail\(source: ReaderPageRenderSource\): string \{[\s\S]*source\.sourceRuntimeId !== undefined[\s\S]*reader_source_page_unavailable[\s\S]*reader_remote_page_unavailable[\s\S]*RemoteImagePage\(source: ReaderPageRenderSource[\s\S]*this\.hasImageLoadFailed\(source\.imageUri, source, splitSide\)[\s\S]*this\.PageErrorPlaceholder\(index, compact, this\.remoteImageFailureDetail\(source\), false, splitSide, true[\s\S]*this\.retryImageLoadFailure\(source\.imageUri, source, splitSide\)/, 'source-runtime reader failures must show source-specific recovery copy while ordinary remote failures keep offline/network copy')
 assert.match(readerPageSource, /LocalImagePage\(imageUri: string[\s\S]*this\.hasImageLoadFailed\(imageUri, undefined, splitSide\)[\s\S]*this\.PageErrorPlaceholder\(index, compact, s\('reader_local_page_unavailable'\), false, splitSide, true[\s\S]*this\.retryImageLoadFailure\(imageUri, undefined, splitSide\)/, 'local reader failures must not masquerade as remote network success')
 assert.match(indexSource, /createReaderSessionConfigFromComic/, 'index must open reader sessions from Comic records')
+assert.match(indexSource, /import \{ createReaderOfflineMissingUri, installReaderRemoteHeadersForComic \} from '\.\.\/model\/ReaderPageSourceAdapter'/, 'index must share the reader offline-missing URI contract with the adapter')
 assert.match(indexSource, /import \{[\s\S]*OfflineDownloadedChapterStatus[\s\S]*OfflineDownloadedPage[\s\S]*OfflineDownloadStore[\s\S]*\} from '\.\.\/model\/OfflineDownloadStore'/, 'index must have access to durable offline manifests when opening the reader')
 assert.match(indexSource, /createReaderSessionConfigForOpen\(comic: Comic, chapterId\?: string\): ReaderSessionConfig[\s\S]*createReaderSessionConfigFromComic\(comic, chapterId\)[\s\S]*config\.totalPages > 0[\s\S]*createOfflineDownloadReaderSessionConfig\(comic, offlineChapterId, config\) \?\? config/, 'reader opening must fall back to downloaded manifest pages when the library chapter has no page list')
 assert.match(indexSource, /hasAvailableOfflineReaderPages\(comicId: ComicId, chapterId: string \| undefined\)[\s\S]*validateDownloadedChapter\(comicId, chapterId, \{ validateContentHash: false \}\)[\s\S]*availablePageCount > 0[\s\S]*OfflineDownloadedChapterStatus\.DOWNLOADED[\s\S]*OfflineDownloadedChapterStatus\.PARTIAL/, 'reader opening must probe downloaded manifests before waiting on source page hydration')
@@ -636,7 +651,7 @@ assert.match(mangaDetailPageSource, /hasAvailableOfflineReaderPages\(chapterId: 
 assert.match(mangaDetailPageSource, /private async handleStartReading\(\)[\s\S]*if \(this\.manga\.sourceId !== undefined\) \{[\s\S]*if \(!this\.hasAvailableOfflineReaderPages\(chapterId\)\) \{[\s\S]*const hydration = await this\.ensureSourceChapterPages\(chapterId\)[\s\S]*this\.onOpenReader\(this\.currentComicId\(\), chapterId\)/, 'manga detail start reading must open reader-ready downloaded source chapters without waiting on the source runtime')
 assert.match(mangaDetailPageSource, /private async handleOpenChapter\(chapterId: string\)[\s\S]*if \(this\.manga\.sourceId !== undefined\) \{[\s\S]*if \(!this\.hasAvailableOfflineReaderPages\(chapterId\)\) \{[\s\S]*const hydration = await this\.ensureSourceChapterPages\(chapterId\)[\s\S]*this\.onOpenReader\(this\.currentComicId\(\), chapterId\)/, 'manga detail chapter rows must open reader-ready downloaded source chapters without waiting on the source runtime')
 assert.match(indexSource, /createOfflineDownloadReaderSessionConfig\([\s\S]*new OfflineDownloadStore\(context\.filesDir\)[\s\S]*validateDownloadedChapter\(comic\.id, chapterId, \{ validateContentHash: false \}\)[\s\S]*OfflineDownloadedChapterStatus\.DOWNLOADED[\s\S]*OfflineDownloadedChapterStatus\.PARTIAL[\s\S]*validation\.availablePageCount <= 0[\s\S]*return undefined/, 'offline manifest reader sessions must only use reader-ready downloaded or partial manifests with available pages')
-assert.match(indexSource, /for \(let index = 0; index < validation\.pageCount; index \+= 1\)[\s\S]*validation\.manifest\.pages\.find\(\(item: OfflineDownloadedPage\): boolean => item\.pageIndex === index\)[\s\S]*pageIds\.push\(pageId\)[\s\S]*pageUris\.push\(store\.resolveDownloadedPage\(comic\.id, chapterId, pageId, index, \{ validateContentHash: false \}\) \?\? ''\)/, 'offline manifest reader sessions must preserve manifest page count and leave missing pages as honest placeholders')
+assert.match(indexSource, /for \(let index = 0; index < validation\.pageCount; index \+= 1\)[\s\S]*validation\.manifest\.pages\.find\(\(item: OfflineDownloadedPage\): boolean => item\.pageIndex === index\)[\s\S]*pageIds\.push\(pageId\)[\s\S]*pageUris\.push\(store\.resolveDownloadedPage\(comic\.id, chapterId, pageId, index, \{ validateContentHash: false \}\) \?\?[\s\S]*createReaderOfflineMissingUri\(comic\.id, chapterId, index\)\)/, 'offline manifest reader sessions must preserve manifest page count and leave missing pages as honest placeholders')
 assert.match(indexSource, /pageWidths\.push\(page\?\.width\)[\s\S]*pageHeights\.push\(page\?\.height\)/, 'offline manifest reader sessions must preserve downloaded page dimensions for wide-page reader behavior')
 assert.match(indexSource, /const chapterTitles = chapterIds\.map\(\(item: string, index: number\): string => \{[\s\S]*baseConfig\.chapterTitles\?\.\[index\][\s\S]*item !== chapterId[\s\S]*validation\.manifest\?\.chapterTitle[\s\S]*chapterTitles,/, 'offline manifest reader sessions must preserve chapter titles for the reader chapter selector')
 assert.match(indexSource, /readerChapterIdForOpen\(comic: Comic, requestedChapterId\?: string\)[\s\S]*this\.readerSessionStore\.getProgress\(comic\.id\)[\s\S]*progress\.chapterId[\s\S]*sortedReaderChapters\(comic\.chapters\)\[0\]/, 'opening reader without an explicit chapter must prefer saved chapter progress before the default chapter')
@@ -881,6 +896,16 @@ assert.equal(fallbackUrlPage.pageUri, 'https://cdn.example.test/fallback/002.jpg
 const offlineSourceRuntimePage = createReaderPageRenderSource(sourceRuntimeConfig, 0, { offlineOnly: true })
 assert.equal(offlineSourceRuntimePage.kind, ReaderPageRenderKind.URI_PLACEHOLDER, 'offline-only reader must not render source runtime remote pages when no downloaded page is available')
 assert.match(offlineSourceRuntimePage.uri, /^offline-missing:\/\//, 'offline-only missing source pages must use an honest offline placeholder')
+const manifestMissingPage = createReaderPageRenderSource({
+  comicId: 'source-comic',
+  chapterId: 'downloaded-source-chapter',
+  totalPages: 1,
+  pageUris: ['offline-missing://comic/chapter/0'],
+  pageIds: ['page:source:missing'],
+  sourceRuntimeId: 'local.test.koma.fixture',
+}, 0)
+assert.equal(manifestMissingPage.kind, ReaderPageRenderKind.URI_PLACEHOLDER, 'manifest-backed missing pages must not fall through to source runtime rendering')
+assert.equal(manifestMissingPage.unavailableReason, ReaderPageUnavailableReason.OFFLINE_MISSING, 'manifest-backed missing pages must keep the offline missing reason')
 
 const imageRequestPayload = sourceRuntimeImageRequestPayload({
   imageRequest: {

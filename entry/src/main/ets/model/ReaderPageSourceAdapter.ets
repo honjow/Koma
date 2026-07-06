@@ -106,6 +106,7 @@ interface ReaderRemoteHeaderRule {
 }
 
 const READER_SOURCE_UNAVAILABLE_URI_PREFIX: string = 'source-placeholder://'
+const READER_OFFLINE_MISSING_URI_PREFIX: string = 'offline-missing://'
 
 interface SourceRuntimeImageHeaderRule {
   sourceRuntimeId: string
@@ -517,6 +518,15 @@ function createReaderUriRenderSource(uri: string, pageIndex: number): ReaderPage
       unavailableReason: ReaderPageUnavailableReason.SOURCE_UNAVAILABLE,
     }
   }
+  if (uri.startsWith(READER_OFFLINE_MISSING_URI_PREFIX)) {
+    return {
+      kind: ReaderPageRenderKind.URI_PLACEHOLDER,
+      uri,
+      imageUri: '',
+      fallbackPageIndex: pageIndex,
+      unavailableReason: ReaderPageUnavailableReason.OFFLINE_MISSING,
+    }
+  }
   if (uri.length === 0 || uri.startsWith('mock://')) {
     return {
       kind: ReaderPageRenderKind.URI_PLACEHOLDER,
@@ -766,10 +776,14 @@ function isOfflineManifestReaderOwned(validation: OfflineDownloadManifestValidat
       validation.status === OfflineDownloadedChapterStatus.CORRUPT)
 }
 
+export function createReaderOfflineMissingUri(comicId: string, chapterId: string, pageIndex: number): string {
+  return `${READER_OFFLINE_MISSING_URI_PREFIX}${createShortReaderHash(comicId)}/${createShortReaderHash(chapterId)}/${pageIndex}`
+}
+
 function createReaderOfflineUnavailableSource(config: ReaderSessionConfig, pageIndex: number): ReaderPageRenderSource {
   return {
     kind: ReaderPageRenderKind.URI_PLACEHOLDER,
-    uri: `offline-missing://${createShortReaderHash(config.comicId)}/${createShortReaderHash(config.chapterId)}/${pageIndex}`,
+    uri: createReaderOfflineMissingUri(config.comicId, config.chapterId, pageIndex),
     imageUri: '',
     fallbackPageIndex: pageIndex,
     pageId: getReaderSessionPageId(config, pageIndex),
@@ -997,6 +1011,9 @@ export function createReaderPageRenderSource(config: ReaderSessionConfig, pageIn
   }
   const uri = getReaderSessionPageUri(config, pageIndex)
   if (uri.startsWith(READER_SOURCE_UNAVAILABLE_URI_PREFIX)) {
+    return createReaderUriRenderSource(uri, pageIndex)
+  }
+  if (uri.startsWith(READER_OFFLINE_MISSING_URI_PREFIX)) {
     return createReaderUriRenderSource(uri, pageIndex)
   }
   if (options?.offlineOnly === true) {

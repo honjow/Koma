@@ -84,7 +84,7 @@ import {
   createReaderSessionConfigFromComic,
   sortedReaderChapters,
 } from '../model/ReaderSessionStore'
-import { installReaderRemoteHeadersForComic } from '../model/ReaderPageSourceAdapter'
+import { createReaderOfflineMissingUri, installReaderRemoteHeadersForComic } from '../model/ReaderPageSourceAdapter'
 import { SourceChapterPageHydrator } from '../model/SourceChapterPageHydrator'
 import { SourceRuntimeRegistry } from '../sourceRuntime/SourceRuntimeRegistry'
 import { SourceRuntimeRegistryInstalledSourceSummary } from '../sourceRuntime/SourceRuntimeRegistry'
@@ -330,7 +330,8 @@ struct Index {
         const page = validation.manifest.pages.find((item: OfflineDownloadedPage): boolean => item.pageIndex === index)
         const pageId = page?.pageId ?? `page-${index + 1}`
         pageIds.push(pageId)
-        pageUris.push(store.resolveDownloadedPage(comic.id, chapterId, pageId, index, { validateContentHash: false }) ?? '')
+        pageUris.push(store.resolveDownloadedPage(comic.id, chapterId, pageId, index, { validateContentHash: false }) ??
+          createReaderOfflineMissingUri(comic.id, chapterId, index))
         pageWidths.push(page?.width)
         pageHeights.push(page?.height)
       }
