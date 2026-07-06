@@ -1,5 +1,4 @@
 import { common } from '@kit.AbilityKit'
-import { Chip, ChipSize } from '@kit.ArkUI'
 import { ComicCoverCard, ComicCoverInfo } from '../components/ComicCoverCard'
 import { CachedCoverImage, cachedCoverFailureKey } from '../components/CachedCoverImage'
 import { SecondaryListScaffold } from '../components/SecondaryListScaffold'
@@ -1592,107 +1591,53 @@ export struct LibraryPage {
   private SortFilterBar() {
     Scroll() {
       Row({ space: ThemeConstants.SPACE_SM }) {
-        Row() {
-          Chip({
-            label: {
-              text: s('library_sort_chip').replace('%s', this.sortLabel()),
-              fontSize: ThemeConstants.FONT_SIZE_TAG,
-              fontColor: ThemeConstants.TEXT_PRIMARY,
-              activatedFontColor: ThemeConstants.TEXT_ON_BRAND,
-            },
-            activated: this.sortBy !== 'lastRead',
-            size: ChipSize.SMALL,
-            backgroundColor: $r('sys.color.ohos_id_color_button_normal'),
-            activatedBackgroundColor: ThemeConstants.BRAND_PRIMARY,
-            borderRadius: ThemeConstants.RADIUS_ROUND,
-            allowClose: false,
-          })
-        }
+        KomaActionButton({
+          label: s('library_sort_chip').replace('%s', this.sortLabel()),
+          kind: this.sortBy === 'lastRead' ? 'secondary' : 'primary',
+          icon: $r('sys.symbol.chevron_down'),
+          compact: true,
+          controlHeight: ThemeConstants.ACTION_CHIP_HEIGHT,
+        })
         .bindMenu(this.SortMenu())
-        Row() {
-          Chip({
-            label: {
-              text: `${this.sourceLabel()} ▾`,
-              fontSize: ThemeConstants.FONT_SIZE_TAG,
-              fontColor: ThemeConstants.TEXT_PRIMARY,
-              activatedFontColor: ThemeConstants.TEXT_ON_BRAND,
-            },
-            activated: this.filterSource !== 'all',
-            size: ChipSize.SMALL,
-            backgroundColor: $r('sys.color.ohos_id_color_button_normal'),
-            activatedBackgroundColor: ThemeConstants.BRAND_PRIMARY,
-            borderRadius: ThemeConstants.RADIUS_ROUND,
-            allowClose: false,
-          })
-        }
+        KomaActionButton({
+          label: this.sourceLabel(),
+          kind: this.filterSource === 'all' ? 'secondary' : 'primary',
+          icon: $r('sys.symbol.chevron_down'),
+          compact: true,
+          controlHeight: ThemeConstants.ACTION_CHIP_HEIGHT,
+        })
         .bindMenu(this.SourceMenu())
-        Row() {
-          Chip({
-            label: {
-              text: `${this.readStateLabel()} ▾`,
-              fontSize: ThemeConstants.FONT_SIZE_TAG,
-              fontColor: ThemeConstants.TEXT_PRIMARY,
-              activatedFontColor: ThemeConstants.TEXT_ON_BRAND,
-            },
-            activated: this.filterReadState !== 'all',
-            size: ChipSize.SMALL,
-            backgroundColor: $r('sys.color.ohos_id_color_button_normal'),
-            activatedBackgroundColor: ThemeConstants.BRAND_PRIMARY,
-            borderRadius: ThemeConstants.RADIUS_ROUND,
-            allowClose: false,
-          })
-        }
+        KomaActionButton({
+          label: this.readStateLabel(),
+          kind: this.filterReadState === 'all' ? 'secondary' : 'primary',
+          icon: $r('sys.symbol.chevron_down'),
+          compact: true,
+          controlHeight: ThemeConstants.ACTION_CHIP_HEIGHT,
+        })
         .bindMenu(this.ReadStateMenu())
-        Row() {
-          Chip({
-            label: {
-              text: `${this.availabilityLabel()} ▾`,
-              fontSize: ThemeConstants.FONT_SIZE_TAG,
-              fontColor: ThemeConstants.TEXT_PRIMARY,
-              activatedFontColor: ThemeConstants.TEXT_ON_BRAND,
-            },
-            activated: this.filterAvailability !== 'all',
-            size: ChipSize.SMALL,
-            backgroundColor: $r('sys.color.ohos_id_color_button_normal'),
-            activatedBackgroundColor: ThemeConstants.BRAND_PRIMARY,
-            borderRadius: ThemeConstants.RADIUS_ROUND,
-            allowClose: false,
-          })
-        }
+        KomaActionButton({
+          label: this.availabilityLabel(),
+          kind: this.filterAvailability === 'all' ? 'secondary' : 'primary',
+          icon: $r('sys.symbol.chevron_down'),
+          compact: true,
+          controlHeight: ThemeConstants.ACTION_CHIP_HEIGHT,
+        })
         .bindMenu(this.AvailabilityMenu())
-        Row() {
-          Chip({
-            label: {
-              text: `${this.metadataStatusLabel()} ▾`,
-              fontSize: ThemeConstants.FONT_SIZE_TAG,
-              fontColor: ThemeConstants.TEXT_PRIMARY,
-              activatedFontColor: ThemeConstants.TEXT_ON_BRAND,
-            },
-            activated: this.filterMetadataStatus !== 'all',
-            size: ChipSize.SMALL,
-            backgroundColor: $r('sys.color.ohos_id_color_button_normal'),
-            activatedBackgroundColor: ThemeConstants.BRAND_PRIMARY,
-            borderRadius: ThemeConstants.RADIUS_ROUND,
-            allowClose: false,
-          })
-        }
+        KomaActionButton({
+          label: this.metadataStatusLabel(),
+          kind: this.filterMetadataStatus === 'all' ? 'secondary' : 'primary',
+          icon: $r('sys.symbol.chevron_down'),
+          compact: true,
+          controlHeight: ThemeConstants.ACTION_CHIP_HEIGHT,
+        })
         .bindMenu(this.MetadataStatusMenu())
-        Row() {
-          Chip({
-            label: {
-              text: `${this.categoryLabel()} ▾`,
-              fontSize: ThemeConstants.FONT_SIZE_TAG,
-              fontColor: ThemeConstants.TEXT_PRIMARY,
-              activatedFontColor: ThemeConstants.TEXT_ON_BRAND,
-            },
-            activated: this.filterCategory !== 'all',
-            size: ChipSize.SMALL,
-            backgroundColor: $r('sys.color.ohos_id_color_button_normal'),
-            activatedBackgroundColor: ThemeConstants.BRAND_PRIMARY,
-            borderRadius: ThemeConstants.RADIUS_ROUND,
-            allowClose: false,
-          })
-        }
+        KomaActionButton({
+          label: this.categoryLabel(),
+          kind: this.filterCategory === 'all' ? 'secondary' : 'primary',
+          icon: $r('sys.symbol.chevron_down'),
+          compact: true,
+          controlHeight: ThemeConstants.ACTION_CHIP_HEIGHT,
+        })
         .bindMenu(this.CategoryMenu())
         if (this.hasActiveFilters()) {
           KomaActionButton({
@@ -1767,16 +1712,18 @@ export struct LibraryPage {
       })
 
       KomaActionButton({
-        label: `${s('library_action_categories')} ▾`,
+        label: s('library_action_categories'),
         kind: 'primary',
+        icon: $r('sys.symbol.chevron_down'),
         isEnabled: this.selectedCount() > 0,
         controlHeight: ThemeConstants.ACTION_CHIP_HEIGHT,
       })
         .bindMenu(this.BatchCategoryMenu())
 
       KomaActionButton({
-        label: `${s('library_category_read_state_title')} ▾`,
+        label: s('library_category_read_state_title'),
         kind: 'secondary',
+        icon: $r('sys.symbol.chevron_down'),
         isEnabled: this.selectedCount() > 0,
         controlHeight: ThemeConstants.ACTION_CHIP_HEIGHT,
       })

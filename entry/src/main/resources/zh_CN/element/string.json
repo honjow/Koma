@@ -579,7 +579,7 @@
     { "name": "library_batch_marked_unread", "value": "已将所选漫画标记为未读" },
     { "name": "library_batch_read_state_no_chapters", "value": "所选漫画没有可标记章节" },
     { "name": "library_batch_read_state_unavailable", "value": "阅读状态不可用" },
-    { "name": "library_sort_chip", "value": "排序 %s ▾" },
+    { "name": "library_sort_chip", "value": "排序 %s" },
     { "name": "library_empty_title", "value": "还没有漫画" },
     { "name": "library_empty_message", "value": "导入本地 CBZ 或 ZIP 后会显示在书架中。" },
     { "name": "library_filtered_empty_title", "value": "没有符合条件的漫画" },

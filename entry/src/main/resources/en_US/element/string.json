@@ -579,7 +579,7 @@
     { "name": "library_batch_marked_unread", "value": "Selected comics marked unread" },
     { "name": "library_batch_read_state_no_chapters", "value": "Selected comics have no chapters to mark" },
     { "name": "library_batch_read_state_unavailable", "value": "Read state is unavailable" },
-    { "name": "library_sort_chip", "value": "Sort %s ▾" },
+    { "name": "library_sort_chip", "value": "Sort %s" },
     { "name": "library_empty_title", "value": "No comics yet" },
     { "name": "library_empty_message", "value": "Import local CBZ or ZIP files and they will appear here." },
     { "name": "library_filtered_empty_title", "value": "No matching comics" },

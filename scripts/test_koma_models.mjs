@@ -1029,13 +1029,13 @@ assert.match(
 )
 assert.match(
   libraryPageSource,
-  /private AvailabilityMenu\(\)[\s\S]*setAvailabilityFilter\('all'\)[\s\S]*library_availability_downloaded[\s\S]*setAvailabilityFilter\('downloaded'\)[\s\S]*library_availability_fully_downloaded[\s\S]*setAvailabilityFilter\('fully_downloaded'\)[\s\S]*library_availability_partially_downloaded[\s\S]*setAvailabilityFilter\('partially_downloaded'\)[\s\S]*library_availability_not_downloaded[\s\S]*setAvailabilityFilter\('not_downloaded'\)[\s\S]*this\.availabilityLabel\(\)[\s\S]*this\.filterAvailability !== 'all'/,
-  'LibraryPage must expose user-visible any/complete/partial/not-downloaded availability filter chips',
+  /private AvailabilityMenu\(\)[\s\S]*setAvailabilityFilter\('all'\)[\s\S]*library_availability_downloaded[\s\S]*setAvailabilityFilter\('downloaded'\)[\s\S]*library_availability_fully_downloaded[\s\S]*setAvailabilityFilter\('fully_downloaded'\)[\s\S]*library_availability_partially_downloaded[\s\S]*setAvailabilityFilter\('partially_downloaded'\)[\s\S]*library_availability_not_downloaded[\s\S]*setAvailabilityFilter\('not_downloaded'\)[\s\S]*label: this\.availabilityLabel\(\)[\s\S]*this\.filterAvailability === 'all' \? 'secondary' : 'primary'/,
+  'LibraryPage must expose user-visible any/complete/partial/not-downloaded availability filter menu buttons',
 )
 assert.match(
   libraryPageSource,
-  /private MetadataStatusMenu\(\)[\s\S]*setMetadataStatusFilter\('all'\)[\s\S]*manga_status_ongoing[\s\S]*setMetadataStatusFilter\('ongoing'\)[\s\S]*manga_status_completed[\s\S]*setMetadataStatusFilter\('completed'\)[\s\S]*manga_status_hiatus[\s\S]*setMetadataStatusFilter\('hiatus'\)[\s\S]*manga_status_cancelled[\s\S]*setMetadataStatusFilter\('cancelled'\)[\s\S]*manga_status_unknown[\s\S]*setMetadataStatusFilter\('unknown'\)[\s\S]*this\.metadataStatusLabel\(\)[\s\S]*this\.filterMetadataStatus !== 'all'/,
-  'LibraryPage must expose metadata status as a real menu-backed filter chip',
+  /private MetadataStatusMenu\(\)[\s\S]*setMetadataStatusFilter\('all'\)[\s\S]*manga_status_ongoing[\s\S]*setMetadataStatusFilter\('ongoing'\)[\s\S]*manga_status_completed[\s\S]*setMetadataStatusFilter\('completed'\)[\s\S]*manga_status_hiatus[\s\S]*setMetadataStatusFilter\('hiatus'\)[\s\S]*manga_status_cancelled[\s\S]*setMetadataStatusFilter\('cancelled'\)[\s\S]*manga_status_unknown[\s\S]*setMetadataStatusFilter\('unknown'\)[\s\S]*label: this\.metadataStatusLabel\(\)[\s\S]*this\.filterMetadataStatus === 'all' \? 'secondary' : 'primary'/,
+  'LibraryPage must expose metadata status as a real menu-backed filter button',
 )
 assert.match(
   libraryPageSource,
