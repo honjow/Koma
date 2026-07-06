@@ -1127,13 +1127,28 @@ assert.match(
 )
 assert.match(
   managerPageSource,
-  /checkInstalledUpdates\(\): Promise<void>[\s\S]*this\.sourceIndexService\.fetchIndex\(url\)[\s\S]*status: 'missing'[\s\S]*status: 'update'[\s\S]*status: 'latest'/,
-  'installed update refresh must derive missing/update/latest from the configured source index',
+  /interface SourcePackageUpdateStatus \{[\s\S]*remoteEntry\?: SourceIndexEntry[\s\S]*remoteIndexUrl\?: string/,
+  'installed update status must remember the source index URL that supplied an update entry',
 )
 assert.match(
   managerPageSource,
-  /updateInstalledPackage\(source: InstalledSourcePackage\): Promise<void>[\s\S]*this\.sourceIndexService\.installPackage\(url, entry\)[\s\S]*setEnabled\(this\.context\(\), source\.id, false\)/,
-  'selected source update must reuse SourceIndexService install validation and preserve disabled state',
+  /sourceIndexUrlsForUpdate\(activeUrl: string\): string\[\][\s\S]*this\.sourceIndexRepositories\.forEach[\s\S]*urls\.indexOf\(repositoryUrl\) < 0/,
+  'installed update refresh must build a de-duplicated list from the active index and saved repositories',
+)
+assert.match(
+  managerPageSource,
+  /checkInstalledUpdates\(\): Promise<void>[\s\S]*this\.sourceIndexRepositories = await this\.sourceIndexService\.loadSavedRepositories\(\)[\s\S]*const updateIndexUrls = this\.sourceIndexUrlsForUpdate\(url\)[\s\S]*for \(let index = 0; index < updateIndexUrls\.length; index \+= 1\)[\s\S]*this\.sourceIndexService\.fetchIndex\(indexUrl\)[\s\S]*candidates\[entry\.id\][\s\S]*compareVersion\(entry\.version, existing\.entry\.version\) > 0/,
+  'installed update refresh must fetch all saved source indexes and keep the newest candidate per source id',
+)
+assert.match(
+  managerPageSource,
+  /checkInstalledUpdates\(\): Promise<void>[\s\S]*status: 'missing'[\s\S]*status: 'update'[\s\S]*remoteIndexUrl: candidate\.indexUrl[\s\S]*status: 'latest'[\s\S]*remoteIndexUrl: candidate\.indexUrl/,
+  'installed update refresh must derive missing/update/latest and store the supplying index URL on remote statuses',
+)
+assert.match(
+  managerPageSource,
+  /updateInstalledPackage\(source: InstalledSourcePackage\): Promise<void>[\s\S]*let url = this\.updateIndexUrl\(source\.id\)[\s\S]*this\.sourceIndexService\.installPackage\(url, entry\)[\s\S]*setEnabled\(this\.context\(\), source\.id, false\)[\s\S]*remoteIndexUrl: url/,
+  'selected source update must install from the update entry source index, reuse SourceIndexService validation, and preserve disabled state',
 )
 assert.match(
   managerPageSource,

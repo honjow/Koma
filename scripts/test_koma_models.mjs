@@ -3001,8 +3001,8 @@ assert.match(
 )
 assert.match(
   sourcePackageManagerPageSource,
-  /checkInstalledUpdates\(\): Promise<void>[\s\S]*this\.sourceIndexService\.fetchIndex\(url\)[\s\S]*compareVersion\(entry\.version, source\.version\)/,
-  'installed source update checks must fetch the user-configured source index and compare remote/local versions',
+  /checkInstalledUpdates\(\): Promise<void>[\s\S]*const updateIndexUrls = this\.sourceIndexUrlsForUpdate\(url\)[\s\S]*this\.sourceIndexService\.fetchIndex\(indexUrl\)[\s\S]*compareVersion\(entry\.version, source\.version\)[\s\S]*remoteIndexUrl: candidate\.indexUrl/,
+  'installed source update checks must fetch saved source indexes, compare remote/local versions, and remember the update source index',
 )
 assert.match(
   readFileSync(resolve(root, 'entry/src/main/ets/sourceRuntime/SourceIndexService.ets'), 'utf8'),

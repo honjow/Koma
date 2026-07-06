@@ -59,9 +59,15 @@ interface SourcePackageUpdateStatus {
   sourceId: string
   status: SourcePackageUpdateState
   remoteEntry?: SourceIndexEntry
+  remoteIndexUrl?: string
   remoteVersion?: string
   localVersion?: string
   reasonCode?: string
+}
+
+interface SourcePackageUpdateCandidate {
+  entry: SourceIndexEntry
+  indexUrl: string
 }
 
 interface SourceSettingsValidationStatus {
@@ -394,6 +400,26 @@ export struct SourcePackageManagerPage {
     return status.status === 'update' ? status.remoteEntry : undefined
   }
 
+  private updateIndexUrl(sourceId: string): string {
+    const status = this.updateStatus(sourceId)
+    return status.status === 'update' && status.remoteIndexUrl !== undefined ? status.remoteIndexUrl : ''
+  }
+
+  private sourceIndexUrlsForUpdate(activeUrl: string): string[] {
+    const urls: string[] = []
+    const normalizedActiveUrl = activeUrl.trim()
+    if (normalizedActiveUrl.length > 0) {
+      urls.push(normalizedActiveUrl)
+    }
+    this.sourceIndexRepositories.forEach((repository: SourceIndexRepository) => {
+      const repositoryUrl = repository.url.trim()
+      if (repositoryUrl.length > 0 && urls.indexOf(repositoryUrl) < 0) {
+        urls.push(repositoryUrl)
+      }
+    })
+    return urls
+  }
+
   private async currentIndexUrlOrPrompt(): Promise<string> {
     let url = this.sourceIndexUrl.trim()
     if (url.length === 0) {
@@ -432,30 +458,56 @@ export struct SourcePackageManagerPage {
     })
     try {
       await this.sourceIndexService.saveUrl(url)
-      const result: SourceIndexFetchResult = await this.sourceIndexService.fetchIndex(url)
-      if (!result.ok) {
+      this.sourceIndexRepositories = await this.sourceIndexService.loadSavedRepositories()
+      const updateIndexUrls = this.sourceIndexUrlsForUpdate(url)
+      const candidates: Record<string, SourcePackageUpdateCandidate> = {}
+      let loadedIndexCount = 0
+      let failedIndexCount = 0
+      let firstFailureReason = 'network_error'
+      for (let index = 0; index < updateIndexUrls.length; index += 1) {
+        const indexUrl = updateIndexUrls[index]
+        const result: SourceIndexFetchResult = await this.sourceIndexService.fetchIndex(indexUrl)
+        if (!result.ok) {
+          failedIndexCount += 1
+          firstFailureReason = result.reasonCode ?? firstFailureReason
+          continue
+        }
+        loadedIndexCount += 1
+        if (indexUrl === url || this.indexEntries.length === 0) {
+          this.indexEntries = result.entries
+          this.indexStatusText = tf('source_pkg_index_loaded', result.entries.length)
+        }
+        result.entries.forEach((entry: SourceIndexEntry) => {
+          const existing = candidates[entry.id]
+          if (existing === undefined || this.compareVersion(entry.version, existing.entry.version) > 0) {
+            candidates[entry.id] = {
+              entry,
+              indexUrl,
+            }
+          }
+        })
+      }
+      if (loadedIndexCount === 0) {
         this.packageUpdateStatuses = this.packages.map((source: InstalledSourcePackage): SourcePackageUpdateStatus => {
           return {
             sourceId: source.id,
             status: 'failed',
             localVersion: source.version,
-            reasonCode: result.reasonCode,
+            reasonCode: firstFailureReason,
           }
         })
-        this.statusText = tf('source_pkg_check_failed', this.sourceRedactedReasonText(result.reasonCode))
+        this.statusText = tf('source_pkg_check_failed', this.sourceRedactedReasonText(firstFailureReason))
         console.info('[SourcePackageUpdate] step=check_done update=0 latest=0 missing=0 failed=' + count)
         return
       }
 
-      this.indexEntries = result.entries
-      this.indexStatusText = tf('source_pkg_index_loaded', result.entries.length)
       let updateCount = 0
       let latestCount = 0
       let missingCount = 0
       const nextStatuses: SourcePackageUpdateStatus[] = []
       this.packages.forEach((source: InstalledSourcePackage) => {
-        const entry = result.entries.find((item: SourceIndexEntry): boolean => item.id === source.id)
-        if (entry === undefined) {
+        const candidate = candidates[source.id]
+        if (candidate === undefined) {
           missingCount += 1
           nextStatuses.push({
             sourceId: source.id,
@@ -464,12 +516,14 @@ export struct SourcePackageManagerPage {
           })
           return
         }
+        const entry = candidate.entry
         if (entry.version.length > 0 && source.version.length > 0 && this.compareVersion(entry.version, source.version) > 0) {
           updateCount += 1
           nextStatuses.push({
             sourceId: source.id,
             status: 'update',
             remoteEntry: entry,
+            remoteIndexUrl: candidate.indexUrl,
             remoteVersion: entry.version,
             localVersion: source.version,
           })
@@ -480,13 +534,15 @@ export struct SourcePackageManagerPage {
           sourceId: source.id,
           status: 'latest',
           remoteEntry: entry,
+          remoteIndexUrl: candidate.indexUrl,
           remoteVersion: entry.version,
           localVersion: source.version,
         })
       })
       this.packageUpdateStatuses = nextStatuses
       this.statusText = tf('source_pkg_check_complete', updateCount, latestCount, missingCount)
-      console.info('[SourcePackageUpdate] step=check_done update=' + updateCount + ' latest=' + latestCount + ' missing=' + missingCount + ' failed=0')
+      console.info('[SourcePackageUpdate] step=check_done update=' + updateCount + ' latest=' + latestCount + ' missing=' + missingCount +
+        ' failed_indexes=' + failedIndexCount)
     } catch (_error) {
       this.packageUpdateStatuses = this.packages.map((source: InstalledSourcePackage): SourcePackageUpdateStatus => {
         return {
@@ -511,7 +567,10 @@ export struct SourcePackageManagerPage {
     if (entry === undefined) {
       return
     }
-    const url = await this.currentIndexUrlOrPrompt()
+    let url = this.updateIndexUrl(source.id)
+    if (url.length === 0) {
+      url = await this.currentIndexUrlOrPrompt()
+    }
     if (url.length === 0) {
       return
     }
@@ -531,6 +590,7 @@ export struct SourcePackageManagerPage {
           sourceId: source.id,
           status: 'latest',
           remoteEntry: entry,
+          remoteIndexUrl: url,
           remoteVersion: entry.version,
           localVersion: installed?.version ?? entry.version,
         })
@@ -542,6 +602,7 @@ export struct SourcePackageManagerPage {
           sourceId: source.id,
           status: 'failed',
           remoteEntry: entry,
+          remoteIndexUrl: url,
           remoteVersion: entry.version,
           localVersion: source.version,
           reasonCode: result.reasonCode,
@@ -555,6 +616,7 @@ export struct SourcePackageManagerPage {
         sourceId: source.id,
         status: 'failed',
         remoteEntry: entry,
+        remoteIndexUrl: url,
         remoteVersion: entry.version,
         localVersion: source.version,
         reasonCode: 'network_error',
@@ -874,6 +936,7 @@ export struct SourcePackageManagerPage {
               sourceId: entry.id,
               status: 'latest',
               remoteEntry: entry,
+              remoteIndexUrl: url,
               remoteVersion: entry.version,
               localVersion: entry.version,
             })
@@ -885,6 +948,7 @@ export struct SourcePackageManagerPage {
               sourceId: entry.id,
               status: 'failed',
               remoteEntry: entry,
+              remoteIndexUrl: url,
               remoteVersion: entry.version,
               localVersion: existing?.version ?? '',
               reasonCode: result.reasonCode,
