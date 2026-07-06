@@ -7,7 +7,7 @@ import {
   SourceMangaStatus,
   parseSourceFiltersJson,
 } from '../model/SourceModels'
-import { normalizeSourceDisplayText } from '../model/SourceTextNormalizer'
+import { normalizeSourceDisplayText, normalizeSourceImageUrl } from '../model/SourceTextNormalizer'
 import { SourceRuntimeCallResponse } from '../sourceRuntime/NativeSourceRuntime'
 import { safeDiagnosticCode, safeSearchDiagnostic } from '../model/SearchStateMapper'
 import { appSourceRuntimeRegistry } from '../sourceRuntime/SourceRuntimeAppRegistry'
@@ -207,7 +207,7 @@ function sourceItemCoverUrl(item: RuntimeRecord): string | undefined {
     optionalString(item['imageUrl']) ??
     optionalString(item['image_url'])
   if (direct !== undefined) {
-    return direct
+    return normalizeSourceImageUrl(direct)
   }
   const cover = itemRecord(item['cover'])
   const coverUrl = cover === undefined ? undefined : (
@@ -217,15 +217,16 @@ function sourceItemCoverUrl(item: RuntimeRecord): string | undefined {
       optionalString(cover['href'])
   )
   if (coverUrl !== undefined) {
-    return coverUrl
+    return normalizeSourceImageUrl(coverUrl)
   }
   const image = itemRecord(item['image'])
-  return image === undefined ? undefined : (
+  const imageUrl = image === undefined ? undefined : (
     optionalString(image['url']) ??
       optionalString(image['uri']) ??
       optionalString(image['src']) ??
       optionalString(image['href'])
   )
+  return normalizeSourceImageUrl(imageUrl)
 }
 
 function parseSourceMangaFromItem(sourceId: string, item: RuntimeRecord): SourceManga {

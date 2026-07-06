@@ -1,5 +1,5 @@
 import { AppStrings } from '../i18n/AppStrings'
-import { normalizeSourceDisplayText } from './SourceTextNormalizer'
+import { normalizeSourceDisplayText, normalizeSourceImageUrl } from './SourceTextNormalizer'
 
 export interface MangaDetail {
   id: string
@@ -178,7 +178,7 @@ export function parseMangaDetailFromSourceItem(sourceId: string, item: SourceRun
     author: firstSourceDisplayString([item['author'], item['authors']]),
     artist: firstSourceDisplayString([item['artist'], item['artists']]),
     description: firstSourceDisplayString([item['description'], item['summary'], item['synopsis']]),
-    coverUrl: firstSourceString([
+    coverUrl: normalizeSourceImageUrl(firstSourceString([
       optionalSourceString(item['cover_url']),
       optionalSourceString(item['coverUrl']),
       optionalSourceString(item['cover_uri']),
@@ -195,7 +195,7 @@ export function parseMangaDetailFromSourceItem(sourceId: string, item: SourceRun
       nestedSourceString(item, 'image', 'uri'),
       nestedSourceString(item, 'image', 'src'),
       nestedSourceString(item, 'image', 'href'),
-    ]),
+    ])),
     status: sourceStatus(optionalSourceString(item['status'])),
     tags: sourceStringList(item['tags']),
     sourceId,

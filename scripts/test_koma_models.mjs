@@ -409,6 +409,13 @@ function decodeSourceDisplayTextEscapes(value) {
   return decoded
 }
 
+function normalizeSourceImageUrl(value) {
+  if (typeof value !== 'string' || value.trim().length === 0) return undefined
+  const normalized = decodeSourceDisplayTextEscapes(value).split('\\/').join('/').trim()
+  if (normalized.length === 0) return undefined
+  return normalized.startsWith('//') ? `https:${normalized}` : normalized
+}
+
 for (const symbol of ['Comic', 'Chapter', 'Page', 'ReadingProgress', 'LibraryItem']) {
   assertExport(modelSource, symbol)
 }
@@ -467,6 +474,7 @@ assertExport(mockLibraryDataSource, 'createLibraryViewModelFromStores')
 assertExport(mockLibraryDataSource, 'createLibraryViewModel')
 assertExport(sourceTextNormalizerSource, 'decodeSourceDisplayTextEscapes')
 assertExport(sourceTextNormalizerSource, 'normalizeSourceDisplayText')
+assertExport(sourceTextNormalizerSource, 'normalizeSourceImageUrl')
 assertExport(libraryRepositorySource, 'LibraryRepository')
 assertExport(libraryRepositorySource, 'StoreBackedLibraryRepository')
 assertExport(libraryRepositorySource, 'upsertComicAndCreateLibraryViewModel')
@@ -1900,8 +1908,8 @@ assert.match(
 )
 assert.match(
   mangaDetailModelsSource,
-  /coverUrl: firstSourceString\(\[[\s\S]*optionalSourceString\(item\['cover_url'\]\)[\s\S]*optionalSourceString\(item\['coverUrl'\]\)[\s\S]*optionalSourceString\(item\['cover_uri'\]\)[\s\S]*optionalSourceString\(item\['coverUri'\]\)[\s\S]*optionalSourceString\(item\['thumbnail'\]\)[\s\S]*optionalSourceString\(item\['thumbnailUrl'\]\)[\s\S]*optionalSourceString\(item\['imageUrl'\]\)[\s\S]*optionalSourceString\(item\['image_url'\]\)[\s\S]*nestedSourceString\(item, 'cover', 'url'\)[\s\S]*nestedSourceString\(item, 'cover', 'uri'\)[\s\S]*nestedSourceString\(item, 'cover', 'src'\)[\s\S]*nestedSourceString\(item, 'cover', 'href'\)[\s\S]*nestedSourceString\(item, 'image', 'url'\)[\s\S]*nestedSourceString\(item, 'image', 'uri'\)[\s\S]*nestedSourceString\(item, 'image', 'src'\)[\s\S]*nestedSourceString\(item, 'image', 'href'\)/,
-  'source detail parsing must keep the same broad cover URL compatibility as source browse/search results before adding a manga to the library',
+  /coverUrl: normalizeSourceImageUrl\(firstSourceString\(\[[\s\S]*optionalSourceString\(item\['cover_url'\]\)[\s\S]*optionalSourceString\(item\['coverUrl'\]\)[\s\S]*optionalSourceString\(item\['cover_uri'\]\)[\s\S]*optionalSourceString\(item\['coverUri'\]\)[\s\S]*optionalSourceString\(item\['thumbnail'\]\)[\s\S]*optionalSourceString\(item\['thumbnailUrl'\]\)[\s\S]*optionalSourceString\(item\['imageUrl'\]\)[\s\S]*optionalSourceString\(item\['image_url'\]\)[\s\S]*nestedSourceString\(item, 'cover', 'url'\)[\s\S]*nestedSourceString\(item, 'cover', 'uri'\)[\s\S]*nestedSourceString\(item, 'cover', 'src'\)[\s\S]*nestedSourceString\(item, 'cover', 'href'\)[\s\S]*nestedSourceString\(item, 'image', 'url'\)[\s\S]*nestedSourceString\(item, 'image', 'uri'\)[\s\S]*nestedSourceString\(item, 'image', 'src'\)[\s\S]*nestedSourceString\(item, 'image', 'href'\)/,
+  'source detail parsing must keep and normalize the same broad cover URL compatibility as source browse/search results before adding a manga to the library',
 )
 assert.match(
   mangaDetailModelsSource,
@@ -2148,15 +2156,25 @@ assert.equal(
   'Title 中文 \\uZZZZ',
   'source display text unicode escapes must decode valid hex quads and leave invalid escapes untouched',
 )
+assert.equal(
+  normalizeSourceImageUrl('\\/\\/cdn.example.test\\/cover.jpg'),
+  'https://cdn.example.test/cover.jpg',
+  'source image URL normalization must decode escaped slashes and protocol-relative CDN URLs',
+)
+assert.match(
+  sourceTextNormalizerSource,
+  /export function normalizeSourceImageUrl\(value: string \| undefined\): string \| undefined[\s\S]*normalizeSourceDisplayText\(value\)[\s\S]*split\('\\\\\/'\)\.join\('\/'\)[\s\S]*normalized\.startsWith\('\/\/'\)[\s\S]*return `https:\$\{normalized\}`/,
+  'SourceTextNormalizer must expose source image URL normalization for source covers and thumbnails',
+)
 assert.match(
   sourceModelsSource,
-  /title:\s*normalizeSourceDisplayText\(title\) \?\? title[\s\S]*author:\s*firstNonEmptyList\(\[payload\.author, payload\.authors\]\)[\s\S]*artist:\s*firstNonEmptyList\(\[payload\.artist, payload\.artists\]\)[\s\S]*description:\s*normalizeSourceDisplayText\(firstNonEmpty\(\[payload\.description, payload\.summary, payload\.synopsis\]\)\)[\s\S]*payload\.image_url[\s\S]*payload\.cover === undefined \? undefined : payload\.cover\.src[\s\S]*payload\.image === undefined \? undefined : payload\.image\.href[\s\S]*contentRating:\s*optionalString\(payload\.contentRating \?\? payload\.content_rating\)[\s\S]*tags:\s*normalizeTags\(payload\)/,
-  'SourceManga list normalization must decode source title, authors, summary aliases, broad cover/image URLs, content rating, and tags at model boundary',
+  /title:\s*normalizeSourceDisplayText\(title\) \?\? title[\s\S]*author:\s*firstNonEmptyList\(\[payload\.author, payload\.authors\]\)[\s\S]*artist:\s*firstNonEmptyList\(\[payload\.artist, payload\.artists\]\)[\s\S]*description:\s*normalizeSourceDisplayText\(firstNonEmpty\(\[payload\.description, payload\.summary, payload\.synopsis\]\)\)[\s\S]*coverUrl:\s*normalizeSourceImageUrl\(firstNonEmpty\(\[[\s\S]*payload\.image_url[\s\S]*payload\.cover === undefined \? undefined : payload\.cover\.src[\s\S]*payload\.image === undefined \? undefined : payload\.image\.href[\s\S]*contentRating:\s*optionalString\(payload\.contentRating \?\? payload\.content_rating\)[\s\S]*tags:\s*normalizeTags\(payload\)/,
+  'SourceManga list normalization must decode source title, authors, summary aliases, normalize broad cover/image URLs, content rating, and tags at model boundary',
 )
 assert.match(
   browseViewModelSource,
-  /function firstDisplayText\(values: \(RuntimeValue \| undefined\)\[\]\): string \| undefined[\s\S]*Array\.isArray\(value\)[\s\S]*normalizedItems\.join\(', '\)[\s\S]*function sourceItemCoverUrl\(item: RuntimeRecord\): string \| undefined[\s\S]*optionalString\(item\['image_url'\]\)[\s\S]*optionalString\(cover\['src'\]\)[\s\S]*const image = itemRecord\(item\['image'\]\)[\s\S]*optionalString\(image\['href'\]\)[\s\S]*author:\s*firstDisplayText\(\[item\['author'\], item\['authors'\]\]\)[\s\S]*artist:\s*firstDisplayText\(\[item\['artist'\], item\['artists'\]\]\)[\s\S]*description:\s*firstDisplayText\(\[item\['description'\], item\['summary'\], item\['synopsis'\]\]\)/,
-  'BrowseViewModel must preserve source browse/search manga authors, summary aliases, and nested image cover URLs before opening detail',
+  /function firstDisplayText\(values: \(RuntimeValue \| undefined\)\[\]\): string \| undefined[\s\S]*Array\.isArray\(value\)[\s\S]*normalizedItems\.join\(', '\)[\s\S]*function sourceItemCoverUrl\(item: RuntimeRecord\): string \| undefined[\s\S]*optionalString\(item\['image_url'\]\)[\s\S]*return normalizeSourceImageUrl\(direct\)[\s\S]*optionalString\(cover\['src'\]\)[\s\S]*return normalizeSourceImageUrl\(coverUrl\)[\s\S]*const image = itemRecord\(item\['image'\]\)[\s\S]*return normalizeSourceImageUrl\(imageUrl\)[\s\S]*author:\s*firstDisplayText\(\[item\['author'\], item\['authors'\]\]\)[\s\S]*artist:\s*firstDisplayText\(\[item\['artist'\], item\['artists'\]\]\)[\s\S]*description:\s*firstDisplayText\(\[item\['description'\], item\['summary'\], item\['synopsis'\]\]\)/,
+  'BrowseViewModel must preserve source browse/search manga authors, summary aliases, and normalize nested image cover URLs before opening detail',
 )
 assert.match(
   sourceModelsSource,
@@ -2175,8 +2193,8 @@ assert.match(
 )
 assert.match(
   mangaDetailModelsSource,
-  /coverUrl:\s*firstSourceString\(\[[\s\S]*optionalSourceString\(item\['cover_url'\]\)[\s\S]*optionalSourceString\(item\['coverUrl'\]\)[\s\S]*optionalSourceString\(item\['image_url'\]\)[\s\S]*nestedSourceString\(item, 'cover', 'url'\)[\s\S]*nestedSourceString\(item, 'cover', 'uri'\)[\s\S]*nestedSourceString\(item, 'cover', 'src'\)[\s\S]*nestedSourceString\(item, 'cover', 'href'\)[\s\S]*nestedSourceString\(item, 'image', 'url'\)[\s\S]*nestedSourceString\(item, 'image', 'href'\)/,
-  'Manga detail normalization must preserve broad cover/image URL aliases from source detail responses',
+  /coverUrl:\s*normalizeSourceImageUrl\(firstSourceString\(\[[\s\S]*optionalSourceString\(item\['cover_url'\]\)[\s\S]*optionalSourceString\(item\['coverUrl'\]\)[\s\S]*optionalSourceString\(item\['image_url'\]\)[\s\S]*nestedSourceString\(item, 'cover', 'url'\)[\s\S]*nestedSourceString\(item, 'cover', 'uri'\)[\s\S]*nestedSourceString\(item, 'cover', 'src'\)[\s\S]*nestedSourceString\(item, 'cover', 'href'\)[\s\S]*nestedSourceString\(item, 'image', 'url'\)[\s\S]*nestedSourceString\(item, 'image', 'href'\)/,
+  'Manga detail normalization must preserve and normalize broad cover/image URL aliases from source detail responses',
 )
 assert.match(
   mangaDescriptionSectionSource,

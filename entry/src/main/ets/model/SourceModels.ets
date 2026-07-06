@@ -1,5 +1,5 @@
 import { AppStrings } from '../i18n/AppStrings'
-import { normalizeSourceDisplayText } from './SourceTextNormalizer'
+import { normalizeSourceDisplayText, normalizeSourceImageUrl } from './SourceTextNormalizer'
 
 export type SourceMangaStatus = 'ongoing' | 'completed' | 'hiatus' | 'cancelled' | 'unknown'
 
@@ -265,7 +265,7 @@ export function normalizeSourceManga(sourceId: string, payload: SourceRuntimeMan
     author: firstNonEmptyList([payload.author, payload.authors]),
     artist: firstNonEmptyList([payload.artist, payload.artists]),
     description: normalizeSourceDisplayText(firstNonEmpty([payload.description, payload.summary, payload.synopsis])),
-    coverUrl: firstNonEmpty([
+    coverUrl: normalizeSourceImageUrl(firstNonEmpty([
       payload.cover_url,
       payload.coverUrl,
       payload.cover_uri,
@@ -282,7 +282,7 @@ export function normalizeSourceManga(sourceId: string, payload: SourceRuntimeMan
       payload.image === undefined ? undefined : payload.image.uri,
       payload.image === undefined ? undefined : payload.image.src,
       payload.image === undefined ? undefined : payload.image.href,
-    ]),
+    ])),
     status: normalizeSourceMangaStatus(payload.status),
     contentRating: optionalString(payload.contentRating ?? payload.content_rating),
     tags: normalizeTags(payload),

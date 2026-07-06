@@ -43,3 +43,18 @@ export function normalizeSourceDisplayText(value: string | undefined): string | 
   const decoded = decodeSourceDisplayTextEscapes(value)
   return decoded.trim().length === 0 ? undefined : decoded
 }
+
+export function normalizeSourceImageUrl(value: string | undefined): string | undefined {
+  const decoded = normalizeSourceDisplayText(value)
+  if (decoded === undefined) {
+    return undefined
+  }
+  const normalized = decoded.split('\\/').join('/').trim()
+  if (normalized.length === 0) {
+    return undefined
+  }
+  if (normalized.startsWith('//')) {
+    return `https:${normalized}`
+  }
+  return normalized
+}
