@@ -124,7 +124,10 @@ function sourcePageImageUrl(item: Record<string, Object>): string | undefined {
 }
 
 function sourcePageDimension(item: Record<string, Object>, key: string, alternateKey: string): number | undefined {
-  const direct = optionalSourceNumber(item[key]) ?? optionalSourceNumber(item[alternateKey])
+  const snakeKey = key === 'width' ? 'image_width' : 'image_height'
+  const direct = optionalSourceNumber(item[key]) ??
+    optionalSourceNumber(item[alternateKey]) ??
+    optionalSourceNumber(item[snakeKey])
   if (direct !== undefined) {
     return direct
   }
@@ -132,12 +135,28 @@ function sourcePageDimension(item: Record<string, Object>, key: string, alternat
   if (imageRecord === undefined) {
     return undefined
   }
-  return optionalSourceNumber(imageRecord[key]) ?? optionalSourceNumber(imageRecord[alternateKey])
+  return optionalSourceNumber(imageRecord[key]) ??
+    optionalSourceNumber(imageRecord[alternateKey]) ??
+    optionalSourceNumber(imageRecord[snakeKey])
+}
+
+function sourcePageId(item: Record<string, Object>, chapterId: string, index: number): string {
+  const direct = optionalSourceString(item['id']) ??
+    optionalSourceString(item['pageId']) ??
+    optionalSourceString(item['page_id'])
+  if (direct !== undefined) {
+    return direct
+  }
+  const imageRecord = sourcePageImageRecord(item)
+  return optionalSourceString(imageRecord?.['id']) ??
+    optionalSourceString(imageRecord?.['pageId']) ??
+    optionalSourceString(imageRecord?.['page_id']) ??
+    `${chapterId}:page:${index + 1}`
 }
 
 function pagesFromSourceRows(comicId: string, chapterId: string, rows: Record<string, Object>[]): Page[] {
   return rows.map((item: Record<string, Object>, index: number): Page => {
-    const pageId = optionalSourceString(item['id']) ?? optionalSourceString(item['pageId']) ?? `${chapterId}:page:${index + 1}`
+    const pageId = sourcePageId(item, chapterId, index)
     const page: Page = {
       id: pageId,
       comicId,

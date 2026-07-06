@@ -339,6 +339,13 @@ function optionalSourceString(value) {
   return typeof value === 'string' && value.trim().length > 0 ? value : undefined
 }
 
+function optionalSourceNumber(value) {
+  if (typeof value === 'number' && Number.isFinite(value)) return value
+  if (typeof value !== 'string') return undefined
+  const parsed = Number(value)
+  return Number.isFinite(parsed) ? parsed : undefined
+}
+
 function sourcePageImageUrl(item) {
   const directUrl = optionalSourceString(item.url) ??
     optionalSourceString(item.uri) ??
@@ -353,6 +360,36 @@ function sourcePageImageUrl(item) {
     optionalSourceString(image.uri) ??
     optionalSourceString(image.src) ??
     optionalSourceString(image.href))
+}
+
+function sourcePageImageRecord(item) {
+  const image = item.image
+  if (image === undefined || image === null || Array.isArray(image) || typeof image !== 'object') return undefined
+  return image
+}
+
+function sourcePageId(item, chapterId, index) {
+  const direct = optionalSourceString(item.id) ??
+    optionalSourceString(item.pageId) ??
+    optionalSourceString(item.page_id)
+  if (direct !== undefined) return direct
+  const image = sourcePageImageRecord(item)
+  return optionalSourceString(image?.id) ??
+    optionalSourceString(image?.pageId) ??
+    optionalSourceString(image?.page_id) ??
+    `${chapterId}:page:${index + 1}`
+}
+
+function sourcePageDimensionValue(item, key, alternateKey) {
+  const snakeKey = key === 'width' ? 'image_width' : 'image_height'
+  const direct = optionalSourceNumber(item[key]) ??
+    optionalSourceNumber(item[alternateKey]) ??
+    optionalSourceNumber(item[snakeKey])
+  if (direct !== undefined) return direct
+  const image = sourcePageImageRecord(item)
+  return optionalSourceNumber(image?.[key]) ??
+    optionalSourceNumber(image?.[alternateKey]) ??
+    optionalSourceNumber(image?.[snakeKey])
 }
 
 function isReaderRemoteImageSourceUri(uri) {
@@ -1952,8 +1989,13 @@ assert.match(
 )
 assert.match(
   sourceChapterPageHydratorSource,
-  /function sourcePageDimension\(item: Record<string, Object>, key: string, alternateKey: string\): number \| undefined[\s\S]*optionalSourceNumber\(item\[key\]\) \?\? optionalSourceNumber\(item\[alternateKey\]\)[\s\S]*const imageRecord = sourcePageImageRecord\(item\)[\s\S]*optionalSourceNumber\(imageRecord\[key\]\) \?\? optionalSourceNumber\(imageRecord\[alternateKey\]\)[\s\S]*const width = sourcePageDimension\(item, 'width', 'imageWidth'\)[\s\S]*const height = sourcePageDimension\(item, 'height', 'imageHeight'\)/,
-  'get_pages parsing must preserve top-level and nested image dimensions for reader wide-page handling',
+  /function sourcePageDimension\(item: Record<string, Object>, key: string, alternateKey: string\): number \| undefined[\s\S]*const snakeKey = key === 'width' \? 'image_width' : 'image_height'[\s\S]*optionalSourceNumber\(item\[key\]\)[\s\S]*optionalSourceNumber\(item\[alternateKey\]\)[\s\S]*optionalSourceNumber\(item\[snakeKey\]\)[\s\S]*const imageRecord = sourcePageImageRecord\(item\)[\s\S]*optionalSourceNumber\(imageRecord\[key\]\)[\s\S]*optionalSourceNumber\(imageRecord\[alternateKey\]\)[\s\S]*optionalSourceNumber\(imageRecord\[snakeKey\]\)[\s\S]*const width = sourcePageDimension\(item, 'width', 'imageWidth'\)[\s\S]*const height = sourcePageDimension\(item, 'height', 'imageHeight'\)/,
+  'get_pages parsing must preserve top-level, nested, camelCase, and snake_case image dimensions for reader wide-page handling',
+)
+assert.match(
+  sourceChapterPageHydratorSource,
+  /function sourcePageId\(item: Record<string, Object>, chapterId: string, index: number\): string \{[\s\S]*optionalSourceString\(item\['id'\]\)[\s\S]*optionalSourceString\(item\['pageId'\]\)[\s\S]*optionalSourceString\(item\['page_id'\]\)[\s\S]*const imageRecord = sourcePageImageRecord\(item\)[\s\S]*optionalSourceString\(imageRecord\?\.\['id'\]\)[\s\S]*optionalSourceString\(imageRecord\?\.\['pageId'\]\)[\s\S]*optionalSourceString\(imageRecord\?\.\['page_id'\]\)[\s\S]*`\$\{chapterId\}:page:\$\{index \+ 1\}`[\s\S]*const pageId = sourcePageId\(item, chapterId, index\)/,
+  'get_pages parsing must preserve common top-level and nested source page ids before falling back to generated ids',
 )
 assert.match(
   mangaDetailModelsSource,
@@ -2148,6 +2190,26 @@ assert.equal(
   sourcePageImageUrl({ id: 'page:4', image: { uri: '\\/\\/cdn.example.test\\/page-004.jpg' } }),
   'https://cdn.example.test/page-004.jpg',
   'source pages must normalize escaped protocol-relative image URLs before Reader hydration',
+)
+assert.equal(
+  sourcePageId({ page_id: 'source-page-snake' }, 'chapter:fixture-series:001', 0),
+  'source-page-snake',
+  'source pages must preserve top-level page_id as the durable Reader/source image request id',
+)
+assert.equal(
+  sourcePageId({ image: { pageId: 'source-page-nested' } }, 'chapter:fixture-series:001', 1),
+  'source-page-nested',
+  'source pages must preserve nested image.pageId before falling back to generated ids',
+)
+assert.equal(
+  sourcePageDimensionValue({ image_width: '1440', image: { image_height: 2160 } }, 'width', 'imageWidth'),
+  1440,
+  'source pages must accept top-level image_width for Reader sizing',
+)
+assert.equal(
+  sourcePageDimensionValue({ image_width: '1440', image: { image_height: 2160 } }, 'height', 'imageHeight'),
+  2160,
+  'source pages must accept nested image_height for Reader sizing',
 )
 assert.deepEqual(
   buildReaderSourceImageRequestArgs('page:0', 'https://uploads.mangadex.org/data/hash/001.jpg'),
