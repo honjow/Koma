@@ -160,6 +160,18 @@ function parseIndexEntry(raw: Object): SourceIndexEntry | undefined {
   }
 }
 
+function parseIndexEntriesDocument(raw: Object): Object[] | undefined {
+  if (Array.isArray(raw)) {
+    return raw as Object[]
+  }
+  if (raw === null || raw === undefined || typeof raw !== 'object' || Array.isArray(raw)) {
+    return undefined
+  }
+  const record = raw as Record<string, Object>
+  const sources = record['sources']
+  return Array.isArray(sources) ? sources as Object[] : undefined
+}
+
 export class SourceIndexService {
   private context: common.UIAbilityContext
 
@@ -225,10 +237,11 @@ export class SourceIndexService {
       let parsed: Object[]
       try {
         const raw: Object = JSON.parse(body) as Object
-        if (!Array.isArray(raw)) {
+        const entriesDocument = parseIndexEntriesDocument(raw)
+        if (entriesDocument === undefined) {
           return { ok: false, reasonCode: 'invalid_index_format', entries: [] }
         }
-        parsed = raw as Object[]
+        parsed = entriesDocument
       } catch (_err) {
         return { ok: false, reasonCode: 'invalid_json', entries: [] }
       }

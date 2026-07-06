@@ -930,6 +930,11 @@ assert.match(indexServiceSource, /isValidHttpUrl/, 'SourceIndexService must vali
 assert.match(indexServiceSource, /safeResolvePkgUrl/, 'SourceIndexService must resolve relative pkg URLs against index URL')
 assert.match(indexServiceSource, /authorityStart/, 'SourceIndexService must handle bare-domain index URLs without replacing host during pkg resolution')
 assert.match(indexServiceSource, /firstPathSlash < 0/, 'SourceIndexService must resolve bare-domain index URL pkg paths under the same host root')
+assert.match(
+  indexServiceSource,
+  /parseIndexEntriesDocument\(raw: Object\)[\s\S]*Array\.isArray\(raw\)[\s\S]*record\['sources'\][\s\S]*Array\.isArray\(sources\)/,
+  'SourceIndexService must accept both top-level array indexes and { sources: [] } source dist indexes',
+)
 assert.match(indexServiceSource, /installFromBytes/, 'SourceIndexService must delegate install to app registry installFromBytes')
 assert.match(indexServiceSource, /parseIndexEntry/, 'SourceIndexService must parse index entries safely')
 assert.match(
