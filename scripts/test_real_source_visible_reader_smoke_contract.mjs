@@ -60,6 +60,11 @@ assert.match(
 )
 assert.match(
   smoke,
+  /operation":"get_pages","mangaId":"\$\{mangaId\}","chapterId":"\$\{chapterId\}"[\s\S]*sourceRuntimeRequest\([\s\S]*'get_pages'[\s\S]*`\{"mangaId":"\$\{mangaId\}","chapterId":"\$\{chapterId\}"\}`/,
+  'real and installed source reader smokes must pass mangaId into get_pages so validation matches app page hydration',
+)
+assert.match(
+  smoke,
   /registerRealSourceSmokeWasm[\s\S]*name: 'MangaDex'[\s\S]*appSourceRuntimeRegistry\.register/,
   'real source visible reader smoke must register MangaDex bytes for reader image resolution',
 )

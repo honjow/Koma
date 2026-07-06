@@ -2408,7 +2408,7 @@ export async function maybeRunSourceRuntimeDeviceSmoke(
 
         const pagesJson = await taskpool.execute(
           runRealSourceSearchTask,
-          `{"operation":"get_pages","chapterId":"${chapterId}"}`,
+          `{"operation":"get_pages","mangaId":"${mangaId}","chapterId":"${chapterId}"}`,
           copySmokeWasmBytes(sourceBytes),
         ) as string
         const pagesResponse: SourceRuntimeCallResponse = JSON.parse(pagesJson) as SourceRuntimeCallResponse
@@ -2539,7 +2539,7 @@ export async function maybeRunSourceRuntimeDeviceSmoke(
 
             const pagesJson = await taskpool.execute(
               runRealSourceSearchTask,
-              `{"operation":"get_pages","chapterId":"${chapterId}"}`,
+              `{"operation":"get_pages","mangaId":"${mangaId}","chapterId":"${chapterId}"}`,
               copySmokeWasmBytes(sourceBytes),
             ) as string
             const pagesResponse: SourceRuntimeCallResponse = JSON.parse(pagesJson) as SourceRuntimeCallResponse
@@ -2724,7 +2724,7 @@ export async function maybeRunSourceRuntimeDeviceSmoke(
             sourceRuntimeRequest(
               INSTALLED_READER_SOURCE_ID,
               'get_pages',
-              `{"chapterId":"${chapterId}"}`,
+              `{"mangaId":"${mangaId}","chapterId":"${chapterId}"}`,
               'installed-reader-pages-001',
             ),
           )
@@ -3140,7 +3140,7 @@ export async function maybeRunSourceRuntimeDeviceSmoke(
 
                 const pagesJson = await taskpool.execute(
                   runRealSourceSearchTask,
-                  `{"operation":"get_pages","chapterId":"${chapterId}"}`,
+                  `{"operation":"get_pages","mangaId":"${mangaId}","chapterId":"${chapterId}"}`,
                   copySmokeWasmBytes(sourceBytes),
                 ) as string
                 const pagesResponse: SourceRuntimeCallResponse = JSON.parse(pagesJson) as SourceRuntimeCallResponse
