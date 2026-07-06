@@ -2333,6 +2333,11 @@ assert.match(
 )
 assert.match(
   mangaDetailPageSource,
+  /ActionButtons\(\)[\s\S]*KomaActionButton\(\{[\s\S]*label: this\.primaryReadLabel\(\)[\s\S]*controlHeight: ThemeConstants\.ACTION_CHIP_HEIGHT[\s\S]*handleStartReading\(\)[\s\S]*KomaActionButton\(\{[\s\S]*label: this\.downloadButtonLabel\(\)[\s\S]*fill: true[\s\S]*controlHeight: ThemeConstants\.ACTION_CHIP_HEIGHT[\s\S]*handleDownloadChapter\(\)[\s\S]*KomaIconButton\(\{[\s\S]*sys\.symbol\.bookmark[\s\S]*controlSize: ThemeConstants\.ACTION_CHIP_HEIGHT[\s\S]*handleAddToLibrary\(\)/,
+  'MangaDetailPage detail actions must keep reading and download as compact primary actions with bookmark as an icon action',
+)
+assert.match(
+  mangaDetailPageSource,
   /DetailMoreMenu\(\)[\s\S]*manga_detail_menu_download_all[\s\S]*handleDownloadVisibleChapters\(this\.allChapterIds\(\), ChapterBatchDownloadMode\.ALL_VISIBLE\)[\s\S]*manga_detail_menu_download_incomplete[\s\S]*ChapterBatchDownloadMode\.NOT_DOWNLOADED[\s\S]*manga_detail_menu_mark_all_read[\s\S]*markVisibleChaptersReadState\(this\.allChapterIds\(\), true\)[\s\S]*manga_detail_menu_mark_all_unread[\s\S]*markVisibleChaptersReadState\(this\.allChapterIds\(\), false\)/,
   'MangaDetailPage more menu must expose real chapter batch actions instead of a coming-soon toast',
 )
@@ -2373,6 +2378,11 @@ assert.match(
 )
 assert.match(
   chapterListSectionSource,
+  /shouldShowLanguageFilter\(\): boolean[\s\S]*this\.languageFilter\.length > 0 \|\| this\.languageOptions\(\)\.length > 1[\s\S]*shouldShowGroupFilter\(\): boolean[\s\S]*this\.groupFilter\.length > 0 \|\| this\.groupOptions\(\)\.length > 1/,
+  'ChapterListSection must hide language and group filter buttons when they would only expose a single no-op choice',
+)
+assert.match(
+  chapterListSectionSource,
   /resetFilters\(\): void[\s\S]*this\.sortOrder = ChapterSortOrder\.NEWEST_FIRST[\s\S]*this\.readFilter = ChapterReadFilter\.ALL[\s\S]*this\.languageFilter = ''[\s\S]*this\.groupFilter = ''[\s\S]*this\.rebuildDataSource\(\)/,
   'ChapterListSection reset must restore default sort, read, language, and group filters',
 )
@@ -2395,6 +2405,16 @@ assert.doesNotMatch(
   chapterListSectionSource,
   /Chip\(/,
   'ChapterListSection must not fall back to a wall of handwritten chip controls',
+)
+assert.doesNotMatch(
+  chapterListSectionSource,
+  /label: `\$\{this\.(filterLabel|languageFilterLabel|groupFilterLabel|sortLabel)\(\)\} (▾|↕)`/,
+  'ChapterListSection filter controls must use symbol icons instead of handwritten arrow characters in labels',
+)
+assert.match(
+  chapterListSectionSource,
+  /label: this\.filterLabel\(\)[\s\S]*icon: \$r\('sys\.symbol\.chevron_down'\)[\s\S]*if \(this\.shouldShowLanguageFilter\(\)\)[\s\S]*label: this\.languageFilterLabel\(\)[\s\S]*icon: \$r\('sys\.symbol\.chevron_down'\)[\s\S]*if \(this\.shouldShowGroupFilter\(\)\)[\s\S]*label: this\.groupFilterLabel\(\)[\s\S]*label: this\.sortLabel\(\)[\s\S]*icon: \$r\('sys\.symbol\.chevron_down'\)/,
+  'ChapterListSection filter bar must render compact menu buttons with symbol chevrons and conditional metadata filters',
 )
 assert.match(
   chapterListSectionSource,

@@ -163,6 +163,14 @@ export struct ChapterListSection {
       this.groupFilter.length > 0
   }
 
+  private shouldShowLanguageFilter(): boolean {
+    return this.languageFilter.length > 0 || this.languageOptions().length > 1
+  }
+
+  private shouldShowGroupFilter(): boolean {
+    return this.groupFilter.length > 0 || this.groupOptions().length > 1
+  }
+
   private resetFilters(): void {
     if (!this.hasActiveFilters()) {
       return
@@ -447,6 +455,7 @@ export struct ChapterListSection {
           .textOverflow({ overflow: TextOverflow.Ellipsis })
       }
       .layoutWeight(1)
+      .padding({ top: ThemeConstants.SPACE_XS, bottom: ThemeConstants.SPACE_XS })
       .onClick(() => {
         this.onOpenChapter(chapter.id)
       })
@@ -504,32 +513,40 @@ export struct ChapterListSection {
 
         Flex({ wrap: FlexWrap.Wrap }) {
           KomaActionButton({
-            label: `${this.filterLabel()} ▾`,
+            label: this.filterLabel(),
             kind: this.readFilter === ChapterReadFilter.ALL ? 'secondary' : 'primary',
+            icon: $r('sys.symbol.chevron_down'),
             compact: true,
             controlHeight: ThemeConstants.ACTION_CHIP_HEIGHT,
           })
           .margin({ right: ThemeConstants.SPACE_SM, bottom: ThemeConstants.SPACE_SM })
           .bindMenu(this.FilterMenu())
+          if (this.shouldShowLanguageFilter()) {
+            KomaActionButton({
+              label: this.languageFilterLabel(),
+              kind: this.languageFilter.length === 0 ? 'secondary' : 'primary',
+              icon: $r('sys.symbol.chevron_down'),
+              compact: true,
+              controlHeight: ThemeConstants.ACTION_CHIP_HEIGHT,
+            })
+            .margin({ right: ThemeConstants.SPACE_SM, bottom: ThemeConstants.SPACE_SM })
+            .bindMenu(this.LanguageFilterMenu())
+          }
+          if (this.shouldShowGroupFilter()) {
+            KomaActionButton({
+              label: this.groupFilterLabel(),
+              kind: this.groupFilter.length === 0 ? 'secondary' : 'primary',
+              icon: $r('sys.symbol.chevron_down'),
+              compact: true,
+              controlHeight: ThemeConstants.ACTION_CHIP_HEIGHT,
+            })
+            .margin({ right: ThemeConstants.SPACE_SM, bottom: ThemeConstants.SPACE_SM })
+            .bindMenu(this.GroupFilterMenu())
+          }
           KomaActionButton({
-            label: `${this.languageFilterLabel()} ▾`,
-            kind: this.languageFilter.length === 0 ? 'secondary' : 'primary',
-            compact: true,
-            controlHeight: ThemeConstants.ACTION_CHIP_HEIGHT,
-          })
-          .margin({ right: ThemeConstants.SPACE_SM, bottom: ThemeConstants.SPACE_SM })
-          .bindMenu(this.LanguageFilterMenu())
-          KomaActionButton({
-            label: `${this.groupFilterLabel()} ▾`,
-            kind: this.groupFilter.length === 0 ? 'secondary' : 'primary',
-            compact: true,
-            controlHeight: ThemeConstants.ACTION_CHIP_HEIGHT,
-          })
-          .margin({ right: ThemeConstants.SPACE_SM, bottom: ThemeConstants.SPACE_SM })
-          .bindMenu(this.GroupFilterMenu())
-          KomaActionButton({
-            label: `${this.sortLabel()} ↕`,
+            label: this.sortLabel(),
             kind: this.sortOrder === ChapterSortOrder.NEWEST_FIRST ? 'secondary' : 'primary',
+            icon: $r('sys.symbol.chevron_down'),
             compact: true,
             controlHeight: ThemeConstants.ACTION_CHIP_HEIGHT,
           })

@@ -1523,21 +1523,13 @@ export struct MangaDetailPage {
   @Builder
   private ActionButtons() {
     Row({ space: ThemeConstants.SPACE_MD }) {
-      KomaIconButton({
-        icon: $r('sys.symbol.bookmark'),
-        kind: this.isInLibrary ? 'primary' : 'secondary',
-        controlSize: ThemeConstants.BUTTON_HEIGHT,
-        action: () => {
-          this.handleAddToLibrary()
-        },
-      })
-
       KomaActionButton({
         label: this.primaryReadLabel(),
         kind: 'primary',
         icon: $r('sys.symbol.doc_plaintext'),
         fill: true,
         compact: true,
+        controlHeight: ThemeConstants.ACTION_CHIP_HEIGHT,
         action: () => {
           this.handleStartReading()
         },
@@ -1547,10 +1539,22 @@ export struct MangaDetailPage {
         label: this.downloadButtonLabel(),
         kind: 'secondary',
         icon: $r('sys.symbol.arrow_down_to_line'),
+        fill: true,
         compact: true,
+        controlHeight: ThemeConstants.ACTION_CHIP_HEIGHT,
         isEnabled: !this.downloadBusy,
         action: () => {
           this.handleDownloadChapter()
+        },
+      })
+
+      KomaIconButton({
+        icon: $r('sys.symbol.bookmark'),
+        kind: this.isInLibrary ? 'primary' : 'secondary',
+        controlSize: ThemeConstants.ACTION_CHIP_HEIGHT,
+        iconSize: ThemeConstants.FONT_SIZE_TITLE,
+        action: () => {
+          this.handleAddToLibrary()
         },
       })
     }
