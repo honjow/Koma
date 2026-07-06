@@ -7,6 +7,8 @@ import { installFromBytes, SourcePackageInstallResult } from './SourceRuntimeApp
 
 const SOURCE_INDEX_PREFS_STORE_NAME: string = 'koma_source_package_manager_v1'
 const SOURCE_INDEX_URL_KEY: string = 'source_index.url'
+const SOURCE_INDEX_REPOSITORIES_KEY: string = 'source_index.repositories.v1'
+const SOURCE_INDEX_REPOSITORY_LIMIT: number = 12
 
 export interface SourceIndexEntry {
   id: string
@@ -35,6 +37,11 @@ export interface SourceIndexInstallResult {
   install?: SourcePackageInstallResult
 }
 
+export interface SourceIndexRepository {
+  url: string
+  lastUsedAt: number
+}
+
 function isValidHttpUrl(value: string): boolean {
   if (typeof value !== 'string' || value.length === 0) {
     return false
@@ -44,6 +51,50 @@ function isValidHttpUrl(value: string): boolean {
 
 function normalizeIndexUrl(value: string): string {
   return value.trim().replace(/\/+$/, '')
+}
+
+function normalizeRepositoryLastUsedAt(value: Object | undefined): number {
+  return typeof value === 'number' && Number.isFinite(value) && value > 0 ? Math.floor(value) : 0
+}
+
+function normalizeSourceIndexRepository(value: Object): SourceIndexRepository | undefined {
+  if (value === null || value === undefined || typeof value !== 'object' || Array.isArray(value)) {
+    return undefined
+  }
+  const record = value as Record<string, Object>
+  const url = normalizeIndexUrl(safeString(record['url']))
+  if (!isValidHttpUrl(url)) {
+    return undefined
+  }
+  return {
+    url,
+    lastUsedAt: normalizeRepositoryLastUsedAt(record['lastUsedAt']),
+  }
+}
+
+function normalizeSourceIndexRepositories(values: Object[]): SourceIndexRepository[] {
+  const repositories: SourceIndexRepository[] = []
+  values.forEach((value: Object) => {
+    const repository = normalizeSourceIndexRepository(value)
+    if (repository === undefined) {
+      return
+    }
+    const existingIndex = repositories.findIndex((item: SourceIndexRepository): boolean => item.url === repository.url)
+    if (existingIndex < 0) {
+      repositories.push(repository)
+      return
+    }
+    if (repository.lastUsedAt > repositories[existingIndex].lastUsedAt) {
+      repositories[existingIndex] = repository
+    }
+  })
+  return repositories
+    .sort((left: SourceIndexRepository, right: SourceIndexRepository): number => right.lastUsedAt - left.lastUsedAt)
+    .slice(0, SOURCE_INDEX_REPOSITORY_LIMIT)
+}
+
+function serializeSourceIndexRepositories(repositories: SourceIndexRepository[]): string {
+  return JSON.stringify(normalizeSourceIndexRepositories(repositories as Object[]))
 }
 
 function safeResolvePkgUrl(indexUrl: string, pkg: string): string {
@@ -192,11 +243,49 @@ export class SourceIndexService {
     }
   }
 
+  async loadSavedRepositories(): Promise<SourceIndexRepository[]> {
+    try {
+      const store = await preferences.getPreferences(this.context, SOURCE_INDEX_PREFS_STORE_NAME)
+      const payload = await store.get(SOURCE_INDEX_REPOSITORIES_KEY, '') as string
+      let repositories: SourceIndexRepository[] = []
+      if (typeof payload === 'string' && payload.trim().length > 0) {
+        const parsed = JSON.parse(payload) as Object
+        if (Array.isArray(parsed)) {
+          repositories = normalizeSourceIndexRepositories(parsed as Object[])
+        }
+      }
+      const legacyUrl = await store.get(SOURCE_INDEX_URL_KEY, '') as string
+      const normalizedLegacyUrl = typeof legacyUrl === 'string' ? normalizeIndexUrl(legacyUrl) : ''
+      if (isValidHttpUrl(normalizedLegacyUrl) && !repositories.some((item: SourceIndexRepository): boolean => item.url === normalizedLegacyUrl)) {
+        repositories.push({
+          url: normalizedLegacyUrl,
+          lastUsedAt: 0,
+        })
+      }
+      return normalizeSourceIndexRepositories(repositories as Object[])
+    } catch (_err) {
+      return []
+    }
+  }
+
   async saveUrl(url: string): Promise<void> {
     const normalized = normalizeIndexUrl(url)
     try {
       const store = await preferences.getPreferences(this.context, SOURCE_INDEX_PREFS_STORE_NAME)
       await store.put(SOURCE_INDEX_URL_KEY, normalized)
+      if (isValidHttpUrl(normalized)) {
+        const repositories = await this.loadSavedRepositories()
+        const next: SourceIndexRepository[] = [{
+          url: normalized,
+          lastUsedAt: Date.now(),
+        }]
+        repositories.forEach((repository: SourceIndexRepository) => {
+          if (repository.url !== normalized) {
+            next.push(repository)
+          }
+        })
+        await store.put(SOURCE_INDEX_REPOSITORIES_KEY, serializeSourceIndexRepositories(next))
+      }
       await store.flush()
       console.info('[SourceIndex] step=save_url')
     } catch (error) {
@@ -212,6 +301,31 @@ export class SourceIndexService {
       await store.flush()
       console.info('[SourceIndex] step=clear_url')
     } catch (_err) {
+    }
+  }
+
+  async removeSavedRepository(url: string): Promise<SourceIndexRepository[]> {
+    const normalized = normalizeIndexUrl(url)
+    try {
+      const store = await preferences.getPreferences(this.context, SOURCE_INDEX_PREFS_STORE_NAME)
+      const repositories = (await this.loadSavedRepositories())
+        .filter((repository: SourceIndexRepository): boolean => repository.url !== normalized)
+      await store.put(SOURCE_INDEX_REPOSITORIES_KEY, serializeSourceIndexRepositories(repositories))
+      const activeUrl = await store.get(SOURCE_INDEX_URL_KEY, '') as string
+      if (typeof activeUrl === 'string' && normalizeIndexUrl(activeUrl) === normalized) {
+        if (repositories.length > 0) {
+          await store.put(SOURCE_INDEX_URL_KEY, repositories[0].url)
+        } else {
+          await store.delete(SOURCE_INDEX_URL_KEY)
+        }
+      }
+      await store.flush()
+      console.info('[SourceIndex] step=remove_saved_repository')
+      return repositories
+    } catch (error) {
+      const e = error as BusinessError
+      console.error('[SourceIndex] step=remove_saved_repository_fail code=' + e.code)
+      return this.loadSavedRepositories()
     }
   }
 

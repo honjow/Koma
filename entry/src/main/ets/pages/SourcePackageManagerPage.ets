@@ -33,6 +33,7 @@ import {
   SourceIndexEntry,
   SourceIndexFetchResult,
   SourceIndexInstallResult,
+  SourceIndexRepository,
   SourceIndexService,
 } from '../sourceRuntime/SourceIndexService'
 import {
@@ -104,6 +105,7 @@ export struct SourcePackageManagerPage {
   @Local private settingDescriptors: SourceSettingDescriptor[] = []
   @Local private settingDraft: SourceSettingsRecord = {}
   @Local private sourceIndexUrl: string = ''
+  @Local private sourceIndexRepositories: SourceIndexRepository[] = []
   @Local private indexEntries: SourceIndexEntry[] = []
   @Local private indexFetchBusy: boolean = false
   @Local private indexInstallBusy: boolean = false
@@ -161,6 +163,7 @@ export struct SourcePackageManagerPage {
     if (saved.length > 0) {
       this.sourceIndexUrl = saved
     }
+    this.sourceIndexRepositories = await this.sourceIndexService.loadSavedRepositories()
   }
 
   private installedSourceIds(): string[] {
@@ -747,6 +750,7 @@ export struct SourcePackageManagerPage {
     this.indexEntries = []
     try {
       await this.sourceIndexService.saveUrl(url)
+      this.sourceIndexRepositories = await this.sourceIndexService.loadSavedRepositories()
       const result: SourceIndexFetchResult = await this.sourceIndexService.fetchIndex(url)
       if (result.ok) {
         this.indexEntries = result.entries
@@ -759,6 +763,27 @@ export struct SourcePackageManagerPage {
     } finally {
       this.indexFetchBusy = false
     }
+  }
+
+  private selectSavedIndex(repository: SourceIndexRepository): void {
+    this.sourceIndexUrl = repository.url
+    void this.fetchIndex()
+  }
+
+  private removeSavedIndex(repository: SourceIndexRepository): void {
+    void this.sourceIndexService.removeSavedRepository(repository.url)
+      .then((repositories: SourceIndexRepository[]) => {
+        this.sourceIndexRepositories = repositories
+        if (this.sourceIndexUrl.trim() === repository.url && repositories.length > 0) {
+          this.sourceIndexUrl = repositories[0].url
+        }
+        if (repositories.length === 0 && this.sourceIndexUrl.trim() === repository.url) {
+          this.sourceIndexUrl = ''
+        }
+      })
+      .catch((_error: Error) => {
+        this.showToast(t('source_pkg_saved_index_remove_failed'))
+      })
   }
 
   private async installIndexEntry(entry: SourceIndexEntry, replaceExisting: boolean = false): Promise<void> {
@@ -1515,6 +1540,48 @@ export struct SourcePackageManagerPage {
           .fontSize(ThemeConstants.FONT_SIZE_META)
           .lineHeight(ThemeConstants.LINE_HEIGHT_BODY)
           .fontColor(ThemeConstants.TEXT_SECONDARY)
+      }
+
+      if (this.sourceIndexRepositories.length > 0) {
+        Column({ space: ThemeConstants.SPACE_SM }) {
+          Text(t('source_pkg_saved_indexes_heading'))
+            .width('100%')
+            .fontSize(ThemeConstants.FONT_SIZE_META)
+            .fontWeight(FontWeight.Medium)
+            .fontColor(ThemeConstants.TEXT_PRIMARY)
+          ForEach(this.sourceIndexRepositories, (repository: SourceIndexRepository) => {
+            Row({ space: ThemeConstants.SPACE_SM }) {
+              Text(repository.url)
+                .fontSize(ThemeConstants.FONT_SIZE_CAPTION)
+                .fontColor(ThemeConstants.TEXT_SECONDARY)
+                .maxLines(1)
+                .textOverflow({ overflow: TextOverflow.Ellipsis })
+                .layoutWeight(1)
+              KomaActionButton({
+                label: t('source_pkg_saved_index_use'),
+                kind: repository.url === this.sourceIndexUrl.trim() ? 'primary' : 'secondary',
+                compact: true,
+                controlHeight: ThemeConstants.FILTER_CHIP_HEIGHT,
+                isEnabled: !this.sourceIndexBatchBusy(),
+                action: () => {
+                  this.selectSavedIndex(repository)
+                },
+              })
+              KomaActionButton({
+                label: t('source_pkg_saved_index_remove'),
+                kind: 'ghost',
+                compact: true,
+                controlHeight: ThemeConstants.FILTER_CHIP_HEIGHT,
+                isEnabled: !this.sourceIndexBatchBusy(),
+                action: () => {
+                  this.removeSavedIndex(repository)
+                },
+              })
+            }
+            .width('100%')
+          }, (repository: SourceIndexRepository) => repository.url)
+        }
+        .width('100%')
       }
 
       if (this.indexEntries.length > 0) {

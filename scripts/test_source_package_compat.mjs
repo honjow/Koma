@@ -1076,6 +1076,31 @@ assert.doesNotMatch(
   /https?:\/\/[^/\s]+\/source-index|https?:\/\/[^/\s]+\/index\.json/,
   'SourcePackageManagerPage must not include any default source index URL',
 )
+assert.match(
+  indexServiceSource,
+  /SOURCE_INDEX_REPOSITORIES_KEY: string = 'source_index\.repositories\.v1'[\s\S]*SOURCE_INDEX_REPOSITORY_LIMIT: number = 12/,
+  'SourceIndexService must persist a bounded user-managed source index repository list',
+)
+assert.match(
+  indexServiceSource,
+  /export interface SourceIndexRepository \{[\s\S]*url: string[\s\S]*lastUsedAt: number[\s\S]*\}/,
+  'SourceIndexService must expose saved source index repository records without bundled defaults',
+)
+assert.match(
+  indexServiceSource,
+  /loadSavedRepositories\(\): Promise<SourceIndexRepository\[\]>[\s\S]*SOURCE_INDEX_REPOSITORIES_KEY[\s\S]*normalizeSourceIndexRepositories[\s\S]*SOURCE_INDEX_URL_KEY/,
+  'SourceIndexService must load saved repositories and migrate the legacy single active index URL into the list',
+)
+assert.match(
+  indexServiceSource,
+  /saveUrl\(url: string\): Promise<void>[\s\S]*SOURCE_INDEX_URL_KEY[\s\S]*SOURCE_INDEX_REPOSITORIES_KEY[\s\S]*serializeSourceIndexRepositories/,
+  'saving a source index URL must also remember it in the bounded repository list',
+)
+assert.match(
+  indexServiceSource,
+  /removeSavedRepository\(url: string\): Promise<SourceIndexRepository\[\]>[\s\S]*SOURCE_INDEX_REPOSITORIES_KEY[\s\S]*SOURCE_INDEX_URL_KEY/,
+  'SourceIndexService must let users remove saved index repositories without touching package install validation',
+)
 assert.match(managerPageSource, /source_pkg_load_sources/, 'SourcePackageManagerPage must provide load sources action')
 assert.match(managerPageSource, /source_pkg_local_import/, 'SourcePackageManagerPage must keep local import as secondary fallback')
 assert.match(managerPageSource, /source_pkg_index_url_heading/, 'SourcePackageManagerPage must surface source index URL input')
@@ -1129,6 +1154,26 @@ assert.match(
   managerPageSource,
   /source_pkg_batch_install_missing[\s\S]*this\.missingIndexEntries\(\)\.length[\s\S]*this\.installMissingIndexEntries\(\)[\s\S]*source_pkg_batch_update_available[\s\S]*this\.updatableIndexEntries\(\)\.length[\s\S]*this\.updateUpdatableIndexEntries\(\)/,
   'SourcePackageManagerPage must expose batch install missing and batch update available actions from the loaded index',
+)
+assert.match(
+  managerPageSource,
+  /sourceIndexRepositories: SourceIndexRepository\[\] = \[\][\s\S]*loadSavedIndexUrl\(\)[\s\S]*loadSavedRepositories\(\)/,
+  'SourcePackageManagerPage must load saved source index repositories on entry',
+)
+assert.match(
+  managerPageSource,
+  /selectSavedIndex\(repository: SourceIndexRepository\): void[\s\S]*this\.sourceIndexUrl = repository\.url[\s\S]*this\.fetchIndex\(\)/,
+  'saved source index rows must switch and load the selected repository',
+)
+assert.match(
+  managerPageSource,
+  /removeSavedIndex\(repository: SourceIndexRepository\): void[\s\S]*removeSavedRepository\(repository\.url\)[\s\S]*this\.sourceIndexRepositories = repositories/,
+  'saved source index rows must let users remove repositories through SourceIndexService',
+)
+assert.match(
+  managerPageSource,
+  /source_pkg_saved_indexes_heading[\s\S]*ForEach\(this\.sourceIndexRepositories[\s\S]*source_pkg_saved_index_use[\s\S]*this\.selectSavedIndex\(repository\)[\s\S]*source_pkg_saved_index_remove[\s\S]*this\.removeSavedIndex\(repository\)/,
+  'SourcePackageManagerPage must render saved source indexes with use and remove actions',
 )
 assert.match(
   managerPageSource,
