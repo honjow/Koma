@@ -1,4 +1,4 @@
-import { CachedCoverImage } from './CachedCoverImage'
+import { CachedCoverImage, cachedCoverFailureKey } from './CachedCoverImage'
 import { ThemeConstants } from '../theme/ThemeConstants'
 
 export interface ComicCoverInfo {
@@ -76,7 +76,11 @@ export struct ComicCoverCard {
 
   private shouldDisplayCoverImage(): boolean {
     const coverUri = this.displayCoverUri()
-    return coverUri.length > 0 && this.failedCoverUri !== coverUri
+    return coverUri.length > 0 && this.failedCoverUri !== this.coverFailureKey()
+  }
+
+  private coverFailureKey(): string {
+    return cachedCoverFailureKey(this.displayCoverUri(), this.displaySourceRuntimeId(), this.comic.id)
   }
 
   private titleInitial(): string {
@@ -117,7 +121,7 @@ export struct ComicCoverCard {
               sourceRuntimeId: this.displaySourceRuntimeId(),
               sourceImageId: this.comic.id,
               onError: () => {
-                this.failedCoverUri = this.displayCoverUri()
+                this.failedCoverUri = this.coverFailureKey()
               },
             })
           } else {
@@ -127,7 +131,7 @@ export struct ComicCoverCard {
               .objectFit(ImageFit.Cover)
               .interpolation(ImageInterpolation.Medium)
               .onError(() => {
-                this.failedCoverUri = this.displayCoverUri()
+                this.failedCoverUri = this.coverFailureKey()
               })
           }
         }

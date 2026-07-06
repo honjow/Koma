@@ -6,6 +6,10 @@ import {
   fetchAndCacheSourceRuntimeRemoteImage,
 } from '../model/ReaderPageSourceAdapter'
 
+export function cachedCoverFailureKey(uri: string | undefined, sourceRuntimeId?: string, sourceImageId?: string): string {
+  return `${uri ?? ''}::${(sourceRuntimeId ?? '').trim()}::${(sourceImageId ?? '').trim()}`
+}
+
 @ComponentV2
 export struct CachedCoverImage {
   @Param uri: string = ''
@@ -40,7 +44,7 @@ export struct CachedCoverImage {
   }
 
   private createSourceSignature(uri: string, sourceRuntimeId: string | undefined, sourceImageId: string | undefined): string {
-    return `${uri}::${(sourceRuntimeId ?? '').trim()}::${(sourceImageId ?? '').trim()}`
+    return cachedCoverFailureKey(uri, sourceRuntimeId, sourceImageId)
   }
 
   private async resolveImageUri(uri: string, sourceRuntimeId: string, sourceImageId: string): Promise<string> {

@@ -1,4 +1,4 @@
-import { CachedCoverImage } from './CachedCoverImage'
+import { CachedCoverImage, cachedCoverFailureKey } from './CachedCoverImage'
 import { SourceManga } from '../model/SourceModels'
 import { ThemeConstants } from '../theme/ThemeConstants'
 
@@ -21,7 +21,11 @@ export struct MangaGridItem {
 
   private hasCover(): boolean {
     const coverUrl = this.manga.coverUrl ?? ''
-    return coverUrl.length > 0 && this.failedCoverUrl !== coverUrl
+    return coverUrl.length > 0 && this.failedCoverUrl !== this.coverFailureKey()
+  }
+
+  private coverFailureKey(): string {
+    return cachedCoverFailureKey(this.manga.coverUrl, this.manga.sourceId, this.manga.id)
   }
 
   build() {
@@ -34,7 +38,7 @@ export struct MangaGridItem {
             sourceRuntimeId: this.manga.sourceId,
             sourceImageId: this.manga.id,
             onError: () => {
-              this.failedCoverUrl = this.manga.coverUrl ?? ''
+              this.failedCoverUrl = this.coverFailureKey()
             },
           })
         } else {

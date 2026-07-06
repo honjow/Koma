@@ -1642,22 +1642,22 @@ assert.match(
 )
 assert.match(
   comicCoverCardSource,
-  /import \{ CachedCoverImage \} from '\.\/CachedCoverImage'[\s\S]*sourceRuntimeId\?: string[\s\S]*shouldUseSourceAwareCover\(\): boolean[\s\S]*this\.isRemoteCoverUri\(\) && this\.displaySourceRuntimeId\(\)\.trim\(\)\.length > 0[\s\S]*CachedCoverImage\(\{[\s\S]*uri: this\.displayCoverUri\(\)[\s\S]*sourceRuntimeId: this\.displaySourceRuntimeId\(\)[\s\S]*sourceImageId: this\.comic\.id/,
+  /import \{ CachedCoverImage, cachedCoverFailureKey \} from '\.\/CachedCoverImage'[\s\S]*sourceRuntimeId\?: string[\s\S]*shouldUseSourceAwareCover\(\): boolean[\s\S]*this\.isRemoteCoverUri\(\) && this\.displaySourceRuntimeId\(\)\.trim\(\)\.length > 0[\s\S]*coverFailureKey\(\): string[\s\S]*cachedCoverFailureKey\(this\.displayCoverUri\(\), this\.displaySourceRuntimeId\(\), this\.comic\.id\)[\s\S]*CachedCoverImage\(\{[\s\S]*uri: this\.displayCoverUri\(\)[\s\S]*sourceRuntimeId: this\.displaySourceRuntimeId\(\)[\s\S]*sourceImageId: this\.comic\.id/,
   'ComicCoverCard must use source-aware cached cover rendering for source package library covers',
 )
 assert.match(
   comicCoverCardSource,
-  /@Local private failedCoverUri: string = ''[\s\S]*shouldDisplayCoverImage\(\): boolean[\s\S]*this\.failedCoverUri !== coverUri[\s\S]*\.onError\(\(\) => \{[\s\S]*this\.failedCoverUri = this\.displayCoverUri\(\)/,
-  'ComicCoverCard must fall back to its placeholder when a persisted cover URI fails to load',
+  /@Local private failedCoverUri: string = ''[\s\S]*shouldDisplayCoverImage\(\): boolean[\s\S]*this\.failedCoverUri !== this\.coverFailureKey\(\)[\s\S]*\.onError\(\(\) => \{[\s\S]*this\.failedCoverUri = this\.coverFailureKey\(\)/,
+  'ComicCoverCard must fall back to its placeholder by source-aware cover identity when a persisted cover fails to load',
 )
 assert.match(
   mangaGridItemSource,
-  /import \{ CachedCoverImage \} from '\.\/CachedCoverImage'[\s\S]*@Local private failedCoverUrl: string = ''[\s\S]*hasCover\(\): boolean[\s\S]*this\.failedCoverUrl !== coverUrl[\s\S]*CachedCoverImage\(\{[\s\S]*uri: this\.manga\.coverUrl \?\? ''[\s\S]*objectFit: ImageFit\.Cover[\s\S]*sourceRuntimeId: this\.manga\.sourceId[\s\S]*sourceImageId: this\.manga\.id[\s\S]*onError: \(\) => \{[\s\S]*this\.failedCoverUrl = this\.manga\.coverUrl \?\? ''/,
+  /import \{ CachedCoverImage, cachedCoverFailureKey \} from '\.\/CachedCoverImage'[\s\S]*@Local private failedCoverUrl: string = ''[\s\S]*hasCover\(\): boolean[\s\S]*this\.failedCoverUrl !== this\.coverFailureKey\(\)[\s\S]*coverFailureKey\(\): string[\s\S]*cachedCoverFailureKey\(this\.manga\.coverUrl, this\.manga\.sourceId, this\.manga\.id\)[\s\S]*CachedCoverImage\(\{[\s\S]*uri: this\.manga\.coverUrl \?\? ''[\s\S]*objectFit: ImageFit\.Cover[\s\S]*sourceRuntimeId: this\.manga\.sourceId[\s\S]*sourceImageId: this\.manga\.id[\s\S]*onError: \(\) => \{[\s\S]*this\.failedCoverUrl = this\.coverFailureKey\(\)/,
   'Source manga grid covers must use the cached source-aware cover image path and fail closed to the generated placeholder',
 )
 assert.match(
   mangaDetailHeaderSource,
-  /import \{ CachedCoverImage \} from '\.\/CachedCoverImage'[\s\S]*@Local private failedCoverUrl: string = ''[\s\S]*hasCover\(\): boolean[\s\S]*this\.failedCoverUrl !== coverUrl[\s\S]*CachedCoverImage\(\{[\s\S]*uri: this\.manga\.coverUrl \?\? ''[\s\S]*objectFit: ImageFit\.Cover[\s\S]*sourceRuntimeId: this\.manga\.sourceId \?\? ''[\s\S]*sourceImageId: this\.manga\.id[\s\S]*onError: \(\) => \{[\s\S]*this\.failedCoverUrl = this\.manga\.coverUrl \?\? ''/,
+  /import \{ CachedCoverImage, cachedCoverFailureKey \} from '\.\/CachedCoverImage'[\s\S]*@Local private failedCoverUrl: string = ''[\s\S]*hasCover\(\): boolean[\s\S]*this\.failedCoverUrl !== this\.coverFailureKey\(\)[\s\S]*coverFailureKey\(\): string[\s\S]*cachedCoverFailureKey\(this\.manga\.coverUrl, this\.manga\.sourceId \?\? '', this\.manga\.id\)[\s\S]*CachedCoverImage\(\{[\s\S]*uri: this\.manga\.coverUrl \?\? ''[\s\S]*objectFit: ImageFit\.Cover[\s\S]*sourceRuntimeId: this\.manga\.sourceId \?\? ''[\s\S]*sourceImageId: this\.manga\.id[\s\S]*onError: \(\) => \{[\s\S]*this\.failedCoverUrl = this\.coverFailureKey\(\)/,
   'Manga detail header covers must use the cached source-aware cover image path and fail closed when a source cover URL is unavailable',
 )
 assert.match(
@@ -1682,12 +1682,12 @@ assert.match(
 )
 assert.match(
   searchPageSource,
-  /import \{ CachedCoverImage \} from '\.\.\/components\/CachedCoverImage'[\s\S]*@Local private failedCoverUris: string\[\] = \[\][\s\S]*isSourceAwareCover\(item: CrossSearchResultItem\)[\s\S]*item\.sourceKind === 'wasm'[\s\S]*CachedCoverImage\(\{[\s\S]*uri: item\.coverUri \?\? ''[\s\S]*sourceRuntimeId: item\.sourceId \?\? ''[\s\S]*sourceImageId: item\.sourceMangaId \?\? item\.id[\s\S]*Image\(item\.coverUri\)[\s\S]*this\.markCoverUriFailed\(item\.coverUri\)/,
+  /import \{ CachedCoverImage, cachedCoverFailureKey \} from '\.\.\/components\/CachedCoverImage'[\s\S]*@Local private failedCoverUris: string\[\] = \[\][\s\S]*shouldShowCoverUri\(coverUri: string \| undefined, sourceRuntimeId\?: string, sourceImageId\?: string\)[\s\S]*cachedCoverFailureKey\(coverUri, sourceRuntimeId, sourceImageId\)[\s\S]*markCoverUriFailed\(coverUri: string \| undefined, sourceRuntimeId\?: string, sourceImageId\?: string\)[\s\S]*isSourceAwareCover\(item: CrossSearchResultItem\)[\s\S]*item\.sourceKind === 'wasm'[\s\S]*CachedCoverImage\(\{[\s\S]*uri: item\.coverUri \?\? ''[\s\S]*sourceRuntimeId: item\.sourceId \?\? ''[\s\S]*sourceImageId: item\.sourceMangaId \?\? item\.id[\s\S]*Image\(item\.coverUri\)[\s\S]*this\.markCoverUriFailed\(item\.coverUri, item\.sourceId, item\.sourceMangaId \?\? item\.id\)/,
   'Cross-search cover thumbnails must use source-aware cached rendering for WASM source covers and fall back to source badges',
 )
 assert.match(
   historyPageSource,
-  /import \{ CachedCoverImage \} from '\.\.\/components\/CachedCoverImage'[\s\S]*@Local private failedCoverUris: string\[\] = \[\][\s\S]*isSourceAwareCover\(item: LibraryItem\)[\s\S]*item\.sourceRuntimeId\?\.trim\(\)[\s\S]*CachedCoverImage\(\{[\s\S]*uri: item\.coverUri \?\? ''[\s\S]*sourceRuntimeId: item\.sourceRuntimeId \?\? ''[\s\S]*sourceImageId: item\.comicId[\s\S]*Image\(item\.coverUri\)[\s\S]*this\.markCoverUriFailed\(item\.coverUri\)/,
+  /import \{ CachedCoverImage, cachedCoverFailureKey \} from '\.\.\/components\/CachedCoverImage'[\s\S]*@Local private failedCoverUris: string\[\] = \[\][\s\S]*shouldShowCoverUri\(coverUri: string \| undefined, sourceRuntimeId\?: string, sourceImageId\?: string\)[\s\S]*cachedCoverFailureKey\(coverUri, sourceRuntimeId, sourceImageId\)[\s\S]*markCoverUriFailed\(coverUri: string \| undefined, sourceRuntimeId\?: string, sourceImageId\?: string\)[\s\S]*isSourceAwareCover\(item: LibraryItem\)[\s\S]*item\.sourceRuntimeId\?\.trim\(\)[\s\S]*CachedCoverImage\(\{[\s\S]*uri: item\.coverUri \?\? ''[\s\S]*sourceRuntimeId: item\.sourceRuntimeId \?\? ''[\s\S]*sourceImageId: item\.comicId[\s\S]*Image\(item\.coverUri\)[\s\S]*this\.markCoverUriFailed\(item\.coverUri, item\.sourceRuntimeId, item\.comicId\)/,
   'History cover thumbnails must use source-aware cached rendering for source covers and fall back when a stored cover URI fails',
 )
 assert.match(
@@ -1697,12 +1697,12 @@ assert.match(
 )
 assert.match(
   libraryPageSource,
-  /@Local private failedCoverUris: string\[\] = \[\][\s\S]*shouldShowCoverUri\(coverUri: string \| undefined\): boolean[\s\S]*markCoverUriFailed\(coverUri: string \| undefined\): void[\s\S]*isSourceAwareCover\(comic: ComicCoverInfo\)[\s\S]*CachedCoverImage\(\{[\s\S]*uri: comic\.coverUri \?\? ''[\s\S]*sourceRuntimeId: comic\.sourceRuntimeId \?\? ''[\s\S]*Image\(comic\.coverUri\)[\s\S]*this\.markCoverUriFailed\(comic\.coverUri\)/,
+  /@Local private failedCoverUris: string\[\] = \[\][\s\S]*shouldShowCoverUri\(coverUri: string \| undefined, sourceRuntimeId\?: string, sourceImageId\?: string\): boolean[\s\S]*cachedCoverFailureKey\(coverUri, sourceRuntimeId, sourceImageId\)[\s\S]*markCoverUriFailed\(coverUri: string \| undefined, sourceRuntimeId\?: string, sourceImageId\?: string\): void[\s\S]*isSourceAwareCover\(comic: ComicCoverInfo\)[\s\S]*CachedCoverImage\(\{[\s\S]*uri: comic\.coverUri \?\? ''[\s\S]*sourceRuntimeId: comic\.sourceRuntimeId \?\? ''[\s\S]*Image\(comic\.coverUri\)[\s\S]*this\.markCoverUriFailed\(comic\.coverUri, comic\.sourceRuntimeId, comic\.id\)/,
   'Library list cover thumbnails must use source-aware cached rendering for source covers and still fall back when a stored cover URI fails',
 )
 assert.match(
   libraryPageSource,
-  /struct ContinueReadingShelfCard \{[\s\S]*@Param info: ContinueReadingCardViewModel[\s\S]*@Param revision: number[\s\S]*CachedCoverImage\(\{[\s\S]*uri: this\.info\.coverUri \?\? ''[\s\S]*sourceRuntimeId: this\.info\.sourceRuntimeId \?\? ''[\s\S]*Text\(this\.info\.title\)[\s\S]*onOpenReader\(this\.info\.comicId\)/,
+  /struct ContinueReadingShelfCard \{[\s\S]*@Param info: ContinueReadingCardViewModel[\s\S]*@Param revision: number[\s\S]*coverFailureKey\(\): string[\s\S]*cachedCoverFailureKey\(this\.info\.coverUri, this\.info\.sourceRuntimeId, this\.info\.comicId\)[\s\S]*CachedCoverImage\(\{[\s\S]*uri: this\.info\.coverUri \?\? ''[\s\S]*sourceRuntimeId: this\.info\.sourceRuntimeId \?\? ''[\s\S]*Text\(this\.info\.title\)[\s\S]*onOpenReader\(this\.info\.comicId\)/,
   'Continue Reading must render through reactive props and show the real source-aware cover so live library changes do not leave a fake K card',
 )
 assert.match(

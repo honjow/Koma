@@ -1,6 +1,6 @@
 import { common } from '@kit.AbilityKit'
 import { RouterHelper } from '../common/RouterHelper'
-import { CachedCoverImage } from '../components/CachedCoverImage'
+import { CachedCoverImage, cachedCoverFailureKey } from '../components/CachedCoverImage'
 import { SecondaryListScaffold } from '../components/SecondaryListScaffold'
 import { KomaActionButton } from '../components/ui/KomaActionButton'
 import { KomaIconButton } from '../components/ui/KomaIconButton'
@@ -612,15 +612,16 @@ export struct SearchPage {
     return s('search_match_weak')
   }
 
-  private shouldShowCoverUri(coverUri: string | undefined): boolean {
+  private shouldShowCoverUri(coverUri: string | undefined, sourceRuntimeId?: string, sourceImageId?: string): boolean {
     const normalized = coverUri ?? ''
-    return normalized.length > 0 && this.failedCoverUris.indexOf(normalized) < 0
+    return normalized.length > 0 && this.failedCoverUris.indexOf(cachedCoverFailureKey(coverUri, sourceRuntimeId, sourceImageId)) < 0
   }
 
-  private markCoverUriFailed(coverUri: string | undefined): void {
+  private markCoverUriFailed(coverUri: string | undefined, sourceRuntimeId?: string, sourceImageId?: string): void {
     const normalized = coverUri ?? ''
-    if (normalized.length > 0 && this.failedCoverUris.indexOf(normalized) < 0) {
-      this.failedCoverUris = this.failedCoverUris.concat([normalized])
+    const failureKey = cachedCoverFailureKey(coverUri, sourceRuntimeId, sourceImageId)
+    if (normalized.length > 0 && this.failedCoverUris.indexOf(failureKey) < 0) {
+      this.failedCoverUris = this.failedCoverUris.concat([failureKey])
     }
   }
 
@@ -634,7 +635,7 @@ export struct SearchPage {
   private ResultRow(item: CrossSearchResultItem) {
     Row({ space: ThemeConstants.SPACE_MD }) {
       Stack({ alignContent: Alignment.Center }) {
-        if (this.shouldShowCoverUri(item.coverUri)) {
+        if (this.shouldShowCoverUri(item.coverUri, item.sourceId, item.sourceMangaId ?? item.id)) {
           if (this.isSourceAwareCover(item)) {
             CachedCoverImage({
               uri: item.coverUri ?? '',
@@ -642,7 +643,7 @@ export struct SearchPage {
               sourceRuntimeId: item.sourceId ?? '',
               sourceImageId: item.sourceMangaId ?? item.id,
               onError: () => {
-                this.markCoverUriFailed(item.coverUri)
+                this.markCoverUriFailed(item.coverUri, item.sourceId, item.sourceMangaId ?? item.id)
               },
             })
           } else {
@@ -652,7 +653,7 @@ export struct SearchPage {
               .objectFit(ImageFit.Cover)
               .interpolation(ImageInterpolation.Medium)
               .onError(() => {
-                this.markCoverUriFailed(item.coverUri)
+                this.markCoverUriFailed(item.coverUri, item.sourceId, item.sourceMangaId ?? item.id)
               })
           }
         } else {

@@ -1,7 +1,7 @@
 import { common } from '@kit.AbilityKit'
 import { Chip, ChipSize } from '@kit.ArkUI'
 import { ComicCoverCard, ComicCoverInfo } from '../components/ComicCoverCard'
-import { CachedCoverImage } from '../components/CachedCoverImage'
+import { CachedCoverImage, cachedCoverFailureKey } from '../components/CachedCoverImage'
 import { SecondaryListScaffold } from '../components/SecondaryListScaffold'
 import { ConciseListRow } from '../components/ui/ConciseListRow'
 import { KomaActionButton } from '../components/ui/KomaActionButton'
@@ -97,7 +97,11 @@ struct ContinueReadingShelfCard {
 
   private shouldShowCover(): boolean {
     const coverUri = this.info.coverUri ?? ''
-    return coverUri.length > 0 && this.failedCoverUri !== coverUri
+    return coverUri.length > 0 && this.failedCoverUri !== this.coverFailureKey()
+  }
+
+  private coverFailureKey(): string {
+    return cachedCoverFailureKey(this.info.coverUri, this.info.sourceRuntimeId, this.info.comicId)
   }
 
   private isRemoteSourceCover(): boolean {
@@ -121,7 +125,7 @@ struct ContinueReadingShelfCard {
               sourceRuntimeId: this.info.sourceRuntimeId ?? '',
               sourceImageId: this.info.comicId,
               onError: () => {
-                this.failedCoverUri = this.info.coverUri ?? ''
+                this.failedCoverUri = this.coverFailureKey()
               },
             })
           } else {
@@ -131,7 +135,7 @@ struct ContinueReadingShelfCard {
               .objectFit(ImageFit.Cover)
               .interpolation(ImageInterpolation.Medium)
               .onError(() => {
-                this.failedCoverUri = this.info.coverUri ?? ''
+                this.failedCoverUri = this.coverFailureKey()
               })
           }
         }
@@ -1887,15 +1891,16 @@ export struct LibraryPage {
     this.LibraryGrid(comics)
   }
 
-  private shouldShowCoverUri(coverUri: string | undefined): boolean {
+  private shouldShowCoverUri(coverUri: string | undefined, sourceRuntimeId?: string, sourceImageId?: string): boolean {
     const normalized = coverUri ?? ''
-    return normalized.length > 0 && this.failedCoverUris.indexOf(normalized) < 0
+    return normalized.length > 0 && this.failedCoverUris.indexOf(cachedCoverFailureKey(coverUri, sourceRuntimeId, sourceImageId)) < 0
   }
 
-  private markCoverUriFailed(coverUri: string | undefined): void {
+  private markCoverUriFailed(coverUri: string | undefined, sourceRuntimeId?: string, sourceImageId?: string): void {
     const normalized = coverUri ?? ''
-    if (normalized.length > 0 && this.failedCoverUris.indexOf(normalized) < 0) {
-      this.failedCoverUris = this.failedCoverUris.concat([normalized])
+    const failureKey = cachedCoverFailureKey(coverUri, sourceRuntimeId, sourceImageId)
+    if (normalized.length > 0 && this.failedCoverUris.indexOf(failureKey) < 0) {
+      this.failedCoverUris = this.failedCoverUris.concat([failureKey])
     }
   }
 
@@ -1908,7 +1913,7 @@ export struct LibraryPage {
   @Builder
   private LibraryListCover(comic: ComicCoverInfo) {
     Stack({ alignContent: Alignment.Center }) {
-      if (this.shouldShowCoverUri(comic.coverUri)) {
+      if (this.shouldShowCoverUri(comic.coverUri, comic.sourceRuntimeId, comic.id)) {
         if (this.isSourceAwareCover(comic)) {
           CachedCoverImage({
             uri: comic.coverUri ?? '',
@@ -1916,7 +1921,7 @@ export struct LibraryPage {
             sourceRuntimeId: comic.sourceRuntimeId ?? '',
             sourceImageId: comic.id,
             onError: () => {
-              this.markCoverUriFailed(comic.coverUri)
+              this.markCoverUriFailed(comic.coverUri, comic.sourceRuntimeId, comic.id)
             },
           })
         } else {
@@ -1926,7 +1931,7 @@ export struct LibraryPage {
             .objectFit(ImageFit.Cover)
             .interpolation(ImageInterpolation.Medium)
             .onError(() => {
-              this.markCoverUriFailed(comic.coverUri)
+              this.markCoverUriFailed(comic.coverUri, comic.sourceRuntimeId, comic.id)
             })
         }
       } else {

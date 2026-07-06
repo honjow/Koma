@@ -1,4 +1,4 @@
-import { CachedCoverImage } from './CachedCoverImage'
+import { CachedCoverImage, cachedCoverFailureKey } from './CachedCoverImage'
 import { AppStrings } from '../i18n/AppStrings'
 import { connectLanguageState, LanguageState } from '../state/LanguageState'
 import { MangaDetail, MangaStatus } from '../model/MangaDetailModels'
@@ -21,7 +21,11 @@ export struct MangaDetailHeader {
 
   private hasCover(): boolean {
     const coverUrl = this.manga.coverUrl ?? ''
-    return coverUrl.length > 0 && this.failedCoverUrl !== coverUrl
+    return coverUrl.length > 0 && this.failedCoverUrl !== this.coverFailureKey()
+  }
+
+  private coverFailureKey(): string {
+    return cachedCoverFailureKey(this.manga.coverUrl, this.manga.sourceId ?? '', this.manga.id)
   }
 
   private displayTitle(): string {
@@ -92,7 +96,7 @@ export struct MangaDetailHeader {
           sourceRuntimeId: this.manga.sourceId ?? '',
           sourceImageId: this.manga.id,
           onError: () => {
-            this.failedCoverUrl = this.manga.coverUrl ?? ''
+            this.failedCoverUrl = this.coverFailureKey()
           },
         })
       } else {
