@@ -2194,8 +2194,8 @@ assert.match(
 )
 assert.match(
   chapterListSectionSource,
-  /VisibleReadStateMenu\(\)[\s\S]*onMarkVisibleChaptersReadState\(this\.visibleChapterIds\(\), true\)[\s\S]*onMarkVisibleChaptersReadState\(this\.visibleChapterIds\(\), false\)/,
-  'ChapterListSection visible mark-read actions must target the current filtered visible chapter ids',
+  /SectionActionsMenu\(\)[\s\S]*onMarkVisibleChaptersReadState\(this\.visibleChapterIds\(\), true\)[\s\S]*onMarkVisibleChaptersReadState\(this\.visibleChapterIds\(\), false\)[\s\S]*onDownloadVisibleChapters\(this\.visibleChapterIds\(\), ChapterBatchDownloadMode\.ALL_VISIBLE\)[\s\S]*ChapterBatchDownloadMode\.FAILED_ONLY[\s\S]*ChapterBatchDownloadMode\.NOT_DOWNLOADED/,
+  'ChapterListSection overflow actions must target the current filtered visible chapter ids',
 )
 assert.match(
   chapterListSectionSource,
@@ -2219,8 +2219,13 @@ assert.doesNotMatch(
 )
 assert.match(
   chapterListSectionSource,
-  /Column\(\)[\s\S]*ForEach\(this\.sortedChapters[\s\S]*this\.ChapterRow\(chapter\)[\s\S]*Divider\(\)/,
-  'ChapterListSection must render visible chapters in the parent detail scroll with row dividers',
+  /ChapterRow\(chapter: MangaChapterItem\)[\s\S]*ConciseListRow\(\{[\s\S]*title: this\.chapterTitle\(chapter\)[\s\S]*subtitle: this\.chapterSubtitle\(chapter\)[\s\S]*action: \(\) => \{[\s\S]*this\.onOpenChapter\(chapter\.id\)[\s\S]*Column\(\)[\s\S]*ForEach\(this\.sortedChapters[\s\S]*this\.ChapterRow\(chapter\)[\s\S]*Divider\(\)/,
+  'ChapterListSection must render visible chapters in the parent detail scroll with HDS list rows and dividers',
+)
+assert.doesNotMatch(
+  chapterListSectionSource,
+  /Chip\(/,
+  'ChapterListSection must not fall back to a wall of handwritten chip controls',
 )
 assert.match(
   chapterListSectionSource,
@@ -2234,7 +2239,7 @@ assert.match(
 )
 assert.match(
   chapterListSectionSource,
-  /if \(chapter\.isDownloaded\) \{[\s\S]*SymbolGlyph\(\$r\('sys\.symbol\.checkmark'\)\)[\s\S]*Text\(s\('downloads_status_downloaded'\)\)[\s\S]*ThemeConstants\.SOFT_TINT/,
+  /DownloadedBadge\(\)[\s\S]*SymbolGlyph\(\$r\('sys\.symbol\.checkmark'\)\)[\s\S]*Text\(s\('downloads_status_downloaded'\)\)[\s\S]*ThemeConstants\.SOFT_TINT[\s\S]*if \(chapter\.isDownloaded\) \{[\s\S]*this\.DownloadedBadge\(\)/,
   'ChapterListSection downloaded state must use a reusable symbol status pill instead of a handwritten glyph',
 )
 assert.doesNotMatch(

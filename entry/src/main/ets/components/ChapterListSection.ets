@@ -1,6 +1,6 @@
-import { Chip, ChipSize } from '@kit.ArkUI'
 import { AppStrings } from '../i18n/AppStrings'
 import { connectLanguageState, LanguageState } from '../state/LanguageState'
+import { ConciseListRow } from './ui/ConciseListRow'
 import { KomaActionButton } from './ui/KomaActionButton'
 import { KomaEmptyState } from './ui/KomaEmptyState'
 import { KomaIconButton } from './ui/KomaIconButton'
@@ -290,24 +290,6 @@ export struct ChapterListSection {
   }
 
   @Builder
-  private BatchDownloadMenu() {
-    Menu() {
-      MenuItem({ content: s('chapter_list_menu_download_visible') })
-        .onClick(() => {
-          this.onDownloadVisibleChapters(this.visibleChapterIds(), ChapterBatchDownloadMode.ALL_VISIBLE)
-        })
-      MenuItem({ content: s('chapter_list_menu_retry_failed') })
-        .onClick(() => {
-          this.onDownloadVisibleChapters(this.visibleChapterIds(), ChapterBatchDownloadMode.FAILED_ONLY)
-        })
-      MenuItem({ content: s('chapter_list_menu_download_incomplete') })
-        .onClick(() => {
-          this.onDownloadVisibleChapters(this.visibleChapterIds(), ChapterBatchDownloadMode.NOT_DOWNLOADED)
-        })
-    }
-  }
-
-  @Builder
   private FilterMenu() {
     Menu() {
       MenuItem({ content: s('chapter_list_filter_all') })
@@ -376,7 +358,7 @@ export struct ChapterListSection {
   }
 
   @Builder
-  private VisibleReadStateMenu() {
+  private SectionActionsMenu() {
     Menu() {
       MenuItem({ content: s('chapter_list_menu_mark_visible_read') })
         .onClick(() => {
@@ -385,6 +367,18 @@ export struct ChapterListSection {
       MenuItem({ content: s('chapter_list_menu_mark_visible_unread') })
         .onClick(() => {
           this.onMarkVisibleChaptersReadState(this.visibleChapterIds(), false)
+        })
+      MenuItem({ content: s('chapter_list_menu_download_visible') })
+        .onClick(() => {
+          this.onDownloadVisibleChapters(this.visibleChapterIds(), ChapterBatchDownloadMode.ALL_VISIBLE)
+        })
+      MenuItem({ content: s('chapter_list_menu_retry_failed') })
+        .onClick(() => {
+          this.onDownloadVisibleChapters(this.visibleChapterIds(), ChapterBatchDownloadMode.FAILED_ONLY)
+        })
+      MenuItem({ content: s('chapter_list_menu_download_incomplete') })
+        .onClick(() => {
+          this.onDownloadVisibleChapters(this.visibleChapterIds(), ChapterBatchDownloadMode.NOT_DOWNLOADED)
         })
     }
   }
@@ -403,57 +397,44 @@ export struct ChapterListSection {
   }
 
   @Builder
-  private ChapterRow(chapter: MangaChapterItem) {
-    Row({ space: ThemeConstants.SPACE_MD }) {
-      Row({ space: ThemeConstants.SPACE_MD }) {
-        Blank()
-          .width(ThemeConstants.SPACE_SM)
-          .height(ThemeConstants.SPACE_SM)
-          .borderRadius(ThemeConstants.RADIUS_ROUND)
-          .backgroundColor(chapter.isRead ? ThemeConstants.TEXT_SECONDARY : ThemeConstants.BRAND_PRIMARY)
-          .opacity(chapter.isRead ? 0.45 : 1)
+  private DownloadedBadge() {
+    Row({ space: ThemeConstants.SPACE_XS }) {
+      SymbolGlyph($r('sys.symbol.checkmark'))
+        .fontSize(ThemeConstants.FONT_SIZE_TITLE)
+        .fontColor([ThemeConstants.BRAND_PRIMARY])
+      Text(s('downloads_status_downloaded'))
+        .fontSize(ThemeConstants.FONT_SIZE_CAPTION)
+        .fontWeight(FontWeight.Medium)
+        .fontColor(ThemeConstants.BRAND_PRIMARY)
+        .maxLines(1)
+    }
+    .height(ThemeConstants.FILTER_CHIP_HEIGHT)
+    .padding({ left: ThemeConstants.SPACE_SM, right: ThemeConstants.SPACE_SM })
+    .borderRadius(ThemeConstants.RADIUS_ROUND)
+    .backgroundColor(ThemeConstants.SOFT_TINT)
+  }
 
-        Column({ space: ThemeConstants.SPACE_XS }) {
-          Text(this.chapterTitle(chapter))
-            .width('100%')
-            .fontSize(ThemeConstants.FONT_SIZE_TITLE)
-            .fontWeight(chapter.isRead ? FontWeight.Regular : FontWeight.Medium)
-            .fontColor(ThemeConstants.TEXT_PRIMARY)
-            .maxLines(1)
-            .textOverflow({ overflow: TextOverflow.Ellipsis })
-
-          Text(this.chapterSubtitle(chapter))
-            .width('100%')
-            .fontSize(ThemeConstants.FONT_SIZE_CAPTION)
-            .fontColor(ThemeConstants.TEXT_SECONDARY)
-            .maxLines(1)
-            .textOverflow({ overflow: TextOverflow.Ellipsis })
-        }
-        .layoutWeight(1)
-        .alignItems(HorizontalAlign.Start)
-      }
-      .layoutWeight(1)
-      .height('100%')
-      .alignItems(VerticalAlign.Center)
-      .onClick(() => {
-        this.onOpenChapter(chapter.id)
-      })
-
-      if (chapter.isDownloaded) {
-        Row({ space: ThemeConstants.SPACE_XS }) {
-          SymbolGlyph($r('sys.symbol.checkmark'))
-            .fontSize(ThemeConstants.FONT_SIZE_TITLE)
-            .fontColor([ThemeConstants.BRAND_PRIMARY])
-          Text(s('downloads_status_downloaded'))
-            .fontSize(ThemeConstants.FONT_SIZE_CAPTION)
-            .fontWeight(FontWeight.Medium)
-            .fontColor(ThemeConstants.BRAND_PRIMARY)
-            .maxLines(1)
-        }
-        .height(ThemeConstants.FILTER_CHIP_HEIGHT)
-        .padding({ left: ThemeConstants.SPACE_SM, right: ThemeConstants.SPACE_SM })
+  @Builder
+  private ChapterRowPrefix(chapter: MangaChapterItem) {
+    Row() {
+      Blank()
+        .width(ThemeConstants.SPACE_SM)
+        .height(ThemeConstants.SPACE_SM)
         .borderRadius(ThemeConstants.RADIUS_ROUND)
-        .backgroundColor(ThemeConstants.SOFT_TINT)
+        .backgroundColor(chapter.isRead ? ThemeConstants.TEXT_SECONDARY : ThemeConstants.BRAND_PRIMARY)
+        .opacity(chapter.isRead ? 0.45 : 1)
+    }
+    .width(24)
+    .height(ThemeConstants.TOUCH_TARGET_SM)
+    .justifyContent(FlexAlign.Center)
+    .alignItems(VerticalAlign.Center)
+  }
+
+  @Builder
+  private ChapterRowSuffix(chapter: MangaChapterItem) {
+    Row({ space: ThemeConstants.SPACE_MD }) {
+      if (chapter.isDownloaded) {
+        this.DownloadedBadge()
       }
 
       KomaIconButton({
@@ -474,96 +455,86 @@ export struct ChapterListSection {
       })
         .bindMenu(this.ReadStateMenu(chapter))
     }
+    .alignItems(VerticalAlign.Center)
+  }
+
+  @Builder
+  private ChapterRow(chapter: MangaChapterItem) {
+    ConciseListRow({
+      title: this.chapterTitle(chapter),
+      subtitle: this.chapterSubtitle(chapter),
+      showChevron: false,
+      primaryColor: ThemeConstants.TEXT_PRIMARY,
+      secondaryColor: ThemeConstants.TEXT_SECONDARY,
+      prefixBuilderParam: () => {
+        this.ChapterRowPrefix(chapter)
+      },
+      suffixBuilderParam: () => {
+        this.ChapterRowSuffix(chapter)
+      },
+      action: () => {
+        this.onOpenChapter(chapter.id)
+      },
+    })
     .width('100%')
-    .height(62)
-    .padding({ left: 14, right: 14 })
+    .padding({ top: ThemeConstants.SPACE_XS, bottom: ThemeConstants.SPACE_XS })
     .opacity(chapter.isRead ? 0.68 : 1)
   }
 
   build() {
     Column({ space: ThemeConstants.SPACE_MD }) {
       Column({ space: ThemeConstants.SPACE_SM }) {
-        Row() {
+        Row({ space: ThemeConstants.SPACE_SM }) {
           Text(this.formatString('chapter_list_title', [this.sortedChapters.length, this.chapters.length]))
             .fontSize(ThemeConstants.FONT_SIZE_H3)
             .fontWeight(FontWeight.Bold)
             .fontColor(ThemeConstants.TEXT_PRIMARY)
             .layoutWeight(1)
+
+          KomaIconButton({
+            icon: $r('sys.symbol.more'),
+            kind: 'secondary',
+            controlSize: ThemeConstants.TOUCH_TARGET_SM,
+            iconSize: ThemeConstants.FONT_SIZE_H3,
+          })
+            .bindMenu(this.SectionActionsMenu(), {
+              placement: Placement.BottomRight,
+            })
         }
         .width('100%')
         .alignItems(VerticalAlign.Center)
 
         Flex({ wrap: FlexWrap.Wrap }) {
-          Row() {
-            Chip({
-              label: {
-                text: `${this.filterLabel()} ▾`,
-                fontSize: ThemeConstants.FONT_SIZE_TAG,
-                fontColor: ThemeConstants.TEXT_PRIMARY,
-                activatedFontColor: ThemeConstants.TEXT_ON_BRAND,
-              },
-              activated: this.readFilter !== ChapterReadFilter.ALL,
-              size: ChipSize.SMALL,
-              backgroundColor: $r('sys.color.ohos_id_color_button_normal'),
-              activatedBackgroundColor: ThemeConstants.BRAND_PRIMARY,
-              borderRadius: ThemeConstants.RADIUS_ROUND,
-              allowClose: false,
-            })
-          }
+          KomaActionButton({
+            label: `${this.filterLabel()} ▾`,
+            kind: this.readFilter === ChapterReadFilter.ALL ? 'secondary' : 'primary',
+            compact: true,
+            controlHeight: ThemeConstants.ACTION_CHIP_HEIGHT,
+          })
           .margin({ right: ThemeConstants.SPACE_SM, bottom: ThemeConstants.SPACE_SM })
           .bindMenu(this.FilterMenu())
-          Row() {
-            Chip({
-              label: {
-                text: `${this.languageFilterLabel()} ▾`,
-                fontSize: ThemeConstants.FONT_SIZE_TAG,
-                fontColor: ThemeConstants.TEXT_PRIMARY,
-                activatedFontColor: ThemeConstants.TEXT_ON_BRAND,
-              },
-              activated: this.languageFilter.length > 0,
-              size: ChipSize.SMALL,
-              backgroundColor: $r('sys.color.ohos_id_color_button_normal'),
-              activatedBackgroundColor: ThemeConstants.BRAND_PRIMARY,
-              borderRadius: ThemeConstants.RADIUS_ROUND,
-              allowClose: false,
-            })
-          }
+          KomaActionButton({
+            label: `${this.languageFilterLabel()} ▾`,
+            kind: this.languageFilter.length === 0 ? 'secondary' : 'primary',
+            compact: true,
+            controlHeight: ThemeConstants.ACTION_CHIP_HEIGHT,
+          })
           .margin({ right: ThemeConstants.SPACE_SM, bottom: ThemeConstants.SPACE_SM })
           .bindMenu(this.LanguageFilterMenu())
-          Row() {
-            Chip({
-              label: {
-                text: `${this.groupFilterLabel()} ▾`,
-                fontSize: ThemeConstants.FONT_SIZE_TAG,
-                fontColor: ThemeConstants.TEXT_PRIMARY,
-                activatedFontColor: ThemeConstants.TEXT_ON_BRAND,
-              },
-              activated: this.groupFilter.length > 0,
-              size: ChipSize.SMALL,
-              backgroundColor: $r('sys.color.ohos_id_color_button_normal'),
-              activatedBackgroundColor: ThemeConstants.BRAND_PRIMARY,
-              borderRadius: ThemeConstants.RADIUS_ROUND,
-              allowClose: false,
-            })
-          }
+          KomaActionButton({
+            label: `${this.groupFilterLabel()} ▾`,
+            kind: this.groupFilter.length === 0 ? 'secondary' : 'primary',
+            compact: true,
+            controlHeight: ThemeConstants.ACTION_CHIP_HEIGHT,
+          })
           .margin({ right: ThemeConstants.SPACE_SM, bottom: ThemeConstants.SPACE_SM })
           .bindMenu(this.GroupFilterMenu())
-          Row() {
-            Chip({
-              label: {
-                text: `${this.sortLabel()} ↕`,
-                fontSize: ThemeConstants.FONT_SIZE_TAG,
-                fontColor: ThemeConstants.TEXT_PRIMARY,
-                activatedFontColor: ThemeConstants.TEXT_ON_BRAND,
-              },
-              activated: this.sortOrder !== ChapterSortOrder.NEWEST_FIRST,
-              size: ChipSize.SMALL,
-              backgroundColor: $r('sys.color.ohos_id_color_button_normal'),
-              activatedBackgroundColor: ThemeConstants.BRAND_PRIMARY,
-              borderRadius: ThemeConstants.RADIUS_ROUND,
-              allowClose: false,
-            })
-          }
+          KomaActionButton({
+            label: `${this.sortLabel()} ↕`,
+            kind: this.sortOrder === ChapterSortOrder.NEWEST_FIRST ? 'secondary' : 'primary',
+            compact: true,
+            controlHeight: ThemeConstants.ACTION_CHIP_HEIGHT,
+          })
           .margin({ right: ThemeConstants.SPACE_SM, bottom: ThemeConstants.SPACE_SM })
           .bindMenu(this.SortMenu())
           if (this.hasActiveFilters()) {
@@ -580,46 +551,6 @@ export struct ChapterListSection {
           }
         }
         .width('100%')
-
-        Row() {
-          Row() {
-            Chip({
-              label: {
-                text: `${s('chapter_list_action_mark')} ▾`,
-                fontSize: ThemeConstants.FONT_SIZE_TAG,
-                fontColor: ThemeConstants.TEXT_PRIMARY,
-                activatedFontColor: ThemeConstants.TEXT_ON_BRAND,
-              },
-              activated: false,
-              size: ChipSize.SMALL,
-              backgroundColor: $r('sys.color.ohos_id_color_button_normal'),
-              activatedBackgroundColor: ThemeConstants.BRAND_PRIMARY,
-              borderRadius: ThemeConstants.RADIUS_ROUND,
-              allowClose: false,
-            })
-          }
-          .bindMenu(this.VisibleReadStateMenu())
-          Row() {
-            Chip({
-              label: {
-                text: `${s('chapter_list_action_batch_download')} ▾`,
-                fontSize: ThemeConstants.FONT_SIZE_TAG,
-                fontColor: ThemeConstants.TEXT_PRIMARY,
-                activatedFontColor: ThemeConstants.TEXT_ON_BRAND,
-              },
-              activated: false,
-              size: ChipSize.SMALL,
-              backgroundColor: $r('sys.color.ohos_id_color_button_normal'),
-              activatedBackgroundColor: ThemeConstants.BRAND_PRIMARY,
-              borderRadius: ThemeConstants.RADIUS_ROUND,
-              allowClose: false,
-            })
-          }
-          .bindMenu(this.BatchDownloadMenu())
-          Blank()
-        }
-        .width('100%')
-        .alignItems(VerticalAlign.Center)
       }
       .width('100%')
       .alignItems(HorizontalAlign.Start)
