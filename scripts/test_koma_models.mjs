@@ -1612,6 +1612,11 @@ assert.match(
 )
 assert.match(
   libraryUpdateResultStoreSource,
+  /isValidProviderKind\(value: string\): boolean \{[\s\S]*value === 'komga'[\s\S]*value === 'kavita'[\s\S]*value === 'opds'/,
+  'LibraryUpdateResultStore must preserve Kavita provider results during persistence hydration',
+)
+assert.match(
+  libraryUpdateResultStoreSource,
   /const message = sanitizeLibraryUpdateResultMessage\(result\.status, result\.message\)[\s\S]*clampString\(result\.comicId, LIBRARY_UPDATE_RESULT_MAX_COMIC_ID_LENGTH\)[\s\S]*clampString\(message, LIBRARY_UPDATE_RESULT_MAX_MESSAGE_LENGTH\)/,
   'LibraryUpdateResultStore must clamp persisted comicId and sanitized message strings',
 )

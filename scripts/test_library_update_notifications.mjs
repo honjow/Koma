@@ -220,6 +220,11 @@ assert.match(
 )
 assert.match(
   resultStoreSource,
+  /isValidProviderKind\(value: string\): boolean \{[\s\S]*value === 'komga'[\s\S]*value === 'kavita'[\s\S]*value === 'opds'/,
+  'Persisted library update provider kinds must preserve Kavita results instead of downgrading them to unsupported',
+)
+assert.match(
+  resultStoreSource,
   /normalizeSourceKey\(value: string \| undefined\): string[\s\S]*\/\^\(source:\[a-z0-9\]\+\|local\|komga\|kavita\|opds\|webdav\|private_library\|unsupported\)\$\/[\s\S]*return 'source:unknown'/,
   'Persisted source keys must be allowlisted and fail closed',
 )

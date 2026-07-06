@@ -199,6 +199,7 @@ function isValidProviderKind(value: string): boolean {
   return value === 'source_runtime' ||
     value === 'local' ||
     value === 'komga' ||
+    value === 'kavita' ||
     value === 'opds' ||
     value === 'webdav' ||
     value === 'private_library' ||
