@@ -42,6 +42,7 @@ export interface ReaderSeriesPreferenceOverrides {
   tapZonePreset?: ReaderTapZonePreset
   showTapZones?: boolean
   pageGapMode?: ReaderPageGapMode
+  trimPageMarginsEnabled?: boolean
   wideImageMode?: ReaderWideImageMode
 }
 
@@ -355,6 +356,9 @@ function normalizeReaderSeriesPreferenceOverrides(value: Object | undefined): Re
   if (typeof source['pageGapMode'] === 'string') {
     overrides.pageGapMode = normalizeReaderPageGapMode(source['pageGapMode'] as string)
   }
+  if (source['trimPageMarginsEnabled'] !== undefined) {
+    overrides.trimPageMarginsEnabled = normalizeReaderTrimPageMarginsEnabled(source['trimPageMarginsEnabled'] as boolean | string | number)
+  }
   if (typeof source['wideImageMode'] === 'string') {
     overrides.wideImageMode = normalizeReaderWideImageMode(source['wideImageMode'] as string)
   }
@@ -382,7 +386,7 @@ function mergeReaderSeriesPreferences(
     tapZonePreset: overrides.tapZonePreset ?? globalPreferences.tapZonePreset,
     showTapZones: overrides.showTapZones ?? globalPreferences.showTapZones,
     pageGapMode: overrides.pageGapMode ?? globalPreferences.pageGapMode,
-    trimPageMarginsEnabled: globalPreferences.trimPageMarginsEnabled,
+    trimPageMarginsEnabled: overrides.trimPageMarginsEnabled ?? globalPreferences.trimPageMarginsEnabled,
     wideImageMode: overrides.wideImageMode ?? globalPreferences.wideImageMode,
     volumeKeyNavigationEnabled: globalPreferences.volumeKeyNavigationEnabled,
   }
