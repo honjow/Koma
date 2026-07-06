@@ -1,6 +1,5 @@
 import { AppStrings } from '../i18n/AppStrings'
 import { connectLanguageState, LanguageState } from '../state/LanguageState'
-import { ConciseListRow } from './ui/ConciseListRow'
 import { KomaActionButton } from './ui/KomaActionButton'
 import { KomaEmptyState } from './ui/KomaEmptyState'
 import { KomaIconButton } from './ui/KomaIconButton'
@@ -431,8 +430,27 @@ export struct ChapterListSection {
   }
 
   @Builder
-  private ChapterRowSuffix(chapter: MangaChapterItem) {
+  private ChapterRow(chapter: MangaChapterItem) {
     Row({ space: ThemeConstants.SPACE_MD }) {
+      this.ChapterRowPrefix(chapter)
+
+      Column({ space: ThemeConstants.SPACE_XS }) {
+        Text(this.chapterTitle(chapter))
+          .fontSize(ThemeConstants.FONT_SIZE_LIST_ITEM)
+          .fontColor(ThemeConstants.TEXT_PRIMARY)
+          .maxLines(1)
+          .textOverflow({ overflow: TextOverflow.Ellipsis })
+        Text(this.chapterSubtitle(chapter))
+          .fontSize(ThemeConstants.FONT_SIZE_CAPTION)
+          .fontColor(ThemeConstants.TEXT_SECONDARY)
+          .maxLines(1)
+          .textOverflow({ overflow: TextOverflow.Ellipsis })
+      }
+      .layoutWeight(1)
+      .onClick(() => {
+        this.onOpenChapter(chapter.id)
+      })
+
       if (chapter.isDownloaded) {
         this.DownloadedBadge()
       }
@@ -455,29 +473,9 @@ export struct ChapterListSection {
       })
         .bindMenu(this.ReadStateMenu(chapter))
     }
-    .alignItems(VerticalAlign.Center)
-  }
-
-  @Builder
-  private ChapterRow(chapter: MangaChapterItem) {
-    ConciseListRow({
-      title: this.chapterTitle(chapter),
-      subtitle: this.chapterSubtitle(chapter),
-      showChevron: false,
-      primaryColor: ThemeConstants.TEXT_PRIMARY,
-      secondaryColor: ThemeConstants.TEXT_SECONDARY,
-      prefixBuilderParam: () => {
-        this.ChapterRowPrefix(chapter)
-      },
-      suffixBuilderParam: () => {
-        this.ChapterRowSuffix(chapter)
-      },
-      action: () => {
-        this.onOpenChapter(chapter.id)
-      },
-    })
     .width('100%')
-    .padding({ top: ThemeConstants.SPACE_XS, bottom: ThemeConstants.SPACE_XS })
+    .alignItems(VerticalAlign.Center)
+    .padding({ top: ThemeConstants.SPACE_MD, bottom: ThemeConstants.SPACE_MD })
     .opacity(chapter.isRead ? 0.68 : 1)
   }
 

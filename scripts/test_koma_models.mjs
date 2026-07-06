@@ -2381,8 +2381,8 @@ assert.doesNotMatch(
 )
 assert.match(
   chapterListSectionSource,
-  /ChapterRow\(chapter: MangaChapterItem\)[\s\S]*ConciseListRow\(\{[\s\S]*title: this\.chapterTitle\(chapter\)[\s\S]*subtitle: this\.chapterSubtitle\(chapter\)[\s\S]*action: \(\) => \{[\s\S]*this\.onOpenChapter\(chapter\.id\)[\s\S]*Column\(\)[\s\S]*ForEach\(this\.sortedChapters[\s\S]*this\.ChapterRow\(chapter\)[\s\S]*Divider\(\)/,
-  'ChapterListSection must render visible chapters in the parent detail scroll with HDS list rows and dividers',
+  /ChapterRow\(chapter: MangaChapterItem\)[\s\S]*Row\(\{ space: ThemeConstants\.SPACE_MD \}\) \{[\s\S]*Column\(\{ space: ThemeConstants\.SPACE_XS \}\)[\s\S]*Text\(this\.chapterTitle\(chapter\)\)[\s\S]*Text\(this\.chapterSubtitle\(chapter\)\)[\s\S]*\.layoutWeight\(1\)[\s\S]*\.onClick\(\(\) => \{[\s\S]*this\.onOpenChapter\(chapter\.id\)[\s\S]*KomaIconButton\(\{[\s\S]*arrow_down_to_line[\s\S]*this\.onDownloadChapter\(chapter\.id\)[\s\S]*Column\(\)[\s\S]*ForEach\(this\.sortedChapters[\s\S]*this\.ChapterRow\(chapter\)[\s\S]*Divider\(\)/,
+  'ChapterListSection must render visible chapters in the parent detail scroll with isolated content taps, row download actions, and dividers',
 )
 assert.doesNotMatch(
   chapterListSectionSource,
