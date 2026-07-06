@@ -166,7 +166,10 @@ struct Index {
     if (reasonCode === 'pages_missing' ||
       reasonCode === 'chapter_missing' ||
       reasonCode === 'source_missing' ||
-      reasonCode === 'source_disabled') {
+      reasonCode === 'source_not_installed' ||
+      reasonCode === 'source_lookup_failed' ||
+      reasonCode === 'source_disabled' ||
+      reasonCode === 'source_pages_failed') {
       console.warn(`[Reader] step=open_source_pages_unavailable failed=true reason=${reasonCode}`)
       return
     }

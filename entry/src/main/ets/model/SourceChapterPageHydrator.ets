@@ -58,6 +58,13 @@ export interface SourceChapterPageHydrationResult {
   reasonCode?: string
 }
 
+function normalizeSourceLookupHydrationReason(reasonCode: string | undefined): string {
+  if (reasonCode === 'missing_source_id' || reasonCode === 'source_id_not_registered') {
+    return 'source_not_installed'
+  }
+  return reasonCode ?? 'source_lookup_failed'
+}
+
 @Concurrent
 function executeSourceChapterPagesOperation(requestJson: string, wasmBytes: Uint8Array): string {
   const response = runSourceOperationFromBytes(requestJson, wasmBytes)
@@ -201,7 +208,7 @@ export class SourceChapterPageHydrator {
     }
     const lookup = this.sourceRegistry.lookup(resolvedSourceId)
     if (!lookup.ok || lookup.entry === undefined) {
-      return { hydrated: false, pageCount: 0, reasonCode: lookup.reasonCode ?? 'source_lookup_failed' }
+      return { hydrated: false, pageCount: 0, reasonCode: normalizeSourceLookupHydrationReason(lookup.reasonCode) }
     }
     if (!sourceRuntimeEntryEnabled(lookup.entry)) {
       return { hydrated: false, pageCount: 0, reasonCode: 'source_disabled' }

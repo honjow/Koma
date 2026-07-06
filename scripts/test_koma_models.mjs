@@ -804,6 +804,11 @@ assert.match(
   'Index openReader must hydrate source-backed target chapters, allow offline manifest fallback, and refuse to open an empty Reader when source pages are unavailable',
 )
 assert.match(
+  indexSource,
+  /private logReaderSourcePagesUnavailable\(reasonCode\?: string\): void \{[\s\S]*pages_missing[\s\S]*chapter_missing[\s\S]*source_missing[\s\S]*source_not_installed[\s\S]*source_lookup_failed[\s\S]*source_disabled[\s\S]*source_pages_failed[\s\S]*open_source_pages_unavailable failed=true reason=\$\{reasonCode\}/,
+  'Index openReader must keep stable source hydration reason codes visible instead of collapsing source failures',
+)
+assert.match(
   readerSessionStoreSource,
   /export function getReaderSessionPageWidth\(config: ReaderSessionConfig, pageIndex: number\): number \| undefined[\s\S]*resolvedPageIndex >= config\.pageWidths\.length[\s\S]*return undefined[\s\S]*return config\.pageWidths\[resolvedPageIndex\]/,
   'ReaderSessionStore must expose fail-open page width lookup for missing metadata',
@@ -1802,6 +1807,11 @@ assert.match(
   sourceChapterPageHydratorSource,
   /sourceRuntimeEntryEnabled[\s\S]*if \(!sourceRuntimeEntryEnabled\(lookup\.entry\)\) \{[\s\S]*return \{ hydrated: false, pageCount: 0, reasonCode: 'source_disabled' \}/,
   'SourceChapterPageHydrator must not fetch pages from disabled source packages',
+)
+assert.match(
+  sourceChapterPageHydratorSource,
+  /function normalizeSourceLookupHydrationReason\(reasonCode: string \| undefined\): string \{[\s\S]*missing_source_id[\s\S]*source_id_not_registered[\s\S]*return 'source_not_installed'[\s\S]*return reasonCode \?\? 'source_lookup_failed'[\s\S]*lookup = this\.sourceRegistry\.lookup\(resolvedSourceId\)[\s\S]*normalizeSourceLookupHydrationReason\(lookup\.reasonCode\)/,
+  'SourceChapterPageHydrator must normalize registry lookup failures into stable reader/download reason codes',
 )
 assert.match(
   mangaDetailPageSource,
