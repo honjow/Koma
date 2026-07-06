@@ -82,6 +82,7 @@ const remoteImageCacheStorePath = resolve(root, 'entry/src/main/ets/model/Remote
 const sourceSettingsStorePath = resolve(root, 'entry/src/main/ets/sourceRuntime/SourceSettingsStore.ets')
 const sourceFilterPreferencesStorePath = resolve(root, 'entry/src/main/ets/sourceRuntime/SourceFilterPreferencesStore.ets')
 const sourceRuntimeAppRegistryPath = resolve(root, 'entry/src/main/ets/sourceRuntime/SourceRuntimeAppRegistry.ets')
+const sourceRuntimeServicePath = resolve(root, 'entry/src/main/ets/sourceRuntime/SourceRuntimeService.ets')
 const sourceIndexServicePath = resolve(root, 'entry/src/main/ets/sourceRuntime/SourceIndexService.ets')
 const sourcePackageTrustPolicyPath = resolve(root, 'entry/src/main/ets/sourceRuntime/SourcePackageTrustPolicy.ets')
 
@@ -164,6 +165,7 @@ const remoteImageCacheStoreSource = readFileSync(remoteImageCacheStorePath, 'utf
 const sourceSettingsStoreSource = readFileSync(sourceSettingsStorePath, 'utf8')
 const sourceFilterPreferencesStoreSource = readFileSync(sourceFilterPreferencesStorePath, 'utf8')
 const sourceRuntimeAppRegistrySource = readFileSync(sourceRuntimeAppRegistryPath, 'utf8')
+const sourceRuntimeServiceSource = readFileSync(sourceRuntimeServicePath, 'utf8')
 const sourceIndexServiceSource = readFileSync(sourceIndexServicePath, 'utf8')
 const sourcePackageTrustPolicySource = readFileSync(sourcePackageTrustPolicyPath, 'utf8')
 
@@ -2998,6 +3000,16 @@ assert.doesNotMatch(
   sourcePackageManagerPageSource,
   /\[SourceRuntimeDiagnostics\][^)]*(?:JSON\.stringify|settings|savedSettings|request|settingDraft|token|cookie|password|apiKey|secret)/i,
   'source runtime diagnostics logs must not include settings payloads, request JSON, or secret descriptors',
+)
+assert.match(
+  sourceRuntimeAppRegistrySource,
+  /export function runSmoke\(id: string\): SourcePackageSmokeResult[\s\S]*sourceManagerSmokeSourceInfoRequest\(id\)[\s\S]*operation=source_info[\s\S]*sourceManagerSmokeFixtureSearchRequest\(id\)/,
+  'source runtime smoke must use source_info before any legacy fixture search fallback',
+)
+assert.match(
+  sourceRuntimeServiceSource,
+  /sourceRuntimeRequestResponseOk\(operation: string, response: SourceRuntimeCallResponse\)[\s\S]*operation === 'source_info'[\s\S]*"sourceInfo"[\s\S]*"capabilities"/,
+  'registered source request runner must accept real source_info capability responses',
 )
 assert.doesNotMatch(
   sourcePackageManagerPageSource,

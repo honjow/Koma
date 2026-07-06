@@ -343,6 +343,27 @@ function detectSourceRuntimeCapabilities(sourceId: string, wasmBytes: Uint8Array
   }
 }
 
+function sourceManagerSmokeSourceInfoRequest(id: string): string {
+  const args: SourceInfoCapabilityRequestArgs = {}
+  const settings: SourceInfoCapabilityRequestSettings = {}
+  const hostHints: SourceInfoCapabilityRequestHostHints = { network: false }
+  const request: SourceInfoCapabilityRequest = {
+    type: 'request',
+    version: 1,
+    requestId: `source-manager-source-info-smoke-${Date.now()}`,
+    operation: 'source_info',
+    sourceId: id,
+    args,
+    settings,
+    hostHints,
+  }
+  return JSON.stringify(request)
+}
+
+function sourceManagerSmokeFixtureSearchRequest(id: string): string {
+  return `{"type":"request","version":1,"requestId":"source-manager-fixture-smoke-${Date.now()}","operation":"search","sourceId":"${id}","args":{"query":"fixture","page":{"cursor":null,"limit":20}},"settings":{},"hostHints":{"network":false}}`
+}
+
 function sourcePackageFromEntry(entry: SourceRuntimeRegistryEntry): InstalledSourcePackage {
   const diagnostic = getSourceRuntimeDiagnostic(entry.sourceId)
   return {
@@ -803,17 +824,34 @@ export async function remove(context: common.UIAbilityContext, id: string): Prom
 }
 
 export function runSmoke(id: string): SourcePackageSmokeResult {
-  const result = runRegisteredSourceRequestById(
+  const sourceInfoResult = runRegisteredSourceRequestById(
     appSourceRuntimeRegistry,
     id,
-    `{"type":"request","version":1,"requestId":"source-manager-smoke-${Date.now()}","operation":"search","sourceId":"${id}","args":{"query":"fixture","page":{"cursor":null,"limit":20}},"settings":{},"hostHints":{"network":false}}`,
+    sourceManagerSmokeSourceInfoRequest(id),
   )
-  if (!result.ok) {
-    const failed: SourcePackageSmokeResult = { ok: false, id, reasonCode: result.reasonCode ?? 'smoke_failed' }
+  if (sourceInfoResult.ok) {
+    console.info('[SourceManager] step=smoke_ok id=' + id + ' operation=source_info')
+    const passed: SourcePackageSmokeResult = { ok: true, id, firstTitle: 'source_info' }
+    setSourceRuntimeDiagnostic(passed)
+    return passed
+  }
+  if (!sourceInfoResult.attemptedWamrExecution) {
+    const failed: SourcePackageSmokeResult = { ok: false, id, reasonCode: sourceInfoResult.reasonCode ?? 'smoke_failed' }
     setSourceRuntimeDiagnostic(failed)
     return failed
   }
-  console.info('[SourceManager] step=smoke_ok id=' + id)
+
+  const fixtureResult = runRegisteredSourceRequestById(
+    appSourceRuntimeRegistry,
+    id,
+    sourceManagerSmokeFixtureSearchRequest(id),
+  )
+  if (!fixtureResult.ok) {
+    const failed: SourcePackageSmokeResult = { ok: false, id, reasonCode: sourceInfoResult.reasonCode ?? fixtureResult.reasonCode ?? 'smoke_failed' }
+    setSourceRuntimeDiagnostic(failed)
+    return failed
+  }
+  console.info('[SourceManager] step=smoke_ok id=' + id + ' operation=search')
   const passed: SourcePackageSmokeResult = { ok: true, id, firstTitle: 'Fixture Series' }
   setSourceRuntimeDiagnostic(passed)
   return passed

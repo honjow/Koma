@@ -156,6 +156,16 @@ assert.match(
   'registered source API diagnostics must not execute disabled source packages',
 )
 assert.match(
+  sourceRuntimeServiceSource,
+  /function sourceRuntimeRequestResponseOk\(operation: string, response: SourceRuntimeCallResponse\): boolean[\s\S]*operation === 'source_info'[\s\S]*"sourceInfo"[\s\S]*"capabilities"[\s\S]*operation === 'search'[\s\S]*Fixture Series/,
+  'registered source request diagnostics must validate source_info without requiring fixture search evidence',
+)
+assert.match(
+  appRegistrySource,
+  /function sourceManagerSmokeSourceInfoRequest\(id: string\): string[\s\S]*hostHints: SourceInfoCapabilityRequestHostHints = \{ network: false \}[\s\S]*operation: 'source_info'[\s\S]*export function runSmoke\(id: string\): SourcePackageSmokeResult[\s\S]*sourceManagerSmokeSourceInfoRequest\(id\)[\s\S]*if \(sourceInfoResult\.ok\)[\s\S]*operation=source_info[\s\S]*if \(!sourceInfoResult\.attemptedWamrExecution\)[\s\S]*sourceManagerSmokeFixtureSearchRequest\(id\)/,
+  'source package smoke must prefer source_info and only fall back to fixture search after wasm execution reaches a legacy source',
+)
+assert.match(
   appRegistrySource,
   /export interface SourcePackageBackupEntry \{[\s\S]*sourceId: string[\s\S]*version: string[\s\S]*enabled: boolean[\s\S]*manifest: LocalSourcePackageManifest[\s\S]*wasmBase64: string[\s\S]*wasmByteCount: number[\s\S]*\}/,
   'source package backup entries must use manifest plus base64 wasm bytes',

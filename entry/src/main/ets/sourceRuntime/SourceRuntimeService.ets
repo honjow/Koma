@@ -191,6 +191,32 @@ function joinSourceRuntimeServicePath(parent: string, child: string): string {
   return left.length === 0 ? right : `${left}/${right}`
 }
 
+function responseReasonCode(response: SourceRuntimeCallResponse): string | undefined {
+  if (typeof response.reasonCode === 'string' && response.reasonCode.trim().length > 0) {
+    return response.reasonCode
+  }
+  const code = response.error?.['code']
+  return typeof code === 'string' && code.trim().length > 0 ? code : undefined
+}
+
+function sourceRuntimeRequestResponseOk(operation: string, response: SourceRuntimeCallResponse): boolean {
+  if (response.ok !== true || response.operation !== operation || response.hostHints?.['network'] !== false) {
+    return false
+  }
+  const responseText = JSON.stringify(response)
+  if (operation === 'source_info') {
+    return responseText.includes('"sourceInfo"') &&
+      responseText.includes('"capabilities"')
+  }
+  if (operation === 'search') {
+    return responseText.includes('Fixture Series') && response.data?.requestEcho === 'fixture'
+  }
+  if (operation === 'get_manga') {
+    return responseText.includes('Fixture Series') && responseText.includes('manga:fixture-series')
+  }
+  return responseText.includes('fixture')
+}
+
 function writeTextSync(path: string, payload: string): void {
   let file: fs.File | undefined = undefined
   try {
@@ -459,17 +485,12 @@ export function runRegisteredSourceRequestById(
   }
 
   const response = runSourceOperationFromBytes(requestJson, lookup.entry.wasmBytes)
-  const responseText = JSON.stringify(response)
-  const responseOk = response.ok === true &&
-    response.operation === operation &&
-    response.hostHints?.['network'] === false &&
-    (operation === 'search' ? responseText.includes('Fixture Series') && response.data?.requestEcho === 'fixture' :
-      operation === 'get_manga' ? responseText.includes('Fixture Series') && responseText.includes('manga:fixture-series') :
-        responseText.includes('fixture'))
+  const responseOk = sourceRuntimeRequestResponseOk(operation, response)
   return {
     ok: responseOk,
     sourceId: lookup.entry.sourceId,
     operation,
+    reasonCode: responseOk ? undefined : (responseReasonCode(response) ?? 'operation_response_mismatch'),
     sourceCount: lookup.sourceCount,
     response,
     responseOk,
