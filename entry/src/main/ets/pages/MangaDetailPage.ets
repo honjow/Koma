@@ -184,6 +184,7 @@ export struct MangaDetailPage {
   @Local private downloadStatusText: string = ''
   @Local private localRefreshText: string = ''
   @Local private feedbackText: string = ''
+  @Local private activeLibraryComicId: string = ''
   @Local private languageState: LanguageState = connectLanguageState()
   @Param libraryStore?: LibraryStore = undefined
   @Param libraryPersistenceService?: LibraryStorePersistenceService = undefined
@@ -306,11 +307,13 @@ export struct MangaDetailPage {
       this.manga = missingMangaDetail(mangaId, this.params.sourceId)
       this.chapters = []
       this.isInLibrary = false
+      this.activeLibraryComicId = ''
       this.feedbackText = mangaId === undefined || mangaId.trim().length === 0 ? '' : s('manga_detail_load_local_failed')
       this.downloadStatusText = ''
       this.localRefreshText = ''
       return
     }
+    this.activeLibraryComicId = comic.id
     this.manga = mangaDetailFromComic(comic)
     this.chapters = this.decorateChapterStates(
       comic.chapters.map((chapter: Chapter): MangaChapterItem => mangaChapterItemFromComicChapter(chapter, comic.sourceKind))
@@ -454,8 +457,10 @@ export struct MangaDetailPage {
         console.warn('[manga-detail] source chapters load failed reason=source_chapters')
       }
       const comicId = this.sourceComicId(sourceId, mangaId)
+      const libraryComic = this.findSourceRuntimeComic(sourceId, mangaId, comicId)
+      this.activeLibraryComicId = libraryComic?.id ?? ''
       detail.chapterCount = chapters.length
-      detail.isInLibrary = this.libraryStore?.getComic(comicId) !== undefined
+      detail.isInLibrary = libraryComic !== undefined
       detail.sourceName = lookup.entry.manifestName
       this.manga = detail
       this.chapters = this.decorateChapterStates(chapters)
@@ -469,6 +474,7 @@ export struct MangaDetailPage {
       this.manga = missingMangaDetail(mangaId, sourceId)
       this.chapters = []
       this.isInLibrary = false
+      this.activeLibraryComicId = ''
       this.feedbackText = s('manga_detail_load_source_failed')
       this.downloadStatusText = ''
       this.localRefreshText = ''
@@ -650,7 +656,25 @@ export struct MangaDetailPage {
   }
 
   private currentComicId(): string {
+    if (this.activeLibraryComicId.length > 0) {
+      return this.activeLibraryComicId
+    }
     return this.sourceComicId(this.manga.sourceId, this.manga.id)
+  }
+
+  private findSourceRuntimeComic(sourceId: string, mangaId: string, comicId: string): Comic | undefined {
+    const direct = this.libraryStore?.getComic(comicId)
+    if (direct !== undefined) {
+      return direct
+    }
+    const normalizedSourceId = sourceId.trim()
+    const normalizedMangaId = mangaId.trim()
+    if (normalizedSourceId.length === 0 || normalizedMangaId.length === 0) {
+      return undefined
+    }
+    return this.libraryStore?.listComics().find((comic: Comic): boolean => {
+      return comic.sourceRuntimeId === normalizedSourceId && comic.remoteResourceId === normalizedMangaId
+    })
   }
 
   private earliestNumberedChapter(): MangaChapterItem | undefined {
@@ -786,6 +810,7 @@ export struct MangaDetailPage {
       } else {
         upsertComicAndPersistLibraryStore(this.libraryStore, this.libraryPersistenceService, comic)
       }
+      this.activeLibraryComicId = comic.id
       this.isInLibrary = true
       this.manga.isInLibrary = true
       this.feedbackText = s('common_added_to_library')

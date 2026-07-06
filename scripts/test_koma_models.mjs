@@ -380,6 +380,15 @@ function sourceDetailWithRouteIdentity(detail, sourceId, mangaId) {
   }
 }
 
+function findSourceRuntimeComic(comics, sourceId, mangaId, comicId) {
+  const direct = comics.find((comic) => comic.id === comicId)
+  if (direct !== undefined) return direct
+  const normalizedSourceId = sourceId.trim()
+  const normalizedMangaId = mangaId.trim()
+  if (normalizedSourceId.length === 0 || normalizedMangaId.length === 0) return undefined
+  return comics.find((comic) => comic.sourceRuntimeId === normalizedSourceId && comic.remoteResourceId === normalizedMangaId)
+}
+
 function decodeSourceDisplayTextEscapes(value) {
   let decoded = ''
   let index = 0
@@ -1811,6 +1820,11 @@ assert.match(
 )
 assert.match(
   mangaDetailPageSource,
+  /@Local private activeLibraryComicId: string = ''[\s\S]*const libraryComic = this\.findSourceRuntimeComic\(sourceId, mangaId, comicId\)[\s\S]*this\.activeLibraryComicId = libraryComic\?\.id \?\? ''[\s\S]*detail\.isInLibrary = libraryComic !== undefined[\s\S]*currentComicId\(\): string \{[\s\S]*this\.activeLibraryComicId\.length > 0[\s\S]*return this\.activeLibraryComicId[\s\S]*findSourceRuntimeComic\(sourceId: string, mangaId: string, comicId: string\)[\s\S]*this\.libraryStore\?\.getComic\(comicId\)[\s\S]*comic\.sourceRuntimeId === normalizedSourceId && comic\.remoteResourceId === normalizedMangaId/,
+  'MangaDetailPage must reuse existing source-runtime library rows by remoteResourceId and route reader/download actions through the active stored comic id',
+)
+assert.match(
+  mangaDetailPageSource,
   /const args: SourceChaptersRequestArgs = \{[\s\S]*mangaId,[\s\S]*cursor,[\s\S]*limit: SOURCE_CHAPTER_PAGE_SIZE[\s\S]*this\.buildSourceDetailRequestJson\(entry\.sourceId, 'get_chapters', args, \{ network: true \}\)/,
   'get_chapters must send args.mangaId plus a page cursor/limit with network host hints',
 )
@@ -2103,6 +2117,16 @@ assert.deepEqual(
   ),
   { id: 'manga:stable-search-id', title: 'Returned Title', sourceId: 'source.alpha', chapterCount: 0, isInLibrary: false },
   'source detail route identity must keep the searched/browsed manga id as the durable library and get_pages mangaId',
+)
+assert.equal(
+  findSourceRuntimeComic(
+    [{ id: 'source.alpha:old-alias', sourceRuntimeId: 'source.alpha', remoteResourceId: 'manga:stable-search-id' }],
+    'source.alpha',
+    'manga:stable-search-id',
+    'source.alpha:manga:stable-search-id',
+  )?.id,
+  'source.alpha:old-alias',
+  'source detail must reuse legacy library rows by sourceRuntimeId plus remoteResourceId instead of creating a duplicate comic id',
 )
 assert.equal(
   decodeSourceDisplayTextEscapes('Days Off in the Dragon\\u0027s Stomach'),
