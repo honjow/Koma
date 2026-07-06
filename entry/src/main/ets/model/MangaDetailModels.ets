@@ -36,7 +36,10 @@ export interface MangaChapterItem {
   pageCount?: number
   isRead: boolean
   isDownloaded: boolean
+  downloadStatus?: MangaChapterDownloadStatus
 }
+
+export type MangaChapterDownloadStatus = 'queued' | 'downloading' | 'downloaded' | 'partial' | 'failed' | 'blocked'
 
 export enum ChapterSortOrder {
   NEWEST_FIRST = 'newest_first',

@@ -3,7 +3,7 @@ import { connectLanguageState, LanguageState } from '../state/LanguageState'
 import { KomaActionButton } from './ui/KomaActionButton'
 import { KomaEmptyState } from './ui/KomaEmptyState'
 import { KomaIconButton } from './ui/KomaIconButton'
-import { ChapterSortOrder, MangaChapterItem } from '../model/MangaDetailModels'
+import { ChapterSortOrder, MangaChapterDownloadStatus, MangaChapterItem } from '../model/MangaDetailModels'
 import { ThemeConstants } from '../theme/ThemeConstants'
 
 function s(name: string): string {
@@ -444,22 +444,59 @@ export struct ChapterListSection {
     })
   }
 
+  private downloadStatusLabel(status: MangaChapterDownloadStatus): ResourceStr {
+    if (status === 'queued') {
+      return s('downloads_status_queued')
+    }
+    if (status === 'downloading') {
+      return s('downloads_status_downloading')
+    }
+    if (status === 'partial') {
+      return s('downloads_status_partial')
+    }
+    if (status === 'failed') {
+      return s('downloads_status_failed')
+    }
+    if (status === 'blocked') {
+      return s('downloads_status_blocked')
+    }
+    return s('downloads_status_downloaded')
+  }
+
+  private downloadStatusColor(status: MangaChapterDownloadStatus): ResourceColor {
+    if (status === 'downloaded') {
+      return ThemeConstants.STATUS_SUCCESS
+    }
+    if (status === 'partial' || status === 'queued' || status === 'downloading') {
+      return ThemeConstants.STATUS_INFO
+    }
+    if (status === 'blocked') {
+      return ThemeConstants.STATUS_WARNING
+    }
+    return ThemeConstants.STATUS_DANGER
+  }
+
+  private shouldShowDownloadStatus(chapter: MangaChapterItem): boolean {
+    return chapter.downloadStatus !== undefined
+  }
+
   @Builder
-  private DownloadedBadge() {
+  private DownloadStatusBadge(status: MangaChapterDownloadStatus) {
     Row({ space: ThemeConstants.SPACE_XS }) {
-      SymbolGlyph($r('sys.symbol.checkmark'))
+      SymbolGlyph(status === 'downloaded' ? $r('sys.symbol.checkmark') : $r('sys.symbol.arrow_down_to_line'))
         .fontSize(ThemeConstants.FONT_SIZE_TITLE)
-        .fontColor([ThemeConstants.BRAND_PRIMARY])
-      Text(s('downloads_status_downloaded'))
+        .fontColor([this.downloadStatusColor(status)])
+      Text(this.downloadStatusLabel(status))
         .fontSize(ThemeConstants.FONT_SIZE_CAPTION)
         .fontWeight(FontWeight.Medium)
-        .fontColor(ThemeConstants.BRAND_PRIMARY)
+        .fontColor(this.downloadStatusColor(status))
         .maxLines(1)
     }
     .height(ThemeConstants.FILTER_CHIP_HEIGHT)
     .padding({ left: ThemeConstants.SPACE_SM, right: ThemeConstants.SPACE_SM })
     .borderRadius(ThemeConstants.RADIUS_ROUND)
-    .backgroundColor(ThemeConstants.SOFT_TINT)
+    .backgroundColor(status === 'downloaded' ? ThemeConstants.SOFT_TINT : Color.Transparent)
+    .border({ width: status === 'downloaded' ? 0 : 1, color: this.downloadStatusColor(status) })
   }
 
   @Builder
@@ -501,8 +538,8 @@ export struct ChapterListSection {
         this.onOpenChapter(chapter.id)
       })
 
-      if (chapter.isDownloaded) {
-        this.DownloadedBadge()
+      if (this.shouldShowDownloadStatus(chapter) && chapter.downloadStatus !== undefined) {
+        this.DownloadStatusBadge(chapter.downloadStatus)
       }
 
       KomaIconButton({

@@ -264,9 +264,13 @@ export struct MangaDetailPage {
         isRead: readStateStore === undefined ? this.isReadFromProgress(comicId, chapter.id, progress) :
           readStateStore.isRead(comicId, chapter.id, progress),
         isDownloaded: chapter.isDownloaded,
+        downloadStatus: chapter.downloadStatus,
       }
       const summary = downloadService?.getChapterSummary(comicId, chapter.id)
-      if (summary?.status === OfflineDownloadStatus.DOWNLOADED) {
+      if (summary !== undefined) {
+        next.downloadStatus = summary.status
+      }
+      if (summary?.status === OfflineDownloadStatus.DOWNLOADED || summary?.status === OfflineDownloadStatus.PARTIAL) {
         next.isDownloaded = true
       }
       return next
@@ -1851,6 +1855,7 @@ function mangaChapterItemFromComicChapter(chapter: Chapter, sourceKind: ComicSou
     pageCount: chapter.pageCount,
     isRead: false,
     isDownloaded: chapterPagesAreLocalOffline(sourceKind) && chapter.pageCount > 0,
+    downloadStatus: chapterPagesAreLocalOffline(sourceKind) && chapter.pageCount > 0 ? 'downloaded' : undefined,
   }
 }
 

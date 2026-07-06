@@ -2292,8 +2292,8 @@ assert.match(
 )
 assert.match(
   mangaDetailPageSource,
-  /decorateChapterStates\(chapters: MangaChapterItem\[\]\): MangaChapterItem\[\][\s\S]*readerSessionStore\.getProgress\(comicId\)[\s\S]*scanlator: chapter\.scanlator[\s\S]*language: chapter\.language[\s\S]*dateUpload: chapter\.dateUpload[\s\S]*readStateStore\.isRead\(comicId, chapter\.id, progress\)[\s\S]*getChapterSummary\(comicId, chapter\.id\)[\s\S]*OfflineDownloadStatus\.DOWNLOADED/,
-  'MangaDetailPage must preserve chapter metadata while deriving read/downloaded state',
+  /decorateChapterStates\(chapters: MangaChapterItem\[\]\): MangaChapterItem\[\][\s\S]*readerSessionStore\.getProgress\(comicId\)[\s\S]*scanlator: chapter\.scanlator[\s\S]*language: chapter\.language[\s\S]*dateUpload: chapter\.dateUpload[\s\S]*downloadStatus: chapter\.downloadStatus[\s\S]*getChapterSummary\(comicId, chapter\.id\)[\s\S]*next\.downloadStatus = summary\.status[\s\S]*OfflineDownloadStatus\.DOWNLOADED \|\| summary\?\.status === OfflineDownloadStatus\.PARTIAL/,
+  'MangaDetailPage must preserve chapter metadata while deriving read/download status from the offline manifest summary',
 )
 assert.match(
   mangaDetailPageSource,
@@ -2433,8 +2433,8 @@ assert.match(
 )
 assert.match(
   chapterListSectionSource,
-  /DownloadedBadge\(\)[\s\S]*SymbolGlyph\(\$r\('sys\.symbol\.checkmark'\)\)[\s\S]*Text\(s\('downloads_status_downloaded'\)\)[\s\S]*ThemeConstants\.SOFT_TINT[\s\S]*if \(chapter\.isDownloaded\) \{[\s\S]*this\.DownloadedBadge\(\)/,
-  'ChapterListSection downloaded state must use a reusable symbol status pill instead of a handwritten glyph',
+  /downloadStatusLabel\(status: MangaChapterDownloadStatus\)[\s\S]*downloads_status_queued[\s\S]*downloads_status_downloading[\s\S]*downloads_status_partial[\s\S]*downloads_status_failed[\s\S]*downloads_status_blocked[\s\S]*downloads_status_downloaded[\s\S]*DownloadStatusBadge\(status: MangaChapterDownloadStatus\)[\s\S]*if \(this\.shouldShowDownloadStatus\(chapter\) && chapter\.downloadStatus !== undefined\) \{[\s\S]*this\.DownloadStatusBadge\(chapter\.downloadStatus\)/,
+  'ChapterListSection downloaded state must use a reusable symbol status pill that exposes downloaded, partial, failed, and blocked states',
 )
 assert.doesNotMatch(
   chapterListSectionSource,
@@ -2443,7 +2443,7 @@ assert.doesNotMatch(
 )
 assert.match(
   mangaDetailPageSource,
-  /chapterPagesAreLocalOffline\(sourceKind: ComicSourceKind\): boolean[\s\S]*ComicSourceKind\.LOCAL_ARCHIVE[\s\S]*ComicSourceKind\.LOCAL_FOLDER[\s\S]*mangaChapterItemFromComicChapter\(chapter: Chapter, sourceKind: ComicSourceKind\): MangaChapterItem[\s\S]*scanlator: chapter\.scanlator[\s\S]*language: chapter\.language[\s\S]*dateUpload: chapter\.dateUpload[\s\S]*isDownloaded: chapterPagesAreLocalOffline\(sourceKind\) && chapter\.pageCount > 0/,
+  /chapterPagesAreLocalOffline\(sourceKind: ComicSourceKind\): boolean[\s\S]*ComicSourceKind\.LOCAL_ARCHIVE[\s\S]*ComicSourceKind\.LOCAL_FOLDER[\s\S]*mangaChapterItemFromComicChapter\(chapter: Chapter, sourceKind: ComicSourceKind\): MangaChapterItem[\s\S]*scanlator: chapter\.scanlator[\s\S]*language: chapter\.language[\s\S]*dateUpload: chapter\.dateUpload[\s\S]*isDownloaded: chapterPagesAreLocalOffline\(sourceKind\) && chapter\.pageCount > 0[\s\S]*downloadStatus: chapterPagesAreLocalOffline\(sourceKind\) && chapter\.pageCount > 0 \? 'downloaded' : undefined/,
   'MangaDetailPage must hydrate chapter metadata from library chapters',
 )
 assert.match(
