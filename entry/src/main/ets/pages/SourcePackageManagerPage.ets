@@ -253,8 +253,15 @@ export struct SourcePackageManagerPage {
     return this.indexEntries.filter((entry: SourceIndexEntry): boolean => this.hasUpdate(entry))
   }
 
+  private checkedUpdateStatuses(): SourcePackageUpdateStatus[] {
+    return this.packageUpdateStatuses.filter((status: SourcePackageUpdateStatus): boolean => {
+      return status.status === 'update' && status.remoteEntry !== undefined && status.remoteIndexUrl !== undefined &&
+        this.installedPackage(status.sourceId) !== undefined
+    })
+  }
+
   private sourceIndexBatchBusy(): boolean {
-    return this.indexInstallBusy || this.indexFetchBusy || this.busy || this.updateInstallSourceId.length > 0
+    return this.indexInstallBusy || this.indexFetchBusy || this.busy || this.updateCheckBusy || this.updateInstallSourceId.length > 0
   }
 
   private updateStatus(sourceId: string): SourcePackageUpdateStatus {
@@ -981,6 +988,77 @@ export struct SourcePackageManagerPage {
 
   private updateUpdatableIndexEntries(): void {
     void this.installIndexEntryBatch(this.updatableIndexEntries(), true)
+  }
+
+  private async updateCheckedPackages(): Promise<void> {
+    if (this.sourceIndexBatchBusy()) {
+      return
+    }
+    const statuses = this.checkedUpdateStatuses()
+    if (statuses.length === 0) {
+      this.showToast(t('source_pkg_batch_no_updates'))
+      return
+    }
+    this.indexInstallBusy = true
+    this.updateInstallSourceId = '__batch__'
+    let successCount = 0
+    let failedCount = 0
+    let skippedCount = 0
+    this.statusText = tf('source_pkg_batch_update_running', statuses.length)
+    console.info('[SourcePackageUpdateBatch] step=start count=' + statuses.length)
+    try {
+      for (let index = 0; index < statuses.length; index += 1) {
+        const status = statuses[index]
+        const entry = status.remoteEntry
+        const url = status.remoteIndexUrl ?? ''
+        const source = this.installedPackage(status.sourceId)
+        if (entry === undefined || url.length === 0 || source === undefined) {
+          skippedCount += 1
+          continue
+        }
+        this.statusText = tf('source_pkg_batch_update_progress', index + 1, statuses.length)
+        const wasEnabled = source.enabled
+        const result: SourceIndexInstallResult = await this.sourceIndexService.installPackage(url, entry)
+        if (result.ok) {
+          successCount += 1
+          if (!wasEnabled) {
+            setEnabled(this.context(), source.id, false)
+          }
+          this.reload()
+          const installed = this.installedPackage(status.sourceId)
+          this.setUpdateStatus({
+            sourceId: status.sourceId,
+            status: 'latest',
+            remoteEntry: entry,
+            remoteIndexUrl: url,
+            remoteVersion: entry.version,
+            localVersion: installed?.version ?? entry.version,
+          })
+        } else {
+          failedCount += 1
+          this.setUpdateStatus({
+            sourceId: status.sourceId,
+            status: 'failed',
+            remoteEntry: entry,
+            remoteIndexUrl: url,
+            remoteVersion: entry.version,
+            localVersion: source.version,
+            reasonCode: result.reasonCode,
+          })
+        }
+      }
+      this.statusText = tf('source_pkg_batch_update_done', successCount, failedCount, skippedCount)
+      this.showToast(t('source_pkg_batch_update_toast'))
+      console.info('[SourcePackageUpdateBatch] step=done success=' + successCount + ' failed=' + failedCount + ' skipped=' + skippedCount)
+    } catch (_error) {
+      this.statusText = tf('source_pkg_batch_update_failed', this.sourceReasonText('network_error'))
+      this.showToast(t('source_pkg_toast_install_failed'))
+      console.error('[SourcePackageUpdateBatch] step=failed reason=network_error')
+    } finally {
+      this.reload()
+      this.updateInstallSourceId = ''
+      this.indexInstallBusy = false
+    }
   }
 
   private togglePackage(id: string): void {
@@ -1825,6 +1903,19 @@ export struct SourcePackageManagerPage {
             this.checkInstalledUpdates()
           },
         })
+
+        if (this.checkedUpdateStatuses().length > 0) {
+          KomaActionButton({
+            label: tf('source_pkg_batch_update_available', this.checkedUpdateStatuses().length),
+            kind: 'secondary',
+            compact: true,
+            controlHeight: ThemeConstants.FILTER_CHIP_HEIGHT,
+            isEnabled: !this.sourceIndexBatchBusy(),
+            action: () => {
+              this.updateCheckedPackages()
+            },
+          })
+        }
       }
       .width('100%')
 

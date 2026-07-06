@@ -1152,6 +1152,21 @@ assert.match(
 )
 assert.match(
   managerPageSource,
+  /checkedUpdateStatuses\(\): SourcePackageUpdateStatus\[\][\s\S]*status\.status === 'update'[\s\S]*status\.remoteEntry !== undefined[\s\S]*status\.remoteIndexUrl !== undefined/,
+  'SourcePackageManagerPage must derive batch update targets from checked update statuses across saved indexes',
+)
+assert.match(
+  managerPageSource,
+  /updateCheckedPackages\(\): Promise<void>[\s\S]*const statuses = this\.checkedUpdateStatuses\(\)[\s\S]*const url = status\.remoteIndexUrl \?\? ''[\s\S]*this\.sourceIndexService\.installPackage\(url, entry\)[\s\S]*setEnabled\(this\.context\(\), source\.id, false\)[\s\S]*source_pkg_batch_update_done/,
+  'checked batch update must install each source from its supplying index URL, preserve disabled state, and summarize results',
+)
+assert.match(
+  managerPageSource,
+  /source_pkg_batch_update_available[\s\S]*this\.checkedUpdateStatuses\(\)\.length[\s\S]*this\.updateCheckedPackages\(\)/,
+  'installed source header must expose a batch action for checked update results',
+)
+assert.match(
+  managerPageSource,
   /missingIndexEntries\(\): SourceIndexEntry\[\][\s\S]*this\.indexEntries\.filter[\s\S]*this\.installedPackage\(entry\.id\) === undefined/,
   'SourcePackageManagerPage must derive batch install targets from missing current-index entries',
 )
