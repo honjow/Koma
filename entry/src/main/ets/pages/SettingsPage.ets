@@ -2208,6 +2208,7 @@ export struct SettingsPage {
       } else if (row.key === 'reader-image-fit') {
         this.SelectionMenuItem(s('reader_image_fit_screen'), this.readerImageFitMode === 'contain', () => { this.saveReaderImageFitMode('contain') })
         this.SelectionMenuItem(s('reader_image_fit_width'), this.readerImageFitMode === 'fit_width', () => { this.saveReaderImageFitMode('fit_width') })
+        this.SelectionMenuItem(s('reader_image_fit_height'), this.readerImageFitMode === 'fit_height', () => { this.saveReaderImageFitMode('fit_height') })
       } else if (row.key === 'reader-tap-zone-preset') {
         this.SelectionMenuItem(s('reader_tap_zone_edge'), this.readerTapZonePreset === 'edge', () => { this.saveReaderTapZonePreset('edge') })
         this.SelectionMenuItem(s('reader_tap_zone_wide'), this.readerTapZonePreset === 'wide_edges', () => { this.saveReaderTapZonePreset('wide_edges') })

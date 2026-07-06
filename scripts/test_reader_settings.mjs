@@ -130,8 +130,8 @@ assert.match(
 )
 assert.match(
   readerPreferencesStoreSource,
-  /normalizeReaderImageFitMode\(value: string\)[\s\S]*value === 'fit_width'[\s\S]*return 'contain'/,
-  'image fit loading must be backward-compatible with missing or invalid saved values',
+  /normalizeReaderImageFitMode\(value: string\)[\s\S]*value === 'fit_width' \|\| value === 'fit_height'[\s\S]*return 'contain'/,
+  'image fit loading must accept width and height fit while staying backward-compatible with missing or invalid saved values',
 )
 assert.match(
   readerPreferencesStoreSource,
@@ -444,7 +444,7 @@ assert.match(settingsPageSource, /key: 'reader-page-gap', titleKey: 'settings_ro
 assert.match(settingsPageSource, /key: 'reader-trim-page-margins', titleKey: 'settings_row_reader_trim_page_margins_title'/, 'Settings must expose an honest non-cropping trim row')
 assert.match(settingsPageSource, /key: 'reader-wide-image-mode', titleKey: 'settings_row_reader_wide_image_mode_title'/, 'Settings must expose a wide image handling row')
 assert.match(settingsPageSource, /key: 'reader-volume-key-navigation', titleKey: 'settings_row_reader_volume_key_navigation_title'/, 'Settings must expose a volume-key navigation preference row')
-assert.match(settingsPageSource, /reader-image-fit[\s\S]*SelectionMenuItem\(s\('reader_image_fit_screen'\)[\s\S]*SelectionMenuItem\(s\('reader_image_fit_width'\)/, 'image fit menu must expose contain and fit-width choices')
+assert.match(settingsPageSource, /reader-image-fit[\s\S]*SelectionMenuItem\(s\('reader_image_fit_screen'\)[\s\S]*SelectionMenuItem\(s\('reader_image_fit_width'\)[\s\S]*SelectionMenuItem\(s\('reader_image_fit_height'\)/, 'image fit menu must expose contain, fit-width, and fit-height choices')
 assert.match(settingsPageSource, /reader-background[\s\S]*SelectionMenuItem\(s\('reader_background_black'\)[\s\S]*saveReaderBackgroundMode\('black'\)[\s\S]*SelectionMenuItem\(s\('reader_background_paper'\)[\s\S]*saveReaderBackgroundMode\('paper'\)[\s\S]*SelectionMenuItem\(s\('reader_background_light'\)[\s\S]*saveReaderBackgroundMode\('light'\)/, 'reader background menu must expose black, paper, and light choices')
 assert.match(settingsPageSource, /reader-tap-navigation[\s\S]*saveReaderTapNavigationEnabled\(value\)/, 'tap navigation row must expose a real switch-backed on/off choice')
 assert.match(settingsPageSource, /reader-swipe-navigation[\s\S]*saveReaderSwipeNavigationEnabled\(value\)/, 'swipe navigation row must expose a real switch-backed on/off choice')

@@ -7,7 +7,7 @@ import { AppStrings } from '../i18n/AppStrings'
 export type ReaderPageMode = 'single_page' | 'double_page' | 'continuous_scroll'
 export type ReaderThemeMode = 'system' | 'light' | 'dark'
 export type ReaderBackgroundMode = 'black' | 'paper' | 'light'
-export type ReaderImageFitMode = 'contain' | 'fit_width'
+export type ReaderImageFitMode = 'contain' | 'fit_width' | 'fit_height'
 export type ReaderTapZonePreset = 'edge' | 'wide_edges'
 export type ReaderPageGapMode = 'compact' | 'normal' | 'wide'
 export type ReaderWideImageMode = 'keep_single' | 'rotate_wide_pages' | 'split_wide_pages'
@@ -110,7 +110,7 @@ export function normalizeReaderBackgroundMode(value: string): ReaderBackgroundMo
 }
 
 export function normalizeReaderImageFitMode(value: string): ReaderImageFitMode {
-  if (value === 'fit_width') {
+  if (value === 'fit_width' || value === 'fit_height') {
     return value
   }
   return 'contain'
@@ -258,6 +258,9 @@ export function getReaderKeepScreenAwakeLabel(keepScreenAwake: boolean): string 
 export function getReaderImageFitModeLabel(mode: ReaderImageFitMode): string {
   if (mode === 'fit_width') {
     return AppStrings.get('reader_image_fit_width')
+  }
+  if (mode === 'fit_height') {
+    return AppStrings.get('reader_image_fit_height')
   }
   return AppStrings.get('reader_image_fit_screen')
 }
