@@ -1,5 +1,6 @@
 import { common } from '@kit.AbilityKit'
 import { SecondaryListScaffold } from '../components/SecondaryListScaffold'
+import { ConciseListRow } from '../components/ui/ConciseListRow'
 import { KomaActionButton } from '../components/ui/KomaActionButton'
 import { KomaEmptyState } from '../components/ui/KomaEmptyState'
 import { ThemeConstants } from '../theme/ThemeConstants'
@@ -149,6 +150,14 @@ export struct DownloadsPage {
       .replace('%s', this.formatEntryStatus(entry))
       .replace('%s', `${entry.downloadedPageCount}`)
       .replace('%s', `${entry.pageCount}`)
+  }
+
+  private rowDetailSubtitle(entry: OfflineDownloadQueueEntry): string {
+    const blocked = this.blockedHelpText(entry)
+    if (blocked.length === 0) {
+      return this.rowSubtitle(entry)
+    }
+    return `${this.rowSubtitle(entry)}\n${blocked}`
   }
 
   private blockedHelpText(entry: OfflineDownloadQueueEntry): string {
@@ -973,41 +982,19 @@ export struct DownloadsPage {
   @Builder
   private DownloadRow(entry: OfflineDownloadQueueEntry) {
     Column({ space: ThemeConstants.SPACE_MD }) {
-      Row({ space: ThemeConstants.SPACE_MD }) {
-        Column({ space: ThemeConstants.SPACE_XS }) {
-          Text(this.rowTitle(entry))
-            .width('100%')
-            .fontSize(ThemeConstants.FONT_SIZE_BODY)
-            .fontWeight(FontWeight.Medium)
-            .fontColor(ThemeConstants.TEXT_PRIMARY)
-            .maxLines(1)
-            .textOverflow({ overflow: TextOverflow.Ellipsis })
-          Text(this.rowSubtitle(entry))
-            .width('100%')
-            .fontSize(ThemeConstants.FONT_SIZE_CAPTION)
-            .fontColor(ThemeConstants.TEXT_SECONDARY)
-            .maxLines(1)
-            .textOverflow({ overflow: TextOverflow.Ellipsis })
-          if (this.blockedHelpText(entry).length > 0) {
-            Text(this.blockedHelpText(entry))
-              .width('100%')
-              .fontSize(ThemeConstants.FONT_SIZE_CAPTION)
-              .fontColor(ThemeConstants.TEXT_SECONDARY)
-              .maxLines(2)
-              .textOverflow({ overflow: TextOverflow.Ellipsis })
-          }
-        }
-        .layoutWeight(1)
-        .alignItems(HorizontalAlign.Start)
-
-        Text(this.formatEntryStatus(entry))
-          .fontSize(ThemeConstants.FONT_SIZE_CAPTION)
-          .fontColor(ThemeConstants.BRAND_PRIMARY)
-      }
-      .width('100%')
-      .onClick(() => {
-        this.openDownloadEntry(entry)
+      ConciseListRow({
+        title: this.rowTitle(entry),
+        subtitle: this.rowDetailSubtitle(entry),
+        subtitleMaxLines: this.blockedHelpText(entry).length > 0 ? 3 : 2,
+        trailingText: this.formatEntryStatus(entry),
+        showChevron: false,
+        primaryColor: ThemeConstants.TEXT_PRIMARY,
+        secondaryColor: ThemeConstants.TEXT_SECONDARY,
+        action: () => {
+          this.openDownloadEntry(entry)
+        },
       })
+      .width('100%')
 
       Row({ space: ThemeConstants.SPACE_MD }) {
         if (this.canRead(entry)) {

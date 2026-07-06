@@ -1950,6 +1950,11 @@ assert.doesNotMatch(
   /Chip\(/,
   'DownloadsPage must not use handwritten Chip controls for queue filters',
 )
+assert.match(
+  downloadsPageSource,
+  /import \{ ConciseListRow \} from '\.\.\/components\/ui\/ConciseListRow'[\s\S]*rowDetailSubtitle\(entry: OfflineDownloadQueueEntry\): string[\s\S]*this\.blockedHelpText\(entry\)[\s\S]*private DownloadRow\(entry: OfflineDownloadQueueEntry\)[\s\S]*ConciseListRow\(\{[\s\S]*title: this\.rowTitle\(entry\)[\s\S]*subtitle: this\.rowDetailSubtitle\(entry\)[\s\S]*trailingText: this\.formatEntryStatus\(entry\)[\s\S]*action: \(\) => \{[\s\S]*this\.openDownloadEntry\(entry\)[\s\S]*common_read[\s\S]*this\.openDownloadedChapter\(entry\)[\s\S]*common_retry[\s\S]*this\.retryDownload\(entry\)[\s\S]*common_remove[\s\S]*this\.confirmRemoveDownload\(entry\)/,
+  'DownloadsPage rows must use the shared HDS list row while preserving read, retry, and remove actions',
+)
 
 const mangaRequest = JSON.parse(buildSourceDetailRequestJson(
   'local.test.koma.fixture',
