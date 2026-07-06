@@ -176,6 +176,27 @@ struct Index {
     console.warn('[Reader] step=open_source_pages_unavailable failed=true reason=source_pages_unavailable')
   }
 
+  private hasAvailableOfflineReaderPages(comicId: ComicId, chapterId: string | undefined): boolean {
+    if (chapterId === undefined || chapterId.length === 0) {
+      return false
+    }
+    try {
+      const context = getContext(this) as common.UIAbilityContext
+      if (context === undefined || context.filesDir === undefined || context.filesDir.length === 0) {
+        return false
+      }
+      const validation = new OfflineDownloadStore(context.filesDir)
+        .validateDownloadedChapter(comicId, chapterId, { validateContentHash: false })
+      return validation.manifest !== undefined &&
+        validation.availablePageCount > 0 &&
+        (validation.status === OfflineDownloadedChapterStatus.DOWNLOADED ||
+          validation.status === OfflineDownloadedChapterStatus.PARTIAL)
+    } catch (_error) {
+      console.warn('[ReaderOffline] step=open_manifest_probe failed=true reason=manifest_session')
+      return false
+    }
+  }
+
   private async ensureReaderSourceChapterPages(comic: Comic, chapterId: string | undefined): Promise<boolean> {
     if (!this.chapterNeedsReaderSourcePages(comic, chapterId)) {
       return true
@@ -204,8 +225,11 @@ struct Index {
     let comic = this.libraryStore.getComic(comicId)
     const targetChapterId = comic === undefined ? chapterId : this.readerChapterIdForOpen(comic, chapterId)
     let sourcePagesReady = true
+    const offlineReaderPagesReady = comic === undefined ? false : this.hasAvailableOfflineReaderPages(comic.id, targetChapterId)
     if (comic !== undefined) {
-      sourcePagesReady = await this.ensureReaderSourceChapterPages(comic, targetChapterId)
+      if (!offlineReaderPagesReady) {
+        sourcePagesReady = await this.ensureReaderSourceChapterPages(comic, targetChapterId)
+      }
       comic = this.libraryStore.getComic(comicId) ?? comic
       try {
         await installReaderRemoteHeadersForComic(getContext(this) as common.UIAbilityContext, comic)
