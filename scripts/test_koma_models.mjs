@@ -2939,6 +2939,11 @@ assert.match(
 )
 assert.match(
   sourceSearchPageSource,
+  /hasRuntimeFilters\(\): boolean \{[\s\S]*return this\.viewModel\.filters\.length > 0[\s\S]*if \(this\.hasRuntimeFilters\(\)\) \{[\s\S]*this\.RuntimeFilterControls\(\)/,
+  'SourceSearchPage must not render an empty runtime filter slot when the source exposes no filters',
+)
+assert.match(
+  sourceSearchPageSource,
   /this\.viewModel\.loadingSearch && this\.viewModel\.searchResults\.length === 0[\s\S]*this\.ResultsGrid\(this\.viewModel\.searchResults\)[\s\S]*this\.viewModel\.hasMoreSearch[\s\S]*this\.viewModel\.loadMoreSearch\(\)/,
   'SourceSearchPage must keep existing search results visible while loading the next page',
 )

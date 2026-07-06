@@ -94,6 +94,10 @@ export struct SourceSearchPage {
     return this.viewModel.hasSearchFilterChanges()
   }
 
+  private hasRuntimeFilters(): boolean {
+    return this.viewModel.filters.length > 0
+  }
+
   private isFilteredEmptySearch(): boolean {
     return this.query.trim().length > 0 && this.hasActiveSearchFilters()
   }
@@ -209,8 +213,10 @@ export struct SourceSearchPage {
               this.submitSearch(value)
             })
         }
-        ListItem() {
-          this.RuntimeFilterControls()
+        if (this.hasRuntimeFilters()) {
+          ListItem() {
+            this.RuntimeFilterControls()
+          }
         }
         if (this.viewModel.loadingSearch && this.viewModel.searchResults.length === 0) {
           ListItem() {
