@@ -865,6 +865,11 @@ assert.match(
   /localPath === undefined[\s\S]*isOfflineManifestReaderOwned\(validation\)[\s\S]*ReaderPageRenderKind\.URI_PLACEHOLDER[\s\S]*offline-missing:\/\//,
   'reader adapter must show an honest placeholder for missing pages inside an existing offline manifest instead of silently falling back to remote',
 )
+assert.match(
+  readerPageSourceAdapterSource,
+  /createReaderPageRenderSource\(config: ReaderSessionConfig, pageIndex: number, options\?: ReaderPageRenderSourceOptions\): ReaderPageRenderSource \{[\s\S]*options\?\.preferOffline !== false[\s\S]*offlineDownloadSource = createReaderOfflineDownloadRenderSource\(config, pageIndex\)[\s\S]*if \(offlineDownloadSource !== undefined\) \{[\s\S]*return offlineDownloadSource[\s\S]*options\?\.offlineOnly === true/,
+  'reader adapter must return offline missing-page placeholders from owned manifests before considering remote source fallback',
+)
 assert.doesNotMatch(
   offlineDownloadStoreSource,
   /reader-remote-image-cache|RemoteImageCacheStore|url:\s*string/,
