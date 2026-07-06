@@ -604,6 +604,11 @@ assert.match(
 )
 assert.match(
   readerPageSource,
+  /LocalImagePage\(imageUri: string, index: number, compact: boolean = false,[\s\S]*splitSide: ReaderWidePageSplitSide = 'none'\)[\s\S]*\.aspectRatio\(this\.readerDisplayPageAspectRatio\(index, splitSide\)\)[\s\S]*RemoteImagePage\(source: ReaderPageRenderSource, index: number, compact: boolean = false, splitSide: ReaderWidePageSplitSide = 'none'\)[\s\S]*\.aspectRatio\(this\.readerDisplayPageAspectRatio\(index, splitSide\)\)/,
+  'fit-width image mode must lay out split and rotated pages using the visible page aspect ratio',
+)
+assert.match(
+  readerPageSource,
   /private singlePageWidth\(\): string[\s\S]*return '100%'/,
   'single-page reader must use the full reader viewport width',
 )

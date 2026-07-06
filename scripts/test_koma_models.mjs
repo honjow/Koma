@@ -2729,6 +2729,11 @@ assert.match(
 )
 assert.match(
   readerPageSource,
+  /PageErrorPlaceholder\([\s\S]*splitSide: ReaderWidePageSplitSide = 'none'[\s\S]*\.aspectRatio\(this\.readerDisplayPageAspectRatio\(index, splitSide\)\)[\s\S]*LocalImagePage\([\s\S]*\.aspectRatio\(this\.readerDisplayPageAspectRatio\(index, splitSide\)\)[\s\S]*RemoteImagePage\([\s\S]*\.aspectRatio\(this\.readerDisplayPageAspectRatio\(index, splitSide\)\)/,
+  'ReaderPage split and rotated page surfaces must use visible-page aspect ratios for image and error states',
+)
+assert.match(
+  readerPageSource,
   /ReaderInputLayer\(\)[\s\S]*\.zIndex\(12\)[\s\S]*GestureGroup\(GestureMode\.Parallel[\s\S]*GestureGroup\(GestureMode\.Exclusive[\s\S]*TapGesture\(\{ count: 2[\s\S]*onReaderDoubleTap[\s\S]*TapGesture\(\{ count: 1 \}\)[\s\S]*onReaderTap[\s\S]*PinchGesture\(\{ fingers: 2 \}\)[\s\S]*onReaderPinchStart[\s\S]*onReaderPinchUpdate[\s\S]*onReaderPinchEnd[\s\S]*PanGesture\(\{ fingers: 1, direction: PanDirection\.All, distance: 2 \}\)[\s\S]*onReaderPanStart[\s\S]*onReaderPanUpdate[\s\S]*onReaderPanEnd/,
   'ReaderPage must bind tap, double-tap zoom, pinch zoom, and zoom pan on the top input surface so the transparent tap layer does not block zoom gestures',
 )
