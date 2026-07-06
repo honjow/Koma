@@ -605,18 +605,18 @@ assert.match(
 )
 assert.match(
   themeConstantsSource,
-  /static readonly SOURCE_RESULT_GRID_COLUMN_COUNT: number = 2/,
-  'Source result grids must use the shared phone-safe two-column count instead of page-local hardcoded three-column layouts',
+  /static readonly SOURCE_RESULT_GRID_COLUMN_COUNT: number = 3/,
+  'Source result grids must use a compact shared three-column count instead of oversized page-local layouts',
 )
 assert.match(
   sourceBrowsePageSource,
-  /import \{ SourceMangaGrid \} from '\.\.\/components\/SourceMangaGrid'[\s\S]*SourceMangaGrid\(\{[\s\S]*columnCount: ThemeConstants\.SOURCE_RESULT_GRID_COLUMN_COUNT[\s\S]*onMangaTap:/,
-  'SourceBrowsePage manga grid must use the shared non-nested source result grid',
+  /SourceMangaGrid\(\{[\s\S]*columnCount: ThemeConstants\.SOURCE_RESULT_GRID_COLUMN_COUNT[\s\S]*onMangaTap:[\s\S]*SecondaryListScaffold\(\{[\s\S]*reserveTitleBar:\s*false/,
+  'SourceBrowsePage manga grid must use the shared non-nested source result grid without reserving a second title bar',
 )
 assert.match(
   sourceSearchPageSource,
-  /import \{ SourceMangaGrid \} from '\.\.\/components\/SourceMangaGrid'[\s\S]*SourceMangaGrid\(\{[\s\S]*columnCount: ThemeConstants\.SOURCE_RESULT_GRID_COLUMN_COUNT[\s\S]*onMangaTap:/,
-  'SourceSearchPage result grid must use the shared non-nested source result grid',
+  /searchPlaceholder\(\): string[\s\S]*source_search_placeholder[\s\S]*SourceMangaGrid\(\{[\s\S]*columnCount: ThemeConstants\.SOURCE_RESULT_GRID_COLUMN_COUNT[\s\S]*onMangaTap:[\s\S]*build\(\)[\s\S]*SecondaryListScaffold\(\{[\s\S]*reserveTitleBar:\s*false[\s\S]*Search\(\{ value: this\.query, placeholder: this\.searchPlaceholder\(\) \}\)/,
+  'SourceSearchPage result grid must use compact source search chrome without a duplicate title spacer',
 )
 assert.match(
   sourceMangaGridSource,

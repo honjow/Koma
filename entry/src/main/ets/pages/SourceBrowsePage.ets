@@ -327,6 +327,7 @@ export struct SourceBrowsePage {
         listSpace: ThemeConstants.SPACE_MD,
         horizontalPadding: ThemeConstants.SPACE_XL,
         bottomPadding: ThemeConstants.SPACE_XL,
+        reserveTitleBar: false,
         onReachEnd: () => {
           void this.viewModel.loadMoreBrowse()
         },

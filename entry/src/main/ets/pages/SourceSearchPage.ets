@@ -107,6 +107,11 @@ export struct SourceSearchPage {
     this.rerunSearchIfReady()
   }
 
+  private searchPlaceholder(): string {
+    const sourceName = this.currentSource().displayName
+    return sourceName.length > 0 ? `${s('source_search_placeholder')} · ${sourceName}` : s('source_search_placeholder')
+  }
+
   private emptySearchTitle(): string {
     if (this.query.trim().length === 0) {
       return s('source_search_empty_idle_title')
@@ -188,19 +193,13 @@ export struct SourceSearchPage {
         listSpace: ThemeConstants.SPACE_MD,
         horizontalPadding: ThemeConstants.SPACE_XL,
         bottomPadding: ThemeConstants.SPACE_XL,
+        reserveTitleBar: false,
         onReachEnd: () => {
           void this.viewModel.loadMoreSearch()
         },
       }) {
         ListItem() {
-          Text(this.currentSource().displayName)
-            .fontSize(ThemeConstants.FONT_SIZE_META)
-            .fontColor(ThemeConstants.TEXT_SECONDARY)
-            .maxLines(1)
-            .textOverflow({ overflow: TextOverflow.Ellipsis })
-        }
-        ListItem() {
-          Search({ value: this.query, placeholder: s('source_search_placeholder') })
+          Search({ value: this.query, placeholder: this.searchPlaceholder() })
             .width('100%')
             .height(ThemeConstants.BUTTON_HEIGHT)
             .backgroundColor(ThemeConstants.CARD)
