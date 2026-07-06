@@ -494,7 +494,7 @@ assert.match(
 )
 assert.match(
   readerPageSource,
-  /private onReaderDoubleTap\(tapX: number, tapY: number\): void \{[\s\S]*!this\.zoomGesturesEnabled[\s\S]*return[\s\S]*private onReaderPinchStart\(event\?: GestureEvent\): void \{[\s\S]*!this\.zoomGesturesEnabled \|\| event === undefined[\s\S]*private onReaderPanUpdate\(event\?: GestureEvent\): void \{[\s\S]*!this\.zoomGesturesEnabled \|\| event === undefined \|\| this\.zoomScale <= 1\.01[\s\S]*private onReaderPanEnd\(\): void \{[\s\S]*!this\.zoomGesturesEnabled \|\| this\.zoomScale <= 1\.01/,
+  /private onReaderDoubleTap\(tapX: number, tapY: number\): void \{[\s\S]*!this\.zoomGesturesEnabled[\s\S]*return[\s\S]*private onReaderPinchStart\(event\?: GestureEvent\): void \{[\s\S]*!this\.zoomGesturesEnabled \|\| event === undefined[\s\S]*private onReaderPanUpdate\(event\?: GestureEvent\): void \{[\s\S]*!this\.zoomGesturesEnabled \|\| event === undefined \|\| !this\.canPanReaderContent\(\)[\s\S]*private onReaderPanEnd\(\): void \{[\s\S]*!this\.zoomGesturesEnabled \|\| !this\.canPanReaderContent\(\)[\s\S]*this\.zoomScale <= 1\.01/,
   'ReaderPage must make double-tap, pinch zoom, and zoom-pan respect the zoom gesture preference at runtime',
 )
 assert.match(
@@ -609,7 +609,7 @@ assert.doesNotMatch(
 )
 assert.match(
   readerPageSource,
-  /private pageContainerPadding\(compact: boolean\): number[\s\S]*this\.trimPageMarginsEnabled[\s\S]*return 0[\s\S]*return compact \? 0 : 0/,
+  /private pageContainerPadding\(compact: boolean\): number[\s\S]*return compact \? 0 : 0/,
   'reader pages must not add card padding around the image viewport',
 )
 assert.match(
@@ -619,8 +619,8 @@ assert.match(
 )
 assert.match(
   readerPageSource,
-  /\.padding\(this\.pageContainerPadding\(compact\)\)[\s\S]*\.clip\(true\)/,
-  'reader pages must apply trim through container padding, not image crop mode',
+  /private pageImageTrimScale\(\): number[\s\S]*this\.trimPageMarginsEnabled \? 1\.04 : 1[\s\S]*id\('reader-page-local-file-image'\)[\s\S]*\.scale\(\{ x: this\.pageImageTrimScale\(\), y: this\.pageImageTrimScale\(\) \}\)[\s\S]*id\('reader-page-remote-url-image'\)[\s\S]*\.scale\(\{ x: this\.pageImageTrimScale\(\), y: this\.pageImageTrimScale\(\) \}\)/,
+  'trim margins must visibly crop page edges by scaling image content inside the clipped page viewport',
 )
 assert.match(
   readerPageSource,
