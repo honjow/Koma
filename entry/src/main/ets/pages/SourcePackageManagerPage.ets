@@ -8,6 +8,7 @@ import { KomaFormTextField } from '../components/ui/KomaFormTextField'
 import { AppStrings } from '../i18n/AppStrings'
 import { connectLanguageState, LanguageState } from '../state/LanguageState'
 import { ThemeConstants } from '../theme/ThemeConstants'
+import { RouterHelper } from '../common/RouterHelper'
 import {
   InstalledSourcePackage,
   appSourceRuntimeRegistry,
@@ -40,6 +41,7 @@ import {
   sourceIndexCandidateTrustSummary,
   sourcePackageTrustBoundaryNotice,
 } from '../sourceRuntime/SourcePackageTrustPolicy'
+import { SourceRuntimeRegistryInstalledSourceSummary } from '../sourceRuntime/SourceRuntimeRegistry'
 
 function t(name: string): string {
   return AppStrings.get(name)
@@ -167,6 +169,42 @@ export struct SourcePackageManagerPage {
 
   private installedPackage(entryId: string): InstalledSourcePackage | undefined {
     return this.packages.find((pkg: InstalledSourcePackage): boolean => pkg.id === entryId)
+  }
+
+  private sourceSummary(source: InstalledSourcePackage): SourceRuntimeRegistryInstalledSourceSummary {
+    const importStatus = source.status === 'staged' ? 'staged' : 'imported'
+    return {
+      sourceId: source.id,
+      displayName: source.name,
+      version: source.version,
+      wasmByteCount: 0,
+      importStatus,
+      networkEnabled: false,
+      httpEnabled: false,
+      enabled: source.enabled,
+      language: source.lang,
+      nsfw: source.nsfw,
+      status: importStatus,
+      capabilities: source.capabilities,
+    }
+  }
+
+  private sourceSupportsSearch(source: InstalledSourcePackage): boolean {
+    return source.capabilities.includes('search')
+  }
+
+  private openSourceBrowse(source: InstalledSourcePackage): void {
+    if (!source.enabled) {
+      return
+    }
+    RouterHelper.pushSourceBrowse({ source: this.sourceSummary(source) })
+  }
+
+  private openSourceSearch(source: InstalledSourcePackage): void {
+    if (!source.enabled || !this.sourceSupportsSearch(source)) {
+      return
+    }
+    RouterHelper.pushSourceSearch({ source: this.sourceSummary(source) })
   }
 
   private isSourceInstalled(entryId: string): boolean {
@@ -1645,6 +1683,31 @@ export struct SourcePackageManagerPage {
         .fontColor(ThemeConstants.TEXT_SECONDARY)
         .maxLines(2)
         .textOverflow({ overflow: TextOverflow.Ellipsis })
+
+      Row({ space: ThemeConstants.SPACE_SM }) {
+        KomaActionButton({
+          label: t('tab_browse'),
+          kind: 'primary',
+          fill: true,
+          controlHeight: ThemeConstants.ACTION_CHIP_HEIGHT,
+          isEnabled: source.enabled,
+          action: () => {
+            this.openSourceBrowse(source)
+          },
+        })
+
+        KomaActionButton({
+          label: t('tab_search'),
+          kind: 'secondary',
+          fill: true,
+          controlHeight: ThemeConstants.ACTION_CHIP_HEIGHT,
+          isEnabled: source.enabled && this.sourceSupportsSearch(source),
+          action: () => {
+            this.openSourceSearch(source)
+          },
+        })
+      }
+      .width('100%')
 
       Row({ space: ThemeConstants.SPACE_SM }) {
         if (this.updateEntry(source.id) !== undefined) {

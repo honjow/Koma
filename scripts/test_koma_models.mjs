@@ -627,6 +627,16 @@ assert.match(
   'BrowsePage source rows must wire direct source search into the SourceSearch route',
 )
 assert.match(
+  sourcePackageManagerPageSource,
+  /sourceSummary\(source: InstalledSourcePackage\): SourceRuntimeRegistryInstalledSourceSummary[\s\S]*sourceId: source\.id[\s\S]*displayName: source\.name[\s\S]*capabilities: source\.capabilities[\s\S]*openSourceBrowse\(source: InstalledSourcePackage\): void[\s\S]*RouterHelper\.pushSourceBrowse\(\{ source: this\.sourceSummary\(source\) \}\)[\s\S]*openSourceSearch\(source: InstalledSourcePackage\): void[\s\S]*this\.sourceSupportsSearch\(source\)[\s\S]*RouterHelper\.pushSourceSearch\(\{ source: this\.sourceSummary\(source\) \}\)/,
+  'SourcePackageManagerPage installed source cards must route directly into browse/search with source identity intact',
+)
+assert.match(
+  sourcePackageManagerPageSource,
+  /label: t\('tab_browse'\)[\s\S]*isEnabled: source\.enabled[\s\S]*this\.openSourceBrowse\(source\)[\s\S]*label: t\('tab_search'\)[\s\S]*isEnabled: source\.enabled && this\.sourceSupportsSearch\(source\)[\s\S]*this\.openSourceSearch\(source\)/,
+  'SourcePackageManagerPage must expose browse/search actions on installed packages and disable search for sources without search capability',
+)
+assert.match(
   browsePageSource,
   /configuredPrivateSourceEntries\(\): PrivateBrowseSourceEntry\[\][\s\S]*key: 'komga'[\s\S]*browse_komga_detail[\s\S]*key: 'kavita'[\s\S]*browse_kavita_detail[\s\S]*key: 'webdav'[\s\S]*browse_webdav_detail[\s\S]*key: 'opds'[\s\S]*browse_opds_detail[\s\S]*ForEach\(this\.configuredPrivateSourceEntries\(\)[\s\S]*SourceListItem\(\{[\s\S]*showSearchButton: false[\s\S]*this\.openPrivateSource\(entry\.key\)/,
   'BrowsePage private library entries must be data-driven and reuse SourceListItem instead of hand-rolled duplicate cards',
