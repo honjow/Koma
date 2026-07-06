@@ -592,9 +592,24 @@ assert.match(
   'SourceListItem must expose a direct source search button instead of forcing users through browse first',
 )
 assert.match(
+  sourceListItemSource,
+  /@Param title: ResourceStr[\s\S]*@Param subtitle: ResourceStr[\s\S]*@Param badge: ResourceStr[\s\S]*@Event onActivate[\s\S]*private activate\(\): void \{[\s\S]*this\.sourceBacked\(\)[\s\S]*this\.onSourceTap\(this\.source\)[\s\S]*this\.onActivate\(\)/,
+  'SourceListItem must support reusable private-library entries without duplicating the source row layout',
+)
+assert.match(
   browsePageSource,
   /openSourceSearch\(source: SourceRuntimeRegistryInstalledSourceSummary\): void \{[\s\S]*RouterHelper\.pushSourceSearch\(\{ source: source \}\)[\s\S]*SourceListItem\(\{[\s\S]*onSourceTap:[\s\S]*this\.openSource\(selected\)[\s\S]*onSourceSearch:[\s\S]*this\.openSourceSearch\(selected\)/,
   'BrowsePage source rows must wire direct source search into the SourceSearch route',
+)
+assert.match(
+  browsePageSource,
+  /configuredPrivateSourceEntries\(\): PrivateBrowseSourceEntry\[\][\s\S]*key: 'komga'[\s\S]*browse_komga_detail[\s\S]*key: 'kavita'[\s\S]*browse_kavita_detail[\s\S]*key: 'webdav'[\s\S]*browse_webdav_detail[\s\S]*key: 'opds'[\s\S]*browse_opds_detail[\s\S]*ForEach\(this\.configuredPrivateSourceEntries\(\)[\s\S]*SourceListItem\(\{[\s\S]*showSearchButton: false[\s\S]*this\.openPrivateSource\(entry\.key\)/,
+  'BrowsePage private library entries must be data-driven and reuse SourceListItem instead of hand-rolled duplicate cards',
+)
+assert.doesNotMatch(
+  browsePageSource,
+  /Text\(s\('browse_(komga|kavita|webdav|opds)_tag'\)\)[\s\S]*\.backgroundColor\(ThemeConstants\.SOFT_TINT\)[\s\S]*Text\(s\('browse_(komga|kavita|webdav|opds)_detail'\)\)/,
+  'BrowsePage must not carry duplicated private-library card layout blocks',
 )
 assert.doesNotMatch(
   `${sourceBrowsePageSource}\n${sourceSearchPageSource}`,

@@ -32,6 +32,17 @@ function s(name: string): string {
   return AppStrings.get(name)
 }
 
+type PrivateBrowseSourceKey = 'komga' | 'kavita' | 'webdav' | 'opds'
+
+interface PrivateBrowseSourceEntry {
+  key: PrivateBrowseSourceKey
+  title: ResourceStr
+  badge: ResourceStr
+  detail: ResourceStr
+  initial: string
+  color: ResourceColor
+}
+
 @ComponentV2
 export struct BrowsePage {
   @Local private languageState: LanguageState = connectLanguageState()
@@ -73,6 +84,67 @@ export struct BrowsePage {
     this.browsePathStack.pushPath({ name: OPDS_ROUTE_NAME })
   }
 
+  private configuredPrivateSourceEntries(): PrivateBrowseSourceEntry[] {
+    const entries: PrivateBrowseSourceEntry[] = []
+    if (this.komgaConfigured) {
+      entries.push({
+        key: 'komga',
+        title: s('route_komga_title'),
+        badge: s('browse_komga_tag'),
+        detail: s('browse_komga_detail'),
+        initial: 'K',
+        color: ThemeConstants.SOURCE_KOMGA_COLOR,
+      })
+    }
+    if (this.kavitaConfigured) {
+      entries.push({
+        key: 'kavita',
+        title: s('route_kavita_title'),
+        badge: s('browse_kavita_tag'),
+        detail: s('browse_kavita_detail'),
+        initial: 'K',
+        color: ThemeConstants.SOURCE_KAVITA_COLOR,
+      })
+    }
+    if (this.webDavConfigured) {
+      entries.push({
+        key: 'webdav',
+        title: s('route_webdav_title'),
+        badge: s('browse_webdav_tag'),
+        detail: s('browse_webdav_detail'),
+        initial: 'W',
+        color: ThemeConstants.SOURCE_WEBDAV_COLOR,
+      })
+    }
+    if (this.opdsConfigured) {
+      entries.push({
+        key: 'opds',
+        title: s('route_opds_title'),
+        badge: s('browse_opds_tag'),
+        detail: s('browse_opds_detail'),
+        initial: 'O',
+        color: ThemeConstants.SOURCE_OPDS_COLOR,
+      })
+    }
+    return entries
+  }
+
+  private openPrivateSource(key: PrivateBrowseSourceKey): void {
+    if (key === 'komga') {
+      this.openKomga()
+      return
+    }
+    if (key === 'kavita') {
+      this.openKavita()
+      return
+    }
+    if (key === 'webdav') {
+      this.openWebDav()
+      return
+    }
+    this.openOpds()
+  }
+
   @Builder
   private EmptySources() {
     KomaEmptyState({
@@ -88,206 +160,22 @@ export struct BrowsePage {
 
   @Builder
   private SourceListItems() {
-    if (this.komgaConfigured) {
+    ForEach(this.configuredPrivateSourceEntries(), (entry: PrivateBrowseSourceEntry) => {
       ListItem() {
-        Row({ space: ThemeConstants.SPACE_MD }) {
-          Stack({ alignContent: Alignment.Center }) {
-            Text('K')
-              .fontSize(ThemeConstants.FONT_SIZE_H3)
-              .fontWeight(FontWeight.Bold)
-              .fontColor(ThemeConstants.TEXT_ON_BRAND)
-          }
-          .width(ThemeConstants.SOURCE_ICON_SIZE)
-          .height(ThemeConstants.SOURCE_ICON_SIZE)
-          .borderRadius(ThemeConstants.RADIUS_ROUND)
-          .backgroundColor(ThemeConstants.SOURCE_KOMGA_COLOR)
-
-          Column({ space: ThemeConstants.SPACE_XS }) {
-            Row({ space: ThemeConstants.SPACE_SM }) {
-              Text('Komga')
-                .fontSize(ThemeConstants.FONT_SIZE_TITLE)
-                .fontWeight(FontWeight.Medium)
-                .fontColor(ThemeConstants.TEXT_PRIMARY)
-                .layoutWeight(1)
-              Text(s('browse_komga_tag'))
-                .fontSize(ThemeConstants.FONT_SIZE_TAG)
-                .fontWeight(FontWeight.Medium)
-                .fontColor(ThemeConstants.BRAND_PRIMARY)
-                .padding({ left: 8, right: 8, top: 3, bottom: 3 })
-                .borderRadius(ThemeConstants.RADIUS_CHIP)
-                .backgroundColor(ThemeConstants.SOFT_TINT)
-            }
-            .width('100%')
-            .alignItems(VerticalAlign.Center)
-            Text(s('browse_komga_detail'))
-              .fontSize(ThemeConstants.FONT_SIZE_META)
-              .fontColor(ThemeConstants.TEXT_SECONDARY)
-          }
-          .layoutWeight(1)
-          .alignItems(HorizontalAlign.Start)
-          SymbolGlyph($r('sys.symbol.chevron_right'))
-            .fontSize(ThemeConstants.FONT_SIZE_HEADING)
-            .fontColor([ThemeConstants.TEXT_SECONDARY])
-        }
-        .width('100%')
-        .padding(ThemeConstants.SPACE_MD)
-        .borderRadius(ThemeConstants.RADIUS_CARD)
-        .backgroundColor(ThemeConstants.CARD)
-        .onClick(() => {
-          this.openKomga()
+        SourceListItem({
+          title: entry.title,
+          subtitle: entry.detail,
+          badge: entry.badge,
+          initial: entry.initial,
+          accentColor: entry.color,
+          showSearchButton: false,
+          onActivate: () => {
+            this.openPrivateSource(entry.key)
+          },
         })
       }
-    }
-    if (this.kavitaConfigured) {
-      ListItem() {
-        Row({ space: ThemeConstants.SPACE_MD }) {
-          Stack({ alignContent: Alignment.Center }) {
-            Text('K')
-              .fontSize(ThemeConstants.FONT_SIZE_H3)
-              .fontWeight(FontWeight.Bold)
-              .fontColor(ThemeConstants.TEXT_ON_BRAND)
-          }
-          .width(ThemeConstants.SOURCE_ICON_SIZE)
-          .height(ThemeConstants.SOURCE_ICON_SIZE)
-          .borderRadius(ThemeConstants.RADIUS_ROUND)
-          .backgroundColor(ThemeConstants.SOURCE_KAVITA_COLOR)
+    }, (entry: PrivateBrowseSourceEntry) => entry.key)
 
-          Column({ space: ThemeConstants.SPACE_XS }) {
-            Row({ space: ThemeConstants.SPACE_SM }) {
-              Text(s('route_kavita_title'))
-                .fontSize(ThemeConstants.FONT_SIZE_TITLE)
-                .fontWeight(FontWeight.Medium)
-                .fontColor(ThemeConstants.TEXT_PRIMARY)
-                .layoutWeight(1)
-              Text(s('browse_kavita_tag'))
-                .fontSize(ThemeConstants.FONT_SIZE_TAG)
-                .fontWeight(FontWeight.Medium)
-                .fontColor(ThemeConstants.BRAND_PRIMARY)
-                .padding({ left: 8, right: 8, top: 3, bottom: 3 })
-                .borderRadius(ThemeConstants.RADIUS_CHIP)
-                .backgroundColor(ThemeConstants.SOFT_TINT)
-            }
-            .width('100%')
-            .alignItems(VerticalAlign.Center)
-            Text(s('browse_kavita_detail'))
-              .fontSize(ThemeConstants.FONT_SIZE_META)
-              .fontColor(ThemeConstants.TEXT_SECONDARY)
-          }
-          .layoutWeight(1)
-          .alignItems(HorizontalAlign.Start)
-          SymbolGlyph($r('sys.symbol.chevron_right'))
-            .fontSize(ThemeConstants.FONT_SIZE_HEADING)
-            .fontColor([ThemeConstants.TEXT_SECONDARY])
-        }
-        .width('100%')
-        .padding(ThemeConstants.SPACE_MD)
-        .borderRadius(ThemeConstants.RADIUS_CARD)
-        .backgroundColor(ThemeConstants.CARD)
-        .onClick(() => {
-          this.openKavita()
-        })
-      }
-    }
-    if (this.webDavConfigured) {
-      ListItem() {
-        Row({ space: ThemeConstants.SPACE_MD }) {
-          Stack({ alignContent: Alignment.Center }) {
-            Text('W')
-              .fontSize(ThemeConstants.FONT_SIZE_H3)
-              .fontWeight(FontWeight.Bold)
-              .fontColor(ThemeConstants.TEXT_ON_BRAND)
-          }
-          .width(ThemeConstants.SOURCE_ICON_SIZE)
-          .height(ThemeConstants.SOURCE_ICON_SIZE)
-          .borderRadius(ThemeConstants.RADIUS_ROUND)
-          .backgroundColor(ThemeConstants.SOURCE_WEBDAV_COLOR)
-
-          Column({ space: ThemeConstants.SPACE_XS }) {
-            Row({ space: ThemeConstants.SPACE_SM }) {
-              Text('WebDAV')
-                .fontSize(ThemeConstants.FONT_SIZE_TITLE)
-                .fontWeight(FontWeight.Medium)
-                .fontColor(ThemeConstants.TEXT_PRIMARY)
-                .layoutWeight(1)
-              Text(s('browse_webdav_tag'))
-                .fontSize(ThemeConstants.FONT_SIZE_TAG)
-                .fontWeight(FontWeight.Medium)
-                .fontColor(ThemeConstants.BRAND_PRIMARY)
-                .padding({ left: 8, right: 8, top: 3, bottom: 3 })
-                .borderRadius(ThemeConstants.RADIUS_CHIP)
-                .backgroundColor(ThemeConstants.SOFT_TINT)
-            }
-            .width('100%')
-            .alignItems(VerticalAlign.Center)
-            Text(s('browse_webdav_detail'))
-              .fontSize(ThemeConstants.FONT_SIZE_META)
-              .fontColor(ThemeConstants.TEXT_SECONDARY)
-          }
-          .layoutWeight(1)
-          .alignItems(HorizontalAlign.Start)
-          SymbolGlyph($r('sys.symbol.chevron_right'))
-            .fontSize(ThemeConstants.FONT_SIZE_HEADING)
-            .fontColor([ThemeConstants.TEXT_SECONDARY])
-        }
-        .width('100%')
-        .padding(ThemeConstants.SPACE_MD)
-        .borderRadius(ThemeConstants.RADIUS_CARD)
-        .backgroundColor(ThemeConstants.CARD)
-        .onClick(() => {
-          this.openWebDav()
-        })
-      }
-    }
-    if (this.opdsConfigured) {
-      ListItem() {
-        Row({ space: ThemeConstants.SPACE_MD }) {
-          Stack({ alignContent: Alignment.Center }) {
-            Text('O')
-              .fontSize(ThemeConstants.FONT_SIZE_H3)
-              .fontWeight(FontWeight.Bold)
-              .fontColor(ThemeConstants.TEXT_ON_BRAND)
-          }
-          .width(ThemeConstants.SOURCE_ICON_SIZE)
-          .height(ThemeConstants.SOURCE_ICON_SIZE)
-          .borderRadius(ThemeConstants.RADIUS_ROUND)
-          .backgroundColor(ThemeConstants.SOURCE_OPDS_COLOR)
-
-          Column({ space: ThemeConstants.SPACE_XS }) {
-            Row({ space: ThemeConstants.SPACE_SM }) {
-              Text('OPDS')
-                .fontSize(ThemeConstants.FONT_SIZE_TITLE)
-                .fontWeight(FontWeight.Medium)
-                .fontColor(ThemeConstants.TEXT_PRIMARY)
-                .layoutWeight(1)
-              Text(s('browse_opds_tag'))
-                .fontSize(ThemeConstants.FONT_SIZE_TAG)
-                .fontWeight(FontWeight.Medium)
-                .fontColor(ThemeConstants.BRAND_PRIMARY)
-                .padding({ left: 8, right: 8, top: 3, bottom: 3 })
-                .borderRadius(ThemeConstants.RADIUS_CHIP)
-                .backgroundColor(ThemeConstants.SOFT_TINT)
-            }
-            .width('100%')
-            .alignItems(VerticalAlign.Center)
-            Text(s('browse_opds_detail'))
-              .fontSize(ThemeConstants.FONT_SIZE_META)
-              .fontColor(ThemeConstants.TEXT_SECONDARY)
-          }
-          .layoutWeight(1)
-          .alignItems(HorizontalAlign.Start)
-          SymbolGlyph($r('sys.symbol.chevron_right'))
-            .fontSize(ThemeConstants.FONT_SIZE_HEADING)
-            .fontColor([ThemeConstants.TEXT_SECONDARY])
-        }
-        .width('100%')
-        .padding(ThemeConstants.SPACE_MD)
-        .borderRadius(ThemeConstants.RADIUS_CARD)
-        .backgroundColor(ThemeConstants.CARD)
-        .onClick(() => {
-          this.openOpds()
-        })
-      }
-    }
     ForEach(this.viewModel.sources, (source: SourceRuntimeRegistryInstalledSourceSummary) => {
       ListItem() {
         SourceListItem({

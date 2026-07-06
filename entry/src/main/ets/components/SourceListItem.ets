@@ -18,17 +18,60 @@ export struct SourceListItem {
     status: 'staged',
     capabilities: [],
   }
+  @Param title: ResourceStr = ''
+  @Param subtitle: ResourceStr = ''
+  @Param badge: ResourceStr = ''
+  @Param initial: string = ''
+  @Param accentColor: ResourceColor = ThemeConstants.BRAND_PRIMARY
+  @Param showSearchButton: boolean = true
   @Param languageBadge: string = 'SRC'
+  @Event onActivate: () => void = () => {}
   @Event onSourceTap: (source: SourceRuntimeRegistryInstalledSourceSummary) => void =
     (_source: SourceRuntimeRegistryInstalledSourceSummary) => {}
   @Event onSourceSearch: (source: SourceRuntimeRegistryInstalledSourceSummary) => void =
     (_source: SourceRuntimeRegistryInstalledSourceSummary) => {}
 
+  private sourceBacked(): boolean {
+    return this.source.sourceId.trim().length > 0
+  }
+
+  private displayTitle(): ResourceStr {
+    if (this.title !== '') {
+      return this.title
+    }
+    return this.source.displayName
+  }
+
+  private displaySubtitle(): ResourceStr {
+    if (this.subtitle !== '') {
+      return this.subtitle
+    }
+    return `v${this.source.version} · ${this.source.importStatus}`
+  }
+
+  private displayBadge(): ResourceStr {
+    if (this.badge !== '') {
+      return this.badge
+    }
+    return this.languageBadge
+  }
+
   private sourceInitial(): string {
+    if (this.initial.length > 0) {
+      return this.initial.substring(0, 1).toLocaleUpperCase()
+    }
     if (this.source.displayName.length === 0) {
       return 'K'
     }
     return this.source.displayName.substring(0, 1).toLocaleUpperCase()
+  }
+
+  private activate(): void {
+    if (this.sourceBacked()) {
+      this.onSourceTap(this.source)
+      return
+    }
+    this.onActivate()
   }
 
   build() {
@@ -42,11 +85,11 @@ export struct SourceListItem {
       .width(ThemeConstants.SOURCE_ICON_SIZE)
       .height(ThemeConstants.SOURCE_ICON_SIZE)
       .borderRadius(ThemeConstants.RADIUS_ROUND)
-      .backgroundColor(ThemeConstants.BRAND_PRIMARY)
+      .backgroundColor(this.accentColor)
 
       Column({ space: ThemeConstants.SPACE_XS }) {
         Row({ space: ThemeConstants.SPACE_SM }) {
-          Text(this.source.displayName)
+          Text(this.displayTitle())
             .fontSize(ThemeConstants.FONT_SIZE_TITLE)
             .fontWeight(FontWeight.Medium)
             .fontColor(ThemeConstants.TEXT_PRIMARY)
@@ -54,7 +97,7 @@ export struct SourceListItem {
             .textOverflow({ overflow: TextOverflow.Ellipsis })
             .layoutWeight(1)
 
-          Text(this.languageBadge)
+          Text(this.displayBadge())
             .fontSize(ThemeConstants.FONT_SIZE_TAG)
             .fontWeight(FontWeight.Medium)
             .fontColor(ThemeConstants.BRAND_PRIMARY)
@@ -65,7 +108,7 @@ export struct SourceListItem {
         .width('100%')
         .alignItems(VerticalAlign.Center)
 
-        Text(`v${this.source.version} · ${this.source.importStatus}`)
+        Text(this.displaySubtitle())
           .fontSize(ThemeConstants.FONT_SIZE_META)
           .fontColor(ThemeConstants.TEXT_SECONDARY)
           .maxLines(1)
@@ -74,16 +117,18 @@ export struct SourceListItem {
       .layoutWeight(1)
       .alignItems(HorizontalAlign.Start)
 
-      KomaIconButton({
-        icon: $r('sys.symbol.magnifyingglass'),
-        kind: 'secondary',
-        controlSize: ThemeConstants.TOUCH_TARGET_SM,
-        iconSize: ThemeConstants.FONT_SIZE_HEADING,
-        accentColor: ThemeConstants.BRAND_PRIMARY,
-        action: () => {
-          this.onSourceSearch(this.source)
-        },
-      })
+      if (this.showSearchButton && this.sourceBacked()) {
+        KomaIconButton({
+          icon: $r('sys.symbol.magnifyingglass'),
+          kind: 'secondary',
+          controlSize: ThemeConstants.TOUCH_TARGET_SM,
+          iconSize: ThemeConstants.FONT_SIZE_HEADING,
+          accentColor: ThemeConstants.BRAND_PRIMARY,
+          action: () => {
+            this.onSourceSearch(this.source)
+          },
+        })
+      }
 
       SymbolGlyph($r('sys.symbol.chevron_right'))
         .fontSize(ThemeConstants.FONT_SIZE_HEADING)
@@ -94,7 +139,7 @@ export struct SourceListItem {
     .borderRadius(ThemeConstants.RADIUS_CARD)
     .backgroundColor(ThemeConstants.CARD)
     .onClick(() => {
-      this.onSourceTap(this.source)
+      this.activate()
     })
   }
 }
