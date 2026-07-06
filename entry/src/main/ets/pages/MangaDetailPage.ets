@@ -910,8 +910,7 @@ export struct MangaDetailPage {
       if (!this.hasAvailableOfflineReaderPages(chapterId)) {
         const hydration = await this.ensureSourceChapterPages(chapterId)
         if (!hydration.hydrated) {
-          this.showToast(s('manga_detail_chapter_pages_load_failed'))
-          return
+          console.warn('[manga-detail] step=open_reader_source_pages_unavailable reason=source_pages_unavailable')
         }
       }
     }
@@ -932,8 +931,7 @@ export struct MangaDetailPage {
       if (!this.hasAvailableOfflineReaderPages(chapterId)) {
         const hydration = await this.ensureSourceChapterPages(chapterId)
         if (!hydration.hydrated) {
-          this.showToast(s('manga_detail_chapter_pages_load_failed'))
-          return
+          console.warn('[manga-detail] step=open_reader_source_pages_unavailable reason=source_pages_unavailable')
         }
       }
     }
