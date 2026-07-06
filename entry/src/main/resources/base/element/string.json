@@ -99,6 +99,7 @@
     { "name": "local_library_refresh_folder_unavailable", "value": "Folder access unavailable" },
     { "name": "local_library_refresh_archive_unavailable", "value": "Archive source does not need refresh" },
     { "name": "local_library_refresh_folder_reselect_detail", "value": "Re-select this folder from Import to rescan additions and deletions" },
+    { "name": "local_library_refresh_folder_missing_pages_detail", "value": "%s saved local pages are missing; re-select the folder from Import to rescan it" },
     { "name": "local_library_refresh_folder_cached_available", "value": "Cached local pages are available in Koma" },
     { "name": "local_library_refresh_archive_retained", "value": "Archive import is retained in Koma; reimport the file to replace it" },
     { "name": "local_library_refresh_not_checked", "value": "Not checked yet" },
@@ -108,8 +109,8 @@
     { "name": "local_library_refresh_clean", "value": "Checked %s, all clean" },
     { "name": "local_library_refresh_clean_detail", "value": "Checked %s local items, %s archives retained" },
     { "name": "local_library_refresh_detail_empty", "value": "No local archive or folder imports were found." },
-    { "name": "local_library_refresh_detail_reselect", "value": "Checked %s local items: %s folders, %s archives, %s chapters, %s pages. %s folders need to be re-selected before Koma can rescan additions or deletions." },
-    { "name": "local_library_refresh_detail_clean", "value": "Checked %s local items: %s folders, %s archives, %s chapters, %s pages. No folder reselect is required." },
+    { "name": "local_library_refresh_detail_reselect", "value": "Checked %s local items: %s folders, %s archives, %s chapters, %s pages, %s missing pages. %s folders need to be re-selected before Koma can rescan additions or deletions." },
+    { "name": "local_library_refresh_detail_clean", "value": "Checked %s local items: %s folders, %s archives, %s chapters, %s pages, %s missing pages. No folder reselect is required." },
 
     { "name": "settings_search_placeholder", "value": "Search settings" },
     { "name": "settings_search_empty_title", "value": "No matching settings" },

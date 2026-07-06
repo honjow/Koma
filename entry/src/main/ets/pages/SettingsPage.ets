@@ -1950,7 +1950,8 @@ export struct SettingsPage {
       this.localLibraryRefreshSummary = summary
       console.info(
         '[Settings] step=local_library_refresh_done total=' + summary.totalCount +
-          ' reselectRequired=' + summary.reselectRequiredCount
+          ' reselectRequired=' + summary.reselectRequiredCount +
+          ' missingPages=' + summary.missingPageCount
       )
       if (summary.totalCount === 0) {
         this.showToast(s('settings_local_library_refresh_none'))

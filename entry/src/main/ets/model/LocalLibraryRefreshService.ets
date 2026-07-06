@@ -16,6 +16,7 @@ export interface LocalLibraryRefreshComicResult {
   status: LocalLibraryRefreshResultStatus
   previousChapterCount: number
   previousPageCount: number
+  missingPageCount: number
   message: string
 }
 
@@ -26,6 +27,7 @@ export interface LocalLibraryRefreshSummary {
   folderCount: number
   chapterCount: number
   pageCount: number
+  missingPageCount: number
   reselectRequiredCount: number
   unchangedCount: number
   skippedCount: number
@@ -56,36 +58,40 @@ function localPathExists(path: string): boolean {
   }
 }
 
-function allLocalFolderPagesAvailable(comic: Comic): boolean {
+function countMissingLocalFolderPages(comic: Comic): number {
   if (comic.pageCount <= 0) {
-    return false
+    return 0
   }
+  let missingPageCount = 0
   for (let chapterIndex = 0; chapterIndex < comic.chapters.length; chapterIndex += 1) {
     const chapter: Chapter = comic.chapters[chapterIndex]
     for (let pageIndex = 0; pageIndex < chapter.pages.length; pageIndex += 1) {
       const page: Page = chapter.pages[pageIndex]
       const localPath = localFilePathFromUri(page.uri)
       if (localPath === undefined || !localPathExists(localPath)) {
-        return false
+        missingPageCount += 1
       }
     }
   }
-  return true
+  return missingPageCount
 }
 
-function localRefreshStatus(comic: Comic): LocalLibraryRefreshResultStatus {
+function localRefreshStatus(comic: Comic, missingPageCount: number): LocalLibraryRefreshResultStatus {
   if (comic.sourceKind !== ComicSourceKind.LOCAL_FOLDER) {
     return 'unchanged'
   }
-  return allLocalFolderPagesAvailable(comic) ? 'unchanged' : 'reselect_required'
+  return comic.pageCount > 0 && missingPageCount === 0 ? 'unchanged' : 'reselect_required'
 }
 
-function localRefreshMessage(comic: Comic, status: LocalLibraryRefreshResultStatus): string {
+function localRefreshMessage(comic: Comic, status: LocalLibraryRefreshResultStatus, missingPageCount: number): string {
   if (comic.sourceKind !== ComicSourceKind.LOCAL_FOLDER) {
     return AppStrings.get('local_library_refresh_archive_retained')
   }
   if (status === 'unchanged') {
     return AppStrings.get('local_library_refresh_folder_cached_available')
+  }
+  if (missingPageCount > 0) {
+    return formatLocalLibraryRefreshText('local_library_refresh_folder_missing_pages_detail', [`${missingPageCount}`])
   }
   return AppStrings.get('local_library_refresh_folder_reselect_detail')
 }
@@ -98,6 +104,7 @@ function summarizeLocalRefreshResults(checkedAt: number, results: LocalLibraryRe
     folderCount: results.filter((result: LocalLibraryRefreshComicResult): boolean => result.sourceKind === ComicSourceKind.LOCAL_FOLDER).length,
     chapterCount: results.reduce((total: number, result: LocalLibraryRefreshComicResult): number => total + result.previousChapterCount, 0),
     pageCount: results.reduce((total: number, result: LocalLibraryRefreshComicResult): number => total + result.previousPageCount, 0),
+    missingPageCount: results.reduce((total: number, result: LocalLibraryRefreshComicResult): number => total + result.missingPageCount, 0),
     reselectRequiredCount: results.filter((result: LocalLibraryRefreshComicResult): boolean => result.status === 'reselect_required').length,
     unchangedCount: results.filter((result: LocalLibraryRefreshComicResult): boolean => result.status === 'unchanged').length,
     skippedCount: results.filter((result: LocalLibraryRefreshComicResult): boolean => result.status === 'skipped').length,
@@ -146,6 +153,7 @@ export function formatLocalLibraryRefreshDetail(summary: LocalLibraryRefreshSumm
     `${summary.archiveCount}`,
     `${summary.chapterCount}`,
     `${summary.pageCount}`,
+    `${summary.missingPageCount}`,
     `${summary.reselectRequiredCount}`,
   ])
 }
@@ -176,6 +184,7 @@ export class LocalLibraryRefreshService {
         status: 'skipped',
         previousChapterCount: comic.chapterCount,
         previousPageCount: comic.pageCount,
+        missingPageCount: 0,
         message: AppStrings.get('common_unavailable'),
       }
     }
@@ -183,14 +192,16 @@ export class LocalLibraryRefreshService {
   }
 
   private checkLocalComic(comic: Comic): LocalLibraryRefreshComicResult {
-    const status = localRefreshStatus(comic)
+    const missingPageCount = comic.sourceKind === ComicSourceKind.LOCAL_FOLDER ? countMissingLocalFolderPages(comic) : 0
+    const status = localRefreshStatus(comic, missingPageCount)
     return {
       comicId: comic.id,
       sourceKind: comic.sourceKind,
       status,
       previousChapterCount: comic.chapterCount,
       previousPageCount: comic.pageCount,
-      message: localRefreshMessage(comic, status),
+      missingPageCount,
+      message: localRefreshMessage(comic, status, missingPageCount),
     }
   }
 }

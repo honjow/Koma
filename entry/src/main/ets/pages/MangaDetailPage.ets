@@ -1036,7 +1036,7 @@ export struct MangaDetailPage {
       const result: LocalLibraryRefreshComicResult =
         new LocalLibraryRefreshService(libraryStore).checkLocalComicRefresh(comic)
       this.localRefreshText = result.message
-      console.info(`[LocalLibraryRefresh] step=detail_check status=${result.status} chapters=${result.previousChapterCount} pages=${result.previousPageCount}`)
+      console.info(`[LocalLibraryRefresh] step=detail_check status=${result.status} chapters=${result.previousChapterCount} pages=${result.previousPageCount} missingPages=${result.missingPageCount}`)
       this.showToast(result.message)
       if (result.status === 'reselect_required') {
         this.onOpenImportRequested()

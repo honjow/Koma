@@ -43,13 +43,13 @@ assert.doesNotMatch(
 )
 assert.match(
   serviceSource,
-  /export interface LocalLibraryRefreshSummary \{[\s\S]*archiveCount: number[\s\S]*folderCount: number[\s\S]*chapterCount: number[\s\S]*pageCount: number[\s\S]*reselectRequiredCount: number[\s\S]*unchangedCount: number/,
+  /export interface LocalLibraryRefreshSummary \{[\s\S]*archiveCount: number[\s\S]*folderCount: number[\s\S]*chapterCount: number[\s\S]*pageCount: number[\s\S]*missingPageCount: number[\s\S]*reselectRequiredCount: number[\s\S]*unchangedCount: number/,
   'local refresh summary must split archive/folder counts and include bounded chapter/page totals',
 )
 assert.match(
   serviceSource,
-  /function localFilePathFromUri\(uri: string\): string \| undefined \{[\s\S]*uri\.startsWith\('file:\/\/'\)[\s\S]*decodeURIComponent\(uri\.substring\('file:\/\/'\.length\)\)[\s\S]*function localPathExists\(path: string\): boolean \{[\s\S]*fs\.accessSync\(path\)[\s\S]*catch[\s\S]*return false[\s\S]*function allLocalFolderPagesAvailable\(comic: Comic\): boolean \{[\s\S]*comic\.pageCount <= 0[\s\S]*chapter\.pages[\s\S]*localFilePathFromUri\(page\.uri\)[\s\S]*localPathExists\(localPath\)[\s\S]*function localRefreshStatus\(comic: Comic\): LocalLibraryRefreshResultStatus \{[\s\S]*comic\.sourceKind !== ComicSourceKind\.LOCAL_FOLDER[\s\S]*allLocalFolderPagesAvailable\(comic\) \? 'unchanged' : 'reselect_required'[\s\S]*archiveCount: results\.filter\(\(result: LocalLibraryRefreshComicResult\): boolean => result\.sourceKind === ComicSourceKind\.LOCAL_ARCHIVE\)\.length[\s\S]*folderCount: results\.filter\(\(result: LocalLibraryRefreshComicResult\): boolean => result\.sourceKind === ComicSourceKind\.LOCAL_FOLDER\)\.length[\s\S]*chapterCount: results\.reduce\(\(total: number, result: LocalLibraryRefreshComicResult\): number => total \+ result\.previousChapterCount[\s\S]*pageCount: results\.reduce\(\(total: number, result: LocalLibraryRefreshComicResult\): number => total \+ result\.previousPageCount[\s\S]*const status = localRefreshStatus\(comic\)[\s\S]*status,[\s\S]*localRefreshMessage\(comic, status\)/,
-  'local refresh must verify app-readable local folder page files before requiring reselect while treating archive imports as unchanged',
+  /function localFilePathFromUri\(uri: string\): string \| undefined \{[\s\S]*uri\.startsWith\('file:\/\/'\)[\s\S]*decodeURIComponent\(uri\.substring\('file:\/\/'\.length\)\)[\s\S]*function localPathExists\(path: string\): boolean \{[\s\S]*fs\.accessSync\(path\)[\s\S]*catch[\s\S]*return false[\s\S]*function countMissingLocalFolderPages\(comic: Comic\): number \{[\s\S]*comic\.pageCount <= 0[\s\S]*missingPageCount \+= 1[\s\S]*return missingPageCount[\s\S]*function localRefreshStatus\(comic: Comic, missingPageCount: number\): LocalLibraryRefreshResultStatus \{[\s\S]*comic\.sourceKind !== ComicSourceKind\.LOCAL_FOLDER[\s\S]*comic\.pageCount > 0 && missingPageCount === 0 \? 'unchanged' : 'reselect_required'[\s\S]*missingPageCount: results\.reduce\(\(total: number, result: LocalLibraryRefreshComicResult\): number => total \+ result\.missingPageCount, 0\)[\s\S]*const missingPageCount = comic\.sourceKind === ComicSourceKind\.LOCAL_FOLDER \? countMissingLocalFolderPages\(comic\) : 0[\s\S]*const status = localRefreshStatus\(comic, missingPageCount\)[\s\S]*missingPageCount,[\s\S]*localRefreshMessage\(comic, status, missingPageCount\)/,
+  'local refresh must count missing app-readable local folder pages before requiring reselect while treating archive imports as unchanged',
 )
 assert.match(
   serviceSource,
@@ -58,13 +58,13 @@ assert.match(
 )
 assert.match(
   serviceSource,
-  /AppStrings\.get\('local_library_refresh_archive_retained'\)[\s\S]*AppStrings\.get\('local_library_refresh_folder_cached_available'\)[\s\S]*AppStrings\.get\('local_library_refresh_folder_reselect_detail'\)/,
-  'local refresh must explain cached folder availability, folder reselect, and retained archive behavior through i18n strings',
+  /AppStrings\.get\('local_library_refresh_archive_retained'\)[\s\S]*AppStrings\.get\('local_library_refresh_folder_cached_available'\)[\s\S]*local_library_refresh_folder_missing_pages_detail[\s\S]*AppStrings\.get\('local_library_refresh_folder_reselect_detail'\)/,
+  'local refresh must explain cached folder availability, missing pages, folder reselect, and retained archive behavior through i18n strings',
 )
 assert.match(
   serviceSource,
-  /formatLocalLibraryRefreshSummary\(summary\?: LocalLibraryRefreshSummary\): string[\s\S]*local_library_refresh_reselect_required_detail[\s\S]*summary\.reselectRequiredCount[\s\S]*summary\.archiveCount[\s\S]*local_library_refresh_clean_detail[\s\S]*summary\.archiveCount[\s\S]*formatLocalLibraryRefreshDetail\(summary: LocalLibraryRefreshSummary\): string[\s\S]*local_library_refresh_detail_empty[\s\S]*local_library_refresh_detail_reselect[\s\S]*local_library_refresh_detail_clean[\s\S]*summary\.chapterCount[\s\S]*summary\.pageCount/,
-  'local refresh summary text must expose actionable folder reselect counts and retained archive counts',
+  /formatLocalLibraryRefreshSummary\(summary\?: LocalLibraryRefreshSummary\): string[\s\S]*local_library_refresh_reselect_required_detail[\s\S]*summary\.reselectRequiredCount[\s\S]*summary\.archiveCount[\s\S]*local_library_refresh_clean_detail[\s\S]*summary\.archiveCount[\s\S]*formatLocalLibraryRefreshDetail\(summary: LocalLibraryRefreshSummary\): string[\s\S]*local_library_refresh_detail_empty[\s\S]*local_library_refresh_detail_reselect[\s\S]*local_library_refresh_detail_clean[\s\S]*summary\.chapterCount[\s\S]*summary\.pageCount[\s\S]*summary\.missingPageCount/,
+  'local refresh summary text must expose actionable folder reselect counts, missing page counts, and retained archive counts',
 )
 assert.doesNotMatch(
   serviceSource,
@@ -106,6 +106,20 @@ function folderStatus(comic, existingPaths) {
   return 'unchanged'
 }
 
+function missingFolderPages(comic, existingPaths) {
+  if (comic.sourceKind !== 'local_folder' || comic.pageCount <= 0) return 0
+  let missing = 0
+  for (const chapter of comic.chapters) {
+    for (const page of chapter.pages) {
+      const localPath = filePathFromUri(page.uri)
+      if (localPath === undefined || !existingPaths.has(localPath)) {
+        missing += 1
+      }
+    }
+  }
+  return missing
+}
+
 const folderComic = {
   sourceKind: 'local_folder',
   pageCount: 2,
@@ -121,11 +135,19 @@ assert.equal(folderStatus(folderComic, new Set([
 assert.equal(folderStatus(folderComic, new Set([
   '/data/storage/el2/base/haps/entry/cache/import/Page 1.jpg',
 ])), 'reselect_required', 'cached local folder imports with missing pages must ask for reselect')
+assert.equal(missingFolderPages(folderComic, new Set([
+  '/data/storage/el2/base/haps/entry/cache/import/Page 1.jpg',
+])), 1, 'cached local folder refresh must report how many saved pages are missing')
 assert.equal(folderStatus({
   sourceKind: 'local_folder',
   pageCount: 1,
   chapters: [{ pages: [{ uri: 'content://picked/folder/page.jpg' }] }],
 }, new Set()), 'reselect_required', 'non-file folder imports still require reselect')
+assert.equal(missingFolderPages({
+  sourceKind: 'local_folder',
+  pageCount: 1,
+  chapters: [{ pages: [{ uri: 'content://picked/folder/page.jpg' }] }],
+}, new Set()), 1, 'non-file folder refresh must count unreadable page URIs as missing pages')
 assert.equal(folderStatus({
   sourceKind: 'local_archive',
   pageCount: 0,
