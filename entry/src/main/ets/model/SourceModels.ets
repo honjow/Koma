@@ -126,6 +126,7 @@ interface SourceRuntimeChapterListPayload {
 }
 
 interface SourceRuntimeFilterOptionPayload {
+  value?: string
   label?: string
   name?: string
   id?: string
@@ -139,6 +140,7 @@ interface SourceRuntimeFilterPayload {
   label?: string
   options?: string[] | SourceRuntimeFilterOptionPayload[]
   value?: string | number | boolean | string[]
+  default?: string | number | boolean | string[]
   min?: number | string
   max?: number | string
   step?: number | string
@@ -353,7 +355,7 @@ function normalizeFilterOptions(options: string[] | SourceRuntimeFilterOptionPay
       labels.push(option)
       return
     }
-    labels.push(firstNonEmpty([option.label, option.name, option.id]) ?? '')
+    labels.push(firstNonEmpty([option.label, option.name, option.id, option.value]) ?? '')
   })
   return labels.filter((label: string): boolean => label.trim().length > 0)
 }
@@ -368,7 +370,7 @@ function normalizeFilterOptionIds(options: string[] | SourceRuntimeFilterOptionP
       ids.push(option)
       return
     }
-    ids.push(firstNonEmpty([option.id, option.label, option.name]) ?? '')
+    ids.push(firstNonEmpty([option.value, option.id, option.label, option.name]) ?? '')
   })
   return ids.filter((id: string): boolean => id.trim().length > 0)
 }
@@ -398,7 +400,7 @@ function appendSourceFilters(target: SourceFilter[], rows: SourceRuntimeFilterPa
       name,
       options: normalizeFilterOptions(row.options),
       optionIds: normalizeFilterOptionIds(row.options),
-      value: row.value,
+      value: row.value ?? row.default,
       minValue: optionalNumber(row.min),
       maxValue: optionalNumber(row.max),
       step: optionalNumber(row.step),

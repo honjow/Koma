@@ -3031,8 +3031,8 @@ assert.doesNotMatch(
 )
 assert.match(
   sourceModelsSource,
-  /export interface SourceFilter \{[\s\S]*id: string[\s\S]*optionIds\?: string\[\][\s\S]*parseSourceFiltersJson[\s\S]*id: firstNonEmpty\(\[row\.id, row\.name, row\.label\]\)[\s\S]*optionIds: normalizeFilterOptionIds\(row\.options\)/,
-  'source filter parsing must preserve descriptor ids and option ids for runtime manga-list requests',
+  /export interface SourceFilter \{[\s\S]*id: string[\s\S]*optionIds\?: string\[\][\s\S]*interface SourceRuntimeFilterOptionPayload \{[\s\S]*value\?: string[\s\S]*normalizeFilterOptions[\s\S]*firstNonEmpty\(\[option\.label, option\.name, option\.id, option\.value\]\)[\s\S]*normalizeFilterOptionIds[\s\S]*firstNonEmpty\(\[option\.value, option\.id, option\.label, option\.name\]\)[\s\S]*parseSourceFiltersJson[\s\S]*id: firstNonEmpty\(\[row\.id, row\.name, row\.label\]\)[\s\S]*optionIds: normalizeFilterOptionIds\(row\.options\)/,
+  'source filter parsing must preserve descriptor ids and source option values for runtime manga-list requests',
 )
 assert.match(
   browseViewModelSource,
@@ -3076,8 +3076,8 @@ assert.match(
 )
 assert.match(
   sourceModelsSource,
-  /type: 'select' \| 'text' \| 'check' \| 'sort' \| 'multiselect' \| 'range' \| 'group'[\s\S]*value\?: string \| number \| boolean \| string\[\][\s\S]*minValue\?: number[\s\S]*maxValue\?: number[\s\S]*step\?: number[\s\S]*filters\?: SourceRuntimeFilterPayload\[\][\s\S]*items\?: SourceRuntimeFilterPayload\[\][\s\S]*value === 'multiselect' \|\| value === 'multi-select' \|\| value === 'multiSelect'[\s\S]*appendSourceFilters\(filters, payload\.filters \?\? \(payload\.items \?\? \[\]\)\)[\s\S]*if \(type === 'group'\)[\s\S]*appendSourceFilters\(target, row\.filters \?\? \[\]\)[\s\S]*minValue: optionalNumber\(row\.min\)[\s\S]*maxValue: optionalNumber\(row\.max\)[\s\S]*step: optionalNumber\(row\.step\)/,
-  'source filter parsing must support multi-select, range, and nested group descriptors with default values',
+  /type: 'select' \| 'text' \| 'check' \| 'sort' \| 'multiselect' \| 'range' \| 'group'[\s\S]*value\?: string \| number \| boolean \| string\[\][\s\S]*minValue\?: number[\s\S]*maxValue\?: number[\s\S]*step\?: number[\s\S]*default\?: string \| number \| boolean \| string\[\][\s\S]*filters\?: SourceRuntimeFilterPayload\[\][\s\S]*items\?: SourceRuntimeFilterPayload\[\][\s\S]*value === 'multiselect' \|\| value === 'multi-select' \|\| value === 'multiSelect'[\s\S]*appendSourceFilters\(filters, payload\.filters \?\? \(payload\.items \?\? \[\]\)\)[\s\S]*if \(type === 'group'\)[\s\S]*appendSourceFilters\(target, row\.filters \?\? \[\]\)[\s\S]*value: row\.value \?\? row\.default[\s\S]*minValue: optionalNumber\(row\.min\)[\s\S]*maxValue: optionalNumber\(row\.max\)[\s\S]*step: optionalNumber\(row\.step\)/,
+  'source filter parsing must support multi-select, range, and nested group descriptors with source default values',
 )
 assert.match(
   browseViewModelSource,
