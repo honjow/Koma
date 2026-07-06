@@ -175,6 +175,23 @@ export class OfflineDownloadService {
     return this.store.loadSummary(comicId, chapterId)
   }
 
+  blockChapterDownload(comic: Comic, chapterId: string, reasonCode: string, labels?: OfflineDownloadLabels): OfflineChapterDownloadManifest {
+    const chapter = comic.chapters.find((item: Chapter): boolean => item.id === chapterId)
+    let manifest = this.store.createManifest(
+      comic.id,
+      chapterId,
+      0,
+      OfflineDownloadStatus.BLOCKED,
+      manifestIdentityFromComic(comic),
+      manifestLabelsFromDownload(comic, chapter, labels)
+    )
+    manifest.failureReasonCode = reasonCode
+    manifest = this.store.saveManifest(applyManifestLabels(manifest, comic, chapter, labels))
+    this.queueStore.upsert(this.queueStore.fromManifest(manifest, labels?.comicTitle ?? comic.title, labels?.chapterTitle ?? chapter?.title))
+    this.publishNotification(manifest, labels ?? { comicTitle: comic.title, chapterTitle: chapter?.title })
+    return manifest
+  }
+
   async downloadChapter(comic: Comic, chapterId: string, labels?: OfflineDownloadLabels): Promise<OfflineChapterDownloadManifest> {
     const initialPreferences = this.queueStore.loadPreferences()
     this.queueStore.upsert({

@@ -53,7 +53,10 @@ import {
   LocalLibraryRefreshComicResult,
   LocalLibraryRefreshService,
 } from '../model/LocalLibraryRefreshService'
-import { SourceChapterPageHydrator } from '../model/SourceChapterPageHydrator'
+import {
+  SourceChapterPageHydrationResult,
+  SourceChapterPageHydrator,
+} from '../model/SourceChapterPageHydrator'
 import {
   SourceRuntimeRegistry,
   SourceRuntimeRegistryEntry,
@@ -774,8 +777,8 @@ export struct MangaDetailPage {
       }
     }
     if (this.manga.sourceId !== undefined) {
-      const hydrated = await this.ensureSourceChapterPages(chapterId)
-      if (!hydrated) {
+      const hydration = await this.ensureSourceChapterPages(chapterId)
+      if (!hydration.hydrated) {
         this.showToast(s('manga_detail_chapter_pages_load_failed'))
         return
       }
@@ -794,8 +797,8 @@ export struct MangaDetailPage {
       }
     }
     if (this.manga.sourceId !== undefined) {
-      const hydrated = await this.ensureSourceChapterPages(chapterId)
-      if (!hydrated) {
+      const hydration = await this.ensureSourceChapterPages(chapterId)
+      if (!hydration.hydrated) {
         this.showToast(s('manga_detail_chapter_pages_load_failed'))
         return
       }
@@ -830,8 +833,8 @@ export struct MangaDetailPage {
         }
       }
       if (this.manga.sourceId !== undefined) {
-        const hydrated = await this.ensureSourceChapterPages(resolvedChapterId)
-        if (!hydrated) {
+        const hydration = await this.ensureSourceChapterPages(resolvedChapterId)
+        if (!hydration.hydrated) {
           this.downloadStatusText = s('manga_detail_chapter_pages_load_failed')
           this.showToast(s('manga_detail_chapter_pages_load_failed'))
           return
@@ -930,7 +933,10 @@ export struct MangaDetailPage {
   }
 
   private isRecoverableBlockedDownload(summary: OfflineDownloadSummary | undefined): boolean {
-    return summary?.status === OfflineDownloadStatus.BLOCKED && summary.failureReasonCode === 'pages_missing'
+    return summary?.status === OfflineDownloadStatus.BLOCKED &&
+      (summary.failureReasonCode === 'pages_missing' ||
+        summary.failureReasonCode === 'source_pages_failed' ||
+        summary.failureReasonCode === 'source_lookup_failed')
   }
 
   private async handleDownloadVisibleChapters(chapterIds: string[], mode: ChapterBatchDownloadMode): Promise<void> {
@@ -977,12 +983,26 @@ export struct MangaDetailPage {
         const chapterId = targetChapterIds[index]
         if (this.manga.sourceId !== undefined) {
           try {
-            const hydrated = await this.ensureSourceChapterPages(chapterId)
-            if (!hydrated) {
-              console.warn('[ReaderOffline] step=batch_pages_unavailable failed=true reason=source_pages_missing')
+            const hydration = await this.ensureSourceChapterPages(chapterId)
+            if (!hydration.hydrated) {
+              const comic = this.libraryStore?.getComic(this.currentComicId())
+              if (comic !== undefined) {
+                const chapterTitle = this.chapters.find((item: MangaChapterItem): boolean => item.id === chapterId)?.title
+                service.blockChapterDownload(comic, chapterId, hydration.reasonCode ?? 'pages_missing', {
+                  comicTitle: comic.title,
+                  chapterTitle,
+                })
+              }
+              blockedCount += 1
+              console.warn(`[ReaderOffline] step=batch_pages_unavailable failed=true reason=${hydration.reasonCode ?? 'source_pages_missing'}`)
+              this.downloadStatusText = this.formatString('manga_detail_batch_downloading', [index + 1, targetChapterIds.length])
+              continue
             }
           } catch (_error) {
             console.warn('[ReaderOffline] step=batch_pages_unavailable failed=true reason=source_pages_lookup')
+            blockedCount += 1
+            this.downloadStatusText = this.formatString('manga_detail_batch_downloading', [index + 1, targetChapterIds.length])
+            continue
           }
         }
         const comic = this.libraryStore?.getComic(this.currentComicId())
@@ -1013,9 +1033,9 @@ export struct MangaDetailPage {
     }
   }
 
-  private async ensureSourceChapterPages(chapterId: string): Promise<boolean> {
+  private async ensureSourceChapterPages(chapterId: string): Promise<SourceChapterPageHydrationResult> {
     if (this.libraryStore === undefined || this.manga.sourceId === undefined) {
-      return false
+      return { hydrated: false, pageCount: 0, reasonCode: 'source_lookup_failed' }
     }
     const result = await new SourceChapterPageHydrator(
       this.libraryStore,
@@ -1025,7 +1045,7 @@ export struct MangaDetailPage {
         this.onLibraryChanged()
       },
     ).ensureChapterPages(this.currentComicId(), this.manga.sourceId, chapterId)
-    return result.hydrated
+    return result
   }
 
   private markChapterReadState(chapterId: string, isRead: boolean): void {

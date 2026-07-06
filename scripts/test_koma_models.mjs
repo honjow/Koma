@@ -837,7 +837,7 @@ assert.match(
 )
 assert.match(
   mangaDetailPageSource,
-  /handleDownloadChapter\(chapterId\?: string\): Promise<void> \{[\s\S]*if \(this\.manga\.sourceId !== undefined\) \{[\s\S]*const hydrated = await this\.ensureSourceChapterPages\(resolvedChapterId\)[\s\S]*if \(!hydrated\) \{[\s\S]*this\.downloadStatusText = s\('manga_detail_chapter_pages_load_failed'\)[\s\S]*this\.showToast\(s\('manga_detail_chapter_pages_load_failed'\)\)[\s\S]*return/,
+  /handleDownloadChapter\(chapterId\?: string\): Promise<void> \{[\s\S]*if \(this\.manga\.sourceId !== undefined\) \{[\s\S]*const hydration = await this\.ensureSourceChapterPages\(resolvedChapterId\)[\s\S]*if \(!hydration\.hydrated\) \{[\s\S]*this\.downloadStatusText = s\('manga_detail_chapter_pages_load_failed'\)[\s\S]*this\.showToast\(s\('manga_detail_chapter_pages_load_failed'\)\)[\s\S]*return/,
   'MangaDetailPage single chapter download must stop with an honest page-load error when source page hydration fails',
 )
 assert.match(
@@ -1845,6 +1845,16 @@ assert.match(
 )
 assert.match(
   downloadsPageSource,
+  /private async runRetry\(comic: Comic, entry: OfflineDownloadQueueEntry\): Promise<void> \{[\s\S]*const hydration = await this\.ensureSourcePagesForDownload\(comic, entry\.chapterId\)[\s\S]*if \(!hydration\.hydrated\) \{[\s\S]*this\.blockSourcePagesUnavailable\(comic, entry, hydration\.reasonCode \?\? 'pages_missing'\)[\s\S]*return[\s\S]*await service\.downloadChapter\(comic, entry\.chapterId/,
+  'DownloadsPage single retry must block source page hydration failures instead of continuing into OfflineDownloadService',
+)
+assert.match(
+  downloadsPageSource,
+  /private async runForegroundDownloadBatch\(targets: OfflineDownloadQueueEntry\[\]\): Promise<number> \{[\s\S]*const hydration = await this\.ensureSourcePagesForDownload\(comic, entry\.chapterId\)[\s\S]*if \(!hydration\.hydrated\) \{[\s\S]*this\.blockSourcePagesUnavailable\(comic, entry, hydration\.reasonCode \?\? 'pages_missing'\)[\s\S]*continue[\s\S]*await service\.downloadChapter\(comic, entry\.chapterId/,
+  'DownloadsPage batch workers must block source page hydration failures instead of continuing into OfflineDownloadService',
+)
+assert.match(
+  downloadsPageSource,
   /OfflineDownloadedChapterStatus,[\s\S]*private hasReadableDownloadedManifest\(entry: OfflineDownloadQueueEntry\): boolean \{[\s\S]*validateDownloadedChapter\(entry\.comicId, entry\.chapterId, \{ validateContentHash: false \}\)[\s\S]*validation\.manifest !== undefined[\s\S]*validation\.availablePageCount > 0[\s\S]*OfflineDownloadedChapterStatus\.DOWNLOADED[\s\S]*OfflineDownloadedChapterStatus\.PARTIAL/,
   'DownloadsPage must validate the current offline manifest before treating a queued chapter as readable',
 )
@@ -2062,7 +2072,7 @@ assert.match(
 )
 assert.match(
   mangaDetailPageSource,
-  /handleStartReading\(\): Promise<void> \{[\s\S]*const chapterId = this\.firstChapterId\(\)[\s\S]*manga_detail_no_readable_chapters[\s\S]*const hydrated = await this\.ensureSourceChapterPages\(chapterId\)[\s\S]*if \(!hydrated\) \{[\s\S]*manga_detail_chapter_pages_load_failed[\s\S]*return[\s\S]*this\.onOpenReader\(this\.currentComicId\(\), chapterId\)/,
+  /handleStartReading\(\): Promise<void> \{[\s\S]*const chapterId = this\.firstChapterId\(\)[\s\S]*manga_detail_no_readable_chapters[\s\S]*const hydration = await this\.ensureSourceChapterPages\(chapterId\)[\s\S]*if \(!hydration\.hydrated\) \{[\s\S]*manga_detail_chapter_pages_load_failed[\s\S]*return[\s\S]*this\.onOpenReader\(this\.currentComicId\(\), chapterId\)/,
   'MangaDetailPage primary read action must not open Reader when source page hydration fails or no chapter exists',
 )
 assert.match(
@@ -2072,7 +2082,7 @@ assert.match(
 )
 assert.match(
   mangaDetailPageSource,
-  /handleOpenChapter\(chapterId: string\): Promise<void> \{[\s\S]*!this\.isInLibrary && this\.manga\.sourceId !== undefined[\s\S]*const added = await this\.handleAddToLibrary\(\)[\s\S]*const hydrated = await this\.ensureSourceChapterPages\(chapterId\)[\s\S]*if \(!hydrated\) \{[\s\S]*manga_detail_chapter_pages_load_failed[\s\S]*return[\s\S]*this\.onOpenReader\(this\.currentComicId\(\), chapterId\)[\s\S]*onOpenChapter:[\s\S]*this\.handleOpenChapter\(chapterId\)/,
+  /handleOpenChapter\(chapterId: string\): Promise<void> \{[\s\S]*!this\.isInLibrary && this\.manga\.sourceId !== undefined[\s\S]*const added = await this\.handleAddToLibrary\(\)[\s\S]*const hydration = await this\.ensureSourceChapterPages\(chapterId\)[\s\S]*if \(!hydration\.hydrated\) \{[\s\S]*manga_detail_chapter_pages_load_failed[\s\S]*return[\s\S]*this\.onOpenReader\(this\.currentComicId\(\), chapterId\)[\s\S]*onOpenChapter:[\s\S]*this\.handleOpenChapter\(chapterId\)/,
   'MangaDetailPage chapter row open must add source manga to the library, hydrate pages, and only then open Reader',
 )
 assert.match(

@@ -23,7 +23,10 @@ import {
   summarizeOfflineDownloadQueue,
 } from '../model/OfflineDownloadQueueStore'
 import { installReaderRemoteHeadersForComic } from '../model/ReaderPageSourceAdapter'
-import { SourceChapterPageHydrator } from '../model/SourceChapterPageHydrator'
+import {
+  SourceChapterPageHydrationResult,
+  SourceChapterPageHydrator,
+} from '../model/SourceChapterPageHydrator'
 import { AppStrings } from '../i18n/AppStrings'
 import { connectLanguageState, LanguageState } from '../state/LanguageState'
 import { RouterHelper } from '../common/RouterHelper'
@@ -153,6 +156,15 @@ export struct DownloadsPage {
     if (entry.status === OfflineDownloadStatus.BLOCKED && entry.failureReasonCode === 'pages_missing') {
       return s('downloads_blocked_pages_missing')
     }
+    if (entry.status === OfflineDownloadStatus.BLOCKED && entry.failureReasonCode === 'source_pages_failed') {
+      return s('downloads_blocked_source_pages_failed')
+    }
+    if (entry.status === OfflineDownloadStatus.BLOCKED && entry.failureReasonCode === 'source_lookup_failed') {
+      return s('downloads_blocked_source_lookup_failed')
+    }
+    if (entry.status === OfflineDownloadStatus.BLOCKED && entry.failureReasonCode === 'source_not_installed') {
+      return s('downloads_blocked_source_not_installed')
+    }
     if (entry.status === OfflineDownloadStatus.BLOCKED && entry.failureReasonCode === 'chapter_missing') {
       return s('downloads_blocked_chapter_missing')
     }
@@ -267,7 +279,10 @@ export struct DownloadsPage {
   }
 
   private isRecoverableBlockedEntry(entry: OfflineDownloadQueueEntry): boolean {
-    return entry.status === OfflineDownloadStatus.BLOCKED && entry.failureReasonCode === 'pages_missing'
+    return entry.status === OfflineDownloadStatus.BLOCKED &&
+      (entry.failureReasonCode === 'pages_missing' ||
+        entry.failureReasonCode === 'source_pages_failed' ||
+        entry.failureReasonCode === 'source_lookup_failed')
   }
 
   private canStartQueueWork(): boolean {
@@ -335,6 +350,26 @@ export struct DownloadsPage {
     })
   }
 
+  private blockSourcePagesUnavailable(
+    comic: Comic,
+    entry: OfflineDownloadQueueEntry,
+    reasonCode: string
+  ): OfflineDownloadQueueEntry {
+    const service = new OfflineDownloadService(
+      new OfflineDownloadStore(this.context().filesDir),
+      this.queueStore()
+    )
+    const manifest = service.blockChapterDownload(comic, entry.chapterId, reasonCode, {
+      comicTitle: entry.comicTitle ?? comic.title,
+      chapterTitle: entry.chapterTitle,
+    })
+    const blocked = this.queueStore().fromManifest(manifest, entry.comicTitle ?? comic.title, entry.chapterTitle)
+    this.entries = this.entries.map((item: OfflineDownloadQueueEntry): OfflineDownloadQueueEntry => {
+      return this.rowKey(item) === this.rowKey(blocked) ? blocked : item
+    })
+    return blocked
+  }
+
   private openDownloadEntry(entry: OfflineDownloadQueueEntry): void {
     const comic = this.libraryStore?.getComic(entry.comicId)
     if (comic === undefined) {
@@ -388,7 +423,13 @@ export struct DownloadsPage {
 
   private async runRetry(comic: Comic, entry: OfflineDownloadQueueEntry): Promise<void> {
     try {
-      await this.ensureSourcePagesForDownload(comic, entry.chapterId)
+      const hydration = await this.ensureSourcePagesForDownload(comic, entry.chapterId)
+      if (!hydration.hydrated) {
+        this.blockSourcePagesUnavailable(comic, entry, hydration.reasonCode ?? 'pages_missing')
+        this.loadQueue(false)
+        this.showToast(s('downloads_toast_retry_failed'))
+        return
+      }
       try {
         await installReaderRemoteHeadersForComic(this.context(), comic)
       } catch (_error) {
@@ -621,7 +662,11 @@ export struct DownloadsPage {
           this.blockUnavailableEntry(entry)
           continue
         }
-        await this.ensureSourcePagesForDownload(comic, entry.chapterId)
+        const hydration = await this.ensureSourcePagesForDownload(comic, entry.chapterId)
+        if (!hydration.hydrated) {
+          this.blockSourcePagesUnavailable(comic, entry, hydration.reasonCode ?? 'pages_missing')
+          continue
+        }
         try {
           await installReaderRemoteHeadersForComic(this.context(), comic)
         } catch (_error) {
@@ -645,10 +690,10 @@ export struct DownloadsPage {
     return completed
   }
 
-  private async ensureSourcePagesForDownload(comic: Comic, chapterId: string): Promise<void> {
+  private async ensureSourcePagesForDownload(comic: Comic, chapterId: string): Promise<SourceChapterPageHydrationResult> {
     const sourceId = comic.sourceRuntimeId
     if (sourceId === undefined || sourceId.trim().length === 0 || this.libraryStore === undefined) {
-      return
+      return { hydrated: true, pageCount: 0 }
     }
     const result = await new SourceChapterPageHydrator(
       this.libraryStore,
@@ -661,6 +706,7 @@ export struct DownloadsPage {
     if (!result.hydrated) {
       console.warn(`[Downloads] step=source_pages_hydrate_unavailable reason=${result.reasonCode ?? 'unknown'}`)
     }
+    return result
   }
 
   private removeCompletedFailedDownloads(): void {
