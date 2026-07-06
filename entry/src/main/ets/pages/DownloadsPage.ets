@@ -162,6 +162,9 @@ export struct DownloadsPage {
     if (entry.status === OfflineDownloadStatus.BLOCKED && entry.failureReasonCode === 'source_lookup_failed') {
       return s('downloads_blocked_source_lookup_failed')
     }
+    if (entry.status === OfflineDownloadStatus.BLOCKED && entry.failureReasonCode === 'source_disabled') {
+      return s('downloads_blocked_source_disabled')
+    }
     if (entry.status === OfflineDownloadStatus.BLOCKED && entry.failureReasonCode === 'source_not_installed') {
       return s('downloads_blocked_source_not_installed')
     }
@@ -282,7 +285,8 @@ export struct DownloadsPage {
     return entry.status === OfflineDownloadStatus.BLOCKED &&
       (entry.failureReasonCode === 'pages_missing' ||
         entry.failureReasonCode === 'source_pages_failed' ||
-        entry.failureReasonCode === 'source_lookup_failed')
+        entry.failureReasonCode === 'source_lookup_failed' ||
+        entry.failureReasonCode === 'source_disabled')
   }
 
   private canStartQueueWork(): boolean {

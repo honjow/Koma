@@ -13,7 +13,11 @@ import {
   hydrateLibraryStoreFromJson,
 } from './LibraryPersistence'
 import { MangaChapterItem, parseMangaChapterFromSourceItem } from './MangaDetailModels'
-import { SourceRuntimeRegistry, SourceRuntimeRegistryEntry } from '../sourceRuntime/SourceRuntimeRegistry'
+import {
+  SourceRuntimeRegistry,
+  SourceRuntimeRegistryEntry,
+  sourceRuntimeEntryEnabled,
+} from '../sourceRuntime/SourceRuntimeRegistry'
 import { runSourceOperationFromBytes } from '../sourceRuntime/SourceRuntimeRunner'
 import {
   SourceSettingsRecord,
@@ -552,6 +556,17 @@ export class LibraryUpdateService {
         previousChapterCount,
         newChapterCount: previousChapterCount,
         message: safeLibraryUpdateFailureCode(lookup.reasonCode ?? 'source_unavailable'),
+      }
+    }
+    if (!sourceRuntimeEntryEnabled(lookup.entry)) {
+      return {
+        comicId: comic.id,
+        providerKind: providerKindForComic(comic),
+        sourceKey: sourceKeyForComic(comic),
+        status: 'skipped',
+        previousChapterCount,
+        newChapterCount: previousChapterCount,
+        message: safeLibraryUpdateFailureCode('source_disabled'),
       }
     }
     try {

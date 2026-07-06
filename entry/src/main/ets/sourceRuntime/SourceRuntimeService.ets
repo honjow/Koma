@@ -25,6 +25,7 @@ import {
   SourceRuntimeRegistryPersistResult,
   SourceRuntimeRegistryRegisterResult,
   SourceRuntimeRegistryReloadResult,
+  sourceRuntimeEntryEnabled,
 } from './SourceRuntimeRegistry'
 
 export interface SourceRuntimeServiceRunSummary {
@@ -361,6 +362,16 @@ export function runRegisteredSourceApiOperationsById(
       sourceApiOperations: { ok: false, operations: [], evidence: [] },
     }
   }
+  if (!sourceRuntimeEntryEnabled(lookup.entry)) {
+    return {
+      ok: false,
+      sourceId: lookup.entry.sourceId,
+      reasonCode: 'source_disabled',
+      sourceCount: lookup.sourceCount,
+      sourceApiOperationsOk: false,
+      sourceApiOperations: { ok: false, operations: [], evidence: [] },
+    }
+  }
   const operations = runSourceApiFixtureOperationsForSourceIdFromBytes(lookup.entry.wasmBytes, lookup.entry.sourceId)
   return {
     ok: operations.ok,
@@ -382,6 +393,16 @@ export function runRegisteredSourceRequestById(
       ok: false,
       sourceId,
       reasonCode: lookup.reasonCode,
+      sourceCount: lookup.sourceCount,
+      responseOk: false,
+      attemptedWamrExecution: false,
+    }
+  }
+  if (!sourceRuntimeEntryEnabled(lookup.entry)) {
+    return {
+      ok: false,
+      sourceId: lookup.entry.sourceId,
+      reasonCode: 'source_disabled',
       sourceCount: lookup.sourceCount,
       responseOk: false,
       attemptedWamrExecution: false,

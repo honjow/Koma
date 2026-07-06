@@ -113,6 +113,10 @@ export interface SourceRuntimeRegistryInstalledSourceSummary {
   capabilities: string[]
 }
 
+export function sourceRuntimeEntryEnabled(entry: SourceRuntimeRegistryEntry | undefined): boolean {
+  return entry !== undefined && entry.enabled !== false
+}
+
 function normalizeSourceRuntimeSourceId(sourceId: string): string {
   return sourceId.trim()
 }

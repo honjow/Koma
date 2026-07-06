@@ -39,6 +39,7 @@ export const OFFLINE_DOWNLOAD_FAILURE_REASON_CODES: string[] = [
   'pages_missing',
   'source_not_installed',
   'source_lookup_failed',
+  'source_disabled',
   'source_pages_failed',
   'unsafe_page_path',
   'outside_chapter_dir',

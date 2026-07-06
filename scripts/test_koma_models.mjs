@@ -1451,6 +1451,11 @@ assert.match(
   'LibraryUpdateService must allow successful source-runtime updates with zero chapters while still failing runtime errors',
 )
 assert.match(
+  libraryUpdateServiceSource,
+  /sourceRuntimeEntryEnabled[\s\S]*if \(!sourceRuntimeEntryEnabled\(lookup\.entry\)\) \{[\s\S]*status: 'skipped'[\s\S]*safeLibraryUpdateFailureCode\('source_disabled'\)/,
+  'LibraryUpdateService must skip disabled source-runtime comics without executing the source package',
+)
+assert.match(
   libraryUpdateResultStoreSource,
   /preferences\.getPreferences\(this\.context, LIBRARY_UPDATE_RESULT_STORE_NAME\)/,
   'LibraryUpdateResultStore must use Harmony preferences with its dedicated store name',
@@ -1707,6 +1712,16 @@ assert.match(
   sourceChapterPageHydratorSource,
   /try \{[\s\S]*pages = await this\.fetchChapterPages\(lookup\.entry, comic\.id, chapterId\)[\s\S]*\} catch \(_error\) \{[\s\S]*reason=source_pages_failed[\s\S]*return \{ hydrated: false, pageCount: 0, reasonCode: 'source_pages_failed' \}/,
   'SourceChapterPageHydrator must fail closed with a reasonCode when source get_pages throws',
+)
+assert.match(
+  sourceChapterPageHydratorSource,
+  /sourceRuntimeEntryEnabled[\s\S]*if \(!sourceRuntimeEntryEnabled\(lookup\.entry\)\) \{[\s\S]*return \{ hydrated: false, pageCount: 0, reasonCode: 'source_disabled' \}/,
+  'SourceChapterPageHydrator must not fetch pages from disabled source packages',
+)
+assert.match(
+  mangaDetailPageSource,
+  /sourceRuntimeEntryEnabled[\s\S]*loadSourceMangaDetail[\s\S]*if \(!sourceRuntimeEntryEnabled\(lookup\.entry\)\) \{[\s\S]*throw new Error\('source_disabled'\)/,
+  'MangaDetailPage must not load source detail or chapters from disabled source packages',
 )
 assert.match(
   readerPageSourceAdapterSource,

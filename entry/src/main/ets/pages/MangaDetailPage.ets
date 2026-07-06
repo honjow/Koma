@@ -60,6 +60,7 @@ import {
 import {
   SourceRuntimeRegistry,
   SourceRuntimeRegistryEntry,
+  sourceRuntimeEntryEnabled,
 } from '../sourceRuntime/SourceRuntimeRegistry'
 import { runSourceOperationFromBytes } from '../sourceRuntime/SourceRuntimeRunner'
 import {
@@ -435,6 +436,9 @@ export struct MangaDetailPage {
       const lookup = this.sourceRegistry.lookup(sourceId)
       if (!lookup.ok || lookup.entry === undefined) {
         throw new Error(lookup.reasonCode ?? 'source lookup failed')
+      }
+      if (!sourceRuntimeEntryEnabled(lookup.entry)) {
+        throw new Error('source_disabled')
       }
       const loaded = await this.runSourceMangaOperation(lookup.entry, 'get_manga', mangaId)
       const detail = loaded.detail
@@ -936,7 +940,8 @@ export struct MangaDetailPage {
     return summary?.status === OfflineDownloadStatus.BLOCKED &&
       (summary.failureReasonCode === 'pages_missing' ||
         summary.failureReasonCode === 'source_pages_failed' ||
-        summary.failureReasonCode === 'source_lookup_failed')
+        summary.failureReasonCode === 'source_lookup_failed' ||
+        summary.failureReasonCode === 'source_disabled')
   }
 
   private async handleDownloadVisibleChapters(chapterIds: string[], mode: ChapterBatchDownloadMode): Promise<void> {

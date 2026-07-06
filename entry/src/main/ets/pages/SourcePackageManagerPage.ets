@@ -567,6 +567,8 @@ export struct SourcePackageManagerPage {
         return t('source_pkg_reason_missing_source_id')
       case 'source_id_not_registered':
         return t('source_pkg_reason_source_id_not_registered')
+      case 'source_disabled':
+        return t('source_pkg_reason_source_disabled')
       case 'source_id_mismatch':
         return t('source_pkg_reason_source_id_mismatch')
       case 'malformed_json':

@@ -17,6 +17,7 @@ const sourceSettingsStorePath = resolve(root, 'entry/src/main/ets/sourceRuntime/
 const sourceFilterPreferencesStorePath = resolve(root, 'entry/src/main/ets/sourceRuntime/SourceFilterPreferencesStore.ets')
 const smokePath = resolve(root, 'entry/src/main/ets/sourceRuntime/SourceRuntimeDeviceSmoke.ets')
 const sourceRuntimeRegistryPath = resolve(root, 'entry/src/main/ets/sourceRuntime/SourceRuntimeRegistry.ets')
+const sourceRuntimeServicePath = resolve(root, 'entry/src/main/ets/sourceRuntime/SourceRuntimeService.ets')
 const sourcePackageTrustPolicyPath = resolve(root, 'entry/src/main/ets/sourceRuntime/SourcePackageTrustPolicy.ets')
 const constantsPath = resolve(root, 'entry/src/main/ets/common/Constants.ets')
 const routerHelperPath = resolve(root, 'entry/src/main/ets/common/RouterHelper.ets')
@@ -54,6 +55,7 @@ const sourceSettingsStoreSource = readFileSync(sourceSettingsStorePath, 'utf8')
 const sourceFilterPreferencesStoreSource = readFileSync(sourceFilterPreferencesStorePath, 'utf8')
 const smokeSource = readFileSync(smokePath, 'utf8')
 const sourceRuntimeRegistrySource = readFileSync(sourceRuntimeRegistryPath, 'utf8')
+const sourceRuntimeServiceSource = readFileSync(sourceRuntimeServicePath, 'utf8')
 const sourcePackageTrustPolicySource = readFileSync(sourcePackageTrustPolicyPath, 'utf8')
 const constantsSource = readFileSync(constantsPath, 'utf8')
 const routerHelperSource = readFileSync(routerHelperPath, 'utf8')
@@ -137,6 +139,21 @@ assert.match(
   appRegistrySource,
   /removedExisting = appSourceRuntimeRegistry\.remove\(sourceId\)[\s\S]*const replacementEnabled = removedExisting\?\.enabled \?\? true[\s\S]*enabled: replacementEnabled/,
   'source package reinstall/update must preserve a previously disabled source instead of silently re-enabling it',
+)
+assert.match(
+  sourceRuntimeRegistrySource,
+  /export function sourceRuntimeEntryEnabled\(entry: SourceRuntimeRegistryEntry \| undefined\): boolean \{[\s\S]*entry !== undefined && entry\.enabled !== false/,
+  'source registry must expose a shared enabled-state guard without hiding disabled packages from management lookup',
+)
+assert.match(
+  sourceRuntimeServiceSource,
+  /runRegisteredSourceRequestById\([\s\S]*const lookup = registry\.lookup\(sourceId\)[\s\S]*if \(!sourceRuntimeEntryEnabled\(lookup\.entry\)\) \{[\s\S]*reasonCode: 'source_disabled'[\s\S]*attemptedWamrExecution: false[\s\S]*let request: SourceRuntimeCallRequest/,
+  'registered source requests must fail closed before wasm execution when a package is disabled',
+)
+assert.match(
+  sourceRuntimeServiceSource,
+  /runRegisteredSourceApiOperationsById\([\s\S]*if \(!sourceRuntimeEntryEnabled\(lookup\.entry\)\) \{[\s\S]*reasonCode: 'source_disabled'[\s\S]*sourceApiOperationsOk: false/,
+  'registered source API diagnostics must not execute disabled source packages',
 )
 assert.match(
   appRegistrySource,

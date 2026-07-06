@@ -12,6 +12,7 @@ import {
 import {
   SourceRuntimeRegistry,
   SourceRuntimeRegistryEntry,
+  sourceRuntimeEntryEnabled,
 } from '../sourceRuntime/SourceRuntimeRegistry'
 import { runSourceOperationFromBytes } from '../sourceRuntime/SourceRuntimeRunner'
 import {
@@ -187,6 +188,9 @@ export class SourceChapterPageHydrator {
     const lookup = this.sourceRegistry.lookup(resolvedSourceId)
     if (!lookup.ok || lookup.entry === undefined) {
       return { hydrated: false, pageCount: 0, reasonCode: lookup.reasonCode ?? 'source_lookup_failed' }
+    }
+    if (!sourceRuntimeEntryEnabled(lookup.entry)) {
+      return { hydrated: false, pageCount: 0, reasonCode: 'source_disabled' }
     }
     let pages: Page[] = []
     try {
