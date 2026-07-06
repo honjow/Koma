@@ -2497,6 +2497,11 @@ assert.match(
   'ReaderPage fit-width mode must use an aspect-ratio page surface and keep page images vertically centered',
 )
 assert.match(
+  readerPageSource,
+  /ReaderInputLayer\(\)[\s\S]*\.zIndex\(12\)[\s\S]*GestureGroup\(GestureMode\.Parallel[\s\S]*GestureGroup\(GestureMode\.Exclusive[\s\S]*TapGesture\(\{ count: 2[\s\S]*onReaderDoubleTap[\s\S]*TapGesture\(\{ count: 1 \}\)[\s\S]*onReaderTap[\s\S]*PinchGesture\(\{ fingers: 2 \}\)[\s\S]*onReaderPinchStart[\s\S]*onReaderPinchUpdate[\s\S]*onReaderPinchEnd[\s\S]*PanGesture\(\{ fingers: 1, direction: PanDirection\.All, distance: 2 \}\)[\s\S]*onReaderPanStart[\s\S]*onReaderPanUpdate[\s\S]*onReaderPanEnd/,
+  'ReaderPage must bind tap, double-tap zoom, pinch zoom, and zoom pan on the top input surface so the transparent tap layer does not block zoom gestures',
+)
+assert.match(
   trackerProgressSyncServiceSource,
   /pushReadingProgress\([\s\S]*trigger: TrackerUpdateStrategy = 'on_chapter_complete'[\s\S]*if \(trigger !== 'manual' && !preferences\.autoSyncEnabled\)[\s\S]*return this\.skipped\('auto_sync_disabled'\)/,
   'Tracker manual progress sync must bypass the automatic-sync toggle while automatic reader triggers still respect it',
