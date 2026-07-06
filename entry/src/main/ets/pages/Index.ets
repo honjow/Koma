@@ -32,7 +32,7 @@ import { DownloadsPage } from './DownloadsPage'
 import { BackupManagementPage } from './BackupManagementPage'
 import { TrackerSettingsPage } from './TrackerSettingsPage'
 import { RouteName, TabIndex, tabLabel } from '../common/Constants'
-import { RouterHelper } from '../common/RouterHelper'
+import { MangaDetailRouteParam, RouterHelper } from '../common/RouterHelper'
 import { KomaTabIcon } from '../components/KomaTabIcon'
 import {
   LibraryPresentationByComicId,
@@ -751,7 +751,7 @@ struct Index {
     } else if (name === RouteName.MANGA_DETAIL) {
       HdsNavDestination() {
         MangaDetailPage({
-          params: { mangaId: (param as Record<string, string>)?.mangaId, sourceId: (param as Record<string, string>)?.sourceId },
+          params: param as MangaDetailRouteParam,
           libraryStore: this.libraryStore,
           libraryPersistenceService: this.ensureLibraryPersistenceService(),
           readerSessionStore: this.readerSessionStore,

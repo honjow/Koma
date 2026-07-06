@@ -1876,6 +1876,11 @@ assert.match(
   'Source browse and search taps must pass the initial manga payload into the detail route',
 )
 assert.match(
+  indexSource,
+  /import \{ MangaDetailRouteParam, RouterHelper \} from '\.\.\/common\/RouterHelper'[\s\S]*name === RouteName\.MANGA_DETAIL[\s\S]*params: param as MangaDetailRouteParam/,
+  'Index must pass the full manga detail route payload through so source detail keeps tapped cover/title fallback data',
+)
+assert.match(
   mangaDetailPageSource,
   /sourceDetailWithRouteIdentity\([\s\S]*firstRouteDetailText\(\[detail\.author, initialManga\?\.author\]\)[\s\S]*coverUrl: detail\.coverUrl \?\? initialManga\?\.coverUrl[\s\S]*mangaStatusFromSourceStatus\(initialManga\?\.status\)[\s\S]*tags: detail\.tags \?\? initialManga\?\.tags/,
   'MangaDetailPage must fill missing source detail fields from the tapped source list item',
