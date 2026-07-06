@@ -315,11 +315,14 @@ struct Index {
       }
       const store = new OfflineDownloadStore(context.filesDir)
       const validation = store.validateDownloadedChapter(comic.id, chapterId, { validateContentHash: false })
+      const hasReaderReadyPages = validation.availablePageCount > 0 &&
+        (validation.status === OfflineDownloadedChapterStatus.DOWNLOADED ||
+          validation.status === OfflineDownloadedChapterStatus.PARTIAL)
+      const hasCorruptManifestPageMap = validation.status === OfflineDownloadedChapterStatus.CORRUPT &&
+        validation.pageCount > 0
       if (validation.manifest === undefined ||
-        (validation.status !== OfflineDownloadedChapterStatus.DOWNLOADED &&
-          validation.status !== OfflineDownloadedChapterStatus.PARTIAL) ||
         validation.pageCount <= 0 ||
-        validation.availablePageCount <= 0) {
+        (!hasReaderReadyPages && !hasCorruptManifestPageMap)) {
         return undefined
       }
       const pageUris: string[] = []
