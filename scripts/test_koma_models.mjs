@@ -1820,8 +1820,8 @@ assert.match(
 )
 assert.match(
   readerPageSourceAdapterSource,
-  /appSourceSettingsStore\.loadForSource\(sourceRuntimeId\)[\s\S]*operation: 'get_image_request'[\s\S]*settings,/,
-  'ReaderPageSourceAdapter source image requests must inject per-source settings',
+  /appSourceSettingsStore\.loadForSource\(sourceRuntimeId\)[\s\S]*const hostHints: ReaderSourceImageRequestHostHints = \{ network: true \}[\s\S]*operation: 'get_image_request'[\s\S]*settings,[\s\S]*hostHints,/,
+  'ReaderPageSourceAdapter source image requests must inject per-source settings and mark image resolution as network-capable',
 )
 assert.match(
   readerPageSourceAdapterSource,

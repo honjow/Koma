@@ -858,7 +858,7 @@ function resolveSourceRuntimeImageRequest(sourceRuntimeId: string, pageId: strin
     args.pageUri = pageUri
   }
   const settings = appSourceSettingsStore.loadForSource(sourceRuntimeId)
-  const hostHints: ReaderSourceImageRequestHostHints = { network: false }
+  const hostHints: ReaderSourceImageRequestHostHints = { network: true }
   const request: ReaderSourceImageRequest = {
     type: 'request',
     version: 1,
