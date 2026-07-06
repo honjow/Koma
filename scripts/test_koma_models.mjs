@@ -864,13 +864,13 @@ assert.match(
 )
 assert.match(
   readerPageSourceAdapterSource,
-  /localPath === undefined[\s\S]*isOfflineManifestReaderOwned\(validation\)[\s\S]*ReaderPageRenderKind\.URI_PLACEHOLDER[\s\S]*offline-missing:\/\//,
-  'reader adapter must show an honest placeholder for missing pages inside an existing offline manifest instead of silently falling back to remote',
+  /localPath === undefined[\s\S]*offlineOnly && isOfflineManifestReaderOwned\(validation\)[\s\S]*ReaderPageRenderKind\.URI_PLACEHOLDER[\s\S]*offline-missing:\/\//,
+  'reader adapter must show an honest placeholder for missing pages inside an existing offline manifest only in offline-only mode',
 )
 assert.match(
   readerPageSourceAdapterSource,
-  /createReaderPageRenderSource\(config: ReaderSessionConfig, pageIndex: number, options\?: ReaderPageRenderSourceOptions\): ReaderPageRenderSource \{[\s\S]*options\?\.preferOffline !== false[\s\S]*offlineDownloadSource = createReaderOfflineDownloadRenderSource\(config, pageIndex\)[\s\S]*if \(offlineDownloadSource !== undefined\) \{[\s\S]*return offlineDownloadSource[\s\S]*options\?\.offlineOnly === true/,
-  'reader adapter must return offline missing-page placeholders from owned manifests before considering remote source fallback',
+  /createReaderPageRenderSource\(config: ReaderSessionConfig, pageIndex: number, options\?: ReaderPageRenderSourceOptions\): ReaderPageRenderSource \{[\s\S]*options\?\.preferOffline !== false[\s\S]*offlineDownloadSource = createReaderOfflineDownloadRenderSource\(config, pageIndex, options\?\.offlineOnly === true\)[\s\S]*if \(offlineDownloadSource !== undefined\) \{[\s\S]*return offlineDownloadSource[\s\S]*options\?\.offlineOnly === true/,
+  'reader adapter must prefer local offline files while allowing online fallback for missing partial-download pages',
 )
 assert.doesNotMatch(
   offlineDownloadStoreSource,
