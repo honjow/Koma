@@ -1652,8 +1652,8 @@ assert.match(
 )
 assert.match(
   comicCoverCardSource,
-  /import \{ CachedCoverImage, cachedCoverFailureKey \} from '\.\/CachedCoverImage'[\s\S]*sourceRuntimeId\?: string[\s\S]*shouldUseSourceAwareCover\(\): boolean[\s\S]*this\.isRemoteCoverUri\(\) && this\.displaySourceRuntimeId\(\)\.trim\(\)\.length > 0[\s\S]*coverFailureKey\(\): string[\s\S]*cachedCoverFailureKey\(this\.displayCoverUri\(\), this\.displaySourceRuntimeId\(\), this\.comic\.id\)[\s\S]*CachedCoverImage\(\{[\s\S]*uri: this\.displayCoverUri\(\)[\s\S]*sourceRuntimeId: this\.displaySourceRuntimeId\(\)[\s\S]*sourceImageId: this\.comic\.id/,
-  'ComicCoverCard must use source-aware cached cover rendering for source package library covers',
+  /import \{ CachedCoverImage, cachedCoverFailureKey \} from '\.\/CachedCoverImage'[\s\S]*sourceRuntimeId\?: string[\s\S]*sourceImageId\?: string[\s\S]*shouldUseSourceAwareCover\(\): boolean[\s\S]*this\.isRemoteCoverUri\(\) && this\.displaySourceRuntimeId\(\)\.trim\(\)\.length > 0[\s\S]*coverFailureKey\(\): string[\s\S]*cachedCoverFailureKey\(this\.displayCoverUri\(\), this\.displaySourceRuntimeId\(\), this\.comic\.sourceImageId \?\? this\.comic\.id\)[\s\S]*CachedCoverImage\(\{[\s\S]*uri: this\.displayCoverUri\(\)[\s\S]*sourceRuntimeId: this\.displaySourceRuntimeId\(\)[\s\S]*sourceImageId: this\.comic\.sourceImageId \?\? this\.comic\.id/,
+  'ComicCoverCard must use the raw source image id when rendering source package library covers',
 )
 assert.match(
   comicCoverCardSource,
@@ -1697,28 +1697,28 @@ assert.match(
 )
 assert.match(
   historyPageSource,
-  /import \{ CachedCoverImage, cachedCoverFailureKey \} from '\.\.\/components\/CachedCoverImage'[\s\S]*@Local private failedCoverUris: string\[\] = \[\][\s\S]*shouldShowCoverUri\(coverUri: string \| undefined, sourceRuntimeId\?: string, sourceImageId\?: string\)[\s\S]*cachedCoverFailureKey\(coverUri, sourceRuntimeId, sourceImageId\)[\s\S]*markCoverUriFailed\(coverUri: string \| undefined, sourceRuntimeId\?: string, sourceImageId\?: string\)[\s\S]*isSourceAwareCover\(item: LibraryItem\)[\s\S]*item\.sourceRuntimeId\?\.trim\(\)[\s\S]*CachedCoverImage\(\{[\s\S]*uri: item\.coverUri \?\? ''[\s\S]*sourceRuntimeId: item\.sourceRuntimeId \?\? ''[\s\S]*sourceImageId: item\.comicId[\s\S]*Image\(item\.coverUri\)[\s\S]*this\.markCoverUriFailed\(item\.coverUri, item\.sourceRuntimeId, item\.comicId\)/,
-  'History cover thumbnails must use source-aware cached rendering for source covers and fall back when a stored cover URI fails',
+  /import \{ CachedCoverImage, cachedCoverFailureKey \} from '\.\.\/components\/CachedCoverImage'[\s\S]*@Local private failedCoverUris: string\[\] = \[\][\s\S]*shouldShowCoverUri\(coverUri: string \| undefined, sourceRuntimeId\?: string, sourceImageId\?: string\)[\s\S]*cachedCoverFailureKey\(coverUri, sourceRuntimeId, sourceImageId\)[\s\S]*markCoverUriFailed\(coverUri: string \| undefined, sourceRuntimeId\?: string, sourceImageId\?: string\)[\s\S]*isSourceAwareCover\(item: LibraryItem\)[\s\S]*item\.sourceRuntimeId\?\.trim\(\)[\s\S]*sourceImageIdForItem\(item: LibraryItem\): string[\s\S]*item\.sourceImageId \?\? item\.comicId[\s\S]*CachedCoverImage\(\{[\s\S]*uri: item\.coverUri \?\? ''[\s\S]*sourceRuntimeId: item\.sourceRuntimeId \?\? ''[\s\S]*sourceImageId: this\.sourceImageIdForItem\(item\)[\s\S]*Image\(item\.coverUri\)[\s\S]*this\.markCoverUriFailed\(item\.coverUri, item\.sourceRuntimeId, this\.sourceImageIdForItem\(item\)\)/,
+  'History cover thumbnails must use source-aware cached rendering with raw source image ids and fall back when a stored cover URI fails',
 )
 assert.match(
   modelSource,
-  /export interface LibraryItem \{[\s\S]*coverUri\?: string[\s\S]*sourceRuntimeId\?: string[\s\S]*comicToLibraryItem\(comic: Comic[\s\S]*coverUri: comic\.coverUri[\s\S]*sourceRuntimeId: comic\.sourceRuntimeId/,
-  'LibraryItem must carry sourceRuntimeId so History can render source package covers through source image requests',
+  /export interface LibraryItem \{[\s\S]*coverUri\?: string[\s\S]*sourceRuntimeId\?: string[\s\S]*sourceImageId\?: string[\s\S]*comicToLibraryItem\(comic: Comic[\s\S]*coverUri: comic\.coverUri[\s\S]*sourceRuntimeId: comic\.sourceRuntimeId[\s\S]*sourceImageId: comic\.remoteResourceId \?\? comic\.id/,
+  'LibraryItem must carry sourceRuntimeId and raw sourceImageId so History can render source package covers through source image requests',
 )
 assert.match(
   libraryPageSource,
-  /@Local private failedCoverUris: string\[\] = \[\][\s\S]*shouldShowCoverUri\(coverUri: string \| undefined, sourceRuntimeId\?: string, sourceImageId\?: string\): boolean[\s\S]*cachedCoverFailureKey\(coverUri, sourceRuntimeId, sourceImageId\)[\s\S]*markCoverUriFailed\(coverUri: string \| undefined, sourceRuntimeId\?: string, sourceImageId\?: string\): void[\s\S]*isSourceAwareCover\(comic: ComicCoverInfo\)[\s\S]*CachedCoverImage\(\{[\s\S]*uri: comic\.coverUri \?\? ''[\s\S]*sourceRuntimeId: comic\.sourceRuntimeId \?\? ''[\s\S]*Image\(comic\.coverUri\)[\s\S]*this\.markCoverUriFailed\(comic\.coverUri, comic\.sourceRuntimeId, comic\.id\)/,
-  'Library list cover thumbnails must use source-aware cached rendering for source covers and still fall back when a stored cover URI fails',
+  /@Local private failedCoverUris: string\[\] = \[\][\s\S]*shouldShowCoverUri\(coverUri: string \| undefined, sourceRuntimeId\?: string, sourceImageId\?: string\): boolean[\s\S]*cachedCoverFailureKey\(coverUri, sourceRuntimeId, sourceImageId\)[\s\S]*markCoverUriFailed\(coverUri: string \| undefined, sourceRuntimeId\?: string, sourceImageId\?: string\): void[\s\S]*isSourceAwareCover\(comic: ComicCoverInfo\)[\s\S]*sourceImageIdForComic\(comic: ComicCoverInfo\): string[\s\S]*comic\.sourceImageId \?\? comic\.id[\s\S]*CachedCoverImage\(\{[\s\S]*uri: comic\.coverUri \?\? ''[\s\S]*sourceRuntimeId: comic\.sourceRuntimeId \?\? ''[\s\S]*sourceImageId: this\.sourceImageIdForComic\(comic\)[\s\S]*Image\(comic\.coverUri\)[\s\S]*this\.markCoverUriFailed\(comic\.coverUri, comic\.sourceRuntimeId, this\.sourceImageIdForComic\(comic\)\)/,
+  'Library list cover thumbnails must use source-aware cached rendering with raw source image ids and still fall back when a stored cover URI fails',
 )
 assert.match(
   libraryPageSource,
-  /struct ContinueReadingShelfCard \{[\s\S]*@Param info: ContinueReadingCardViewModel[\s\S]*@Param revision: number[\s\S]*coverFailureKey\(\): string[\s\S]*cachedCoverFailureKey\(this\.info\.coverUri, this\.info\.sourceRuntimeId, this\.info\.comicId\)[\s\S]*CachedCoverImage\(\{[\s\S]*uri: this\.info\.coverUri \?\? ''[\s\S]*sourceRuntimeId: this\.info\.sourceRuntimeId \?\? ''[\s\S]*Text\(this\.info\.title\)[\s\S]*onOpenReader\(this\.info\.comicId\)/,
-  'Continue Reading must render through reactive props and show the real source-aware cover so live library changes do not leave a fake K card',
+  /struct ContinueReadingShelfCard \{[\s\S]*@Param info: ContinueReadingCardViewModel[\s\S]*@Param revision: number[\s\S]*coverFailureKey\(\): string[\s\S]*cachedCoverFailureKey\(this\.info\.coverUri, this\.info\.sourceRuntimeId, this\.info\.sourceImageId \?\? this\.info\.comicId\)[\s\S]*CachedCoverImage\(\{[\s\S]*uri: this\.info\.coverUri \?\? ''[\s\S]*sourceRuntimeId: this\.info\.sourceRuntimeId \?\? ''[\s\S]*sourceImageId: this\.info\.sourceImageId \?\? this\.info\.comicId[\s\S]*Text\(this\.info\.title\)[\s\S]*onOpenReader\(this\.info\.comicId\)/,
+  'Continue Reading must render through reactive props and show the real source-aware cover with raw source image ids',
 )
 assert.match(
   mockLibraryDataSource,
-  /LibraryComicCardViewModel[\s\S]*coverUri\?: string[\s\S]*sourceRuntimeId\?: string[\s\S]*ContinueReadingCardViewModel[\s\S]*coverUri\?: string[\s\S]*sourceRuntimeId\?: string[\s\S]*sourceRuntimeId: comic\.sourceRuntimeId[\s\S]*sourceRuntimeId: continueComic\.sourceRuntimeId/,
-  'Library view models must carry sourceRuntimeId with coverUri so source package covers can be rendered through source image requests',
+  /LibraryComicCardViewModel[\s\S]*coverUri\?: string[\s\S]*sourceRuntimeId\?: string[\s\S]*sourceImageId\?: string[\s\S]*ContinueReadingCardViewModel[\s\S]*coverUri\?: string[\s\S]*sourceRuntimeId\?: string[\s\S]*sourceImageId\?: string[\s\S]*sourceRuntimeId: comic\.sourceRuntimeId[\s\S]*sourceImageId: comic\.remoteResourceId \?\? comic\.id[\s\S]*sourceRuntimeId: continueComic\.sourceRuntimeId[\s\S]*sourceImageId: continueComic\.remoteResourceId \?\? continueComic\.id/,
+  'Library view models must carry sourceRuntimeId and raw sourceImageId with coverUri so source package covers can be rendered through source image requests',
 )
 assert.match(
   libraryPageSource,

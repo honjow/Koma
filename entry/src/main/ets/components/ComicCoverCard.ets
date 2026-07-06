@@ -11,6 +11,7 @@ export interface ComicCoverInfo {
   pageCount?: number
   coverUri?: string
   sourceRuntimeId?: string
+  sourceImageId?: string
   categoryLabels?: string[]
 }
 
@@ -80,7 +81,7 @@ export struct ComicCoverCard {
   }
 
   private coverFailureKey(): string {
-    return cachedCoverFailureKey(this.displayCoverUri(), this.displaySourceRuntimeId(), this.comic.id)
+    return cachedCoverFailureKey(this.displayCoverUri(), this.displaySourceRuntimeId(), this.comic.sourceImageId ?? this.comic.id)
   }
 
   private titleInitial(): string {
@@ -119,7 +120,7 @@ export struct ComicCoverCard {
               uri: this.displayCoverUri(),
               objectFit: ImageFit.Cover,
               sourceRuntimeId: this.displaySourceRuntimeId(),
-              sourceImageId: this.comic.id,
+              sourceImageId: this.comic.sourceImageId ?? this.comic.id,
               onError: () => {
                 this.failedCoverUri = this.coverFailureKey()
               },

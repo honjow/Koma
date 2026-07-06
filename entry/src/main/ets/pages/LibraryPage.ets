@@ -101,7 +101,7 @@ struct ContinueReadingShelfCard {
   }
 
   private coverFailureKey(): string {
-    return cachedCoverFailureKey(this.info.coverUri, this.info.sourceRuntimeId, this.info.comicId)
+    return cachedCoverFailureKey(this.info.coverUri, this.info.sourceRuntimeId, this.info.sourceImageId ?? this.info.comicId)
   }
 
   private isRemoteSourceCover(): boolean {
@@ -123,7 +123,7 @@ struct ContinueReadingShelfCard {
               uri: this.info.coverUri ?? '',
               objectFit: ImageFit.Cover,
               sourceRuntimeId: this.info.sourceRuntimeId ?? '',
-              sourceImageId: this.info.comicId,
+              sourceImageId: this.info.sourceImageId ?? this.info.comicId,
               onError: () => {
                 this.failedCoverUri = this.coverFailureKey()
               },
@@ -754,6 +754,7 @@ export struct LibraryPage {
         pageCount: comic.pageCount,
         coverUri: comic.coverUri,
         sourceRuntimeId: comic.sourceRuntimeId,
+        sourceImageId: comic.sourceImageId ?? sourceComic?.remoteResourceId ?? comic.id,
         categoryLabels: this.showLibraryBadges ?
           (sourceComic === undefined ? comic.categoryLabels : this.categoryLabelsForComic(sourceComic)) :
           [],
@@ -1910,18 +1911,22 @@ export struct LibraryPage {
     return sourceRuntimeId.length > 0 && (coverUri.startsWith('http://') || coverUri.startsWith('https://'))
   }
 
+  private sourceImageIdForComic(comic: ComicCoverInfo): string {
+    return comic.sourceImageId ?? comic.id
+  }
+
   @Builder
   private LibraryListCover(comic: ComicCoverInfo) {
     Stack({ alignContent: Alignment.Center }) {
-      if (this.shouldShowCoverUri(comic.coverUri, comic.sourceRuntimeId, comic.id)) {
+      if (this.shouldShowCoverUri(comic.coverUri, comic.sourceRuntimeId, this.sourceImageIdForComic(comic))) {
         if (this.isSourceAwareCover(comic)) {
           CachedCoverImage({
             uri: comic.coverUri ?? '',
             objectFit: ImageFit.Cover,
             sourceRuntimeId: comic.sourceRuntimeId ?? '',
-            sourceImageId: comic.id,
+            sourceImageId: this.sourceImageIdForComic(comic),
             onError: () => {
-              this.markCoverUriFailed(comic.coverUri, comic.sourceRuntimeId, comic.id)
+              this.markCoverUriFailed(comic.coverUri, comic.sourceRuntimeId, this.sourceImageIdForComic(comic))
             },
           })
         } else {
@@ -1931,7 +1936,7 @@ export struct LibraryPage {
             .objectFit(ImageFit.Cover)
             .interpolation(ImageInterpolation.Medium)
             .onError(() => {
-              this.markCoverUriFailed(comic.coverUri, comic.sourceRuntimeId, comic.id)
+              this.markCoverUriFailed(comic.coverUri, comic.sourceRuntimeId, this.sourceImageIdForComic(comic))
             })
         }
       } else {

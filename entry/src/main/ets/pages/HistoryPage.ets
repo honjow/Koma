@@ -310,6 +310,10 @@ export struct HistoryPage {
     return sourceRuntimeId.length > 0 && (coverUri.startsWith('http://') || coverUri.startsWith('https://'))
   }
 
+  private sourceImageIdForItem(item: LibraryItem): string {
+    return item.sourceImageId ?? item.comicId
+  }
+
   @Builder
   private EmptyHistory() {
     Column({ space: ThemeConstants.SPACE_MD }) {
@@ -335,15 +339,15 @@ export struct HistoryPage {
   @Builder
   private Cover(item: LibraryItem) {
     Stack({ alignContent: Alignment.Center }) {
-      if (this.shouldShowCoverUri(item.coverUri, item.sourceRuntimeId, item.comicId)) {
+      if (this.shouldShowCoverUri(item.coverUri, item.sourceRuntimeId, this.sourceImageIdForItem(item))) {
         if (this.isSourceAwareCover(item)) {
           CachedCoverImage({
             uri: item.coverUri ?? '',
             objectFit: ImageFit.Cover,
             sourceRuntimeId: item.sourceRuntimeId ?? '',
-            sourceImageId: item.comicId,
+            sourceImageId: this.sourceImageIdForItem(item),
             onError: () => {
-              this.markCoverUriFailed(item.coverUri, item.sourceRuntimeId, item.comicId)
+              this.markCoverUriFailed(item.coverUri, item.sourceRuntimeId, this.sourceImageIdForItem(item))
             },
           })
         } else {
@@ -353,7 +357,7 @@ export struct HistoryPage {
             .objectFit(ImageFit.Cover)
             .interpolation(ImageInterpolation.Medium)
             .onError(() => {
-              this.markCoverUriFailed(item.coverUri, item.sourceRuntimeId, item.comicId)
+              this.markCoverUriFailed(item.coverUri, item.sourceRuntimeId, this.sourceImageIdForItem(item))
             })
         }
       } else {
