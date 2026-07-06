@@ -789,7 +789,7 @@ assert.match(
 )
 assert.match(
   sourceCliMatrixSmokeScriptSource,
-  /DEFAULT_CASES[\s\S]*org\.mangadex\.koma[\s\S]*com\.dm5\.koma[\s\S]*KOMA_SOURCE_CLI_MATRIX/,
+  /DEFAULT_CASES[\s\S]*org\.mangadex\.koma[\s\S]*com\.mangabz\.koma[\s\S]*KOMA_SOURCE_CLI_MATRIX/,
   'source CLI matrix smoke must default to more than one real source and allow explicit matrix overrides',
 )
 assert.match(
@@ -799,8 +799,18 @@ assert.match(
 )
 assert.match(
   sourceCliMatrixSmokeScriptSource,
-  /packagePathForSource\(sourceIndex, matrixCase\.sourceId\)[\s\S]*extractWasm\(packagePath\)[\s\S]*assertPages\(pages, chapter\.id, matrixCase\.label\)/,
-  'source CLI matrix smoke must execute against dist .koma packages and verify readable page image refs',
+  /packagePathForSource\(sourceIndex, matrixCase\.sourceId\)[\s\S]*extractWasm\(packagePath\)[\s\S]*assertPages\(pages, chapter\.id, matrixCase\.label\)[\s\S]*resolveFirstPageImage\(wasmPath, pageRows\[0\], matrixCase\.label\)[\s\S]*assertReadableImageUrl\(firstImage\.url, firstImage\.headers, matrixCase\.label\)/,
+  'source CLI matrix smoke must execute against dist .koma packages and verify the first page image is actually readable',
+)
+assert.match(
+  sourceCliMatrixSmokeScriptSource,
+  /runSourceOperation\(wasmPath, 'get_image_request'[\s\S]*imageRequestPayload\(response, label\)[\s\S]*payload\.url/,
+  'source CLI matrix smoke must resolve request-style page images through get_image_request',
+)
+assert.match(
+  sourceCliMatrixSmokeScriptSource,
+  /res\.on\('data'[\s\S]*receivedBytes \+= chunk\.length[\s\S]*req\.destroy\(\)[\s\S]*receivedBytes > 0/,
+  'source CLI matrix smoke must probe only a bounded slice of the first image instead of downloading a full chapter',
 )
 assert.match(smokeSource, /local_source_runtime_fixture\.koma/, 'device smoke must cover a .koma source archive')
 assert.match(smokeSource, /SMOKE_PHASE_INSTALLED_SOURCE_READER/, 'device smoke must include a focused installed-source reader phase')

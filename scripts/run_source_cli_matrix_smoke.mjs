@@ -1,6 +1,8 @@
 import assert from 'node:assert/strict'
 import { execFileSync } from 'node:child_process'
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { request as httpRequest } from 'node:http'
+import { request as httpsRequest } from 'node:https'
 import { tmpdir } from 'node:os'
 import { resolve } from 'node:path'
 
@@ -17,10 +19,10 @@ const DEFAULT_CASES = [
     expectedMangaId: 'mdx:a1c7c817-4e59-43b7-9365-09675a149a6f',
   },
   {
-    sourceId: 'com.dm5.koma',
-    label: 'DM5',
-    query: '坂本',
-    expectedMangaId: 'manga:manhua-banben-days',
+    sourceId: 'com.mangabz.koma',
+    label: 'Mangabz',
+    query: '海贼王',
+    expectedMangaId: 'manga:139bz',
   },
 ]
 
@@ -90,7 +92,7 @@ function extractWasm(packagePath) {
   }
 }
 
-function runSourceOperation(wasmPath, op, request, label) {
+function runSourceOperation(wasmPath, op, request, label, options = {}) {
   let output = ''
   try {
     output = execFileSync(devRunnerPath, [
@@ -111,8 +113,12 @@ function runSourceOperation(wasmPath, op, request, label) {
     fail(`${label} ${op} command failed\n${stdout}\n${stderr}`.trim())
   }
   const response = responseJsonFromOutput(output, `${label} ${op}`)
-  assert.equal(response.ok, true, `${label} ${op} must return ok=true`)
-  assert.equal(response.operation, op, `${label} ${op} must echo the operation`)
+  if (response.ok !== true && options.allowFailure === true) {
+    return response
+  }
+  assert.equal(response.ok, true, `${label} ${op} must return ok=true: ${response.reasonCode ?? response.error ?? 'no reason'}`)
+  const operationAliases = options.operationAliases ?? []
+  assert.ok(response.operation === op || operationAliases.includes(response.operation), `${label} ${op} must echo the operation`)
   return response
 }
 
@@ -144,7 +150,137 @@ function assertPages(pageResponse, chapterId, label) {
   const firstPage = pages[0]
   assert.equal(typeof firstPage.id, 'string', `${label} first page must have id`)
   assert.ok(firstPage.image?.kind === 'url' || firstPage.image?.kind === 'request', `${label} first page must carry a readable image reference`)
-  return pages.length
+  return pages
+}
+
+function stringField(value) {
+  return typeof value === 'string' && value.trim().length > 0 ? value.trim() : undefined
+}
+
+function imageRecord(page) {
+  const image = page.image
+  if (image === undefined || image === null || Array.isArray(image) || typeof image !== 'object') {
+    return undefined
+  }
+  return image
+}
+
+function directImageUrl(page) {
+  const image = imageRecord(page)
+  return stringField(page.url) ??
+    stringField(page.uri) ??
+    stringField(page.imageUrl) ??
+    stringField(page.image_url) ??
+    stringField(image?.url) ??
+    stringField(image?.uri)
+}
+
+function imageRequestPayload(response, label) {
+  const data = response.data
+  assert.ok(data !== undefined && data !== null && typeof data === 'object', `${label} get_image_request must return data`)
+  const nested = data.imageRequest
+  if (nested !== undefined && nested !== null && !Array.isArray(nested) && typeof nested === 'object') {
+    return nested
+  }
+  return data
+}
+
+function resolveFirstPageImage(wasmPath, page, label) {
+  const directUrl = directImageUrl(page)
+  const image = imageRecord(page)
+  assert.ok(directUrl !== undefined || image?.kind === 'request', `${label} first page must expose a URL or request descriptor`)
+  const request = { pageId: page.id }
+  const pageUri = stringField(page.uri) ?? stringField(image?.uri)
+  if (pageUri !== undefined) {
+    request.pageUri = pageUri
+  }
+  if (directUrl !== undefined) {
+    request.url = directUrl
+    request.pageUri = pageUri ?? directUrl
+  }
+  const response = runSourceOperation(wasmPath, 'get_image_request', request, label, {
+    allowFailure: true,
+    operationAliases: ['image_request', 'modify_image_request'],
+  })
+  if (response.ok === true) {
+    const payload = imageRequestPayload(response, label)
+    const url = stringField(payload.url)
+    if (url !== undefined) {
+      return {
+        url,
+        headers: payload.headers !== undefined && typeof payload.headers === 'object' && !Array.isArray(payload.headers) ? payload.headers : undefined,
+        via: 'request',
+      }
+    }
+  }
+  assert.ok(directUrl !== undefined, `${label} get_image_request failed and first page has no direct image URL`)
+  return { url: directUrl, headers: undefined, via: 'url-fallback' }
+}
+
+function normalizeHttpHeaders(headers) {
+  const normalized = {
+    'User-Agent': 'KomaSourceMatrixSmoke/1.0',
+  }
+  if (headers === undefined) {
+    return normalized
+  }
+  Object.entries(headers).forEach(([key, value]) => {
+    if (typeof value === 'string' && value.trim().length > 0) {
+      normalized[key] = value
+    }
+  })
+  return normalized
+}
+
+function assertReadableImageUrl(url, headers, label, redirectCount = 0) {
+  assert.ok(/^https?:\/\//.test(url), `${label} first page image URL must be http(s)`)
+  assert.ok(redirectCount <= 4, `${label} first page image URL redirected too many times`)
+  const parsedUrl = new URL(url)
+  const transport = parsedUrl.protocol === 'http:' ? httpRequest : httpsRequest
+  return new Promise((resolvePromise, rejectPromise) => {
+    const req = transport(parsedUrl, {
+      method: 'GET',
+      headers: normalizeHttpHeaders(headers),
+    }, (res) => {
+      const statusCode = res.statusCode ?? 0
+      const location = res.headers.location
+      if (statusCode >= 300 && statusCode < 400 && typeof location === 'string') {
+        res.resume()
+        const redirectedUrl = new URL(location, parsedUrl).toString()
+        assertReadableImageUrl(redirectedUrl, headers, label, redirectCount + 1).then(resolvePromise, rejectPromise)
+        return
+      }
+      if (statusCode < 200 || statusCode >= 300) {
+        res.resume()
+        rejectPromise(new Error(`${label} first page image returned HTTP ${statusCode}`))
+        return
+      }
+      let receivedBytes = 0
+      res.on('data', (chunk) => {
+        receivedBytes += chunk.length
+        req.destroy()
+        resolvePromise()
+      })
+      res.on('end', () => {
+        if (receivedBytes > 0) {
+          resolvePromise()
+        } else {
+          rejectPromise(new Error(`${label} first page image returned no bytes`))
+        }
+      })
+    })
+    req.setTimeout(15_000, () => {
+      req.destroy(new Error(`${label} first page image timed out`))
+    })
+    req.on('error', (error) => {
+      if (error.code === 'ERR_STREAM_PREMATURE_CLOSE') {
+        resolvePromise()
+        return
+      }
+      rejectPromise(error)
+    })
+    req.end()
+  })
 }
 
 const sourceIndex = readJson(indexPath, 'source index')
@@ -173,13 +309,16 @@ for (const matrixCase of cases) {
       mangaId: manga.id,
       chapterId: chapter.id,
     }, matrixCase.label)
-    const pageCount = assertPages(pages, chapter.id, matrixCase.label)
+    const pageRows = assertPages(pages, chapter.id, matrixCase.label)
+    const firstImage = resolveFirstPageImage(wasmPath, pageRows[0], matrixCase.label)
+    await assertReadableImageUrl(firstImage.url, firstImage.headers, matrixCase.label)
     summaries.push({
       sourceId: matrixCase.sourceId,
       label: matrixCase.label,
       mangaId: manga.id,
       chapterId: chapter.id,
-      pageCount,
+      pageCount: pageRows.length,
+      firstImageVia: firstImage.via,
     })
   } finally {
     rmSync(tempDir, { recursive: true, force: true })
@@ -188,5 +327,5 @@ for (const matrixCase of cases) {
 
 console.log(`source CLI matrix smoke PASS: ${summaries.length} sources`)
 summaries.forEach((summary) => {
-  console.log(`- ${summary.label} (${summary.sourceId}): ${summary.mangaId} -> ${summary.chapterId}, pages=${summary.pageCount}`)
+  console.log(`- ${summary.label} (${summary.sourceId}): ${summary.mangaId} -> ${summary.chapterId}, pages=${summary.pageCount}, firstImage=${summary.firstImageVia}`)
 })
