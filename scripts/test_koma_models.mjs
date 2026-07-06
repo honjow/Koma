@@ -625,6 +625,12 @@ assert.match(indexSource, /\.ignoreLayoutSafeArea\(\s*\[\s*LayoutSafeAreaType\.S
 assert.match(indexSource, /\.expandSafeArea\(\[SafeAreaType\.SYSTEM\], \[SafeAreaEdge\.TOP, SafeAreaEdge\.BOTTOM\]\)/, 'root shell must preserve immersive safe-area expansion')
 assert.doesNotMatch(indexSource, /HdsNavigation\(this\.appPathStack\)[\s\S]*\.(padding|margin)\(/, 'root app shell must not use root padding or margin to avoid safe areas')
 assert.match(mangaDetailPageSource, /SecondaryListScaffold\(\{[\s\S]*reserveTitleBar:\s*false/, 'MangaDetailPage must skip root title spacer inside its HdsNavDestination')
+assert.doesNotMatch(browsePageSource, /(Navigation|NavDestination)\(/, 'BrowsePage tab root must not nest a second Navigation; private browse pages must use app-level HdsNavDestination routes')
+assert.match(
+  indexSource,
+  /import \{ KomgaSeriesPage \} from '\.\/KomgaSeriesPage'[\s\S]*import \{ KavitaBrowsePage \} from '\.\/KavitaBrowsePage'[\s\S]*import \{ OpdsBrowsePage \} from '\.\/OpdsBrowsePage'[\s\S]*import \{ WebDavBrowsePage \} from '\.\/WebDavBrowsePage'[\s\S]*name === RouteName\.KOMGA_BROWSE[\s\S]*HdsNavDestination\(\)[\s\S]*KomgaSeriesPage\(\{[\s\S]*route_komga_title[\s\S]*name === RouteName\.KAVITA_BROWSE[\s\S]*HdsNavDestination\(\)[\s\S]*KavitaBrowsePage\(\{[\s\S]*onOpenReader[\s\S]*route_kavita_title[\s\S]*name === RouteName\.OPDS_BROWSE[\s\S]*OpdsBrowsePage\(\{[\s\S]*route_opds_title[\s\S]*name === RouteName\.WEBDAV_BROWSE[\s\S]*WebDavBrowsePage\(\{[\s\S]*route_webdav_title/,
+  'Index must host private library browse pages in app-level HdsNavDestination routes',
+)
 assert.match(
   sourceBrowsePageSource,
   /listingForHomeSection\(section: SourceHomeSectionState\): SourceListingDescriptor \| undefined[\s\S]*section\.listingId[\s\S]*this\.viewModel\.listings\.find[\s\S]*openHomeSectionListing\(section: SourceHomeSectionState\)[\s\S]*this\.viewModel\.selectBrowseListing\(listing\)[\s\S]*HomeSection\(section: SourceHomeSectionState\)[\s\S]*s\('browse_section_open_listing'\)[\s\S]*this\.openHomeSectionListing\(section\)/,
@@ -674,6 +680,16 @@ assert.match(
   browsePageSource,
   /openSourceSearch\(source: SourceRuntimeRegistryInstalledSourceSummary\): void \{[\s\S]*RouterHelper\.pushSourceSearch\(\{ source: source \}\)[\s\S]*SourceListItem\(\{[\s\S]*onSourceTap:[\s\S]*this\.openSource\(selected\)[\s\S]*onSourceSearch:[\s\S]*this\.openSourceSearch\(selected\)/,
   'BrowsePage source rows must wire direct source search into the SourceSearch route',
+)
+assert.match(
+  browsePageSource,
+  /@Event onOpenKomgaBrowse[\s\S]*@Event onOpenKavitaBrowse[\s\S]*@Event onOpenOpdsBrowse[\s\S]*@Event onOpenWebDavBrowse[\s\S]*private openKomga\(\): void \{[\s\S]*this\.onOpenKomgaBrowse\(\)[\s\S]*private openKavita\(\): void \{[\s\S]*this\.onOpenKavitaBrowse\(\)[\s\S]*private openWebDav\(\): void \{[\s\S]*this\.onOpenWebDavBrowse\(\)[\s\S]*private openOpds\(\): void \{[\s\S]*this\.onOpenOpdsBrowse\(\)/,
+  'BrowsePage private-library rows must delegate navigation to the root HDS router instead of pushing an inner stack',
+)
+assert.match(
+  indexSource,
+  /BrowsePage\(\{[\s\S]*onOpenKomgaBrowse: \(\) => \{[\s\S]*RouteName\.KOMGA_BROWSE[\s\S]*onOpenKavitaBrowse: \(\) => \{[\s\S]*RouteName\.KAVITA_BROWSE[\s\S]*onOpenOpdsBrowse: \(\) => \{[\s\S]*RouteName\.OPDS_BROWSE[\s\S]*onOpenWebDavBrowse: \(\) => \{[\s\S]*RouteName\.WEBDAV_BROWSE/,
+  'Index must wire BrowsePage private-library row events into app-level HDS browse routes',
 )
 assert.match(
   sourcePackageManagerPageSource,

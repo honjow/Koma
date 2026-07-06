@@ -1,8 +1,3 @@
-import {
-  BlurStrategy,
-  hdsMaterial,
-  ScrollEffectType,
-} from '@kit.UIDesignKit'
 import { SecondaryListScaffold } from '../components/SecondaryListScaffold'
 import { SourceListItem } from '../components/SourceListItem'
 import { KomaEmptyState } from '../components/ui/KomaEmptyState'
@@ -13,20 +8,11 @@ import { appSourceRuntimeRegistry } from '../sourceRuntime/SourceRuntimeAppRegis
 import { RouterHelper } from '../common/RouterHelper'
 import { common } from '@kit.AbilityKit'
 import { RemoteServerStore } from '../model/RemoteServerStore'
-import { KomgaSeriesPage } from './KomgaSeriesPage'
-import { KavitaBrowsePage } from './KavitaBrowsePage'
-import { OpdsBrowsePage } from './OpdsBrowsePage'
-import { WebDavBrowsePage } from './WebDavBrowsePage'
 import { LibraryStore } from '../model/LibraryStore'
 import { LibraryStorePersistenceService } from '../model/LibraryPersistence'
 import { createSeededLibraryStore } from '../model/MockLibraryData'
 import { AppStrings } from '../i18n/AppStrings'
 import { connectLanguageState, LanguageState } from '../state/LanguageState'
-
-const KOMGA_ROUTE_NAME: string = 'KomgaSeriesPage'
-const KAVITA_ROUTE_NAME: string = 'KavitaBrowsePage'
-const OPDS_ROUTE_NAME: string = 'OpdsBrowsePage'
-const WEBDAV_ROUTE_NAME: string = 'WebDavBrowsePage'
 
 function s(name: string): string {
   return AppStrings.get(name)
@@ -58,7 +44,10 @@ export struct BrowsePage {
   @Event onLibraryChanged: () => void = () => {}
   @Event onOpenReader: (comicId: string, chapterId?: string) => void = () => {}
   @Event onOpenSourcePackageManager: () => void = () => {}
-  private browsePathStack: NavPathStack = new NavPathStack()
+  @Event onOpenKomgaBrowse: () => void = () => {}
+  @Event onOpenKavitaBrowse: () => void = () => {}
+  @Event onOpenOpdsBrowse: () => void = () => {}
+  @Event onOpenWebDavBrowse: () => void = () => {}
 
   private openSource(source: SourceRuntimeRegistryInstalledSourceSummary): void {
     RouterHelper.pushSourceBrowse({ source: source })
@@ -69,19 +58,19 @@ export struct BrowsePage {
   }
 
   private openKomga(): void {
-    this.browsePathStack.pushPath({ name: KOMGA_ROUTE_NAME })
+    this.onOpenKomgaBrowse()
   }
 
   private openKavita(): void {
-    this.browsePathStack.pushPath({ name: KAVITA_ROUTE_NAME })
+    this.onOpenKavitaBrowse()
   }
 
   private openWebDav(): void {
-    this.browsePathStack.pushPath({ name: WEBDAV_ROUTE_NAME })
+    this.onOpenWebDavBrowse()
   }
 
   private openOpds(): void {
-    this.browsePathStack.pushPath({ name: OPDS_ROUTE_NAME })
+    this.onOpenOpdsBrowse()
   }
 
   private configuredPrivateSourceEntries(): PrivateBrowseSourceEntry[] {
@@ -192,58 +181,6 @@ export struct BrowsePage {
     }, (source: SourceRuntimeRegistryInstalledSourceSummary) => source.sourceId)
   }
 
-  @Builder
-  private BrowseDestination(name: string, param: Object) {
-    if (name === KOMGA_ROUTE_NAME) {
-      NavDestination() {
-        KomgaSeriesPage({
-          libraryStore: this.libraryStore,
-          libraryPersistenceService: this.libraryPersistenceService,
-          onLibraryChanged: () => {
-            this.onLibraryChanged()
-          }
-        })
-      }
-      .title(s('route_komga_title'))
-    } else if (name === KAVITA_ROUTE_NAME) {
-      NavDestination() {
-        KavitaBrowsePage({
-          libraryStore: this.libraryStore,
-          libraryPersistenceService: this.libraryPersistenceService,
-          onLibraryChanged: () => {
-            this.onLibraryChanged()
-          },
-          onOpenReader: (comicId: string, chapterId?: string) => {
-            this.onOpenReader(comicId, chapterId)
-          }
-        })
-      }
-      .title(s('route_kavita_title'))
-    } else if (name === WEBDAV_ROUTE_NAME) {
-      NavDestination() {
-        WebDavBrowsePage({
-          libraryStore: this.libraryStore,
-          libraryPersistenceService: this.libraryPersistenceService,
-          onLibraryChanged: () => {
-            this.onLibraryChanged()
-          }
-        })
-      }
-      .title(s('route_webdav_title'))
-    } else if (name === OPDS_ROUTE_NAME) {
-      NavDestination() {
-        OpdsBrowsePage({
-          libraryStore: this.libraryStore,
-          libraryPersistenceService: this.libraryPersistenceService,
-          onLibraryChanged: () => {
-            this.onLibraryChanged()
-          }
-        })
-      }
-      .title(s('route_opds_title'))
-    }
-  }
-
   aboutToAppear(): void {
     this.viewModel = new BrowseViewModel(this.sourceRegistry)
     this.viewModel.loadInstalledSources()
@@ -282,71 +219,40 @@ export struct BrowsePage {
   }
 
   build() {
-    Navigation(this.browsePathStack) {
-      Refresh({ refreshing: $$this.refreshingSources }) {
-        Column() {
-          SecondaryListScaffold({
-            listSpace: ThemeConstants.SPACE_LG,
-            horizontalPadding: ThemeConstants.SPACE_XL,
-            bottomPadding: ThemeConstants.SPACE_XL,
-          }) {
-            if (this.viewModel.loadingSources) {
-              ListItem() {
-                Row() {
-                  LoadingProgress()
-                    .width(ThemeConstants.LOADING_SIZE_LARGE)
-                    .height(ThemeConstants.LOADING_SIZE_LARGE)
-                    .color(ThemeConstants.BRAND_PRIMARY)
-                }
-                .width('100%')
-                .justifyContent(FlexAlign.Center)
+    Refresh({ refreshing: $$this.refreshingSources }) {
+      Column() {
+        SecondaryListScaffold({
+          listSpace: ThemeConstants.SPACE_LG,
+          horizontalPadding: ThemeConstants.SPACE_XL,
+          bottomPadding: ThemeConstants.SPACE_XL,
+        }) {
+          if (this.viewModel.loadingSources) {
+            ListItem() {
+              Row() {
+                LoadingProgress()
+                  .width(ThemeConstants.LOADING_SIZE_LARGE)
+                  .height(ThemeConstants.LOADING_SIZE_LARGE)
+                  .color(ThemeConstants.BRAND_PRIMARY)
               }
-            } else if (this.viewModel.sources.length === 0 && !this.komgaConfigured && !this.kavitaConfigured && !this.opdsConfigured && !this.webDavConfigured) {
-              ListItem() {
-                this.EmptySources()
-              }
-            } else {
-              this.SourceListItems()
+              .width('100%')
+              .justifyContent(FlexAlign.Center)
             }
+          } else if (this.viewModel.sources.length === 0 && !this.komgaConfigured && !this.kavitaConfigured && !this.opdsConfigured && !this.webDavConfigured) {
+            ListItem() {
+              this.EmptySources()
+            }
+          } else {
+            this.SourceListItems()
           }
         }
-        .width('100%')
-        .height('100%')
-        .backgroundColor(ThemeConstants.BG_SUB)
       }
-      .onRefreshing(() => {
-        this.refreshSources()
-      })
+      .width('100%')
+      .height('100%')
+      .backgroundColor(ThemeConstants.BG_SUB)
     }
-    .width('100%')
-    .height('100%')
-    .mode(NavigationMode.Stack)
-    .hideTitleBar(true)
-    .navDestination(this.BrowseDestination)
-  }
-
-  private navDestTitleBarOpts(title: string): Record<string, Object> {
-    let mat: Record<string, Object> = {
-      'materialType': hdsMaterial.MaterialType.ADAPTIVE,
-      'materialLevel': hdsMaterial.MaterialLevel.ADAPTIVE,
-    }
-    let scrollOpts: Record<string, Object> = {
-      'enableScrollEffect': true,
-      'scrollEffectType': ScrollEffectType.GRADIENT_BLUR,
-    }
-    let style: Record<string, Object> = {
-      'systemMaterialEffect': mat,
-      'scrollEffectOpts': scrollOpts,
-    }
-    let titleInfo: Record<string, Object> = { 'mainTitle': title }
-    let content: Record<string, Object> = { 'title': titleInfo }
-    return {
-      'avoidLayoutSafeArea': true,
-      'enableComponentSafeArea': false,
-      'blurStrategy': BlurStrategy.ENABLE,
-      'content': content,
-      'style': style,
-    }
+    .onRefreshing(() => {
+      this.refreshSources()
+    })
   }
 }
 

@@ -21,6 +21,10 @@ import { ReaderPage } from './ReaderPage'
 import { MangaDetailPage } from './MangaDetailPage'
 import { SourceBrowsePage } from './SourceBrowsePage'
 import { SourceSearchPage } from './SourceSearchPage'
+import { KomgaSeriesPage } from './KomgaSeriesPage'
+import { KavitaBrowsePage } from './KavitaBrowsePage'
+import { OpdsBrowsePage } from './OpdsBrowsePage'
+import { WebDavBrowsePage } from './WebDavBrowsePage'
 import { LibraryUpdateResultPage } from './LibraryUpdateResultPage'
 import { LibraryCategoryManagementPage } from './LibraryCategoryManagementPage'
 import { KomgaServerPage } from './KomgaServerPage'
@@ -817,6 +821,53 @@ struct Index {
         })
       }
       .titleBar(this.navDestTitleBarOpts(AppStrings.get('tab_search')))
+    } else if (name === RouteName.KOMGA_BROWSE) {
+      HdsNavDestination() {
+        KomgaSeriesPage({
+          libraryStore: this.libraryStore,
+          libraryPersistenceService: this.ensureLibraryPersistenceService(),
+          onLibraryChanged: () => {
+            this.refreshLibrarySnapshot()
+          },
+        })
+      }
+      .titleBar(this.navDestTitleBarOpts(AppStrings.get('route_komga_title')))
+    } else if (name === RouteName.KAVITA_BROWSE) {
+      HdsNavDestination() {
+        KavitaBrowsePage({
+          libraryStore: this.libraryStore,
+          libraryPersistenceService: this.ensureLibraryPersistenceService(),
+          onLibraryChanged: () => {
+            this.refreshLibrarySnapshot()
+          },
+          onOpenReader: (comicId: string, chapterId?: string) => {
+            void this.openReader(comicId, chapterId)
+          },
+        })
+      }
+      .titleBar(this.navDestTitleBarOpts(AppStrings.get('route_kavita_title')))
+    } else if (name === RouteName.OPDS_BROWSE) {
+      HdsNavDestination() {
+        OpdsBrowsePage({
+          libraryStore: this.libraryStore,
+          libraryPersistenceService: this.ensureLibraryPersistenceService(),
+          onLibraryChanged: () => {
+            this.refreshLibrarySnapshot()
+          },
+        })
+      }
+      .titleBar(this.navDestTitleBarOpts(AppStrings.get('route_opds_title')))
+    } else if (name === RouteName.WEBDAV_BROWSE) {
+      HdsNavDestination() {
+        WebDavBrowsePage({
+          libraryStore: this.libraryStore,
+          libraryPersistenceService: this.ensureLibraryPersistenceService(),
+          onLibraryChanged: () => {
+            this.refreshLibrarySnapshot()
+          },
+        })
+      }
+      .titleBar(this.navDestTitleBarOpts(AppStrings.get('route_webdav_title')))
     } else if (name === RouteName.KOMGA_SERVER) {
       HdsNavDestination() {
         KomgaServerPage()
@@ -991,6 +1042,18 @@ struct Index {
                 },
                 onOpenSourcePackageManager: () => {
                   this.openSettingsSecondary(RouteName.SOURCE_PACKAGE_MANAGER)
+                },
+                onOpenKomgaBrowse: () => {
+                  this.appPathStack.pushPath({ name: RouteName.KOMGA_BROWSE })
+                },
+                onOpenKavitaBrowse: () => {
+                  this.appPathStack.pushPath({ name: RouteName.KAVITA_BROWSE })
+                },
+                onOpenOpdsBrowse: () => {
+                  this.appPathStack.pushPath({ name: RouteName.OPDS_BROWSE })
+                },
+                onOpenWebDavBrowse: () => {
+                  this.appPathStack.pushPath({ name: RouteName.WEBDAV_BROWSE })
                 }
               })
             }.tabBar(this.TabIcon(tabLabel(TabIndex.BROWSE), TabIndex.BROWSE))
