@@ -85,6 +85,14 @@ function optionalSourceNumber(value: Object | string | number | boolean | null |
   return Number.isFinite(parsed) ? parsed : undefined
 }
 
+function sourcePageImageRecord(item: Record<string, Object>): Record<string, Object> | undefined {
+  const image = item['image']
+  if (image === undefined || image === null || Array.isArray(image) || typeof image !== 'object') {
+    return undefined
+  }
+  return image as Record<string, Object>
+}
+
 function sourcePageImageUrl(item: Record<string, Object>): string | undefined {
   const directUrl = optionalSourceString(item['url']) ??
     optionalSourceString(item['uri']) ??
@@ -95,15 +103,26 @@ function sourcePageImageUrl(item: Record<string, Object>): string | undefined {
   if (directUrl !== undefined) {
     return directUrl
   }
-  const image = item['image']
-  if (image === undefined || image === null || Array.isArray(image) || typeof image !== 'object') {
+  const imageRecord = sourcePageImageRecord(item)
+  if (imageRecord === undefined) {
     return undefined
   }
-  const imageRecord = image as Record<string, Object>
   return optionalSourceString(imageRecord['url']) ??
     optionalSourceString(imageRecord['uri']) ??
     optionalSourceString(imageRecord['src']) ??
     optionalSourceString(imageRecord['href'])
+}
+
+function sourcePageDimension(item: Record<string, Object>, key: string, alternateKey: string): number | undefined {
+  const direct = optionalSourceNumber(item[key]) ?? optionalSourceNumber(item[alternateKey])
+  if (direct !== undefined) {
+    return direct
+  }
+  const imageRecord = sourcePageImageRecord(item)
+  if (imageRecord === undefined) {
+    return undefined
+  }
+  return optionalSourceNumber(imageRecord[key]) ?? optionalSourceNumber(imageRecord[alternateKey])
 }
 
 function pagesFromSourceRows(comicId: string, chapterId: string, rows: Record<string, Object>[]): Page[] {
@@ -118,11 +137,11 @@ function pagesFromSourceRows(comicId: string, chapterId: string, rows: Record<st
       uri: sourcePageImageUrl(item) ?? '',
       sortKey: `${index}`.padStart(6, '0'),
     }
-    const width = optionalSourceNumber(item['width'])
+    const width = sourcePageDimension(item, 'width', 'imageWidth')
     if (width !== undefined) {
       page.width = width
     }
-    const height = optionalSourceNumber(item['height'])
+    const height = sourcePageDimension(item, 'height', 'imageHeight')
     if (height !== undefined) {
       page.height = height
     }

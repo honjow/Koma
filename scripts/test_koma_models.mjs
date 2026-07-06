@@ -1760,8 +1760,13 @@ assert.match(
 )
 assert.match(
   sourceChapterPageHydratorSource,
-  /function sourcePageImageUrl\(item: Record<string, Object>\): string \| undefined \{[\s\S]*optionalSourceString\(item\['url'\]\)[\s\S]*optionalSourceString\(item\['uri'\]\)[\s\S]*optionalSourceString\(item\['imageUrl'\]\)[\s\S]*optionalSourceString\(item\['image_url'\]\)[\s\S]*optionalSourceString\(item\['src'\]\)[\s\S]*optionalSourceString\(item\['href'\]\)[\s\S]*const image = item\['image'\][\s\S]*optionalSourceString\(imageRecord\['url'\]\)[\s\S]*optionalSourceString\(imageRecord\['uri'\]\)[\s\S]*optionalSourceString\(imageRecord\['src'\]\)[\s\S]*optionalSourceString\(imageRecord\['href'\]\)/,
+  /function sourcePageImageRecord\(item: Record<string, Object>\): Record<string, Object> \| undefined[\s\S]*const image = item\['image'\][\s\S]*function sourcePageImageUrl\(item: Record<string, Object>\): string \| undefined \{[\s\S]*optionalSourceString\(item\['url'\]\)[\s\S]*optionalSourceString\(item\['uri'\]\)[\s\S]*optionalSourceString\(item\['imageUrl'\]\)[\s\S]*optionalSourceString\(item\['image_url'\]\)[\s\S]*optionalSourceString\(item\['src'\]\)[\s\S]*optionalSourceString\(item\['href'\]\)[\s\S]*const imageRecord = sourcePageImageRecord\(item\)[\s\S]*optionalSourceString\(imageRecord\['url'\]\)[\s\S]*optionalSourceString\(imageRecord\['uri'\]\)[\s\S]*optionalSourceString\(imageRecord\['src'\]\)[\s\S]*optionalSourceString\(imageRecord\['href'\]\)/,
   'get_pages parsing must accept common top-level and nested page image URL fields while preserving url/uri compatibility',
+)
+assert.match(
+  sourceChapterPageHydratorSource,
+  /function sourcePageDimension\(item: Record<string, Object>, key: string, alternateKey: string\): number \| undefined[\s\S]*optionalSourceNumber\(item\[key\]\) \?\? optionalSourceNumber\(item\[alternateKey\]\)[\s\S]*const imageRecord = sourcePageImageRecord\(item\)[\s\S]*optionalSourceNumber\(imageRecord\[key\]\) \?\? optionalSourceNumber\(imageRecord\[alternateKey\]\)[\s\S]*const width = sourcePageDimension\(item, 'width', 'imageWidth'\)[\s\S]*const height = sourcePageDimension\(item, 'height', 'imageHeight'\)/,
+  'get_pages parsing must preserve top-level and nested image dimensions for reader wide-page handling',
 )
 assert.match(
   mangaDetailModelsSource,
