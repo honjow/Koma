@@ -1443,6 +1443,16 @@ assert.match(
   'LibraryUpdateService must refresh source-runtime comics by persisted remoteResourceId before falling back to legacy comic id parsing',
 )
 assert.match(
+  sourceChapterPageHydratorSource,
+  /function sourceMangaIdFromComic\(comic: Comic, sourceId: string\): string \| undefined \{[\s\S]*comic\.remoteResourceId\?\.trim\(\)[\s\S]*return remoteResourceId[\s\S]*const prefix = `\$\{sourceId\}:`[\s\S]*comic\.id\.substring\(prefix\.length\)/,
+  'SourceChapterPageHydrator must pass the persisted source manga id to get_pages instead of assuming chapter ids are globally unique',
+)
+assert.match(
+  sourceChapterPageHydratorSource,
+  /const args: SourcePagesRequestArgs = \{ chapterId \}[\s\S]*sourceMangaIdFromComic\(comic, entry\.sourceId\)[\s\S]*args\.mangaId = mangaId[\s\S]*operation: 'get_pages'[\s\S]*args,/,
+  'SourceChapterPageHydrator get_pages requests must include mangaId when available while keeping chapterId required',
+)
+assert.match(
   libraryUpdateServiceSource,
   /mergeSourceChapters[\s\S]*pages: existing\.pages[\s\S]*pageCount: existing\.pageCount/,
   'LibraryUpdateService must preserve existing pages when refreshing source-runtime chapter metadata',
@@ -1742,12 +1752,12 @@ assert.match(
 )
 assert.match(
   sourceChapterPageHydratorSource,
-  /requestId:\s*`chapter-pages-\$\{entry\.sourceId\}-\$\{Date\.now\(\)\}`[\s\S]*operation:\s*'get_pages'[\s\S]*args:\s*\{ chapterId \}[\s\S]*appSourceSettingsStore\.loadForSource\(entry\.sourceId\)[\s\S]*hostHints:\s*\{ network: true, imageStrategy: 'descriptor-or-url' \}/,
-  'SourceChapterPageHydrator must build v1 get_pages envelopes with source settings and image host hints',
+  /const args: SourcePagesRequestArgs = \{ chapterId \}[\s\S]*requestId:\s*`chapter-pages-\$\{entry\.sourceId\}-\$\{Date\.now\(\)\}`[\s\S]*operation:\s*'get_pages'[\s\S]*args,[\s\S]*appSourceSettingsStore\.loadForSource\(entry\.sourceId\)[\s\S]*hostHints:\s*\{ network: true, imageStrategy: 'descriptor-or-url' \}/,
+  'SourceChapterPageHydrator must build v1 get_pages envelopes with optional manga context, source settings, and image host hints',
 )
 assert.match(
   sourceChapterPageHydratorSource,
-  /try \{[\s\S]*pages = await this\.fetchChapterPages\(lookup\.entry, comic\.id, chapterId\)[\s\S]*\} catch \(_error\) \{[\s\S]*reason=source_pages_failed[\s\S]*return \{ hydrated: false, pageCount: 0, reasonCode: 'source_pages_failed' \}/,
+  /try \{[\s\S]*pages = await this\.fetchChapterPages\(lookup\.entry, comic, chapterId\)[\s\S]*\} catch \(_error\) \{[\s\S]*reason=source_pages_failed[\s\S]*return \{ hydrated: false, pageCount: 0, reasonCode: 'source_pages_failed' \}/,
   'SourceChapterPageHydrator must fail closed with a reasonCode when source get_pages throws',
 )
 assert.match(

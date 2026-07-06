@@ -31,6 +31,7 @@ interface SourceOperationResponsePayload {
 }
 
 interface SourcePagesRequestArgs {
+  mangaId?: string
   chapterId: string
 }
 
@@ -150,6 +151,18 @@ function pagesFromSourceRows(comicId: string, chapterId: string, rows: Record<st
   })
 }
 
+function sourceMangaIdFromComic(comic: Comic, sourceId: string): string | undefined {
+  const remoteResourceId = comic.remoteResourceId?.trim()
+  if (remoteResourceId !== undefined && remoteResourceId.length > 0) {
+    return remoteResourceId
+  }
+  const prefix = `${sourceId}:`
+  if (comic.id.startsWith(prefix) && comic.id.length > prefix.length) {
+    return comic.id.substring(prefix.length)
+  }
+  return undefined
+}
+
 export class SourceChapterPageHydrator {
   private readonly libraryStore: LibraryStore
   private readonly sourceRegistry: SourceRuntimeRegistry
@@ -194,7 +207,7 @@ export class SourceChapterPageHydrator {
     }
     let pages: Page[] = []
     try {
-      pages = await this.fetchChapterPages(lookup.entry, comic.id, chapterId)
+      pages = await this.fetchChapterPages(lookup.entry, comic, chapterId)
     } catch (_error) {
       console.warn('[SourceChapterPageHydrator] step=fetch_pages_failed failed=true reason=source_pages_failed')
       return { hydrated: false, pageCount: 0, reasonCode: 'source_pages_failed' }
@@ -208,16 +221,21 @@ export class SourceChapterPageHydrator {
 
   private async fetchChapterPages(
     entry: SourceRuntimeRegistryEntry,
-    comicId: string,
+    comic: Comic,
     chapterId: string,
   ): Promise<Page[]> {
+    const args: SourcePagesRequestArgs = { chapterId }
+    const mangaId = sourceMangaIdFromComic(comic, entry.sourceId)
+    if (mangaId !== undefined) {
+      args.mangaId = mangaId
+    }
     const request: SourcePagesRequest = {
       type: 'request',
       version: 1,
       requestId: `chapter-pages-${entry.sourceId}-${Date.now()}`,
       operation: 'get_pages',
       sourceId: entry.sourceId,
-      args: { chapterId },
+      args,
       settings: appSourceSettingsStore.loadForSource(entry.sourceId),
       hostHints: { network: true, imageStrategy: 'descriptor-or-url' },
     }
@@ -231,7 +249,7 @@ export class SourceChapterPageHydrator {
     if (response.ok !== true || rows.length === 0) {
       throw new Error('get_pages returned no pages')
     }
-    return pagesFromSourceRows(comicId, chapterId, rows)
+    return pagesFromSourceRows(comic.id, chapterId, rows)
   }
 
   private applyPages(comic: Comic, chapter: Chapter, pages: Page[]): void {

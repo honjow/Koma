@@ -154,6 +154,8 @@ def validate_request(payload: dict[str, Any]) -> None:
         validate_page_request(args.get("page"), "args.page")
     elif operation == "get_pages":
         validate_opaque_string(args.get("chapterId"), "args.chapterId")
+        if "mangaId" in args:
+            validate_opaque_string(args.get("mangaId"), "args.mangaId")
     elif operation == "get_listings":
         require(args == {}, "get_listings args must be empty")
     elif operation == "get_manga_list":

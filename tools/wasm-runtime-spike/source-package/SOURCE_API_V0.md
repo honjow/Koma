@@ -398,12 +398,15 @@ Response:
 }
 ```
 
-### `get_pages(chapterId)`
+### `get_pages(mangaId?, chapterId)`
 
 Purpose: return ordered page/image descriptors for a chapter. The response must
 not contain raw local filesystem paths. Current `network=false` fixtures should
 return static placeholder descriptors only; future network image descriptors
-require a separate HTTP/image loading policy.
+require a separate HTTP/image loading policy. `mangaId` is optional for
+backward compatibility with early fixtures, but hosts should include it when a
+persisted source manga id is available so sources do not have to assume chapter
+ids are globally unique.
 
 Request:
 
@@ -414,6 +417,7 @@ Request:
   "operation": "get_pages",
   "sourceId": "local.test.koma.fixture",
   "args": {
+    "mangaId": "fixture-series",
     "chapterId": "chapter:fixture-series:001"
   },
   "settings": {},

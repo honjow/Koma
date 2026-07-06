@@ -5,6 +5,7 @@
   "operation": "get_pages",
   "sourceId": "local.test.koma.fixture",
   "args": {
+    "mangaId": "fixture-series",
     "chapterId": "chapter:fixture-series:001"
   },
   "settings": {},
