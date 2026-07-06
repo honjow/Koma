@@ -2174,8 +2174,8 @@ assert.match(
 )
 assert.match(
   mangaDetailPageSource,
-  /handleStartReading\(\): Promise<void> \{[\s\S]*const chapterId = this\.firstChapterId\(\)[\s\S]*manga_detail_no_readable_chapters[\s\S]*const hydration = await this\.ensureSourceChapterPages\(chapterId\)[\s\S]*if \(!hydration\.hydrated\) \{[\s\S]*manga_detail_chapter_pages_load_failed[\s\S]*return[\s\S]*this\.onOpenReader\(this\.currentComicId\(\), chapterId\)/,
-  'MangaDetailPage primary read action must not open Reader when source page hydration fails or no chapter exists',
+  /progressChapterId\(\): string \| undefined \{[\s\S]*readerSessionStore\.getProgress\(this\.currentComicId\(\)\)[\s\S]*chapter\.id === progress\.chapterId[\s\S]*primaryReadChapterId\(\): string \| undefined \{[\s\S]*this\.progressChapterId\(\) \?\? this\.firstChapterId\(\)[\s\S]*handleStartReading\(\): Promise<void> \{[\s\S]*const chapterId = this\.primaryReadChapterId\(\)[\s\S]*manga_detail_no_readable_chapters[\s\S]*const hydration = await this\.ensureSourceChapterPages\(chapterId\)[\s\S]*if \(!hydration\.hydrated\) \{[\s\S]*manga_detail_chapter_pages_load_failed[\s\S]*return[\s\S]*this\.onOpenReader\(this\.currentComicId\(\), chapterId\)/,
+  'MangaDetailPage primary read action must resume saved chapter progress, fall back to the first chapter, and not open Reader when source page hydration fails',
 )
 assert.match(
   mangaDetailPageSource,
@@ -2186,6 +2186,11 @@ assert.match(
   mangaDetailPageSource,
   /handleOpenChapter\(chapterId: string\): Promise<void> \{[\s\S]*!this\.isInLibrary && this\.manga\.sourceId !== undefined[\s\S]*const added = await this\.handleAddToLibrary\(\)[\s\S]*const hydration = await this\.ensureSourceChapterPages\(chapterId\)[\s\S]*if \(!hydration\.hydrated\) \{[\s\S]*manga_detail_chapter_pages_load_failed[\s\S]*return[\s\S]*this\.onOpenReader\(this\.currentComicId\(\), chapterId\)[\s\S]*onOpenChapter:[\s\S]*this\.handleOpenChapter\(chapterId\)/,
   'MangaDetailPage chapter row open must add source manga to the library, hydrate pages, and only then open Reader',
+)
+assert.match(
+  mangaDetailPageSource,
+  /primaryReadLabel\(\): string \{[\s\S]*this\.progressChapterId\(\) !== undefined[\s\S]*library_continue_reading[\s\S]*common_start_reading/,
+  'MangaDetailPage primary read label must say continue only when there is real saved reader progress for a visible chapter',
 )
 assert.match(
   mangaDetailPageSource,

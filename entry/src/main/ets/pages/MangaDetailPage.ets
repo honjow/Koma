@@ -666,6 +666,20 @@ export struct MangaDetailPage {
     return (this.earliestNumberedChapter() ?? this.oldestDatedChapter() ?? this.chapters[0]).id
   }
 
+  private progressChapterId(): string | undefined {
+    const progress = this.readerSessionStore.getProgress(this.currentComicId())
+    if (progress === undefined || progress.chapterId.trim().length === 0) {
+      return undefined
+    }
+    return this.chapters.some((chapter: MangaChapterItem): boolean => chapter.id === progress.chapterId)
+      ? progress.chapterId
+      : undefined
+  }
+
+  private primaryReadChapterId(): string | undefined {
+    return this.progressChapterId() ?? this.firstChapterId()
+  }
+
   private allChapterIds(): string[] {
     return this.chapters.map((chapter: MangaChapterItem): string => chapter.id)
   }
@@ -769,7 +783,7 @@ export struct MangaDetailPage {
   }
 
   private async handleStartReading(): Promise<void> {
-    const chapterId = this.firstChapterId()
+    const chapterId = this.primaryReadChapterId()
     if (chapterId === undefined) {
       this.showToast(s('manga_detail_no_readable_chapters'))
       return
@@ -1286,7 +1300,7 @@ export struct MangaDetailPage {
   }
 
   private primaryReadLabel(): string {
-    return this.chapters.some((chapter: MangaChapterItem): boolean => chapter.isRead)
+    return this.progressChapterId() !== undefined
       ? s('library_continue_reading')
       : s('common_start_reading')
   }
