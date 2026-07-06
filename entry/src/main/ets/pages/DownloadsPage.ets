@@ -889,6 +889,7 @@ export struct DownloadsPage {
       Row({ space: ThemeConstants.SPACE_SM }) {
         KomaActionButton({
           label: s('downloads_filter_chip').replace('%s', this.filterLabel()),
+          icon: $r('sys.symbol.chevron_down'),
           kind: this.filter === DownloadQueueFilter.ALL ? 'secondary' : 'primary',
           compact: true,
           controlHeight: ThemeConstants.ACTION_CHIP_HEIGHT,
@@ -899,6 +900,7 @@ export struct DownloadsPage {
 
         KomaActionButton({
           label: s('downloads_concurrency_chip').replace('%s', `${this.preferences.foregroundConcurrencyLimit}`),
+          icon: $r('sys.symbol.chevron_down'),
           kind: 'secondary',
           compact: true,
           controlHeight: ThemeConstants.ACTION_CHIP_HEIGHT,
