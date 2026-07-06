@@ -103,10 +103,10 @@ struct ContinueReadingShelfCard {
     return cachedCoverFailureKey(this.info.coverUri, this.info.sourceRuntimeId, this.info.sourceImageId ?? this.info.comicId)
   }
 
-  private isRemoteSourceCover(): boolean {
-    const coverUri = this.info.coverUri?.toLocaleLowerCase() ?? ''
+  private shouldUseSourceAwareCover(): boolean {
+    const coverUri = this.info.coverUri?.trim() ?? ''
     const sourceRuntimeId = this.info.sourceRuntimeId?.trim() ?? ''
-    return sourceRuntimeId.length > 0 && (coverUri.startsWith('http://') || coverUri.startsWith('https://'))
+    return sourceRuntimeId.length > 0 && coverUri.length > 0
   }
 
   build() {
@@ -117,7 +117,7 @@ struct ContinueReadingShelfCard {
           .fontWeight(FontWeight.Bold)
           .fontColor(ThemeConstants.TEXT_ON_BRAND)
         if (this.shouldShowCover()) {
-          if (this.isRemoteSourceCover()) {
+          if (this.shouldUseSourceAwareCover()) {
             CachedCoverImage({
               uri: this.info.coverUri ?? '',
               objectFit: ImageFit.Cover,

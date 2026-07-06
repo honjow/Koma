@@ -20,6 +20,8 @@ const sourceRuntimeRegistryPath = resolve(root, 'entry/src/main/ets/sourceRuntim
 const sourceRuntimeServicePath = resolve(root, 'entry/src/main/ets/sourceRuntime/SourceRuntimeService.ets')
 const sourcePackageTrustPolicyPath = resolve(root, 'entry/src/main/ets/sourceRuntime/SourcePackageTrustPolicy.ets')
 const readerPageSourceAdapterPath = resolve(root, 'entry/src/main/ets/model/ReaderPageSourceAdapter.ets')
+const cachedCoverImagePath = resolve(root, 'entry/src/main/ets/components/CachedCoverImage.ets')
+const libraryPagePath = resolve(root, 'entry/src/main/ets/pages/LibraryPage.ets')
 const constantsPath = resolve(root, 'entry/src/main/ets/common/Constants.ets')
 const routerHelperPath = resolve(root, 'entry/src/main/ets/common/RouterHelper.ets')
 const entryAbilityPath = resolve(root, 'entry/src/main/ets/entryability/EntryAbility.ets')
@@ -59,6 +61,8 @@ const sourceRuntimeRegistrySource = readFileSync(sourceRuntimeRegistryPath, 'utf
 const sourceRuntimeServiceSource = readFileSync(sourceRuntimeServicePath, 'utf8')
 const sourcePackageTrustPolicySource = readFileSync(sourcePackageTrustPolicyPath, 'utf8')
 const readerPageSourceAdapterSource = readFileSync(readerPageSourceAdapterPath, 'utf8')
+const cachedCoverImageSource = readFileSync(cachedCoverImagePath, 'utf8')
+const libraryPageSource = readFileSync(libraryPagePath, 'utf8')
 const constantsSource = readFileSync(constantsPath, 'utf8')
 const routerHelperSource = readFileSync(routerHelperPath, 'utf8')
 const entryAbilitySource = readFileSync(entryAbilityPath, 'utf8')
@@ -1187,6 +1191,16 @@ assert.match(
   readerPageSourceAdapterSource,
   /resolveSourceRuntimeImageRequest\(sourceRuntimeId: string, pageId: string, pageUri\?: string\)[\s\S]*args\.pageUri = normalizedPageUri[\s\S]*if \(isReaderRemoteImageSourceUri\(normalizedPageUri\)\) \{[\s\S]*args\.url = normalizedPageUri/,
   'source image requests must preserve relative pageUri/coverUri values while only exposing url for absolute remote URLs',
+)
+assert.match(
+  cachedCoverImageSource,
+  /private async resolveImageUri\(uri: string, sourceRuntimeId: string, sourceImageId: string\): Promise<string> \{[\s\S]*configureReaderRemoteImageCache\(context\.cacheDir\)[\s\S]*if \(sourceRuntimeId\.trim\(\)\.length > 0\) \{[\s\S]*return fetchAndCacheSourceRuntimeRemoteImage\(sourceRuntimeId, uri, sourceImageId\)[\s\S]*if \(!this\.isRemoteUri\(uri\)\) \{[\s\S]*return uri/,
+  'CachedCoverImage must route all source-backed covers, including relative cover refs, through source image requests before local URI fallback',
+)
+assert.match(
+  libraryPageSource,
+  /private shouldUseSourceAwareCover\(\): boolean \{[\s\S]*sourceRuntimeId\.length > 0 && coverUri\.length > 0[\s\S]*if \(this\.shouldUseSourceAwareCover\(\)\) \{[\s\S]*CachedCoverImage\(\{/,
+  'Library continue-reading covers must use source-aware cover loading for relative source cover refs, not only absolute remote URLs',
 )
 
 assertSourceRepoShape(localKomaFixturePath)

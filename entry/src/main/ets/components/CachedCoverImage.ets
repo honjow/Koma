@@ -48,13 +48,13 @@ export struct CachedCoverImage {
   }
 
   private async resolveImageUri(uri: string, sourceRuntimeId: string, sourceImageId: string): Promise<string> {
-    if (!this.isRemoteUri(uri)) {
-      return uri
-    }
     const context = getContext(this) as common.UIAbilityContext
     configureReaderRemoteImageCache(context.cacheDir)
     if (sourceRuntimeId.trim().length > 0) {
       return fetchAndCacheSourceRuntimeRemoteImage(sourceRuntimeId, uri, sourceImageId)
+    }
+    if (!this.isRemoteUri(uri)) {
+      return uri
     }
     return fetchAndCacheReaderRemoteImage(uri)
   }
