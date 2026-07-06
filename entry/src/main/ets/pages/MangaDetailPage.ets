@@ -836,19 +836,25 @@ export struct MangaDetailPage {
           return
         }
       }
-      if (this.manga.sourceId !== undefined) {
-        const hydration = await this.ensureSourceChapterPages(resolvedChapterId)
-        if (!hydration.hydrated) {
-          this.downloadStatusText = s('manga_detail_chapter_pages_load_failed')
-          this.showToast(s('manga_detail_chapter_pages_load_failed'))
-          return
-        }
-      }
       const comic = this.libraryStore?.getComic(this.currentComicId())
       if (comic === undefined) {
         this.downloadStatusText = s('manga_detail_add_to_library_first')
         this.showToast(s('manga_detail_add_to_library_first'))
         return
+      }
+      if (this.manga.sourceId !== undefined) {
+        const hydration = await this.ensureSourceChapterPages(resolvedChapterId)
+        if (!hydration.hydrated) {
+          const chapterTitle = this.chapters.find((item: MangaChapterItem): boolean => item.id === resolvedChapterId)?.title
+          service.blockChapterDownload(comic, resolvedChapterId, hydration.reasonCode ?? 'pages_missing', {
+            comicTitle: comic.title,
+            chapterTitle,
+          })
+          this.applyChapterStatesToCurrent()
+          this.downloadStatusText = s('manga_detail_chapter_pages_load_failed')
+          this.showToast(s('manga_detail_chapter_pages_load_failed'))
+          return
+        }
       }
       try {
         await installReaderRemoteHeadersForComic(getContext(this) as common.UIAbilityContext, comic)
