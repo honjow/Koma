@@ -33,8 +33,14 @@ export interface ReaderPreferences {
 export interface ReaderSeriesPreferenceOverrides {
   pageMode?: ReaderPageMode
   readingDirection?: ReadingDirection
+  backgroundMode?: ReaderBackgroundMode
+  imageFitMode?: ReaderImageFitMode
   tapNavigationEnabled?: boolean
+  swipeNavigationEnabled?: boolean
   tapZonePreset?: ReaderTapZonePreset
+  showTapZones?: boolean
+  pageGapMode?: ReaderPageGapMode
+  wideImageMode?: ReaderWideImageMode
 }
 
 export const READER_PREFERENCES_STORE_NAME: string = 'koma_reader_preferences_v1'
@@ -310,11 +316,29 @@ function normalizeReaderSeriesPreferenceOverrides(value: Object | undefined): Re
   if (typeof source['readingDirection'] === 'string') {
     overrides.readingDirection = normalizeReaderReadingDirection(source['readingDirection'] as string)
   }
+  if (typeof source['backgroundMode'] === 'string') {
+    overrides.backgroundMode = normalizeReaderBackgroundMode(source['backgroundMode'] as string)
+  }
+  if (typeof source['imageFitMode'] === 'string') {
+    overrides.imageFitMode = normalizeReaderImageFitMode(source['imageFitMode'] as string)
+  }
   if (source['tapNavigationEnabled'] !== undefined) {
     overrides.tapNavigationEnabled = normalizeReaderTapNavigationEnabled(source['tapNavigationEnabled'] as boolean | string | number)
   }
+  if (source['swipeNavigationEnabled'] !== undefined) {
+    overrides.swipeNavigationEnabled = normalizeReaderSwipeNavigationEnabled(source['swipeNavigationEnabled'] as boolean | string | number)
+  }
   if (typeof source['tapZonePreset'] === 'string') {
     overrides.tapZonePreset = normalizeReaderTapZonePreset(source['tapZonePreset'] as string)
+  }
+  if (source['showTapZones'] !== undefined) {
+    overrides.showTapZones = normalizeReaderShowTapZones(source['showTapZones'] as boolean | string | number)
+  }
+  if (typeof source['pageGapMode'] === 'string') {
+    overrides.pageGapMode = normalizeReaderPageGapMode(source['pageGapMode'] as string)
+  }
+  if (typeof source['wideImageMode'] === 'string') {
+    overrides.wideImageMode = normalizeReaderWideImageMode(source['wideImageMode'] as string)
   }
   return Object.keys(overrides).length === 0 ? undefined : overrides
 }
@@ -330,17 +354,17 @@ function mergeReaderSeriesPreferences(
     pageMode: overrides.pageMode ?? globalPreferences.pageMode,
     readingDirection: overrides.readingDirection ?? globalPreferences.readingDirection,
     themeMode: globalPreferences.themeMode,
-    backgroundMode: globalPreferences.backgroundMode,
+    backgroundMode: overrides.backgroundMode ?? globalPreferences.backgroundMode,
     showProgressControls: globalPreferences.showProgressControls,
     keepScreenAwake: globalPreferences.keepScreenAwake,
-    imageFitMode: globalPreferences.imageFitMode,
+    imageFitMode: overrides.imageFitMode ?? globalPreferences.imageFitMode,
     tapNavigationEnabled: overrides.tapNavigationEnabled ?? globalPreferences.tapNavigationEnabled,
-    swipeNavigationEnabled: globalPreferences.swipeNavigationEnabled,
+    swipeNavigationEnabled: overrides.swipeNavigationEnabled ?? globalPreferences.swipeNavigationEnabled,
     tapZonePreset: overrides.tapZonePreset ?? globalPreferences.tapZonePreset,
-    showTapZones: globalPreferences.showTapZones,
-    pageGapMode: globalPreferences.pageGapMode,
+    showTapZones: overrides.showTapZones ?? globalPreferences.showTapZones,
+    pageGapMode: overrides.pageGapMode ?? globalPreferences.pageGapMode,
     trimPageMarginsEnabled: globalPreferences.trimPageMarginsEnabled,
-    wideImageMode: globalPreferences.wideImageMode,
+    wideImageMode: overrides.wideImageMode ?? globalPreferences.wideImageMode,
     volumeKeyNavigationEnabled: globalPreferences.volumeKeyNavigationEnabled,
   }
 }

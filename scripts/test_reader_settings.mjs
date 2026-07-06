@@ -100,8 +100,8 @@ assert.match(
 )
 assert.match(
   readerPreferencesStoreSource,
-  /export interface ReaderSeriesPreferenceOverrides \{[\s\S]*pageMode\?: ReaderPageMode[\s\S]*readingDirection\?: ReadingDirection[\s\S]*tapNavigationEnabled\?: boolean[\s\S]*tapZonePreset\?: ReaderTapZonePreset/,
-  'reader preferences must model per-series overrides for mode, direction, and tap-zone behavior',
+  /export interface ReaderSeriesPreferenceOverrides \{[\s\S]*pageMode\?: ReaderPageMode[\s\S]*readingDirection\?: ReadingDirection[\s\S]*backgroundMode\?: ReaderBackgroundMode[\s\S]*imageFitMode\?: ReaderImageFitMode[\s\S]*tapNavigationEnabled\?: boolean[\s\S]*swipeNavigationEnabled\?: boolean[\s\S]*tapZonePreset\?: ReaderTapZonePreset[\s\S]*showTapZones\?: boolean[\s\S]*pageGapMode\?: ReaderPageGapMode[\s\S]*wideImageMode\?: ReaderWideImageMode/,
+  'reader preferences must model per-series overrides for quick reader settings that affect per-title reading comfort',
 )
 assert.match(
   readerPreferencesStoreSource,
@@ -305,8 +305,8 @@ assert.match(
 )
 assert.match(
   readerPreferencesStoreSource,
-  /mergeReaderSeriesPreferences[\s\S]*pageMode: overrides\.pageMode \?\? globalPreferences\.pageMode[\s\S]*readingDirection: overrides\.readingDirection \?\? globalPreferences\.readingDirection[\s\S]*tapNavigationEnabled: overrides\.tapNavigationEnabled \?\? globalPreferences\.tapNavigationEnabled[\s\S]*tapZonePreset: overrides\.tapZonePreset \?\? globalPreferences\.tapZonePreset[\s\S]*wideImageMode: globalPreferences\.wideImageMode/,
-  'per-series overrides must stay scoped to reader mode, direction, and tap zones while inheriting global image behavior',
+  /mergeReaderSeriesPreferences[\s\S]*pageMode: overrides\.pageMode \?\? globalPreferences\.pageMode[\s\S]*readingDirection: overrides\.readingDirection \?\? globalPreferences\.readingDirection[\s\S]*backgroundMode: overrides\.backgroundMode \?\? globalPreferences\.backgroundMode[\s\S]*imageFitMode: overrides\.imageFitMode \?\? globalPreferences\.imageFitMode[\s\S]*tapNavigationEnabled: overrides\.tapNavigationEnabled \?\? globalPreferences\.tapNavigationEnabled[\s\S]*swipeNavigationEnabled: overrides\.swipeNavigationEnabled \?\? globalPreferences\.swipeNavigationEnabled[\s\S]*tapZonePreset: overrides\.tapZonePreset \?\? globalPreferences\.tapZonePreset[\s\S]*showTapZones: overrides\.showTapZones \?\? globalPreferences\.showTapZones[\s\S]*pageGapMode: overrides\.pageGapMode \?\? globalPreferences\.pageGapMode[\s\S]*wideImageMode: overrides\.wideImageMode \?\? globalPreferences\.wideImageMode/,
+  'per-series overrides must restore quick reader settings while inheriting unrelated global theme/progress/keep-awake preferences',
 )
 assert.match(
   readerPageSource,
@@ -315,7 +315,7 @@ assert.match(
 )
 assert.match(
   readerPageSource,
-  /currentSeriesPreferenceOverrides\(\): ReaderSeriesPreferenceOverrides[\s\S]*pageMode: this\.pageModeForSeriesPreferences\(\)[\s\S]*readingDirection: this\.readingDirection[\s\S]*tapNavigationEnabled: this\.tapNavigationEnabled[\s\S]*tapZonePreset: this\.tapZonePreset/,
+  /currentSeriesPreferenceOverrides\(\): ReaderSeriesPreferenceOverrides[\s\S]*pageMode: this\.pageModeForSeriesPreferences\(\)[\s\S]*readingDirection: this\.readingDirection[\s\S]*backgroundMode: this\.backgroundMode[\s\S]*imageFitMode: this\.imageFitMode[\s\S]*tapNavigationEnabled: this\.tapNavigationEnabled[\s\S]*swipeNavigationEnabled: this\.swipeNavigationEnabled[\s\S]*tapZonePreset: this\.tapZonePreset[\s\S]*showTapZones: this\.showTapZones[\s\S]*pageGapMode: this\.pageGapMode[\s\S]*wideImageMode: this\.wideImageMode/,
   'ReaderPage must build per-series overrides from the current runtime reader controls',
 )
 assert.match(
