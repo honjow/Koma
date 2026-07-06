@@ -777,6 +777,11 @@ assert.match(
 )
 assert.match(
   offlineDownloadStoreSource,
+  /export interface OfflineDownloadedPage \{[\s\S]*width\?: number[\s\S]*height\?: number[\s\S]*localPath: string[\s\S]*\(page\.width !== undefined && typeof page\.width !== 'number'\)[\s\S]*\(page\.height !== undefined && typeof page\.height !== 'number'\)/,
+  'offline manifest pages must carry optional reader image dimensions without breaking older manifests',
+)
+assert.match(
+  offlineDownloadStoreSource,
   /export enum OfflineDownloadedChapterStatus\s*{[\s\S]*DOWNLOADED = 'downloaded'[\s\S]*PARTIAL = 'partial'[\s\S]*CORRUPT = 'corrupt'[\s\S]*MISSING = 'missing'/,
   'offline manifest validation must classify downloaded, partial, corrupt, and missing chapters',
 )
@@ -814,6 +819,11 @@ assert.match(
   offlineDownloadServiceSource,
   /createReaderPageRenderSource\(config, index, \{ preferOffline: false \}\)/,
   'offline download service must bypass existing offline files while downloading pages',
+)
+assert.match(
+  offlineDownloadServiceSource,
+  /reusablePage !== undefined[\s\S]*width: page\?\.width \?\? reusablePage\.width[\s\S]*height: page\?\.height \?\? reusablePage\.height[\s\S]*const row: OfflineDownloadedPage = \{[\s\S]*width: page\?\.width[\s\S]*height: page\?\.height/,
+  'offline download service must persist source page dimensions into downloaded manifests and keep them on partial reuse',
 )
 assert.match(
   offlineDownloadServiceSource,

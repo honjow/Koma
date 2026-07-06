@@ -310,6 +310,8 @@ export class OfflineDownloadService {
             pageId,
             pageIndex: index,
             fileName: reusablePage.fileName,
+            width: page?.width ?? reusablePage.width,
+            height: page?.height ?? reusablePage.height,
             localPath: reusablePage.localPath,
             size: reusablePage.size,
             contentHash: reusablePage.contentHash,
@@ -324,6 +326,8 @@ export class OfflineDownloadService {
         const row: OfflineDownloadedPage = {
           pageId,
           pageIndex: index,
+          width: page?.width,
+          height: page?.height,
           localPath,
           size: writtenPage.size,
           contentHash: writtenPage.contentHash,

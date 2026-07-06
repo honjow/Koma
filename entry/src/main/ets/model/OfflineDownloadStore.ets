@@ -45,6 +45,8 @@ export interface OfflineDownloadedPage {
   pageId: PageId
   pageIndex: number
   fileName?: string
+  width?: number
+  height?: number
   localPath: string
   size: number
   contentHash?: string
@@ -264,6 +266,8 @@ function safeParseManifest(payload: string): OfflineChapterDownloadManifest {
     const page = parsed.pages[index]
     if (typeof page.pageId !== 'string' ||
       typeof page.pageIndex !== 'number' ||
+      (page.width !== undefined && typeof page.width !== 'number') ||
+      (page.height !== undefined && typeof page.height !== 'number') ||
       typeof page.localPath !== 'string' ||
       typeof page.size !== 'number' ||
       (page.contentHash !== undefined && typeof page.contentHash !== 'string') ||

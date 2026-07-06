@@ -252,8 +252,8 @@ struct Index {
         const pageId = page?.pageId ?? `page-${index + 1}`
         pageIds.push(pageId)
         pageUris.push(store.resolveDownloadedPage(comic.id, chapterId, pageId, index, { validateContentHash: false }) ?? '')
-        pageWidths.push(undefined)
-        pageHeights.push(undefined)
+        pageWidths.push(page?.width)
+        pageHeights.push(page?.height)
       }
       const chapterIds = baseConfig.chapterIds.includes(chapterId) ? baseConfig.chapterIds : baseConfig.chapterIds.concat([chapterId])
       console.info(`[ReaderOffline] step=open_from_manifest pages=${validation.availablePageCount}/${validation.pageCount}`)
