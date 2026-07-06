@@ -566,6 +566,11 @@ assert.match(
 )
 assert.match(
   readerPageSource,
+  /private shouldRenderPageFitWidth\(index: number, compact: boolean\): boolean \{[\s\S]*!compact && this\.imageFitMode === 'fit_width' && this\.hasPageDimensions\(index\)/,
+  'fit-width image mode must activate the aspect-ratio page surface instead of falling through to the full-height contain surface',
+)
+assert.match(
+  readerPageSource,
   /private singlePageWidth\(\): string[\s\S]*return '100%'/,
   'single-page reader must use the full reader viewport width',
 )
@@ -583,6 +588,11 @@ assert.match(
   readerPageSource,
   /private webtoonPageWidth\(\): string \{[\s\S]*return '100%'[\s\S]*\}/,
   'webtoon page width must use the full reader viewport width',
+)
+assert.match(
+  readerPageSource,
+  /SinglePageViewport\(\)[\s\S]*Column\(\) \{[\s\S]*this\.ReaderPageSurface\(entry\.pageIndex, false, entry\.splitSide\)[\s\S]*\.height\('100%'\)[\s\S]*\.justifyContent\(FlexAlign\.Center\)[\s\S]*DualPageSlot\(index: number\)[\s\S]*this\.ReaderPageSurface\(index\)[\s\S]*\.height\('100%'\)[\s\S]*\.justifyContent\(FlexAlign\.Center\)/,
+  'single and dual page readers must vertically center the page surface instead of top-aligning images in a full-height column',
 )
 assert.match(
   readerPageSource,

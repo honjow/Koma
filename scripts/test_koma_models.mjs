@@ -2432,6 +2432,11 @@ assert.match(
   'ReaderPage image fit preference must keep single-page sizing adjustable while continuous-scroll pages stay full-width',
 )
 assert.match(
+  readerPageSource,
+  /shouldRenderPageFitWidth\(index: number, compact: boolean\): boolean \{[\s\S]*this\.imageFitMode === 'fit_width'[\s\S]*this\.hasPageDimensions\(index\)[\s\S]*SinglePageViewport\(\)[\s\S]*\.justifyContent\(FlexAlign\.Center\)[\s\S]*DualPageSlot\(index: number\)[\s\S]*\.justifyContent\(FlexAlign\.Center\)/,
+  'ReaderPage fit-width mode must use an aspect-ratio page surface and keep page images vertically centered',
+)
+assert.match(
   trackerProgressSyncServiceSource,
   /pushReadingProgress\([\s\S]*trigger: TrackerUpdateStrategy = 'on_chapter_complete'[\s\S]*if \(trigger !== 'manual' && !preferences\.autoSyncEnabled\)[\s\S]*return this\.skipped\('auto_sync_disabled'\)/,
   'Tracker manual progress sync must bypass the automatic-sync toggle while automatic reader triggers still respect it',
