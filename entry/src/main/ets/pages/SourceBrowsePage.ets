@@ -108,6 +108,11 @@ export struct SourceBrowsePage {
     return this.viewModel.filters.length > 0
   }
 
+  private shouldOfferSearchFromEmptyState(): boolean {
+    const source = this.currentSource()
+    return !this.viewModel.sourceCanBrowse(source) && this.viewModel.sourceCanSearch(source)
+  }
+
   private toggleFilters(): void {
     this.filtersExpanded = !this.filtersExpanded
   }
@@ -243,10 +248,14 @@ export struct SourceBrowsePage {
     KomaEmptyState({
       title: s('source_browse_empty_results_title'),
       message: s('source_browse_empty_results_message'),
-      actionLabel: s('common_reset'),
-      showAction: this.viewModel.filters.length > 0,
+      actionLabel: this.shouldOfferSearchFromEmptyState() ? s('tab_search') : s('common_reset'),
+      showAction: this.shouldOfferSearchFromEmptyState() || this.viewModel.filters.length > 0,
       action: () => {
-        void this.viewModel.resetBrowseFilters()
+        if (this.shouldOfferSearchFromEmptyState()) {
+          this.onSearchRequested(this.currentSource())
+        } else {
+          void this.viewModel.resetBrowseFilters()
+        }
       },
     })
   }

@@ -439,6 +439,21 @@ export class BrowseViewModel {
 
   private registry: SourceRuntimeRegistry
 
+  private sourceSupportsOperation(source: SourceRuntimeRegistryInstalledSourceSummary, capability: string): boolean {
+    if (source.capabilities.indexOf(capability) >= 0) {
+      return true
+    }
+    return source.capabilities.indexOf('sourceInfo') < 0
+  }
+
+  sourceCanSearch(source: SourceRuntimeRegistryInstalledSourceSummary): boolean {
+    return this.sourceSupportsOperation(source, 'search')
+  }
+
+  sourceCanBrowse(source: SourceRuntimeRegistryInstalledSourceSummary): boolean {
+    return this.sourceSupportsOperation(source, 'home') || this.sourceSupportsOperation(source, 'mangaList')
+  }
+
   loadInstalledSources(): void {
     this.loadingSources = true
     this.errorMessage = ''
@@ -511,16 +526,28 @@ export class BrowseViewModel {
       this.restoreSavedBrowseFilterValues(source.sourceId)
       this.restoreSavedSearchFilterValues(source.sourceId)
       this.homeSections = homeSections
-      const listing = this.defaultListingForBrowse(this.listings)
+      const listing = this.sourceSupportsOperation(source, 'mangaList') ? this.defaultListingForBrowse(this.listings) : undefined
       if (listing === undefined) {
         this.popularManga = []
         this.latestManga = []
-        this.homeSections = []
         this.browseSections = []
         this.hasMoreBrowse = false
         return
       }
-      await this.loadBrowseListing(source, listing, 1, requestId)
+      try {
+        await this.loadBrowseListing(source, listing, 1, requestId)
+      } catch (error) {
+        const e = error as Error
+        if (homeSections.length > 0) {
+          this.errorMessage = safeSourceBrowseErrorText(e, 'browse_error_load_home')
+          this.popularManga = []
+          this.latestManga = []
+          this.browseSections = []
+          this.hasMoreBrowse = false
+          return
+        }
+        throw e
+      }
     } catch (error) {
       if (requestId !== this.browseRequestId) {
         return
@@ -821,6 +848,9 @@ export class BrowseViewModel {
   }
 
   private async loadSourceFilters(source: SourceRuntimeRegistryInstalledSourceSummary): Promise<SourceFilter[]> {
+    if (!this.sourceSupportsOperation(source, 'filters')) {
+      return []
+    }
     try {
       const args: SourceListingsArgs = {}
       const response = await this.runSourceOperationResponse(source.sourceId, 'get_filters', args, 1)
@@ -831,6 +861,12 @@ export class BrowseViewModel {
   }
 
   private async loadSourceListings(source: SourceRuntimeRegistryInstalledSourceSummary): Promise<SourceListingDescriptor[]> {
+    if (!this.sourceSupportsOperation(source, 'mangaList')) {
+      return []
+    }
+    if (!this.sourceSupportsOperation(source, 'listings')) {
+      return this.defaultListings()
+    }
     try {
       const args: SourceListingsArgs = {}
       const response = await this.runSourceOperationResponse(source.sourceId, 'get_listings', args, 1)
@@ -842,6 +878,9 @@ export class BrowseViewModel {
   }
 
   private async loadSourceHomeSections(source: SourceRuntimeRegistryInstalledSourceSummary): Promise<SourceHomeSectionState[]> {
+    if (!this.sourceSupportsOperation(source, 'home')) {
+      return []
+    }
     try {
       const args: SourceHomeArgs = {}
       const response = await this.runSourceOperationResponse(source.sourceId, 'get_home', args, 1)

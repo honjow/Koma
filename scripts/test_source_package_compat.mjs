@@ -440,6 +440,11 @@ assert.match(
   'SourceBrowsePage must use the current registry source summary after a package update, including visible version, reload, and search handoff',
 )
 assert.match(
+  sourceBrowsePageSource,
+  /shouldOfferSearchFromEmptyState\(\): boolean \{[\s\S]*!this\.viewModel\.sourceCanBrowse\(source\) && this\.viewModel\.sourceCanSearch\(source\)[\s\S]*actionLabel: this\.shouldOfferSearchFromEmptyState\(\) \? s\('tab_search'\)[\s\S]*this\.onSearchRequested\(this\.currentSource\(\)\)/,
+  'SourceBrowsePage must route search-only sources from browse empty state into source search instead of leaving a dead empty page',
+)
+assert.match(
   sourceSearchPageSource,
   /currentSource\(\): SourceRuntimeRegistryInstalledSourceSummary[\s\S]*this\.viewModel\.sourceSummaryForId\(this\.source\.sourceId\)[\s\S]*runSearch\(this\.currentSource\(\),[\s\S]*aboutToAppear\(\): void \{[\s\S]*this\.viewModel\.loadInstalledSources\(\)[\s\S]*this\.viewModel\.ensureSearchFilters\(this\.currentSource\(\)\)/,
   'SourceSearchPage must search with the current registry source summary instead of stale navigation params',
@@ -453,6 +458,11 @@ assert.match(
   browseViewModelSource,
   /sourceLanguageBadge\(source: SourceRuntimeRegistryInstalledSourceSummary\): string \{[\s\S]*sourceLanguageBadgeFromLanguage\(source\.language\)[\s\S]*manifestLanguageBadge !== undefined[\s\S]*return manifestLanguageBadge[\s\S]*source\.sourceId\.toLocaleLowerCase\(\)/,
   'BrowseViewModel sourceLanguageBadge must prefer the source manifest language over guessing from source id',
+)
+assert.match(
+  browseViewModelSource,
+  /sourceSupportsOperation\(source: SourceRuntimeRegistryInstalledSourceSummary, capability: string\): boolean \{[\s\S]*source\.capabilities\.indexOf\(capability\) >= 0[\s\S]*source\.capabilities\.indexOf\('sourceInfo'\) < 0[\s\S]*sourceCanBrowse\(source: SourceRuntimeRegistryInstalledSourceSummary\): boolean \{[\s\S]*'home'[\s\S]*'mangaList'/,
+  'BrowseViewModel must use source_info capabilities for known sources while preserving legacy behavior when capabilities are unknown',
 )
 assert.match(
   browseViewModelSource,
@@ -481,8 +491,18 @@ assert.match(
 )
 assert.match(
   browseViewModelSource,
+  /loadSourceListings\(source: SourceRuntimeRegistryInstalledSourceSummary\)[\s\S]*!this\.sourceSupportsOperation\(source, 'mangaList'\)[\s\S]*return \[\][\s\S]*!this\.sourceSupportsOperation\(source, 'listings'\)[\s\S]*return this\.defaultListings\(\)/,
+  'BrowseViewModel must not call listing APIs for sources that report no mangaList support',
+)
+assert.match(
+  browseViewModelSource,
   /loadSourceHomeSections\(source: SourceRuntimeRegistryInstalledSourceSummary\)[\s\S]*runSourceOperationResponse\(source\.sourceId, 'get_home'[\s\S]*section\.kind === 'mangaList'[\s\S]*catch \(_error\)[\s\S]*return \[\]/,
   'BrowseViewModel must load source home sections as a fail-soft enhancement',
+)
+assert.match(
+  browseViewModelSource,
+  /this\.homeSections = homeSections[\s\S]*this\.sourceSupportsOperation\(source, 'mangaList'\) \? this\.defaultListingForBrowse\(this\.listings\) : undefined[\s\S]*if \(listing === undefined\)[\s\S]*this\.browseSections = \[\][\s\S]*return/,
+  'BrowseViewModel must preserve home sections when a source has no browse listing capability',
 )
 assert.match(
   browseViewModelSource,
