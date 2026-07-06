@@ -36,6 +36,7 @@ const sourceCorruptDownloadReaderSmokeScriptPath = resolve(root, 'scripts/run_so
 const sourceUndownloadedOfflineReaderSmokeScriptPath = resolve(root, 'scripts/run_source_undownloaded_offline_reader_smoke.sh')
 const sourceBrowseDetailReaderSmokeScriptPath = resolve(root, 'scripts/run_source_browse_detail_reader_smoke.sh')
 const sourceBrowseDetailDownloadReaderSmokeScriptPath = resolve(root, 'scripts/run_source_browse_detail_download_reader_smoke.sh')
+const sourceCliMatrixSmokeScriptPath = resolve(root, 'scripts/run_source_cli_matrix_smoke.mjs')
 const abiDocPath = resolve(root, 'docs/source-runtime-abi.md')
 const sdkDocPath = resolve(root, 'docs/source-package-sdk.md')
 const localKomaFixturePath = resolve(root, 'entry/src/main/resources/rawfile/test/local_source_runtime_fixture.koma')
@@ -77,6 +78,7 @@ const sourceCorruptDownloadReaderSmokeScriptSource = readFileSync(sourceCorruptD
 const sourceUndownloadedOfflineReaderSmokeScriptSource = readFileSync(sourceUndownloadedOfflineReaderSmokeScriptPath, 'utf8')
 const sourceBrowseDetailReaderSmokeScriptSource = readFileSync(sourceBrowseDetailReaderSmokeScriptPath, 'utf8')
 const sourceBrowseDetailDownloadReaderSmokeScriptSource = readFileSync(sourceBrowseDetailDownloadReaderSmokeScriptPath, 'utf8')
+const sourceCliMatrixSmokeScriptSource = readFileSync(sourceCliMatrixSmokeScriptPath, 'utf8')
 const abiDocSource = readFileSync(abiDocPath, 'utf8')
 const sdkDocSource = readFileSync(sdkDocPath, 'utf8')
 
@@ -784,6 +786,21 @@ assert.match(
   readFileSync(resolve(root, 'entry/src/main/ets/pages/Index.ets'), 'utf8'),
   /BrowsePage\(\{[\s\S]*onOpenSourcePackageManager:\s*\(\) => \{[\s\S]*this\.openSettingsSecondary\(RouteName\.SOURCE_PACKAGE_MANAGER\)/,
   'Browse empty source action must route to the existing SourcePackageManagerPage',
+)
+assert.match(
+  sourceCliMatrixSmokeScriptSource,
+  /DEFAULT_CASES[\s\S]*org\.mangadex\.koma[\s\S]*com\.dm5\.koma[\s\S]*KOMA_SOURCE_CLI_MATRIX/,
+  'source CLI matrix smoke must default to more than one real source and allow explicit matrix overrides',
+)
+assert.match(
+  sourceCliMatrixSmokeScriptSource,
+  /runSourceOperation\(wasmPath, 'search'[\s\S]*runSourceOperation\(wasmPath, 'get_manga'[\s\S]*runSourceOperation\(wasmPath, 'get_chapters'[\s\S]*runSourceOperation\(wasmPath, 'get_pages'/,
+  'source CLI matrix smoke must cover the real source search -> detail -> chapters -> pages path',
+)
+assert.match(
+  sourceCliMatrixSmokeScriptSource,
+  /packagePathForSource\(sourceIndex, matrixCase\.sourceId\)[\s\S]*extractWasm\(packagePath\)[\s\S]*assertPages\(pages, chapter\.id, matrixCase\.label\)/,
+  'source CLI matrix smoke must execute against dist .koma packages and verify readable page image refs',
 )
 assert.match(smokeSource, /local_source_runtime_fixture\.koma/, 'device smoke must cover a .koma source archive')
 assert.match(smokeSource, /SMOKE_PHASE_INSTALLED_SOURCE_READER/, 'device smoke must include a focused installed-source reader phase')
