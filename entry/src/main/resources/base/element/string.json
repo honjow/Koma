@@ -943,6 +943,7 @@
     { "name": "reader_page_number", "value": "Page %s" },
     { "name": "reader_local_page_unavailable", "value": "Local page unavailable" },
     { "name": "reader_remote_page_unavailable", "value": "Offline or network unavailable" },
+    { "name": "reader_offline_page_missing", "value": "This chapter is not downloaded on this device. Connect to the source or download it first." },
     { "name": "reader_empty_library_hint", "value": "Open an imported local comic from your library" },
     { "name": "reader_empty_no_pages", "value": "No readable pages" },
 

@@ -943,6 +943,7 @@
     { "name": "reader_page_number", "value": "第 %s 页" },
     { "name": "reader_local_page_unavailable", "value": "本地页面不可用" },
     { "name": "reader_remote_page_unavailable", "value": "离线或网络不可用" },
+    { "name": "reader_offline_page_missing", "value": "本设备未下载该章节。连接源或先下载后再阅读。" },
     { "name": "reader_empty_library_hint", "value": "请从书架打开已导入的本地漫画" },
     { "name": "reader_empty_no_pages", "value": "没有可阅读页面" },
 

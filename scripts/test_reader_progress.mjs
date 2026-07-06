@@ -12,6 +12,9 @@ const readerChromePath = resolve(root, 'entry/src/main/ets/components/ReaderChro
 const indexPath = resolve(root, 'entry/src/main/ets/pages/Index.ets')
 const settingsPagePath = resolve(root, 'entry/src/main/ets/pages/SettingsPage.ets')
 const readerPreferencesStorePath = resolve(root, 'entry/src/main/ets/model/ReaderPreferencesStore.ets')
+const baseStringsPath = resolve(root, 'entry/src/main/resources/base/element/string.json')
+const zhStringsPath = resolve(root, 'entry/src/main/resources/zh_CN/element/string.json')
+const enStringsPath = resolve(root, 'entry/src/main/resources/en_US/element/string.json')
 
 const readerSessionStoreSource = readFileSync(readerSessionStorePath, 'utf8')
 const readerPageSourceAdapterSource = readFileSync(readerPageSourceAdapterPath, 'utf8')
@@ -22,6 +25,9 @@ const readerChromeSource = readFileSync(readerChromePath, 'utf8')
 const indexSource = readFileSync(indexPath, 'utf8')
 const settingsPageSource = readFileSync(settingsPagePath, 'utf8')
 const readerPreferencesStoreSource = readFileSync(readerPreferencesStorePath, 'utf8')
+const baseStringsSource = readFileSync(baseStringsPath, 'utf8')
+const zhStringsSource = readFileSync(zhStringsPath, 'utf8')
+const enStringsSource = readFileSync(enStringsPath, 'utf8')
 
 assert.match(
   readerPreferencesStoreSource,
@@ -266,6 +272,10 @@ const ReaderPageRenderKind = {
   URI_PLACEHOLDER: 'uri_placeholder',
 }
 
+const ReaderPageUnavailableReason = {
+  OFFLINE_MISSING: 'offline_missing',
+}
+
 function normalizeReaderPageUri(uri) {
   return uri.trim().replace(/\\/g, '/')
 }
@@ -436,6 +446,7 @@ function createReaderPageRenderSource(config, pageIndex, options = {}) {
       imageUri: '',
       fallbackPageIndex: pageIndex,
       pageId: getReaderSessionPageId(config, pageIndex),
+      unavailableReason: ReaderPageUnavailableReason.OFFLINE_MISSING,
     }
   }
   if (config.sourceRuntimeId !== undefined && config.sourceRuntimeId.trim().length > 0) {
@@ -518,6 +529,7 @@ assertExport(readerSessionStoreSource, 'InMemoryReaderSessionStore')
 assertExport(readerSessionStoreSource, 'createReaderSessionConfigFromComic')
 assertExport(readerSessionStoreSource, 'getReaderSessionPageUri')
 assertExport(readerPageSourceAdapterSource, 'ReaderPageRenderKind')
+assertExport(readerPageSourceAdapterSource, 'ReaderPageUnavailableReason')
 assertExport(readerPageSourceAdapterSource, 'isReaderLocalImageSourceUri')
 assertExport(readerPageSourceAdapterSource, 'createReaderImageSourceUri')
 assertExport(readerPageSourceAdapterSource, 'createReaderPageRenderSource')
@@ -558,6 +570,12 @@ assert.match(readerPageSourceAdapterSource, /validateDownloadedChapter\(config\.
 assert.match(readerPageSource, /isDefaultNetworkUnavailable\(\): boolean[\s\S]*connection\.getDefaultNetSync\(\)\.netId === 0[\s\S]*offlineOnly: isDefaultNetworkUnavailable\(\)/, 'ReaderPage must pass offline-only mode into page resolution when the platform reports no default network')
 assert.match(readerPageSourceAdapterSource, /function isOfflineManifestReaderOwned\(validation: OfflineDownloadManifestValidation\): boolean[\s\S]*OfflineDownloadedChapterStatus\.DOWNLOADED[\s\S]*OfflineDownloadedChapterStatus\.PARTIAL[\s\S]*OfflineDownloadedChapterStatus\.CORRUPT/, 'reader adapter offline ownership must cover downloaded, partial, and corrupt manifests')
 assert.match(readerPageSourceAdapterSource, /function createReaderOfflineUnavailableSource\(config: ReaderSessionConfig, pageIndex: number\): ReaderPageRenderSource[\s\S]*ReaderPageRenderKind\.URI_PLACEHOLDER[\s\S]*offline-missing:\/\//, 'reader adapter must expose missing offline pages as honest placeholders')
+assert.match(readerPageSourceAdapterSource, /function createReaderOfflineUnavailableSource\(config: ReaderSessionConfig, pageIndex: number\): ReaderPageRenderSource[\s\S]*unavailableReason:\s*ReaderPageUnavailableReason\.OFFLINE_MISSING/, 'reader adapter must label offline missing placeholders with a user-facing reason')
+assert.match(readerPageSource, /readerPlaceholderDetail\(source: ReaderPageRenderSource\): string[\s\S]*ReaderPageUnavailableReason\.OFFLINE_MISSING[\s\S]*reader_offline_page_missing/, 'ReaderPage must render a specific not-downloaded message for offline missing chapter pages')
+assert.match(readerPageSource, /context\.source\.kind === ReaderPageRenderKind\.URI_PLACEHOLDER[\s\S]*this\.readerPlaceholderDetail\(context\.source\)/, 'ReaderPage placeholder rendering must use the resolved source reason')
+assert.match(baseStringsSource, /"name": "reader_offline_page_missing"/, 'base strings must include the offline missing reader copy')
+assert.match(zhStringsSource, /"name": "reader_offline_page_missing"[\s\S]*本设备未下载该章节/, 'zh-CN strings must include the offline missing reader copy')
+assert.match(enStringsSource, /"name": "reader_offline_page_missing"[\s\S]*not downloaded on this device/, 'en-US strings must include the offline missing reader copy')
 assert.match(readerPageSourceAdapterSource, /export function createReaderPageRenderDiagnostics\(config: ReaderSessionConfig, pageIndex: number\): ReaderPageRenderDiagnostics \{[\s\S]*createReaderSourceDiagnostics\(createReaderPageRenderSource\(config, pageIndex\)\)/, 'reader source diagnostics must report the resolved local-first render source')
 assert.match(offlineDownloadStoreSource, /resolveDownloadedPage[\s\S]*options\?: OfflineDownloadValidationOptions[\s\S]*validateDownloadedChapter\(comicId, chapterId, options\)[\s\S]*OfflineDownloadedChapterStatus\.DOWNLOADED[\s\S]*OfflineDownloadedChapterStatus\.PARTIAL[\s\S]*fs\.accessSync\(page\.localPath\)/, 'offline resolver must allow validated existing local pages from partial downloads')
 assert.match(remoteImageCacheStoreSource, /REMOTE_IMAGE_CACHE_DIR_NAME:\s*string = 'reader-remote-image-cache'/, 'remote image cache must remain under its dedicated cacheDir child')

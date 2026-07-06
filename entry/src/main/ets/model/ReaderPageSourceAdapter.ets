@@ -60,6 +60,10 @@ export enum ReaderPageRenderKind {
   URI_PLACEHOLDER = 'uri_placeholder',
 }
 
+export enum ReaderPageUnavailableReason {
+  OFFLINE_MISSING = 'offline_missing',
+}
+
 export interface ReaderPageRenderSource {
   kind: ReaderPageRenderKind
   uri: string
@@ -69,6 +73,7 @@ export interface ReaderPageRenderSource {
   sourceRuntimeId?: string
   pageId?: string
   pageUri?: string
+  unavailableReason?: ReaderPageUnavailableReason
 }
 
 export interface ReaderPageRenderSourceOptions {
@@ -756,6 +761,7 @@ function createReaderOfflineUnavailableSource(config: ReaderSessionConfig, pageI
     imageUri: '',
     fallbackPageIndex: pageIndex,
     pageId: getReaderSessionPageId(config, pageIndex),
+    unavailableReason: ReaderPageUnavailableReason.OFFLINE_MISSING,
   }
 }
 
