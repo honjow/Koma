@@ -441,7 +441,7 @@ export struct MangaDetailPage {
         throw new Error('source_disabled')
       }
       const loaded = await this.runSourceMangaOperation(lookup.entry, 'get_manga', mangaId)
-      const detail = loaded.detail
+      const detail = this.sourceDetailWithRouteIdentity(loaded.detail, sourceId, mangaId)
       let chapters: MangaChapterItem[] = loaded.embeddedChapters
       let chaptersLoadFailed = false
       try {
@@ -499,6 +499,26 @@ export struct MangaDetailPage {
       embeddedChapters: this.sourceEmbeddedChapterItems(response, item)
         .map((chapter: Record<string, Object>): MangaChapterItem => parseMangaChapterFromSourceItem(chapter)),
     }
+  }
+
+  private sourceDetailWithRouteIdentity(detail: MangaDetail, sourceId: string, mangaId: string): MangaDetail {
+    const normalizedMangaId = mangaId.trim()
+    const next: MangaDetail = {
+      id: normalizedMangaId.length > 0 ? normalizedMangaId : detail.id,
+      title: detail.title,
+      author: detail.author,
+      artist: detail.artist,
+      description: detail.description,
+      coverUrl: detail.coverUrl,
+      status: detail.status,
+      tags: detail.tags,
+      sourceId,
+      sourceName: detail.sourceName,
+      chapterCount: detail.chapterCount,
+      isInLibrary: detail.isInLibrary,
+      url: detail.url,
+    }
+    return next
   }
 
   private async runSourceChaptersOperation(

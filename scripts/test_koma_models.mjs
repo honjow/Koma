@@ -371,6 +371,15 @@ function sourceComicId(sourceId, mangaId) {
   return mangaId.startsWith(`${normalizedSourceId}:`) ? mangaId : `${normalizedSourceId}:${mangaId}`
 }
 
+function sourceDetailWithRouteIdentity(detail, sourceId, mangaId) {
+  const normalizedMangaId = mangaId.trim()
+  return {
+    ...detail,
+    id: normalizedMangaId.length > 0 ? normalizedMangaId : detail.id,
+    sourceId,
+  }
+}
+
 function decodeSourceDisplayTextEscapes(value) {
   let decoded = ''
   let index = 0
@@ -1797,6 +1806,11 @@ assert.match(
 )
 assert.match(
   mangaDetailPageSource,
+  /const loaded = await this\.runSourceMangaOperation\(lookup\.entry, 'get_manga', mangaId\)[\s\S]*const detail = this\.sourceDetailWithRouteIdentity\(loaded\.detail, sourceId, mangaId\)[\s\S]*sourceDetailWithRouteIdentity\(detail: MangaDetail, sourceId: string, mangaId: string\)[\s\S]*id: normalizedMangaId\.length > 0 \? normalizedMangaId : detail\.id[\s\S]*sourceId,/,
+  'MangaDetailPage must keep the browsed/search result mangaId as durable identity even when get_manga returns an alias or omits id',
+)
+assert.match(
+  mangaDetailPageSource,
   /const args: SourceChaptersRequestArgs = \{[\s\S]*mangaId,[\s\S]*cursor,[\s\S]*limit: SOURCE_CHAPTER_PAGE_SIZE[\s\S]*this\.buildSourceDetailRequestJson\(entry\.sourceId, 'get_chapters', args, \{ network: true \}\)/,
   'get_chapters must send args.mangaId plus a page cursor/limit with network host hints',
 )
@@ -1812,7 +1826,7 @@ assert.match(
 )
 assert.match(
   mangaDetailPageSource,
-  /const loaded = await this\.runSourceMangaOperation\(lookup\.entry, 'get_manga', mangaId\)[\s\S]*const detail = loaded\.detail[\s\S]*let chapters: MangaChapterItem\[\] = loaded\.embeddedChapters[\s\S]*let chaptersLoadFailed = false[\s\S]*try \{[\s\S]*const remoteChapters = await this\.runSourceChaptersOperation\(lookup\.entry, mangaId\)[\s\S]*if \(remoteChapters\.length > 0\) \{[\s\S]*chapters = remoteChapters[\s\S]*\} catch \(_error\) \{[\s\S]*chaptersLoadFailed = true[\s\S]*reason=source_chapters[\s\S]*this\.manga = detail[\s\S]*this\.chapters = this\.decorateChapterStates\(chapters\)[\s\S]*manga_detail_load_source_chapters_failed/,
+  /const loaded = await this\.runSourceMangaOperation\(lookup\.entry, 'get_manga', mangaId\)[\s\S]*const detail = this\.sourceDetailWithRouteIdentity\(loaded\.detail, sourceId, mangaId\)[\s\S]*let chapters: MangaChapterItem\[\] = loaded\.embeddedChapters[\s\S]*let chaptersLoadFailed = false[\s\S]*try \{[\s\S]*const remoteChapters = await this\.runSourceChaptersOperation\(lookup\.entry, mangaId\)[\s\S]*if \(remoteChapters\.length > 0\) \{[\s\S]*chapters = remoteChapters[\s\S]*\} catch \(_error\) \{[\s\S]*chaptersLoadFailed = true[\s\S]*reason=source_chapters[\s\S]*this\.manga = detail[\s\S]*this\.chapters = this\.decorateChapterStates\(chapters\)[\s\S]*manga_detail_load_source_chapters_failed/,
   'MangaDetailPage must keep a successful source detail visible and fall back to embedded detail chapters when separate chapter loading fails or returns empty',
 )
 assert.match(
@@ -2081,6 +2095,15 @@ assert.equal(sourcePageResponseItems({ ok: true, data: { pages: [{ id: 'page-1' 
 assert.equal(sourcePageResponseItems({ ok: true, data: { items: [{ id: 'fixture-page-1' }] } }).length, 1, 'get_pages must keep fixture data.items compatibility')
 assert.equal(sourceComicId('source.alpha', 'manga-1'), 'source.alpha:manga-1', 'source comic id should prefix plain manga ids')
 assert.equal(sourceComicId('source.alpha', 'source.alpha:manga-1'), 'source.alpha:manga-1', 'source comic id should not double-prefix normalized manga ids')
+assert.deepEqual(
+  sourceDetailWithRouteIdentity(
+    { id: 'title-derived-id', title: 'Returned Title', sourceId: 'old.source', chapterCount: 0, isInLibrary: false },
+    'source.alpha',
+    'manga:stable-search-id',
+  ),
+  { id: 'manga:stable-search-id', title: 'Returned Title', sourceId: 'source.alpha', chapterCount: 0, isInLibrary: false },
+  'source detail route identity must keep the searched/browsed manga id as the durable library and get_pages mangaId',
+)
 assert.equal(
   decodeSourceDisplayTextEscapes('Days Off in the Dragon\\u0027s Stomach'),
   "Days Off in the Dragon's Stomach",
