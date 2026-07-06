@@ -187,7 +187,7 @@ assert.match(
 )
 assert.match(
   importerSource,
-  /normalizeSourceOperationCapabilityToken[\s\S]*case 'get_home':[\s\S]*return 'home'[\s\S]*case 'get_settings':[\s\S]*return 'settings'[\s\S]*case 'get_image_request':[\s\S]*return 'imageRequest'/,
+  /normalizeSourceOperationCapabilityToken[\s\S]*case 'get_home':[\s\S]*return 'home'[\s\S]*case 'get_settings':[\s\S]*return 'settings'[\s\S]*case 'get_image_request':[\s\S]*case 'image_request':[\s\S]*case 'modify_image_request':[\s\S]*return 'imageRequest'/,
   'source operation capability normalization must cover browse, settings, and image-request operations',
 )
 assert.match(
@@ -197,8 +197,8 @@ assert.match(
 )
 assert.match(
   appRegistrySource,
-  /function detectSourceRuntimeCapabilities\(sourceId: string, wasmBytes: Uint8Array\): string\[\] \| undefined[\s\S]*operation: 'source_info'[\s\S]*runSourceOperationFromBytes\(JSON\.stringify\(request\), wasmBytes\)[\s\S]*sourceInfoCapabilityToken\(key\)/,
-  'source package install must detect runtime source_info capabilities from source.wasm instead of relying only on legacy manifests',
+  /function sourceInfoCapabilityToken\(key: string\): string \| undefined[\s\S]*case 'imageRequest':[\s\S]*case 'get_image_request':[\s\S]*case 'image_request':[\s\S]*case 'modify_image_request':[\s\S]*function detectSourceRuntimeCapabilities\(sourceId: string, wasmBytes: Uint8Array\): string\[\] \| undefined[\s\S]*operation: 'source_info'[\s\S]*runSourceOperationFromBytes\(JSON\.stringify\(request\), wasmBytes\)[\s\S]*sourceInfoCapabilityToken\(key\)/,
+  'source package install must detect runtime source_info capabilities and image-request aliases from source.wasm instead of relying only on legacy manifests',
 )
 assert.match(
   appRegistrySource,

@@ -388,6 +388,8 @@ export function normalizeSourceOperationCapabilityToken(value: string): string |
     case 'settings':
       return 'settings'
     case 'get_image_request':
+    case 'image_request':
+    case 'modify_image_request':
     case 'imageRequest':
       return 'imageRequest'
     default:

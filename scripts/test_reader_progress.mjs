@@ -553,6 +553,7 @@ assert.match(readerSessionStoreSource, /clampPageIndex/, 'reader session restore
 assert.match(readerSessionStoreSource, /pageUris: pages\.map/, 'reader session config must carry ordered page URIs')
 assert.match(readerSessionStoreSource, /sourceRuntimeId\?: string/, 'reader session config must carry optional source runtime id')
 assert.match(readerPageSourceAdapterSource, /get_image_request/, 'reader cache path must call source runtime image request')
+assert.match(readerPageSourceAdapterSource, /isSourceRuntimeImageRequestOperation\(operation: string \| undefined\)[\s\S]*operation === 'get_image_request'[\s\S]*operation === 'image_request'[\s\S]*operation === 'modify_image_request'[\s\S]*!isSourceRuntimeImageRequestOperation\(summary\.response\.operation\)/, 'reader cache path must accept source image-request response aliases')
 assert.match(readerPageSourceAdapterSource, /fetchAndCacheReaderRemoteSource/, 'reader cache path must resolve source runtime image requests before fetch')
 assert.match(readerPageSourceAdapterSource, /source_image_request_fallback allowed=false/, 'source image request fallback must fail closed for non-URL page URIs')
 assert.match(readerPageSourceAdapterSource, /source_image_request_fallback allowed=true/, 'source image request fallback may use ordinary URL page URIs')

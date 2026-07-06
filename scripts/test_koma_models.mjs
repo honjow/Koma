@@ -1825,6 +1825,11 @@ assert.match(
 )
 assert.match(
   readerPageSourceAdapterSource,
+  /isSourceRuntimeImageRequestOperation\(operation: string \| undefined\)[\s\S]*operation === 'get_image_request'[\s\S]*operation === 'image_request'[\s\S]*operation === 'modify_image_request'[\s\S]*!isSourceRuntimeImageRequestOperation\(summary\.response\.operation\)/,
+  'ReaderPageSourceAdapter must accept get_image_request, image_request, and modify_image_request response aliases from source runtimes',
+)
+assert.match(
+  readerPageSourceAdapterSource,
   /BLOCKED_SOURCE_IMAGE_HEADER_NAMES: string\[\] = \[[\s\S]*'authorization'[\s\S]*'content-length'[\s\S]*'cookie'[\s\S]*'host'[\s\S]*'transfer-encoding'[\s\S]*'x-api-key'[\s\S]*SOURCE_IMAGE_HEADER_MAX_COUNT[\s\S]*SOURCE_IMAGE_HEADER_VALUE_MAX_LENGTH[\s\S]*function normalizeSourceImageHeaders[\s\S]*isSafeSourceImageHeaderName\(normalizedName\)[\s\S]*isSafeSourceImageHeaderValue\(value\)[\s\S]*function isSafeSourceImageHeaderName\(name: string\): boolean[\s\S]*BLOCKED_SOURCE_IMAGE_HEADER_NAMES\.indexOf\(name\.toLocaleLowerCase\(\)\)[\s\S]*function isSafeSourceImageHeaderValue\(value: string\): boolean[\s\S]*value\.indexOf\('\\r'\) < 0[\s\S]*value\.indexOf\('\\n'\) < 0/,
   'ReaderPageSourceAdapter must sanitize source image request headers before reader/download network fetches',
 )

@@ -295,6 +295,8 @@ function sourceInfoCapabilityToken(key: string): string | undefined {
       return 'settings'
     case 'imageRequest':
     case 'get_image_request':
+    case 'image_request':
+    case 'modify_image_request':
       return 'imageRequest'
     default:
       return undefined

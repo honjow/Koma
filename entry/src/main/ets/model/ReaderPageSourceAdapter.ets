@@ -845,6 +845,12 @@ function sourceRuntimeImageRequestPayload(responseData: Record<string, Object> |
   return responseData as SourceRuntimeImageRequestDescriptor
 }
 
+function isSourceRuntimeImageRequestOperation(operation: string | undefined): boolean {
+  return operation === 'get_image_request' ||
+    operation === 'image_request' ||
+    operation === 'modify_image_request'
+}
+
 function resolveSourceRuntimeImageRequest(sourceRuntimeId: string, pageId: string, pageUri?: string): SourceRuntimeResolvedImageRequest | undefined {
   const args: ReaderSourceImageRequestArgs = { pageId }
   if (pageUri !== undefined && isReaderRemoteImageSourceUri(pageUri)) {
@@ -865,7 +871,7 @@ function resolveSourceRuntimeImageRequest(sourceRuntimeId: string, pageId: strin
   }
   try {
     const summary = runRegisteredSourceRequestById(appSourceRuntimeRegistry, sourceRuntimeId, JSON.stringify(request))
-    if (summary.response === undefined || summary.response.ok !== true || summary.response.operation !== 'get_image_request') {
+    if (summary.response === undefined || summary.response.ok !== true || !isSourceRuntimeImageRequestOperation(summary.response.operation)) {
       console.warn(`[ReaderCache] step=source_image_request failed=true source=${createShortReaderHash(sourceRuntimeId)} page=${createShortReaderHash(pageId)} reason=${summary.reasonCode ?? 'runtime_response'}`)
       return undefined
     }
