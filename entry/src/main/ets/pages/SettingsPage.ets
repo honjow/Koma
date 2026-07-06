@@ -127,6 +127,7 @@ import {
   getReaderTrimPageMarginsLabel,
   getReaderWideImageModeLabel,
   getReaderVolumeKeyNavigationLabel,
+  getReaderZoomGesturesLabel,
   getReadingDirectionLabel,
 } from '../model/ReaderPreferencesStore'
 import { listInstalled } from '../sourceRuntime/SourceRuntimeAppRegistry'
@@ -207,6 +208,7 @@ function createSettingsSections(): SettingsSection[] {
         { key: 'reader-image-fit', titleKey: 'settings_row_reader_image_fit_title', detailKey: 'settings_row_reader_image_fit_detail' },
         { key: 'reader-tap-navigation', titleKey: 'settings_row_reader_tap_navigation_title', detailKey: 'settings_row_reader_tap_navigation_detail' },
         { key: 'reader-swipe-navigation', titleKey: 'settings_row_reader_swipe_navigation_title', detailKey: 'settings_row_reader_swipe_navigation_detail' },
+        { key: 'reader-zoom-gestures', titleKey: 'settings_row_reader_zoom_gestures_title', detailKey: 'settings_row_reader_zoom_gestures_detail' },
         { key: 'reader-tap-zone-preset', titleKey: 'settings_row_reader_tap_zone_preset_title', detailKey: 'settings_row_reader_tap_zone_preset_detail' },
         { key: 'reader-show-tap-zones', titleKey: 'settings_row_reader_show_tap_zones_title', detailKey: 'settings_row_reader_show_tap_zones_detail' },
         { key: 'reader-page-gap', titleKey: 'settings_row_reader_page_gap_title', detailKey: 'settings_row_reader_page_gap_detail' },
@@ -411,6 +413,7 @@ export struct SettingsPage {
   @Local private readerImageFitMode: ReaderImageFitMode = 'contain'
   @Local private readerTapNavigationEnabled: boolean = true
   @Local private readerSwipeNavigationEnabled: boolean = true
+  @Local private readerZoomGesturesEnabled: boolean = true
   @Local private readerTapZonePreset: ReaderTapZonePreset = 'edge'
   @Local private readerShowTapZones: boolean = false
   @Local private readerPageGapMode: ReaderPageGapMode = 'normal'
@@ -577,6 +580,9 @@ export struct SettingsPage {
     }
     if (row.key === 'reader-swipe-navigation') {
       return getReaderSwipeNavigationLabel(this.readerSwipeNavigationEnabled)
+    }
+    if (row.key === 'reader-zoom-gestures') {
+      return getReaderZoomGesturesLabel(this.readerZoomGesturesEnabled)
     }
     if (row.key === 'reader-tap-zone-preset') {
       return getReaderTapZonePresetLabel(this.readerTapZonePreset)
@@ -989,6 +995,7 @@ export struct SettingsPage {
     this.readerImageFitMode = preferences.imageFitMode
     this.readerTapNavigationEnabled = preferences.tapNavigationEnabled
     this.readerSwipeNavigationEnabled = preferences.swipeNavigationEnabled
+    this.readerZoomGesturesEnabled = preferences.zoomGesturesEnabled
     this.readerTapZonePreset = preferences.tapZonePreset
     this.readerShowTapZones = preferences.showTapZones
     this.readerPageGapMode = preferences.pageGapMode
@@ -1349,6 +1356,17 @@ export struct SettingsPage {
       })
       .catch((error: Error) => {
         console.warn('[Settings] step=save_reader_swipe_navigation_failed code=' + safeSettingsErrorCode(error))
+      })
+  }
+
+  private saveReaderZoomGesturesEnabled(zoomGesturesEnabled: boolean): void {
+    this.readerZoomGesturesEnabled = zoomGesturesEnabled
+    void this.preferencesStore().saveZoomGesturesEnabled(zoomGesturesEnabled)
+      .then(() => {
+        console.info('[Settings] step=save_reader_zoom_gestures value=' + zoomGesturesEnabled)
+      })
+      .catch((error: Error) => {
+        console.warn('[Settings] step=save_reader_zoom_gestures_failed code=' + safeSettingsErrorCode(error))
       })
   }
 
@@ -2027,6 +2045,7 @@ export struct SettingsPage {
       row.key === 'reader-keep-screen-awake' ||
       row.key === 'reader-tap-navigation' ||
       row.key === 'reader-swipe-navigation' ||
+      row.key === 'reader-zoom-gestures' ||
       row.key === 'reader-show-tap-zones' ||
       row.key === 'reader-trim-page-margins' ||
       row.key === 'reader-volume-key-navigation'
@@ -2062,6 +2081,9 @@ export struct SettingsPage {
     }
     if (row.key === 'reader-swipe-navigation') {
       return this.readerSwipeNavigationEnabled
+    }
+    if (row.key === 'reader-zoom-gestures') {
+      return this.readerZoomGesturesEnabled
     }
     if (row.key === 'reader-trim-page-margins') {
       return this.readerTrimPageMarginsEnabled
@@ -2102,6 +2124,8 @@ export struct SettingsPage {
       this.saveReaderTapNavigationEnabled(value)
     } else if (row.key === 'reader-swipe-navigation') {
       this.saveReaderSwipeNavigationEnabled(value)
+    } else if (row.key === 'reader-zoom-gestures') {
+      this.saveReaderZoomGesturesEnabled(value)
     } else if (row.key === 'reader-show-tap-zones') {
       this.saveReaderShowTapZones(value)
     } else if (row.key === 'reader-trim-page-margins') {

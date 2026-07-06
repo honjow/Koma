@@ -229,6 +229,8 @@
     { "name": "settings_row_reader_tap_navigation_detail", "value": "点击切换页面" },
     { "name": "settings_row_reader_swipe_navigation_title", "value": "滑动翻页" },
     { "name": "settings_row_reader_swipe_navigation_detail", "value": "拖动页面切换" },
+    { "name": "settings_row_reader_zoom_gestures_title", "value": "缩放手势" },
+    { "name": "settings_row_reader_zoom_gestures_detail", "value": "双击或双指缩放页面" },
     { "name": "settings_row_reader_tap_zone_preset_title", "value": "点击区域预设" },
     { "name": "settings_row_reader_tap_zone_preset_detail", "value": "点击区域布局" },
     { "name": "settings_row_reader_show_tap_zones_title", "value": "显示点击区域" },

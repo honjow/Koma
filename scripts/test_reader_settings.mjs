@@ -70,6 +70,11 @@ assert.match(
 )
 assert.match(
   readerPreferencesStoreSource,
+  /ZOOM_GESTURES_ENABLED_KEY:\s*string = 'reader\.zoomGesturesEnabled'/,
+  'zoom gesture setting must have a stable persistence key',
+)
+assert.match(
+  readerPreferencesStoreSource,
   /TAP_ZONE_PRESET_KEY:\s*string = 'reader\.tapZonePreset'/,
   'tap zone preset must have a stable persistence key',
 )
@@ -100,7 +105,7 @@ assert.match(
 )
 assert.match(
   readerPreferencesStoreSource,
-  /export interface ReaderSeriesPreferenceOverrides \{[\s\S]*pageMode\?: ReaderPageMode[\s\S]*readingDirection\?: ReadingDirection[\s\S]*backgroundMode\?: ReaderBackgroundMode[\s\S]*imageFitMode\?: ReaderImageFitMode[\s\S]*tapNavigationEnabled\?: boolean[\s\S]*swipeNavigationEnabled\?: boolean[\s\S]*tapZonePreset\?: ReaderTapZonePreset[\s\S]*showTapZones\?: boolean[\s\S]*pageGapMode\?: ReaderPageGapMode[\s\S]*wideImageMode\?: ReaderWideImageMode/,
+  /export interface ReaderSeriesPreferenceOverrides \{[\s\S]*pageMode\?: ReaderPageMode[\s\S]*readingDirection\?: ReadingDirection[\s\S]*backgroundMode\?: ReaderBackgroundMode[\s\S]*imageFitMode\?: ReaderImageFitMode[\s\S]*tapNavigationEnabled\?: boolean[\s\S]*swipeNavigationEnabled\?: boolean[\s\S]*zoomGesturesEnabled\?: boolean[\s\S]*tapZonePreset\?: ReaderTapZonePreset[\s\S]*showTapZones\?: boolean[\s\S]*pageGapMode\?: ReaderPageGapMode[\s\S]*wideImageMode\?: ReaderWideImageMode/,
   'reader preferences must model per-series overrides for quick reader settings that affect per-title reading comfort',
 )
 assert.match(
@@ -110,8 +115,8 @@ assert.match(
 )
 assert.match(
   readerPreferencesStoreSource,
-  /DEFAULT_READER_PREFERENCES:[\s\S]*backgroundMode:\s*'black'[\s\S]*imageFitMode:\s*'fit_width'[\s\S]*tapNavigationEnabled:\s*true[\s\S]*swipeNavigationEnabled:\s*true[\s\S]*tapZonePreset:\s*'edge'[\s\S]*showTapZones:\s*false[\s\S]*pageGapMode:\s*'normal'[\s\S]*trimPageMarginsEnabled:\s*false[\s\S]*wideImageMode:\s*'keep_single'[\s\S]*volumeKeyNavigationEnabled:\s*false/,
-  'new reader settings must default to black background, full-width image fit, enabled narrow-edge tap and swipe navigation, hidden tap-zone overlay, normal spacing, no trim, keep-wide-as-single-page, and no volume-key navigation',
+  /DEFAULT_READER_PREFERENCES:[\s\S]*backgroundMode:\s*'black'[\s\S]*imageFitMode:\s*'fit_width'[\s\S]*tapNavigationEnabled:\s*true[\s\S]*swipeNavigationEnabled:\s*true[\s\S]*zoomGesturesEnabled:\s*true[\s\S]*tapZonePreset:\s*'edge'[\s\S]*showTapZones:\s*false[\s\S]*pageGapMode:\s*'normal'[\s\S]*trimPageMarginsEnabled:\s*false[\s\S]*wideImageMode:\s*'keep_single'[\s\S]*volumeKeyNavigationEnabled:\s*false/,
+  'new reader settings must default to black background, full-width image fit, enabled narrow-edge tap/swipe/zoom gestures, hidden tap-zone overlay, normal spacing, no trim, keep-wide-as-single-page, and no volume-key navigation',
 )
 assert.match(
   readerPreferencesStoreSource,
@@ -132,6 +137,11 @@ assert.match(
   readerPreferencesStoreSource,
   /normalizeReaderSwipeNavigationEnabled\(value: boolean \| string \| number\)[\s\S]*value === false[\s\S]*return false[\s\S]*return true/,
   'swipe navigation loading must default to enabled for older preference stores',
+)
+assert.match(
+  readerPreferencesStoreSource,
+  /normalizeReaderZoomGesturesEnabled\(value: boolean \| string \| number\)[\s\S]*value === false[\s\S]*return false[\s\S]*return true/,
+  'zoom gesture loading must default to enabled for older preference stores',
 )
 assert.match(
   readerPreferencesStoreSource,
@@ -175,6 +185,11 @@ assert.match(
 )
 assert.match(
   readerPreferencesStoreSource,
+  /getReaderZoomGesturesLabel\(zoomGesturesEnabled: boolean\): string \{[\s\S]*zoomGesturesEnabled \? AppStrings\.get\('common_on'\) : AppStrings\.get\('common_off'\)/,
+  'zoom gesture label must reflect the persisted on/off setting',
+)
+assert.match(
+  readerPreferencesStoreSource,
   /getReaderTapZonePresetLabel\(preset: ReaderTapZonePreset\): string \{[\s\S]*preset === 'wide_edges'[\s\S]*return AppStrings\.get\('reader_tap_zone_wide'\)[\s\S]*return AppStrings\.get\('reader_tap_zone_edge'\)/,
   'tap zone preset labels must be user-facing names instead of internal enum values',
 )
@@ -207,6 +222,11 @@ assert.match(
   readerPreferencesStoreSource,
   /store\.get\(SWIPE_NAVIGATION_ENABLED_KEY, DEFAULT_READER_PREFERENCES\.swipeNavigationEnabled\)/,
   'reader preferences load must read persisted swipe navigation setting',
+)
+assert.match(
+  readerPreferencesStoreSource,
+  /store\.get\(ZOOM_GESTURES_ENABLED_KEY, DEFAULT_READER_PREFERENCES\.zoomGesturesEnabled\)/,
+  'reader preferences load must read persisted zoom gesture setting',
 )
 assert.match(
   readerPreferencesStoreSource,
@@ -257,6 +277,11 @@ assert.match(
   readerPreferencesStoreSource,
   /async saveSwipeNavigationEnabled\(swipeNavigationEnabled: boolean\)/,
   'reader preferences store must persist swipe navigation independently',
+)
+assert.match(
+  readerPreferencesStoreSource,
+  /async saveZoomGesturesEnabled\(zoomGesturesEnabled: boolean\)/,
+  'reader preferences store must persist zoom gestures independently',
 )
 assert.match(
   readerPreferencesStoreSource,
@@ -345,7 +370,7 @@ assert.match(
 )
 assert.match(
   readerChromeSource,
-  /QuickSettingsToggle\(s\('settings_row_reader_tap_navigation_title'\)[\s\S]*onTapNavigationEnabledChange\(enabled\)[\s\S]*QuickSettingsToggle\(s\('settings_row_reader_swipe_navigation_title'\)[\s\S]*onSwipeNavigationEnabledChange\(enabled\)[\s\S]*QuickSettingsToggle\(s\('settings_row_reader_show_tap_zones_title'\)[\s\S]*onShowTapZonesChange\(enabled\)/,
+  /QuickSettingsToggle\(s\('settings_row_reader_tap_navigation_title'\)[\s\S]*onTapNavigationEnabledChange\(enabled\)[\s\S]*QuickSettingsToggle\(s\('settings_row_reader_swipe_navigation_title'\)[\s\S]*onSwipeNavigationEnabledChange\(enabled\)[\s\S]*QuickSettingsToggle\(s\('settings_row_reader_zoom_gestures_title'\)[\s\S]*onZoomGesturesEnabledChange\(enabled\)[\s\S]*QuickSettingsToggle\(s\('settings_row_reader_show_tap_zones_title'\)[\s\S]*onShowTapZonesChange\(enabled\)/,
   'ReaderChrome quick settings must use switch controls for binary reader interaction settings',
 )
 assert.match(
@@ -385,17 +410,19 @@ assert.match(
 )
 assert.match(
   readerPageSource,
-  /ReaderChrome\(\{[\s\S]*backgroundMode: this\.backgroundMode[\s\S]*imageFitMode: this\.imageFitMode[\s\S]*tapNavigationEnabled: this\.tapNavigationEnabled[\s\S]*swipeNavigationEnabled: this\.swipeNavigationEnabled[\s\S]*tapZonePreset: this\.tapZonePreset[\s\S]*showTapZones: this\.showTapZones[\s\S]*pageGapMode: this\.pageGapMode[\s\S]*wideImageMode: this\.wideImageMode/,
+  /ReaderChrome\(\{[\s\S]*backgroundMode: this\.backgroundMode[\s\S]*imageFitMode: this\.imageFitMode[\s\S]*tapNavigationEnabled: this\.tapNavigationEnabled[\s\S]*swipeNavigationEnabled: this\.swipeNavigationEnabled[\s\S]*zoomGesturesEnabled: this\.zoomGesturesEnabled[\s\S]*tapZonePreset: this\.tapZonePreset[\s\S]*showTapZones: this\.showTapZones[\s\S]*pageGapMode: this\.pageGapMode[\s\S]*wideImageMode: this\.wideImageMode/,
   'ReaderPage must pass live reader display and interaction settings into the immersive quick settings panel',
 )
 allReaderStringSources.forEach((source, index) => {
   assert.match(source, /"name": "reader_tap_zone_center"/, `reader tap-zone center label must exist in locale ${index}`)
+  assert.match(source, /"name": "settings_row_reader_zoom_gestures_title"/, `reader zoom gesture setting title must exist in locale ${index}`)
 })
 
 assert.match(settingsPageSource, /key: 'reader-image-fit', titleKey: 'settings_row_reader_image_fit_title'/, 'Settings must expose an image fit row')
 assert.match(settingsPageSource, /key: 'reader-background', titleKey: 'settings_row_reader_background_title'/, 'Settings must expose a reader background row')
 assert.match(settingsPageSource, /key: 'reader-tap-navigation', titleKey: 'settings_row_reader_tap_navigation_title'/, 'Settings must expose a tap navigation row')
 assert.match(settingsPageSource, /key: 'reader-swipe-navigation', titleKey: 'settings_row_reader_swipe_navigation_title'/, 'Settings must expose a swipe navigation row')
+assert.match(settingsPageSource, /key: 'reader-zoom-gestures', titleKey: 'settings_row_reader_zoom_gestures_title'/, 'Settings must expose a zoom gesture row')
 assert.match(settingsPageSource, /key: 'reader-tap-zone-preset', titleKey: 'settings_row_reader_tap_zone_preset_title'/, 'Settings must expose a tap-zone preset row')
 assert.match(settingsPageSource, /key: 'reader-show-tap-zones', titleKey: 'settings_row_reader_show_tap_zones_title'/, 'Settings must expose a tap-zone visualization row')
 assert.match(settingsPageSource, /key: 'reader-page-gap', titleKey: 'settings_row_reader_page_gap_title'/, 'Settings must expose a page gap row')
@@ -406,6 +433,7 @@ assert.match(settingsPageSource, /reader-image-fit[\s\S]*SelectionMenuItem\(s\('
 assert.match(settingsPageSource, /reader-background[\s\S]*SelectionMenuItem\(s\('reader_background_black'\)[\s\S]*saveReaderBackgroundMode\('black'\)[\s\S]*SelectionMenuItem\(s\('reader_background_paper'\)[\s\S]*saveReaderBackgroundMode\('paper'\)[\s\S]*SelectionMenuItem\(s\('reader_background_light'\)[\s\S]*saveReaderBackgroundMode\('light'\)/, 'reader background menu must expose black, paper, and light choices')
 assert.match(settingsPageSource, /reader-tap-navigation[\s\S]*saveReaderTapNavigationEnabled\(value\)/, 'tap navigation row must expose a real switch-backed on/off choice')
 assert.match(settingsPageSource, /reader-swipe-navigation[\s\S]*saveReaderSwipeNavigationEnabled\(value\)/, 'swipe navigation row must expose a real switch-backed on/off choice')
+assert.match(settingsPageSource, /reader-zoom-gestures[\s\S]*saveReaderZoomGesturesEnabled\(value\)/, 'zoom gesture row must expose a real switch-backed on/off choice')
 assert.match(settingsPageSource, /reader-tap-zone-preset[\s\S]*SelectionMenuItem\(s\('reader_tap_zone_edge'\)[\s\S]*SelectionMenuItem\(s\('reader_tap_zone_wide'\)/, 'tap zone preset menu must expose user-facing preset names')
 assert.match(settingsPageSource, /reader-show-tap-zones[\s\S]*saveReaderShowTapZones\(value\)/, 'tap zone visualization row must expose a real switch-backed on/off choice')
 assert.match(
@@ -426,7 +454,7 @@ assert.match(settingsPageSource, /reader-volume-key-navigation[\s\S]*saveReaderV
 
 assert.match(
   readerPageSource,
-  /backgroundMode = preferences\.backgroundMode[\s\S]*imageFitMode = preferences\.imageFitMode[\s\S]*tapNavigationEnabled = preferences\.tapNavigationEnabled[\s\S]*swipeNavigationEnabled = preferences\.swipeNavigationEnabled[\s\S]*tapZonePreset = preferences\.tapZonePreset[\s\S]*showTapZones = preferences\.showTapZones[\s\S]*pageGapMode = preferences\.pageGapMode[\s\S]*trimPageMarginsEnabled = preferences\.trimPageMarginsEnabled[\s\S]*wideImageMode = preferences\.wideImageMode/,
+  /backgroundMode = preferences\.backgroundMode[\s\S]*imageFitMode = preferences\.imageFitMode[\s\S]*tapNavigationEnabled = preferences\.tapNavigationEnabled[\s\S]*swipeNavigationEnabled = preferences\.swipeNavigationEnabled[\s\S]*zoomGesturesEnabled = preferences\.zoomGesturesEnabled[\s\S]*tapZonePreset = preferences\.tapZonePreset[\s\S]*showTapZones = preferences\.showTapZones[\s\S]*pageGapMode = preferences\.pageGapMode[\s\S]*trimPageMarginsEnabled = preferences\.trimPageMarginsEnabled[\s\S]*wideImageMode = preferences\.wideImageMode/,
   'ReaderPage must apply persisted advanced settings after load',
 )
 assert.match(
@@ -441,8 +469,13 @@ assert.match(
 )
 assert.match(
   readerPageSource,
-  /private setReaderTapNavigationEnabled\(tapNavigationEnabled: boolean\): void[\s\S]*this\.tapNavigationEnabled = tapNavigationEnabled[\s\S]*store\.saveTapNavigationEnabled\(tapNavigationEnabled\)[\s\S]*private setReaderSwipeNavigationEnabled\(swipeNavigationEnabled: boolean\): void[\s\S]*this\.swipeNavigationEnabled = swipeNavigationEnabled[\s\S]*store\.saveSwipeNavigationEnabled\(swipeNavigationEnabled\)/,
+  /private setReaderTapNavigationEnabled\(tapNavigationEnabled: boolean\): void[\s\S]*this\.tapNavigationEnabled = tapNavigationEnabled[\s\S]*store\.saveTapNavigationEnabled\(tapNavigationEnabled\)[\s\S]*private setReaderSwipeNavigationEnabled\(swipeNavigationEnabled: boolean\): void[\s\S]*this\.swipeNavigationEnabled = swipeNavigationEnabled[\s\S]*store\.saveSwipeNavigationEnabled\(swipeNavigationEnabled\)[\s\S]*private setReaderZoomGesturesEnabled\(zoomGesturesEnabled: boolean\): void[\s\S]*this\.zoomGesturesEnabled = zoomGesturesEnabled[\s\S]*!zoomGesturesEnabled[\s\S]*this\.resetReaderZoom\(true\)[\s\S]*store\.saveZoomGesturesEnabled\(zoomGesturesEnabled\)/,
   'ReaderPage quick interaction switches must apply immediately and persist',
+)
+assert.match(
+  readerPageSource,
+  /private onReaderDoubleTap\(tapX: number, tapY: number\): void \{[\s\S]*!this\.zoomGesturesEnabled[\s\S]*return[\s\S]*private onReaderPinchStart\(event\?: GestureEvent\): void \{[\s\S]*!this\.zoomGesturesEnabled \|\| event === undefined[\s\S]*private onReaderPanUpdate\(event\?: GestureEvent\): void \{[\s\S]*!this\.zoomGesturesEnabled \|\| event === undefined \|\| this\.zoomScale <= 1\.01[\s\S]*private onReaderPanEnd\(\): void \{[\s\S]*!this\.zoomGesturesEnabled \|\| this\.zoomScale <= 1\.01/,
+  'ReaderPage must make double-tap, pinch zoom, and zoom-pan respect the zoom gesture preference at runtime',
 )
 assert.match(
   readerPageSource,
@@ -451,7 +484,7 @@ assert.match(
 )
 assert.match(
   readerPageSource,
-  /onBackgroundModeChange: \(mode: ReaderBackgroundMode\) => \{[\s\S]*this\.setReaderBackgroundMode\(mode\)[\s\S]*onImageFitModeChange: \(mode: ReaderImageFitMode\) => \{[\s\S]*this\.setReaderImageFitMode\(mode\)[\s\S]*onWideImageModeChange: \(mode: ReaderWideImageMode\) => \{[\s\S]*this\.setReaderWideImageMode\(mode\)/,
+  /onBackgroundModeChange: \(mode: ReaderBackgroundMode\) => \{[\s\S]*this\.setReaderBackgroundMode\(mode\)[\s\S]*onImageFitModeChange: \(mode: ReaderImageFitMode\) => \{[\s\S]*this\.setReaderImageFitMode\(mode\)[\s\S]*onZoomGesturesEnabledChange: \(enabled: boolean\) => \{[\s\S]*this\.setReaderZoomGesturesEnabled\(enabled\)[\s\S]*onWideImageModeChange: \(mode: ReaderWideImageMode\) => \{[\s\S]*this\.setReaderWideImageMode\(mode\)/,
   'ReaderPage must wire ReaderChrome quick settings callbacks into immediate preference updates',
 )
 assert.match(
@@ -656,8 +689,8 @@ assert.match(
 )
 assert.match(
   readerPageSource,
-  /private ReaderInputLayer\(\)[\s\S]*\.zIndex\(12\)[\s\S]*\.gesture\(GestureGroup\(GestureMode\.Exclusive,[\s\S]*TapGesture\(\{ count: 2, distanceThreshold: 8 \}\)[\s\S]*this\.onReaderDoubleTap[\s\S]*TapGesture\(\{ count: 1 \}\)[\s\S]*this\.onReaderTap[\s\S]*\.scale\(\{ x: this\.zoomScale, y: this\.zoomScale \}\)[\s\S]*\.translate\(\{ x: this\.zoomOffsetX, y: this\.zoomOffsetY \}\)[\s\S]*\.gesture\(GestureGroup\(GestureMode\.Parallel,[\s\S]*PinchGesture\(\{ fingers: 2 \}\)[\s\S]*PanGesture\(\{ fingers: 1, direction: PanDirection\.All, distance: 2 \}\)/,
-  'reader tap input layer must stay below chrome while the content surface owns pinch and zoomed pan gestures',
+  /private ReaderInputLayer\(\)[\s\S]*\.zIndex\(12\)[\s\S]*\.gesture\(GestureGroup\(GestureMode\.Parallel,[\s\S]*GestureGroup\(GestureMode\.Exclusive,[\s\S]*TapGesture\(\{ count: 2, distanceThreshold: 8 \}\)[\s\S]*this\.onReaderDoubleTap[\s\S]*TapGesture\(\{ count: 1 \}\)[\s\S]*this\.onReaderTap[\s\S]*PinchGesture\(\{ fingers: 2 \}\)[\s\S]*this\.onReaderPinchUpdate\(event\)[\s\S]*PanGesture\(\{ fingers: 1, direction: PanDirection\.All, distance: 2 \}\)[\s\S]*this\.onReaderPanUpdate\(event\)[\s\S]*private ReaderInteractiveContentSurface\(\)[\s\S]*\.scale\(\{ x: this\.zoomScale, y: this\.zoomScale \}\)[\s\S]*\.translate\(\{ x: this\.zoomOffsetX, y: this\.zoomOffsetY \}\)[\s\S]*this\.ReaderInputLayer\(\)/,
+  'reader input layer must stay below chrome while owning tap, pinch, and zoomed pan gestures for the scaled content surface',
 )
 assert.match(
   readerPageSource,

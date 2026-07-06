@@ -229,6 +229,8 @@
     { "name": "settings_row_reader_tap_navigation_detail", "value": "Tap to turn pages" },
     { "name": "settings_row_reader_swipe_navigation_title", "value": "Swipe navigation" },
     { "name": "settings_row_reader_swipe_navigation_detail", "value": "Drag pages to turn" },
+    { "name": "settings_row_reader_zoom_gestures_title", "value": "Zoom gestures" },
+    { "name": "settings_row_reader_zoom_gestures_detail", "value": "Double-tap or pinch to zoom pages" },
     { "name": "settings_row_reader_tap_zone_preset_title", "value": "Tap zone preset" },
     { "name": "settings_row_reader_tap_zone_preset_detail", "value": "Tap zone layout" },
     { "name": "settings_row_reader_show_tap_zones_title", "value": "Show tap zones" },
