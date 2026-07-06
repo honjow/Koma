@@ -37,6 +37,7 @@ export interface LibraryComicCardViewModel {
   accentColor: string
   pageCount: number
   coverUri?: string
+  sourceRuntimeId?: string
   categoryLabels: string[]
 }
 
@@ -47,6 +48,7 @@ export interface ContinueReadingCardViewModel {
   color: string
   comicId: ComicId
   coverUri?: string
+  sourceRuntimeId?: string
 }
 
 export interface LibraryViewModel {
@@ -379,6 +381,7 @@ export function createLibraryViewModelFromComics(
       accentColor: presentation.accentColor,
       pageCount: comic.pageCount,
       coverUri: comic.coverUri,
+      sourceRuntimeId: comic.sourceRuntimeId,
       categoryLabels: formatCategoryLabels(comic.categoryIds),
     }
   })
@@ -417,6 +420,7 @@ export function createLibraryViewModelFromComics(
       color: continuePresentation.coverColor,
       comicId: continueComic.id,
       coverUri: continueComic.coverUri,
+      sourceRuntimeId: continueComic.sourceRuntimeId,
     },
   }
 }

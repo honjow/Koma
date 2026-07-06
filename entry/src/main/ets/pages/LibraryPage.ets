@@ -1,6 +1,7 @@
 import { common } from '@kit.AbilityKit'
 import { Chip, ChipSize } from '@kit.ArkUI'
 import { ComicCoverCard, ComicCoverInfo } from '../components/ComicCoverCard'
+import { CachedCoverImage } from '../components/CachedCoverImage'
 import { SecondaryListScaffold } from '../components/SecondaryListScaffold'
 import { ConciseListRow } from '../components/ui/ConciseListRow'
 import { KomaActionButton } from '../components/ui/KomaActionButton'
@@ -91,7 +92,19 @@ struct ContinueReadingShelfCard {
     comicId: '',
   }
   @Param revision: number = 0
+  @Local private failedCoverUri: string = ''
   @Event onOpenReader: (comicId: ComicId, chapterId?: string) => void = (_comicId: ComicId, _chapterId?: string) => {}
+
+  private shouldShowCover(): boolean {
+    const coverUri = this.info.coverUri ?? ''
+    return coverUri.length > 0 && this.failedCoverUri !== coverUri
+  }
+
+  private isRemoteSourceCover(): boolean {
+    const coverUri = this.info.coverUri?.toLocaleLowerCase() ?? ''
+    const sourceRuntimeId = this.info.sourceRuntimeId?.trim() ?? ''
+    return sourceRuntimeId.length > 0 && (coverUri.startsWith('http://') || coverUri.startsWith('https://'))
+  }
 
   build() {
     Row({ space: ThemeConstants.SPACE_MD }) {
@@ -100,6 +113,28 @@ struct ContinueReadingShelfCard {
           .fontSize(ThemeConstants.SPACE_XXL)
           .fontWeight(FontWeight.Bold)
           .fontColor(ThemeConstants.TEXT_ON_BRAND)
+        if (this.shouldShowCover()) {
+          if (this.isRemoteSourceCover()) {
+            CachedCoverImage({
+              uri: this.info.coverUri ?? '',
+              objectFit: ImageFit.Cover,
+              sourceRuntimeId: this.info.sourceRuntimeId ?? '',
+              sourceImageId: this.info.comicId,
+              onError: () => {
+                this.failedCoverUri = this.info.coverUri ?? ''
+              },
+            })
+          } else {
+            Image(this.info.coverUri ?? '')
+              .width('100%')
+              .height('100%')
+              .objectFit(ImageFit.Cover)
+              .interpolation(ImageInterpolation.Medium)
+              .onError(() => {
+                this.failedCoverUri = this.info.coverUri ?? ''
+              })
+          }
+        }
       }
       .width(76)
       .height(102)
@@ -714,6 +749,7 @@ export struct LibraryPage {
         accentColor: comic.accentColor,
         pageCount: comic.pageCount,
         coverUri: comic.coverUri,
+        sourceRuntimeId: comic.sourceRuntimeId,
         categoryLabels: this.showLibraryBadges ?
           (sourceComic === undefined ? comic.categoryLabels : this.categoryLabelsForComic(sourceComic)) :
           [],
@@ -1863,18 +1899,36 @@ export struct LibraryPage {
     }
   }
 
+  private isSourceAwareCover(comic: ComicCoverInfo): boolean {
+    const sourceRuntimeId = comic.sourceRuntimeId?.trim() ?? ''
+    const coverUri = comic.coverUri?.toLocaleLowerCase() ?? ''
+    return sourceRuntimeId.length > 0 && (coverUri.startsWith('http://') || coverUri.startsWith('https://'))
+  }
+
   @Builder
   private LibraryListCover(comic: ComicCoverInfo) {
     Stack({ alignContent: Alignment.Center }) {
       if (this.shouldShowCoverUri(comic.coverUri)) {
-        Image(comic.coverUri)
-          .width('100%')
-          .height('100%')
-          .objectFit(ImageFit.Cover)
-          .interpolation(ImageInterpolation.Medium)
-          .onError(() => {
-            this.markCoverUriFailed(comic.coverUri)
+        if (this.isSourceAwareCover(comic)) {
+          CachedCoverImage({
+            uri: comic.coverUri ?? '',
+            objectFit: ImageFit.Cover,
+            sourceRuntimeId: comic.sourceRuntimeId ?? '',
+            sourceImageId: comic.id,
+            onError: () => {
+              this.markCoverUriFailed(comic.coverUri)
+            },
           })
+        } else {
+          Image(comic.coverUri)
+            .width('100%')
+            .height('100%')
+            .objectFit(ImageFit.Cover)
+            .interpolation(ImageInterpolation.Medium)
+            .onError(() => {
+              this.markCoverUriFailed(comic.coverUri)
+            })
+        }
       } else {
         Text('K')
           .fontSize(ThemeConstants.FONT_SIZE_H2)

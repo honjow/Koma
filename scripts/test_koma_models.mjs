@@ -1642,6 +1642,11 @@ assert.match(
 )
 assert.match(
   comicCoverCardSource,
+  /import \{ CachedCoverImage \} from '\.\/CachedCoverImage'[\s\S]*sourceRuntimeId\?: string[\s\S]*shouldUseSourceAwareCover\(\): boolean[\s\S]*this\.isRemoteCoverUri\(\) && this\.displaySourceRuntimeId\(\)\.trim\(\)\.length > 0[\s\S]*CachedCoverImage\(\{[\s\S]*uri: this\.displayCoverUri\(\)[\s\S]*sourceRuntimeId: this\.displaySourceRuntimeId\(\)[\s\S]*sourceImageId: this\.comic\.id/,
+  'ComicCoverCard must use source-aware cached cover rendering for source package library covers',
+)
+assert.match(
+  comicCoverCardSource,
   /@Local private failedCoverUri: string = ''[\s\S]*shouldDisplayCoverImage\(\): boolean[\s\S]*this\.failedCoverUri !== coverUri[\s\S]*\.onError\(\(\) => \{[\s\S]*this\.failedCoverUri = this\.displayCoverUri\(\)/,
   'ComicCoverCard must fall back to its placeholder when a persisted cover URI fails to load',
 )
@@ -1677,13 +1682,18 @@ assert.match(
 )
 assert.match(
   libraryPageSource,
-  /@Local private failedCoverUris: string\[\] = \[\][\s\S]*shouldShowCoverUri\(coverUri: string \| undefined\): boolean[\s\S]*markCoverUriFailed\(coverUri: string \| undefined\): void[\s\S]*Image\(comic\.coverUri\)[\s\S]*\.onError\(\(\) => \{[\s\S]*this\.markCoverUriFailed\(comic\.coverUri\)/,
-  'Library list cover thumbnails must fall back when a stored cover URI fails to load',
+  /@Local private failedCoverUris: string\[\] = \[\][\s\S]*shouldShowCoverUri\(coverUri: string \| undefined\): boolean[\s\S]*markCoverUriFailed\(coverUri: string \| undefined\): void[\s\S]*isSourceAwareCover\(comic: ComicCoverInfo\)[\s\S]*CachedCoverImage\(\{[\s\S]*uri: comic\.coverUri \?\? ''[\s\S]*sourceRuntimeId: comic\.sourceRuntimeId \?\? ''[\s\S]*Image\(comic\.coverUri\)[\s\S]*this\.markCoverUriFailed\(comic\.coverUri\)/,
+  'Library list cover thumbnails must use source-aware cached rendering for source covers and still fall back when a stored cover URI fails',
 )
 assert.match(
   libraryPageSource,
-  /struct ContinueReadingShelfCard \{[\s\S]*@Param info: ContinueReadingCardViewModel[\s\S]*@Param revision: number[\s\S]*Text\(this\.info\.title\)[\s\S]*onOpenReader\(this\.info\.comicId\)/,
-  'Continue Reading must render through reactive props so the live title changes when the first/latest comic is removed',
+  /struct ContinueReadingShelfCard \{[\s\S]*@Param info: ContinueReadingCardViewModel[\s\S]*@Param revision: number[\s\S]*CachedCoverImage\(\{[\s\S]*uri: this\.info\.coverUri \?\? ''[\s\S]*sourceRuntimeId: this\.info\.sourceRuntimeId \?\? ''[\s\S]*Text\(this\.info\.title\)[\s\S]*onOpenReader\(this\.info\.comicId\)/,
+  'Continue Reading must render through reactive props and show the real source-aware cover so live library changes do not leave a fake K card',
+)
+assert.match(
+  mockLibraryDataSource,
+  /LibraryComicCardViewModel[\s\S]*coverUri\?: string[\s\S]*sourceRuntimeId\?: string[\s\S]*ContinueReadingCardViewModel[\s\S]*coverUri\?: string[\s\S]*sourceRuntimeId\?: string[\s\S]*sourceRuntimeId: comic\.sourceRuntimeId[\s\S]*sourceRuntimeId: continueComic\.sourceRuntimeId/,
+  'Library view models must carry sourceRuntimeId with coverUri so source package covers can be rendered through source image requests',
 )
 assert.match(
   libraryPageSource,
@@ -3900,6 +3910,7 @@ function createLibraryViewModelFromComics(storeComics, progressByComicId, presen
       accentColor: presentation?.accentColor ?? '#2FAE84',
       pageCount: comic.pageCount,
       coverUri: comic.coverUri,
+      sourceRuntimeId: comic.sourceRuntimeId,
     }
   })
   let continueComic = storeComics[0]
@@ -3934,6 +3945,7 @@ function createLibraryViewModelFromComics(storeComics, progressByComicId, presen
       color: continuePresentation?.coverColor ?? '#16745F',
       comicId: continueComic.id,
       coverUri: continueComic.coverUri,
+      sourceRuntimeId: continueComic.sourceRuntimeId,
     },
   }
 }

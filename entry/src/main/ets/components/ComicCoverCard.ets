@@ -1,3 +1,4 @@
+import { CachedCoverImage } from './CachedCoverImage'
 import { ThemeConstants } from '../theme/ThemeConstants'
 
 export interface ComicCoverInfo {
@@ -9,6 +10,7 @@ export interface ComicCoverInfo {
   accentColor: string
   pageCount?: number
   coverUri?: string
+  sourceRuntimeId?: string
   categoryLabels?: string[]
 }
 
@@ -59,6 +61,19 @@ export struct ComicCoverCard {
     return this.comic.coverUri ?? ''
   }
 
+  private displaySourceRuntimeId(): string {
+    return this.comic.sourceRuntimeId ?? ''
+  }
+
+  private isRemoteCoverUri(): boolean {
+    const coverUri = this.displayCoverUri().toLocaleLowerCase()
+    return coverUri.startsWith('http://') || coverUri.startsWith('https://')
+  }
+
+  private shouldUseSourceAwareCover(): boolean {
+    return this.isRemoteCoverUri() && this.displaySourceRuntimeId().trim().length > 0
+  }
+
   private shouldDisplayCoverImage(): boolean {
     const coverUri = this.displayCoverUri()
     return coverUri.length > 0 && this.failedCoverUri !== coverUri
@@ -95,14 +110,26 @@ export struct ComicCoverCard {
         this.CoverPlaceholder()
 
         if (this.shouldDisplayCoverImage()) {
-          Image(this.displayCoverUri())
-            .width('100%')
-            .height('100%')
-            .objectFit(ImageFit.Cover)
-            .interpolation(ImageInterpolation.Medium)
-            .onError(() => {
-              this.failedCoverUri = this.displayCoverUri()
+          if (this.shouldUseSourceAwareCover()) {
+            CachedCoverImage({
+              uri: this.displayCoverUri(),
+              objectFit: ImageFit.Cover,
+              sourceRuntimeId: this.displaySourceRuntimeId(),
+              sourceImageId: this.comic.id,
+              onError: () => {
+                this.failedCoverUri = this.displayCoverUri()
+              },
             })
+          } else {
+            Image(this.displayCoverUri())
+              .width('100%')
+              .height('100%')
+              .objectFit(ImageFit.Cover)
+              .interpolation(ImageInterpolation.Medium)
+              .onError(() => {
+                this.failedCoverUri = this.displayCoverUri()
+              })
+          }
         }
 
         if (this.displayProgressText().length > 0) {
