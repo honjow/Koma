@@ -1,4 +1,5 @@
 import { common } from '@kit.AbilityKit'
+import { CachedCoverImage } from '../components/CachedCoverImage'
 import { SecondaryListScaffold } from '../components/SecondaryListScaffold'
 import { KomaActionButton } from '../components/ui/KomaActionButton'
 import { KomaIconButton } from '../components/ui/KomaIconButton'
@@ -302,6 +303,12 @@ export struct HistoryPage {
     }
   }
 
+  private isSourceAwareCover(item: LibraryItem): boolean {
+    const coverUri = item.coverUri?.toLocaleLowerCase() ?? ''
+    const sourceRuntimeId = item.sourceRuntimeId?.trim() ?? ''
+    return sourceRuntimeId.length > 0 && (coverUri.startsWith('http://') || coverUri.startsWith('https://'))
+  }
+
   @Builder
   private EmptyHistory() {
     Column({ space: ThemeConstants.SPACE_MD }) {
@@ -328,14 +335,26 @@ export struct HistoryPage {
   private Cover(item: LibraryItem) {
     Stack({ alignContent: Alignment.Center }) {
       if (this.shouldShowCoverUri(item.coverUri)) {
-        Image(item.coverUri)
-          .width('100%')
-          .height('100%')
-          .objectFit(ImageFit.Cover)
-          .interpolation(ImageInterpolation.Medium)
-          .onError(() => {
-            this.markCoverUriFailed(item.coverUri)
+        if (this.isSourceAwareCover(item)) {
+          CachedCoverImage({
+            uri: item.coverUri ?? '',
+            objectFit: ImageFit.Cover,
+            sourceRuntimeId: item.sourceRuntimeId ?? '',
+            sourceImageId: item.comicId,
+            onError: () => {
+              this.markCoverUriFailed(item.coverUri)
+            },
           })
+        } else {
+          Image(item.coverUri)
+            .width('100%')
+            .height('100%')
+            .objectFit(ImageFit.Cover)
+            .interpolation(ImageInterpolation.Medium)
+            .onError(() => {
+              this.markCoverUriFailed(item.coverUri)
+            })
+        }
       } else {
         Text('K')
           .fontSize(ThemeConstants.FONT_SIZE_H1)

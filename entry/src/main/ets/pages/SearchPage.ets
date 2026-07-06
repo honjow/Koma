@@ -1,5 +1,6 @@
 import { common } from '@kit.AbilityKit'
 import { RouterHelper } from '../common/RouterHelper'
+import { CachedCoverImage } from '../components/CachedCoverImage'
 import { SecondaryListScaffold } from '../components/SecondaryListScaffold'
 import { KomaActionButton } from '../components/ui/KomaActionButton'
 import { KomaIconButton } from '../components/ui/KomaIconButton'
@@ -623,19 +624,37 @@ export struct SearchPage {
     }
   }
 
+  private isSourceAwareCover(item: CrossSearchResultItem): boolean {
+    const coverUri = item.coverUri?.toLocaleLowerCase() ?? ''
+    const sourceId = item.sourceId?.trim() ?? ''
+    return item.sourceKind === 'wasm' && sourceId.length > 0 && (coverUri.startsWith('http://') || coverUri.startsWith('https://'))
+  }
+
   @Builder
   private ResultRow(item: CrossSearchResultItem) {
     Row({ space: ThemeConstants.SPACE_MD }) {
       Stack({ alignContent: Alignment.Center }) {
         if (this.shouldShowCoverUri(item.coverUri)) {
-          Image(item.coverUri)
-            .width('100%')
-            .height('100%')
-            .objectFit(ImageFit.Cover)
-            .interpolation(ImageInterpolation.Medium)
-            .onError(() => {
-              this.markCoverUriFailed(item.coverUri)
+          if (this.isSourceAwareCover(item)) {
+            CachedCoverImage({
+              uri: item.coverUri ?? '',
+              objectFit: ImageFit.Cover,
+              sourceRuntimeId: item.sourceId ?? '',
+              sourceImageId: item.sourceMangaId ?? item.id,
+              onError: () => {
+                this.markCoverUriFailed(item.coverUri)
+              },
             })
+          } else {
+            Image(item.coverUri)
+              .width('100%')
+              .height('100%')
+              .objectFit(ImageFit.Cover)
+              .interpolation(ImageInterpolation.Medium)
+              .onError(() => {
+                this.markCoverUriFailed(item.coverUri)
+              })
+          }
         } else {
           Text(this.badgeText(item))
             .fontSize(ThemeConstants.FONT_SIZE_HEADING)

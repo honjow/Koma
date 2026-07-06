@@ -145,6 +145,7 @@ export interface LibraryItem {
   comicId: ComicId
   title: string
   coverUri?: string
+  sourceRuntimeId?: string
   sourcePath: string
   chapterCount: number
   pageCount: number
@@ -295,6 +296,7 @@ export function comicToLibraryItem(comic: Comic, progress?: ReadingProgress): Li
     comicId: comic.id,
     title: comic.title,
     coverUri: comic.coverUri,
+    sourceRuntimeId: comic.sourceRuntimeId,
     sourcePath: comic.sourcePath,
     chapterCount: comic.chapterCount,
     pageCount: comic.pageCount,

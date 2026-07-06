@@ -1672,13 +1672,18 @@ assert.match(
 )
 assert.match(
   searchPageSource,
-  /@Local private failedCoverUris: string\[\] = \[\][\s\S]*shouldShowCoverUri\(coverUri: string \| undefined\): boolean[\s\S]*markCoverUriFailed\(coverUri: string \| undefined\): void[\s\S]*Image\(item\.coverUri\)[\s\S]*\.onError\(\(\) => \{[\s\S]*this\.markCoverUriFailed\(item\.coverUri\)/,
-  'Cross-search cover thumbnails must remember failed URLs and fall back to source badges',
+  /import \{ CachedCoverImage \} from '\.\.\/components\/CachedCoverImage'[\s\S]*@Local private failedCoverUris: string\[\] = \[\][\s\S]*isSourceAwareCover\(item: CrossSearchResultItem\)[\s\S]*item\.sourceKind === 'wasm'[\s\S]*CachedCoverImage\(\{[\s\S]*uri: item\.coverUri \?\? ''[\s\S]*sourceRuntimeId: item\.sourceId \?\? ''[\s\S]*sourceImageId: item\.sourceMangaId \?\? item\.id[\s\S]*Image\(item\.coverUri\)[\s\S]*this\.markCoverUriFailed\(item\.coverUri\)/,
+  'Cross-search cover thumbnails must use source-aware cached rendering for WASM source covers and fall back to source badges',
 )
 assert.match(
   historyPageSource,
-  /@Local private failedCoverUris: string\[\] = \[\][\s\S]*shouldShowCoverUri\(coverUri: string \| undefined\): boolean[\s\S]*markCoverUriFailed\(coverUri: string \| undefined\): void[\s\S]*Image\(item\.coverUri\)[\s\S]*\.onError\(\(\) => \{[\s\S]*this\.markCoverUriFailed\(item\.coverUri\)/,
-  'History cover thumbnails must fall back when a stored cover URI fails to load',
+  /import \{ CachedCoverImage \} from '\.\.\/components\/CachedCoverImage'[\s\S]*@Local private failedCoverUris: string\[\] = \[\][\s\S]*isSourceAwareCover\(item: LibraryItem\)[\s\S]*item\.sourceRuntimeId\?\.trim\(\)[\s\S]*CachedCoverImage\(\{[\s\S]*uri: item\.coverUri \?\? ''[\s\S]*sourceRuntimeId: item\.sourceRuntimeId \?\? ''[\s\S]*sourceImageId: item\.comicId[\s\S]*Image\(item\.coverUri\)[\s\S]*this\.markCoverUriFailed\(item\.coverUri\)/,
+  'History cover thumbnails must use source-aware cached rendering for source covers and fall back when a stored cover URI fails',
+)
+assert.match(
+  modelSource,
+  /export interface LibraryItem \{[\s\S]*coverUri\?: string[\s\S]*sourceRuntimeId\?: string[\s\S]*comicToLibraryItem\(comic: Comic[\s\S]*coverUri: comic\.coverUri[\s\S]*sourceRuntimeId: comic\.sourceRuntimeId/,
+  'LibraryItem must carry sourceRuntimeId so History can render source package covers through source image requests',
 )
 assert.match(
   libraryPageSource,
