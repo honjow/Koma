@@ -236,6 +236,18 @@ export struct SourcePackageManagerPage {
     return this.compareVersion(entry.version, installed.version) > 0
   }
 
+  private missingIndexEntries(): SourceIndexEntry[] {
+    return this.indexEntries.filter((entry: SourceIndexEntry): boolean => this.installedPackage(entry.id) === undefined)
+  }
+
+  private updatableIndexEntries(): SourceIndexEntry[] {
+    return this.indexEntries.filter((entry: SourceIndexEntry): boolean => this.hasUpdate(entry))
+  }
+
+  private sourceIndexBatchBusy(): boolean {
+    return this.indexInstallBusy || this.indexFetchBusy || this.busy || this.updateInstallSourceId.length > 0
+  }
+
   private updateStatus(sourceId: string): SourcePackageUpdateStatus {
     const status = this.packageUpdateStatuses.find((item: SourcePackageUpdateStatus): boolean => item.sourceId === sourceId)
     if (status !== undefined) {
@@ -786,6 +798,100 @@ export struct SourcePackageManagerPage {
     } finally {
       this.indexInstallBusy = false
     }
+  }
+
+  private async installIndexEntryBatch(entries: SourceIndexEntry[], replaceExisting: boolean): Promise<void> {
+    if (this.sourceIndexBatchBusy()) {
+      return
+    }
+    const url = this.sourceIndexUrl.trim()
+    if (url.length === 0) {
+      this.indexStatusText = t('source_pkg_prompt_index_url')
+      this.showToast(t('source_pkg_prompt_index_url'))
+      return
+    }
+    if (entries.length === 0) {
+      this.showToast(replaceExisting ? t('source_pkg_batch_no_updates') : t('source_pkg_batch_no_missing'))
+      return
+    }
+    this.indexInstallBusy = true
+    let successCount = 0
+    let failedCount = 0
+    let skippedCount = 0
+    this.indexStatusText = replaceExisting
+      ? tf('source_pkg_batch_update_running', entries.length)
+      : tf('source_pkg_batch_install_running', entries.length)
+    console.info('[SourcePackageBatch] step=start mode=' + (replaceExisting ? 'update' : 'install') + ' count=' + entries.length)
+    try {
+      await this.sourceIndexService.saveUrl(url)
+      for (let index = 0; index < entries.length; index += 1) {
+        const entry = entries[index]
+        const existing = this.installedPackage(entry.id)
+        if (existing !== undefined && !replaceExisting) {
+          skippedCount += 1
+          continue
+        }
+        if (replaceExisting && existing === undefined) {
+          skippedCount += 1
+          continue
+        }
+        this.indexStatusText = replaceExisting
+          ? tf('source_pkg_batch_update_progress', index + 1, entries.length)
+          : tf('source_pkg_batch_install_progress', index + 1, entries.length)
+        const result: SourceIndexInstallResult = await this.sourceIndexService.installPackage(url, entry)
+        if (result.ok) {
+          successCount += 1
+          if (existing !== undefined && !existing.enabled) {
+            setEnabled(this.context(), existing.id, false)
+          }
+          if (replaceExisting) {
+            this.setUpdateStatus({
+              sourceId: entry.id,
+              status: 'latest',
+              remoteEntry: entry,
+              remoteVersion: entry.version,
+              localVersion: entry.version,
+            })
+          }
+        } else {
+          failedCount += 1
+          if (replaceExisting) {
+            this.setUpdateStatus({
+              sourceId: entry.id,
+              status: 'failed',
+              remoteEntry: entry,
+              remoteVersion: entry.version,
+              localVersion: existing?.version ?? '',
+              reasonCode: result.reasonCode,
+            })
+          }
+        }
+        this.reload()
+      }
+      this.indexStatusText = replaceExisting
+        ? tf('source_pkg_batch_update_done', successCount, failedCount, skippedCount)
+        : tf('source_pkg_batch_install_done', successCount, failedCount, skippedCount)
+      this.showToast(replaceExisting ? t('source_pkg_batch_update_toast') : t('source_pkg_batch_install_toast'))
+      console.info('[SourcePackageBatch] step=done mode=' + (replaceExisting ? 'update' : 'install') +
+        ' success=' + successCount + ' failed=' + failedCount + ' skipped=' + skippedCount)
+    } catch (_error) {
+      this.indexStatusText = replaceExisting
+        ? tf('source_pkg_batch_update_failed', this.sourceReasonText('network_error'))
+        : tf('source_pkg_batch_install_failed', this.sourceReasonText('network_error'))
+      this.showToast(t('source_pkg_toast_install_failed'))
+      console.error('[SourcePackageBatch] step=failed mode=' + (replaceExisting ? 'update' : 'install') + ' reason=network_error')
+    } finally {
+      this.reload()
+      this.indexInstallBusy = false
+    }
+  }
+
+  private installMissingIndexEntries(): void {
+    void this.installIndexEntryBatch(this.missingIndexEntries(), false)
+  }
+
+  private updateUpdatableIndexEntries(): void {
+    void this.installIndexEntryBatch(this.updatableIndexEntries(), true)
   }
 
   private togglePackage(id: string): void {
@@ -1409,6 +1515,31 @@ export struct SourcePackageManagerPage {
           .fontSize(ThemeConstants.FONT_SIZE_META)
           .lineHeight(ThemeConstants.LINE_HEIGHT_BODY)
           .fontColor(ThemeConstants.TEXT_SECONDARY)
+      }
+
+      if (this.indexEntries.length > 0) {
+        Row({ space: ThemeConstants.SPACE_MD }) {
+          KomaActionButton({
+            label: tf('source_pkg_batch_install_missing', this.missingIndexEntries().length),
+            kind: 'secondary',
+            fill: true,
+            isEnabled: !this.sourceIndexBatchBusy() && this.missingIndexEntries().length > 0,
+            action: () => {
+              this.installMissingIndexEntries()
+            },
+          })
+
+          KomaActionButton({
+            label: tf('source_pkg_batch_update_available', this.updatableIndexEntries().length),
+            kind: 'secondary',
+            fill: true,
+            isEnabled: !this.sourceIndexBatchBusy() && this.updatableIndexEntries().length > 0,
+            action: () => {
+              this.updateUpdatableIndexEntries()
+            },
+          })
+        }
+        .width('100%')
       }
 
       Text(sourcePackageTrustBoundaryNotice())

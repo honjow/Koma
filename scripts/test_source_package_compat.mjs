@@ -1112,6 +1112,26 @@ assert.match(
 )
 assert.match(
   managerPageSource,
+  /missingIndexEntries\(\): SourceIndexEntry\[\][\s\S]*this\.indexEntries\.filter[\s\S]*this\.installedPackage\(entry\.id\) === undefined/,
+  'SourcePackageManagerPage must derive batch install targets from missing current-index entries',
+)
+assert.match(
+  managerPageSource,
+  /updatableIndexEntries\(\): SourceIndexEntry\[\][\s\S]*this\.indexEntries\.filter[\s\S]*this\.hasUpdate\(entry\)/,
+  'SourcePackageManagerPage must derive batch update targets from version-comparable current-index entries',
+)
+assert.match(
+  managerPageSource,
+  /installIndexEntryBatch\(entries: SourceIndexEntry\[\], replaceExisting: boolean\): Promise<void>[\s\S]*this\.sourceIndexService\.saveUrl\(url\)[\s\S]*this\.sourceIndexService\.installPackage\(url, entry\)[\s\S]*setEnabled\(this\.context\(\), existing\.id, false\)[\s\S]*source_pkg_batch_update_done[\s\S]*source_pkg_batch_install_done/,
+  'batch source install/update must reuse SourceIndexService validation, preserve disabled updated sources, and summarize success/failure/skipped counts',
+)
+assert.match(
+  managerPageSource,
+  /source_pkg_batch_install_missing[\s\S]*this\.missingIndexEntries\(\)\.length[\s\S]*this\.installMissingIndexEntries\(\)[\s\S]*source_pkg_batch_update_available[\s\S]*this\.updatableIndexEntries\(\)\.length[\s\S]*this\.updateUpdatableIndexEntries\(\)/,
+  'SourcePackageManagerPage must expose batch install missing and batch update available actions from the loaded index',
+)
+assert.match(
+  managerPageSource,
   /capabilityLabel\(capability: string\)[\s\S]*source_pkg_capability_host_imports[\s\S]*source_pkg_capability_search[\s\S]*source_pkg_capability_detail[\s\S]*source_pkg_capability_chapters[\s\S]*source_pkg_capability_pages[\s\S]*source_pkg_capability_home[\s\S]*source_pkg_capability_filters[\s\S]*source_pkg_capability_settings[\s\S]*source_pkg_capability_image_request/,
   'source capability UI must translate runtime capability tokens into user-facing labels including browse, settings, and image-request features',
 )
