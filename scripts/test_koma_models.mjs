@@ -2692,8 +2692,8 @@ assert.match(
 )
 assert.match(
   readerPageSource,
-  /singlePageWidth\(\): string \{[\s\S]*this\.imageFitMode === 'fit_width'[\s\S]*return '100%'[\s\S]*return '88%'[\s\S]*singlePageMaxWidth\(\): number \{[\s\S]*this\.imageFitMode === 'fit_width'[\s\S]*return 4096[\s\S]*return 980[\s\S]*webtoonPageWidth\(\): string \{[\s\S]*return '100%'[\s\S]*webtoonPageMaxWidth\(\): number \{[\s\S]*this\.imageFitMode === 'fit_width'[\s\S]*return 4096[\s\S]*return 980/,
-  'ReaderPage image fit preference must keep single-page sizing adjustable while continuous-scroll pages stay full-width',
+  /singlePageWidth\(\): string \{[\s\S]*return '100%'[\s\S]*singlePageMaxWidth\(\): number \{[\s\S]*return 4096[\s\S]*webtoonPageWidth\(\): string \{[\s\S]*return '100%'[\s\S]*webtoonPageMaxWidth\(\): number \{[\s\S]*this\.imageFitMode === 'fit_width'[\s\S]*return 4096[\s\S]*return 980/,
+  'ReaderPage single-page sizing must stay full-width instead of reintroducing artificial side gutters',
 )
 assert.match(
   readerPageSource,
