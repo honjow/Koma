@@ -1,5 +1,6 @@
 import { SourceRuntimeRegistryInstalledSourceSummary } from '../sourceRuntime/SourceRuntimeRegistry'
 import { ThemeConstants } from '../theme/ThemeConstants'
+import { ConciseListRow } from './ui/ConciseListRow'
 import { KomaIconButton } from './ui/KomaIconButton'
 
 @ComponentV2
@@ -74,48 +75,30 @@ export struct SourceListItem {
     this.onActivate()
   }
 
-  build() {
-    Row({ space: ThemeConstants.SPACE_MD }) {
-      Stack({ alignContent: Alignment.Center }) {
-        Text(this.sourceInitial())
-          .fontSize(ThemeConstants.FONT_SIZE_H3)
-          .fontWeight(FontWeight.Bold)
-          .fontColor(ThemeConstants.TEXT_ON_BRAND)
-      }
-      .width(ThemeConstants.SOURCE_ICON_SIZE)
-      .height(ThemeConstants.SOURCE_ICON_SIZE)
-      .borderRadius(ThemeConstants.RADIUS_ROUND)
-      .backgroundColor(this.accentColor)
+  @Builder
+  private SourcePrefix() {
+    Stack({ alignContent: Alignment.Center }) {
+      Text(this.sourceInitial())
+        .fontSize(ThemeConstants.FONT_SIZE_H3)
+        .fontWeight(FontWeight.Bold)
+        .fontColor(ThemeConstants.TEXT_ON_BRAND)
+    }
+    .width(ThemeConstants.SOURCE_ICON_SIZE)
+    .height(ThemeConstants.SOURCE_ICON_SIZE)
+    .borderRadius(ThemeConstants.RADIUS_ROUND)
+    .backgroundColor(this.accentColor)
+  }
 
-      Column({ space: ThemeConstants.SPACE_XS }) {
-        Row({ space: ThemeConstants.SPACE_SM }) {
-          Text(this.displayTitle())
-            .fontSize(ThemeConstants.FONT_SIZE_TITLE)
-            .fontWeight(FontWeight.Medium)
-            .fontColor(ThemeConstants.TEXT_PRIMARY)
-            .maxLines(1)
-            .textOverflow({ overflow: TextOverflow.Ellipsis })
-            .layoutWeight(1)
-
-          Text(this.displayBadge())
-            .fontSize(ThemeConstants.FONT_SIZE_TAG)
-            .fontWeight(FontWeight.Medium)
-            .fontColor(ThemeConstants.BRAND_PRIMARY)
-            .padding({ left: 8, right: 8, top: 3, bottom: 3 })
-            .borderRadius(ThemeConstants.RADIUS_CHIP)
-            .backgroundColor(ThemeConstants.SOFT_TINT)
-        }
-        .width('100%')
-        .alignItems(VerticalAlign.Center)
-
-        Text(this.displaySubtitle())
-          .fontSize(ThemeConstants.FONT_SIZE_META)
-          .fontColor(ThemeConstants.TEXT_SECONDARY)
-          .maxLines(1)
-          .textOverflow({ overflow: TextOverflow.Ellipsis })
-      }
-      .layoutWeight(1)
-      .alignItems(HorizontalAlign.Start)
+  @Builder
+  private SourceSuffix() {
+    Row({ space: ThemeConstants.SPACE_SM }) {
+      Text(this.displayBadge())
+        .fontSize(ThemeConstants.FONT_SIZE_TAG)
+        .fontWeight(FontWeight.Medium)
+        .fontColor(ThemeConstants.BRAND_PRIMARY)
+        .padding({ left: 8, right: 8, top: 3, bottom: 3 })
+        .borderRadius(ThemeConstants.RADIUS_CHIP)
+        .backgroundColor(ThemeConstants.SOFT_TINT)
 
       if (this.showSearchButton && this.sourceBacked()) {
         KomaIconButton({
@@ -134,12 +117,24 @@ export struct SourceListItem {
         .fontSize(ThemeConstants.FONT_SIZE_HEADING)
         .fontColor([ThemeConstants.TEXT_SECONDARY])
     }
-    .width('100%')
-    .padding(ThemeConstants.SPACE_MD)
-    .borderRadius(ThemeConstants.RADIUS_CARD)
-    .backgroundColor(ThemeConstants.CARD)
-    .onClick(() => {
-      this.activate()
+    .alignItems(VerticalAlign.Center)
+  }
+
+  build() {
+    ConciseListRow({
+      title: this.displayTitle(),
+      subtitle: this.displaySubtitle(),
+      subtitleMaxLines: 1,
+      showChevron: false,
+      action: () => {
+        this.activate()
+      },
+      prefixBuilderParam: () => {
+        this.SourcePrefix()
+      },
+      suffixBuilderParam: () => {
+        this.SourceSuffix()
+      },
     })
   }
 }
