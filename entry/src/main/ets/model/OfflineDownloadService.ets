@@ -292,6 +292,7 @@ export class OfflineDownloadService {
     )
     this.queueStore.upsert(this.queueStore.fromManifest(manifest, labels?.comicTitle ?? comic.title, labels?.chapterTitle ?? chapter.title))
     const config = createReaderSessionConfigFromComic(comic, chapterId)
+    let pageFetchFailed = false
     try {
       for (let index = 0; index < config.totalPages; index += 1) {
         const preferences = this.queueStore.loadPreferences()
@@ -322,7 +323,15 @@ export class OfflineDownloadService {
         }
         const source = createReaderPageRenderSource(config, index, { preferOffline: false })
         const localPath = this.store.pageFilePath(comic.id, chapterId, pageId, index, extensionFromUri(source.uri.length > 0 ? source.uri : source.imageUri))
-        const writtenPage = await this.writePage(source, localPath)
+        let writtenPage: OfflineDownloadPageWriteResult
+        try {
+          writtenPage = await this.writePage(source, localPath)
+        } catch (error) {
+          void error
+          pageFetchFailed = true
+          console.warn(`[ReaderOffline] step=download_page_failed comic=${createOfflineDownloadStableHash(comic.id)} chapter=${createOfflineDownloadStableHash(chapterId)} page=${index} reason=page_fetch_failed`)
+          continue
+        }
         const row: OfflineDownloadedPage = {
           pageId,
           pageIndex: index,
@@ -344,7 +353,7 @@ export class OfflineDownloadService {
         finalValidation.availablePageCount !== finalValidation.pageCount ||
         finalValidation.missingPageCount !== 0) {
         manifest.status = finalValidation.availablePageCount > 0 ? OfflineDownloadStatus.PARTIAL : OfflineDownloadStatus.FAILED
-        manifest.failureReasonCode = finalValidation.reasonCode ?? 'manifest_validation_failed'
+        manifest.failureReasonCode = pageFetchFailed ? 'page_fetch_failed' : (finalValidation.reasonCode ?? 'manifest_validation_failed')
         manifest = this.store.saveManifest(manifest)
         this.queueStore.upsert(this.queueStore.fromManifest(manifest, labels?.comicTitle ?? comic.title, labels?.chapterTitle ?? chapter.title))
         console.warn(`[ReaderOffline] step=download_final_validation_failed comic=${createOfflineDownloadStableHash(comic.id)} chapter=${createOfflineDownloadStableHash(chapterId)} pages=${finalValidation.availablePageCount}/${finalValidation.pageCount} reason=${manifest.failureReasonCode}`)
