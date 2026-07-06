@@ -808,6 +808,26 @@ export async function fetchAndCacheReaderRemoteImage(url: string, headers?: Read
   return path
 }
 
+export async function fetchAndCacheSourceRuntimeRemoteImage(
+  sourceRuntimeId: string,
+  imageUrl: string,
+  imageId?: string,
+): Promise<string> {
+  const normalizedSourceId = sourceRuntimeId.trim()
+  if (normalizedSourceId.length === 0 || !isReaderRemoteImageSourceUri(imageUrl)) {
+    return fetchAndCacheReaderRemoteImage(imageUrl)
+  }
+  const pageId = imageId !== undefined && imageId.trim().length > 0
+    ? `cover:${imageId.trim()}`
+    : `cover:${createShortReaderHash(imageUrl)}`
+  const resolved = resolveSourceRuntimeImageRequest(normalizedSourceId, pageId, imageUrl)
+  if (resolved !== undefined) {
+    return fetchAndCacheReaderRemoteImage(resolved.url, resolved.headers, resolved.cacheKeySeed)
+  }
+  console.warn(`[ReaderCache] step=source_cover_request_fallback allowed=true source=${createShortReaderHash(normalizedSourceId)} urlHash=${createShortReaderHash(imageUrl)}`)
+  return fetchAndCacheReaderRemoteImage(imageUrl)
+}
+
 function sourceRuntimeImageRequestPayload(responseData: Record<string, Object> | undefined): SourceRuntimeImageRequestDescriptor | undefined {
   if (responseData === undefined) {
     return undefined

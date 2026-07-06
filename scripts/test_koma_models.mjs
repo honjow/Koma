@@ -1640,18 +1640,23 @@ assert.match(
 )
 assert.match(
   mangaGridItemSource,
-  /import \{ CachedCoverImage \} from '\.\/CachedCoverImage'[\s\S]*@Local private failedCoverUrl: string = ''[\s\S]*hasCover\(\): boolean[\s\S]*this\.failedCoverUrl !== coverUrl[\s\S]*CachedCoverImage\(\{[\s\S]*uri: this\.manga\.coverUrl \?\? ''[\s\S]*objectFit: ImageFit\.Cover[\s\S]*onError: \(\) => \{[\s\S]*this\.failedCoverUrl = this\.manga\.coverUrl \?\? ''/,
-  'Source manga grid covers must use the cached cover image path and fail closed to the generated placeholder',
+  /import \{ CachedCoverImage \} from '\.\/CachedCoverImage'[\s\S]*@Local private failedCoverUrl: string = ''[\s\S]*hasCover\(\): boolean[\s\S]*this\.failedCoverUrl !== coverUrl[\s\S]*CachedCoverImage\(\{[\s\S]*uri: this\.manga\.coverUrl \?\? ''[\s\S]*objectFit: ImageFit\.Cover[\s\S]*sourceRuntimeId: this\.manga\.sourceId[\s\S]*sourceImageId: this\.manga\.id[\s\S]*onError: \(\) => \{[\s\S]*this\.failedCoverUrl = this\.manga\.coverUrl \?\? ''/,
+  'Source manga grid covers must use the cached source-aware cover image path and fail closed to the generated placeholder',
 )
 assert.match(
   mangaDetailHeaderSource,
-  /import \{ CachedCoverImage \} from '\.\/CachedCoverImage'[\s\S]*@Local private failedCoverUrl: string = ''[\s\S]*hasCover\(\): boolean[\s\S]*this\.failedCoverUrl !== coverUrl[\s\S]*CachedCoverImage\(\{[\s\S]*uri: this\.manga\.coverUrl \?\? ''[\s\S]*objectFit: ImageFit\.Cover[\s\S]*onError: \(\) => \{[\s\S]*this\.failedCoverUrl = this\.manga\.coverUrl \?\? ''/,
-  'Manga detail header covers must use the cached cover image path and fail closed when a source cover URL is unavailable',
+  /import \{ CachedCoverImage \} from '\.\/CachedCoverImage'[\s\S]*@Local private failedCoverUrl: string = ''[\s\S]*hasCover\(\): boolean[\s\S]*this\.failedCoverUrl !== coverUrl[\s\S]*CachedCoverImage\(\{[\s\S]*uri: this\.manga\.coverUrl \?\? ''[\s\S]*objectFit: ImageFit\.Cover[\s\S]*sourceRuntimeId: this\.manga\.sourceId \?\? ''[\s\S]*sourceImageId: this\.manga\.id[\s\S]*onError: \(\) => \{[\s\S]*this\.failedCoverUrl = this\.manga\.coverUrl \?\? ''/,
+  'Manga detail header covers must use the cached source-aware cover image path and fail closed when a source cover URL is unavailable',
 )
 assert.match(
   cachedCoverImageSource,
-  /export struct CachedCoverImage[\s\S]*configureReaderRemoteImageCache\(context\.cacheDir\)[\s\S]*fetchAndCacheReaderRemoteImage\(uri\)[\s\S]*image\.createImageSource\(resolvedUri\)[\s\S]*createPixelMap\(\)[\s\S]*this\.onError\(\)[\s\S]*Image\(this\.pixelMap\)[\s\S]*objectFit\(this\.objectFit\)/,
-  'CachedCoverImage must materialize remote source covers through the shared remote image cache before ArkUI rendering',
+  /export struct CachedCoverImage[\s\S]*@Param sourceRuntimeId: string = ''[\s\S]*@Param sourceImageId: string = ''[\s\S]*configureReaderRemoteImageCache\(context\.cacheDir\)[\s\S]*fetchAndCacheSourceRuntimeRemoteImage\(this\.sourceRuntimeId, uri, this\.sourceImageId\)[\s\S]*fetchAndCacheReaderRemoteImage\(uri\)[\s\S]*image\.createImageSource\(resolvedUri\)[\s\S]*createPixelMap\(\)[\s\S]*this\.onError\(\)[\s\S]*Image\(this\.pixelMap\)[\s\S]*objectFit\(this\.objectFit\)/,
+  'CachedCoverImage must materialize source covers through source-aware request rewriting and the shared remote image cache before ArkUI rendering',
+)
+assert.match(
+  readerPageSourceAdapterSource,
+  /export async function fetchAndCacheSourceRuntimeRemoteImage\([\s\S]*sourceRuntimeId: string[\s\S]*imageUrl: string[\s\S]*imageId\?: string[\s\S]*resolveSourceRuntimeImageRequest\(normalizedSourceId, pageId, imageUrl\)[\s\S]*fetchAndCacheReaderRemoteImage\(resolved\.url, resolved\.headers, resolved\.cacheKeySeed\)[\s\S]*fetchAndCacheReaderRemoteImage\(imageUrl\)/,
+  'source cover caching must reuse the Reader source image request path before falling back to the raw cover URL',
 )
 assert.match(
   searchPageSource,

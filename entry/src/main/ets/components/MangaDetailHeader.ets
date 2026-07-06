@@ -89,6 +89,8 @@ export struct MangaDetailHeader {
         CachedCoverImage({
           uri: this.manga.coverUrl ?? '',
           objectFit: ImageFit.Cover,
+          sourceRuntimeId: this.manga.sourceId ?? '',
+          sourceImageId: this.manga.id,
           onError: () => {
             this.failedCoverUrl = this.manga.coverUrl ?? ''
           },

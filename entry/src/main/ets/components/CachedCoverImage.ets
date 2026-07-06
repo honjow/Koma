@@ -3,12 +3,15 @@ import { image } from '@kit.ImageKit'
 import {
   configureReaderRemoteImageCache,
   fetchAndCacheReaderRemoteImage,
+  fetchAndCacheSourceRuntimeRemoteImage,
 } from '../model/ReaderPageSourceAdapter'
 
 @ComponentV2
 export struct CachedCoverImage {
   @Param uri: string = ''
   @Param objectFit: ImageFit = ImageFit.Cover
+  @Param sourceRuntimeId: string = ''
+  @Param sourceImageId: string = ''
   @Event onError: () => void = () => {}
   @Local private pixelMap: image.PixelMap | undefined = undefined
   @Local private loading: boolean = false
@@ -41,6 +44,9 @@ export struct CachedCoverImage {
     }
     const context = getContext(this) as common.UIAbilityContext
     configureReaderRemoteImageCache(context.cacheDir)
+    if (this.sourceRuntimeId.trim().length > 0) {
+      return fetchAndCacheSourceRuntimeRemoteImage(this.sourceRuntimeId, uri, this.sourceImageId)
+    }
     return fetchAndCacheReaderRemoteImage(uri)
   }
 
