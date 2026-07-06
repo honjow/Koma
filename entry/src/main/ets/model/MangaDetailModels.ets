@@ -11,6 +11,7 @@ export interface MangaDetail {
   status?: MangaStatus
   tags?: string[]
   sourceId?: string
+  sourceImageId?: string
   sourceName?: string
   chapterCount: number
   isInLibrary: boolean
@@ -203,6 +204,7 @@ export function parseMangaDetailFromSourceItem(sourceId: string, item: SourceRun
     status: sourceStatus(optionalSourceString(item['status'])),
     tags: sourceStringList(item['tags']),
     sourceId,
+    sourceImageId: id,
     sourceName: sourceId,
     chapterCount: 0,
     isInLibrary: false,

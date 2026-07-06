@@ -25,7 +25,7 @@ export struct MangaDetailHeader {
   }
 
   private coverFailureKey(): string {
-    return cachedCoverFailureKey(this.manga.coverUrl, this.manga.sourceId ?? '', this.manga.id)
+    return cachedCoverFailureKey(this.manga.coverUrl, this.manga.sourceId ?? '', this.manga.sourceImageId ?? this.manga.id)
   }
 
   private displayTitle(): string {
@@ -94,7 +94,7 @@ export struct MangaDetailHeader {
           uri: this.manga.coverUrl ?? '',
           objectFit: ImageFit.Cover,
           sourceRuntimeId: this.manga.sourceId ?? '',
-          sourceImageId: this.manga.id,
+          sourceImageId: this.manga.sourceImageId ?? this.manga.id,
           onError: () => {
             this.failedCoverUrl = this.coverFailureKey()
           },

@@ -1775,8 +1775,8 @@ assert.match(
 )
 assert.match(
   mangaDetailHeaderSource,
-  /import \{ CachedCoverImage, cachedCoverFailureKey \} from '\.\/CachedCoverImage'[\s\S]*@Local private failedCoverUrl: string = ''[\s\S]*hasCover\(\): boolean[\s\S]*this\.failedCoverUrl !== this\.coverFailureKey\(\)[\s\S]*coverFailureKey\(\): string[\s\S]*cachedCoverFailureKey\(this\.manga\.coverUrl, this\.manga\.sourceId \?\? '', this\.manga\.id\)[\s\S]*CachedCoverImage\(\{[\s\S]*uri: this\.manga\.coverUrl \?\? ''[\s\S]*objectFit: ImageFit\.Cover[\s\S]*sourceRuntimeId: this\.manga\.sourceId \?\? ''[\s\S]*sourceImageId: this\.manga\.id[\s\S]*onError: \(\) => \{[\s\S]*this\.failedCoverUrl = this\.coverFailureKey\(\)/,
-  'Manga detail header covers must use the cached source-aware cover image path and fail closed when a source cover URL is unavailable',
+  /import \{ CachedCoverImage, cachedCoverFailureKey \} from '\.\/CachedCoverImage'[\s\S]*@Local private failedCoverUrl: string = ''[\s\S]*hasCover\(\): boolean[\s\S]*this\.failedCoverUrl !== this\.coverFailureKey\(\)[\s\S]*coverFailureKey\(\): string[\s\S]*cachedCoverFailureKey\(this\.manga\.coverUrl, this\.manga\.sourceId \?\? '', this\.manga\.sourceImageId \?\? this\.manga\.id\)[\s\S]*CachedCoverImage\(\{[\s\S]*uri: this\.manga\.coverUrl \?\? ''[\s\S]*objectFit: ImageFit\.Cover[\s\S]*sourceRuntimeId: this\.manga\.sourceId \?\? ''[\s\S]*sourceImageId: this\.manga\.sourceImageId \?\? this\.manga\.id[\s\S]*onError: \(\) => \{[\s\S]*this\.failedCoverUrl = this\.coverFailureKey\(\)/,
+  'Manga detail header covers must use the cached source-aware cover image path with the raw source manga id and fail closed when a source cover URL is unavailable',
 )
 assert.match(
   cachedCoverImageSource,
@@ -1915,8 +1915,8 @@ assert.match(
 )
 assert.match(
   mangaDetailPageSource,
-  /const loaded = await this\.runSourceMangaOperation\(lookup\.entry, 'get_manga', mangaId\)[\s\S]*const detail = this\.sourceDetailWithRouteIdentity\(loaded\.detail, sourceId, mangaId, this\.params\.initialManga\)[\s\S]*sourceDetailWithRouteIdentity\([\s\S]*initialManga\?: SourceManga[\s\S]*id: normalizedMangaId\.length > 0 \? normalizedMangaId : detail\.id[\s\S]*sourceId,/,
-  'MangaDetailPage must keep the browsed/search result mangaId as durable identity even when get_manga returns an alias or omits id',
+  /const loaded = await this\.runSourceMangaOperation\(lookup\.entry, 'get_manga', mangaId\)[\s\S]*const detail = this\.sourceDetailWithRouteIdentity\(loaded\.detail, sourceId, mangaId, this\.params\.initialManga\)[\s\S]*sourceDetailWithRouteIdentity\([\s\S]*initialManga\?: SourceManga[\s\S]*id: normalizedMangaId\.length > 0 \? normalizedMangaId : detail\.id[\s\S]*sourceId,[\s\S]*sourceImageId: normalizedMangaId\.length > 0 \? normalizedMangaId : \(detail\.sourceImageId \?\? detail\.id\)/,
+  'MangaDetailPage must keep the browsed/search result mangaId as durable identity even when get_manga returns an alias or omits id, including source cover requests',
 )
 assert.match(
   routerHelperSource,
@@ -2536,8 +2536,8 @@ assert.match(
 )
 assert.match(
   mangaDetailPageSource,
-  /function mangaDetailFromComic\(comic: Comic\): MangaDetail \{[\s\S]*sourceId: comic\.sourceRuntimeId[\s\S]*sourceName: comic\.sourceRuntimeId \?\? ''/,
-  'Source package comics opened from the library detail page must keep sourceRuntimeId so read/download actions can hydrate pages',
+  /function mangaDetailFromComic\(comic: Comic\): MangaDetail \{[\s\S]*sourceId: comic\.sourceRuntimeId[\s\S]*sourceImageId: comic\.remoteResourceId[\s\S]*sourceName: comic\.sourceRuntimeId \?\? ''/,
+  'Source package comics opened from the library detail page must keep sourceRuntimeId and raw source manga id so read/download actions can hydrate pages and covers',
 )
 assert.match(
   mangaDetailPageSource,
