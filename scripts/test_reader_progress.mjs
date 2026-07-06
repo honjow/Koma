@@ -44,6 +44,26 @@ assert.match(
   'wide-page rotate and split must be mutually exclusive mode checks',
 )
 assert.match(
+  readerPageSource,
+  /@Event onDecodeImageInfo: \(index: number, width: number, height: number\)[\s\S]*pixelMap\.getImageInfoSync\(\)[\s\S]*this\.onDecodeImageInfo\(this\.index, width, height\)/,
+  'reader image decode must report real image dimensions when source/session metadata is missing',
+)
+assert.match(
+  readerPageSource,
+  /decodedImageDimensionKeys: string\[\][\s\S]*private pageWidth\(index: number\): number \| undefined \{[\s\S]*decodedPageDimensionWidth\(index\)[\s\S]*getReaderSessionPageWidth\(this\.sessionConfig, index\)[\s\S]*private pageHeight\(index: number\): number \| undefined \{[\s\S]*decodedPageDimensionHeight\(index\)[\s\S]*getReaderSessionPageHeight\(this\.sessionConfig, index\)/,
+  'ReaderPage must prefer decoded runtime dimensions before falling back to persisted page metadata',
+)
+assert.match(
+  readerPageSource,
+  /private recordDecodedPageDimensions\(index: number, width: number, height: number\)[\s\S]*this\.syncReaderDisplayAfterSettingChange\(\)[\s\S]*LocalReaderPixelMapImage\(\{[\s\S]*onDecodeImageInfo: \(decodedIndex: number, width: number, height: number\) => \{[\s\S]*this\.recordDecodedPageDimensions\(decodedIndex, width, height\)/,
+  'ReaderPage must reflow split-aware reader entries after real dimensions are learned from decoded images',
+)
+assert.match(
+  readerPageSource,
+  /@Monitor\('sessionConfig'\)[\s\S]*this\.decodedImageDimensionKeys = \[\][\s\S]*this\.decodedImageDimensionWidths = \[\][\s\S]*this\.decodedImageDimensionHeights = \[\]/,
+  'runtime decoded page dimensions must be cleared when switching reader sessions',
+)
+assert.match(
   readerChromeSource,
   /@Param\s+canGoPrevious:\s*boolean = false[\s\S]*@Param\s+canGoNext:\s*boolean = false/,
   'ReaderChrome navigation enabled state must be supplied independently from physical page indexes',
