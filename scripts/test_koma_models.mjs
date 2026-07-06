@@ -67,6 +67,7 @@ const localLibraryRescanServicePath = resolve(root, 'entry/src/main/ets/model/Lo
 const secondaryListScaffoldPath = resolve(root, 'entry/src/main/ets/components/SecondaryListScaffold.ets')
 const comicCoverCardPath = resolve(root, 'entry/src/main/ets/components/ComicCoverCard.ets')
 const mangaGridItemPath = resolve(root, 'entry/src/main/ets/components/MangaGridItem.ets')
+const sourceMangaGridPath = resolve(root, 'entry/src/main/ets/components/SourceMangaGrid.ets')
 const cachedCoverImagePath = resolve(root, 'entry/src/main/ets/components/CachedCoverImage.ets')
 const mangaDetailHeaderPath = resolve(root, 'entry/src/main/ets/components/MangaDetailHeader.ets')
 const chapterListSectionPath = resolve(root, 'entry/src/main/ets/components/ChapterListSection.ets')
@@ -147,6 +148,7 @@ const localLibraryRescanServiceSource = readFileSync(localLibraryRescanServicePa
 const secondaryListScaffoldSource = readFileSync(secondaryListScaffoldPath, 'utf8')
 const comicCoverCardSource = readFileSync(comicCoverCardPath, 'utf8')
 const mangaGridItemSource = readFileSync(mangaGridItemPath, 'utf8')
+const sourceMangaGridSource = readFileSync(sourceMangaGridPath, 'utf8')
 const cachedCoverImageSource = readFileSync(cachedCoverImagePath, 'utf8')
 const mangaDetailHeaderSource = readFileSync(mangaDetailHeaderPath, 'utf8')
 const chapterListSectionSource = readFileSync(chapterListSectionPath, 'utf8')
@@ -573,18 +575,23 @@ assert.match(
 )
 assert.match(
   themeConstantsSource,
-  /static readonly SOURCE_RESULT_GRID_COLUMNS: string = '1fr 1fr'/,
-  'Source result grids must use the shared phone-safe two-column template instead of page-local hardcoded three-column layouts',
+  /static readonly SOURCE_RESULT_GRID_COLUMN_COUNT: number = 2/,
+  'Source result grids must use the shared phone-safe two-column count instead of page-local hardcoded three-column layouts',
 )
 assert.match(
   sourceBrowsePageSource,
-  /columnsTemplate\(ThemeConstants\.SOURCE_RESULT_GRID_COLUMNS\)[\s\S]*columnsGap\(ThemeConstants\.SPACE_MD\)[\s\S]*rowsGap\(ThemeConstants\.SPACE_LG\)/,
-  'SourceBrowsePage manga grid must use the shared source result grid token',
+  /import \{ SourceMangaGrid \} from '\.\.\/components\/SourceMangaGrid'[\s\S]*SourceMangaGrid\(\{[\s\S]*columnCount: ThemeConstants\.SOURCE_RESULT_GRID_COLUMN_COUNT[\s\S]*onMangaTap:/,
+  'SourceBrowsePage manga grid must use the shared non-nested source result grid',
 )
 assert.match(
   sourceSearchPageSource,
-  /columnsTemplate\(ThemeConstants\.SOURCE_RESULT_GRID_COLUMNS\)[\s\S]*columnsGap\(ThemeConstants\.SPACE_MD\)[\s\S]*rowsGap\(ThemeConstants\.SPACE_LG\)/,
-  'SourceSearchPage result grid must use the shared source result grid token',
+  /import \{ SourceMangaGrid \} from '\.\.\/components\/SourceMangaGrid'[\s\S]*SourceMangaGrid\(\{[\s\S]*columnCount: ThemeConstants\.SOURCE_RESULT_GRID_COLUMN_COUNT[\s\S]*onMangaTap:/,
+  'SourceSearchPage result grid must use the shared non-nested source result grid',
+)
+assert.match(
+  sourceMangaGridSource,
+  /export struct SourceMangaGrid[\s\S]*rowIndexes\(\): number\[\][\s\S]*rowManga\(rowIndex: number\): SourceManga\[\][\s\S]*Row\(\{ space: ThemeConstants\.SPACE_MD \}\)[\s\S]*MangaGridItem\(\{[\s\S]*Blank\(\)[\s\S]*\.layoutWeight\(1\)/,
+  'SourceMangaGrid must render source manga as reusable rows of cards instead of nesting a scrollable Grid inside page Lists',
 )
 assert.match(
   sourceListItemSource,

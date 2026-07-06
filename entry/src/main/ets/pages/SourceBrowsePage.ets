@@ -1,4 +1,4 @@
-import { MangaGridItem } from '../components/MangaGridItem'
+import { SourceMangaGrid } from '../components/SourceMangaGrid'
 import { KomaActionButton } from '../components/ui/KomaActionButton'
 import { KomaEmptyState } from '../components/ui/KomaEmptyState'
 import { KomaIconButton } from '../components/ui/KomaIconButton'
@@ -229,23 +229,13 @@ export struct SourceBrowsePage {
 
   @Builder
   private MangaGrid(manga: SourceManga[]) {
-    Grid() {
-      ForEach(manga, (item: SourceManga) => {
-        GridItem() {
-          MangaGridItem({
-            manga: item,
-            onMangaTap: (selected: SourceManga) => {
-              this.onMangaTap(selected)
-            },
-          })
-        }
-      }, (item: SourceManga) => `${item.sourceId}:${item.id}`)
-    }
-    .width('100%')
-    .columnsTemplate(ThemeConstants.SOURCE_RESULT_GRID_COLUMNS)
-    .columnsGap(ThemeConstants.SPACE_MD)
-    .rowsGap(ThemeConstants.SPACE_LG)
-    .cachedCount(12)
+    SourceMangaGrid({
+      manga,
+      columnCount: ThemeConstants.SOURCE_RESULT_GRID_COLUMN_COUNT,
+      onMangaTap: (selected: SourceManga) => {
+        this.onMangaTap(selected)
+      },
+    })
   }
 
   @Builder
