@@ -105,6 +105,11 @@ assert.match(
 )
 assert.match(
   readerPreferencesStoreSource,
+  /VOLUME_KEY_BEHAVIOR_KEY:\s*string = 'reader\.volumeKeyBehavior'/,
+  'volume key direction setting must have a stable persistence key',
+)
+assert.match(
+  readerPreferencesStoreSource,
   /export interface ReaderSeriesPreferenceOverrides \{[\s\S]*pageMode\?: ReaderPageMode[\s\S]*readingDirection\?: ReadingDirection[\s\S]*backgroundMode\?: ReaderBackgroundMode[\s\S]*imageFitMode\?: ReaderImageFitMode[\s\S]*tapNavigationEnabled\?: boolean[\s\S]*swipeNavigationEnabled\?: boolean[\s\S]*zoomGesturesEnabled\?: boolean[\s\S]*tapZonePreset\?: ReaderTapZonePreset[\s\S]*showTapZones\?: boolean[\s\S]*pageGapMode\?: ReaderPageGapMode[\s\S]*wideImageMode\?: ReaderWideImageMode/,
   'reader preferences must model per-series overrides for quick reader settings that affect per-title reading comfort',
 )
@@ -750,7 +755,7 @@ assert.match(
 
 assert.match(
   backupServiceSource,
-  /backgroundMode:\s*settings\.backgroundMode \?\? DEFAULT_READER_PREFERENCES\.backgroundMode[\s\S]*imageFitMode:\s*settings\.imageFitMode \?\? DEFAULT_READER_PREFERENCES\.imageFitMode[\s\S]*tapNavigationEnabled:\s*settings\.tapNavigationEnabled \?\? DEFAULT_READER_PREFERENCES\.tapNavigationEnabled[\s\S]*swipeNavigationEnabled:\s*settings\.swipeNavigationEnabled \?\? DEFAULT_READER_PREFERENCES\.swipeNavigationEnabled[\s\S]*tapZonePreset:\s*settings\.tapZonePreset \?\? DEFAULT_READER_PREFERENCES\.tapZonePreset[\s\S]*showTapZones:\s*settings\.showTapZones \?\? DEFAULT_READER_PREFERENCES\.showTapZones[\s\S]*pageGapMode:\s*settings\.pageGapMode \?\? DEFAULT_READER_PREFERENCES\.pageGapMode[\s\S]*trimPageMarginsEnabled:\s*settings\.trimPageMarginsEnabled \?\? DEFAULT_READER_PREFERENCES\.trimPageMarginsEnabled[\s\S]*wideImageMode:\s*settings\.wideImageMode \?\? DEFAULT_READER_PREFERENCES\.wideImageMode[\s\S]*volumeKeyNavigationEnabled:\s*settings\.volumeKeyNavigationEnabled \?\? DEFAULT_READER_PREFERENCES\.volumeKeyNavigationEnabled/,
+  /backgroundMode:\s*settings\.backgroundMode \?\? DEFAULT_READER_PREFERENCES\.backgroundMode[\s\S]*imageFitMode:\s*settings\.imageFitMode \?\? DEFAULT_READER_PREFERENCES\.imageFitMode[\s\S]*tapNavigationEnabled:\s*settings\.tapNavigationEnabled \?\? DEFAULT_READER_PREFERENCES\.tapNavigationEnabled[\s\S]*swipeNavigationEnabled:\s*settings\.swipeNavigationEnabled \?\? DEFAULT_READER_PREFERENCES\.swipeNavigationEnabled[\s\S]*tapZonePreset:\s*settings\.tapZonePreset \?\? DEFAULT_READER_PREFERENCES\.tapZonePreset[\s\S]*showTapZones:\s*settings\.showTapZones \?\? DEFAULT_READER_PREFERENCES\.showTapZones[\s\S]*pageGapMode:\s*settings\.pageGapMode \?\? DEFAULT_READER_PREFERENCES\.pageGapMode[\s\S]*trimPageMarginsEnabled:\s*settings\.trimPageMarginsEnabled \?\? DEFAULT_READER_PREFERENCES\.trimPageMarginsEnabled[\s\S]*wideImageMode:\s*settings\.wideImageMode \?\? DEFAULT_READER_PREFERENCES\.wideImageMode[\s\S]*volumeKeyNavigationEnabled:\s*settings\.volumeKeyNavigationEnabled \?\? DEFAULT_READER_PREFERENCES\.volumeKeyNavigationEnabled[\s\S]*volumeKeyBehavior:\s*settings\.volumeKeyBehavior \?\? DEFAULT_READER_PREFERENCES\.volumeKeyBehavior/,
   'backup import must preserve backward compatibility while restoring advanced reader settings',
 )
 

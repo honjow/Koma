@@ -243,6 +243,8 @@
     { "name": "settings_row_reader_wide_image_mode_detail", "value": "Handle wide pages" },
     { "name": "settings_row_reader_volume_key_navigation_title", "value": "Volume key navigation" },
     { "name": "settings_row_reader_volume_key_navigation_detail", "value": "Use volume keys to turn pages" },
+    { "name": "settings_row_reader_volume_key_behavior_title", "value": "Volume key direction" },
+    { "name": "settings_row_reader_volume_key_behavior_detail", "value": "Choose which volume key turns forward" },
     { "name": "settings_row_reader_reset_defaults_title", "value": "Reset reader defaults" },
     { "name": "settings_row_reader_reset_defaults_detail", "value": "Restore layout, gestures, and display" },
     { "name": "settings_reader_defaults_reset", "value": "Reader defaults restored" },
@@ -950,6 +952,8 @@
     { "name": "reader_offline_page_missing", "value": "This chapter is not downloaded on this device. Connect to the source or download it first." },
     { "name": "reader_empty_library_hint", "value": "Open an imported local comic from your library" },
     { "name": "reader_empty_no_pages", "value": "No readable pages" },
+    { "name": "reader_volume_keys_down_next", "value": "Down: next page" },
+    { "name": "reader_volume_keys_up_next", "value": "Up: next page" },
 
     { "name": "import_archive_title", "value": "CBZ / ZIP" },
     { "name": "import_archive_action", "value": "Select file" },

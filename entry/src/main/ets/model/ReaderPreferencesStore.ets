@@ -11,6 +11,7 @@ export type ReaderImageFitMode = 'contain' | 'fit_width'
 export type ReaderTapZonePreset = 'edge' | 'wide_edges'
 export type ReaderPageGapMode = 'compact' | 'normal' | 'wide'
 export type ReaderWideImageMode = 'keep_single' | 'rotate_wide_pages' | 'split_wide_pages'
+export type ReaderVolumeKeyBehavior = 'up_previous_down_next' | 'up_next_down_previous'
 
 export interface ReaderPreferences {
   pageMode: ReaderPageMode
@@ -29,6 +30,7 @@ export interface ReaderPreferences {
   trimPageMarginsEnabled: boolean
   wideImageMode: ReaderWideImageMode
   volumeKeyNavigationEnabled: boolean
+  volumeKeyBehavior: ReaderVolumeKeyBehavior
 }
 
 export interface ReaderSeriesPreferenceOverrides {
@@ -63,6 +65,7 @@ export const PAGE_GAP_MODE_KEY: string = 'reader.pageGapMode'
 export const TRIM_PAGE_MARGINS_ENABLED_KEY: string = 'reader.trimPageMarginsEnabled'
 export const WIDE_IMAGE_MODE_KEY: string = 'reader.wideImageMode'
 export const VOLUME_KEY_NAVIGATION_ENABLED_KEY: string = 'reader.volumeKeyNavigationEnabled'
+export const VOLUME_KEY_BEHAVIOR_KEY: string = 'reader.volumeKeyBehavior'
 export const SERIES_OVERRIDES_KEY: string = 'reader.seriesOverrides.v1'
 
 export const DEFAULT_READER_PREFERENCES: ReaderPreferences = {
@@ -82,6 +85,7 @@ export const DEFAULT_READER_PREFERENCES: ReaderPreferences = {
   trimPageMarginsEnabled: false,
   wideImageMode: 'keep_single',
   volumeKeyNavigationEnabled: false,
+  volumeKeyBehavior: 'up_previous_down_next',
 }
 
 export function normalizeReaderPageMode(value: string): ReaderPageMode {
@@ -131,6 +135,13 @@ export function normalizeReaderWideImageMode(value: string): ReaderWideImageMode
     return value
   }
   return 'keep_single'
+}
+
+export function normalizeReaderVolumeKeyBehavior(value: string): ReaderVolumeKeyBehavior {
+  if (value === 'up_next_down_previous') {
+    return value
+  }
+  return 'up_previous_down_next'
 }
 
 export function normalizeReaderProgressControls(value: boolean | string | number): boolean {
@@ -302,6 +313,13 @@ export function getReaderVolumeKeyNavigationLabel(volumeKeyNavigationEnabled: bo
   return volumeKeyNavigationEnabled ? AppStrings.get('common_on') : AppStrings.get('common_off')
 }
 
+export function getReaderVolumeKeyBehaviorLabel(behavior: ReaderVolumeKeyBehavior): string {
+  if (behavior === 'up_next_down_previous') {
+    return AppStrings.get('reader_volume_keys_up_next')
+  }
+  return AppStrings.get('reader_volume_keys_down_next')
+}
+
 export function readerModeFromPageMode(pageMode: ReaderPageMode): ReaderMode {
   if (pageMode === 'continuous_scroll') {
     return ReaderMode.CONTINUOUS_SCROLL
@@ -389,6 +407,7 @@ function mergeReaderSeriesPreferences(
     trimPageMarginsEnabled: overrides.trimPageMarginsEnabled ?? globalPreferences.trimPageMarginsEnabled,
     wideImageMode: overrides.wideImageMode ?? globalPreferences.wideImageMode,
     volumeKeyNavigationEnabled: globalPreferences.volumeKeyNavigationEnabled,
+    volumeKeyBehavior: globalPreferences.volumeKeyBehavior,
   }
 }
 
@@ -448,6 +467,7 @@ export class ReaderPreferencesStore {
     const wideImageMode = await store.get(WIDE_IMAGE_MODE_KEY, DEFAULT_READER_PREFERENCES.wideImageMode) as string
     const volumeKeyNavigationEnabled =
       await store.get(VOLUME_KEY_NAVIGATION_ENABLED_KEY, DEFAULT_READER_PREFERENCES.volumeKeyNavigationEnabled) as boolean | string | number
+    const volumeKeyBehavior = await store.get(VOLUME_KEY_BEHAVIOR_KEY, DEFAULT_READER_PREFERENCES.volumeKeyBehavior) as string
     return {
       pageMode: normalizeReaderPageMode(pageMode),
       readingDirection: normalizeReaderReadingDirection(readingDirection),
@@ -465,6 +485,7 @@ export class ReaderPreferencesStore {
       trimPageMarginsEnabled: normalizeReaderTrimPageMarginsEnabled(trimPageMarginsEnabled),
       wideImageMode: normalizeReaderWideImageMode(wideImageMode),
       volumeKeyNavigationEnabled: normalizeReaderVolumeKeyNavigationEnabled(volumeKeyNavigationEnabled),
+      volumeKeyBehavior: normalizeReaderVolumeKeyBehavior(volumeKeyBehavior),
     }
   }
 
@@ -627,6 +648,12 @@ export class ReaderPreferencesStore {
     await store.flush()
   }
 
+  async saveVolumeKeyBehavior(volumeKeyBehavior: ReaderVolumeKeyBehavior): Promise<void> {
+    const store = await this.preferences()
+    await store.put(VOLUME_KEY_BEHAVIOR_KEY, normalizeReaderVolumeKeyBehavior(volumeKeyBehavior))
+    await store.flush()
+  }
+
   async save(preferences: ReaderPreferences): Promise<void> {
     const store = await this.preferences()
     await store.put(PAGE_MODE_KEY, normalizeReaderPageMode(preferences.pageMode))
@@ -645,6 +672,7 @@ export class ReaderPreferencesStore {
     await store.put(TRIM_PAGE_MARGINS_ENABLED_KEY, normalizeReaderTrimPageMarginsEnabled(preferences.trimPageMarginsEnabled))
     await store.put(WIDE_IMAGE_MODE_KEY, normalizeReaderWideImageMode(preferences.wideImageMode))
     await store.put(VOLUME_KEY_NAVIGATION_ENABLED_KEY, normalizeReaderVolumeKeyNavigationEnabled(preferences.volumeKeyNavigationEnabled))
+    await store.put(VOLUME_KEY_BEHAVIOR_KEY, normalizeReaderVolumeKeyBehavior(preferences.volumeKeyBehavior))
     await store.flush()
   }
 

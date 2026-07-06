@@ -2696,8 +2696,8 @@ assert.match(
 )
 assert.match(
   backupServiceSource,
-  /backgroundMode:\s*settings\.backgroundMode \?\? DEFAULT_READER_PREFERENCES\.backgroundMode[\s\S]*showProgressControls:\s*settings\.showProgressControls \?\? DEFAULT_READER_PREFERENCES\.showProgressControls[\s\S]*keepScreenAwake:\s*settings\.keepScreenAwake \?\? DEFAULT_READER_PREFERENCES\.keepScreenAwake[\s\S]*swipeNavigationEnabled:\s*settings\.swipeNavigationEnabled \?\? DEFAULT_READER_PREFERENCES\.swipeNavigationEnabled[\s\S]*showTapZones:\s*settings\.showTapZones \?\? DEFAULT_READER_PREFERENCES\.showTapZones[\s\S]*new ReaderPreferencesStore\(this\.context\)\.save\(nextSettings\)/,
-  'backup v2 import must preserve backward compatibility while restoring reader settings MVP and tap-zone visualization preferences',
+  /backgroundMode:\s*settings\.backgroundMode \?\? DEFAULT_READER_PREFERENCES\.backgroundMode[\s\S]*showProgressControls:\s*settings\.showProgressControls \?\? DEFAULT_READER_PREFERENCES\.showProgressControls[\s\S]*keepScreenAwake:\s*settings\.keepScreenAwake \?\? DEFAULT_READER_PREFERENCES\.keepScreenAwake[\s\S]*swipeNavigationEnabled:\s*settings\.swipeNavigationEnabled \?\? DEFAULT_READER_PREFERENCES\.swipeNavigationEnabled[\s\S]*showTapZones:\s*settings\.showTapZones \?\? DEFAULT_READER_PREFERENCES\.showTapZones[\s\S]*volumeKeyBehavior:\s*settings\.volumeKeyBehavior \?\? DEFAULT_READER_PREFERENCES\.volumeKeyBehavior[\s\S]*new ReaderPreferencesStore\(this\.context\)\.save\(nextSettings\)/,
+  'backup v2 import must preserve backward compatibility while restoring reader settings MVP, tap-zone visualization, and volume-key direction preferences',
 )
 assert.doesNotMatch(
   backupServiceSource,

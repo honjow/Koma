@@ -111,6 +111,7 @@ import {
   ReaderPreferencesStore,
   ReaderTapZonePreset,
   ReaderThemeMode,
+  ReaderVolumeKeyBehavior,
   ReaderWideImageMode,
   applyReaderThemeMode,
   getReaderBackgroundModeLabel,
@@ -125,6 +126,7 @@ import {
   getReaderTapZonePresetLabel,
   getReaderThemeModeLabel,
   getReaderTrimPageMarginsLabel,
+  getReaderVolumeKeyBehaviorLabel,
   getReaderWideImageModeLabel,
   getReaderVolumeKeyNavigationLabel,
   getReaderZoomGesturesLabel,
@@ -215,6 +217,7 @@ function createSettingsSections(): SettingsSection[] {
         { key: 'reader-trim-page-margins', titleKey: 'settings_row_reader_trim_page_margins_title', detailKey: 'settings_row_reader_trim_page_margins_detail' },
         { key: 'reader-wide-image-mode', titleKey: 'settings_row_reader_wide_image_mode_title', detailKey: 'settings_row_reader_wide_image_mode_detail' },
         { key: 'reader-volume-key-navigation', titleKey: 'settings_row_reader_volume_key_navigation_title', detailKey: 'settings_row_reader_volume_key_navigation_detail' },
+        { key: 'reader-volume-key-behavior', titleKey: 'settings_row_reader_volume_key_behavior_title', detailKey: 'settings_row_reader_volume_key_behavior_detail' },
         { key: 'reader-reset-defaults', titleKey: 'settings_row_reader_reset_defaults_title', detailKey: 'settings_row_reader_reset_defaults_detail' },
       ],
     },
@@ -420,6 +423,7 @@ export struct SettingsPage {
   @Local private readerTrimPageMarginsEnabled: boolean = false
   @Local private readerWideImageMode: ReaderWideImageMode = 'keep_single'
   @Local private readerVolumeKeyNavigationEnabled: boolean = false
+  @Local private readerVolumeKeyBehavior: ReaderVolumeKeyBehavior = 'up_previous_down_next'
   @Local private language: LanguageState = connectLanguageState()
   @Local private versionDetail: string = ''
   @Local private versionLoadFailed: boolean = false
@@ -601,6 +605,9 @@ export struct SettingsPage {
     }
     if (row.key === 'reader-volume-key-navigation') {
       return getReaderVolumeKeyNavigationLabel(this.readerVolumeKeyNavigationEnabled)
+    }
+    if (row.key === 'reader-volume-key-behavior') {
+      return getReaderVolumeKeyBehaviorLabel(this.readerVolumeKeyBehavior)
     }
     if (row.key === 'download-concurrency') {
       return `${this.downloadForegroundConcurrencyLimit}`
@@ -1002,6 +1009,7 @@ export struct SettingsPage {
     this.readerTrimPageMarginsEnabled = preferences.trimPageMarginsEnabled
     this.readerWideImageMode = preferences.wideImageMode
     this.readerVolumeKeyNavigationEnabled = preferences.volumeKeyNavigationEnabled
+    this.readerVolumeKeyBehavior = preferences.volumeKeyBehavior
   }
 
   private loadLibraryUpdatePreferences(): void {
@@ -1433,6 +1441,17 @@ export struct SettingsPage {
       })
       .catch((error: Error) => {
         console.warn('[Settings] step=save_reader_volume_key_navigation_failed code=' + safeSettingsErrorCode(error))
+      })
+  }
+
+  private saveReaderVolumeKeyBehavior(volumeKeyBehavior: ReaderVolumeKeyBehavior): void {
+    this.readerVolumeKeyBehavior = volumeKeyBehavior
+    void this.preferencesStore().saveVolumeKeyBehavior(volumeKeyBehavior)
+      .then(() => {
+        console.info('[Settings] step=save_reader_volume_key_behavior value=' + volumeKeyBehavior)
+      })
+      .catch((error: Error) => {
+        console.warn('[Settings] step=save_reader_volume_key_behavior_failed code=' + safeSettingsErrorCode(error))
       })
   }
 
@@ -2023,6 +2042,7 @@ export struct SettingsPage {
       row.key === 'reader-tap-zone-preset' ||
       row.key === 'reader-page-gap' ||
       row.key === 'reader-wide-image-mode' ||
+      row.key === 'reader-volume-key-behavior' ||
       row.key === 'download-concurrency' ||
       row.key === 'cache-limit' ||
       row.key === 'library-view-mode' ||
@@ -2198,6 +2218,9 @@ export struct SettingsPage {
         this.SelectionMenuItem(s('reader_wide_mode_keep_single'), this.readerWideImageMode === 'keep_single', () => { this.saveReaderWideImageMode('keep_single') })
         this.SelectionMenuItem(s('reader_wide_mode_split'), this.readerWideImageMode === 'split_wide_pages', () => { this.saveReaderWideImageMode('split_wide_pages') })
         this.SelectionMenuItem(s('reader_wide_mode_rotate'), this.readerWideImageMode === 'rotate_wide_pages', () => { this.saveReaderWideImageMode('rotate_wide_pages') })
+      } else if (row.key === 'reader-volume-key-behavior') {
+        this.SelectionMenuItem(s('reader_volume_keys_down_next'), this.readerVolumeKeyBehavior === 'up_previous_down_next', () => { this.saveReaderVolumeKeyBehavior('up_previous_down_next') })
+        this.SelectionMenuItem(s('reader_volume_keys_up_next'), this.readerVolumeKeyBehavior === 'up_next_down_previous', () => { this.saveReaderVolumeKeyBehavior('up_next_down_previous') })
       } else if (row.key === 'download-concurrency') {
         ForEach(OFFLINE_DOWNLOAD_FOREGROUND_CONCURRENCY_LIMIT_OPTIONS, (limit: number) => {
           this.SelectionMenuItem(`${limit}`, this.downloadForegroundConcurrencyLimit === limit, () => {

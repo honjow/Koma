@@ -1263,6 +1263,7 @@ export class BackupService {
       trimPageMarginsEnabled: settings.trimPageMarginsEnabled ?? DEFAULT_READER_PREFERENCES.trimPageMarginsEnabled,
       wideImageMode: settings.wideImageMode ?? DEFAULT_READER_PREFERENCES.wideImageMode,
       volumeKeyNavigationEnabled: settings.volumeKeyNavigationEnabled ?? DEFAULT_READER_PREFERENCES.volumeKeyNavigationEnabled,
+      volumeKeyBehavior: settings.volumeKeyBehavior ?? DEFAULT_READER_PREFERENCES.volumeKeyBehavior,
     }
     await new ReaderPreferencesStore(this.context).save(nextSettings)
   }

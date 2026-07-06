@@ -243,6 +243,8 @@
     { "name": "settings_row_reader_wide_image_mode_detail", "value": "宽页的处理方式" },
     { "name": "settings_row_reader_volume_key_navigation_title", "value": "音量键翻页" },
     { "name": "settings_row_reader_volume_key_navigation_detail", "value": "用音量键切换页面" },
+    { "name": "settings_row_reader_volume_key_behavior_title", "value": "音量键方向" },
+    { "name": "settings_row_reader_volume_key_behavior_detail", "value": "选择哪个音量键向后翻页" },
     { "name": "settings_row_reader_reset_defaults_title", "value": "恢复阅读器默认值" },
     { "name": "settings_row_reader_reset_defaults_detail", "value": "恢复布局、手势和显示" },
     { "name": "settings_reader_defaults_reset", "value": "已恢复阅读器默认值" },
@@ -950,6 +952,8 @@
     { "name": "reader_offline_page_missing", "value": "本设备未下载该章节。连接源或先下载后再阅读。" },
     { "name": "reader_empty_library_hint", "value": "请从书架打开已导入的本地漫画" },
     { "name": "reader_empty_no_pages", "value": "没有可阅读页面" },
+    { "name": "reader_volume_keys_down_next", "value": "音量下：下一页" },
+    { "name": "reader_volume_keys_up_next", "value": "音量上：下一页" },
 
     { "name": "import_archive_title", "value": "CBZ / ZIP" },
     { "name": "import_archive_action", "value": "选择文件" },
