@@ -374,6 +374,11 @@ assert.match(
   'ReaderChrome quick settings must use switch controls for binary reader interaction settings',
 )
 assert.match(
+  readerChromeSource,
+  /QuickSettingsToggle\(s\('settings_row_reader_progress_title'\), this\.showProgressControls[\s\S]*onShowProgressControlsChange\(enabled\)[\s\S]*QuickSettingsToggle\(s\('settings_row_reader_keep_screen_awake_title'\), this\.keepScreenAwake[\s\S]*onKeepScreenAwakeChange\(enabled\)[\s\S]*QuickSettingsToggle\(s\('settings_row_reader_trim_page_margins_title'\), this\.trimPageMarginsEnabled[\s\S]*onTrimPageMarginsEnabledChange\(enabled\)[\s\S]*QuickSettingsToggle\(s\('settings_row_reader_volume_key_navigation_title'\), this\.volumeKeyNavigationEnabled[\s\S]*onVolumeKeyNavigationEnabledChange\(enabled\)/,
+  'ReaderChrome quick settings must expose progress, keep-awake, trim, and volume-key switches in the reader itself',
+)
+assert.match(
   readerPageSource,
   /private tapLeftZone\(\): void[\s\S]*ReadingDirection\.RIGHT_TO_LEFT[\s\S]*this\.nextPage\(\)[\s\S]*this\.previousPage\(\)[\s\S]*private tapRightZone\(\): void[\s\S]*ReadingDirection\.RIGHT_TO_LEFT[\s\S]*this\.previousPage\(\)[\s\S]*this\.nextPage\(\)/,
   'ReaderPage left/right tap navigation must remain reading-direction aware',
@@ -412,6 +417,11 @@ assert.match(
   readerPageSource,
   /ReaderChrome\(\{[\s\S]*backgroundMode: this\.backgroundMode[\s\S]*imageFitMode: this\.imageFitMode[\s\S]*tapNavigationEnabled: this\.tapNavigationEnabled[\s\S]*swipeNavigationEnabled: this\.swipeNavigationEnabled[\s\S]*zoomGesturesEnabled: this\.zoomGesturesEnabled[\s\S]*tapZonePreset: this\.tapZonePreset[\s\S]*showTapZones: this\.showTapZones[\s\S]*pageGapMode: this\.pageGapMode[\s\S]*wideImageMode: this\.wideImageMode/,
   'ReaderPage must pass live reader display and interaction settings into the immersive quick settings panel',
+)
+assert.match(
+  readerPageSource,
+  /ReaderChrome\(\{[\s\S]*showProgressControls: this\.showProgressControls[\s\S]*keepScreenAwake: this\.keepScreenAwake[\s\S]*trimPageMarginsEnabled: this\.trimPageMarginsEnabled[\s\S]*volumeKeyNavigationEnabled: this\.volumeKeyNavigationEnabled/,
+  'ReaderPage must pass all live binary reader settings into the immersive quick settings panel',
 )
 allReaderStringSources.forEach((source, index) => {
   assert.match(source, /"name": "reader_tap_zone_center"/, `reader tap-zone center label must exist in locale ${index}`)
@@ -474,6 +484,11 @@ assert.match(
 )
 assert.match(
   readerPageSource,
+  /private setReaderShowProgressControls\(showProgressControls: boolean\): void[\s\S]*this\.showProgressControls = showProgressControls[\s\S]*store\.saveShowProgressControls\(showProgressControls\)[\s\S]*private setReaderKeepScreenAwake\(keepScreenAwake: boolean\): void[\s\S]*this\.keepScreenAwake = keepScreenAwake[\s\S]*this\.readerActive[\s\S]*this\.applyReaderKeepScreenAwake\(keepScreenAwake, 'quick_settings'\)[\s\S]*store\.saveKeepScreenAwake\(keepScreenAwake\)/,
+  'ReaderPage quick progress and keep-awake switches must apply immediately and persist',
+)
+assert.match(
+  readerPageSource,
   /private onReaderDoubleTap\(tapX: number, tapY: number\): void \{[\s\S]*!this\.zoomGesturesEnabled[\s\S]*return[\s\S]*private onReaderPinchStart\(event\?: GestureEvent\): void \{[\s\S]*!this\.zoomGesturesEnabled \|\| event === undefined[\s\S]*private onReaderPanUpdate\(event\?: GestureEvent\): void \{[\s\S]*!this\.zoomGesturesEnabled \|\| event === undefined \|\| this\.zoomScale <= 1\.01[\s\S]*private onReaderPanEnd\(\): void \{[\s\S]*!this\.zoomGesturesEnabled \|\| this\.zoomScale <= 1\.01/,
   'ReaderPage must make double-tap, pinch zoom, and zoom-pan respect the zoom gesture preference at runtime',
 )
@@ -484,7 +499,12 @@ assert.match(
 )
 assert.match(
   readerPageSource,
-  /onBackgroundModeChange: \(mode: ReaderBackgroundMode\) => \{[\s\S]*this\.setReaderBackgroundMode\(mode\)[\s\S]*onImageFitModeChange: \(mode: ReaderImageFitMode\) => \{[\s\S]*this\.setReaderImageFitMode\(mode\)[\s\S]*onZoomGesturesEnabledChange: \(enabled: boolean\) => \{[\s\S]*this\.setReaderZoomGesturesEnabled\(enabled\)[\s\S]*onWideImageModeChange: \(mode: ReaderWideImageMode\) => \{[\s\S]*this\.setReaderWideImageMode\(mode\)/,
+  /private setReaderTrimPageMarginsEnabled\(trimPageMarginsEnabled: boolean\): void[\s\S]*this\.trimPageMarginsEnabled = trimPageMarginsEnabled[\s\S]*this\.resetReaderZoom\(false\)[\s\S]*this\.syncReaderDisplayAfterSettingChange\(\)[\s\S]*store\.saveTrimPageMarginsEnabled\(trimPageMarginsEnabled\)[\s\S]*private setReaderVolumeKeyNavigationEnabled\(volumeKeyNavigationEnabled: boolean\): void[\s\S]*this\.volumeKeyNavigationEnabled = volumeKeyNavigationEnabled[\s\S]*volumeKeyNavigationEnabled[\s\S]*this\.requestReaderKeyFocus\('quick_settings'\)[\s\S]*store\.saveVolumeKeyNavigationEnabled\(volumeKeyNavigationEnabled\)/,
+  'ReaderPage quick trim and volume-key switches must apply immediately and persist',
+)
+assert.match(
+  readerPageSource,
+  /onBackgroundModeChange: \(mode: ReaderBackgroundMode\) => \{[\s\S]*this\.setReaderBackgroundMode\(mode\)[\s\S]*onShowProgressControlsChange: \(enabled: boolean\) => \{[\s\S]*this\.setReaderShowProgressControls\(enabled\)[\s\S]*onImageFitModeChange: \(mode: ReaderImageFitMode\) => \{[\s\S]*this\.setReaderImageFitMode\(mode\)[\s\S]*onZoomGesturesEnabledChange: \(enabled: boolean\) => \{[\s\S]*this\.setReaderZoomGesturesEnabled\(enabled\)[\s\S]*onTrimPageMarginsEnabledChange: \(enabled: boolean\) => \{[\s\S]*this\.setReaderTrimPageMarginsEnabled\(enabled\)[\s\S]*onWideImageModeChange: \(mode: ReaderWideImageMode\) => \{[\s\S]*this\.setReaderWideImageMode\(mode\)[\s\S]*onVolumeKeyNavigationEnabledChange: \(enabled: boolean\) => \{[\s\S]*this\.setReaderVolumeKeyNavigationEnabled\(enabled\)/,
   'ReaderPage must wire ReaderChrome quick settings callbacks into immediate preference updates',
 )
 assert.match(
