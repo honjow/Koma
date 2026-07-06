@@ -2885,6 +2885,11 @@ assert.match(
   'source index install must fail closed on minAppVersion before downloading or replacing a source package',
 )
 assert.match(
+  readFileSync(resolve(root, 'entry/src/main/ets/sourceRuntime/SourceIndexService.ets'), 'utf8'),
+  /safeResolvePkgUrl\(indexUrl: string, pkg: string\)[\s\S]*startsWith\('http:\/\/'\) \|\| normalizedPkg\.startsWith\('https:\/\/'\)[\s\S]*return ''[\s\S]*split\('\/'\)\.includes\('\.\.'\) \|\| !normalizedPkg\.endsWith\('\.koma'\)[\s\S]*return ''/,
+  'source index install must keep package downloads on safe relative .koma paths',
+)
+assert.match(
   sourcePackageManagerPageSource,
   /case 'app_version_unsupported':[\s\S]*source_pkg_reason_app_version_unsupported/,
   'source package manager must surface an app-version compatibility failure with localized copy',

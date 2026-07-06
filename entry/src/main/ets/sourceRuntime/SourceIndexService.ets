@@ -52,7 +52,10 @@ function safeResolvePkgUrl(indexUrl: string, pkg: string): string {
     return ''
   }
   if (normalizedPkg.startsWith('http://') || normalizedPkg.startsWith('https://')) {
-    return normalizedPkg
+    return ''
+  }
+  if (normalizedPkg.split('/').includes('..') || !normalizedPkg.endsWith('.koma')) {
+    return ''
   }
   const base = indexUrl.replace(/\/+$/, '')
   const authorityStart = base.indexOf('://')

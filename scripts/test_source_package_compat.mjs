@@ -958,6 +958,11 @@ assert.match(indexServiceSource, /authorityStart/, 'SourceIndexService must hand
 assert.match(indexServiceSource, /firstPathSlash < 0/, 'SourceIndexService must resolve bare-domain index URL pkg paths under the same host root')
 assert.match(
   indexServiceSource,
+  /function safeResolvePkgUrl\(indexUrl: string, pkg: string\): string \{[\s\S]*startsWith\('http:\/\/'\) \|\| normalizedPkg\.startsWith\('https:\/\/'\)[\s\S]*return ''[\s\S]*normalizedPkg\.split\('\/'\)\.includes\('\.\.'\) \|\| !normalizedPkg\.endsWith\('\.koma'\)[\s\S]*return ''/,
+  'SourceIndexService must reject absolute, escaping, or non-.koma pkg entries before download',
+)
+assert.match(
+  indexServiceSource,
   /parseIndexEntriesDocument\(raw: Object\)[\s\S]*Array\.isArray\(raw\)[\s\S]*record\['sources'\][\s\S]*Array\.isArray\(sources\)/,
   'SourceIndexService must accept both top-level array indexes and { sources: [] } source dist indexes',
 )
