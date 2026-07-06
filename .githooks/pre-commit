@@ -13,3 +13,5 @@ fi
 if git diff --cached --name-only --diff-filter=ACMR | grep -qx 'build-profile.json5'; then
   scripts/check-public-build-profile.sh --staged
 fi
+
+node scripts/check_feature_gate_status.mjs
