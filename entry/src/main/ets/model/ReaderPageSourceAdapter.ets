@@ -21,6 +21,7 @@ import {
 } from './RemoteImageCacheStore'
 import { RemoteServerStore } from './RemoteServerStore'
 import { appSourceRuntimeRegistry } from '../sourceRuntime/SourceRuntimeAppRegistry'
+import { sourceRuntimeEntryEnabled } from '../sourceRuntime/SourceRuntimeRegistry'
 import { runRegisteredSourceRequestById } from '../sourceRuntime/SourceRuntimeService'
 import {
   SourceSettingsRecord,
@@ -560,22 +561,50 @@ function createReaderUriRenderSource(uri: string, pageIndex: number): ReaderPage
   }
 }
 
+function createReaderSourceUnavailableUri(sourceRuntimeId: string, pageId: string, pageIndex: number): string {
+  return `${READER_SOURCE_UNAVAILABLE_URI_PREFIX}${createShortReaderHash(sourceRuntimeId)}/${createShortReaderHash(pageId)}/${pageIndex}`
+}
+
+function createReaderSourceUnavailableSource(config: ReaderSessionConfig, pageIndex: number, sourceRuntimeId: string, pageId: string): ReaderPageRenderSource {
+  return {
+    kind: ReaderPageRenderKind.URI_PLACEHOLDER,
+    uri: createReaderSourceUnavailableUri(sourceRuntimeId, pageId, pageIndex),
+    imageUri: '',
+    fallbackPageIndex: pageIndex,
+    sourceRuntimeId,
+    pageId,
+    pageUri: getReaderSessionPageUri(config, pageIndex),
+    unavailableReason: ReaderPageUnavailableReason.SOURCE_UNAVAILABLE,
+  }
+}
+
 function createReaderSourceRuntimeRenderSource(config: ReaderSessionConfig, pageIndex: number): ReaderPageRenderSource | undefined {
   if (config.sourceRuntimeId === undefined || config.sourceRuntimeId.trim().length === 0) {
     return undefined
   }
+  const sourceRuntimeId = config.sourceRuntimeId.trim()
   const pageId = getReaderSessionPageId(config, pageIndex)
   if (pageId.length === 0) {
     return undefined
   }
   const uri = getReaderSessionPageUri(config, pageIndex)
-  const fallbackImageUri = isReaderRemoteImageSourceUri(uri) ? uri : `source-runtime://${config.sourceRuntimeId}/${encodeURIComponent(pageId)}`
+  if (isReaderLocalImageSourceUri(uri)) {
+    return undefined
+  }
+  const lookup = appSourceRuntimeRegistry.lookup(sourceRuntimeId)
+  if ((!lookup.ok || lookup.entry === undefined || !sourceRuntimeEntryEnabled(lookup.entry)) &&
+    !isReaderRemoteImageSourceUri(uri)) {
+    const reason = !lookup.ok || lookup.entry === undefined ? (lookup.reasonCode ?? 'source_not_installed') : 'source_disabled'
+    console.warn(`[Reader] step=source_runtime_unavailable source=${createShortReaderHash(sourceRuntimeId)} page=${createShortReaderHash(pageId)} reason=${reason}`)
+    return createReaderSourceUnavailableSource(config, pageIndex, sourceRuntimeId, pageId)
+  }
+  const fallbackImageUri = isReaderRemoteImageSourceUri(uri) ? uri : `source-runtime://${sourceRuntimeId}/${encodeURIComponent(pageId)}`
   return {
     kind: ReaderPageRenderKind.REMOTE_URL_IMAGE,
     uri,
     imageUri: fallbackImageUri,
     fallbackPageIndex: pageIndex,
-    sourceRuntimeId: config.sourceRuntimeId,
+    sourceRuntimeId,
     pageId,
     pageUri: uri,
   }
