@@ -2049,8 +2049,8 @@ assert.match(
 )
 assert.match(
   libraryPageSource,
-  /@Param libraryPersistenceService\?: LibraryStorePersistenceService[\s\S]*private async openComicFromLibrary\(comicId: ComicId\): Promise<void>[\s\S]*chapterNeedsSourcePages\(comic, chapterId\)[\s\S]*new SourceChapterPageHydrator\([\s\S]*this\.libraryStore,[\s\S]*this\.sourceRegistry,[\s\S]*this\.libraryPersistenceService[\s\S]*ensureChapterPages\(comicId, comic\.sourceRuntimeId, chapterId as string\)[\s\S]*this\.onOpenReader\(comicId, chapterId\)/,
-  'LibraryPage must hydrate source-backed chapter pages before opening a shelf item in Reader',
+  /@Param libraryPersistenceService\?: LibraryStorePersistenceService[\s\S]*private async openComicFromLibrary\(comicId: ComicId\): Promise<void>[\s\S]*chapterNeedsSourcePages\(comic, chapterId\)[\s\S]*new SourceChapterPageHydrator\([\s\S]*this\.libraryStore,[\s\S]*this\.sourceRegistry,[\s\S]*this\.libraryPersistenceService[\s\S]*ensureChapterPages\(comicId, comic\.sourceRuntimeId, chapterId as string\)[\s\S]*if \(!result\.hydrated\) \{[\s\S]*this\.logSourceReaderPagesUnavailable\(result\.reasonCode\)[\s\S]*this\.onOpenReader\(comicId, chapterId\)[\s\S]*catch \(_error\) \{[\s\S]*this\.logSourceReaderPagesUnavailable\('source_pages_lookup'\)[\s\S]*this\.onOpenReader\(comicId, chapterId\)/,
+  'LibraryPage must hydrate source-backed chapter pages before opening a shelf item, and still enter Reader with an honest placeholder when hydration fails',
 )
 assert.match(
   libraryPageSource,

@@ -1128,13 +1128,11 @@ export struct LibraryPage {
       ).ensureChapterPages(comicId, comic.sourceRuntimeId, chapterId as string)
       if (!result.hydrated) {
         this.logSourceReaderPagesUnavailable(result.reasonCode)
-        this.showToast(s('manga_detail_chapter_pages_load_failed'))
-        return
       }
       this.onOpenReader(comicId, chapterId)
     } catch (_error) {
       this.logSourceReaderPagesUnavailable('source_pages_lookup')
-      this.showToast(s('manga_detail_chapter_pages_load_failed'))
+      this.onOpenReader(comicId, chapterId)
     } finally {
       this.openingComicId = ''
     }
