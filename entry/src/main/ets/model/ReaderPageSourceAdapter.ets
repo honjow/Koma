@@ -820,7 +820,7 @@ export async function fetchAndCacheSourceRuntimeRemoteImage(
   imageId?: string,
 ): Promise<string> {
   const normalizedSourceId = sourceRuntimeId.trim()
-  if (normalizedSourceId.length === 0 || !isReaderRemoteImageSourceUri(imageUrl)) {
+  if (normalizedSourceId.length === 0) {
     return fetchAndCacheReaderRemoteImage(imageUrl)
   }
   const pageId = imageId !== undefined && imageId.trim().length > 0
@@ -829,6 +829,10 @@ export async function fetchAndCacheSourceRuntimeRemoteImage(
   const resolved = resolveSourceRuntimeImageRequest(normalizedSourceId, pageId, imageUrl)
   if (resolved !== undefined) {
     return fetchAndCacheReaderRemoteImage(resolved.url, resolved.headers, resolved.cacheKeySeed)
+  }
+  if (!isReaderRemoteImageSourceUri(imageUrl)) {
+    console.warn(`[ReaderCache] step=source_cover_request_fallback allowed=false source=${createShortReaderHash(normalizedSourceId)} urlHash=${createShortReaderHash(imageUrl)}`)
+    throw new Error('Source cover image request failed and fallback cover URI is not a valid URL')
   }
   console.warn(`[ReaderCache] step=source_cover_request_fallback allowed=true source=${createShortReaderHash(normalizedSourceId)} urlHash=${createShortReaderHash(imageUrl)}`)
   return fetchAndCacheReaderRemoteImage(imageUrl)
@@ -853,9 +857,12 @@ function isSourceRuntimeImageRequestOperation(operation: string | undefined): bo
 
 function resolveSourceRuntimeImageRequest(sourceRuntimeId: string, pageId: string, pageUri?: string): SourceRuntimeResolvedImageRequest | undefined {
   const args: ReaderSourceImageRequestArgs = { pageId }
-  if (pageUri !== undefined && isReaderRemoteImageSourceUri(pageUri)) {
-    args.url = pageUri
-    args.pageUri = pageUri
+  const normalizedPageUri = pageUri?.trim()
+  if (normalizedPageUri !== undefined && normalizedPageUri.length > 0) {
+    args.pageUri = normalizedPageUri
+    if (isReaderRemoteImageSourceUri(normalizedPageUri)) {
+      args.url = normalizedPageUri
+    }
   }
   const settings = appSourceSettingsStore.loadForSource(sourceRuntimeId)
   const hostHints: ReaderSourceImageRequestHostHints = { network: true }

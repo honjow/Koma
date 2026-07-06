@@ -1962,8 +1962,8 @@ assert.match(
 )
 assert.match(
   readerPageSourceAdapterSource,
-  /if \(pageUri !== undefined && isReaderRemoteImageSourceUri\(pageUri\)\) \{[\s\S]*args\.url = pageUri[\s\S]*args\.pageUri = pageUri[\s\S]*\}/,
-  'reader source image requests must pass the source page URL when it is a valid remote URL',
+  /const normalizedPageUri = pageUri\?\.trim\(\)[\s\S]*args\.pageUri = normalizedPageUri[\s\S]*if \(isReaderRemoteImageSourceUri\(normalizedPageUri\)\) \{[\s\S]*args\.url = normalizedPageUri/,
+  'reader source image requests must pass relative pageUri values and only expose url when the value is a valid remote URL',
 )
 assert.match(
   mangaDetailPageSource,

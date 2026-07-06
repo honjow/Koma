@@ -19,6 +19,7 @@ const smokePath = resolve(root, 'entry/src/main/ets/sourceRuntime/SourceRuntimeD
 const sourceRuntimeRegistryPath = resolve(root, 'entry/src/main/ets/sourceRuntime/SourceRuntimeRegistry.ets')
 const sourceRuntimeServicePath = resolve(root, 'entry/src/main/ets/sourceRuntime/SourceRuntimeService.ets')
 const sourcePackageTrustPolicyPath = resolve(root, 'entry/src/main/ets/sourceRuntime/SourcePackageTrustPolicy.ets')
+const readerPageSourceAdapterPath = resolve(root, 'entry/src/main/ets/model/ReaderPageSourceAdapter.ets')
 const constantsPath = resolve(root, 'entry/src/main/ets/common/Constants.ets')
 const routerHelperPath = resolve(root, 'entry/src/main/ets/common/RouterHelper.ets')
 const entryAbilityPath = resolve(root, 'entry/src/main/ets/entryability/EntryAbility.ets')
@@ -57,6 +58,7 @@ const smokeSource = readFileSync(smokePath, 'utf8')
 const sourceRuntimeRegistrySource = readFileSync(sourceRuntimeRegistryPath, 'utf8')
 const sourceRuntimeServiceSource = readFileSync(sourceRuntimeServicePath, 'utf8')
 const sourcePackageTrustPolicySource = readFileSync(sourcePackageTrustPolicyPath, 'utf8')
+const readerPageSourceAdapterSource = readFileSync(readerPageSourceAdapterPath, 'utf8')
 const constantsSource = readFileSync(constantsPath, 'utf8')
 const routerHelperSource = readFileSync(routerHelperPath, 'utf8')
 const entryAbilitySource = readFileSync(entryAbilityPath, 'utf8')
@@ -1175,6 +1177,16 @@ assert.match(
   sdkDocSource,
   /get_image_request[\s\S]*headersRef[\s\S]*requiresAuth: true[\s\S]*host-owned header profiles[\s\S]*must not return raw cookies, authorization headers, API keys, passwords, tokens, or session material/,
   'source package SDK doc must define image header refs as host-owned and reject raw source-returned secrets',
+)
+assert.match(
+  readerPageSourceAdapterSource,
+  /fetchAndCacheSourceRuntimeRemoteImage\([\s\S]*if \(normalizedSourceId\.length === 0\)[\s\S]*resolveSourceRuntimeImageRequest\(normalizedSourceId, pageId, imageUrl\)[\s\S]*!isReaderRemoteImageSourceUri\(imageUrl\)[\s\S]*source_cover_request_fallback allowed=false[\s\S]*Source cover image request failed/,
+  'source-backed covers must send relative cover references through get_image_request instead of falling back to invalid local paths',
+)
+assert.match(
+  readerPageSourceAdapterSource,
+  /resolveSourceRuntimeImageRequest\(sourceRuntimeId: string, pageId: string, pageUri\?: string\)[\s\S]*args\.pageUri = normalizedPageUri[\s\S]*if \(isReaderRemoteImageSourceUri\(normalizedPageUri\)\) \{[\s\S]*args\.url = normalizedPageUri/,
+  'source image requests must preserve relative pageUri/coverUri values while only exposing url for absolute remote URLs',
 )
 
 assertSourceRepoShape(localKomaFixturePath)
