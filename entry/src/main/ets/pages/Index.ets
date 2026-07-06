@@ -747,6 +747,15 @@ struct Index {
           webtoonMode: this.readerWebtoonMode!!,
           sessionStore: this.readerSessionStore,
           sessionConfig: this.readerSessionConfig,
+          onPageIndexChange: (value: number) => {
+            this.readerPageIndex = value
+          },
+          onChromeVisibleChange: (value: boolean) => {
+            this.readerChromeVisible = value
+          },
+          onWebtoonModeChange: (value: boolean) => {
+            this.readerWebtoonMode = value
+          },
           onCloseReader: () => {
             this.closeReader()
           },
