@@ -375,6 +375,11 @@ function assertProductionStaticContracts() {
     'production split helper must preserve LTR and RTL ordering',
   )
   assert.match(
+    readerPageSource,
+    /ReaderSafeContentSurface\(\)[\s\S]*readerContentTopInset\(\)[\s\S]*ReaderInteractiveContentSurface\(\)[\s\S]*readerContentBottomInset\(\)[\s\S]*build\(\)[\s\S]*Stack\(\) \{[\s\S]*this\.ReaderSafeContentSurface\(\)[\s\S]*ReaderChrome\(\{/,
+    'Reader image and webtoon content must render inside a safe reading frame while chrome remains the floating overlay',
+  )
+  assert.match(
     readerSettingsTestSource,
     /reader-tap-zone-preset[\s\S]*reader_tap_zone_edge[\s\S]*reader_tap_zone_wide[\s\S]*tap zone preset menu/,
     'D40 tap-zone setting UI coverage must remain in reader settings tests',
