@@ -62,6 +62,7 @@ export enum ReaderPageRenderKind {
 
 export enum ReaderPageUnavailableReason {
   OFFLINE_MISSING = 'offline_missing',
+  SOURCE_UNAVAILABLE = 'source_unavailable',
 }
 
 export interface ReaderPageRenderSource {
@@ -103,6 +104,8 @@ interface ReaderRemoteHeaderRule {
   prefix: string
   headers: ReaderRemoteImageHeaders
 }
+
+const READER_SOURCE_UNAVAILABLE_URI_PREFIX: string = 'source-placeholder://'
 
 interface SourceRuntimeImageHeaderRule {
   sourceRuntimeId: string
@@ -505,6 +508,15 @@ function getReaderImageSourceForm(source: ReaderPageRenderSource): string {
 }
 
 function createReaderUriRenderSource(uri: string, pageIndex: number): ReaderPageRenderSource {
+  if (uri.startsWith(READER_SOURCE_UNAVAILABLE_URI_PREFIX)) {
+    return {
+      kind: ReaderPageRenderKind.URI_PLACEHOLDER,
+      uri,
+      imageUri: '',
+      fallbackPageIndex: pageIndex,
+      unavailableReason: ReaderPageUnavailableReason.SOURCE_UNAVAILABLE,
+    }
+  }
   if (uri.length === 0 || uri.startsWith('mock://')) {
     return {
       kind: ReaderPageRenderKind.URI_PLACEHOLDER,
@@ -983,8 +995,12 @@ export function createReaderPageRenderSource(config: ReaderSessionConfig, pageIn
       return offlineDownloadSource
     }
   }
+  const uri = getReaderSessionPageUri(config, pageIndex)
+  if (uri.startsWith(READER_SOURCE_UNAVAILABLE_URI_PREFIX)) {
+    return createReaderUriRenderSource(uri, pageIndex)
+  }
   if (options?.offlineOnly === true) {
-    const localSource = createReaderUriRenderSource(getReaderSessionPageUri(config, pageIndex), pageIndex)
+    const localSource = createReaderUriRenderSource(uri, pageIndex)
     if (localSource.kind === ReaderPageRenderKind.LOCAL_FILE_IMAGE) {
       return localSource
     }
@@ -994,7 +1010,6 @@ export function createReaderPageRenderSource(config: ReaderSessionConfig, pageIn
   if (sourceRuntimeSource !== undefined) {
     return sourceRuntimeSource
   }
-  const uri = getReaderSessionPageUri(config, pageIndex)
   return createReaderUriRenderSource(uri, pageIndex)
 }
 

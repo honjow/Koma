@@ -238,10 +238,9 @@ struct Index {
         console.error('[Favorite] step=open_remote_reader_headers_failed code=remote_headers_failed')
       }
     }
-    const nextSessionConfig = comic === undefined ? MOCK_LIBRARY_READER_SESSION : this.createReaderSessionConfigForOpen(comic, targetChapterId)
-    if (!sourcePagesReady && nextSessionConfig.totalPages <= 0) {
-      this.showToast(AppStrings.get('manga_detail_chapter_pages_load_failed'))
-      return
+    let nextSessionConfig = comic === undefined ? MOCK_LIBRARY_READER_SESSION : this.createReaderSessionConfigForOpen(comic, targetChapterId)
+    if (!sourcePagesReady && comic !== undefined && nextSessionConfig.totalPages <= 0) {
+      nextSessionConfig = this.createSourceUnavailableReaderSessionConfig(comic, targetChapterId, nextSessionConfig)
     }
     this.readerSessionConfig = nextSessionConfig
     this.readerPageIndex = this.readerSessionStore.restorePageIndex(this.readerSessionConfig)
@@ -256,6 +255,38 @@ struct Index {
     try {
       this.getUIContext().getPromptAction().showToast({ message })
     } catch (_error) {
+    }
+  }
+
+  private createSourceUnavailableReaderSessionConfig(
+    comic: Comic,
+    chapterId: string | undefined,
+    baseConfig: ReaderSessionConfig,
+  ): ReaderSessionConfig {
+    const resolvedChapterId = chapterId !== undefined && chapterId.length > 0 ? chapterId : baseConfig.chapterId
+    const chapter = comic.chapters.find((item: Chapter): boolean => item.id === resolvedChapterId)
+    const fallbackChapterId = resolvedChapterId.length > 0 ? resolvedChapterId : 'source-unavailable'
+    const chapterIds = baseConfig.chapterIds.includes(fallbackChapterId) ? baseConfig.chapterIds : baseConfig.chapterIds.concat([fallbackChapterId])
+    const chapterTitles = chapterIds.map((item: string, index: number): string => {
+      const existingTitle = baseConfig.chapterTitles?.[index] ?? ''
+      if (existingTitle.length > 0 || item !== fallbackChapterId) {
+        return existingTitle
+      }
+      return chapter?.title ?? ''
+    })
+    return {
+      comicId: comic.id,
+      chapterId: fallbackChapterId,
+      title: comic.title,
+      chapterTitle: baseConfig.chapterTitle ?? chapter?.title,
+      chapterIds,
+      chapterTitles,
+      totalPages: 1,
+      pageUris: ['source-placeholder://chapter'],
+      pageIds: [`${fallbackChapterId}:source-unavailable`],
+      pageWidths: [undefined],
+      pageHeights: [undefined],
+      sourceRuntimeId: comic.sourceRuntimeId,
     }
   }
 
