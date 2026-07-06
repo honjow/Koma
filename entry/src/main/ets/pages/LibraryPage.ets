@@ -205,6 +205,7 @@ export struct LibraryPage {
   @Local private filterMetadataStatus: LibraryMetadataStatusFilter = 'all'
   @Local private failedCoverUris: string[] = []
   @Local private remoteProgress: RemoteProgressSyncState = connectRemoteProgressSyncState()
+  private downloadQueueRecoveryStarted: boolean = false
   @Param presentationByComicId: LibraryPresentationByComicId = createMockLibraryPresentationMap()
   @Param sourceRegistry: SourceRuntimeRegistry = appSourceRuntimeRegistry
   @Param libraryPersistenceService?: LibraryStorePersistenceService = undefined
@@ -345,6 +346,28 @@ export struct LibraryPage {
       console.info('[Library] step=download_filter_load_failed reason=download_filter')
     }
     return comicAvailability
+  }
+
+  private recoverDownloadedQueueSnapshotOnAppear(): void {
+    if (this.downloadQueueRecoveryStarted) {
+      return
+    }
+    this.downloadQueueRecoveryStarted = true
+    try {
+      const context = getContext(this) as common.UIAbilityContext
+      void new OfflineDownloadQueueStore(context.filesDir).recoverFromManifests()
+        .then((summary) => {
+          if (summary.restoredCount > 0 || summary.updatedCount > 0) {
+            this.refreshDisplayedSnapshotFromStore()
+          }
+          console.info(`[Library] step=download_queue_recovered scanned=${summary.scannedCount} restored=${summary.restoredCount} updated=${summary.updatedCount} partial=${summary.partialCount} failed=${summary.failedCount}`)
+        })
+        .catch((_error: Error) => {
+          console.info('[Library] step=download_queue_recovery_failed reason=download_manifest')
+        })
+    } catch (_error) {
+      console.info('[Library] step=download_queue_recovery_failed reason=context')
+    }
   }
 
   private filterPreciseSourceComics(comics: Comic[]): Comic[] {
@@ -1971,6 +1994,7 @@ export struct LibraryPage {
   aboutToAppear(): void {
     this.syncDisplayedSnapshotFromProps()
     this.reloadPersistentSessionStore('appear')
+    this.recoverDownloadedQueueSnapshotOnAppear()
     void this.restoreFilterPreferences()
   }
 

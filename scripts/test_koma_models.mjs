@@ -994,6 +994,11 @@ assert.doesNotMatch(
 )
 assert.match(
   libraryPageSource,
+  /private recoverDownloadedQueueSnapshotOnAppear\(\): void \{[\s\S]*downloadQueueRecoveryStarted[\s\S]*new OfflineDownloadQueueStore\(context\.filesDir\)\.recoverFromManifests\(\)[\s\S]*summary\.restoredCount > 0 \|\| summary\.updatedCount > 0[\s\S]*this\.refreshDisplayedSnapshotFromStore\(\)[\s\S]*aboutToAppear\(\): void \{[\s\S]*this\.recoverDownloadedQueueSnapshotOnAppear\(\)/,
+  'LibraryPage must recover lost download queue rows from manifests on appear without adding render-time side effects to availability filtering',
+)
+assert.match(
+  libraryPageSource,
   /filterMetadataStatus: LibraryMetadataStatusFilter = 'all'[\s\S]*filterMetadataStatusComics\([\s\S]*filterAvailabilityComics\(this\.filterPreciseSourceComics\(nextComics\)\)[\s\S]*private filterMetadataStatusComics\(comics: Comic\[\]\): Comic\[\][\s\S]*this\.filterMetadataStatus === 'unknown'[\s\S]*comic\.localMetadata\?\.status === undefined[\s\S]*comic\.localMetadata\?\.status === this\.filterMetadataStatus[\s\S]*metadataStatus: this\.filterMetadataStatus/,
   'LibraryPage must filter library rows by local metadata status without treating unknown as completed/ongoing',
 )
