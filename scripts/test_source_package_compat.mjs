@@ -135,6 +135,11 @@ assert.match(
 )
 assert.match(
   appRegistrySource,
+  /removedExisting = appSourceRuntimeRegistry\.remove\(sourceId\)[\s\S]*const replacementEnabled = removedExisting\?\.enabled \?\? true[\s\S]*enabled: replacementEnabled/,
+  'source package reinstall/update must preserve a previously disabled source instead of silently re-enabling it',
+)
+assert.match(
+  appRegistrySource,
   /export interface SourcePackageBackupEntry \{[\s\S]*sourceId: string[\s\S]*version: string[\s\S]*enabled: boolean[\s\S]*manifest: LocalSourcePackageManifest[\s\S]*wasmBase64: string[\s\S]*wasmByteCount: number[\s\S]*\}/,
   'source package backup entries must use manifest plus base64 wasm bytes',
 )

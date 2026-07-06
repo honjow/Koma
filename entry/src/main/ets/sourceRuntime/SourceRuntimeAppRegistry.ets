@@ -586,6 +586,7 @@ async function registerSourcePackageFromBytes(
       return { ok: false, reasonCode: 'source_id_mismatch' }
     }
     removedExisting = appSourceRuntimeRegistry.remove(sourceId)
+    const replacementEnabled = removedExisting?.enabled ?? true
     const registered = appSourceRuntimeRegistry.register({
       sourceId,
       route: IMPORTED_SOURCE_ROUTE,
@@ -594,7 +595,7 @@ async function registerSourcePackageFromBytes(
       wasmBytes: imported.wasmBytes,
       hashOk: imported.hashOk === true,
       network: false,
-      enabled: true,
+      enabled: replacementEnabled,
       manifestPath: imported.manifestPath,
       wasmPath: imported.wasmPath,
       archivePath,
