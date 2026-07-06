@@ -1067,6 +1067,7 @@ export struct MangaDetailPage {
       (summary.failureReasonCode === 'pages_missing' ||
         summary.failureReasonCode === 'source_pages_failed' ||
         summary.failureReasonCode === 'source_lookup_failed' ||
+        summary.failureReasonCode === 'source_not_installed' ||
         summary.failureReasonCode === 'source_disabled')
   }
 

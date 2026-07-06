@@ -2015,6 +2015,16 @@ assert.match(
 )
 assert.match(
   downloadsPageSource,
+  /isRecoverableBlockedEntry\(entry: OfflineDownloadQueueEntry\): boolean \{[\s\S]*entry\.status === OfflineDownloadStatus\.BLOCKED[\s\S]*pages_missing[\s\S]*source_pages_failed[\s\S]*source_lookup_failed[\s\S]*source_not_installed[\s\S]*source_disabled/,
+  'DownloadsPage must allow source-not-installed blocked entries to retry after the source package is installed again',
+)
+assert.match(
+  mangaDetailPageSource,
+  /isRecoverableBlockedDownload\(summary: OfflineDownloadSummary \| undefined\): boolean \{[\s\S]*summary\?\.status === OfflineDownloadStatus\.BLOCKED[\s\S]*pages_missing[\s\S]*source_pages_failed[\s\S]*source_lookup_failed[\s\S]*source_not_installed[\s\S]*source_disabled/,
+  'MangaDetailPage batch downloads must allow source-not-installed blocked entries to retry after source package recovery',
+)
+assert.match(
+  downloadsPageSource,
   /OfflineDownloadedChapterStatus,[\s\S]*private hasReadableDownloadedManifest\(entry: OfflineDownloadQueueEntry\): boolean \{[\s\S]*validateDownloadedChapter\(entry\.comicId, entry\.chapterId, \{ validateContentHash: false \}\)[\s\S]*validation\.manifest !== undefined[\s\S]*validation\.availablePageCount > 0[\s\S]*OfflineDownloadedChapterStatus\.DOWNLOADED[\s\S]*OfflineDownloadedChapterStatus\.PARTIAL/,
   'DownloadsPage must validate the current offline manifest before treating a queued chapter as readable',
 )

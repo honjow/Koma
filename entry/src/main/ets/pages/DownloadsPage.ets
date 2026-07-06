@@ -294,6 +294,7 @@ export struct DownloadsPage {
       (entry.failureReasonCode === 'pages_missing' ||
         entry.failureReasonCode === 'source_pages_failed' ||
         entry.failureReasonCode === 'source_lookup_failed' ||
+        entry.failureReasonCode === 'source_not_installed' ||
         entry.failureReasonCode === 'source_disabled')
   }
 
