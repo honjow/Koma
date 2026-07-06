@@ -65,6 +65,7 @@ import {
   InMemoryReaderSessionStore,
   PersistentReaderSessionStore,
   ReaderSessionStore,
+  sortedReaderChapters,
 } from '../model/ReaderSessionStore'
 import {
   AppFilesChapterReadStatePersistenceAdapter,
@@ -1049,7 +1050,8 @@ export struct LibraryPage {
     if (progress !== undefined && comic.chapters.some((chapter: Chapter): boolean => chapter.id === progress.chapterId)) {
       return progress.chapterId
     }
-    return comic.chapters.length === 0 ? undefined : comic.chapters[0].id
+    const orderedChapters = sortedReaderChapters(comic.chapters)
+    return orderedChapters.length === 0 ? undefined : orderedChapters[0].id
   }
 
   private chapterNeedsSourcePages(comic: Comic, chapterId: string | undefined): boolean {
