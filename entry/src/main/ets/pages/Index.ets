@@ -165,16 +165,17 @@ struct Index {
   private logReaderSourcePagesUnavailable(reasonCode?: string): void {
     if (reasonCode === 'pages_missing' ||
       reasonCode === 'chapter_missing' ||
-      reasonCode === 'source_missing') {
+      reasonCode === 'source_missing' ||
+      reasonCode === 'source_disabled') {
       console.warn(`[Reader] step=open_source_pages_unavailable failed=true reason=${reasonCode}`)
       return
     }
     console.warn('[Reader] step=open_source_pages_unavailable failed=true reason=source_pages_unavailable')
   }
 
-  private async ensureReaderSourceChapterPages(comic: Comic, chapterId: string | undefined): Promise<void> {
+  private async ensureReaderSourceChapterPages(comic: Comic, chapterId: string | undefined): Promise<boolean> {
     if (!this.chapterNeedsReaderSourcePages(comic, chapterId)) {
-      return
+      return true
     }
     try {
       const result = await new SourceChapterPageHydrator(
@@ -187,17 +188,21 @@ struct Index {
       ).ensureChapterPages(comic.id, comic.sourceRuntimeId, chapterId as string)
       if (!result.hydrated) {
         this.logReaderSourcePagesUnavailable(result.reasonCode)
+        return false
       }
+      return true
     } catch (_error) {
       this.logReaderSourcePagesUnavailable('source_pages_lookup')
+      return false
     }
   }
 
   private async openReader(comicId: ComicId, chapterId?: string): Promise<void> {
     let comic = this.libraryStore.getComic(comicId)
     const targetChapterId = comic === undefined ? chapterId : this.readerChapterIdForOpen(comic, chapterId)
+    let sourcePagesReady = true
     if (comic !== undefined) {
-      await this.ensureReaderSourceChapterPages(comic, targetChapterId)
+      sourcePagesReady = await this.ensureReaderSourceChapterPages(comic, targetChapterId)
       comic = this.libraryStore.getComic(comicId) ?? comic
       try {
         await installReaderRemoteHeadersForComic(getContext(this) as common.UIAbilityContext, comic)
@@ -206,13 +211,25 @@ struct Index {
         console.error('[Favorite] step=open_remote_reader_headers_failed code=remote_headers_failed')
       }
     }
-    this.readerSessionConfig = comic === undefined ? MOCK_LIBRARY_READER_SESSION : this.createReaderSessionConfigForOpen(comic, targetChapterId)
+    const nextSessionConfig = comic === undefined ? MOCK_LIBRARY_READER_SESSION : this.createReaderSessionConfigForOpen(comic, targetChapterId)
+    if (!sourcePagesReady && nextSessionConfig.totalPages <= 0) {
+      this.showToast(AppStrings.get('manga_detail_chapter_pages_load_failed'))
+      return
+    }
+    this.readerSessionConfig = nextSessionConfig
     this.readerPageIndex = this.readerSessionStore.restorePageIndex(this.readerSessionConfig)
     this.readerChromeVisible = false
     if (!this.readerOpen) {
       this.appPathStack.pushPath({ name: RouteName.READER })
     }
     this.readerOpen = true
+  }
+
+  private showToast(message: string): void {
+    try {
+      this.getUIContext().getPromptAction().showToast({ message })
+    } catch (_error) {
+    }
   }
 
   private createReaderSessionConfigForOpen(comic: Comic, chapterId?: string): ReaderSessionConfig {

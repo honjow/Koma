@@ -755,8 +755,8 @@ assert.match(
 )
 assert.match(
   indexSource,
-  /private readerChapterIdForOpen\(comic: Comic, requestedChapterId\?: string\): string \| undefined \{[\s\S]*this\.readerSessionStore\.getProgress\(comic\.id\)[\s\S]*sortedReaderChapters\(comic\.chapters\)\[0\][\s\S]*private async ensureReaderSourceChapterPages\(comic: Comic, chapterId: string \| undefined\): Promise<void> \{[\s\S]*new SourceChapterPageHydrator\([\s\S]*this\.libraryStore,[\s\S]*this\.sourceRegistry,[\s\S]*this\.ensureLibraryPersistenceService\(\)[\s\S]*ensureChapterPages\(comic\.id, comic\.sourceRuntimeId, chapterId as string\)[\s\S]*comic = this\.libraryStore\.getComic\(comicId\) \?\? comic[\s\S]*createReaderSessionConfigForOpen\(comic, targetChapterId\)/,
-  'Index openReader must hydrate source-backed target chapters and honor saved chapter progress before building Reader sessions',
+  /private readerChapterIdForOpen\(comic: Comic, requestedChapterId\?: string\): string \| undefined \{[\s\S]*this\.readerSessionStore\.getProgress\(comic\.id\)[\s\S]*sortedReaderChapters\(comic\.chapters\)\[0\][\s\S]*private async ensureReaderSourceChapterPages\(comic: Comic, chapterId: string \| undefined\): Promise<boolean> \{[\s\S]*new SourceChapterPageHydrator\([\s\S]*this\.libraryStore,[\s\S]*this\.sourceRegistry,[\s\S]*this\.ensureLibraryPersistenceService\(\)[\s\S]*ensureChapterPages\(comic\.id, comic\.sourceRuntimeId, chapterId as string\)[\s\S]*return false[\s\S]*let sourcePagesReady = true[\s\S]*sourcePagesReady = await this\.ensureReaderSourceChapterPages\(comic, targetChapterId\)[\s\S]*const nextSessionConfig = comic === undefined \? MOCK_LIBRARY_READER_SESSION : this\.createReaderSessionConfigForOpen\(comic, targetChapterId\)[\s\S]*!sourcePagesReady && nextSessionConfig\.totalPages <= 0[\s\S]*manga_detail_chapter_pages_load_failed[\s\S]*return[\s\S]*this\.readerSessionConfig = nextSessionConfig/,
+  'Index openReader must hydrate source-backed target chapters, allow offline manifest fallback, and refuse to open an empty Reader when source pages are unavailable',
 )
 assert.match(
   readerSessionStoreSource,
