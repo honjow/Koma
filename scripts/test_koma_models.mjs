@@ -1662,8 +1662,18 @@ assert.match(
 )
 assert.match(
   cachedCoverImageSource,
-  /export struct CachedCoverImage[\s\S]*@Param sourceRuntimeId: string = ''[\s\S]*@Param sourceImageId: string = ''[\s\S]*configureReaderRemoteImageCache\(context\.cacheDir\)[\s\S]*fetchAndCacheSourceRuntimeRemoteImage\(this\.sourceRuntimeId, uri, this\.sourceImageId\)[\s\S]*fetchAndCacheReaderRemoteImage\(uri\)[\s\S]*image\.createImageSource\(resolvedUri\)[\s\S]*createPixelMap\(\)[\s\S]*this\.onError\(\)[\s\S]*Image\(this\.pixelMap\)[\s\S]*objectFit\(this\.objectFit\)/,
+  /export struct CachedCoverImage[\s\S]*@Param sourceRuntimeId: string = ''[\s\S]*@Param sourceImageId: string = ''[\s\S]*configureReaderRemoteImageCache\(context\.cacheDir\)[\s\S]*fetchAndCacheSourceRuntimeRemoteImage\(sourceRuntimeId, uri, sourceImageId\)[\s\S]*fetchAndCacheReaderRemoteImage\(uri\)[\s\S]*image\.createImageSource\(resolvedUri\)[\s\S]*createPixelMap\(\)[\s\S]*this\.onError\(\)[\s\S]*Image\(this\.pixelMap\)[\s\S]*objectFit\(this\.objectFit\)/,
   'CachedCoverImage must materialize source covers through source-aware request rewriting and the shared remote image cache before ArkUI rendering',
+)
+assert.match(
+  cachedCoverImageSource,
+  /createSourceSignature\(uri: string, sourceRuntimeId: string \| undefined, sourceImageId: string \| undefined\)[\s\S]*sourceRuntimeId[\s\S]*sourceImageId[\s\S]*@Monitor\('uri', 'sourceRuntimeId', 'sourceImageId'\)[\s\S]*handleSourceChanged\(this\.uri, this\.sourceRuntimeId, this\.sourceImageId\)/,
+  'CachedCoverImage must treat source runtime id and source image id as part of the reusable cover identity',
+)
+assert.match(
+  cachedCoverImageSource,
+  /@Local private failedSignature: string = ''[\s\S]*failedSignature === signature[\s\S]*this\.failedSignature = signature[\s\S]*aboutToReuse\(params: Record<string, ESObject>\)[\s\S]*params\.sourceRuntimeId[\s\S]*params\.sourceImageId/,
+  'CachedCoverImage must key failures and reuse refreshes by source-aware cover identity instead of URI alone',
 )
 assert.match(
   readerPageSourceAdapterSource,

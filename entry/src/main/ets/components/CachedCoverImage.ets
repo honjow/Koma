@@ -15,9 +15,10 @@ export struct CachedCoverImage {
   @Event onError: () => void = () => {}
   @Local private pixelMap: image.PixelMap | undefined = undefined
   @Local private loading: boolean = false
-  @Local private failedUri: string = ''
+  @Local private failedSignature: string = ''
   private disposed: boolean = false
   private sourceUri: string = ''
+  private sourceSignature: string = ''
   private decodeGeneration: number = 0
 
   private isRemoteUri(uri: string): boolean {
@@ -38,38 +39,42 @@ export struct CachedCoverImage {
     }
   }
 
-  private async resolveImageUri(uri: string): Promise<string> {
+  private createSourceSignature(uri: string, sourceRuntimeId: string | undefined, sourceImageId: string | undefined): string {
+    return `${uri}::${(sourceRuntimeId ?? '').trim()}::${(sourceImageId ?? '').trim()}`
+  }
+
+  private async resolveImageUri(uri: string, sourceRuntimeId: string, sourceImageId: string): Promise<string> {
     if (!this.isRemoteUri(uri)) {
       return uri
     }
     const context = getContext(this) as common.UIAbilityContext
     configureReaderRemoteImageCache(context.cacheDir)
-    if (this.sourceRuntimeId.trim().length > 0) {
-      return fetchAndCacheSourceRuntimeRemoteImage(this.sourceRuntimeId, uri, this.sourceImageId)
+    if (sourceRuntimeId.trim().length > 0) {
+      return fetchAndCacheSourceRuntimeRemoteImage(sourceRuntimeId, uri, sourceImageId)
     }
     return fetchAndCacheReaderRemoteImage(uri)
   }
 
-  private async decodeImage(uri: string): Promise<void> {
-    if (uri.length === 0 || this.loading || this.failedUri === uri) {
+  private async decodeImage(uri: string, signature: string, sourceRuntimeId: string, sourceImageId: string): Promise<void> {
+    if (uri.length === 0 || this.loading || this.failedSignature === signature) {
       return
     }
     const generation = this.decodeGeneration
     this.loading = true
     let imageSource: image.ImageSource | undefined = undefined
     try {
-      const resolvedUri = await this.resolveImageUri(uri)
+      const resolvedUri = await this.resolveImageUri(uri, sourceRuntimeId, sourceImageId)
       imageSource = image.createImageSource(resolvedUri)
       const pixelMap = await imageSource.createPixelMap()
-      if (this.disposed || this.sourceUri !== uri || this.decodeGeneration !== generation) {
+      if (this.disposed || this.sourceSignature !== signature || this.decodeGeneration !== generation) {
         await pixelMap.release()
         return
       }
       this.pixelMap = pixelMap
-      this.failedUri = ''
+      this.failedSignature = ''
     } catch (_error) {
-      if (!this.disposed && this.sourceUri === uri && this.decodeGeneration === generation) {
-        this.failedUri = uri
+      if (!this.disposed && this.sourceSignature === signature && this.decodeGeneration === generation) {
+        this.failedSignature = signature
         this.onError()
       }
     } finally {
@@ -80,32 +85,38 @@ export struct CachedCoverImage {
           console.warn('[CachedCoverImage] step=image_source_release_failed')
         }
       }
-      if (!this.disposed && this.sourceUri === uri && this.decodeGeneration === generation) {
+      if (!this.disposed && this.sourceSignature === signature && this.decodeGeneration === generation) {
         this.loading = false
       }
     }
   }
 
-  private async handleUriChanged(nextUri: string): Promise<void> {
-    if (this.sourceUri === nextUri && this.pixelMap !== undefined) {
+  private async handleSourceChanged(nextUri: string, nextSourceRuntimeId: string | undefined, nextSourceImageId: string | undefined): Promise<void> {
+    const nextSignature = this.createSourceSignature(nextUri, nextSourceRuntimeId, nextSourceImageId)
+    if (this.sourceSignature === nextSignature && this.pixelMap !== undefined) {
       return
     }
     this.decodeGeneration += 1
     this.sourceUri = nextUri
+    this.sourceSignature = nextSignature
     this.loading = false
     await this.releasePixelMap()
     if (!this.disposed) {
-      await this.decodeImage(nextUri)
+      await this.decodeImage(nextUri, nextSignature, nextSourceRuntimeId ?? '', nextSourceImageId ?? '')
     }
   }
 
-  @Monitor('uri')
-  onUriChanged(): void {
-    this.handleUriChanged(this.uri)
+  @Monitor('uri', 'sourceRuntimeId', 'sourceImageId')
+  onSourceChanged(): void {
+    this.handleSourceChanged(this.uri, this.sourceRuntimeId, this.sourceImageId)
   }
 
   aboutToReuse(params: Record<string, ESObject>): void {
-    this.handleUriChanged(params.uri as string)
+    this.handleSourceChanged(
+      params.uri as string,
+      params.sourceRuntimeId as string | undefined,
+      params.sourceImageId as string | undefined,
+    )
   }
 
   build() {
@@ -122,7 +133,7 @@ export struct CachedCoverImage {
     .height('100%')
     .onAppear(() => {
       this.disposed = false
-      this.handleUriChanged(this.uri)
+      this.handleSourceChanged(this.uri, this.sourceRuntimeId, this.sourceImageId)
     })
     .onDisAppear(() => {
       this.disposed = true
