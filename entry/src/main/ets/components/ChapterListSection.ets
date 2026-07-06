@@ -3,6 +3,7 @@ import { connectLanguageState, LanguageState } from '../state/LanguageState'
 import { KomaActionButton } from './ui/KomaActionButton'
 import { KomaEmptyState } from './ui/KomaEmptyState'
 import { KomaIconButton } from './ui/KomaIconButton'
+import { KomaMenuChip } from './ui/KomaMenuChip'
 import { ChapterSortOrder, MangaChapterDownloadStatus, MangaChapterItem } from '../model/MangaDetailModels'
 import { ThemeConstants } from '../theme/ThemeConstants'
 
@@ -590,44 +591,28 @@ export struct ChapterListSection {
         .alignItems(VerticalAlign.Center)
 
         Flex({ wrap: FlexWrap.Wrap }) {
-          KomaActionButton({
-            label: this.filterLabel(),
-            kind: this.readFilter === ChapterReadFilter.ALL ? 'secondary' : 'primary',
-            icon: $r('sys.symbol.chevron_down'),
-            compact: true,
-            controlHeight: ThemeConstants.ACTION_CHIP_HEIGHT,
-          })
+          Row() {
+            KomaMenuChip({ label: this.filterLabel(), active: this.readFilter !== ChapterReadFilter.ALL })
+          }
           .margin({ right: ThemeConstants.SPACE_SM, bottom: ThemeConstants.SPACE_SM })
           .bindMenu(this.FilterMenu())
           if (this.shouldShowLanguageFilter()) {
-            KomaActionButton({
-              label: this.languageFilterLabel(),
-              kind: this.languageFilter.length === 0 ? 'secondary' : 'primary',
-              icon: $r('sys.symbol.chevron_down'),
-              compact: true,
-              controlHeight: ThemeConstants.ACTION_CHIP_HEIGHT,
-            })
+            Row() {
+              KomaMenuChip({ label: this.languageFilterLabel(), active: this.languageFilter.length > 0 })
+            }
             .margin({ right: ThemeConstants.SPACE_SM, bottom: ThemeConstants.SPACE_SM })
             .bindMenu(this.LanguageFilterMenu())
           }
           if (this.shouldShowGroupFilter()) {
-            KomaActionButton({
-              label: this.groupFilterLabel(),
-              kind: this.groupFilter.length === 0 ? 'secondary' : 'primary',
-              icon: $r('sys.symbol.chevron_down'),
-              compact: true,
-              controlHeight: ThemeConstants.ACTION_CHIP_HEIGHT,
-            })
+            Row() {
+              KomaMenuChip({ label: this.groupFilterLabel(), active: this.groupFilter.length > 0 })
+            }
             .margin({ right: ThemeConstants.SPACE_SM, bottom: ThemeConstants.SPACE_SM })
             .bindMenu(this.GroupFilterMenu())
           }
-          KomaActionButton({
-            label: this.sortLabel(),
-            kind: this.sortOrder === ChapterSortOrder.NEWEST_FIRST ? 'secondary' : 'primary',
-            icon: $r('sys.symbol.chevron_down'),
-            compact: true,
-            controlHeight: ThemeConstants.ACTION_CHIP_HEIGHT,
-          })
+          Row() {
+            KomaMenuChip({ label: this.sortLabel(), active: this.sortOrder !== ChapterSortOrder.NEWEST_FIRST })
+          }
           .margin({ right: ThemeConstants.SPACE_SM, bottom: ThemeConstants.SPACE_SM })
           .bindMenu(this.SortMenu())
           if (this.hasActiveFilters()) {

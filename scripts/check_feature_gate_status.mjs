@@ -153,13 +153,28 @@ function validateActiveGate(activeGate, gates, staged) {
       fail('reopening a gate requires staging docs/FEATURE_GATES.md with the new state/evidence')
     }
   }
-  if (Array.isArray(activeGate.evidence)) {
-    for (const evidencePath of activeGate.evidence) {
-      if (typeof evidencePath !== 'string' || evidencePath.trim().length === 0) continue
-      if (!existsSync(resolve(root, evidencePath))) {
-        fail(`active gate evidence path does not exist: ${evidencePath}`)
-      }
+  if (!Array.isArray(activeGate.evidence) || activeGate.evidence.length === 0) {
+    fail('user-visible app changes require current simulator/device evidence paths in active gate evidence')
+  }
+  const evidencePaths = activeGate.evidence
+    .filter((evidencePath) => typeof evidencePath === 'string')
+    .map((evidencePath) => evidencePath.trim())
+    .filter(Boolean)
+  if (evidencePaths.length === 0) {
+    fail('active gate evidence must include at least one screenshot and one layout artifact')
+  }
+  for (const evidencePath of evidencePaths) {
+    if (!existsSync(resolve(root, evidencePath))) {
+      fail(`active gate evidence path does not exist: ${evidencePath}`)
     }
+  }
+  const hasScreenshot = evidencePaths.some((evidencePath) => /\.(png|jpg|jpeg)$/i.test(evidencePath))
+  const hasLayout = evidencePaths.some((evidencePath) => /layout.*\.json$/i.test(evidencePath) || /\.layout\.json$/i.test(evidencePath))
+  if (!hasScreenshot || !hasLayout) {
+    fail('active gate evidence must include both a simulator/device screenshot and layout JSON')
+  }
+  if (typeof activeGate.userPathTest !== 'string' || activeGate.userPathTest.trim().length < 20) {
+    fail('active gate requires userPathTest describing the exercised user path')
   }
 }
 

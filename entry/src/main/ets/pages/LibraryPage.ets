@@ -6,6 +6,7 @@ import { ConciseListRow } from '../components/ui/ConciseListRow'
 import { KomaActionButton } from '../components/ui/KomaActionButton'
 import { KomaEmptyState } from '../components/ui/KomaEmptyState'
 import { KomaIconButton } from '../components/ui/KomaIconButton'
+import { KomaMenuChip } from '../components/ui/KomaMenuChip'
 import { ThemeConstants } from '../theme/ThemeConstants'
 import {
   ContinueReadingCardViewModel,
@@ -1640,53 +1641,29 @@ export struct LibraryPage {
   private SortFilterBar() {
     Scroll() {
       Row({ space: ThemeConstants.SPACE_SM }) {
-        KomaActionButton({
-          label: s('library_sort_chip').replace('%s', this.sortLabel()),
-          kind: this.sortBy === 'lastRead' ? 'secondary' : 'primary',
-          icon: $r('sys.symbol.chevron_down'),
-          compact: true,
-          controlHeight: ThemeConstants.ACTION_CHIP_HEIGHT,
-        })
+        Row() {
+          KomaMenuChip({ label: s('library_sort_chip').replace('%s', this.sortLabel()), active: this.sortBy !== 'lastRead' })
+        }
         .bindMenu(this.SortMenu())
-        KomaActionButton({
-          label: this.sourceLabel(),
-          kind: this.filterSource === 'all' ? 'secondary' : 'primary',
-          icon: $r('sys.symbol.chevron_down'),
-          compact: true,
-          controlHeight: ThemeConstants.ACTION_CHIP_HEIGHT,
-        })
+        Row() {
+          KomaMenuChip({ label: this.sourceLabel(), active: this.filterSource !== 'all' })
+        }
         .bindMenu(this.SourceMenu())
-        KomaActionButton({
-          label: this.readStateLabel(),
-          kind: this.filterReadState === 'all' ? 'secondary' : 'primary',
-          icon: $r('sys.symbol.chevron_down'),
-          compact: true,
-          controlHeight: ThemeConstants.ACTION_CHIP_HEIGHT,
-        })
+        Row() {
+          KomaMenuChip({ label: this.readStateLabel(), active: this.filterReadState !== 'all' })
+        }
         .bindMenu(this.ReadStateMenu())
-        KomaActionButton({
-          label: this.availabilityLabel(),
-          kind: this.filterAvailability === 'all' ? 'secondary' : 'primary',
-          icon: $r('sys.symbol.chevron_down'),
-          compact: true,
-          controlHeight: ThemeConstants.ACTION_CHIP_HEIGHT,
-        })
+        Row() {
+          KomaMenuChip({ label: this.availabilityLabel(), active: this.filterAvailability !== 'all' })
+        }
         .bindMenu(this.AvailabilityMenu())
-        KomaActionButton({
-          label: this.metadataStatusLabel(),
-          kind: this.filterMetadataStatus === 'all' ? 'secondary' : 'primary',
-          icon: $r('sys.symbol.chevron_down'),
-          compact: true,
-          controlHeight: ThemeConstants.ACTION_CHIP_HEIGHT,
-        })
+        Row() {
+          KomaMenuChip({ label: this.metadataStatusLabel(), active: this.filterMetadataStatus !== 'all' })
+        }
         .bindMenu(this.MetadataStatusMenu())
-        KomaActionButton({
-          label: this.categoryLabel(),
-          kind: this.filterCategory === 'all' ? 'secondary' : 'primary',
-          icon: $r('sys.symbol.chevron_down'),
-          compact: true,
-          controlHeight: ThemeConstants.ACTION_CHIP_HEIGHT,
-        })
+        Row() {
+          KomaMenuChip({ label: this.categoryLabel(), active: this.filterCategory !== 'all' })
+        }
         .bindMenu(this.CategoryMenu())
         if (this.hasActiveFilters()) {
           KomaActionButton({

@@ -390,8 +390,13 @@ assert.match(
 )
 assert.match(
   readerChromeSource,
-  /private MiddleDismissSurface\(\)[\s\S]*private TopBar\(\)[\s\S]*private BottomBar\(\)[\s\S]*this\.TopBar\(\)[\s\S]*this\.MiddleDismissSurface\(\)[\s\S]*this\.BottomBar\(\)/,
-  'ReaderChrome must use a compact immersive top and bottom shell instead of a full-height settings panel',
+  /build\(\) \{[\s\S]*Stack\(\{ alignContent: Alignment\.TopStart \}\) \{[\s\S]*this\.TopBar\(\)[\s\S]*Column\(\{ space: 0 \}\)[\s\S]*this\.QuickSettingsPanel\(\)[\s\S]*this\.BottomBar\(\)[\s\S]*\.align\(Alignment\.Bottom\)/,
+  'ReaderChrome must keep the middle reading surface non-intercepting while pinning controls to top and bottom',
+)
+assert.doesNotMatch(
+  readerChromeSource,
+  /private MiddleDismissSurface|HitTestMode\.Block[\s\S]*hideChrome|backgroundColor\('#01000000'\)/,
+  'ReaderChrome must not reserve an invisible blocking middle surface over reader gestures',
 )
 assert.match(
   readerPageSource,
@@ -719,8 +724,18 @@ assert.match(
 )
 assert.match(
   readerPageSource,
-  /private ReaderInputLayer\(\)[\s\S]*\.zIndex\(12\)[\s\S]*\.gesture\(GestureGroup\(GestureMode\.Parallel,[\s\S]*GestureGroup\(GestureMode\.Exclusive,[\s\S]*TapGesture\(\{ count: 2, distanceThreshold: 8 \}\)[\s\S]*this\.onReaderDoubleTap[\s\S]*TapGesture\(\{ count: 1 \}\)[\s\S]*this\.onReaderTap[\s\S]*PinchGesture\(\{ fingers: 2 \}\)[\s\S]*this\.onReaderPinchUpdate\(event\)[\s\S]*PanGesture\(\{ fingers: 1, direction: PanDirection\.All, distance: 2 \}\)[\s\S]*this\.onReaderPanUpdate\(event\)[\s\S]*private ReaderInteractiveContentSurface\(\)[\s\S]*\.scale\(\{ x: this\.zoomScale, y: this\.zoomScale \}\)[\s\S]*\.translate\(\{ x: this\.zoomOffsetX, y: this\.zoomOffsetY \}\)[\s\S]*this\.ReaderInputLayer\(\)/,
+  /private ReaderInputLayer\(\)[\s\S]*\.zIndex\(12\)[\s\S]*\.hitTestBehavior\(HitTestMode\.Block\)[\s\S]*\.gesture\(GestureGroup\(GestureMode\.Parallel,[\s\S]*GestureGroup\(GestureMode\.Exclusive,[\s\S]*TapGesture\(\{ count: 2, fingers: 1, distanceThreshold: READER_TAP_MOVE_TOLERANCE_VP \}\)[\s\S]*this\.onReaderDoubleTap[\s\S]*TapGesture\(\{ count: 1, fingers: 1, distanceThreshold: READER_TAP_MOVE_TOLERANCE_VP \}\)[\s\S]*this\.onReaderTap[\s\S]*PinchGesture\(\{ fingers: 2 \}\)[\s\S]*this\.onReaderPinchUpdate\(event\)[\s\S]*PanGesture\(\{ fingers: 1, direction: PanDirection\.All, distance: 2 \}\)[\s\S]*this\.onReaderPanUpdate\(event\)[\s\S]*private ReaderInteractiveContentSurface\(\)[\s\S]*\.scale\(\{ x: this\.zoomScale, y: this\.zoomScale \}\)[\s\S]*\.translate\(\{ x: this\.zoomOffsetX, y: this\.zoomOffsetY \}\)[\s\S]*this\.ReaderInputLayer\(\)/,
   'reader input layer must stay below chrome while owning tap, pinch, and zoomed pan gestures for the scaled content surface',
+)
+assert.match(
+  readerPageSource,
+  /ReaderChrome\(\{[\s\S]*\.zIndex\(20\)[\s\S]*\.hitTestBehavior\(this\.activeChromeVisible \? HitTestMode\.Transparent : HitTestMode\.None\)/,
+  'reader chrome wrapper must not block hidden reader input and must allow visible center taps to dismiss chrome through the reader input layer',
+)
+assert.match(
+  readerPageSource,
+  /private handleReaderSwipeCandidate\(point: ReaderTouchPoint\): boolean \{[\s\S]*!this\.swipeNavigationEnabled[\s\S]*this\.zoomScale > 1\.01[\s\S]*this\.currentReaderMode\(\) === ReaderMode\.CONTINUOUS_SCROLL[\s\S]*READER_SWIPE_PAGE_THRESHOLD_VP[\s\S]*READER_SWIPE_VERTICAL_REJECT_RATIO[\s\S]*this\.nextPage\(\)[\s\S]*this\.previousPage\(\)/,
+  'reader input layer must keep unzoomed horizontal swipe navigation available without breaking zoomed panning or continuous scroll',
 )
 assert.match(
   readerPageSource,

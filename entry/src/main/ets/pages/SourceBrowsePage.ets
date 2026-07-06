@@ -275,13 +275,13 @@ export struct SourceBrowsePage {
 
   @Builder
   private SourceToolbar() {
-    Row() {
-      Blank()
+    Row({ space: ThemeConstants.SPACE_SM }) {
       Text(`v${this.currentSource().version}`)
         .fontSize(ThemeConstants.FONT_SIZE_META)
         .fontColor(ThemeConstants.TEXT_SECONDARY)
         .maxLines(1)
         .textOverflow({ overflow: TextOverflow.Ellipsis })
+      Blank()
       KomaActionButton({
         label: s('tab_search'),
         kind: 'primary',
@@ -315,6 +315,24 @@ export struct SourceBrowsePage {
     .alignItems(VerticalAlign.Center)
   }
 
+  @Builder
+  private LoadingBrowseState() {
+    Column({ space: ThemeConstants.SPACE_MD }) {
+      LoadingProgress()
+        .width(ThemeConstants.LOADING_SIZE_LARGE)
+        .height(ThemeConstants.LOADING_SIZE_LARGE)
+        .color(ThemeConstants.BRAND_PRIMARY)
+      Text(s('common_loading'))
+        .fontSize(ThemeConstants.FONT_SIZE_META)
+        .fontColor(ThemeConstants.TEXT_SECONDARY)
+        .textAlign(TextAlign.Center)
+    }
+    .width('100%')
+    .height(260)
+    .justifyContent(FlexAlign.Center)
+    .alignItems(HorizontalAlign.Center)
+  }
+
   aboutToAppear(): void {
     if (this.shouldLoadBrowseOnAppear()) {
       this.reloadBrowse()
@@ -327,7 +345,7 @@ export struct SourceBrowsePage {
         listSpace: ThemeConstants.SPACE_MD,
         horizontalPadding: ThemeConstants.SPACE_XL,
         bottomPadding: ThemeConstants.SPACE_XL,
-        reserveTitleBar: false,
+        reserveTitleBar: true,
         onReachEnd: () => {
           void this.viewModel.loadMoreBrowse()
         },
@@ -352,10 +370,7 @@ export struct SourceBrowsePage {
           this.viewModel.homeSections.length === 0 &&
           this.viewModel.browseSections.length === 0) {
           ListItem() {
-            LoadingProgress()
-              .width(ThemeConstants.LOADING_SIZE_LARGE)
-              .height(ThemeConstants.LOADING_SIZE_LARGE)
-              .color(ThemeConstants.BRAND_PRIMARY)
+            this.LoadingBrowseState()
           }
         } else if (this.viewModel.errorMessage.length > 0 && !this.hasBrowseContent()) {
           ListItem() {

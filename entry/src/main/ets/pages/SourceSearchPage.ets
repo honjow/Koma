@@ -193,7 +193,7 @@ export struct SourceSearchPage {
         listSpace: ThemeConstants.SPACE_MD,
         horizontalPadding: ThemeConstants.SPACE_XL,
         bottomPadding: ThemeConstants.SPACE_XL,
-        reserveTitleBar: false,
+        reserveTitleBar: true,
         onReachEnd: () => {
           void this.viewModel.loadMoreSearch()
         },

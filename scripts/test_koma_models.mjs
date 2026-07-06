@@ -621,10 +621,12 @@ assert.match(entryAbilitySource, /const TRANSPARENT_COLOR: string = '#00FFFFFF'/
 assert.match(entryAbilitySource, /setWindowLayoutFullScreen\(true\)/, 'EntryAbility must keep fullscreen window layout')
 assert.match(entryAbilitySource, /statusBarColor:\s*TRANSPARENT_COLOR/, 'EntryAbility status bar must remain transparent')
 assert.match(entryAbilitySource, /navigationBarColor:\s*TRANSPARENT_COLOR/, 'EntryAbility navigation bar must remain transparent')
-assert.match(indexSource, /\.ignoreLayoutSafeArea\(\s*\[\s*LayoutSafeAreaType\.SYSTEM\s*\][\s\S]*\[LayoutSafeAreaEdge\.TOP,\s*LayoutSafeAreaEdge\.BOTTOM\]/, 'root shell must continue drawing under system safe areas')
-assert.match(indexSource, /\.expandSafeArea\(\[SafeAreaType\.SYSTEM\], \[SafeAreaEdge\.TOP, SafeAreaEdge\.BOTTOM\]\)/, 'root shell must preserve immersive safe-area expansion')
+assert.doesNotMatch(indexSource, /\.ignoreLayoutSafeArea\(\s*\[\s*LayoutSafeAreaType\.SYSTEM\s*\][\s\S]*LayoutSafeAreaEdge\.TOP/, 'root shell must not push app content under the status bar')
+assert.doesNotMatch(indexSource, /\.expandSafeArea\(\[SafeAreaType\.SYSTEM\], \[SafeAreaEdge\.TOP/, 'root shell must not expand app content under the status bar')
 assert.doesNotMatch(indexSource, /HdsNavigation\(this\.appPathStack\)[\s\S]*\.(padding|margin)\(/, 'root app shell must not use root padding or margin to avoid safe areas')
-assert.match(mangaDetailPageSource, /SecondaryListScaffold\(\{[\s\S]*reserveTitleBar:\s*false/, 'MangaDetailPage must skip root title spacer inside its HdsNavDestination')
+assert.match(indexSource, /name === RouteName\.MANGA_DETAIL[\s\S]*HdsNavDestination\(\)[\s\S]*MangaDetailPage\(\{[\s\S]*\.titleBar\(this\.navDestTitleBarOpts\(this\.mangaDetailTitle\(param as MangaDetailRouteParam\)\)\)/, 'MangaDetailPage must be hosted as an HDS child destination with the app title bar')
+assert.match(mangaDetailPageSource, /SecondaryListScaffold\(\{[\s\S]*reserveTitleBar:\s*true/, 'MangaDetailPage content must reserve the HDS child title bar instead of drawing its own page shell')
+assert.doesNotMatch(mangaDetailPageSource, /ListItem\(\)\s*\{\s*this\.Toolbar\(\)/, 'MangaDetailPage must not render its own top navigation toolbar inside content')
 assert.doesNotMatch(browsePageSource, /(Navigation|NavDestination)\(/, 'BrowsePage tab root must not nest a second Navigation; private browse pages must use app-level HdsNavDestination routes')
 assert.match(
   indexSource,
@@ -653,13 +655,13 @@ assert.match(
 )
 assert.match(
   sourceBrowsePageSource,
-  /SourceMangaGrid\(\{[\s\S]*columnCount: ThemeConstants\.SOURCE_RESULT_GRID_COLUMN_COUNT[\s\S]*onMangaTap:[\s\S]*SecondaryListScaffold\(\{[\s\S]*reserveTitleBar:\s*false/,
-  'SourceBrowsePage manga grid must use the shared non-nested source result grid without reserving a second title bar',
+  /SourceMangaGrid\(\{[\s\S]*columnCount: ThemeConstants\.SOURCE_RESULT_GRID_COLUMN_COUNT[\s\S]*onMangaTap:[\s\S]*SecondaryListScaffold\(\{[\s\S]*reserveTitleBar:\s*true/,
+  'SourceBrowsePage manga grid must use the shared non-nested source result grid inside the HDS child title bar',
 )
 assert.match(
   sourceSearchPageSource,
-  /searchPlaceholder\(\): string[\s\S]*source_search_placeholder[\s\S]*SourceMangaGrid\(\{[\s\S]*columnCount: ThemeConstants\.SOURCE_RESULT_GRID_COLUMN_COUNT[\s\S]*onMangaTap:[\s\S]*build\(\)[\s\S]*SecondaryListScaffold\(\{[\s\S]*reserveTitleBar:\s*false[\s\S]*Search\(\{ value: this\.query, placeholder: this\.searchPlaceholder\(\) \}\)/,
-  'SourceSearchPage result grid must use compact source search chrome without a duplicate title spacer',
+  /searchPlaceholder\(\): string[\s\S]*source_search_placeholder[\s\S]*SourceMangaGrid\(\{[\s\S]*columnCount: ThemeConstants\.SOURCE_RESULT_GRID_COLUMN_COUNT[\s\S]*onMangaTap:[\s\S]*build\(\)[\s\S]*SecondaryListScaffold\(\{[\s\S]*reserveTitleBar:\s*true[\s\S]*Search\(\{ value: this\.query, placeholder: this\.searchPlaceholder\(\) \}\)/,
+  'SourceSearchPage must reserve the HDS child title bar so search chrome cannot overlap the nav title or back button',
 )
 assert.match(
   sourceMangaGridSource,
@@ -852,6 +854,16 @@ assert.match(
   indexSource,
   /onOpenChapter: \(chapterId: string\) => \{[\s\S]*this\.readerSessionConfig\.comicId\.length > 0[\s\S]*void this\.openReader\(this\.readerSessionConfig\.comicId, chapterId\)/,
   'Index must reopen the active reader session on a requested adjacent chapter without leaving the reader route',
+)
+assert.match(
+  indexSource,
+  /private openReaderMangaDetail\(\): void \{[\s\S]*const comicId = this\.readerSessionConfig\.comicId[\s\S]*const comic = this\.libraryStore\.getComic\(comicId\)[\s\S]*this\.closeReader\(\)[\s\S]*comic\.sourceRuntimeId[\s\S]*comic\.remoteResourceId[\s\S]*RouterHelper\.pushMangaDetail\(\{[\s\S]*mangaId: comic\.remoteResourceId,[\s\S]*sourceId: comic\.sourceRuntimeId[\s\S]*RouterHelper\.pushMangaDetail\(\{ mangaId: comic\.id \}\)/,
+  'Index must route Reader recovery actions to the real manga detail page, preserving source runtime identity for source-backed manga',
+)
+assert.match(
+  indexSource,
+  /ReaderPage\(\{[\s\S]*onOpenMangaDetail: \(\) => \{[\s\S]*this\.openReaderMangaDetail\(\)/,
+  'Index must wire ReaderPage detail recovery into the root manga-detail route',
 )
 assert.match(
   indexSource,
@@ -1087,12 +1099,12 @@ assert.match(
 )
 assert.match(
   libraryPageSource,
-  /private AvailabilityMenu\(\)[\s\S]*setAvailabilityFilter\('all'\)[\s\S]*library_availability_downloaded[\s\S]*setAvailabilityFilter\('downloaded'\)[\s\S]*library_availability_fully_downloaded[\s\S]*setAvailabilityFilter\('fully_downloaded'\)[\s\S]*library_availability_partially_downloaded[\s\S]*setAvailabilityFilter\('partially_downloaded'\)[\s\S]*library_availability_not_downloaded[\s\S]*setAvailabilityFilter\('not_downloaded'\)[\s\S]*label: this\.availabilityLabel\(\)[\s\S]*this\.filterAvailability === 'all' \? 'secondary' : 'primary'/,
+  /private AvailabilityMenu\(\)[\s\S]*setAvailabilityFilter\('all'\)[\s\S]*library_availability_downloaded[\s\S]*setAvailabilityFilter\('downloaded'\)[\s\S]*library_availability_fully_downloaded[\s\S]*setAvailabilityFilter\('fully_downloaded'\)[\s\S]*library_availability_partially_downloaded[\s\S]*setAvailabilityFilter\('partially_downloaded'\)[\s\S]*library_availability_not_downloaded[\s\S]*setAvailabilityFilter\('not_downloaded'\)[\s\S]*KomaMenuChip\(\{ label: this\.availabilityLabel\(\), active: this\.filterAvailability !== 'all' \}\)/,
   'LibraryPage must expose user-visible any/complete/partial/not-downloaded availability filter menu buttons',
 )
 assert.match(
   libraryPageSource,
-  /private MetadataStatusMenu\(\)[\s\S]*setMetadataStatusFilter\('all'\)[\s\S]*manga_status_ongoing[\s\S]*setMetadataStatusFilter\('ongoing'\)[\s\S]*manga_status_completed[\s\S]*setMetadataStatusFilter\('completed'\)[\s\S]*manga_status_hiatus[\s\S]*setMetadataStatusFilter\('hiatus'\)[\s\S]*manga_status_cancelled[\s\S]*setMetadataStatusFilter\('cancelled'\)[\s\S]*manga_status_unknown[\s\S]*setMetadataStatusFilter\('unknown'\)[\s\S]*label: this\.metadataStatusLabel\(\)[\s\S]*this\.filterMetadataStatus === 'all' \? 'secondary' : 'primary'/,
+  /private MetadataStatusMenu\(\)[\s\S]*setMetadataStatusFilter\('all'\)[\s\S]*manga_status_ongoing[\s\S]*setMetadataStatusFilter\('ongoing'\)[\s\S]*manga_status_completed[\s\S]*setMetadataStatusFilter\('completed'\)[\s\S]*manga_status_hiatus[\s\S]*setMetadataStatusFilter\('hiatus'\)[\s\S]*manga_status_cancelled[\s\S]*setMetadataStatusFilter\('cancelled'\)[\s\S]*manga_status_unknown[\s\S]*setMetadataStatusFilter\('unknown'\)[\s\S]*KomaMenuChip\(\{ label: this\.metadataStatusLabel\(\), active: this\.filterMetadataStatus !== 'all' \}\)/,
   'LibraryPage must expose metadata status as a real menu-backed filter button',
 )
 assert.match(
@@ -2496,18 +2508,18 @@ assert.match(
 )
 assert.doesNotMatch(
   chapterListSectionSource,
-  /Chip\(/,
+  /\bChip\(/,
   'ChapterListSection must not fall back to a wall of handwritten chip controls',
 )
 assert.doesNotMatch(
   chapterListSectionSource,
-  /label: `\$\{this\.(filterLabel|languageFilterLabel|groupFilterLabel|sortLabel)\(\)\} (▾|↕)`/,
+  /label: `\$\{this\.(filterLabel|languageFilterLabel|groupFilterLabel|sortLabel)\(\)\} ([\u25BE\u2195])`/,
   'ChapterListSection filter controls must use symbol icons instead of handwritten arrow characters in labels',
 )
 assert.match(
   chapterListSectionSource,
-  /label: this\.filterLabel\(\)[\s\S]*icon: \$r\('sys\.symbol\.chevron_down'\)[\s\S]*if \(this\.shouldShowLanguageFilter\(\)\)[\s\S]*label: this\.languageFilterLabel\(\)[\s\S]*icon: \$r\('sys\.symbol\.chevron_down'\)[\s\S]*if \(this\.shouldShowGroupFilter\(\)\)[\s\S]*label: this\.groupFilterLabel\(\)[\s\S]*label: this\.sortLabel\(\)[\s\S]*icon: \$r\('sys\.symbol\.chevron_down'\)/,
-  'ChapterListSection filter bar must render compact menu buttons with symbol chevrons and conditional metadata filters',
+  /KomaMenuChip\(\{ label: this\.filterLabel\(\), active: this\.readFilter !== ChapterReadFilter\.ALL \}\)[\s\S]*\.bindMenu\(this\.FilterMenu\(\)\)[\s\S]*if \(this\.shouldShowLanguageFilter\(\)\)[\s\S]*KomaMenuChip\(\{ label: this\.languageFilterLabel\(\), active: this\.languageFilter\.length > 0 \}\)[\s\S]*if \(this\.shouldShowGroupFilter\(\)\)[\s\S]*KomaMenuChip\(\{ label: this\.groupFilterLabel\(\), active: this\.groupFilter\.length > 0 \}\)[\s\S]*KomaMenuChip\(\{ label: this\.sortLabel\(\), active: this\.sortOrder !== ChapterSortOrder\.NEWEST_FIRST \}\)[\s\S]*\.bindMenu\(this\.SortMenu\(\)\)/,
+  'ChapterListSection filter bar must use real menu chips bound directly to menus',
 )
 assert.match(
   chapterListSectionSource,
@@ -2526,7 +2538,7 @@ assert.match(
 )
 assert.doesNotMatch(
   chapterListSectionSource,
-  /Text\('↓'\)/,
+  /Text\('\u2193'\)/,
   'ChapterListSection must not use a handwritten arrow as the downloaded state indicator',
 )
 assert.match(
@@ -2827,8 +2839,8 @@ assert.match(
 )
 assert.match(
   readerPageSource,
-  /ReaderInputLayer\(\)[\s\S]*\.zIndex\(12\)[\s\S]*GestureGroup\(GestureMode\.Parallel[\s\S]*GestureGroup\(GestureMode\.Exclusive[\s\S]*TapGesture\(\{ count: 2[\s\S]*onReaderDoubleTap[\s\S]*TapGesture\(\{ count: 1 \}\)[\s\S]*onReaderTap[\s\S]*PinchGesture\(\{ fingers: 2 \}\)[\s\S]*onReaderPinchStart[\s\S]*onReaderPinchUpdate[\s\S]*onReaderPinchEnd[\s\S]*PanGesture\(\{ fingers: 1, direction: PanDirection\.All, distance: 2 \}\)[\s\S]*onReaderPanStart[\s\S]*onReaderPanUpdate[\s\S]*onReaderPanEnd/,
-  'ReaderPage must bind tap, double-tap zoom, pinch zoom, and zoom pan on the top input surface so the transparent tap layer does not block zoom gestures',
+  /ReaderInputLayer\(\)[\s\S]*\.zIndex\(12\)[\s\S]*\.hitTestBehavior\(HitTestMode\.Block\)[\s\S]*GestureGroup\(GestureMode\.Parallel[\s\S]*GestureGroup\(GestureMode\.Exclusive[\s\S]*TapGesture\(\{ count: 2, fingers: 1, distanceThreshold: READER_TAP_MOVE_TOLERANCE_VP \}\)[\s\S]*onReaderDoubleTap[\s\S]*TapGesture\(\{ count: 1, fingers: 1, distanceThreshold: READER_TAP_MOVE_TOLERANCE_VP \}\)[\s\S]*onReaderTap[\s\S]*PinchGesture\(\{ fingers: 2 \}\)[\s\S]*onReaderPinchStart[\s\S]*onReaderPinchUpdate[\s\S]*onReaderPinchEnd[\s\S]*PanGesture\(\{ fingers: 1, direction: PanDirection\.All, distance: 2 \}\)[\s\S]*onReaderPanStart[\s\S]*onReaderPanUpdate[\s\S]*onReaderPanEnd/,
+  'ReaderPage must bind tap, double-tap zoom, pinch zoom, and zoom pan on the full input surface below chrome so invisible layers cannot block reader gestures',
 )
 assert.match(
   trackerProgressSyncServiceSource,

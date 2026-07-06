@@ -375,6 +375,29 @@ struct Index {
     this.appPathStack.pop(false)
   }
 
+  private openReaderMangaDetail(): void {
+    const comicId = this.readerSessionConfig.comicId
+    if (comicId.length === 0) {
+      this.closeReader()
+      return
+    }
+    const comic = this.libraryStore.getComic(comicId)
+    this.closeReader()
+    if (comic === undefined) {
+      RouterHelper.pushMangaDetail({ mangaId: comicId })
+      return
+    }
+    if (comic.sourceRuntimeId !== undefined && comic.sourceRuntimeId.trim().length > 0 &&
+      comic.remoteResourceId !== undefined && comic.remoteResourceId.trim().length > 0) {
+      RouterHelper.pushMangaDetail({
+        mangaId: comic.remoteResourceId,
+        sourceId: comic.sourceRuntimeId,
+      })
+      return
+    }
+    RouterHelper.pushMangaDetail({ mangaId: comic.id })
+  }
+
   private openImport(): void {
     this.appPathStack.pushPath({ name: RouteName.IMPORT })
   }
@@ -763,6 +786,9 @@ struct Index {
           onCloseReader: () => {
             this.closeReader()
           },
+          onOpenMangaDetail: () => {
+            this.openReaderMangaDetail()
+          },
           onOpenChapter: (chapterId: string) => {
             if (this.readerSessionConfig.comicId.length > 0) {
               void this.openReader(this.readerSessionConfig.comicId, chapterId)
@@ -810,7 +836,7 @@ struct Index {
           onLibraryChanged: () => { this.refreshLibrarySnapshot() }
         })
       }
-      .hideTitleBar(true)
+      .titleBar(this.navDestTitleBarOpts(this.mangaDetailTitle(param as MangaDetailRouteParam)))
     } else if (name === RouteName.SOURCE_BROWSE) {
       HdsNavDestination() {
         SourceBrowsePage({
@@ -1168,11 +1194,6 @@ struct Index {
           hideStatusBar: false,
           mode: HideMode.SCROLL_UP,
         })
-        .ignoreLayoutSafeArea(
-          [LayoutSafeAreaType.SYSTEM],
-          [LayoutSafeAreaEdge.TOP, LayoutSafeAreaEdge.BOTTOM],
-        )
-        .expandSafeArea([SafeAreaType.SYSTEM], [SafeAreaEdge.TOP, SafeAreaEdge.BOTTOM])
         .navDestination(this.AppDestination)
         .mode(NavigationMode.Stack)
         .width('100%')
@@ -1233,6 +1254,19 @@ struct Index {
       'content': content,
       'style': style,
     }
+  }
+
+  private mangaDetailTitle(param: MangaDetailRouteParam): string {
+    const initialTitle = param.initialManga?.title?.trim() ?? ''
+    if (initialTitle.length > 0) {
+      return initialTitle
+    }
+    const comic = this.libraryStore.getComic(param.mangaId)
+    const comicTitle = comic?.title?.trim() ?? ''
+    if (comicTitle.length > 0) {
+      return comicTitle
+    }
+    return AppStrings.get('manga_detail_title_fallback')
   }
 
 }

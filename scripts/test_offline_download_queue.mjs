@@ -270,7 +270,7 @@ assert.match(downloadsPageSource, /this\.entries\.length === 0[\s\S]*this\.Empty
 for (const source of stringResourceSources) {
   assert.match(source, /"downloads_filtered_empty_title"/, 'all locales must include filtered downloads empty title')
   assert.match(source, /"downloads_filtered_empty_message"/, 'all locales must include filtered downloads empty message')
-  assert.doesNotMatch(source, /"downloads_(filter|concurrency)_chip"[\s\S]*?▾/, 'downloads filter and concurrency labels must not embed handwritten chevrons')
+  assert.doesNotMatch(source, /"downloads_(filter|concurrency)_chip"[\s\S]*?\u25BE/, 'downloads filter and concurrency labels must not embed handwritten chevrons')
 }
 assert.match(downloadsPageSource, /formatStatus\([\s\S]*queued[\s\S]*downloading[\s\S]*downloaded[\s\S]*partial[\s\S]*failed[\s\S]*blocked/, 'DownloadsPage must render all queue statuses')
 assert.match(downloadsPageSource, /formatEntryStatus\(entry: OfflineDownloadQueueEntry\): string[\s\S]*failureReasonCode === 'paused'[\s\S]*downloads_status_paused[\s\S]*failureReasonCode === 'wifi_only'[\s\S]*downloads_status_waiting_wifi/, 'DownloadsPage must render paused and Wi-Fi-only waiting rows clearly')

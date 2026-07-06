@@ -1529,30 +1529,6 @@ export struct MangaDetailPage {
   }
 
   @Builder
-  private Toolbar() {
-    Row() {
-      KomaIconButton({
-        icon: $r('sys.symbol.chevron_left'),
-        controlSize: ThemeConstants.ACTION_CHIP_HEIGHT,
-        iconSize: ThemeConstants.FONT_SIZE_H2,
-        action: () => {
-          this.onBack()
-        },
-      })
-      Blank()
-      KomaIconButton({
-        icon: $r('sys.symbol.more'),
-        controlSize: ThemeConstants.ACTION_CHIP_HEIGHT,
-        iconSize: ThemeConstants.FONT_SIZE_H2,
-      })
-        .bindMenu(this.DetailMoreMenu())
-    }
-    .width('100%')
-    .height(ThemeConstants.SOURCE_ICON_SIZE)
-    .alignItems(VerticalAlign.Center)
-  }
-
-  @Builder
   private ActionButtons() {
     Row({ space: ThemeConstants.SPACE_MD }) {
       KomaActionButton({
@@ -1589,6 +1565,16 @@ export struct MangaDetailPage {
           this.handleAddToLibrary()
         },
       })
+
+      KomaIconButton({
+        icon: $r('sys.symbol.more'),
+        kind: 'secondary',
+        controlSize: ThemeConstants.ACTION_CHIP_HEIGHT,
+        iconSize: ThemeConstants.FONT_SIZE_HEADING,
+      })
+        .bindMenu(this.DetailMoreMenu(), {
+          placement: Placement.BottomRight,
+        })
     }
     .width('100%')
   }
@@ -1721,12 +1707,8 @@ export struct MangaDetailPage {
         listSpace: ThemeConstants.SPACE_LG,
         horizontalPadding: ThemeConstants.SPACE_XL,
         bottomPadding: ThemeConstants.SPACE_XL,
-        reserveTitleBar: false,
+        reserveTitleBar: true,
       }) {
-        ListItem() {
-          this.Toolbar()
-        }
-
         ListItem() {
           MangaDetailHeader({
             manga: this.displayedManga(),
