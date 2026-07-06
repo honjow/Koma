@@ -2212,6 +2212,11 @@ assert.match(
 )
 assert.match(
   mangaDetailPageSource,
+  /function mangaDetailFromComic\(comic: Comic\): MangaDetail \{[\s\S]*sourceId: comic\.sourceRuntimeId[\s\S]*sourceName: comic\.sourceRuntimeId \?\? ''/,
+  'Source package comics opened from the library detail page must keep sourceRuntimeId so read/download actions can hydrate pages',
+)
+assert.match(
+  mangaDetailPageSource,
   /comicFromSourceManga\(manga: MangaDetail, chapters: MangaChapterItem\[\], comicId: string\): Comic[\s\S]*scanlator: chapter\.scanlator[\s\S]*language: chapter\.language[\s\S]*dateUpload: chapter\.dateUpload[\s\S]*sourceRuntimeId: manga\.sourceId[\s\S]*remoteResourceId: manga\.id/,
   'Adding source manga to library must persist chapter metadata and retain the source manga identity',
 )

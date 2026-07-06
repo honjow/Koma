@@ -1667,8 +1667,8 @@ function mangaDetailFromComic(comic: Comic): MangaDetail {
     status,
     chapterCount: comic.chapterCount,
     isInLibrary: true,
-    sourceId: undefined,
-    sourceName: '',
+    sourceId: comic.sourceRuntimeId,
+    sourceName: comic.sourceRuntimeId ?? '',
     url: comic.sourcePath,
   }
 }
