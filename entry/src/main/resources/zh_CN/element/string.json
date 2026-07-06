@@ -739,6 +739,8 @@
     { "name": "chapter_list_filter_language_all", "value": "全部语言" },
     { "name": "chapter_list_filter_group", "value": "组" },
     { "name": "chapter_list_filter_group_all", "value": "全部组" },
+    { "name": "chapter_list_page_count", "value": "%s 页" },
+    { "name": "chapter_list_show_more", "value": "再显示 %s 章" },
     { "name": "chapter_list_menu_download_visible", "value": "下载可见章节" },
     { "name": "chapter_list_menu_retry_failed", "value": "仅重试失败" },
     { "name": "chapter_list_menu_download_incomplete", "value": "下载未完成" },

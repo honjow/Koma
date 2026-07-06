@@ -739,6 +739,8 @@
     { "name": "chapter_list_filter_language_all", "value": "All languages" },
     { "name": "chapter_list_filter_group", "value": "Group" },
     { "name": "chapter_list_filter_group_all", "value": "All groups" },
+    { "name": "chapter_list_page_count", "value": "%s pages" },
+    { "name": "chapter_list_show_more", "value": "Show %s more" },
     { "name": "chapter_list_menu_download_visible", "value": "Download visible chapters" },
     { "name": "chapter_list_menu_retry_failed", "value": "Retry failed only" },
     { "name": "chapter_list_menu_download_incomplete", "value": "Download incomplete chapters" },

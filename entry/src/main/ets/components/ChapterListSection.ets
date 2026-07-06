@@ -10,6 +10,9 @@ function s(name: string): string {
   return AppStrings.get(name)
 }
 
+const INITIAL_VISIBLE_CHAPTER_LIMIT: number = 80
+const VISIBLE_CHAPTER_INCREMENT: number = 80
+
 export enum ChapterReadFilter {
   ALL = 'all',
   UNREAD = 'unread',
@@ -32,6 +35,7 @@ export struct ChapterListSection {
   @Local private languageFilter: string = ''
   @Local private groupFilter: string = ''
   @Local private sortedChapters: MangaChapterItem[] = []
+  @Local private visibleChapterLimit: number = INITIAL_VISIBLE_CHAPTER_LIMIT
   @Event onOpenChapter: (chapterId: string) => void = (_chapterId: string) => {}
   @Event onDownloadChapter: (chapterId: string) => void = (_chapterId: string) => {}
   @Event onDownloadVisibleChapters: (chapterIds: string[], mode: ChapterBatchDownloadMode) => void =
@@ -45,6 +49,7 @@ export struct ChapterListSection {
   private rebuildDataSource(): void {
     this.ensureMetadataFiltersAvailable()
     this.sortedChapters = this.sortedChapterList()
+    this.clampVisibleChapterLimit()
   }
 
   private sortedChapterList(): MangaChapterItem[] {
@@ -138,21 +143,25 @@ export struct ChapterListSection {
 
   private setSortOrder(sortOrder: ChapterSortOrder): void {
     this.sortOrder = sortOrder
+    this.resetVisibleChapterLimit()
     this.rebuildDataSource()
   }
 
   private setReadFilter(readFilter: ChapterReadFilter): void {
     this.readFilter = readFilter
+    this.resetVisibleChapterLimit()
     this.rebuildDataSource()
   }
 
   private setLanguageFilter(language: string): void {
     this.languageFilter = language
+    this.resetVisibleChapterLimit()
     this.rebuildDataSource()
   }
 
   private setGroupFilter(group: string): void {
     this.groupFilter = group
+    this.resetVisibleChapterLimit()
     this.rebuildDataSource()
   }
 
@@ -179,6 +188,7 @@ export struct ChapterListSection {
     this.readFilter = ChapterReadFilter.ALL
     this.languageFilter = ''
     this.groupFilter = ''
+    this.resetVisibleChapterLimit()
     this.rebuildDataSource()
   }
 
@@ -220,7 +230,35 @@ export struct ChapterListSection {
   }
 
   private visibleChapterIds(): string[] {
-    return this.sortedChapters.map((chapter: MangaChapterItem): string => chapter.id)
+    return this.visibleChapters().map((chapter: MangaChapterItem): string => chapter.id)
+  }
+
+  private visibleChapters(): MangaChapterItem[] {
+    return this.sortedChapters.slice(0, this.visibleChapterLimit)
+  }
+
+  private resetVisibleChapterLimit(): void {
+    this.visibleChapterLimit = INITIAL_VISIBLE_CHAPTER_LIMIT
+  }
+
+  private clampVisibleChapterLimit(): void {
+    if (this.visibleChapterLimit < INITIAL_VISIBLE_CHAPTER_LIMIT) {
+      this.visibleChapterLimit = INITIAL_VISIBLE_CHAPTER_LIMIT
+    }
+    if (this.sortedChapters.length > 0 && this.visibleChapterLimit > this.sortedChapters.length) {
+      this.visibleChapterLimit = Math.max(INITIAL_VISIBLE_CHAPTER_LIMIT, this.sortedChapters.length)
+    }
+  }
+
+  private canShowMoreChapters(): boolean {
+    return this.visibleChapterLimit < this.sortedChapters.length
+  }
+
+  private showMoreChapters(): void {
+    if (!this.canShowMoreChapters()) {
+      return
+    }
+    this.visibleChapterLimit = Math.min(this.sortedChapters.length, this.visibleChapterLimit + VISIBLE_CHAPTER_INCREMENT)
   }
 
   private chapterTitle(chapter: MangaChapterItem): string {
@@ -243,6 +281,9 @@ export struct ChapterListSection {
     }
     if (chapter.dateUpload !== undefined) {
       parts.push(this.formatDate(chapter.dateUpload))
+    }
+    if (chapter.pageCount !== undefined && chapter.pageCount > 0) {
+      parts.push(this.formatString('chapter_list_page_count', [chapter.pageCount]))
     }
     return parts.join(' · ')
   }
@@ -574,9 +615,9 @@ export struct ChapterListSection {
         this.EmptyChapters()
       } else {
         Column() {
-          ForEach(this.sortedChapters, (chapter: MangaChapterItem, index: number) => {
+          ForEach(this.visibleChapters(), (chapter: MangaChapterItem, index: number) => {
             this.ChapterRow(chapter)
-            if (index < this.sortedChapters.length - 1) {
+            if (index < this.visibleChapters().length - 1) {
               Divider()
                 .strokeWidth(1)
                 .color(ThemeConstants.DIVIDER)
@@ -587,6 +628,20 @@ export struct ChapterListSection {
         .width('100%')
         .borderRadius(ThemeConstants.RADIUS_MD)
         .clip(true)
+        if (this.canShowMoreChapters()) {
+          KomaActionButton({
+            label: this.formatString('chapter_list_show_more', [
+              Math.min(VISIBLE_CHAPTER_INCREMENT, this.sortedChapters.length - this.visibleChapterLimit),
+            ]),
+            kind: 'secondary',
+            compact: true,
+            controlHeight: ThemeConstants.ACTION_CHIP_HEIGHT,
+            icon: $r('sys.symbol.chevron_down'),
+            action: () => {
+              this.showMoreChapters()
+            },
+          })
+        }
       }
     }
     .width('100%')

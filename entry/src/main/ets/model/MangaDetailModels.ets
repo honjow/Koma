@@ -33,6 +33,7 @@ export interface MangaChapterItem {
   scanlator?: string
   language?: string
   dateUpload?: number
+  pageCount?: number
   isRead: boolean
   isDownloaded: boolean
 }
@@ -246,6 +247,11 @@ export function parseMangaChapterFromSourceItem(item: SourceRuntimeRecord): Mang
       item['uploadDate'],
       item['uploadedAt'],
       item['updatedAt'],
+    ]),
+    pageCount: firstSourceNumber([
+      item['page_count'],
+      item['pageCount'],
+      item['pages'],
     ]),
     isRead: false,
     isDownloaded: false,
