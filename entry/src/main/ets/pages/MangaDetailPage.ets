@@ -57,6 +57,7 @@ import {
   SourceChapterPageHydrationResult,
   SourceChapterPageHydrator,
 } from '../model/SourceChapterPageHydrator'
+import { SourceManga } from '../model/SourceModels'
 import {
   SourceRuntimeRegistry,
   SourceRuntimeRegistryEntry,
@@ -91,6 +92,7 @@ export const MANGA_DETAIL_ROUTE_NAME: string = 'MangaDetailPage'
 interface MangaDetailRouteParams {
   mangaId?: string
   sourceId?: string
+  initialManga?: SourceManga
 }
 
 interface SourceOperationDataPayload {
@@ -444,7 +446,7 @@ export struct MangaDetailPage {
         throw new Error('source_disabled')
       }
       const loaded = await this.runSourceMangaOperation(lookup.entry, 'get_manga', mangaId)
-      const detail = this.sourceDetailWithRouteIdentity(loaded.detail, sourceId, mangaId)
+      const detail = this.sourceDetailWithRouteIdentity(loaded.detail, sourceId, mangaId, this.params.initialManga)
       let chapters: MangaChapterItem[] = loaded.embeddedChapters
       let chaptersLoadFailed = false
       try {
@@ -471,7 +473,7 @@ export struct MangaDetailPage {
       const e = error as Error
       void e
       console.warn('[manga-detail] source detail load failed reason=source_detail')
-      this.manga = missingMangaDetail(mangaId, sourceId)
+      this.manga = this.sourceDetailFromInitialRouteManga(sourceId, mangaId) ?? missingMangaDetail(mangaId, sourceId)
       this.chapters = []
       this.isInLibrary = false
       this.activeLibraryComicId = ''
@@ -507,17 +509,24 @@ export struct MangaDetailPage {
     }
   }
 
-  private sourceDetailWithRouteIdentity(detail: MangaDetail, sourceId: string, mangaId: string): MangaDetail {
+  private sourceDetailWithRouteIdentity(
+    detail: MangaDetail,
+    sourceId: string,
+    mangaId: string,
+    initialManga?: SourceManga
+  ): MangaDetail {
     const normalizedMangaId = mangaId.trim()
     const next: MangaDetail = {
       id: normalizedMangaId.length > 0 ? normalizedMangaId : detail.id,
-      title: detail.title,
-      author: detail.author,
-      artist: detail.artist,
-      description: detail.description,
-      coverUrl: detail.coverUrl,
-      status: detail.status,
-      tags: detail.tags,
+      title: this.firstRouteDetailText([detail.title, initialManga?.title]) ?? detail.title,
+      author: this.firstRouteDetailText([detail.author, initialManga?.author]),
+      artist: this.firstRouteDetailText([detail.artist, initialManga?.artist]),
+      description: this.firstRouteDetailText([detail.description, initialManga?.description]),
+      coverUrl: detail.coverUrl ?? initialManga?.coverUrl,
+      status: detail.status === undefined || detail.status === MangaStatus.UNKNOWN ?
+        this.mangaStatusFromSourceStatus(initialManga?.status) :
+        detail.status,
+      tags: detail.tags ?? initialManga?.tags,
       sourceId,
       sourceName: detail.sourceName,
       chapterCount: detail.chapterCount,
@@ -525,6 +534,58 @@ export struct MangaDetailPage {
       url: detail.url,
     }
     return next
+  }
+
+  private firstRouteDetailText(values: Array<string | undefined>): string | undefined {
+    for (let index = 0; index < values.length; index += 1) {
+      const value = values[index]?.trim()
+      if (value !== undefined && value.length > 0) {
+        return value
+      }
+    }
+    return undefined
+  }
+
+  private mangaStatusFromSourceStatus(status: string | undefined): MangaStatus | undefined {
+    if (status === 'ongoing') {
+      return MangaStatus.ONGOING
+    }
+    if (status === 'completed') {
+      return MangaStatus.COMPLETED
+    }
+    if (status === 'hiatus') {
+      return MangaStatus.HIATUS
+    }
+    if (status === 'cancelled') {
+      return MangaStatus.CANCELLED
+    }
+    return undefined
+  }
+
+  private sourceDetailFromInitialRouteManga(sourceId: string, mangaId: string): MangaDetail | undefined {
+    const initialManga = this.params.initialManga
+    if (initialManga === undefined) {
+      return undefined
+    }
+    const title = this.firstRouteDetailText([initialManga.title, mangaId])
+    if (title === undefined) {
+      return undefined
+    }
+    return {
+      id: mangaId,
+      title,
+      author: initialManga.author,
+      artist: initialManga.artist,
+      description: initialManga.description,
+      coverUrl: initialManga.coverUrl,
+      status: this.mangaStatusFromSourceStatus(initialManga.status),
+      tags: initialManga.tags,
+      sourceId,
+      sourceName: sourceId,
+      chapterCount: 0,
+      isInLibrary: false,
+      url: initialManga.url,
+    }
   }
 
   private async runSourceChaptersOperation(

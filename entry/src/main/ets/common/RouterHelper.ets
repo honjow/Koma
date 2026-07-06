@@ -1,9 +1,11 @@
 import { RouteName } from './Constants'
 import { SourceRuntimeRegistryInstalledSourceSummary } from '../sourceRuntime/SourceRuntimeRegistry'
+import { SourceManga } from '../model/SourceModels'
 
 export interface MangaDetailRouteParam {
   mangaId: string
   sourceId?: string
+  initialManga?: SourceManga
 }
 
 export interface SearchRouteParam {

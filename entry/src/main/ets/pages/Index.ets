@@ -744,7 +744,7 @@ struct Index {
             RouterHelper.pushSourceSearch({ source: source })
           },
           onMangaTap: (manga: SourceManga) => {
-            RouterHelper.pushMangaDetail({ mangaId: manga.id, sourceId: manga.sourceId })
+            RouterHelper.pushMangaDetail({ mangaId: manga.id, sourceId: manga.sourceId, initialManga: manga })
           },
         })
       }
@@ -754,7 +754,7 @@ struct Index {
         SourceSearchPage({
           source: (param as SourceRouteParam).source,
           onMangaTap: (manga: SourceManga) => {
-            RouterHelper.pushMangaDetail({ mangaId: manga.id, sourceId: manga.sourceId })
+            RouterHelper.pushMangaDetail({ mangaId: manga.id, sourceId: manga.sourceId, initialManga: manga })
           },
         })
       }

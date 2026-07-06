@@ -52,6 +52,7 @@ const importPagePath = resolve(root, 'entry/src/main/ets/pages/ImportPage.ets')
 const sourceBrowsePagePath = resolve(root, 'entry/src/main/ets/pages/SourceBrowsePage.ets')
 const sourceSearchPagePath = resolve(root, 'entry/src/main/ets/pages/SourceSearchPage.ets')
 const sourcePackageManagerPagePath = resolve(root, 'entry/src/main/ets/pages/SourcePackageManagerPage.ets')
+const routerHelperPath = resolve(root, 'entry/src/main/ets/common/RouterHelper.ets')
 const komgaSeriesPagePath = resolve(root, 'entry/src/main/ets/pages/KomgaSeriesPage.ets')
 const kavitaBrowsePagePath = resolve(root, 'entry/src/main/ets/pages/KavitaBrowsePage.ets')
 const opdsBrowsePagePath = resolve(root, 'entry/src/main/ets/pages/OpdsBrowsePage.ets')
@@ -133,6 +134,7 @@ const importPageSource = readFileSync(importPagePath, 'utf8')
 const sourceBrowsePageSource = readFileSync(sourceBrowsePagePath, 'utf8')
 const sourceSearchPageSource = readFileSync(sourceSearchPagePath, 'utf8')
 const sourcePackageManagerPageSource = readFileSync(sourcePackageManagerPagePath, 'utf8')
+const routerHelperSource = readFileSync(routerHelperPath, 'utf8')
 const komgaSeriesPageSource = readFileSync(komgaSeriesPagePath, 'utf8')
 const kavitaBrowsePageSource = readFileSync(kavitaBrowsePagePath, 'utf8')
 const opdsBrowsePageSource = readFileSync(opdsBrowsePagePath, 'utf8')
@@ -1833,8 +1835,23 @@ assert.match(
 )
 assert.match(
   mangaDetailPageSource,
-  /const loaded = await this\.runSourceMangaOperation\(lookup\.entry, 'get_manga', mangaId\)[\s\S]*const detail = this\.sourceDetailWithRouteIdentity\(loaded\.detail, sourceId, mangaId\)[\s\S]*sourceDetailWithRouteIdentity\(detail: MangaDetail, sourceId: string, mangaId: string\)[\s\S]*id: normalizedMangaId\.length > 0 \? normalizedMangaId : detail\.id[\s\S]*sourceId,/,
+  /const loaded = await this\.runSourceMangaOperation\(lookup\.entry, 'get_manga', mangaId\)[\s\S]*const detail = this\.sourceDetailWithRouteIdentity\(loaded\.detail, sourceId, mangaId, this\.params\.initialManga\)[\s\S]*sourceDetailWithRouteIdentity\([\s\S]*initialManga\?: SourceManga[\s\S]*id: normalizedMangaId\.length > 0 \? normalizedMangaId : detail\.id[\s\S]*sourceId,/,
   'MangaDetailPage must keep the browsed/search result mangaId as durable identity even when get_manga returns an alias or omits id',
+)
+assert.match(
+  routerHelperSource,
+  /export interface MangaDetailRouteParam \{[\s\S]*mangaId: string[\s\S]*sourceId\?: string[\s\S]*initialManga\?: SourceManga/,
+  'Manga detail source routes must carry the tapped list item as initial detail data',
+)
+assert.match(
+  indexSource,
+  /name === RouteName\.SOURCE_BROWSE[\s\S]*onMangaTap: \(manga: SourceManga\) => \{[\s\S]*RouterHelper\.pushMangaDetail\(\{ mangaId: manga\.id, sourceId: manga\.sourceId, initialManga: manga \}\)[\s\S]*name === RouteName\.SOURCE_SEARCH[\s\S]*onMangaTap: \(manga: SourceManga\) => \{[\s\S]*RouterHelper\.pushMangaDetail\(\{ mangaId: manga\.id, sourceId: manga\.sourceId, initialManga: manga \}\)/,
+  'Source browse and search taps must pass the initial manga payload into the detail route',
+)
+assert.match(
+  mangaDetailPageSource,
+  /sourceDetailWithRouteIdentity\([\s\S]*firstRouteDetailText\(\[detail\.author, initialManga\?\.author\]\)[\s\S]*coverUrl: detail\.coverUrl \?\? initialManga\?\.coverUrl[\s\S]*mangaStatusFromSourceStatus\(initialManga\?\.status\)[\s\S]*tags: detail\.tags \?\? initialManga\?\.tags/,
+  'MangaDetailPage must fill missing source detail fields from the tapped source list item',
 )
 assert.match(
   mangaDetailPageSource,
@@ -1858,7 +1875,7 @@ assert.match(
 )
 assert.match(
   mangaDetailPageSource,
-  /const loaded = await this\.runSourceMangaOperation\(lookup\.entry, 'get_manga', mangaId\)[\s\S]*const detail = this\.sourceDetailWithRouteIdentity\(loaded\.detail, sourceId, mangaId\)[\s\S]*let chapters: MangaChapterItem\[\] = loaded\.embeddedChapters[\s\S]*let chaptersLoadFailed = false[\s\S]*try \{[\s\S]*const remoteChapters = await this\.runSourceChaptersOperation\(lookup\.entry, mangaId\)[\s\S]*if \(remoteChapters\.length > 0\) \{[\s\S]*chapters = remoteChapters[\s\S]*\} catch \(_error\) \{[\s\S]*chaptersLoadFailed = true[\s\S]*reason=source_chapters[\s\S]*this\.manga = detail[\s\S]*this\.chapters = this\.decorateChapterStates\(chapters\)[\s\S]*manga_detail_load_source_chapters_failed/,
+  /const loaded = await this\.runSourceMangaOperation\(lookup\.entry, 'get_manga', mangaId\)[\s\S]*const detail = this\.sourceDetailWithRouteIdentity\(loaded\.detail, sourceId, mangaId, this\.params\.initialManga\)[\s\S]*let chapters: MangaChapterItem\[\] = loaded\.embeddedChapters[\s\S]*let chaptersLoadFailed = false[\s\S]*try \{[\s\S]*const remoteChapters = await this\.runSourceChaptersOperation\(lookup\.entry, mangaId\)[\s\S]*if \(remoteChapters\.length > 0\) \{[\s\S]*chapters = remoteChapters[\s\S]*\} catch \(_error\) \{[\s\S]*chaptersLoadFailed = true[\s\S]*reason=source_chapters[\s\S]*this\.manga = detail[\s\S]*this\.chapters = this\.decorateChapterStates\(chapters\)[\s\S]*manga_detail_load_source_chapters_failed/,
   'MangaDetailPage must keep a successful source detail visible and fall back to embedded detail chapters when separate chapter loading fails or returns empty',
 )
 assert.match(
@@ -1873,8 +1890,8 @@ assert.match(
 )
 assert.match(
   mangaDetailPageSource,
-  /catch \(error\)[\s\S]*reason=source_detail[\s\S]*missingMangaDetail\(mangaId, sourceId\)[\s\S]*this\.chapters = \[\][\s\S]*manga_detail_load_source_failed/,
-  'MangaDetailPage source load failures must fail closed instead of showing mock manga or fake chapters',
+  /catch \(error\)[\s\S]*reason=source_detail[\s\S]*sourceDetailFromInitialRouteManga\(sourceId, mangaId\) \?\? missingMangaDetail\(mangaId, sourceId\)[\s\S]*this\.chapters = \[\][\s\S]*manga_detail_load_source_failed/,
+  'MangaDetailPage source load failures must preserve the tapped source list identity while keeping chapters empty',
 )
 assert.doesNotMatch(
   mangaDetailPageSource,
