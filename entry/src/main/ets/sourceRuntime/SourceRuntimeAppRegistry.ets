@@ -14,6 +14,9 @@ import {
 import {
   runRegisteredSourceRequestById,
 } from './SourceRuntimeService'
+import {
+  runSourceOperationFromBytes,
+} from './SourceRuntimeRunner'
 import { appSourceSettingsStore } from './SourceSettingsStore'
 import { appSourceFilterPreferencesStore } from './SourceFilterPreferencesStore'
 import {
@@ -67,6 +70,25 @@ export interface SourcePackageRestoreResult {
   ok: boolean
   restoredCount: number
   reasonCode?: string
+}
+
+interface SourceInfoCapabilityRequestArgs {}
+
+interface SourceInfoCapabilityRequestSettings {}
+
+interface SourceInfoCapabilityRequestHostHints {
+  network: boolean
+}
+
+interface SourceInfoCapabilityRequest {
+  type: string
+  version: number
+  requestId: string
+  operation: string
+  sourceId: string
+  args: SourceInfoCapabilityRequestArgs
+  settings: SourceInfoCapabilityRequestSettings
+  hostHints: SourceInfoCapabilityRequestHostHints
 }
 
 export const appSourceRuntimeRegistry: SourceRuntimeRegistry = new SourceRuntimeRegistry()
@@ -237,6 +259,86 @@ function sourceArchiveSandboxFileName(sourceUri: string): string {
     return candidate + '.zip'
   }
   return 'source-package.zip'
+}
+
+function sourceInfoCapabilityToken(key: string): string | undefined {
+  switch (key) {
+    case 'sourceInfo':
+    case 'source_info':
+      return 'sourceInfo'
+    case 'search':
+      return 'search'
+    case 'mangaDetail':
+    case 'get_manga':
+    case 'detail':
+      return 'detail'
+    case 'chapters':
+    case 'get_chapters':
+      return 'chapters'
+    case 'pages':
+    case 'get_pages':
+      return 'pages'
+    case 'listings':
+    case 'get_listings':
+      return 'listings'
+    case 'mangaList':
+    case 'get_manga_list':
+      return 'mangaList'
+    case 'home':
+    case 'get_home':
+      return 'home'
+    case 'filters':
+    case 'get_filters':
+      return 'filters'
+    case 'settings':
+    case 'get_settings':
+      return 'settings'
+    case 'imageRequest':
+    case 'get_image_request':
+      return 'imageRequest'
+    default:
+      return undefined
+  }
+}
+
+function detectSourceRuntimeCapabilities(sourceId: string, wasmBytes: Uint8Array): string[] | undefined {
+  const args: SourceInfoCapabilityRequestArgs = {}
+  const settings: SourceInfoCapabilityRequestSettings = {}
+  const hostHints: SourceInfoCapabilityRequestHostHints = { network: false }
+  const request: SourceInfoCapabilityRequest = {
+    type: 'request',
+    version: 1,
+    requestId: `source-info-${Date.now()}`,
+    operation: 'source_info',
+    sourceId,
+    args,
+    settings,
+    hostHints,
+  }
+  try {
+    const response = runSourceOperationFromBytes(JSON.stringify(request), wasmBytes)
+    if (response.ok !== true || response.operation !== 'source_info') {
+      return undefined
+    }
+    const data = response.data as Record<string, Object> | undefined
+    const capabilities = data?.['capabilities'] as Record<string, Object> | undefined
+    if (capabilities === undefined || capabilities === null || Array.isArray(capabilities) || typeof capabilities !== 'object') {
+      return undefined
+    }
+    const tokens: string[] = ['sourceInfo']
+    Object.keys(capabilities).forEach((key: string) => {
+      if (capabilities[key] !== true) {
+        return
+      }
+      const token = sourceInfoCapabilityToken(key)
+      if (token !== undefined && tokens.indexOf(token) < 0) {
+        tokens.push(token)
+      }
+    })
+    return tokens.length > 1 ? tokens : undefined
+  } catch (_error) {
+    return undefined
+  }
 }
 
 function sourcePackageFromEntry(entry: SourceRuntimeRegistryEntry): InstalledSourcePackage {
@@ -587,6 +689,7 @@ async function registerSourcePackageFromBytes(
     }
     removedExisting = appSourceRuntimeRegistry.remove(sourceId)
     const replacementEnabled = removedExisting?.enabled ?? true
+    const detectedCapabilities = detectSourceRuntimeCapabilities(sourceId, imported.wasmBytes)
     const registered = appSourceRuntimeRegistry.register({
       sourceId,
       route: IMPORTED_SOURCE_ROUTE,
@@ -596,6 +699,7 @@ async function registerSourcePackageFromBytes(
       hashOk: imported.hashOk === true,
       network: false,
       enabled: replacementEnabled,
+      capabilities: detectedCapabilities,
       manifestPath: imported.manifestPath,
       wasmPath: imported.wasmPath,
       archivePath,

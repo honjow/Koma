@@ -169,8 +169,9 @@ function normalizedCapabilityList(input: string[] | undefined, manifest: LocalSo
   const capabilities: string[] = []
   input.forEach((item: string) => {
     const trimmed = item.trim()
+    const isOperationCapability = normalizeSourceOperationCapabilityToken(trimmed) === trimmed
     if (displayCapabilityTokenAllowed(trimmed) &&
-      manifestCapabilities.indexOf(trimmed) >= 0 &&
+      (isOperationCapability || manifestCapabilities.indexOf(trimmed) >= 0) &&
       capabilities.indexOf(trimmed) < 0) {
       capabilities.push(trimmed)
     }

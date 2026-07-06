@@ -363,6 +363,7 @@ export function normalizeSourceOperationCapabilityToken(value: string): string |
     case 'search':
       return 'search'
     case 'get_manga':
+    case 'mangaDetail':
     case 'detail':
       return 'detail'
     case 'get_chapters':

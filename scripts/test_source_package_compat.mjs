@@ -192,6 +192,26 @@ assert.match(
 )
 assert.match(
   importerSource,
+  /case 'get_manga':[\s\S]*case 'mangaDetail':[\s\S]*case 'detail':[\s\S]*return 'detail'/,
+  'source operation capability normalization must treat source_info mangaDetail as Koma detail capability',
+)
+assert.match(
+  appRegistrySource,
+  /function detectSourceRuntimeCapabilities\(sourceId: string, wasmBytes: Uint8Array\): string\[\] \| undefined[\s\S]*operation: 'source_info'[\s\S]*runSourceOperationFromBytes\(JSON\.stringify\(request\), wasmBytes\)[\s\S]*sourceInfoCapabilityToken\(key\)/,
+  'source package install must detect runtime source_info capabilities from source.wasm instead of relying only on legacy manifests',
+)
+assert.match(
+  appRegistrySource,
+  /const detectedCapabilities = detectSourceRuntimeCapabilities\(sourceId, imported\.wasmBytes\)[\s\S]*capabilities: detectedCapabilities/,
+  'source package install must pass detected runtime capabilities into the registry',
+)
+assert.match(
+  sourceRuntimeRegistrySource.match(/function normalizedCapabilityList[\s\S]*?\n\}/)?.[0] ?? '',
+  /const isOperationCapability = normalizeSourceOperationCapabilityToken\(trimmed\) === trimmed[\s\S]*isOperationCapability \|\| manifestCapabilities\.indexOf\(trimmed\) >= 0/,
+  'source registry must preserve runtime-detected operation capabilities while keeping permission-like display tokens manifest-bound',
+)
+assert.match(
+  importerSource,
   /validateNormalizedManifest[\s\S]*manifest\.operationCapabilities[\s\S]*normalizeSourceOperationCapabilityTokens\(manifest\.operationCapabilities\)\.length !== manifest\.operationCapabilities\.length[\s\S]*manifest_invalid/,
   'source package validation must reject unnormalized operation capability metadata',
 )
@@ -1074,8 +1094,8 @@ assert.match(
 )
 assert.match(
   sourceRuntimeRegistrySource,
-  /const manifestCapabilities = capabilitiesFromManifest\(manifest\)[\s\S]*displayCapabilityTokenAllowed\(trimmed\)[\s\S]*manifestCapabilities\.indexOf\(trimmed\) >= 0[\s\S]*return capabilities\.length > 0 \? capabilities : manifestCapabilities/,
-  'persisted capability summaries must be intersected with manifest-derived capabilities',
+  /const manifestCapabilities = capabilitiesFromManifest\(manifest\)[\s\S]*input === undefined \|\| input\.length === 0[\s\S]*return manifestCapabilities[\s\S]*const isOperationCapability = normalizeSourceOperationCapabilityToken\(trimmed\) === trimmed[\s\S]*isOperationCapability \|\| manifestCapabilities\.indexOf\(trimmed\) >= 0[\s\S]*return capabilities\.length > 0 \? capabilities : manifestCapabilities/,
+  'source registry must use manifest-derived capabilities as fallback while preserving runtime-detected operation capabilities without granting permission display tokens',
 )
 assert.match(
   sourceRuntimeRegistrySource,
@@ -1083,7 +1103,6 @@ assert.match(
   'metadata reload may pass persisted capabilities only through manifest-bound registry sanitization',
 )
 {
-  const manifestDerivedCapabilities = ['search', 'detail', 'chapters', 'pages', 'home', 'settings']
   const tamperedPersistedCapabilities = ['search', ' network ', 'home', 'settings', 'hostImports:2', 'sourceSecrets', '']
   const allowedDisplayCapability = (token) => (
     ['sourceInfo', 'search', 'detail', 'chapters', 'pages', 'listings', 'mangaList', 'home', 'filters', 'settings', 'imageRequest'].includes(token) ||
@@ -1094,13 +1113,13 @@ assert.match(
     .map((item) => item.trim())
     .filter((item, index, list) => (
       allowedDisplayCapability(item) &&
-      manifestDerivedCapabilities.includes(item) &&
+      (['sourceInfo', 'search', 'detail', 'chapters', 'pages', 'listings', 'mangaList', 'home', 'filters', 'settings', 'imageRequest'].includes(item)) &&
       list.indexOf(item) === index
     ))
   assert.deepEqual(
     sanitizedCapabilities,
     ['search', 'home', 'settings'],
-    'tampered persisted capabilities must drop unknown, network, and hostImports while preserving manifest-granted operation capabilities',
+    'runtime-detected capabilities must preserve bounded operation tokens while dropping unknown or permission-display entries not granted by manifest',
   )
 }
 
