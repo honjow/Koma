@@ -22,6 +22,7 @@ export interface ReaderSessionConfig {
   title?: string
   chapterTitle?: string
   chapterIds: string[]
+  chapterTitles?: string[]
   totalPages: number
   pageUris: string[]
   pageIds: string[]
@@ -36,6 +37,7 @@ export const EMPTY_READER_SESSION_CONFIG: ReaderSessionConfig = {
   title: '',
   chapterTitle: '',
   chapterIds: [],
+  chapterTitles: [],
   totalPages: 0,
   pageUris: [],
   pageIds: [],
@@ -360,6 +362,7 @@ export function sortedReaderChapters(chapters: Chapter[]): Chapter[] {
 export function createReaderSessionConfigFromComic(comic: Comic, chapterId?: string): ReaderSessionConfig {
   const orderedChapters = sortedReaderChapters(comic.chapters)
   const chapterIds = orderedChapters.map((item: Chapter): string => item.id)
+  const chapterTitles = orderedChapters.map((item: Chapter): string => item.title)
   let chapter = orderedChapters.length === 0 ? undefined : orderedChapters[0]
   if (chapterId !== undefined) {
     const matchedChapter = orderedChapters.find((item: Chapter) => item.id === chapterId)
@@ -374,6 +377,7 @@ export function createReaderSessionConfigFromComic(comic: Comic, chapterId?: str
       chapterId: '',
       title: comic.title,
       chapterIds,
+      chapterTitles,
       totalPages: 0,
       pageUris: [],
       pageIds: [],
@@ -390,6 +394,7 @@ export function createReaderSessionConfigFromComic(comic: Comic, chapterId?: str
     title: comic.title,
     chapterTitle: chapter.title,
     chapterIds,
+    chapterTitles,
     totalPages: pages.length,
     pageUris: pages.map((page: Page) => page.uri),
     pageIds: pages.map((page: Page) => page.id),

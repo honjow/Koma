@@ -2606,6 +2606,21 @@ assert.match(
   'ReaderChrome bottom controls must expose a real draggable page slider instead of a display-only progress bar',
 )
 assert.match(
+  readerSessionStoreSource,
+  /chapterTitles\?: string\[\][\s\S]*const chapterTitles = orderedChapters\.map\(\(item: Chapter\): string => item\.title\)[\s\S]*chapterTitles,/,
+  'ReaderSessionConfig must carry ordered chapter titles so Reader controls can show a usable chapter selector',
+)
+assert.match(
+  readerChromeSource,
+  /@Param chapterTitles: string\[\] = \[\][\s\S]*@Event onOpenChapterAtIndex: \(chapterIndex: number\) => void[\s\S]*chapterIndexes\(\): number\[\][\s\S]*chapterTitleAt\(index: number\): string[\s\S]*ChapterMenu\(\)[\s\S]*ForEach\(this\.chapterIndexes\(\)[\s\S]*MenuItem\(\{ content: this\.chapterTitleAt\(chapterIndex\) \}\)[\s\S]*this\.onOpenChapterAtIndex\(chapterIndex\)[\s\S]*this\.TextPill\(this\.chapterCounterText\(\), \$r\('sys\.symbol\.doc_plaintext'\)\)[\s\S]*\.bindMenu\(this\.ChapterMenu\(\)\)/,
+  'ReaderChrome chapter counter must open a real chapter menu instead of only exposing previous/next chapter buttons',
+)
+assert.match(
+  readerPageSource,
+  /chapterTitleAt\(index: number\): string[\s\S]*this\.sessionConfig\.chapterTitles \?\? \[\][\s\S]*openChapterAtIndex\(targetIndex: number\): void[\s\S]*this\.sessionConfig\.chapterIds\[targetIndex\] === this\.sessionConfig\.chapterId[\s\S]*this\.resetReaderZoom\(false\)[\s\S]*this\.onOpenChapter\(this\.sessionConfig\.chapterIds\[targetIndex\]\)[\s\S]*chapterTitles: this\.sessionConfig\.chapterIds\.map[\s\S]*this\.chapterTitleAt\(index\)[\s\S]*onOpenChapterAtIndex: \(chapterIndex: number\) => \{[\s\S]*this\.openChapterAtIndex\(chapterIndex\)/,
+  'ReaderPage must wire ReaderChrome chapter menu selection to chapter opening with saved progress and zoom reset',
+)
+assert.match(
   readerPageSource,
   /seekChromePage\(pageIndex: number\): void \{[\s\S]*const mode = this\.currentReaderMode\(\)[\s\S]*const target = Math\.max\(0, Math\.min\(pageIndex, this\.chromePageTotal\(\) - 1\)\)[\s\S]*this\.isSplitDisplayNavigationMode\(\)[\s\S]*this\.setReaderDisplayEntryIndex\(target, mode, true\)[\s\S]*mode === ReaderMode\.DUAL_PAGE[\s\S]*this\.setPageIndex\(target\)[\s\S]*this\.syncReaderViewportToDisplayIndex\(this\.dualPairIndexForPage\(target\), mode\)[\s\S]*this\.setReaderDisplayEntryIndex\(this\.displayIndexForPage\(target, mode\), mode, true\)[\s\S]*onSeekPage: \(pageIndex: number\) => \{[\s\S]*this\.seekChromePage\(pageIndex\)/,
   'ReaderPage must wire ReaderChrome page seeking to the active reader viewport for split, dual, single, and continuous modes',
