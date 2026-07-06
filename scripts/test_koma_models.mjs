@@ -797,6 +797,11 @@ assert.match(
 )
 assert.match(
   offlineDownloadStoreSource,
+  /function normalizeOptionalPageDimension\(value: number \| undefined\): number \| undefined[\s\S]*value === undefined \|\| !Number\.isFinite\(value\) \|\| value <= 0[\s\S]*saveManifest\(manifest: OfflineChapterDownloadManifest\)[\s\S]*width: normalizeOptionalPageDimension\(page\.width\)[\s\S]*height: normalizeOptionalPageDimension\(page\.height\)/,
+  'offline manifest saves must not drop valid page width and height metadata before offline Reader opens downloaded chapters',
+)
+assert.match(
+  offlineDownloadStoreSource,
   /export enum OfflineDownloadedChapterStatus\s*{[\s\S]*DOWNLOADED = 'downloaded'[\s\S]*PARTIAL = 'partial'[\s\S]*CORRUPT = 'corrupt'[\s\S]*MISSING = 'missing'/,
   'offline manifest validation must classify downloaded, partial, corrupt, and missing chapters',
 )

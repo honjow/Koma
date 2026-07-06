@@ -131,6 +131,13 @@ function normalizeOptionalManifestLabel(value: string | undefined): string | und
   return normalized.length > 0 ? normalized : undefined
 }
 
+function normalizeOptionalPageDimension(value: number | undefined): number | undefined {
+  if (value === undefined || !Number.isFinite(value) || value <= 0) {
+    return undefined
+  }
+  return value
+}
+
 function trimTrailingSlash(value: string): string {
   let normalized = normalizeDownloadPath(value)
   while (normalized.length > 1 && normalized.endsWith('/')) {
@@ -756,6 +763,8 @@ export class OfflineDownloadStore {
         pageId: page.pageId,
         pageIndex: Math.max(0, Math.floor(page.pageIndex)),
         fileName: page.fileName ?? pathBaseName(page.localPath),
+        width: normalizeOptionalPageDimension(page.width),
+        height: normalizeOptionalPageDimension(page.height),
         localPath: page.localPath,
         size: Math.max(0, Math.floor(page.size)),
         contentHash: page.contentHash?.trim(),
