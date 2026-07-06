@@ -2614,7 +2614,7 @@ export async function maybeRunSourceRuntimeDeviceSmoke(
                   manifest.downloadedPageCount === pages.length
               configureReaderOfflineDownloads(context.filesDir)
               const offlineConfig = createReaderSessionConfigFromComic(comic, chapterId)
-              const offlineSource = createReaderPageRenderSource(offlineConfig, 0)
+              const offlineSource = createReaderPageRenderSource(offlineConfig, 0, { offlineOnly: true })
               result.sourceIndexDownloadOfflineReaderKind = offlineSource.kind
               result.sourceIndexDownloadOfflineReaderOk =
                 offlineSource.kind === ReaderPageRenderKind.LOCAL_FILE_IMAGE &&
@@ -3209,7 +3209,7 @@ export async function maybeRunSourceRuntimeDeviceSmoke(
                   }
                   configureReaderOfflineDownloads(context.filesDir)
                   const offlineConfig = createReaderSessionConfigFromComic(comic, chapterId)
-                  const offlineSource = createReaderPageRenderSource(offlineConfig, 0)
+                  const offlineSource = createReaderPageRenderSource(offlineConfig, 0, { offlineOnly: true })
                   result.sourceIndexDownloadOfflineReaderKind = offlineSource.kind
                   result.sourceIndexDownloadOfflineReaderOk =
                     isCorruptReaderPhase ?

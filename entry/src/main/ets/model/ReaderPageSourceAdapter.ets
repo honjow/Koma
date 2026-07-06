@@ -717,7 +717,7 @@ export function configureReaderOfflineDownloads(filesDir: string): void {
   }
 }
 
-function createReaderOfflineDownloadRenderSource(config: ReaderSessionConfig, pageIndex: number): ReaderPageRenderSource | undefined {
+function createReaderOfflineDownloadRenderSource(config: ReaderSessionConfig, pageIndex: number, offlineOnly: boolean = false): ReaderPageRenderSource | undefined {
   if (readerOfflineDownloadStore === undefined || config.comicId.length === 0 || config.chapterId.length === 0) {
     return undefined
   }
@@ -732,7 +732,7 @@ function createReaderOfflineDownloadRenderSource(config: ReaderSessionConfig, pa
     validateContentHash: false,
   })
   if (localPath === undefined) {
-    if (isOfflineManifestReaderOwned(validation)) {
+    if (offlineOnly && isOfflineManifestReaderOwned(validation)) {
       console.warn(`[ReaderOffline] step=offline_page_unavailable comic=${createShortReaderHash(config.comicId)} chapter=${createShortReaderHash(config.chapterId)} page=${pageIndex} reason=${validation.reasonCode ?? 'page_unavailable'}`)
       return createReaderOfflineUnavailableSource(config, pageIndex)
     }
@@ -978,7 +978,7 @@ function createReaderSourceDiagnostics(source: ReaderPageRenderSource): ReaderPa
 export function createReaderPageRenderSource(config: ReaderSessionConfig, pageIndex: number, options?: ReaderPageRenderSourceOptions): ReaderPageRenderSource {
   let offlineDownloadSource: ReaderPageRenderSource | undefined = undefined
   if (options?.preferOffline !== false) {
-    offlineDownloadSource = createReaderOfflineDownloadRenderSource(config, pageIndex)
+    offlineDownloadSource = createReaderOfflineDownloadRenderSource(config, pageIndex, options?.offlineOnly === true)
     if (offlineDownloadSource !== undefined) {
       return offlineDownloadSource
     }

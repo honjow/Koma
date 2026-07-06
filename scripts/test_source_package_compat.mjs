@@ -977,7 +977,7 @@ assert.match(
 )
 assert.match(
   smokeSource,
-  /SMOKE_PHASE_SOURCE_INDEX_DOWNLOAD_CORRUPT_READER[\s\S]*fs\.unlinkSync\(manifest\.pages\[0\]\.localPath\)[\s\S]*ReaderPageRenderKind\.URI_PLACEHOLDER[\s\S]*if \(isCorruptReaderPhase\) \{[\s\S]*result\.sourceIndexDownloadCleanupOk = true/,
+  /SMOKE_PHASE_SOURCE_INDEX_DOWNLOAD_CORRUPT_READER[\s\S]*fs\.unlinkSync\(manifest\.pages\[0\]\.localPath\)[\s\S]*createReaderPageRenderSource\(offlineConfig, 0, \{ offlineOnly: true \}\)[\s\S]*ReaderPageRenderKind\.URI_PLACEHOLDER[\s\S]*if \(isCorruptReaderPhase\) \{[\s\S]*result\.sourceIndexDownloadCleanupOk = true/,
   'source-index corrupt offline reader smoke must preserve a corrupt manifest long enough for visible Reader UI QA',
 )
 assert.match(
