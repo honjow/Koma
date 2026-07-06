@@ -1940,6 +1940,16 @@ assert.match(
   /private openDownloadedChapter\(entry: OfflineDownloadQueueEntry\): void \{[\s\S]*if \(!this\.canRead\(entry\)\) \{[\s\S]*return[\s\S]*if \(!this\.hasReadableDownloadedManifest\(entry\)\) \{[\s\S]*this\.loadQueue\(\)[\s\S]*this\.showToast\(s\('downloads_toast_entry_unavailable'\)\)[\s\S]*return[\s\S]*this\.onOpenReader\(entry\.comicId, entry\.chapterId\)/,
   'DownloadsPage must block stale or unreadable offline rows before opening Reader',
 )
+assert.match(
+  downloadsPageSource,
+  /KomaActionButton\(\{[\s\S]*label: s\('downloads_filter_chip'\)\.replace\('%s', this\.filterLabel\(\)\)[\s\S]*kind: this\.filter === DownloadQueueFilter\.ALL \? 'secondary' : 'primary'[\s\S]*\.bindMenu\(this\.FilterMenu\(\)[\s\S]*KomaActionButton\(\{[\s\S]*label: s\('downloads_concurrency_chip'\)\.replace\('%s', `\$\{this\.preferences\.foregroundConcurrencyLimit\}`\)[\s\S]*isEnabled: this\.busyKey\.length === 0[\s\S]*\.bindMenu\(this\.ConcurrencyMenu\(\)/,
+  'DownloadsPage queue controls must use shared action buttons and menus for status filter and concurrency',
+)
+assert.doesNotMatch(
+  downloadsPageSource,
+  /Chip\(/,
+  'DownloadsPage must not use handwritten Chip controls for queue filters',
+)
 
 const mangaRequest = JSON.parse(buildSourceDetailRequestJson(
   'local.test.koma.fixture',

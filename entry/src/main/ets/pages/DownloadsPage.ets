@@ -1,5 +1,4 @@
 import { common } from '@kit.AbilityKit'
-import { Chip, ChipSize } from '@kit.ArkUI'
 import { SecondaryListScaffold } from '../components/SecondaryListScaffold'
 import { KomaActionButton } from '../components/ui/KomaActionButton'
 import { KomaEmptyState } from '../components/ui/KomaEmptyState'
@@ -877,40 +876,27 @@ export struct DownloadsPage {
         .textOverflow({ overflow: TextOverflow.Ellipsis })
       this.WifiOnlyControl()
 
-      Row() {
-        Row() {
-          Chip({
-            label: {
-              text: s('downloads_filter_chip').replace('%s', this.filterLabel()),
-              fontSize: ThemeConstants.FONT_SIZE_TAG,
-              fontColor: ThemeConstants.TEXT_PRIMARY,
-              activatedFontColor: ThemeConstants.TEXT_ON_BRAND,
-            },
-            activated: this.filter !== DownloadQueueFilter.ALL,
-            size: ChipSize.SMALL,
-            backgroundColor: $r('sys.color.ohos_id_color_button_normal'),
-            activatedBackgroundColor: ThemeConstants.BRAND_PRIMARY,
-            borderRadius: ThemeConstants.RADIUS_ROUND,
-            allowClose: false,
+      Row({ space: ThemeConstants.SPACE_SM }) {
+        KomaActionButton({
+          label: s('downloads_filter_chip').replace('%s', this.filterLabel()),
+          kind: this.filter === DownloadQueueFilter.ALL ? 'secondary' : 'primary',
+          compact: true,
+          controlHeight: ThemeConstants.ACTION_CHIP_HEIGHT,
+        })
+          .bindMenu(this.FilterMenu(), {
+            placement: Placement.BottomLeft,
           })
-        }
-          .bindMenu(this.FilterMenu())
-        Row() {
-          Chip({
-            label: {
-              text: s('downloads_concurrency_chip').replace('%s', `${this.preferences.foregroundConcurrencyLimit}`),
-              fontSize: ThemeConstants.FONT_SIZE_TAG,
-              fontColor: ThemeConstants.TEXT_PRIMARY,
-            },
-            activated: false,
-            size: ChipSize.SMALL,
-            backgroundColor: $r('sys.color.ohos_id_color_button_normal'),
-            borderRadius: ThemeConstants.RADIUS_ROUND,
-            allowClose: false,
+
+        KomaActionButton({
+          label: s('downloads_concurrency_chip').replace('%s', `${this.preferences.foregroundConcurrencyLimit}`),
+          kind: 'secondary',
+          compact: true,
+          controlHeight: ThemeConstants.ACTION_CHIP_HEIGHT,
+          isEnabled: this.busyKey.length === 0,
+        })
+          .bindMenu(this.ConcurrencyMenu(), {
+            placement: Placement.BottomRight,
           })
-        }
-          .enabled(this.busyKey.length === 0)
-          .bindMenu(this.ConcurrencyMenu())
       }
       .justifyContent(FlexAlign.SpaceBetween)
       .width('100%')
