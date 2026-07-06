@@ -49,7 +49,11 @@ import {
   LibraryViewMode,
 } from '../model/LibraryFilterStore'
 import { OfflineDownloadQueueEntry, OfflineDownloadQueueStore } from '../model/OfflineDownloadQueueStore'
-import { OfflineDownloadStatus } from '../model/OfflineDownloadStore'
+import {
+  OfflineDownloadedChapterStatus,
+  OfflineDownloadStatus,
+  OfflineDownloadStore,
+} from '../model/OfflineDownloadStore'
 import { connectRemoteProgressSyncState, RemoteProgressSyncState } from '../state/RemoteProgressSyncState'
 import {
   isRemovableLocalComic,
@@ -1036,6 +1040,27 @@ export struct LibraryPage {
     return chapter !== undefined && chapter.pages.length === 0
   }
 
+  private hasAvailableOfflineReaderPages(comicId: ComicId, chapterId: string | undefined): boolean {
+    if (chapterId === undefined || chapterId.length === 0) {
+      return false
+    }
+    try {
+      const context = getContext(this) as common.UIAbilityContext
+      if (context === undefined || context.filesDir === undefined || context.filesDir.length === 0) {
+        return false
+      }
+      const validation = new OfflineDownloadStore(context.filesDir)
+        .validateDownloadedChapter(comicId, chapterId, { validateContentHash: false })
+      return validation.manifest !== undefined &&
+        validation.availablePageCount > 0 &&
+        (validation.status === OfflineDownloadedChapterStatus.DOWNLOADED ||
+          validation.status === OfflineDownloadedChapterStatus.PARTIAL)
+    } catch (_error) {
+      console.warn('[Library] step=offline_reader_manifest_probe failed=true reason=download_manifest')
+      return false
+    }
+  }
+
   private logSourceReaderPagesUnavailable(reasonCode?: string): void {
     if (reasonCode === 'pages_missing') {
       console.warn('[Library] step=source_reader_pages_unavailable failed=true reason=pages_missing')
@@ -1062,7 +1087,8 @@ export struct LibraryPage {
       return
     }
     const chapterId = this.readerChapterIdForComic(comic)
-    if (!this.chapterNeedsSourcePages(comic, chapterId)) {
+    if (!this.chapterNeedsSourcePages(comic, chapterId) ||
+      this.hasAvailableOfflineReaderPages(comic.id, chapterId)) {
       this.onOpenReader(comicId, chapterId)
       return
     }
