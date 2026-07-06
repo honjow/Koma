@@ -35,6 +35,7 @@ import {
 } from '../model/ComicModels'
 import { OfflineDownloadService } from '../model/OfflineDownloadService'
 import {
+  OfflineDownloadedChapterStatus,
   OfflineDownloadStatus,
   OfflineDownloadStore,
   OfflineDownloadSummary,
@@ -902,10 +903,12 @@ export struct MangaDetailPage {
       }
     }
     if (this.manga.sourceId !== undefined) {
-      const hydration = await this.ensureSourceChapterPages(chapterId)
-      if (!hydration.hydrated) {
-        this.showToast(s('manga_detail_chapter_pages_load_failed'))
-        return
+      if (!this.hasAvailableOfflineReaderPages(chapterId)) {
+        const hydration = await this.ensureSourceChapterPages(chapterId)
+        if (!hydration.hydrated) {
+          this.showToast(s('manga_detail_chapter_pages_load_failed'))
+          return
+        }
       }
     }
     this.onOpenReader(this.currentComicId(), chapterId)
@@ -922,10 +925,12 @@ export struct MangaDetailPage {
       }
     }
     if (this.manga.sourceId !== undefined) {
-      const hydration = await this.ensureSourceChapterPages(chapterId)
-      if (!hydration.hydrated) {
-        this.showToast(s('manga_detail_chapter_pages_load_failed'))
-        return
+      if (!this.hasAvailableOfflineReaderPages(chapterId)) {
+        const hydration = await this.ensureSourceChapterPages(chapterId)
+        if (!hydration.hydrated) {
+          this.showToast(s('manga_detail_chapter_pages_load_failed'))
+          return
+        }
       }
     }
     this.onOpenReader(this.currentComicId(), chapterId)
@@ -1179,6 +1184,27 @@ export struct MangaDetailPage {
       },
     ).ensureChapterPages(this.currentComicId(), this.manga.sourceId, chapterId)
     return result
+  }
+
+  private hasAvailableOfflineReaderPages(chapterId: string | undefined): boolean {
+    if (chapterId === undefined || chapterId.length === 0) {
+      return false
+    }
+    try {
+      const context = getContext(this) as common.UIAbilityContext
+      if (context === undefined || context.filesDir === undefined || context.filesDir.length === 0) {
+        return false
+      }
+      const validation = new OfflineDownloadStore(context.filesDir)
+        .validateDownloadedChapter(this.currentComicId(), chapterId, { validateContentHash: false })
+      return validation.manifest !== undefined &&
+        validation.availablePageCount > 0 &&
+        (validation.status === OfflineDownloadedChapterStatus.DOWNLOADED ||
+          validation.status === OfflineDownloadedChapterStatus.PARTIAL)
+    } catch (_error) {
+      console.warn('[manga-detail] step=offline_reader_manifest_probe failed=true reason=download_manifest')
+      return false
+    }
   }
 
   private markChapterReadState(chapterId: string, isRead: boolean): void {
