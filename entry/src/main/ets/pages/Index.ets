@@ -273,6 +273,13 @@ struct Index {
         pageHeights.push(page?.height)
       }
       const chapterIds = baseConfig.chapterIds.includes(chapterId) ? baseConfig.chapterIds : baseConfig.chapterIds.concat([chapterId])
+      const chapterTitles = chapterIds.map((item: string, index: number): string => {
+        const title = baseConfig.chapterTitles?.[index] ?? ''
+        if (title.length > 0 || item !== chapterId) {
+          return title
+        }
+        return validation.manifest?.chapterTitle ?? ''
+      })
       console.info(`[ReaderOffline] step=open_from_manifest pages=${validation.availablePageCount}/${validation.pageCount}`)
       return {
         comicId: comic.id,
@@ -280,6 +287,7 @@ struct Index {
         title: comic.title,
         chapterTitle: baseConfig.chapterTitle ?? validation.manifest.chapterTitle,
         chapterIds,
+        chapterTitles,
         totalPages: validation.pageCount,
         pageUris,
         pageIds,
