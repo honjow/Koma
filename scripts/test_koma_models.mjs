@@ -342,13 +342,13 @@ function sourcePageImageUrl(item) {
     optionalSourceString(item.image_url) ??
     optionalSourceString(item.src) ??
     optionalSourceString(item.href)
-  if (directUrl !== undefined) return directUrl
+  if (directUrl !== undefined) return normalizeSourceImageUrl(directUrl)
   const image = item.image
   if (image === undefined || image === null || Array.isArray(image) || typeof image !== 'object') return undefined
-  return optionalSourceString(image.url) ??
+  return normalizeSourceImageUrl(optionalSourceString(image.url) ??
     optionalSourceString(image.uri) ??
     optionalSourceString(image.src) ??
-    optionalSourceString(image.href)
+    optionalSourceString(image.href))
 }
 
 function isReaderRemoteImageSourceUri(uri) {
@@ -1898,8 +1898,8 @@ assert.match(
 )
 assert.match(
   sourceChapterPageHydratorSource,
-  /function sourcePageImageRecord\(item: Record<string, Object>\): Record<string, Object> \| undefined[\s\S]*const image = item\['image'\][\s\S]*function sourcePageImageUrl\(item: Record<string, Object>\): string \| undefined \{[\s\S]*optionalSourceString\(item\['url'\]\)[\s\S]*optionalSourceString\(item\['uri'\]\)[\s\S]*optionalSourceString\(item\['imageUrl'\]\)[\s\S]*optionalSourceString\(item\['image_url'\]\)[\s\S]*optionalSourceString\(item\['src'\]\)[\s\S]*optionalSourceString\(item\['href'\]\)[\s\S]*const imageRecord = sourcePageImageRecord\(item\)[\s\S]*optionalSourceString\(imageRecord\['url'\]\)[\s\S]*optionalSourceString\(imageRecord\['uri'\]\)[\s\S]*optionalSourceString\(imageRecord\['src'\]\)[\s\S]*optionalSourceString\(imageRecord\['href'\]\)/,
-  'get_pages parsing must accept common top-level and nested page image URL fields while preserving url/uri compatibility',
+  /import \{ normalizeSourceImageUrl \} from '\.\/SourceTextNormalizer'[\s\S]*function sourcePageImageRecord\(item: Record<string, Object>\): Record<string, Object> \| undefined[\s\S]*const image = item\['image'\][\s\S]*function sourcePageImageUrl\(item: Record<string, Object>\): string \| undefined \{[\s\S]*optionalSourceString\(item\['url'\]\)[\s\S]*optionalSourceString\(item\['uri'\]\)[\s\S]*optionalSourceString\(item\['imageUrl'\]\)[\s\S]*optionalSourceString\(item\['image_url'\]\)[\s\S]*optionalSourceString\(item\['src'\]\)[\s\S]*optionalSourceString\(item\['href'\]\)[\s\S]*return normalizeSourceImageUrl\(directUrl\)[\s\S]*const imageRecord = sourcePageImageRecord\(item\)[\s\S]*normalizeSourceImageUrl\(optionalSourceString\(imageRecord\['url'\]\)[\s\S]*optionalSourceString\(imageRecord\['uri'\]\)[\s\S]*optionalSourceString\(imageRecord\['src'\]\)[\s\S]*optionalSourceString\(imageRecord\['href'\]\)\)/,
+  'get_pages parsing must accept and normalize common top-level and nested page image URL fields while preserving url/uri compatibility',
 )
 assert.match(
   sourceChapterPageHydratorSource,
@@ -2084,6 +2084,11 @@ assert.equal(
   sourcePageImageUrl({ id: 'page:3', image: { src: 'https://cdn.example.test/nested-src.jpg' } }),
   'https://cdn.example.test/nested-src.jpg',
   'source pages must accept nested image.src from HTML-derived source responses',
+)
+assert.equal(
+  sourcePageImageUrl({ id: 'page:4', image: { uri: '\\/\\/cdn.example.test\\/page-004.jpg' } }),
+  'https://cdn.example.test/page-004.jpg',
+  'source pages must normalize escaped protocol-relative image URLs before Reader hydration',
 )
 assert.deepEqual(
   buildReaderSourceImageRequestArgs('page:0', 'https://uploads.mangadex.org/data/hash/001.jpg'),

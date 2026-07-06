@@ -19,6 +19,7 @@ import {
   SourceSettingsRecord,
   appSourceSettingsStore,
 } from '../sourceRuntime/SourceSettingsStore'
+import { normalizeSourceImageUrl } from './SourceTextNormalizer'
 
 interface SourceOperationDataPayload {
   items?: Record<string, Object>[]
@@ -103,16 +104,16 @@ function sourcePageImageUrl(item: Record<string, Object>): string | undefined {
     optionalSourceString(item['src']) ??
     optionalSourceString(item['href'])
   if (directUrl !== undefined) {
-    return directUrl
+    return normalizeSourceImageUrl(directUrl)
   }
   const imageRecord = sourcePageImageRecord(item)
   if (imageRecord === undefined) {
     return undefined
   }
-  return optionalSourceString(imageRecord['url']) ??
+  return normalizeSourceImageUrl(optionalSourceString(imageRecord['url']) ??
     optionalSourceString(imageRecord['uri']) ??
     optionalSourceString(imageRecord['src']) ??
-    optionalSourceString(imageRecord['href'])
+    optionalSourceString(imageRecord['href']))
 }
 
 function sourcePageDimension(item: Record<string, Object>, key: string, alternateKey: string): number | undefined {
