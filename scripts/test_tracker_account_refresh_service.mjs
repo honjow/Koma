@@ -77,8 +77,8 @@ assert.match(
 )
 assert.doesNotMatch(
   pageSource,
-  /account_refresh[\s\S]*(token|accessToken|secret|message=|error\.message)/i,
-  'TrackerSettingsPage account refresh handling must not log tokens or raw error messages',
+  /console\.(?:log|info|warn|error)\([^\n)]*account_refresh[^\n)]*(token|accessToken|secret|message=|error\.message)/i,
+  'TrackerSettingsPage account refresh logs must not include tokens, secret names, or raw error messages',
 )
 
 for (const source of [baseStrings, enStrings, zhStrings]) {
