@@ -109,6 +109,7 @@ import {
   ReaderPageMode,
   ReaderPreferences,
   ReaderPreferencesStore,
+  ReaderTapZoneInvert,
   ReaderTapZonePreset,
   ReaderThemeMode,
   ReaderVolumeKeyBehavior,
@@ -123,6 +124,7 @@ import {
   getReaderSwipeNavigationLabel,
   getReaderShowTapZonesLabel,
   getReaderTapNavigationLabel,
+  getReaderTapZoneInvertLabel,
   getReaderTapZonePresetLabel,
   getReaderThemeModeLabel,
   getReaderTrimPageMarginsLabel,
@@ -212,6 +214,7 @@ function createSettingsSections(): SettingsSection[] {
         { key: 'reader-swipe-navigation', titleKey: 'settings_row_reader_swipe_navigation_title', detailKey: 'settings_row_reader_swipe_navigation_detail' },
         { key: 'reader-zoom-gestures', titleKey: 'settings_row_reader_zoom_gestures_title', detailKey: 'settings_row_reader_zoom_gestures_detail' },
         { key: 'reader-tap-zone-preset', titleKey: 'settings_row_reader_tap_zone_preset_title', detailKey: 'settings_row_reader_tap_zone_preset_detail' },
+        { key: 'reader-tap-zone-invert', titleKey: 'settings_row_reader_tap_zone_invert_title', detailKey: 'settings_row_reader_tap_zone_invert_detail' },
         { key: 'reader-show-tap-zones', titleKey: 'settings_row_reader_show_tap_zones_title', detailKey: 'settings_row_reader_show_tap_zones_detail' },
         { key: 'reader-page-gap', titleKey: 'settings_row_reader_page_gap_title', detailKey: 'settings_row_reader_page_gap_detail' },
         { key: 'reader-trim-page-margins', titleKey: 'settings_row_reader_trim_page_margins_title', detailKey: 'settings_row_reader_trim_page_margins_detail' },
@@ -418,6 +421,7 @@ export struct SettingsPage {
   @Local private readerSwipeNavigationEnabled: boolean = true
   @Local private readerZoomGesturesEnabled: boolean = true
   @Local private readerTapZonePreset: ReaderTapZonePreset = 'edge'
+  @Local private readerTapZoneInvert: ReaderTapZoneInvert = 'none'
   @Local private readerShowTapZones: boolean = false
   @Local private readerPageGapMode: ReaderPageGapMode = 'normal'
   @Local private readerTrimPageMarginsEnabled: boolean = false
@@ -590,6 +594,9 @@ export struct SettingsPage {
     }
     if (row.key === 'reader-tap-zone-preset') {
       return getReaderTapZonePresetLabel(this.readerTapZonePreset)
+    }
+    if (row.key === 'reader-tap-zone-invert') {
+      return getReaderTapZoneInvertLabel(this.readerTapZoneInvert)
     }
     if (row.key === 'reader-show-tap-zones') {
       return getReaderShowTapZonesLabel(this.readerShowTapZones)
@@ -1004,6 +1011,7 @@ export struct SettingsPage {
     this.readerSwipeNavigationEnabled = preferences.swipeNavigationEnabled
     this.readerZoomGesturesEnabled = preferences.zoomGesturesEnabled
     this.readerTapZonePreset = preferences.tapZonePreset
+    this.readerTapZoneInvert = preferences.tapZoneInvert
     this.readerShowTapZones = preferences.showTapZones
     this.readerPageGapMode = preferences.pageGapMode
     this.readerTrimPageMarginsEnabled = preferences.trimPageMarginsEnabled
@@ -1386,6 +1394,18 @@ export struct SettingsPage {
       })
       .catch((error: Error) => {
         console.warn('[Settings] step=save_reader_tap_zone_preset_failed code=' + safeSettingsErrorCode(error))
+      })
+  }
+
+  private saveReaderTapZoneInvert(tapZoneInvert: ReaderTapZoneInvert): void {
+    this.readerTapZoneInvert = tapZoneInvert
+    void this.preferencesStore().saveTapZoneInvert(tapZoneInvert)
+      .then(() => {
+        console.info('[Settings] step=save_reader_tap_zone_invert value=' + tapZoneInvert)
+      })
+      .catch((error: Error) => {
+        void error
+        console.warn('[Settings] step=save_reader_tap_zone_invert_failed code=' + safeSettingsErrorCode(error))
       })
   }
 
@@ -2212,6 +2232,14 @@ export struct SettingsPage {
       } else if (row.key === 'reader-tap-zone-preset') {
         this.SelectionMenuItem(s('reader_tap_zone_edge'), this.readerTapZonePreset === 'edge', () => { this.saveReaderTapZonePreset('edge') })
         this.SelectionMenuItem(s('reader_tap_zone_wide'), this.readerTapZonePreset === 'wide_edges', () => { this.saveReaderTapZonePreset('wide_edges') })
+        this.SelectionMenuItem(s('reader_tap_zone_right_left'), this.readerTapZonePreset === 'right_left', () => { this.saveReaderTapZonePreset('right_left') })
+        this.SelectionMenuItem(s('reader_tap_zone_l_shaped'), this.readerTapZonePreset === 'l_shaped', () => { this.saveReaderTapZonePreset('l_shaped') })
+        this.SelectionMenuItem(s('reader_tap_zone_kindle'), this.readerTapZonePreset === 'kindle', () => { this.saveReaderTapZonePreset('kindle') })
+      } else if (row.key === 'reader-tap-zone-invert') {
+        this.SelectionMenuItem(s('reader_tap_zone_invert_none'), this.readerTapZoneInvert === 'none', () => { this.saveReaderTapZoneInvert('none') })
+        this.SelectionMenuItem(s('reader_tap_zone_invert_horizontal'), this.readerTapZoneInvert === 'horizontal', () => { this.saveReaderTapZoneInvert('horizontal') })
+        this.SelectionMenuItem(s('reader_tap_zone_invert_vertical'), this.readerTapZoneInvert === 'vertical', () => { this.saveReaderTapZoneInvert('vertical') })
+        this.SelectionMenuItem(s('reader_tap_zone_invert_both'), this.readerTapZoneInvert === 'both', () => { this.saveReaderTapZoneInvert('both') })
       } else if (row.key === 'reader-page-gap') {
         this.SelectionMenuItem(s('reader_page_gap_compact'), this.readerPageGapMode === 'compact', () => { this.saveReaderPageGapMode('compact') })
         this.SelectionMenuItem(s('common_standard'), this.readerPageGapMode === 'normal', () => { this.saveReaderPageGapMode('normal') })

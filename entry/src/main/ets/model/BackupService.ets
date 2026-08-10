@@ -1258,6 +1258,7 @@ export class BackupService {
       swipeNavigationEnabled: settings.swipeNavigationEnabled ?? DEFAULT_READER_PREFERENCES.swipeNavigationEnabled,
       zoomGesturesEnabled: settings.zoomGesturesEnabled ?? DEFAULT_READER_PREFERENCES.zoomGesturesEnabled,
       tapZonePreset: settings.tapZonePreset ?? DEFAULT_READER_PREFERENCES.tapZonePreset,
+      tapZoneInvert: settings.tapZoneInvert ?? DEFAULT_READER_PREFERENCES.tapZoneInvert,
       showTapZones: settings.showTapZones ?? DEFAULT_READER_PREFERENCES.showTapZones,
       pageGapMode: settings.pageGapMode ?? DEFAULT_READER_PREFERENCES.pageGapMode,
       trimPageMarginsEnabled: settings.trimPageMarginsEnabled ?? DEFAULT_READER_PREFERENCES.trimPageMarginsEnabled,

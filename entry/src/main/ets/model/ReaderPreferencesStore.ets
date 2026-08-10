@@ -8,7 +8,8 @@ export type ReaderPageMode = 'single_page' | 'double_page' | 'continuous_scroll'
 export type ReaderThemeMode = 'system' | 'light' | 'dark'
 export type ReaderBackgroundMode = 'black' | 'paper' | 'light'
 export type ReaderImageFitMode = 'contain' | 'fit_width' | 'fit_height'
-export type ReaderTapZonePreset = 'edge' | 'wide_edges'
+export type ReaderTapZonePreset = 'edge' | 'wide_edges' | 'right_left' | 'l_shaped' | 'kindle'
+export type ReaderTapZoneInvert = 'none' | 'horizontal' | 'vertical' | 'both'
 export type ReaderPageGapMode = 'compact' | 'normal' | 'wide'
 export type ReaderWideImageMode = 'keep_single' | 'rotate_wide_pages' | 'split_wide_pages'
 export type ReaderVolumeKeyBehavior = 'up_previous_down_next' | 'up_next_down_previous'
@@ -25,6 +26,7 @@ export interface ReaderPreferences {
   swipeNavigationEnabled: boolean
   zoomGesturesEnabled: boolean
   tapZonePreset: ReaderTapZonePreset
+  tapZoneInvert: ReaderTapZoneInvert
   showTapZones: boolean
   pageGapMode: ReaderPageGapMode
   trimPageMarginsEnabled: boolean
@@ -42,6 +44,7 @@ export interface ReaderSeriesPreferenceOverrides {
   swipeNavigationEnabled?: boolean
   zoomGesturesEnabled?: boolean
   tapZonePreset?: ReaderTapZonePreset
+  tapZoneInvert?: ReaderTapZoneInvert
   showTapZones?: boolean
   pageGapMode?: ReaderPageGapMode
   trimPageMarginsEnabled?: boolean
@@ -60,6 +63,7 @@ export const TAP_NAVIGATION_ENABLED_KEY: string = 'reader.tapNavigationEnabled'
 export const SWIPE_NAVIGATION_ENABLED_KEY: string = 'reader.swipeNavigationEnabled'
 export const ZOOM_GESTURES_ENABLED_KEY: string = 'reader.zoomGesturesEnabled'
 export const TAP_ZONE_PRESET_KEY: string = 'reader.tapZonePreset'
+export const TAP_ZONE_INVERT_KEY: string = 'reader.tapZoneInvert'
 export const SHOW_TAP_ZONES_KEY: string = 'reader.showTapZones'
 export const PAGE_GAP_MODE_KEY: string = 'reader.pageGapMode'
 export const TRIM_PAGE_MARGINS_ENABLED_KEY: string = 'reader.trimPageMarginsEnabled'
@@ -80,6 +84,7 @@ export const DEFAULT_READER_PREFERENCES: ReaderPreferences = {
   swipeNavigationEnabled: true,
   zoomGesturesEnabled: true,
   tapZonePreset: 'edge',
+  tapZoneInvert: 'none',
   showTapZones: false,
   pageGapMode: 'normal',
   trimPageMarginsEnabled: false,
@@ -117,10 +122,22 @@ export function normalizeReaderImageFitMode(value: string): ReaderImageFitMode {
 }
 
 export function normalizeReaderTapZonePreset(value: string): ReaderTapZonePreset {
-  if (value === 'wide_edges') {
+  if (value === 'wide_edges' ||
+    value === 'right_left' ||
+    value === 'l_shaped' ||
+    value === 'kindle') {
     return value
   }
   return 'edge'
+}
+
+export function normalizeReaderTapZoneInvert(value: string): ReaderTapZoneInvert {
+  if (value === 'horizontal' ||
+    value === 'vertical' ||
+    value === 'both') {
+    return value
+  }
+  return 'none'
 }
 
 export function normalizeReaderPageGapMode(value: string): ReaderPageGapMode {
@@ -281,7 +298,29 @@ export function getReaderTapZonePresetLabel(preset: ReaderTapZonePreset): string
   if (preset === 'wide_edges') {
     return AppStrings.get('reader_tap_zone_wide')
   }
+  if (preset === 'right_left') {
+    return AppStrings.get('reader_tap_zone_right_left')
+  }
+  if (preset === 'l_shaped') {
+    return AppStrings.get('reader_tap_zone_l_shaped')
+  }
+  if (preset === 'kindle') {
+    return AppStrings.get('reader_tap_zone_kindle')
+  }
   return AppStrings.get('reader_tap_zone_edge')
+}
+
+export function getReaderTapZoneInvertLabel(invert: ReaderTapZoneInvert): string {
+  if (invert === 'horizontal') {
+    return AppStrings.get('reader_tap_zone_invert_horizontal')
+  }
+  if (invert === 'vertical') {
+    return AppStrings.get('reader_tap_zone_invert_vertical')
+  }
+  if (invert === 'both') {
+    return AppStrings.get('reader_tap_zone_invert_both')
+  }
+  return AppStrings.get('reader_tap_zone_invert_none')
 }
 
 export function getReaderShowTapZonesLabel(showTapZones: boolean): string {
@@ -371,6 +410,9 @@ function normalizeReaderSeriesPreferenceOverrides(value: Object | undefined): Re
   if (typeof source['tapZonePreset'] === 'string') {
     overrides.tapZonePreset = normalizeReaderTapZonePreset(source['tapZonePreset'] as string)
   }
+  if (typeof source['tapZoneInvert'] === 'string') {
+    overrides.tapZoneInvert = normalizeReaderTapZoneInvert(source['tapZoneInvert'] as string)
+  }
   if (source['showTapZones'] !== undefined) {
     overrides.showTapZones = normalizeReaderShowTapZones(source['showTapZones'] as boolean | string | number)
   }
@@ -405,6 +447,7 @@ function mergeReaderSeriesPreferences(
     swipeNavigationEnabled: overrides.swipeNavigationEnabled ?? globalPreferences.swipeNavigationEnabled,
     zoomGesturesEnabled: overrides.zoomGesturesEnabled ?? globalPreferences.zoomGesturesEnabled,
     tapZonePreset: overrides.tapZonePreset ?? globalPreferences.tapZonePreset,
+    tapZoneInvert: overrides.tapZoneInvert ?? globalPreferences.tapZoneInvert,
     showTapZones: overrides.showTapZones ?? globalPreferences.showTapZones,
     pageGapMode: overrides.pageGapMode ?? globalPreferences.pageGapMode,
     trimPageMarginsEnabled: overrides.trimPageMarginsEnabled ?? globalPreferences.trimPageMarginsEnabled,
@@ -462,6 +505,7 @@ export class ReaderPreferencesStore {
     const zoomGesturesEnabled =
       await store.get(ZOOM_GESTURES_ENABLED_KEY, DEFAULT_READER_PREFERENCES.zoomGesturesEnabled) as boolean | string | number
     const tapZonePreset = await store.get(TAP_ZONE_PRESET_KEY, DEFAULT_READER_PREFERENCES.tapZonePreset) as string
+    const tapZoneInvert = await store.get(TAP_ZONE_INVERT_KEY, DEFAULT_READER_PREFERENCES.tapZoneInvert) as string
     const showTapZones =
       await store.get(SHOW_TAP_ZONES_KEY, DEFAULT_READER_PREFERENCES.showTapZones) as boolean | string | number
     const pageGapMode = await store.get(PAGE_GAP_MODE_KEY, DEFAULT_READER_PREFERENCES.pageGapMode) as string
@@ -483,6 +527,7 @@ export class ReaderPreferencesStore {
       swipeNavigationEnabled: normalizeReaderSwipeNavigationEnabled(swipeNavigationEnabled),
       zoomGesturesEnabled: normalizeReaderZoomGesturesEnabled(zoomGesturesEnabled),
       tapZonePreset: normalizeReaderTapZonePreset(tapZonePreset),
+      tapZoneInvert: normalizeReaderTapZoneInvert(tapZoneInvert),
       showTapZones: normalizeReaderShowTapZones(showTapZones),
       pageGapMode: normalizeReaderPageGapMode(pageGapMode),
       trimPageMarginsEnabled: normalizeReaderTrimPageMarginsEnabled(trimPageMarginsEnabled),
@@ -621,6 +666,12 @@ export class ReaderPreferencesStore {
     await store.flush()
   }
 
+  async saveTapZoneInvert(tapZoneInvert: ReaderTapZoneInvert): Promise<void> {
+    const store = await this.preferences()
+    await store.put(TAP_ZONE_INVERT_KEY, normalizeReaderTapZoneInvert(tapZoneInvert))
+    await store.flush()
+  }
+
   async saveShowTapZones(showTapZones: boolean): Promise<void> {
     const store = await this.preferences()
     await store.put(SHOW_TAP_ZONES_KEY, normalizeReaderShowTapZones(showTapZones))
@@ -670,6 +721,7 @@ export class ReaderPreferencesStore {
     await store.put(SWIPE_NAVIGATION_ENABLED_KEY, normalizeReaderSwipeNavigationEnabled(preferences.swipeNavigationEnabled))
     await store.put(ZOOM_GESTURES_ENABLED_KEY, normalizeReaderZoomGesturesEnabled(preferences.zoomGesturesEnabled))
     await store.put(TAP_ZONE_PRESET_KEY, normalizeReaderTapZonePreset(preferences.tapZonePreset))
+    await store.put(TAP_ZONE_INVERT_KEY, normalizeReaderTapZoneInvert(preferences.tapZoneInvert))
     await store.put(SHOW_TAP_ZONES_KEY, normalizeReaderShowTapZones(preferences.showTapZones))
     await store.put(PAGE_GAP_MODE_KEY, normalizeReaderPageGapMode(preferences.pageGapMode))
     await store.put(TRIM_PAGE_MARGINS_ENABLED_KEY, normalizeReaderTrimPageMarginsEnabled(preferences.trimPageMarginsEnabled))
