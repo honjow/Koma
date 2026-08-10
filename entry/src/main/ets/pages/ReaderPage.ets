@@ -67,20 +67,20 @@ function isWidePage(width: number | undefined, height: number | undefined): bool
 
 function readerBackground(mode: ReaderBackgroundMode): ResourceColor {
   if (mode === 'gray') {
-    return ThemeConstants.READER_BG_PAPER
+    return ThemeConstants.READER_BACKGROUND_GRAY
   }
   if (mode === 'white') {
-    return ThemeConstants.READER_BG_LIGHT
+    return ThemeConstants.READER_BACKGROUND_WHITE
   }
   if (mode === 'auto') {
     return ThemeConstants.BG_PRIMARY
   }
-  return ThemeConstants.READER_BG_DARK
+  return ThemeConstants.READER_BACKGROUND_BLACK
 }
 
 function readerForeground(mode: ReaderBackgroundMode): ResourceColor {
-  return mode === 'black' ? ThemeConstants.READER_TEXT_PRIMARY :
-    (mode === 'auto' ? ThemeConstants.TEXT_PRIMARY : ThemeConstants.READER_TEXT_ON_LIGHT)
+  return mode === 'black' ? ThemeConstants.READER_FOREGROUND_LIGHT :
+    (mode === 'auto' ? ThemeConstants.TEXT_PRIMARY : ThemeConstants.READER_FOREGROUND_DARK)
 }
 
 function imageFit(mode: ReaderImageFitMode): ImageFit {

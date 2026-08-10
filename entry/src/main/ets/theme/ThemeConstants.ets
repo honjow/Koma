@@ -27,6 +27,12 @@ export class ThemeConstants {
   static readonly READER_BG_DARK: ResourceColor = '#0B0A09'
   static readonly READER_BG_LIGHT: ResourceColor = '#F7F1EC'
   static readonly READER_BG_PAPER: ResourceColor = '#E7D6BE'
+  // NextE-compatible reader presentation colors.  Keep the legacy names above
+  // for non-reader surfaces that may still reference them, while the migrated
+  // reader uses this exact four-state palette.
+  static readonly READER_BACKGROUND_BLACK: ResourceColor = '#FF000000'
+  static readonly READER_BACKGROUND_GRAY: ResourceColor = '#FF303030'
+  static readonly READER_BACKGROUND_WHITE: ResourceColor = '#FFFFFFFF'
   static readonly READER_SURFACE: ResourceColor = '#17130F'
   static readonly READER_PAGE_SURFACE: ResourceColor = '#050505'
   static readonly READER_CONTROL_SURFACE: ResourceColor = '#332C28'
@@ -36,6 +42,8 @@ export class ThemeConstants {
   static readonly READER_TEXT_TERTIARY: ResourceColor = '#8F837D'
   static readonly READER_TEXT_DISABLED: ResourceColor = '#81746D'
   static readonly READER_TEXT_ON_LIGHT: ResourceColor = '#17130F'
+  static readonly READER_FOREGROUND_LIGHT: ResourceColor = '#FFFFFFFF'
+  static readonly READER_FOREGROUND_DARK: ResourceColor = '#FF000000'
   static readonly READER_TEXT_UNSELECTED: ResourceColor = '#EDE2DA'
   static readonly READER_ACCENT: ResourceColor = '#E66A3A'
   static readonly READER_ACCENT_LIGHT: ResourceColor = '#FF996F'
