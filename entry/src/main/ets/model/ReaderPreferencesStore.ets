@@ -2,6 +2,7 @@ import { common } from '@kit.AbilityKit'
 import { preferences } from '@kit.ArkData'
 import { AppStrings } from '../i18n/AppStrings'
 import { ReadingDirection } from './ComicModels'
+import { ReaderModeSnapshot, ReaderModeStateBridge } from '../state/ReaderModeState'
 
 export type ReaderPageMode = 'single_page' | 'double_page' | 'continuous_scroll' | 'vertical_page'
 export type ReaderThemeMode = 'system' | 'light' | 'dark'
@@ -217,6 +218,70 @@ export function normalizeReaderPreferences(value: ReaderPreferences): ReaderPref
     volumeKeyNavigationEnabled: value.volumeKeyNavigationEnabled === true,
     volumeKeyBehavior: normalizeReaderVolumeKeyBehavior(value.volumeKeyBehavior),
   }
+}
+
+/**
+ * Convert the shared runtime state into the persisted contract.  Pairing is
+ * deliberately injected from the current ReaderSessionStore rather than read
+ * from global preferences, matching NextE's per-gallery column mode.
+ */
+export function readerPreferencesFromRuntimeState(columnMode: ReaderColumnMode): ReaderPreferences {
+  const runtime = ReaderModeStateBridge.snapshot(columnMode)
+  return normalizeReaderPreferences({
+    pageMode: normalizeReaderPageMode(runtime.pageMode),
+    readingDirection: normalizeReaderDirection(runtime.readingDirection, ReadingDirection.LEFT_TO_RIGHT),
+    themeMode: normalizeReaderThemeMode(runtime.themeMode),
+    backgroundMode: normalizeReaderBackgroundMode(runtime.backgroundMode),
+    showProgressControls: runtime.showProgressControls,
+    keepScreenAwake: runtime.keepScreenAwake,
+    fullscreen: runtime.fullscreen,
+    imageFitMode: normalizeReaderImageFitMode(runtime.imageFitMode),
+    imageScalingQuality: normalizeReaderImageScalingQuality(runtime.imageScalingQuality),
+    showPageNumber: runtime.showPageNumber,
+    pageTurnAnimation: runtime.pageTurnAnimation,
+    autoPageSeconds: normalizeReaderAutoPageSeconds(runtime.autoPageSeconds),
+    preloadPages: normalizeReaderPreloadPages(runtime.preloadPages),
+    spreadLayoutMode: normalizeReaderSpreadLayoutMode(runtime.spreadLayoutMode),
+    columnMode: normalizeReaderColumnMode(runtime.columnMode),
+    tapNavigationEnabled: true,
+    swipeNavigationEnabled: true,
+    zoomGesturesEnabled: true,
+    tapZonePreset: normalizeReaderTapZonePreset(runtime.tapZonePreset),
+    tapZoneInvert: normalizeReaderTapZoneInvert(runtime.tapZoneInvert),
+    showTapZones: false,
+    pageGapMode: normalizeReaderPageGapMode(runtime.pageGapMode),
+    trimPageMarginsEnabled: runtime.trimPageMarginsEnabled,
+    wideImageMode: normalizeReaderWideImageMode(runtime.wideImageMode),
+    volumeKeyNavigationEnabled: runtime.volumeKeyNavigationEnabled,
+    volumeKeyBehavior: normalizeReaderVolumeKeyBehavior(runtime.volumeKeyBehavior),
+  })
+}
+
+function publishReaderModeState(preferences: ReaderPreferences): void {
+  ReaderModeStateBridge.publish(new ReaderModeSnapshot(
+    preferences.pageMode,
+    preferences.readingDirection,
+    preferences.themeMode,
+    preferences.backgroundMode,
+    preferences.showProgressControls,
+    preferences.keepScreenAwake,
+    preferences.fullscreen,
+    preferences.imageFitMode,
+    preferences.imageScalingQuality,
+    preferences.showPageNumber,
+    preferences.pageTurnAnimation,
+    preferences.autoPageSeconds,
+    preferences.preloadPages,
+    preferences.spreadLayoutMode,
+    preferences.tapZonePreset,
+    preferences.tapZoneInvert,
+    preferences.pageGapMode,
+    preferences.trimPageMarginsEnabled,
+    preferences.wideImageMode,
+    preferences.volumeKeyNavigationEnabled,
+    preferences.volumeKeyBehavior,
+    preferences.columnMode,
+  ))
 }
 
 function normalizeReaderDirection(value: string, fallback: ReadingDirection): ReadingDirection {
@@ -486,7 +551,7 @@ export class ReaderPreferencesStore {
     const wideImageMode = await store.get('reader.wideImageMode', DEFAULT_READER_PREFERENCES.wideImageMode) as string
     const volumeKeyNavigationEnabled = await store.get('reader.volumeKeyNavigationEnabled', DEFAULT_READER_PREFERENCES.volumeKeyNavigationEnabled) as boolean
     const volumeKeyBehavior = await store.get('reader.volumeKeyBehavior', DEFAULT_READER_PREFERENCES.volumeKeyBehavior) as string
-    return normalizeReaderPreferences({
+    const normalized = normalizeReaderPreferences({
       pageMode: normalizeReaderPageMode(pageMode),
       readingDirection: readingDirection === ReadingDirection.RIGHT_TO_LEFT
         ? ReadingDirection.RIGHT_TO_LEFT
@@ -518,6 +583,8 @@ export class ReaderPreferencesStore {
       volumeKeyNavigationEnabled,
       volumeKeyBehavior: normalizeReaderVolumeKeyBehavior(volumeKeyBehavior),
     })
+    publishReaderModeState(normalized)
+    return normalized
   }
 
   async loadForComic(comicId: string): Promise<ReaderPreferences> {
@@ -532,6 +599,9 @@ export class ReaderPreferencesStore {
 
   async save(preferences: ReaderPreferences): Promise<ReaderPreferences> {
     const normalized = normalizeReaderPreferences(preferences)
+    // Runtime state is published before the asynchronous flush so a visible
+    // Reader and a mounted Settings page apply the same change immediately.
+    publishReaderModeState(normalized)
     const store = await this.preferences()
     await store.put('reader.pageMode', normalized.pageMode)
     await store.put('reader.readingDirection', normalized.readingDirection)

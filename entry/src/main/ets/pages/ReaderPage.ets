@@ -26,6 +26,7 @@ import {
   ReaderPreferences,
   ReaderPreferencesStore,
   ReaderWideImageMode,
+  readerPreferencesFromRuntimeState,
 } from '../model/ReaderPreferencesStore'
 import {
   ReaderPageRenderKind,
@@ -40,6 +41,7 @@ import { ReaderTapZoneRegion, readerTapZoneRegions, resolveReaderTapZoneAction }
 import { ThemeConstants } from '../theme/ThemeConstants'
 import { AppStrings } from '../i18n/AppStrings'
 import { connectLayoutSafeArea, LayoutSafeAreaState } from '../state/LayoutSafeAreaState'
+import { connectReaderModeState, ReaderModeState } from '../state/ReaderModeState'
 
 const READER_TAP_VERTICAL_TOLERANCE: number = 10
 const READER_TAP_ZONE_SCROLL_RATIO: number = 0.75
@@ -847,6 +849,7 @@ export struct ReaderPage {
   @Local private readerGlobalX: number = 0
   @Local private readerGlobalY: number = 0
   private layout: LayoutSafeAreaState = connectLayoutSafeArea()
+  @Local private readerModeState: ReaderModeState = connectReaderModeState()
   private preferencesStore?: ReaderPreferencesStore
   private filesDir: string = ''
   private sourceSignature: string = ''
@@ -898,6 +901,17 @@ export struct ReaderPage {
       return
     }
     this.scheduleStatusBarVisibility()
+  }
+
+  @Monitor('readerModeState.revision')
+  onReaderModeStateChanged(): void {
+    if (!this.readerModeState.hydrated || !this.settingsReady) {
+      return
+    }
+    // The spread-column pairing is session progress, never global runtime
+    // state.  Keep it while applying a Settings-page change to this live
+    // Reader.
+    this.applyPreferences(readerPreferencesFromRuntimeState(this.preferences.columnMode), false)
   }
 
   private async loadPreferences(): Promise<void> {
@@ -1327,16 +1341,25 @@ export struct ReaderPage {
   }
 
   private onPreferencesChanged(change: ReaderChromePreferencesChange): void {
+    this.applyPreferences(change.preferences, true)
+  }
+
+  private applyPreferences(next: ReaderPreferences, persist: boolean): void {
     const previousMode = this.effectiveMode()
     const previousTapZone = this.preferences.tapZonePreset
     const previousTapInvert = this.preferences.tapZoneInvert
-    this.preferences = change.preferences
+    this.preferences = next
     this.preferenceRevision += 1
     // NextE's zone feedback is intentionally immediate and one-shot: the
     // user gets the exact geometry they just selected, then dismisses it with
     // one tap. It is not a persistent reader mode.
-    this.tapPreviewVisible = previousTapZone !== this.preferences.tapZonePreset ||
-      previousTapInvert !== this.preferences.tapZoneInvert
+    // A store publish is echoed back through ReaderModeState so Settings and
+    // an already-open Reader share one source of truth.  That echo must not
+    // erase the one-shot preview that the initiating selection just opened.
+    if (previousTapZone !== this.preferences.tapZonePreset ||
+      previousTapInvert !== this.preferences.tapZoneInvert) {
+      this.tapPreviewVisible = true
+    }
     this.setReaderKeepScreenOn(this.preferences.keepScreenAwake)
     this.emitWebtoonMode(this.preferences.pageMode === 'continuous_scroll' || this.preferences.readingDirection === ReadingDirection.WEBTOON)
     if (this.effectiveMode() === ReaderMode.CONTINUOUS_SCROLL && previousMode !== ReaderMode.CONTINUOUS_SCROLL) {
@@ -1354,8 +1377,10 @@ export struct ReaderPage {
       this.unregisterVolumeKeyConsumer()
     }
     this.scheduleStatusBarVisibility()
-    this.persistPreferences(this.preferences)
-    this.persistCurrentProgress()
+    if (persist) {
+      this.persistPreferences(this.preferences)
+      this.persistCurrentProgress()
+    }
   }
 
   private persistPreferences(next: ReaderPreferences): void {

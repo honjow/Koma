@@ -110,6 +110,7 @@ import {
   ReaderPageMode,
   ReaderPreferences,
   ReaderPreferencesStore,
+  readerPreferencesFromRuntimeState,
   ReaderSpreadLayoutMode,
   ReaderTapZoneInvert,
   ReaderTapZonePreset,
@@ -141,6 +142,7 @@ import { SourceRuntimeRegistry } from '../sourceRuntime/SourceRuntimeRegistry'
 import { AppStrings } from '../i18n/AppStrings'
 import { LanguageSettings } from '../i18n/LanguageSettings'
 import { connectLanguageState, LanguageState } from '../state/LanguageState'
+import { connectReaderModeState, ReaderModeState } from '../state/ReaderModeState'
 
 interface SettingsRow {
   key: string
@@ -440,6 +442,7 @@ export struct SettingsPage {
   @Local private readerVolumeKeyNavigationEnabled: boolean = false
   @Local private readerVolumeKeyBehavior: ReaderVolumeKeyBehavior = 'up_previous_down_next'
   @Local private language: LanguageState = connectLanguageState()
+  @Local private readerModeState: ReaderModeState = connectReaderModeState()
   @Local private versionDetail: string = ''
   @Local private versionLoadFailed: boolean = false
   @Local private imageCacheStats?: ReaderRemoteImageCacheStats = undefined
@@ -1022,6 +1025,16 @@ export struct SettingsPage {
       .catch((error: Error) => {
         console.warn('[Settings] step=load_preferences_failed code=' + safeSettingsErrorCode(error))
       })
+  }
+
+  @Monitor('readerModeState.revision')
+  onReaderModeStateChanged(): void {
+    if (!this.readerModeState.hydrated) {
+      return
+    }
+    // Settings has no global column pairing control; its source of truth is
+    // the shared reader state and chapter pairing remains in Reader progress.
+    this.applyReaderPreferences(readerPreferencesFromRuntimeState('odd_left'))
   }
 
   private loadAppearancePreferences(): void {
