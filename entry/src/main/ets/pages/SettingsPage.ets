@@ -2061,6 +2061,7 @@ export struct SettingsPage {
       row.key === 'reader-background' ||
       row.key === 'reader-image-fit' ||
       row.key === 'reader-tap-zone-preset' ||
+      row.key === 'reader-tap-zone-invert' ||
       row.key === 'reader-page-gap' ||
       row.key === 'reader-wide-image-mode' ||
       row.key === 'reader-volume-key-behavior' ||
