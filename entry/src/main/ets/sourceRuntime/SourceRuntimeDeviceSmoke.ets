@@ -1407,7 +1407,7 @@ function verifyLocalLibraryFolderReaderSmoke(
     if (visibleConfig.totalPages > 0) {
       new PersistentReaderSessionStore(
         new AppFilesReaderSessionPersistenceAdapter(context.filesDir),
-      ).updatePageIndex(visibleConfig, 0, visibleConfig.pageIds[0])
+      ).updatePageIndex(visibleConfig, 0, (visibleConfig.pageIds ?? [])[0])
     }
     result.sourceIndexVisibleLibraryStoreFileName = LIBRARY_STORE_PERSISTENCE_FILE_NAME
     result.sourceIndexVisibleLibraryComicId = visibleReloadedComic.id

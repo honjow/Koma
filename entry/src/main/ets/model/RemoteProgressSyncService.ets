@@ -64,11 +64,11 @@ export class RemoteProgressSyncService {
   async pullSession(config: ReaderSessionConfig): Promise<ReadingProgress | undefined> {
     const bookId = this.parseKomgaBookId(config.chapterId)
     if (this.isKomgaSession(config) && bookId !== undefined) {
-      return this.pullKomgaBook(bookId, config.comicId, config.chapterId, config.totalPages, config.pageIds)
+      return this.pullKomgaBook(bookId, config.comicId, config.chapterId, config.totalPages, config.pageIds ?? [])
     }
     const kavitaChapterId = this.parseKavitaChapterId(config.chapterId)
     if (this.isKavitaSession(config) && kavitaChapterId !== undefined) {
-      return this.pullKavitaChapter(kavitaChapterId, config.comicId, config.chapterId, config.totalPages, config.pageIds)
+      return this.pullKavitaChapter(kavitaChapterId, config.comicId, config.chapterId, config.totalPages, config.pageIds ?? [])
     }
     return undefined
   }
