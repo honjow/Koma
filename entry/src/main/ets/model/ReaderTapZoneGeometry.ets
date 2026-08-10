@@ -107,8 +107,9 @@ export function resolveReaderTapZoneAction(
   const regions = readerTapZoneRegions(preset, invert)
   for (let index = 0; index < regions.length; index += 1) {
     const region = regions[index]
-    if (normalizedX >= region.left && normalizedX < region.right &&
-      normalizedY >= region.top && normalizedY < region.bottom) {
+    const withinX = normalizedX >= region.left && (normalizedX < region.right || region.right === 1)
+    const withinY = normalizedY >= region.top && (normalizedY < region.bottom || region.bottom === 1)
+    if (withinX && withinY) {
       return region.action
     }
   }

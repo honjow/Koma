@@ -189,7 +189,7 @@ struct ReaderImageSurface {
     this.gestureScale = this.zoomScale
     this.gesturePanX = this.panX
     this.gesturePanY = this.panY
-    this.intrinsicWidth = this.sourceWidth ?? 0
+    this.intrinsicWidth = this.sourceRegionWidth(this.sourceWidth)
     this.intrinsicHeight = this.sourceHeight ?? 0
     void this.resolveSource()
   }
@@ -203,6 +203,14 @@ struct ReaderImageSurface {
 
   private sourceKey(): string {
     return `${this.source.kind}:${this.source.uri}:${this.source.imageUri}:${this.source.pageId ?? ''}:${this.splitSide}:${this.rotateClockwise}:${this.retryToken}`
+  }
+
+  private sourceRegionWidth(width: number | undefined): number {
+    if (width === undefined || width <= 0 || this.splitSide === 'none') {
+      return width ?? 0
+    }
+    const leftWidth = Math.floor(width / 2)
+    return this.splitSide === 'right' ? width - leftWidth : leftWidth
   }
 
   private async releasePixelMap(): Promise<void> {
@@ -271,7 +279,7 @@ struct ReaderImageSurface {
   }
 
   private publishImageInfo(map: image.PixelMap): void {
-    let width = this.sourceWidth ?? 0
+    let width = this.sourceRegionWidth(this.sourceWidth)
     let height = this.sourceHeight ?? 0
     if (width <= 0 || height <= 0) {
       try {
@@ -289,7 +297,7 @@ struct ReaderImageSurface {
   }
 
   private sourceWidthValue(): number {
-    return this.intrinsicWidth > 0 ? this.intrinsicWidth : (this.sourceWidth ?? 0)
+    return this.intrinsicWidth > 0 ? this.intrinsicWidth : this.sourceRegionWidth(this.sourceWidth)
   }
 
   private sourceHeightValue(): number {
@@ -649,7 +657,10 @@ export struct ReaderPage {
       }
       this.preferencesStore = new ReaderPreferencesStore(context)
       this.preferences = await this.preferencesStore.loadForComic(this.sessionConfig.comicId)
-      this.preferences.columnMode = this.sessionStore.restoreColumnMode(this.sessionConfig, this.preferences.columnMode)
+      // Pairing parity belongs to the active comic/chapter progress.  The
+      // legacy global preference remains only as a migration fallback in the
+      // store; never carry another comic's parity into a new session.
+      this.preferences.columnMode = this.sessionStore.restoreColumnMode(this.sessionConfig, 'odd_left')
       this.settingsReady = true
       this.preferenceRevision += 1
       this.tapPreviewVisible = this.preferences.showTapZones
@@ -667,8 +678,10 @@ export struct ReaderPage {
     }
   }
 
-  private statusBarContentColor(): string {
-    return this.readerBackgroundIsDarkForStatus() ? '#FFFFFFFF' : '#FF000000'
+  private readerStatusBarContentColor(chromeVisible: boolean): string {
+    // The bars are rendered on a dark scrim, so their status-area content must
+    // remain light even when the page itself uses the white/auto palette.
+    return chromeVisible || this.readerBackgroundIsDarkForStatus() ? '#FFFFFFFF' : '#FF000000'
   }
 
   private readerBackgroundIsDarkForStatus(): boolean {
@@ -676,14 +689,14 @@ export struct ReaderPage {
       (this.preferences.backgroundMode === 'auto' && this.preferences.themeMode === 'dark')
   }
 
-  private applyStatusBarVisible(visible: boolean): void {
+  private applyStatusBarVisible(visible: boolean, chromeVisible: boolean = this.chromeVisible): void {
     try {
       const context = getContext(this) as common.UIAbilityContext
       window.getLastWindow(context).then((win: window.Window) => {
         if (visible) {
           win.setWindowSystemBarProperties({
-            statusBarContentColor: this.statusBarContentColor(),
-            isStatusBarLightIcon: this.readerBackgroundIsDarkForStatus(),
+            statusBarContentColor: this.readerStatusBarContentColor(chromeVisible),
+            isStatusBarLightIcon: chromeVisible || this.readerBackgroundIsDarkForStatus(),
           }).then(() => {
             return win.setSpecificSystemBarEnabled('status', true, false)
           }).catch(() => {})
@@ -696,7 +709,7 @@ export struct ReaderPage {
   }
 
   private setReaderStatusBarForChrome(chromeVisible: boolean): void {
-    this.applyStatusBarVisible(!this.preferences.fullscreen || chromeVisible)
+    this.applyStatusBarVisible(!this.preferences.fullscreen || chromeVisible, chromeVisible)
   }
 
   private restoreAppStatusBar(): void {
@@ -820,6 +833,12 @@ export struct ReaderPage {
   }
 
   private effectiveMode(): ReaderMode {
+    // An explicit vertical-paged mode must win over the legacy WEBTOON
+    // direction flag. Otherwise selecting vertical paging after continuous
+    // mode leaves the old direction latched and still renders a List.
+    if (this.preferences.pageMode === 'vertical_page') {
+      return ReaderMode.VERTICAL_PAGE
+    }
     if (this.webtoonMode || this.preferences.readingDirection === ReadingDirection.WEBTOON) {
       return ReaderMode.CONTINUOUS_SCROLL
     }
@@ -990,6 +1009,11 @@ export struct ReaderPage {
     next.pageMode = mode === ReaderMode.DUAL_PAGE ? 'double_page' :
       (mode === ReaderMode.CONTINUOUS_SCROLL ? 'continuous_scroll' :
         (mode === ReaderMode.VERTICAL_PAGE ? 'vertical_page' : 'single_page'))
+    if (mode === ReaderMode.CONTINUOUS_SCROLL) {
+      next.readingDirection = ReadingDirection.WEBTOON
+    } else if (next.readingDirection === ReadingDirection.WEBTOON) {
+      next.readingDirection = ReadingDirection.LEFT_TO_RIGHT
+    }
     this.preferences = next
     this.preferenceRevision += 1
     this.emitWebtoonMode(mode === ReaderMode.CONTINUOUS_SCROLL)

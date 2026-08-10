@@ -68,7 +68,9 @@ export const DEFAULT_READER_PREFERENCES: ReaderPreferences = {
   tapNavigationEnabled: true,
   swipeNavigationEnabled: true,
   zoomGesturesEnabled: true,
-  tapZonePreset: 'edge',
+  // NextE's default RIGHT_LEFT layout is the neutral three-zone contract;
+  // legacy edge layouts remain available as explicit user choices.
+  tapZonePreset: 'right_left',
   tapZoneInvert: 'none',
   showTapZones: false,
   pageGapMode: 'normal',
@@ -153,7 +155,7 @@ export function normalizeReaderTapZonePreset(value: string): ReaderTapZonePreset
   if (value === 'wide_edges' || value === 'right_left' || value === 'l_shaped' || value === 'kindle') {
     return value
   }
-  return 'edge'
+  return 'right_left'
 }
 
 export function normalizeReaderTapZoneInvert(value: string): ReaderTapZoneInvert {
@@ -302,6 +304,9 @@ export function getReaderPageModeLabel(mode: ReaderPageMode): string {
   }
   if (mode === 'continuous_scroll') {
     return AppStrings.get('reader_page_mode_continuous')
+  }
+  if (mode === 'vertical_page') {
+    return AppStrings.get('reader_page_mode_vertical_page')
   }
   return AppStrings.get('reader_page_mode_single')
 }
@@ -596,6 +601,14 @@ export class ReaderPreferencesStore {
     const current = await this.load()
     const next = this.cloneBase(current)
     next.pageMode = pageMode
+    // Keep the legacy WEBTOON direction and the explicit mode in sync. This
+    // prevents a later switch back to single/vertical paging from remaining
+    // trapped in continuous mode because an old direction flag still wins.
+    if (pageMode === 'continuous_scroll') {
+      next.readingDirection = ReadingDirection.WEBTOON
+    } else if (next.readingDirection === ReadingDirection.WEBTOON) {
+      next.readingDirection = ReadingDirection.LEFT_TO_RIGHT
+    }
     return this.save(next)
   }
 
