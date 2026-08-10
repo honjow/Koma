@@ -41,8 +41,8 @@ const abiDocPath = resolve(root, 'docs/source-runtime-abi.md')
 const sdkDocPath = resolve(root, 'docs/source-package-sdk.md')
 const localKomaFixturePath = resolve(root, 'entry/src/main/resources/rawfile/test/local_source_runtime_fixture.koma')
 const externalSourcePackages = [
-  '/home/gamer/git/koma-sources/dist/sources/mangadex/mangadex-0.1.0.koma',
-  '/home/gamer/git/koma-sources/dist/sources/baozimh/baozimh-0.1.0.koma',
+  '/Users/honjow/git/koma-sources/dist/sources/mangadex/mangadex-0.1.0.koma',
+  '/Users/honjow/git/koma-sources/dist/sources/baozimh/baozimh-0.1.0.koma',
 ]
 
 const appRegistrySource = readFileSync(appRegistryPath, 'utf8')

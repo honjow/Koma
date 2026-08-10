@@ -21,7 +21,7 @@ import uuid
 from pathlib import Path
 from typing import Any
 
-DEFAULT_DEVICE = "192.168.50.237:12345"
+DEFAULT_DEVICE = "192.168.50.197:12345"
 LEASE_ROOT = Path(os.environ.get("V2NEXT_DEVICE_LEASE_DIR", Path.home() / ".hermes" / "device-leases"))
 
 
