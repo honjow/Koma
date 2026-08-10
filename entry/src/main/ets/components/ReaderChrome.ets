@@ -266,8 +266,9 @@ export struct ReaderChrome {
   private BackgroundMenu() {
     Menu() {
       MenuItem({ content: getReaderBackgroundModeLabel('black'), symbolEndIcon: this.preferences.backgroundMode === 'black' ? new SymbolGlyphModifier($r('sys.symbol.checkmark')) : undefined }).onClick(() => { this.setBackground('black'); this.closeMenus() })
-      MenuItem({ content: getReaderBackgroundModeLabel('paper'), symbolEndIcon: this.preferences.backgroundMode === 'paper' ? new SymbolGlyphModifier($r('sys.symbol.checkmark')) : undefined }).onClick(() => { this.setBackground('paper'); this.closeMenus() })
-      MenuItem({ content: getReaderBackgroundModeLabel('light'), symbolEndIcon: this.preferences.backgroundMode === 'light' ? new SymbolGlyphModifier($r('sys.symbol.checkmark')) : undefined }).onClick(() => { this.setBackground('light'); this.closeMenus() })
+      MenuItem({ content: getReaderBackgroundModeLabel('gray'), symbolEndIcon: this.preferences.backgroundMode === 'gray' ? new SymbolGlyphModifier($r('sys.symbol.checkmark')) : undefined }).onClick(() => { this.setBackground('gray'); this.closeMenus() })
+      MenuItem({ content: getReaderBackgroundModeLabel('white'), symbolEndIcon: this.preferences.backgroundMode === 'white' ? new SymbolGlyphModifier($r('sys.symbol.checkmark')) : undefined }).onClick(() => { this.setBackground('white'); this.closeMenus() })
+      MenuItem({ content: getReaderBackgroundModeLabel('auto'), symbolEndIcon: this.preferences.backgroundMode === 'auto' ? new SymbolGlyphModifier($r('sys.symbol.checkmark')) : undefined }).onClick(() => { this.setBackground('auto'); this.closeMenus() })
     }
   }
 

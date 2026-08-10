@@ -105,10 +105,12 @@ import {
   DEFAULT_READER_PREFERENCES,
   ReaderBackgroundMode,
   ReaderImageFitMode,
+  ReaderImageScalingQuality,
   ReaderPageGapMode,
   ReaderPageMode,
   ReaderPreferences,
   ReaderPreferencesStore,
+  ReaderSpreadLayoutMode,
   ReaderTapZoneInvert,
   ReaderTapZonePreset,
   ReaderThemeMode,
@@ -206,7 +208,14 @@ function createSettingsSections(): SettingsSection[] {
       rows: [
         { key: 'page-mode', titleKey: 'settings_row_page_mode_title', detailKey: 'settings_row_page_mode_detail' },
         { key: 'reading-direction', titleKey: 'settings_row_reading_direction_title', detailKey: 'settings_row_reading_direction_detail' },
+        { key: 'reader-spread-layout', titleKey: 'reader_spread_layout_title', detailKey: 'reader_spread_layout_detail' },
         { key: 'reader-background', titleKey: 'settings_row_reader_background_title', detailKey: 'settings_row_reader_background_detail' },
+        { key: 'reader-image-scaling', titleKey: 'reader_image_scaling_quality_title', detailKey: 'reader_image_scaling_quality_detail' },
+        { key: 'reader-show-page-number', titleKey: 'reader_show_page_number_title', detailKey: 'reader_show_page_number_detail' },
+        { key: 'reader-fullscreen', titleKey: 'reader_fullscreen_title', detailKey: 'reader_fullscreen_detail' },
+        { key: 'reader-page-animation', titleKey: 'reader_page_turn_animation_title', detailKey: 'reader_page_turn_animation_detail' },
+        { key: 'reader-auto-page', titleKey: 'reader_auto_page_title', detailKey: 'reader_auto_page_detail' },
+        { key: 'reader-preload-pages', titleKey: 'reader_preload_pages_title', detailKey: 'reader_preload_pages_detail' },
         { key: 'reader-progress', titleKey: 'settings_row_reader_progress_title', detailKey: 'settings_row_reader_progress_detail' },
         { key: 'reader-keep-screen-awake', titleKey: 'settings_row_reader_keep_screen_awake_title', detailKey: 'settings_row_reader_keep_screen_awake_detail' },
         { key: 'reader-image-fit', titleKey: 'settings_row_reader_image_fit_title', detailKey: 'settings_row_reader_image_fit_detail' },
@@ -411,9 +420,16 @@ export struct SettingsPage {
   @Param pane: SettingsPaneKey = 'root'
   @Local private pageMode: ReaderPageMode = 'single_page'
   @Local private readingDirection: ReadingDirection = ReadingDirection.LEFT_TO_RIGHT
+  @Local private readerSpreadLayoutMode: ReaderSpreadLayoutMode = 'joined'
   @Local private themeMode: ReaderThemeMode = 'system'
   @Local private appearanceAccentColor: AppearanceAccentColor = DEFAULT_APPEARANCE_PREFERENCES.accentColor
   @Local private readerBackgroundMode: ReaderBackgroundMode = 'black'
+  @Local private readerImageScalingQuality: ReaderImageScalingQuality = 'medium'
+  @Local private readerShowPageNumber: boolean = true
+  @Local private readerFullscreen: boolean = true
+  @Local private readerPageTurnAnimation: boolean = true
+  @Local private readerAutoPageSeconds: number = 3
+  @Local private readerPreloadPages: number = 2
   @Local private showReaderProgressControls: boolean = true
   @Local private keepReaderScreenAwake: boolean = true
   @Local private readerImageFitMode: ReaderImageFitMode = 'contain'
@@ -562,6 +578,11 @@ export struct SettingsPage {
     if (row.key === 'reading-direction') {
       return getReadingDirectionLabel(this.readingDirection)
     }
+    if (row.key === 'reader-spread-layout') {
+      return this.readerSpreadLayoutMode === 'split'
+        ? this.t('reader_spread_layout_split')
+        : this.t('reader_spread_layout_joined')
+    }
     if (row.key === 'theme') {
       return getReaderThemeModeLabel(this.themeMode)
     }
@@ -573,6 +594,26 @@ export struct SettingsPage {
     }
     if (row.key === 'reader-background') {
       return getReaderBackgroundModeLabel(this.readerBackgroundMode)
+    }
+    if (row.key === 'reader-image-scaling') {
+      return this.readerImageScalingQuality === 'low'
+        ? this.t('reader_image_scaling_quality_low')
+        : (this.readerImageScalingQuality === 'high' ? this.t('reader_image_scaling_quality_high') : this.t('reader_image_scaling_quality_medium'))
+    }
+    if (row.key === 'reader-show-page-number') {
+      return this.readerShowPageNumber ? this.t('common_on') : this.t('common_off')
+    }
+    if (row.key === 'reader-fullscreen') {
+      return this.readerFullscreen ? this.t('common_on') : this.t('common_off')
+    }
+    if (row.key === 'reader-page-animation') {
+      return this.readerPageTurnAnimation ? this.t('common_on') : this.t('common_off')
+    }
+    if (row.key === 'reader-auto-page') {
+      return `${this.readerAutoPageSeconds}s`
+    }
+    if (row.key === 'reader-preload-pages') {
+      return `${this.readerPreloadPages}`
     }
     if (row.key === 'reader-progress') {
       return getReaderProgressControlsLabel(this.showReaderProgressControls)
@@ -1002,8 +1043,15 @@ export struct SettingsPage {
   private applyReaderPreferences(preferences: ReaderPreferences): void {
     this.pageMode = preferences.pageMode
     this.readingDirection = preferences.readingDirection
+    this.readerSpreadLayoutMode = preferences.spreadLayoutMode
     this.themeMode = preferences.themeMode
     this.readerBackgroundMode = preferences.backgroundMode
+    this.readerImageScalingQuality = preferences.imageScalingQuality
+    this.readerShowPageNumber = preferences.showPageNumber
+    this.readerFullscreen = preferences.fullscreen
+    this.readerPageTurnAnimation = preferences.pageTurnAnimation
+    this.readerAutoPageSeconds = preferences.autoPageSeconds
+    this.readerPreloadPages = preferences.preloadPages
     this.showReaderProgressControls = preferences.showProgressControls
     this.keepReaderScreenAwake = preferences.keepScreenAwake
     this.readerImageFitMode = preferences.imageFitMode
@@ -1268,6 +1316,17 @@ export struct SettingsPage {
       })
   }
 
+  private saveReaderSpreadLayoutMode(spreadLayoutMode: ReaderSpreadLayoutMode): void {
+    this.readerSpreadLayoutMode = spreadLayoutMode
+    void this.preferencesStore().saveSpreadLayoutMode(spreadLayoutMode)
+      .then(() => {
+        console.info('[Settings] step=save_reader_spread_layout value=' + spreadLayoutMode)
+      })
+      .catch((error: Error) => {
+        console.warn('[Settings] step=save_reader_spread_layout_failed code=' + safeSettingsErrorCode(error))
+      })
+  }
+
   private saveThemeMode(themeMode: ReaderThemeMode): void {
     this.themeMode = themeMode
     try {
@@ -1317,6 +1376,72 @@ export struct SettingsPage {
       })
       .catch((error: Error) => {
         console.warn('[Settings] step=save_reader_background_failed code=' + safeSettingsErrorCode(error))
+      })
+  }
+
+  private saveReaderImageScalingQuality(imageScalingQuality: ReaderImageScalingQuality): void {
+    this.readerImageScalingQuality = imageScalingQuality
+    void this.preferencesStore().saveImageScalingQuality(imageScalingQuality)
+      .then(() => {
+        console.info('[Settings] step=save_reader_image_scaling value=' + imageScalingQuality)
+      })
+      .catch((error: Error) => {
+        console.warn('[Settings] step=save_reader_image_scaling_failed code=' + safeSettingsErrorCode(error))
+      })
+  }
+
+  private saveReaderShowPageNumber(showPageNumber: boolean): void {
+    this.readerShowPageNumber = showPageNumber
+    void this.preferencesStore().saveShowPageNumber(showPageNumber)
+      .then(() => {
+        console.info('[Settings] step=save_reader_show_page_number value=' + showPageNumber)
+      })
+      .catch((error: Error) => {
+        console.warn('[Settings] step=save_reader_show_page_number_failed code=' + safeSettingsErrorCode(error))
+      })
+  }
+
+  private saveReaderFullscreen(fullscreen: boolean): void {
+    this.readerFullscreen = fullscreen
+    void this.preferencesStore().saveFullscreen(fullscreen)
+      .then(() => {
+        console.info('[Settings] step=save_reader_fullscreen value=' + fullscreen)
+      })
+      .catch((error: Error) => {
+        console.warn('[Settings] step=save_reader_fullscreen_failed code=' + safeSettingsErrorCode(error))
+      })
+  }
+
+  private saveReaderPageTurnAnimation(pageTurnAnimation: boolean): void {
+    this.readerPageTurnAnimation = pageTurnAnimation
+    void this.preferencesStore().savePageTurnAnimation(pageTurnAnimation)
+      .then(() => {
+        console.info('[Settings] step=save_reader_page_animation value=' + pageTurnAnimation)
+      })
+      .catch((error: Error) => {
+        console.warn('[Settings] step=save_reader_page_animation_failed code=' + safeSettingsErrorCode(error))
+      })
+  }
+
+  private saveReaderAutoPageSeconds(autoPageSeconds: number): void {
+    this.readerAutoPageSeconds = Math.max(1, Math.min(60, Math.round(autoPageSeconds)))
+    void this.preferencesStore().saveAutoPageSeconds(this.readerAutoPageSeconds)
+      .then(() => {
+        console.info('[Settings] step=save_reader_auto_page value=' + this.readerAutoPageSeconds)
+      })
+      .catch((error: Error) => {
+        console.warn('[Settings] step=save_reader_auto_page_failed code=' + safeSettingsErrorCode(error))
+      })
+  }
+
+  private saveReaderPreloadPages(preloadPages: number): void {
+    this.readerPreloadPages = Math.max(0, Math.min(5, Math.round(preloadPages)))
+    void this.preferencesStore().savePreloadPages(this.readerPreloadPages)
+      .then(() => {
+        console.info('[Settings] step=save_reader_preload_pages value=' + this.readerPreloadPages)
+      })
+      .catch((error: Error) => {
+        console.warn('[Settings] step=save_reader_preload_pages_failed code=' + safeSettingsErrorCode(error))
       })
   }
 
@@ -2058,7 +2183,11 @@ export struct SettingsPage {
       row.key === 'theme' ||
       row.key === 'theme-color' ||
       row.key === 'language' ||
+      row.key === 'reader-spread-layout' ||
       row.key === 'reader-background' ||
+      row.key === 'reader-image-scaling' ||
+      row.key === 'reader-auto-page' ||
+      row.key === 'reader-preload-pages' ||
       row.key === 'reader-image-fit' ||
       row.key === 'reader-tap-zone-preset' ||
       row.key === 'reader-tap-zone-invert' ||
@@ -2083,6 +2212,9 @@ export struct SettingsPage {
       row.key === 'cache-auto-clean' ||
       row.key === 'download-wifi-only' ||
       row.key === 'tracker-auto-sync' ||
+      row.key === 'reader-show-page-number' ||
+      row.key === 'reader-fullscreen' ||
+      row.key === 'reader-page-animation' ||
       row.key === 'reader-progress' ||
       row.key === 'reader-keep-screen-awake' ||
       row.key === 'reader-tap-navigation' ||
@@ -2142,6 +2274,15 @@ export struct SettingsPage {
     if (row.key === 'tracker-auto-sync') {
       return this.trackerAutoSyncEnabled
     }
+    if (row.key === 'reader-show-page-number') {
+      return this.readerShowPageNumber
+    }
+    if (row.key === 'reader-fullscreen') {
+      return this.readerFullscreen
+    }
+    if (row.key === 'reader-page-animation') {
+      return this.readerPageTurnAnimation
+    }
     return false
   }
 
@@ -2178,6 +2319,12 @@ export struct SettingsPage {
       this.saveDownloadWifiOnly(value)
     } else if (row.key === 'tracker-auto-sync') {
       this.saveTrackerAutoSyncEnabled(value)
+    } else if (row.key === 'reader-show-page-number') {
+      this.saveReaderShowPageNumber(value)
+    } else if (row.key === 'reader-fullscreen') {
+      this.saveReaderFullscreen(value)
+    } else if (row.key === 'reader-page-animation') {
+      this.saveReaderPageTurnAnimation(value)
     }
   }
 
@@ -2204,10 +2351,14 @@ export struct SettingsPage {
         this.SelectionMenuItem(s('reader_page_mode_single'), this.pageMode === 'single_page', () => { this.savePageMode('single_page') })
         this.SelectionMenuItem(s('reader_page_mode_double'), this.pageMode === 'double_page', () => { this.savePageMode('double_page') })
         this.SelectionMenuItem(s('reader_page_mode_continuous'), this.pageMode === 'continuous_scroll', () => { this.savePageMode('continuous_scroll') })
+        this.SelectionMenuItem(s('reader_page_mode_vertical_page'), this.pageMode === 'vertical_page', () => { this.savePageMode('vertical_page') })
       } else if (row.key === 'reading-direction') {
         this.SelectionMenuItem(s('reader_direction_ltr'), this.readingDirection === ReadingDirection.LEFT_TO_RIGHT, () => { this.saveReadingDirection(ReadingDirection.LEFT_TO_RIGHT) })
         this.SelectionMenuItem(s('reader_direction_rtl'), this.readingDirection === ReadingDirection.RIGHT_TO_LEFT, () => { this.saveReadingDirection(ReadingDirection.RIGHT_TO_LEFT) })
         this.SelectionMenuItem(s('reader_direction_vertical'), this.readingDirection === ReadingDirection.WEBTOON, () => { this.saveReadingDirection(ReadingDirection.WEBTOON) })
+      } else if (row.key === 'reader-spread-layout') {
+        this.SelectionMenuItem(s('reader_spread_layout_joined'), this.readerSpreadLayoutMode === 'joined', () => { this.saveReaderSpreadLayoutMode('joined') })
+        this.SelectionMenuItem(s('reader_spread_layout_split'), this.readerSpreadLayoutMode === 'split', () => { this.saveReaderSpreadLayoutMode('split') })
       } else if (row.key === 'theme') {
         this.SelectionMenuItem(s('theme_system'), this.themeMode === 'system', () => { this.saveThemeMode('system') })
         this.SelectionMenuItem(s('theme_light'), this.themeMode === 'light', () => { this.saveThemeMode('light') })
@@ -2224,8 +2375,21 @@ export struct SettingsPage {
         this.SelectionMenuItem(s('language_en_us'), this.language.mode === LanguageSettings.MODE_EN_US, () => { this.saveLanguageMode(LanguageSettings.MODE_EN_US) })
       } else if (row.key === 'reader-background') {
         this.SelectionMenuItem(s('reader_background_black'), this.readerBackgroundMode === 'black', () => { this.saveReaderBackgroundMode('black') })
-        this.SelectionMenuItem(s('reader_background_paper'), this.readerBackgroundMode === 'paper', () => { this.saveReaderBackgroundMode('paper') })
-        this.SelectionMenuItem(s('reader_background_light'), this.readerBackgroundMode === 'light', () => { this.saveReaderBackgroundMode('light') })
+        this.SelectionMenuItem(s('reader_background_gray'), this.readerBackgroundMode === 'gray', () => { this.saveReaderBackgroundMode('gray') })
+        this.SelectionMenuItem(s('reader_background_white'), this.readerBackgroundMode === 'white', () => { this.saveReaderBackgroundMode('white') })
+        this.SelectionMenuItem(s('reader_background_auto'), this.readerBackgroundMode === 'auto', () => { this.saveReaderBackgroundMode('auto') })
+      } else if (row.key === 'reader-image-scaling') {
+        this.SelectionMenuItem(s('reader_image_scaling_quality_low'), this.readerImageScalingQuality === 'low', () => { this.saveReaderImageScalingQuality('low') })
+        this.SelectionMenuItem(s('reader_image_scaling_quality_medium'), this.readerImageScalingQuality === 'medium', () => { this.saveReaderImageScalingQuality('medium') })
+        this.SelectionMenuItem(s('reader_image_scaling_quality_high'), this.readerImageScalingQuality === 'high', () => { this.saveReaderImageScalingQuality('high') })
+      } else if (row.key === 'reader-auto-page') {
+        ForEach([1, 2, 3, 5, 8, 10, 15, 30, 60], (seconds: number) => {
+          this.SelectionMenuItem(`${seconds}s`, this.readerAutoPageSeconds === seconds, () => { this.saveReaderAutoPageSeconds(seconds) })
+        }, (seconds: number) => `${seconds}`)
+      } else if (row.key === 'reader-preload-pages') {
+        ForEach([0, 1, 2, 3, 4, 5], (pages: number) => {
+          this.SelectionMenuItem(`${pages}`, this.readerPreloadPages === pages, () => { this.saveReaderPreloadPages(pages) })
+        }, (pages: number) => `${pages}`)
       } else if (row.key === 'reader-image-fit') {
         this.SelectionMenuItem(s('reader_image_fit_screen'), this.readerImageFitMode === 'contain', () => { this.saveReaderImageFitMode('contain') })
         this.SelectionMenuItem(s('reader_image_fit_width'), this.readerImageFitMode === 'fit_width', () => { this.saveReaderImageFitMode('fit_width') })

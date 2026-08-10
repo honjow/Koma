@@ -19,6 +19,7 @@ function copyReadingProgressWithTimestamp(progress: ReadingProgress): ReadingPro
     progressRatio: progress.progressRatio,
     completed: progress.completed,
     updatedAt: Date.now(),
+    columnMode: progress.columnMode,
   }
 }
 
@@ -170,6 +171,18 @@ export abstract class ReaderSessionStore {
     }
     return Math.floor(progress.pageIndex)
   }
+
+  restoreColumnMode(
+    config: ReaderSessionConfig,
+    fallback: 'odd_left' | 'even_left',
+  ): 'odd_left' | 'even_left' {
+    const progress = this.getProgress(config.comicId)
+    if (progress === undefined || progress.chapterId !== config.chapterId) {
+      return fallback
+    }
+    return progress.columnMode === 'even_left' ? 'even_left' :
+      (progress.columnMode === 'odd_left' ? 'odd_left' : fallback)
+  }
 }
 
 export class InMemoryReaderSessionStore extends ReaderSessionStore {
@@ -222,7 +235,12 @@ export class PersistentReaderSessionStore extends ReaderSessionStore {
     this.persist()
   }
 
-  updatePageIndex(config: ReaderSessionConfig, pageIndex: number, pageId?: string): void {
+  updatePageIndex(
+    config: ReaderSessionConfig,
+    pageIndex: number,
+    pageId?: string,
+    columnMode?: 'odd_left' | 'even_left',
+  ): void {
     const total = Math.max(config.totalPages, 1)
     const target = Math.max(0, Math.min(pageIndex, total - 1))
     this.saveProgress({
@@ -234,6 +252,7 @@ export class PersistentReaderSessionStore extends ReaderSessionStore {
       progressRatio: total > 0 ? (target + 1) / total : 0,
       completed: target >= total - 1,
       updatedAt: Date.now(),
+      columnMode,
     })
   }
 

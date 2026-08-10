@@ -66,17 +66,21 @@ function isWidePage(width: number | undefined, height: number | undefined): bool
 }
 
 function readerBackground(mode: ReaderBackgroundMode): ResourceColor {
-  if (mode === 'paper') {
+  if (mode === 'gray') {
     return ThemeConstants.READER_BG_PAPER
   }
-  if (mode === 'light') {
+  if (mode === 'white') {
     return ThemeConstants.READER_BG_LIGHT
+  }
+  if (mode === 'auto') {
+    return ThemeConstants.BG_PRIMARY
   }
   return ThemeConstants.READER_BG_DARK
 }
 
 function readerForeground(mode: ReaderBackgroundMode): ResourceColor {
-  return mode === 'black' ? ThemeConstants.READER_TEXT_PRIMARY : ThemeConstants.READER_TEXT_ON_LIGHT
+  return mode === 'black' ? ThemeConstants.READER_TEXT_PRIMARY :
+    (mode === 'auto' ? ThemeConstants.TEXT_PRIMARY : ThemeConstants.READER_TEXT_ON_LIGHT)
 }
 
 function imageFit(mode: ReaderImageFitMode): ImageFit {
@@ -644,6 +648,7 @@ export struct ReaderPage {
       }
       this.preferencesStore = new ReaderPreferencesStore(context)
       this.preferences = await this.preferencesStore.loadForComic(this.sessionConfig.comicId)
+      this.preferences.columnMode = this.sessionStore.restoreColumnMode(this.sessionConfig, this.preferences.columnMode)
       this.settingsReady = true
       this.preferenceRevision += 1
       this.tapPreviewVisible = this.preferences.showTapZones
@@ -666,7 +671,8 @@ export struct ReaderPage {
   }
 
   private readerBackgroundIsDarkForStatus(): boolean {
-    return this.preferences.backgroundMode === 'black'
+    return this.preferences.backgroundMode === 'black' ||
+      (this.preferences.backgroundMode === 'auto' && this.preferences.themeMode === 'dark')
   }
 
   private applyStatusBarVisible(visible: boolean): void {
@@ -1044,6 +1050,7 @@ export struct ReaderPage {
     }
     this.scheduleStatusBarVisibility()
     this.persistPreferences(this.preferences)
+    this.persistCurrentProgress()
   }
 
   private persistPreferences(next: ReaderPreferences): void {
@@ -1064,7 +1071,6 @@ export struct ReaderPage {
 
   private persistProgress(index: number = this.pageIndex): void {
     if (this.sessionConfig.comicId.length === 0 || this.sessionConfig.chapterId.length === 0 || this.sessionConfig.totalPages <= 0) return
-    const previous = this.sessionStore.getProgress(this.sessionConfig.comicId)
     const total = this.sessionConfig.totalPages
     this.sessionStore.saveProgress({
       comicId: this.sessionConfig.comicId,
@@ -1074,7 +1080,8 @@ export struct ReaderPage {
       totalPages: total,
       progressRatio: (Math.min(Math.max(index, 0), total - 1) + 1) / total,
       completed: index >= total - 1,
-      updatedAt: previous?.updatedAt ?? Date.now(),
+      updatedAt: Date.now(),
+      columnMode: this.preferences.columnMode,
     })
   }
 

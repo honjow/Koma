@@ -5,7 +5,8 @@ import { ReadingDirection } from './ComicModels'
 
 export type ReaderPageMode = 'single_page' | 'double_page' | 'continuous_scroll' | 'vertical_page'
 export type ReaderThemeMode = 'system' | 'light' | 'dark'
-export type ReaderBackgroundMode = 'black' | 'paper' | 'light'
+/** Matches NextE's persisted reader background contract. */
+export type ReaderBackgroundMode = 'black' | 'gray' | 'white' | 'auto'
 export type ReaderImageFitMode = 'contain' | 'fit_width' | 'fit_height'
 export type ReaderImageScalingQuality = 'low' | 'medium' | 'high'
 export type ReaderPageGapMode = 'compact' | 'normal' | 'wide'
@@ -92,8 +93,15 @@ export function normalizeReaderThemeMode(value: string): ReaderThemeMode {
 }
 
 export function normalizeReaderBackgroundMode(value: string): ReaderBackgroundMode {
-  if (value === 'paper' || value === 'light') {
+  if (value === 'gray' || value === 'white' || value === 'auto') {
     return value
+  }
+  // Migrate the pre-alignment Koma names without changing the visual intent.
+  if (value === 'paper') {
+    return 'gray'
+  }
+  if (value === 'light') {
+    return 'white'
   }
   return 'black'
 }
@@ -319,11 +327,14 @@ export function getReaderThemeModeLabel(mode: ReaderThemeMode): string {
 }
 
 export function getReaderBackgroundModeLabel(mode: ReaderBackgroundMode): string {
-  if (mode === 'paper') {
-    return AppStrings.get('reader_background_paper')
+  if (mode === 'gray') {
+    return AppStrings.get('reader_background_gray')
   }
-  if (mode === 'light') {
-    return AppStrings.get('reader_background_light')
+  if (mode === 'white') {
+    return AppStrings.get('reader_background_white')
+  }
+  if (mode === 'auto') {
+    return AppStrings.get('reader_background_auto')
   }
   return AppStrings.get('reader_background_black')
 }
@@ -500,19 +511,13 @@ export class ReaderPreferencesStore {
   }
 
   async loadForComic(comicId: string): Promise<ReaderPreferences> {
-    const global = await this.load()
-    const key = comicId.trim()
-    if (key.length === 0) {
-      return global
-    }
-    const store = await this.preferences()
-    const payload = await store.get(SERIES_OVERRIDES_KEY, '') as string
-    const overrides = normalizeReaderSeriesPreferenceOverrides(payload)
-    const override = overrides[key]
-    if (override === undefined) {
-      return global
-    }
-    return normalizeReaderPreferences(override)
+    // NextE has one global ReadModeState writer.  Koma v1 stored complete
+    // per-comic snapshots, which made the Settings page appear to save while
+    // an old override silently won on the next reader open.  Keep the legacy
+    // payload readable for backup/migration, but do not let it shadow the
+    // canonical global reader state at runtime.
+    void comicId
+    return this.load()
   }
 
   async save(preferences: ReaderPreferences): Promise<ReaderPreferences> {
@@ -549,18 +554,11 @@ export class ReaderPreferencesStore {
   }
 
   async saveForComic(comicId: string, preferences: ReaderPreferences): Promise<ReaderPreferences> {
-    const normalized = normalizeReaderPreferences(preferences)
-    const key = comicId.trim()
-    if (key.length === 0) {
-      return this.save(normalized)
-    }
-    const store = await this.preferences()
-    const payload = await store.get(SERIES_OVERRIDES_KEY, '') as string
-    const overrides = normalizeReaderSeriesPreferenceOverrides(payload)
-    overrides[key] = normalized
-    await store.put(SERIES_OVERRIDES_KEY, JSON.stringify(overrides))
-    await store.flush()
-    return normalized
+    // ReaderChrome and SettingsPage must share the same state owner.  The
+    // legacy method remains as an API-compatible alias for callers that still
+    // pass a comic id; the id is intentionally ignored.
+    void comicId
+    return this.save(preferences)
   }
 
   private cloneBase(current: ReaderPreferences): ReaderPreferences {
@@ -608,6 +606,13 @@ export class ReaderPreferencesStore {
     return this.save(next)
   }
 
+  async saveSpreadLayoutMode(spreadLayoutMode: ReaderSpreadLayoutMode): Promise<ReaderPreferences> {
+    const current = await this.load()
+    const next = this.cloneBase(current)
+    next.spreadLayoutMode = normalizeReaderSpreadLayoutMode(spreadLayoutMode)
+    return this.save(next)
+  }
+
   async saveThemeMode(themeMode: ReaderThemeMode): Promise<ReaderPreferences> {
     const current = await this.load()
     const next = this.cloneBase(current)
@@ -619,6 +624,48 @@ export class ReaderPreferencesStore {
     const current = await this.load()
     const next = this.cloneBase(current)
     next.backgroundMode = backgroundMode
+    return this.save(next)
+  }
+
+  async saveImageScalingQuality(imageScalingQuality: ReaderImageScalingQuality): Promise<ReaderPreferences> {
+    const current = await this.load()
+    const next = this.cloneBase(current)
+    next.imageScalingQuality = normalizeReaderImageScalingQuality(imageScalingQuality)
+    return this.save(next)
+  }
+
+  async saveShowPageNumber(showPageNumber: boolean): Promise<ReaderPreferences> {
+    const current = await this.load()
+    const next = this.cloneBase(current)
+    next.showPageNumber = showPageNumber
+    return this.save(next)
+  }
+
+  async saveFullscreen(fullscreen: boolean): Promise<ReaderPreferences> {
+    const current = await this.load()
+    const next = this.cloneBase(current)
+    next.fullscreen = fullscreen
+    return this.save(next)
+  }
+
+  async savePageTurnAnimation(pageTurnAnimation: boolean): Promise<ReaderPreferences> {
+    const current = await this.load()
+    const next = this.cloneBase(current)
+    next.pageTurnAnimation = pageTurnAnimation
+    return this.save(next)
+  }
+
+  async saveAutoPageSeconds(autoPageSeconds: number): Promise<ReaderPreferences> {
+    const current = await this.load()
+    const next = this.cloneBase(current)
+    next.autoPageSeconds = normalizeReaderAutoPageSeconds(autoPageSeconds)
+    return this.save(next)
+  }
+
+  async savePreloadPages(preloadPages: number): Promise<ReaderPreferences> {
+    const current = await this.load()
+    const next = this.cloneBase(current)
+    next.preloadPages = normalizeReaderPreloadPages(preloadPages)
     return this.save(next)
   }
 

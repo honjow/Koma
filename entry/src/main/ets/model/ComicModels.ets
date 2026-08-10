@@ -137,6 +137,12 @@ export interface ReadingProgress {
   progressRatio: number
   completed: boolean
   updatedAt: number
+  /**
+   * Double-page pairing is a reading-position concern in NextE, not a global
+   * preference.  Keep it optional so older progress files and remote records
+   * remain readable while a chapter-specific value can be restored locally.
+   */
+  columnMode?: 'odd_left' | 'even_left'
 }
 
 export interface LibraryItem {
@@ -287,6 +293,7 @@ export function updateReadingProgress(
     progressRatio: calculateProgressRatio(resolvedPageIndex, resolvedTotalPages),
     completed: resolvedTotalPages <= 0 || resolvedPageIndex >= resolvedTotalPages - 1,
     updatedAt: Date.now(),
+    columnMode: previous.columnMode,
   }
 }
 
