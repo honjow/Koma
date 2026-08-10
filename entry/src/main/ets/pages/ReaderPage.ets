@@ -836,6 +836,7 @@ export struct ReaderPage {
   @Local private zoomResetToken: number = 0
   @Local private loadedRevision: number = 0
   @Local private failedPages: number[] = []
+  @Local private loadedPageIndexes: number[] = []
   @Local private continuousOffset: number = 0
   @Local private settingsReady: boolean = false
   @Local private tapPreviewVisible: boolean = false
@@ -869,6 +870,7 @@ export struct ReaderPage {
   private volumeUpConsumer: ((event: InputConsumerKeyEvent) => void) | null = null
   private closing: boolean = false
   private autoPageTimerId: number = -1
+  private autoPageWaitingIndex: number = -1
   private continuousInitialTarget: number = -1
   private prefetchEpoch: number = 0
 
@@ -1064,7 +1066,16 @@ export struct ReaderPage {
         this.stopAutoPage()
         return
       }
-      this.nextPage()
+      const target = this.nextAutoPageIndex()
+      if (target < 0 || target >= this.sessionConfig.totalPages) {
+        this.stopAutoPage()
+        return
+      }
+      if (!this.isPageReadyForAutoPage(target)) {
+        this.waitForAutoPage(target)
+        return
+      }
+      this.setPage(target)
       this.scheduleAutoPage()
     }, Math.max(1, this.preferences.autoPageSeconds) * 1000)
   }
@@ -1083,6 +1094,7 @@ export struct ReaderPage {
 
   private stopAutoPage(): void {
     this.autoPageActive = false
+    this.autoPageWaitingIndex = -1
     this.clearAutoPageTimer()
   }
 
@@ -1097,6 +1109,8 @@ export struct ReaderPage {
     this.sourceSignature = signature
     this.loadedRevision += 1
     this.failedPages = []
+    this.loadedPageIndexes = []
+    this.autoPageWaitingIndex = -1
     this.measuredPageWidths = []
     this.measuredPageHeights = []
     this.resetZoomState()
@@ -1473,10 +1487,59 @@ export struct ReaderPage {
 
   private onImageFailed(index: number): void {
     if (!this.failedPages.includes(index)) this.failedPages = this.failedPages.concat([index])
+    if (this.autoPageWaitingIndex === index) {
+      this.stopAutoPage()
+    }
   }
 
   private onImageLoaded(index: number): void {
     if (this.failedPages.includes(index)) this.failedPages = this.failedPages.filter((item: number) => item !== index)
+    if (!this.loadedPageIndexes.includes(index)) {
+      this.loadedPageIndexes = this.loadedPageIndexes.concat([index])
+    }
+    this.maybeResumeAutoPage(index)
+  }
+
+  private isPageReadyForAutoPage(index: number): boolean {
+    if (index < 0 || index >= this.sessionConfig.totalPages) {
+      return false
+    }
+    if (this.loadedPageIndexes.includes(index)) {
+      return true
+    }
+    // Mirrors NextE's preview-ready fallback: Koma already has canonical page
+    // URIs at session creation, so a non-empty render source may advance even
+    // when preload is explicitly configured to zero.
+    return this.sourceFor(index).imageUri.length > 0 && !this.failedPages.includes(index)
+  }
+
+  private nextAutoPageIndex(): number {
+    if (this.effectiveMode() !== ReaderMode.DUAL_PAGE) {
+      return this.pageIndex + 1
+    }
+    const starts = this.spreadIndexes()
+    const currentSpread = this.spreadIndexForPage(this.pageIndex)
+    const nextSpread = currentSpread + 1
+    return nextSpread >= 0 && nextSpread < starts.length ? starts[nextSpread] : -1
+  }
+
+  private waitForAutoPage(index: number): void {
+    this.autoPageWaitingIndex = index
+    this.clearAutoPageTimer()
+    // The remote cache request is bounded by the Reader preference.  A loaded
+    // surface will call maybeResumeAutoPage; a failed surface stops auto mode
+    // rather than skipping unreadable content.
+    this.prefetchLookahead(Math.max(-1, index - 1))
+  }
+
+  private maybeResumeAutoPage(index: number): void {
+    if (!this.autoPageActive || this.autoPageTimerId >= 0 || this.autoPageWaitingIndex < 0) {
+      return
+    }
+    if (index === this.autoPageWaitingIndex || this.isPageReadyForAutoPage(this.autoPageWaitingIndex)) {
+      this.autoPageWaitingIndex = -1
+      this.scheduleAutoPage()
+    }
   }
 
   private toggleThumbnailStrip(): void {
