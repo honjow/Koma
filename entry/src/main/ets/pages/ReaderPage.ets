@@ -1380,6 +1380,32 @@ export struct ReaderPage {
   }
 
   @Builder
+  private VerticalPageReader() {
+    Swiper(this.swiperController) {
+      ForEach(this.pageIndexes(), (index: number) => {
+        Row({ space: pageGap(this.preferences.pageGapMode) }) {
+          ForEach(this.displayEntries(index), (entry: ReaderDisplayEntry) => {
+            this.ReaderPageSlot(entry.pageIndex, entry.splitSide)
+          }, (entry: ReaderDisplayEntry) => `vertical-page-${entry.pageIndex}-${entry.splitSide}`)
+        }
+        .width('100%').height('100%').justifyContent(FlexAlign.Center)
+      }, (index: number) => `reader-vertical-paged-${index}`)
+    }
+    .index(this.pageIndex)
+    .direction(Direction.Ltr)
+    .vertical(true)
+    .loop(false)
+    .indicator(false)
+    .disableSwipe(this.zoomed || !this.preferences.swipeNavigationEnabled)
+    .width('100%').height('100%')
+    .onChange((index: number) => {
+      this.resetZoomState()
+      this.emitPageIndex(Math.max(0, Math.min(index, Math.max(this.sessionConfig.totalPages - 1, 0))))
+      this.persistProgress(index)
+    })
+  }
+
+  @Builder
   private DoublePageReader() {
     Swiper(this.doublePageSwiperController) {
       ForEach(this.spreadIndexes(), (start: number) => {
@@ -1479,7 +1505,7 @@ export struct ReaderPage {
     } else if (this.effectiveMode() === ReaderMode.DUAL_PAGE) {
       this.DoublePageReader()
     } else if (this.effectiveMode() === ReaderMode.VERTICAL_PAGE) {
-      this.SinglePageReader()
+      this.VerticalPageReader()
     } else {
       this.SinglePageReader()
     }
