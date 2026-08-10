@@ -60,19 +60,19 @@ Koma 是 HarmonyOS 私有漫画书架/阅读器：
 - 本地漫画：CBZ/ZIP、图片文件夹、书架、阅读进度。
 - 私有库：Komga / OPDS / WebDAV。
 - 自定义源：研究 Aidoku 风格 WASM source，但不内置源、不做 APK 插件、不提供源市场。
-- Source import direction：源使用**用户输入/配置 URL 源索引后导入加载**的方式；不要把主路径设计成内置源市场或只依赖本地文件 picker。具体 source index/package 定义以独立仓库 `/home/gamer/git/koma-sources` 为准，当前可见定义见 `dist/index.json`（索引项含 `id/name/version/lang/nsfw/author/description/contentRating/pkg/icon/minAppVersion`，`pkg` 指向 `.koma` 包）。
+- Source import direction：源使用**用户输入/配置 URL 源索引后导入加载**的方式；不要把主路径设计成内置源市场或只依赖本地文件 picker。具体 source index/package 定义以独立仓库 `/Users/honjow/git/koma-sources` 为准，当前可见定义见 `dist/index.json`（索引项含 `id/name/version/lang/nsfw/author/description/contentRating/pkg/icon/minAppVersion`，`pkg` 指向 `.koma` 包）。
 
 ## Hard Constraints
 
 - 不复制 Aidoku/Homo 代码或资源；只能参考公开架构与交互思路。
 - 上架文案避免"全网漫画 / 免费漫画 / 聚合源 / 插件市场"。
 - UI 走 Aidoku 风格（shelf-first / 轻导入 / 安静阅读）；普通用户可见路径不出现 debug、sandbox、QA、内部路径文案。
-- UI 打磨先查 `/home/gamer/git/HarmonyOSComponentUXExamples`，再决定是否手写或抽组件。
+- UI 打磨先查 `/Users/honjow/git/HarmonyOSComponentUXExamples`，再决定是否手写或抽组件。
 
 ## Device & Build
 
-- 设备 QA 使用 `192.168.50.103:12345`，避免 V2Next 共享测试机 `192.168.50.237:12345`。
-- 103 HDC 出现 unauthorized 时，先在 host 上 `hdc kill` / `hdc start` / `hdc tconn`，确认仍 unauthorized 再向用户求助。
+- 设备 QA 使用 `192.168.50.197:12345`，避免 V2Next 共享测试机 `192.168.50.237:12345`。
+- 197 HDC 出现 unauthorized 时，先在 host 上 `hdc kill` / `hdc start` / `hdc tconn`，确认仍 unauthorized 再向用户求助。
 - 不得自行停止、重启或启动模拟器。需要模拟器生命周期操作时，先说明原因并等待用户明确授权。
 - 不得凭 HDC 端口号推断设备型号或把 `5555` / `5557` 直接称为 Pura X。Pura X 验证必须来自用户指定 target 或可核对的设备身份/模拟器运行证据。
 - 调试签名物料放在用户目录 `~/.config/harmony/debug-signing/`（账号级共享），跨 OH 项目复用同一份 cert 避免撞 AGC 调试证书配额。

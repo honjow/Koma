@@ -6,7 +6,7 @@ Koma 是 HarmonyOS 私有漫画书架与阅读器。
 
 当前功能基线见 `docs/FEATURE_PROGRESS_20260524.md`：Phase 1 本地 MVP、Phase 2 Komga/OPDS/WebDAV、跨源搜索、History、Reader cache、Komga progress sync、Settings 功能化、WAMR native runtime、source package manager 均已集成并通过 2026-05-24 final gate。
 
-Aidoku/Mihon 对标后的 App 本体缺口与自主推进队列见 `docs/APP_GAP_PLAN_AIDOKU.md`。2026-07-03 的 Aidoku 本地源码级对照与后续详单见 `docs/AIDOKU_SOURCE_COMPARISON_PLAN.md`。漫画源生态不作为 Koma App 本体缺口处理；source index/package/真实漫画源维护放在独立仓库 `/home/gamer/git/koma-sources`，Koma App 侧只推进 host/runtime/安装/信任/设置/升级/错误恢复能力。
+Aidoku/Mihon 对标后的 App 本体缺口与自主推进队列见 `docs/APP_GAP_PLAN_AIDOKU.md`。2026-07-03 的 Aidoku 本地源码级对照与后续详单见 `docs/AIDOKU_SOURCE_COMPARISON_PLAN.md`。漫画源生态不作为 Koma App 本体缺口处理；source index/package/真实漫画源维护放在独立仓库 `/Users/honjow/git/koma-sources`，Koma App 侧只推进 host/runtime/安装/信任/设置/升级/错误恢复能力。
 
 首版主线：
 
@@ -33,7 +33,7 @@ Artifact 目录规范见 `docs/CONTROLLER_ARTIFACTS.md`。
 2. worker 必须写 artifact 和 result，不接受只在聊天里自报完成。
 3. 任务链按 `implementation -> review -> build/device QA -> integrate` 推进。
 4. 并行任务必须不改同一批文件，或者只做只读调研。
-5. 设备 QA 默认使用 `192.168.50.103:12345`。
+5. 设备 QA 默认使用 `192.168.50.197:12345`。
 6. 长日志放 `.hermes-artifacts/`，聊天只汇报状态、证据、路径。
 7. Koma 调试签名物料共享：放 `~/.config/harmony/debug-signing/`，证书名 `honjow-debug`（账号级共享），Profile 按 bundleId 自动生成。env 由 `scripts/dev.env` 定义。
 
@@ -53,7 +53,7 @@ Artifact 目录规范见 `docs/CONTROLLER_ARTIFACTS.md`。
 
 - `bash -n dev.sh` PASS。
 - Linux host: `bash dev.sh --build-only --non-interactive` PASS。
-- Linux host: `bash dev.sh -d 192.168.50.103:12345` PASS。
+- Linux host: `bash dev.sh -d 192.168.50.197:12345` PASS。
 - git status 只剩 ignored build/sign artifacts。
 
 状态：已基本完成；后续只做回归。
@@ -368,5 +368,5 @@ controller 接到 PASS 后必须：
 1. 读 `result.json`。
 2. 看 `git diff --stat` 和关键 diff。
 3. 跑相关构建/测试。
-4. UI/设备任务安装到 `192.168.50.103:12345` 并看截图。
+4. UI/设备任务安装到 `192.168.50.197:12345` 并看截图。
 5. 再决定 review/QA/integrate。

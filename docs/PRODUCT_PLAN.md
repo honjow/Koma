@@ -5,7 +5,7 @@
 - 暂定：Koma
 - Bundle：`com.honjow.koma`（dev/release 不再区分 bundleName）
 - Debug 证书名：`honjow-debug`（账号级共享，多 OH 项目复用避免撞 AGC 调试证书配额）；物料统一放 `~/.config/harmony/debug-signing/`，由 `scripts/dev.env` 的 `HARMONY_DEBUG_*` 环境变量定位。Profile 仍按 bundle 独立生成。
-- 测试机：`192.168.50.103:12345`
+- 测试机：`192.168.50.197:12345`
 
 ## 首版路线
 

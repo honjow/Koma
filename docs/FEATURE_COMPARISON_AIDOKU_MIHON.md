@@ -22,7 +22,7 @@ Koma 基线：`master` / `1269199` 后续实现
 Koma 不是完成态。当前是 **HarmonyOS 私有/本地优先漫画阅读器的功能骨架 + 可跑通的 source runtime E2E**：
 
 - 本地导入、私有库、Reader、source URL index、MangaDex source runtime 到 Reader 图片已跑通。
-- 漫画源生态不作为 Koma App 本体缺口处理；source index/package/真实漫画源维护放在独立仓库 `/home/gamer/git/koma-sources`。
+- 漫画源生态不作为 Koma App 本体缺口处理；source index/package/真实漫画源维护放在独立仓库 `/Users/honjow/git/koma-sources`。
 - App 本体剩余关键系统缺口见 `docs/APP_GAP_PLAN_AIDOKU.md`：下载增强、自动更新/通知、tracker、更多 reader 设置、本地库重扫、完整备份管理、release readiness。
 
 ## 功能矩阵
@@ -86,7 +86,7 @@ Koma 不是完成态。当前是 **HarmonyOS 私有/本地优先漫画阅读器�
 
 ## 不建议优先做
 
-- 内置源市场：违反 Koma 上架边界；漫画源生态维护放在 `/home/gamer/git/koma-sources`，不纳入 Koma App 本体缺口排序。
+- 内置源市场：违反 Koma 上架边界；漫画源生态维护放在 `/Users/honjow/git/koma-sources`，不纳入 Koma App 本体缺口排序。
 - 继续大面积 UI polish：当前功能缺口更大；只修 blocking 安全区/可用性问题。
 - 公共 tracker 先行：对 Koma 私有/本地定位不是第一价值点。
 - 复杂云同步：先把本地备份、下载、分类、自动更新做好。
