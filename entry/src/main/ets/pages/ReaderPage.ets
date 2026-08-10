@@ -919,6 +919,26 @@ export struct ReaderPage {
   private canNext(): boolean { return this.pageIndex + 1 < this.sessionConfig.totalPages }
   private chapterIndex(): number { return Math.max(0, this.sessionConfig.chapterIds.indexOf(this.sessionConfig.chapterId)) }
 
+  private canTurnOnePageInDoublePage(): boolean {
+    return this.effectiveMode() === ReaderMode.DUAL_PAGE &&
+      this.pageIndex + 1 < this.sessionConfig.totalPages
+  }
+
+  private turnOnePageInDoublePage(): void {
+    if (!this.canTurnOnePageInDoublePage()) {
+      return
+    }
+    const target = this.pageIndex + 1
+    const next = this.copyPreferences()
+    // NextE alternates the first spread parity when stepping one page so the
+    // newly exposed page becomes the leading page of the next spread.
+    next.columnMode = target % 2 === 0 ? 'odd_left' : 'even_left'
+    this.preferences = next
+    this.preferenceRevision += 1
+    this.persistPreferences(next)
+    this.setPage(target)
+  }
+
   private setPage(index: number, animated: boolean = this.preferences.pageTurnAnimation): void {
     const total = this.sessionConfig.totalPages
     if (total <= 0) return
@@ -1540,6 +1560,7 @@ export struct ReaderPage {
           pageFailed: this.failedPages.includes(this.pageIndex),
           zoomScale: this.zoomScale,
           autoPageActive: this.autoPageActive,
+          canTurnOnePageInDoublePage: this.canTurnOnePageInDoublePage(),
           onVisibleChange: (visible: boolean) => {
             this.setReaderStatusBarForChrome(visible)
             this.emitChromeVisible(visible)
@@ -1558,6 +1579,7 @@ export struct ReaderPage {
           onResetZoom: () => { this.resetZoomState() },
           onReloadPage: () => { this.retryCurrentPage() },
           onToggleAutoPage: () => { this.toggleAutoPage() },
+          onTurnOnePageInDoublePage: () => { this.turnOnePageInDoublePage() },
         })
       }
     }

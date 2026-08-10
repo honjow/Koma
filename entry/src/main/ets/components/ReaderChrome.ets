@@ -57,6 +57,7 @@ export struct ReaderChrome {
   @Param pageFailed: boolean = false
   @Param zoomScale: number = 1
   @Param autoPageActive: boolean = false
+  @Param canTurnOnePageInDoublePage: boolean = false
   @Event onVisibleChange: (visible: boolean) => void = (_visible: boolean) => {}
   @Event onPageChange: (pageIndex: number) => void = (_pageIndex: number) => {}
   @Event onSeekPage: (pageIndex: number) => void = (_pageIndex: number) => {}
@@ -70,6 +71,7 @@ export struct ReaderChrome {
   @Event onResetZoom: () => void = () => {}
   @Event onReloadPage: () => void = () => {}
   @Event onToggleAutoPage: () => void = () => {}
+  @Event onTurnOnePageInDoublePage: () => void = () => {}
 
   @Local private settingsShown: boolean = false
   @Local private moreShown: boolean = false
@@ -546,6 +548,14 @@ export struct ReaderChrome {
       Row() {
         Button({ type: ButtonType.Circle, stateEffect: true }) { SymbolGlyph($r('sys.symbol.book')).fontSize(22).fontColor([this.readerMode === ReaderMode.DUAL_PAGE ? ThemeConstants.BRAND_PRIMARY : Color.White]) }
           .width(44).height(44).backgroundColor(Color.Transparent).enabled(this.pageTotal > 1).onClick(() => { this.onModeChange(this.readerMode === ReaderMode.DUAL_PAGE ? ReaderMode.SINGLE_PAGE : ReaderMode.DUAL_PAGE) })
+        if (this.readerMode === ReaderMode.DUAL_PAGE) {
+          Button({ type: ButtonType.Circle, stateEffect: true }) {
+            SymbolGlyph($r('sys.symbol.transfer')).fontSize(22).fontColor([this.canTurnOnePageInDoublePage ? Color.White : ThemeConstants.STATUS_MUTED])
+          }
+            .width(44).height(44).backgroundColor(Color.Transparent)
+            .enabled(this.canTurnOnePageInDoublePage)
+            .onClick(() => { this.onTurnOnePageInDoublePage() })
+        }
         Blank().layoutWeight(1)
         Text(this.chapterText()).fontSize(13).fontColor(Color.White).maxLines(1).textOverflow({ overflow: TextOverflow.Ellipsis })
         Blank().layoutWeight(1)
