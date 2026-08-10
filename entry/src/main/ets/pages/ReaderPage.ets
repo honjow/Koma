@@ -600,6 +600,7 @@ export struct ReaderPage {
   private closing: boolean = false
   private autoPageTimerId: number = -1
   private continuousInitialTarget: number = -1
+  private prefetchEpoch: number = 0
 
   aboutToAppear(): void {
     this.closing = false
@@ -1083,6 +1084,38 @@ export struct ReaderPage {
       updatedAt: Date.now(),
       columnMode: this.preferences.columnMode,
     })
+    this.prefetchLookahead(index)
+  }
+
+  /**
+   * Warm the same remote-image cache used by the visible surface.  NextE keeps
+   * a bounded lookahead alive independently of pager construction; doing this
+   * at the progress boundary also covers Swiper, double-page and continuous
+   * List transitions without introducing a second data source.
+   */
+  private prefetchLookahead(startIndex: number): void {
+    const count = Math.max(0, Math.min(5, Math.round(this.preferences.preloadPages)))
+    if (count <= 0 || this.sessionConfig.totalPages <= 0) {
+      return
+    }
+    const epoch = ++this.prefetchEpoch
+    for (let offset = 1; offset <= count; offset += 1) {
+      const index = startIndex + offset
+      if (index >= this.sessionConfig.totalPages) {
+        break
+      }
+      const source = this.sourceFor(index)
+      if (source.kind !== ReaderPageRenderKind.REMOTE_URL_IMAGE) {
+        continue
+      }
+      void fetchAndCacheReaderRemoteSource(source).catch(() => {
+        // The visible page owns user-facing failure/retry.  Lookahead is
+        // opportunistic and must never turn a successful page into an error.
+        if (epoch !== this.prefetchEpoch) {
+          return
+        }
+      })
+    }
   }
 
   private persistCurrentProgress(): void { this.persistProgress(this.pageIndex) }
