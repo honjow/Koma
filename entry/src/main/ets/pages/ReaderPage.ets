@@ -38,6 +38,7 @@ import {
 } from '../model/ReaderPageSourceAdapter'
 import { ReadingDirection } from '../model/ComicModels'
 import { ReaderTapZoneRegion, readerTapZoneRegions, resolveReaderTapZoneAction } from '../model/ReaderTapZoneGeometry'
+import { ReaderPageIndexDataSource } from '../model/ReaderPageIndexDataSource'
 import { ThemeConstants } from '../theme/ThemeConstants'
 import { AppStrings } from '../i18n/AppStrings'
 import { connectLayoutSafeArea, LayoutSafeAreaState } from '../state/LayoutSafeAreaState'
@@ -857,6 +858,11 @@ export struct ReaderPage {
   private doublePageSwiperController: SwiperController = new SwiperController()
   private listScroller: Scroller = new Scroller()
   private thumbnailScroller: Scroller = new Scroller()
+  /** Kept stable: LazyForEach, rather than the Reader build, owns long-page rows. */
+  private pageIndexSource: ReaderPageIndexDataSource = new ReaderPageIndexDataSource()
+  private spreadStartSource: ReaderPageIndexDataSource = new ReaderPageIndexDataSource()
+  private pageIndexSourceKey: string = ''
+  private spreadStartSourceKey: string = ''
   private statusBarHideTimerId: number = -1
   private statusBarEpoch: number = 0
   private volumeDownConsumer: ((event: InputConsumerKeyEvent) => void) | null = null
@@ -1094,6 +1100,7 @@ export struct ReaderPage {
     this.measuredPageWidths = []
     this.measuredPageHeights = []
     this.resetZoomState()
+    this.refreshPageDataSources(true)
     if (resetPage && this.sessionConfig.totalPages > 0 && this.pageIndex >= this.sessionConfig.totalPages) {
       this.emitPageIndex(this.sessionConfig.totalPages - 1)
     }
@@ -1116,6 +1123,19 @@ export struct ReaderPage {
     const out: number[] = []
     for (let index = 0; index < this.sessionConfig.totalPages; index += 1) out.push(index)
     return out
+  }
+
+  private refreshPageDataSources(force: boolean = false): void {
+    const pageKey = this.sessionSignature()
+    if (force || pageKey !== this.pageIndexSourceKey) {
+      this.pageIndexSourceKey = pageKey
+      this.pageIndexSource.setIndexes(this.pageIndexes())
+    }
+    const spreadKey = `${pageKey}:${this.preferences.columnMode}`
+    if (force || spreadKey !== this.spreadStartSourceKey) {
+      this.spreadStartSourceKey = spreadKey
+      this.spreadStartSource.setIndexes(this.spreadIndexes())
+    }
   }
 
   private spreadIndexes(): number[] {
@@ -1221,6 +1241,7 @@ export struct ReaderPage {
     next.columnMode = target % 2 === 0 ? 'odd_left' : 'even_left'
     this.preferences = next
     this.preferenceRevision += 1
+    this.refreshPageDataSources()
     this.persistPreferences(next)
     this.setPage(target)
   }
@@ -1350,6 +1371,7 @@ export struct ReaderPage {
     const previousTapInvert = this.preferences.tapZoneInvert
     this.preferences = next
     this.preferenceRevision += 1
+    this.refreshPageDataSources()
     // NextE's zone feedback is intentionally immediate and one-shot: the
     // user gets the exact geometry they just selected, then dismisses it with
     // one tap. It is not a persistent reader mode.
@@ -1738,7 +1760,7 @@ export struct ReaderPage {
   @Builder
   private SinglePageReader() {
     Swiper(this.swiperController) {
-      ForEach(this.pageIndexes(), (index: number) => {
+      LazyForEach(this.pageIndexSource, (index: number) => {
         Row({ space: pageGap(this.preferences.pageGapMode) }) {
           ForEach(this.displayEntries(index), (entry: ReaderDisplayEntry) => {
             this.ReaderPageSlot(entry.pageIndex, entry.splitSide)
@@ -1751,6 +1773,7 @@ export struct ReaderPage {
     .direction(this.preferences.readingDirection === ReadingDirection.RIGHT_TO_LEFT ? Direction.Rtl : Direction.Ltr)
     .vertical(this.effectiveMode() === ReaderMode.VERTICAL_PAGE)
     .loop(false)
+    .cachedCount(this.preferences.preloadPages)
     .indicator(false)
     .disableSwipe(this.zoomed)
     .width('100%').height('100%')
@@ -1764,7 +1787,7 @@ export struct ReaderPage {
   @Builder
   private VerticalPageReader() {
     Swiper(this.swiperController) {
-      ForEach(this.pageIndexes(), (index: number) => {
+      LazyForEach(this.pageIndexSource, (index: number) => {
         Row({ space: pageGap(this.preferences.pageGapMode) }) {
           ForEach(this.displayEntries(index), (entry: ReaderDisplayEntry) => {
             this.ReaderPageSlot(entry.pageIndex, entry.splitSide)
@@ -1777,6 +1800,7 @@ export struct ReaderPage {
     .direction(Direction.Ltr)
     .vertical(true)
     .loop(false)
+    .cachedCount(this.preferences.preloadPages)
     .indicator(false)
     .disableSwipe(this.zoomed)
     .width('100%').height('100%')
@@ -1790,7 +1814,7 @@ export struct ReaderPage {
   @Builder
   private DoublePageReader() {
     Swiper(this.doublePageSwiperController) {
-      ForEach(this.spreadIndexes(), (start: number) => {
+      LazyForEach(this.spreadStartSource, (start: number) => {
         Row({ space: this.preferences.spreadLayoutMode === 'split' ? pageGap(this.preferences.pageGapMode) : 0 }) {
           if (this.preferences.readingDirection === ReadingDirection.RIGHT_TO_LEFT) {
             if (this.hasSpreadSecond(start)) this.ReaderPageSlot(this.spreadSecondIndex(start), 'left', true)
@@ -1806,6 +1830,7 @@ export struct ReaderPage {
     .direction(this.preferences.readingDirection === ReadingDirection.RIGHT_TO_LEFT ? Direction.Rtl : Direction.Ltr)
     .vertical(false)
     .loop(false)
+    .cachedCount(this.preferences.preloadPages)
     .indicator(false)
     .disableSwipe(this.zoomed)
     .width('100%').height('100%')
@@ -1821,7 +1846,7 @@ export struct ReaderPage {
   @Builder
   private ContinuousReader() {
     List({ initialIndex: this.pageIndex, scroller: this.listScroller }) {
-      ForEach(this.pageIndexes(), (index: number) => {
+      LazyForEach(this.pageIndexSource, (index: number) => {
         ListItem() {
           this.ReaderPageSlot(index, 'none', false, true)
         }
@@ -1853,7 +1878,7 @@ export struct ReaderPage {
   @Builder
   private ReaderThumbnailStrip() {
     List({ initialIndex: this.pageIndex, scroller: this.thumbnailScroller, space: ThemeConstants.SPACE_SM }) {
-      ForEach(this.pageIndexes(), (index: number) => {
+      LazyForEach(this.pageIndexSource, (index: number) => {
         ListItem() {
           ReaderThumbnailTile({
             source: this.sourceFor(index),
