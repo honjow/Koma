@@ -216,15 +216,10 @@ function createSettingsSections(): SettingsSection[] {
         { key: 'reader-page-animation', titleKey: 'reader_page_turn_animation_title', detailKey: 'reader_page_turn_animation_detail' },
         { key: 'reader-auto-page', titleKey: 'reader_auto_page_title', detailKey: 'reader_auto_page_detail' },
         { key: 'reader-preload-pages', titleKey: 'reader_preload_pages_title', detailKey: 'reader_preload_pages_detail' },
-        { key: 'reader-progress', titleKey: 'settings_row_reader_progress_title', detailKey: 'settings_row_reader_progress_detail' },
         { key: 'reader-keep-screen-awake', titleKey: 'settings_row_reader_keep_screen_awake_title', detailKey: 'settings_row_reader_keep_screen_awake_detail' },
         { key: 'reader-image-fit', titleKey: 'settings_row_reader_image_fit_title', detailKey: 'settings_row_reader_image_fit_detail' },
-        { key: 'reader-tap-navigation', titleKey: 'settings_row_reader_tap_navigation_title', detailKey: 'settings_row_reader_tap_navigation_detail' },
-        { key: 'reader-swipe-navigation', titleKey: 'settings_row_reader_swipe_navigation_title', detailKey: 'settings_row_reader_swipe_navigation_detail' },
-        { key: 'reader-zoom-gestures', titleKey: 'settings_row_reader_zoom_gestures_title', detailKey: 'settings_row_reader_zoom_gestures_detail' },
         { key: 'reader-tap-zone-preset', titleKey: 'settings_row_reader_tap_zone_preset_title', detailKey: 'settings_row_reader_tap_zone_preset_detail' },
         { key: 'reader-tap-zone-invert', titleKey: 'settings_row_reader_tap_zone_invert_title', detailKey: 'settings_row_reader_tap_zone_invert_detail' },
-        { key: 'reader-show-tap-zones', titleKey: 'settings_row_reader_show_tap_zones_title', detailKey: 'settings_row_reader_show_tap_zones_detail' },
         { key: 'reader-page-gap', titleKey: 'settings_row_reader_page_gap_title', detailKey: 'settings_row_reader_page_gap_detail' },
         { key: 'reader-trim-page-margins', titleKey: 'settings_row_reader_trim_page_margins_title', detailKey: 'settings_row_reader_trim_page_margins_detail' },
         { key: 'reader-wide-image-mode', titleKey: 'settings_row_reader_wide_image_mode_title', detailKey: 'settings_row_reader_wide_image_mode_detail' },
@@ -2215,12 +2210,7 @@ export struct SettingsPage {
       row.key === 'reader-show-page-number' ||
       row.key === 'reader-fullscreen' ||
       row.key === 'reader-page-animation' ||
-      row.key === 'reader-progress' ||
       row.key === 'reader-keep-screen-awake' ||
-      row.key === 'reader-tap-navigation' ||
-      row.key === 'reader-swipe-navigation' ||
-      row.key === 'reader-zoom-gestures' ||
-      row.key === 'reader-show-tap-zones' ||
       row.key === 'reader-trim-page-margins' ||
       row.key === 'reader-volume-key-navigation'
   }
@@ -2545,7 +2535,9 @@ export struct SettingsPage {
     if (this.isSwitchRow(row)) {
       ConciseListRow({
         title: this.rowTitle(row),
-        subtitle: this.rowDetail(row),
+        // The switch itself is the state affordance. Repeating “on/off” in
+        // the subtitle adds noise and hides the setting's actual purpose.
+        subtitle: '',
         showChevron: false,
         hasSwitch: true,
         checked: this.switchRowValue(row),

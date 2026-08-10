@@ -200,12 +200,17 @@ export function normalizeReaderPreferences(value: ReaderPreferences): ReaderPref
     preloadPages: normalizeReaderPreloadPages(value.preloadPages),
     spreadLayoutMode: normalizeReaderSpreadLayoutMode(value.spreadLayoutMode),
     columnMode: normalizeReaderColumnMode(value.columnMode),
-    tapNavigationEnabled: value.tapNavigationEnabled !== false,
-    swipeNavigationEnabled: value.swipeNavigationEnabled !== false,
-    zoomGesturesEnabled: value.zoomGesturesEnabled !== false,
+    // These are intrinsic reader interactions in NextE, not user-facing
+    // modes. Keep the legacy fields in the persisted schema, but normalize
+    // old false values back to the always-on contract.
+    tapNavigationEnabled: true,
+    swipeNavigationEnabled: true,
+    zoomGesturesEnabled: true,
     tapZonePreset: normalizeReaderTapZonePreset(value.tapZonePreset),
     tapZoneInvert: normalizeReaderTapZoneInvert(value.tapZoneInvert),
-    showTapZones: value.showTapZones === true,
+    // Tap-zone feedback is a transient preview shown after changing the
+    // layout. It is not a persistent on/off mode.
+    showTapZones: false,
     pageGapMode: normalizeReaderPageGapMode(value.pageGapMode),
     trimPageMarginsEnabled: value.trimPageMarginsEnabled === true,
     wideImageMode: normalizeReaderWideImageMode(value.wideImageMode),

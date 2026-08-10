@@ -106,6 +106,7 @@ const readerSessionStore: ReaderSessionStore = new InMemoryReaderSessionStore()
 const seededLibraryStore: LibraryStore = createSeededLibraryStore()
 const libraryPresentationByComicId: LibraryPresentationByComicId = createMockLibraryPresentationMap()
 const sourceRuntimeRegistry: SourceRuntimeRegistry = appSourceRuntimeRegistry
+const READER_ROUTE_TRANSITION_MS: number = 360
 
 interface SettingsPaneRouteParam {
   pane: string
@@ -121,6 +122,7 @@ struct Index {
   @Local selectedTab: number = TabIndex.LIBRARY
   @Local private languageState: LanguageState = connectLanguageState()
   @Local private readerOpen: boolean = false
+  @Local private readerClosing: boolean = false
   @Local private readerPageIndex: number = 0
   @Local private readerChromeVisible: boolean = false
   @Local private readerWebtoonMode: boolean = false
@@ -140,6 +142,8 @@ struct Index {
   private libraryPersistenceRestored: boolean = false
   private automaticBackupChecked: boolean = false
   private pendingTrackerProgressChecked: boolean = false
+  private readerCloseTimerId: number = -1
+  private readerRouteEpoch: number = 0
 
   private refreshLibrarySnapshot(): void {
     this.libraryComics = this.libraryStore.listComics()
@@ -249,13 +253,18 @@ struct Index {
     if (!sourcePagesReady && comic !== undefined && nextSessionConfig.totalPages <= 0) {
       nextSessionConfig = this.createSourceUnavailableReaderSessionConfig(comic, targetChapterId, nextSessionConfig)
     }
+    const shouldPresentReader = !this.readerOpen || this.readerClosing
     this.readerSessionConfig = nextSessionConfig
     this.readerPageIndex = this.readerSessionStore.restorePageIndex(this.readerSessionConfig)
     this.readerChromeVisible = false
-    if (!this.readerOpen) {
-      this.appPathStack.pushPath({ name: RouteName.READER })
+    this.clearReaderCloseTimer()
+    this.readerRouteEpoch += 1
+    this.readerClosing = false
+    if (shouldPresentReader) {
+      this.readerOpen = true
+      this.appPathStack.pushPath({ name: RouteName.READER }, true)
+      return
     }
-    this.readerOpen = true
   }
 
   private showToast(message: string): void {
@@ -371,11 +380,30 @@ struct Index {
   }
 
   private closeReader(): void {
-    if (!this.readerOpen) {
+    if (!this.readerOpen || this.readerClosing) {
       return
     }
-    this.readerOpen = false
-    this.appPathStack.pop(false)
+    this.readerClosing = true
+    this.readerChromeVisible = false
+    const epoch = ++this.readerRouteEpoch
+    // Keep ReaderPage mounted while NavPathStack performs its normal pop
+    // transition. Clearing readerOpen before pop was what made exit snap away.
+    this.appPathStack.pop(true)
+    this.readerCloseTimerId = setTimeout(() => {
+      this.readerCloseTimerId = -1
+      if (epoch !== this.readerRouteEpoch) {
+        return
+      }
+      this.readerOpen = false
+      this.readerClosing = false
+    }, READER_ROUTE_TRANSITION_MS)
+  }
+
+  private clearReaderCloseTimer(): void {
+    if (this.readerCloseTimerId >= 0) {
+      clearTimeout(this.readerCloseTimerId)
+      this.readerCloseTimerId = -1
+    }
   }
 
   private openReaderMangaDetail(): void {

@@ -48,7 +48,12 @@ const READER_TAP_ZONE_SCROLL_RATIO: number = 0.75
 // pending long enough for a normal double tap to be arbitrated as one gesture.
 const READER_SINGLE_TAP_DELAY_MS: number = 400
 const READER_DOUBLE_TAP_SCALE: number = 2
-const READER_MAX_ZOOM_SCALE: number = 6
+const READER_ZOOM_ANIM_DURATION: number = 180
+const READER_MIN_DYNAMIC_MAX_SCALE: number = 4
+const READER_MAX_DYNAMIC_MAX_SCALE: number = 12
+const READER_MAX_EFFECTIVE_ZOOM_SCALE: number = 48
+const READER_PINCH_ELASTIC_MIN_SCALE: number = 0.8
+const READER_PINCH_UNDER_SCALE_RESISTANCE: number = 0.35
 const READER_WIDE_RATIO: number = 1.2
 
 const EMPTY_RENDER_SOURCE: ReaderPageRenderSource = {
@@ -126,15 +131,13 @@ struct ReaderImageSurface {
   @Param splitSide: 'none' | 'left' | 'right' = 'none'
   @Param rotateClockwise: boolean = false
   @Param zoomEnabled: boolean = true
-  @Param zoomScale: number = 1
-  @Param panX: number = 0
-  @Param panY: number = 0
   @Param active: boolean = true
   @Param allowDirectDoubleTap: boolean = true
   @Param routeTaps: boolean = false
   @Param tapOriginX: number = 0
   @Param tapOriginY: number = 0
   @Param retryToken: number = 0
+  @Param zoomResetToken: number = 0
   @Event onZoomChange: (zoomed: boolean) => void = (_zoomed: boolean) => {}
   @Event onTransformChange: (scale: number, panX: number, panY: number, zoomed: boolean) => void = (_scale: number, _panX: number, _panY: number, _zoomed: boolean) => {}
   @Event onImageInfo: (pageIndex: number, width: number, height: number) => void = (_pageIndex: number, _width: number, _height: number) => {}
@@ -160,6 +163,7 @@ struct ReaderImageSurface {
   @Local private gesturePanY: number = 0
   @Local private intrinsicWidth: number = 0
   @Local private intrinsicHeight: number = 0
+  @Local private zoomAnimating: boolean = false
   @Local private areaGlobalX: number = 0
   @Local private areaGlobalY: number = 0
   private tapStartX: number = 0
@@ -168,12 +172,14 @@ struct ReaderImageSurface {
   private singleTapTimerId: number = -1
   private isPinching: boolean = false
   private ignorePanSequence: boolean = false
+  private pinchAdjustedSinceDoubleTap: boolean = false
+  private zoomAnimatingTimerId: number = -1
+  private intrinsicPixelWidth: number = 0
+  private intrinsicPixelHeight: number = 0
 
   aboutToAppear(): void {
     this.disposed = false
-    this.gestureScale = this.zoomScale
-    this.gesturePanX = this.panX
-    this.gesturePanY = this.panY
+    this.resetZoom(false)
     void this.resolveSource()
   }
 
@@ -182,23 +188,30 @@ struct ReaderImageSurface {
     this.generation += 1
     void this.releasePixelMap()
     this.clearSingleTap()
+    this.clearZoomAnimation()
   }
 
   @Monitor('source', 'splitSide', 'rotateClockwise', 'retryToken')
   onSourceChanged(): void {
-    this.gestureScale = this.zoomScale
-    this.gesturePanX = this.panX
-    this.gesturePanY = this.panY
-    this.intrinsicWidth = this.sourceRegionWidth(this.sourceWidth)
-    this.intrinsicHeight = this.sourceHeight ?? 0
+    this.resetZoom(false)
+    this.intrinsicPixelWidth = this.sourceRegionWidth(this.sourceWidth)
+    this.intrinsicPixelHeight = this.sourceHeight ?? 0
+    this.intrinsicWidth = this.toVp(this.intrinsicPixelWidth)
+    this.intrinsicHeight = this.toVp(this.intrinsicPixelHeight)
     void this.resolveSource()
   }
 
-  @Monitor('zoomScale', 'panX', 'panY')
-  onParentTransformChanged(): void {
-    this.gestureScale = this.zoomScale
-    this.gesturePanX = this.panX
-    this.gesturePanY = this.panY
+  @Monitor('zoomResetToken')
+  onZoomResetRequested(): void {
+    this.beginZoomAnimation()
+    this.resetZoom(true)
+  }
+
+  @Monitor('active')
+  onActiveChanged(): void {
+    if (!this.active) {
+      this.resetZoom(true)
+    }
   }
 
   private sourceKey(): string {
@@ -290,18 +303,44 @@ struct ReaderImageSurface {
       }
     }
     if (width > 0 && height > 0) {
-      this.intrinsicWidth = width
-      this.intrinsicHeight = height
+      this.intrinsicPixelWidth = width
+      this.intrinsicPixelHeight = height
+      this.intrinsicWidth = this.toVp(width)
+      this.intrinsicHeight = this.toVp(height)
       this.onImageInfo(this.pageIndex, width, height)
     }
   }
 
+  private toVp(pixels: number): number {
+    if (pixels <= 0) {
+      return 0
+    }
+    try {
+      const value = this.getUIContext().px2vp(pixels)
+      return value > 0 && Number.isFinite(value) ? value : pixels
+    } catch (_error) {
+      return pixels
+    }
+  }
+
+  private toPx(value: number): number {
+    if (value <= 0) {
+      return 0
+    }
+    try {
+      const pixels = this.getUIContext().vp2px(value)
+      return pixels > 0 && Number.isFinite(pixels) ? pixels : value
+    } catch (_error) {
+      return value
+    }
+  }
+
   private sourceWidthValue(): number {
-    return this.intrinsicWidth > 0 ? this.intrinsicWidth : this.sourceRegionWidth(this.sourceWidth)
+    return this.intrinsicWidth > 0 ? this.intrinsicWidth : this.toVp(this.sourceRegionWidth(this.sourceWidth))
   }
 
   private sourceHeightValue(): number {
-    return this.intrinsicHeight > 0 ? this.intrinsicHeight : (this.sourceHeight ?? 0)
+    return this.intrinsicHeight > 0 ? this.intrinsicHeight : this.toVp(this.sourceHeight ?? 0)
   }
 
   private displaySourceWidth(): number {
@@ -338,18 +377,56 @@ struct ReaderImageSurface {
   }
 
   private maxScale(): number {
-    const width = this.displayWidth()
-    const height = this.displayHeight()
-    if (width <= 0 || height <= 0) {
-      return READER_MAX_ZOOM_SCALE
+    const displayW = this.toPx(this.displayWidth())
+    const displayH = this.toPx(this.displayHeight())
+    if (displayW <= 0 || displayH <= 0 || this.intrinsicPixelWidth <= 0 || this.intrinsicPixelHeight <= 0) {
+      return READER_MIN_DYNAMIC_MAX_SCALE
     }
-    const nativeFactor = Math.max(this.viewportWidth / width, this.viewportHeight / height)
-    return Math.max(2, Math.min(READER_MAX_ZOOM_SCALE, Math.max(2, nativeFactor * 2)))
+    const native = Math.min(this.intrinsicPixelWidth / displayW, this.intrinsicPixelHeight / displayH)
+    const candidate = Number.isFinite(native) && native > 0 ? native * 2 : READER_MIN_DYNAMIC_MAX_SCALE
+    return Math.max(READER_MIN_DYNAMIC_MAX_SCALE, Math.min(READER_MAX_DYNAMIC_MAX_SCALE, candidate))
+  }
+
+  private nativeScale(): number {
+    const displayW = this.toPx(this.displayWidth())
+    const displayH = this.toPx(this.displayHeight())
+    if (displayW <= 0 || displayH <= 0 || this.intrinsicPixelWidth <= 0 || this.intrinsicPixelHeight <= 0) {
+      return READER_DOUBLE_TAP_SCALE
+    }
+    const native = Math.min(this.intrinsicPixelWidth / displayW, this.intrinsicPixelHeight / displayH)
+    return Number.isFinite(native) && native > 0 ? native : READER_DOUBLE_TAP_SCALE
   }
 
   private clampScale(value: number): number {
     if (!Number.isFinite(value)) return 1
-    return Math.min(Math.max(value, 1), this.maxScale())
+    return Math.min(Math.max(value, 1), Math.min(this.maxScale(), READER_MAX_EFFECTIVE_ZOOM_SCALE))
+  }
+
+  private clampPinchScale(value: number): number {
+    if (!Number.isFinite(value)) {
+      return 1
+    }
+    if (value >= 1) {
+      return this.clampScale(value)
+    }
+    const resisted = 1 - (1 - value) * READER_PINCH_UNDER_SCALE_RESISTANCE
+    return Math.max(READER_PINCH_ELASTIC_MIN_SCALE, resisted)
+  }
+
+  private doubleTapTarget(): number {
+    const max = this.maxScale()
+    if (this.pinchAdjustedSinceDoubleTap && this.gestureScale > 1.01) {
+      return 1
+    }
+    const primary = this.clampScale(READER_DOUBLE_TAP_SCALE)
+    const native = this.clampScale(this.nativeScale())
+    if (this.gestureScale <= 1.01) {
+      return primary
+    }
+    if (Math.abs(this.gestureScale - primary) <= 0.02 && native > 1.02) {
+      return native
+    }
+    return 1
   }
 
   private clampOffset(value: number, viewport: number, content: number, scale: number): number {
@@ -357,20 +434,44 @@ struct ReaderImageSurface {
     return Math.min(Math.max(value, -bound), bound)
   }
 
-  private resetZoom(): void {
+  private clearZoomAnimation(): void {
+    if (this.zoomAnimatingTimerId >= 0) {
+      clearTimeout(this.zoomAnimatingTimerId)
+      this.zoomAnimatingTimerId = -1
+    }
+  }
+
+  private beginZoomAnimation(): void {
+    this.clearZoomAnimation()
+    this.zoomAnimating = true
+    this.zoomAnimatingTimerId = setTimeout(() => {
+      this.zoomAnimating = false
+      this.zoomAnimatingTimerId = -1
+    }, READER_ZOOM_ANIM_DURATION + 24)
+  }
+
+  private resetZoom(notify: boolean = true): void {
     this.gestureScale = 1
     this.gesturePanX = 0
     this.gesturePanY = 0
-    this.onZoomChange(false)
-    this.onTransformChange(1, 0, 0, false)
+    this.pinchAdjustedSinceDoubleTap = false
+    if (notify) {
+      this.onZoomChange(false)
+      this.onTransformChange(1, 0, 0, false)
+    }
   }
 
   private handlePinchStart(event?: GestureEvent): void {
+    if (!this.zoomEnabled || !this.active || event === undefined) {
+      return
+    }
     this.isPinching = true
     this.ignorePanSequence = true
+    this.zoomAnimating = false
+    this.pinchAdjustedSinceDoubleTap = true
     this.pinchStart = this.gestureScale
-    this.pinchAnchorX = event === undefined ? this.viewportWidth / 2 : event.pinchCenterX as number
-    this.pinchAnchorY = event === undefined ? this.viewportHeight / 2 : event.pinchCenterY as number
+    this.pinchAnchorX = event.pinchCenterX as number
+    this.pinchAnchorY = event.pinchCenterY as number
     const displayW = this.displayWidth() * this.gestureScale
     const displayH = this.displayHeight() * this.gestureScale
     this.pinchAnchorX = displayW > 0 ? (this.pinchAnchorX - (this.viewportWidth - displayW) / 2 - this.gesturePanX) / displayW : 0.5
@@ -378,8 +479,8 @@ struct ReaderImageSurface {
   }
 
   private handlePinchUpdate(event?: GestureEvent): void {
-    if (event === undefined || !this.zoomEnabled) return
-    const next = this.clampScale(this.pinchStart * (event.scale as number))
+    if (event === undefined || !this.zoomEnabled || !this.active || !this.isPinching) return
+    const next = this.clampPinchScale(this.pinchStart * (event.scale as number))
     const nextDisplayW = this.displayWidth() * next
     const nextDisplayH = this.displayHeight() * next
     const nextPanX = this.clampOffset(
@@ -397,20 +498,19 @@ struct ReaderImageSurface {
     this.gestureScale = next
     this.gesturePanX = nextPanX
     this.gesturePanY = nextPanY
-    if (this.active) {
-      this.onZoomChange(next > 1.01)
-      this.onTransformChange(next, nextPanX, nextPanY, next > 1.01)
-    }
+    this.onZoomChange(next > 1.01)
+    this.onTransformChange(next, nextPanX, nextPanY, next > 1.01)
   }
 
   private handleDoubleTapAt(tapX: number, tapY: number): void {
-    if (!this.zoomEnabled) return
+    if (!this.zoomEnabled || !this.active) return
     this.clearSingleTap()
-    if (this.gestureScale > 1.01) {
+    this.beginZoomAnimation()
+    const target = this.doubleTapTarget()
+    if (target <= 1.01) {
       this.resetZoom()
       return
     }
-    const target = Math.min(READER_DOUBLE_TAP_SCALE, this.maxScale())
     const displayW = this.displayWidth() * this.gestureScale
     const displayH = this.displayHeight() * this.gestureScale
     const anchorX = displayW > 0 ? (tapX - (this.viewportWidth - displayW) / 2 - this.gesturePanX) / displayW : 0.5
@@ -422,10 +522,9 @@ struct ReaderImageSurface {
       this.viewportWidth, this.displayWidth(), target)
     this.gesturePanY = this.clampOffset(tapY - (this.viewportHeight - nextDisplayH) / 2 - nextDisplayH * anchorY,
       this.viewportHeight, this.displayHeight(), target)
-    if (this.active) {
-      this.onZoomChange(true)
-      this.onTransformChange(target, this.gesturePanX, this.gesturePanY, true)
-    }
+    this.pinchAdjustedSinceDoubleTap = false
+    this.onZoomChange(true)
+    this.onTransformChange(target, this.gesturePanX, this.gesturePanY, true)
   }
 
   private clearSingleTap(): void {
@@ -495,8 +594,9 @@ struct ReaderImageSurface {
           .objectFit(ImageFit.Fill)
           .interpolation(imageInterpolation(this.scalingQuality))
           .rotate({ angle: this.rotateClockwise ? 90 : 0 })
-          .scale({ x: this.active ? this.gestureScale : 1, y: this.active ? this.gestureScale : 1 })
-          .translate({ x: this.active ? this.gesturePanX : 0, y: this.active ? this.gesturePanY : 0 })
+          .scale({ x: this.gestureScale, y: this.gestureScale })
+          .translate({ x: this.gesturePanX, y: this.gesturePanY })
+          .animation({ duration: this.zoomAnimating ? READER_ZOOM_ANIM_DURATION : 0, curve: Curve.FastOutSlowIn })
       } else {
         this.LoadingContent()
       }
@@ -517,12 +617,23 @@ struct ReaderImageSurface {
         .onActionEnd(() => {
           this.isPinching = false
           this.ignorePanSequence = false
-          if (this.gestureScale <= 1.01) this.resetZoom()
+          if (this.gestureScale <= 1.01) {
+            this.beginZoomAnimation()
+            this.resetZoom()
+          } else {
+            this.gestureScale = this.clampScale(this.gestureScale)
+            this.gesturePanX = this.clampOffset(this.gesturePanX, this.viewportWidth, this.displayWidth(), this.gestureScale)
+            this.gesturePanY = this.clampOffset(this.gesturePanY, this.viewportHeight, this.displayHeight(), this.gestureScale)
+            this.onTransformChange(this.gestureScale, this.gesturePanX, this.gesturePanY, true)
+          }
         })
         .onActionCancel(() => {
           this.isPinching = false
           this.ignorePanSequence = false
-          if (this.gestureScale <= 1.01) this.resetZoom()
+          if (this.gestureScale <= 1.01) {
+            this.beginZoomAnimation()
+            this.resetZoom()
+          }
         }),
       TapGesture({ count: 2, distanceThreshold: 8 }).onAction((event?: GestureEvent) => {
         if (!this.allowDirectDoubleTap) {
@@ -534,13 +645,14 @@ struct ReaderImageSurface {
       }),
       PanGesture({ fingers: 1, direction: PanDirection.All, distance: 12 })
         .onActionStart(() => {
+          if (!this.active) return
           this.panStartX = this.gesturePanX
           this.panStartY = this.gesturePanY
-          this.tapCancelled = true
-          this.clearSingleTap()
         })
         .onActionUpdate((event?: GestureEvent) => {
-          if (event === undefined || this.ignorePanSequence || this.isPinching || this.gestureScale <= 1.01) return
+          if (event === undefined || !this.active || this.ignorePanSequence || this.isPinching || this.gestureScale <= 1.01) return
+          this.tapCancelled = true
+          this.clearSingleTap()
           const nextX = this.clampOffset(this.panStartX + (event.offsetX as number), this.viewportWidth, this.displayWidth(), this.gestureScale)
           const nextY = this.clampOffset(this.panStartY + (event.offsetY as number), this.viewportHeight, this.displayHeight(), this.gestureScale)
           this.gesturePanX = nextX
@@ -580,6 +692,7 @@ export struct ReaderPage {
   @Local private zoomScale: number = 1
   @Local private panX: number = 0
   @Local private panY: number = 0
+  @Local private zoomResetToken: number = 0
   @Local private loadedRevision: number = 0
   @Local private failedPages: number[] = []
   @Local private continuousOffset: number = 0
@@ -663,7 +776,7 @@ export struct ReaderPage {
       this.preferences.columnMode = this.sessionStore.restoreColumnMode(this.sessionConfig, 'odd_left')
       this.settingsReady = true
       this.preferenceRevision += 1
-      this.tapPreviewVisible = this.preferences.showTapZones
+      this.tapPreviewVisible = false
       this.setReaderKeepScreenOn(this.preferences.keepScreenAwake)
       this.emitWebtoonMode(this.preferences.pageMode === 'continuous_scroll' || this.preferences.readingDirection === ReadingDirection.WEBTOON)
       this.registerVolumeKeyConsumerIfNeeded()
@@ -671,7 +784,7 @@ export struct ReaderPage {
     } catch (_error) {
       this.preferences = DEFAULT_READER_PREFERENCES
       this.settingsReady = true
-      this.tapPreviewVisible = this.preferences.showTapZones
+      this.tapPreviewVisible = false
       this.setReaderKeepScreenOn(this.preferences.keepScreenAwake)
       this.registerVolumeKeyConsumerIfNeeded()
       this.scheduleStatusBarVisibility()
@@ -1038,6 +1151,7 @@ export struct ReaderPage {
     this.panX = 0
     this.panY = 0
     this.verticalZoomedPage = -1
+    this.zoomResetToken += 1
   }
 
   private copyPreferences(): ReaderPreferences {
@@ -1058,12 +1172,12 @@ export struct ReaderPage {
       preloadPages: p.preloadPages,
       spreadLayoutMode: p.spreadLayoutMode,
       columnMode: p.columnMode,
-      tapNavigationEnabled: p.tapNavigationEnabled,
-      swipeNavigationEnabled: p.swipeNavigationEnabled,
-      zoomGesturesEnabled: p.zoomGesturesEnabled,
+      tapNavigationEnabled: true,
+      swipeNavigationEnabled: true,
+      zoomGesturesEnabled: true,
       tapZonePreset: p.tapZonePreset,
       tapZoneInvert: p.tapZoneInvert,
-      showTapZones: p.showTapZones,
+      showTapZones: false,
       pageGapMode: p.pageGapMode,
       trimPageMarginsEnabled: p.trimPageMarginsEnabled,
       wideImageMode: p.wideImageMode,
@@ -1074,9 +1188,15 @@ export struct ReaderPage {
 
   private onPreferencesChanged(change: ReaderChromePreferencesChange): void {
     const previousMode = this.effectiveMode()
+    const previousTapZone = this.preferences.tapZonePreset
+    const previousTapInvert = this.preferences.tapZoneInvert
     this.preferences = change.preferences
     this.preferenceRevision += 1
-    this.tapPreviewVisible = this.preferences.showTapZones
+    // NextE's zone feedback is intentionally immediate and one-shot: the
+    // user gets the exact geometry they just selected, then dismisses it with
+    // one tap. It is not a persistent reader mode.
+    this.tapPreviewVisible = previousTapZone !== this.preferences.tapZonePreset ||
+      previousTapInvert !== this.preferences.tapZoneInvert
     this.setReaderKeepScreenOn(this.preferences.keepScreenAwake)
     this.emitWebtoonMode(this.preferences.pageMode === 'continuous_scroll' || this.preferences.readingDirection === ReadingDirection.WEBTOON)
     if (this.effectiveMode() === ReaderMode.CONTINUOUS_SCROLL && previousMode !== ReaderMode.CONTINUOUS_SCROLL) {
@@ -1182,7 +1302,9 @@ export struct ReaderPage {
   }
 
   private transformChanged(scale: number, panX: number, panY: number, zoomed: boolean): void {
-    this.zoomScale = Math.min(Math.max(scale, 1), READER_MAX_ZOOM_SCALE)
+    // This is telemetry for chrome actions only. Individual surfaces own the
+    // actual transform, so a zoom can never leak to another page.
+    this.zoomScale = Math.min(Math.max(scale, 1), READER_MAX_EFFECTIVE_ZOOM_SCALE)
     this.panX = panX
     this.panY = panY
     this.zoomed = zoomed
@@ -1204,13 +1326,18 @@ export struct ReaderPage {
       }
       return
     }
-    if (!this.preferences.tapNavigationEnabled || action === 'center' || action === 'menu') {
+    if (action === 'center' || action === 'menu') {
       this.toggleChrome()
-    } else if (action === 'previous' || (action === 'left' && this.preferences.readingDirection !== ReadingDirection.RIGHT_TO_LEFT) ||
-      (action === 'right' && this.preferences.readingDirection === ReadingDirection.RIGHT_TO_LEFT)) {
+    } else if (action === 'previous') {
       this.previousPage()
-    } else {
+    } else if (action === 'next') {
       this.nextPage()
+    } else if (action === 'left') {
+      if (this.preferences.readingDirection === ReadingDirection.RIGHT_TO_LEFT) this.nextPage()
+      else this.previousPage()
+    } else {
+      if (this.preferences.readingDirection === ReadingDirection.RIGHT_TO_LEFT) this.previousPage()
+      else this.nextPage()
     }
   }
 
@@ -1318,6 +1445,35 @@ export struct ReaderPage {
     return this.sessionConfig.chapterTitles ?? []
   }
 
+  private tapZoneActionLabel(action: string): string {
+    if (action === 'previous') return s('reader_tap_zone_action_previous')
+    if (action === 'next') return s('reader_tap_zone_action_next')
+    if (action === 'left') return s('reader_tap_zone_action_left')
+    if (action === 'right') return s('reader_tap_zone_action_right')
+    return s('reader_tap_zone_action_menu')
+  }
+
+  private tapZoneActionColor(action: string): string {
+    if (action === 'previous') return '#884E78B8'
+    if (action === 'next') return '#88588752'
+    if (action === 'left') return '#88705A9F'
+    if (action === 'right') return '#88876D45'
+    return '#884A4A4A'
+  }
+
+  private pageIsZoomActive(index: number, continuous: boolean): boolean {
+    if (continuous) {
+      return this.verticalZoomedPage >= 0
+        ? index === this.verticalZoomedPage
+        : index >= this.verticalVisibleStart && index <= this.verticalVisibleEnd
+    }
+    if (this.effectiveMode() !== ReaderMode.DUAL_PAGE) {
+      return index === this.pageIndex
+    }
+    const start = this.spreadIndexes()[this.spreadIndexForPage(this.pageIndex)]
+    return index === start || index === this.spreadSecondIndex(start)
+  }
+
   @Builder
   private ReaderPageSlot(index: number, splitSide: 'none' | 'left' | 'right', compact: boolean = false, continuous: boolean = false) {
     Stack({ alignContent: Alignment.Center }) {
@@ -1336,23 +1492,23 @@ export struct ReaderPage {
         scalingQuality: this.preferences.imageScalingQuality,
         splitSide: splitSide,
         rotateClockwise: this.preferences.wideImageMode === 'rotate_wide_pages' && isWidePage(this.pageWidth(index), this.pageHeight(index)),
-        zoomEnabled: this.preferences.zoomGesturesEnabled,
-        active: continuous
-          ? (this.verticalZoomedPage >= 0 ? index === this.verticalZoomedPage : index >= this.verticalVisibleStart && index <= this.verticalVisibleEnd)
-          : index === this.pageIndex,
-        zoomScale: continuous && this.verticalZoomedPage >= 0 && index !== this.verticalZoomedPage ? 1 : this.zoomScale,
-        panX: continuous && this.verticalZoomedPage >= 0 && index !== this.verticalZoomedPage ? 0 : this.panX,
-        panY: continuous && this.verticalZoomedPage >= 0 && index !== this.verticalZoomedPage ? 0 : this.panY,
-        // Every page surface owns its local single/double arbitration and
-        // pinch stream. The vertical list and the horizontal/vertical pager
-        // remain the owners of native fling/page-swipe gestures.
+        zoomEnabled: true,
+        active: this.pageIsZoomActive(index, continuous),
+        zoomResetToken: this.zoomResetToken,
+        // The page surface owns its transform and animation. The reader only
+        // receives a zoom gate so native List/Swiper movement is paused.
+        // Keep single/double arbitration next to the image transform. In
+        // ArkUI a transparent sibling tap layer stops receiving after a
+        // zoomed PanGesture claims the stream; the image-local contract is
+        // the same one NextE uses for its vertical reader and remains valid
+        // for every pager surface.
         allowDirectDoubleTap: true,
         routeTaps: true,
         tapOriginX: this.readerGlobalX,
         tapOriginY: this.readerGlobalY,
         retryToken: this.loadedRevision,
         onZoomChange: (zoomed: boolean) => {
-          if (!continuous && index === this.pageIndex) {
+          if (!continuous && this.pageIsZoomActive(index, false)) {
             this.zoomChanged(zoomed)
           } else if (continuous) {
             if (zoomed) {
@@ -1365,7 +1521,7 @@ export struct ReaderPage {
           }
         },
         onTransformChange: (scale: number, panX: number, panY: number, zoomed: boolean) => {
-          if (!continuous && index === this.pageIndex) {
+          if (!continuous && this.pageIsZoomActive(index, false)) {
             this.transformChanged(scale, panX, panY, zoomed)
           } else if (continuous && (index === this.verticalZoomedPage || this.verticalZoomedPage < 0)) {
             this.verticalZoomedPage = index
@@ -1414,7 +1570,7 @@ export struct ReaderPage {
     .vertical(this.effectiveMode() === ReaderMode.VERTICAL_PAGE)
     .loop(false)
     .indicator(false)
-    .disableSwipe(this.zoomed || !this.preferences.swipeNavigationEnabled)
+    .disableSwipe(this.zoomed)
     .width('100%').height('100%')
     .onChange((index: number) => {
       this.resetZoomState()
@@ -1440,7 +1596,7 @@ export struct ReaderPage {
     .vertical(true)
     .loop(false)
     .indicator(false)
-    .disableSwipe(this.zoomed || !this.preferences.swipeNavigationEnabled)
+    .disableSwipe(this.zoomed)
     .width('100%').height('100%')
     .onChange((index: number) => {
       this.resetZoomState()
@@ -1469,7 +1625,7 @@ export struct ReaderPage {
     .vertical(false)
     .loop(false)
     .indicator(false)
-    .disableSwipe(this.zoomed || !this.preferences.swipeNavigationEnabled)
+    .disableSwipe(this.zoomed)
     .width('100%').height('100%')
     .onChange((index: number) => {
       this.resetZoomState()
@@ -1516,16 +1672,17 @@ export struct ReaderPage {
   private TapZonePreview() {
     Stack() {
       ForEach(readerTapZoneRegions(this.preferences.tapZonePreset, this.preferences.tapZoneInvert), (region: ReaderTapZoneRegion) => {
-        Text(region.action === 'previous' ? s('reader_tap_zone_action_previous') :
-          (region.action === 'next' ? s('reader_tap_zone_action_next') :
-            (region.action === 'left' ? s('reader_tap_zone_action_left') :
-              (region.action === 'right' ? s('reader_tap_zone_action_right') : s('reader_tap_zone_action_menu')))))
-          .fontSize(13).fontColor(Color.White).textAlign(TextAlign.Center)
+        Stack({ alignContent: Alignment.Center }) {
+          Text(this.tapZoneActionLabel(region.action))
+            .fontSize(13).fontWeight(FontWeight.Medium).fontColor(Color.White).textAlign(TextAlign.Center)
+            .padding({ left: ThemeConstants.SPACE_MD, right: ThemeConstants.SPACE_MD, top: ThemeConstants.SPACE_XS, bottom: ThemeConstants.SPACE_XS })
+            .backgroundColor('#99000000').borderRadius(ThemeConstants.RADIUS_ROUND)
+        }
           .position({ x: `${region.left * 100}%`, y: `${region.top * 100}%` })
           .width(`${(region.right - region.left) * 100}%`).height(`${(region.bottom - region.top) * 100}%`)
-          .backgroundColor(region.action === 'center' || region.action === 'menu' ? '#33000000' : '#336E8F7D')
-          .border({ width: 1, color: '#55FFFFFF' })
-      }, (region: ReaderTapZoneRegion) => `tap-zone-${region.action}-${region.left}-${region.top}`)
+          .backgroundColor(this.tapZoneActionColor(region.action))
+          .border({ width: 1, color: '#AAFFFFFF' })
+      }, (region: ReaderTapZoneRegion) => `tap-zone-${region.action}-${region.left}-${region.top}-${region.right}-${region.bottom}`)
     }
     .width('100%').height('100%').hitTestBehavior(HitTestMode.Block).onClick(() => { this.tapPreviewVisible = false })
   }
