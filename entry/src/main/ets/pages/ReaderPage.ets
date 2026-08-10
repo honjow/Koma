@@ -5,7 +5,10 @@ import { KeyCode } from '@kit.InputKit'
 import inputConsumer from '@ohos.multimodalInput.inputConsumer'
 import { Action, KeyEvent as InputConsumerKeyEvent } from '@ohos.multimodalInput.keyEvent'
 import { HdsNavDestination } from '@kit.UIDesignKit'
-import { fileIo as fs } from '@kit.CoreFileKit'
+import { fileIo as fs, fileUri } from '@kit.CoreFileKit'
+import { photoAccessHelper } from '@kit.MediaLibraryKit'
+import { systemShare } from '@kit.ShareKit'
+import { uniformTypeDescriptor as utd } from '@kit.ArkData'
 import { ReaderChrome, ReaderChromePreferencesChange } from '../components/ReaderChrome'
 import {
   EMPTY_READER_SESSION_CONFIG,
@@ -884,6 +887,7 @@ export struct ReaderPage {
 
   aboutToDisappear(): void {
     this.persistCurrentProgress()
+    this.sessionStore.flush()
     this.setReaderKeepScreenOn(false)
     this.clearStatusBarHideTimer()
     this.unregisterVolumeKeyConsumer()
@@ -1039,6 +1043,7 @@ export struct ReaderPage {
     this.stopAutoPage()
     this.restoreAppStatusBar()
     this.persistCurrentProgress()
+    this.sessionStore.flush()
     setTimeout(() => {
       this.onCloseReader()
     }, 20)
@@ -1186,6 +1191,133 @@ export struct ReaderPage {
 
   private sourceFor(index: number, offlineOnly: boolean = false): ReaderPageRenderSource {
     return createReaderPageRenderSource(this.sessionConfig, index, { preferOffline: this.sessionConfig.comicId.length > 0, offlineOnly })
+  }
+
+  private pageImageSourceLabel(): string {
+    return this.sourceFor(this.pageIndex).kind === ReaderPageRenderKind.LOCAL_FILE_IMAGE
+      ? s('reader_image_info_local')
+      : s('reader_image_info_cached')
+  }
+
+  private pageImageTitle(): string {
+    const base = (this.sessionConfig.title ?? s('reader_title_default')).trim()
+    const normalized = base.replace(/[\\/:*?"<>|]/g, '_').replace(/\s+/g, ' ').trim()
+    const safe = normalized.length > 0 ? normalized.substring(0, 80) : s('reader_title_default')
+    return `${safe}-${this.pageIndex + 1}`
+  }
+
+  private imageExtension(path: string): string {
+    const name = path.split('?')[0].split('#')[0].toLowerCase()
+    const lastSlash = name.lastIndexOf('/')
+    const dot = name.lastIndexOf('.')
+    if (dot <= lastSlash || dot >= name.length - 1) {
+      return 'jpg'
+    }
+    const extension = name.substring(dot + 1).replace(/[^a-z0-9]/g, '')
+    if (extension === 'jpeg' || extension === 'jpg' || extension === 'png' || extension === 'webp' || extension === 'bmp' || extension === 'gif' || extension === 'heic') {
+      return extension
+    }
+    return 'jpg'
+  }
+
+  private async pageImageFileForSystemAction(): Promise<string> {
+    const source = this.sourceFor(this.pageIndex)
+    if (source.kind === ReaderPageRenderKind.URI_PLACEHOLDER || source.imageUri.length === 0) {
+      throw new Error('reader_page_source_unavailable')
+    }
+    const sourcePath = await fetchAndCacheReaderRemoteSource(source)
+    const sandboxRoot = this.filesDir.trim().length > 0 ? `${this.filesDir}/` : ''
+    if (sandboxRoot.length > 0 && sourcePath.startsWith(sandboxRoot)) {
+      return sourcePath
+    }
+    if (sandboxRoot.length === 0) {
+      throw new Error('reader_files_dir_unavailable')
+    }
+    const extension = this.imageExtension(source.imageUri.length > 0 ? source.imageUri : sourcePath)
+    const exportDir = `${this.filesDir}/reader-exports`
+    const exportPath = `${exportDir}/${this.pageImageTitle()}.${extension}`
+    if (!fs.accessSync(exportDir)) {
+      fs.mkdirSync(exportDir)
+    }
+    let sourceFile: fs.File | undefined = undefined
+    let targetFile: fs.File | undefined = undefined
+    try {
+      sourceFile = await fs.open(sourcePath, fs.OpenMode.READ_ONLY)
+      targetFile = await fs.open(exportPath, fs.OpenMode.WRITE_ONLY | fs.OpenMode.CREATE | fs.OpenMode.TRUNC)
+      await fs.copyFile(sourceFile.fd, targetFile.fd, 0)
+      return exportPath
+    } finally {
+      if (sourceFile !== undefined) {
+        try { fs.closeSync(sourceFile) } catch (_error) {}
+      }
+      if (targetFile !== undefined) {
+        try { fs.closeSync(targetFile) } catch (_error) {}
+      }
+    }
+  }
+
+  private showReaderToast(message: string): void {
+    try {
+      this.getUIContext().getPromptAction().showToast({ message: message })
+    } catch (_error) {
+    }
+  }
+
+  private async saveCurrentPageImage(): Promise<void> {
+    try {
+      const sourcePath = await this.pageImageFileForSystemAction()
+      const context = getContext(this) as common.UIAbilityContext
+      const helper = photoAccessHelper.getPhotoAccessHelper(context)
+      const targets = await helper.showAssetsCreationDialog(
+        [fileUri.getUriFromPath(sourcePath)],
+        [{
+          title: this.pageImageTitle(),
+          fileNameExtension: this.imageExtension(sourcePath),
+          photoType: photoAccessHelper.PhotoType.IMAGE,
+          subtype: photoAccessHelper.PhotoSubtype.DEFAULT,
+        }],
+      )
+      if (targets.length === 0) {
+        return
+      }
+      let sourceFile: fs.File | undefined = undefined
+      let targetFile: fs.File | undefined = undefined
+      try {
+        sourceFile = await fs.open(sourcePath, fs.OpenMode.READ_ONLY)
+        targetFile = await fs.open(targets[0], fs.OpenMode.WRITE_ONLY)
+        await fs.copyFile(sourceFile.fd, targetFile.fd, 0)
+      } finally {
+        if (sourceFile !== undefined) {
+          try { fs.closeSync(sourceFile) } catch (_error) {}
+        }
+        if (targetFile !== undefined) {
+          try { fs.closeSync(targetFile) } catch (_error) {}
+        }
+      }
+      this.showReaderToast(s('reader_image_saved'))
+    } catch (_error) {
+      this.showReaderToast(s('reader_image_save_failed'))
+    }
+  }
+
+  private async shareCurrentPageImage(): Promise<void> {
+    try {
+      const sourcePath = await this.pageImageFileForSystemAction()
+      const extension = this.imageExtension(sourcePath)
+      const sharedData = new systemShare.SharedData({
+        utd: utd.getUniformDataTypeByFilenameExtension(`.${extension}`, utd.UniformDataType.IMAGE),
+        uri: fileUri.getUriFromPath(sourcePath),
+        title: this.pageImageTitle(),
+      })
+      const controller = new systemShare.ShareController(sharedData)
+      const context = getContext(this) as common.UIAbilityContext
+      await controller.show(context, {
+        previewMode: systemShare.SharePreviewMode.DETAIL,
+        selectionMode: systemShare.SelectionMode.SINGLE,
+      })
+    } catch (_error) {
+      this.showReaderToast(s('reader_image_share_failed'))
+    }
   }
 
   private pageWidth(index: number): number | undefined {
@@ -2041,6 +2173,9 @@ export struct ReaderPage {
           autoPageActive: this.autoPageActive,
           canTurnOnePageInDoublePage: this.canTurnOnePageInDoublePage(),
           thumbStripVisible: this.thumbnailStripVisible,
+          pageImageWidth: this.pageWidth(this.pageIndex) ?? 0,
+          pageImageHeight: this.pageHeight(this.pageIndex) ?? 0,
+          pageImageSourceLabel: this.pageImageSourceLabel(),
           thumbnailStrip: (): void => { this.ReaderThumbnailStrip() },
           onVisibleChange: (visible: boolean) => {
             this.setReaderStatusBarForChrome(visible)
@@ -2062,6 +2197,8 @@ export struct ReaderPage {
           onToggleAutoPage: () => { this.toggleAutoPage() },
           onTurnOnePageInDoublePage: () => { this.turnOnePageInDoublePage() },
           onToggleThumbStrip: () => { this.toggleThumbnailStrip() },
+          onSaveImage: () => { void this.saveCurrentPageImage() },
+          onShareImage: () => { void this.shareCurrentPageImage() },
         })
       }
     }

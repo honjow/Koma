@@ -64,6 +64,9 @@ export struct ReaderChrome {
   @Param autoPageActive: boolean = false
   @Param canTurnOnePageInDoublePage: boolean = false
   @Param thumbStripVisible: boolean = false
+  @Param pageImageWidth: number = 0
+  @Param pageImageHeight: number = 0
+  @Param pageImageSourceLabel: string = ''
   @Event onVisibleChange: (visible: boolean) => void = (_visible: boolean) => {}
   @Event onPageChange: (pageIndex: number) => void = (_pageIndex: number) => {}
   @Event onSeekPage: (pageIndex: number) => void = (_pageIndex: number) => {}
@@ -79,12 +82,15 @@ export struct ReaderChrome {
   @Event onToggleAutoPage: () => void = () => {}
   @Event onTurnOnePageInDoublePage: () => void = () => {}
   @Event onToggleThumbStrip: () => void = () => {}
+  @Event onSaveImage: () => void = () => {}
+  @Event onShareImage: () => void = () => {}
   @BuilderParam thumbnailStrip?: () => void
 
   @Local private settingsShown: boolean = false
   @Local private moreShown: boolean = false
   @Local private modeShown: boolean = false
   @Local private menuKey: string = ''
+  @Local private imageInfoShown: boolean = false
 
   private pageText(): string {
     const total = Math.max(this.pageTotal, 0)
@@ -100,6 +106,21 @@ export struct ReaderChrome {
       ? this.chapterTitles[this.chapterIndex]
       : ''
     return title.length > 0 ? title : this.chapterText()
+  }
+
+  private openImageInfo(): void {
+    // The detail surface is hosted by the dedicated back-button anchor, not
+    // the menu trigger.  It can therefore be opened in the same event without
+    // competing with the Menu overlay for ownership.
+    this.moreShown = false
+    this.imageInfoShown = true
+  }
+
+  private imageDimensionsText(): string {
+    if (this.pageImageWidth <= 0 || this.pageImageHeight <= 0) {
+      return s('reader_image_info_unavailable')
+    }
+    return `${this.pageImageWidth} × ${this.pageImageHeight}`
   }
 
   private update(next: ReaderPreferences): void {
@@ -476,6 +497,9 @@ export struct ReaderChrome {
   @Builder
   private MoreMenu() {
     Menu() {
+      MenuItem({ content: s('reader_action_image_info') }).enabled(this.pageTotal > 0).onClick(() => { this.openImageInfo() })
+      MenuItem({ content: s('reader_action_save_image') }).enabled(this.pageTotal > 0).onClick(() => { this.onSaveImage(); this.moreShown = false })
+      MenuItem({ content: s('reader_action_share_image') }).enabled(this.pageTotal > 0).onClick(() => { this.onShareImage(); this.moreShown = false })
       MenuItem({ content: s('reader_action_reset_zoom') }).enabled(this.zoomScale > 1.01).onClick(() => { this.onResetZoom(); this.moreShown = false })
       MenuItem({ content: s('reader_action_previous_chapter') }).enabled(this.canGoPreviousChapter).onClick(() => { this.onPreviousChapter(); this.moreShown = false })
       MenuItem({ content: s('reader_action_next_chapter') }).enabled(this.canGoNextChapter).onClick(() => { this.onNextChapter(); this.moreShown = false })
@@ -485,11 +509,41 @@ export struct ReaderChrome {
   }
 
   @Builder
+  private ImageInfoSheet() {
+    Column() {
+      Row() {
+        Text(s('reader_image_info_title')).fontSize(ThemeConstants.FONT_SIZE_H3).fontWeight(FontWeight.Medium).fontColor($r('sys.color.font_primary')).layoutWeight(1)
+        Button({ type: ButtonType.Circle, stateEffect: true }) {
+          SymbolGlyph($r('sys.symbol.xmark')).fontSize(20).fontColor([$r('sys.color.font_primary')])
+        }
+        .width(44).height(44).backgroundColor(Color.Transparent)
+        .accessibilityText(s('common_close'))
+        .onClick(() => { this.imageInfoShown = false })
+      }
+      .width('100%').height(56).padding({ left: ThemeConstants.SPACE_LG, right: ThemeConstants.SPACE_SM })
+      Divider().strokeWidth(0.5).color(ThemeConstants.DIVIDER)
+      Column({ space: ThemeConstants.SPACE_MD }) {
+        GroupedListSection() {
+          ConciseListRow({ title: s('reader_image_info_page'), trailingText: this.pageText(), showChevron: false })
+          ListDivider()
+          ConciseListRow({ title: s('reader_image_info_dimensions'), trailingText: this.imageDimensionsText(), showChevron: false })
+          ListDivider()
+          ConciseListRow({ title: s('reader_image_info_source'), trailingText: this.pageImageSourceLabel, showChevron: false })
+        }
+      }
+      .width('100%').padding(ThemeConstants.SPACE_LG)
+      Blank().layoutWeight(1)
+    }
+    .width('100%').height('100%').backgroundColor($r('sys.color.ohos_id_color_sub_background'))
+  }
+
+  @Builder
   private TopBar() {
     Stack({ alignContent: Alignment.Center }) {
       Row() {
         Button({ type: ButtonType.Circle, stateEffect: true }) { SymbolGlyph($r('sys.symbol.chevron_left')).fontSize(22).fontColor([Color.White]) }
           .width(44).height(44).backgroundColor(Color.Transparent).onClick(() => { this.onCloseReader() })
+          .bindSheet($$this.imageInfoShown, this.ImageInfoSheet, { detents: [SheetSize.MEDIUM], showClose: false, onDisappear: () => { this.imageInfoShown = false } })
         Blank().layoutWeight(1)
         Button({ type: ButtonType.Circle, stateEffect: true }) { SymbolGlyph($r('sys.symbol.gearshape')).fontSize(22).fontColor([Color.White]) }
           .width(44).height(44).backgroundColor(Color.Transparent)

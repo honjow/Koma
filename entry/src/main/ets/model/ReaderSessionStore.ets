@@ -82,6 +82,7 @@ export interface ReaderSessionPersistenceAdapter {
 
 export const READER_PROGRESS_PERSISTENCE_FILE_NAME: string = 'reader-sessions.v1.json'
 export const READER_PROGRESS_PERSISTENCE_SCHEMA_VERSION = 1
+export const READER_PROGRESS_PERSIST_DEBOUNCE_MS: number = 3000
 
 interface ReaderSessionDocument {
   schemaVersion: number
@@ -154,6 +155,8 @@ export abstract class ReaderSessionStore {
   abstract saveProgress(progress: ReadingProgress): void
   abstract removeProgress(comicId: ComicId): void
   abstract listProgress(): ReadingProgress[]
+  /** Writes any queued update before the Reader route releases its session. */
+  abstract flush(): void
 
   restorePageIndex(config: ReaderSessionConfig): number {
     const progress = this.getProgress(config.comicId)
@@ -207,11 +210,16 @@ export class InMemoryReaderSessionStore extends ReaderSessionStore {
     })
     return out
   }
+
+  flush(): void {
+  }
 }
 
 export class PersistentReaderSessionStore extends ReaderSessionStore {
   private readonly adapter: ReaderSessionPersistenceAdapter
   private readonly progressByComicId: Map<ComicId, ReadingProgress> = new Map<ComicId, ReadingProgress>()
+  private persistTimerId: number = -1
+  private persistPending: boolean = false
 
   constructor(adapter: ReaderSessionPersistenceAdapter) {
     super()
@@ -227,12 +235,15 @@ export class PersistentReaderSessionStore extends ReaderSessionStore {
 
   saveProgress(progress: ReadingProgress): void {
     this.progressByComicId.set(progress.comicId, copyReadingProgressWithTimestamp(progress))
-    this.persist()
+    this.schedulePersist()
   }
 
   removeProgress(comicId: ComicId): void {
     this.progressByComicId.delete(comicId)
-    this.persist()
+    // Destructive progress changes must be visible to a new store immediately;
+    // queued page turns can remain coalesced.
+    this.persistPending = true
+    this.flush()
   }
 
   updatePageIndex(
@@ -262,6 +273,29 @@ export class PersistentReaderSessionStore extends ReaderSessionStore {
       out.push(progress)
     })
     return out
+  }
+
+  flush(): void {
+    if (this.persistTimerId >= 0) {
+      clearTimeout(this.persistTimerId)
+      this.persistTimerId = -1
+    }
+    if (!this.persistPending) {
+      return
+    }
+    this.persistPending = false
+    this.persist()
+  }
+
+  private schedulePersist(): void {
+    this.persistPending = true
+    if (this.persistTimerId >= 0) {
+      return
+    }
+    this.persistTimerId = setTimeout(() => {
+      this.persistTimerId = -1
+      this.flush()
+    }, READER_PROGRESS_PERSIST_DEBOUNCE_MS)
   }
 
   private persist(): void {
