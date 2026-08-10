@@ -25,6 +25,7 @@ function copyReadingProgressWithTimestamp(progress: ReadingProgress): ReadingPro
 export enum ReaderMode {
   SINGLE_PAGE = 'single_page',
   DUAL_PAGE = 'double_page',
+  VERTICAL_PAGE = 'vertical_page',
   CONTINUOUS_SCROLL = 'continuous_scroll',
 }
 
@@ -34,6 +35,9 @@ export function getReaderModeLabel(mode: ReaderMode): string {
   }
   if (mode === ReaderMode.CONTINUOUS_SCROLL) {
     return AppStrings.get('reader_page_mode_continuous')
+  }
+  if (mode === ReaderMode.VERTICAL_PAGE) {
+    return AppStrings.get('reader_page_mode_vertical_page')
   }
   return AppStrings.get('reader_page_mode_single')
 }

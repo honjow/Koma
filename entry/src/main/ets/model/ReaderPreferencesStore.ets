@@ -3,15 +3,18 @@ import { preferences } from '@kit.ArkData'
 import { AppStrings } from '../i18n/AppStrings'
 import { ReadingDirection } from './ComicModels'
 
-export type ReaderPageMode = 'single_page' | 'double_page' | 'continuous_scroll'
+export type ReaderPageMode = 'single_page' | 'double_page' | 'continuous_scroll' | 'vertical_page'
 export type ReaderThemeMode = 'system' | 'light' | 'dark'
 export type ReaderBackgroundMode = 'black' | 'paper' | 'light'
 export type ReaderImageFitMode = 'contain' | 'fit_width' | 'fit_height'
+export type ReaderImageScalingQuality = 'low' | 'medium' | 'high'
 export type ReaderPageGapMode = 'compact' | 'normal' | 'wide'
 export type ReaderTapZonePreset = 'edge' | 'wide_edges' | 'right_left' | 'l_shaped' | 'kindle'
 export type ReaderTapZoneInvert = 'none' | 'horizontal' | 'vertical' | 'both'
 export type ReaderVolumeKeyBehavior = 'up_previous_down_next' | 'up_next_down_previous'
 export type ReaderWideImageMode = 'keep_single' | 'split_wide_pages' | 'rotate_wide_pages'
+export type ReaderSpreadLayoutMode = 'joined' | 'split'
+export type ReaderColumnMode = 'odd_left' | 'even_left'
 
 export interface ReaderPreferences {
   pageMode: ReaderPageMode
@@ -20,7 +23,15 @@ export interface ReaderPreferences {
   backgroundMode: ReaderBackgroundMode
   showProgressControls: boolean
   keepScreenAwake: boolean
+  fullscreen: boolean
   imageFitMode: ReaderImageFitMode
+  imageScalingQuality: ReaderImageScalingQuality
+  showPageNumber: boolean
+  pageTurnAnimation: boolean
+  autoPageSeconds: number
+  preloadPages: number
+  spreadLayoutMode: ReaderSpreadLayoutMode
+  columnMode: ReaderColumnMode
   tapNavigationEnabled: boolean
   swipeNavigationEnabled: boolean
   zoomGesturesEnabled: boolean
@@ -44,7 +55,15 @@ export const DEFAULT_READER_PREFERENCES: ReaderPreferences = {
   backgroundMode: 'black',
   showProgressControls: true,
   keepScreenAwake: true,
+  fullscreen: true,
   imageFitMode: 'fit_width',
+  imageScalingQuality: 'medium',
+  showPageNumber: true,
+  pageTurnAnimation: true,
+  autoPageSeconds: 3,
+  preloadPages: 2,
+  spreadLayoutMode: 'joined',
+  columnMode: 'odd_left',
   tapNavigationEnabled: true,
   swipeNavigationEnabled: true,
   zoomGesturesEnabled: true,
@@ -59,7 +78,7 @@ export const DEFAULT_READER_PREFERENCES: ReaderPreferences = {
 }
 
 export function normalizeReaderPageMode(value: string): ReaderPageMode {
-  if (value === 'double_page' || value === 'continuous_scroll') {
+  if (value === 'double_page' || value === 'continuous_scroll' || value === 'vertical_page') {
     return value
   }
   return 'single_page'
@@ -84,6 +103,35 @@ export function normalizeReaderImageFitMode(value: string): ReaderImageFitMode {
     return value
   }
   return 'contain'
+}
+
+export function normalizeReaderImageScalingQuality(value: string): ReaderImageScalingQuality {
+  if (value === 'low' || value === 'high') {
+    return value
+  }
+  return 'medium'
+}
+
+export function normalizeReaderSpreadLayoutMode(value: string): ReaderSpreadLayoutMode {
+  return value === 'split' ? 'split' : 'joined'
+}
+
+export function normalizeReaderColumnMode(value: string): ReaderColumnMode {
+  return value === 'even_left' ? 'even_left' : 'odd_left'
+}
+
+export function normalizeReaderAutoPageSeconds(value: number): number {
+  if (!Number.isFinite(value)) {
+    return 3
+  }
+  return Math.max(1, Math.min(60, Math.round(value)))
+}
+
+export function normalizeReaderPreloadPages(value: number): number {
+  if (!Number.isFinite(value)) {
+    return 2
+  }
+  return Math.max(0, Math.min(5, Math.round(value)))
 }
 
 export function normalizeReaderPageGapMode(value: string): ReaderPageGapMode {
@@ -124,12 +172,24 @@ export function normalizeReaderWideImageMode(value: string): ReaderWideImageMode
 export function normalizeReaderPreferences(value: ReaderPreferences): ReaderPreferences {
   return {
     pageMode: normalizeReaderPageMode(value.pageMode),
-    readingDirection: value.readingDirection,
+    readingDirection: value.readingDirection === ReadingDirection.RIGHT_TO_LEFT
+      ? ReadingDirection.RIGHT_TO_LEFT
+      : (value.readingDirection === ReadingDirection.WEBTOON
+        ? ReadingDirection.WEBTOON
+        : ReadingDirection.LEFT_TO_RIGHT),
     themeMode: normalizeReaderThemeMode(value.themeMode),
     backgroundMode: normalizeReaderBackgroundMode(value.backgroundMode),
     showProgressControls: value.showProgressControls !== false,
     keepScreenAwake: value.keepScreenAwake !== false,
+    fullscreen: value.fullscreen !== false,
     imageFitMode: normalizeReaderImageFitMode(value.imageFitMode),
+    imageScalingQuality: normalizeReaderImageScalingQuality(value.imageScalingQuality),
+    showPageNumber: value.showPageNumber !== false,
+    pageTurnAnimation: value.pageTurnAnimation !== false,
+    autoPageSeconds: normalizeReaderAutoPageSeconds(value.autoPageSeconds),
+    preloadPages: normalizeReaderPreloadPages(value.preloadPages),
+    spreadLayoutMode: normalizeReaderSpreadLayoutMode(value.spreadLayoutMode),
+    columnMode: normalizeReaderColumnMode(value.columnMode),
     tapNavigationEnabled: value.tapNavigationEnabled !== false,
     swipeNavigationEnabled: value.swipeNavigationEnabled !== false,
     zoomGesturesEnabled: value.zoomGesturesEnabled !== false,
@@ -175,7 +235,15 @@ function preferencesFromRecord(record: Record<string, Object>, fallback: ReaderP
     backgroundMode: normalizeReaderBackgroundMode(stringField(record, 'backgroundMode', fallback.backgroundMode)),
     showProgressControls: booleanField(record, 'showProgressControls', fallback.showProgressControls),
     keepScreenAwake: booleanField(record, 'keepScreenAwake', fallback.keepScreenAwake),
+    fullscreen: booleanField(record, 'fullscreen', fallback.fullscreen),
     imageFitMode: normalizeReaderImageFitMode(stringField(record, 'imageFitMode', fallback.imageFitMode)),
+    imageScalingQuality: normalizeReaderImageScalingQuality(stringField(record, 'imageScalingQuality', fallback.imageScalingQuality)),
+    showPageNumber: booleanField(record, 'showPageNumber', fallback.showPageNumber),
+    pageTurnAnimation: booleanField(record, 'pageTurnAnimation', fallback.pageTurnAnimation),
+    autoPageSeconds: normalizeReaderAutoPageSeconds(Number(record['autoPageSeconds'] ?? fallback.autoPageSeconds)),
+    preloadPages: normalizeReaderPreloadPages(Number(record['preloadPages'] ?? fallback.preloadPages)),
+    spreadLayoutMode: normalizeReaderSpreadLayoutMode(stringField(record, 'spreadLayoutMode', fallback.spreadLayoutMode)),
+    columnMode: normalizeReaderColumnMode(stringField(record, 'columnMode', fallback.columnMode)),
     tapNavigationEnabled: booleanField(record, 'tapNavigationEnabled', fallback.tapNavigationEnabled),
     swipeNavigationEnabled: booleanField(record, 'swipeNavigationEnabled', fallback.swipeNavigationEnabled),
     zoomGesturesEnabled: booleanField(record, 'zoomGesturesEnabled', fallback.zoomGesturesEnabled),
@@ -377,7 +445,15 @@ export class ReaderPreferencesStore {
     const backgroundMode = await store.get('reader.backgroundMode', DEFAULT_READER_PREFERENCES.backgroundMode) as string
     const showProgressControls = await store.get('reader.showProgressControls', DEFAULT_READER_PREFERENCES.showProgressControls) as boolean
     const keepScreenAwake = await store.get('reader.keepScreenAwake', DEFAULT_READER_PREFERENCES.keepScreenAwake) as boolean
+    const fullscreen = await store.get('reader.fullscreen', DEFAULT_READER_PREFERENCES.fullscreen) as boolean
     const imageFitMode = await store.get('reader.imageFitMode', DEFAULT_READER_PREFERENCES.imageFitMode) as string
+    const imageScalingQuality = await store.get('reader.imageScalingQuality', DEFAULT_READER_PREFERENCES.imageScalingQuality) as string
+    const showPageNumber = await store.get('reader.showPageNumber', DEFAULT_READER_PREFERENCES.showPageNumber) as boolean
+    const pageTurnAnimation = await store.get('reader.pageTurnAnimation', DEFAULT_READER_PREFERENCES.pageTurnAnimation) as boolean
+    const autoPageSeconds = await store.get('reader.autoPageSeconds', DEFAULT_READER_PREFERENCES.autoPageSeconds) as number
+    const preloadPages = await store.get('reader.preloadPages', DEFAULT_READER_PREFERENCES.preloadPages) as number
+    const spreadLayoutMode = await store.get('reader.spreadLayoutMode', DEFAULT_READER_PREFERENCES.spreadLayoutMode) as string
+    const columnMode = await store.get('reader.columnMode', DEFAULT_READER_PREFERENCES.columnMode) as string
     const tapNavigationEnabled = await store.get('reader.tapNavigationEnabled', DEFAULT_READER_PREFERENCES.tapNavigationEnabled) as boolean
     const swipeNavigationEnabled = await store.get('reader.swipeNavigationEnabled', DEFAULT_READER_PREFERENCES.swipeNavigationEnabled) as boolean
     const zoomGesturesEnabled = await store.get('reader.zoomGesturesEnabled', DEFAULT_READER_PREFERENCES.zoomGesturesEnabled) as boolean
@@ -400,7 +476,15 @@ export class ReaderPreferencesStore {
       backgroundMode: normalizeReaderBackgroundMode(backgroundMode),
       showProgressControls,
       keepScreenAwake,
+      fullscreen,
       imageFitMode: normalizeReaderImageFitMode(imageFitMode),
+      imageScalingQuality: normalizeReaderImageScalingQuality(imageScalingQuality),
+      showPageNumber,
+      pageTurnAnimation,
+      autoPageSeconds: normalizeReaderAutoPageSeconds(autoPageSeconds),
+      preloadPages: normalizeReaderPreloadPages(preloadPages),
+      spreadLayoutMode: normalizeReaderSpreadLayoutMode(spreadLayoutMode),
+      columnMode: normalizeReaderColumnMode(columnMode),
       tapNavigationEnabled,
       swipeNavigationEnabled,
       zoomGesturesEnabled,
@@ -440,7 +524,15 @@ export class ReaderPreferencesStore {
     await store.put('reader.backgroundMode', normalized.backgroundMode)
     await store.put('reader.showProgressControls', normalized.showProgressControls)
     await store.put('reader.keepScreenAwake', normalized.keepScreenAwake)
+    await store.put('reader.fullscreen', normalized.fullscreen)
     await store.put('reader.imageFitMode', normalized.imageFitMode)
+    await store.put('reader.imageScalingQuality', normalized.imageScalingQuality)
+    await store.put('reader.showPageNumber', normalized.showPageNumber)
+    await store.put('reader.pageTurnAnimation', normalized.pageTurnAnimation)
+    await store.put('reader.autoPageSeconds', normalized.autoPageSeconds)
+    await store.put('reader.preloadPages', normalized.preloadPages)
+    await store.put('reader.spreadLayoutMode', normalized.spreadLayoutMode)
+    await store.put('reader.columnMode', normalized.columnMode)
     await store.put('reader.tapNavigationEnabled', normalized.tapNavigationEnabled)
     await store.put('reader.swipeNavigationEnabled', normalized.swipeNavigationEnabled)
     await store.put('reader.zoomGesturesEnabled', normalized.zoomGesturesEnabled)
@@ -479,7 +571,15 @@ export class ReaderPreferencesStore {
       backgroundMode: current.backgroundMode,
       showProgressControls: current.showProgressControls,
       keepScreenAwake: current.keepScreenAwake,
+      fullscreen: current.fullscreen,
       imageFitMode: current.imageFitMode,
+      imageScalingQuality: current.imageScalingQuality,
+      showPageNumber: current.showPageNumber,
+      pageTurnAnimation: current.pageTurnAnimation,
+      autoPageSeconds: current.autoPageSeconds,
+      preloadPages: current.preloadPages,
+      spreadLayoutMode: current.spreadLayoutMode,
+      columnMode: current.columnMode,
       tapNavigationEnabled: current.tapNavigationEnabled,
       swipeNavigationEnabled: current.swipeNavigationEnabled,
       zoomGesturesEnabled: current.zoomGesturesEnabled,

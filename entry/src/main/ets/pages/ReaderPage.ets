@@ -2,6 +2,8 @@ import { image } from '@kit.ImageKit'
 import { common } from '@kit.AbilityKit'
 import { window } from '@kit.ArkUI'
 import { KeyCode } from '@kit.InputKit'
+import inputConsumer from '@ohos.multimodalInput.inputConsumer'
+import { Action, KeyEvent as InputConsumerKeyEvent } from '@ohos.multimodalInput.keyEvent'
 import { HdsNavDestination } from '@kit.UIDesignKit'
 import { fileIo as fs } from '@kit.CoreFileKit'
 import { ReaderChrome, ReaderChromePreferencesChange } from '../components/ReaderChrome'
@@ -40,8 +42,11 @@ import { AppStrings } from '../i18n/AppStrings'
 import { connectLayoutSafeArea, LayoutSafeAreaState } from '../state/LayoutSafeAreaState'
 
 const READER_TAP_VERTICAL_TOLERANCE: number = 10
-const READER_TAP_SUPPRESS_MS: number = 360
 const READER_TAP_ZONE_SCROLL_RATIO: number = 0.75
+// Harmony's device doubleClick path delivers the second click around 350ms;
+// a 240ms timer turns it into two single page actions.  Keep the single tap
+// pending long enough for a normal double tap to be arbitrated as one gesture.
+const READER_SINGLE_TAP_DELAY_MS: number = 400
 const READER_DOUBLE_TAP_SCALE: number = 2
 const READER_MAX_ZOOM_SCALE: number = 6
 const READER_WIDE_RATIO: number = 1.2
@@ -71,7 +76,7 @@ function readerBackground(mode: ReaderBackgroundMode): ResourceColor {
 }
 
 function readerForeground(mode: ReaderBackgroundMode): ResourceColor {
-  return mode === 'light' ? ThemeConstants.READER_TEXT_ON_LIGHT : ThemeConstants.READER_TEXT_PRIMARY
+  return mode === 'black' ? ThemeConstants.READER_TEXT_PRIMARY : ThemeConstants.READER_TEXT_ON_LIGHT
 }
 
 function imageFit(mode: ReaderImageFitMode): ImageFit {
@@ -79,6 +84,12 @@ function imageFit(mode: ReaderImageFitMode): ImageFit {
     return ImageFit.Contain
   }
   return ImageFit.Contain
+}
+
+function imageInterpolation(quality: string): ImageInterpolation {
+  if (quality === 'low') return ImageInterpolation.Low
+  if (quality === 'high') return ImageInterpolation.High
+  return ImageInterpolation.Medium
 }
 
 interface ReaderDisplayEntry {
@@ -94,6 +105,7 @@ function pageGap(mode: ReaderPageGapMode): number {
 
 function modeFromPageMode(mode: ReaderPageMode): ReaderMode {
   if (mode === 'double_page') return ReaderMode.DUAL_PAGE
+  if (mode === 'vertical_page') return ReaderMode.VERTICAL_PAGE
   if (mode === 'continuous_scroll') return ReaderMode.CONTINUOUS_SCROLL
   return ReaderMode.SINGLE_PAGE
 }
@@ -105,6 +117,8 @@ struct ReaderImageSurface {
   @Param sourceWidth: number | undefined = undefined
   @Param sourceHeight: number | undefined = undefined
   @Param fit: ImageFit = ImageFit.Contain
+  @Param fitMode: ReaderImageFitMode = 'contain'
+  @Param scalingQuality: string = 'medium'
   @Param splitSide: 'none' | 'left' | 'right' = 'none'
   @Param rotateClockwise: boolean = false
   @Param zoomEnabled: boolean = true
@@ -112,12 +126,17 @@ struct ReaderImageSurface {
   @Param panX: number = 0
   @Param panY: number = 0
   @Param active: boolean = true
+  @Param allowDirectDoubleTap: boolean = true
+  @Param routeTaps: boolean = false
+  @Param tapOriginX: number = 0
+  @Param tapOriginY: number = 0
   @Param retryToken: number = 0
   @Event onZoomChange: (zoomed: boolean) => void = (_zoomed: boolean) => {}
   @Event onTransformChange: (scale: number, panX: number, panY: number, zoomed: boolean) => void = (_scale: number, _panX: number, _panY: number, _zoomed: boolean) => {}
   @Event onImageInfo: (pageIndex: number, width: number, height: number) => void = (_pageIndex: number, _width: number, _height: number) => {}
   @Event onLoaded: (pageIndex: number) => void = (_pageIndex: number) => {}
   @Event onFailed: (pageIndex: number) => void = (_pageIndex: number) => {}
+  @Event onTap: (x: number, y: number) => void = (_x: number, _y: number) => {}
 
   @Local private pixelMap: image.PixelMap | undefined = undefined
   @Local private loading: boolean = false
@@ -135,6 +154,16 @@ struct ReaderImageSurface {
   @Local private gestureScale: number = 1
   @Local private gesturePanX: number = 0
   @Local private gesturePanY: number = 0
+  @Local private intrinsicWidth: number = 0
+  @Local private intrinsicHeight: number = 0
+  @Local private areaGlobalX: number = 0
+  @Local private areaGlobalY: number = 0
+  private tapStartX: number = 0
+  private tapStartY: number = 0
+  private tapCancelled: boolean = false
+  private singleTapTimerId: number = -1
+  private isPinching: boolean = false
+  private ignorePanSequence: boolean = false
 
   aboutToAppear(): void {
     this.disposed = false
@@ -148,6 +177,7 @@ struct ReaderImageSurface {
     this.disposed = true
     this.generation += 1
     void this.releasePixelMap()
+    this.clearSingleTap()
   }
 
   @Monitor('source', 'splitSide', 'rotateClockwise', 'retryToken')
@@ -155,6 +185,8 @@ struct ReaderImageSurface {
     this.gestureScale = this.zoomScale
     this.gesturePanX = this.panX
     this.gesturePanY = this.panY
+    this.intrinsicWidth = this.sourceWidth ?? 0
+    this.intrinsicHeight = this.sourceHeight ?? 0
     void this.resolveSource()
   }
 
@@ -245,12 +277,67 @@ struct ReaderImageSurface {
       } catch (_error) {
       }
     }
-    if (width > 0 && height > 0) this.onImageInfo(this.pageIndex, width, height)
+    if (width > 0 && height > 0) {
+      this.intrinsicWidth = width
+      this.intrinsicHeight = height
+      this.onImageInfo(this.pageIndex, width, height)
+    }
+  }
+
+  private sourceWidthValue(): number {
+    return this.intrinsicWidth > 0 ? this.intrinsicWidth : (this.sourceWidth ?? 0)
+  }
+
+  private sourceHeightValue(): number {
+    return this.intrinsicHeight > 0 ? this.intrinsicHeight : (this.sourceHeight ?? 0)
+  }
+
+  private displaySourceWidth(): number {
+    return this.rotateClockwise ? this.sourceHeightValue() : this.sourceWidthValue()
+  }
+
+  private displaySourceHeight(): number {
+    return this.rotateClockwise ? this.sourceWidthValue() : this.sourceHeightValue()
+  }
+
+  private baseScale(): number {
+    const width = this.displaySourceWidth()
+    const height = this.displaySourceHeight()
+    if (width <= 0 || height <= 0 || this.viewportWidth <= 0 || this.viewportHeight <= 0) {
+      return 1
+    }
+    if (this.fitMode === 'fit_width') {
+      return this.viewportWidth / width
+    }
+    if (this.fitMode === 'fit_height') {
+      return this.viewportHeight / height
+    }
+    return Math.min(this.viewportWidth / width, this.viewportHeight / height)
+  }
+
+  private displayWidth(): number {
+    const width = this.displaySourceWidth()
+    return width > 0 ? width * this.baseScale() : this.viewportWidth
+  }
+
+  private displayHeight(): number {
+    const height = this.displaySourceHeight()
+    return height > 0 ? height * this.baseScale() : this.viewportHeight
+  }
+
+  private maxScale(): number {
+    const width = this.displayWidth()
+    const height = this.displayHeight()
+    if (width <= 0 || height <= 0) {
+      return READER_MAX_ZOOM_SCALE
+    }
+    const nativeFactor = Math.max(this.viewportWidth / width, this.viewportHeight / height)
+    return Math.max(2, Math.min(READER_MAX_ZOOM_SCALE, Math.max(2, nativeFactor * 2)))
   }
 
   private clampScale(value: number): number {
     if (!Number.isFinite(value)) return 1
-    return Math.min(Math.max(value, 1), READER_MAX_ZOOM_SCALE)
+    return Math.min(Math.max(value, 1), this.maxScale())
   }
 
   private clampOffset(value: number, viewport: number, content: number, scale: number): number {
@@ -267,18 +354,34 @@ struct ReaderImageSurface {
   }
 
   private handlePinchStart(event?: GestureEvent): void {
+    this.isPinching = true
+    this.ignorePanSequence = true
     this.pinchStart = this.gestureScale
-    this.gesturePanX = this.panX
-    this.gesturePanY = this.panY
     this.pinchAnchorX = event === undefined ? this.viewportWidth / 2 : event.pinchCenterX as number
     this.pinchAnchorY = event === undefined ? this.viewportHeight / 2 : event.pinchCenterY as number
+    const displayW = this.displayWidth() * this.gestureScale
+    const displayH = this.displayHeight() * this.gestureScale
+    this.pinchAnchorX = displayW > 0 ? (this.pinchAnchorX - (this.viewportWidth - displayW) / 2 - this.gesturePanX) / displayW : 0.5
+    this.pinchAnchorY = displayH > 0 ? (this.pinchAnchorY - (this.viewportHeight - displayH) / 2 - this.gesturePanY) / displayH : 0.5
   }
 
   private handlePinchUpdate(event?: GestureEvent): void {
     if (event === undefined || !this.zoomEnabled) return
     const next = this.clampScale(this.pinchStart * (event.scale as number))
-    const nextPanX = this.clampOffset(this.gesturePanX, this.viewportWidth, this.viewportWidth, next)
-    const nextPanY = this.clampOffset(this.gesturePanY, this.viewportHeight, this.viewportHeight, next)
+    const nextDisplayW = this.displayWidth() * next
+    const nextDisplayH = this.displayHeight() * next
+    const nextPanX = this.clampOffset(
+      (event.pinchCenterX as number) - (this.viewportWidth - nextDisplayW) / 2 - nextDisplayW * this.pinchAnchorX,
+      this.viewportWidth,
+      this.displayWidth(),
+      next,
+    )
+    const nextPanY = this.clampOffset(
+      (event.pinchCenterY as number) - (this.viewportHeight - nextDisplayH) / 2 - nextDisplayH * this.pinchAnchorY,
+      this.viewportHeight,
+      this.displayHeight(),
+      next,
+    )
     this.gestureScale = next
     this.gesturePanX = nextPanX
     this.gesturePanY = nextPanY
@@ -288,18 +391,78 @@ struct ReaderImageSurface {
     }
   }
 
-  private handleDoubleTap(): void {
+  private handleDoubleTapAt(tapX: number, tapY: number): void {
     if (!this.zoomEnabled) return
+    this.clearSingleTap()
     if (this.gestureScale > 1.01) {
       this.resetZoom()
       return
     }
-    this.gestureScale = READER_DOUBLE_TAP_SCALE
-    this.gesturePanX = 0
-    this.gesturePanY = 0
+    const target = Math.min(READER_DOUBLE_TAP_SCALE, this.maxScale())
+    const displayW = this.displayWidth() * this.gestureScale
+    const displayH = this.displayHeight() * this.gestureScale
+    const anchorX = displayW > 0 ? (tapX - (this.viewportWidth - displayW) / 2 - this.gesturePanX) / displayW : 0.5
+    const anchorY = displayH > 0 ? (tapY - (this.viewportHeight - displayH) / 2 - this.gesturePanY) / displayH : 0.5
+    const nextDisplayW = this.displayWidth() * target
+    const nextDisplayH = this.displayHeight() * target
+    this.gestureScale = target
+    this.gesturePanX = this.clampOffset(tapX - (this.viewportWidth - nextDisplayW) / 2 - nextDisplayW * anchorX,
+      this.viewportWidth, this.displayWidth(), target)
+    this.gesturePanY = this.clampOffset(tapY - (this.viewportHeight - nextDisplayH) / 2 - nextDisplayH * anchorY,
+      this.viewportHeight, this.displayHeight(), target)
     if (this.active) {
       this.onZoomChange(true)
-      this.onTransformChange(READER_DOUBLE_TAP_SCALE, 0, 0, true)
+      this.onTransformChange(target, this.gesturePanX, this.gesturePanY, true)
+    }
+  }
+
+  private clearSingleTap(): void {
+    if (this.singleTapTimerId >= 0) {
+      clearTimeout(this.singleTapTimerId)
+      this.singleTapTimerId = -1
+    }
+  }
+
+  private onSurfaceTouch(event: TouchEvent): void {
+    if (!this.routeTaps) {
+      return
+    }
+    const touch = event.touches.length > 0 ? event.touches[0] : (event.changedTouches.length > 0 ? event.changedTouches[0] : undefined)
+    if (touch === undefined) {
+      return
+    }
+    if (event.touches.length > 1 || event.changedTouches.length > 1) {
+      this.tapCancelled = true
+      this.clearSingleTap()
+      return
+    }
+    if (event.type === TouchType.Down) {
+      this.tapStartX = touch.x
+      this.tapStartY = touch.y
+      this.tapCancelled = false
+    } else if (event.type === TouchType.Move) {
+      const dx = touch.x - this.tapStartX
+      const dy = touch.y - this.tapStartY
+      if (Math.sqrt(dx * dx + dy * dy) > READER_TAP_VERTICAL_TOLERANCE) {
+        this.tapCancelled = true
+        this.clearSingleTap()
+      }
+    } else if (event.type === TouchType.Up) {
+      const dx = touch.x - this.tapStartX
+      const dy = touch.y - this.tapStartY
+      if (!this.tapCancelled && Math.sqrt(dx * dx + dy * dy) <= READER_TAP_VERTICAL_TOLERANCE) {
+        const x = (touch.x as number) + this.areaGlobalX - this.tapOriginX
+        const y = (touch.y as number) + this.areaGlobalY - this.tapOriginY
+        this.clearSingleTap()
+        this.singleTapTimerId = setTimeout(() => {
+          this.singleTapTimerId = -1
+          this.onTap(x, y)
+        }, READER_SINGLE_TAP_DELAY_MS)
+      }
+      this.tapCancelled = false
+    } else if (event.type === TouchType.Cancel) {
+      this.tapCancelled = true
+      this.clearSingleTap()
     }
   }
 
@@ -315,7 +478,10 @@ struct ReaderImageSurface {
     Stack({ alignContent: Alignment.Center }) {
       if (this.pixelMap !== undefined) {
         Image(this.pixelMap)
-          .width('100%').height('100%').objectFit(this.fit).interpolation(ImageInterpolation.Medium)
+          .width(this.displayWidth() > 0 ? this.displayWidth() : '100%')
+          .height(this.displayHeight() > 0 ? this.displayHeight() : '100%')
+          .objectFit(ImageFit.Fill)
+          .interpolation(imageInterpolation(this.scalingQuality))
           .rotate({ angle: this.rotateClockwise ? 90 : 0 })
           .scale({ x: this.active ? this.gestureScale : 1, y: this.active ? this.gestureScale : 1 })
           .translate({ x: this.active ? this.gesturePanX : 0, y: this.active ? this.gesturePanY : 0 })
@@ -327,25 +493,50 @@ struct ReaderImageSurface {
     .onAreaChange((_old: Area, next: Area) => {
       this.viewportWidth = next.width as number
       this.viewportHeight = next.height as number
+      this.areaGlobalX = next.globalPosition.x as number
+      this.areaGlobalY = next.globalPosition.y as number
     })
+    .onTouch((event: TouchEvent) => { this.onSurfaceTouch(event) })
     .gesture(GestureGroup(
       GestureMode.Parallel,
       PinchGesture({ fingers: 2 })
         .onActionStart((event?: GestureEvent) => { this.handlePinchStart(event) })
         .onActionUpdate((event?: GestureEvent) => { this.handlePinchUpdate(event) })
-        .onActionEnd(() => { if (this.zoomScale <= 1.01) this.resetZoom() })
-        .onActionCancel(() => { if (this.zoomScale <= 1.01) this.resetZoom() }),
-      TapGesture({ count: 2, distanceThreshold: 8 }).onAction(() => { this.handleDoubleTap() }),
+        .onActionEnd(() => {
+          this.isPinching = false
+          this.ignorePanSequence = false
+          if (this.gestureScale <= 1.01) this.resetZoom()
+        })
+        .onActionCancel(() => {
+          this.isPinching = false
+          this.ignorePanSequence = false
+          if (this.gestureScale <= 1.01) this.resetZoom()
+        }),
+      TapGesture({ count: 2, distanceThreshold: 8 }).onAction((event?: GestureEvent) => {
+        if (!this.allowDirectDoubleTap) {
+          return
+        }
+        const location = event?.tapLocation
+        this.handleDoubleTapAt(location === undefined ? this.viewportWidth / 2 : location.x as number,
+          location === undefined ? this.viewportHeight / 2 : location.y as number)
+      }),
       PanGesture({ fingers: 1, direction: PanDirection.All, distance: 12 })
-        .onActionStart(() => { this.panStartX = this.gesturePanX; this.panStartY = this.gesturePanY })
+        .onActionStart(() => {
+          this.panStartX = this.gesturePanX
+          this.panStartY = this.gesturePanY
+          this.tapCancelled = true
+          this.clearSingleTap()
+        })
         .onActionUpdate((event?: GestureEvent) => {
-          if (event === undefined || this.gestureScale <= 1.01) return
-          const nextX = this.clampOffset(this.panStartX + (event.offsetX as number), this.viewportWidth, this.viewportWidth, this.gestureScale)
-          const nextY = this.clampOffset(this.panStartY + (event.offsetY as number), this.viewportHeight, this.viewportHeight, this.gestureScale)
+          if (event === undefined || this.ignorePanSequence || this.isPinching || this.gestureScale <= 1.01) return
+          const nextX = this.clampOffset(this.panStartX + (event.offsetX as number), this.viewportWidth, this.displayWidth(), this.gestureScale)
+          const nextY = this.clampOffset(this.panStartY + (event.offsetY as number), this.viewportHeight, this.displayHeight(), this.gestureScale)
           this.gesturePanX = nextX
           this.gesturePanY = nextY
           if (this.active) this.onTransformChange(this.gestureScale, nextX, nextY, this.gestureScale > 1.01)
-        }),
+        })
+        .onActionEnd(() => { this.ignorePanSequence = false })
+        .onActionCancel(() => { this.ignorePanSequence = false }),
     ))
   }
 }
@@ -382,27 +573,45 @@ export struct ReaderPage {
   @Local private continuousOffset: number = 0
   @Local private settingsReady: boolean = false
   @Local private tapPreviewVisible: boolean = false
+  @Local private autoPageActive: boolean = false
+  @Local private verticalVisibleStart: number = 0
+  @Local private verticalVisibleEnd: number = 0
+  @Local private verticalZoomedPage: number = -1
+  @Local private measuredPageWidths: number[] = []
+  @Local private measuredPageHeights: number[] = []
+  @Local private measuredPageRevision: number = 0
+  @Local private readerGlobalX: number = 0
+  @Local private readerGlobalY: number = 0
   private layout: LayoutSafeAreaState = connectLayoutSafeArea()
   private preferencesStore?: ReaderPreferencesStore
   private filesDir: string = ''
   private sourceSignature: string = ''
-  private tapStartX: number = 0
-  private tapStartY: number = 0
-  private tapTimerId: number = 0
-  private tapCancelled: boolean = false
-  private skipNextTapUp: boolean = false
-  private suppressTapUntil: number = 0
   private swiperController: SwiperController = new SwiperController()
+  private doublePageSwiperController: SwiperController = new SwiperController()
   private listScroller: Scroller = new Scroller()
+  private statusBarHideTimerId: number = -1
+  private statusBarEpoch: number = 0
+  private volumeDownConsumer: ((event: InputConsumerKeyEvent) => void) | null = null
+  private volumeUpConsumer: ((event: InputConsumerKeyEvent) => void) | null = null
+  private closing: boolean = false
+  private autoPageTimerId: number = -1
+  private continuousInitialTarget: number = -1
 
   aboutToAppear(): void {
+    this.closing = false
     this.loadPreferences()
     this.syncSession(true)
+    this.registerVolumeKeyConsumerIfNeeded()
+    this.scheduleStatusBarVisibility()
   }
 
   aboutToDisappear(): void {
     this.persistCurrentProgress()
     this.setReaderKeepScreenOn(false)
+    this.clearStatusBarHideTimer()
+    this.unregisterVolumeKeyConsumer()
+    this.restoreAppStatusBar()
+    this.stopAutoPage()
   }
 
   @Monitor('sessionConfig')
@@ -413,6 +622,16 @@ export struct ReaderPage {
   @Monitor('pageIndex')
   onParentPageChanged(): void {
     this.persistCurrentProgress()
+  }
+
+  @Monitor('readerOpen', 'chromeVisible')
+  onReaderVisibilityChanged(): void {
+    if (!this.readerOpen) {
+      this.clearStatusBarHideTimer()
+      this.restoreAppStatusBar()
+      return
+    }
+    this.scheduleStatusBarVisibility()
   }
 
   private async loadPreferences(): Promise<void> {
@@ -430,12 +649,148 @@ export struct ReaderPage {
       this.tapPreviewVisible = this.preferences.showTapZones
       this.setReaderKeepScreenOn(this.preferences.keepScreenAwake)
       this.emitWebtoonMode(this.preferences.pageMode === 'continuous_scroll' || this.preferences.readingDirection === ReadingDirection.WEBTOON)
+      this.registerVolumeKeyConsumerIfNeeded()
+      this.scheduleStatusBarVisibility()
     } catch (_error) {
       this.preferences = DEFAULT_READER_PREFERENCES
       this.settingsReady = true
       this.tapPreviewVisible = this.preferences.showTapZones
       this.setReaderKeepScreenOn(this.preferences.keepScreenAwake)
+      this.registerVolumeKeyConsumerIfNeeded()
+      this.scheduleStatusBarVisibility()
     }
+  }
+
+  private statusBarContentColor(): string {
+    return this.readerBackgroundIsDarkForStatus() ? '#FFFFFFFF' : '#FF000000'
+  }
+
+  private readerBackgroundIsDarkForStatus(): boolean {
+    return this.preferences.backgroundMode === 'black'
+  }
+
+  private applyStatusBarVisible(visible: boolean): void {
+    try {
+      const context = getContext(this) as common.UIAbilityContext
+      window.getLastWindow(context).then((win: window.Window) => {
+        if (visible) {
+          win.setWindowSystemBarProperties({
+            statusBarContentColor: this.statusBarContentColor(),
+            isStatusBarLightIcon: this.readerBackgroundIsDarkForStatus(),
+          }).then(() => {
+            return win.setSpecificSystemBarEnabled('status', true, false)
+          }).catch(() => {})
+        } else {
+          win.setSpecificSystemBarEnabled('status', false, false).catch(() => {})
+        }
+      }).catch(() => {})
+    } catch (_error) {
+    }
+  }
+
+  private setReaderStatusBarForChrome(chromeVisible: boolean): void {
+    this.applyStatusBarVisible(!this.preferences.fullscreen || chromeVisible)
+  }
+
+  private restoreAppStatusBar(): void {
+    try {
+      const context = getContext(this) as common.UIAbilityContext
+      window.getLastWindow(context).then((win: window.Window) => {
+        const dark = this.preferences.themeMode === 'dark'
+        win.setWindowSystemBarProperties({
+          statusBarColor: '#00FFFFFF',
+          navigationBarColor: '#00FFFFFF',
+          statusBarContentColor: dark ? '#FFFFFFFF' : '#FF000000',
+          isStatusBarLightIcon: dark,
+        }).then(() => {
+          return win.setSpecificSystemBarEnabled('status', true, false)
+        }).catch(() => {})
+      }).catch(() => {})
+    } catch (_error) {
+    }
+  }
+
+  private clearStatusBarHideTimer(): void {
+    if (this.statusBarHideTimerId >= 0) {
+      clearTimeout(this.statusBarHideTimerId)
+      this.statusBarHideTimerId = -1
+    }
+  }
+
+  private scheduleStatusBarVisibility(): void {
+    this.clearStatusBarHideTimer()
+    this.statusBarEpoch += 1
+    const epoch = this.statusBarEpoch
+    if (!this.readerOpen || !this.preferences.fullscreen || this.chromeVisible) {
+      this.setReaderStatusBarForChrome(this.chromeVisible)
+      return
+    }
+    this.setReaderStatusBarForChrome(false)
+    this.statusBarHideTimerId = setTimeout(() => {
+      this.statusBarHideTimerId = -1
+      if (epoch === this.statusBarEpoch && this.readerOpen && this.preferences.fullscreen && !this.chromeVisible) {
+        this.setReaderStatusBarForChrome(false)
+      }
+    }, 500)
+  }
+
+  private closeReaderRoute(): void {
+    if (this.closing) {
+      return
+    }
+    this.closing = true
+    this.statusBarEpoch += 1
+    this.clearStatusBarHideTimer()
+    this.stopAutoPage()
+    this.restoreAppStatusBar()
+    this.persistCurrentProgress()
+    setTimeout(() => {
+      this.onCloseReader()
+    }, 20)
+  }
+
+  private clearAutoPageTimer(): void {
+    if (this.autoPageTimerId >= 0) {
+      clearTimeout(this.autoPageTimerId)
+      this.autoPageTimerId = -1
+    }
+  }
+
+  private scheduleAutoPage(): void {
+    this.clearAutoPageTimer()
+    if (!this.autoPageActive || !this.readerOpen || this.effectiveMode() === ReaderMode.CONTINUOUS_SCROLL) {
+      return
+    }
+    this.autoPageTimerId = setTimeout(() => {
+      this.autoPageTimerId = -1
+      if (!this.autoPageActive || this.zoomed || !this.readerOpen) {
+        this.scheduleAutoPage()
+        return
+      }
+      if (!this.canNext()) {
+        this.stopAutoPage()
+        return
+      }
+      this.nextPage()
+      this.scheduleAutoPage()
+    }, Math.max(1, this.preferences.autoPageSeconds) * 1000)
+  }
+
+  private toggleAutoPage(): void {
+    if (this.autoPageActive) {
+      this.stopAutoPage()
+      return
+    }
+    if (this.effectiveMode() === ReaderMode.CONTINUOUS_SCROLL) {
+      return
+    }
+    this.autoPageActive = true
+    this.scheduleAutoPage()
+  }
+
+  private stopAutoPage(): void {
+    this.autoPageActive = false
+    this.clearAutoPageTimer()
   }
 
   private sessionSignature(): string {
@@ -449,6 +804,8 @@ export struct ReaderPage {
     this.sourceSignature = signature
     this.loadedRevision += 1
     this.failedPages = []
+    this.measuredPageWidths = []
+    this.measuredPageHeights = []
     this.resetZoomState()
     if (resetPage && this.sessionConfig.totalPages > 0 && this.pageIndex >= this.sessionConfig.totalPages) {
       this.emitPageIndex(this.sessionConfig.totalPages - 1)
@@ -470,13 +827,34 @@ export struct ReaderPage {
 
   private spreadIndexes(): number[] {
     const out: number[] = []
-    for (let index = 0; index < this.sessionConfig.totalPages; index += 2) out.push(index)
+    const total = this.sessionConfig.totalPages
+    if (this.preferences.columnMode === 'even_left') {
+      if (total > 0) out.push(0)
+      for (let index = 1; index < total; index += 2) out.push(index)
+      return out
+    }
+    for (let index = 0; index < total; index += 2) out.push(index)
     return out
   }
 
   private spreadIndexForPage(pageIndex: number): number {
     const normalized = Math.max(0, Math.min(pageIndex, Math.max(this.sessionConfig.totalPages - 1, 0)))
+    if (this.preferences.columnMode === 'even_left') {
+      return normalized <= 0 ? 0 : Math.floor((normalized + 1) / 2)
+    }
     return Math.floor(normalized / 2)
+  }
+
+  private spreadSecondIndex(start: number): number {
+    if (this.preferences.columnMode === 'even_left' && start <= 0) {
+      return -1
+    }
+    return start + 1
+  }
+
+  private hasSpreadSecond(start: number): boolean {
+    const second = this.spreadSecondIndex(start)
+    return second >= 0 && second < this.sessionConfig.totalPages
   }
 
   private sourceFor(index: number, offlineOnly: boolean = false): ReaderPageRenderSource {
@@ -484,11 +862,35 @@ export struct ReaderPage {
   }
 
   private pageWidth(index: number): number | undefined {
+    if (index >= 0 && index < this.measuredPageWidths.length && this.measuredPageWidths[index] > 0) {
+      return this.measuredPageWidths[index]
+    }
     return getReaderSessionPageWidth(this.sessionConfig, index)
   }
 
   private pageHeight(index: number): number | undefined {
+    if (index >= 0 && index < this.measuredPageHeights.length && this.measuredPageHeights[index] > 0) {
+      return this.measuredPageHeights[index]
+    }
     return getReaderSessionPageHeight(this.sessionConfig, index)
+  }
+
+  private rememberImageInfo(index: number, width: number, height: number): void {
+    if (index < 0 || width <= 0 || height <= 0) {
+      return
+    }
+    if (this.pageWidth(index) === width && this.pageHeight(index) === height) {
+      return
+    }
+    const widths = this.measuredPageWidths.slice()
+    const heights = this.measuredPageHeights.slice()
+    while (widths.length <= index) widths.push(0)
+    while (heights.length <= index) heights.push(0)
+    widths[index] = width
+    heights[index] = height
+    this.measuredPageWidths = widths
+    this.measuredPageHeights = heights
+    this.measuredPageRevision += 1
   }
 
   private splitEnabled(): boolean {
@@ -510,7 +912,7 @@ export struct ReaderPage {
   private canNext(): boolean { return this.pageIndex + 1 < this.sessionConfig.totalPages }
   private chapterIndex(): number { return Math.max(0, this.sessionConfig.chapterIds.indexOf(this.sessionConfig.chapterId)) }
 
-  private setPage(index: number, animated: boolean = true): void {
+  private setPage(index: number, animated: boolean = this.preferences.pageTurnAnimation): void {
     const total = this.sessionConfig.totalPages
     if (total <= 0) return
     const target = Math.min(Math.max(index, 0), total - 1)
@@ -521,7 +923,7 @@ export struct ReaderPage {
       this.scrollContinuousTo(target, animated)
     } else if (this.effectiveMode() === ReaderMode.DUAL_PAGE) {
       this.emitPageIndex(target)
-      this.swiperController.changeIndex(this.spreadIndexForPage(target), animated)
+      this.doublePageSwiperController.changeIndex(this.spreadIndexForPage(target), animated)
     } else {
       this.emitPageIndex(target)
       this.swiperController.changeIndex(target, animated)
@@ -534,8 +936,6 @@ export struct ReaderPage {
 
   private scrollContinuousTo(index: number, animated: boolean): void {
     setTimeout(() => {
-      const extent = Math.max(this.continuousItemExtent(), 1)
-      this.listScroller.scrollTo({ xOffset: 0, yOffset: index * extent, animation: animated })
       this.listScroller.scrollToIndex(index, animated, ScrollAlign.START)
     }, 80)
   }
@@ -544,14 +944,41 @@ export struct ReaderPage {
     return Math.max(this.viewportHeight - this.layout.topAvoidHeight - this.layout.bottomAvoidHeight, 360)
   }
 
+  private continuousRowHeight(index: number): number {
+    let width = this.pageWidth(index)
+    let height = this.pageHeight(index)
+    if (this.preferences.wideImageMode === 'rotate_wide_pages' && isWidePage(width, height)) {
+      const originalWidth = width
+      width = height
+      height = originalWidth
+    }
+    if (width !== undefined && height !== undefined && width > 0 && height > 0 && this.viewportWidth > 0) {
+      return Math.max(120, this.viewportWidth * height / width + pageGap(this.preferences.pageGapMode))
+    }
+    return this.continuousItemExtent()
+  }
+
   private onModeChange(mode: ReaderMode): void {
     const next = this.copyPreferences()
-    next.pageMode = mode === ReaderMode.DUAL_PAGE ? 'double_page' : (mode === ReaderMode.CONTINUOUS_SCROLL ? 'continuous_scroll' : 'single_page')
+    next.pageMode = mode === ReaderMode.DUAL_PAGE ? 'double_page' :
+      (mode === ReaderMode.CONTINUOUS_SCROLL ? 'continuous_scroll' :
+        (mode === ReaderMode.VERTICAL_PAGE ? 'vertical_page' : 'single_page'))
     this.preferences = next
     this.preferenceRevision += 1
     this.emitWebtoonMode(mode === ReaderMode.CONTINUOUS_SCROLL)
     this.persistPreferences(next)
     this.resetZoomState()
+    if (mode === ReaderMode.CONTINUOUS_SCROLL) {
+      this.continuousInitialTarget = this.pageIndex
+      setTimeout(() => {
+        if (this.effectiveMode() === ReaderMode.CONTINUOUS_SCROLL && this.continuousInitialTarget >= 0) {
+          this.listScroller.scrollToIndex(this.continuousInitialTarget, false, ScrollAlign.START)
+        }
+      }, 80)
+    } else {
+      this.continuousInitialTarget = -1
+    }
+    this.scheduleStatusBarVisibility()
   }
 
   private resetZoomState(): void {
@@ -559,6 +986,7 @@ export struct ReaderPage {
     this.zoomScale = 1
     this.panX = 0
     this.panY = 0
+    this.verticalZoomedPage = -1
   }
 
   private copyPreferences(): ReaderPreferences {
@@ -570,7 +998,15 @@ export struct ReaderPage {
       backgroundMode: p.backgroundMode,
       showProgressControls: p.showProgressControls,
       keepScreenAwake: p.keepScreenAwake,
+      fullscreen: p.fullscreen,
       imageFitMode: p.imageFitMode,
+      imageScalingQuality: p.imageScalingQuality,
+      showPageNumber: p.showPageNumber,
+      pageTurnAnimation: p.pageTurnAnimation,
+      autoPageSeconds: p.autoPageSeconds,
+      preloadPages: p.preloadPages,
+      spreadLayoutMode: p.spreadLayoutMode,
+      columnMode: p.columnMode,
       tapNavigationEnabled: p.tapNavigationEnabled,
       swipeNavigationEnabled: p.swipeNavigationEnabled,
       zoomGesturesEnabled: p.zoomGesturesEnabled,
@@ -586,11 +1022,27 @@ export struct ReaderPage {
   }
 
   private onPreferencesChanged(change: ReaderChromePreferencesChange): void {
+    const previousMode = this.effectiveMode()
     this.preferences = change.preferences
     this.preferenceRevision += 1
     this.tapPreviewVisible = this.preferences.showTapZones
     this.setReaderKeepScreenOn(this.preferences.keepScreenAwake)
     this.emitWebtoonMode(this.preferences.pageMode === 'continuous_scroll' || this.preferences.readingDirection === ReadingDirection.WEBTOON)
+    if (this.effectiveMode() === ReaderMode.CONTINUOUS_SCROLL && previousMode !== ReaderMode.CONTINUOUS_SCROLL) {
+      this.continuousInitialTarget = this.pageIndex
+      setTimeout(() => {
+        if (this.effectiveMode() === ReaderMode.CONTINUOUS_SCROLL && this.continuousInitialTarget >= 0) {
+          this.listScroller.scrollToIndex(this.continuousInitialTarget, false, ScrollAlign.START)
+        }
+      }, 80)
+    } else if (this.effectiveMode() !== ReaderMode.CONTINUOUS_SCROLL) {
+      this.continuousInitialTarget = -1
+    }
+    this.registerVolumeKeyConsumerIfNeeded()
+    if (!this.preferences.volumeKeyNavigationEnabled) {
+      this.unregisterVolumeKeyConsumer()
+    }
+    this.scheduleStatusBarVisibility()
     this.persistPreferences(this.preferences)
   }
 
@@ -638,8 +1090,8 @@ export struct ReaderPage {
 
   private zoomChanged(zoomed: boolean): void {
     this.zoomed = zoomed
-    this.zoomScale = zoomed ? READER_DOUBLE_TAP_SCALE : 1
     if (!zoomed) {
+      this.zoomScale = 1
       this.panX = 0
       this.panY = 0
     }
@@ -653,29 +1105,39 @@ export struct ReaderPage {
   }
 
   private tapAction(x: number, y: number): void {
-    if (Date.now() < this.suppressTapUntil) return
     if (this.tapPreviewVisible) {
       this.tapPreviewVisible = false
       return
     }
     const action = resolveReaderTapZoneAction(this.preferences.tapZonePreset, this.preferences.tapZoneInvert, x, y, this.viewportWidth, this.viewportHeight)
     if (this.effectiveMode() === ReaderMode.CONTINUOUS_SCROLL) {
-      if (action === 'previous') this.setPage(this.pageIndex - 1, false)
-      else if (action === 'next') this.setPage(this.pageIndex + 1, false)
-      else this.toggleChrome()
+      if (action === 'previous' || action === 'left') {
+        this.listScroller.scrollBy(0, -this.viewportHeight * READER_TAP_ZONE_SCROLL_RATIO)
+      } else if (action === 'next' || action === 'right') {
+        this.listScroller.scrollBy(0, this.viewportHeight * READER_TAP_ZONE_SCROLL_RATIO)
+      } else {
+        this.toggleChrome()
+      }
       return
     }
     if (!this.preferences.tapNavigationEnabled || action === 'center') {
       this.toggleChrome()
-    } else if (action === 'previous') {
+    } else if (action === 'previous' || (action === 'left' && this.preferences.readingDirection !== ReadingDirection.RIGHT_TO_LEFT) ||
+      (action === 'right' && this.preferences.readingDirection === ReadingDirection.RIGHT_TO_LEFT)) {
       this.previousPage()
     } else {
       this.nextPage()
     }
   }
 
+  private tapActionForSlot(x: number, y: number, _splitSide: 'none' | 'left' | 'right', _compact: boolean): void {
+    this.tapAction(x, y)
+  }
+
   private toggleChrome(): void {
-    this.emitChromeVisible(!this.chromeVisible)
+    const nextVisible = !this.chromeVisible
+    this.setReaderStatusBarForChrome(nextVisible)
+    this.emitChromeVisible(nextVisible)
   }
 
   private emitPageIndex(value: number): void {
@@ -693,70 +1155,64 @@ export struct ReaderPage {
     this.$webtoonMode(value)
   }
 
-  private onOverlayTouch(event: TouchEvent): void {
-    const touch = event.touches.length > 0 ? event.touches[0] : (event.changedTouches.length > 0 ? event.changedTouches[0] : undefined)
-    if (touch === undefined) return
-    if (event.touches.length > 1 || event.changedTouches.length > 1) {
-      this.suppressTapUntil = Date.now() + READER_TAP_SUPPRESS_MS
-      this.tapCancelled = true
-      this.clearTapTimer()
+  private handleKeyEvent(event: KeyEvent): boolean {
+    if (!this.preferences.volumeKeyNavigationEnabled) {
+      return false
+    }
+    if (event.keyCode !== KeyCode.KEYCODE_VOLUME_UP && event.keyCode !== KeyCode.KEYCODE_VOLUME_DOWN) {
+      return false
+    }
+    if (event.type !== KeyType.Down) {
+      return true
+    }
+    const volumeUp = event.keyCode === KeyCode.KEYCODE_VOLUME_UP
+    const next = volumeUp
+      ? this.preferences.volumeKeyBehavior === 'up_next_down_previous'
+      : this.preferences.volumeKeyBehavior === 'up_previous_down_next'
+    if (next) this.nextPage()
+    else this.previousPage()
+    return true
+  }
+
+  private registerVolumeKeyConsumerIfNeeded(): void {
+    if (!this.readerOpen || !this.preferences.volumeKeyNavigationEnabled ||
+      this.volumeDownConsumer !== null || this.volumeUpConsumer !== null) {
       return
     }
-    if (event.type === TouchType.Down) {
-      if (this.tapTimerId > 0) {
-        this.clearTapTimer()
-        this.skipNextTapUp = true
+    const down = (event: InputConsumerKeyEvent): void => {
+      if (event.action === Action.DOWN) {
+        if (this.preferences.volumeKeyBehavior === 'up_previous_down_next') this.nextPage()
+        else this.previousPage()
       }
-      this.tapStartX = touch.x
-      this.tapStartY = touch.y
-      this.tapCancelled = false
-    } else if (event.type === TouchType.Move) {
-      const dx = touch.x - this.tapStartX
-      const dy = touch.y - this.tapStartY
-      if (Math.sqrt(dx * dx + dy * dy) > READER_TAP_VERTICAL_TOLERANCE) {
-        this.suppressTapUntil = Date.now() + READER_TAP_SUPPRESS_MS
-        this.tapCancelled = true
-        this.clearTapTimer()
+    }
+    const up = (event: InputConsumerKeyEvent): void => {
+      if (event.action === Action.DOWN) {
+        if (this.preferences.volumeKeyBehavior === 'up_next_down_previous') this.nextPage()
+        else this.previousPage()
       }
-    } else if (event.type === TouchType.Up) {
-      const dx = touch.x - this.tapStartX
-      const dy = touch.y - this.tapStartY
-      if (!this.tapCancelled && !this.skipNextTapUp && Math.sqrt(dx * dx + dy * dy) <= READER_TAP_VERTICAL_TOLERANCE) {
-        const tapX: number = touch.windowX as number
-        const tapY: number = touch.windowY as number
-        this.clearTapTimer()
-        this.tapTimerId = setTimeout(() => {
-          this.tapTimerId = 0
-          if (Date.now() >= this.suppressTapUntil) this.tapAction(tapX, tapY)
-        }, 220)
-      }
-      this.skipNextTapUp = false
-      this.tapCancelled = false
-    } else if (event.type === TouchType.Cancel) {
-      this.suppressTapUntil = Date.now() + READER_TAP_SUPPRESS_MS
-      this.tapCancelled = true
-      this.clearTapTimer()
+    }
+    this.volumeDownConsumer = down
+    this.volumeUpConsumer = up
+    try {
+      inputConsumer.on('keyPressed', { key: KeyCode.KEYCODE_VOLUME_DOWN, action: Action.DOWN, isRepeat: false }, down)
+      inputConsumer.on('keyPressed', { key: KeyCode.KEYCODE_VOLUME_UP, action: Action.DOWN, isRepeat: false }, up)
+    } catch (_error) {
+      this.unregisterVolumeKeyConsumer()
     }
   }
 
-  private clearTapTimer(): void {
-    if (this.tapTimerId > 0) {
-      clearTimeout(this.tapTimerId)
-      this.tapTimerId = 0
+  private unregisterVolumeKeyConsumer(): void {
+    try {
+      if (this.volumeDownConsumer !== null) {
+        inputConsumer.off('keyPressed', this.volumeDownConsumer)
+      }
+      if (this.volumeUpConsumer !== null) {
+        inputConsumer.off('keyPressed', this.volumeUpConsumer)
+      }
+    } catch (_error) {
     }
-  }
-
-  private handleKeyEvent(event: KeyEvent): boolean {
-    if (!this.preferences.volumeKeyNavigationEnabled) return false
-    if (event.keyCode === KeyCode.KEYCODE_VOLUME_UP) {
-      this.preferences.volumeKeyBehavior === 'up_next_down_previous' ? this.nextPage() : this.previousPage()
-      return true
-    }
-    if (event.keyCode === KeyCode.KEYCODE_VOLUME_DOWN) {
-      this.preferences.volumeKeyBehavior === 'up_next_down_previous' ? this.previousPage() : this.nextPage()
-      return true
-    }
-    return false
+    this.volumeDownConsumer = null
+    this.volumeUpConsumer = null
   }
 
   private retryCurrentPage(): void {
@@ -779,7 +1235,7 @@ export struct ReaderPage {
   }
 
   @Builder
-  private ReaderPageSlot(index: number, splitSide: 'none' | 'left' | 'right', compact: boolean = false) {
+  private ReaderPageSlot(index: number, splitSide: 'none' | 'left' | 'right', compact: boolean = false, continuous: boolean = false) {
     Stack({ alignContent: Alignment.Center }) {
       ReaderImageSurface({
         source: this.sourceFor(index),
@@ -787,26 +1243,59 @@ export struct ReaderPage {
         sourceWidth: this.pageWidth(index),
         sourceHeight: this.pageHeight(index),
         fit: imageFit(this.preferences.imageFitMode),
+        // Paged readers must always show the complete page.  The natural-width
+        // fit modes are only meaningful for the vertical reader, where the row
+        // height is derived from the decoded aspect ratio.  Applying fit_width
+        // to a paged surface makes a tall page extend beyond the viewport and
+        // silently crops it before any zoom gesture is involved.
+        fitMode: continuous ? this.preferences.imageFitMode : 'contain',
+        scalingQuality: this.preferences.imageScalingQuality,
         splitSide: splitSide,
         rotateClockwise: this.preferences.wideImageMode === 'rotate_wide_pages' && isWidePage(this.pageWidth(index), this.pageHeight(index)),
         zoomEnabled: this.preferences.zoomGesturesEnabled,
-        zoomScale: this.zoomScale,
-        panX: this.panX,
-        panY: this.panY,
-        active: index === this.pageIndex,
+        active: continuous
+          ? (this.verticalZoomedPage >= 0 ? index === this.verticalZoomedPage : index >= this.verticalVisibleStart && index <= this.verticalVisibleEnd)
+          : index === this.pageIndex,
+        zoomScale: continuous && this.verticalZoomedPage >= 0 && index !== this.verticalZoomedPage ? 1 : this.zoomScale,
+        panX: continuous && this.verticalZoomedPage >= 0 && index !== this.verticalZoomedPage ? 0 : this.panX,
+        panY: continuous && this.verticalZoomedPage >= 0 && index !== this.verticalZoomedPage ? 0 : this.panY,
+        // Every page surface owns its local single/double arbitration and
+        // pinch stream. The vertical list and the horizontal/vertical pager
+        // remain the owners of native fling/page-swipe gestures.
+        allowDirectDoubleTap: true,
+        routeTaps: true,
+        tapOriginX: this.readerGlobalX,
+        tapOriginY: this.readerGlobalY,
         retryToken: this.loadedRevision,
-        onZoomChange: (zoomed: boolean) => { if (index === this.pageIndex) this.zoomChanged(zoomed) },
+        onZoomChange: (zoomed: boolean) => {
+          if (!continuous && index === this.pageIndex) {
+            this.zoomChanged(zoomed)
+          } else if (continuous) {
+            if (zoomed) {
+              this.verticalZoomedPage = index
+              this.zoomChanged(true)
+            } else if (index === this.verticalZoomedPage) {
+              this.verticalZoomedPage = -1
+              this.zoomChanged(false)
+            }
+          }
+        },
         onTransformChange: (scale: number, panX: number, panY: number, zoomed: boolean) => {
-          if (index === this.pageIndex) this.transformChanged(scale, panX, panY, zoomed)
+          if (!continuous && index === this.pageIndex) {
+            this.transformChanged(scale, panX, panY, zoomed)
+          } else if (continuous && (index === this.verticalZoomedPage || this.verticalZoomedPage < 0)) {
+            this.verticalZoomedPage = index
+            this.transformChanged(scale, panX, panY, zoomed)
+          }
         },
         onImageInfo: (page: number, width: number, height: number) => {
           if (page === index) {
-            void width
-            void height
+            this.rememberImageInfo(page, width, height)
           }
         },
         onLoaded: (page: number) => { this.onImageLoaded(page) },
         onFailed: (page: number) => { this.onImageFailed(page) },
+        onTap: (x: number, y: number) => { this.tapActionForSlot(x, y, splitSide, compact) },
       })
       if (this.failedPages.includes(index)) {
         Button({ type: ButtonType.Capsule, stateEffect: true }) {
@@ -819,7 +1308,9 @@ export struct ReaderPage {
         Blank().width(1).height(1)
       }
     }
-    .width(compact ? '50%' : '100%').height('100%').backgroundColor(readerBackground(this.preferences.backgroundMode))
+    .width(compact ? '50%' : '100%')
+    .height(continuous ? this.continuousRowHeight(index) : '100%')
+    .backgroundColor(readerBackground(this.preferences.backgroundMode))
   }
 
   @Builder
@@ -836,7 +1327,7 @@ export struct ReaderPage {
     }
     .index(this.pageIndex)
     .direction(this.preferences.readingDirection === ReadingDirection.RIGHT_TO_LEFT ? Direction.Rtl : Direction.Ltr)
-    .vertical(false)
+    .vertical(this.effectiveMode() === ReaderMode.VERTICAL_PAGE)
     .loop(false)
     .indicator(false)
     .disableSwipe(this.zoomed || !this.preferences.swipeNavigationEnabled)
@@ -850,15 +1341,15 @@ export struct ReaderPage {
 
   @Builder
   private DoublePageReader() {
-    Swiper(this.swiperController) {
+    Swiper(this.doublePageSwiperController) {
       ForEach(this.spreadIndexes(), (start: number) => {
-        Row({ space: pageGap(this.preferences.pageGapMode) }) {
+        Row({ space: this.preferences.spreadLayoutMode === 'split' ? pageGap(this.preferences.pageGapMode) : 0 }) {
           if (this.preferences.readingDirection === ReadingDirection.RIGHT_TO_LEFT) {
-            this.ReaderPageSlot(Math.min(start + 1, this.sessionConfig.totalPages - 1), 'none', true)
-            this.ReaderPageSlot(start, 'none', true)
+            if (this.hasSpreadSecond(start)) this.ReaderPageSlot(this.spreadSecondIndex(start), 'left', true)
+            this.ReaderPageSlot(start, 'right', true)
           } else {
-            this.ReaderPageSlot(start, 'none', true)
-            if (start + 1 < this.sessionConfig.totalPages) this.ReaderPageSlot(start + 1, 'none', true)
+            this.ReaderPageSlot(start, 'left', true)
+            if (this.hasSpreadSecond(start)) this.ReaderPageSlot(this.spreadSecondIndex(start), 'right', true)
           }
         }.width('100%').height('100%').justifyContent(FlexAlign.Center)
       }, (start: number) => `reader-spread-${start}`)
@@ -884,19 +1375,26 @@ export struct ReaderPage {
     List({ initialIndex: this.pageIndex, scroller: this.listScroller }) {
       ForEach(this.pageIndexes(), (index: number) => {
         ListItem() {
-          Column() {
-            this.ReaderPageSlot(index, 'none')
-          }
-          .width('100%')
-          .height(Math.max(this.viewportHeight - this.layout.topAvoidHeight - this.layout.bottomAvoidHeight, 360))
-          .padding({ top: pageGap(this.preferences.pageGapMode) / 2, bottom: pageGap(this.preferences.pageGapMode) / 2 })
+          this.ReaderPageSlot(index, 'none', false, true)
         }
+        .width('100%')
       }, (index: number) => `reader-vertical-page-${index}`)
     }
-    .width('100%').height('100%').scrollBar(BarState.Off).cachedCount(2)
+    .width('100%').height('100%').scrollBar(BarState.Off).cachedCount(this.preferences.preloadPages)
+    // Image dimensions are often absent from the source payload.  Keep the
+    // List subscribed to the decoded-size revision so a row that initially
+    // used the loading fallback is immediately remeasured after decode.
+    .visibility(this.measuredPageRevision >= 0 ? Visibility.Visible : Visibility.None)
     .enableScrollInteraction(!this.zoomed)
-    .onTouch((event: TouchEvent) => { this.onOverlayTouch(event) })
-    .onScrollIndex((start: number) => {
+    .onScrollIndex((start: number, end: number) => {
+      this.verticalVisibleStart = Math.max(0, start)
+      this.verticalVisibleEnd = Math.max(this.verticalVisibleStart, end)
+      if (this.continuousInitialTarget >= 0) {
+        if (start !== this.continuousInitialTarget) {
+          return
+        }
+        this.continuousInitialTarget = -1
+      }
       if (start >= 0 && start < this.sessionConfig.totalPages && start !== this.pageIndex) {
         this.emitPageIndex(start)
         this.persistProgress(start)
@@ -908,7 +1406,10 @@ export struct ReaderPage {
   private TapZonePreview() {
     Stack() {
       ForEach(readerTapZoneRegions(this.preferences.tapZonePreset, this.preferences.tapZoneInvert), (region: ReaderTapZoneRegion) => {
-        Text(region.action === 'previous' ? s('reader_tap_zone_action_previous') : (region.action === 'next' ? s('reader_tap_zone_action_next') : s('reader_tap_zone_center')))
+        Text(region.action === 'previous' ? s('reader_tap_zone_action_previous') :
+          (region.action === 'next' ? s('reader_tap_zone_action_next') :
+            (region.action === 'left' ? s('reader_tap_zone_action_left') :
+              (region.action === 'right' ? s('reader_tap_zone_action_right') : s('reader_tap_zone_center')))))
           .fontSize(13).fontColor(Color.White).textAlign(TextAlign.Center)
           .position({ x: `${region.left * 100}%`, y: `${region.top * 100}%` })
           .width(`${(region.right - region.left) * 100}%`).height(`${(region.bottom - region.top) * 100}%`)
@@ -917,20 +1418,6 @@ export struct ReaderPage {
       }, (region: ReaderTapZoneRegion) => `tap-zone-${region.action}-${region.left}-${region.top}`)
     }
     .width('100%').height('100%').hitTestBehavior(HitTestMode.Block).onClick(() => { this.tapPreviewVisible = false })
-  }
-
-  @Builder
-  private TapOverlay() {
-    Blank()
-      .width('100%').height('100%').hitTestBehavior(HitTestMode.Transparent)
-      .onTouch((event: TouchEvent) => { this.onOverlayTouch(event) })
-      .gesture(GestureGroup(
-        GestureMode.Exclusive,
-        TapGesture({ count: 2, distanceThreshold: 8 }).onAction((event?: GestureEvent) => {
-          if (Date.now() < this.suppressTapUntil) return
-          this.zoomChanged(!this.zoomed)
-        }),
-      ))
   }
 
   @Builder
@@ -951,6 +1438,8 @@ export struct ReaderPage {
       this.ContinuousReader()
     } else if (this.effectiveMode() === ReaderMode.DUAL_PAGE) {
       this.DoublePageReader()
+    } else if (this.effectiveMode() === ReaderMode.VERTICAL_PAGE) {
+      this.SinglePageReader()
     } else {
       this.SinglePageReader()
     }
@@ -963,8 +1452,7 @@ export struct ReaderPage {
       } else {
         Blank().width('100%').height('100%')
       }
-      if (this.readerOpen && this.sessionConfig.totalPages > 0 && !this.chromeVisible && this.preferences.showProgressControls) this.PersistentPageNumber()
-      if (this.readerOpen && this.sessionConfig.totalPages > 0 && !this.chromeVisible && this.effectiveMode() !== ReaderMode.CONTINUOUS_SCROLL) this.TapOverlay()
+      if (this.readerOpen && this.sessionConfig.totalPages > 0 && !this.chromeVisible && this.preferences.showPageNumber) this.PersistentPageNumber()
       if (this.readerOpen && this.tapPreviewVisible) this.TapZonePreview()
       if (this.readerOpen && this.chromeVisible) {
         ReaderChrome({
@@ -985,8 +1473,12 @@ export struct ReaderPage {
           canGoNextChapter: this.chapterIndex() + 1 < this.sessionConfig.chapterIds.length,
           pageFailed: this.failedPages.includes(this.pageIndex),
           zoomScale: this.zoomScale,
-          onVisibleChange: (visible: boolean) => { this.emitChromeVisible(visible) },
-          onPageChange: (index: number) => { this.emitPageIndex(index) },
+          autoPageActive: this.autoPageActive,
+          onVisibleChange: (visible: boolean) => {
+            this.setReaderStatusBarForChrome(visible)
+            this.emitChromeVisible(visible)
+          },
+          onPageChange: (index: number) => { this.setPage(index, false) },
           onSeekPage: (index: number) => { this.setPage(index, false) },
           onPreviousChapter: () => { this.previousChapter() },
           onNextChapter: () => { this.nextChapter() },
@@ -995,10 +1487,11 @@ export struct ReaderPage {
           },
           onModeChange: (mode: ReaderMode) => { this.onModeChange(mode) },
           onPreferencesChange: (change: ReaderChromePreferencesChange) => { this.onPreferencesChanged(change) },
-          onCloseReader: () => { this.persistCurrentProgress(); this.onCloseReader() },
+          onCloseReader: () => { this.closeReaderRoute() },
           onOpenMangaDetail: () => { this.onOpenMangaDetail() },
           onResetZoom: () => { this.resetZoomState() },
           onReloadPage: () => { this.retryCurrentPage() },
+          onToggleAutoPage: () => { this.toggleAutoPage() },
         })
       }
     }
@@ -1006,10 +1499,12 @@ export struct ReaderPage {
     .id('reader_key_surface')
     .backgroundColor(readerBackground(this.preferences.backgroundMode))
     .focusable(true).defaultFocus(true)
-    .onAreaChange((_old: Area, next: Area) => { this.viewportWidth = next.width as number; this.viewportHeight = next.height as number })
-    .gesture(TapGesture({ count: 2, distanceThreshold: 8 }).onAction(() => {
-      if (this.readerOpen && this.sessionConfig.totalPages > 0) this.zoomChanged(!this.zoomed)
-    }))
+    .onAreaChange((_old: Area, next: Area) => {
+      this.viewportWidth = next.width as number
+      this.viewportHeight = next.height as number
+      this.readerGlobalX = next.globalPosition.x as number
+      this.readerGlobalY = next.globalPosition.y as number
+    })
     .onKeyEvent((event: KeyEvent): boolean => this.handleKeyEvent(event))
   }
 }

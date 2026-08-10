@@ -4,7 +4,7 @@ export const READER_TAP_ACTION_PREVIOUS: string = 'previous'
 export const READER_TAP_ACTION_NEXT: string = 'next'
 export const READER_TAP_ACTION_CENTER: string = 'center'
 
-export type ReaderTapZoneAction = 'previous' | 'next' | 'center'
+export type ReaderTapZoneAction = 'previous' | 'next' | 'left' | 'right' | 'center'
 
 export interface ReaderTapZoneRegion {
   action: ReaderTapZoneAction
@@ -12,14 +12,6 @@ export interface ReaderTapZoneRegion {
   top: number
   right: number
   bottom: number
-}
-
-function edgeLeftRatio(preset: ReaderTapZonePreset): number {
-  return preset === 'wide_edges' ? 0.2 : 0.16
-}
-
-function edgeRightRatio(preset: ReaderTapZonePreset): number {
-  return preset === 'wide_edges' ? 0.8 : 0.84
 }
 
 function invertRegion(
@@ -60,13 +52,37 @@ export function readerTapZoneRegions(
   preset: ReaderTapZonePreset,
   invert: ReaderTapZoneInvert,
 ): ReaderTapZoneRegion[] {
-  const leftRatio = edgeLeftRatio(preset)
-  const rightRatio = edgeRightRatio(preset)
-  const base: ReaderTapZoneRegion[] = [
-    { action: 'previous', left: 0, top: 0, right: leftRatio, bottom: 1 },
-    { action: 'center', left: leftRatio, top: 0, right: rightRatio, bottom: 1 },
-    { action: 'next', left: rightRatio, top: 0, right: 1, bottom: 1 },
-  ]
+  const oneThird = 1 / 3
+  const twoThirds = 2 / 3
+  let base: ReaderTapZoneRegion[]
+  if (preset === 'l_shaped') {
+    base = [
+      { action: 'previous', left: 0, top: 0, right: 1, bottom: oneThird },
+      { action: 'previous', left: 0, top: oneThird, right: oneThird, bottom: twoThirds },
+      { action: 'center', left: oneThird, top: oneThird, right: twoThirds, bottom: twoThirds },
+      { action: 'next', left: twoThirds, top: oneThird, right: 1, bottom: twoThirds },
+      { action: 'next', left: 0, top: twoThirds, right: 1, bottom: 1 },
+    ]
+  } else if (preset === 'kindle') {
+    base = [
+      { action: 'center', left: 0, top: 0, right: 1, bottom: oneThird },
+      { action: 'previous', left: 0, top: oneThird, right: oneThird, bottom: 1 },
+      { action: 'next', left: oneThird, top: oneThird, right: 1, bottom: 1 },
+    ]
+  } else if (preset === 'edge' || preset === 'wide_edges') {
+    base = [
+      { action: 'next', left: 0, top: 0, right: oneThird, bottom: 1 },
+      { action: 'center', left: oneThird, top: 0, right: twoThirds, bottom: twoThirds },
+      { action: 'previous', left: oneThird, top: twoThirds, right: twoThirds, bottom: 1 },
+      { action: 'next', left: twoThirds, top: 0, right: 1, bottom: 1 },
+    ]
+  } else {
+    base = [
+      { action: 'left', left: 0, top: 0, right: oneThird, bottom: 1 },
+      { action: 'center', left: oneThird, top: 0, right: twoThirds, bottom: 1 },
+      { action: 'right', left: twoThirds, top: 0, right: 1, bottom: 1 },
+    ]
+  }
   return base.map((region: ReaderTapZoneRegion): ReaderTapZoneRegion => {
     return invertRegion(region, invert)
   })
@@ -83,8 +99,8 @@ export function resolveReaderTapZoneAction(
   if (viewWidth <= 0 || viewHeight <= 0) {
     return 'center'
   }
-  const normalizedX = x / viewWidth
-  const normalizedY = y / viewHeight
+  const normalizedX = Math.min(Math.max(x / viewWidth, 0), 1)
+  const normalizedY = Math.min(Math.max(y / viewHeight, 0), 1)
   const regions = readerTapZoneRegions(preset, invert)
   for (let index = 0; index < regions.length; index += 1) {
     const region = regions[index]
