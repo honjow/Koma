@@ -2,9 +2,12 @@ import { ReaderTapZoneInvert, ReaderTapZonePreset } from './ReaderPreferencesSto
 
 export const READER_TAP_ACTION_PREVIOUS: string = 'previous'
 export const READER_TAP_ACTION_NEXT: string = 'next'
-export const READER_TAP_ACTION_CENTER: string = 'center'
+export const READER_TAP_ACTION_MENU: string = 'menu'
+// Kept as a source-compatible alias for callers written against the pre-NextE
+// Koma name; new resolver output uses the exact NextE `menu` action.
+export const READER_TAP_ACTION_CENTER: string = READER_TAP_ACTION_MENU
 
-export type ReaderTapZoneAction = 'previous' | 'next' | 'left' | 'right' | 'center'
+export type ReaderTapZoneAction = 'previous' | 'next' | 'left' | 'right' | 'menu' | 'center'
 
 export interface ReaderTapZoneRegion {
   action: ReaderTapZoneAction
@@ -59,27 +62,27 @@ export function readerTapZoneRegions(
     base = [
       { action: 'previous', left: 0, top: 0, right: 1, bottom: oneThird },
       { action: 'previous', left: 0, top: oneThird, right: oneThird, bottom: twoThirds },
-      { action: 'center', left: oneThird, top: oneThird, right: twoThirds, bottom: twoThirds },
+      { action: 'menu', left: oneThird, top: oneThird, right: twoThirds, bottom: twoThirds },
       { action: 'next', left: twoThirds, top: oneThird, right: 1, bottom: twoThirds },
       { action: 'next', left: 0, top: twoThirds, right: 1, bottom: 1 },
     ]
   } else if (preset === 'kindle') {
     base = [
-      { action: 'center', left: 0, top: 0, right: 1, bottom: oneThird },
+      { action: 'menu', left: 0, top: 0, right: 1, bottom: oneThird },
       { action: 'previous', left: 0, top: oneThird, right: oneThird, bottom: 1 },
       { action: 'next', left: oneThird, top: oneThird, right: 1, bottom: 1 },
     ]
   } else if (preset === 'edge' || preset === 'wide_edges') {
     base = [
       { action: 'next', left: 0, top: 0, right: oneThird, bottom: 1 },
-      { action: 'center', left: oneThird, top: 0, right: twoThirds, bottom: twoThirds },
+      { action: 'menu', left: oneThird, top: 0, right: twoThirds, bottom: twoThirds },
       { action: 'previous', left: oneThird, top: twoThirds, right: twoThirds, bottom: 1 },
       { action: 'next', left: twoThirds, top: 0, right: 1, bottom: 1 },
     ]
   } else {
     base = [
       { action: 'left', left: 0, top: 0, right: oneThird, bottom: 1 },
-      { action: 'center', left: oneThird, top: 0, right: twoThirds, bottom: 1 },
+      { action: 'menu', left: oneThird, top: 0, right: twoThirds, bottom: 1 },
       { action: 'right', left: twoThirds, top: 0, right: 1, bottom: 1 },
     ]
   }
@@ -97,7 +100,7 @@ export function resolveReaderTapZoneAction(
   viewHeight: number,
 ): ReaderTapZoneAction {
   if (viewWidth <= 0 || viewHeight <= 0) {
-    return 'center'
+    return 'menu'
   }
   const normalizedX = Math.min(Math.max(x / viewWidth, 0), 1)
   const normalizedY = Math.min(Math.max(y / viewHeight, 0), 1)
@@ -109,5 +112,5 @@ export function resolveReaderTapZoneAction(
       return region.action
     }
   }
-  return 'center'
+  return 'menu'
 }

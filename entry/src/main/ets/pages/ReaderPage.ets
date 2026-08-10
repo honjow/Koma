@@ -1180,7 +1180,7 @@ export struct ReaderPage {
       }
       return
     }
-    if (!this.preferences.tapNavigationEnabled || action === 'center') {
+    if (!this.preferences.tapNavigationEnabled || action === 'center' || action === 'menu') {
       this.toggleChrome()
     } else if (action === 'previous' || (action === 'left' && this.preferences.readingDirection !== ReadingDirection.RIGHT_TO_LEFT) ||
       (action === 'right' && this.preferences.readingDirection === ReadingDirection.RIGHT_TO_LEFT)) {
@@ -1495,11 +1495,11 @@ export struct ReaderPage {
         Text(region.action === 'previous' ? s('reader_tap_zone_action_previous') :
           (region.action === 'next' ? s('reader_tap_zone_action_next') :
             (region.action === 'left' ? s('reader_tap_zone_action_left') :
-              (region.action === 'right' ? s('reader_tap_zone_action_right') : s('reader_tap_zone_center')))))
+              (region.action === 'right' ? s('reader_tap_zone_action_right') : s('reader_tap_zone_action_menu')))))
           .fontSize(13).fontColor(Color.White).textAlign(TextAlign.Center)
           .position({ x: `${region.left * 100}%`, y: `${region.top * 100}%` })
           .width(`${(region.right - region.left) * 100}%`).height(`${(region.bottom - region.top) * 100}%`)
-          .backgroundColor(region.action === 'center' ? '#33000000' : '#336E8F7D')
+          .backgroundColor(region.action === 'center' || region.action === 'menu' ? '#33000000' : '#336E8F7D')
           .border({ width: 1, color: '#55FFFFFF' })
       }, (region: ReaderTapZoneRegion) => `tap-zone-${region.action}-${region.left}-${region.top}`)
     }
