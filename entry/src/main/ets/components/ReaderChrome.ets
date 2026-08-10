@@ -63,6 +63,7 @@ export struct ReaderChrome {
   @Param zoomScale: number = 1
   @Param autoPageActive: boolean = false
   @Param canTurnOnePageInDoublePage: boolean = false
+  @Param thumbStripVisible: boolean = false
   @Event onVisibleChange: (visible: boolean) => void = (_visible: boolean) => {}
   @Event onPageChange: (pageIndex: number) => void = (_pageIndex: number) => {}
   @Event onSeekPage: (pageIndex: number) => void = (_pageIndex: number) => {}
@@ -77,6 +78,8 @@ export struct ReaderChrome {
   @Event onReloadPage: () => void = () => {}
   @Event onToggleAutoPage: () => void = () => {}
   @Event onTurnOnePageInDoublePage: () => void = () => {}
+  @Event onToggleThumbStrip: () => void = () => {}
+  @BuilderParam thumbnailStrip?: () => void
 
   @Local private settingsShown: boolean = false
   @Local private moreShown: boolean = false
@@ -510,35 +513,53 @@ export struct ReaderChrome {
 
   @Builder
   private BottomBar() {
-    Column({ space: ThemeConstants.SPACE_XS }) {
-      Row({ space: 4 }) {
-        Text(`${this.pageIndex + 1}`).fontSize(14).fontColor(Color.White).width(30).textAlign(TextAlign.Start)
-        Slider({ value: this.pageIndex + 1, min: 1, max: Math.max(this.pageTotal, 1), step: 1, style: SliderStyle.InSet, reverse: this.preferences.readingDirection === ReadingDirection.RIGHT_TO_LEFT })
-          .layoutWeight(1).trackColor('#33FFFFFF').selectedColor(ThemeConstants.BRAND_PRIMARY)
-          .onChange((value: number, mode: SliderChangeMode) => {
-            const target = Math.max(0, Math.min(Math.round(value) - 1, Math.max(this.pageTotal - 1, 0)))
-            if (this.readerMode === ReaderMode.CONTINUOUS_SCROLL || mode === SliderChangeMode.End) this.onSeekPage(target)
-            else this.onPageChange(target)
-          })
-        Text(`${Math.max(this.pageTotal, 0)}`).fontSize(14).fontColor(Color.White).width(30).textAlign(TextAlign.End)
-      }.width('100%').height(32)
-      Row() {
-        Button({ type: ButtonType.Circle, stateEffect: true }) { SymbolGlyph($r('sys.symbol.book')).fontSize(22).fontColor([this.readerMode === ReaderMode.DUAL_PAGE ? ThemeConstants.BRAND_PRIMARY : Color.White]) }
-          .width(44).height(44).backgroundColor(Color.Transparent).enabled(this.pageTotal > 1).onClick(() => { this.onModeChange(this.readerMode === ReaderMode.DUAL_PAGE ? ReaderMode.SINGLE_PAGE : ReaderMode.DUAL_PAGE) })
-        if (this.readerMode === ReaderMode.DUAL_PAGE) {
-          Button({ type: ButtonType.Circle, stateEffect: true }) { SymbolGlyph($r('sys.symbol.transfer')).fontSize(22).fontColor([this.canTurnOnePageInDoublePage ? Color.White : ThemeConstants.STATUS_MUTED]) }
-            .width(44).height(44).backgroundColor(Color.Transparent).enabled(this.canTurnOnePageInDoublePage).onClick(() => { this.onTurnOnePageInDoublePage() })
+    Stack({ alignContent: Alignment.Bottom }) {
+      Column() {
+        if (this.thumbStripVisible && this.thumbnailStrip) {
+          this.thumbnailStrip()
         }
-        Blank().layoutWeight(1)
-        Text(this.chapterText()).fontSize(13).fontColor(Color.White).maxLines(1).textOverflow({ overflow: TextOverflow.Ellipsis })
-        Blank().layoutWeight(1)
-        Button({ type: ButtonType.Circle, stateEffect: true }) { SymbolGlyph($r('sys.symbol.clock')).fontSize(22).fontColor([this.autoPageActive ? ThemeConstants.BRAND_PRIMARY : Color.White]) }
-          .width(44).height(44).backgroundColor(Color.Transparent).enabled(this.readerMode !== ReaderMode.CONTINUOUS_SCROLL).onClick(() => { this.onToggleAutoPage() })
-        Button({ type: ButtonType.Circle, stateEffect: true }) { SymbolGlyph(this.readerMode === ReaderMode.CONTINUOUS_SCROLL ? $r('sys.symbol.scroll_vertical') : $r('sys.symbol.arrow_right_and_square')).fontSize(22).fontColor([Color.White]) }
-          .width(44).height(44).backgroundColor(Color.Transparent).onClick(() => { this.modeShown = true }).bindMenu(this.modeShown, this.ModeMenu, { placement: Placement.TopRight, onDisappear: () => { this.modeShown = false } })
-      }.width('100%').height(52).padding({ left: ThemeConstants.SPACE_LG, right: ThemeConstants.SPACE_LG }).alignItems(VerticalAlign.Center)
+      }
+      .width('100%')
+      .height(this.thumbStripVisible ? 156 : 0)
+      .padding({ top: this.thumbStripVisible ? ThemeConstants.SPACE_SM : 0, bottom: this.thumbStripVisible ? ThemeConstants.SPACE_SM : 0 })
+      .margin({ bottom: this.bottomInset + 104 })
+      .backgroundColor('#CC000000')
+      .clip(true)
+      .hitTestBehavior(this.thumbStripVisible ? HitTestMode.Default : HitTestMode.None)
+
+      Column({ space: ThemeConstants.SPACE_XS }) {
+        Row({ space: 4 }) {
+          Text(`${this.pageIndex + 1}`).fontSize(14).fontColor(Color.White).width(30).textAlign(TextAlign.Start)
+          Slider({ value: this.pageIndex + 1, min: 1, max: Math.max(this.pageTotal, 1), step: 1, style: SliderStyle.InSet, reverse: this.preferences.readingDirection === ReadingDirection.RIGHT_TO_LEFT })
+            .layoutWeight(1).trackColor('#33FFFFFF').selectedColor(ThemeConstants.BRAND_PRIMARY)
+            .onChange((value: number, mode: SliderChangeMode) => {
+              const target = Math.max(0, Math.min(Math.round(value) - 1, Math.max(this.pageTotal - 1, 0)))
+              if (this.readerMode === ReaderMode.CONTINUOUS_SCROLL || mode === SliderChangeMode.End) this.onSeekPage(target)
+              else this.onPageChange(target)
+            })
+          Text(`${Math.max(this.pageTotal, 0)}`).fontSize(14).fontColor(Color.White).width(30).textAlign(TextAlign.End)
+        }.width('100%').height(32)
+        Row() {
+          Button({ type: ButtonType.Circle, stateEffect: true }) { SymbolGlyph($r('sys.symbol.book')).fontSize(22).fontColor([this.readerMode === ReaderMode.DUAL_PAGE ? ThemeConstants.BRAND_PRIMARY : Color.White]) }
+            .width(44).height(44).backgroundColor(Color.Transparent).enabled(this.pageTotal > 1).onClick(() => { this.onModeChange(this.readerMode === ReaderMode.DUAL_PAGE ? ReaderMode.SINGLE_PAGE : ReaderMode.DUAL_PAGE) })
+          if (this.readerMode === ReaderMode.DUAL_PAGE) {
+            Button({ type: ButtonType.Circle, stateEffect: true }) { SymbolGlyph($r('sys.symbol.transfer')).fontSize(22).fontColor([this.canTurnOnePageInDoublePage ? Color.White : ThemeConstants.STATUS_MUTED]) }
+              .width(44).height(44).backgroundColor(Color.Transparent).enabled(this.canTurnOnePageInDoublePage).onClick(() => { this.onTurnOnePageInDoublePage() })
+          }
+          Blank().layoutWeight(1)
+          Text(this.chapterText()).fontSize(13).fontColor(Color.White).maxLines(1).textOverflow({ overflow: TextOverflow.Ellipsis })
+          Blank().layoutWeight(1)
+          Button({ type: ButtonType.Circle, stateEffect: true }) { SymbolGlyph($r('sys.symbol.clock')).fontSize(22).fontColor([this.autoPageActive ? ThemeConstants.BRAND_PRIMARY : Color.White]) }
+            .width(44).height(44).backgroundColor(Color.Transparent).enabled(this.readerMode !== ReaderMode.CONTINUOUS_SCROLL).onClick(() => { this.onToggleAutoPage() })
+          Button({ type: ButtonType.Circle, stateEffect: true }) { SymbolGlyph($r('sys.symbol.rectangle_grid_2x1')).fontSize(22).fontColor([this.thumbStripVisible ? ThemeConstants.BRAND_PRIMARY : Color.White]) }
+            .width(44).height(44).backgroundColor(Color.Transparent).onClick(() => { this.onToggleThumbStrip() })
+          Button({ type: ButtonType.Circle, stateEffect: true }) { SymbolGlyph(this.readerMode === ReaderMode.CONTINUOUS_SCROLL ? $r('sys.symbol.scroll_vertical') : $r('sys.symbol.arrow_right_and_square')).fontSize(22).fontColor([Color.White]) }
+            .width(44).height(44).backgroundColor(Color.Transparent).onClick(() => { this.modeShown = true }).bindMenu(this.modeShown, this.ModeMenu, { placement: Placement.TopRight, onDisappear: () => { this.modeShown = false } })
+        }.width('100%').height(52).padding({ left: ThemeConstants.SPACE_LG, right: ThemeConstants.SPACE_LG }).alignItems(VerticalAlign.Center)
+      }
+      .width('100%').height(this.bottomInset + 104).padding({ left: ThemeConstants.SPACE_LG, right: ThemeConstants.SPACE_LG, top: ThemeConstants.SPACE_SM, bottom: this.bottomInset + ThemeConstants.SPACE_SM }).backgroundColor('#CC000000')
     }
-    .width('100%').padding({ left: ThemeConstants.SPACE_LG, right: ThemeConstants.SPACE_LG, top: ThemeConstants.SPACE_SM, bottom: this.bottomInset + ThemeConstants.SPACE_SM }).backgroundColor('#CC000000').hitTestBehavior(HitTestMode.Default)
+    .width('100%').height(this.bottomInset + 104 + (this.thumbStripVisible ? 156 : 0)).hitTestBehavior(HitTestMode.Default)
   }
 
   build() {

@@ -55,6 +55,10 @@ const READER_MAX_EFFECTIVE_ZOOM_SCALE: number = 48
 const READER_PINCH_ELASTIC_MIN_SCALE: number = 0.8
 const READER_PINCH_UNDER_SCALE_RESISTANCE: number = 0.35
 const READER_WIDE_RATIO: number = 1.2
+const READER_THUMB_STRIP_HEIGHT: number = 140
+const READER_THUMB_TILE_WIDTH: number = 86
+const READER_THUMB_TILE_HEIGHT: number = 112
+const READER_THUMB_DECODE_MAX_EDGE: number = 192
 
 const EMPTY_RENDER_SOURCE: ReaderPageRenderSource = {
   kind: ReaderPageRenderKind.URI_PLACEHOLDER,
@@ -665,6 +669,140 @@ struct ReaderImageSurface {
   }
 }
 
+/**
+ * The NextE thumbnail strip is driven by page metadata.  Koma does not have
+ * a second thumbnail URL per page, so this tile deliberately goes through the
+ * canonical ReaderPageSourceAdapter and decodes a bounded PixelMap from the
+ * same cache used by the reader surface.  It never issues an unbounded
+ * full-resolution render just to paint a thumbnail.
+ */
+@ComponentV2
+struct ReaderThumbnailTile {
+  @Param source: ReaderPageRenderSource = EMPTY_RENDER_SOURCE
+  @Param pageIndex: number = 0
+  @Param selected: boolean = false
+  @Event onTap: (pageIndex: number) => void = (_pageIndex: number) => {}
+
+  @Local private pixelMap: image.PixelMap | undefined = undefined
+  @Local private loading: boolean = false
+  @Local private failed: boolean = false
+  private disposed: boolean = false
+  private generation: number = 0
+
+  aboutToAppear(): void {
+    this.disposed = false
+    void this.resolveThumbnail()
+  }
+
+  aboutToDisappear(): void {
+    this.disposed = true
+    this.generation += 1
+    void this.releasePixelMap()
+  }
+
+  @Monitor('source')
+  onSourceChanged(): void {
+    void this.resolveThumbnail()
+  }
+
+  private async releasePixelMap(): Promise<void> {
+    const map = this.pixelMap
+    this.pixelMap = undefined
+    if (map !== undefined) {
+      try {
+        await map.release()
+      } catch (_error) {
+      }
+    }
+  }
+
+  private async resolveThumbnail(): Promise<void> {
+    this.generation += 1
+    const run = this.generation
+    this.loading = true
+    this.failed = false
+    await this.releasePixelMap()
+    if (this.source.kind === ReaderPageRenderKind.URI_PLACEHOLDER || this.source.imageUri.length === 0) {
+      this.loading = false
+      this.failed = true
+      return
+    }
+    let imageSource: image.ImageSource | undefined = undefined
+    try {
+      const filePath = await fetchAndCacheReaderRemoteSource(this.source)
+      if (this.disposed || run !== this.generation) {
+        return
+      }
+      imageSource = image.createImageSource(filePath)
+      const info = await imageSource.getImageInfo()
+      if (this.disposed || run !== this.generation) {
+        return
+      }
+      const sourceWidth = Math.max(1, info.size.width)
+      const sourceHeight = Math.max(1, info.size.height)
+      const scale = Math.min(1, READER_THUMB_DECODE_MAX_EDGE / Math.max(sourceWidth, sourceHeight))
+      const map = await imageSource.createPixelMap({
+        desiredSize: {
+          width: Math.max(1, Math.round(sourceWidth * scale)),
+          height: Math.max(1, Math.round(sourceHeight * scale)),
+        },
+      })
+      if (this.disposed || run !== this.generation) {
+        await map.release()
+        return
+      }
+      this.pixelMap = map
+      this.failed = false
+    } catch (_error) {
+      if (!this.disposed && run === this.generation) {
+        this.failed = true
+      }
+    } finally {
+      if (imageSource !== undefined) {
+        try {
+          await imageSource.release()
+        } catch (_error) {
+        }
+      }
+      if (!this.disposed && run === this.generation) {
+        this.loading = false
+      }
+    }
+  }
+
+  build() {
+    Stack({ alignContent: Alignment.Center }) {
+      if (this.pixelMap !== undefined) {
+        Image(this.pixelMap)
+          .width('100%')
+          .height('100%')
+          .objectFit(ImageFit.Contain)
+          .interpolation(ImageInterpolation.Medium)
+      } else if (this.loading) {
+        LoadingProgress().width(20).height(20).color('#CCFFFFFF')
+      } else if (this.failed) {
+        SymbolGlyph($r('sys.symbol.exclamationmark_triangle'))
+          .fontSize(18)
+          .fontColor(['#CCFFFFFF'])
+      }
+      Text(`${this.pageIndex + 1}`)
+        .fontSize(11)
+        .fontColor(Color.White)
+        .padding({ left: 5, right: 5, top: 2, bottom: 2 })
+        .borderRadius(8)
+        .backgroundColor('#AA000000')
+        .position({ right: 4, bottom: 4 })
+    }
+    .width(READER_THUMB_TILE_WIDTH)
+    .height(READER_THUMB_TILE_HEIGHT)
+    .border({ width: this.selected ? 2 : 1, color: this.selected ? ThemeConstants.BRAND_PRIMARY : '#55FFFFFF' })
+    .borderRadius(ThemeConstants.RADIUS_CARD)
+    .backgroundColor('#33000000')
+    .clip(true)
+    .onClick(() => { this.onTap(this.pageIndex) })
+  }
+}
+
 @ComponentV2
 export struct ReaderPage {
   @Param readerOpen: boolean = false
@@ -699,6 +837,7 @@ export struct ReaderPage {
   @Local private settingsReady: boolean = false
   @Local private tapPreviewVisible: boolean = false
   @Local private autoPageActive: boolean = false
+  @Local private thumbnailStripVisible: boolean = false
   @Local private verticalVisibleStart: number = 0
   @Local private verticalVisibleEnd: number = 0
   @Local private verticalZoomedPage: number = -1
@@ -714,6 +853,7 @@ export struct ReaderPage {
   private swiperController: SwiperController = new SwiperController()
   private doublePageSwiperController: SwiperController = new SwiperController()
   private listScroller: Scroller = new Scroller()
+  private thumbnailScroller: Scroller = new Scroller()
   private statusBarHideTimerId: number = -1
   private statusBarEpoch: number = 0
   private volumeDownConsumer: ((event: InputConsumerKeyEvent) => void) | null = null
@@ -1292,6 +1432,22 @@ export struct ReaderPage {
     if (this.failedPages.includes(index)) this.failedPages = this.failedPages.filter((item: number) => item !== index)
   }
 
+  private toggleThumbnailStrip(): void {
+    this.thumbnailStripVisible = !this.thumbnailStripVisible
+    if (this.thumbnailStripVisible) {
+      setTimeout(() => {
+        this.scrollThumbnailStripTo(this.pageIndex, false)
+      }, 0)
+    }
+  }
+
+  private scrollThumbnailStripTo(index: number, animated: boolean): void {
+    if (!this.thumbnailStripVisible || index < 0 || index >= this.sessionConfig.totalPages) {
+      return
+    }
+    this.thumbnailScroller.scrollToIndex(index, animated, ScrollAlign.CENTER)
+  }
+
   private zoomChanged(zoomed: boolean): void {
     this.zoomed = zoomed
     if (!zoomed) {
@@ -1354,6 +1510,7 @@ export struct ReaderPage {
   private emitPageIndex(value: number): void {
     this.onPageIndexChange(value)
     this.$pageIndex(value)
+    this.scrollThumbnailStripTo(value, true)
   }
 
   private emitChromeVisible(value: boolean): void {
@@ -1669,6 +1826,34 @@ export struct ReaderPage {
   }
 
   @Builder
+  private ReaderThumbnailStrip() {
+    List({ initialIndex: this.pageIndex, scroller: this.thumbnailScroller, space: ThemeConstants.SPACE_SM }) {
+      ForEach(this.pageIndexes(), (index: number) => {
+        ListItem() {
+          ReaderThumbnailTile({
+            source: this.sourceFor(index),
+            pageIndex: index,
+            selected: index === this.pageIndex,
+            onTap: (target: number) => {
+              this.setPage(target, false)
+              this.scrollThumbnailStripTo(target, true)
+            },
+          })
+        }
+        .margin({
+          left: index === 0 ? ThemeConstants.SPACE_LG : 0,
+          right: index === this.sessionConfig.totalPages - 1 ? ThemeConstants.SPACE_LG : 0,
+        })
+      }, (index: number) => `reader-thumb-${index}-${this.sourceFor(index).uri}`)
+    }
+    .listDirection(Axis.Horizontal)
+    .direction(this.preferences.readingDirection === ReadingDirection.RIGHT_TO_LEFT ? Direction.Rtl : Direction.Ltr)
+    .scrollBar(BarState.Off)
+    .height(READER_THUMB_STRIP_HEIGHT)
+    .width('100%')
+  }
+
+  @Builder
   private TapZonePreview() {
     Stack() {
       ForEach(readerTapZoneRegions(this.preferences.tapZonePreset, this.preferences.tapZoneInvert), (region: ReaderTapZoneRegion) => {
@@ -1742,6 +1927,8 @@ export struct ReaderPage {
           zoomScale: this.zoomScale,
           autoPageActive: this.autoPageActive,
           canTurnOnePageInDoublePage: this.canTurnOnePageInDoublePage(),
+          thumbStripVisible: this.thumbnailStripVisible,
+          thumbnailStrip: (): void => { this.ReaderThumbnailStrip() },
           onVisibleChange: (visible: boolean) => {
             this.setReaderStatusBarForChrome(visible)
             this.emitChromeVisible(visible)
@@ -1761,6 +1948,7 @@ export struct ReaderPage {
           onReloadPage: () => { this.retryCurrentPage() },
           onToggleAutoPage: () => { this.toggleAutoPage() },
           onTurnOnePageInDoublePage: () => { this.turnOnePageInDoublePage() },
+          onToggleThumbStrip: () => { this.toggleThumbnailStrip() },
         })
       }
     }
