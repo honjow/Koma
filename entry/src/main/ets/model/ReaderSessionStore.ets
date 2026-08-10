@@ -76,7 +76,7 @@ export interface ReaderSessionPersistenceAdapter {
 }
 
 export const READER_PROGRESS_PERSISTENCE_FILE_NAME: string = 'reader-sessions.v1.json'
-export const READER_PROGRESS_PERSISTENCE_SCHEMA_VERSION: number = 1
+export const READER_PROGRESS_PERSISTENCE_SCHEMA_VERSION = 1
 
 interface ReaderSessionDocument {
   schemaVersion: number
@@ -115,7 +115,11 @@ export class AppFilesReaderSessionPersistenceAdapter implements ReaderSessionPer
     try {
       const payload = fs.readTextSync(this.filePath, { encoding: 'utf-8' })
       const document = JSON.parse(payload) as ReaderSessionDocument
-      if (document.schemaVersion !== READER_PROGRESS_PERSISTENCE_SCHEMA_VERSION || !Array.isArray(document.progress)) {
+      if (document.schemaVersion !== READER_PROGRESS_PERSISTENCE_SCHEMA_VERSION) {
+        console.warn(`Unsupported reader progress schema version: ${document.schemaVersion}`)
+        return []
+      }
+      if (!Array.isArray(document.progress)) {
         return []
       }
       return document.progress
@@ -267,6 +271,34 @@ export function createReaderSessionConfigFromComic(
     pageWidths: chapter === undefined ? [] : chapter.pages.map((page) => page.width),
     pageHeights: chapter === undefined ? [] : chapter.pages.map((page) => page.height),
   }
+}
+
+export function getReaderSessionPageUri(config: ReaderSessionConfig, pageIndex: number): string {
+  if (pageIndex < 0 || pageIndex >= config.pageUris.length) {
+    return ''
+  }
+  return config.pageUris[pageIndex]
+}
+
+export function getReaderSessionPageId(config: ReaderSessionConfig, pageIndex: number): string | undefined {
+  if (config.pageIds === undefined || pageIndex < 0 || pageIndex >= config.pageIds.length) {
+    return undefined
+  }
+  return config.pageIds[pageIndex]
+}
+
+export function getReaderSessionPageWidth(config: ReaderSessionConfig, pageIndex: number): number | undefined {
+  if (config.pageWidths === undefined || pageIndex < 0 || pageIndex >= config.pageWidths.length) {
+    return undefined
+  }
+  return config.pageWidths[pageIndex]
+}
+
+export function getReaderSessionPageHeight(config: ReaderSessionConfig, pageIndex: number): number | undefined {
+  if (config.pageHeights === undefined || pageIndex < 0 || pageIndex >= config.pageHeights.length) {
+    return undefined
+  }
+  return config.pageHeights[pageIndex]
 }
 
 export function readerSessionConfigFor(

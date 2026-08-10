@@ -78,7 +78,9 @@ import {
   OfflineDownloadStore,
 } from '../model/OfflineDownloadStore'
 import {
+  AppFilesReaderSessionPersistenceAdapter,
   InMemoryReaderSessionStore,
+  PersistentReaderSessionStore,
   ReaderSessionConfig,
   ReaderSessionStore,
   createReaderSessionConfigFromComic,
@@ -134,6 +136,7 @@ struct Index {
   private sourceRegistry: SourceRuntimeRegistry = sourceRuntimeRegistry
   private appPathStack: NavPathStack = new NavPathStack()
   private libraryPersistenceService?: LibraryStorePersistenceService
+  private readerSessionPersistenceReady: boolean = false
   private libraryPersistenceRestored: boolean = false
   private automaticBackupChecked: boolean = false
   private pendingTrackerProgressChecked: boolean = false
@@ -734,6 +737,16 @@ struct Index {
     })
     RouterHelper.consumePendingLaunchRoute()
     const context = getContext(this) as common.UIAbilityContext
+    if (!this.readerSessionPersistenceReady && context.filesDir !== undefined && context.filesDir.length > 0) {
+      try {
+        this.readerSessionStore = new PersistentReaderSessionStore(
+          new AppFilesReaderSessionPersistenceAdapter(context.filesDir),
+        )
+        this.readerSessionPersistenceReady = true
+      } catch (_error) {
+        console.warn('[Reader] step=restore_progress_failed reason=session_store')
+      }
+    }
     configureSourceSettingsStore(context)
     configureSourceFilterPreferencesStore(context)
     bootstrapSourceRuntimeAppRegistry(context)

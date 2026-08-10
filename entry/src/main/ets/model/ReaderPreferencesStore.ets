@@ -35,6 +35,7 @@ export interface ReaderPreferences {
 }
 
 const READER_PREFERENCES_STORE_NAME: string = 'koma_reader_preferences_v1'
+export const SERIES_OVERRIDES_KEY: string = 'reader.seriesOverrides.v1'
 
 export const DEFAULT_READER_PREFERENCES: ReaderPreferences = {
   pageMode: 'single_page',
@@ -141,6 +142,82 @@ export function normalizeReaderPreferences(value: ReaderPreferences): ReaderPref
     volumeKeyNavigationEnabled: value.volumeKeyNavigationEnabled === true,
     volumeKeyBehavior: normalizeReaderVolumeKeyBehavior(value.volumeKeyBehavior),
   }
+}
+
+function normalizeReaderDirection(value: string, fallback: ReadingDirection): ReadingDirection {
+  if (value === ReadingDirection.RIGHT_TO_LEFT) {
+    return ReadingDirection.RIGHT_TO_LEFT
+  }
+  if (value === ReadingDirection.WEBTOON) {
+    return ReadingDirection.WEBTOON
+  }
+  if (value === ReadingDirection.LEFT_TO_RIGHT) {
+    return ReadingDirection.LEFT_TO_RIGHT
+  }
+  return fallback
+}
+
+function stringField(record: Record<string, Object>, key: string, fallback: string): string {
+  const value = record[key]
+  return typeof value === 'string' ? value : fallback
+}
+
+function booleanField(record: Record<string, Object>, key: string, fallback: boolean): boolean {
+  const value = record[key]
+  return typeof value === 'boolean' ? value : fallback
+}
+
+function preferencesFromRecord(record: Record<string, Object>, fallback: ReaderPreferences): ReaderPreferences {
+  return normalizeReaderPreferences({
+    pageMode: normalizeReaderPageMode(stringField(record, 'pageMode', fallback.pageMode)),
+    readingDirection: normalizeReaderDirection(stringField(record, 'readingDirection', fallback.readingDirection), fallback.readingDirection),
+    themeMode: normalizeReaderThemeMode(stringField(record, 'themeMode', fallback.themeMode)),
+    backgroundMode: normalizeReaderBackgroundMode(stringField(record, 'backgroundMode', fallback.backgroundMode)),
+    showProgressControls: booleanField(record, 'showProgressControls', fallback.showProgressControls),
+    keepScreenAwake: booleanField(record, 'keepScreenAwake', fallback.keepScreenAwake),
+    imageFitMode: normalizeReaderImageFitMode(stringField(record, 'imageFitMode', fallback.imageFitMode)),
+    tapNavigationEnabled: booleanField(record, 'tapNavigationEnabled', fallback.tapNavigationEnabled),
+    swipeNavigationEnabled: booleanField(record, 'swipeNavigationEnabled', fallback.swipeNavigationEnabled),
+    zoomGesturesEnabled: booleanField(record, 'zoomGesturesEnabled', fallback.zoomGesturesEnabled),
+    tapZonePreset: normalizeReaderTapZonePreset(stringField(record, 'tapZonePreset', fallback.tapZonePreset)),
+    tapZoneInvert: normalizeReaderTapZoneInvert(stringField(record, 'tapZoneInvert', fallback.tapZoneInvert)),
+    showTapZones: booleanField(record, 'showTapZones', fallback.showTapZones),
+    pageGapMode: normalizeReaderPageGapMode(stringField(record, 'pageGapMode', fallback.pageGapMode)),
+    trimPageMarginsEnabled: booleanField(record, 'trimPageMarginsEnabled', fallback.trimPageMarginsEnabled),
+    wideImageMode: normalizeReaderWideImageMode(stringField(record, 'wideImageMode', fallback.wideImageMode)),
+    volumeKeyNavigationEnabled: booleanField(record, 'volumeKeyNavigationEnabled', fallback.volumeKeyNavigationEnabled),
+    volumeKeyBehavior: normalizeReaderVolumeKeyBehavior(stringField(record, 'volumeKeyBehavior', fallback.volumeKeyBehavior)),
+  })
+}
+
+/**
+ * Normalize the versioned per-series preference payload before it can affect
+ * the live reader. Corrupt rows and empty comic identifiers are discarded.
+ */
+export function normalizeReaderSeriesPreferenceOverrides(value: string): Record<string, ReaderPreferences> {
+  if (value.length === 0) {
+    return {}
+  }
+  let parsed: Object
+  try {
+    parsed = JSON.parse(value) as Object
+  } catch (_error) {
+    return {}
+  }
+  if (typeof parsed !== 'object' || Array.isArray(parsed)) {
+    return {}
+  }
+  const source = parsed as Record<string, Object>
+  const normalized: Record<string, ReaderPreferences> = {}
+  Object.keys(source).forEach((comicId: string) => {
+    const key = comicId.trim()
+    const raw = source[comicId]
+    if (key.length === 0 || raw === undefined || raw === null || typeof raw !== 'object' || Array.isArray(raw)) {
+      return
+    }
+    normalized[key] = preferencesFromRecord(raw as Record<string, Object>, DEFAULT_READER_PREFERENCES)
+  })
+  return normalized
 }
 
 export function getReaderPageModeLabel(mode: ReaderPageMode): string {
@@ -338,8 +415,20 @@ export class ReaderPreferencesStore {
     })
   }
 
-  async loadForComic(_comicId: string): Promise<ReaderPreferences> {
-    return this.load()
+  async loadForComic(comicId: string): Promise<ReaderPreferences> {
+    const global = await this.load()
+    const key = comicId.trim()
+    if (key.length === 0) {
+      return global
+    }
+    const store = await this.preferences()
+    const payload = await store.get(SERIES_OVERRIDES_KEY, '') as string
+    const overrides = normalizeReaderSeriesPreferenceOverrides(payload)
+    const override = overrides[key]
+    if (override === undefined) {
+      return global
+    }
+    return normalizeReaderPreferences(override)
   }
 
   async save(preferences: ReaderPreferences): Promise<ReaderPreferences> {
@@ -363,6 +452,21 @@ export class ReaderPreferencesStore {
     await store.put('reader.wideImageMode', normalized.wideImageMode)
     await store.put('reader.volumeKeyNavigationEnabled', normalized.volumeKeyNavigationEnabled)
     await store.put('reader.volumeKeyBehavior', normalized.volumeKeyBehavior)
+    await store.flush()
+    return normalized
+  }
+
+  async saveForComic(comicId: string, preferences: ReaderPreferences): Promise<ReaderPreferences> {
+    const normalized = normalizeReaderPreferences(preferences)
+    const key = comicId.trim()
+    if (key.length === 0) {
+      return this.save(normalized)
+    }
+    const store = await this.preferences()
+    const payload = await store.get(SERIES_OVERRIDES_KEY, '') as string
+    const overrides = normalizeReaderSeriesPreferenceOverrides(payload)
+    overrides[key] = normalized
+    await store.put(SERIES_OVERRIDES_KEY, JSON.stringify(overrides))
     await store.flush()
     return normalized
   }
