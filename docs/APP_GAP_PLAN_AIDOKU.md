@@ -131,6 +131,38 @@ Koma 已经具备本地/私有库优先漫画阅读器的主骨架：书架、Re
 
 已有：单页、连续/Webtoon、双页、RTL 双页、沉浸 chrome、图片适配、点击翻页、页面间距、非裁剪收紧页边、宽图旋转、音量键翻页、屏幕常亮、进度显示。
 
+### NextE 参考增量（2026-08-10）
+
+功能矩阵以 Aidoku 为蓝本已经齐全；剩余差距主要在工程深度，参考 NextE
+`feature/reader`（ReaderPage 8367 行 + ReaderViewModel 1146 行 + shared 工具）的已验证实现，
+按价值排序：
+
+1. Mihon 式 tap zone：4 布局（RIGHT_LEFT / L_SHAPED / KINDLE / EDGE）+ 3 向 invert +
+   5 动作（menu / previous / next / left / right）。NextE `ReaderTapZoneResolver` 是纯几何
+   工具类，可参考移植；Koma 当前只有 edge / wide_edges 两种 preset。
+2. 缩放质量：动态 max scale（4-12，按图尺寸）、double-tap 定位缩放、pinch 弹性下限、
+   native scale headroom（放大时按原图分辨率渲染）。Koma 已有基础 zoom 与 pixelMap
+   解码管线，增量在质量层与定位。
+3. 加载管线：会话缓存（8 个快照）、preview page 并发预取（perPage ~20）、far-jump
+   并发 GET、loading / retry / auto-retry UI。Koma 目前逐页加载，改造点在
+   `ReaderPageSourceAdapter` 层。
+4. 缩略图条（thumb strip）+ slider 拖拽预览目标页：对长章节 Webtoon 提升最明显。
+5. 图片缓存限额设置（256MB-2GB 分级）：Koma 有 LRU 但无用户可见限额设置。
+
+不纳入：NextE 超分辨率（MindSpore/NNRT）与漫画翻译是其产品线，与 Koma 私有本地书架
+定位不符。
+
+路线（Phase 0-4，每阶段绑定现有 gate 证据）：
+
+- Phase 0 基线验收：197 真机闭合 KG-004 页面基线 + KG-002 Reader 日常可用性，跑
+  D41/D52 矩阵脚本。先有基线，后动 Reader。
+- Phase 1 交互深度：tap zone 4 布局 + invert；double-tap 定位缩放、pinch 弹性、
+  放大切原图分辨率。绑定 KG-002/KG-005。
+- Phase 2 加载与导航：会话缓存 + preview 并发预取；缩略图条 + slider 预览。
+  绑定 KG-001（下载后阅读体验）。
+- Phase 3 缓存管理：图片缓存限额设置页 + 缓存统计/清理。
+- Phase 4 QA 矩阵固化：全模式设备矩阵自动化脚本，每次 Reader 改动绑定证据。
+
 ### D39：宽图拆分
 
 交付：
@@ -400,3 +432,6 @@ Koma 已经具备本地/私有库优先漫画阅读器的主骨架：书架、Re
 2. D34/D35 已有实现，优先补真实设备矩阵，不再重复造下载/Reader 结构。
 3. D51 Source browsing parity 已补 Pura X runtime smoke：真实 MangaDex `.koma` source 的 source index、home、listings、filters、默认 listing、filtered listing 均通过；Browse UI 到详情、加入书架、阅读、下载后阅读的主路径也已在 Pura X 通过；source settings 手动主路径也已通过 Pura X UI smoke（进入设置、保存、验证 PASS）。下一步继续推进源包开发/编译验证到阅读器使用的闭环。
 4. 随后推进 D52 Reader advanced QA：focus/音量键、tap zone、wide split/rotate/trim 的设备矩阵。
+5. 2026-08-10：真机验收设备改为 `192.168.50.197:12345`（模拟器减少使用）。Reader
+   路线按 P2 "NextE 参考增量" 的 Phase 0-4 推进，当前先做 Phase 0 基线验收
+   （KG-004/KG-002 当前构建矩阵），随后进入 Phase 1 交互深度。
