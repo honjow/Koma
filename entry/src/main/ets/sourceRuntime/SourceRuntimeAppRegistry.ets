@@ -23,6 +23,7 @@ import {
   SourceRuntimeRegistry,
   SourceRuntimeRegistryEntry,
 } from './SourceRuntimeRegistry'
+import { SourceRuntimeStateBridge } from '../state/SourceRuntimeState'
 
 const IMPORTED_SOURCE_ROUTE: string = 'app-local-source-package'
 const APP_SOURCE_ROOT_NAME: string = 'source-runtime'
@@ -601,6 +602,9 @@ export async function restoreSourcePackagesFromBackup(
     restoredCount += 1
   }
   persistInstalledSources(context)
+  if (restoredCount > 0) {
+    SourceRuntimeStateBridge.notifyChanged()
+  }
   return { ok: true, restoredCount }
 }
 
@@ -612,12 +616,22 @@ export function reloadInstalledSourcePackages(context: common.UIAbilityContext):
     return
   }
   const entries = reloaded.registry.list()
+  let changed: boolean = false
   for (let index = 0; index < entries.length; index += 1) {
     const entry = entries[index]
-    if (appSourceRuntimeRegistry.lookup(entry.sourceId).ok) {
-      continue
+    const existing = appSourceRuntimeRegistry.lookup(entry.sourceId).entry
+    if (existing !== undefined) {
+      const unchanged = existing.importStatus === entry.importStatus &&
+        existing.manifestVersion === entry.manifestVersion &&
+        existing.wasmByteCount === entry.wasmByteCount
+      if (unchanged) {
+        continue
+      }
+      if (appSourceRuntimeRegistry.remove(entry.sourceId) !== undefined) {
+        changed = true
+      }
     }
-    appSourceRuntimeRegistry.register({
+    const registered = appSourceRuntimeRegistry.register({
       sourceId: entry.sourceId,
       route: entry.route,
       importStatus: entry.importStatus,
@@ -660,6 +674,12 @@ export function reloadInstalledSourcePackages(context: common.UIAbilityContext):
       wasmPath: entry.wasmPath,
       archivePath: entry.archivePath,
     })
+    if (registered.ok) {
+      changed = true
+    }
+  }
+  if (changed) {
+    SourceRuntimeStateBridge.notifyChanged()
   }
 }
 
@@ -743,6 +763,7 @@ async function registerSourcePackageFromBytes(
       }
     }
     console.info('[SourceManager] step=import_ok id=' + sourceId)
+    SourceRuntimeStateBridge.notifyChanged()
     return { ok: true, id: sourceId, name: imported.manifest.package.name }
   } catch (_error) {
     if (registeredReplacementSourceId.length > 0) {
@@ -799,6 +820,7 @@ export function setEnabled(context: common.UIAbilityContext, id: string, enabled
     return false
   }
   persistInstalledSources(context)
+  SourceRuntimeStateBridge.notifyChanged()
   console.info('[SourceManager] step=' + (enabled ? 'enable' : 'disable') + ' id=' + id)
   return true
 }
@@ -819,6 +841,7 @@ export async function remove(context: common.UIAbilityContext, id: string): Prom
   appSourceFilterPreferencesStore.removeSource(id)
   clearSourceRuntimeDiagnostic(id)
   persistInstalledSources(context)
+  SourceRuntimeStateBridge.notifyChanged()
   console.info('[SourceManager] step=remove id=' + id)
   return true
 }

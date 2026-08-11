@@ -53,6 +53,14 @@ function normalizeIndexUrl(value: string): string {
   return value.trim().replace(/\/+$/, '')
 }
 
+function resolveIndexDocumentUrl(value: string): string {
+  const normalized = normalizeIndexUrl(value)
+  if (!isValidHttpUrl(normalized) || normalized.endsWith('.json')) {
+    return normalized
+  }
+  return `${normalized}/index.json`
+}
+
 function normalizeRepositoryLastUsedAt(value: Object | undefined): number {
   return typeof value === 'number' && Number.isFinite(value) && value > 0 ? Math.floor(value) : 0
 }
@@ -330,7 +338,7 @@ export class SourceIndexService {
   }
 
   async fetchIndex(indexUrl: string): Promise<SourceIndexFetchResult> {
-    const normalizedUrl = normalizeIndexUrl(indexUrl)
+    const normalizedUrl = resolveIndexDocumentUrl(indexUrl)
     if (!isValidHttpUrl(normalizedUrl)) {
       return { ok: false, reasonCode: 'invalid_url', entries: [] }
     }
@@ -387,7 +395,7 @@ export class SourceIndexService {
       return { ok: false, reasonCode: 'app_version_unsupported' }
     }
 
-    const pkgUrl = safeResolvePkgUrl(normalizeIndexUrl(indexUrl), entry.pkg)
+    const pkgUrl = safeResolvePkgUrl(resolveIndexDocumentUrl(indexUrl), entry.pkg)
     if (!isValidHttpUrl(pkgUrl)) {
       return { ok: false, reasonCode: 'invalid_pkg_url' }
     }
