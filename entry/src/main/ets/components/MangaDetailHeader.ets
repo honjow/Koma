@@ -32,11 +32,6 @@ export struct MangaDetailHeader {
     return this.manga.title.length > 0 ? this.manga.title : s('manga_detail_title_fallback')
   }
 
-  private titleInitial(): string {
-    const title = this.displayTitle()
-    return title.length > 0 ? title.substring(0, 1) : 'K'
-  }
-
   private creatorText(): string {
     const author = this.manga.author === undefined ? '' : this.manga.author
     const artist = this.manga.artist === undefined ? '' : this.manga.artist
@@ -102,10 +97,9 @@ export struct MangaDetailHeader {
       } else {
         Column() {
           Blank()
-          Text(this.titleInitial())
+          SymbolGlyph($r('sys.symbol.book'))
             .fontSize(48)
-            .fontWeight(FontWeight.Bold)
-            .fontColor(ThemeConstants.TEXT_ON_BRAND)
+            .fontColor([ThemeConstants.TEXT_ON_BRAND])
           Blank()
         }
         .width('100%')

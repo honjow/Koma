@@ -4,6 +4,7 @@ import {
   hdsMaterial,
   HdsNavDestination,
   HdsNavigation,
+  HdsAnimationMode,
   HdsNavigationTitleMode,
   HdsTabs,
   HdsTabsController,
@@ -38,6 +39,7 @@ import { TrackerSettingsPage } from './TrackerSettingsPage'
 import { RouteName, TabIndex, tabLabel } from '../common/Constants'
 import { MangaDetailRouteParam, RouterHelper } from '../common/RouterHelper'
 import { KomaTabIcon } from '../components/KomaTabIcon'
+import { ThemeConstants } from '../theme/ThemeConstants'
 import {
   LibraryPresentationByComicId,
   MOCK_LIBRARY_READER_SESSION,
@@ -99,6 +101,8 @@ import { configureSourceSettingsStore } from '../sourceRuntime/SourceSettingsSto
 import { configureSourceFilterPreferencesStore } from '../sourceRuntime/SourceFilterPreferencesStore'
 import { AppStrings } from '../i18n/AppStrings'
 import { connectLanguageState, LanguageState } from '../state/LanguageState'
+import { connectLayoutSafeArea, LayoutSafeAreaState } from '../state/LayoutSafeAreaState'
+import { connectReaderOverlayNavigation, ReaderOverlayNavigationState } from '../state/ReaderOverlayNavigationState'
 import { BackupService, BackupAutomaticRunResult } from '../model/BackupService'
 import { TrackerPendingProgressDrainSummary, TrackerProgressSyncService } from '../model/TrackerProgressSyncService'
 
@@ -106,8 +110,6 @@ const readerSessionStore: ReaderSessionStore = new InMemoryReaderSessionStore()
 const seededLibraryStore: LibraryStore = createSeededLibraryStore()
 const libraryPresentationByComicId: LibraryPresentationByComicId = createMockLibraryPresentationMap()
 const sourceRuntimeRegistry: SourceRuntimeRegistry = appSourceRuntimeRegistry
-const READER_ROUTE_TRANSITION_MS: number = 360
-
 interface SettingsPaneRouteParam {
   pane: string
 }
@@ -116,11 +118,25 @@ interface SourceRouteParam {
   source: SourceRuntimeRegistryInstalledSourceSummary
 }
 
+@Builder
+function ReaderOverlayBackdropRoute() {
+  HdsNavDestination() {
+    Column() {}
+      .width('100%')
+      .height('100%')
+      .backgroundColor(Color.Transparent)
+  }
+  .hideTitleBar(true)
+  .backgroundColor(Color.Transparent)
+}
+
 @Entry
 @ComponentV2
 struct Index {
   @Local selectedTab: number = TabIndex.LIBRARY
   @Local private languageState: LanguageState = connectLanguageState()
+  @Local private layoutSafeArea: LayoutSafeAreaState = connectLayoutSafeArea()
+  @Local private readerOverlay: ReaderOverlayNavigationState = connectReaderOverlayNavigation()
   @Local private readerOpen: boolean = false
   @Local private readerClosing: boolean = false
   @Local private readerPageIndex: number = 0
@@ -132,6 +148,7 @@ struct Index {
   @Local private searchRouteQuery: string = ''
   @Local private searchRouteSerial: number = 0
   private tabController: HdsTabsController = new HdsTabsController()
+  private tabBarHiddenForKeyboard: boolean = false
   private readerSessionStore: ReaderSessionStore = readerSessionStore
   private libraryStore: LibraryStore = seededLibraryStore
   private presentationByComicId: LibraryPresentationByComicId = libraryPresentationByComicId
@@ -142,8 +159,20 @@ struct Index {
   private libraryPersistenceRestored: boolean = false
   private automaticBackupChecked: boolean = false
   private pendingTrackerProgressChecked: boolean = false
-  private readerCloseTimerId: number = -1
-  private readerRouteEpoch: number = 0
+
+  @Monitor('layoutSafeArea.keyboardHeight')
+  private updateRootTabBarForKeyboard(): void {
+    const shouldHide: boolean = this.layoutSafeArea.keyboardHeight > 0
+    if (shouldHide === this.tabBarHiddenForKeyboard) {
+      return
+    }
+    this.tabBarHiddenForKeyboard = shouldHide
+    if (shouldHide) {
+      this.tabController.applyHideAnimation(HdsAnimationMode.SCROLL_ANIMATION)
+      return
+    }
+    this.tabController.applyShowAnimation(HdsAnimationMode.SCROLL_ANIMATION)
+  }
 
   private refreshLibrarySnapshot(): void {
     this.libraryComics = this.libraryStore.listComics()
@@ -170,7 +199,11 @@ struct Index {
       return false
     }
     const chapter = comic.chapters.find((item: Chapter): boolean => item.id === chapterId)
-    return chapter !== undefined && chapter.pages.length === 0
+    // Source pages contain remotely issued request descriptors rather than
+    // immutable local files.  Keep an existing page list only for the
+    // offline branch above; every online open must re-hydrate it so source
+    // upgrades and expiring page URLs cannot leave Reader on stale data.
+    return chapter !== undefined
   }
 
   private logReaderSourcePagesUnavailable(reasonCode?: string): void {
@@ -220,7 +253,12 @@ struct Index {
         () => {
           this.refreshLibrarySnapshot()
         },
-      ).ensureChapterPages(comic.id, comic.sourceRuntimeId, chapterId as string)
+      // Source page descriptors are not durable image assets: a source upgrade
+      // can change their shape, and many hosts issue short-lived page URLs or
+      // headers.  An online Reader open therefore refreshes the chapter's
+      // descriptors before it hands them to the page cache.  Offline chapters
+      // take the earlier local-file branch and never pay this request.
+      ).ensureChapterPages(comic.id, comic.sourceRuntimeId, chapterId as string, true)
       if (!result.hydrated) {
         this.logReaderSourcePagesUnavailable(result.reasonCode)
         return false
@@ -257,12 +295,22 @@ struct Index {
     this.readerSessionConfig = nextSessionConfig
     this.readerPageIndex = this.readerSessionStore.restorePageIndex(this.readerSessionConfig)
     this.readerChromeVisible = false
-    this.clearReaderCloseTimer()
-    this.readerRouteEpoch += 1
-    this.readerClosing = false
     if (shouldPresentReader) {
+      if (this.readerClosing) {
+        this.readerOverlay.reset()
+      }
+      this.readerClosing = false
       this.readerOpen = true
-      this.appPathStack.pushPath({ name: RouteName.READER }, true)
+      this.readerOverlay.open()
+      // Unlike NextE's overlay host, the local HDS navigation wrapper does
+      // not reliably emit onAppear for its first transparent destination.
+      // Queue the Reader push after that backdrop has been rendered so the
+      // animation still has a stable route beneath it.
+      setTimeout(() => {
+        if (this.readerOpen && !this.readerClosing) {
+          this.readerOverlay.presentPendingReader()
+        }
+      }, 0)
       return
     }
   }
@@ -345,8 +393,17 @@ struct Index {
         const page = validation.manifest.pages.find((item: OfflineDownloadedPage): boolean => item.pageIndex === index)
         const pageId = page?.pageId ?? `page-${index + 1}`
         pageIds.push(pageId)
-        pageUris.push(store.resolveDownloadedPage(comic.id, chapterId, pageId, index, { validateContentHash: false }) ??
-          createReaderOfflineMissingUri(comic.id, chapterId, index))
+        // `validateDownloadedChapter` above is the one structural validation
+        // for this open: it already checks the manifest identity, safe root,
+        // each page index, file existence and byte size. Calling
+        // `resolveDownloadedPage` here would repeat that full validation once
+        // for every page (53 × for the affected chapter) before ReaderPage can
+        // even present. Keep a corrupt manifest fail-closed; for a validated
+        // downloaded or partial chapter, hand its local path to the session.
+        const localPagePath = hasReaderReadyPages ? (page?.localPath ?? '') : ''
+        pageUris.push(localPagePath.length > 0
+          ? localPagePath
+          : createReaderOfflineMissingUri(comic.id, chapterId, index))
         pageWidths.push(page?.width)
         pageHeights.push(page?.height)
       }
@@ -385,25 +442,19 @@ struct Index {
     }
     this.readerClosing = true
     this.readerChromeVisible = false
-    const epoch = ++this.readerRouteEpoch
-    // Keep ReaderPage mounted while NavPathStack performs its normal pop
-    // transition. Clearing readerOpen before pop was what made exit snap away.
-    this.appPathStack.pop(true)
-    this.readerCloseTimerId = setTimeout(() => {
-      this.readerCloseTimerId = -1
-      if (epoch !== this.readerRouteEpoch) {
-        return
-      }
-      this.readerOpen = false
-      this.readerClosing = false
-    }, READER_ROUTE_TRANSITION_MS)
+    // Pop owns the exit presentation.  The overlay host stays mounted until
+    // the route reports that it has actually disappeared; a fixed timer tears
+    // it down too early on a busy frame and produces the observed snap.
+    this.readerOverlay.close()
   }
 
-  private clearReaderCloseTimer(): void {
-    if (this.readerCloseTimerId >= 0) {
-      clearTimeout(this.readerCloseTimerId)
-      this.readerCloseTimerId = -1
+  private finishReaderOverlayClose(): void {
+    if (!this.readerClosing) {
+      return
     }
+    this.readerOverlay.finishClose()
+    this.readerOpen = false
+    this.readerClosing = false
   }
 
   private openReaderMangaDetail(): void {
@@ -442,17 +493,23 @@ struct Index {
     this.appPathStack.pushPath({ name: RouteName.SETTINGS_PANE, param: routeParam })
   }
 
+  private selectRootTab(index: number): void {
+    this.selectedTab = index
+    this.tabController.changeIndex(index)
+  }
+
   private openSearchQuery(query: string): void {
     const normalizedQuery = query.trim()
     if (normalizedQuery.length === 0) {
       return
     }
-    this.readerOpen = false
+    if (this.readerOpen) {
+      this.closeReader()
+    }
     this.appPathStack.clear()
     this.searchRouteQuery = normalizedQuery
     this.searchRouteSerial += 1
-    this.selectedTab = TabIndex.SEARCH
-    this.tabController.changeIndex(TabIndex.SEARCH)
+    this.selectRootTab(TabIndex.SEARCH)
   }
 
   private settingsPaneFromParam(param: Object): SettingsPaneKey {
@@ -484,7 +541,7 @@ struct Index {
       }
     }
     this.refreshLibrarySnapshot()
-    this.selectedTab = 0
+    this.selectRootTab(TabIndex.LIBRARY)
   }
 
   private handleLocalFolderImportSucceeded(scanResult: LocalLibraryFolderScanResult, rootUri: string): LocalFolderImportPersistResult {
@@ -543,7 +600,7 @@ struct Index {
     }
     if (importedCount > 0) {
       this.refreshLibrarySnapshot()
-      this.selectedTab = 0
+      this.selectRootTab(TabIndex.LIBRARY)
     }
     return {
       importedCount,
@@ -759,6 +816,12 @@ struct Index {
   }
 
   aboutToAppear(): void {
+    // The overlay stack is process-wide so it can outlive a recreated root
+    // component during package replacement.  A recreated Index has no active
+    // Reader session yet; discard only that stale visual shell.
+    if (!this.readerOpen && this.readerOverlay.visible) {
+      this.readerOverlay.reset()
+    }
     RouterHelper.setAppPathStack(this.appPathStack)
     RouterHelper.setSearchOpener((param) => {
       this.openSearchQuery(param.query)
@@ -805,44 +868,69 @@ struct Index {
   }
 
   @Builder
-  private AppDestination(name: string, param: Object) {
-    if (name === RouteName.READER) {
-      HdsNavDestination() {
+  private ReaderDestination() {
+    HdsNavDestination() {
         ReaderPage({
           readerOpen: this.readerOpen!!,
-          pageIndex: this.readerPageIndex!!,
-          chromeVisible: this.readerChromeVisible!!,
-          webtoonMode: this.readerWebtoonMode!!,
-          sessionStore: this.readerSessionStore,
-          sessionConfig: this.readerSessionConfig,
-          onPageIndexChange: (value: number) => {
-            this.readerPageIndex = value
-          },
-          onChromeVisibleChange: (value: boolean) => {
-            this.readerChromeVisible = value
-          },
-          onWebtoonModeChange: (value: boolean) => {
-            this.readerWebtoonMode = value
-          },
-          onCloseReader: () => {
-            this.closeReader()
-          },
-          onOpenMangaDetail: () => {
-            this.openReaderMangaDetail()
-          },
-          onOpenChapter: (chapterId: string) => {
-            if (this.readerSessionConfig.comicId.length > 0) {
-              void this.openReader(this.readerSessionConfig.comicId, chapterId)
-            }
+        pageIndex: this.readerPageIndex!!,
+        chromeVisible: this.readerChromeVisible!!,
+        webtoonMode: this.readerWebtoonMode!!,
+        sessionStore: this.readerSessionStore,
+        sessionConfig: this.readerSessionConfig,
+        onPageIndexChange: (value: number) => {
+          this.readerPageIndex = value
+        },
+        onChromeVisibleChange: (value: boolean) => {
+          this.readerChromeVisible = value
+        },
+        onWebtoonModeChange: (value: boolean) => {
+          this.readerWebtoonMode = value
+        },
+        onCloseReader: () => {
+          this.closeReader()
+        },
+        onOpenMangaDetail: () => {
+          this.openReaderMangaDetail()
+        },
+        onOpenChapter: (chapterId: string) => {
+          if (this.readerSessionConfig.comicId.length > 0) {
+            void this.openReader(this.readerSessionConfig.comicId, chapterId)
           }
-        })
-      }
-      .hideTitleBar(true)
-      .onBackPressed(() => {
-        this.closeReader()
-        return true
+        }
       })
-    } else if (name === RouteName.IMPORT) {
+    }
+    .hideTitleBar(true)
+    // Reader is a full-window overlay, so use an explicit fade rather than
+    // depending on the navigation host's default transition.  The transparent
+    // backdrop remains in the private stack until onDisAppear, allowing the
+    // underlying app to be revealed continuously on both entry and exit.
+    .systemTransition(NavigationSystemTransitionType.FADE)
+    .onBackPressed(() => {
+      this.closeReader()
+      return true
+    })
+    .onDisAppear(() => {
+      // Match NextE's route-owned close lifecycle: only after the system has
+      // finished the reader destination's pop may the transparent host be
+      // removed from the root stack.
+      this.finishReaderOverlayClose()
+    })
+  }
+
+  @Builder
+  private ReaderOverlayDestination(name: string, _param: Object) {
+    if (name === 'ReaderOverlayBackdrop') {
+      ReaderOverlayBackdropRoute()
+    } else if (name === RouteName.READER) {
+      this.ReaderDestination()
+    } else {
+      Column() {}
+    }
+  }
+
+  @Builder
+  private AppDestination(name: string, param: Object) {
+    if (name === RouteName.IMPORT) {
       HdsNavDestination() {
         ImportPage({
           onArchiveImportSucceeded: (comic: Comic) => {
@@ -1078,7 +1166,7 @@ struct Index {
     Stack() {
       if (this.languageState.effectiveLocale.length >= 0) {
         HdsNavigation(this.appPathStack) {
-          HdsTabs({ controller: this.tabController, index: this.selectedTab }) {
+          HdsTabs({ controller: this.tabController }) {
             TabContent() {
               LibraryPage({
                 libraryStore: this.libraryStore,
@@ -1115,7 +1203,7 @@ struct Index {
                 libraryPersistenceService: this.ensureLibraryPersistenceService(),
                 onLibraryChanged: () => {
                   this.refreshLibrarySnapshot()
-                  this.selectedTab = TabIndex.LIBRARY
+                  this.selectRootTab(TabIndex.LIBRARY)
                 },
                 onOpenReader: (comicId: string, chapterId?: string) => {
                   void this.openReader(comicId, chapterId)
@@ -1156,7 +1244,7 @@ struct Index {
                 libraryPersistenceService: this.ensureLibraryPersistenceService(),
                 onLibraryChanged: () => {
                   this.refreshLibrarySnapshot()
-                  this.selectedTab = TabIndex.LIBRARY
+                  this.selectRootTab(TabIndex.LIBRARY)
                 }
               })
             }.tabBar(this.TabIcon(tabLabel(TabIndex.SEARCH), TabIndex.SEARCH))
@@ -1215,7 +1303,7 @@ struct Index {
           .scrollable(false)
           .animationDuration(0)
           .barFloatingStyle({
-            barBottomMargin: 16,
+            barBottomMargin: ThemeConstants.SPACE_XL,
             adaptToHandedness: true,
             systemMaterialEffect: {
               materialType: hdsMaterial.MaterialType.ADAPTIVE,
@@ -1240,6 +1328,20 @@ struct Index {
         .width('100%')
         .height('100%')
         .backgroundColor($r('sys.color.ohos_id_color_sub_background'))
+      }
+      if (this.readerOverlay.visible) {
+        HdsNavigation(this.readerOverlay.stack) {
+          Column() {}
+        }
+        .navDestination(this.ReaderOverlayDestination)
+        .hideNavBar(true)
+        .width('100%')
+        .height('100%')
+        .backgroundColor(Color.Transparent)
+        .onAppear(() => {
+          this.readerOverlay.presentPendingReader()
+        })
+        .id('reader-overlay-navigation')
       }
     }
     .width('100%')

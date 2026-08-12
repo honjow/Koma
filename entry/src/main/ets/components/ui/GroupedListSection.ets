@@ -24,6 +24,30 @@ export struct GroupedListSection {
   @BuilderParam content: () => void
   @Param inset: number = ThemeConstants.LIST_SECTION_INSET
   @Param radius: number = ThemeConstants.RADIUS_CARD
+  @Provider('koma.groupedList.surfaceRadius') private surfaceRadius: number =
+    ThemeConstants.GROUPED_LIST_INNER_RADIUS
+
+  private resolvedSurfaceRadius(): number {
+    return Math.max(0, this.radius - this.inset)
+  }
+
+  private syncSurfaceRadius(): void {
+    this.surfaceRadius = this.resolvedSurfaceRadius()
+  }
+
+  aboutToAppear(): void {
+    this.syncSurfaceRadius()
+  }
+
+  @Monitor('radius')
+  private onRadiusChanged(): void {
+    this.syncSurfaceRadius()
+  }
+
+  @Monitor('inset')
+  private onInsetChanged(): void {
+    this.syncSurfaceRadius()
+  }
 
   build() {
     Column() {

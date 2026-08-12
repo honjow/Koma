@@ -5,6 +5,7 @@
 #include <string>
 #include <vector>
 
+#include "http_host.h"
 #include "wasm_runtime_adapter.h"
 
 #if __has_include(<hilog/log.h>)
@@ -133,6 +134,17 @@ napi_value RunJsonCallFromBytes(napi_env env, napi_callback_info info)
     return CreateUtf8(env, response);
 }
 
+napi_value ConfigureHttpTransport(napi_env env, napi_callback_info info)
+{
+    size_t argc = 1;
+    napi_value argv[1] = {nullptr};
+    napi_get_cb_info(env, info, &argc, argv, nullptr, nullptr);
+    bool configured = argc == 1 && koma::http::ConfigureArkTsHttpTransport(env, argv[0]);
+    napi_value result = nullptr;
+    napi_get_boolean(env, configured, &result);
+    return result;
+}
+
 } // namespace
 
 EXTERN_C_START
@@ -143,6 +155,7 @@ static napi_value Init(napi_env env, napi_value exports)
         {"add", nullptr, Add, nullptr, nullptr, nullptr, napi_default, nullptr},
         {"runJsonCall", nullptr, RunJsonCall, nullptr, nullptr, nullptr, napi_default, nullptr},
         {"runJsonCallFromBytes", nullptr, RunJsonCallFromBytes, nullptr, nullptr, nullptr, napi_default, nullptr},
+        {"configureHttpTransport", nullptr, ConfigureHttpTransport, nullptr, nullptr, nullptr, napi_default, nullptr},
     };
     napi_define_properties(env, exports, sizeof(descriptors) / sizeof(descriptors[0]), descriptors);
     return exports;

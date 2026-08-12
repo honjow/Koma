@@ -34,12 +34,8 @@ export interface ReaderPreferences {
   preloadPages: number
   spreadLayoutMode: ReaderSpreadLayoutMode
   columnMode: ReaderColumnMode
-  tapNavigationEnabled: boolean
-  swipeNavigationEnabled: boolean
-  zoomGesturesEnabled: boolean
   tapZonePreset: ReaderTapZonePreset
   tapZoneInvert: ReaderTapZoneInvert
-  showTapZones: boolean
   pageGapMode: ReaderPageGapMode
   trimPageMarginsEnabled: boolean
   wideImageMode: ReaderWideImageMode
@@ -66,14 +62,10 @@ export const DEFAULT_READER_PREFERENCES: ReaderPreferences = {
   preloadPages: 2,
   spreadLayoutMode: 'joined',
   columnMode: 'odd_left',
-  tapNavigationEnabled: true,
-  swipeNavigationEnabled: true,
-  zoomGesturesEnabled: true,
   // NextE's default RIGHT_LEFT layout is the neutral three-zone contract;
   // legacy edge layouts remain available as explicit user choices.
   tapZonePreset: 'right_left',
   tapZoneInvert: 'none',
-  showTapZones: false,
   pageGapMode: 'normal',
   trimPageMarginsEnabled: false,
   wideImageMode: 'keep_single',
@@ -153,7 +145,7 @@ export function normalizeReaderPageGapMode(value: string): ReaderPageGapMode {
 }
 
 export function normalizeReaderTapZonePreset(value: string): ReaderTapZonePreset {
-  if (value === 'wide_edges' || value === 'right_left' || value === 'l_shaped' || value === 'kindle') {
+  if (value === 'edge' || value === 'wide_edges' || value === 'right_left' || value === 'l_shaped' || value === 'kindle') {
     return value
   }
   return 'right_left'
@@ -201,17 +193,8 @@ export function normalizeReaderPreferences(value: ReaderPreferences): ReaderPref
     preloadPages: normalizeReaderPreloadPages(value.preloadPages),
     spreadLayoutMode: normalizeReaderSpreadLayoutMode(value.spreadLayoutMode),
     columnMode: normalizeReaderColumnMode(value.columnMode),
-    // These are intrinsic reader interactions in NextE, not user-facing
-    // modes. Keep the legacy fields in the persisted schema, but normalize
-    // old false values back to the always-on contract.
-    tapNavigationEnabled: true,
-    swipeNavigationEnabled: true,
-    zoomGesturesEnabled: true,
     tapZonePreset: normalizeReaderTapZonePreset(value.tapZonePreset),
     tapZoneInvert: normalizeReaderTapZoneInvert(value.tapZoneInvert),
-    // Tap-zone feedback is a transient preview shown after changing the
-    // layout. It is not a persistent on/off mode.
-    showTapZones: false,
     pageGapMode: normalizeReaderPageGapMode(value.pageGapMode),
     trimPageMarginsEnabled: value.trimPageMarginsEnabled === true,
     wideImageMode: normalizeReaderWideImageMode(value.wideImageMode),
@@ -243,12 +226,8 @@ export function readerPreferencesFromRuntimeState(columnMode: ReaderColumnMode):
     preloadPages: normalizeReaderPreloadPages(runtime.preloadPages),
     spreadLayoutMode: normalizeReaderSpreadLayoutMode(runtime.spreadLayoutMode),
     columnMode: normalizeReaderColumnMode(runtime.columnMode),
-    tapNavigationEnabled: true,
-    swipeNavigationEnabled: true,
-    zoomGesturesEnabled: true,
     tapZonePreset: normalizeReaderTapZonePreset(runtime.tapZonePreset),
     tapZoneInvert: normalizeReaderTapZoneInvert(runtime.tapZoneInvert),
-    showTapZones: false,
     pageGapMode: normalizeReaderPageGapMode(runtime.pageGapMode),
     trimPageMarginsEnabled: runtime.trimPageMarginsEnabled,
     wideImageMode: normalizeReaderWideImageMode(runtime.wideImageMode),
@@ -324,12 +303,8 @@ function preferencesFromRecord(record: Record<string, Object>, fallback: ReaderP
     preloadPages: normalizeReaderPreloadPages(Number(record['preloadPages'] ?? fallback.preloadPages)),
     spreadLayoutMode: normalizeReaderSpreadLayoutMode(stringField(record, 'spreadLayoutMode', fallback.spreadLayoutMode)),
     columnMode: normalizeReaderColumnMode(stringField(record, 'columnMode', fallback.columnMode)),
-    tapNavigationEnabled: booleanField(record, 'tapNavigationEnabled', fallback.tapNavigationEnabled),
-    swipeNavigationEnabled: booleanField(record, 'swipeNavigationEnabled', fallback.swipeNavigationEnabled),
-    zoomGesturesEnabled: booleanField(record, 'zoomGesturesEnabled', fallback.zoomGesturesEnabled),
     tapZonePreset: normalizeReaderTapZonePreset(stringField(record, 'tapZonePreset', fallback.tapZonePreset)),
     tapZoneInvert: normalizeReaderTapZoneInvert(stringField(record, 'tapZoneInvert', fallback.tapZoneInvert)),
-    showTapZones: booleanField(record, 'showTapZones', fallback.showTapZones),
     pageGapMode: normalizeReaderPageGapMode(stringField(record, 'pageGapMode', fallback.pageGapMode)),
     trimPageMarginsEnabled: booleanField(record, 'trimPageMarginsEnabled', fallback.trimPageMarginsEnabled),
     wideImageMode: normalizeReaderWideImageMode(stringField(record, 'wideImageMode', fallback.wideImageMode)),
@@ -488,27 +463,11 @@ export function getReaderProgressControlsLabel(enabled: boolean): string {
   return enabled ? AppStrings.get('common_on') : AppStrings.get('common_off')
 }
 
-export function getReaderSwipeNavigationLabel(enabled: boolean): string {
-  return enabled ? AppStrings.get('common_on') : AppStrings.get('common_off')
-}
-
-export function getReaderShowTapZonesLabel(enabled: boolean): string {
-  return enabled ? AppStrings.get('common_on') : AppStrings.get('common_off')
-}
-
-export function getReaderTapNavigationLabel(enabled: boolean): string {
-  return enabled ? AppStrings.get('common_on') : AppStrings.get('common_off')
-}
-
 export function getReaderTrimPageMarginsLabel(enabled: boolean): string {
   return enabled ? AppStrings.get('common_on') : AppStrings.get('common_off')
 }
 
 export function getReaderVolumeKeyNavigationLabel(enabled: boolean): string {
-  return enabled ? AppStrings.get('common_on') : AppStrings.get('common_off')
-}
-
-export function getReaderZoomGesturesLabel(enabled: boolean): string {
   return enabled ? AppStrings.get('common_on') : AppStrings.get('common_off')
 }
 
@@ -540,12 +499,8 @@ export class ReaderPreferencesStore {
     const preloadPages = await store.get('reader.preloadPages', DEFAULT_READER_PREFERENCES.preloadPages) as number
     const spreadLayoutMode = await store.get('reader.spreadLayoutMode', DEFAULT_READER_PREFERENCES.spreadLayoutMode) as string
     const columnMode = await store.get('reader.columnMode', DEFAULT_READER_PREFERENCES.columnMode) as string
-    const tapNavigationEnabled = await store.get('reader.tapNavigationEnabled', DEFAULT_READER_PREFERENCES.tapNavigationEnabled) as boolean
-    const swipeNavigationEnabled = await store.get('reader.swipeNavigationEnabled', DEFAULT_READER_PREFERENCES.swipeNavigationEnabled) as boolean
-    const zoomGesturesEnabled = await store.get('reader.zoomGesturesEnabled', DEFAULT_READER_PREFERENCES.zoomGesturesEnabled) as boolean
     const tapZonePreset = await store.get('reader.tapZonePreset', DEFAULT_READER_PREFERENCES.tapZonePreset) as string
     const tapZoneInvert = await store.get('reader.tapZoneInvert', DEFAULT_READER_PREFERENCES.tapZoneInvert) as string
-    const showTapZones = await store.get('reader.showTapZones', DEFAULT_READER_PREFERENCES.showTapZones) as boolean
     const pageGapMode = await store.get('reader.pageGapMode', DEFAULT_READER_PREFERENCES.pageGapMode) as string
     const trimPageMarginsEnabled = await store.get('reader.trimPageMarginsEnabled', DEFAULT_READER_PREFERENCES.trimPageMarginsEnabled) as boolean
     const wideImageMode = await store.get('reader.wideImageMode', DEFAULT_READER_PREFERENCES.wideImageMode) as string
@@ -571,12 +526,8 @@ export class ReaderPreferencesStore {
       preloadPages: normalizeReaderPreloadPages(preloadPages),
       spreadLayoutMode: normalizeReaderSpreadLayoutMode(spreadLayoutMode),
       columnMode: normalizeReaderColumnMode(columnMode),
-      tapNavigationEnabled,
-      swipeNavigationEnabled,
-      zoomGesturesEnabled,
       tapZonePreset: normalizeReaderTapZonePreset(tapZonePreset),
       tapZoneInvert: normalizeReaderTapZoneInvert(tapZoneInvert),
-      showTapZones,
       pageGapMode: normalizeReaderPageGapMode(pageGapMode),
       trimPageMarginsEnabled,
       wideImageMode: normalizeReaderWideImageMode(wideImageMode),
@@ -618,12 +569,8 @@ export class ReaderPreferencesStore {
     await store.put('reader.preloadPages', normalized.preloadPages)
     await store.put('reader.spreadLayoutMode', normalized.spreadLayoutMode)
     await store.put('reader.columnMode', normalized.columnMode)
-    await store.put('reader.tapNavigationEnabled', normalized.tapNavigationEnabled)
-    await store.put('reader.swipeNavigationEnabled', normalized.swipeNavigationEnabled)
-    await store.put('reader.zoomGesturesEnabled', normalized.zoomGesturesEnabled)
     await store.put('reader.tapZonePreset', normalized.tapZonePreset)
     await store.put('reader.tapZoneInvert', normalized.tapZoneInvert)
-    await store.put('reader.showTapZones', normalized.showTapZones)
     await store.put('reader.pageGapMode', normalized.pageGapMode)
     await store.put('reader.trimPageMarginsEnabled', normalized.trimPageMarginsEnabled)
     await store.put('reader.wideImageMode', normalized.wideImageMode)
@@ -658,12 +605,8 @@ export class ReaderPreferencesStore {
       preloadPages: current.preloadPages,
       spreadLayoutMode: current.spreadLayoutMode,
       columnMode: current.columnMode,
-      tapNavigationEnabled: current.tapNavigationEnabled,
-      swipeNavigationEnabled: current.swipeNavigationEnabled,
-      zoomGesturesEnabled: current.zoomGesturesEnabled,
       tapZonePreset: current.tapZonePreset,
       tapZoneInvert: current.tapZoneInvert,
-      showTapZones: current.showTapZones,
       pageGapMode: current.pageGapMode,
       trimPageMarginsEnabled: current.trimPageMarginsEnabled,
       wideImageMode: current.wideImageMode,
@@ -778,27 +721,6 @@ export class ReaderPreferencesStore {
     return this.save(next)
   }
 
-  async saveTapNavigationEnabled(tapNavigationEnabled: boolean): Promise<ReaderPreferences> {
-    const current = await this.load()
-    const next = this.cloneBase(current)
-    next.tapNavigationEnabled = tapNavigationEnabled
-    return this.save(next)
-  }
-
-  async saveSwipeNavigationEnabled(swipeNavigationEnabled: boolean): Promise<ReaderPreferences> {
-    const current = await this.load()
-    const next = this.cloneBase(current)
-    next.swipeNavigationEnabled = swipeNavigationEnabled
-    return this.save(next)
-  }
-
-  async saveZoomGesturesEnabled(zoomGesturesEnabled: boolean): Promise<ReaderPreferences> {
-    const current = await this.load()
-    const next = this.cloneBase(current)
-    next.zoomGesturesEnabled = zoomGesturesEnabled
-    return this.save(next)
-  }
-
   async saveTapZonePreset(tapZonePreset: ReaderTapZonePreset): Promise<ReaderPreferences> {
     const current = await this.load()
     const next = this.cloneBase(current)
@@ -810,13 +732,6 @@ export class ReaderPreferencesStore {
     const current = await this.load()
     const next = this.cloneBase(current)
     next.tapZoneInvert = tapZoneInvert
-    return this.save(next)
-  }
-
-  async saveShowTapZones(showTapZones: boolean): Promise<ReaderPreferences> {
-    const current = await this.load()
-    const next = this.cloneBase(current)
-    next.showTapZones = showTapZones
     return this.save(next)
   }
 

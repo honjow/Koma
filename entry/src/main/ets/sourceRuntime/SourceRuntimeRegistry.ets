@@ -20,6 +20,8 @@ export interface SourceRuntimeRegistryEntryInput {
   manifestPath?: string
   wasmPath?: string
   archivePath?: string
+  presentationDescription?: string
+  presentationIcon?: string
 }
 
 export interface SourceRuntimeRegistryEntry {
@@ -42,6 +44,8 @@ export interface SourceRuntimeRegistryEntry {
   manifestPath?: string
   wasmPath?: string
   archivePath?: string
+  presentationDescription: string
+  presentationIcon: string
 }
 
 export interface SourceRuntimeRegistryRegisterResult {
@@ -76,6 +80,8 @@ export interface SourceRuntimeRegistryPersistedEntry {
   wasmPath?: string
   manifestPath?: string
   archivePath?: string
+  presentationDescription?: string
+  presentationIcon?: string
 }
 
 export interface SourceRuntimeRegistryPersistedMetadata {
@@ -111,6 +117,8 @@ export interface SourceRuntimeRegistryInstalledSourceSummary {
   nsfw: boolean
   status: string
   capabilities: string[]
+  description?: string
+  icon?: string
 }
 
 export function sourceRuntimeEntryEnabled(entry: SourceRuntimeRegistryEntry | undefined): boolean {
@@ -119,6 +127,10 @@ export function sourceRuntimeEntryEnabled(entry: SourceRuntimeRegistryEntry | un
 
 function normalizeSourceRuntimeSourceId(sourceId: string): string {
   return sourceId.trim()
+}
+
+function normalizePresentationText(value: string | undefined): string {
+  return typeof value === 'string' ? value.trim() : ''
 }
 
 function sourceRuntimeRegistryEvidence(input: SourceRuntimeRegistryEntryInput): string[] {
@@ -288,6 +300,8 @@ function persistedEntryFromRegistryEntry(entry: SourceRuntimeRegistryEntry): Sou
     wasmPath: entry.wasmPath,
     manifestPath: entry.manifestPath,
     archivePath: entry.archivePath,
+    presentationDescription: entry.presentationDescription,
+    presentationIcon: entry.presentationIcon,
   }
 }
 
@@ -362,6 +376,12 @@ function persistedEntryShapeInvalid(entry: SourceRuntimeRegistryPersistedEntry):
       }
     }
   }
+  if (entry.presentationDescription !== undefined && typeof entry.presentationDescription !== 'string') {
+    return true
+  }
+  if (entry.presentationIcon !== undefined && typeof entry.presentationIcon !== 'string') {
+    return true
+  }
   return !optionalPersistedPathIsValid(entry.manifestPath) || !optionalPersistedPathIsValid(entry.archivePath)
 }
 
@@ -405,6 +425,8 @@ export class SourceRuntimeRegistry {
       manifestPath: input.manifestPath,
       wasmPath: input.wasmPath,
       archivePath: input.archivePath,
+      presentationDescription: normalizePresentationText(input.presentationDescription),
+      presentationIcon: normalizePresentationText(input.presentationIcon),
     }
     this.entries.push(entry)
     return { ok: true, entry, sourceCount: this.entries.length }
@@ -443,6 +465,18 @@ export class SourceRuntimeRegistry {
     return false
   }
 
+  setPresentationMetadata(sourceId: string, description: string, icon: string): boolean {
+    const normalized = normalizeSourceRuntimeSourceId(sourceId)
+    for (let index = 0; index < this.entries.length; index += 1) {
+      if (this.entries[index].sourceId === normalized) {
+        this.entries[index].presentationDescription = normalizePresentationText(description)
+        this.entries[index].presentationIcon = normalizePresentationText(icon)
+        return true
+      }
+    }
+    return false
+  }
+
   remove(sourceId: string): SourceRuntimeRegistryEntry | undefined {
     const normalized = normalizeSourceRuntimeSourceId(sourceId)
     for (let index = 0; index < this.entries.length; index += 1) {
@@ -475,6 +509,8 @@ export class SourceRuntimeRegistry {
         nsfw: entry.nsfw,
         status: entry.importStatus,
         capabilities: entry.capabilities,
+        description: entry.presentationDescription,
+        icon: entry.presentationIcon,
       }
       summaries.push(summary)
     }
@@ -575,6 +611,8 @@ export class SourceRuntimeRegistry {
           manifestPath: entry.manifestPath,
           wasmPath,
           archivePath: entry.archivePath,
+          presentationDescription: entry.presentationDescription,
+          presentationIcon: entry.presentationIcon,
         })
         if (!registered.ok) {
           return reloadFailure(registered.reasonCode ?? 'metadata_invalid', metadataPath, registry)

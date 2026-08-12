@@ -224,10 +224,12 @@ export function parseMangaChapterFromSourceItem(item: SourceRuntimeRecord): Mang
     item['chapter'],
     item['index'],
   ])
+  const sourceTitle = optionalSourceDisplayString(item['title'])
   return {
     id,
-    title: firstSourceString([optionalSourceDisplayString(item['title']), normalizeSourceDisplayText(id)]) ??
-      AppStrings.get('manga_detail_chapter_untitled'),
+    title: sourceTitle ?? (chapterNumber === undefined
+      ? AppStrings.get('manga_detail_chapter_untitled')
+      : AppStrings.get('library_update_chapter_fallback_title').replace('%s', `${chapterNumber}`)),
     chapterNumber,
     volumeNumber: firstSourceString([
       optionalSourceString(item['volume_number']),

@@ -33,6 +33,10 @@ export struct ConciseListRow {
   @Param primaryColor: ResourceColor | undefined = undefined
   @Param secondaryColor: ResourceColor | undefined = undefined
   @Param suffixPaddingRight: Length = ThemeConstants.SPACE_MD
+  // Zero means “take the enclosing GroupedListSection's computed surface”.
+  // Standalone rows have no provider and retain LIST_ROW_RADIUS instead.
+  @Param surfaceRadius: number = 0
+  @Consumer('koma.groupedList.surfaceRadius') private groupedSurfaceRadius: number = ThemeConstants.LIST_ROW_RADIUS
   @Event action?: () => void
   @BuilderParam suffixBuilderParam?: () => void
   @BuilderParam prefixBuilderParam?: () => void
@@ -79,6 +83,10 @@ export struct ConciseListRow {
       return `https:${path}`
     }
     return path
+  }
+
+  private resolvedSurfaceRadius(): number {
+    return this.surfaceRadius > 0 ? this.surfaceRadius : this.groupedSurfaceRadius
   }
 
   @Builder
@@ -278,8 +286,8 @@ export struct ConciseListRow {
       prefixItem: this.prefixItem(),
       suffixItem: this.suffixItem(),
       cardBackgroundColor: Color.Transparent,
-      cardBorderRadius: ThemeConstants.LIST_ROW_RADIUS,
-      hoverBorderRadius: ThemeConstants.LIST_ROW_RADIUS,
+      cardBorderRadius: this.resolvedSurfaceRadius(),
+      hoverBorderRadius: this.resolvedSurfaceRadius(),
       enable: this.hasSwitch ? true : this.isEnabled,
       onClick: () => {
         if (this.isEnabled && this.action) {

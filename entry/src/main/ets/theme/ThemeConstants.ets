@@ -89,20 +89,35 @@ export class ThemeConstants {
   static readonly RADIUS_SM: number = 4
   static readonly RADIUS_CHIP: number = 8
   static readonly RADIUS_THUMB: number = 8
-  static readonly RADIUS_MD: number = 22
+  // Covers and list-card containers deliberately use separate tokens. A cover
+  // is a compact image surface; settings/source groups are large containers.
+  static readonly RADIUS_COVER: number = 12
+  static readonly RADIUS_MD: number = 12
   static readonly RADIUS_CARD: number = 24
   static readonly RADIUS_ROUND: number = 999
   static readonly LIST_SECTION_INSET: number = 4
-  static readonly LIST_ROW_RADIUS: number = 19
+  // A grouped HDS row's press/hover surface is concentric with its enclosing
+  // card: outer radius minus the section inset. GroupedListSection supplies
+  // this value to its descendant ConciseListRow instances.
+  static readonly GROUPED_LIST_INNER_RADIUS: number =
+    ThemeConstants.RADIUS_CARD - ThemeConstants.LIST_SECTION_INSET
+  // HDS rows without an enclosing provider use the same computed geometry.
+  // Comic covers use RADIUS_COVER instead.
+  static readonly LIST_ROW_RADIUS: number = ThemeConstants.GROUPED_LIST_INNER_RADIUS
   static readonly LIST_ROW_TEXT_INDENT: number = 8
 
   static readonly TITLE_BAR_HEIGHT: number = 56
-  static readonly BUTTON_HEIGHT: number = 46
+  // Root HDS tabs float over tab content. The list scaffold owns this tail
+  // spacer so final rows can scroll above the tab target without changing the
+  // root viewport or flattening the floating bar.
+  static readonly FLOATING_TAB_BAR_CLEARANCE: number = 104
+  static readonly INPUT_HEIGHT: number = 40
+  static readonly BUTTON_HEIGHT: number = 40
   static readonly SOURCE_ICON_SIZE: number = 48
   static readonly LIST_COVER_WIDTH: number = 48
   static readonly LIST_COVER_HEIGHT: number = 64
   static readonly FILTER_CHIP_HEIGHT: number = 34
-  static readonly ACTION_CHIP_HEIGHT: number = 36
+  static readonly ACTION_CHIP_HEIGHT: number = 32
   static readonly TOUCH_TARGET_SM: number = 36
   static readonly LOADING_SIZE_LARGE: number = 36
   static readonly SOURCE_RESULT_GRID_COLUMN_COUNT: number = 3

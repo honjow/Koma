@@ -315,7 +315,13 @@ function parseSourceListingsFromResponse(response: SourceRuntimeCallResponse): S
     return []
   }
   const data = response.data as RuntimeRecord | undefined
-  const rawListings = data?.['listings'] ?? data?.['items']
+  // A listing is navigation metadata (`id`, `name`, optional `kind`), not a
+  // manga result.  Some older source packages accidentally return a manga
+  // page in `items` from get_listings.  Treating that first manga as a
+  // Listing made its title become both the picker value and the page heading.
+  // Only the documented listings field is valid here; callers fall back to
+  // the host's Popular/Latest descriptors when a package has no valid list.
+  const rawListings = data?.['listings']
   const listings: SourceListingDescriptor[] = []
   if (Array.isArray(rawListings)) {
     rawListings.forEach((rawListing: RuntimeValue) => {
@@ -327,9 +333,13 @@ function parseSourceListingsFromResponse(response: SourceRuntimeCallResponse): S
       if (id === undefined) {
         return
       }
+      const name = normalizeSourceDisplayText(optionalString(listing['name']))
+      if (name === undefined) {
+        return
+      }
       listings.push({
         id,
-        name: normalizeSourceDisplayText(optionalString(listing['name']) ?? optionalString(listing['title']) ?? id) ?? id,
+        name,
         kind: optionalString(listing['kind']) ?? 'custom',
       })
     })

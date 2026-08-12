@@ -53,6 +53,11 @@ export function normalizeSourceImageUrl(value: string | undefined): string | und
   if (normalized.length === 0) {
     return undefined
   }
+  // DM5 emits this image for rows without a cover.  It is a search-empty
+  // graphic containing page text, not artwork for the selected manga.
+  if (normalized.toLocaleLowerCase().includes('/search-empty.')) {
+    return undefined
+  }
   if (normalized.startsWith('//')) {
     return `https:${normalized}`
   }

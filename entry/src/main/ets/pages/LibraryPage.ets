@@ -3,10 +3,10 @@ import { ComicCoverCard, ComicCoverInfo } from '../components/ComicCoverCard'
 import { CachedCoverImage, cachedCoverFailureKey } from '../components/CachedCoverImage'
 import { SecondaryListScaffold } from '../components/SecondaryListScaffold'
 import { ConciseListRow } from '../components/ui/ConciseListRow'
+import { GroupedListSection, ListDivider } from '../components/ui/GroupedListSection'
 import { KomaActionButton } from '../components/ui/KomaActionButton'
 import { KomaEmptyState } from '../components/ui/KomaEmptyState'
 import { KomaIconButton } from '../components/ui/KomaIconButton'
-import { KomaMenuChip } from '../components/ui/KomaMenuChip'
 import { ThemeConstants } from '../theme/ThemeConstants'
 import {
   ContinueReadingCardViewModel,
@@ -118,10 +118,9 @@ struct ContinueReadingShelfCard {
   build() {
     Row({ space: ThemeConstants.SPACE_MD }) {
       Stack({ alignContent: Alignment.Center }) {
-        Text('K')
-          .fontSize(ThemeConstants.SPACE_XXL)
-          .fontWeight(FontWeight.Bold)
-          .fontColor(ThemeConstants.TEXT_ON_BRAND)
+        SymbolGlyph($r('sys.symbol.book'))
+          .fontSize(ThemeConstants.FONT_SIZE_H2)
+          .fontColor([ThemeConstants.TEXT_TERTIARY])
         if (this.shouldShowCover()) {
           if (this.shouldUseSourceAwareCover()) {
             CachedCoverImage({
@@ -147,8 +146,9 @@ struct ContinueReadingShelfCard {
       }
       .width(76)
       .height(102)
-      .borderRadius(ThemeConstants.LIST_ROW_RADIUS)
-      .backgroundColor(this.info.color)
+      .borderRadius(ThemeConstants.RADIUS_COVER)
+      .clip(true)
+      .backgroundColor(ThemeConstants.COVER_PLACEHOLDER)
 
       Column({ space: ThemeConstants.SPACE_SM }) {
         Text(s('library_continue_reading'))
@@ -195,7 +195,6 @@ export struct LibraryPage {
   @Local private selectionMode: boolean = false
   @Local private selectedIds: Set<ComicId> = new Set<ComicId>()
   @Local private suppressOpenComicId: ComicId = ''
-  @Local private openingComicId: ComicId = ''
   @Local private sortBy: LibrarySortBy = 'lastRead'
   @Local private viewMode: LibraryViewMode = 'grid'
   @Local private listDensity: LibraryListDensity = 'standard'
@@ -205,6 +204,43 @@ export struct LibraryPage {
   @Local private filterCategory: LibraryCategoryFilter = 'all'
   @Local private filterAvailability: LibraryAvailabilityFilter = 'all'
   @Local private filterMetadataStatus: LibraryMetadataStatusFilter = 'all'
+  private activeFilterCount(): number {
+    let count = this.sortBy === 'lastRead' ? 0 : 1
+    if (this.filterSource !== 'all') {
+      count += 1
+    }
+    if (this.filterReadState !== 'all') {
+      count += 1
+    }
+    if (this.filterCategory !== 'all') {
+      count += 1
+    }
+    if (this.filterAvailability !== 'all') {
+      count += 1
+    }
+    if (this.filterMetadataStatus !== 'all') {
+      count += 1
+    }
+    return count
+  }
+
+  private filtersButtonLabel(): string {
+    const count = this.activeFilterCount()
+    return count > 0 ? `${s('common_filter')} · ${count}` : s('common_filter')
+  }
+
+  private closeFilterSheet(): void {
+    this.filterMenuKey = ''
+    this.filtersShown = false
+  }
+
+  private closeFilterMenu(): void {
+    this.filterMenuKey = ''
+  }
+
+  @Local private filtersShown: boolean = false
+  @Local private filterMenuKey: string = ''
+  @Local private openingComicId: ComicId = ''
   @Local private failedCoverUris: string[] = []
   @Local private remoteProgress: RemoteProgressSyncState = connectRemoteProgressSyncState()
   private downloadQueueRecoveryStarted: boolean = false
@@ -1063,7 +1099,17 @@ export struct LibraryPage {
       return false
     }
     const chapter = comic.chapters.find((item: Chapter): boolean => item.id === chapterId)
-    return chapter !== undefined && chapter.pages.length === 0
+    if (chapter === undefined || chapter.pages.length === 0) {
+      return chapter !== undefined
+    }
+    // Komiic v0.1.1 changed page identity from a positional placeholder to
+    // the opaque `kid` required to mint an image ticket. Persisted records
+    // created before that source update have `page:<number>` ids; they can
+    // still enter Reader but every ticket lookup fails. Refresh only that
+    // known legacy shape, keeping positional IDs from other sources intact.
+    return comic.sourceRuntimeId === 'com.komiic.koma' && chapter.pages.some((page: Page): boolean => {
+      return /^page:\d+$/.test(page.id)
+    })
   }
 
   private hasAvailableOfflineReaderPages(comicId: ComicId, chapterId: string | undefined): boolean {
@@ -1128,7 +1174,7 @@ export struct LibraryPage {
         () => {
           this.refreshDisplayedSnapshotFromStore()
         },
-      ).ensureChapterPages(comicId, comic.sourceRuntimeId, chapterId as string)
+      ).ensureChapterPages(comicId, comic.sourceRuntimeId, chapterId as string, true)
       if (!result.hydrated) {
         this.logSourceReaderPagesUnavailable(result.reasonCode)
       }
@@ -1638,50 +1684,188 @@ export struct LibraryPage {
 
 
   @Builder
-  private SortFilterBar() {
-    Scroll() {
-      Row({ space: ThemeConstants.SPACE_SM }) {
-        Row() {
-          KomaMenuChip({ label: s('library_sort_chip').replace('%s', this.sortLabel()), active: this.sortBy !== 'lastRead' })
+  private SortSelector() {
+    Row({ space: ThemeConstants.SPACE_XS }) {
+      Text(s('library_sort_chip').replace('%s', this.sortLabel()))
+        .fontSize(ThemeConstants.FONT_SIZE_META)
+        .fontColor(this.sortBy === 'lastRead' ? ThemeConstants.TEXT_PRIMARY : ThemeConstants.BRAND_PRIMARY)
+        .maxLines(1)
+        .textOverflow({ overflow: TextOverflow.Ellipsis })
+      SymbolGlyph($r('sys.symbol.arrowtriangle_down_fill'))
+        .fontSize(ThemeConstants.FONT_SIZE_CAPTION)
+        .fontColor([ThemeConstants.TEXT_TERTIARY])
+    }
+    .height(ThemeConstants.BUTTON_HEIGHT)
+    .padding({ right: ThemeConstants.SPACE_SM })
+    .backgroundColor(Color.Transparent)
+    .alignItems(VerticalAlign.Center)
+  }
+
+  @Builder
+  private LibraryFiltersSheet() {
+    Column() {
+      Row() {
+        Text(s('common_filter'))
+          .fontSize(ThemeConstants.FONT_SIZE_H3)
+          .fontWeight(FontWeight.Medium)
+          .fontColor(ThemeConstants.TEXT_PRIMARY)
+          .layoutWeight(1)
+        Button({ type: ButtonType.Circle, stateEffect: true }) {
+          SymbolGlyph($r('sys.symbol.xmark'))
+            .fontSize(20)
+            .fontColor([ThemeConstants.TEXT_PRIMARY])
         }
-        .bindMenu(this.SortMenu())
-        Row() {
-          KomaMenuChip({ label: this.sourceLabel(), active: this.filterSource !== 'all' })
-        }
-        .bindMenu(this.SourceMenu())
-        Row() {
-          KomaMenuChip({ label: this.readStateLabel(), active: this.filterReadState !== 'all' })
-        }
-        .bindMenu(this.ReadStateMenu())
-        Row() {
-          KomaMenuChip({ label: this.availabilityLabel(), active: this.filterAvailability !== 'all' })
-        }
-        .bindMenu(this.AvailabilityMenu())
-        Row() {
-          KomaMenuChip({ label: this.metadataStatusLabel(), active: this.filterMetadataStatus !== 'all' })
-        }
-        .bindMenu(this.MetadataStatusMenu())
-        Row() {
-          KomaMenuChip({ label: this.categoryLabel(), active: this.filterCategory !== 'all' })
-        }
-        .bindMenu(this.CategoryMenu())
-        if (this.hasActiveFilters()) {
-          KomaActionButton({
-            label: s('common_reset'),
-            kind: 'ghost',
-            compact: true,
-            controlHeight: ThemeConstants.ACTION_CHIP_HEIGHT,
-            action: () => {
-              this.resetFilters()
-            },
-          })
-        }
+        .width(44)
+        .height(44)
+        .backgroundColor(Color.Transparent)
+        .accessibilityText(s('common_close'))
+        .onClick(() => {
+          this.closeFilterSheet()
+        })
       }
-      .width('auto')
+      .width('100%')
+      .height(56)
+      .padding({ left: ThemeConstants.SPACE_LG, right: ThemeConstants.SPACE_SM })
+
+      Divider().strokeWidth(0.5).color(ThemeConstants.DIVIDER)
+
+      Scroll() {
+        Column({ space: ThemeConstants.SPACE_LG }) {
+          GroupedListSection() {
+            Column() {
+              ConciseListRow({
+                title: s('library_filter_source_title'),
+                trailingText: this.sourceLabel(),
+                trailingDropdown: true,
+                action: () => {
+                  this.filterMenuKey = 'source'
+                },
+              })
+            }
+            .bindMenu(this.filterMenuKey === 'source', this.SourceMenu, {
+              onDisappear: () => {
+                this.closeFilterMenu()
+              },
+            })
+            ListDivider()
+            Column() {
+              ConciseListRow({
+                title: s('library_filter_read_state_title'),
+                trailingText: this.readStateLabel(),
+                trailingDropdown: true,
+                action: () => {
+                  this.filterMenuKey = 'read-state'
+                },
+              })
+            }
+            .bindMenu(this.filterMenuKey === 'read-state', this.ReadStateMenu, {
+              onDisappear: () => {
+                this.closeFilterMenu()
+              },
+            })
+            ListDivider()
+            Column() {
+              ConciseListRow({
+                title: s('library_filter_availability_title'),
+                trailingText: this.availabilityLabel(),
+                trailingDropdown: true,
+                action: () => {
+                  this.filterMenuKey = 'availability'
+                },
+              })
+            }
+            .bindMenu(this.filterMenuKey === 'availability', this.AvailabilityMenu, {
+              onDisappear: () => {
+                this.closeFilterMenu()
+              },
+            })
+            ListDivider()
+            Column() {
+              ConciseListRow({
+                title: s('library_filter_metadata_title'),
+                trailingText: this.metadataStatusLabel(),
+                trailingDropdown: true,
+                action: () => {
+                  this.filterMenuKey = 'metadata'
+                },
+              })
+            }
+            .bindMenu(this.filterMenuKey === 'metadata', this.MetadataStatusMenu, {
+              onDisappear: () => {
+                this.closeFilterMenu()
+              },
+            })
+            ListDivider()
+            Column() {
+              ConciseListRow({
+                title: s('library_filter_category_title'),
+                trailingText: this.categoryLabel(),
+                trailingDropdown: true,
+                action: () => {
+                  this.filterMenuKey = 'category'
+                },
+              })
+            }
+            .bindMenu(this.filterMenuKey === 'category', this.CategoryMenu, {
+              onDisappear: () => {
+                this.closeFilterMenu()
+              },
+            })
+          }
+
+          if (this.hasActiveFilters()) {
+            KomaActionButton({
+              label: s('common_reset'),
+              kind: 'ghost',
+              compact: true,
+              action: () => {
+                this.resetFilters()
+              },
+            })
+          }
+          Blank().height(ThemeConstants.SPACE_XL)
+        }
+        .width('100%')
+        .padding(ThemeConstants.SPACE_LG)
+      }
+      .scrollBar(BarState.Off)
+      .width('100%')
+      .layoutWeight(1)
     }
     .width('100%')
-    .scrollable(ScrollDirection.Horizontal)
-    .scrollBar(BarState.Off)
+    .height('100%')
+    .backgroundColor(ThemeConstants.BG_SUB)
+  }
+
+  @Builder
+  private SortFilterBar() {
+    Row({ space: ThemeConstants.SPACE_SM }) {
+      Row() {
+        this.SortSelector()
+      }
+      .bindMenu(this.SortMenu())
+
+      Row() {
+        KomaActionButton({
+          label: this.filtersButtonLabel(),
+          kind: 'ghost',
+          compact: true,
+          controlHeight: ThemeConstants.BUTTON_HEIGHT,
+          accentColor: ThemeConstants.TEXT_PRIMARY,
+          action: () => {
+            this.filtersShown = true
+          },
+        })
+      }
+      .bindSheet($$this.filtersShown, this.LibraryFiltersSheet, {
+        detents: [SheetSize.MEDIUM, SheetSize.LARGE],
+        showClose: false,
+        onDisappear: () => {
+          this.closeFilterSheet()
+        },
+      })
+    }
+    .width('100%')
   }
 
   @Builder
@@ -1913,17 +2097,16 @@ export struct LibraryPage {
             })
         }
       } else {
-        Text('K')
+        SymbolGlyph($r('sys.symbol.book'))
           .fontSize(ThemeConstants.FONT_SIZE_H2)
-          .fontWeight(FontWeight.Bold)
-          .fontColor(ThemeConstants.TEXT_ON_BRAND)
+          .fontColor([ThemeConstants.TEXT_TERTIARY])
       }
     }
     .width(this.libraryListCoverWidth())
     .height(this.libraryListCoverHeight())
-    .borderRadius(ThemeConstants.LIST_ROW_RADIUS)
+    .borderRadius(ThemeConstants.RADIUS_COVER)
     .clip(true)
-    .backgroundColor(comic.coverColor)
+    .backgroundColor(ThemeConstants.COVER_PLACEHOLDER)
   }
 
   @Builder
@@ -1989,6 +2172,7 @@ export struct LibraryPage {
         listSpace: ThemeConstants.SPACE_LG,
         horizontalPadding: ThemeConstants.SPACE_XL,
         bottomPadding: ThemeConstants.SPACE_XL,
+        floatingTabTailPadding: ThemeConstants.FLOATING_TAB_BAR_CLEARANCE,
       }) {
         if (this.hasLibraryContent()) {
           if (this.hasVisibleLibraryContent()) {

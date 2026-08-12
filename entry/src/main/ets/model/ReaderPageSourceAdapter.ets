@@ -1,4 +1,5 @@
 import { common } from '@kit.AbilityKit'
+import { taskpool } from '@kit.ArkTS'
 import { http } from '@kit.NetworkKit'
 import { preferences } from '@kit.ArkData'
 import { BusinessError } from '@kit.BasicServicesKit'
@@ -13,6 +14,7 @@ import {
   formatRemoteImageCacheSize,
 } from './RemoteImageCacheStore'
 import {
+  OfflineDownloadedChapterStatus,
   OfflineDownloadStore,
 } from './OfflineDownloadStore'
 import {
@@ -24,8 +26,13 @@ import {
 } from './RemoteServerStore'
 import { KomgaHeaders } from '../remote/KomgaClient'
 import { appSourceRuntimeRegistry } from '../sourceRuntime/SourceRuntimeAppRegistry'
-import { runRegisteredSourceRequestById } from '../sourceRuntime/SourceRuntimeService'
 import { appSourceSettingsStore } from '../sourceRuntime/SourceSettingsStore'
+import { runSourceOperationFromBytes } from '../sourceRuntime/SourceRuntimeRunner'
+
+@Concurrent
+function executeReaderSourceImageRequestOperation(requestJson: string, wasmBytes: Uint8Array): string {
+  return JSON.stringify(runSourceOperationFromBytes(requestJson, wasmBytes))
+}
 
 export interface ReaderRemoteImageCachePreferences {
   maxBytes: number
@@ -170,55 +177,70 @@ class ResolvedReaderImageHeaders {
   }
 }
 
-function httpHeadersForReaderRequest(): Object {
-  const entries: string[] = []
+function httpHeadersForReaderRequest(extraHeaders?: RemoteImageCacheHeaders): Object {
+  const values: Record<string, string> = {}
   if (readerRemoteHeaders !== null) {
     const headers = readerRemoteHeaders
     if (headers.authorization !== undefined) {
-      entries.push(`"Authorization":${JSON.stringify(headers.authorization)}`)
+      values['Authorization'] = headers.authorization
     }
     if (headers.accept !== undefined) {
-      entries.push(`"Accept":${JSON.stringify(headers.accept)}`)
+      values['Accept'] = headers.accept
     }
     if (headers.contentType !== undefined) {
-      entries.push(`"Content-Type":${JSON.stringify(headers.contentType)}`)
+      values['Content-Type'] = headers.contentType
     }
     if (headers.xApiKey !== undefined) {
-      entries.push(`"X-API-Key":${JSON.stringify(headers.xApiKey)}`)
+      values['X-API-Key'] = headers.xApiKey
     }
     if (headers.xAuthToken !== undefined) {
-      entries.push(`"X-Auth-Token":${JSON.stringify(headers.xAuthToken)}`)
+      values['X-Auth-Token'] = headers.xAuthToken
     }
   }
-  if (entries.length === 0) {
+  if (extraHeaders !== undefined) {
+    Object.keys(extraHeaders).forEach((name: string) => {
+      const value = extraHeaders[name]
+      if (name.trim().length > 0 && value.length > 0) {
+        values[name] = value
+      }
+    })
+  }
+  if (Object.keys(values).length === 0) {
     return new EmptyHttpHeader()
   }
-  return JSON.parse(`{${entries.join(',')}}`) as Object
+  return values as Object
 }
 
 class EmptyHttpHeader {
 }
 
-function remoteImageCacheHeaders(): RemoteImageCacheHeaders | undefined {
-  if (readerRemoteHeaders === null) {
-    return undefined
-  }
-  const headers = readerRemoteHeaders
+function remoteImageCacheHeaders(extraHeaders?: RemoteImageCacheHeaders): RemoteImageCacheHeaders | undefined {
   const out: RemoteImageCacheHeaders = {}
-  if (headers.authorization !== undefined) {
-    out['Authorization'] = headers.authorization
+  if (readerRemoteHeaders !== null) {
+    const headers = readerRemoteHeaders
+    if (headers.authorization !== undefined) {
+      out['Authorization'] = headers.authorization
+    }
+    if (headers.accept !== undefined) {
+      out['Accept'] = headers.accept
+    }
+    if (headers.contentType !== undefined) {
+      out['Content-Type'] = headers.contentType
+    }
+    if (headers.xApiKey !== undefined) {
+      out['X-API-Key'] = headers.xApiKey
+    }
+    if (headers.xAuthToken !== undefined) {
+      out['X-Auth-Token'] = headers.xAuthToken
+    }
   }
-  if (headers.accept !== undefined) {
-    out['Accept'] = headers.accept
-  }
-  if (headers.contentType !== undefined) {
-    out['Content-Type'] = headers.contentType
-  }
-  if (headers.xApiKey !== undefined) {
-    out['X-API-Key'] = headers.xApiKey
-  }
-  if (headers.xAuthToken !== undefined) {
-    out['X-Auth-Token'] = headers.xAuthToken
+  if (extraHeaders !== undefined) {
+    Object.keys(extraHeaders).forEach((name: string) => {
+      const value = extraHeaders[name]
+      if (name.trim().length > 0 && value.length > 0) {
+        out[name] = value
+      }
+    })
   }
   return Object.keys(out).length > 0 ? out : undefined
 }
@@ -303,23 +325,25 @@ function isLocalFileUri(uri: string): boolean {
   return normalized.startsWith('file://') || normalized.startsWith('mock://')
 }
 
-async function downloadReaderRemoteBytes(url: string): Promise<ArrayBuffer> {
+async function downloadReaderRemoteBytes(url: string, extraHeaders?: RemoteImageCacheHeaders): Promise<ArrayBuffer> {
   const httpRequest = http.createHttp()
   try {
     const response = await httpRequest.request(url, {
       method: http.RequestMethod.GET,
       expectDataType: http.HttpDataType.ARRAY_BUFFER,
       usingCache: false,
-      header: httpHeadersForReaderRequest(),
+      header: httpHeadersForReaderRequest(extraHeaders),
       readTimeout: 60000,
       connectTimeout: 30000,
     })
     if (response.responseCode !== 200) {
+      console.warn(`[ReaderImage] step=http_status_failed status=${response.responseCode}`)
       throw new Error(`reader_remote_image_http_${response.responseCode}`)
     }
     return response.result as ArrayBuffer
   } catch (error) {
     const e = error as BusinessError
+    console.warn(`[ReaderImage] step=http_request_failed code=${e.code === undefined ? 'unknown' : e.code}`)
     throw new Error(`reader_remote_image_fetch_failed_${e.code === undefined ? 'unknown' : e.code}`)
   } finally {
     httpRequest.destroy()
@@ -339,14 +363,14 @@ export async function fetchAndCacheReaderRemoteImage(uri: string): Promise<strin
   return readerImageCacheStore.put(url, remoteImageCacheHeaders(), bytes)
 }
 
-function readerImageRequestForPage(pageId: string): string {
+function readerImageRequestForPage(pageId: string, url: string): string {
   const request: ReaderImageRuntimeRequest = {
     type: 'request',
     version: 1,
     requestId: `reader-image-${Date.now()}`,
     operation: 'get_image_request',
     sourceId: '',
-    args: new ReaderImageRuntimeArgs(pageId),
+    args: new ReaderImageRuntimeArgs(pageId, url),
     settings: emptySourceSettingsRecord(),
     hostHints: new ReaderImageRuntimeHostHints(),
   }
@@ -359,9 +383,11 @@ function emptySourceSettingsRecord(): Record<string, Object> {
 
 class ReaderImageRuntimeArgs {
   pageId: string
+  url: string
 
-  constructor(pageId: string) {
+  constructor(pageId: string, url: string) {
     this.pageId = pageId
+    this.url = url
   }
 }
 
@@ -386,12 +412,37 @@ interface ReaderImageRuntimeRequest {
   hostHints: ReaderImageRuntimeHostHints
 }
 
-function parseSourceImageRequestUrl(payload: string): string {
+class SourceImageRequestDescriptor {
+  url: string
+  headers: RemoteImageCacheHeaders | undefined
+
+  constructor(url: string, headers?: RemoteImageCacheHeaders) {
+    this.url = url
+    this.headers = headers
+  }
+}
+
+function parseSourceImageRequestHeaders(value: Object | undefined): RemoteImageCacheHeaders | undefined {
+  if (value === undefined || value === null || Array.isArray(value) || typeof value !== 'object') {
+    return undefined
+  }
+  const raw = value as Record<string, Object>
+  const headers: RemoteImageCacheHeaders = {}
+  Object.keys(raw).forEach((name: string) => {
+    const headerValue = raw[name]
+    if (name.trim().length > 0 && typeof headerValue === 'string' && headerValue.length > 0) {
+      headers[name] = headerValue
+    }
+  })
+  return Object.keys(headers).length > 0 ? headers : undefined
+}
+
+function parseSourceImageRequestDescriptor(payload: string): SourceImageRequestDescriptor | undefined {
   try {
     const document = JSON.parse(payload) as Record<string, Object>
     const data = document['data']
     if (data === undefined || data === null || typeof data !== 'object') {
-      return ''
+      return undefined
     }
     const record = data as Record<string, Object>
     const imageRequest = record['imageRequest']
@@ -399,17 +450,58 @@ function parseSourceImageRequestUrl(payload: string): string {
       const imageRecord = imageRequest as Record<string, Object>
       const url = imageRecord['url']
       if (typeof url === 'string' && url.length > 0) {
-        return url
+        return new SourceImageRequestDescriptor(url, parseSourceImageRequestHeaders(imageRecord['headers']))
       }
     }
     const directUrl = record['url']
     if (typeof directUrl === 'string' && directUrl.length > 0) {
-      return directUrl
+      return new SourceImageRequestDescriptor(directUrl, parseSourceImageRequestHeaders(record['headers']))
     }
-    return ''
+    return undefined
   } catch (_err) {
-    return ''
+    return undefined
   }
+}
+
+async function resolveSourceRuntimeImageRequest(
+  sourceRuntimeId: string,
+  uri: string,
+  sourceImageId: string,
+): Promise<SourceImageRequestDescriptor | undefined> {
+  const sourceId = sourceRuntimeId.trim()
+  if (sourceId.length === 0) {
+    return undefined
+  }
+  const lookup = appSourceRuntimeRegistry.lookup(sourceId)
+  if (!lookup.ok || lookup.entry === undefined || !lookup.entry.enabled) {
+    return undefined
+  }
+  const requestJson = readerImageRequestForPage(sourceImageId, uri)
+  const wasmBytes = new Uint8Array(lookup.entry.wasmBytes.byteLength)
+  wasmBytes.set(lookup.entry.wasmBytes)
+  let responseJson: string
+  try {
+    // Match the source detail/chapter path: WAMR stays on a TaskPool worker,
+    // while the configured host HTTP bridge dispatches NetworkKit on the UI
+    // runtime. Loading the NAPI module dynamically inside the worker bypassed
+    // that established execution path and crashed on a ticketed image request.
+    responseJson = await taskpool.execute(
+      executeReaderSourceImageRequestOperation,
+      requestJson,
+      wasmBytes,
+    ) as string
+  } catch (_error) {
+    return undefined
+  }
+  try {
+    const response = JSON.parse(responseJson) as Record<string, Object>
+    if (response['ok'] !== true) {
+      return undefined
+    }
+  } catch (_error) {
+    return undefined
+  }
+  return parseSourceImageRequestDescriptor(responseJson)
 }
 
 export async function fetchAndCacheSourceRuntimeRemoteImage(
@@ -424,25 +516,20 @@ export async function fetchAndCacheSourceRuntimeRemoteImage(
   if (sourceId.length === 0) {
     return fetchAndCacheReaderRemoteImage(uri)
   }
-  const lookup = appSourceRuntimeRegistry.lookup(sourceId)
-  if (!lookup.ok || lookup.entry === undefined || !lookup.entry.enabled) {
+  const imageRequest = await resolveSourceRuntimeImageRequest(sourceId, uri, sourceImageId)
+  if (imageRequest === undefined) {
+    console.warn(`[ReaderImage] step=image_request_unavailable source=${sourceId} page=${sourceImageId}`)
     return fetchAndCacheReaderRemoteImage(uri)
   }
-  const requestJson = readerImageRequestForPage(sourceImageId)
-  const summary = runRegisteredSourceRequestById(appSourceRuntimeRegistry, sourceId, requestJson)
-  if (summary.response === undefined || !summary.responseOk) {
-    return fetchAndCacheReaderRemoteImage(uri)
-  }
-  const resolvedUrl = parseSourceImageRequestUrl(JSON.stringify(summary.response))
-  if (resolvedUrl.length === 0) {
-    return fetchAndCacheReaderRemoteImage(uri)
-  }
-  const cached = await readerImageCacheStore.get(resolvedUrl, remoteImageCacheHeaders(), `source:${sourceId}:${sourceImageId}`)
+  const cacheHeaders = remoteImageCacheHeaders(imageRequest.headers)
+  const cached = await readerImageCacheStore.get(imageRequest.url, cacheHeaders, `source:${sourceId}:${sourceImageId}`)
   if (cached !== undefined && cached.length > 0) {
     return cached
   }
-  const bytes = await downloadReaderRemoteBytes(resolvedUrl)
-  return readerImageCacheStore.put(resolvedUrl, remoteImageCacheHeaders(), bytes, `source:${sourceId}:${sourceImageId}`)
+  const bytes = await downloadReaderRemoteBytes(imageRequest.url, imageRequest.headers)
+  const path = await readerImageCacheStore.put(imageRequest.url, cacheHeaders, bytes, `source:${sourceId}:${sourceImageId}`)
+  console.info(`[ReaderImage] step=source_cache_written source=${sourceId} page=${sourceImageId} bytes=${bytes.byteLength}`)
+  return path
 }
 
 export function createReaderOfflineMissingUri(
@@ -496,33 +583,74 @@ function resolveOfflineReaderPage(
   }
 }
 
-export function createReaderPageRenderSource(
+/**
+ * Resolve a chapter's local pages once at the reader-session boundary.
+ *
+ * `resolveDownloadedPage` deliberately performs a full manifest validation,
+ * including the page-file checks, because it is also used by one-shot actions
+ * such as download verification.  Calling that method for every LazyForEach
+ * slot makes normal Reader rendering and page turns repeatedly parse the same
+ * manifest and walk every downloaded image.  Keep that integrity boundary,
+ * but execute it once here and hand the Reader an immutable source list.
+ */
+function resolveOfflineReaderPages(config: ReaderSessionConfig): string[] {
+  const count = Math.max(0, Math.floor(config.totalPages))
+  const paths: string[] = []
+  for (let index = 0; index < count; index += 1) {
+    paths.push('')
+  }
+  if (count === 0 || readerOfflineDownloadsDir.trim().length === 0) {
+    return paths
+  }
+  try {
+    const store = new OfflineDownloadStore(readerOfflineDownloadsDir)
+    // The reader does not need to hash all image bytes again before every
+    // page is shown.  The manifest, identity, root, page-index, existence and
+    // byte-size checks remain enforced for this session snapshot.
+    const validation = store.validateDownloadedChapter(config.comicId, config.chapterId, {
+      validateContentHash: false,
+    })
+    if (validation.manifest === undefined ||
+      (validation.status !== OfflineDownloadedChapterStatus.DOWNLOADED &&
+        validation.status !== OfflineDownloadedChapterStatus.PARTIAL)) {
+      return paths
+    }
+    for (let index = 0; index < validation.manifest.pages.length; index += 1) {
+      const page = validation.manifest.pages[index]
+      if (page.pageIndex >= 0 && page.pageIndex < count && fs.accessSync(page.localPath)) {
+        paths[page.pageIndex] = page.localPath
+      }
+    }
+  } catch (_err) {
+    // A broken download must not prevent an online source from opening.  The
+    // normal source fallback below will surface the page-level error/retry UI.
+  }
+  return paths
+}
+
+function readerPageIdAt(config: ReaderSessionConfig, index: number): string | undefined {
+  return config.pageIds !== undefined && index < config.pageIds.length
+    ? config.pageIds[index]
+    : undefined
+}
+
+function createReaderPageRenderSourceWithOfflinePath(
   config: ReaderSessionConfig,
   index: number,
-  options?: ReaderPageRenderSourceOptions,
+  offlinePath: string,
+  offlineOnly: boolean,
 ): ReaderPageRenderSource {
-  const preferOffline = options?.preferOffline === true
-  const offlineOnly = options?.offlineOnly === true
   const pageUri = index >= 0 && index < config.pageUris.length ? config.pageUris[index] : ''
-  if (preferOffline || offlineOnly) {
-    const offlinePath = resolveOfflineReaderPage(config, index)
-    if (offlinePath.length > 0) {
-      return {
-        kind: ReaderPageRenderKind.LOCAL_FILE_IMAGE,
-        uri: `file://${offlinePath}`,
-        imageUri: offlinePath,
-        pageId: config.pageIds !== undefined && index < config.pageIds.length ? config.pageIds[index] : undefined,
-      }
-    }
-    if (offlineOnly) {
-      return {
-        kind: ReaderPageRenderKind.URI_PLACEHOLDER,
-        uri: createReaderOfflineMissingUri(config.comicId, config.chapterId, index),
-        imageUri: '',
-      }
+  const pageId = readerPageIdAt(config, index)
+  if (offlinePath.length > 0) {
+    return {
+      kind: ReaderPageRenderKind.LOCAL_FILE_IMAGE,
+      uri: `file://${offlinePath}`,
+      imageUri: offlinePath,
+      pageId,
     }
   }
-  if (pageUri.length === 0) {
+  if (offlineOnly || pageUri.length === 0) {
     return {
       kind: ReaderPageRenderKind.URI_PLACEHOLDER,
       uri: createReaderOfflineMissingUri(config.comicId, config.chapterId, index),
@@ -535,7 +663,7 @@ export function createReaderPageRenderSource(
       kind: ReaderPageRenderKind.LOCAL_FILE_IMAGE,
       uri: pageUri,
       imageUri: localPath,
-      pageId: config.pageIds !== undefined && index < config.pageIds.length ? config.pageIds[index] : undefined,
+      pageId,
     }
   }
   return {
@@ -543,8 +671,47 @@ export function createReaderPageRenderSource(
     uri: pageUri,
     imageUri: pageUri,
     sourceRuntimeId: config.sourceRuntimeId,
-    pageId: config.pageIds !== undefined && index < config.pageIds.length ? config.pageIds[index] : undefined,
+    pageId,
   }
+}
+
+export function createReaderPageRenderSource(
+  config: ReaderSessionConfig,
+  index: number,
+  options?: ReaderPageRenderSourceOptions,
+): ReaderPageRenderSource {
+  const preferOffline = options?.preferOffline === true
+  const offlineOnly = options?.offlineOnly === true
+  let offlinePath = ''
+  if (preferOffline || offlineOnly) {
+    offlinePath = resolveOfflineReaderPage(config, index)
+  }
+  return createReaderPageRenderSourceWithOfflinePath(config, index, offlinePath, offlineOnly)
+}
+
+/**
+ * Construct all sources for one reader session from one validated offline
+ * snapshot.  ReaderPage uses this instead of resolving a manifest from every
+ * render, thumbnail, page-turn and preload callback.
+ */
+export function createReaderPageRenderSources(
+  config: ReaderSessionConfig,
+  options?: ReaderPageRenderSourceOptions,
+): ReaderPageRenderSource[] {
+  const count = Math.max(0, Math.floor(config.totalPages))
+  const preferOffline = options?.preferOffline === true
+  const offlineOnly = options?.offlineOnly === true
+  const offlinePaths = preferOffline || offlineOnly ? resolveOfflineReaderPages(config) : []
+  const sources: ReaderPageRenderSource[] = []
+  for (let index = 0; index < count; index += 1) {
+    sources.push(createReaderPageRenderSourceWithOfflinePath(
+      config,
+      index,
+      offlinePaths[index] ?? '',
+      offlineOnly,
+    ))
+  }
+  return sources
 }
 
 export async function fetchAndCacheReaderRemoteSource(source: ReaderPageRenderSource): Promise<string> {
@@ -573,6 +740,12 @@ export async function fetchReaderRemoteSourceBytes(source: ReaderPageRenderSourc
     }
   }
   if (source.kind === ReaderPageRenderKind.REMOTE_URL_IMAGE) {
+    if (source.sourceRuntimeId !== undefined && source.sourceRuntimeId.trim().length > 0 && source.pageId !== undefined) {
+      const imageRequest = await resolveSourceRuntimeImageRequest(source.sourceRuntimeId, source.imageUri, source.pageId)
+      if (imageRequest !== undefined) {
+        return downloadReaderRemoteBytes(imageRequest.url, imageRequest.headers)
+      }
+    }
     const url = normalizeReaderUrl(source.imageUri)
     return downloadReaderRemoteBytes(url)
   }

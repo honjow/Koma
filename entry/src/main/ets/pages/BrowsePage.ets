@@ -1,6 +1,7 @@
 import { SecondaryListScaffold } from '../components/SecondaryListScaffold'
 import { SourceListItem } from '../components/SourceListItem'
 import { KomaEmptyState } from '../components/ui/KomaEmptyState'
+import { GroupedListSection, ListDivider, SectionHeader } from '../components/ui/GroupedListSection'
 import { ThemeConstants } from '../theme/ThemeConstants'
 import { BrowseViewModel } from '../viewmodel/BrowseViewModel'
 import { SourceRuntimeRegistry, SourceRuntimeRegistryInstalledSourceSummary } from '../sourceRuntime/SourceRuntimeRegistry'
@@ -13,6 +14,8 @@ import { LibraryStorePersistenceService } from '../model/LibraryPersistence'
 import { createSeededLibraryStore } from '../model/MockLibraryData'
 import { AppStrings } from '../i18n/AppStrings'
 import { connectLanguageState, LanguageState } from '../state/LanguageState'
+import { connectSourceRuntimeState, SourceRuntimeState } from '../state/SourceRuntimeState'
+import { reloadInstalledSourcePackages } from '../sourceRuntime/SourceRuntimeAppRegistry'
 
 function s(name: string): string {
   return AppStrings.get(name)
@@ -25,13 +28,13 @@ interface PrivateBrowseSourceEntry {
   title: ResourceStr
   badge: ResourceStr
   detail: ResourceStr
-  initial: string
   color: ResourceColor
 }
 
 @ComponentV2
 export struct BrowsePage {
   @Local private languageState: LanguageState = connectLanguageState()
+  @Local private sourceRuntimeState: SourceRuntimeState = connectSourceRuntimeState()
   @Local private viewModel: BrowseViewModel = new BrowseViewModel()
   @Local private refreshingSources: boolean = false
   @Local private komgaConfigured: boolean = false
@@ -81,7 +84,6 @@ export struct BrowsePage {
         title: s('route_komga_title'),
         badge: s('browse_komga_tag'),
         detail: s('browse_komga_detail'),
-        initial: 'K',
         color: ThemeConstants.SOURCE_KOMGA_COLOR,
       })
     }
@@ -91,7 +93,6 @@ export struct BrowsePage {
         title: s('route_kavita_title'),
         badge: s('browse_kavita_tag'),
         detail: s('browse_kavita_detail'),
-        initial: 'K',
         color: ThemeConstants.SOURCE_KAVITA_COLOR,
       })
     }
@@ -101,7 +102,6 @@ export struct BrowsePage {
         title: s('route_webdav_title'),
         badge: s('browse_webdav_tag'),
         detail: s('browse_webdav_detail'),
-        initial: 'W',
         color: ThemeConstants.SOURCE_WEBDAV_COLOR,
       })
     }
@@ -111,7 +111,6 @@ export struct BrowsePage {
         title: s('route_opds_title'),
         badge: s('browse_opds_tag'),
         detail: s('browse_opds_detail'),
-        initial: 'O',
         color: ThemeConstants.SOURCE_OPDS_COLOR,
       })
     }
@@ -134,6 +133,14 @@ export struct BrowsePage {
     this.openOpds()
   }
 
+  private enabledRuntimeSources(): SourceRuntimeRegistryInstalledSourceSummary[] {
+    return this.viewModel.sources.filter((source: SourceRuntimeRegistryInstalledSourceSummary): boolean => source.enabled)
+  }
+
+  private runtimeSourceSummary(source: SourceRuntimeRegistryInstalledSourceSummary): string {
+    return `v${source.version} · ${this.viewModel.sourceLanguageBadge(source)}`
+  }
+
   @Builder
   private EmptySources() {
     KomaEmptyState({
@@ -148,43 +155,78 @@ export struct BrowsePage {
   }
 
   @Builder
-  private SourceListItems() {
-    ForEach(this.configuredPrivateSourceEntries(), (entry: PrivateBrowseSourceEntry) => {
-      ListItem() {
-        SourceListItem({
-          title: entry.title,
-          subtitle: entry.detail,
-          badge: entry.badge,
-          initial: entry.initial,
-          accentColor: entry.color,
-          showSearchButton: false,
-          onActivate: () => {
-            this.openPrivateSource(entry.key)
-          },
-        })
+  private PrivateSourceListItems() {
+    ListItem() {
+      SectionHeader({ title: s('browse_private_sources_heading') })
+    }
+    ListItem() {
+      GroupedListSection() {
+        ForEach(this.configuredPrivateSourceEntries(), (entry: PrivateBrowseSourceEntry, index: number) => {
+          SourceListItem({
+            title: entry.title,
+            subtitle: entry.detail,
+            badge: entry.badge,
+            accentColor: entry.color,
+            showSearchButton: false,
+            onActivate: () => {
+              this.openPrivateSource(entry.key)
+            },
+          })
+          if (index + 1 < this.configuredPrivateSourceEntries().length) {
+            ListDivider({ leftMargin: ThemeConstants.SPACE_XL })
+          }
+        }, (entry: PrivateBrowseSourceEntry) => entry.key)
       }
-    }, (entry: PrivateBrowseSourceEntry) => entry.key)
+    }
+  }
 
-    ForEach(this.viewModel.sources, (source: SourceRuntimeRegistryInstalledSourceSummary) => {
-      ListItem() {
-        SourceListItem({
-          source: source,
-          languageBadge: this.viewModel.sourceLanguageBadge(source),
-          onSourceTap: (selected: SourceRuntimeRegistryInstalledSourceSummary) => {
-            this.openSource(selected)
-          },
-          onSourceSearch: (selected: SourceRuntimeRegistryInstalledSourceSummary) => {
-            this.openSourceSearch(selected)
-          },
-        })
+  @Builder
+  private RuntimeSourceListItems() {
+    ListItem() {
+      Column({ space: ThemeConstants.SPACE_XS }) {
+        SectionHeader({ title: s('browse_installed_sources_heading') })
+        Text(s('browse_installed_sources_count').replace('%s', `${this.enabledRuntimeSources().length}`))
+          .fontSize(ThemeConstants.FONT_SIZE_CAPTION)
+          .fontColor(ThemeConstants.TEXT_SECONDARY)
+          .padding({ left: ThemeConstants.SPACE_SM, right: ThemeConstants.SPACE_SM, bottom: ThemeConstants.SPACE_XS })
       }
-    }, (source: SourceRuntimeRegistryInstalledSourceSummary) => source.sourceId)
+      .width('100%')
+      .alignItems(HorizontalAlign.Start)
+    }
+    ListItem() {
+      GroupedListSection() {
+        ForEach(this.enabledRuntimeSources(), (source: SourceRuntimeRegistryInstalledSourceSummary, index: number) => {
+          SourceListItem({
+            source: source,
+            subtitle: this.runtimeSourceSummary(source),
+            languageBadge: this.viewModel.sourceLanguageBadge(source),
+            showSearchButton: false,
+            onSourceTap: (selected: SourceRuntimeRegistryInstalledSourceSummary) => {
+              this.openSource(selected)
+            },
+            onSourceSearch: (selected: SourceRuntimeRegistryInstalledSourceSummary) => {
+              this.openSourceSearch(selected)
+            },
+          })
+          if (index + 1 < this.enabledRuntimeSources().length) {
+            ListDivider({ leftMargin: ThemeConstants.SPACE_XL })
+          }
+        }, (source: SourceRuntimeRegistryInstalledSourceSummary) => source.sourceId)
+      }
+    }
   }
 
   aboutToAppear(): void {
+    reloadInstalledSourcePackages(getContext(this) as common.UIAbilityContext)
     this.viewModel = new BrowseViewModel(this.sourceRegistry)
     this.viewModel.loadInstalledSources()
     this.loadRemoteAvailability()
+  }
+
+  @Monitor('sourceRuntimeState.revision')
+  private refreshInstalledSourceSummaries(): void {
+    reloadInstalledSourcePackages(getContext(this) as common.UIAbilityContext)
+    this.viewModel.loadInstalledSources()
   }
 
   private async loadRemoteAvailability(): Promise<void> {
@@ -222,9 +264,10 @@ export struct BrowsePage {
     Refresh({ refreshing: $$this.refreshingSources }) {
       Column() {
         SecondaryListScaffold({
-          listSpace: ThemeConstants.SPACE_LG,
+          listSpace: ThemeConstants.SPACE_SM,
           horizontalPadding: ThemeConstants.SPACE_XL,
           bottomPadding: ThemeConstants.SPACE_XL,
+          floatingTabTailPadding: ThemeConstants.FLOATING_TAB_BAR_CLEARANCE,
         }) {
           if (this.viewModel.loadingSources) {
             ListItem() {
@@ -237,12 +280,17 @@ export struct BrowsePage {
               .width('100%')
               .justifyContent(FlexAlign.Center)
             }
-          } else if (this.viewModel.sources.length === 0 && !this.komgaConfigured && !this.kavitaConfigured && !this.opdsConfigured && !this.webDavConfigured) {
+          } else if (this.enabledRuntimeSources().length === 0 && !this.komgaConfigured && !this.kavitaConfigured && !this.opdsConfigured && !this.webDavConfigured) {
             ListItem() {
               this.EmptySources()
             }
           } else {
-            this.SourceListItems()
+            if (this.configuredPrivateSourceEntries().length > 0) {
+              this.PrivateSourceListItems()
+            }
+            if (this.enabledRuntimeSources().length > 0) {
+              this.RuntimeSourceListItems()
+            }
           }
         }
       }

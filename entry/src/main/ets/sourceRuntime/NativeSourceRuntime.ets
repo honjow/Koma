@@ -5,9 +5,12 @@ interface NativeSourceRuntimeModule {
   add(a: number, b: number): number;
   runJsonCall(requestJson: string): string;
   runJsonCallFromBytes(requestJson: string, wasmBytes: Uint8Array): string;
+  configureHttpTransport(transport: SourceRuntimeHttpTransport): boolean;
 }
 
 const nativeSourceRuntime = nativeRuntime as NativeSourceRuntimeModule;
+
+export type SourceRuntimeHttpTransport = (requestJson: string) => Promise<string>;
 
 export type SourceRuntimeCallRequest = Record<string, Object | string | number | boolean | null>;
 
@@ -48,5 +51,9 @@ export class NativeSourceRuntime {
     const requestJson = typeof request === 'string' ? request : JSON.stringify(request);
     const responseJson = nativeSourceRuntime.runJsonCallFromBytes(requestJson, wasmBytes);
     return JSON.parse(responseJson) as SourceRuntimeCallResponse;
+  }
+
+  static configureHttpTransport(transport: SourceRuntimeHttpTransport): boolean {
+    return nativeSourceRuntime.configureHttpTransport(transport);
   }
 }

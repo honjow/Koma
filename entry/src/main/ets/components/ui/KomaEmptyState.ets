@@ -12,7 +12,7 @@ export struct KomaEmptyState {
   build() {
     Column({ space: ThemeConstants.SPACE_MD }) {
       Text(this.title)
-        .fontSize(ThemeConstants.FONT_SIZE_H3)
+        .fontSize(ThemeConstants.FONT_SIZE_LIST_ITEM)
         .fontWeight(FontWeight.Medium)
         .fontColor(ThemeConstants.TEXT_PRIMARY)
       Text(this.message)
@@ -31,9 +31,12 @@ export struct KomaEmptyState {
       }
     }
     .width('100%')
-    .padding(ThemeConstants.SPACE_XL)
-    .borderRadius(ThemeConstants.RADIUS_CARD)
-    .backgroundColor(ThemeConstants.CARD)
+    // Empty and error states belong to the page flow. A framed white card here
+    // competes with the actual result list and makes an idle search look like
+    // a modal surface. Keep the HDS hierarchy in text and a single optional
+    // action instead.
+    .padding({ top: ThemeConstants.SPACE_XXL, bottom: ThemeConstants.SPACE_XXL, left: ThemeConstants.SPACE_LG, right: ThemeConstants.SPACE_LG })
+    .backgroundColor(Color.Transparent)
     .alignItems(HorizontalAlign.Center)
   }
 }

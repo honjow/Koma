@@ -11,8 +11,10 @@ export struct SecondaryListScaffold {
   @Param listSpace: number = ThemeConstants.SPACE_SM - 2
   @Param horizontalPadding: number = ThemeConstants.SPACE_MD
   @Param bottomPadding: number = ThemeConstants.SPACE_XL
+  // Only root HDS tabs float over content. Root tab pages pass their own
+  // clearance explicitly; destinations keep ordinary safe-area spacing.
   @Param floatingTabTailPadding: number = 0
-  @Param includeKeyboardPadding: boolean = false
+  @Param includeKeyboardPadding: boolean = true
   @Param reserveTitleBar: boolean = true
   @Event onReachEnd?: () => void
   @Event onDidScroll?: (offset: number, state: ScrollState) => void

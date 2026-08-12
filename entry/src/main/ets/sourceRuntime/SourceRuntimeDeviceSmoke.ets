@@ -545,6 +545,7 @@ export interface SourceRuntimeSmokeResult {
   sourceIndexVisibleLibraryReloadOk?: boolean
   sourceIndexVisibleLibraryReaderOk?: boolean
   sourceIndexVisibleLibraryReaderKind?: string
+  sourceIndexVisibleLibraryCleanupOk?: boolean
   sourceIndexDownloadOk?: boolean
   sourceIndexDownloadStatus?: string
   sourceIndexDownloadPageCount?: number
@@ -1099,6 +1100,38 @@ function verifySourceIndexVisibleLibraryReaderSmoke(
       libraryRenderSource.kind === ReaderPageRenderKind.REMOTE_URL_IMAGE &&
         libraryRenderSource.sourceRuntimeId === selectedSourceId &&
         libraryRenderSource.pageId === pageId
+  }
+}
+
+function cleanupSourceIndexVisibleLibraryReaderSmoke(filesDir: string, comicId: string): boolean {
+  // The smoke deliberately writes to the production shelf to verify the real
+  // persistence path.  Remove only its own namespaced fixture immediately.
+  if (!comicId.startsWith('source-index-smoke:')) {
+    return false
+  }
+  try {
+    const libraryStore = new InMemoryLibraryStore()
+    const persistence = new LibraryStorePersistenceService(
+      libraryStore,
+      new AppFilesLibraryStorePersistenceAdapter(filesDir),
+    )
+    persistence.restore()
+    if (libraryStore.getComic(comicId) !== undefined) {
+      libraryStore.removeComic(comicId)
+      persistence.persist()
+    }
+    new PersistentReaderSessionStore(
+      new AppFilesReaderSessionPersistenceAdapter(filesDir),
+    ).removeProgress(comicId)
+    const reloadedStore = new InMemoryLibraryStore()
+    const reloadedPersistence = new LibraryStorePersistenceService(
+      reloadedStore,
+      new AppFilesLibraryStorePersistenceAdapter(filesDir),
+    )
+    reloadedPersistence.restore()
+    return reloadedStore.getComic(comicId) === undefined
+  } catch (_error) {
+    return false
   }
 }
 
@@ -2596,6 +2629,10 @@ export async function maybeRunSourceRuntimeDeviceSmoke(
                 pageId,
                 result,
               )
+              result.sourceIndexVisibleLibraryCleanupOk = cleanupSourceIndexVisibleLibraryReaderSmoke(
+                context.filesDir,
+                comic.id,
+              )
             }
             if (isLocalOfflineDownloadPhase && result.sourceIndexReaderRenderSourceOk === true) {
               const downloadStore = new OfflineDownloadStore(context.filesDir)
@@ -2642,6 +2679,7 @@ export async function maybeRunSourceRuntimeDeviceSmoke(
           result.sourceIndexVisibleLibraryPersistOk === true &&
           result.sourceIndexVisibleLibraryReloadOk === true &&
           result.sourceIndexVisibleLibraryReaderOk === true &&
+          result.sourceIndexVisibleLibraryCleanupOk === true &&
           (!isLocalOfflineDownloadPhase ||
             (result.sourceIndexDownloadOk === true &&
               result.sourceIndexDownloadOfflineReaderOk === true &&
@@ -3187,6 +3225,10 @@ export async function maybeRunSourceRuntimeDeviceSmoke(
                       pageId,
                       result,
                     )
+                    result.sourceIndexVisibleLibraryCleanupOk = cleanupSourceIndexVisibleLibraryReaderSmoke(
+                      context.filesDir,
+                      comic.id,
+                    )
                   }
                 }
                 if (isDownloadReaderPhase && result.sourceIndexReaderRenderSourceOk === true) {
@@ -3265,7 +3307,8 @@ export async function maybeRunSourceRuntimeDeviceSmoke(
           (!isVisibleReaderPhase ||
             (result.sourceIndexVisibleLibraryPersistOk === true &&
               result.sourceIndexVisibleLibraryReloadOk === true &&
-              result.sourceIndexVisibleLibraryReaderOk === true)) &&
+              result.sourceIndexVisibleLibraryReaderOk === true &&
+              result.sourceIndexVisibleLibraryCleanupOk === true)) &&
           (!isDownloadReaderPhase ||
             (result.sourceIndexDownloadOk === true &&
               result.sourceIndexDownloadOfflineReaderOk === true &&

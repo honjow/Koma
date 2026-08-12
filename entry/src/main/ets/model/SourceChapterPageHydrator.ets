@@ -212,13 +212,14 @@ export class SourceChapterPageHydrator {
     comicId: string,
     sourceId: string | undefined,
     chapterId: string,
+    forceRefresh: boolean = false,
   ): Promise<SourceChapterPageHydrationResult> {
     const comic = this.libraryStore.getComic(comicId)
     const chapter = comic?.chapters.find((item: Chapter): boolean => item.id === chapterId)
     if (comic === undefined || chapter === undefined) {
       return { hydrated: false, pageCount: 0, reasonCode: 'chapter_missing' }
     }
-    if (chapter.pages.length > 0) {
+    if (chapter.pages.length > 0 && !forceRefresh) {
       return { hydrated: true, pageCount: chapter.pages.length }
     }
     const resolvedSourceId = sourceId ?? comic.sourceRuntimeId

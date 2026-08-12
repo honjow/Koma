@@ -49,6 +49,22 @@ export function sortedReaderChapters(chapters: Chapter[]): Chapter[] {
   })
 }
 
+/**
+ * Source transports frequently use an opaque chapter id (for example
+ * `ch:<uuid>`) and leave `title` empty.  That id must never become reader
+ * chrome copy: prefer the source title, otherwise render the persisted
+ * chapter sort key through the normal localized chapter label.
+ */
+function readerChapterDisplayTitle(chapter: Chapter): string {
+  const title = chapter.title.trim()
+  if (title.length > 0 && title !== chapter.id) {
+    return title
+  }
+  const parsedSortKey = Number(chapter.sortKey)
+  const ordinal = Number.isFinite(parsedSortKey) ? `${parsedSortKey}` : `${chapter.index + 1}`
+  return AppStrings.get('library_update_chapter_fallback_title').replace('%s', ordinal)
+}
+
 export interface ReaderSessionConfig {
   comicId: ComicId
   chapterId: ChapterId
@@ -319,14 +335,15 @@ export function createReaderSessionConfigFromComic(
     comicId: comic.id,
     chapterId: targetChapterId,
     chapterIds: comic.chapters.map((item) => item.id),
-    chapterTitles: comic.chapters.map((item) => item.title),
+    chapterTitles: comic.chapters.map((item) => readerChapterDisplayTitle(item)),
     title: comic.title,
-    chapterTitle: chapter?.title,
+    chapterTitle: chapter === undefined ? undefined : readerChapterDisplayTitle(chapter),
     totalPages: chapter === undefined ? 0 : chapter.pageCount,
     pageUris: chapter === undefined ? [] : chapter.pages.map((page) => page.uri),
     pageIds: chapter === undefined ? [] : chapter.pages.map((page) => page.id),
     pageWidths: chapter === undefined ? [] : chapter.pages.map((page) => page.width),
     pageHeights: chapter === undefined ? [] : chapter.pages.map((page) => page.height),
+    sourceRuntimeId: comic.sourceRuntimeId,
   }
 }
 

@@ -1,6 +1,6 @@
 #include "http_host.h"
 
-#include <cstdint>
+#include <atomic>
 #include <chrono>
 #include <cstring>
 #include <string>
@@ -15,278 +15,226 @@
 #define HTTP_LOG(fmt, ...) std::fprintf(stderr, "KomaHttpHost: " fmt "\n", ##__VA_ARGS__)
 #endif
 
-// HarmonyOS native HTTP API (API 20+)
-#if __has_include(<network/netstack/net_http.h>)
-#define KOMA_HAS_NATIVE_HTTP 1
-#include <network/netstack/net_http.h>
-#include <network/netstack/net_http_type.h>
-#endif
-
 namespace koma {
 namespace http {
 
 namespace {
 
-/// Manually extract a JSON string value for a given key from raw bytes.
-/// Expects: "key":"value" pattern. Returns empty string if not found.
-std::string ExtractJsonString(const char *json, uint32_t jsonLen, const char *key)
+int32_t WriteResponse(char *out, uint32_t outCap, const std::string &response)
 {
-    std::string pattern = std::string("\"") + key + "\":\"";
-    std::string haystack(json, jsonLen);
-    size_t pos = haystack.find(pattern);
-    if (pos == std::string::npos) {
-        return "";
-    }
-    pos += pattern.size();
-    std::string result;
-    while (pos < jsonLen) {
-        char ch = json[pos++];
-        if (ch == '"') break;
-        if (ch == '\\' && pos < jsonLen) {
-            result += json[pos++];
-        } else {
-            result += ch;
-        }
-    }
-    return result;
-}
-
-/// Build a JSON response for the WASM guest.
-/// Format: {"ok":true,"statusCode":NNN,"bodyText":"<json-escaped body>"}
-/// The WASM source SDK expects this exact envelope with bodyText field.
-int32_t WriteSuccessResponse(char *out, uint32_t outCap,
-    int statusCode, const char *body, uint32_t bodyLen)
-{
-    // Build JSON prefix
-    std::string prefix = "{\"ok\":true,\"statusCode\":" + std::to_string(statusCode) + ",\"bodyText\":\"";
-    std::string suffix = "\"}";
-
-    // JSON-escape the body
-    std::string result;
-    result.reserve(prefix.size() + bodyLen + bodyLen / 4 + suffix.size());
-    result += prefix;
-
-    for (uint32_t i = 0; i < bodyLen; i++) {
-        unsigned char ch = static_cast<unsigned char>(body[i]);
-        switch (ch) {
-            case '"':  result += "\\\""; break;
-            case '\\': result += "\\\\"; break;
-            case '\n': result += "\\n";  break;
-            case '\r': result += "\\r";  break;
-            case '\t': result += "\\t";  break;
-            default:
-                if (ch < 0x20) {
-                    char buf[8];
-                    std::snprintf(buf, sizeof(buf), "\\u%04x", ch);
-                    result += buf;
-                } else {
-                    result += static_cast<char>(ch);
-                }
-                break;
-        }
-    }
-
-    result += suffix;
-
-    if (result.size() > outCap) {
+    if (response.size() > outCap) {
         return -3;
     }
-    std::memcpy(out, result.data(), result.size());
-    return static_cast<int32_t>(result.size());
+    std::memcpy(out, response.data(), response.size());
+    return static_cast<int32_t>(response.size());
 }
 
-int32_t WriteErrorResponse(char *out, uint32_t outCap, const char *code, const char *message)
+int32_t WriteErrorResponse(char *out, uint32_t outCap, const char *code)
 {
-    std::string errJson = std::string("{\"ok\":false,\"error\":{\"code\":\"") +
-        code + "\",\"message\":\"" + message +
-        "\",\"retryable\":false},\"networkPerformed\":false}";
-    uint32_t len = static_cast<uint32_t>(errJson.size());
-    if (len > outCap) {
-        return -3;
-    }
-    std::memcpy(out, errJson.data(), len);
-    return static_cast<int32_t>(len);
+    return WriteResponse(out, outCap,
+        std::string("{\"ok\":false,\"error\":{\"code\":\"") + code +
+        "\",\"message\":\"network request failed\",\"retryable\":true},\"networkPerformed\":false}");
 }
 
-} // namespace
-
-#if defined(KOMA_HAS_NATIVE_HTTP)
-
-namespace {
-
-struct HttpSyncContext {
+struct HttpBridgeCall {
     std::mutex mu;
     std::condition_variable cv;
     bool done = false;
-    uint32_t errCode = 0;
-    int responseCode = 0;
-    std::string responseBody;
+    std::string request;
+    std::string response;
+    std::atomic<uint32_t> refs { 1 };
 
-    void Reset()
+    void Complete(const std::string &value)
     {
-        done = false;
-        errCode = 0;
-        responseCode = 0;
-        responseBody.clear();
+        std::lock_guard<std::mutex> lock(mu);
+        if (!done) {
+            response = value;
+            done = true;
+            cv.notify_one();
+        }
+    }
+
+    void Release()
+    {
+        if (refs.fetch_sub(1) == 1) {
+            delete this;
+        }
     }
 };
 
-// The HarmonyOS native HTTP callback API does not expose a caller-owned user
-// data pointer. Keep the synchronous host bridge serialized and store callback
-// state in process-lifetime storage so NetStack worker callbacks never touch a
-// HostRequest stack frame. Response payload bytes are copied during the callback;
-// NetStack owns the callback response object and the request is cleaned up with
-// OH_Http_Destroy after the callback boundary.
-std::mutex g_requestMu;
-std::mutex g_activeCtxMu;
-HttpSyncContext g_activeCtxStorage;
-HttpSyncContext *g_activeCtx = nullptr;
+std::mutex g_transportMu;
+napi_threadsafe_function g_transport = nullptr;
+
+void CompleteBridgeCall(HttpBridgeCall *call, const std::string &response)
+{
+    call->Complete(response);
+    call->Release();
+}
+
+napi_value Undefined(napi_env env)
+{
+    napi_value value = nullptr;
+    napi_get_undefined(env, &value);
+    return value;
+}
+
+napi_value HttpTransportResolved(napi_env env, napi_callback_info info)
+{
+    size_t argc = 1;
+    napi_value argv[1] = {nullptr};
+    void *data = nullptr;
+    napi_get_cb_info(env, info, &argc, argv, nullptr, &data);
+    auto *call = static_cast<HttpBridgeCall *>(data);
+    if (call == nullptr) {
+        return Undefined(env);
+    }
+    if (argc < 1) {
+        CompleteBridgeCall(call, "{\"ok\":false,\"error\":{\"code\":\"transport_invalid_response\",\"message\":\"network request failed\",\"retryable\":true}}");
+        return Undefined(env);
+    }
+    size_t length = 0;
+    if (napi_get_value_string_utf8(env, argv[0], nullptr, 0, &length) != napi_ok) {
+        CompleteBridgeCall(call, "{\"ok\":false,\"error\":{\"code\":\"transport_invalid_response\",\"message\":\"network request failed\",\"retryable\":true}}");
+        return Undefined(env);
+    }
+    std::string response(length + 1, '\0');
+    size_t copied = 0;
+    if (napi_get_value_string_utf8(env, argv[0], response.data(), response.size(), &copied) != napi_ok) {
+        CompleteBridgeCall(call, "{\"ok\":false,\"error\":{\"code\":\"transport_invalid_response\",\"message\":\"network request failed\",\"retryable\":true}}");
+        return Undefined(env);
+    }
+    response.resize(copied);
+    CompleteBridgeCall(call, response);
+    return Undefined(env);
+}
+
+napi_value HttpTransportRejected(napi_env env, napi_callback_info info)
+{
+    size_t argc = 0;
+    void *data = nullptr;
+    napi_get_cb_info(env, info, &argc, nullptr, nullptr, &data);
+    auto *call = static_cast<HttpBridgeCall *>(data);
+    if (call != nullptr) {
+        CompleteBridgeCall(call, "{\"ok\":false,\"error\":{\"code\":\"network_error\",\"message\":\"network request failed\",\"retryable\":true}}");
+    }
+    return Undefined(env);
+}
+
+void CallArkTsHttpTransport(napi_env env, napi_value callback, void *context, void *data)
+{
+    (void)context;
+    auto *call = static_cast<HttpBridgeCall *>(data);
+    if (call == nullptr) {
+        return;
+    }
+    if (env == nullptr || callback == nullptr) {
+        CompleteBridgeCall(call, "{\"ok\":false,\"error\":{\"code\":\"transport_unavailable\",\"message\":\"network request failed\",\"retryable\":true}}");
+        return;
+    }
+
+    napi_handle_scope scope = nullptr;
+    if (napi_open_handle_scope(env, &scope) != napi_ok) {
+        CompleteBridgeCall(call, "{\"ok\":false,\"error\":{\"code\":\"transport_unavailable\",\"message\":\"network request failed\",\"retryable\":true}}");
+        return;
+    }
+    napi_value input = nullptr;
+    napi_value undefined = nullptr;
+    napi_value promise = nullptr;
+    napi_get_undefined(env, &undefined);
+    if (napi_create_string_utf8(env, call->request.c_str(), call->request.size(), &input) != napi_ok ||
+        napi_call_function(env, undefined, callback, 1, &input, &promise) != napi_ok) {
+        napi_close_handle_scope(env, scope);
+        CompleteBridgeCall(call, "{\"ok\":false,\"error\":{\"code\":\"transport_unavailable\",\"message\":\"network request failed\",\"retryable\":true}}");
+        return;
+    }
+    bool isPromise = false;
+    napi_value then = nullptr;
+    napi_value resolved = nullptr;
+    napi_value rejected = nullptr;
+    napi_value callbacks[2] = {nullptr, nullptr};
+    if (napi_is_promise(env, promise, &isPromise) != napi_ok || !isPromise ||
+        napi_get_named_property(env, promise, "then", &then) != napi_ok ||
+        napi_create_function(env, "sourceHttpResolved", NAPI_AUTO_LENGTH, HttpTransportResolved, call, &resolved) != napi_ok ||
+        napi_create_function(env, "sourceHttpRejected", NAPI_AUTO_LENGTH, HttpTransportRejected, call, &rejected) != napi_ok) {
+        napi_close_handle_scope(env, scope);
+        CompleteBridgeCall(call, "{\"ok\":false,\"error\":{\"code\":\"transport_unavailable\",\"message\":\"network request failed\",\"retryable\":true}}");
+        return;
+    }
+    callbacks[0] = resolved;
+    callbacks[1] = rejected;
+    if (napi_call_function(env, promise, then, 2, callbacks, nullptr) != napi_ok) {
+        napi_close_handle_scope(env, scope);
+        CompleteBridgeCall(call, "{\"ok\":false,\"error\":{\"code\":\"transport_unavailable\",\"message\":\"network request failed\",\"retryable\":true}}");
+        return;
+    }
+    napi_close_handle_scope(env, scope);
+}
 
 } // namespace
 
-int32_t HostRequest(const char *requestJson, uint32_t requestLen,
-    char *out, uint32_t outCap)
+bool ConfigureArkTsHttpTransport(napi_env env, napi_value callback)
+{
+    napi_valuetype callbackType = napi_undefined;
+    if (napi_typeof(env, callback, &callbackType) != napi_ok || callbackType != napi_function) {
+        return false;
+    }
+    napi_value resourceName = nullptr;
+    napi_create_string_utf8(env, "KomaSourceHttpTransport", NAPI_AUTO_LENGTH, &resourceName);
+    napi_threadsafe_function next = nullptr;
+    if (napi_create_threadsafe_function(env, callback, nullptr, resourceName, 0, 1,
+        nullptr, nullptr, nullptr, CallArkTsHttpTransport, &next) != napi_ok) {
+        return false;
+    }
+    napi_threadsafe_function previous = nullptr;
+    {
+        std::lock_guard<std::mutex> lock(g_transportMu);
+        previous = g_transport;
+        g_transport = next;
+    }
+    if (previous != nullptr) {
+        napi_release_threadsafe_function(previous, napi_tsfn_abort);
+    }
+    return true;
+}
+
+int32_t HostRequest(const char *requestJson, uint32_t requestLen, char *out, uint32_t outCap)
 {
     if (requestJson == nullptr || requestLen == 0 || out == nullptr || outCap == 0) {
         return -1;
     }
-
-    // Extract URL from request JSON
-    std::string url = ExtractJsonString(requestJson, requestLen, "url");
-    if (url.empty()) {
-        HTTP_LOG("missing url in request");
-        return WriteErrorResponse(out, outCap, "invalid_request", "missing url");
-    }
-
-    // Validate scheme
-    if (url.substr(0, 8) != "https://" && url.substr(0, 7) != "http://") {
-        HTTP_LOG("invalid scheme in url: %{public}s", url.c_str());
-        return WriteErrorResponse(out, outCap, "invalid_request", "url must be http or https");
-    }
-
-    std::string method = ExtractJsonString(requestJson, requestLen, "method");
-    if (method.empty()) {
-        method = "GET";
-    }
-
-    HTTP_LOG("request: %{public}s %{public}s", method.c_str(), url.c_str());
-
-    std::unique_lock<std::mutex> requestLock(g_requestMu);
-
-    // Create request
-    Http_Request *req = OH_Http_CreateRequest(url.c_str());
-    if (req == nullptr) {
-        return WriteErrorResponse(out, outCap, "network_error", "OH_Http_CreateRequest failed");
-    }
-
-    // Set method and timeouts
-    if (req->options != nullptr) {
-        req->options->method = method.c_str();
-        req->options->readTimeout = 30000;     // 30s
-        req->options->connectTimeout = 15000;  // 15s
-    }
-
-    // Synchronous wait context
-    HttpSyncContext *ctx = &g_activeCtxStorage;
+    napi_threadsafe_function transport = nullptr;
     {
-        std::lock_guard<std::mutex> lock(ctx->mu);
-        ctx->Reset();
-    }
-    {
-        std::lock_guard<std::mutex> activeLock(g_activeCtxMu);
-        g_activeCtx = ctx;
-    }
-
-    Http_ResponseCallback respCb = [](Http_Response *response, uint32_t errCode) {
-        HttpSyncContext *c = nullptr;
-        {
-            std::lock_guard<std::mutex> activeLock(g_activeCtxMu);
-            c = g_activeCtx;
-        }
-        HTTP_LOG("response callback fired: errCode=%{public}u ctx=%{public}p", errCode, c);
-        if (c == nullptr) return;
-
-        std::lock_guard<std::mutex> lock(c->mu);
-        c->errCode = errCode;
-        if (errCode == 0 && response != nullptr) {
-            c->responseCode = response->responseCode;
-            if (response->body.buffer != nullptr && response->body.length > 0) {
-                c->responseBody.assign(response->body.buffer, response->body.length);
-            }
-            HTTP_LOG("response callback copied: status=%{public}d bodyLen=%{public}u",
-                c->responseCode, response->body.length);
-        } else {
-            HTTP_LOG("response callback without response body: errCode=%{public}u response=%{public}p",
-                errCode, response);
-        }
-        c->done = true;
-        c->cv.notify_one();
-    };
-
-    Http_EventsHandler eventsHandler = {};
-
-    int ret = OH_Http_Request(req, respCb, eventsHandler);
-    if (ret != 0) {
-        {
-            std::lock_guard<std::mutex> activeLock(g_activeCtxMu);
-            if (g_activeCtx == ctx) {
-                g_activeCtx = nullptr;
-            }
-        }
-        OH_Http_Destroy(&req);
-        HTTP_LOG("OH_Http_Request failed with %{public}d", ret);
-        return WriteErrorResponse(out, outCap, "network_error", "OH_Http_Request failed");
-    }
-
-    HTTP_LOG("OH_Http_Request dispatched, waiting for callback (timeout 60s)...");
-
-    // Wait for response
-    {
-        std::unique_lock<std::mutex> lock(ctx->mu);
-        ctx->cv.wait_for(lock, std::chrono::seconds(60), [ctx] { return ctx->done; });
-    }
-
-    HTTP_LOG("cleanup: destroying request after callback wait");
-    OH_Http_Destroy(&req);
-    {
-        std::lock_guard<std::mutex> activeLock(g_activeCtxMu);
-        if (g_activeCtx == ctx) {
-            g_activeCtx = nullptr;
+        std::lock_guard<std::mutex> lock(g_transportMu);
+        transport = g_transport;
+        if (transport != nullptr && napi_acquire_threadsafe_function(transport) != napi_ok) {
+            transport = nullptr;
         }
     }
-    HTTP_LOG("cleanup: request destroyed and callback context cleared");
-
-    std::unique_lock<std::mutex> resultLock(ctx->mu);
-    if (!ctx->done) {
-        HTTP_LOG("request timed out");
-        return WriteErrorResponse(out, outCap, "timeout", "HTTP request timed out");
+    if (transport == nullptr) {
+        return WriteErrorResponse(out, outCap, "transport_unavailable");
     }
-
-    if (ctx->errCode != 0) {
-        HTTP_LOG("HTTP error code: %{public}u", ctx->errCode);
-        return WriteErrorResponse(out, outCap, "network_error", "HTTP request failed");
+    auto *call = new HttpBridgeCall();
+    call->request.assign(requestJson, requestLen);
+    call->refs.fetch_add(1);
+    const napi_status queued = napi_call_threadsafe_function(transport, call, napi_tsfn_nonblocking);
+    napi_release_threadsafe_function(transport, napi_tsfn_release);
+    if (queued != napi_ok) {
+        call->Release();
+        call->Release();
+        return WriteErrorResponse(out, outCap, "transport_unavailable");
     }
-
-    HTTP_LOG("response: status=%{public}d bodyLen=%{public}zu",
-        ctx->responseCode, ctx->responseBody.size());
-
-    // Write raw body to output buffer (matching dev runner protocol)
-    return WriteSuccessResponse(out, outCap, ctx->responseCode,
-        ctx->responseBody.data(), static_cast<uint32_t>(ctx->responseBody.size()));
+    std::string response;
+    {
+        std::unique_lock<std::mutex> lock(call->mu);
+        if (!call->cv.wait_for(lock, std::chrono::seconds(60), [call] { return call->done; })) {
+            call->Release();
+            return WriteErrorResponse(out, outCap, "timeout");
+        }
+        response = call->response;
+    }
+    call->Release();
+    return WriteResponse(out, outCap, response);
 }
-
-#else // !KOMA_HAS_NATIVE_HTTP
-
-int32_t HostRequest(const char *requestJson, uint32_t requestLen,
-    char *out, uint32_t outCap)
-{
-    (void)requestJson;
-    (void)requestLen;
-    return WriteErrorResponse(out, outCap, "network_disabled",
-        "native HTTP not available on this platform");
-}
-
-#endif
 
 } // namespace http
 } // namespace koma

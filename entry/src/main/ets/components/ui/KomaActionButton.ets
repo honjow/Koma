@@ -40,7 +40,7 @@ export struct KomaActionButton {
       return this.fillColor
     }
     if (this.kind === 'primary') {
-      return this.accentColor ?? ThemeConstants.BRAND_PRIMARY
+      return this.accentColor ?? ThemeConstants.TEXT_PRIMARY
     }
     if (this.kind === 'danger') {
       return ThemeConstants.DANGER
@@ -55,10 +55,15 @@ export struct KomaActionButton {
     if (this.strokeColor !== undefined) {
       return this.strokeColor
     }
-    if (this.kind === 'secondary' || this.kind === 'ghost') {
-      return this.accentColor ?? ThemeConstants.BRAND_PRIMARY
-    }
     return Color.Transparent
+  }
+
+  private buttonBorderWidth(): number {
+    return this.strokeColor === undefined ? 0 : 1
+  }
+
+  private buttonCornerRadius(): number {
+    return this.compact ? ThemeConstants.RADIUS_SM : ThemeConstants.RADIUS_CHIP
   }
 
   private buttonHorizontalPadding(): number {
@@ -88,27 +93,29 @@ export struct KomaActionButton {
 
   build() {
     if (this.fullWidth) {
-      Button({ type: ButtonType.Capsule, stateEffect: true }) {
+      Button({ type: ButtonType.Normal, stateEffect: true }) {
         this.ButtonContent()
       }
         .width('100%')
         .height(this.controlHeight)
         .layoutWeight(this.fill ? 1 : 0)
         .backgroundColor(this.buttonBackgroundColor())
-        .border({ width: this.kind === 'secondary' || this.kind === 'ghost' ? 1 : 0, color: this.buttonBorderColor() })
+        .border({ width: this.buttonBorderWidth(), color: this.buttonBorderColor() })
+        .borderRadius(this.buttonCornerRadius())
         .opacity(this.isEnabled ? 1 : 0.45)
         .enabled(this.isEnabled && !this.busy)
         .onClick(() => {
           this.action()
         })
     } else {
-      Button({ type: ButtonType.Capsule, stateEffect: true }) {
+      Button({ type: ButtonType.Normal, stateEffect: true }) {
         this.ButtonContent()
       }
         .height(this.controlHeight)
         .layoutWeight(this.fill ? 1 : 0)
         .backgroundColor(this.buttonBackgroundColor())
-        .border({ width: this.kind === 'secondary' || this.kind === 'ghost' ? 1 : 0, color: this.buttonBorderColor() })
+        .border({ width: this.buttonBorderWidth(), color: this.buttonBorderColor() })
+        .borderRadius(this.buttonCornerRadius())
         .opacity(this.isEnabled ? 1 : 0.45)
         .enabled(this.isEnabled && !this.busy)
         .onClick(() => {

@@ -4,9 +4,11 @@ import { KomaEmptyState } from '../components/ui/KomaEmptyState'
 import { KomaIconButton } from '../components/ui/KomaIconButton'
 import { SecondaryListScaffold } from '../components/SecondaryListScaffold'
 import { SourceFilterControls, SourceFilterControlValue } from '../components/SourceFilterControls'
+import { GroupedListSection } from '../components/ui/GroupedListSection'
 import { AppStrings } from '../i18n/AppStrings'
 import { SourceFilter, SourceManga } from '../model/SourceModels'
 import { connectLanguageState, LanguageState } from '../state/LanguageState'
+import { connectSourceRuntimeState, SourceRuntimeState } from '../state/SourceRuntimeState'
 import { ThemeConstants } from '../theme/ThemeConstants'
 import {
   BrowseSourceSectionState,
@@ -15,6 +17,8 @@ import {
   SourceListingDescriptor,
 } from '../viewmodel/BrowseViewModel'
 import { SourceRuntimeRegistryInstalledSourceSummary } from '../sourceRuntime/SourceRuntimeRegistry'
+import { reloadInstalledSourcePackages } from '../sourceRuntime/SourceRuntimeAppRegistry'
+import { common } from '@kit.AbilityKit'
 
 function s(name: string): string {
   return AppStrings.get(name)
@@ -38,7 +42,9 @@ export struct SourceBrowsePage {
   }
   @Param viewModel: BrowseViewModel = new BrowseViewModel()
   @Local private languageState: LanguageState = connectLanguageState()
-  @Local private filtersExpanded: boolean = false
+  @Local private sourceRuntimeState: SourceRuntimeState = connectSourceRuntimeState()
+  @Local private filtersShown: boolean = false
+  @Local private listingMenuOpen: boolean = false
   @Event onSearchRequested: (source: SourceRuntimeRegistryInstalledSourceSummary) => void =
     (_source: SourceRuntimeRegistryInstalledSourceSummary) => {}
   @Event onMangaTap: (manga: SourceManga) => void = (_manga: SourceManga) => {}
@@ -71,7 +77,11 @@ export struct SourceBrowsePage {
     if (this.viewModel.loadingBrowse) {
       return false
     }
-    if (this.viewModel.selectedSource?.sourceId !== this.source.sourceId) {
+    const current = this.currentSource()
+    const selected = this.viewModel.selectedSource
+    if (selected?.sourceId !== current.sourceId ||
+      selected?.version !== current.version ||
+      selected?.wasmByteCount !== current.wasmByteCount) {
       return true
     }
     return !this.hasBrowseContent() &&
@@ -113,51 +123,25 @@ export struct SourceBrowsePage {
     return !this.viewModel.sourceCanBrowse(source) && this.viewModel.sourceCanSearch(source)
   }
 
-  private toggleFilters(): void {
-    this.filtersExpanded = !this.filtersExpanded
+  private openFilters(): void {
+    this.filtersShown = true
+  }
+
+  private closeFilters(): void {
+    this.filtersShown = false
   }
 
   @Builder
-  private ListingSelector() {
-    if (this.viewModel.listings.length > 1) {
-      Scroll() {
-        Row({ space: ThemeConstants.SPACE_SM }) {
-          ForEach(this.viewModel.listings, (listing: SourceListingDescriptor) => {
-            this.ListingChip(listing)
-          }, (listing: SourceListingDescriptor) => listing.id)
-        }
-      }
-      .width('100%')
-      .scrollable(ScrollDirection.Horizontal)
-      .scrollBar(BarState.Off)
+  private ListingMenu() {
+    Menu() {
+      ForEach(this.viewModel.listings, (listing: SourceListingDescriptor) => {
+        MenuItem({ content: listing.name })
+          .onClick(() => {
+            this.listingMenuOpen = false
+            void this.viewModel.selectBrowseListing(listing)
+          })
+      }, (listing: SourceListingDescriptor) => listing.id)
     }
-  }
-
-  @Builder
-  private ListingChip(listing: SourceListingDescriptor) {
-    Button({ type: ButtonType.Capsule, stateEffect: true }) {
-      Text(listing.name)
-        .fontSize(ThemeConstants.FONT_SIZE_BODY)
-        .fontWeight(FontWeight.Medium)
-        .fontColor(this.viewModel.selectedListingId === listing.id ?
-          ThemeConstants.TEXT_ON_BRAND :
-          ThemeConstants.BRAND_PRIMARY)
-        .maxLines(1)
-        .textOverflow({ overflow: TextOverflow.Ellipsis })
-        .padding({ left: ThemeConstants.SPACE_MD, right: ThemeConstants.SPACE_MD })
-    }
-    .height(ThemeConstants.ACTION_CHIP_HEIGHT)
-    .constraintSize({ maxWidth: 220 })
-    .backgroundColor(this.viewModel.selectedListingId === listing.id ?
-      ThemeConstants.BRAND_PRIMARY :
-      $r('sys.color.ohos_id_color_button_normal'))
-    .border({
-      width: this.viewModel.selectedListingId === listing.id ? 0 : 1,
-      color: this.viewModel.selectedListingId === listing.id ? Color.Transparent : ThemeConstants.BRAND_PRIMARY,
-    })
-    .onClick(() => {
-      void this.viewModel.selectBrowseListing(listing)
-    })
   }
 
   @Builder
@@ -166,6 +150,7 @@ export struct SourceBrowsePage {
       filters: this.viewModel.filters,
       values: this.viewModel.browseFilterValues,
       busy: this.viewModel.loadingBrowse,
+      vertical: true,
       onFilterChange: (filter: SourceFilter, value: SourceFilterControlValue | undefined) => {
         this.setBrowseFilterValue(filter, value)
       },
@@ -175,13 +160,51 @@ export struct SourceBrowsePage {
     })
   }
 
+  private openListingMenu(): void {
+    if (this.viewModel.listings.length > 1 && !this.viewModel.loadingBrowse) {
+      this.listingMenuOpen = true
+    }
+  }
+
   @Builder
-  private SectionHeader(title: string, count: number) {
+  private SectionHeader(title: string, count: number, selectable: boolean = false) {
     Row() {
-      Text(title)
-        .fontSize(ThemeConstants.FONT_SIZE_H3)
-        .fontWeight(FontWeight.Bold)
-        .fontColor(ThemeConstants.TEXT_PRIMARY)
+      if (selectable) {
+        Button({ type: ButtonType.Normal, stateEffect: true }) {
+          Row({ space: ThemeConstants.SPACE_XS }) {
+            Text(title)
+              .fontSize(ThemeConstants.FONT_SIZE_H3)
+              .fontWeight(FontWeight.Bold)
+              .fontColor(ThemeConstants.TEXT_PRIMARY)
+              .maxLines(1)
+              .textOverflow({ overflow: TextOverflow.Ellipsis })
+            SymbolGlyph($r('sys.symbol.arrowtriangle_down_fill'))
+              .fontSize(ThemeConstants.FONT_SIZE_CAPTION)
+              .fontColor([ThemeConstants.TEXT_TERTIARY])
+          }
+          .alignItems(VerticalAlign.Center)
+        }
+        .backgroundColor(Color.Transparent)
+        .padding(0)
+        .borderRadius(0)
+        .bindMenu(this.listingMenuOpen, this.ListingMenu(), {
+          placement: Placement.BottomLeft,
+          onDisappear: () => {
+            this.listingMenuOpen = false
+          },
+        })
+        .accessibilityText(title)
+        .onClick(() => {
+          this.openListingMenu()
+        })
+      } else {
+        Text(title)
+          .fontSize(ThemeConstants.FONT_SIZE_H3)
+          .fontWeight(FontWeight.Bold)
+          .fontColor(ThemeConstants.TEXT_PRIMARY)
+          .maxLines(1)
+          .textOverflow({ overflow: TextOverflow.Ellipsis })
+      }
       Blank()
       Text(s('library_count_books').replace('%s', `${count}`))
         .fontSize(ThemeConstants.FONT_SIZE_META)
@@ -193,7 +216,7 @@ export struct SourceBrowsePage {
   @Builder
   private BrowseSection(section: BrowseSourceSectionState) {
     Column({ space: ThemeConstants.SPACE_MD }) {
-      this.SectionHeader(section.listing.name, section.manga.length)
+      this.SectionHeader(section.listing.name, section.manga.length, this.viewModel.listings.length > 1)
       this.MangaGrid(section.manga)
     }
     .width('100%')
@@ -212,7 +235,7 @@ export struct SourceBrowsePage {
         if (this.hasListingForHomeSection(section)) {
           KomaActionButton({
             label: s('browse_section_open_listing'),
-            kind: 'secondary',
+            kind: 'ghost',
             compact: true,
             isEnabled: !this.viewModel.loadingBrowse,
             action: () => {
@@ -276,15 +299,11 @@ export struct SourceBrowsePage {
   @Builder
   private SourceToolbar() {
     Row({ space: ThemeConstants.SPACE_SM }) {
-      Text(`v${this.currentSource().version}`)
-        .fontSize(ThemeConstants.FONT_SIZE_META)
-        .fontColor(ThemeConstants.TEXT_SECONDARY)
-        .maxLines(1)
-        .textOverflow({ overflow: TextOverflow.Ellipsis })
       Blank()
       KomaActionButton({
         label: s('tab_search'),
-        kind: 'primary',
+        icon: $r('sys.symbol.magnifyingglass'),
+        kind: 'ghost',
         compact: true,
         controlHeight: ThemeConstants.ACTION_CHIP_HEIGHT,
         action: () => {
@@ -292,19 +311,30 @@ export struct SourceBrowsePage {
         },
       })
       if (this.hasRuntimeFilters()) {
-        KomaActionButton({
-          label: s('common_filter'),
-          kind: this.filtersExpanded ? 'primary' : 'secondary',
-          compact: true,
-          controlHeight: ThemeConstants.ACTION_CHIP_HEIGHT,
-          action: () => {
-            this.toggleFilters()
-          },
-        })
+        Button({ type: ButtonType.Normal, stateEffect: true }) {
+          Text(s('common_filter'))
+            .fontSize(ThemeConstants.FONT_SIZE_BODY)
+            .fontWeight(FontWeight.Medium)
+            .fontColor(ThemeConstants.BRAND_PRIMARY)
+            .padding({ left: ThemeConstants.SPACE_MD, right: ThemeConstants.SPACE_MD })
+        }
+          .height(ThemeConstants.ACTION_CHIP_HEIGHT)
+          .backgroundColor(Color.Transparent)
+          .borderRadius(ThemeConstants.RADIUS_CHIP)
+          .onClick(() => {
+            this.openFilters()
+          })
+          .bindSheet($$this.filtersShown, this.SourceFiltersSheet, {
+            detents: [SheetSize.MEDIUM, SheetSize.LARGE],
+            showClose: false,
+            onDisappear: () => {
+              this.closeFilters()
+            },
+          })
       }
       KomaIconButton({
         icon: $r('sys.symbol.arrow_clockwise'),
-        kind: 'secondary',
+        kind: 'ghost',
         isEnabled: !this.viewModel.loadingBrowse,
         action: () => {
           this.reloadBrowse()
@@ -313,6 +343,62 @@ export struct SourceBrowsePage {
     }
     .width('100%')
     .alignItems(VerticalAlign.Center)
+  }
+
+  @Builder
+  private SourceFiltersSheet() {
+    Column() {
+      Row() {
+        Text(s('common_filter'))
+          .fontSize(ThemeConstants.FONT_SIZE_H3)
+          .fontWeight(FontWeight.Medium)
+          .fontColor(ThemeConstants.TEXT_PRIMARY)
+          .layoutWeight(1)
+        Button({ type: ButtonType.Circle, stateEffect: true }) {
+          SymbolGlyph($r('sys.symbol.xmark'))
+            .fontSize(20)
+            .fontColor([ThemeConstants.TEXT_PRIMARY])
+        }
+        .width(44)
+        .height(44)
+        .backgroundColor(Color.Transparent)
+        .accessibilityText(s('common_close'))
+        .onClick(() => {
+          this.closeFilters()
+        })
+      }
+      .width('100%')
+      .height(56)
+      .padding({ left: ThemeConstants.SPACE_LG, right: ThemeConstants.SPACE_SM })
+
+      Divider().strokeWidth(0.5).color(ThemeConstants.DIVIDER)
+
+      Scroll() {
+        Column({ space: ThemeConstants.SPACE_LG }) {
+          GroupedListSection() {
+            this.RuntimeFilterControls()
+          }
+          KomaActionButton({
+            label: s('common_reset'),
+            kind: 'ghost',
+            compact: true,
+            isEnabled: !this.viewModel.loadingBrowse,
+            action: () => {
+              void this.viewModel.resetBrowseFilters()
+            },
+          })
+          Blank().height(ThemeConstants.SPACE_XL)
+        }
+        .width('100%')
+        .padding(ThemeConstants.SPACE_LG)
+      }
+      .scrollBar(BarState.Off)
+      .width('100%')
+      .layoutWeight(1)
+    }
+    .width('100%')
+    .height('100%')
+    .backgroundColor(ThemeConstants.BG_SUB)
   }
 
   @Builder
@@ -334,6 +420,17 @@ export struct SourceBrowsePage {
   }
 
   aboutToAppear(): void {
+    reloadInstalledSourcePackages(getContext(this) as common.UIAbilityContext)
+    this.viewModel.loadInstalledSources()
+    if (this.shouldLoadBrowseOnAppear()) {
+      this.reloadBrowse()
+    }
+  }
+
+  @Monitor('sourceRuntimeState.revision')
+  private refreshCurrentSourceSummary(): void {
+    reloadInstalledSourcePackages(getContext(this) as common.UIAbilityContext)
+    this.viewModel.loadInstalledSources()
     if (this.shouldLoadBrowseOnAppear()) {
       this.reloadBrowse()
     }
@@ -352,18 +449,6 @@ export struct SourceBrowsePage {
       }) {
         ListItem() {
           this.SourceToolbar()
-        }
-
-        if (this.viewModel.listings.length > 1) {
-          ListItem() {
-            this.ListingSelector()
-          }
-        }
-
-        if (this.hasRuntimeFilters() && this.filtersExpanded) {
-          ListItem() {
-            this.RuntimeFilterControls()
-          }
         }
 
         if (this.viewModel.loadingBrowse &&

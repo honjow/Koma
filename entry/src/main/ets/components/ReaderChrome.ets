@@ -45,6 +45,9 @@ export interface ReaderChromePreferencesChange {
 @ComponentV2
 export struct ReaderChrome {
   @Param visible: boolean = false
+  /** One physical bar per component, matching NextE's sibling bar layers. */
+  @Param placement: 'top' | 'bottom' = 'top'
+  @Param viewportHeight: number = 0
   @Param pageIndex: number = 0
   @Param pageTotal: number = 0
   @Param title: string = ''
@@ -97,6 +100,16 @@ export struct ReaderChrome {
     return total <= 0 ? '0 / 0' : `${Math.min(Math.max(this.pageIndex + 1, 1), total)} / ${total}`
   }
 
+  private barHeight(): number {
+    return this.placement === 'top'
+      ? this.topInset + 72
+      : this.bottomInset + 104 + (this.thumbStripVisible ? 156 : 0)
+  }
+
+  private barOffsetY(): number {
+    return this.placement === 'top' ? 0 : Math.max(this.viewportHeight - this.barHeight(), 0)
+  }
+
   private chapterText(): string {
     return this.chapterTotal <= 0 ? '' : `${s('reader_control_chapter')} ${this.chapterIndex + 1} / ${this.chapterTotal}`
   }
@@ -145,12 +158,8 @@ export struct ReaderChrome {
       preloadPages: p.preloadPages,
       spreadLayoutMode: p.spreadLayoutMode,
       columnMode: p.columnMode,
-      tapNavigationEnabled: true,
-      swipeNavigationEnabled: true,
-      zoomGesturesEnabled: true,
       tapZonePreset: p.tapZonePreset,
       tapZoneInvert: p.tapZoneInvert,
-      showTapZones: false,
       pageGapMode: p.pageGapMode,
       trimPageMarginsEnabled: p.trimPageMarginsEnabled,
       wideImageMode: p.wideImageMode,
@@ -618,16 +627,16 @@ export struct ReaderChrome {
 
   build() {
     Stack({ alignContent: Alignment.TopStart }) {
-      if (this.visible) {
-        Column() {
-          Blank().layoutWeight(1).hitTestBehavior(HitTestMode.Block).onClick(() => { this.onVisibleChange(false) })
-          this.BottomBar()
-        }.width('100%').height('100%').hitTestBehavior(HitTestMode.Default)
+      if (this.visible && this.placement === 'top') {
         this.TopBar()
-      } else {
-        Blank().width('100%').height('100%').hitTestBehavior(HitTestMode.Transparent)
+      }
+      if (this.visible && this.placement === 'bottom') {
+        this.BottomBar()
       }
     }
-    .width('100%').height('100%').hitTestBehavior(this.visible ? HitTestMode.Default : HitTestMode.Transparent)
+    .width('100%')
+    .height(this.barHeight())
+    .position({ x: 0, y: this.barOffsetY() })
+    .hitTestBehavior(HitTestMode.Default)
   }
 }

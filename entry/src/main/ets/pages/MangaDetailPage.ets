@@ -793,6 +793,10 @@ export struct MangaDetailPage {
     return this.progressChapterId() ?? this.firstChapterId()
   }
 
+  private hasReadableChapters(): boolean {
+    return this.primaryReadChapterId() !== undefined
+  }
+
   private allChapterIds(): string[] {
     return this.chapters.map((chapter: MangaChapterItem): string => chapter.id)
   }
@@ -1538,6 +1542,7 @@ export struct MangaDetailPage {
         fill: true,
         compact: true,
         controlHeight: ThemeConstants.ACTION_CHIP_HEIGHT,
+        isEnabled: this.hasReadableChapters() && !this.isLoading,
         action: () => {
           this.handleStartReading()
         },
@@ -1550,7 +1555,7 @@ export struct MangaDetailPage {
         fill: true,
         compact: true,
         controlHeight: ThemeConstants.ACTION_CHIP_HEIGHT,
-        isEnabled: !this.downloadBusy,
+        isEnabled: this.hasReadableChapters() && !this.downloadBusy && !this.isLoading,
         action: () => {
           this.handleDownloadChapter()
         },

@@ -1,6 +1,7 @@
 import { SourceMangaGrid } from '../components/SourceMangaGrid'
 import { KomaActionButton } from '../components/ui/KomaActionButton'
 import { KomaEmptyState } from '../components/ui/KomaEmptyState'
+import { GroupedListSection } from '../components/ui/GroupedListSection'
 import { SecondaryListScaffold } from '../components/SecondaryListScaffold'
 import { SourceFilterControls, SourceFilterControlValue } from '../components/SourceFilterControls'
 import { AppStrings } from '../i18n/AppStrings'
@@ -33,6 +34,7 @@ export struct SourceSearchPage {
   @Param viewModel: BrowseViewModel = new BrowseViewModel()
   @Local private languageState: LanguageState = connectLanguageState()
   @Local private query: string = ''
+  @Local private filtersShown: boolean = false
   private searchTimer: number = 0
   @Event onMangaTap: (manga: SourceManga) => void = (_manga: SourceManga) => {}
 
@@ -107,6 +109,14 @@ export struct SourceSearchPage {
     this.rerunSearchIfReady()
   }
 
+  private openFilters(): void {
+    this.filtersShown = true
+  }
+
+  private closeFilters(): void {
+    this.filtersShown = false
+  }
+
   private searchPlaceholder(): string {
     const sourceName = this.currentSource().displayName
     return sourceName.length > 0 ? `${s('source_search_placeholder')} · ${sourceName}` : s('source_search_placeholder')
@@ -132,6 +142,7 @@ export struct SourceSearchPage {
       filters: this.viewModel.filters,
       values: this.viewModel.searchFilterValues,
       busy: this.viewModel.loadingSearch,
+      vertical: true,
       onFilterChange: (filter: SourceFilter, value: SourceFilterControlValue | undefined) => {
         this.setSearchFilterValue(filter, value)
       },
@@ -178,6 +189,64 @@ export struct SourceSearchPage {
     })
   }
 
+  @Builder
+  private SearchFiltersSheet() {
+    Column() {
+      Row() {
+        Text(s('common_filter'))
+          .fontSize(ThemeConstants.FONT_SIZE_H3)
+          .fontWeight(FontWeight.Medium)
+          .fontColor(ThemeConstants.TEXT_PRIMARY)
+          .layoutWeight(1)
+        Button({ type: ButtonType.Circle, stateEffect: true }) {
+          SymbolGlyph($r('sys.symbol.xmark'))
+            .fontSize(20)
+            .fontColor([ThemeConstants.TEXT_PRIMARY])
+        }
+        .width(44)
+        .height(44)
+        .backgroundColor(Color.Transparent)
+        .accessibilityText(s('common_close'))
+        .onClick(() => {
+          this.closeFilters()
+        })
+      }
+      .width('100%')
+      .height(56)
+      .padding({ left: ThemeConstants.SPACE_LG, right: ThemeConstants.SPACE_SM })
+
+      Divider().strokeWidth(0.5).color(ThemeConstants.DIVIDER)
+
+      Scroll() {
+        Column({ space: ThemeConstants.SPACE_LG }) {
+          GroupedListSection() {
+            this.RuntimeFilterControls()
+          }
+          if (this.hasActiveSearchFilters()) {
+            KomaActionButton({
+              label: s('common_reset'),
+              kind: 'ghost',
+              compact: true,
+              isEnabled: !this.viewModel.loadingSearch,
+              action: () => {
+                this.resetSearchFilters()
+              },
+            })
+          }
+          Blank().height(ThemeConstants.SPACE_XL)
+        }
+        .width('100%')
+        .padding(ThemeConstants.SPACE_LG)
+      }
+      .scrollBar(BarState.Off)
+      .width('100%')
+      .layoutWeight(1)
+    }
+    .width('100%')
+    .height('100%')
+    .backgroundColor(ThemeConstants.BG_SUB)
+  }
+
   aboutToDisappear(): void {
     this.clearPendingSearchTimer()
   }
@@ -201,8 +270,9 @@ export struct SourceSearchPage {
         ListItem() {
           Search({ value: this.query, placeholder: this.searchPlaceholder() })
             .width('100%')
-            .height(ThemeConstants.BUTTON_HEIGHT)
-            .backgroundColor(ThemeConstants.CARD)
+            .height(ThemeConstants.INPUT_HEIGHT)
+            .borderRadius(ThemeConstants.RADIUS_CHIP)
+            .backgroundColor($r('sys.color.comp_background_tertiary'))
             .placeholderColor(ThemeConstants.TEXT_SECONDARY)
             .textFont({ size: ThemeConstants.FONT_SIZE_BODY, weight: FontWeight.Regular })
             .onChange((value: string) => {
@@ -214,7 +284,30 @@ export struct SourceSearchPage {
         }
         if (this.hasRuntimeFilters()) {
           ListItem() {
-            this.RuntimeFilterControls()
+            Row() {
+              Blank()
+              Button({ type: ButtonType.Normal, stateEffect: true }) {
+                Text(s('common_filter'))
+                  .fontSize(ThemeConstants.FONT_SIZE_BODY)
+                  .fontWeight(FontWeight.Medium)
+                  .fontColor(ThemeConstants.BRAND_PRIMARY)
+                  .padding({ left: ThemeConstants.SPACE_MD, right: ThemeConstants.SPACE_MD })
+              }
+              .height(ThemeConstants.ACTION_CHIP_HEIGHT)
+              .backgroundColor(Color.Transparent)
+              .borderRadius(ThemeConstants.RADIUS_CHIP)
+              .onClick(() => {
+                this.openFilters()
+              })
+              .bindSheet($$this.filtersShown, this.SearchFiltersSheet, {
+                detents: [SheetSize.MEDIUM, SheetSize.LARGE],
+                showClose: false,
+                onDisappear: () => {
+                  this.closeFilters()
+                },
+              })
+            }
+            .width('100%')
           }
         }
         if (this.viewModel.loadingSearch && this.viewModel.searchResults.length === 0) {

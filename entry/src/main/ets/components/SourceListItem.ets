@@ -22,7 +22,6 @@ export struct SourceListItem {
   @Param title: ResourceStr = ''
   @Param subtitle: ResourceStr = ''
   @Param badge: ResourceStr = ''
-  @Param initial: string = ''
   @Param accentColor: ResourceColor = ThemeConstants.BRAND_PRIMARY
   @Param showSearchButton: boolean = true
   @Param languageBadge: string = 'SRC'
@@ -36,6 +35,17 @@ export struct SourceListItem {
     return this.source.sourceId.trim().length > 0
   }
 
+  private presentationIconUri(): string {
+    const icon = this.source.icon?.trim() ?? ''
+    // Source icons are optional, user-provided package metadata.  Only render
+    // a URI that ArkUI can load directly; do not invent a per-source logo when
+    // the package did not provide one.
+    if (icon.startsWith('https://') || icon.startsWith('http://') || icon.startsWith('file://')) {
+      return icon
+    }
+    return ''
+  }
+
   private displayTitle(): ResourceStr {
     if (this.title !== '') {
       return this.title
@@ -47,7 +57,16 @@ export struct SourceListItem {
     if (this.subtitle !== '') {
       return this.subtitle
     }
-    return `v${this.source.version} · ${this.source.importStatus}`
+    // Browse is an entry surface, not the package-manager diagnostics screen.
+    // A source index description frequently contains implementation jargon
+    // (for example “HTML scraping source”) and makes otherwise identical
+    // source rows visually noisy. Callers pass the compact, user-actionable
+    // version/language summary for installed runtime sources instead.
+    if (this.sourceBacked()) {
+      return ''
+    }
+    const description = this.source.description?.trim() ?? ''
+    return description
   }
 
   private displayBadge(): ResourceStr {
@@ -55,16 +74,6 @@ export struct SourceListItem {
       return this.badge
     }
     return this.languageBadge
-  }
-
-  private sourceInitial(): string {
-    if (this.initial.length > 0) {
-      return this.initial.substring(0, 1).toLocaleUpperCase()
-    }
-    if (this.source.displayName.length === 0) {
-      return 'K'
-    }
-    return this.source.displayName.substring(0, 1).toLocaleUpperCase()
   }
 
   private activate(): void {
@@ -77,28 +86,24 @@ export struct SourceListItem {
 
   @Builder
   private SourcePrefix() {
-    Stack({ alignContent: Alignment.Center }) {
-      Text(this.sourceInitial())
-        .fontSize(ThemeConstants.FONT_SIZE_H3)
-        .fontWeight(FontWeight.Bold)
-        .fontColor(ThemeConstants.TEXT_ON_BRAND)
+    if (this.presentationIconUri().length > 0) {
+      Image(this.presentationIconUri())
+        .width(40)
+        .height(40)
+        .objectFit(ImageFit.Contain)
+        .interpolation(ImageInterpolation.Medium)
     }
-    .width(ThemeConstants.SOURCE_ICON_SIZE)
-    .height(ThemeConstants.SOURCE_ICON_SIZE)
-    .borderRadius(ThemeConstants.RADIUS_ROUND)
-    .backgroundColor(this.accentColor)
   }
 
   @Builder
   private SourceSuffix() {
     Row({ space: ThemeConstants.SPACE_SM }) {
-      Text(this.displayBadge())
-        .fontSize(ThemeConstants.FONT_SIZE_TAG)
-        .fontWeight(FontWeight.Medium)
-        .fontColor(ThemeConstants.BRAND_PRIMARY)
-        .padding({ left: 8, right: 8, top: 3, bottom: 3 })
-        .borderRadius(ThemeConstants.RADIUS_CHIP)
-        .backgroundColor(ThemeConstants.SOFT_TINT)
+      if (!this.sourceBacked() && this.displayBadge() !== '') {
+        Text(this.displayBadge())
+          .fontSize(ThemeConstants.FONT_SIZE_TAG)
+          .fontWeight(FontWeight.Medium)
+          .fontColor(ThemeConstants.TEXT_SECONDARY)
+      }
 
       if (this.showSearchButton && this.sourceBacked()) {
         KomaIconButton({
@@ -120,7 +125,8 @@ export struct SourceListItem {
     .alignItems(VerticalAlign.Center)
   }
 
-  build() {
+  @Builder
+  private SourceRowWithIcon() {
     ConciseListRow({
       title: this.displayTitle(),
       subtitle: this.displaySubtitle(),
@@ -136,5 +142,29 @@ export struct SourceListItem {
         this.SourceSuffix()
       },
     })
+  }
+
+  @Builder
+  private SourceRowWithoutIcon() {
+    ConciseListRow({
+      title: this.displayTitle(),
+      subtitle: this.displaySubtitle(),
+      subtitleMaxLines: 1,
+      showChevron: false,
+      action: () => {
+        this.activate()
+      },
+      suffixBuilderParam: () => {
+        this.SourceSuffix()
+      },
+    })
+  }
+
+  build() {
+    if (this.presentationIconUri().length > 0) {
+      this.SourceRowWithIcon()
+    } else {
+      this.SourceRowWithoutIcon()
+    }
   }
 }

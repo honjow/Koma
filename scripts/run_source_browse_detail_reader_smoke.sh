@@ -46,7 +46,7 @@ hdc_target() {
 restore_source_available() {
   [ -f "$source_disabled_marker" ] || return 0
   hdc_target shell aa force-stop com.honjow.koma || true
-  hdc_target shell aa start -u "$user_id" -a EntryAbility -b com.honjow.koma -m entry \
+  hdc_target shell aa start -a EntryAbility -b com.honjow.koma -m entry \
     --ps koma.launchRoute source_package_manager || true
   sleep "${KOMA_SOURCE_BROWSE_START_WAIT_SECONDS:-4}"
   if click_from_layout_or_after_scroll "source-browse-source-manager-restore" "$artifact_dir/click-source-enable-restore.txt" "Enable" "启用"; then
@@ -280,6 +280,72 @@ if not candidates:
 
 _top, _left, box = sorted(candidates)[0]
 output_path.write_text(f'{(box[0] + box[2]) // 2} {(box[1] + box[3]) // 2}\n', encoding='utf-8')
+PY
+  read -r click_x click_y < "$output"
+  hdc_target shell uitest uiInput click "$click_x" "$click_y"
+}
+
+click_detail_library_button() {
+  local layout="$1"
+  local output="$2"
+  python3 - "$layout" "$output" <<'PY'
+import json
+import pathlib
+import re
+import sys
+
+layout = json.loads(pathlib.Path(sys.argv[1]).read_text(encoding='utf-8'))
+output = pathlib.Path(sys.argv[2])
+
+def attrs(node):
+    if not isinstance(node, dict):
+        return {}
+    value = node.get('attributes')
+    return value if isinstance(value, dict) else node
+
+def walk(node):
+    if isinstance(node, dict):
+        yield node
+        for value in node.values():
+            yield from walk(value)
+    elif isinstance(node, list):
+        for item in node:
+            yield from walk(item)
+
+def bounds(value):
+    if isinstance(value, list) and len(value) >= 4:
+        return [int(float(v)) for v in value[:4]]
+    if isinstance(value, dict):
+        keys = ('left', 'top', 'right', 'bottom')
+        if all(key in value for key in keys):
+            return [int(float(value[key])) for key in keys]
+    if isinstance(value, str):
+        values = [int(float(value)) for value in re.findall(r'-?\d+(?:\.\d+)?', value)]
+        if len(values) >= 4:
+            return values[:4]
+    return None
+
+# The add-to-library affordance is currently an icon-only button.  Resolve it
+# from the actual action row rather than using a fixed screen coordinate: its
+# two labelled predecessors are Start reading and Download chapter, and the
+# trailing icon opens the overflow menu.
+buttons = []
+for node in walk(layout):
+    item = attrs(node)
+    if item.get('type') != 'Button' or item.get('clickable') != 'true':
+        continue
+    box = bounds(item.get('bounds')) or bounds(item.get('origBounds')) or bounds(item.get('rect'))
+    if box is None:
+        continue
+    left, top, right, bottom = box
+    if top >= 820 and bottom <= 1050 and right > left and bottom > top:
+        buttons.append(box)
+
+buttons = sorted(buttons, key=lambda box: box[0])
+if len(buttons) != 4:
+    raise SystemExit(f'source browse detail reader smoke failed: expected 4 detail action buttons, got {len(buttons)}')
+left, top, right, bottom = buttons[2]
+output.write_text(f'{(left + right) // 2} {(top + bottom) // 2}\n', encoding='utf-8')
 PY
   read -r click_x click_y < "$output"
   hdc_target shell uitest uiInput click "$click_x" "$click_y"
@@ -629,7 +695,7 @@ PY
 
 make_source_unavailable() {
   hdc_target shell aa force-stop com.honjow.koma
-  hdc_target shell aa start -u "$user_id" -a EntryAbility -b com.honjow.koma -m entry \
+  hdc_target shell aa start -a EntryAbility -b com.honjow.koma -m entry \
     --ps koma.launchRoute source_package_manager
   sleep "${KOMA_SOURCE_BROWSE_START_WAIT_SECONDS:-4}"
   capture_layout "source-browse-source-manager-before-disable"
@@ -643,7 +709,7 @@ enable_source_via_ui() {
   make_source_unavailable
   restore_source_available
   hdc_target shell aa force-stop com.honjow.koma
-  hdc_target shell aa start -u "$user_id" -a EntryAbility -b com.honjow.koma -m entry \
+  hdc_target shell aa start -a EntryAbility -b com.honjow.koma -m entry \
     --ps koma.launchRoute source_package_manager
   sleep "${KOMA_SOURCE_BROWSE_START_WAIT_SECONDS:-4}"
   capture_layout "source-browse-source-manager-enabled-before-browse"
@@ -749,7 +815,7 @@ if [ "$ui_enable_source_first" = "true" ]; then
 fi
 
 hdc_target shell aa force-stop com.honjow.koma
-hdc_target shell aa start -u "$user_id" -a EntryAbility -b com.honjow.koma -m entry
+hdc_target shell aa start -a EntryAbility -b com.honjow.koma -m entry
 sleep "${KOMA_SOURCE_BROWSE_START_WAIT_SECONDS:-4}"
 
 capture_layout "source-browse-home"
@@ -794,8 +860,14 @@ if [ "$download_first" = "true" ]; then
   detail_action_layout="$artifact_dir/source-browse-download-layout.json"
   capture_download_manifest_summary "$source_manga_title"
 fi
-assert_layout_contains_any "$detail_action_layout" "Add to library" "加入书架" "In library" "已在书架"
-click_from_layout "$detail_action_layout" "$artifact_dir/click-add-to-library.txt" "Add to library" "加入书架" "In library" "已在书架"
+if layout_contains_all "$detail_action_layout" "Add to library" ||
+  layout_contains_all "$detail_action_layout" "加入书架" ||
+  layout_contains_all "$detail_action_layout" "In library" ||
+  layout_contains_all "$detail_action_layout" "已在书架"; then
+  click_from_layout "$detail_action_layout" "$artifact_dir/click-add-to-library.txt" "Add to library" "加入书架" "In library" "已在书架"
+else
+  click_detail_library_button "$detail_action_layout" "$artifact_dir/click-add-to-library-icon.txt"
+fi
 sleep "${KOMA_SOURCE_BROWSE_ADD_WAIT_SECONDS:-4}"
 capture_layout "source-browse-library-after-add"
 if ! layout_contains_all "$artifact_dir/source-browse-library-after-add-layout.json" "$source_manga_title" "浏览"; then
@@ -830,7 +902,7 @@ PY
 if [ "$download_first" = "true" ]; then
   make_source_unavailable
   hdc_target shell aa force-stop com.honjow.koma
-  hdc_target shell aa start -u "$user_id" -a EntryAbility -b com.honjow.koma -m entry
+  hdc_target shell aa start -a EntryAbility -b com.honjow.koma -m entry
   sleep "${KOMA_SOURCE_BROWSE_START_WAIT_SECONDS:-4}"
   capture_layout "source-browse-source-unavailable-home"
   if ! layout_contains_all "$artifact_dir/source-browse-source-unavailable-home-layout.json" "$source_manga_title"; then

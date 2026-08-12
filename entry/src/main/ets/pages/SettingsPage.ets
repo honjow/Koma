@@ -124,9 +124,6 @@ import {
   getReaderPageGapModeLabel,
   getReaderPageModeLabel,
   getReaderProgressControlsLabel,
-  getReaderSwipeNavigationLabel,
-  getReaderShowTapZonesLabel,
-  getReaderTapNavigationLabel,
   getReaderTapZoneInvertLabel,
   getReaderTapZonePresetLabel,
   getReaderThemeModeLabel,
@@ -134,9 +131,9 @@ import {
   getReaderVolumeKeyBehaviorLabel,
   getReaderWideImageModeLabel,
   getReaderVolumeKeyNavigationLabel,
-  getReaderZoomGesturesLabel,
   getReadingDirectionLabel,
 } from '../model/ReaderPreferencesStore'
+import { ReaderTapZoneAction, ReaderTapZoneRegion, readerTapZoneRegions } from '../model/ReaderTapZoneGeometry'
 import { listInstalled } from '../sourceRuntime/SourceRuntimeAppRegistry'
 import { SourceRuntimeRegistry } from '../sourceRuntime/SourceRuntimeRegistry'
 import { AppStrings } from '../i18n/AppStrings'
@@ -430,12 +427,8 @@ export struct SettingsPage {
   @Local private showReaderProgressControls: boolean = true
   @Local private keepReaderScreenAwake: boolean = true
   @Local private readerImageFitMode: ReaderImageFitMode = 'contain'
-  @Local private readerTapNavigationEnabled: boolean = true
-  @Local private readerSwipeNavigationEnabled: boolean = true
-  @Local private readerZoomGesturesEnabled: boolean = true
   @Local private readerTapZonePreset: ReaderTapZonePreset = 'edge'
   @Local private readerTapZoneInvert: ReaderTapZoneInvert = 'none'
-  @Local private readerShowTapZones: boolean = false
   @Local private readerPageGapMode: ReaderPageGapMode = 'normal'
   @Local private readerTrimPageMarginsEnabled: boolean = false
   @Local private readerWideImageMode: ReaderWideImageMode = 'keep_single'
@@ -622,23 +615,11 @@ export struct SettingsPage {
     if (row.key === 'reader-image-fit') {
       return getReaderImageFitModeLabel(this.readerImageFitMode)
     }
-    if (row.key === 'reader-tap-navigation') {
-      return getReaderTapNavigationLabel(this.readerTapNavigationEnabled)
-    }
-    if (row.key === 'reader-swipe-navigation') {
-      return getReaderSwipeNavigationLabel(this.readerSwipeNavigationEnabled)
-    }
-    if (row.key === 'reader-zoom-gestures') {
-      return getReaderZoomGesturesLabel(this.readerZoomGesturesEnabled)
-    }
     if (row.key === 'reader-tap-zone-preset') {
       return getReaderTapZonePresetLabel(this.readerTapZonePreset)
     }
     if (row.key === 'reader-tap-zone-invert') {
       return getReaderTapZoneInvertLabel(this.readerTapZoneInvert)
-    }
-    if (row.key === 'reader-show-tap-zones') {
-      return getReaderShowTapZonesLabel(this.readerShowTapZones)
     }
     if (row.key === 'reader-page-gap') {
       return getReaderPageGapModeLabel(this.readerPageGapMode)
@@ -939,9 +920,13 @@ export struct SettingsPage {
   }
 
   private searchResultSubtitle(result: SettingsSearchResult): string {
-    const detail = this.rowDetail(result.row)
-    const path = `${this.paneTitle(result.pane)} / ${result.sectionTitle}`
-    return detail.length > 0 ? `${path} · ${detail}` : path
+    // A switch already communicates its state visually.  Repeating “on/off”
+    // in search results creates noisy, contradictory-looking settings rows.
+    // Keep the result's location so the row can be found, but never turn a
+    // current value into an explanatory subtitle here.
+    const pane = this.paneTitle(result.pane)
+    const section = result.sectionTitle
+    return pane === section ? pane : `${pane} / ${section}`
   }
 
   private sectionsByKeys(keys: string[]): SettingsSection[] {
@@ -1063,12 +1048,8 @@ export struct SettingsPage {
     this.showReaderProgressControls = preferences.showProgressControls
     this.keepReaderScreenAwake = preferences.keepScreenAwake
     this.readerImageFitMode = preferences.imageFitMode
-    this.readerTapNavigationEnabled = preferences.tapNavigationEnabled
-    this.readerSwipeNavigationEnabled = preferences.swipeNavigationEnabled
-    this.readerZoomGesturesEnabled = preferences.zoomGesturesEnabled
     this.readerTapZonePreset = preferences.tapZonePreset
     this.readerTapZoneInvert = preferences.tapZoneInvert
-    this.readerShowTapZones = preferences.showTapZones
     this.readerPageGapMode = preferences.pageGapMode
     this.readerTrimPageMarginsEnabled = preferences.trimPageMarginsEnabled
     this.readerWideImageMode = preferences.wideImageMode
@@ -1486,39 +1467,6 @@ export struct SettingsPage {
       })
   }
 
-  private saveReaderTapNavigationEnabled(tapNavigationEnabled: boolean): void {
-    this.readerTapNavigationEnabled = tapNavigationEnabled
-    void this.preferencesStore().saveTapNavigationEnabled(tapNavigationEnabled)
-      .then(() => {
-        console.info('[Settings] step=save_reader_tap_navigation value=' + tapNavigationEnabled)
-      })
-      .catch((error: Error) => {
-        console.warn('[Settings] step=save_reader_tap_navigation_failed code=' + safeSettingsErrorCode(error))
-      })
-  }
-
-  private saveReaderSwipeNavigationEnabled(swipeNavigationEnabled: boolean): void {
-    this.readerSwipeNavigationEnabled = swipeNavigationEnabled
-    void this.preferencesStore().saveSwipeNavigationEnabled(swipeNavigationEnabled)
-      .then(() => {
-        console.info('[Settings] step=save_reader_swipe_navigation value=' + swipeNavigationEnabled)
-      })
-      .catch((error: Error) => {
-        console.warn('[Settings] step=save_reader_swipe_navigation_failed code=' + safeSettingsErrorCode(error))
-      })
-  }
-
-  private saveReaderZoomGesturesEnabled(zoomGesturesEnabled: boolean): void {
-    this.readerZoomGesturesEnabled = zoomGesturesEnabled
-    void this.preferencesStore().saveZoomGesturesEnabled(zoomGesturesEnabled)
-      .then(() => {
-        console.info('[Settings] step=save_reader_zoom_gestures value=' + zoomGesturesEnabled)
-      })
-      .catch((error: Error) => {
-        console.warn('[Settings] step=save_reader_zoom_gestures_failed code=' + safeSettingsErrorCode(error))
-      })
-  }
-
   private saveReaderTapZonePreset(tapZonePreset: ReaderTapZonePreset): void {
     this.readerTapZonePreset = tapZonePreset
     void this.preferencesStore().saveTapZonePreset(tapZonePreset)
@@ -1539,17 +1487,6 @@ export struct SettingsPage {
       .catch((error: Error) => {
         void error
         console.warn('[Settings] step=save_reader_tap_zone_invert_failed code=' + safeSettingsErrorCode(error))
-      })
-  }
-
-  private saveReaderShowTapZones(showTapZones: boolean): void {
-    this.readerShowTapZones = showTapZones
-    void this.preferencesStore().saveShowTapZones(showTapZones)
-      .then(() => {
-        console.info('[Settings] step=save_reader_show_tap_zones value=' + showTapZones)
-      })
-      .catch((error: Error) => {
-        console.warn('[Settings] step=save_reader_show_tap_zones_failed code=' + safeSettingsErrorCode(error))
       })
   }
 
@@ -2253,20 +2190,8 @@ export struct SettingsPage {
     if (row.key === 'reader-keep-screen-awake') {
       return this.keepReaderScreenAwake
     }
-    if (row.key === 'reader-tap-navigation') {
-      return this.readerTapNavigationEnabled
-    }
-    if (row.key === 'reader-swipe-navigation') {
-      return this.readerSwipeNavigationEnabled
-    }
-    if (row.key === 'reader-zoom-gestures') {
-      return this.readerZoomGesturesEnabled
-    }
     if (row.key === 'reader-trim-page-margins') {
       return this.readerTrimPageMarginsEnabled
-    }
-    if (row.key === 'reader-show-tap-zones') {
-      return this.readerShowTapZones
     }
     if (row.key === 'reader-volume-key-navigation') {
       return this.readerVolumeKeyNavigationEnabled
@@ -2306,14 +2231,6 @@ export struct SettingsPage {
       this.saveReaderProgressControls(value)
     } else if (row.key === 'reader-keep-screen-awake') {
       this.saveReaderKeepScreenAwake(value)
-    } else if (row.key === 'reader-tap-navigation') {
-      this.saveReaderTapNavigationEnabled(value)
-    } else if (row.key === 'reader-swipe-navigation') {
-      this.saveReaderSwipeNavigationEnabled(value)
-    } else if (row.key === 'reader-zoom-gestures') {
-      this.saveReaderZoomGesturesEnabled(value)
-    } else if (row.key === 'reader-show-tap-zones') {
-      this.saveReaderShowTapZones(value)
     } else if (row.key === 'reader-trim-page-margins') {
       this.saveReaderTrimPageMarginsEnabled(value)
     } else if (row.key === 'reader-volume-key-navigation') {
@@ -2613,27 +2530,20 @@ export struct SettingsPage {
     }
   }
 
-  private tapZonePreviewEdgeWidth(): string {
-    if (!this.readerTapNavigationEnabled) {
-      return '0%'
-    }
-    return this.readerTapZonePreset === 'wide_edges' ? '32%' : '18%'
+  private tapZonePreviewLabel(action: ReaderTapZoneAction): string {
+    if (action === 'previous') return s('reader_tap_zone_action_previous')
+    if (action === 'next') return s('reader_tap_zone_action_next')
+    if (action === 'left') return s('reader_tap_zone_action_left')
+    if (action === 'right') return s('reader_tap_zone_action_right')
+    return s('reader_tap_zone_action_menu')
   }
 
-  private tapZonePreviewEdgeColor(): ResourceColor {
-    return this.readerShowTapZones ? ThemeConstants.READER_TAP_ZONE_OVERLAY : ThemeConstants.SOFT_TINT
-  }
-
-  private tapZonePreviewLeftLabel(): string {
-    return this.readingDirection === ReadingDirection.RIGHT_TO_LEFT
-      ? s('reader_action_next_page')
-      : s('reader_action_previous_page')
-  }
-
-  private tapZonePreviewRightLabel(): string {
-    return this.readingDirection === ReadingDirection.RIGHT_TO_LEFT
-      ? s('reader_action_previous_page')
-      : s('reader_action_next_page')
+  private tapZonePreviewColor(action: ReaderTapZoneAction): ResourceColor {
+    if (action === 'previous') return '#264E78B8'
+    if (action === 'next') return '#26588752'
+    if (action === 'left') return '#26705A9F'
+    if (action === 'right') return '#26876D45'
+    return '#262D6D66'
   }
 
   @Builder
@@ -2643,49 +2553,28 @@ export struct SettingsPage {
         .fontSize(ThemeConstants.FONT_SIZE_CAPTION)
         .fontColor(ThemeConstants.TEXT_TERTIARY)
         .fontWeight(FontWeight.Medium)
-      Row() {
-        Column() {
-          if (this.readerTapNavigationEnabled) {
-            Text(this.tapZonePreviewLeftLabel())
-              .fontSize(ThemeConstants.FONT_SIZE_CAPTION)
-              .fontColor(ThemeConstants.READER_TEXT_PRIMARY)
-              .maxLines(2)
+      Stack() {
+        ForEach(readerTapZoneRegions(this.readerTapZonePreset, this.readerTapZoneInvert), (region: ReaderTapZoneRegion) => {
+          Stack({ alignContent: Alignment.Center }) {
+            Text(this.tapZonePreviewLabel(region.action))
+              .fontSize(ThemeConstants.FONT_SIZE_TINY)
+              .fontColor(ThemeConstants.TEXT_PRIMARY)
+              .maxLines(1)
+              .textOverflow({ overflow: TextOverflow.Ellipsis })
               .textAlign(TextAlign.Center)
+              .padding({ left: ThemeConstants.SPACE_XS, right: ThemeConstants.SPACE_XS })
           }
-        }
-        .width(this.tapZonePreviewEdgeWidth())
-        .height('100%')
-        .justifyContent(FlexAlign.Center)
-        .backgroundColor(this.tapZonePreviewEdgeColor())
-
-        Column() {
-          Text(s('reader_tap_zone_center'))
-            .fontSize(ThemeConstants.FONT_SIZE_CAPTION)
-            .fontColor(ThemeConstants.TEXT_SECONDARY)
-            .maxLines(1)
-        }
-        .layoutWeight(1)
-        .height('100%')
-        .justifyContent(FlexAlign.Center)
-
-        Column() {
-          if (this.readerTapNavigationEnabled) {
-            Text(this.tapZonePreviewRightLabel())
-              .fontSize(ThemeConstants.FONT_SIZE_CAPTION)
-              .fontColor(ThemeConstants.READER_TEXT_PRIMARY)
-              .maxLines(2)
-              .textAlign(TextAlign.Center)
-          }
-        }
-        .width(this.tapZonePreviewEdgeWidth())
-        .height('100%')
-        .justifyContent(FlexAlign.Center)
-        .backgroundColor(this.tapZonePreviewEdgeColor())
+            .position({ x: `${region.left * 100}%`, y: `${region.top * 100}%` })
+            .width(`${(region.right - region.left) * 100}%`)
+            .height(`${(region.bottom - region.top) * 100}%`)
+            .backgroundColor(this.tapZonePreviewColor(region.action))
+            .border({ width: 1, color: ThemeConstants.DIVIDER })
+        }, (region: ReaderTapZoneRegion) => `settings-tap-zone-${region.action}-${region.left}-${region.top}`)
       }
       .width('100%')
       .height(96)
       .clip(true)
-      .borderRadius(ThemeConstants.RADIUS_CHIP)
+      .borderRadius(ThemeConstants.RADIUS_MD)
       .backgroundColor(ThemeConstants.CARD)
       .border({ width: 1, color: ThemeConstants.DIVIDER })
     }
@@ -2813,8 +2702,9 @@ export struct SettingsPage {
   private SettingsSearchField() {
     Search({ value: this.settingsSearchText, placeholder: s('settings_search_placeholder') })
       .width('100%')
-      .height(ThemeConstants.BUTTON_HEIGHT)
-      .backgroundColor(ThemeConstants.CARD)
+      .height(ThemeConstants.INPUT_HEIGHT)
+      .borderRadius(ThemeConstants.RADIUS_CHIP)
+      .backgroundColor($r('sys.color.comp_background_tertiary'))
       .placeholderColor(ThemeConstants.TEXT_SECONDARY)
       .textFont({ size: ThemeConstants.FONT_SIZE_BODY, weight: FontWeight.Regular })
       .onChange((value: string) => {
@@ -2846,6 +2736,7 @@ export struct SettingsPage {
         listSpace: ThemeConstants.SPACE_LG,
         horizontalPadding: ThemeConstants.SPACE_XL,
         bottomPadding: ThemeConstants.SPACE_XL,
+        floatingTabTailPadding: this.pane === 'root' ? ThemeConstants.FLOATING_TAB_BAR_CLEARANCE : 0,
       }) {
         if (this.pane === 'root') {
           ListItem() {

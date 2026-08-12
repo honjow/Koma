@@ -315,14 +315,17 @@ export function parseSourceChaptersJson(json: string): SourceChapter[] {
     const payload = JSON.parse(json) as SourceRuntimeChapterListPayload
     const rows = payload.chapters !== undefined ? payload.chapters : (payload.items ?? [])
     return rows.map((row: SourceRuntimeChapterPayload): SourceChapter => {
-      const title = firstNonEmpty([row.title, row.id]) ?? AppStrings.get('manga_detail_chapter_untitled')
+      const chapterNumber = firstNumber([row.chapterNumber, row.chapter, row.index])
+      const title = firstNonEmpty([row.title]) ?? (chapterNumber === undefined
+        ? AppStrings.get('manga_detail_chapter_untitled')
+        : AppStrings.get('library_update_chapter_fallback_title').replace('%s', `${chapterNumber}`))
       return {
         id: firstNonEmpty([row.id, row.title]) ?? 'chapter',
         title: normalizeSourceDisplayText(title) ?? title,
         scanlator: firstNonEmptyList([row.scanlator, row.scanlators, row.group, row.groups]),
         language: optionalString(firstNonEmpty([row.language, row.lang, row.translatedLanguage, row.locale])),
         dateUpload: firstTimestamp([row.date_upload, row.dateUpload, row.uploadDate, row.uploadedAt, row.updatedAt]),
-        chapterNumber: firstNumber([row.chapterNumber, row.chapter, row.index]),
+        chapterNumber,
         volumeNumber: firstNumber([row.volumeNumber, row.volume]),
         url: optionalString(row.url),
       }

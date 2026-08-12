@@ -4,6 +4,8 @@ import { CachedCoverImage, cachedCoverFailureKey } from '../components/CachedCov
 import { SecondaryListScaffold } from '../components/SecondaryListScaffold'
 import { KomaActionButton } from '../components/ui/KomaActionButton'
 import { KomaIconButton } from '../components/ui/KomaIconButton'
+import { ConciseListRow } from '../components/ui/ConciseListRow'
+import { GroupedListSection, ListDivider } from '../components/ui/GroupedListSection'
 import {
   CrossSearchMatchQuality,
   CrossSearchResultItem,
@@ -359,44 +361,6 @@ export struct SearchPage {
     return section.resultCount === 0 ? section.title : `${section.title} · ${section.resultCount}`
   }
 
-  private badgeText(item: CrossSearchResultItem): string {
-    if (item.sourceKind === 'local') {
-      return 'L'
-    }
-    if (item.sourceKind === 'komga') {
-      return 'K'
-    }
-    if (item.sourceKind === 'kavita') {
-      return 'V'
-    }
-    if (item.sourceKind === 'opds') {
-      return 'O'
-    }
-    if (item.sourceKind === 'webdav') {
-      return 'W'
-    }
-    return 'S'
-  }
-
-  private badgeColor(item: CrossSearchResultItem): string {
-    if (item.sourceKind === 'local') {
-      return ThemeConstants.SOURCE_LOCAL_COLOR
-    }
-    if (item.sourceKind === 'komga') {
-      return ThemeConstants.SOURCE_KOMGA_COLOR
-    }
-    if (item.sourceKind === 'kavita') {
-      return ThemeConstants.SOURCE_KAVITA_COLOR
-    }
-    if (item.sourceKind === 'opds') {
-      return ThemeConstants.SOURCE_OPDS_COLOR
-    }
-    if (item.sourceKind === 'webdav') {
-      return ThemeConstants.SOURCE_WEBDAV_COLOR
-    }
-    return ThemeConstants.SOURCE_WASM_COLOR
-  }
-
   private sourceFilterLabel(): string {
     if (this.sourceFilter === 'local') {
       return s('search_filter_local')
@@ -418,8 +382,9 @@ export struct SearchPage {
   private SearchInput() {
     Search({ value: this.queryText, placeholder: s('search_placeholder') })
       .width('100%')
-      .height(ThemeConstants.BUTTON_HEIGHT)
-      .backgroundColor(ThemeConstants.CARD)
+      .height(ThemeConstants.INPUT_HEIGHT)
+      .borderRadius(ThemeConstants.RADIUS_CHIP)
+      .backgroundColor($r('sys.color.comp_background_tertiary'))
       .placeholderColor(ThemeConstants.TEXT_SECONDARY)
       .textFont({ size: ThemeConstants.FONT_SIZE_BODY, weight: FontWeight.Regular })
       .onChange((value: string) => {
@@ -454,35 +419,36 @@ export struct SearchPage {
 
   @Builder
   private SourceFilterBar() {
-    Column({ space: ThemeConstants.SPACE_SM }) {
+    Row() {
       Text(s('search_filter_label'))
         .fontSize(ThemeConstants.FONT_SIZE_META)
         .fontColor(ThemeConstants.TEXT_SECONDARY)
-        .width('100%')
-      Row({ space: ThemeConstants.SPACE_SM }) {
-        this.SourceFilterChip('all', s('search_filter_all'))
-        this.SourceFilterChip('local', s('search_filter_local'))
-        this.SourceFilterChip('private', s('search_filter_private'))
-        this.SourceFilterChip('source', s('search_filter_source'))
+      Blank()
+      Row({ space: ThemeConstants.SPACE_XS }) {
+        Text(this.sourceFilterLabel())
+          .fontSize(ThemeConstants.FONT_SIZE_BODY)
+          .fontWeight(FontWeight.Medium)
+          .fontColor(this.sourceFilter === 'all' ? ThemeConstants.TEXT_PRIMARY : ThemeConstants.BRAND_PRIMARY)
+          .maxLines(1)
+          .textOverflow({ overflow: TextOverflow.Ellipsis })
+        SymbolGlyph($r('sys.symbol.arrowtriangle_down_fill'))
+          .fontSize(ThemeConstants.FONT_SIZE_CAPTION)
+          .fontColor([ThemeConstants.TEXT_TERTIARY])
       }
-      .width('100%')
+      .bindMenu(this.sourceFilterMenuOpen, this.SourceFilterMenu(), {
+        placement: Placement.BottomRight,
+        onDisappear: () => {
+          this.sourceFilterMenuOpen = false
+        },
+      })
+      .onClick(() => {
+        this.sourceFilterMenuOpen = true
+      })
+      .height(ThemeConstants.BUTTON_HEIGHT)
+      .padding({ left: ThemeConstants.SPACE_SM, right: ThemeConstants.SPACE_SM })
     }
     .width('100%')
-    .alignItems(HorizontalAlign.Start)
-  }
-
-  @Builder
-  private SourceFilterChip(sourceFilter: CrossSearchSourceFilter, label: ResourceStr) {
-    KomaActionButton({
-      label,
-      kind: this.sourceFilter === sourceFilter ? 'primary' : 'secondary',
-      compact: true,
-      fill: true,
-      controlHeight: ThemeConstants.ACTION_CHIP_HEIGHT,
-      action: () => {
-        this.setSourceFilter(sourceFilter)
-      },
-    })
+    .alignItems(VerticalAlign.Center)
   }
 
   @Builder
@@ -538,43 +504,45 @@ export struct SearchPage {
           .backgroundColor(ThemeConstants.CARD)
           .textAlign(TextAlign.Center)
       } else {
-        ForEach(this.history, (entry: SearchHistoryEntry) => {
-          Row() {
-            Column({ space: ThemeConstants.SPACE_XS }) {
-              Text(entry.query)
-                .fontSize(ThemeConstants.FONT_SIZE_BODY)
-                .fontWeight(FontWeight.Medium)
-                .fontColor(ThemeConstants.TEXT_PRIMARY)
-                .maxLines(1)
-                .textOverflow({ overflow: TextOverflow.Ellipsis })
-                .width('100%')
-              Text(this.formatHistoryTime(entry.updatedAt))
-                .fontSize(ThemeConstants.FONT_SIZE_CAPTION)
-                .fontColor(ThemeConstants.TEXT_SECONDARY)
-            }
-            .layoutWeight(1)
-            .alignItems(HorizontalAlign.Start)
-            KomaIconButton({
-              icon: $r('sys.symbol.trash'),
-              kind: 'ghost',
-              accentColor: ThemeConstants.TEXT_SECONDARY,
+        GroupedListSection() {
+          ForEach(this.history, (entry: SearchHistoryEntry, index: number) => {
+            ConciseListRow({
+              title: entry.query,
+              subtitle: this.formatHistoryTime(entry.updatedAt),
+              subtitleMaxLines: 1,
+              showChevron: false,
+              suffixBuilderParam: () => {
+                this.HistoryDeleteButton(entry)
+              },
               action: () => {
-                this.removeHistoryEntry(entry.query)
+                this.runHistoryQuery(entry.query)
               },
             })
-          }
-          .width('100%')
-          .padding(ThemeConstants.SPACE_LG)
-          .borderRadius(ThemeConstants.RADIUS_CARD)
-          .backgroundColor(ThemeConstants.CARD)
-          .onClick(() => {
-            this.runHistoryQuery(entry.query)
-          })
-        }, (entry: SearchHistoryEntry) => `${entry.query}:${entry.updatedAt}`)
+            if (index < this.history.length - 1) {
+              ListDivider()
+            }
+          }, (entry: SearchHistoryEntry) => `${entry.query}:${entry.updatedAt}`)
+        }
       }
     }
     .width('100%')
     .alignItems(HorizontalAlign.Start)
+  }
+
+  @Builder
+  private HistoryDeleteButton(entry: SearchHistoryEntry) {
+    Button({ type: ButtonType.Circle, stateEffect: true }) {
+      SymbolGlyph($r('sys.symbol.trash'))
+        .fontSize(ThemeConstants.FONT_SIZE_H2)
+        .fontColor([ThemeConstants.TEXT_SECONDARY])
+    }
+    .width(ThemeConstants.ACTION_CHIP_HEIGHT)
+    .height(ThemeConstants.ACTION_CHIP_HEIGHT)
+    .backgroundColor(Color.Transparent)
+    .accessibilityText(s('common_delete'))
+    .onClick(() => {
+      this.removeHistoryEntry(entry.query)
+    })
   }
 
   private formatHistoryTime(updatedAt: number): string {
@@ -657,17 +625,16 @@ export struct SearchPage {
               })
           }
         } else {
-          Text(this.badgeText(item))
-            .fontSize(ThemeConstants.FONT_SIZE_HEADING)
-            .fontWeight(FontWeight.Bold)
-            .fontColor(ThemeConstants.TEXT_ON_BRAND)
+          SymbolGlyph($r('sys.symbol.book'))
+            .fontSize(ThemeConstants.FONT_SIZE_H2)
+            .fontColor([ThemeConstants.TEXT_TERTIARY])
         }
       }
       .width(ThemeConstants.LIST_COVER_WIDTH)
       .height(ThemeConstants.LIST_COVER_HEIGHT)
       .borderRadius(ThemeConstants.RADIUS_THUMB)
       .clip(true)
-      .backgroundColor(this.badgeColor(item))
+      .backgroundColor(ThemeConstants.COVER_PLACEHOLDER)
 
       Column({ space: ThemeConstants.SPACE_SM }) {
         Text(item.title)
@@ -771,6 +738,7 @@ export struct SearchPage {
           listSpace: ThemeConstants.SPACE_MD,
           horizontalPadding: ThemeConstants.SPACE_XL,
           bottomPadding: ThemeConstants.SPACE_XL,
+          floatingTabTailPadding: ThemeConstants.FLOATING_TAB_BAR_CLEARANCE,
         }) {
           ListItem() {
             this.SearchInput()

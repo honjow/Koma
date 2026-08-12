@@ -2,7 +2,7 @@ import { common } from '@kit.AbilityKit'
 import { SymbolGlyphModifier } from '@kit.ArkUI'
 import { SecondaryListScaffold } from '../components/SecondaryListScaffold'
 import { ConciseListRow } from '../components/ui/ConciseListRow'
-import { GroupedListSection, ListDivider } from '../components/ui/GroupedListSection'
+import { GroupedListSection, ListDivider, SectionHeader } from '../components/ui/GroupedListSection'
 import { KomaActionButton } from '../components/ui/KomaActionButton'
 import { KomaFormTextField } from '../components/ui/KomaFormTextField'
 import { AppStrings } from '../i18n/AppStrings'
@@ -54,6 +54,7 @@ function tf(name: string, ...args: Array<string | number>): string {
 
 type SourcePackageUpdateState = 'unknown' | 'checking' | 'latest' | 'update' | 'missing' | 'failed'
 type SourceSettingsValidationState = 'unknown' | 'running' | 'pass' | 'fail'
+type SourceManagerSheetPane = 'details' | 'settings' | 'diagnostics' | 'index'
 
 interface SourcePackageUpdateStatus {
   sourceId: string
@@ -124,6 +125,9 @@ export struct SourcePackageManagerPage {
   @Local private settingsValidationSourceId: string = ''
   @Local private diagnosticsSourceId: string = ''
   @Local private settingMenuKey: string = ''
+  @Local private sourceSheetShown: boolean = false
+  @Local private sourceSheetSourceId: string = ''
+  @Local private sourceSheetPane: SourceManagerSheetPane = 'details'
   @Local private languageState: LanguageState = connectLanguageState()
   private sourceIndexService: SourceIndexService = new SourceIndexService(this.context())
 
@@ -216,6 +220,51 @@ export struct SourcePackageManagerPage {
     RouterHelper.pushSourceSearch({ source: this.sourceSummary(source) })
   }
 
+  private sourceSheetSource(): InstalledSourcePackage | undefined {
+    return this.packages.find((source: InstalledSourcePackage): boolean => source.id === this.sourceSheetSourceId)
+  }
+
+  private openSourceSheet(source: InstalledSourcePackage): void {
+    this.sourceSheetSourceId = source.id
+    this.sourceSheetPane = 'details'
+    this.sourceSheetShown = true
+  }
+
+  private openIndexSheet(): void {
+    this.sourceSheetSourceId = ''
+    this.sourceSheetPane = 'index'
+    this.sourceSheetShown = true
+  }
+
+  private dismissSourceSheet(): void {
+    this.sourceSheetShown = false
+    this.sourceSheetPane = 'details'
+    this.sourceSheetSourceId = ''
+    this.closeSettings()
+  }
+
+  private openSourceBrowseFromSheet(source: InstalledSourcePackage): void {
+    this.dismissSourceSheet()
+    this.openSourceBrowse(source)
+  }
+
+  private openSourceSearchFromSheet(source: InstalledSourcePackage): void {
+    this.dismissSourceSheet()
+    this.openSourceSearch(source)
+  }
+
+  private openSourceSettingsFromSheet(source: InstalledSourcePackage): void {
+    this.openSettings(source)
+    this.sourceSheetSourceId = source.id
+    this.sourceSheetPane = 'settings'
+  }
+
+  private openSourceDiagnosticsFromSheet(source: InstalledSourcePackage): void {
+    this.diagnosticsSourceId = source.id
+    this.sourceSheetSourceId = source.id
+    this.sourceSheetPane = 'diagnostics'
+  }
+
   private isSourceInstalled(entryId: string): boolean {
     return this.installedSourceIds().indexOf(entryId) >= 0
   }
@@ -262,6 +311,11 @@ export struct SourcePackageManagerPage {
 
   private sourceIndexBatchBusy(): boolean {
     return this.indexInstallBusy || this.indexFetchBusy || this.busy || this.updateCheckBusy || this.updateInstallSourceId.length > 0
+  }
+
+  private sourceIndexSummaryText(): string {
+    const url = this.sourceIndexUrl.trim()
+    return url.length > 0 ? url : t('source_pkg_boundary_notice')
   }
 
   private updateStatus(sourceId: string): SourcePackageUpdateStatus {
@@ -1632,249 +1686,193 @@ export struct SourcePackageManagerPage {
 
   @Builder
   private IndexUrlCard() {
-    Column({ space: ThemeConstants.SPACE_MD }) {
-      Text(t('source_pkg_index_url_heading'))
-        .width('100%')
-        .fontSize(ThemeConstants.FONT_SIZE_TITLE)
-        .fontWeight(FontWeight.Medium)
-        .fontColor(ThemeConstants.TEXT_PRIMARY)
-
-      KomaFormTextField({
-        label: t('source_pkg_index_url_label'),
-        placeholder: t('source_pkg_index_url_placeholder'),
-        value: this.sourceIndexUrl,
-        submit: () => {
-          this.fetchIndex()
-        },
-        change: (value: string) => {
-          this.sourceIndexUrl = value
-        },
-      })
-
-      Row({ space: ThemeConstants.SPACE_MD }) {
-        KomaActionButton({
-          label: this.indexFetchBusy ? t('source_pkg_loading') : t('source_pkg_load_sources'),
-          kind: 'primary',
-          fill: true,
-          isEnabled: !this.indexFetchBusy,
-          action: () => {
-            this.fetchIndex()
-          },
-        })
-
-        KomaActionButton({
-          label: this.busy ? t('source_pkg_importing') : t('source_pkg_local_import'),
-          kind: 'secondary',
-          fill: true,
-          isEnabled: !this.busy,
-          accentColor: ThemeConstants.TEXT_SECONDARY,
-          strokeColor: ThemeConstants.DIVIDER,
-          action: () => {
-            this.importPackage()
-          },
-        })
-      }
-      .width('100%')
-
-      if (this.indexStatusText.length > 0) {
-        Text(this.indexStatusText)
-          .width('100%')
-          .fontSize(ThemeConstants.FONT_SIZE_META)
-          .lineHeight(ThemeConstants.LINE_HEIGHT_BODY)
-          .fontColor(ThemeConstants.TEXT_SECONDARY)
-      }
-
-      if (this.sourceIndexRepositories.length > 0) {
-        Column({ space: ThemeConstants.SPACE_SM }) {
-          Text(t('source_pkg_saved_indexes_heading'))
-            .width('100%')
-            .fontSize(ThemeConstants.FONT_SIZE_META)
-            .fontWeight(FontWeight.Medium)
-            .fontColor(ThemeConstants.TEXT_PRIMARY)
-          ForEach(this.sourceIndexRepositories, (repository: SourceIndexRepository) => {
-            Row({ space: ThemeConstants.SPACE_SM }) {
-              Text(repository.url)
-                .fontSize(ThemeConstants.FONT_SIZE_CAPTION)
-                .fontColor(ThemeConstants.TEXT_SECONDARY)
-                .maxLines(1)
-                .textOverflow({ overflow: TextOverflow.Ellipsis })
-                .layoutWeight(1)
-              KomaActionButton({
-                label: t('source_pkg_saved_index_use'),
-                kind: repository.url === this.sourceIndexUrl.trim() ? 'primary' : 'secondary',
-                compact: true,
-                controlHeight: ThemeConstants.FILTER_CHIP_HEIGHT,
-                isEnabled: !this.sourceIndexBatchBusy(),
-                action: () => {
-                  this.selectSavedIndex(repository)
-                },
-              })
-              KomaActionButton({
-                label: t('source_pkg_saved_index_remove'),
-                kind: 'ghost',
-                compact: true,
-                controlHeight: ThemeConstants.FILTER_CHIP_HEIGHT,
-                isEnabled: !this.sourceIndexBatchBusy(),
-                action: () => {
-                  this.removeSavedIndex(repository)
-                },
-              })
-            }
-            .width('100%')
-          }, (repository: SourceIndexRepository) => repository.url)
-        }
-        .width('100%')
-      }
-
-      if (this.indexEntries.length > 0) {
-        Row({ space: ThemeConstants.SPACE_MD }) {
-          KomaActionButton({
-            label: tf('source_pkg_batch_install_missing', this.missingIndexEntries().length),
-            kind: 'secondary',
-            fill: true,
-            isEnabled: !this.sourceIndexBatchBusy() && this.missingIndexEntries().length > 0,
-            action: () => {
-              this.installMissingIndexEntries()
-            },
-          })
-
-          KomaActionButton({
-            label: tf('source_pkg_batch_update_available', this.updatableIndexEntries().length),
-            kind: 'secondary',
-            fill: true,
-            isEnabled: !this.sourceIndexBatchBusy() && this.updatableIndexEntries().length > 0,
-            action: () => {
-              this.updateUpdatableIndexEntries()
-            },
-          })
-        }
-        .width('100%')
-      }
-
-      Text(sourcePackageTrustBoundaryNotice())
-        .width('100%')
-        .fontSize(ThemeConstants.FONT_SIZE_CAPTION)
-        .lineHeight(18)
-        .fontColor(ThemeConstants.TEXT_SECONDARY)
-
-      Text(t('source_pkg_manual_update_notice'))
-        .width('100%')
-        .fontSize(ThemeConstants.FONT_SIZE_CAPTION)
-        .lineHeight(18)
-        .fontColor(ThemeConstants.TEXT_SECONDARY)
-    }
-    .width('100%')
-    .padding(ThemeConstants.SPACE_LG)
-    .borderRadius(ThemeConstants.RADIUS_CARD)
-    .backgroundColor(ThemeConstants.CARD)
+    ConciseListRow({
+      title: t('source_pkg_index_url_heading'),
+      subtitle: this.sourceIndexSummaryText(),
+      subtitleMaxLines: 1,
+      leadingIcon: $r('sys.symbol.compass'),
+      action: () => {
+        this.openIndexSheet()
+      },
+    })
   }
 
   @Builder
   private RemoteIndexCard(entry: SourceIndexEntry) {
-    Column({ space: ThemeConstants.SPACE_MD }) {
-      Row({ space: ThemeConstants.SPACE_MD }) {
-        Column({ space: ThemeConstants.SPACE_XS }) {
-          Text(entry.name)
-            .fontSize(ThemeConstants.FONT_SIZE_BODY)
-            .fontWeight(FontWeight.Medium)
-            .fontColor(ThemeConstants.TEXT_PRIMARY)
-            .maxLines(1)
-            .textOverflow({ overflow: TextOverflow.Ellipsis })
-          Text(entry.id)
-            .fontSize(ThemeConstants.FONT_SIZE_CAPTION)
-            .fontColor(ThemeConstants.TEXT_SECONDARY)
-            .maxLines(1)
-            .textOverflow({ overflow: TextOverflow.Ellipsis })
-        }
-        .layoutWeight(1)
-        .alignItems(HorizontalAlign.Start)
-
+    ConciseListRow({
+      title: entry.name,
+      subtitle: this.indexVersionText(entry) + (entry.lang.length > 0 ? ' · ' + entry.lang : ''),
+      subtitleMaxLines: 1,
+      trailingText: this.hasUpdate(entry)
+        ? t('source_pkg_action_update')
+        : (this.isSourceInstalled(entry.id) ? t('source_pkg_installed') : t('source_pkg_install')),
+      showChevron: this.hasUpdate(entry) || !this.isSourceInstalled(entry.id),
+      action: () => {
         if (this.hasUpdate(entry)) {
-          KomaActionButton({
-            label: this.indexInstallBusy ? t('source_pkg_action_updating') : t('source_pkg_action_update'),
-            kind: 'primary',
-            compact: true,
-            controlHeight: ThemeConstants.FILTER_CHIP_HEIGHT,
-            isEnabled: !this.indexInstallBusy,
-            action: () => {
-              this.installIndexEntry(entry, true)
-            },
-          })
-        } else if (this.isSourceInstalled(entry.id)) {
-          Text(t('source_pkg_installed'))
-            .fontSize(ThemeConstants.FONT_SIZE_CAPTION)
-            .fontColor(ThemeConstants.BRAND_PRIMARY)
-            .padding({ left: 10, right: 10, top: 4, bottom: 4 })
-            .borderRadius(ThemeConstants.RADIUS_CHIP)
-            .backgroundColor(ThemeConstants.SOFT_TINT)
-        } else {
-          KomaActionButton({
-            label: this.indexInstallBusy ? t('source_pkg_installing') : t('source_pkg_install'),
-            kind: 'primary',
-            compact: true,
-            controlHeight: ThemeConstants.FILTER_CHIP_HEIGHT,
-            isEnabled: !this.indexInstallBusy,
-            action: () => {
-              this.installIndexEntry(entry)
-            },
-          })
+          this.installIndexEntry(entry, true)
+        } else if (!this.isSourceInstalled(entry.id)) {
+          this.installIndexEntry(entry)
         }
+      },
+    })
+  }
+
+  @Builder
+  private SavedIndexRemoveButton(repository: SourceIndexRepository) {
+    Button({ type: ButtonType.Circle, stateEffect: true }) {
+      SymbolGlyph($r('sys.symbol.trash'))
+        .fontSize(18)
+        .fontColor([ThemeConstants.TEXT_SECONDARY])
+    }
+    .width(44)
+    .height(44)
+    .backgroundColor(Color.Transparent)
+    .enabled(!this.sourceIndexBatchBusy())
+    .accessibilityText(t('source_pkg_saved_index_remove'))
+    .onClick(() => {
+      this.removeSavedIndex(repository)
+    })
+  }
+
+  @Builder
+  private SourceIndexSheetContent() {
+    Column() {
+      Row() {
+        Text(t('source_pkg_index_url_heading'))
+          .fontSize(ThemeConstants.FONT_SIZE_H3)
+          .fontWeight(FontWeight.Medium)
+          .fontColor(ThemeConstants.TEXT_PRIMARY)
+          .layoutWeight(1)
+        Button({ type: ButtonType.Circle, stateEffect: true }) {
+          SymbolGlyph($r('sys.symbol.xmark'))
+            .fontSize(20)
+            .fontColor([ThemeConstants.TEXT_PRIMARY])
+        }
+        .width(44)
+        .height(44)
+        .backgroundColor(Color.Transparent)
+        .accessibilityText(t('common_close'))
+        .onClick(() => {
+          this.dismissSourceSheet()
+        })
       }
       .width('100%')
+      .height(56)
+      .padding({ left: ThemeConstants.SPACE_LG, right: ThemeConstants.SPACE_SM })
 
-      Row({ space: ThemeConstants.SPACE_SM }) {
-        Text(this.indexVersionText(entry))
-          .fontSize(ThemeConstants.FONT_SIZE_CAPTION)
-          .fontColor(ThemeConstants.TEXT_SECONDARY)
-        if (entry.lang.length > 0) {
-          Text(entry.lang)
+      Divider().strokeWidth(0.5).color(ThemeConstants.DIVIDER)
+
+      Scroll() {
+        Column({ space: ThemeConstants.SPACE_MD }) {
+          KomaFormTextField({
+            label: t('source_pkg_index_url_label'),
+            placeholder: t('source_pkg_index_url_placeholder'),
+            value: this.sourceIndexUrl,
+            submit: () => {
+              void this.fetchIndex()
+            },
+            change: (value: string) => {
+              this.sourceIndexUrl = value
+            },
+          })
+
+          GroupedListSection() {
+            ConciseListRow({
+              title: this.indexFetchBusy ? t('source_pkg_loading') : t('source_pkg_load_sources'),
+              leadingIcon: $r('sys.symbol.arrow_down_to_line'),
+              isEnabled: !this.indexFetchBusy,
+              action: () => {
+                void this.fetchIndex()
+              },
+            })
+            ListDivider()
+            ConciseListRow({
+              title: this.busy ? t('source_pkg_importing') : t('source_pkg_local_import'),
+              leadingIcon: $r('sys.symbol.folder'),
+              isEnabled: !this.busy,
+              action: () => {
+                void this.importPackage()
+              },
+            })
+          }
+
+          if (this.indexStatusText.length > 0) {
+            Text(this.indexStatusText)
+              .width('100%')
+              .fontSize(ThemeConstants.FONT_SIZE_META)
+              .lineHeight(ThemeConstants.LINE_HEIGHT_BODY)
+              .fontColor(ThemeConstants.TEXT_SECONDARY)
+          }
+
+          if (this.sourceIndexRepositories.length > 0) {
+            SectionHeader({ title: t('source_pkg_saved_indexes_heading') })
+            GroupedListSection() {
+              ForEach(this.sourceIndexRepositories, (repository: SourceIndexRepository, index: number) => {
+                ConciseListRow({
+                  title: repository.url,
+                  subtitle: repository.url === this.sourceIndexUrl.trim() ? t('source_pkg_current_index') : '',
+                  subtitleMaxLines: 1,
+                  suffixBuilderParam: () => {
+                    this.SavedIndexRemoveButton(repository)
+                  },
+                  action: () => {
+                    this.selectSavedIndex(repository)
+                  },
+                })
+                if (index < this.sourceIndexRepositories.length - 1) {
+                  ListDivider()
+                }
+              }, (repository: SourceIndexRepository) => repository.url)
+            }
+          }
+
+          if (this.indexEntries.length > 0) {
+            SectionHeader({ title: t('source_pkg_batch_actions_heading') })
+            GroupedListSection() {
+              ConciseListRow({
+                title: tf('source_pkg_batch_install_missing', this.missingIndexEntries().length),
+                leadingIcon: $r('sys.symbol.arrow_down_to_line'),
+                isEnabled: !this.sourceIndexBatchBusy() && this.missingIndexEntries().length > 0,
+                action: () => {
+                  this.installMissingIndexEntries()
+                },
+              })
+              ListDivider()
+              ConciseListRow({
+                title: tf('source_pkg_batch_update_available', this.updatableIndexEntries().length),
+                leadingIcon: $r('sys.symbol.arrow_clockwise'),
+                isEnabled: !this.sourceIndexBatchBusy() && this.updatableIndexEntries().length > 0,
+                action: () => {
+                  this.updateUpdatableIndexEntries()
+                },
+              })
+            }
+          }
+
+          Text(sourcePackageTrustBoundaryNotice())
+            .width('100%')
             .fontSize(ThemeConstants.FONT_SIZE_CAPTION)
+            .lineHeight(18)
             .fontColor(ThemeConstants.TEXT_SECONDARY)
+
+          Text(t('source_pkg_manual_update_notice'))
+            .width('100%')
+            .fontSize(ThemeConstants.FONT_SIZE_CAPTION)
+            .lineHeight(18)
+            .fontColor(ThemeConstants.TEXT_SECONDARY)
+
+          Blank().height(ThemeConstants.SPACE_XL)
         }
-        if (entry.nsfw) {
-          Text('NSFW')
-            .fontSize(ThemeConstants.FONT_SIZE_TAG)
-            .fontColor(ThemeConstants.TEXT_ON_BRAND)
-            .padding({ left: 6, right: 6, top: 2, bottom: 2 })
-            .borderRadius(ThemeConstants.RADIUS_SM)
-            .backgroundColor(ThemeConstants.DANGER)
-        }
-        if (this.hasUpdate(entry)) {
-          Text(t('source_pkg_update_available'))
-            .fontSize(ThemeConstants.FONT_SIZE_TAG)
-            .fontColor(ThemeConstants.TEXT_ON_BRAND)
-            .padding({ left: 6, right: 6, top: 2, bottom: 2 })
-            .borderRadius(ThemeConstants.RADIUS_SM)
-            .backgroundColor(ThemeConstants.BRAND_PRIMARY)
-        }
+        .width('100%')
+        .padding(ThemeConstants.SPACE_LG)
       }
+      .scrollBar(BarState.Off)
       .width('100%')
-
-      if (entry.description.length > 0) {
-        Text(entry.description)
-          .width('100%')
-          .fontSize(ThemeConstants.FONT_SIZE_META)
-          .maxLines(2)
-          .textOverflow({ overflow: TextOverflow.Ellipsis })
-          .fontColor(ThemeConstants.TEXT_SECONDARY)
-      }
-
-      Text(this.sourceIndexTrustMetaText(entry))
-        .width('100%')
-        .fontSize(ThemeConstants.FONT_SIZE_CAPTION)
-        .fontColor(ThemeConstants.TEXT_SECONDARY)
-        .maxLines(2)
-        .textOverflow({ overflow: TextOverflow.Ellipsis })
-
-      Text(this.sourceIndexTrustCapabilityText(entry))
-        .width('100%')
-        .fontSize(ThemeConstants.FONT_SIZE_CAPTION)
-        .fontColor(ThemeConstants.TEXT_SECONDARY)
+      .layoutWeight(1)
     }
     .width('100%')
-    .padding(ThemeConstants.SPACE_LG)
-    .borderRadius(ThemeConstants.RADIUS_CARD)
-    .backgroundColor(ThemeConstants.CARD)
+    .height('100%')
+    .backgroundColor(ThemeConstants.BG_SUB)
   }
 
   @Builder
@@ -1958,200 +1956,267 @@ export struct SourcePackageManagerPage {
 
   @Builder
   private PackageCard(source: InstalledSourcePackage) {
-    Column({ space: ThemeConstants.SPACE_MD }) {
-      Row({ space: ThemeConstants.SPACE_MD }) {
+    ConciseListRow({
+      title: source.name,
+      subtitle: this.sourceMetaText(source),
+      trailingText: source.enabled ? t('source_pkg_enabled') : t('source_pkg_disabled'),
+      primaryColor: ThemeConstants.TEXT_PRIMARY,
+      secondaryColor: source.enabled ? ThemeConstants.TEXT_SECONDARY : ThemeConstants.TEXT_TERTIARY,
+      action: () => {
+        this.openSourceSheet(source)
+      },
+    })
+  }
+
+  @Builder
+  private SourceDetailsContent(source: InstalledSourcePackage) {
+    Column({ space: ThemeConstants.SPACE_LG }) {
+      Row() {
         Column({ space: ThemeConstants.SPACE_XS }) {
           Text(source.name)
-            .fontSize(ThemeConstants.FONT_SIZE_TITLE)
+            .width('100%')
+            .fontSize(ThemeConstants.FONT_SIZE_H3)
             .fontWeight(FontWeight.Medium)
             .fontColor(ThemeConstants.TEXT_PRIMARY)
             .maxLines(1)
             .textOverflow({ overflow: TextOverflow.Ellipsis })
-          Text(source.id)
-            .fontSize(ThemeConstants.FONT_SIZE_CAPTION)
+          Text(this.sourceMetaText(source))
+            .width('100%')
+            .fontSize(ThemeConstants.FONT_SIZE_META)
             .fontColor(ThemeConstants.TEXT_SECONDARY)
-            .maxLines(1)
-            .textOverflow({ overflow: TextOverflow.Ellipsis })
         }
         .layoutWeight(1)
         .alignItems(HorizontalAlign.Start)
-
-        Text(source.enabled ? t('source_pkg_enabled') : t('source_pkg_disabled'))
-          .fontSize(ThemeConstants.FONT_SIZE_CAPTION)
-          .fontColor(source.enabled ? ThemeConstants.TEXT_ON_BRAND : ThemeConstants.TEXT_SECONDARY)
-          .padding({ left: 10, right: 10, top: 4, bottom: 4 })
-          .borderRadius(ThemeConstants.RADIUS_CHIP)
-          .backgroundColor(source.enabled ? ThemeConstants.BRAND_PRIMARY : ThemeConstants.SOFT_TINT)
+        Button({ type: ButtonType.Circle, stateEffect: true }) {
+          SymbolGlyph($r('sys.symbol.xmark'))
+            .fontSize(20)
+            .fontColor([ThemeConstants.TEXT_PRIMARY])
+        }
+        .width(44)
+        .height(44)
+        .backgroundColor(Color.Transparent)
+        .onClick(() => {
+          this.dismissSourceSheet()
+        })
       }
       .width('100%')
 
-      Text(this.sourceMetaText(source))
-        .width('100%')
-        .fontSize(ThemeConstants.FONT_SIZE_META)
-        .fontColor(ThemeConstants.TEXT_SECONDARY)
-
-      Text(this.installedTrustMetaText(source))
-        .width('100%')
-        .fontSize(ThemeConstants.FONT_SIZE_CAPTION)
-        .fontColor(ThemeConstants.TEXT_SECONDARY)
-        .maxLines(2)
-        .textOverflow({ overflow: TextOverflow.Ellipsis })
-
-      Text(this.updateStatusText(source))
-        .width('100%')
-        .fontSize(ThemeConstants.FONT_SIZE_CAPTION)
-        .fontColor(this.updateStatusColor(source))
-        .maxLines(2)
-        .textOverflow({ overflow: TextOverflow.Ellipsis })
-
-      Text(this.packageSmokeText(source))
-        .width('100%')
-        .fontSize(ThemeConstants.FONT_SIZE_CAPTION)
-        .fontColor(ThemeConstants.TEXT_SECONDARY)
-        .maxLines(2)
-        .textOverflow({ overflow: TextOverflow.Ellipsis })
-
-      Text(this.sourceSettingsText(source))
-        .width('100%')
-        .fontSize(ThemeConstants.FONT_SIZE_CAPTION)
-        .fontColor(ThemeConstants.TEXT_SECONDARY)
-
-      Text(this.settingsValidationText(source))
-        .width('100%')
-        .fontSize(ThemeConstants.FONT_SIZE_CAPTION)
-        .fontColor(ThemeConstants.TEXT_SECONDARY)
-        .maxLines(2)
-        .textOverflow({ overflow: TextOverflow.Ellipsis })
-
-      Text(this.capsText(source))
-        .width('100%')
-        .fontSize(ThemeConstants.FONT_SIZE_CAPTION)
-        .fontColor(ThemeConstants.TEXT_SECONDARY)
-        .maxLines(2)
-        .textOverflow({ overflow: TextOverflow.Ellipsis })
-
-      Text(this.installedTrustCapabilityText(source))
-        .width('100%')
-        .fontSize(ThemeConstants.FONT_SIZE_CAPTION)
-        .fontColor(ThemeConstants.TEXT_SECONDARY)
-        .maxLines(2)
-        .textOverflow({ overflow: TextOverflow.Ellipsis })
-
-      Row({ space: ThemeConstants.SPACE_SM }) {
-        KomaActionButton({
-          label: t('tab_browse'),
-          kind: 'primary',
-          fill: true,
-          controlHeight: ThemeConstants.ACTION_CHIP_HEIGHT,
+      GroupedListSection() {
+        ConciseListRow({
+          title: t('tab_browse'),
+          subtitle: source.enabled ? '' : t('source_pkg_disabled'),
+          leadingIcon: $r('sys.symbol.compass'),
           isEnabled: source.enabled,
           action: () => {
-            this.openSourceBrowse(source)
+            this.openSourceBrowseFromSheet(source)
           },
         })
-
-        KomaActionButton({
-          label: t('tab_search'),
-          kind: 'secondary',
-          fill: true,
-          controlHeight: ThemeConstants.ACTION_CHIP_HEIGHT,
+        ListDivider()
+        ConciseListRow({
+          title: t('tab_search'),
+          subtitle: this.sourceSupportsSearch(source) ? '' : t('source_pkg_unsupported'),
+          leadingIcon: $r('sys.symbol.magnifyingglass'),
           isEnabled: source.enabled && this.sourceSupportsSearch(source),
           action: () => {
-            this.openSourceSearch(source)
+            this.openSourceSearchFromSheet(source)
+          },
+        })
+        ListDivider()
+        ConciseListRow({
+          title: t('source_pkg_settings'),
+          trailingText: this.sourceSettingsText(source),
+          leadingIcon: $r('sys.symbol.gearshape'),
+          action: () => {
+            this.openSourceSettingsFromSheet(source)
           },
         })
       }
-      .width('100%')
 
-      Row({ space: ThemeConstants.SPACE_SM }) {
+      SectionHeader({ title: t('source_pkg_management_section') })
+      GroupedListSection() {
         if (this.updateEntry(source.id) !== undefined) {
-          KomaActionButton({
-            label: this.updateActionLabel(source.id),
-            kind: 'primary',
-            fill: true,
-            controlHeight: ThemeConstants.ACTION_CHIP_HEIGHT,
+          ConciseListRow({
+            title: this.updateActionLabel(source.id),
+            subtitle: this.updateStatusText(source),
+            leadingIcon: $r('sys.symbol.arrow_clockwise'),
             isEnabled: this.updateInstallSourceId.length === 0 && !this.indexInstallBusy && !this.busy,
             action: () => {
               this.updateInstalledPackage(source)
             },
           })
+          ListDivider()
         }
-
-        KomaActionButton({
-          label: source.enabled ? t('source_pkg_disable') : t('source_pkg_enable'),
-          kind: source.enabled ? 'secondary' : 'primary',
-          fill: true,
-          controlHeight: ThemeConstants.ACTION_CHIP_HEIGHT,
-          accentColor: source.enabled ? ThemeConstants.TEXT_SECONDARY : undefined,
-          strokeColor: source.enabled ? ThemeConstants.DIVIDER : undefined,
+        ConciseListRow({
+          title: source.enabled ? t('source_pkg_disable') : t('source_pkg_enable'),
+          leadingIcon: source.enabled ? $r('sys.symbol.pause') : $r('sys.symbol.play'),
           action: () => {
             this.togglePackage(source.id)
           },
         })
-
-        KomaActionButton({
-          label: 'Smoke',
-          kind: 'secondary',
-          fill: true,
-          controlHeight: ThemeConstants.ACTION_CHIP_HEIGHT,
+        ListDivider()
+        ConciseListRow({
+          title: t('source_pkg_delete'),
+          destructive: true,
+          leadingIcon: $r('sys.symbol.trash'),
           action: () => {
-            this.smokePackage(source)
+            this.dismissSourceSheet()
+            this.confirmRemovePackage(source)
           },
+        })
+      }
+    }
+    .width('100%')
+    .padding({ left: ThemeConstants.SPACE_LG, right: ThemeConstants.SPACE_LG, top: ThemeConstants.SPACE_SM, bottom: ThemeConstants.SPACE_XL })
+  }
+
+  @Builder
+  private SourceSettingsSheetContent() {
+    Column({ space: ThemeConstants.SPACE_MD }) {
+      Row() {
+        Text(this.settingsSourceName)
+          .fontSize(ThemeConstants.FONT_SIZE_H3)
+          .fontWeight(FontWeight.Medium)
+          .fontColor(ThemeConstants.TEXT_PRIMARY)
+          .layoutWeight(1)
+        Button({ type: ButtonType.Circle, stateEffect: true }) {
+          SymbolGlyph($r('sys.symbol.xmark'))
+            .fontSize(20)
+            .fontColor([ThemeConstants.TEXT_PRIMARY])
+        }
+        .width(44)
+        .height(44)
+        .backgroundColor(Color.Transparent)
+        .onClick(() => {
+          this.dismissSourceSheet()
         })
       }
       .width('100%')
 
+      Text(t('source_pkg_settings_title'))
+        .width('100%')
+        .fontSize(ThemeConstants.FONT_SIZE_META)
+        .fontColor(ThemeConstants.TEXT_SECONDARY)
+
+      if (this.settingDescriptors.length === 0) {
+        Text(t('source_pkg_no_settings'))
+          .width('100%')
+          .fontSize(ThemeConstants.FONT_SIZE_META)
+          .fontColor(ThemeConstants.TEXT_SECONDARY)
+      } else {
+        GroupedListSection({ inset: ThemeConstants.SPACE_SM }) {
+          ForEach(this.settingDescriptors, (descriptor: SourceSettingDescriptor, index: number) => {
+            this.SettingRow(descriptor)
+            if (index < this.settingDescriptors.length - 1) {
+              ListDivider()
+            }
+          }, (descriptor: SourceSettingDescriptor) => descriptor.id)
+        }
+      }
+
       Row({ space: ThemeConstants.SPACE_SM }) {
         KomaActionButton({
-          label: t('source_pkg_settings'),
-          kind: 'secondary',
-          fill: true,
-          controlHeight: ThemeConstants.ACTION_CHIP_HEIGHT,
+          label: t('source_pkg_clear_settings'),
+          kind: 'danger',
+          compact: true,
           action: () => {
-            this.openSettings(source)
+            this.confirmClearSavedSettings()
           },
         })
+          .layoutWeight(1)
+        KomaActionButton({
+          label: t('source_pkg_save_settings'),
+          kind: 'primary',
+          compact: true,
+          action: () => {
+            this.saveSettings()
+            this.dismissSourceSheet()
+          },
+        })
+          .layoutWeight(1)
+      }
+      .width('100%')
+    }
+    .width('100%')
+    .padding(ThemeConstants.SPACE_LG)
+  }
 
+  @Builder
+  private SourceDiagnosticsSheetContent(source: InstalledSourcePackage) {
+    Column({ space: ThemeConstants.SPACE_MD }) {
+      Row() {
+        Text(t('source_pkg_diagnostics_title'))
+          .fontSize(ThemeConstants.FONT_SIZE_H3)
+          .fontWeight(FontWeight.Medium)
+          .fontColor(ThemeConstants.TEXT_PRIMARY)
+          .layoutWeight(1)
+        Button({ type: ButtonType.Circle, stateEffect: true }) {
+          SymbolGlyph($r('sys.symbol.xmark'))
+            .fontSize(20)
+            .fontColor([ThemeConstants.TEXT_PRIMARY])
+        }
+        .width(44)
+        .height(44)
+        .backgroundColor(Color.Transparent)
+        .onClick(() => {
+          this.dismissSourceSheet()
+        })
+      }
+      .width('100%')
+
+      this.DiagnosticsPanel(source)
+
+      Row({ space: ThemeConstants.SPACE_SM }) {
+        KomaActionButton({
+          label: t('source_pkg_refresh_diagnostics'),
+          kind: 'secondary',
+          compact: true,
+          action: () => {
+            this.refreshDiagnostics(source)
+          },
+        })
+          .layoutWeight(1)
         KomaActionButton({
           label: this.validateSettingsActionLabel(source.id),
           kind: 'secondary',
-          fill: true,
-          controlHeight: ThemeConstants.ACTION_CHIP_HEIGHT,
+          compact: true,
           isEnabled: this.settingsValidationSourceId.length === 0,
           action: () => {
             this.validateSettings(source)
           },
         })
-
+          .layoutWeight(1)
         KomaActionButton({
-          label: this.isDiagnosticsOpen(source.id) ? t('source_pkg_hide_diagnostics') : t('source_pkg_diagnostics'),
+          label: 'Smoke',
           kind: 'secondary',
-          fill: true,
-          controlHeight: ThemeConstants.ACTION_CHIP_HEIGHT,
+          compact: true,
           action: () => {
-            this.toggleDiagnostics(source)
+            this.smokePackage(source)
           },
         })
-
-        KomaActionButton({
-          label: t('source_pkg_delete'),
-          kind: 'danger',
-          fill: true,
-          controlHeight: ThemeConstants.ACTION_CHIP_HEIGHT,
-          action: () => {
-            this.confirmRemovePackage(source)
-          },
-        })
+          .layoutWeight(1)
       }
       .width('100%')
-
-      if (this.isDiagnosticsOpen(source.id)) {
-        this.DiagnosticsPanel(source)
-      }
     }
     .width('100%')
     .padding(ThemeConstants.SPACE_LG)
-    .borderRadius(ThemeConstants.RADIUS_CARD)
-    .backgroundColor(ThemeConstants.CARD)
+  }
+
+  @Builder
+  private SourceManagementSheet() {
+    Column() {
+      if (this.sourceSheetPane === 'index') {
+        this.SourceIndexSheetContent()
+      } else if (this.sourceSheetSource() === undefined) {
+        Blank().height(1)
+      } else if (this.sourceSheetPane === 'settings') {
+        this.SourceSettingsSheetContent()
+      } else if (this.sourceSheetPane === 'diagnostics') {
+        this.SourceDiagnosticsSheetContent(this.sourceSheetSource()!)
+      } else {
+        this.SourceDetailsContent(this.sourceSheetSource()!)
+      }
+    }
+    .width('100%')
   }
 
   @Builder
@@ -2382,28 +2447,43 @@ export struct SourcePackageManagerPage {
             this.IndexUrlCard()
           }
           if (this.indexEntries.length > 0) {
+            ListItem() {
+              SectionHeader({ title: t('source_pkg_available_heading') })
+            }
             ForEach(this.indexEntries, (entry: SourceIndexEntry) => {
               ListItem() {
                 this.RemoteIndexCard(entry)
               }
+              ListItem() {
+                ListDivider()
+              }
             }, (entry: SourceIndexEntry) => entry.id)
           }
           ListItem() {
-            this.InstalledHeaderCard()
+            SectionHeader({ title: t('source_pkg_installed_heading') })
+          }
+          ListItem() {
+            ConciseListRow({
+              title: t('source_pkg_check_updates'),
+              subtitle: this.statusText.length > 0 ? this.statusText : t('source_pkg_manual_check_notice'),
+              leadingIcon: $r('sys.symbol.arrow_clockwise'),
+              isEnabled: !this.updateCheckBusy && !this.indexFetchBusy,
+              action: () => {
+                this.checkInstalledUpdates()
+              },
+            })
           }
           if (this.packages.length === 0) {
             ListItem() {
               this.EmptyCard()
             }
           }
-          if (this.settingsSourceId.length > 0) {
-            ListItem() {
-              this.SettingsPanel()
-            }
-          }
           ForEach(this.packages, (source: InstalledSourcePackage) => {
             ListItem() {
               this.PackageCard(source)
+            }
+            ListItem() {
+              ListDivider()
             }
           }, (source: InstalledSourcePackage) => `${source.id}-${source.enabled}`)
         }
@@ -2411,6 +2491,13 @@ export struct SourcePackageManagerPage {
       .width('100%')
       .height('100%')
       .backgroundColor(ThemeConstants.BG_SUB)
+      .bindSheet($$this.sourceSheetShown, this.SourceManagementSheet, {
+        detents: [SheetSize.MEDIUM, SheetSize.LARGE],
+        showClose: false,
+        onDisappear: () => {
+          this.dismissSourceSheet()
+        },
+      })
     }
   }
 }

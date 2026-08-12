@@ -1,5 +1,6 @@
 import { SymbolGlyphModifier } from '@kit.ArkUI'
 import { KomaActionButton } from './ui/KomaActionButton'
+import { ConciseListRow } from './ui/ConciseListRow'
 import { AppStrings } from '../i18n/AppStrings'
 import { SourceFilter } from '../model/SourceModels'
 import { ThemeConstants } from '../theme/ThemeConstants'
@@ -16,6 +17,7 @@ export struct SourceFilterControls {
   @Param filters: SourceFilter[] = []
   @Param values: SourceFilterControlValues = {}
   @Param busy: boolean = false
+  @Param vertical: boolean = false
   @Local private activeFilterMenuId: string = ''
   @Local private pendingTextFilters: Record<string, string> = {}
   @Event onFilterChange: (filter: SourceFilter, value: SourceFilterControlValue | undefined) => void =
@@ -156,6 +158,31 @@ export struct SourceFilterControls {
     this.onFilterChange(filter, this.normalizeRangeValue(filter, value))
   }
 
+  private filterSelectionLabel(filter: SourceFilter): string {
+    const value = this.currentFilterValue(filter)
+    if (value === undefined) {
+      return s('common_all')
+    }
+    if (Array.isArray(value)) {
+      if (value.length === 0) {
+        return s('common_all')
+      }
+      const labels: string[] = []
+      value.forEach((item: string) => {
+        labels.push(this.filterOptionLabel(filter, item))
+      })
+      return labels.join(' / ')
+    }
+    return this.filterOptionLabel(filter, `${value}`)
+  }
+
+  private hasActiveFilters(): boolean {
+    return this.filters.some((filter: SourceFilter): boolean => {
+      const value = this.currentFilterValue(filter)
+      return value !== undefined && (!Array.isArray(value) || value.length > 0)
+    })
+  }
+
   @Builder
   private FilterOptionMenu(filter: SourceFilter) {
     Menu() {
@@ -182,9 +209,110 @@ export struct SourceFilterControls {
     }
   }
 
+  @Builder
+  private VerticalFilterRow(filter: SourceFilter) {
+    if (filter.type === 'check') {
+      ConciseListRow({
+        title: filter.name,
+        hasSwitch: true,
+        checked: this.currentFilterValue(filter) === true,
+        showChevron: false,
+        switchAction: (isOn: boolean) => {
+          this.onFilterChange(filter, isOn ? true : undefined)
+        },
+      })
+    } else if (filter.type === 'text') {
+      Column({ space: ThemeConstants.SPACE_XS }) {
+        Text(filter.name)
+          .fontSize(ThemeConstants.FONT_SIZE_LIST_ITEM)
+          .fontColor(ThemeConstants.TEXT_PRIMARY)
+        TextInput({
+          placeholder: filter.name,
+          text: this.pendingTextFilterValue(filter),
+        })
+          .width('100%')
+          .height(ThemeConstants.INPUT_HEIGHT)
+          .fontSize(ThemeConstants.FONT_SIZE_BODY)
+          .backgroundColor($r('sys.color.comp_background_tertiary'))
+          .borderRadius(ThemeConstants.RADIUS_CHIP)
+          .onChange((value: string) => {
+            this.setPendingTextFilterValue(filter, value)
+          })
+          .onSubmit(() => {
+            const value = this.pendingTextFilterValue(filter).trim()
+            this.onFilterChange(filter, value.length > 0 ? value : undefined)
+          })
+      }
+      .width('100%')
+      .padding(ThemeConstants.SPACE_MD)
+    } else if (filter.type === 'range') {
+      Column({ space: ThemeConstants.SPACE_SM }) {
+        Row() {
+          Text(filter.name)
+            .fontSize(ThemeConstants.FONT_SIZE_LIST_ITEM)
+            .fontColor(ThemeConstants.TEXT_PRIMARY)
+            .layoutWeight(1)
+          Text(`${this.rangeValue(filter)}`)
+            .fontSize(ThemeConstants.FONT_SIZE_META)
+            .fontColor(ThemeConstants.TEXT_SECONDARY)
+        }
+        .width('100%')
+        Slider({
+          value: this.rangeValue(filter),
+          min: this.rangeMin(filter),
+          max: this.rangeMax(filter),
+          step: this.rangeStep(filter),
+        })
+          .width('100%')
+          .selectedColor(ThemeConstants.BRAND_PRIMARY)
+          .onChange((value: number) => {
+            this.setRangeFilter(filter, value)
+          })
+      }
+      .width('100%')
+      .padding(ThemeConstants.SPACE_MD)
+    } else if ((filter.options ?? []).length > 0) {
+      Column() {
+        ConciseListRow({
+          title: filter.name,
+          trailingText: this.filterSelectionLabel(filter),
+          trailingDropdown: true,
+          action: () => {
+            this.activeFilterMenuId = filter.id
+          },
+        })
+      }
+      .bindMenu(this.activeFilterMenuId === filter.id, this.FilterOptionMenu(filter), {
+        placement: Placement.BottomLeft,
+        onDisappear: () => {
+          this.activeFilterMenuId = ''
+        },
+      })
+    }
+  }
+
+  @Builder
+  private VerticalControls() {
+    Column() {
+      ForEach(this.filters, (filter: SourceFilter, index: number) => {
+        this.VerticalFilterRow(filter)
+        if (index < this.filters.length - 1) {
+          Divider()
+            .strokeWidth(0.5)
+            .color(ThemeConstants.DIVIDER)
+            .margin({ left: ThemeConstants.SPACE_LG })
+        }
+      }, (filter: SourceFilter) => filter.id)
+    }
+    .width('100%')
+  }
+
   build() {
     if (this.filters.length > 0) {
-      Scroll() {
+      if (this.vertical) {
+        this.VerticalControls()
+      } else {
+        Scroll() {
         Row({ space: ThemeConstants.SPACE_SM }) {
           ForEach(this.filters, (filter: SourceFilter) => {
             if (filter.type === 'check') {
@@ -283,10 +411,11 @@ export struct SourceFilterControls {
             },
           })
         }
+        }
+        .width('100%')
+        .scrollable(ScrollDirection.Horizontal)
+        .scrollBar(BarState.Off)
       }
-      .width('100%')
-      .scrollable(ScrollDirection.Horizontal)
-      .scrollBar(BarState.Off)
     }
   }
 }

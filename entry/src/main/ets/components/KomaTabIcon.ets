@@ -9,7 +9,6 @@ export struct KomaTabIcon {
   @Param title: string = ''
   @Param idx: number = 0
   @Param currentIndex: number = 0
-  @Event onSelectedClick?: (index: number) => void
 
   private iconForIndex(index: number): Resource {
     if (index === TabIndex.LIBRARY) {
@@ -56,10 +55,5 @@ export struct KomaTabIcon {
     .width('100%')
     .height('100%')
     .padding({ top: ThemeConstants.SPACE_SM - 2, bottom: ThemeConstants.SPACE_XS })
-    .onClick(() => {
-      if (this.currentIndex === this.idx && this.onSelectedClick) {
-        this.onSelectedClick(this.idx)
-      }
-    })
   }
 }

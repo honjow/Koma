@@ -3,7 +3,11 @@ import { preferences } from '@kit.ArkData'
 import { BusinessError } from '@kit.BasicServicesKit'
 import { cryptoFramework } from '@kit.CryptoArchitectureKit'
 import { http } from '@kit.NetworkKit'
-import { installFromBytes, SourcePackageInstallResult } from './SourceRuntimeAppRegistry'
+import {
+  installFromBytes,
+  setSourcePresentationMetadata,
+  SourcePackageInstallResult,
+} from './SourceRuntimeAppRegistry'
 
 const SOURCE_INDEX_PREFS_STORE_NAME: string = 'koma_source_package_manager_v1'
 const SOURCE_INDEX_URL_KEY: string = 'source_index.url'
@@ -436,6 +440,11 @@ export class SourceIndexService {
       if (!install.ok) {
         console.error('[SourceIndex] step=install_fail reason=' + (install.reasonCode ?? 'unknown'))
         return { ok: false, reasonCode: install.reasonCode, install }
+      }
+
+      if (install.id !== undefined &&
+        !setSourcePresentationMetadata(this.context, install.id, entry.description, entry.icon)) {
+        console.warn('[SourceIndex] step=presentation_metadata_skip reason=metadata_persist_failed')
       }
 
       console.info('[SourceIndex] step=install_ok id=' + install.id)

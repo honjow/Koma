@@ -65,6 +65,8 @@ export interface SourcePackageBackupEntry {
   manifest: LocalSourcePackageManifest
   wasmBase64: string
   wasmByteCount: number
+  presentationDescription?: string
+  presentationIcon?: string
 }
 
 export interface SourcePackageRestoreResult {
@@ -442,6 +444,8 @@ function restoreRuntimeRegistryEntry(entry: SourceRuntimeRegistryEntry | undefin
     manifestPath: entry.manifestPath,
     wasmPath: entry.wasmPath,
     archivePath: entry.archivePath,
+    presentationDescription: entry.presentationDescription,
+    presentationIcon: entry.presentationIcon,
   })
 }
 
@@ -490,6 +494,8 @@ function persistInstalledSources(context: common.UIAbilityContext): void {
       manifestPath: entry.manifestPath,
       wasmPath: entry.wasmPath,
       archivePath: entry.archivePath,
+      presentationDescription: entry.presentationDescription,
+      presentationIcon: entry.presentationIcon,
     })
   }
   const persist = persistedRegistry.persistToAppLocalMetadata(appSourceMetadataPath(context))
@@ -513,6 +519,8 @@ export function exportInstalledSourcePackages(): SourcePackageBackupEntry[] {
       manifest: manifestFromRegistryEntry(entry),
       wasmBase64: bytesToBase64(entry.wasmBytes),
       wasmByteCount: entry.wasmByteCount,
+      presentationDescription: entry.presentationDescription,
+      presentationIcon: entry.presentationIcon,
     })
   }
   return packages
@@ -588,6 +596,8 @@ export async function restoreSourcePackagesFromBackup(
       hashOk: true,
       network: false,
       enabled: sourcePackage.enabled,
+      presentationDescription: sourcePackage.presentationDescription,
+      presentationIcon: sourcePackage.presentationIcon,
       manifestPath,
       wasmPath,
       archivePath,
@@ -673,6 +683,8 @@ export function reloadInstalledSourcePackages(context: common.UIAbilityContext):
       manifestPath: entry.manifestPath,
       wasmPath: entry.wasmPath,
       archivePath: entry.archivePath,
+      presentationDescription: entry.presentationDescription,
+      presentationIcon: entry.presentationIcon,
     })
     if (registered.ok) {
       changed = true
@@ -746,6 +758,8 @@ async function registerSourcePackageFromBytes(
       manifestPath: imported.manifestPath,
       wasmPath: imported.wasmPath,
       archivePath,
+      presentationDescription: removedExisting?.presentationDescription,
+      presentationIcon: removedExisting?.presentationIcon,
     })
     if (!registered.ok) {
       restoreRuntimeRegistryEntry(removedExisting)
@@ -812,6 +826,31 @@ export async function installFromBytes(
   const archiveFileName = sanitized.endsWith('.koma') || sanitized.endsWith('.koma-source') ||
     sanitized.endsWith('.koma-source.zip') || sanitized.endsWith('.zip') ? sanitized : sanitized + '.koma'
   return await registerSourcePackageFromBytes(context, archiveBytes, archiveFileName, expectedSourceId)
+}
+
+export function setSourcePresentationMetadata(
+  context: common.UIAbilityContext,
+  id: string,
+  description: string,
+  icon: string,
+): boolean {
+  const existing = appSourceRuntimeRegistry.lookup(id).entry
+  if (existing === undefined) {
+    return false
+  }
+  const previousDescription = existing.presentationDescription
+  const previousIcon = existing.presentationIcon
+  if (!appSourceRuntimeRegistry.setPresentationMetadata(id, description, icon)) {
+    return false
+  }
+  try {
+    persistInstalledSources(context)
+  } catch (_error) {
+    appSourceRuntimeRegistry.setPresentationMetadata(id, previousDescription, previousIcon)
+    return false
+  }
+  SourceRuntimeStateBridge.notifyChanged()
+  return true
 }
 
 export function setEnabled(context: common.UIAbilityContext, id: string, enabled: boolean): boolean {

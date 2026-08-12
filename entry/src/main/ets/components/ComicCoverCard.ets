@@ -79,29 +79,21 @@ export struct ComicCoverCard {
     return cachedCoverFailureKey(this.displayCoverUri(), this.displaySourceRuntimeId(), this.comic.sourceImageId ?? this.comic.id)
   }
 
-  private titleInitial(): string {
-    const title = this.displayTitle().trim()
-    if (title.length === 0) {
-      return 'K'
-    }
-    return title.substring(0, 1).toLocaleUpperCase()
-  }
-
   @Builder
   private CoverPlaceholder() {
     Column() {
-      Text(this.titleInitial())
+      SymbolGlyph($r('sys.symbol.book'))
         .fontSize(42)
-        .fontWeight(FontWeight.Bold)
-        .fontColor(ThemeConstants.TEXT_ON_BRAND)
-        .opacity(0.94)
+        .fontColor([ThemeConstants.TEXT_TERTIARY])
     }
     .width('100%')
     .height('100%')
     .padding(ThemeConstants.SPACE_MD)
     .justifyContent(FlexAlign.Center)
     .alignItems(HorizontalAlign.Center)
-    .backgroundColor(this.displayCoverColor())
+    // An absent image is content state, not a themed illustration.  Keep the
+    // fallback neutral so a source/local colour never masquerades as a cover.
+    .backgroundColor(ThemeConstants.COVER_PLACEHOLDER)
   }
 
   build() {
@@ -169,7 +161,7 @@ export struct ComicCoverCard {
       }
       .width('100%')
       .aspectRatio(0.68)
-      .borderRadius(ThemeConstants.RADIUS_MD)
+      .borderRadius(ThemeConstants.RADIUS_COVER)
       .clip(true)
       .shadow({ radius: 14, color: ThemeConstants.SHADOW_CARD, offsetY: 7 })
 

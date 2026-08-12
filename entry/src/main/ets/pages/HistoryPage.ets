@@ -487,6 +487,7 @@ export struct HistoryPage {
         listSpace: ThemeConstants.SPACE_MD,
         horizontalPadding: ThemeConstants.SPACE_XL,
         bottomPadding: ThemeConstants.SPACE_XL,
+        floatingTabTailPadding: ThemeConstants.FLOATING_TAB_BAR_CLEARANCE,
       }) {
         if (this.historyItems.length === 0) {
           ListItem() {

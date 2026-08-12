@@ -12,13 +12,6 @@ export struct MangaGridItem {
   @Event onMangaTap: (manga: SourceManga) => void = (_manga: SourceManga) => {}
   @Local private failedCoverUrl: string = ''
 
-  private titleInitial(): string {
-    if (this.manga.title.length === 0) {
-      return 'K'
-    }
-    return this.manga.title.substring(0, 1).toLocaleUpperCase()
-  }
-
   private hasCover(): boolean {
     const coverUrl = this.manga.coverUrl ?? ''
     return coverUrl.length > 0 && this.failedCoverUrl !== this.coverFailureKey()
@@ -28,9 +21,21 @@ export struct MangaGridItem {
     return cachedCoverFailureKey(this.manga.coverUrl, this.manga.sourceId, this.manga.id)
   }
 
+  @Builder
+  private CoverPlaceholder() {
+    SymbolGlyph($r('sys.symbol.book'))
+      .fontSize(34)
+      .fontColor([ThemeConstants.TEXT_TERTIARY])
+      .opacity(0.8)
+      .width('100%')
+      .height('100%')
+  }
+
   build() {
     Column({ space: ThemeConstants.SPACE_SM }) {
       Stack({ alignContent: Alignment.Center }) {
+        this.CoverPlaceholder()
+
         if (this.hasCover()) {
           CachedCoverImage({
             uri: this.manga.coverUrl ?? '',
@@ -41,24 +46,6 @@ export struct MangaGridItem {
               this.failedCoverUrl = this.coverFailureKey()
             },
           })
-        } else {
-          Column({ space: ThemeConstants.SPACE_SM }) {
-            Text(this.titleInitial())
-              .fontSize(ThemeConstants.SPACE_XXL)
-              .fontWeight(FontWeight.Bold)
-              .fontColor(ThemeConstants.TEXT_SECONDARY)
-            Text(this.manga.title)
-              .fontSize(ThemeConstants.FONT_SIZE_CAPTION)
-              .fontColor(ThemeConstants.TEXT_SECONDARY)
-              .maxLines(2)
-              .textOverflow({ overflow: TextOverflow.Ellipsis })
-              .textAlign(TextAlign.Center)
-          }
-          .width('100%')
-          .height('100%')
-          .padding(ThemeConstants.SPACE_MD)
-          .justifyContent(FlexAlign.Center)
-          .backgroundColor(ThemeConstants.COVER_PLACEHOLDER)
         }
       }
       .width('100%')

@@ -3,6 +3,7 @@
 #include <cstdint>
 #include <cstdio>
 #include <cstring>
+#include <mutex>
 #include <stdexcept>
 #include <string>
 #include <utility>
@@ -33,6 +34,10 @@ constexpr uint32_t kMaxHostLogBytes = 1024u;
 constexpr uint32_t kMaxFixtureWasmBytes = 1024u * 1024u;
 constexpr const char *kTestCancelGuard = "\"testGuard\":\"cancel\"";
 constexpr const char *kTestTimeoutGuard = "\"testGuard\":\"timeout\"";
+// WAMR runtime initialization and native-import registration are process
+// global. Reader page preloading can request several source image tickets at
+// once, so every execution must span init through teardown under one lock.
+std::mutex g_wamrExecutionMu;
 constexpr const char *kManifestJson =
     "{\"schemaVersion\":1,\"id\":\"local.example.private\","
     "\"runtime\":\"wasm-v1\",\"entry\":\"source_runtime_fixture.wasm\","
@@ -660,6 +665,7 @@ std::string RunBundledWasmJsonCall(const std::string &requestJson)
 {
 #if defined(KOMA_ENABLE_WAMR)
     try {
+        std::lock_guard<std::mutex> lock(g_wamrExecutionMu);
         Runtime runtime;
         ThreadEnv threadEnv;
         Module module(LoadWasmBytesFromBundledFixture());
@@ -684,6 +690,7 @@ std::string RunWasmJsonCallFromBytes(const std::string &requestJson, const std::
         if (HasTestOnlyGuard(requestJson, kTestTimeoutGuard)) {
             return ErrorJson("WAMR_RUNTIME_TIMEOUT", "source runtime call timed out", "timeout");
         }
+        std::lock_guard<std::mutex> lock(g_wamrExecutionMu);
         Runtime runtime;
         ThreadEnv threadEnv;
         Module module(LoadWasmBytesFromExternalBytes(wasmBytes));
