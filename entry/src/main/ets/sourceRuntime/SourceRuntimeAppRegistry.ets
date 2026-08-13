@@ -7,8 +7,13 @@ import {
   importLocalSourceArchive,
   LocalSourcePackageManifest,
   normalizeSourceOperationCapabilityTokens,
+  SOURCE_PACKAGE_MANIFEST_FILE,
   SOURCE_PACKAGE_WASM_FILE,
+  SOURCE_REPO_PACKAGE_ICON_FILE,
+  SOURCE_REPO_PACKAGE_ICON_MAX_BYTES,
   SOURCE_REPO_PACKAGE_WASM_FILE,
+  validateSourcePackageIconFile,
+  validateSourcePackageIconBytes,
   validateRestoredSourcePackage,
 } from './SourcePackageImporter'
 import {
@@ -22,6 +27,8 @@ import { appSourceFilterPreferencesStore } from './SourceFilterPreferencesStore'
 import {
   SourceRuntimeRegistry,
   SourceRuntimeRegistryEntry,
+  sourceRuntimePackageIconPath,
+  sourceRuntimePackageIconUri,
 } from './SourceRuntimeRegistry'
 import { SourceRuntimeStateBridge } from '../state/SourceRuntimeState'
 
@@ -42,6 +49,7 @@ export interface InstalledSourcePackage {
   smokeStatus: string
   lastDiagnosticMessage: string
   capabilities: string[]
+  icon?: string
 }
 
 export interface SourcePackageInstallResult {
@@ -65,6 +73,8 @@ export interface SourcePackageBackupEntry {
   manifest: LocalSourcePackageManifest
   wasmBase64: string
   wasmByteCount: number
+  iconPngBase64?: string
+  iconByteCount?: number
   presentationDescription?: string
   presentationIcon?: string
 }
@@ -380,6 +390,41 @@ function sourcePackageFromEntry(entry: SourceRuntimeRegistryEntry): InstalledSou
     smokeStatus: diagnostic === undefined ? AppStrings.get('source_pkg_not_run') : (diagnostic.ok ? 'PASS' : 'FAIL'),
     lastDiagnosticMessage: diagnostic === undefined ? '' : (diagnostic.reasonCode ?? 'ok'),
     capabilities: entry.capabilities,
+    icon: sourceRuntimePackageIconUri(entry),
+  }
+}
+
+function sourcePackageIconBytes(entry: SourceRuntimeRegistryEntry): Uint8Array | undefined {
+  const iconPath = sourceRuntimePackageIconPath(entry)
+  if (iconPath === undefined) {
+    return undefined
+  }
+  try {
+    const bytes = readBytesSync(iconPath)
+    return validateSourcePackageIconBytes(bytes) ? bytes : undefined
+  } catch (_err) {
+    return undefined
+  }
+}
+
+function restoredSourcePackageIconBytes(sourcePackage: SourcePackageBackupEntry): Uint8Array | undefined {
+  const encoded = sourcePackage.iconPngBase64
+  const byteCount = sourcePackage.iconByteCount
+  if (encoded === undefined && byteCount === undefined) {
+    return undefined
+  }
+  if (typeof encoded !== 'string' || typeof byteCount !== 'number' || !Number.isInteger(byteCount) || byteCount <= 0) {
+    return undefined
+  }
+  const maxEncodedLength = Math.ceil(SOURCE_REPO_PACKAGE_ICON_MAX_BYTES / 3) * 4 + 4
+  if (byteCount > SOURCE_REPO_PACKAGE_ICON_MAX_BYTES || encoded.length > maxEncodedLength) {
+    return undefined
+  }
+  try {
+    const bytes = base64ToBytes(encoded)
+    return bytes.byteLength === byteCount && validateSourcePackageIconBytes(bytes) ? bytes : undefined
+  } catch (_err) {
+    return undefined
   }
 }
 
@@ -444,6 +489,7 @@ function restoreRuntimeRegistryEntry(entry: SourceRuntimeRegistryEntry | undefin
     manifestPath: entry.manifestPath,
     wasmPath: entry.wasmPath,
     archivePath: entry.archivePath,
+    packageIconPath: entry.packageIconPath,
     presentationDescription: entry.presentationDescription,
     presentationIcon: entry.presentationIcon,
   })
@@ -494,6 +540,7 @@ function persistInstalledSources(context: common.UIAbilityContext): void {
       manifestPath: entry.manifestPath,
       wasmPath: entry.wasmPath,
       archivePath: entry.archivePath,
+      packageIconPath: entry.packageIconPath,
       presentationDescription: entry.presentationDescription,
       presentationIcon: entry.presentationIcon,
     })
@@ -512,7 +559,8 @@ export function exportInstalledSourcePackages(): SourcePackageBackupEntry[] {
     if (entry.importStatus !== 'imported') {
       continue
     }
-    packages.push({
+    const iconBytes = sourcePackageIconBytes(entry)
+    const sourcePackage: SourcePackageBackupEntry = {
       sourceId: entry.sourceId,
       version: entry.manifestVersion,
       enabled: entry.enabled,
@@ -521,7 +569,12 @@ export function exportInstalledSourcePackages(): SourcePackageBackupEntry[] {
       wasmByteCount: entry.wasmByteCount,
       presentationDescription: entry.presentationDescription,
       presentationIcon: entry.presentationIcon,
-    })
+    }
+    if (iconBytes !== undefined) {
+      sourcePackage.iconPngBase64 = bytesToBase64(iconBytes)
+      sourcePackage.iconByteCount = iconBytes.byteLength
+    }
+    packages.push(sourcePackage)
   }
   return packages
 }
@@ -555,6 +608,12 @@ export async function restoreSourcePackagesFromBackup(
       return { ok: false, restoredCount, reasonCode: 'source_package_identity_mismatch' }
     }
 
+    const hasIconPayload = sourcePackage.iconPngBase64 !== undefined || sourcePackage.iconByteCount !== undefined
+    const iconBytes = restoredSourcePackageIconBytes(sourcePackage)
+    if (hasIconPayload && iconBytes === undefined) {
+      return { ok: false, restoredCount, reasonCode: 'invalid_icon' }
+    }
+
     const wasmBytes = base64ToBytes(sourcePackage.wasmBase64)
     if (wasmBytes.byteLength !== sourcePackage.wasmByteCount) {
       return { ok: false, restoredCount, reasonCode: 'source_package_byte_count_mismatch' }
@@ -563,12 +622,21 @@ export async function restoreSourcePackagesFromBackup(
     if (validationReason !== undefined) {
       return { ok: false, restoredCount, reasonCode: validationReason }
     }
+    const sourceRepoLayout = manifest.runtime.wasmPath === SOURCE_REPO_PACKAGE_WASM_FILE
+    if (iconBytes !== undefined && !sourceRepoLayout) {
+      return { ok: false, restoredCount, reasonCode: 'invalid_icon' }
+    }
 
     const packageDir = joinSourceRuntimePath(appSourcePackagesRoot(context), `backup-${Date.now()}-${index}`)
     const archivePath = joinSourceRuntimePath(packageDir, 'backup-source-package.json')
     const importedRoot = joinSourceRuntimePath(packageDir, 'package')
-    const manifestPath = joinSourceRuntimePath(importedRoot, 'manifest.generated.json')
+    // Backup payloads retain the normalized host manifest, not the original
+    // source-repo manifest schema. Keep that host-owned filename on restore;
+    // the trusted runtime wasm path remains the sole layout discriminator.
+    const manifestPath = joinSourceRuntimePath(importedRoot, SOURCE_PACKAGE_MANIFEST_FILE)
     const wasmPath = joinSourceRuntimePath(importedRoot, manifest.runtime.wasmPath)
+    const iconPath = sourceRepoLayout && iconBytes !== undefined ?
+      joinSourceRuntimePath(importedRoot, SOURCE_REPO_PACKAGE_ICON_FILE) : undefined
     ensureDirSync(packageDir)
     ensureDirSync(importedRoot)
     writeTextSync(archivePath, JSON.stringify({
@@ -578,6 +646,16 @@ export async function restoreSourcePackagesFromBackup(
     }))
     writeTextSync(manifestPath, JSON.stringify(manifest))
     writeBytesSync(wasmPath, wasmBytes)
+    if (iconBytes !== undefined && iconPath !== undefined) {
+      writeBytesSync(iconPath, iconBytes)
+      if (!await validateSourcePackageIconFile(iconPath)) {
+        try {
+          await removeAppSourcePackageDir(context, packageDir)
+        } catch (_err) {
+        }
+        return { ok: false, restoredCount, reasonCode: 'invalid_icon' }
+      }
+    }
 
     const existing = appSourceRuntimeRegistry.remove(sourcePackage.sourceId)
     if (existing?.archivePath !== undefined) {
@@ -601,6 +679,7 @@ export async function restoreSourcePackagesFromBackup(
       manifestPath,
       wasmPath,
       archivePath,
+      packageIconPath: iconPath,
     })
     if (!registered.ok) {
       try {
@@ -636,7 +715,8 @@ export function reloadInstalledSourcePackages(context: common.UIAbilityContext):
     if (existing !== undefined) {
       const unchanged = existing.importStatus === entry.importStatus &&
         existing.manifestVersion === entry.manifestVersion &&
-        existing.wasmByteCount === entry.wasmByteCount
+        existing.wasmByteCount === entry.wasmByteCount &&
+        existing.packageIconPath === entry.packageIconPath
       if (unchanged) {
         continue
       }
@@ -686,6 +766,7 @@ export function reloadInstalledSourcePackages(context: common.UIAbilityContext):
       manifestPath: entry.manifestPath,
       wasmPath: entry.wasmPath,
       archivePath: entry.archivePath,
+      packageIconPath: entry.packageIconPath,
       presentationDescription: entry.presentationDescription,
       presentationIcon: entry.presentationIcon,
     })
@@ -701,6 +782,21 @@ export function reloadInstalledSourcePackages(context: common.UIAbilityContext):
     SourceRuntimeStateBridge.notifyChanged()
   }
   return allRegistered
+}
+
+// Read through the persisted registry without mutating the live app registry.
+// Test-only callers use this to verify the same package-icon ownership rules a
+// cold app start will use before they exercise the visible source rows.
+export function persistedInstalledSourcePackageIconUri(
+  context: common.UIAbilityContext,
+  id: string,
+): string | undefined {
+  const reloaded = SourceRuntimeRegistry.reloadFromAppLocalMetadata(appSourceMetadataPath(context))
+  if (!reloaded.ok) {
+    return undefined
+  }
+  const entry = reloaded.registry.lookup(id).entry
+  return entry === undefined ? undefined : sourceRuntimePackageIconUri(entry)
 }
 
 export function bootstrapSourceRuntimeAppRegistry(context: common.UIAbilityContext): number {
@@ -766,6 +862,7 @@ async function registerSourcePackageFromBytes(
       manifestPath: imported.manifestPath,
       wasmPath: imported.wasmPath,
       archivePath,
+      packageIconPath: imported.iconPath,
       presentationDescription: removedExisting?.presentationDescription,
       presentationIcon: removedExisting?.presentationIcon,
     })

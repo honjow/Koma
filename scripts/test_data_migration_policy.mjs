@@ -17,6 +17,8 @@ const sourceFilterPreferences = source('entry/src/main/ets/sourceRuntime/SourceF
 const offlineStore = source('entry/src/main/ets/model/OfflineDownloadStore.ets')
 const offlineQueue = source('entry/src/main/ets/model/OfflineDownloadQueueStore.ets')
 const tracker = source('entry/src/main/ets/model/TrackerModels.ets')
+const sourceRegistry = source('entry/src/main/ets/sourceRuntime/SourceRuntimeRegistry.ets')
+const sourceAppRegistry = source('entry/src/main/ets/sourceRuntime/SourceRuntimeAppRegistry.ets')
 
 for (const required of [
   'LIBRARY_STORE_PERSISTENCE_SCHEMA_VERSION = 1',
@@ -30,6 +32,8 @@ for (const required of [
   'plaintext v1/v2/v3 accepted',
   'BACKUP_ENVELOPE_VERSION = 1',
   'TRACKER_PREFERENCES_STORE_NAME = koma_tracker_preferences_v1',
+  'optional validated source-repo `packageIconPath`',
+  'Only a validated source-repo root `icon.png` may be persisted, exported, or restored',
 ]) {
   assert.ok(policy.includes(required), `migration policy must list ${required}`)
 }
@@ -44,5 +48,7 @@ assert.match(offlineQueue, /OFFLINE_DOWNLOAD_QUEUE_SCHEMA_VERSION[\s\S]*reconcil
 assert.match(backup, /BACKUP_ACCEPTED_SCHEMA_VERSIONS[\s\S]*BACKUP_SCHEMA_VERSION_V1[\s\S]*BACKUP_SCHEMA_VERSION_V2[\s\S]*BACKUP_SCHEMA_VERSION/, 'backup restore must keep accepted plaintext versions explicit')
 assert.match(encryption, /BACKUP_ENVELOPE_VERSION: number = 1[\s\S]*BACKUP_ENCRYPTED_CONTENT_SCHEMA_VERSION: number = 4/, 'encrypted backup envelope and content versions must stay explicit')
 assert.match(tracker, /TRACKER_PREFERENCES_STORE_NAME[\s\S]*AssetStoreTrackerCredentialSecretStore[\s\S]*asset\.add/, 'tracker tokens must stay in AssetStore, outside JSON migration')
+assert.match(sourceRegistry, /packageIconPath[\s\S]*SOURCE_REPO_PACKAGE_WASM_FILE[\s\S]*SOURCE_REPO_PACKAGE_ICON_FILE/, 'source registry must only expose a package icon beside a source-repo wasm payload')
+assert.match(sourceAppRegistry, /iconPngBase64[\s\S]*sourceRepoLayout[\s\S]*iconBytes !== undefined && !sourceRepoLayout[\s\S]*invalid_icon/, 'backup restore must reject icons for legacy package layouts')
 
 console.log('data migration policy checks passed')

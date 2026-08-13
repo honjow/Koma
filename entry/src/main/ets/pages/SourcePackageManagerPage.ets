@@ -202,6 +202,7 @@ export struct SourcePackageManagerPage {
       nsfw: source.nsfw,
       status: importStatus,
       capabilities: source.capabilities,
+      icon: source.icon,
     }
   }
 
@@ -775,6 +776,8 @@ export struct SourcePackageManagerPage {
         return t('source_pkg_reason_network_not_allowed')
       case 'unsafe_archive_entry':
         return t('source_pkg_reason_unsafe_archive_entry')
+      case 'invalid_icon':
+        return t('source_pkg_reason_invalid_icon')
       case 'missing_manifest':
         return t('source_pkg_reason_missing_manifest')
       case 'missing_wasm':
@@ -843,6 +846,7 @@ export struct SourcePackageManagerPage {
       case 'checksum_mismatch':
       case 'network_not_allowed':
       case 'unsafe_archive_entry':
+      case 'invalid_icon':
       case 'missing_manifest':
       case 'missing_wasm':
       case 'manifest_invalid':
@@ -1985,18 +1989,34 @@ export struct SourcePackageManagerPage {
 
   @Builder
   private PackageCard(source: InstalledSourcePackage) {
-    ConciseListRow({
-      title: source.name,
-      subtitle: this.packageListMetaText(source),
-      trailingText: source.enabled ? t('source_pkg_enabled') : t('source_pkg_disabled'),
-      leadingIcon: $r('sys.symbol.compass'),
-      leadingIconBackgroundColor: ThemeConstants.SOURCE_WASM_COLOR,
-      primaryColor: ThemeConstants.TEXT_PRIMARY,
-      secondaryColor: source.enabled ? ThemeConstants.TEXT_SECONDARY : ThemeConstants.TEXT_TERTIARY,
-      action: () => {
-        this.openSourceSheet(source)
-      },
-    })
+    if ((source.icon ?? '').length > 0) {
+      ConciseListRow({
+        title: source.name,
+        subtitle: this.packageListMetaText(source),
+        trailingText: source.enabled ? t('source_pkg_enabled') : t('source_pkg_disabled'),
+        leadingImageUrl: source.icon ?? '',
+        leadingImageSize: ThemeConstants.SOURCE_LIST_ICON_SIZE,
+        leadingImageRadius: ThemeConstants.SOURCE_LIST_ICON_RADIUS,
+        primaryColor: ThemeConstants.TEXT_PRIMARY,
+        secondaryColor: source.enabled ? ThemeConstants.TEXT_SECONDARY : ThemeConstants.TEXT_TERTIARY,
+        action: () => {
+          this.openSourceSheet(source)
+        },
+      })
+    } else {
+      ConciseListRow({
+        title: source.name,
+        subtitle: this.packageListMetaText(source),
+        trailingText: source.enabled ? t('source_pkg_enabled') : t('source_pkg_disabled'),
+        leadingIcon: $r('sys.symbol.compass'),
+        leadingIconBackgroundColor: ThemeConstants.SOURCE_WASM_COLOR,
+        primaryColor: ThemeConstants.TEXT_PRIMARY,
+        secondaryColor: source.enabled ? ThemeConstants.TEXT_SECONDARY : ThemeConstants.TEXT_TERTIARY,
+        action: () => {
+          this.openSourceSheet(source)
+        },
+      })
+    }
   }
 
   @Builder

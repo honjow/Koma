@@ -6,6 +6,7 @@ import {
   appSourceRuntimeRegistry,
   installFromBytes,
   remove as removeInstalledSourcePackage,
+  persistedInstalledSourcePackageIconUri,
 } from './SourceRuntimeAppRegistry'
 import {
   SourceIndexEntry,
@@ -93,6 +94,7 @@ import {
 import {
   SourceRuntimeRegistry,
   SourceRuntimeRegistryInstalledSourceSummary,
+  sourceRuntimePackageIconUri,
 } from './SourceRuntimeRegistry'
 import {
   appSourceSettingsStore,
@@ -142,6 +144,8 @@ const SMOKE_PHASE_REAL_SOURCE_VISIBLE_READER: string = 'real-source-visible-read
 const SMOKE_PHASE_LOCAL_SOURCE_PACKAGE_VISIBLE_READER: string = 'local-source-package-visible-reader'
 const SMOKE_PHASE_LOCAL_SOURCE_PACKAGE_VISIBLE_OFFLINE_DOWNLOAD_READER: string = 'local-source-package-visible-offline-download-reader'
 const SMOKE_PHASE_INSTALLED_SOURCE_READER: string = 'installed-source-reader'
+const SMOKE_PHASE_PACKAGE_ICON_INSTALL_RETAIN: string = 'package-icon-install-retain'
+const SMOKE_PHASE_PACKAGE_ICON_REMOVE: string = 'package-icon-remove'
 const SMOKE_PHASE_SOURCE_INDEX_READER: string = 'source-index-reader'
 const SMOKE_PHASE_SOURCE_INDEX_VISIBLE_READER: string = 'source-index-visible-reader'
 const SMOKE_PHASE_SOURCE_INDEX_DOWNLOAD_READER: string = 'source-index-download-reader'
@@ -157,6 +161,7 @@ const SMOKE_PHASE_LOCAL_LIBRARY_FOLDER_VISIBLE_READER: string = 'local-library-f
 const SOURCE_INDEX_LIBRARY_SMOKE_FILE_NAME: string = 'source-index-library-smoke.v1.json'
 const LOCAL_LIBRARY_FOLDER_SMOKE_FILE_NAME: string = 'local-library-folder-smoke.v1.json'
 const SOURCE_RUNTIME_SMOKE_RESULT_FILE_NAME: string = 'source-runtime-smoke-result.json'
+const PACKAGE_ICON_SMOKE_MARKER_FILE_NAME: string = 'source-package-icon-smoke-owned.v1'
 const LOCAL_LIBRARY_FOLDER_SMOKE_ROOT: string = 'import/local-library-folder-smoke-root/extract'
 const LOCAL_LIBRARY_FOLDER_SMOKE_PAGE_BASE64: string = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAFgwJ/lWnzWQAAAABJRU5ErkJggg=='
 const READER_WIDE_SPLIT_SMOKE_IMAGE_PATH: string = 'import/reader-wide-split-fixture/extract/wide-split-fixture.png'
@@ -189,6 +194,7 @@ const ARCHIVE_RAWFILE_PATH: string = 'test/local_source_runtime_fixture.koma'
 const ARCHIVE_SANDBOX_ZIP_FILE: string = 'local_source_runtime_fixture.koma.zip'
 const ARCHIVE_REQUEST_JSON: string = '{"operation":"search","query":"fixture","smoke":"koma-archive-smoke"}'
 const INSTALLED_READER_SOURCE_ID: string = 'local.test.koma.fixture'
+const INSTALLED_READER_SOURCE_NAME: string = 'Koma Local WASM Fixture'
 const ARCHIVE_INGESTION_SEARCH_REQUEST_JSON: string = `{"type":"request","version":1,"requestId":"device-archive-ingestion-search-001","operation":"search","sourceId":"${ARCHIVE_INGESTION_SOURCE_ID}","args":{"query":"fixture","page":{"cursor":null,"limit":20}},"settings":{},"hostHints":{"network":false}}`
 const ARCHIVE_INGESTION_NON_SEARCH_REQUEST_JSON: string = `{"type":"request","version":1,"requestId":"device-archive-ingestion-manga-001","operation":"get_manga","sourceId":"${ARCHIVE_INGESTION_SOURCE_ID}","args":{"mangaId":"manga:fixture-series"},"settings":{},"hostHints":{"network":false}}`
 const ARCHIVE_NEGATIVE_ROUTE_LABEL: string = 'app-local-source-archive-negative-test-only'
@@ -422,6 +428,15 @@ export interface SourceRuntimeSmokeResult {
   sourceRuntimeInstalledSourceInventoryNoRawPathLeak?: boolean
   sourceRuntimeInstalledSourceInventoryNoFullManifestLeak?: boolean
   sourceRuntimeInstalledSourceInventoryNoWasmBytesLeak?: boolean
+  sourceRuntimeInstalledSourceInventoryPackageIconOk?: boolean
+  sourceRuntimeInstalledSourceInventoryPackageIconAfterReloadOk?: boolean
+  sourcePackageIconPreexistingSourceConflict?: boolean
+  sourcePackageIconInstallOk?: boolean
+  sourcePackageIconPersistReloadOk?: boolean
+  sourcePackageIconUriOk?: boolean
+  sourcePackageIconInstalledSourceId?: string
+  sourcePackageIconCleanupRequired?: boolean
+  sourcePackageIconRemovedOk?: boolean
   sourceRuntimeInstalledSourceInventorySelectedSourceId?: string
   sourceRuntimeInstalledSourceInventorySelectedRunRequestOk?: boolean
   sourceRuntimeInstalledSourceInventorySelectedRunRequest?: SourceRuntimeRunRequestByIdEvidence
@@ -1006,6 +1021,47 @@ function writeSourceRuntimeSmokeResultFile(filesDir: string, result: SourceRunti
     if (file !== undefined) {
       fs.closeSync(file)
     }
+  }
+}
+
+function packageIconSmokeMarkerPath(filesDir: string): string {
+  return joinSourceRuntimeSmokePath(filesDir, PACKAGE_ICON_SMOKE_MARKER_FILE_NAME)
+}
+
+function writePackageIconSmokeMarker(filesDir: string): boolean {
+  let file: fs.File | undefined = undefined
+  try {
+    file = fs.openSync(
+      packageIconSmokeMarkerPath(filesDir),
+      fs.OpenMode.WRITE_ONLY | fs.OpenMode.CREATE | fs.OpenMode.TRUNC,
+    )
+    fs.writeSync(file.fd, INSTALLED_READER_SOURCE_ID, { encoding: 'utf-8' })
+    return true
+  } catch (_error) {
+    return false
+  } finally {
+    if (file !== undefined) {
+      fs.closeSync(file)
+    }
+  }
+}
+
+function packageIconSmokeMarkerOwned(filesDir: string): boolean {
+  try {
+    return fs.accessSync(packageIconSmokeMarkerPath(filesDir)) &&
+      fs.readTextSync(packageIconSmokeMarkerPath(filesDir), { encoding: 'utf-8' }).trim() === INSTALLED_READER_SOURCE_ID
+  } catch (_error) {
+    return false
+  }
+}
+
+function clearPackageIconSmokeMarker(filesDir: string): void {
+  try {
+    const markerPath = packageIconSmokeMarkerPath(filesDir)
+    if (fs.accessSync(markerPath)) {
+      fs.unlinkSync(markerPath)
+    }
+  } catch (_error) {
   }
 }
 
@@ -1932,19 +1988,21 @@ function applyArchiveIngestionEvidence(
   result.sourceRuntimeInstalledSourceInventoryNoRawPathLeak =
       !inventoryText.includes('manifestPath') &&
       !inventoryText.includes('wasmPath') &&
-      !inventoryText.includes('archivePath') &&
-      !inventoryText.includes('/data/')
+      !inventoryText.includes('archivePath')
   result.sourceRuntimeInstalledSourceInventoryNoFullManifestLeak =
     !inventoryText.includes('runtime') &&
       !inventoryText.includes('permissions') &&
       !inventoryText.includes('contentPolicy') &&
       !inventoryText.includes('wasmSha256')
   result.sourceRuntimeInstalledSourceInventoryNoWasmBytesLeak = !inventoryText.includes('wasmBytes')
+  result.sourceRuntimeInstalledSourceInventoryPackageIconOk =
+    sourceRuntimeInventoryContainsPackageIcon(summary.installedSourceInventory, summary.sourceId)
   result.sourceRuntimeInstalledSourceInventorySafeFieldsOk =
     summary.inventorySafetyOk &&
       result.sourceRuntimeInstalledSourceInventoryNoRawPathLeak === true &&
       result.sourceRuntimeInstalledSourceInventoryNoFullManifestLeak === true &&
-      result.sourceRuntimeInstalledSourceInventoryNoWasmBytesLeak === true
+      result.sourceRuntimeInstalledSourceInventoryNoWasmBytesLeak === true &&
+      result.sourceRuntimeInstalledSourceInventoryPackageIconOk === true
   result.sourceRuntimeInstalledSourceInventorySelectedSourceId = summary.selectedSourceId
   result.sourceRuntimeArchiveIngestionImportRegisterOk = summary.importRegister.ok &&
     summary.importRegister.entry !== undefined &&
@@ -1990,6 +2048,95 @@ function applyArchiveIngestionEvidence(
       result.sourceRuntimeInstalledSourceInventorySelectedRunRequestOk === true
 }
 
+function sourceRuntimeInventoryContainsPackageIcon(
+  inventory: SourceRuntimeRegistryInstalledSourceSummary[],
+  sourceId: string,
+): boolean {
+  return inventory.some((item: SourceRuntimeRegistryInstalledSourceSummary): boolean =>
+    item.sourceId === sourceId && (item.icon?.startsWith('file://') ?? false),
+  )
+}
+
+async function runPackageIconInstallRetainSmoke(
+  context: common.UIAbilityContext,
+  resourceMgr: resourceManager.ResourceManager,
+  result: SourceRuntimeSmokeResult,
+): Promise<void> {
+  const existing = appSourceRuntimeRegistry.lookup(INSTALLED_READER_SOURCE_ID).entry
+  result.sourcePackageIconPreexistingSourceConflict = existing !== undefined
+  if (existing !== undefined) {
+    result.error = 'package icon smoke source already exists; retained without mutation'
+    return
+  }
+
+  const archiveBytes = resourceMgr.getRawFileContentSync(ARCHIVE_RAWFILE_PATH)
+  const install = await installFromBytes(
+    context,
+    new Uint8Array(archiveBytes.buffer),
+    ARCHIVE_SANDBOX_ZIP_FILE,
+    INSTALLED_READER_SOURCE_ID,
+  )
+  result.sourcePackageIconInstalledSourceId = install.id
+  const installed = appSourceRuntimeRegistry.lookup(INSTALLED_READER_SOURCE_ID).entry
+  result.sourcePackageIconInstallOk = install.ok === true &&
+    install.id === INSTALLED_READER_SOURCE_ID &&
+    installed !== undefined &&
+    installed.manifestName === INSTALLED_READER_SOURCE_NAME
+  result.sourcePackageIconUriOk = installed !== undefined &&
+    (sourceRuntimePackageIconUri(installed)?.startsWith('file://') ?? false)
+  result.sourcePackageIconCleanupRequired = result.sourcePackageIconInstallOk === true
+  if (installed === undefined || result.sourcePackageIconInstallOk !== true) {
+    return
+  }
+
+  // Read the persisted record through a fresh registry. The subsequent UI
+  // path cold-starts the app and verifies that same persisted value visibly.
+  result.sourcePackageIconPersistReloadOk =
+    persistedInstalledSourcePackageIconUri(context, INSTALLED_READER_SOURCE_ID)?.startsWith('file://') ?? false
+  if (result.sourcePackageIconPersistReloadOk !== true) {
+    await removeInstalledSourcePackage(context, INSTALLED_READER_SOURCE_ID)
+    result.sourcePackageIconCleanupRequired = false
+    return
+  }
+  if (!writePackageIconSmokeMarker(context.filesDir)) {
+    await removeInstalledSourcePackage(context, INSTALLED_READER_SOURCE_ID)
+    result.sourcePackageIconCleanupRequired = false
+    result.error = 'package icon smoke ownership marker could not be written'
+  }
+}
+
+async function runPackageIconRemoveSmoke(
+  context: common.UIAbilityContext,
+  result: SourceRuntimeSmokeResult,
+): Promise<void> {
+  const entry = appSourceRuntimeRegistry.lookup(INSTALLED_READER_SOURCE_ID).entry
+  if (entry === undefined) {
+    const owned = packageIconSmokeMarkerOwned(context.filesDir)
+    if (owned) {
+      clearPackageIconSmokeMarker(context.filesDir)
+    }
+    result.sourcePackageIconRemovedOk = owned
+    if (!owned) {
+      result.error = 'package icon cleanup found neither the test source nor its ownership marker'
+    }
+    return
+  }
+  if (!packageIconSmokeMarkerOwned(context.filesDir)) {
+    result.error = 'package icon cleanup ownership marker missing; source retained without mutation'
+    result.sourcePackageIconRemovedOk = false
+    return
+  }
+  // This phase only removes the fixed test-only source id after a successful
+  // retain phase. It does not clear the app or touch any other installed source.
+  result.sourcePackageIconInstalledSourceId = entry.sourceId
+  const removed = await removeInstalledSourcePackage(context, INSTALLED_READER_SOURCE_ID)
+  result.sourcePackageIconRemovedOk = removed &&
+    appSourceRuntimeRegistry.lookup(INSTALLED_READER_SOURCE_ID).entry === undefined
+  if (result.sourcePackageIconRemovedOk) {
+    clearPackageIconSmokeMarker(context.filesDir)
+  }
+}
+
 function applyPersistedInventoryReloadEvidence(
   result: SourceRuntimeSmokeResult,
   summary: SourceRuntimeServicePersistedInventoryReloadSummary,
@@ -2006,19 +2153,21 @@ function applyPersistedInventoryReloadEvidence(
   result.sourceRuntimeInstalledSourceInventoryNoRawPathLeak =
       !inventoryText.includes('manifestPath') &&
       !inventoryText.includes('wasmPath') &&
-      !inventoryText.includes('archivePath') &&
-      !inventoryText.includes('/data/')
+      !inventoryText.includes('archivePath')
   result.sourceRuntimeInstalledSourceInventoryNoFullManifestLeak =
     !inventoryText.includes('runtime') &&
       !inventoryText.includes('permissions') &&
       !inventoryText.includes('contentPolicy') &&
       !inventoryText.includes('wasmSha256')
   result.sourceRuntimeInstalledSourceInventoryNoWasmBytesLeak = !inventoryText.includes('wasmBytes')
+  result.sourceRuntimeInstalledSourceInventoryPackageIconAfterReloadOk =
+    sourceRuntimeInventoryContainsPackageIcon(summary.installedSourceInventory, summary.sourceId)
   result.sourceRuntimeInstalledSourceInventorySafeFieldsOk =
     summary.inventorySafetyOk &&
       result.sourceRuntimeInstalledSourceInventoryNoRawPathLeak === true &&
       result.sourceRuntimeInstalledSourceInventoryNoFullManifestLeak === true &&
-      result.sourceRuntimeInstalledSourceInventoryNoWasmBytesLeak === true
+      result.sourceRuntimeInstalledSourceInventoryNoWasmBytesLeak === true &&
+      result.sourceRuntimeInstalledSourceInventoryPackageIconAfterReloadOk === true
   result.sourceRuntimeInstalledSourceInventorySelectedSourceId = summary.selectedSourceId
   result.sourceRuntimeArchiveIngestionSearchOk = summary.searchRunRequestById.ok &&
     summary.searchRunRequestById.operation === 'search'
@@ -2810,6 +2959,46 @@ export async function maybeRunSourceRuntimeDeviceSmoke(
         }
       }
       compactSmokeResultForHilog(result)
+      console.info(SMOKE_LOG_PREFIX + JSON.stringify(result))
+      return
+    }
+
+    if (result.smokePhase === SMOKE_PHASE_PACKAGE_ICON_INSTALL_RETAIN) {
+      if (resourceMgr === undefined || context === undefined) {
+        result.error = 'package-icon-install-retain phase requires resource manager and ability context'
+      } else {
+        await runPackageIconInstallRetainSmoke(context, resourceMgr, result)
+        result.ok = result.sourcePackageIconPreexistingSourceConflict === false &&
+          result.sourcePackageIconInstallOk === true &&
+          result.sourcePackageIconPersistReloadOk === true &&
+          result.sourcePackageIconUriOk === true &&
+          result.sourcePackageIconCleanupRequired === true
+        if (!result.ok && result.error === undefined) {
+          result.error = 'package-icon-install-retain failed'
+        }
+      }
+      compactSmokeResultForHilog(result)
+      if (context !== undefined) {
+        writeSourceRuntimeSmokeResultFile(context.filesDir, result)
+      }
+      console.info(SMOKE_LOG_PREFIX + JSON.stringify(result))
+      return
+    }
+
+    if (result.smokePhase === SMOKE_PHASE_PACKAGE_ICON_REMOVE) {
+      if (context === undefined) {
+        result.error = 'package-icon-remove phase requires ability context'
+      } else {
+        await runPackageIconRemoveSmoke(context, result)
+        result.ok = result.sourcePackageIconRemovedOk === true
+        if (!result.ok && result.error === undefined) {
+          result.error = 'package-icon-remove failed'
+        }
+      }
+      compactSmokeResultForHilog(result)
+      if (context !== undefined) {
+        writeSourceRuntimeSmokeResultFile(context.filesDir, result)
+      }
       console.info(SMOKE_LOG_PREFIX + JSON.stringify(result))
       return
     }

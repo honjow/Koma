@@ -298,7 +298,7 @@ export async function importAndRunLocalSourceArchive(
   route: string,
 ): Promise<SourceRuntimeServiceRunSummary> {
   const archiveRoot = joinSourceRuntimeServicePath(context.filesDir, archiveRootName)
-  const importedRoot = joinSourceRuntimeServicePath(archiveRoot, 'imported-package')
+  const importedRoot = joinSourceRuntimeServicePath(archiveRoot, 'package')
   const archivePath = joinSourceRuntimeServicePath(archiveRoot, archiveFileName)
   const archiveBytes = resourceMgr.getRawFileContentSync(rawfilePath)
   const imported = await importLocalSourceArchive(archiveBytes, archivePath, importedRoot)
@@ -346,7 +346,10 @@ export async function importAndRegisterLocalSourceArchive(
   route: string,
 ): Promise<SourceRuntimeServiceRegistrationSummary> {
   const archiveRoot = joinSourceRuntimeServicePath(context.filesDir, archiveRootName)
-  const importedRoot = joinSourceRuntimeServicePath(archiveRoot, 'imported-package')
+  // Keep the test import tree identical to the installed-package contract:
+  // archive beside a fixed `package/` root. The registry only exposes a
+  // package icon when both paths are anchored to this host-owned layout.
+  const importedRoot = joinSourceRuntimeServicePath(archiveRoot, 'package')
   const archivePath = joinSourceRuntimeServicePath(archiveRoot, archiveFileName)
   const archiveBytes = resourceMgr.getRawFileContentSync(rawfilePath)
   const imported = await importLocalSourceArchive(archiveBytes, archivePath, importedRoot)
@@ -369,6 +372,7 @@ export async function importAndRegisterLocalSourceArchive(
     manifestPath: imported.manifestPath,
     wasmPath: imported.wasmPath,
     archivePath,
+    packageIconPath: imported.iconPath,
   })
   return sourceRuntimeServiceRegistrationSummary(registered)
 }

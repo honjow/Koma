@@ -1213,6 +1213,7 @@
     { "name": "source_pkg_reason_checksum_mismatch", "value": "Source package checksum mismatch" },
     { "name": "source_pkg_reason_network_not_allowed", "value": "Source package requested disallowed network or install capabilities" },
     { "name": "source_pkg_reason_unsafe_archive_entry", "value": "Source package contains unsafe file paths" },
+    { "name": "source_pkg_reason_invalid_icon", "value": "Source package icon must be a valid PNG image" },
     { "name": "source_pkg_reason_missing_manifest", "value": "Source package missing manifest" },
     { "name": "source_pkg_reason_missing_wasm", "value": "Source package missing WASM file" },
     { "name": "source_pkg_reason_manifest_invalid", "value": "Source package manifest is invalid" },

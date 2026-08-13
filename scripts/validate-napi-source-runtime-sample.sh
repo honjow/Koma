@@ -116,14 +116,15 @@ require_text "$adapter_cpp" 'WAMR_RUNTIME_TIMEOUT'
 require_text "$adapter_cpp" '"timeout"'
 require_text "$adapter_cpp" 'koma_test_oversized_result'
 require_text "$adapter_cpp" 'koma_test_malformed_result'
-require_text "$http_host_cpp" 'g_requestMu'
-require_text "$http_host_cpp" 'g_activeCtxMu'
-require_text "$http_host_cpp" 'g_activeCtxStorage'
-require_text "$http_host_cpp" 'response callback copied: status='
-require_text "$http_host_cpp" 'cleanup: destroying request after callback wait'
-require_text "$http_host_cpp" 'OH_Http_Destroy\(&req\)'
-if rg -q 'destroyResponse|OH_Http_DestroyResponse|static HttpSyncContext \*s_ctx|HttpSyncContext ctx;' "$http_host_cpp"; then
-  echo "native HTTP host must not destroy callback response or use stack/static raw callback context" >&2
+# The current bridge owns one retained ArkTS transport through a thread-safe
+# function. These replace the retired per-request callback globals.
+require_text "$http_host_cpp" 'g_transportMu'
+require_text "$http_host_cpp" 'g_transport'
+require_text "$http_host_cpp" 'napi_create_threadsafe_function'
+require_text "$http_host_cpp" 'napi_call_threadsafe_function'
+require_text "$http_host_cpp" 'HttpBridgeCall'
+if rg -q 'OH_Http_Destroy|destroyResponse|OH_Http_DestroyResponse|static HttpSyncContext \*s_ctx|HttpSyncContext ctx;' "$http_host_cpp"; then
+  echo "native HTTP host must use the retained ArkTS transport bridge, not the retired callback/HTTP client path" >&2
   exit 1
 fi
 
@@ -175,6 +176,15 @@ require_text "$smoke_file" 'entryability-want-test-only'
 require_text "$smoke_file" 'local_source_runtime_fixture.koma'
 require_text "$source_package_importer_file" 'manifest.json'
 require_text "$source_package_importer_file" 'source.wasm'
+require_text "$source_package_importer_file" 'SOURCE_REPO_PACKAGE_ICON_FILE'
+require_text "$source_package_importer_file" 'validateSourcePackageIconBytes'
+require_text "$source_package_importer_file" 'archiveEntryIsSymlink'
+require_text "$source_runtime_registry_file" 'sourceRuntimePackageIconPath'
+require_text "$source_runtime_registry_file" 'sourceRuntimePackageIconUri'
+require_text "$source_runtime_registry_file" 'SOURCE_REPO_PACKAGE_WASM_FILE'
+require_text "$source_runtime_app_registry_file" 'iconPngBase64'
+require_text "$source_runtime_app_registry_file" 'sourceRepoLayout'
+require_text "$source_runtime_app_registry_file" 'iconBytes !== undefined && !sourceRepoLayout'
 require_text "$smoke_file" 'app-local-source-archive-import-test-only'
 require_text "$smoke_file" 'SourceRuntimeService'
 require_text "$smoke_file" 'runStagedRawfileSourcePackage'
@@ -252,6 +262,8 @@ require_text "$smoke_file" 'sourceRuntimeInstalledSourceInventorySafeFieldsOk'
 require_text "$smoke_file" 'sourceRuntimeInstalledSourceInventoryNoRawPathLeak'
 require_text "$smoke_file" 'sourceRuntimeInstalledSourceInventoryNoFullManifestLeak'
 require_text "$smoke_file" 'sourceRuntimeInstalledSourceInventoryNoWasmBytesLeak'
+require_text "$smoke_file" 'sourceRuntimeInstalledSourceInventoryPackageIconOk'
+require_text "$smoke_file" 'sourceRuntimeInstalledSourceInventoryPackageIconAfterReloadOk'
 require_text "$smoke_file" 'sourceRuntimeInstalledSourceInventorySelectedRunRequestOk'
 require_text "$smoke_file" 'compactInstalledSourceInventoryForHilog'
 require_text "$smoke_file" 'koma.sourceRuntimeSmoke.phase'
@@ -551,9 +563,14 @@ python3 tools/wasm-runtime-spike/source-package/validate-local-source-archive-fi
   --archive "$archive_fixture" \
   --artifact-dir "${KOMA_NAPI_SOURCE_RUNTIME_ARTIFACT_DIR:-.hermes-artifacts/napi-source-runtime-static/source-archive-fixture}" >/dev/null
 
+python3 tools/wasm-runtime-spike/source-package/validate-source-repo-icon-fixtures.py \
+  --artifact-dir "${KOMA_NAPI_SOURCE_RUNTIME_ARTIFACT_DIR:-.hermes-artifacts/napi-source-runtime-static/source-repo-icon-fixtures}" >/dev/null
+
 require_text "$smoke_file" 'nativeHelloOk'
 require_text "$smoke_file" 'nativeAddOk'
 require_text "$smoke_file" 'SMOKE_PHASE_INSTALLED_SOURCE_READER'
+require_text "$smoke_file" 'SMOKE_PHASE_PACKAGE_ICON_INSTALL_RETAIN'
+require_text "$smoke_file" 'SMOKE_PHASE_PACKAGE_ICON_REMOVE'
 require_text "$smoke_file" 'SMOKE_PHASE_SOURCE_INDEX_READER'
 require_text "$smoke_file" 'SMOKE_PHASE_SOURCE_INDEX_DOWNLOAD_READER'
 require_text "$smoke_file" 'SMOKE_PHASE_SOURCE_INDEX_DOWNLOAD_CORRUPT_READER'
@@ -561,6 +578,7 @@ require_text "$smoke_file" 'SourceIndexService'
 require_text "$smoke_file" 'installFromBytes'
 require_text "$smoke_file" 'createReaderPageRenderSource'
 require_text "$smoke_file" 'installedSourceReaderRenderSourceOk'
+require_text "$smoke_file" 'sourcePackageIconPersistReloadOk'
 require_text "$smoke_file" 'OfflineDownloadService'
 require_text "$smoke_file" 'ReaderPageRenderKind.LOCAL_FILE_IMAGE'
 require_text "$smoke_file" 'ReaderPageRenderKind.URI_PLACEHOLDER'
@@ -575,7 +593,7 @@ if rg -q 'napi-sample|Koma native source runtime sample' "$smoke_file"; then
   exit 1
 fi
 
-changed_ui_files="$(git diff --name-only -- entry/src/main/ets/pages entry/src/main/ets/components entry/src/main/ets/model entry/src/main/ets/import entry/src/main/ets/remote entry/src/main/module.json5 | rg -v '^entry/src/main/ets/pages/Index\.ets$|^entry/src/main/ets/pages/LibraryPage\.ets$|^entry/src/main/ets/pages/ReaderPage\.ets$|^entry/src/main/ets/pages/SettingsPage\.ets$|^entry/src/main/ets/pages/DownloadsPage\.ets$|^entry/src/main/ets/pages/BackupManagementPage\.ets$|^entry/src/main/ets/pages/TrackerSettingsPage\.ets$|^entry/src/main/ets/pages/LibraryUpdateResultPage\.ets$|^entry/src/main/ets/pages/SearchPage\.ets$|^entry/src/main/ets/pages/SourcePackageManagerPage\.ets$|^entry/src/main/ets/pages/Source(Browse|Search)Page\.ets$|^entry/src/main/ets/pages/MangaDetailPage\.ets$|^entry/src/main/ets/components/ComicCoverCard\.ets$|^entry/src/main/ets/components/ReaderChrome\.ets$|^entry/src/main/ets/components/ChapterListSection\.ets$|^entry/src/main/ets/components/SourceListItem\.ets$|^entry/src/main/ets/import/ImageSortUtils\.ets$|^entry/src/main/ets/model/ComicModels\.ets$|^entry/src/main/ets/model/MockLibraryData\.ets$|^entry/src/main/ets/model/LocalLibrary(FolderContract|RescanService|MetadataService)\.ets$|^entry/src/main/ets/model/Library(FilterStore|Persistence|Store)\.ets$|^entry/src/main/ets/model/LibraryUpdate(ResultStore|Service|PreferencesStore)\.ets$|^entry/src/main/ets/model/Reader(PageSourceAdapter|PreferencesStore)\.ets$|^entry/src/main/ets/model/OfflineDownload(Store|Service|QueueStore)\.ets$|^entry/src/main/ets/model/Source(TextNormalizer|Models)\.ets$|^entry/src/main/ets/model/(CrossSearchService|SearchHistoryStore|SearchStateMapper)\.ets$|^entry/src/main/ets/model/MangaDetailModels\.ets$|^entry/src/main/ets/model/TrackerModels\.ets$|^entry/src/main/ets/viewmodel/BrowseViewModel\.ets$|^entry/src/main/ets/model/BackupService\.ets$' || true)"
+changed_ui_files="$(git diff --name-only -- entry/src/main/ets/pages entry/src/main/ets/components entry/src/main/ets/model entry/src/main/ets/import entry/src/main/ets/remote entry/src/main/module.json5 | rg -v '^entry/src/main/ets/pages/Index\.ets$|^entry/src/main/ets/pages/LibraryPage\.ets$|^entry/src/main/ets/pages/ReaderPage\.ets$|^entry/src/main/ets/pages/SettingsPage\.ets$|^entry/src/main/ets/pages/DownloadsPage\.ets$|^entry/src/main/ets/pages/BackupManagementPage\.ets$|^entry/src/main/ets/pages/TrackerSettingsPage\.ets$|^entry/src/main/ets/pages/LibraryUpdateResultPage\.ets$|^entry/src/main/ets/pages/SearchPage\.ets$|^entry/src/main/ets/pages/SourcePackageManagerPage\.ets$|^entry/src/main/ets/pages/Source(Browse|Search)Page\.ets$|^entry/src/main/ets/pages/MangaDetailPage\.ets$|^entry/src/main/ets/components/ComicCoverCard\.ets$|^entry/src/main/ets/components/ReaderChrome\.ets$|^entry/src/main/ets/components/ChapterListSection\.ets$|^entry/src/main/ets/components/SourceListItem\.ets$|^entry/src/main/ets/components/ui/ConciseListRow\.ets$|^entry/src/main/ets/import/ImageSortUtils\.ets$|^entry/src/main/ets/model/ComicModels\.ets$|^entry/src/main/ets/model/MockLibraryData\.ets$|^entry/src/main/ets/model/LocalLibrary(FolderContract|RescanService|MetadataService)\.ets$|^entry/src/main/ets/model/Library(FilterStore|Persistence|Store)\.ets$|^entry/src/main/ets/model/LibraryUpdate(ResultStore|Service|PreferencesStore)\.ets$|^entry/src/main/ets/model/Reader(PageSourceAdapter|PreferencesStore)\.ets$|^entry/src/main/ets/model/OfflineDownload(Store|Service|QueueStore)\.ets$|^entry/src/main/ets/model/Source(TextNormalizer|Models)\.ets$|^entry/src/main/ets/model/(CrossSearchService|SearchHistoryStore|SearchStateMapper)\.ets$|^entry/src/main/ets/model/MangaDetailModels\.ets$|^entry/src/main/ets/model/TrackerModels\.ets$|^entry/src/main/ets/viewmodel/BrowseViewModel\.ets$|^entry/src/main/ets/model/BackupService\.ets$' || true)"
 if [[ -n "$changed_ui_files" ]]; then
   echo "unexpected product/UI changes:" >&2
   echo "$changed_ui_files" >&2

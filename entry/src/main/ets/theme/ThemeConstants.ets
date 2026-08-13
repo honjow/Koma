@@ -114,6 +114,11 @@ export class ThemeConstants {
   static readonly INPUT_HEIGHT: number = 40
   static readonly BUTTON_HEIGHT: number = 40
   static readonly SOURCE_ICON_SIZE: number = 48
+  // Installed-source identity assets occupy the same compact list slot as the
+  // existing colored source symbols. They are intentionally distinct from the
+  // larger source-page icon surface above.
+  static readonly SOURCE_LIST_ICON_SIZE: number = 30
+  static readonly SOURCE_LIST_ICON_RADIUS: number = 7
   static readonly LIST_COVER_WIDTH: number = 48
   static readonly LIST_COVER_HEIGHT: number = 64
   static readonly FILTER_CHIP_HEIGHT: number = 34

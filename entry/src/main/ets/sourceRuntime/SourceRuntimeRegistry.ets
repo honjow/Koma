@@ -1,8 +1,10 @@
-import { fileIo as fs } from '@kit.CoreFileKit'
+import { fileIo as fs, fileUri } from '@kit.CoreFileKit'
 import {
   LocalSourcePackageManifest,
   normalizeSourceOperationCapabilityToken,
   normalizeSourceOperationCapabilityTokens,
+  SOURCE_REPO_PACKAGE_ICON_FILE,
+  SOURCE_REPO_PACKAGE_WASM_FILE,
 } from './SourcePackageImporter'
 
 export type SourceRuntimeRegistryRouteStatus = 'staged' | 'imported'
@@ -20,6 +22,7 @@ export interface SourceRuntimeRegistryEntryInput {
   manifestPath?: string
   wasmPath?: string
   archivePath?: string
+  packageIconPath?: string
   presentationDescription?: string
   presentationIcon?: string
 }
@@ -44,6 +47,7 @@ export interface SourceRuntimeRegistryEntry {
   manifestPath?: string
   wasmPath?: string
   archivePath?: string
+  packageIconPath?: string
   presentationDescription: string
   presentationIcon: string
 }
@@ -80,6 +84,7 @@ export interface SourceRuntimeRegistryPersistedEntry {
   wasmPath?: string
   manifestPath?: string
   archivePath?: string
+  packageIconPath?: string
   presentationDescription?: string
   presentationIcon?: string
 }
@@ -131,6 +136,43 @@ function normalizeSourceRuntimeSourceId(sourceId: string): string {
 
 function normalizePresentationText(value: string | undefined): string {
   return typeof value === 'string' ? value.trim() : ''
+}
+
+function normalizedSourceRuntimePath(value: string | undefined): string {
+  return typeof value === 'string'
+    ? value.trim().replace(/\\/g, '/').replace(/\/+$/, '')
+    : ''
+}
+
+// `packageIconPath` is persisted metadata. Never turn an arbitrary persisted
+// path into a sandbox URI: an installed package icon must be the one fixed
+// asset beside that entry's archived package.
+export function sourceRuntimePackageIconPath(entry: SourceRuntimeRegistryEntry): string | undefined {
+  const archivePath = normalizedSourceRuntimePath(entry.archivePath)
+  const wasmPath = normalizedSourceRuntimePath(entry.wasmPath)
+  const iconPath = normalizedSourceRuntimePath(entry.packageIconPath)
+  if (archivePath.length === 0 || wasmPath.length === 0 || iconPath.length === 0) {
+    return undefined
+  }
+  const packageDir = archivePath.replace(/\/[^/]*$/, '')
+  const expectedWasmPath = `${packageDir}/package/${SOURCE_REPO_PACKAGE_WASM_FILE}`
+  const expectedIconPath = `${packageDir}/package/${SOURCE_REPO_PACKAGE_ICON_FILE}`
+  if (wasmPath !== expectedWasmPath || iconPath !== expectedIconPath || !fs.accessSync(iconPath)) {
+    return undefined
+  }
+  return iconPath
+}
+
+export function sourceRuntimePackageIconUri(entry: SourceRuntimeRegistryEntry): string | undefined {
+  const iconPath = sourceRuntimePackageIconPath(entry)
+  if (iconPath === undefined) {
+    return undefined
+  }
+  try {
+    return fileUri.getUriFromPath(iconPath)
+  } catch (_err) {
+    return undefined
+  }
 }
 
 function sourceRuntimeRegistryEvidence(input: SourceRuntimeRegistryEntryInput): string[] {
@@ -300,6 +342,7 @@ function persistedEntryFromRegistryEntry(entry: SourceRuntimeRegistryEntry): Sou
     wasmPath: entry.wasmPath,
     manifestPath: entry.manifestPath,
     archivePath: entry.archivePath,
+    packageIconPath: entry.packageIconPath,
     presentationDescription: entry.presentationDescription,
     presentationIcon: entry.presentationIcon,
   }
@@ -382,7 +425,9 @@ function persistedEntryShapeInvalid(entry: SourceRuntimeRegistryPersistedEntry):
   if (entry.presentationIcon !== undefined && typeof entry.presentationIcon !== 'string') {
     return true
   }
-  return !optionalPersistedPathIsValid(entry.manifestPath) || !optionalPersistedPathIsValid(entry.archivePath)
+  return !optionalPersistedPathIsValid(entry.manifestPath) ||
+    !optionalPersistedPathIsValid(entry.archivePath) ||
+    !optionalPersistedPathIsValid(entry.packageIconPath)
 }
 
 export class SourceRuntimeRegistry {
@@ -425,6 +470,7 @@ export class SourceRuntimeRegistry {
       manifestPath: input.manifestPath,
       wasmPath: input.wasmPath,
       archivePath: input.archivePath,
+      packageIconPath: input.packageIconPath,
       presentationDescription: normalizePresentationText(input.presentationDescription),
       presentationIcon: normalizePresentationText(input.presentationIcon),
     }
@@ -510,7 +556,10 @@ export class SourceRuntimeRegistry {
         status: entry.importStatus,
         capabilities: entry.capabilities,
         description: entry.presentationDescription,
-        icon: entry.presentationIcon,
+        // Only the host-created URI for a validated package asset reaches
+        // presentation. Index metadata remains descriptive and is never a
+        // network image request on this installed-source surface.
+        icon: sourceRuntimePackageIconUri(entry),
       }
       summaries.push(summary)
     }
@@ -611,6 +660,7 @@ export class SourceRuntimeRegistry {
           manifestPath: entry.manifestPath,
           wasmPath,
           archivePath: entry.archivePath,
+          packageIconPath: entry.packageIconPath,
           presentationDescription: entry.presentationDescription,
           presentationIcon: entry.presentationIcon,
         })

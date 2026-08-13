@@ -90,14 +90,24 @@ Credential-like descriptors are treated as sensitive and are not saved by the cu
 
 ## Package archive layout
 
-The source-repo package archive must contain exactly:
+The source-repo package archive must contain exactly the required files and may
+carry one fixed identity asset:
 
 ```text
 manifest.json
 source.wasm
+icon.png (optional)
 ```
 
-Koma accepts picker suffixes `.koma`, `.koma-source`, `.koma-source.zip`, and `.zip`, but validation is based on archive contents rather than filename. Archive entry names must be relative, unique, non-hidden, and must not contain path traversal or backslashes.
+`icon.png`, when present, is the installed source's local identity icon. It
+must be one root non-paletted 8- or 16-bit PNG (grayscale, RGB, grayscale with
+alpha, or RGBA), at most 1 MiB, with dimensions from 1 to 1024 px in each
+direction. The host verifies the PNG structure/CRC and performs an ImageKit
+decode before it is shown; the app does not fetch arbitrary index icon URLs for
+installed-source UI. The legacy/internal fixture layout does not allow
+`icon.png`.
+
+Koma accepts picker suffixes `.koma`, `.koma-source`, `.koma-source.zip`, and `.zip`, but validation is based on archive contents rather than filename. Archive entry names must be relative, unique, non-hidden, non-symlink, and must not contain path traversal or backslashes.
 
 Source index entries are user-configured and have this shape:
 
@@ -113,12 +123,17 @@ Source index entries are user-configured and have this shape:
   "contentRating": "safe",
   "pkg": "sources/example/example-0.1.0.koma",
   "sha256": "<optional package sha256 hex>",
-  "icon": "",
+  "icon": "sources/example/icon.png",
   "minAppVersion": ""
 }
 ```
 
-`pkg` may be relative to the configured index URL. If `sha256` is present, Koma verifies the downloaded `.koma` bytes before import. Installs and updates downloaded from an index go through the same archive validator as local imports.
+`pkg` may be relative to the configured index URL. The index `icon` field is
+descriptive distribution metadata; installed-source identity comes from the
+validated package-owned `icon.png`, not an arbitrary remote image request. If
+`sha256` is present, Koma verifies the downloaded `.koma` bytes before import.
+Installs and updates downloaded from an index go through the same archive
+validator as local imports.
 
 ## Compatibility notes
 

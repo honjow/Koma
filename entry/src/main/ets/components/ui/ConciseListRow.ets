@@ -17,6 +17,8 @@ export struct ConciseListRow {
   @Param subtitleMaxLines: number = 2
   @Param trailingText: ResourceStr = ''
   @Param leadingImageUrl: string = ''
+  @Param leadingImageSize: number = 0
+  @Param leadingImageRadius: number = 0
   @Param leadingIcon: Resource | undefined = undefined
   @Param leadingIconBackgroundColor: ResourceColor | undefined = undefined
   @Param count: number = -1
@@ -83,6 +85,17 @@ export struct ConciseListRow {
       return `https:${path}`
     }
     return path
+  }
+
+  private leadingImageModifier(): ImageModifier {
+    const modifier = new ImageModifier().alt($r('sys.media.ohos_app_icon'))
+    if (this.leadingImageSize > 0) {
+      modifier.width(this.leadingImageSize).height(this.leadingImageSize)
+    }
+    if (this.leadingImageRadius > 0) {
+      modifier.borderRadius(this.leadingImageRadius)
+    }
+    return modifier
   }
 
   private resolvedSurfaceRadius(): number {
@@ -262,7 +275,7 @@ export struct ConciseListRow {
     if (imageUrl.length > 0) {
       return new PrefixImage({
         image: imageUrl,
-        modifier: new ImageModifier().alt($r('sys.media.ohos_app_icon')),
+        modifier: this.leadingImageModifier(),
       })
     }
     return undefined

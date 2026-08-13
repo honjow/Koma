@@ -2,6 +2,7 @@ import { common } from '@kit.AbilityKit'
 import { zlib } from '@kit.BasicServicesKit'
 import { cryptoFramework } from '@kit.CryptoArchitectureKit'
 import { fileIo as fs } from '@kit.CoreFileKit'
+import { image } from '@kit.ImageKit'
 import { resourceManager } from '@kit.LocalizationKit'
 
 export const SOURCE_PACKAGE_MANIFEST_ID: string = 'local.test.koma.fixture'
@@ -10,6 +11,11 @@ export const SOURCE_PACKAGE_MANIFEST_FILE: string = 'manifest.generated.json'
 export const SOURCE_PACKAGE_WASM_FILE: string = 'rust_source_runtime_fixture.wasm'
 export const SOURCE_REPO_PACKAGE_MANIFEST_FILE: string = 'manifest.json'
 export const SOURCE_REPO_PACKAGE_WASM_FILE: string = 'source.wasm'
+// A package-owned source icon is deliberately a fixed, optional root asset.
+// It is not a source-controlled path or a remote image URL.
+export const SOURCE_REPO_PACKAGE_ICON_FILE: string = 'icon.png'
+export const SOURCE_REPO_PACKAGE_ICON_MAX_BYTES: number = 1024 * 1024
+export const SOURCE_REPO_PACKAGE_ICON_MAX_DIMENSION: number = 1024
 export const SOURCE_PACKAGE_WASM_SHA256: string = '255163710202d77fa218f1ccf96fbdcc7ec954b8f8bd1a04e6f15426a2d00161'
 export const SOURCE_PACKAGE_WASM_MAX_BYTES: number = 131072
 
@@ -19,7 +25,8 @@ export type SourceArchiveValidationReason =
   'unsafe_archive_entry' |
   'missing_manifest' |
   'missing_wasm' |
-  'manifest_invalid'
+  'manifest_invalid' |
+  'invalid_icon'
 
 export interface SourceArchiveNegativeCaseFixture {
   id: string
@@ -120,6 +127,7 @@ export interface SourceArchiveImportResult {
   wasmBytes?: Uint8Array
   manifestPath?: string
   wasmPath?: string
+  iconPath?: string
   wasmBytesLength?: number
   hashOk?: boolean
   attemptedWamrExecution: boolean
@@ -220,6 +228,25 @@ function readUInt32Le(bytes: Uint8Array, offset: number): number {
     (bytes[offset + 3] << 24)) >>> 0
 }
 
+function readUInt32Be(bytes: Uint8Array, offset: number): number {
+  return ((bytes[offset] << 24) |
+    (bytes[offset + 1] << 16) |
+    (bytes[offset + 2] << 8) |
+    bytes[offset + 3]) >>> 0
+}
+
+function pngCrc32(bytes: Uint8Array, offset: number, length: number): number {
+  let crc = 0xffffffff
+  for (let index = 0; index < length; index += 1) {
+    crc ^= bytes[offset + index]
+    for (let bit = 0; bit < 8; bit += 1) {
+      const lowBit = crc & 1
+      crc = (crc >>> 1) ^ (lowBit === 1 ? 0xedb88320 : 0)
+    }
+  }
+  return (crc ^ 0xffffffff) >>> 0
+}
+
 function decodeAscii(bytes: Uint8Array, offset: number, length: number): string {
   let value = ''
   for (let index = 0; index < length; index += 1) {
@@ -242,7 +269,18 @@ function isSafeArchiveEntryName(name: string): boolean {
   return true
 }
 
-function readArchiveEntryNames(archiveBytes: Uint8Array): string[] {
+interface SourceArchiveEntry {
+  name: string
+  uncompressedSize: number
+  externalAttributes: number
+}
+
+function archiveEntryIsSymlink(entry: SourceArchiveEntry): boolean {
+  const unixMode = (entry.externalAttributes >>> 16) & 0o777777
+  return (unixMode & 0o170000) === 0o120000
+}
+
+function readArchiveEntries(archiveBytes: Uint8Array): SourceArchiveEntry[] {
   const minEocdSize = 22
   if (archiveBytes.byteLength < minEocdSize) {
     throw new Error('zip_eocd_missing')
@@ -265,7 +303,7 @@ function readArchiveEntryNames(archiveBytes: Uint8Array): string[] {
     throw new Error('zip_central_directory_invalid')
   }
 
-  const names: string[] = []
+  const entries: SourceArchiveEntry[] = []
   let offset = centralDirectoryOffset
   for (let index = 0; index < entryCount; index += 1) {
     if (offset + 46 > archiveBytes.byteLength || readUInt32Le(archiveBytes, offset) !== 0x02014b50) {
@@ -279,25 +317,31 @@ function readArchiveEntryNames(archiveBytes: Uint8Array): string[] {
     if (nextOffset > archiveBytes.byteLength) {
       throw new Error('zip_central_directory_invalid')
     }
-    names.push(decodeAscii(archiveBytes, nameOffset, nameLength))
+    entries.push({
+      name: decodeAscii(archiveBytes, nameOffset, nameLength),
+      uncompressedSize: readUInt32Le(archiveBytes, offset + 24),
+      externalAttributes: readUInt32Le(archiveBytes, offset + 38),
+    })
     offset = nextOffset
   }
-  return names
+  return entries
 }
 
 function validateArchiveEntries(archiveBytes: Uint8Array): SourceArchiveValidationReason | undefined {
-  let names: string[]
+  let entries: SourceArchiveEntry[]
   try {
-    names = readArchiveEntryNames(archiveBytes)
+    entries = readArchiveEntries(archiveBytes)
   } catch (_err) {
     return 'unsafe_archive_entry'
   }
   let hasInternalManifest = false
   let hasSourceRepoManifest = false
+  let iconEntry: SourceArchiveEntry | undefined = undefined
   const seen = new Set<string>()
-  for (let index = 0; index < names.length; index += 1) {
-    const name = names[index]
-    if (seen.has(name) || !isSafeArchiveEntryName(name)) {
+  for (let index = 0; index < entries.length; index += 1) {
+    const entry = entries[index]
+    const name = entry.name
+    if (seen.has(name) || !isSafeArchiveEntryName(name) || archiveEntryIsSymlink(entry)) {
       return 'unsafe_archive_entry'
     }
     seen.add(name)
@@ -305,6 +349,8 @@ function validateArchiveEntries(archiveBytes: Uint8Array): SourceArchiveValidati
       hasInternalManifest = true
     } else if (name === SOURCE_REPO_PACKAGE_MANIFEST_FILE) {
       hasSourceRepoManifest = true
+    } else if (name === SOURCE_REPO_PACKAGE_ICON_FILE) {
+      iconEntry = entry
     }
   }
   if (hasInternalManifest && hasSourceRepoManifest) {
@@ -316,13 +362,126 @@ function validateArchiveEntries(archiveBytes: Uint8Array): SourceArchiveValidati
 
   const expectedManifest = hasInternalManifest ? SOURCE_PACKAGE_MANIFEST_FILE : SOURCE_REPO_PACKAGE_MANIFEST_FILE
   const expectedWasm = hasInternalManifest ? SOURCE_PACKAGE_WASM_FILE : SOURCE_REPO_PACKAGE_WASM_FILE
-  for (let index = 0; index < names.length; index += 1) {
-    const name = names[index]
-    if (name !== expectedManifest && name !== expectedWasm) {
+  const expectedIcon = hasSourceRepoManifest ? SOURCE_REPO_PACKAGE_ICON_FILE : ''
+  for (let index = 0; index < entries.length; index += 1) {
+    const name = entries[index].name
+    if (name !== expectedManifest && name !== expectedWasm && name !== expectedIcon) {
       return 'unsafe_archive_entry'
     }
   }
+  if (iconEntry !== undefined &&
+    (iconEntry.uncompressedSize <= 0 || iconEntry.uncompressedSize > SOURCE_REPO_PACKAGE_ICON_MAX_BYTES)) {
+    return 'invalid_icon'
+  }
   return undefined
+}
+
+export function validateSourcePackageIconBytes(iconBytes: Uint8Array): boolean {
+  // The host only permits a compact non-paletted PNG layout it can validate
+  // before exposing the asset to ArkUI: signature + IHDR + one-or-more IDAT
+  // chunks + IEND. It does not accept arbitrary PNG ancillary chunks as
+  // package code assets.
+  if (iconBytes.byteLength < 57 || iconBytes.byteLength > SOURCE_REPO_PACKAGE_ICON_MAX_BYTES) {
+    return false
+  }
+  const pngSignature: number[] = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]
+  for (let index = 0; index < pngSignature.length; index += 1) {
+    if (iconBytes[index] !== pngSignature[index]) {
+      return false
+    }
+  }
+  if (readUInt32Be(iconBytes, 8) !== 13 ||
+    iconBytes[12] !== 0x49 || iconBytes[13] !== 0x48 || iconBytes[14] !== 0x44 || iconBytes[15] !== 0x52) {
+    return false
+  }
+  const width = readUInt32Be(iconBytes, 16)
+  const height = readUInt32Be(iconBytes, 20)
+  if (width <= 0 || height <= 0 ||
+    width > SOURCE_REPO_PACKAGE_ICON_MAX_DIMENSION ||
+    height > SOURCE_REPO_PACKAGE_ICON_MAX_DIMENSION) {
+    return false
+  }
+  const bitDepth = iconBytes[24]
+  const colorType = iconBytes[25]
+  if ((bitDepth !== 8 && bitDepth !== 16) ||
+    (colorType !== 0 && colorType !== 2 && colorType !== 4 && colorType !== 6) ||
+    iconBytes[26] !== 0 || iconBytes[27] !== 0 || iconBytes[28] !== 0) {
+    return false
+  }
+  let offset = 8
+  let sawImageData = false
+  while (offset + 12 <= iconBytes.byteLength) {
+    const chunkLength = readUInt32Be(iconBytes, offset)
+    const typeOffset = offset + 4
+    const payloadOffset = offset + 8
+    const nextOffset = payloadOffset + chunkLength + 4
+    if (nextOffset > iconBytes.byteLength) {
+      return false
+    }
+    const storedCrc = readUInt32Be(iconBytes, payloadOffset + chunkLength)
+    if (pngCrc32(iconBytes, typeOffset, 4 + chunkLength) !== storedCrc) {
+      return false
+    }
+    const isIhdr = iconBytes[typeOffset] === 0x49 && iconBytes[typeOffset + 1] === 0x48 &&
+      iconBytes[typeOffset + 2] === 0x44 && iconBytes[typeOffset + 3] === 0x52
+    const isIdat = iconBytes[typeOffset] === 0x49 && iconBytes[typeOffset + 1] === 0x44 &&
+      iconBytes[typeOffset + 2] === 0x41 && iconBytes[typeOffset + 3] === 0x54
+    const isIend = iconBytes[typeOffset] === 0x49 && iconBytes[typeOffset + 1] === 0x45 &&
+      iconBytes[typeOffset + 2] === 0x4e && iconBytes[typeOffset + 3] === 0x44
+    if (offset === 8 && (!isIhdr || chunkLength !== 13)) {
+      return false
+    }
+    if (isIdat && chunkLength > 0) {
+      sawImageData = true
+    }
+    if (isIend) {
+      return chunkLength === 0 && sawImageData && nextOffset === iconBytes.byteLength
+    }
+    offset = nextOffset
+  }
+  return false
+}
+
+// The byte-level boundary keeps archive extraction bounded; this second
+// boundary asks ImageKit to decode the extracted file before it is published
+// to the source list. ImageSource calls stay sequential and are released only
+// after both metadata and pixel decoding have finished.
+export async function validateSourcePackageIconFile(iconPath: string): Promise<boolean> {
+  let imageSource: image.ImageSource | undefined = undefined
+  let pixelMap: image.PixelMap | undefined = undefined
+  try {
+    imageSource = image.createImageSource(iconPath)
+    const info = await imageSource.getImageInfo()
+    const width = info.size.width
+    const height = info.size.height
+    if (width <= 0 || height <= 0 ||
+      width > SOURCE_REPO_PACKAGE_ICON_MAX_DIMENSION ||
+      height > SOURCE_REPO_PACKAGE_ICON_MAX_DIMENSION) {
+      return false
+    }
+    pixelMap = await imageSource.createPixelMap({
+      desiredSize: {
+        width: 1,
+        height: 1,
+      },
+    })
+    return true
+  } catch (_err) {
+    return false
+  } finally {
+    if (pixelMap !== undefined) {
+      try {
+        await pixelMap.release()
+      } catch (_err) {
+      }
+    }
+    if (imageSource !== undefined) {
+      try {
+        await imageSource.release()
+      } catch (_err) {
+      }
+    }
+  }
 }
 
 function isPlainObject(value: Object | null): boolean {
@@ -631,6 +790,23 @@ export async function importLocalSourceArchive(
     return { ok: false, reasonCode: 'missing_wasm', manifest, manifestPath, wasmPath: importedWasmPath, attemptedWamrExecution: false }
   }
 
+  let iconPath: string | undefined = undefined
+  if (sourceRepoLayout) {
+    const candidateIconPath = joinSourceRuntimePath(importedRoot, SOURCE_REPO_PACKAGE_ICON_FILE)
+    if (fs.accessSync(candidateIconPath)) {
+      try {
+        const iconBytes = readBytesSync(candidateIconPath)
+        if (!validateSourcePackageIconBytes(iconBytes) ||
+          !await validateSourcePackageIconFile(candidateIconPath)) {
+          return { ok: false, reasonCode: 'invalid_icon', manifest, manifestPath, attemptedWamrExecution: false }
+        }
+        iconPath = candidateIconPath
+      } catch (_err) {
+        return { ok: false, reasonCode: 'invalid_icon', manifest, manifestPath, attemptedWamrExecution: false }
+      }
+    }
+  }
+
   const importedWasmBytes = readBytesSync(importedWasmPath)
   const hashOk = validateImportedWasmBytes(manifest, importedWasmBytes)
   if (!hashOk) {
@@ -652,6 +828,7 @@ export async function importLocalSourceArchive(
     wasmBytes: importedWasmBytes,
     manifestPath,
     wasmPath: importedWasmPath,
+    iconPath,
     wasmBytesLength: importedWasmBytes.byteLength,
     hashOk,
     attemptedWamrExecution: false,

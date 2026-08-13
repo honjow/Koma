@@ -1213,6 +1213,7 @@
     { "name": "source_pkg_reason_checksum_mismatch", "value": "源包校验和不匹配" },
     { "name": "source_pkg_reason_network_not_allowed", "value": "源包请求了当前不允许的网络或安装能力" },
     { "name": "source_pkg_reason_unsafe_archive_entry", "value": "源包包含不安全文件路径" },
+    { "name": "source_pkg_reason_invalid_icon", "value": "源包图标必须是有效的 PNG 图片" },
     { "name": "source_pkg_reason_missing_manifest", "value": "源包缺少 manifest" },
     { "name": "source_pkg_reason_missing_wasm", "value": "源包缺少 WASM 文件" },
     { "name": "source_pkg_reason_manifest_invalid", "value": "源包 manifest 不符合要求" },

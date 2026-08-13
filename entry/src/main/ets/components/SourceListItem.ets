@@ -37,10 +37,9 @@ export struct SourceListItem {
 
   private presentationIconUri(): string {
     const icon = this.source.icon?.trim() ?? ''
-    // Source icons are optional, user-provided package metadata.  Only render
-    // a URI that ArkUI can load directly; do not invent a per-source logo when
-    // the package did not provide one.
-    if (icon.startsWith('https://') || icon.startsWith('http://') || icon.startsWith('file://')) {
+    // Installed-source icons are host-created URIs for validated package
+    // assets. Do not turn index metadata into an arbitrary network request.
+    if (icon.startsWith('file://')) {
       return icon
     }
     return ''
@@ -85,17 +84,6 @@ export struct SourceListItem {
   }
 
   @Builder
-  private SourcePrefix() {
-    if (this.presentationIconUri().length > 0) {
-      Image(this.presentationIconUri())
-        .width(40)
-        .height(40)
-        .objectFit(ImageFit.Contain)
-        .interpolation(ImageInterpolation.Medium)
-    }
-  }
-
-  @Builder
   private SourceSuffix() {
     Row({ space: ThemeConstants.SPACE_SM }) {
       if (!this.sourceBacked() && this.displayBadge() !== '') {
@@ -131,12 +119,12 @@ export struct SourceListItem {
       title: this.displayTitle(),
       subtitle: this.displaySubtitle(),
       subtitleMaxLines: 1,
+      leadingImageUrl: this.presentationIconUri(),
+      leadingImageSize: ThemeConstants.SOURCE_LIST_ICON_SIZE,
+      leadingImageRadius: ThemeConstants.SOURCE_LIST_ICON_RADIUS,
       showChevron: false,
       action: () => {
         this.activate()
-      },
-      prefixBuilderParam: () => {
-        this.SourcePrefix()
       },
       suffixBuilderParam: () => {
         this.SourceSuffix()
