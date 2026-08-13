@@ -96,6 +96,8 @@ struct ContinueReadingShelfCard {
     color: ThemeConstants.SOURCE_LOCAL_COLOR,
     comicId: '',
   }
+  // The library snapshot uses this existing revision bridge to keep its
+  // continue-reading content reactive. It is not part of cover identity.
   @Param revision: number = 0
   @Local private failedCoverUri: string = ''
   @Event onOpenReader: (comicId: ComicId, chapterId?: string) => void = (_comicId: ComicId, _chapterId?: string) => {}
@@ -106,13 +108,13 @@ struct ContinueReadingShelfCard {
   }
 
   private coverFailureKey(): string {
-    return cachedCoverFailureKey(this.info.coverUri, this.info.sourceRuntimeId, this.info.sourceImageId ?? this.info.comicId)
-  }
-
-  private shouldUseSourceAwareCover(): boolean {
-    const coverUri = this.info.coverUri?.trim() ?? ''
-    const sourceRuntimeId = this.info.sourceRuntimeId?.trim() ?? ''
-    return sourceRuntimeId.length > 0 && coverUri.length > 0
+    return cachedCoverFailureKey(
+      this.info.coverUri,
+      this.info.sourceRuntimeId,
+      this.info.sourceImageId ?? this.info.comicId,
+      this.info.sourceKind,
+      this.info.remoteServerId,
+    )
   }
 
   build() {
@@ -122,26 +124,18 @@ struct ContinueReadingShelfCard {
           .fontSize(ThemeConstants.FONT_SIZE_H2)
           .fontColor([ThemeConstants.TEXT_TERTIARY])
         if (this.shouldShowCover()) {
-          if (this.shouldUseSourceAwareCover()) {
-            CachedCoverImage({
-              uri: this.info.coverUri ?? '',
-              objectFit: ImageFit.Cover,
-              sourceRuntimeId: this.info.sourceRuntimeId ?? '',
-              sourceImageId: this.info.sourceImageId ?? this.info.comicId,
-              onError: () => {
-                this.failedCoverUri = this.coverFailureKey()
-              },
-            })
-          } else {
-            Image(this.info.coverUri ?? '')
-              .width('100%')
-              .height('100%')
-              .objectFit(ImageFit.Cover)
-              .interpolation(ImageInterpolation.Medium)
-              .onError(() => {
-                this.failedCoverUri = this.coverFailureKey()
-              })
-          }
+          CachedCoverImage({
+            uri: this.info.coverUri ?? '',
+            objectFit: ImageFit.Cover,
+            sourceRuntimeId: this.info.sourceRuntimeId ?? '',
+            sourceImageId: this.info.sourceImageId ?? this.info.comicId,
+            sourceKind: this.info.sourceKind,
+            remoteServerId: this.info.remoteServerId ?? '',
+            decodeMaxEdge: 256,
+            onError: () => {
+              this.failedCoverUri = this.coverFailureKey()
+            },
+          })
         }
       }
       .width(76)
@@ -819,6 +813,8 @@ export struct LibraryPage {
         coverUri: comic.coverUri,
         sourceRuntimeId: comic.sourceRuntimeId,
         sourceImageId: comic.sourceImageId ?? sourceComic?.remoteResourceId ?? comic.id,
+        sourceKind: comic.sourceKind ?? sourceComic?.sourceKind,
+        remoteServerId: comic.remoteServerId ?? sourceComic?.remoteServerId,
         categoryLabels: this.showLibraryBadges ?
           (sourceComic === undefined ? comic.categoryLabels : this.categoryLabelsForComic(sourceComic)) :
           [],
@@ -1023,11 +1019,11 @@ export struct LibraryPage {
   }
 
   private comicRenderKey(comic: ComicCoverInfo): string {
-    return `${this.displayedRevision}:${comic.id}`
+    return comic.id
   }
 
   private listRowRenderKey(comic: ComicCoverInfo): string {
-    return `${this.displayedRevision}:list:${comic.id}`
+    return `list:${comic.id}`
   }
 
   private isEvenDisplayedRevision(): boolean {
@@ -2049,23 +2045,31 @@ export struct LibraryPage {
     this.LibraryGrid(comics)
   }
 
-  private shouldShowCoverUri(coverUri: string | undefined, sourceRuntimeId?: string, sourceImageId?: string): boolean {
+  private shouldShowCoverUri(
+    coverUri: string | undefined,
+    sourceRuntimeId?: string,
+    sourceImageId?: string,
+    sourceKind?: ComicSourceKind,
+    remoteServerId?: string,
+  ): boolean {
     const normalized = coverUri ?? ''
-    return normalized.length > 0 && this.failedCoverUris.indexOf(cachedCoverFailureKey(coverUri, sourceRuntimeId, sourceImageId)) < 0
+    return normalized.length > 0 && this.failedCoverUris.indexOf(
+      cachedCoverFailureKey(coverUri, sourceRuntimeId, sourceImageId, sourceKind, remoteServerId),
+    ) < 0
   }
 
-  private markCoverUriFailed(coverUri: string | undefined, sourceRuntimeId?: string, sourceImageId?: string): void {
+  private markCoverUriFailed(
+    coverUri: string | undefined,
+    sourceRuntimeId?: string,
+    sourceImageId?: string,
+    sourceKind?: ComicSourceKind,
+    remoteServerId?: string,
+  ): void {
     const normalized = coverUri ?? ''
-    const failureKey = cachedCoverFailureKey(coverUri, sourceRuntimeId, sourceImageId)
+    const failureKey = cachedCoverFailureKey(coverUri, sourceRuntimeId, sourceImageId, sourceKind, remoteServerId)
     if (normalized.length > 0 && this.failedCoverUris.indexOf(failureKey) < 0) {
       this.failedCoverUris = this.failedCoverUris.concat([failureKey])
     }
-  }
-
-  private isSourceAwareCover(comic: ComicCoverInfo): boolean {
-    const sourceRuntimeId = comic.sourceRuntimeId?.trim() ?? ''
-    const coverUri = comic.coverUri?.trim() ?? ''
-    return sourceRuntimeId.length > 0 && coverUri.length > 0
   }
 
   private sourceImageIdForComic(comic: ComicCoverInfo): string {
@@ -2075,27 +2079,30 @@ export struct LibraryPage {
   @Builder
   private LibraryListCover(comic: ComicCoverInfo) {
     Stack({ alignContent: Alignment.Center }) {
-      if (this.shouldShowCoverUri(comic.coverUri, comic.sourceRuntimeId, this.sourceImageIdForComic(comic))) {
-        if (this.isSourceAwareCover(comic)) {
-          CachedCoverImage({
-            uri: comic.coverUri ?? '',
-            objectFit: ImageFit.Cover,
-            sourceRuntimeId: comic.sourceRuntimeId ?? '',
-            sourceImageId: this.sourceImageIdForComic(comic),
-            onError: () => {
-              this.markCoverUriFailed(comic.coverUri, comic.sourceRuntimeId, this.sourceImageIdForComic(comic))
-            },
-          })
-        } else {
-          Image(comic.coverUri)
-            .width('100%')
-            .height('100%')
-            .objectFit(ImageFit.Cover)
-            .interpolation(ImageInterpolation.Medium)
-            .onError(() => {
-              this.markCoverUriFailed(comic.coverUri, comic.sourceRuntimeId, this.sourceImageIdForComic(comic))
-            })
-        }
+      if (this.shouldShowCoverUri(
+        comic.coverUri,
+        comic.sourceRuntimeId,
+        this.sourceImageIdForComic(comic),
+        comic.sourceKind,
+        comic.remoteServerId,
+      )) {
+        CachedCoverImage({
+          uri: comic.coverUri ?? '',
+          objectFit: ImageFit.Cover,
+          sourceRuntimeId: comic.sourceRuntimeId ?? '',
+          sourceImageId: this.sourceImageIdForComic(comic),
+          sourceKind: comic.sourceKind,
+          remoteServerId: comic.remoteServerId ?? '',
+          onError: () => {
+            this.markCoverUriFailed(
+              comic.coverUri,
+              comic.sourceRuntimeId,
+              this.sourceImageIdForComic(comic),
+              comic.sourceKind,
+              comic.remoteServerId,
+            )
+          },
+        })
       } else {
         SymbolGlyph($r('sys.symbol.book'))
           .fontSize(ThemeConstants.FONT_SIZE_H2)

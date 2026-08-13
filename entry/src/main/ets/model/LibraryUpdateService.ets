@@ -32,6 +32,7 @@ import {
   mapKomgaBookToChapter,
   mapKomgaPageToPage,
 } from '../remote/KomgaModels'
+import { KomgaClient } from '../remote/KomgaClient'
 import {
   KavitaChapterDto,
   KavitaVolumeDto,
@@ -288,6 +289,58 @@ function updatedComicWithChapters(comic: Comic, chapters: Chapter[], now: number
   }
   if (comic.coverUri !== undefined) {
     nextComic.coverUri = comic.coverUri
+  }
+  if (comic.localMetadata !== undefined) {
+    nextComic.localMetadata = comic.localMetadata
+  }
+  return nextComic
+}
+
+function updatedComicWithCoverUri(comic: Comic, chapters: Chapter[], now: number, coverUri?: string): Comic {
+  const nextComic = updatedComicWithChapters(comic, chapters, now)
+  if ((nextComic.coverUri === undefined || nextComic.coverUri.trim().length === 0) &&
+    coverUri !== undefined && coverUri.trim().length > 0) {
+    nextComic.coverUri = coverUri
+  }
+  return nextComic
+}
+
+// A cover repair is metadata-only. Keep the original chapter array and its
+// persisted counts intact instead of rebuilding a comic through the chapter
+// refresh path, which could repair unrelated historical inconsistencies.
+function updatedComicWithOnlyCoverUri(comic: Comic, coverUri: string, now: number): Comic {
+  const nextComic: Comic = {
+    id: comic.id,
+    title: comic.title,
+    sourceKind: comic.sourceKind,
+    sourcePath: comic.sourcePath,
+    sortTitle: comic.sortTitle,
+    preferredDirection: comic.preferredDirection,
+    chapters: comic.chapters,
+    chapterCount: comic.chapterCount,
+    pageCount: comic.pageCount,
+    createdAt: comic.createdAt,
+    updatedAt: now,
+    lastImportedAt: comic.lastImportedAt,
+    coverUri,
+  }
+  if (comic.subtitle !== undefined) {
+    nextComic.subtitle = comic.subtitle
+  }
+  if (comic.author !== undefined) {
+    nextComic.author = comic.author
+  }
+  if (comic.categoryIds !== undefined) {
+    nextComic.categoryIds = comic.categoryIds
+  }
+  if (comic.sourceRuntimeId !== undefined) {
+    nextComic.sourceRuntimeId = comic.sourceRuntimeId
+  }
+  if (comic.remoteServerId !== undefined) {
+    nextComic.remoteServerId = comic.remoteServerId
+  }
+  if (comic.remoteResourceId !== undefined) {
+    nextComic.remoteResourceId = comic.remoteResourceId
   }
   if (comic.localMetadata !== undefined) {
     nextComic.localMetadata = comic.localMetadata
@@ -697,6 +750,19 @@ export class LibraryUpdateService {
       const localIds = comic.chapters.map((chapter: Chapter): string => chapter.id)
       const hasNewId = remoteIds.some((chapterId: string): boolean => !localIds.includes(chapterId))
       if (books.length <= previousChapterCount && !hasNewId) {
+        const coverUri = await this.resolveKomgaCoverBackfillUri(comic, books, client)
+        if (coverUri !== undefined) {
+          this.libraryStore.upsertComic(updatedComicWithOnlyCoverUri(comic, coverUri, Date.now()))
+          return {
+            comicId: comic.id,
+            providerKind: providerKindForComic(comic),
+            sourceKey: sourceKeyForComic(comic),
+            status: 'updated',
+            previousChapterCount,
+            newChapterCount: previousChapterCount,
+            message: AppStrings.get('library_update_no_new_chapters'),
+          }
+        }
         return {
           comicId: comic.id,
           providerKind: providerKindForComic(comic),
@@ -709,6 +775,7 @@ export class LibraryUpdateService {
       }
       const now = Date.now()
       const chapters: Chapter[] = []
+      let coverUri: string | undefined = undefined
       for (let index = 0; index < books.length; index += 1) {
         const book = books[index]
         const chapterId = createKomgaChapterId(record.server.id, book.id)
@@ -718,6 +785,9 @@ export class LibraryUpdateService {
           continue
         }
         const pageDtos = await client.listBookPages(book.id)
+        if (coverUri === undefined && pageDtos.length > 0) {
+          coverUri = client.getPageImageUrl(book.id, pageDtos[0].number, KomgaPageImageKind.THUMBNAIL)
+        }
         const pages = pageDtos.map((page: KomgaPageDto) => {
           const mapped = mapKomgaPageToPage(record.server.id, book.id, comic.id, chapterId, page)
           mapped.uri = client.getPageImageUrl(book.id, page.number, KomgaPageImageKind.STREAM)
@@ -725,7 +795,7 @@ export class LibraryUpdateService {
         })
         chapters.push(mapKomgaBookToChapter(record.server.id, book, comic.id, pages, index, now))
       }
-      this.libraryStore.upsertComic(updatedComicWithChapters(comic, chapters, now))
+      this.libraryStore.upsertComic(updatedComicWithCoverUri(comic, chapters, now, coverUri))
       return {
         comicId: comic.id,
         providerKind: providerKindForComic(comic),
@@ -748,6 +818,37 @@ export class LibraryUpdateService {
         message: safeLibraryUpdateFailureCode(e.message),
       }
     }
+  }
+
+  private async resolveKomgaCoverBackfillUri(
+    comic: Comic,
+    books: KomgaBookDto[],
+    client: KomgaClient,
+  ): Promise<string | undefined> {
+    if ((comic.coverUri?.trim() ?? '').length > 0) {
+      return undefined
+    }
+    const remoteServerId = comic.remoteServerId
+    if (remoteServerId === undefined || remoteServerId.trim().length === 0) {
+      return undefined
+    }
+    for (let index = 0; index < books.length; index += 1) {
+      const book = books[index]
+      const chapterId = createKomgaChapterId(remoteServerId, book.id)
+      const existing = comic.chapters.find((chapter: Chapter): boolean => chapter.id === chapterId)
+      if (existing !== undefined && existing.pages.length > 0) {
+        let firstPageIndex = existing.pages[0].index
+        for (let pageIndex = 1; pageIndex < existing.pages.length; pageIndex += 1) {
+          firstPageIndex = Math.min(firstPageIndex, existing.pages[pageIndex].index)
+        }
+        return client.getPageImageUrl(book.id, Math.max(0, firstPageIndex) + 1, KomgaPageImageKind.THUMBNAIL)
+      }
+      const pages = await client.listBookPages(book.id)
+      if (pages.length > 0) {
+        return client.getPageImageUrl(book.id, pages[0].number, KomgaPageImageKind.THUMBNAIL)
+      }
+    }
+    return undefined
   }
 
   private komgaSeriesIdForComic(comic: Comic): string | undefined {

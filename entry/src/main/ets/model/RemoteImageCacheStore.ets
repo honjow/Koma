@@ -157,8 +157,8 @@ export class RemoteImageCacheStore {
   private readonly manifestPath: string
   private entries: Map<string, RemoteImageCacheManifestEntry> = new Map<string, RemoteImageCacheManifestEntry>()
 
-  constructor(cacheDir: string) {
-    this.rootDir = joinSandboxPath(cacheDir, REMOTE_IMAGE_CACHE_DIR_NAME)
+  constructor(cacheDir: string, directoryName: string = REMOTE_IMAGE_CACHE_DIR_NAME) {
+    this.rootDir = joinSandboxPath(cacheDir, directoryName)
     this.manifestPath = joinSandboxPath(this.rootDir, REMOTE_IMAGE_CACHE_MANIFEST_NAME)
     this.ensureRoot()
     this.restore()

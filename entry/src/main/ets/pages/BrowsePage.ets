@@ -1,4 +1,4 @@
-import { SecondaryListScaffold } from '../components/SecondaryListScaffold'
+import { PullRefreshListScaffold } from '../components/PullRefreshListScaffold'
 import { SourceListItem } from '../components/SourceListItem'
 import { KomaEmptyState } from '../components/ui/KomaEmptyState'
 import { GroupedListSection, ListDivider, SectionHeader } from '../components/ui/GroupedListSection'
@@ -36,11 +36,11 @@ export struct BrowsePage {
   @Local private languageState: LanguageState = connectLanguageState()
   @Local private sourceRuntimeState: SourceRuntimeState = connectSourceRuntimeState()
   @Local private viewModel: BrowseViewModel = new BrowseViewModel()
-  @Local private refreshingSources: boolean = false
   @Local private komgaConfigured: boolean = false
   @Local private kavitaConfigured: boolean = false
   @Local private opdsConfigured: boolean = false
   @Local private webDavConfigured: boolean = false
+  private browseScroller: Scroller = new Scroller()
   @Param sourceRegistry: SourceRuntimeRegistry = appSourceRuntimeRegistry
   @Param libraryStore: LibraryStore = createSeededLibraryStore()
   @Param libraryPersistenceService?: LibraryStorePersistenceService = undefined
@@ -229,19 +229,26 @@ export struct BrowsePage {
     this.viewModel.loadInstalledSources()
   }
 
-  private async loadRemoteAvailability(): Promise<void> {
+  private async loadRemoteAvailability(reportFailure: boolean = false): Promise<void> {
     try {
       const store = new RemoteServerStore(getContext(this) as common.UIAbilityContext)
-      this.komgaConfigured = await store.loadKomga() !== undefined
-      this.kavitaConfigured = await store.loadKavita() !== undefined
-      this.opdsConfigured = await store.loadOpds() !== undefined
-      this.webDavConfigured = await store.loadWebDav() !== undefined
+      const komgaConfigured = await store.loadKomga() !== undefined
+      const kavitaConfigured = await store.loadKavita() !== undefined
+      const opdsConfigured = await store.loadOpds() !== undefined
+      const webDavConfigured = await store.loadWebDav() !== undefined
+      this.komgaConfigured = komgaConfigured
+      this.kavitaConfigured = kavitaConfigured
+      this.opdsConfigured = opdsConfigured
+      this.webDavConfigured = webDavConfigured
       console.info(`[Komga] step=browse_availability configured=${this.komgaConfigured}`)
       console.info(`[Kavita] step=browse_availability configured=${this.kavitaConfigured}`)
       console.info(`[OPDS] step=browse_availability configured=${this.opdsConfigured}`)
       console.info(`[WebDAV] step=browse_availability configured=${this.webDavConfigured}`)
     } catch (error) {
       void error
+      if (reportFailure) {
+        throw new Error('availability_load_failed')
+      }
       this.komgaConfigured = false
       this.kavitaConfigured = false
       this.opdsConfigured = false
@@ -253,54 +260,51 @@ export struct BrowsePage {
     }
   }
 
-  private refreshSources(): void {
-    this.refreshingSources = true
+  private async refreshSources(): Promise<void> {
+    const sourceMetadataReloaded = reloadInstalledSourcePackages(getContext(this) as common.UIAbilityContext)
+    this.viewModel = new BrowseViewModel(this.sourceRegistry)
     this.viewModel.loadInstalledSources()
-    this.loadRemoteAvailability()
-    this.refreshingSources = false
+    await this.loadRemoteAvailability(true)
+    if (!sourceMetadataReloaded) {
+      throw new Error('source_metadata_reload_failed')
+    }
   }
 
   build() {
-    Refresh({ refreshing: $$this.refreshingSources }) {
-      Column() {
-        SecondaryListScaffold({
-          listSpace: ThemeConstants.SPACE_SM,
-          horizontalPadding: ThemeConstants.SPACE_XL,
-          bottomPadding: ThemeConstants.SPACE_XL,
-          floatingTabTailPadding: ThemeConstants.FLOATING_TAB_BAR_CLEARANCE,
-        }) {
-          if (this.viewModel.loadingSources) {
-            ListItem() {
-              Row() {
-                LoadingProgress()
-                  .width(ThemeConstants.LOADING_SIZE_LARGE)
-                  .height(ThemeConstants.LOADING_SIZE_LARGE)
-                  .color(ThemeConstants.BRAND_PRIMARY)
-              }
-              .width('100%')
-              .justifyContent(FlexAlign.Center)
-            }
-          } else if (this.enabledRuntimeSources().length === 0 && !this.komgaConfigured && !this.kavitaConfigured && !this.opdsConfigured && !this.webDavConfigured) {
-            ListItem() {
-              this.EmptySources()
-            }
-          } else {
-            if (this.configuredPrivateSourceEntries().length > 0) {
-              this.PrivateSourceListItems()
-            }
-            if (this.enabledRuntimeSources().length > 0) {
-              this.RuntimeSourceListItems()
-            }
+    PullRefreshListScaffold({
+      scroller: this.browseScroller,
+      listSpace: ThemeConstants.SPACE_SM,
+      horizontalPadding: ThemeConstants.SPACE_XL,
+      bottomPadding: ThemeConstants.SPACE_XL,
+      floatingTabTailPadding: ThemeConstants.FLOATING_TAB_BAR_CLEARANCE,
+      onRefresh: async () => {
+        await this.refreshSources()
+      },
+    }) {
+      if (this.viewModel.loadingSources) {
+        ListItem() {
+          Row() {
+            LoadingProgress()
+              .width(ThemeConstants.LOADING_SIZE_LARGE)
+              .height(ThemeConstants.LOADING_SIZE_LARGE)
+              .color(ThemeConstants.BRAND_PRIMARY)
           }
+          .width('100%')
+          .justifyContent(FlexAlign.Center)
+        }
+      } else if (this.enabledRuntimeSources().length === 0 && !this.komgaConfigured && !this.kavitaConfigured && !this.opdsConfigured && !this.webDavConfigured) {
+        ListItem() {
+          this.EmptySources()
+        }
+      } else {
+        if (this.configuredPrivateSourceEntries().length > 0) {
+          this.PrivateSourceListItems()
+        }
+        if (this.enabledRuntimeSources().length > 0) {
+          this.RuntimeSourceListItems()
         }
       }
-      .width('100%')
-      .height('100%')
-      .backgroundColor(ThemeConstants.BG_SUB)
     }
-    .onRefreshing(() => {
-      this.refreshSources()
-    })
   }
 }
 

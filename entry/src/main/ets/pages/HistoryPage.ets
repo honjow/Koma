@@ -9,6 +9,7 @@ import {
   Chapter,
   Comic,
   ComicId,
+  ComicSourceKind,
   LibraryItem,
   ReadingProgress,
 } from '../model/ComicModels'
@@ -49,7 +50,6 @@ export struct HistoryPage {
   @Local private languageState: LanguageState = connectLanguageState()
   @Local private remoteProgress: RemoteProgressSyncState = connectRemoteProgressSyncState()
   @Local private historyItems: LibraryItem[] = []
-  @Local private revision: number = 0
   @Local private failedCoverUris: string[] = []
   @Event onOpenReader: (comicId: ComicId, chapterId?: string) => void = (_comicId: ComicId, _chapterId?: string) => {}
 
@@ -99,8 +99,7 @@ export struct HistoryPage {
         return (b.lastReadAt ?? 0) - (a.lastReadAt ?? 0)
       })
       .slice(0, HISTORY_LIMIT)
-    this.revision += 1
-    console.info(`[History] step=load_done count=${this.historyItems.length} revision=${this.revision}`)
+    console.info(`[History] step=load_done count=${this.historyItems.length}`)
   }
 
   private relativeTime(timestampMs: number | undefined): string {
@@ -179,7 +178,6 @@ export struct HistoryPage {
     this.historyItems = this.historyItems.filter((historyItem: LibraryItem): boolean => {
       return historyItem.comicId !== item.comicId
     })
-    this.revision += 1
     console.info('[History] step=remove_item')
   }
 
@@ -211,7 +209,6 @@ export struct HistoryPage {
       sessionStore.removeProgress(progress.comicId)
     })
     this.historyItems = []
-    this.revision += 1
     console.info('[History] step=clear')
   }
 
@@ -291,23 +288,31 @@ export struct HistoryPage {
     return sections.filter((section: HistorySection): boolean => section.items.length > 0)
   }
 
-  private shouldShowCoverUri(coverUri: string | undefined, sourceRuntimeId?: string, sourceImageId?: string): boolean {
+  private shouldShowCoverUri(
+    coverUri: string | undefined,
+    sourceRuntimeId?: string,
+    sourceImageId?: string,
+    sourceKind?: ComicSourceKind,
+    remoteServerId?: string,
+  ): boolean {
     const normalized = coverUri ?? ''
-    return normalized.length > 0 && this.failedCoverUris.indexOf(cachedCoverFailureKey(coverUri, sourceRuntimeId, sourceImageId)) < 0
+    return normalized.length > 0 && this.failedCoverUris.indexOf(
+      cachedCoverFailureKey(coverUri, sourceRuntimeId, sourceImageId, sourceKind, remoteServerId),
+    ) < 0
   }
 
-  private markCoverUriFailed(coverUri: string | undefined, sourceRuntimeId?: string, sourceImageId?: string): void {
+  private markCoverUriFailed(
+    coverUri: string | undefined,
+    sourceRuntimeId?: string,
+    sourceImageId?: string,
+    sourceKind?: ComicSourceKind,
+    remoteServerId?: string,
+  ): void {
     const normalized = coverUri ?? ''
-    const failureKey = cachedCoverFailureKey(coverUri, sourceRuntimeId, sourceImageId)
+    const failureKey = cachedCoverFailureKey(coverUri, sourceRuntimeId, sourceImageId, sourceKind, remoteServerId)
     if (normalized.length > 0 && this.failedCoverUris.indexOf(failureKey) < 0) {
       this.failedCoverUris = this.failedCoverUris.concat([failureKey])
     }
-  }
-
-  private isSourceAwareCover(item: LibraryItem): boolean {
-    const coverUri = item.coverUri?.trim() ?? ''
-    const sourceRuntimeId = item.sourceRuntimeId?.trim() ?? ''
-    return sourceRuntimeId.length > 0 && coverUri.length > 0
   }
 
   private sourceImageIdForItem(item: LibraryItem): string {
@@ -339,27 +344,31 @@ export struct HistoryPage {
   @Builder
   private Cover(item: LibraryItem) {
     Stack({ alignContent: Alignment.Center }) {
-      if (this.shouldShowCoverUri(item.coverUri, item.sourceRuntimeId, this.sourceImageIdForItem(item))) {
-        if (this.isSourceAwareCover(item)) {
-          CachedCoverImage({
-            uri: item.coverUri ?? '',
-            objectFit: ImageFit.Cover,
-            sourceRuntimeId: item.sourceRuntimeId ?? '',
-            sourceImageId: this.sourceImageIdForItem(item),
+      if (this.shouldShowCoverUri(
+        item.coverUri,
+        item.sourceRuntimeId,
+        this.sourceImageIdForItem(item),
+        item.sourceKind,
+        item.remoteServerId,
+      )) {
+        CachedCoverImage({
+          uri: item.coverUri ?? '',
+          objectFit: ImageFit.Cover,
+          sourceRuntimeId: item.sourceRuntimeId ?? '',
+          sourceImageId: this.sourceImageIdForItem(item),
+            sourceKind: item.sourceKind,
+            remoteServerId: item.remoteServerId ?? '',
+            decodeMaxEdge: 192,
             onError: () => {
-              this.markCoverUriFailed(item.coverUri, item.sourceRuntimeId, this.sourceImageIdForItem(item))
-            },
-          })
-        } else {
-          Image(item.coverUri)
-            .width('100%')
-            .height('100%')
-            .objectFit(ImageFit.Cover)
-            .interpolation(ImageInterpolation.Medium)
-            .onError(() => {
-              this.markCoverUriFailed(item.coverUri, item.sourceRuntimeId, this.sourceImageIdForItem(item))
-            })
-        }
+            this.markCoverUriFailed(
+              item.coverUri,
+              item.sourceRuntimeId,
+              this.sourceImageIdForItem(item),
+              item.sourceKind,
+              item.remoteServerId,
+            )
+          },
+        })
       } else {
         Text('K')
           .fontSize(ThemeConstants.FONT_SIZE_H1)
@@ -477,10 +486,6 @@ export struct HistoryPage {
     this.reloadHistory('appear')
   }
 
-  onPageShow(): void {
-    this.reloadHistory('page_show')
-  }
-
   build() {
     Column() {
       SecondaryListScaffold({
@@ -505,8 +510,8 @@ export struct HistoryPage {
               ListItem() {
                 this.HistoryRow(item)
               }
-            }, (item: LibraryItem) => `${this.revision}:${section.key}:${item.comicId}:${item.lastReadAt ?? 0}`)
-          }, (section: HistorySection) => `${this.revision}:${section.key}`)
+            }, (item: LibraryItem) => item.comicId)
+          }, (section: HistorySection) => section.key)
         }
       }
     }

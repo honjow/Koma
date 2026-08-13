@@ -39,6 +39,8 @@ export interface LibraryComicCardViewModel {
   coverUri?: string
   sourceRuntimeId?: string
   sourceImageId?: string
+  sourceKind?: ComicSourceKind
+  remoteServerId?: string
   categoryLabels: string[]
 }
 
@@ -51,6 +53,8 @@ export interface ContinueReadingCardViewModel {
   coverUri?: string
   sourceRuntimeId?: string
   sourceImageId?: string
+  sourceKind?: ComicSourceKind
+  remoteServerId?: string
 }
 
 export interface LibraryViewModel {
@@ -385,6 +389,8 @@ export function createLibraryViewModelFromComics(
       coverUri: comic.coverUri,
       sourceRuntimeId: comic.sourceRuntimeId,
       sourceImageId: comic.remoteResourceId ?? comic.id,
+      sourceKind: comic.sourceKind,
+      remoteServerId: comic.remoteServerId,
       categoryLabels: formatCategoryLabels(comic.categoryIds),
     }
   })
@@ -425,6 +431,8 @@ export function createLibraryViewModelFromComics(
       coverUri: continueComic.coverUri,
       sourceRuntimeId: continueComic.sourceRuntimeId,
       sourceImageId: continueComic.remoteResourceId ?? continueComic.id,
+      sourceKind: continueComic.sourceKind,
+      remoteServerId: continueComic.remoteServerId,
     },
   }
 }

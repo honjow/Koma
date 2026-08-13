@@ -278,8 +278,10 @@ export struct OpdsBrowsePage {
     const comic: Comic = {
       id: comicId,
       title: publication.title,
-      sourceKind: ComicSourceKind.PRIVATE_LIBRARY,
+      sourceKind: ComicSourceKind.OPDS_REMOTE,
       sourcePath: this.currentUrl,
+      remoteServerId: record.server.id,
+      remoteResourceId: publication.id,
       coverUri: pages[0].uri,
       sortTitle: normalizeSortKey(publication.title),
       preferredDirection: ReadingDirection.RIGHT_TO_LEFT,

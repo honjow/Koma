@@ -209,6 +209,10 @@ export struct KomgaSeriesPage {
       })
       const chapter: Chapter = mapKomgaBookToChapter(record.server.id, book, comicId, pages, 0)
       const comic: Comic = mapKomgaSeriesToComic(record.server.id, series, [chapter])
+      const firstPage = pageDtos[0]
+      if (firstPage !== undefined) {
+        comic.coverUri = client.getPageImageUrl(book.id, firstPage.number, KomgaPageImageKind.THUMBNAIL)
+      }
       const config = createReaderSessionConfigFromComic(comic, chapter.id)
       this.installReaderSession(config, client.getBaseUrl(), this.store().getKomgaImageHeaders(record))
       console.info(`[Komga] step=open_reader book=${book.id} pages=${pages.length}`)
@@ -255,10 +259,14 @@ export struct KomgaSeriesPage {
       }
       const comicId = createKomgaComicId(record.server.id, series.id)
       const chapters: Chapter[] = []
+      let coverUri: string | undefined = undefined
       for (let index = 0; index < bookRows.length; index += 1) {
         const book = bookRows[index]
         const chapterId = `komga:${record.server.id}:book:${book.id}`
         const pageDtos = await client.listBookPages(book.id)
+        if (coverUri === undefined && pageDtos.length > 0) {
+          coverUri = client.getPageImageUrl(book.id, pageDtos[0].number, KomgaPageImageKind.THUMBNAIL)
+        }
         const pages = pageDtos.map((page: KomgaPageDto) => {
           const mapped = mapKomgaPageToPage(record.server.id, book.id, comicId, chapterId, page)
           mapped.uri = client.getPageImageUrl(book.id, page.number, KomgaPageImageKind.STREAM)
@@ -267,6 +275,7 @@ export struct KomgaSeriesPage {
         chapters.push(mapKomgaBookToChapter(record.server.id, book, comicId, pages, index))
       }
       const comic = mapKomgaSeriesToComic(record.server.id, series, chapters)
+      comic.coverUri = coverUri
       if (this.libraryPersistenceService === undefined) {
         this.libraryStore.upsertComic(comic)
       } else {

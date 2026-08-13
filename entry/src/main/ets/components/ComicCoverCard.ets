@@ -1,5 +1,6 @@
 import { CachedCoverImage, cachedCoverFailureKey } from './CachedCoverImage'
 import { ThemeConstants } from '../theme/ThemeConstants'
+import { ComicSourceKind } from '../model/ComicModels'
 
 export interface ComicCoverInfo {
   id: string
@@ -12,6 +13,8 @@ export interface ComicCoverInfo {
   coverUri?: string
   sourceRuntimeId?: string
   sourceImageId?: string
+  sourceKind?: ComicSourceKind
+  remoteServerId?: string
   categoryLabels?: string[]
 }
 
@@ -66,8 +69,8 @@ export struct ComicCoverCard {
     return this.comic.sourceRuntimeId ?? ''
   }
 
-  private shouldUseSourceAwareCover(): boolean {
-    return this.displayCoverUri().trim().length > 0 && this.displaySourceRuntimeId().trim().length > 0
+  private displaySourceImageId(): string {
+    return this.comic.sourceImageId ?? this.comic.id
   }
 
   private shouldDisplayCoverImage(): boolean {
@@ -76,7 +79,13 @@ export struct ComicCoverCard {
   }
 
   private coverFailureKey(): string {
-    return cachedCoverFailureKey(this.displayCoverUri(), this.displaySourceRuntimeId(), this.comic.sourceImageId ?? this.comic.id)
+    return cachedCoverFailureKey(
+      this.displayCoverUri(),
+      this.displaySourceRuntimeId(),
+      this.displaySourceImageId(),
+      this.comic.sourceKind,
+      this.comic.remoteServerId,
+    )
   }
 
   @Builder
@@ -102,26 +111,17 @@ export struct ComicCoverCard {
         this.CoverPlaceholder()
 
         if (this.shouldDisplayCoverImage()) {
-          if (this.shouldUseSourceAwareCover()) {
-            CachedCoverImage({
-              uri: this.displayCoverUri(),
-              objectFit: ImageFit.Cover,
-              sourceRuntimeId: this.displaySourceRuntimeId(),
-              sourceImageId: this.comic.sourceImageId ?? this.comic.id,
-              onError: () => {
-                this.failedCoverUri = this.coverFailureKey()
-              },
-            })
-          } else {
-            Image(this.displayCoverUri())
-              .width('100%')
-              .height('100%')
-              .objectFit(ImageFit.Cover)
-              .interpolation(ImageInterpolation.Medium)
-              .onError(() => {
-                this.failedCoverUri = this.coverFailureKey()
-              })
-          }
+          CachedCoverImage({
+            uri: this.displayCoverUri(),
+            objectFit: ImageFit.Cover,
+            sourceRuntimeId: this.displaySourceRuntimeId(),
+            sourceImageId: this.displaySourceImageId(),
+            sourceKind: this.comic.sourceKind,
+            remoteServerId: this.comic.remoteServerId ?? '',
+            onError: () => {
+              this.failedCoverUri = this.coverFailureKey()
+            },
+          })
         }
 
         if (this.displayProgressText().length > 0) {

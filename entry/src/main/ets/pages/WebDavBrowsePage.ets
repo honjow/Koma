@@ -161,8 +161,10 @@ export struct WebDavBrowsePage {
     const comic: Comic = {
       id: comicId,
       title,
-      sourceKind: ComicSourceKind.PRIVATE_LIBRARY,
+      sourceKind: ComicSourceKind.WEBDAV_REMOTE,
       sourcePath: client.buildUrl(this.pathSegments),
+      remoteServerId: record.server.id,
+      remoteResourceId: client.buildUrl(this.pathSegments),
       coverUri: pages.length === 0 ? undefined : pages[0].uri,
       sortTitle: normalizeSortKey(title),
       preferredDirection: ReadingDirection.RIGHT_TO_LEFT,

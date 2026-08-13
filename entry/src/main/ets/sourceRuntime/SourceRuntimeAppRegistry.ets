@@ -618,15 +618,18 @@ export async function restoreSourcePackagesFromBackup(
   return { ok: true, restoredCount }
 }
 
-export function reloadInstalledSourcePackages(context: common.UIAbilityContext): void {
+// `metadata_missing` is the expected fresh-install state. Other reload failures
+// are returned so an interactive caller can report that it kept stale data.
+export function reloadInstalledSourcePackages(context: common.UIAbilityContext): boolean {
   ensureDirSync(appSourceRoot(context))
   ensureDirSync(appSourcePackagesRoot(context))
   const reloaded = SourceRuntimeRegistry.reloadFromAppLocalMetadata(appSourceMetadataPath(context))
   if (!reloaded.ok) {
-    return
+    return reloaded.reasonCode === 'metadata_missing'
   }
   const entries = reloaded.registry.list()
   let changed: boolean = false
+  let allRegistered: boolean = true
   for (let index = 0; index < entries.length; index += 1) {
     const entry = entries[index]
     const existing = appSourceRuntimeRegistry.lookup(entry.sourceId).entry
@@ -686,13 +689,18 @@ export function reloadInstalledSourcePackages(context: common.UIAbilityContext):
       presentationDescription: entry.presentationDescription,
       presentationIcon: entry.presentationIcon,
     })
-    if (registered.ok) {
-      changed = true
+    if (!registered.ok) {
+      // Preserve the existing best-effort reload behavior: one invalid entry
+      // must not prevent later installed packages from being restored.
+      allRegistered = false
+      continue
     }
+    changed = true
   }
   if (changed) {
     SourceRuntimeStateBridge.notifyChanged()
   }
+  return allRegistered
 }
 
 export function bootstrapSourceRuntimeAppRegistry(context: common.UIAbilityContext): number {

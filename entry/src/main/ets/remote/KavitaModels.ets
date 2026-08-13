@@ -230,6 +230,7 @@ export function mapKavitaSeriesToComic(
     sourcePath: `kavita://${serverId}/series/${series.id}`,
     remoteServerId: serverId,
     remoteResourceId: `${series.id}`,
+    coverUri: series.coverImage,
     sortTitle: normalizeSortKey(series.sortName === undefined ? title : series.sortName),
     preferredDirection: ReadingDirection.RIGHT_TO_LEFT,
     chapters: [chapter],
