@@ -7,14 +7,18 @@ import { AppStrings } from '../i18n/AppStrings'
 import { Comic } from '../model/ComicModels'
 import { LocalLibraryFolderScanResult } from '../model/LocalLibraryFolderContract'
 import { SecondaryListScaffold } from '../components/SecondaryListScaffold'
-import { KomaActionButton } from '../components/ui/KomaActionButton'
+import { ConciseListRow } from '../components/ui/ConciseListRow'
+import { GroupedListSection, ListDivider, SectionHeader } from '../components/ui/GroupedListSection'
 import { connectLanguageState, LanguageState } from '../state/LanguageState'
 import { ThemeConstants } from '../theme/ThemeConstants'
 
+type ImportEntryKind = 'archive' | 'images' | 'folder'
+
 interface ImportEntryInfo {
+  kind: ImportEntryKind
   titleKey: string
   actionKey: string
-  accentColor: string
+  icon: Resource
 }
 
 export interface LocalFolderImportPersistResult {
@@ -28,21 +32,24 @@ export interface LocalFolderImportPersistResult {
 }
 
 const ARCHIVE_ENTRY: ImportEntryInfo = {
+  kind: 'archive',
   titleKey: 'import_archive_title',
   actionKey: 'import_archive_action',
-  accentColor: ThemeConstants.SOURCE_LOCAL_COLOR,
+  icon: $r('sys.symbol.doc_plaintext'),
 }
 
 const IMAGE_ENTRY: ImportEntryInfo = {
+  kind: 'images',
   titleKey: 'import_image_title',
   actionKey: 'import_image_action',
-  accentColor: ThemeConstants.SOURCE_OPDS_COLOR,
+  icon: $r('sys.symbol.picture'),
 }
 
 const FOLDER_ENTRY: ImportEntryInfo = {
+  kind: 'folder',
   titleKey: 'import_folder_title',
   actionKey: 'import_folder_action',
-  accentColor: ThemeConstants.SOURCE_WEBDAV_COLOR,
+  icon: $r('sys.symbol.folder'),
 }
 
 function t(name: string): string {
@@ -62,6 +69,7 @@ function importDebugEventSummary(event: LocalArchiveImportDebugEvent): string {
 export struct ImportPage {
   @Local private feedbackText: string = ''
   @Local private importing: boolean = false
+  @Local private activeImportKind: ImportEntryKind | '' = ''
   @Local private languageState: LanguageState = connectLanguageState()
   @Event onArchiveImportSucceeded: (comic: Comic) => void = (_comic: Comic) => {}
   @Event onLocalImageImportSucceeded: (comic: Comic) => void = (_comic: Comic) => {}
@@ -88,8 +96,20 @@ export struct ImportPage {
     }
   }
 
-  private displayedFeedbackText(): string {
-    return this.feedbackText.length > 0 ? this.feedbackText : t('import_feedback_idle')
+  private isActiveImport(entry: ImportEntryInfo): boolean {
+    return this.importing && this.activeImportKind === entry.kind
+  }
+
+  private openImportPicker(entry: ImportEntryInfo): void {
+    if (entry.kind === 'images') {
+      void this.selectImagesFromPicker()
+      return
+    }
+    if (entry.kind === 'folder') {
+      void this.selectFolderFromPicker()
+      return
+    }
+    void this.selectArchiveFromPicker()
   }
 
   private async selectArchiveFromPicker(): Promise<void> {
@@ -97,6 +117,7 @@ export struct ImportPage {
       return
     }
     this.importing = true
+    this.activeImportKind = 'archive'
     this.feedbackText = t('import_feedback_busy')
     console.info('[Import] step=archive_import_started')
     this.localImportCoordinator.setDebugSink((event: LocalArchiveImportDebugEvent) => {
@@ -137,6 +158,7 @@ export struct ImportPage {
     } finally {
       this.localImportCoordinator.setDebugSink(undefined)
       this.importing = false
+      this.activeImportKind = ''
     }
   }
 
@@ -145,6 +167,7 @@ export struct ImportPage {
       return
     }
     this.importing = true
+    this.activeImportKind = 'images'
     this.feedbackText = t('import_feedback_busy')
     console.info('[Import] step=image_import_started')
     this.localImportCoordinator.setDebugSink((event: LocalArchiveImportDebugEvent) => {
@@ -185,6 +208,7 @@ export struct ImportPage {
     } finally {
       this.localImportCoordinator.setDebugSink(undefined)
       this.importing = false
+      this.activeImportKind = ''
     }
   }
 
@@ -193,6 +217,7 @@ export struct ImportPage {
       return
     }
     this.importing = true
+    this.activeImportKind = 'folder'
     this.feedbackText = t('import_feedback_busy')
     console.info('[Import] step=folder_import_started')
     this.localImportCoordinator.setDebugSink((event: LocalArchiveImportDebugEvent) => {
@@ -265,66 +290,32 @@ export struct ImportPage {
     } finally {
       this.localImportCoordinator.setDebugSink(undefined)
       this.importing = false
+      this.activeImportKind = ''
     }
   }
 
   @Builder
-  private ImportEntryCard(entry: ImportEntryInfo) {
-    Column({ space: ThemeConstants.SPACE_LG }) {
-      Row({ space: ThemeConstants.SPACE_MD }) {
-        Stack({ alignContent: Alignment.Center }) {
-          SymbolGlyph($r('sys.symbol.plus'))
-            .fontSize(ThemeConstants.FONT_SIZE_H3)
-            .fontColor([ThemeConstants.TEXT_ON_BRAND])
-        }
-        .width(ThemeConstants.SOURCE_ICON_SIZE)
-        .height(ThemeConstants.SOURCE_ICON_SIZE)
-        .borderRadius(ThemeConstants.RADIUS_CHIP)
-        .backgroundColor(entry.accentColor)
-
-        Text(t(entry.titleKey))
-          .fontSize(ThemeConstants.FONT_SIZE_HEADING)
-          .fontWeight(FontWeight.Medium)
-          .fontColor(ThemeConstants.TEXT_PRIMARY)
-          .maxLines(1)
-          .textOverflow({ overflow: TextOverflow.Ellipsis })
-        .layoutWeight(1)
-      }
-      .width('100%')
-
-      KomaActionButton({
-        label: this.importing ? t('import_button_busy') : t(entry.actionKey),
-        kind: 'primary',
-        accentColor: entry.accentColor,
-        icon: entry.titleKey === IMAGE_ENTRY.titleKey
-          ? $r('sys.symbol.picture')
-          : entry.titleKey === FOLDER_ENTRY.titleKey
-            ? $r('sys.symbol.folder')
-            : $r('sys.symbol.doc_plaintext'),
+  private ImportEntryRow(entry: ImportEntryInfo) {
+    if (this.isActiveImport(entry)) {
+      ConciseListRow({
+        title: t(entry.titleKey),
+        subtitle: t('import_button_busy'),
+        leadingIcon: entry.icon,
+        leadingIconBackgroundColor: ThemeConstants.SOURCE_LOCAL_COLOR,
+        showChevron: false,
+      })
+    } else {
+      ConciseListRow({
+        title: t(entry.titleKey),
+        subtitle: t(entry.actionKey),
+        leadingIcon: entry.icon,
+        leadingIconBackgroundColor: ThemeConstants.SOURCE_LOCAL_COLOR,
         isEnabled: !this.importing,
-        controlHeight: 42,
         action: () => {
-          if (entry.titleKey === IMAGE_ENTRY.titleKey) {
-            this.selectImagesFromPicker()
-          } else if (entry.titleKey === FOLDER_ENTRY.titleKey) {
-            this.selectFolderFromPicker()
-          } else {
-            this.selectArchiveFromPicker()
-          }
+          this.openImportPicker(entry)
         },
       })
-        .width('100%')
-      if (this.importing) {
-        LoadingProgress()
-          .width(22)
-          .height(22)
-      }
     }
-    .width('100%')
-    .padding(ThemeConstants.SPACE_LG)
-    .borderRadius(ThemeConstants.RADIUS_CARD)
-    .backgroundColor(ThemeConstants.CARD)
-    .alignItems(HorizontalAlign.Start)
   }
 
   build() {
@@ -335,39 +326,26 @@ export struct ImportPage {
         bottomPadding: ThemeConstants.SPACE_XL,
       }) {
         ListItem() {
-          Column({ space: 6 }) {
-            Text(t('import_heading_detail'))
-              .fontSize(ThemeConstants.FONT_SIZE_TITLE)
-              .fontColor(ThemeConstants.TEXT_SECONDARY)
-          }
-          .width('100%')
-          .alignItems(HorizontalAlign.Start)
+          SectionHeader({ title: t('import_heading_detail') })
         }
         ListItem() {
-          Column({ space: ThemeConstants.SPACE_MD }) {
-            Text(t('import_status_heading'))
+          GroupedListSection() {
+            this.ImportEntryRow(ARCHIVE_ENTRY)
+            ListDivider()
+            this.ImportEntryRow(IMAGE_ENTRY)
+            ListDivider()
+            this.ImportEntryRow(FOLDER_ENTRY)
+          }
+        }
+        if (!this.importing && this.feedbackText.length > 0) {
+          ListItem() {
+            Text(this.feedbackText)
+              .width('100%')
               .fontSize(ThemeConstants.FONT_SIZE_META)
-              .fontWeight(FontWeight.Medium)
-              .fontColor(ThemeConstants.BRAND_PRIMARY)
-            Text(this.displayedFeedbackText())
-              .fontSize(ThemeConstants.FONT_SIZE_BODY)
-              .lineHeight(ThemeConstants.LINE_HEIGHT_TITLE)
-              .fontColor(ThemeConstants.TEXT_PRIMARY)
+              .lineHeight(ThemeConstants.LINE_HEIGHT_BODY)
+              .fontColor(ThemeConstants.TEXT_SECONDARY)
+              .padding({ left: ThemeConstants.SPACE_SM, right: ThemeConstants.SPACE_SM })
           }
-          .width('100%')
-          .padding(ThemeConstants.SPACE_LG)
-          .borderRadius(ThemeConstants.RADIUS_CARD)
-          .backgroundColor(ThemeConstants.CARD)
-          .alignItems(HorizontalAlign.Start)
-        }
-        ListItem() {
-          this.ImportEntryCard(ARCHIVE_ENTRY)
-        }
-        ListItem() {
-          this.ImportEntryCard(IMAGE_ENTRY)
-        }
-        ListItem() {
-          this.ImportEntryCard(FOLDER_ENTRY)
         }
       }
     }
