@@ -348,7 +348,6 @@ export struct SourceBrowsePage {
     SourceFiltersSheetScaffold({
       title: s('common_filter'),
       resetLabel: s('common_reset'),
-      closeAccessibilityText: s('common_close'),
       showReset: true,
       resetEnabled: !this.viewModel.loadingBrowse,
       onClose: () => {

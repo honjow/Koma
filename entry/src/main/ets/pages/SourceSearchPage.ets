@@ -195,7 +195,6 @@ export struct SourceSearchPage {
     SourceFiltersSheetScaffold({
       title: s('common_filter'),
       resetLabel: s('common_reset'),
-      closeAccessibilityText: s('common_close'),
       showReset: this.hasActiveSearchFilters(),
       resetEnabled: !this.viewModel.loadingSearch,
       onClose: () => {

@@ -1,6 +1,7 @@
 import { common } from '@kit.AbilityKit'
 import { SymbolGlyphModifier } from '@kit.ArkUI'
 import { SecondaryListScaffold } from '../components/SecondaryListScaffold'
+import { SourceModalScaffold } from '../components/SourceModalScaffold'
 import { ConciseListRow } from '../components/ui/ConciseListRow'
 import { GroupedListSection, ListDivider, SectionHeader } from '../components/ui/GroupedListSection'
 import { KomaActionButton } from '../components/ui/KomaActionButton'
@@ -54,7 +55,7 @@ function tf(name: string, ...args: Array<string | number>): string {
 
 type SourcePackageUpdateState = 'unknown' | 'checking' | 'latest' | 'update' | 'missing' | 'failed'
 type SourceSettingsValidationState = 'unknown' | 'running' | 'pass' | 'fail'
-type SourceManagerSheetPane = 'details' | 'settings' | 'diagnostics' | 'index'
+type SourceManagerPendingAction = 'none' | 'open_browse' | 'open_search' | 'confirm_remove'
 
 interface SourcePackageUpdateStatus {
   sourceId: string
@@ -123,11 +124,13 @@ export struct SourcePackageManagerPage {
   @Local private settingsAvailability: Record<string, string> = {}
   @Local private settingsValidationStatuses: SourceSettingsValidationStatus[] = []
   @Local private settingsValidationSourceId: string = ''
-  @Local private diagnosticsSourceId: string = ''
   @Local private settingMenuKey: string = ''
   @Local private sourceSheetShown: boolean = false
   @Local private sourceSheetSourceId: string = ''
-  @Local private sourceSheetPane: SourceManagerSheetPane = 'details'
+  @Local private sourceSettingsSheetShown: boolean = false
+  @Local private sourceIndexSheetShown: boolean = false
+  @Local private pendingSourceSheetAction: SourceManagerPendingAction = 'none'
+  @Local private pendingSourceSheetSourceId: string = ''
   @Local private languageState: LanguageState = connectLanguageState()
   private sourceIndexService: SourceIndexService = new SourceIndexService(this.context())
 
@@ -225,45 +228,108 @@ export struct SourcePackageManagerPage {
   }
 
   private openSourceSheet(source: InstalledSourcePackage): void {
+    this.pendingSourceSheetAction = 'none'
+    this.pendingSourceSheetSourceId = ''
     this.sourceSheetSourceId = source.id
-    this.sourceSheetPane = 'details'
     this.sourceSheetShown = true
   }
 
   private openIndexSheet(): void {
-    this.sourceSheetSourceId = ''
-    this.sourceSheetPane = 'index'
-    this.sourceSheetShown = true
+    this.sourceIndexSheetShown = true
   }
 
-  private dismissSourceSheet(): void {
+  private requestSourceSheetDismiss(action: SourceManagerPendingAction = 'none', source?: InstalledSourcePackage): void {
+    this.pendingSourceSheetAction = action
+    this.pendingSourceSheetSourceId = source?.id ?? ''
     this.sourceSheetShown = false
-    this.sourceSheetPane = 'details'
+  }
+
+  private finishSourceSheetDismissal(): void {
+    const action = this.pendingSourceSheetAction
+    const sourceId = this.pendingSourceSheetSourceId
+    this.sourceSheetShown = false
+    this.pendingSourceSheetAction = 'none'
+    this.pendingSourceSheetSourceId = ''
     this.sourceSheetSourceId = ''
-    this.closeSettings()
+    const source = this.packages.find((item: InstalledSourcePackage): boolean => item.id === sourceId)
+    if (action === 'open_browse' && source !== undefined) {
+      this.openSourceBrowse(source)
+    } else if (action === 'open_search' && source !== undefined) {
+      this.openSourceSearch(source)
+    } else if (action === 'confirm_remove' && source !== undefined) {
+      this.confirmRemovePackage(source)
+    }
   }
 
   private openSourceBrowseFromSheet(source: InstalledSourcePackage): void {
-    this.dismissSourceSheet()
-    this.openSourceBrowse(source)
+    this.requestSourceSheetDismiss('open_browse', source)
   }
 
   private openSourceSearchFromSheet(source: InstalledSourcePackage): void {
-    this.dismissSourceSheet()
-    this.openSourceSearch(source)
+    this.requestSourceSheetDismiss('open_search', source)
   }
 
   private openSourceSettingsFromSheet(source: InstalledSourcePackage): void {
     this.openSettings(source)
-    this.sourceSheetSourceId = source.id
-    this.sourceSheetPane = 'settings'
+    this.pendingSourceSheetAction = 'none'
+    this.pendingSourceSheetSourceId = ''
+    this.sourceSettingsSheetShown = true
   }
 
-  private openSourceDiagnosticsFromSheet(source: InstalledSourcePackage): void {
-    this.diagnosticsSourceId = source.id
-    this.sourceSheetSourceId = source.id
-    this.sourceSheetPane = 'diagnostics'
+  private closeSourceSettingsSheet(): void {
+    this.sourceSettingsSheetShown = false
   }
+
+  private finishSourceSettingsSheetDismissal(): void {
+    this.sourceSettingsSheetShown = false
+    this.closeSettings()
+  }
+
+  private finishSourceIndexSheetDismissal(): void {
+    this.sourceIndexSheetShown = false
+  }
+
+  private sourceDetailsSheetOptions(): SheetOptions {
+    return {
+      detents: [SheetSize.MEDIUM, SheetSize.LARGE],
+      showClose: false,
+      enableOutsideInteractive: false,
+      scrollSizeMode: ScrollSizeMode.CONTINUOUS,
+      enableFloatingDragBar: true,
+      onDisappear: () => {
+        this.finishSourceSheetDismissal()
+      },
+    }
+  }
+
+  private sourceSettingsSheetOptions(): SheetOptions {
+    return {
+      detents: [SheetSize.MEDIUM, SheetSize.LARGE],
+      showClose: false,
+      enableOutsideInteractive: false,
+      scrollSizeMode: ScrollSizeMode.CONTINUOUS,
+      enableFloatingDragBar: true,
+      keyboardAvoidMode: SheetKeyboardAvoidMode.TRANSLATE_AND_SCROLL,
+      onDisappear: () => {
+        this.finishSourceSettingsSheetDismissal()
+      },
+    }
+  }
+
+  private sourceIndexSheetOptions(): SheetOptions {
+    return {
+      detents: [SheetSize.MEDIUM, SheetSize.LARGE],
+      showClose: false,
+      enableOutsideInteractive: false,
+      scrollSizeMode: ScrollSizeMode.CONTINUOUS,
+      enableFloatingDragBar: true,
+      keyboardAvoidMode: SheetKeyboardAvoidMode.TRANSLATE_AND_SCROLL,
+      onDisappear: () => {
+        this.finishSourceIndexSheetDismissal()
+      },
+    }
+  }
+
 
   private isSourceInstalled(entryId: string): boolean {
     return this.installedSourceIds().indexOf(entryId) >= 0
@@ -326,25 +392,9 @@ export struct SourcePackageManagerPage {
     return { sourceId, status: 'unknown' }
   }
 
-  private isDiagnosticsOpen(sourceId: string): boolean {
-    return this.diagnosticsSourceId === sourceId
-  }
-
-  private toggleDiagnostics(source: InstalledSourcePackage): void {
-    if (this.isDiagnosticsOpen(source.id)) {
-      this.diagnosticsSourceId = ''
-      console.info('[SourceRuntimeDiagnostics] step=close id=' + source.id)
-      return
-    }
-    this.diagnosticsSourceId = source.id
-    console.info('[SourceRuntimeDiagnostics] step=open id=' + source.id)
-  }
-
   private refreshDiagnostics(source: InstalledSourcePackage): void {
     console.info('[SourceRuntimeDiagnostics] step=refresh id=' + source.id)
     this.reload()
-    const installed = this.installedPackage(source.id)
-    this.diagnosticsSourceId = installed === undefined ? '' : source.id
   }
 
   private setUpdateStatus(nextStatus: SourcePackageUpdateStatus): void {
@@ -1141,9 +1191,6 @@ export struct SourcePackageManagerPage {
       if (removed) {
         this.clearUpdateStatus(source.id)
         this.clearSettingsValidationStatus(source.id)
-        if (this.diagnosticsSourceId === source.id) {
-          this.diagnosticsSourceId = ''
-        }
       }
       this.reload()
     } catch (_error) {
@@ -1289,7 +1336,6 @@ export struct SourcePackageManagerPage {
       }
     })
     this.settingDraft = nextDraft
-    this.statusText = this.settingDescriptors.length === 0 ? t('source_pkg_settings_none_detected') : t('source_pkg_settings_editing')
   }
 
   private closeSettings(): void {
@@ -1313,7 +1359,7 @@ export struct SourcePackageManagerPage {
     this.reload()
     this.statusText = t('source_pkg_settings_saved')
     this.showToast(t('source_pkg_settings_saved'))
-    this.closeSettings()
+    this.closeSourceSettingsSheet()
   }
 
   private clearSavedSettings(): void {
@@ -1329,7 +1375,7 @@ export struct SourcePackageManagerPage {
     this.reload()
     this.statusText = t('source_pkg_settings_cleared')
     this.showToast(t('source_pkg_settings_cleared'))
-    this.closeSettings()
+    this.closeSourceSettingsSheet()
   }
 
   private confirmClearSavedSettings(): void {
@@ -1747,34 +1793,13 @@ export struct SourcePackageManagerPage {
 
   @Builder
   private SourceIndexSheetContent() {
-    Column() {
-      Row() {
-        Text(t('source_pkg_index_url_heading'))
-          .fontSize(ThemeConstants.FONT_SIZE_H3)
-          .fontWeight(FontWeight.Medium)
-          .fontColor(ThemeConstants.TEXT_PRIMARY)
-          .layoutWeight(1)
-        Button({ type: ButtonType.Circle, stateEffect: true }) {
-          SymbolGlyph($r('sys.symbol.xmark'))
-            .fontSize(20)
-            .fontColor([ThemeConstants.TEXT_PRIMARY])
-        }
-        .width(44)
-        .height(44)
-        .backgroundColor(Color.Transparent)
-        .accessibilityText(t('common_close'))
-        .onClick(() => {
-          this.dismissSourceSheet()
-        })
-      }
-      .width('100%')
-      .height(56)
-      .padding({ left: ThemeConstants.SPACE_LG, right: ThemeConstants.SPACE_SM })
-
-      Divider().strokeWidth(0.5).color(ThemeConstants.DIVIDER)
-
-      Scroll() {
-        Column({ space: ThemeConstants.SPACE_MD }) {
+    SourceModalScaffold({
+      title: t('source_pkg_index_url_heading'),
+      onClose: () => {
+        this.sourceIndexSheetShown = false
+      },
+    }) {
+      Column({ space: ThemeConstants.SPACE_MD }) {
           KomaFormTextField({
             label: t('source_pkg_index_url_label'),
             placeholder: t('source_pkg_index_url_placeholder'),
@@ -1872,18 +1897,11 @@ export struct SourcePackageManagerPage {
             .lineHeight(18)
             .fontColor(ThemeConstants.TEXT_SECONDARY)
 
-          Blank().height(ThemeConstants.SPACE_XL)
-        }
-        .width('100%')
-        .padding(ThemeConstants.SPACE_LG)
+        Blank().height(ThemeConstants.SPACE_XL)
       }
-      .scrollBar(BarState.Off)
       .width('100%')
-      .layoutWeight(1)
+      .padding(ThemeConstants.SPACE_LG)
     }
-    .width('100%')
-    .height('100%')
-    .backgroundColor(ThemeConstants.BG_SUB)
   }
 
   @Builder
@@ -1984,36 +2002,6 @@ export struct SourcePackageManagerPage {
   @Builder
   private SourceDetailsContent(source: InstalledSourcePackage) {
     Column({ space: ThemeConstants.SPACE_LG }) {
-      Row() {
-        Column({ space: ThemeConstants.SPACE_XS }) {
-          Text(source.name)
-            .width('100%')
-            .fontSize(ThemeConstants.FONT_SIZE_H3)
-            .fontWeight(FontWeight.Medium)
-            .fontColor(ThemeConstants.TEXT_PRIMARY)
-            .maxLines(1)
-            .textOverflow({ overflow: TextOverflow.Ellipsis })
-          Text(this.sourceMetaText(source))
-            .width('100%')
-            .fontSize(ThemeConstants.FONT_SIZE_META)
-            .fontColor(ThemeConstants.TEXT_SECONDARY)
-        }
-        .layoutWeight(1)
-        .alignItems(HorizontalAlign.Start)
-        Button({ type: ButtonType.Circle, stateEffect: true }) {
-          SymbolGlyph($r('sys.symbol.xmark'))
-            .fontSize(20)
-            .fontColor([ThemeConstants.TEXT_PRIMARY])
-        }
-        .width(44)
-        .height(44)
-        .backgroundColor(Color.Transparent)
-        .onClick(() => {
-          this.dismissSourceSheet()
-        })
-      }
-      .width('100%')
-
       GroupedListSection() {
         ConciseListRow({
           title: t('tab_browse'),
@@ -2072,44 +2060,43 @@ export struct SourcePackageManagerPage {
           destructive: true,
           leadingIcon: $r('sys.symbol.trash'),
           action: () => {
-            this.dismissSourceSheet()
-            this.confirmRemovePackage(source)
+            this.requestSourceSheetDismiss('confirm_remove', source)
           },
         })
       }
+      Blank().height(ThemeConstants.SPACE_XL)
     }
     .width('100%')
-    .padding({ left: ThemeConstants.SPACE_LG, right: ThemeConstants.SPACE_LG, top: ThemeConstants.SPACE_SM, bottom: ThemeConstants.SPACE_XL })
+    .padding(ThemeConstants.SPACE_LG)
+  }
+
+  @Builder
+  private SourceDetailsSheetContent() {
+    if (this.sourceSheetSource() === undefined) {
+      Blank().width('100%').height('100%')
+    } else {
+      SourceModalScaffold({
+        title: this.sourceSheetSource()!.name,
+        subtitle: this.sourceMetaText(this.sourceSheetSource()!),
+        onClose: () => {
+          this.requestSourceSheetDismiss()
+        },
+      }) {
+        this.SourceDetailsContent(this.sourceSheetSource()!)
+      }
+    }
   }
 
   @Builder
   private SourceSettingsSheetContent() {
-    Column({ space: ThemeConstants.SPACE_MD }) {
-      Row() {
-        Text(this.settingsSourceName)
-          .fontSize(ThemeConstants.FONT_SIZE_H3)
-          .fontWeight(FontWeight.Medium)
-          .fontColor(ThemeConstants.TEXT_PRIMARY)
-          .layoutWeight(1)
-        Button({ type: ButtonType.Circle, stateEffect: true }) {
-          SymbolGlyph($r('sys.symbol.xmark'))
-            .fontSize(20)
-            .fontColor([ThemeConstants.TEXT_PRIMARY])
-        }
-        .width(44)
-        .height(44)
-        .backgroundColor(Color.Transparent)
-        .onClick(() => {
-          this.dismissSourceSheet()
-        })
-      }
-      .width('100%')
-
-      Text(t('source_pkg_settings_title'))
-        .width('100%')
-        .fontSize(ThemeConstants.FONT_SIZE_META)
-        .fontColor(ThemeConstants.TEXT_SECONDARY)
-
+    SourceModalScaffold({
+      title: t('source_pkg_settings_title'),
+      subtitle: this.settingsSourceName,
+      onClose: () => {
+        this.closeSourceSettingsSheet()
+      },
+    }) {
+      Column({ space: ThemeConstants.SPACE_MD }) {
       if (this.settingDescriptors.length === 0) {
         Text(t('source_pkg_no_settings'))
           .width('100%')
@@ -2142,40 +2129,22 @@ export struct SourcePackageManagerPage {
           compact: true,
           action: () => {
             this.saveSettings()
-            this.dismissSourceSheet()
           },
         })
           .layoutWeight(1)
       }
       .width('100%')
+      Blank().height(ThemeConstants.SPACE_XL)
+      }
+      .width('100%')
+      .padding(ThemeConstants.SPACE_LG)
     }
-    .width('100%')
-    .padding(ThemeConstants.SPACE_LG)
   }
 
   @Builder
   private SourceDiagnosticsSheetContent(source: InstalledSourcePackage) {
-    Column({ space: ThemeConstants.SPACE_MD }) {
-      Row() {
-        Text(t('source_pkg_diagnostics_title'))
-          .fontSize(ThemeConstants.FONT_SIZE_H3)
-          .fontWeight(FontWeight.Medium)
-          .fontColor(ThemeConstants.TEXT_PRIMARY)
-          .layoutWeight(1)
-        Button({ type: ButtonType.Circle, stateEffect: true }) {
-          SymbolGlyph($r('sys.symbol.xmark'))
-            .fontSize(20)
-            .fontColor([ThemeConstants.TEXT_PRIMARY])
-        }
-        .width(44)
-        .height(44)
-        .backgroundColor(Color.Transparent)
-        .onClick(() => {
-          this.dismissSourceSheet()
-        })
-      }
-      .width('100%')
-
+    Scroll() {
+      Column({ space: ThemeConstants.SPACE_MD }) {
       this.DiagnosticsPanel(source)
 
       Row({ space: ThemeConstants.SPACE_SM }) {
@@ -2209,27 +2178,14 @@ export struct SourcePackageManagerPage {
           .layoutWeight(1)
       }
       .width('100%')
-    }
-    .width('100%')
-    .padding(ThemeConstants.SPACE_LG)
-  }
-
-  @Builder
-  private SourceManagementSheet() {
-    Column() {
-      if (this.sourceSheetPane === 'index') {
-        this.SourceIndexSheetContent()
-      } else if (this.sourceSheetSource() === undefined) {
-        Blank().height(1)
-      } else if (this.sourceSheetPane === 'settings') {
-        this.SourceSettingsSheetContent()
-      } else if (this.sourceSheetPane === 'diagnostics') {
-        this.SourceDiagnosticsSheetContent(this.sourceSheetSource()!)
-      } else {
-        this.SourceDetailsContent(this.sourceSheetSource()!)
+      Blank().height(ThemeConstants.SPACE_XL)
       }
+      .width('100%')
+      .padding(ThemeConstants.SPACE_LG)
     }
+    .scrollBar(BarState.Off)
     .width('100%')
+    .height('100%')
   }
 
   @Builder
@@ -2450,75 +2406,88 @@ export struct SourcePackageManagerPage {
 
   build() {
     if (this.languageState.effectiveLocale.length >= 0) {
-      Column() {
-        SecondaryListScaffold({
-          listSpace: ThemeConstants.SPACE_MD,
-          horizontalPadding: ThemeConstants.SPACE_XL,
-          bottomPadding: ThemeConstants.SPACE_XL,
-        }) {
-          ListItem() {
-            GroupedListSection() {
-              this.IndexUrlCard()
-            }
-          }
-          if (this.indexEntries.length > 0) {
+      Stack() {
+        Column() {
+          SecondaryListScaffold({
+            listSpace: ThemeConstants.SPACE_MD,
+            horizontalPadding: ThemeConstants.SPACE_XL,
+            bottomPadding: ThemeConstants.SPACE_XL,
+          }) {
             ListItem() {
-              SectionHeader({ title: t('source_pkg_available_heading') })
+              GroupedListSection() {
+                this.IndexUrlCard()
+              }
+            }
+            if (this.indexEntries.length > 0) {
+              ListItem() {
+                SectionHeader({ title: t('source_pkg_available_heading') })
+              }
+              ListItem() {
+                GroupedListSection() {
+                  ForEach(this.indexEntries, (entry: SourceIndexEntry, index: number) => {
+                  this.RemoteIndexCard(entry)
+                  if (index < this.indexEntries.length - 1) {
+                    ListDivider()
+                  }
+                }, (entry: SourceIndexEntry) => entry.id)
+                }
+              }
+            }
+            ListItem() {
+              SectionHeader({ title: t('source_pkg_installed_heading') })
             }
             ListItem() {
               GroupedListSection() {
-                ForEach(this.indexEntries, (entry: SourceIndexEntry, index: number) => {
-                this.RemoteIndexCard(entry)
-                if (index < this.indexEntries.length - 1) {
+                ConciseListRow({
+                  title: t('source_pkg_check_updates'),
+                  subtitle: this.statusText.length > 0 ? this.statusText : t('source_pkg_manual_check_notice'),
+                  leadingIcon: $r('sys.symbol.arrow_clockwise'),
+                  leadingIconBackgroundColor: ThemeConstants.BRAND_PRIMARY,
+                  isEnabled: !this.updateCheckBusy && !this.indexFetchBusy,
+                  action: () => {
+                    this.checkInstalledUpdates()
+                  },
+                })
+                if (this.packages.length > 0) {
                   ListDivider()
                 }
-              }, (entry: SourceIndexEntry) => entry.id)
+                ForEach(this.packages, (source: InstalledSourcePackage, index: number) => {
+                  this.PackageCard(source)
+                  if (index < this.packages.length - 1) {
+                    ListDivider()
+                  }
+                }, (source: InstalledSourcePackage) => `${source.id}-${source.enabled}`)
               }
             }
-          }
-          ListItem() {
-            SectionHeader({ title: t('source_pkg_installed_heading') })
-          }
-          ListItem() {
-            GroupedListSection() {
-              ConciseListRow({
-                title: t('source_pkg_check_updates'),
-                subtitle: this.statusText.length > 0 ? this.statusText : t('source_pkg_manual_check_notice'),
-                leadingIcon: $r('sys.symbol.arrow_clockwise'),
-                leadingIconBackgroundColor: ThemeConstants.BRAND_PRIMARY,
-                isEnabled: !this.updateCheckBusy && !this.indexFetchBusy,
-                action: () => {
-                  this.checkInstalledUpdates()
-                },
-              })
-              if (this.packages.length > 0) {
-                ListDivider()
+            if (this.packages.length === 0) {
+              ListItem() {
+                this.EmptyCard()
               }
-              ForEach(this.packages, (source: InstalledSourcePackage, index: number) => {
-                this.PackageCard(source)
-                if (index < this.packages.length - 1) {
-                  ListDivider()
-                }
-              }, (source: InstalledSourcePackage) => `${source.id}-${source.enabled}`)
-            }
-          }
-          if (this.packages.length === 0) {
-            ListItem() {
-              this.EmptyCard()
             }
           }
         }
+        Column() {
+        }
+        .width('100%')
+        .height('100%')
+        .hitTestBehavior(HitTestMode.None)
+        .bindSheet($$this.sourceIndexSheetShown, this.SourceIndexSheetContent, this.sourceIndexSheetOptions())
+        Column() {
+        }
+        .width('100%')
+        .height('100%')
+        .hitTestBehavior(HitTestMode.None)
+        .bindSheet($$this.sourceSheetShown, this.SourceDetailsSheetContent, this.sourceDetailsSheetOptions())
+        Column() {
+        }
+        .width('100%')
+        .height('100%')
+        .hitTestBehavior(HitTestMode.None)
+        .bindSheet($$this.sourceSettingsSheetShown, this.SourceSettingsSheetContent, this.sourceSettingsSheetOptions())
       }
       .width('100%')
       .height('100%')
       .backgroundColor(ThemeConstants.BG_SUB)
-      .bindSheet($$this.sourceSheetShown, this.SourceManagementSheet, {
-        detents: [SheetSize.MEDIUM, SheetSize.LARGE],
-        showClose: false,
-        onDisappear: () => {
-          this.dismissSourceSheet()
-        },
-      })
     }
   }
 }
