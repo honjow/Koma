@@ -302,6 +302,8 @@ export struct WebDavBrowsePage {
     }
     MOCK_LIBRARY_READER_SESSION.comicId = config.comicId
     MOCK_LIBRARY_READER_SESSION.chapterId = config.chapterId
+    MOCK_LIBRARY_READER_SESSION.chapterIds = config.chapterIds
+    MOCK_LIBRARY_READER_SESSION.chapterTitles = config.chapterTitles
     MOCK_LIBRARY_READER_SESSION.title = config.title
     MOCK_LIBRARY_READER_SESSION.chapterTitle = config.chapterTitle
     MOCK_LIBRARY_READER_SESSION.totalPages = config.totalPages
@@ -309,6 +311,7 @@ export struct WebDavBrowsePage {
     MOCK_LIBRARY_READER_SESSION.pageIds = config.pageIds
     MOCK_LIBRARY_READER_SESSION.pageWidths = config.pageWidths
     MOCK_LIBRARY_READER_SESSION.pageHeights = config.pageHeights
+    MOCK_LIBRARY_READER_SESSION.sourceRuntimeId = config.sourceRuntimeId
     installReaderRemoteHeaders(client.getBaseUrl(), this.store().getWebDavImageHeaders(record))
   }
 

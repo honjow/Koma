@@ -102,7 +102,6 @@ import { configureSourceFilterPreferencesStore } from '../sourceRuntime/SourceFi
 import { AppStrings } from '../i18n/AppStrings'
 import { connectLanguageState, LanguageState } from '../state/LanguageState'
 import { connectLayoutSafeArea, LayoutSafeAreaState } from '../state/LayoutSafeAreaState'
-import { connectReaderOverlayNavigation, ReaderOverlayNavigationState } from '../state/ReaderOverlayNavigationState'
 import { BackupService, BackupAutomaticRunResult } from '../model/BackupService'
 import { TrackerPendingProgressDrainSummary, TrackerProgressSyncService } from '../model/TrackerProgressSyncService'
 
@@ -118,27 +117,17 @@ interface SourceRouteParam {
   source: SourceRuntimeRegistryInstalledSourceSummary
 }
 
-@Builder
-function ReaderOverlayBackdropRoute() {
-  HdsNavDestination() {
-    Column() {}
-      .width('100%')
-      .height('100%')
-      .backgroundColor(Color.Transparent)
-  }
-  .hideTitleBar(true)
-  .backgroundColor(Color.Transparent)
-}
-
 @Entry
 @ComponentV2
 struct Index {
   @Local selectedTab: number = TabIndex.LIBRARY
   @Local private languageState: LanguageState = connectLanguageState()
   @Local private layoutSafeArea: LayoutSafeAreaState = connectLayoutSafeArea()
-  @Local private readerOverlay: ReaderOverlayNavigationState = connectReaderOverlayNavigation()
   @Local private readerOpen: boolean = false
   @Local private readerClosing: boolean = false
+  @Local private readerRouteVisible: boolean = false
+  @Local private readerSessionLoading: boolean = false
+  @Local private readerCloseRequestId: number = 0
   @Local private readerPageIndex: number = 0
   @Local private readerChromeVisible: boolean = false
   @Local private readerWebtoonMode: boolean = false
@@ -159,6 +148,7 @@ struct Index {
   private libraryPersistenceRestored: boolean = false
   private automaticBackupChecked: boolean = false
   private pendingTrackerProgressChecked: boolean = false
+  private readerOpenEpoch: number = 0
 
   @Monitor('layoutSafeArea.keyboardHeight')
   private updateRootTabBarForKeyboard(): void {
@@ -270,49 +260,115 @@ struct Index {
     }
   }
 
-  private async openReader(comicId: ComicId, chapterId?: string): Promise<void> {
-    let comic = this.libraryStore.getComic(comicId)
-    const targetChapterId = comic === undefined ? chapterId : this.readerChapterIdForOpen(comic, chapterId)
-    let sourcePagesReady = true
-    const offlineReaderPagesReady = comic === undefined ? false : this.hasAvailableOfflineReaderPages(comic.id, targetChapterId)
-    if (comic !== undefined) {
-      if (!offlineReaderPagesReady) {
-        sourcePagesReady = await this.ensureReaderSourceChapterPages(comic, targetChapterId)
+  private async prepareReaderSession(
+    comicId: ComicId,
+    chapterId: string | undefined,
+    openEpoch: number,
+  ): Promise<void> {
+    const originalComic = this.libraryStore.getComic(comicId)
+    if (originalComic === undefined) {
+      if (openEpoch === this.readerOpenEpoch) {
+        this.readerSessionLoading = false
       }
-      comic = this.libraryStore.getComic(comicId) ?? comic
-      try {
-        await installReaderRemoteHeadersForComic(getContext(this) as common.UIAbilityContext, comic)
-      } catch (error) {
-        void error
-        console.error('[Favorite] step=open_remote_reader_headers_failed code=remote_headers_failed')
-      }
-    }
-    let nextSessionConfig = comic === undefined ? MOCK_LIBRARY_READER_SESSION : this.createReaderSessionConfigForOpen(comic, targetChapterId)
-    if (!sourcePagesReady && comic !== undefined && nextSessionConfig.totalPages <= 0) {
-      nextSessionConfig = this.createSourceUnavailableReaderSessionConfig(comic, targetChapterId, nextSessionConfig)
-    }
-    const shouldPresentReader = !this.readerOpen || this.readerClosing
-    this.readerSessionConfig = nextSessionConfig
-    this.readerPageIndex = this.readerSessionStore.restorePageIndex(this.readerSessionConfig)
-    this.readerChromeVisible = false
-    if (shouldPresentReader) {
-      if (this.readerClosing) {
-        this.readerOverlay.reset()
-      }
-      this.readerClosing = false
-      this.readerOpen = true
-      this.readerOverlay.open()
-      // Unlike NextE's overlay host, the local HDS navigation wrapper does
-      // not reliably emit onAppear for its first transparent destination.
-      // Queue the Reader push after that backdrop has been rendered so the
-      // animation still has a stable route beneath it.
-      setTimeout(() => {
-        if (this.readerOpen && !this.readerClosing) {
-          this.readerOverlay.presentPendingReader()
-        }
-      }, 0)
       return
     }
+    const offlineReaderPagesReady = this.hasAvailableOfflineReaderPages(originalComic.id, chapterId)
+    let sourcePagesReady = true
+    if (!offlineReaderPagesReady) {
+      sourcePagesReady = await this.ensureReaderSourceChapterPages(originalComic, chapterId)
+    }
+    const comic = this.libraryStore.getComic(comicId) ?? originalComic
+    try {
+      await installReaderRemoteHeadersForComic(getContext(this) as common.UIAbilityContext, comic)
+    } catch (_error) {
+      console.error('[Favorite] step=open_remote_reader_headers_failed code=remote_headers_failed')
+    }
+    if (openEpoch !== this.readerOpenEpoch || !this.readerOpen || this.readerClosing) {
+      return
+    }
+    let nextSessionConfig = this.createReaderSessionConfigForOpen(comic, chapterId)
+    if (!sourcePagesReady && nextSessionConfig.totalPages <= 0) {
+      nextSessionConfig = this.createSourceUnavailableReaderSessionConfig(comic, chapterId, nextSessionConfig)
+    }
+    this.readerSessionConfig = nextSessionConfig
+    this.readerPageIndex = this.readerSessionStore.restorePageIndex(nextSessionConfig)
+    this.readerSessionLoading = false
+  }
+
+  private readerNeedsAsyncPreparation(comic: Comic, chapterId: string | undefined): boolean {
+    if (this.hasAvailableOfflineReaderPages(comic.id, chapterId)) {
+      return false
+    }
+    if (this.chapterNeedsReaderSourcePages(comic, chapterId)) {
+      return true
+    }
+    return comic.sourceKind === ComicSourceKind.KOMGA_REMOTE ||
+      comic.sourceKind === ComicSourceKind.KAVITA_REMOTE ||
+      comic.sourceKind === ComicSourceKind.OPDS_REMOTE ||
+      comic.sourceKind === ComicSourceKind.WEBDAV_REMOTE
+  }
+
+  private async openReader(comicId: ComicId, chapterId?: string): Promise<void> {
+    const comic = this.libraryStore.getComic(comicId)
+    const targetChapterId = comic === undefined ? chapterId : this.readerChapterIdForOpen(comic, chapterId)
+    const readerDetailVisible = this.isReaderDetailRouteVisible()
+    const shouldPresentReader = !this.readerOpen || this.readerClosing
+    const openEpoch = this.readerOpenEpoch + 1
+    this.readerOpenEpoch = openEpoch
+    this.readerChromeVisible = false
+    this.readerSessionLoading = comic !== undefined && this.readerNeedsAsyncPreparation(comic, targetChapterId)
+    this.readerSessionConfig = comic === undefined
+      ? MOCK_LIBRARY_READER_SESSION
+      : this.createReaderSessionConfigForOpen(comic, targetChapterId)
+    this.readerPageIndex = this.readerSessionStore.restorePageIndex(this.readerSessionConfig)
+    // Starting a chapter from a detail page that was opened by Reader updates
+    // the already-mounted Reader beneath it.  It is not a second Reader route.
+    if (readerDetailVisible) {
+      this.appPathStack.pop(true)
+    }
+    if (shouldPresentReader) {
+      this.readerClosing = false
+      this.readerRouteVisible = false
+      this.readerOpen = true
+      // Native root navigation presents the Reader immediately. Descriptor
+      // refresh remains session work and never blocks route presentation.
+      this.appPathStack.pushPath({ name: RouteName.READER }, true)
+    }
+    if (comic !== undefined) {
+      void this.prepareReaderSession(comicId, targetChapterId, openEpoch)
+    }
+  }
+
+  private cloneExternalReaderSession(config: ReaderSessionConfig): ReaderSessionConfig {
+    return {
+      comicId: config.comicId,
+      chapterId: config.chapterId,
+      chapterIds: config.chapterIds.slice(),
+      chapterTitles: config.chapterTitles?.slice(),
+      title: config.title,
+      chapterTitle: config.chapterTitle,
+      totalPages: config.totalPages,
+      pageUris: config.pageUris.slice(),
+      pageIds: config.pageIds?.slice(),
+      pageWidths: config.pageWidths?.slice(),
+      pageHeights: config.pageHeights?.slice(),
+      sourceRuntimeId: config.sourceRuntimeId,
+    }
+  }
+
+  private openExternalReaderSession(): void {
+    if (this.readerOpen && !this.readerClosing) {
+      return
+    }
+    this.readerOpenEpoch += 1
+    this.readerChromeVisible = false
+    this.readerSessionLoading = false
+    this.readerSessionConfig = this.cloneExternalReaderSession(MOCK_LIBRARY_READER_SESSION)
+    this.readerPageIndex = this.readerSessionStore.restorePageIndex(this.readerSessionConfig)
+    this.readerClosing = false
+    this.readerRouteVisible = false
+    this.readerOpen = true
+    this.appPathStack.pushPath({ name: RouteName.READER }, true)
   }
 
   private showToast(message: string): void {
@@ -436,48 +492,87 @@ struct Index {
     }
   }
 
+  private isReaderDetailRouteVisible(): boolean {
+    const names = this.appPathStack.getAllPathName()
+    return names.length >= 2 &&
+      names[names.length - 1] === RouteName.MANGA_DETAIL &&
+      names[names.length - 2] === RouteName.READER
+  }
+
+  private isReaderRouteVisible(): boolean {
+    const names = this.appPathStack.getAllPathName()
+    return names.length > 0 && names[names.length - 1] === RouteName.READER
+  }
+
   private closeReader(): void {
     if (!this.readerOpen || this.readerClosing) {
       return
     }
-    this.readerClosing = true
-    this.readerChromeVisible = false
-    // Pop owns the exit presentation.  The overlay host stays mounted until
-    // the route reports that it has actually disappeared; a fixed timer tears
-    // it down too early on a busy frame and produces the observed snap.
-    this.readerOverlay.close()
+    // Detail is a normal root route above Reader. Its own destination handles
+    // Back; never begin a Reader close while that route is still on top.
+    if (this.isReaderDetailRouteVisible()) {
+      this.appPathStack.pop(true)
+      return
+    }
+    this.readerOpenEpoch += 1
+    this.readerSessionLoading = false
+    if (!this.isReaderRouteVisible()) {
+      return
+    }
+    // During the native enter transition ReaderPage may not have received
+    // onShown yet. There is no Reader-owned status bar to restore in that
+    // window, so let the root stack cancel the in-flight route directly.
+    if (!this.readerRouteVisible) {
+      this.readerClosing = true
+      this.readerChromeVisible = false
+      this.appPathStack.pop(true)
+      return
+    }
+    // ReaderPage restores the application system bar before the native pop.
+    this.readerCloseRequestId += 1
   }
 
-  private finishReaderOverlayClose(): void {
+  private popReaderRouteAfterSystemBarRestore(): void {
+    if (!this.readerOpen || this.readerClosing || !this.isReaderRouteVisible()) {
+      return
+    }
+    this.readerClosing = true
+    this.readerRouteVisible = false
+    this.readerChromeVisible = false
+    this.appPathStack.pop(true)
+  }
+
+  private finishReaderRouteClose(): void {
     if (!this.readerClosing) {
       return
     }
-    this.readerOverlay.finishClose()
     this.readerOpen = false
     this.readerClosing = false
+    this.readerRouteVisible = false
+    this.readerSessionLoading = false
   }
 
   private openReaderMangaDetail(): void {
     const comicId = this.readerSessionConfig.comicId
-    if (comicId.length === 0) {
-      this.closeReader()
+    if (comicId.length === 0 || !this.isReaderRouteVisible()) {
       return
     }
     const comic = this.libraryStore.getComic(comicId)
-    this.closeReader()
-    if (comic === undefined) {
-      RouterHelper.pushMangaDetail({ mangaId: comicId })
-      return
-    }
-    if (comic.sourceRuntimeId !== undefined && comic.sourceRuntimeId.trim().length > 0 &&
-      comic.remoteResourceId !== undefined && comic.remoteResourceId.trim().length > 0) {
-      RouterHelper.pushMangaDetail({
-        mangaId: comic.remoteResourceId,
-        sourceId: comic.sourceRuntimeId,
-      })
-      return
-    }
-    RouterHelper.pushMangaDetail({ mangaId: comic.id })
+    const sourceId = comic?.sourceRuntimeId?.trim() ?? ''
+    const remoteMangaId = comic?.remoteResourceId?.trim() ?? ''
+    const detailParam: MangaDetailRouteParam = sourceId.length > 0 && remoteMangaId.length > 0
+      ? {
+        mangaId: remoteMangaId,
+        sourceId,
+        initialManga: {
+          id: remoteMangaId,
+          sourceId,
+          title: comic?.title ?? this.readerSessionConfig.title ?? comicId,
+          coverUrl: comic?.coverUri,
+        },
+      }
+      : { mangaId: comic?.id ?? comicId }
+    this.appPathStack.pushPath({ name: RouteName.MANGA_DETAIL, param: detailParam }, true)
   }
 
   private openImport(): void {
@@ -816,15 +911,12 @@ struct Index {
   }
 
   aboutToAppear(): void {
-    // The overlay stack is process-wide so it can outlive a recreated root
-    // component during package replacement.  A recreated Index has no active
-    // Reader session yet; discard only that stale visual shell.
-    if (!this.readerOpen && this.readerOverlay.visible) {
-      this.readerOverlay.reset()
-    }
     RouterHelper.setAppPathStack(this.appPathStack)
     RouterHelper.setSearchOpener((param) => {
       this.openSearchQuery(param.query)
+    })
+    RouterHelper.setReaderOpener(() => {
+      this.openExternalReaderSession()
     })
     RouterHelper.consumePendingLaunchRoute()
     const context = getContext(this) as common.UIAbilityContext
@@ -872,6 +964,9 @@ struct Index {
     HdsNavDestination() {
         ReaderPage({
           readerOpen: this.readerOpen!!,
+        routeVisible: this.readerRouteVisible!!,
+        sessionLoading: this.readerSessionLoading!!,
+        closeRequestId: this.readerCloseRequestId!!,
         pageIndex: this.readerPageIndex!!,
         chromeVisible: this.readerChromeVisible!!,
         webtoonMode: this.readerWebtoonMode!!,
@@ -887,7 +982,7 @@ struct Index {
           this.readerWebtoonMode = value
         },
         onCloseReader: () => {
-          this.closeReader()
+          this.popReaderRouteAfterSystemBarRestore()
         },
         onOpenMangaDetail: () => {
           this.openReaderMangaDetail()
@@ -900,37 +995,31 @@ struct Index {
       })
     }
     .hideTitleBar(true)
-    // Reader is a full-window overlay, so use an explicit fade rather than
-    // depending on the navigation host's default transition.  The transparent
-    // backdrop remains in the private stack until onDisAppear, allowing the
-    // underlying app to be revealed continuously on both entry and exit.
-    .systemTransition(NavigationSystemTransitionType.FADE)
     .onBackPressed(() => {
       this.closeReader()
       return true
     })
+    .onShown(() => {
+      this.readerRouteVisible = true
+    })
+    .onWillHide(() => {
+      this.readerRouteVisible = false
+    })
+    .onWillDisappear(() => {
+      this.readerRouteVisible = false
+    })
     .onDisAppear(() => {
-      // Match NextE's route-owned close lifecycle: only after the system has
-      // finished the reader destination's pop may the transparent host be
-      // removed from the root stack.
-      this.finishReaderOverlayClose()
+      // A detail route hides Reader but does not remove it. Cleanup only after
+      // the genuine Reader pop has completed its native transition.
+      this.finishReaderRouteClose()
     })
   }
 
   @Builder
-  private ReaderOverlayDestination(name: string, _param: Object) {
-    if (name === 'ReaderOverlayBackdrop') {
-      ReaderOverlayBackdropRoute()
-    } else if (name === RouteName.READER) {
-      this.ReaderDestination()
-    } else {
-      Column() {}
-    }
-  }
-
-  @Builder
   private AppDestination(name: string, param: Object) {
-    if (name === RouteName.IMPORT) {
+    if (name === RouteName.READER) {
+      this.ReaderDestination()
+    } else if (name === RouteName.IMPORT) {
       HdsNavDestination() {
         ImportPage({
           onArchiveImportSucceeded: (comic: Comic) => {
@@ -959,7 +1048,9 @@ struct Index {
           libraryPersistenceService: this.ensureLibraryPersistenceService(),
           readerSessionStore: this.readerSessionStore,
           sourceRegistry: this.sourceRegistry,
-          onBack: () => { this.appPathStack.pop(false) },
+          onBack: () => {
+            this.appPathStack.pop(this.isReaderDetailRouteVisible())
+          },
           onOpenReader: (mangaId: string, chapterId?: string) => { void this.openReader(mangaId, chapterId) },
           onOpenImportRequested: () => { this.openImport() },
           onLibraryChanged: () => { this.refreshLibrarySnapshot() }
@@ -1155,7 +1246,7 @@ struct Index {
   }
 
   onBackPress(): boolean {
-    if (this.readerOpen) {
+    if (this.readerOpen && this.isReaderRouteVisible()) {
       this.closeReader()
       return true
     }
@@ -1328,20 +1419,6 @@ struct Index {
         .width('100%')
         .height('100%')
         .backgroundColor($r('sys.color.ohos_id_color_sub_background'))
-      }
-      if (this.readerOverlay.visible) {
-        HdsNavigation(this.readerOverlay.stack) {
-          Column() {}
-        }
-        .navDestination(this.ReaderOverlayDestination)
-        .hideNavBar(true)
-        .width('100%')
-        .height('100%')
-        .backgroundColor(Color.Transparent)
-        .onAppear(() => {
-          this.readerOverlay.presentPendingReader()
-        })
-        .id('reader-overlay-navigation')
       }
     }
     .width('100%')

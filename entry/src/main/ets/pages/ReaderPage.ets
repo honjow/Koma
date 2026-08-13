@@ -1,5 +1,5 @@
 import { image } from '@kit.ImageKit'
-import { common } from '@kit.AbilityKit'
+import { common, ConfigurationConstant } from '@kit.AbilityKit'
 import { window } from '@kit.ArkUI'
 import { KeyCode } from '@kit.InputKit'
 import inputConsumer from '@ohos.multimodalInput.inputConsumer'
@@ -1148,6 +1148,9 @@ struct ReaderThumbnailTile {
 @ComponentV2
 export struct ReaderPage {
   @Param readerOpen: boolean = false
+  @Param routeVisible: boolean = false
+  @Param sessionLoading: boolean = false
+  @Param closeRequestId: number = 0
   @Param pageIndex: number = 0
   @Param chromeVisible: boolean = false
   @Param webtoonMode: boolean = false
@@ -1160,6 +1163,9 @@ export struct ReaderPage {
   @Event onOpenMangaDetail: () => void = () => {}
   @Event onOpenChapter: (chapterId: string) => void = (_chapterId: string) => {}
   @Event $readerOpen: (value: boolean) => void = (_value: boolean) => {}
+  @Event $routeVisible: (value: boolean) => void = (_value: boolean) => {}
+  @Event $sessionLoading: (value: boolean) => void = (_value: boolean) => {}
+  @Event $closeRequestId: (value: number) => void = (_value: number) => {}
   @Event $pageIndex: (value: number) => void = (_value: number) => {}
   @Event $chromeVisible: (value: boolean) => void = (_value: boolean) => {}
   @Event $webtoonMode: (value: boolean) => void = (_value: boolean) => {}
@@ -1221,6 +1227,13 @@ export struct ReaderPage {
   private spreadStartSourceKey: string = ''
   private statusBarHideTimerId: number = -1
   private statusBarEpoch: number = 0
+  /**
+   * Window system-bar APIs are asynchronous. Keep writes ordered so a hide
+   * already handed to the platform cannot finish after a newer detail/chrome
+   * restore and leave the final bar state stale.
+   */
+  private statusBarWriteTail: Promise<void> = Promise.resolve()
+  private observedCloseRequestId: number = 0
   private volumeDownConsumer: ((event: InputConsumerKeyEvent) => void) | null = null
   private volumeUpConsumer: ((event: InputConsumerKeyEvent) => void) | null = null
   private closing: boolean = false
@@ -1238,7 +1251,6 @@ export struct ReaderPage {
     this.loadPreferences()
     this.syncSession(true)
     this.registerVolumeKeyConsumerIfNeeded()
-    this.scheduleStatusBarVisibility()
   }
 
   aboutToDisappear(): void {
@@ -1247,7 +1259,6 @@ export struct ReaderPage {
     this.setReaderKeepScreenOn(false)
     this.clearStatusBarHideTimer()
     this.unregisterVolumeKeyConsumer()
-    this.restoreAppStatusBar()
     this.stopAutoPage()
   }
 
@@ -1266,10 +1277,35 @@ export struct ReaderPage {
     this.chromeShown = this.chromeVisible
     if (!this.readerOpen) {
       this.clearStatusBarHideTimer()
-      this.restoreAppStatusBar()
+      return
+    }
+    if (this.routeVisible) {
+      this.syncReaderStatusBarWithChrome()
+    }
+  }
+
+  @Monitor('routeVisible')
+  onReaderRouteVisibilityChanged(): void {
+    if (!this.routeVisible) {
+      this.clearStatusBarHideTimer()
+      // A pushed Reader-owned detail route covers this page without closing
+      // it. Restore the application bar before that route becomes visible;
+      // a normal Reader close already does this before it pops.
+      if (!this.closing) {
+        void this.applyAppStatusBarVisible(this.appShellUsesDarkMode())
+      }
       return
     }
     this.scheduleStatusBarVisibility()
+  }
+
+  @Monitor('closeRequestId')
+  onReaderCloseRequested(): void {
+    if (this.closeRequestId === this.observedCloseRequestId || this.closing) {
+      return
+    }
+    this.observedCloseRequestId = this.closeRequestId
+    this.closeReaderRoute()
   }
 
   @Monitor('readerModeState.revision')
@@ -1304,7 +1340,9 @@ export struct ReaderPage {
       this.setReaderKeepScreenOn(this.preferences.keepScreenAwake)
       this.emitWebtoonMode(this.preferences.pageMode === 'continuous_scroll' || this.preferences.readingDirection === ReadingDirection.WEBTOON)
       this.registerVolumeKeyConsumerIfNeeded()
-      this.scheduleStatusBarVisibility()
+      if (this.routeVisible) {
+        this.scheduleStatusBarVisibility()
+      }
     } catch (_error) {
       this.preferences = DEFAULT_READER_PREFERENCES
       this.settingsReady = true
@@ -1312,7 +1350,9 @@ export struct ReaderPage {
       this.tapPreviewVisible = false
       this.setReaderKeepScreenOn(this.preferences.keepScreenAwake)
       this.registerVolumeKeyConsumerIfNeeded()
-      this.scheduleStatusBarVisibility()
+      if (this.routeVisible) {
+        this.scheduleStatusBarVisibility()
+      }
     }
   }
 
@@ -1327,44 +1367,79 @@ export struct ReaderPage {
       (this.preferences.backgroundMode === 'auto' && this.preferences.themeMode === 'dark')
   }
 
-  private applyStatusBarVisible(visible: boolean, chromeVisible: boolean = this.chromeShown): void {
-    try {
-      const context = getContext(this) as common.UIAbilityContext
-      window.getLastWindow(context).then((win: window.Window) => {
-        if (visible) {
-          win.setWindowSystemBarProperties({
-            statusBarContentColor: this.readerStatusBarContentColor(chromeVisible),
-            isStatusBarLightIcon: chromeVisible || this.readerBackgroundIsDarkForStatus(),
-          }).then(() => {
-            return win.setSpecificSystemBarEnabled('status', true, false)
-          }).catch(() => {})
-        } else {
-          win.setSpecificSystemBarEnabled('status', false, false).catch(() => {})
-        }
-      }).catch(() => {})
-    } catch (_error) {
+  private enqueueStatusBarWrite(
+    operation: (win: window.Window, epoch: number) => Promise<void>,
+  ): Promise<void> {
+    const epoch = ++this.statusBarEpoch
+    const run = (): Promise<void> => {
+      if (epoch !== this.statusBarEpoch) {
+        return Promise.resolve()
+      }
+      try {
+        const context = getContext(this) as common.UIAbilityContext
+        return window.getLastWindow(context).then((win: window.Window): Promise<void> => {
+          if (epoch !== this.statusBarEpoch) {
+            return Promise.resolve()
+          }
+          return operation(win, epoch).catch(() => {})
+        }).catch(() => {})
+      } catch (_error) {
+        return Promise.resolve()
+      }
     }
+    const queued = this.statusBarWriteTail.then(run, run)
+    // A failed platform write must never poison a later route owner's write.
+    this.statusBarWriteTail = queued.catch(() => {})
+    return queued
+  }
+
+  private applyStatusBarVisible(visible: boolean, chromeVisible: boolean = this.chromeShown): Promise<void> {
+    return this.enqueueStatusBarWrite((win: window.Window, epoch: number): Promise<void> => {
+      if (visible) {
+        return win.setWindowSystemBarProperties({
+          statusBarContentColor: this.readerStatusBarContentColor(chromeVisible),
+          isStatusBarLightIcon: chromeVisible || this.readerBackgroundIsDarkForStatus(),
+        }).then((): Promise<void> => {
+          if (epoch !== this.statusBarEpoch) {
+            return Promise.resolve()
+          }
+          return win.setSpecificSystemBarEnabled('status', true, false)
+        })
+      }
+      return win.setSpecificSystemBarEnabled('status', false, false)
+    })
   }
 
   private setReaderStatusBarForChrome(chromeVisible: boolean): void {
     this.applyStatusBarVisible(!this.preferences.fullscreen || chromeVisible, chromeVisible)
   }
 
-  private restoreAppStatusBar(): void {
+  private syncReaderStatusBarWithChrome(): void {
+    this.setReaderStatusBarForChrome(this.chromeShown)
+  }
+
+  private applyAppStatusBarVisible(dark: boolean): Promise<void> {
+    return this.enqueueStatusBarWrite((win: window.Window, epoch: number): Promise<void> => {
+      return win.setWindowSystemBarProperties({
+        statusBarColor: '#00FFFFFF',
+        navigationBarColor: '#00FFFFFF',
+        statusBarContentColor: dark ? '#FFFFFFFF' : '#FF000000',
+        isStatusBarLightIcon: dark,
+      }).then((): Promise<void> => {
+        if (epoch !== this.statusBarEpoch) {
+          return Promise.resolve()
+        }
+        return win.setSpecificSystemBarEnabled('status', true, false)
+      })
+    })
+  }
+
+  private appShellUsesDarkMode(): boolean {
     try {
       const context = getContext(this) as common.UIAbilityContext
-      window.getLastWindow(context).then((win: window.Window) => {
-        const dark = this.preferences.themeMode === 'dark'
-        win.setWindowSystemBarProperties({
-          statusBarColor: '#00FFFFFF',
-          navigationBarColor: '#00FFFFFF',
-          statusBarContentColor: dark ? '#FFFFFFFF' : '#FF000000',
-          isStatusBarLightIcon: dark,
-        }).then(() => {
-          return win.setSpecificSystemBarEnabled('status', true, false)
-        }).catch(() => {})
-      }).catch(() => {})
+      return context.config.colorMode === ConfigurationConstant.ColorMode.COLOR_MODE_DARK
     } catch (_error) {
+      return false
     }
   }
 
@@ -1377,16 +1452,14 @@ export struct ReaderPage {
 
   private scheduleStatusBarVisibility(): void {
     this.clearStatusBarHideTimer()
-    this.statusBarEpoch += 1
-    const epoch = this.statusBarEpoch
-    if (!this.readerOpen || !this.preferences.fullscreen || this.chromeShown) {
+    if (!this.readerOpen || !this.routeVisible || !this.preferences.fullscreen || this.chromeShown) {
       this.setReaderStatusBarForChrome(this.chromeShown)
       return
     }
-    this.setReaderStatusBarForChrome(false)
+    const epoch = ++this.statusBarEpoch
     this.statusBarHideTimerId = setTimeout(() => {
       this.statusBarHideTimerId = -1
-      if (epoch === this.statusBarEpoch && this.readerOpen && this.preferences.fullscreen && !this.chromeShown) {
+      if (epoch === this.statusBarEpoch && this.readerOpen && this.routeVisible && this.preferences.fullscreen && !this.chromeShown) {
         this.setReaderStatusBarForChrome(false)
       }
     }, 500)
@@ -1400,12 +1473,30 @@ export struct ReaderPage {
     this.statusBarEpoch += 1
     this.clearStatusBarHideTimer()
     this.stopAutoPage()
-    this.restoreAppStatusBar()
     this.persistCurrentProgress()
     this.sessionStore.flush()
-    setTimeout(() => {
-      this.onCloseReader()
-    }, 20)
+    this.applyAppStatusBarVisible(this.appShellUsesDarkMode()).then(() => {
+      setTimeout(() => {
+        this.onCloseReader()
+      }, 20)
+    })
+  }
+
+  @Builder
+  private ReaderSessionLoading() {
+    Column({ space: ThemeConstants.SPACE_MD }) {
+      LoadingProgress()
+        .width(ThemeConstants.LOADING_SIZE_LARGE)
+        .height(ThemeConstants.LOADING_SIZE_LARGE)
+        .color(ThemeConstants.BRAND_PRIMARY)
+      Text(s('source_pkg_loading'))
+        .fontSize(16)
+        .fontColor(readerForeground(this.preferences.backgroundMode))
+    }
+    .width('100%')
+    .height('100%')
+    .justifyContent(FlexAlign.Center)
+    .padding(ThemeConstants.SPACE_XL)
   }
 
   private clearAutoPageTimer(): void {
@@ -1838,7 +1929,9 @@ export struct ReaderPage {
     } else {
       this.continuousInitialTarget = -1
     }
-    this.scheduleStatusBarVisibility()
+    if (this.routeVisible) {
+      this.scheduleStatusBarVisibility()
+    }
   }
 
   private resetZoomState(): void {
@@ -1919,7 +2012,9 @@ export struct ReaderPage {
     if (!this.preferences.volumeKeyNavigationEnabled) {
       this.unregisterVolumeKeyConsumer()
     }
-    this.scheduleStatusBarVisibility()
+    if (this.routeVisible) {
+      this.scheduleStatusBarVisibility()
+    }
     if (persist) {
       this.persistPreferences(this.preferences)
       this.persistCurrentProgress()
@@ -2250,7 +2345,9 @@ export struct ReaderPage {
   private toggleChrome(): void {
     const nextVisible = !this.chromeShown
     this.chromeShown = nextVisible
-    this.setReaderStatusBarForChrome(nextVisible)
+    if (this.routeVisible) {
+      this.setReaderStatusBarForChrome(nextVisible)
+    }
     this.emitChromeVisible(nextVisible)
   }
 
@@ -2670,7 +2767,9 @@ export struct ReaderPage {
 
   @Builder
   private ReaderContent() {
-    if (this.sessionConfig.totalPages <= 0) {
+    if (this.sessionLoading) {
+      this.ReaderSessionLoading()
+    } else if (this.sessionConfig.totalPages <= 0) {
       Column({ space: ThemeConstants.SPACE_MD }) {
         Text(s('reader_empty_no_pages')).fontSize(16).fontColor(readerForeground(this.preferences.backgroundMode))
         Text(s('reader_source_page_unavailable')).fontSize(13).fontColor(ThemeConstants.READER_TEXT_SECONDARY).textAlign(TextAlign.Center)
@@ -2717,7 +2816,9 @@ export struct ReaderPage {
       thumbnailStrip: (): void => { this.ReaderThumbnailStrip() },
       onVisibleChange: (visible: boolean) => {
         this.chromeShown = visible
-        this.setReaderStatusBarForChrome(visible)
+        if (this.routeVisible) {
+          this.setReaderStatusBarForChrome(visible)
+        }
         this.emitChromeVisible(visible)
       },
       onPageChange: (index: number) => { this.setPage(index, false) },

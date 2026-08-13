@@ -50,17 +50,12 @@ import {
   LibraryViewMode,
 } from '../model/LibraryFilterStore'
 import { OfflineDownloadQueueEntry, OfflineDownloadQueueStore } from '../model/OfflineDownloadQueueStore'
-import {
-  OfflineDownloadedChapterStatus,
-  OfflineDownloadStatus,
-  OfflineDownloadStore,
-} from '../model/OfflineDownloadStore'
+import { OfflineDownloadStatus } from '../model/OfflineDownloadStore'
 import { connectRemoteProgressSyncState, RemoteProgressSyncState } from '../state/RemoteProgressSyncState'
 import {
   isRemovableLocalComic,
   LibraryStorePersistenceService,
 } from '../model/LibraryPersistence'
-import { SourceChapterPageHydrator } from '../model/SourceChapterPageHydrator'
 import {
   AppFilesReaderSessionPersistenceAdapter,
   InMemoryReaderSessionStore,
@@ -234,7 +229,6 @@ export struct LibraryPage {
 
   @Local private filtersShown: boolean = false
   @Local private filterMenuKey: string = ''
-  @Local private openingComicId: ComicId = ''
   @Local private failedCoverUris: string[] = []
   @Local private remoteProgress: RemoteProgressSyncState = connectRemoteProgressSyncState()
   private downloadQueueRecoveryStarted: boolean = false
@@ -1074,7 +1068,7 @@ export struct LibraryPage {
     if (this.selectionMode) {
       this.toggleSelection(comicId)
     } else {
-      void this.openComicFromLibrary(comicId)
+      this.openComicFromLibrary(comicId)
     }
   }
 
@@ -1087,100 +1081,14 @@ export struct LibraryPage {
     return orderedChapters.length === 0 ? undefined : orderedChapters[0].id
   }
 
-  private chapterNeedsSourcePages(comic: Comic, chapterId: string | undefined): boolean {
-    if (chapterId === undefined ||
-      comic.sourceKind !== ComicSourceKind.PRIVATE_LIBRARY ||
-      comic.sourceRuntimeId === undefined ||
-      comic.sourceRuntimeId.trim().length === 0) {
-      return false
-    }
-    const chapter = comic.chapters.find((item: Chapter): boolean => item.id === chapterId)
-    if (chapter === undefined || chapter.pages.length === 0) {
-      return chapter !== undefined
-    }
-    // Komiic v0.1.1 changed page identity from a positional placeholder to
-    // the opaque `kid` required to mint an image ticket. Persisted records
-    // created before that source update have `page:<number>` ids; they can
-    // still enter Reader but every ticket lookup fails. Refresh only that
-    // known legacy shape, keeping positional IDs from other sources intact.
-    return comic.sourceRuntimeId === 'com.komiic.koma' && chapter.pages.some((page: Page): boolean => {
-      return /^page:\d+$/.test(page.id)
-    })
-  }
-
-  private hasAvailableOfflineReaderPages(comicId: ComicId, chapterId: string | undefined): boolean {
-    if (chapterId === undefined || chapterId.length === 0) {
-      return false
-    }
-    try {
-      const context = getContext(this) as common.UIAbilityContext
-      if (context === undefined || context.filesDir === undefined || context.filesDir.length === 0) {
-        return false
-      }
-      const validation = new OfflineDownloadStore(context.filesDir)
-        .validateDownloadedChapter(comicId, chapterId, { validateContentHash: false })
-      return validation.manifest !== undefined &&
-        validation.availablePageCount > 0 &&
-        (validation.status === OfflineDownloadedChapterStatus.DOWNLOADED ||
-          validation.status === OfflineDownloadedChapterStatus.PARTIAL)
-    } catch (_error) {
-      console.warn('[Library] step=offline_reader_manifest_probe failed=true reason=download_manifest')
-      return false
-    }
-  }
-
-  private logSourceReaderPagesUnavailable(reasonCode?: string): void {
-    if (reasonCode === 'pages_missing') {
-      console.warn('[Library] step=source_reader_pages_unavailable failed=true reason=pages_missing')
-      return
-    }
-    if (reasonCode === 'chapter_missing') {
-      console.warn('[Library] step=source_reader_pages_unavailable failed=true reason=chapter_missing')
-      return
-    }
-    if (reasonCode === 'source_missing') {
-      console.warn('[Library] step=source_reader_pages_unavailable failed=true reason=source_missing')
-      return
-    }
-    console.warn('[Library] step=source_reader_pages_unavailable failed=true reason=source_pages_unavailable')
-  }
-
-  private async openComicFromLibrary(comicId: ComicId): Promise<void> {
-    if (this.openingComicId === comicId) {
-      return
-    }
+  private openComicFromLibrary(comicId: ComicId): void {
     const comic = this.libraryStore.getComic(comicId)
     if (comic === undefined) {
       this.showToast(s('common_unavailable'))
       return
     }
     const chapterId = this.readerChapterIdForComic(comic)
-    if (!this.chapterNeedsSourcePages(comic, chapterId) ||
-      this.hasAvailableOfflineReaderPages(comic.id, chapterId)) {
-      this.onOpenReader(comicId, chapterId)
-      return
-    }
-    this.openingComicId = comicId
-    this.showToast(s('source_pkg_loading'))
-    try {
-      const result = await new SourceChapterPageHydrator(
-        this.libraryStore,
-        this.sourceRegistry,
-        this.libraryPersistenceService,
-        () => {
-          this.refreshDisplayedSnapshotFromStore()
-        },
-      ).ensureChapterPages(comicId, comic.sourceRuntimeId, chapterId as string, true)
-      if (!result.hydrated) {
-        this.logSourceReaderPagesUnavailable(result.reasonCode)
-      }
-      this.onOpenReader(comicId, chapterId)
-    } catch (_error) {
-      this.logSourceReaderPagesUnavailable('source_pages_lookup')
-      this.onOpenReader(comicId, chapterId)
-    } finally {
-      this.openingComicId = ''
-    }
+    this.onOpenReader(comicId, chapterId)
   }
 
   private clearLongPressTimer(): void {
@@ -2003,7 +1911,7 @@ export struct LibraryPage {
           .gesture(TapGesture()
             .onAction(() => {
               if (!this.selectionMode) {
-                void this.openComicFromLibrary(comic.id)
+                this.openComicFromLibrary(comic.id)
               }
             }))
       }
@@ -2189,7 +2097,7 @@ export struct LibraryPage {
                 revision: this.displayedRevision,
                 onOpenReader: (comicId: ComicId) => {
                   if (!this.selectionMode) {
-                    void this.openComicFromLibrary(comicId)
+                    this.openComicFromLibrary(comicId)
                   }
                 },
               })

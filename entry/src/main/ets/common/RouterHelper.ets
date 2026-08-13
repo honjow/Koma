@@ -20,6 +20,13 @@ export class RouterHelper {
   private static appPathStack: NavPathStack | undefined = undefined
   private static pendingLaunchRoute: string | undefined = undefined
   private static searchOpener: ((param: SearchRouteParam) => void) | undefined = undefined
+  /**
+   * Reader sessions opened from a remote browse page are prepared by that
+   * page before it asks the app to navigate.  Keep routing ownership in the
+   * root host so those sessions receive the same lifecycle as library Reader
+   * opens instead of bypassing Index state.
+   */
+  private static readerOpener: (() => void) | undefined = undefined
 
   static setAppPathStack(stack: NavPathStack): void {
     RouterHelper.appPathStack = stack
@@ -27,6 +34,10 @@ export class RouterHelper {
 
   static setSearchOpener(opener: (param: SearchRouteParam) => void): void {
     RouterHelper.searchOpener = opener
+  }
+
+  static setReaderOpener(opener: () => void): void {
+    RouterHelper.readerOpener = opener
   }
 
   static getAppPathStack(): NavPathStack | undefined {
@@ -52,6 +63,11 @@ export class RouterHelper {
   }
 
   static pushReader(): void {
+    const opener = RouterHelper.readerOpener
+    if (opener !== undefined) {
+      opener()
+      return
+    }
     const stack = RouterHelper.appPathStack
     if (stack === undefined) {
       return
