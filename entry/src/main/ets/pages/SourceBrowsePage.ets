@@ -3,8 +3,9 @@ import { KomaActionButton } from '../components/ui/KomaActionButton'
 import { KomaEmptyState } from '../components/ui/KomaEmptyState'
 import { KomaIconButton } from '../components/ui/KomaIconButton'
 import { SecondaryListScaffold } from '../components/SecondaryListScaffold'
+import { SourceFiltersSheetScaffold } from '../components/SourceFiltersSheetScaffold'
+import { sourceFilterSheetOptions } from '../components/SourceFilterSheetOptions'
 import { SourceFilterControls, SourceFilterControlValue } from '../components/SourceFilterControls'
-import { GroupedListSection } from '../components/ui/GroupedListSection'
 import { AppStrings } from '../i18n/AppStrings'
 import { SourceFilter, SourceManga } from '../model/SourceModels'
 import { connectLanguageState, LanguageState } from '../state/LanguageState'
@@ -324,13 +325,10 @@ export struct SourceBrowsePage {
           .onClick(() => {
             this.openFilters()
           })
-          .bindSheet($$this.filtersShown, this.SourceFiltersSheet, {
-            detents: [SheetSize.MEDIUM, SheetSize.LARGE],
-            showClose: false,
-            onDisappear: () => {
+          .bindSheet($$this.filtersShown, this.SourceFiltersSheet,
+            sourceFilterSheetOptions(() => {
               this.closeFilters()
-            },
-          })
+            }))
       }
       KomaIconButton({
         icon: $r('sys.symbol.arrow_clockwise'),
@@ -347,58 +345,21 @@ export struct SourceBrowsePage {
 
   @Builder
   private SourceFiltersSheet() {
-    Column() {
-      Row() {
-        Text(s('common_filter'))
-          .fontSize(ThemeConstants.FONT_SIZE_H3)
-          .fontWeight(FontWeight.Medium)
-          .fontColor(ThemeConstants.TEXT_PRIMARY)
-          .layoutWeight(1)
-        Button({ type: ButtonType.Circle, stateEffect: true }) {
-          SymbolGlyph($r('sys.symbol.xmark'))
-            .fontSize(20)
-            .fontColor([ThemeConstants.TEXT_PRIMARY])
-        }
-        .width(44)
-        .height(44)
-        .backgroundColor(Color.Transparent)
-        .accessibilityText(s('common_close'))
-        .onClick(() => {
-          this.closeFilters()
-        })
-      }
-      .width('100%')
-      .height(56)
-      .padding({ left: ThemeConstants.SPACE_LG, right: ThemeConstants.SPACE_SM })
-
-      Divider().strokeWidth(0.5).color(ThemeConstants.DIVIDER)
-
-      Scroll() {
-        Column({ space: ThemeConstants.SPACE_LG }) {
-          GroupedListSection() {
-            this.RuntimeFilterControls()
-          }
-          KomaActionButton({
-            label: s('common_reset'),
-            kind: 'ghost',
-            compact: true,
-            isEnabled: !this.viewModel.loadingBrowse,
-            action: () => {
-              void this.viewModel.resetBrowseFilters()
-            },
-          })
-          Blank().height(ThemeConstants.SPACE_XL)
-        }
-        .width('100%')
-        .padding(ThemeConstants.SPACE_LG)
-      }
-      .scrollBar(BarState.Off)
-      .width('100%')
-      .layoutWeight(1)
+    SourceFiltersSheetScaffold({
+      title: s('common_filter'),
+      resetLabel: s('common_reset'),
+      closeAccessibilityText: s('common_close'),
+      showReset: true,
+      resetEnabled: !this.viewModel.loadingBrowse,
+      onClose: () => {
+        this.closeFilters()
+      },
+      onReset: () => {
+        void this.viewModel.resetBrowseFilters()
+      },
+    }) {
+      this.RuntimeFilterControls()
     }
-    .width('100%')
-    .height('100%')
-    .backgroundColor(ThemeConstants.BG_SUB)
   }
 
   @Builder

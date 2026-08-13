@@ -150,6 +150,8 @@ export struct SourceListItem {
       title: this.displayTitle(),
       subtitle: this.displaySubtitle(),
       subtitleMaxLines: 1,
+      leadingIcon: $r('sys.symbol.compass'),
+      leadingIconBackgroundColor: this.accentColor,
       showChevron: false,
       action: () => {
         this.activate()

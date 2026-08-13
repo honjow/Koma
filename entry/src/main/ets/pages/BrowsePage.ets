@@ -200,6 +200,7 @@ export struct BrowsePage {
             source: source,
             subtitle: this.runtimeSourceSummary(source),
             languageBadge: this.viewModel.sourceLanguageBadge(source),
+            accentColor: ThemeConstants.SOURCE_WASM_COLOR,
             showSearchButton: false,
             onSourceTap: (selected: SourceRuntimeRegistryInstalledSourceSummary) => {
               this.openSource(selected)

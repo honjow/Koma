@@ -50,9 +50,10 @@ export struct MangaGridItem {
       }
       .width('100%')
       .aspectRatio(0.68)
-      .borderRadius(ThemeConstants.RADIUS_THUMB)
+      .borderRadius(ThemeConstants.RADIUS_COVER)
       .clip(true)
       .backgroundColor(ThemeConstants.COVER_PLACEHOLDER)
+      .shadow({ radius: 14, color: ThemeConstants.SHADOW_CARD, offsetY: 7 })
 
       Text(this.manga.title)
         .width('100%')

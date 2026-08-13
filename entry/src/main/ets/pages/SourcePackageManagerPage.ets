@@ -1543,6 +1543,14 @@ export struct SourcePackageManagerPage {
     return parts.join(' · ')
   }
 
+  private packageListMetaText(source: InstalledSourcePackage): string {
+    const parts: string[] = ['v' + source.version]
+    if (source.lang.length > 0) {
+      parts.push(source.lang)
+    }
+    return parts.join(' · ')
+  }
+
   private sourceSettingsText(source: InstalledSourcePackage): string {
     return this.settingsAvailability[source.id] ?? t('source_pkg_settings_unchecked')
   }
@@ -1691,6 +1699,7 @@ export struct SourcePackageManagerPage {
       subtitle: this.sourceIndexSummaryText(),
       subtitleMaxLines: 1,
       leadingIcon: $r('sys.symbol.compass'),
+      leadingIconBackgroundColor: ThemeConstants.SOURCE_WASM_COLOR,
       action: () => {
         this.openIndexSheet()
       },
@@ -1703,6 +1712,8 @@ export struct SourcePackageManagerPage {
       title: entry.name,
       subtitle: this.indexVersionText(entry) + (entry.lang.length > 0 ? ' · ' + entry.lang : ''),
       subtitleMaxLines: 1,
+      leadingIcon: $r('sys.symbol.compass'),
+      leadingIconBackgroundColor: ThemeConstants.SOURCE_WASM_COLOR,
       trailingText: this.hasUpdate(entry)
         ? t('source_pkg_action_update')
         : (this.isSourceInstalled(entry.id) ? t('source_pkg_installed') : t('source_pkg_install')),
@@ -1958,8 +1969,10 @@ export struct SourcePackageManagerPage {
   private PackageCard(source: InstalledSourcePackage) {
     ConciseListRow({
       title: source.name,
-      subtitle: this.sourceMetaText(source),
+      subtitle: this.packageListMetaText(source),
       trailingText: source.enabled ? t('source_pkg_enabled') : t('source_pkg_disabled'),
+      leadingIcon: $r('sys.symbol.compass'),
+      leadingIconBackgroundColor: ThemeConstants.SOURCE_WASM_COLOR,
       primaryColor: ThemeConstants.TEXT_PRIMARY,
       secondaryColor: source.enabled ? ThemeConstants.TEXT_SECONDARY : ThemeConstants.TEXT_TERTIARY,
       action: () => {
@@ -2444,48 +2457,56 @@ export struct SourcePackageManagerPage {
           bottomPadding: ThemeConstants.SPACE_XL,
         }) {
           ListItem() {
-            this.IndexUrlCard()
+            GroupedListSection() {
+              this.IndexUrlCard()
+            }
           }
           if (this.indexEntries.length > 0) {
             ListItem() {
               SectionHeader({ title: t('source_pkg_available_heading') })
             }
-            ForEach(this.indexEntries, (entry: SourceIndexEntry) => {
-              ListItem() {
+            ListItem() {
+              GroupedListSection() {
+                ForEach(this.indexEntries, (entry: SourceIndexEntry, index: number) => {
                 this.RemoteIndexCard(entry)
+                if (index < this.indexEntries.length - 1) {
+                  ListDivider()
+                }
+              }, (entry: SourceIndexEntry) => entry.id)
               }
-              ListItem() {
-                ListDivider()
-              }
-            }, (entry: SourceIndexEntry) => entry.id)
+            }
           }
           ListItem() {
             SectionHeader({ title: t('source_pkg_installed_heading') })
           }
           ListItem() {
-            ConciseListRow({
-              title: t('source_pkg_check_updates'),
-              subtitle: this.statusText.length > 0 ? this.statusText : t('source_pkg_manual_check_notice'),
-              leadingIcon: $r('sys.symbol.arrow_clockwise'),
-              isEnabled: !this.updateCheckBusy && !this.indexFetchBusy,
-              action: () => {
-                this.checkInstalledUpdates()
-              },
-            })
+            GroupedListSection() {
+              ConciseListRow({
+                title: t('source_pkg_check_updates'),
+                subtitle: this.statusText.length > 0 ? this.statusText : t('source_pkg_manual_check_notice'),
+                leadingIcon: $r('sys.symbol.arrow_clockwise'),
+                leadingIconBackgroundColor: ThemeConstants.BRAND_PRIMARY,
+                isEnabled: !this.updateCheckBusy && !this.indexFetchBusy,
+                action: () => {
+                  this.checkInstalledUpdates()
+                },
+              })
+              if (this.packages.length > 0) {
+                ListDivider()
+              }
+              ForEach(this.packages, (source: InstalledSourcePackage, index: number) => {
+                this.PackageCard(source)
+                if (index < this.packages.length - 1) {
+                  ListDivider()
+                }
+              }, (source: InstalledSourcePackage) => `${source.id}-${source.enabled}`)
+            }
           }
           if (this.packages.length === 0) {
             ListItem() {
               this.EmptyCard()
             }
           }
-          ForEach(this.packages, (source: InstalledSourcePackage) => {
-            ListItem() {
-              this.PackageCard(source)
-            }
-            ListItem() {
-              ListDivider()
-            }
-          }, (source: InstalledSourcePackage) => `${source.id}-${source.enabled}`)
         }
       }
       .width('100%')

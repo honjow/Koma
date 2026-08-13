@@ -1,8 +1,9 @@
 import { SourceMangaGrid } from '../components/SourceMangaGrid'
 import { KomaActionButton } from '../components/ui/KomaActionButton'
 import { KomaEmptyState } from '../components/ui/KomaEmptyState'
-import { GroupedListSection } from '../components/ui/GroupedListSection'
 import { SecondaryListScaffold } from '../components/SecondaryListScaffold'
+import { SourceFiltersSheetScaffold } from '../components/SourceFiltersSheetScaffold'
+import { sourceFilterSheetOptions } from '../components/SourceFilterSheetOptions'
 import { SourceFilterControls, SourceFilterControlValue } from '../components/SourceFilterControls'
 import { AppStrings } from '../i18n/AppStrings'
 import { SourceFilter, SourceManga } from '../model/SourceModels'
@@ -191,60 +192,39 @@ export struct SourceSearchPage {
 
   @Builder
   private SearchFiltersSheet() {
-    Column() {
-      Row() {
-        Text(s('common_filter'))
-          .fontSize(ThemeConstants.FONT_SIZE_H3)
-          .fontWeight(FontWeight.Medium)
-          .fontColor(ThemeConstants.TEXT_PRIMARY)
-          .layoutWeight(1)
-        Button({ type: ButtonType.Circle, stateEffect: true }) {
-          SymbolGlyph($r('sys.symbol.xmark'))
-            .fontSize(20)
-            .fontColor([ThemeConstants.TEXT_PRIMARY])
-        }
-        .width(44)
-        .height(44)
-        .backgroundColor(Color.Transparent)
-        .accessibilityText(s('common_close'))
-        .onClick(() => {
-          this.closeFilters()
-        })
-      }
-      .width('100%')
-      .height(56)
-      .padding({ left: ThemeConstants.SPACE_LG, right: ThemeConstants.SPACE_SM })
+    SourceFiltersSheetScaffold({
+      title: s('common_filter'),
+      resetLabel: s('common_reset'),
+      closeAccessibilityText: s('common_close'),
+      showReset: this.hasActiveSearchFilters(),
+      resetEnabled: !this.viewModel.loadingSearch,
+      onClose: () => {
+        this.closeFilters()
+      },
+      onReset: () => {
+        this.resetSearchFilters()
+      },
+    }) {
+      this.RuntimeFilterControls()
+    }
+  }
 
-      Divider().strokeWidth(0.5).color(ThemeConstants.DIVIDER)
-
-      Scroll() {
-        Column({ space: ThemeConstants.SPACE_LG }) {
-          GroupedListSection() {
-            this.RuntimeFilterControls()
-          }
-          if (this.hasActiveSearchFilters()) {
-            KomaActionButton({
-              label: s('common_reset'),
-              kind: 'ghost',
-              compact: true,
-              isEnabled: !this.viewModel.loadingSearch,
-              action: () => {
-                this.resetSearchFilters()
-              },
-            })
-          }
-          Blank().height(ThemeConstants.SPACE_XL)
-        }
-        .width('100%')
-        .padding(ThemeConstants.SPACE_LG)
-      }
-      .scrollBar(BarState.Off)
-      .width('100%')
-      .layoutWeight(1)
+  @Builder
+  private LoadingSearchState() {
+    Column({ space: ThemeConstants.SPACE_MD }) {
+      LoadingProgress()
+        .width(ThemeConstants.LOADING_SIZE_LARGE)
+        .height(ThemeConstants.LOADING_SIZE_LARGE)
+        .color(ThemeConstants.BRAND_PRIMARY)
+      Text(s('common_loading'))
+        .fontSize(ThemeConstants.FONT_SIZE_META)
+        .fontColor(ThemeConstants.TEXT_SECONDARY)
+        .textAlign(TextAlign.Center)
     }
     .width('100%')
-    .height('100%')
-    .backgroundColor(ThemeConstants.BG_SUB)
+    .height(260)
+    .justifyContent(FlexAlign.Center)
+    .alignItems(HorizontalAlign.Center)
   }
 
   aboutToDisappear(): void {
@@ -299,23 +279,17 @@ export struct SourceSearchPage {
               .onClick(() => {
                 this.openFilters()
               })
-              .bindSheet($$this.filtersShown, this.SearchFiltersSheet, {
-                detents: [SheetSize.MEDIUM, SheetSize.LARGE],
-                showClose: false,
-                onDisappear: () => {
+              .bindSheet($$this.filtersShown, this.SearchFiltersSheet,
+                sourceFilterSheetOptions(() => {
                   this.closeFilters()
-                },
-              })
+                }))
             }
             .width('100%')
           }
         }
         if (this.viewModel.loadingSearch && this.viewModel.searchResults.length === 0) {
           ListItem() {
-            LoadingProgress()
-              .width(ThemeConstants.SPACE_XXL)
-              .height(ThemeConstants.SPACE_XXL)
-              .color(ThemeConstants.BRAND_PRIMARY)
+            this.LoadingSearchState()
           }
         } else if (this.viewModel.errorMessage.length > 0 && this.viewModel.searchResults.length === 0) {
           ListItem() {
