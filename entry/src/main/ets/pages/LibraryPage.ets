@@ -1,6 +1,7 @@
 import { common } from '@kit.AbilityKit'
 import { ComicCoverCard, ComicCoverInfo } from '../components/ComicCoverCard'
 import { CachedCoverImage, cachedCoverFailureKey } from '../components/CachedCoverImage'
+import { KOMA_MODAL_CALLER_SCROLL_TITLE_RESERVE, KomaModalScaffold, KomaModalScrollOwner } from '../components/KomaModalScaffold'
 import { SecondaryListScaffold } from '../components/SecondaryListScaffold'
 import { ConciseListRow } from '../components/ui/ConciseListRow'
 import { GroupedListSection, ListDivider } from '../components/ui/GroupedListSection'
@@ -242,6 +243,7 @@ export struct LibraryPage {
   @Local private filterMenuKey: string = ''
   @Local private failedCoverUris: string[] = []
   @Local private remoteProgress: RemoteProgressSyncState = connectRemoteProgressSyncState()
+  private libraryFiltersScroller: Scroller = new Scroller()
   private downloadQueueRecoveryStarted: boolean = false
   private filterPreferencesRestoreEpoch: number = 0
   private filterPreferencesMutationRevision: number = 0
@@ -1656,34 +1658,17 @@ export struct LibraryPage {
 
   @Builder
   private LibraryFiltersSheet() {
-    Column() {
-      Row() {
-        Text(s('common_filter'))
-          .fontSize(ThemeConstants.FONT_SIZE_H3)
-          .fontWeight(FontWeight.Medium)
-          .fontColor(ThemeConstants.TEXT_PRIMARY)
-          .layoutWeight(1)
-        Button({ type: ButtonType.Circle, stateEffect: true }) {
-          SymbolGlyph($r('sys.symbol.xmark'))
-            .fontSize(20)
-            .fontColor([ThemeConstants.TEXT_PRIMARY])
-        }
-        .width(44)
-        .height(44)
-        .backgroundColor(Color.Transparent)
-        .accessibilityText(s('common_close'))
-        .onClick(() => {
-          this.closeFilterSheet()
-        })
-      }
-      .width('100%')
-      .height(56)
-      .padding({ left: ThemeConstants.SPACE_LG, right: ThemeConstants.SPACE_SM })
-
-      Divider().strokeWidth(0.5).color(ThemeConstants.DIVIDER)
-
-      Scroll() {
+    KomaModalScaffold({
+      title: s('common_filter'),
+      scrollOwner: KomaModalScrollOwner.CALLER,
+      scroller: this.libraryFiltersScroller,
+      onClose: () => {
+        this.closeFilterSheet()
+      },
+    }) {
+      Scroll(this.libraryFiltersScroller) {
         Column({ space: ThemeConstants.SPACE_LG }) {
+          Blank().height(KOMA_MODAL_CALLER_SCROLL_TITLE_RESERVE)
           GroupedListSection() {
             Column() {
               ConciseListRow({
@@ -1782,12 +1767,13 @@ export struct LibraryPage {
         .padding(ThemeConstants.SPACE_LG)
       }
       .scrollBar(BarState.Off)
+      .nestedScroll({
+        scrollForward: NestedScrollMode.PARENT_FIRST,
+        scrollBackward: NestedScrollMode.SELF_FIRST,
+      })
       .width('100%')
       .layoutWeight(1)
     }
-    .width('100%')
-    .height('100%')
-    .backgroundColor(ThemeConstants.BG_SUB)
   }
 
   @Builder
@@ -1813,6 +1799,9 @@ export struct LibraryPage {
       .bindSheet($$this.filtersShown, this.LibraryFiltersSheet, {
         detents: [SheetSize.MEDIUM, SheetSize.LARGE],
         showClose: false,
+        enableOutsideInteractive: false,
+        scrollSizeMode: ScrollSizeMode.CONTINUOUS,
+        enableFloatingDragBar: true,
         onDisappear: () => {
           this.closeFilterSheet()
         },

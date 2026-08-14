@@ -26,6 +26,7 @@ import {
 import { ReadingDirection } from '../model/ComicModels'
 import { AppStrings } from '../i18n/AppStrings'
 import { ThemeConstants } from '../theme/ThemeConstants'
+import { KOMA_MODAL_CALLER_SCROLL_TITLE_RESERVE, KomaModalScaffold, KomaModalScrollOwner } from './KomaModalScaffold'
 import { ConciseListRow } from './ui/ConciseListRow'
 import { GroupedListSection, ListDivider, SectionHeader } from './ui/GroupedListSection'
 
@@ -94,6 +95,8 @@ export struct ReaderChrome {
   @Local private modeShown: boolean = false
   @Local private menuKey: string = ''
   @Local private imageInfoShown: boolean = false
+  private readerSettingsScroller: Scroller = new Scroller()
+  private imageInfoScroller: Scroller = new Scroller()
 
   private pageText(): string {
     const total = Math.max(this.pageTotal, 0)
@@ -420,20 +423,17 @@ export struct ReaderChrome {
 
   @Builder
   private ReaderSettingsSheet() {
-    Column() {
-      Row() {
-        Text(s('settings_pane_reader_title')).fontSize(ThemeConstants.FONT_SIZE_H3).fontWeight(FontWeight.Medium).fontColor($r('sys.color.font_primary')).layoutWeight(1)
-        Button({ type: ButtonType.Circle, stateEffect: true }) {
-          SymbolGlyph($r('sys.symbol.xmark')).fontSize(20).fontColor([$r('sys.color.font_primary')])
-        }
-        .width(44).height(44).backgroundColor(Color.Transparent)
-        .accessibilityText(s('common_close'))
-        .onClick(() => { this.closeSettings() })
-      }
-      .width('100%').height(56).padding({ left: ThemeConstants.SPACE_LG, right: ThemeConstants.SPACE_SM })
-      Divider().strokeWidth(0.5).color(ThemeConstants.DIVIDER)
-      Scroll() {
+    KomaModalScaffold({
+      title: s('settings_pane_reader_title'),
+      scrollOwner: KomaModalScrollOwner.CALLER,
+      scroller: this.readerSettingsScroller,
+      onClose: () => {
+        this.closeSettings()
+      },
+    }) {
+      Scroll(this.readerSettingsScroller) {
         Column({ space: ThemeConstants.SPACE_SM }) {
+          Blank().height(KOMA_MODAL_CALLER_SCROLL_TITLE_RESERVE)
           SectionHeader({ title: s('settings_reader_group_layout') })
           GroupedListSection() {
             Column() { ConciseListRow({ title: s('reader_control_mode'), trailingText: getReaderModeLabel(this.readerMode), trailingDropdown: true, action: () => { this.menuKey = 'mode' } }) }.bindMenu(this.menuKey === 'mode', this.PageModeMenu, { onDisappear: () => { this.closeMenus() } })
@@ -487,10 +487,15 @@ export struct ReaderChrome {
           Blank().height(ThemeConstants.SPACE_XL)
         }
         .padding({ left: ThemeConstants.SPACE_LG, right: ThemeConstants.SPACE_LG, top: ThemeConstants.SPACE_SM, bottom: ThemeConstants.SPACE_LG })
-      }
-      .scrollBar(BarState.Off).width('100%').layoutWeight(1)
+        }
+        .scrollBar(BarState.Off)
+        .nestedScroll({
+          scrollForward: NestedScrollMode.PARENT_FIRST,
+          scrollBackward: NestedScrollMode.SELF_FIRST,
+        })
+        .width('100%')
+        .layoutWeight(1)
     }
-    .width('100%').height('100%').backgroundColor($r('sys.color.ohos_id_color_sub_background'))
   }
 
   @Builder
@@ -519,31 +524,36 @@ export struct ReaderChrome {
 
   @Builder
   private ImageInfoSheet() {
-    Column() {
-      Row() {
-        Text(s('reader_image_info_title')).fontSize(ThemeConstants.FONT_SIZE_H3).fontWeight(FontWeight.Medium).fontColor($r('sys.color.font_primary')).layoutWeight(1)
-        Button({ type: ButtonType.Circle, stateEffect: true }) {
-          SymbolGlyph($r('sys.symbol.xmark')).fontSize(20).fontColor([$r('sys.color.font_primary')])
+    KomaModalScaffold({
+      title: s('reader_image_info_title'),
+      scrollOwner: KomaModalScrollOwner.CALLER,
+      scroller: this.imageInfoScroller,
+      onClose: () => {
+        this.imageInfoShown = false
+      },
+    }) {
+      Scroll(this.imageInfoScroller) {
+        Column({ space: ThemeConstants.SPACE_MD }) {
+          Blank().height(KOMA_MODAL_CALLER_SCROLL_TITLE_RESERVE)
+          GroupedListSection() {
+            ConciseListRow({ title: s('reader_image_info_page'), trailingText: this.pageText(), showChevron: false })
+            ListDivider()
+            ConciseListRow({ title: s('reader_image_info_dimensions'), trailingText: this.imageDimensionsText(), showChevron: false })
+            ListDivider()
+            ConciseListRow({ title: s('reader_image_info_source'), trailingText: this.pageImageSourceLabel, showChevron: false })
+          }
+          Blank().layoutWeight(1)
         }
-        .width(44).height(44).backgroundColor(Color.Transparent)
-        .accessibilityText(s('common_close'))
-        .onClick(() => { this.imageInfoShown = false })
+        .width('100%').padding(ThemeConstants.SPACE_LG)
       }
-      .width('100%').height(56).padding({ left: ThemeConstants.SPACE_LG, right: ThemeConstants.SPACE_SM })
-      Divider().strokeWidth(0.5).color(ThemeConstants.DIVIDER)
-      Column({ space: ThemeConstants.SPACE_MD }) {
-        GroupedListSection() {
-          ConciseListRow({ title: s('reader_image_info_page'), trailingText: this.pageText(), showChevron: false })
-          ListDivider()
-          ConciseListRow({ title: s('reader_image_info_dimensions'), trailingText: this.imageDimensionsText(), showChevron: false })
-          ListDivider()
-          ConciseListRow({ title: s('reader_image_info_source'), trailingText: this.pageImageSourceLabel, showChevron: false })
-        }
-      }
-      .width('100%').padding(ThemeConstants.SPACE_LG)
-      Blank().layoutWeight(1)
+      .scrollBar(BarState.Off)
+      .nestedScroll({
+        scrollForward: NestedScrollMode.PARENT_FIRST,
+        scrollBackward: NestedScrollMode.SELF_FIRST,
+      })
+      .width('100%')
+      .layoutWeight(1)
     }
-    .width('100%').height('100%').backgroundColor($r('sys.color.ohos_id_color_sub_background'))
   }
 
   @Builder
@@ -552,12 +562,26 @@ export struct ReaderChrome {
       Row() {
         Button({ type: ButtonType.Circle, stateEffect: true }) { SymbolGlyph($r('sys.symbol.chevron_left')).fontSize(22).fontColor([Color.White]) }
           .width(44).height(44).backgroundColor(Color.Transparent).onClick(() => { this.onCloseReader() })
-          .bindSheet($$this.imageInfoShown, this.ImageInfoSheet, { detents: [SheetSize.MEDIUM], showClose: false, onDisappear: () => { this.imageInfoShown = false } })
+          .bindSheet($$this.imageInfoShown, this.ImageInfoSheet, {
+            detents: [SheetSize.MEDIUM],
+            showClose: false,
+            enableOutsideInteractive: false,
+            scrollSizeMode: ScrollSizeMode.CONTINUOUS,
+            enableFloatingDragBar: true,
+            onDisappear: () => { this.imageInfoShown = false },
+          })
         Blank().layoutWeight(1)
         Button({ type: ButtonType.Circle, stateEffect: true }) { SymbolGlyph($r('sys.symbol.gearshape')).fontSize(22).fontColor([Color.White]) }
           .width(44).height(44).backgroundColor(Color.Transparent)
           .onClick(() => { this.settingsShown = true })
-          .bindSheet($$this.settingsShown, this.ReaderSettingsSheet, { detents: [SheetSize.MEDIUM, SheetSize.LARGE], showClose: false, onDisappear: () => { this.closeSettings() } })
+          .bindSheet($$this.settingsShown, this.ReaderSettingsSheet, {
+            detents: [SheetSize.MEDIUM, SheetSize.LARGE],
+            showClose: false,
+            enableOutsideInteractive: false,
+            scrollSizeMode: ScrollSizeMode.CONTINUOUS,
+            enableFloatingDragBar: true,
+            onDisappear: () => { this.closeSettings() },
+          })
         Button({ type: ButtonType.Circle, stateEffect: true }) { SymbolGlyph($r('sys.symbol.dot_grid_2x2')).fontSize(22).fontColor([Color.White]) }
           .width(44).height(44).backgroundColor(Color.Transparent).accessibilityText(s('common_more_actions'))
           .onClick(() => { this.moreShown = true })
