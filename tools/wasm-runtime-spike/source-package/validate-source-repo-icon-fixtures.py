@@ -100,6 +100,21 @@ def png_crc32(value: bytes) -> int:
     return binascii.crc32(value) & 0xFFFFFFFF
 
 
+def png_chunk(kind: bytes, payload: bytes) -> bytes:
+    return struct.pack(">I", len(payload)) + kind + payload + struct.pack(">I", png_crc32(kind + payload))
+
+
+def indexed_palette_icon_png() -> bytes:
+    """A valid 1x1 8-bit indexed PNG, assembled without a product logo asset."""
+    ihdr = struct.pack(">IIBBBBB", 1, 1, 8, 3, 0, 0, 0)
+    plte = b"\x58\x62\xa9"
+    image_data = zlib.compress(b"\x00\x00")
+    return PNG_SIGNATURE + png_chunk(b"IHDR", ihdr) + png_chunk(b"PLTE", plte) + png_chunk(b"IDAT", image_data) + png_chunk(b"IEND", b"")
+
+
+VALID_INDEXED_ICON_PNG = indexed_palette_icon_png()
+
+
 def is_valid_icon_bytes(value: bytes) -> bool:
     if len(value) < 57 or len(value) > MAX_ICON_BYTES:
         return False
@@ -111,7 +126,13 @@ def is_valid_icon_bytes(value: bytes) -> bool:
     if not (0 < width <= MAX_ICON_DIMENSION and 0 < height <= MAX_ICON_DIMENSION):
         return False
     bit_depth, color_type, compression, filter_method, interlace = value[24:29]
-    if bit_depth not in (8, 16) or color_type not in (0, 2, 4, 6):
+    direct_color_type = color_type in (0, 2, 4, 6)
+    indexed_color_type = color_type == 3
+    if (
+        (not direct_color_type and not indexed_color_type)
+        or (direct_color_type and bit_depth not in (8, 16))
+        or (indexed_color_type and bit_depth != 8)
+    ):
         return False
     if compression != 0 or filter_method != 0 or interlace != 0:
         return False
@@ -214,6 +235,7 @@ def assert_importer_binding(importer_path: Path) -> None:
         r"width > SOURCE_REPO_PACKAGE_ICON_MAX_DIMENSION",
         r"height > SOURCE_REPO_PACKAGE_ICON_MAX_DIMENSION",
         r"let sawImageData = false",
+        r"const indexedColorType = colorType === 3",
         r"isIdat && chunkLength > 0",
         r"pngCrc32\(iconBytes, typeOffset, 4 \+ chunkLength\)",
         r"isIend.*sawImageData.*nextOffset === iconBytes\.byteLength",
@@ -294,6 +316,7 @@ def main() -> int:
         ]
         legacy_entries = read_fixture_base(legacy_archive_path, [LEGACY_MANIFEST, LEGACY_WASM])
         require(is_valid_icon_bytes(VALID_ICON_PNG), "test icon must be a valid bounded PNG")
+        require(is_valid_icon_bytes(VALID_INDEXED_ICON_PNG), "indexed palette test icon must be valid")
 
         if fixture_dir.exists():
             shutil.rmtree(fixture_dir)
@@ -309,6 +332,7 @@ def main() -> int:
         cases: list[tuple[str, str | None, list[tuple[str, bytes]]]] = [
             ("source_repo_icon_optional_absent", None, source_repo_entries),
             ("source_repo_valid_root_icon", None, source_repo_entries + [(SOURCE_REPO_ICON, VALID_ICON_PNG)]),
+            ("source_repo_valid_indexed_root_icon", None, source_repo_entries + [(SOURCE_REPO_ICON, VALID_INDEXED_ICON_PNG)]),
             ("source_repo_nested_icon_rejected", "unsafe_archive_entry", source_repo_entries + [("assets/icon.png", VALID_ICON_PNG)]),
             ("legacy_root_icon_rejected", "unsafe_archive_entry", legacy_entries + [(SOURCE_REPO_ICON, VALID_ICON_PNG)]),
             ("source_repo_non_png_icon_rejected", "invalid_icon", source_repo_entries + [(SOURCE_REPO_ICON, b"not-a-png")]),

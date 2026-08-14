@@ -1,16 +1,18 @@
 #!/usr/bin/env python3
 """Regenerate Koma's checked-in test-only source-repo archive with icon.png.
 
-The fixture proves the optional package-owned icon path.  Its one-pixel PNG is
-not product branding and is never used as a real source identity asset.
+The fixture proves the optional package-owned icon path. Its one-pixel indexed
+PNG is not product branding and is never used as a real source identity asset.
 """
 
 import argparse
-import base64
+import binascii
 import hashlib
 import json
 import os
+import struct
 import zipfile
+import zlib
 from pathlib import Path
 
 
@@ -18,9 +20,22 @@ SOURCE_REPO_MANIFEST = "manifest.json"
 SOURCE_REPO_WASM = "source.wasm"
 SOURCE_REPO_ICON = "icon.png"
 FIXED_ZIP_DATE_TIME = (2024, 1, 1, 0, 0, 0)
-TEST_ONLY_ICON_PNG = base64.b64decode(
-    "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4nGOot8/4DwAEjQImF5xSzQAAAABJRU5ErkJggg=="
-)
+
+def png_chunk(kind: bytes, payload: bytes) -> bytes:
+    crc = binascii.crc32(kind + payload) & 0xFFFFFFFF
+    return struct.pack(">I", len(payload)) + kind + payload + struct.pack(">I", crc)
+
+
+def test_only_indexed_icon_png() -> bytes:
+    """Build a valid 1x1 8-bit indexed PNG without adding a brand asset."""
+    signature = b"\x89PNG\r\n\x1a\n"
+    ihdr = struct.pack(">IIBBBBB", 1, 1, 8, 3, 0, 0, 0)
+    palette = b"\x58\x62\xa9"
+    image_data = zlib.compress(b"\x00\x00")
+    return signature + png_chunk(b"IHDR", ihdr) + png_chunk(b"PLTE", palette) + png_chunk(b"IDAT", image_data) + png_chunk(b"IEND", b"")
+
+
+TEST_ONLY_ICON_PNG = test_only_indexed_icon_png()
 
 
 def repo_root() -> Path:

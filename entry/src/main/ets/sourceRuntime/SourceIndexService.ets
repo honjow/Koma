@@ -1,18 +1,33 @@
-import { bundleManager, common } from '@kit.AbilityKit'
+import { common } from '@kit.AbilityKit'
 import { preferences } from '@kit.ArkData'
 import { BusinessError } from '@kit.BasicServicesKit'
 import { cryptoFramework } from '@kit.CryptoArchitectureKit'
+import { fileUri } from '@kit.CoreFileKit'
 import { http } from '@kit.NetworkKit'
 import {
   installFromBytes,
-  setSourcePresentationMetadata,
+  isSourcePackageMinAppVersionSatisfied,
   SourcePackageInstallResult,
 } from './SourceRuntimeAppRegistry'
+import { RemoteImageCacheStore } from '../model/RemoteImageCacheStore'
+import {
+  SOURCE_REPO_PACKAGE_ICON_MAX_BYTES,
+  isValidSourcePackageMinAppVersion,
+  validateSourcePackageIconBytes,
+  validateSourcePackageIconFile,
+} from './SourcePackageImporter'
 
 const SOURCE_INDEX_PREFS_STORE_NAME: string = 'koma_source_package_manager_v1'
 const SOURCE_INDEX_URL_KEY: string = 'source_index.url'
 const SOURCE_INDEX_REPOSITORIES_KEY: string = 'source_index.repositories.v1'
 const SOURCE_INDEX_REPOSITORY_LIMIT: number = 12
+const SOURCE_INDEX_ICON_CACHE_DIRECTORY_NAME: string = 'source-index-icon-cache'
+const SOURCE_INDEX_ICON_CACHE_MAX_BYTES: number = 16 * 1024 * 1024
+
+interface SourceIndexHttpUrl {
+  origin: string
+  path: string
+}
 
 export interface SourceIndexEntry {
   id: string
@@ -26,6 +41,7 @@ export interface SourceIndexEntry {
   pkg: string
   sha256: string
   icon: string
+  iconUri?: string
   minAppVersion: string
 }
 
@@ -46,23 +62,81 @@ export interface SourceIndexRepository {
   lastUsedAt: number
 }
 
-function isValidHttpUrl(value: string): boolean {
-  if (typeof value !== 'string' || value.length === 0) {
-    return false
+function normalizeSourceIndexPath(value: string): string | undefined {
+  if (value.length === 0) {
+    return '/'
   }
-  return value.startsWith('http://') || value.startsWith('https://')
+  if (!value.startsWith('/') || value.includes('\\') || value.includes('%') || value.includes('?') || value.includes('#')) {
+    return undefined
+  }
+  const segments = value.split('/')
+  for (let index = 1; index < segments.length; index += 1) {
+    const segment = segments[index]
+    if (segment.length === 0) {
+      if (index === segments.length - 1) {
+        continue
+      }
+      return undefined
+    }
+    if (segment === '.' || segment === '..' || !/^[A-Za-z0-9._~-]+$/.test(segment)) {
+      return undefined
+    }
+  }
+  return value
+}
+
+function parseSourceIndexHttpUrl(value: string): SourceIndexHttpUrl | undefined {
+  const normalized = value.trim()
+  const protocolEnd = normalized.indexOf('://')
+  if (protocolEnd <= 0 || normalized.includes('?') || normalized.includes('#')) {
+    return undefined
+  }
+  const scheme = normalized.substring(0, protocolEnd).toLowerCase()
+  if (scheme !== 'http' && scheme !== 'https') {
+    return undefined
+  }
+  const afterProtocol = normalized.substring(protocolEnd + 3)
+  const slashIndex = afterProtocol.indexOf('/')
+  const authority = slashIndex < 0 ? afterProtocol : afterProtocol.substring(0, slashIndex)
+  if (authority.length === 0 || authority.includes('@') || authority.includes('\\') || /\s/.test(authority)) {
+    return undefined
+  }
+  const path = normalizeSourceIndexPath(slashIndex < 0 ? '/' : afterProtocol.substring(slashIndex))
+  if (path === undefined) {
+    return undefined
+  }
+  return {
+    origin: `${scheme}://${authority.toLowerCase()}`,
+    path,
+  }
+}
+
+function isValidHttpUrl(value: string): boolean {
+  return parseSourceIndexHttpUrl(value) !== undefined
 }
 
 function normalizeIndexUrl(value: string): string {
-  return value.trim().replace(/\/+$/, '')
+  const parsed = parseSourceIndexHttpUrl(value)
+  if (parsed === undefined) {
+    return value.trim()
+  }
+  if (parsed.path === '/') {
+    return parsed.origin
+  }
+  const path = parsed.path.endsWith('/') ? parsed.path.substring(0, parsed.path.length - 1) : parsed.path
+  return `${parsed.origin}${path}`
 }
 
 function resolveIndexDocumentUrl(value: string): string {
-  const normalized = normalizeIndexUrl(value)
-  if (!isValidHttpUrl(normalized) || normalized.endsWith('.json')) {
-    return normalized
+  const parsed = parseSourceIndexHttpUrl(value)
+  if (parsed === undefined) {
+    return ''
   }
-  return `${normalized}/index.json`
+  if (parsed.path.endsWith('.json')) {
+    return `${parsed.origin}${parsed.path}`
+  }
+  const directory = parsed.path.endsWith('/') ? parsed.path : `${parsed.path}/`
+  return `${parsed.origin}${directory}index.json`
 }
 
 function normalizeRepositoryLastUsedAt(value: Object | undefined): number {
@@ -109,25 +183,39 @@ function serializeSourceIndexRepositories(repositories: SourceIndexRepository[])
   return JSON.stringify(normalizeSourceIndexRepositories(repositories as Object[]))
 }
 
+function safeRelativeIndexPath(value: string, requiredSuffix: string): string {
+  const normalized = value.trim()
+  if (normalized.length === 0 || normalized.length > 256 || normalized.startsWith('/') ||
+    normalized.includes('\\') || normalized.includes('%') || normalized.includes('?') || normalized.includes('#') ||
+    normalized.includes(':') || !normalized.toLowerCase().endsWith(requiredSuffix)) {
+    return ''
+  }
+  const segments = normalized.split('/')
+  if (segments.length === 0) {
+    return ''
+  }
+  for (let index = 0; index < segments.length; index += 1) {
+    const segment = segments[index]
+    if (segment.length === 0 || segment === '.' || segment === '..' || !/^[A-Za-z0-9][A-Za-z0-9._-]*$/.test(segment)) {
+      return ''
+    }
+  }
+  return normalized
+}
+
+function safeResolveIndexRelativeUrl(indexUrl: string, relativePath: string, requiredSuffix: string): string {
+  const documentUrl = resolveIndexDocumentUrl(indexUrl)
+  const parsed = parseSourceIndexHttpUrl(documentUrl)
+  const safePath = safeRelativeIndexPath(relativePath, requiredSuffix)
+  if (parsed === undefined || safePath.length === 0) {
+    return ''
+  }
+  const directory = parsed.path.substring(0, parsed.path.lastIndexOf('/') + 1)
+  return `${parsed.origin}${directory}${safePath}`
+}
+
 function safeResolvePkgUrl(indexUrl: string, pkg: string): string {
-  const normalizedPkg = pkg.replace(/\\/g, '/').replace(/^\/+/, '')
-  if (normalizedPkg.length === 0) {
-    return ''
-  }
-  if (normalizedPkg.startsWith('http://') || normalizedPkg.startsWith('https://')) {
-    return ''
-  }
-  if (normalizedPkg.split('/').includes('..') || !normalizedPkg.endsWith('.koma')) {
-    return ''
-  }
-  const base = indexUrl.replace(/\/+$/, '')
-  const authorityStart = base.indexOf('://')
-  const firstPathSlash = authorityStart >= 0 ? base.indexOf('/', authorityStart + 3) : base.indexOf('/')
-  if (firstPathSlash < 0) {
-    return `${base}/${normalizedPkg}`
-  }
-  const indexDir = base.substring(0, base.lastIndexOf('/') + 1)
-  return `${indexDir}${normalizedPkg}`
+  return safeResolveIndexRelativeUrl(indexUrl, pkg, '.koma')
 }
 
 function safeNonEmptyString(value: Object | undefined, fallback: string): string {
@@ -136,6 +224,10 @@ function safeNonEmptyString(value: Object | undefined, fallback: string): string
 
 function safeString(value: Object | undefined): string {
   return typeof value === 'string' ? value : ''
+}
+
+function safeResolveIndexAssetUrl(indexUrl: string, assetPath: string): string {
+  return safeResolveIndexRelativeUrl(indexUrl, assetPath, '.png')
 }
 
 function safeBoolean(value: Object | undefined): boolean {
@@ -161,44 +253,6 @@ function sha256Hex(bytes: Uint8Array): string {
   return result
 }
 
-function compareVersion(left: string, right: string): number {
-  const leftParts = left.trim().split('.')
-  const rightParts = right.trim().split('.')
-  const count = Math.max(leftParts.length, rightParts.length)
-  for (let index = 0; index < count; index += 1) {
-    const leftValue = Number.parseInt(leftParts[index] ?? '0')
-    const rightValue = Number.parseInt(rightParts[index] ?? '0')
-    if (Number.isNaN(leftValue) || Number.isNaN(rightValue)) {
-      return left === right ? 0 : left.localeCompare(right)
-    }
-    if (leftValue !== rightValue) {
-      return leftValue > rightValue ? 1 : -1
-    }
-  }
-  return 0
-}
-
-function currentAppVersionName(): string {
-  try {
-    const info = bundleManager.getBundleInfoForSelfSync(bundleManager.BundleFlag.GET_BUNDLE_INFO_DEFAULT)
-    return info.versionName
-  } catch (_err) {
-    return ''
-  }
-}
-
-function isMinAppVersionSatisfied(minAppVersion: string): boolean {
-  const required = minAppVersion.trim()
-  if (required.length === 0) {
-    return true
-  }
-  const current = currentAppVersionName()
-  if (current.length === 0) {
-    return false
-  }
-  return compareVersion(current, required) >= 0
-}
-
 function parseIndexEntry(raw: Object): SourceIndexEntry | undefined {
   if (raw === null || raw === undefined || typeof raw !== 'object' || Array.isArray(raw)) {
     return undefined
@@ -208,6 +262,14 @@ function parseIndexEntry(raw: Object): SourceIndexEntry | undefined {
   const name = safeNonEmptyString(record['name'], '')
   const pkg = safeNonEmptyString(record['pkg'], '')
   if (id.length === 0 || name.length === 0 || pkg.length === 0) {
+    return undefined
+  }
+  const rawMinAppVersion = record['minAppVersion']
+  if (rawMinAppVersion !== undefined && typeof rawMinAppVersion !== 'string') {
+    return undefined
+  }
+  const minAppVersion = safeString(rawMinAppVersion)
+  if (!isValidSourcePackageMinAppVersion(minAppVersion)) {
     return undefined
   }
   return {
@@ -222,7 +284,25 @@ function parseIndexEntry(raw: Object): SourceIndexEntry | undefined {
     pkg,
     sha256: safeSha256(record['sha256']),
     icon: safeString(record['icon']),
-    minAppVersion: safeString(record['minAppVersion']),
+    minAppVersion,
+  }
+}
+
+function entryWithCachedIcon(entry: SourceIndexEntry, iconUri: string): SourceIndexEntry {
+  return {
+    id: entry.id,
+    name: entry.name,
+    version: entry.version,
+    lang: entry.lang,
+    nsfw: entry.nsfw,
+    author: entry.author,
+    description: entry.description,
+    contentRating: entry.contentRating,
+    pkg: entry.pkg,
+    sha256: entry.sha256,
+    icon: entry.icon,
+    iconUri,
+    minAppVersion: entry.minAppVersion,
   }
 }
 
@@ -240,9 +320,67 @@ function parseIndexEntriesDocument(raw: Object): Object[] | undefined {
 
 export class SourceIndexService {
   private context: common.UIAbilityContext
+  private iconCacheStore: RemoteImageCacheStore
 
   constructor(context: common.UIAbilityContext) {
     this.context = context
+    this.iconCacheStore = new RemoteImageCacheStore(this.context.cacheDir, SOURCE_INDEX_ICON_CACHE_DIRECTORY_NAME)
+  }
+
+  private async cachedIconUriFor(indexUrl: string, entry: SourceIndexEntry): Promise<string> {
+    const iconUrl = safeResolveIndexAssetUrl(indexUrl, entry.icon)
+    if (iconUrl.length === 0) {
+      return ''
+    }
+    // A release keeps a stable icon filename. Tie the cache identity to the
+    // package identity/version so an updated source cannot keep an old logo.
+    const cacheKeySeed = `source-index-icon-v1\n${entry.id}\n${entry.version}\n${iconUrl}`
+    try {
+      const cached = await this.iconCacheStore.get(iconUrl, undefined, cacheKeySeed)
+      if (cached !== undefined && cached.length > 0) {
+        if (await validateSourcePackageIconFile(cached)) {
+          return fileUri.getUriFromPath(cached)
+        }
+      }
+    } catch (_err) {
+    }
+
+    const httpRequest = http.createHttp()
+    try {
+      const response = await httpRequest.request(iconUrl, {
+        method: http.RequestMethod.GET,
+        expectDataType: http.HttpDataType.ARRAY_BUFFER,
+        usingCache: false,
+        readTimeout: 15000,
+        connectTimeout: 10000,
+      })
+      if (response.responseCode !== 200 || !(response.result instanceof ArrayBuffer)) {
+        return ''
+      }
+      const bytes = response.result as ArrayBuffer
+      if (bytes.byteLength === 0 || bytes.byteLength > SOURCE_REPO_PACKAGE_ICON_MAX_BYTES ||
+        !validateSourcePackageIconBytes(new Uint8Array(bytes))) {
+        return ''
+      }
+      const cachedPath = await this.iconCacheStore.put(iconUrl, undefined, bytes, cacheKeySeed)
+      if (!await validateSourcePackageIconFile(cachedPath)) {
+        await this.iconCacheStore.clear()
+        return ''
+      }
+      await this.iconCacheStore.evictIfOver(SOURCE_INDEX_ICON_CACHE_MAX_BYTES)
+      const retainedPath = await this.iconCacheStore.get(iconUrl, undefined, cacheKeySeed)
+      if (retainedPath === undefined || !await validateSourcePackageIconFile(retainedPath)) {
+        if (retainedPath !== undefined) {
+          await this.iconCacheStore.clear()
+        }
+        return ''
+      }
+      return fileUri.getUriFromPath(retainedPath)
+    } catch (_err) {
+      return ''
+    } finally {
+      httpRequest.destroy()
+    }
   }
 
   async loadSavedUrl(): Promise<string> {
@@ -379,6 +517,11 @@ export class SourceIndexService {
       for (let index = 0; index < parsed.length; index += 1) {
         const entry = parseIndexEntry(parsed[index])
         if (entry !== undefined) {
+          const iconUri = await this.cachedIconUriFor(normalizedUrl, entry)
+          if (iconUri.length > 0) {
+            entries.push(entryWithCachedIcon(entry, iconUri))
+            continue
+          }
           entries.push(entry)
         }
       }
@@ -394,7 +537,7 @@ export class SourceIndexService {
   }
 
   async installPackage(indexUrl: string, entry: SourceIndexEntry): Promise<SourceIndexInstallResult> {
-    if (!isMinAppVersionSatisfied(entry.minAppVersion)) {
+    if (!isSourcePackageMinAppVersionSatisfied(entry.minAppVersion)) {
       console.error('[SourceIndex] step=install_blocked reason=app_version_unsupported')
       return { ok: false, reasonCode: 'app_version_unsupported' }
     }
@@ -440,11 +583,6 @@ export class SourceIndexService {
       if (!install.ok) {
         console.error('[SourceIndex] step=install_fail reason=' + (install.reasonCode ?? 'unknown'))
         return { ok: false, reasonCode: install.reasonCode, install }
-      }
-
-      if (install.id !== undefined &&
-        !setSourcePresentationMetadata(this.context, install.id, entry.description, entry.icon)) {
-        console.warn('[SourceIndex] step=presentation_metadata_skip reason=metadata_persist_failed')
       }
 
       console.info('[SourceIndex] step=install_ok id=' + install.id)

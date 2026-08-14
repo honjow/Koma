@@ -61,7 +61,13 @@ def source_repo_icon_is_valid(value: bytes) -> bool:
     if not (0 < width <= SOURCE_REPO_ICON_MAX_DIMENSION and 0 < height <= SOURCE_REPO_ICON_MAX_DIMENSION):
         return False
     bit_depth, color_type, compression, filter_method, interlace = value[24:29]
-    if bit_depth not in (8, 16) or color_type not in (0, 2, 4, 6):
+    direct_color_type = color_type in (0, 2, 4, 6)
+    indexed_color_type = color_type == 3
+    if (
+        (not direct_color_type and not indexed_color_type)
+        or (direct_color_type and bit_depth not in (8, 16))
+        or (indexed_color_type and bit_depth != 8)
+    ):
         return False
     if compression != 0 or filter_method != 0 or interlace != 0:
         return False

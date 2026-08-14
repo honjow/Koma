@@ -23,10 +23,24 @@ function isSafePkgPath(value) {
     value.endsWith('.koma')
 }
 
+function isSafeIconPath(value) {
+  return typeof value === 'string' &&
+    value.length > 0 &&
+    !value.startsWith('/') &&
+    !value.includes('\\') &&
+    !value.split('/').includes('..') &&
+    value.endsWith('.png')
+}
+
 function normalizedSha256(value) {
   if (typeof value !== 'string') return ''
   const normalized = value.trim().toLowerCase()
   return /^[0-9a-f]{64}$/.test(normalized) ? normalized : ''
+}
+
+function isCanonicalAppVersion(value) {
+  return typeof value === 'string' &&
+    /^(0|[1-9][0-9]{0,8})\.(0|[1-9][0-9]{0,8})\.(0|[1-9][0-9]{0,8})$/.test(value)
 }
 
 function sha256File(path) {
@@ -95,6 +109,11 @@ sources.forEach((source, index) => {
   assert.equal(typeof source.id, 'string', `source[${index}].id must be a string`)
   assert.equal(typeof source.name, 'string', `source[${index}].name must be a string`)
   assert.equal(typeof source.version, 'string', `source[${index}].version must be a string`)
+  assert.equal(typeof source.author, 'string', `source[${index}].author must be a string`)
+  assert.equal(typeof source.description, 'string', `source[${index}].description must be a string`)
+  assert.equal(typeof source.contentRating, 'string', `source[${index}].contentRating must be a string`)
+  assert.equal(typeof source.minAppVersion, 'string', `source[${index}].minAppVersion must be a string`)
+  assert.ok(isCanonicalAppVersion(source.minAppVersion), `source[${index}].minAppVersion must be canonical MAJOR.MINOR.PATCH`)
   assert.ok(isSafePkgPath(source.pkg), `source[${index}].pkg must be a safe relative .koma path`)
   assert.ok(!seenIds.has(source.id), `duplicate source id: ${source.id}`)
   seenIds.add(source.id)
@@ -116,16 +135,39 @@ sources.forEach((source, index) => {
     `${source.pkg} must not contain unsafe zip entries`,
   )
 
+  if ((source.icon ?? '').length > 0) {
+    assert.ok(isSafeIconPath(source.icon), `source[${index}].icon must be a safe relative PNG path`)
+    const iconPath = resolve(distDir, source.icon)
+    assert.ok(iconPath.startsWith(distDir), `icon escapes dist dir: ${source.icon}`)
+    assert.ok(existsSync(iconPath), `missing index icon asset: ${source.icon}`)
+    assert.ok(entries.includes('icon.png'), `${source.pkg} must contain package-owned icon.png`)
+    assert.deepEqual(
+      unzipBytes(pkgPath, 'icon.png'),
+      readFileSync(iconPath),
+      `${source.pkg} icon.png must match its index asset`,
+    )
+  } else {
+    assert.ok(!entries.includes('icon.png'), `${source.pkg} must not contain an unindexed icon.png`)
+  }
+
   const manifest = readJsonFromText(unzipText(pkgPath, 'manifest.json'), `${source.pkg} manifest`)
   assert.equal(manifest.id, source.id, `${source.pkg} manifest id must match index id`)
   assert.equal(manifest.version, source.version, `${source.pkg} manifest version must match index version`)
   assert.equal(manifest.name, source.name, `${source.pkg} manifest name must match index name`)
+  assert.equal(manifest.author, source.author, `${source.pkg} manifest author must match index author`)
+  assert.equal(manifest.description, source.description, `${source.pkg} manifest description must match index description`)
+  assert.equal(manifest.contentRating, source.contentRating, `${source.pkg} manifest content rating must match index content rating`)
+  assert.equal(manifest.minAppVersion, source.minAppVersion, `${source.pkg} manifest minimum app version must match index`)
+  assert.ok(isCanonicalAppVersion(manifest.minAppVersion), `${source.pkg} manifest minimum app version must be canonical MAJOR.MINOR.PATCH`)
 
   const info = runSourceInfo(pkgPath)
   assert.equal(info?.ok, true, `${source.pkg} source info smoke must succeed`)
   assert.equal(info?.data?.sourceInfo?.id, source.id, `${source.pkg} source info id must match index id`)
   assert.equal(info?.data?.sourceInfo?.version, source.version, `${source.pkg} source info version must match index version`)
   assert.equal(info?.data?.sourceInfo?.name, source.name, `${source.pkg} source info name must match index name`)
+  assert.equal(info?.data?.sourceInfo?.author, source.author, `${source.pkg} source info author must match index author`)
+  assert.equal(info?.data?.sourceInfo?.description, source.description, `${source.pkg} source info description must match index description`)
+  assert.equal(info?.data?.sourceInfo?.contentRating, source.contentRating, `${source.pkg} source info content rating must match index content rating`)
 })
 
 function readJsonFromText(text, label) {

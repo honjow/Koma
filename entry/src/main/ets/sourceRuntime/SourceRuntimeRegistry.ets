@@ -1,6 +1,7 @@
 import { fileIo as fs, fileUri } from '@kit.CoreFileKit'
 import {
   LocalSourcePackageManifest,
+  isValidSourcePackageMinAppVersion,
   normalizeSourceOperationCapabilityToken,
   normalizeSourceOperationCapabilityTokens,
   SOURCE_REPO_PACKAGE_ICON_FILE,
@@ -23,6 +24,10 @@ export interface SourceRuntimeRegistryEntryInput {
   wasmPath?: string
   archivePath?: string
   packageIconPath?: string
+  packageAuthor?: string
+  packageDescription?: string
+  packageContentRating?: string
+  packageMinAppVersion?: string
   presentationDescription?: string
   presentationIcon?: string
 }
@@ -48,6 +53,10 @@ export interface SourceRuntimeRegistryEntry {
   wasmPath?: string
   archivePath?: string
   packageIconPath?: string
+  packageAuthor: string
+  packageDescription: string
+  packageContentRating: string
+  packageMinAppVersion: string
   presentationDescription: string
   presentationIcon: string
 }
@@ -85,6 +94,10 @@ export interface SourceRuntimeRegistryPersistedEntry {
   manifestPath?: string
   archivePath?: string
   packageIconPath?: string
+  packageAuthor?: string
+  packageDescription?: string
+  packageContentRating?: string
+  packageMinAppVersion?: string
   presentationDescription?: string
   presentationIcon?: string
 }
@@ -300,6 +313,10 @@ function manifestForReload(entry: SourceRuntimeRegistryPersistedEntry): LocalSou
       language: entry.language ?? 'en',
       type: entry.type ?? 'wasm-source-fixture',
       nsfw: entry.nsfw === true,
+      author: entry.packageAuthor ?? '',
+      description: entry.packageDescription ?? '',
+      contentRating: entry.packageContentRating ?? '',
+      minAppVersion: entry.packageMinAppVersion ?? '',
     },
     runtime: {
       abi: 'koma-source-abi-v0.1',
@@ -343,6 +360,10 @@ function persistedEntryFromRegistryEntry(entry: SourceRuntimeRegistryEntry): Sou
     manifestPath: entry.manifestPath,
     archivePath: entry.archivePath,
     packageIconPath: entry.packageIconPath,
+    packageAuthor: entry.packageAuthor,
+    packageDescription: entry.packageDescription,
+    packageContentRating: entry.packageContentRating,
+    packageMinAppVersion: entry.packageMinAppVersion,
     presentationDescription: entry.presentationDescription,
     presentationIcon: entry.presentationIcon,
   }
@@ -422,6 +443,21 @@ function persistedEntryShapeInvalid(entry: SourceRuntimeRegistryPersistedEntry):
   if (entry.presentationDescription !== undefined && typeof entry.presentationDescription !== 'string') {
     return true
   }
+  if (entry.packageAuthor !== undefined && typeof entry.packageAuthor !== 'string') {
+    return true
+  }
+  if (entry.packageDescription !== undefined && typeof entry.packageDescription !== 'string') {
+    return true
+  }
+  if (entry.packageContentRating !== undefined && typeof entry.packageContentRating !== 'string') {
+    return true
+  }
+  if (entry.packageMinAppVersion !== undefined && typeof entry.packageMinAppVersion !== 'string') {
+    return true
+  }
+  if (!isValidSourcePackageMinAppVersion(entry.packageMinAppVersion)) {
+    return true
+  }
   if (entry.presentationIcon !== undefined && typeof entry.presentationIcon !== 'string') {
     return true
   }
@@ -442,6 +478,9 @@ export class SourceRuntimeRegistry {
       return { ok: false, reasonCode: 'missing_manifest_id', sourceCount: this.entries.length }
     }
     if (!input.hashOk || input.network !== false || input.wasmBytes.byteLength <= 0) {
+      return { ok: false, reasonCode: 'validation_failed', sourceCount: this.entries.length }
+    }
+    if (!isValidSourcePackageMinAppVersion(input.manifest.package.minAppVersion)) {
       return { ok: false, reasonCode: 'validation_failed', sourceCount: this.entries.length }
     }
     for (let index = 0; index < this.entries.length; index += 1) {
@@ -471,6 +510,10 @@ export class SourceRuntimeRegistry {
       wasmPath: input.wasmPath,
       archivePath: input.archivePath,
       packageIconPath: input.packageIconPath,
+      packageAuthor: normalizePresentationText(input.manifest.package.author),
+      packageDescription: normalizePresentationText(input.manifest.package.description),
+      packageContentRating: normalizePresentationText(input.manifest.package.contentRating),
+      packageMinAppVersion: normalizePresentationText(input.manifest.package.minAppVersion),
       presentationDescription: normalizePresentationText(input.presentationDescription),
       presentationIcon: normalizePresentationText(input.presentationIcon),
     }
@@ -661,6 +704,10 @@ export class SourceRuntimeRegistry {
           wasmPath,
           archivePath: entry.archivePath,
           packageIconPath: entry.packageIconPath,
+          packageAuthor: entry.packageAuthor,
+          packageDescription: entry.packageDescription,
+          packageContentRating: entry.packageContentRating,
+          packageMinAppVersion: entry.packageMinAppVersion,
           presentationDescription: entry.presentationDescription,
           presentationIcon: entry.presentationIcon,
         })

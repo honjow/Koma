@@ -1,4 +1,4 @@
-import { common } from '@kit.AbilityKit'
+import { bundleManager, common } from '@kit.AbilityKit'
 import { buffer } from '@kit.ArkTS'
 import { cryptoFramework } from '@kit.CryptoArchitectureKit'
 import { fileIo as fs, ListFileOptions, picker } from '@kit.CoreFileKit'
@@ -12,6 +12,7 @@ import {
   SOURCE_REPO_PACKAGE_ICON_FILE,
   SOURCE_REPO_PACKAGE_ICON_MAX_BYTES,
   SOURCE_REPO_PACKAGE_WASM_FILE,
+  isValidSourcePackageMinAppVersion,
   validateSourcePackageIconFile,
   validateSourcePackageIconBytes,
   validateRestoredSourcePackage,
@@ -38,12 +39,46 @@ const APP_SOURCE_PACKAGES_DIR_NAME: string = 'packages'
 const APP_SOURCE_METADATA_FILE_NAME: string = 'source-runtime-registry.json'
 const SOURCE_ARCHIVE_SUFFIX_FILTER: string = 'Koma source packages(.koma, .koma-source, .koma-source.zip, .zip)|.koma,.koma-source,.koma-source.zip,.zip'
 
+function compareSourcePackageVersions(left: string, right: string): number {
+  const leftParts = left.split('.')
+  const rightParts = right.split('.')
+  for (let index = 0; index < 3; index += 1) {
+    const leftValue = Number(leftParts[index])
+    const rightValue = Number(rightParts[index])
+    if (leftValue !== rightValue) {
+      return leftValue > rightValue ? 1 : -1
+    }
+  }
+  return 0
+}
+
+export function isSourcePackageMinAppVersionSatisfied(minAppVersion: string | undefined): boolean {
+  const required = minAppVersion ?? ''
+  if (required.length === 0) {
+    return true
+  }
+  if (!isValidSourcePackageMinAppVersion(required)) {
+    return false
+  }
+  try {
+    const info = bundleManager.getBundleInfoForSelfSync(bundleManager.BundleFlag.GET_BUNDLE_INFO_DEFAULT)
+    const current = info.versionName
+    return isValidSourcePackageMinAppVersion(current) && compareSourcePackageVersions(current, required) >= 0
+  } catch (_err) {
+    return false
+  }
+}
+
 export interface InstalledSourcePackage {
   id: string
   name: string
   version: string
   lang: string
   nsfw: boolean
+  author: string
+  description: string
+  contentRating: string
+  minAppVersion: string
   enabled: boolean
   status: string
   smokeStatus: string
@@ -83,6 +118,27 @@ export interface SourcePackageRestoreResult {
   ok: boolean
   restoredCount: number
   reasonCode?: string
+}
+
+interface ValidatedSourcePackageBackup {
+  sourcePackage: SourcePackageBackupEntry
+  manifest: LocalSourcePackageManifest
+  wasmBytes: Uint8Array
+  iconBytes?: Uint8Array
+  sourceRepoLayout: boolean
+}
+
+interface SourcePackageBackupValidationResult {
+  value?: ValidatedSourcePackageBackup
+  reasonCode?: string
+}
+
+interface StagedSourcePackageBackup extends ValidatedSourcePackageBackup {
+  packageDir: string
+  archivePath: string
+  manifestPath: string
+  wasmPath: string
+  iconPath?: string
 }
 
 interface SourceInfoCapabilityRequestArgs {}
@@ -385,6 +441,10 @@ function sourcePackageFromEntry(entry: SourceRuntimeRegistryEntry): InstalledSou
     version: entry.manifestVersion,
     lang: entry.language,
     nsfw: entry.nsfw,
+    author: entry.packageAuthor,
+    description: entry.packageDescription,
+    contentRating: entry.packageContentRating,
+    minAppVersion: entry.packageMinAppVersion,
     enabled: entry.enabled,
     status: entry.importStatus,
     smokeStatus: diagnostic === undefined ? AppStrings.get('source_pkg_not_run') : (diagnostic.ok ? 'PASS' : 'FAIL'),
@@ -428,6 +488,86 @@ function restoredSourcePackageIconBytes(sourcePackage: SourcePackageBackupEntry)
   }
 }
 
+function validateSourcePackageBackupPayload(
+  sourcePackage: SourcePackageBackupEntry,
+): SourcePackageBackupValidationResult {
+  if (sourcePackage === undefined ||
+    typeof sourcePackage.sourceId !== 'string' ||
+    typeof sourcePackage.version !== 'string' ||
+    typeof sourcePackage.enabled !== 'boolean' ||
+    typeof sourcePackage.wasmBase64 !== 'string' ||
+    typeof sourcePackage.wasmByteCount !== 'number' ||
+    !Number.isInteger(sourcePackage.wasmByteCount) || sourcePackage.wasmByteCount <= 0) {
+    return { reasonCode: 'invalid_source_package_backup' }
+  }
+
+  const manifest = sourcePackage.manifest
+  if (manifest === undefined || manifest === null || Array.isArray(manifest) || typeof manifest !== 'object' ||
+    manifest.package === undefined || manifest.runtime === undefined ||
+    manifest.permissions === undefined || manifest.contentPolicy === undefined ||
+    typeof manifest.package.id !== 'string' || typeof manifest.package.version !== 'string') {
+    return { reasonCode: 'invalid_source_package_manifest' }
+  }
+  if (manifest.package.id !== sourcePackage.sourceId || manifest.package.version !== sourcePackage.version) {
+    return { reasonCode: 'source_package_identity_mismatch' }
+  }
+
+  const hasIconPayload = sourcePackage.iconPngBase64 !== undefined || sourcePackage.iconByteCount !== undefined
+  const iconBytes = restoredSourcePackageIconBytes(sourcePackage)
+  if (hasIconPayload && iconBytes === undefined) {
+    return { reasonCode: 'invalid_icon' }
+  }
+
+  let wasmBytes: Uint8Array
+  try {
+    wasmBytes = base64ToBytes(sourcePackage.wasmBase64)
+  } catch (_err) {
+    return { reasonCode: 'invalid_source_package_backup' }
+  }
+  if (wasmBytes.byteLength !== sourcePackage.wasmByteCount) {
+    return { reasonCode: 'source_package_byte_count_mismatch' }
+  }
+
+  let validationReason: string | undefined
+  try {
+    validationReason = validateRestoredSourcePackage(manifest, wasmBytes)
+  } catch (_err) {
+    return { reasonCode: 'invalid_source_package_manifest' }
+  }
+  if (validationReason !== undefined) {
+    return { reasonCode: validationReason }
+  }
+  if (!isSourcePackageMinAppVersionSatisfied(manifest.package.minAppVersion)) {
+    return { reasonCode: 'app_version_unsupported' }
+  }
+
+  const sourceRepoLayout = manifest.runtime.wasmPath === SOURCE_REPO_PACKAGE_WASM_FILE
+  if (iconBytes !== undefined && !sourceRepoLayout) {
+    return { reasonCode: 'invalid_icon' }
+  }
+  return {
+    value: {
+      sourcePackage,
+      manifest,
+      wasmBytes,
+      iconBytes,
+      sourceRepoLayout,
+    },
+  }
+}
+
+async function removeStagedSourcePackageBackups(
+  context: common.UIAbilityContext,
+  packages: StagedSourcePackageBackup[],
+): Promise<void> {
+  for (let index = 0; index < packages.length; index += 1) {
+    try {
+      await removeAppSourcePackageDir(context, packages[index].packageDir)
+    } catch (_err) {
+    }
+  }
+}
+
 function manifestWasmPathFromRegistryEntry(entry: SourceRuntimeRegistryEntry): string {
   const wasmPath = entry.wasmPath ?? ''
   if (wasmPath.endsWith(SOURCE_REPO_PACKAGE_WASM_FILE)) {
@@ -446,6 +586,10 @@ function manifestFromRegistryEntry(entry: SourceRuntimeRegistryEntry): LocalSour
       language: entry.language,
       type: entry.type,
       nsfw: entry.nsfw,
+      author: entry.packageAuthor,
+      description: entry.packageDescription,
+      contentRating: entry.packageContentRating,
+      minAppVersion: entry.packageMinAppVersion,
     },
     runtime: {
       abi: 'koma-source-abi-v0.1',
@@ -583,51 +727,34 @@ export async function restoreSourcePackagesFromBackup(
   context: common.UIAbilityContext,
   packages: SourcePackageBackupEntry[],
 ): Promise<SourcePackageRestoreResult> {
+  // Validate the complete backup before replacing any existing package. A
+  // later incompatibility must not leave earlier replacements unpersisted.
+  const validatedPackages: ValidatedSourcePackageBackup[] = []
+  const sourceIds: string[] = []
+  for (let index = 0; index < packages.length; index += 1) {
+    const validation = validateSourcePackageBackupPayload(packages[index])
+    if (validation.value === undefined) {
+      return { ok: false, restoredCount: 0, reasonCode: validation.reasonCode ?? 'invalid_source_package_backup' }
+    }
+    const sourceId = validation.value.manifest.package.id.trim()
+    if (sourceIds.indexOf(sourceId) >= 0) {
+      return { ok: false, restoredCount: 0, reasonCode: 'invalid_source_package_backup' }
+    }
+    sourceIds.push(sourceId)
+    validatedPackages.push(validation.value)
+  }
+
   ensureDirSync(appSourceRoot(context))
   ensureDirSync(appSourcePackagesRoot(context))
-  let restoredCount = 0
-  for (let index = 0; index < packages.length; index += 1) {
-    const sourcePackage = packages[index]
-    if (sourcePackage === undefined ||
-      typeof sourcePackage.sourceId !== 'string' ||
-      typeof sourcePackage.version !== 'string' ||
-      typeof sourcePackage.enabled !== 'boolean' ||
-      typeof sourcePackage.wasmBase64 !== 'string' ||
-      typeof sourcePackage.wasmByteCount !== 'number') {
-      return { ok: false, restoredCount, reasonCode: 'invalid_source_package_backup' }
-    }
-    const manifest = sourcePackage.manifest
-    if (manifest === undefined || manifest === null || Array.isArray(manifest) || typeof manifest !== 'object') {
-      return { ok: false, restoredCount, reasonCode: 'invalid_source_package_manifest' }
-    }
-    if (manifest.package === undefined || manifest.runtime === undefined ||
-      manifest.permissions === undefined || manifest.contentPolicy === undefined) {
-      return { ok: false, restoredCount, reasonCode: 'invalid_source_package_manifest' }
-    }
-    if (manifest.package.id !== sourcePackage.sourceId || manifest.package.version !== sourcePackage.version) {
-      return { ok: false, restoredCount, reasonCode: 'source_package_identity_mismatch' }
-    }
-
-    const hasIconPayload = sourcePackage.iconPngBase64 !== undefined || sourcePackage.iconByteCount !== undefined
-    const iconBytes = restoredSourcePackageIconBytes(sourcePackage)
-    if (hasIconPayload && iconBytes === undefined) {
-      return { ok: false, restoredCount, reasonCode: 'invalid_icon' }
-    }
-
-    const wasmBytes = base64ToBytes(sourcePackage.wasmBase64)
-    if (wasmBytes.byteLength !== sourcePackage.wasmByteCount) {
-      return { ok: false, restoredCount, reasonCode: 'source_package_byte_count_mismatch' }
-    }
-    const validationReason = validateRestoredSourcePackage(manifest, wasmBytes)
-    if (validationReason !== undefined) {
-      return { ok: false, restoredCount, reasonCode: validationReason }
-    }
-    const sourceRepoLayout = manifest.runtime.wasmPath === SOURCE_REPO_PACKAGE_WASM_FILE
-    if (iconBytes !== undefined && !sourceRepoLayout) {
-      return { ok: false, restoredCount, reasonCode: 'invalid_icon' }
-    }
-
-    const packageDir = joinSourceRuntimePath(appSourcePackagesRoot(context), `backup-${Date.now()}-${index}`)
+  // Stage every new package, including ImageKit's decode check, before the
+  // installed registry or an existing package directory is touched.
+  const stagedPackages: StagedSourcePackageBackup[] = []
+  const restoreRunId = Date.now()
+  for (let index = 0; index < validatedPackages.length; index += 1) {
+    const validated = validatedPackages[index]
+    const sourcePackage = validated.sourcePackage
+    const manifest = validated.manifest
+    const packageDir = joinSourceRuntimePath(appSourcePackagesRoot(context), `backup-${restoreRunId}-${index}`)
     const archivePath = joinSourceRuntimePath(packageDir, 'backup-source-package.json')
     const importedRoot = joinSourceRuntimePath(packageDir, 'package')
     // Backup payloads retain the normalized host manifest, not the original
@@ -635,62 +762,127 @@ export async function restoreSourcePackagesFromBackup(
     // the trusted runtime wasm path remains the sole layout discriminator.
     const manifestPath = joinSourceRuntimePath(importedRoot, SOURCE_PACKAGE_MANIFEST_FILE)
     const wasmPath = joinSourceRuntimePath(importedRoot, manifest.runtime.wasmPath)
-    const iconPath = sourceRepoLayout && iconBytes !== undefined ?
+    const iconPath = validated.sourceRepoLayout && validated.iconBytes !== undefined ?
       joinSourceRuntimePath(importedRoot, SOURCE_REPO_PACKAGE_ICON_FILE) : undefined
-    ensureDirSync(packageDir)
-    ensureDirSync(importedRoot)
-    writeTextSync(archivePath, JSON.stringify({
-      sourceId: sourcePackage.sourceId,
-      version: sourcePackage.version,
-      restoredAt: Date.now(),
-    }))
-    writeTextSync(manifestPath, JSON.stringify(manifest))
-    writeBytesSync(wasmPath, wasmBytes)
-    if (iconBytes !== undefined && iconPath !== undefined) {
-      writeBytesSync(iconPath, iconBytes)
-      if (!await validateSourcePackageIconFile(iconPath)) {
-        try {
-          await removeAppSourcePackageDir(context, packageDir)
-        } catch (_err) {
+    try {
+      ensureDirSync(packageDir)
+      ensureDirSync(importedRoot)
+      writeTextSync(archivePath, JSON.stringify({
+        sourceId: sourcePackage.sourceId,
+        version: sourcePackage.version,
+        restoredAt: restoreRunId,
+      }))
+      writeTextSync(manifestPath, JSON.stringify(manifest))
+      writeBytesSync(wasmPath, validated.wasmBytes)
+      if (validated.iconBytes !== undefined && iconPath !== undefined) {
+        writeBytesSync(iconPath, validated.iconBytes)
+        if (!await validateSourcePackageIconFile(iconPath)) {
+          await removeStagedSourcePackageBackups(context, stagedPackages)
+          try {
+            await removeAppSourcePackageDir(context, packageDir)
+          } catch (_err) {
+          }
+          return { ok: false, restoredCount: 0, reasonCode: 'invalid_icon' }
         }
-        return { ok: false, restoredCount, reasonCode: 'invalid_icon' }
       }
-    }
-
-    const existing = appSourceRuntimeRegistry.remove(sourcePackage.sourceId)
-    if (existing?.archivePath !== undefined) {
-      const existingDir = existing.archivePath.replace(/\\/g, '/').replace(/\/[^/]*$/, '')
-      try {
-        await removeAppSourcePackageDir(context, existingDir)
-      } catch (_err) {
-      }
-    }
-    const registered = appSourceRuntimeRegistry.register({
-      sourceId: sourcePackage.sourceId,
-      route: IMPORTED_SOURCE_ROUTE,
-      importStatus: 'imported',
-      manifest,
-      wasmBytes,
-      hashOk: true,
-      network: false,
-      enabled: sourcePackage.enabled,
-      presentationDescription: sourcePackage.presentationDescription,
-      presentationIcon: sourcePackage.presentationIcon,
-      manifestPath,
-      wasmPath,
-      archivePath,
-      packageIconPath: iconPath,
-    })
-    if (!registered.ok) {
+      stagedPackages.push({
+        sourcePackage,
+        manifest,
+        wasmBytes: validated.wasmBytes,
+        iconBytes: validated.iconBytes,
+        sourceRepoLayout: validated.sourceRepoLayout,
+        packageDir,
+        archivePath,
+        manifestPath,
+        wasmPath,
+        iconPath,
+      })
+    } catch (_err) {
+      await removeStagedSourcePackageBackups(context, stagedPackages)
       try {
         await removeAppSourcePackageDir(context, packageDir)
-      } catch (_err) {
+      } catch (_cleanupErr) {
       }
-      return { ok: false, restoredCount, reasonCode: registered.reasonCode ?? 'source_package_register_failed' }
+      return { ok: false, restoredCount: 0, reasonCode: 'invalid_source_package_backup' }
     }
-    restoredCount += 1
   }
-  persistInstalledSources(context)
+
+  // Keep old package directories until the new registry is persisted so a
+  // failed replacement can restore the previous in-memory entries.
+  const previousEntries: SourceRuntimeRegistryEntry[] = []
+  const registeredSourceIds: string[] = []
+  let restoreFailureReason: string | undefined
+  for (let index = 0; index < stagedPackages.length; index += 1) {
+    const staged = stagedPackages[index]
+    const sourceId = staged.sourcePackage.sourceId
+    const existing = appSourceRuntimeRegistry.remove(sourceId)
+    if (existing !== undefined) {
+      previousEntries.push(existing)
+    }
+    const registered = appSourceRuntimeRegistry.register({
+      sourceId,
+      route: IMPORTED_SOURCE_ROUTE,
+      importStatus: 'imported',
+      manifest: staged.manifest,
+      wasmBytes: staged.wasmBytes,
+      hashOk: true,
+      network: false,
+      enabled: staged.sourcePackage.enabled,
+      presentationDescription: staged.sourcePackage.presentationDescription,
+      presentationIcon: staged.sourcePackage.presentationIcon,
+      manifestPath: staged.manifestPath,
+      wasmPath: staged.wasmPath,
+      archivePath: staged.archivePath,
+      packageIconPath: staged.iconPath,
+    })
+    if (!registered.ok) {
+      restoreFailureReason = registered.reasonCode ?? 'source_package_register_failed'
+      break
+    }
+    registeredSourceIds.push(sourceId)
+  }
+
+  if (restoreFailureReason !== undefined) {
+    for (let index = 0; index < registeredSourceIds.length; index += 1) {
+      appSourceRuntimeRegistry.remove(registeredSourceIds[index])
+    }
+    for (let index = 0; index < previousEntries.length; index += 1) {
+      restoreRuntimeRegistryEntry(previousEntries[index])
+    }
+    await removeStagedSourcePackageBackups(context, stagedPackages)
+    return { ok: false, restoredCount: 0, reasonCode: restoreFailureReason }
+  }
+
+  try {
+    persistInstalledSources(context)
+  } catch (_err) {
+    for (let index = 0; index < registeredSourceIds.length; index += 1) {
+      appSourceRuntimeRegistry.remove(registeredSourceIds[index])
+    }
+    for (let index = 0; index < previousEntries.length; index += 1) {
+      restoreRuntimeRegistryEntry(previousEntries[index])
+    }
+    try {
+      persistInstalledSources(context)
+    } catch (_restoreErr) {
+    }
+    await removeStagedSourcePackageBackups(context, stagedPackages)
+    return { ok: false, restoredCount: 0, reasonCode: 'source_registry_persist_failed' }
+  }
+
+  for (let index = 0; index < previousEntries.length; index += 1) {
+    const archivePath = previousEntries[index].archivePath
+    if (archivePath === undefined) {
+      continue
+    }
+    const existingDir = archivePath.replace(/\\/g, '/').replace(/\/[^/]*$/, '')
+    try {
+      await removeAppSourcePackageDir(context, existingDir)
+    } catch (_err) {
+    }
+  }
+
+  const restoredCount = stagedPackages.length
   if (restoredCount > 0) {
     SourceRuntimeStateBridge.notifyChanged()
   }
@@ -711,12 +903,20 @@ export function reloadInstalledSourcePackages(context: common.UIAbilityContext):
   let allRegistered: boolean = true
   for (let index = 0; index < entries.length; index += 1) {
     const entry = entries[index]
+    if (!isSourcePackageMinAppVersionSatisfied(entry.packageMinAppVersion)) {
+      allRegistered = false
+      continue
+    }
     const existing = appSourceRuntimeRegistry.lookup(entry.sourceId).entry
     if (existing !== undefined) {
       const unchanged = existing.importStatus === entry.importStatus &&
         existing.manifestVersion === entry.manifestVersion &&
         existing.wasmByteCount === entry.wasmByteCount &&
-        existing.packageIconPath === entry.packageIconPath
+        existing.packageIconPath === entry.packageIconPath &&
+        existing.packageAuthor === entry.packageAuthor &&
+        existing.packageDescription === entry.packageDescription &&
+        existing.packageContentRating === entry.packageContentRating &&
+        existing.packageMinAppVersion === entry.packageMinAppVersion
       if (unchanged) {
         continue
       }
@@ -737,6 +937,10 @@ export function reloadInstalledSourcePackages(context: common.UIAbilityContext):
           language: entry.language,
           type: entry.type,
           nsfw: entry.nsfw,
+          author: entry.packageAuthor,
+          description: entry.packageDescription,
+          contentRating: entry.packageContentRating,
+          minAppVersion: entry.packageMinAppVersion,
         },
         runtime: {
           abi: 'koma-source-abi-v0.1',
@@ -845,6 +1049,11 @@ async function registerSourcePackageFromBytes(
       await removeAppSourcePackageDir(context, packageDir)
       console.error('[SourceManager] step=import_fail reason=source_id_mismatch expected=' + expectedSourceId + ' actual=' + sourceId)
       return { ok: false, reasonCode: 'source_id_mismatch' }
+    }
+    if (!isSourcePackageMinAppVersionSatisfied(imported.manifest.package.minAppVersion)) {
+      await removeAppSourcePackageDir(context, packageDir)
+      console.error('[SourceManager] step=import_fail reason=app_version_unsupported')
+      return { ok: false, reasonCode: 'app_version_unsupported' }
     }
     removedExisting = appSourceRuntimeRegistry.remove(sourceId)
     const replacementEnabled = removedExisting?.enabled ?? true

@@ -17,6 +17,10 @@ Source-repo packages use `manifest.json` plus `source.wasm`. The app normalizes 
   "version": "0.1.0",
   "lang": "en",
   "nsfw": false,
+  "author": "Example author",
+  "description": "What this source provides.",
+  "contentRating": "safe",
+  "minAppVersion": "0.1.0",
   "runtime": "wasm-source",
   "entry": "source.wasm",
   "wasmSha256": "<optional sha256 hex>",
@@ -45,7 +49,7 @@ Source-repo packages use `manifest.json` plus `source.wasm`. The app normalizes 
 }
 ```
 
-`id`, `name`, and `version` are required. `id` must be non-empty and at most 96 characters. `capabilities.operations` is optional and may declare supported runtime operations using operation names such as `get_home`, `get_filters`, or `get_settings`; Koma normalizes these into a bounded display summary and ignores unknown operation names. Koma currently rejects packages that request network access, marketplace behavior, built-in-source behavior, remote install behavior, unsafe archive entries, missing WASM, or checksum mismatches.
+`id`, `name`, and `version` are required. `author`, `description`, `contentRating`, and `minAppVersion` are optional package-owned source metadata; when present they are preserved through local import, update, restart, and backup restore, then shown only in Source Package Manager details. A non-empty `minAppVersion` must be canonical `MAJOR.MINOR.PATCH` text such as `0.1.0`; a missing or empty value means no host-version floor. `id` must be non-empty and at most 96 characters. `capabilities.operations` is optional and may declare supported runtime operations using operation names such as `get_home`, `get_filters`, or `get_settings`; Koma normalizes these into a bounded display summary and ignores unknown operation names. Koma currently rejects packages that request network access, marketplace behavior, built-in-source behavior, remote install behavior, unsafe archive entries, missing WASM, checksum mismatches, malformed minimum-version metadata, or a `minAppVersion` newer than the running Koma app.
 
 ## Runtime request envelope
 
@@ -100,12 +104,12 @@ icon.png (optional)
 ```
 
 `icon.png`, when present, is the installed source's local identity icon. It
-must be one root non-paletted 8- or 16-bit PNG (grayscale, RGB, grayscale with
-alpha, or RGBA), at most 1 MiB, with dimensions from 1 to 1024 px in each
-direction. The host verifies the PNG structure/CRC and performs an ImageKit
-decode before it is shown; the app does not fetch arbitrary index icon URLs for
-installed-source UI. The legacy/internal fixture layout does not allow
-`icon.png`.
+must be one root PNG, at most 1 MiB, with dimensions from 1 to 1024 px in each
+direction. Supported layouts are 8-bit indexed palette PNG, or 8-/16-bit
+grayscale, RGB, grayscale-with-alpha, and RGBA PNG. The host verifies the PNG
+structure/CRC and performs an ImageKit decode before it is shown; the app does
+not fetch arbitrary index icon URLs for installed-source UI. The legacy/internal
+fixture layout does not allow `icon.png`.
 
 Koma accepts picker suffixes `.koma`, `.koma-source`, `.koma-source.zip`, and `.zip`, but validation is based on archive contents rather than filename. Archive entry names must be relative, unique, non-hidden, non-symlink, and must not contain path traversal or backslashes.
 
@@ -128,7 +132,7 @@ Source index entries are user-configured and have this shape:
 }
 ```
 
-`pkg` may be relative to the configured index URL. The index `icon` field is
+`pkg` must be a safe relative `.koma` path resolved from the configured index document's directory. The index `icon` field is
 descriptive distribution metadata; installed-source identity comes from the
 validated package-owned `icon.png`, not an arbitrary remote image request. If
 `sha256` is present, Koma verifies the downloaded `.koma` bytes before import.

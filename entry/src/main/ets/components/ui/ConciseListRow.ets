@@ -21,6 +21,13 @@ export struct ConciseListRow {
   @Param leadingImageRadius: number = 0
   @Param leadingIcon: Resource | undefined = undefined
   @Param leadingIconBackgroundColor: ResourceColor | undefined = undefined
+  // Source rows use one host-owned identity slot. It is rendered inside this
+  // component because HDS invokes PrefixCustomBuilder through NAPI; callers
+  // must not construct another component or global builder across that edge.
+  @Param hasSourceIdentityPrefix: boolean = false
+  @Param sourceIdentityIconUri: string = ''
+  @Param sourceIdentityFallbackIcon: Resource = $r('sys.symbol.compass')
+  @Param sourceIdentityFallbackColor: ResourceColor = ThemeConstants.SOURCE_WASM_COLOR
   @Param count: number = -1
   @Param destructive: boolean = false
   @Param showChevron: boolean = true
@@ -35,6 +42,11 @@ export struct ConciseListRow {
   @Param primaryColor: ResourceColor | undefined = undefined
   @Param secondaryColor: ResourceColor | undefined = undefined
   @Param suffixPaddingRight: Length = ThemeConstants.SPACE_MD
+  // Custom prefixes can opt into the same text alignment as HDS leading
+  // icons without changing older custom-prefix consumers (such as covers).
+  @Param prefixActsAsLeading: boolean = false
+  @Param prefixPaddingLeft: Length = ThemeConstants.SPACE_SM
+  @Param prefixPaddingRight: Length = ThemeConstants.SPACE_SM
   // Zero means “take the enclosing GroupedListSection's computed surface”.
   // Standalone rows have no provider and retain LIST_ROW_RADIUS instead.
   @Param surfaceRadius: number = 0
@@ -47,7 +59,8 @@ export struct ConciseListRow {
   @Event counterIncreaseAction?: () => void
 
   private hasLeading(): boolean {
-    return this.leadingImageUrl.length > 0 || this.leadingIcon !== undefined
+    return this.leadingImageUrl.length > 0 || this.leadingIcon !== undefined || this.hasSourceIdentityPrefix ||
+      this.prefixActsAsLeading
   }
 
   private primaryTextModifier(): TextModifier {
@@ -115,11 +128,13 @@ export struct ConciseListRow {
   @Builder
   private WrappedPrefixBuilder() {
     Row() {
-      if (this.prefixBuilderParam) {
+      if (this.hasSourceIdentityPrefix) {
+        this.SourceIdentityPrefix()
+      } else if (this.prefixBuilderParam) {
         this.prefixBuilderParam()
       }
     }
-    .padding({ left: ThemeConstants.SPACE_SM, right: ThemeConstants.SPACE_SM })
+    .padding({ left: this.prefixPaddingLeft, right: this.prefixPaddingRight })
   }
 
   private suffixItem(): SuffixTextAndArrow | SuffixText | SuffixCustomBuilder | SuffixSwitch | undefined {
@@ -259,8 +274,35 @@ export struct ConciseListRow {
     .padding({ left: ThemeConstants.SPACE_MD, right: ThemeConstants.SPACE_SM })
   }
 
+  @Builder
+  private SourceIdentityPrefix() {
+    Stack({ alignContent: Alignment.Center }) {
+      if (this.sourceIdentityIconUri.trim().length > 0) {
+        Image(this.sourceIdentityIconUri)
+          .width('100%')
+          .height('100%')
+          .objectFit(ImageFit.Contain)
+          .interpolation(ImageInterpolation.Medium)
+      } else {
+        Stack() {
+          SymbolGlyph(this.sourceIdentityFallbackIcon)
+            .fontSize(18)
+            .fontColor([Color.White])
+        }
+        .width('100%')
+        .height('100%')
+        .borderRadius(ThemeConstants.SOURCE_LIST_ICON_RADIUS)
+        .backgroundColor(this.sourceIdentityFallbackColor)
+      }
+    }
+    .width(ThemeConstants.SOURCE_LIST_ICON_SIZE)
+    .height(ThemeConstants.SOURCE_LIST_ICON_SIZE)
+    .borderRadius(ThemeConstants.SOURCE_LIST_ICON_RADIUS)
+    .clip(true)
+  }
+
   private prefixItem(): PrefixImage | PrefixCustomBuilder | undefined {
-    if (this.prefixBuilderParam) {
+    if (this.hasSourceIdentityPrefix || this.prefixBuilderParam) {
       return new PrefixCustomBuilder(() => {
         this.WrappedPrefixBuilder()
       })

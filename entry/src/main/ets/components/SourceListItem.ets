@@ -114,32 +114,16 @@ export struct SourceListItem {
   }
 
   @Builder
-  private SourceRowWithIcon() {
+  private SourceRow() {
     ConciseListRow({
       title: this.displayTitle(),
       subtitle: this.displaySubtitle(),
       subtitleMaxLines: 1,
-      leadingImageUrl: this.presentationIconUri(),
-      leadingImageSize: ThemeConstants.SOURCE_LIST_ICON_SIZE,
-      leadingImageRadius: ThemeConstants.SOURCE_LIST_ICON_RADIUS,
-      showChevron: false,
-      action: () => {
-        this.activate()
-      },
-      suffixBuilderParam: () => {
-        this.SourceSuffix()
-      },
-    })
-  }
-
-  @Builder
-  private SourceRowWithoutIcon() {
-    ConciseListRow({
-      title: this.displayTitle(),
-      subtitle: this.displaySubtitle(),
-      subtitleMaxLines: 1,
-      leadingIcon: $r('sys.symbol.compass'),
-      leadingIconBackgroundColor: this.accentColor,
+      hasSourceIdentityPrefix: true,
+      sourceIdentityIconUri: this.presentationIconUri(),
+      sourceIdentityFallbackColor: this.accentColor,
+      prefixPaddingLeft: ThemeConstants.SPACE_MD,
+      prefixPaddingRight: ThemeConstants.SPACE_SM,
       showChevron: false,
       action: () => {
         this.activate()
@@ -151,10 +135,6 @@ export struct SourceListItem {
   }
 
   build() {
-    if (this.presentationIconUri().length > 0) {
-      this.SourceRowWithIcon()
-    } else {
-      this.SourceRowWithoutIcon()
-    }
+    this.SourceRow()
   }
 }

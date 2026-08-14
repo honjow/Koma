@@ -19,6 +19,12 @@ export const SOURCE_REPO_PACKAGE_ICON_MAX_DIMENSION: number = 1024
 export const SOURCE_PACKAGE_WASM_SHA256: string = '255163710202d77fa218f1ccf96fbdcc7ec954b8f8bd1a04e6f15426a2d00161'
 export const SOURCE_PACKAGE_WASM_MAX_BYTES: number = 131072
 
+// Source packages deliberately use the same compact version shape as the
+// host app's versionName. Keeping this parser here makes archive import,
+// backup restore, index checks, and cold reload reject the same malformed
+// value instead of each path interpreting it differently.
+const SOURCE_PACKAGE_MIN_APP_VERSION_PATTERN: RegExp = /^(0|[1-9][0-9]{0,8})\.(0|[1-9][0-9]{0,8})\.(0|[1-9][0-9]{0,8})$/
+
 export type SourceArchiveValidationReason =
   'checksum_mismatch' |
   'network_not_allowed' |
@@ -52,6 +58,12 @@ export interface LocalSourcePackageInfo {
   language: string
   type: string
   nsfw: boolean
+  // Optional package-owned identity metadata. These are deliberately
+  // independent from the source-index presentation fields kept by the host.
+  author?: string
+  description?: string
+  contentRating?: string
+  minAppVersion?: string
 }
 
 export interface LocalSourcePackageRuntime {
@@ -91,6 +103,10 @@ interface SourceRepoPackageManifest {
   lang?: string
   language?: string
   nsfw?: boolean
+  author?: string
+  description?: string
+  contentRating?: string
+  minAppVersion?: string
   runtime?: string
   entry?: string
   wasmSha256?: string
@@ -377,10 +393,10 @@ function validateArchiveEntries(archiveBytes: Uint8Array): SourceArchiveValidati
 }
 
 export function validateSourcePackageIconBytes(iconBytes: Uint8Array): boolean {
-  // The host only permits a compact non-paletted PNG layout it can validate
-  // before exposing the asset to ArkUI: signature + IHDR + one-or-more IDAT
-  // chunks + IEND. It does not accept arbitrary PNG ancillary chunks as
-  // package code assets.
+  // The host only permits a compact standard PNG layout it can validate before
+  // exposing the asset to ArkUI: signature + IHDR + one-or-more IDAT chunks +
+  // IEND. Indexed PNG is limited to 8-bit so an official site touch icon can
+  // retain its original pixels; ImageKit still performs the final decode.
   if (iconBytes.byteLength < 57 || iconBytes.byteLength > SOURCE_REPO_PACKAGE_ICON_MAX_BYTES) {
     return false
   }
@@ -403,8 +419,11 @@ export function validateSourcePackageIconBytes(iconBytes: Uint8Array): boolean {
   }
   const bitDepth = iconBytes[24]
   const colorType = iconBytes[25]
-  if ((bitDepth !== 8 && bitDepth !== 16) ||
-    (colorType !== 0 && colorType !== 2 && colorType !== 4 && colorType !== 6) ||
+  const directColorType = colorType === 0 || colorType === 2 || colorType === 4 || colorType === 6
+  const indexedColorType = colorType === 3
+  if ((!directColorType && !indexedColorType) ||
+    (directColorType && bitDepth !== 8 && bitDepth !== 16) ||
+    (indexedColorType && bitDepth !== 8) ||
     iconBytes[26] !== 0 || iconBytes[27] !== 0 || iconBytes[28] !== 0) {
     return false
   }
@@ -490,6 +509,22 @@ function isPlainObject(value: Object | null): boolean {
 
 function nonEmptyString(value: Object | undefined): string | undefined {
   return typeof value === 'string' && value.length > 0 ? value : undefined
+}
+
+function optionalPackageMetadataText(value: Object | undefined): string | undefined {
+  if (typeof value !== 'string') {
+    return undefined
+  }
+  const normalized = value.trim()
+  return normalized.length > 0 ? normalized : undefined
+}
+
+function packageMetadataValueInvalid(value: Object | undefined): boolean {
+  return value !== undefined && typeof value !== 'string'
+}
+
+export function isValidSourcePackageMinAppVersion(value: string | undefined): boolean {
+  return value === undefined || value.length === 0 || SOURCE_PACKAGE_MIN_APP_VERSION_PATTERN.test(value)
 }
 
 function optionalBoolean(value: Object | undefined, fallback: boolean): boolean {
@@ -578,6 +613,13 @@ function parseSourceRepoPackageManifest(raw: string, wasmSize: number): LocalSou
   if (id === undefined || name === undefined || version === undefined || id.length > 96) {
     return undefined
   }
+  if (packageMetadataValueInvalid(parsed.author) || packageMetadataValueInvalid(parsed.description) ||
+    packageMetadataValueInvalid(parsed.contentRating) || packageMetadataValueInvalid(parsed.minAppVersion)) {
+    return undefined
+  }
+  if (typeof parsed.minAppVersion === 'string' && !isValidSourcePackageMinAppVersion(parsed.minAppVersion)) {
+    return undefined
+  }
 
   const capabilities = isPlainObject(parsed.capabilities as Object | null) ? parsed.capabilities : undefined
   const contentPolicy = isPlainObject(parsed.contentPolicy as Object | null) ? parsed.contentPolicy : undefined
@@ -592,6 +634,10 @@ function parseSourceRepoPackageManifest(raw: string, wasmSize: number): LocalSou
       language: nonEmptyString(parsed.language) ?? nonEmptyString(parsed.lang) ?? 'multi',
       type: nonEmptyString(parsed.runtime) ?? 'wasm-source',
       nsfw: optionalBoolean(parsed.nsfw, false),
+      author: optionalPackageMetadataText(parsed.author),
+      description: optionalPackageMetadataText(parsed.description),
+      contentRating: optionalPackageMetadataText(parsed.contentRating),
+      minAppVersion: optionalPackageMetadataText(parsed.minAppVersion),
     },
     runtime: {
       abi: 'koma-source-abi-v0.1',
@@ -626,6 +672,13 @@ export function validateNormalizedManifest(manifest: LocalSourcePackageManifest)
     return 'network_not_allowed'
   }
   if (manifest.runtime.wasmPath !== SOURCE_PACKAGE_WASM_FILE && manifest.runtime.wasmPath !== SOURCE_REPO_PACKAGE_WASM_FILE) {
+    return 'manifest_invalid'
+  }
+  if (packageMetadataValueInvalid(manifest.package.author) || packageMetadataValueInvalid(manifest.package.description) ||
+    packageMetadataValueInvalid(manifest.package.contentRating) || packageMetadataValueInvalid(manifest.package.minAppVersion)) {
+    return 'manifest_invalid'
+  }
+  if (!isValidSourcePackageMinAppVersion(manifest.package.minAppVersion)) {
     return 'manifest_invalid'
   }
   if (manifest.operationCapabilities !== undefined &&

@@ -353,12 +353,24 @@ export struct SourcePackageManagerPage {
     return 0
   }
 
+  private entryDeclaresPackageIcon(entry: SourceIndexEntry): boolean {
+    return entry.icon.trim().length > 0
+  }
+
+  private needsPackageIdentityIconRepair(source: InstalledSourcePackage, entry: SourceIndexEntry): boolean {
+    return this.entryDeclaresPackageIcon(entry) && (source.icon?.trim().length ?? 0) === 0
+  }
+
+  private updateAvailableFor(source: InstalledSourcePackage, entry: SourceIndexEntry): boolean {
+    return this.compareVersion(entry.version, source.version) > 0 || this.needsPackageIdentityIconRepair(source, entry)
+  }
+
   private hasUpdate(entry: SourceIndexEntry): boolean {
     const installed = this.installedPackage(entry.id)
     if (installed === undefined || entry.version.length === 0 || installed.version.length === 0) {
       return false
     }
-    return this.compareVersion(entry.version, installed.version) > 0
+    return this.updateAvailableFor(installed, entry)
   }
 
   private missingIndexEntries(): SourceIndexEntry[] {
@@ -591,7 +603,9 @@ export struct SourcePackageManagerPage {
         }
         result.entries.forEach((entry: SourceIndexEntry) => {
           const existing = candidates[entry.id]
-          if (existing === undefined || this.compareVersion(entry.version, existing.entry.version) > 0) {
+        if (existing === undefined || this.compareVersion(entry.version, existing.entry.version) > 0 ||
+          (this.compareVersion(entry.version, existing.entry.version) === 0 && this.entryDeclaresPackageIcon(entry) &&
+            !this.entryDeclaresPackageIcon(existing.entry))) {
             candidates[entry.id] = {
               entry,
               indexUrl,
@@ -629,7 +643,7 @@ export struct SourcePackageManagerPage {
           return
         }
         const entry = candidate.entry
-        if (entry.version.length > 0 && source.version.length > 0 && this.compareVersion(entry.version, source.version) > 0) {
+        if (entry.version.length > 0 && source.version.length > 0 && this.updateAvailableFor(source, entry)) {
           updateCount += 1
           nextStatuses.push({
             sourceId: source.id,
@@ -1583,12 +1597,29 @@ export struct SourcePackageManagerPage {
     return this.sourceIndexTrustSummary(entry).capabilitySummaryLabel
   }
 
+  private sourceContentRatingLabel(source: InstalledSourcePackage): string {
+    if (source.nsfw) {
+      return 'NSFW'
+    }
+    const rating = source.contentRating.trim().toLowerCase()
+    if (rating === 'safe') {
+      return t('source_pkg_rating_all_ages')
+    }
+    if (rating === 'suggestive') {
+      return t('source_pkg_rating_suggestive')
+    }
+    if (rating.length === 0 || rating === 'unknown') {
+      return t('source_pkg_rating_unknown')
+    }
+    return source.contentRating
+  }
+
   private sourceMetaText(source: InstalledSourcePackage): string {
     const parts: string[] = ['v' + source.version]
     if (source.lang.length > 0) {
       parts.push(source.lang)
     }
-    parts.push(source.nsfw ? 'NSFW' : t('source_pkg_rating_all_ages'))
+    parts.push(this.sourceContentRatingLabel(source))
     parts.push(source.status)
     return parts.join(' · ')
   }
@@ -1599,6 +1630,11 @@ export struct SourcePackageManagerPage {
       parts.push(source.lang)
     }
     return parts.join(' · ')
+  }
+
+  private hasSourcePackageMetadata(source: InstalledSourcePackage): boolean {
+    return source.description.length > 0 || source.author.length > 0 ||
+      source.contentRating.length > 0 || source.minAppVersion.length > 0
   }
 
   private sourceSettingsText(source: InstalledSourcePackage): string {
@@ -1614,7 +1650,7 @@ export struct SourcePackageManagerPage {
       'source_pkg_diagnostics_version',
       source.version,
       source.lang.length > 0 ? source.lang : t('common_unavailable'),
-      source.nsfw ? 'NSFW' : t('source_pkg_rating_all_ages'),
+      this.sourceContentRatingLabel(source),
     )
   }
 
@@ -1762,8 +1798,11 @@ export struct SourcePackageManagerPage {
       title: entry.name,
       subtitle: this.indexVersionText(entry) + (entry.lang.length > 0 ? ' · ' + entry.lang : ''),
       subtitleMaxLines: 1,
-      leadingIcon: $r('sys.symbol.compass'),
-      leadingIconBackgroundColor: ThemeConstants.SOURCE_WASM_COLOR,
+      hasSourceIdentityPrefix: true,
+      sourceIdentityIconUri: entry.iconUri ?? '',
+      sourceIdentityFallbackColor: ThemeConstants.SOURCE_WASM_COLOR,
+      prefixPaddingLeft: ThemeConstants.SPACE_MD,
+      prefixPaddingRight: ThemeConstants.SPACE_SM,
       trailingText: this.hasUpdate(entry)
         ? t('source_pkg_action_update')
         : (this.isSourceInstalled(entry.id) ? t('source_pkg_installed') : t('source_pkg_install')),
@@ -1989,34 +2028,21 @@ export struct SourcePackageManagerPage {
 
   @Builder
   private PackageCard(source: InstalledSourcePackage) {
-    if ((source.icon ?? '').length > 0) {
-      ConciseListRow({
-        title: source.name,
-        subtitle: this.packageListMetaText(source),
-        trailingText: source.enabled ? t('source_pkg_enabled') : t('source_pkg_disabled'),
-        leadingImageUrl: source.icon ?? '',
-        leadingImageSize: ThemeConstants.SOURCE_LIST_ICON_SIZE,
-        leadingImageRadius: ThemeConstants.SOURCE_LIST_ICON_RADIUS,
-        primaryColor: ThemeConstants.TEXT_PRIMARY,
-        secondaryColor: source.enabled ? ThemeConstants.TEXT_SECONDARY : ThemeConstants.TEXT_TERTIARY,
-        action: () => {
-          this.openSourceSheet(source)
-        },
-      })
-    } else {
-      ConciseListRow({
-        title: source.name,
-        subtitle: this.packageListMetaText(source),
-        trailingText: source.enabled ? t('source_pkg_enabled') : t('source_pkg_disabled'),
-        leadingIcon: $r('sys.symbol.compass'),
-        leadingIconBackgroundColor: ThemeConstants.SOURCE_WASM_COLOR,
-        primaryColor: ThemeConstants.TEXT_PRIMARY,
-        secondaryColor: source.enabled ? ThemeConstants.TEXT_SECONDARY : ThemeConstants.TEXT_TERTIARY,
-        action: () => {
-          this.openSourceSheet(source)
-        },
-      })
-    }
+    ConciseListRow({
+      title: source.name,
+      subtitle: this.packageListMetaText(source),
+      trailingText: source.enabled ? t('source_pkg_enabled') : t('source_pkg_disabled'),
+      hasSourceIdentityPrefix: true,
+      sourceIdentityIconUri: source.icon ?? '',
+      sourceIdentityFallbackColor: ThemeConstants.SOURCE_WASM_COLOR,
+      prefixPaddingLeft: ThemeConstants.SPACE_MD,
+      prefixPaddingRight: ThemeConstants.SPACE_SM,
+      primaryColor: ThemeConstants.TEXT_PRIMARY,
+      secondaryColor: source.enabled ? ThemeConstants.TEXT_SECONDARY : ThemeConstants.TEXT_TERTIARY,
+      action: () => {
+        this.openSourceSheet(source)
+      },
+    })
   }
 
   @Builder
@@ -2051,6 +2077,50 @@ export struct SourcePackageManagerPage {
             this.openSourceSettingsFromSheet(source)
           },
         })
+      }
+
+      if (this.hasSourcePackageMetadata(source)) {
+        SectionHeader({ title: t('source_pkg_information_section') })
+        GroupedListSection() {
+          if (source.description.length > 0) {
+            ConciseListRow({
+              title: t('common_description'),
+              subtitle: source.description,
+              subtitleMaxLines: 3,
+              showChevron: false,
+            })
+            if (source.author.length > 0 || source.contentRating.length > 0 || source.minAppVersion.length > 0) {
+              ListDivider()
+            }
+          }
+          if (source.author.length > 0) {
+            ConciseListRow({
+              title: t('source_pkg_author'),
+              subtitle: source.author,
+              showChevron: false,
+            })
+            if (source.contentRating.length > 0 || source.minAppVersion.length > 0) {
+              ListDivider()
+            }
+          }
+          if (source.contentRating.length > 0) {
+            ConciseListRow({
+              title: t('source_pkg_content_rating'),
+              subtitle: this.sourceContentRatingLabel(source),
+              showChevron: false,
+            })
+            if (source.minAppVersion.length > 0) {
+              ListDivider()
+            }
+          }
+          if (source.minAppVersion.length > 0) {
+            ConciseListRow({
+              title: t('source_pkg_min_app_version'),
+              subtitle: source.minAppVersion,
+              showChevron: false,
+            })
+          }
+        }
       }
 
       SectionHeader({ title: t('source_pkg_management_section') })
