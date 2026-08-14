@@ -7,7 +7,6 @@ import { connectRemoteProgressSyncState, RemoteProgressSyncState } from '../stat
 import { ThemeConstants } from '../theme/ThemeConstants'
 import {
   Chapter,
-  Comic,
   ComicId,
   ComicSourceKind,
   LibraryItem,
@@ -20,6 +19,11 @@ import {
   PersistentReaderSessionStore,
   ReaderSessionStore,
 } from '../model/ReaderSessionStore'
+import {
+  SourceReadHistoryEntry,
+  SourceReaderSessionRequest,
+  sourceReaderSessionRequestFromHistory,
+} from '../model/SourceReaderSession'
 import { AppStrings } from '../i18n/AppStrings'
 import { connectLanguageState, LanguageState } from '../state/LanguageState'
 
@@ -40,18 +44,42 @@ type HistoryGroupKey = 'today' | 'yesterday' | 'last_7_days' | 'older'
 interface HistorySection {
   key: HistoryGroupKey
   title: string
-  items: LibraryItem[]
+  items: HistoryItem[]
+}
+
+/**
+ * History can project a normal shelf item or an un-shelved source reading
+ * session.  This is a view model only; a source entry never pretends to be a
+ * `Comic` in LibraryStore.
+ */
+interface HistoryItem {
+  id: string
+  comicId: ComicId
+  title: string
+  coverUri?: string
+  sourceRuntimeId?: string
+  sourceImageId?: string
+  sourceKind?: ComicSourceKind
+  remoteServerId?: string
+  chapterCount: number
+  pageCount: number
+  lastReadAt?: number
+  progress?: ReadingProgress
+  sourceHistory?: SourceReadHistoryEntry
 }
 
 @ComponentV2
 export struct HistoryPage {
   @Param libraryStore: LibraryStore = createSeededLibraryStore()
   @Param active: boolean = false
+  @Param readerSessionStore?: ReaderSessionStore = undefined
+  @Param readerProgressRevision: number = 0
   @Local private languageState: LanguageState = connectLanguageState()
   @Local private remoteProgress: RemoteProgressSyncState = connectRemoteProgressSyncState()
-  @Local private historyItems: LibraryItem[] = []
+  @Local private historyItems: HistoryItem[] = []
   @Local private failedCoverUris: string[] = []
   @Event onOpenReader: (comicId: ComicId, chapterId?: string) => void = (_comicId: ComicId, _chapterId?: string) => {}
+  @Event onOpenSourceReader: (request: SourceReaderSessionRequest) => void = (_request: SourceReaderSessionRequest) => {}
 
   @Monitor('active')
   private onActiveChanged(): void {
@@ -66,7 +94,15 @@ export struct HistoryPage {
     this.reloadHistory('bootstrap_sync')
   }
 
+  @Monitor('readerProgressRevision')
+  private onReaderProgressRevisionChanged(): void {
+    this.reloadHistory('reader_progress')
+  }
+
   private createReaderSessionStore(): ReaderSessionStore | undefined {
+    if (this.readerSessionStore !== undefined) {
+      return this.readerSessionStore
+    }
     try {
       const context = getContext(this) as common.UIAbilityContext
       if (context === undefined || context.filesDir === undefined || context.filesDir.length === 0) {
@@ -87,19 +123,66 @@ export struct HistoryPage {
     console.info(`[History] step=load_start reason=${reason}`)
     const sessionStore = this.createReaderSessionStore()
     const progressByComicId: Map<ComicId, ReadingProgress> = new Map<ComicId, ReadingProgress>()
-    this.libraryStore.listComics().forEach((comic: Comic) => {
-      const progress = sessionStore === undefined ? undefined : sessionStore.getProgress(comic.id)
-      if (progress !== undefined) {
-        progressByComicId.set(comic.id, progress)
-      }
-    })
-    this.historyItems = this.libraryStore.listLibraryItems(progressByComicId)
+    if (sessionStore !== undefined) {
+      sessionStore.listProgress().forEach((progress: ReadingProgress): void => {
+        progressByComicId.set(progress.comicId, progress)
+      })
+    }
+    const libraryItems: HistoryItem[] = this.libraryStore.listLibraryItems(progressByComicId)
       .filter((item: LibraryItem) => item.lastReadAt !== undefined)
-      .sort((a: LibraryItem, b: LibraryItem) => {
+      .map((item: LibraryItem): HistoryItem => this.libraryHistoryItem(item))
+    const libraryComicIds: Set<ComicId> = new Set<ComicId>()
+    libraryItems.forEach((item: HistoryItem): void => {
+      libraryComicIds.add(item.comicId)
+    })
+    const sourceItems: HistoryItem[] = []
+    if (sessionStore !== undefined) {
+      sessionStore.listSourceHistory().forEach((entry: SourceReadHistoryEntry): void => {
+        const progress = progressByComicId.get(entry.comicId)
+        if (!libraryComicIds.has(entry.comicId) && progress !== undefined) {
+          sourceItems.push(this.sourceHistoryItem(entry, progress))
+        }
+      })
+    }
+    this.historyItems = libraryItems.concat(sourceItems)
+      .sort((a: HistoryItem, b: HistoryItem): number => {
         return (b.lastReadAt ?? 0) - (a.lastReadAt ?? 0)
       })
       .slice(0, HISTORY_LIMIT)
     console.info(`[History] step=load_done count=${this.historyItems.length}`)
+  }
+
+  private libraryHistoryItem(item: LibraryItem): HistoryItem {
+    return {
+      id: item.id,
+      comicId: item.comicId,
+      title: item.title,
+      coverUri: item.coverUri,
+      sourceRuntimeId: item.sourceRuntimeId,
+      sourceImageId: item.sourceImageId,
+      sourceKind: item.sourceKind,
+      remoteServerId: item.remoteServerId,
+      chapterCount: item.chapterCount,
+      pageCount: item.pageCount,
+      lastReadAt: item.lastReadAt,
+      progress: item.progress,
+    }
+  }
+
+  private sourceHistoryItem(entry: SourceReadHistoryEntry, progress: ReadingProgress): HistoryItem {
+    return {
+      id: `source-history:${entry.comicId}`,
+      comicId: entry.comicId,
+      title: entry.title,
+      coverUri: entry.coverUri,
+      sourceRuntimeId: entry.sourceId,
+      sourceImageId: entry.mangaId,
+      chapterCount: 1,
+      pageCount: progress.totalPages,
+      lastReadAt: progress.updatedAt,
+      progress,
+      sourceHistory: entry,
+    }
   }
 
   private relativeTime(timestampMs: number | undefined): string {
@@ -125,7 +208,7 @@ export struct HistoryPage {
     return s('history_relative_years_ago').replace('%s', `${Math.floor(diff / MS_PER_YEAR)}`)
   }
 
-  private coverColor(item: LibraryItem): string {
+  private coverColor(item: HistoryItem): string {
     let hash = 0
     for (let index = 0; index < item.comicId.length; index += 1) {
       hash = (hash + item.comicId.charCodeAt(index)) % ThemeConstants.COVER_PALETTE.length
@@ -133,9 +216,16 @@ export struct HistoryPage {
     return ThemeConstants.COVER_PALETTE[hash]
   }
 
-  private chapterText(item: LibraryItem): string {
+  private chapterText(item: HistoryItem): string {
     if (item.progress === undefined) {
       return s('history_chapter_count').replace('%s', `${item.chapterCount}`)
+    }
+    const sourceChapterTitle = item.sourceHistory?.chapterTitle?.trim()
+    if (sourceChapterTitle !== undefined && sourceChapterTitle.length > 0) {
+      return sourceChapterTitle
+    }
+    if (item.sourceHistory !== undefined) {
+      return s('history_chapter_read')
     }
     const comic = this.libraryStore.getComic(item.comicId)
     const chapterIndex = comic === undefined ? -1 : comic.chapters.findIndex((chapter: Chapter) => {
@@ -149,7 +239,7 @@ export struct HistoryPage {
       : s('history_chapter_count').replace('%s', `${item.chapterCount}`)
   }
 
-  private progressText(item: LibraryItem): string {
+  private progressText(item: HistoryItem): string {
     if (item.progress === undefined) {
       return s('history_page_chapter_count')
         .replace('%s', `${item.pageCount}`)
@@ -163,25 +253,33 @@ export struct HistoryPage {
       .replace('%s', this.chapterText(item))
   }
 
-  private openHistoryItem(item: LibraryItem): void {
+  private openHistoryItem(item: HistoryItem): void {
     const chapterId = item.progress === undefined ? undefined : item.progress.chapterId
     console.info(`[History] step=open_resume comic=${item.comicId} chapter=${chapterId ?? ''} page=${item.progress?.pageIndex ?? 0}`)
+    if (item.sourceHistory !== undefined) {
+      const request = sourceReaderSessionRequestFromHistory(item.sourceHistory)
+      if (request !== undefined) {
+        this.onOpenSourceReader(request)
+      }
+      return
+    }
     this.onOpenReader(item.comicId, chapterId)
   }
 
-  private removeHistoryItem(item: LibraryItem): void {
+  private removeHistoryItem(item: HistoryItem): void {
     const sessionStore = this.createReaderSessionStore()
     if (sessionStore === undefined) {
       return
     }
     sessionStore.removeProgress(item.comicId)
-    this.historyItems = this.historyItems.filter((historyItem: LibraryItem): boolean => {
+    sessionStore.removeSourceHistory(item.comicId)
+    this.historyItems = this.historyItems.filter((historyItem: HistoryItem): boolean => {
       return historyItem.comicId !== item.comicId
     })
     console.info('[History] step=remove_item')
   }
 
-  private confirmRemoveHistoryItem(item: LibraryItem): void {
+  private confirmRemoveHistoryItem(item: HistoryItem): void {
     this.getUIContext().showAlertDialog({
       title: s('history_remove_title'),
       message: s('history_remove_message').replace('%s', item.title),
@@ -207,6 +305,9 @@ export struct HistoryPage {
     }
     sessionStore.listProgress().forEach((progress: ReadingProgress) => {
       sessionStore.removeProgress(progress.comicId)
+    })
+    sessionStore.listSourceHistory().forEach((entry: SourceReadHistoryEntry): void => {
+      sessionStore.removeSourceHistory(entry.comicId)
     })
     this.historyItems = []
     console.info('[History] step=clear')
@@ -278,7 +379,7 @@ export struct HistoryPage {
         items: [],
       }
     })
-    this.historyItems.forEach((item: LibraryItem) => {
+    this.historyItems.forEach((item: HistoryItem) => {
       const key = this.historyGroupKey(item.lastReadAt)
       const section = sections.find((candidate: HistorySection): boolean => candidate.key === key)
       if (section !== undefined) {
@@ -315,7 +416,7 @@ export struct HistoryPage {
     }
   }
 
-  private sourceImageIdForItem(item: LibraryItem): string {
+  private sourceImageIdForItem(item: HistoryItem): string {
     return item.sourceImageId ?? item.comicId
   }
 
@@ -342,7 +443,7 @@ export struct HistoryPage {
   }
 
   @Builder
-  private Cover(item: LibraryItem) {
+  private Cover(item: HistoryItem) {
     Stack({ alignContent: Alignment.Center }) {
       if (this.shouldShowCoverUri(
         item.coverUri,
@@ -400,7 +501,7 @@ export struct HistoryPage {
   }
 
   @Builder
-  private HistoryRow(item: LibraryItem) {
+  private HistoryRow(item: HistoryItem) {
     Row({ space: ThemeConstants.SPACE_LG }) {
       Row({ space: ThemeConstants.SPACE_LG }) {
         this.Cover(item)
@@ -506,11 +607,11 @@ export struct HistoryPage {
             ListItem() {
               this.HistoryGroupHeader(section)
             }
-            ForEach(section.items, (item: LibraryItem) => {
+            ForEach(section.items, (item: HistoryItem) => {
               ListItem() {
                 this.HistoryRow(item)
               }
-            }, (item: LibraryItem) => item.comicId)
+            }, (item: HistoryItem) => item.comicId)
           }, (section: HistorySection) => section.key)
         }
       }

@@ -10,21 +10,25 @@ import {
   HdsTabsController,
   HdsTabsFloatingStyle,
   HideMode,
+  BottomBuilderShowType,
   ScrollEffectType,
 } from '@kit.UIDesignKit'
+import { ComponentContent } from '@kit.ArkUI'
 import { LibraryPage } from './LibraryPage'
 import { BrowsePage } from './BrowsePage'
 import { HistoryPage } from './HistoryPage'
 import { SearchPage } from './SearchPage'
+import { SEARCH_TITLE_BOTTOM_HEIGHT, SearchTitleFieldContentBuilder } from '../components/SearchTitleField'
 import { SettingsPage, SettingsPaneKey, settingsPaneTitle } from './SettingsPage'
 import { ImportPage, LocalFolderImportPersistResult } from './ImportPage'
 import { ReaderPage } from './ReaderPage'
 import { MangaDetailPage } from './MangaDetailPage'
 import { SourceBrowsePage } from './SourceBrowsePage'
 import { SourceSearchPage } from './SourceSearchPage'
-import { KomgaSeriesPage } from './KomgaSeriesPage'
-import { KavitaBrowsePage } from './KavitaBrowsePage'
-import { OpdsBrowsePage } from './OpdsBrowsePage'
+import { SOURCE_SEARCH_TITLE_BOTTOM_HEIGHT, SourceSearchTitleFieldContentBuilder } from '../components/SourceSearchTitleField'
+import { KomgaSeriesPage, KomgaSeriesRouteParam } from './KomgaSeriesPage'
+import { KavitaBrowsePage, KavitaBrowseRouteParam } from './KavitaBrowsePage'
+import { OpdsBrowsePage, OpdsBrowseRouteParam } from './OpdsBrowsePage'
 import { WebDavBrowsePage } from './WebDavBrowsePage'
 import { LibraryUpdateResultPage } from './LibraryUpdateResultPage'
 import { LibraryCategoryManagementPage } from './LibraryCategoryManagementPage'
@@ -37,7 +41,13 @@ import { DownloadsPage } from './DownloadsPage'
 import { BackupManagementPage } from './BackupManagementPage'
 import { TrackerSettingsPage } from './TrackerSettingsPage'
 import { RouteName, TabIndex, tabLabel } from '../common/Constants'
-import { MangaDetailRouteParam, RouterHelper } from '../common/RouterHelper'
+import {
+  MangaDetailRouteParam,
+  RouterHelper,
+  SearchRouteParam,
+  SourceBrowseRouteParam,
+  SourceSearchRouteParam,
+} from '../common/RouterHelper'
 import { KomaTabIcon } from '../components/KomaTabIcon'
 import { ThemeConstants } from '../theme/ThemeConstants'
 import {
@@ -51,6 +61,7 @@ import {
   Comic,
   ComicId,
   ComicSourceKind,
+  Page,
   withComicAddedCategoryId,
   withComicCategoryIds,
   withComicRemovedCategoryId,
@@ -89,7 +100,13 @@ import {
   sortedReaderChapters,
 } from '../model/ReaderSessionStore'
 import { createReaderOfflineMissingUri, installReaderRemoteHeadersForComic } from '../model/ReaderPageSourceAdapter'
-import { SourceChapterPageHydrator } from '../model/SourceChapterPageHydrator'
+import { SourceChapterPageHydrator, resolveSourceChapterPages } from '../model/SourceChapterPageHydrator'
+import {
+  SourceReaderSessionRequest,
+  cloneSourceReaderSessionRequest,
+  sourceReadHistoryEntryFromRequest,
+  sourceReaderSessionRequestForChapter,
+} from '../model/SourceReaderSession'
 import { SourceRuntimeRegistry } from '../sourceRuntime/SourceRuntimeRegistry'
 import { SourceRuntimeRegistryInstalledSourceSummary } from '../sourceRuntime/SourceRuntimeRegistry'
 import { SourceManga } from '../model/SourceModels'
@@ -104,6 +121,8 @@ import { connectLanguageState, LanguageState } from '../state/LanguageState'
 import { connectLayoutSafeArea, LayoutSafeAreaState } from '../state/LayoutSafeAreaState'
 import { BackupService, BackupAutomaticRunResult } from '../model/BackupService'
 import { TrackerPendingProgressDrainSummary, TrackerProgressSyncService } from '../model/TrackerProgressSyncService'
+import { SourceSearchRouteChromeState } from '../state/SourceRouteChromeState'
+import { SearchRouteChromeState } from '../state/SearchRouteChromeState'
 
 const readerSessionStore: ReaderSessionStore = new InMemoryReaderSessionStore()
 const seededLibraryStore: LibraryStore = createSeededLibraryStore()
@@ -111,10 +130,6 @@ const libraryPresentationByComicId: LibraryPresentationByComicId = createMockLib
 const sourceRuntimeRegistry: SourceRuntimeRegistry = appSourceRuntimeRegistry
 interface SettingsPaneRouteParam {
   pane: string
-}
-
-interface SourceRouteParam {
-  source: SourceRuntimeRegistryInstalledSourceSummary
 }
 
 @Entry
@@ -132,10 +147,12 @@ struct Index {
   @Local private readerChromeVisible: boolean = false
   @Local private readerWebtoonMode: boolean = false
   @Local private readerSessionConfig: ReaderSessionConfig = MOCK_LIBRARY_READER_SESSION
+  // ReaderPage writes this store directly. Bump the revision only after its
+  // close path has flushed so LibraryPage can rebuild `lastRead` ordering from
+  // the same in-memory snapshot rather than reopening a second store.
+  @Local private readerProgressRevision: number = 0
   @Local private libraryRevision: number = 0
   @Local private libraryComics: Comic[] = seededLibraryStore.listComics()
-  @Local private searchRouteQuery: string = ''
-  @Local private searchRouteSerial: number = 0
   private tabController: HdsTabsController = new HdsTabsController()
   private tabBarHiddenForKeyboard: boolean = false
   private readerSessionStore: ReaderSessionStore = readerSessionStore
@@ -143,12 +160,16 @@ struct Index {
   private presentationByComicId: LibraryPresentationByComicId = libraryPresentationByComicId
   private sourceRegistry: SourceRuntimeRegistry = sourceRuntimeRegistry
   private appPathStack: NavPathStack = new NavPathStack()
+  private searchFieldContents: Map<SearchRouteChromeState, ComponentContent<SearchRouteChromeState>> = new Map()
+  private sourceSearchFieldContents: Map<SourceSearchRouteChromeState, ComponentContent<SourceSearchRouteChromeState>> = new Map()
   private libraryPersistenceService?: LibraryStorePersistenceService
   private readerSessionPersistenceReady: boolean = false
   private libraryPersistenceRestored: boolean = false
   private automaticBackupChecked: boolean = false
   private pendingTrackerProgressChecked: boolean = false
   private readerOpenEpoch: number = 0
+  /** Present only while Reader was launched from an un-shelved source item. */
+  private activeSourceReaderRequest?: SourceReaderSessionRequest
 
   @Monitor('layoutSafeArea.keyboardHeight')
   private updateRootTabBarForKeyboard(): void {
@@ -167,6 +188,20 @@ struct Index {
   private refreshLibrarySnapshot(): void {
     this.libraryComics = this.libraryStore.listComics()
     this.libraryRevision += 1
+  }
+
+  private onMangaDetailLibraryChanged(): void {
+    this.refreshLibrarySnapshot()
+    const transientRequest = this.activeSourceReaderRequest
+    if (transientRequest === undefined) {
+      return
+    }
+    if (this.libraryStore.getComic(transientRequest.comicId) !== undefined) {
+      // The user explicitly collected this source item while its Reader was
+      // open. From this point it owns normal shelf/history semantics, so a
+      // later chapter switch must not recreate transient source history.
+      this.activeSourceReaderRequest = undefined
+    }
   }
 
   private readerChapterIdForOpen(comic: Comic, requestedChapterId?: string): string | undefined {
@@ -295,6 +330,87 @@ struct Index {
     this.readerSessionLoading = false
   }
 
+  private createSourceReaderSessionConfig(
+    request: SourceReaderSessionRequest,
+    pages: Page[],
+  ): ReaderSessionConfig {
+    const chapterIds = request.chapterIds.includes(request.chapterId)
+      ? request.chapterIds.slice()
+      : request.chapterIds.concat([request.chapterId])
+    const selectedIndex = chapterIds.indexOf(request.chapterId)
+    const chapterTitles = chapterIds.map((chapterId: string, index: number): string => {
+      const knownTitle = request.chapterTitles?.[index] ?? ''
+      if (knownTitle.trim().length > 0 || chapterId !== request.chapterId) {
+        return knownTitle
+      }
+      return request.chapterTitles?.[selectedIndex] ?? ''
+    })
+    return {
+      comicId: request.comicId,
+      chapterId: request.chapterId,
+      chapterIds,
+      chapterTitles,
+      title: request.title,
+      chapterTitle: chapterTitles[selectedIndex],
+      totalPages: pages.length,
+      pageUris: pages.map((page: Page): string => page.uri),
+      pageIds: pages.map((page: Page): string => page.id),
+      pageWidths: pages.map((page: Page): number | undefined => page.width),
+      pageHeights: pages.map((page: Page): number | undefined => page.height),
+      sourceRuntimeId: request.sourceId,
+    }
+  }
+
+  private createUnavailableSourceReaderSessionConfig(request: SourceReaderSessionRequest): ReaderSessionConfig {
+    const config = this.createSourceReaderSessionConfig(request, [])
+    config.totalPages = 1
+    config.pageUris = ['source-placeholder://chapter']
+    config.pageIds = [`${request.chapterId}:source-unavailable`]
+    config.pageWidths = [undefined]
+    config.pageHeights = [undefined]
+    return config
+  }
+
+  private async prepareSourceReaderSession(
+    request: SourceReaderSessionRequest,
+    openEpoch: number,
+  ): Promise<void> {
+    // Do not share the library hydrator's result here. Source hosts may issue
+    // short-lived descriptors; a transient Reader open always resolves pages
+    // afresh and never writes them to LibraryStore.
+    const resolution = await resolveSourceChapterPages(this.sourceRegistry, {
+      comicId: request.comicId,
+      sourceId: request.sourceId,
+      mangaId: request.mangaId,
+      chapterId: request.chapterId,
+    })
+    const activeRequest = this.activeSourceReaderRequest
+    if (openEpoch !== this.readerOpenEpoch ||
+      !this.readerOpen ||
+      this.readerClosing ||
+      activeRequest === undefined ||
+      activeRequest.comicId !== request.comicId ||
+      activeRequest.chapterId !== request.chapterId) {
+      return
+    }
+    if (resolution.pages.length === 0) {
+      this.logReaderSourcePagesUnavailable(resolution.reasonCode)
+      const unavailableConfig = this.createUnavailableSourceReaderSessionConfig(request)
+      this.readerSessionConfig = unavailableConfig
+      this.readerPageIndex = this.readerSessionStore.restorePageIndex(unavailableConfig)
+      this.readerSessionLoading = false
+      return
+    }
+    const nextSessionConfig = this.createSourceReaderSessionConfig(request, resolution.pages)
+    this.readerSessionConfig = nextSessionConfig
+    this.readerPageIndex = this.readerSessionStore.restorePageIndex(nextSessionConfig)
+    // Persist only stable identity/title/cover/current-chapter metadata. Page
+    // descriptors intentionally stay in the route-local Reader config.
+    this.readerSessionStore.saveSourceHistory(sourceReadHistoryEntryFromRequest(request))
+    this.readerSessionStore.flush()
+    this.readerSessionLoading = false
+  }
+
   private readerNeedsAsyncPreparation(comic: Comic, chapterId: string | undefined): boolean {
     if (this.hasAvailableOfflineReaderPages(comic.id, chapterId)) {
       return false
@@ -309,6 +425,7 @@ struct Index {
   }
 
   private async openReader(comicId: ComicId, chapterId?: string): Promise<void> {
+    this.activeSourceReaderRequest = undefined
     const comic = this.libraryStore.getComic(comicId)
     const targetChapterId = comic === undefined ? chapterId : this.readerChapterIdForOpen(comic, chapterId)
     const readerDetailVisible = this.isReaderDetailRouteVisible()
@@ -339,6 +456,39 @@ struct Index {
     }
   }
 
+  private async openSourceReader(request: SourceReaderSessionRequest): Promise<void> {
+    const nextRequest = cloneSourceReaderSessionRequest(request)
+    if (nextRequest.sourceId.trim().length === 0 ||
+      nextRequest.mangaId.trim().length === 0 ||
+      nextRequest.comicId.trim().length === 0 ||
+      nextRequest.chapterId.trim().length === 0 ||
+      !nextRequest.chapterIds.includes(nextRequest.chapterId)) {
+      return
+    }
+    const readerDetailVisible = this.isReaderDetailRouteVisible()
+    const shouldPresentReader = !this.readerOpen || this.readerClosing
+    const openEpoch = this.readerOpenEpoch + 1
+    this.readerOpenEpoch = openEpoch
+    this.activeSourceReaderRequest = nextRequest
+    this.readerChromeVisible = false
+    this.readerSessionLoading = true
+    this.readerSessionConfig = this.createSourceReaderSessionConfig(nextRequest, [])
+    this.readerPageIndex = 0
+    // This matches normal Reader chapter switching: a detail page opened from
+    // Reader is popped before the already-mounted Reader receives its next
+    // transient session.
+    if (readerDetailVisible) {
+      this.appPathStack.pop(true)
+    }
+    if (shouldPresentReader) {
+      this.readerClosing = false
+      this.readerRouteVisible = false
+      this.readerOpen = true
+      this.appPathStack.pushPath({ name: RouteName.READER }, true)
+    }
+    void this.prepareSourceReaderSession(nextRequest, openEpoch)
+  }
+
   private cloneExternalReaderSession(config: ReaderSessionConfig): ReaderSessionConfig {
     return {
       comicId: config.comicId,
@@ -361,6 +511,7 @@ struct Index {
       return
     }
     this.readerOpenEpoch += 1
+    this.activeSourceReaderRequest = undefined
     this.readerChromeVisible = false
     this.readerSessionLoading = false
     this.readerSessionConfig = this.cloneExternalReaderSession(MOCK_LIBRARY_READER_SESSION)
@@ -536,6 +687,11 @@ struct Index {
     if (!this.readerOpen || this.readerClosing || !this.isReaderRouteVisible()) {
       return
     }
+    // ReaderPage calls this callback after it persists its current page. Keep
+    // the explicit flush here as the boundary before publishing the snapshot
+    // to the shelf, including future Reader close implementations.
+    this.readerSessionStore.flush()
+    this.readerProgressRevision += 1
     this.readerClosing = true
     this.readerRouteVisible = false
     this.readerChromeVisible = false
@@ -552,9 +708,44 @@ struct Index {
     this.readerSessionLoading = false
   }
 
+  private reloadReaderSessionStore(reason: string): void {
+    try {
+      const context = getContext(this) as common.UIAbilityContext
+      if (context.filesDir === undefined || context.filesDir.length === 0) {
+        return
+      }
+      this.readerSessionStore = new PersistentReaderSessionStore(
+        new AppFilesReaderSessionPersistenceAdapter(context.filesDir),
+      )
+      this.readerSessionPersistenceReady = true
+      this.readerProgressRevision += 1
+      console.info(`[Reader] step=progress_store_reloaded reason=${reason}`)
+    } catch (_error) {
+      console.warn('[Reader] step=restore_progress_failed reason=session_store')
+    }
+  }
+
   private openReaderMangaDetail(): void {
     const comicId = this.readerSessionConfig.comicId
     if (comicId.length === 0 || !this.isReaderRouteVisible()) {
+      return
+    }
+    const sourceRequest = this.activeSourceReaderRequest
+    if (sourceRequest !== undefined && sourceRequest.comicId === comicId) {
+      const detailParam: MangaDetailRouteParam = {
+        mangaId: sourceRequest.mangaId,
+        sourceId: sourceRequest.sourceId,
+        initialManga: {
+          id: sourceRequest.mangaId,
+          sourceId: sourceRequest.sourceId,
+          title: sourceRequest.title,
+          coverUrl: sourceRequest.coverUri,
+        },
+      }
+      this.appPathStack.pushPath({
+        name: RouteName.MANGA_DETAIL,
+        param: detailParam,
+      }, true)
       return
     }
     const comic = this.libraryStore.getComic(comicId)
@@ -591,20 +782,6 @@ struct Index {
   private selectRootTab(index: number): void {
     this.selectedTab = index
     this.tabController.changeIndex(index)
-  }
-
-  private openSearchQuery(query: string): void {
-    const normalizedQuery = query.trim()
-    if (normalizedQuery.length === 0) {
-      return
-    }
-    if (this.readerOpen) {
-      this.closeReader()
-    }
-    this.appPathStack.clear()
-    this.searchRouteQuery = normalizedQuery
-    this.searchRouteSerial += 1
-    this.selectRootTab(TabIndex.SEARCH)
   }
 
   private settingsPaneFromParam(param: Object): SettingsPaneKey {
@@ -912,23 +1089,13 @@ struct Index {
 
   aboutToAppear(): void {
     RouterHelper.setAppPathStack(this.appPathStack)
-    RouterHelper.setSearchOpener((param) => {
-      this.openSearchQuery(param.query)
-    })
     RouterHelper.setReaderOpener(() => {
       this.openExternalReaderSession()
     })
     RouterHelper.consumePendingLaunchRoute()
     const context = getContext(this) as common.UIAbilityContext
-    if (!this.readerSessionPersistenceReady && context.filesDir !== undefined && context.filesDir.length > 0) {
-      try {
-        this.readerSessionStore = new PersistentReaderSessionStore(
-          new AppFilesReaderSessionPersistenceAdapter(context.filesDir),
-        )
-        this.readerSessionPersistenceReady = true
-      } catch (_error) {
-        console.warn('[Reader] step=restore_progress_failed reason=session_store')
-      }
+    if (!this.readerSessionPersistenceReady) {
+      this.reloadReaderSessionStore('app_appear')
     }
     configureSourceSettingsStore(context)
     configureSourceFilterPreferencesStore(context)
@@ -988,6 +1155,14 @@ struct Index {
           this.openReaderMangaDetail()
         },
         onOpenChapter: (chapterId: string) => {
+          const sourceRequest = this.activeSourceReaderRequest
+          if (sourceRequest !== undefined && sourceRequest.comicId === this.readerSessionConfig.comicId) {
+            const nextRequest = sourceReaderSessionRequestForChapter(sourceRequest, chapterId)
+            if (nextRequest !== undefined) {
+              void this.openSourceReader(nextRequest)
+            }
+            return
+          }
           if (this.readerSessionConfig.comicId.length > 0) {
             void this.openReader(this.readerSessionConfig.comicId, chapterId)
           }
@@ -1016,6 +1191,69 @@ struct Index {
   }
 
   @Builder
+  private SourceBrowseDestination(param: SourceBrowseRouteParam) {
+    HdsNavDestination() {
+      SourceBrowsePage({
+        source: param.source,
+        chrome: param.chrome,
+        onSearchRequested: (source: SourceRuntimeRegistryInstalledSourceSummary) => {
+          RouterHelper.pushSourceSearch({ source: source })
+        },
+        onMangaTap: (manga: SourceManga) => {
+          RouterHelper.pushMangaDetail({ mangaId: manga.id, sourceId: manga.sourceId, initialManga: manga })
+        },
+      })
+    }
+    .titleBar(this.sourceBrowseTitleBarOpts(param))
+  }
+
+  @Builder
+  private SourceSearchDestination(param: SourceSearchRouteParam) {
+    HdsNavDestination() {
+      SourceSearchPage({
+        source: param.source,
+        chrome: param.chrome,
+        onMangaTap: (manga: SourceManga) => {
+          RouterHelper.pushMangaDetail({ mangaId: manga.id, sourceId: manga.sourceId, initialManga: manga })
+        },
+      })
+    }
+    .titleBar(this.sourceSearchTitleBarOpts(param))
+    .onDisAppear(() => {
+      // A detail route only hides this destination. Dispose the cached title
+      // field after the search route itself has genuinely left the stack.
+      this.disposeSourceSearchFieldContent(param.chrome)
+    })
+  }
+
+  @Builder
+  private SearchDestination(param: SearchRouteParam) {
+    HdsNavDestination() {
+      SearchPage({
+        chrome: RouterHelper.ensureSearchRouteChrome(param),
+        libraryStore: this.libraryStore,
+        libraryPersistenceService: this.ensureLibraryPersistenceService(),
+        onLibraryChanged: () => {
+          this.refreshLibrarySnapshot()
+        },
+        onOpenKomgaResult: (routeParam: KomgaSeriesRouteParam) => {
+          this.appPathStack.pushPath({ name: RouteName.KOMGA_BROWSE, param: routeParam })
+        },
+        onOpenKavitaResult: (routeParam: KavitaBrowseRouteParam) => {
+          this.appPathStack.pushPath({ name: RouteName.KAVITA_BROWSE, param: routeParam })
+        },
+        onOpenOpdsResult: (routeParam: OpdsBrowseRouteParam) => {
+          this.appPathStack.pushPath({ name: RouteName.OPDS_BROWSE, param: routeParam })
+        },
+      })
+    }
+    .titleBar(this.searchTitleBarOpts(param))
+    .onDisAppear(() => {
+      this.disposeSearchFieldContent(RouterHelper.ensureSearchRouteChrome(param))
+    })
+  }
+
+  @Builder
   private AppDestination(name: string, param: Object) {
     if (name === RouteName.READER) {
       this.ReaderDestination()
@@ -1040,6 +1278,8 @@ struct Index {
         })
       }
       .titleBar(this.navDestTitleBarOpts(AppStrings.get('route_import_title')))
+    } else if (name === RouteName.SEARCH) {
+      this.SearchDestination(param as SearchRouteParam)
     } else if (name === RouteName.MANGA_DETAIL) {
       HdsNavDestination() {
         MangaDetailPage({
@@ -1052,37 +1292,20 @@ struct Index {
             this.appPathStack.pop(this.isReaderDetailRouteVisible())
           },
           onOpenReader: (mangaId: string, chapterId?: string) => { void this.openReader(mangaId, chapterId) },
+          onOpenSourceReader: (request: SourceReaderSessionRequest) => { void this.openSourceReader(request) },
           onOpenImportRequested: () => { this.openImport() },
-          onLibraryChanged: () => { this.refreshLibrarySnapshot() }
+          onLibraryChanged: () => { this.onMangaDetailLibraryChanged() }
         })
       }
       .titleBar(this.navDestTitleBarOpts(this.mangaDetailTitle(param as MangaDetailRouteParam)))
     } else if (name === RouteName.SOURCE_BROWSE) {
-      HdsNavDestination() {
-        SourceBrowsePage({
-          source: (param as SourceRouteParam).source,
-          onSearchRequested: (source: SourceRuntimeRegistryInstalledSourceSummary) => {
-            RouterHelper.pushSourceSearch({ source: source })
-          },
-          onMangaTap: (manga: SourceManga) => {
-            RouterHelper.pushMangaDetail({ mangaId: manga.id, sourceId: manga.sourceId, initialManga: manga })
-          },
-        })
-      }
-      .titleBar(this.navDestTitleBarOpts((param as SourceRouteParam).source.displayName))
+      this.SourceBrowseDestination(param as SourceBrowseRouteParam)
     } else if (name === RouteName.SOURCE_SEARCH) {
-      HdsNavDestination() {
-        SourceSearchPage({
-          source: (param as SourceRouteParam).source,
-          onMangaTap: (manga: SourceManga) => {
-            RouterHelper.pushMangaDetail({ mangaId: manga.id, sourceId: manga.sourceId, initialManga: manga })
-          },
-        })
-      }
-      .titleBar(this.navDestTitleBarOpts(AppStrings.get('tab_search')))
+      this.SourceSearchDestination(param as SourceSearchRouteParam)
     } else if (name === RouteName.KOMGA_BROWSE) {
       HdsNavDestination() {
         KomgaSeriesPage({
+          params: param as KomgaSeriesRouteParam,
           libraryStore: this.libraryStore,
           libraryPersistenceService: this.ensureLibraryPersistenceService(),
           onLibraryChanged: () => {
@@ -1094,6 +1317,7 @@ struct Index {
     } else if (name === RouteName.KAVITA_BROWSE) {
       HdsNavDestination() {
         KavitaBrowsePage({
+          params: param as KavitaBrowseRouteParam,
           libraryStore: this.libraryStore,
           libraryPersistenceService: this.ensureLibraryPersistenceService(),
           onLibraryChanged: () => {
@@ -1108,6 +1332,7 @@ struct Index {
     } else if (name === RouteName.OPDS_BROWSE) {
       HdsNavDestination() {
         OpdsBrowsePage({
+          params: param as OpdsBrowseRouteParam,
           libraryStore: this.libraryStore,
           libraryPersistenceService: this.ensureLibraryPersistenceService(),
           onLibraryChanged: () => {
@@ -1263,11 +1488,16 @@ struct Index {
                 libraryStore: this.libraryStore,
                 libraryComics: this.libraryComics,
                 libraryRevision: this.libraryRevision,
+                readerSessionStore: this.readerSessionStore,
+                readerProgressRevision: this.readerProgressRevision,
                 presentationByComicId: this.presentationByComicId,
                 sourceRegistry: this.sourceRegistry,
                 libraryPersistenceService: this.ensureLibraryPersistenceService(),
                 onOpenReader: (comicId: ComicId, chapterId?: string) => {
                   void this.openReader(comicId, chapterId)
+                },
+                onProgressStoreReloadRequested: () => {
+                  this.reloadReaderSessionStore('bootstrap_sync')
                 },
                 onImportRequested: () => {
                   this.openImport()
@@ -1321,24 +1551,16 @@ struct Index {
               HistoryPage({
                 libraryStore: this.libraryStore,
                 active: this.selectedTab === TabIndex.HISTORY,
+                readerSessionStore: this.readerSessionStore,
+                readerProgressRevision: this.readerProgressRevision,
                 onOpenReader: (comicId: ComicId, chapterId?: string) => {
                   void this.openReader(comicId, chapterId)
+                },
+                onOpenSourceReader: (request: SourceReaderSessionRequest) => {
+                  void this.openSourceReader(request)
                 }
               })
             }.tabBar(this.TabIcon(tabLabel(TabIndex.HISTORY), TabIndex.HISTORY))
-
-            TabContent() {
-              SearchPage({
-                externalQuery: this.searchRouteQuery,
-                externalQuerySerial: this.searchRouteSerial,
-                libraryStore: this.libraryStore,
-                libraryPersistenceService: this.ensureLibraryPersistenceService(),
-                onLibraryChanged: () => {
-                  this.refreshLibrarySnapshot()
-                  this.selectRootTab(TabIndex.LIBRARY)
-                }
-              })
-            }.tabBar(this.TabIcon(tabLabel(TabIndex.SEARCH), TabIndex.SEARCH))
 
             TabContent() {
               SettingsPage({
@@ -1429,6 +1651,22 @@ struct Index {
   private titleBarOptions(): Record<string, Object> {
     let titleInfo: Record<string, Object> = { 'mainTitle': tabLabel(this.selectedTab) }
     let content: Record<string, Object> = { 'title': titleInfo }
+    if (this.selectedTab === TabIndex.LIBRARY) {
+      const searchContent: Record<string, Object> = {
+        'label': AppStrings.get('tab_search'),
+        'icon': $r('sys.symbol.magnifyingglass'),
+        'isEnabled': true,
+        'action': () => {
+          RouterHelper.openSearch({})
+        },
+      }
+      const searchItem: Record<string, Object> = {}
+      searchItem['content'] = searchContent
+      const menu: Record<string, Object> = {}
+      menu['value'] = [searchItem]
+      menu['maxCount'] = 1
+      content['menu'] = menu
+    }
     let mat: Record<string, Object> = {
       'materialType': hdsMaterial.MaterialType.ADAPTIVE,
       'materialLevel': hdsMaterial.MaterialLevel.ADAPTIVE,
@@ -1448,6 +1686,167 @@ struct Index {
       'content': content,
       'style': style,
     }
+  }
+
+  private sourceRouteTitleBarOpts(content: Record<string, Object>): Record<string, Object> {
+    let mat: Record<string, Object> = {
+      'materialType': hdsMaterial.MaterialType.ADAPTIVE,
+      'materialLevel': hdsMaterial.MaterialLevel.ADAPTIVE,
+    }
+    let scrollOpts: Record<string, Object> = {
+      'enableScrollEffect': true,
+      'scrollEffectType': ScrollEffectType.GRADIENT_BLUR,
+    }
+    let style: Record<string, Object> = {
+      'systemMaterialEffect': mat,
+      'scrollEffectOpts': scrollOpts,
+    }
+    return {
+      'avoidLayoutSafeArea': true,
+      'enableComponentSafeArea': false,
+      'blurStrategy': BlurStrategy.ENABLE,
+      'content': content,
+      'style': style,
+    }
+  }
+
+  private searchFieldContent(chrome: SearchRouteChromeState): ComponentContent<SearchRouteChromeState> {
+    const existing = this.searchFieldContents.get(chrome)
+    if (existing !== undefined && !existing.isDisposed()) {
+      return existing
+    }
+    if (existing !== undefined) {
+      this.searchFieldContents.delete(chrome)
+    }
+    const content = new ComponentContent<SearchRouteChromeState>(
+      this.getUIContext(),
+      wrapBuilder<[SearchRouteChromeState]>(SearchTitleFieldContentBuilder),
+      chrome,
+    )
+    this.searchFieldContents.set(chrome, content)
+    return content
+  }
+
+  private disposeSearchFieldContent(chrome: SearchRouteChromeState): void {
+    const content = this.searchFieldContents.get(chrome)
+    this.searchFieldContents.delete(chrome)
+    if (content !== undefined && !content.isDisposed()) {
+      content.dispose()
+    }
+  }
+
+  private searchTitleBarOpts(param: SearchRouteParam): Record<string, Object> {
+    const title: Record<string, Object> = {}
+    title['mainTitle'] = AppStrings.get('tab_search')
+    const bottomBuilder: Record<string, Object> = {}
+    bottomBuilder['builderComponent'] = this.searchFieldContent(RouterHelper.ensureSearchRouteChrome(param))
+    bottomBuilder['height'] = SEARCH_TITLE_BOTTOM_HEIGHT
+    bottomBuilder['showType'] = BottomBuilderShowType.DIRECTLY_SHOW
+    const content: Record<string, Object> = {}
+    content['title'] = title
+    content['bottomBuilder'] = bottomBuilder
+    return this.sourceRouteTitleBarOpts(content)
+  }
+
+  private sourceSupportsSearch(source: SourceRuntimeRegistryInstalledSourceSummary): boolean {
+    if (source.capabilities.indexOf('search') >= 0) {
+      return true
+    }
+    return source.capabilities.indexOf('sourceInfo') < 0
+  }
+
+  private sourceBrowseTitleBarOpts(param: SourceBrowseRouteParam): Record<string, Object> {
+    const source = param.source
+    const chrome = param.chrome
+    const menuItems: Record<string, Object>[] = []
+    if (this.sourceSupportsSearch(source)) {
+      const searchContent: Record<string, Object> = {}
+      searchContent['label'] = AppStrings.get('tab_search')
+      searchContent['icon'] = $r('sys.symbol.magnifyingglass')
+      searchContent['isEnabled'] = true
+      searchContent['action'] = () => {
+        RouterHelper.pushSourceSearch({ source: source })
+      }
+      const searchItem: Record<string, Object> = {}
+      searchItem['content'] = searchContent
+      menuItems.push(searchItem)
+    }
+    if (chrome.filtersAvailable) {
+      const filterContent: Record<string, Object> = {}
+      filterContent['label'] = AppStrings.get('common_filter')
+      filterContent['icon'] = $r('sys.symbol.funnel')
+      filterContent['isEnabled'] = true
+      filterContent['action'] = () => {
+        chrome.requestFilters()
+      }
+      const filterItem: Record<string, Object> = {}
+      filterItem['content'] = filterContent
+      menuItems.push(filterItem)
+    }
+    const title: Record<string, Object> = {}
+    title['mainTitle'] = source.displayName
+    const menu: Record<string, Object> = {}
+    menu['value'] = menuItems
+    menu['maxCount'] = 2
+    const content: Record<string, Object> = {}
+    content['title'] = title
+    content['menu'] = menu
+    return this.sourceRouteTitleBarOpts(content)
+  }
+
+  private sourceSearchFieldContent(chrome: SourceSearchRouteChromeState): ComponentContent<SourceSearchRouteChromeState> {
+    const existing = this.sourceSearchFieldContents.get(chrome)
+    if (existing !== undefined && !existing.isDisposed()) {
+      return existing
+    }
+    if (existing !== undefined) {
+      this.sourceSearchFieldContents.delete(chrome)
+    }
+    const content = new ComponentContent<SourceSearchRouteChromeState>(
+      this.getUIContext(),
+      wrapBuilder<[SourceSearchRouteChromeState]>(SourceSearchTitleFieldContentBuilder),
+      chrome,
+    )
+    this.sourceSearchFieldContents.set(chrome, content)
+    return content
+  }
+
+  private disposeSourceSearchFieldContent(chrome: SourceSearchRouteChromeState): void {
+    const content = this.sourceSearchFieldContents.get(chrome)
+    this.sourceSearchFieldContents.delete(chrome)
+    if (content !== undefined && !content.isDisposed()) {
+      content.dispose()
+    }
+  }
+
+  private sourceSearchTitleBarOpts(param: SourceSearchRouteParam): Record<string, Object> {
+    const source = param.source
+    const chrome = param.chrome
+    const title: Record<string, Object> = {}
+    title['mainTitle'] = source.displayName.length > 0 ? source.displayName : AppStrings.get('tab_search')
+    const bottomBuilder: Record<string, Object> = {}
+    bottomBuilder['builderComponent'] = this.sourceSearchFieldContent(chrome)
+    bottomBuilder['height'] = SOURCE_SEARCH_TITLE_BOTTOM_HEIGHT
+    bottomBuilder['showType'] = BottomBuilderShowType.DIRECTLY_SHOW
+    const content: Record<string, Object> = {}
+    content['title'] = title
+    content['bottomBuilder'] = bottomBuilder
+    if (chrome.filtersAvailable) {
+      const filterContent: Record<string, Object> = {}
+      filterContent['label'] = AppStrings.get('common_filter')
+      filterContent['icon'] = $r('sys.symbol.funnel')
+      filterContent['isEnabled'] = true
+      filterContent['action'] = () => {
+        chrome.requestFilters()
+      }
+      const filterItem: Record<string, Object> = {}
+      filterItem['content'] = filterContent
+      const menu: Record<string, Object> = {}
+      menu['value'] = [filterItem]
+      menu['maxCount'] = 1
+      content['menu'] = menu
+    }
+    return this.sourceRouteTitleBarOpts(content)
   }
 
   private navDestTitleBarOpts(title?: string): Record<string, Object> {

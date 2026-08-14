@@ -1,4 +1,5 @@
 import { SourceMangaGrid } from '../components/SourceMangaGrid'
+import { SOURCE_SEARCH_TITLE_BOTTOM_HEIGHT } from '../components/SourceSearchTitleField'
 import { KomaActionButton } from '../components/ui/KomaActionButton'
 import { KomaEmptyState } from '../components/ui/KomaEmptyState'
 import { SecondaryListScaffold } from '../components/SecondaryListScaffold'
@@ -8,6 +9,7 @@ import { SourceFilterControls, SourceFilterControlValue } from '../components/So
 import { AppStrings } from '../i18n/AppStrings'
 import { SourceFilter, SourceManga } from '../model/SourceModels'
 import { connectLanguageState, LanguageState } from '../state/LanguageState'
+import { SourceSearchRouteChromeState } from '../state/SourceRouteChromeState'
 import { ThemeConstants } from '../theme/ThemeConstants'
 import { BrowseViewModel } from '../viewmodel/BrowseViewModel'
 import { SourceRuntimeRegistryInstalledSourceSummary } from '../sourceRuntime/SourceRuntimeRegistry'
@@ -33,10 +35,14 @@ export struct SourceSearchPage {
     capabilities: [],
   }
   @Param viewModel: BrowseViewModel = new BrowseViewModel()
+  @Param chrome: SourceSearchRouteChromeState = new SourceSearchRouteChromeState()
   @Local private languageState: LanguageState = connectLanguageState()
   @Local private query: string = ''
   @Local private filtersShown: boolean = false
   private searchTimer: number = 0
+  private handledFilterRequestSeq: number = 0
+  private handledQueryChangeSeq: number = 0
+  private handledQuerySubmitSeq: number = 0
   @Event onMangaTap: (manga: SourceManga) => void = (_manga: SourceManga) => {}
 
   private currentSource(): SourceRuntimeRegistryInstalledSourceSummary {
@@ -118,9 +124,43 @@ export struct SourceSearchPage {
     this.filtersShown = false
   }
 
-  private searchPlaceholder(): string {
-    const sourceName = this.currentSource().displayName
-    return sourceName.length > 0 ? `${s('source_search_placeholder')} · ${sourceName}` : s('source_search_placeholder')
+  private syncTitleActions(): void {
+    this.chrome.filtersAvailable = this.hasRuntimeFilters()
+  }
+
+  @Monitor('chrome.filterRequestSeq')
+  private handleTitleFilterRequest(): void {
+    const requestSeq = this.chrome.filterRequestSeq
+    if (requestSeq <= this.handledFilterRequestSeq) {
+      return
+    }
+    this.handledFilterRequestSeq = requestSeq
+    this.openFilters()
+  }
+
+  @Monitor('chrome.queryChangeSeq')
+  private handleTitleQueryChange(): void {
+    const requestSeq = this.chrome.queryChangeSeq
+    if (requestSeq <= this.handledQueryChangeSeq) {
+      return
+    }
+    this.handledQueryChangeSeq = requestSeq
+    this.scheduleSearch(this.chrome.query)
+  }
+
+  @Monitor('chrome.querySubmitSeq')
+  private handleTitleQuerySubmit(): void {
+    const requestSeq = this.chrome.querySubmitSeq
+    if (requestSeq <= this.handledQuerySubmitSeq) {
+      return
+    }
+    this.handledQuerySubmitSeq = requestSeq
+    this.submitSearch(this.chrome.query)
+  }
+
+  @Monitor('viewModel.filters')
+  private syncTitleActionsFromViewModel(): void {
+    this.syncTitleActions()
   }
 
   private emptySearchTitle(): string {
@@ -232,96 +272,71 @@ export struct SourceSearchPage {
 
   aboutToAppear(): void {
     this.viewModel.loadInstalledSources()
+    this.query = this.chrome.query
+    this.syncTitleActions()
     void this.viewModel.ensureSearchFilters(this.currentSource())
   }
 
   build() {
     if (this.languageState.effectiveLocale.length >= 0) {
-      SecondaryListScaffold({
-        listSpace: ThemeConstants.SPACE_MD,
-        horizontalPadding: ThemeConstants.SPACE_XL,
-        bottomPadding: ThemeConstants.SPACE_XL,
-        reserveTitleBar: true,
-        onReachEnd: () => {
-          void this.viewModel.loadMoreSearch()
-        },
-      }) {
-        ListItem() {
-          Search({ value: this.query, placeholder: this.searchPlaceholder() })
-            .width('100%')
-            .height(ThemeConstants.INPUT_HEIGHT)
-            .borderRadius(ThemeConstants.RADIUS_CHIP)
-            .backgroundColor($r('sys.color.comp_background_tertiary'))
-            .placeholderColor(ThemeConstants.TEXT_SECONDARY)
-            .textFont({ size: ThemeConstants.FONT_SIZE_BODY, weight: FontWeight.Regular })
-            .onChange((value: string) => {
-              this.scheduleSearch(value)
-            })
-            .onSubmit((value: string) => {
-              this.submitSearch(value)
-            })
-        }
-        if (this.hasRuntimeFilters()) {
+      Stack() {
+        SecondaryListScaffold({
+          listSpace: ThemeConstants.SPACE_MD,
+          horizontalPadding: ThemeConstants.SPACE_XL,
+          bottomPadding: ThemeConstants.SPACE_XL,
+          reserveTitleBar: true,
+          onReachEnd: () => {
+            void this.viewModel.loadMoreSearch()
+          },
+        }) {
           ListItem() {
-            Row() {
-              Blank()
-              Button({ type: ButtonType.Normal, stateEffect: true }) {
-                Text(s('common_filter'))
-                  .fontSize(ThemeConstants.FONT_SIZE_BODY)
-                  .fontWeight(FontWeight.Medium)
-                  .fontColor(ThemeConstants.BRAND_PRIMARY)
-                  .padding({ left: ThemeConstants.SPACE_MD, right: ThemeConstants.SPACE_MD })
-              }
-              .height(ThemeConstants.ACTION_CHIP_HEIGHT)
-              .backgroundColor(Color.Transparent)
-              .borderRadius(ThemeConstants.RADIUS_CHIP)
-              .onClick(() => {
-                this.openFilters()
-              })
-              .bindSheet($$this.filtersShown, this.SearchFiltersSheet,
-                sourceFilterSheetOptions(() => {
-                  this.closeFilters()
-                }))
+            Column() {}
+              .width('100%')
+              .height(SOURCE_SEARCH_TITLE_BOTTOM_HEIGHT)
+          }
+          if (this.viewModel.loadingSearch && this.viewModel.searchResults.length === 0) {
+            ListItem() {
+              this.LoadingSearchState()
             }
-            .width('100%')
-          }
-        }
-        if (this.viewModel.loadingSearch && this.viewModel.searchResults.length === 0) {
-          ListItem() {
-            this.LoadingSearchState()
-          }
-        } else if (this.viewModel.errorMessage.length > 0 && this.viewModel.searchResults.length === 0) {
-          ListItem() {
-            this.SearchErrorState()
-          }
-        } else if (this.viewModel.searchResults.length === 0) {
-          ListItem() {
-            this.EmptySearch()
-          }
-        } else {
-          ListItem() {
-            this.ResultsGrid(this.viewModel.searchResults)
-          }
-          if (this.viewModel.errorMessage.length > 0) {
+          } else if (this.viewModel.errorMessage.length > 0 && this.viewModel.searchResults.length === 0) {
             ListItem() {
               this.SearchErrorState()
             }
-          }
-          if (this.viewModel.hasMoreSearch) {
+          } else if (this.viewModel.searchResults.length === 0) {
             ListItem() {
-              KomaActionButton({
-                label: this.viewModel.loadingSearch ? s('common_loading_more') : s('common_load_more'),
-                kind: 'secondary',
-                fill: true,
-                isEnabled: !this.viewModel.loadingSearch,
-                action: () => {
-                  void this.viewModel.loadMoreSearch()
-                },
-              })
+              this.EmptySearch()
+            }
+          } else {
+            ListItem() {
+              this.ResultsGrid(this.viewModel.searchResults)
+            }
+            if (this.viewModel.errorMessage.length > 0) {
+              ListItem() {
+                this.SearchErrorState()
+              }
+            }
+            if (this.viewModel.hasMoreSearch) {
+              ListItem() {
+                KomaActionButton({
+                  label: this.viewModel.loadingSearch ? s('common_loading_more') : s('common_load_more'),
+                  kind: 'secondary',
+                  fill: true,
+                  isEnabled: !this.viewModel.loadingSearch,
+                  action: () => {
+                    void this.viewModel.loadMoreSearch()
+                  },
+                })
+              }
             }
           }
         }
       }
+      .width('100%')
+      .height('100%')
+      .bindSheet($$this.filtersShown, this.SearchFiltersSheet,
+        sourceFilterSheetOptions(() => {
+          this.closeFilters()
+        }))
     }
   }
 }

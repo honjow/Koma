@@ -1,18 +1,21 @@
 import { SourceMangaGrid } from '../components/SourceMangaGrid'
 import { KomaActionButton } from '../components/ui/KomaActionButton'
 import { KomaEmptyState } from '../components/ui/KomaEmptyState'
-import { KomaIconButton } from '../components/ui/KomaIconButton'
-import { SecondaryListScaffold } from '../components/SecondaryListScaffold'
+import { PullRefreshListScaffold } from '../components/PullRefreshListScaffold'
 import { SourceFiltersSheetScaffold } from '../components/SourceFiltersSheetScaffold'
 import { sourceFilterSheetOptions } from '../components/SourceFilterSheetOptions'
 import { SourceFilterControls, SourceFilterControlValue } from '../components/SourceFilterControls'
 import { AppStrings } from '../i18n/AppStrings'
 import { SourceFilter, SourceManga } from '../model/SourceModels'
 import { connectLanguageState, LanguageState } from '../state/LanguageState'
+import { connectLayoutSafeArea, LayoutSafeAreaState } from '../state/LayoutSafeAreaState'
 import { connectSourceRuntimeState, SourceRuntimeState } from '../state/SourceRuntimeState'
+import { SourceBrowseRouteChromeState } from '../state/SourceRouteChromeState'
 import { ThemeConstants } from '../theme/ThemeConstants'
 import {
   BrowseSourceSectionState,
+  BrowseContentState,
+  BrowseLoadIntent,
   BrowseViewModel,
   SourceHomeSectionState,
   SourceListingDescriptor,
@@ -42,10 +45,15 @@ export struct SourceBrowsePage {
     capabilities: [],
   }
   @Param viewModel: BrowseViewModel = new BrowseViewModel()
+  @Param chrome: SourceBrowseRouteChromeState = new SourceBrowseRouteChromeState()
   @Local private languageState: LanguageState = connectLanguageState()
+  @Local private safeArea: LayoutSafeAreaState = connectLayoutSafeArea()
   @Local private sourceRuntimeState: SourceRuntimeState = connectSourceRuntimeState()
+  private pendingSourceRuntimeRevision: number = 0
   @Local private filtersShown: boolean = false
   @Local private listingMenuOpen: boolean = false
+  private browseScroller: Scroller = new Scroller()
+  private handledFilterRequestSeq: number = 0
   @Event onSearchRequested: (source: SourceRuntimeRegistryInstalledSourceSummary) => void =
     (_source: SourceRuntimeRegistryInstalledSourceSummary) => {}
   @Event onMangaTap: (manga: SourceManga) => void = (_manga: SourceManga) => {}
@@ -74,6 +82,11 @@ export struct SourceBrowsePage {
     })
   }
 
+  private isBlockingBrowseLoading(): boolean {
+    return this.viewModel.browseContentState === BrowseContentState.UNRESOLVED ||
+      this.viewModel.browseContentState === BrowseContentState.LOADING
+  }
+
   private shouldLoadBrowseOnAppear(): boolean {
     if (this.viewModel.loadingBrowse) {
       return false
@@ -85,10 +98,7 @@ export struct SourceBrowsePage {
       selected?.wasmByteCount !== current.wasmByteCount) {
       return true
     }
-    return !this.hasBrowseContent() &&
-      this.viewModel.errorMessage.length === 0 &&
-      this.viewModel.selectedListingId.length === 0 &&
-      this.viewModel.listings.length === 0
+    return this.viewModel.browseContentState === BrowseContentState.UNRESOLVED
   }
 
   private currentSource(): SourceRuntimeRegistryInstalledSourceSummary {
@@ -96,19 +106,30 @@ export struct SourceBrowsePage {
   }
 
   private reloadBrowse(): void {
+    void this.loadBrowse(BrowseLoadIntent.INITIAL)
+  }
+
+  private async refreshBrowse(): Promise<void> {
+    await this.loadBrowse(BrowseLoadIntent.REFRESH)
+  }
+
+  private async loadBrowse(intent: BrowseLoadIntent): Promise<void> {
     if (this.viewModel.loadingBrowse) {
       return
     }
     this.viewModel.loadInstalledSources()
-    void this.viewModel.loadBrowseHome(this.currentSource())
+    try {
+      await this.viewModel.loadBrowseHome(this.currentSource(), intent)
+    } finally {
+      if (this.pendingSourceRuntimeRevision > 0) {
+        this.pendingSourceRuntimeRevision = 0
+        this.reloadBrowse()
+      }
+    }
   }
 
   private retryBrowseError(): void {
-    if (this.hasBrowseContent()) {
-      void this.viewModel.loadMoreBrowse()
-      return
-    }
-    this.reloadBrowse()
+    void this.viewModel.retryBrowseFailure()
   }
 
   private setBrowseFilterValue(filter: SourceFilter, value: SourceFilterControlValue | undefined): void {
@@ -130,6 +151,25 @@ export struct SourceBrowsePage {
 
   private closeFilters(): void {
     this.filtersShown = false
+  }
+
+  private syncTitleActions(): void {
+    this.chrome.filtersAvailable = this.hasRuntimeFilters()
+  }
+
+  @Monitor('chrome.filterRequestSeq')
+  private handleTitleFilterRequest(): void {
+    const requestSeq = this.chrome.filterRequestSeq
+    if (requestSeq <= this.handledFilterRequestSeq) {
+      return
+    }
+    this.handledFilterRequestSeq = requestSeq
+    this.openFilters()
+  }
+
+  @Monitor('viewModel.filters')
+  private syncTitleActionsFromViewModel(): void {
+    this.syncTitleActions()
   }
 
   @Builder
@@ -287,7 +327,8 @@ export struct SourceBrowsePage {
   @Builder
   private BrowseErrorState() {
     KomaEmptyState({
-      title: this.hasBrowseContent() ? s('browse_error_load_more') : s('browse_error_load_home'),
+      title: this.viewModel.browseErrorIntent === BrowseLoadIntent.PAGINATION
+        ? s('browse_error_load_more') : s('browse_error_load_home'),
       message: this.viewModel.errorMessage,
       actionLabel: s('common_retry'),
       showAction: true,
@@ -295,52 +336,6 @@ export struct SourceBrowsePage {
         this.retryBrowseError()
       },
     })
-  }
-
-  @Builder
-  private SourceToolbar() {
-    Row({ space: ThemeConstants.SPACE_SM }) {
-      Blank()
-      KomaActionButton({
-        label: s('tab_search'),
-        icon: $r('sys.symbol.magnifyingglass'),
-        kind: 'ghost',
-        compact: true,
-        controlHeight: ThemeConstants.ACTION_CHIP_HEIGHT,
-        action: () => {
-          this.onSearchRequested(this.currentSource())
-        },
-      })
-      if (this.hasRuntimeFilters()) {
-        Button({ type: ButtonType.Normal, stateEffect: true }) {
-          Text(s('common_filter'))
-            .fontSize(ThemeConstants.FONT_SIZE_BODY)
-            .fontWeight(FontWeight.Medium)
-            .fontColor(ThemeConstants.BRAND_PRIMARY)
-            .padding({ left: ThemeConstants.SPACE_MD, right: ThemeConstants.SPACE_MD })
-        }
-          .height(ThemeConstants.ACTION_CHIP_HEIGHT)
-          .backgroundColor(Color.Transparent)
-          .borderRadius(ThemeConstants.RADIUS_CHIP)
-          .onClick(() => {
-            this.openFilters()
-          })
-          .bindSheet($$this.filtersShown, this.SourceFiltersSheet,
-            sourceFilterSheetOptions(() => {
-              this.closeFilters()
-            }))
-      }
-      KomaIconButton({
-        icon: $r('sys.symbol.arrow_clockwise'),
-        kind: 'ghost',
-        isEnabled: !this.viewModel.loadingBrowse,
-        action: () => {
-          this.reloadBrowse()
-        },
-      })
-    }
-    .width('100%')
-    .alignItems(VerticalAlign.Center)
   }
 
   @Builder
@@ -374,14 +369,32 @@ export struct SourceBrowsePage {
         .textAlign(TextAlign.Center)
     }
     .width('100%')
-    .height(260)
     .justifyContent(FlexAlign.Center)
     .alignItems(HorizontalAlign.Center)
+  }
+
+  @Builder
+  private BlockingBrowseLoadingOverlay() {
+    Column() {
+      Blank().height(this.safeArea.topAvoidHeight + ThemeConstants.TITLE_BAR_HEIGHT)
+      Column() {
+        this.LoadingBrowseState()
+      }
+      .width('100%')
+      .layoutWeight(1)
+      .justifyContent(FlexAlign.Center)
+      .alignItems(HorizontalAlign.Center)
+      Blank().height(this.safeArea.bottomAvoidHeight + ThemeConstants.SPACE_XL)
+    }
+    .width('100%')
+    .height('100%')
+    .backgroundColor(ThemeConstants.BG_SUB)
   }
 
   aboutToAppear(): void {
     reloadInstalledSourcePackages(getContext(this) as common.UIAbilityContext)
     this.viewModel.loadInstalledSources()
+    this.syncTitleActions()
     if (this.shouldLoadBrowseOnAppear()) {
       this.reloadBrowse()
     }
@@ -389,8 +402,13 @@ export struct SourceBrowsePage {
 
   @Monitor('sourceRuntimeState.revision')
   private refreshCurrentSourceSummary(): void {
+    if (this.viewModel.loadingBrowse) {
+      this.pendingSourceRuntimeRevision = this.sourceRuntimeState.revision
+      return
+    }
     reloadInstalledSourcePackages(getContext(this) as common.UIAbilityContext)
     this.viewModel.loadInstalledSources()
+    this.syncTitleActions()
     if (this.shouldLoadBrowseOnAppear()) {
       this.reloadBrowse()
     }
@@ -398,65 +416,74 @@ export struct SourceBrowsePage {
 
   build() {
     if (this.languageState.effectiveLocale.length >= 0) {
-      SecondaryListScaffold({
-        listSpace: ThemeConstants.SPACE_MD,
-        horizontalPadding: ThemeConstants.SPACE_XL,
-        bottomPadding: ThemeConstants.SPACE_XL,
-        reserveTitleBar: true,
-        onReachEnd: () => {
-          void this.viewModel.loadMoreBrowse()
-        },
-      }) {
-        ListItem() {
-          this.SourceToolbar()
+      Stack() {
+        PullRefreshListScaffold({
+          scroller: this.browseScroller,
+          listSpace: ThemeConstants.SPACE_MD,
+          horizontalPadding: ThemeConstants.SPACE_XL,
+          bottomPadding: ThemeConstants.SPACE_XL,
+          reserveTitleBar: true,
+          onRefresh: async () => {
+            await this.refreshBrowse()
+          },
+          onReachEnd: () => {
+            void this.viewModel.loadMoreBrowse()
+          },
+        }) {
+          if (!this.isBlockingBrowseLoading()) {
+            if (this.viewModel.browseContentState === BrowseContentState.ERROR && !this.hasBrowseContent()) {
+              ListItem() {
+                this.BrowseErrorState()
+              }
+            } else if (this.viewModel.browseContentState === BrowseContentState.EMPTY) {
+              ListItem() {
+                this.EmptyBrowseResults()
+              }
+            } else {
+              ForEach(this.viewModel.homeSections, (section: SourceHomeSectionState) => {
+                ListItem() {
+                  this.HomeSection(section)
+                }
+              }, (section: SourceHomeSectionState) => section.id)
+
+              ForEach(this.viewModel.browseSections, (section: BrowseSourceSectionState) => {
+                ListItem() {
+                  this.BrowseSection(section)
+                }
+              }, (section: BrowseSourceSectionState) => section.listing.id)
+
+              if (this.viewModel.browseContentState === BrowseContentState.ERROR &&
+                this.viewModel.errorMessage.length > 0) {
+                ListItem() {
+                  this.BrowseErrorState()
+                }
+              } else if (this.viewModel.hasMoreBrowse) {
+                ListItem() {
+                  KomaActionButton({
+                    label: this.viewModel.browseLoadIntent === BrowseLoadIntent.PAGINATION
+                      ? s('common_loading_more') : s('common_load_more'),
+                    kind: 'secondary',
+                    fill: true,
+                    isEnabled: !this.viewModel.loadingBrowse,
+                    action: () => {
+                      void this.viewModel.loadMoreBrowse()
+                    },
+                  })
+                }
+              }
+            }
+          }
         }
-
-        if (this.viewModel.loadingBrowse &&
-          this.viewModel.homeSections.length === 0 &&
-          this.viewModel.browseSections.length === 0) {
-          ListItem() {
-            this.LoadingBrowseState()
-          }
-        } else if (this.viewModel.errorMessage.length > 0 && !this.hasBrowseContent()) {
-          ListItem() {
-            this.BrowseErrorState()
-          }
-        } else if (!this.hasBrowseContent()) {
-          ListItem() {
-            this.EmptyBrowseResults()
-          }
-        } else {
-          ForEach(this.viewModel.homeSections, (section: SourceHomeSectionState) => {
-            ListItem() {
-              this.HomeSection(section)
-            }
-          }, (section: SourceHomeSectionState) => section.id)
-
-          ForEach(this.viewModel.browseSections, (section: BrowseSourceSectionState) => {
-            ListItem() {
-              this.BrowseSection(section)
-            }
-          }, (section: BrowseSourceSectionState) => section.listing.id)
-
-          if (this.viewModel.errorMessage.length > 0) {
-            ListItem() {
-              this.BrowseErrorState()
-            }
-          } else if (this.viewModel.hasMoreBrowse) {
-            ListItem() {
-              KomaActionButton({
-                label: this.viewModel.loadingBrowse ? s('common_loading_more') : s('common_load_more'),
-                kind: 'secondary',
-                fill: true,
-                isEnabled: !this.viewModel.loadingBrowse,
-                action: () => {
-                  void this.viewModel.loadMoreBrowse()
-                },
-              })
-            }
-          }
+        if (this.isBlockingBrowseLoading()) {
+          this.BlockingBrowseLoadingOverlay()
         }
       }
+      .width('100%')
+      .height('100%')
+      .bindSheet($$this.filtersShown, this.SourceFiltersSheet,
+        sourceFilterSheetOptions(() => {
+          this.closeFilters()
+        }))
     }
   }
 }

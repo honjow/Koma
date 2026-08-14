@@ -17,8 +17,6 @@ export struct KomaTabIcon {
       return $r('sys.symbol.compass')
     } else if (index === TabIndex.HISTORY) {
       return $r('sys.symbol.clock')
-    } else if (index === TabIndex.SEARCH) {
-      return $r('sys.symbol.magnifyingglass')
     } else {
       return $r('sys.symbol.gearshape')
     }

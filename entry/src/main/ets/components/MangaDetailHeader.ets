@@ -82,9 +82,26 @@ export struct MangaDetailHeader {
   }
 
   @Builder
+  private PendingCoverPlaceholder() {
+    // Match the established source-grid cover state while a valid cover URL is still decoding.
+    Column() {
+      SymbolGlyph($r('sys.symbol.book'))
+        .fontSize(42)
+        .fontColor([ThemeConstants.TEXT_TERTIARY])
+    }
+    .width('100%')
+    .height('100%')
+    .padding(ThemeConstants.SPACE_MD)
+    .justifyContent(FlexAlign.Center)
+    .alignItems(HorizontalAlign.Center)
+    .backgroundColor(ThemeConstants.COVER_PLACEHOLDER)
+  }
+
+  @Builder
   private Cover() {
     Stack({ alignContent: Alignment.Center }) {
       if (this.hasCover()) {
+        this.PendingCoverPlaceholder()
         CachedCoverImage({
           uri: this.manga.coverUrl ?? '',
           objectFit: ImageFit.Cover,

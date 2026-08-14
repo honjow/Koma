@@ -58,6 +58,24 @@ export interface SourceChapterPageHydrationResult {
   reasonCode?: string
 }
 
+/**
+ * Resolves one source chapter into Reader page descriptors without touching
+ * the library.  Consumers must treat the returned descriptors as one-open
+ * data: hosts can issue expiring URLs or request headers, so this is never a
+ * persistent page cache.
+ */
+export interface SourceChapterPagesResolveRequest {
+  comicId: string
+  sourceId: string
+  mangaId?: string
+  chapterId: string
+}
+
+export interface SourceChapterPagesResolveResult {
+  pages: Page[]
+  reasonCode?: string
+}
+
 function normalizeSourceLookupHydrationReason(reasonCode: string | undefined): string {
   if (reasonCode === 'missing_source_id' || reasonCode === 'source_id_not_registered') {
     return 'source_not_installed'
@@ -190,6 +208,74 @@ function sourceMangaIdFromComic(comic: Comic, sourceId: string): string | undefi
   return undefined
 }
 
+async function fetchSourceChapterPages(
+  entry: SourceRuntimeRegistryEntry,
+  request: SourceChapterPagesResolveRequest,
+): Promise<Page[]> {
+  const args: SourcePagesRequestArgs = { chapterId: request.chapterId }
+  const mangaId = request.mangaId?.trim()
+  if (mangaId !== undefined && mangaId.length > 0) {
+    args.mangaId = mangaId
+  }
+  const sourceRequest: SourcePagesRequest = {
+    type: 'request',
+    version: 1,
+    requestId: `chapter-pages-${entry.sourceId}-${Date.now()}`,
+    operation: 'get_pages',
+    sourceId: entry.sourceId,
+    args,
+    settings: appSourceSettingsStore.loadForSource(entry.sourceId),
+    hostHints: { network: true, imageStrategy: 'descriptor-or-url' },
+  }
+  const responseJson = await taskpool.execute(
+    executeSourceChapterPagesOperation,
+    JSON.stringify(sourceRequest),
+    cloneWasmBytes(entry),
+  ) as string
+  const response = JSON.parse(responseJson) as SourceOperationResponsePayload
+  const rows = response.data?.pages !== undefined ? response.data.pages : (response.data?.items ?? [])
+  if (response.ok !== true || rows.length === 0) {
+    throw new Error('get_pages returned no pages')
+  }
+  return pagesFromSourceRows(request.comicId, request.chapterId, rows)
+}
+
+export async function resolveSourceChapterPages(
+  sourceRegistry: SourceRuntimeRegistry,
+  request: SourceChapterPagesResolveRequest,
+): Promise<SourceChapterPagesResolveResult> {
+  const sourceId = request.sourceId.trim()
+  const chapterId = request.chapterId.trim()
+  if (sourceId.length === 0) {
+    return { pages: [], reasonCode: 'source_missing' }
+  }
+  if (chapterId.length === 0) {
+    return { pages: [], reasonCode: 'chapter_missing' }
+  }
+  const lookup = sourceRegistry.lookup(sourceId)
+  if (!lookup.ok || lookup.entry === undefined) {
+    return { pages: [], reasonCode: normalizeSourceLookupHydrationReason(lookup.reasonCode) }
+  }
+  if (!sourceRuntimeEntryEnabled(lookup.entry)) {
+    return { pages: [], reasonCode: 'source_disabled' }
+  }
+  try {
+    const pages = await fetchSourceChapterPages(lookup.entry, {
+      comicId: request.comicId,
+      sourceId,
+      mangaId: request.mangaId,
+      chapterId,
+    })
+    if (pages.length === 0) {
+      return { pages: [], reasonCode: 'pages_missing' }
+    }
+    return { pages }
+  } catch (_error) {
+    console.warn('[SourceChapterPages] step=fetch_pages_failed failed=true reason=source_pages_failed')
+    return { pages: [], reasonCode: 'source_pages_failed' }
+  }
+}
+
 export class SourceChapterPageHydrator {
   private readonly libraryStore: LibraryStore
   private readonly sourceRegistry: SourceRuntimeRegistry
@@ -226,58 +312,17 @@ export class SourceChapterPageHydrator {
     if (resolvedSourceId === undefined || resolvedSourceId.trim().length === 0) {
       return { hydrated: false, pageCount: 0, reasonCode: 'source_missing' }
     }
-    const lookup = this.sourceRegistry.lookup(resolvedSourceId)
-    if (!lookup.ok || lookup.entry === undefined) {
-      return { hydrated: false, pageCount: 0, reasonCode: normalizeSourceLookupHydrationReason(lookup.reasonCode) }
+    const resolution = await resolveSourceChapterPages(this.sourceRegistry, {
+      comicId: comic.id,
+      sourceId: resolvedSourceId,
+      mangaId: sourceMangaIdFromComic(comic, resolvedSourceId),
+      chapterId,
+    })
+    if (resolution.pages.length === 0) {
+      return { hydrated: false, pageCount: 0, reasonCode: resolution.reasonCode ?? 'pages_missing' }
     }
-    if (!sourceRuntimeEntryEnabled(lookup.entry)) {
-      return { hydrated: false, pageCount: 0, reasonCode: 'source_disabled' }
-    }
-    let pages: Page[] = []
-    try {
-      pages = await this.fetchChapterPages(lookup.entry, comic, chapterId)
-    } catch (_error) {
-      console.warn('[SourceChapterPageHydrator] step=fetch_pages_failed failed=true reason=source_pages_failed')
-      return { hydrated: false, pageCount: 0, reasonCode: 'source_pages_failed' }
-    }
-    if (pages.length === 0) {
-      return { hydrated: false, pageCount: 0, reasonCode: 'pages_missing' }
-    }
-    this.applyPages(comic, chapter, pages)
-    return { hydrated: true, pageCount: pages.length }
-  }
-
-  private async fetchChapterPages(
-    entry: SourceRuntimeRegistryEntry,
-    comic: Comic,
-    chapterId: string,
-  ): Promise<Page[]> {
-    const args: SourcePagesRequestArgs = { chapterId }
-    const mangaId = sourceMangaIdFromComic(comic, entry.sourceId)
-    if (mangaId !== undefined) {
-      args.mangaId = mangaId
-    }
-    const request: SourcePagesRequest = {
-      type: 'request',
-      version: 1,
-      requestId: `chapter-pages-${entry.sourceId}-${Date.now()}`,
-      operation: 'get_pages',
-      sourceId: entry.sourceId,
-      args,
-      settings: appSourceSettingsStore.loadForSource(entry.sourceId),
-      hostHints: { network: true, imageStrategy: 'descriptor-or-url' },
-    }
-    const responseJson = await taskpool.execute(
-      executeSourceChapterPagesOperation,
-      JSON.stringify(request),
-      cloneWasmBytes(entry),
-    ) as string
-    const response = JSON.parse(responseJson) as SourceOperationResponsePayload
-    const rows = response.data?.pages !== undefined ? response.data.pages : (response.data?.items ?? [])
-    if (response.ok !== true || rows.length === 0) {
-      throw new Error('get_pages returned no pages')
-    }
-    return pagesFromSourceRows(comic.id, chapterId, rows)
+    this.applyPages(comic, chapter, resolution.pages)
+    return { hydrated: true, pageCount: resolution.pages.length }
   }
 
   private applyPages(comic: Comic, chapter: Chapter, pages: Page[]): void {

@@ -254,6 +254,8 @@ export function parseMangaChapterFromSourceItem(item: SourceRuntimeRecord): Mang
       item['uploadDate'],
       item['uploadedAt'],
       item['updatedAt'],
+      item['publishedAt'],
+      item['published_at'],
     ]),
     pageCount: firstSourceNumber([
       item['page_count'],

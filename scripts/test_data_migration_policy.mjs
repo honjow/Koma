@@ -22,7 +22,7 @@ const sourceAppRegistry = source('entry/src/main/ets/sourceRuntime/SourceRuntime
 
 for (const required of [
   'LIBRARY_STORE_PERSISTENCE_SCHEMA_VERSION = 1',
-  'READER_PROGRESS_PERSISTENCE_SCHEMA_VERSION = 1',
+  'READER_PROGRESS_PERSISTENCE_SCHEMA_VERSION = 2',
   'READER_PREFERENCES_STORE_NAME = koma_reader_preferences_v1',
   'SERIES_OVERRIDES_KEY = reader.seriesOverrides.v1',
   'SOURCE_SETTINGS_SCHEMA_VERSION = 1',
@@ -39,7 +39,7 @@ for (const required of [
 }
 
 assert.match(library, /LIBRARY_STORE_PERSISTENCE_SCHEMA_VERSION = 1[\s\S]*assertValidLibraryStoreJson/, 'library schema must validate before hydrate')
-assert.match(readerProgress, /READER_PROGRESS_PERSISTENCE_SCHEMA_VERSION = 1[\s\S]*Unsupported reader progress schema version/, 'reader progress must reject unsupported schema')
+assert.match(readerProgress, /READER_PROGRESS_PERSISTENCE_SCHEMA_VERSION = 2[\s\S]*READER_PROGRESS_LEGACY_SCHEMA_VERSION = 1[\s\S]*Unsupported reader progress schema version/, 'reader progress must migrate v1 and reject unsupported schemas')
 assert.match(readerPrefs, /READER_PREFERENCES_STORE_NAME[\s\S]*SERIES_OVERRIDES_KEY[\s\S]*normalizeReaderSeriesPreferenceOverrides/, 'reader prefs must keep stable keys and normalize per-series overrides')
 assert.match(sourceSettings, /SOURCE_SETTINGS_SCHEMA_VERSION: number = 1[\s\S]*filterSafeValues[\s\S]*descriptorIsCredentialLike/, 'source settings must schema and block credential-like values')
 assert.match(sourceFilterPreferences, /SOURCE_FILTER_PREFS_SCHEMA_VERSION: number = 1[\s\S]*filterSafeValues[\s\S]*sanitizeFilterValue[\s\S]*filterSafeStoredValues/, 'source filter preferences must schema and sanitize persisted values')

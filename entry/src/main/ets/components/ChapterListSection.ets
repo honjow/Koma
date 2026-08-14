@@ -57,7 +57,7 @@ export struct ChapterListSection {
     const sorted = this.filteredChapterList()
     sorted.sort((left: MangaChapterItem, right: MangaChapterItem): number => {
       if (this.sortOrder === ChapterSortOrder.OLDEST_FIRST) {
-        return this.dateValue(left) - this.dateValue(right)
+        return this.compareByDate(left, right, false)
       }
       if (this.sortOrder === ChapterSortOrder.BY_NUMBER_DESC) {
         return this.chapterNumberValue(right) - this.chapterNumberValue(left)
@@ -65,7 +65,7 @@ export struct ChapterListSection {
       if (this.sortOrder === ChapterSortOrder.BY_NUMBER_ASC) {
         return this.chapterNumberValue(left) - this.chapterNumberValue(right)
       }
-      return this.dateValue(right) - this.dateValue(left)
+      return this.compareByDate(left, right, true)
     })
     return sorted
   }
@@ -94,8 +94,20 @@ export struct ChapterListSection {
     return filtered
   }
 
-  private dateValue(chapter: MangaChapterItem): number {
-    return chapter.dateUpload === undefined ? 0 : chapter.dateUpload
+  private compareByDate(left: MangaChapterItem, right: MangaChapterItem, newestFirst: boolean): number {
+    const leftDate = left.dateUpload
+    const rightDate = right.dateUpload
+    if (leftDate === undefined && rightDate === undefined) {
+      // Keep the source's own order when it does not expose dates.
+      return 0
+    }
+    if (leftDate === undefined) {
+      return 1
+    }
+    if (rightDate === undefined) {
+      return -1
+    }
+    return newestFirst ? rightDate - leftDate : leftDate - rightDate
   }
 
   private chapterNumberValue(chapter: MangaChapterItem): number {

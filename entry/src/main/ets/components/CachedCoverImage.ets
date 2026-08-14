@@ -39,6 +39,11 @@ export struct CachedCoverImage {
   @Local private failedSignature: string = ''
   private disposed: boolean = false
   private sourceSignature: string = ''
+  // This is deliberately separate from sourceSignature. During a source
+  // change, sourceSignature describes the requested cover while the current
+  // PixelMap may still be the previously rendered cover until the replacement
+  // has its own lease.
+  private displayedSignature: string = ''
   private decodeGeneration: number = 0
   private loadingSignature: string = ''
   private loadingGeneration: number = 0
@@ -57,11 +62,35 @@ export struct CachedCoverImage {
     void coverPixelMapMemoryCache.release(lease)
   }
 
+  aboutToAppear(): void {
+    // aboutToAppear runs before the first build. Starting here lets the synchronous memory-cache
+    // lease paint on the initial frame instead of waiting for the post-render onAppear callback.
+    this.disposed = false
+    void this.handleSourceChanged(this.uri, this.sourceRuntimeId, this.sourceImageId, this.sourceKind, this.remoteServerId)
+  }
+
   private async releasePixelMap(): Promise<void> {
     this.pixelMap = undefined
+    this.displayedSignature = ''
     const lease = this.pixelMapLease
     this.pixelMapLease = undefined
     await coverPixelMapMemoryCache.release(lease)
+  }
+
+  private async replacePixelMap(
+    lease: CoverPixelMapLease,
+    signature: string,
+  ): Promise<void> {
+    // Render the new map before giving the prior lease back to the cache. The
+    // cache may release an unindexed, unleased map immediately, so reversing
+    // this order would leave Image bound to a released PixelMap (and visibly
+    // flash blank) between detail-list cover identities.
+    const previousLease = this.pixelMapLease
+    this.pixelMapLease = lease
+    this.pixelMap = lease.pixelMap
+    this.displayedSignature = signature
+    this.failedSignature = ''
+    await coverPixelMapMemoryCache.release(previousLease)
   }
 
   private createSourceSignature(
@@ -115,9 +144,7 @@ export struct CachedCoverImage {
     const cachedLease = coverPixelMapMemoryCache.acquire(memoryCacheKey)
     if (cachedLease !== undefined) {
       if (!this.disposed && this.sourceSignature === signature && this.decodeGeneration === generation) {
-        this.pixelMapLease = cachedLease
-        this.pixelMap = cachedLease.pixelMap
-        this.failedSignature = ''
+        await this.replacePixelMap(cachedLease, signature)
       } else {
         await coverPixelMapMemoryCache.release(cachedLease)
       }
@@ -160,9 +187,7 @@ export struct CachedCoverImage {
         await coverPixelMapMemoryCache.release(lease)
         return
       }
-      this.pixelMapLease = lease
-      this.pixelMap = lease.pixelMap
-      this.failedSignature = ''
+      await this.replacePixelMap(lease, signature)
     } catch (_error) {
       if (!this.disposed && this.sourceSignature === signature && this.decodeGeneration === generation) {
         this.failedSignature = signature
@@ -198,7 +223,9 @@ export struct CachedCoverImage {
       nextSourceKind,
       nextRemoteServerId,
     )
-    if (this.sourceSignature === nextSignature && this.pixelMap !== undefined) {
+    if (this.sourceSignature === nextSignature &&
+      (this.displayedSignature === nextSignature ||
+        (this.loading && this.loadingSignature === nextSignature && this.loadingGeneration === this.decodeGeneration))) {
       return
     }
     this.decodeGeneration += 1
@@ -207,7 +234,13 @@ export struct CachedCoverImage {
     this.loading = false
     this.loadingSignature = ''
     this.loadingGeneration = 0
-    await this.releasePixelMap()
+    // A removed cover has no replacement to resolve, so the old lease can be
+    // returned immediately. For a non-empty replacement, retain it until
+    // decodeImage installs the new lease through replacePixelMap().
+    if (nextUri.length === 0) {
+      await this.releasePixelMap()
+      return
+    }
     if (!this.disposed && this.sourceSignature === nextSignature && this.decodeGeneration === generation) {
       await this.decodeImage(
         nextUri,
@@ -238,9 +271,5 @@ export struct CachedCoverImage {
     }
     .width('100%')
     .height('100%')
-    .onAppear(() => {
-      this.disposed = false
-      this.handleSourceChanged(this.uri, this.sourceRuntimeId, this.sourceImageId, this.sourceKind, this.remoteServerId)
-    })
   }
 }

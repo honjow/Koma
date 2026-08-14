@@ -10,11 +10,10 @@ import { KomaIconButton } from '../components/ui/KomaIconButton'
 import { ThemeConstants } from '../theme/ThemeConstants'
 import {
   ContinueReadingCardViewModel,
+  LibraryComicPresentation,
   LibraryPresentationByComicId,
   LibraryViewModel,
   createLibraryViewModelFromComics,
-  createMockLibraryPresentationMap,
-  createSeededLibraryStore,
 } from '../model/MockLibraryData'
 import {
   Chapter,
@@ -31,6 +30,7 @@ import {
 } from '../model/ComicModels'
 import {
   LibraryCategoryFilter,
+  InMemoryLibraryStore,
   LibraryListOptions,
   LibraryReadStateFilter,
   LibrarySortBy,
@@ -57,9 +57,7 @@ import {
   LibraryStorePersistenceService,
 } from '../model/LibraryPersistence'
 import {
-  AppFilesReaderSessionPersistenceAdapter,
   InMemoryReaderSessionStore,
-  PersistentReaderSessionStore,
   ReaderSessionStore,
   sortedReaderChapters,
 } from '../model/ReaderSessionStore'
@@ -80,6 +78,16 @@ function s(name: string): string {
 interface LibraryServerSourceFilterOption {
   filter: LibrarySourceFilter
   title: string
+}
+
+/**
+ * `displayedComics` is a projection that depends on both the injected library
+ * store and persisted filters. Keep the two unresolved states separate so an
+ * empty array is never presented as a confirmed empty or filtered library.
+ */
+enum LibraryProjectionState {
+  PENDING,
+  READY,
 }
 
 @ComponentV2
@@ -175,12 +183,15 @@ struct ContinueReadingShelfCard {
 
 @ComponentV2
 export struct LibraryPage {
-  @Param libraryStore: LibraryStore = createSeededLibraryStore()
-  @Param libraryComics: Comic[] = createSeededLibraryStore().listComics()
+  @Param libraryStore: LibraryStore = new InMemoryLibraryStore()
+  @Param libraryComics: Comic[] = []
   @Param libraryRevision: number = 0
+  @Param readerSessionStore: ReaderSessionStore = new InMemoryReaderSessionStore()
+  @Param readerProgressRevision: number = 0
   @Local private languageState: LanguageState = connectLanguageState()
-  @Local private displayedComics: Comic[] = createSeededLibraryStore().listComics()
+  @Local private displayedComics: Comic[] = []
   @Local private displayedRevision: number = 0
+  @Local private projectionState: LibraryProjectionState = LibraryProjectionState.PENDING
   @Local private selectionMode: boolean = false
   @Local private selectedIds: Set<ComicId> = new Set<ComicId>()
   @Local private suppressOpenComicId: ComicId = ''
@@ -232,11 +243,13 @@ export struct LibraryPage {
   @Local private failedCoverUris: string[] = []
   @Local private remoteProgress: RemoteProgressSyncState = connectRemoteProgressSyncState()
   private downloadQueueRecoveryStarted: boolean = false
-  @Param presentationByComicId: LibraryPresentationByComicId = createMockLibraryPresentationMap()
+  private filterPreferencesRestoreEpoch: number = 0
+  private filterPreferencesMutationRevision: number = 0
+  @Param presentationByComicId: LibraryPresentationByComicId = new Map<ComicId, LibraryComicPresentation>()
   @Param sourceRegistry: SourceRuntimeRegistry = appSourceRuntimeRegistry
   @Param libraryPersistenceService?: LibraryStorePersistenceService = undefined
-  private sessionStore: ReaderSessionStore = new InMemoryReaderSessionStore()
   @Event onOpenReader: (comicId: ComicId, chapterId?: string) => void = (_comicId: ComicId, _chapterId?: string) => {}
+  @Event onProgressStoreReloadRequested: () => void = () => {}
   @Event onImportRequested: () => void = () => {}
   @Event onRemoveComicRequested: (comicId: ComicId) => boolean = (_comicId: ComicId) => false
   @Event onRemoveComicsRequested: (comicIds: ComicId[]) => number = (_comicIds: ComicId[]) => 0
@@ -257,24 +270,13 @@ export struct LibraryPage {
   @Monitor('remoteProgress.syncRevision')
   private onRemoteProgressSyncRevChanged(): void {
     void this.remoteProgress.syncRevision
-    this.reloadPersistentSessionStore('bootstrap_sync')
+    this.onProgressStoreReloadRequested()
   }
 
-  private reloadPersistentSessionStore(reason: string): void {
-    try {
-      const context = getContext(this) as common.UIAbilityContext
-      if (context === undefined || context.filesDir === undefined || context.filesDir.length === 0) {
-        return
-      }
-      this.sessionStore = new PersistentReaderSessionStore(
-        new AppFilesReaderSessionPersistenceAdapter(context.filesDir)
-      )
-      this.refreshDisplayedSnapshotFromStore()
-      console.info(`[Library] step=progress_reload reason=${reason}`)
-    } catch (error) {
-      void error
-      console.info('[Library] step=progress_reload_failed reason=session_store')
-    }
+  @Monitor('readerSessionStore', 'readerProgressRevision')
+  private onReaderProgressSnapshotChanged(): void {
+    void this.readerProgressRevision
+    this.refreshDisplayedSnapshotFromStore()
   }
 
   private refreshDisplayedSnapshotFromStore(): void {
@@ -292,6 +294,14 @@ export struct LibraryPage {
     )
     this.displayedRevision += 1
     this.removeMissingSelectedComics()
+  }
+
+  private isProjectionPending(): boolean {
+    return this.projectionState === LibraryProjectionState.PENDING
+  }
+
+  private markFilterPreferencesMutation(): void {
+    this.filterPreferencesMutationRevision += 1
   }
 
   private filterMetadataStatusComics(comics: Comic[]): Comic[] {
@@ -434,7 +444,7 @@ export struct LibraryPage {
   private progressByComicId(): Map<ComicId, ReadingProgress> {
     const progressByComicId: Map<ComicId, ReadingProgress> = new Map<ComicId, ReadingProgress>()
     this.libraryStore.listComics().forEach((comic: Comic) => {
-      const progress = this.sessionStore.getProgress(comic.id)
+      const progress = this.readerSessionStore.getProgress(comic.id)
       if (progress !== undefined) {
         progressByComicId.set(comic.id, progress)
       }
@@ -467,6 +477,7 @@ export struct LibraryPage {
       return this.filterCategory
     }
     this.filterCategory = 'all'
+    this.markFilterPreferencesMutation()
     this.saveFilterPreferences()
     console.info('[Library] step=category_filter_reset reason=missing_category')
     return 'all'
@@ -515,10 +526,22 @@ export struct LibraryPage {
     return [ComicSourceKind.PRIVATE_LIBRARY]
   }
 
-  private async restoreFilterPreferences(): Promise<void> {
+  private beginFilterPreferencesRestore(): void {
+    this.filterPreferencesRestoreEpoch += 1
+    const restoreEpoch = this.filterPreferencesRestoreEpoch
+    const mutationRevision = this.filterPreferencesMutationRevision
+    void this.restoreFilterPreferences(restoreEpoch, mutationRevision)
+  }
+
+  private async restoreFilterPreferences(restoreEpoch: number, mutationRevision: number): Promise<void> {
     try {
       const context = getContext(this) as common.UIAbilityContext
       const preferencesValue = await new LibraryFilterStore(context).load()
+      if (restoreEpoch !== this.filterPreferencesRestoreEpoch ||
+        mutationRevision !== this.filterPreferencesMutationRevision) {
+        console.info('[Library] step=filter_restore_discarded reason=state_changed')
+        return
+      }
       this.sortBy = preferencesValue.sortBy
       this.viewMode = preferencesValue.viewMode
       this.listDensity = preferencesValue.listDensity
@@ -529,13 +552,20 @@ export struct LibraryPage {
       this.filterAvailability = preferencesValue.availability
       this.filterMetadataStatus = preferencesValue.metadataStatus
       this.applyCategoryDisplayStrategy(this.validCategoryFilter())
-      this.refreshDisplayedSnapshotFromStore()
       console.info(
         `[Library] step=filter_restored sortBy=${this.sortBy} viewMode=${this.viewMode} listDensity=${this.listDensity} showBadges=${this.showLibraryBadges} source=${this.filterSource} readState=${this.filterReadState} category=${this.filterCategory} availability=${this.filterAvailability} metadataStatus=${this.filterMetadataStatus}`
       )
     } catch (error) {
       void error
       console.info('[Library] step=filter_restore_failed reason=filter_restore')
+    } finally {
+      if (restoreEpoch === this.filterPreferencesRestoreEpoch) {
+        // Compute the current projection before exposing it. This covers the
+        // persisted snapshot, a user mutation that won the race, and default
+        // filters after an unavailable preferences store.
+        this.refreshDisplayedSnapshotFromStore()
+        this.projectionState = LibraryProjectionState.READY
+      }
     }
   }
 
@@ -564,6 +594,7 @@ export struct LibraryPage {
     if (this.sortBy === sortBy) {
       return
     }
+    this.markFilterPreferencesMutation()
     this.sortBy = sortBy
     this.refreshDisplayedSnapshotFromStore()
     this.saveFilterPreferences()
@@ -574,6 +605,7 @@ export struct LibraryPage {
     if (this.filterSource === source) {
       return
     }
+    this.markFilterPreferencesMutation()
     this.filterSource = source
     this.refreshDisplayedSnapshotFromStore()
     this.saveFilterPreferences()
@@ -584,6 +616,7 @@ export struct LibraryPage {
     if (this.filterReadState === readState) {
       return
     }
+    this.markFilterPreferencesMutation()
     this.filterReadState = readState
     this.refreshDisplayedSnapshotFromStore()
     this.saveFilterPreferences()
@@ -594,6 +627,7 @@ export struct LibraryPage {
     if (this.filterCategory === category) {
       return
     }
+    this.markFilterPreferencesMutation()
     this.filterCategory = category
     this.applyCategoryDisplayStrategy(category)
     this.refreshDisplayedSnapshotFromStore()
@@ -605,6 +639,7 @@ export struct LibraryPage {
     if (this.filterAvailability === availability) {
       return
     }
+    this.markFilterPreferencesMutation()
     this.filterAvailability = availability
     this.refreshDisplayedSnapshotFromStore()
     this.saveFilterPreferences()
@@ -615,6 +650,7 @@ export struct LibraryPage {
     if (this.filterMetadataStatus === metadataStatus) {
       return
     }
+    this.markFilterPreferencesMutation()
     this.filterMetadataStatus = metadataStatus
     this.refreshDisplayedSnapshotFromStore()
     this.saveFilterPreferences()
@@ -634,6 +670,7 @@ export struct LibraryPage {
     if (!this.hasActiveFilters()) {
       return
     }
+    this.markFilterPreferencesMutation()
     this.sortBy = 'lastRead'
     this.filterSource = 'all'
     this.filterReadState = 'all'
@@ -790,7 +827,19 @@ export struct LibraryPage {
   }
 
   private viewModel(): LibraryViewModel {
-    return createLibraryViewModelFromComics(this.displayedComics, this.sessionStore, this.presentationByComicId)
+    return createLibraryViewModelFromComics(this.displayedComics, this.readerSessionStore, this.presentationByComicId)
+  }
+
+  private continueReading(): ContinueReadingCardViewModel {
+    return createLibraryViewModelFromComics(
+      this.libraryStore.listComics(),
+      this.readerSessionStore,
+      this.presentationByComicId,
+    ).continueReading
+  }
+
+  private hasContinueReading(): boolean {
+    return this.continueReading().comicId.length > 0
   }
 
   private gridComics(): ComicCoverInfo[] {
@@ -1073,7 +1122,7 @@ export struct LibraryPage {
   }
 
   private readerChapterIdForComic(comic: Comic): string | undefined {
-    const progress = this.sessionStore.getProgress(comic.id)
+    const progress = this.readerSessionStore.getProgress(comic.id)
     if (progress !== undefined && comic.chapters.some((chapter: Chapter): boolean => chapter.id === progress.chapterId)) {
       return progress.chapterId
     }
@@ -1241,9 +1290,9 @@ export struct LibraryPage {
         })
       })
       if (isRead) {
-        this.sessionStore.saveProgress(this.completedProgressForComic(comic))
+        this.readerSessionStore.saveProgress(this.completedProgressForComic(comic))
       } else {
-        this.sessionStore.removeProgress(comic.id)
+        this.readerSessionStore.removeProgress(comic.id)
       }
     })
     if (mutations.length === 0) {
@@ -1786,6 +1835,18 @@ export struct LibraryPage {
   }
 
   @Builder
+  private LibraryProjectionLoading() {
+    Row() {
+      LoadingProgress()
+        .width(ThemeConstants.LOADING_SIZE_LARGE)
+        .height(ThemeConstants.LOADING_SIZE_LARGE)
+        .color(ThemeConstants.BRAND_PRIMARY)
+    }
+    .width('100%')
+    .justifyContent(FlexAlign.Center)
+  }
+
+  @Builder
   private EmptyFilteredLibrary() {
     KomaEmptyState({
       title: s('library_filtered_empty_title'),
@@ -2068,9 +2129,8 @@ export struct LibraryPage {
 
   aboutToAppear(): void {
     this.syncDisplayedSnapshotFromProps()
-    this.reloadPersistentSessionStore('appear')
     this.recoverDownloadedQueueSnapshotOnAppear()
-    void this.restoreFilterPreferences()
+    this.beginFilterPreferencesRestore()
   }
 
   onBackPress(): boolean {
@@ -2089,11 +2149,15 @@ export struct LibraryPage {
         bottomPadding: ThemeConstants.SPACE_XL,
         floatingTabTailPadding: ThemeConstants.FLOATING_TAB_BAR_CLEARANCE,
       }) {
-        if (this.hasLibraryContent()) {
-          if (this.hasVisibleLibraryContent()) {
+        if (this.isProjectionPending()) {
+          ListItem() {
+            this.LibraryProjectionLoading()
+          }
+        } else if (this.hasLibraryContent()) {
+          if (this.hasContinueReading()) {
             ListItem() {
               ContinueReadingShelfCard({
-                info: this.viewModel().continueReading,
+                info: this.continueReading(),
                 revision: this.displayedRevision,
                 onOpenReader: (comicId: ComicId) => {
                   if (!this.selectionMode) {

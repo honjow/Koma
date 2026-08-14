@@ -51,6 +51,27 @@ export interface SourceHomeSectionState {
   listingId?: string
 }
 
+// A zero-length result is only meaningful after the request that produced it has
+// completed. Keep that lifecycle separate from the arrays so a route never
+// renders an empty result as the implicit loading placeholder.
+export enum BrowseContentState {
+  UNRESOLVED = 'unresolved',
+  LOADING = 'loading',
+  CONTENT = 'content',
+  EMPTY = 'empty',
+  ERROR = 'error',
+}
+
+// The page needs the intent to keep a retained-content refresh distinct from a
+// listing replacement and pagination failure.
+export enum BrowseLoadIntent {
+  NONE = 'none',
+  INITIAL = 'initial',
+  REFRESH = 'refresh',
+  LISTING_REPLACEMENT = 'listingReplacement',
+  PAGINATION = 'pagination',
+}
+
 interface SourceOperationPageArg {
   cursor: string | null
   limit: number
@@ -437,11 +458,16 @@ export class BrowseViewModel {
   @Trace loadingSources: boolean = false
   @Trace loadingBrowse: boolean = false
   @Trace loadingSearch: boolean = false
+  @Trace sourceErrorMessage: string = ''
   @Trace errorMessage: string = ''
+  @Trace browseContentState: BrowseContentState = BrowseContentState.UNRESOLVED
+  @Trace browseLoadIntent: BrowseLoadIntent = BrowseLoadIntent.NONE
+  @Trace browseErrorIntent: BrowseLoadIntent = BrowseLoadIntent.NONE
   @Trace searchQuery: string = ''
   @Trace searchNextCursor: string = ''
   private browseRequestId: number = 0
   private searchRequestId: number = 0
+  private failedBrowseListing?: SourceListingDescriptor
 
   constructor(registry?: SourceRuntimeRegistry) {
     this.registry = registry ?? appSourceRuntimeRegistry
@@ -466,12 +492,12 @@ export class BrowseViewModel {
 
   loadInstalledSources(): void {
     this.loadingSources = true
-    this.errorMessage = ''
+    this.sourceErrorMessage = ''
     try {
       this.sources = this.registry.listInstalledSourceSummaries()
     } catch (error) {
       const e = error as Error
-      this.errorMessage = safeSourceBrowseErrorText(e, 'browse_error_load_sources')
+      this.sourceErrorMessage = safeSourceBrowseErrorText(e, 'browse_error_load_sources')
       this.sources = []
     } finally {
       this.loadingSources = false
@@ -497,25 +523,84 @@ export class BrowseViewModel {
   setSelectedSource(source: SourceRuntimeRegistryInstalledSourceSummary): void {
     this.browseRequestId += 1
     this.selectedSource = source
-    this.popularManga = []
-    this.latestManga = []
-    this.homeSections = []
-    this.browseSections = []
+    this.clearBrowseContent()
     this.filters = []
     this.browseFilterValues = {}
     this.searchFilterValues = {}
+    this.errorMessage = ''
+    this.browseContentState = BrowseContentState.UNRESOLVED
+    this.browseLoadIntent = BrowseLoadIntent.NONE
+    this.browseErrorIntent = BrowseLoadIntent.NONE
+    this.failedBrowseListing = undefined
+  }
+
+  private isCurrentBrowseSource(source: SourceRuntimeRegistryInstalledSourceSummary): boolean {
+    const selected = this.selectedSource
+    return selected !== undefined && selected.sourceId === source.sourceId &&
+      selected.version === source.version && selected.wasmByteCount === source.wasmByteCount
+  }
+
+  private hasBrowseContent(): boolean {
+    return this.homeSections.length > 0 || this.browseSections.some((section: BrowseSourceSectionState): boolean => {
+      return section.manga.length > 0
+    })
+  }
+
+  private clearBrowseListing(): void {
+    this.popularManga = []
+    this.latestManga = []
+    this.browseSections = []
+    this.selectedListingId = ''
     this.browsePage = 1
     this.browseNextCursor = ''
     this.hasMoreBrowse = false
-    this.selectedListingId = ''
-    this.errorMessage = ''
   }
 
-  async loadBrowseHome(source: SourceRuntimeRegistryInstalledSourceSummary): Promise<void> {
-    this.setSelectedSource(source)
-    const requestId = this.browseRequestId
+  private clearBrowseContent(): void {
+    this.homeSections = []
+    this.clearBrowseListing()
+  }
+
+  private beginBrowseLoad(intent: BrowseLoadIntent, retainsCurrentContent: boolean): void {
     this.loadingBrowse = true
+    this.browseLoadIntent = intent
+    this.browseErrorIntent = BrowseLoadIntent.NONE
     this.errorMessage = ''
+    this.failedBrowseListing = undefined
+    this.browseContentState = retainsCurrentContent ? BrowseContentState.CONTENT : BrowseContentState.LOADING
+  }
+
+  private resolveBrowseLoad(): void {
+    this.browseContentState = this.hasBrowseContent() ? BrowseContentState.CONTENT : BrowseContentState.EMPTY
+    this.browseLoadIntent = BrowseLoadIntent.NONE
+    this.browseErrorIntent = BrowseLoadIntent.NONE
+    this.errorMessage = ''
+    this.failedBrowseListing = undefined
+  }
+
+  private failBrowseLoad(error: Error, intent: BrowseLoadIntent, fallbackKey: string): void {
+    this.errorMessage = safeSourceBrowseErrorText(error, fallbackKey)
+    this.browseContentState = BrowseContentState.ERROR
+    this.browseLoadIntent = BrowseLoadIntent.NONE
+    this.browseErrorIntent = intent
+  }
+
+  async loadBrowseHome(
+    source: SourceRuntimeRegistryInstalledSourceSummary,
+    intent: BrowseLoadIntent = BrowseLoadIntent.INITIAL,
+  ): Promise<void> {
+    const sourceMatchesCurrent = this.isCurrentBrowseSource(source)
+    const retainsCurrentContent = intent === BrowseLoadIntent.REFRESH &&
+      sourceMatchesCurrent && this.hasBrowseContent()
+    const effectiveIntent = sourceMatchesCurrent ? intent : BrowseLoadIntent.INITIAL
+    if (retainsCurrentContent) {
+      this.browseRequestId += 1
+      this.selectedSource = source
+    } else {
+      this.setSelectedSource(source)
+    }
+    const requestId = this.browseRequestId
+    this.beginBrowseLoad(effectiveIntent, retainsCurrentContent)
     try {
       const listings = await this.loadSourceListings(source)
       if (requestId !== this.browseRequestId) {
@@ -525,50 +610,60 @@ export class BrowseViewModel {
       if (requestId !== this.browseRequestId) {
         return
       }
-      const homeSections = await this.loadSourceHomeSections(source)
+      let homeSections: SourceHomeSectionState[] = []
+      let homeLoadError: Error | undefined = undefined
+      try {
+        homeSections = await this.loadSourceHomeSections(source)
+      } catch (error) {
+        homeLoadError = error as Error
+      }
       if (requestId !== this.browseRequestId) {
         return
       }
-      this.listings = listings
-      this.filters = filters
-      this.browseFilterValues = this.defaultSourceFilterValues(this.filters)
-      this.searchFilterValues = this.defaultSourceFilterValues(this.filters)
-      this.restoreSavedBrowseFilterValues(source.sourceId)
-      this.restoreSavedSearchFilterValues(source.sourceId)
-      this.homeSections = homeSections
-      const listing = this.sourceSupportsOperation(source, 'mangaList') ? this.defaultListingForBrowse(this.listings) : undefined
-      if (listing === undefined) {
-        this.popularManga = []
-        this.latestManga = []
-        this.browseSections = []
-        this.hasMoreBrowse = false
-        return
+      // Legacy packages without an operation declaration use the listing
+      // fallback below. A declared home operation, especially a home-only
+      // source, must not turn its failed request into a confirmed empty page.
+      if (homeLoadError !== undefined &&
+        (source.capabilities.indexOf('home') >= 0 || retainsCurrentContent)) {
+        throw homeLoadError
       }
-      try {
-        await this.loadBrowseListing(source, listing, 1, requestId)
-      } catch (error) {
-        const e = error as Error
-        if (homeSections.length > 0) {
-          this.errorMessage = safeSourceBrowseErrorText(e, 'browse_error_load_home')
-          this.popularManga = []
-          this.latestManga = []
-          this.browseSections = []
-          this.hasMoreBrowse = false
+      const browseFilterValues = this.mergeSavedSourceFilterValues(
+        source.sourceId,
+        'browse',
+        this.defaultSourceFilterValues(filters),
+        filters,
+      )
+      const searchFilterValues = this.mergeSavedSourceFilterValues(
+        source.sourceId,
+        'search',
+        this.defaultSourceFilterValues(filters),
+        filters,
+      )
+      const listing = this.sourceSupportsOperation(source, 'mangaList') ? this.defaultListingForBrowse(listings) : undefined
+      let listingResult: SourceMangaList | undefined = undefined
+      if (listing !== undefined) {
+        listingResult = await this.loadMangaListing(source, listing.id, 1, '', browseFilterValues)
+        if (requestId !== this.browseRequestId) {
           return
         }
-        throw e
       }
+      this.listings = listings
+      this.filters = filters
+      this.browseFilterValues = browseFilterValues
+      this.searchFilterValues = searchFilterValues
+      this.homeSections = homeSections
+      if (listing !== undefined && listingResult !== undefined) {
+        this.applyBrowseListing(listing, listingResult, 1)
+      } else {
+        this.clearBrowseListing()
+      }
+      this.resolveBrowseLoad()
     } catch (error) {
       if (requestId !== this.browseRequestId) {
         return
       }
       const e = error as Error
-      this.errorMessage = safeSourceBrowseErrorText(e, 'browse_error_load_home')
-      this.popularManga = []
-      this.latestManga = []
-      this.homeSections = []
-      this.browseSections = []
-      this.hasMoreBrowse = false
+      this.failBrowseLoad(e, effectiveIntent, 'browse_error_load_home')
     } finally {
       if (requestId === this.browseRequestId) {
         this.loadingBrowse = false
@@ -580,25 +675,25 @@ export class BrowseViewModel {
     if (this.selectedSource === undefined || this.loadingBrowse) {
       return
     }
+    const retainsCurrentContent = this.hasBrowseContent()
     const requestId = this.browseRequestId + 1
     this.browseRequestId = requestId
-    this.loadingBrowse = true
-    this.errorMessage = ''
+    this.beginBrowseLoad(BrowseLoadIntent.LISTING_REPLACEMENT, retainsCurrentContent)
     try {
-      const loaded = await this.loadBrowseListing(this.selectedSource, listing, 1, requestId)
-      if (!loaded) {
+      const result = await this.loadMangaListing(this.selectedSource, listing.id, 1)
+      if (requestId !== this.browseRequestId) {
         return
       }
+      this.applyBrowseListing(listing, result, 1)
       this.homeSections = []
+      this.resolveBrowseLoad()
     } catch (error) {
       if (requestId !== this.browseRequestId) {
         return
       }
       const e = error as Error
-      this.errorMessage = safeSourceBrowseErrorText(e, 'browse_error_load_home')
-      this.homeSections = []
-      this.browseSections = []
-      this.hasMoreBrowse = false
+      this.failedBrowseListing = listing
+      this.failBrowseLoad(e, BrowseLoadIntent.LISTING_REPLACEMENT, 'browse_error_load_home')
     } finally {
       if (requestId === this.browseRequestId) {
         this.loadingBrowse = false
@@ -650,6 +745,28 @@ export class BrowseViewModel {
     if (listing !== undefined) {
       await this.selectBrowseListing(listing)
     }
+  }
+
+  async retryBrowseFailure(): Promise<void> {
+    const intent = this.browseErrorIntent
+    if (intent === BrowseLoadIntent.NONE) {
+      return
+    }
+    if (intent === BrowseLoadIntent.PAGINATION) {
+      await this.loadMoreBrowse()
+      return
+    }
+    if (intent === BrowseLoadIntent.LISTING_REPLACEMENT && this.failedBrowseListing !== undefined) {
+      await this.selectBrowseListing(this.failedBrowseListing)
+      return
+    }
+    if (this.selectedSource === undefined) {
+      return
+    }
+    await this.loadBrowseHome(
+      this.selectedSource,
+      intent === BrowseLoadIntent.REFRESH ? BrowseLoadIntent.REFRESH : BrowseLoadIntent.INITIAL,
+    )
   }
 
   async ensureSearchFilters(source: SourceRuntimeRegistryInstalledSourceSummary): Promise<void> {
@@ -704,8 +821,7 @@ export class BrowseViewModel {
       this.hasMoreBrowse = false
       return
     }
-    this.loadingBrowse = true
-    this.errorMessage = ''
+    this.beginBrowseLoad(BrowseLoadIntent.PAGINATION, true)
     try {
       const more = await this.loadMangaListing(source, listing.id, page, cursor)
       if (requestId !== this.browseRequestId) {
@@ -714,12 +830,13 @@ export class BrowseViewModel {
       this.browsePage = page
       this.mergeBrowseListingPage(listing, more, page)
       this.hasMoreBrowse = more.hasNextPage
+      this.resolveBrowseLoad()
     } catch (error) {
       if (requestId !== this.browseRequestId) {
         return
       }
       const e = error as Error
-      this.errorMessage = safeSourceBrowseErrorText(e, 'browse_error_load_more')
+      this.failBrowseLoad(e, BrowseLoadIntent.PAGINATION, 'browse_error_load_more')
     } finally {
       if (requestId === this.browseRequestId) {
         this.loadingBrowse = false
@@ -844,6 +961,7 @@ export class BrowseViewModel {
     listingId: string,
     page: number,
     cursor: string = '',
+    filterValues: SourceMangaListFilters = this.browseFilterValues,
   ): Promise<SourceMangaList> {
     const pageArg: SourceOperationPageArg = {
       cursor: this.pageCursor(page, cursor),
@@ -852,7 +970,7 @@ export class BrowseViewModel {
     const args: SourceMangaListArgs = {
       listingId,
       page: pageArg,
-      filters: this.browseFilterValues,
+      filters: filterValues,
     }
     return this.runSourceOperation(source.sourceId, 'get_manga_list', args, page)
   }
@@ -891,26 +1009,17 @@ export class BrowseViewModel {
     if (!this.sourceSupportsOperation(source, 'home')) {
       return []
     }
-    try {
-      const args: SourceHomeArgs = {}
-      const response = await this.runSourceOperationResponse(source.sourceId, 'get_home', args, 1)
-      return parseSourceHomeSectionsFromResponse(source.sourceId, response)
-        .filter((section: SourceHomeSectionState): boolean => section.kind === 'mangaList' && section.manga.length > 0)
-    } catch (_error) {
-      return []
-    }
+    const args: SourceHomeArgs = {}
+    const response = await this.runSourceOperationResponse(source.sourceId, 'get_home', args, 1)
+    return parseSourceHomeSectionsFromResponse(source.sourceId, response)
+      .filter((section: SourceHomeSectionState): boolean => section.kind === 'mangaList' && section.manga.length > 0)
   }
 
-  private async loadBrowseListing(
-    source: SourceRuntimeRegistryInstalledSourceSummary,
+  private applyBrowseListing(
     listing: SourceListingDescriptor,
+    result: SourceMangaList,
     page: number,
-    requestId: number = this.browseRequestId,
-  ): Promise<boolean> {
-    const result = await this.loadMangaListing(source, listing.id, page)
-    if (requestId !== this.browseRequestId) {
-      return false
-    }
+  ): void {
     this.selectedListingId = listing.id
     this.browsePage = page
     this.browseNextCursor = result.nextCursor ?? ''
@@ -923,7 +1032,6 @@ export class BrowseViewModel {
       page,
     }]
     this.hasMoreBrowse = result.hasNextPage
-    return true
   }
 
   private mergeBrowseListingPage(
@@ -1014,8 +1122,9 @@ export class BrowseViewModel {
     sourceId: string,
     kind: SourceFilterPreferenceKind,
     defaults: SourceMangaListFilters,
+    filters: SourceFilter[] = this.filters,
   ): SourceMangaListFilters {
-    const saved = appSourceFilterPreferencesStore.loadForSource(sourceId, kind, this.filters)
+    const saved = appSourceFilterPreferencesStore.loadForSource(sourceId, kind, filters)
     const values: SourceMangaListFilters = {}
     Object.keys(defaults).forEach((key: string) => {
       values[key] = defaults[key]

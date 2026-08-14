@@ -35,7 +35,7 @@ function s(name: string): string {
 
 const KOMGA_PAGE_SIZE: number = 30
 
-interface KomgaSeriesRouteParam {
+export interface KomgaSeriesRouteParam {
   libraryId?: string
   seriesId?: string
   seriesTitle?: string

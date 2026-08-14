@@ -47,7 +47,7 @@ interface OpdsHistoryEntry {
   title: string
 }
 
-interface OpdsBrowseRouteParam {
+export interface OpdsBrowseRouteParam {
   feedUrl?: string
   publicationId?: string
 }

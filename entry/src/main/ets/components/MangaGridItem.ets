@@ -23,12 +23,17 @@ export struct MangaGridItem {
 
   @Builder
   private CoverPlaceholder() {
-    SymbolGlyph($r('sys.symbol.book'))
-      .fontSize(34)
-      .fontColor([ThemeConstants.TEXT_TERTIARY])
-      .opacity(0.8)
+    Column() {
+      SymbolGlyph($r('sys.symbol.book'))
+        .fontSize(42)
+        .fontColor([ThemeConstants.TEXT_TERTIARY])
+    }
       .width('100%')
       .height('100%')
+      .padding(ThemeConstants.SPACE_MD)
+      .justifyContent(FlexAlign.Center)
+      .alignItems(HorizontalAlign.Center)
+      .backgroundColor(ThemeConstants.COVER_PLACEHOLDER)
   }
 
   build() {

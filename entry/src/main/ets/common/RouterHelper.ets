@@ -1,6 +1,8 @@
 import { RouteName } from './Constants'
 import { SourceRuntimeRegistryInstalledSourceSummary } from '../sourceRuntime/SourceRuntimeRegistry'
 import { SourceManga } from '../model/SourceModels'
+import { SourceBrowseRouteChromeState, SourceSearchRouteChromeState } from '../state/SourceRouteChromeState'
+import { SearchRouteChromeState } from '../state/SearchRouteChromeState'
 
 export interface MangaDetailRouteParam {
   mangaId: string
@@ -9,17 +11,27 @@ export interface MangaDetailRouteParam {
 }
 
 export interface SearchRouteParam {
-  query: string
+  query?: string
+  chrome?: SearchRouteChromeState
 }
 
 export interface SourceRouteParam {
   source: SourceRuntimeRegistryInstalledSourceSummary
 }
 
+export interface SourceBrowseRouteParam {
+  source: SourceRuntimeRegistryInstalledSourceSummary
+  chrome: SourceBrowseRouteChromeState
+}
+
+export interface SourceSearchRouteParam {
+  source: SourceRuntimeRegistryInstalledSourceSummary
+  chrome: SourceSearchRouteChromeState
+}
+
 export class RouterHelper {
   private static appPathStack: NavPathStack | undefined = undefined
   private static pendingLaunchRoute: string | undefined = undefined
-  private static searchOpener: ((param: SearchRouteParam) => void) | undefined = undefined
   /**
    * Reader sessions opened from a remote browse page are prepared by that
    * page before it asks the app to navigate.  Keep routing ownership in the
@@ -30,10 +42,6 @@ export class RouterHelper {
 
   static setAppPathStack(stack: NavPathStack): void {
     RouterHelper.appPathStack = stack
-  }
-
-  static setSearchOpener(opener: (param: SearchRouteParam) => void): void {
-    RouterHelper.searchOpener = opener
   }
 
   static setReaderOpener(opener: () => void): void {
@@ -112,7 +120,11 @@ export class RouterHelper {
     if (stack === undefined) {
       return
     }
-    stack.pushPath({ name: RouteName.SOURCE_BROWSE, param: param })
+    const routeParam: SourceBrowseRouteParam = {
+      source: param.source,
+      chrome: new SourceBrowseRouteChromeState(),
+    }
+    stack.pushPath({ name: RouteName.SOURCE_BROWSE, param: routeParam })
   }
 
   static pushSourceSearch(param: SourceRouteParam): void {
@@ -120,15 +132,35 @@ export class RouterHelper {
     if (stack === undefined) {
       return
     }
-    stack.pushPath({ name: RouteName.SOURCE_SEARCH, param: param })
+    const routeParam: SourceSearchRouteParam = {
+      source: param.source,
+      chrome: new SourceSearchRouteChromeState(param.source.displayName),
+    }
+    stack.pushPath({ name: RouteName.SOURCE_SEARCH, param: routeParam })
+  }
+
+  static ensureSearchRouteChrome(param: SearchRouteParam): SearchRouteChromeState {
+    const existing = param.chrome
+    if (existing !== undefined) {
+      return existing
+    }
+    const chrome = new SearchRouteChromeState()
+    const query = param.query?.trim() ?? ''
+    if (query.length > 0) {
+      chrome.updateQuery(query)
+      chrome.submitQuery(query)
+    }
+    param.chrome = chrome
+    return chrome
   }
 
   static openSearch(param: SearchRouteParam): void {
-    const opener = RouterHelper.searchOpener
-    if (opener === undefined) {
+    const stack = RouterHelper.appPathStack
+    if (stack === undefined) {
       return
     }
-    opener(param)
+    RouterHelper.ensureSearchRouteChrome(param)
+    stack.pushPath({ name: RouteName.SEARCH, param: param })
   }
 
   static pop(): void {

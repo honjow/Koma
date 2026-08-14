@@ -395,17 +395,18 @@ export function createLibraryViewModelFromComics(
     }
   })
 
-  let continueComic = comics.length === 0 ? undefined : comics[0]
+  let continueComicIndex: number = -1
   let continueProgress: ReadingProgress | undefined = undefined
-  comics.forEach((comic: Comic) => {
+  for (let index = 0; index < comics.length; index += 1) {
+    const comic = comics[index]
     const progress = sessionStore === undefined ? undefined : sessionStore.getProgress(comic.id)
     if (progress !== undefined && (continueProgress === undefined || progress.updatedAt > continueProgress.updatedAt)) {
-      continueComic = comic
+      continueComicIndex = index
       continueProgress = progress
     }
-  })
+  }
 
-  if (continueComic === undefined) {
+  if (continueComicIndex < 0) {
     return {
       comics: cards,
       continueReading: {
@@ -418,6 +419,7 @@ export function createLibraryViewModelFromComics(
     }
   }
 
+  const continueComic: Comic = comics[continueComicIndex]
   const continuePresentation = presentationByComicId.get(continueComic.id) ?? createFallbackPresentation(continueComic)
   const chapterTitle = getProgressChapterTitle(continueComic, continuePresentation, continueProgress)
   return {

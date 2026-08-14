@@ -9,7 +9,7 @@ Koma 当前使用文件 JSON、Harmony Preferences、AssetStore 和本地备份�
 | Domain | Store | Current version/key |
 | --- | --- | --- |
 | Library | `LibraryPersistence.ets` | `LIBRARY_STORE_PERSISTENCE_SCHEMA_VERSION = 1`, `library-store.v1.json` |
-| Reader progress | `ReaderSessionStore.ets` | `READER_PROGRESS_PERSISTENCE_SCHEMA_VERSION = 1`, `reader-progress.v1.json` |
+| Reader progress | `ReaderSessionStore.ets` | `READER_PROGRESS_PERSISTENCE_SCHEMA_VERSION = 2`, `reader-sessions.v1.json`; v1 progress migrates with empty source history |
 | Reader preferences | `ReaderPreferencesStore.ets` | `READER_PREFERENCES_STORE_NAME = koma_reader_preferences_v1` |
 | Per-series reader overrides | `ReaderPreferencesStore.ets` | `SERIES_OVERRIDES_KEY = reader.seriesOverrides.v1` |
 | Source settings | `SourceSettingsStore.ets` | `SOURCE_SETTINGS_SCHEMA_VERSION = 1`, `source-settings.json` |

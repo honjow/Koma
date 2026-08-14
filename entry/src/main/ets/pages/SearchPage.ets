@@ -1,9 +1,9 @@
 import { common } from '@kit.AbilityKit'
 import { RouterHelper } from '../common/RouterHelper'
 import { CachedCoverImage, cachedCoverFailureKey } from '../components/CachedCoverImage'
+import { SEARCH_TITLE_BOTTOM_HEIGHT } from '../components/SearchTitleField'
 import { SecondaryListScaffold } from '../components/SecondaryListScaffold'
 import { KomaActionButton } from '../components/ui/KomaActionButton'
-import { KomaIconButton } from '../components/ui/KomaIconButton'
 import { ConciseListRow } from '../components/ui/ConciseListRow'
 import { GroupedListSection, ListDivider } from '../components/ui/GroupedListSection'
 import {
@@ -15,30 +15,29 @@ import {
   isCrossSearchQueryMeaningful,
 } from '../model/CrossSearchService'
 import { ThemeConstants } from '../theme/ThemeConstants'
-import { KomgaSeriesPage } from './KomgaSeriesPage'
-import { KavitaBrowsePage, KavitaBrowseRouteParam } from './KavitaBrowsePage'
-import { OpdsBrowsePage } from './OpdsBrowsePage'
+import { KomgaSeriesRouteParam } from './KomgaSeriesPage'
+import { KavitaBrowseRouteParam } from './KavitaBrowsePage'
+import { OpdsBrowseRouteParam } from './OpdsBrowsePage'
 import { LibraryStore } from '../model/LibraryStore'
 import { LibraryStorePersistenceService } from '../model/LibraryPersistence'
 import { createSeededLibraryStore } from '../model/MockLibraryData'
-import { SearchHistoryEntry, SearchHistoryStore } from '../model/SearchHistoryStore'
+import {
+  addSearchHistoryEntry,
+  removeSearchHistoryEntry,
+  SearchHistoryEntry,
+  SearchHistoryStore,
+} from '../model/SearchHistoryStore'
 import { safeSearchDiagnostic, searchStateUserText } from '../model/SearchStateMapper'
 import { AppStrings } from '../i18n/AppStrings'
 import { connectLanguageState, LanguageState } from '../state/LanguageState'
+import { SearchRouteChromeState } from '../state/SearchRouteChromeState'
 
 const SEARCH_DEBOUNCE_MS: number = 400
-const KOMGA_ROUTE_NAME: string = 'SearchKomgaSeriesPage'
-const KAVITA_ROUTE_NAME: string = 'SearchKavitaBrowsePage'
-const OPDS_ROUTE_NAME: string = 'SearchOpdsBrowsePage'
 
-interface SearchKomgaRouteParam {
-  seriesId?: string
-  seriesTitle?: string
-}
-
-interface SearchOpdsRouteParam {
-  feedUrl?: string
-  publicationId?: string
+enum SearchHistoryLoadState {
+  LOADING = 'loading',
+  READY = 'ready',
+  FAILED = 'failed',
 }
 
 function s(name: string): string {
@@ -47,12 +46,12 @@ function s(name: string): string {
 
 @ComponentV2
 export struct SearchPage {
-  @Param externalQuery: string = ''
-  @Param externalQuerySerial: number = 0
+  @Param chrome: SearchRouteChromeState = new SearchRouteChromeState()
   @Local private languageState: LanguageState = connectLanguageState()
   @Local private queryText: string = ''
   @Local private sections: CrossSearchSection[] = []
   @Local private history: SearchHistoryEntry[] = []
+  @Local private historyLoadState: SearchHistoryLoadState = SearchHistoryLoadState.LOADING
   @Local private loading: boolean = false
   @Local private feedbackText: string = ''
   @Local private sourceFilter: CrossSearchSourceFilter = 'all'
@@ -60,45 +59,83 @@ export struct SearchPage {
   @Local private failedCoverUris: string[] = []
   private searchTimer: number = 0
   private searchSerial: number = 0
-  private consumedExternalQuerySerial: number = 0
+  private routeEpoch: number = 0
+  private routeActive: boolean = false
+  private historyMutationEpoch: number = 0
+  private historyWriteTail: Promise<void> = Promise.resolve()
+  private sourceFilterMutationEpoch: number = 0
+  private sourceFilterWriteTail: Promise<void> = Promise.resolve()
+  private handledQueryChangeSeq: number = 0
+  private handledQuerySubmitSeq: number = 0
   private sourceFilterLoaded: boolean = false
   private service?: CrossSearchService
   private historyStore?: SearchHistoryStore
   @Param libraryStore: LibraryStore = createSeededLibraryStore()
   @Param libraryPersistenceService?: LibraryStorePersistenceService = undefined
   @Event onLibraryChanged: () => void = () => {}
-  private searchPathStack: NavPathStack = new NavPathStack()
+  @Event onOpenKomgaResult: (param: KomgaSeriesRouteParam) => void = (_param: KomgaSeriesRouteParam) => {}
+  @Event onOpenKavitaResult: (param: KavitaBrowseRouteParam) => void = (_param: KavitaBrowseRouteParam) => {}
+  @Event onOpenOpdsResult: (param: OpdsBrowseRouteParam) => void = (_param: OpdsBrowseRouteParam) => {}
 
   aboutToAppear(): void {
+    this.routeEpoch += 1
+    this.routeActive = true
+    this.searchSerial += 1
+    this.sourceFilterLoaded = false
     const context = getContext(this) as common.UIAbilityContext
     this.service = new CrossSearchService(context)
     this.historyStore = new SearchHistoryStore(context)
     this.loadHistory()
     this.loadSourceFilter()
-    this.consumeExternalQuery()
+    this.consumeChromeQuery()
     console.info('[Search] step=page_appear')
   }
 
+  aboutToReuse(): void {
+    this.consumeChromeQuery()
+  }
+
   aboutToDisappear(): void {
+    this.routeActive = false
+    this.routeEpoch += 1
+    this.searchSerial += 1
     if (this.searchTimer > 0) {
       clearTimeout(this.searchTimer)
       this.searchTimer = 0
     }
   }
 
+  private ownsRoute(routeEpoch: number): boolean {
+    return this.routeActive && routeEpoch === this.routeEpoch
+  }
+
   private scheduleSearch(value: string): void {
+    const routeEpoch = this.routeEpoch
+    if (!this.ownsRoute(routeEpoch)) {
+      return
+    }
     this.queryText = value
     if (this.searchTimer > 0) {
       clearTimeout(this.searchTimer)
       this.searchTimer = 0
     }
-    this.searchTimer = setTimeout(() => {
-      this.searchTimer = 0
-      void this.runSearch(this.queryText)
+    const timer = setTimeout(() => {
+      if (this.searchTimer === timer) {
+        this.searchTimer = 0
+      }
+      if (!this.ownsRoute(routeEpoch)) {
+        return
+      }
+      void this.runSearch(value)
     }, SEARCH_DEBOUNCE_MS)
+    this.searchTimer = timer
   }
 
   private async runSearch(value: string): Promise<void> {
+    const routeEpoch = this.routeEpoch
+    if (!this.ownsRoute(routeEpoch)) {
+      return
+    }
     const query = value.trim()
     this.searchSerial += 1
     const serial = this.searchSerial
@@ -113,14 +150,15 @@ export struct SearchPage {
     if (service === undefined) {
       return
     }
+    const sourceFilter = this.sourceFilter
     this.loading = true
-    this.sections = service.pendingSections(this.sourceFilter)
+    this.sections = service.pendingSections(sourceFilter)
     this.feedbackText = ''
     this.recordHistory(query)
     console.info(`[Search] step=ui_search_start serial=${serial}`)
     try {
-      const result = await service.search(query, this.sourceFilter)
-      if (serial !== this.searchSerial) {
+      const result = await service.search(query, sourceFilter)
+      if (!this.ownsRoute(routeEpoch) || serial !== this.searchSerial) {
         console.info(`[Search] step=ui_search_stale serial=${serial}`)
         return
       }
@@ -129,7 +167,7 @@ export struct SearchPage {
       console.info(`[Search] step=ui_search_done serial=${serial} sections=${result.length}`)
     } catch (error) {
       const e = error as Error
-      if (serial !== this.searchSerial) {
+      if (!this.ownsRoute(routeEpoch) || serial !== this.searchSerial) {
         return
       }
       this.sections = []
@@ -137,7 +175,7 @@ export struct SearchPage {
       this.feedbackText = diagnostic.userText
       console.error('[Search] step=ui_search_failed code=' + diagnostic.code)
     } finally {
-      if (serial === this.searchSerial) {
+      if (this.ownsRoute(routeEpoch) && serial === this.searchSerial) {
         this.loading = false
       }
     }
@@ -145,57 +183,126 @@ export struct SearchPage {
 
   private loadHistory(): void {
     const store = this.historyStore
+    const routeEpoch = this.routeEpoch
+    const mutationEpoch = this.historyMutationEpoch
+    this.historyLoadState = SearchHistoryLoadState.LOADING
     if (store === undefined) {
+      if (this.ownsRoute(routeEpoch)) {
+        this.historyLoadState = SearchHistoryLoadState.FAILED
+      }
       return
     }
     void store.load().then((entries: SearchHistoryEntry[]) => {
+      if (!this.ownsRoute(routeEpoch) || mutationEpoch !== this.historyMutationEpoch) {
+        return
+      }
       this.history = entries
+      this.historyLoadState = SearchHistoryLoadState.READY
     }).catch((error: Error) => {
+      if (!this.ownsRoute(routeEpoch) || mutationEpoch !== this.historyMutationEpoch) {
+        return
+      }
+      this.historyLoadState = SearchHistoryLoadState.FAILED
       console.error('[Search] step=history_load_failed code=' + safeSearchDiagnostic(error).code)
     })
   }
 
   private recordHistory(query: string): void {
+    if (!this.ownsRoute(this.routeEpoch)) {
+      return
+    }
     const store = this.historyStore
+    const mutationEpoch = this.historyMutationEpoch + 1
+    this.historyMutationEpoch = mutationEpoch
+    this.history = addSearchHistoryEntry(this.history, query)
+    this.historyLoadState = SearchHistoryLoadState.READY
     if (store === undefined) {
       return
     }
-    void store.record(query).then((entries: SearchHistoryEntry[]) => {
-      this.history = entries
-    }).catch((error: Error) => {
-      console.error('[Search] step=history_record_failed code=' + safeSearchDiagnostic(error).code)
+    this.enqueueHistoryMutation(mutationEpoch, 'history_record', () => {
+      return store.record(query)
     })
   }
 
   private clearHistory(): void {
-    const store = this.historyStore
-    this.history = []
-    if (store === undefined) {
+    if (!this.ownsRoute(this.routeEpoch)) {
       return
     }
-    void store.clear().catch((error: Error) => {
-      console.error('[Search] step=history_clear_failed code=' + safeSearchDiagnostic(error).code)
+    const store = this.historyStore
+    const mutationEpoch = this.historyMutationEpoch + 1
+    this.historyMutationEpoch = mutationEpoch
+    this.history = []
+    this.historyLoadState = SearchHistoryLoadState.LOADING
+    if (store === undefined) {
+      this.historyLoadState = SearchHistoryLoadState.READY
+      return
+    }
+    this.enqueueHistoryMutation(mutationEpoch, 'history_clear', () => {
+      return store.clear().then((): SearchHistoryEntry[] | undefined => undefined)
+    })
+  }
+
+  private enqueueHistoryMutation(
+    mutationEpoch: number,
+    step: string,
+    operation: () => Promise<SearchHistoryEntry[] | undefined>,
+  ): void {
+    const routeEpoch = this.routeEpoch
+    const queued = this.historyWriteTail.then(operation, operation)
+    this.historyWriteTail = queued.then(
+      (): void => {},
+      (): void => {},
+    )
+    void queued.then((entries: SearchHistoryEntry[] | undefined) => {
+      if (!this.ownsRoute(routeEpoch) || mutationEpoch !== this.historyMutationEpoch) {
+        return
+      }
+      if (entries !== undefined) {
+        this.history = entries
+      }
+      this.historyLoadState = SearchHistoryLoadState.READY
+    }).catch((error: Error) => {
+      if (!this.ownsRoute(routeEpoch) || mutationEpoch !== this.historyMutationEpoch) {
+        return
+      }
+      if (this.historyLoadState === SearchHistoryLoadState.LOADING) {
+        this.historyLoadState = SearchHistoryLoadState.FAILED
+      }
+      console.error('[Search] step=' + step + '_failed code=' + safeSearchDiagnostic(error).code)
     })
   }
 
   private loadSourceFilter(): void {
     const store = this.historyStore
+    const routeEpoch = this.routeEpoch
+    const mutationEpoch = this.sourceFilterMutationEpoch
     if (store === undefined) {
-      this.sourceFilterLoaded = true
-      this.consumeExternalQuery()
+      if (this.ownsRoute(routeEpoch)) {
+        this.sourceFilterLoaded = true
+        this.consumeChromeQuery()
+      }
       return
     }
     void store.loadSourceFilter()
       .then((sourceFilter: CrossSearchSourceFilter) => {
+        if (!this.ownsRoute(routeEpoch) || mutationEpoch !== this.sourceFilterMutationEpoch) {
+          return
+        }
         this.sourceFilter = sourceFilter
         console.info('[Search] step=source_filter_restored value=' + sourceFilter)
       })
       .catch((error: Error) => {
+        if (!this.ownsRoute(routeEpoch) || mutationEpoch !== this.sourceFilterMutationEpoch) {
+          return
+        }
         console.error('[Search] step=source_filter_load_failed code=' + safeSearchDiagnostic(error).code)
       })
       .finally(() => {
+        if (!this.ownsRoute(routeEpoch)) {
+          return
+        }
         this.sourceFilterLoaded = true
-        this.consumeExternalQuery()
+        this.consumeChromeQuery()
       })
   }
 
@@ -222,26 +329,30 @@ export struct SearchPage {
   }
 
   private removeHistoryEntry(query: string): void {
+    if (!this.ownsRoute(this.routeEpoch)) {
+      return
+    }
     const store = this.historyStore
-    this.history = this.history.filter((entry: SearchHistoryEntry): boolean => {
-      return entry.query.toLocaleLowerCase() !== query.trim().toLocaleLowerCase()
-    })
+    const mutationEpoch = this.historyMutationEpoch + 1
+    this.historyMutationEpoch = mutationEpoch
+    this.history = removeSearchHistoryEntry(this.history, query)
+    this.historyLoadState = SearchHistoryLoadState.READY
     if (store === undefined) {
       return
     }
-    void store.remove(query).then((entries: SearchHistoryEntry[]) => {
-      this.history = entries
-    }).catch((error: Error) => {
-      console.error('[Search] step=history_remove_failed code=' + safeSearchDiagnostic(error).code)
-      this.loadHistory()
+    this.enqueueHistoryMutation(mutationEpoch, 'history_remove', () => {
+      return store.remove(query)
     })
   }
 
   private runHistoryQuery(query: string): void {
-    this.runImmediateQuery(query)
+    this.chrome.submitQuery(query)
   }
 
   private runImmediateQuery(query: string): void {
+    if (!this.ownsRoute(this.routeEpoch)) {
+      return
+    }
     if (this.searchTimer > 0) {
       clearTimeout(this.searchTimer)
       this.searchTimer = 0
@@ -250,35 +361,49 @@ export struct SearchPage {
     void this.runSearch(query)
   }
 
-  @Monitor('externalQuerySerial')
-  private onExternalQueryChanged(): void {
-    this.consumeExternalQuery()
+  @Monitor('chrome.queryChangeSeq')
+  private onChromeQueryChanged(): void {
+    this.consumeChromeQuery()
   }
 
-  private consumeExternalQuery(): void {
-    if (!this.sourceFilterLoaded) {
+  @Monitor('chrome.querySubmitSeq')
+  private onChromeQuerySubmitted(): void {
+    this.consumeChromeQuery()
+  }
+
+  private consumeChromeQuery(): void {
+    if (!this.routeActive || !this.sourceFilterLoaded) {
       return
     }
-    if (this.externalQuerySerial === 0 || this.externalQuerySerial === this.consumedExternalQuerySerial) {
-      return
+    if (this.chrome.queryChangeSeq > this.handledQueryChangeSeq) {
+      this.handledQueryChangeSeq = this.chrome.queryChangeSeq
+      this.handleSearchTextChange(this.chrome.query)
     }
-    const query = this.externalQuery.trim()
-    this.consumedExternalQuerySerial = this.externalQuerySerial
-    if (query.length === 0) {
-      return
+    if (this.chrome.querySubmitSeq > this.handledQuerySubmitSeq) {
+      this.handledQuerySubmitSeq = this.chrome.querySubmitSeq
+      this.handleSearchSubmit(this.chrome.query)
     }
-    this.runImmediateQuery(query)
+  }
+
+  private handleSearchTextChange(value: string): void {
+    this.scheduleSearch(value)
+  }
+
+  private handleSearchSubmit(value: string): void {
+    this.runImmediateQuery(value)
   }
 
   private setSourceFilter(sourceFilter: CrossSearchSourceFilter): void {
-    if (this.sourceFilter === sourceFilter) {
-      this.sourceFilterMenuOpen = false
+    if (!this.ownsRoute(this.routeEpoch)) {
       return
     }
+    const mutationEpoch = this.sourceFilterMutationEpoch + 1
+    this.sourceFilterMutationEpoch = mutationEpoch
+    const changed = this.sourceFilter !== sourceFilter
     this.sourceFilter = sourceFilter
     this.sourceFilterMenuOpen = false
-    this.saveSourceFilter(sourceFilter)
-    if (this.queryText.trim().length > 0) {
+    this.saveSourceFilter(sourceFilter, mutationEpoch)
+    if (changed && this.queryText.trim().length > 0) {
       if (this.searchTimer > 0) {
         clearTimeout(this.searchTimer)
         this.searchTimer = 0
@@ -287,12 +412,20 @@ export struct SearchPage {
     }
   }
 
-  private saveSourceFilter(sourceFilter: CrossSearchSourceFilter): void {
+  private saveSourceFilter(sourceFilter: CrossSearchSourceFilter, mutationEpoch: number): void {
     const store = this.historyStore
     if (store === undefined) {
       return
     }
-    void store.saveSourceFilter(sourceFilter).catch((error: Error) => {
+    const write = (): Promise<void> => {
+      return store.saveSourceFilter(sourceFilter).then((): void => {})
+    }
+    const queued = this.sourceFilterWriteTail.then(write, write)
+    this.sourceFilterWriteTail = queued.catch(() => {})
+    void queued.catch((error: Error) => {
+      if (mutationEpoch !== this.sourceFilterMutationEpoch) {
+        return
+      }
       console.error('[Search] step=source_filter_save_failed code=' + safeSearchDiagnostic(error).code)
     })
   }
@@ -308,11 +441,11 @@ export struct SearchPage {
       return
     }
     if (item.sourceKind === 'komga') {
-      const param: SearchKomgaRouteParam = {
+      const param: KomgaSeriesRouteParam = {
         seriesId: item.komgaSeriesId,
         seriesTitle: item.title,
       }
-      this.searchPathStack.pushPath({ name: KOMGA_ROUTE_NAME, param: param })
+      this.onOpenKomgaResult(param)
       return
     }
     if (item.sourceKind === 'kavita') {
@@ -321,15 +454,15 @@ export struct SearchPage {
         seriesId: item.kavitaSeriesId,
         seriesTitle: item.title,
       }
-      this.searchPathStack.pushPath({ name: KAVITA_ROUTE_NAME, param: param })
+      this.onOpenKavitaResult(param)
       return
     }
     if (item.sourceKind === 'opds') {
-      const param: SearchOpdsRouteParam = {
+      const param: OpdsBrowseRouteParam = {
         feedUrl: item.opdsFeedUrl,
         publicationId: item.opdsPublicationId,
       }
-      this.searchPathStack.pushPath({ name: OPDS_ROUTE_NAME, param: param })
+      this.onOpenOpdsResult(param)
       return
     }
     if (item.sourceKind === 'webdav') {
@@ -376,23 +509,6 @@ export struct SearchPage {
 
   private hasMeaningfulSearchQuery(): boolean {
     return isCrossSearchQueryMeaningful(this.queryText)
-  }
-
-  @Builder
-  private SearchInput() {
-    Search({ value: this.queryText, placeholder: s('search_placeholder') })
-      .width('100%')
-      .height(ThemeConstants.INPUT_HEIGHT)
-      .borderRadius(ThemeConstants.RADIUS_CHIP)
-      .backgroundColor($r('sys.color.comp_background_tertiary'))
-      .placeholderColor(ThemeConstants.TEXT_SECONDARY)
-      .textFont({ size: ThemeConstants.FONT_SIZE_BODY, weight: FontWeight.Regular })
-      .onChange((value: string) => {
-        this.scheduleSearch(value)
-      })
-      .onSubmit((value: string) => {
-        this.runImmediateQuery(value)
-      })
   }
 
   @Builder
@@ -494,7 +610,31 @@ export struct SearchPage {
       }
       .width('100%')
 
-      if (this.history.length === 0) {
+      if (this.historyLoadState === SearchHistoryLoadState.LOADING) {
+        Row({ space: ThemeConstants.SPACE_SM }) {
+          LoadingProgress()
+            .width(ThemeConstants.SPACE_XL)
+            .height(ThemeConstants.SPACE_XL)
+            .color(ThemeConstants.BRAND_PRIMARY)
+          Text(s('common_loading'))
+            .fontSize(ThemeConstants.FONT_SIZE_META)
+            .fontColor(ThemeConstants.TEXT_SECONDARY)
+        }
+        .width('100%')
+        .padding(ThemeConstants.SPACE_LG)
+        .borderRadius(ThemeConstants.RADIUS_CARD)
+        .backgroundColor(ThemeConstants.CARD)
+        .justifyContent(FlexAlign.Center)
+      } else if (this.historyLoadState === SearchHistoryLoadState.FAILED) {
+        Text(s('common_load_failed'))
+          .width('100%')
+          .fontSize(ThemeConstants.FONT_SIZE_META)
+          .fontColor(ThemeConstants.TEXT_SECONDARY)
+          .padding(ThemeConstants.SPACE_LG)
+          .borderRadius(ThemeConstants.RADIUS_CARD)
+          .backgroundColor(ThemeConstants.CARD)
+          .textAlign(TextAlign.Center)
+      } else if (this.history.length === 0) {
         Text(s('search_history_empty'))
           .width('100%')
           .fontSize(ThemeConstants.FONT_SIZE_META)
@@ -690,58 +830,20 @@ export struct SearchPage {
       .width('100%')
   }
 
-  @Builder
-  private SearchDestination(name: string, param: Object) {
-    if (name === KOMGA_ROUTE_NAME) {
-      NavDestination() {
-        KomgaSeriesPage({
-          params: param as SearchKomgaRouteParam,
-          libraryStore: this.libraryStore,
-          libraryPersistenceService: this.libraryPersistenceService,
-          onLibraryChanged: () => {
-            this.onLibraryChanged()
-          }
-        })
-      }
-      .title(s('route_komga_title'))
-    } else if (name === KAVITA_ROUTE_NAME) {
-      NavDestination() {
-        KavitaBrowsePage({
-          params: param as KavitaBrowseRouteParam,
-          libraryStore: this.libraryStore,
-          libraryPersistenceService: this.libraryPersistenceService,
-          onLibraryChanged: () => {
-            this.onLibraryChanged()
-          }
-        })
-      }
-      .title(s('route_kavita_title'))
-    } else if (name === OPDS_ROUTE_NAME) {
-      NavDestination() {
-        OpdsBrowsePage({
-          params: param as SearchOpdsRouteParam,
-          libraryStore: this.libraryStore,
-          libraryPersistenceService: this.libraryPersistenceService,
-          onLibraryChanged: () => {
-            this.onLibraryChanged()
-          }
-        })
-      }
-      .title(s('route_opds_title'))
-    }
-  }
-
   build() {
-    Navigation(this.searchPathStack) {
-      Column() {
-        SecondaryListScaffold({
-          listSpace: ThemeConstants.SPACE_MD,
-          horizontalPadding: ThemeConstants.SPACE_XL,
-          bottomPadding: ThemeConstants.SPACE_XL,
-          floatingTabTailPadding: ThemeConstants.FLOATING_TAB_BAR_CLEARANCE,
-        }) {
+    Column() {
+      SecondaryListScaffold({
+        listSpace: ThemeConstants.SPACE_MD,
+        horizontalPadding: ThemeConstants.SPACE_XL,
+        bottomPadding: ThemeConstants.SPACE_XL,
+        floatingTabTailPadding: ThemeConstants.FLOATING_TAB_BAR_CLEARANCE,
+        reserveTitleBar: true,
+      }) {
           ListItem() {
-            this.SearchInput()
+            Column() {
+              Blank().height(SEARCH_TITLE_BOTTOM_HEIGHT)
+            }
+            .width('100%')
           }
           ListItem() {
             this.SourceFilterBar()
@@ -816,15 +918,10 @@ export struct SearchPage {
               }, (item: CrossSearchResultItem) => item.id)
             }
           }, (section: CrossSearchSection) => section.id)
-        }
       }
-      .width('100%')
-      .height('100%')
-      .backgroundColor(ThemeConstants.BG_SUB)
     }
-    .navDestination(this.SearchDestination)
-    .mode(NavigationMode.Stack)
     .width('100%')
     .height('100%')
+    .backgroundColor(ThemeConstants.BG_SUB)
   }
 }

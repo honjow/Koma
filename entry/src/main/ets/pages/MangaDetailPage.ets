@@ -24,6 +24,7 @@ import {
   parseMangaChapterFromSourceItem,
   parseMangaDetailFromSourceItem,
 } from '../model/MangaDetailModels'
+import { sourceMangaDetailSnapshotCache } from '../model/SourceMangaDetailSnapshotCache'
 import {
   Chapter,
   Comic,
@@ -74,6 +75,7 @@ import {
   InMemoryReaderSessionStore,
   ReaderSessionStore,
 } from '../model/ReaderSessionStore'
+import { SourceReaderSessionRequest } from '../model/SourceReaderSession'
 import {
   TrackerProgressSyncResult,
   TrackerProgressSyncReason,
@@ -167,13 +169,24 @@ function s(name: string): string {
 const SOURCE_CHAPTER_PAGE_SIZE: number = 100
 const SOURCE_CHAPTER_MAX_PAGES: number = 20
 
+enum SourceDetailContentState {
+  UNRESOLVED = 'unresolved',
+  LOADING = 'loading',
+  READY = 'ready',
+  ERROR = 'error',
+  LOCAL = 'local',
+}
+
 @ComponentV2
 export struct MangaDetailPage {
   @Param params: MangaDetailRouteParams = {}
-  @Local private manga: MangaDetail = missingMangaDetail(undefined, undefined)
+  // A detail object is data, not a loading placeholder. A source route may have a real list-row
+  // preview before its full detail is resolved, but it must never render a fabricated manga merely
+  // because the request has not started yet.
+  @Local private manga: MangaDetail | undefined = undefined
   @Local private chapters: MangaChapterItem[] = []
   @Local private isInLibrary: boolean = false
-  @Local private isLoading: boolean = false
+  @Local private sourceDetailContentState: SourceDetailContentState = SourceDetailContentState.UNRESOLVED
   @Local private downloadBusy: boolean = false
   @Local private trackerSyncBusy: boolean = false
   @Local private trackerMappingBusy: boolean = false
@@ -194,9 +207,11 @@ export struct MangaDetailPage {
   @Param sourceRegistry: SourceRuntimeRegistry = new SourceRuntimeRegistry()
   @Event onBack: () => void = () => {}
   @Event onOpenReader: (mangaId: string, chapterId?: string) => void = (_mangaId: string, _chapterId?: string) => {}
+  @Event onOpenSourceReader: (request: SourceReaderSessionRequest) => void = (_request: SourceReaderSessionRequest) => {}
   @Event onOpenImportRequested: () => void = () => {}
   @Event onLibraryChanged: () => void = () => {}
   private chapterReadStateStore?: ChapterReadStateStore
+  private sourceDetailRequestEpoch: number = 0
 
   private formatString(key: string, args: Array<string | number>): string {
     let text = s(key)
@@ -206,9 +221,40 @@ export struct MangaDetailPage {
     return text
   }
 
+  private isSourceDetailLoading(): boolean {
+    return this.sourceDetailContentState === SourceDetailContentState.LOADING
+  }
+
+  private isDetailPending(): boolean {
+    return this.sourceDetailContentState === SourceDetailContentState.UNRESOLVED ||
+      this.sourceDetailContentState === SourceDetailContentState.LOADING
+  }
+
+  private hasResolvedManga(): boolean {
+    return this.manga !== undefined
+  }
+
+  private shouldRenderChapterList(): boolean {
+    return this.manga !== undefined &&
+      (this.sourceDetailContentState === SourceDetailContentState.LOCAL ||
+        this.sourceDetailContentState === SourceDetailContentState.READY)
+  }
+
+  private canAddCurrentMangaToLibrary(): boolean {
+    return this.manga !== undefined &&
+      (this.sourceDetailContentState === SourceDetailContentState.LOCAL ||
+        this.sourceDetailContentState === SourceDetailContentState.READY)
+  }
+
   aboutToAppear(): void {
     configureSourceSettingsStore(getContext(this) as common.UIAbilityContext)
-    this.loadMangaDetail()
+    this.seedSourceDetailFromInitialRouteManga()
+    void this.loadMangaDetail()
+  }
+
+  aboutToDisappear(): void {
+    // A hidden detail route must not let an old source response repaint a later route instance.
+    this.sourceDetailRequestEpoch = this.sourceDetailRequestEpoch + 1
   }
 
   private offlineDownloadService(): OfflineDownloadService | undefined {
@@ -308,14 +354,28 @@ export struct MangaDetailPage {
     this.loadLocalOrMissingManga(mangaId)
   }
 
+  private beginSourceDetailRequest(sourceId: string, mangaId: string): number {
+    this.sourceDetailRequestEpoch = this.sourceDetailRequestEpoch + 1
+    return this.sourceDetailRequestEpoch
+  }
+
+  private isCurrentSourceDetailRequest(requestEpoch: number, sourceId: string, mangaId: string): boolean {
+    return this.sourceDetailRequestEpoch === requestEpoch &&
+      this.params.sourceId?.trim() === sourceId.trim() &&
+      this.params.mangaId?.trim() === mangaId.trim()
+  }
+
   private loadLocalOrMissingManga(mangaId?: string): void {
     const comic = mangaId === undefined || this.libraryStore === undefined ? undefined : this.libraryStore.getComic(mangaId)
     if (comic === undefined) {
+      // The sentinel is only a definitive invalid/missing local route. It is never used as a source
+      // request's initial or failure value.
       this.manga = missingMangaDetail(mangaId, this.params.sourceId)
       this.chapters = []
       this.isInLibrary = false
       this.activeLibraryComicId = ''
       this.feedbackText = mangaId === undefined || mangaId.trim().length === 0 ? '' : s('manga_detail_load_local_failed')
+      this.sourceDetailContentState = SourceDetailContentState.ERROR
       this.downloadStatusText = ''
       this.localRefreshText = ''
       return
@@ -326,6 +386,7 @@ export struct MangaDetailPage {
       comic.chapters.map((chapter: Chapter): MangaChapterItem => mangaChapterItemFromComicChapter(chapter, comic.sourceKind))
     )
     this.isInLibrary = true
+    this.sourceDetailContentState = SourceDetailContentState.LOCAL
     this.feedbackText = ''
     this.localRefreshText = ''
     this.refreshDownloadStatus()
@@ -440,7 +501,8 @@ export struct MangaDetailPage {
   }
 
   private async loadSourceMangaDetail(sourceId: string, mangaId: string): Promise<void> {
-    this.isLoading = true
+    const requestEpoch = this.beginSourceDetailRequest(sourceId, mangaId)
+    this.sourceDetailContentState = SourceDetailContentState.LOADING
     this.feedbackText = s('manga_detail_loading_source')
     try {
       const lookup = this.sourceRegistry.lookup(sourceId)
@@ -450,44 +512,145 @@ export struct MangaDetailPage {
       if (!sourceRuntimeEntryEnabled(lookup.entry)) {
         throw new Error('source_disabled')
       }
+      const cached = sourceMangaDetailSnapshotCache.read(lookup.entry, sourceId, mangaId)
+      if (cached !== undefined) {
+        this.applySourceMangaDetail(requestEpoch, lookup.entry, sourceId, mangaId, cached.detail, cached.chapters, '')
+        return
+      }
       const loaded = await this.runSourceMangaOperation(lookup.entry, 'get_manga', mangaId)
-      const detail = this.sourceDetailWithRouteIdentity(loaded.detail, sourceId, mangaId, this.params.initialManga)
+      if (!this.isCurrentSourceDetailRequest(requestEpoch, sourceId, mangaId)) {
+        return
+      }
+      const detail = this.sourceDetailWithRouteIdentity(loaded.detail, sourceId, mangaId)
       let chapters: MangaChapterItem[] = loaded.embeddedChapters
       let chaptersLoadFailed = false
       try {
         const remoteChapters = await this.runSourceChaptersOperation(lookup.entry, mangaId)
+        if (!this.isCurrentSourceDetailRequest(requestEpoch, sourceId, mangaId)) {
+          return
+        }
         if (remoteChapters.length > 0) {
           chapters = remoteChapters
         }
       } catch (_error) {
+        if (!this.isCurrentSourceDetailRequest(requestEpoch, sourceId, mangaId)) {
+          return
+        }
         chaptersLoadFailed = true
         console.warn('[manga-detail] source chapters load failed reason=source_chapters')
       }
-      const comicId = this.sourceComicId(sourceId, mangaId)
-      const libraryComic = this.findSourceRuntimeComic(sourceId, mangaId, comicId)
-      this.activeLibraryComicId = libraryComic?.id ?? ''
-      detail.chapterCount = chapters.length
-      detail.isInLibrary = libraryComic !== undefined
-      detail.sourceName = lookup.entry.manifestName
-      this.manga = detail
-      this.chapters = this.decorateChapterStates(chapters)
-      this.isInLibrary = detail.isInLibrary
-      this.feedbackText = chaptersLoadFailed ? s('manga_detail_load_source_chapters_failed') : ''
-      this.refreshDownloadStatus()
+      if (!this.isCurrentSourceDetailRequest(requestEpoch, sourceId, mangaId)) {
+        return
+      }
+      if (!chaptersLoadFailed) {
+        detail.chapterCount = chapters.length
+        detail.sourceName = lookup.entry.manifestName
+      }
+      const applied = this.applySourceMangaDetail(
+        requestEpoch,
+        lookup.entry,
+        sourceId,
+        mangaId,
+        detail,
+        chapters,
+        chaptersLoadFailed ? s('manga_detail_load_source_chapters_failed') : '',
+        chaptersLoadFailed && chapters.length === 0
+          ? SourceDetailContentState.ERROR
+          : SourceDetailContentState.READY,
+      )
+      if (applied && !chaptersLoadFailed) {
+        sourceMangaDetailSnapshotCache.write(lookup.entry, sourceId, mangaId, { detail, chapters })
+      }
     } catch (error) {
       const e = error as Error
       void e
+      if (!this.isCurrentSourceDetailRequest(requestEpoch, sourceId, mangaId)) {
+        return
+      }
       console.warn('[manga-detail] source detail load failed reason=source_detail')
-      this.manga = this.sourceDetailFromInitialRouteManga(sourceId, mangaId) ?? missingMangaDetail(mangaId, sourceId)
+      const fallbackDetail = this.sourceDetailFromInitialRouteManga(sourceId, mangaId)
+      const fallbackComicId = this.sourceComicId(sourceId, mangaId)
+      const libraryComic = this.findSourceRuntimeComic(sourceId, mangaId, fallbackComicId)
+      if (fallbackDetail !== undefined) {
+        fallbackDetail.isInLibrary = libraryComic !== undefined
+        this.manga = fallbackDetail
+      } else {
+        this.manga = undefined
+      }
+      this.chapters = []
+      this.isInLibrary = libraryComic !== undefined
+      this.activeLibraryComicId = libraryComic?.id ?? ''
+      this.feedbackText = s('manga_detail_load_source_failed')
+      this.sourceDetailContentState = SourceDetailContentState.ERROR
+      this.downloadStatusText = ''
+      this.localRefreshText = ''
+    }
+  }
+
+  private seedSourceDetailFromInitialRouteManga(): void {
+    const sourceId = this.params.sourceId?.trim()
+    const mangaId = this.params.mangaId?.trim()
+    if (sourceId === undefined || sourceId.length === 0 || mangaId === undefined || mangaId.length === 0) {
+      return
+    }
+    const detail = this.sourceDetailFromInitialRouteManga(sourceId, mangaId)
+    if (detail === undefined) {
+      // A reused destination may previously have rendered another source. With no real list-row
+      // preview for this route, start unresolved rather than carrying that prior detail forward.
+      this.manga = undefined
       this.chapters = []
       this.isInLibrary = false
       this.activeLibraryComicId = ''
-      this.feedbackText = s('manga_detail_load_source_failed')
+      this.sourceDetailContentState = SourceDetailContentState.LOADING
+      this.feedbackText = s('manga_detail_loading_source')
       this.downloadStatusText = ''
       this.localRefreshText = ''
-    } finally {
-      this.isLoading = false
+      return
     }
+    const lookup = this.sourceRegistry.lookup(sourceId)
+    if (lookup.ok && lookup.entry !== undefined) {
+      detail.sourceName = lookup.entry.manifestName
+    }
+    const comicId = this.sourceComicId(sourceId, mangaId)
+    const libraryComic = this.findSourceRuntimeComic(sourceId, mangaId, comicId)
+    detail.isInLibrary = libraryComic !== undefined
+    this.manga = detail
+    this.chapters = []
+    this.isInLibrary = detail.isInLibrary
+    this.activeLibraryComicId = libraryComic?.id ?? ''
+    this.sourceDetailContentState = SourceDetailContentState.LOADING
+    this.feedbackText = s('manga_detail_loading_source')
+    this.downloadStatusText = ''
+    this.localRefreshText = ''
+  }
+
+  private applySourceMangaDetail(
+    requestEpoch: number,
+    entry: SourceRuntimeRegistryEntry,
+    sourceId: string,
+    mangaId: string,
+    detail: MangaDetail,
+    chapters: MangaChapterItem[],
+    feedbackText: string,
+    contentState: SourceDetailContentState = SourceDetailContentState.READY,
+  ): boolean {
+    if (!this.isCurrentSourceDetailRequest(requestEpoch, sourceId, mangaId)) {
+      return false
+    }
+    const nextDetail = this.sourceDetailWithRouteIdentity(detail, sourceId, mangaId)
+    const comicId = this.sourceComicId(sourceId, mangaId)
+    const libraryComic = this.findSourceRuntimeComic(sourceId, mangaId, comicId)
+    this.activeLibraryComicId = libraryComic?.id ?? ''
+    nextDetail.chapterCount = chapters.length
+    nextDetail.isInLibrary = libraryComic !== undefined
+    nextDetail.sourceName = entry.manifestName
+    this.manga = nextDetail
+    this.chapters = this.decorateChapterStates(chapters)
+    this.isInLibrary = nextDetail.isInLibrary
+    this.feedbackText = feedbackText
+    this.sourceDetailContentState = contentState
+    this.refreshDownloadStatus()
+    return true
   }
 
   private async runSourceMangaOperation(
@@ -518,9 +681,9 @@ export struct MangaDetailPage {
     detail: MangaDetail,
     sourceId: string,
     mangaId: string,
-    initialManga?: SourceManga
   ): MangaDetail {
     const normalizedMangaId = mangaId.trim()
+    const initialManga = this.validInitialRouteManga(sourceId, mangaId)
     const next: MangaDetail = {
       id: normalizedMangaId.length > 0 ? normalizedMangaId : detail.id,
       title: this.firstRouteDetailText([detail.title, initialManga?.title]) ?? detail.title,
@@ -568,18 +731,25 @@ export struct MangaDetailPage {
     return undefined
   }
 
-  private sourceDetailFromInitialRouteManga(sourceId: string, mangaId: string): MangaDetail | undefined {
+  private validInitialRouteManga(sourceId: string, mangaId: string): SourceManga | undefined {
     const initialManga = this.params.initialManga
-    if (initialManga === undefined) {
+    if (initialManga === undefined ||
+      initialManga.sourceId.trim() !== sourceId.trim() ||
+      initialManga.id.trim() !== mangaId.trim() ||
+      initialManga.title.trim().length === 0) {
       return undefined
     }
-    const title = this.firstRouteDetailText([initialManga.title, mangaId])
-    if (title === undefined) {
+    return initialManga
+  }
+
+  private sourceDetailFromInitialRouteManga(sourceId: string, mangaId: string): MangaDetail | undefined {
+    const initialManga = this.validInitialRouteManga(sourceId, mangaId)
+    if (initialManga === undefined) {
       return undefined
     }
     return {
       id: mangaId,
-      title,
+      title: initialManga.title.trim(),
       author: initialManga.author,
       artist: initialManga.artist,
       description: initialManga.description,
@@ -727,7 +897,11 @@ export struct MangaDetailPage {
     if (this.activeLibraryComicId.length > 0) {
       return this.activeLibraryComicId
     }
-    return this.sourceComicId(this.manga.sourceId, this.manga.id)
+    const manga = this.manga
+    return this.sourceComicId(
+      manga?.sourceId ?? this.params.sourceId,
+      manga?.id ?? this.params.mangaId?.trim() ?? '',
+    )
   }
 
   private findSourceRuntimeComic(sourceId: string, mangaId: string, comicId: string): Comic | undefined {
@@ -866,6 +1040,9 @@ export struct MangaDetailPage {
   }
 
   private async handleAddToLibrary(): Promise<boolean> {
+    if (!this.canAddCurrentMangaToLibrary()) {
+      return false
+    }
     if (this.isInLibrary) {
       this.showToast(s('common_already_in_library'))
       return true
@@ -875,7 +1052,11 @@ export struct MangaDetailPage {
       this.showToast(s('manga_detail_library_unavailable'))
       return false
     }
-    const comic = comicFromSourceManga(this.manga, this.chapters, this.currentComicId())
+    const manga = this.manga
+    if (manga === undefined) {
+      return false
+    }
+    const comic = comicFromSourceManga(manga, this.chapters, this.currentComicId())
     try {
       if (this.libraryPersistenceService === undefined) {
         this.libraryStore.upsertComic(comic)
@@ -884,7 +1065,11 @@ export struct MangaDetailPage {
       }
       this.activeLibraryComicId = comic.id
       this.isInLibrary = true
-      this.manga.isInLibrary = true
+      manga.isInLibrary = true
+      // A source item becomes a normal shelf/history item only after this
+      // explicit user action. Keep its existing progress, but remove the
+      // transient-source metadata so History cannot render it twice.
+      this.readerSessionStore.removeSourceHistory(comic.id)
       this.feedbackText = s('common_added_to_library')
       this.onLibraryChanged()
       this.refreshDownloadStatus()
@@ -905,11 +1090,10 @@ export struct MangaDetailPage {
       this.showToast(s('manga_detail_no_readable_chapters'))
       return
     }
-    if (!this.isInLibrary && this.manga.sourceId !== undefined) {
-      const added = await this.handleAddToLibrary()
-      if (!added) {
-        return
-      }
+    const transientRequest = this.sourceReaderSessionRequest(chapterId)
+    if (!this.isInLibrary && transientRequest !== undefined) {
+      this.onOpenSourceReader(transientRequest)
+      return
     }
     this.onOpenReader(this.currentComicId(), chapterId)
   }
@@ -918,17 +1102,56 @@ export struct MangaDetailPage {
     if (chapterId.trim().length === 0) {
       return
     }
-    if (!this.isInLibrary && this.manga.sourceId !== undefined) {
-      const added = await this.handleAddToLibrary()
-      if (!added) {
-        return
-      }
+    const transientRequest = this.sourceReaderSessionRequest(chapterId)
+    if (!this.isInLibrary && transientRequest !== undefined) {
+      this.onOpenSourceReader(transientRequest)
+      return
     }
     this.onOpenReader(this.currentComicId(), chapterId)
   }
 
+  private sourceReaderSessionRequest(chapterId: string): SourceReaderSessionRequest | undefined {
+    const manga = this.manga
+    if (manga === undefined) {
+      return undefined
+    }
+    const sourceId = manga.sourceId?.trim()
+    const mangaId = manga.id.trim()
+    const title = manga.title.trim()
+    const resolvedChapterId = chapterId.trim()
+    if (sourceId === undefined || sourceId.length === 0 || mangaId.length === 0 || title.length === 0 || resolvedChapterId.length === 0) {
+      return undefined
+    }
+    const chapterIds = this.allChapterIds()
+    if (!chapterIds.includes(resolvedChapterId)) {
+      return undefined
+    }
+    const request: SourceReaderSessionRequest = {
+      comicId: this.currentComicId(),
+      sourceId,
+      mangaId,
+      title,
+      chapterId: resolvedChapterId,
+      chapterIds,
+      chapterTitles: this.chapters.map((chapter: MangaChapterItem): string => chapter.title),
+    }
+    const coverUri = manga.coverUrl?.trim()
+    if (coverUri !== undefined && coverUri.length > 0) {
+      request.coverUri = coverUri
+    }
+    const sourceName = manga.sourceName?.trim()
+    if (sourceName !== undefined && sourceName.length > 0) {
+      request.sourceName = sourceName
+    }
+    return request
+  }
+
   private async handleDownloadChapter(chapterId?: string): Promise<void> {
     if (this.downloadBusy) {
+      return
+    }
+    const manga = this.manga
+    if (manga === undefined) {
       return
     }
     const resolvedChapterId = chapterId ?? this.firstChapterId()
@@ -946,7 +1169,7 @@ export struct MangaDetailPage {
     this.downloadBusy = true
     this.downloadStatusText = s('manga_detail_download_in_progress')
     try {
-      if (!this.isInLibrary && this.manga.sourceId !== undefined) {
+      if (!this.isInLibrary && manga.sourceId !== undefined) {
         const added = await this.handleAddToLibrary()
         if (!added) {
           this.downloadStatusText = s('manga_detail_download_canceled')
@@ -959,7 +1182,7 @@ export struct MangaDetailPage {
         this.showToast(s('manga_detail_add_to_library_first'))
         return
       }
-      if (this.manga.sourceId !== undefined) {
+      if (manga.sourceId !== undefined) {
         const hydration = await this.ensureSourceChapterPages(resolvedChapterId)
         if (!hydration.hydrated) {
           const chapterTitle = this.chapters.find((item: MangaChapterItem): boolean => item.id === resolvedChapterId)?.title
@@ -1072,6 +1295,10 @@ export struct MangaDetailPage {
     if (this.downloadBusy) {
       return
     }
+    const manga = this.manga
+    if (manga === undefined) {
+      return
+    }
     const service = this.offlineDownloadService()
     if (service === undefined) {
       this.downloadStatusText = s('manga_detail_download_unavailable')
@@ -1090,7 +1317,7 @@ export struct MangaDetailPage {
     let blockedCount = 0
     let failedCount = 0
     try {
-      if (!this.isInLibrary && this.manga.sourceId !== undefined) {
+      if (!this.isInLibrary && manga.sourceId !== undefined) {
         const added = await this.handleAddToLibrary()
         if (!added) {
           this.downloadStatusText = s('manga_detail_download_canceled')
@@ -1110,7 +1337,7 @@ export struct MangaDetailPage {
       }
       for (let index = 0; index < targetChapterIds.length; index += 1) {
         const chapterId = targetChapterIds[index]
-        if (this.manga.sourceId !== undefined) {
+        if (manga.sourceId !== undefined) {
           try {
             const hydration = await this.ensureSourceChapterPages(chapterId)
             if (!hydration.hydrated) {
@@ -1163,7 +1390,8 @@ export struct MangaDetailPage {
   }
 
   private async ensureSourceChapterPages(chapterId: string): Promise<SourceChapterPageHydrationResult> {
-    if (this.libraryStore === undefined || this.manga.sourceId === undefined) {
+    const sourceId = this.manga?.sourceId
+    if (this.libraryStore === undefined || sourceId === undefined) {
       return { hydrated: false, pageCount: 0, reasonCode: 'source_lookup_failed' }
     }
     const result = await new SourceChapterPageHydrator(
@@ -1173,7 +1401,7 @@ export struct MangaDetailPage {
       () => {
         this.onLibraryChanged()
       },
-    ).ensureChapterPages(this.currentComicId(), this.manga.sourceId, chapterId)
+    ).ensureChapterPages(this.currentComicId(), sourceId, chapterId)
     return result
   }
 
@@ -1269,12 +1497,16 @@ export struct MangaDetailPage {
     if (this.trackerMappingBusy) {
       return
     }
+    const manga = this.manga
+    if (manga === undefined) {
+      return
+    }
     this.trackerMappingBusy = true
     this.showToast(s('manga_detail_tracker_mapping_searching'))
     try {
       const context = getContext(this) as common.UIAbilityContext
       const comic = this.libraryStore?.getComic(this.currentComicId()) ??
-        comicFromSourceManga(this.manga, this.chapters, this.currentComicId())
+        comicFromSourceManga(manga, this.chapters, this.currentComicId())
       const summary: TrackerMappingSearchSummary =
         await new TrackerMappingSearchService(context).refreshComicMappingCandidates(comic)
       console.info(`[TrackerMapping] step=manual_candidate_refresh scanned=${summary.scannedCount} mapped=${summary.mappedCount} failed=${summary.failedCount} skipped=${summary.skippedCount}`)
@@ -1386,22 +1618,22 @@ export struct MangaDetailPage {
     }
   }
 
-  private displayedManga(): MangaDetail {
+  private displayedManga(manga: MangaDetail): MangaDetail {
     return {
-      id: this.manga.id,
-      title: this.manga.title,
-      author: this.manga.author,
-      artist: this.manga.artist,
-      description: this.manga.description,
-      coverUrl: this.manga.coverUrl,
-      status: this.manga.status,
-      tags: this.manga.tags,
-      sourceId: this.manga.sourceId,
-      sourceImageId: this.manga.sourceImageId,
-      sourceName: this.manga.sourceId === undefined ? s('tab_library') : this.manga.sourceName,
+      id: manga.id,
+      title: manga.title,
+      author: manga.author,
+      artist: manga.artist,
+      description: manga.description,
+      coverUrl: manga.coverUrl,
+      status: manga.status,
+      tags: manga.tags,
+      sourceId: manga.sourceId,
+      sourceImageId: manga.sourceImageId,
+      sourceName: manga.sourceId === undefined ? s('tab_library') : manga.sourceName,
       chapterCount: this.chapters.length,
       isInLibrary: this.isInLibrary,
-      url: this.manga.url,
+      url: manga.url,
     }
   }
 
@@ -1505,7 +1737,7 @@ export struct MangaDetailPage {
         fill: true,
         compact: true,
         controlHeight: ThemeConstants.ACTION_CHIP_HEIGHT,
-        isEnabled: this.hasReadableChapters() && !this.isLoading,
+        isEnabled: this.hasReadableChapters() && !this.isSourceDetailLoading(),
         action: () => {
           this.handleStartReading()
         },
@@ -1518,21 +1750,23 @@ export struct MangaDetailPage {
         fill: true,
         compact: true,
         controlHeight: ThemeConstants.ACTION_CHIP_HEIGHT,
-        isEnabled: this.hasReadableChapters() && !this.downloadBusy && !this.isLoading,
+        isEnabled: this.hasReadableChapters() && !this.downloadBusy && !this.isSourceDetailLoading(),
         action: () => {
           this.handleDownloadChapter()
         },
       })
 
-      KomaIconButton({
-        icon: $r('sys.symbol.bookmark'),
-        kind: this.isInLibrary ? 'primary' : 'secondary',
-        controlSize: ThemeConstants.ACTION_CHIP_HEIGHT,
-        iconSize: ThemeConstants.FONT_SIZE_TITLE,
-        action: () => {
-          this.handleAddToLibrary()
-        },
-      })
+      if (this.canAddCurrentMangaToLibrary()) {
+        KomaIconButton({
+          icon: $r('sys.symbol.bookmark'),
+          kind: this.isInLibrary ? 'primary' : 'secondary',
+          controlSize: ThemeConstants.ACTION_CHIP_HEIGHT,
+          iconSize: ThemeConstants.FONT_SIZE_TITLE,
+          action: () => {
+            this.handleAddToLibrary()
+          },
+        })
+      }
 
       KomaIconButton({
         icon: $r('sys.symbol.more'),
@@ -1669,27 +1903,55 @@ export struct MangaDetailPage {
     .backgroundColor(ThemeConstants.CARD)
   }
 
+  @Builder
+  private DetailPendingState() {
+    Column({ space: ThemeConstants.SPACE_MD }) {
+      LoadingProgress()
+        .width(ThemeConstants.LOADING_SIZE_LARGE)
+        .height(ThemeConstants.LOADING_SIZE_LARGE)
+        .color(ThemeConstants.BRAND_PRIMARY)
+      Text(s('manga_detail_loading_source'))
+        .fontSize(ThemeConstants.FONT_SIZE_META)
+        .fontColor(ThemeConstants.TEXT_SECONDARY)
+        .textAlign(TextAlign.Center)
+    }
+    .width('100%')
+    .height(260)
+    .justifyContent(FlexAlign.Center)
+    .alignItems(HorizontalAlign.Center)
+  }
+
   build() {
     if (this.languageState.effectiveLocale.length >= 0) {
-      SecondaryListScaffold({
-        listSpace: ThemeConstants.SPACE_LG,
-        horizontalPadding: ThemeConstants.SPACE_XL,
-        bottomPadding: ThemeConstants.SPACE_XL,
-        reserveTitleBar: true,
-      }) {
-        ListItem() {
-          MangaDetailHeader({
-            manga: this.displayedManga(),
-          })
-        }
-
-        ListItem() {
-          this.ActionButtons()
-        }
-
-        if (this.isLoading || this.feedbackText.length > 0) {
+      Stack({ alignContent: Alignment.TopEnd }) {
+        SecondaryListScaffold({
+          listSpace: ThemeConstants.SPACE_LG,
+          horizontalPadding: ThemeConstants.SPACE_XL,
+          bottomPadding: ThemeConstants.SPACE_XL,
+          reserveTitleBar: true,
+        }) {
+        if (this.manga !== undefined) {
           ListItem() {
-            Text(this.isLoading ? s('common_loading') : this.feedbackText)
+            MangaDetailHeader({
+              manga: this.displayedManga(this.manga),
+            })
+          }
+
+          ListItem() {
+            this.ActionButtons()
+          }
+        }
+
+        if (!this.hasResolvedManga() && this.isDetailPending()) {
+          ListItem() {
+            this.DetailPendingState()
+          }
+        }
+
+        if ((this.hasResolvedManga() && this.isSourceDetailLoading()) ||
+          (!this.isDetailPending() && this.feedbackText.length > 0)) {
+          ListItem() {
+            Text(this.isSourceDetailLoading() ? s('common_loading') : this.feedbackText)
               .width('100%')
               .fontSize(ThemeConstants.FONT_SIZE_META)
               .fontColor(ThemeConstants.TEXT_SECONDARY)
@@ -1714,53 +1976,60 @@ export struct MangaDetailPage {
           }
         }
 
-        if (this.localMetadataEditorVisible) {
+        if (this.hasResolvedManga() && this.localMetadataEditorVisible) {
           ListItem() {
             this.LocalMetadataEditor()
           }
         }
 
-        ListItem() {
-          MangaDescriptionSection({
-            description: this.manga.description,
-          })
+        if (this.manga !== undefined) {
+          ListItem() {
+            MangaDescriptionSection({
+              description: this.manga.description,
+            })
+          }
+
+          ListItem() {
+            MangaTagsSection({
+              tags: this.manga.tags === undefined ? [] : this.manga.tags,
+              onTagClick: (tag: string) => {
+                RouterHelper.openSearch({ query: tag })
+              },
+            })
+          }
         }
 
-        ListItem() {
-          MangaTagsSection({
-            tags: this.manga.tags === undefined ? [] : this.manga.tags,
-            onTagClick: (tag: string) => {
-              RouterHelper.openSearch({ query: tag })
-            },
-          })
+        if (this.shouldRenderChapterList()) {
+          ListItem() {
+            ChapterListSection({
+              chapters: this.chapters,
+              onOpenChapter: (chapterId: string) => {
+                void this.handleOpenChapter(chapterId)
+                  .catch((error: Error) => {
+                    void error
+                    console.error('[manga-detail] step=source_pages_load_failed reason=source_pages')
+                    this.showToast(s('manga_detail_chapter_pages_load_failed'))
+                  })
+              },
+              onDownloadChapter: (chapterId: string) => {
+                this.handleDownloadChapter(chapterId)
+              },
+              onDownloadVisibleChapters: (chapterIds: string[], mode: ChapterBatchDownloadMode) => {
+                this.handleDownloadVisibleChapters(chapterIds, mode)
+              },
+              onMarkChapterReadState: (chapterId: string, isRead: boolean) => {
+                this.markChapterReadState(chapterId, isRead)
+              },
+              onMarkVisibleChaptersReadState: (chapterIds: string[], isRead: boolean) => {
+                this.markVisibleChaptersReadState(chapterIds, isRead)
+              },
+            })
+          }
         }
-
-        ListItem() {
-          ChapterListSection({
-            chapters: this.chapters,
-            onOpenChapter: (chapterId: string) => {
-              void this.handleOpenChapter(chapterId)
-                .catch((error: Error) => {
-                  void error
-                  console.error('[manga-detail] step=source_pages_load_failed reason=source_pages')
-                  this.showToast(s('manga_detail_chapter_pages_load_failed'))
-                })
-            },
-            onDownloadChapter: (chapterId: string) => {
-              this.handleDownloadChapter(chapterId)
-            },
-            onDownloadVisibleChapters: (chapterIds: string[], mode: ChapterBatchDownloadMode) => {
-              this.handleDownloadVisibleChapters(chapterIds, mode)
-            },
-            onMarkChapterReadState: (chapterId: string, isRead: boolean) => {
-              this.markChapterReadState(chapterId, isRead)
-            },
-            onMarkVisibleChaptersReadState: (chapterIds: string[], isRead: boolean) => {
-              this.markVisibleChaptersReadState(chapterIds, isRead)
-            },
-          })
         }
       }
+      .width('100%')
+      .height('100%')
     }
   }
 }

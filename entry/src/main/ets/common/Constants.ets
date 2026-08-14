@@ -4,13 +4,13 @@ export class TabIndex {
   static readonly LIBRARY: number = 0
   static readonly BROWSE: number = 1
   static readonly HISTORY: number = 2
-  static readonly SEARCH: number = 3
-  static readonly SETTINGS: number = 4
+  static readonly SETTINGS: number = 3
 }
 
 export class RouteName {
   static readonly READER: string = 'ReaderPage'
   static readonly IMPORT: string = 'ImportPage'
+  static readonly SEARCH: string = 'SearchPage'
   static readonly MANGA_DETAIL: string = 'MangaDetailPage'
   static readonly SOURCE_BROWSE: string = 'SourceBrowsePage'
   static readonly SOURCE_SEARCH: string = 'SourceSearchPage'
@@ -47,9 +47,6 @@ export function tabLabel(index: number): string {
   }
   if (index === TabIndex.HISTORY) {
     return AppStrings.get('tab_history')
-  }
-  if (index === TabIndex.SEARCH) {
-    return AppStrings.get('tab_search')
   }
   return AppStrings.get('tab_settings')
 }
