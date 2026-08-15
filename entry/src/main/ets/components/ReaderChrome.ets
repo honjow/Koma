@@ -95,6 +95,8 @@ export struct ReaderChrome {
   @Local private modeShown: boolean = false
   @Local private menuKey: string = ''
   @Local private imageInfoShown: boolean = false
+  @Local private chapterPickerShown: boolean = false
+  @Local private chapterPickerTarget: number = -1
 
   private pageText(): string {
     const total = Math.max(this.pageTotal, 0)
@@ -120,6 +122,37 @@ export struct ReaderChrome {
       ? this.chapterTitles[this.chapterIndex]
       : ''
     return title.length > 0 ? title : this.chapterText()
+  }
+
+  private chapterPickerTitle(index: number): string {
+    const title = index >= 0 && index < this.chapterTitles.length ? this.chapterTitles[index] : ''
+    return title.length > 0 ? title : `${s('reader_control_chapter')} ${index + 1}`
+  }
+
+  private chapterPickerIndexes(): number[] {
+    const count = Math.max(this.chapterTotal, this.chapterTitles.length)
+    const indexes: number[] = []
+    for (let index = 0; index < count; index += 1) {
+      indexes.push(index)
+    }
+    return indexes
+  }
+
+  private selectChapterFromPicker(index: number): void {
+    if (index < 0 || index >= this.chapterTotal) {
+      return
+    }
+    this.chapterPickerTarget = index
+    this.chapterPickerShown = false
+  }
+
+  private finishChapterPickerDismissal(): void {
+    const target = this.chapterPickerTarget
+    this.chapterPickerTarget = -1
+    this.chapterPickerShown = false
+    if (target >= 0 && target < this.chapterTotal) {
+      this.onOpenChapter(target)
+    }
   }
 
   private openImageInfo(): void {
@@ -533,6 +566,35 @@ export struct ReaderChrome {
   }
 
   @Builder
+  private ChapterPickerSheet() {
+    KomaModalScaffold({
+      title: s('reader_control_chapter'),
+      modalSurfaceColor: $r('sys.color.ohos_id_color_sub_background'),
+      onClose: () => {
+        this.chapterPickerShown = false
+      },
+    }) {
+      Column() {
+        GroupedListSection() {
+          ForEach(this.chapterPickerIndexes(), (index: number) => {
+            ConciseListRow({
+              title: this.chapterPickerTitle(index),
+              action: () => {
+                this.selectChapterFromPicker(index)
+              },
+            })
+            if (index + 1 < this.chapterPickerIndexes().length) {
+              ListDivider()
+            }
+          }, (index: number) => `reader-chapter-picker-${index}`)
+        }
+      }
+      .width('100%')
+      .padding({ left: ThemeConstants.SPACE_LG, right: ThemeConstants.SPACE_LG, top: ThemeConstants.SPACE_SM })
+    }
+  }
+
+  @Builder
   private TopBar() {
     Stack({ alignContent: Alignment.Center }) {
       Row() {
@@ -633,7 +695,26 @@ export struct ReaderChrome {
               .width(44).height(44).backgroundColor(Color.Transparent).enabled(this.canTurnOnePageInDoublePage).onClick(() => { this.onTurnOnePageInDoublePage() })
           }
           Blank().layoutWeight(1)
-          Text(this.chapterText()).fontSize(13).fontColor(Color.White).maxLines(1).textOverflow({ overflow: TextOverflow.Ellipsis })
+          Text(this.chapterText())
+            .fontSize(13)
+            .fontColor(Color.White)
+            .maxLines(1)
+            .textOverflow({ overflow: TextOverflow.Ellipsis })
+            .onClick(() => {
+              if (this.chapterTotal > 0) {
+                this.chapterPickerShown = true
+              }
+            })
+            .bindSheet($$this.chapterPickerShown, this.ChapterPickerSheet, {
+              detents: [SheetSize.MEDIUM, SheetSize.LARGE],
+              showClose: false,
+              enableOutsideInteractive: false,
+              scrollSizeMode: ScrollSizeMode.CONTINUOUS,
+              enableFloatingDragBar: true,
+              onDisappear: () => {
+                this.finishChapterPickerDismissal()
+              },
+            })
           Blank().layoutWeight(1)
           Button({ type: ButtonType.Circle, stateEffect: true }) { SymbolGlyph($r('sys.symbol.clock')).fontSize(22).fontColor([this.autoPageActive ? ThemeConstants.BRAND_PRIMARY : Color.White]) }
             .width(44).height(44).backgroundColor(Color.Transparent).enabled(this.readerMode !== ReaderMode.CONTINUOUS_SCROLL).onClick(() => { this.onToggleAutoPage() })
