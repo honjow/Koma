@@ -565,9 +565,32 @@ export struct ReaderChrome {
       }
       .width('100%').height(56).padding({ left: ThemeConstants.SPACE_SM, right: ThemeConstants.SPACE_SM }).alignItems(VerticalAlign.Center)
       Column({ space: 1 }) {
-        Text(this.title.length > 0 ? this.title : s('reader_title_default')).fontSize(13).fontColor(Color.White).maxLines(1).textOverflow({ overflow: TextOverflow.Ellipsis }).textAlign(TextAlign.Center)
-        Text(this.chapterTitleText()).fontSize(11).fontColor('#CCFFFFFF').maxLines(1).textOverflow({ overflow: TextOverflow.Ellipsis }).textAlign(TextAlign.Center)
-        Text(this.pageText()).fontSize(11).fontColor('#CCFFFFFF').maxLines(1)
+        Text(this.title.length > 0 ? this.title : s('reader_title_default'))
+          .fontSize(13)
+          .fontColor(Color.White)
+          .maxLines(2)
+          .textOverflow({ overflow: TextOverflow.Ellipsis })
+          .lineBreakStrategy(LineBreakStrategy.BALANCED)
+          .textAlign(TextAlign.Center)
+          .width('100%')
+        Row({ space: ThemeConstants.SPACE_XS }) {
+          Text(this.chapterTitleText())
+            .fontSize(11)
+            .fontColor('#CCFFFFFF')
+            .maxLines(1)
+            .textOverflow({ overflow: TextOverflow.Ellipsis })
+            .textAlign(TextAlign.End)
+            .layoutWeight(1)
+          Text('·').fontSize(11).fontColor('#CCFFFFFF')
+          Text(this.pageText())
+            .fontSize(11)
+            .fontColor('#CCFFFFFF')
+            .maxLines(1)
+            .textAlign(TextAlign.Start)
+            .layoutWeight(1)
+        }
+        .width('100%')
+        .alignItems(VerticalAlign.Center)
       }
       .width('54%').hitTestBehavior(HitTestMode.None)
     }
