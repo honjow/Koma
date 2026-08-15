@@ -650,6 +650,8 @@
     { "name": "common_already_in_library", "value": "已在书架中" },
     { "name": "common_added_to_library", "value": "已加入书架" },
     { "name": "common_add_to_library_failed", "value": "加入书架失败" },
+    { "name": "common_removed_from_library", "value": "已移出书架" },
+    { "name": "common_remove_from_library_failed", "value": "移出书架失败" },
     { "name": "common_no_images_to_add", "value": "没有可收藏图片" },
     { "name": "common_no_summary", "value": "无简介" },
     { "name": "common_loading", "value": "加载中..." },

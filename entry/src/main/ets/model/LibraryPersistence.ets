@@ -1119,6 +1119,30 @@ export function removeComicAndPersistLibraryStore(
   }
 }
 
+/**
+ * Remove a shelf record without deleting its source files, downloaded pages,
+ * or any external-library data. This is for an explicit membership toggle,
+ * not the local-file removal flow above.
+ */
+export function removeComicRecordAndPersistLibraryStore(
+  libraryStore: LibraryStore,
+  persistenceService: LibraryStorePersistenceService,
+  comicId: ComicId
+): boolean {
+  if (libraryStore.getComic(comicId) === undefined) {
+    return false
+  }
+  const previousPayload = serializeLibraryStore(libraryStore)
+  libraryStore.removeComic(comicId)
+  try {
+    persistenceService.persist()
+    return true
+  } catch (error) {
+    hydrateLibraryStoreFromJson(libraryStore, previousPayload)
+    throw error as Error
+  }
+}
+
 export function removeComicsAndPersistLibraryStore(
   libraryStore: LibraryStore,
   persistenceService: LibraryStorePersistenceService,

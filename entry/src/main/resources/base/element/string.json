@@ -650,6 +650,8 @@
     { "name": "common_already_in_library", "value": "Already in library" },
     { "name": "common_added_to_library", "value": "Added to library" },
     { "name": "common_add_to_library_failed", "value": "Failed to add to library" },
+    { "name": "common_removed_from_library", "value": "Removed from library" },
+    { "name": "common_remove_from_library_failed", "value": "Failed to remove from library" },
     { "name": "common_no_images_to_add", "value": "No readable images to add" },
     { "name": "common_no_summary", "value": "No summary" },
     { "name": "common_loading", "value": "Loading..." },

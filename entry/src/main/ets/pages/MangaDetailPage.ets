@@ -43,6 +43,7 @@ import {
 import { LibraryStore } from '../model/LibraryStore'
 import {
   LibraryStorePersistenceService,
+  removeComicRecordAndPersistLibraryStore,
   updateLocalLibraryMetadataAndPersistLibraryStore,
   upsertComicAndPersistLibraryStore,
 } from '../model/LibraryPersistence'
@@ -1158,10 +1159,6 @@ export struct MangaDetailPage {
     if (!this.canAddCurrentMangaToLibrary()) {
       return false
     }
-    if (this.isInLibrary) {
-      this.showToast(s('common_already_in_library'))
-      return true
-    }
     if (this.libraryStore === undefined) {
       this.feedbackText = s('manga_detail_library_unavailable')
       this.showToast(s('manga_detail_library_unavailable'))
@@ -1170,6 +1167,33 @@ export struct MangaDetailPage {
     const manga = this.manga
     if (manga === undefined) {
       return false
+    }
+    if (this.isInLibrary) {
+      const comicId = this.currentComicId()
+      try {
+        const removed = this.libraryPersistenceService === undefined
+          ? this.libraryStore.getComic(comicId) !== undefined
+          : removeComicRecordAndPersistLibraryStore(this.libraryStore, this.libraryPersistenceService, comicId)
+        if (this.libraryPersistenceService === undefined && removed) {
+          this.libraryStore.removeComic(comicId)
+        }
+        if (!removed) {
+          this.showToast(s('common_remove_from_library_failed'))
+          return false
+        }
+        this.activeLibraryComicId = ''
+        this.isInLibrary = false
+        manga.isInLibrary = false
+        this.onLibraryChanged()
+        this.refreshDownloadStatus()
+        this.showToast(s('common_removed_from_library'))
+        return true
+      } catch (error) {
+        void error
+        console.error('[manga-detail] step=remove_from_library_failed reason=library_persist')
+        this.showToast(s('common_remove_from_library_failed'))
+        return false
+      }
     }
     const comic = comicFromSourceManga(manga, this.chapters, this.currentComicId())
     try {
@@ -1185,7 +1209,6 @@ export struct MangaDetailPage {
       // explicit user action. Keep its existing progress, but remove the
       // transient-source metadata so History cannot render it twice.
       this.readerSessionStore.removeSourceHistory(comic.id)
-      this.feedbackText = s('common_added_to_library')
       this.onLibraryChanged()
       this.refreshDownloadStatus()
       this.showToast(s('common_added_to_library'))
