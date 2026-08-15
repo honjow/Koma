@@ -16,6 +16,7 @@ export struct MangaDetailHeader {
     chapterCount: 0,
     isInLibrary: false,
   }
+  @Param showChapterCount: boolean = true
   @Local private languageState: LanguageState = connectLanguageState()
   @Local private failedCoverUrl: string = ''
 
@@ -172,9 +173,11 @@ export struct MangaDetailHeader {
         }
         .width('100%')
 
-        Text(s('manga_detail_chapter_count').replace('%s', `${this.manga.chapterCount}`))
-          .fontSize(ThemeConstants.FONT_SIZE_META)
-          .fontColor(ThemeConstants.TEXT_SECONDARY)
+        if (this.showChapterCount) {
+          Text(s('manga_detail_chapter_count').replace('%s', `${this.manga.chapterCount}`))
+            .fontSize(ThemeConstants.FONT_SIZE_META)
+            .fontColor(ThemeConstants.TEXT_SECONDARY)
+        }
       }
       .layoutWeight(1)
       .alignItems(HorizontalAlign.Start)

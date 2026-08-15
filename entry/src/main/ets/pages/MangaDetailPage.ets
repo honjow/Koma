@@ -187,6 +187,8 @@ export struct MangaDetailPage {
   @Local private chapters: MangaChapterItem[] = []
   @Local private isInLibrary: boolean = false
   @Local private sourceDetailContentState: SourceDetailContentState = SourceDetailContentState.UNRESOLVED
+  // A route list row is preview data. It is not a resolved detail payload.
+  @Local private sourceDetailDataResolved: boolean = false
   @Local private downloadBusy: boolean = false
   @Local private trackerSyncBusy: boolean = false
   @Local private trackerMappingBusy: boolean = false
@@ -238,6 +240,23 @@ export struct MangaDetailPage {
     return this.manga !== undefined &&
       (this.sourceDetailContentState === SourceDetailContentState.LOCAL ||
         this.sourceDetailContentState === SourceDetailContentState.READY)
+  }
+
+  private shouldRenderDetailMetadata(): boolean {
+    return this.manga !== undefined &&
+      (this.sourceDetailContentState === SourceDetailContentState.LOCAL || this.sourceDetailDataResolved)
+  }
+
+  private shouldRenderDetailActions(): boolean {
+    // Keep the existing error-state actions and menu behavior. Only a pending
+    // request suppresses the row, because its controls cannot yet describe a
+    // real chapter result.
+    return this.manga !== undefined && !this.isDetailPending()
+  }
+
+  private shouldShowChapterCount(): boolean {
+    return this.sourceDetailContentState === SourceDetailContentState.LOCAL ||
+      this.sourceDetailContentState === SourceDetailContentState.READY
   }
 
   private canAddCurrentMangaToLibrary(): boolean {
@@ -373,6 +392,7 @@ export struct MangaDetailPage {
       this.manga = missingMangaDetail(mangaId, this.params.sourceId)
       this.chapters = []
       this.isInLibrary = false
+      this.sourceDetailDataResolved = false
       this.activeLibraryComicId = ''
       this.feedbackText = mangaId === undefined || mangaId.trim().length === 0 ? '' : s('manga_detail_load_local_failed')
       this.sourceDetailContentState = SourceDetailContentState.ERROR
@@ -386,6 +406,7 @@ export struct MangaDetailPage {
       comic.chapters.map((chapter: Chapter): MangaChapterItem => mangaChapterItemFromComicChapter(chapter, comic.sourceKind))
     )
     this.isInLibrary = true
+    this.sourceDetailDataResolved = true
     this.sourceDetailContentState = SourceDetailContentState.LOCAL
     this.feedbackText = ''
     this.localRefreshText = ''
@@ -503,6 +524,7 @@ export struct MangaDetailPage {
   private async loadSourceMangaDetail(sourceId: string, mangaId: string): Promise<void> {
     const requestEpoch = this.beginSourceDetailRequest(sourceId, mangaId)
     this.sourceDetailContentState = SourceDetailContentState.LOADING
+    this.sourceDetailDataResolved = false
     this.feedbackText = s('manga_detail_loading_source')
     try {
       const lookup = this.sourceRegistry.lookup(sourceId)
@@ -579,6 +601,7 @@ export struct MangaDetailPage {
       }
       this.chapters = []
       this.isInLibrary = libraryComic !== undefined
+      this.sourceDetailDataResolved = false
       this.activeLibraryComicId = libraryComic?.id ?? ''
       this.feedbackText = s('manga_detail_load_source_failed')
       this.sourceDetailContentState = SourceDetailContentState.ERROR
@@ -600,6 +623,7 @@ export struct MangaDetailPage {
       this.manga = undefined
       this.chapters = []
       this.isInLibrary = false
+      this.sourceDetailDataResolved = false
       this.activeLibraryComicId = ''
       this.sourceDetailContentState = SourceDetailContentState.LOADING
       this.feedbackText = s('manga_detail_loading_source')
@@ -617,6 +641,7 @@ export struct MangaDetailPage {
     this.manga = detail
     this.chapters = []
     this.isInLibrary = detail.isInLibrary
+    this.sourceDetailDataResolved = false
     this.activeLibraryComicId = libraryComic?.id ?? ''
     this.sourceDetailContentState = SourceDetailContentState.LOADING
     this.feedbackText = s('manga_detail_loading_source')
@@ -647,6 +672,7 @@ export struct MangaDetailPage {
     this.manga = nextDetail
     this.chapters = this.decorateChapterStates(chapters)
     this.isInLibrary = nextDetail.isInLibrary
+    this.sourceDetailDataResolved = true
     this.feedbackText = feedbackText
     this.sourceDetailContentState = contentState
     this.refreshDownloadStatus()
@@ -1934,24 +1960,26 @@ export struct MangaDetailPage {
           ListItem() {
             MangaDetailHeader({
               manga: this.displayedManga(this.manga),
+              showChapterCount: this.shouldShowChapterCount(),
             })
           }
+        }
 
+        if (this.shouldRenderDetailActions()) {
           ListItem() {
             this.ActionButtons()
           }
         }
 
-        if (!this.hasResolvedManga() && this.isDetailPending()) {
+        if (this.isDetailPending()) {
           ListItem() {
             this.DetailPendingState()
           }
         }
 
-        if ((this.hasResolvedManga() && this.isSourceDetailLoading()) ||
-          (!this.isDetailPending() && this.feedbackText.length > 0)) {
+        if (!this.isDetailPending() && this.feedbackText.length > 0) {
           ListItem() {
-            Text(this.isSourceDetailLoading() ? s('common_loading') : this.feedbackText)
+            Text(this.feedbackText)
               .width('100%')
               .fontSize(ThemeConstants.FONT_SIZE_META)
               .fontColor(ThemeConstants.TEXT_SECONDARY)
@@ -1983,19 +2011,21 @@ export struct MangaDetailPage {
         }
 
         if (this.manga !== undefined) {
-          ListItem() {
-            MangaDescriptionSection({
-              description: this.manga.description,
-            })
-          }
+          if (this.shouldRenderDetailMetadata()) {
+            ListItem() {
+              MangaDescriptionSection({
+                description: this.manga.description,
+              })
+            }
 
-          ListItem() {
-            MangaTagsSection({
-              tags: this.manga.tags === undefined ? [] : this.manga.tags,
-              onTagClick: (tag: string) => {
-                RouterHelper.openSearch({ query: tag })
-              },
-            })
+            ListItem() {
+              MangaTagsSection({
+                tags: this.manga.tags === undefined ? [] : this.manga.tags,
+                onTagClick: (tag: string) => {
+                  RouterHelper.openSearch({ query: tag })
+                },
+              })
+            }
           }
         }
 
