@@ -2397,10 +2397,12 @@ export struct ReaderPage {
 
   private toggleChrome(): void {
     const nextVisible = !this.chromeShown
-    this.chromeShown = nextVisible
     if (this.routeVisible) {
       this.setReaderStatusBarForChrome(nextVisible)
     }
+    this.getUIContext().animateTo({ duration: 200, curve: Curve.FastOutSlowIn }, () => {
+      this.chromeShown = nextVisible
+    })
     this.emitChromeVisible(nextVisible)
   }
 
