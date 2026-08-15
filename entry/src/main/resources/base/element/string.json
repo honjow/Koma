@@ -681,7 +681,7 @@
     { "name": "reader_action_save_series_settings", "value": "Use for this series" },
     { "name": "reader_action_clear_series_settings", "value": "Clear series settings" },
     { "name": "reader_action_reset_zoom", "value": "Reset zoom" },
-    { "name": "reader_action_return_to_detail", "value": "Return to details" },
+    { "name": "reader_action_return_to_detail", "value": "Manga details" },
     { "name": "reader_action_image_info", "value": "Image information" },
     { "name": "reader_action_save_image", "value": "Save image" },
     { "name": "reader_action_share_image", "value": "Share image" },

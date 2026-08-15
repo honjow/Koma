@@ -681,7 +681,7 @@
     { "name": "reader_action_save_series_settings", "value": "应用到本系列" },
     { "name": "reader_action_clear_series_settings", "value": "清除系列设置" },
     { "name": "reader_action_reset_zoom", "value": "重置缩放" },
-    { "name": "reader_action_return_to_detail", "value": "返回详情" },
+    { "name": "reader_action_return_to_detail", "value": "漫画详情" },
     { "name": "reader_action_image_info", "value": "图片信息" },
     { "name": "reader_action_save_image", "value": "保存图片" },
     { "name": "reader_action_share_image", "value": "分享图片" },
