@@ -1,7 +1,7 @@
 import { common } from '@kit.AbilityKit'
 import { SymbolGlyphModifier } from '@kit.ArkUI'
 import { SecondaryListScaffold } from '../components/SecondaryListScaffold'
-import { SourceModalScaffold } from '../components/SourceModalScaffold'
+import { KomaModalScaffold } from '../components/KomaModalScaffold'
 import { ConciseListRow } from '../components/ui/ConciseListRow'
 import { GroupedListSection, ListDivider, SectionHeader } from '../components/ui/GroupedListSection'
 import { KomaActionButton } from '../components/ui/KomaActionButton'
@@ -1836,7 +1836,7 @@ export struct SourcePackageManagerPage {
 
   @Builder
   private SourceIndexSheetContent() {
-    SourceModalScaffold({
+    KomaModalScaffold({
       title: t('source_pkg_index_url_heading'),
       onClose: () => {
         this.sourceIndexSheetShown = false
@@ -2165,7 +2165,7 @@ export struct SourcePackageManagerPage {
     if (this.sourceSheetSource() === undefined) {
       Blank().width('100%').height('100%')
     } else {
-      SourceModalScaffold({
+      KomaModalScaffold({
         title: this.sourceSheetSource()!.name,
         subtitle: this.sourceMetaText(this.sourceSheetSource()!),
         onClose: () => {
@@ -2179,7 +2179,7 @@ export struct SourcePackageManagerPage {
 
   @Builder
   private SourceSettingsSheetContent() {
-    SourceModalScaffold({
+    KomaModalScaffold({
       title: t('source_pkg_settings_title'),
       subtitle: this.settingsSourceName,
       onClose: () => {

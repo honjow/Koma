@@ -7,6 +7,7 @@ import { GroupedListSection, ListDivider } from '../components/ui/GroupedListSec
 import { KomaActionButton } from '../components/ui/KomaActionButton'
 import { KomaEmptyState } from '../components/ui/KomaEmptyState'
 import { KomaIconButton } from '../components/ui/KomaIconButton'
+import { KomaModalScaffold } from '../components/KomaModalScaffold'
 import { ThemeConstants } from '../theme/ThemeConstants'
 import {
   ContinueReadingCardViewModel,
@@ -1656,34 +1657,13 @@ export struct LibraryPage {
 
   @Builder
   private LibraryFiltersSheet() {
-    Column() {
-      Row() {
-        Text(s('common_filter'))
-          .fontSize(ThemeConstants.FONT_SIZE_H3)
-          .fontWeight(FontWeight.Medium)
-          .fontColor(ThemeConstants.TEXT_PRIMARY)
-          .layoutWeight(1)
-        Button({ type: ButtonType.Circle, stateEffect: true }) {
-          SymbolGlyph($r('sys.symbol.xmark'))
-            .fontSize(20)
-            .fontColor([ThemeConstants.TEXT_PRIMARY])
-        }
-        .width(44)
-        .height(44)
-        .backgroundColor(Color.Transparent)
-        .accessibilityText(s('common_close'))
-        .onClick(() => {
-          this.closeFilterSheet()
-        })
-      }
-      .width('100%')
-      .height(56)
-      .padding({ left: ThemeConstants.SPACE_LG, right: ThemeConstants.SPACE_SM })
-
-      Divider().strokeWidth(0.5).color(ThemeConstants.DIVIDER)
-
-      Scroll() {
-        Column({ space: ThemeConstants.SPACE_LG }) {
+    KomaModalScaffold({
+      title: s('common_filter'),
+      onClose: () => {
+        this.closeFilterSheet()
+      },
+    }) {
+      Column({ space: ThemeConstants.SPACE_LG }) {
           GroupedListSection() {
             Column() {
               ConciseListRow({
@@ -1776,18 +1756,11 @@ export struct LibraryPage {
               },
             })
           }
-          Blank().height(ThemeConstants.SPACE_XL)
-        }
-        .width('100%')
-        .padding(ThemeConstants.SPACE_LG)
+        Blank().height(ThemeConstants.SPACE_XL)
       }
-      .scrollBar(BarState.Off)
       .width('100%')
-      .layoutWeight(1)
+      .padding(ThemeConstants.SPACE_LG)
     }
-    .width('100%')
-    .height('100%')
-    .backgroundColor(ThemeConstants.BG_SUB)
   }
 
   @Builder
@@ -1813,6 +1786,9 @@ export struct LibraryPage {
       .bindSheet($$this.filtersShown, this.LibraryFiltersSheet, {
         detents: [SheetSize.MEDIUM, SheetSize.LARGE],
         showClose: false,
+        enableOutsideInteractive: false,
+        scrollSizeMode: ScrollSizeMode.CONTINUOUS,
+        enableFloatingDragBar: true,
         onDisappear: () => {
           this.closeFilterSheet()
         },

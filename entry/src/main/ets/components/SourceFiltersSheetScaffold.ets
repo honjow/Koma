@@ -1,5 +1,5 @@
 import { ThemeConstants } from '../theme/ThemeConstants'
-import { SourceModalScaffold } from './SourceModalScaffold'
+import { KomaModalScaffold } from './KomaModalScaffold'
 import { GroupedListSection } from './ui/GroupedListSection'
 import { KomaActionButton } from './ui/KomaActionButton'
 
@@ -14,7 +14,7 @@ export struct SourceFiltersSheetScaffold {
   @BuilderParam content: () => void
 
   build() {
-    SourceModalScaffold({
+    KomaModalScaffold({
       title: this.title,
       onClose: () => {
         this.onClose()
