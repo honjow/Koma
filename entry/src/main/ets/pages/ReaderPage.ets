@@ -1146,34 +1146,46 @@ struct ReaderThumbnailTile {
   }
 
   build() {
-    Stack({ alignContent: Alignment.Center }) {
-      if (this.pixelMap !== undefined) {
-        Image(this.pixelMap)
-          .width('100%')
-          .height('100%')
-          .objectFit(ImageFit.Contain)
-          .interpolation(ImageInterpolation.Medium)
-      } else if (this.loading) {
-        LoadingProgress().width(20).height(20).color('#CCFFFFFF')
-      } else if (this.failed) {
-        SymbolGlyph($r('sys.symbol.exclamationmark_triangle'))
-          .fontSize(18)
-          .fontColor(['#CCFFFFFF'])
+    Column({ space: ThemeConstants.SPACE_XS }) {
+      Stack({ alignContent: Alignment.Center }) {
+        if (this.pixelMap !== undefined) {
+          Image(this.pixelMap)
+            .width('100%')
+            .height('100%')
+            .objectFit(ImageFit.Contain)
+            .borderRadius(ThemeConstants.RADIUS_SM)
+            .clip(true)
+            .interpolation(ImageInterpolation.Medium)
+        } else if (this.loading) {
+          LoadingProgress().width(20).height(20).color('#CCFFFFFF')
+        } else if (this.failed) {
+          SymbolGlyph($r('sys.symbol.exclamationmark_triangle'))
+            .fontSize(18)
+            .fontColor(['#CCFFFFFF'])
+        }
       }
+      .width(this.thumbnailWidth())
+      .height(READER_THUMB_DISPLAY_HEIGHT)
+      .border({
+        width: this.selected ? 2 : 0,
+        color: this.selected ? ThemeConstants.BRAND_PRIMARY : Color.Transparent,
+      })
+      .borderRadius(ThemeConstants.RADIUS_SM)
+      .backgroundColor('#33000000')
+      .clip(true)
+
       Text(`${this.pageIndex + 1}`)
-        .fontSize(11)
-        .fontColor(Color.White)
-        .padding({ left: 5, right: 5, top: 2, bottom: 2 })
-        .borderRadius(8)
-        .backgroundColor('#AA000000')
-        .position({ right: 4, bottom: 4 })
+        .fontSize(ThemeConstants.FONT_SIZE_META)
+        .fontColor(this.selected ? ThemeConstants.BRAND_PRIMARY : Color.White)
+        .fontWeight(FontWeight.Medium)
+        .maxLines(1)
+        .height(18)
+        .width(this.thumbnailWidth())
+        .textAlign(TextAlign.Center)
     }
     .width(this.thumbnailWidth())
-    .height(READER_THUMB_DISPLAY_HEIGHT)
-    .border({ width: this.selected ? 2 : 1, color: this.selected ? ThemeConstants.BRAND_PRIMARY : '#55FFFFFF' })
-    .borderRadius(ThemeConstants.RADIUS_SM)
-    .backgroundColor('#33000000')
-    .clip(true)
+    .height(READER_THUMB_STRIP_HEIGHT)
+    .alignItems(HorizontalAlign.Center)
     .onClick(() => { this.onTap(this.pageIndex) })
   }
 }
@@ -2771,8 +2783,12 @@ export struct ReaderPage {
           })
         }
         .margin({
-          left: index === 0 ? ThemeConstants.SPACE_LG : 0,
-          right: index === this.sessionConfig.totalPages - 1 ? ThemeConstants.SPACE_LG : 0,
+          left: (this.preferences.readingDirection === ReadingDirection.RIGHT_TO_LEFT
+            ? index === this.sessionConfig.totalPages - 1
+            : index === 0) ? ThemeConstants.SPACE_LG : 0,
+          right: (this.preferences.readingDirection === ReadingDirection.RIGHT_TO_LEFT
+            ? index === 0
+            : index === this.sessionConfig.totalPages - 1) ? ThemeConstants.SPACE_LG : 0,
         })
       }, (index: number) => `reader-thumb-${index}-${this.sourceFor(index).uri}`)
     }
