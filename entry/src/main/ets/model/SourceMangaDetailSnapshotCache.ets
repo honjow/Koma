@@ -7,6 +7,7 @@ import { SourceRuntimeRegistryEntry } from '../sourceRuntime/SourceRuntimeRegist
 export interface SourceMangaDetailSnapshot {
   detail: MangaDetail
   chapters: MangaChapterItem[]
+  chaptersResolved: boolean
 }
 
 function cloneMangaDetail(detail: MangaDetail): MangaDetail {
@@ -48,6 +49,7 @@ function cloneSnapshot(snapshot: SourceMangaDetailSnapshot): SourceMangaDetailSn
   return {
     detail: cloneMangaDetail(snapshot.detail),
     chapters: snapshot.chapters.map((chapter: MangaChapterItem): MangaChapterItem => cloneMangaChapterItem(chapter)),
+    chaptersResolved: snapshot.chaptersResolved,
   }
 }
 

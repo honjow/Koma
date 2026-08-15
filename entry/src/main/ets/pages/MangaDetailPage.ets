@@ -536,16 +536,46 @@ export struct MangaDetailPage {
         throw new Error('source_disabled')
       }
       const cached = sourceMangaDetailSnapshotCache.read(lookup.entry, sourceId, mangaId)
+      let detail: MangaDetail
+      let chapters: MangaChapterItem[]
       if (cached !== undefined) {
-        this.applySourceMangaDetail(requestEpoch, lookup.entry, sourceId, mangaId, cached.detail, cached.chapters, '')
+        detail = cached.detail
+        chapters = cached.chapters
+        if (cached.chaptersResolved) {
+          this.applySourceMangaDetail(requestEpoch, lookup.entry, sourceId, mangaId, detail, chapters, '')
+          return
+        }
+      } else {
+        const loaded = await this.runSourceMangaOperation(lookup.entry, 'get_manga', mangaId)
+        if (!this.isCurrentSourceDetailRequest(requestEpoch, sourceId, mangaId)) {
+          return
+        }
+        detail = this.sourceDetailWithRouteIdentity(loaded.detail, sourceId, mangaId)
+        chapters = loaded.embeddedChapters
+      }
+      // The detail payload is already real data. Keep it visible while the
+      // independent chapter request is pending instead of representing this
+      // as an empty detail or a fabricated zero-chapter result.
+      const detailApplied = this.applySourceMangaDetail(
+        requestEpoch,
+        lookup.entry,
+        sourceId,
+        mangaId,
+        detail,
+        chapters,
+        '',
+        SourceDetailContentState.LOADING,
+      )
+      if (!detailApplied) {
         return
       }
-      const loaded = await this.runSourceMangaOperation(lookup.entry, 'get_manga', mangaId)
-      if (!this.isCurrentSourceDetailRequest(requestEpoch, sourceId, mangaId)) {
-        return
+      if (cached === undefined) {
+        sourceMangaDetailSnapshotCache.write(lookup.entry, sourceId, mangaId, {
+          detail,
+          chapters,
+          chaptersResolved: false,
+        })
       }
-      const detail = this.sourceDetailWithRouteIdentity(loaded.detail, sourceId, mangaId)
-      let chapters: MangaChapterItem[] = loaded.embeddedChapters
       let chaptersLoadFailed = false
       try {
         const remoteChapters = await this.runSourceChaptersOperation(lookup.entry, mangaId)
@@ -582,7 +612,11 @@ export struct MangaDetailPage {
           : SourceDetailContentState.READY,
       )
       if (applied && !chaptersLoadFailed) {
-        sourceMangaDetailSnapshotCache.write(lookup.entry, sourceId, mangaId, { detail, chapters })
+        sourceMangaDetailSnapshotCache.write(lookup.entry, sourceId, mangaId, {
+          detail,
+          chapters,
+          chaptersResolved: true,
+        })
       }
     } catch (error) {
       const e = error as Error
