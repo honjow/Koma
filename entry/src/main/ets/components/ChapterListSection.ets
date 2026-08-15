@@ -4,6 +4,7 @@ import { KomaActionButton } from './ui/KomaActionButton'
 import { KomaEmptyState } from './ui/KomaEmptyState'
 import { KomaIconButton } from './ui/KomaIconButton'
 import { KomaMenuChip } from './ui/KomaMenuChip'
+import { GroupedListSection, ListDivider } from './ui/GroupedListSection'
 import { ChapterSortOrder, MangaChapterDownloadStatus, MangaChapterItem } from '../model/MangaDetailModels'
 import { ThemeConstants } from '../theme/ThemeConstants'
 
@@ -548,6 +549,7 @@ export struct ChapterListSection {
           .textOverflow({ overflow: TextOverflow.Ellipsis })
       }
       .layoutWeight(1)
+      .alignItems(HorizontalAlign.Start)
       .padding({ top: ThemeConstants.SPACE_XS, bottom: ThemeConstants.SPACE_XS })
       .onClick(() => {
         this.onOpenChapter(chapter.id)
@@ -670,20 +672,14 @@ export struct ChapterListSection {
       if (this.sortedChapters.length === 0) {
         this.EmptyChapters()
       } else {
-        Column() {
+        GroupedListSection() {
           ForEach(this.visibleChapters(), (chapter: MangaChapterItem, index: number) => {
             this.ChapterRow(chapter)
             if (index < this.visibleChapters().length - 1) {
-              Divider()
-                .strokeWidth(1)
-                .color(ThemeConstants.DIVIDER)
-                .margin({ left: ThemeConstants.SPACE_MD, right: ThemeConstants.SPACE_MD })
+              ListDivider()
             }
           }, (chapter: MangaChapterItem) => chapter.id)
         }
-        .width('100%')
-        .borderRadius(ThemeConstants.RADIUS_MD)
-        .clip(true)
         if (this.canShowMoreChapters()) {
           KomaActionButton({
             label: this.formatString('chapter_list_show_more', [
