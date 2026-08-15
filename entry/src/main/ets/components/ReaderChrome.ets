@@ -118,9 +118,10 @@ export struct ReaderChrome {
   }
 
   private chapterTitleText(): string {
-    const title = this.chapterIndex >= 0 && this.chapterIndex < this.chapterTitles.length
+    const rawTitle = this.chapterIndex >= 0 && this.chapterIndex < this.chapterTitles.length
       ? this.chapterTitles[this.chapterIndex]
       : ''
+    const title = rawTitle.trim().replace(/\s+/g, ' ')
     return title.length > 0 ? title : this.chapterText()
   }
 
@@ -636,18 +637,16 @@ export struct ReaderChrome {
           .textAlign(TextAlign.Center)
           .width('100%')
         Row({ space: ThemeConstants.SPACE_XS }) {
+          Text(this.pageText())
+            .fontSize(11)
+            .fontColor('#CCFFFFFF')
+            .maxLines(1)
+          Text('·').fontSize(11).fontColor('#CCFFFFFF')
           Text(this.chapterTitleText())
             .fontSize(11)
             .fontColor('#CCFFFFFF')
             .maxLines(1)
             .textOverflow({ overflow: TextOverflow.Ellipsis })
-            .textAlign(TextAlign.End)
-            .layoutWeight(1)
-          Text('·').fontSize(11).fontColor('#CCFFFFFF')
-          Text(this.pageText())
-            .fontSize(11)
-            .fontColor('#CCFFFFFF')
-            .maxLines(1)
             .textAlign(TextAlign.Start)
             .layoutWeight(1)
         }
