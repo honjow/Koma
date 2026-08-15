@@ -41,6 +41,7 @@ import {
   fetchAndCacheReaderRemoteSource,
 } from '../model/ReaderPageSourceAdapter'
 import { ReadingDirection } from '../model/ComicModels'
+import { CoverPixelMapLease, CoverPixelMapMemoryCache } from '../model/CoverPixelMapMemoryCache'
 import { ReaderTapZoneRegion, readerTapZoneRegions, resolveReaderTapZoneAction } from '../model/ReaderTapZoneGeometry'
 import { ReaderPageIndexDataSource } from '../model/ReaderPageIndexDataSource'
 import { ThemeConstants } from '../theme/ThemeConstants'
@@ -63,8 +64,8 @@ const READER_PINCH_ELASTIC_MIN_SCALE: number = 0.8
 const READER_PINCH_UNDER_SCALE_RESISTANCE: number = 0.35
 const READER_WIDE_RATIO: number = 1.2
 const READER_THUMB_STRIP_HEIGHT: number = 140
-const READER_THUMB_TILE_WIDTH: number = 86
-const READER_THUMB_TILE_HEIGHT: number = 112
+const READER_THUMB_DISPLAY_HEIGHT: number = 118
+const READER_THUMB_FALLBACK_ASPECT: number = 0.7
 const READER_THUMB_DECODE_MAX_EDGE: number = 192
 
 const EMPTY_RENDER_SOURCE: ReaderPageRenderSource = {
@@ -1023,11 +1024,15 @@ struct ReaderThumbnailTile {
   @Param source: ReaderPageRenderSource = EMPTY_RENDER_SOURCE
   @Param pageIndex: number = 0
   @Param selected: boolean = false
+  @Param sourceWidth: number = 0
+  @Param sourceHeight: number = 0
+  @Param thumbnailCache: CoverPixelMapMemoryCache = new CoverPixelMapMemoryCache()
   @Event onTap: (pageIndex: number) => void = (_pageIndex: number) => {}
 
   @Local private pixelMap: image.PixelMap | undefined = undefined
   @Local private loading: boolean = false
   @Local private failed: boolean = false
+  private pixelMapLease: CoverPixelMapLease | undefined = undefined
   private disposed: boolean = false
   private generation: number = 0
 
@@ -1039,7 +1044,7 @@ struct ReaderThumbnailTile {
   aboutToDisappear(): void {
     this.disposed = true
     this.generation += 1
-    void this.releasePixelMap()
+    void this.releaseThumbnailLease()
   }
 
   @Monitor('source')
@@ -1047,58 +1052,41 @@ struct ReaderThumbnailTile {
     void this.resolveThumbnail()
   }
 
-  private async releasePixelMap(): Promise<void> {
-    const map = this.pixelMap
+  private thumbnailWidth(): number {
+    const aspect = this.sourceWidth > 0 && this.sourceHeight > 0
+      ? this.sourceWidth / this.sourceHeight
+      : READER_THUMB_FALLBACK_ASPECT
+    return Math.max(1, Math.round(READER_THUMB_DISPLAY_HEIGHT * aspect))
+  }
+
+  private thumbnailCacheKey(): string {
+    return `${this.source.kind}:${this.source.sourceRuntimeId ?? ''}:${this.source.pageId ?? ''}:${this.source.imageUri}::reader_thumbnail_v1::${READER_THUMB_DECODE_MAX_EDGE}`
+  }
+
+  private async releaseThumbnailLease(): Promise<void> {
+    const lease = this.pixelMapLease
+    this.pixelMapLease = undefined
     this.pixelMap = undefined
-    if (map !== undefined) {
-      try {
-        await map.release()
-      } catch (_error) {
-      }
+    if (lease !== undefined) {
+      await this.thumbnailCache.release(lease)
     }
   }
 
-  private async resolveThumbnail(): Promise<void> {
-    this.generation += 1
-    const run = this.generation
-    this.loading = true
-    this.failed = false
-    await this.releasePixelMap()
-    if (this.source.kind === ReaderPageRenderKind.URI_PLACEHOLDER || this.source.imageUri.length === 0) {
-      this.loading = false
-      this.failed = true
-      return
-    }
+  private async loadThumbnailPixelMap(): Promise<image.PixelMap> {
     let imageSource: image.ImageSource | undefined = undefined
     try {
       const filePath = await fetchAndCacheReaderRemoteSource(this.source)
-      if (this.disposed || run !== this.generation) {
-        return
-      }
       imageSource = image.createImageSource(filePath)
       const info = await imageSource.getImageInfo()
-      if (this.disposed || run !== this.generation) {
-        return
-      }
       const sourceWidth = Math.max(1, info.size.width)
       const sourceHeight = Math.max(1, info.size.height)
       const scale = Math.min(1, READER_THUMB_DECODE_MAX_EDGE / Math.max(sourceWidth, sourceHeight))
-      const map = await imageSource.createPixelMap({
+      return await imageSource.createPixelMap({
         desiredSize: {
           width: Math.max(1, Math.round(sourceWidth * scale)),
           height: Math.max(1, Math.round(sourceHeight * scale)),
         },
       })
-      if (this.disposed || run !== this.generation) {
-        await map.release()
-        return
-      }
-      this.pixelMap = map
-      this.failed = false
-    } catch (_error) {
-      if (!this.disposed && run === this.generation) {
-        this.failed = true
-      }
     } finally {
       if (imageSource !== undefined) {
         try {
@@ -1106,6 +1094,51 @@ struct ReaderThumbnailTile {
         } catch (_error) {
         }
       }
+    }
+  }
+
+  private async resolveThumbnail(): Promise<void> {
+    this.generation += 1
+    const run = this.generation
+    this.failed = false
+    const staleLease = this.pixelMapLease
+    this.pixelMapLease = undefined
+    this.pixelMap = undefined
+    if (staleLease !== undefined) {
+      await this.thumbnailCache.release(staleLease)
+    }
+    if (this.source.kind === ReaderPageRenderKind.URI_PLACEHOLDER || this.source.imageUri.length === 0) {
+      this.loading = false
+      this.failed = true
+      return
+    }
+    const key = this.thumbnailCacheKey()
+    const cachedLease = this.thumbnailCache.acquire(key)
+    if (cachedLease !== undefined) {
+      if (this.disposed || run !== this.generation) {
+        await this.thumbnailCache.release(cachedLease)
+        return
+      }
+      this.pixelMapLease = cachedLease
+      this.pixelMap = cachedLease.pixelMap
+      this.loading = false
+      return
+    }
+    this.loading = true
+    try {
+      const lease = await this.thumbnailCache.acquireOrLoad(key, () => this.loadThumbnailPixelMap())
+      if (this.disposed || run !== this.generation) {
+        await this.thumbnailCache.release(lease)
+        return
+      }
+      this.pixelMapLease = lease
+      this.pixelMap = lease.pixelMap
+      this.failed = false
+    } catch (_error) {
+      if (!this.disposed && run === this.generation) {
+        this.failed = true
+      }
+    } finally {
       if (!this.disposed && run === this.generation) {
         this.loading = false
       }
@@ -1135,10 +1168,10 @@ struct ReaderThumbnailTile {
         .backgroundColor('#AA000000')
         .position({ right: 4, bottom: 4 })
     }
-    .width(READER_THUMB_TILE_WIDTH)
-    .height(READER_THUMB_TILE_HEIGHT)
+    .width(this.thumbnailWidth())
+    .height(READER_THUMB_DISPLAY_HEIGHT)
     .border({ width: this.selected ? 2 : 1, color: this.selected ? ThemeConstants.BRAND_PRIMARY : '#55FFFFFF' })
-    .borderRadius(ThemeConstants.RADIUS_CARD)
+    .borderRadius(ThemeConstants.RADIUS_SM)
     .backgroundColor('#33000000')
     .clip(true)
     .onClick(() => { this.onTap(this.pageIndex) })
@@ -1220,6 +1253,10 @@ export struct ReaderPage {
   private doublePageSwiperController: SwiperController = new SwiperController()
   private listScroller: Scroller = new Scroller()
   private thumbnailScroller: Scroller = new Scroller()
+  // The strip is transient, but its decoded previews belong to the active
+  // reader session. Hiding the strip releases each tile's lease without
+  // discarding the bounded cache, so reopening it is an immediate cache hit.
+  private thumbnailPixelMapCache: CoverPixelMapMemoryCache = new CoverPixelMapMemoryCache()
   /** Kept stable: LazyForEach, rather than the Reader build, owns long-page rows. */
   private pageIndexSource: ReaderPageIndexDataSource = new ReaderPageIndexDataSource()
   private spreadStartSource: ReaderPageIndexDataSource = new ReaderPageIndexDataSource()
@@ -1260,6 +1297,7 @@ export struct ReaderPage {
     this.clearStatusBarHideTimer()
     this.unregisterVolumeKeyConsumer()
     this.stopAutoPage()
+    void this.thumbnailPixelMapCache.clear()
   }
 
   @Monitor('sessionConfig')
@@ -1561,6 +1599,9 @@ export struct ReaderPage {
   private syncSession(resetPage: boolean): void {
     const signature = this.sessionSignature()
     if (signature === this.sourceSignature && !resetPage) return
+    if (signature !== this.sourceSignature) {
+      void this.thumbnailPixelMapCache.clear()
+    }
     this.sourceSignature = signature
     this.loadedRevision += 1
     this.failedPages = []
@@ -2720,6 +2761,9 @@ export struct ReaderPage {
             source: this.sourceFor(index),
             pageIndex: index,
             selected: index === this.pageIndex,
+            sourceWidth: this.pageWidth(index) ?? 0,
+            sourceHeight: this.pageHeight(index) ?? 0,
+            thumbnailCache: this.thumbnailPixelMapCache,
             onTap: (target: number) => {
               this.setPage(target, false)
               this.scrollThumbnailStripTo(target, true)
