@@ -1,6 +1,7 @@
 import { RouteName } from './Constants'
 import { SourceRuntimeRegistryInstalledSourceSummary } from '../sourceRuntime/SourceRuntimeRegistry'
 import { SourceManga } from '../model/SourceModels'
+import { MangaDetailRouteChromeState } from '../state/MangaDetailRouteChromeState'
 import { SourceBrowseRouteChromeState, SourceSearchRouteChromeState } from '../state/SourceRouteChromeState'
 import { SearchRouteChromeState } from '../state/SearchRouteChromeState'
 
@@ -8,6 +9,7 @@ export interface MangaDetailRouteParam {
   mangaId: string
   sourceId?: string
   initialManga?: SourceManga
+  chrome?: MangaDetailRouteChromeState
 }
 
 export interface SearchRouteParam {
@@ -112,7 +114,18 @@ export class RouterHelper {
     if (stack === undefined) {
       return
     }
+    RouterHelper.ensureMangaDetailRouteChrome(param)
     stack.pushPath({ name: RouteName.MANGA_DETAIL, param: param })
+  }
+
+  static ensureMangaDetailRouteChrome(param: MangaDetailRouteParam): MangaDetailRouteChromeState {
+    const existing = param.chrome
+    if (existing !== undefined) {
+      return existing
+    }
+    const chrome = new MangaDetailRouteChromeState()
+    param.chrome = chrome
+    return chrome
   }
 
   static pushSourceBrowse(param: SourceRouteParam): void {

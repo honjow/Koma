@@ -82,6 +82,7 @@ import {
   TrackerProgressSyncService,
 } from '../model/TrackerProgressSyncService'
 import { RouterHelper } from '../common/RouterHelper'
+import { MangaDetailRouteChromeState, MangaDetailTitleAction } from '../state/MangaDetailRouteChromeState'
 import {
   TrackerMappingSearchReason,
   TrackerMappingSearchService,
@@ -198,7 +199,6 @@ export struct MangaDetailPage {
   @Local private localMetadataAuthors: string = ''
   @Local private localMetadataStatus: LocalLibraryMetadataStatus | 'unknown' = 'unknown'
   @Local private localMetadataCoverPath: string = ''
-  @Local private detailMoreMenuShown: boolean = false
   @Local private downloadStatusText: string = ''
   @Local private localRefreshText: string = ''
   @Local private feedbackText: string = ''
@@ -208,6 +208,7 @@ export struct MangaDetailPage {
   @Param libraryPersistenceService?: LibraryStorePersistenceService = undefined
   @Param readerSessionStore: ReaderSessionStore = new InMemoryReaderSessionStore()
   @Param sourceRegistry: SourceRuntimeRegistry = new SourceRuntimeRegistry()
+  @Param chrome: MangaDetailRouteChromeState = new MangaDetailRouteChromeState()
   @Event onBack: () => void = () => {}
   @Event onOpenReader: (mangaId: string, chapterId?: string) => void = (_mangaId: string, _chapterId?: string) => {}
   @Event onOpenSourceReader: (request: SourceReaderSessionRequest) => void = (_request: SourceReaderSessionRequest) => {}
@@ -215,6 +216,7 @@ export struct MangaDetailPage {
   @Event onLibraryChanged: () => void = () => {}
   private chapterReadStateStore?: ChapterReadStateStore
   private sourceDetailRequestEpoch: number = 0
+  private handledTitleActionRequestSeq: number = 0
 
   private formatString(key: string, args: Array<string | number>): string {
     let text = s(key)
@@ -269,12 +271,64 @@ export struct MangaDetailPage {
   aboutToAppear(): void {
     configureSourceSettingsStore(getContext(this) as common.UIAbilityContext)
     this.seedSourceDetailFromInitialRouteManga()
+    this.syncTitleActions()
     void this.loadMangaDetail()
   }
 
   aboutToDisappear(): void {
     // A hidden detail route must not let an old source response repaint a later route instance.
     this.sourceDetailRequestEpoch = this.sourceDetailRequestEpoch + 1
+    this.chrome.pageActionsAvailable = false
+  }
+
+  @Monitor('chrome.actionRequestSeq')
+  private consumeTitleActionRequest(): void {
+    const requestSeq = this.chrome.actionRequestSeq
+    if (requestSeq <= this.handledTitleActionRequestSeq) {
+      return
+    }
+    this.handledTitleActionRequestSeq = requestSeq
+    this.runTitleAction(this.chrome.requestedAction)
+  }
+
+  @Monitor('manga', 'sourceDetailContentState', 'localRefreshBusy', 'trackerMappingBusy', 'trackerSyncBusy')
+  private syncTitleActionsFromDetailState(): void {
+    this.syncTitleActions()
+  }
+
+  private syncTitleActions(): void {
+    const actionsAvailable = this.shouldRenderDetailActions()
+    this.chrome.pageActionsAvailable = actionsAvailable
+    this.chrome.localRefreshAvailable = actionsAvailable && this.canCheckLocalLibraryRefresh()
+    this.chrome.localMetadataAvailable = actionsAvailable && this.canEditLocalMetadata()
+    this.chrome.localRefreshBusy = this.localRefreshBusy
+    this.chrome.trackerMappingBusy = this.trackerMappingBusy
+    this.chrome.trackerSyncBusy = this.trackerSyncBusy
+  }
+
+  private runTitleAction(action: MangaDetailTitleAction): void {
+    if (!this.shouldRenderDetailActions()) {
+      return
+    }
+    if (action === MangaDetailTitleAction.FIND_TRACKER_MAPPING) {
+      void this.refreshTrackerMappingCandidates()
+      return
+    }
+    if (action === MangaDetailTitleAction.SYNC_TRACKER) {
+      void this.syncTrackerProgressNow()
+      return
+    }
+    if (action === MangaDetailTitleAction.PULL_TRACKER) {
+      void this.pullTrackerProgressNow()
+      return
+    }
+    if (action === MangaDetailTitleAction.CHECK_LOCAL_LIBRARY_REFRESH && this.canCheckLocalLibraryRefresh()) {
+      void this.checkLocalLibraryRefreshNow()
+      return
+    }
+    if (action === MangaDetailTitleAction.EDIT_LOCAL_METADATA && this.canEditLocalMetadata()) {
+      this.openLocalMetadataEditor()
+    }
   }
 
   private offlineDownloadService(): OfflineDownloadService | undefined {
@@ -1739,56 +1793,6 @@ export struct MangaDetailPage {
   }
 
   @Builder
-  private DetailMoreMenu() {
-    Menu() {
-      MenuItem({ content: this.isInLibrary ? s('common_in_library') : s('common_add_to_library') })
-        .onClick(() => {
-          this.handleAddToLibrary()
-        })
-      MenuItem({ content: s('manga_detail_menu_download_all') })
-        .onClick(() => {
-          this.handleDownloadVisibleChapters(this.allChapterIds(), ChapterBatchDownloadMode.ALL_VISIBLE)
-        })
-      MenuItem({ content: s('manga_detail_menu_download_incomplete') })
-        .onClick(() => {
-          this.handleDownloadVisibleChapters(this.allChapterIds(), ChapterBatchDownloadMode.NOT_DOWNLOADED)
-        })
-      MenuItem({ content: s('manga_detail_menu_mark_all_read') })
-        .onClick(() => {
-          this.markVisibleChaptersReadState(this.allChapterIds(), true)
-        })
-      MenuItem({ content: s('manga_detail_menu_mark_all_unread') })
-        .onClick(() => {
-          this.markVisibleChaptersReadState(this.allChapterIds(), false)
-        })
-      if (this.canCheckLocalLibraryRefresh()) {
-        MenuItem({ content: this.localRefreshBusy ? s('manga_detail_local_refresh_checking') : s('manga_detail_menu_check_local_refresh') })
-          .onClick(() => {
-            this.checkLocalLibraryRefreshNow()
-          })
-      }
-      if (this.canEditLocalMetadata()) {
-        MenuItem({ content: s('manga_detail_menu_edit_local_metadata') })
-          .onClick(() => {
-            this.openLocalMetadataEditor()
-          })
-      }
-      MenuItem({ content: s('manga_detail_menu_find_tracker_mapping') })
-        .onClick(() => {
-          this.refreshTrackerMappingCandidates()
-        })
-      MenuItem({ content: s('manga_detail_menu_sync_tracker') })
-        .onClick(() => {
-          this.syncTrackerProgressNow()
-        })
-      MenuItem({ content: s('manga_detail_menu_pull_tracker') })
-        .onClick(() => {
-          this.pullTrackerProgressNow()
-        })
-    }
-  }
-
-  @Builder
   private ActionButtons() {
     Row({ space: ThemeConstants.SPACE_MD }) {
       KomaActionButton({
@@ -1829,23 +1833,6 @@ export struct MangaDetailPage {
         })
       }
 
-      Column() {
-        KomaIconButton({
-          icon: $r('sys.symbol.dot_grid_2x2'),
-          kind: 'secondary',
-          controlSize: ThemeConstants.ACTION_CHIP_HEIGHT,
-          iconSize: ThemeConstants.FONT_SIZE_HEADING,
-          action: () => {
-            this.detailMoreMenuShown = true
-          },
-        })
-      }
-      .bindMenu(this.detailMoreMenuShown, this.DetailMoreMenu, {
-        placement: Placement.BottomRight,
-        onDisappear: () => {
-          this.detailMoreMenuShown = false
-        },
-      })
     }
     .width('100%')
   }

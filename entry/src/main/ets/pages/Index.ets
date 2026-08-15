@@ -41,6 +41,7 @@ import { DownloadsPage } from './DownloadsPage'
 import { BackupManagementPage } from './BackupManagementPage'
 import { TrackerSettingsPage } from './TrackerSettingsPage'
 import { RouteName, TabIndex, tabLabel } from '../common/Constants'
+import { MangaDetailTitleAction } from '../state/MangaDetailRouteChromeState'
 import {
   MangaDetailRouteParam,
   RouterHelper,
@@ -1288,6 +1289,7 @@ struct Index {
           libraryPersistenceService: this.ensureLibraryPersistenceService(),
           readerSessionStore: this.readerSessionStore,
           sourceRegistry: this.sourceRegistry,
+          chrome: RouterHelper.ensureMangaDetailRouteChrome(param as MangaDetailRouteParam),
           onBack: () => {
             this.appPathStack.pop(this.isReaderDetailRouteVisible())
           },
@@ -1297,7 +1299,7 @@ struct Index {
           onLibraryChanged: () => { this.onMangaDetailLibraryChanged() }
         })
       }
-      .titleBar(this.navDestTitleBarOpts(this.mangaDetailTitle(param as MangaDetailRouteParam)))
+      .titleBar(this.mangaDetailTitleBarOpts(param as MangaDetailRouteParam))
     } else if (name === RouteName.SOURCE_BROWSE) {
       this.SourceBrowseDestination(param as SourceBrowseRouteParam)
     } else if (name === RouteName.SOURCE_SEARCH) {
@@ -1886,6 +1888,76 @@ struct Index {
       return comicTitle
     }
     return AppStrings.get('manga_detail_title_fallback')
+  }
+
+  private mangaDetailTitleBarOpts(param: MangaDetailRouteParam): Record<string, Object> {
+    const chrome = RouterHelper.ensureMangaDetailRouteChrome(param)
+    const title: Record<string, Object> = { 'mainTitle': this.mangaDetailTitle(param) }
+    const content: Record<string, Object> = { 'title': title }
+    if (!chrome.pageActionsAvailable) {
+      return this.sourceRouteTitleBarOpts(content)
+    }
+
+    const menuItems: Record<string, Object>[] = []
+    const trackerMappingContent: Record<string, Object> = {
+      'label': AppStrings.get('manga_detail_menu_find_tracker_mapping'),
+      'icon': $r('sys.symbol.magnifyingglass'),
+      'isEnabled': !chrome.trackerMappingBusy,
+      'action': () => {
+        chrome.requestAction(MangaDetailTitleAction.FIND_TRACKER_MAPPING)
+      },
+    }
+    menuItems.push({ 'content': trackerMappingContent })
+
+    const trackerSyncContent: Record<string, Object> = {
+      'label': AppStrings.get('manga_detail_menu_sync_tracker'),
+      'icon': $r('sys.symbol.arrow_clockwise'),
+      'isEnabled': !chrome.trackerSyncBusy,
+      'action': () => {
+        chrome.requestAction(MangaDetailTitleAction.SYNC_TRACKER)
+      },
+    }
+    menuItems.push({ 'content': trackerSyncContent })
+
+    const trackerPullContent: Record<string, Object> = {
+      'label': AppStrings.get('manga_detail_menu_pull_tracker'),
+      'icon': $r('sys.symbol.arrow_down_to_line'),
+      'isEnabled': !chrome.trackerSyncBusy,
+      'action': () => {
+        chrome.requestAction(MangaDetailTitleAction.PULL_TRACKER)
+      },
+    }
+    menuItems.push({ 'content': trackerPullContent })
+
+    if (chrome.localRefreshAvailable) {
+      const localRefreshContent: Record<string, Object> = {
+        'label': chrome.localRefreshBusy
+          ? AppStrings.get('manga_detail_local_refresh_checking')
+          : AppStrings.get('manga_detail_menu_check_local_refresh'),
+        'icon': $r('sys.symbol.arrow_clockwise'),
+        'isEnabled': !chrome.localRefreshBusy,
+        'action': () => {
+          chrome.requestAction(MangaDetailTitleAction.CHECK_LOCAL_LIBRARY_REFRESH)
+        },
+      }
+      menuItems.push({ 'content': localRefreshContent })
+    }
+
+    if (chrome.localMetadataAvailable) {
+      const localMetadataContent: Record<string, Object> = {
+        'label': AppStrings.get('manga_detail_menu_edit_local_metadata'),
+        'icon': $r('sys.symbol.square_and_pencil'),
+        'isEnabled': true,
+        'action': () => {
+          chrome.requestAction(MangaDetailTitleAction.EDIT_LOCAL_METADATA)
+        },
+      }
+      menuItems.push({ 'content': localMetadataContent })
+    }
+
+    const menu: Record<string, Object> = { 'value': menuItems, 'maxCount': 1 }
+    content['menu'] = menu
+    return this.sourceRouteTitleBarOpts(content)
   }
 
 }
