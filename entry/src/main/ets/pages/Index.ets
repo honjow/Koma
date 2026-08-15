@@ -1653,6 +1653,7 @@ struct Index {
   private titleBarOptions(): Record<string, Object> {
     let titleInfo: Record<string, Object> = { 'mainTitle': tabLabel(this.selectedTab) }
     let content: Record<string, Object> = { 'title': titleInfo }
+    const menu: Record<string, Object> = {}
     if (this.selectedTab === TabIndex.LIBRARY) {
       const searchContent: Record<string, Object> = {
         'label': AppStrings.get('tab_search'),
@@ -1664,11 +1665,15 @@ struct Index {
       }
       const searchItem: Record<string, Object> = {}
       searchItem['content'] = searchContent
-      const menu: Record<string, Object> = {}
       menu['value'] = [searchItem]
       menu['maxCount'] = 1
-      content['menu'] = menu
+    } else {
+      // HDS retains the preceding title menu unless the next tab explicitly
+      // supplies an empty menu. Global search belongs only to the Library root.
+      menu['value'] = []
+      menu['maxCount'] = 0
     }
+    content['menu'] = menu
     let mat: Record<string, Object> = {
       'materialType': hdsMaterial.MaterialType.ADAPTIVE,
       'materialLevel': hdsMaterial.MaterialLevel.ADAPTIVE,
