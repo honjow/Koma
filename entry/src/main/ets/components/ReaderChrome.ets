@@ -634,7 +634,7 @@ export struct ReaderChrome {
           .maxLines(2)
           .textOverflow({ overflow: TextOverflow.Ellipsis })
           .lineBreakStrategy(LineBreakStrategy.BALANCED)
-          .textAlign(TextAlign.Center)
+          .textAlign(TextAlign.Start)
           .width('100%')
         Row({ space: ThemeConstants.SPACE_XS }) {
           Text(this.pageText())
