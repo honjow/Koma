@@ -540,6 +540,10 @@ export class BrowseViewModel {
       selected.version === source.version && selected.wasmByteCount === source.wasmByteCount
   }
 
+  private isSameBrowseSource(source: SourceRuntimeRegistryInstalledSourceSummary): boolean {
+    return this.selectedSource?.sourceId === source.sourceId
+  }
+
   private hasBrowseContent(): boolean {
     return this.homeSections.length > 0 || this.browseSections.some((section: BrowseSourceSectionState): boolean => {
       return section.manga.length > 0
@@ -590,9 +594,13 @@ export class BrowseViewModel {
     intent: BrowseLoadIntent = BrowseLoadIntent.INITIAL,
   ): Promise<void> {
     const sourceMatchesCurrent = this.isCurrentBrowseSource(source)
+    // A user refresh belongs to the source identity, not to the currently
+    // installed package bytes.  Keep ready content visible while a source
+    // package has been reloaded or updated, then replace it atomically.
     const retainsCurrentContent = intent === BrowseLoadIntent.REFRESH &&
-      sourceMatchesCurrent && this.hasBrowseContent()
-    const effectiveIntent = sourceMatchesCurrent ? intent : BrowseLoadIntent.INITIAL
+      this.isSameBrowseSource(source) && this.hasBrowseContent()
+    const effectiveIntent = sourceMatchesCurrent || retainsCurrentContent
+      ? intent : BrowseLoadIntent.INITIAL
     if (retainsCurrentContent) {
       this.browseRequestId += 1
       this.selectedSource = source
