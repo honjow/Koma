@@ -1750,29 +1750,13 @@ struct Index {
     return this.sourceRouteTitleBarOpts(content)
   }
 
-  private sourceSupportsSearch(source: SourceRuntimeRegistryInstalledSourceSummary): boolean {
-    if (source.capabilities.indexOf('search') >= 0) {
-      return true
-    }
-    return source.capabilities.indexOf('sourceInfo') < 0
-  }
-
   private sourceBrowseTitleBarOpts(param: SourceBrowseRouteParam): Record<string, Object> {
     const source = param.source
     const chrome = param.chrome
-    const menuItems: Record<string, Object>[] = []
-    if (this.sourceSupportsSearch(source)) {
-      const searchContent: Record<string, Object> = {}
-      searchContent['label'] = AppStrings.get('tab_search')
-      searchContent['icon'] = $r('sys.symbol.magnifyingglass')
-      searchContent['isEnabled'] = true
-      searchContent['action'] = () => {
-        RouterHelper.pushSourceSearch({ source: source })
-      }
-      const searchItem: Record<string, Object> = {}
-      searchItem['content'] = searchContent
-      menuItems.push(searchItem)
-    }
+    const title: Record<string, Object> = {}
+    title['mainTitle'] = source.displayName
+    const content: Record<string, Object> = {}
+    content['title'] = title
     if (chrome.filtersAvailable) {
       const filterContent: Record<string, Object> = {}
       filterContent['label'] = AppStrings.get('common_filter')
@@ -1783,16 +1767,11 @@ struct Index {
       }
       const filterItem: Record<string, Object> = {}
       filterItem['content'] = filterContent
-      menuItems.push(filterItem)
+      const menu: Record<string, Object> = {}
+      menu['value'] = [filterItem]
+      menu['maxCount'] = 1
+      content['menu'] = menu
     }
-    const title: Record<string, Object> = {}
-    title['mainTitle'] = source.displayName
-    const menu: Record<string, Object> = {}
-    menu['value'] = menuItems
-    menu['maxCount'] = 2
-    const content: Record<string, Object> = {}
-    content['title'] = title
-    content['menu'] = menu
     return this.sourceRouteTitleBarOpts(content)
   }
 
