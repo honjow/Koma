@@ -1,6 +1,7 @@
 import { AppStrings } from '../i18n/AppStrings'
 import { SourceSearchRouteChromeState } from '../state/SourceRouteChromeState'
 import { ThemeConstants } from '../theme/ThemeConstants'
+import { KomaSearchField } from './KomaSearchField'
 
 export const SOURCE_SEARCH_TITLE_BOTTOM_HEIGHT: number = ThemeConstants.TITLE_BAR_HEIGHT + ThemeConstants.SPACE_SM
 
@@ -37,20 +38,21 @@ export struct SourceSearchTitleField {
 
   build() {
     Row() {
-      Search({ value: this.fieldText, placeholder: this.placeholder() })
-        .layoutWeight(1)
-        .height(ThemeConstants.INPUT_HEIGHT)
-        .placeholderColor(ThemeConstants.TEXT_SECONDARY)
-        .textFont({ size: ThemeConstants.FONT_SIZE_BODY, weight: FontWeight.Regular })
-        .searchButton(s('tab_search'), { fontColor: ThemeConstants.BRAND_PRIMARY })
-        .onChange((value: string) => {
+      KomaSearchField({
+        value: this.fieldText,
+        placeholder: this.placeholder(),
+        showSearchButton: true,
+        searchButtonText: s('tab_search'),
+        change: (value: string) => {
           this.fieldText = value
           this.chrome.updateQuery(value)
-        })
-        .onSubmit((value: string) => {
+        },
+        submit: (value: string) => {
           this.fieldText = value
           this.chrome.submitQuery(value)
-        })
+        },
+      })
+        .layoutWeight(1)
     }
     .width('100%')
     .height(SOURCE_SEARCH_TITLE_BOTTOM_HEIGHT)

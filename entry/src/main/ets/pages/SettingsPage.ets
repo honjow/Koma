@@ -1,6 +1,7 @@
 import { bundleManager, common } from '@kit.AbilityKit'
 import { SymbolGlyphModifier } from '@kit.ArkUI'
 import { SecondaryListScaffold } from '../components/SecondaryListScaffold'
+import { KomaSearchField } from '../components/KomaSearchField'
 import { ConciseListRow } from '../components/ui/ConciseListRow'
 import { GroupedListSection, ListDivider, SectionHeader } from '../components/ui/GroupedListSection'
 import { ThemeConstants } from '../theme/ThemeConstants'
@@ -2700,19 +2701,17 @@ export struct SettingsPage {
 
   @Builder
   private SettingsSearchField() {
-    Search({ value: this.settingsSearchText, placeholder: s('settings_search_placeholder') })
+    KomaSearchField({
+      value: this.settingsSearchText,
+      placeholder: s('settings_search_placeholder'),
+      change: (value: string) => {
+        this.settingsSearchText = value
+      },
+      submit: (value: string) => {
+        this.settingsSearchText = value
+      },
+    })
       .width('100%')
-      .height(ThemeConstants.INPUT_HEIGHT)
-      .borderRadius(ThemeConstants.RADIUS_CHIP)
-      .backgroundColor($r('sys.color.comp_background_tertiary'))
-      .placeholderColor(ThemeConstants.TEXT_SECONDARY)
-      .textFont({ size: ThemeConstants.FONT_SIZE_BODY, weight: FontWeight.Regular })
-      .onChange((value: string) => {
-        this.settingsSearchText = value
-      })
-      .onSubmit((value: string) => {
-        this.settingsSearchText = value
-      })
   }
 
   aboutToAppear(): void {
