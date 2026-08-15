@@ -37,6 +37,8 @@ export struct ChapterListSection {
   @Local private groupFilter: string = ''
   @Local private sortedChapters: MangaChapterItem[] = []
   @Local private visibleChapterLimit: number = INITIAL_VISIBLE_CHAPTER_LIMIT
+  @Local private sectionActionsMenuShown: boolean = false
+  @Local private readStateMenuChapterId: string = ''
   @Event onOpenChapter: (chapterId: string) => void = (_chapterId: string) => {}
   @Event onDownloadChapter: (chapterId: string) => void = (_chapterId: string) => {}
   @Event onDownloadVisibleChapters: (chapterIds: string[], mode: ChapterBatchDownloadMode) => void =
@@ -565,13 +567,25 @@ export struct ChapterListSection {
         },
       })
 
-      KomaIconButton({
-        icon: $r('sys.symbol.more'),
-        controlSize: ThemeConstants.FILTER_CHIP_HEIGHT,
-        iconSize: ThemeConstants.FONT_SIZE_HEADING,
-        accentColor: ThemeConstants.BRAND_PRIMARY,
+      Column() {
+        KomaIconButton({
+          icon: $r('sys.symbol.dot_grid_2x2'),
+          controlSize: ThemeConstants.FILTER_CHIP_HEIGHT,
+          iconSize: ThemeConstants.FONT_SIZE_HEADING,
+          accentColor: ThemeConstants.BRAND_PRIMARY,
+          action: () => {
+            this.readStateMenuChapterId = chapter.id
+          },
+        })
+      }
+      .bindMenu(this.readStateMenuChapterId === chapter.id, this.ReadStateMenu(chapter), {
+        placement: Placement.BottomRight,
+        onDisappear: () => {
+          if (this.readStateMenuChapterId === chapter.id) {
+            this.readStateMenuChapterId = ''
+          }
+        },
       })
-        .bindMenu(this.ReadStateMenu(chapter))
     }
     .width('100%')
     .alignItems(VerticalAlign.Center)
@@ -589,15 +603,23 @@ export struct ChapterListSection {
             .fontColor(ThemeConstants.TEXT_PRIMARY)
             .layoutWeight(1)
 
-          KomaIconButton({
-            icon: $r('sys.symbol.more'),
-            kind: 'secondary',
-            controlSize: ThemeConstants.TOUCH_TARGET_SM,
-            iconSize: ThemeConstants.FONT_SIZE_H3,
-          })
-            .bindMenu(this.SectionActionsMenu(), {
-              placement: Placement.BottomRight,
+          Column() {
+            KomaIconButton({
+              icon: $r('sys.symbol.dot_grid_2x2'),
+              kind: 'secondary',
+              controlSize: ThemeConstants.TOUCH_TARGET_SM,
+              iconSize: ThemeConstants.FONT_SIZE_H3,
+              action: () => {
+                this.sectionActionsMenuShown = true
+              },
             })
+          }
+          .bindMenu(this.sectionActionsMenuShown, this.SectionActionsMenu, {
+            placement: Placement.BottomRight,
+            onDisappear: () => {
+              this.sectionActionsMenuShown = false
+            },
+          })
         }
         .width('100%')
         .alignItems(VerticalAlign.Center)

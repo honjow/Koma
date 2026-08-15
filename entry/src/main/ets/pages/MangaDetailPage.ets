@@ -198,6 +198,7 @@ export struct MangaDetailPage {
   @Local private localMetadataAuthors: string = ''
   @Local private localMetadataStatus: LocalLibraryMetadataStatus | 'unknown' = 'unknown'
   @Local private localMetadataCoverPath: string = ''
+  @Local private detailMoreMenuShown: boolean = false
   @Local private downloadStatusText: string = ''
   @Local private localRefreshText: string = ''
   @Local private feedbackText: string = ''
@@ -1794,15 +1795,23 @@ export struct MangaDetailPage {
         })
       }
 
-      KomaIconButton({
-        icon: $r('sys.symbol.more'),
-        kind: 'secondary',
-        controlSize: ThemeConstants.ACTION_CHIP_HEIGHT,
-        iconSize: ThemeConstants.FONT_SIZE_HEADING,
-      })
-        .bindMenu(this.DetailMoreMenu(), {
-          placement: Placement.BottomRight,
+      Column() {
+        KomaIconButton({
+          icon: $r('sys.symbol.dot_grid_2x2'),
+          kind: 'secondary',
+          controlSize: ThemeConstants.ACTION_CHIP_HEIGHT,
+          iconSize: ThemeConstants.FONT_SIZE_HEADING,
+          action: () => {
+            this.detailMoreMenuShown = true
+          },
         })
+      }
+      .bindMenu(this.detailMoreMenuShown, this.DetailMoreMenu, {
+        placement: Placement.BottomRight,
+        onDisappear: () => {
+          this.detailMoreMenuShown = false
+        },
+      })
     }
     .width('100%')
   }
