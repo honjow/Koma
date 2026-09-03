@@ -61,12 +61,16 @@ export default class EntryAbility extends UIAbility {
         console.error('[EntryAbility] step=load_content_failed code=load_content_failed')
       }
       this.configureAvoidAreas(windowStage)
-      this.syncRemoteProgressInBackground()
+      setTimeout(() => {
+        this.syncRemoteProgressInBackground()
+      }, 250)
     })
   }
 
   onForeground(): void {
-    this.syncRemoteProgressInBackground()
+    setTimeout(() => {
+      this.syncRemoteProgressInBackground()
+    }, 250)
   }
 
   private configureAvoidAreas(windowStage: window.WindowStage): void {

@@ -192,7 +192,7 @@ export struct LibraryPage {
   @Local private languageState: LanguageState = connectLanguageState()
   @Local private displayedComics: Comic[] = []
   @Local private displayedRevision: number = 0
-  @Local private projectionState: LibraryProjectionState = LibraryProjectionState.PENDING
+  @Local private projectionState: LibraryProjectionState = LibraryProjectionState.READY
   @Local private selectionMode: boolean = false
   @Local private selectedIds: Set<ComicId> = new Set<ComicId>()
   @Local private suppressOpenComicId: ComicId = ''

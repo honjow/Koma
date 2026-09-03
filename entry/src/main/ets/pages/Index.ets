@@ -1250,7 +1250,9 @@ struct Index {
     }
     configureSourceSettingsStore(context)
     configureSourceFilterPreferencesStore(context)
-    bootstrapSourceRuntimeAppRegistry(context)
+    if (this.sourceRegistry.count() === 0) {
+      bootstrapSourceRuntimeAppRegistry(context)
+    }
     if (!this.libraryPersistenceRestored) {
       this.libraryPersistenceRestored = true
       const persistenceService = this.ensureLibraryPersistenceService()
@@ -1264,8 +1266,10 @@ struct Index {
         }
       }
     }
-    this.triggerAutomaticBackup(context)
-    this.triggerPendingTrackerProgressSync(context)
+    setTimeout(() => {
+      this.triggerAutomaticBackup(context)
+      this.triggerPendingTrackerProgressSync(context)
+    }, 250)
   }
 
   @Builder
