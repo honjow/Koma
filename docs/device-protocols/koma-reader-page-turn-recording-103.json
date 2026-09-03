@@ -1,0 +1,38 @@
+{
+  "schemaVersion": 1,
+  "name": "koma-reader-page-turn-recording-103",
+  "target": "192.168.50.103:12345",
+  "authorizedTarget": "192.168.50.103:12345",
+  "hdc": "/Applications/DevEco-Studio.app/Contents/sdk/default/openharmony/toolchains/hdc",
+  "artifactDir": "/Users/honjow/git/Koma/.hermes-artifacts/device103/koma-reader-page-turn-recording-run3",
+  "recordingFileName": "koma_page_turn_transition.mp4",
+  "timeoutMs": 86400000,
+  "warmupMs": 800,
+  "idleRecordMs": 0,
+  "display": {
+    "widthPx": 1600,
+    "heightPx": 2560
+  },
+  "actions": [
+    {
+      "name": "swipe-forward-turn-page",
+      "uiInput": [
+        "click",
+        "200",
+        "1200"
+      ],
+      "pauseAfterMs": 2000
+    }
+  ],
+  "context": {
+    "project": "Koma",
+    "codeIdentity": "master-7fbe29d",
+    "page": "reader-kimetsu-page-turn",
+    "deviceAlias": "device103",
+    "deviceModel": "MLR-AL00",
+    "foldState": "unfolded",
+    "orientation": "portrait",
+    "resolution": "1600x2560",
+    "notes": "Verify that turning page in comic reader transitions smoothly without shrinking, unmeasured boxes, or scaling pops."
+  }
+}
