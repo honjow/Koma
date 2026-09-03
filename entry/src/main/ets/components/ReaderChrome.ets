@@ -696,7 +696,7 @@ export struct ReaderChrome {
   private BottomBar() {
     Stack({ alignContent: Alignment.Bottom }) {
       Column() {
-        if (this.thumbStripVisible && this.thumbnailStrip) {
+        if (this.thumbnailStrip) {
           this.thumbnailStrip()
         }
       }

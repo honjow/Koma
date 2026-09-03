@@ -1153,8 +1153,6 @@ struct ReaderThumbnailTile {
             .width('100%')
             .height('100%')
             .objectFit(ImageFit.Contain)
-            .borderRadius(ThemeConstants.RADIUS_SM)
-            .clip(true)
             .interpolation(ImageInterpolation.Medium)
         } else if (this.loading) {
           LoadingProgress().width(20).height(20).color('#CCFFFFFF')
@@ -2784,19 +2782,12 @@ export struct ReaderPage {
             },
           })
         }
-        .margin({
-          left: (this.preferences.readingDirection === ReadingDirection.RIGHT_TO_LEFT
-            ? index === this.sessionConfig.totalPages - 1
-            : index === 0) ? ThemeConstants.SPACE_LG : 0,
-          right: (this.preferences.readingDirection === ReadingDirection.RIGHT_TO_LEFT
-            ? index === 0
-            : index === this.sessionConfig.totalPages - 1) ? ThemeConstants.SPACE_LG : 0,
-        })
       }, (index: number) => `reader-thumb-${index}-${this.sourceFor(index).uri}`)
     }
     .listDirection(Axis.Horizontal)
     .direction(this.preferences.readingDirection === ReadingDirection.RIGHT_TO_LEFT ? Direction.Rtl : Direction.Ltr)
     .scrollBar(BarState.Off)
+    .padding({ left: ThemeConstants.SPACE_MD, right: ThemeConstants.SPACE_MD })
     .height(READER_THUMB_STRIP_HEIGHT)
     .width('100%')
   }
