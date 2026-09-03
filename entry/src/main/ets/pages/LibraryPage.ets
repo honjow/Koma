@@ -2124,33 +2124,6 @@ export struct LibraryPage {
           }
 
           ListItem() {
-            Row() {
-              Text(s('tab_library'))
-                .fontSize(ThemeConstants.FONT_SIZE_H3)
-                .fontWeight(FontWeight.Bold)
-                .fontColor(ThemeConstants.TEXT_PRIMARY)
-              Blank()
-              Text(s('library_count_books').replace('%s', `${this.viewModel().comics.length}`))
-                .fontSize(ThemeConstants.FONT_SIZE_META)
-                .fontColor(ThemeConstants.TEXT_SECONDARY)
-              KomaIconButton({
-                icon: $r('sys.symbol.plus'),
-                kind: 'secondary',
-                controlSize: ThemeConstants.TOUCH_TARGET_SM,
-                iconSize: ThemeConstants.FONT_SIZE_H2,
-                isEnabled: !this.selectionMode,
-                action: () => {
-                  if (!this.selectionMode) {
-                    this.onImportRequested()
-                  }
-                },
-              })
-                .margin({ left: 10 })
-            }
-            .width('100%')
-          }
-
-          ListItem() {
             this.SortFilterBar()
           }
 
