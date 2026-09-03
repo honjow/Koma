@@ -1845,6 +1845,19 @@ struct Index {
 
       menu['value'] = [searchItem, importItem]
       menu['maxCount'] = 2
+    } else if (this.selectedTab === TabIndex.BROWSE) {
+      const manageContent: Record<string, Object> = {
+        'label': AppStrings.get('route_source_package_manager_title'),
+        'icon': $r('sys.symbol.gearshape'),
+        'isEnabled': true,
+        'action': () => {
+          this.openSettingsSecondary(RouteName.SOURCE_PACKAGE_MANAGER)
+        },
+      }
+      const manageItem: Record<string, Object> = {}
+      manageItem['content'] = manageContent
+      menu['value'] = [manageItem]
+      menu['maxCount'] = 1
     } else {
       // HDS retains the preceding title menu unless the next tab explicitly
       // supplies an empty menu. Global search belongs only to the Library root.
