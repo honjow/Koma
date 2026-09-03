@@ -516,18 +516,19 @@ export async function fetchAndCacheSourceRuntimeRemoteImage(
   if (sourceId.length === 0) {
     return fetchAndCacheReaderRemoteImage(uri)
   }
+  const cacheKeySeed = `source:${sourceId}:${sourceImageId}`
+  const cachedFast = await readerImageCacheStore.get('', undefined, cacheKeySeed)
+  if (cachedFast !== undefined && cachedFast.length > 0) {
+    return cachedFast
+  }
   const imageRequest = await resolveSourceRuntimeImageRequest(sourceId, uri, sourceImageId)
   if (imageRequest === undefined) {
     console.warn(`[ReaderImage] step=image_request_unavailable source=${sourceId} page=${sourceImageId}`)
     return fetchAndCacheReaderRemoteImage(uri)
   }
   const cacheHeaders = remoteImageCacheHeaders(imageRequest.headers)
-  const cached = await readerImageCacheStore.get(imageRequest.url, cacheHeaders, `source:${sourceId}:${sourceImageId}`)
-  if (cached !== undefined && cached.length > 0) {
-    return cached
-  }
   const bytes = await downloadReaderRemoteBytes(imageRequest.url, imageRequest.headers)
-  const path = await readerImageCacheStore.put(imageRequest.url, cacheHeaders, bytes, `source:${sourceId}:${sourceImageId}`)
+  const path = await readerImageCacheStore.put(imageRequest.url, cacheHeaders, bytes, cacheKeySeed)
   console.info(`[ReaderImage] step=source_cache_written source=${sourceId} page=${sourceImageId} bytes=${bytes.byteLength}`)
   return path
 }

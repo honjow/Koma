@@ -228,11 +228,8 @@ struct Index {
       return false
     }
     const chapter = comic.chapters.find((item: Chapter): boolean => item.id === chapterId)
-    // Source pages contain remotely issued request descriptors rather than
-    // immutable local files.  Keep an existing page list only for the
-    // offline branch above; every online open must re-hydrate it so source
-    // upgrades and expiring page URLs cannot leave Reader on stale data.
-    return chapter !== undefined
+    // Cache-first: if the chapter already has resolved pages, do not block the reader
+    return chapter !== undefined && chapter.pages.length === 0
   }
 
   private logReaderSourcePagesUnavailable(reasonCode?: string): void {
@@ -282,12 +279,7 @@ struct Index {
         () => {
           this.refreshLibrarySnapshot()
         },
-      // Source page descriptors are not durable image assets: a source upgrade
-      // can change their shape, and many hosts issue short-lived page URLs or
-      // headers.  An online Reader open therefore refreshes the chapter's
-      // descriptors before it hands them to the page cache.  Offline chapters
-      // take the earlier local-file branch and never pay this request.
-      ).ensureChapterPages(comic.id, comic.sourceRuntimeId, chapterId as string, true)
+      ).ensureChapterPages(comic.id, comic.sourceRuntimeId, chapterId as string, false)
       if (!result.hydrated) {
         this.logReaderSourcePagesUnavailable(result.reasonCode)
         return false
