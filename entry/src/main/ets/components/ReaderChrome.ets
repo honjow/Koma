@@ -102,9 +102,9 @@ export struct ReaderChrome {
   @Builder
   private ChapterSelectedCheckmark() {
     SymbolGlyph($r('sys.symbol.checkmark'))
-      .fontSize(16)
+      .fontSize(ThemeConstants.FONT_SIZE_H3)
+      .fontWeight(FontWeight.Medium)
       .fontColor([ThemeConstants.BRAND_PRIMARY])
-      .padding({ right: ThemeConstants.SPACE_MD })
   }
 
   @Monitor('chapterPickerShown')
