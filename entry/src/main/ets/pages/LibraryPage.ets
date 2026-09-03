@@ -205,6 +205,7 @@ export struct LibraryPage {
   @Local private filterCategory: LibraryCategoryFilter = 'all'
   @Local private filterAvailability: LibraryAvailabilityFilter = 'all'
   @Local private filterMetadataStatus: LibraryMetadataStatusFilter = 'all'
+  @Local private containerWidth: number = 0
   private activeFilterCount(): number {
     let count = this.sortBy === 'lastRead' ? 0 : 1
     if (this.filterSource !== 'all') {
@@ -850,7 +851,35 @@ export struct LibraryPage {
     return comic.subtitle
   }
 
+  private targetGridColumnWidth(): number {
+    if (this.listDensity === 'compact') {
+      return 96
+    }
+    if (this.listDensity === 'comfortable') {
+      return 140
+    }
+    return 112
+  }
+
   private libraryGridColumnCount(): number {
+    if (this.containerWidth <= 0) {
+      if (this.listDensity === 'compact') {
+        return 4
+      }
+      if (this.listDensity === 'comfortable') {
+        return 2
+      }
+      return 3
+    }
+    const gap = this.libraryGridColumnGap()
+    const padding = ThemeConstants.SPACE_XL * 2
+    const usableWidth = Math.max(160, this.containerWidth - padding)
+    const targetWidth = this.targetGridColumnWidth()
+    const count = Math.floor((usableWidth + gap) / (targetWidth + gap))
+    return Math.max(2, Math.min(10, count))
+  }
+
+  private libraryGridColumnCountLegacy(): number {
     if (this.listDensity === 'compact') {
       return 4
     }
@@ -880,29 +909,16 @@ export struct LibraryPage {
     return ThemeConstants.SPACE_XL
   }
 
-  private libraryGridRowIndexes(comics: ComicCoverInfo[]): number[] {
-    const rows: number[] = []
+  private actualGridCardWidth(): number {
     const columnCount = this.libraryGridColumnCount()
-    const rowCount = Math.ceil(comics.length / columnCount)
-    for (let index = 0; index < rowCount; index += 1) {
-      rows.push(index)
+    const gap = this.libraryGridColumnGap()
+    const padding = ThemeConstants.SPACE_XL * 2
+    if (this.containerWidth <= 0) {
+      return 135
     }
-    return rows
-  }
-
-  private libraryGridRowComics(comics: ComicCoverInfo[], rowIndex: number): ComicCoverInfo[] {
-    const columnCount = this.libraryGridColumnCount()
-    const start = rowIndex * columnCount
-    return comics.slice(start, start + columnCount)
-  }
-
-  private libraryGridMissingCells(rowComics: ComicCoverInfo[]): number[] {
-    const cells: number[] = []
-    const missing = Math.max(0, this.libraryGridColumnCount() - rowComics.length)
-    for (let index = 0; index < missing; index += 1) {
-      cells.push(index)
-    }
-    return cells
+    const usableWidth = Math.max(160, this.containerWidth - padding)
+    const cardWidth = Math.floor((usableWidth - columnCount * gap) / columnCount)
+    return Math.max(80, cardWidth)
   }
 
   private libraryListSpace(): number {
@@ -1932,24 +1948,17 @@ export struct LibraryPage {
 
   @Builder
   private LibraryGrid(comics: ComicCoverInfo[]) {
-    Column({ space: this.libraryGridRowGap() }) {
-      ForEach(this.libraryGridRowIndexes(comics), (rowIndex: number) => {
-        Row({ space: this.libraryGridColumnGap() }) {
-          ForEach(this.libraryGridRowComics(comics, rowIndex), (comic: ComicCoverInfo) => {
-            Column() {
-              this.LibraryGridCell(comic)
-            }
-            .layoutWeight(1)
-          }, (comic: ComicCoverInfo) => this.comicRenderKey(comic))
-
-          ForEach(this.libraryGridMissingCells(this.libraryGridRowComics(comics, rowIndex)), (_index: number) => {
-            Blank()
-              .layoutWeight(1)
-          }, (index: number) => `blank-${rowIndex}-${index}`)
+    Flex({ wrap: FlexWrap.Wrap }) {
+      ForEach(comics, (comic: ComicCoverInfo) => {
+        Column() {
+          this.LibraryGridCell(comic)
         }
-        .width('100%')
-        .alignItems(VerticalAlign.Top)
-      }, (rowIndex: number) => `row-${rowIndex}`)
+        .width(this.actualGridCardWidth())
+        .margin({
+          right: this.libraryGridColumnGap(),
+          bottom: this.libraryGridRowGap(),
+        })
+      }, (comic: ComicCoverInfo) => this.comicRenderKey(comic))
     }
     .width('100%')
   }
@@ -2152,5 +2161,8 @@ export struct LibraryPage {
     .width('100%')
     .height('100%')
     .backgroundColor(ThemeConstants.BG_SUB)
+    .onAreaChange((_old: Area, next: Area) => {
+      this.containerWidth = next.width as number
+    })
   }
 }

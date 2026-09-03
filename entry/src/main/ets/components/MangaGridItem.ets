@@ -44,7 +44,7 @@ export struct MangaGridItem {
         if (this.hasCover()) {
           CachedCoverImage({
             uri: this.manga.coverUrl ?? '',
-            objectFit: ImageFit.Cover,
+            objectFit: ImageFit.Contain,
             sourceRuntimeId: this.manga.sourceId,
             sourceImageId: this.manga.id,
             onError: () => {

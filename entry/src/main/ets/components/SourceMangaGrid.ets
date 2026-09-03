@@ -5,17 +5,21 @@ import { MangaGridItem } from './MangaGridItem'
 @ComponentV2
 export struct SourceMangaGrid {
   @Param manga: SourceManga[] = []
-  @Param columnCount: number = 2
+  @Param columnCount: number = 0
+  @Local private containerWidth: number = 0
   @Event onMangaTap: (manga: SourceManga) => void = (_manga: SourceManga) => {}
 
   private normalizedColumnCount(): number {
-    if (this.columnCount < 1) {
-      return 1
+    if (this.columnCount > 0) {
+      return Math.max(1, Math.min(12, Math.floor(this.columnCount)))
     }
-    if (this.columnCount > 4) {
-      return 4
+    if (this.containerWidth <= 0) {
+      return 3
     }
-    return Math.floor(this.columnCount)
+    const targetWidth = 135
+    const gap = ThemeConstants.SPACE_MD
+    const count = Math.floor((this.containerWidth + gap) / (targetWidth + gap))
+    return Math.max(2, Math.min(12, count))
   }
 
   private rowCount(): number {
@@ -72,5 +76,8 @@ export struct SourceMangaGrid {
       }, (rowIndex: number) => `row-${rowIndex}`)
     }
     .width('100%')
+    .onAreaChange((_old: Area, next: Area) => {
+      this.containerWidth = next.width as number
+    })
   }
 }

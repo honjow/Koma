@@ -793,6 +793,49 @@ export struct DownloadsPage {
   }
 
   @Builder
+  private QueueMoreMenu() {
+    Menu() {
+      MenuItem({ content: s('downloads_action_retry_failed') })
+        .enabled(this.busyKey.length === 0 && !this.preferences.isPaused)
+        .onClick(() => {
+          this.retryFailedDownloads()
+        })
+      MenuItem({ content: s('downloads_action_cleanup_finished_failed') })
+        .enabled(this.busyKey.length === 0)
+        .onClick(() => {
+          this.confirmRemoveCompletedFailedDownloads()
+        })
+      MenuItem({ content: s('downloads_action_rescan') })
+        .enabled(this.busyKey.length === 0)
+        .onClick(() => {
+          this.rescanDownloads()
+        })
+    }
+  }
+
+  @Builder
+  private FilterChipItem(label: string, filter: DownloadQueueFilter) {
+    Row() {
+      Text(label)
+        .fontSize(ThemeConstants.FONT_SIZE_CAPTION)
+        .fontColor(this.filter === filter ? ThemeConstants.BRAND_PRIMARY : ThemeConstants.TEXT_SECONDARY)
+        .fontWeight(this.filter === filter ? FontWeight.Medium : FontWeight.Regular)
+    }
+    .padding({
+      left: ThemeConstants.SPACE_MD,
+      right: ThemeConstants.SPACE_MD,
+      top: ThemeConstants.SPACE_XS,
+      bottom: ThemeConstants.SPACE_XS,
+    })
+    .borderRadius(ThemeConstants.RADIUS_ROUND)
+    .backgroundColor(this.filter === filter ? ThemeConstants.SOFT_TINT : ThemeConstants.CARD)
+    .margin({ right: ThemeConstants.SPACE_SM, bottom: ThemeConstants.SPACE_SM })
+    .onClick(() => {
+      this.setFilter(filter)
+    })
+  }
+
+  @Builder
   private ConcurrencyMenu() {
     Menu() {
       ForEach(OFFLINE_DOWNLOAD_FOREGROUND_CONCURRENCY_LIMIT_OPTIONS, (limit: number) => {
@@ -809,162 +852,61 @@ export struct DownloadsPage {
   }
 
   @Builder
-  private FilterMenu() {
-    Menu() {
-      MenuItem({ content: s('common_all') })
-        .onClick(() => {
-          this.setFilter(DownloadQueueFilter.ALL)
-        })
-      MenuItem({ content: s('downloads_filter_queued') })
-        .onClick(() => {
-          this.setFilter(DownloadQueueFilter.QUEUED)
-        })
-      MenuItem({ content: s('downloads_filter_downloading') })
-        .onClick(() => {
-          this.setFilter(DownloadQueueFilter.DOWNLOADING)
-        })
-      MenuItem({ content: s('downloads_filter_failed') })
-        .onClick(() => {
-          this.setFilter(DownloadQueueFilter.FAILED)
-        })
-      MenuItem({ content: s('downloads_filter_blocked') })
-        .onClick(() => {
-          this.setFilter(DownloadQueueFilter.BLOCKED)
-        })
-      MenuItem({ content: s('downloads_filter_downloaded') })
-        .onClick(() => {
-          this.setFilter(DownloadQueueFilter.DOWNLOADED)
-        })
-    }
-  }
+  private QueueHeader() {
+    Column({ space: ThemeConstants.SPACE_MD }) {
+      Column({ space: ThemeConstants.SPACE_SM }) {
+        Row() {
+          Column({ space: ThemeConstants.SPACE_XS }) {
+            Text(this.queueStateText())
+              .fontSize(ThemeConstants.FONT_SIZE_BODY)
+              .fontWeight(FontWeight.Medium)
+              .fontColor(ThemeConstants.TEXT_PRIMARY)
+            Text(this.queueProgressText())
+              .fontSize(ThemeConstants.FONT_SIZE_CAPTION)
+              .fontColor(ThemeConstants.TEXT_SECONDARY)
+          }
+          .layoutWeight(1)
+          .alignItems(HorizontalAlign.Start)
 
-  @Builder
-  private WifiOnlyControl() {
-    Row({ space: ThemeConstants.SPACE_MD }) {
-      Column({ space: 2 }) {
-        Text(s('settings_row_download_wifi_only_title'))
-          .width('100%')
-          .fontSize(ThemeConstants.FONT_SIZE_BODY)
-          .fontColor(ThemeConstants.TEXT_PRIMARY)
-          .maxLines(1)
-          .textOverflow({ overflow: TextOverflow.Ellipsis })
-        Text(s('settings_row_download_wifi_only_detail'))
-          .width('100%')
-          .fontSize(ThemeConstants.FONT_SIZE_CAPTION)
-          .fontColor(ThemeConstants.TEXT_SECONDARY)
-          .maxLines(1)
-          .textOverflow({ overflow: TextOverflow.Ellipsis })
-      }
-      .layoutWeight(1)
-
-      Toggle({ type: ToggleType.Switch, isOn: this.preferences.wifiOnly })
-        .selectedColor(ThemeConstants.BRAND_PRIMARY)
-        .enabled(this.busyKey.length === 0)
-        .onChange((isOn: boolean) => {
-          this.setWifiOnly(isOn)
-        })
-    }
-    .width('100%')
-    .padding({ top: ThemeConstants.SPACE_XS, bottom: ThemeConstants.SPACE_XS })
-    .alignItems(VerticalAlign.Center)
-  }
-
-  @Builder
-  private QueueControls() {
-    Column({ space: ThemeConstants.SPACE_SM }) {
-      Text(this.queueStateText())
+          Row({ space: ThemeConstants.SPACE_SM }) {
+            KomaActionButton({
+              label: this.primaryQueueActionLabel(),
+              kind: this.primaryQueueActionKind(),
+              isEnabled: !this.preferences.isPaused || this.busyKey.length === 0,
+              compact: true,
+              controlHeight: ThemeConstants.ACTION_CHIP_HEIGHT,
+              action: () => {
+                this.handlePrimaryQueueAction()
+              },
+            })
+            Button({ type: ButtonType.Circle, stateEffect: true }) {
+              SymbolGlyph($r('sys.symbol.more'))
+                .fontSize(ThemeConstants.FONT_SIZE_H3)
+                .fontColor([ThemeConstants.TEXT_PRIMARY])
+            }
+            .width(ThemeConstants.ACTION_CHIP_HEIGHT)
+            .height(ThemeConstants.ACTION_CHIP_HEIGHT)
+            .backgroundColor(ThemeConstants.BG_SUB)
+            .bindMenu(this.QueueMoreMenu(), { placement: Placement.BottomRight })
+          }
+        }
         .width('100%')
-        .fontSize(ThemeConstants.FONT_SIZE_CAPTION)
-        .fontColor(ThemeConstants.TEXT_SECONDARY)
-        .maxLines(2)
-        .textOverflow({ overflow: TextOverflow.Ellipsis })
-      Text(this.queueProgressText())
-        .width('100%')
-        .fontSize(ThemeConstants.FONT_SIZE_CAPTION)
-        .fontColor(ThemeConstants.TEXT_SECONDARY)
-        .maxLines(2)
-        .textOverflow({ overflow: TextOverflow.Ellipsis })
-      this.WifiOnlyControl()
-
-      Row({ space: ThemeConstants.SPACE_SM }) {
-        KomaActionButton({
-          label: s('downloads_filter_chip').replace('%s', this.filterLabel()),
-          icon: $r('sys.symbol.chevron_down'),
-          kind: this.filter === DownloadQueueFilter.ALL ? 'secondary' : 'primary',
-          compact: true,
-          controlHeight: ThemeConstants.ACTION_CHIP_HEIGHT,
-        })
-          .bindMenu(this.FilterMenu(), {
-            placement: Placement.BottomLeft,
-          })
-
-        KomaActionButton({
-          label: s('downloads_concurrency_chip').replace('%s', `${this.preferences.foregroundConcurrencyLimit}`),
-          icon: $r('sys.symbol.chevron_down'),
-          kind: 'secondary',
-          compact: true,
-          controlHeight: ThemeConstants.ACTION_CHIP_HEIGHT,
-          isEnabled: this.busyKey.length === 0,
-        })
-          .bindMenu(this.ConcurrencyMenu(), {
-            placement: Placement.BottomRight,
-          })
-      }
-      .justifyContent(FlexAlign.SpaceBetween)
-      .width('100%')
-
-      Row({ space: ThemeConstants.SPACE_SM }) {
-        KomaActionButton({
-          label: this.primaryQueueActionLabel(),
-          kind: this.primaryQueueActionKind(),
-          isEnabled: !this.preferences.isPaused || this.busyKey.length === 0,
-          controlHeight: ThemeConstants.ACTION_CHIP_HEIGHT,
-          action: () => {
-            this.handlePrimaryQueueAction()
-          },
-        })
-        KomaActionButton({
-          label: this.busyKey === 'batch-retry' ? s('common_retrying') : s('downloads_action_retry_failed'),
-          kind: 'ghost',
-          isEnabled: this.busyKey.length === 0 && !this.preferences.isPaused,
-          controlHeight: ThemeConstants.ACTION_CHIP_HEIGHT,
-          action: () => {
-            this.retryFailedDownloads()
-          },
-        })
+        .alignItems(VerticalAlign.Center)
       }
       .width('100%')
+      .padding(ThemeConstants.SPACE_LG)
+      .borderRadius(ThemeConstants.RADIUS_CARD)
+      .backgroundColor(ThemeConstants.CARD)
 
-      Row({ space: ThemeConstants.SPACE_SM }) {
-        KomaActionButton({
-          label: this.busyKey === 'batch-remove' ? s('downloads_action_cleaning') : s('downloads_action_cleanup_finished_failed'),
-          kind: 'ghost',
-          isEnabled: this.busyKey.length === 0,
-          controlHeight: ThemeConstants.ACTION_CHIP_HEIGHT,
-          action: () => {
-            this.confirmRemoveCompletedFailedDownloads()
-          },
-        })
-        KomaActionButton({
-          label: this.busyKey === 'rescan' ? s('downloads_action_rescanning') : s('downloads_action_rescan'),
-          kind: 'ghost',
-          isEnabled: this.busyKey.length === 0,
-          controlHeight: ThemeConstants.ACTION_CHIP_HEIGHT,
-          action: () => {
-            this.rescanDownloads()
-          },
-        })
+      Flex({ wrap: FlexWrap.Wrap }) {
+        this.FilterChipItem(s('common_all'), DownloadQueueFilter.ALL)
+        this.FilterChipItem(s('downloads_filter_downloading'), DownloadQueueFilter.DOWNLOADING)
+        this.FilterChipItem(s('downloads_filter_queued'), DownloadQueueFilter.QUEUED)
+        this.FilterChipItem(s('downloads_filter_downloaded'), DownloadQueueFilter.DOWNLOADED)
+        this.FilterChipItem(s('downloads_filter_failed'), DownloadQueueFilter.FAILED)
+        this.FilterChipItem(s('downloads_filter_blocked'), DownloadQueueFilter.BLOCKED)
       }
       .width('100%')
-
-      if (this.recoveryText.length > 0) {
-        Text(this.recoveryText)
-          .width('100%')
-          .fontSize(ThemeConstants.FONT_SIZE_CAPTION)
-          .fontColor(ThemeConstants.TEXT_SECONDARY)
-          .maxLines(2)
-          .textOverflow({ overflow: TextOverflow.Ellipsis })
-      }
     }
     .width('100%')
   }
@@ -1054,14 +996,14 @@ export struct DownloadsPage {
         horizontalPadding: ThemeConstants.SPACE_XL,
         bottomPadding: ThemeConstants.SPACE_XL,
       }) {
-        ListItem() {
-          this.QueueControls()
-        }
         if (this.entries.length === 0) {
           ListItem() {
             this.EmptyState()
           }
         } else {
+          ListItem() {
+            this.QueueHeader()
+          }
           if (this.visibleEntries().length === 0) {
             ListItem() {
               this.EmptyState(this.hasActiveFilter())

@@ -284,8 +284,14 @@ export function formatContinueReadingDetail(comic: MockLibraryComic, progress?: 
 }
 
 function formatSourceSubtitle(comic: Comic): string {
-  if (comic.subtitle !== undefined && comic.subtitle.length > 0) {
+  if (comic.subtitle !== undefined && comic.subtitle.length > 0 && comic.subtitle.length <= 20) {
     return comic.subtitle
+  }
+  if (comic.chapterCount > 0) {
+    return `${comic.chapterCount} 话`
+  }
+  if (comic.author !== undefined && comic.author.trim().length > 0) {
+    return comic.author.trim()
   }
   if (comic.sourceKind === ComicSourceKind.LOCAL_FOLDER) {
     return AppStrings.get('library_source_subtitle_folder').replace('%s', `${comic.chapterCount}`)
