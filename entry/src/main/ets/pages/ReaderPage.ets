@@ -158,6 +158,8 @@ struct ReaderImageSurface {
   @Param pageIndex: number = 0
   @Param sourceWidth: number | undefined = undefined
   @Param sourceHeight: number | undefined = undefined
+  @Param parentViewportWidth: number = 0
+  @Param parentViewportHeight: number = 0
   @Param fit: ImageFit = ImageFit.Contain
   @Param fitMode: ReaderImageFitMode = 'contain'
   @Param scalingQuality: string = 'medium'
@@ -246,9 +248,23 @@ struct ReaderImageSurface {
 
   aboutToAppear(): void {
     this.disposed = false
+    if (this.parentViewportWidth > 0 && this.parentViewportHeight > 0) {
+      this.viewportWidth = this.parentViewportWidth
+      this.viewportHeight = this.parentViewportHeight
+    }
     this.resetZoom(false)
     this.applyReplayedTransform()
     void this.resolveSource()
+  }
+
+  @Monitor('parentViewportWidth', 'parentViewportHeight')
+  private onParentViewportChange(): void {
+    if (this.viewportWidth <= 0 && this.parentViewportWidth > 0) {
+      this.viewportWidth = this.parentViewportWidth
+    }
+    if (this.viewportHeight <= 0 && this.parentViewportHeight > 0) {
+      this.viewportHeight = this.parentViewportHeight
+    }
   }
 
   aboutToDisappear(): void {
@@ -452,11 +468,17 @@ struct ReaderImageSurface {
   }
 
   private displayWidth(): number {
+    if (this.viewportWidth <= 0) {
+      return 0
+    }
     const width = this.displaySourceWidth()
     return width > 0 ? width * this.baseScale() : this.viewportWidth
   }
 
   private displayHeight(): number {
+    if (this.viewportHeight <= 0) {
+      return 0
+    }
     const height = this.displaySourceHeight()
     return height > 0 ? height * this.baseScale() : this.viewportHeight
   }
@@ -979,17 +1001,28 @@ struct ReaderImageSurface {
   build() {
     Stack({ alignContent: Alignment.Center }) {
       if (this.displayUri.length > 0) {
-        Image(this.displayUri)
-          .width(this.displayWidth() > 0 ? this.displayWidth() : '100%')
-          .height(this.displayHeight() > 0 ? this.displayHeight() : '100%')
-          .objectFit(ImageFit.Contain)
-          .interpolation(imageInterpolation(this.scalingQuality))
-          .rotate({ angle: this.rotateClockwise ? 90 : 0 })
-          .scale({ x: this.renderScale, y: this.renderScale })
-          .translate({ x: this.renderPanX, y: this.renderPanY })
-          .animation({ duration: this.zoomAnimating ? READER_ZOOM_ANIM_DURATION : 0, curve: Curve.FastOutSlowIn })
-          .onComplete((event?: ReaderImageLoadEvent) => { this.onDisplayComplete(event) })
-          .onError(() => { this.onDisplayError() })
+        if (this.renderScale > 1.001) {
+          Image(this.displayUri)
+            .width(this.displayWidth() > 0 ? this.displayWidth() : '100%')
+            .height(this.displayHeight() > 0 ? this.displayHeight() : '100%')
+            .objectFit(ImageFit.Contain)
+            .interpolation(imageInterpolation(this.scalingQuality))
+            .rotate({ angle: this.rotateClockwise ? 90 : 0 })
+            .scale({ x: this.renderScale, y: this.renderScale })
+            .translate({ x: this.renderPanX, y: this.renderPanY })
+            .animation({ duration: this.zoomAnimating ? READER_ZOOM_ANIM_DURATION : 0, curve: Curve.FastOutSlowIn })
+            .onComplete((event?: ReaderImageLoadEvent) => { this.onDisplayComplete(event) })
+            .onError(() => { this.onDisplayError() })
+        } else {
+          Image(this.displayUri)
+            .width('100%')
+            .height('100%')
+            .objectFit(this.fit)
+            .interpolation(imageInterpolation(this.scalingQuality))
+            .rotate({ angle: this.rotateClockwise ? 90 : 0 })
+            .onComplete((event?: ReaderImageLoadEvent) => { this.onDisplayComplete(event) })
+            .onError(() => { this.onDisplayError() })
+        }
       }
       if (this.displayUri.length === 0 || this.loading) {
         this.LoadingContent()
@@ -2534,6 +2567,8 @@ export struct ReaderPage {
       ReaderImageSurface({
         source: this.sourceFor(index),
         pageIndex: index,
+        parentViewportWidth: this.viewportWidth,
+        parentViewportHeight: this.viewportHeight,
         sourceWidth: this.pageWidth(index),
         sourceHeight: this.pageHeight(index),
         fit: imageFit(this.preferences.imageFitMode),
