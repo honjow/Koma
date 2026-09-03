@@ -2,6 +2,7 @@ import { common } from '@kit.AbilityKit'
 import { CachedCoverImage, cachedCoverFailureKey } from '../components/CachedCoverImage'
 import { SecondaryListScaffold } from '../components/SecondaryListScaffold'
 import { KomaActionButton } from '../components/ui/KomaActionButton'
+import { KomaEmptyState } from '../components/ui/KomaEmptyState'
 import { KomaIconButton } from '../components/ui/KomaIconButton'
 import { connectRemoteProgressSyncState, RemoteProgressSyncState } from '../state/RemoteProgressSyncState'
 import { ThemeConstants } from '../theme/ThemeConstants'
@@ -422,24 +423,12 @@ export struct HistoryPage {
 
   @Builder
   private EmptyHistory() {
-    Column({ space: ThemeConstants.SPACE_MD }) {
-      Text(s('history_empty_title'))
-        .fontSize(ThemeConstants.FONT_SIZE_HEADING)
-        .fontWeight(FontWeight.Medium)
-        .fontColor(ThemeConstants.TEXT_PRIMARY)
-      Text(s('history_empty_message'))
-        .fontSize(ThemeConstants.FONT_SIZE_META)
-        .lineHeight(ThemeConstants.LINE_HEIGHT_BODY)
-        .fontColor(ThemeConstants.TEXT_SECONDARY)
-        .textAlign(TextAlign.Center)
-    }
-    .width('100%')
-    .height(220)
-    .padding(ThemeConstants.SPACE_XL)
-    .borderRadius(ThemeConstants.RADIUS_CARD)
-    .backgroundColor(ThemeConstants.CARD)
-    .justifyContent(FlexAlign.Center)
-    .alignItems(HorizontalAlign.Center)
+    KomaEmptyState({
+      icon: $r('sys.symbol.clock'),
+      title: s('history_empty_title'),
+      message: s('history_empty_message'),
+      showAction: false,
+    })
   }
 
   @Builder

@@ -144,6 +144,7 @@ export struct BrowsePage {
   @Builder
   private EmptySources() {
     KomaEmptyState({
+      icon: $r('sys.symbol.compass'),
       title: s('browse_empty_title'),
       message: s('browse_empty_message'),
       actionLabel: s('browse_empty_action_manage_sources'),

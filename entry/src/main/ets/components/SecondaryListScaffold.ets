@@ -68,7 +68,7 @@ export struct SecondaryListScaffold {
     }
     .width('100%')
     .height('100%')
-    .backgroundColor(ThemeConstants.BG_PRIMARY)
+    .backgroundColor(ThemeConstants.BG_SUB)
   }
 
   private keyboardPadding(): number {

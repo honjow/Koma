@@ -21,6 +21,7 @@ import { SearchPage } from './SearchPage'
 import { SEARCH_TITLE_BOTTOM_HEIGHT, SearchTitleFieldContentBuilder } from '../components/SearchTitleField'
 import { SettingsPage, SettingsPaneKey, settingsPaneTitle } from './SettingsPage'
 import { ImportPage, LocalFolderImportPersistResult } from './ImportPage'
+import { LocalImportCoordinator } from '../import/LocalImportCoordinator'
 import { ReaderPage } from './ReaderPage'
 import { MangaDetailPage } from './MangaDetailPage'
 import { SourceBrowsePage } from './SourceBrowsePage'
@@ -137,6 +138,7 @@ interface SettingsPaneRouteParam {
 @ComponentV2
 struct Index {
   @Local selectedTab: number = TabIndex.LIBRARY
+  @Local private importMenuShown: boolean = false
   @Local private languageState: LanguageState = connectLanguageState()
   @Local private layoutSafeArea: LayoutSafeAreaState = connectLayoutSafeArea()
   @Local private readerOpen: boolean = false
@@ -163,6 +165,7 @@ struct Index {
   private appPathStack: NavPathStack = new NavPathStack()
   private searchFieldContents: Map<SearchRouteChromeState, ComponentContent<SearchRouteChromeState>> = new Map()
   private sourceSearchFieldContents: Map<SourceSearchRouteChromeState, ComponentContent<SourceSearchRouteChromeState>> = new Map()
+  private readonly localImportCoordinator: LocalImportCoordinator = new LocalImportCoordinator()
   private libraryPersistenceService?: LibraryStorePersistenceService
   private readerSessionPersistenceReady: boolean = false
   private libraryPersistenceRestored: boolean = false
@@ -768,7 +771,154 @@ struct Index {
   }
 
   private openImport(): void {
-    this.appPathStack.pushPath({ name: RouteName.IMPORT })
+    this.importMenuShown = true
+  }
+
+  private async startArchiveImport(): Promise<void> {
+    try {
+      const context = getContext(this) as common.UIAbilityContext
+      const results = await this.localImportCoordinator.pickAndImportArchives(context, 1)
+      let succeededCount = 0
+      let failedCount = 0
+      results.forEach((result) => {
+        if (result.status === 'succeeded') {
+          succeededCount += 1
+          this.handleArchiveImportSucceeded(result.extractionResult.importResult.comic)
+        } else {
+          failedCount += 1
+        }
+      })
+      if (results.length === 0) {
+        return
+      }
+      if (failedCount === 0) {
+        this.showToast(AppStrings.format('import_feedback_success', succeededCount))
+      } else if (succeededCount === 0) {
+        this.showToast(AppStrings.format('import_feedback_failed_files', failedCount))
+      } else {
+        this.showToast(AppStrings.format('import_feedback_partial', succeededCount, failedCount))
+      }
+    } catch (error) {
+      console.error('[Import] step=archive_import_failed code=archive_import_failed')
+      this.showToast(AppStrings.get('import_feedback_failed_file'))
+    }
+  }
+
+  private async startImageImport(): Promise<void> {
+    try {
+      const context = getContext(this) as common.UIAbilityContext
+      const results = await this.localImportCoordinator.pickAndImportImages(context)
+      let succeededCount = 0
+      let failedCount = 0
+      results.forEach((result) => {
+        if (result.status === 'succeeded') {
+          succeededCount += 1
+          this.handleArchiveImportSucceeded(result.importResult.comic)
+        } else {
+          failedCount += 1
+        }
+      })
+      if (results.length === 0) {
+        return
+      }
+      if (failedCount === 0) {
+        this.showToast(AppStrings.format('import_feedback_success', succeededCount))
+      } else if (succeededCount === 0) {
+        this.showToast(AppStrings.get('import_feedback_failed_images'))
+      } else {
+        this.showToast(AppStrings.format('import_feedback_partial', succeededCount, failedCount))
+      }
+    } catch (error) {
+      console.error('[Import] step=image_import_failed code=image_import_failed')
+      this.showToast(AppStrings.get('import_feedback_failed_images'))
+    }
+  }
+
+  private async startFolderImport(): Promise<void> {
+    try {
+      const context = getContext(this) as common.UIAbilityContext
+      const results = await this.localImportCoordinator.pickAndScanFolders(context, 1)
+      let importedCount = 0
+      let checkedCount = 0
+      let addedCount = 0
+      let changedCount = 0
+      let missingCount = 0
+      let metadataChangedCount = 0
+      let rejectedEntryCount = 0
+      let failedCount = 0
+      results.forEach((result) => {
+        if (result.status === 'succeeded') {
+          try {
+            const persistResult = this.handleLocalFolderImportSucceeded(result.scanResult, result.rootUri)
+            importedCount += persistResult.importedCount
+            checkedCount += persistResult.checkedCount
+            addedCount += persistResult.addedCount
+            changedCount += persistResult.changedCount
+            missingCount += persistResult.missingCount
+            metadataChangedCount += persistResult.metadataChangedCount
+            rejectedEntryCount += persistResult.rejectedEntryCount
+          } catch (error) {
+            failedCount += 1
+          }
+          return
+        }
+        failedCount += 1
+      })
+      if (results.length === 0) {
+        return
+      }
+      if (importedCount > 0 && failedCount === 0 &&
+        (addedCount > 0 || changedCount > 0 || metadataChangedCount > 0 || missingCount > 0 || rejectedEntryCount > 0)) {
+        this.showToast(AppStrings.format('import_feedback_folder_rescan_done', addedCount, changedCount, metadataChangedCount, missingCount, rejectedEntryCount))
+      } else if (importedCount > 0 && failedCount === 0) {
+        this.showToast(AppStrings.format('import_feedback_success', importedCount))
+      } else if (importedCount > 0) {
+        this.showToast(AppStrings.format('import_feedback_partial', importedCount, failedCount))
+      } else if (failedCount > 0) {
+        this.showToast(AppStrings.get('import_feedback_folder_unavailable'))
+      } else if (checkedCount > 0 && (missingCount > 0 || rejectedEntryCount > 0)) {
+        this.showToast(AppStrings.format('import_feedback_folder_rescan_missing', missingCount, rejectedEntryCount))
+      } else if (checkedCount > 0) {
+        this.showToast(AppStrings.get('import_feedback_folder_rescan_unchanged'))
+      } else {
+        this.showToast(AppStrings.get('import_feedback_folder_empty'))
+      }
+    } catch (error) {
+      console.error('[Import] step=folder_import_failed code=folder_import_failed')
+      this.showToast(AppStrings.get('import_feedback_folder_unavailable'))
+    }
+  }
+
+  @Builder
+  private ImportMenu() {
+    Menu() {
+      MenuItem({
+        startIcon: $r('sys.symbol.doc_plaintext'),
+        content: AppStrings.get('import_archive_title'),
+      })
+      .onClick(() => {
+        this.importMenuShown = false
+        void this.startArchiveImport()
+      })
+
+      MenuItem({
+        startIcon: $r('sys.symbol.picture'),
+        content: AppStrings.get('import_image_title'),
+      })
+      .onClick(() => {
+        this.importMenuShown = false
+        void this.startImageImport()
+      })
+
+      MenuItem({
+        startIcon: $r('sys.symbol.folder'),
+        content: AppStrings.get('import_folder_title'),
+      })
+      .onClick(() => {
+        this.importMenuShown = false
+        void this.startFolderImport()
+      })
+    }
   }
 
   private openSettingsSecondary(routeName: string): void {
@@ -1481,7 +1631,7 @@ struct Index {
   }
 
   build() {
-    Stack() {
+    Stack({ alignContent: Alignment.TopEnd }) {
       if (this.languageState.effectiveLocale.length >= 0) {
         HdsNavigation(this.appPathStack) {
           HdsTabs({ controller: this.tabController }) {
@@ -1644,6 +1794,18 @@ struct Index {
         .height('100%')
         .backgroundColor($r('sys.color.ohos_id_color_sub_background'))
       }
+
+      Row()
+        .width(1)
+        .height(1)
+        .margin({ top: this.layoutSafeArea.topAvoidHeight + 48, right: ThemeConstants.SPACE_MD })
+        .hitTestBehavior(HitTestMode.None)
+        .bindMenu(this.importMenuShown, this.ImportMenu, {
+          placement: Placement.BottomRight,
+          onDisappear: () => {
+            this.importMenuShown = false
+          },
+        })
     }
     .width('100%')
     .height('100%')
@@ -1665,8 +1827,20 @@ struct Index {
       }
       const searchItem: Record<string, Object> = {}
       searchItem['content'] = searchContent
-      menu['value'] = [searchItem]
-      menu['maxCount'] = 1
+
+      const importContent: Record<string, Object> = {
+        'label': AppStrings.get('route_import_title'),
+        'icon': $r('sys.symbol.plus'),
+        'isEnabled': true,
+        'action': () => {
+          this.openImport()
+        },
+      }
+      const importItem: Record<string, Object> = {}
+      importItem['content'] = importContent
+
+      menu['value'] = [searchItem, importItem]
+      menu['maxCount'] = 2
     } else {
       // HDS retains the preceding title menu unless the next tab explicitly
       // supplies an empty menu. Global search belongs only to the Library root.

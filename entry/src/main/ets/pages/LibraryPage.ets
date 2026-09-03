@@ -1777,13 +1777,10 @@ export struct LibraryPage {
   @Builder
   private EmptyLibrary() {
     KomaEmptyState({
+      icon: $r('sys.symbol.book'),
       title: s('library_empty_title'),
       message: s('library_empty_message'),
-      actionLabel: s('route_import_title'),
-      showAction: true,
-      action: () => {
-        this.onImportRequested()
-      },
+      showAction: false,
     })
   }
 
