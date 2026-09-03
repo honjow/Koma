@@ -706,8 +706,22 @@ export struct MangaDetailPage {
     if (sourceId === undefined || sourceId.length === 0 || mangaId === undefined || mangaId.length === 0) {
       return
     }
+    const comicId = this.sourceComicId(sourceId, mangaId)
+    const libraryComic = this.findSourceRuntimeComic(sourceId, mangaId, comicId)
     const detail = this.sourceDetailFromInitialRouteManga(sourceId, mangaId)
     if (detail === undefined) {
+      if (libraryComic !== undefined) {
+        this.activeLibraryComicId = libraryComic.id
+        this.manga = mangaDetailFromComic(libraryComic)
+        this.chapters = this.decorateChapterStates(
+          libraryComic.chapters.map((ch: Chapter) => mangaChapterItemFromComicChapter(ch, libraryComic.sourceKind))
+        )
+        this.isInLibrary = true
+        this.sourceDetailDataResolved = true
+        this.sourceDetailContentState = SourceDetailContentState.LOCAL
+        this.feedbackText = ''
+        return
+      }
       // A reused destination may previously have rendered another source. With no real list-row
       // preview for this route, start unresolved rather than carrying that prior detail forward.
       this.manga = undefined
@@ -725,15 +739,15 @@ export struct MangaDetailPage {
     if (lookup.ok && lookup.entry !== undefined) {
       detail.sourceName = lookup.entry.manifestName
     }
-    const comicId = this.sourceComicId(sourceId, mangaId)
-    const libraryComic = this.findSourceRuntimeComic(sourceId, mangaId, comicId)
     detail.isInLibrary = libraryComic !== undefined
     this.manga = detail
-    this.chapters = []
+    this.chapters = libraryComic !== undefined && libraryComic.chapters.length > 0
+      ? this.decorateChapterStates(libraryComic.chapters.map((ch: Chapter) => mangaChapterItemFromComicChapter(ch, libraryComic.sourceKind)))
+      : []
     this.isInLibrary = detail.isInLibrary
-    this.sourceDetailDataResolved = false
+    this.sourceDetailDataResolved = libraryComic !== undefined
     this.activeLibraryComicId = libraryComic?.id ?? ''
-    this.sourceDetailContentState = SourceDetailContentState.LOADING
+    this.sourceDetailContentState = libraryComic !== undefined ? SourceDetailContentState.LOCAL : SourceDetailContentState.LOADING
     this.feedbackText = s('manga_detail_loading_source')
     this.downloadStatusText = ''
     this.localRefreshText = ''
@@ -1846,7 +1860,7 @@ export struct MangaDetailPage {
 
       if (this.canAddCurrentMangaToLibrary()) {
         KomaIconButton({
-          icon: $r('sys.symbol.bookmark'),
+          icon: this.isInLibrary ? $r('sys.symbol.bookmark_fill') : $r('sys.symbol.bookmark'),
           kind: this.isInLibrary ? 'primary' : 'secondary',
           controlSize: ThemeConstants.ACTION_CHIP_HEIGHT,
           iconSize: ThemeConstants.FONT_SIZE_TITLE,

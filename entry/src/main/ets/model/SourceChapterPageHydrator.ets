@@ -331,13 +331,16 @@ export class SourceChapterPageHydrator {
     chapter.updatedAt = Date.now()
     comic.pageCount = comic.chapters.reduce((total: number, item: Chapter): number => total + item.pageCount, 0)
     comic.updatedAt = chapter.updatedAt
-    if (this.libraryPersistenceService === undefined) {
-      this.libraryStore.upsertComic(comic)
-    } else {
-      upsertComicAndPersistLibraryStore(this.libraryStore, this.libraryPersistenceService, comic)
-    }
-    if (this.onLibraryChanged !== undefined) {
-      this.onLibraryChanged()
+    const existsInLibrary = this.libraryStore.getComic(comic.id) !== undefined
+    if (existsInLibrary) {
+      if (this.libraryPersistenceService === undefined) {
+        this.libraryStore.upsertComic(comic)
+      } else {
+        upsertComicAndPersistLibraryStore(this.libraryStore, this.libraryPersistenceService, comic)
+      }
+      if (this.onLibraryChanged !== undefined) {
+        this.onLibraryChanged()
+      }
     }
   }
 }

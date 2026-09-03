@@ -59,16 +59,12 @@ export struct ChapterListSection {
   private sortedChapterList(): MangaChapterItem[] {
     const sorted = this.filteredChapterList()
     sorted.sort((left: MangaChapterItem, right: MangaChapterItem): number => {
-      if (this.sortOrder === ChapterSortOrder.OLDEST_FIRST) {
-        return this.compareByDate(left, right, false)
+      const numLeft = this.chapterNumberValue(left)
+      const numRight = this.chapterNumberValue(right)
+      if (numLeft >= 0 && numRight >= 0 && numLeft !== numRight) {
+        return this.sortOrder === ChapterSortOrder.BY_NUMBER_ASC ? numLeft - numRight : numRight - numLeft
       }
-      if (this.sortOrder === ChapterSortOrder.BY_NUMBER_DESC) {
-        return this.chapterNumberValue(right) - this.chapterNumberValue(left)
-      }
-      if (this.sortOrder === ChapterSortOrder.BY_NUMBER_ASC) {
-        return this.chapterNumberValue(left) - this.chapterNumberValue(right)
-      }
-      return this.compareByDate(left, right, true)
+      return this.sortOrder === ChapterSortOrder.BY_NUMBER_ASC ? 1 : -1
     })
     return sorted
   }
@@ -118,16 +114,10 @@ export struct ChapterListSection {
   }
 
   private sortLabel(): string {
-    if (this.sortOrder === ChapterSortOrder.OLDEST_FIRST) {
-      return s('chapter_list_sort_oldest')
-    }
-    if (this.sortOrder === ChapterSortOrder.BY_NUMBER_DESC) {
-      return s('chapter_list_sort_number_desc')
-    }
     if (this.sortOrder === ChapterSortOrder.BY_NUMBER_ASC) {
       return s('chapter_list_sort_number_asc')
     }
-    return s('chapter_list_sort_newest')
+    return s('chapter_list_sort_number_desc')
   }
 
   private filterLabel(): string {
@@ -334,14 +324,6 @@ export struct ChapterListSection {
   @Builder
   private SortMenu() {
     Menu() {
-      MenuItem({ content: s('chapter_list_sort_newest') })
-        .onClick(() => {
-          this.setSortOrder(ChapterSortOrder.NEWEST_FIRST)
-        })
-      MenuItem({ content: s('chapter_list_sort_oldest') })
-        .onClick(() => {
-          this.setSortOrder(ChapterSortOrder.OLDEST_FIRST)
-        })
       MenuItem({ content: s('chapter_list_sort_number_desc') })
         .onClick(() => {
           this.setSortOrder(ChapterSortOrder.BY_NUMBER_DESC)
@@ -516,83 +498,51 @@ export struct ChapterListSection {
   }
 
   @Builder
-  private ChapterRowPrefix(chapter: MangaChapterItem) {
-    Row() {
-      Blank()
-        .width(ThemeConstants.SPACE_SM)
-        .height(ThemeConstants.SPACE_SM)
-        .borderRadius(ThemeConstants.RADIUS_ROUND)
-        .backgroundColor(chapter.isRead ? ThemeConstants.TEXT_SECONDARY : ThemeConstants.BRAND_PRIMARY)
-        .opacity(chapter.isRead ? 0.45 : 1)
-    }
-    .width(24)
-    .height(ThemeConstants.TOUCH_TARGET_SM)
-    .justifyContent(FlexAlign.Center)
-    .alignItems(VerticalAlign.Center)
-  }
-
-  @Builder
   private ChapterRow(chapter: MangaChapterItem) {
-    Row({ space: ThemeConstants.SPACE_MD }) {
-      this.ChapterRowPrefix(chapter)
-
+    Row({ space: ThemeConstants.SPACE_SM }) {
       Column({ space: ThemeConstants.SPACE_XS }) {
         Text(this.chapterTitle(chapter))
           .fontSize(ThemeConstants.FONT_SIZE_LIST_ITEM)
-          .fontColor(ThemeConstants.TEXT_PRIMARY)
+          .fontColor(chapter.isRead ? $r('sys.color.font_tertiary') : $r('sys.color.font_primary'))
+          .fontWeight(chapter.isRead ? FontWeight.Regular : FontWeight.Medium)
           .maxLines(1)
           .textOverflow({ overflow: TextOverflow.Ellipsis })
-        Text(this.chapterSubtitle(chapter))
-          .fontSize(ThemeConstants.FONT_SIZE_CAPTION)
-          .fontColor(ThemeConstants.TEXT_SECONDARY)
-          .maxLines(1)
-          .textOverflow({ overflow: TextOverflow.Ellipsis })
+        if (this.chapterSubtitle(chapter).length > 0) {
+          Text(this.chapterSubtitle(chapter))
+            .fontSize(ThemeConstants.FONT_SIZE_CAPTION)
+            .fontColor($r('sys.color.font_secondary'))
+            .maxLines(1)
+            .textOverflow({ overflow: TextOverflow.Ellipsis })
+        }
       }
       .layoutWeight(1)
       .alignItems(HorizontalAlign.Start)
-      .padding({ top: ThemeConstants.SPACE_XS, bottom: ThemeConstants.SPACE_XS })
-      .onClick(() => {
-        this.onOpenChapter(chapter.id)
-      })
 
       if (this.shouldShowDownloadStatus(chapter) && chapter.downloadStatus !== undefined) {
         this.DownloadStatusBadge(chapter.downloadStatus)
-      }
-
-      KomaIconButton({
-        icon: $r('sys.symbol.arrow_down_to_line'),
-        controlSize: ThemeConstants.FILTER_CHIP_HEIGHT,
-        iconSize: ThemeConstants.FONT_SIZE_TITLE,
-        accentColor: ThemeConstants.BRAND_PRIMARY,
-        action: () => {
-          this.onDownloadChapter(chapter.id)
-        },
-      })
-
-      Column() {
-        KomaIconButton({
-          icon: $r('sys.symbol.dot_grid_2x2'),
-          controlSize: ThemeConstants.FILTER_CHIP_HEIGHT,
-          iconSize: ThemeConstants.FONT_SIZE_HEADING,
-          accentColor: ThemeConstants.BRAND_PRIMARY,
-          action: () => {
-            this.readStateMenuChapterId = chapter.id
-          },
+      } else {
+        Button({ type: ButtonType.Circle, stateEffect: true }) {
+          SymbolGlyph(chapter.isDownloaded ? $r('sys.symbol.checkmark_circle') : $r('sys.symbol.arrow_down_to_line'))
+            .fontSize(18)
+            .fontColor([chapter.isDownloaded ? ThemeConstants.BRAND_PRIMARY : $r('sys.color.font_tertiary')])
+        }
+        .width(36)
+        .height(36)
+        .backgroundColor(Color.Transparent)
+        .onClick(() => {
+          if (!chapter.isDownloaded) {
+            this.onDownloadChapter(chapter.id)
+          }
         })
       }
-      .bindMenu(this.readStateMenuChapterId === chapter.id, this.ReadStateMenu(chapter), {
-        placement: Placement.BottomRight,
-        onDisappear: () => {
-          if (this.readStateMenuChapterId === chapter.id) {
-            this.readStateMenuChapterId = ''
-          }
-        },
-      })
     }
     .width('100%')
     .alignItems(VerticalAlign.Center)
-    .padding({ top: ThemeConstants.SPACE_MD, bottom: ThemeConstants.SPACE_MD })
-    .opacity(chapter.isRead ? 0.68 : 1)
+    .padding({ top: ThemeConstants.SPACE_SM, bottom: ThemeConstants.SPACE_SM, left: ThemeConstants.SPACE_SM, right: ThemeConstants.SPACE_SM })
+    .onClick(() => {
+      this.onOpenChapter(chapter.id)
+    })
+    .bindContextMenu(this.ReadStateMenu(chapter), ResponseType.LongPress)
   }
 
   build() {
@@ -607,7 +557,7 @@ export struct ChapterListSection {
 
           Column() {
             KomaIconButton({
-              icon: $r('sys.symbol.dot_grid_2x2'),
+              icon: $r('sys.symbol.more'),
               kind: 'secondary',
               controlSize: ThemeConstants.TOUCH_TARGET_SM,
               iconSize: ThemeConstants.FONT_SIZE_H3,
