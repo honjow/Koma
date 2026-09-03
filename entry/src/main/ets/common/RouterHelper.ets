@@ -55,6 +55,10 @@ export class RouterHelper {
   }
 
   static openLaunchRoute(routeName: string): void {
+    if (routeName === RouteName.READER) {
+      RouterHelper.pushReader()
+      return
+    }
     const stack = RouterHelper.appPathStack
     if (stack === undefined) {
       RouterHelper.pendingLaunchRoute = routeName
@@ -80,6 +84,7 @@ export class RouterHelper {
     }
     const stack = RouterHelper.appPathStack
     if (stack === undefined) {
+      RouterHelper.pendingLaunchRoute = RouteName.READER
       return
     }
     stack.pushPath({ name: RouteName.READER })

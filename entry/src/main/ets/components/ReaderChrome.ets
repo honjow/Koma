@@ -105,7 +105,7 @@ export struct ReaderChrome {
 
   private barHeight(): number {
     return this.placement === 'top'
-      ? this.topInset + 72
+      ? this.topInset + 56
       : this.bottomInset + 104 + (this.thumbStripVisible ? 156 : 0)
   }
 
@@ -597,51 +597,44 @@ export struct ReaderChrome {
 
   @Builder
   private TopBar() {
-    Stack({ alignContent: Alignment.Center }) {
-      Row() {
-        Button({ type: ButtonType.Circle, stateEffect: true }) { SymbolGlyph($r('sys.symbol.chevron_left')).fontSize(22).fontColor([Color.White]) }
-          .width(44).height(44).backgroundColor(Color.Transparent).onClick(() => { this.onCloseReader() })
-          .bindSheet($$this.imageInfoShown, this.ImageInfoSheet, {
-            detents: [SheetSize.MEDIUM],
-            showClose: false,
-            enableOutsideInteractive: false,
-            scrollSizeMode: ScrollSizeMode.CONTINUOUS,
-            enableFloatingDragBar: true,
-            onDisappear: () => { this.imageInfoShown = false },
-          })
-        Blank().layoutWeight(1)
-        Button({ type: ButtonType.Circle, stateEffect: true }) { SymbolGlyph($r('sys.symbol.gearshape')).fontSize(22).fontColor([Color.White]) }
-          .width(44).height(44).backgroundColor(Color.Transparent)
-          .onClick(() => { this.settingsShown = true })
-          .bindSheet($$this.settingsShown, this.ReaderSettingsSheet, {
-            detents: [SheetSize.MEDIUM, SheetSize.LARGE],
-            showClose: false,
-            enableOutsideInteractive: false,
-            scrollSizeMode: ScrollSizeMode.CONTINUOUS,
-            enableFloatingDragBar: true,
-            onDisappear: () => { this.closeSettings() },
-          })
-        Button({ type: ButtonType.Circle, stateEffect: true }) { SymbolGlyph($r('sys.symbol.dot_grid_2x2')).fontSize(22).fontColor([Color.White]) }
-          .width(44).height(44).backgroundColor(Color.Transparent).accessibilityText(s('common_more_actions'))
-          .onClick(() => { this.moreShown = true })
-          .bindMenu(this.moreShown, this.MoreMenu, { placement: Placement.BottomRight, onDisappear: () => { this.moreShown = false } })
+    Row() {
+      Button({ type: ButtonType.Circle, stateEffect: true }) {
+        SymbolGlyph($r('sys.symbol.chevron_left')).fontSize(22).fontColor([Color.White])
       }
-      .width('100%').height(56).padding({ left: ThemeConstants.SPACE_SM, right: ThemeConstants.SPACE_SM }).alignItems(VerticalAlign.Center)
-      Column({ space: 1 }) {
+      .width(44)
+      .height(44)
+      .backgroundColor(Color.Transparent)
+      .onClick(() => { this.onCloseReader() })
+      .bindSheet($$this.imageInfoShown, this.ImageInfoSheet, {
+        detents: [SheetSize.MEDIUM],
+        showClose: false,
+        enableOutsideInteractive: false,
+        scrollSizeMode: ScrollSizeMode.CONTINUOUS,
+        enableFloatingDragBar: true,
+        onDisappear: () => { this.imageInfoShown = false },
+      })
+
+      Column({ space: 2 }) {
         Text(this.title.length > 0 ? this.title : s('reader_title_default'))
-          .fontSize(13)
+          .fontSize(14)
+          .fontWeight(FontWeight.Medium)
           .fontColor(Color.White)
           .maxLines(2)
           .textOverflow({ overflow: TextOverflow.Ellipsis })
           .lineBreakStrategy(LineBreakStrategy.BALANCED)
           .textAlign(TextAlign.Start)
           .width('100%')
+
         Row({ space: ThemeConstants.SPACE_XS }) {
           Text(this.pageText())
             .fontSize(11)
             .fontColor('#CCFFFFFF')
             .maxLines(1)
-          Text('·').fontSize(11).fontColor('#CCFFFFFF')
+            .flexShrink(0)
+          Text('·')
+            .fontSize(11)
+            .fontColor('#CCFFFFFF')
+            .flexShrink(0)
           Text(this.chapterTitleText())
             .fontSize(11)
             .fontColor('#CCFFFFFF')
@@ -653,9 +646,50 @@ export struct ReaderChrome {
         .width('100%')
         .alignItems(VerticalAlign.Center)
       }
-      .width('54%').hitTestBehavior(HitTestMode.None)
+      .layoutWeight(1)
+      .padding({ left: ThemeConstants.SPACE_XS, right: ThemeConstants.SPACE_SM })
+      .alignItems(HorizontalAlign.Start)
+
+      Row({ space: ThemeConstants.SPACE_XS }) {
+        Button({ type: ButtonType.Circle, stateEffect: true }) {
+          SymbolGlyph($r('sys.symbol.gearshape')).fontSize(22).fontColor([Color.White])
+        }
+        .width(44)
+        .height(44)
+        .backgroundColor(Color.Transparent)
+        .onClick(() => { this.settingsShown = true })
+        .bindSheet($$this.settingsShown, this.ReaderSettingsSheet, {
+          detents: [SheetSize.MEDIUM, SheetSize.LARGE],
+          showClose: false,
+          enableOutsideInteractive: false,
+          scrollSizeMode: ScrollSizeMode.CONTINUOUS,
+          enableFloatingDragBar: true,
+          onDisappear: () => { this.closeSettings() },
+        })
+
+        Button({ type: ButtonType.Circle, stateEffect: true }) {
+          SymbolGlyph($r('sys.symbol.dot_grid_2x2')).fontSize(22).fontColor([Color.White])
+        }
+        .width(44)
+        .height(44)
+        .backgroundColor(Color.Transparent)
+        .accessibilityText(s('common_more_actions'))
+        .onClick(() => { this.moreShown = true })
+        .bindMenu(this.moreShown, this.MoreMenu, {
+          placement: Placement.BottomRight,
+          onDisappear: () => { this.moreShown = false },
+        })
+      }
     }
-    .width('100%').height(this.topInset + 72).padding({ top: this.topInset }).backgroundColor('#CC000000').hitTestBehavior(HitTestMode.Default)
+    .width('100%')
+    .height(this.topInset + 56)
+    .padding({
+      top: this.topInset,
+      left: ThemeConstants.SPACE_SM,
+      right: ThemeConstants.SPACE_SM,
+    })
+    .backgroundColor('#CC000000')
+    .hitTestBehavior(HitTestMode.Default)
   }
 
   @Builder

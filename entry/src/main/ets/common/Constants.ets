@@ -37,6 +37,7 @@ export const KOMA_LAUNCH_ROUTE_LIBRARY_UPDATE_RESULTS: string = 'library_update_
 export const KOMA_LAUNCH_ROUTE_DOWNLOADS: string = 'downloads'
 export const KOMA_LAUNCH_ROUTE_SOURCE_PACKAGE_MANAGER: string = 'source_package_manager'
 export const KOMA_LAUNCH_ROUTE_TRACKER_SETTINGS: string = 'tracker_settings'
+export const KOMA_LAUNCH_ROUTE_READER: string = 'reader'
 
 export function tabLabel(index: number): string {
   if (index === TabIndex.LIBRARY) {

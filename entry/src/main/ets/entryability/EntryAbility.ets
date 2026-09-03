@@ -4,6 +4,7 @@ import {
   KOMA_LAUNCH_ROUTE_DOWNLOADS,
   KOMA_LAUNCH_ROUTE_LIBRARY_UPDATE_RESULTS,
   KOMA_LAUNCH_ROUTE_PARAM,
+  KOMA_LAUNCH_ROUTE_READER,
   KOMA_LAUNCH_ROUTE_SOURCE_PACKAGE_MANAGER,
   KOMA_LAUNCH_ROUTE_TRACKER_SETTINGS,
 } from '../common/Constants'
@@ -20,7 +21,7 @@ import { LanguageSettings } from '../i18n/LanguageSettings'
 
 const TRANSPARENT_COLOR: string = '#00FFFFFF'
 const ENTRY_PAGE: string = 'pages/Index'
-const FALLBACK_TOP_AVOID: number = 107
+const FALLBACK_TOP_AVOID: number = 40
 const FALLBACK_BOTTOM_AVOID: number = 0
 
 export default class EntryAbility extends UIAbility {
@@ -87,10 +88,7 @@ export default class EntryAbility extends UIAbility {
           LayoutSafeAreaBridge.publishKeyboardHeight(uiContext.px2vp(data.area.bottomRect.height))
           return
         }
-        if (data.type === window.AvoidAreaType.TYPE_SYSTEM ||
-          data.type === window.AvoidAreaType.TYPE_NAVIGATION_INDICATOR) {
-          this.publishAvoidHeights(win)
-        }
+        this.publishAvoidHeights(win)
       })
       // Keyboard avoid-area notifications are not delivered consistently by
       // this device while the window is resized.  The Window keyboard-height
@@ -111,19 +109,39 @@ export default class EntryAbility extends UIAbility {
   private publishAvoidHeights(win: window.Window): void {
     try {
       const uiContext = win.getUIContext()
-      const systemArea = win.getWindowAvoidArea(window.AvoidAreaType.TYPE_SYSTEM)
-      const navigationArea = win.getWindowAvoidArea(window.AvoidAreaType.TYPE_NAVIGATION_INDICATOR)
-      const keyboardArea = win.getWindowAvoidArea(window.AvoidAreaType.TYPE_KEYBOARD)
-      LayoutSafeAreaBridge.publishInsets(
-        uiContext.px2vp(systemArea.topRect.height),
-        uiContext.px2vp(navigationArea.bottomRect.height),
+      const top: number = Math.max(
+        this.topHeight(win, uiContext, window.AvoidAreaType.TYPE_SYSTEM),
+        this.topHeight(win, uiContext, window.AvoidAreaType.TYPE_CUTOUT),
       )
+      const bottom: number = Math.max(
+        this.bottomHeight(win, uiContext, window.AvoidAreaType.TYPE_SYSTEM),
+        this.bottomHeight(win, uiContext, window.AvoidAreaType.TYPE_NAVIGATION_INDICATOR),
+        this.bottomHeight(win, uiContext, window.AvoidAreaType.TYPE_SYSTEM_GESTURE),
+      )
+      const keyboardArea = win.getWindowAvoidArea(window.AvoidAreaType.TYPE_KEYBOARD)
+      LayoutSafeAreaBridge.publishInsets(top, bottom)
       LayoutSafeAreaBridge.publishKeyboardHeight(uiContext.px2vp(keyboardArea.bottomRect.height))
     } catch (error) {
       void error
       console.error('[EntryAbility] step=publish_avoid_heights_failed code=avoid_area_failed')
       LayoutSafeAreaBridge.publishInsets(FALLBACK_TOP_AVOID, FALLBACK_BOTTOM_AVOID)
       LayoutSafeAreaBridge.publishKeyboardHeight(0)
+    }
+  }
+
+  private topHeight(win: window.Window, uiCtx: UIContext, type: window.AvoidAreaType): number {
+    try {
+      return uiCtx.px2vp(win.getWindowAvoidArea(type).topRect.height)
+    } catch (_error) {
+      return 0
+    }
+  }
+
+  private bottomHeight(win: window.Window, uiCtx: UIContext, type: window.AvoidAreaType): number {
+    try {
+      return uiCtx.px2vp(win.getWindowAvoidArea(type).bottomRect.height)
+    } catch (_error) {
+      return 0
     }
   }
 
@@ -153,6 +171,8 @@ export default class EntryAbility extends UIAbility {
       RouterHelper.pushSourcePackageManager()
     } else if (route === KOMA_LAUNCH_ROUTE_TRACKER_SETTINGS) {
       RouterHelper.pushTrackerSettings()
+    } else if (route === KOMA_LAUNCH_ROUTE_READER) {
+      RouterHelper.pushReader()
     }
   }
 }
