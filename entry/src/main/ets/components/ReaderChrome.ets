@@ -97,6 +97,24 @@ export struct ReaderChrome {
   @Local private imageInfoShown: boolean = false
   @Local private chapterPickerShown: boolean = false
   @Local private chapterPickerTarget: number = -1
+  private chapterPickerScroller: Scroller = new Scroller()
+
+  @Builder
+  private ChapterSelectedCheckmark() {
+    SymbolGlyph($r('sys.symbol.checkmark'))
+      .fontSize(16)
+      .fontColor([ThemeConstants.BRAND_PRIMARY])
+      .padding({ right: ThemeConstants.SPACE_MD })
+  }
+
+  @Monitor('chapterPickerShown')
+  private onChapterPickerVisibilityChanged(): void {
+    if (this.chapterPickerShown && this.chapterIndex >= 0) {
+      setTimeout(() => {
+        this.chapterPickerScroller.scrollToIndex(Math.max(0, this.chapterIndex), true, ScrollAlign.CENTER)
+      }, 120)
+    }
+  }
 
   private pageText(): string {
     const total = Math.max(this.pageTotal, 0)
@@ -571,27 +589,34 @@ export struct ReaderChrome {
     KomaModalScaffold({
       title: s('reader_control_chapter'),
       modalSurfaceColor: $r('sys.color.ohos_id_color_sub_background'),
+      contentOwnsScrolling: true,
       onClose: () => {
         this.chapterPickerShown = false
       },
     }) {
-      Column() {
-        GroupedListSection() {
-          ForEach(this.chapterPickerIndexes(), (index: number) => {
+      List({ scroller: this.chapterPickerScroller, space: ThemeConstants.SPACE_SM }) {
+        ForEach(this.chapterPickerIndexes(), (index: number) => {
+          ListItem() {
             ConciseListRow({
               title: this.chapterPickerTitle(index),
+              primaryColor: index === this.chapterIndex ? ThemeConstants.BRAND_PRIMARY : undefined,
+              showChevron: index !== this.chapterIndex,
+              suffixBuilderParam: index === this.chapterIndex ? () => {
+                this.ChapterSelectedCheckmark()
+              } : undefined,
               action: () => {
                 this.selectChapterFromPicker(index)
               },
             })
-            if (index + 1 < this.chapterPickerIndexes().length) {
-              ListDivider()
-            }
-          }, (index: number) => `reader-chapter-picker-${index}`)
-        }
+          }
+          .padding({ left: ThemeConstants.SPACE_LG, right: ThemeConstants.SPACE_LG })
+        }, (index: number) => `reader-chapter-picker-${index}`)
       }
       .width('100%')
-      .padding({ left: ThemeConstants.SPACE_LG, right: ThemeConstants.SPACE_LG, top: ThemeConstants.SPACE_SM })
+      .height('100%')
+      .padding({ top: ThemeConstants.SPACE_SM, bottom: ThemeConstants.SPACE_XL })
+      .scrollBar(BarState.Off)
+      .edgeEffect(EdgeEffect.Spring)
     }
   }
 
