@@ -55,6 +55,11 @@ export struct KomaModalScaffold {
       }
       .titleBar({
         enableComponentSafeArea: true,
+        style: {
+          scrollEffectOpts: {
+            enableScrollEffect: false,
+          },
+        },
         content: {
           title: {
             mainTitle: this.title,
