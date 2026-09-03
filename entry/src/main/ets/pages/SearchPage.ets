@@ -3,9 +3,6 @@ import { RouterHelper } from '../common/RouterHelper'
 import { CachedCoverImage, cachedCoverFailureKey } from '../components/CachedCoverImage'
 import { SEARCH_TITLE_BOTTOM_HEIGHT } from '../components/SearchTitleField'
 import { SecondaryListScaffold } from '../components/SecondaryListScaffold'
-import { KomaActionButton } from '../components/ui/KomaActionButton'
-import { ConciseListRow } from '../components/ui/ConciseListRow'
-import { GroupedListSection, ListDivider } from '../components/ui/GroupedListSection'
 import {
   CrossSearchMatchQuality,
   CrossSearchResultItem,
@@ -371,6 +368,11 @@ export struct SearchPage {
     this.consumeChromeQuery()
   }
 
+  @Monitor('chrome.filterRequestSeq')
+  private onChromeFilterRequest(): void {
+    this.sourceFilterMenuOpen = true
+  }
+
   private consumeChromeQuery(): void {
     if (!this.routeActive || !this.sourceFilterLoaded) {
       return
@@ -526,45 +528,11 @@ export struct SearchPage {
         .onClick(() => {
           this.setSourceFilter('private')
         })
-      MenuItem({ content: s('search_filter_source') })
-        .onClick(() => {
-          this.setSourceFilter('source')
-        })
-    }
-  }
-
-  @Builder
-  private SourceFilterBar() {
-    Row() {
-      Text(s('search_filter_label'))
-        .fontSize(ThemeConstants.FONT_SIZE_META)
-        .fontColor(ThemeConstants.TEXT_SECONDARY)
-      Blank()
-      Row({ space: ThemeConstants.SPACE_XS }) {
-        Text(this.sourceFilterLabel())
-          .fontSize(ThemeConstants.FONT_SIZE_BODY)
-          .fontWeight(FontWeight.Medium)
-          .fontColor(this.sourceFilter === 'all' ? ThemeConstants.TEXT_PRIMARY : ThemeConstants.BRAND_PRIMARY)
-          .maxLines(1)
-          .textOverflow({ overflow: TextOverflow.Ellipsis })
-        SymbolGlyph($r('sys.symbol.arrowtriangle_down_fill'))
-          .fontSize(ThemeConstants.FONT_SIZE_CAPTION)
-          .fontColor([ThemeConstants.TEXT_TERTIARY])
+        MenuItem({ content: s('search_filter_source') })
+          .onClick(() => {
+            this.setSourceFilter('source')
+          })
       }
-      .bindMenu(this.sourceFilterMenuOpen, this.SourceFilterMenu(), {
-        placement: Placement.BottomRight,
-        onDisappear: () => {
-          this.sourceFilterMenuOpen = false
-        },
-      })
-      .onClick(() => {
-        this.sourceFilterMenuOpen = true
-      })
-      .height(ThemeConstants.BUTTON_HEIGHT)
-      .padding({ left: ThemeConstants.SPACE_SM, right: ThemeConstants.SPACE_SM })
-    }
-    .width('100%')
-    .alignItems(VerticalAlign.Center)
   }
 
   @Builder
@@ -589,27 +557,6 @@ export struct SearchPage {
 
   @Builder
   private HistoryPanel() {
-    Column({ space: ThemeConstants.SPACE_MD }) {
-      Row() {
-        Text(s('search_recent_title'))
-          .fontSize(ThemeConstants.FONT_SIZE_BODY)
-          .fontWeight(FontWeight.Medium)
-          .fontColor(ThemeConstants.TEXT_SECONDARY)
-          .layoutWeight(1)
-        if (this.history.length > 0) {
-          KomaActionButton({
-            label: s('common_clear'),
-            kind: 'ghost',
-            compact: true,
-            controlHeight: ThemeConstants.ACTION_CHIP_HEIGHT,
-            action: () => {
-              this.confirmClearHistory()
-            },
-          })
-        }
-      }
-      .width('100%')
-
       if (this.historyLoadState === SearchHistoryLoadState.LOADING) {
         Row({ space: ThemeConstants.SPACE_SM }) {
           LoadingProgress()
@@ -635,53 +582,94 @@ export struct SearchPage {
           .backgroundColor(ThemeConstants.CARD)
           .textAlign(TextAlign.Center)
       } else if (this.history.length === 0) {
-        Text(s('search_history_empty'))
-          .width('100%')
-          .fontSize(ThemeConstants.FONT_SIZE_META)
-          .fontColor(ThemeConstants.TEXT_SECONDARY)
-          .padding(ThemeConstants.SPACE_LG)
-          .borderRadius(ThemeConstants.RADIUS_CARD)
-          .backgroundColor(ThemeConstants.CARD)
-          .textAlign(TextAlign.Center)
-      } else {
-        GroupedListSection() {
-          ForEach(this.history, (entry: SearchHistoryEntry, index: number) => {
-            ConciseListRow({
-              title: entry.query,
-              subtitle: this.formatHistoryTime(entry.updatedAt),
-              subtitleMaxLines: 1,
-              showChevron: false,
-              suffixBuilderParam: () => {
-                this.HistoryDeleteButton(entry)
-              },
-              action: () => {
-                this.runHistoryQuery(entry.query)
-              },
-            })
-            if (index < this.history.length - 1) {
-              ListDivider()
-            }
-          }, (entry: SearchHistoryEntry) => `${entry.query}:${entry.updatedAt}`)
+        Column() {
+          Text(s('search_empty_idle_message'))
+            .fontSize(ThemeConstants.FONT_SIZE_BODY)
+            .fontColor(ThemeConstants.TEXT_TERTIARY)
+            .textAlign(TextAlign.Center)
         }
+        .width('100%')
+        .padding({ top: ThemeConstants.SPACE_XXL })
+        .justifyContent(FlexAlign.Center)
+      } else {
+        Column({ space: ThemeConstants.SPACE_SM }) {
+          Row() {
+            Text(s('search_recent_title'))
+              .fontSize(ThemeConstants.FONT_SIZE_BODY)
+              .fontWeight(FontWeight.Medium)
+              .fontColor(ThemeConstants.TEXT_SECONDARY)
+              .layoutWeight(1)
+            Button({ type: ButtonType.Circle, stateEffect: true }) {
+              SymbolGlyph($r('sys.symbol.trash'))
+                .fontSize(ThemeConstants.FONT_SIZE_BODY)
+                .fontColor([ThemeConstants.TEXT_SECONDARY])
+            }
+            .width(ThemeConstants.ACTION_CHIP_HEIGHT)
+            .height(ThemeConstants.ACTION_CHIP_HEIGHT)
+            .backgroundColor(Color.Transparent)
+            .accessibilityText(s('common_clear'))
+            .onClick(() => {
+              this.confirmClearHistory()
+            })
+          }
+          .width('100%')
+          .padding({ left: 4, right: 4, bottom: ThemeConstants.SPACE_XS })
+
+          Flex({ wrap: FlexWrap.Wrap }) {
+            ForEach(this.history, (entry: SearchHistoryEntry) => {
+              Row({ space: ThemeConstants.SPACE_XS }) {
+                Text(entry.query)
+                  .fontSize(ThemeConstants.FONT_SIZE_BODY)
+                  .fontColor(ThemeConstants.TEXT_PRIMARY)
+                  .maxLines(1)
+                  .textOverflow({ overflow: TextOverflow.Ellipsis })
+              }
+              .backgroundColor(ThemeConstants.CARD)
+              .borderRadius(ThemeConstants.RADIUS_ROUND)
+              .padding({
+                left: ThemeConstants.SPACE_MD,
+                right: ThemeConstants.SPACE_MD,
+                top: ThemeConstants.SPACE_SM,
+                bottom: ThemeConstants.SPACE_SM,
+              })
+              .margin({ right: ThemeConstants.SPACE_SM, bottom: ThemeConstants.SPACE_SM })
+              .onClick(() => {
+                this.runHistoryQuery(entry.query)
+              })
+              .gesture(
+                LongPressGesture({ repeat: false, duration: 500 })
+                  .onAction(() => {
+                    this.removeHistoryEntry(entry.query)
+                  })
+              )
+            }, (entry: SearchHistoryEntry) => `${entry.query}:${entry.updatedAt}`)
+          }
+        }
+        .width('100%')
+        .alignItems(HorizontalAlign.Start)
       }
-    }
-    .width('100%')
-    .alignItems(HorizontalAlign.Start)
   }
 
   @Builder
-  private HistoryDeleteButton(entry: SearchHistoryEntry) {
-    Button({ type: ButtonType.Circle, stateEffect: true }) {
-      SymbolGlyph($r('sys.symbol.trash'))
-        .fontSize(ThemeConstants.FONT_SIZE_H2)
-        .fontColor([ThemeConstants.TEXT_SECONDARY])
+  private ActiveFilterBadge() {
+    Row({ space: ThemeConstants.SPACE_XS }) {
+      Text(s('search_filter_label') + ': ' + this.sourceFilterLabel())
+        .fontSize(ThemeConstants.FONT_SIZE_META)
+        .fontColor(ThemeConstants.BRAND_PRIMARY)
+      SymbolGlyph($r('sys.symbol.xmark'))
+        .fontSize(ThemeConstants.FONT_SIZE_CAPTION)
+        .fontColor([ThemeConstants.BRAND_PRIMARY])
     }
-    .width(ThemeConstants.ACTION_CHIP_HEIGHT)
-    .height(ThemeConstants.ACTION_CHIP_HEIGHT)
-    .backgroundColor(Color.Transparent)
-    .accessibilityText(s('common_delete'))
+    .padding({
+      left: ThemeConstants.SPACE_MD,
+      right: ThemeConstants.SPACE_MD,
+      top: ThemeConstants.SPACE_XS,
+      bottom: ThemeConstants.SPACE_XS,
+    })
+    .borderRadius(ThemeConstants.RADIUS_ROUND)
+    .backgroundColor(ThemeConstants.CARD)
     .onClick(() => {
-      this.removeHistoryEntry(entry.query)
+      this.setSourceFilter('all')
     })
   }
 
@@ -831,7 +819,7 @@ export struct SearchPage {
   }
 
   build() {
-    Column() {
+    Stack({ alignContent: Alignment.TopEnd }) {
       SecondaryListScaffold({
         listSpace: ThemeConstants.SPACE_MD,
         horizontalPadding: ThemeConstants.SPACE_XL,
@@ -845,8 +833,10 @@ export struct SearchPage {
             }
             .width('100%')
           }
-          ListItem() {
-            this.SourceFilterBar()
+          if (this.sourceFilter !== 'all') {
+            ListItem() {
+              this.ActiveFilterBadge()
+            }
           }
           if (this.feedbackText.length > 0) {
             ListItem() {
@@ -919,6 +909,18 @@ export struct SearchPage {
             }
           }, (section: CrossSearchSection) => section.id)
       }
+
+      Row()
+        .width(1)
+        .height(1)
+        .margin({ top: ThemeConstants.TITLE_BAR_HEIGHT, right: ThemeConstants.SPACE_MD })
+        .hitTestBehavior(HitTestMode.None)
+        .bindMenu(this.sourceFilterMenuOpen, this.SourceFilterMenu(), {
+          placement: Placement.BottomRight,
+          onDisappear: () => {
+            this.sourceFilterMenuOpen = false
+          },
+        })
     }
     .width('100%')
     .height('100%')

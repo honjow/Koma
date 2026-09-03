@@ -1934,15 +1934,30 @@ struct Index {
   }
 
   private searchTitleBarOpts(param: SearchRouteParam): Record<string, Object> {
+    const chrome = RouterHelper.ensureSearchRouteChrome(param)
     const title: Record<string, Object> = {}
     title['mainTitle'] = AppStrings.get('tab_search')
     const bottomBuilder: Record<string, Object> = {}
-    bottomBuilder['builderComponent'] = this.searchFieldContent(RouterHelper.ensureSearchRouteChrome(param))
+    bottomBuilder['builderComponent'] = this.searchFieldContent(chrome)
     bottomBuilder['height'] = SEARCH_TITLE_BOTTOM_HEIGHT
     bottomBuilder['showType'] = BottomBuilderShowType.DIRECTLY_SHOW
+    const filterContent: Record<string, Object> = {
+      'label': AppStrings.get('search_filter_label'),
+      'icon': $r('sys.symbol.funnel'),
+      'isEnabled': true,
+      'action': () => {
+        chrome.requestFilters()
+      },
+    }
+    const filterItem: Record<string, Object> = {}
+    filterItem['content'] = filterContent
+    const menu: Record<string, Object> = {}
+    menu['value'] = [filterItem]
+    menu['maxCount'] = 1
     const content: Record<string, Object> = {}
     content['title'] = title
     content['bottomBuilder'] = bottomBuilder
+    content['menu'] = menu
     return this.sourceRouteTitleBarOpts(content)
   }
 

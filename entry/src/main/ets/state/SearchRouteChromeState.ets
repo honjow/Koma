@@ -9,6 +9,7 @@ export class SearchRouteChromeState {
   @Trace query: string = ''
   @Trace queryChangeSeq: number = 0
   @Trace querySubmitSeq: number = 0
+  @Trace filterRequestSeq: number = 0
 
   updateQuery(value: string): void {
     this.query = value
@@ -18,5 +19,9 @@ export class SearchRouteChromeState {
   submitQuery(value: string): void {
     this.query = value
     this.querySubmitSeq = this.querySubmitSeq + 1
+  }
+
+  requestFilters(): void {
+    this.filterRequestSeq = this.filterRequestSeq + 1
   }
 }
