@@ -53,7 +53,6 @@ export struct SourceBrowsePage {
   private pendingSourceRuntimeRevision: number = 0
   @Local private filtersShown: boolean = false
   @Local private listingMenuOpen: boolean = false
-  private browseScroller: Scroller = new Scroller()
   private handledFilterRequestSeq: number = 0
   private searchTimer: number = 0
   private handledQueryChangeSeq: number = 0
@@ -477,7 +476,7 @@ export struct SourceBrowsePage {
     if (this.languageState.effectiveLocale.length >= 0) {
       Stack() {
         PullRefreshListScaffold({
-          scroller: this.browseScroller,
+          scroller: this.chrome.scroller,
           listSpace: ThemeConstants.SPACE_MD,
           horizontalPadding: ThemeConstants.SPACE_XL,
           bottomPadding: ThemeConstants.SPACE_XL,

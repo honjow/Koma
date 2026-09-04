@@ -1357,6 +1357,13 @@ struct Index {
       this.disposeSourceBrowseFieldContent(param.chrome)
     })
     .titleBar(this.sourceBrowseTitleBarOpts(param))
+    .dynamicHideTitleBar({
+      hideTitleArea: true,
+      hideBottomBuilder: false,
+      hideStatusBar: false,
+      mode: HideMode.SCROLL_UP,
+    })
+    .bindToScrollable([param.chrome.scroller])
   }
 
   @Builder

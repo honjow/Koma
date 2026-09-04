@@ -8,6 +8,7 @@
 @ObservedV2
 export class SourceBrowseRouteChromeState {
   readonly sourceName: string
+  readonly scroller: Scroller = new Scroller()
   @Trace filtersAvailable: boolean = false
   @Trace filterRequestSeq: number = 0
   @Trace query: string = ''
