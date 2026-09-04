@@ -333,6 +333,11 @@ export struct ReaderChrome {
     this.menuKey = ''
   }
 
+  private isWebtoonLayout(): boolean {
+    return this.readerMode === ReaderMode.CONTINUOUS_SCROLL ||
+      (this.preferences.readingDirection === ReadingDirection.WEBTOON && this.readerMode !== ReaderMode.VERTICAL_PAGE)
+  }
+
   private revealTapZonePreview(): void {
     // Match the reference interaction: applying a zone immediately returns to
     // the reader so the full-screen, one-shot preview is actually visible.
@@ -487,11 +492,15 @@ export struct ReaderChrome {
             ListDivider()
             Column() { ConciseListRow({ title: s('settings_row_reading_direction_title'), trailingText: getReadingDirectionLabel(this.preferences.readingDirection), trailingDropdown: true, action: () => { this.menuKey = 'direction' } }) }.bindMenu(this.menuKey === 'direction', this.DirectionMenu, { onDisappear: () => { this.closeMenus() } })
             ListDivider()
-            Column() { ConciseListRow({ title: s('reader_spread_layout_title'), trailingText: this.preferences.spreadLayoutMode === 'split' ? s('reader_spread_layout_split') : s('reader_spread_layout_joined'), trailingDropdown: true, isEnabled: this.readerMode === ReaderMode.DUAL_PAGE, action: () => { this.menuKey = 'spread' } }) }.bindMenu(this.menuKey === 'spread', this.SpreadLayoutMenu, { onDisappear: () => { this.closeMenus() } })
-            ListDivider()
-            Column() { ConciseListRow({ title: s('reader_column_mode_title'), trailingText: this.preferences.columnMode === 'even_left' ? s('reader_column_mode_even_left') : s('reader_column_mode_odd_left'), trailingDropdown: true, isEnabled: this.readerMode === ReaderMode.DUAL_PAGE, action: () => { this.menuKey = 'column' } }) }.bindMenu(this.menuKey === 'column', this.ColumnModeMenu, { onDisappear: () => { this.closeMenus() } })
-            ListDivider()
-            ConciseListRow({ title: s('reader_page_turn_animation_title'), hasSwitch: true, checked: this.preferences.pageTurnAnimation, showChevron: false, switchAction: (value: boolean) => { this.setToggle('page-animation', value) } })
+            if (this.readerMode === ReaderMode.DUAL_PAGE) {
+              Column() { ConciseListRow({ title: s('reader_spread_layout_title'), trailingText: this.preferences.spreadLayoutMode === 'split' ? s('reader_spread_layout_split') : s('reader_spread_layout_joined'), trailingDropdown: true, action: () => { this.menuKey = 'spread' } }) }.bindMenu(this.menuKey === 'spread', this.SpreadLayoutMenu, { onDisappear: () => { this.closeMenus() } })
+              ListDivider()
+              Column() { ConciseListRow({ title: s('reader_column_mode_title'), trailingText: this.preferences.columnMode === 'even_left' ? s('reader_column_mode_even_left') : s('reader_column_mode_odd_left'), trailingDropdown: true, action: () => { this.menuKey = 'column' } }) }.bindMenu(this.menuKey === 'column', this.ColumnModeMenu, { onDisappear: () => { this.closeMenus() } })
+              ListDivider()
+            }
+            if (!this.isWebtoonLayout()) {
+              ConciseListRow({ title: s('reader_page_turn_animation_title'), hasSwitch: true, checked: this.preferences.pageTurnAnimation, showChevron: false, switchAction: (value: boolean) => { this.setToggle('page-animation', value) } })
+            }
           }
           SectionHeader({ title: s('settings_reader_group_tap_zones') })
           GroupedListSection() {
@@ -503,8 +512,10 @@ export struct ReaderChrome {
           GroupedListSection() {
             Column() { ConciseListRow({ title: s('settings_row_reader_background_title'), trailingText: getReaderBackgroundModeLabel(this.preferences.backgroundMode), trailingDropdown: true, action: () => { this.menuKey = 'background' } }) }.bindMenu(this.menuKey === 'background', this.BackgroundMenu, { onDisappear: () => { this.closeMenus() } })
             ListDivider()
-            Column() { ConciseListRow({ title: s('settings_row_reader_image_fit_title'), trailingText: getReaderImageFitModeLabel(this.preferences.imageFitMode), trailingDropdown: true, action: () => { this.menuKey = 'fit' } }) }.bindMenu(this.menuKey === 'fit', this.ImageFitMenu, { onDisappear: () => { this.closeMenus() } })
-            ListDivider()
+            if (!this.isWebtoonLayout()) {
+              Column() { ConciseListRow({ title: s('settings_row_reader_image_fit_title'), trailingText: getReaderImageFitModeLabel(this.preferences.imageFitMode), trailingDropdown: true, action: () => { this.menuKey = 'fit' } }) }.bindMenu(this.menuKey === 'fit', this.ImageFitMenu, { onDisappear: () => { this.closeMenus() } })
+              ListDivider()
+            }
             Column() { ConciseListRow({ title: s('reader_image_scaling_quality_title'), trailingText: this.scalingQualityLabel(), trailingDropdown: true, action: () => { this.menuKey = 'scaling' } }) }.bindMenu(this.menuKey === 'scaling', this.ScalingQualityMenu, { onDisappear: () => { this.closeMenus() } })
             ListDivider()
             ConciseListRow({ title: s('reader_show_page_number_title'), hasSwitch: true, checked: this.preferences.showPageNumber, showChevron: false, switchAction: (value: boolean) => { this.setToggle('page-number', value) } })
@@ -527,9 +538,11 @@ export struct ReaderChrome {
           GroupedListSection() {
             Column() { ConciseListRow({ title: s('settings_row_reader_page_gap_title'), trailingText: getReaderPageGapModeLabel(this.preferences.pageGapMode), trailingDropdown: true, action: () => { this.menuKey = 'gap' } }) }.bindMenu(this.menuKey === 'gap', this.GapMenu, { onDisappear: () => { this.closeMenus() } })
             ListDivider()
-            Column() { ConciseListRow({ title: s('settings_row_reader_wide_image_mode_title'), trailingText: getReaderWideImageModeLabel(this.preferences.wideImageMode), trailingDropdown: true, action: () => { this.menuKey = 'wide' } }) }.bindMenu(this.menuKey === 'wide', this.WideMenu, { onDisappear: () => { this.closeMenus() } })
-            ListDivider()
-            ConciseListRow({ title: s('settings_row_reader_trim_page_margins_title'), hasSwitch: true, checked: this.preferences.trimPageMarginsEnabled, showChevron: false, switchAction: (value: boolean) => { this.setToggle('trim-margins', value) } })
+            if (!this.isWebtoonLayout()) {
+              Column() { ConciseListRow({ title: s('settings_row_reader_wide_image_mode_title'), trailingText: getReaderWideImageModeLabel(this.preferences.wideImageMode), trailingDropdown: true, action: () => { this.menuKey = 'wide' } }) }.bindMenu(this.menuKey === 'wide', this.WideMenu, { onDisappear: () => { this.closeMenus() } })
+              ListDivider()
+              ConciseListRow({ title: s('settings_row_reader_trim_page_margins_title'), hasSwitch: true, checked: this.preferences.trimPageMarginsEnabled, showChevron: false, switchAction: (value: boolean) => { this.setToggle('trim-margins', value) } })
+            }
           }
         Blank().height(ThemeConstants.SPACE_XL)
       }

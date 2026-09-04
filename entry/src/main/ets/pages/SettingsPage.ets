@@ -191,6 +191,19 @@ function s(name: string): string {
   return AppStrings.get(name)
 }
 
+// Rows that only apply to paged reading layouts; hidden when the current
+// layout is webtoon/continuous scroll (see isReaderWebtoonLayout).
+const READER_PAGED_ROW_KEYS: string[] = [
+  'reader-spread-layout',
+  'reader-page-animation',
+  'reader-auto-page',
+  'reader-image-fit',
+  'reader-tap-zone-preset',
+  'reader-tap-zone-invert',
+  'reader-trim-page-margins',
+  'reader-wide-image-mode',
+]
+
 function createSettingsSections(): SettingsSection[] {
   return [
     {
@@ -772,7 +785,26 @@ export struct SettingsPage {
       ]
     }
     if (pane === 'reader') {
-      return this.sectionsByKeys(['reader'])
+      if (!this.isReaderWebtoonLayout()) {
+        return this.sectionsByKeys(['reader'])
+      }
+      const sections = this.sectionsByKeys(['reader'])
+      const result: SettingsSection[] = []
+      sections.forEach((section: SettingsSection) => {
+        const rows: SettingsRow[] = []
+        section.rows.forEach((row: SettingsRow) => {
+          if (!READER_PAGED_ROW_KEYS.includes(row.key)) {
+            rows.push(row)
+          }
+        })
+        const filtered: SettingsSection = {
+          key: section.key,
+          titleKey: section.titleKey,
+          rows: rows,
+        }
+        result.push(filtered)
+      })
+      return result
     }
     if (pane === 'services') {
       return [
@@ -860,6 +892,11 @@ export struct SettingsPage {
 
   private isSettingsSearchActive(): boolean {
     return this.pane === 'root' && this.normalizedSettingsSearchText().length > 0
+  }
+
+  private isReaderWebtoonLayout(): boolean {
+    return this.pageMode === 'continuous_scroll' ||
+      (this.readingDirection === ReadingDirection.WEBTOON && this.pageMode !== 'vertical_page')
   }
 
   private settingsSearchResults(): SettingsSearchResult[] {
@@ -2638,7 +2675,7 @@ export struct SettingsPage {
     Column({ space: ThemeConstants.SPACE_LG }) {
       ForEach(this.paneSections(), (section: SettingsSection) => {
         this.Section(section)
-      }, (section: SettingsSection) => section.key)
+      }, (section: SettingsSection) => `${section.key}-${section.rows.length}`)
     }
     .width('100%')
   }
@@ -2681,7 +2718,7 @@ export struct SettingsPage {
           }
         }, (row: SettingsRow) => row.key)
       }
-      if (section.key === 'reader') {
+      if (section.key === 'reader' && !this.isReaderWebtoonLayout()) {
         this.ReaderTapZonePreview()
       }
     }
