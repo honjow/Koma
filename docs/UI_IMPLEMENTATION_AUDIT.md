@@ -76,6 +76,18 @@
 - 疑点：三处渲染器（SettingsPage.ReaderTapZonePreview:2551、ReaderPage.TapZonePreview:2831、ReaderPage 实际点击命中:2299）容器比例不同（设置页为固定方形预览，阅读页为真实视口），1/3 分区在不同宽高比下视觉形状不同；阅读方向/条漫模式对命中区的影响预览未体现。
 - 动作：197 上对比设置预览与阅读页 overlay 截图后再决定是统一渲染组件还是调整预览容器比例。
 
+## R1/R2 阅读器退化（用户报告，2026-09-05）
+
+### R1 双击缩放动效丢失且闪缩放（P1）
+
+- 现象：双击缩放直接跳变，无 180ms 动效，过程闪缩放。
+- 已定位一半：双击路径 `beginZoomAnimation()` 置 `zoomAnimating`（180+24ms）门控 ReaderImage 的 `.animation` duration；routeTaps（webtoon/List）分支走 `commitContinuousTransformAfterAnimation` 延迟提交，其注释自认「committing it sooner remounts this row and cuts the reset animation short」——该提交管线存在重挂载裁切动画的前科。
+- 动作：通读 ReaderPage 渲染管线（renderTransform/gesture scale/routeTaps 提交时序），修复后按录屏分帧验证动画连续。
+
+### R2 页码指示器文字阴影缺失（P2）
+
+- 现象：底栏页码文字无阴影。Koma 全代码库与 NextE feature/reader 均未检索到 textShadow——阴影出处待进一步定位（可能为早期版本或阅读器 chrome 其他属性），定位后补齐。
+
 ## 附：其他排查中发现的静态疑点（待逐项确认）
 
 - AppearancePreferences 无深色字段（见 A3）。
