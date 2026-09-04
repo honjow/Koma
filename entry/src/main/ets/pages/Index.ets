@@ -27,6 +27,7 @@ import { MangaDetailPage } from './MangaDetailPage'
 import { SourceBrowsePage } from './SourceBrowsePage'
 import { SourceSearchPage } from './SourceSearchPage'
 import { SOURCE_SEARCH_TITLE_BOTTOM_HEIGHT, SourceSearchTitleFieldContentBuilder } from '../components/SourceSearchTitleField'
+import { SOURCE_BROWSE_TITLE_BOTTOM_HEIGHT, SourceBrowseTitleFieldContentBuilder } from '../components/SourceBrowseTitleField'
 import { KomgaSeriesPage, KomgaSeriesRouteParam } from './KomgaSeriesPage'
 import { KavitaBrowsePage, KavitaBrowseRouteParam } from './KavitaBrowsePage'
 import { OpdsBrowsePage, OpdsBrowseRouteParam } from './OpdsBrowsePage'
@@ -123,7 +124,7 @@ import { connectLanguageState, LanguageState } from '../state/LanguageState'
 import { connectLayoutSafeArea, LayoutSafeAreaState } from '../state/LayoutSafeAreaState'
 import { BackupService, BackupAutomaticRunResult } from '../model/BackupService'
 import { TrackerPendingProgressDrainSummary, TrackerProgressSyncService } from '../model/TrackerProgressSyncService'
-import { SourceSearchRouteChromeState } from '../state/SourceRouteChromeState'
+import { SourceBrowseRouteChromeState, SourceSearchRouteChromeState } from '../state/SourceRouteChromeState'
 import { SearchRouteChromeState } from '../state/SearchRouteChromeState'
 
 const readerSessionStore: ReaderSessionStore = new InMemoryReaderSessionStore()
@@ -165,6 +166,7 @@ struct Index {
   private appPathStack: NavPathStack = new NavPathStack()
   private searchFieldContents: Map<SearchRouteChromeState, ComponentContent<SearchRouteChromeState>> = new Map()
   private sourceSearchFieldContents: Map<SourceSearchRouteChromeState, ComponentContent<SourceSearchRouteChromeState>> = new Map()
+  private sourceBrowseFieldContents: Map<SourceBrowseRouteChromeState, ComponentContent<SourceBrowseRouteChromeState>> = new Map()
   private readonly localImportCoordinator: LocalImportCoordinator = new LocalImportCoordinator()
   private libraryPersistenceService?: LibraryStorePersistenceService
   private readerSessionPersistenceReady: boolean = false
@@ -1351,6 +1353,9 @@ struct Index {
         },
       })
     }
+    .onDisAppear(() => {
+      this.disposeSourceBrowseFieldContent(param.chrome)
+    })
     .titleBar(this.sourceBrowseTitleBarOpts(param))
   }
 
@@ -1925,6 +1930,31 @@ struct Index {
     }
   }
 
+  private browseFieldContent(chrome: SourceBrowseRouteChromeState): ComponentContent<SourceBrowseRouteChromeState> {
+    const existing = this.sourceBrowseFieldContents.get(chrome)
+    if (existing !== undefined && !existing.isDisposed()) {
+      return existing
+    }
+    if (existing !== undefined) {
+      this.sourceBrowseFieldContents.delete(chrome)
+    }
+    const content = new ComponentContent<SourceBrowseRouteChromeState>(
+      this.getUIContext(),
+      wrapBuilder<[SourceBrowseRouteChromeState]>(SourceBrowseTitleFieldContentBuilder),
+      chrome,
+    )
+    this.sourceBrowseFieldContents.set(chrome, content)
+    return content
+  }
+
+  private disposeSourceBrowseFieldContent(chrome: SourceBrowseRouteChromeState): void {
+    const content = this.sourceBrowseFieldContents.get(chrome)
+    this.sourceBrowseFieldContents.delete(chrome)
+    if (content !== undefined && !content.isDisposed()) {
+      content.dispose()
+    }
+  }
+
   private searchTitleBarOpts(param: SearchRouteParam): Record<string, Object> {
     const chrome = RouterHelper.ensureSearchRouteChrome(param)
     const title: Record<string, Object> = {}
@@ -1960,6 +1990,11 @@ struct Index {
     title['mainTitle'] = source.displayName
     const content: Record<string, Object> = {}
     content['title'] = title
+    const bottomBuilder: Record<string, Object> = {}
+    bottomBuilder['builderComponent'] = this.browseFieldContent(chrome)
+    bottomBuilder['height'] = SOURCE_BROWSE_TITLE_BOTTOM_HEIGHT
+    bottomBuilder['showType'] = BottomBuilderShowType.DIRECTLY_SHOW
+    content['bottomBuilder'] = bottomBuilder
     if (chrome.filtersAvailable) {
       const filterContent: Record<string, Object> = {}
       filterContent['label'] = AppStrings.get('common_filter')

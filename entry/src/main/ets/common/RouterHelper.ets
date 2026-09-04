@@ -140,7 +140,7 @@ export class RouterHelper {
     }
     const routeParam: SourceBrowseRouteParam = {
       source: param.source,
-      chrome: new SourceBrowseRouteChromeState(),
+      chrome: new SourceBrowseRouteChromeState(param.source.displayName),
     }
     stack.pushPath({ name: RouteName.SOURCE_BROWSE, param: routeParam })
   }

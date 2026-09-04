@@ -1,4 +1,5 @@
 import { SourceMangaGrid } from '../components/SourceMangaGrid'
+import { SOURCE_BROWSE_TITLE_BOTTOM_HEIGHT } from '../components/SourceBrowseTitleField'
 import { KomaActionButton } from '../components/ui/KomaActionButton'
 import { KomaEmptyState } from '../components/ui/KomaEmptyState'
 import { PullRefreshListScaffold } from '../components/PullRefreshListScaffold'
@@ -54,6 +55,9 @@ export struct SourceBrowsePage {
   @Local private listingMenuOpen: boolean = false
   private browseScroller: Scroller = new Scroller()
   private handledFilterRequestSeq: number = 0
+  private searchTimer: number = 0
+  private handledQueryChangeSeq: number = 0
+  private handledQuerySubmitSeq: number = 0
   @Event onSearchRequested: (source: SourceRuntimeRegistryInstalledSourceSummary) => void =
     (_source: SourceRuntimeRegistryInstalledSourceSummary) => {}
   @Event onMangaTap: (manga: SourceManga) => void = (_manga: SourceManga) => {}
@@ -85,6 +89,62 @@ export struct SourceBrowsePage {
   private isBlockingBrowseLoading(): boolean {
     return this.viewModel.browseContentState === BrowseContentState.UNRESOLVED ||
       this.viewModel.browseContentState === BrowseContentState.LOADING
+  }
+
+  private isSearchActive(): boolean {
+    return this.viewModel.searchQuery.trim().length > 0
+  }
+
+  private clearPendingSearchTimer(): void {
+    if (this.searchTimer !== 0) {
+      clearTimeout(this.searchTimer)
+      this.searchTimer = 0
+    }
+  }
+
+  private scheduleBrowseSearch(value: string): void {
+    this.clearPendingSearchTimer()
+    if (value.trim().length === 0) {
+      this.viewModel.clearSearch(this.currentSource())
+      return
+    }
+    this.searchTimer = setTimeout(() => {
+      void this.viewModel.runSearch(this.currentSource(), value)
+      this.searchTimer = 0
+    }, 300)
+  }
+
+  private submitBrowseSearch(value: string): void {
+    this.clearPendingSearchTimer()
+    if (value.trim().length === 0) {
+      this.viewModel.clearSearch(this.currentSource())
+      return
+    }
+    void this.viewModel.runSearch(this.currentSource(), value)
+  }
+
+  @Monitor('chrome.queryChangeSeq')
+  private handleTitleQueryChange(): void {
+    const requestSeq = this.chrome.queryChangeSeq
+    if (requestSeq <= this.handledQueryChangeSeq) {
+      return
+    }
+    this.handledQueryChangeSeq = requestSeq
+    this.scheduleBrowseSearch(this.chrome.query)
+  }
+
+  @Monitor('chrome.querySubmitSeq')
+  private handleTitleQuerySubmit(): void {
+    const requestSeq = this.chrome.querySubmitSeq
+    if (requestSeq <= this.handledQuerySubmitSeq) {
+      return
+    }
+    this.handledQuerySubmitSeq = requestSeq
+    this.submitBrowseSearch(this.chrome.query)
+  }
+
+  aboutToDisappear(): void {
+    this.clearPendingSearchTimer()
   }
 
   private shouldLoadBrowseOnAppear(): boolean {
@@ -422,14 +482,55 @@ export struct SourceBrowsePage {
           horizontalPadding: ThemeConstants.SPACE_XL,
           bottomPadding: ThemeConstants.SPACE_XL,
           reserveTitleBar: true,
+          topPadding: SOURCE_BROWSE_TITLE_BOTTOM_HEIGHT,
           onRefresh: async () => {
-            await this.refreshBrowse()
+            if (this.isSearchActive()) {
+              await this.viewModel.runSearch(this.currentSource(), this.viewModel.searchQuery)
+            } else {
+              await this.refreshBrowse()
+            }
           },
           onReachEnd: () => {
-            void this.viewModel.loadMoreBrowse()
+            if (this.isSearchActive()) {
+              void this.viewModel.loadMoreSearch()
+            } else {
+              void this.viewModel.loadMoreBrowse()
+            }
           },
         }) {
-          if (!this.isBlockingBrowseLoading()) {
+          if (this.isSearchActive()) {
+            if (this.viewModel.loadingSearch && this.viewModel.searchResults.length === 0) {
+              ListItem() {
+                this.LoadingBrowseState()
+              }
+            } else if (this.viewModel.searchResults.length === 0) {
+              ListItem() {
+                KomaEmptyState({
+                  title: s('source_search_empty_results_title'),
+                  message: this.viewModel.errorMessage.length > 0
+                    ? this.viewModel.errorMessage
+                    : s('source_search_empty_results_message'),
+                })
+              }
+            } else {
+              ListItem() {
+                this.MangaGrid(this.viewModel.searchResults)
+              }
+              if (this.viewModel.hasMoreSearch) {
+                ListItem() {
+                  KomaActionButton({
+                    label: s('common_load_more'),
+                    kind: 'secondary',
+                    fill: true,
+                    isEnabled: !this.viewModel.loadingSearch,
+                    action: () => {
+                      void this.viewModel.loadMoreSearch()
+                    },
+                  })
+                }
+              }
+            }
+          } else if (!this.isBlockingBrowseLoading()) {
             if (this.viewModel.browseContentState === BrowseContentState.ERROR && !this.hasBrowseContent()) {
               ListItem() {
                 this.BrowseErrorState()
@@ -473,7 +574,7 @@ export struct SourceBrowsePage {
             }
           }
         }
-        if (this.isBlockingBrowseLoading()) {
+        if (this.isBlockingBrowseLoading() && !this.isSearchActive()) {
           this.BlockingBrowseLoadingOverlay()
         }
       }
