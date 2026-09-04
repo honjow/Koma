@@ -164,7 +164,7 @@ const SOURCE_RUNTIME_SMOKE_RESULT_FILE_NAME: string = 'source-runtime-smoke-resu
 const PACKAGE_ICON_SMOKE_MARKER_FILE_NAME: string = 'source-package-icon-smoke-owned.v1'
 const LOCAL_LIBRARY_FOLDER_SMOKE_ROOT: string = 'import/local-library-folder-smoke-root/extract'
 const LOCAL_LIBRARY_FOLDER_SMOKE_PAGE_BASE64: string = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAFgwJ/lWnzWQAAAABJRU5ErkJggg=='
-const READER_WIDE_SPLIT_SMOKE_IMAGE_PATH: string = 'import/reader-wide-split-fixture/extract/wide-split-fixture.png'
+const READER_WIDE_SPLIT_SMOKE_IMAGE_PATH: string = 'smoke/reader-wide-split-fixture/wide-split-fixture.png'
 const REAL_SOURCE_RAWFILE_PATH: string = 'test/baozimh.wasm'
 const MANGADEX_RAWFILE_PATH: string = 'test/mangadex.wasm'
 const REAL_SOURCE_SEARCH_REQUEST: string = '{"operation":"search","query":"test"}'

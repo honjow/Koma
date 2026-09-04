@@ -44,6 +44,13 @@ import { ReadingDirection } from '../model/ComicModels'
 import { CoverPixelMapLease, CoverPixelMapMemoryCache } from '../model/CoverPixelMapMemoryCache'
 import { ReaderTapZoneRegion, readerTapZoneRegions, resolveReaderTapZoneAction } from '../model/ReaderTapZoneGeometry'
 import { ReaderPageIndexDataSource } from '../model/ReaderPageIndexDataSource'
+import {
+  buildReaderDisplayPages,
+  ReaderDisplayPage,
+  ReaderDisplayPageDataSource,
+  readerDisplayIndexForPage,
+  ReaderSplitSide,
+} from '../model/ReaderDisplayPageDataSource'
 import { ThemeConstants } from '../theme/ThemeConstants'
 import { AppStrings } from '../i18n/AppStrings'
 import { connectLayoutSafeArea, LayoutSafeAreaState } from '../state/LayoutSafeAreaState'
@@ -111,11 +118,6 @@ function imageInterpolation(quality: string): ImageInterpolation {
   if (quality === 'low') return ImageInterpolation.Low
   if (quality === 'high') return ImageInterpolation.High
   return ImageInterpolation.Medium
-}
-
-interface ReaderDisplayEntry {
-  pageIndex: number
-  splitSide: 'none' | 'left' | 'right'
 }
 
 // Keep the display source on ArkUI's native Image path.  ImageKit PixelMap is
@@ -332,30 +334,25 @@ struct ReaderImageSurface {
     }
   }
 
-  private regionOptions(): image.DecodingOptions | undefined {
-    if (this.splitSide === 'none' || this.sourceWidth === undefined || this.sourceHeight === undefined || this.sourceWidth <= 1 || this.sourceHeight <= 0) {
-      return undefined
-    }
-    const leftWidth = Math.floor(this.sourceWidth / 2)
-    const regionWidth = this.splitSide === 'right' ? this.sourceWidth - leftWidth : leftWidth
-    return { desiredRegion: { size: { width: regionWidth, height: this.sourceHeight }, x: this.splitSide === 'right' ? leftWidth : 0, y: 0 } }
-  }
-
   private publishImageInfo(widthValue?: number, heightValue?: number): void {
-    let width = this.sourceRegionWidth(this.sourceWidth)
-    let height = this.sourceHeight ?? 0
-    if (width <= 0 && widthValue !== undefined) {
-      width = widthValue
+    let sourceWidth = this.sourceWidth ?? 0
+    let sourceHeight = this.sourceHeight ?? 0
+    if (sourceWidth <= 0 && widthValue !== undefined) {
+      sourceWidth = widthValue
     }
-    if (height <= 0 && heightValue !== undefined) {
-      height = heightValue
+    if (sourceHeight <= 0 && heightValue !== undefined) {
+      sourceHeight = heightValue
     }
-    if (width > 0 && height > 0) {
-      this.intrinsicPixelWidth = width
-      this.intrinsicPixelHeight = height
-      this.intrinsicWidth = this.toVp(width)
-      this.intrinsicHeight = this.toVp(height)
-      this.onImageInfo(this.pageIndex, width, height)
+    if (sourceWidth > 0 && sourceHeight > 0) {
+      const displayWidth = this.sourceRegionWidth(sourceWidth)
+      this.intrinsicPixelWidth = displayWidth
+      this.intrinsicPixelHeight = sourceHeight
+      this.intrinsicWidth = this.toVp(displayWidth)
+      this.intrinsicHeight = this.toVp(sourceHeight)
+      // Display geometry may use one half, but the owning page model must
+      // always retain the original decoded dimensions. Publishing a half
+      // width here makes the page stop qualifying as wide on the next build.
+      this.onImageInfo(this.pageIndex, sourceWidth, sourceHeight)
     }
   }
 
@@ -718,20 +715,49 @@ struct ReaderImageSurface {
     this.onFailed(this.pageIndex)
   }
 
+  @Builder
+  private ResolvedImage() {
+    if (this.splitSide === 'none') {
+      Image(this.displayUri)
+        .width('100%')
+        .height('100%')
+        .objectFit(this.fit)
+        .interpolation(imageInterpolation(this.scalingQuality))
+        .rotate({ angle: this.rotateClockwise ? 90 : 0 })
+        .scale({ x: this.zoomScale, y: this.zoomScale })
+        .translate({ x: this.offsetX, y: this.offsetY })
+        .animation({ duration: this.zoomAnimating ? READER_ZOOM_ANIM_DURATION : 0, curve: Curve.FastOutSlowIn })
+        .onComplete((event?: ReaderImageLoadEvent) => { this.onDisplayComplete(event) })
+        .onError(() => { this.onDisplayError() })
+    } else {
+      // Keep the native URI Image path instead of retaining a full-resolution
+      // PixelMap for each half. The inner image is laid out at twice the
+      // selected half's fitted width, shifted so the requested half is
+      // centered, and clipped by a half-page viewport. Zoom/pan belongs to
+      // that viewport, so each split display page has an independent canvas.
+      Stack({ alignContent: Alignment.Center }) {
+        Image(this.displayUri)
+          .width(this.displayWidth() * 2)
+          .height(this.displayHeight())
+          .objectFit(ImageFit.Fill)
+          .interpolation(imageInterpolation(this.scalingQuality))
+          .translate({ x: this.splitSide === 'left' ? this.displayWidth() / 2 : -this.displayWidth() / 2 })
+          .onComplete((event?: ReaderImageLoadEvent) => { this.onDisplayComplete(event) })
+          .onError(() => { this.onDisplayError() })
+      }
+      .width(this.displayWidth())
+      .height(this.displayHeight())
+      .clip(true)
+      .scale({ x: this.zoomScale, y: this.zoomScale })
+      .translate({ x: this.offsetX, y: this.offsetY })
+      .animation({ duration: this.zoomAnimating ? READER_ZOOM_ANIM_DURATION : 0, curve: Curve.FastOutSlowIn })
+    }
+  }
+
   build() {
     Stack({ alignContent: Alignment.Center }) {
       if (this.displayUri.length > 0) {
-        Image(this.displayUri)
-          .width('100%')
-          .height('100%')
-          .objectFit(this.fit)
-          .interpolation(imageInterpolation(this.scalingQuality))
-          .rotate({ angle: this.rotateClockwise ? 90 : 0 })
-          .scale({ x: this.zoomScale, y: this.zoomScale })
-          .translate({ x: this.offsetX, y: this.offsetY })
-          .animation({ duration: this.zoomAnimating ? READER_ZOOM_ANIM_DURATION : 0, curve: Curve.FastOutSlowIn })
-          .onComplete((event?: ReaderImageLoadEvent) => { this.onDisplayComplete(event) })
-          .onError(() => { this.onDisplayError() })
+        this.ResolvedImage()
       }
       if (this.displayUri.length === 0 || this.loading) {
         this.LoadingContent()
@@ -1645,6 +1671,8 @@ export struct ReaderPage {
   @Local private measuredPageWidths: number[] = []
   @Local private measuredPageHeights: number[] = []
   @Local private measuredPageRevision: number = 0
+  @Local private activeDisplayIndex: number = 0
+  @Local private activeSplitSide: ReaderSplitSide = 'none'
   @Local private readerGlobalX: number = 0
   @Local private readerGlobalY: number = 0
   @Local private readerDoubleTapSequence: number = 0
@@ -1672,8 +1700,11 @@ export struct ReaderPage {
   private thumbnailPixelMapCache: CoverPixelMapMemoryCache = new CoverPixelMapMemoryCache()
   /** Kept stable: LazyForEach, rather than the Reader build, owns long-page rows. */
   private pageIndexSource: ReaderPageIndexDataSource = new ReaderPageIndexDataSource()
+  private displayPageSource: ReaderDisplayPageDataSource = new ReaderDisplayPageDataSource()
+  private displayPages: ReaderDisplayPage[] = []
   private spreadStartSource: ReaderPageIndexDataSource = new ReaderPageIndexDataSource()
   private pageIndexSourceKey: string = ''
+  private displayPageSourceKey: string = ''
   private spreadStartSourceKey: string = ''
   private statusBarHideTimerId: number = -1
   private statusBarEpoch: number = 0
@@ -1720,6 +1751,16 @@ export struct ReaderPage {
 
   @Monitor('pageIndex')
   onParentPageChanged(): void {
+    if (this.usesDisplayPagePager()) {
+      const current = this.currentDisplayPage()
+      if (current === undefined || current.pageIndex !== this.pageIndex) {
+        const displayIndex = readerDisplayIndexForPage(this.displayPages, this.pageIndex)
+        if (displayIndex >= 0) {
+          this.setActiveDisplayIndex(displayIndex)
+          this.swiperController.changeIndex(displayIndex, false)
+        }
+      }
+    }
     this.persistCurrentProgress()
   }
 
@@ -1787,6 +1828,7 @@ export struct ReaderPage {
       this.settingsReady = true
       this.rebuildReaderPageSources()
       this.preferenceRevision += 1
+      this.refreshPageDataSources()
       this.tapPreviewVisible = false
       this.setReaderKeepScreenOn(this.preferences.keepScreenAwake)
       this.emitWebtoonMode(this.preferences.pageMode === 'continuous_scroll' || this.preferences.readingDirection === ReadingDirection.WEBTOON)
@@ -1798,6 +1840,7 @@ export struct ReaderPage {
       this.preferences = DEFAULT_READER_PREFERENCES
       this.settingsReady = true
       this.rebuildReaderPageSources()
+      this.refreshPageDataSources()
       this.tapPreviewVisible = false
       this.setReaderKeepScreenOn(this.preferences.keepScreenAwake)
       this.registerVolumeKeyConsumerIfNeeded()
@@ -1981,7 +2024,7 @@ export struct ReaderPage {
         this.waitForAutoPage(target)
         return
       }
-      this.setPage(target)
+      this.nextPage()
       this.scheduleAutoPage()
     }, Math.max(1, this.preferences.autoPageSeconds) * 1000)
   }
@@ -2022,6 +2065,9 @@ export struct ReaderPage {
     this.autoPageWaitingIndex = -1
     this.measuredPageWidths = []
     this.measuredPageHeights = []
+    this.activeDisplayIndex = 0
+    this.activeSplitSide = 'none'
+    this.displayPageSourceKey = ''
     this.resetZoomState()
     this.rebuildReaderPageSources()
     this.refreshPageDataSources(true)
@@ -2049,11 +2095,55 @@ export struct ReaderPage {
     return out
   }
 
+  private usesDisplayPagePager(): boolean {
+    const mode = this.effectiveMode()
+    return mode === ReaderMode.SINGLE_PAGE || mode === ReaderMode.VERTICAL_PAGE
+  }
+
+  private widePageIndexes(): number[] {
+    const indexes: number[] = []
+    for (let index = 0; index < this.sessionConfig.totalPages; index += 1) {
+      if (isWidePage(this.pageWidth(index), this.pageHeight(index))) {
+        indexes.push(index)
+      }
+    }
+    return indexes
+  }
+
   private refreshPageDataSources(force: boolean = false): void {
     const pageKey = this.sessionSignature()
     if (force || pageKey !== this.pageIndexSourceKey) {
       this.pageIndexSourceKey = pageKey
       this.pageIndexSource.setIndexes(this.pageIndexes())
+    }
+    const wideIndexes = this.widePageIndexes()
+    const splitWidePages = this.preferences.wideImageMode === 'split_wide_pages' && this.usesDisplayPagePager()
+    const displayKey = `${pageKey}:${this.effectiveMode()}:${this.preferences.wideImageMode}:${this.preferences.readingDirection}:${wideIndexes.join(',')}`
+    if (force || displayKey !== this.displayPageSourceKey) {
+      const total = this.sessionConfig.totalPages
+      const sourcePage = total <= 0 ? 0 : Math.max(0, Math.min(this.pageIndex, total - 1))
+      const preferredSide = this.activeSplitSide
+      const pages = buildReaderDisplayPages(
+        total,
+        wideIndexes,
+        splitWidePages,
+        this.preferences.readingDirection,
+      )
+      this.displayPageSourceKey = displayKey
+      this.displayPages = pages
+      this.displayPageSource.setPages(pages)
+      const displayIndex = readerDisplayIndexForPage(pages, sourcePage, preferredSide)
+      this.activeDisplayIndex = Math.max(0, displayIndex)
+      const activePage = this.currentDisplayPage()
+      this.activeSplitSide = activePage?.splitSide ?? 'none'
+      if (this.routeVisible && this.usesDisplayPagePager() && pages.length > 0) {
+        const expectedKey = displayKey
+        setTimeout(() => {
+          if (this.displayPageSourceKey === expectedKey && this.usesDisplayPagePager()) {
+            this.swiperController.changeIndex(this.activeDisplayIndex, false)
+          }
+        }, 0)
+      }
     }
     const spreadKey = `${pageKey}:${this.preferences.columnMode}`
     if (force || spreadKey !== this.spreadStartSourceKey) {
@@ -2270,25 +2360,74 @@ export struct ReaderPage {
     this.measuredPageWidths = widths
     this.measuredPageHeights = heights
     this.measuredPageRevision += 1
+    this.refreshPageDataSources()
   }
 
-  private splitEnabled(): boolean {
-    return this.preferences.wideImageMode === 'split_wide_pages' && this.effectiveMode() !== ReaderMode.DUAL_PAGE
+  private currentDisplayPage(): ReaderDisplayPage | undefined {
+    if (this.activeDisplayIndex < 0 || this.activeDisplayIndex >= this.displayPages.length) {
+      return undefined
+    }
+    return this.displayPages[this.activeDisplayIndex]
   }
 
-  private shouldSplit(index: number): boolean {
-    return this.splitEnabled() && isWidePage(this.pageWidth(index), this.pageHeight(index))
+  private setActiveDisplayIndex(index: number): ReaderDisplayPage | undefined {
+    if (this.displayPages.length <= 0) {
+      this.activeDisplayIndex = 0
+      this.activeSplitSide = 'none'
+      return undefined
+    }
+    const target = Math.max(0, Math.min(index, this.displayPages.length - 1))
+    const page = this.displayPages[target]
+    this.activeDisplayIndex = target
+    this.activeSplitSide = page.splitSide
+    return page
   }
 
-  private displayEntries(index: number): ReaderDisplayEntry[] {
-    if (!this.shouldSplit(index)) return [{ pageIndex: index, splitSide: 'none' }]
-    const first: 'left' | 'right' = this.preferences.readingDirection === ReadingDirection.RIGHT_TO_LEFT ? 'right' : 'left'
-    const second: 'left' | 'right' = first === 'left' ? 'right' : 'left'
-    return [{ pageIndex: index, splitSide: first }, { pageIndex: index, splitSide: second }]
+  private setDisplayPage(index: number, animated: boolean = this.preferences.pageTurnAnimation): void {
+    const previousDisplayIndex = this.activeDisplayIndex
+    const page = this.setActiveDisplayIndex(index)
+    if (page === undefined || (previousDisplayIndex === this.activeDisplayIndex && page.pageIndex === this.pageIndex)) {
+      return
+    }
+    this.resetZoomState()
+    if (page.pageIndex !== this.pageIndex) {
+      this.emitPageIndex(page.pageIndex)
+    }
+    this.swiperController.changeIndex(this.activeDisplayIndex, animated)
+    this.persistProgress(page.pageIndex)
   }
 
-  private canPrevious(): boolean { return this.pageIndex > 0 }
-  private canNext(): boolean { return this.pageIndex + 1 < this.sessionConfig.totalPages }
+  private onDisplayPageChanged(index: number): void {
+    this.resetZoomState()
+    const page = this.setActiveDisplayIndex(index)
+    if (page === undefined) {
+      return
+    }
+    if (page.pageIndex !== this.pageIndex) {
+      this.emitPageIndex(page.pageIndex)
+    }
+    this.persistProgress(page.pageIndex)
+  }
+
+  private canPrevious(): boolean {
+    if (this.usesDisplayPagePager()) {
+      return this.activeDisplayIndex > 0
+    }
+    if (this.effectiveMode() === ReaderMode.DUAL_PAGE) {
+      return this.spreadIndexForPage(this.pageIndex) > 0
+    }
+    return this.pageIndex > 0
+  }
+
+  private canNext(): boolean {
+    if (this.usesDisplayPagePager()) {
+      return this.activeDisplayIndex + 1 < this.displayPages.length
+    }
+    if (this.effectiveMode() === ReaderMode.DUAL_PAGE) {
+      return this.spreadIndexForPage(this.pageIndex) + 1 < this.spreadIndexes().length
+    }
+    return this.pageIndex + 1 < this.sessionConfig.totalPages
+  }
   private chapterIndex(): number { return Math.max(0, this.sessionConfig.chapterIds.indexOf(this.sessionConfig.chapterId)) }
 
   private canTurnOnePageInDoublePage(): boolean {
@@ -2316,6 +2455,13 @@ export struct ReaderPage {
     const total = this.sessionConfig.totalPages
     if (total <= 0) return
     const target = Math.min(Math.max(index, 0), total - 1)
+    if (this.usesDisplayPagePager()) {
+      const displayIndex = readerDisplayIndexForPage(this.displayPages, target)
+      if (displayIndex >= 0) {
+        this.setDisplayPage(displayIndex, animated)
+      }
+      return
+    }
     if (target === this.pageIndex) return
     this.resetZoomState()
     if (this.effectiveMode() === ReaderMode.CONTINUOUS_SCROLL) {
@@ -2331,8 +2477,37 @@ export struct ReaderPage {
     this.persistProgress(target)
   }
 
-  private nextPage(): void { this.setPage(this.pageIndex + 1) }
-  private previousPage(): void { this.setPage(this.pageIndex - 1) }
+  private nextPage(): void {
+    if (this.usesDisplayPagePager()) {
+      this.setDisplayPage(this.activeDisplayIndex + 1)
+      return
+    }
+    if (this.effectiveMode() === ReaderMode.DUAL_PAGE) {
+      const starts = this.spreadIndexes()
+      const nextSpread = this.spreadIndexForPage(this.pageIndex) + 1
+      if (nextSpread >= 0 && nextSpread < starts.length) {
+        this.setPage(starts[nextSpread])
+      }
+      return
+    }
+    this.setPage(this.pageIndex + 1)
+  }
+
+  private previousPage(): void {
+    if (this.usesDisplayPagePager()) {
+      this.setDisplayPage(this.activeDisplayIndex - 1)
+      return
+    }
+    if (this.effectiveMode() === ReaderMode.DUAL_PAGE) {
+      const starts = this.spreadIndexes()
+      const previousSpread = this.spreadIndexForPage(this.pageIndex) - 1
+      if (previousSpread >= 0 && previousSpread < starts.length) {
+        this.setPage(starts[previousSpread])
+      }
+      return
+    }
+    this.setPage(this.pageIndex - 1)
+  }
 
   private scrollContinuousTo(index: number, animated: boolean): void {
     setTimeout(() => {
@@ -2370,6 +2545,7 @@ export struct ReaderPage {
     }
     this.preferences = next
     this.preferenceRevision += 1
+    this.refreshPageDataSources()
     this.emitWebtoonMode(mode === ReaderMode.CONTINUOUS_SCROLL)
     this.persistPreferences(next)
     this.resetZoomState()
@@ -2673,7 +2849,7 @@ export struct ReaderPage {
     }
   }
 
-  private tapActionForSlot(x: number, y: number, _splitSide: 'none' | 'left' | 'right', _compact: boolean): void {
+  private tapActionForSlot(x: number, y: number, _splitSide: ReaderSplitSide, _compact: boolean): void {
     this.tapAction(x, y)
   }
 
@@ -2899,21 +3075,21 @@ export struct ReaderPage {
     return '#884A4A4A'
   }
 
-  private pageIsZoomActive(index: number, continuous: boolean): boolean {
+  private pageIsZoomActive(index: number, continuous: boolean, splitSide: ReaderSplitSide = 'none'): boolean {
     if (continuous) {
       return this.verticalZoomedPage >= 0
         ? index === this.verticalZoomedPage
         : index >= this.verticalVisibleStart && index <= this.verticalVisibleEnd
     }
     if (this.effectiveMode() !== ReaderMode.DUAL_PAGE) {
-      return index === this.pageIndex
+      return index === this.pageIndex && (splitSide === 'none' || splitSide === this.activeSplitSide)
     }
     const start = this.spreadIndexes()[this.spreadIndexForPage(this.pageIndex)]
     return index === start || index === this.spreadSecondIndex(start)
   }
 
   @Builder
-  private ReaderPageSlot(index: number, splitSide: 'none' | 'left' | 'right', compact: boolean = false, continuous: boolean = false) {
+  private ReaderPageSlot(index: number, splitSide: ReaderSplitSide, compact: boolean = false, continuous: boolean = false) {
     Stack({ alignContent: Alignment.Center }) {
       ReaderImageSurface({
         source: this.sourceFor(index),
@@ -2933,7 +3109,7 @@ export struct ReaderPage {
         splitSide: splitSide,
         rotateClockwise: this.preferences.wideImageMode === 'rotate_wide_pages' && isWidePage(this.pageWidth(index), this.pageHeight(index)),
         zoomEnabled: true,
-        active: this.pageIsZoomActive(index, continuous),
+        active: this.pageIsZoomActive(index, continuous, splitSide),
         zoomResetToken: this.zoomResetToken,
         // The page surface owns its transform and animation. The reader only
         // receives a zoom gate so native List/Swiper movement is paused.
@@ -2956,7 +3132,7 @@ export struct ReaderPage {
         externalDoubleTapY: this.readerDoubleTapY,
         retryToken: this.loadedRevision,
         onZoomChange: (zoomed: boolean) => {
-          if (!continuous && this.pageIsZoomActive(index, false)) {
+          if (!continuous && this.pageIsZoomActive(index, false, splitSide)) {
             this.zoomChanged(zoomed)
           } else if (continuous) {
             if (zoomed) {
@@ -2996,16 +3172,11 @@ export struct ReaderPage {
   @Builder
   private SinglePageReader() {
     Swiper(this.swiperController) {
-      LazyForEach(this.pageIndexSource, (index: number) => {
-        Row({ space: pageGap(this.preferences.pageGapMode) }) {
-          ForEach(this.displayEntries(index), (entry: ReaderDisplayEntry) => {
-            this.ReaderPageSlot(entry.pageIndex, entry.splitSide)
-          }, (entry: ReaderDisplayEntry) => `page-${entry.pageIndex}-${entry.splitSide}`)
-        }
-        .width('100%').height('100%').justifyContent(FlexAlign.Center)
-      }, (index: number) => `reader-page-${index}`)
+      LazyForEach(this.displayPageSource, (page: ReaderDisplayPage) => {
+        this.ReaderPageSlot(page.pageIndex, page.splitSide)
+      }, (page: ReaderDisplayPage) => `reader-page-${page.pageIndex}-${page.splitSide}`)
     }
-    .index(this.pageIndex)
+    .index(this.activeDisplayIndex)
     .direction(this.preferences.readingDirection === ReadingDirection.RIGHT_TO_LEFT ? Direction.Rtl : Direction.Ltr)
     .vertical(this.effectiveMode() === ReaderMode.VERTICAL_PAGE)
     .loop(false)
@@ -3014,25 +3185,18 @@ export struct ReaderPage {
     .disableSwipe(this.zoomed)
     .width('100%').height('100%')
     .onChange((index: number) => {
-      this.resetZoomState()
-      this.emitPageIndex(index)
-      this.persistProgress(index)
+      this.onDisplayPageChanged(index)
     })
   }
 
   @Builder
   private VerticalPageReader() {
     Swiper(this.swiperController) {
-      LazyForEach(this.pageIndexSource, (index: number) => {
-        Row({ space: pageGap(this.preferences.pageGapMode) }) {
-          ForEach(this.displayEntries(index), (entry: ReaderDisplayEntry) => {
-            this.ReaderPageSlot(entry.pageIndex, entry.splitSide)
-          }, (entry: ReaderDisplayEntry) => `vertical-page-${entry.pageIndex}-${entry.splitSide}`)
-        }
-        .width('100%').height('100%').justifyContent(FlexAlign.Center)
-      }, (index: number) => `reader-vertical-paged-${index}`)
+      LazyForEach(this.displayPageSource, (page: ReaderDisplayPage) => {
+        this.ReaderPageSlot(page.pageIndex, page.splitSide)
+      }, (page: ReaderDisplayPage) => `reader-vertical-paged-${page.pageIndex}-${page.splitSide}`)
     }
-    .index(this.pageIndex)
+    .index(this.activeDisplayIndex)
     .direction(Direction.Ltr)
     .vertical(true)
     .loop(false)
@@ -3041,9 +3205,7 @@ export struct ReaderPage {
     .disableSwipe(this.zoomed)
     .width('100%').height('100%')
     .onChange((index: number) => {
-      this.resetZoomState()
-      this.emitPageIndex(Math.max(0, Math.min(index, Math.max(this.sessionConfig.totalPages - 1, 0))))
-      this.persistProgress(index)
+      this.onDisplayPageChanged(index)
     })
   }
 
