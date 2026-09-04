@@ -52,6 +52,12 @@ export default class EntryAbility extends UIAbility {
         statusBarColor: TRANSPARENT_COLOR,
         navigationBarColor: TRANSPARENT_COLOR,
       })
+      // Match NextE: opt the main window into sensor-driven rotation. The
+      // system rotation-lock toggle still pins portrait when enabled.
+      win.setPreferredOrientation(window.Orientation.AUTO_ROTATION_UNSPECIFIED)
+        .catch((error: Error) => {
+          console.error('[EntryAbility] step=set_orientation_failed code=orientation_request_failed msg=' + error.message)
+        })
     } catch (error) {
       void error
       console.error('[EntryAbility] step=configure_window_failed code=window_configure_failed')
