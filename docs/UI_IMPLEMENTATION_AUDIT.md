@@ -90,3 +90,35 @@
 5. A10 设备对比后决定。
 
 > 本文档为审计与计划，未包含任何代码改动。实施前按切片逐项走：基线截图 → 最小实现 → 真机验证 → 独立提交。
+---
+## 2026-09-05 全量补查（第二轮）
+
+### 修正 A3：应用深色设置不是缺失，而是行为与标签不符（P1，加重）
+
+- 外观 pane 的 `theme` 行存在菜单：系统/浅色/深色（SettingsPage.ets:2283-2286）。
+- 但 `saveThemeMode(themeMode: ReaderThemeMode)` 只调 `applyReaderThemeMode`（SettingsPage.ets:1320-1323），消费方全部在阅读域（EntryAbility/ReaderPage/ReaderChrome/ReaderModeState）。
+- 全项目无 `ApplicationContext.setColorMode` 调用 → 选『深色』只改阅读器背景，应用 UI（书架/设置/浏览）不变。
+- 结论：设置存在但行为与标签不符，属误导性设置。修复方向：该行拆分为『应用主题』（接 setColorMode）与『阅读器主题』两行，或明确改名『阅读器主题』。
+
+### 新增 A11：弹出菜单选项无前导视觉（P1）
+
+- `SelectionMenuItem`（SettingsPage.ets:2257-2266）只有 content + 尾部勾选（symbolEndIcon），不支持前导图标/色板。
+- 受影响菜单：主题色（5 个强调色无色点）、阅读背景（黑/灰/白/自动，可加色点）、翻页模式、阅读方向、语言等全部选择菜单。
+- 全项目 13 个文件使用 bindMenu，选项视觉完备性需逐个核对。
+- 参照：NextE 菜单项带前导视觉；平台 MenuItem 原生支持 prefixSymbol/symbolStartIcon。
+- 动作：SelectionMenuItem 增加 leading 参数（色板圆点或 SymbolGlyph），主题色菜单传色点、阅读背景传色点。
+
+### 新增 A12：全量扫查结果（第二轮）
+
+- TODO/FIXME/占位 标记：全代码库无真实遗留标记（rg 命中均为 URI_placeholder 等资源名，非待办）。
+- 页面结构：未审页面全部使用标准 scaffold，无空壳页 —— History(612 行)/Import(353)/SourcePackageManager(2583)/LibraryCategoryManagement(555)/TrackerSettings(965)。
+- 阅读偏好消费链：ReaderPreferences 23 字段全部在 ReaderPage 有消费（volumeKeyBehavior=5 处、wideImageMode=4、pageGapMode=5、columnMode=9 等），无幽灵开关。
+- 追踪器：AniList/MAL 客户端、OAuth、进度同步为真实网络实现 —— FEATURE_COMPARISON 中『Tracker 仅骨架』一行已过时，需更新该文档。
+- 仍开放的功能域（对照 FEATURE_COMPARISON 未完成行）：系统通知投递、后台定时库更新、下载目录/重扫/系统下载通知、源生态兼容矩阵与签名信任、stats 统计页、深色资源覆盖面（ThemeConstants 之外的写死色值）。
+
+### 遗留疑点（本轮新增，需逐项确认）
+
+- SourceSearchPage 首位存在空 Column 占位 ListItem（:291-292），用途与高度需核实是否为 bottomBuilder 补偿（若是，应注释并常量化）。
+- 下载页『下载管理』入口命名与用户语言不一致（QueueMoreMenu 仅重试/清理/重扫），标题串未定位到『下载管理』字样，需设备确认用户所指入口。
+- ReaderPage 内嵌 TapZonePreview（:2831）与设置页预览的容器比例差异（A10 关联）。
+---
