@@ -24,6 +24,7 @@
 - 证据：`DownloadsPage.ets:850` aboutToAppear → `loadQueue()` → `:76-80 reconcileWithManifests()`。
 - `OfflineDownloadQueueStore.reconcileWithManifests()`（model/OfflineDownloadQueueStore.ets）对每个 entry 同步执行 manifest 校验（内部 `new OfflineDownloadStore(filesDir)` + 逐条文件系统校验），并可能同步 `saveDocument()`。全部运行在 UI 线程。
 - 下载条目多或磁盘慢时即为用户观测的 10s 卡顿。
+- 状态（2026-09-05 已修复）：进入先渲染 load() 快照，对账经 @Concurrent TaskPool 后台执行；197 实测 ~1.3s 内容完整渲染（20260904-downloads-entry-stall-fix-run1）。
 - 建议：reconcile 移入 TaskPool/async 队列，UI 先渲染 `store.load()` 快照，reconcile 完成后增量刷新；进度不阻塞进入。
 
 ## A2 强调色偏好只存不生效（P1 占位）

@@ -1,4 +1,5 @@
 import { common } from '@kit.AbilityKit'
+import { taskpool } from '@kit.ArkTS'
 import { SecondaryListScaffold } from '../components/SecondaryListScaffold'
 import { ConciseListRow } from '../components/ui/ConciseListRow'
 import { KomaActionButton } from '../components/ui/KomaActionButton'
@@ -37,6 +38,11 @@ function s(name: string): string {
   return AppStrings.get(name)
 }
 
+@Concurrent
+function reconcileOfflineDownloadQueueTask(filesDir: string): OfflineDownloadQueueEntry[] {
+  return new OfflineDownloadQueueStore(filesDir).reconcileWithManifests()
+}
+
 enum DownloadQueueFilter {
   ALL = 'all',
   QUEUED = 'queued',
@@ -61,6 +67,8 @@ export struct DownloadsPage {
   @Local private busyKey: string = ''
   @Local private filter: DownloadQueueFilter = DownloadQueueFilter.ALL
   @Local private recoveryText: string = ''
+  private deferredReconcileTimer: number = 0
+  private reconcileRequestId: number = 0
   @Event onOpenReader: (comicId: string, chapterId?: string) => void =
     (_comicId: string, _chapterId?: string) => {}
   @Event onLibraryChanged: () => void = () => {}
@@ -73,7 +81,40 @@ export struct DownloadsPage {
     return new OfflineDownloadQueueStore(this.context().filesDir)
   }
 
+  private clearDeferredReconcileTimer(): void {
+    if (this.deferredReconcileTimer !== 0) {
+      clearTimeout(this.deferredReconcileTimer)
+      this.deferredReconcileTimer = 0
+    }
+    this.reconcileRequestId += 1
+  }
+
+  private scheduleDeferredReconcile(): void {
+    this.clearDeferredReconcileTimer()
+    const requestId = this.reconcileRequestId
+    this.deferredReconcileTimer = setTimeout(() => {
+      this.deferredReconcileTimer = 0
+      void this.runDeferredReconcile(requestId)
+    }, 0)
+  }
+
+  private async runDeferredReconcile(requestId: number): Promise<void> {
+    const filesDir = this.context().filesDir
+    try {
+      const task: taskpool.Task = new taskpool.Task(reconcileOfflineDownloadQueueTask, filesDir)
+      const entries = await taskpool.execute(task) as OfflineDownloadQueueEntry[]
+      if (requestId !== this.reconcileRequestId) {
+        return
+      }
+      this.entries = entries
+    } catch (error) {
+      const e = error as Error
+      console.warn('[Downloads] step=deferred_reconcile_failed code=' + e.message)
+    }
+  }
+
   private loadQueue(reconcileManifests: boolean = true): void {
+    this.clearDeferredReconcileTimer()
     const store = this.queueStore()
     this.entries = reconcileManifests ? store.reconcileWithManifests() : store.load()
     this.preferences = store.loadPreferences()
@@ -848,7 +889,11 @@ export struct DownloadsPage {
   }
 
   aboutToAppear(): void {
-    this.loadQueue()
+    // Render the parsed queue snapshot on the first frame; per-entry manifest
+    // reconciliation runs off the UI thread so entry no longer blocks for seconds.
+    this.entries = this.queueStore().load()
+    this.preferences = this.queueStore().loadPreferences()
+    this.scheduleDeferredReconcile()
   }
 
   @Builder
