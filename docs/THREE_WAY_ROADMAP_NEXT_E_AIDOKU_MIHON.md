@@ -20,7 +20,6 @@
 | AppColorPicker | 强调色编辑器（色板网格/HSV/Hex） | 审计 A4 |
 | AppMenuOptions / 菜单前导视觉 | 选择菜单色板/图标 | 审计 A11 |
 | MarkdownContent + ReleaseNotesPager | 关于页/版本说明渲染 | 审计 A8 |
-| PageJumpDialogContent | 阅读器页码跳转对话框 | 阅读器功能 |
 | LoadingFooter | 列表加载尾 | 下载/浏览分页 |
 | AdvancedSearchControls | 源搜索高级过滤 UI | 搜索质量 D53 |
 | CategorySelector | 分类选择器 | 分类深化 D45-46 |
@@ -34,7 +33,7 @@
 
 ### 路由结构对比
 
-- Aidoku 主结构：Library / Browse（源浏览+发现）/ Search（全局搜索）/ History + More(Settings)。
+ - Aidoku 主结构：Library / Browse / Search / History + More（凭印象记录，未核实，采纳前需对照官方资料）。
 - Koma 现状：书架 / 浏览 / 历史 / 设置 四 tab；全局搜索页存在（跨源），但无独立搜索 tab（搜索入口在浏览页与书架）。
 - 决策点：是否升格全局搜索为独立 tab（Aidoku 式），或维持浏览页内搜索 + 全局搜索页路由（现状）。需结合源数量增长决策。
 
@@ -83,7 +82,7 @@
 ## 五、建议路线（结合 D 计划重排）
 
 1. **P0 修正**：下载进入卡顿（A1）→ 搜索框遮挡已修（本次）→ 审计文档 A3 深色误导设置拆分。
-2. **阅读主线**：条漫/分页设置分离（A5/A6）→ 页面跳转对话框（NextE PageJump）→ 宽图拆分（D39）。
+ 2. **阅读主线**：条漫/分页设置分离（A5/A6）→ 宽图拆分（D39）。
 3. **下载与通知**：下载目录/索引（D33）→ 通知投递（D35/D38）→ 自动下载规则（Mihon）。
 4. **外观系统**：强调色接线 + AppColorPicker（A2/A4）→ 应用主题 setColorMode（A3 修正）→ 深色资源覆盖补全。
 5. **Aidoku 对标深化**：全局搜索 tab 决策 → 源 filters 深化（D53）→ 章节元数据（D54）。
