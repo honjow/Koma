@@ -1883,7 +1883,7 @@ export struct LibraryPage {
 
         if (!this.selectionMode) {
           KomaIconButton({
-            icon: $r('sys.symbol.more'),
+            icon: $r('sys.symbol.ellipsis_circle'),
             kind: 'secondary',
             controlSize: ThemeConstants.TOUCH_TARGET_SM,
             iconSize: ThemeConstants.FONT_SIZE_H3,
@@ -2045,7 +2045,7 @@ export struct LibraryPage {
 
           if (!this.selectionMode && this.canRemoveComic(comic.id)) {
             KomaIconButton({
-              icon: $r('sys.symbol.more'),
+              icon: $r('sys.symbol.ellipsis_circle'),
               kind: 'secondary',
               controlSize: ThemeConstants.TOUCH_TARGET_SM,
               iconSize: ThemeConstants.FONT_SIZE_H3,

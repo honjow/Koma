@@ -557,7 +557,7 @@ export struct ChapterListSection {
 
           Column() {
             KomaIconButton({
-              icon: $r('sys.symbol.more'),
+              icon: $r('sys.symbol.ellipsis_circle'),
               kind: 'secondary',
               controlSize: ThemeConstants.TOUCH_TARGET_SM,
               iconSize: ThemeConstants.FONT_SIZE_H3,

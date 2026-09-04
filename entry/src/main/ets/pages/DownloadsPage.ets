@@ -1,9 +1,12 @@
 import { common } from '@kit.AbilityKit'
 import { taskpool } from '@kit.ArkTS'
+import { SymbolGlyphModifier } from '@kit.ArkUI'
+import { CachedCoverImage } from '../components/CachedCoverImage'
 import { SecondaryListScaffold } from '../components/SecondaryListScaffold'
-import { ConciseListRow } from '../components/ui/ConciseListRow'
 import { KomaActionButton } from '../components/ui/KomaActionButton'
 import { KomaEmptyState } from '../components/ui/KomaEmptyState'
+import { KomaIconButton } from '../components/ui/KomaIconButton'
+import { KomaMenuChip } from '../components/ui/KomaMenuChip'
 import { ThemeConstants } from '../theme/ThemeConstants'
 import { Comic } from '../model/ComicModels'
 import { LibraryStore } from '../model/LibraryStore'
@@ -15,7 +18,6 @@ import {
   OfflineDownloadStore,
 } from '../model/OfflineDownloadStore'
 import {
-  OFFLINE_DOWNLOAD_FOREGROUND_CONCURRENCY_LIMIT_OPTIONS,
   OfflineDownloadQueueEntry,
   OfflineDownloadQueuePreferences,
   OfflineDownloadQueueRecoverySummary,
@@ -52,6 +54,12 @@ enum DownloadQueueFilter {
   DOWNLOADED = 'downloaded',
 }
 
+interface DownloadComicGroup {
+  comicId: string
+  title: string
+  entries: OfflineDownloadQueueEntry[]
+}
+
 @ComponentV2
 export struct DownloadsPage {
   @Param libraryStore?: LibraryStore = undefined
@@ -67,6 +75,7 @@ export struct DownloadsPage {
   @Local private busyKey: string = ''
   @Local private filter: DownloadQueueFilter = DownloadQueueFilter.ALL
   @Local private recoveryText: string = ''
+  @Local private actionMenuKey: string = ''
   private deferredReconcileTimer: number = 0
   private reconcileRequestId: number = 0
   @Event onOpenReader: (comicId: string, chapterId?: string) => void =
@@ -125,25 +134,50 @@ export struct DownloadsPage {
   }
 
   private visibleEntries(): OfflineDownloadQueueEntry[] {
-    return this.entries.filter((entry: OfflineDownloadQueueEntry): boolean => {
-      if (this.filter === DownloadQueueFilter.ALL) {
-        return true
+    return this.entries.filter((entry: OfflineDownloadQueueEntry): boolean => this.matchesFilter(entry, this.filter))
+  }
+
+  private matchesFilter(entry: OfflineDownloadQueueEntry, filter: DownloadQueueFilter): boolean {
+    if (filter === DownloadQueueFilter.ALL) {
+      return true
+    }
+    if (filter === DownloadQueueFilter.FAILED) {
+      return entry.status === OfflineDownloadStatus.FAILED || entry.status === OfflineDownloadStatus.PARTIAL
+    }
+    if (filter === DownloadQueueFilter.DOWNLOADED) {
+      return entry.status === OfflineDownloadStatus.DOWNLOADED
+    }
+    if (filter === DownloadQueueFilter.BLOCKED) {
+      return entry.status === OfflineDownloadStatus.BLOCKED
+    }
+    if (filter === DownloadQueueFilter.DOWNLOADING) {
+      return entry.status === OfflineDownloadStatus.DOWNLOADING
+    }
+    return entry.status === OfflineDownloadStatus.QUEUED
+  }
+
+  private shouldShowFilter(filter: DownloadQueueFilter): boolean {
+    return filter === DownloadQueueFilter.ALL || filter === this.filter ||
+      this.entries.some((entry: OfflineDownloadQueueEntry): boolean => this.matchesFilter(entry, filter))
+  }
+
+  private visibleGroups(): DownloadComicGroup[] {
+    const groups: DownloadComicGroup[] = []
+    this.visibleEntries().forEach((entry: OfflineDownloadQueueEntry): void => {
+      const existing = groups.find((group: DownloadComicGroup): boolean => group.comicId === entry.comicId)
+      if (existing !== undefined) {
+        existing.entries.push(entry)
+        return
       }
-      if (this.filter === DownloadQueueFilter.FAILED) {
-        return entry.status === OfflineDownloadStatus.FAILED ||
-          entry.status === OfflineDownloadStatus.PARTIAL
-      }
-      if (this.filter === DownloadQueueFilter.DOWNLOADED) {
-        return entry.status === OfflineDownloadStatus.DOWNLOADED
-      }
-      if (this.filter === DownloadQueueFilter.BLOCKED) {
-        return entry.status === OfflineDownloadStatus.BLOCKED
-      }
-      if (this.filter === DownloadQueueFilter.DOWNLOADING) {
-        return entry.status === OfflineDownloadStatus.DOWNLOADING
-      }
-      return entry.status === OfflineDownloadStatus.QUEUED
+      groups.push({
+        comicId: entry.comicId,
+        title: entry.comicTitle !== undefined && entry.comicTitle.trim().length > 0
+          ? entry.comicTitle
+          : (this.libraryStore?.getComic(entry.comicId)?.title ?? entry.comicId),
+        entries: [entry],
+      })
     })
+    return groups
   }
 
   private filterLabel(): string {
@@ -185,12 +219,13 @@ export struct DownloadsPage {
   }
 
   private rowSubtitle(entry: OfflineDownloadQueueEntry): string {
-    const comicTitle = entry.comicTitle !== undefined && entry.comicTitle.length > 0 ? entry.comicTitle : entry.comicId
-    return s('downloads_row_subtitle')
-      .replace('%s', comicTitle)
-      .replace('%s', this.formatEntryStatus(entry))
+    const progress = s('downloads_page_progress')
       .replace('%s', `${entry.downloadedPageCount}`)
       .replace('%s', `${entry.pageCount}`)
+    if (entry.status === OfflineDownloadStatus.DOWNLOADED) {
+      return progress
+    }
+    return `${progress} · ${this.formatEntryStatus(entry)}`
   }
 
   private rowDetailSubtitle(entry: OfflineDownloadQueueEntry): string {
@@ -264,28 +299,52 @@ export struct DownloadsPage {
     return this.formatStatus(entry.status)
   }
 
-  private queueStateText(): string {
-    const summary = summarizeOfflineDownloadQueue(this.entries)
-    const state = this.preferences.isPaused
-      ? s('downloads_queue_state_paused')
-      : (!canRunOfflineDownloadQueueNow(this.preferences) ? s('downloads_status_waiting_wifi') :
-        (summary.downloadingCount > 0 || this.busyKey.length > 0 ? s('downloads_queue_state_running') : s('downloads_queue_state_queued')))
-    return s('downloads_queue_summary')
-      .replace('%s', state)
-      .replace('%s', `${summary.queuedCount}`)
-      .replace('%s', `${summary.failedCount + summary.partialCount}`)
-      .replace('%s', `${summary.blockedCount}`)
-      .replace('%s', `${this.preferences.foregroundConcurrencyLimit}`)
-  }
-
-  private queueProgressText(): string {
+  private queueOverviewTitle(): string {
     const summary: OfflineDownloadQueueSummary = summarizeOfflineDownloadQueue(this.entries)
-    return s('downloads_queue_progress')
+    return s('downloads_overview_summary')
+      .replace('%s', `${summary.totalCount}`)
       .replace('%s', `${summary.downloadedPageCount}`)
       .replace('%s', `${summary.pageCount}`)
-      .replace('%s', `${summary.totalCount}`)
-      .replace('%s', `${summary.downloadedCount}`)
-      .replace('%s', `${summary.partialCount}`)
+  }
+
+  private queueOverviewSubtitle(): string {
+    const summary: OfflineDownloadQueueSummary = summarizeOfflineDownloadQueue(this.entries)
+    const attentionCount = summary.failedCount + summary.partialCount + summary.blockedCount
+    if (this.preferences.isPaused && summary.queuedCount > 0) {
+      return s('downloads_overview_paused').replace('%s', `${summary.queuedCount}`)
+    }
+    if (summary.queuedCount > 0 && !canRunOfflineDownloadQueueNow(this.preferences)) {
+      return s('downloads_status_waiting_wifi')
+    }
+    if (summary.downloadingCount > 0 || this.busyKey.startsWith('batch-')) {
+      return s('downloads_overview_downloading').replace('%s', `${Math.max(1, summary.downloadingCount)}`)
+    }
+    if (attentionCount > 0) {
+      return s('downloads_overview_attention').replace('%s', `${attentionCount}`)
+    }
+    if (summary.queuedCount > 0) {
+      return s('downloads_overview_queued').replace('%s', `${summary.queuedCount}`)
+    }
+    return s('downloads_overview_ready')
+  }
+
+  private groupSubtitle(group: DownloadComicGroup): string {
+    let downloadedPages = 0
+    let pageCount = 0
+    group.entries.forEach((entry: OfflineDownloadQueueEntry): void => {
+      downloadedPages += entry.downloadedPageCount
+      pageCount += entry.pageCount
+    })
+    return s('downloads_group_summary')
+      .replace('%s', `${group.entries.length}`)
+      .replace('%s', `${downloadedPages}`)
+      .replace('%s', `${pageCount}`)
+  }
+
+  private shouldShowPrimaryQueueAction(): boolean {
+    const summary = summarizeOfflineDownloadQueue(this.entries)
+    return this.preferences.isPaused || summary.queuedCount > 0 || summary.downloadingCount > 0 ||
+      this.busyKey.startsWith('batch-')
   }
 
   private queuedEntries(): OfflineDownloadQueueEntry[] {
@@ -647,14 +706,6 @@ export struct DownloadsPage {
     }
   }
 
-  private setForegroundConcurrencyLimit(limit: number): void {
-    if (this.busyKey.length > 0) {
-      return
-    }
-    this.preferences = this.queueStore().setForegroundConcurrencyLimit(limit)
-    this.loadQueue()
-  }
-
   private setWifiOnly(wifiOnly: boolean): void {
     if (this.busyKey.length > 0) {
       return
@@ -833,6 +884,64 @@ export struct DownloadsPage {
     }
   }
 
+  private entryStatusIcon(entry: OfflineDownloadQueueEntry): Resource {
+    if (entry.status === OfflineDownloadStatus.DOWNLOADED) {
+      return $r('sys.symbol.checkmark_circle')
+    }
+    if (entry.status === OfflineDownloadStatus.DOWNLOADING) {
+      return $r('sys.symbol.arrow_down_to_line')
+    }
+    if (entry.status === OfflineDownloadStatus.QUEUED) {
+      return $r('sys.symbol.clock')
+    }
+    return $r('sys.symbol.exclamationmark_triangle')
+  }
+
+  private entryStatusColor(entry: OfflineDownloadQueueEntry): ResourceColor {
+    if (entry.status === OfflineDownloadStatus.DOWNLOADED) {
+      return ThemeConstants.STATUS_SUCCESS
+    }
+    if (entry.status === OfflineDownloadStatus.DOWNLOADING) {
+      return ThemeConstants.BRAND_PRIMARY
+    }
+    if (entry.status === OfflineDownloadStatus.QUEUED) {
+      return ThemeConstants.STATUS_MUTED
+    }
+    if (entry.status === OfflineDownloadStatus.FAILED || entry.status === OfflineDownloadStatus.BLOCKED) {
+      return ThemeConstants.STATUS_DANGER
+    }
+    return ThemeConstants.STATUS_WARNING
+  }
+
+  private entryProgressValue(entry: OfflineDownloadQueueEntry): number {
+    if (entry.pageCount <= 0) {
+      return 0
+    }
+    return Math.max(0, Math.min(100, entry.downloadedPageCount / entry.pageCount * 100))
+  }
+
+  private shouldShowEntryProgress(entry: OfflineDownloadQueueEntry): boolean {
+    return entry.status === OfflineDownloadStatus.DOWNLOADING ||
+      entry.status === OfflineDownloadStatus.PARTIAL ||
+      (entry.status === OfflineDownloadStatus.FAILED && entry.downloadedPageCount > 0)
+  }
+
+  private openDownloadRow(entry: OfflineDownloadQueueEntry): void {
+    if (this.canRead(entry)) {
+      this.openDownloadedChapter(entry)
+      return
+    }
+    this.openDownloadEntry(entry)
+  }
+
+  private rowMenuKey(entry: OfflineDownloadQueueEntry): string {
+    return `row:${this.rowKey(entry)}`
+  }
+
+  private closeActionMenu(): void {
+    this.actionMenuKey = ''
+  }
+
   @Builder
   private QueueMoreMenu() {
     Menu() {
@@ -855,36 +964,66 @@ export struct DownloadsPage {
   }
 
   @Builder
-  private FilterChipItem(label: string, filter: DownloadQueueFilter) {
-    Row() {
-      Text(label)
-        .fontSize(ThemeConstants.FONT_SIZE_CAPTION)
-        .fontColor(this.filter === filter ? ThemeConstants.BRAND_PRIMARY : ThemeConstants.TEXT_SECONDARY)
-        .fontWeight(this.filter === filter ? FontWeight.Medium : FontWeight.Regular)
-    }
-    .padding({
-      left: ThemeConstants.SPACE_MD,
-      right: ThemeConstants.SPACE_MD,
-      top: ThemeConstants.SPACE_XS,
-      bottom: ThemeConstants.SPACE_XS,
-    })
-    .borderRadius(ThemeConstants.RADIUS_ROUND)
-    .backgroundColor(this.filter === filter ? ThemeConstants.SOFT_TINT : ThemeConstants.CARD)
-    .margin({ right: ThemeConstants.SPACE_SM, bottom: ThemeConstants.SPACE_SM })
-    .onClick(() => {
-      this.setFilter(filter)
-    })
-  }
-
-  @Builder
-  private ConcurrencyMenu() {
+  private FilterMenu() {
     Menu() {
-      ForEach(OFFLINE_DOWNLOAD_FOREGROUND_CONCURRENCY_LIMIT_OPTIONS, (limit: number) => {
-        MenuItem({ content: `${limit}` })
-          .onClick(() => {
-            this.setForegroundConcurrencyLimit(limit)
-          })
-      }, (limit: number) => `${limit}`)
+      MenuItem({
+        content: s('common_all'),
+        symbolEndIcon: this.filter === DownloadQueueFilter.ALL
+          ? new SymbolGlyphModifier($r('sys.symbol.checkmark'))
+          : undefined,
+      }).onClick(() => {
+        this.setFilter(DownloadQueueFilter.ALL)
+      })
+      if (this.shouldShowFilter(DownloadQueueFilter.DOWNLOADING)) {
+        MenuItem({
+          content: s('downloads_filter_downloading'),
+          symbolEndIcon: this.filter === DownloadQueueFilter.DOWNLOADING
+            ? new SymbolGlyphModifier($r('sys.symbol.checkmark'))
+            : undefined,
+        }).onClick(() => {
+          this.setFilter(DownloadQueueFilter.DOWNLOADING)
+        })
+      }
+      if (this.shouldShowFilter(DownloadQueueFilter.QUEUED)) {
+        MenuItem({
+          content: s('downloads_filter_queued'),
+          symbolEndIcon: this.filter === DownloadQueueFilter.QUEUED
+            ? new SymbolGlyphModifier($r('sys.symbol.checkmark'))
+            : undefined,
+        }).onClick(() => {
+          this.setFilter(DownloadQueueFilter.QUEUED)
+        })
+      }
+      if (this.shouldShowFilter(DownloadQueueFilter.DOWNLOADED)) {
+        MenuItem({
+          content: s('downloads_filter_downloaded'),
+          symbolEndIcon: this.filter === DownloadQueueFilter.DOWNLOADED
+            ? new SymbolGlyphModifier($r('sys.symbol.checkmark'))
+            : undefined,
+        }).onClick(() => {
+          this.setFilter(DownloadQueueFilter.DOWNLOADED)
+        })
+      }
+      if (this.shouldShowFilter(DownloadQueueFilter.FAILED)) {
+        MenuItem({
+          content: s('downloads_filter_failed'),
+          symbolEndIcon: this.filter === DownloadQueueFilter.FAILED
+            ? new SymbolGlyphModifier($r('sys.symbol.checkmark'))
+            : undefined,
+        }).onClick(() => {
+          this.setFilter(DownloadQueueFilter.FAILED)
+        })
+      }
+      if (this.shouldShowFilter(DownloadQueueFilter.BLOCKED)) {
+        MenuItem({
+          content: s('downloads_filter_blocked'),
+          symbolEndIcon: this.filter === DownloadQueueFilter.BLOCKED
+            ? new SymbolGlyphModifier($r('sys.symbol.checkmark'))
+            : undefined,
+        }).onClick(() => {
+          this.setFilter(DownloadQueueFilter.BLOCKED)
+        })
+      }
     }
   }
 
@@ -899,21 +1038,35 @@ export struct DownloadsPage {
   @Builder
   private QueueHeader() {
     Column({ space: ThemeConstants.SPACE_MD }) {
-      Column({ space: ThemeConstants.SPACE_SM }) {
-        Row() {
-          Column({ space: ThemeConstants.SPACE_XS }) {
-            Text(this.queueStateText())
-              .fontSize(ThemeConstants.FONT_SIZE_BODY)
-              .fontWeight(FontWeight.Medium)
-              .fontColor(ThemeConstants.TEXT_PRIMARY)
-            Text(this.queueProgressText())
-              .fontSize(ThemeConstants.FONT_SIZE_CAPTION)
-              .fontColor(ThemeConstants.TEXT_SECONDARY)
-          }
-          .layoutWeight(1)
-          .alignItems(HorizontalAlign.Start)
+      Row({ space: ThemeConstants.SPACE_MD }) {
+        Stack({ alignContent: Alignment.Center }) {
+          SymbolGlyph($r('sys.symbol.arrow_down_to_line'))
+            .fontSize(ThemeConstants.FONT_SIZE_H2)
+            .fontColor([ThemeConstants.BRAND_PRIMARY])
+        }
+        .width(48)
+        .height(48)
+        .borderRadius(ThemeConstants.RADIUS_ROUND)
+        .backgroundColor(ThemeConstants.SOFT_TINT)
 
-          Row({ space: ThemeConstants.SPACE_SM }) {
+        Column({ space: ThemeConstants.SPACE_XS }) {
+          Text(this.queueOverviewTitle())
+            .fontSize(ThemeConstants.FONT_SIZE_TITLE)
+            .fontWeight(FontWeight.Medium)
+            .fontColor(ThemeConstants.TEXT_PRIMARY)
+            .maxLines(1)
+            .textOverflow({ overflow: TextOverflow.Ellipsis })
+          Text(this.queueOverviewSubtitle())
+            .fontSize(ThemeConstants.FONT_SIZE_CAPTION)
+            .fontColor(ThemeConstants.TEXT_SECONDARY)
+            .maxLines(1)
+            .textOverflow({ overflow: TextOverflow.Ellipsis })
+        }
+        .layoutWeight(1)
+        .alignItems(HorizontalAlign.Start)
+
+        Row({ space: ThemeConstants.SPACE_XS }) {
+          if (this.shouldShowPrimaryQueueAction()) {
             KomaActionButton({
               label: this.primaryQueueActionLabel(),
               kind: this.primaryQueueActionKind(),
@@ -924,18 +1077,25 @@ export struct DownloadsPage {
                 this.handlePrimaryQueueAction()
               },
             })
-            Button({ type: ButtonType.Circle, stateEffect: true }) {
-              SymbolGlyph($r('sys.symbol.more'))
-                .fontSize(ThemeConstants.FONT_SIZE_H3)
-                .fontColor([ThemeConstants.TEXT_PRIMARY])
-            }
-            .width(ThemeConstants.ACTION_CHIP_HEIGHT)
-            .height(ThemeConstants.ACTION_CHIP_HEIGHT)
-            .backgroundColor(ThemeConstants.BG_SUB)
-            .bindMenu(this.QueueMoreMenu(), { placement: Placement.BottomRight })
           }
+          KomaIconButton({
+            icon: $r('sys.symbol.ellipsis_circle'),
+            kind: 'secondary',
+            controlSize: ThemeConstants.TOUCH_TARGET_SM,
+            iconSize: ThemeConstants.FONT_SIZE_H3,
+            action: () => {
+              this.actionMenuKey = 'queue'
+            },
+          })
+            .bindMenu(this.actionMenuKey === 'queue', this.QueueMoreMenu(), {
+              placement: Placement.BottomRight,
+              onDisappear: () => {
+                if (this.actionMenuKey === 'queue') {
+                  this.closeActionMenu()
+                }
+              },
+            })
         }
-        .width('100%')
         .alignItems(VerticalAlign.Center)
       }
       .width('100%')
@@ -943,13 +1103,22 @@ export struct DownloadsPage {
       .borderRadius(ThemeConstants.RADIUS_CARD)
       .backgroundColor(ThemeConstants.CARD)
 
-      Flex({ wrap: FlexWrap.Wrap }) {
-        this.FilterChipItem(s('common_all'), DownloadQueueFilter.ALL)
-        this.FilterChipItem(s('downloads_filter_downloading'), DownloadQueueFilter.DOWNLOADING)
-        this.FilterChipItem(s('downloads_filter_queued'), DownloadQueueFilter.QUEUED)
-        this.FilterChipItem(s('downloads_filter_downloaded'), DownloadQueueFilter.DOWNLOADED)
-        this.FilterChipItem(s('downloads_filter_failed'), DownloadQueueFilter.FAILED)
-        this.FilterChipItem(s('downloads_filter_blocked'), DownloadQueueFilter.BLOCKED)
+      Row({ space: ThemeConstants.SPACE_SM }) {
+        KomaMenuChip({
+          label: s('downloads_filter_chip').replace('%s', this.filterLabel()),
+          active: this.hasActiveFilter(),
+        })
+          .onClick(() => {
+            this.actionMenuKey = 'filter'
+          })
+          .bindMenu(this.actionMenuKey === 'filter', this.FilterMenu(), {
+            placement: Placement.BottomLeft,
+            onDisappear: () => {
+              if (this.actionMenuKey === 'filter') {
+                this.closeActionMenu()
+              }
+            },
+          })
       }
       .width('100%')
     }
@@ -970,68 +1139,168 @@ export struct DownloadsPage {
   }
 
   @Builder
-  private DownloadRow(entry: OfflineDownloadQueueEntry) {
-    Column({ space: ThemeConstants.SPACE_MD }) {
-      ConciseListRow({
-        title: this.rowTitle(entry),
-        subtitle: this.rowDetailSubtitle(entry),
-        subtitleMaxLines: this.blockedHelpText(entry).length > 0 ? 3 : 2,
-        trailingText: this.formatEntryStatus(entry),
-        showChevron: false,
-        primaryColor: ThemeConstants.TEXT_PRIMARY,
-        secondaryColor: ThemeConstants.TEXT_SECONDARY,
-        action: () => {
+  private DownloadRowMenu(entry: OfflineDownloadQueueEntry) {
+    Menu() {
+      MenuItem({ content: s('downloads_action_open_manga') })
+        .onClick(() => {
           this.openDownloadEntry(entry)
+        })
+      if (this.canRetry(entry)) {
+        MenuItem({ content: this.busyKey === this.rowKey(entry) ? s('common_retrying') : s('common_retry') })
+          .enabled(this.busyKey.length === 0 && !this.preferences.isPaused)
+          .onClick(() => {
+            this.retryDownload(entry)
+          })
+      }
+      if (this.canRemove(entry)) {
+        MenuItem({ content: s('downloads_action_delete_files') })
+          .enabled(this.busyKey.length === 0)
+          .onClick(() => {
+            this.confirmRemoveDownload(entry)
+          })
+      }
+    }
+  }
+
+  @Builder
+  private DownloadCover(group: DownloadComicGroup) {
+    Stack({ alignContent: Alignment.Center }) {
+      SymbolGlyph($r('sys.symbol.book'))
+        .fontSize(ThemeConstants.FONT_SIZE_H2)
+        .fontColor([ThemeConstants.TEXT_TERTIARY])
+      if ((this.libraryStore?.getComic(group.comicId)?.coverUri ?? '').length > 0) {
+        CachedCoverImage({
+          uri: this.libraryStore?.getComic(group.comicId)?.coverUri ?? '',
+          objectFit: ImageFit.Cover,
+          sourceRuntimeId: this.libraryStore?.getComic(group.comicId)?.sourceRuntimeId ?? '',
+          sourceImageId: this.libraryStore?.getComic(group.comicId)?.remoteResourceId ?? group.comicId,
+          sourceKind: this.libraryStore?.getComic(group.comicId)?.sourceKind,
+          remoteServerId: this.libraryStore?.getComic(group.comicId)?.remoteServerId ?? '',
+          decodeMaxEdge: 192,
+        })
+      }
+    }
+    .width(ThemeConstants.LIST_COVER_WIDTH)
+    .height(ThemeConstants.LIST_COVER_HEIGHT)
+    .borderRadius(ThemeConstants.RADIUS_COVER)
+    .clip(true)
+    .backgroundColor(ThemeConstants.COVER_PLACEHOLDER)
+  }
+
+  @Builder
+  private DownloadStatusIcon(entry: OfflineDownloadQueueEntry) {
+    SymbolGlyph(this.entryStatusIcon(entry))
+      .fontSize(ThemeConstants.FONT_SIZE_H3)
+      .fontColor([this.entryStatusColor(entry)])
+  }
+
+  @Builder
+  private DownloadChapterRow(entry: OfflineDownloadQueueEntry) {
+    Row({ space: ThemeConstants.SPACE_SM }) {
+      Row({ space: ThemeConstants.SPACE_MD }) {
+        this.DownloadStatusIcon(entry)
+
+        Column({ space: ThemeConstants.SPACE_XS }) {
+          Text(this.rowTitle(entry))
+            .fontSize(ThemeConstants.FONT_SIZE_BODY)
+            .fontWeight(FontWeight.Medium)
+            .fontColor(ThemeConstants.TEXT_PRIMARY)
+            .maxLines(1)
+            .textOverflow({ overflow: TextOverflow.Ellipsis })
+          Text(this.rowDetailSubtitle(entry))
+            .fontSize(ThemeConstants.FONT_SIZE_CAPTION)
+            .fontColor(this.entryStatusColor(entry))
+            .maxLines(this.blockedHelpText(entry).length > 0 ? 2 : 1)
+            .textOverflow({ overflow: TextOverflow.Ellipsis })
+          if (this.shouldShowEntryProgress(entry)) {
+            Progress({ value: this.entryProgressValue(entry), total: 100, type: ProgressType.Linear })
+              .width('100%')
+              .height(3)
+              .color(this.entryStatusColor(entry))
+              .backgroundColor(ThemeConstants.SOFT_TINT)
+          }
+        }
+        .layoutWeight(1)
+        .alignItems(HorizontalAlign.Start)
+      }
+      .layoutWeight(1)
+      .alignItems(VerticalAlign.Center)
+      .onClick(() => {
+        this.openDownloadRow(entry)
+      })
+
+      KomaIconButton({
+        icon: $r('sys.symbol.ellipsis_circle'),
+        kind: 'ghost',
+        controlSize: ThemeConstants.TOUCH_TARGET_SM,
+        iconSize: ThemeConstants.FONT_SIZE_H3,
+        accentColor: ThemeConstants.TEXT_SECONDARY,
+        action: () => {
+          this.actionMenuKey = this.rowMenuKey(entry)
         },
       })
-      .width('100%')
-
-      Row({ space: ThemeConstants.SPACE_MD }) {
-        if (this.canRead(entry)) {
-          KomaActionButton({
-            label: s('common_read'),
-            kind: 'primary',
-            isEnabled: this.busyKey.length === 0,
-            controlHeight: ThemeConstants.ACTION_CHIP_HEIGHT,
-            action: () => {
-              this.openDownloadedChapter(entry)
-            },
-          })
-        }
-        if (this.canRetry(entry)) {
-          KomaActionButton({
-            label: this.busyKey === this.rowKey(entry) ? s('common_retrying') : s('common_retry'),
-            kind: 'primary',
-            isEnabled: this.busyKey.length === 0 && !this.preferences.isPaused,
-            controlHeight: ThemeConstants.ACTION_CHIP_HEIGHT,
-            action: () => {
-              this.retryDownload(entry)
-            },
-          })
-        }
-        if (this.canRemove(entry)) {
-          KomaActionButton({
-            label: s('common_remove'),
-            kind: 'ghost',
-            isEnabled: this.busyKey.length === 0,
-            controlHeight: ThemeConstants.ACTION_CHIP_HEIGHT,
-            action: () => {
-              this.confirmRemoveDownload(entry)
-            },
-          })
-        }
-      }
-      .width('100%')
+        .bindMenu(this.actionMenuKey === this.rowMenuKey(entry), this.DownloadRowMenu(entry), {
+          placement: Placement.BottomRight,
+          onDisappear: () => {
+            if (this.actionMenuKey === this.rowMenuKey(entry)) {
+              this.closeActionMenu()
+            }
+          },
+        })
     }
     .width('100%')
     .padding({
       left: ThemeConstants.SPACE_LG,
-      right: ThemeConstants.SPACE_LG,
-      top: ThemeConstants.SPACE_LG,
-      bottom: ThemeConstants.SPACE_LG,
+      right: ThemeConstants.SPACE_SM,
+      top: ThemeConstants.SPACE_MD,
+      bottom: ThemeConstants.SPACE_MD,
     })
+    .alignItems(VerticalAlign.Center)
+  }
+
+  @Builder
+  private DownloadGroup(group: DownloadComicGroup) {
+    Column() {
+      Row({ space: ThemeConstants.SPACE_MD }) {
+        this.DownloadCover(group)
+        Column({ space: ThemeConstants.SPACE_XS }) {
+          Text(group.title)
+            .fontSize(ThemeConstants.FONT_SIZE_TITLE)
+            .fontWeight(FontWeight.Medium)
+            .fontColor(ThemeConstants.TEXT_PRIMARY)
+            .maxLines(2)
+            .textOverflow({ overflow: TextOverflow.Ellipsis })
+          Text(this.groupSubtitle(group))
+            .fontSize(ThemeConstants.FONT_SIZE_CAPTION)
+            .fontColor(ThemeConstants.TEXT_SECONDARY)
+            .maxLines(1)
+            .textOverflow({ overflow: TextOverflow.Ellipsis })
+        }
+        .layoutWeight(1)
+        .alignItems(HorizontalAlign.Start)
+      }
+      .width('100%')
+      .padding(ThemeConstants.SPACE_LG)
+      .alignItems(VerticalAlign.Center)
+      .onClick(() => {
+        if (group.entries.length > 0) {
+          this.openDownloadEntry(group.entries[0])
+        }
+      })
+
+      Divider()
+        .strokeWidth(0.5)
+        .color(ThemeConstants.DIVIDER)
+        .margin({ left: ThemeConstants.SPACE_LG, right: ThemeConstants.SPACE_LG })
+
+      ForEach(group.entries, (entry: OfflineDownloadQueueEntry) => {
+        this.DownloadChapterRow(entry)
+      }, (entry: OfflineDownloadQueueEntry) => this.rowKey(entry))
+    }
+    .width('100%')
     .borderRadius(ThemeConstants.RADIUS_CARD)
     .backgroundColor(ThemeConstants.CARD)
+    .clip(true)
   }
 
   build() {
@@ -1054,11 +1323,11 @@ export struct DownloadsPage {
               this.EmptyState(this.hasActiveFilter())
             }
           }
-          ForEach(this.visibleEntries(), (entry: OfflineDownloadQueueEntry) => {
+          ForEach(this.visibleGroups(), (group: DownloadComicGroup) => {
             ListItem() {
-              this.DownloadRow(entry)
+              this.DownloadGroup(group)
             }
-          }, (entry: OfflineDownloadQueueEntry) => this.rowKey(entry))
+          }, (group: DownloadComicGroup) => group.comicId)
         }
       }
     }
