@@ -6,6 +6,21 @@ Always-loaded rules for Koma. Open relevant per-task docs (`docs/PRODUCT_PLAN.md
 
 本会话主攻**应用侧功能开发**。以 Aidoku (iOS manga reader) 为蓝本搭建完整 App 框架。
 
+## HarmonyOS 技能要求
+
+鸿蒙相关任务中，技能是执行流程，不是可选参考。与 NextE 的 always-loaded-rules 同一标准：
+
+- 任何 HarmonyOS / ArkTS / DevEco / HDC / 设备 / 模拟器任务，行动前必须先完整读取
+  `harmony-mandatory-preflight` 技能并执行其门禁；不得用会话记忆、历史租约或旧产物替代
+  当前回合的预检。
+- 涉及设备、模拟器、HDC、UI 自动化、截图、布局 dump、录屏或日志的验证，必须走
+  `harmony-run-device-diagnostics` 技能的 manifest 工作流：先查项目和产物目录里已验收的
+  协议，复用场景/几何/动作，只更新目标与输出路径；没有现成协议时新建项目 manifest，
+  dry-run 后经租约包装执行。不得临时手写 hdc 命令序列。
+- 不确定的 ArkTS/ArkUI/NDK/DevEco API 或平台行为，先用 `harmony-next` 技能的离线文档
+  或华为官方文档确认；不得凭经验补全。
+- UI 打磨参考 `/Users/honjow/git/HarmonyOSComponentUXExamples` 的约定不变。
+
 ## Execution Discipline
 
 路线图不是背景资料，必须作为执行约束使用。开始任何非平凡任务前，先对照 `docs/APP_GAP_PLAN_AIDOKU.md` 和 `docs/ROADMAP.md`，明确当前动作服务哪个最高优先级用户闭环。
