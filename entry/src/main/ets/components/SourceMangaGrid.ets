@@ -1,30 +1,27 @@
 import { SourceManga } from '../model/SourceModels'
 import { ThemeConstants } from '../theme/ThemeConstants'
 import { MangaGridItem } from './MangaGridItem'
+import { gridFallbackContainerWidth, gridColumnCount } from '../utils/GridColumns'
 
 @ComponentV2
 export struct SourceMangaGrid {
   @Param manga: SourceManga[] = []
-  @Param columnCount: number = 0
-  @Local private containerWidth: number = 0
+  // Seeded from the display width so the first frame already uses the same
+  // column model as every later frame; onAreaChange keeps it exact.
+  @Local private containerWidth: number = gridFallbackContainerWidth()
   @Event onMangaTap: (manga: SourceManga) => void = (_manga: SourceManga) => {}
 
-  private normalizedColumnCount(): number {
-    if (this.columnCount > 0) {
-      return Math.max(1, Math.min(12, Math.floor(this.columnCount)))
-    }
-    if (this.containerWidth <= 0) {
-      return 3
-    }
-    const targetWidth = 135
-    const gap = ThemeConstants.SPACE_MD
-    const count = Math.floor((this.containerWidth + gap) / (targetWidth + gap))
-    return Math.max(2, Math.min(12, count))
+  private columnCount(): number {
+    return gridColumnCount(
+      this.containerWidth,
+      ThemeConstants.SOURCE_GRID_MIN_COLUMN_WIDTH,
+      ThemeConstants.SPACE_MD,
+      0,
+    )
   }
 
   private rowCount(): number {
-    const columns = this.normalizedColumnCount()
-    return Math.ceil(this.manga.length / columns)
+    return Math.ceil(this.manga.length / this.columnCount())
   }
 
   private rowIndexes(): number[] {
@@ -36,13 +33,12 @@ export struct SourceMangaGrid {
   }
 
   private rowManga(rowIndex: number): SourceManga[] {
-    const columns = this.normalizedColumnCount()
-    const start = rowIndex * columns
-    return this.manga.slice(start, start + columns)
+    const start = rowIndex * this.columnCount()
+    return this.manga.slice(start, start + this.columnCount())
   }
 
   private missingCells(row: SourceManga[]): number[] {
-    const missing = this.normalizedColumnCount() - row.length
+    const missing = this.columnCount() - row.length
     const cells: number[] = []
     for (let index = 0; index < missing; index += 1) {
       cells.push(index)

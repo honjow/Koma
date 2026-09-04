@@ -125,7 +125,9 @@ export class ThemeConstants {
   static readonly ACTION_CHIP_HEIGHT: number = 32
   static readonly TOUCH_TARGET_SM: number = 36
   static readonly LOADING_SIZE_LARGE: number = 36
-  static readonly SOURCE_RESULT_GRID_COLUMN_COUNT: number = 3
+  // Width policy, not a column count: grids derive counts from the measured
+  // container width via utils/GridColumns.
+  static readonly SOURCE_GRID_MIN_COLUMN_WIDTH: number = 104
   static readonly LINE_HEIGHT_TITLE: number = 22
   static readonly LINE_HEIGHT_BODY: number = 20
 }

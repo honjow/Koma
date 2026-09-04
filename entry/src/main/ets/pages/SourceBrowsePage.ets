@@ -300,7 +300,6 @@ export struct SourceBrowsePage {
   private MangaGrid(manga: SourceManga[]) {
     SourceMangaGrid({
       manga,
-      columnCount: 0,
       onMangaTap: (selected: SourceManga) => {
         this.onMangaTap(selected)
       },

@@ -223,7 +223,6 @@ export struct SourceSearchPage {
   private ResultsGrid(manga: SourceManga[]) {
     SourceMangaGrid({
       manga,
-      columnCount: ThemeConstants.SOURCE_RESULT_GRID_COLUMN_COUNT,
       onMangaTap: (selected: SourceManga) => {
         this.onMangaTap(selected)
       },

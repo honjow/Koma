@@ -113,7 +113,7 @@ export struct ComicCoverCard {
         if (this.shouldDisplayCoverImage()) {
           CachedCoverImage({
             uri: this.displayCoverUri(),
-            objectFit: ImageFit.Contain,
+            objectFit: ImageFit.Cover,
             sourceRuntimeId: this.displaySourceRuntimeId(),
             sourceImageId: this.displaySourceImageId(),
             sourceKind: this.comic.sourceKind,
@@ -160,7 +160,7 @@ export struct ComicCoverCard {
         }
       }
       .width('100%')
-      .aspectRatio(0.7)
+      .aspectRatio(0.68)
       .borderRadius(ThemeConstants.RADIUS_COVER)
       .clip(true)
       .shadow({ radius: 14, color: ThemeConstants.SHADOW_CARD, offsetY: 7 })
