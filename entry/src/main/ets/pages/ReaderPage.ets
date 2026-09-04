@@ -1,6 +1,6 @@
 import { image } from '@kit.ImageKit'
 import { common, ConfigurationConstant } from '@kit.AbilityKit'
-import { window } from '@kit.ArkUI'
+import { LengthMetrics, window } from '@kit.ArkUI'
 import { KeyCode } from '@kit.InputKit'
 import inputConsumer from '@ohos.multimodalInput.inputConsumer'
 import { Action, KeyEvent as InputConsumerKeyEvent } from '@ohos.multimodalInput.keyEvent'
@@ -1549,6 +1549,51 @@ struct ReaderThumbnailTile {
     .height(READER_THUMB_STRIP_HEIGHT)
     .alignItems(HorizontalAlign.Center)
     .onClick(() => { this.onTap(this.pageIndex) })
+  }
+}
+
+@ComponentV2
+struct ReaderPageNumberOverlay {
+  @Require @Param value: string
+  @Require @Param bottomMargin: number
+  private controller: TextController = new TextController()
+
+  @Monitor('value')
+  onValueChanged(): void {
+    this.updateStyledText()
+  }
+
+  private styledText(): MutableStyledString {
+    const styled: MutableStyledString = new MutableStyledString(this.value, [])
+    styled.setStyle({
+      start: 0,
+      length: this.value.length,
+      styledKey: StyledStringKey.FONT,
+      styledValue: new TextStyle({
+        fontColor: ThemeConstants.READER_PAGE_NUMBER_TEXT,
+        fontSize: LengthMetrics.vp(ThemeConstants.FONT_SIZE_BODY),
+        fontWeight: FontWeight.Medium,
+        strokeWidth: LengthMetrics.vp(-ThemeConstants.READER_PAGE_NUMBER_STROKE_WIDTH),
+        strokeColor: ThemeConstants.READER_PAGE_NUMBER_OUTLINE,
+      }),
+    })
+    return styled
+  }
+
+  private updateStyledText(): void {
+    this.controller.setStyledString(this.styledText())
+  }
+
+  build() {
+    Text(undefined, { controller: this.controller })
+      .width('100%')
+      .textAlign(TextAlign.Center)
+      .maxLines(1)
+      .margin({ bottom: this.bottomMargin })
+      .hitTestBehavior(HitTestMode.None)
+      .onAppear(() => {
+        this.updateStyledText()
+      })
   }
 }
 
@@ -3151,9 +3196,10 @@ export struct ReaderPage {
 
   @Builder
   private PersistentPageNumber() {
-    Text(`${this.pageIndex + 1} / ${Math.max(this.sessionConfig.totalPages, 0)}`)
-      .fontSize(14).fontWeight(FontWeight.Medium).fontColor(readerForeground(this.preferences.backgroundMode))
-      .width('100%').textAlign(TextAlign.Center).margin({ bottom: this.layout.bottomAvoidHeight + 8 }).hitTestBehavior(HitTestMode.None)
+    ReaderPageNumberOverlay({
+      value: `${this.pageIndex + 1} / ${Math.max(this.sessionConfig.totalPages, 0)}`,
+      bottomMargin: this.layout.bottomAvoidHeight + 8,
+    })
   }
 
   @Builder

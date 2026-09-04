@@ -44,6 +44,9 @@ export class ThemeConstants {
   static readonly READER_TEXT_ON_LIGHT: ResourceColor = '#17130F'
   static readonly READER_FOREGROUND_LIGHT: ResourceColor = '#FFFFFFFF'
   static readonly READER_FOREGROUND_DARK: ResourceColor = '#FF000000'
+  static readonly READER_PAGE_NUMBER_TEXT: ResourceColor = '#99FFFFFF'
+  static readonly READER_PAGE_NUMBER_OUTLINE: ResourceColor = '#80000000'
+  static readonly READER_PAGE_NUMBER_STROKE_WIDTH: number = 2.5
   static readonly READER_TEXT_UNSELECTED: ResourceColor = '#EDE2DA'
   static readonly READER_ACCENT: ResourceColor = '#E66A3A'
   static readonly READER_ACCENT_LIGHT: ResourceColor = '#FF996F'
