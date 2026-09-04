@@ -166,6 +166,7 @@ struct ReaderImageSurface {
   @Param splitSide: 'none' | 'left' | 'right' = 'none'
   @Param rotateClockwise: boolean = false
   @Param zoomEnabled: boolean = true
+  @Param gesturesEnabled: boolean = true
   @Param active: boolean = true
   @Param allowDirectDoubleTap: boolean = true
   @Param routeTaps: boolean = false
@@ -176,21 +177,13 @@ struct ReaderImageSurface {
   @Param externalDoubleTapTargetPage: number = -1
   @Param externalDoubleTapX: number = 0
   @Param externalDoubleTapY: number = 0
-  /** Replayed continuous transform; survives ListItem virtualization. */
-  @Param renderTransformTargetPage: number = -1
-  @Param renderTransformScale: number = 1
-  @Param renderTransformPanX: number = 0
-  @Param renderTransformPanY: number = 0
   @Param retryToken: number = 0
   @Param zoomResetToken: number = 0
   @Event onZoomChange: (zoomed: boolean) => void = (_zoomed: boolean) => {}
-  @Event onTransformChange: (scale: number, panX: number, panY: number, zoomed: boolean) => void = (_scale: number, _panX: number, _panY: number, _zoomed: boolean) => {}
   @Event onImageInfo: (pageIndex: number, width: number, height: number) => void = (_pageIndex: number, _width: number, _height: number) => {}
   @Event onLoaded: (pageIndex: number) => void = (_pageIndex: number) => {}
   @Event onFailed: (pageIndex: number) => void = (_pageIndex: number) => {}
   @Event onTap: (x: number, y: number) => void = (_x: number, _y: number) => {}
-  @Event onTransformPreview: (pageIndex: number, scale: number, panX: number, panY: number) => void =
-    (_pageIndex: number, _scale: number, _panX: number, _panY: number) => {}
 
   @Local private displayUri: string = ''
   @Local private loading: boolean = false
@@ -205,20 +198,11 @@ struct ReaderImageSurface {
   private panStartY: number = 0
   private viewportWidth: number = 0
   private viewportHeight: number = 0
-  @Local private gestureScale: number = 1
-  @Local private gesturePanX: number = 0
-  @Local private gesturePanY: number = 0
-  /**
-   * These are deliberately direct ArkUI bindings rather than computed
-   * accessors over ReaderPage's replay state.  NextE animates an image's own
-   * transform first; the parent only receives the settled value so a recycled
-   * ListItem can restore it later.  Binding a getter to the parent value makes
-   * that parent update win in the same frame and turns the transition into a
-   * snap.
-   */
-  @Local private renderScale: number = 1
-  @Local private renderPanX: number = 0
-  @Local private renderPanY: number = 0
+  // One image-local transform is both the recognizer state and the rendered
+  // state. ReaderPage owns only the surrounding pager/List zoom gate.
+  @Local private zoomScale: number = 1
+  @Local private offsetX: number = 0
+  @Local private offsetY: number = 0
   @Local private intrinsicWidth: number = 0
   @Local private intrinsicHeight: number = 0
   @Local private zoomAnimating: boolean = false
@@ -230,19 +214,9 @@ struct ReaderImageSurface {
   private skipNextTapUp: boolean = false
   private singleTapTimerId: number = -1
   private isPinching: boolean = false
-  // The image recognizer is the normal path.  Some ArkUI containers keep
-  // forwarding multi-touch as raw touch events while retaining their own
-  // gesture stream (notably List, and Swiper when the transparent tap layer
-  // is present).  Keep one image-local raw fallback for every reader mode;
-  // it becomes dormant as soon as ArkUI recognizes the native PinchGesture.
-  private nativePinchActive: boolean = false
-  private rawPinchActive: boolean = false
-  private rawPinchStartDistance: number = 0
-  private rawPanActive: boolean = false
   private ignorePanSequence: boolean = false
   private pinchAdjustedSinceDoubleTap: boolean = false
   private zoomAnimatingTimerId: number = -1
-  private continuousTransformCommitTimerId: number = -1
   private intrinsicPixelWidth: number = 0
   private intrinsicPixelHeight: number = 0
 
@@ -253,7 +227,6 @@ struct ReaderImageSurface {
       this.viewportHeight = this.parentViewportHeight
     }
     this.resetZoom(false)
-    this.applyReplayedTransform()
     void this.resolveSource()
   }
 
@@ -273,7 +246,6 @@ struct ReaderImageSurface {
     this.displayUri = ''
     this.clearSingleTap()
     this.clearZoomAnimation()
-    this.clearContinuousTransformCommit()
   }
 
   @Monitor('source', 'splitSide', 'rotateClockwise', 'retryToken')
@@ -284,31 +256,6 @@ struct ReaderImageSurface {
     this.intrinsicWidth = this.toVp(this.intrinsicPixelWidth)
     this.intrinsicHeight = this.toVp(this.intrinsicPixelHeight)
     void this.resolveSource()
-  }
-
-  @Monitor('renderTransformTargetPage', 'renderTransformScale', 'renderTransformPanX', 'renderTransformPanY')
-  onReplayedTransformChanged(): void {
-    if (!this.routeTaps || this.zoomAnimating) {
-      return
-    }
-    this.applyReplayedTransform()
-  }
-
-  private applyReplayedTransform(): void {
-    if (!this.routeTaps) {
-      return
-    }
-    if (this.renderTransformTargetPage === this.pageIndex) {
-      this.gestureScale = this.renderTransformScale
-      this.gesturePanX = this.renderTransformPanX
-      this.gesturePanY = this.renderTransformPanY
-      this.setRenderedTransform(this.gestureScale, this.gesturePanX, this.gesturePanY)
-      return
-    }
-    this.gestureScale = 1
-    this.gesturePanX = 0
-    this.gesturePanY = 0
-    this.setRenderedTransform(1, 0, 0)
   }
 
   @Monitor('zoomResetToken')
@@ -335,7 +282,7 @@ struct ReaderImageSurface {
     // Paged surfaces deliberately release their transform when the pager
     // moves away. A vertical List reuses rows while its visible bounds move;
     // treating that bookkeeping change as a zoom reset races the target row's
-    // replay state and is not part of NextE's vertical image contract.
+    // local transform and is not part of NextE's vertical image contract.
     if (!this.routeTaps && !this.active) {
       this.resetZoom(true)
     }
@@ -526,7 +473,7 @@ struct ReaderImageSurface {
    * one-pixel pan threshold gives the image its own canvas again.
    */
   private panDistance(): number {
-    if (this.gestureScale > 1.01) {
+    if (this.zoomScale > 1.01) {
       return 1
     }
     const longSide = Math.max(this.viewportWidth, this.viewportHeight)
@@ -535,15 +482,15 @@ struct ReaderImageSurface {
 
   private doubleTapTarget(): number {
     const max = this.maxScale()
-    if (this.pinchAdjustedSinceDoubleTap && this.gestureScale > 1.01) {
+    if (this.pinchAdjustedSinceDoubleTap && this.zoomScale > 1.01) {
       return 1
     }
     const primary = this.clampScale(READER_DOUBLE_TAP_SCALE)
     const native = this.clampScale(this.nativeScale())
-    if (this.gestureScale <= 1.01) {
+    if (this.zoomScale <= 1.01) {
       return primary
     }
-    if (Math.abs(this.gestureScale - primary) <= 0.02 && native > 1.02) {
+    if (Math.abs(this.zoomScale - primary) <= 0.02 && native > 1.02) {
       return native
     }
     return 1
@@ -561,26 +508,6 @@ struct ReaderImageSurface {
     }
   }
 
-  private clearContinuousTransformCommit(): void {
-    if (this.continuousTransformCommitTimerId >= 0) {
-      clearTimeout(this.continuousTransformCommitTimerId)
-      this.continuousTransformCommitTimerId = -1
-    }
-  }
-
-  private commitContinuousTransformAfterAnimation(scale: number, panX: number, panY: number, zoomed: boolean): void {
-    this.clearContinuousTransformCommit()
-    this.continuousTransformCommitTimerId = setTimeout(() => {
-      this.continuousTransformCommitTimerId = -1
-      if (this.disposed) {
-        return
-      }
-      this.onTransformPreview(this.pageIndex, scale, panX, panY)
-      this.onTransformChange(scale, panX, panY, zoomed)
-      this.onZoomChange(zoomed)
-    }, READER_ZOOM_ANIM_DURATION + 24)
-  }
-
   private beginZoomAnimation(): void {
     this.clearZoomAnimation()
     this.zoomAnimating = true
@@ -590,21 +517,13 @@ struct ReaderImageSurface {
     }, READER_ZOOM_ANIM_DURATION + 24)
   }
 
-  private setRenderedTransform(scale: number, panX: number, panY: number): void {
-    this.renderScale = scale
-    this.renderPanX = panX
-    this.renderPanY = panY
-  }
-
   private resetZoom(notify: boolean = true): void {
-    this.gestureScale = 1
-    this.gesturePanX = 0
-    this.gesturePanY = 0
-    this.setRenderedTransform(1, 0, 0)
+    this.zoomScale = 1
+    this.offsetX = 0
+    this.offsetY = 0
     this.pinchAdjustedSinceDoubleTap = false
     if (notify) {
       this.onZoomChange(false)
-      this.onTransformChange(1, 0, 0, false)
     }
   }
 
@@ -616,13 +535,13 @@ struct ReaderImageSurface {
     this.ignorePanSequence = true
     this.zoomAnimating = false
     this.pinchAdjustedSinceDoubleTap = true
-    this.pinchStart = this.gestureScale
+    this.pinchStart = this.zoomScale
     this.pinchAnchorX = centerX
     this.pinchAnchorY = centerY
-    const displayW = this.displayWidth() * this.gestureScale
-    const displayH = this.displayHeight() * this.gestureScale
-    this.pinchAnchorX = displayW > 0 ? (this.pinchAnchorX - (this.viewportWidth - displayW) / 2 - this.gesturePanX) / displayW : 0.5
-    this.pinchAnchorY = displayH > 0 ? (this.pinchAnchorY - (this.viewportHeight - displayH) / 2 - this.gesturePanY) / displayH : 0.5
+    const displayW = this.displayWidth() * this.zoomScale
+    const displayH = this.displayHeight() * this.zoomScale
+    this.pinchAnchorX = displayW > 0 ? (this.pinchAnchorX - (this.viewportWidth - displayW) / 2 - this.offsetX) / displayW : 0.5
+    this.pinchAnchorY = displayH > 0 ? (this.pinchAnchorY - (this.viewportHeight - displayH) / 2 - this.offsetY) / displayH : 0.5
   }
 
   private updatePinchAt(centerX: number, centerY: number, scale: number): void {
@@ -644,34 +563,27 @@ struct ReaderImageSurface {
       this.displayHeight(),
       next,
     )
-    this.gestureScale = next
-    this.gesturePanX = nextPanX
-    this.gesturePanY = nextPanY
-    this.setRenderedTransform(next, nextPanX, nextPanY)
+    this.zoomScale = next
+    this.offsetX = nextPanX
+    this.offsetY = nextPanY
   }
 
-  private finishPinch(cancelled: boolean): void {
+  private finishPinch(): void {
     this.isPinching = false
     this.ignorePanSequence = false
-    if (this.gestureScale <= 1.01) {
+    if (this.zoomScale <= 1.01) {
       this.beginZoomAnimation()
       this.resetZoom()
       return
     }
-    this.gestureScale = this.clampScale(this.gestureScale)
-    this.gesturePanX = this.clampOffset(this.gesturePanX, this.viewportWidth, this.displayWidth(), this.gestureScale)
-    this.gesturePanY = this.clampOffset(this.gesturePanY, this.viewportHeight, this.displayHeight(), this.gestureScale)
-    this.setRenderedTransform(this.gestureScale, this.gesturePanX, this.gesturePanY)
+    this.zoomScale = this.clampScale(this.zoomScale)
+    this.offsetX = this.clampOffset(this.offsetX, this.viewportWidth, this.displayWidth(), this.zoomScale)
+    this.offsetY = this.clampOffset(this.offsetY, this.viewportHeight, this.displayHeight(), this.zoomScale)
     this.onZoomChange(true)
-    if (!cancelled || this.gestureScale > 1.01) {
-      this.onTransformChange(this.gestureScale, this.gesturePanX, this.gesturePanY, true)
-    }
   }
 
   private handlePinchStart(event?: GestureEvent): void {
     if (event !== undefined) {
-      this.nativePinchActive = true
-      this.rawPinchActive = false
       this.beginPinchAt(event.pinchCenterX as number, event.pinchCenterY as number)
     }
   }
@@ -682,142 +594,33 @@ struct ReaderImageSurface {
     }
   }
 
-  private finishNativePinch(cancelled: boolean): void {
-    this.nativePinchActive = false
-    this.finishPinch(cancelled)
-  }
-
-  private touchDistance(first: TouchObject, second: TouchObject): number {
-    const dx = (second.x as number) - (first.x as number)
-    const dy = (second.y as number) - (first.y as number)
-    return Math.sqrt(dx * dx + dy * dy)
-  }
-
-  private rawPinchCenterX(first: TouchObject, second: TouchObject): number {
-    return ((first.x as number) + (second.x as number)) / 2
-  }
-
-  private rawPinchCenterY(first: TouchObject, second: TouchObject): number {
-    return ((first.y as number) + (second.y as number)) / 2
-  }
-
-  /**
-   * A native PinchGesture should normally win.  When a parent List or Swiper
-   * retains the recognizer, the image still receives its raw two-touch stream.
-   * Reconstruct that exact scale here.  This path never handles a one-finger
-   * drag, so ordinary List scrolling and unzoomed Swiper turning remain native.
-   */
-  private handleRawPinch(event: TouchEvent): boolean {
-    if (this.nativePinchActive) {
-      return false
-    }
-    if (event.type === TouchType.Up || event.type === TouchType.Cancel) {
-      if (this.rawPinchActive) {
-        this.rawPinchActive = false
-        this.finishPinch(event.type === TouchType.Cancel)
-        return true
-      }
-      return false
-    }
-    if (event.touches.length < 2) {
-      return false
-    }
-    const first = event.touches[0]
-    const second = event.touches[1]
-    const distance = this.touchDistance(first, second)
-    if (distance <= 0) {
-      return true
-    }
-    const centerX = this.rawPinchCenterX(first, second)
-    const centerY = this.rawPinchCenterY(first, second)
-    if (!this.rawPinchActive) {
-      this.rawPinchActive = true
-      this.rawPinchStartDistance = distance
-      this.beginPinchAt(centerX, centerY)
-      return true
-    }
-    if (this.rawPinchStartDistance > 0) {
-      this.updatePinchAt(centerX, centerY, distance / this.rawPinchStartDistance)
-    }
-    return true
-  }
-
-  /**
-   * In continuous mode the native List owns unzoomed drags.  Once a page is
-   * zoomed, the same raw stream becomes that page's canvas pan; keeping this
-   * local avoids a List re-layout while the image is under the finger.
-   */
-  private updateContinuousRawPan(touch: TouchObject): boolean {
-    if (!this.routeTaps || this.isPinching || this.gestureScale <= 1.01) {
-      return false
-    }
-    const dx = (touch.x as number) - this.tapStartX
-    const dy = (touch.y as number) - this.tapStartY
-    if (!this.rawPanActive && Math.sqrt(dx * dx + dy * dy) <= READER_TAP_VERTICAL_TOLERANCE) {
-      return false
-    }
-    this.rawPanActive = true
-    this.tapCancelled = true
-    this.clearSingleTap()
-    this.gesturePanX = this.clampOffset(this.panStartX + dx, this.viewportWidth, this.displayWidth(), this.gestureScale)
-    this.gesturePanY = this.clampOffset(this.panStartY + dy, this.viewportHeight, this.displayHeight(), this.gestureScale)
-    this.setRenderedTransform(this.gestureScale, this.gesturePanX, this.gesturePanY)
-    return true
+  private finishNativePinch(): void {
+    this.finishPinch()
   }
 
   private handleDoubleTapAt(tapX: number, tapY: number): void {
     if (!this.zoomEnabled || (!this.active && !this.routeTaps)) return
-    // Continuous rendering is replayed from ReaderPage to survive ListItem
-    // reuse. Restore that authoritative visual state before choosing the
-    // next double-tap target, otherwise a recycled row mistakes 1.9x for 1x
-    // and zooms again instead of resetting.
-    if (this.routeTaps && this.renderTransformTargetPage === this.pageIndex) {
-      this.gestureScale = this.renderTransformScale
-      this.gesturePanX = this.renderTransformPanX
-      this.gesturePanY = this.renderTransformPanY
-      this.setRenderedTransform(this.gestureScale, this.gesturePanX, this.gesturePanY)
-    }
     this.clearSingleTap()
+    this.skipNextTapUp = false
     this.beginZoomAnimation()
     const target = this.doubleTapTarget()
     if (target <= 1.01) {
-      if (this.routeTaps) {
-        // The List remains locked by the old zoom gate until the image's own
-        // 1x transition ends. Committing it sooner remounts this row and
-        // cuts the reset animation short.
-        this.gestureScale = 1
-        this.gesturePanX = 0
-        this.gesturePanY = 0
-        this.setRenderedTransform(1, 0, 0)
-        this.pinchAdjustedSinceDoubleTap = false
-        this.commitContinuousTransformAfterAnimation(1, 0, 0, false)
-        return
-      }
       this.resetZoom()
       return
     }
-    const displayW = this.displayWidth() * this.gestureScale
-    const displayH = this.displayHeight() * this.gestureScale
-    const anchorX = displayW > 0 ? (tapX - (this.viewportWidth - displayW) / 2 - this.gesturePanX) / displayW : 0.5
-    const anchorY = displayH > 0 ? (tapY - (this.viewportHeight - displayH) / 2 - this.gesturePanY) / displayH : 0.5
+    const displayW = this.displayWidth() * this.zoomScale
+    const displayH = this.displayHeight() * this.zoomScale
+    const anchorX = displayW > 0 ? (tapX - (this.viewportWidth - displayW) / 2 - this.offsetX) / displayW : 0.5
+    const anchorY = displayH > 0 ? (tapY - (this.viewportHeight - displayH) / 2 - this.offsetY) / displayH : 0.5
     const nextDisplayW = this.displayWidth() * target
     const nextDisplayH = this.displayHeight() * target
-    this.gestureScale = target
-    this.gesturePanX = this.clampOffset(tapX - (this.viewportWidth - nextDisplayW) / 2 - nextDisplayW * anchorX,
+    this.zoomScale = target
+    this.offsetX = this.clampOffset(tapX - (this.viewportWidth - nextDisplayW) / 2 - nextDisplayW * anchorX,
       this.viewportWidth, this.displayWidth(), target)
-    this.gesturePanY = this.clampOffset(tapY - (this.viewportHeight - nextDisplayH) / 2 - nextDisplayH * anchorY,
+    this.offsetY = this.clampOffset(tapY - (this.viewportHeight - nextDisplayH) / 2 - nextDisplayH * anchorY,
       this.viewportHeight, this.displayHeight(), target)
-    this.setRenderedTransform(target, this.gesturePanX, this.gesturePanY)
     this.pinchAdjustedSinceDoubleTap = false
-    if (this.routeTaps) {
-      // The image owns the transition. Do not update List state in this
-      // frame: that rebuilds virtual rows and replaces the local transform
-      // with 1x before ArkUI can animate it. Persist and lock after it ends.
-      this.commitContinuousTransformAfterAnimation(target, this.gesturePanX, this.gesturePanY, true)
-      return
-    }
     this.onZoomChange(true)
-    this.onTransformChange(target, this.gesturePanX, this.gesturePanY, true)
   }
 
   private clearSingleTap(): void {
@@ -834,13 +637,6 @@ struct ReaderImageSurface {
     }
     const touchX = touch.x as number
     const touchY = touch.y as number
-    if (this.handleRawPinch(event)) {
-      if (this.routeTaps) {
-        this.tapCancelled = true
-        this.clearSingleTap()
-      }
-      return
-    }
     if (!this.routeTaps) {
       return
     }
@@ -853,25 +649,11 @@ struct ReaderImageSurface {
       if (this.singleTapTimerId >= 0) {
         this.clearSingleTap()
         this.skipNextTapUp = true
-        this.tapCancelled = true
-        // In a continuous List the image receives the raw touch stream even
-        // when ArkUI's double-tap recognizer remains held by List.  This is
-        // the same image-local command as the native recognizer, just driven
-        // from the already-delayed first tap so there is exactly one zoom
-        // owner and no single-tap/chrome flash between the two taps.
-        this.handleDoubleTapAt(touchX, touchY)
-        return
       }
       this.tapStartX = touchX
       this.tapStartY = touchY
-      this.panStartX = this.gesturePanX
-      this.panStartY = this.gesturePanY
-      this.rawPanActive = false
       this.tapCancelled = false
     } else if (event.type === TouchType.Move) {
-      if (this.updateContinuousRawPan(touch)) {
-        return
-      }
       const dx = touchX - this.tapStartX
       const dy = touchY - this.tapStartY
       if (Math.sqrt(dx * dx + dy * dy) > READER_TAP_VERTICAL_TOLERANCE) {
@@ -879,13 +661,6 @@ struct ReaderImageSurface {
         this.clearSingleTap()
       }
     } else if (event.type === TouchType.Up) {
-      if (this.rawPanActive) {
-        this.rawPanActive = false
-        this.tapCancelled = true
-        this.onTransformChange(this.gestureScale, this.gesturePanX, this.gesturePanY, true)
-        this.skipNextTapUp = false
-        return
-      }
       const dx = touchX - this.tapStartX
       const dy = touchY - this.tapStartY
       if (!this.tapCancelled && !this.skipNextTapUp &&
@@ -911,61 +686,6 @@ struct ReaderImageSurface {
       this.skipNextTapUp = false
       this.clearSingleTap()
     }
-  }
-
-  private surfacePinchGesture(): PinchGestureInterface {
-    return PinchGesture({ fingers: 2 })
-      .onActionStart((event?: GestureEvent) => { this.handlePinchStart(event) })
-      .onActionUpdate((event?: GestureEvent) => { this.handlePinchUpdate(event) })
-      .onActionEnd(() => { this.finishNativePinch(false) })
-      .onActionCancel(() => { this.finishNativePinch(true) })
-  }
-
-  private surfaceDoubleTapGesture(): TapGestureInterface {
-    return TapGesture({ count: 2, distanceThreshold: 8 }).onAction((event?: GestureEvent) => {
-      if (!this.allowDirectDoubleTap) {
-        return
-      }
-      const location = event?.tapLocation
-      this.handleDoubleTapAt(location === undefined ? this.viewportWidth / 2 : location.x as number,
-        location === undefined ? this.viewportHeight / 2 : location.y as number)
-    })
-  }
-
-  private pagedPanGesture(): PanGestureInterface {
-    return PanGesture({ fingers: 1, direction: PanDirection.All, distance: this.panDistance() })
-      .onActionStart(() => {
-        if (this.routeTaps) return
-        if (!this.active || this.gestureScale <= 1.01) return
-        this.tapCancelled = true
-        this.clearSingleTap()
-        this.panStartX = this.gesturePanX
-        this.panStartY = this.gesturePanY
-      })
-      .onActionUpdate((event?: GestureEvent) => {
-        if (this.routeTaps) return
-        if (event === undefined || !this.active || this.ignorePanSequence || this.isPinching || this.gestureScale <= 1.01) return
-        this.tapCancelled = true
-        this.clearSingleTap()
-        const nextX = this.clampOffset(this.panStartX + (event.offsetX as number), this.viewportWidth, this.displayWidth(), this.gestureScale)
-        const nextY = this.clampOffset(this.panStartY + (event.offsetY as number), this.viewportHeight, this.displayHeight(), this.gestureScale)
-        this.gesturePanX = nextX
-        this.gesturePanY = nextY
-        if (this.active) this.onTransformChange(this.gestureScale, nextX, nextY, this.gestureScale > 1.01)
-      })
-      .onActionEnd(() => { this.ignorePanSequence = false })
-      .onActionCancel(() => { this.ignorePanSequence = false })
-  }
-
-  private surfaceGestures(): GestureGroupInterface {
-    if (this.routeTaps) {
-      // Continuous rows arbitrate single/double taps and zoomed pan from
-      // their raw touch sequence so List cannot retain a competing recognizer.
-      // Keep the native pinch recognizer as the preferred fast path; the raw
-      // pinch fallback above covers runtimes where List holds that recognizer.
-      return GestureGroup(GestureMode.Parallel, this.surfacePinchGesture())
-    }
-    return GestureGroup(GestureMode.Parallel, this.surfacePinchGesture(), this.surfaceDoubleTapGesture(), this.pagedPanGesture())
   }
 
   @Builder
@@ -1001,28 +721,17 @@ struct ReaderImageSurface {
   build() {
     Stack({ alignContent: Alignment.Center }) {
       if (this.displayUri.length > 0) {
-        if (this.renderScale > 1.001) {
-          Image(this.displayUri)
-            .width(this.displayWidth() > 0 ? this.displayWidth() : '100%')
-            .height(this.displayHeight() > 0 ? this.displayHeight() : '100%')
-            .objectFit(ImageFit.Contain)
-            .interpolation(imageInterpolation(this.scalingQuality))
-            .rotate({ angle: this.rotateClockwise ? 90 : 0 })
-            .scale({ x: this.renderScale, y: this.renderScale })
-            .translate({ x: this.renderPanX, y: this.renderPanY })
-            .animation({ duration: this.zoomAnimating ? READER_ZOOM_ANIM_DURATION : 0, curve: Curve.FastOutSlowIn })
-            .onComplete((event?: ReaderImageLoadEvent) => { this.onDisplayComplete(event) })
-            .onError(() => { this.onDisplayError() })
-        } else {
-          Image(this.displayUri)
-            .width('100%')
-            .height('100%')
-            .objectFit(this.fit)
-            .interpolation(imageInterpolation(this.scalingQuality))
-            .rotate({ angle: this.rotateClockwise ? 90 : 0 })
-            .onComplete((event?: ReaderImageLoadEvent) => { this.onDisplayComplete(event) })
-            .onError(() => { this.onDisplayError() })
-        }
+        Image(this.displayUri)
+          .width('100%')
+          .height('100%')
+          .objectFit(this.fit)
+          .interpolation(imageInterpolation(this.scalingQuality))
+          .rotate({ angle: this.rotateClockwise ? 90 : 0 })
+          .scale({ x: this.zoomScale, y: this.zoomScale })
+          .translate({ x: this.offsetX, y: this.offsetY })
+          .animation({ duration: this.zoomAnimating ? READER_ZOOM_ANIM_DURATION : 0, curve: Curve.FastOutSlowIn })
+          .onComplete((event?: ReaderImageLoadEvent) => { this.onDisplayComplete(event) })
+          .onError(() => { this.onDisplayError() })
       }
       if (this.displayUri.length === 0 || this.loading) {
         this.LoadingContent()
@@ -1041,7 +750,629 @@ struct ReaderImageSurface {
     // zoomed-pan recognizers below. A single-tap recognizer here would join
     // the recognizer race and starve the List before it can start scrolling.
     .onTouch((event: TouchEvent) => { this.onSurfaceTouch(event) })
-    .gesture(this.surfaceGestures())
+    .hitTestBehavior(this.gesturesEnabled ? HitTestMode.Default : HitTestMode.None)
+    // Keep this declaration inline. `panDistance()` depends on local zoom
+    // state; hiding the recognizer behind a factory freezes its construction
+    // at the unzoomed threshold and makes post-zoom pan impossible.
+    .gesture(
+      GestureGroup(
+        GestureMode.Parallel,
+        PinchGesture({ fingers: 2 })
+          .onActionStart((event?: GestureEvent) => { this.handlePinchStart(event) })
+          .onActionUpdate((event?: GestureEvent) => { this.handlePinchUpdate(event) })
+          .onActionEnd(() => { this.finishNativePinch() })
+          .onActionCancel(() => { this.finishNativePinch() }),
+        TapGesture({ count: 2, distanceThreshold: 8 }).onAction((event?: GestureEvent) => {
+          if (!this.allowDirectDoubleTap) {
+            return
+          }
+          const location = event?.tapLocation
+          this.handleDoubleTapAt(location === undefined ? this.viewportWidth / 2 : location.x as number,
+            location === undefined ? this.viewportHeight / 2 : location.y as number)
+        }),
+        PanGesture({ fingers: 1, direction: PanDirection.All, distance: this.panDistance() })
+          .onActionStart(() => {
+            if (!this.active || this.zoomScale <= 1.01) return
+            this.tapCancelled = true
+            this.clearSingleTap()
+            this.panStartX = this.offsetX
+            this.panStartY = this.offsetY
+          })
+          .onActionUpdate((event?: GestureEvent) => {
+            if (event === undefined || !this.active || this.ignorePanSequence || this.isPinching || this.zoomScale <= 1.01) return
+            this.tapCancelled = true
+            this.clearSingleTap()
+            this.offsetX = this.clampOffset(this.panStartX + (event.offsetX as number), this.viewportWidth, this.displayWidth(), this.zoomScale)
+            this.offsetY = this.clampOffset(this.panStartY + (event.offsetY as number), this.viewportHeight, this.displayHeight(), this.zoomScale)
+          })
+          .onActionEnd(() => {
+            this.ignorePanSequence = false
+          })
+          .onActionCancel(() => {
+            this.ignorePanSequence = false
+          }),
+      ),
+    )
+  }
+}
+
+/**
+ * A double-page spread is one zoomable canvas. The two image layers only load
+ * and paint their page; this component owns the sole transform and recognizer
+ * state for the spread, matching NextE's ReaderSpreadSurface boundary.
+ */
+@ComponentV2
+struct ReaderSpreadSurface {
+  @Param firstSource: ReaderPageRenderSource = EMPTY_RENDER_SOURCE
+  @Param secondSource: ReaderPageRenderSource = EMPTY_RENDER_SOURCE
+  @Param firstIndex: number = 0
+  @Param secondIndex: number = -1
+  @Param firstWidth: number | undefined = undefined
+  @Param firstHeight: number | undefined = undefined
+  @Param secondWidth: number | undefined = undefined
+  @Param secondHeight: number | undefined = undefined
+  @Param firstRotateClockwise: boolean = false
+  @Param secondRotateClockwise: boolean = false
+  @Param hasSecond: boolean = false
+  @Param rowReversed: boolean = false
+  @Param joined: boolean = true
+  @Param gap: number = 0
+  @Param scalingQuality: string = 'medium'
+  @Param parentViewportWidth: number = 0
+  @Param parentViewportHeight: number = 0
+  @Param active: boolean = true
+  @Param doubleTapSequence: number = 0
+  @Param doubleTapTargetPage: number = -1
+  @Param doubleTapX: number = 0
+  @Param doubleTapY: number = 0
+  @Param retryToken: number = 0
+  @Param zoomResetToken: number = 0
+  @Event onZoomChange: (zoomed: boolean) => void = (_zoomed: boolean) => {}
+  @Event onImageInfo: (pageIndex: number, width: number, height: number) => void =
+    (_pageIndex: number, _width: number, _height: number) => {}
+  @Event onLoaded: (pageIndex: number) => void = (_pageIndex: number) => {}
+  @Event onFailed: (pageIndex: number) => void = (_pageIndex: number) => {}
+
+  @Local private zoomScale: number = 1
+  @Local private offsetX: number = 0
+  @Local private offsetY: number = 0
+  @Local private viewportWidth: number = 0
+  @Local private viewportHeight: number = 0
+  @Local private zoomAnimating: boolean = false
+  private pinchStartScale: number = 1
+  private pinchAnchorX: number = 0.5
+  private pinchAnchorY: number = 0.5
+  private panStartX: number = 0
+  private panStartY: number = 0
+  private isPinching: boolean = false
+  private ignorePanSequence: boolean = false
+  private pinchAdjustedSinceDoubleTap: boolean = false
+  private zoomFocusPage: number = -1
+  private lastZoomed: boolean = false
+  private zoomAnimatingTimerId: number = -1
+
+  aboutToAppear(): void {
+    this.applyViewportFallback()
+  }
+
+  aboutToDisappear(): void {
+    this.clearZoomAnimation()
+  }
+
+  @Monitor('parentViewportWidth', 'parentViewportHeight')
+  private onParentViewportChanged(): void {
+    this.applyViewportFallback()
+  }
+
+  @Monitor('active')
+  private onActiveChanged(): void {
+    if (!this.active) {
+      this.resetZoom()
+      this.notifyZoom()
+    }
+  }
+
+  @Monitor('zoomResetToken')
+  private onZoomResetRequested(): void {
+    this.beginZoomAnimation()
+    this.resetZoom()
+    this.notifyZoom()
+  }
+
+  @Monitor('doubleTapSequence')
+  private onDoubleTapCommand(): void {
+    if (!this.active || this.doubleTapSequence <= 0 || !this.includesPage(this.doubleTapTargetPage)) {
+      return
+    }
+    this.onDoubleTap(this.doubleTapX, this.doubleTapY)
+  }
+
+  private applyViewportFallback(): void {
+    if (this.viewportWidth <= 0 && this.parentViewportWidth > 0) {
+      this.viewportWidth = this.parentViewportWidth
+    }
+    if (this.viewportHeight <= 0 && this.parentViewportHeight > 0) {
+      this.viewportHeight = this.parentViewportHeight
+    }
+  }
+
+  private includesPage(page: number): boolean {
+    return page === this.firstIndex || (this.hasSecond && page === this.secondIndex)
+  }
+
+  private toVp(pixels: number): number {
+    if (pixels <= 0) {
+      return 0
+    }
+    try {
+      const value = this.getUIContext().px2vp(pixels)
+      return value > 0 && Number.isFinite(value) ? value : pixels
+    } catch (_error) {
+      return pixels
+    }
+  }
+
+  private sourceWidthForPage(page: number): number {
+    if (page === this.firstIndex) {
+      const width = this.firstWidth ?? 0
+      const height = this.firstHeight ?? 0
+      return this.firstRotateClockwise ? this.toVp(height) : this.toVp(width)
+    }
+    const width = this.secondWidth ?? 0
+    const height = this.secondHeight ?? 0
+    return this.secondRotateClockwise ? this.toVp(height) : this.toVp(width)
+  }
+
+  private sourceHeightForPage(page: number): number {
+    if (page === this.firstIndex) {
+      const width = this.firstWidth ?? 0
+      const height = this.firstHeight ?? 0
+      return this.firstRotateClockwise ? this.toVp(width) : this.toVp(height)
+    }
+    const width = this.secondWidth ?? 0
+    const height = this.secondHeight ?? 0
+    return this.secondRotateClockwise ? this.toVp(width) : this.toVp(height)
+  }
+
+  private saneRatio(page: number): number {
+    const width = this.sourceWidthForPage(page)
+    const height = this.sourceHeightForPage(page)
+    if (width > 0 && height > 0) {
+      const ratio = width / height
+      if (ratio > 0 && Number.isFinite(ratio)) {
+        return ratio
+      }
+    }
+    return 0.75
+  }
+
+  private usesJoinedLayout(): boolean {
+    return this.joined && this.hasSecond
+  }
+
+  private paneWidth(): number {
+    if (!this.hasSecond) {
+      return this.viewportWidth
+    }
+    return Math.max(0, (this.viewportWidth - this.gap) / 2)
+  }
+
+  private joinedRatio(): number {
+    return this.saneRatio(this.firstIndex) + this.saneRatio(this.secondIndex)
+  }
+
+  private joinedFrameHeight(): number {
+    const ratio = this.joinedRatio()
+    if (!this.usesJoinedLayout() || this.viewportWidth <= 0 || this.viewportHeight <= 0 || ratio <= 0) {
+      return this.viewportHeight
+    }
+    return Math.min(this.viewportHeight, this.viewportWidth / ratio)
+  }
+
+  private joinedFrameWidth(): number {
+    return this.usesJoinedLayout() ? this.joinedFrameHeight() * this.joinedRatio() : this.viewportWidth
+  }
+
+  private paneWidthForPage(page: number): number {
+    return this.usesJoinedLayout() ? this.joinedFrameHeight() * this.saneRatio(page) : this.paneWidth()
+  }
+
+  private paneHeightForPage(_page: number): number {
+    return this.usesJoinedLayout() ? this.joinedFrameHeight() : this.viewportHeight
+  }
+
+  private fitScale(viewportW: number, viewportH: number, page: number): number {
+    const width = this.sourceWidthForPage(page)
+    const height = this.sourceHeightForPage(page)
+    if (viewportW <= 0 || viewportH <= 0 || width <= 0 || height <= 0) {
+      return 1
+    }
+    return Math.min(viewportW / width, viewportH / height)
+  }
+
+  private displayWidthForPage(page: number): number {
+    const width = this.sourceWidthForPage(page)
+    return width > 0 ? width * this.fitScale(this.paneWidthForPage(page), this.paneHeightForPage(page), page) : this.paneWidthForPage(page)
+  }
+
+  private displayHeightForPage(page: number): number {
+    const height = this.sourceHeightForPage(page)
+    return height > 0 ? height * this.fitScale(this.paneWidthForPage(page), this.paneHeightForPage(page), page) : this.paneHeightForPage(page)
+  }
+
+  private displayWidth(): number {
+    if (this.usesJoinedLayout()) {
+      return this.joinedFrameWidth()
+    }
+    const first = this.displayWidthForPage(this.firstIndex)
+    const second = this.hasSecond ? this.displayWidthForPage(this.secondIndex) : 0
+    return Math.max(1, first + second + (this.hasSecond ? this.gap : 0))
+  }
+
+  private displayHeight(): number {
+    if (this.usesJoinedLayout()) {
+      return this.joinedFrameHeight()
+    }
+    const first = this.displayHeightForPage(this.firstIndex)
+    const second = this.hasSecond ? this.displayHeightForPage(this.secondIndex) : 0
+    return Math.max(1, Math.max(first, second))
+  }
+
+  private referenceDisplayWidthForPage(page: number): number {
+    const width = this.sourceWidthForPage(page)
+    return width > 0 ? width * this.fitScale(this.viewportWidth, this.viewportHeight, page) : this.viewportWidth
+  }
+
+  private referenceDisplayHeightForPage(page: number): number {
+    const height = this.sourceHeightForPage(page)
+    return height > 0 ? height * this.fitScale(this.viewportWidth, this.viewportHeight, page) : this.viewportHeight
+  }
+
+  private nativeScaleForPage(page: number): number {
+    const width = this.sourceWidthForPage(page)
+    const height = this.sourceHeightForPage(page)
+    const displayW = this.referenceDisplayWidthForPage(page)
+    const displayH = this.referenceDisplayHeightForPage(page)
+    if (width <= 0 || height <= 0 || displayW <= 0 || displayH <= 0) {
+      return READER_DOUBLE_TAP_SCALE
+    }
+    return Math.min(width / displayW, height / displayH)
+  }
+
+  private scaleForReference(target: number, page: number): number {
+    const displayW = this.displayWidthForPage(page)
+    const displayH = this.displayHeightForPage(page)
+    const referenceW = this.referenceDisplayWidthForPage(page)
+    const referenceH = this.referenceDisplayHeightForPage(page)
+    if (displayW <= 0 || displayH <= 0 || referenceW <= 0 || referenceH <= 0) {
+      return target
+    }
+    return Math.min(referenceW * target / displayW, referenceH * target / displayH)
+  }
+
+  private maxScaleForPage(page: number): number {
+    const referenceMax = Math.max(READER_MIN_DYNAMIC_MAX_SCALE,
+      Math.min(READER_MAX_DYNAMIC_MAX_SCALE, this.nativeScaleForPage(page) * 2))
+    return Math.max(READER_MIN_DYNAMIC_MAX_SCALE,
+      Math.min(READER_MAX_EFFECTIVE_ZOOM_SCALE, this.scaleForReference(referenceMax, page)))
+  }
+
+  private activeMaxScale(): number {
+    const page = this.includesPage(this.zoomFocusPage) ? this.zoomFocusPage : this.firstIndex
+    return this.maxScaleForPage(page)
+  }
+
+  private clampScale(value: number, max: number = this.activeMaxScale()): number {
+    if (!Number.isFinite(value)) {
+      return 1
+    }
+    return Math.min(Math.max(value, 1), max)
+  }
+
+  private clampPinchScale(value: number, max: number): number {
+    if (!Number.isFinite(value)) {
+      return 1
+    }
+    if (value >= 1) {
+      return this.clampScale(value, max)
+    }
+    return Math.max(READER_PINCH_ELASTIC_MIN_SCALE, 1 - (1 - value) * READER_PINCH_UNDER_SCALE_RESISTANCE)
+  }
+
+  private clampOffset(value: number, viewport: number, display: number, scale: number): number {
+    const bound = Math.max(0, (display * scale - viewport) / 2)
+    return Math.min(Math.max(value, -bound), bound)
+  }
+
+  private clampOffsets(): void {
+    this.zoomScale = this.clampScale(this.zoomScale)
+    this.offsetX = this.clampOffset(this.offsetX, this.viewportWidth, this.displayWidth(), this.zoomScale)
+    this.offsetY = this.clampOffset(this.offsetY, this.viewportHeight, this.displayHeight(), this.zoomScale)
+  }
+
+  private panDistance(): number {
+    if (this.zoomScale > 1.01) {
+      return 1
+    }
+    const longSide = Math.max(this.viewportWidth, this.viewportHeight)
+    return longSide > 0 ? longSide * 2 : 10000
+  }
+
+  private pageForPoint(x: number): number {
+    if (!this.hasSecond) {
+      return this.firstIndex
+    }
+    let left = x < this.viewportWidth / 2
+    if (this.usesJoinedLayout()) {
+      const leftPage = this.rowReversed ? this.secondIndex : this.firstIndex
+      const boundary = (this.viewportWidth - this.joinedFrameWidth()) / 2 + this.paneWidthForPage(leftPage)
+      left = x < boundary
+    }
+    if (this.rowReversed) {
+      return left ? this.secondIndex : this.firstIndex
+    }
+    return left ? this.firstIndex : this.secondIndex
+  }
+
+  private clearZoomAnimation(): void {
+    if (this.zoomAnimatingTimerId >= 0) {
+      clearTimeout(this.zoomAnimatingTimerId)
+      this.zoomAnimatingTimerId = -1
+    }
+  }
+
+  private beginZoomAnimation(): void {
+    this.clearZoomAnimation()
+    this.zoomAnimating = true
+    this.zoomAnimatingTimerId = setTimeout(() => {
+      this.zoomAnimating = false
+      this.zoomAnimatingTimerId = -1
+    }, READER_ZOOM_ANIM_DURATION + 24)
+  }
+
+  private resetZoom(): void {
+    this.zoomScale = 1
+    this.offsetX = 0
+    this.offsetY = 0
+    this.pinchAdjustedSinceDoubleTap = false
+    this.zoomFocusPage = -1
+  }
+
+  private notifyZoom(): void {
+    const zoomed = this.zoomScale > 1.01
+    if (zoomed !== this.lastZoomed) {
+      this.lastZoomed = zoomed
+      this.onZoomChange(zoomed)
+    }
+  }
+
+  private doubleTapTarget(page: number): number {
+    if (this.pinchAdjustedSinceDoubleTap && this.zoomScale > 1.01) {
+      return 1
+    }
+    const max = this.maxScaleForPage(page)
+    const primary = this.clampScale(this.scaleForReference(READER_DOUBLE_TAP_SCALE, page), max)
+    const native = this.clampScale(this.scaleForReference(this.nativeScaleForPage(page), page), max)
+    if (this.zoomScale <= 1.01) {
+      return primary
+    }
+    if (Math.abs(this.zoomScale - primary) <= 0.02 && native > 1.02) {
+      return native
+    }
+    return 1
+  }
+
+  private onDoubleTap(x: number, y: number): void {
+    this.beginZoomAnimation()
+    const page = this.pageForPoint(x)
+    this.zoomFocusPage = page
+    const target = this.doubleTapTarget(page)
+    this.pinchAdjustedSinceDoubleTap = false
+    if (target <= 1.01) {
+      this.resetZoom()
+      this.notifyZoom()
+      return
+    }
+    const anchorX = this.displayWidth() > 0
+      ? (x - (this.viewportWidth - this.displayWidth() * this.zoomScale) / 2 - this.offsetX) /
+        (this.displayWidth() * this.zoomScale)
+      : 0.5
+    const anchorY = this.displayHeight() > 0
+      ? (y - (this.viewportHeight - this.displayHeight() * this.zoomScale) / 2 - this.offsetY) /
+        (this.displayHeight() * this.zoomScale)
+      : 0.5
+    this.zoomScale = target
+    this.offsetX = this.clampOffset(
+      x - (this.viewportWidth - this.displayWidth() * target) / 2 - this.displayWidth() * target * anchorX,
+      this.viewportWidth,
+      this.displayWidth(),
+      target,
+    )
+    this.offsetY = this.clampOffset(
+      y - (this.viewportHeight - this.displayHeight() * target) / 2 - this.displayHeight() * target * anchorY,
+      this.viewportHeight,
+      this.displayHeight(),
+      target,
+    )
+    this.notifyZoom()
+  }
+
+  @Builder
+  private ImageLayer(source: ReaderPageRenderSource, index: number, width: number | undefined,
+    height: number | undefined, rotateClockwise: boolean) {
+    ReaderImageSurface({
+      source: source,
+      pageIndex: index,
+      sourceWidth: width,
+      sourceHeight: height,
+      parentViewportWidth: this.paneWidthForPage(index),
+      parentViewportHeight: this.paneHeightForPage(index),
+      fit: ImageFit.Contain,
+      fitMode: 'contain',
+      scalingQuality: this.scalingQuality,
+      rotateClockwise: rotateClockwise,
+      zoomEnabled: false,
+      gesturesEnabled: false,
+      active: false,
+      allowDirectDoubleTap: false,
+      routeTaps: false,
+      retryToken: this.retryToken,
+      onImageInfo: (pageIndex: number, imageWidth: number, imageHeight: number) => {
+        this.onImageInfo(pageIndex, imageWidth, imageHeight)
+      },
+      onLoaded: (pageIndex: number) => { this.onLoaded(pageIndex) },
+      onFailed: (pageIndex: number) => { this.onFailed(pageIndex) },
+    })
+  }
+
+  @Builder
+  private WeightedImageLayer(source: ReaderPageRenderSource, index: number, width: number | undefined,
+    height: number | undefined, rotateClockwise: boolean) {
+    Column() {
+      this.ImageLayer(source, index, width, height, rotateClockwise)
+    }
+    .layoutWeight(1)
+    .height('100%')
+  }
+
+  @Builder
+  private JoinedImageLayer(source: ReaderPageRenderSource, index: number, width: number | undefined,
+    height: number | undefined, rotateClockwise: boolean) {
+    Column() {
+      this.ImageLayer(source, index, width, height, rotateClockwise)
+    }
+    .width(this.paneWidthForPage(index))
+    .height(this.joinedFrameHeight())
+  }
+
+  build() {
+    Stack({ alignContent: Alignment.Center }) {
+      if (this.usesJoinedLayout()) {
+        Row() {
+          if (this.rowReversed) {
+            this.JoinedImageLayer(this.secondSource, this.secondIndex, this.secondWidth, this.secondHeight, this.secondRotateClockwise)
+            this.JoinedImageLayer(this.firstSource, this.firstIndex, this.firstWidth, this.firstHeight, this.firstRotateClockwise)
+          } else {
+            this.JoinedImageLayer(this.firstSource, this.firstIndex, this.firstWidth, this.firstHeight, this.firstRotateClockwise)
+            this.JoinedImageLayer(this.secondSource, this.secondIndex, this.secondWidth, this.secondHeight, this.secondRotateClockwise)
+          }
+        }
+        .width(this.joinedFrameWidth())
+        .height(this.joinedFrameHeight())
+        .scale({ x: this.zoomScale, y: this.zoomScale })
+        .translate({ x: this.offsetX, y: this.offsetY })
+        .animation({ duration: this.zoomAnimating ? READER_ZOOM_ANIM_DURATION : 0, curve: Curve.FastOutSlowIn })
+      } else {
+        Row({ space: this.hasSecond ? this.gap : 0 }) {
+          if (!this.hasSecond) {
+            this.WeightedImageLayer(this.firstSource, this.firstIndex, this.firstWidth, this.firstHeight, this.firstRotateClockwise)
+          } else if (this.rowReversed) {
+            this.WeightedImageLayer(this.secondSource, this.secondIndex, this.secondWidth, this.secondHeight, this.secondRotateClockwise)
+            this.WeightedImageLayer(this.firstSource, this.firstIndex, this.firstWidth, this.firstHeight, this.firstRotateClockwise)
+          } else {
+            this.WeightedImageLayer(this.firstSource, this.firstIndex, this.firstWidth, this.firstHeight, this.firstRotateClockwise)
+            this.WeightedImageLayer(this.secondSource, this.secondIndex, this.secondWidth, this.secondHeight, this.secondRotateClockwise)
+          }
+        }
+        .width('100%')
+        .height('100%')
+        .scale({ x: this.zoomScale, y: this.zoomScale })
+        .translate({ x: this.offsetX, y: this.offsetY })
+        .animation({ duration: this.zoomAnimating ? READER_ZOOM_ANIM_DURATION : 0, curve: Curve.FastOutSlowIn })
+      }
+    }
+    .width('100%')
+    .height('100%')
+    .clip(true)
+    .onAreaChange((_old: Area, next: Area) => {
+      this.viewportWidth = next.width as number
+      this.viewportHeight = next.height as number
+      this.clampOffsets()
+    })
+    // As with the single-page surface, keep zoom-dependent recognizer
+    // options in the component declaration so ArkUI rebuilds the pan
+    // threshold when the spread enters or leaves zoom.
+    .gesture(
+      GestureGroup(
+        GestureMode.Parallel,
+        PinchGesture({ fingers: 2 })
+          .onActionStart((event?: GestureEvent) => {
+            if (event === undefined || !this.active) {
+              return
+            }
+            this.isPinching = true
+            this.ignorePanSequence = true
+            this.zoomAnimating = false
+            this.zoomFocusPage = this.pageForPoint(event.pinchCenterX as number)
+            this.pinchStartScale = this.zoomScale
+            this.pinchAnchorX = this.displayWidth() > 0
+              ? ((event.pinchCenterX as number) - (this.viewportWidth - this.displayWidth() * this.zoomScale) / 2 - this.offsetX) /
+                (this.displayWidth() * this.zoomScale)
+              : 0.5
+            this.pinchAnchorY = this.displayHeight() > 0
+              ? ((event.pinchCenterY as number) - (this.viewportHeight - this.displayHeight() * this.zoomScale) / 2 - this.offsetY) /
+                (this.displayHeight() * this.zoomScale)
+              : 0.5
+          })
+          .onActionUpdate((event?: GestureEvent) => {
+            if (event === undefined || !this.active || !this.isPinching) {
+              return
+            }
+            this.zoomFocusPage = this.pageForPoint(event.pinchCenterX as number)
+            const next = this.clampPinchScale(this.pinchStartScale * (event.scale as number), this.maxScaleForPage(this.zoomFocusPage))
+            this.pinchAdjustedSinceDoubleTap = true
+            this.zoomScale = next
+            this.offsetX = this.clampOffset(
+              (event.pinchCenterX as number) - (this.viewportWidth - this.displayWidth() * next) / 2 -
+                this.displayWidth() * next * this.pinchAnchorX,
+              this.viewportWidth,
+              this.displayWidth(),
+              next,
+            )
+            this.offsetY = this.clampOffset(
+              (event.pinchCenterY as number) - (this.viewportHeight - this.displayHeight() * next) / 2 -
+                this.displayHeight() * next * this.pinchAnchorY,
+              this.viewportHeight,
+              this.displayHeight(),
+              next,
+            )
+          })
+          .onActionEnd(() => {
+            this.isPinching = false
+            this.ignorePanSequence = false
+            if (this.zoomScale <= 1.01) {
+              this.beginZoomAnimation()
+              this.resetZoom()
+            } else {
+              this.clampOffsets()
+            }
+            this.notifyZoom()
+          })
+          .onActionCancel(() => {
+            this.isPinching = false
+            this.ignorePanSequence = false
+            this.clampOffsets()
+            this.notifyZoom()
+          }),
+        PanGesture({ fingers: 1, direction: PanDirection.All, distance: this.panDistance() })
+          .onActionStart(() => {
+            this.ignorePanSequence = this.isPinching
+            this.panStartX = this.offsetX
+            this.panStartY = this.offsetY
+          })
+          .onActionUpdate((event?: GestureEvent) => {
+            if (event === undefined || !this.active || this.ignorePanSequence || this.isPinching || this.zoomScale <= 1.01) {
+              return
+            }
+            this.offsetX = this.clampOffset(this.panStartX + (event.offsetX as number), this.viewportWidth, this.displayWidth(), this.zoomScale)
+            this.offsetY = this.clampOffset(this.panStartY + (event.offsetY as number), this.viewportHeight, this.displayHeight(), this.zoomScale)
+          })
+          .onActionEnd(() => {
+            this.ignorePanSequence = false
+          })
+          .onActionCancel(() => { this.ignorePanSequence = false }),
+      ),
+    )
   }
 }
 
@@ -1254,8 +1585,6 @@ export struct ReaderPage {
   @Local private viewportHeight: number = 0
   @Local private zoomed: boolean = false
   @Local private zoomScale: number = 1
-  @Local private panX: number = 0
-  @Local private panY: number = 0
   @Local private zoomResetToken: number = 0
   @Local private loadedRevision: number = 0
   @Local private failedPages: number[] = []
@@ -1277,10 +1606,6 @@ export struct ReaderPage {
   @Local private readerDoubleTapTargetPage: number = -1
   @Local private readerDoubleTapX: number = 0
   @Local private readerDoubleTapY: number = 0
-  @Local private continuousRenderTargetPage: number = -1
-  @Local private continuousRenderScale: number = 1
-  @Local private continuousRenderPanX: number = 0
-  @Local private continuousRenderPanY: number = 0
   /**
    * Immutable session snapshot.  It is deliberately separate from the
    * LazyForEach index sources: resolving an offline page source validates a
@@ -2021,13 +2346,7 @@ export struct ReaderPage {
   private resetZoomState(): void {
     this.zoomed = false
     this.zoomScale = 1
-    this.panX = 0
-    this.panY = 0
     this.verticalZoomedPage = -1
-    this.continuousRenderTargetPage = -1
-    this.continuousRenderScale = 1
-    this.continuousRenderPanX = 0
-    this.continuousRenderPanY = 0
     this.zoomResetToken += 1
   }
 
@@ -2275,20 +2594,7 @@ export struct ReaderPage {
 
   private zoomChanged(zoomed: boolean): void {
     this.zoomed = zoomed
-    if (!zoomed) {
-      this.zoomScale = 1
-      this.panX = 0
-      this.panY = 0
-    }
-  }
-
-  private transformChanged(scale: number, panX: number, panY: number, zoomed: boolean): void {
-    // This is telemetry for chrome actions only. Individual surfaces own the
-    // actual transform, so a zoom can never leak to another page.
-    this.zoomScale = Math.min(Math.max(scale, 1), READER_MAX_EFFECTIVE_ZOOM_SCALE)
-    this.panX = panX
-    this.panY = panY
-    this.zoomed = zoomed
+    this.zoomScale = zoomed ? READER_DOUBLE_TAP_SCALE : 1
   }
 
   private tapAction(x: number, y: number): void {
@@ -2603,10 +2909,6 @@ export struct ReaderPage {
         externalDoubleTapTargetPage: this.readerDoubleTapTargetPage,
         externalDoubleTapX: this.readerDoubleTapX,
         externalDoubleTapY: this.readerDoubleTapY,
-        renderTransformTargetPage: this.continuousRenderTargetPage,
-        renderTransformScale: this.continuousRenderScale,
-        renderTransformPanX: this.continuousRenderPanX,
-        renderTransformPanY: this.continuousRenderPanY,
         retryToken: this.loadedRevision,
         onZoomChange: (zoomed: boolean) => {
           if (!continuous && this.pageIsZoomActive(index, false)) {
@@ -2615,26 +2917,10 @@ export struct ReaderPage {
             if (zoomed) {
               this.verticalZoomedPage = index
               this.zoomChanged(true)
-            } else if (index === this.verticalZoomedPage || index === this.continuousRenderTargetPage) {
+            } else if (index === this.verticalZoomedPage) {
               this.verticalZoomedPage = -1
-              this.continuousRenderTargetPage = -1
-              this.continuousRenderScale = 1
-              this.continuousRenderPanX = 0
-              this.continuousRenderPanY = 0
               this.zoomChanged(false)
             }
-          }
-        },
-        onTransformChange: (scale: number, panX: number, panY: number, zoomed: boolean) => {
-          if (!continuous && this.pageIsZoomActive(index, false)) {
-            this.transformChanged(scale, panX, panY, zoomed)
-          } else if (continuous && zoomed && (index === this.verticalZoomedPage || this.verticalZoomedPage < 0)) {
-            this.verticalZoomedPage = index
-            this.continuousRenderTargetPage = index
-            this.continuousRenderScale = scale
-            this.continuousRenderPanX = panX
-            this.continuousRenderPanY = panY
-            this.transformChanged(scale, panX, panY, zoomed)
           }
         },
         onImageInfo: (page: number, width: number, height: number) => {
@@ -2645,14 +2931,6 @@ export struct ReaderPage {
         onLoaded: (page: number) => { this.onImageLoaded(page) },
         onFailed: (page: number) => { this.onImageFailed(page) },
         onTap: (x: number, y: number) => { this.tapActionForSlot(x, y, splitSide, compact) },
-        onTransformPreview: (page: number, scale: number, panX: number, panY: number) => {
-          if (continuous) {
-            this.continuousRenderTargetPage = page
-            this.continuousRenderScale = scale
-            this.continuousRenderPanX = panX
-            this.continuousRenderPanY = panY
-          }
-        },
       })
       if (this.failedPages.includes(index)) {
         Button({ type: ButtonType.Capsule, stateEffect: true }) {
@@ -2728,20 +3006,45 @@ export struct ReaderPage {
   private DoublePageReader() {
     Swiper(this.doublePageSwiperController) {
       LazyForEach(this.spreadStartSource, (start: number) => {
-        Row({ space: this.preferences.spreadLayoutMode === 'split' ? pageGap(this.preferences.pageGapMode) : 0 }) {
-          if (this.preferences.readingDirection === ReadingDirection.RIGHT_TO_LEFT) {
-            // `splitSide` is an image-region decode instruction, not the
-            // visual column of a spread. Passing left/right here cropped
-            // every portrait page to half its source in double-page mode.
-            // A regular spread must render each complete page; wide-page
-            // splitting is a separate reader mode handled by displayEntries.
-            if (this.hasSpreadSecond(start)) this.ReaderPageSlot(this.spreadSecondIndex(start), 'none', true)
-            this.ReaderPageSlot(start, 'none', true)
-          } else {
-            this.ReaderPageSlot(start, 'none', true)
-            if (this.hasSpreadSecond(start)) this.ReaderPageSlot(this.spreadSecondIndex(start), 'none', true)
-          }
-        }.width('100%').height('100%').justifyContent(FlexAlign.Center)
+        ReaderSpreadSurface({
+          firstSource: this.sourceFor(start),
+          secondSource: this.hasSpreadSecond(start) ? this.sourceFor(this.spreadSecondIndex(start)) : EMPTY_RENDER_SOURCE,
+          firstIndex: start,
+          secondIndex: this.hasSpreadSecond(start) ? this.spreadSecondIndex(start) : -1,
+          firstWidth: this.pageWidth(start),
+          firstHeight: this.pageHeight(start),
+          secondWidth: this.hasSpreadSecond(start) ? this.pageWidth(this.spreadSecondIndex(start)) : undefined,
+          secondHeight: this.hasSpreadSecond(start) ? this.pageHeight(this.spreadSecondIndex(start)) : undefined,
+          firstRotateClockwise: this.preferences.wideImageMode === 'rotate_wide_pages' &&
+            isWidePage(this.pageWidth(start), this.pageHeight(start)),
+          secondRotateClockwise: this.hasSpreadSecond(start) &&
+            this.preferences.wideImageMode === 'rotate_wide_pages' &&
+            isWidePage(this.pageWidth(this.spreadSecondIndex(start)), this.pageHeight(this.spreadSecondIndex(start))),
+          hasSecond: this.hasSpreadSecond(start),
+          rowReversed: this.preferences.readingDirection === ReadingDirection.RIGHT_TO_LEFT,
+          joined: this.preferences.spreadLayoutMode !== 'split',
+          gap: this.preferences.spreadLayoutMode === 'split' ? pageGap(this.preferences.pageGapMode) : 0,
+          scalingQuality: this.preferences.imageScalingQuality,
+          parentViewportWidth: this.viewportWidth,
+          parentViewportHeight: this.viewportHeight,
+          active: this.pageIsZoomActive(start, false),
+          doubleTapSequence: this.readerDoubleTapSequence,
+          doubleTapTargetPage: this.readerDoubleTapTargetPage,
+          doubleTapX: this.readerDoubleTapX,
+          doubleTapY: this.readerDoubleTapY,
+          retryToken: this.loadedRevision,
+          zoomResetToken: this.zoomResetToken,
+          onZoomChange: (zoomed: boolean) => {
+            if (this.pageIsZoomActive(start, false)) {
+              this.zoomChanged(zoomed)
+            }
+          },
+          onImageInfo: (page: number, width: number, height: number) => {
+            this.rememberImageInfo(page, width, height)
+          },
+          onLoaded: (page: number) => { this.onImageLoaded(page) },
+          onFailed: (page: number) => { this.onImageFailed(page) },
+        })
       }, (start: number) => `reader-spread-${start}`)
     }
     .index(this.spreadIndexForPage(this.pageIndex))
