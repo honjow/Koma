@@ -154,7 +154,19 @@ export struct SearchPage {
     this.recordHistory(query)
     console.info(`[Search] step=ui_search_start serial=${serial}`)
     try {
-      const result = await service.search(query, sourceFilter)
+      const result = await service.search(query, sourceFilter, (section: CrossSearchSection) => {
+        if (!this.ownsRoute(routeEpoch) || serial !== this.searchSerial) {
+          return
+        }
+        const sectionIndex = this.sections.findIndex((candidate: CrossSearchSection) => candidate.id === section.id)
+        if (sectionIndex < 0) {
+          return
+        }
+        const nextSections = this.sections.slice()
+        nextSections[sectionIndex] = section
+        this.sections = nextSections
+        console.info(`[Search] step=ui_section_resolved serial=${serial} source=${section.id} state=${section.state}`)
+      })
       if (!this.ownsRoute(routeEpoch) || serial !== this.searchSerial) {
         console.info(`[Search] step=ui_search_stale serial=${serial}`)
         return
@@ -494,6 +506,10 @@ export struct SearchPage {
 
   private sectionTitle(section: CrossSearchSection): string {
     return section.resultCount === 0 ? section.title : `${section.title} · ${section.resultCount}`
+  }
+
+  private sectionRenderKey(section: CrossSearchSection): string {
+    return `${this.searchSerial}:${section.id}:${section.state}:${section.resultCount}:${section.diagnosticCode}`
   }
 
   private sourceFilterLabel(): string {
@@ -907,7 +923,7 @@ export struct SearchPage {
                 }
               }, (item: CrossSearchResultItem) => item.id)
             }
-          }, (section: CrossSearchSection) => section.id)
+          }, (section: CrossSearchSection) => this.sectionRenderKey(section))
       }
 
       Row()

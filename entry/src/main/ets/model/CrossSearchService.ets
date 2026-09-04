@@ -131,7 +131,11 @@ export class CrossSearchService {
     this.sourceViewModel = new BrowseViewModel(appSourceRuntimeRegistry)
   }
 
-  async search(query: string, sourceFilter: CrossSearchSourceFilter = 'all'): Promise<CrossSearchSection[]> {
+  async search(
+    query: string,
+    sourceFilter: CrossSearchSourceFilter = 'all',
+    onSectionResolved: ((section: CrossSearchSection) => void) | undefined = undefined,
+  ): Promise<CrossSearchSection[]> {
     const normalizedQuery = query.trim()
     if (normalizedQuery.length === 0) {
       return []
@@ -162,7 +166,15 @@ export class CrossSearchService {
         return this.withTimeout(this.searchWasmSource(source, normalizedQuery), this.emptySection(`wasm:${source.sourceId}`, source.displayName, 'wasm'))
       }) :
       []
-    const outcomes = await Promise.all(tasks.concat(sourceTasks))
+    const reportedTasks = tasks.concat(sourceTasks).map((task: Promise<SourceSearchOutcome>) => {
+      return task.then((outcome: SourceSearchOutcome): SourceSearchOutcome => {
+        if (onSectionResolved !== undefined) {
+          onSectionResolved(outcome.section)
+        }
+        return outcome
+      })
+    })
+    const outcomes = await Promise.all(reportedTasks)
     const sections = outcomes.map((outcome: SourceSearchOutcome): CrossSearchSection => outcome.section)
     console.info(`[Search] step=query_done sections=${sections.length}`)
     return sections
