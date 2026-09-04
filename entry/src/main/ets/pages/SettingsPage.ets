@@ -464,7 +464,6 @@ export struct SettingsPage {
   @Local private localLibraryRefreshBusy: boolean = false
   @Local private localLibraryRefreshSummary?: LocalLibraryRefreshSummary = undefined
   @Local private settingsSearchText: string = ''
-  @Local private settingsMenuKey: string = ''
   @Local private downloadForegroundConcurrencyLimit: number = 1
   @Local private downloadWifiOnly: boolean = false
   @Local private downloadNotificationStatus: OfflineDownloadNotificationStatus = 'unavailable'
@@ -2291,121 +2290,125 @@ export struct SettingsPage {
   }
 
   @Builder
-  private SelectionMenuItem(title: ResourceStr, checked: boolean, action: () => void) {
+  private SelectionMenuItem(
+    select: (action: () => void) => void,
+    title: ResourceStr,
+    checked: boolean,
+    action: () => void,
+  ) {
     MenuItem({
       content: title,
       symbolEndIcon: checked ? new SymbolGlyphModifier($r('sys.symbol.checkmark')) : undefined,
     })
       .onClick(() => {
-        action()
-        this.settingsMenuKey = ''
+        select(action)
       })
   }
 
   @Builder
-  private SettingsSelectionMenu(row: SettingsRow) {
+  private SettingsSelectionMenu(row: SettingsRow, select: (action: () => void) => void) {
     Menu() {
       if (row.key === 'page-mode') {
-        this.SelectionMenuItem(s('reader_page_mode_single'), this.pageMode === 'single_page', () => { this.savePageMode('single_page') })
-        this.SelectionMenuItem(s('reader_page_mode_double'), this.pageMode === 'double_page', () => { this.savePageMode('double_page') })
-        this.SelectionMenuItem(s('reader_page_mode_continuous'), this.pageMode === 'continuous_scroll', () => { this.savePageMode('continuous_scroll') })
-        this.SelectionMenuItem(s('reader_page_mode_vertical_page'), this.pageMode === 'vertical_page', () => { this.savePageMode('vertical_page') })
+        this.SelectionMenuItem(select, s('reader_page_mode_single'), this.pageMode === 'single_page', () => { this.savePageMode('single_page') })
+        this.SelectionMenuItem(select, s('reader_page_mode_double'), this.pageMode === 'double_page', () => { this.savePageMode('double_page') })
+        this.SelectionMenuItem(select, s('reader_page_mode_continuous'), this.pageMode === 'continuous_scroll', () => { this.savePageMode('continuous_scroll') })
+        this.SelectionMenuItem(select, s('reader_page_mode_vertical_page'), this.pageMode === 'vertical_page', () => { this.savePageMode('vertical_page') })
       } else if (row.key === 'reading-direction') {
-        this.SelectionMenuItem(s('reader_direction_ltr'), this.readingDirection === ReadingDirection.LEFT_TO_RIGHT, () => { this.saveReadingDirection(ReadingDirection.LEFT_TO_RIGHT) })
-        this.SelectionMenuItem(s('reader_direction_rtl'), this.readingDirection === ReadingDirection.RIGHT_TO_LEFT, () => { this.saveReadingDirection(ReadingDirection.RIGHT_TO_LEFT) })
-        this.SelectionMenuItem(s('reader_direction_vertical'), this.readingDirection === ReadingDirection.WEBTOON, () => { this.saveReadingDirection(ReadingDirection.WEBTOON) })
+        this.SelectionMenuItem(select, s('reader_direction_ltr'), this.readingDirection === ReadingDirection.LEFT_TO_RIGHT, () => { this.saveReadingDirection(ReadingDirection.LEFT_TO_RIGHT) })
+        this.SelectionMenuItem(select, s('reader_direction_rtl'), this.readingDirection === ReadingDirection.RIGHT_TO_LEFT, () => { this.saveReadingDirection(ReadingDirection.RIGHT_TO_LEFT) })
+        this.SelectionMenuItem(select, s('reader_direction_vertical'), this.readingDirection === ReadingDirection.WEBTOON, () => { this.saveReadingDirection(ReadingDirection.WEBTOON) })
       } else if (row.key === 'reader-spread-layout') {
-        this.SelectionMenuItem(s('reader_spread_layout_joined'), this.readerSpreadLayoutMode === 'joined', () => { this.saveReaderSpreadLayoutMode('joined') })
-        this.SelectionMenuItem(s('reader_spread_layout_split'), this.readerSpreadLayoutMode === 'split', () => { this.saveReaderSpreadLayoutMode('split') })
+        this.SelectionMenuItem(select, s('reader_spread_layout_joined'), this.readerSpreadLayoutMode === 'joined', () => { this.saveReaderSpreadLayoutMode('joined') })
+        this.SelectionMenuItem(select, s('reader_spread_layout_split'), this.readerSpreadLayoutMode === 'split', () => { this.saveReaderSpreadLayoutMode('split') })
       } else if (row.key === 'theme') {
-        this.SelectionMenuItem(s('theme_system'), this.themeMode === 'system', () => { this.saveThemeMode('system') })
-        this.SelectionMenuItem(s('theme_light'), this.themeMode === 'light', () => { this.saveThemeMode('light') })
-        this.SelectionMenuItem(s('theme_dark'), this.themeMode === 'dark', () => { this.saveThemeMode('dark') })
+        this.SelectionMenuItem(select, s('theme_system'), this.themeMode === 'system', () => { this.saveThemeMode('system') })
+        this.SelectionMenuItem(select, s('theme_light'), this.themeMode === 'light', () => { this.saveThemeMode('light') })
+        this.SelectionMenuItem(select, s('theme_dark'), this.themeMode === 'dark', () => { this.saveThemeMode('dark') })
       } else if (row.key === 'theme-color') {
-        this.SelectionMenuItem(s('appearance_accent_emerald'), this.appearanceAccentColor === 'emerald', () => { this.saveAppearanceAccentColor('emerald') })
-        this.SelectionMenuItem(s('appearance_accent_ocean'), this.appearanceAccentColor === 'ocean', () => { this.saveAppearanceAccentColor('ocean') })
-        this.SelectionMenuItem(s('appearance_accent_rose'), this.appearanceAccentColor === 'rose', () => { this.saveAppearanceAccentColor('rose') })
-        this.SelectionMenuItem(s('appearance_accent_amber'), this.appearanceAccentColor === 'amber', () => { this.saveAppearanceAccentColor('amber') })
-        this.SelectionMenuItem(s('appearance_accent_mono'), this.appearanceAccentColor === 'mono', () => { this.saveAppearanceAccentColor('mono') })
+        this.SelectionMenuItem(select, s('appearance_accent_emerald'), this.appearanceAccentColor === 'emerald', () => { this.saveAppearanceAccentColor('emerald') })
+        this.SelectionMenuItem(select, s('appearance_accent_ocean'), this.appearanceAccentColor === 'ocean', () => { this.saveAppearanceAccentColor('ocean') })
+        this.SelectionMenuItem(select, s('appearance_accent_rose'), this.appearanceAccentColor === 'rose', () => { this.saveAppearanceAccentColor('rose') })
+        this.SelectionMenuItem(select, s('appearance_accent_amber'), this.appearanceAccentColor === 'amber', () => { this.saveAppearanceAccentColor('amber') })
+        this.SelectionMenuItem(select, s('appearance_accent_mono'), this.appearanceAccentColor === 'mono', () => { this.saveAppearanceAccentColor('mono') })
       } else if (row.key === 'language') {
-        this.SelectionMenuItem(s('language_system'), this.language.mode === LanguageSettings.MODE_SYSTEM, () => { this.saveLanguageMode(LanguageSettings.MODE_SYSTEM) })
-        this.SelectionMenuItem(s('language_zh_cn'), this.language.mode === LanguageSettings.MODE_ZH_CN, () => { this.saveLanguageMode(LanguageSettings.MODE_ZH_CN) })
-        this.SelectionMenuItem(s('language_en_us'), this.language.mode === LanguageSettings.MODE_EN_US, () => { this.saveLanguageMode(LanguageSettings.MODE_EN_US) })
+        this.SelectionMenuItem(select, s('language_system'), this.language.mode === LanguageSettings.MODE_SYSTEM, () => { this.saveLanguageMode(LanguageSettings.MODE_SYSTEM) })
+        this.SelectionMenuItem(select, s('language_zh_cn'), this.language.mode === LanguageSettings.MODE_ZH_CN, () => { this.saveLanguageMode(LanguageSettings.MODE_ZH_CN) })
+        this.SelectionMenuItem(select, s('language_en_us'), this.language.mode === LanguageSettings.MODE_EN_US, () => { this.saveLanguageMode(LanguageSettings.MODE_EN_US) })
       } else if (row.key === 'reader-background') {
-        this.SelectionMenuItem(s('reader_background_black'), this.readerBackgroundMode === 'black', () => { this.saveReaderBackgroundMode('black') })
-        this.SelectionMenuItem(s('reader_background_gray'), this.readerBackgroundMode === 'gray', () => { this.saveReaderBackgroundMode('gray') })
-        this.SelectionMenuItem(s('reader_background_white'), this.readerBackgroundMode === 'white', () => { this.saveReaderBackgroundMode('white') })
-        this.SelectionMenuItem(s('reader_background_auto'), this.readerBackgroundMode === 'auto', () => { this.saveReaderBackgroundMode('auto') })
+        this.SelectionMenuItem(select, s('reader_background_black'), this.readerBackgroundMode === 'black', () => { this.saveReaderBackgroundMode('black') })
+        this.SelectionMenuItem(select, s('reader_background_gray'), this.readerBackgroundMode === 'gray', () => { this.saveReaderBackgroundMode('gray') })
+        this.SelectionMenuItem(select, s('reader_background_white'), this.readerBackgroundMode === 'white', () => { this.saveReaderBackgroundMode('white') })
+        this.SelectionMenuItem(select, s('reader_background_auto'), this.readerBackgroundMode === 'auto', () => { this.saveReaderBackgroundMode('auto') })
       } else if (row.key === 'reader-image-scaling') {
-        this.SelectionMenuItem(s('reader_image_scaling_quality_low'), this.readerImageScalingQuality === 'low', () => { this.saveReaderImageScalingQuality('low') })
-        this.SelectionMenuItem(s('reader_image_scaling_quality_medium'), this.readerImageScalingQuality === 'medium', () => { this.saveReaderImageScalingQuality('medium') })
-        this.SelectionMenuItem(s('reader_image_scaling_quality_high'), this.readerImageScalingQuality === 'high', () => { this.saveReaderImageScalingQuality('high') })
+        this.SelectionMenuItem(select, s('reader_image_scaling_quality_low'), this.readerImageScalingQuality === 'low', () => { this.saveReaderImageScalingQuality('low') })
+        this.SelectionMenuItem(select, s('reader_image_scaling_quality_medium'), this.readerImageScalingQuality === 'medium', () => { this.saveReaderImageScalingQuality('medium') })
+        this.SelectionMenuItem(select, s('reader_image_scaling_quality_high'), this.readerImageScalingQuality === 'high', () => { this.saveReaderImageScalingQuality('high') })
       } else if (row.key === 'reader-auto-page') {
         ForEach([1, 2, 3, 5, 8, 10, 15, 30, 60], (seconds: number) => {
-          this.SelectionMenuItem(`${seconds}s`, this.readerAutoPageSeconds === seconds, () => { this.saveReaderAutoPageSeconds(seconds) })
+          this.SelectionMenuItem(select, `${seconds}s`, this.readerAutoPageSeconds === seconds, () => { this.saveReaderAutoPageSeconds(seconds) })
         }, (seconds: number) => `${seconds}`)
       } else if (row.key === 'reader-preload-pages') {
         ForEach([0, 1, 2, 3, 4, 5], (pages: number) => {
-          this.SelectionMenuItem(`${pages}`, this.readerPreloadPages === pages, () => { this.saveReaderPreloadPages(pages) })
+          this.SelectionMenuItem(select, `${pages}`, this.readerPreloadPages === pages, () => { this.saveReaderPreloadPages(pages) })
         }, (pages: number) => `${pages}`)
       } else if (row.key === 'reader-image-fit') {
-        this.SelectionMenuItem(s('reader_image_fit_screen'), this.readerImageFitMode === 'contain', () => { this.saveReaderImageFitMode('contain') })
-        this.SelectionMenuItem(s('reader_image_fit_width'), this.readerImageFitMode === 'fit_width', () => { this.saveReaderImageFitMode('fit_width') })
-        this.SelectionMenuItem(s('reader_image_fit_height'), this.readerImageFitMode === 'fit_height', () => { this.saveReaderImageFitMode('fit_height') })
+        this.SelectionMenuItem(select, s('reader_image_fit_screen'), this.readerImageFitMode === 'contain', () => { this.saveReaderImageFitMode('contain') })
+        this.SelectionMenuItem(select, s('reader_image_fit_width'), this.readerImageFitMode === 'fit_width', () => { this.saveReaderImageFitMode('fit_width') })
+        this.SelectionMenuItem(select, s('reader_image_fit_height'), this.readerImageFitMode === 'fit_height', () => { this.saveReaderImageFitMode('fit_height') })
       } else if (row.key === 'reader-tap-zone-preset') {
-        this.SelectionMenuItem(s('reader_tap_zone_edge'), this.readerTapZonePreset === 'edge', () => { this.saveReaderTapZonePreset('edge') })
-        this.SelectionMenuItem(s('reader_tap_zone_wide'), this.readerTapZonePreset === 'wide_edges', () => { this.saveReaderTapZonePreset('wide_edges') })
-        this.SelectionMenuItem(s('reader_tap_zone_right_left'), this.readerTapZonePreset === 'right_left', () => { this.saveReaderTapZonePreset('right_left') })
-        this.SelectionMenuItem(s('reader_tap_zone_l_shaped'), this.readerTapZonePreset === 'l_shaped', () => { this.saveReaderTapZonePreset('l_shaped') })
-        this.SelectionMenuItem(s('reader_tap_zone_kindle'), this.readerTapZonePreset === 'kindle', () => { this.saveReaderTapZonePreset('kindle') })
+        this.SelectionMenuItem(select, s('reader_tap_zone_edge'), this.readerTapZonePreset === 'edge', () => { this.saveReaderTapZonePreset('edge') })
+        this.SelectionMenuItem(select, s('reader_tap_zone_wide'), this.readerTapZonePreset === 'wide_edges', () => { this.saveReaderTapZonePreset('wide_edges') })
+        this.SelectionMenuItem(select, s('reader_tap_zone_right_left'), this.readerTapZonePreset === 'right_left', () => { this.saveReaderTapZonePreset('right_left') })
+        this.SelectionMenuItem(select, s('reader_tap_zone_l_shaped'), this.readerTapZonePreset === 'l_shaped', () => { this.saveReaderTapZonePreset('l_shaped') })
+        this.SelectionMenuItem(select, s('reader_tap_zone_kindle'), this.readerTapZonePreset === 'kindle', () => { this.saveReaderTapZonePreset('kindle') })
       } else if (row.key === 'reader-tap-zone-invert') {
-        this.SelectionMenuItem(s('reader_tap_zone_invert_none'), this.readerTapZoneInvert === 'none', () => { this.saveReaderTapZoneInvert('none') })
-        this.SelectionMenuItem(s('reader_tap_zone_invert_horizontal'), this.readerTapZoneInvert === 'horizontal', () => { this.saveReaderTapZoneInvert('horizontal') })
-        this.SelectionMenuItem(s('reader_tap_zone_invert_vertical'), this.readerTapZoneInvert === 'vertical', () => { this.saveReaderTapZoneInvert('vertical') })
-        this.SelectionMenuItem(s('reader_tap_zone_invert_both'), this.readerTapZoneInvert === 'both', () => { this.saveReaderTapZoneInvert('both') })
+        this.SelectionMenuItem(select, s('reader_tap_zone_invert_none'), this.readerTapZoneInvert === 'none', () => { this.saveReaderTapZoneInvert('none') })
+        this.SelectionMenuItem(select, s('reader_tap_zone_invert_horizontal'), this.readerTapZoneInvert === 'horizontal', () => { this.saveReaderTapZoneInvert('horizontal') })
+        this.SelectionMenuItem(select, s('reader_tap_zone_invert_vertical'), this.readerTapZoneInvert === 'vertical', () => { this.saveReaderTapZoneInvert('vertical') })
+        this.SelectionMenuItem(select, s('reader_tap_zone_invert_both'), this.readerTapZoneInvert === 'both', () => { this.saveReaderTapZoneInvert('both') })
       } else if (row.key === 'reader-page-gap') {
-        this.SelectionMenuItem(s('reader_page_gap_compact'), this.readerPageGapMode === 'compact', () => { this.saveReaderPageGapMode('compact') })
-        this.SelectionMenuItem(s('common_standard'), this.readerPageGapMode === 'normal', () => { this.saveReaderPageGapMode('normal') })
-        this.SelectionMenuItem(s('reader_page_gap_wide'), this.readerPageGapMode === 'wide', () => { this.saveReaderPageGapMode('wide') })
+        this.SelectionMenuItem(select, s('reader_page_gap_compact'), this.readerPageGapMode === 'compact', () => { this.saveReaderPageGapMode('compact') })
+        this.SelectionMenuItem(select, s('common_standard'), this.readerPageGapMode === 'normal', () => { this.saveReaderPageGapMode('normal') })
+        this.SelectionMenuItem(select, s('reader_page_gap_wide'), this.readerPageGapMode === 'wide', () => { this.saveReaderPageGapMode('wide') })
       } else if (row.key === 'reader-wide-image-mode') {
-        this.SelectionMenuItem(s('reader_wide_mode_keep_single'), this.readerWideImageMode === 'keep_single', () => { this.saveReaderWideImageMode('keep_single') })
-        this.SelectionMenuItem(s('reader_wide_mode_split'), this.readerWideImageMode === 'split_wide_pages', () => { this.saveReaderWideImageMode('split_wide_pages') })
-        this.SelectionMenuItem(s('reader_wide_mode_rotate'), this.readerWideImageMode === 'rotate_wide_pages', () => { this.saveReaderWideImageMode('rotate_wide_pages') })
+        this.SelectionMenuItem(select, s('reader_wide_mode_keep_single'), this.readerWideImageMode === 'keep_single', () => { this.saveReaderWideImageMode('keep_single') })
+        this.SelectionMenuItem(select, s('reader_wide_mode_split'), this.readerWideImageMode === 'split_wide_pages', () => { this.saveReaderWideImageMode('split_wide_pages') })
+        this.SelectionMenuItem(select, s('reader_wide_mode_rotate'), this.readerWideImageMode === 'rotate_wide_pages', () => { this.saveReaderWideImageMode('rotate_wide_pages') })
       } else if (row.key === 'reader-volume-key-behavior') {
-        this.SelectionMenuItem(s('reader_volume_keys_down_next'), this.readerVolumeKeyBehavior === 'up_previous_down_next', () => { this.saveReaderVolumeKeyBehavior('up_previous_down_next') })
-        this.SelectionMenuItem(s('reader_volume_keys_up_next'), this.readerVolumeKeyBehavior === 'up_next_down_previous', () => { this.saveReaderVolumeKeyBehavior('up_next_down_previous') })
+        this.SelectionMenuItem(select, s('reader_volume_keys_down_next'), this.readerVolumeKeyBehavior === 'up_previous_down_next', () => { this.saveReaderVolumeKeyBehavior('up_previous_down_next') })
+        this.SelectionMenuItem(select, s('reader_volume_keys_up_next'), this.readerVolumeKeyBehavior === 'up_next_down_previous', () => { this.saveReaderVolumeKeyBehavior('up_next_down_previous') })
       } else if (row.key === 'download-concurrency') {
         ForEach(OFFLINE_DOWNLOAD_FOREGROUND_CONCURRENCY_LIMIT_OPTIONS, (limit: number) => {
-          this.SelectionMenuItem(`${limit}`, this.downloadForegroundConcurrencyLimit === limit, () => {
+          this.SelectionMenuItem(select, `${limit}`, this.downloadForegroundConcurrencyLimit === limit, () => {
             this.saveDownloadForegroundConcurrencyLimit(limit)
           })
         }, (limit: number) => `${limit}`)
       } else if (row.key === 'cache-limit') {
         ForEach(READER_REMOTE_IMAGE_CACHE_MAX_BYTES_OPTIONS, (maxBytes: number) => {
-          this.SelectionMenuItem(formatReaderRemoteImageCacheSize(maxBytes), this.imageCacheMaxBytes === maxBytes, () => {
+          this.SelectionMenuItem(select, formatReaderRemoteImageCacheSize(maxBytes), this.imageCacheMaxBytes === maxBytes, () => {
             this.saveImageCacheLimit(maxBytes)
           })
         }, (maxBytes: number) => `${maxBytes}`)
       } else if (row.key === 'library-default-sort') {
-        this.SelectionMenuItem(s('library_sort_last_read'), this.libraryDefaultSortBy === 'lastRead', () => { this.saveLibraryDefaultSort('lastRead') })
-        this.SelectionMenuItem(s('library_sort_added'), this.libraryDefaultSortBy === 'added', () => { this.saveLibraryDefaultSort('added') })
-        this.SelectionMenuItem(s('library_sort_title'), this.libraryDefaultSortBy === 'title', () => { this.saveLibraryDefaultSort('title') })
-        this.SelectionMenuItem(s('library_sort_source'), this.libraryDefaultSortBy === 'source', () => { this.saveLibraryDefaultSort('source') })
+        this.SelectionMenuItem(select, s('library_sort_last_read'), this.libraryDefaultSortBy === 'lastRead', () => { this.saveLibraryDefaultSort('lastRead') })
+        this.SelectionMenuItem(select, s('library_sort_added'), this.libraryDefaultSortBy === 'added', () => { this.saveLibraryDefaultSort('added') })
+        this.SelectionMenuItem(select, s('library_sort_title'), this.libraryDefaultSortBy === 'title', () => { this.saveLibraryDefaultSort('title') })
+        this.SelectionMenuItem(select, s('library_sort_source'), this.libraryDefaultSortBy === 'source', () => { this.saveLibraryDefaultSort('source') })
       } else if (row.key === 'library-view-mode') {
-        this.SelectionMenuItem(s('library_view_mode_grid'), this.libraryViewMode === 'grid', () => { this.saveLibraryViewMode('grid') })
-        this.SelectionMenuItem(s('library_view_mode_list'), this.libraryViewMode === 'list', () => { this.saveLibraryViewMode('list') })
+        this.SelectionMenuItem(select, s('library_view_mode_grid'), this.libraryViewMode === 'grid', () => { this.saveLibraryViewMode('grid') })
+        this.SelectionMenuItem(select, s('library_view_mode_list'), this.libraryViewMode === 'list', () => { this.saveLibraryViewMode('list') })
       } else if (row.key === 'list-density') {
-        this.SelectionMenuItem(s('library_list_density_compact'), this.libraryListDensity === 'compact', () => { this.saveLibraryListDensity('compact') })
-        this.SelectionMenuItem(s('common_standard'), this.libraryListDensity === 'standard', () => { this.saveLibraryListDensity('standard') })
-        this.SelectionMenuItem(s('library_list_density_comfortable'), this.libraryListDensity === 'comfortable', () => { this.saveLibraryListDensity('comfortable') })
+        this.SelectionMenuItem(select, s('library_list_density_compact'), this.libraryListDensity === 'compact', () => { this.saveLibraryListDensity('compact') })
+        this.SelectionMenuItem(select, s('common_standard'), this.libraryListDensity === 'standard', () => { this.saveLibraryListDensity('standard') })
+        this.SelectionMenuItem(select, s('library_list_density_comfortable'), this.libraryListDensity === 'comfortable', () => { this.saveLibraryListDensity('comfortable') })
       } else if (row.key === 'library-update-interval') {
-        this.SelectionMenuItem(s('library_update_interval_12h'), this.libraryUpdatePreferences.intervalHours === 12, () => { this.saveLibraryUpdateInterval(12) })
-        this.SelectionMenuItem(s('library_update_interval_24h'), this.libraryUpdatePreferences.intervalHours === 24, () => { this.saveLibraryUpdateInterval(24) })
-        this.SelectionMenuItem(s('library_update_interval_48h'), this.libraryUpdatePreferences.intervalHours === 48, () => { this.saveLibraryUpdateInterval(48) })
+        this.SelectionMenuItem(select, s('library_update_interval_12h'), this.libraryUpdatePreferences.intervalHours === 12, () => { this.saveLibraryUpdateInterval(12) })
+        this.SelectionMenuItem(select, s('library_update_interval_24h'), this.libraryUpdatePreferences.intervalHours === 24, () => { this.saveLibraryUpdateInterval(24) })
+        this.SelectionMenuItem(select, s('library_update_interval_48h'), this.libraryUpdatePreferences.intervalHours === 48, () => { this.saveLibraryUpdateInterval(48) })
       } else if (row.key === 'tracker-update-strategy') {
-        this.SelectionMenuItem(s('tracker_update_strategy_chapter_complete'), this.trackerUpdateStrategy === 'on_chapter_complete', () => { this.saveTrackerUpdateStrategy('on_chapter_complete') })
-        this.SelectionMenuItem(s('tracker_update_strategy_reader_close'), this.trackerUpdateStrategy === 'on_reader_close', () => { this.saveTrackerUpdateStrategy('on_reader_close') })
-        this.SelectionMenuItem(s('tracker_update_strategy_manual'), this.trackerUpdateStrategy === 'manual', () => { this.saveTrackerUpdateStrategy('manual') })
+        this.SelectionMenuItem(select, s('tracker_update_strategy_chapter_complete'), this.trackerUpdateStrategy === 'on_chapter_complete', () => { this.saveTrackerUpdateStrategy('on_chapter_complete') })
+        this.SelectionMenuItem(select, s('tracker_update_strategy_reader_close'), this.trackerUpdateStrategy === 'on_reader_close', () => { this.saveTrackerUpdateStrategy('on_reader_close') })
+        this.SelectionMenuItem(select, s('tracker_update_strategy_manual'), this.trackerUpdateStrategy === 'manual', () => { this.saveTrackerUpdateStrategy('manual') })
       }
     }
   }
@@ -2514,39 +2517,31 @@ export struct SettingsPage {
         },
       })
     } else if (this.isSelectionRow(row) && this.canOpenSelectionMenu(row)) {
-      Column() {
-        if (row.key === 'theme-color') {
-          ConciseListRow({
-            title: this.rowTitle(row),
-            trailingDropdown: true,
-            showChevron: true,
-            suffixBuilderParam: () => {
-              this.AccentColorSuffix()
-            },
-            action: () => {
-              this.settingsMenuKey = row.key
-            },
-          })
-        } else {
-          ConciseListRow({
-            title: this.rowTitle(row),
-            trailingText: this.rowDetail(row),
-            trailingDropdown: true,
-            showChevron: true,
-            action: () => {
-              this.settingsMenuKey = row.key
-            },
-          })
-        }
-      }
-        .bindMenu(this.settingsMenuKey === row.key, this.SettingsSelectionMenu(row), {
-          placement: Placement.BottomRight,
-          onDisappear: () => {
-            if (this.settingsMenuKey === row.key) {
-              this.settingsMenuKey = ''
-            }
+      if (row.key === 'theme-color') {
+        ConciseListRow({
+          title: this.rowTitle(row),
+          trailingDropdown: true,
+          showChevron: true,
+          suffixBuilderParam: () => {
+            this.AccentColorSuffix()
+          },
+          dropdownMenuEnabled: true,
+          dropdownMenuBuilder: (select: (action: () => void) => void) => {
+            this.SettingsSelectionMenu(row, select)
           },
         })
+      } else {
+        ConciseListRow({
+          title: this.rowTitle(row),
+          trailingText: this.rowDetail(row),
+          trailingDropdown: true,
+          showChevron: true,
+          dropdownMenuEnabled: true,
+          dropdownMenuBuilder: (select: (action: () => void) => void) => {
+            this.SettingsSelectionMenu(row, select)
+          },
+        })
+      }
     } else if (this.isSelectionRow(row)) {
       ConciseListRow({
         title: this.rowTitle(row),

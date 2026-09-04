@@ -233,16 +233,10 @@ export struct LibraryPage {
   }
 
   private closeFilterSheet(): void {
-    this.filterMenuKey = ''
     this.filtersShown = false
   }
 
-  private closeFilterMenu(): void {
-    this.filterMenuKey = ''
-  }
-
   @Local private filtersShown: boolean = false
-  @Local private filterMenuKey: string = ''
   @Local private failedCoverUris: string[] = []
   @Local private remoteProgress: RemoteProgressSyncState = connectRemoteProgressSyncState()
   private filterPreferencesRestoreEpoch: number = 0
@@ -1415,156 +1409,156 @@ export struct LibraryPage {
   }
 
   @Builder
-  private SourceMenu() {
+  private SourceMenu(select: (action: () => void) => void) {
     Menu() {
       MenuItem({ content: s('common_all') })
         .onClick(() => {
-          this.setSourceFilter('all')
+          select(() => { this.setSourceFilter('all') })
         })
       MenuItem({ content: s('library_source_local') })
         .onClick(() => {
-          this.setSourceFilter('local')
+          select(() => { this.setSourceFilter('local') })
         })
       MenuItem({ content: s('library_source_private') })
         .onClick(() => {
-          this.setSourceFilter('private')
+          select(() => { this.setSourceFilter('private') })
         })
       MenuItem({ content: s('route_komga_title') })
         .onClick(() => {
-          this.setSourceFilter('komga')
+          select(() => { this.setSourceFilter('komga') })
         })
       MenuItem({ content: s('route_kavita_title') })
         .onClick(() => {
-          this.setSourceFilter('kavita')
+          select(() => { this.setSourceFilter('kavita') })
         })
       MenuItem({ content: s('route_opds_title') })
         .onClick(() => {
-          this.setSourceFilter('opds')
+          select(() => { this.setSourceFilter('opds') })
         })
       MenuItem({ content: s('route_webdav_title') })
         .onClick(() => {
-          this.setSourceFilter('webdav')
+          select(() => { this.setSourceFilter('webdav') })
         })
       ForEach(this.privateServerFilterOptions(), (option: LibraryServerSourceFilterOption) => {
         MenuItem({ content: option.title })
           .onClick(() => {
-            this.setSourceFilter(option.filter)
+            select(() => { this.setSourceFilter(option.filter) })
           })
       }, (option: LibraryServerSourceFilterOption) => option.filter)
       ForEach(this.runtimeSourceFilterOptions(), (option: LibraryServerSourceFilterOption) => {
         MenuItem({ content: option.title })
           .onClick(() => {
-            this.setSourceFilter(option.filter)
+            select(() => { this.setSourceFilter(option.filter) })
           })
       }, (option: LibraryServerSourceFilterOption) => option.filter)
       MenuItem({ content: s('library_source_package') })
         .onClick(() => {
-          this.setSourceFilter('source_package')
+          select(() => { this.setSourceFilter('source_package') })
         })
     }
   }
 
   @Builder
-  private ReadStateMenu() {
+  private ReadStateMenu(select: (action: () => void) => void) {
     Menu() {
       MenuItem({ content: s('common_all') })
         .onClick(() => {
-          this.setReadStateFilter('all')
+          select(() => { this.setReadStateFilter('all') })
         })
       MenuItem({ content: s('library_read_state_unread') })
         .onClick(() => {
-          this.setReadStateFilter('unread')
+          select(() => { this.setReadStateFilter('unread') })
         })
       MenuItem({ content: s('library_read_state_reading') })
         .onClick(() => {
-          this.setReadStateFilter('reading')
+          select(() => { this.setReadStateFilter('reading') })
         })
       MenuItem({ content: s('library_read_state_completed') })
         .onClick(() => {
-          this.setReadStateFilter('completed')
+          select(() => { this.setReadStateFilter('completed') })
         })
     }
   }
 
   @Builder
-  private AvailabilityMenu() {
+  private AvailabilityMenu(select: (action: () => void) => void) {
     Menu() {
       MenuItem({ content: s('common_all') })
         .onClick(() => {
-          this.setAvailabilityFilter('all')
+          select(() => { this.setAvailabilityFilter('all') })
         })
       MenuItem({ content: s('library_availability_downloaded') })
         .onClick(() => {
-          this.setAvailabilityFilter('downloaded')
+          select(() => { this.setAvailabilityFilter('downloaded') })
         })
       MenuItem({ content: s('library_availability_fully_downloaded') })
         .onClick(() => {
-          this.setAvailabilityFilter('fully_downloaded')
+          select(() => { this.setAvailabilityFilter('fully_downloaded') })
         })
       MenuItem({ content: s('library_availability_partially_downloaded') })
         .onClick(() => {
-          this.setAvailabilityFilter('partially_downloaded')
+          select(() => { this.setAvailabilityFilter('partially_downloaded') })
         })
       MenuItem({ content: s('library_availability_not_downloaded') })
         .onClick(() => {
-          this.setAvailabilityFilter('not_downloaded')
+          select(() => { this.setAvailabilityFilter('not_downloaded') })
         })
     }
   }
 
   @Builder
-  private MetadataStatusMenu() {
+  private MetadataStatusMenu(select: (action: () => void) => void) {
     Menu() {
       MenuItem({ content: s('common_all') })
         .onClick(() => {
-          this.setMetadataStatusFilter('all')
+          select(() => { this.setMetadataStatusFilter('all') })
         })
       MenuItem({ content: s('manga_status_ongoing') })
         .onClick(() => {
-          this.setMetadataStatusFilter('ongoing')
+          select(() => { this.setMetadataStatusFilter('ongoing') })
         })
       MenuItem({ content: s('manga_status_completed') })
         .onClick(() => {
-          this.setMetadataStatusFilter('completed')
+          select(() => { this.setMetadataStatusFilter('completed') })
         })
       MenuItem({ content: s('manga_status_hiatus') })
         .onClick(() => {
-          this.setMetadataStatusFilter('hiatus')
+          select(() => { this.setMetadataStatusFilter('hiatus') })
         })
       MenuItem({ content: s('manga_status_cancelled') })
         .onClick(() => {
-          this.setMetadataStatusFilter('cancelled')
+          select(() => { this.setMetadataStatusFilter('cancelled') })
         })
       MenuItem({ content: s('manga_status_unknown') })
         .onClick(() => {
-          this.setMetadataStatusFilter('unknown')
+          select(() => { this.setMetadataStatusFilter('unknown') })
         })
     }
   }
 
   @Builder
-  private CategoryMenu() {
+  private CategoryMenu(select: (action: () => void) => void) {
     Menu() {
       MenuItem({ content: s('common_all') })
         .onClick(() => {
-          this.setCategoryFilter('all')
+          select(() => { this.setCategoryFilter('all') })
         })
       MenuItem({ content: s('library_category_uncategorized') })
         .onClick(() => {
-          this.setCategoryFilter('uncategorized')
+          select(() => { this.setCategoryFilter('uncategorized') })
         })
       MenuItem({ content: s('library_category_read_later') })
         .onClick(() => {
-          this.setCategoryFilter(LIBRARY_CATEGORY_READ_LATER_ID)
+          select(() => { this.setCategoryFilter(LIBRARY_CATEGORY_READ_LATER_ID) })
         })
       MenuItem({ content: s('library_category_favorite') })
         .onClick(() => {
-          this.setCategoryFilter(LIBRARY_CATEGORY_FAVORITE_ID)
+          select(() => { this.setCategoryFilter(LIBRARY_CATEGORY_FAVORITE_ID) })
         })
       ForEach(this.libraryStore.listCustomCategories(), (category: CustomLibraryCategory) => {
         MenuItem({ content: category.name })
           .onClick(() => {
-            this.setCategoryFilter(category.id)
+            select(() => { this.setCategoryFilter(category.id) })
           })
       }, (category: CustomLibraryCategory) => category.id)
     }
@@ -1661,83 +1655,53 @@ export struct LibraryPage {
     }) {
       Column({ space: ThemeConstants.SPACE_LG }) {
           GroupedListSection() {
-            Column() {
-              ConciseListRow({
-                title: s('library_filter_source_title'),
-                trailingText: this.sourceLabel(),
-                trailingDropdown: true,
-                action: () => {
-                  this.filterMenuKey = 'source'
-                },
-              })
-            }
-            .bindMenu(this.filterMenuKey === 'source', this.SourceMenu, {
-              onDisappear: () => {
-                this.closeFilterMenu()
+            ConciseListRow({
+              title: s('library_filter_source_title'),
+              trailingText: this.sourceLabel(),
+              trailingDropdown: true,
+              dropdownMenuEnabled: true,
+              dropdownMenuBuilder: (select: (action: () => void) => void) => {
+                this.SourceMenu(select)
               },
             })
             ListDivider()
-            Column() {
-              ConciseListRow({
-                title: s('library_filter_read_state_title'),
-                trailingText: this.readStateLabel(),
-                trailingDropdown: true,
-                action: () => {
-                  this.filterMenuKey = 'read-state'
-                },
-              })
-            }
-            .bindMenu(this.filterMenuKey === 'read-state', this.ReadStateMenu, {
-              onDisappear: () => {
-                this.closeFilterMenu()
+            ConciseListRow({
+              title: s('library_filter_read_state_title'),
+              trailingText: this.readStateLabel(),
+              trailingDropdown: true,
+              dropdownMenuEnabled: true,
+              dropdownMenuBuilder: (select: (action: () => void) => void) => {
+                this.ReadStateMenu(select)
               },
             })
             ListDivider()
-            Column() {
-              ConciseListRow({
-                title: s('library_filter_availability_title'),
-                trailingText: this.availabilityLabel(),
-                trailingDropdown: true,
-                action: () => {
-                  this.filterMenuKey = 'availability'
-                },
-              })
-            }
-            .bindMenu(this.filterMenuKey === 'availability', this.AvailabilityMenu, {
-              onDisappear: () => {
-                this.closeFilterMenu()
+            ConciseListRow({
+              title: s('library_filter_availability_title'),
+              trailingText: this.availabilityLabel(),
+              trailingDropdown: true,
+              dropdownMenuEnabled: true,
+              dropdownMenuBuilder: (select: (action: () => void) => void) => {
+                this.AvailabilityMenu(select)
               },
             })
             ListDivider()
-            Column() {
-              ConciseListRow({
-                title: s('library_filter_metadata_title'),
-                trailingText: this.metadataStatusLabel(),
-                trailingDropdown: true,
-                action: () => {
-                  this.filterMenuKey = 'metadata'
-                },
-              })
-            }
-            .bindMenu(this.filterMenuKey === 'metadata', this.MetadataStatusMenu, {
-              onDisappear: () => {
-                this.closeFilterMenu()
+            ConciseListRow({
+              title: s('library_filter_metadata_title'),
+              trailingText: this.metadataStatusLabel(),
+              trailingDropdown: true,
+              dropdownMenuEnabled: true,
+              dropdownMenuBuilder: (select: (action: () => void) => void) => {
+                this.MetadataStatusMenu(select)
               },
             })
             ListDivider()
-            Column() {
-              ConciseListRow({
-                title: s('library_filter_category_title'),
-                trailingText: this.categoryLabel(),
-                trailingDropdown: true,
-                action: () => {
-                  this.filterMenuKey = 'category'
-                },
-              })
-            }
-            .bindMenu(this.filterMenuKey === 'category', this.CategoryMenu, {
-              onDisappear: () => {
-                this.closeFilterMenu()
+            ConciseListRow({
+              title: s('library_filter_category_title'),
+              trailingText: this.categoryLabel(),
+              trailingDropdown: true,
+              dropdownMenuEnabled: true,
+              dropdownMenuBuilder: (select: (action: () => void) => void) => {
+                this.CategoryMenu(select)
               },
             })
           }

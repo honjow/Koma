@@ -32,6 +32,8 @@ export struct ConciseListRow {
   @Param destructive: boolean = false
   @Param showChevron: boolean = true
   @Param trailingDropdown: boolean = false
+  @Param dropdownMenuEnabled: boolean = false
+  @Local private dropdownMenuShown: boolean = false
   @Param hasSwitch: boolean = false
   @Param hasCounter: boolean = false
   @Param counterValue: string = ''
@@ -54,6 +56,8 @@ export struct ConciseListRow {
   @Event action?: () => void
   @BuilderParam suffixBuilderParam?: () => void
   @BuilderParam prefixBuilderParam?: () => void
+  @BuilderParam dropdownMenuBuilder: (select: (action: () => void) => void) => void =
+    this.EmptyDropdownMenu
   @Event switchAction?: (value: boolean) => void
   @Event counterDecreaseAction?: () => void
   @Event counterIncreaseAction?: () => void
@@ -117,12 +121,27 @@ export struct ConciseListRow {
 
   @Builder
   private WrappedSuffixBuilder() {
-    Row() {
-      if (this.suffixBuilderParam) {
-        this.suffixBuilderParam()
+    if (this.dropdownMenuEnabled) {
+      Row() {
+        if (this.suffixBuilderParam) {
+          this.suffixBuilderParam()
+        }
       }
+      .padding({ left: ThemeConstants.SPACE_SM, right: this.suffixPaddingRight })
+      .bindMenu(this.dropdownMenuShown, this.BoundDropdownMenu, {
+        placement: Placement.BottomRight,
+        onDisappear: () => {
+          this.dropdownMenuShown = false
+        },
+      })
+    } else {
+      Row() {
+        if (this.suffixBuilderParam) {
+          this.suffixBuilderParam()
+        }
+      }
+      .padding({ left: ThemeConstants.SPACE_SM, right: this.suffixPaddingRight })
     }
-    .padding({ left: ThemeConstants.SPACE_SM, right: this.suffixPaddingRight })
   }
 
   @Builder
@@ -233,19 +252,56 @@ export struct ConciseListRow {
   }
 
   @Builder
+  private EmptyDropdownMenu(_select: (action: () => void) => void) {}
+
+  private selectDropdownItem(action: () => void): void {
+    // Finish the MenuItem dispatch before removing the overlay so the same
+    // pointer event cannot fall through to the reader-settings row below it.
+    setTimeout((): void => {
+      this.dropdownMenuShown = false
+      action()
+    }, 0)
+  }
+
+  @Builder
+  private BoundDropdownMenu() {
+    this.dropdownMenuBuilder((action: () => void) => {
+      this.selectDropdownItem(action)
+    })
+  }
+
+  @Builder
+  private DropdownSuffixContent() {
+    Text(this.trailingText)
+      .fontSize(ThemeConstants.FONT_SIZE_BODY)
+      .fontColor(this.secondaryColor ?? $r('sys.color.font_secondary'))
+      .maxLines(1)
+      .textOverflow({ overflow: TextOverflow.Ellipsis })
+    SymbolGlyph($r('sys.symbol.arrowtriangle_down_fill'))
+      .fontSize(ThemeConstants.FONT_SIZE_TITLE)
+      .fontColor([$r('sys.color.font_tertiary')])
+      .padding({ left: 4, right: 12 })
+  }
+
+  @Builder
   private DropdownSuffix() {
-    Row({ space: ThemeConstants.SPACE_XS }) {
-      Text(this.trailingText)
-        .fontSize(ThemeConstants.FONT_SIZE_BODY)
-        .fontColor(this.secondaryColor ?? $r('sys.color.font_secondary'))
-        .maxLines(1)
-        .textOverflow({ overflow: TextOverflow.Ellipsis })
-      SymbolGlyph($r('sys.symbol.arrowtriangle_down_fill'))
-        .fontSize(ThemeConstants.FONT_SIZE_TITLE)
-        .fontColor([$r('sys.color.font_tertiary')])
-        .padding({ left: 4, right: 12 })
+    if (this.dropdownMenuEnabled) {
+      Row({ space: ThemeConstants.SPACE_XS }) {
+        this.DropdownSuffixContent()
+      }
+      .alignItems(VerticalAlign.Center)
+      .bindMenu(this.dropdownMenuShown, this.BoundDropdownMenu, {
+        placement: Placement.BottomRight,
+        onDisappear: () => {
+          this.dropdownMenuShown = false
+        },
+      })
+    } else {
+      Row({ space: ThemeConstants.SPACE_XS }) {
+        this.DropdownSuffixContent()
+      }
+      .alignItems(VerticalAlign.Center)
     }
-    .alignItems(VerticalAlign.Center)
   }
 
   @Builder
@@ -345,8 +401,13 @@ export struct ConciseListRow {
       hoverBorderRadius: this.resolvedSurfaceRadius(),
       enable: this.hasSwitch ? true : this.isEnabled,
       onClick: () => {
-        if (this.isEnabled && this.action) {
-          this.action()
+        if (this.isEnabled) {
+          if (this.dropdownMenuEnabled) {
+            this.dropdownMenuShown = true
+          }
+          if (this.action) {
+            this.action()
+          }
         }
       },
     })

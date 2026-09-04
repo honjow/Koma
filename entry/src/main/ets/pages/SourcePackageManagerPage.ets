@@ -124,7 +124,6 @@ export struct SourcePackageManagerPage {
   @Local private settingsAvailability: Record<string, string> = {}
   @Local private settingsValidationStatuses: SourceSettingsValidationStatus[] = []
   @Local private settingsValidationSourceId: string = ''
-  @Local private settingMenuKey: string = ''
   @Local private sourceSheetShown: boolean = false
   @Local private sourceSheetSourceId: string = ''
   @Local private sourceSettingsSheetShown: boolean = false
@@ -1474,7 +1473,6 @@ export struct SourcePackageManagerPage {
 
   private setSelectSetting(descriptor: SourceSettingDescriptor, optionId: string): void {
     this.updateSettingValue(descriptor.id, optionId)
-    this.settingMenuKey = ''
   }
 
   private toggleMultiSelectSetting(descriptor: SourceSettingDescriptor, optionId: string): void {
@@ -1712,7 +1710,10 @@ export struct SourcePackageManagerPage {
   }
 
   @Builder
-  private SettingSelectMenu(descriptor: SourceSettingDescriptor) {
+  private SettingSelectMenu(
+    descriptor: SourceSettingDescriptor,
+    select: (action: () => void) => void,
+  ) {
     Menu() {
       ForEach(descriptor.options ?? [], (option: SourceSettingOption) => {
         MenuItem({
@@ -1720,7 +1721,9 @@ export struct SourcePackageManagerPage {
           symbolEndIcon: this.settingStringValue(descriptor) === option.id ? new SymbolGlyphModifier($r('sys.symbol.checkmark')) : undefined,
         })
           .onClick(() => {
-            this.setSelectSetting(descriptor, option.id)
+            select(() => {
+              this.setSelectSetting(descriptor, option.id)
+            })
           })
       }, (option: SourceSettingOption) => option.id)
     }
@@ -2445,33 +2448,27 @@ export struct SourcePackageManagerPage {
           },
         })
       } else if (descriptor.kind === 'select') {
-        Column() {
-          ConciseListRow({
-            title: descriptor.label,
-            trailingText: this.settingSelectLabel(descriptor),
-            trailingDropdown: true,
-            action: () => {
-              this.settingMenuKey = descriptor.id
-            },
-          })
-        }
-          .bindMenu(this.settingMenuKey === descriptor.id, this.SettingSelectMenu(descriptor), {
-            placement: Placement.BottomRight,
-          })
+        ConciseListRow({
+          title: descriptor.label,
+          trailingText: this.settingSelectLabel(descriptor),
+          trailingDropdown: true,
+          dropdownMenuEnabled: true,
+          dropdownMenuBuilder: (select: (action: () => void) => void) => {
+            this.SettingSelectMenu(descriptor, select)
+          },
+        })
       } else if (descriptor.kind === 'multiselect') {
-        Column() {
-          ConciseListRow({
-            title: descriptor.label,
-            trailingText: this.settingMultiSelectLabel(descriptor),
-            trailingDropdown: true,
-            action: () => {
-              this.settingMenuKey = descriptor.id
-            },
-          })
-        }
-          .bindMenu(this.settingMenuKey === descriptor.id, this.SettingMultiSelectMenu(descriptor), {
-            placement: Placement.BottomRight,
-          })
+        ConciseListRow({
+          title: descriptor.label,
+          trailingText: this.settingMultiSelectLabel(descriptor),
+          trailingDropdown: true,
+          dropdownMenuEnabled: true,
+          dropdownMenuBuilder: (_select: (action: () => void) => void) => {
+            // Multi-select stays open while options are toggled. The row still
+            // owns the anchor and dismissal state through ConciseListRow.
+            this.SettingMultiSelectMenu(descriptor)
+          },
+        })
       } else if (descriptor.kind === 'range') {
         this.SettingRangeRow(descriptor)
       } else if (descriptor.kind === 'group') {

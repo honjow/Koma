@@ -183,13 +183,21 @@ export struct SourceFilterControls {
     })
   }
 
+  private selectActiveFilterMenuItem(action: () => void): void {
+    this.activeFilterMenuId = ''
+    setTimeout(() => {
+      action()
+    }, 0)
+  }
+
   @Builder
-  private FilterOptionMenu(filter: SourceFilter) {
+  private FilterOptionMenu(filter: SourceFilter, select: (action: () => void) => void) {
     Menu() {
       MenuItem({ content: s('common_all') })
         .onClick(() => {
-          this.activeFilterMenuId = ''
-          this.onFilterChange(filter, undefined)
+          select(() => {
+            this.onFilterChange(filter, undefined)
+          })
         })
       ForEach(filter.options ?? [], (option: string, index: number) => {
         MenuItem({
@@ -201,8 +209,9 @@ export struct SourceFilterControls {
             if (filter.type === 'multiselect') {
               this.toggleMultiSelectFilter(filter, index)
             } else {
-              this.activeFilterMenuId = ''
-              this.onFilterChange(filter, this.filterOptionValue(filter, index))
+              select(() => {
+                this.onFilterChange(filter, this.filterOptionValue(filter, index))
+              })
             }
           })
       }, (option: string, index: number) => `${filter.id}:${index}:${option}`)
@@ -272,20 +281,13 @@ export struct SourceFilterControls {
       .width('100%')
       .padding(ThemeConstants.SPACE_MD)
     } else if ((filter.options ?? []).length > 0) {
-      Column() {
-        ConciseListRow({
-          title: filter.name,
-          trailingText: this.filterSelectionLabel(filter),
-          trailingDropdown: true,
-          action: () => {
-            this.activeFilterMenuId = filter.id
-          },
-        })
-      }
-      .bindMenu(this.activeFilterMenuId === filter.id, this.FilterOptionMenu(filter), {
-        placement: Placement.BottomLeft,
-        onDisappear: () => {
-          this.activeFilterMenuId = ''
+      ConciseListRow({
+        title: filter.name,
+        trailingText: this.filterSelectionLabel(filter),
+        trailingDropdown: true,
+        dropdownMenuEnabled: true,
+        dropdownMenuBuilder: (select: (action: () => void) => void) => {
+          this.FilterOptionMenu(filter, select)
         },
       })
     }
@@ -391,7 +393,10 @@ export struct SourceFilterControls {
                   this.activeFilterMenuId = filter.id
                 },
               })
-                .bindMenu(this.activeFilterMenuId === filter.id, this.FilterOptionMenu(filter), {
+                .bindMenu(this.activeFilterMenuId === filter.id, this.FilterOptionMenu(filter,
+                  (action: () => void) => {
+                    this.selectActiveFilterMenuItem(action)
+                  }), {
                   placement: Placement.BottomLeft,
                   onDisappear: () => {
                     this.activeFilterMenuId = ''
