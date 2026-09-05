@@ -19,6 +19,9 @@ export struct PullRefreshListScaffold {
   @Param listSpace: number = ThemeConstants.SPACE_SM - 2
   @Param horizontalPadding: number = ThemeConstants.SPACE_MD
   @Param topPadding: number = 0
+  // Unlike ordinary topPadding, this is the total content boundary of a
+  // pinned title-bar bottomBuilder. The leading List.space is part of it.
+  @Param pinnedOverlayHeight: number = 0
   @Param bottomPadding: number = ThemeConstants.SPACE_XL
   @Param stickyHeaders: boolean = false
   // Number of real content rows, excluding this scaffold's two reserve rows.
@@ -77,7 +80,12 @@ export struct PullRefreshListScaffold {
         List({ space: this.listSpace, scroller: this.scroller }) {
           ListItem() {
             Column() {
-              Blank().height(this.safeArea.topAvoidHeight + this.titleBarPadding() + this.topPadding)
+              Blank().height(
+                this.safeArea.topAvoidHeight +
+                  this.titleBarPadding() +
+                  this.topPadding +
+                  this.pinnedOverlayReserve(),
+              )
             }
             .width('100%')
           }
@@ -169,13 +177,21 @@ export struct PullRefreshListScaffold {
     return this.reserveTitleBar ? ThemeConstants.TITLE_BAR_HEIGHT : 0
   }
 
+  private pinnedOverlayReserve(): number {
+    if (this.pinnedOverlayHeight <= 0) {
+      return 0
+    }
+    return Math.max(0, this.pinnedOverlayHeight - this.listSpace)
+  }
+
   private resolvedIndicatorTop(): number {
     if (this.indicatorTop >= 0) {
       return this.indicatorTop
     }
     return this.safeArea.topAvoidHeight +
       (this.reserveTitleBar ? ThemeConstants.TITLE_BAR_HEIGHT / 2 : 0) +
-      this.topPadding
+      this.topPadding +
+      this.pinnedOverlayHeight
   }
 
   private contentIndex(rawIndex: number): number {

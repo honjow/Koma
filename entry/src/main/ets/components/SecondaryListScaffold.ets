@@ -10,6 +10,10 @@ export struct SecondaryListScaffold {
   scroller: Scroller = new Scroller()
   @Param listSpace: number = ThemeConstants.SPACE_SM - 2
   @Param horizontalPadding: number = ThemeConstants.SPACE_MD
+  // Total height owned by a pinned title-bar bottomBuilder. This is the
+  // content boundary, not ordinary List padding: List.space already occupies
+  // the final interval between the reserve row and the first real item.
+  @Param pinnedOverlayHeight: number = 0
   @Param bottomPadding: number = ThemeConstants.SPACE_XL
   // Only root HDS tabs float over content. Root tab pages pass their own
   // clearance explicitly; destinations keep ordinary safe-area spacing.
@@ -25,7 +29,7 @@ export struct SecondaryListScaffold {
         List({ space: this.listSpace, scroller: this.scroller }) {
           ListItem() {
             Column() {
-              Blank().height(this.safeArea.topAvoidHeight + this.titleBarPadding())
+              Blank().height(this.safeArea.topAvoidHeight + this.titleBarPadding() + this.pinnedOverlayReserve())
             }
             .width('100%')
           }
@@ -80,5 +84,12 @@ export struct SecondaryListScaffold {
 
   private titleBarPadding(): number {
     return this.reserveTitleBar ? ThemeConstants.TITLE_BAR_HEIGHT : 0
+  }
+
+  private pinnedOverlayReserve(): number {
+    if (this.pinnedOverlayHeight <= 0) {
+      return 0
+    }
+    return Math.max(0, this.pinnedOverlayHeight - this.listSpace)
   }
 }

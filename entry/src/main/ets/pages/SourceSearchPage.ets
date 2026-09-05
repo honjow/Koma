@@ -282,17 +282,13 @@ export struct SourceSearchPage {
         SecondaryListScaffold({
           listSpace: ThemeConstants.SPACE_MD,
           horizontalPadding: ThemeConstants.SPACE_XL,
+          pinnedOverlayHeight: SOURCE_SEARCH_TITLE_BOTTOM_HEIGHT,
           bottomPadding: ThemeConstants.SPACE_XL,
           reserveTitleBar: true,
           onReachEnd: () => {
             void this.viewModel.loadMoreSearch()
           },
         }) {
-          ListItem() {
-            Column() {}
-              .width('100%')
-              .height(SOURCE_SEARCH_TITLE_BOTTOM_HEIGHT)
-          }
           if (this.viewModel.loadingSearch && this.viewModel.searchResults.length === 0) {
             ListItem() {
               this.LoadingSearchState()

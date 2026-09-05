@@ -481,7 +481,7 @@ export struct SourceBrowsePage {
           horizontalPadding: ThemeConstants.SPACE_XL,
           bottomPadding: ThemeConstants.SPACE_XL,
           reserveTitleBar: true,
-          topPadding: SOURCE_BROWSE_TITLE_BOTTOM_HEIGHT,
+          pinnedOverlayHeight: SOURCE_BROWSE_TITLE_BOTTOM_HEIGHT,
           onRefresh: async () => {
             if (this.isSearchActive()) {
               await this.viewModel.runSearch(this.currentSource(), this.viewModel.searchQuery)

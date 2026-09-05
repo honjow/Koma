@@ -839,16 +839,11 @@ export struct SearchPage {
       SecondaryListScaffold({
         listSpace: ThemeConstants.SPACE_MD,
         horizontalPadding: ThemeConstants.SPACE_XL,
+        pinnedOverlayHeight: SEARCH_TITLE_BOTTOM_HEIGHT,
         bottomPadding: ThemeConstants.SPACE_XL,
         floatingTabTailPadding: ThemeConstants.FLOATING_TAB_BAR_CLEARANCE,
         reserveTitleBar: true,
       }) {
-          ListItem() {
-            Column() {
-              Blank().height(SEARCH_TITLE_BOTTOM_HEIGHT)
-            }
-            .width('100%')
-          }
           if (this.sourceFilter !== 'all') {
             ListItem() {
               this.ActiveFilterBadge()
