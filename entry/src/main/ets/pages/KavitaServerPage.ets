@@ -3,7 +3,7 @@ import { SecondaryListScaffold } from '../components/SecondaryListScaffold'
 import { GroupedListSection } from '../components/ui/GroupedListSection'
 import { KomaActionButton } from '../components/ui/KomaActionButton'
 import { KomaFormTextField } from '../components/ui/KomaFormTextField'
-import { RemoteServerStore } from '../model/RemoteServerStore'
+import { RemoteServerStore, KavitaServerRecord, remoteServerDraftErrorKey } from '../model/RemoteServerStore'
 import { ThemeConstants } from '../theme/ThemeConstants'
 import { AppStrings } from '../i18n/AppStrings'
 import { connectLanguageState, LanguageState } from '../state/LanguageState'
@@ -18,6 +18,9 @@ export struct KavitaServerPage {
   @Local private baseUrl: string = ''
   @Local private apiKey: string = ''
   @Local private testing: boolean = false
+  @Local private loading: boolean = true
+  @Local private removing: boolean = false
+  @Local private hasSavedConfig: boolean = false
   @Local private statusKey: string = ''
   @Local private statusArgs: string[] = []
 
@@ -30,9 +33,15 @@ export struct KavitaServerPage {
   }
 
   private async loadSaved(): Promise<void> {
+    this.loading = true
     try {
-      const saved = await this.store().loadKavita()
+      const store = this.store()
+      this.hasSavedConfig = await store.hasSavedConfiguration('kavita')
+      const saved = await store.loadKavita()
       if (saved === undefined) {
+        if (this.hasSavedConfig) {
+          this.setStatus('server_status_load_failed')
+        }
         return
       }
       this.baseUrl = saved.server.baseUrl
@@ -42,46 +51,75 @@ export struct KavitaServerPage {
       void error
       this.setStatus('server_status_load_failed')
       console.error('[Kavita] step=settings_load_error reason=settings_load')
+    } finally {
+      this.loading = false
     }
   }
 
+  private formBusy(): boolean {
+    return this.loading || this.testing || this.removing
+  }
+
+  private draftEdited(): void {
+    this.setStatus('')
+  }
+
   private async saveAndTest(): Promise<void> {
-    if (this.testing) {
+    if (this.formBusy()) {
       return
     }
     this.testing = true
-    this.setStatus('server_status_testing')
+    this.setStatus('')
     try {
       const store = this.store()
-      const record = await store.saveKavita({
-        baseUrl: this.baseUrl,
-        apiKey: this.apiKey,
-      })
+      let record: KavitaServerRecord
+      try {
+        record = await store.saveKavita({
+          baseUrl: this.baseUrl,
+          apiKey: this.apiKey,
+        })
+        this.hasSavedConfig = true
+      } catch (error) {
+        const key = remoteServerDraftErrorKey(error as Object)
+        this.setStatus(key.length > 0 ? key : 'server_status_save_failed')
+        return
+      }
+      this.setStatus('server_status_testing')
       console.info('[Kavita] step=test_connection_start')
-      const libraries = await store.createKavitaClient(record).listLibraries()
-      this.setStatus('kavita_status_success', [`${libraries.length}`])
-      console.info(`[Kavita] step=test_connection_ok libraries=${libraries.length}`)
-      this.showToast(s('kavita_toast_success'))
-    } catch (error) {
-      void error
-      this.setStatus('kavita_status_failed')
-      console.error('[Kavita] step=test_connection_failed reason=connection_test')
-      this.showToast(s('kavita_toast_failed'))
+      try {
+        const libraries = await store.createKavitaClient(record).listLibraries()
+
+        this.setStatus('kavita_status_success', [`${libraries.length}`])
+        this.showToast(s('kavita_toast_success'))
+        console.info(`[Kavita] step=test_connection_ok libraries=${libraries.length}`)
+      } catch (error) {
+        void error
+        this.setStatus('kavita_status_failed')
+        console.error('[Kavita] step=test_connection_failed reason=connection_test')
+        this.showToast(s('kavita_toast_failed'))
+      }
     } finally {
       this.testing = false
     }
   }
 
   private async clearServer(): Promise<void> {
+    if (this.formBusy() || !this.hasSavedConfig) {
+      return
+    }
+    this.removing = true
     try {
       await this.store().clearKavita()
       this.baseUrl = ''
       this.apiKey = ''
+      this.hasSavedConfig = false
       this.setStatus('kavita_status_removed')
       this.showToast(s('kavita_toast_removed'))
     } catch (error) {
       void error
-      this.setStatus('server_status_load_failed')
+      this.setStatus('server_status_remove_failed')
+    } finally {
+      this.removing = false
     }
   }
 
@@ -112,13 +150,24 @@ export struct KavitaServerPage {
   private FormCard() {
     GroupedListSection({ inset: ThemeConstants.SPACE_LG }) {
       Column({ space: ThemeConstants.SPACE_LG }) {
-        KomaFormTextField({ label: s('common_server_url'), placeholder: 'https://kavita.example.com', value: this.baseUrl, change: (value: string) => {
-          this.baseUrl = value
+        KomaFormTextField({ label: s('common_server_url'), placeholder: 'https://kavita.example.com', value: this.baseUrl, isEnabled: !this.formBusy(), change: (value: string) => {
+          if (!this.formBusy()) {
+            this.baseUrl = value
+            this.draftEdited()
+          }
         } })
 
-        KomaFormTextField({ label: s('kavita_label_api_key'), placeholder: s('kavita_placeholder_api_key'), value: this.apiKey, isPassword: true, change: (value: string) => {
-          this.apiKey = value
+        KomaFormTextField({ label: s('kavita_label_api_key'), placeholder: s('kavita_placeholder_api_key'), value: this.apiKey, isEnabled: !this.formBusy(), isPassword: true, change: (value: string) => {
+          if (!this.formBusy()) {
+            this.apiKey = value
+            this.draftEdited()
+          }
         } })
+        Text(s('kavita_api_key_help'))
+          .width('100%')
+          .fontSize(ThemeConstants.FONT_SIZE_META)
+          .lineHeight(ThemeConstants.LINE_HEIGHT_BODY)
+          .fontColor(ThemeConstants.TEXT_SECONDARY)
       }
       .width('100%')
     }
@@ -131,7 +180,7 @@ export struct KavitaServerPage {
         label: this.testing ? s('common_testing') : s('server_action_save_and_test'),
         kind: 'primary',
         fullWidth: true,
-        isEnabled: !this.testing,
+        isEnabled: !this.formBusy(),
         action: () => {
           this.saveAndTest()
         },
@@ -145,16 +194,19 @@ export struct KavitaServerPage {
           .fontColor(ThemeConstants.TEXT_SECONDARY)
       }
 
-      KomaActionButton({
-        label: s('server_action_remove_config'),
-        kind: 'ghost',
-        fullWidth: true,
-        accentColor: ThemeConstants.DANGER,
-        controlHeight: ThemeConstants.ACTION_CHIP_HEIGHT,
-        action: () => {
-          this.clearServer()
-        },
-      })
+      if (this.hasSavedConfig) {
+        KomaActionButton({
+          label: s('server_action_remove_config'),
+          isEnabled: !this.formBusy(),
+          kind: 'ghost',
+          fullWidth: true,
+          accentColor: ThemeConstants.DANGER,
+          controlHeight: ThemeConstants.ACTION_CHIP_HEIGHT,
+          action: () => {
+            this.clearServer()
+          },
+        })
+      }
     }
     .width('100%')
     .padding({ left: ThemeConstants.SPACE_LG, right: ThemeConstants.SPACE_LG })

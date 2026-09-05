@@ -83,6 +83,7 @@ export interface KomgaServerDraft {
   apiKey?: string
   username?: string
   password?: string
+  preserveSavedCredentials?: boolean
 }
 
 export interface KomgaServerRecord {
@@ -105,6 +106,7 @@ export interface WebDavServerDraft {
   username?: string
   password?: string
   rootPath?: string
+  preserveSavedCredentials?: boolean
 }
 
 export interface WebDavServerRecord {
@@ -117,6 +119,7 @@ export interface OpdsServerDraft {
   username?: string
   password?: string
   version?: OpdsVersion
+  preserveSavedCredentials?: boolean
 }
 
 export interface OpdsServerConfig {
@@ -159,7 +162,21 @@ interface StoredOpdsCredential {
   basicToken?: string
 }
 
-type RemoteServerCredentialKind = 'komga' | 'kavita' | 'webdav' | 'opds'
+export type RemoteServerCredentialKind = 'komga' | 'kavita' | 'webdav' | 'opds'
+
+export class RemoteServerDraftError extends Error {
+  readonly resourceKey: string
+
+  constructor(resourceKey: string) {
+    super(AppStrings.get(resourceKey))
+    this.resourceKey = resourceKey
+  }
+}
+
+export function remoteServerDraftErrorKey(error: Object): string {
+  return error instanceof RemoteServerDraftError ? error.resourceKey : ''
+}
+
 function remoteCredentialUtf8Encode(value: string): Uint8Array {
   return new Uint8Array(buffer.from(value, 'utf8').buffer)
 }
@@ -321,6 +338,20 @@ export class RemoteServerStore {
     this.context = context
   }
 
+  async hasSavedConfiguration(kind: RemoteServerCredentialKind): Promise<boolean> {
+    const store = await this.preferences()
+    let key: string = KOMGA_SERVER_KEY
+    if (kind === 'kavita') {
+      key = KAVITA_SERVER_KEY
+    } else if (kind === 'webdav') {
+      key = WEBDAV_SERVER_KEY
+    } else if (kind === 'opds') {
+      key = OPDS_SERVER_KEY
+    }
+    const payload = await store.get(key, '') as string
+    return payload.length > 0
+  }
+
   async loadKomga(): Promise<KomgaServerRecord | undefined> {
     const store = await this.preferences()
     const serverPayload = await store.get(KOMGA_SERVER_KEY, '') as string
@@ -358,9 +389,9 @@ export class RemoteServerStore {
   async saveKomga(draft: KomgaServerDraft): Promise<KomgaServerRecord> {
     const baseUrl = normalizeKomgaBaseUrl(draft.baseUrl)
     if (baseUrl.length === 0) {
-      throw new Error(AppStrings.get('komga_error_missing_server_url'))
+      throw new RemoteServerDraftError('komga_error_missing_server_url')
     }
-    const credential = this.createCredential(draft)
+    const credential = await this.createCredential(draft, baseUrl)
     const server: KomgaServerConfig = {
       id: DEFAULT_KOMGA_SERVER_ID,
       name: 'Komga',
@@ -424,7 +455,7 @@ export class RemoteServerStore {
   async saveKavita(draft: KavitaServerDraft): Promise<KavitaServerRecord> {
     const baseUrl = normalizeKavitaBaseUrl(draft.baseUrl)
     if (baseUrl.length === 0) {
-      throw new Error(AppStrings.get('kavita_error_missing_server_url'))
+      throw new RemoteServerDraftError('kavita_error_missing_server_url')
     }
     const credential = this.createKavitaCredential(draft)
     const server: KavitaServerConfig = {
@@ -487,9 +518,9 @@ export class RemoteServerStore {
   async saveWebDav(draft: WebDavServerDraft): Promise<WebDavServerRecord> {
     const baseUrl = normalizeWebDavBaseUrl(draft.baseUrl)
     if (baseUrl.length === 0) {
-      throw new Error(AppStrings.get('webdav_error_missing_server_url'))
+      throw new RemoteServerDraftError('webdav_error_missing_server_url')
     }
-    const credential = this.createWebDavCredential(draft)
+    const credential = await this.createWebDavCredential(draft, baseUrl)
     const rootPath = draft.rootPath === undefined ? '' : draft.rootPath.trim()
     const server: WebDavServerConfig = {
       id: DEFAULT_WEBDAV_SERVER_ID,
@@ -558,9 +589,9 @@ export class RemoteServerStore {
   async saveOpds(draft: OpdsServerDraft): Promise<OpdsServerRecord> {
     const rootUrl = normalizeOpdsRootUrl(draft.rootUrl)
     if (rootUrl.length === 0) {
-      throw new Error(AppStrings.get('opds_error_missing_catalog_url'))
+      throw new RemoteServerDraftError('opds_error_missing_catalog_url')
     }
-    const credential = this.createOpdsCredential(draft)
+    const credential = await this.createOpdsCredential(draft, rootUrl)
     const server: OpdsServerConfig = {
       id: DEFAULT_OPDS_SERVER_ID,
       name: 'OPDS',
@@ -664,14 +695,14 @@ export class RemoteServerStore {
     } as KomgaHeaders
   }
 
-  private createCredential(draft: KomgaServerDraft): KomgaResolvedCredential | undefined {
+  private async createCredential(draft: KomgaServerDraft, baseUrl: string): Promise<KomgaResolvedCredential | undefined> {
     if (draft.authKind === KomgaAuthKind.NONE) {
       return undefined
     }
     if (draft.authKind === KomgaAuthKind.API_KEY) {
       const apiKey = draft.apiKey === undefined ? '' : draft.apiKey.trim()
       if (apiKey.length === 0) {
-        throw new Error(AppStrings.get('server_error_missing_api_key'))
+        throw new RemoteServerDraftError('server_error_missing_api_key')
       }
       return {
         credentialRef: DEFAULT_KOMGA_CREDENTIAL_REF,
@@ -680,8 +711,14 @@ export class RemoteServerStore {
     }
     const username = draft.username === undefined ? '' : draft.username.trim()
     const password = draft.password === undefined ? '' : draft.password
+    if (username.length === 0 && password.length === 0 && draft.preserveSavedCredentials === true) {
+      const savedToken = await this.preservedBasicToken('komga', baseUrl)
+      if (savedToken !== undefined) {
+        return { credentialRef: DEFAULT_KOMGA_CREDENTIAL_REF, basicToken: savedToken }
+      }
+    }
     if (username.length === 0 || password.length === 0) {
-      throw new Error(AppStrings.get('server_error_missing_username_password'))
+      throw new RemoteServerDraftError('server_error_missing_username_password')
     }
     return {
       credentialRef: DEFAULT_KOMGA_CREDENTIAL_REF,
@@ -692,7 +729,7 @@ export class RemoteServerStore {
   private createKavitaCredential(draft: KavitaServerDraft): KavitaResolvedCredential {
     const apiKey = draft.apiKey === undefined ? '' : draft.apiKey.trim()
     if (apiKey.length === 0) {
-      throw new Error(AppStrings.get('server_error_missing_api_key'))
+      throw new RemoteServerDraftError('server_error_missing_api_key')
     }
     return {
       credentialRef: DEFAULT_KAVITA_CREDENTIAL_REF,
@@ -700,14 +737,20 @@ export class RemoteServerStore {
     }
   }
 
-  private createWebDavCredential(draft: WebDavServerDraft): WebDavResolvedCredential | undefined {
+  private async createWebDavCredential(draft: WebDavServerDraft, baseUrl: string): Promise<WebDavResolvedCredential | undefined> {
     const username = draft.username === undefined ? '' : draft.username.trim()
     const password = draft.password === undefined ? '' : draft.password
     if (username.length === 0 && password.length === 0) {
+      if (draft.preserveSavedCredentials === true) {
+        const savedToken = await this.preservedBasicToken('webdav', baseUrl)
+        if (savedToken !== undefined) {
+          return { credentialRef: DEFAULT_WEBDAV_CREDENTIAL_REF, basicToken: savedToken }
+        }
+      }
       return undefined
     }
     if (username.length === 0 || password.length === 0) {
-      throw new Error(AppStrings.get('server_error_missing_username_password'))
+      throw new RemoteServerDraftError('server_error_missing_username_password')
     }
     return {
       credentialRef: DEFAULT_WEBDAV_CREDENTIAL_REF,
@@ -715,19 +758,56 @@ export class RemoteServerStore {
     }
   }
 
-  private createOpdsCredential(draft: OpdsServerDraft): OpdsResolvedCredential | undefined {
+  private async createOpdsCredential(draft: OpdsServerDraft, rootUrl: string): Promise<OpdsResolvedCredential | undefined> {
     const username = draft.username === undefined ? '' : draft.username.trim()
     const password = draft.password === undefined ? '' : draft.password
     if (username.length === 0 && password.length === 0) {
+      if (draft.preserveSavedCredentials === true) {
+        const savedToken = await this.preservedBasicToken('opds', rootUrl)
+        if (savedToken !== undefined) {
+          return { credentialRef: DEFAULT_OPDS_CREDENTIAL_REF, basicToken: savedToken }
+        }
+      }
       return undefined
     }
     if (username.length === 0 || password.length === 0) {
-      throw new Error(AppStrings.get('server_error_missing_username_password'))
+      throw new RemoteServerDraftError('server_error_missing_username_password')
     }
     return {
       credentialRef: DEFAULT_OPDS_CREDENTIAL_REF,
       basicToken: buffer.from(`${username}:${password}`, 'utf8').toString('base64'),
     }
+  }
+
+  private async preservedBasicToken(kind: RemoteServerCredentialKind, normalizedUrl: string): Promise<string | undefined> {
+    let savedUrl: string = ''
+    let token: string | undefined = undefined
+    if (kind === 'komga') {
+      const saved = await this.loadKomga()
+      if (saved === undefined || saved.server.authKind !== KomgaAuthKind.BASIC) {
+        return undefined
+      }
+      savedUrl = normalizeKomgaBaseUrl(saved.server.baseUrl)
+      token = saved.credential?.basicToken
+    } else if (kind === 'webdav') {
+      const saved = await this.loadWebDav()
+      if (saved === undefined || saved.server.authKind !== WebDavAuthKind.BASIC) {
+        return undefined
+      }
+      savedUrl = normalizeWebDavBaseUrl(saved.server.baseUrl)
+      token = saved.credential?.basicToken
+    } else if (kind === 'opds') {
+      const saved = await this.loadOpds()
+      if (saved === undefined || saved.server.credentialRef === undefined) {
+        return undefined
+      }
+      savedUrl = normalizeOpdsRootUrl(saved.server.rootUrl)
+      token = saved.credential?.basicToken
+    }
+    if (savedUrl !== normalizedUrl || token === undefined || token.length === 0) {
+      throw new RemoteServerDraftError('server_error_reenter_credentials')
+    }
+    return token
   }
 
   private getOpdsAuthorization(record: OpdsServerRecord): string | undefined {

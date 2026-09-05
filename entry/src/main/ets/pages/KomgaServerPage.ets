@@ -4,7 +4,7 @@ import { GroupedListSection } from '../components/ui/GroupedListSection'
 import { KomaActionButton } from '../components/ui/KomaActionButton'
 import { KomaFormTextField } from '../components/ui/KomaFormTextField'
 import { KomaSegmentedControl } from '../components/ui/KomaSegmentedControl'
-import { RemoteServerStore } from '../model/RemoteServerStore'
+import { RemoteServerStore, KomgaServerRecord, remoteServerDraftErrorKey } from '../model/RemoteServerStore'
 import { KomgaAuthKind } from '../remote/KomgaModels'
 import { ThemeConstants } from '../theme/ThemeConstants'
 import { AppStrings } from '../i18n/AppStrings'
@@ -23,6 +23,10 @@ export struct KomgaServerPage {
   @Local private username: string = ''
   @Local private password: string = ''
   @Local private testing: boolean = false
+  @Local private loading: boolean = true
+  @Local private removing: boolean = false
+  @Local private hasSavedConfig: boolean = false
+  @Local private hasSavedBasicCredential: boolean = false
   @Local private statusKey: string = ''
   @Local private statusArgs: string[] = []
 
@@ -35,64 +39,104 @@ export struct KomgaServerPage {
   }
 
   private async loadSaved(): Promise<void> {
+    this.loading = true
     try {
-      const saved = await this.store().loadKomga()
+      const store = this.store()
+      this.hasSavedConfig = await store.hasSavedConfiguration('komga')
+      const saved = await store.loadKomga()
       if (saved === undefined) {
+        if (this.hasSavedConfig) {
+          this.setStatus('server_status_load_failed')
+        }
         return
       }
       this.baseUrl = saved.server.baseUrl
       this.authKind = saved.server.authKind
-      this.apiKey = saved.credential?.apiKey === undefined ? '' : saved.credential.apiKey
+     this.apiKey = saved.credential?.apiKey === undefined ? '' : saved.credential.apiKey
+      this.hasSavedBasicCredential = saved.server.authKind === KomgaAuthKind.BASIC &&
+        saved.credential?.basicToken !== undefined && saved.credential.basicToken.length > 0
       console.info('[Komga] step=settings_load configured=true')
     } catch (error) {
       void error
       this.setStatus('server_status_load_failed')
       console.error('[Komga] step=settings_load_error reason=settings_load')
+    } finally {
+      this.loading = false
     }
   }
 
+  private formBusy(): boolean {
+    return this.loading || this.testing || this.removing
+  }
+
+  private draftEdited(): void {
+    this.setStatus('')
+  }
+
   private async saveAndTest(): Promise<void> {
-    if (this.testing) {
+    if (this.formBusy()) {
       return
     }
     this.testing = true
-    this.setStatus('server_status_testing')
+    this.setStatus('')
     try {
       const store = this.store()
-      const record = await store.saveKomga({
-        baseUrl: this.baseUrl,
-        authKind: this.authKind,
-        apiKey: this.apiKey,
-        username: this.username,
-        password: this.password,
-      })
+      let record: KomgaServerRecord
+      try {
+        record = await store.saveKomga({
+          baseUrl: this.baseUrl,
+          authKind: this.authKind,
+          apiKey: this.apiKey,
+          username: this.username,
+          password: this.password,
+          preserveSavedCredentials: true,
+        })
+        this.hasSavedConfig = true
+        this.hasSavedBasicCredential = record.server.authKind === KomgaAuthKind.BASIC
+      } catch (error) {
+        const key = remoteServerDraftErrorKey(error as Object)
+        this.setStatus(key.length > 0 ? key : 'server_status_save_failed')
+        return
+      }
+      this.setStatus('server_status_testing')
       console.info('[Komga] step=test_connection_start')
-      const libraries = await store.createKomgaClient(record).listLibraries()
-      this.setStatus('komga_status_success', [`${libraries.length}`])
-      console.info(`[Komga] step=test_connection_ok libraries=${libraries.length}`)
-      this.showToast(s('komga_toast_success'))
-    } catch (error) {
-      void error
-      this.setStatus('komga_status_failed')
-      console.error('[Komga] step=test_connection_failed reason=connection_test')
-      this.showToast(s('komga_toast_failed'))
+      try {
+        const libraries = await store.createKomgaClient(record).listLibraries()
+
+        this.setStatus('komga_status_success', [`${libraries.length}`])
+        this.showToast(s('komga_toast_success'))
+        console.info(`[Komga] step=test_connection_ok libraries=${libraries.length}`)
+      } catch (error) {
+        void error
+        this.setStatus('komga_status_failed')
+        console.error('[Komga] step=test_connection_failed reason=connection_test')
+        this.showToast(s('komga_toast_failed'))
+      }
     } finally {
       this.testing = false
     }
   }
 
   private async clearServer(): Promise<void> {
+    if (this.formBusy() || !this.hasSavedConfig) {
+      return
+    }
+    this.removing = true
     try {
       await this.store().clearKomga()
       this.baseUrl = ''
       this.apiKey = ''
       this.username = ''
       this.password = ''
+      this.hasSavedConfig = false
+      this.hasSavedBasicCredential = false
       this.setStatus('komga_status_removed')
       this.showToast(s('komga_toast_removed'))
     } catch (error) {
       void error
-      this.setStatus('server_status_load_failed')
+      this.setStatus('server_status_remove_failed')
+    } finally {
+      this.removing = false
     }
   }
 
@@ -130,6 +174,10 @@ export struct KomgaServerPage {
   }
 
   private setAuthIndex(index: number): void {
+    if (this.formBusy()) {
+      return
+    }
+    this.draftEdited()
     if (index === 1) {
       this.authKind = KomgaAuthKind.API_KEY
     } else if (index === 2) {
@@ -143,8 +191,11 @@ export struct KomgaServerPage {
   private FormCard() {
     GroupedListSection({ inset: ThemeConstants.SPACE_LG }) {
       Column({ space: ThemeConstants.SPACE_LG }) {
-        KomaFormTextField({ label: s('common_server_url'), placeholder: 'https://demo.komga.org', value: this.baseUrl, change: (value: string) => {
-          this.baseUrl = value
+        KomaFormTextField({ label: s('common_server_url'), placeholder: 'https://demo.komga.org', value: this.baseUrl, isEnabled: !this.formBusy(), change: (value: string) => {
+          if (!this.formBusy()) {
+            this.baseUrl = value
+            this.draftEdited()
+          }
         } })
 
         KomaSegmentedControl({
@@ -154,18 +205,35 @@ export struct KomgaServerPage {
             this.setAuthIndex(index)
           },
         })
+        .enabled(!this.formBusy())
 
         if (this.authKind === KomgaAuthKind.API_KEY) {
-          KomaFormTextField({ label: s('komga_label_api_key'), placeholder: 'X-API-Key', value: this.apiKey, isPassword: true, change: (value: string) => {
-            this.apiKey = value
+          KomaFormTextField({ label: s('komga_label_api_key'), placeholder: 'X-API-Key', value: this.apiKey, isEnabled: !this.formBusy(), isPassword: true, change: (value: string) => {
+            if (!this.formBusy()) {
+              this.apiKey = value
+              this.draftEdited()
+            }
           } })
         } else if (this.authKind === KomgaAuthKind.BASIC) {
-          KomaFormTextField({ label: s('common_username'), placeholder: 'demo@komga.org', value: this.username, change: (value: string) => {
-            this.username = value
+          KomaFormTextField({ label: s('common_username'), placeholder: 'demo@komga.org', value: this.username, isEnabled: !this.formBusy(), change: (value: string) => {
+            if (!this.formBusy()) {
+              this.username = value
+              this.draftEdited()
+            }
           } })
-          KomaFormTextField({ label: s('common_password'), placeholder: 'komga-demo', value: this.password, isPassword: true, change: (value: string) => {
-            this.password = value
+          KomaFormTextField({ label: s('common_password'), placeholder: 'komga-demo', value: this.password, isEnabled: !this.formBusy(), isPassword: true, change: (value: string) => {
+            if (!this.formBusy()) {
+              this.password = value
+              this.draftEdited()
+            }
           } })
+          if (this.hasSavedBasicCredential) {
+            Text(s('server_saved_credentials_hint'))
+              .width('100%')
+              .fontSize(ThemeConstants.FONT_SIZE_META)
+              .lineHeight(ThemeConstants.LINE_HEIGHT_BODY)
+              .fontColor(ThemeConstants.TEXT_SECONDARY)
+          }
         }
       }
       .width('100%')
@@ -179,7 +247,7 @@ export struct KomgaServerPage {
         label: this.testing ? s('common_testing') : s('server_action_save_and_test'),
         kind: 'primary',
         fullWidth: true,
-        isEnabled: !this.testing,
+        isEnabled: !this.formBusy(),
         action: () => {
           this.saveAndTest()
         },
@@ -193,16 +261,19 @@ export struct KomgaServerPage {
           .fontColor(ThemeConstants.TEXT_SECONDARY)
       }
 
-      KomaActionButton({
-        label: s('server_action_remove_config'),
-        kind: 'ghost',
-        fullWidth: true,
-        accentColor: ThemeConstants.DANGER,
-        controlHeight: ThemeConstants.ACTION_CHIP_HEIGHT,
-        action: () => {
-          this.clearServer()
-        },
-      })
+      if (this.hasSavedConfig) {
+        KomaActionButton({
+          label: s('server_action_remove_config'),
+          isEnabled: !this.formBusy(),
+          kind: 'ghost',
+          fullWidth: true,
+          accentColor: ThemeConstants.DANGER,
+          controlHeight: ThemeConstants.ACTION_CHIP_HEIGHT,
+          action: () => {
+            this.clearServer()
+          },
+        })
+      }
     }
     .width('100%')
     .padding({ left: ThemeConstants.SPACE_LG, right: ThemeConstants.SPACE_LG })

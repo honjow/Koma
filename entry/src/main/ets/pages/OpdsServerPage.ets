@@ -3,7 +3,7 @@ import { SecondaryListScaffold } from '../components/SecondaryListScaffold'
 import { GroupedListSection } from '../components/ui/GroupedListSection'
 import { KomaActionButton } from '../components/ui/KomaActionButton'
 import { KomaFormTextField } from '../components/ui/KomaFormTextField'
-import { RemoteServerStore } from '../model/RemoteServerStore'
+import { RemoteServerStore, OpdsServerRecord, remoteServerDraftErrorKey } from '../model/RemoteServerStore'
 import { OpdsVersion } from '../remote/OpdsModels'
 import { ThemeConstants } from '../theme/ThemeConstants'
 import { AppStrings } from '../i18n/AppStrings'
@@ -21,6 +21,10 @@ export struct OpdsServerPage {
   @Local private password: string = ''
   @Local private detectedVersion: string = ''
   @Local private testing: boolean = false
+  @Local private loading: boolean = true
+  @Local private removing: boolean = false
+  @Local private hasSavedConfig: boolean = false
+  @Local private hasSavedBasicCredential: boolean = false
   @Local private statusKey: string = ''
   @Local private statusArgs: string[] = []
 
@@ -33,72 +37,117 @@ export struct OpdsServerPage {
   }
 
   private async loadSaved(): Promise<void> {
+    this.loading = true
     try {
-      const saved = await this.store().loadOpds()
+      const store = this.store()
+      this.hasSavedConfig = await store.hasSavedConfiguration('opds')
+      const saved = await store.loadOpds()
       if (saved === undefined) {
+        if (this.hasSavedConfig) {
+          this.setStatus('server_status_load_failed')
+        }
         return
       }
       this.rootUrl = saved.server.rootUrl
-      this.detectedVersion = saved.server.version === undefined ? '' : saved.server.version
+     this.detectedVersion = saved.server.version === undefined ? '' : saved.server.version
+      this.hasSavedBasicCredential = saved.server.credentialRef !== undefined &&
+        saved.credential?.basicToken !== undefined && saved.credential.basicToken.length > 0
       console.info('[OPDS] step=settings_load configured=true')
     } catch (error) {
       void error
       this.setStatus('server_status_load_failed')
       console.error('[OPDS] step=settings_load_error reason=settings_load')
+    } finally {
+      this.loading = false
     }
   }
 
+  private formBusy(): boolean {
+    return this.loading || this.testing || this.removing
+  }
+
+  private draftEdited(): void {
+    this.setStatus('')
+    this.detectedVersion = ''
+  }
+
   private async saveAndTest(): Promise<void> {
-    if (this.testing) {
+    if (this.formBusy()) {
       return
     }
     this.testing = true
-    this.setStatus('server_status_testing')
+    this.setStatus('')
+    this.detectedVersion = ''
     try {
       const store = this.store()
-      let record = await store.saveOpds({
-        rootUrl: this.rootUrl,
-        username: this.username,
-        password: this.password,
-      })
+      let record: OpdsServerRecord
+      try {
+        record = await store.saveOpds({
+          rootUrl: this.rootUrl,
+          username: this.username,
+          password: this.password,
+          preserveSavedCredentials: true,
+        })
+        this.hasSavedConfig = true
+        this.hasSavedBasicCredential = record.server.credentialRef !== undefined
+      } catch (error) {
+        const key = remoteServerDraftErrorKey(error as Object)
+        this.setStatus(key.length > 0 ? key : 'server_status_save_failed')
+        return
+      }
+      this.setStatus('server_status_testing')
       console.info('[OPDS] step=test_connection_start')
-      const catalog = await store.createOpdsClient(record).fetchCatalog()
-      record = await store.saveOpds({
-        rootUrl: this.rootUrl,
-        username: this.username,
-        password: this.password,
-        version: catalog.version,
-      })
-      this.detectedVersion = record.server.version === undefined ? '' : record.server.version
-      this.setStatus('opds_status_success', [
-        this.versionLabel(catalog.version),
-        `${catalog.navigation.length}`,
-        `${catalog.publications.length}`,
-      ])
-      console.info(`[OPDS] step=test_connection_ok version=${catalog.version} navigation=${catalog.navigation.length} publications=${catalog.publications.length}`)
-      this.showToast(s('opds_toast_success'))
-    } catch (error) {
-      void error
-      this.setStatus('opds_status_failed')
-      console.error('[OPDS] step=test_connection_failed reason=connection_test')
-      this.showToast(s('opds_toast_failed'))
+      try {
+        const catalog = await store.createOpdsClient(record).fetchCatalog()
+
+        try {
+          record = await store.saveOpds({
+            rootUrl: this.rootUrl,
+            username: this.username,
+            password: this.password,
+            preserveSavedCredentials: true,
+            version: catalog.version,
+          })
+        } catch (error) {
+          const key = remoteServerDraftErrorKey(error as Object)
+          this.setStatus(key.length > 0 ? key : 'server_status_save_failed')
+          return
+        }
+        this.detectedVersion = record.server.version === undefined ? '' : record.server.version
+        this.setStatus('opds_status_success', [this.versionLabel(catalog.version), `${catalog.navigation.length}`, `${catalog.publications.length}`])
+        this.showToast(s('opds_toast_success'))
+        console.info(`[OPDS] step=test_connection_ok version=${catalog.version} navigation=${catalog.navigation.length} publications=${catalog.publications.length}`)
+      } catch (error) {
+        void error
+        this.setStatus('opds_status_failed')
+        console.error('[OPDS] step=test_connection_failed reason=connection_test')
+        this.showToast(s('opds_toast_failed'))
+      }
     } finally {
       this.testing = false
     }
   }
 
   private async clearServer(): Promise<void> {
+    if (this.formBusy() || !this.hasSavedConfig) {
+      return
+    }
+    this.removing = true
     try {
       await this.store().clearOpds()
       this.rootUrl = ''
       this.username = ''
       this.password = ''
       this.detectedVersion = ''
+      this.hasSavedConfig = false
+      this.hasSavedBasicCredential = false
       this.setStatus('opds_status_removed')
       this.showToast(s('opds_toast_removed'))
     } catch (error) {
       void error
-      this.setStatus('server_status_load_failed')
+      this.setStatus('server_status_remove_failed')
+    } finally {
+      this.removing = false
     }
   }
 
@@ -133,14 +182,23 @@ export struct OpdsServerPage {
   private FormCard() {
     GroupedListSection({ inset: ThemeConstants.SPACE_LG }) {
       Column({ space: ThemeConstants.SPACE_LG }) {
-        KomaFormTextField({ label: s('opds_label_catalog_url'), placeholder: 'https://demo.komga.org/opds/v2/catalog', value: this.rootUrl, change: (value: string) => {
-          this.rootUrl = value
+        KomaFormTextField({ label: s('opds_label_catalog_url'), placeholder: 'https://demo.komga.org/opds/v2/catalog', value: this.rootUrl, isEnabled: !this.formBusy(), change: (value: string) => {
+          if (!this.formBusy()) {
+            this.rootUrl = value
+            this.draftEdited()
+          }
         } })
-        KomaFormTextField({ label: s('common_username'), placeholder: s('common_optional_placeholder'), value: this.username, change: (value: string) => {
-          this.username = value
+        KomaFormTextField({ label: s('common_username'), placeholder: s('common_optional_placeholder'), value: this.username, isEnabled: !this.formBusy(), change: (value: string) => {
+          if (!this.formBusy()) {
+            this.username = value
+            this.draftEdited()
+          }
         } })
-        KomaFormTextField({ label: s('common_password'), placeholder: s('common_optional_placeholder'), value: this.password, isPassword: true, change: (value: string) => {
-          this.password = value
+        KomaFormTextField({ label: s('common_password'), placeholder: s('common_optional_placeholder'), value: this.password, isEnabled: !this.formBusy(), isPassword: true, change: (value: string) => {
+          if (!this.formBusy()) {
+            this.password = value
+            this.draftEdited()
+          }
         } })
 
         Text(this.detectedVersion.length === 0
@@ -149,6 +207,13 @@ export struct OpdsServerPage {
           .width('100%')
           .fontSize(ThemeConstants.FONT_SIZE_META)
           .fontColor(ThemeConstants.TEXT_SECONDARY)
+        if (this.hasSavedBasicCredential) {
+          Text(s('server_saved_credentials_hint'))
+            .width('100%')
+            .fontSize(ThemeConstants.FONT_SIZE_META)
+            .lineHeight(ThemeConstants.LINE_HEIGHT_BODY)
+            .fontColor(ThemeConstants.TEXT_SECONDARY)
+        }
       }
       .width('100%')
     }
@@ -161,7 +226,7 @@ export struct OpdsServerPage {
         label: this.testing ? s('common_testing') : s('server_action_save_and_test'),
         kind: 'primary',
         fullWidth: true,
-        isEnabled: !this.testing,
+        isEnabled: !this.formBusy(),
         action: () => {
           this.saveAndTest()
         },
@@ -175,16 +240,19 @@ export struct OpdsServerPage {
           .fontColor(ThemeConstants.TEXT_SECONDARY)
       }
 
-      KomaActionButton({
-        label: s('server_action_remove_config'),
-        kind: 'ghost',
-        fullWidth: true,
-        accentColor: ThemeConstants.DANGER,
-        controlHeight: ThemeConstants.ACTION_CHIP_HEIGHT,
-        action: () => {
-          this.clearServer()
-        },
-      })
+      if (this.hasSavedConfig) {
+        KomaActionButton({
+          label: s('server_action_remove_config'),
+          isEnabled: !this.formBusy(),
+          kind: 'ghost',
+          fullWidth: true,
+          accentColor: ThemeConstants.DANGER,
+          controlHeight: ThemeConstants.ACTION_CHIP_HEIGHT,
+          action: () => {
+            this.clearServer()
+          },
+        })
+      }
     }
     .width('100%')
     .padding({ left: ThemeConstants.SPACE_LG, right: ThemeConstants.SPACE_LG })
