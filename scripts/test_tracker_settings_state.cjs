@@ -131,6 +131,19 @@ async function run() {
   assert.ok(!providerRow.includes('suffixPaddingRight: 0'), 'account actions inherit the existing 12vp suffix inset')
   assert.ok(read('components/ui/ConciseListRow.ets').includes('suffixPaddingRight: Length = ThemeConstants.SPACE_MD'))
   assert.ok(source.includes("if (this.findAccount(provider).status === 'auth_pending')"))
+  const configForm = source.slice(source.indexOf('private ProviderOAuthConfigForm('),
+    source.indexOf('private ProviderOAuthConfigActions('))
+  const configActions = source.slice(source.indexOf('private ProviderOAuthConfigActions('),
+    source.indexOf('private ProviderOAuthCallbackForm('))
+  assert.ok(!configForm.includes('KomaActionButton(') &&
+    configActions.includes("label: s('common_save')") && configActions.includes("kind: 'primary'") &&
+    configActions.includes('fullWidth: true') && configActions.includes('isEnabled: !this.loading') &&
+    configActions.includes('void this.saveProviderOAuthConfig(provider)') &&
+    configActions.includes('.padding({ left: ThemeConstants.SPACE_LG, right: ThemeConstants.SPACE_LG })') &&
+    !/compact:|controlHeight:/.test(configActions), 'save uses the existing card-external full-width primary action and default height')
+  assert.match(source.slice(source.indexOf('  build() {')),
+    /this\.ProvidersCard\(\)[\s\S]*?if \(this\.providerId\.length > 0\)[\s\S]*?if \(provider\.supportStatus === 'available'\) \{\s*ListItem\(\) \{\s*this\.ProviderOAuthConfigActions\(provider\)[\s\S]*?this\.StatusCard\(\)/,
+    'save is a separate item after the form card and before result, only on available single-provider pages')
   console.log('PASS: Tracker production page state, provider routing, revision/ready reload, saved-data retention; builder contracts checked (not device visual acceptance).')
 }
 run().catch(error => { console.error(error); process.exitCode = 1 })

@@ -810,23 +810,26 @@ export struct TrackerSettingsPage {
           this.setProviderRedirectUri(provider, value)
         },
       })
-      Row() {
-        Blank()
-        KomaActionButton({
-          label: s('common_save'),
-          kind: 'secondary',
-          compact: true,
-          controlHeight: ThemeConstants.ACTION_CHIP_HEIGHT,
-          isEnabled: !this.loading,
-          action: () => {
-            void this.saveProviderOAuthConfig(provider)
-          },
-        })
-      }
-      .width('100%')
     }
     .width('100%')
     .padding({ left: ThemeConstants.SPACE_LG, right: ThemeConstants.SPACE_LG, bottom: ThemeConstants.SPACE_MD })
+  }
+
+  @Builder
+  private ProviderOAuthConfigActions(provider: TrackerProviderConfig) {
+    Column() {
+      KomaActionButton({
+        label: s('common_save'),
+        kind: 'primary',
+        fullWidth: true,
+        isEnabled: !this.loading,
+        action: () => {
+          void this.saveProviderOAuthConfig(provider)
+        },
+      })
+    }
+    .width('100%')
+    .padding({ left: ThemeConstants.SPACE_LG, right: ThemeConstants.SPACE_LG })
   }
 
   @Builder
@@ -1037,6 +1040,15 @@ export struct TrackerSettingsPage {
       }) {
         ListItem() {
           this.ProvidersCard()
+        }
+        if (this.providerId.length > 0) {
+          ForEach(this.visibleProviders(), (provider: TrackerProviderConfig) => {
+            if (provider.supportStatus === 'available') {
+              ListItem() {
+                this.ProviderOAuthConfigActions(provider)
+              }
+            }
+          }, (provider: TrackerProviderConfig) => provider.providerId)
         }
         if (this.authPreparationMessageKey.length > 0 || this.preparedAuthorizationUrl.length > 0) {
           ListItem() {
