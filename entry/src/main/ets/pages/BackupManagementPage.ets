@@ -2,6 +2,7 @@ import { common } from '@kit.AbilityKit'
 import { SecondaryListScaffold } from '../components/SecondaryListScaffold'
 import { KomaActionButton } from '../components/ui/KomaActionButton'
 import { KomaFormTextField } from '../components/ui/KomaFormTextField'
+import { ConciseListRow } from '../components/ui/ConciseListRow'
 import { AppStrings } from '../i18n/AppStrings'
 import {
   BACKUP_ACCEPTED_SCHEMA_VERSIONS,
@@ -23,7 +24,6 @@ import {
   backupAutomaticRetentionLabel,
   backupEncryptedExportSuccess,
   backupEncryptionPlanLabel,
-  backupEncryptionStatusLabel,
   backupImportConflictPolicy,
   backupImportPreviewNote,
   backupIncludedDomainLabels,
@@ -45,6 +45,15 @@ function tf(name: string, ...args: Array<string | number>): string {
 
 @ComponentV2
 export struct BackupManagementPage {
+  @Param pane: string = 'home'
+  @Param localFileName: string = ''
+  @Param refreshRevision: number = 0
+  @Event onOpenTask: (pane: string, fileName: string) => void = (_pane: string, _fileName: string) => {}
+  @Local private createLocal: boolean = false
+  @Local private createEncrypted: boolean = true
+  @Local private showTechnicalDetails: boolean = false
+  @Local private showPreviewDetails: boolean = false
+  private localSelectionStarted: boolean = false
   @Local private busy: boolean = false
   @Local private selectedBackupPayload: string = ''
   @Local private selectedEncryptedBackupPayload: string = ''
@@ -63,6 +72,43 @@ export struct BackupManagementPage {
 
   private context(): common.UIAbilityContext {
     return getContext(this) as common.UIAbilityContext
+  }
+
+  @Monitor('refreshRevision')
+  private onRefreshRevision(): void {
+    if (this.pane === 'home' || this.pane === 'files') {
+      this.loadLocalBackups()
+      this.loadAutomaticPreferences()
+    } else if (this.pane === 'create') {
+      this.loadContentPreferences()
+    }
+  }
+
+  private createBackup(): void {
+    if (this.busy) {
+      return
+    }
+    if (this.createLocal) {
+      if (this.createEncrypted) {
+        this.exportEncryptedLocalBackup()
+      } else {
+        this.confirmExportLocalBackup()
+      }
+    } else if (this.createEncrypted) {
+      this.exportEncryptedBackup()
+    } else {
+      this.confirmExportBackup()
+    }
+  }
+
+  private createActionLabel(): string {
+    if (this.busy) {
+      return t('backup_processing')
+    }
+    if (this.createLocal) {
+      return t(this.createEncrypted ? 'backup_local_create_encrypted_action' : 'backup_local_create_action')
+    }
+    return t(this.createEncrypted ? 'backup_export_encrypted_action' : 'backup_export_action')
   }
 
   private backupService(): BackupService {
@@ -418,13 +464,13 @@ export struct BackupManagementPage {
       })
   }
 
-  private selectLocalBackup(record: BackupLocalFileRecord): void {
+  private selectLocalBackup(fileName: string): void {
     if (this.busy) {
       return
     }
     this.busy = true
     console.info('[BackupManagement] step=local_preview_start')
-    void this.backupService().selectLocalBackup(record.fileName)
+    void this.backupService().selectLocalBackup(fileName)
       .then((selection: BackupImportSelectionPreview) => {
         if (selection.preview.encrypted && !selection.preview.decrypted) {
           this.selectedEncryptedBackupPayload = selection.payload
@@ -605,6 +651,69 @@ export struct BackupManagementPage {
   }
 
   @Builder
+  private TaskNavigationCard() {
+    Column() {
+      ConciseListRow({ title: t('backup_task_create'), subtitle: t('backup_task_create_hint'),
+        action: () => { this.onOpenTask('create', '') } })
+      ConciseListRow({ title: t('backup_task_restore'), subtitle: t('backup_task_restore_hint'),
+        action: () => { this.onOpenTask('restore', '') } })
+      ConciseListRow({ title: t('backup_task_files'), trailingText: `${this.localBackups.length}`,
+        action: () => { this.onOpenTask('files', '') } })
+    }
+    .width('100%')
+    .borderRadius(ThemeConstants.RADIUS_CARD)
+    .backgroundColor(ThemeConstants.CARD)
+  }
+
+  @Builder
+  private SettingsNavigationCard() {
+    Column() {
+      ConciseListRow({ title: t('backup_task_settings'),
+        subtitle: t(this.autoPreferences.enabled ? 'backup_auto_enabled_summary' : 'backup_auto_disabled_summary'),
+        action: () => { this.onOpenTask('settings', '') } })
+    }
+    .width('100%')
+    .borderRadius(ThemeConstants.RADIUS_CARD)
+    .backgroundColor(ThemeConstants.CARD)
+  }
+
+  @Builder
+  private CreateActions() {
+    Column() {
+      KomaActionButton({ label: this.createActionLabel(), kind: 'primary', fullWidth: true,
+        isEnabled: !this.busy, action: () => { this.createBackup() } })
+    }
+    .width('100%')
+    .padding({ left: ThemeConstants.SPACE_LG, right: ThemeConstants.SPACE_LG })
+  }
+
+  @Builder
+  private ContentSummaryCard() {
+    Column() {
+      ConciseListRow({ title: t('backup_included_data'),
+        subtitle: backupIncludedDomainLabels(this.contentPreferences).join('、'),
+        action: () => { this.onOpenTask('settings', '') } })
+    }
+    .width('100%')
+    .borderRadius(ThemeConstants.RADIUS_CARD)
+    .backgroundColor(ThemeConstants.CARD)
+  }
+
+  @Builder
+  private TechnicalDetailsCard() {
+    Column({ space: ThemeConstants.SPACE_MD }) {
+      ConciseListRow({ title: t('backup_technical_details'), showChevron: false,
+        trailingText: t(this.showTechnicalDetails ? 'common_collapse' : 'common_expand'),
+        action: () => { this.showTechnicalDetails = !this.showTechnicalDetails } })
+      if (this.showTechnicalDetails) {
+        this.StatusCard()
+        this.StorageNoteCard()
+      }
+    }
+    .width('100%')
+  }
+
+  @Builder
   private StatusCard() {
     Column({ space: ThemeConstants.SPACE_MD }) {
       Row() {
@@ -629,6 +738,11 @@ export struct BackupManagementPage {
           .fontColor(ThemeConstants.TEXT_SECONDARY)
       }
       .width('100%')
+      Text(backupEncryptionPlanLabel())
+        .width('100%')
+        .fontSize(ThemeConstants.FONT_SIZE_META)
+        .fontColor(ThemeConstants.TEXT_SECONDARY)
+        .lineHeight(ThemeConstants.LINE_HEIGHT_BODY)
     }
     .width('100%')
     .padding({ left: ThemeConstants.SPACE_LG, right: ThemeConstants.SPACE_LG, top: ThemeConstants.SPACE_LG, bottom: ThemeConstants.SPACE_LG })
@@ -637,61 +751,56 @@ export struct BackupManagementPage {
   }
 
   @Builder
-  private EncryptionCard() {
+  private CreateFormCard() {
     Column({ space: ThemeConstants.SPACE_MD }) {
-      Row() {
-        Text(t('backup_encryption_heading'))
-          .fontSize(ThemeConstants.FONT_SIZE_BODY)
-          .fontWeight(FontWeight.Medium)
-          .fontColor(ThemeConstants.TEXT_PRIMARY)
-          .layoutWeight(1)
-        Text(backupEncryptionStatusLabel())
-          .fontSize(ThemeConstants.FONT_SIZE_BODY)
-          .fontColor(ThemeConstants.BRAND_PRIMARY)
+      this.ContentPreferenceSwitchRow(t('backup_create_local_choice'), this.createLocal, (isOn: boolean) => {
+        this.createLocal = isOn
+      })
+      Text(t(this.createLocal ? 'backup_create_local_hint' : 'backup_create_file_hint'))
+        .width('100%')
+        .fontSize(ThemeConstants.FONT_SIZE_META)
+        .fontColor(ThemeConstants.TEXT_SECONDARY)
+        .lineHeight(ThemeConstants.LINE_HEIGHT_BODY)
+      this.ContentPreferenceSwitchRow(t('backup_create_encrypted_choice'), this.createEncrypted, (isOn: boolean) => {
+        this.createEncrypted = isOn
+      })
+      if (this.createEncrypted) {
+        Text(t('backup_passphrase_recovery_warning'))
+          .width('100%')
+          .fontSize(ThemeConstants.FONT_SIZE_META)
+          .fontColor(ThemeConstants.TEXT_SECONDARY)
+          .lineHeight(ThemeConstants.LINE_HEIGHT_BODY)
+        Text(backupPassphraseHelpText())
+          .width('100%')
+          .fontSize(ThemeConstants.FONT_SIZE_META)
+          .fontColor(ThemeConstants.TEXT_SECONDARY)
+          .lineHeight(ThemeConstants.LINE_HEIGHT_BODY)
+
+        KomaFormTextField({
+          label: t('backup_passphrase_label'),
+          value: this.exportPassphrase,
+          isPassword: true,
+          change: (value: string) => {
+            this.exportPassphrase = value
+          },
+        })
+
+        KomaFormTextField({
+          label: t('backup_passphrase_confirm_label'),
+          value: this.exportPassphraseConfirm,
+          isPassword: true,
+          change: (value: string) => {
+            this.exportPassphraseConfirm = value
+          },
+        })
+
+      } else {
+        Text(backupUnencryptedExportWarning())
+        .width('100%')
+        .fontSize(ThemeConstants.FONT_SIZE_META)
+        .fontColor(ThemeConstants.TEXT_SECONDARY)
+        .lineHeight(ThemeConstants.LINE_HEIGHT_BODY)
       }
-      .width('100%')
-
-      Text(backupEncryptionPlanLabel())
-        .width('100%')
-        .fontSize(ThemeConstants.FONT_SIZE_META)
-        .fontColor(ThemeConstants.TEXT_SECONDARY)
-        .lineHeight(ThemeConstants.LINE_HEIGHT_BODY)
-
-      Text(backupPassphraseHelpText())
-        .width('100%')
-        .fontSize(ThemeConstants.FONT_SIZE_META)
-        .fontColor(ThemeConstants.TEXT_SECONDARY)
-        .lineHeight(ThemeConstants.LINE_HEIGHT_BODY)
-
-      KomaFormTextField({
-        label: t('backup_passphrase_label'),
-        value: this.exportPassphrase,
-        isPassword: true,
-        change: (value: string) => {
-          this.exportPassphrase = value
-        },
-      })
-
-      KomaFormTextField({
-        label: t('backup_passphrase_confirm_label'),
-        value: this.exportPassphraseConfirm,
-        isPassword: true,
-        change: (value: string) => {
-          this.exportPassphraseConfirm = value
-        },
-      })
-
-      KomaActionButton({
-        label: this.busy ? t('backup_processing') : t('backup_export_encrypted_action'),
-        kind: 'primary',
-        fullWidth: true,
-        icon: $r('sys.symbol.doc_plaintext'),
-        isEnabled: !this.busy,
-        action: () => {
-          this.exportEncryptedBackup()
-        },
-      })
-        .width('100%')
     }
     .width('100%')
     .padding({ left: ThemeConstants.SPACE_LG, right: ThemeConstants.SPACE_LG, top: ThemeConstants.SPACE_LG, bottom: ThemeConstants.SPACE_LG })
@@ -770,54 +879,44 @@ export struct BackupManagementPage {
   }
 
   @Builder
-  private ActionsCard() {
+  private RestorePassphraseCard() {
     Column({ space: ThemeConstants.SPACE_MD }) {
-      KomaActionButton({
-        label: this.busy ? t('backup_processing') : t('backup_export_action'),
-        kind: 'primary',
-        fullWidth: true,
-        icon: $r('sys.symbol.doc_plaintext'),
-        isEnabled: !this.busy,
-        action: () => {
-          this.confirmExportBackup()
-        },
-      })
+      Text(backupPassphraseHelpText())
         .width('100%')
-
-      KomaActionButton({
-        label: this.busy ? t('backup_processing') : t('backup_select_preview_action'),
-        kind: 'secondary',
-        fullWidth: true,
-        icon: $r('sys.symbol.doc_plaintext'),
-        isEnabled: !this.busy,
-        action: () => {
-          this.importBackup()
-        },
+        .fontSize(ThemeConstants.FONT_SIZE_META)
+        .fontColor(ThemeConstants.TEXT_SECONDARY)
+        .lineHeight(ThemeConstants.LINE_HEIGHT_BODY)
+      KomaFormTextField({
+        label: t('backup_decrypt_passphrase_label'),
+        value: this.importPassphrase,
+        isPassword: true,
+        change: (value: string) => { this.importPassphrase = value },
       })
-        .width('100%')
+    }
+    .width('100%')
+    .padding({ left: ThemeConstants.SPACE_LG, right: ThemeConstants.SPACE_LG, top: ThemeConstants.SPACE_LG, bottom: ThemeConstants.SPACE_LG })
+    .borderRadius(ThemeConstants.RADIUS_CARD)
+    .backgroundColor(ThemeConstants.CARD)
+  }
 
-      KomaActionButton({
-        label: this.busy ? t('backup_processing') : t('backup_restore_selected_action'),
-        kind: this.selectedBackupPayload.length > 0 ? 'primary' : 'secondary',
-        fullWidth: true,
-        icon: $r('sys.symbol.arrow_clockwise'),
-        isEnabled: !this.busy && this.selectedBackupPayload.length > 0,
-        action: () => {
-          this.restoreSelectedBackup()
-        },
-      })
-        .width('100%')
-
-      if (this.selectedEncryptedBackupPayload.length > 0) {
-        KomaFormTextField({
-          label: t('backup_decrypt_passphrase_label'),
-          value: this.importPassphrase,
-          isPassword: true,
-          change: (value: string) => {
-            this.importPassphrase = value
+  @Builder
+  private RestoreActions() {
+    Column({ space: ThemeConstants.SPACE_MD }) {
+      if (this.selectedBackupPayload.length > 0) {
+        KomaActionButton({
+          label: this.busy ? t('backup_processing') : t('backup_restore_selected_action'),
+          kind: this.selectedBackupPayload.length > 0 ? 'primary' : 'secondary',
+          fullWidth: true,
+          icon: $r('sys.symbol.arrow_clockwise'),
+          isEnabled: !this.busy && this.selectedBackupPayload.length > 0,
+          action: () => {
+            this.restoreSelectedBackup()
           },
         })
+          .width('100%')
+      }
 
+      if (this.selectedEncryptedBackupPayload.length > 0) {
         KomaActionButton({
           label: this.busy ? t('backup_processing') : t('backup_decrypt_preview_action'),
           kind: 'primary',
@@ -830,11 +929,18 @@ export struct BackupManagementPage {
         })
           .width('100%')
       }
+      KomaActionButton({
+        label: this.busy ? t('backup_processing') : t('backup_select_preview_action'),
+        kind: this.selectedBackupPreview === undefined ? 'primary' : 'secondary',
+        fullWidth: true,
+        icon: $r('sys.symbol.doc_plaintext'),
+        isEnabled: !this.busy,
+        action: () => { this.importBackup() },
+      })
+        .width('100%')
     }
     .width('100%')
-    .padding({ left: ThemeConstants.SPACE_LG, right: ThemeConstants.SPACE_LG, top: ThemeConstants.SPACE_LG, bottom: ThemeConstants.SPACE_LG })
-    .borderRadius(ThemeConstants.RADIUS_CARD)
-    .backgroundColor(ThemeConstants.CARD)
+    .padding({ left: ThemeConstants.SPACE_LG, right: ThemeConstants.SPACE_LG })
   }
 
   @Builder
@@ -870,6 +976,11 @@ export struct BackupManagementPage {
         .fontWeight(FontWeight.Medium)
         .fontColor(ThemeConstants.TEXT_PRIMARY)
       Text(t('backup_auto_description'))
+        .width('100%')
+        .fontSize(ThemeConstants.FONT_SIZE_META)
+        .fontColor(ThemeConstants.TEXT_SECONDARY)
+        .lineHeight(ThemeConstants.LINE_HEIGHT_BODY)
+      Text(t('backup_auto_plaintext_note'))
         .width('100%')
         .fontSize(ThemeConstants.FONT_SIZE_META)
         .fontColor(ThemeConstants.TEXT_SECONDARY)
@@ -1015,7 +1126,7 @@ export struct BackupManagementPage {
             kind: 'secondary',
             isEnabled: !this.busy,
             action: () => {
-              this.selectLocalBackup(record)
+              this.onOpenTask('restore', record.fileName)
             },
           })
           KomaActionButton({
@@ -1054,26 +1165,6 @@ export struct BackupManagementPage {
         .fontSize(ThemeConstants.FONT_SIZE_META)
         .fontColor(ThemeConstants.TEXT_SECONDARY)
         .lineHeight(ThemeConstants.LINE_HEIGHT_BODY)
-
-      Row({ space: ThemeConstants.SPACE_SM }) {
-        KomaActionButton({
-          label: this.busy ? t('backup_processing') : t('backup_local_create_action'),
-          kind: 'primary',
-          isEnabled: !this.busy,
-          action: () => {
-            this.confirmExportLocalBackup()
-          },
-        })
-        KomaActionButton({
-          label: this.busy ? t('backup_processing') : t('backup_local_create_encrypted_action'),
-          kind: 'secondary',
-          isEnabled: !this.busy,
-          action: () => {
-            this.exportEncryptedLocalBackup()
-          },
-        })
-      }
-      .width('100%')
 
       if (this.localBackups.length === 0) {
         Text(t('backup_local_empty'))
@@ -1142,32 +1233,37 @@ export struct BackupManagementPage {
       this.PreviewRow(t('backup_preview_version'), `v${preview.schemaVersion}`)
       this.PreviewRow(t('backup_preview_exported_at'), preview.exportedAtText)
       this.PreviewRow(t('backup_preview_encryption_status'), preview.encryptionText)
-      if (preview.encrypted) {
+      if (preview.encrypted && this.showPreviewDetails) {
         this.PreviewRow(t('backup_preview_algorithm'), preview.algorithm)
         this.PreviewRow(t('backup_preview_kdf'), preview.kdfId)
       }
       if (!preview.encrypted || preview.decrypted) {
         this.PreviewRow(t('backup_preview_library_items'), `${preview.libraryItemCount}`)
-        this.PreviewRow(t('backup_preview_current_library_items'), `${preview.currentLibraryItemCount}`)
         this.PreviewRow(t('backup_preview_library_additions'), `${preview.libraryAddCount}`)
         this.PreviewRow(t('backup_preview_library_conflicts'), `${preview.libraryConflictCount}`)
         this.PreviewRow(t('backup_preview_progress'), `${preview.progressCount}`)
-        this.PreviewRow(t('backup_preview_current_progress'), `${preview.currentProgressCount}`)
         this.PreviewRow(t('backup_preview_progress_additions'), `${preview.progressAddCount}`)
         this.PreviewRow(t('backup_preview_progress_conflicts'), `${preview.progressConflictCount}`)
-        this.PreviewRow(t('backup_preview_settings'), `${preview.settingsCount}`)
-        this.PreviewRow(t('backup_preview_categories'), `${preview.categoryCount}`)
-        this.PreviewRow(
-          t('backup_preview_download_queue'),
-          preview.hasDownloadQueueCount ? `${preview.downloadQueueCount}` : t('backup_preview_not_provided'),
-        )
-        this.PreviewRow(
-          t('backup_preview_tracker_mappings'),
-          preview.hasTrackerMappingCount ? `${preview.trackerMappingCount}` : t('backup_preview_not_provided'),
-        )
-        this.PreviewRow(t('backup_preview_source_package_metadata'), `${preview.sourcePackageCount}`)
-        this.PreviewRow(t('backup_preview_source_settings'), `${preview.sourceSettingsCount}`)
+        if (this.showPreviewDetails) {
+          this.PreviewRow(t('backup_preview_current_library_items'), `${preview.currentLibraryItemCount}`)
+          this.PreviewRow(t('backup_preview_current_progress'), `${preview.currentProgressCount}`)
+          this.PreviewRow(t('backup_preview_settings'), `${preview.settingsCount}`)
+          this.PreviewRow(t('backup_preview_categories'), `${preview.categoryCount}`)
+          this.PreviewRow(
+            t('backup_preview_download_queue'),
+            preview.hasDownloadQueueCount ? `${preview.downloadQueueCount}` : t('backup_preview_not_provided'),
+          )
+          this.PreviewRow(
+            t('backup_preview_tracker_mappings'),
+            preview.hasTrackerMappingCount ? `${preview.trackerMappingCount}` : t('backup_preview_not_provided'),
+          )
+          this.PreviewRow(t('backup_preview_source_package_metadata'), `${preview.sourcePackageCount}`)
+          this.PreviewRow(t('backup_preview_source_settings'), `${preview.sourceSettingsCount}`)
+        }
       }
+      ConciseListRow({ title: t('backup_preview_details'), showChevron: false,
+        trailingText: t(this.showPreviewDetails ? 'common_collapse' : 'common_expand'),
+        action: () => { this.showPreviewDetails = !this.showPreviewDetails } })
     }
     .width('100%')
     .padding({ left: ThemeConstants.SPACE_LG, right: ThemeConstants.SPACE_LG, top: ThemeConstants.SPACE_LG, bottom: ThemeConstants.SPACE_LG })
@@ -1203,34 +1299,30 @@ export struct BackupManagementPage {
         horizontalPadding: ThemeConstants.SPACE_XL,
         bottomPadding: ThemeConstants.SPACE_XL,
       }) {
-          ListItem() {
-            this.StatusCard()
-          }
-          ListItem() {
-            this.EncryptionCard()
-          }
-          ListItem() {
-            this.AutomaticBackupCard()
-          }
-          ListItem() {
-            this.LocalBackupsCard()
-          }
-          ListItem() {
-            this.DomainsCard()
-          }
-          ListItem() {
-            this.ImportPreviewIntroCard()
-          }
-          if (this.selectedBackupPreview !== undefined) {
-            ListItem() {
-              this.SelectedPreviewCard(this.selectedBackupPreview)
+          if (this.pane === 'home') {
+            ListItem() { this.TaskNavigationCard() }
+            ListItem() { this.SettingsNavigationCard() }
+          } else if (this.pane === 'create') {
+            ListItem() { this.CreateFormCard() }
+            ListItem() { this.CreateActions() }
+            ListItem() { this.ContentSummaryCard() }
+          } else if (this.pane === 'restore') {
+            if (this.selectedBackupPreview !== undefined) {
+              ListItem() { this.SelectedPreviewCard(this.selectedBackupPreview) }
             }
-          }
-          ListItem() {
-            this.ActionsCard()
-          }
-          ListItem() {
-            this.StorageNoteCard()
+            if (this.selectedEncryptedBackupPayload.length > 0) {
+              ListItem() { this.RestorePassphraseCard() }
+            }
+            ListItem() { this.RestoreActions() }
+            ListItem() { this.ImportPreviewIntroCard() }
+          } else if (this.pane === 'files') {
+            ListItem() { this.LocalBackupsCard() }
+          } else if (this.pane === 'settings') {
+            ListItem() { this.AutomaticBackupCard() }
+            ListItem() { this.DomainsCard() }
+            ListItem() {
+              this.TechnicalDetailsCard()
+            }
           }
         }
       }
@@ -1241,8 +1333,17 @@ export struct BackupManagementPage {
   }
 
   aboutToAppear(): void {
-    this.loadLocalBackups()
-    this.loadAutomaticPreferences()
-    this.loadContentPreferences()
+    if (this.pane === 'home' || this.pane === 'files') {
+      this.loadLocalBackups()
+      this.loadAutomaticPreferences()
+    } else if (this.pane === 'create') {
+      this.loadContentPreferences()
+    } else if (this.pane === 'settings') {
+      this.loadAutomaticPreferences()
+      this.loadContentPreferences()
+    } else if (this.pane === 'restore' && this.localFileName.length > 0 && !this.localSelectionStarted) {
+      this.localSelectionStarted = true
+      this.selectLocalBackup(this.localFileName)
+    }
   }
 }

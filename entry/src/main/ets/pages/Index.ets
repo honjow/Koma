@@ -140,12 +140,18 @@ interface TrackerProviderRouteParam {
   providerId: TrackerProviderId
 }
 
+interface BackupTaskRouteParam {
+  pane: string
+  fileName: string
+}
+
 @Entry
 @ComponentV2
 struct Index {
   @Local selectedTab: number = TabIndex.LIBRARY
   @Local private importMenuShown: boolean = false
   @Local private trackerSettingsRevision: number = 0
+  @Local private backupSettingsRevision: number = 0
   @Local private languageState: LanguageState = connectLanguageState()
   @Local private layoutSafeArea: LayoutSafeAreaState = connectLayoutSafeArea()
   @Local private readerOpen: boolean = false
@@ -930,6 +936,18 @@ struct Index {
     this.appPathStack.pushPath({ name: RouteName.TRACKER_PROVIDER_SETTINGS, param: params })
   }
 
+  private openBackupTask(pane: string, fileName: string): void {
+    const params: BackupTaskRouteParam = { pane, fileName }
+    this.appPathStack.pushPath({ name: RouteName.BACKUP_TASK, param: params })
+  }
+
+  private backupTaskTitle(params: BackupTaskRouteParam): string {
+    if (params.pane === 'create') { return AppStrings.get('backup_task_create') }
+    if (params.pane === 'restore') { return AppStrings.get('backup_task_restore') }
+    if (params.pane === 'files') { return AppStrings.get('backup_task_files') }
+    return AppStrings.get('backup_task_settings')
+  }
+
   private trackerProviderTitle(params: TrackerProviderRouteParam): string {
     const provider = TRACKER_PROVIDER_CONFIGS.find((item: TrackerProviderConfig): boolean => item.providerId === params.providerId)
     return provider?.displayName ?? AppStrings.get('route_tracker_settings_title')
@@ -1635,9 +1653,20 @@ struct Index {
       .titleBar(this.navDestTitleBarOpts(AppStrings.get('route_downloads_title')))
     } else if (name === RouteName.BACKUP_MANAGEMENT) {
       HdsNavDestination() {
-        BackupManagementPage()
+        BackupManagementPage({ refreshRevision: this.backupSettingsRevision,
+          onOpenTask: (pane: string, fileName: string) => { this.openBackupTask(pane, fileName) } })
       }
       .titleBar(this.navDestTitleBarOpts(AppStrings.get('route_backup_management_title')))
+      .onShown(() => { this.backupSettingsRevision += 1 })
+    } else if (name === RouteName.BACKUP_TASK) {
+      HdsNavDestination() {
+        BackupManagementPage({ pane: (param as BackupTaskRouteParam).pane,
+          localFileName: (param as BackupTaskRouteParam).fileName,
+          refreshRevision: this.backupSettingsRevision,
+          onOpenTask: (pane: string, fileName: string) => { this.openBackupTask(pane, fileName) } })
+      }
+      .titleBar(this.navDestTitleBarOpts(this.backupTaskTitle(param as BackupTaskRouteParam)))
+      .onShown(() => { this.backupSettingsRevision += 1 })
     } else if (name === RouteName.TRACKER_SETTINGS) {
       HdsNavDestination() {
         TrackerSettingsPage({
