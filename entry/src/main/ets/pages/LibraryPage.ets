@@ -244,6 +244,7 @@ export struct LibraryPage {
   @Param presentationByComicId: LibraryPresentationByComicId = new Map<ComicId, LibraryComicPresentation>()
   @Param sourceRegistry: SourceRuntimeRegistry = appSourceRuntimeRegistry
   @Param libraryPersistenceService?: LibraryStorePersistenceService = undefined
+  @Event onOpenMangaDetail: (comicId: ComicId) => void = (_comicId: ComicId) => {}
   @Event onOpenReader: (comicId: ComicId, chapterId?: string) => void = (_comicId: ComicId, _chapterId?: string) => {}
   @Event onProgressStoreReloadRequested: () => void = () => {}
   @Event onImportRequested: () => void = () => {}
@@ -1108,8 +1109,16 @@ export struct LibraryPage {
     if (this.selectionMode) {
       this.toggleSelection(comicId)
     } else {
-      this.openComicFromLibrary(comicId)
+      this.openComicDetailFromLibrary(comicId)
     }
+  }
+
+  private openComicDetailFromLibrary(comicId: ComicId): void {
+    if (this.libraryStore.getComic(comicId) === undefined) {
+      this.showToast(s('common_unavailable'))
+      return
+    }
+    this.onOpenMangaDetail(comicId)
   }
 
   private readerChapterIdForComic(comic: Comic): string | undefined {
@@ -1905,7 +1914,7 @@ export struct LibraryPage {
           .gesture(TapGesture()
             .onAction(() => {
               if (!this.selectionMode) {
-                this.openComicFromLibrary(comic.id)
+                this.openComicDetailFromLibrary(comic.id)
               }
             }))
       }

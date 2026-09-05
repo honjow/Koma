@@ -646,6 +646,11 @@ export struct MangaDetailPage {
         }
         chaptersLoadFailed = true
         console.warn('[manga-detail] source chapters load failed reason=source_chapters')
+        const libraryComic = this.findSourceRuntimeComic(sourceId, mangaId, this.sourceComicId(sourceId, mangaId))
+        if (libraryComic !== undefined && libraryComic.chapters.length > 0) {
+          chapters = libraryComic.chapters.map((chapter: Chapter): MangaChapterItem =>
+            mangaChapterItemFromComicChapter(chapter, libraryComic.sourceKind))
+        }
       }
       if (!this.isCurrentSourceDetailRequest(requestEpoch, sourceId, mangaId)) {
         return
@@ -683,16 +688,21 @@ export struct MangaDetailPage {
       const fallbackDetail = this.sourceDetailFromInitialRouteManga(sourceId, mangaId)
       const fallbackComicId = this.sourceComicId(sourceId, mangaId)
       const libraryComic = this.findSourceRuntimeComic(sourceId, mangaId, fallbackComicId)
+      if (libraryComic !== undefined) {
+        this.loadLocalOrMissingManga(libraryComic.id)
+        this.feedbackText = s('manga_detail_load_source_failed')
+        return
+      }
       if (fallbackDetail !== undefined) {
-        fallbackDetail.isInLibrary = libraryComic !== undefined
+        fallbackDetail.isInLibrary = false
         this.manga = fallbackDetail
       } else {
         this.manga = undefined
       }
       this.chapters = []
-      this.isInLibrary = libraryComic !== undefined
+      this.isInLibrary = false
       this.sourceDetailDataResolved = false
-      this.activeLibraryComicId = libraryComic?.id ?? ''
+      this.activeLibraryComicId = ''
       this.feedbackText = s('manga_detail_load_source_failed')
       this.sourceDetailContentState = SourceDetailContentState.ERROR
       this.downloadStatusText = ''

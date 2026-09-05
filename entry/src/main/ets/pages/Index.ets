@@ -735,6 +735,28 @@ struct Index {
     }
   }
 
+  private openLibraryMangaDetail(comicId: ComicId): void {
+    const comic = this.libraryStore.getComic(comicId)
+    if (comic === undefined) {
+      return
+    }
+    const sourceId = comic.sourceRuntimeId?.trim() ?? ''
+    const remoteMangaId = comic.remoteResourceId?.trim() ?? ''
+    const params: MangaDetailRouteParam = sourceId.length > 0 && remoteMangaId.length > 0
+      ? {
+        mangaId: remoteMangaId,
+        sourceId,
+        initialManga: {
+          id: remoteMangaId,
+          sourceId,
+          title: comic.title,
+          coverUrl: comic.coverUri,
+        },
+      }
+      : { mangaId: comic.id }
+    RouterHelper.pushMangaDetail(params)
+  }
+
   private openReaderMangaDetail(): void {
     const comicId = this.readerSessionConfig.comicId
     if (comicId.length === 0 || !this.isReaderRouteVisible()) {
@@ -1711,6 +1733,9 @@ struct Index {
                 presentationByComicId: this.presentationByComicId,
                 sourceRegistry: this.sourceRegistry,
                 libraryPersistenceService: this.ensureLibraryPersistenceService(),
+                onOpenMangaDetail: (comicId: ComicId) => {
+                  this.openLibraryMangaDetail(comicId)
+                },
                 onOpenReader: (comicId: ComicId, chapterId?: string) => {
                   void this.openReader(comicId, chapterId)
                 },
