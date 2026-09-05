@@ -124,6 +124,7 @@ import { connectLanguageState, LanguageState } from '../state/LanguageState'
 import { connectLayoutSafeArea, LayoutSafeAreaState } from '../state/LayoutSafeAreaState'
 import { BackupService, BackupAutomaticRunResult } from '../model/BackupService'
 import { TrackerPendingProgressDrainSummary, TrackerProgressSyncService } from '../model/TrackerProgressSyncService'
+import { TRACKER_PROVIDER_CONFIGS, TrackerProviderConfig, TrackerProviderId } from '../model/TrackerModels'
 import { SourceBrowseRouteChromeState, SourceSearchRouteChromeState } from '../state/SourceRouteChromeState'
 import { SearchRouteChromeState } from '../state/SearchRouteChromeState'
 
@@ -135,11 +136,16 @@ interface SettingsPaneRouteParam {
   pane: string
 }
 
+interface TrackerProviderRouteParam {
+  providerId: TrackerProviderId
+}
+
 @Entry
 @ComponentV2
 struct Index {
   @Local selectedTab: number = TabIndex.LIBRARY
   @Local private importMenuShown: boolean = false
+  @Local private trackerSettingsRevision: number = 0
   @Local private languageState: LanguageState = connectLanguageState()
   @Local private layoutSafeArea: LayoutSafeAreaState = connectLayoutSafeArea()
   @Local private readerOpen: boolean = false
@@ -919,6 +925,16 @@ struct Index {
     this.appPathStack.pushPath({ name: routeName })
   }
 
+  private openTrackerProvider(providerId: TrackerProviderId): void {
+    const params: TrackerProviderRouteParam = { providerId }
+    this.appPathStack.pushPath({ name: RouteName.TRACKER_PROVIDER_SETTINGS, param: params })
+  }
+
+  private trackerProviderTitle(params: TrackerProviderRouteParam): string {
+    const provider = TRACKER_PROVIDER_CONFIGS.find((item: TrackerProviderConfig): boolean => item.providerId === params.providerId)
+    return provider?.displayName ?? AppStrings.get('route_tracker_settings_title')
+  }
+
   private openSettingsPane(pane: SettingsPaneKey): void {
     const routeParam: SettingsPaneRouteParam = { pane: pane }
     this.appPathStack.pushPath({ name: RouteName.SETTINGS_PANE, param: routeParam })
@@ -1624,9 +1640,22 @@ struct Index {
       .titleBar(this.navDestTitleBarOpts(AppStrings.get('route_backup_management_title')))
     } else if (name === RouteName.TRACKER_SETTINGS) {
       HdsNavDestination() {
-        TrackerSettingsPage()
+        TrackerSettingsPage({
+          refreshRevision: this.trackerSettingsRevision,
+          onOpenProvider: (providerId: TrackerProviderId) => {
+            this.openTrackerProvider(providerId)
+          },
+        })
       }
       .titleBar(this.navDestTitleBarOpts(AppStrings.get('route_tracker_settings_title')))
+      .onShown(() => {
+        this.trackerSettingsRevision += 1
+      })
+    } else if (name === RouteName.TRACKER_PROVIDER_SETTINGS) {
+      HdsNavDestination() {
+        TrackerSettingsPage({ providerId: (param as TrackerProviderRouteParam).providerId })
+      }
+      .titleBar(this.navDestTitleBarOpts(this.trackerProviderTitle(param as TrackerProviderRouteParam)))
     }
   }
 

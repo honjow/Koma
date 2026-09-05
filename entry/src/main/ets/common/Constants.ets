@@ -29,6 +29,7 @@ export class RouteName {
   static readonly DOWNLOADS: string = 'DownloadsPage'
   static readonly BACKUP_MANAGEMENT: string = 'BackupManagementPage'
   static readonly TRACKER_SETTINGS: string = 'TrackerSettingsPage'
+  static readonly TRACKER_PROVIDER_SETTINGS: string = 'TrackerProviderSettingsPage'
 }
 
 export const KOMA_BUNDLE_NAME: string = 'com.honjow.koma'
