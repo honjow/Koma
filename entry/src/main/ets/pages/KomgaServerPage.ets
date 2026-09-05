@@ -143,31 +143,38 @@ export struct KomgaServerPage {
   private FormCard() {
     GroupedListSection({ inset: ThemeConstants.SPACE_LG }) {
       Column({ space: ThemeConstants.SPACE_LG }) {
-      KomaFormTextField({ label: s('common_server_url'), placeholder: 'https://demo.komga.org', value: this.baseUrl, change: (value: string) => {
-        this.baseUrl = value
-      } })
+        KomaFormTextField({ label: s('common_server_url'), placeholder: 'https://demo.komga.org', value: this.baseUrl, change: (value: string) => {
+          this.baseUrl = value
+        } })
 
-      KomaSegmentedControl({
-        labels: [s('komga_auth_basic'), s('komga_auth_api_key'), s('komga_auth_none')],
-        selectedIndex: this.authIndex(),
-        select: (index: number) => {
-          this.setAuthIndex(index)
-        },
-      })
+        KomaSegmentedControl({
+          labels: [s('komga_auth_basic'), s('komga_auth_api_key'), s('komga_auth_none')],
+          selectedIndex: this.authIndex(),
+          select: (index: number) => {
+            this.setAuthIndex(index)
+          },
+        })
 
-      if (this.authKind === KomgaAuthKind.API_KEY) {
-        KomaFormTextField({ label: s('komga_label_api_key'), placeholder: 'X-API-Key', value: this.apiKey, isPassword: true, change: (value: string) => {
-          this.apiKey = value
-        } })
-      } else if (this.authKind === KomgaAuthKind.BASIC) {
-        KomaFormTextField({ label: s('common_username'), placeholder: 'demo@komga.org', value: this.username, change: (value: string) => {
-          this.username = value
-        } })
-        KomaFormTextField({ label: s('common_password'), placeholder: 'komga-demo', value: this.password, isPassword: true, change: (value: string) => {
-          this.password = value
-        } })
+        if (this.authKind === KomgaAuthKind.API_KEY) {
+          KomaFormTextField({ label: s('komga_label_api_key'), placeholder: 'X-API-Key', value: this.apiKey, isPassword: true, change: (value: string) => {
+            this.apiKey = value
+          } })
+        } else if (this.authKind === KomgaAuthKind.BASIC) {
+          KomaFormTextField({ label: s('common_username'), placeholder: 'demo@komga.org', value: this.username, change: (value: string) => {
+            this.username = value
+          } })
+          KomaFormTextField({ label: s('common_password'), placeholder: 'komga-demo', value: this.password, isPassword: true, change: (value: string) => {
+            this.password = value
+          } })
+        }
       }
+      .width('100%')
+    }
+  }
 
+  @Builder
+  private FormActions() {
+    Column({ space: ThemeConstants.SPACE_MD }) {
       KomaActionButton({
         label: this.testing ? s('common_testing') : s('server_action_save_and_test'),
         kind: 'primary',
@@ -177,19 +184,6 @@ export struct KomgaServerPage {
           this.saveAndTest()
         },
       })
-        .width('100%')
-
-      KomaActionButton({
-        label: s('server_action_remove_config'),
-        kind: 'ghost',
-        fullWidth: true,
-        accentColor: ThemeConstants.TEXT_SECONDARY,
-        controlHeight: ThemeConstants.ACTION_CHIP_HEIGHT,
-        action: () => {
-          this.clearServer()
-        },
-      })
-        .width('100%')
 
       if (this.statusText().length > 0) {
         Text(this.statusText())
@@ -198,9 +192,20 @@ export struct KomgaServerPage {
           .lineHeight(ThemeConstants.LINE_HEIGHT_BODY)
           .fontColor(ThemeConstants.TEXT_SECONDARY)
       }
+
+      KomaActionButton({
+        label: s('server_action_remove_config'),
+        kind: 'ghost',
+        fullWidth: true,
+        accentColor: ThemeConstants.DANGER,
+        controlHeight: ThemeConstants.ACTION_CHIP_HEIGHT,
+        action: () => {
+          this.clearServer()
+        },
+      })
     }
-      .width('100%')
-    }
+    .width('100%')
+    .padding({ left: ThemeConstants.SPACE_LG, right: ThemeConstants.SPACE_LG })
   }
 
   build() {
@@ -213,6 +218,9 @@ export struct KomgaServerPage {
       }) {
         ListItem() {
           this.FormCard()
+        }
+        ListItem() {
+          this.FormActions()
         }
       }
     }

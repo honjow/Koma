@@ -11,10 +11,10 @@ export struct KomaFormTextField {
   @Event submit?: () => void
 
   build() {
-    Column({ space: ThemeConstants.SPACE_SM }) {
+    Column({ space: ThemeConstants.SPACE_XS }) {
       Text(this.label)
-        .fontSize(ThemeConstants.FONT_SIZE_LIST_ITEM)
-        .fontWeight(FontWeight.Medium)
+        .fontSize(ThemeConstants.FONT_SIZE_CAPTION)
+        .fontWeight(FontWeight.Regular)
         .fontColor($r('sys.color.font_secondary'))
         .maxLines(1)
         .textOverflow({ overflow: TextOverflow.Ellipsis })
@@ -27,8 +27,8 @@ export struct KomaFormTextField {
         .fontSize(ThemeConstants.FONT_SIZE_BODY)
         .fontColor($r('sys.color.font_primary'))
         .placeholderColor($r('sys.color.font_tertiary'))
-        .backgroundColor($r('sys.color.ohos_id_color_sub_background'))
-        .borderRadius(ThemeConstants.RADIUS_CHIP)
+        .backgroundColor($r('sys.color.ohos_id_color_button_normal'))
+        .borderRadius(ThemeConstants.LIST_ROW_RADIUS)
         .enabled(this.isEnabled)
         .onChange((next: string) => {
           this.change(next)

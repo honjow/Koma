@@ -133,23 +133,30 @@ export struct OpdsServerPage {
   private FormCard() {
     GroupedListSection({ inset: ThemeConstants.SPACE_LG }) {
       Column({ space: ThemeConstants.SPACE_LG }) {
-      KomaFormTextField({ label: s('opds_label_catalog_url'), placeholder: 'https://demo.komga.org/opds/v2/catalog', value: this.rootUrl, change: (value: string) => {
-        this.rootUrl = value
-      } })
-      KomaFormTextField({ label: s('common_username'), placeholder: s('common_optional_placeholder'), value: this.username, change: (value: string) => {
-        this.username = value
-      } })
-      KomaFormTextField({ label: s('common_password'), placeholder: s('common_optional_placeholder'), value: this.password, isPassword: true, change: (value: string) => {
-        this.password = value
-      } })
+        KomaFormTextField({ label: s('opds_label_catalog_url'), placeholder: 'https://demo.komga.org/opds/v2/catalog', value: this.rootUrl, change: (value: string) => {
+          this.rootUrl = value
+        } })
+        KomaFormTextField({ label: s('common_username'), placeholder: s('common_optional_placeholder'), value: this.username, change: (value: string) => {
+          this.username = value
+        } })
+        KomaFormTextField({ label: s('common_password'), placeholder: s('common_optional_placeholder'), value: this.password, isPassword: true, change: (value: string) => {
+          this.password = value
+        } })
 
-      Text(this.detectedVersion.length === 0
-        ? s('opds_version_auto')
-        : s('opds_version_value').replace('%s', this.versionLabel(this.detectedVersion)))
-        .width('100%')
-        .fontSize(ThemeConstants.FONT_SIZE_META)
-        .fontColor(ThemeConstants.TEXT_SECONDARY)
+        Text(this.detectedVersion.length === 0
+          ? s('opds_version_auto')
+          : s('opds_version_value').replace('%s', this.versionLabel(this.detectedVersion)))
+          .width('100%')
+          .fontSize(ThemeConstants.FONT_SIZE_META)
+          .fontColor(ThemeConstants.TEXT_SECONDARY)
+      }
+      .width('100%')
+    }
+  }
 
+  @Builder
+  private FormActions() {
+    Column({ space: ThemeConstants.SPACE_MD }) {
       KomaActionButton({
         label: this.testing ? s('common_testing') : s('server_action_save_and_test'),
         kind: 'primary',
@@ -159,19 +166,6 @@ export struct OpdsServerPage {
           this.saveAndTest()
         },
       })
-        .width('100%')
-
-      KomaActionButton({
-        label: s('server_action_remove_config'),
-        kind: 'ghost',
-        fullWidth: true,
-        accentColor: ThemeConstants.TEXT_SECONDARY,
-        controlHeight: ThemeConstants.ACTION_CHIP_HEIGHT,
-        action: () => {
-          this.clearServer()
-        },
-      })
-        .width('100%')
 
       if (this.statusText().length > 0) {
         Text(this.statusText())
@@ -180,9 +174,20 @@ export struct OpdsServerPage {
           .lineHeight(ThemeConstants.LINE_HEIGHT_BODY)
           .fontColor(ThemeConstants.TEXT_SECONDARY)
       }
+
+      KomaActionButton({
+        label: s('server_action_remove_config'),
+        kind: 'ghost',
+        fullWidth: true,
+        accentColor: ThemeConstants.DANGER,
+        controlHeight: ThemeConstants.ACTION_CHIP_HEIGHT,
+        action: () => {
+          this.clearServer()
+        },
+      })
     }
-      .width('100%')
-    }
+    .width('100%')
+    .padding({ left: ThemeConstants.SPACE_LG, right: ThemeConstants.SPACE_LG })
   }
 
   build() {
@@ -195,6 +200,9 @@ export struct OpdsServerPage {
       }) {
         ListItem() {
           this.FormCard()
+        }
+        ListItem() {
+          this.FormActions()
         }
       }
     }

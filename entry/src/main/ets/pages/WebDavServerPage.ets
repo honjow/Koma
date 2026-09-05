@@ -118,19 +118,26 @@ export struct WebDavServerPage {
   private FormCard() {
     GroupedListSection({ inset: ThemeConstants.SPACE_LG }) {
       Column({ space: ThemeConstants.SPACE_LG }) {
-      KomaFormTextField({ label: s('common_server_url'), placeholder: 'https://test.webdav.org/', value: this.baseUrl, change: (value: string) => {
-        this.baseUrl = value
-      } })
-      KomaFormTextField({ label: s('webdav_label_root_path'), placeholder: s('webdav_placeholder_root_path'), value: this.rootPath, change: (value: string) => {
-        this.rootPath = value
-      } })
-      KomaFormTextField({ label: s('common_username'), placeholder: s('common_optional_placeholder'), value: this.username, change: (value: string) => {
-        this.username = value
-      } })
-      KomaFormTextField({ label: s('common_password'), placeholder: s('common_optional_placeholder'), value: this.password, isPassword: true, change: (value: string) => {
-        this.password = value
-      } })
+        KomaFormTextField({ label: s('common_server_url'), placeholder: 'https://test.webdav.org/', value: this.baseUrl, change: (value: string) => {
+          this.baseUrl = value
+        } })
+        KomaFormTextField({ label: s('webdav_label_root_path'), placeholder: s('webdav_placeholder_root_path'), value: this.rootPath, change: (value: string) => {
+          this.rootPath = value
+        } })
+        KomaFormTextField({ label: s('common_username'), placeholder: s('common_optional_placeholder'), value: this.username, change: (value: string) => {
+          this.username = value
+        } })
+        KomaFormTextField({ label: s('common_password'), placeholder: s('common_optional_placeholder'), value: this.password, isPassword: true, change: (value: string) => {
+          this.password = value
+        } })
+      }
+      .width('100%')
+    }
+  }
 
+  @Builder
+  private FormActions() {
+    Column({ space: ThemeConstants.SPACE_MD }) {
       KomaActionButton({
         label: this.testing ? s('common_testing') : s('server_action_save_and_test'),
         kind: 'primary',
@@ -140,19 +147,6 @@ export struct WebDavServerPage {
           this.saveAndTest()
         },
       })
-        .width('100%')
-
-      KomaActionButton({
-        label: s('server_action_remove_config'),
-        kind: 'ghost',
-        fullWidth: true,
-        accentColor: ThemeConstants.TEXT_SECONDARY,
-        controlHeight: ThemeConstants.ACTION_CHIP_HEIGHT,
-        action: () => {
-          this.clearServer()
-        },
-      })
-        .width('100%')
 
       if (this.statusText().length > 0) {
         Text(this.statusText())
@@ -161,9 +155,20 @@ export struct WebDavServerPage {
           .lineHeight(ThemeConstants.LINE_HEIGHT_BODY)
           .fontColor(ThemeConstants.TEXT_SECONDARY)
       }
+
+      KomaActionButton({
+        label: s('server_action_remove_config'),
+        kind: 'ghost',
+        fullWidth: true,
+        accentColor: ThemeConstants.DANGER,
+        controlHeight: ThemeConstants.ACTION_CHIP_HEIGHT,
+        action: () => {
+          this.clearServer()
+        },
+      })
     }
-      .width('100%')
-    }
+    .width('100%')
+    .padding({ left: ThemeConstants.SPACE_LG, right: ThemeConstants.SPACE_LG })
   }
 
   build() {
@@ -176,6 +181,9 @@ export struct WebDavServerPage {
       }) {
         ListItem() {
           this.FormCard()
+        }
+        ListItem() {
+          this.FormActions()
         }
       }
     }

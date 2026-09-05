@@ -119,40 +119,45 @@ export struct KavitaServerPage {
         KomaFormTextField({ label: s('kavita_label_api_key'), placeholder: s('kavita_placeholder_api_key'), value: this.apiKey, isPassword: true, change: (value: string) => {
           this.apiKey = value
         } })
-
-        KomaActionButton({
-          label: this.testing ? s('common_testing') : s('server_action_save_and_test'),
-          kind: 'primary',
-          fullWidth: true,
-          isEnabled: !this.testing,
-          action: () => {
-            this.saveAndTest()
-          },
-        })
-          .width('100%')
-
-        KomaActionButton({
-          label: s('server_action_remove_config'),
-          kind: 'ghost',
-          fullWidth: true,
-          accentColor: ThemeConstants.TEXT_SECONDARY,
-          controlHeight: ThemeConstants.ACTION_CHIP_HEIGHT,
-          action: () => {
-            this.clearServer()
-          },
-        })
-          .width('100%')
-
-        if (this.statusText().length > 0) {
-          Text(this.statusText())
-            .width('100%')
-            .fontSize(ThemeConstants.FONT_SIZE_META)
-            .lineHeight(ThemeConstants.LINE_HEIGHT_BODY)
-            .fontColor(ThemeConstants.TEXT_SECONDARY)
-        }
       }
       .width('100%')
     }
+  }
+
+  @Builder
+  private FormActions() {
+    Column({ space: ThemeConstants.SPACE_MD }) {
+      KomaActionButton({
+        label: this.testing ? s('common_testing') : s('server_action_save_and_test'),
+        kind: 'primary',
+        fullWidth: true,
+        isEnabled: !this.testing,
+        action: () => {
+          this.saveAndTest()
+        },
+      })
+
+      if (this.statusText().length > 0) {
+        Text(this.statusText())
+          .width('100%')
+          .fontSize(ThemeConstants.FONT_SIZE_META)
+          .lineHeight(ThemeConstants.LINE_HEIGHT_BODY)
+          .fontColor(ThemeConstants.TEXT_SECONDARY)
+      }
+
+      KomaActionButton({
+        label: s('server_action_remove_config'),
+        kind: 'ghost',
+        fullWidth: true,
+        accentColor: ThemeConstants.DANGER,
+        controlHeight: ThemeConstants.ACTION_CHIP_HEIGHT,
+        action: () => {
+          this.clearServer()
+        },
+      })
+    }
+    .width('100%')
+    .padding({ left: ThemeConstants.SPACE_LG, right: ThemeConstants.SPACE_LG })
   }
 
   build() {
@@ -165,6 +170,9 @@ export struct KavitaServerPage {
       }) {
         ListItem() {
           this.FormCard()
+        }
+        ListItem() {
+          this.FormActions()
         }
       }
     }
