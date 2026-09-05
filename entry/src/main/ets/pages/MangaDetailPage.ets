@@ -10,10 +10,6 @@ import {
   ChapterBatchDownloadMode,
   ChapterListSection,
 } from '../components/ChapterListSection'
-import {
-  AppFilesChapterReadStatePersistenceAdapter,
-  ChapterReadStateStore,
-} from '../model/ChapterReadStateStore'
 import { AppStrings } from '../i18n/AppStrings'
 import { ThemeConstants } from '../theme/ThemeConstants'
 import { connectLanguageState, LanguageState } from '../state/LanguageState'
@@ -208,6 +204,8 @@ export struct MangaDetailPage {
   @Param libraryStore?: LibraryStore = undefined
   @Param libraryPersistenceService?: LibraryStorePersistenceService = undefined
   @Param readerSessionStore: ReaderSessionStore = new InMemoryReaderSessionStore()
+  @Param readerProgressRevision: number = 0
+  @Event onReadingStateChanged: () => void = () => {}
   @Param sourceRegistry: SourceRuntimeRegistry = new SourceRuntimeRegistry()
   @Param chrome: MangaDetailRouteChromeState = new MangaDetailRouteChromeState()
   @Event onBack: () => void = () => {}
@@ -215,7 +213,6 @@ export struct MangaDetailPage {
   @Event onOpenSourceReader: (request: SourceReaderSessionRequest) => void = (_request: SourceReaderSessionRequest) => {}
   @Event onOpenImportRequested: () => void = () => {}
   @Event onLibraryChanged: () => void = () => {}
-  private chapterReadStateStore?: ChapterReadStateStore
   private sourceDetailRequestEpoch: number = 0
   private handledTitleActionRequestSeq: number = 0
 
@@ -346,30 +343,13 @@ export struct MangaDetailPage {
     }
   }
 
-  private ensureChapterReadStateStore(): ChapterReadStateStore | undefined {
-    if (this.chapterReadStateStore !== undefined) {
-      return this.chapterReadStateStore
-    }
-    try {
-      const context = getContext(this) as common.UIAbilityContext
-      if (context === undefined || context.filesDir === undefined || context.filesDir.length === 0) {
-        return undefined
-      }
-      this.chapterReadStateStore = new ChapterReadStateStore(
-        new AppFilesChapterReadStatePersistenceAdapter(context.filesDir)
-      )
-      return this.chapterReadStateStore
-    } catch (error) {
-      void error
-      console.warn('[manga-detail] step=chapter_read_state_unavailable failed=true')
-      return undefined
-    }
+  @Monitor('readerProgressRevision')
+  private onReadingStateRevision(): void {
+    this.applyChapterStatesToCurrent()
   }
 
   private decorateChapterStates(chapters: MangaChapterItem[]): MangaChapterItem[] {
     const comicId = this.currentComicId()
-    const progress: ReadingProgress | undefined = this.readerSessionStore.getProgress(comicId)
-    const readStateStore = this.ensureChapterReadStateStore()
     const downloadService = this.offlineDownloadService()
     return chapters.map((chapter: MangaChapterItem): MangaChapterItem => {
       const next: MangaChapterItem = {
@@ -381,8 +361,7 @@ export struct MangaDetailPage {
         language: chapter.language,
         dateUpload: chapter.dateUpload,
         pageCount: chapter.pageCount,
-        isRead: readStateStore === undefined ? this.isReadFromProgress(comicId, chapter.id, progress) :
-          readStateStore.isRead(comicId, chapter.id, progress),
+        isRead: this.readerSessionStore.isChapterRead(comicId, chapter.id),
         isDownloaded: chapter.isDownloaded,
         downloadStatus: chapter.downloadStatus,
       }
@@ -399,13 +378,6 @@ export struct MangaDetailPage {
 
   private applyChapterStatesToCurrent(): void {
     this.chapters = this.decorateChapterStates(this.chapters)
-  }
-
-  private isReadFromProgress(comicId: string, chapterId: string, progress?: ReadingProgress): boolean {
-    return progress !== undefined &&
-      progress.comicId === comicId &&
-      progress.chapterId === chapterId &&
-      progress.completed === true
   }
 
   private refreshDownloadStatus(): void {
@@ -1572,17 +1544,10 @@ export struct MangaDetailPage {
     if (chapterId.trim().length === 0) {
       return
     }
-    const store = this.ensureChapterReadStateStore()
-    if (store === undefined) {
-      this.showToast(s('manga_detail_read_state_unavailable'))
-      return
-    }
-    const row = store.mark(this.currentComicId(), chapterId, isRead)
-    if (row === undefined) {
-      this.showToast(s('manga_detail_read_state_unavailable'))
-      return
-    }
+    this.readerSessionStore.markChapterReadState(this.currentComicId(), chapterId, isRead)
+    this.readerSessionStore.flush()
     this.applyChapterStatesToCurrent()
+    this.onReadingStateChanged()
     if (isRead) {
       this.syncMarkedReadTrackerProgress([chapterId])
     }
@@ -1595,20 +1560,15 @@ export struct MangaDetailPage {
       this.showToast(s('manga_detail_no_markable_chapters'))
       return
     }
-    const store = this.ensureChapterReadStateStore()
-    if (store === undefined) {
-      this.showToast(s('manga_detail_read_state_unavailable'))
-      return
-    }
     const comicId = this.currentComicId()
     let changedCount = 0
     targetIds.forEach((chapterId: string) => {
-      const row = store.mark(comicId, chapterId, isRead)
-      if (row !== undefined) {
-        changedCount += 1
-      }
+      this.readerSessionStore.markChapterReadState(comicId, chapterId, isRead)
+      changedCount += 1
     })
+    this.readerSessionStore.flush()
     this.applyChapterStatesToCurrent()
+    this.onReadingStateChanged()
     if (isRead) {
       this.syncMarkedReadTrackerProgress(targetIds)
     }
@@ -1740,6 +1700,7 @@ export struct MangaDetailPage {
       if (progress !== undefined) {
         this.readerSessionStore.saveProgress(progress)
         this.applyChapterStatesToCurrent()
+        this.onReadingStateChanged()
         this.showToast(s('manga_detail_tracker_pull_done'))
         return
       }

@@ -9,6 +9,27 @@ import {
 } from './ComicModels'
 import { AppStrings } from '../i18n/AppStrings'
 import { SourceReadHistoryEntry } from './SourceReaderSession'
+import { AppFilesChapterReadStatePersistenceAdapter, ChapterReadStateOverride } from './ChapterReadStateStore'
+
+export interface ChapterReadingState {
+  comicId: ComicId
+  chapterId: ChapterId
+  position?: ReadingProgress
+  isRead: boolean
+  updatedAt: number
+}
+
+export interface ChapterReadMutation {
+  comicId: ComicId
+  chapterId: ChapterId
+  isRead: boolean
+}
+
+export type ComicReadingState = 'unread' | 'reading' | 'completed'
+
+function chapterStateKey(comicId: ComicId, chapterId: ChapterId): string {
+  return JSON.stringify([comicId, chapterId])
+}
 
 function copyReadingProgressWithTimestamp(progress: ReadingProgress): ReadingProgress {
   return {
@@ -129,14 +150,16 @@ export interface ReaderSessionPersistenceAdapter {
   /** Optional same-document metadata channel for transient source history. */
   loadSourceHistory?(): SourceReadHistoryEntry[]
   saveSourceHistory?(history: SourceReadHistoryEntry[]): void
+  loadSnapshot?(): ReaderSessionDocumentSnapshot
+  saveSnapshot?(snapshot: ReaderSessionDocumentSnapshot): void
 }
 
 export const READER_PROGRESS_PERSISTENCE_FILE_NAME: string = 'reader-sessions.v1.json'
 /**
- * v2 adds stable metadata for history entries opened directly from a source.
- * Keep the file name stable so existing v1 progress is migrated in place.
+ * v3 keeps recent history and independent chapter positions/read facts together.
+ * Keep the file name stable so existing v1/v2 progress is migrated in place.
  */
-export const READER_PROGRESS_PERSISTENCE_SCHEMA_VERSION = 2
+export const READER_PROGRESS_PERSISTENCE_SCHEMA_VERSION = 3
 const READER_PROGRESS_LEGACY_SCHEMA_VERSION = 1
 export const READER_PROGRESS_PERSIST_DEBOUNCE_MS: number = 3000
 
@@ -144,11 +167,70 @@ interface ReaderSessionDocument {
   schemaVersion: number
   progress: ReadingProgress[]
   sourceHistory?: SourceReadHistoryEntry[]
+  chapters?: ChapterReadingState[]
 }
 
-interface ReaderSessionDocumentSnapshot {
+interface LegacyChapterReadDocument {
+  schemaVersion: number
+  overrides: ChapterReadStateOverride[]
+}
+
+export interface ReaderSessionDocumentSnapshot {
   progress: ReadingProgress[]
   sourceHistory: SourceReadHistoryEntry[]
+  chapters: ChapterReadingState[]
+}
+
+function projectChapterCompletion(state: ChapterReadingState, progress: ReadingProgress | undefined): void {
+  if (progress !== undefined && progress.comicId === state.comicId && progress.chapterId === state.chapterId) {
+    progress.completed = state.isRead
+  }
+}
+
+function alignSnapshotChapterCompletion(snapshot: ReaderSessionDocumentSnapshot): ReaderSessionDocumentSnapshot {
+  const states = new Map<string, ChapterReadingState>()
+  snapshot.chapters.forEach((state: ChapterReadingState): void => {
+    states.set(chapterStateKey(state.comicId, state.chapterId), state)
+    projectChapterCompletion(state, state.position)
+  })
+  snapshot.progress.forEach((progress: ReadingProgress): void => {
+    const state = states.get(chapterStateKey(progress.comicId, progress.chapterId))
+    if (state !== undefined) projectChapterCompletion(state, progress)
+  })
+  return snapshot
+}
+
+function readerSessionSnapshot(document: ReaderSessionDocument): ReaderSessionDocumentSnapshot {
+  const progress = Array.isArray(document.progress) ? document.progress : []
+  const sourceHistory: SourceReadHistoryEntry[] = []
+  if (Array.isArray(document.sourceHistory)) {
+    document.sourceHistory.forEach((entry: SourceReadHistoryEntry): void => {
+      const copied = copySourceReadHistoryEntry(entry)
+      if (copied !== undefined) sourceHistory.push(copied)
+    })
+  }
+  const chapters: ChapterReadingState[] = document.schemaVersion === READER_PROGRESS_PERSISTENCE_SCHEMA_VERSION &&
+    Array.isArray(document.chapters) ? document.chapters : progress.map((row: ReadingProgress): ChapterReadingState => ({
+      comicId: row.comicId, chapterId: row.chapterId, position: row,
+      isRead: row.completed === true, updatedAt: row.updatedAt,
+    }))
+  return alignSnapshotChapterCompletion({ progress, sourceHistory, chapters })
+}
+
+/** Backup replacement never reads legacy overrides from the receiving device. */
+export function normalizeReaderSessionBackupPayload(payload: string): string {
+  const document = JSON.parse(payload) as ReaderSessionDocument
+  if (document.schemaVersion !== 1 && document.schemaVersion !== 2 &&
+    document.schemaVersion !== READER_PROGRESS_PERSISTENCE_SCHEMA_VERSION) {
+    throw new Error('Unsupported reader progress backup schema')
+  }
+  if (!Array.isArray(document.progress)) throw new Error('Invalid reader progress backup')
+  const snapshot = readerSessionSnapshot(document)
+  const normalized: ReaderSessionDocument = {
+    schemaVersion: READER_PROGRESS_PERSISTENCE_SCHEMA_VERSION,
+    progress: snapshot.progress, sourceHistory: snapshot.sourceHistory, chapters: snapshot.chapters,
+  }
+  return JSON.stringify(normalized)
 }
 
 function normalizeReaderSessionFilePath(filesDir: string): string {
@@ -171,8 +253,10 @@ function closeReaderSessionFile(file: fs.File | undefined): void {
 
 export class AppFilesReaderSessionPersistenceAdapter implements ReaderSessionPersistenceAdapter {
   private readonly filePath: string
+  private readonly filesDir: string
 
   constructor(filesDir: string) {
+    this.filesDir = filesDir
     this.filePath = normalizeReaderSessionFilePath(filesDir)
   }
 
@@ -196,40 +280,49 @@ export class AppFilesReaderSessionPersistenceAdapter implements ReaderSessionPer
     this.saveDocument(document)
   }
 
+  loadSnapshot(): ReaderSessionDocumentSnapshot {
+    return this.loadDocument()
+  }
+
+  saveSnapshot(snapshot: ReaderSessionDocumentSnapshot): void {
+    this.saveDocument(snapshot)
+  }
+
   private loadDocument(): ReaderSessionDocumentSnapshot {
-    if (!fs.accessSync(this.filePath)) {
-      return { progress: [], sourceHistory: [] }
-    }
     try {
-      const payload = fs.readTextSync(this.filePath, { encoding: 'utf-8' })
-      const document = JSON.parse(payload) as ReaderSessionDocument
-      if (document.schemaVersion === READER_PROGRESS_LEGACY_SCHEMA_VERSION) {
-        if (!Array.isArray(document.progress)) {
-          return { progress: [], sourceHistory: [] }
-        }
-        // v1 did not know about unshelved source history. Its normal reader
-        // progress remains valid and will be written back as v2 on next save.
-        return { progress: document.progress, sourceHistory: [] }
-      }
-      if (document.schemaVersion !== READER_PROGRESS_PERSISTENCE_SCHEMA_VERSION) {
+      const document: ReaderSessionDocument = fs.accessSync(this.filePath)
+        ? JSON.parse(fs.readTextSync(this.filePath, { encoding: 'utf-8' })) as ReaderSessionDocument
+        : { schemaVersion: READER_PROGRESS_LEGACY_SCHEMA_VERSION, progress: [] }
+      if (document.schemaVersion !== READER_PROGRESS_LEGACY_SCHEMA_VERSION && document.schemaVersion !== 2 &&
+        document.schemaVersion !== READER_PROGRESS_PERSISTENCE_SCHEMA_VERSION) {
         console.warn(`Unsupported reader progress schema version: ${document.schemaVersion}`)
-        return { progress: [], sourceHistory: [] }
+        return { progress: [], sourceHistory: [], chapters: [] }
       }
-      if (!Array.isArray(document.progress)) {
-        return { progress: [], sourceHistory: [] }
-      }
-      const sourceHistory: SourceReadHistoryEntry[] = []
-      if (Array.isArray(document.sourceHistory)) {
-        document.sourceHistory.forEach((entry: SourceReadHistoryEntry): void => {
-          const copied = copySourceReadHistoryEntry(entry)
-          if (copied !== undefined) {
-            sourceHistory.push(copied)
+      const snapshot = readerSessionSnapshot(document)
+      if (document.schemaVersion !== READER_PROGRESS_PERSISTENCE_SCHEMA_VERSION) {
+        const legacyPayload = new AppFilesChapterReadStatePersistenceAdapter(this.filesDir).load()
+        if (legacyPayload !== undefined && legacyPayload.length > 0) {
+          const legacy = JSON.parse(legacyPayload) as LegacyChapterReadDocument
+          if (legacy.schemaVersion === 1 && Array.isArray(legacy.overrides)) {
+            legacy.overrides.forEach((row: ChapterReadStateOverride): void => {
+              const found = snapshot.chapters.find((state: ChapterReadingState): boolean =>
+                state.comicId === row.comicId && state.chapterId === row.chapterId)
+              if (found !== undefined) {
+                found.isRead = row.isRead
+                found.updatedAt = row.updatedAt
+              } else {
+                snapshot.chapters.push({ comicId: row.comicId, chapterId: row.chapterId,
+                  isRead: row.isRead, updatedAt: row.updatedAt })
+              }
+            })
           }
-        })
+        }
+        // v3 is the one-time migration marker. Keep the legacy file untouched.
+        this.saveDocument(alignSnapshotChapterCompletion(snapshot))
       }
-      return { progress: document.progress, sourceHistory }
+      return snapshot
     } catch (_err) {
-      return { progress: [], sourceHistory: [] }
+      return { progress: [], sourceHistory: [], chapters: [] }
     }
   }
 
@@ -238,6 +331,7 @@ export class AppFilesReaderSessionPersistenceAdapter implements ReaderSessionPer
       schemaVersion: READER_PROGRESS_PERSISTENCE_SCHEMA_VERSION,
       progress: snapshot.progress,
       sourceHistory: snapshot.sourceHistory,
+      chapters: snapshot.chapters,
     }
     let file: fs.File | undefined = undefined
     try {
@@ -251,6 +345,7 @@ export class AppFilesReaderSessionPersistenceAdapter implements ReaderSessionPer
 }
 
 export abstract class ReaderSessionStore {
+  protected readonly chapterStates: Map<string, ChapterReadingState> = new Map<string, ChapterReadingState>()
   abstract getProgress(comicId: ComicId): ReadingProgress | undefined
   abstract saveProgress(progress: ReadingProgress): void
   abstract removeProgress(comicId: ComicId): void
@@ -263,9 +358,74 @@ export abstract class ReaderSessionStore {
   /** Writes any queued update before the Reader route releases its session. */
   abstract flush(): void
 
+  getChapterProgress(comicId: ComicId, chapterId: ChapterId): ReadingProgress | undefined {
+    return this.chapterStates.get(chapterStateKey(comicId, chapterId))?.position
+  }
+
+  isChapterRead(comicId: ComicId, chapterId: ChapterId): boolean {
+    return this.chapterStates.get(chapterStateKey(comicId, chapterId))?.isRead === true
+  }
+
+  listChapterStates(): ChapterReadingState[] {
+    return Array.from(this.chapterStates.values())
+  }
+
+  comicReadingState(comic: Comic): ComicReadingState {
+    if (comic.chapters.length > 0 && comic.chapters.every((chapter: Chapter): boolean =>
+      this.isChapterRead(comic.id, chapter.id))) return 'completed'
+    return comic.chapters.some((chapter: Chapter): boolean => {
+      const state = this.chapterStates.get(chapterStateKey(comic.id, chapter.id))
+      return state !== undefined && (state.isRead || (state.position !== undefined &&
+        state.position.totalPages > 0 && state.position.pageIndex > 0))
+    }) ? 'reading' : 'unread'
+  }
+
+  markChapterReadState(comicId: ComicId, chapterId: ChapterId, isRead: boolean): void {
+    this.markChapterReadStates([{ comicId, chapterId, isRead }])
+  }
+
+  markChapterReadStates(mutations: ChapterReadMutation[]): number {
+    let changed = 0
+    mutations.forEach((mutation: ChapterReadMutation): void => {
+      if (mutation.comicId.length === 0 || mutation.chapterId.length === 0) return
+      const key = chapterStateKey(mutation.comicId, mutation.chapterId)
+      const old = this.chapterStates.get(key)
+      const state: ChapterReadingState = { comicId: mutation.comicId, chapterId: mutation.chapterId,
+        position: old?.position, isRead: mutation.isRead, updatedAt: Date.now() }
+      if (!mutation.isRead && state.position !== undefined) {
+        const previous = state.position
+        state.position = { comicId: previous.comicId, chapterId: previous.chapterId,
+          pageIndex: 0, totalPages: previous.totalPages,
+          progressRatio: previous.totalPages > 0 ? 1 / previous.totalPages : 0,
+          completed: false, updatedAt: previous.updatedAt, columnMode: previous.columnMode }
+      }
+      const recent = this.getProgress(mutation.comicId)
+      if (!mutation.isRead && recent !== undefined && recent.chapterId === mutation.chapterId) {
+        recent.pageId = undefined
+        recent.pageIndex = 0
+        recent.progressRatio = recent.totalPages > 0 ? 1 / recent.totalPages : 0
+      }
+      projectChapterCompletion(state, state.position)
+      projectChapterCompletion(state, recent)
+      this.chapterStates.set(key, state)
+      changed += 1
+    })
+    if (changed > 0) this.chapterStatesChanged()
+    return changed
+  }
+
+  protected recordChapterProgress(progress: ReadingProgress): void {
+    const key = chapterStateKey(progress.comicId, progress.chapterId)
+    this.chapterStates.set(key, { comicId: progress.comicId, chapterId: progress.chapterId,
+      position: progress, isRead: this.chapterStates.get(key)?.isRead === true || progress.completed === true,
+      updatedAt: progress.updatedAt })
+  }
+
+  protected chapterStatesChanged(): void {}
+
   restorePageIndex(config: ReaderSessionConfig): number {
-    const progress = this.getProgress(config.comicId)
-    if (progress === undefined || progress.chapterId !== config.chapterId) {
+    const progress = this.getChapterProgress(config.comicId, config.chapterId)
+    if (progress === undefined) {
       return 0
     }
     if (config.totalPages <= 0) {
@@ -284,8 +444,8 @@ export abstract class ReaderSessionStore {
     config: ReaderSessionConfig,
     fallback: 'odd_left' | 'even_left',
   ): 'odd_left' | 'even_left' {
-    const progress = this.getProgress(config.comicId)
-    if (progress === undefined || progress.chapterId !== config.chapterId) {
+    const progress = this.getChapterProgress(config.comicId, config.chapterId)
+    if (progress === undefined) {
       return fallback
     }
     return progress.columnMode === 'even_left' ? 'even_left' :
@@ -302,7 +462,10 @@ export class InMemoryReaderSessionStore extends ReaderSessionStore {
   }
 
   saveProgress(progress: ReadingProgress): void {
-    this.progressByComicId.set(progress.comicId, copyReadingProgressWithTimestamp(progress))
+    const copied = copyReadingProgressWithTimestamp(progress)
+    copied.completed = this.isChapterRead(progress.comicId, progress.chapterId) || progress.completed
+    this.progressByComicId.set(progress.comicId, copied)
+    this.recordChapterProgress(copied)
   }
 
   removeProgress(comicId: ComicId): void {
@@ -358,17 +521,40 @@ export class PersistentReaderSessionStore extends ReaderSessionStore {
   constructor(adapter: ReaderSessionPersistenceAdapter) {
     super()
     this.adapter = adapter
-    adapter.load().forEach((progress: ReadingProgress) => {
+    this.restoreSnapshot()
+  }
+
+  /** Reload a replaced backup without flushing the pre-restore pending snapshot. */
+  reload(): void {
+    if (this.persistTimerId >= 0) clearTimeout(this.persistTimerId)
+    this.persistTimerId = -1
+    this.persistPending = false
+    this.progressByComicId.clear()
+    this.sourceHistoryByComicId.clear()
+    this.chapterStates.clear()
+    this.restoreSnapshot()
+  }
+
+  private restoreSnapshot(): void {
+    const snapshot = this.adapter.loadSnapshot === undefined ? undefined : this.adapter.loadSnapshot()
+    const progressRows = snapshot === undefined ? this.adapter.load() : snapshot.progress
+    progressRows.forEach((progress: ReadingProgress): void => {
       this.progressByComicId.set(progress.comicId, progress)
+      if (snapshot === undefined) this.recordChapterProgress(progress)
     })
-    if (adapter.loadSourceHistory !== undefined) {
-      adapter.loadSourceHistory().forEach((entry: SourceReadHistoryEntry): void => {
+    if (snapshot !== undefined) {
+      snapshot.chapters.forEach((state: ChapterReadingState): void => {
+        this.chapterStates.set(chapterStateKey(state.comicId, state.chapterId), state)
+      })
+    }
+    const sourceHistory = snapshot !== undefined ? snapshot.sourceHistory :
+      (this.adapter.loadSourceHistory === undefined ? [] : this.adapter.loadSourceHistory())
+    sourceHistory.forEach((entry: SourceReadHistoryEntry): void => {
         const copied = copySourceReadHistoryEntry(entry)
         if (copied !== undefined) {
           this.sourceHistoryByComicId.set(copied.comicId, copied)
         }
-      })
-    }
+    })
   }
 
   getProgress(comicId: ComicId): ReadingProgress | undefined {
@@ -376,7 +562,14 @@ export class PersistentReaderSessionStore extends ReaderSessionStore {
   }
 
   saveProgress(progress: ReadingProgress): void {
-    this.progressByComicId.set(progress.comicId, copyReadingProgressWithTimestamp(progress))
+    const copied = copyReadingProgressWithTimestamp(progress)
+    copied.completed = this.isChapterRead(progress.comicId, progress.chapterId) || progress.completed
+    this.progressByComicId.set(progress.comicId, copied)
+    this.recordChapterProgress(copied)
+    this.schedulePersist()
+  }
+
+  protected chapterStatesChanged(): void {
     this.schedulePersist()
   }
 
@@ -476,11 +669,27 @@ export class PersistentReaderSessionStore extends ReaderSessionStore {
     this.progressByComicId.forEach((progress: ReadingProgress) => {
       rows.push(progress)
     })
+    if (this.adapter.saveSnapshot !== undefined) {
+      this.adapter.saveSnapshot({ progress: rows, sourceHistory: this.listSourceHistory(), chapters: this.listChapterStates() })
+      return
+    }
     this.adapter.save(rows)
     if (this.adapter.saveSourceHistory !== undefined) {
       this.adapter.saveSourceHistory(this.listSourceHistory())
     }
   }
+}
+
+const appReaderSessionStores: Map<string, PersistentReaderSessionStore> = new Map<string, PersistentReaderSessionStore>()
+
+/** EntryAbility bootstrap, Index and backups share one writer for this app file. */
+export function appReaderSessionStore(filesDir: string): PersistentReaderSessionStore {
+  const key = normalizeReaderSessionFilePath(filesDir)
+  const existing = appReaderSessionStores.get(key)
+  if (existing !== undefined) return existing
+  const store = new PersistentReaderSessionStore(new AppFilesReaderSessionPersistenceAdapter(filesDir))
+  appReaderSessionStores.set(key, store)
+  return store
 }
 
 export function createReaderSessionConfigFromComic(

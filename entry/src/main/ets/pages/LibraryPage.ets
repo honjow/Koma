@@ -24,7 +24,6 @@ import {
   ComicSourceKind,
   CustomLibraryCategory,
   LibraryItem,
-  Page,
   ReadingProgress,
   LIBRARY_CATEGORY_FAVORITE_ID,
   LIBRARY_CATEGORY_READ_LATER_ID,
@@ -62,12 +61,8 @@ import {
   InMemoryReaderSessionStore,
   ReaderSessionStore,
   sortedReaderChapters,
+  ChapterReadMutation,
 } from '../model/ReaderSessionStore'
-import {
-  AppFilesChapterReadStatePersistenceAdapter,
-  ChapterReadStateMutation,
-  ChapterReadStateStore,
-} from '../model/ChapterReadStateStore'
 import { AppStrings } from '../i18n/AppStrings'
 import { connectLanguageState, LanguageState } from '../state/LanguageState'
 import { SourceRuntimeRegistry, SourceRuntimeRegistryInstalledSourceSummary } from '../sourceRuntime/SourceRuntimeRegistry'
@@ -429,6 +424,7 @@ export struct LibraryPage {
 
   private currentListOptions(): LibraryListOptions {
     return {
+      readerSessionStore: this.readerSessionStore,
       sortBy: this.sortBy,
       filterSource: this.sourceKindsForFilter(),
       filterReadState: this.filterReadState,
@@ -1247,17 +1243,6 @@ export struct LibraryPage {
     }
   }
 
-  private chapterReadStateStore(): ChapterReadStateStore | undefined {
-    try {
-      const context = getContext(this) as common.UIAbilityContext
-      return new ChapterReadStateStore(new AppFilesChapterReadStatePersistenceAdapter(context.filesDir))
-    } catch (error) {
-      void error
-      console.info('[Library] step=batch_read_state_store_failed reason=read_state_store')
-      return undefined
-    }
-  }
-
   private showToast(message: string): void {
     try {
       this.getUIContext().getPromptAction().showToast({ message: message })
@@ -1271,12 +1256,7 @@ export struct LibraryPage {
     if (comicIds.length === 0) {
       return
     }
-    const readStateStore = this.chapterReadStateStore()
-    if (readStateStore === undefined) {
-      this.showToast(s('library_batch_read_state_unavailable'))
-      return
-    }
-    const mutations: ChapterReadStateMutation[] = []
+    const mutations: ChapterReadMutation[] = []
     comicIds.forEach((comicId: ComicId) => {
       const comic = this.libraryStore.getComic(comicId)
       if (comic === undefined || comic.chapters.length === 0) {
@@ -1289,44 +1269,20 @@ export struct LibraryPage {
           isRead,
         })
       })
-      if (isRead) {
-        this.readerSessionStore.saveProgress(this.completedProgressForComic(comic))
-      } else {
-        this.readerSessionStore.removeProgress(comic.id)
-      }
     })
     if (mutations.length === 0) {
       this.showToast(s('library_batch_read_state_no_chapters'))
       return
     }
-    const changedCount = readStateStore.markMany(mutations)
+    const changedCount = this.readerSessionStore.markChapterReadStates(mutations)
+    this.readerSessionStore.flush()
+    this.onProgressStoreReloadRequested()
     if (changedCount > 0) {
       console.info(`[Library] step=batch_read_state isRead=${isRead} comics=${comicIds.length} chapters=${changedCount}`)
       this.showToast(isRead ? s('library_batch_marked_read') : s('library_batch_marked_unread'))
       this.exitSelectionMode()
       this.refreshDisplayedSnapshotFromStore()
     }
-  }
-
-  private completedProgressForComic(comic: Comic): ReadingProgress {
-    const chapter = comic.chapters[comic.chapters.length - 1]
-    const pages = chapter.pages.slice().sort((left: Page, right: Page): number => left.index - right.index)
-    const totalPages = chapter.pageCount > 0 ? chapter.pageCount : pages.length
-    const pageIndex = totalPages > 0 ? totalPages - 1 : 0
-    const pageId = pages.length > 0 ? pages[pages.length - 1].id : undefined
-    const progress: ReadingProgress = {
-      comicId: comic.id,
-      chapterId: chapter.id,
-      pageIndex,
-      totalPages,
-      progressRatio: totalPages > 0 ? 1 : 0,
-      completed: true,
-      updatedAt: Date.now(),
-    }
-    if (pageId !== undefined) {
-      progress.pageId = pageId
-    }
-    return progress
   }
 
   private showBatchRemoveConfirmation(): void {

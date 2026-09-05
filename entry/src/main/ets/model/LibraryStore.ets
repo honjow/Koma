@@ -16,6 +16,7 @@ import {
   withComicCategoryIds,
 } from './ComicModels'
 import { AppStrings } from '../i18n/AppStrings'
+import { ReaderSessionStore } from './ReaderSessionStore'
 
 export type LibrarySortBy = 'lastRead' | 'added' | 'title' | 'source'
 export type LibraryReadStateFilter = 'all' | 'unread' | 'reading' | 'completed'
@@ -34,6 +35,7 @@ export interface LibraryListOptions {
   filterSource?: ComicSourceKind[]
   filterReadState?: LibraryReadStateFilter
   filterCategoryId?: LibraryCategoryFilter
+  readerSessionStore?: ReaderSessionStore
 }
 
 export interface LibraryStore {
@@ -110,6 +112,10 @@ export class InMemoryLibraryStore implements LibraryStore {
       .filter((item: LibraryItem): boolean => {
         if (readStateFilter === 'all') {
           return true
+        }
+        const comic = this.comics.get(item.comicId)
+        if (options?.readerSessionStore !== undefined && comic !== undefined) {
+          return options.readerSessionStore.comicReadingState(comic) === readStateFilter
         }
         if (readStateFilter === 'unread') {
           return item.progress === undefined

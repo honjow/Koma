@@ -55,6 +55,7 @@ import { ThemeConstants } from '../theme/ThemeConstants'
 import { AppStrings } from '../i18n/AppStrings'
 import { connectLayoutSafeArea, LayoutSafeAreaState } from '../state/LayoutSafeAreaState'
 import { connectReaderModeState, ReaderModeState } from '../state/ReaderModeState'
+import { AppForegroundState, connectAppForegroundState } from '../state/AppForegroundState'
 
 const READER_TAP_VERTICAL_TOLERANCE: number = 10
 const READER_TAP_ZONE_SCROLL_RATIO: number = 0.75
@@ -1625,6 +1626,7 @@ struct ReaderPageNumberOverlay {
 
 @ComponentV2
 export struct ReaderPage {
+  @Local private appForegroundState: AppForegroundState = connectAppForegroundState()
   @Param readerOpen: boolean = false
   @Param routeVisible: boolean = false
   @Param sessionLoading: boolean = false
@@ -1789,6 +1791,12 @@ export struct ReaderPage {
       return
     }
     this.scheduleStatusBarVisibility()
+    if (this.isLastReadingUnitVisibleAndLoaded(this.pageIndex)) this.persistCurrentProgress()
+  }
+
+  @Monitor('appForegroundState.active', 'sessionLoading')
+  private onReaderForegroundChanged(): void {
+    if (this.isLastReadingUnitVisibleAndLoaded(this.pageIndex)) this.persistCurrentProgress()
   }
 
   @Monitor('closeRequestId')
@@ -2661,6 +2669,26 @@ export struct ReaderPage {
     }
   }
 
+  private isLastReadingUnitVisibleAndLoaded(index: number): boolean {
+    const last = this.sessionConfig.totalPages - 1
+    if (!this.readerOpen || !this.routeVisible || !this.appForegroundState.active ||
+      this.sessionLoading || this.closing || last < 0 ||
+      !this.loadedPageIndexes.includes(last) || this.failedPages.includes(last)) return false
+    if (this.usesDisplayPagePager()) {
+      const current = this.currentDisplayPage()
+      return current !== undefined && current.pageIndex === index && current.pageIndex === last &&
+        this.activeDisplayIndex === this.displayPages.length - 1
+    }
+    if (this.effectiveMode() === ReaderMode.DUAL_PAGE) {
+      const starts = this.spreadIndexes()
+      const spread = this.spreadIndexForPage(index)
+      const start = starts[spread]
+      return start !== undefined && (start === last || this.spreadSecondIndex(start) === last)
+    }
+    return this.continuousInitialTarget < 0 && this.verticalVisibleStart >= 0 &&
+      this.verticalVisibleStart <= last && this.verticalVisibleEnd >= last
+  }
+
   private persistProgress(index: number = this.pageIndex): void {
     if (this.sessionConfig.comicId.length === 0 || this.sessionConfig.chapterId.length === 0 || this.sessionConfig.totalPages <= 0) return
     const total = this.sessionConfig.totalPages
@@ -2671,7 +2699,7 @@ export struct ReaderPage {
       pageIndex: Math.min(Math.max(index, 0), total - 1),
       totalPages: total,
       progressRatio: (Math.min(Math.max(index, 0), total - 1) + 1) / total,
-      completed: index >= total - 1,
+      completed: this.isLastReadingUnitVisibleAndLoaded(index),
       updatedAt: Date.now(),
       columnMode: this.preferences.columnMode,
     })
@@ -2753,6 +2781,7 @@ export struct ReaderPage {
       this.loadedPageIndexes = this.loadedPageIndexes.concat([index])
     }
     this.maybeResumeAutoPage(index)
+    if (this.isLastReadingUnitVisibleAndLoaded(this.pageIndex)) this.persistCurrentProgress()
   }
 
   private isPageReadyForAutoPage(index: number): boolean {
@@ -3294,16 +3323,19 @@ export struct ReaderPage {
     .listDirection(Axis.Vertical)
     .enableScrollInteraction(!this.zoomed)
     .onScrollIndex((start: number, end: number) => {
+      const endChanged = this.verticalVisibleEnd !== Math.max(start, end)
       this.verticalVisibleStart = Math.max(0, start)
       this.verticalVisibleEnd = Math.max(this.verticalVisibleStart, end)
       if (this.continuousInitialTarget >= 0) {
-        if (start !== this.continuousInitialTarget) {
+        const targetVisibleAtEnd = end === this.sessionConfig.totalPages - 1 &&
+          start <= this.continuousInitialTarget && end >= this.continuousInitialTarget
+        if (start !== this.continuousInitialTarget && !targetVisibleAtEnd) {
           return
         }
         this.continuousInitialTarget = -1
       }
-      if (start >= 0 && start < this.sessionConfig.totalPages && start !== this.pageIndex) {
-        this.emitPageIndex(start)
+      if (start >= 0 && start < this.sessionConfig.totalPages && (start !== this.pageIndex || endChanged)) {
+        if (start !== this.pageIndex) this.emitPageIndex(start)
         this.persistProgress(start)
       }
     })

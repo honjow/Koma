@@ -10,6 +10,8 @@ import {
 import {
   READER_PROGRESS_PERSISTENCE_FILE_NAME,
   READER_PROGRESS_PERSISTENCE_SCHEMA_VERSION,
+  appReaderSessionStore,
+  normalizeReaderSessionBackupPayload,
 } from './ReaderSessionStore'
 import {
   DEFAULT_READER_PREFERENCES,
@@ -890,6 +892,7 @@ export class BackupService {
 
   private async buildBackupDocument(schemaVersion: number): Promise<KomaBackupDocument> {
     const contentPreferences = await this.loadContentPreferences()
+    appReaderSessionStore(this.context.filesDir).flush()
     const document: KomaBackupDocument = {
       schemaVersion,
       exportedAt: Date.now(),
@@ -944,9 +947,12 @@ export class BackupService {
     }
     const libraryStorePayload = restoreLocalLibraryMetadataBackupEntries(document.libraryStore, document.localLibraryMetadata)
     assertValidLibraryStoreJson(libraryStorePayload)
-    JSON.parse(document.readingProgress)
+    const readingProgress = normalizeReaderSessionBackupPayload(document.readingProgress)
+    const sessionStore = appReaderSessionStore(this.context.filesDir)
+    sessionStore.flush()
     writeText(this.libraryPath(), libraryStorePayload)
-    writeText(this.readerProgressPath(), document.readingProgress)
+    writeText(this.readerProgressPath(), readingProgress)
+    sessionStore.reload()
     await this.importRemoteServers(document.remoteServers)
     if (document.schemaVersion >= BACKUP_SCHEMA_VERSION) {
       this.importSourceSettings(document.sourceSettings)

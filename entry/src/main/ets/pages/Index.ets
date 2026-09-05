@@ -94,9 +94,8 @@ import {
   OfflineDownloadStore,
 } from '../model/OfflineDownloadStore'
 import {
-  AppFilesReaderSessionPersistenceAdapter,
+  appReaderSessionStore,
   InMemoryReaderSessionStore,
-  PersistentReaderSessionStore,
   ReaderSessionConfig,
   ReaderSessionStore,
   createReaderSessionConfigFromComic,
@@ -724,15 +723,19 @@ struct Index {
       if (context.filesDir === undefined || context.filesDir.length === 0) {
         return
       }
-      this.readerSessionStore = new PersistentReaderSessionStore(
-        new AppFilesReaderSessionPersistenceAdapter(context.filesDir),
-      )
+      this.readerSessionStore = appReaderSessionStore(context.filesDir)
       this.readerSessionPersistenceReady = true
       this.readerProgressRevision += 1
       console.info(`[Reader] step=progress_store_reloaded reason=${reason}`)
     } catch (_error) {
       console.warn('[Reader] step=restore_progress_failed reason=session_store')
     }
+  }
+
+  private onBackupRestored(): void {
+    this.ensureLibraryPersistenceService()?.restore()
+    this.readerProgressRevision += 1
+    this.refreshLibrarySnapshot()
   }
 
   private openLibraryMangaDetail(comicId: ComicId): void {
@@ -1502,6 +1505,8 @@ struct Index {
           libraryStore: this.libraryStore,
           libraryPersistenceService: this.ensureLibraryPersistenceService(),
           readerSessionStore: this.readerSessionStore,
+          readerProgressRevision: this.readerProgressRevision,
+          onReadingStateChanged: () => { this.readerProgressRevision += 1 },
           sourceRegistry: this.sourceRegistry,
           chrome: RouterHelper.ensureMangaDetailRouteChrome(param as MangaDetailRouteParam),
           onBack: () => {
@@ -1514,6 +1519,7 @@ struct Index {
         })
       }
       .titleBar(this.mangaDetailTitleBarOpts(param as MangaDetailRouteParam))
+      .onShown(() => { this.readerProgressRevision += 1 })
     } else if (name === RouteName.SOURCE_BROWSE) {
       this.SourceBrowseDestination(param as SourceBrowseRouteParam)
     } else if (name === RouteName.SOURCE_SEARCH) {
@@ -1676,6 +1682,7 @@ struct Index {
     } else if (name === RouteName.BACKUP_MANAGEMENT) {
       HdsNavDestination() {
         BackupManagementPage({ refreshRevision: this.backupSettingsRevision,
+          onRestoreCompleted: () => { this.onBackupRestored() },
           onOpenTask: (pane: string, fileName: string) => { this.openBackupTask(pane, fileName) } })
       }
       .titleBar(this.navDestTitleBarOpts(AppStrings.get('route_backup_management_title')))
@@ -1685,6 +1692,7 @@ struct Index {
         BackupManagementPage({ pane: (param as BackupTaskRouteParam).pane,
           localFileName: (param as BackupTaskRouteParam).fileName,
           refreshRevision: this.backupSettingsRevision,
+          onRestoreCompleted: () => { this.onBackupRestored() },
           onOpenTask: (pane: string, fileName: string) => { this.openBackupTask(pane, fileName) } })
       }
       .titleBar(this.navDestTitleBarOpts(this.backupTaskTitle(param as BackupTaskRouteParam)))

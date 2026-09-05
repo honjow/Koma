@@ -16,6 +16,7 @@ import { maybeRunSourceRuntimeDeviceSmoke } from '../sourceRuntime/SourceRuntime
 import { configureSourceRuntimeHttpTransport } from '../sourceRuntime/SourceRuntimeHttpTransport'
 import { configureSourceSettingsStore } from '../sourceRuntime/SourceSettingsStore'
 import { LayoutSafeAreaBridge } from '../state/LayoutSafeAreaState'
+import { AppForegroundStateBridge } from '../state/AppForegroundState'
 import { AppStrings } from '../i18n/AppStrings'
 import { LanguageSettings } from '../i18n/LanguageSettings'
 
@@ -75,9 +76,14 @@ export default class EntryAbility extends UIAbility {
   }
 
   onForeground(): void {
+    AppForegroundStateBridge.onForeground()
     setTimeout(() => {
       this.syncRemoteProgressInBackground()
     }, 250)
+  }
+
+  onBackground(): void {
+    AppForegroundStateBridge.onBackground()
   }
 
   private configureAvoidAreas(windowStage: window.WindowStage): void {

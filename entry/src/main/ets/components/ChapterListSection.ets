@@ -628,7 +628,7 @@ export struct ChapterListSection {
             if (index < this.visibleChapters().length - 1) {
               ListDivider()
             }
-          }, (chapter: MangaChapterItem) => chapter.id)
+          }, (chapter: MangaChapterItem) => JSON.stringify([chapter.id, chapter.isRead === true]))
         }
         if (this.canShowMoreChapters()) {
           KomaActionButton({

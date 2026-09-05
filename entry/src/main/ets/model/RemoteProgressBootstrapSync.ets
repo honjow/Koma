@@ -11,7 +11,7 @@ import {
 } from './LibraryPersistence'
 import { InMemoryLibraryStore } from './LibraryStore'
 import {
-  AppFilesReaderSessionPersistenceAdapter,
+  appReaderSessionStore,
   PersistentReaderSessionStore,
 } from './ReaderSessionStore'
 import { RemoteProgressSyncService } from './RemoteProgressSyncService'
@@ -52,9 +52,7 @@ export class RemoteProgressBootstrapSync {
       )
       libraryPersistence.restore()
 
-      const sessionStore = new PersistentReaderSessionStore(
-        new AppFilesReaderSessionPersistenceAdapter(this.context.filesDir)
-      )
+      const sessionStore = appReaderSessionStore(this.context.filesDir)
       const remoteComics = libraryStore.listComics().filter((comic: Comic): boolean => {
         return comic.sourceKind === ComicSourceKind.KOMGA_REMOTE || comic.sourceKind === ComicSourceKind.KAVITA_REMOTE
       })
@@ -71,6 +69,7 @@ export class RemoteProgressBootstrapSync {
           failed: acc.failed + item.failed,
         }
       }, empty)
+      sessionStore.flush()
       RemoteProgressSyncBridge.markSuccess()
       console.info(`[BootstrapSync] step=done updated=${total.updated} synced=${total.synced} failed=${total.failed}`)
       return total

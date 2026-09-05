@@ -326,11 +326,12 @@ function getProgressChapterTitle(comic: Comic, presentation: LibraryComicPresent
   return comic.chapters.length === 0 ? comic.title : comic.chapters[0].title
 }
 
-function formatProgressText(fallbackProgressText: string, progress?: ReadingProgress): string {
+function formatProgressText(fallbackProgressText: string, progress?: ReadingProgress, completed?: boolean): string {
+  if (completed === true) return AppStrings.get('library_progress_finished')
   if (progress === undefined) {
     return fallbackProgressText
   }
-  if (progress.completed) {
+  if (completed === undefined && progress.completed) {
     return AppStrings.get('library_progress_finished')
   }
   return `${progressPercent(progress)}%`
@@ -388,7 +389,8 @@ export function createLibraryViewModelFromComics(
       id: comic.id,
       title: comic.title,
       subtitle: presentation.subtitle ?? formatSourceSubtitle(comic),
-      progressText: formatProgressText(presentation.fallbackProgressText, progress),
+      progressText: formatProgressText(presentation.fallbackProgressText, progress,
+        sessionStore === undefined ? undefined : sessionStore.comicReadingState(comic) === 'completed'),
       coverColor: presentation.coverColor,
       accentColor: presentation.accentColor,
       pageCount: comic.pageCount,

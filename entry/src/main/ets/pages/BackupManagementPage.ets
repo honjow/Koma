@@ -49,6 +49,7 @@ export struct BackupManagementPage {
   @Param localFileName: string = ''
   @Param refreshRevision: number = 0
   @Event onOpenTask: (pane: string, fileName: string) => void = (_pane: string, _fileName: string) => {}
+  @Event onRestoreCompleted: () => void = () => {}
   @Local private createLocal: boolean = false
   @Local private createEncrypted: boolean = true
   @Local private showTechnicalDetails: boolean = false
@@ -636,6 +637,7 @@ export struct BackupManagementPage {
       this.backupService().import(this.selectedBackupPayload)
     void importPromise
       .then(() => {
+        this.onRestoreCompleted()
         this.selectedBackupPayload = ''
         this.selectedEncryptedBackupPayload = ''
         this.selectedBackupPreview = undefined
