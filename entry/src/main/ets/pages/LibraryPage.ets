@@ -183,6 +183,7 @@ export struct LibraryPage {
   @Param libraryStore: LibraryStore = new InMemoryLibraryStore()
   @Param libraryComics: Comic[] = []
   @Param libraryRevision: number = 0
+  @Param libraryPreferencesRevision: number = 0
   @Param readerSessionStore: ReaderSessionStore = new InMemoryReaderSessionStore()
   @Param readerProgressRevision: number = 0
   @Local private languageState: LanguageState = connectLanguageState()
@@ -269,6 +270,11 @@ export struct LibraryPage {
   private onReaderProgressSnapshotChanged(): void {
     void this.readerProgressRevision
     this.refreshDisplayedSnapshotFromStore()
+  }
+
+  @Monitor('libraryPreferencesRevision')
+  private onLibraryPreferencesChanged(): void {
+    this.beginFilterPreferencesRestore()
   }
 
   private refreshDisplayedSnapshotFromStore(): void {
@@ -1984,9 +1990,9 @@ export struct LibraryPage {
   }
 
   @Builder
-  private LibraryList(comics: ComicCoverInfo[]) {
+  private LibraryList() {
     Column({ space: this.libraryListSpace() }) {
-      ForEach(comics, (comic: ComicCoverInfo) => {
+      ForEach(this.gridComics(), (comic: ComicCoverInfo) => {
         Stack({ alignContent: Alignment.TopEnd }) {
           ConciseListRow({
             title: comic.title,
@@ -2078,7 +2084,7 @@ export struct LibraryPage {
           if (this.hasVisibleLibraryContent()) {
             ListItem() {
               if (this.viewMode === 'list') {
-                this.LibraryList(this.gridComics())
+                this.LibraryList()
               } else if (this.isEvenDisplayedRevision()) {
                 this.LibraryGridEven(this.gridComics())
               } else {

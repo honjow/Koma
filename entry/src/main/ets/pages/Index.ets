@@ -151,6 +151,7 @@ struct Index {
   @Local private importMenuShown: boolean = false
   @Local private trackerSettingsRevision: number = 0
   @Local private backupSettingsRevision: number = 0
+  @Local private libraryPreferencesRevision: number = 0
   @Local private languageState: LanguageState = connectLanguageState()
   @Local private layoutSafeArea: LayoutSafeAreaState = connectLayoutSafeArea()
   @Local private readerOpen: boolean = false
@@ -1603,6 +1604,7 @@ struct Index {
       HdsNavDestination() {
         SettingsPage({
           pane: this.settingsPaneFromParam(param),
+          onLibraryPreferencesChanged: () => { this.libraryPreferencesRevision += 1 },
           libraryStore: this.libraryStore,
           libraryPersistenceService: this.ensureLibraryPersistenceService(),
           sourceRegistry: this.sourceRegistry,
@@ -1734,6 +1736,7 @@ struct Index {
             TabContent() {
               LibraryPage({
                 libraryStore: this.libraryStore,
+                libraryPreferencesRevision: this.libraryPreferencesRevision,
                 libraryComics: this.libraryComics,
                 libraryRevision: this.libraryRevision,
                 readerSessionStore: this.readerSessionStore,
@@ -1816,6 +1819,7 @@ struct Index {
             TabContent() {
               SettingsPage({
                 pane: 'root',
+                onLibraryPreferencesChanged: () => { this.libraryPreferencesRevision += 1 },
                 libraryStore: this.libraryStore,
                 libraryPersistenceService: this.ensureLibraryPersistenceService(),
                 sourceRegistry: this.sourceRegistry,

@@ -409,6 +409,7 @@ export function settingsPaneTitle(pane: SettingsPaneKey): string {
 
 @ComponentV2
 export struct SettingsPage {
+  @Event onLibraryPreferencesChanged: () => void = () => {}
   @Event onOpenSettingsPane: (pane: SettingsPaneKey) => void = (_pane: SettingsPaneKey) => {}
   @Event onOpenKomgaSettings: () => void = () => {}
   @Event onOpenKavitaSettings: () => void = () => {}
@@ -1787,6 +1788,7 @@ export struct SettingsPage {
       })
       .then(() => {
         console.info('[Settings] step=save_library_default_sort sortBy=' + sortBy)
+        this.onLibraryPreferencesChanged()
       })
       .catch((error: Error) => {
         console.warn('[Settings] step=save_library_default_sort_failed code=' + safeSettingsErrorCode(error))
@@ -1803,6 +1805,7 @@ export struct SettingsPage {
       })
       .then(() => {
         console.info('[Settings] step=save_library_view_mode viewMode=' + viewMode)
+        this.onLibraryPreferencesChanged()
       })
       .catch((error: Error) => {
         console.warn('[Settings] step=save_library_view_mode_failed code=' + safeSettingsErrorCode(error))
@@ -1819,6 +1822,7 @@ export struct SettingsPage {
       })
       .then(() => {
         console.info('[Settings] step=save_library_list_density listDensity=' + listDensity)
+        this.onLibraryPreferencesChanged()
       })
       .catch((error: Error) => {
         console.warn('[Settings] step=save_library_list_density_failed code=' + safeSettingsErrorCode(error))
@@ -1835,6 +1839,7 @@ export struct SettingsPage {
       })
       .then(() => {
         console.info('[Settings] step=save_library_badges enabled=' + enabled)
+        this.onLibraryPreferencesChanged()
       })
       .catch((error: Error) => {
         console.warn('[Settings] step=save_library_badges_failed code=' + safeSettingsErrorCode(error))
