@@ -1,5 +1,5 @@
 import { common } from '@kit.AbilityKit'
-import { LengthMetrics } from '@kit.ArkUI'
+import { ComponentContent } from '@kit.ArkUI'
 import { ComicCoverCard, ComicCoverInfo } from '../components/ComicCoverCard'
 import { CachedCoverImage, cachedCoverFailureKey } from '../components/CachedCoverImage'
 import { SecondaryListScaffold } from '../components/SecondaryListScaffold'
@@ -179,6 +179,35 @@ struct ContinueReadingShelfCard {
   }
 }
 
+export interface LibraryTitleBarPresentation {
+  selectionMode: boolean
+  selectedCount: number
+  menuItems: Record<string, Object>[]
+  cancelSelection: () => void
+}
+
+interface LibraryTitleMenuItem {
+  label: string
+  selected?: boolean
+  action: () => void
+}
+
+interface LibraryTitleMenuParams {
+  items: LibraryTitleMenuItem[]
+}
+
+@Builder
+function LibraryTitleMenuContent(params: LibraryTitleMenuParams) {
+  Menu() {
+    ForEach(params.items, (item: LibraryTitleMenuItem) => {
+      MenuItem({ content: item.label })
+        .selected(item.selected ?? false)
+        .selectIcon(item.selected !== undefined)
+        .onClick(item.action)
+    }, (item: LibraryTitleMenuItem, index: number) => `${index}:${item.label}`)
+  }
+}
+
 @ComponentV2
 export struct LibraryPage {
   @Param libraryStore: LibraryStore = new InMemoryLibraryStore()
@@ -234,7 +263,7 @@ export struct LibraryPage {
   }
 
   @Local private filtersShown: boolean = false
-  @Local private batchActionMenuKey: string = ''
+  private titleMenuContent?: ComponentContent<LibraryTitleMenuParams> = undefined
   @Local private comicActionMenuKey: string = ''
   @Local private failedCoverUris: string[] = []
   @Local private remoteProgress: RemoteProgressSyncState = connectRemoteProgressSyncState()
@@ -247,14 +276,95 @@ export struct LibraryPage {
   @Event onOpenReader: (comicId: ComicId, chapterId?: string) => void = (_comicId: ComicId, _chapterId?: string) => {}
   @Event onProgressStoreReloadRequested: () => void = () => {}
   @Event onImportRequested: () => void = () => {}
+  @Event onSearchRequested: () => void = () => {}
+  @Event onTitleBarChange: (presentation: LibraryTitleBarPresentation) => void =
+    (_presentation: LibraryTitleBarPresentation) => {}
   @Event onRemoveComicRequested: (comicId: ComicId) => boolean = (_comicId: ComicId) => false
   @Event onRemoveComicsRequested: (comicIds: ComicId[]) => number = (_comicIds: ComicId[]) => 0
   @Event onAssignCategoriesRequested: (comicIds: ComicId[], categoryIds?: string[]) => boolean =
     (_comicIds: ComicId[], _categoryIds?: string[]) => false
   @Event onUpdateCategoryMembershipRequested: (comicIds: ComicId[], categoryId: string, selected: boolean) => boolean =
     (_comicIds: ComicId[], _categoryId: string, _selected: boolean) => false
-  private longPressTimer: number = 0
-  private longPressComicId: ComicId = ''
+
+  @Monitor('selectionMode', 'selectedIds', 'viewMode', 'displayedRevision', 'languageState.effectiveLocale')
+  private publishTitleBar(): void {
+    const items: Record<string, Object>[] = this.selectionMode ? [
+      this.titleMenuItem(s('library_action_select_all'), $r('sys.symbol.checkmark_square'),
+        () => { this.selectAllVisibleComics() }, this.hasVisibleLibraryContent()),
+      this.titleMenuItem(s('library_action_categories'), $r('sys.symbol.folder'),
+        () => { this.openTitleMenu('categories') }, this.selectedCount() > 0, 'library-title-categories'),
+      this.titleMenuItem(s('library_batch_mark_read'), $r('sys.symbol.book'),
+        () => { this.markSelectedReadState(true) }, this.selectedCount() > 0),
+      this.titleMenuItem(s('library_batch_mark_unread'), $r('sys.symbol.book'),
+        () => { this.markSelectedReadState(false) }, this.selectedCount() > 0),
+      this.titleMenuItem(s('common_remove'), $r('sys.symbol.trash'),
+        () => { this.showBatchRemoveConfirmation() }, this.selectedRemovableCount() > 0),
+    ] : [
+      this.titleMenuItem(s('tab_search'), $r('sys.symbol.magnifyingglass'),
+        () => { this.onSearchRequested() }),
+      this.titleMenuItem(s('settings_row_library_view_mode_title'), $r('sys.symbol.square_grid_2x2'),
+        () => { this.openTitleMenu('layout') }, true, 'library-title-layout'),
+      this.titleMenuItem(s('route_import_title'), $r('sys.symbol.plus'),
+        () => { this.onImportRequested() }),
+      this.titleMenuItem(s('common_select'), $r('sys.symbol.checkmark_square'),
+        () => { this.beginSelectionMode() }, this.hasVisibleLibraryContent()),
+    ]
+    this.onTitleBarChange({
+      selectionMode: this.selectionMode,
+      selectedCount: this.selectedCount(),
+      menuItems: items,
+      cancelSelection: () => { this.exitSelectionMode() },
+    })
+  }
+
+  private titleMenuItem(label: string, icon: Resource, action: () => void,
+    isEnabled: boolean = true, componentId: string = ''): Record<string, Object> {
+    const content: Record<string, Object> = { 'label': label, 'icon': icon, 'action': action, 'isEnabled': isEnabled }
+    if (componentId.length > 0) {
+      content['componentId'] = componentId
+    }
+    const item: Record<string, Object> = { 'content': content }
+    return item
+  }
+
+  private releaseTitleMenu(content: ComponentContent<LibraryTitleMenuParams>): void {
+    if (this.titleMenuContent === content) {
+      this.titleMenuContent = undefined
+      content.dispose()
+    }
+  }
+
+  private closeTitleMenu(): void {
+    const content = this.titleMenuContent
+    if (content !== undefined) {
+      void this.getUIContext().getPromptAction().closeMenu(content)
+        .catch(() => { this.releaseTitleMenu(content) })
+    }
+  }
+
+  private openTitleMenu(key: string): void {
+    if (this.titleMenuContent !== undefined) {
+      return
+    }
+    const context = this.getUIContext()
+    const params: LibraryTitleMenuParams = { items: this.titleMenuItems(key) }
+    const content = new ComponentContent<LibraryTitleMenuParams>(context,
+      wrapBuilder<[LibraryTitleMenuParams]>(LibraryTitleMenuContent), params)
+    this.titleMenuContent = content
+    try {
+      void context.getPromptAction().openMenu(content, { id: `library-title-${key}` }, {
+        placement: Placement.BottomRight,
+        onDisappear: () => { this.releaseTitleMenu(content) },
+      }).catch(() => {
+        this.releaseTitleMenu(content)
+        this.showToast(s('common_unavailable'))
+      })
+    } catch (error) {
+      void error
+      this.releaseTitleMenu(content)
+      this.showToast(s('common_unavailable'))
+    }
+  }
 
   @Monitor('libraryComics', 'libraryRevision')
   private syncDisplayedSnapshotFromProps(): void {
@@ -579,6 +689,15 @@ export struct LibraryPage {
     this.refreshDisplayedSnapshotFromStore()
     this.saveFilterPreferences()
     console.info(`[Library] step=sort_changed sortBy=${sortBy}`)
+  }
+
+  private setViewMode(viewMode: LibraryViewMode): void {
+    if (this.viewMode === viewMode) {
+      return
+    }
+    this.markFilterPreferencesMutation()
+    this.viewMode = viewMode
+    this.saveFilterPreferences()
   }
 
   private setSourceFilter(source: LibrarySourceFilter): void {
@@ -1072,7 +1191,6 @@ export struct LibraryPage {
 
   private removeMissingSelectedComics(): void {
     if (this.selectedIds.size === 0) {
-      this.selectionMode = false
       return
     }
     const availableIds = new Set<ComicId>(this.displayedComics.map((comic: Comic): ComicId => comic.id))
@@ -1083,7 +1201,13 @@ export struct LibraryPage {
       }
     })
     this.selectedIds = nextSelectedIds
-    this.selectionMode = this.selectedIds.size > 0
+  }
+
+  private beginSelectionMode(): void {
+    this.comicActionMenuKey = ''
+    this.closeTitleMenu()
+    this.selectedIds = new Set<ComicId>()
+    this.selectionMode = true
   }
 
   private enterSelectionMode(comicId: ComicId): void {
@@ -1094,11 +1218,15 @@ export struct LibraryPage {
     nextSelectedIds.add(comicId)
     this.selectedIds = nextSelectedIds
     this.selectionMode = true
+    this.comicActionMenuKey = ''
+    this.closeTitleMenu()
     this.suppressOpenComicId = comicId
   }
 
   private exitSelectionMode(): void {
-    this.batchActionMenuKey = ''
+    this.suppressOpenComicId = ''
+    this.closeTitleMenu()
+    this.comicActionMenuKey = ''
     this.selectedIds = new Set<ComicId>()
     this.selectionMode = false
   }
@@ -1146,47 +1274,30 @@ export struct LibraryPage {
     this.onOpenReader(comicId, chapterId)
   }
 
-  private clearLongPressTimer(): void {
-    if (this.longPressTimer > 0) {
-      clearTimeout(this.longPressTimer)
-      this.longPressTimer = 0
-    }
-    this.longPressComicId = ''
-  }
-
   private handleComicTouch(comicId: ComicId, event: TouchEvent): void {
     if (!this.canSelectComic(comicId)) {
       return
     }
     if (event.type === TouchType.Down) {
       this.suppressOpenComicId = ''
-      this.clearLongPressTimer()
-      this.longPressComicId = comicId
-      this.longPressTimer = setTimeout(() => {
-        if (this.longPressComicId === comicId) {
-          this.enterSelectionMode(comicId)
-        }
-        this.longPressTimer = 0
-      }, 500)
-      return
-    }
-    if (event.type === TouchType.Up || event.type === TouchType.Cancel) {
-      this.clearLongPressTimer()
     }
   }
 
   private toggleSelection(comicId: ComicId): void {
-    if (!this.canSelectComic(comicId)) {
+    this.setComicSelected(comicId, !this.isComicSelected(comicId))
+  }
+
+  private setComicSelected(comicId: ComicId, selected: boolean): void {
+    if (!this.selectionMode || !this.canSelectComic(comicId) || this.isComicSelected(comicId) === selected) {
       return
     }
     const nextSelectedIds = new Set<ComicId>(this.selectedIds)
-    if (nextSelectedIds.has(comicId)) {
-      nextSelectedIds.delete(comicId)
-    } else {
+    if (selected) {
       nextSelectedIds.add(comicId)
+    } else {
+      nextSelectedIds.delete(comicId)
     }
     this.selectedIds = nextSelectedIds
-    this.selectionMode = this.selectedIds.size > 0
   }
 
   private selectAllVisibleComics(): void {
@@ -1197,7 +1308,6 @@ export struct LibraryPage {
       }
     })
     this.selectedIds = nextSelectedIds
-    this.selectionMode = this.selectedIds.size > 0
   }
 
   private selectedCount(): number {
@@ -1540,66 +1650,33 @@ export struct LibraryPage {
     }
   }
 
-  @Builder
-  private BatchCategoryMenu() {
-    Menu() {
-      MenuItem({ content: s('library_batch_add_favorite') })
-        .onClick(() => {
-          this.addSelectedCategory(LIBRARY_CATEGORY_FAVORITE_ID)
-        })
-      MenuItem({ content: s('library_batch_move_favorite') })
-        .onClick(() => {
-          this.assignSelectedCategory([LIBRARY_CATEGORY_FAVORITE_ID])
-        })
-      MenuItem({ content: s('library_batch_remove_favorite') })
-        .onClick(() => {
-          this.removeSelectedCategory(LIBRARY_CATEGORY_FAVORITE_ID)
-        })
-      MenuItem({ content: s('library_batch_add_read_later') })
-        .onClick(() => {
-          this.addSelectedCategory(LIBRARY_CATEGORY_READ_LATER_ID)
-        })
-      MenuItem({ content: s('library_batch_move_read_later') })
-        .onClick(() => {
-          this.assignSelectedCategory([LIBRARY_CATEGORY_READ_LATER_ID])
-        })
-      MenuItem({ content: s('library_batch_remove_read_later') })
-        .onClick(() => {
-          this.removeSelectedCategory(LIBRARY_CATEGORY_READ_LATER_ID)
-        })
-      ForEach(this.libraryStore.listCustomCategories(), (category: CustomLibraryCategory) => {
-        MenuItem({ content: s('library_batch_add_category').replace('%s', category.name) })
-          .onClick(() => {
-            this.addSelectedCategory(category.id)
-          })
-        MenuItem({ content: s('library_batch_move_category').replace('%s', category.name) })
-          .onClick(() => {
-            this.assignSelectedCategory([category.id])
-          })
-        MenuItem({ content: s('library_batch_remove_category').replace('%s', category.name) })
-          .onClick(() => {
-            this.removeSelectedCategory(category.id)
-          })
-      }, (category: CustomLibraryCategory) => category.id)
-      MenuItem({ content: s('library_batch_clear_categories') })
-        .onClick(() => {
-          this.assignSelectedCategory(undefined)
-        })
+  private titleMenuItems(key: string): LibraryTitleMenuItem[] {
+    if (key === 'layout') {
+      return [
+        { label: s('library_view_mode_grid'), selected: this.viewMode === 'grid',
+          action: () => { this.setViewMode('grid') } },
+        { label: s('library_view_mode_list'), selected: this.viewMode === 'list',
+          action: () => { this.setViewMode('list') } },
+      ]
     }
-  }
-
-  @Builder
-  private BatchReadStateMenu() {
-    Menu() {
-      MenuItem({ content: s('library_batch_mark_read') })
-        .onClick(() => {
-          this.markSelectedReadState(true)
-        })
-      MenuItem({ content: s('library_batch_mark_unread') })
-        .onClick(() => {
-          this.markSelectedReadState(false)
-        })
-    }
+    const items: LibraryTitleMenuItem[] = [
+      { label: s('library_batch_add_favorite'), action: () => { this.addSelectedCategory(LIBRARY_CATEGORY_FAVORITE_ID) } },
+      { label: s('library_batch_move_favorite'), action: () => { this.assignSelectedCategory([LIBRARY_CATEGORY_FAVORITE_ID]) } },
+      { label: s('library_batch_remove_favorite'), action: () => { this.removeSelectedCategory(LIBRARY_CATEGORY_FAVORITE_ID) } },
+      { label: s('library_batch_add_read_later'), action: () => { this.addSelectedCategory(LIBRARY_CATEGORY_READ_LATER_ID) } },
+      { label: s('library_batch_move_read_later'), action: () => { this.assignSelectedCategory([LIBRARY_CATEGORY_READ_LATER_ID]) } },
+      { label: s('library_batch_remove_read_later'), action: () => { this.removeSelectedCategory(LIBRARY_CATEGORY_READ_LATER_ID) } },
+    ]
+    this.libraryStore.listCustomCategories().forEach((category: CustomLibraryCategory) => {
+      items.push({ label: s('library_batch_add_category').replace('%s', category.name),
+        action: () => { this.addSelectedCategory(category.id) } })
+      items.push({ label: s('library_batch_move_category').replace('%s', category.name),
+        action: () => { this.assignSelectedCategory([category.id]) } })
+      items.push({ label: s('library_batch_remove_category').replace('%s', category.name),
+        action: () => { this.removeSelectedCategory(category.id) } })
+    })
+    items.push({ label: s('library_batch_clear_categories'), action: () => { this.assignSelectedCategory(undefined) } })
+    return items
   }
 
 
@@ -1768,106 +1845,28 @@ export struct LibraryPage {
     })
   }
 
+
   @Builder
-  private BatchActionBar() {
-    Column({ space: ThemeConstants.SPACE_MD }) {
-      Flex({
-        wrap: FlexWrap.Wrap,
-        justifyContent: FlexAlign.Start,
-        alignItems: ItemAlign.Center,
-        space: {
-          main: LengthMetrics.vp(ThemeConstants.SPACE_MD),
-          cross: LengthMetrics.vp(ThemeConstants.SPACE_MD),
-        },
-      }) {
-        Text(s('library_selected_count').replace('%s', `${this.selectedCount()}`))
-          .fontSize(ThemeConstants.FONT_SIZE_TITLE)
-          .fontWeight(FontWeight.Bold)
-          .fontColor(ThemeConstants.TEXT_PRIMARY)
-          .flexGrow(1)
-          .flexShrink(0)
-
-        KomaActionButton({
-          label: s('library_action_select_all'),
-          kind: 'secondary',
-          controlHeight: ThemeConstants.ACTION_CHIP_HEIGHT,
-          action: () => {
-            this.selectAllVisibleComics()
-          },
+  private ComicSelectionCheckbox(comic: ComicCoverInfo, onCover: boolean) {
+    Stack({ alignContent: Alignment.Center }) {
+      Checkbox({ name: comic.id })
+        .select(this.isComicSelected(comic.id))
+        .selectedColor(ThemeConstants.BRAND_PRIMARY)
+        .unselectedColor(ThemeConstants.TEXT_SECONDARY)
+        .width(24)
+        .height(24)
+        .margin(0)
+        .backgroundColor(ThemeConstants.CARD)
+        .borderRadius(ThemeConstants.RADIUS_ROUND)
+        .responseRegion({ x: -6, y: -6, width: 36, height: 36 })
+        .accessibilityText(comic.title)
+        .onChange((selected: boolean) => {
+          this.setComicSelected(comic.id, selected)
         })
-
-        KomaActionButton({
-          label: s('common_cancel'),
-          kind: 'secondary',
-          controlHeight: ThemeConstants.ACTION_CHIP_HEIGHT,
-          action: () => {
-            this.exitSelectionMode()
-          },
-        })
-      }
-      .width('100%')
-
-      Flex({
-        wrap: FlexWrap.Wrap,
-        justifyContent: FlexAlign.Start,
-        alignItems: ItemAlign.Center,
-        space: {
-          main: LengthMetrics.vp(ThemeConstants.SPACE_MD),
-          cross: LengthMetrics.vp(ThemeConstants.SPACE_MD),
-        },
-      }) {
-        KomaActionButton({
-          label: s('library_action_categories'),
-          kind: 'primary',
-          icon: $r('sys.symbol.chevron_down'),
-          isEnabled: this.selectedCount() > 0,
-          controlHeight: ThemeConstants.ACTION_CHIP_HEIGHT,
-          action: () => {
-            this.batchActionMenuKey = 'categories'
-          },
-        })
-          .bindMenu(this.batchActionMenuKey === 'categories', this.BatchCategoryMenu(), {
-            onDisappear: () => {
-              if (this.batchActionMenuKey === 'categories') {
-                this.batchActionMenuKey = ''
-              }
-            },
-          })
-
-        KomaActionButton({
-          label: s('library_category_read_state_title'),
-          kind: 'secondary',
-          icon: $r('sys.symbol.chevron_down'),
-          isEnabled: this.selectedCount() > 0,
-          controlHeight: ThemeConstants.ACTION_CHIP_HEIGHT,
-          action: () => {
-            this.batchActionMenuKey = 'readState'
-          },
-        })
-          .bindMenu(this.batchActionMenuKey === 'readState', this.BatchReadStateMenu(), {
-            onDisappear: () => {
-              if (this.batchActionMenuKey === 'readState') {
-                this.batchActionMenuKey = ''
-              }
-            },
-          })
-
-        KomaActionButton({
-          label: s('common_remove'),
-          kind: 'danger',
-          isEnabled: this.selectedRemovableCount() > 0,
-          controlHeight: ThemeConstants.ACTION_CHIP_HEIGHT,
-          action: () => {
-            this.showBatchRemoveConfirmation()
-          },
-        })
-      }
-      .width('100%')
     }
-    .width('100%')
-    .padding({ left: 14, right: 14, top: 12, bottom: 12 })
-    .borderRadius(ThemeConstants.RADIUS_CARD)
-    .backgroundColor(ThemeConstants.CARD)
+    .width(ThemeConstants.TOUCH_TARGET_SM)
+    .height(ThemeConstants.TOUCH_TARGET_SM)
+    .margin({ top: onCover ? ThemeConstants.SPACE_SM : 0, right: ThemeConstants.SPACE_SM })
   }
 
   @Builder
@@ -1897,7 +1896,9 @@ export struct LibraryPage {
             })
         ))
 
-      if (!this.selectionMode && this.canRemoveComic(comic.id)) {
+      if (this.selectionMode) {
+        this.ComicSelectionCheckbox(comic, true)
+      } else if (this.canRemoveComic(comic.id)) {
         KomaIconButton({
           icon: $r('sys.symbol.ellipsis_circle'),
           kind: 'secondary',
@@ -2048,8 +2049,20 @@ export struct LibraryPage {
             .onTouch((event: TouchEvent) => {
               this.handleComicTouch(comic.id, event)
             })
+            .priorityGesture(GestureGroup(GestureMode.Exclusive,
+              LongPressGesture({ fingers: 1, repeat: false, duration: 500 })
+                .onAction(() => {
+                  this.enterSelectionMode(comic.id)
+                }),
+              TapGesture()
+                .onAction(() => {
+                  this.handleComicClick(comic.id)
+                })
+            ))
 
-          if (!this.selectionMode && this.canRemoveComic(comic.id)) {
+          if (this.selectionMode) {
+            this.ComicSelectionCheckbox(comic, false)
+          } else if (this.canRemoveComic(comic.id)) {
             KomaIconButton({
               icon: $r('sys.symbol.ellipsis_circle'),
               kind: 'secondary',
@@ -2083,6 +2096,11 @@ export struct LibraryPage {
   aboutToAppear(): void {
     this.syncDisplayedSnapshotFromProps()
     this.beginFilterPreferencesRestore()
+    this.publishTitleBar()
+  }
+
+  aboutToDisappear(): void {
+    this.closeTitleMenu()
   }
 
   onBackPress(): boolean {
@@ -2120,12 +2138,6 @@ export struct LibraryPage {
             }
           }
 
-          if (this.selectionMode) {
-            ListItem() {
-              this.BatchActionBar()
-            }
-          }
-
           ListItem() {
             this.SortFilterBar()
           }
@@ -2151,6 +2163,7 @@ export struct LibraryPage {
           }
         }
       }
+
     }
     .width('100%')
     .height('100%')

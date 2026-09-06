@@ -124,6 +124,13 @@ export struct ComicCoverCard {
           })
         }
 
+        if (this.selected) {
+          Column()
+            .width('100%')
+            .height('100%')
+            .backgroundColor(ThemeConstants.SELECTED_OVERLAY)
+        }
+
         if (this.displayProgressText().length > 0) {
           Row() {
             Text(this.displayProgressText())
@@ -139,25 +146,6 @@ export struct ComicCoverCard {
           .backgroundColor(this.displayAccentColor())
         }
 
-        if (this.selected) {
-          Column()
-            .width('100%')
-            .height('100%')
-            .backgroundColor(ThemeConstants.SELECTED_OVERLAY)
-
-          Stack({ alignContent: Alignment.Center }) {
-            SymbolGlyph($r('sys.symbol.checkmark'))
-              .fontSize(ThemeConstants.FONT_SIZE_HEADING)
-              .fontColor([ThemeConstants.TEXT_ON_BRAND])
-          }
-          .width(ThemeConstants.FILTER_CHIP_HEIGHT)
-          .height(ThemeConstants.FILTER_CHIP_HEIGHT)
-          .margin({ top: 10, right: 10 })
-          .borderRadius(ThemeConstants.RADIUS_MD)
-          .backgroundColor(ThemeConstants.BRAND_PRIMARY)
-          .border({ width: 2, color: ThemeConstants.TEXT_ON_BRAND })
-          .align(Alignment.TopEnd)
-        }
       }
       .width('100%')
       .aspectRatio(0.68)

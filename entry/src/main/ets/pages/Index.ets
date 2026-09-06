@@ -14,7 +14,7 @@ import {
   ScrollEffectType,
 } from '@kit.UIDesignKit'
 import { ComponentContent } from '@kit.ArkUI'
-import { LibraryPage } from './LibraryPage'
+import { LibraryPage, LibraryTitleBarPresentation } from './LibraryPage'
 import { BrowsePage } from './BrowsePage'
 import { HistoryPage } from './HistoryPage'
 import { SearchPage } from './SearchPage'
@@ -152,6 +152,12 @@ struct Index {
   @Local private trackerSettingsRevision: number = 0
   @Local private backupSettingsRevision: number = 0
   @Local private libraryPreferencesRevision: number = 0
+  @Local private libraryTitleBar: LibraryTitleBarPresentation = {
+    selectionMode: false,
+    selectedCount: 0,
+    menuItems: [],
+    cancelSelection: () => {},
+  }
   @Local private languageState: LanguageState = connectLanguageState()
   @Local private layoutSafeArea: LayoutSafeAreaState = connectLayoutSafeArea()
   @Local private readerOpen: boolean = false
@@ -985,8 +991,15 @@ struct Index {
   }
 
   private selectRootTab(index: number): void {
+    this.leaveLibrarySelection(index)
     this.selectedTab = index
     this.tabController.changeIndex(index)
+  }
+
+  private leaveLibrarySelection(nextTab: number): void {
+    if (this.selectedTab === TabIndex.LIBRARY && nextTab !== TabIndex.LIBRARY) {
+      this.libraryTitleBar.cancelSelection()
+    }
   }
 
   private settingsPaneFromParam(param: Object): SettingsPaneKey {
@@ -1725,6 +1738,11 @@ struct Index {
       this.closeReader()
       return true
     }
+    if (this.appPathStack.getAllPathName().length === 0 && this.selectedTab === TabIndex.LIBRARY &&
+      this.libraryTitleBar.selectionMode) {
+      this.libraryTitleBar.cancelSelection()
+      return true
+    }
     return false
   }
 
@@ -1755,6 +1773,12 @@ struct Index {
                 },
                 onImportRequested: () => {
                   this.openImport()
+                },
+                onSearchRequested: () => {
+                  RouterHelper.openSearch({})
+                },
+                onTitleBarChange: (presentation: LibraryTitleBarPresentation) => {
+                  this.libraryTitleBar = presentation
                 },
                 onRemoveComicRequested: (comicId: ComicId) => {
                   return this.handleRemoveComicRequested(comicId)
@@ -1879,12 +1903,13 @@ struct Index {
             },
           } as HdsTabsFloatingStyle)
           .onChange((index: number) => {
+            this.leaveLibrarySelection(index)
             this.selectedTab = index
           })
         }
         .titleBar(this.titleBarOptions())
         .titleMode(HdsNavigationTitleMode.MINI)
-        .hideBackButton(true)
+        .hideBackButton(this.selectedTab !== TabIndex.LIBRARY || !this.libraryTitleBar.selectionMode)
         .dynamicHideTitleBar({
           hideTitleArea: false,
           hideBottomBuilder: false,
@@ -1920,30 +1945,20 @@ struct Index {
     let content: Record<string, Object> = { 'title': titleInfo }
     const menu: Record<string, Object> = {}
     if (this.selectedTab === TabIndex.LIBRARY) {
-      const searchContent: Record<string, Object> = {
-        'label': AppStrings.get('tab_search'),
-        'icon': $r('sys.symbol.magnifyingglass'),
-        'isEnabled': true,
-        'action': () => {
-          RouterHelper.openSearch({})
-        },
+      if (this.libraryTitleBar.selectionMode) {
+        titleInfo = {
+          'mainTitle': AppStrings.get('library_selected_count').replace('%s', `${this.libraryTitleBar.selectedCount}`),
+        }
+        content['title'] = titleInfo
+        const cancelContent: Record<string, Object> = {
+          'label': AppStrings.get('common_cancel'),
+          'icon': $r('sys.symbol.xmark'),
+          'action': () => { this.libraryTitleBar.cancelSelection() },
+        }
+        content['backIcon'] = cancelContent
       }
-      const searchItem: Record<string, Object> = {}
-      searchItem['content'] = searchContent
-
-      const importContent: Record<string, Object> = {
-        'label': AppStrings.get('route_import_title'),
-        'icon': $r('sys.symbol.plus'),
-        'isEnabled': true,
-        'action': () => {
-          this.openImport()
-        },
-      }
-      const importItem: Record<string, Object> = {}
-      importItem['content'] = importContent
-
-      menu['value'] = [searchItem, importItem]
-      menu['maxCount'] = 2
+      menu['value'] = this.libraryTitleBar.menuItems
+      menu['maxCount'] = 3
     } else if (this.selectedTab === TabIndex.BROWSE) {
       const manageContent: Record<string, Object> = {
         'label': AppStrings.get('route_source_package_manager_title'),
