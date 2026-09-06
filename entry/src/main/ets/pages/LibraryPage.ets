@@ -235,6 +235,7 @@ export struct LibraryPage {
 
   @Local private filtersShown: boolean = false
   @Local private batchActionMenuKey: string = ''
+  @Local private comicActionMenuKey: string = ''
   @Local private failedCoverUris: string[] = []
   @Local private remoteProgress: RemoteProgressSyncState = connectRemoteProgressSyncState()
   private filterPreferencesRestoreEpoch: number = 0
@@ -1902,9 +1903,19 @@ export struct LibraryPage {
           kind: 'secondary',
           controlSize: ThemeConstants.TOUCH_TARGET_SM,
           iconSize: ThemeConstants.FONT_SIZE_H3,
+          action: () => {
+            this.comicActionMenuKey = `grid:${comic.id}`
+          },
         })
           .margin({ top: ThemeConstants.SPACE_SM, right: ThemeConstants.SPACE_SM })
-          .bindMenu(this.ComicActionMenu(comic))
+          .bindMenu(this.comicActionMenuKey === `grid:${comic.id}`, this.ComicActionMenu(comic), {
+            placement: Placement.BottomRight,
+            onDisappear: () => {
+              if (this.comicActionMenuKey === `grid:${comic.id}`) {
+                this.comicActionMenuKey = ''
+              }
+            },
+          })
       }
     }
     .width('100%')
@@ -2019,7 +2030,7 @@ export struct LibraryPage {
   private LibraryList() {
     Column({ space: this.libraryListSpace() }) {
       ForEach(this.gridComics(), (comic: ComicCoverInfo) => {
-        Stack({ alignContent: Alignment.TopEnd }) {
+        Row({ space: ThemeConstants.SPACE_SM }) {
           ConciseListRow({
             title: comic.title,
             subtitle: this.listRowSubtitle(comic),
@@ -2033,9 +2044,7 @@ export struct LibraryPage {
               this.LibraryListCover(comic)
             },
           })
-            .padding({ top: ThemeConstants.SPACE_XS, bottom: ThemeConstants.SPACE_XS })
-            .borderRadius(ThemeConstants.LIST_ROW_RADIUS)
-            .backgroundColor(this.isComicSelected(comic.id) ? ThemeConstants.SOFT_TINT : ThemeConstants.CARD)
+            .layoutWeight(1)
             .onTouch((event: TouchEvent) => {
               this.handleComicTouch(comic.id, event)
             })
@@ -2046,12 +2055,26 @@ export struct LibraryPage {
               kind: 'secondary',
               controlSize: ThemeConstants.TOUCH_TARGET_SM,
               iconSize: ThemeConstants.FONT_SIZE_H3,
+              action: () => {
+                this.comicActionMenuKey = `list:${comic.id}`
+              },
             })
-              .margin({ top: ThemeConstants.SPACE_SM, right: ThemeConstants.SPACE_SM })
-              .bindMenu(this.ComicActionMenu(comic))
+              .margin({ right: ThemeConstants.SPACE_SM })
+              .bindMenu(this.comicActionMenuKey === `list:${comic.id}`, this.ComicActionMenu(comic), {
+                placement: Placement.BottomRight,
+                onDisappear: () => {
+                  if (this.comicActionMenuKey === `list:${comic.id}`) {
+                    this.comicActionMenuKey = ''
+                  }
+                },
+              })
           }
         }
         .width('100%')
+        .padding({ top: ThemeConstants.SPACE_XS, bottom: ThemeConstants.SPACE_XS })
+        .borderRadius(ThemeConstants.LIST_ROW_RADIUS)
+        .backgroundColor(this.isComicSelected(comic.id) ? ThemeConstants.SOFT_TINT : ThemeConstants.CARD)
+        .alignItems(VerticalAlign.Center)
       }, (comic: ComicCoverInfo) => this.listRowRenderKey(comic))
     }
     .width('100%')
