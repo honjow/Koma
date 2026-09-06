@@ -314,7 +314,6 @@ export struct ReaderChrome {
     if (key === 'page-number') next.showPageNumber = value
     if (key === 'page-animation') next.pageTurnAnimation = value
     if (key === 'awake') next.keepScreenAwake = value
-    if (key === 'trim-margins') next.trimPageMarginsEnabled = value
     if (key === 'volume') next.volumeKeyNavigationEnabled = value
     this.update(next)
   }
@@ -513,8 +512,6 @@ export struct ReaderChrome {
             ListDivider()
             if (!this.isWebtoonLayout()) {
               ConciseListRow({ title: s('settings_row_reader_wide_image_mode_title'), trailingText: getReaderWideImageModeLabel(this.preferences.wideImageMode), trailingDropdown: true, dropdownMenuEnabled: true, dropdownMenuBuilder: (select: (action: () => void) => void) => { this.WideMenu(select) } })
-              ListDivider()
-              ConciseListRow({ title: s('settings_row_reader_trim_page_margins_title'), hasSwitch: true, checked: this.preferences.trimPageMarginsEnabled, showChevron: false, switchAction: (value: boolean) => { this.setToggle('trim-margins', value) } })
             }
           }
         Blank().height(ThemeConstants.SPACE_XL)

@@ -126,7 +126,6 @@ import {
   getReaderTapZoneInvertLabel,
   getReaderTapZonePresetLabel,
   getReaderThemeModeLabel,
-  getReaderTrimPageMarginsLabel,
   getReaderVolumeKeyBehaviorLabel,
   getReaderWideImageModeLabel,
   getReaderVolumeKeyNavigationLabel,
@@ -197,7 +196,6 @@ const READER_PAGED_ROW_KEYS: string[] = [
   'reader-auto-page',
   'reader-tap-zone-preset',
   'reader-tap-zone-invert',
-  'reader-trim-page-margins',
   'reader-wide-image-mode',
 ]
 
@@ -230,7 +228,6 @@ function createSettingsSections(): SettingsSection[] {
         { key: 'reader-tap-zone-preset', titleKey: 'settings_row_reader_tap_zone_preset_title', detailKey: 'settings_row_reader_tap_zone_preset_detail' },
         { key: 'reader-tap-zone-invert', titleKey: 'settings_row_reader_tap_zone_invert_title', detailKey: 'settings_row_reader_tap_zone_invert_detail' },
         { key: 'reader-page-gap', titleKey: 'settings_row_reader_page_gap_title', detailKey: 'settings_row_reader_page_gap_detail' },
-        { key: 'reader-trim-page-margins', titleKey: 'settings_row_reader_trim_page_margins_title', detailKey: 'settings_row_reader_trim_page_margins_detail' },
         { key: 'reader-wide-image-mode', titleKey: 'settings_row_reader_wide_image_mode_title', detailKey: 'settings_row_reader_wide_image_mode_detail' },
         { key: 'reader-volume-key-navigation', titleKey: 'settings_row_reader_volume_key_navigation_title', detailKey: 'settings_row_reader_volume_key_navigation_detail' },
         { key: 'reader-volume-key-behavior', titleKey: 'settings_row_reader_volume_key_behavior_title', detailKey: 'settings_row_reader_volume_key_behavior_detail' },
@@ -440,7 +437,6 @@ export struct SettingsPage {
   @Local private readerTapZonePreset: ReaderTapZonePreset = 'edge'
   @Local private readerTapZoneInvert: ReaderTapZoneInvert = 'none'
   @Local private readerPageGapMode: ReaderPageGapMode = 'normal'
-  @Local private readerTrimPageMarginsEnabled: boolean = false
   @Local private readerWideImageMode: ReaderWideImageMode = 'keep_single'
   @Local private readerVolumeKeyNavigationEnabled: boolean = false
   @Local private readerVolumeKeyBehavior: ReaderVolumeKeyBehavior = 'up_previous_down_next'
@@ -629,9 +625,6 @@ export struct SettingsPage {
     }
     if (row.key === 'reader-page-gap') {
       return getReaderPageGapModeLabel(this.readerPageGapMode)
-    }
-    if (row.key === 'reader-trim-page-margins') {
-      return getReaderTrimPageMarginsLabel(this.readerTrimPageMarginsEnabled)
     }
     if (row.key === 'reader-wide-image-mode') {
       return getReaderWideImageModeLabel(this.readerWideImageMode)
@@ -1080,7 +1073,6 @@ export struct SettingsPage {
     this.readerTapZonePreset = preferences.tapZonePreset
     this.readerTapZoneInvert = preferences.tapZoneInvert
     this.readerPageGapMode = preferences.pageGapMode
-    this.readerTrimPageMarginsEnabled = preferences.trimPageMarginsEnabled
     this.readerWideImageMode = preferences.wideImageMode
     this.readerVolumeKeyNavigationEnabled = preferences.volumeKeyNavigationEnabled
     this.readerVolumeKeyBehavior = preferences.volumeKeyBehavior
@@ -1516,17 +1508,6 @@ export struct SettingsPage {
       })
       .catch((error: Error) => {
         console.warn('[Settings] step=save_reader_page_gap_failed code=' + safeSettingsErrorCode(error))
-      })
-  }
-
-  private saveReaderTrimPageMarginsEnabled(trimPageMarginsEnabled: boolean): void {
-    this.readerTrimPageMarginsEnabled = trimPageMarginsEnabled
-    void this.preferencesStore().saveTrimPageMarginsEnabled(trimPageMarginsEnabled)
-      .then(() => {
-        console.info('[Settings] step=save_reader_trim_page_margins value=' + trimPageMarginsEnabled)
-      })
-      .catch((error: Error) => {
-        console.warn('[Settings] step=save_reader_trim_page_margins_failed code=' + safeSettingsErrorCode(error))
       })
   }
 
@@ -2182,7 +2163,6 @@ export struct SettingsPage {
       row.key === 'reader-fullscreen' ||
       row.key === 'reader-page-animation' ||
       row.key === 'reader-keep-screen-awake' ||
-      row.key === 'reader-trim-page-margins' ||
       row.key === 'reader-volume-key-navigation'
   }
 
@@ -2210,9 +2190,6 @@ export struct SettingsPage {
     }
     if (row.key === 'reader-keep-screen-awake') {
       return this.keepReaderScreenAwake
-    }
-    if (row.key === 'reader-trim-page-margins') {
-      return this.readerTrimPageMarginsEnabled
     }
     if (row.key === 'reader-volume-key-navigation') {
       return this.readerVolumeKeyNavigationEnabled
@@ -2252,8 +2229,6 @@ export struct SettingsPage {
       this.saveReaderProgressControls(value)
     } else if (row.key === 'reader-keep-screen-awake') {
       this.saveReaderKeepScreenAwake(value)
-    } else if (row.key === 'reader-trim-page-margins') {
-      this.saveReaderTrimPageMarginsEnabled(value)
     } else if (row.key === 'reader-volume-key-navigation') {
       this.saveReaderVolumeKeyNavigationEnabled(value)
     } else if (row.key === 'download-wifi-only') {
