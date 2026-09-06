@@ -3,7 +3,6 @@ import { ReaderMode, getReaderModeLabel } from '../model/ReaderSessionStore'
 import {
   ReaderBackgroundMode,
   ReaderColumnMode,
-  ReaderImageFitMode,
   ReaderImageScalingQuality,
   ReaderPageGapMode,
   ReaderPageMode,
@@ -15,7 +14,6 @@ import {
   ReaderWideImageMode,
   DEFAULT_READER_PREFERENCES,
   getReaderBackgroundModeLabel,
-  getReaderImageFitModeLabel,
   getReaderPageGapModeLabel,
   getReaderTapZoneInvertLabel,
   getReaderTapZonePresetLabel,
@@ -238,12 +236,6 @@ export struct ReaderChrome {
     this.update(next)
   }
 
-  private setImageFit(mode: ReaderImageFitMode): void {
-    const next = this.copyPreferences()
-    next.imageFitMode = mode
-    this.update(next)
-  }
-
   private setImageScalingQuality(mode: ReaderImageScalingQuality): void {
     const next = this.copyPreferences()
     next.imageScalingQuality = mode
@@ -373,15 +365,6 @@ export struct ReaderChrome {
   }
 
   @Builder
-  private ImageFitMenu(select: (action: () => void) => void) {
-    Menu() {
-      MenuItem({ content: getReaderImageFitModeLabel('contain'), symbolEndIcon: this.preferences.imageFitMode === 'contain' ? new SymbolGlyphModifier($r('sys.symbol.checkmark')) : undefined }).onClick(() => { select(() => { this.setImageFit('contain') }) })
-      MenuItem({ content: getReaderImageFitModeLabel('fit_width'), symbolEndIcon: this.preferences.imageFitMode === 'fit_width' ? new SymbolGlyphModifier($r('sys.symbol.checkmark')) : undefined }).onClick(() => { select(() => { this.setImageFit('fit_width') }) })
-      MenuItem({ content: getReaderImageFitModeLabel('fit_height'), symbolEndIcon: this.preferences.imageFitMode === 'fit_height' ? new SymbolGlyphModifier($r('sys.symbol.checkmark')) : undefined }).onClick(() => { select(() => { this.setImageFit('fit_height') }) })
-    }
-  }
-
-  @Builder
   private TapZoneMenu(select: (action: () => void) => void) {
     Menu() {
       MenuItem({ content: getReaderTapZonePresetLabel('right_left'), symbolEndIcon: this.preferences.tapZonePreset === 'right_left' ? new SymbolGlyphModifier($r('sys.symbol.checkmark')) : undefined }).onClick(() => { select(() => { this.setTapZone('right_left') }) })
@@ -506,10 +489,6 @@ export struct ReaderChrome {
           GroupedListSection() {
             ConciseListRow({ title: s('settings_row_reader_background_title'), trailingText: getReaderBackgroundModeLabel(this.preferences.backgroundMode), trailingDropdown: true, dropdownMenuEnabled: true, dropdownMenuBuilder: (select: (action: () => void) => void) => { this.BackgroundMenu(select) } })
             ListDivider()
-            if (!this.isWebtoonLayout()) {
-              ConciseListRow({ title: s('settings_row_reader_image_fit_title'), trailingText: getReaderImageFitModeLabel(this.preferences.imageFitMode), trailingDropdown: true, dropdownMenuEnabled: true, dropdownMenuBuilder: (select: (action: () => void) => void) => { this.ImageFitMenu(select) } })
-              ListDivider()
-            }
             ConciseListRow({ title: s('reader_image_scaling_quality_title'), trailingText: this.scalingQualityLabel(), trailingDropdown: true, dropdownMenuEnabled: true, dropdownMenuBuilder: (select: (action: () => void) => void) => { this.ScalingQualityMenu(select) } })
             ListDivider()
             ConciseListRow({ title: s('reader_show_page_number_title'), hasSwitch: true, checked: this.preferences.showPageNumber, showChevron: false, switchAction: (value: boolean) => { this.setToggle('page-number', value) } })

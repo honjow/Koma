@@ -105,7 +105,6 @@ import {
 import {
   DEFAULT_READER_PREFERENCES,
   ReaderBackgroundMode,
-  ReaderImageFitMode,
   ReaderImageScalingQuality,
   ReaderPageGapMode,
   ReaderPageMode,
@@ -120,7 +119,6 @@ import {
   ReaderWideImageMode,
   applyReaderThemeMode,
   getReaderBackgroundModeLabel,
-  getReaderImageFitModeLabel,
   getReaderKeepScreenAwakeLabel,
   getReaderPageGapModeLabel,
   getReaderPageModeLabel,
@@ -197,7 +195,6 @@ const READER_PAGED_ROW_KEYS: string[] = [
   'reader-spread-layout',
   'reader-page-animation',
   'reader-auto-page',
-  'reader-image-fit',
   'reader-tap-zone-preset',
   'reader-tap-zone-invert',
   'reader-trim-page-margins',
@@ -230,7 +227,6 @@ function createSettingsSections(): SettingsSection[] {
         { key: 'reader-auto-page', titleKey: 'reader_auto_page_title', detailKey: 'reader_auto_page_detail' },
         { key: 'reader-preload-pages', titleKey: 'reader_preload_pages_title', detailKey: 'reader_preload_pages_detail' },
         { key: 'reader-keep-screen-awake', titleKey: 'settings_row_reader_keep_screen_awake_title', detailKey: 'settings_row_reader_keep_screen_awake_detail' },
-        { key: 'reader-image-fit', titleKey: 'settings_row_reader_image_fit_title', detailKey: 'settings_row_reader_image_fit_detail' },
         { key: 'reader-tap-zone-preset', titleKey: 'settings_row_reader_tap_zone_preset_title', detailKey: 'settings_row_reader_tap_zone_preset_detail' },
         { key: 'reader-tap-zone-invert', titleKey: 'settings_row_reader_tap_zone_invert_title', detailKey: 'settings_row_reader_tap_zone_invert_detail' },
         { key: 'reader-page-gap', titleKey: 'settings_row_reader_page_gap_title', detailKey: 'settings_row_reader_page_gap_detail' },
@@ -441,7 +437,6 @@ export struct SettingsPage {
   @Local private readerPreloadPages: number = 2
   @Local private showReaderProgressControls: boolean = true
   @Local private keepReaderScreenAwake: boolean = true
-  @Local private readerImageFitMode: ReaderImageFitMode = 'contain'
   @Local private readerTapZonePreset: ReaderTapZonePreset = 'edge'
   @Local private readerTapZoneInvert: ReaderTapZoneInvert = 'none'
   @Local private readerPageGapMode: ReaderPageGapMode = 'normal'
@@ -625,9 +620,6 @@ export struct SettingsPage {
     }
     if (row.key === 'reader-keep-screen-awake') {
       return getReaderKeepScreenAwakeLabel(this.keepReaderScreenAwake)
-    }
-    if (row.key === 'reader-image-fit') {
-      return getReaderImageFitModeLabel(this.readerImageFitMode)
     }
     if (row.key === 'reader-tap-zone-preset') {
       return getReaderTapZonePresetLabel(this.readerTapZonePreset)
@@ -1085,7 +1077,6 @@ export struct SettingsPage {
     this.readerPreloadPages = preferences.preloadPages
     this.showReaderProgressControls = preferences.showProgressControls
     this.keepReaderScreenAwake = preferences.keepScreenAwake
-    this.readerImageFitMode = preferences.imageFitMode
     this.readerTapZonePreset = preferences.tapZonePreset
     this.readerTapZoneInvert = preferences.tapZoneInvert
     this.readerPageGapMode = preferences.pageGapMode
@@ -1491,17 +1482,6 @@ export struct SettingsPage {
       })
       .catch((error: Error) => {
         console.warn('[Settings] step=save_reader_keep_screen_awake_failed code=' + safeSettingsErrorCode(error))
-      })
-  }
-
-  private saveReaderImageFitMode(imageFitMode: ReaderImageFitMode): void {
-    this.readerImageFitMode = imageFitMode
-    void this.preferencesStore().saveImageFitMode(imageFitMode)
-      .then(() => {
-        console.info('[Settings] step=save_reader_image_fit value=' + imageFitMode)
-      })
-      .catch((error: Error) => {
-        console.warn('[Settings] step=save_reader_image_fit_failed code=' + safeSettingsErrorCode(error))
       })
   }
 
@@ -2175,7 +2155,6 @@ export struct SettingsPage {
       row.key === 'reader-image-scaling' ||
       row.key === 'reader-auto-page' ||
       row.key === 'reader-preload-pages' ||
-      row.key === 'reader-image-fit' ||
       row.key === 'reader-tap-zone-preset' ||
       row.key === 'reader-tap-zone-invert' ||
       row.key === 'reader-page-gap' ||
@@ -2356,10 +2335,6 @@ export struct SettingsPage {
         ForEach([0, 1, 2, 3, 4, 5], (pages: number) => {
           this.SelectionMenuItem(select, `${pages}`, this.readerPreloadPages === pages, () => { this.saveReaderPreloadPages(pages) })
         }, (pages: number) => `${pages}`)
-      } else if (row.key === 'reader-image-fit') {
-        this.SelectionMenuItem(select, s('reader_image_fit_screen'), this.readerImageFitMode === 'contain', () => { this.saveReaderImageFitMode('contain') })
-        this.SelectionMenuItem(select, s('reader_image_fit_width'), this.readerImageFitMode === 'fit_width', () => { this.saveReaderImageFitMode('fit_width') })
-        this.SelectionMenuItem(select, s('reader_image_fit_height'), this.readerImageFitMode === 'fit_height', () => { this.saveReaderImageFitMode('fit_height') })
       } else if (row.key === 'reader-tap-zone-preset') {
         this.SelectionMenuItem(select, s('reader_tap_zone_edge'), this.readerTapZonePreset === 'edge', () => { this.saveReaderTapZonePreset('edge') })
         this.SelectionMenuItem(select, s('reader_tap_zone_wide'), this.readerTapZonePreset === 'wide_edges', () => { this.saveReaderTapZonePreset('wide_edges') })
