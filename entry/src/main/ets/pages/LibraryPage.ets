@@ -1,4 +1,5 @@
 import { common } from '@kit.AbilityKit'
+import { LengthMetrics } from '@kit.ArkUI'
 import { ComicCoverCard, ComicCoverInfo } from '../components/ComicCoverCard'
 import { CachedCoverImage, cachedCoverFailureKey } from '../components/CachedCoverImage'
 import { SecondaryListScaffold } from '../components/SecondaryListScaffold'
@@ -233,6 +234,7 @@ export struct LibraryPage {
   }
 
   @Local private filtersShown: boolean = false
+  @Local private batchActionMenuKey: string = ''
   @Local private failedCoverUris: string[] = []
   @Local private remoteProgress: RemoteProgressSyncState = connectRemoteProgressSyncState()
   private filterPreferencesRestoreEpoch: number = 0
@@ -1095,6 +1097,7 @@ export struct LibraryPage {
   }
 
   private exitSelectionMode(): void {
+    this.batchActionMenuKey = ''
     this.selectedIds = new Set<ComicId>()
     this.selectionMode = false
   }
@@ -1155,6 +1158,7 @@ export struct LibraryPage {
       return
     }
     if (event.type === TouchType.Down) {
+      this.suppressOpenComicId = ''
       this.clearLongPressTimer()
       this.longPressComicId = comicId
       this.longPressTimer = setTimeout(() => {
@@ -1765,58 +1769,99 @@ export struct LibraryPage {
 
   @Builder
   private BatchActionBar() {
-    Row({ space: ThemeConstants.SPACE_MD }) {
-      Text(s('library_selected_count').replace('%s', `${this.selectedCount()}`))
-        .fontSize(ThemeConstants.FONT_SIZE_TITLE)
-        .fontWeight(FontWeight.Bold)
-        .fontColor(ThemeConstants.TEXT_PRIMARY)
-        .layoutWeight(1)
-
-      KomaActionButton({
-        label: s('library_action_select_all'),
-        kind: 'secondary',
-        controlHeight: ThemeConstants.ACTION_CHIP_HEIGHT,
-        action: () => {
-          this.selectAllVisibleComics()
+    Column({ space: ThemeConstants.SPACE_MD }) {
+      Flex({
+        wrap: FlexWrap.Wrap,
+        justifyContent: FlexAlign.Start,
+        alignItems: ItemAlign.Center,
+        space: {
+          main: LengthMetrics.vp(ThemeConstants.SPACE_MD),
+          cross: LengthMetrics.vp(ThemeConstants.SPACE_MD),
         },
-      })
+      }) {
+        Text(s('library_selected_count').replace('%s', `${this.selectedCount()}`))
+          .fontSize(ThemeConstants.FONT_SIZE_TITLE)
+          .fontWeight(FontWeight.Bold)
+          .fontColor(ThemeConstants.TEXT_PRIMARY)
+          .flexGrow(1)
+          .flexShrink(0)
 
-      KomaActionButton({
-        label: s('common_cancel'),
-        kind: 'secondary',
-        controlHeight: ThemeConstants.ACTION_CHIP_HEIGHT,
-        action: () => {
-          this.exitSelectionMode()
+        KomaActionButton({
+          label: s('library_action_select_all'),
+          kind: 'secondary',
+          controlHeight: ThemeConstants.ACTION_CHIP_HEIGHT,
+          action: () => {
+            this.selectAllVisibleComics()
+          },
+        })
+
+        KomaActionButton({
+          label: s('common_cancel'),
+          kind: 'secondary',
+          controlHeight: ThemeConstants.ACTION_CHIP_HEIGHT,
+          action: () => {
+            this.exitSelectionMode()
+          },
+        })
+      }
+      .width('100%')
+
+      Flex({
+        wrap: FlexWrap.Wrap,
+        justifyContent: FlexAlign.Start,
+        alignItems: ItemAlign.Center,
+        space: {
+          main: LengthMetrics.vp(ThemeConstants.SPACE_MD),
+          cross: LengthMetrics.vp(ThemeConstants.SPACE_MD),
         },
-      })
+      }) {
+        KomaActionButton({
+          label: s('library_action_categories'),
+          kind: 'primary',
+          icon: $r('sys.symbol.chevron_down'),
+          isEnabled: this.selectedCount() > 0,
+          controlHeight: ThemeConstants.ACTION_CHIP_HEIGHT,
+          action: () => {
+            this.batchActionMenuKey = 'categories'
+          },
+        })
+          .bindMenu(this.batchActionMenuKey === 'categories', this.BatchCategoryMenu(), {
+            onDisappear: () => {
+              if (this.batchActionMenuKey === 'categories') {
+                this.batchActionMenuKey = ''
+              }
+            },
+          })
 
-      KomaActionButton({
-        label: s('library_action_categories'),
-        kind: 'primary',
-        icon: $r('sys.symbol.chevron_down'),
-        isEnabled: this.selectedCount() > 0,
-        controlHeight: ThemeConstants.ACTION_CHIP_HEIGHT,
-      })
-        .bindMenu(this.BatchCategoryMenu())
+        KomaActionButton({
+          label: s('library_category_read_state_title'),
+          kind: 'secondary',
+          icon: $r('sys.symbol.chevron_down'),
+          isEnabled: this.selectedCount() > 0,
+          controlHeight: ThemeConstants.ACTION_CHIP_HEIGHT,
+          action: () => {
+            this.batchActionMenuKey = 'readState'
+          },
+        })
+          .bindMenu(this.batchActionMenuKey === 'readState', this.BatchReadStateMenu(), {
+            onDisappear: () => {
+              if (this.batchActionMenuKey === 'readState') {
+                this.batchActionMenuKey = ''
+              }
+            },
+          })
 
-      KomaActionButton({
-        label: s('library_category_read_state_title'),
-        kind: 'secondary',
-        icon: $r('sys.symbol.chevron_down'),
-        isEnabled: this.selectedCount() > 0,
-        controlHeight: ThemeConstants.ACTION_CHIP_HEIGHT,
-      })
-        .bindMenu(this.BatchReadStateMenu())
-
-      KomaActionButton({
-        label: s('common_remove'),
-        kind: 'danger',
-        isEnabled: this.selectedRemovableCount() > 0,
-        controlHeight: ThemeConstants.ACTION_CHIP_HEIGHT,
-        action: () => {
-          this.showBatchRemoveConfirmation()
-        },
-      })
+        KomaActionButton({
+          label: s('common_remove'),
+          kind: 'danger',
+          isEnabled: this.selectedRemovableCount() > 0,
+          controlHeight: ThemeConstants.ACTION_CHIP_HEIGHT,
+          action: () => {
+            this.showBatchRemoveConfirmation()
+          },
+        })
+      }
+      .width('100%')
     }
     .width('100%')
     .padding({ left: 14, right: 14, top: 12, bottom: 12 })
@@ -1827,58 +1872,39 @@ export struct LibraryPage {
   @Builder
   private LibraryGridCell(comic: ComicCoverInfo) {
     Stack({ alignContent: Alignment.TopEnd }) {
-      if (this.canRemoveComic(comic.id)) {
-        ComicCoverCard({
-          comic: comic,
-          title: comic.title,
-          subtitle: comic.subtitle,
-          progressText: comic.progressText,
-          coverColor: comic.coverColor,
-          accentColor: comic.accentColor,
-          categoryLabels: comic.categoryLabels ?? [],
-          selected: this.isComicSelected(comic.id),
+      ComicCoverCard({
+        comic: comic,
+        title: comic.title,
+        subtitle: comic.subtitle,
+        progressText: comic.progressText,
+        coverColor: comic.coverColor,
+        accentColor: comic.accentColor,
+        categoryLabels: comic.categoryLabels ?? [],
+        selected: this.isComicSelected(comic.id),
+      })
+        .onTouch((event: TouchEvent) => {
+          this.handleComicTouch(comic.id, event)
         })
-          .onTouch((event: TouchEvent) => {
-            this.handleComicTouch(comic.id, event)
-          })
-          .priorityGesture(GestureGroup(GestureMode.Exclusive,
-            LongPressGesture({ fingers: 1, repeat: false, duration: 500 })
-              .onAction(() => {
-                this.enterSelectionMode(comic.id)
-              }),
-            TapGesture()
-              .onAction(() => {
-                this.handleComicClick(comic.id)
-              })
-          ))
-
-        if (!this.selectionMode) {
-          KomaIconButton({
-            icon: $r('sys.symbol.ellipsis_circle'),
-            kind: 'secondary',
-            controlSize: ThemeConstants.TOUCH_TARGET_SM,
-            iconSize: ThemeConstants.FONT_SIZE_H3,
-          })
-            .margin({ top: ThemeConstants.SPACE_SM, right: ThemeConstants.SPACE_SM })
-            .bindMenu(this.ComicActionMenu(comic))
-        }
-      } else {
-        ComicCoverCard({
-          comic: comic,
-          title: comic.title,
-          subtitle: comic.subtitle,
-          progressText: comic.progressText,
-          coverColor: comic.coverColor,
-          accentColor: comic.accentColor,
-          categoryLabels: comic.categoryLabels ?? [],
-          selected: false,
-        })
-          .gesture(TapGesture()
+        .priorityGesture(GestureGroup(GestureMode.Exclusive,
+          LongPressGesture({ fingers: 1, repeat: false, duration: 500 })
             .onAction(() => {
-              if (!this.selectionMode) {
-                this.openComicDetailFromLibrary(comic.id)
-              }
-            }))
+              this.enterSelectionMode(comic.id)
+            }),
+          TapGesture()
+            .onAction(() => {
+              this.handleComicClick(comic.id)
+            })
+        ))
+
+      if (!this.selectionMode && this.canRemoveComic(comic.id)) {
+        KomaIconButton({
+          icon: $r('sys.symbol.ellipsis_circle'),
+          kind: 'secondary',
+          controlSize: ThemeConstants.TOUCH_TARGET_SM,
+          iconSize: ThemeConstants.FONT_SIZE_H3,
+        })
+          .margin({ top: ThemeConstants.SPACE_SM, right: ThemeConstants.SPACE_SM })
+          .bindMenu(this.ComicActionMenu(comic))
       }
     }
     .width('100%')
