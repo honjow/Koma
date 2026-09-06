@@ -38,14 +38,17 @@ export class SourceBrowseRouteChromeState {
 @ObservedV2
 export class SourceSearchRouteChromeState {
   readonly sourceName: string
+  readonly initialQuery: string
   @Trace filtersAvailable: boolean = false
   @Trace filterRequestSeq: number = 0
   @Trace query: string = ''
   @Trace queryChangeSeq: number = 0
   @Trace querySubmitSeq: number = 0
 
-  constructor(sourceName: string = '') {
+  constructor(sourceName: string = '', initialQuery: string = '') {
     this.sourceName = sourceName
+    this.initialQuery = initialQuery.trim()
+    this.query = this.initialQuery
   }
 
   requestFilters(): void {

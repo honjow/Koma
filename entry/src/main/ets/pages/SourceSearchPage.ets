@@ -43,6 +43,9 @@ export struct SourceSearchPage {
   private handledFilterRequestSeq: number = 0
   private handledQueryChangeSeq: number = 0
   private handledQuerySubmitSeq: number = 0
+  private searchInitializationStarted: boolean = false
+  private searchFiltersReady: boolean = false
+  private routeActive: boolean = false
   @Event onMangaTap: (manga: SourceManga) => void = (_manga: SourceManga) => {}
 
   private currentSource(): SourceRuntimeRegistryInstalledSourceSummary {
@@ -59,6 +62,9 @@ export struct SourceSearchPage {
   private scheduleSearch(value: string): void {
     this.query = value
     this.clearPendingSearchTimer()
+    if (!this.searchFiltersReady) {
+      return
+    }
     if (value.trim().length === 0) {
       this.viewModel.clearSearch(this.currentSource())
       return
@@ -72,6 +78,9 @@ export struct SourceSearchPage {
   private submitSearch(value: string): void {
     this.query = value
     this.clearPendingSearchTimer()
+    if (!this.searchFiltersReady) {
+      return
+    }
     if (value.trim().length === 0) {
       this.viewModel.clearSearch(this.currentSource())
       return
@@ -80,7 +89,7 @@ export struct SourceSearchPage {
   }
 
   private rerunSearchIfReady(): void {
-    if (this.query.trim().length > 0) {
+    if (this.searchFiltersReady && this.query.trim().length > 0) {
       void this.viewModel.runSearch(this.currentSource(), this.query)
     }
   }
@@ -220,9 +229,9 @@ export struct SourceSearchPage {
   }
 
   @Builder
-  private ResultsGrid(manga: SourceManga[]) {
+  private ResultsGrid() {
     SourceMangaGrid({
-      manga,
+      manga: this.viewModel.searchResults,
       onMangaTap: (selected: SourceManga) => {
         this.onMangaTap(selected)
       },
@@ -266,14 +275,35 @@ export struct SourceSearchPage {
   }
 
   aboutToDisappear(): void {
+    this.routeActive = false
     this.clearPendingSearchTimer()
   }
 
   aboutToAppear(): void {
+    this.routeActive = true
     this.viewModel.loadInstalledSources()
     this.query = this.chrome.query
     this.syncTitleActions()
-    void this.viewModel.ensureSearchFilters(this.currentSource())
+    void this.initializeSearch()
+  }
+
+  private async initializeSearch(): Promise<void> {
+    if (this.searchInitializationStarted) {
+      return
+    }
+    this.searchInitializationStarted = true
+    await this.viewModel.ensureSearchFilters(this.currentSource(), this.chrome.initialQuery.length === 0)
+    if (!this.routeActive) {
+      return
+    }
+    this.searchFiltersReady = true
+    this.syncTitleActions()
+    this.handledQueryChangeSeq = this.chrome.queryChangeSeq
+    this.handledQuerySubmitSeq = this.chrome.querySubmitSeq
+    this.query = this.chrome.query
+    if (this.query.trim().length > 0) {
+      this.submitSearch(this.query)
+    }
   }
 
   build() {
@@ -303,7 +333,7 @@ export struct SourceSearchPage {
             }
           } else {
             ListItem() {
-              this.ResultsGrid(this.viewModel.searchResults)
+              this.ResultsGrid()
             }
             if (this.viewModel.errorMessage.length > 0) {
               ListItem() {

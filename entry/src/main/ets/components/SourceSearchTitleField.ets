@@ -41,7 +41,7 @@ export struct SourceSearchTitleField {
       KomaSearchField({
         value: this.fieldText,
         placeholder: this.placeholder(),
-        autoFocus: true,
+        autoFocus: this.chrome.initialQuery.length === 0,
         showSearchButton: true,
         searchButtonText: s('tab_search'),
         useSystemMaterial: true,

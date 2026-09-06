@@ -28,6 +28,8 @@ import { safeSearchDiagnostic, searchStateUserText } from '../model/SearchStateM
 import { AppStrings } from '../i18n/AppStrings'
 import { connectLanguageState, LanguageState } from '../state/LanguageState'
 import { SearchRouteChromeState } from '../state/SearchRouteChromeState'
+import { appSourceRuntimeRegistry } from '../sourceRuntime/SourceRuntimeAppRegistry'
+import { SourceRuntimeRegistryInstalledSourceSummary } from '../sourceRuntime/SourceRuntimeRegistry'
 
 const SEARCH_DEBOUNCE_MS: number = 400
 
@@ -65,6 +67,7 @@ export struct SearchPage {
   private handledQueryChangeSeq: number = 0
   private handledQuerySubmitSeq: number = 0
   private sourceFilterLoaded: boolean = false
+  private resultsQuery: string = ''
   private service?: CrossSearchService
   private historyStore?: SearchHistoryStore
   @Param libraryStore: LibraryStore = createSeededLibraryStore()
@@ -148,6 +151,7 @@ export struct SearchPage {
       return
     }
     const sourceFilter = this.sourceFilter
+    this.resultsQuery = query
     this.loading = true
     this.sections = service.pendingSections(sourceFilter)
     this.feedbackText = ''
@@ -834,6 +838,46 @@ export struct SearchPage {
       .width('100%')
   }
 
+  private continuationSource(section: CrossSearchSection): SourceRuntimeRegistryInstalledSourceSummary | undefined {
+    if (section.state !== 'ready' || section.sourceKind !== 'wasm' || !section.id.startsWith('wasm:')) {
+      return undefined
+    }
+    const sourceId = section.id.substring('wasm:'.length)
+    return appSourceRuntimeRegistry.listInstalledSourceSummaries().find((source: SourceRuntimeRegistryInstalledSourceSummary) => {
+      return source.sourceId === sourceId && source.enabled && source.capabilities.includes('search')
+    })
+  }
+
+  private openSectionResults(section: CrossSearchSection): void {
+    const source = this.continuationSource(section)
+    if (source !== undefined && this.resultsQuery.length > 0) {
+      RouterHelper.pushSourceSearch({ source: source }, this.resultsQuery)
+    }
+  }
+
+  @Builder
+  private ResultsSectionHeader(section: CrossSearchSection) {
+    if (this.continuationSource(section) !== undefined) {
+      Row() {
+        Text(this.sectionTitle(section))
+          .fontSize(ThemeConstants.FONT_SIZE_BODY)
+          .fontWeight(FontWeight.Medium)
+          .fontColor(ThemeConstants.TEXT_SECONDARY)
+          .layoutWeight(1)
+        SymbolGlyph($r('sys.symbol.chevron_right'))
+          .fontSize(ThemeConstants.FONT_SIZE_BODY)
+          .fontColor([ThemeConstants.TEXT_SECONDARY])
+      }
+      .padding({ left: 4, right: 4, top: 4, bottom: 2 })
+      .width('100%')
+      .onClick(() => {
+        this.openSectionResults(section)
+      })
+    } else {
+      this.SectionHeader(this.sectionTitle(section))
+    }
+  }
+
   build() {
     Stack({ alignContent: Alignment.TopEnd }) {
       SecondaryListScaffold({
@@ -910,7 +954,7 @@ export struct SearchPage {
               }
             } else if (section.state === 'ready' && section.items.length > 0) {
               ListItem() {
-                this.SectionHeader(this.sectionTitle(section))
+                this.ResultsSectionHeader(section)
               }
               ForEach(section.items, (item: CrossSearchResultItem) => {
                 ListItem() {

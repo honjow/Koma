@@ -467,6 +467,7 @@ export class BrowseViewModel {
   @Trace searchNextCursor: string = ''
   private browseRequestId: number = 0
   private searchRequestId: number = 0
+  private persistSearchFilters: boolean = true
   private failedBrowseListing?: SourceListingDescriptor
 
   constructor(registry?: SourceRuntimeRegistry) {
@@ -777,7 +778,8 @@ export class BrowseViewModel {
     )
   }
 
-  async ensureSearchFilters(source: SourceRuntimeRegistryInstalledSourceSummary): Promise<void> {
+  async ensureSearchFilters(source: SourceRuntimeRegistryInstalledSourceSummary, persistFilters: boolean = true): Promise<void> {
+    this.persistSearchFilters = persistFilters
     const sourceChanged = this.selectedSource === undefined || this.selectedSource.sourceId !== source.sourceId
     if (sourceChanged) {
       this.clearSearch(source)
@@ -787,13 +789,13 @@ export class BrowseViewModel {
     }
     if (this.filters.length > 0) {
       if (Object.keys(this.searchFilterValues).length === 0) {
-        this.searchFilterValues = this.defaultSourceFilterValues(this.filters)
+        this.searchFilterValues = this.initialSearchFilterValues()
         this.restoreSavedSearchFilterValues(source.sourceId)
       }
       return
     }
     this.filters = await this.loadSourceFilters(source)
-    this.searchFilterValues = this.defaultSourceFilterValues(this.filters)
+    this.searchFilterValues = this.initialSearchFilterValues()
     this.restoreSavedSearchFilterValues(source.sourceId)
   }
 
@@ -808,12 +810,18 @@ export class BrowseViewModel {
   }
 
   resetSearchFilters(): void {
-    this.searchFilterValues = this.defaultSourceFilterValues(this.filters)
+    this.searchFilterValues = this.initialSearchFilterValues()
     this.clearSavedSourceFilterValues('search')
   }
 
   hasSearchFilterChanges(): boolean {
-    return !this.sourceFilterValuesEqual(this.searchFilterValues, this.defaultSourceFilterValues(this.filters))
+    return !this.sourceFilterValuesEqual(this.searchFilterValues, this.initialSearchFilterValues())
+  }
+
+  private initialSearchFilterValues(): SourceMangaListFilters {
+    // Global search sends no filter values. Its continuation is route-local and
+    // must neither inherit nor overwrite an independent source search's choices.
+    return this.persistSearchFilters ? this.defaultSourceFilterValues(this.filters) : {}
   }
 
   async loadMoreBrowse(): Promise<void> {
@@ -1123,6 +1131,9 @@ export class BrowseViewModel {
   }
 
   private restoreSavedSearchFilterValues(sourceId: string): void {
+    if (!this.persistSearchFilters) {
+      return
+    }
     this.searchFilterValues = this.mergeSavedSourceFilterValues(sourceId, 'search', this.searchFilterValues)
   }
 
@@ -1144,6 +1155,9 @@ export class BrowseViewModel {
   }
 
   private saveSourceFilterValues(kind: SourceFilterPreferenceKind, values: SourceMangaListFilters): void {
+    if (kind === 'search' && !this.persistSearchFilters) {
+      return
+    }
     const sourceId = this.selectedSource?.sourceId
     if (sourceId === undefined) {
       return
@@ -1152,6 +1166,9 @@ export class BrowseViewModel {
   }
 
   private clearSavedSourceFilterValues(kind: SourceFilterPreferenceKind): void {
+    if (kind === 'search' && !this.persistSearchFilters) {
+      return
+    }
     const sourceId = this.selectedSource?.sourceId
     if (sourceId === undefined) {
       return

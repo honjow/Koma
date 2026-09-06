@@ -145,14 +145,14 @@ export class RouterHelper {
     stack.pushPath({ name: RouteName.SOURCE_BROWSE, param: routeParam })
   }
 
-  static pushSourceSearch(param: SourceRouteParam): void {
+  static pushSourceSearch(param: SourceRouteParam, initialQuery: string = ''): void {
     const stack = RouterHelper.appPathStack
     if (stack === undefined) {
       return
     }
     const routeParam: SourceSearchRouteParam = {
       source: param.source,
-      chrome: new SourceSearchRouteChromeState(param.source.displayName),
+      chrome: new SourceSearchRouteChromeState(param.source.displayName, initialQuery),
     }
     stack.pushPath({ name: RouteName.SOURCE_SEARCH, param: routeParam })
   }
