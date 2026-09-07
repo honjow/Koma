@@ -1,4 +1,5 @@
 import { fileIo as fs } from '@kit.CoreFileKit'
+import { OfflineDownloadRuntime } from './OfflineDownloadRuntime'
 import {
   ComicId,
 } from './ComicModels'
@@ -355,7 +356,7 @@ export class OfflineDownloadQueueStore {
     const store = new OfflineDownloadStore(this.filesDir)
     let changed = false
     const entries = document.entries.map((entry: OfflineDownloadQueueEntry): OfflineDownloadQueueEntry => {
-      if (!shouldReconcileEntry(entry)) {
+      if (!shouldReconcileEntry(entry) || OfflineDownloadRuntime.isActive(this.filesDir, entry.comicId, entry.chapterId)) {
         return entry
       }
       const validation = persistManifestState ?
@@ -377,7 +378,7 @@ export class OfflineDownloadQueueStore {
         next.failureReasonCode = undefined
       } else if (validation.status === OfflineDownloadedChapterStatus.PARTIAL) {
         next.status = OfflineDownloadStatus.PARTIAL
-        next.failureReasonCode = validation.reasonCode ?? 'page_file_missing'
+        next.failureReasonCode = validation.manifest?.failureReasonCode ?? validation.reasonCode ?? 'page_file_missing'
       } else if (entry.status === OfflineDownloadStatus.DOWNLOADING &&
         validation.reasonCode === 'status_not_reader_ready') {
         next.status = OfflineDownloadStatus.FAILED
@@ -397,9 +398,9 @@ export class OfflineDownloadQueueStore {
   }
 
   async recoverFromManifests(): Promise<OfflineDownloadQueueRecoverySummary> {
-    const document = this.loadDocument()
     const store = new OfflineDownloadStore(this.filesDir)
     const scan = await store.scanDownloadedChapterManifests()
+    const document = this.loadDocument()
     const entries = document.entries.slice()
     const summary: OfflineDownloadQueueRecoverySummary = {
       scannedCount: scan.scannedManifestCount,
@@ -412,6 +413,10 @@ export class OfflineDownloadQueueStore {
     }
     let changed = false
     scan.validations.forEach((validation: OfflineDownloadManifestValidation) => {
+      if (OfflineDownloadRuntime.isActive(this.filesDir, validation.comicId, validation.chapterId)) {
+        summary.skippedCount += 1
+        return
+      }
       const recovered = entryFromManifestValidation(validation)
       if (recovered === undefined) {
         summary.skippedCount += 1
@@ -434,6 +439,10 @@ export class OfflineDownloadQueueStore {
         return
       }
       const existing = entries[existingIndex]
+      if (existing.updatedAt > recovered.updatedAt) {
+        summary.skippedCount += 1
+        return
+      }
       const next = normalizeEntry({
         comicId: existing.comicId,
         chapterId: existing.chapterId,
@@ -487,6 +496,7 @@ export class OfflineDownloadQueueStore {
   }
 
   pauseAllQueuedWork(): OfflineDownloadQueuePreferences {
+    OfflineDownloadRuntime.requestPause(this.filesDir)
     const preferences = this.loadPreferences()
     preferences.isPaused = true
     return this.savePreferences(preferences)
@@ -615,6 +625,7 @@ export class OfflineDownloadQueueStore {
     } finally {
       unlinkQuietly(tempPath)
     }
+    OfflineDownloadRuntime.publish(this.filesDir)
   }
 
   private ensureRoot(): void {

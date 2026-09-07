@@ -1320,7 +1320,7 @@ export struct MangaDetailPage {
         const hydration = await this.ensureSourceChapterPages(resolvedChapterId)
         if (!hydration.hydrated) {
           const chapterTitle = this.chapters.find((item: MangaChapterItem): boolean => item.id === resolvedChapterId)?.title
-          service.blockChapterDownload(comic, resolvedChapterId, hydration.reasonCode ?? 'pages_missing', {
+          await service.blockChapterDownload(comic, resolvedChapterId, hydration.reasonCode ?? 'pages_missing', {
             comicTitle: comic.title,
             chapterTitle,
           })
@@ -1478,7 +1478,7 @@ export struct MangaDetailPage {
               const comic = this.libraryStore?.getComic(this.currentComicId())
               if (comic !== undefined) {
                 const chapterTitle = this.chapters.find((item: MangaChapterItem): boolean => item.id === chapterId)?.title
-                service.blockChapterDownload(comic, chapterId, hydration.reasonCode ?? 'pages_missing', {
+                await service.blockChapterDownload(comic, chapterId, hydration.reasonCode ?? 'pages_missing', {
                   comicTitle: comic.title,
                   chapterTitle,
                 })

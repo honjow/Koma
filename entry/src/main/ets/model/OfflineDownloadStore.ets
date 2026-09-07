@@ -647,6 +647,13 @@ export class OfflineDownloadStore {
       validation.status === OfflineDownloadedChapterStatus.CORRUPT) {
       return validation
     }
+    if (validation.reasonCode === 'status_not_reader_ready' && manifest.status === OfflineDownloadStatus.DOWNLOADING) {
+      // A cold runtime has no active writer. Keep the recorded pages for a retry.
+      manifest.status = manifest.pages.length > 0 ? OfflineDownloadStatus.PARTIAL : OfflineDownloadStatus.FAILED
+      manifest.failureReasonCode = 'download_interrupted'
+      this.saveManifest(manifest)
+      return this.validateDownloadedChapter(comicId, chapterId)
+    }
     if (validation.status === OfflineDownloadedChapterStatus.PARTIAL) {
       this.saveManifest({
         schemaVersion: manifest.schemaVersion,
@@ -663,12 +670,11 @@ export class OfflineDownloadStore {
         updatedAt: manifest.updatedAt,
         pages: manifest.pages.filter((page: OfflineDownloadedPage): boolean => fs.accessSync(page.localPath)),
         integrityHash: manifest.integrityHash,
-        failureReasonCode: validation.reasonCode ?? 'page_file_missing',
+        failureReasonCode: manifest.failureReasonCode ?? validation.reasonCode ?? 'page_file_missing',
       })
       return this.validateDownloadedChapter(comicId, chapterId)
     }
-    if (validation.reasonCode === 'pages_missing' ||
-      (validation.reasonCode === 'status_not_reader_ready' && manifest.status === OfflineDownloadStatus.DOWNLOADING)) {
+    if (validation.reasonCode === 'pages_missing') {
       this.saveManifest({
         schemaVersion: manifest.schemaVersion,
         sourceKind: manifest.sourceKind,
@@ -684,7 +690,7 @@ export class OfflineDownloadStore {
         updatedAt: manifest.updatedAt,
         pages: [],
         integrityHash: manifest.integrityHash,
-        failureReasonCode: validation.reasonCode === 'pages_missing' ? 'pages_missing' : 'download_interrupted',
+        failureReasonCode: 'pages_missing',
       })
       return this.validateDownloadedChapter(comicId, chapterId)
     }

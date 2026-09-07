@@ -1,4 +1,6 @@
 import { fileIo as fs } from '@kit.CoreFileKit'
+import { taskpool } from '@kit.ArkTS'
+import { OfflineDownloadRuntime } from './OfflineDownloadRuntime'
 import { connection } from '@kit.NetworkKit'
 import {
   Chapter,
@@ -162,6 +164,11 @@ export function canRunOfflineDownloadQueueNow(preferences: OfflineDownloadQueueP
   return !preferences.isPaused && (!preferences.wifiOnly || isDefaultNetworkWifi())
 }
 
+@Concurrent
+function initializeOfflineDownloadQueue(filesDir: string): void {
+  new OfflineDownloadQueueStore(filesDir).reconcileWithManifests()
+}
+
 export class OfflineDownloadService {
   private readonly store: OfflineDownloadStore
   private readonly queueStore: OfflineDownloadQueueStore
@@ -171,11 +178,25 @@ export class OfflineDownloadService {
     this.queueStore = queueStore ?? new OfflineDownloadQueueStore(store.filesRootDir())
   }
 
+  static ensureQueueInitialized(filesDir: string): Promise<void> {
+    return OfflineDownloadRuntime.initialize(filesDir, async (): Promise<void> => {
+      await taskpool.execute(new taskpool.Task(initializeOfflineDownloadQueue, filesDir))
+      OfflineDownloadRuntime.publish(filesDir)
+    })
+  }
+
   getChapterSummary(comicId: string, chapterId: string): OfflineDownloadSummary | undefined {
     return this.store.loadSummary(comicId, chapterId)
   }
 
-  blockChapterDownload(comic: Comic, chapterId: string, reasonCode: string, labels?: OfflineDownloadLabels): OfflineChapterDownloadManifest {
+  async blockChapterDownload(comic: Comic, chapterId: string, reasonCode: string, labels?: OfflineDownloadLabels): Promise<OfflineChapterDownloadManifest> {
+    const filesDir = this.store.filesRootDir()
+    await OfflineDownloadService.ensureQueueInitialized(filesDir)
+    return OfflineDownloadRuntime.run(filesDir, OfflineDownloadRuntime.key(filesDir, comic.id, chapterId),
+      async (): Promise<OfflineChapterDownloadManifest> => this.saveBlockedChapter(comic, chapterId, reasonCode, labels))
+  }
+
+  private saveBlockedChapter(comic: Comic, chapterId: string, reasonCode: string, labels?: OfflineDownloadLabels): OfflineChapterDownloadManifest {
     const chapter = comic.chapters.find((item: Chapter): boolean => item.id === chapterId)
     let manifest = this.store.createManifest(
       comic.id,
@@ -193,6 +214,15 @@ export class OfflineDownloadService {
   }
 
   async downloadChapter(comic: Comic, chapterId: string, labels?: OfflineDownloadLabels): Promise<OfflineChapterDownloadManifest> {
+    const filesDir = this.store.filesRootDir()
+    await OfflineDownloadService.ensureQueueInitialized(filesDir)
+    const key = OfflineDownloadRuntime.key(filesDir, comic.id, chapterId)
+    return OfflineDownloadRuntime.run(filesDir, key, () => this.runChapterDownload(comic, chapterId, key, labels))
+  }
+
+  private async runChapterDownload(
+    comic: Comic, chapterId: string, executionKey: string, labels?: OfflineDownloadLabels,
+  ): Promise<OfflineChapterDownloadManifest> {
     const initialPreferences = this.queueStore.loadPreferences()
     this.queueStore.upsert({
       comicId: comic.id,
@@ -296,9 +326,9 @@ export class OfflineDownloadService {
     try {
       for (let index = 0; index < config.totalPages; index += 1) {
         const preferences = this.queueStore.loadPreferences()
-        if (!this.canDownloadNow(preferences)) {
+        if (OfflineDownloadRuntime.isPauseRequested(executionKey) || !this.canDownloadNow(preferences)) {
           manifest.status = manifest.downloadedPageCount > 0 ? OfflineDownloadStatus.PARTIAL : OfflineDownloadStatus.QUEUED
-          manifest.failureReasonCode = preferences.isPaused ? 'paused' : 'wifi_only'
+          manifest.failureReasonCode = OfflineDownloadRuntime.isPauseRequested(executionKey) || preferences.isPaused ? 'paused' : 'wifi_only'
           manifest = this.store.saveManifest(manifest)
           this.queueStore.upsert(this.queueStore.fromManifest(manifest, labels?.comicTitle ?? comic.title, labels?.chapterTitle ?? chapter.title))
           return manifest

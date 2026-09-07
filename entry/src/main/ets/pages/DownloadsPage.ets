@@ -1,5 +1,4 @@
 import { common } from '@kit.AbilityKit'
-import { taskpool } from '@kit.ArkTS'
 import { SymbolGlyphModifier } from '@kit.ArkUI'
 import { CachedCoverImage } from '../components/CachedCoverImage'
 import { SecondaryListScaffold } from '../components/SecondaryListScaffold'
@@ -12,6 +11,7 @@ import { Comic } from '../model/ComicModels'
 import { LibraryStore } from '../model/LibraryStore'
 import { LibraryStorePersistenceService } from '../model/LibraryPersistence'
 import { canRunOfflineDownloadQueueNow, OfflineDownloadService } from '../model/OfflineDownloadService'
+import { OfflineDownloadRuntime } from '../model/OfflineDownloadRuntime'
 import {
   OfflineDownloadedChapterStatus,
   OfflineDownloadStatus,
@@ -38,11 +38,6 @@ import { appSourceRuntimeRegistry } from '../sourceRuntime/SourceRuntimeAppRegis
 
 function s(name: string): string {
   return AppStrings.get(name)
-}
-
-@Concurrent
-function reconcileOfflineDownloadQueueTask(filesDir: string): OfflineDownloadQueueEntry[] {
-  return new OfflineDownloadQueueStore(filesDir).reconcileWithManifests()
 }
 
 enum DownloadQueueFilter {
@@ -76,8 +71,8 @@ export struct DownloadsPage {
   @Local private filter: DownloadQueueFilter = DownloadQueueFilter.ALL
   @Local private recoveryText: string = ''
   @Local private actionMenuKey: string = ''
-  private deferredReconcileTimer: number = 0
-  private reconcileRequestId: number = 0
+  private unsubscribeQueue: (() => void) | undefined = undefined
+  private queueVisible: boolean = false
   @Event onOpenReader: (comicId: string, chapterId?: string) => void =
     (_comicId: string, _chapterId?: string) => {}
   @Event onLibraryChanged: () => void = () => {}
@@ -90,47 +85,38 @@ export struct DownloadsPage {
     return new OfflineDownloadQueueStore(this.context().filesDir)
   }
 
-  private clearDeferredReconcileTimer(): void {
-    if (this.deferredReconcileTimer !== 0) {
-      clearTimeout(this.deferredReconcileTimer)
-      this.deferredReconcileTimer = 0
-    }
-    this.reconcileRequestId += 1
-  }
-
-  private scheduleDeferredReconcile(): void {
-    this.clearDeferredReconcileTimer()
-    const requestId = this.reconcileRequestId
-    this.deferredReconcileTimer = setTimeout(() => {
-      this.deferredReconcileTimer = 0
-      void this.runDeferredReconcile(requestId)
-    }, 0)
-  }
-
-  private async runDeferredReconcile(requestId: number): Promise<void> {
-    const filesDir = this.context().filesDir
+  private async initializeQueue(): Promise<void> {
     try {
-      const task: taskpool.Task = new taskpool.Task(reconcileOfflineDownloadQueueTask, filesDir)
-      const entries = await taskpool.execute(task) as OfflineDownloadQueueEntry[]
-      if (requestId !== this.reconcileRequestId) {
-        return
+      await OfflineDownloadService.ensureQueueInitialized(this.context().filesDir)
+      if (this.queueVisible) {
+        this.loadQueue()
       }
-      this.entries = entries
     } catch (error) {
       const e = error as Error
       console.warn('[Downloads] step=deferred_reconcile_failed code=' + e.message)
+    } finally {
+      if (this.busyKey === 'initialize') {
+        this.busyKey = ''
+      }
     }
   }
 
-  private loadQueue(reconcileManifests: boolean = true): void {
-    this.clearDeferredReconcileTimer()
+  private loadQueue(): void {
     const store = this.queueStore()
-    this.entries = reconcileManifests ? store.reconcileWithManifests() : store.load()
+    this.entries = store.load()
     this.preferences = store.loadPreferences()
   }
 
   private rowKey(entry: OfflineDownloadQueueEntry): string {
     return `${entry.comicId}::${entry.chapterId}`
+  }
+
+  private entryForKey(key: string): OfflineDownloadQueueEntry | undefined {
+    return this.entries.find((entry: OfflineDownloadQueueEntry) => this.rowKey(entry) === key)
+  }
+
+  private groupForId(comicId: string): DownloadComicGroup | undefined {
+    return this.visibleGroups().find((group: DownloadComicGroup) => group.comicId === comicId)
   }
 
   private visibleEntries(): OfflineDownloadQueueEntry[] {
@@ -368,6 +354,9 @@ export struct DownloadsPage {
   }
 
   private handlePrimaryQueueAction(): void {
+    if (!OfflineDownloadRuntime.isInitialized(this.context().filesDir)) {
+      return
+    }
     if (this.preferences.isPaused) {
       this.resumeQueuedDownloads()
       return
@@ -447,6 +436,9 @@ export struct DownloadsPage {
   }
 
   private blockUnavailableEntry(entry: OfflineDownloadQueueEntry): void {
+    if (!OfflineDownloadRuntime.isInitialized(this.context().filesDir)) {
+      return
+    }
     const blocked = this.queueStore().upsert({
       comicId: entry.comicId,
       chapterId: entry.chapterId,
@@ -463,16 +455,16 @@ export struct DownloadsPage {
     })
   }
 
-  private blockSourcePagesUnavailable(
+  private async blockSourcePagesUnavailable(
     comic: Comic,
     entry: OfflineDownloadQueueEntry,
     reasonCode: string
-  ): OfflineDownloadQueueEntry {
+  ): Promise<OfflineDownloadQueueEntry> {
     const service = new OfflineDownloadService(
       new OfflineDownloadStore(this.context().filesDir),
       this.queueStore()
     )
-    const manifest = service.blockChapterDownload(comic, entry.chapterId, reasonCode, {
+    const manifest = await service.blockChapterDownload(comic, entry.chapterId, reasonCode, {
       comicTitle: entry.comicTitle ?? comic.title,
       chapterTitle: entry.chapterTitle,
     })
@@ -538,8 +530,8 @@ export struct DownloadsPage {
     try {
       const hydration = await this.ensureSourcePagesForDownload(comic, entry.chapterId)
       if (!hydration.hydrated) {
-        this.blockSourcePagesUnavailable(comic, entry, hydration.reasonCode ?? 'pages_missing')
-        this.loadQueue(false)
+        await this.blockSourcePagesUnavailable(comic, entry, hydration.reasonCode ?? 'pages_missing')
+        this.loadQueue()
         this.showToast(s('downloads_toast_retry_failed'))
         return
       }
@@ -640,7 +632,7 @@ export struct DownloadsPage {
 
   private pauseQueuedDownloads(): void {
     this.preferences = this.queueStore().pauseAllQueuedWork()
-    this.loadQueue(false)
+    this.loadQueue()
     this.showToast(s('downloads_toast_paused_queued'))
   }
 
@@ -678,22 +670,22 @@ export struct DownloadsPage {
     if (this.busyKey.length > 0) {
       return
     }
-    this.preferences = this.queueStore().resumeAllQueuedWork()
-    if (!this.canStartQueueWork()) {
-      return
-    }
-    const targets = this.queuedEntries()
-    if (targets.length === 0) {
-      this.loadQueue()
-      this.showToast(s('downloads_toast_no_queued'))
-      return
-    }
     this.busyKey = 'batch-resume'
-    void this.runResumeBatch(targets)
+    void this.runResumeBatch()
   }
 
-  private async runResumeBatch(targets: OfflineDownloadQueueEntry[]): Promise<void> {
+  private async runResumeBatch(): Promise<void> {
     try {
+      await OfflineDownloadRuntime.waitForPausedExecutions(this.context().filesDir)
+      this.preferences = this.queueStore().resumeAllQueuedWork()
+      this.loadQueue()
+      if (!this.canStartQueueWork()) {
+        return
+      }
+      const targets = this.entries.filter((entry: OfflineDownloadQueueEntry): boolean => {
+        return entry.status === OfflineDownloadStatus.QUEUED ||
+          (entry.status === OfflineDownloadStatus.PARTIAL && entry.failureReasonCode === 'paused')
+      })
       const resumed = await this.runForegroundDownloadBatch(targets)
       this.loadQueue()
       this.showToast(resumed > 0 ? s('downloads_toast_resumed_queued') : s('downloads_toast_no_resumable'))
@@ -712,7 +704,7 @@ export struct DownloadsPage {
     }
     try {
       this.preferences = this.queueStore().setWifiOnly(wifiOnly)
-      this.loadQueue(false)
+      this.loadQueue()
     } catch (error) {
       void error
       console.warn('[Downloads] step=save_wifi_only_failed failed=true reason=queue_preference')
@@ -769,7 +761,7 @@ export struct DownloadsPage {
         }
         const hydration = await this.ensureSourcePagesForDownload(comic, entry.chapterId)
         if (!hydration.hydrated) {
-          this.blockSourcePagesUnavailable(comic, entry, hydration.reasonCode ?? 'pages_missing')
+          await this.blockSourcePagesUnavailable(comic, entry, hydration.reasonCode ?? 'pages_missing')
           continue
         }
         try {
@@ -934,10 +926,6 @@ export struct DownloadsPage {
     this.openDownloadEntry(entry)
   }
 
-  private rowMenuKey(entry: OfflineDownloadQueueEntry): string {
-    return `row:${this.rowKey(entry)}`
-  }
-
   private closeActionMenu(): void {
     this.actionMenuKey = ''
   }
@@ -1028,11 +1016,22 @@ export struct DownloadsPage {
   }
 
   aboutToAppear(): void {
-    // Render the parsed queue snapshot on the first frame; per-entry manifest
-    // reconciliation runs off the UI thread so entry no longer blocks for seconds.
-    this.entries = this.queueStore().load()
-    this.preferences = this.queueStore().loadPreferences()
-    this.scheduleDeferredReconcile()
+    this.queueVisible = true
+    this.unsubscribeQueue?.()
+    this.unsubscribeQueue = OfflineDownloadRuntime.subscribe(this.context().filesDir, () => {
+      this.loadQueue()
+    })
+    this.loadQueue()
+    if (!OfflineDownloadRuntime.isInitialized(this.context().filesDir)) {
+      this.busyKey = 'initialize'
+    }
+    void this.initializeQueue()
+  }
+
+  aboutToDisappear(): void {
+    this.queueVisible = false
+    this.unsubscribeQueue?.()
+    this.unsubscribeQueue = undefined
   }
 
   @Builder
@@ -1070,7 +1069,7 @@ export struct DownloadsPage {
             KomaActionButton({
               label: this.primaryQueueActionLabel(),
               kind: this.primaryQueueActionKind(),
-              isEnabled: !this.preferences.isPaused || this.busyKey.length === 0,
+              isEnabled: this.busyKey !== 'initialize' && (!this.preferences.isPaused || this.busyKey.length === 0),
               compact: true,
               controlHeight: ThemeConstants.ACTION_CHIP_HEIGHT,
               action: () => {
@@ -1139,43 +1138,54 @@ export struct DownloadsPage {
   }
 
   @Builder
-  private DownloadRowMenu(entry: OfflineDownloadQueueEntry) {
-    Menu() {
-      MenuItem({ content: s('downloads_action_open_manga') })
-        .onClick(() => {
-          this.openDownloadEntry(entry)
-        })
-      if (this.canRetry(entry)) {
-        MenuItem({ content: this.busyKey === this.rowKey(entry) ? s('common_retrying') : s('common_retry') })
-          .enabled(this.busyKey.length === 0 && !this.preferences.isPaused)
+  private DownloadRowMenu(key: string) {
+    if (this.entryForKey(key) !== undefined) {
+      Menu() {
+        MenuItem({ content: s('downloads_action_open_manga') })
           .onClick(() => {
-            this.retryDownload(entry)
+            const entry = this.entryForKey(key)
+            if (entry !== undefined) {
+              this.openDownloadEntry(entry)
+            }
           })
-      }
-      if (this.canRemove(entry)) {
-        MenuItem({ content: s('downloads_action_delete_files') })
-          .enabled(this.busyKey.length === 0)
-          .onClick(() => {
-            this.confirmRemoveDownload(entry)
-          })
+        if (this.canRetry(this.entryForKey(key)!)) {
+          MenuItem({ content: this.busyKey === this.rowKey(this.entryForKey(key)!) ? s('common_retrying') : s('common_retry') })
+            .enabled(this.busyKey.length === 0 && !this.preferences.isPaused)
+            .onClick(() => {
+              const entry = this.entryForKey(key)
+              if (entry !== undefined) {
+                this.retryDownload(entry)
+              }
+            })
+        }
+        if (this.canRemove(this.entryForKey(key)!)) {
+          MenuItem({ content: s('downloads_action_delete_files') })
+            .enabled(this.busyKey.length === 0)
+            .onClick(() => {
+              const entry = this.entryForKey(key)
+              if (entry !== undefined) {
+                this.confirmRemoveDownload(entry)
+              }
+            })
+        }
       }
     }
   }
 
   @Builder
-  private DownloadCover(group: DownloadComicGroup) {
+  private DownloadCover(comicId: string) {
     Stack({ alignContent: Alignment.Center }) {
       SymbolGlyph($r('sys.symbol.book'))
         .fontSize(ThemeConstants.FONT_SIZE_H2)
         .fontColor([ThemeConstants.TEXT_TERTIARY])
-      if ((this.libraryStore?.getComic(group.comicId)?.coverUri ?? '').length > 0) {
+      if ((this.libraryStore?.getComic(comicId)?.coverUri ?? '').length > 0) {
         CachedCoverImage({
-          uri: this.libraryStore?.getComic(group.comicId)?.coverUri ?? '',
+          uri: this.libraryStore?.getComic(comicId)?.coverUri ?? '',
           objectFit: ImageFit.Cover,
-          sourceRuntimeId: this.libraryStore?.getComic(group.comicId)?.sourceRuntimeId ?? '',
-          sourceImageId: this.libraryStore?.getComic(group.comicId)?.remoteResourceId ?? group.comicId,
-          sourceKind: this.libraryStore?.getComic(group.comicId)?.sourceKind,
-          remoteServerId: this.libraryStore?.getComic(group.comicId)?.remoteServerId ?? '',
+          sourceRuntimeId: this.libraryStore?.getComic(comicId)?.sourceRuntimeId ?? '',
+          sourceImageId: this.libraryStore?.getComic(comicId)?.remoteResourceId ?? comicId,
+          sourceKind: this.libraryStore?.getComic(comicId)?.sourceKind,
+          remoteServerId: this.libraryStore?.getComic(comicId)?.remoteServerId ?? '',
           decodeMaxEdge: 192,
         })
       }
@@ -1188,119 +1198,129 @@ export struct DownloadsPage {
   }
 
   @Builder
-  private DownloadStatusIcon(entry: OfflineDownloadQueueEntry) {
-    SymbolGlyph(this.entryStatusIcon(entry))
-      .fontSize(ThemeConstants.FONT_SIZE_H3)
-      .fontColor([this.entryStatusColor(entry)])
+  private DownloadStatusIcon(key: string) {
+    if (this.entryForKey(key) !== undefined) {
+      SymbolGlyph(this.entryStatusIcon(this.entryForKey(key)!))
+        .fontSize(ThemeConstants.FONT_SIZE_H3)
+        .fontColor([this.entryStatusColor(this.entryForKey(key)!)])
+    }
   }
 
   @Builder
-  private DownloadChapterRow(entry: OfflineDownloadQueueEntry) {
-    Row({ space: ThemeConstants.SPACE_SM }) {
-      Row({ space: ThemeConstants.SPACE_MD }) {
-        this.DownloadStatusIcon(entry)
+  private DownloadChapterRow(key: string) {
+    if (this.entryForKey(key) !== undefined) {
+      Row({ space: ThemeConstants.SPACE_SM }) {
+        Row({ space: ThemeConstants.SPACE_MD }) {
+          this.DownloadStatusIcon(key)
 
-        Column({ space: ThemeConstants.SPACE_XS }) {
-          Text(this.rowTitle(entry))
-            .fontSize(ThemeConstants.FONT_SIZE_BODY)
-            .fontWeight(FontWeight.Medium)
-            .fontColor(ThemeConstants.TEXT_PRIMARY)
-            .maxLines(1)
-            .textOverflow({ overflow: TextOverflow.Ellipsis })
-          Text(this.rowDetailSubtitle(entry))
-            .fontSize(ThemeConstants.FONT_SIZE_CAPTION)
-            .fontColor(this.entryStatusColor(entry))
-            .maxLines(this.blockedHelpText(entry).length > 0 ? 2 : 1)
-            .textOverflow({ overflow: TextOverflow.Ellipsis })
-          if (this.shouldShowEntryProgress(entry)) {
-            Progress({ value: this.entryProgressValue(entry), total: 100, type: ProgressType.Linear })
-              .width('100%')
-              .height(3)
-              .color(this.entryStatusColor(entry))
-              .backgroundColor(ThemeConstants.SOFT_TINT)
+          Column({ space: ThemeConstants.SPACE_XS }) {
+            Text(this.rowTitle(this.entryForKey(key)!))
+              .fontSize(ThemeConstants.FONT_SIZE_BODY)
+              .fontWeight(FontWeight.Medium)
+              .fontColor(ThemeConstants.TEXT_PRIMARY)
+              .maxLines(1)
+              .textOverflow({ overflow: TextOverflow.Ellipsis })
+            Text(this.rowDetailSubtitle(this.entryForKey(key)!))
+              .fontSize(ThemeConstants.FONT_SIZE_CAPTION)
+              .fontColor(this.entryStatusColor(this.entryForKey(key)!))
+              .maxLines(this.blockedHelpText(this.entryForKey(key)!).length > 0 ? 2 : 1)
+              .textOverflow({ overflow: TextOverflow.Ellipsis })
+            if (this.shouldShowEntryProgress(this.entryForKey(key)!)) {
+              Progress({ value: this.entryProgressValue(this.entryForKey(key)!), total: 100, type: ProgressType.Linear })
+                .width('100%')
+                .height(3)
+                .color(this.entryStatusColor(this.entryForKey(key)!))
+                .backgroundColor(ThemeConstants.SOFT_TINT)
+            }
           }
+          .layoutWeight(1)
+          .alignItems(HorizontalAlign.Start)
         }
         .layoutWeight(1)
-        .alignItems(HorizontalAlign.Start)
-      }
-      .layoutWeight(1)
-      .alignItems(VerticalAlign.Center)
-      .onClick(() => {
-        this.openDownloadRow(entry)
-      })
+        .alignItems(VerticalAlign.Center)
+        .onClick(() => {
+          const entry = this.entryForKey(key)
+          if (entry !== undefined) {
+            this.openDownloadRow(entry)
+          }
+        })
 
-      KomaIconButton({
-        icon: $r('sys.symbol.ellipsis_circle'),
-        kind: 'ghost',
-        controlSize: ThemeConstants.TOUCH_TARGET_SM,
-        iconSize: ThemeConstants.FONT_SIZE_H3,
-        accentColor: ThemeConstants.TEXT_SECONDARY,
-        action: () => {
-          this.actionMenuKey = this.rowMenuKey(entry)
-        },
-      })
-        .bindMenu(this.actionMenuKey === this.rowMenuKey(entry), this.DownloadRowMenu(entry), {
-          placement: Placement.BottomRight,
-          onDisappear: () => {
-            if (this.actionMenuKey === this.rowMenuKey(entry)) {
-              this.closeActionMenu()
-            }
+        KomaIconButton({
+          icon: $r('sys.symbol.ellipsis_circle'),
+          kind: 'ghost',
+          controlSize: ThemeConstants.TOUCH_TARGET_SM,
+          iconSize: ThemeConstants.FONT_SIZE_H3,
+          accentColor: ThemeConstants.TEXT_SECONDARY,
+          action: () => {
+            this.actionMenuKey = `row:${key}`
           },
         })
+          .bindMenu(this.actionMenuKey === `row:${key}`, this.DownloadRowMenu(key), {
+            placement: Placement.BottomRight,
+            onDisappear: () => {
+              if (this.actionMenuKey === `row:${key}`) {
+                this.closeActionMenu()
+              }
+            },
+          })
+      }
+      .width('100%')
+      .padding({
+        left: ThemeConstants.SPACE_LG,
+        right: ThemeConstants.SPACE_SM,
+        top: ThemeConstants.SPACE_MD,
+        bottom: ThemeConstants.SPACE_MD,
+      })
+      .alignItems(VerticalAlign.Center)
     }
-    .width('100%')
-    .padding({
-      left: ThemeConstants.SPACE_LG,
-      right: ThemeConstants.SPACE_SM,
-      top: ThemeConstants.SPACE_MD,
-      bottom: ThemeConstants.SPACE_MD,
-    })
-    .alignItems(VerticalAlign.Center)
   }
 
   @Builder
-  private DownloadGroup(group: DownloadComicGroup) {
-    Column() {
-      Row({ space: ThemeConstants.SPACE_MD }) {
-        this.DownloadCover(group)
-        Column({ space: ThemeConstants.SPACE_XS }) {
-          Text(group.title)
-            .fontSize(ThemeConstants.FONT_SIZE_TITLE)
-            .fontWeight(FontWeight.Medium)
-            .fontColor(ThemeConstants.TEXT_PRIMARY)
-            .maxLines(2)
-            .textOverflow({ overflow: TextOverflow.Ellipsis })
-          Text(this.groupSubtitle(group))
-            .fontSize(ThemeConstants.FONT_SIZE_CAPTION)
-            .fontColor(ThemeConstants.TEXT_SECONDARY)
-            .maxLines(1)
-            .textOverflow({ overflow: TextOverflow.Ellipsis })
+  private DownloadGroup(comicId: string) {
+    if (this.groupForId(comicId) !== undefined) {
+      Column() {
+        Row({ space: ThemeConstants.SPACE_MD }) {
+          this.DownloadCover(comicId)
+          Column({ space: ThemeConstants.SPACE_XS }) {
+            Text(this.groupForId(comicId)!.title)
+              .fontSize(ThemeConstants.FONT_SIZE_TITLE)
+              .fontWeight(FontWeight.Medium)
+              .fontColor(ThemeConstants.TEXT_PRIMARY)
+              .maxLines(2)
+              .textOverflow({ overflow: TextOverflow.Ellipsis })
+            Text(this.groupSubtitle(this.groupForId(comicId)!))
+              .fontSize(ThemeConstants.FONT_SIZE_CAPTION)
+              .fontColor(ThemeConstants.TEXT_SECONDARY)
+              .maxLines(1)
+              .textOverflow({ overflow: TextOverflow.Ellipsis })
+          }
+          .layoutWeight(1)
+          .alignItems(HorizontalAlign.Start)
         }
-        .layoutWeight(1)
-        .alignItems(HorizontalAlign.Start)
+        .width('100%')
+        .padding(ThemeConstants.SPACE_LG)
+        .alignItems(VerticalAlign.Center)
+        .onClick(() => {
+          const group = this.groupForId(comicId)
+          if (group !== undefined && group.entries.length > 0) {
+            this.openDownloadEntry(group.entries[0])
+          }
+        })
+
+        Divider()
+          .strokeWidth(0.5)
+          .color(ThemeConstants.DIVIDER)
+          .margin({ left: ThemeConstants.SPACE_LG, right: ThemeConstants.SPACE_LG })
+
+        ForEach(this.groupForId(comicId)!.entries, (entry: OfflineDownloadQueueEntry) => {
+          this.DownloadChapterRow(this.rowKey(entry))
+        }, (entry: OfflineDownloadQueueEntry) => this.rowKey(entry))
       }
       .width('100%')
-      .padding(ThemeConstants.SPACE_LG)
-      .alignItems(VerticalAlign.Center)
-      .onClick(() => {
-        if (group.entries.length > 0) {
-          this.openDownloadEntry(group.entries[0])
-        }
-      })
-
-      Divider()
-        .strokeWidth(0.5)
-        .color(ThemeConstants.DIVIDER)
-        .margin({ left: ThemeConstants.SPACE_LG, right: ThemeConstants.SPACE_LG })
-
-      ForEach(group.entries, (entry: OfflineDownloadQueueEntry) => {
-        this.DownloadChapterRow(entry)
-      }, (entry: OfflineDownloadQueueEntry) => this.rowKey(entry))
+      .borderRadius(ThemeConstants.RADIUS_CARD)
+      .backgroundColor(ThemeConstants.CARD)
+      .clip(true)
     }
-    .width('100%')
-    .borderRadius(ThemeConstants.RADIUS_CARD)
-    .backgroundColor(ThemeConstants.CARD)
-    .clip(true)
   }
 
   build() {
@@ -1325,7 +1345,7 @@ export struct DownloadsPage {
           }
           ForEach(this.visibleGroups(), (group: DownloadComicGroup) => {
             ListItem() {
-              this.DownloadGroup(group)
+              this.DownloadGroup(group.comicId)
             }
           }, (group: DownloadComicGroup) => group.comicId)
         }
