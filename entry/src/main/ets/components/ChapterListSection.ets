@@ -24,6 +24,11 @@ export enum ChapterBatchDownloadMode {
   NOT_DOWNLOADED = 'not_downloaded',
 }
 
+export enum ChapterBatchScope {
+  FILTERED = 'filtered',
+  SELECTED = 'selected',
+}
+
 @ComponentV2
 export struct ChapterListSection {
   @Param chapters: MangaChapterItem[] = []
@@ -35,19 +40,65 @@ export struct ChapterListSection {
   @Local private sortedChapters: MangaChapterItem[] = []
   @Local private sectionActionsMenuShown: boolean = false
   @Local private readStateMenuChapterId: string = ''
+  @Local private selectionMode: boolean = false
+  @Local private selectedChapterIds: Set<string> = new Set<string>()
   @Event onOpenChapter: (chapterId: string) => void = (_chapterId: string) => {}
   @Event onDownloadChapter: (chapterId: string) => void = (_chapterId: string) => {}
-  @Event onDownloadFilteredChapters: (chapterIds: string[], mode: ChapterBatchDownloadMode) => void =
-    (_chapterIds: string[], _mode: ChapterBatchDownloadMode) => {}
+  @Event onDownloadFilteredChapters: (chapterIds: string[], mode: ChapterBatchDownloadMode, scope: ChapterBatchScope) => void =
+    (_chapterIds: string[], _mode: ChapterBatchDownloadMode, _scope: ChapterBatchScope) => {}
   @Event onMarkChapterReadState: (chapterId: string, isRead: boolean) => void =
     (_chapterId: string, _isRead: boolean) => {}
-  @Event onMarkFilteredChaptersReadState: (chapterIds: string[], isRead: boolean) => void =
-    (_chapterIds: string[], _isRead: boolean) => {}
+  @Event onMarkFilteredChaptersReadState: (chapterIds: string[], isRead: boolean, scope: ChapterBatchScope) => void =
+    (_chapterIds: string[], _isRead: boolean, _scope: ChapterBatchScope) => {}
 
   @Monitor('chapters')
   private rebuildDataSource(): void {
     this.ensureMetadataFiltersAvailable()
     this.sortedChapters = this.sortedChapterList()
+    this.selectedChapterIds = new Set<string>(this.selectedIdsInFilter())
+  }
+
+  private selectedIdsInFilter(): string[] {
+    return Array.from(new Set<string>(this.filteredChapterIds().filter((id: string): boolean =>
+      this.selectedChapterIds.has(id))))
+  }
+
+  private setChapterSelected(chapterId: string, selected: boolean): void {
+    if (!this.selectionMode || !this.filteredChapterIds().includes(chapterId)) {
+      return
+    }
+    const next = new Set<string>(this.selectedChapterIds)
+    if (selected) {
+      next.add(chapterId)
+    } else {
+      next.delete(chapterId)
+    }
+    this.selectedChapterIds = next
+  }
+
+  private setSelectionMode(enabled: boolean): void {
+    this.selectionMode = enabled
+    this.selectedChapterIds = new Set<string>()
+  }
+
+  private selectAllFilteredChapters(): void {
+    if (this.selectionMode) {
+      this.selectedChapterIds = new Set<string>(this.filteredChapterIds())
+    }
+  }
+
+  private downloadSelectedChapters(): void {
+    const ids = this.selectedIdsInFilter()
+    if (this.selectionMode && ids.length > 0) {
+      this.onDownloadFilteredChapters(ids, ChapterBatchDownloadMode.NOT_DOWNLOADED, ChapterBatchScope.SELECTED)
+    }
+  }
+
+  private markSelectedChaptersReadState(isRead: boolean): void {
+    const ids = this.selectedIdsInFilter()
+    if (this.selectionMode && ids.length > 0) {
+      this.onMarkFilteredChaptersReadState(ids, isRead, ChapterBatchScope.SELECTED)
+    }
   }
 
   private sortedChapterList(): MangaChapterItem[] {
@@ -367,26 +418,46 @@ export struct ChapterListSection {
   @Builder
   private SectionActionsMenu() {
     Menu() {
-      MenuItem({ content: s('chapter_list_menu_mark_filtered_read') })
-        .onClick(() => {
-          this.onMarkFilteredChaptersReadState(this.filteredChapterIds(), true)
-        })
-      MenuItem({ content: s('chapter_list_menu_mark_filtered_unread') })
-        .onClick(() => {
-          this.onMarkFilteredChaptersReadState(this.filteredChapterIds(), false)
-        })
-      MenuItem({ content: s('chapter_list_menu_download_filtered') })
-        .onClick(() => {
-          this.onDownloadFilteredChapters(this.filteredChapterIds(), ChapterBatchDownloadMode.NOT_DOWNLOADED)
-        })
-      MenuItem({ content: s('chapter_list_menu_retry_failed') })
-        .onClick(() => {
-          this.onDownloadFilteredChapters(this.filteredChapterIds(), ChapterBatchDownloadMode.FAILED_ONLY)
-        })
-      MenuItem({ content: s('chapter_list_menu_download_incomplete') })
-        .onClick(() => {
-          this.onDownloadFilteredChapters(this.filteredChapterIds(), ChapterBatchDownloadMode.NOT_DOWNLOADED)
-        })
+      if (this.selectionMode) {
+        MenuItem({ content: this.formatString('chapter_list_menu_download_selected', [this.selectedChapterIds.size]) })
+          .enabled(this.selectedChapterIds.size > 0)
+          .onClick(() => { this.downloadSelectedChapters() })
+        MenuItem({ content: this.formatString('chapter_list_menu_mark_selected_read', [this.selectedChapterIds.size]) })
+          .enabled(this.selectedChapterIds.size > 0)
+          .onClick(() => { this.markSelectedChaptersReadState(true) })
+        MenuItem({ content: this.formatString('chapter_list_menu_mark_selected_unread', [this.selectedChapterIds.size]) })
+          .enabled(this.selectedChapterIds.size > 0)
+          .onClick(() => { this.markSelectedChaptersReadState(false) })
+        MenuItem({ content: s('chapter_list_menu_select_all_filtered') })
+          .enabled(this.sortedChapters.length > 0)
+          .onClick(() => { this.selectAllFilteredChapters() })
+        MenuItem({ content: s('chapter_list_menu_exit_selection') })
+          .onClick(() => { this.setSelectionMode(false) })
+      } else {
+        MenuItem({ content: s('chapter_list_menu_mark_filtered_read') })
+          .onClick(() => {
+            this.onMarkFilteredChaptersReadState(this.filteredChapterIds(), true, ChapterBatchScope.FILTERED)
+          })
+        MenuItem({ content: s('chapter_list_menu_mark_filtered_unread') })
+          .onClick(() => {
+            this.onMarkFilteredChaptersReadState(this.filteredChapterIds(), false, ChapterBatchScope.FILTERED)
+          })
+        MenuItem({ content: s('chapter_list_menu_download_filtered') })
+          .onClick(() => {
+            this.onDownloadFilteredChapters(this.filteredChapterIds(), ChapterBatchDownloadMode.NOT_DOWNLOADED, ChapterBatchScope.FILTERED)
+          })
+        MenuItem({ content: s('chapter_list_menu_retry_failed') })
+          .onClick(() => {
+            this.onDownloadFilteredChapters(this.filteredChapterIds(), ChapterBatchDownloadMode.FAILED_ONLY, ChapterBatchScope.FILTERED)
+          })
+        MenuItem({ content: s('chapter_list_menu_download_incomplete') })
+          .onClick(() => {
+            this.onDownloadFilteredChapters(this.filteredChapterIds(), ChapterBatchDownloadMode.NOT_DOWNLOADED, ChapterBatchScope.FILTERED)
+          })
+        MenuItem({ content: s('chapter_list_menu_enter_selection') })
+          .enabled(this.sortedChapters.length > 0)
+          .onClick(() => { this.setSelectionMode(true) })
+      }
     }
   }
 
@@ -510,10 +581,68 @@ export struct ChapterListSection {
   }
 
   @Builder
+  private SelectedChapterRow(ri: RepeatItem<MangaChapterItem>) {
+    Row({ space: ThemeConstants.SPACE_SM }) {
+      Checkbox({ name: ri.item.id })
+        .select(this.selectedChapterIds.has(ri.item.id))
+        .selectedColor(ThemeConstants.BRAND_PRIMARY)
+        .unselectedColor(ThemeConstants.TEXT_SECONDARY)
+        .width(24)
+        .height(24)
+        .margin(0)
+        .responseRegion({ x: -6, y: -6, width: 36, height: 36 })
+        .accessibilityText(this.chapterTitle(ri.item))
+        .onChange((selected: boolean) => {
+          this.setChapterSelected(ri.item.id, selected)
+        })
+
+      Column({ space: ThemeConstants.SPACE_XS }) {
+        Text(this.chapterTitle(ri.item))
+          .fontSize(ThemeConstants.FONT_SIZE_LIST_ITEM)
+          .fontColor(ri.item.isRead ? $r('sys.color.font_tertiary') : $r('sys.color.font_primary'))
+          .fontWeight(ri.item.isRead ? FontWeight.Regular : FontWeight.Medium)
+          .maxLines(1)
+          .textOverflow({ overflow: TextOverflow.Ellipsis })
+        if (this.chapterSubtitle(ri.item).length > 0) {
+          Text(this.chapterSubtitle(ri.item))
+            .fontSize(ThemeConstants.FONT_SIZE_CAPTION)
+            .fontColor($r('sys.color.font_secondary'))
+            .maxLines(1)
+            .textOverflow({ overflow: TextOverflow.Ellipsis })
+        }
+      }
+      .layoutWeight(1)
+      .alignItems(HorizontalAlign.Start)
+      .onClick(() => {
+        this.setChapterSelected(ri.item.id, !this.selectedChapterIds.has(ri.item.id))
+      })
+      .bindContextMenu(this.SectionActionsMenu, ResponseType.LongPress)
+
+      if (this.shouldShowDownloadStatus(ri.item)) {
+        this.DownloadStatusBadge(ri)
+      } else {
+        Button({ type: ButtonType.Circle, stateEffect: true }) {
+          SymbolGlyph(ri.item.isDownloaded ? $r('sys.symbol.checkmark_circle') : $r('sys.symbol.arrow_down_to_line'))
+            .fontSize(18)
+            .fontColor([ri.item.isDownloaded ? ThemeConstants.BRAND_PRIMARY : $r('sys.color.font_tertiary')])
+        }
+        .width(36)
+        .height(36)
+        .backgroundColor(Color.Transparent)
+        .enabled(false)
+      }
+    }
+    .width('100%')
+    .alignItems(VerticalAlign.Center)
+    .padding({ top: ThemeConstants.SPACE_SM, bottom: ThemeConstants.SPACE_SM, left: ThemeConstants.SPACE_SM, right: ThemeConstants.SPACE_SM })
+  }
+
+  @Builder
   private SectionHeader() {
     Column({ space: ThemeConstants.SPACE_SM }) {
       Row({ space: ThemeConstants.SPACE_SM }) {
-        Text(this.formatString('chapter_list_title', [this.sortedChapters.length, this.chapters.length]))
+        Text(this.selectionMode ? this.formatString('library_selected_count', [this.selectedChapterIds.size])
+          : this.formatString('chapter_list_title', [this.sortedChapters.length, this.chapters.length]))
           .fontSize(ThemeConstants.FONT_SIZE_H3)
           .fontWeight(FontWeight.Bold)
           .fontColor(ThemeConstants.TEXT_PRIMARY)
@@ -596,7 +725,11 @@ export struct ChapterListSection {
           .each((ri: RepeatItem<MangaChapterItem>) => {
             ListItem() {
               Column() {
-                this.ChapterRow(ri)
+                if (this.selectionMode) {
+                  this.SelectedChapterRow(ri)
+                } else {
+                  this.ChapterRow(ri)
+                }
                 if (ri.index < this.sortedChapters.length - 1) {
                   ListDivider()
                 }

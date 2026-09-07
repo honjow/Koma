@@ -8,6 +8,7 @@ import { KomaIconButton } from '../components/ui/KomaIconButton'
 import { SecondaryListScaffold } from '../components/SecondaryListScaffold'
 import {
   ChapterBatchDownloadMode,
+  ChapterBatchScope,
   ChapterListSection,
 } from '../components/ChapterListSection'
 import { AppStrings } from '../i18n/AppStrings'
@@ -1485,7 +1486,8 @@ export struct MangaDetailPage {
         summary.failureReasonCode === 'source_disabled')
   }
 
-  private confirmDownloadFilteredChapters(chapterIds: string[], mode: ChapterBatchDownloadMode): void {
+  private confirmDownloadFilteredChapters(chapterIds: string[], mode: ChapterBatchDownloadMode,
+    scope: ChapterBatchScope = ChapterBatchScope.FILTERED): void {
     if (this.downloadBusy || this.manga === undefined) {
       return
     }
@@ -1494,12 +1496,18 @@ export struct MangaDetailPage {
       return
     }
     const filteredChapterIds = Array.from(new Set<string>(chapterIds))
+    if (scope === ChapterBatchScope.SELECTED && filteredChapterIds.length === 0) {
+      return
+    }
     const targetChapterIds = this.batchDownloadChapterIds(filteredChapterIds, mode)
-    const title = mode === ChapterBatchDownloadMode.FAILED_ONLY
+    const title = scope === ChapterBatchScope.SELECTED
+      ? this.formatString('chapter_list_menu_download_selected', [filteredChapterIds.length])
+      : mode === ChapterBatchDownloadMode.FAILED_ONLY
       ? s('chapter_list_menu_retry_failed') : s('chapter_list_menu_download_filtered')
     const message = mode === ChapterBatchDownloadMode.FAILED_ONLY
       ? this.formatString('manga_detail_retry_filtered_confirm', [filteredChapterIds.length, targetChapterIds.length])
-      : this.formatString('manga_detail_download_filtered_confirm', [
+      : this.formatString(scope === ChapterBatchScope.SELECTED
+        ? 'manga_detail_download_selected_confirm' : 'manga_detail_download_filtered_confirm', [
         filteredChapterIds.length, filteredChapterIds.length - targetChapterIds.length, targetChapterIds.length,
       ])
     if (targetChapterIds.length === 0) {
@@ -1663,15 +1671,22 @@ export struct MangaDetailPage {
     this.showToast(isRead ? s('manga_detail_marked_read') : s('manga_detail_marked_unread'))
   }
 
-  private confirmMarkFilteredChaptersReadState(chapterIds: string[], isRead: boolean): void {
+  private confirmMarkFilteredChaptersReadState(chapterIds: string[], isRead: boolean,
+    scope: ChapterBatchScope = ChapterBatchScope.FILTERED): void {
     if (this.manga === undefined) {
       return
     }
     const targetIds = Array.from(new Set<string>(chapterIds))
       .filter((chapterId: string): boolean => chapterId.trim().length > 0)
-    const title = isRead ? s('chapter_list_menu_mark_filtered_read') : s('chapter_list_menu_mark_filtered_unread')
-    const message = this.formatString(isRead
-      ? 'manga_detail_mark_filtered_read_confirm' : 'manga_detail_mark_filtered_unread_confirm', [targetIds.length])
+    if (scope === ChapterBatchScope.SELECTED && targetIds.length === 0) {
+      return
+    }
+    const title = scope === ChapterBatchScope.SELECTED
+      ? this.formatString(isRead ? 'chapter_list_menu_mark_selected_read' : 'chapter_list_menu_mark_selected_unread', [targetIds.length])
+      : isRead ? s('chapter_list_menu_mark_filtered_read') : s('chapter_list_menu_mark_filtered_unread')
+    const message = this.formatString(scope === ChapterBatchScope.SELECTED
+      ? (isRead ? 'manga_detail_mark_selected_read_confirm' : 'manga_detail_mark_selected_unread_confirm')
+      : (isRead ? 'manga_detail_mark_filtered_read_confirm' : 'manga_detail_mark_filtered_unread_confirm'), [targetIds.length])
     if (targetIds.length === 0) {
       this.getUIContext().showAlertDialog({
         title,
@@ -2332,14 +2347,14 @@ export struct MangaDetailPage {
             onDownloadChapter: (chapterId: string) => {
               this.handleDownloadChapter(chapterId)
             },
-            onDownloadFilteredChapters: (chapterIds: string[], mode: ChapterBatchDownloadMode) => {
-              this.confirmDownloadFilteredChapters(chapterIds, mode)
+            onDownloadFilteredChapters: (chapterIds: string[], mode: ChapterBatchDownloadMode, scope: ChapterBatchScope) => {
+              this.confirmDownloadFilteredChapters(chapterIds, mode, scope)
             },
             onMarkChapterReadState: (chapterId: string, isRead: boolean) => {
               this.markChapterReadState(chapterId, isRead)
             },
-            onMarkFilteredChaptersReadState: (chapterIds: string[], isRead: boolean) => {
-              this.confirmMarkFilteredChaptersReadState(chapterIds, isRead)
+            onMarkFilteredChaptersReadState: (chapterIds: string[], isRead: boolean, scope: ChapterBatchScope) => {
+              this.confirmMarkFilteredChaptersReadState(chapterIds, isRead, scope)
             },
           })
         }
