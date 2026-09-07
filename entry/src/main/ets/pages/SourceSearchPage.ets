@@ -1,6 +1,6 @@
 import { SourceMangaGrid } from '../components/SourceMangaGrid'
 import { SOURCE_SEARCH_TITLE_BOTTOM_HEIGHT } from '../components/SourceSearchTitleField'
-import { KomaActionButton } from '../components/ui/KomaActionButton'
+import { SourcePaginationFooter } from '../components/SourcePaginationFooter'
 import { KomaEmptyState } from '../components/ui/KomaEmptyState'
 import { SecondaryListScaffold } from '../components/SecondaryListScaffold'
 import { SourceFiltersSheetScaffold } from '../components/SourceFiltersSheetScaffold'
@@ -335,23 +335,15 @@ export struct SourceSearchPage {
             ListItem() {
               this.ResultsGrid()
             }
-            if (this.viewModel.errorMessage.length > 0) {
-              ListItem() {
-                this.SearchErrorState()
-              }
-            }
-            if (this.viewModel.hasMoreSearch) {
-              ListItem() {
-                KomaActionButton({
-                  label: this.viewModel.loadingSearch ? s('common_loading_more') : s('common_load_more'),
-                  kind: 'secondary',
-                  fill: true,
-                  isEnabled: !this.viewModel.loadingSearch,
-                  action: () => {
-                    void this.viewModel.loadMoreSearch()
-                  },
-                })
-              }
+            ListItem() {
+              SourcePaginationFooter({
+                isLoading: this.viewModel.loadingSearch,
+                hasMore: this.viewModel.hasMoreSearch,
+                isError: this.viewModel.errorMessage.length > 0,
+                onRetry: () => {
+                  void this.viewModel.retrySearchPage()
+                },
+              })
             }
           }
         }

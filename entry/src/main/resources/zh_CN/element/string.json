@@ -679,6 +679,8 @@
     { "name": "common_loading", "value": "加载中..." },
     { "name": "common_load_more", "value": "加载更多" },
     { "name": "common_loading_more", "value": "加载更多中..." },
+    { "name": "common_no_more", "value": "没有更多了" },
+    { "name": "common_load_failed_tap_retry", "value": "加载失败，点击重试" },
     { "name": "common_expand", "value": "展开" },
     { "name": "common_collapse", "value": "收起" },
     { "name": "common_filter", "value": "筛选" },

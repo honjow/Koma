@@ -1,5 +1,6 @@
 import { SourceMangaGrid } from '../components/SourceMangaGrid'
 import { SOURCE_BROWSE_TITLE_BOTTOM_HEIGHT } from '../components/SourceBrowseTitleField'
+import { SourcePaginationFooter } from '../components/SourcePaginationFooter'
 import { KomaActionButton } from '../components/ui/KomaActionButton'
 import { KomaEmptyState } from '../components/ui/KomaEmptyState'
 import { PullRefreshListScaffold } from '../components/PullRefreshListScaffold'
@@ -513,20 +514,22 @@ export struct SourceBrowsePage {
               }
             } else {
               ListItem() {
-                this.MangaGrid(this.viewModel.searchResults)
+                SourceMangaGrid({
+                  manga: this.viewModel.searchResults,
+                  onMangaTap: (selected: SourceManga) => {
+                    this.onMangaTap(selected)
+                  },
+                })
               }
-              if (this.viewModel.hasMoreSearch) {
-                ListItem() {
-                  KomaActionButton({
-                    label: s('common_load_more'),
-                    kind: 'secondary',
-                    fill: true,
-                    isEnabled: !this.viewModel.loadingSearch,
-                    action: () => {
-                      void this.viewModel.loadMoreSearch()
-                    },
-                  })
-                }
+              ListItem() {
+                SourcePaginationFooter({
+                  isLoading: this.viewModel.loadingSearch,
+                  hasMore: this.viewModel.hasMoreSearch,
+                  isError: this.viewModel.errorMessage.length > 0,
+                  onRetry: () => {
+                    void this.viewModel.retrySearchPage()
+                  },
+                })
               }
             }
           } else if (!this.isBlockingBrowseLoading()) {
@@ -552,20 +555,20 @@ export struct SourceBrowsePage {
               }, (section: BrowseSourceSectionState) => section.listing.id)
 
               if (this.viewModel.browseContentState === BrowseContentState.ERROR &&
-                this.viewModel.errorMessage.length > 0) {
+                this.viewModel.errorMessage.length > 0 &&
+                this.viewModel.browseErrorIntent !== BrowseLoadIntent.PAGINATION) {
                 ListItem() {
                   this.BrowseErrorState()
                 }
-              } else if (this.viewModel.hasMoreBrowse) {
+              } else if (this.viewModel.browseSections.length > 0) {
                 ListItem() {
-                  KomaActionButton({
-                    label: this.viewModel.browseLoadIntent === BrowseLoadIntent.PAGINATION
-                      ? s('common_loading_more') : s('common_load_more'),
-                    kind: 'secondary',
-                    fill: true,
-                    isEnabled: !this.viewModel.loadingBrowse,
-                    action: () => {
-                      void this.viewModel.loadMoreBrowse()
+                  SourcePaginationFooter({
+                    isLoading: this.viewModel.loadingBrowse &&
+                      this.viewModel.browseLoadIntent === BrowseLoadIntent.PAGINATION,
+                    hasMore: this.viewModel.hasMoreBrowse,
+                    isError: this.viewModel.browseErrorIntent === BrowseLoadIntent.PAGINATION,
+                    onRetry: () => {
+                      void this.viewModel.retryBrowseFailure()
                     },
                   })
                 }

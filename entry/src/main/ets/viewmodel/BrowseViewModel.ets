@@ -912,6 +912,15 @@ export class BrowseViewModel {
     this.searchNextCursor = ''
   }
 
+  async retrySearchPage(): Promise<void> {
+    if (this.loadingSearch || this.errorMessage.length === 0 || this.searchResults.length === 0 ||
+      this.selectedSource === undefined || this.searchQuery.trim().length === 0) {
+      return
+    }
+    this.hasMoreSearch = true
+    await this.loadMoreSearch()
+  }
+
   async loadMoreSearch(): Promise<void> {
     if (this.loadingSearch || !this.hasMoreSearch || this.selectedSource === undefined || this.searchQuery.trim().length === 0) {
       return

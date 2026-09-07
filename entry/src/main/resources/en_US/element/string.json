@@ -679,6 +679,8 @@
     { "name": "common_loading", "value": "Loading..." },
     { "name": "common_load_more", "value": "Load more" },
     { "name": "common_loading_more", "value": "Loading more..." },
+    { "name": "common_no_more", "value": "No more results" },
+    { "name": "common_load_failed_tap_retry", "value": "Load failed. Tap to retry" },
     { "name": "common_expand", "value": "Expand" },
     { "name": "common_collapse", "value": "Collapse" },
     { "name": "common_filter", "value": "Filter" },
