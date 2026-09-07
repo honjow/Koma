@@ -4,16 +4,13 @@ import { KomaActionButton } from './ui/KomaActionButton'
 import { KomaEmptyState } from './ui/KomaEmptyState'
 import { KomaIconButton } from './ui/KomaIconButton'
 import { KomaMenuChip } from './ui/KomaMenuChip'
-import { GroupedListSection, ListDivider } from './ui/GroupedListSection'
+import { ListDivider } from './ui/GroupedListSection'
 import { ChapterSortOrder, MangaChapterDownloadStatus, MangaChapterItem } from '../model/MangaDetailModels'
 import { ThemeConstants } from '../theme/ThemeConstants'
 
 function s(name: string): string {
   return AppStrings.get(name)
 }
-
-const INITIAL_VISIBLE_CHAPTER_LIMIT: number = 80
-const VISIBLE_CHAPTER_INCREMENT: number = 80
 
 export enum ChapterReadFilter {
   ALL = 'all',
@@ -23,7 +20,6 @@ export enum ChapterReadFilter {
 }
 
 export enum ChapterBatchDownloadMode {
-  ALL_VISIBLE = 'all_visible',
   FAILED_ONLY = 'failed_only',
   NOT_DOWNLOADED = 'not_downloaded',
 }
@@ -37,24 +33,21 @@ export struct ChapterListSection {
   @Local private languageFilter: string = ''
   @Local private groupFilter: string = ''
   @Local private sortedChapters: MangaChapterItem[] = []
-  @Local private visibleChapterLimit: number = INITIAL_VISIBLE_CHAPTER_LIMIT
   @Local private sectionActionsMenuShown: boolean = false
   @Local private readStateMenuChapterId: string = ''
   @Event onOpenChapter: (chapterId: string) => void = (_chapterId: string) => {}
   @Event onDownloadChapter: (chapterId: string) => void = (_chapterId: string) => {}
-  @Event onDownloadVisibleChapters: (chapterIds: string[], mode: ChapterBatchDownloadMode) => void =
+  @Event onDownloadFilteredChapters: (chapterIds: string[], mode: ChapterBatchDownloadMode) => void =
     (_chapterIds: string[], _mode: ChapterBatchDownloadMode) => {}
-  @Event onDownloadFilteredChapters: (chapterIds: string[]) => void = (_chapterIds: string[]) => {}
   @Event onMarkChapterReadState: (chapterId: string, isRead: boolean) => void =
     (_chapterId: string, _isRead: boolean) => {}
-  @Event onMarkVisibleChaptersReadState: (chapterIds: string[], isRead: boolean) => void =
+  @Event onMarkFilteredChaptersReadState: (chapterIds: string[], isRead: boolean) => void =
     (_chapterIds: string[], _isRead: boolean) => {}
 
   @Monitor('chapters')
   private rebuildDataSource(): void {
     this.ensureMetadataFiltersAvailable()
     this.sortedChapters = this.sortedChapterList()
-    this.clampVisibleChapterLimit()
   }
 
   private sortedChapterList(): MangaChapterItem[] {
@@ -150,25 +143,21 @@ export struct ChapterListSection {
 
   private setSortOrder(sortOrder: ChapterSortOrder): void {
     this.sortOrder = sortOrder
-    this.resetVisibleChapterLimit()
     this.rebuildDataSource()
   }
 
   private setReadFilter(readFilter: ChapterReadFilter): void {
     this.readFilter = readFilter
-    this.resetVisibleChapterLimit()
     this.rebuildDataSource()
   }
 
   private setLanguageFilter(language: string): void {
     this.languageFilter = language
-    this.resetVisibleChapterLimit()
     this.rebuildDataSource()
   }
 
   private setGroupFilter(group: string): void {
     this.groupFilter = group
-    this.resetVisibleChapterLimit()
     this.rebuildDataSource()
   }
 
@@ -195,7 +184,6 @@ export struct ChapterListSection {
     this.readFilter = ChapterReadFilter.ALL
     this.languageFilter = ''
     this.groupFilter = ''
-    this.resetVisibleChapterLimit()
     this.rebuildDataSource()
   }
 
@@ -236,40 +224,8 @@ export struct ChapterListSection {
     return value === undefined ? '' : value.trim()
   }
 
-  private visibleChapterIds(): string[] {
-    return this.visibleChapters().map((chapter: MangaChapterItem): string => chapter.id)
-  }
-
   private filteredChapterIds(): string[] {
     return this.sortedChapters.map((chapter: MangaChapterItem): string => chapter.id)
-  }
-
-  private visibleChapters(): MangaChapterItem[] {
-    return this.sortedChapters.slice(0, this.visibleChapterLimit)
-  }
-
-  private resetVisibleChapterLimit(): void {
-    this.visibleChapterLimit = INITIAL_VISIBLE_CHAPTER_LIMIT
-  }
-
-  private clampVisibleChapterLimit(): void {
-    if (this.visibleChapterLimit < INITIAL_VISIBLE_CHAPTER_LIMIT) {
-      this.visibleChapterLimit = INITIAL_VISIBLE_CHAPTER_LIMIT
-    }
-    if (this.sortedChapters.length > 0 && this.visibleChapterLimit > this.sortedChapters.length) {
-      this.visibleChapterLimit = Math.max(INITIAL_VISIBLE_CHAPTER_LIMIT, this.sortedChapters.length)
-    }
-  }
-
-  private canShowMoreChapters(): boolean {
-    return this.visibleChapterLimit < this.sortedChapters.length
-  }
-
-  private showMoreChapters(): void {
-    if (!this.canShowMoreChapters()) {
-      return
-    }
-    this.visibleChapterLimit = Math.min(this.sortedChapters.length, this.visibleChapterLimit + VISIBLE_CHAPTER_INCREMENT)
   }
 
   private chapterTitle(chapter: MangaChapterItem): string {
@@ -395,15 +351,15 @@ export struct ChapterListSection {
   }
 
   @Builder
-  private ReadStateMenu(chapter: MangaChapterItem) {
+  private ReadStateMenu(ri: RepeatItem<MangaChapterItem>) {
     Menu() {
       MenuItem({ content: s('chapter_list_menu_mark_read') })
         .onClick(() => {
-          this.onMarkChapterReadState(chapter.id, true)
+          this.onMarkChapterReadState(ri.item.id, true)
         })
       MenuItem({ content: s('chapter_list_menu_mark_unread') })
         .onClick(() => {
-          this.onMarkChapterReadState(chapter.id, false)
+          this.onMarkChapterReadState(ri.item.id, false)
         })
     }
   }
@@ -411,29 +367,25 @@ export struct ChapterListSection {
   @Builder
   private SectionActionsMenu() {
     Menu() {
-      MenuItem({ content: s('chapter_list_menu_mark_visible_read') })
+      MenuItem({ content: s('chapter_list_menu_mark_filtered_read') })
         .onClick(() => {
-          this.onMarkVisibleChaptersReadState(this.visibleChapterIds(), true)
+          this.onMarkFilteredChaptersReadState(this.filteredChapterIds(), true)
         })
-      MenuItem({ content: s('chapter_list_menu_mark_visible_unread') })
+      MenuItem({ content: s('chapter_list_menu_mark_filtered_unread') })
         .onClick(() => {
-          this.onMarkVisibleChaptersReadState(this.visibleChapterIds(), false)
-        })
-      MenuItem({ content: s('chapter_list_menu_download_visible') })
-        .onClick(() => {
-          this.onDownloadVisibleChapters(this.visibleChapterIds(), ChapterBatchDownloadMode.ALL_VISIBLE)
+          this.onMarkFilteredChaptersReadState(this.filteredChapterIds(), false)
         })
       MenuItem({ content: s('chapter_list_menu_download_filtered') })
         .onClick(() => {
-          this.onDownloadFilteredChapters(this.filteredChapterIds())
+          this.onDownloadFilteredChapters(this.filteredChapterIds(), ChapterBatchDownloadMode.NOT_DOWNLOADED)
         })
       MenuItem({ content: s('chapter_list_menu_retry_failed') })
         .onClick(() => {
-          this.onDownloadVisibleChapters(this.visibleChapterIds(), ChapterBatchDownloadMode.FAILED_ONLY)
+          this.onDownloadFilteredChapters(this.filteredChapterIds(), ChapterBatchDownloadMode.FAILED_ONLY)
         })
       MenuItem({ content: s('chapter_list_menu_download_incomplete') })
         .onClick(() => {
-          this.onDownloadVisibleChapters(this.visibleChapterIds(), ChapterBatchDownloadMode.NOT_DOWNLOADED)
+          this.onDownloadFilteredChapters(this.filteredChapterIds(), ChapterBatchDownloadMode.NOT_DOWNLOADED)
         })
     }
   }
@@ -487,188 +439,189 @@ export struct ChapterListSection {
     return chapter.downloadStatus !== undefined
   }
 
-  private chapterForId(chapterId: string): MangaChapterItem | undefined {
-    return this.sortedChapters.find((chapter: MangaChapterItem): boolean => chapter.id === chapterId)
-  }
-
   @Builder
-  private DownloadStatusBadge(chapterId: string) {
-    if (this.chapterForId(chapterId)?.downloadStatus !== undefined) {
+  private DownloadStatusBadge(ri: RepeatItem<MangaChapterItem>) {
+    if (ri.item.downloadStatus !== undefined) {
       Row({ space: ThemeConstants.SPACE_XS }) {
-        SymbolGlyph(this.chapterForId(chapterId)!.downloadStatus === 'downloaded' ? $r('sys.symbol.checkmark') : $r('sys.symbol.arrow_down_to_line'))
+        SymbolGlyph(ri.item.downloadStatus === 'downloaded' ? $r('sys.symbol.checkmark') : $r('sys.symbol.arrow_down_to_line'))
           .fontSize(ThemeConstants.FONT_SIZE_TITLE)
-          .fontColor([this.downloadStatusColor(this.chapterForId(chapterId)!.downloadStatus!)])
-        Text(this.downloadStatusLabel(this.chapterForId(chapterId)!.downloadStatus!))
+          .fontColor([this.downloadStatusColor(ri.item.downloadStatus!)])
+        Text(this.downloadStatusLabel(ri.item.downloadStatus!))
           .fontSize(ThemeConstants.FONT_SIZE_CAPTION)
           .fontWeight(FontWeight.Medium)
-          .fontColor(this.downloadStatusColor(this.chapterForId(chapterId)!.downloadStatus!))
+          .fontColor(this.downloadStatusColor(ri.item.downloadStatus!))
           .maxLines(1)
       }
       .height(ThemeConstants.FILTER_CHIP_HEIGHT)
       .padding({ left: ThemeConstants.SPACE_SM, right: ThemeConstants.SPACE_SM })
       .borderRadius(ThemeConstants.RADIUS_ROUND)
-      .backgroundColor(this.chapterForId(chapterId)!.downloadStatus === 'downloaded' ? ThemeConstants.SOFT_TINT : Color.Transparent)
-      .border({ width: this.chapterForId(chapterId)!.downloadStatus === 'downloaded' ? 0 : 1,
-        color: this.downloadStatusColor(this.chapterForId(chapterId)!.downloadStatus!) })
+      .backgroundColor(ri.item.downloadStatus === 'downloaded' ? ThemeConstants.SOFT_TINT : Color.Transparent)
+      .border({ width: ri.item.downloadStatus === 'downloaded' ? 0 : 1,
+        color: this.downloadStatusColor(ri.item.downloadStatus!) })
     }
   }
 
   @Builder
-  private ChapterRow(chapterId: string) {
-    if (this.chapterForId(chapterId) !== undefined) {
-      Row({ space: ThemeConstants.SPACE_SM }) {
-        Column({ space: ThemeConstants.SPACE_XS }) {
-          Text(this.chapterTitle(this.chapterForId(chapterId)!))
-            .fontSize(ThemeConstants.FONT_SIZE_LIST_ITEM)
-            .fontColor(this.chapterForId(chapterId)!.isRead ? $r('sys.color.font_tertiary') : $r('sys.color.font_primary'))
-            .fontWeight(this.chapterForId(chapterId)!.isRead ? FontWeight.Regular : FontWeight.Medium)
+  private ChapterRow(ri: RepeatItem<MangaChapterItem>) {
+    Row({ space: ThemeConstants.SPACE_SM }) {
+      Column({ space: ThemeConstants.SPACE_XS }) {
+        Text(this.chapterTitle(ri.item))
+          .fontSize(ThemeConstants.FONT_SIZE_LIST_ITEM)
+          .fontColor(ri.item.isRead ? $r('sys.color.font_tertiary') : $r('sys.color.font_primary'))
+          .fontWeight(ri.item.isRead ? FontWeight.Regular : FontWeight.Medium)
+          .maxLines(1)
+          .textOverflow({ overflow: TextOverflow.Ellipsis })
+        if (this.chapterSubtitle(ri.item).length > 0) {
+          Text(this.chapterSubtitle(ri.item))
+            .fontSize(ThemeConstants.FONT_SIZE_CAPTION)
+            .fontColor($r('sys.color.font_secondary'))
             .maxLines(1)
             .textOverflow({ overflow: TextOverflow.Ellipsis })
-          if (this.chapterSubtitle(this.chapterForId(chapterId)!).length > 0) {
-            Text(this.chapterSubtitle(this.chapterForId(chapterId)!))
-              .fontSize(ThemeConstants.FONT_SIZE_CAPTION)
-              .fontColor($r('sys.color.font_secondary'))
-              .maxLines(1)
-              .textOverflow({ overflow: TextOverflow.Ellipsis })
-          }
-        }
-        .layoutWeight(1)
-        .alignItems(HorizontalAlign.Start)
-
-        if (this.shouldShowDownloadStatus(this.chapterForId(chapterId)!)) {
-          this.DownloadStatusBadge(chapterId)
-        } else {
-          Button({ type: ButtonType.Circle, stateEffect: true }) {
-            SymbolGlyph(this.chapterForId(chapterId)!.isDownloaded ? $r('sys.symbol.checkmark_circle') : $r('sys.symbol.arrow_down_to_line'))
-              .fontSize(18)
-              .fontColor([this.chapterForId(chapterId)!.isDownloaded ? ThemeConstants.BRAND_PRIMARY : $r('sys.color.font_tertiary')])
-          }
-          .width(36)
-          .height(36)
-          .backgroundColor(Color.Transparent)
-          .onClick(() => {
-            const chapter = this.chapterForId(chapterId)
-            if (chapter !== undefined && !chapter.isDownloaded) {
-              this.onDownloadChapter(chapterId)
-            }
-          })
         }
       }
-      .width('100%')
-      .alignItems(VerticalAlign.Center)
-      .padding({ top: ThemeConstants.SPACE_SM, bottom: ThemeConstants.SPACE_SM, left: ThemeConstants.SPACE_SM, right: ThemeConstants.SPACE_SM })
-      .onClick(() => {
-        if (this.chapterForId(chapterId) !== undefined) {
-          this.onOpenChapter(chapterId)
-        }
-      })
-      .bindContextMenu(this.ReadStateMenu(this.chapterForId(chapterId)!), ResponseType.LongPress)
-    }
-  }
-
-  build() {
-    Column({ space: ThemeConstants.SPACE_MD }) {
-      Column({ space: ThemeConstants.SPACE_SM }) {
-        Row({ space: ThemeConstants.SPACE_SM }) {
-          Text(this.formatString('chapter_list_title', [this.sortedChapters.length, this.chapters.length]))
-            .fontSize(ThemeConstants.FONT_SIZE_H3)
-            .fontWeight(FontWeight.Bold)
-            .fontColor(ThemeConstants.TEXT_PRIMARY)
-            .layoutWeight(1)
-
-          Column() {
-            KomaIconButton({
-              icon: $r('sys.symbol.ellipsis_circle'),
-              kind: 'secondary',
-              controlSize: ThemeConstants.TOUCH_TARGET_SM,
-              iconSize: ThemeConstants.FONT_SIZE_H3,
-              action: () => {
-                this.sectionActionsMenuShown = true
-              },
-            })
-          }
-          .bindMenu(this.sectionActionsMenuShown, this.SectionActionsMenu, {
-            placement: Placement.BottomRight,
-            onDisappear: () => {
-              this.sectionActionsMenuShown = false
-            },
-          })
-        }
-        .width('100%')
-        .alignItems(VerticalAlign.Center)
-
-        Flex({ wrap: FlexWrap.Wrap }) {
-          Row() {
-            KomaMenuChip({ label: this.filterLabel(), active: this.readFilter !== ChapterReadFilter.ALL })
-          }
-          .margin({ right: ThemeConstants.SPACE_SM, bottom: ThemeConstants.SPACE_SM })
-          .bindMenu(this.FilterMenu())
-          if (this.shouldShowLanguageFilter()) {
-            Row() {
-              KomaMenuChip({ label: this.languageFilterLabel(), active: this.languageFilter.length > 0 })
-            }
-            .margin({ right: ThemeConstants.SPACE_SM, bottom: ThemeConstants.SPACE_SM })
-            .bindMenu(this.LanguageFilterMenu())
-          }
-          if (this.shouldShowGroupFilter()) {
-            Row() {
-              KomaMenuChip({ label: this.groupFilterLabel(), active: this.groupFilter.length > 0 })
-            }
-            .margin({ right: ThemeConstants.SPACE_SM, bottom: ThemeConstants.SPACE_SM })
-            .bindMenu(this.GroupFilterMenu())
-          }
-          Row() {
-            KomaMenuChip({ label: this.sortLabel(), active: this.sortOrder !== ChapterSortOrder.NEWEST_FIRST })
-          }
-          .margin({ right: ThemeConstants.SPACE_SM, bottom: ThemeConstants.SPACE_SM })
-          .bindMenu(this.SortMenu())
-          if (this.hasActiveFilters()) {
-            KomaActionButton({
-              label: s('common_reset'),
-              kind: 'ghost',
-              compact: true,
-              controlHeight: ThemeConstants.ACTION_CHIP_HEIGHT,
-              action: () => {
-                this.resetFilters()
-              },
-            })
-              .margin({ right: ThemeConstants.SPACE_SM, bottom: ThemeConstants.SPACE_SM })
-          }
-        }
-        .width('100%')
-      }
-      .width('100%')
+      .layoutWeight(1)
       .alignItems(HorizontalAlign.Start)
 
-      if (this.sortedChapters.length === 0) {
-        this.EmptyChapters()
+      if (this.shouldShowDownloadStatus(ri.item)) {
+        this.DownloadStatusBadge(ri)
       } else {
-        GroupedListSection() {
-          ForEach(this.visibleChapters(), (chapter: MangaChapterItem, index: number) => {
-            this.ChapterRow(chapter.id)
-            if (index < this.visibleChapters().length - 1) {
-              ListDivider()
-            }
-          }, (chapter: MangaChapterItem) => JSON.stringify([chapter.id, chapter.isRead === true]))
+        Button({ type: ButtonType.Circle, stateEffect: true }) {
+          SymbolGlyph(ri.item.isDownloaded ? $r('sys.symbol.checkmark_circle') : $r('sys.symbol.arrow_down_to_line'))
+            .fontSize(18)
+            .fontColor([ri.item.isDownloaded ? ThemeConstants.BRAND_PRIMARY : $r('sys.color.font_tertiary')])
         }
-        if (this.canShowMoreChapters()) {
-          KomaActionButton({
-            label: this.formatString('chapter_list_show_more', [
-              Math.min(VISIBLE_CHAPTER_INCREMENT, this.sortedChapters.length - this.visibleChapterLimit),
-            ]),
-            kind: 'ghost',
-            fullWidth: true,
-            compact: true,
-            controlHeight: ThemeConstants.ACTION_CHIP_HEIGHT,
-            icon: $r('sys.symbol.chevron_down'),
-            action: () => {
-              this.showMoreChapters()
-            },
-          })
-        }
+        .width(36)
+        .height(36)
+        .backgroundColor(Color.Transparent)
+        .onClick(() => {
+          if (!ri.item.isDownloaded) {
+            this.onDownloadChapter(ri.item.id)
+          }
+        })
       }
     }
     .width('100%')
+    .alignItems(VerticalAlign.Center)
+    .padding({ top: ThemeConstants.SPACE_SM, bottom: ThemeConstants.SPACE_SM, left: ThemeConstants.SPACE_SM, right: ThemeConstants.SPACE_SM })
+    .onClick(() => {
+      this.onOpenChapter(ri.item.id)
+    })
+    .bindContextMenu(this.ReadStateMenu(ri), ResponseType.LongPress)
+  }
+
+  @Builder
+  private SectionHeader() {
+    Column({ space: ThemeConstants.SPACE_SM }) {
+      Row({ space: ThemeConstants.SPACE_SM }) {
+        Text(this.formatString('chapter_list_title', [this.sortedChapters.length, this.chapters.length]))
+          .fontSize(ThemeConstants.FONT_SIZE_H3)
+          .fontWeight(FontWeight.Bold)
+          .fontColor(ThemeConstants.TEXT_PRIMARY)
+          .layoutWeight(1)
+
+        Column() {
+          KomaIconButton({
+            icon: $r('sys.symbol.ellipsis_circle'),
+            kind: 'secondary',
+            controlSize: ThemeConstants.TOUCH_TARGET_SM,
+            iconSize: ThemeConstants.FONT_SIZE_H3,
+            action: () => {
+              this.sectionActionsMenuShown = true
+            },
+          })
+        }
+        .bindMenu(this.sectionActionsMenuShown, this.SectionActionsMenu, {
+          placement: Placement.BottomRight,
+          onDisappear: () => {
+            this.sectionActionsMenuShown = false
+          },
+        })
+      }
+      .width('100%')
+      .alignItems(VerticalAlign.Center)
+
+      Flex({ wrap: FlexWrap.Wrap }) {
+        Row() {
+          KomaMenuChip({ label: this.filterLabel(), active: this.readFilter !== ChapterReadFilter.ALL })
+        }
+        .margin({ right: ThemeConstants.SPACE_SM, bottom: ThemeConstants.SPACE_SM })
+        .bindMenu(this.FilterMenu())
+        if (this.shouldShowLanguageFilter()) {
+          Row() {
+            KomaMenuChip({ label: this.languageFilterLabel(), active: this.languageFilter.length > 0 })
+          }
+          .margin({ right: ThemeConstants.SPACE_SM, bottom: ThemeConstants.SPACE_SM })
+          .bindMenu(this.LanguageFilterMenu())
+        }
+        if (this.shouldShowGroupFilter()) {
+          Row() {
+            KomaMenuChip({ label: this.groupFilterLabel(), active: this.groupFilter.length > 0 })
+          }
+          .margin({ right: ThemeConstants.SPACE_SM, bottom: ThemeConstants.SPACE_SM })
+          .bindMenu(this.GroupFilterMenu())
+        }
+        Row() {
+          KomaMenuChip({ label: this.sortLabel(), active: this.sortOrder !== ChapterSortOrder.NEWEST_FIRST })
+        }
+        .margin({ right: ThemeConstants.SPACE_SM, bottom: ThemeConstants.SPACE_SM })
+        .bindMenu(this.SortMenu())
+        if (this.hasActiveFilters()) {
+          KomaActionButton({
+            label: s('common_reset'),
+            kind: 'ghost',
+            compact: true,
+            controlHeight: ThemeConstants.ACTION_CHIP_HEIGHT,
+            action: () => {
+              this.resetFilters()
+            },
+          })
+            .margin({ right: ThemeConstants.SPACE_SM, bottom: ThemeConstants.SPACE_SM })
+        }
+      }
+      .width('100%')
+    }
+    .width('100%')
     .alignItems(HorizontalAlign.Start)
+    .padding({ bottom: ThemeConstants.SPACE_MD })
+  }
+
+  build() {
+    ListItemGroup({ header: this.SectionHeader(), space: 0 }) {
+      if (this.sortedChapters.length === 0) {
+        ListItem() {
+          this.EmptyChapters()
+        }
+      } else {
+        Repeat<MangaChapterItem>(this.sortedChapters)
+          .each((ri: RepeatItem<MangaChapterItem>) => {
+            ListItem() {
+              Column() {
+                this.ChapterRow(ri)
+                if (ri.index < this.sortedChapters.length - 1) {
+                  ListDivider()
+                }
+              }
+              .width('100%')
+              .padding({
+                left: ThemeConstants.LIST_SECTION_INSET,
+                right: ThemeConstants.LIST_SECTION_INSET,
+                top: ri.index === 0 ? ThemeConstants.LIST_SECTION_INSET : 0,
+                bottom: ri.index === this.sortedChapters.length - 1 ? ThemeConstants.LIST_SECTION_INSET : 0,
+              })
+              .backgroundColor(ThemeConstants.CARD)
+              .borderRadius({
+                topLeft: ri.index === 0 ? ThemeConstants.RADIUS_CARD : 0,
+                topRight: ri.index === 0 ? ThemeConstants.RADIUS_CARD : 0,
+                bottomLeft: ri.index === this.sortedChapters.length - 1 ? ThemeConstants.RADIUS_CARD : 0,
+                bottomRight: ri.index === this.sortedChapters.length - 1 ? ThemeConstants.RADIUS_CARD : 0,
+              })
+              .clip(true)
+            }
+          })
+          .key((chapter: MangaChapterItem): string => chapter.id)
+          .virtualScroll()
+      }
+    }
+    .width('100%')
   }
 }

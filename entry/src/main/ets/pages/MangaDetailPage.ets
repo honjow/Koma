@@ -1483,7 +1483,7 @@ export struct MangaDetailPage {
         summary.failureReasonCode === 'source_disabled')
   }
 
-  private confirmDownloadFilteredChapters(chapterIds: string[]): void {
+  private confirmDownloadFilteredChapters(chapterIds: string[], mode: ChapterBatchDownloadMode): void {
     if (this.downloadBusy || this.manga === undefined) {
       return
     }
@@ -1492,13 +1492,17 @@ export struct MangaDetailPage {
       return
     }
     const filteredChapterIds = Array.from(new Set<string>(chapterIds))
-    const targetChapterIds = this.batchDownloadChapterIds(filteredChapterIds, ChapterBatchDownloadMode.NOT_DOWNLOADED)
-    const message = this.formatString('manga_detail_download_filtered_confirm', [
-      filteredChapterIds.length, filteredChapterIds.length - targetChapterIds.length, targetChapterIds.length,
-    ])
+    const targetChapterIds = this.batchDownloadChapterIds(filteredChapterIds, mode)
+    const title = mode === ChapterBatchDownloadMode.FAILED_ONLY
+      ? s('chapter_list_menu_retry_failed') : s('chapter_list_menu_download_filtered')
+    const message = mode === ChapterBatchDownloadMode.FAILED_ONLY
+      ? this.formatString('manga_detail_retry_filtered_confirm', [filteredChapterIds.length, targetChapterIds.length])
+      : this.formatString('manga_detail_download_filtered_confirm', [
+        filteredChapterIds.length, filteredChapterIds.length - targetChapterIds.length, targetChapterIds.length,
+      ])
     if (targetChapterIds.length === 0) {
       this.getUIContext().showAlertDialog({
-        title: s('chapter_list_menu_download_filtered'),
+        title,
         message,
         autoCancel: true,
         confirm: { value: s('common_confirm'), action: () => {} },
@@ -1506,13 +1510,13 @@ export struct MangaDetailPage {
       return
     }
     this.getUIContext().showAlertDialog({
-      title: s('chapter_list_menu_download_filtered'),
+      title,
       message,
       autoCancel: true,
       primaryButton: {
         value: s('common_confirm'),
         action: () => {
-          void this.handleDownloadVisibleChapters(targetChapterIds, ChapterBatchDownloadMode.NOT_DOWNLOADED)
+          void this.handleDownloadChapters(targetChapterIds, mode)
         },
       },
       secondaryButton: {
@@ -1522,7 +1526,7 @@ export struct MangaDetailPage {
     })
   }
 
-  private async handleDownloadVisibleChapters(chapterIds: string[], mode: ChapterBatchDownloadMode): Promise<void> {
+  private async handleDownloadChapters(chapterIds: string[], mode: ChapterBatchDownloadMode): Promise<void> {
     if (this.downloadBusy) {
       return
     }
@@ -1651,7 +1655,39 @@ export struct MangaDetailPage {
     this.showToast(isRead ? s('manga_detail_marked_read') : s('manga_detail_marked_unread'))
   }
 
-  private markVisibleChaptersReadState(chapterIds: string[], isRead: boolean): void {
+  private confirmMarkFilteredChaptersReadState(chapterIds: string[], isRead: boolean): void {
+    if (this.manga === undefined) {
+      return
+    }
+    const targetIds = Array.from(new Set<string>(chapterIds))
+      .filter((chapterId: string): boolean => chapterId.trim().length > 0)
+    const title = isRead ? s('chapter_list_menu_mark_filtered_read') : s('chapter_list_menu_mark_filtered_unread')
+    const message = this.formatString(isRead
+      ? 'manga_detail_mark_filtered_read_confirm' : 'manga_detail_mark_filtered_unread_confirm', [targetIds.length])
+    if (targetIds.length === 0) {
+      this.getUIContext().showAlertDialog({
+        title,
+        message,
+        autoCancel: true,
+        confirm: { value: s('common_confirm'), action: () => {} },
+      })
+      return
+    }
+    this.getUIContext().showAlertDialog({
+      title,
+      message,
+      autoCancel: true,
+      primaryButton: {
+        value: s('common_confirm'),
+        action: () => {
+          this.markChaptersReadState(targetIds, isRead)
+        },
+      },
+      secondaryButton: { value: s('common_cancel'), action: () => {} },
+    })
+  }
+
+  private markChaptersReadState(chapterIds: string[], isRead: boolean): void {
     const targetIds = chapterIds.filter((chapterId: string): boolean => chapterId.trim().length > 0)
     if (targetIds.length === 0) {
       this.showToast(s('manga_detail_no_markable_chapters'))
@@ -2266,34 +2302,29 @@ export struct MangaDetailPage {
         }
 
         if (this.shouldRenderChapterList()) {
-          ListItem() {
-            ChapterListSection({
-              chapters: this.chapters,
-              onOpenChapter: (chapterId: string) => {
-                void this.handleOpenChapter(chapterId)
-                  .catch((error: Error) => {
-                    void error
-                    console.error('[manga-detail] step=source_pages_load_failed reason=source_pages')
-                    this.showToast(s('manga_detail_chapter_pages_load_failed'))
-                  })
-              },
-              onDownloadChapter: (chapterId: string) => {
-                this.handleDownloadChapter(chapterId)
-              },
-              onDownloadVisibleChapters: (chapterIds: string[], mode: ChapterBatchDownloadMode) => {
-                this.handleDownloadVisibleChapters(chapterIds, mode)
-              },
-              onDownloadFilteredChapters: (chapterIds: string[]) => {
-                this.confirmDownloadFilteredChapters(chapterIds)
-              },
-              onMarkChapterReadState: (chapterId: string, isRead: boolean) => {
-                this.markChapterReadState(chapterId, isRead)
-              },
-              onMarkVisibleChaptersReadState: (chapterIds: string[], isRead: boolean) => {
-                this.markVisibleChaptersReadState(chapterIds, isRead)
-              },
-            })
-          }
+          ChapterListSection({
+            chapters: this.chapters,
+            onOpenChapter: (chapterId: string) => {
+              void this.handleOpenChapter(chapterId)
+                .catch((error: Error) => {
+                  void error
+                  console.error('[manga-detail] step=source_pages_load_failed reason=source_pages')
+                  this.showToast(s('manga_detail_chapter_pages_load_failed'))
+                })
+            },
+            onDownloadChapter: (chapterId: string) => {
+              this.handleDownloadChapter(chapterId)
+            },
+            onDownloadFilteredChapters: (chapterIds: string[], mode: ChapterBatchDownloadMode) => {
+              this.confirmDownloadFilteredChapters(chapterIds, mode)
+            },
+            onMarkChapterReadState: (chapterId: string, isRead: boolean) => {
+              this.markChapterReadState(chapterId, isRead)
+            },
+            onMarkFilteredChaptersReadState: (chapterIds: string[], isRead: boolean) => {
+              this.confirmMarkFilteredChaptersReadState(chapterIds, isRead)
+            },
+          })
         }
         }
       }
