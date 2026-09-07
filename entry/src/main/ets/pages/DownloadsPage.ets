@@ -128,7 +128,8 @@ export struct DownloadsPage {
       return true
     }
     if (filter === DownloadQueueFilter.FAILED) {
-      return entry.status === OfflineDownloadStatus.FAILED || entry.status === OfflineDownloadStatus.PARTIAL
+      return entry.status === OfflineDownloadStatus.FAILED ||
+        (entry.status === OfflineDownloadStatus.PARTIAL && !this.isPausedDownload(entry.status, entry.failureReasonCode))
     }
     if (filter === DownloadQueueFilter.DOWNLOADED) {
       return entry.status === OfflineDownloadStatus.DOWNLOADED
@@ -272,8 +273,13 @@ export struct DownloadsPage {
     return s('downloads_status_failed')
   }
 
+  private isPausedDownload(status: OfflineDownloadStatus, reason?: string): boolean {
+    return reason === 'paused' &&
+      (status === OfflineDownloadStatus.QUEUED || status === OfflineDownloadStatus.PARTIAL)
+  }
+
   private formatEntryStatus(entry: OfflineDownloadQueueEntry): string {
-    if (entry.failureReasonCode === 'paused') {
+    if (this.isPausedDownload(entry.status, entry.failureReasonCode)) {
       return s('downloads_status_paused')
     }
     if (entry.failureReasonCode === 'wifi_only') {
@@ -295,9 +301,14 @@ export struct DownloadsPage {
 
   private queueOverviewSubtitle(): string {
     const summary: OfflineDownloadQueueSummary = summarizeOfflineDownloadQueue(this.entries)
-    const attentionCount = summary.failedCount + summary.partialCount + summary.blockedCount
-    if (this.preferences.isPaused && summary.queuedCount > 0) {
-      return s('downloads_overview_paused').replace('%s', `${summary.queuedCount}`)
+    const pausedPartialCount = this.entries.filter((entry: OfflineDownloadQueueEntry): boolean =>
+      entry.status === OfflineDownloadStatus.PARTIAL && this.isPausedDownload(entry.status, entry.failureReasonCode)).length
+    const pausedCount = this.entries.filter((entry: OfflineDownloadQueueEntry): boolean =>
+      this.isPausedDownload(entry.status, entry.failureReasonCode) ||
+        (this.preferences.isPaused && entry.status === OfflineDownloadStatus.QUEUED)).length
+    const attentionCount = summary.failedCount + summary.partialCount + summary.blockedCount - pausedPartialCount
+    if (pausedCount > 0) {
+      return s('downloads_overview_paused').replace('%s', `${pausedCount}`)
     }
     if (summary.queuedCount > 0 && !canRunOfflineDownloadQueueNow(this.preferences)) {
       return s('downloads_status_waiting_wifi')
@@ -543,12 +554,13 @@ export struct DownloadsPage {
         new OfflineDownloadStore(this.context().filesDir),
         this.queueStore()
       )
-      await service.downloadChapter(comic, entry.chapterId, {
+      const manifest = await service.downloadChapter(comic, entry.chapterId, {
         comicTitle: entry.comicTitle ?? comic.title,
         chapterTitle: entry.chapterTitle,
       })
       this.loadQueue()
-      this.showToast(s('downloads_toast_retried'))
+      this.showToast(this.isPausedDownload(manifest.status, manifest.failureReasonCode)
+        ? s('downloads_status_paused') : s('downloads_toast_retried'))
     } catch (error) {
       void error
       console.warn('[Downloads] step=retry_failed failed=true reason=download_retry')
@@ -877,6 +889,9 @@ export struct DownloadsPage {
   }
 
   private entryStatusIcon(entry: OfflineDownloadQueueEntry): Resource {
+    if (this.isPausedDownload(entry.status, entry.failureReasonCode)) {
+      return $r('sys.symbol.pause')
+    }
     if (entry.status === OfflineDownloadStatus.DOWNLOADED) {
       return $r('sys.symbol.checkmark_circle')
     }
@@ -890,6 +905,9 @@ export struct DownloadsPage {
   }
 
   private entryStatusColor(entry: OfflineDownloadQueueEntry): ResourceColor {
+    if (this.isPausedDownload(entry.status, entry.failureReasonCode)) {
+      return ThemeConstants.STATUS_MUTED
+    }
     if (entry.status === OfflineDownloadStatus.DOWNLOADED) {
       return ThemeConstants.STATUS_SUCCESS
     }

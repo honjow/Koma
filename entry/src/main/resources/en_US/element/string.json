@@ -803,6 +803,7 @@
     { "name": "manga_detail_no_readable_chapters", "value": "No readable chapters" },
     { "name": "manga_detail_batch_downloading", "value": "Batch download %s/%s" },
     { "name": "manga_detail_batch_complete", "value": "Batch complete: downloaded %s, blocked %s, failed %s" },
+    { "name": "manga_detail_batch_paused", "value": "Batch paused: downloaded %s, waiting %s, blocked %s, failed %s" },
     { "name": "manga_detail_batch_missing_pages", "value": "Some chapters are missing page data" },
     { "name": "manga_detail_batch_complete_toast", "value": "Batch download complete" },
     { "name": "manga_detail_read_state_unavailable", "value": "Read state unavailable" },

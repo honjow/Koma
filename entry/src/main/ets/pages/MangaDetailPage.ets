@@ -1409,7 +1409,9 @@ export struct MangaDetailPage {
         updatedAt: manifest.updatedAt,
         failureReasonCode: manifest.failureReasonCode,
       })
-      this.showToast(manifest.status === OfflineDownloadStatus.DOWNLOADED
+      this.showToast(this.isPausedDownload(manifest.status, manifest.failureReasonCode)
+        ? s('downloads_status_paused')
+        : manifest.status === OfflineDownloadStatus.DOWNLOADED
         ? s('manga_detail_chapter_downloaded')
         : s('manga_detail_chapter_download_failed'))
     } finally {
@@ -1551,6 +1553,7 @@ export struct MangaDetailPage {
     let downloadedCount = 0
     let blockedCount = 0
     let failedCount = 0
+    let pausedCount = 0
     try {
       if (!this.isInLibrary && manga.sourceId !== undefined) {
         const added = await this.handleAddToLibrary()
@@ -1607,7 +1610,9 @@ export struct MangaDetailPage {
           comicTitle: comic.title,
           chapterTitle,
         })
-        if (manifest.status === OfflineDownloadStatus.DOWNLOADED) {
+        if (this.isPausedDownload(manifest.status, manifest.failureReasonCode)) {
+          pausedCount += 1
+        } else if (manifest.status === OfflineDownloadStatus.DOWNLOADED) {
           downloadedCount += 1
         } else if (manifest.status === OfflineDownloadStatus.BLOCKED) {
           blockedCount += 1
@@ -1617,8 +1622,11 @@ export struct MangaDetailPage {
         this.downloadStatusText = this.formatString('manga_detail_batch_downloading', [index + 1, targetChapterIds.length])
       }
       this.applyChapterStatesToCurrent()
-      this.downloadStatusText = this.formatString('manga_detail_batch_complete', [downloadedCount, blockedCount, failedCount])
-      this.showToast(blockedCount > 0 ? s('manga_detail_batch_missing_pages') : s('manga_detail_batch_complete_toast'))
+      this.downloadStatusText = pausedCount > 0
+        ? this.formatString('manga_detail_batch_paused', [downloadedCount, pausedCount, blockedCount, failedCount])
+        : this.formatString('manga_detail_batch_complete', [downloadedCount, blockedCount, failedCount])
+      this.showToast(pausedCount > 0 ? s('downloads_status_paused')
+        : blockedCount > 0 ? s('manga_detail_batch_missing_pages') : s('manga_detail_batch_complete_toast'))
     } finally {
       this.downloadBusy = false
     }
@@ -1941,9 +1949,18 @@ export struct MangaDetailPage {
     return page.length > 0 ? `${chapter} · ${page}` : chapter
   }
 
+  private isPausedDownload(status: OfflineDownloadStatus, reason?: string): boolean {
+    return reason === 'paused' &&
+      (status === OfflineDownloadStatus.QUEUED || status === OfflineDownloadStatus.PARTIAL)
+  }
+
   private formatDownloadStatus(summary: OfflineDownloadSummary | undefined): string {
     if (summary === undefined) {
       return ''
+    }
+    if (this.isPausedDownload(summary.status, summary.failureReasonCode)) {
+      return s('downloads_status_paused') + ' · ' +
+        this.formatString('downloads_page_progress', [summary.downloadedPageCount, summary.pageCount])
     }
     if (summary.status === OfflineDownloadStatus.DOWNLOADED) {
       return this.formatString('manga_detail_download_status_downloaded', [summary.downloadedPageCount, summary.pageCount])
