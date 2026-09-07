@@ -1622,7 +1622,10 @@ export struct SourcePackageManagerPage {
     return parts.join(' · ')
   }
 
-  private packageListMetaText(source: InstalledSourcePackage): string {
+  private packageListMetaText(source: InstalledSourcePackage | undefined): string {
+    if (source === undefined) {
+      return ''
+    }
     const parts: string[] = ['v' + source.version]
     if (source.lang.length > 0) {
       parts.push(source.lang)
@@ -2030,20 +2033,23 @@ export struct SourcePackageManagerPage {
   }
 
   @Builder
-  private PackageCard(source: InstalledSourcePackage) {
+  private PackageCard(sourceId: string) {
     ConciseListRow({
-      title: source.name,
-      subtitle: this.packageListMetaText(source),
-      trailingText: source.enabled ? t('source_pkg_enabled') : t('source_pkg_disabled'),
+      title: this.installedPackage(sourceId)?.name ?? '',
+      subtitle: this.packageListMetaText(this.installedPackage(sourceId)),
+      trailingText: (this.installedPackage(sourceId)?.enabled ?? false) ? t('source_pkg_enabled') : t('source_pkg_disabled'),
       hasSourceIdentityPrefix: true,
-      sourceIdentityIconUri: source.icon ?? '',
+      sourceIdentityIconUri: this.installedPackage(sourceId)?.icon ?? '',
       sourceIdentityFallbackColor: ThemeConstants.SOURCE_WASM_COLOR,
       prefixPaddingLeft: ThemeConstants.SPACE_MD,
       prefixPaddingRight: ThemeConstants.SPACE_SM,
       primaryColor: ThemeConstants.TEXT_PRIMARY,
-      secondaryColor: source.enabled ? ThemeConstants.TEXT_SECONDARY : ThemeConstants.TEXT_TERTIARY,
+      secondaryColor: (this.installedPackage(sourceId)?.enabled ?? false) ? ThemeConstants.TEXT_SECONDARY : ThemeConstants.TEXT_TERTIARY,
       action: () => {
-        this.openSourceSheet(source)
+        const source = this.installedPackage(sourceId)
+        if (source !== undefined) {
+          this.openSourceSheet(source)
+        }
       },
     })
   }
@@ -2539,7 +2545,7 @@ export struct SourcePackageManagerPage {
                   ListDivider()
                 }
                 ForEach(this.packages, (source: InstalledSourcePackage, index: number) => {
-                  this.PackageCard(source)
+                  this.PackageCard(source.id)
                   if (index < this.packages.length - 1) {
                     ListDivider()
                   }
