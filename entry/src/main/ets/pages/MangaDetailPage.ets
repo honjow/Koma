@@ -166,6 +166,62 @@ function s(name: string): string {
   return AppStrings.get(name)
 }
 
+// Keep the native button disabled without multiplying its disabled alpha into
+// the explicit disabled palette, matching KomaActionButton's contract.
+class DetailDisabledReadContent implements ContentModifier<ButtonConfiguration> {
+  label: string
+  chapter: string
+  page: string
+
+  constructor(label: string, chapter: string, page: string) {
+    this.label = label
+    this.chapter = chapter
+    this.page = page
+  }
+
+  applyContent(): WrappedBuilder<[ButtonConfiguration]> {
+    return wrapBuilder(detailDisabledReadContent)
+  }
+}
+
+@Builder
+function detailDisabledReadContent(configuration: ButtonConfiguration) {
+  Row({ space: ThemeConstants.SPACE_SM }) {
+    SymbolGlyph($r('sys.symbol.doc_plaintext'))
+      .fontSize(ThemeConstants.FONT_SIZE_HEADING)
+      .fontColor([$r('sys.color.font_secondary')])
+      .flexShrink(0)
+    Text((configuration.contentModifier as DetailDisabledReadContent).label)
+      .fontSize(ThemeConstants.FONT_SIZE_BODY)
+      .fontWeight(FontWeight.Medium)
+      .fontColor($r('sys.color.font_secondary'))
+      .maxLines(1)
+      .flexShrink(0)
+    Text(`· ${(configuration.contentModifier as DetailDisabledReadContent).chapter}`)
+      .fontSize(ThemeConstants.FONT_SIZE_BODY)
+      .fontWeight(FontWeight.Medium)
+      .fontColor($r('sys.color.font_secondary'))
+      .maxLines(1)
+      .textOverflow({ overflow: TextOverflow.Ellipsis })
+      .flexShrink(1)
+    if ((configuration.contentModifier as DetailDisabledReadContent).page.length > 0) {
+      Text(`· ${(configuration.contentModifier as DetailDisabledReadContent).page}`)
+        .fontSize(ThemeConstants.FONT_SIZE_BODY)
+        .fontWeight(FontWeight.Medium)
+        .fontColor($r('sys.color.font_secondary'))
+        .maxLines(1)
+        .flexShrink(0)
+    }
+  }
+  .width('100%')
+  .height(ThemeConstants.ACTION_CHIP_HEIGHT)
+  .justifyContent(FlexAlign.Center)
+  .alignItems(VerticalAlign.Center)
+  .padding({ left: ThemeConstants.SPACE_MD, right: ThemeConstants.SPACE_MD })
+  .backgroundColor($r('sys.color.ohos_id_color_button_normal'))
+  .borderRadius(ThemeConstants.ACTION_CHIP_HEIGHT / 2)
+}
+
 const SOURCE_CHAPTER_PAGE_SIZE: number = 100
 const SOURCE_CHAPTER_MAX_PAGES: number = 20
 
@@ -1885,47 +1941,106 @@ export struct MangaDetailPage {
 
   @Builder
   private ActionButtons() {
-    Row({ space: ThemeConstants.SPACE_MD }) {
-      KomaActionButton({
-        label: this.primaryReadLabel(),
-        kind: 'primary',
-        icon: $r('sys.symbol.doc_plaintext'),
-        fill: true,
-        compact: true,
-        controlHeight: ThemeConstants.ACTION_CHIP_HEIGHT,
-        isEnabled: this.hasReadableChapters() && !this.isSourceDetailLoading(),
-        action: () => {
-          this.handleStartReading()
-        },
-      })
-
-      KomaActionButton({
-        label: this.downloadButtonLabel(),
-        kind: 'secondary',
-        icon: $r('sys.symbol.arrow_down_to_line'),
-        fill: true,
-        compact: true,
-        controlHeight: ThemeConstants.ACTION_CHIP_HEIGHT,
-        isEnabled: this.hasReadableChapters() && !this.downloadBusy && !this.isSourceDetailLoading(),
-        action: () => {
-          this.handleDownloadChapter()
-        },
-      })
-
-      if (this.canAddCurrentMangaToLibrary()) {
-        KomaIconButton({
-          icon: this.isInLibrary ? $r('sys.symbol.bookmark_fill') : $r('sys.symbol.bookmark'),
-          kind: this.isInLibrary ? 'primary' : 'secondary',
-          controlSize: ThemeConstants.ACTION_CHIP_HEIGHT,
-          iconSize: ThemeConstants.FONT_SIZE_TITLE,
+    Column({ space: ThemeConstants.SPACE_SM }) {
+      if (this.progressChapterId() === undefined) {
+        KomaActionButton({
+          label: this.primaryReadLabel(),
+          kind: 'primary',
+          icon: $r('sys.symbol.doc_plaintext'),
+          fullWidth: true,
+          compact: true,
+          controlHeight: ThemeConstants.ACTION_CHIP_HEIGHT,
+          isEnabled: this.hasReadableChapters() && !this.isSourceDetailLoading(),
           action: () => {
-            this.handleAddToLibrary()
+            this.handleStartReading()
           },
         })
+      } else {
+        Button({ type: ButtonType.Normal, stateEffect: true }) {
+          if (this.hasReadableChapters() && !this.isSourceDetailLoading()) {
+            Row({ space: ThemeConstants.SPACE_SM }) {
+              SymbolGlyph($r('sys.symbol.doc_plaintext'))
+                .fontSize(ThemeConstants.FONT_SIZE_HEADING)
+                .fontColor([$r('app.color.koma_action_on_accent')])
+                .flexShrink(0)
+              Text(this.primaryReadLabel())
+                .fontSize(ThemeConstants.FONT_SIZE_BODY)
+                .fontWeight(FontWeight.Medium)
+                .fontColor($r('app.color.koma_action_on_accent'))
+                .maxLines(1)
+                .flexShrink(0)
+              Text(`· ${this.primaryReadChapterLabel()}`)
+                .fontSize(ThemeConstants.FONT_SIZE_BODY)
+                .fontWeight(FontWeight.Medium)
+                .fontColor($r('app.color.koma_action_on_accent'))
+                .maxLines(1)
+                .textOverflow({ overflow: TextOverflow.Ellipsis })
+                .flexShrink(1)
+              if (this.primaryReadPageLabel().length > 0) {
+                Text(`· ${this.primaryReadPageLabel()}`)
+                  .fontSize(ThemeConstants.FONT_SIZE_BODY)
+                  .fontWeight(FontWeight.Medium)
+                  .fontColor($r('app.color.koma_action_on_accent'))
+                  .maxLines(1)
+                  .flexShrink(0)
+              }
+            }
+            .width('100%')
+            .height(ThemeConstants.ACTION_CHIP_HEIGHT)
+            .justifyContent(FlexAlign.Center)
+            .alignItems(VerticalAlign.Center)
+            .padding({ left: ThemeConstants.SPACE_MD, right: ThemeConstants.SPACE_MD })
+          }
+        }
+          .width('100%')
+          .height(ThemeConstants.ACTION_CHIP_HEIGHT)
+          .backgroundColor(this.hasReadableChapters() && !this.isSourceDetailLoading()
+            ? ThemeConstants.BRAND_PRIMARY : undefined)
+          .borderRadius(ThemeConstants.ACTION_CHIP_HEIGHT / 2)
+          .opacity(1)
+          .enabled(this.hasReadableChapters() && !this.isSourceDetailLoading())
+          .contentModifier(this.disabledPrimaryReadContent())
+          .onClick(() => {
+            this.handleStartReading()
+          })
       }
 
+      Row({ space: ThemeConstants.SPACE_MD }) {
+        KomaActionButton({
+          label: this.downloadButtonLabel(),
+          kind: 'secondary',
+          icon: $r('sys.symbol.arrow_down_to_line'),
+          fill: true,
+          compact: true,
+          controlHeight: ThemeConstants.ACTION_CHIP_HEIGHT,
+          isEnabled: this.hasReadableChapters() && !this.downloadBusy && !this.isSourceDetailLoading(),
+          action: () => {
+            this.handleDownloadChapter()
+          },
+        })
+
+        if (this.canAddCurrentMangaToLibrary()) {
+          KomaIconButton({
+            icon: this.isInLibrary ? $r('sys.symbol.bookmark_fill') : $r('sys.symbol.bookmark'),
+            kind: this.isInLibrary ? 'primary' : 'secondary',
+            controlSize: ThemeConstants.ACTION_CHIP_HEIGHT,
+            iconSize: ThemeConstants.FONT_SIZE_TITLE,
+            action: () => {
+              this.handleAddToLibrary()
+            },
+          })
+        }
+      }
+      .width('100%')
     }
     .width('100%')
+  }
+
+  private disabledPrimaryReadContent(): DetailDisabledReadContent | undefined {
+    if (this.hasReadableChapters() && !this.isSourceDetailLoading()) {
+      return undefined
+    }
+    return new DetailDisabledReadContent(this.primaryReadLabel(), this.primaryReadChapterLabel(), this.primaryReadPageLabel())
   }
 
   @Builder
@@ -2088,16 +2203,7 @@ export struct MangaDetailPage {
 
         if (this.shouldRenderDetailActions()) {
           ListItem() {
-            Column({ space: ThemeConstants.SPACE_XS }) {
-              this.ActionButtons()
-              if (this.progressChapterId() !== undefined) {
-                Text(this.primaryReadPositionLabel())
-                  .width('100%')
-                  .fontSize(ThemeConstants.FONT_SIZE_BODY)
-                  .fontColor(ThemeConstants.TEXT_SECONDARY)
-              }
-            }
-            .width('100%')
+            this.ActionButtons()
           }
         }
 
