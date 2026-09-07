@@ -1427,6 +1427,45 @@ export struct MangaDetailPage {
         summary.failureReasonCode === 'source_disabled')
   }
 
+  private confirmDownloadFilteredChapters(chapterIds: string[]): void {
+    if (this.downloadBusy || this.manga === undefined) {
+      return
+    }
+    if (this.offlineDownloadService() === undefined) {
+      this.showToast(s('manga_detail_download_unavailable'))
+      return
+    }
+    const filteredChapterIds = Array.from(new Set<string>(chapterIds))
+    const targetChapterIds = this.batchDownloadChapterIds(filteredChapterIds, ChapterBatchDownloadMode.NOT_DOWNLOADED)
+    const message = this.formatString('manga_detail_download_filtered_confirm', [
+      filteredChapterIds.length, filteredChapterIds.length - targetChapterIds.length, targetChapterIds.length,
+    ])
+    if (targetChapterIds.length === 0) {
+      this.getUIContext().showAlertDialog({
+        title: s('chapter_list_menu_download_filtered'),
+        message,
+        autoCancel: true,
+        confirm: { value: s('common_confirm'), action: () => {} },
+      })
+      return
+    }
+    this.getUIContext().showAlertDialog({
+      title: s('chapter_list_menu_download_filtered'),
+      message,
+      autoCancel: true,
+      primaryButton: {
+        value: s('common_confirm'),
+        action: () => {
+          void this.handleDownloadVisibleChapters(targetChapterIds, ChapterBatchDownloadMode.NOT_DOWNLOADED)
+        },
+      },
+      secondaryButton: {
+        value: s('common_cancel'),
+        action: () => {},
+      },
+    })
+  }
+
   private async handleDownloadVisibleChapters(chapterIds: string[], mode: ChapterBatchDownloadMode): Promise<void> {
     if (this.downloadBusy) {
       return
@@ -2137,6 +2176,9 @@ export struct MangaDetailPage {
               },
               onDownloadVisibleChapters: (chapterIds: string[], mode: ChapterBatchDownloadMode) => {
                 this.handleDownloadVisibleChapters(chapterIds, mode)
+              },
+              onDownloadFilteredChapters: (chapterIds: string[]) => {
+                this.confirmDownloadFilteredChapters(chapterIds)
               },
               onMarkChapterReadState: (chapterId: string, isRead: boolean) => {
                 this.markChapterReadState(chapterId, isRead)

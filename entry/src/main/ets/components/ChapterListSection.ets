@@ -44,6 +44,7 @@ export struct ChapterListSection {
   @Event onDownloadChapter: (chapterId: string) => void = (_chapterId: string) => {}
   @Event onDownloadVisibleChapters: (chapterIds: string[], mode: ChapterBatchDownloadMode) => void =
     (_chapterIds: string[], _mode: ChapterBatchDownloadMode) => {}
+  @Event onDownloadFilteredChapters: (chapterIds: string[]) => void = (_chapterIds: string[]) => {}
   @Event onMarkChapterReadState: (chapterId: string, isRead: boolean) => void =
     (_chapterId: string, _isRead: boolean) => {}
   @Event onMarkVisibleChaptersReadState: (chapterIds: string[], isRead: boolean) => void =
@@ -239,6 +240,10 @@ export struct ChapterListSection {
     return this.visibleChapters().map((chapter: MangaChapterItem): string => chapter.id)
   }
 
+  private filteredChapterIds(): string[] {
+    return this.sortedChapters.map((chapter: MangaChapterItem): string => chapter.id)
+  }
+
   private visibleChapters(): MangaChapterItem[] {
     return this.sortedChapters.slice(0, this.visibleChapterLimit)
   }
@@ -418,6 +423,10 @@ export struct ChapterListSection {
         .onClick(() => {
           this.onDownloadVisibleChapters(this.visibleChapterIds(), ChapterBatchDownloadMode.ALL_VISIBLE)
         })
+      MenuItem({ content: s('chapter_list_menu_download_filtered') })
+        .onClick(() => {
+          this.onDownloadFilteredChapters(this.filteredChapterIds())
+        })
       MenuItem({ content: s('chapter_list_menu_retry_failed') })
         .onClick(() => {
           this.onDownloadVisibleChapters(this.visibleChapterIds(), ChapterBatchDownloadMode.FAILED_ONLY)
@@ -478,71 +487,83 @@ export struct ChapterListSection {
     return chapter.downloadStatus !== undefined
   }
 
-  @Builder
-  private DownloadStatusBadge(status: MangaChapterDownloadStatus) {
-    Row({ space: ThemeConstants.SPACE_XS }) {
-      SymbolGlyph(status === 'downloaded' ? $r('sys.symbol.checkmark') : $r('sys.symbol.arrow_down_to_line'))
-        .fontSize(ThemeConstants.FONT_SIZE_TITLE)
-        .fontColor([this.downloadStatusColor(status)])
-      Text(this.downloadStatusLabel(status))
-        .fontSize(ThemeConstants.FONT_SIZE_CAPTION)
-        .fontWeight(FontWeight.Medium)
-        .fontColor(this.downloadStatusColor(status))
-        .maxLines(1)
-    }
-    .height(ThemeConstants.FILTER_CHIP_HEIGHT)
-    .padding({ left: ThemeConstants.SPACE_SM, right: ThemeConstants.SPACE_SM })
-    .borderRadius(ThemeConstants.RADIUS_ROUND)
-    .backgroundColor(status === 'downloaded' ? ThemeConstants.SOFT_TINT : Color.Transparent)
-    .border({ width: status === 'downloaded' ? 0 : 1, color: this.downloadStatusColor(status) })
+  private chapterForId(chapterId: string): MangaChapterItem | undefined {
+    return this.sortedChapters.find((chapter: MangaChapterItem): boolean => chapter.id === chapterId)
   }
 
   @Builder
-  private ChapterRow(chapter: MangaChapterItem) {
-    Row({ space: ThemeConstants.SPACE_SM }) {
-      Column({ space: ThemeConstants.SPACE_XS }) {
-        Text(this.chapterTitle(chapter))
-          .fontSize(ThemeConstants.FONT_SIZE_LIST_ITEM)
-          .fontColor(chapter.isRead ? $r('sys.color.font_tertiary') : $r('sys.color.font_primary'))
-          .fontWeight(chapter.isRead ? FontWeight.Regular : FontWeight.Medium)
+  private DownloadStatusBadge(chapterId: string) {
+    if (this.chapterForId(chapterId)?.downloadStatus !== undefined) {
+      Row({ space: ThemeConstants.SPACE_XS }) {
+        SymbolGlyph(this.chapterForId(chapterId)!.downloadStatus === 'downloaded' ? $r('sys.symbol.checkmark') : $r('sys.symbol.arrow_down_to_line'))
+          .fontSize(ThemeConstants.FONT_SIZE_TITLE)
+          .fontColor([this.downloadStatusColor(this.chapterForId(chapterId)!.downloadStatus!)])
+        Text(this.downloadStatusLabel(this.chapterForId(chapterId)!.downloadStatus!))
+          .fontSize(ThemeConstants.FONT_SIZE_CAPTION)
+          .fontWeight(FontWeight.Medium)
+          .fontColor(this.downloadStatusColor(this.chapterForId(chapterId)!.downloadStatus!))
           .maxLines(1)
-          .textOverflow({ overflow: TextOverflow.Ellipsis })
-        if (this.chapterSubtitle(chapter).length > 0) {
-          Text(this.chapterSubtitle(chapter))
-            .fontSize(ThemeConstants.FONT_SIZE_CAPTION)
-            .fontColor($r('sys.color.font_secondary'))
+      }
+      .height(ThemeConstants.FILTER_CHIP_HEIGHT)
+      .padding({ left: ThemeConstants.SPACE_SM, right: ThemeConstants.SPACE_SM })
+      .borderRadius(ThemeConstants.RADIUS_ROUND)
+      .backgroundColor(this.chapterForId(chapterId)!.downloadStatus === 'downloaded' ? ThemeConstants.SOFT_TINT : Color.Transparent)
+      .border({ width: this.chapterForId(chapterId)!.downloadStatus === 'downloaded' ? 0 : 1,
+        color: this.downloadStatusColor(this.chapterForId(chapterId)!.downloadStatus!) })
+    }
+  }
+
+  @Builder
+  private ChapterRow(chapterId: string) {
+    if (this.chapterForId(chapterId) !== undefined) {
+      Row({ space: ThemeConstants.SPACE_SM }) {
+        Column({ space: ThemeConstants.SPACE_XS }) {
+          Text(this.chapterTitle(this.chapterForId(chapterId)!))
+            .fontSize(ThemeConstants.FONT_SIZE_LIST_ITEM)
+            .fontColor(this.chapterForId(chapterId)!.isRead ? $r('sys.color.font_tertiary') : $r('sys.color.font_primary'))
+            .fontWeight(this.chapterForId(chapterId)!.isRead ? FontWeight.Regular : FontWeight.Medium)
             .maxLines(1)
             .textOverflow({ overflow: TextOverflow.Ellipsis })
-        }
-      }
-      .layoutWeight(1)
-      .alignItems(HorizontalAlign.Start)
-
-      if (this.shouldShowDownloadStatus(chapter) && chapter.downloadStatus !== undefined) {
-        this.DownloadStatusBadge(chapter.downloadStatus)
-      } else {
-        Button({ type: ButtonType.Circle, stateEffect: true }) {
-          SymbolGlyph(chapter.isDownloaded ? $r('sys.symbol.checkmark_circle') : $r('sys.symbol.arrow_down_to_line'))
-            .fontSize(18)
-            .fontColor([chapter.isDownloaded ? ThemeConstants.BRAND_PRIMARY : $r('sys.color.font_tertiary')])
-        }
-        .width(36)
-        .height(36)
-        .backgroundColor(Color.Transparent)
-        .onClick(() => {
-          if (!chapter.isDownloaded) {
-            this.onDownloadChapter(chapter.id)
+          if (this.chapterSubtitle(this.chapterForId(chapterId)!).length > 0) {
+            Text(this.chapterSubtitle(this.chapterForId(chapterId)!))
+              .fontSize(ThemeConstants.FONT_SIZE_CAPTION)
+              .fontColor($r('sys.color.font_secondary'))
+              .maxLines(1)
+              .textOverflow({ overflow: TextOverflow.Ellipsis })
           }
-        })
+        }
+        .layoutWeight(1)
+        .alignItems(HorizontalAlign.Start)
+
+        if (this.shouldShowDownloadStatus(this.chapterForId(chapterId)!)) {
+          this.DownloadStatusBadge(chapterId)
+        } else {
+          Button({ type: ButtonType.Circle, stateEffect: true }) {
+            SymbolGlyph(this.chapterForId(chapterId)!.isDownloaded ? $r('sys.symbol.checkmark_circle') : $r('sys.symbol.arrow_down_to_line'))
+              .fontSize(18)
+              .fontColor([this.chapterForId(chapterId)!.isDownloaded ? ThemeConstants.BRAND_PRIMARY : $r('sys.color.font_tertiary')])
+          }
+          .width(36)
+          .height(36)
+          .backgroundColor(Color.Transparent)
+          .onClick(() => {
+            const chapter = this.chapterForId(chapterId)
+            if (chapter !== undefined && !chapter.isDownloaded) {
+              this.onDownloadChapter(chapterId)
+            }
+          })
+        }
       }
+      .width('100%')
+      .alignItems(VerticalAlign.Center)
+      .padding({ top: ThemeConstants.SPACE_SM, bottom: ThemeConstants.SPACE_SM, left: ThemeConstants.SPACE_SM, right: ThemeConstants.SPACE_SM })
+      .onClick(() => {
+        if (this.chapterForId(chapterId) !== undefined) {
+          this.onOpenChapter(chapterId)
+        }
+      })
+      .bindContextMenu(this.ReadStateMenu(this.chapterForId(chapterId)!), ResponseType.LongPress)
     }
-    .width('100%')
-    .alignItems(VerticalAlign.Center)
-    .padding({ top: ThemeConstants.SPACE_SM, bottom: ThemeConstants.SPACE_SM, left: ThemeConstants.SPACE_SM, right: ThemeConstants.SPACE_SM })
-    .onClick(() => {
-      this.onOpenChapter(chapter.id)
-    })
-    .bindContextMenu(this.ReadStateMenu(chapter), ResponseType.LongPress)
   }
 
   build() {
@@ -624,7 +645,7 @@ export struct ChapterListSection {
       } else {
         GroupedListSection() {
           ForEach(this.visibleChapters(), (chapter: MangaChapterItem, index: number) => {
-            this.ChapterRow(chapter)
+            this.ChapterRow(chapter.id)
             if (index < this.visibleChapters().length - 1) {
               ListDivider()
             }

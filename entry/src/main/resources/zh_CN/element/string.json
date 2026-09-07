@@ -829,6 +829,8 @@
     { "name": "chapter_list_page_count", "value": "%s 页" },
     { "name": "chapter_list_show_more", "value": "再显示 %s 章" },
     { "name": "chapter_list_menu_download_visible", "value": "下载可见章节" },
+    { "name": "chapter_list_menu_download_filtered", "value": "下载当前筛选全部章节" },
+    { "name": "manga_detail_download_filtered_confirm", "value": "当前筛选共 %s 章，跳过已完整下载的 %s 章，剩余待处理 %s 章。" },
     { "name": "chapter_list_menu_retry_failed", "value": "仅重试失败" },
     { "name": "chapter_list_menu_download_incomplete", "value": "下载未完成" },
     { "name": "chapter_list_menu_mark_read", "value": "标记已读" },

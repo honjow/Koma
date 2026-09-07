@@ -829,6 +829,8 @@
     { "name": "chapter_list_page_count", "value": "%s pages" },
     { "name": "chapter_list_show_more", "value": "Show %s more" },
     { "name": "chapter_list_menu_download_visible", "value": "Download visible chapters" },
+    { "name": "chapter_list_menu_download_filtered", "value": "Download all filtered chapters" },
+    { "name": "manga_detail_download_filtered_confirm", "value": "Current filters: %s chapters. Skip %s fully downloaded chapters; %s remain to process." },
     { "name": "chapter_list_menu_retry_failed", "value": "Retry failed only" },
     { "name": "chapter_list_menu_download_incomplete", "value": "Download incomplete chapters" },
     { "name": "chapter_list_menu_mark_read", "value": "Mark as read" },

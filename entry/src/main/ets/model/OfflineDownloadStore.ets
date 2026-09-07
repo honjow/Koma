@@ -596,7 +596,9 @@ export class OfflineDownloadStore {
   }
 
   loadSummary(comicId: ComicId, chapterId: string): OfflineDownloadSummary | undefined {
-    const validation = this.validateDownloadedChapter(comicId, chapterId)
+    // UI summaries validate manifest, paths and file sizes without rehashing every image.
+    // Explicit integrity checks retain validateDownloadedChapter's default content validation.
+    const validation = this.validateDownloadedChapter(comicId, chapterId, { validateContentHash: false })
     if (validation.status === OfflineDownloadedChapterStatus.MISSING &&
       validation.reasonCode === 'manifest_missing') {
       return undefined
