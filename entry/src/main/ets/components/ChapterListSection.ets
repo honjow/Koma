@@ -656,7 +656,8 @@ export struct ChapterListSection {
             label: this.formatString('chapter_list_show_more', [
               Math.min(VISIBLE_CHAPTER_INCREMENT, this.sortedChapters.length - this.visibleChapterLimit),
             ]),
-            kind: 'secondary',
+            kind: 'ghost',
+            fullWidth: true,
             compact: true,
             controlHeight: ThemeConstants.ACTION_CHIP_HEIGHT,
             icon: $r('sys.symbol.chevron_down'),
