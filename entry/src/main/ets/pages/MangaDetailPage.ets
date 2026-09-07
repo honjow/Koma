@@ -70,7 +70,9 @@ import {
 import { installReaderRemoteHeadersForComic } from '../model/ReaderPageSourceAdapter'
 import {
   InMemoryReaderSessionStore,
+  ReaderSessionConfig,
   ReaderSessionStore,
+  createReaderSessionConfigFromComic,
 } from '../model/ReaderSessionStore'
 import { SourceReaderSessionRequest } from '../model/SourceReaderSession'
 import {
@@ -1766,6 +1768,48 @@ export struct MangaDetailPage {
       : s('common_start_reading')
   }
 
+  private primaryReadChapterLabel(): string {
+    const chapterId = this.progressChapterId()
+    const chapter = this.chapters.find((item: MangaChapterItem): boolean => item.id === chapterId)
+    if (chapter === undefined) {
+      return ''
+    }
+    return chapter.title.trim().replace(/\s+/g, ' ') || s('manga_detail_chapter_untitled')
+  }
+
+  private primaryReadPageLabel(): string {
+    const chapterId = this.progressChapterId()
+    if (chapterId === undefined) {
+      return ''
+    }
+    const comicId = this.currentComicId()
+    const progress = this.readerSessionStore.getChapterProgress(comicId, chapterId)
+    const comic = this.libraryStore?.getComic(comicId)
+    const chapter = comic?.chapters.find((item: Chapter): boolean => item.id === chapterId)
+    let config: ReaderSessionConfig = {
+      comicId, chapterId, chapterIds: this.allChapterIds(),
+      totalPages: progress?.totalPages ?? 0, pageUris: [],
+    }
+    // Source metadata may not have hydrated pages yet. In that case the matching
+    // chapter position supplies its known count; loaded chapters use Reader's config.
+    if (comic !== undefined && chapter !== undefined &&
+      (chapter.pages.length > 0 || chapterPagesAreLocalOffline(comic.sourceKind))) {
+      config = createReaderSessionConfigFromComic(comic, chapterId)
+    }
+    if (config.totalPages <= 0) {
+      return ''
+    }
+    return this.formatString('manga_detail_resume_page', [
+      this.readerSessionStore.restorePageIndex(config) + 1, config.totalPages,
+    ])
+  }
+
+  private primaryReadPositionLabel(): string {
+    const chapter = this.primaryReadChapterLabel()
+    const page = this.primaryReadPageLabel()
+    return page.length > 0 ? `${chapter} · ${page}` : chapter
+  }
+
   private formatDownloadStatus(summary: OfflineDownloadSummary | undefined): string {
     if (summary === undefined) {
       return ''
@@ -2005,7 +2049,16 @@ export struct MangaDetailPage {
 
         if (this.shouldRenderDetailActions()) {
           ListItem() {
-            this.ActionButtons()
+            Column({ space: ThemeConstants.SPACE_XS }) {
+              this.ActionButtons()
+              if (this.progressChapterId() !== undefined) {
+                Text(this.primaryReadPositionLabel())
+                  .width('100%')
+                  .fontSize(ThemeConstants.FONT_SIZE_BODY)
+                  .fontColor(ThemeConstants.TEXT_SECONDARY)
+              }
+            }
+            .width('100%')
           }
         }
 
