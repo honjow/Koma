@@ -166,7 +166,8 @@ export function canRunOfflineDownloadQueueNow(preferences: OfflineDownloadQueueP
 
 @Concurrent
 function initializeOfflineDownloadQueue(filesDir: string): void {
-  new OfflineDownloadQueueStore(filesDir).reconcileWithManifests()
+  // Startup restores queue state; explicit scans retain full page-content validation.
+  new OfflineDownloadQueueStore(filesDir).reconcileWithManifests({ validateContentHash: false })
 }
 
 export class OfflineDownloadService {

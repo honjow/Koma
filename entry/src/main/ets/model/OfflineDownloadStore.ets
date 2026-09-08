@@ -642,8 +642,9 @@ export class OfflineDownloadStore {
     }
   }
 
-  reconcileDownloadedChapter(comicId: ComicId, chapterId: string): OfflineDownloadManifestValidation {
-    const validation = this.validateDownloadedChapter(comicId, chapterId)
+  reconcileDownloadedChapter(comicId: ComicId, chapterId: string,
+    options?: OfflineDownloadValidationOptions): OfflineDownloadManifestValidation {
+    const validation = this.validateDownloadedChapter(comicId, chapterId, options)
     const manifest = validation.manifest
     if (manifest === undefined || validation.status === OfflineDownloadedChapterStatus.DOWNLOADED ||
       validation.status === OfflineDownloadedChapterStatus.CORRUPT) {
@@ -654,7 +655,7 @@ export class OfflineDownloadStore {
       manifest.status = manifest.pages.length > 0 ? OfflineDownloadStatus.PARTIAL : OfflineDownloadStatus.FAILED
       manifest.failureReasonCode = 'download_interrupted'
       this.saveManifest(manifest)
-      return this.validateDownloadedChapter(comicId, chapterId)
+      return this.validateDownloadedChapter(comicId, chapterId, options)
     }
     if (validation.status === OfflineDownloadedChapterStatus.PARTIAL) {
       this.saveManifest({
@@ -674,7 +675,7 @@ export class OfflineDownloadStore {
         integrityHash: manifest.integrityHash,
         failureReasonCode: manifest.failureReasonCode ?? validation.reasonCode ?? 'page_file_missing',
       })
-      return this.validateDownloadedChapter(comicId, chapterId)
+      return this.validateDownloadedChapter(comicId, chapterId, options)
     }
     if (validation.reasonCode === 'pages_missing') {
       this.saveManifest({
@@ -694,7 +695,7 @@ export class OfflineDownloadStore {
         integrityHash: manifest.integrityHash,
         failureReasonCode: 'pages_missing',
       })
-      return this.validateDownloadedChapter(comicId, chapterId)
+      return this.validateDownloadedChapter(comicId, chapterId, options)
     }
     return validation
   }

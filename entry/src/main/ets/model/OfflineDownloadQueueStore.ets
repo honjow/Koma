@@ -10,6 +10,7 @@ import {
   OfflineDownloadManifestValidation,
   OfflineDownloadStatus,
   OfflineDownloadStore,
+  OfflineDownloadValidationOptions,
   assertSafeOfflineDownloadRoot,
 } from './OfflineDownloadStore'
 
@@ -339,9 +340,9 @@ export class OfflineDownloadQueueStore {
     return this.reconciledEntries(this.loadDocument(), false).entries
   }
 
-  reconcileWithManifests(): OfflineDownloadQueueEntry[] {
+  reconcileWithManifests(options?: OfflineDownloadValidationOptions): OfflineDownloadQueueEntry[] {
     const document = this.loadDocument()
-    const result = this.reconciledEntries(document, true)
+    const result = this.reconciledEntries(document, true, options)
     if (result.changed) {
       this.saveDocument({
         schemaVersion: OFFLINE_DOWNLOAD_QUEUE_SCHEMA_VERSION,
@@ -352,7 +353,8 @@ export class OfflineDownloadQueueStore {
     return result.changed ? result.entries : document.entries
   }
 
-  private reconciledEntries(document: OfflineDownloadQueueDocument, persistManifestState: boolean): OfflineDownloadQueueReconcileResult {
+  private reconciledEntries(document: OfflineDownloadQueueDocument, persistManifestState: boolean,
+    options?: OfflineDownloadValidationOptions): OfflineDownloadQueueReconcileResult {
     const store = new OfflineDownloadStore(this.filesDir)
     let changed = false
     const entries = document.entries.map((entry: OfflineDownloadQueueEntry): OfflineDownloadQueueEntry => {
@@ -360,8 +362,8 @@ export class OfflineDownloadQueueStore {
         return entry
       }
       const validation = persistManifestState ?
-        store.reconcileDownloadedChapter(entry.comicId, entry.chapterId) :
-        store.validateDownloadedChapter(entry.comicId, entry.chapterId)
+        store.reconcileDownloadedChapter(entry.comicId, entry.chapterId, options) :
+        store.validateDownloadedChapter(entry.comicId, entry.chapterId, options)
       const next: OfflineDownloadQueueEntry = normalizeEntry({
         comicId: entry.comicId,
         chapterId: entry.chapterId,
