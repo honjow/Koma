@@ -53,6 +53,7 @@ import {
 } from '../model/LibraryFilterStore'
 import { OfflineDownloadQueueEntry, OfflineDownloadQueueStore } from '../model/OfflineDownloadQueueStore'
 import { OfflineDownloadStatus } from '../model/OfflineDownloadStore'
+import { LibraryBatchDownloadPlan, LibraryBatchDownloadQueue } from '../model/LibraryBatchDownloadQueue'
 import { connectRemoteProgressSyncState, RemoteProgressSyncState } from '../state/RemoteProgressSyncState'
 import {
   isRemovableLocalComic,
@@ -181,6 +182,7 @@ struct ContinueReadingShelfCard {
 
 export interface LibraryTitleBarPresentation {
   selectionMode: boolean
+  batchDownloadBusy: boolean
   selectedCount: number
   menuItems: Record<string, Object>[]
   cancelSelection: () => void
@@ -222,6 +224,7 @@ export struct LibraryPage {
   @Local private projectionState: LibraryProjectionState = LibraryProjectionState.READY
   @Local private selectionMode: boolean = false
   @Local private selectedIds: Set<ComicId> = new Set<ComicId>()
+  @Local private batchDownloadBusy: boolean = false
   @Local private suppressOpenComicId: ComicId = ''
   @Local private sortBy: LibrarySortBy = 'lastRead'
   @Local private viewMode: LibraryViewMode = 'grid'
@@ -277,6 +280,7 @@ export struct LibraryPage {
   @Event onProgressStoreReloadRequested: () => void = () => {}
   @Event onImportRequested: () => void = () => {}
   @Event onSearchRequested: () => void = () => {}
+  @Event onOpenDownloadsRequested: () => void = () => {}
   @Event onTitleBarChange: (presentation: LibraryTitleBarPresentation) => void =
     (_presentation: LibraryTitleBarPresentation) => {}
   @Event onRemoveComicRequested: (comicId: ComicId) => boolean = (_comicId: ComicId) => false
@@ -286,7 +290,7 @@ export struct LibraryPage {
   @Event onUpdateCategoryMembershipRequested: (comicIds: ComicId[], categoryId: string, selected: boolean) => boolean =
     (_comicIds: ComicId[], _categoryId: string, _selected: boolean) => false
 
-  @Monitor('selectionMode', 'selectedIds', 'viewMode', 'displayedRevision', 'languageState.effectiveLocale')
+  @Monitor('selectionMode', 'selectedIds', 'viewMode', 'displayedRevision', 'batchDownloadBusy', 'languageState.effectiveLocale')
   private publishTitleBar(): void {
     const items: Record<string, Object>[] = this.selectionMode ? [
       this.titleMenuItem(s('library_action_select_all'), $r('sys.symbol.checkmark_square'),
@@ -299,6 +303,10 @@ export struct LibraryPage {
         () => { this.markSelectedReadState(false) }, this.selectedCount() > 0),
       this.titleMenuItem(s('common_remove'), $r('sys.symbol.trash'),
         () => { this.showBatchRemoveConfirmation() }, this.selectedRemovableCount() > 0),
+      this.titleMenuItem(s('library_download_unread'), $r('sys.symbol.arrow_down_to_line'),
+        () => { this.confirmSelectedComicsDownload(true) }, this.selectedCount() > 0 && !this.batchDownloadBusy),
+      this.titleMenuItem(s('library_download_all'), $r('sys.symbol.arrow_down_to_line'),
+        () => { this.confirmSelectedComicsDownload(false) }, this.selectedCount() > 0 && !this.batchDownloadBusy),
     ] : [
       this.titleMenuItem(s('tab_search'), $r('sys.symbol.magnifyingglass'),
         () => { this.onSearchRequested() }),
@@ -311,6 +319,7 @@ export struct LibraryPage {
     ]
     this.onTitleBarChange({
       selectionMode: this.selectionMode,
+      batchDownloadBusy: this.batchDownloadBusy,
       selectedCount: this.selectedCount(),
       menuItems: items,
       cancelSelection: () => { this.exitSelectionMode() },
@@ -1427,6 +1436,70 @@ export struct LibraryPage {
         action: () => {},
       },
     })
+  }
+
+  private batchDownloadMessage(plan: LibraryBatchDownloadPlan): string {
+    const lines: string[] = [
+      s('library_download_current_directory').replace('%s', `${plan.comicCount}`)
+        .replace('%s', `${plan.matchedChapterCount}`).replace('%s', `${plan.targets.length}`),
+    ]
+    if (plan.downloadedCount > 0 || plan.existingCount > 0) {
+      lines.push(s('library_download_preserved_counts').replace('%s', `${plan.downloadedCount}`)
+        .replace('%s', `${plan.existingCount}`))
+    }
+    if (plan.unavailableComicCount > 0) {
+      lines.push(s('library_download_unavailable_comics').replace('%s', `${plan.unavailableComicCount}`))
+    }
+    lines.push(s('library_download_queue_instruction'))
+    return lines.join('\n\n')
+  }
+
+  private confirmSelectedComicsDownload(unreadOnly: boolean): void {
+    if (this.batchDownloadBusy || this.selectedIds.size === 0) {
+      return
+    }
+    try {
+      const context = getContext(this) as common.UIAbilityContext
+      const queue = new LibraryBatchDownloadQueue(context.filesDir, this.libraryStore, this.readerSessionStore)
+      const plan = queue.prepare(Array.from(this.selectedIds), unreadOnly)
+      const title = s(unreadOnly ? 'library_download_unread' : 'library_download_all')
+      const message = this.batchDownloadMessage(plan)
+      if (plan.targets.length === 0) {
+        this.getUIContext().showAlertDialog({
+          title, message, autoCancel: true,
+          confirm: { value: s('common_confirm'), action: () => {} },
+        })
+        return
+      }
+      this.getUIContext().showAlertDialog({
+        title, message, autoCancel: true,
+        primaryButton: {
+          value: s('library_download_enqueue'),
+          action: () => { void this.enqueueSelectedComicsDownload(queue, plan, unreadOnly) },
+        },
+        secondaryButton: { value: s('common_cancel'), action: () => {} },
+      })
+    } catch (_error) {
+      this.showToast(s('library_download_enqueue_failed'))
+    }
+  }
+
+  private async enqueueSelectedComicsDownload(queue: LibraryBatchDownloadQueue,
+    plan: LibraryBatchDownloadPlan, unreadOnly: boolean): Promise<void> {
+    if (this.batchDownloadBusy) {
+      return
+    }
+    this.batchDownloadBusy = true
+    try {
+      const count = await queue.enqueue(plan.targets, unreadOnly)
+      this.showToast(s('library_download_enqueued').replace('%s', `${count}`))
+      this.exitSelectionMode()
+      this.onOpenDownloadsRequested()
+    } catch (_error) {
+      this.showToast(s('library_download_enqueue_failed'))
+    } finally {
+      this.batchDownloadBusy = false
+    }
   }
 
   private showRemoveConfirmation(comic: ComicCoverInfo): void {

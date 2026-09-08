@@ -154,6 +154,7 @@ struct Index {
   @Local private libraryPreferencesRevision: number = 0
   @Local private libraryTitleBar: LibraryTitleBarPresentation = {
     selectionMode: false,
+    batchDownloadBusy: false,
     selectedCount: 0,
     menuItems: [],
     cancelSelection: () => {},
@@ -1777,6 +1778,9 @@ struct Index {
                 onSearchRequested: () => {
                   RouterHelper.openSearch({})
                 },
+                onOpenDownloadsRequested: () => {
+                  this.openSettingsSecondary(RouteName.DOWNLOADS)
+                },
                 onTitleBarChange: (presentation: LibraryTitleBarPresentation) => {
                   this.libraryTitleBar = presentation
                 },
@@ -1956,6 +1960,10 @@ struct Index {
           'action': () => { this.libraryTitleBar.cancelSelection() },
         }
         content['backIcon'] = cancelContent
+      }
+      if (this.libraryTitleBar.batchDownloadBusy) {
+        titleInfo = { 'mainTitle': AppStrings.get('library_download_enqueuing') }
+        content['title'] = titleInfo
       }
       menu['value'] = this.libraryTitleBar.menuItems
       menu['maxCount'] = 3

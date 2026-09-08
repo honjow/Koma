@@ -570,6 +570,29 @@ export class OfflineDownloadQueueStore {
     return normalized
   }
 
+  addNewEntries(entries: OfflineDownloadQueueEntry[]): number {
+    const document = this.loadDocument()
+    const keys = new Set<string>(document.entries.map((entry: OfflineDownloadQueueEntry): string =>
+      JSON.stringify([entry.comicId, entry.chapterId])))
+    const added: OfflineDownloadQueueEntry[] = []
+    entries.forEach((entry: OfflineDownloadQueueEntry) => {
+      const normalized = normalizeEntry(entry)
+      const key = JSON.stringify([normalized.comicId, normalized.chapterId])
+      if (!keys.has(key)) {
+        keys.add(key)
+        added.unshift(normalized)
+      }
+    })
+    if (added.length > 0) {
+      this.saveDocument({
+        schemaVersion: OFFLINE_DOWNLOAD_QUEUE_SCHEMA_VERSION,
+        preferences: document.preferences,
+        entries: added.concat(document.entries),
+      })
+    }
+    return added.length
+  }
+
   remove(comicId: ComicId, chapterId: string): void {
     const document = this.loadDocument()
     const entries = document.entries.filter((item: OfflineDownloadQueueEntry): boolean => {
