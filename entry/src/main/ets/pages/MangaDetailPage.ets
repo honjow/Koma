@@ -1633,8 +1633,7 @@ export struct MangaDetailPage {
       this.downloadStatusText = pausedCount > 0
         ? this.formatString('manga_detail_batch_paused', [downloadedCount, pausedCount, blockedCount, failedCount])
         : this.formatString('manga_detail_batch_complete', [downloadedCount, blockedCount, failedCount])
-      this.showToast(pausedCount > 0 ? s('downloads_status_paused')
-        : blockedCount > 0 ? s('manga_detail_batch_missing_pages') : s('manga_detail_batch_complete_toast'))
+      this.showToast(this.downloadStatusText)
     } finally {
       this.downloadBusy = false
     }
@@ -1994,7 +1993,7 @@ export struct MangaDetailPage {
 
   private downloadButtonLabel(): string {
     if (this.downloadBusy) {
-      return s('manga_detail_download_in_progress')
+      return this.downloadStatusText.length > 0 ? this.downloadStatusText : s('manga_detail_download_in_progress')
     }
     const service = this.offlineDownloadService()
     const chapterId = this.firstChapterId()
@@ -2284,15 +2283,6 @@ export struct MangaDetailPage {
         if (!this.isDetailPending() && this.feedbackText.length > 0) {
           ListItem() {
             Text(this.feedbackText)
-              .width('100%')
-              .fontSize(ThemeConstants.FONT_SIZE_META)
-              .fontColor(ThemeConstants.TEXT_SECONDARY)
-          }
-        }
-
-        if (this.downloadStatusText.length > 0) {
-          ListItem() {
-            Text(this.downloadStatusText)
               .width('100%')
               .fontSize(ThemeConstants.FONT_SIZE_META)
               .fontColor(ThemeConstants.TEXT_SECONDARY)
