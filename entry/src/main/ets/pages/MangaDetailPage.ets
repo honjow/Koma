@@ -807,11 +807,21 @@ export struct MangaDetailPage {
     const comicId = this.sourceComicId(sourceId, mangaId)
     const libraryComic = this.findSourceRuntimeComic(sourceId, mangaId, comicId)
     this.activeLibraryComicId = libraryComic?.id ?? ''
-    nextDetail.chapterCount = chapters.length
+    const displayedChapters = chapters.slice()
+    const displayedIds = new Set<string>(chapters.map((chapter: MangaChapterItem): string => chapter.id))
+    if (libraryComic !== undefined) {
+      libraryComic.chapters.forEach((chapter: Chapter): void => {
+        if (!displayedIds.has(chapter.id)) {
+          displayedChapters.push(mangaChapterItemFromComicChapter(chapter, libraryComic.sourceKind))
+          displayedIds.add(chapter.id)
+        }
+      })
+    }
+    nextDetail.chapterCount = displayedChapters.length
     nextDetail.isInLibrary = libraryComic !== undefined
     nextDetail.sourceName = entry.manifestName
     this.manga = nextDetail
-    this.chapters = this.decorateChapterStates(chapters)
+    this.chapters = this.decorateChapterStates(displayedChapters)
     this.isInLibrary = nextDetail.isInLibrary
     this.sourceDetailDataResolved = true
     this.feedbackText = feedbackText

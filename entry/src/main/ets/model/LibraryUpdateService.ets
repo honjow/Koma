@@ -216,7 +216,15 @@ function mergeSourceChapters(comic: Comic, remoteChapters: MangaChapterItem[], n
   comic.chapters.forEach((chapter: Chapter) => {
     existingById.set(chapter.id, chapter)
   })
-  return remoteChapters.map((remote: MangaChapterItem, index: number): Chapter => {
+  const remoteIds = new Set<string>()
+  const uniqueRemoteChapters = remoteChapters.filter((chapter: MangaChapterItem): boolean => {
+    if (remoteIds.has(chapter.id)) {
+      return false
+    }
+    remoteIds.add(chapter.id)
+    return true
+  })
+  const merged = uniqueRemoteChapters.map((remote: MangaChapterItem, index: number): Chapter => {
     const existing = existingById.get(remote.id)
     if (existing !== undefined) {
       return {
@@ -261,6 +269,12 @@ function mergeSourceChapters(comic: Comic, remoteChapters: MangaChapterItem[], n
       updatedAt: now,
     }
   })
+  comic.chapters.forEach((chapter: Chapter): void => {
+    if (!remoteIds.has(chapter.id)) {
+      merged.push(chapter)
+    }
+  })
+  return merged
 }
 
 function enrichSourceChapterMetadata(comic: Comic, remoteChapters: MangaChapterItem[]): boolean {
@@ -665,7 +679,7 @@ export class LibraryUpdateService {
       const remoteIds = remoteChapters.map((chapter: MangaChapterItem): string => chapter.id)
       const localIds = comic.chapters.map((chapter: Chapter): string => chapter.id)
       const hasNewId = remoteIds.some((chapterId: string): boolean => !localIds.includes(chapterId))
-      if (remoteChapters.length <= previousChapterCount && !hasNewId) {
+      if (!hasNewId) {
         const metadataChanged = enrichSourceChapterMetadata(comic, remoteChapters)
         if (metadataChanged) {
           this.libraryStore.upsertComic(comic)
