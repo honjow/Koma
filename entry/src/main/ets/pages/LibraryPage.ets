@@ -79,6 +79,20 @@ interface LibraryServerSourceFilterOption {
   title: string
 }
 
+interface LibraryGridProjection {
+  comics: ComicCoverInfo[]
+  byId: Map<ComicId, ComicCoverInfo>
+}
+
+interface LibraryComicBuilderParams {
+  comic: ComicCoverInfo
+}
+
+interface LibraryCheckboxBuilderParams {
+  comic: ComicCoverInfo
+  onCover: boolean
+}
+
 /**
  * `displayedComics` is a projection that depends on both the injected library
  * store and persisted filters. Keep the two unresolved states separate so an
@@ -980,6 +994,26 @@ export struct LibraryPage {
     return comic.subtitle
   }
 
+  @Computed
+  private get gridProjection(): LibraryGridProjection {
+    // The stores are not observed objects; these existing revisions invalidate
+    // same-ID progress/metadata alongside the observed displayed array.
+    void this.displayedRevision
+    void this.readerProgressRevision
+    void this.languageState.effectiveLocale
+    const comics = this.gridComics()
+    const byId = new Map<ComicId, ComicCoverInfo>()
+    comics.forEach((comic: ComicCoverInfo) => {
+      byId.set(comic.id, comic)
+    })
+    return { comics: comics, byId: byId }
+  }
+
+  private currentGridComic(original: ComicCoverInfo): ComicCoverInfo {
+    // A removed cell can finish unbinding with its real prior identity.
+    return this.gridProjection.byId.get(original.id) ?? original
+  }
+
   private targetGridColumnWidth(): number {
     if (this.listDensity === 'compact') {
       return 96
@@ -1192,10 +1226,6 @@ export struct LibraryPage {
 
   private listRowRenderKey(comic: ComicCoverInfo): string {
     return `list:${comic.id}`
-  }
-
-  private isEvenDisplayedRevision(): boolean {
-    return this.displayedRevision % 2 === 0
   }
 
   private removeMissingSelectedComics(): void {
@@ -1527,19 +1557,19 @@ export struct LibraryPage {
   }
 
   @Builder
-  private ComicActionMenu(comic: ComicCoverInfo) {
+  private ComicActionMenu(params: LibraryComicBuilderParams) {
     Menu() {
-      if (this.canSelectComic(comic.id)) {
+      if (this.canSelectComic(params.comic.id)) {
         MenuItem({ content: s('common_select') })
           .onClick(() => {
-            this.enterSelectionMode(comic.id)
+            this.enterSelectionMode(params.comic.id)
           })
       }
-      if (this.canRemoveComic(comic.id)) {
+      if (this.canRemoveComic(params.comic.id)) {
         MenuItem({ content: s('library_action_remove_from_library') })
           .contentFontColor(ThemeConstants.DANGER)
           .onClick(() => {
-            this.showRemoveConfirmation(comic)
+            this.showRemoveConfirmation(params.comic)
           })
       }
     }
@@ -1920,10 +1950,10 @@ export struct LibraryPage {
 
 
   @Builder
-  private ComicSelectionCheckbox(comic: ComicCoverInfo, onCover: boolean) {
+  private ComicSelectionCheckbox(params: LibraryCheckboxBuilderParams) {
     Stack({ alignContent: Alignment.Center }) {
-      Checkbox({ name: comic.id })
-        .select(this.isComicSelected(comic.id))
+      Checkbox({ name: params.comic.id })
+        .select(this.isComicSelected(params.comic.id))
         .selectedColor(ThemeConstants.BRAND_PRIMARY)
         .unselectedColor(ThemeConstants.TEXT_SECONDARY)
         .width(24)
@@ -1932,60 +1962,60 @@ export struct LibraryPage {
         .backgroundColor(ThemeConstants.CARD)
         .borderRadius(ThemeConstants.RADIUS_ROUND)
         .responseRegion({ x: -6, y: -6, width: 36, height: 36 })
-        .accessibilityText(comic.title)
+        .accessibilityText(params.comic.title)
         .onChange((selected: boolean) => {
-          this.setComicSelected(comic.id, selected)
+          this.setComicSelected(params.comic.id, selected)
         })
     }
     .width(ThemeConstants.TOUCH_TARGET_SM)
     .height(ThemeConstants.TOUCH_TARGET_SM)
-    .margin({ top: onCover ? ThemeConstants.SPACE_SM : 0, right: ThemeConstants.SPACE_SM })
+    .margin({ top: params.onCover ? ThemeConstants.SPACE_SM : 0, right: ThemeConstants.SPACE_SM })
   }
 
   @Builder
-  private LibraryGridCell(comic: ComicCoverInfo) {
+  private LibraryGridCell(params: LibraryComicBuilderParams) {
     Stack({ alignContent: Alignment.TopEnd }) {
       ComicCoverCard({
-        comic: comic,
-        title: comic.title,
-        subtitle: comic.subtitle,
-        progressText: comic.progressText,
-        coverColor: comic.coverColor,
-        accentColor: comic.accentColor,
-        categoryLabels: comic.categoryLabels ?? [],
-        selected: this.isComicSelected(comic.id),
+        comic: params.comic,
+        title: params.comic.title,
+        subtitle: params.comic.subtitle,
+        progressText: params.comic.progressText,
+        coverColor: params.comic.coverColor,
+        accentColor: params.comic.accentColor,
+        categoryLabels: params.comic.categoryLabels ?? [],
+        selected: this.isComicSelected(params.comic.id),
       })
         .onTouch((event: TouchEvent) => {
-          this.handleComicTouch(comic.id, event)
+          this.handleComicTouch(params.comic.id, event)
         })
         .priorityGesture(GestureGroup(GestureMode.Exclusive,
           LongPressGesture({ fingers: 1, repeat: false, duration: 500 })
             .onAction(() => {
-              this.enterSelectionMode(comic.id)
+              this.enterSelectionMode(params.comic.id)
             }),
           TapGesture()
             .onAction(() => {
-              this.handleComicClick(comic.id)
+              this.handleComicClick(params.comic.id)
             })
         ))
 
       if (this.selectionMode) {
-        this.ComicSelectionCheckbox(comic, true)
-      } else if (this.canRemoveComic(comic.id)) {
+        this.ComicSelectionCheckbox({ comic: params.comic, onCover: true })
+      } else if (this.canRemoveComic(params.comic.id)) {
         KomaIconButton({
           icon: $r('sys.symbol.ellipsis_circle'),
           kind: 'secondary',
           controlSize: ThemeConstants.TOUCH_TARGET_SM,
           iconSize: ThemeConstants.FONT_SIZE_H3,
           action: () => {
-            this.comicActionMenuKey = `grid:${comic.id}`
+            this.comicActionMenuKey = `grid:${params.comic.id}`
           },
         })
           .margin({ top: ThemeConstants.SPACE_SM, right: ThemeConstants.SPACE_SM })
-          .bindMenu(this.comicActionMenuKey === `grid:${comic.id}`, this.ComicActionMenu(comic), {
+          .bindMenu(this.comicActionMenuKey === `grid:${params.comic.id}`, this.ComicActionMenu({ comic: params.comic }), {
             placement: Placement.BottomRight,
             onDisappear: () => {
-              if (this.comicActionMenuKey === `grid:${comic.id}`) {
+              if (this.comicActionMenuKey === `grid:${params.comic.id}`) {
                 this.comicActionMenuKey = ''
               }
             },
@@ -1995,19 +2025,19 @@ export struct LibraryPage {
     .width('100%')
   }
 
- @Builder
- private LibraryGrid(comics: ComicCoverInfo[]) {
+  @Builder
+  private LibraryGrid() {
     Column({ space: this.libraryGridRowGap() }) {
-      ForEach(this.libraryGridRowIndexes(comics), (rowIndex: number) => {
+      ForEach(this.libraryGridRowIndexes(this.gridProjection.comics), (rowIndex: number) => {
         Row({ space: this.libraryGridColumnGap() }) {
-          ForEach(this.libraryGridRowComics(comics, rowIndex), (comic: ComicCoverInfo) => {
+          ForEach(this.libraryGridRowComics(this.gridProjection.comics, rowIndex), (comic: ComicCoverInfo) => {
             Column() {
-              this.LibraryGridCell(comic)
+              this.LibraryGridCell({ comic: this.currentGridComic(comic) })
             }
             .layoutWeight(1)
           }, (comic: ComicCoverInfo) => this.comicRenderKey(comic))
 
-          ForEach(this.libraryGridMissingCells(this.libraryGridRowComics(comics, rowIndex)), (_index: number) => {
+          ForEach(this.libraryGridMissingCells(this.libraryGridRowComics(this.gridProjection.comics, rowIndex)), (_index: number) => {
             Blank()
               .layoutWeight(1)
           }, (index: number) => `blank-${rowIndex}-${index}`)
@@ -2015,18 +2045,8 @@ export struct LibraryPage {
         .width('100%')
         .alignItems(VerticalAlign.Top)
       }, (rowIndex: number) => `row-${rowIndex}`)
-   }
-   .width('100%')
- }
-
-  @Builder
-  private LibraryGridEven(comics: ComicCoverInfo[]) {
-    this.LibraryGrid(comics)
-  }
-
-  @Builder
-  private LibraryGridOdd(comics: ComicCoverInfo[]) {
-    this.LibraryGrid(comics)
+    }
+    .width('100%')
   }
 
   private shouldShowCoverUri(
@@ -2134,7 +2154,7 @@ export struct LibraryPage {
             ))
 
           if (this.selectionMode) {
-            this.ComicSelectionCheckbox(comic, false)
+            this.ComicSelectionCheckbox({ comic: comic, onCover: false })
           } else if (this.canRemoveComic(comic.id)) {
             KomaIconButton({
               icon: $r('sys.symbol.ellipsis_circle'),
@@ -2146,7 +2166,7 @@ export struct LibraryPage {
               },
             })
               .margin({ right: ThemeConstants.SPACE_SM })
-              .bindMenu(this.comicActionMenuKey === `list:${comic.id}`, this.ComicActionMenu(comic), {
+              .bindMenu(this.comicActionMenuKey === `list:${comic.id}`, this.ComicActionMenu({ comic: comic }), {
                 placement: Placement.BottomRight,
                 onDisappear: () => {
                   if (this.comicActionMenuKey === `list:${comic.id}`) {
@@ -2219,10 +2239,8 @@ export struct LibraryPage {
             ListItem() {
               if (this.viewMode === 'list') {
                 this.LibraryList()
-              } else if (this.isEvenDisplayedRevision()) {
-                this.LibraryGridEven(this.gridComics())
               } else {
-                this.LibraryGridOdd(this.gridComics())
+                this.LibraryGrid()
               }
             }
           } else {
