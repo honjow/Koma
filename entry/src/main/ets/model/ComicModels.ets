@@ -43,6 +43,10 @@ export interface Chapter {
   comicId: ComicId
   title: string
   index: number
+  chapterNumber?: number
+  volumeNumber?: string
+  readingGroup?: string
+  continuationEligible?: boolean
   scanlator?: string
   language?: string
   dateUpload?: number

@@ -24,6 +24,8 @@ import { ImportPage, LocalFolderImportPersistResult } from './ImportPage'
 import { LocalImportCoordinator } from '../import/LocalImportCoordinator'
 import { ReaderPage } from './ReaderPage'
 import { MangaDetailPage } from './MangaDetailPage'
+import { resolveSourceChapterList } from '../model/SourceChapterListResolver'
+import { ReaderChapterDescriptor, cloneReaderChapterDescriptor, continuationChapterIds } from '../model/ReaderChapterSequence'
 import { SourceBrowsePage } from './SourceBrowsePage'
 import { SourceSearchPage } from './SourceSearchPage'
 import { SOURCE_SEARCH_TITLE_BOTTOM_HEIGHT, SourceSearchTitleFieldContentBuilder } from '../components/SourceSearchTitleField'
@@ -109,7 +111,7 @@ import {
   sourceReadHistoryEntryFromRequest,
   sourceReaderSessionRequestForChapter,
 } from '../model/SourceReaderSession'
-import { SourceRuntimeRegistry } from '../sourceRuntime/SourceRuntimeRegistry'
+import { SourceRuntimeRegistry, sourceRuntimeEntryEnabled } from '../sourceRuntime/SourceRuntimeRegistry'
 import { SourceRuntimeRegistryInstalledSourceSummary } from '../sourceRuntime/SourceRuntimeRegistry'
 import { SourceManga } from '../model/SourceModels'
 import {
@@ -367,6 +369,8 @@ struct Index {
       chapterId: request.chapterId,
       chapterIds,
       chapterTitles,
+      continuationChapterIds: request.chaptersResolved === true && request.chapters !== undefined
+        ? continuationChapterIds(request.chapters, request.chapterId) : undefined,
       title: request.title,
       chapterTitle: chapterTitles[selectedIndex],
       totalPages: pages.length,
@@ -392,6 +396,25 @@ struct Index {
     request: SourceReaderSessionRequest,
     openEpoch: number,
   ): Promise<void> {
+    const preparedRequest = cloneSourceReaderSessionRequest(request)
+    if (preparedRequest.chaptersResolved !== true) {
+      try {
+        const lookup = this.sourceRegistry.lookup(request.sourceId)
+        if (lookup.ok && lookup.entry !== undefined && sourceRuntimeEntryEnabled(lookup.entry)) {
+          const catalog = await resolveSourceChapterList(lookup.entry, request.mangaId)
+          if (catalog.resolved && catalog.chapters.some((chapter: ReaderChapterDescriptor): boolean => chapter.id === request.chapterId)) {
+            preparedRequest.chapters = catalog.chapters.map((chapter: ReaderChapterDescriptor): ReaderChapterDescriptor =>
+              cloneReaderChapterDescriptor(chapter))
+            preparedRequest.chapterIds = catalog.chapters.map((chapter: ReaderChapterDescriptor): string => chapter.id)
+            preparedRequest.chapterTitles = catalog.chapters.map((chapter: ReaderChapterDescriptor): string => chapter.title)
+            preparedRequest.chaptersResolved = true
+          }
+        }
+      } catch (_error) {
+        // A failed catalog must not prevent opening the known current chapter.
+        console.warn('[ReaderSource] chapter catalog unresolved')
+      }
+    }
     // Do not share the library hydrator's result here. Source hosts may issue
     // short-lived descriptors; a transient Reader open always resolves pages
     // afresh and never writes them to LibraryStore.
@@ -410,20 +433,21 @@ struct Index {
       activeRequest.chapterId !== request.chapterId) {
       return
     }
+    this.activeSourceReaderRequest = preparedRequest
     if (resolution.pages.length === 0) {
       this.logReaderSourcePagesUnavailable(resolution.reasonCode)
-      const unavailableConfig = this.createUnavailableSourceReaderSessionConfig(request)
+      const unavailableConfig = this.createUnavailableSourceReaderSessionConfig(preparedRequest)
       this.readerSessionConfig = unavailableConfig
       this.readerPageIndex = this.readerSessionStore.restorePageIndex(unavailableConfig)
       this.readerSessionLoading = false
       return
     }
-    const nextSessionConfig = this.createSourceReaderSessionConfig(request, resolution.pages)
+    const nextSessionConfig = this.createSourceReaderSessionConfig(preparedRequest, resolution.pages)
     this.readerSessionConfig = nextSessionConfig
     this.readerPageIndex = this.readerSessionStore.restorePageIndex(nextSessionConfig)
     // Persist only stable identity/title/cover/current-chapter metadata. Page
     // descriptors intentionally stay in the route-local Reader config.
-    this.readerSessionStore.saveSourceHistory(sourceReadHistoryEntryFromRequest(request))
+    this.readerSessionStore.saveSourceHistory(sourceReadHistoryEntryFromRequest(preparedRequest))
     this.readerSessionStore.flush()
     this.readerSessionLoading = false
   }
@@ -568,6 +592,7 @@ struct Index {
       title: comic.title,
       chapterTitle: baseConfig.chapterTitle ?? chapter?.title,
       chapterIds,
+      continuationChapterIds: baseConfig.continuationChapterIds,
       chapterTitles,
       totalPages: 1,
       pageUris: ['source-placeholder://chapter'],
@@ -646,6 +671,7 @@ struct Index {
         title: comic.title,
         chapterTitle: baseConfig.chapterTitle ?? validation.manifest.chapterTitle,
         chapterIds,
+        continuationChapterIds: baseConfig.continuationChapterIds,
         chapterTitles,
         totalPages: validation.pageCount,
         pageUris,

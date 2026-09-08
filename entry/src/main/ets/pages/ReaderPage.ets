@@ -3075,13 +3075,19 @@ export struct ReaderPage {
   }
 
   private previousChapter(): void {
-    const index = this.chapterIndex()
-    if (index > 0) this.onOpenChapter(this.sessionConfig.chapterIds[index - 1])
+    const ids = this.continuationChapterIds()
+    const index = ids.indexOf(this.sessionConfig.chapterId)
+    if (index > 0) this.onOpenChapter(ids[index - 1])
   }
 
   private nextChapter(): void {
-    const index = this.chapterIndex()
-    if (index >= 0 && index + 1 < this.sessionConfig.chapterIds.length) this.onOpenChapter(this.sessionConfig.chapterIds[index + 1])
+    const ids = this.continuationChapterIds()
+    const index = ids.indexOf(this.sessionConfig.chapterId)
+    if (index >= 0 && index + 1 < ids.length) this.onOpenChapter(ids[index + 1])
+  }
+
+  private continuationChapterIds(): string[] {
+    return this.sessionConfig.continuationChapterIds ?? this.sessionConfig.chapterIds
   }
 
   private chapterTitles(): string[] {
@@ -3434,8 +3440,9 @@ export struct ReaderPage {
       bottomInset: this.layout.bottomAvoidHeight,
       canGoPrevious: this.canPrevious(),
       canGoNext: this.canNext(),
-      canGoPreviousChapter: this.chapterIndex() > 0,
-      canGoNextChapter: this.chapterIndex() + 1 < this.sessionConfig.chapterIds.length,
+      canGoPreviousChapter: this.continuationChapterIds().indexOf(this.sessionConfig.chapterId) > 0,
+      canGoNextChapter: this.continuationChapterIds().indexOf(this.sessionConfig.chapterId) >= 0 &&
+        this.continuationChapterIds().indexOf(this.sessionConfig.chapterId) + 1 < this.continuationChapterIds().length,
       pageFailed: this.failedPages.includes(this.pageIndex),
       zoomScale: this.zoomScale,
       autoPageActive: this.autoPageActive,

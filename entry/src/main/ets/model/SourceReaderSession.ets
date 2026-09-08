@@ -1,4 +1,5 @@
 import { ComicId } from './ComicModels'
+import { ReaderChapterDescriptor, cloneReaderChapterDescriptor } from './ReaderChapterSequence'
 
 /**
  * A source Reader launch is deliberately not a Library `Comic`.  The request
@@ -15,6 +16,8 @@ export interface SourceReaderSessionRequest {
   chapterId: string
   chapterIds: string[]
   chapterTitles?: string[]
+  chapters?: ReaderChapterDescriptor[]
+  chaptersResolved?: boolean
 }
 
 /**
@@ -57,6 +60,8 @@ export function cloneSourceReaderSessionRequest(request: SourceReaderSessionRequ
     title: request.title,
     chapterId: request.chapterId,
     chapterIds: request.chapterIds.slice(),
+    chapters: request.chapters?.map((chapter: ReaderChapterDescriptor): ReaderChapterDescriptor => cloneReaderChapterDescriptor(chapter)),
+    chaptersResolved: request.chaptersResolved,
   }
   const coverUri = normalizedText(request.coverUri)
   if (coverUri !== undefined) {
@@ -127,6 +132,7 @@ export function sourceReaderSessionRequestFromHistory(
     title,
     chapterId,
     chapterIds: [chapterId],
+    chaptersResolved: false,
   }
   const coverUri = normalizedText(entry.coverUri)
   if (coverUri !== undefined) {

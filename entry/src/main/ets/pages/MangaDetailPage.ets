@@ -22,6 +22,8 @@ import {
   parseMangaDetailFromSourceItem,
 } from '../model/MangaDetailModels'
 import { sourceMangaDetailSnapshotCache } from '../model/SourceMangaDetailSnapshotCache'
+import { resolveSourceChapterList } from '../model/SourceChapterListResolver'
+import { ReaderChapterDescriptor, cloneReaderChapterDescriptor } from '../model/ReaderChapterSequence'
 import {
   Chapter,
   Comic,
@@ -132,16 +134,6 @@ interface SourceMangaRequestArgs {
   mangaId: string
 }
 
-interface SourceChaptersPageArg {
-  cursor: string | null
-  limit: number
-}
-
-interface SourceChaptersRequestArgs {
-  mangaId: string
-  page: SourceChaptersPageArg
-}
-
 interface SourceDetailRequestHostHints {
   network: boolean
 }
@@ -152,7 +144,7 @@ interface SourceDetailRequest {
   requestId: string
   operation: string
   sourceId: string
-  args: SourceMangaRequestArgs | SourceChaptersRequestArgs
+  args: SourceMangaRequestArgs
   settings: SourceSettingsRecord
   hostHints: SourceDetailRequestHostHints
 }
@@ -223,8 +215,6 @@ function detailDisabledReadContent(configuration: ButtonConfiguration) {
   .borderRadius(ThemeConstants.ACTION_CHIP_HEIGHT / 2)
 }
 
-const SOURCE_CHAPTER_PAGE_SIZE: number = 100
-const SOURCE_CHAPTER_MAX_PAGES: number = 20
 
 enum SourceDetailContentState {
   UNRESOLVED = 'unresolved',
@@ -246,6 +236,7 @@ export struct MangaDetailPage {
   @Local private sourceDetailContentState: SourceDetailContentState = SourceDetailContentState.UNRESOLVED
   // A route list row is preview data. It is not a resolved detail payload.
   @Local private sourceDetailDataResolved: boolean = false
+  private sourceChaptersResolved: boolean = false
   @Local private downloadBusy: boolean = false
   @Local private trackerSyncBusy: boolean = false
   @Local private trackerMappingBusy: boolean = false
@@ -416,6 +407,8 @@ export struct MangaDetailPage {
         title: chapter.title,
         chapterNumber: chapter.chapterNumber,
         volumeNumber: chapter.volumeNumber,
+        readingGroup: chapter.readingGroup,
+        continuationEligible: chapter.continuationEligible,
         scanlator: chapter.scanlator,
         language: chapter.language,
         dateUpload: chapter.dateUpload,
@@ -461,6 +454,7 @@ export struct MangaDetailPage {
   }
 
   private beginSourceDetailRequest(sourceId: string, mangaId: string): number {
+    this.sourceChaptersResolved = false
     this.sourceDetailRequestEpoch = this.sourceDetailRequestEpoch + 1
     return this.sourceDetailRequestEpoch
   }
@@ -628,6 +622,7 @@ export struct MangaDetailPage {
         detail = cached.detail
         chapters = cached.chapters
         if (cached.chaptersResolved) {
+          this.sourceChaptersResolved = true
           this.applySourceMangaDetail(requestEpoch, lookup.entry, sourceId, mangaId, detail, chapters, '')
           return
         }
@@ -664,12 +659,13 @@ export struct MangaDetailPage {
       }
       let chaptersLoadFailed = false
       try {
-        const remoteChapters = await this.runSourceChaptersOperation(lookup.entry, mangaId)
+        const chapterResult = await resolveSourceChapterList(lookup.entry, mangaId)
         if (!this.isCurrentSourceDetailRequest(requestEpoch, sourceId, mangaId)) {
           return
         }
-        if (remoteChapters.length > 0) {
-          chapters = remoteChapters
+        this.sourceChaptersResolved = chapterResult.resolved && chapterResult.chapters.length > 0
+        if (chapterResult.chapters.length > 0) {
+          chapters = chapterResult.chapters
         }
       } catch (_error) {
         if (!this.isCurrentSourceDetailRequest(requestEpoch, sourceId, mangaId)) {
@@ -706,7 +702,7 @@ export struct MangaDetailPage {
         sourceMangaDetailSnapshotCache.write(lookup.entry, sourceId, mangaId, {
           detail,
           chapters,
-          chaptersResolved: true,
+          chaptersResolved: this.sourceChaptersResolved,
         })
       }
     } catch (error) {
@@ -936,56 +932,10 @@ export struct MangaDetailPage {
     }
   }
 
-  private async runSourceChaptersOperation(
-    entry: SourceRuntimeRegistryEntry,
-    mangaId: string
-  ): Promise<MangaChapterItem[]> {
-    const chapters: MangaChapterItem[] = []
-    let cursor: string | null = null
-    for (let pageIndex = 1; pageIndex <= SOURCE_CHAPTER_MAX_PAGES; pageIndex += 1) {
-      const response = await this.runSourceChaptersPage(entry, mangaId, cursor)
-      const rows = this.sourceChapterResponseItems(response)
-      rows.forEach((item: Record<string, Object>) => {
-        chapters.push(parseMangaChapterFromSourceItem(item))
-      })
-      const nextCursor = this.sourcePageNextCursor(response)
-      if (!this.sourcePageHasMore(response, nextCursor)) {
-        break
-      }
-      cursor = nextCursor ?? `${pageIndex + 1}`
-    }
-    return chapters
-  }
-
-  private async runSourceChaptersPage(
-    entry: SourceRuntimeRegistryEntry,
-    mangaId: string,
-    cursor: string | null,
-  ): Promise<SourceOperationResponsePayload> {
-    const args: SourceChaptersRequestArgs = {
-      mangaId,
-      page: {
-        cursor,
-        limit: SOURCE_CHAPTER_PAGE_SIZE,
-      },
-    }
-    const request = this.buildSourceDetailRequestJson(entry.sourceId, 'get_chapters', args, { network: true })
-    const responseJson = await taskpool.execute(
-      executeMangaDetailSourceOperation,
-      request,
-      this.copyWasmBytes(entry)
-    ) as string
-    const response = JSON.parse(responseJson) as SourceOperationResponsePayload
-    if (response.ok !== true) {
-      throw new Error('get_chapters failed')
-    }
-    return response
-  }
-
   private buildSourceDetailRequestJson(
     sourceId: string,
     operation: string,
-    args: SourceMangaRequestArgs | SourceChaptersRequestArgs,
+    args: SourceMangaRequestArgs,
     hostHints: SourceDetailRequestHostHints,
   ): string {
     const settings = appSourceSettingsStore.loadForSource(sourceId)
@@ -1012,13 +962,6 @@ export struct MangaDetailPage {
     return response.data?.items === undefined || response.data.items.length === 0 ? undefined : response.data.items[0]
   }
 
-  private sourceChapterResponseItems(response: SourceOperationResponsePayload): Record<string, Object>[] {
-    if (response.data?.items !== undefined) {
-      return response.data.items
-    }
-    return response.data?.chapters ?? []
-  }
-
   private runtimeRecordArray(value: Object | undefined): Record<string, Object>[] {
     if (!Array.isArray(value)) {
       return []
@@ -1039,21 +982,6 @@ export struct MangaDetailPage {
       return dataChapters
     }
     return this.runtimeRecordArray(item['chapters'])
-  }
-
-  private sourcePageNextCursor(response: SourceOperationResponsePayload): string | undefined {
-    const nextCursor = response.data?.page?.nextCursor ?? response.data?.page?.next_cursor
-    return nextCursor === null || nextCursor === undefined || nextCursor.trim().length === 0 ? undefined : nextCursor
-  }
-
-  private sourcePageHasMore(response: SourceOperationResponsePayload, nextCursor: string | undefined): boolean {
-    return response.data?.hasNextPage === true ||
-      response.data?.hasMore === true ||
-      response.data?.has_more === true ||
-      response.data?.page?.hasMore === true ||
-      response.data?.page?.hasNextPage === true ||
-      response.data?.page?.has_more === true ||
-      nextCursor !== undefined
   }
 
   private sourceComicId(sourceId: string | undefined, mangaId: string): string {
@@ -1327,6 +1255,8 @@ export struct MangaDetailPage {
       chapterId: resolvedChapterId,
       chapterIds,
       chapterTitles: this.chapters.map((chapter: MangaChapterItem): string => chapter.title),
+      chapters: this.chapters.map((chapter: MangaChapterItem): ReaderChapterDescriptor => cloneReaderChapterDescriptor(chapter)),
+      chaptersResolved: this.sourceChaptersResolved,
     }
     const coverUri = manga.coverUrl?.trim()
     if (coverUri !== undefined && coverUri.length > 0) {
@@ -2391,7 +2321,10 @@ function mangaChapterItemFromComicChapter(chapter: Chapter, sourceKind: ComicSou
   return {
     id: chapter.id,
     title: chapter.title,
-    chapterNumber: chapter.index + 1,
+    chapterNumber: chapter.chapterNumber ?? (chapter.continuationEligible === undefined ? chapter.index + 1 : undefined),
+    volumeNumber: chapter.volumeNumber,
+    readingGroup: chapter.readingGroup,
+    continuationEligible: chapter.continuationEligible,
     scanlator: chapter.scanlator,
     language: chapter.language,
     dateUpload: chapter.dateUpload,
@@ -2412,6 +2345,10 @@ function comicFromSourceManga(manga: MangaDetail, chapters: MangaChapterItem[], 
         ? chapter.title
         : AppStrings.get('library_update_chapter_fallback_title').replace('%s', `${index + 1}`),
       index,
+      chapterNumber: chapter.chapterNumber,
+      volumeNumber: chapter.volumeNumber,
+      readingGroup: chapter.readingGroup,
+      continuationEligible: chapter.continuationEligible,
       scanlator: chapter.scanlator,
       language: chapter.language,
       dateUpload: chapter.dateUpload,

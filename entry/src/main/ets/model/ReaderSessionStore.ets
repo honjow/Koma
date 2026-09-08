@@ -1,5 +1,6 @@
 import { fileIo as fs } from '@kit.CoreFileKit'
 import { common } from '@kit.AbilityKit'
+import { continuationChapterIds } from './ReaderChapterSequence'
 import {
   Chapter,
   ChapterId,
@@ -122,6 +123,7 @@ export interface ReaderSessionConfig {
   comicId: ComicId
   chapterId: ChapterId
   chapterIds: string[]
+  continuationChapterIds?: string[]
   chapterTitles?: string[]
   title?: string
   chapterTitle?: string
@@ -704,6 +706,7 @@ export function createReaderSessionConfigFromComic(
     comicId: comic.id,
     chapterId: targetChapterId,
     chapterIds: comic.chapters.map((item) => item.id),
+    continuationChapterIds: continuationChapterIds(comic.chapters, targetChapterId),
     chapterTitles: comic.chapters.map((item) => readerChapterDisplayTitle(item)),
     title: comic.title,
     chapterTitle: chapter === undefined ? undefined : readerChapterDisplayTitle(chapter),

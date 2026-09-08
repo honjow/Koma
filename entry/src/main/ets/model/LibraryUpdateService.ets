@@ -74,6 +74,7 @@ export interface LibraryUpdateComicResult {
   previousChapterCount: number
   newChapterCount: number
   message: string
+  metadataChanged?: boolean
 }
 
 export interface LibraryUpdateProviderSummary {
@@ -223,6 +224,10 @@ function mergeSourceChapters(comic: Comic, remoteChapters: MangaChapterItem[], n
         comicId: comic.id,
         title: remote.title.length > 0 ? remote.title : existing.title,
         index,
+        chapterNumber: remote.chapterNumber ?? existing.chapterNumber,
+        volumeNumber: remote.volumeNumber ?? existing.volumeNumber,
+        readingGroup: remote.readingGroup ?? existing.readingGroup,
+        continuationEligible: remote.continuationEligible ?? existing.continuationEligible,
         scanlator: remote.scanlator ?? existing.scanlator,
         language: remote.language ?? existing.language,
         dateUpload: remote.dateUpload ?? existing.dateUpload,
@@ -241,6 +246,10 @@ function mergeSourceChapters(comic: Comic, remoteChapters: MangaChapterItem[], n
         ? remote.title
         : AppStrings.get('library_update_chapter_fallback_title').replace('%s', `${index + 1}`),
       index,
+      chapterNumber: remote.chapterNumber,
+      volumeNumber: remote.volumeNumber,
+      readingGroup: remote.readingGroup,
+      continuationEligible: remote.continuationEligible,
       scanlator: remote.scanlator,
       language: remote.language,
       dateUpload: remote.dateUpload,
@@ -252,6 +261,35 @@ function mergeSourceChapters(comic: Comic, remoteChapters: MangaChapterItem[], n
       updatedAt: now,
     }
   })
+}
+
+function enrichSourceChapterMetadata(comic: Comic, remoteChapters: MangaChapterItem[]): boolean {
+  const remoteById = new Map<string, MangaChapterItem>()
+  remoteChapters.forEach((chapter: MangaChapterItem): void => { remoteById.set(chapter.id, chapter) })
+  let changed = false
+  comic.chapters.forEach((chapter: Chapter): void => {
+    const remote = remoteById.get(chapter.id)
+    if (remote === undefined) {
+      return
+    }
+    if (remote.chapterNumber !== undefined && remote.chapterNumber !== chapter.chapterNumber) {
+      chapter.chapterNumber = remote.chapterNumber
+      changed = true
+    }
+    if (remote.volumeNumber !== undefined && remote.volumeNumber !== chapter.volumeNumber) {
+      chapter.volumeNumber = remote.volumeNumber
+      changed = true
+    }
+    if (remote.readingGroup !== undefined && remote.readingGroup !== chapter.readingGroup) {
+      chapter.readingGroup = remote.readingGroup
+      changed = true
+    }
+    if (remote.continuationEligible !== undefined && remote.continuationEligible !== chapter.continuationEligible) {
+      chapter.continuationEligible = remote.continuationEligible
+      changed = true
+    }
+  })
+  return changed
 }
 
 function updatedComicWithChapters(comic: Comic, chapters: Chapter[], now: number): Comic {
@@ -529,7 +567,7 @@ export class LibraryUpdateService {
     console.info(`[LibraryUpdate] step=start total=${comics.length}`)
     for (let index = 0; index < comics.length; index += 1) {
       const result = await this.checkComic(comics[index])
-      if (result.status === 'updated') {
+      if (result.status === 'updated' || result.metadataChanged === true) {
         changed = true
       }
       results.push(result)
@@ -628,11 +666,16 @@ export class LibraryUpdateService {
       const localIds = comic.chapters.map((chapter: Chapter): string => chapter.id)
       const hasNewId = remoteIds.some((chapterId: string): boolean => !localIds.includes(chapterId))
       if (remoteChapters.length <= previousChapterCount && !hasNewId) {
+        const metadataChanged = enrichSourceChapterMetadata(comic, remoteChapters)
+        if (metadataChanged) {
+          this.libraryStore.upsertComic(comic)
+        }
         return {
           comicId: comic.id,
           providerKind: providerKindForComic(comic),
           sourceKey: sourceKeyForComic(comic),
           status: 'unchanged',
+          metadataChanged,
           previousChapterCount,
           newChapterCount: previousChapterCount,
           message: AppStrings.get('library_update_no_new_chapters'),

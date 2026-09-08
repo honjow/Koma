@@ -1,5 +1,6 @@
 import { AppStrings } from '../i18n/AppStrings'
 import { normalizeSourceDisplayText, normalizeSourceImageUrl } from './SourceTextNormalizer'
+import { ReaderChapterDescriptor } from './ReaderChapterSequence'
 
 export interface MangaDetail {
   id: string
@@ -26,11 +27,13 @@ export enum MangaStatus {
   UNKNOWN = 'unknown',
 }
 
-export interface MangaChapterItem {
+export interface MangaChapterItem extends ReaderChapterDescriptor {
   id: string
   title: string
   chapterNumber?: number
   volumeNumber?: string
+  readingGroup?: string
+  continuationEligible?: boolean
   scanlator?: string
   language?: string
   dateUpload?: number
@@ -71,6 +74,9 @@ function optionalSourceNumber(value: Object | undefined): number | undefined {
     return value
   }
   if (typeof value !== 'string') {
+    return undefined
+  }
+  if (value.trim().length === 0) {
     return undefined
   }
   const parsed = Number(value)
@@ -218,24 +224,30 @@ export function parseMangaChapterFromSourceItem(item: SourceRuntimeRecord): Mang
     optionalSourceString(item['chapter_id']),
     optionalSourceString(item['title']),
   ]) ?? 'source-chapter'
+  const hasContinuationContract = item['readingGroup'] !== undefined || item['continuationEligible'] !== undefined
   const chapterNumber = firstSourceNumber([
     item['chapter_number'],
     item['chapterNumber'],
     item['chapter'],
-    item['index'],
+    hasContinuationContract ? undefined : item['index'],
   ])
   const sourceTitle = optionalSourceDisplayString(item['title'])
+  const readingGroup = optionalSourceString(item['readingGroup'])
+  const volumeNumber = firstSourceString([
+    optionalSourceString(item['volume_number']),
+    optionalSourceString(item['volumeNumber']),
+    optionalSourceString(item['volume']),
+  ])
   return {
     id,
     title: sourceTitle ?? (chapterNumber === undefined
       ? AppStrings.get('manga_detail_chapter_untitled')
       : AppStrings.get('library_update_chapter_fallback_title').replace('%s', `${chapterNumber}`)),
     chapterNumber,
-    volumeNumber: firstSourceString([
-      optionalSourceString(item['volume_number']),
-      optionalSourceString(item['volumeNumber']),
-      optionalSourceString(item['volume']),
-    ]),
+    readingGroup,
+    continuationEligible: hasContinuationContract ? item['continuationEligible'] === true &&
+      readingGroup !== undefined && (chapterNumber !== undefined || optionalSourceNumber(volumeNumber) !== undefined) : undefined,
+    volumeNumber,
     scanlator: firstSourceDisplayString([
       item['scanlator'],
       item['scanlators'],
