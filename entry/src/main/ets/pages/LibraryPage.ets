@@ -251,7 +251,7 @@ export struct LibraryPage {
   @Local private filterMetadataStatus: LibraryMetadataStatusFilter = 'all'
   @Local private containerWidth: number = 0
   private activeFilterCount(): number {
-    let count = this.sortBy === 'lastRead' ? 0 : 1
+    let count = 0
     if (this.filterSource !== 'all') {
       count += 1
     }
