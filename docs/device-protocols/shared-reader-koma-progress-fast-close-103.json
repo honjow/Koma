@@ -1,0 +1,40 @@
+{
+  "schemaVersion": 1,
+  "name": "shared-reader-koma-progress-fast-close-103",
+  "target": "192.168.50.103:12345",
+  "authorizedTarget": "192.168.50.103:12345",
+  "hdc": "/Applications/DevEco-Studio.app/Contents/sdk/default/openharmony/toolchains/hdc",
+  "artifactDir": "/Users/honjow/git/Koma/.hermes-artifacts/20260913-shared-reader-progress/qa103/device103__MLR-AL00/not-applicable/portrait-1600x2560/04-fast-close",
+  "display": { "widthPx": 1600, "heightPx": 2560 },
+  "context": {
+    "project": "Koma",
+    "codeIdentity": "Koma-reader-kit-progress-close-flush-WIP",
+    "page": "optional shared reader immediate-close progress flush",
+    "deviceAlias": "device103",
+    "deviceModel": "MLR-AL00",
+    "foldState": "not-applicable",
+    "orientation": "portrait",
+    "resolution": "1600x2560",
+    "notes": "Controlled SharedReaderTablet Chapter2 has three pages and no prior chapter progress. Select terminal page3, close within the store debounce window, then receive the document before force-stop."
+  },
+  "preflight": [
+    { "name": "wake", "hdcArgs": ["shell", "power-shell", "wakeup"] },
+    { "name": "keep-awake", "hdcArgs": ["shell", "power-shell", "timeout", "-o", "86400000"] },
+    { "name": "force-stop-old", "hdcArgs": ["shell", "aa", "force-stop", "com.honjow.koma"] },
+    { "name": "install-replace-only", "hdcArgs": ["install", "-r", "/Users/honjow/git/Koma/entry/build/default/outputs/default/entry-default-signed.hap"], "timeoutSeconds": 120 },
+    { "name": "progress-before", "hdcArgs": ["file", "recv", "/data/app/el2/100/base/com.honjow.koma/haps/entry/files/reader-sessions.v1.json", "/Users/honjow/git/Koma/.hermes-artifacts/20260913-shared-reader-progress/qa103/device103__MLR-AL00/not-applicable/portrait-1600x2560/04-fast-close/progress-before.json"] },
+    { "name": "launch-chapter2-page1-write", "hdcArgs": ["shell", "aa", "start", "-b", "com.honjow.koma", "-a", "EntryAbility", "--ps", "readerLabWork", "local-library-folder-series-80f7f03f", "--ps", "readerLabUnit", "local-library-folder-chapter-3911f3a3", "--ps", "readerLabEntryDirection", "ltr", "--pi", "readerLabPage", "0", "--pb", "readerLabChrome", "true", "--pb", "readerLabProgressReadWrite", "true"], "pauseAfterMs": 1000 }
+  ],
+  "measurement": {
+    "actions": [
+      { "name": "select-terminal-page3", "uiInput": ["click", "1450", "2295"], "pauseAfterMs": 400 },
+      { "name": "close-before-debounce", "uiInput": ["click", "70", "170"], "pauseAfterMs": 300 }
+    ]
+  },
+  "postflight": [
+    { "name": "closed-layout", "hdcArgs": ["shell", "uitest", "dumpLayout", "-p", "/data/local/tmp/koma-rkit-progress-fast-close.json", "-a"] },
+    { "name": "receive-closed-layout", "hdcArgs": ["file", "recv", "/data/local/tmp/koma-rkit-progress-fast-close.json", "/Users/honjow/git/Koma/.hermes-artifacts/20260913-shared-reader-progress/qa103/device103__MLR-AL00/not-applicable/portrait-1600x2560/04-fast-close/closed-layout.json"] },
+    { "name": "progress-after-close", "hdcArgs": ["file", "recv", "/data/app/el2/100/base/com.honjow.koma/haps/entry/files/reader-sessions.v1.json", "/Users/honjow/git/Koma/.hermes-artifacts/20260913-shared-reader-progress/qa103/device103__MLR-AL00/not-applicable/portrait-1600x2560/04-fast-close/progress-after-close.json"] },
+    { "name": "force-stop", "hdcArgs": ["shell", "aa", "force-stop", "com.honjow.koma"] }
+  ]
+}

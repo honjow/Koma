@@ -1,0 +1,32 @@
+{
+  "schemaVersion": 1,
+  "name": "shared-reader-koma-preference-restore-103",
+  "target": "192.168.50.103:12345",
+  "authorizedTarget": "192.168.50.103:12345",
+  "hdc": "/Applications/DevEco-Studio.app/Contents/sdk/default/openharmony/toolchains/hdc",
+  "artifactDir": "/Users/honjow/git/Koma/.hermes-artifacts/20260913-shared-reader-preferences/qa103/device103__MLR-AL00/not-applicable/portrait-1600x2560/04-cold-restore",
+  "display": { "widthPx": 1600, "heightPx": 2560 },
+  "context": {
+    "project": "Koma", "codeIdentity": "Koma-reader-kit-host-preference-WIP",
+    "page": "optional shared reader cold preference restore", "deviceAlias": "device103",
+    "deviceModel": "MLR-AL00", "foldState": "not-applicable", "orientation": "portrait",
+    "resolution": "1600x2560",
+    "notes": "Cold launch without layout/crop overrides, then use a vertical swipe. The reader must inherit stored vertical paging and crop state."
+  },
+  "preflight": [
+    { "name": "force-stop-old", "hdcArgs": ["shell", "aa", "force-stop", "com.honjow.koma"] },
+    { "name": "preferences-before", "hdcArgs": ["file", "recv", "/data/app/el2/100/base/com.honjow.koma/haps/entry/preferences/koma_reader_preferences_v1", "/Users/honjow/git/Koma/.hermes-artifacts/20260913-shared-reader-preferences/qa103/device103__MLR-AL00/not-applicable/portrait-1600x2560/04-cold-restore/preferences-before.xml"] },
+    { "name": "launch-without-policy-overrides", "hdcArgs": ["shell", "aa", "start", "-b", "com.honjow.koma", "-a", "EntryAbility", "--ps", "readerLabWork", "local-library-folder-series-80f7f03f", "--ps", "readerLabUnit", "local-library-folder-chapter-3a11f536", "--pi", "readerLabPage", "0", "--pb", "readerLabChrome", "true"], "pauseAfterMs": 3500 }
+  ],
+  "measurement": { "actions": [
+    { "name": "vertical-next", "uiInput": ["swipe", "800", "1900", "800", "650", "1400"], "pauseAfterMs": 4000 }
+  ] },
+  "postflight": [
+    { "name": "layout", "hdcArgs": ["shell", "uitest", "dumpLayout", "-p", "/data/local/tmp/koma-rkit-pref-restore.json", "-a"] },
+    { "name": "receive-layout", "hdcArgs": ["file", "recv", "/data/local/tmp/koma-rkit-pref-restore.json", "/Users/honjow/git/Koma/.hermes-artifacts/20260913-shared-reader-preferences/qa103/device103__MLR-AL00/not-applicable/portrait-1600x2560/04-cold-restore/layout.json"] },
+    { "name": "screen", "hdcArgs": ["shell", "uitest", "screenCap", "-p", "/data/local/tmp/koma-rkit-pref-restore.png"] },
+    { "name": "receive-screen", "hdcArgs": ["file", "recv", "/data/local/tmp/koma-rkit-pref-restore.png", "/Users/honjow/git/Koma/.hermes-artifacts/20260913-shared-reader-preferences/qa103/device103__MLR-AL00/not-applicable/portrait-1600x2560/04-cold-restore/screen.png"] },
+    { "name": "preferences-after", "hdcArgs": ["file", "recv", "/data/app/el2/100/base/com.honjow.koma/haps/entry/preferences/koma_reader_preferences_v1", "/Users/honjow/git/Koma/.hermes-artifacts/20260913-shared-reader-preferences/qa103/device103__MLR-AL00/not-applicable/portrait-1600x2560/04-cold-restore/preferences-after.xml"] },
+    { "name": "force-stop", "hdcArgs": ["shell", "aa", "force-stop", "com.honjow.koma"] }
+  ]
+}

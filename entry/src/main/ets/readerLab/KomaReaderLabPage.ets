@@ -1,15 +1,18 @@
 import { common } from '@kit.AbilityKit'
 import { HdsNavDestination } from '@kit.UIDesignKit'
-import { ReaderCancellation, ReaderImageSaveHost, ReaderImageShareHost, ReaderInputPort, ReaderPagedSession, ReaderUnitKey, ReaderLayout } from '@reader-kit/core'
+import { ReaderCancellation, ReaderDisplayPolicy, ReaderImageSaveHost, ReaderImageShareHost, ReaderInputPort,
+  ReaderObservedPosition, ReaderPagedSession, ReaderUnitKey, ReaderLayout } from '@reader-kit/core'
 import { ReaderKeepScreenOn, ReaderLabRequest, ReaderLabSurface, ReaderSurface, ReaderTrialWindow,
   ReaderLabVisibilityState, ReaderSystemImageSaveHost, ReaderVolumeKeys, connectReaderLabVisibility, ReaderTapAction } from '@reader-kit/ui'
 import { KomaReaderLabAdapter } from './KomaReaderLabAdapter'
 import { KomaReaderLabImageShareHost } from './KomaReaderLabImageShareHost'
 import { connectLayoutSafeArea, LayoutSafeAreaState } from '../state/LayoutSafeAreaState'
 import { ThemeConstants } from '../theme/ThemeConstants'
-import { ReaderColumnMode, ReaderPreferencesStore, normalizeReaderTapZonePreset, normalizeReaderTapZoneInvert } from '../model/ReaderPreferencesStore'
+import { ReaderColumnMode, ReaderPreferences, ReaderPreferencesStore,
+  normalizeReaderTapZonePreset, normalizeReaderTapZoneInvert } from '../model/ReaderPreferencesStore'
 import { resolveReaderTapZoneAction } from '../model/ReaderTapZoneGeometry'
 import { KomaReaderInitialPolicy } from './KomaReaderInitialPolicy'
+import { KomaReaderPreferenceBridge } from './KomaReaderPreferenceBridge'
 import { connectReaderModeState, ReaderModeState } from '../state/ReaderModeState'
 
 @ComponentV2
@@ -18,6 +21,11 @@ export struct KomaReaderLabPage {
   @Event readInitialColumn: (work: string, unit: string) => ReaderColumnMode = () => {
     throw new Error('reader_lab_progress_owner_unavailable')
   }
+  @Event readInitialPage: (work: string, unit: string) => number = () => {
+    throw new Error('reader_lab_progress_owner_unavailable')
+  }
+  @Event persistObserved: (position: ReaderObservedPosition, column: ReaderColumnMode) => void = () => {}
+  @Event flushObserved: () => void = () => {}
   @Event onClose: () => void = () => {}
   @Local private session: ReaderPagedSession | null = null
   @Local private labVisibility: ReaderLabVisibilityState = connectReaderLabVisibility()
@@ -27,6 +35,7 @@ export struct KomaReaderLabPage {
   @Local private chapterBusy: boolean = false
   @Local private readerMode: ReaderModeState = connectReaderModeState()
   private unitKey: ReaderUnitKey = new ReaderUnitKey('', '', '')
+  private initialPageIndex: number = 0
   private trialWindow: ReaderTrialWindow = new ReaderTrialWindow()
   private keepScreenOn: ReaderKeepScreenOn | null = null
   private imageSave: ReaderImageSaveHost | null = null
@@ -38,6 +47,9 @@ export struct KomaReaderLabPage {
   private initialization: ReaderCancellation | null = null
   private input: ReaderInputPort = new ReaderInputPort()
   private volumeKeys: ReaderVolumeKeys = new ReaderVolumeKeys(this.input)
+  private preferencesStore: ReaderPreferencesStore | null = null
+  private hostPreferences: ReaderPreferences | null = null
+  private preferenceWrites: Promise<void> = Promise.resolve()
 
   aboutToAppear(): void {
     const context = this.getUIContext().getHostContext() as common.UIAbilityContext
@@ -51,6 +63,7 @@ export struct KomaReaderLabPage {
       this.imageSave = new ReaderSystemImageSaveHost(context)
       this.imageShare = new KomaReaderLabImageShareHost(context, adapter)
       this.unitKey = adapter.initialKey(this.request.work, this.request.unit)
+      this.initialPageIndex = this.request.pageIndex
       const session = new ReaderPagedSession(adapter, adapter)
       if (this.request.readingChrome) {
         this.trialWindow.open(context)
@@ -69,9 +82,16 @@ export struct KomaReaderLabPage {
     this.initialization?.cancel()
     this.initialization = cancellation
     try {
-      const preferences = await new ReaderPreferencesStore(context).load()
+      const preferencesStore = new ReaderPreferencesStore(context)
+      const preferences = await preferencesStore.load()
       if (cancellation.isCancelled() || this.readerClosed) return
+      this.preferencesStore = preferencesStore
+      this.hostPreferences = preferences
       const column = this.readInitialColumn(this.unitKey.work, this.unitKey.unit)
+      if (cancellation.isCancelled() || this.readerClosed) return
+      if (this.request.progressReadWrite && !this.request.pageIndexProvided) {
+        this.initialPageIndex = this.readInitialPage(this.unitKey.work, this.unitKey.unit)
+      }
       if (cancellation.isCancelled() || this.readerClosed) return
       session.setPolicy(KomaReaderInitialPolicy.resolve(preferences, column, this.request))
       this.session = session
@@ -116,6 +136,7 @@ export struct KomaReaderLabPage {
     this.volumeKeys.close()
     this.cancelChapterRequest()
     void this.keepScreenOn?.close()
+    if (this.request.progressReadWrite) this.flushObserved()
     this.onClose()
   }
 
@@ -191,6 +212,41 @@ export struct KomaReaderLabPage {
     }
   }
 
+  private onObservedPosition(position: ReaderObservedPosition): void {
+    const session = this.session
+    if (!this.request.progressReadWrite || session === null || this.readerClosed || !this.routeActive ||
+      !this.labVisibility.foreground) return
+    const snapshot = session.snapshot()
+    if (snapshot.phase !== 'ready' || snapshot.unit === null ||
+      !snapshot.unit.key.equals(position.anchor.unit)) return
+    this.persistObserved(position, snapshot.policy.firstPageAlone ? 'even_left' : 'odd_left')
+  }
+
+  private enqueuePreferenceWrite(next: ReaderPreferences): void {
+    const store = this.preferencesStore
+    if (store === null) return
+    this.hostPreferences = next
+    this.preferenceWrites = this.preferenceWrites.then(async (): Promise<void> => {
+      await store.save(next)
+    }).catch((): void => {
+      console.warn('[KomaReaderLab] preference_persist_failed')
+    })
+  }
+
+  private onPolicyChanged(policy: ReaderDisplayPolicy): void {
+    const current = this.hostPreferences
+    if (!this.request.preferencesReadWrite || current === null || this.readerClosed || !this.routeActive ||
+      !this.labVisibility.foreground || this.session === null) return
+    this.enqueuePreferenceWrite(KomaReaderPreferenceBridge.applyPolicy(current, policy))
+  }
+
+  private onCropChanged(enabled: boolean): void {
+    const current = this.hostPreferences
+    if (!this.request.preferencesReadWrite || current === null || this.readerClosed || !this.routeActive ||
+      !this.labVisibility.foreground || this.session === null) return
+    this.enqueuePreferenceWrite(KomaReaderPreferenceBridge.applyCrop(current, enabled))
+  }
+
   private readerCanvasBackground(): ResourceColor {
     if (this.readerMode.backgroundMode === 'gray') return ThemeConstants.READER_BACKGROUND_GRAY
     if (this.readerMode.backgroundMode === 'white') return ThemeConstants.READER_BACKGROUND_WHITE
@@ -209,7 +265,7 @@ export struct KomaReaderLabPage {
       Column() {
         if (this.session !== null) {
           if (this.request.readingChrome) {
-            ReaderSurface({ session: this.session, initialUnit: this.unitKey, initialIndex: this.request.pageIndex,
+            ReaderSurface({ session: this.session, initialUnit: this.unitKey, initialIndex: this.initialPageIndex,
               imageInterpolation: this.readerMode.imageScalingQuality === 'low' ? ImageInterpolation.Low :
                 this.readerMode.imageScalingQuality === 'high' ? ImageInterpolation.High : ImageInterpolation.Medium,
               canvasBackground: this.readerCanvasBackground(), canvasForeground: this.readerCanvasForeground(),
@@ -220,6 +276,11 @@ export struct KomaReaderLabPage {
               active: this.routeActive && this.labVisibility.foreground,
               chapterNavigationAvailable: true, chapterNavigationBusy: this.chapterBusy,
               showPageNumber: this.readerMode.showPageNumber,
+              onObservedPosition: (position: ReaderObservedPosition): void => {
+                this.onObservedPosition(position)
+              },
+              onPolicyChanged: (policy: ReaderDisplayPolicy): void => { this.onPolicyChanged(policy) },
+              onCropChanged: (enabled: boolean): void => { this.onCropChanged(enabled) },
               onChapter: (direction: 'previous' | 'next', sourceUnit: ReaderUnitKey): void => {
                 void this.switchChapter(direction, sourceUnit)
               },

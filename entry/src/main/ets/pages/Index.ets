@@ -1,6 +1,7 @@
 import { common } from '@kit.AbilityKit'
 import { KomaReaderLabPage } from '../readerLab/KomaReaderLabPage'
 import { ReaderLabLaunchState, ReaderLabRequest, connectReaderLabLaunch } from '@reader-kit/ui'
+import { ReaderObservedPosition } from '@reader-kit/core'
 import {
   BlurStrategy,
   hdsMaterial,
@@ -103,6 +104,7 @@ import {
   ReaderSessionConfig,
   ReaderSessionStore,
   createReaderSessionConfigFromComic,
+  getReaderSessionPageId,
   sortedReaderChapters,
 } from '../model/ReaderSessionStore'
 import { createReaderOfflineMissingUri, installReaderRemoteHeadersForComic } from '../model/ReaderPageSourceAdapter'
@@ -781,6 +783,38 @@ struct Index {
       comicId: work, chapterId: unit, chapterIds: [unit], totalPages: 0, pageUris: []
     }
     return this.readerSessionStore.restoreColumnMode(config, 'odd_left')
+  }
+
+  private readReaderLabInitialPage(work: string, unit: string): number {
+    if (!this.readerSessionPersistenceReady) throw new Error('reader_lab_progress_owner_unavailable')
+    const comic = this.libraryStore.getComic(work)
+    if (comic === undefined) return 0
+    const config = createReaderSessionConfigFromComic(comic, unit)
+    if (config.chapterId !== unit || config.totalPages <= 0) return 0
+    return this.readerSessionStore.restorePageIndex(config)
+  }
+
+  private persistReaderLabObserved(position: ReaderObservedPosition,
+    column: 'odd_left' | 'even_left'): void {
+    if (!this.readerSessionPersistenceReady || position.anchor.unit.scope !== 'koma-local') return
+    const comic = this.libraryStore.getComic(position.anchor.unit.work)
+    if (comic === undefined) return
+    const config = createReaderSessionConfigFromComic(comic, position.anchor.unit.unit)
+    if (config.chapterId !== position.anchor.unit.unit || config.totalPages !== position.pageCount ||
+      position.anchor.sourceIndexHint < 0 || position.anchor.sourceIndexHint >= config.totalPages) return
+    const index = position.anchor.sourceIndexHint
+    this.readerSessionStore.saveProgress({
+      comicId: config.comicId,
+      chapterId: config.chapterId,
+      pageId: getReaderSessionPageId(config, index),
+      pageIndex: index,
+      totalPages: config.totalPages,
+      progressRatio: (index + 1) / config.totalPages,
+      completed: position.terminalSourceDisplayed,
+      updatedAt: Date.now(),
+      columnMode: column,
+    })
+    this.readerProgressRevision += 1
   }
 
   private onBackupRestored(): void {
@@ -1536,6 +1570,12 @@ struct Index {
       KomaReaderLabPage({ request: param as ReaderLabRequest,
         readInitialColumn: (work: string, unit: string): 'odd_left' | 'even_left' => {
           return this.readReaderLabInitialColumn(work, unit)
+        }, readInitialPage: (work: string, unit: string): number => {
+          return this.readReaderLabInitialPage(work, unit)
+        }, persistObserved: (position: ReaderObservedPosition, column: 'odd_left' | 'even_left'): void => {
+          this.persistReaderLabObserved(position, column)
+        }, flushObserved: (): void => {
+          if (this.readerSessionPersistenceReady) this.readerSessionStore.flush()
         }, onClose: () => { this.appPathStack.pop() } })
     } else if (name === RouteName.READER) {
       this.ReaderDestination()

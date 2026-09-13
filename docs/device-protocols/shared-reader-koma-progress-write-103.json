@@ -1,0 +1,38 @@
+{
+  "schemaVersion": 1,
+  "name": "shared-reader-koma-progress-write-103",
+  "target": "192.168.50.103:12345",
+  "authorizedTarget": "192.168.50.103:12345",
+  "hdc": "/Applications/DevEco-Studio.app/Contents/sdk/default/openharmony/toolchains/hdc",
+  "artifactDir": "/Users/honjow/git/Koma/.hermes-artifacts/20260913-shared-reader-progress/qa103/device103__MLR-AL00/not-applicable/portrait-1600x2560/02-write",
+  "display": { "widthPx": 1600, "heightPx": 2560 },
+  "context": {
+    "project": "Koma",
+    "codeIdentity": "Koma-reader-kit-progress-WIP",
+    "page": "optional shared reader explicit progress write",
+    "deviceAlias": "device103",
+    "deviceModel": "MLR-AL00",
+    "foldState": "not-applicable",
+    "orientation": "portrait",
+    "resolution": "1600x2560",
+    "notes": "Controlled imported SharedReaderTablet Chapter1 currently has two pages. Explicit progress permission, page1 to terminal page2. Persist only after the target original is decoded and visible."
+  },
+  "preflight": [
+    { "name": "force-stop-old", "hdcArgs": ["shell", "aa", "force-stop", "com.honjow.koma"] },
+    { "name": "progress-before", "hdcArgs": ["file", "recv", "/data/app/el2/100/base/com.honjow.koma/haps/entry/files/reader-sessions.v1.json", "/Users/honjow/git/Koma/.hermes-artifacts/20260913-shared-reader-progress/qa103/device103__MLR-AL00/not-applicable/portrait-1600x2560/02-write/progress-before.json"] },
+    { "name": "launch-explicit-page1-write", "hdcArgs": ["shell", "aa", "start", "-b", "com.honjow.koma", "-a", "EntryAbility", "--ps", "readerLabWork", "local-library-folder-series-80f7f03f", "--ps", "readerLabUnit", "local-library-folder-chapter-3a11f536", "--ps", "readerLabEntryDirection", "ltr", "--pi", "readerLabPage", "0", "--pb", "readerLabChrome", "true", "--pb", "readerLabProgressReadWrite", "true"], "pauseAfterMs": 2500 }
+  ],
+  "measurement": {
+    "actions": [
+      { "name": "select-visible-terminal-page2", "uiInput": ["click", "1450", "2295"], "pauseAfterMs": 4500 }
+    ]
+  },
+  "postflight": [
+    { "name": "layout", "hdcArgs": ["shell", "uitest", "dumpLayout", "-p", "/data/local/tmp/koma-rkit-progress-write.json", "-a"] },
+    { "name": "receive-layout", "hdcArgs": ["file", "recv", "/data/local/tmp/koma-rkit-progress-write.json", "/Users/honjow/git/Koma/.hermes-artifacts/20260913-shared-reader-progress/qa103/device103__MLR-AL00/not-applicable/portrait-1600x2560/02-write/layout.json"] },
+    { "name": "screen", "hdcArgs": ["shell", "uitest", "screenCap", "-p", "/data/local/tmp/koma-rkit-progress-write.png"] },
+    { "name": "receive-screen", "hdcArgs": ["file", "recv", "/data/local/tmp/koma-rkit-progress-write.png", "/Users/honjow/git/Koma/.hermes-artifacts/20260913-shared-reader-progress/qa103/device103__MLR-AL00/not-applicable/portrait-1600x2560/02-write/screen.png"] },
+    { "name": "progress-after", "hdcArgs": ["file", "recv", "/data/app/el2/100/base/com.honjow.koma/haps/entry/files/reader-sessions.v1.json", "/Users/honjow/git/Koma/.hermes-artifacts/20260913-shared-reader-progress/qa103/device103__MLR-AL00/not-applicable/portrait-1600x2560/02-write/progress-after.json"] },
+    { "name": "force-stop", "hdcArgs": ["shell", "aa", "force-stop", "com.honjow.koma"] }
+  ]
+}

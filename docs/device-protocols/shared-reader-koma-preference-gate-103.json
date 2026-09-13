@@ -1,0 +1,32 @@
+{
+  "schemaVersion": 1,
+  "name": "shared-reader-koma-preference-gate-103",
+  "target": "192.168.50.103:12345",
+  "authorizedTarget": "192.168.50.103:12345",
+  "hdc": "/Applications/DevEco-Studio.app/Contents/sdk/default/openharmony/toolchains/hdc",
+  "artifactDir": "/Users/honjow/git/Koma/.hermes-artifacts/20260913-shared-reader-preferences/qa103/device103__MLR-AL00/not-applicable/portrait-1600x2560/01-gate",
+  "display": { "widthPx": 1600, "heightPx": 2560 },
+  "context": {
+    "project": "Koma",
+    "codeIdentity": "Koma-reader-kit-host-preference-WIP",
+    "page": "optional shared reader host preference gate",
+    "deviceAlias": "device103",
+    "deviceModel": "MLR-AL00",
+    "foldState": "not-applicable",
+    "orientation": "portrait",
+    "resolution": "1600x2560",
+    "notes": "Install the signed candidate without clearing data and preserve the exact pre-test reader preference file for restoration comparison."
+  },
+  "preflight": [
+    { "name": "wake", "hdcArgs": ["shell", "power-shell", "wakeup"] },
+    { "name": "keep-awake", "hdcArgs": ["shell", "power-shell", "timeout", "-o", "86400000"] },
+    { "name": "force-stop-old", "hdcArgs": ["shell", "aa", "force-stop", "com.honjow.koma"] },
+    { "name": "install-replace-only", "hdcArgs": ["install", "-r", "/Users/honjow/git/Koma/entry/build/default/outputs/default/entry-default-signed.hap"], "timeoutSeconds": 120 }
+  ],
+  "measurement": { "actions": [] },
+  "postflight": [
+    { "name": "original-preferences", "hdcArgs": ["file", "recv", "/data/app/el2/100/base/com.honjow.koma/haps/entry/preferences/koma_reader_preferences_v1", "/Users/honjow/git/Koma/.hermes-artifacts/20260913-shared-reader-preferences/qa103/device103__MLR-AL00/not-applicable/portrait-1600x2560/01-gate/reader-preferences.original"] },
+    { "name": "hashes", "hdcArgs": ["shell", "sha256sum", "/data/app/el2/100/base/com.honjow.koma/haps/entry/preferences/koma_reader_preferences_v1", "/data/app/el2/100/base/com.honjow.koma/haps/entry/files/reader-sessions.v1.json"] },
+    { "name": "power-readback", "hdcArgs": ["shell", "hidumper", "-s", "PowerManagerService", "-a", "-s"] }
+  ]
+}

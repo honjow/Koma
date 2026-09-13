@@ -1,0 +1,35 @@
+{
+  "schemaVersion": 1,
+  "name": "shared-reader-koma-preference-write-corrected-103",
+  "target": "192.168.50.103:12345",
+  "authorizedTarget": "192.168.50.103:12345",
+  "hdc": "/Applications/DevEco-Studio.app/Contents/sdk/default/openharmony/toolchains/hdc",
+  "artifactDir": "/Users/honjow/git/Koma/.hermes-artifacts/20260913-shared-reader-preferences/qa103/device103__MLR-AL00/not-applicable/portrait-1600x2560/03c-write-corrected",
+  "display": { "widthPx": 1600, "heightPx": 2560 },
+  "context": {
+    "project": "Koma", "codeIdentity": "Koma-reader-kit-host-preference-WIP",
+    "page": "optional shared reader explicit preference write", "deviceAlias": "device103",
+    "deviceModel": "MLR-AL00", "foldState": "not-applicable", "orientation": "portrait",
+    "resolution": "1600x2560",
+    "notes": "With explicit host preference authority, select vertical paging and enable crop. The existing Koma store must preserve unrelated fields."
+  },
+  "preflight": [
+    { "name": "force-stop-old", "hdcArgs": ["shell", "aa", "force-stop", "com.honjow.koma"] },
+    { "name": "preferences-before", "hdcArgs": ["file", "recv", "/data/app/el2/100/base/com.honjow.koma/haps/entry/preferences/koma_reader_preferences_v1", "/Users/honjow/git/Koma/.hermes-artifacts/20260913-shared-reader-preferences/qa103/device103__MLR-AL00/not-applicable/portrait-1600x2560/03c-write-corrected/preferences-before.xml"] },
+    { "name": "launch-write", "hdcArgs": ["shell", "aa", "start", "-b", "com.honjow.koma", "-a", "EntryAbility", "--ps", "readerLabWork", "local-library-folder-series-80f7f03f", "--ps", "readerLabUnit", "local-library-folder-chapter-3a11f536", "--pi", "readerLabPage", "0", "--pb", "readerLabChrome", "true", "--pb", "readerLabPreferencesReadWrite", "true"], "pauseAfterMs": 3000 }
+  ],
+  "measurement": { "actions": [
+    { "name": "open-menu-for-vertical", "uiInput": ["click", "1420", "170"], "pauseAfterMs": 400 },
+    { "name": "select-vertical", "uiInput": ["click", "1300", "415"], "pauseAfterMs": 1400 },
+    { "name": "open-menu-for-crop", "uiInput": ["click", "1420", "170"], "pauseAfterMs": 400 },
+    { "name": "enable-crop", "uiInput": ["click", "1300", "770"], "pauseAfterMs": 4000 }
+  ] },
+  "postflight": [
+    { "name": "layout", "hdcArgs": ["shell", "uitest", "dumpLayout", "-p", "/data/local/tmp/koma-rkit-pref-write.json", "-a"] },
+    { "name": "receive-layout", "hdcArgs": ["file", "recv", "/data/local/tmp/koma-rkit-pref-write.json", "/Users/honjow/git/Koma/.hermes-artifacts/20260913-shared-reader-preferences/qa103/device103__MLR-AL00/not-applicable/portrait-1600x2560/03c-write-corrected/layout.json"] },
+    { "name": "screen", "hdcArgs": ["shell", "uitest", "screenCap", "-p", "/data/local/tmp/koma-rkit-pref-write.png"] },
+    { "name": "receive-screen", "hdcArgs": ["file", "recv", "/data/local/tmp/koma-rkit-pref-write.png", "/Users/honjow/git/Koma/.hermes-artifacts/20260913-shared-reader-preferences/qa103/device103__MLR-AL00/not-applicable/portrait-1600x2560/03c-write-corrected/screen.png"] },
+    { "name": "preferences-after", "hdcArgs": ["file", "recv", "/data/app/el2/100/base/com.honjow.koma/haps/entry/preferences/koma_reader_preferences_v1", "/Users/honjow/git/Koma/.hermes-artifacts/20260913-shared-reader-preferences/qa103/device103__MLR-AL00/not-applicable/portrait-1600x2560/03c-write-corrected/preferences-after.xml"] },
+    { "name": "force-stop", "hdcArgs": ["shell", "aa", "force-stop", "com.honjow.koma"] }
+  ]
+}

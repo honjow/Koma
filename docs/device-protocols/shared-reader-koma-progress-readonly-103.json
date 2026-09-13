@@ -1,0 +1,41 @@
+{
+  "schemaVersion": 1,
+  "name": "shared-reader-koma-progress-readonly-103",
+  "target": "192.168.50.103:12345",
+  "authorizedTarget": "192.168.50.103:12345",
+  "hdc": "/Applications/DevEco-Studio.app/Contents/sdk/default/openharmony/toolchains/hdc",
+  "artifactDir": "/Users/honjow/git/Koma/.hermes-artifacts/20260913-shared-reader-progress/qa103/device103__MLR-AL00/not-applicable/portrait-1600x2560/01d-readonly-final",
+  "display": { "widthPx": 1600, "heightPx": 2560 },
+  "context": {
+    "project": "Koma",
+    "codeIdentity": "Koma-reader-kit-progress-WIP",
+    "page": "optional shared reader read-only progress fence",
+    "deviceAlias": "device103",
+    "deviceModel": "MLR-AL00",
+    "foldState": "not-applicable",
+    "orientation": "portrait",
+    "resolution": "1600x2560",
+    "notes": "Controlled imported SharedReaderTablet Chapter1 currently has two pages. Explicit page1 then select terminal page2. Ordinary Lab request must leave the existing progress document byte-identical."
+  },
+  "preflight": [
+    { "name": "wake", "hdcArgs": ["shell", "power-shell", "wakeup"] },
+    { "name": "keep-awake", "hdcArgs": ["shell", "power-shell", "timeout", "-o", "86400000"] },
+    { "name": "force-stop-old", "hdcArgs": ["shell", "aa", "force-stop", "com.honjow.koma"] },
+    { "name": "install-replace-only", "hdcArgs": ["install", "-r", "/Users/honjow/git/Koma/entry/build/default/outputs/default/entry-default-signed.hap"], "timeoutSeconds": 120 },
+    { "name": "progress-before", "hdcArgs": ["file", "recv", "/data/app/el2/100/base/com.honjow.koma/haps/entry/files/reader-sessions.v1.json", "/Users/honjow/git/Koma/.hermes-artifacts/20260913-shared-reader-progress/qa103/device103__MLR-AL00/not-applicable/portrait-1600x2560/01d-readonly-final/progress-before.json"] },
+    { "name": "launch-explicit-page1-readonly", "hdcArgs": ["shell", "aa", "start", "-b", "com.honjow.koma", "-a", "EntryAbility", "--ps", "readerLabWork", "local-library-folder-series-80f7f03f", "--ps", "readerLabUnit", "local-library-folder-chapter-3a11f536", "--ps", "readerLabEntryDirection", "ltr", "--pi", "readerLabPage", "0", "--pb", "readerLabChrome", "true"], "pauseAfterMs": 2500 }
+  ],
+  "measurement": {
+    "actions": [
+      { "name": "select-terminal-page2", "uiInput": ["click", "1450", "2295"], "pauseAfterMs": 4500 }
+    ]
+  },
+  "postflight": [
+    { "name": "layout", "hdcArgs": ["shell", "uitest", "dumpLayout", "-p", "/data/local/tmp/koma-rkit-progress-readonly.json", "-a"] },
+    { "name": "receive-layout", "hdcArgs": ["file", "recv", "/data/local/tmp/koma-rkit-progress-readonly.json", "/Users/honjow/git/Koma/.hermes-artifacts/20260913-shared-reader-progress/qa103/device103__MLR-AL00/not-applicable/portrait-1600x2560/01d-readonly-final/layout.json"] },
+    { "name": "screen", "hdcArgs": ["shell", "uitest", "screenCap", "-p", "/data/local/tmp/koma-rkit-progress-readonly.png"] },
+    { "name": "receive-screen", "hdcArgs": ["file", "recv", "/data/local/tmp/koma-rkit-progress-readonly.png", "/Users/honjow/git/Koma/.hermes-artifacts/20260913-shared-reader-progress/qa103/device103__MLR-AL00/not-applicable/portrait-1600x2560/01d-readonly-final/screen.png"] },
+    { "name": "progress-after", "hdcArgs": ["file", "recv", "/data/app/el2/100/base/com.honjow.koma/haps/entry/files/reader-sessions.v1.json", "/Users/honjow/git/Koma/.hermes-artifacts/20260913-shared-reader-progress/qa103/device103__MLR-AL00/not-applicable/portrait-1600x2560/01d-readonly-final/progress-after.json"] },
+    { "name": "force-stop", "hdcArgs": ["shell", "aa", "force-stop", "com.honjow.koma"] }
+  ]
+}
