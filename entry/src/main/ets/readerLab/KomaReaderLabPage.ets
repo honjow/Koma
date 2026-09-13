@@ -272,6 +272,7 @@ export struct KomaReaderLabPage {
               input: this.input, imageShare: this.imageShare, imageSave: this.imageSave,
               tapZoneResolver: (x: number, y: number, layout: ReaderLayout): ReaderTapAction => this.resolveTapZone(x, y, layout),
               autoReadAvailable: true, autoReadSeconds: this.readerMode.autoPageSeconds,
+              pageTurnAnimation: this.request.pageTurnAnimationOverride ?? this.readerMode.pageTurnAnimation,
               cropBorders: this.readerMode.trimPageMarginsEnabled, cropAvailable: true,
               active: this.routeActive && this.labVisibility.foreground,
               chapterNavigationAvailable: true, chapterNavigationBusy: this.chapterBusy,

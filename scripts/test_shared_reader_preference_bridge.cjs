@@ -6,6 +6,8 @@ const ts = require(process.env.KOMA_TYPESCRIPT_PATH ||
 
 const file = path.resolve(__dirname, '../entry/src/main/ets/readerLab/KomaReaderPreferenceBridge.ets')
 const source = fs.readFileSync(file, 'utf8')
+const pageSource = fs.readFileSync(path.resolve(__dirname,
+  '../entry/src/main/ets/readerLab/KomaReaderLabPage.ets'), 'utf8')
 const output = ts.transpileModule(source, { compilerOptions: {
   target: ts.ScriptTarget.ES2020, module: ts.ModuleKind.CommonJS,
 } }).outputText
@@ -65,4 +67,6 @@ assert.equal(cropped.trimPageMarginsEnabled, true)
 assert.equal(cropped.pageMode, base.pageMode)
 assert.equal(cropped.wideImageMode, base.wideImageMode)
 assert.equal(base.trimPageMarginsEnabled, false)
+assert.match(pageSource,
+  /pageTurnAnimation: this\.request\.pageTurnAnimationOverride \?\? this\.readerMode\.pageTurnAnimation/)
 console.log('PASS: shared reader policy/crop mapping changes only represented Koma preference fields.')
