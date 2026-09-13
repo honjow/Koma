@@ -1,0 +1,27 @@
+{
+  "schemaVersion": 1,
+  "name": "shared-reader-koma-animation-recording-right-zone-103",
+  "target": "192.168.50.103:12345",
+  "authorizedTarget": "192.168.50.103:12345",
+  "hdc": "/Applications/DevEco-Studio.app/Contents/sdk/default/openharmony/toolchains/hdc",
+  "artifactDir": "/Users/honjow/git/Koma/.hermes-artifacts/20260913-reader-converged/qa103/device103__MLR-AL00/not-applicable/portrait-1600x2560/04-animation-recording-right-zone",
+  "recordingFileName": "shared_reader_page_turn.mp4",
+  "timeoutMs": 86400000,
+  "warmupMs": 700,
+  "idleRecordMs": 0,
+  "display": { "widthPx": 1600, "heightPx": 2560 },
+  "actions": [
+    { "name": "tap-forward-zone", "uiInput": ["click", "1400", "1200"], "pauseAfterMs": 1800 }
+  ],
+  "context": {
+    "project": "Koma",
+    "codeIdentity": "Koma-6d5def25_reader-kit-260330a",
+    "page": "optional shared reader animated page turn",
+    "deviceAlias": "device103",
+    "deviceModel": "MLR-AL00",
+    "foldState": "not-applicable",
+    "orientation": "portrait",
+    "resolution": "1600x2560",
+    "notes": "Record the controlled shared-reader page 1 to page 2 transition with explicit animation enabled."
+  }
+}
