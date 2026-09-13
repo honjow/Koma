@@ -1,0 +1,52 @@
+{
+  "schemaVersion": 1,
+  "name": "shared-reader-koma-chapter-prepare-cancel-197",
+  "target": "192.168.50.197:12345",
+  "authorizedTarget": "192.168.50.197:12345",
+  "hdc": "/Applications/DevEco-Studio.app/Contents/sdk/default/openharmony/toolchains/hdc",
+  "artifactDir": "/Users/honjow/git/Koma/.hermes-artifacts/device197__ALN-AL80/not-applicable/portrait-1260x2720/20260913-shared-reader-chapter-prepare-cancel/01-background-retain-source",
+  "display": { "widthPx": 1260, "heightPx": 2720 },
+  "context": {
+    "project": "Koma",
+    "codeIdentity": "Koma-9a55a47-reader-kit-d47d3b8-HAP-d742292d-chapter-probe-WIP",
+    "page": "Optional shared reader cancels adjacent preparation on background and retains source",
+    "deviceAlias": "device197",
+    "deviceModel": "ALN-AL80",
+    "foldState": "not-applicable",
+    "orientation": "portrait",
+    "resolution": "1260x2720",
+    "notes": "Debug-only three-second preparation delay. Start next-chapter handoff, background before preparation completes, wait beyond the delay, resume the existing mission without a new reader Want, and verify the original kic-ch:218021 page23 remains with no opened/failed target and no production storage mutation."
+  },
+  "preflight": [
+    { "name": "wake", "hdcArgs": ["shell", "power-shell", "wakeup"] },
+    { "name": "keep-awake", "hdcArgs": ["shell", "power-shell", "timeout", "-o", "86400000"] },
+    { "name": "force-stop-old", "hdcArgs": ["shell", "aa", "force-stop", "com.honjow.koma"] },
+    { "name": "install-replace-only", "hdcArgs": ["install", "-r", "/Users/honjow/git/Koma/entry/build/default/outputs/default/entry-default-signed.hap"], "timeoutSeconds": 120 },
+    { "name": "library-before", "hdcArgs": ["file", "recv", "/data/app/el2/100/base/com.honjow.koma/haps/entry/files/library-store.v1.json", "/Users/honjow/git/Koma/.hermes-artifacts/device197__ALN-AL80/not-applicable/portrait-1260x2720/20260913-shared-reader-chapter-prepare-cancel/01-background-retain-source/library-before.json"] },
+    { "name": "progress-before", "hdcArgs": ["file", "recv", "/data/app/el2/100/base/com.honjow.koma/haps/entry/files/reader-sessions.v1.json", "/Users/honjow/git/Koma/.hermes-artifacts/device197__ALN-AL80/not-applicable/portrait-1260x2720/20260913-shared-reader-chapter-prepare-cancel/01-background-retain-source/progress-before.json"] },
+    { "name": "clear-log", "hdcArgs": ["shell", "hilog", "-r"] },
+    { "name": "launch-terminal-with-delay-probe", "hdcArgs": ["shell", "aa", "start", "-b", "com.honjow.koma", "-a", "EntryAbility", "--ps", "readerLabWork", "com.komiic.koma:kic:2861", "--ps", "readerLabUnit", "kic-ch:218021", "--ps", "readerLabChrome", "true", "--ps", "readerLabEntryLayout", "single", "--ps", "readerLabEntryDirection", "ltr", "--ps", "readerLabChapterProbe", "prepare-delay-once", "--pi", "readerLabPage", "22"], "pauseAfterMs": 3000 },
+    { "name": "before-layout", "hdcArgs": ["shell", "uitest", "dumpLayout", "-p", "/data/local/tmp/koma-rkit-chapter-cancel-before.json", "-a"] },
+    { "name": "receive-before-layout", "hdcArgs": ["file", "recv", "/data/local/tmp/koma-rkit-chapter-cancel-before.json", "/Users/honjow/git/Koma/.hermes-artifacts/device197__ALN-AL80/not-applicable/portrait-1260x2720/20260913-shared-reader-chapter-prepare-cancel/01-background-retain-source/before-layout.json"] },
+    { "name": "before-screen", "hdcArgs": ["shell", "uitest", "screenCap", "-p", "/data/local/tmp/koma-rkit-chapter-cancel-before.png"] },
+    { "name": "receive-before-screen", "hdcArgs": ["file", "recv", "/data/local/tmp/koma-rkit-chapter-cancel-before.png", "/Users/honjow/git/Koma/.hermes-artifacts/device197__ALN-AL80/not-applicable/portrait-1260x2720/20260913-shared-reader-chapter-prepare-cancel/01-background-retain-source/before-screen.png"] }
+  ],
+  "measurement": {
+    "hilog": { "hdcArgs": ["shell", "hilog"], "localFile": "hilog.txt" },
+    "actions": [
+      { "name": "start-delayed-next-chapter", "uiInput": ["swipe", "1040", "1360", "220", "1360", "800"], "pauseAfterMs": 200 },
+      { "name": "background-before-prepare-completes", "uiInput": ["keyEvent", "Home"], "pauseAfterMs": 3500 }
+    ]
+  },
+  "postflight": [
+    { "name": "resume-existing-mission", "hdcArgs": ["shell", "aa", "start", "-b", "com.honjow.koma", "-a", "EntryAbility"], "pauseAfterMs": 2000 },
+    { "name": "after-layout", "hdcArgs": ["shell", "uitest", "dumpLayout", "-p", "/data/local/tmp/koma-rkit-chapter-cancel-after.json", "-a"] },
+    { "name": "receive-after-layout", "hdcArgs": ["file", "recv", "/data/local/tmp/koma-rkit-chapter-cancel-after.json", "/Users/honjow/git/Koma/.hermes-artifacts/device197__ALN-AL80/not-applicable/portrait-1260x2720/20260913-shared-reader-chapter-prepare-cancel/01-background-retain-source/after-layout.json"] },
+    { "name": "after-screen", "hdcArgs": ["shell", "uitest", "screenCap", "-p", "/data/local/tmp/koma-rkit-chapter-cancel-after.png"] },
+    { "name": "receive-after-screen", "hdcArgs": ["file", "recv", "/data/local/tmp/koma-rkit-chapter-cancel-after.png", "/Users/honjow/git/Koma/.hermes-artifacts/device197__ALN-AL80/not-applicable/portrait-1260x2720/20260913-shared-reader-chapter-prepare-cancel/01-background-retain-source/after-screen.png"] },
+    { "name": "library-after", "hdcArgs": ["file", "recv", "/data/app/el2/100/base/com.honjow.koma/haps/entry/files/library-store.v1.json", "/Users/honjow/git/Koma/.hermes-artifacts/device197__ALN-AL80/not-applicable/portrait-1260x2720/20260913-shared-reader-chapter-prepare-cancel/01-background-retain-source/library-after.json"] },
+    { "name": "progress-after", "hdcArgs": ["file", "recv", "/data/app/el2/100/base/com.honjow.koma/haps/entry/files/reader-sessions.v1.json", "/Users/honjow/git/Koma/.hermes-artifacts/device197__ALN-AL80/not-applicable/portrait-1260x2720/20260913-shared-reader-chapter-prepare-cancel/01-background-retain-source/progress-after.json"] },
+    { "name": "stop-candidate", "hdcArgs": ["shell", "aa", "force-stop", "com.honjow.koma"] },
+    { "name": "restore-timeout", "hdcArgs": ["shell", "power-shell", "timeout", "-o", "10000"] }
+  ]
+}

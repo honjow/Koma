@@ -3,7 +3,7 @@ import { taskpool } from '@kit.ArkTS'
 import { http } from '@kit.NetworkKit'
 import { preferences } from '@kit.ArkData'
 import { BusinessError } from '@kit.BasicServicesKit'
-import { fileIo as fs } from '@kit.CoreFileKit'
+import { fileIo as fs, fileUri } from '@kit.CoreFileKit'
 import { Comic, ComicId, ComicSourceKind } from './ComicModels'
 import { ReaderSessionConfig } from './ReaderSessionStore'
 import {
@@ -659,7 +659,14 @@ function createReaderPageRenderSourceWithOfflinePath(
     }
   }
   if (isLocalFileUri(pageUri) || !isRemoteHttpUrl(pageUri)) {
-    const localPath = pageUri.startsWith('file://') ? pageUri.substring('file://'.length) : pageUri
+    let localPath = pageUri.startsWith('file://') ? pageUri.substring('file://'.length) : pageUri
+    if (pageUri.startsWith('file://docs/')) {
+      try {
+        localPath = new fileUri.FileUri(pageUri).path
+      } catch (_error) {
+        // Keep an invalid page local to its existing load failure, not a whole-catalog failure.
+      }
+    }
     return {
       kind: ReaderPageRenderKind.LOCAL_FILE_IMAGE,
       uri: pageUri,

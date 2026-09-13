@@ -1,0 +1,50 @@
+{
+  "schemaVersion": 1,
+  "name": "shared-reader-koma-boundary-paged-previous-197",
+  "target": "192.168.50.197:12345",
+  "authorizedTarget": "192.168.50.197:12345",
+  "hdc": "/Applications/DevEco-Studio.app/Contents/sdk/default/openharmony/toolchains/hdc",
+  "artifactDir": "/Users/honjow/git/Koma/.hermes-artifacts/device197__ALN-AL80/not-applicable/portrait-1260x2720/20260913-shared-reader-boundary-paged-previous/01-reverse-boundary",
+  "display": { "widthPx": 1260, "heightPx": 2720 },
+  "context": {
+    "project": "Koma",
+    "codeIdentity": "Koma-9a55a47-reader-kit-c95e2c1-HAP-58ff2d84-boundary-WIP",
+    "page": "Optional shared reader paged first-page physical reverse boundary to previous chapter",
+    "deviceAlias": "device197",
+    "deviceModel": "ALN-AL80",
+    "foldState": "not-applicable",
+    "orientation": "portrait",
+    "resolution": "1260x2720",
+    "notes": "Replace-only signed Debug install. Launch chapter kic-ch:203855 at page0, then one deliberate LTR rightward swipe at the first display. Expected previous continuation kic-ch:218021 page1, no persisted reader/library mutation."
+  },
+  "preflight": [
+    { "name": "wake", "hdcArgs": ["shell", "power-shell", "wakeup"] },
+    { "name": "keep-awake", "hdcArgs": ["shell", "power-shell", "timeout", "-o", "86400000"] },
+    { "name": "force-stop-old", "hdcArgs": ["shell", "aa", "force-stop", "com.honjow.koma"] },
+    { "name": "install-replace-only", "hdcArgs": ["install", "-r", "/Users/honjow/git/Koma/entry/build/default/outputs/default/entry-default-signed.hap"], "timeoutSeconds": 120 },
+    { "name": "library-before", "hdcArgs": ["file", "recv", "/data/app/el2/100/base/com.honjow.koma/haps/entry/files/library-store.v1.json", "/Users/honjow/git/Koma/.hermes-artifacts/device197__ALN-AL80/not-applicable/portrait-1260x2720/20260913-shared-reader-boundary-paged-previous/01-reverse-boundary/library-before.json"] },
+    { "name": "progress-before", "hdcArgs": ["file", "recv", "/data/app/el2/100/base/com.honjow.koma/haps/entry/files/reader-sessions.v1.json", "/Users/honjow/git/Koma/.hermes-artifacts/device197__ALN-AL80/not-applicable/portrait-1260x2720/20260913-shared-reader-boundary-paged-previous/01-reverse-boundary/progress-before.json"] },
+    { "name": "clear-log", "hdcArgs": ["shell", "hilog", "-r"] },
+    { "name": "launch-first-page", "hdcArgs": ["shell", "aa", "start", "-b", "com.honjow.koma", "-a", "EntryAbility", "--ps", "readerLabWork", "com.komiic.koma:kic:2861", "--ps", "readerLabUnit", "kic-ch:203855", "--ps", "readerLabChrome", "true", "--pi", "readerLabPage", "0"], "pauseAfterMs": 2500 },
+    { "name": "before-layout", "hdcArgs": ["shell", "uitest", "dumpLayout", "-p", "/data/local/tmp/koma-rkit-paged-previous-before.json", "-a"] },
+    { "name": "receive-before-layout", "hdcArgs": ["file", "recv", "/data/local/tmp/koma-rkit-paged-previous-before.json", "/Users/honjow/git/Koma/.hermes-artifacts/device197__ALN-AL80/not-applicable/portrait-1260x2720/20260913-shared-reader-boundary-paged-previous/01-reverse-boundary/before-layout.json"] },
+    { "name": "before-screen", "hdcArgs": ["shell", "uitest", "screenCap", "-p", "/data/local/tmp/koma-rkit-paged-previous-before.png"] },
+    { "name": "receive-before-screen", "hdcArgs": ["file", "recv", "/data/local/tmp/koma-rkit-paged-previous-before.png", "/Users/honjow/git/Koma/.hermes-artifacts/device197__ALN-AL80/not-applicable/portrait-1260x2720/20260913-shared-reader-boundary-paged-previous/01-reverse-boundary/before-screen.png"] }
+  ],
+  "measurement": {
+    "hilog": { "hdcArgs": ["shell", "hilog"], "localFile": "hilog.txt" },
+    "actions": [
+      { "name": "physical-reverse-at-first-page", "uiInput": ["swipe", "220", "1360", "1040", "1360", "800"], "pauseAfterMs": 3000 }
+    ]
+  },
+  "postflight": [
+    { "name": "after-layout", "hdcArgs": ["shell", "uitest", "dumpLayout", "-p", "/data/local/tmp/koma-rkit-paged-previous-after.json", "-a"] },
+    { "name": "receive-after-layout", "hdcArgs": ["file", "recv", "/data/local/tmp/koma-rkit-paged-previous-after.json", "/Users/honjow/git/Koma/.hermes-artifacts/device197__ALN-AL80/not-applicable/portrait-1260x2720/20260913-shared-reader-boundary-paged-previous/01-reverse-boundary/after-layout.json"] },
+    { "name": "after-screen", "hdcArgs": ["shell", "uitest", "screenCap", "-p", "/data/local/tmp/koma-rkit-paged-previous-after.png"] },
+    { "name": "receive-after-screen", "hdcArgs": ["file", "recv", "/data/local/tmp/koma-rkit-paged-previous-after.png", "/Users/honjow/git/Koma/.hermes-artifacts/device197__ALN-AL80/not-applicable/portrait-1260x2720/20260913-shared-reader-boundary-paged-previous/01-reverse-boundary/after-screen.png"] },
+    { "name": "library-after", "hdcArgs": ["file", "recv", "/data/app/el2/100/base/com.honjow.koma/haps/entry/files/library-store.v1.json", "/Users/honjow/git/Koma/.hermes-artifacts/device197__ALN-AL80/not-applicable/portrait-1260x2720/20260913-shared-reader-boundary-paged-previous/01-reverse-boundary/library-after.json"] },
+    { "name": "progress-after", "hdcArgs": ["file", "recv", "/data/app/el2/100/base/com.honjow.koma/haps/entry/files/reader-sessions.v1.json", "/Users/honjow/git/Koma/.hermes-artifacts/device197__ALN-AL80/not-applicable/portrait-1260x2720/20260913-shared-reader-boundary-paged-previous/01-reverse-boundary/progress-after.json"] },
+    { "name": "stop-candidate", "hdcArgs": ["shell", "aa", "force-stop", "com.honjow.koma"] },
+    { "name": "restore-timeout", "hdcArgs": ["shell", "power-shell", "timeout", "-o", "10000"] }
+  ]
+}

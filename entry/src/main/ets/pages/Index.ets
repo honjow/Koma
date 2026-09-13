@@ -1,4 +1,6 @@
 import { common } from '@kit.AbilityKit'
+import { KomaReaderLabPage } from '../readerLab/KomaReaderLabPage'
+import { ReaderLabLaunchState, ReaderLabRequest, connectReaderLabLaunch } from '@reader-kit/ui'
 import {
   BlurStrategy,
   hdsMaterial,
@@ -149,6 +151,13 @@ interface BackupTaskRouteParam {
 @Entry
 @ComponentV2
 struct Index {
+  @Local private readerLabLaunch: ReaderLabLaunchState = connectReaderLabLaunch()
+
+  @Monitor('readerLabLaunch.version')
+  private handleReaderLabLaunch(): void {
+    const request = this.readerLabLaunch.consume()
+    if (request !== null) this.appPathStack.pushPath({ name: 'ReaderLab', param: request })
+  }
   @Local selectedTab: number = TabIndex.LIBRARY
   @Local private importMenuShown: boolean = false
   @Local private trackerSettingsRevision: number = 0
@@ -766,6 +775,14 @@ struct Index {
     }
   }
 
+  private readReaderLabInitialColumn(work: string, unit: string): 'odd_left' | 'even_left' {
+    if (!this.readerSessionPersistenceReady) throw new Error('reader_lab_progress_owner_unavailable')
+    const config: ReaderSessionConfig = {
+      comicId: work, chapterId: unit, chapterIds: [unit], totalPages: 0, pageUris: []
+    }
+    return this.readerSessionStore.restoreColumnMode(config, 'odd_left')
+  }
+
   private onBackupRestored(): void {
     this.ensureLibraryPersistenceService()?.restore()
     this.readerProgressRevision += 1
@@ -1333,6 +1350,7 @@ struct Index {
   }
 
   aboutToAppear(): void {
+    this.handleReaderLabLaunch()
     RouterHelper.setAppPathStack(this.appPathStack)
     RouterHelper.setReaderOpener(() => {
       this.openExternalReaderSession()
@@ -1514,7 +1532,12 @@ struct Index {
 
   @Builder
   private AppDestination(name: string, param: Object) {
-    if (name === RouteName.READER) {
+    if (name === 'ReaderLab') {
+      KomaReaderLabPage({ request: param as ReaderLabRequest,
+        readInitialColumn: (work: string, unit: string): 'odd_left' | 'even_left' => {
+          return this.readReaderLabInitialColumn(work, unit)
+        }, onClose: () => { this.appPathStack.pop() } })
+    } else if (name === RouteName.READER) {
       this.ReaderDestination()
     } else if (name === RouteName.IMPORT) {
       HdsNavDestination() {

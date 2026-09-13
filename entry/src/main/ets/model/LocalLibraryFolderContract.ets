@@ -322,6 +322,28 @@ function rootUriFromLocalLibraryFolderComic(comic: Comic, seriesRelativePath: st
   return rootUri.length === 0 ? undefined : rootUri
 }
 
+export function localLibraryFolderRootUriFromComic(comic: Comic): string | undefined {
+  if (comic.sourceKind !== ComicSourceKind.LOCAL_FOLDER) {
+    return undefined
+  }
+  const seriesRelativePath = remoteResourceSeriesRelativePath(comic.remoteResourceId)
+  if (seriesRelativePath === undefined) {
+    return undefined
+  }
+  return rootUriFromLocalLibraryFolderComic(comic, seriesRelativePath)
+}
+
+export function localLibraryFolderRootUrisFromComics(comics: Comic[]): string[] {
+  const rootUris = new Set<string>()
+  comics.forEach((comic: Comic): void => {
+    const rootUri = localLibraryFolderRootUriFromComic(comic)
+    if (rootUri !== undefined) {
+      rootUris.add(rootUri)
+    }
+  })
+  return Array.from(rootUris).sort((left: string, right: string): number => left.localeCompare(right))
+}
+
 function localLibraryRelativePathFromUri(rootUri: string, uri: string): string | undefined {
   const normalizedRootUri = trimTrailingSlashes(rootUri)
   const prefix = `${normalizedRootUri}/`

@@ -1,4 +1,5 @@
 import { UIAbility, Want, AbilityConstant } from '@kit.AbilityKit'
+import { captureReaderLabWant, updateReaderLabForeground } from '@reader-kit/ui'
 import { KeyboardAvoidMode, window } from '@kit.ArkUI'
 import {
   KOMA_LAUNCH_ROUTE_DOWNLOADS,
@@ -28,6 +29,7 @@ const FALLBACK_BOTTOM_AVOID: number = 0
 export default class EntryAbility extends UIAbility {
   private keyboardHeightCallback: ((height: number) => void) | undefined = undefined
   onCreate(want: Want, launchParam: AbilityConstant.LaunchParam): void {
+    captureReaderLabWant(want, this.context.applicationInfo.debug)
     void launchParam
     AppStrings.init(this.context)
     void LanguageSettings.restore(this.context)
@@ -40,6 +42,7 @@ export default class EntryAbility extends UIAbility {
   }
 
   onNewWant(want: Want, launchParam: AbilityConstant.LaunchParam): void {
+    captureReaderLabWant(want, this.context.applicationInfo.debug)
     void launchParam
     this.openLaunchRouteFromWant(want)
     maybeRunSourceRuntimeDeviceSmoke(want, this.context.resourceManager, this.context)
@@ -76,6 +79,7 @@ export default class EntryAbility extends UIAbility {
   }
 
   onForeground(): void {
+    updateReaderLabForeground(true, this.context.applicationInfo.debug)
     AppForegroundStateBridge.onForeground()
     setTimeout(() => {
       this.syncRemoteProgressInBackground()
@@ -83,6 +87,7 @@ export default class EntryAbility extends UIAbility {
   }
 
   onBackground(): void {
+    updateReaderLabForeground(false, this.context.applicationInfo.debug)
     AppForegroundStateBridge.onBackground()
   }
 

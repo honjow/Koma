@@ -1,0 +1,51 @@
+{
+  "schemaVersion": 1,
+  "name": "shared-reader-koma-boundary-continuous-next-final-197",
+  "target": "192.168.50.197:12345",
+  "authorizedTarget": "192.168.50.197:12345",
+  "hdc": "/Applications/DevEco-Studio.app/Contents/sdk/default/openharmony/toolchains/hdc",
+  "artifactDir": "/Users/honjow/git/Koma/.hermes-artifacts/device197__ALN-AL80/not-applicable/portrait-1260x2720/20260913-shared-reader-boundary-continuous-next/02-forward-boundary-final",
+  "display": { "widthPx": 1260, "heightPx": 2720 },
+  "context": {
+    "project": "Koma",
+    "codeIdentity": "Koma-9a55a47-reader-kit-c95e2c1-HAP-58ff2d84-boundary-WIP",
+    "page": "Optional shared reader continuous terminal physical forward boundary to adjacent chapter",
+    "deviceAlias": "device197",
+    "deviceModel": "ALN-AL80",
+    "foldState": "not-applicable",
+    "orientation": "portrait",
+    "resolution": "1260x2720",
+    "notes": "Replace-only signed Debug install. Launch chapter kic-ch:218021 at page23 in continuous LTR layout. The first deliberate upward swipe positions the native List at the true bottom; the second boundary swipe must emit exactly one next-chapter intent and open kic-ch:203855 at page1, without persisted reader/library mutation."
+  },
+  "preflight": [
+    { "name": "wake", "hdcArgs": ["shell", "power-shell", "wakeup"] },
+    { "name": "keep-awake", "hdcArgs": ["shell", "power-shell", "timeout", "-o", "86400000"] },
+    { "name": "force-stop-old", "hdcArgs": ["shell", "aa", "force-stop", "com.honjow.koma"] },
+    { "name": "install-replace-only", "hdcArgs": ["install", "-r", "/Users/honjow/git/Koma/entry/build/default/outputs/default/entry-default-signed.hap"], "timeoutSeconds": 120 },
+    { "name": "library-before", "hdcArgs": ["file", "recv", "/data/app/el2/100/base/com.honjow.koma/haps/entry/files/library-store.v1.json", "/Users/honjow/git/Koma/.hermes-artifacts/device197__ALN-AL80/not-applicable/portrait-1260x2720/20260913-shared-reader-boundary-continuous-next/02-forward-boundary-final/library-before.json"] },
+    { "name": "progress-before", "hdcArgs": ["file", "recv", "/data/app/el2/100/base/com.honjow.koma/haps/entry/files/reader-sessions.v1.json", "/Users/honjow/git/Koma/.hermes-artifacts/device197__ALN-AL80/not-applicable/portrait-1260x2720/20260913-shared-reader-boundary-continuous-next/02-forward-boundary-final/progress-before.json"] },
+    { "name": "clear-log", "hdcArgs": ["shell", "hilog", "-r"] },
+    { "name": "launch-last-page-continuous", "hdcArgs": ["shell", "aa", "start", "-b", "com.honjow.koma", "-a", "EntryAbility", "--ps", "readerLabWork", "com.komiic.koma:kic:2861", "--ps", "readerLabUnit", "kic-ch:218021", "--ps", "readerLabChrome", "true", "--ps", "readerLabEntryLayout", "continuous", "--ps", "readerLabEntryDirection", "ltr", "--pi", "readerLabPage", "22"], "pauseAfterMs": 3000 },
+    { "name": "before-layout", "hdcArgs": ["shell", "uitest", "dumpLayout", "-p", "/data/local/tmp/koma-rkit-continuous-next-before.json", "-a"] },
+    { "name": "receive-before-layout", "hdcArgs": ["file", "recv", "/data/local/tmp/koma-rkit-continuous-next-before.json", "/Users/honjow/git/Koma/.hermes-artifacts/device197__ALN-AL80/not-applicable/portrait-1260x2720/20260913-shared-reader-boundary-continuous-next/02-forward-boundary-final/before-layout.json"] },
+    { "name": "before-screen", "hdcArgs": ["shell", "uitest", "screenCap", "-p", "/data/local/tmp/koma-rkit-continuous-next-before.png"] },
+    { "name": "receive-before-screen", "hdcArgs": ["file", "recv", "/data/local/tmp/koma-rkit-continuous-next-before.png", "/Users/honjow/git/Koma/.hermes-artifacts/device197__ALN-AL80/not-applicable/portrait-1260x2720/20260913-shared-reader-boundary-continuous-next/02-forward-boundary-final/before-screen.png"] }
+  ],
+  "measurement": {
+    "hilog": { "hdcArgs": ["shell", "hilog"], "localFile": "hilog.txt" },
+    "actions": [
+      { "name": "position-native-list-at-true-bottom", "uiInput": ["swipe", "630", "2180", "630", "520", "1000"], "pauseAfterMs": 1200 },
+      { "name": "physical-upward-at-true-bottom", "uiInput": ["swipe", "630", "2180", "630", "520", "1000"], "pauseAfterMs": 3500 }
+    ]
+  },
+  "postflight": [
+    { "name": "after-layout", "hdcArgs": ["shell", "uitest", "dumpLayout", "-p", "/data/local/tmp/koma-rkit-continuous-next-after.json", "-a"] },
+    { "name": "receive-after-layout", "hdcArgs": ["file", "recv", "/data/local/tmp/koma-rkit-continuous-next-after.json", "/Users/honjow/git/Koma/.hermes-artifacts/device197__ALN-AL80/not-applicable/portrait-1260x2720/20260913-shared-reader-boundary-continuous-next/02-forward-boundary-final/after-layout.json"] },
+    { "name": "after-screen", "hdcArgs": ["shell", "uitest", "screenCap", "-p", "/data/local/tmp/koma-rkit-continuous-next-after.png"] },
+    { "name": "receive-after-screen", "hdcArgs": ["file", "recv", "/data/local/tmp/koma-rkit-continuous-next-after.png", "/Users/honjow/git/Koma/.hermes-artifacts/device197__ALN-AL80/not-applicable/portrait-1260x2720/20260913-shared-reader-boundary-continuous-next/02-forward-boundary-final/after-screen.png"] },
+    { "name": "library-after", "hdcArgs": ["file", "recv", "/data/app/el2/100/base/com.honjow.koma/haps/entry/files/library-store.v1.json", "/Users/honjow/git/Koma/.hermes-artifacts/device197__ALN-AL80/not-applicable/portrait-1260x2720/20260913-shared-reader-boundary-continuous-next/02-forward-boundary-final/library-after.json"] },
+    { "name": "progress-after", "hdcArgs": ["file", "recv", "/data/app/el2/100/base/com.honjow.koma/haps/entry/files/reader-sessions.v1.json", "/Users/honjow/git/Koma/.hermes-artifacts/device197__ALN-AL80/not-applicable/portrait-1260x2720/20260913-shared-reader-boundary-continuous-next/02-forward-boundary-final/progress-after.json"] },
+    { "name": "stop-candidate", "hdcArgs": ["shell", "aa", "force-stop", "com.honjow.koma"] },
+    { "name": "restore-timeout", "hdcArgs": ["shell", "power-shell", "timeout", "-o", "10000"] }
+  ]
+}
