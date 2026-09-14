@@ -5,7 +5,7 @@ import { ReaderCancellation, ReaderDisplayPolicy, ReaderInputPort,
 import { ReaderHostAction, ReaderKeepScreenOn, ReaderLabRequest, ReaderLabSurface, ReaderSurface, ReaderTrialLayoutCommit, ReaderTrialWindow,
   ReaderLabVisibilityState, ReaderSystemImageSaveHost, ReaderVolumeKeys, connectReaderLabVisibility, ReaderTapAction,
   ReaderTapZonePreviewRegion, ReaderMediaActions, ReaderChapterNavigation, ReaderObservationSink,
-  ReaderPreferenceSink, ReaderActivitySink, ReaderHostSettings } from '@reader-kit/ui'
+  ReaderPreferenceSink, ReaderActivitySink, ReaderHostSettings, ReaderHostActions } from '@reader-kit/ui'
 import { KomaReaderLabAdapter, KomaReaderLabChapterChoice } from './KomaReaderLabAdapter'
 import { KomaReaderLabImageShareHost } from './KomaReaderLabImageShareHost'
 import { connectLayoutSafeArea, LayoutSafeAreaState } from '../state/LayoutSafeAreaState'
@@ -540,10 +540,10 @@ export struct KomaReaderLabPage {
               cropAvailable: true,
               hostSettings: this.request.preferencesReadWrite
                 ? new ReaderHostSettings((): void => { this.openHostSettings() }) : null,
-              hostActions: this.readerHostActions(),
-              onHostAction: (id: string, source: ReaderUnitKey, navigation: number, sourceIndex: number): void => {
-                this.openMangaDetail(id, source, navigation, sourceIndex)
-              },
+              hostActions: new ReaderHostActions(this.readerHostActions(),
+                (id: string, source: ReaderUnitKey, navigation: number, sourceIndex: number): void => {
+                  this.openMangaDetail(id, source, navigation, sourceIndex)
+                }),
               active: this.routeActive && this.labVisibility.foreground && !this.readerSettingsSheetShown &&
                 !this.chapterPickerShown,
               chapterNavigation: new ReaderChapterNavigation(this.chapterBusy,
