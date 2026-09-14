@@ -57,10 +57,11 @@ test('Koma host catalog copies transient configs and fences cancellation around 
   }
   const checks = []
   const cancellation = { check() { checks.push('check') } }
+  let committed
   const host = new output.KomaReaderCatalogHost(() => config, async target => {
     assert.equal(target.unit, 'chapter-B')
     return { ...config, chapterId: 'chapter-B', totalPages: 1, pageUris: ['https://example/b1'], pageIds: ['b1'] }
-  })
+  }, (target, prepared) => { committed = [target, prepared] })
   const initial = host.initial('transient-work', 'chapter-A')
   initial.pageUris[0] = 'mutated'
   assert.equal(config.pageUris[0], 'https://example/a1')
@@ -68,6 +69,10 @@ test('Koma host catalog copies transient configs and fences cancellation around 
   assert.equal(prepared.chapterId, 'chapter-B')
   assert.deepEqual(Array.from(prepared.pageUris), ['https://example/b1'])
   assert.equal(checks.length, 2)
+  host.commit(key('chapter-B'), prepared)
+  prepared.pageUris[0] = 'mutated-after-commit'
+  assert.equal(committed[0].unit, 'chapter-B')
+  assert.deepEqual(Array.from(committed[1].pageUris), ['https://example/b1'])
 })
 
 test('adapter consumes a host-prepared transient chapter before touching its disk library', async () => {
@@ -109,6 +114,54 @@ test('Index keeps provider resolution and remote headers in Koma while passing o
   assert.match(index, /prepareReaderLabCatalog[\s\S]*installReaderRemoteHeadersForComic/)
   assert.match(index, /sourceKind === ComicSourceKind\.LOCAL_FOLDER\) return null/)
   assert.match(index, /catalogHost: this\.createReaderLabCatalogHost\(\)/)
+  assert.match(index, /commitReaderLabCatalog[\s\S]*this\.activeSourceReaderRequest = committedRequest/)
+  assert.match(index, /commitReaderLabCatalog[\s\S]*saveSourceHistory\(sourceReadHistoryEntryFromRequest\(committedRequest\)\)/)
+  assert.match(index, /persistReaderLabObserved[\s\S]*this\.readerLabInitialConfig\(/)
   assert.match(page, /new KomaReaderLabAdapter\(context\.filesDir, context\.cacheDir, this\.catalogHost\)/)
   assert.doesNotMatch(page, /SourceRuntimeRegistry|OfflineDownloadStore|LibraryStorePersistence/)
+})
+
+test('transient chapter commit updates Koma history and enables progress without a library record', () => {
+  const methods = ['readerLabInitialConfig', 'commitReaderLabCatalog', 'readReaderLabInitialPage',
+    'persistReaderLabObserved'].map(name => member('pages/Index.ets', 'Index', name))
+  const output = {}
+  vm.runInNewContext(ts.transpileModule(`export class Subject { ${methods.join('\n')} }`, { compilerOptions: {
+    module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020,
+  } }).outputText, {
+    exports: output, cloneReaderSessionConfig,
+    sourceReaderSessionRequestForChapter(request, chapterId) {
+      return request.chapterIds.includes(chapterId) ? { ...request, chapterId, chapterIds: request.chapterIds.slice() } : undefined
+    },
+    sourceReadHistoryEntryFromRequest: request => ({ comicId: request.comicId, chapterId: request.chapterId }),
+    getReaderSessionPageId: (config, index) => config.pageIds[index],
+  })
+  const history = []
+  const progress = []
+  const page = new output.Subject()
+  Object.assign(page, {
+    readerSessionPersistenceReady: true,
+    readerSessionConfig: { comicId: '', chapterId: '', chapterIds: [], totalPages: 0, pageUris: [] },
+    activeSourceReaderRequest: { comicId: 'transient-work', sourceId: 'source', mangaId: 'manga', title: 'Title',
+      chapterId: 'chapter-A', chapterIds: ['chapter-A', 'chapter-B'] },
+    libraryStore: { getComic() { throw new Error('transient progress must not read the library') } },
+    readerSessionStore: {
+      saveSourceHistory: value => history.push(value), flush() {},
+      restorePageIndex: config => config.chapterId === 'chapter-B' ? 1 : 0,
+      saveProgress: value => progress.push(value),
+    },
+    readerProgressRevision: 0,
+  })
+  const config = { comicId: 'transient-work', chapterId: 'chapter-B',
+    chapterIds: ['chapter-A', 'chapter-B'], totalPages: 2,
+    pageUris: ['uri:B:1', 'uri:B:2'], pageIds: ['page-B-1', 'page-B-2'] }
+  page.commitReaderLabCatalog(key('chapter-B'), config)
+  assert.equal(page.activeSourceReaderRequest.chapterId, 'chapter-B')
+  assert.equal(page.readerSessionConfig.chapterId, 'chapter-B')
+  assert.deepEqual(history, [{ comicId: 'transient-work', chapterId: 'chapter-B' }])
+  assert.equal(page.readReaderLabInitialPage('transient-work', 'chapter-B'), 1)
+  page.persistReaderLabObserved({ anchor: { unit: key('chapter-B'), sourceIndexHint: 1 },
+    pageCount: 2, terminalSourceDisplayed: true }, 'odd_left')
+  assert.equal(progress.length, 1)
+  assert.equal(progress[0].pageId, 'page-B-2')
+  assert.equal(progress[0].completed, true)
 })

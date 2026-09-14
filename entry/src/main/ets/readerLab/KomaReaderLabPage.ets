@@ -258,7 +258,8 @@ export struct KomaReaderLabPage {
       await session.open(target, this.chapterInitialPage(target))
       const opened = session.snapshot()
       if (!cancellation.isCancelled() && !this.readerClosed && opened.phase === 'ready' &&
-        opened.unit?.key.equals(target) === true) {
+        opened.unit?.key.equals(target) === true && this.chapterRequest === cancellation &&
+        this.session === session && this.routeActive && this.labVisibility.foreground) {
         this.syncChapterChoices(target)
         console.info(`[KomaReaderLab] chapter_opened direction=${reason} unit=${target.unit}`)
       }
@@ -355,11 +356,14 @@ export struct KomaReaderLabPage {
   private onObservedPosition(position: ReaderObservedPosition): void {
     const session = this.session
     this.syncChapterChoices(position.anchor.unit)
-    if (!this.request.progressReadWrite || session === null || this.readerClosed || !this.routeActive ||
+    if (session === null || this.readerClosed || !this.routeActive ||
       !this.labVisibility.foreground) return
     const snapshot = session.snapshot()
     if (snapshot.phase !== 'ready' || snapshot.unit === null ||
       !snapshot.unit.key.equals(position.anchor.unit)) return
+    const config = this.adapter?.sessionConfig(position.anchor.unit) ?? null
+    if (config !== null) this.catalogHost?.commit(position.anchor.unit, config)
+    if (!this.request.progressReadWrite) return
     this.persistObserved(position, snapshot.policy.firstPageAlone ? 'even_left' : 'odd_left')
   }
 

@@ -517,7 +517,22 @@ struct Index {
       (work: string, unit: string): ReaderSessionConfig | null => this.readerLabInitialConfig(work, unit),
       (target: ReaderUnitKey, cancellation: ReaderCancellation): Promise<ReaderSessionConfig | null> =>
         this.prepareReaderLabCatalog(target, cancellation),
+      (target: ReaderUnitKey, config: ReaderSessionConfig): void => this.commitReaderLabCatalog(target, config),
     )
+  }
+
+  private commitReaderLabCatalog(target: ReaderUnitKey, config: ReaderSessionConfig): void {
+    if (target.scope !== 'koma-local' || config.comicId !== target.work || config.chapterId !== target.unit ||
+      config.totalPages < 1 || config.pageUris.length !== config.totalPages) return
+    this.readerSessionConfig = cloneReaderSessionConfig(config)
+    const sourceRequest = this.activeSourceReaderRequest
+    if (sourceRequest === undefined || sourceRequest.comicId !== target.work) return
+    const committedRequest = sourceReaderSessionRequestForChapter(sourceRequest, target.unit)
+    if (committedRequest === undefined) return
+    if (sourceRequest.chapterId === committedRequest.chapterId) return
+    this.activeSourceReaderRequest = committedRequest
+    this.readerSessionStore.saveSourceHistory(sourceReadHistoryEntryFromRequest(committedRequest))
+    this.readerSessionStore.flush()
   }
 
   private readerNeedsAsyncPreparation(comic: Comic, chapterId: string | undefined): boolean {
@@ -827,19 +842,16 @@ struct Index {
 
   private readReaderLabInitialPage(work: string, unit: string): number {
     if (!this.readerSessionPersistenceReady) throw new Error('reader_lab_progress_owner_unavailable')
-    const comic = this.libraryStore.getComic(work)
-    if (comic === undefined) return 0
-    const config = createReaderSessionConfigFromComic(comic, unit)
-    if (config.chapterId !== unit || config.totalPages <= 0) return 0
+    const config = this.readerLabInitialConfig(work, unit)
+    if (config === null) return 0
     return this.readerSessionStore.restorePageIndex(config)
   }
 
   private persistReaderLabObserved(position: ReaderObservedPosition,
     column: 'odd_left' | 'even_left'): void {
     if (!this.readerSessionPersistenceReady || position.anchor.unit.scope !== 'koma-local') return
-    const comic = this.libraryStore.getComic(position.anchor.unit.work)
-    if (comic === undefined) return
-    const config = createReaderSessionConfigFromComic(comic, position.anchor.unit.unit)
+    const config = this.readerLabInitialConfig(position.anchor.unit.work, position.anchor.unit.unit)
+    if (config === null) return
     if (config.chapterId !== position.anchor.unit.unit || config.totalPages !== position.pageCount ||
       position.anchor.sourceIndexHint < 0 || position.anchor.sourceIndexHint >= config.totalPages) return
     const index = position.anchor.sourceIndexHint

@@ -10,7 +10,7 @@ import { ComicSourceKind } from '../model/ComicModels'
 import { localLibraryFolderRootUriFromComic } from '../model/LocalLibraryFolderContract'
 import { activateLocalLibraryFolderAccess } from '../model/LocalLibraryFolderAccessService'
 import { AppFilesLibraryStorePersistenceAdapter, hydrateLibraryStoreFromJson } from '../model/LibraryPersistence'
-import { ReaderSessionConfig, createReaderSessionConfigFromComic } from '../model/ReaderSessionStore'
+import { ReaderSessionConfig, cloneReaderSessionConfig, createReaderSessionConfigFromComic } from '../model/ReaderSessionStore'
 import { OfflineDownloadStore } from '../model/OfflineDownloadStore'
 import { createKomaReaderLabOfflineConfig } from './KomaReaderLabOfflineConfig'
 import { KomaReaderLabThumbnailProvider } from './KomaReaderLabThumbnailProvider'
@@ -176,6 +176,11 @@ export class KomaReaderLabAdapter implements ReaderCatalog, ReaderAssetProvider,
         index >= 0 ? (config.chapterTitles?.[index] ?? '') : '',
       )
     })
+  }
+
+  sessionConfig(unit: ReaderUnitKey): ReaderSessionConfig | null {
+    const config = this.configs.get(this.unitId(unit))
+    return config === undefined ? null : cloneReaderSessionConfig(config)
   }
 
   async preload(page: ReaderPage, cancellation: ReaderCancellation): Promise<void> {

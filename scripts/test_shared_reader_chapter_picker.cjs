@@ -87,7 +87,8 @@ test('a newer picker target cancels preparation and restores only the opened cha
     isCancelled() { return this.cancelled }
     check() { if (this.cancelled) throw new Error('cancelled') }
   }
-  const Page = subject('KomaReaderLabPage.ets', 'KomaReaderLabPage', ['chapterInitialPage', 'openChapterTarget'], {
+  const Page = subject('KomaReaderLabPage.ets', 'KomaReaderLabPage',
+    ['chapterInitialPage', 'openChapterTarget', 'syncChapterChoices', 'onObservedPosition'], {
     ReaderCancellation, $r: value => value,
   })
   const page = new Page()
@@ -96,17 +97,25 @@ test('a newer picker target cancels preparation and restores only the opened cha
   let releaseB
   const pendingB = new Promise(resolve => { releaseB = resolve })
   const opened = []
+  const committed = []
   const restored = []
-  const adapter = { prepare: target => target.unit === 'B' ? pendingB : Promise.resolve() }
+  const adapter = {
+    prepare: target => target.unit === 'B' ? pendingB : Promise.resolve(),
+    sessionConfig: target => ({ comicId: target.work, chapterId: target.unit,
+      chapterIds: [target.unit], totalPages: 1, pageUris: [`uri:${target.unit}`] }),
+    chapterChoices: () => [],
+  }
   const session = {
-    snapshot: () => ({ phase: 'ready', unit: { key: current } }),
+    snapshot: () => ({ phase: 'ready', unit: { key: current }, policy: { firstPageAlone: false } }),
     open: async (target, index) => { opened.push([target.unit, index]); current = target },
   }
   Object.assign(page, {
     session, adapter, routeActive: true, labVisibility: { foreground: true }, readerClosed: false,
     chapterRequest: null, chapterBusy: false, request: { chapterProbe: '', progressReadWrite: true },
     readInitialPage: (work, unit) => { restored.push([work, unit]); return unit === 'C' ? 7 : 3 },
-    runChapterPreparationProbe: async () => {}, syncChapterChoices() {},
+    runChapterPreparationProbe: async () => {}, chapterChoices: [], chapterChoiceIdentity: '',
+    catalogHost: { commit: target => committed.push(target.unit) },
+    persistObserved() {},
     getUIContext: () => ({ getPromptAction: () => ({ showToast() {} }) }),
   })
   const first = page.openChapterTarget(key('B'), source, 'picker')
@@ -116,6 +125,9 @@ test('a newer picker target cancels preparation and restores only the opened cha
   releaseB()
   await first
   assert.deepEqual(opened, [['C', 7]])
+  assert.deepEqual(committed, [])
+  page.onObservedPosition({ anchor: { unit: current, sourceIndexHint: 0 }, pageCount: 1 })
+  assert.deepEqual(committed, ['C'])
   assert.deepEqual(restored, [['work', 'C']])
   assert.equal(page.chapterBusy, false)
 })
