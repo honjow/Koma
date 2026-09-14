@@ -5,7 +5,7 @@ import { ReaderCancellation, ReaderDisplayPolicy, ReaderInputPort,
 import { ReaderHostAction, ReaderKeepScreenOn, ReaderLabRequest, ReaderLabSurface, ReaderSurface, ReaderTrialLayoutCommit, ReaderTrialWindow,
   ReaderLabVisibilityState, ReaderSystemImageSaveHost, ReaderVolumeKeys, connectReaderLabVisibility, ReaderTapAction,
   ReaderTapZonePreviewRegion, ReaderMediaActions, ReaderChapterNavigation, ReaderObservationSink,
-  ReaderPreferenceSink, ReaderActivitySink } from '@reader-kit/ui'
+  ReaderPreferenceSink, ReaderActivitySink, ReaderHostSettings } from '@reader-kit/ui'
 import { KomaReaderLabAdapter, KomaReaderLabChapterChoice } from './KomaReaderLabAdapter'
 import { KomaReaderLabImageShareHost } from './KomaReaderLabImageShareHost'
 import { connectLayoutSafeArea, LayoutSafeAreaState } from '../state/LayoutSafeAreaState'
@@ -538,8 +538,8 @@ export struct KomaReaderLabPage {
               preloadDepth: this.hostPreferences?.preloadPages ?? this.readerMode.preloadPages,
               cropBorders: this.hostPreferences?.trimPageMarginsEnabled ?? this.readerMode.trimPageMarginsEnabled,
               cropAvailable: true,
-              hostSettingsAvailable: this.request.preferencesReadWrite,
-              onHostSettings: (): void => { this.openHostSettings() },
+              hostSettings: this.request.preferencesReadWrite
+                ? new ReaderHostSettings((): void => { this.openHostSettings() }) : null,
               hostActions: this.readerHostActions(),
               onHostAction: (id: string, source: ReaderUnitKey, navigation: number, sourceIndex: number): void => {
                 this.openMangaDetail(id, source, navigation, sourceIndex)
