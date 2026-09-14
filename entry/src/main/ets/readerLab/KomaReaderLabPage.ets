@@ -5,7 +5,7 @@ import { ReaderCancellation, ReaderDisplayPolicy, ReaderInputPort,
 import { ReaderHostAction, ReaderKeepScreenOn, ReaderLabRequest, ReaderLabSurface, ReaderSurface, ReaderTrialLayoutCommit, ReaderTrialWindow,
   ReaderLabVisibilityState, ReaderSystemImageSaveHost, ReaderVolumeKeys, connectReaderLabVisibility, ReaderTapAction,
   ReaderTapZonePreviewRegion, ReaderMediaActions, ReaderChapterNavigation, ReaderObservationSink,
-  ReaderPreferenceSink } from '@reader-kit/ui'
+  ReaderPreferenceSink, ReaderActivitySink } from '@reader-kit/ui'
 import { KomaReaderLabAdapter, KomaReaderLabChapterChoice } from './KomaReaderLabAdapter'
 import { KomaReaderLabImageShareHost } from './KomaReaderLabImageShareHost'
 import { connectLayoutSafeArea, LayoutSafeAreaState } from '../state/LayoutSafeAreaState'
@@ -563,7 +563,8 @@ export struct KomaReaderLabPage {
                 (policy: ReaderDisplayPolicy): void => { this.onPolicyChanged(policy) },
                 (enabled: boolean): void => { this.onCropChanged(enabled) }),
               beforeShowChrome: (isCurrent: () => boolean): Promise<boolean> => this.prepareChromeShow(isCurrent),
-              onChromeVisible: (visible: boolean): void => { this.syncChromeVisible(visible) },
+              activitySink: new ReaderActivitySink(
+                (visible: boolean): void => { this.syncChromeVisible(visible) }),
               topInset: this.safeArea.topAvoidHeight, bottomInset: this.safeArea.bottomAvoidHeight,
               accent: ThemeConstants.BRAND_PRIMARY, onClose: (): void => { this.closeReader() } })
             Row().width(1).height(1).position({ x: 0, y: 0 }).hitTestBehavior(HitTestMode.None)
