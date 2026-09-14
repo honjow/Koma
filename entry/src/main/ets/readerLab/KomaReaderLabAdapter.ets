@@ -19,6 +19,16 @@ import {
   createReaderPageRenderSources, fetchAndCacheReaderRemoteSource,
 } from '../model/ReaderPageSourceAdapter'
 
+export class KomaReaderLabChapterChoice {
+  key: ReaderUnitKey
+  title: string
+
+  constructor(key: ReaderUnitKey, title: string) {
+    this.key = key
+    this.title = title
+  }
+}
+
 /** Defer metadata I/O until requested; its failure must not reject the displayed body asset. */
 class KomaReaderFileInformation implements ReaderImageInformationSource {
   private path: string
@@ -135,6 +145,20 @@ export class KomaReaderLabAdapter implements ReaderCatalog, ReaderAssetProvider,
     const target = index + (direction === 'next' ? 1 : -1)
     if (index < 0 || target < 0 || target >= chapterIds.length) return null
     return new ReaderUnitKey(unit.key.scope, unit.key.work, chapterIds[target])
+  }
+
+  /** Host-owned chapter catalog projection for the optional picker; reader-kit never sees these titles. */
+  chapterChoices(unit: ReaderUnitKey): KomaReaderLabChapterChoice[] {
+    const config = this.configs.get(this.unitId(unit))
+    if (config === undefined) return []
+    const chapterIds = config.continuationChapterIds ?? config.chapterIds
+    return chapterIds.map((chapterId: string): KomaReaderLabChapterChoice => {
+      const index = config.chapterIds.indexOf(chapterId)
+      return new KomaReaderLabChapterChoice(
+        new ReaderUnitKey(unit.scope, unit.work, chapterId),
+        index >= 0 ? (config.chapterTitles?.[index] ?? '') : '',
+      )
+    })
   }
 
   async preload(page: ReaderPage, cancellation: ReaderCancellation): Promise<void> {

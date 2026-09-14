@@ -5,7 +5,7 @@ import { ReaderCancellation, ReaderDisplayPolicy, ReaderImageSaveHost, ReaderIma
 import { ReaderKeepScreenOn, ReaderLabRequest, ReaderLabSurface, ReaderSurface, ReaderTrialLayoutCommit, ReaderTrialWindow,
   ReaderLabVisibilityState, ReaderSystemImageSaveHost, ReaderVolumeKeys, connectReaderLabVisibility, ReaderTapAction,
   ReaderTapZonePreviewRegion } from '@reader-kit/ui'
-import { KomaReaderLabAdapter } from './KomaReaderLabAdapter'
+import { KomaReaderLabAdapter, KomaReaderLabChapterChoice } from './KomaReaderLabAdapter'
 import { KomaReaderLabImageShareHost } from './KomaReaderLabImageShareHost'
 import { connectLayoutSafeArea, LayoutSafeAreaState } from '../state/LayoutSafeAreaState'
 import { ThemeConstants } from '../theme/ThemeConstants'
@@ -17,6 +17,9 @@ import { KomaReaderPreferenceBridge } from './KomaReaderPreferenceBridge'
 import { connectReaderModeState, ReaderModeState } from '../state/ReaderModeState'
 import { ReaderMode } from '../model/ReaderSessionStore'
 import { ReaderSettingsContent } from '../components/ReaderSettingsContent'
+import { KomaModalScaffold } from '../components/KomaModalScaffold'
+import { ConciseListRow } from '../components/ui/ConciseListRow'
+import { AppStrings } from '../i18n/AppStrings'
 
 @ComponentV2
 export struct KomaReaderLabPage {
@@ -40,6 +43,9 @@ export struct KomaReaderLabPage {
   @Local private readerSettingsSheetShown: boolean = false
   @Local private hostPreferences: ReaderPreferences | null = null
   @Local private tapZonePreviewRevision: number = 0
+  @Local private chapterPickerShown: boolean = false
+  @Local private chapterChoices: KomaReaderLabChapterChoice[] = []
+  @Local private currentChapterUnit: string = ''
   private unitKey: ReaderUnitKey = new ReaderUnitKey('', '', '')
   private initialPageIndex: number = 0
   private trialWindow: ReaderTrialWindow = new ReaderTrialWindow(null, true)
@@ -55,6 +61,19 @@ export struct KomaReaderLabPage {
   private volumeKeys: ReaderVolumeKeys = new ReaderVolumeKeys(this.input)
   private preferencesStore: ReaderPreferencesStore | null = null
   private preferenceWrites: Promise<void> = Promise.resolve()
+  private chapterPickerTarget: ReaderUnitKey | null = null
+  private chapterChoiceIdentity: string = ''
+  private chapterPickerScroller: Scroller = new Scroller()
+
+  @Monitor('chapterPickerShown')
+  private onChapterPickerVisibilityChanged(): void {
+    if (!this.chapterPickerShown) return
+    const index = this.chapterChoices.findIndex((choice: KomaReaderLabChapterChoice): boolean =>
+      choice.key.unit === this.currentChapterUnit)
+    if (index >= 0) {
+      setTimeout((): void => { this.chapterPickerScroller.scrollToIndex(index, true, ScrollAlign.CENTER) }, 120)
+    }
+  }
 
   aboutToAppear(): void {
     const context = this.getUIContext().getHostContext() as common.UIAbilityContext
@@ -130,7 +149,7 @@ export struct KomaReaderLabPage {
 
   private async prepareChromeShow(isCurrent: () => boolean): Promise<boolean> {
     const current = (): boolean => isCurrent() && !this.readerClosed && this.routeActive &&
-      this.labVisibility.foreground && !this.readerSettingsSheetShown && this.session !== null
+      this.labVisibility.foreground && !this.readerSettingsSheetShown && !this.chapterPickerShown && this.session !== null
     if (!current()) return false
     if (!await this.trialWindow.prepareStatusBarVisible() || !current()) return false
     return ReaderTrialLayoutCommit.wait(this.getUIContext(), (): string =>
@@ -140,6 +159,8 @@ export struct KomaReaderLabPage {
   aboutToDisappear(): void {
     this.readerClosed = true
     this.readerSettingsSheetShown = false
+    this.chapterPickerShown = false
+    this.chapterPickerTarget = null
     this.initialization?.cancel()
     this.volumeKeys.close()
     this.cancelChapterRequest()
@@ -149,16 +170,18 @@ export struct KomaReaderLabPage {
   }
 
   @Monitor('routeActive', 'labVisibility.foreground', 'readerMode.hydrated', 'readerMode.keepScreenAwake',
-    'readerSettingsSheetShown')
+    'readerSettingsSheetShown', 'chapterPickerShown')
   syncKeepScreenOn(): void {
     this.keepScreenOn?.setActive(this.request.readingChrome && this.session !== null && this.routeActive &&
-      this.labVisibility.foreground && this.readerMode.hydrated && !this.readerSettingsSheetShown &&
+      this.labVisibility.foreground && this.readerMode.hydrated && !this.readerSettingsSheetShown && !this.chapterPickerShown &&
       (this.hostPreferences?.keepScreenAwake ?? this.readerMode.keepScreenAwake))
   }
 
   private closeReader(): void {
     this.readerClosed = true
     this.readerSettingsSheetShown = false
+    this.chapterPickerShown = false
+    this.chapterPickerTarget = null
     this.initialization?.cancel()
     this.volumeKeys.close()
     this.cancelChapterRequest()
@@ -168,13 +191,14 @@ export struct KomaReaderLabPage {
   }
 
   @Monitor('routeActive', 'labVisibility.foreground', 'readerMode.hydrated',
-    'readerMode.volumeKeyNavigationEnabled', 'readerMode.volumeKeyBehavior', 'readerSettingsSheetShown', 'session')
+    'readerMode.volumeKeyNavigationEnabled', 'readerMode.volumeKeyBehavior', 'readerSettingsSheetShown',
+    'chapterPickerShown', 'session')
   syncVolumeKeys(): void {
     const enabled = this.request.volumeKeysOverride ??
       (this.hostPreferences?.volumeKeyNavigationEnabled ?? this.readerMode.volumeKeyNavigationEnabled)
     this.volumeKeys.setActive(!this.readerClosed && this.request.readingChrome && this.session !== null &&
       this.routeActive && this.labVisibility.foreground && this.readerMode.hydrated &&
-      !this.readerSettingsSheetShown && enabled,
+      !this.readerSettingsSheetShown && !this.chapterPickerShown && enabled,
       (this.hostPreferences?.volumeKeyBehavior ?? this.readerMode.volumeKeyBehavior) === 'up_next_down_previous')
   }
 
@@ -198,16 +222,17 @@ export struct KomaReaderLabPage {
     cancellation.check()
   }
 
-  private async switchChapter(direction: 'previous' | 'next', sourceUnit: ReaderUnitKey): Promise<void> {
+  private async openChapterTarget(target: ReaderUnitKey, sourceUnit: ReaderUnitKey,
+    reason: 'previous' | 'next' | 'picker'): Promise<void> {
     const session = this.session
     const adapter = this.adapter
-    if (session === null || adapter === null || this.chapterBusy || this.readerClosed ||
+    if (session === null || adapter === null || this.readerClosed || target.equals(sourceUnit) ||
       !this.routeActive || !this.labVisibility.foreground) return
     const current = session.snapshot()
     if (current.phase !== 'ready' || current.unit === null || !current.unit.key.equals(sourceUnit)) return
-    const target = adapter.adjacent(current.unit, direction)
-    if (target === null || target.scope !== sourceUnit.scope || target.work !== sourceUnit.work) return
-    console.info(`[KomaReaderLab] chapter_boundary direction=${direction} source=${sourceUnit.unit} target=${target.unit}`)
+    if (target.scope !== sourceUnit.scope || target.work !== sourceUnit.work) return
+    this.chapterRequest?.cancel()
+    console.info(`[KomaReaderLab] chapter_boundary direction=${reason} source=${sourceUnit.unit} target=${target.unit}`)
     const source = sourceUnit.copy()
     const cancellation = new ReaderCancellation()
     this.chapterRequest = cancellation
@@ -224,14 +249,15 @@ export struct KomaReaderLabPage {
       const opened = session.snapshot()
       if (!cancellation.isCancelled() && !this.readerClosed && opened.phase === 'ready' &&
         opened.unit?.key.equals(target) === true) {
-        console.info(`[KomaReaderLab] chapter_opened direction=${direction} unit=${target.unit}`)
+        this.syncChapterChoices(target)
+        console.info(`[KomaReaderLab] chapter_opened direction=${reason} unit=${target.unit}`)
       }
     } catch (_error) {
       if (isCurrent()) {
-        console.warn(`[KomaReaderLab] chapter_failed direction=${direction} source=${source.unit} target=${target.unit}`)
+        console.warn(`[KomaReaderLab] chapter_failed direction=${reason} source=${source.unit} target=${target.unit}`)
         this.getUIContext().getPromptAction().showToast({ message: $r('app.string.manga_detail_chapter_pages_load_failed') })
       } else if (cancellation.isCancelled()) {
-        console.info(`[KomaReaderLab] chapter_cancelled direction=${direction} source=${source.unit} target=${target.unit}`)
+        console.info(`[KomaReaderLab] chapter_cancelled direction=${reason} source=${source.unit} target=${target.unit}`)
       }
     } finally {
       if (this.chapterRequest === cancellation) {
@@ -241,8 +267,72 @@ export struct KomaReaderLabPage {
     }
   }
 
+  private async switchChapter(direction: 'previous' | 'next', sourceUnit: ReaderUnitKey): Promise<void> {
+    const session = this.session
+    const adapter = this.adapter
+    if (session === null || adapter === null || this.chapterBusy) return
+    const current = session.snapshot()
+    if (current.phase !== 'ready' || current.unit === null || !current.unit.key.equals(sourceUnit)) return
+    const target = adapter.adjacent(current.unit, direction)
+    if (target !== null) await this.openChapterTarget(target, sourceUnit, direction)
+  }
+
+  private syncChapterChoices(unit: ReaderUnitKey): void {
+    const choices = this.adapter?.chapterChoices(unit) ?? []
+    const identity = JSON.stringify(choices.map((choice: KomaReaderLabChapterChoice): string =>
+      `${choice.key.scope}:${choice.key.work}:${choice.key.unit}:${choice.title}`))
+    if (identity !== this.chapterChoiceIdentity) {
+      this.chapterChoiceIdentity = identity
+      this.chapterChoices = choices
+    }
+    this.currentChapterUnit = unit.unit
+  }
+
+  private chapterControlLabel(): string {
+    const index = this.chapterChoices.findIndex((choice: KomaReaderLabChapterChoice): boolean =>
+      choice.key.unit === this.currentChapterUnit)
+    const title = AppStrings.get('reader_control_chapter')
+    return index < 0 ? title : `${title} ${index + 1} / ${this.chapterChoices.length}`
+  }
+
+  private chapterPickerTitle(choice: KomaReaderLabChapterChoice, index: number): string {
+    const title = choice.title.trim()
+    return title.length > 0 ? title : `${AppStrings.get('reader_control_chapter')} ${index + 1}`
+  }
+
+  private openChapterPicker(source: ReaderUnitKey, navigation: number): void {
+    const snapshot = this.session?.snapshot()
+    if (snapshot?.phase !== 'ready' || snapshot.unit === null || !snapshot.unit.key.equals(source) ||
+      snapshot.navigationRevision !== navigation) return
+    this.syncChapterChoices(source)
+    if (this.chapterChoices.length > 0) {
+      this.chapterPickerShown = true
+      this.syncKeepScreenOn()
+      this.syncVolumeKeys()
+    }
+  }
+
+  private selectChapterFromPicker(choice: KomaReaderLabChapterChoice): void {
+    this.chapterPickerTarget = choice.key.copy()
+    this.chapterPickerShown = false
+  }
+
+  private finishChapterPickerDismissal(): void {
+    const target = this.chapterPickerTarget
+    this.chapterPickerTarget = null
+    this.chapterPickerShown = false
+    this.syncKeepScreenOn()
+    this.syncVolumeKeys()
+    const snapshot = this.session?.snapshot()
+    if (target !== null && snapshot?.phase === 'ready' && snapshot.unit !== null &&
+      !snapshot.unit.key.equals(target)) {
+      void this.openChapterTarget(target, snapshot.unit.key.copy(), 'picker')
+    }
+  }
+
   private onObservedPosition(position: ReaderObservedPosition): void {
     const session = this.session
+    this.syncChapterChoices(position.anchor.unit)
     if (!this.request.progressReadWrite || session === null || this.readerClosed || !this.routeActive ||
       !this.labVisibility.foreground) return
     const snapshot = session.snapshot()
@@ -363,6 +453,40 @@ export struct KomaReaderLabPage {
     }
   }
 
+  @Builder
+  private ChapterSelectedCheckmark() {
+    SymbolGlyph($r('sys.symbol.checkmark')).fontSize(22).fontWeight(FontWeight.Medium)
+      .fontColor([ThemeConstants.BRAND_PRIMARY])
+  }
+
+  @Builder
+  private ReaderHostChapterPickerSheet() {
+    KomaModalScaffold({
+      title: $r('app.string.reader_control_chapter'),
+      modalSurfaceColor: $r('sys.color.ohos_id_color_sub_background'),
+      contentOwnsScrolling: true,
+      onClose: (): void => { this.chapterPickerShown = false },
+    }) {
+      List({ scroller: this.chapterPickerScroller, space: ThemeConstants.SPACE_SM }) {
+        ForEach(this.chapterChoices, (choice: KomaReaderLabChapterChoice, index: number) => {
+          ListItem() {
+            ConciseListRow({
+              title: this.chapterPickerTitle(choice, index),
+              primaryColor: choice.key.unit === this.currentChapterUnit ? ThemeConstants.BRAND_PRIMARY : undefined,
+              showChevron: choice.key.unit !== this.currentChapterUnit,
+              suffixBuilderParam: choice.key.unit === this.currentChapterUnit ? (): void => {
+                this.ChapterSelectedCheckmark()
+              } : undefined,
+              action: (): void => { this.selectChapterFromPicker(choice) },
+            })
+          }.padding({ left: ThemeConstants.SPACE_LG, right: ThemeConstants.SPACE_LG })
+        }, (choice: KomaReaderLabChapterChoice): string => choice.key.unit)
+      }.width('100%').height('100%')
+        .padding({ top: ThemeConstants.SPACE_SM, bottom: ThemeConstants.SPACE_XL })
+        .scrollBar(BarState.Off).edgeEffect(EdgeEffect.Spring)
+    }
+  }
+
   build() {
     HdsNavDestination() {
       Column() {
@@ -388,8 +512,14 @@ export struct KomaReaderLabPage {
               cropAvailable: true,
               hostSettingsAvailable: this.request.preferencesReadWrite,
               onHostSettings: (): void => { this.openHostSettings() },
-              active: this.routeActive && this.labVisibility.foreground && !this.readerSettingsSheetShown,
+              active: this.routeActive && this.labVisibility.foreground && !this.readerSettingsSheetShown &&
+                !this.chapterPickerShown,
               chapterNavigationAvailable: true, chapterNavigationBusy: this.chapterBusy,
+              hostCenterActionAvailable: this.chapterChoices.length > 0,
+              hostCenterActionLabel: this.chapterControlLabel(),
+              onHostCenterAction: (sourceUnit: ReaderUnitKey, navigation: number): void => {
+                this.openChapterPicker(sourceUnit, navigation)
+              },
               showPageNumber: this.hostPreferences?.showPageNumber ?? this.readerMode.showPageNumber,
               onObservedPosition: (position: ReaderObservedPosition): void => {
                 this.onObservedPosition(position)
@@ -403,6 +533,15 @@ export struct KomaReaderLabPage {
               onChromeVisible: (visible: boolean): void => { this.syncChromeVisible(visible) },
               topInset: this.safeArea.topAvoidHeight, bottomInset: this.safeArea.bottomAvoidHeight,
               accent: ThemeConstants.BRAND_PRIMARY, onClose: (): void => { this.closeReader() } })
+            Row().width(1).height(1).position({ x: 0, y: 0 }).hitTestBehavior(HitTestMode.None)
+              .bindSheet($$this.chapterPickerShown, this.ReaderHostChapterPickerSheet, {
+                detents: [SheetSize.MEDIUM, SheetSize.LARGE],
+                showClose: false,
+                enableOutsideInteractive: false,
+                scrollSizeMode: ScrollSizeMode.CONTINUOUS,
+                enableFloatingDragBar: true,
+                onDisappear: (): void => { this.finishChapterPickerDismissal() },
+              })
           } else {
             ReaderLabSurface({ session: this.session, initialUnit: this.unitKey, initialIndex: this.request.pageIndex,
               preloadDepth: this.readerMode.preloadPages,
