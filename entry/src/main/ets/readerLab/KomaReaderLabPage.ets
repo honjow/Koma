@@ -2,7 +2,7 @@ import { common } from '@kit.AbilityKit'
 import { HdsNavDestination } from '@kit.UIDesignKit'
 import { ReaderCancellation, ReaderDisplayPolicy, ReaderImageSaveHost, ReaderImageShareHost, ReaderInputPort,
   ReaderObservedPosition, ReaderPagedSession, ReaderUnitKey, ReaderLayout } from '@reader-kit/core'
-import { ReaderKeepScreenOn, ReaderLabRequest, ReaderLabSurface, ReaderSurface, ReaderTrialLayoutCommit, ReaderTrialWindow,
+import { ReaderHostAction, ReaderKeepScreenOn, ReaderLabRequest, ReaderLabSurface, ReaderSurface, ReaderTrialLayoutCommit, ReaderTrialWindow,
   ReaderLabVisibilityState, ReaderSystemImageSaveHost, ReaderVolumeKeys, connectReaderLabVisibility, ReaderTapAction,
   ReaderTapZonePreviewRegion } from '@reader-kit/ui'
 import { KomaReaderLabAdapter, KomaReaderLabChapterChoice } from './KomaReaderLabAdapter'
@@ -32,6 +32,7 @@ export struct KomaReaderLabPage {
   }
   @Event persistObserved: (position: ReaderObservedPosition, column: ReaderColumnMode) => void = () => {}
   @Event flushObserved: () => void = () => {}
+  @Event onOpenMangaDetail: (work: string) => void = () => {}
   @Event onClose: () => void = () => {}
   @Local private session: ReaderPagedSession | null = null
   @Local private labVisibility: ReaderLabVisibilityState = connectReaderLabVisibility()
@@ -300,6 +301,18 @@ export struct KomaReaderLabPage {
     return title.length > 0 ? title : `${AppStrings.get('reader_control_chapter')} ${index + 1}`
   }
 
+  private readerHostActions(): ReaderHostAction[] {
+    return [new ReaderHostAction('manga-detail', AppStrings.get('reader_action_return_to_detail'))]
+  }
+
+  private openMangaDetail(id: string, source: ReaderUnitKey, navigation: number, sourceIndex: number): void {
+    const snapshot = this.session?.snapshot()
+    if (id !== 'manga-detail' || snapshot?.phase !== 'ready' || snapshot.unit === null ||
+      !snapshot.unit.key.equals(source) || snapshot.navigationRevision !== navigation ||
+      snapshot.anchor?.sourceIndexHint !== sourceIndex) return
+    this.onOpenMangaDetail(source.work)
+  }
+
   private openChapterPicker(source: ReaderUnitKey, navigation: number): void {
     const snapshot = this.session?.snapshot()
     if (snapshot?.phase !== 'ready' || snapshot.unit === null || !snapshot.unit.key.equals(source) ||
@@ -512,6 +525,10 @@ export struct KomaReaderLabPage {
               cropAvailable: true,
               hostSettingsAvailable: this.request.preferencesReadWrite,
               onHostSettings: (): void => { this.openHostSettings() },
+              hostActions: this.readerHostActions(),
+              onHostAction: (id: string, source: ReaderUnitKey, navigation: number, sourceIndex: number): void => {
+                this.openMangaDetail(id, source, navigation, sourceIndex)
+              },
               active: this.routeActive && this.labVisibility.foreground && !this.readerSettingsSheetShown &&
                 !this.chapterPickerShown,
               chapterNavigationAvailable: true, chapterNavigationBusy: this.chapterBusy,

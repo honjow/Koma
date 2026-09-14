@@ -1576,6 +1576,8 @@ struct Index {
           this.persistReaderLabObserved(position, column)
         }, flushObserved: (): void => {
           if (this.readerSessionPersistenceReady) this.readerSessionStore.flush()
+        }, onOpenMangaDetail: (work: string): void => {
+          this.openLibraryMangaDetail(work)
         }, onClose: () => { this.appPathStack.pop() } })
     } else if (name === RouteName.READER) {
       this.ReaderDestination()
