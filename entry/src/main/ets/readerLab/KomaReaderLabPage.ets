@@ -6,7 +6,7 @@ import { ReaderHostAction, ReaderKeepScreenOn, ReaderLabRequest, ReaderLabSurfac
   ReaderLabVisibilityState, ReaderSystemImageSaveHost, ReaderVolumeKeys, connectReaderLabVisibility, ReaderTapAction,
   ReaderTapZonePreviewRegion, ReaderMediaActions, ReaderChapterNavigation, ReaderObservationSink,
   ReaderPreferenceSink, ReaderActivitySink, ReaderHostSettings, ReaderHostActions,
-  ReaderCenterAction } from '@reader-kit/ui'
+  ReaderCenterAction, ReaderCropPolicy } from '@reader-kit/ui'
 import { KomaReaderLabAdapter, KomaReaderLabChapterChoice } from './KomaReaderLabAdapter'
 import { KomaReaderLabImageShareHost } from './KomaReaderLabImageShareHost'
 import { connectLayoutSafeArea, LayoutSafeAreaState } from '../state/LayoutSafeAreaState'
@@ -537,8 +537,8 @@ export struct KomaReaderLabPage {
                 (this.hostPreferences?.pageTurnAnimation ?? this.readerMode.pageTurnAnimation),
               pageGap: this.readerPageGap(),
               preloadDepth: this.hostPreferences?.preloadPages ?? this.readerMode.preloadPages,
-              cropBorders: this.hostPreferences?.trimPageMarginsEnabled ?? this.readerMode.trimPageMarginsEnabled,
-              cropAvailable: true,
+              cropPolicy: new ReaderCropPolicy(
+                this.hostPreferences?.trimPageMarginsEnabled ?? this.readerMode.trimPageMarginsEnabled, true),
               hostSettings: this.request.preferencesReadWrite
                 ? new ReaderHostSettings((): void => { this.openHostSettings() }) : null,
               hostActions: new ReaderHostActions(this.readerHostActions(),

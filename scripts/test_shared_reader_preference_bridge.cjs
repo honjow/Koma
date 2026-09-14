@@ -72,6 +72,8 @@ assert.equal(cropped.wideImageMode, base.wideImageMode)
 assert.equal(base.trimPageMarginsEnabled, false)
 assert.match(pageSource,
   /pageTurnAnimation: this\.request\.pageTurnAnimationOverride \?\?[\s\S]*?this\.hostPreferences\?\.pageTurnAnimation/)
+assert.match(pageSource,
+  /cropPolicy: new ReaderCropPolicy\([\s\S]*?this\.hostPreferences\?\.trimPageMarginsEnabled/)
 assert.match(pageSource, /new ReaderPagedSession\(adapter, adapter, adapter\)/)
 assert.match(pageSource, /preloadDepth: this\.hostPreferences\?\.preloadPages \?\? this\.readerMode\.preloadPages/)
 assert.match(pageSource, /pageGap: this\.readerPageGap\(\)/)
