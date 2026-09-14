@@ -260,6 +260,13 @@ export struct KomaReaderLabPage {
     return ThemeConstants.READER_FOREGROUND_DARK
   }
 
+  /** Preserve Koma's existing spacing scale while reader-kit owns only layout. */
+  private readerPageGap(): number {
+    if (this.readerMode.pageGapMode === 'compact') return 2
+    if (this.readerMode.pageGapMode === 'wide') return 18
+    return 8
+  }
+
   build() {
     HdsNavDestination() {
       Column() {
@@ -273,6 +280,7 @@ export struct KomaReaderLabPage {
               tapZoneResolver: (x: number, y: number, layout: ReaderLayout): ReaderTapAction => this.resolveTapZone(x, y, layout),
               autoReadAvailable: true, autoReadSeconds: this.readerMode.autoPageSeconds,
               pageTurnAnimation: this.request.pageTurnAnimationOverride ?? this.readerMode.pageTurnAnimation,
+              pageGap: this.readerPageGap(),
               preloadDepth: this.readerMode.preloadPages,
               cropBorders: this.readerMode.trimPageMarginsEnabled, cropAvailable: true,
               active: this.routeActive && this.labVisibility.foreground,

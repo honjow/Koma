@@ -71,9 +71,11 @@ assert.match(pageSource,
   /pageTurnAnimation: this\.request\.pageTurnAnimationOverride \?\? this\.readerMode\.pageTurnAnimation/)
 assert.match(pageSource, /new ReaderPagedSession\(adapter, adapter, adapter\)/)
 assert.match(pageSource, /preloadDepth: this\.readerMode\.preloadPages/)
+assert.match(pageSource, /pageGap: this\.readerPageGap\(\)/)
+assert.match(pageSource, /if \(this\.readerMode\.pageGapMode === 'compact'\) return 2[\s\S]*?if \(this\.readerMode\.pageGapMode === 'wide'\) return 18[\s\S]*?return 8/)
 const adapterSource = fs.readFileSync(path.resolve(__dirname,
   '../entry/src/main/ets/readerLab/KomaReaderLabAdapter.ets'), 'utf8')
 assert.match(adapterSource, /implements ReaderCatalog, ReaderAssetProvider, ReaderPreloadHost/)
 assert.match(adapterSource,
   /async preload\(page: ReaderPage, cancellation: ReaderCancellation\): Promise<void>[\s\S]*?ReaderPageRenderKind\.REMOTE_URL_IMAGE[\s\S]*?fetchAndCacheReaderRemoteSource\(source\)/)
-console.log('PASS: shared reader policy, crop and bounded host preload mapping are wired.')
+console.log('PASS: shared reader policy, crop, page gap and bounded host preload mapping are wired.')
