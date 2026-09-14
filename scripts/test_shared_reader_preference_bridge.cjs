@@ -69,4 +69,11 @@ assert.equal(cropped.wideImageMode, base.wideImageMode)
 assert.equal(base.trimPageMarginsEnabled, false)
 assert.match(pageSource,
   /pageTurnAnimation: this\.request\.pageTurnAnimationOverride \?\? this\.readerMode\.pageTurnAnimation/)
-console.log('PASS: shared reader policy/crop mapping changes only represented Koma preference fields.')
+assert.match(pageSource, /new ReaderPagedSession\(adapter, adapter, adapter\)/)
+assert.match(pageSource, /preloadDepth: this\.readerMode\.preloadPages/)
+const adapterSource = fs.readFileSync(path.resolve(__dirname,
+  '../entry/src/main/ets/readerLab/KomaReaderLabAdapter.ets'), 'utf8')
+assert.match(adapterSource, /implements ReaderCatalog, ReaderAssetProvider, ReaderPreloadHost/)
+assert.match(adapterSource,
+  /async preload\(page: ReaderPage, cancellation: ReaderCancellation\): Promise<void>[\s\S]*?ReaderPageRenderKind\.REMOTE_URL_IMAGE[\s\S]*?fetchAndCacheReaderRemoteSource\(source\)/)
+console.log('PASS: shared reader policy, crop and bounded host preload mapping are wired.')

@@ -64,7 +64,7 @@ export struct KomaReaderLabPage {
       this.imageShare = new KomaReaderLabImageShareHost(context, adapter)
       this.unitKey = adapter.initialKey(this.request.work, this.request.unit)
       this.initialPageIndex = this.request.pageIndex
-      const session = new ReaderPagedSession(adapter, adapter)
+      const session = new ReaderPagedSession(adapter, adapter, adapter)
       if (this.request.readingChrome) {
         this.trialWindow.open(context)
         this.keepScreenOn = new ReaderKeepScreenOn(context)
@@ -273,6 +273,7 @@ export struct KomaReaderLabPage {
               tapZoneResolver: (x: number, y: number, layout: ReaderLayout): ReaderTapAction => this.resolveTapZone(x, y, layout),
               autoReadAvailable: true, autoReadSeconds: this.readerMode.autoPageSeconds,
               pageTurnAnimation: this.request.pageTurnAnimationOverride ?? this.readerMode.pageTurnAnimation,
+              preloadDepth: this.readerMode.preloadPages,
               cropBorders: this.readerMode.trimPageMarginsEnabled, cropAvailable: true,
               active: this.routeActive && this.labVisibility.foreground,
               chapterNavigationAvailable: true, chapterNavigationBusy: this.chapterBusy,
@@ -289,6 +290,7 @@ export struct KomaReaderLabPage {
               accent: ThemeConstants.BRAND_PRIMARY, onClose: (): void => { this.closeReader() } })
           } else {
             ReaderLabSurface({ session: this.session, initialUnit: this.unitKey, initialIndex: this.request.pageIndex,
+              preloadDepth: this.readerMode.preloadPages,
               active: this.routeActive && this.labVisibility.foreground })
           }
         } else {

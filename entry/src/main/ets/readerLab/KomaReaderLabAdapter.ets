@@ -1,5 +1,5 @@
 import {
-  ReaderCatalog, ReaderAssetProvider, ReaderUnitKey, ReaderUnit, ReaderPage,
+  ReaderCatalog, ReaderAssetProvider, ReaderPreloadHost, ReaderUnitKey, ReaderUnit, ReaderPage,
   ReaderCancellation, ReaderAsset, ReaderAssetKind,
   ReaderImageInformation, ReaderImageInformationSource, ReaderImageShareTarget,
 } from '@reader-kit/core'
@@ -35,7 +35,7 @@ class KomaReaderFileInformation implements ReaderImageInformationSource {
 }
 
 /** D1 reads local/downloaded chapters. It never fetches chapter pages or persists the user's library. */
-export class KomaReaderLabAdapter implements ReaderCatalog, ReaderAssetProvider {
+export class KomaReaderLabAdapter implements ReaderCatalog, ReaderAssetProvider, ReaderPreloadHost {
   cancellationMode: 'consumer-only' | 'transport' = 'consumer-only'
   informationSupported: boolean = true
   private library: InMemoryLibraryStore = new InMemoryLibraryStore()
@@ -135,6 +135,15 @@ export class KomaReaderLabAdapter implements ReaderCatalog, ReaderAssetProvider 
     const target = index + (direction === 'next' ? 1 : -1)
     if (index < 0 || target < 0 || target >= chapterIds.length) return null
     return new ReaderUnitKey(unit.key.scope, unit.key.work, chapterIds[target])
+  }
+
+  async preload(page: ReaderPage, cancellation: ReaderCancellation): Promise<void> {
+    cancellation.check()
+    const source = this.sources.get(this.unitId(page.unit))?.[page.sourceIndex]
+    if (source === undefined || source.kind !== ReaderPageRenderKind.REMOTE_URL_IMAGE) return
+    await fetchAndCacheReaderRemoteSource(source)
+    cancellation.check()
+    if (this.closed) throw new Error('closed_koma_reader')
   }
 
   async imageShareSource(target: ReaderImageShareTarget,
