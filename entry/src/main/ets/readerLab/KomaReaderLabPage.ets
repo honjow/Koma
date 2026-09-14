@@ -6,7 +6,7 @@ import { ReaderHostAction, ReaderKeepScreenOn, ReaderLabRequest, ReaderLabSurfac
   ReaderLabVisibilityState, ReaderSystemImageSaveHost, ReaderVolumeKeys, connectReaderLabVisibility, ReaderTapAction,
   ReaderTapZonePreviewRegion, ReaderMediaActions, ReaderChapterNavigation, ReaderObservationSink,
   ReaderPreferenceSink, ReaderActivitySink, ReaderHostSettings, ReaderHostActions,
-  ReaderCenterAction, ReaderCropPolicy } from '@reader-kit/ui'
+  ReaderCenterAction, ReaderCropPolicy, ReaderAutoReadPolicy } from '@reader-kit/ui'
 import { KomaReaderLabAdapter, KomaReaderLabChapterChoice } from './KomaReaderLabAdapter'
 import { KomaReaderLabImageShareHost } from './KomaReaderLabImageShareHost'
 import { connectLayoutSafeArea, LayoutSafeAreaState } from '../state/LayoutSafeAreaState'
@@ -531,8 +531,8 @@ export struct KomaReaderLabPage {
               tapZoneResolver: (x: number, y: number, layout: ReaderLayout): ReaderTapAction => this.resolveTapZone(x, y, layout),
               tapZonePreviewRegions: this.sharedTapZonePreviewRegions(),
               tapZonePreviewRevision: this.tapZonePreviewRevision,
-              autoReadAvailable: true,
-              autoReadSeconds: this.hostPreferences?.autoPageSeconds ?? this.readerMode.autoPageSeconds,
+              autoReadPolicy: new ReaderAutoReadPolicy(true,
+                this.hostPreferences?.autoPageSeconds ?? this.readerMode.autoPageSeconds),
               pageTurnAnimation: this.request.pageTurnAnimationOverride ??
                 (this.hostPreferences?.pageTurnAnimation ?? this.readerMode.pageTurnAnimation),
               pageGap: this.readerPageGap(),
