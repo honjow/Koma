@@ -2,7 +2,7 @@ import { common } from '@kit.AbilityKit'
 import { HdsNavDestination } from '@kit.UIDesignKit'
 import { ReaderCancellation, ReaderDisplayPolicy, ReaderImageSaveHost, ReaderImageShareHost, ReaderInputPort,
   ReaderObservedPosition, ReaderPagedSession, ReaderUnitKey, ReaderLayout } from '@reader-kit/core'
-import { ReaderKeepScreenOn, ReaderLabRequest, ReaderLabSurface, ReaderSurface, ReaderTrialWindow,
+import { ReaderKeepScreenOn, ReaderLabRequest, ReaderLabSurface, ReaderSurface, ReaderTrialLayoutCommit, ReaderTrialWindow,
   ReaderLabVisibilityState, ReaderSystemImageSaveHost, ReaderVolumeKeys, connectReaderLabVisibility, ReaderTapAction,
   ReaderTapZonePreviewRegion } from '@reader-kit/ui'
 import { KomaReaderLabAdapter } from './KomaReaderLabAdapter'
@@ -42,7 +42,7 @@ export struct KomaReaderLabPage {
   @Local private tapZonePreviewRevision: number = 0
   private unitKey: ReaderUnitKey = new ReaderUnitKey('', '', '')
   private initialPageIndex: number = 0
-  private trialWindow: ReaderTrialWindow = new ReaderTrialWindow()
+  private trialWindow: ReaderTrialWindow = new ReaderTrialWindow(null, true)
   private keepScreenOn: ReaderKeepScreenOn | null = null
   private imageSave: ReaderImageSaveHost | null = null
   private imageShare: ReaderImageShareHost | null = null
@@ -119,6 +119,22 @@ export struct KomaReaderLabPage {
       normalizeReaderTapZonePreset(this.hostPreferences?.tapZonePreset ?? this.readerMode.tapZonePreset),
       normalizeReaderTapZoneInvert(this.hostPreferences?.tapZoneInvert ?? this.readerMode.tapZoneInvert), x, y, 1, 1)
     return action === 'center' ? 'menu' : action
+  }
+
+  /** Koma owns fullscreen preference semantics; reader-kit only sequences the window lease. */
+  private syncChromeVisible(visible: boolean): void {
+    if (visible) return // The before-show gate restores the status area before chrome is painted.
+    const fullscreen = this.hostPreferences?.fullscreen ?? this.readerMode.fullscreen
+    this.trialWindow.setStatusBarVisible(!fullscreen)
+  }
+
+  private async prepareChromeShow(isCurrent: () => boolean): Promise<boolean> {
+    const current = (): boolean => isCurrent() && !this.readerClosed && this.routeActive &&
+      this.labVisibility.foreground && !this.readerSettingsSheetShown && this.session !== null
+    if (!current()) return false
+    if (!await this.trialWindow.prepareStatusBarVisible() || !current()) return false
+    return ReaderTrialLayoutCommit.wait(this.getUIContext(), (): string =>
+      this.safeArea.topAvoidHeight > 0 ? `${this.safeArea.topAvoidHeight}:${this.safeArea.bottomAvoidHeight}` : '', current)
   }
 
   aboutToDisappear(): void {
@@ -383,6 +399,8 @@ export struct KomaReaderLabPage {
               onChapter: (direction: 'previous' | 'next', sourceUnit: ReaderUnitKey): void => {
                 void this.switchChapter(direction, sourceUnit)
               },
+              beforeShowChrome: (isCurrent: () => boolean): Promise<boolean> => this.prepareChromeShow(isCurrent),
+              onChromeVisible: (visible: boolean): void => { this.syncChromeVisible(visible) },
               topInset: this.safeArea.topAvoidHeight, bottomInset: this.safeArea.bottomAvoidHeight,
               accent: ThemeConstants.BRAND_PRIMARY, onClose: (): void => { this.closeReader() } })
           } else {

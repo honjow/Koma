@@ -80,6 +80,12 @@ assert.match(pageSource, /hostSettingsAvailable: this\.request\.preferencesReadW
 assert.match(pageSource, /onHostSettings: \(\): void => \{ this\.openHostSettings\(\) \}/)
 assert.match(pageSource, /tapZonePreviewRegions: this\.sharedTapZonePreviewRegions\(\)/)
 assert.match(pageSource, /tapZonePreviewRevision: this\.tapZonePreviewRevision/)
+assert.match(pageSource, /new ReaderTrialWindow\(null, true\)/)
+assert.match(pageSource, /this\.trialWindow\.setStatusBarVisible\(!fullscreen\)/)
+assert.match(pageSource, /this\.trialWindow\.prepareStatusBarVisible\(\)/)
+assert.match(pageSource, /ReaderTrialLayoutCommit\.wait\(/)
+assert.match(pageSource, /beforeShowChrome: \(isCurrent:/)
+assert.match(pageSource, /onChromeVisible: \(visible:/)
 assert.match(pageSource,
   /previous\.tapZonePreset !== next\.tapZonePreset[\s\S]*?previous\.tapZoneInvert !== next\.tapZoneInvert[\s\S]*?this\.tapZonePreviewRevision \+= 1/)
 assert.match(pageSource, /readerTapZoneRegions\([\s\S]*?new ReaderTapZonePreviewRegion\(/)
