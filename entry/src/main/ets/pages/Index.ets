@@ -488,9 +488,11 @@ struct Index {
         chapterId: nextRequest.chapterId,
       })
       cancellation.check()
-      return resolution.pages.length > 0
-        ? this.createSourceReaderSessionConfig(nextRequest, resolution.pages)
-        : this.createUnavailableSourceReaderSessionConfig(nextRequest)
+      // A chapter handoff is prepared beside the still-readable shared session.
+      // Do not turn a provider failure into a committed placeholder unit: reject
+      // the handoff so the current chapter stays visible and can be retried.
+      if (resolution.pages.length === 0) throw new Error('koma_reader_chapter_pages_unavailable')
+      return this.createSourceReaderSessionConfig(nextRequest, resolution.pages)
     }
     const original = this.libraryStore.getComic(target.work)
     if (original === undefined) return null
@@ -508,8 +510,10 @@ struct Index {
     cancellation.check()
     const config = this.createReaderSessionConfigForOpen(comic, target.unit)
     if (config.totalPages > 0) return config
-    return this.chapterNeedsReaderSourcePages(comic, target.unit)
-      ? this.createSourceUnavailableReaderSessionConfig(comic, target.unit, config) : null
+    if (this.chapterNeedsReaderSourcePages(comic, target.unit)) {
+      throw new Error('koma_reader_chapter_pages_unavailable')
+    }
+    return null
   }
 
   private createReaderLabCatalogHost(): KomaReaderCatalogHost {

@@ -121,6 +121,42 @@ test('Index keeps provider resolution and remote headers in Koma while passing o
   assert.doesNotMatch(page, /SourceRuntimeRegistry|OfflineDownloadStore|LibraryStorePersistence/)
 })
 
+test('a real provider page failure rejects chapter preparation instead of opening a placeholder unit', async () => {
+  const method = member('pages/Index.ets', 'Index', 'prepareReaderLabCatalog')
+  const output = {}
+  const pagesByChapter = new Map([
+    ['chapter-B', []],
+    ['chapter-C', [{ id: 'page-C-1', uri: 'https://example/c1' }]],
+  ])
+  vm.runInNewContext(ts.transpileModule(`export class Subject { ${method} }`, { compilerOptions: {
+    module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020,
+  } }).outputText, {
+    exports: output,
+    ComicSourceKind: { LOCAL_FOLDER: 'local-folder' },
+    sourceReaderSessionRequestForChapter: (request, chapterId) => request.chapterIds.includes(chapterId)
+      ? { ...request, chapterId, chapterIds: request.chapterIds.slice() } : undefined,
+    resolveSourceChapterPages: async (_registry, request) => ({ pages: pagesByChapter.get(request.chapterId) ?? [] }),
+  })
+  const page = new output.Subject()
+  Object.assign(page, {
+    activeSourceReaderRequest: {
+      comicId: 'transient-work', sourceId: 'source', mangaId: 'manga', chapterId: 'chapter-A',
+      chapterIds: ['chapter-A', 'chapter-B', 'chapter-C'],
+    },
+    sourceRegistry: {},
+    createSourceReaderSessionConfig: (request, pages) => ({
+      comicId: request.comicId, chapterId: request.chapterId, totalPages: pages.length,
+      pageUris: pages.map(value => value.uri),
+    }),
+  })
+  const cancellation = { check() {} }
+  await assert.rejects(() => page.prepareReaderLabCatalog(key('chapter-B'), cancellation),
+    /koma_reader_chapter_pages_unavailable/)
+  const prepared = await page.prepareReaderLabCatalog(key('chapter-C'), cancellation)
+  assert.equal(prepared.chapterId, 'chapter-C')
+  assert.deepEqual(Array.from(prepared.pageUris), ['https://example/c1'])
+})
+
 test('transient chapter commit updates Koma history and enables progress without a library record', () => {
   const methods = ['readerLabInitialConfig', 'commitReaderLabCatalog', 'readReaderLabInitialPage',
     'persistReaderLabObserved'].map(name => member('pages/Index.ets', 'Index', name))
