@@ -20,6 +20,7 @@ import { ReaderSettingsContent } from '../components/ReaderSettingsContent'
 import { KomaModalScaffold } from '../components/KomaModalScaffold'
 import { ConciseListRow } from '../components/ui/ConciseListRow'
 import { AppStrings } from '../i18n/AppStrings'
+import { KomaReaderCatalogHost } from './KomaReaderCatalogHost'
 
 @ComponentV2
 export struct KomaReaderLabPage {
@@ -34,6 +35,7 @@ export struct KomaReaderLabPage {
   @Event flushObserved: () => void = () => {}
   @Event onOpenMangaDetail: (work: string) => void = () => {}
   @Event onClose: () => void = () => {}
+  @Param catalogHost: KomaReaderCatalogHost | null = null
   @Local private session: ReaderPagedSession | null = null
   @Local private labVisibility: ReaderLabVisibilityState = connectReaderLabVisibility()
   @Local private routeActive: boolean = false
@@ -83,7 +85,7 @@ export struct KomaReaderLabPage {
     if (this.request.readingChrome) this.session = null
     this.readerClosed = false
     try {
-      const adapter = new KomaReaderLabAdapter(context.filesDir, context.cacheDir)
+      const adapter = new KomaReaderLabAdapter(context.filesDir, context.cacheDir, this.catalogHost)
       this.adapter = adapter
       this.imageSave = new ReaderSystemImageSaveHost(context)
       this.imageShare = new KomaReaderLabImageShareHost(context, adapter)

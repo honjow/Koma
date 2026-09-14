@@ -146,6 +146,24 @@ export const EMPTY_READER_SESSION_CONFIG: ReaderSessionConfig = {
   pageHeights: [],
 }
 
+export function cloneReaderSessionConfig(config: ReaderSessionConfig): ReaderSessionConfig {
+  return {
+    comicId: config.comicId,
+    chapterId: config.chapterId,
+    chapterIds: config.chapterIds.slice(),
+    continuationChapterIds: config.continuationChapterIds?.slice(),
+    chapterTitles: config.chapterTitles?.slice(),
+    title: config.title,
+    chapterTitle: config.chapterTitle,
+    totalPages: config.totalPages,
+    pageUris: config.pageUris.slice(),
+    pageIds: config.pageIds?.slice(),
+    pageWidths: config.pageWidths?.slice(),
+    pageHeights: config.pageHeights?.slice(),
+    sourceRuntimeId: config.sourceRuntimeId,
+  }
+}
+
 export interface ReaderSessionPersistenceAdapter {
   load(): ReadingProgress[]
   save(progress: ReadingProgress[]): void

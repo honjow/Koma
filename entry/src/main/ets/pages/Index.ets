@@ -1,7 +1,8 @@
 import { common } from '@kit.AbilityKit'
 import { KomaReaderLabPage } from '../readerLab/KomaReaderLabPage'
+import { KomaReaderCatalogHost } from '../readerLab/KomaReaderCatalogHost'
 import { ReaderLabLaunchState, ReaderLabRequest, connectReaderLabLaunch } from '@reader-kit/ui'
-import { ReaderObservedPosition } from '@reader-kit/core'
+import { ReaderCancellation, ReaderObservedPosition, ReaderUnitKey } from '@reader-kit/core'
 import {
   BlurStrategy,
   hdsMaterial,
@@ -103,6 +104,7 @@ import {
   InMemoryReaderSessionStore,
   ReaderSessionConfig,
   ReaderSessionStore,
+  cloneReaderSessionConfig,
   createReaderSessionConfigFromComic,
   getReaderSessionPageId,
   sortedReaderChapters,
@@ -463,6 +465,61 @@ struct Index {
     this.readerSessionLoading = false
   }
 
+  private readerLabInitialConfig(work: string, unit: string): ReaderSessionConfig | null {
+    if (this.readerSessionConfig.comicId === work && this.readerSessionConfig.chapterId === unit &&
+      this.readerSessionConfig.totalPages > 0) return cloneReaderSessionConfig(this.readerSessionConfig)
+    const comic = this.libraryStore.getComic(work)
+    if (comic === undefined) return null
+    const config = this.createReaderSessionConfigForOpen(comic, unit)
+    return config.chapterId === unit && config.totalPages > 0 ? config : null
+  }
+
+  private async prepareReaderLabCatalog(target: ReaderUnitKey,
+    cancellation: ReaderCancellation): Promise<ReaderSessionConfig | null> {
+    if (target.scope !== 'koma-local') return null
+    const sourceRequest = this.activeSourceReaderRequest
+    if (sourceRequest !== undefined && sourceRequest.comicId === target.work) {
+      const nextRequest = sourceReaderSessionRequestForChapter(sourceRequest, target.unit)
+      if (nextRequest === undefined) return null
+      const resolution = await resolveSourceChapterPages(this.sourceRegistry, {
+        comicId: nextRequest.comicId,
+        sourceId: nextRequest.sourceId,
+        mangaId: nextRequest.mangaId,
+        chapterId: nextRequest.chapterId,
+      })
+      cancellation.check()
+      return resolution.pages.length > 0
+        ? this.createSourceReaderSessionConfig(nextRequest, resolution.pages)
+        : this.createUnavailableSourceReaderSessionConfig(nextRequest)
+    }
+    const original = this.libraryStore.getComic(target.work)
+    if (original === undefined) return null
+    // Keep local-folder permission activation in the adapter's established path.
+    if (original.sourceKind === ComicSourceKind.LOCAL_FOLDER) return null
+    const offlineReady = this.hasAvailableOfflineReaderPages(original.id, target.unit)
+    if (!offlineReady) await this.ensureReaderSourceChapterPages(original, target.unit)
+    cancellation.check()
+    const comic = this.libraryStore.getComic(target.work) ?? original
+    try {
+      await installReaderRemoteHeadersForComic(getContext(this) as common.UIAbilityContext, comic)
+    } catch (_error) {
+      console.warn('[KomaReaderLab] remote_headers_unavailable')
+    }
+    cancellation.check()
+    const config = this.createReaderSessionConfigForOpen(comic, target.unit)
+    if (config.totalPages > 0) return config
+    return this.chapterNeedsReaderSourcePages(comic, target.unit)
+      ? this.createSourceUnavailableReaderSessionConfig(comic, target.unit, config) : null
+  }
+
+  private createReaderLabCatalogHost(): KomaReaderCatalogHost {
+    return new KomaReaderCatalogHost(
+      (work: string, unit: string): ReaderSessionConfig | null => this.readerLabInitialConfig(work, unit),
+      (target: ReaderUnitKey, cancellation: ReaderCancellation): Promise<ReaderSessionConfig | null> =>
+        this.prepareReaderLabCatalog(target, cancellation),
+    )
+  }
+
   private readerNeedsAsyncPreparation(comic: Comic, chapterId: string | undefined): boolean {
     if (this.hasAvailableOfflineReaderPages(comic.id, chapterId)) {
       return false
@@ -541,23 +598,6 @@ struct Index {
     void this.prepareSourceReaderSession(nextRequest, openEpoch)
   }
 
-  private cloneExternalReaderSession(config: ReaderSessionConfig): ReaderSessionConfig {
-    return {
-      comicId: config.comicId,
-      chapterId: config.chapterId,
-      chapterIds: config.chapterIds.slice(),
-      chapterTitles: config.chapterTitles?.slice(),
-      title: config.title,
-      chapterTitle: config.chapterTitle,
-      totalPages: config.totalPages,
-      pageUris: config.pageUris.slice(),
-      pageIds: config.pageIds?.slice(),
-      pageWidths: config.pageWidths?.slice(),
-      pageHeights: config.pageHeights?.slice(),
-      sourceRuntimeId: config.sourceRuntimeId,
-    }
-  }
-
   private openExternalReaderSession(): void {
     if (this.readerOpen && !this.readerClosing) {
       return
@@ -566,7 +606,7 @@ struct Index {
     this.activeSourceReaderRequest = undefined
     this.readerChromeVisible = false
     this.readerSessionLoading = false
-    this.readerSessionConfig = this.cloneExternalReaderSession(MOCK_LIBRARY_READER_SESSION)
+    this.readerSessionConfig = cloneReaderSessionConfig(MOCK_LIBRARY_READER_SESSION)
     this.readerPageIndex = this.readerSessionStore.restorePageIndex(this.readerSessionConfig)
     this.readerClosing = false
     this.readerRouteVisible = false
@@ -1568,6 +1608,7 @@ struct Index {
   private AppDestination(name: string, param: Object) {
     if (name === 'ReaderLab') {
       KomaReaderLabPage({ request: param as ReaderLabRequest,
+        catalogHost: this.createReaderLabCatalogHost(),
         readInitialColumn: (work: string, unit: string): 'odd_left' | 'even_left' => {
           return this.readReaderLabInitialColumn(work, unit)
         }, readInitialPage: (work: string, unit: string): number => {
