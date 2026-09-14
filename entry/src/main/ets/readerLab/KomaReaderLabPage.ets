@@ -4,7 +4,7 @@ import { ReaderCancellation, ReaderDisplayPolicy, ReaderInputPort,
   ReaderObservedPosition, ReaderPagedSession, ReaderUnitKey, ReaderLayout } from '@reader-kit/core'
 import { ReaderHostAction, ReaderKeepScreenOn, ReaderLabRequest, ReaderLabSurface, ReaderSurface, ReaderTrialLayoutCommit, ReaderTrialWindow,
   ReaderLabVisibilityState, ReaderSystemImageSaveHost, ReaderVolumeKeys, connectReaderLabVisibility, ReaderTapAction,
-  ReaderTapZonePreviewRegion, ReaderMediaActions } from '@reader-kit/ui'
+  ReaderTapZonePreviewRegion, ReaderMediaActions, ReaderChapterNavigation } from '@reader-kit/ui'
 import { KomaReaderLabAdapter, KomaReaderLabChapterChoice } from './KomaReaderLabAdapter'
 import { KomaReaderLabImageShareHost } from './KomaReaderLabImageShareHost'
 import { connectLayoutSafeArea, LayoutSafeAreaState } from '../state/LayoutSafeAreaState'
@@ -545,7 +545,10 @@ export struct KomaReaderLabPage {
               },
               active: this.routeActive && this.labVisibility.foreground && !this.readerSettingsSheetShown &&
                 !this.chapterPickerShown,
-              chapterNavigationAvailable: true, chapterNavigationBusy: this.chapterBusy,
+              chapterNavigation: new ReaderChapterNavigation(this.chapterBusy,
+                (direction: 'previous' | 'next', sourceUnit: ReaderUnitKey): void => {
+                  void this.switchChapter(direction, sourceUnit)
+                }),
               hostCenterActionAvailable: this.chapterChoices.length > 0,
               hostCenterActionLabel: this.chapterControlLabel(),
               onHostCenterAction: (sourceUnit: ReaderUnitKey, navigation: number): void => {
@@ -557,9 +560,6 @@ export struct KomaReaderLabPage {
               },
               onPolicyChanged: (policy: ReaderDisplayPolicy): void => { this.onPolicyChanged(policy) },
               onCropChanged: (enabled: boolean): void => { this.onCropChanged(enabled) },
-              onChapter: (direction: 'previous' | 'next', sourceUnit: ReaderUnitKey): void => {
-                void this.switchChapter(direction, sourceUnit)
-              },
               beforeShowChrome: (isCurrent: () => boolean): Promise<boolean> => this.prepareChromeShow(isCurrent),
               onChromeVisible: (visible: boolean): void => { this.syncChromeVisible(visible) },
               topInset: this.safeArea.topAvoidHeight, bottomInset: this.safeArea.bottomAvoidHeight,
