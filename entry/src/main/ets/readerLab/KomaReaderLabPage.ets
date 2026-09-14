@@ -1,10 +1,10 @@
 import { common } from '@kit.AbilityKit'
 import { HdsNavDestination } from '@kit.UIDesignKit'
-import { ReaderCancellation, ReaderDisplayPolicy, ReaderImageSaveHost, ReaderImageShareHost, ReaderInputPort,
+import { ReaderCancellation, ReaderDisplayPolicy, ReaderInputPort,
   ReaderObservedPosition, ReaderPagedSession, ReaderUnitKey, ReaderLayout } from '@reader-kit/core'
 import { ReaderHostAction, ReaderKeepScreenOn, ReaderLabRequest, ReaderLabSurface, ReaderSurface, ReaderTrialLayoutCommit, ReaderTrialWindow,
   ReaderLabVisibilityState, ReaderSystemImageSaveHost, ReaderVolumeKeys, connectReaderLabVisibility, ReaderTapAction,
-  ReaderTapZonePreviewRegion } from '@reader-kit/ui'
+  ReaderTapZonePreviewRegion, ReaderMediaActions } from '@reader-kit/ui'
 import { KomaReaderLabAdapter, KomaReaderLabChapterChoice } from './KomaReaderLabAdapter'
 import { KomaReaderLabImageShareHost } from './KomaReaderLabImageShareHost'
 import { connectLayoutSafeArea, LayoutSafeAreaState } from '../state/LayoutSafeAreaState'
@@ -53,8 +53,7 @@ export struct KomaReaderLabPage {
   private initialPageIndex: number = 0
   private trialWindow: ReaderTrialWindow = new ReaderTrialWindow(null, true)
   private keepScreenOn: ReaderKeepScreenOn | null = null
-  private imageSave: ReaderImageSaveHost | null = null
-  private imageShare: ReaderImageShareHost | null = null
+  private mediaActions: ReaderMediaActions = new ReaderMediaActions()
   private adapter: KomaReaderLabAdapter | null = null
   private chapterRequest: ReaderCancellation | null = null
   private chapterProbeUsed: boolean = false
@@ -87,8 +86,10 @@ export struct KomaReaderLabPage {
     try {
       const adapter = new KomaReaderLabAdapter(context.filesDir, context.cacheDir, this.catalogHost)
       this.adapter = adapter
-      this.imageSave = new ReaderSystemImageSaveHost(context)
-      this.imageShare = new KomaReaderLabImageShareHost(context, adapter)
+      this.mediaActions = new ReaderMediaActions(
+        new KomaReaderLabImageShareHost(context, adapter),
+        new ReaderSystemImageSaveHost(context),
+      )
       this.unitKey = adapter.initialKey(this.request.work, this.request.unit)
       this.initialPageIndex = this.request.pageIndex
       const session = new ReaderPagedSession(adapter, adapter, adapter)
@@ -524,7 +525,7 @@ export struct KomaReaderLabPage {
                 (this.hostPreferences?.imageScalingQuality ?? this.readerMode.imageScalingQuality) === 'high'
                   ? ImageInterpolation.High : ImageInterpolation.Medium,
               canvasBackground: this.readerCanvasBackground(), canvasForeground: this.readerCanvasForeground(),
-              input: this.input, imageShare: this.imageShare, imageSave: this.imageSave,
+              input: this.input, mediaActions: this.mediaActions,
               tapZoneResolver: (x: number, y: number, layout: ReaderLayout): ReaderTapAction => this.resolveTapZone(x, y, layout),
               tapZonePreviewRegions: this.sharedTapZonePreviewRegions(),
               tapZonePreviewRevision: this.tapZonePreviewRevision,
