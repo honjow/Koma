@@ -4,7 +4,8 @@ import { ReaderCancellation, ReaderDisplayPolicy, ReaderInputPort,
   ReaderObservedPosition, ReaderPagedSession, ReaderUnitKey, ReaderLayout } from '@reader-kit/core'
 import { ReaderHostAction, ReaderKeepScreenOn, ReaderLabRequest, ReaderLabSurface, ReaderSurface, ReaderTrialLayoutCommit, ReaderTrialWindow,
   ReaderLabVisibilityState, ReaderSystemImageSaveHost, ReaderVolumeKeys, connectReaderLabVisibility, ReaderTapAction,
-  ReaderTapZonePreviewRegion, ReaderMediaActions, ReaderChapterNavigation, ReaderObservationSink } from '@reader-kit/ui'
+  ReaderTapZonePreviewRegion, ReaderMediaActions, ReaderChapterNavigation, ReaderObservationSink,
+  ReaderPreferenceSink } from '@reader-kit/ui'
 import { KomaReaderLabAdapter, KomaReaderLabChapterChoice } from './KomaReaderLabAdapter'
 import { KomaReaderLabImageShareHost } from './KomaReaderLabImageShareHost'
 import { connectLayoutSafeArea, LayoutSafeAreaState } from '../state/LayoutSafeAreaState'
@@ -558,8 +559,9 @@ export struct KomaReaderLabPage {
               observation: new ReaderObservationSink(null, (position: ReaderObservedPosition): void => {
                 this.onObservedPosition(position)
               }),
-              onPolicyChanged: (policy: ReaderDisplayPolicy): void => { this.onPolicyChanged(policy) },
-              onCropChanged: (enabled: boolean): void => { this.onCropChanged(enabled) },
+              preferenceSink: new ReaderPreferenceSink(
+                (policy: ReaderDisplayPolicy): void => { this.onPolicyChanged(policy) },
+                (enabled: boolean): void => { this.onCropChanged(enabled) }),
               beforeShowChrome: (isCurrent: () => boolean): Promise<boolean> => this.prepareChromeShow(isCurrent),
               onChromeVisible: (visible: boolean): void => { this.syncChromeVisible(visible) },
               topInset: this.safeArea.topAvoidHeight, bottomInset: this.safeArea.bottomAvoidHeight,
