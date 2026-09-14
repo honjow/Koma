@@ -147,7 +147,7 @@ test('chapter switch starts at zero when host progress is disabled', () => {
 test('shared page keeps chapter data and sheet ownership outside reader-kit', () => {
   const page = fs.readFileSync(path.join(root, 'KomaReaderLabPage.ets'), 'utf8')
   const adapter = fs.readFileSync(path.join(root, 'KomaReaderLabAdapter.ets'), 'utf8')
-  assert.match(page, /hostCenterActionLabel: this\.chapterControlLabel\(\)/)
+  assert.match(page, /centerAction: this\.chapterChoices\.length > 0[\s\S]*new ReaderCenterAction\(this\.chapterControlLabel\(\)/)
   assert.match(page, /chapterNavigation: new ReaderChapterNavigation\(this\.chapterBusy/)
   assert.doesNotMatch(page, /chapterNavigationAvailable:/)
   assert.doesNotMatch(page, /chapterNavigationBusy:/)

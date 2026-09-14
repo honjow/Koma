@@ -5,7 +5,8 @@ import { ReaderCancellation, ReaderDisplayPolicy, ReaderInputPort,
 import { ReaderHostAction, ReaderKeepScreenOn, ReaderLabRequest, ReaderLabSurface, ReaderSurface, ReaderTrialLayoutCommit, ReaderTrialWindow,
   ReaderLabVisibilityState, ReaderSystemImageSaveHost, ReaderVolumeKeys, connectReaderLabVisibility, ReaderTapAction,
   ReaderTapZonePreviewRegion, ReaderMediaActions, ReaderChapterNavigation, ReaderObservationSink,
-  ReaderPreferenceSink, ReaderActivitySink, ReaderHostSettings, ReaderHostActions } from '@reader-kit/ui'
+  ReaderPreferenceSink, ReaderActivitySink, ReaderHostSettings, ReaderHostActions,
+  ReaderCenterAction } from '@reader-kit/ui'
 import { KomaReaderLabAdapter, KomaReaderLabChapterChoice } from './KomaReaderLabAdapter'
 import { KomaReaderLabImageShareHost } from './KomaReaderLabImageShareHost'
 import { connectLayoutSafeArea, LayoutSafeAreaState } from '../state/LayoutSafeAreaState'
@@ -550,11 +551,11 @@ export struct KomaReaderLabPage {
                 (direction: 'previous' | 'next', sourceUnit: ReaderUnitKey): void => {
                   void this.switchChapter(direction, sourceUnit)
                 }),
-              hostCenterActionAvailable: this.chapterChoices.length > 0,
-              hostCenterActionLabel: this.chapterControlLabel(),
-              onHostCenterAction: (sourceUnit: ReaderUnitKey, navigation: number): void => {
-                this.openChapterPicker(sourceUnit, navigation)
-              },
+              centerAction: this.chapterChoices.length > 0
+                ? new ReaderCenterAction(this.chapterControlLabel(),
+                  (sourceUnit: ReaderUnitKey, navigation: number): void => {
+                    this.openChapterPicker(sourceUnit, navigation)
+                  }) : null,
               showPageNumber: this.hostPreferences?.showPageNumber ?? this.readerMode.showPageNumber,
               observation: new ReaderObservationSink(null, (position: ReaderObservedPosition): void => {
                 this.onObservedPosition(position)
