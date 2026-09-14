@@ -78,6 +78,11 @@ assert.match(pageSource, /pageGap: this\.readerPageGap\(\)/)
 assert.match(pageSource, /const mode = this\.hostPreferences\?\.pageGapMode \?\? this\.readerMode\.pageGapMode[\s\S]*?if \(mode === 'compact'\) return 2[\s\S]*?if \(mode === 'wide'\) return 18[\s\S]*?return 8/)
 assert.match(pageSource, /hostSettingsAvailable: this\.request\.preferencesReadWrite/)
 assert.match(pageSource, /onHostSettings: \(\): void => \{ this\.openHostSettings\(\) \}/)
+assert.match(pageSource, /tapZonePreviewRegions: this\.sharedTapZonePreviewRegions\(\)/)
+assert.match(pageSource, /tapZonePreviewRevision: this\.tapZonePreviewRevision/)
+assert.match(pageSource,
+  /previous\.tapZonePreset !== next\.tapZonePreset[\s\S]*?previous\.tapZoneInvert !== next\.tapZoneInvert[\s\S]*?this\.tapZonePreviewRevision \+= 1/)
+assert.match(pageSource, /readerTapZoneRegions\([\s\S]*?new ReaderTapZonePreviewRegion\(/)
 assert.match(pageSource, /\.bindSheet\(\$\$this\.readerSettingsSheetShown, this\.ReaderHostSettingsSheet/)
 assert.match(pageSource,
   /session\.setPolicy\(KomaReaderInitialPolicy\.resolveHost\(next, next\.columnMode\)\)/)

@@ -3,14 +3,15 @@ import { HdsNavDestination } from '@kit.UIDesignKit'
 import { ReaderCancellation, ReaderDisplayPolicy, ReaderImageSaveHost, ReaderImageShareHost, ReaderInputPort,
   ReaderObservedPosition, ReaderPagedSession, ReaderUnitKey, ReaderLayout } from '@reader-kit/core'
 import { ReaderKeepScreenOn, ReaderLabRequest, ReaderLabSurface, ReaderSurface, ReaderTrialWindow,
-  ReaderLabVisibilityState, ReaderSystemImageSaveHost, ReaderVolumeKeys, connectReaderLabVisibility, ReaderTapAction } from '@reader-kit/ui'
+  ReaderLabVisibilityState, ReaderSystemImageSaveHost, ReaderVolumeKeys, connectReaderLabVisibility, ReaderTapAction,
+  ReaderTapZonePreviewRegion } from '@reader-kit/ui'
 import { KomaReaderLabAdapter } from './KomaReaderLabAdapter'
 import { KomaReaderLabImageShareHost } from './KomaReaderLabImageShareHost'
 import { connectLayoutSafeArea, LayoutSafeAreaState } from '../state/LayoutSafeAreaState'
 import { ThemeConstants } from '../theme/ThemeConstants'
 import { ReaderColumnMode, ReaderPreferences, ReaderPreferencesStore,
   normalizeReaderTapZonePreset, normalizeReaderTapZoneInvert } from '../model/ReaderPreferencesStore'
-import { resolveReaderTapZoneAction } from '../model/ReaderTapZoneGeometry'
+import { readerTapZoneRegions, resolveReaderTapZoneAction } from '../model/ReaderTapZoneGeometry'
 import { KomaReaderInitialPolicy } from './KomaReaderInitialPolicy'
 import { KomaReaderPreferenceBridge } from './KomaReaderPreferenceBridge'
 import { connectReaderModeState, ReaderModeState } from '../state/ReaderModeState'
@@ -38,6 +39,7 @@ export struct KomaReaderLabPage {
   @Local private readerMode: ReaderModeState = connectReaderModeState()
   @Local private readerSettingsSheetShown: boolean = false
   @Local private hostPreferences: ReaderPreferences | null = null
+  @Local private tapZonePreviewRevision: number = 0
   private unitKey: ReaderUnitKey = new ReaderUnitKey('', '', '')
   private initialPageIndex: number = 0
   private trialWindow: ReaderTrialWindow = new ReaderTrialWindow()
@@ -284,7 +286,10 @@ export struct KomaReaderLabPage {
     const session = this.session
     if (!this.request.preferencesReadWrite || session === null || this.readerClosed || !this.routeActive ||
       !this.labVisibility.foreground) return
+    const previous = this.hostPreferences
     this.hostPreferences = next
+    if (previous !== null && (previous.tapZonePreset !== next.tapZonePreset ||
+      previous.tapZoneInvert !== next.tapZoneInvert)) this.tapZonePreviewRevision += 1
     session.setPolicy(KomaReaderInitialPolicy.resolveHost(next, next.columnMode))
     this.enqueuePreferenceWrite(next)
     this.syncKeepScreenOn()
@@ -314,6 +319,21 @@ export struct KomaReaderLabPage {
     return 8
   }
 
+  private sharedTapZoneAction(action: string): ReaderTapAction {
+    if (action === 'previous' || action === 'next' || action === 'left' || action === 'right') return action
+    return 'menu'
+  }
+
+  private sharedTapZonePreviewRegions(): ReaderTapZonePreviewRegion[] {
+    const preferences = this.hostPreferences
+    if (preferences === null) return []
+    return readerTapZoneRegions(
+      normalizeReaderTapZonePreset(preferences.tapZonePreset),
+      normalizeReaderTapZoneInvert(preferences.tapZoneInvert),
+    ).map((region): ReaderTapZonePreviewRegion => new ReaderTapZonePreviewRegion(
+      this.sharedTapZoneAction(region.action), region.left, region.top, region.right, region.bottom))
+  }
+
   @Builder
   private ReaderHostSettingsSheet() {
     if (this.hostPreferences !== null) {
@@ -340,6 +360,8 @@ export struct KomaReaderLabPage {
               canvasBackground: this.readerCanvasBackground(), canvasForeground: this.readerCanvasForeground(),
               input: this.input, imageShare: this.imageShare, imageSave: this.imageSave,
               tapZoneResolver: (x: number, y: number, layout: ReaderLayout): ReaderTapAction => this.resolveTapZone(x, y, layout),
+              tapZonePreviewRegions: this.sharedTapZonePreviewRegions(),
+              tapZonePreviewRevision: this.tapZonePreviewRevision,
               autoReadAvailable: true,
               autoReadSeconds: this.hostPreferences?.autoPageSeconds ?? this.readerMode.autoPageSeconds,
               pageTurnAnimation: this.request.pageTurnAnimationOverride ??
