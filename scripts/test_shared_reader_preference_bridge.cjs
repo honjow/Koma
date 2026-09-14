@@ -71,13 +71,20 @@ assert.equal(cropped.pageMode, base.pageMode)
 assert.equal(cropped.wideImageMode, base.wideImageMode)
 assert.equal(base.trimPageMarginsEnabled, false)
 assert.match(pageSource,
-  /pageTurnAnimation: this\.request\.pageTurnAnimationOverride \?\? this\.readerMode\.pageTurnAnimation/)
+  /pageTurnAnimation: this\.request\.pageTurnAnimationOverride \?\?[\s\S]*?this\.hostPreferences\?\.pageTurnAnimation/)
 assert.match(pageSource, /new ReaderPagedSession\(adapter, adapter, adapter\)/)
-assert.match(pageSource, /preloadDepth: this\.readerMode\.preloadPages/)
+assert.match(pageSource, /preloadDepth: this\.hostPreferences\?\.preloadPages \?\? this\.readerMode\.preloadPages/)
 assert.match(pageSource, /pageGap: this\.readerPageGap\(\)/)
-assert.match(pageSource, /if \(this\.readerMode\.pageGapMode === 'compact'\) return 2[\s\S]*?if \(this\.readerMode\.pageGapMode === 'wide'\) return 18[\s\S]*?return 8/)
+assert.match(pageSource, /const mode = this\.hostPreferences\?\.pageGapMode \?\? this\.readerMode\.pageGapMode[\s\S]*?if \(mode === 'compact'\) return 2[\s\S]*?if \(mode === 'wide'\) return 18[\s\S]*?return 8/)
+assert.match(pageSource, /hostSettingsAvailable: this\.request\.preferencesReadWrite/)
+assert.match(pageSource, /onHostSettings: \(\): void => \{ this\.openHostSettings\(\) \}/)
+assert.match(pageSource, /\.bindSheet\(\$\$this\.readerSettingsSheetShown, this\.ReaderHostSettingsSheet/)
+assert.match(pageSource,
+  /session\.setPolicy\(KomaReaderInitialPolicy\.resolveHost\(next, next\.columnMode\)\)/)
 const initialPolicySource = fs.readFileSync(path.resolve(__dirname,
   '../entry/src/main/ets/readerLab/KomaReaderInitialPolicy.ets'), 'utf8')
+assert.match(initialPolicySource,
+  /static resolveHost\(preferences: ReaderPreferences, column: ReaderColumnMode\): ReaderDisplayPolicy/)
 assert.match(initialPolicySource,
   /policy\.rotateWidePages = preferences\.wideImageMode === 'rotate_wide_pages'/)
 assert.match(initialPolicySource,
@@ -87,4 +94,12 @@ const adapterSource = fs.readFileSync(path.resolve(__dirname,
 assert.match(adapterSource, /implements ReaderCatalog, ReaderAssetProvider, ReaderPreloadHost/)
 assert.match(adapterSource,
   /async preload\(page: ReaderPage, cancellation: ReaderCancellation\): Promise<void>[\s\S]*?ReaderPageRenderKind\.REMOTE_URL_IMAGE[\s\S]*?fetchAndCacheReaderRemoteSource\(source\)/)
-console.log('PASS: shared reader policy, crop, page gap and bounded host preload mapping are wired.')
+const chromeSource = fs.readFileSync(path.resolve(__dirname,
+  '../entry/src/main/ets/components/ReaderChrome.ets'), 'utf8')
+const settingsSource = fs.readFileSync(path.resolve(__dirname,
+  '../entry/src/main/ets/components/ReaderSettingsContent.ets'), 'utf8')
+assert.match(chromeSource, /ReaderSettingsContent\(\{/)
+assert.match(pageSource, /ReaderSettingsContent\(\{/)
+assert.equal((settingsSource.match(/imageFitMode: p\.imageFitMode/g) || []).length, 1)
+assert.doesNotMatch(settingsSource, /setImageFit|image_fit_mode_title/)
+console.log('PASS: shared reader host settings, policy, crop, page gap and bounded preload mapping are wired.')

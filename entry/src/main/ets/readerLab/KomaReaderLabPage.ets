@@ -14,6 +14,8 @@ import { resolveReaderTapZoneAction } from '../model/ReaderTapZoneGeometry'
 import { KomaReaderInitialPolicy } from './KomaReaderInitialPolicy'
 import { KomaReaderPreferenceBridge } from './KomaReaderPreferenceBridge'
 import { connectReaderModeState, ReaderModeState } from '../state/ReaderModeState'
+import { ReaderMode } from '../model/ReaderSessionStore'
+import { ReaderSettingsContent } from '../components/ReaderSettingsContent'
 
 @ComponentV2
 export struct KomaReaderLabPage {
@@ -34,6 +36,8 @@ export struct KomaReaderLabPage {
   @Local private error: string = ''
   @Local private chapterBusy: boolean = false
   @Local private readerMode: ReaderModeState = connectReaderModeState()
+  @Local private readerSettingsSheetShown: boolean = false
+  @Local private hostPreferences: ReaderPreferences | null = null
   private unitKey: ReaderUnitKey = new ReaderUnitKey('', '', '')
   private initialPageIndex: number = 0
   private trialWindow: ReaderTrialWindow = new ReaderTrialWindow()
@@ -48,7 +52,6 @@ export struct KomaReaderLabPage {
   private input: ReaderInputPort = new ReaderInputPort()
   private volumeKeys: ReaderVolumeKeys = new ReaderVolumeKeys(this.input)
   private preferencesStore: ReaderPreferencesStore | null = null
-  private hostPreferences: ReaderPreferences | null = null
   private preferenceWrites: Promise<void> = Promise.resolve()
 
   aboutToAppear(): void {
@@ -86,8 +89,9 @@ export struct KomaReaderLabPage {
       const preferences = await preferencesStore.load()
       if (cancellation.isCancelled() || this.readerClosed) return
       this.preferencesStore = preferencesStore
-      this.hostPreferences = preferences
       const column = this.readInitialColumn(this.unitKey.work, this.unitKey.unit)
+      preferences.columnMode = column
+      this.hostPreferences = preferences
       if (cancellation.isCancelled() || this.readerClosed) return
       if (this.request.progressReadWrite && !this.request.pageIndexProvided) {
         this.initialPageIndex = this.readInitialPage(this.unitKey.work, this.unitKey.unit)
@@ -109,13 +113,15 @@ export struct KomaReaderLabPage {
   private resolveTapZone(x: number, y: number, _layout: ReaderLayout): ReaderTapAction {
     if (this.readerClosed || !this.readerMode.hydrated || !this.routeActive ||
       !this.labVisibility.foreground || this.session === null) return 'none'
-    const action = resolveReaderTapZoneAction(normalizeReaderTapZonePreset(this.readerMode.tapZonePreset),
-      normalizeReaderTapZoneInvert(this.readerMode.tapZoneInvert), x, y, 1, 1)
+    const action = resolveReaderTapZoneAction(
+      normalizeReaderTapZonePreset(this.hostPreferences?.tapZonePreset ?? this.readerMode.tapZonePreset),
+      normalizeReaderTapZoneInvert(this.hostPreferences?.tapZoneInvert ?? this.readerMode.tapZoneInvert), x, y, 1, 1)
     return action === 'center' ? 'menu' : action
   }
 
   aboutToDisappear(): void {
     this.readerClosed = true
+    this.readerSettingsSheetShown = false
     this.initialization?.cancel()
     this.volumeKeys.close()
     this.cancelChapterRequest()
@@ -124,14 +130,17 @@ export struct KomaReaderLabPage {
     if (this.request.readingChrome) this.trialWindow.close()
   }
 
-  @Monitor('routeActive', 'labVisibility.foreground', 'readerMode.hydrated', 'readerMode.keepScreenAwake')
+  @Monitor('routeActive', 'labVisibility.foreground', 'readerMode.hydrated', 'readerMode.keepScreenAwake',
+    'readerSettingsSheetShown')
   syncKeepScreenOn(): void {
     this.keepScreenOn?.setActive(this.request.readingChrome && this.session !== null && this.routeActive &&
-      this.labVisibility.foreground && this.readerMode.hydrated && this.readerMode.keepScreenAwake)
+      this.labVisibility.foreground && this.readerMode.hydrated && !this.readerSettingsSheetShown &&
+      (this.hostPreferences?.keepScreenAwake ?? this.readerMode.keepScreenAwake))
   }
 
   private closeReader(): void {
     this.readerClosed = true
+    this.readerSettingsSheetShown = false
     this.initialization?.cancel()
     this.volumeKeys.close()
     this.cancelChapterRequest()
@@ -141,12 +150,14 @@ export struct KomaReaderLabPage {
   }
 
   @Monitor('routeActive', 'labVisibility.foreground', 'readerMode.hydrated',
-    'readerMode.volumeKeyNavigationEnabled', 'readerMode.volumeKeyBehavior', 'session')
+    'readerMode.volumeKeyNavigationEnabled', 'readerMode.volumeKeyBehavior', 'readerSettingsSheetShown', 'session')
   syncVolumeKeys(): void {
-    const enabled = this.request.volumeKeysOverride ?? this.readerMode.volumeKeyNavigationEnabled
+    const enabled = this.request.volumeKeysOverride ??
+      (this.hostPreferences?.volumeKeyNavigationEnabled ?? this.readerMode.volumeKeyNavigationEnabled)
     this.volumeKeys.setActive(!this.readerClosed && this.request.readingChrome && this.session !== null &&
-      this.routeActive && this.labVisibility.foreground && this.readerMode.hydrated && enabled,
-      this.readerMode.volumeKeyBehavior === 'up_next_down_previous')
+      this.routeActive && this.labVisibility.foreground && this.readerMode.hydrated &&
+      !this.readerSettingsSheetShown && enabled,
+      (this.hostPreferences?.volumeKeyBehavior ?? this.readerMode.volumeKeyBehavior) === 'up_next_down_previous')
   }
 
   @Monitor('routeActive', 'labVisibility.foreground')
@@ -247,24 +258,73 @@ export struct KomaReaderLabPage {
     this.enqueuePreferenceWrite(KomaReaderPreferenceBridge.applyCrop(current, enabled))
   }
 
+  private openHostSettings(): void {
+    if (!this.request.preferencesReadWrite || this.hostPreferences === null || this.readerClosed ||
+      !this.routeActive || !this.labVisibility.foreground || this.session === null) return
+    this.readerSettingsSheetShown = true
+    this.syncKeepScreenOn()
+    this.syncVolumeKeys()
+  }
+
+  private closeHostSettings(): void {
+    this.readerSettingsSheetShown = false
+    this.syncKeepScreenOn()
+    this.syncVolumeKeys()
+  }
+
+  private currentReaderMode(): ReaderMode {
+    const mode = this.hostPreferences?.pageMode ?? this.readerMode.pageMode
+    if (mode === 'double_page') return ReaderMode.DUAL_PAGE
+    if (mode === 'vertical_page') return ReaderMode.VERTICAL_PAGE
+    if (mode === 'continuous_scroll') return ReaderMode.CONTINUOUS_SCROLL
+    return ReaderMode.SINGLE_PAGE
+  }
+
+  private onHostPreferencesChanged(next: ReaderPreferences): void {
+    const session = this.session
+    if (!this.request.preferencesReadWrite || session === null || this.readerClosed || !this.routeActive ||
+      !this.labVisibility.foreground) return
+    this.hostPreferences = next
+    session.setPolicy(KomaReaderInitialPolicy.resolveHost(next, next.columnMode))
+    this.enqueuePreferenceWrite(next)
+    this.syncKeepScreenOn()
+    this.syncVolumeKeys()
+  }
+
   private readerCanvasBackground(): ResourceColor {
-    if (this.readerMode.backgroundMode === 'gray') return ThemeConstants.READER_BACKGROUND_GRAY
-    if (this.readerMode.backgroundMode === 'white') return ThemeConstants.READER_BACKGROUND_WHITE
-    if (this.readerMode.backgroundMode === 'auto') return ThemeConstants.BG_PRIMARY
+    const mode = this.hostPreferences?.backgroundMode ?? this.readerMode.backgroundMode
+    if (mode === 'gray') return ThemeConstants.READER_BACKGROUND_GRAY
+    if (mode === 'white') return ThemeConstants.READER_BACKGROUND_WHITE
+    if (mode === 'auto') return ThemeConstants.BG_PRIMARY
     return ThemeConstants.READER_BACKGROUND_BLACK
   }
 
   private readerCanvasForeground(): ResourceColor {
-    if (this.readerMode.backgroundMode === 'black') return ThemeConstants.READER_FOREGROUND_LIGHT
-    if (this.readerMode.backgroundMode === 'auto') return ThemeConstants.TEXT_PRIMARY
+    const mode = this.hostPreferences?.backgroundMode ?? this.readerMode.backgroundMode
+    if (mode === 'black') return ThemeConstants.READER_FOREGROUND_LIGHT
+    if (mode === 'auto') return ThemeConstants.TEXT_PRIMARY
     return ThemeConstants.READER_FOREGROUND_DARK
   }
 
   /** Preserve Koma's existing spacing scale while reader-kit owns only layout. */
   private readerPageGap(): number {
-    if (this.readerMode.pageGapMode === 'compact') return 2
-    if (this.readerMode.pageGapMode === 'wide') return 18
+    const mode = this.hostPreferences?.pageGapMode ?? this.readerMode.pageGapMode
+    if (mode === 'compact') return 2
+    if (mode === 'wide') return 18
     return 8
+  }
+
+  @Builder
+  private ReaderHostSettingsSheet() {
+    if (this.hostPreferences !== null) {
+      ReaderSettingsContent({
+        readerMode: this.currentReaderMode(),
+        preferences: this.hostPreferences,
+        onPreferencesChange: (next: ReaderPreferences): void => { this.onHostPreferencesChanged(next) },
+        onClose: (): void => { this.closeHostSettings() },
+        onRevealTapZones: (): void => { this.closeHostSettings() },
+      })
+    }
   }
 
   build() {
@@ -273,19 +333,26 @@ export struct KomaReaderLabPage {
         if (this.session !== null) {
           if (this.request.readingChrome) {
             ReaderSurface({ session: this.session, initialUnit: this.unitKey, initialIndex: this.initialPageIndex,
-              imageInterpolation: this.readerMode.imageScalingQuality === 'low' ? ImageInterpolation.Low :
-                this.readerMode.imageScalingQuality === 'high' ? ImageInterpolation.High : ImageInterpolation.Medium,
+              imageInterpolation: (this.hostPreferences?.imageScalingQuality ?? this.readerMode.imageScalingQuality) === 'low'
+                ? ImageInterpolation.Low :
+                (this.hostPreferences?.imageScalingQuality ?? this.readerMode.imageScalingQuality) === 'high'
+                  ? ImageInterpolation.High : ImageInterpolation.Medium,
               canvasBackground: this.readerCanvasBackground(), canvasForeground: this.readerCanvasForeground(),
               input: this.input, imageShare: this.imageShare, imageSave: this.imageSave,
               tapZoneResolver: (x: number, y: number, layout: ReaderLayout): ReaderTapAction => this.resolveTapZone(x, y, layout),
-              autoReadAvailable: true, autoReadSeconds: this.readerMode.autoPageSeconds,
-              pageTurnAnimation: this.request.pageTurnAnimationOverride ?? this.readerMode.pageTurnAnimation,
+              autoReadAvailable: true,
+              autoReadSeconds: this.hostPreferences?.autoPageSeconds ?? this.readerMode.autoPageSeconds,
+              pageTurnAnimation: this.request.pageTurnAnimationOverride ??
+                (this.hostPreferences?.pageTurnAnimation ?? this.readerMode.pageTurnAnimation),
               pageGap: this.readerPageGap(),
-              preloadDepth: this.readerMode.preloadPages,
-              cropBorders: this.readerMode.trimPageMarginsEnabled, cropAvailable: true,
-              active: this.routeActive && this.labVisibility.foreground,
+              preloadDepth: this.hostPreferences?.preloadPages ?? this.readerMode.preloadPages,
+              cropBorders: this.hostPreferences?.trimPageMarginsEnabled ?? this.readerMode.trimPageMarginsEnabled,
+              cropAvailable: true,
+              hostSettingsAvailable: this.request.preferencesReadWrite,
+              onHostSettings: (): void => { this.openHostSettings() },
+              active: this.routeActive && this.labVisibility.foreground && !this.readerSettingsSheetShown,
               chapterNavigationAvailable: true, chapterNavigationBusy: this.chapterBusy,
-              showPageNumber: this.readerMode.showPageNumber,
+              showPageNumber: this.hostPreferences?.showPageNumber ?? this.readerMode.showPageNumber,
               onObservedPosition: (position: ReaderObservedPosition): void => {
                 this.onObservedPosition(position)
               },
@@ -308,6 +375,14 @@ export struct KomaReaderLabPage {
       .width('100%').height('100%')
       .padding({ top: this.request.readingChrome && this.session !== null ? 0 : this.safeArea.topAvoidHeight + ThemeConstants.TITLE_BAR_HEIGHT,
         bottom: this.request.readingChrome && this.session !== null ? 0 : this.safeArea.bottomAvoidHeight })
+      .bindSheet($$this.readerSettingsSheetShown, this.ReaderHostSettingsSheet, {
+        detents: [SheetSize.MEDIUM, SheetSize.LARGE],
+        showClose: false,
+        enableOutsideInteractive: false,
+        scrollSizeMode: ScrollSizeMode.CONTINUOUS,
+        enableFloatingDragBar: true,
+        onDisappear: (): void => { this.closeHostSettings() },
+      })
     }.titleBar({
       avoidLayoutSafeArea: true,
       enableComponentSafeArea: false,

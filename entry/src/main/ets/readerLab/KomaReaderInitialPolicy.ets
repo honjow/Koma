@@ -5,8 +5,7 @@ import { ReaderColumnMode, ReaderPreferences } from '../model/ReaderPreferencesS
 
 /** Initial host mapping only; subsequent reader policy belongs to the session. */
 export class KomaReaderInitialPolicy {
-  static resolve(preferences: ReaderPreferences, column: ReaderColumnMode,
-    request: ReaderLabRequest): ReaderDisplayPolicy {
+  static resolveHost(preferences: ReaderPreferences, column: ReaderColumnMode): ReaderDisplayPolicy {
     const policy = new ReaderDisplayPolicy()
     const vertical = preferences.pageMode === 'vertical_page'
     policy.layout = vertical ? 'single' :
@@ -18,6 +17,12 @@ export class KomaReaderInitialPolicy {
     policy.firstPageAlone = column === 'even_left'
     policy.splitWidePages = preferences.wideImageMode === 'split_wide_pages'
     policy.rotateWidePages = preferences.wideImageMode === 'rotate_wide_pages'
+    return policy
+  }
+
+  static resolve(preferences: ReaderPreferences, column: ReaderColumnMode,
+    request: ReaderLabRequest): ReaderDisplayPolicy {
+    const policy = KomaReaderInitialPolicy.resolveHost(preferences, column)
     if (request.entryLayoutOverride === 'single' || request.entryLayoutOverride === 'spread' ||
       request.entryLayoutOverride === 'continuous') {
       policy.layout = request.entryLayoutOverride
