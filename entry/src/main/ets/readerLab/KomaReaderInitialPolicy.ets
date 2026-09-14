@@ -17,6 +17,7 @@ export class KomaReaderInitialPolicy {
     policy.spreadLayout = preferences.spreadLayoutMode === 'split' ? 'split' : 'joined'
     policy.firstPageAlone = column === 'even_left'
     policy.splitWidePages = preferences.wideImageMode === 'split_wide_pages'
+    policy.rotateWidePages = preferences.wideImageMode === 'rotate_wide_pages'
     if (request.entryLayoutOverride === 'single' || request.entryLayoutOverride === 'spread' ||
       request.entryLayoutOverride === 'continuous') {
       policy.layout = request.entryLayoutOverride

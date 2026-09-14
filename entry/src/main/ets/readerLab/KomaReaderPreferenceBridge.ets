@@ -39,7 +39,8 @@ export class KomaReaderPreferenceBridge {
       policy.direction === 'rtl' ? ReadingDirection.RIGHT_TO_LEFT : ReadingDirection.LEFT_TO_RIGHT
     next.spreadLayoutMode = policy.spreadLayout === 'split' ? 'split' : 'joined'
     next.columnMode = policy.firstPageAlone ? 'even_left' : 'odd_left'
-    next.wideImageMode = policy.splitWidePages ? 'split_wide_pages' : 'keep_single'
+    next.wideImageMode = policy.splitWidePages ? 'split_wide_pages' :
+      policy.rotateWidePages ? 'rotate_wide_pages' : 'keep_single'
     return normalizeReaderPreferences(next)
   }
 

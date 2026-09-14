@@ -34,8 +34,11 @@ const base = {
 
 function policy(overrides = {}) {
   return { layout: 'single', pagingAxis: 'horizontal', direction: 'ltr', spreadLayout: 'joined',
-    firstPageAlone: false, splitWidePages: false, ...overrides }
+    firstPageAlone: false, splitWidePages: false, rotateWidePages: false, ...overrides }
 }
+
+const rotated = KomaReaderPreferenceBridge.applyPolicy(base, policy({ rotateWidePages: true }))
+assert.equal(rotated.wideImageMode, 'rotate_wide_pages')
 
 const spread = KomaReaderPreferenceBridge.applyPolicy(base,
   policy({ layout: 'spread', direction: 'rtl', spreadLayout: 'split', firstPageAlone: true }))
@@ -73,6 +76,10 @@ assert.match(pageSource, /new ReaderPagedSession\(adapter, adapter, adapter\)/)
 assert.match(pageSource, /preloadDepth: this\.readerMode\.preloadPages/)
 assert.match(pageSource, /pageGap: this\.readerPageGap\(\)/)
 assert.match(pageSource, /if \(this\.readerMode\.pageGapMode === 'compact'\) return 2[\s\S]*?if \(this\.readerMode\.pageGapMode === 'wide'\) return 18[\s\S]*?return 8/)
+const initialPolicySource = fs.readFileSync(path.resolve(__dirname,
+  '../entry/src/main/ets/readerLab/KomaReaderInitialPolicy.ets'), 'utf8')
+assert.match(initialPolicySource,
+  /policy\.rotateWidePages = preferences\.wideImageMode === 'rotate_wide_pages'/)
 const adapterSource = fs.readFileSync(path.resolve(__dirname,
   '../entry/src/main/ets/readerLab/KomaReaderLabAdapter.ets'), 'utf8')
 assert.match(adapterSource, /implements ReaderCatalog, ReaderAssetProvider, ReaderPreloadHost/)
