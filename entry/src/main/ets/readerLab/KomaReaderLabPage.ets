@@ -4,7 +4,7 @@ import { ReaderCancellation, ReaderDisplayPolicy, ReaderInputPort,
   ReaderObservedPosition, ReaderPagedSession, ReaderUnitKey, ReaderLayout } from '@reader-kit/core'
 import { ReaderHostAction, ReaderKeepScreenOn, ReaderLabRequest, ReaderLabSurface, ReaderSurface, ReaderTrialLayoutCommit, ReaderTrialWindow,
   ReaderLabVisibilityState, ReaderSystemImageSaveHost, ReaderVolumeKeys, connectReaderLabVisibility, ReaderTapAction,
-  ReaderTapZonePreviewRegion, ReaderMediaActions, ReaderChapterNavigation } from '@reader-kit/ui'
+  ReaderTapZonePreviewRegion, ReaderMediaActions, ReaderChapterNavigation, ReaderObservationSink } from '@reader-kit/ui'
 import { KomaReaderLabAdapter, KomaReaderLabChapterChoice } from './KomaReaderLabAdapter'
 import { KomaReaderLabImageShareHost } from './KomaReaderLabImageShareHost'
 import { connectLayoutSafeArea, LayoutSafeAreaState } from '../state/LayoutSafeAreaState'
@@ -555,9 +555,9 @@ export struct KomaReaderLabPage {
                 this.openChapterPicker(sourceUnit, navigation)
               },
               showPageNumber: this.hostPreferences?.showPageNumber ?? this.readerMode.showPageNumber,
-              onObservedPosition: (position: ReaderObservedPosition): void => {
+              observation: new ReaderObservationSink(null, (position: ReaderObservedPosition): void => {
                 this.onObservedPosition(position)
-              },
+              }),
               onPolicyChanged: (policy: ReaderDisplayPolicy): void => { this.onPolicyChanged(policy) },
               onCropChanged: (enabled: boolean): void => { this.onCropChanged(enabled) },
               beforeShowChrome: (isCurrent: () => boolean): Promise<boolean> => this.prepareChromeShow(isCurrent),
