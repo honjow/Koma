@@ -26,6 +26,10 @@ export class KomaReaderInitialPolicy {
     if (request.entryDirectionOverride === 'ltr' || request.entryDirectionOverride === 'rtl') {
       policy.direction = request.entryDirectionOverride
     }
+    if (request.rotateWidePagesOverride !== null) {
+      policy.rotateWidePages = request.rotateWidePagesOverride
+      if (request.rotateWidePagesOverride) policy.splitWidePages = false
+    }
     return policy
   }
 }

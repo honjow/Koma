@@ -9,7 +9,7 @@ hvigorw="${HVIGORW:-/Applications/DevEco-Studio.app/Contents/tools/hvigor/bin/hv
 target="${KOMA_SMOKE_TARGET:-127.0.0.1:5557}"
 artifact_dir="${KOMA_READER_WIDE_SPLIT_ARTIFACT_DIR:-.hvigor/outputs/reader-wide-split-smoke}"
 remote_smoke_result="${KOMA_READER_WIDE_SPLIT_REMOTE_RESULT:-/data/app/el2/100/base/com.honjow.koma/haps/entry/files/source-runtime-smoke-result.json}"
-wide_image_rawfile="${KOMA_READER_WIDE_SPLIT_RAWFILE:-test/wide-split-fixture.png}"
+wide_image_rawfile="${KOMA_READER_WIDE_SPLIT_RAWFILE:-test/wide-split-fixture.svg}"
 wide_image_rawfile_path="entry/src/main/resources/rawfile/$wide_image_rawfile"
 
 if [ ! -x "$hdc" ]; then

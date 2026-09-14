@@ -80,6 +80,8 @@ const initialPolicySource = fs.readFileSync(path.resolve(__dirname,
   '../entry/src/main/ets/readerLab/KomaReaderInitialPolicy.ets'), 'utf8')
 assert.match(initialPolicySource,
   /policy\.rotateWidePages = preferences\.wideImageMode === 'rotate_wide_pages'/)
+assert.match(initialPolicySource,
+  /if \(request\.rotateWidePagesOverride !== null\)[\s\S]*?policy\.rotateWidePages = request\.rotateWidePagesOverride[\s\S]*?if \(request\.rotateWidePagesOverride\) policy\.splitWidePages = false/)
 const adapterSource = fs.readFileSync(path.resolve(__dirname,
   '../entry/src/main/ets/readerLab/KomaReaderLabAdapter.ets'), 'utf8')
 assert.match(adapterSource, /implements ReaderCatalog, ReaderAssetProvider, ReaderPreloadHost/)
