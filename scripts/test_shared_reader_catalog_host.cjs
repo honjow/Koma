@@ -124,6 +124,7 @@ test('Index keeps provider resolution and remote headers in Koma while passing o
 test('a real provider page failure rejects chapter preparation instead of opening a placeholder unit', async () => {
   const method = member('pages/Index.ets', 'Index', 'prepareReaderLabCatalog')
   const output = {}
+  let providerCalls = 0
   const pagesByChapter = new Map([
     ['chapter-B', []],
     ['chapter-C', [{ id: 'page-C-1', uri: 'https://example/c1' }]],
@@ -135,7 +136,11 @@ test('a real provider page failure rejects chapter preparation instead of openin
     ComicSourceKind: { LOCAL_FOLDER: 'local-folder' },
     sourceReaderSessionRequestForChapter: (request, chapterId) => request.chapterIds.includes(chapterId)
       ? { ...request, chapterId, chapterIds: request.chapterIds.slice() } : undefined,
-    resolveSourceChapterPages: async (_registry, request) => ({ pages: pagesByChapter.get(request.chapterId) ?? [] }),
+    resolveSourceChapterPages: async (_registry, request) => {
+      providerCalls += 1
+      return { pages: pagesByChapter.get(request.chapterId) ?? [] }
+    },
+    cloneReaderSessionConfig,
   })
   const page = new output.Subject()
   Object.assign(page, {
@@ -144,17 +149,26 @@ test('a real provider page failure rejects chapter preparation instead of openin
       chapterIds: ['chapter-A', 'chapter-B', 'chapter-C'],
     },
     sourceRegistry: {},
+    readerSessionConfig: {
+      comicId: 'transient-work', chapterId: 'chapter-A', chapterIds: ['chapter-A', 'chapter-B', 'chapter-C'],
+      totalPages: 1, pageUris: ['https://example/a1'], pageIds: ['page-A-1'],
+    },
     createSourceReaderSessionConfig: (request, pages) => ({
       comicId: request.comicId, chapterId: request.chapterId, totalPages: pages.length,
       pageUris: pages.map(value => value.uri),
     }),
   })
   const cancellation = { check() {} }
+  const current = await page.prepareReaderLabCatalog(key('chapter-A'), cancellation)
+  assert.equal(current.chapterId, 'chapter-A')
+  assert.equal(providerCalls, 0)
   await assert.rejects(() => page.prepareReaderLabCatalog(key('chapter-B'), cancellation),
     /koma_reader_chapter_pages_unavailable/)
+  assert.equal(providerCalls, 1)
   const prepared = await page.prepareReaderLabCatalog(key('chapter-C'), cancellation)
   assert.equal(prepared.chapterId, 'chapter-C')
   assert.deepEqual(Array.from(prepared.pageUris), ['https://example/c1'])
+  assert.equal(providerCalls, 2)
 })
 
 test('transient chapter commit updates Koma history and enables progress without a library record', () => {

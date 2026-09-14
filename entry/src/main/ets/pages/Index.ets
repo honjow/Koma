@@ -481,6 +481,15 @@ struct Index {
     if (sourceRequest !== undefined && sourceRequest.comicId === target.work) {
       const nextRequest = sourceReaderSessionRequestForChapter(sourceRequest, target.unit)
       if (nextRequest === undefined) return null
+      if (sourceRequest.chapterId === target.unit &&
+        this.readerSessionConfig.comicId === target.work && this.readerSessionConfig.chapterId === target.unit &&
+        this.readerSessionConfig.totalPages > 0 &&
+        this.readerSessionConfig.pageUris.length === this.readerSessionConfig.totalPages) {
+        // The normal source open already resolved this exact current chapter.
+        // Reuse that immutable route snapshot instead of issuing a second
+        // provider request before the shared surface can display it.
+        return cloneReaderSessionConfig(this.readerSessionConfig)
+      }
       const resolution = await resolveSourceChapterPages(this.sourceRegistry, {
         comicId: nextRequest.comicId,
         sourceId: nextRequest.sourceId,
