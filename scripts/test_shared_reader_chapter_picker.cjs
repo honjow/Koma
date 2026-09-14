@@ -80,14 +80,14 @@ test('picker opens only for an exact current unit/navigation and dismisses befor
   assert.deepEqual(opened, [['B', 'A', 'picker']])
 })
 
-test('a newer picker target cancels preparation and is the only chapter opened', async () => {
+test('a newer picker target cancels preparation and restores only the opened chapter position', async () => {
   class ReaderCancellation {
     constructor() { this.cancelled = false }
     cancel() { this.cancelled = true }
     isCancelled() { return this.cancelled }
     check() { if (this.cancelled) throw new Error('cancelled') }
   }
-  const Page = subject('KomaReaderLabPage.ets', 'KomaReaderLabPage', ['openChapterTarget'], {
+  const Page = subject('KomaReaderLabPage.ets', 'KomaReaderLabPage', ['chapterInitialPage', 'openChapterTarget'], {
     ReaderCancellation, $r: value => value,
   })
   const page = new Page()
@@ -96,14 +96,16 @@ test('a newer picker target cancels preparation and is the only chapter opened',
   let releaseB
   const pendingB = new Promise(resolve => { releaseB = resolve })
   const opened = []
+  const restored = []
   const adapter = { prepare: target => target.unit === 'B' ? pendingB : Promise.resolve() }
   const session = {
     snapshot: () => ({ phase: 'ready', unit: { key: current } }),
-    open: async target => { opened.push(target.unit); current = target },
+    open: async (target, index) => { opened.push([target.unit, index]); current = target },
   }
   Object.assign(page, {
     session, adapter, routeActive: true, labVisibility: { foreground: true }, readerClosed: false,
-    chapterRequest: null, chapterBusy: false, request: { chapterProbe: '' },
+    chapterRequest: null, chapterBusy: false, request: { chapterProbe: '', progressReadWrite: true },
+    readInitialPage: (work, unit) => { restored.push([work, unit]); return unit === 'C' ? 7 : 3 },
     runChapterPreparationProbe: async () => {}, syncChapterChoices() {},
     getUIContext: () => ({ getPromptAction: () => ({ showToast() {} }) }),
   })
@@ -113,8 +115,19 @@ test('a newer picker target cancels preparation and is the only chapter opened',
   await second
   releaseB()
   await first
-  assert.deepEqual(opened, ['C'])
+  assert.deepEqual(opened, [['C', 7]])
+  assert.deepEqual(restored, [['work', 'C']])
   assert.equal(page.chapterBusy, false)
+})
+
+test('chapter switch starts at zero when host progress is disabled', () => {
+  const Page = subject('KomaReaderLabPage.ets', 'KomaReaderLabPage', ['chapterInitialPage'])
+  const page = new Page()
+  Object.assign(page, {
+    request: { progressReadWrite: false },
+    readInitialPage: () => { throw new Error('must not read disabled progress') },
+  })
+  assert.equal(page.chapterInitialPage(key('B')), 0)
 })
 
 test('shared page keeps chapter data and sheet ownership outside reader-kit', () => {

@@ -223,6 +223,13 @@ export struct KomaReaderLabPage {
     cancellation.check()
   }
 
+  /** Chapter progress belongs to Koma; reader-kit receives only the resolved source index. */
+  private chapterInitialPage(target: ReaderUnitKey): number {
+    if (!this.request.progressReadWrite) return 0
+    const restored = this.readInitialPage(target.work, target.unit)
+    return Number.isFinite(restored) ? Math.max(0, Math.floor(restored)) : 0
+  }
+
   private async openChapterTarget(target: ReaderUnitKey, sourceUnit: ReaderUnitKey,
     reason: 'previous' | 'next' | 'picker'): Promise<void> {
     const session = this.session
@@ -246,7 +253,7 @@ export struct KomaReaderLabPage {
       await this.runChapterPreparationProbe(cancellation)
       await adapter.prepare(target, cancellation)
       if (!isCurrent()) return
-      await session.open(target)
+      await session.open(target, this.chapterInitialPage(target))
       const opened = session.snapshot()
       if (!cancellation.isCancelled() && !this.readerClosed && opened.phase === 'ready' &&
         opened.unit?.key.equals(target) === true) {
