@@ -168,8 +168,10 @@ export class KomaReaderLabAdapter implements ReaderCatalog, ReaderAssetProvider,
   chapterChoices(unit: ReaderUnitKey): KomaReaderLabChapterChoice[] {
     const config = this.configs.get(this.unitId(unit))
     if (config === undefined) return []
-    const chapterIds = config.continuationChapterIds ?? config.chapterIds
-    return chapterIds.map((chapterId: string): KomaReaderLabChapterChoice => {
+    // Manual selection matches the legacy reader's complete catalog. Only the
+    // previous/next boundary above is restricted to the verified continuation
+    // sequence, so editions outside that sequence do not disappear from UI.
+    return config.chapterIds.map((chapterId: string): KomaReaderLabChapterChoice => {
       const index = config.chapterIds.indexOf(chapterId)
       return new KomaReaderLabChapterChoice(
         new ReaderUnitKey(unit.scope, unit.work, chapterId),

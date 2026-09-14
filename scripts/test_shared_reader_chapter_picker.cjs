@@ -37,11 +37,11 @@ class Choice {
   constructor(value, title) { this.key = value; this.title = title }
 }
 
-test('adapter projects only the host continuation sequence and aligned titles', () => {
+test('adapter keeps the full manual catalog while adjacent navigation uses only the continuation sequence', () => {
   class ReaderUnitKey {
     constructor(scope, work, unit) { Object.assign(this, { scope, work, unit }) }
   }
-  const Adapter = subject('KomaReaderLabAdapter.ets', 'KomaReaderLabAdapter', ['unitId', 'chapterChoices'], {
+  const Adapter = subject('KomaReaderLabAdapter.ets', 'KomaReaderLabAdapter', ['unitId', 'adjacent', 'chapterChoices'], {
     KomaReaderLabChapterChoice: Choice, ReaderUnitKey,
   })
   const adapter = new Adapter()
@@ -51,7 +51,9 @@ test('adapter projects only the host continuation sequence and aligned titles', 
     chapterIds: ['A', 'B', 'C'], chapterTitles: ['Alpha', 'Beta', 'Gamma'], continuationChapterIds: ['B', 'C'],
   })
   assert.deepEqual(adapter.chapterChoices(current).map(value => [value.key.unit, value.title]),
-    [['B', 'Beta'], ['C', 'Gamma']])
+    [['A', 'Alpha'], ['B', 'Beta'], ['C', 'Gamma']])
+  assert.equal(adapter.adjacent({ key: current }, 'previous'), null)
+  assert.equal(adapter.adjacent({ key: current }, 'next').unit, 'C')
 })
 
 test('picker opens only for an exact current unit/navigation and dismisses before switching', () => {
