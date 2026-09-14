@@ -140,10 +140,14 @@ export class KomaReaderLabAdapter implements ReaderCatalog, ReaderAssetProvider,
   async preload(page: ReaderPage, cancellation: ReaderCancellation): Promise<void> {
     cancellation.check()
     const source = this.sources.get(this.unitId(page.unit))?.[page.sourceIndex]
-    if (source === undefined || source.kind !== ReaderPageRenderKind.REMOTE_URL_IMAGE) return
+    if (source === undefined || source.kind !== ReaderPageRenderKind.REMOTE_URL_IMAGE) {
+      console.info(`[KomaReaderPreload] source=${page.sourceIndex} result=local-skip`)
+      return
+    }
     await fetchAndCacheReaderRemoteSource(source)
     cancellation.check()
     if (this.closed) throw new Error('closed_koma_reader')
+    console.info(`[KomaReaderPreload] source=${page.sourceIndex} result=ready`)
   }
 
   async imageShareSource(target: ReaderImageShareTarget,
