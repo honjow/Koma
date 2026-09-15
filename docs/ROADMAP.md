@@ -163,6 +163,18 @@ Artifact 目录规范见 `docs/CONTROLLER_ARTIFACTS.md`。
 
 ### Lane 1E：阅读器原型
 
+共享阅读器接入检查点（2026-09-15）：Debug 的普通“设置 → 阅读”支持进程内
+Shared/Legacy 选择，普通书架入口捕获选择；导航、章节准备、进度和窗口恢复仍由
+Koma 持有，Release 和冷启动默认保留 Legacy。197 的匹配 Debug/Release 构建已
+走过原图 6/35、点击 chrome、滑动 6→7→6、详情返回、关闭重进、详情选另一章
+1/32 后恢复 6/35、显式 Legacy 回退及 Release 默认阅读。原始证据保存在独立
+worktree 的 `.hermes-artifacts/20260915-entry-baseline/`；其中 `21-single-monitor-reader`、
+`22-legacy-fallback`、`24-detail-selected-chapter`、`26-release-legacy` 位于
+`device197__ALN-AL80/not-applicable/portrait-1260x2720/`。28 项针对性检查和两种构建
+通过，但不代替三端最终替换矩阵。入口卡加载的已证实原因是相同参数的两个
+`@Monitor` 注册互相覆盖；初始化和章节取消现共用一个活动监听，测试防止重复注册。
+这不是默认替换许可；Koma 的共享依赖仍需改为版本管理内的固定版本，再进入最终候选验证。
+
 需要 1A 的 page model；可先用 mock/local asset。
 
 范围：

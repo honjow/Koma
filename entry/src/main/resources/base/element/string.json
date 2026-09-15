@@ -1,5 +1,8 @@
 {
   "string": [
+    { "name": "settings_reader_backend", "value": "Reader implementation" },
+    { "name": "settings_reader_backend_legacy", "value": "Legacy" },
+    { "name": "settings_reader_backend_shared", "value": "Shared" },
     { "name": "backup_task_create", "value": "Create backup" },
     { "name": "backup_task_create_hint", "value": "Choose where to save and whether to encrypt" },
     { "name": "backup_task_restore", "value": "Restore backup" },

@@ -27,6 +27,12 @@ import { KomaReaderCatalogHost } from './KomaReaderCatalogHost'
 @ComponentV2
 export struct KomaReaderLabPage {
   @Require @Param request: ReaderLabRequest
+  /** Ordinary Reader owns the destination; the standalone Lab still owns its own. */
+  @Param embedded: boolean = false
+  @Param hostWindow: ReaderTrialWindow | null = null
+  @Param hostRouteActive: boolean = false
+  @Param closeRequestId: number = 0
+  @Param initialCloseRequestId: number = 0
   @Event readInitialColumn: (work: string, unit: string) => ReaderColumnMode = () => {
     throw new Error('reader_lab_progress_owner_unavailable')
   }
@@ -39,6 +45,7 @@ export struct KomaReaderLabPage {
   @Event onClose: () => void = () => {}
   @Param catalogHost: KomaReaderCatalogHost | null = null
   @Local private session: ReaderPagedSession | null = null
+  @Local private readerClosed: boolean = false
   @Local private labVisibility: ReaderLabVisibilityState = connectReaderLabVisibility()
   @Local private routeActive: boolean = false
   @Local private safeArea: LayoutSafeAreaState = connectLayoutSafeArea()
@@ -59,8 +66,11 @@ export struct KomaReaderLabPage {
   private adapter: KomaReaderLabAdapter | null = null
   private chapterRequest: ReaderCancellation | null = null
   private chapterProbeUsed: boolean = false
-  private readerClosed: boolean = false
   private initialization: ReaderCancellation | null = null
+  private pendingSession: ReaderPagedSession | null = null
+  private observedCloseRequestId: number = 0
+  private pageMounted: boolean = false
+  private readingWindowAcquired: boolean = false
   private input: ReaderInputPort = new ReaderInputPort()
   private volumeKeys: ReaderVolumeKeys = new ReaderVolumeKeys(this.input)
   private preferencesStore: ReaderPreferencesStore | null = null
@@ -82,10 +92,19 @@ export struct KomaReaderLabPage {
   aboutToAppear(): void {
     const context = this.getUIContext().getHostContext() as common.UIAbilityContext
     if (!context.applicationInfo.debug) return
+    this.pageMounted = true
+    if (this.embedded) this.routeActive = this.hostRouteActive
+    this.observedCloseRequestId = this.embedded ? this.initialCloseRequestId : this.closeRequestId
     this.initialization?.cancel()
     if (this.request.readingChrome) this.session = null
     this.readerClosed = false
+    this.onHostCloseRequested()
+    if (this.readerClosed) return
     try {
+      if (this.embedded) {
+        if (this.hostWindow === null) throw new Error('missing_koma_reader_window_owner')
+        this.trialWindow = this.hostWindow
+      }
       const adapter = new KomaReaderLabAdapter(context.filesDir, context.cacheDir, this.catalogHost)
       this.adapter = adapter
       this.mediaActions = new ReaderMediaActions(
@@ -96,15 +115,52 @@ export struct KomaReaderLabPage {
       this.initialPageIndex = this.request.pageIndex
       const session = new ReaderPagedSession(adapter, adapter, adapter)
       if (this.request.readingChrome) {
-        this.trialWindow.open(context)
-        this.keepScreenOn = new ReaderKeepScreenOn(context)
-        void this.initializeSession(context, session)
+        this.pendingSession = session
+        if (this.embedded) this.syncInitializationActivity()
+        else {
+          this.acquireReadingWindow(context)
+          void this.initializeSession(context, session)
+        }
       } else {
         this.session = session
       }
     } catch (_error) {
       this.error = 'reader_lab_library_unavailable'
     }
+  }
+
+  @Monitor('hostRouteActive')
+  private syncHostRouteActivity(): void {
+    if (this.embedded) this.routeActive = this.hostRouteActive
+  }
+
+  @Monitor('closeRequestId')
+  private onHostCloseRequested(): void {
+    if (!this.pageMounted || !this.embedded || this.closeRequestId === this.observedCloseRequestId) return
+    this.observedCloseRequestId = this.closeRequestId
+    this.closeReader()
+  }
+
+  private syncInitializationActivity(): void {
+    if (!this.embedded || this.readerClosed || !this.request.readingChrome || this.session !== null) return
+    if (!this.routeActive || !this.labVisibility.foreground) {
+      this.initialization?.cancel()
+      this.initialization = null
+      return
+    }
+    const pending = this.pendingSession
+    if (pending !== null && this.initialization === null) {
+      const context = this.getUIContext().getHostContext() as common.UIAbilityContext
+      this.acquireReadingWindow(context)
+      void this.initializeSession(context, pending)
+    }
+  }
+
+  private acquireReadingWindow(context: common.UIAbilityContext): void {
+    if (this.readingWindowAcquired) return
+    this.readingWindowAcquired = true
+    this.trialWindow.open(context)
+    this.keepScreenOn = new ReaderKeepScreenOn(context)
   }
 
   private async initializeSession(context: common.UIAbilityContext, session: ReaderPagedSession): Promise<void> {
@@ -126,6 +182,7 @@ export struct KomaReaderLabPage {
       if (cancellation.isCancelled() || this.readerClosed) return
       session.setPolicy(KomaReaderInitialPolicy.resolve(preferences, column, this.request))
       this.session = session
+      this.pendingSession = null
       this.syncKeepScreenOn()
       this.syncVolumeKeys()
     } catch (_error) {
@@ -163,16 +220,20 @@ export struct KomaReaderLabPage {
   }
 
   aboutToDisappear(): void {
+    this.pageMounted = false
     this.readerClosed = true
     this.readerSettingsSheetShown = false
     this.chapterPickerShown = false
     this.chapterPickerTarget = null
     this.initialization?.cancel()
+    this.pendingSession?.close()
+    this.pendingSession = null
     this.volumeKeys.close()
     this.cancelChapterRequest()
     this.adapter?.close()
     void this.keepScreenOn?.close()
-    if (this.request.readingChrome) this.trialWindow.close()
+    // An embedded chapter borrows the route window; retiring it must not restore over its successor.
+    if (this.request.readingChrome && !this.embedded) this.trialWindow.close()
   }
 
   @Monitor('routeActive', 'labVisibility.foreground', 'readerMode.hydrated', 'readerMode.keepScreenAwake',
@@ -184,11 +245,14 @@ export struct KomaReaderLabPage {
   }
 
   private closeReader(): void {
+    if (this.readerClosed) return
     this.readerClosed = true
     this.readerSettingsSheetShown = false
     this.chapterPickerShown = false
     this.chapterPickerTarget = null
     this.initialization?.cancel()
+    this.pendingSession?.close()
+    this.pendingSession = null
     this.volumeKeys.close()
     this.cancelChapterRequest()
     void this.keepScreenOn?.close()
@@ -211,6 +275,9 @@ export struct KomaReaderLabPage {
   @Monitor('routeActive', 'labVisibility.foreground')
   onChapterActivityChanged(): void {
     if (!this.routeActive || !this.labVisibility.foreground) this.cancelChapterRequest()
+    // ArkUI keeps only the last @Monitor with identical paths in one class.
+    // Initialization and chapter cancellation must share this activity owner.
+    this.syncInitializationActivity()
   }
 
   private cancelChapterRequest(): void {
@@ -318,11 +385,15 @@ export struct KomaReaderLabPage {
     return [new ReaderHostAction('manga-detail', AppStrings.get('reader_action_return_to_detail'))]
   }
 
-  private openMangaDetail(id: string, source: ReaderUnitKey, navigation: number, sourceIndex: number): void {
-    const snapshot = this.session?.snapshot()
-    if (id !== 'manga-detail' || snapshot?.phase !== 'ready' || snapshot.unit === null ||
-      !snapshot.unit.key.equals(source) || snapshot.navigationRevision !== navigation ||
-      snapshot.anchor?.sourceIndexHint !== sourceIndex) return
+  private async openMangaDetail(id: string, source: ReaderUnitKey, navigation: number, sourceIndex: number): Promise<void> {
+    const current = (): boolean => {
+      const snapshot = this.session?.snapshot()
+      return id === 'manga-detail' && snapshot?.phase === 'ready' && snapshot.unit !== null &&
+        snapshot.unit.key.equals(source) && snapshot.navigationRevision === navigation &&
+        snapshot.anchor?.sourceIndexHint === sourceIndex
+    }
+    if (!current()) return
+    if (this.embedded && (!await this.prepareChromeShow(current) || !current())) return
     this.onOpenMangaDetail(source.work)
   }
 
@@ -516,8 +587,8 @@ export struct KomaReaderLabPage {
     }
   }
 
-  build() {
-    HdsNavDestination() {
+  @Builder
+  private ReaderBody() {
       Column() {
         if (this.session !== null) {
           if (this.request.readingChrome) {
@@ -545,7 +616,8 @@ export struct KomaReaderLabPage {
                 (id: string, source: ReaderUnitKey, navigation: number, sourceIndex: number): void => {
                   this.openMangaDetail(id, source, navigation, sourceIndex)
                 }),
-              active: this.routeActive && this.labVisibility.foreground && !this.readerSettingsSheetShown &&
+              closing: this.readerClosed,
+              active: !this.readerClosed && this.routeActive && this.labVisibility.foreground && !this.readerSettingsSheetShown &&
                 !this.chapterPickerShown,
               chapterNavigation: new ReaderChapterNavigation(this.chapterBusy,
                 (direction: 'previous' | 'next', sourceUnit: ReaderUnitKey): void => {
@@ -582,13 +654,15 @@ export struct KomaReaderLabPage {
               preloadDepth: this.readerMode.preloadPages,
               active: this.routeActive && this.labVisibility.foreground })
           }
+        } else if (this.embedded) {
+          KomaReaderLoading({ error: this.error.length > 0 ? AppStrings.get('manga_detail_chapter_pages_load_failed') : '' })
         } else {
           Text(this.error)
         }
       }
       .width('100%').height('100%')
-      .padding({ top: this.request.readingChrome && this.session !== null ? 0 : this.safeArea.topAvoidHeight + ThemeConstants.TITLE_BAR_HEIGHT,
-        bottom: this.request.readingChrome && this.session !== null ? 0 : this.safeArea.bottomAvoidHeight })
+      .padding({ top: this.embedded || (this.request.readingChrome && this.session !== null) ? 0 : this.safeArea.topAvoidHeight + ThemeConstants.TITLE_BAR_HEIGHT,
+        bottom: this.embedded || (this.request.readingChrome && this.session !== null) ? 0 : this.safeArea.bottomAvoidHeight })
       .bindSheet($$this.readerSettingsSheetShown, this.ReaderHostSettingsSheet, {
         detents: [SheetSize.MEDIUM, SheetSize.LARGE],
         showClose: false,
@@ -597,7 +671,15 @@ export struct KomaReaderLabPage {
         enableFloatingDragBar: true,
         onDisappear: (): void => { this.closeHostSettings() },
       })
-    }.titleBar({
+  }
+
+  build() {
+    if (this.embedded) {
+      this.ReaderBody()
+    } else {
+      HdsNavDestination() {
+        this.ReaderBody()
+      }.titleBar({
       avoidLayoutSafeArea: true,
       enableComponentSafeArea: false,
       content: { title: { mainTitle: $r('app.string.rkit_lab_title') } },
@@ -610,5 +692,38 @@ export struct KomaReaderLabPage {
     })
     .onShown((): void => { this.routeActive = true })
     .onHidden((): void => { this.routeActive = false })
+    }
+  }
+}
+
+/** Pending ordinary Reader preparation uses the established Reader loading presentation. */
+@ComponentV2
+export struct KomaReaderLoading {
+  @Param error: string = ''
+  @Local private readerMode: ReaderModeState = connectReaderModeState()
+
+  private loadingBackground(): ResourceColor {
+    if (this.readerMode.backgroundMode === 'gray') return ThemeConstants.READER_BACKGROUND_GRAY
+    if (this.readerMode.backgroundMode === 'white') return ThemeConstants.READER_BACKGROUND_WHITE
+    if (this.readerMode.backgroundMode === 'auto') return ThemeConstants.BG_PRIMARY
+    return ThemeConstants.READER_BACKGROUND_BLACK
+  }
+
+  private loadingForeground(): ResourceColor {
+    if (this.readerMode.backgroundMode === 'black') return ThemeConstants.READER_FOREGROUND_LIGHT
+    if (this.readerMode.backgroundMode === 'auto') return ThemeConstants.TEXT_PRIMARY
+    return ThemeConstants.READER_FOREGROUND_DARK
+  }
+
+  build() {
+    Column({ space: ThemeConstants.SPACE_MD }) {
+      if (this.error.length === 0) {
+        LoadingProgress().width(ThemeConstants.LOADING_SIZE_LARGE).height(ThemeConstants.LOADING_SIZE_LARGE)
+          .color(ThemeConstants.BRAND_PRIMARY)
+      }
+      Text(this.error.length > 0 ? this.error : AppStrings.get('source_pkg_loading'))
+        .fontSize(16).fontColor(this.loadingForeground())
+    }.width('100%').height('100%').justifyContent(FlexAlign.Center)
+      .padding(ThemeConstants.SPACE_XL).backgroundColor(this.loadingBackground())
   }
 }
