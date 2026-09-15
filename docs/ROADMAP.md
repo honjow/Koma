@@ -176,7 +176,15 @@ worktree 的 `.hermes-artifacts/20260915-entry-baseline/`；其中 `21-single-mo
 这不是默认替换许可。共享依赖现已固定为仓库内 `third_party/reader-kit` 的 `8112355`，
 并已验证公开远端取回、全新检出安装依赖及公开 Debug/Release 构建；28 项宿主检查通过，
 锁文件无漂移。构建日志位于 `.hermes-artifacts/20260915-reader-pin/`；这不是云端 CI 或
-额外设备验收。下一步为 103 平板普通入口、横竖屏和 Legacy 回退，之后核对三端最终候选矩阵。
+额外设备验收。
+
+固定子模块构建本身亦已上 197 设备核对：签名 Debug HAP
+`14ff92f7f129155b570d8a625e2fcdb54023f16dc36dc9d149b8fa8f72ef84ce` 就地安装后普通冷启动进入
+正常书架（`com.honjow.koma`、`library-title-layout`），应用内选择器仍提供共享阅读器，
+普通书架入口挂载 `rkit-reading-surface`（1 个）而 `legacy-reader-surface` 为 0，页码 `6 / 35`
+与既有基线一致；屏幕超时已恢复 10000ms、应用已强制停止、租约已释放。证据位于
+`.hermes-artifacts/20260915-pinned-submodule-build/device197__ALN-AL80/not-applicable/portrait-1260x2720/`。
+下一步为 103 平板普通入口、横竖屏和 Legacy 回退，之后核对三端最终候选矩阵。
 
 需要 1A 的 page model；可先用 mock/local asset。
 
