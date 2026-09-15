@@ -186,6 +186,13 @@ worktree 的 `.hermes-artifacts/20260915-entry-baseline/`；其中 `21-single-mo
 `.hermes-artifacts/20260915-pinned-submodule-build/device197__ALN-AL80/not-applicable/portrait-1260x2720/`。
 下一步为 103 平板普通入口、横竖屏和 Legacy 回退，之后核对三端最终候选矩阵。
 
+宿主套件回归基线（2026-09-15）：在固定子模块 `8112355` 的 `codex/koma-reader-refactor`
+分支上，6 条共享阅读器宿主套件（`test_shared_reader_*.cjs`）全部通过；其余 13 条通过。
+唯一失败的 `test_data_migration_policy.mjs` 属于既有陈旧断言，与本分支及共享阅读器无关：
+`ReaderSessionStore.ets` 已是 `READER_PROGRESS_PERSISTENCE_SCHEMA_VERSION = 3` 并处理 v1/v2/v3
+迁移与拒绝，而该断言仍写死 `= 2`；同一套件在 Koma 主检出同样失败，因此不能作为本分支的
+回归证据。是否需要更新该断言属独立决定，本轮未改动。
+
 需要 1A 的 page model；可先用 mock/local asset。
 
 范围：
