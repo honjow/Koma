@@ -173,7 +173,10 @@ worktree 的 `.hermes-artifacts/20260915-entry-baseline/`；其中 `21-single-mo
 `device197__ALN-AL80/not-applicable/portrait-1260x2720/`。28 项针对性检查和两种构建
 通过，但不代替三端最终替换矩阵。入口卡加载的已证实原因是相同参数的两个
 `@Monitor` 注册互相覆盖；初始化和章节取消现共用一个活动监听，测试防止重复注册。
-这不是默认替换许可；Koma 的共享依赖仍需改为版本管理内的固定版本，再进入最终候选验证。
+这不是默认替换许可。共享依赖现已固定为仓库内 `third_party/reader-kit` 的 `8112355`，
+并已验证公开远端取回、全新检出安装依赖及公开 Debug/Release 构建；28 项宿主检查通过，
+锁文件无漂移。构建日志位于 `.hermes-artifacts/20260915-reader-pin/`；这不是云端 CI 或
+额外设备验收。下一步为 103 平板普通入口、横竖屏和 Legacy 回退，之后核对三端最终候选矩阵。
 
 需要 1A 的 page model；可先用 mock/local asset。
 
