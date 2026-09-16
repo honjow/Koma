@@ -27,7 +27,8 @@ Koma 已经具备本地/私有库优先漫画阅读器的主骨架：书架、Re
 
 - 每条 lane 必须从 `origin/master` 开独立 worktree，不复用运行中 worktree。
 - Controller 只做调度、diff sanity、gate 汇总；实现、review、QA、integrate 使用独立 worker。
-- UI/设备相关 lane 必须在 `192.168.50.197:12345` 做真机 QA；不用 `192.168.50.237`。
+- UI/设备相关 lane 默认在 `192.168.50.197:12345` 做真机 QA；`192.168.50.237` 自 2026-09-16 起
+  也可用（用户授权的第二台测试机，用于大屏/旋转/响应式），但必须 `install -r` 且不得清数据。
 - 不伪造后台下载、后台调度、系统通知、tracker 连接、云同步。
 - 所有失败态必须 fail-closed，并且 UI 不暴露 token、路径、provider raw error、内部状态名。
 - 每条 lane 产物放 `.hermes-artifacts/<date>-<lane>/`，必须包含 prompt、log、result、gates、截图/layout（如适用）。
