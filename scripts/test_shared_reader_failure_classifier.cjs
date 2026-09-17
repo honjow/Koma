@@ -28,6 +28,6 @@ assert.ok(adapter.indexOf('classify(error: Error): ReaderAssetFailure') >= 0)
 assert.ok(adapter.indexOf('KomaReaderFailure.from(error)') >= 0)
 
 const page = fs.readFileSync(path.join(root, 'readerLab/KomaReaderLabPage.ets'), 'utf8')
-assert.ok(page.indexOf('new ReaderPagedSession(adapter, adapter, adapter, adapter)') >= 0)
+assert.ok(page.indexOf('new ReaderPagedSession(adapter, assetProvider, adapter, adapter)') >= 0)
 
 console.log('PASS Koma host failure classification and session wiring')
