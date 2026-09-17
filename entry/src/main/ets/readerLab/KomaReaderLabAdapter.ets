@@ -2,7 +2,9 @@ import {
   ReaderCatalog, ReaderAssetProvider, ReaderPreloadHost, ReaderUnitKey, ReaderUnit, ReaderPage,
   ReaderCancellation, ReaderAsset, ReaderAssetKind,
   ReaderImageInformation, ReaderImageInformationSource, ReaderImageShareTarget,
+  ReaderAssetFailure, ReaderAssetFailureClassifier,
 } from '@reader-kit/core'
+import { KomaReaderFailure } from './KomaReaderFailure'
 import { fileIo as fs } from '@kit.CoreFileKit'
 import { ReaderFileCropSource, ReaderFileInformation } from '@reader-kit/ui'
 import { InMemoryLibraryStore } from '../model/LibraryStore'
@@ -46,9 +48,14 @@ class KomaReaderFileInformation implements ReaderImageInformationSource {
 }
 
 /** D1 reads local/downloaded chapters. It never fetches chapter pages or persists the user's library. */
-export class KomaReaderLabAdapter implements ReaderCatalog, ReaderAssetProvider, ReaderPreloadHost {
+export class KomaReaderLabAdapter implements ReaderCatalog, ReaderAssetProvider, ReaderPreloadHost,
+  ReaderAssetFailureClassifier {
   cancellationMode: 'consumer-only' | 'transport' = 'consumer-only'
   informationSupported: boolean = true
+
+  classify(error: Error): ReaderAssetFailure {
+    return KomaReaderFailure.from(error)
+  }
   private library: InMemoryLibraryStore = new InMemoryLibraryStore()
   private configs: Map<string, ReaderSessionConfig> = new Map()
   private sources: Map<string, ReaderPageRenderSource[]> = new Map()

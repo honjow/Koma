@@ -76,7 +76,7 @@ assert.match(pageSource,
   /autoReadPolicy: new ReaderAutoReadPolicy\(true,[\s\S]*?this\.hostPreferences\?\.autoPageSeconds/)
 assert.match(pageSource,
   /cropPolicy: new ReaderCropPolicy\([\s\S]*?this\.hostPreferences\?\.trimPageMarginsEnabled/)
-assert.match(pageSource, /new ReaderPagedSession\(adapter, adapter, adapter\)/)
+assert.match(pageSource, /new ReaderPagedSession\(adapter, adapter, adapter, adapter\)/)
 assert.match(pageSource, /preloadDepth: this\.hostPreferences\?\.preloadPages \?\? this\.readerMode\.preloadPages/)
 assert.match(pageSource, /pageGap: this\.readerPageGap\(\)/)
 assert.match(pageSource, /const mode = this\.hostPreferences\?\.pageGapMode \?\? this\.readerMode\.pageGapMode[\s\S]*?if \(mode === 'compact'\) return 2[\s\S]*?if \(mode === 'wide'\) return 18[\s\S]*?return 8/)

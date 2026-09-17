@@ -113,7 +113,7 @@ export struct KomaReaderLabPage {
       )
       this.unitKey = adapter.initialKey(this.request.work, this.request.unit)
       this.initialPageIndex = this.request.pageIndex
-      const session = new ReaderPagedSession(adapter, adapter, adapter)
+      const session = new ReaderPagedSession(adapter, adapter, adapter, adapter)
       if (this.request.readingChrome) {
         this.pendingSession = session
         if (this.embedded) this.syncInitializationActivity()
