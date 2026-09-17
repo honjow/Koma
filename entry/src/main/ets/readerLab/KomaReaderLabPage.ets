@@ -1,12 +1,12 @@
 import { common } from '@kit.AbilityKit'
 import { HdsNavDestination } from '@kit.UIDesignKit'
-import { ReaderCancellation, ReaderDisplayPolicy, ReaderInputPort,
+import { ReaderCancellation, ReaderDisplayPolicy, ReaderInputPort, ReaderAssetProvider,
   ReaderObservedPosition, ReaderPagedSession, ReaderUnitKey, ReaderLayout } from '@reader-kit/core'
 import { ReaderHostAction, ReaderKeepScreenOn, ReaderLabRequest, ReaderLabSurface, ReaderSurface, ReaderTrialLayoutCommit, ReaderTrialWindow,
   ReaderLabVisibilityState, ReaderSystemImageSaveHost, ReaderVolumeKeys, connectReaderLabVisibility, ReaderTapAction,
   ReaderTapZonePreviewRegion, ReaderMediaActions, ReaderChapterNavigation, ReaderObservationSink,
   ReaderPreferenceSink, ReaderActivitySink, ReaderHostSettings, ReaderHostActions,
-  ReaderCenterAction, ReaderCropPolicy, ReaderAutoReadPolicy, ReaderTapPolicy } from '@reader-kit/ui'
+  ReaderCenterAction, ReaderCropPolicy, ReaderAutoReadPolicy, ReaderTapPolicy, ReaderLabAssetProbe } from '@reader-kit/ui'
 import { KomaReaderLabAdapter, KomaReaderLabChapterChoice } from './KomaReaderLabAdapter'
 import { KomaReaderLabImageShareHost } from './KomaReaderLabImageShareHost'
 import { connectLayoutSafeArea, LayoutSafeAreaState } from '../state/LayoutSafeAreaState'
@@ -107,13 +107,20 @@ export struct KomaReaderLabPage {
       }
       const adapter = new KomaReaderLabAdapter(context.filesDir, context.cacheDir, this.catalogHost)
       this.adapter = adapter
+      // Debug-only probe: a lab request may force one original failure so the shared
+      // failure panel can be exercised without a real broken source. Ordinary entries
+      // carry failurePage = -1 and stay on the plain adapter.
+      const assetProvider: ReaderAssetProvider = this.request.failurePage >= 0
+        ? new ReaderLabAssetProbe(adapter, this.request.thumbnailFailurePage, this.request.informationProbe,
+          this.request.failurePage, this.request.originalVariantProbe, this.request.assetFailureMessage)
+        : adapter
       this.mediaActions = new ReaderMediaActions(
         new KomaReaderLabImageShareHost(context, adapter),
         new ReaderSystemImageSaveHost(context),
       )
       this.unitKey = adapter.initialKey(this.request.work, this.request.unit)
       this.initialPageIndex = this.request.pageIndex
-      const session = new ReaderPagedSession(adapter, adapter, adapter, adapter)
+      const session = new ReaderPagedSession(adapter, assetProvider, adapter, adapter)
       if (this.request.readingChrome) {
         this.pendingSession = session
         if (this.embedded) this.syncInitializationActivity()
