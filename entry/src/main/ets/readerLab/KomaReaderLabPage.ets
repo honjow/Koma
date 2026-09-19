@@ -611,6 +611,11 @@ export struct KomaReaderLabPage {
                 this.sharedTapZonePreviewRegions(), this.tapZonePreviewRevision),
               autoReadPolicy: new ReaderAutoReadPolicy(true,
                 this.hostPreferences?.autoPageSeconds ?? this.readerMode.autoPageSeconds),
+              // The embedded host entry is Koma's ordinary production route and
+              // must open chrome-hidden like the legacy ReaderPage
+              // (chromeShown=false). Only the standalone Debug Lab route asks
+              // for the bars on the first frame.
+              initialChromeVisible: !this.embedded,
               pageTurnAnimation: this.request.pageTurnAnimationOverride ??
                 (this.hostPreferences?.pageTurnAnimation ?? this.readerMode.pageTurnAnimation),
               pageGap: this.readerPageGap(),
