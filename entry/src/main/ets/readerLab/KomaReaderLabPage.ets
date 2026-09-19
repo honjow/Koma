@@ -55,6 +55,7 @@ export struct KomaReaderLabPage {
   @Local private readerSettingsSheetShown: boolean = false
   @Local private hostPreferences: ReaderPreferences | null = null
   @Local private tapZonePreviewRevision: number = 0
+  @Local private chromeRepublishToken: number = 0
   @Local private chapterPickerShown: boolean = false
   @Local private chapterChoices: KomaReaderLabChapterChoice[] = []
   @Local private currentChapterUnit: string = ''
@@ -215,6 +216,13 @@ export struct KomaReaderLabPage {
     if (visible) return // The before-show gate restores the status area before chrome is painted.
     const fullscreen = this.hostPreferences?.fullscreen ?? this.readerMode.fullscreen
     this.trialWindow.setStatusBarVisible(!fullscreen)
+  }
+
+  // A fullscreen/background preference flip must reach the window through the
+  // surface's authoritative chrome event, not wait for the next chrome toggle.
+  @Monitor('readerMode.fullscreen', 'hostPreferences')
+  syncReaderPresentationWindow(): void {
+    this.chromeRepublishToken += 1
   }
 
   private async prepareChromeShow(isCurrent: () => boolean): Promise<boolean> {
@@ -616,6 +624,7 @@ export struct KomaReaderLabPage {
               // (chromeShown=false). Only the standalone Debug Lab route asks
               // for the bars on the first frame.
               initialChromeVisible: !this.embedded,
+              chromeRepublishToken: this.chromeRepublishToken,
               pageTurnAnimation: this.request.pageTurnAnimationOverride ??
                 (this.hostPreferences?.pageTurnAnimation ?? this.readerMode.pageTurnAnimation),
               pageGap: this.readerPageGap(),
