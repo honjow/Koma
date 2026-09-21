@@ -2582,6 +2582,7 @@ export struct ReaderPage {
   private copyPreferences(): ReaderPreferences {
     const p = this.preferences
     return {
+      readerImplementation: p.readerImplementation === 'legacy' ? 'legacy' : 'shared',
       pageMode: p.pageMode,
       readingDirection: p.readingDirection,
       themeMode: p.themeMode,

@@ -230,7 +230,8 @@ function createSettingsSections(): SettingsSection[] {
         { key: 'reader-tap-zone-preset', titleKey: 'settings_row_reader_tap_zone_preset_title', detailKey: 'settings_row_reader_tap_zone_preset_detail' },
         { key: 'reader-tap-zone-invert', titleKey: 'settings_row_reader_tap_zone_invert_title', detailKey: 'settings_row_reader_tap_zone_invert_detail' },
         { key: 'reader-page-gap', titleKey: 'settings_row_reader_page_gap_title', detailKey: 'settings_row_reader_page_gap_detail' },
-        { key: 'reader-wide-image-mode', titleKey: 'settings_row_reader_wide_image_mode_title', detailKey: 'settings_row_reader_wide_image_mode_detail' },
+        { key: 'reader-implementation', titleKey: 'reader_implementation_title', detailKey: 'reader_implementation_detail' },
+    { key: 'reader-wide-image-mode', titleKey: 'settings_row_reader_wide_image_mode_title', detailKey: 'settings_row_reader_wide_image_mode_detail' },
         { key: 'reader-volume-key-navigation', titleKey: 'settings_row_reader_volume_key_navigation_title', detailKey: 'settings_row_reader_volume_key_navigation_detail' },
         { key: 'reader-volume-key-behavior', titleKey: 'settings_row_reader_volume_key_behavior_title', detailKey: 'settings_row_reader_volume_key_behavior_detail' },
         { key: 'reader-reset-defaults', titleKey: 'settings_row_reader_reset_defaults_title', detailKey: 'settings_row_reader_reset_defaults_detail' },
@@ -1032,6 +1033,9 @@ export struct SettingsPage {
     void this.preferencesStore().load()
       .then((preferences: ReaderPreferences) => {
         this.applyReaderPreferences(preferences)
+        this.readerBackendSelection.seedFromPersistence(
+          preferences.readerImplementation === 'legacy'
+            ? KomaReaderBackend.LEGACY : KomaReaderBackend.SHARED)
         console.info('[Settings] step=load_preferences')
       })
       .catch((error: Error) => {
@@ -2624,15 +2628,31 @@ export struct SettingsPage {
     .width('100%')
   }
 
+  private readerImplementationValue(): KomaReaderBackend {
+    return this.readerBackendSelection.current(true)
+  }
+
+  private persistReaderImplementation(backend: KomaReaderBackend): void {
+    this.readerBackendSelection.select(backend, true)
+    void this.preferencesStore().saveReaderImplementation(
+      backend === KomaReaderBackend.LEGACY ? 'legacy' : 'shared')
+      .then(() => {
+        console.info('[Settings] step=save_reader_implementation value=' + backend)
+      })
+      .catch((error: Error) => {
+        console.warn('[Settings] step=save_reader_implementation_failed code=' + safeSettingsErrorCode(error))
+      })
+  }
+
   @Builder
   private ReaderBackendMenu(select: (action: () => void) => void) {
     Menu() {
       this.SelectionMenuItem(select, this.t('settings_reader_backend_legacy'),
-        this.readerBackendSelection.current(this.readerBackendSelectionAvailable) === KomaReaderBackend.LEGACY,
-        () => { this.readerBackendSelection.select(KomaReaderBackend.LEGACY, this.readerBackendSelectionAvailable) })
+        this.readerImplementationValue() === KomaReaderBackend.LEGACY,
+        () => { this.persistReaderImplementation(KomaReaderBackend.LEGACY) })
       this.SelectionMenuItem(select, this.t('settings_reader_backend_shared'),
-        this.readerBackendSelection.current(this.readerBackendSelectionAvailable) === KomaReaderBackend.SHARED,
-        () => { this.readerBackendSelection.select(KomaReaderBackend.SHARED, this.readerBackendSelectionAvailable) })
+        this.readerImplementationValue() === KomaReaderBackend.SHARED,
+        () => { this.persistReaderImplementation(KomaReaderBackend.SHARED) })
     }
   }
 
@@ -2641,7 +2661,7 @@ export struct SettingsPage {
     GroupedListSection() {
       ConciseListRow({
         title: this.t('settings_reader_backend'),
-        trailingText: this.readerBackendSelection.current(this.readerBackendSelectionAvailable) === KomaReaderBackend.SHARED
+        trailingText: this.readerImplementationValue() === KomaReaderBackend.SHARED
           ? this.t('settings_reader_backend_shared') : this.t('settings_reader_backend_legacy'),
         trailingDropdown: true,
         dropdownMenuEnabled: true,
@@ -2655,7 +2675,7 @@ export struct SettingsPage {
   @Builder
   private PaneSettings() {
     Column({ space: ThemeConstants.SPACE_LG }) {
-      if (this.pane === 'reader' && this.readerBackendSelectionAvailable) {
+      if (this.pane === 'reader') {
         this.ReaderBackendSelection()
       }
       ForEach(this.paneSections(), (section: SettingsSection) => {

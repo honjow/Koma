@@ -8,17 +8,28 @@ export enum KomaReaderBackend {
 /** Host-owned rehearsal choice, scoped to this process and captured per open. */
 @ObservedV2
 export class KomaReaderBackendSelectionState {
-  @Trace private backend: KomaReaderBackend = KomaReaderBackend.LEGACY
+  @Trace private backend: KomaReaderBackend = KomaReaderBackend.SHARED
+  @Trace version: number = 0
 
-  current(debugBuild: boolean): KomaReaderBackend {
-    return debugBuild ? this.backend : KomaReaderBackend.LEGACY
+  current(_debugBuild: boolean): KomaReaderBackend {
+    return this.backend
   }
 
-  select(backend: KomaReaderBackend, debugBuild: boolean): void {
-    const next = debugBuild && backend === KomaReaderBackend.SHARED
+  /** The persisted user choice seeds this state at startup; later selects update it in-process. */
+  seedFromPersistence(backend: KomaReaderBackend): void {
+    if (this.version > 0) return
+    this.backend = backend
+  }
+
+  select(backend: KomaReaderBackend, _debugBuild: boolean): void {
+    const next = backend === KomaReaderBackend.SHARED
       ? KomaReaderBackend.SHARED : KomaReaderBackend.LEGACY
-    if (next === this.backend) return
+    if (next === this.backend) {
+      this.version += 1
+      return
+    }
     this.backend = next
+    this.version += 1
   }
 }
 

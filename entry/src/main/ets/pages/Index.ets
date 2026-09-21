@@ -2,7 +2,9 @@ import { common } from '@kit.AbilityKit'
 import { KomaReaderLabPage, KomaReaderLoading } from '../readerLab/KomaReaderLabPage'
 import { KomaReaderCatalogHost } from '../readerLab/KomaReaderCatalogHost'
 import { KomaReaderBackend, connectKomaReaderBackendSelection } from '../state/KomaReaderBackendSelectionState'
+import { ReaderPreferencesStore, ReaderPreferences } from '../model/ReaderPreferencesStore'
 import { AppForegroundState, connectAppForegroundState } from '../state/AppForegroundState'
+import { shouldSuppressKomaDeviceVerificationBackgroundSideEffects } from '../state/KomaDeviceVerificationIsolation'
 import { ReaderLabLaunchState, ReaderLabRequest, ReaderTrialWindow, connectReaderLabLaunch } from '@reader-kit/ui'
 import { ReaderCancellation, ReaderObservedPosition, ReaderUnitKey } from '@reader-kit/core'
 import {
@@ -237,6 +239,17 @@ struct Index {
   private sharedReaderClosing: Promise<void> | null = null
   /** Present only while Reader was launched from an un-shelved source item. */
   private activeSourceReaderRequest?: SourceReaderSessionRequest
+
+  private seedReaderImplementationSelection(): void {
+    const context = this.getUIContext().getHostContext() as common.UIAbilityContext
+    new ReaderPreferencesStore(context).load().then((preferences: ReaderPreferences): void => {
+      connectKomaReaderBackendSelection().seedFromPersistence(
+        preferences.readerImplementation === 'legacy'
+          ? KomaReaderBackend.LEGACY
+          : KomaReaderBackend.SHARED,
+      )
+    }).catch((): void => {})
+  }
 
   private beginSharedReaderOpen(shouldPresentReader: boolean): void {
     if (shouldPresentReader) {
@@ -1616,6 +1629,7 @@ struct Index {
   aboutToAppear(): void {
     this.handleReaderLabLaunch()
     RouterHelper.setAppPathStack(this.appPathStack)
+    this.seedReaderImplementationSelection()
     RouterHelper.setReaderOpener(() => {
       this.openExternalReaderSession()
     })
@@ -1642,10 +1656,12 @@ struct Index {
         }
       }
     }
-    setTimeout(() => {
-      this.triggerAutomaticBackup(context)
-      this.triggerPendingTrackerProgressSync(context)
-    }, 250)
+    if (!shouldSuppressKomaDeviceVerificationBackgroundSideEffects()) {
+      setTimeout(() => {
+        this.triggerAutomaticBackup(context)
+        this.triggerPendingTrackerProgressSync(context)
+      }, 250)
+    }
   }
 
   @Builder
