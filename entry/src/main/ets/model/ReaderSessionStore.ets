@@ -1,6 +1,6 @@
 import { fileIo as fs } from '@kit.CoreFileKit'
 import { common } from '@kit.AbilityKit'
-import { continuationChapterIds } from './ReaderChapterSequence'
+import { continuationChapterIds, ReaderChapterOpenIntent } from './ReaderChapterSequence'
 import {
   Chapter,
   ChapterId,
@@ -424,6 +424,22 @@ export abstract class ReaderSessionStore {
   }
 
   protected chapterStatesChanged(): void {}
+
+  /**
+   * RDR-004-B: resolve a one-shot chapter open intent into the initial page.
+   * `start` is the chapter's first page, `end` its last (0 while a session has
+   * no pages yet, so an unavailable placeholder is never consumed as a real
+   * end landing), and `resume` keeps the existing stored position.
+   */
+  openPageIndex(config: ReaderSessionConfig, intent: ReaderChapterOpenIntent): number {
+    if (intent === 'start') {
+      return 0
+    }
+    if (intent === 'end') {
+      return config.totalPages > 0 ? config.totalPages - 1 : 0
+    }
+    return this.restorePageIndex(config)
+  }
 
   restorePageIndex(config: ReaderSessionConfig): number {
     const progress = this.getChapterProgress(config.comicId, config.chapterId)

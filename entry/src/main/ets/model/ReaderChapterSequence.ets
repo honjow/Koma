@@ -30,6 +30,30 @@ function readingOrder(chapter: ReaderChapterDescriptor): number | undefined {
     ? chapter.chapterNumber : undefined
 }
 
+/**
+ * One-shot chapter open intent for the natural chapter-edge crossing
+ * (RDR-004-B). `resume` keeps the saved position; `start`/`end` are only
+ * produced by a boundary crossing and are never persisted.
+ */
+export type ReaderChapterOpenIntent = 'resume' | 'start' | 'end'
+
+/**
+ * Automatic chapter-edge crossing needs a verified derived sequence: more than
+ * one entry and the current chapter inside it. `undefined` (legacy) and
+ * `[currentId]` (a contract without an eligible group) are explicit navigation
+ * only — `continuationChapterIds`'s `?? chapterIds` fallback must never be used
+ * to justify an automatic crossing.
+ */
+export function automaticContinuationChapterIds(
+  ids: string[] | undefined,
+  currentId: string,
+): string[] | undefined {
+  if (ids === undefined || ids.length <= 1) {
+    return undefined
+  }
+  return ids.includes(currentId) ? ids : undefined
+}
+
 /** undefined is legacy explicit navigation, not a verified automatic sequence. */
 export function continuationChapterIds(
   chapters: ReaderChapterDescriptor[],

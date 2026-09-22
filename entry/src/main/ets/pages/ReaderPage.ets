@@ -44,6 +44,7 @@ import { ReadingDirection } from '../model/ComicModels'
 import { CoverPixelMapLease, CoverPixelMapMemoryCache } from '../model/CoverPixelMapMemoryCache'
 import { ReaderTapZoneRegion, readerTapZoneRegions, resolveReaderTapZoneAction } from '../model/ReaderTapZoneGeometry'
 import { ReaderPageIndexDataSource } from '../model/ReaderPageIndexDataSource'
+import { ReaderChapterOpenIntent, automaticContinuationChapterIds } from '../model/ReaderChapterSequence'
 import {
   buildReaderDisplayPages,
   ReaderDisplayPage,
@@ -1636,12 +1637,19 @@ export struct ReaderPage {
   @Param webtoonMode: boolean = false
   @Param sessionStore: ReaderSessionStore = new InMemoryReaderSessionStore()
   @Param sessionConfig: ReaderSessionConfig = EMPTY_READER_SESSION_CONFIG
+  /**
+   * RDR-004-B landing hint for a crossed-into chapter. 'end' aligns a
+   * continuous session to the bottom of the last image instead of its top.
+   * Runtime only, recomputed by every open; never persisted.
+   */
+  @Param initialScrollAlign: 'start' | 'end' = 'start'
   @Event onPageIndexChange: (value: number) => void = (_value: number) => {}
   @Event onChromeVisibleChange: (value: boolean) => void = (_value: boolean) => {}
   @Event onWebtoonModeChange: (value: boolean) => void = (_value: boolean) => {}
   @Event onCloseReader: () => void = () => {}
   @Event onOpenMangaDetail: () => void = () => {}
-  @Event onOpenChapter: (chapterId: string) => void = (_chapterId: string) => {}
+  @Event onOpenChapter: (chapterId: string, intent?: ReaderChapterOpenIntent) => void =
+    (_chapterId: string, _intent?: ReaderChapterOpenIntent) => {}
   @Event $readerOpen: (value: boolean) => void = (_value: boolean) => {}
   @Event $routeVisible: (value: boolean) => void = (_value: boolean) => {}
   @Event $sessionLoading: (value: boolean) => void = (_value: boolean) => {}
@@ -2081,6 +2089,44 @@ export struct ReaderPage {
     this.refreshPageDataSources(true)
     if (resetPage && this.sessionConfig.totalPages > 0 && this.pageIndex >= this.sessionConfig.totalPages) {
       this.emitPageIndex(this.sessionConfig.totalPages - 1)
+    }
+    // RDR-004-B: a backward crossing lands on the previous chapter's END, and
+    // in continuous mode that means the last image's bottom edge on screen.
+    // One-shot placement driven by the session publication; never persisted.
+    if (this.effectiveMode() === ReaderMode.CONTINUOUS_SCROLL && this.initialScrollAlign === 'end' &&
+      this.sessionConfig.totalPages > 0 && this.pageIndex === this.sessionConfig.totalPages - 1) {
+      this.continuousInitialTarget = this.sessionConfig.totalPages - 1
+      setTimeout(() => {
+        if (this.effectiveMode() === ReaderMode.CONTINUOUS_SCROLL && this.continuousInitialTarget >= 0) {
+          this.listScroller.scrollToIndex(this.continuousInitialTarget, false, ScrollAlign.END)
+        }
+      }, 80)
+    }
+    // RDR-004-B: the symmetric forward case. A forward crossing opens the
+    // neighbour at its FIRST unit, but in continuous mode the retained List
+    // keeps the previous chapter's scroll offset (`initialIndex` is only
+    // honoured on first mount), so a longer previous chapter leaves the shorter
+    // neighbour clamped to its own end. The start landing therefore needs the
+    // same explicit placement the end landing gets, retried across the first
+    // layout passes because the new chapter's items are measured asynchronously.
+    // The latch is released on a deadline so it can never keep suppressing the
+    // forward boundary gate in isLastReadingUnitVisibleAndLoaded().
+    if (this.effectiveMode() === ReaderMode.CONTINUOUS_SCROLL && this.initialScrollAlign === 'start' &&
+      this.sessionConfig.totalPages > 0 && this.pageIndex === 0) {
+      this.continuousInitialTarget = 0
+      const placeContinuousStart = (): void => {
+        if (this.effectiveMode() === ReaderMode.CONTINUOUS_SCROLL && this.continuousInitialTarget === 0) {
+          this.listScroller.scrollToIndex(0, false, ScrollAlign.START)
+        }
+      }
+      setTimeout(placeContinuousStart, 80)
+      setTimeout(placeContinuousStart, 240)
+      setTimeout(placeContinuousStart, 480)
+      setTimeout(() => {
+        if (this.continuousInitialTarget === 0) {
+          this.continuousInitialTarget = -1
+        }
+      }, 800)
     }
   }
 
@@ -2855,8 +2901,10 @@ export struct ReaderPage {
     const action = resolveReaderTapZoneAction(this.preferences.tapZonePreset, this.preferences.tapZoneInvert, x, y, this.viewportWidth, this.viewportHeight)
     if (this.effectiveMode() === ReaderMode.CONTINUOUS_SCROLL) {
       if (action === 'previous' || action === 'left') {
+        if (this.crossToPreviousChapter()) return
         this.listScroller.scrollBy(0, -this.viewportHeight * READER_TAP_ZONE_SCROLL_RATIO)
       } else if (action === 'next' || action === 'right') {
+        if (this.crossToNextChapter()) return
         this.listScroller.scrollBy(0, this.viewportHeight * READER_TAP_ZONE_SCROLL_RATIO)
       } else {
         this.toggleChrome()
@@ -2866,15 +2914,15 @@ export struct ReaderPage {
     if (action === 'center' || action === 'menu') {
       this.toggleChrome()
     } else if (action === 'previous') {
-      this.previousPage()
+      this.userPreviousPage()
     } else if (action === 'next') {
-      this.nextPage()
+      this.userNextPage()
     } else if (action === 'left') {
-      if (this.preferences.readingDirection === ReadingDirection.RIGHT_TO_LEFT) this.nextPage()
-      else this.previousPage()
+      if (this.preferences.readingDirection === ReadingDirection.RIGHT_TO_LEFT) this.userNextPage()
+      else this.userPreviousPage()
     } else {
-      if (this.preferences.readingDirection === ReadingDirection.RIGHT_TO_LEFT) this.previousPage()
-      else this.nextPage()
+      if (this.preferences.readingDirection === ReadingDirection.RIGHT_TO_LEFT) this.userPreviousPage()
+      else this.userNextPage()
     }
   }
 
@@ -3023,8 +3071,8 @@ export struct ReaderPage {
     const next = volumeUp
       ? this.preferences.volumeKeyBehavior === 'up_next_down_previous'
       : this.preferences.volumeKeyBehavior === 'up_previous_down_next'
-    if (next) this.nextPage()
-    else this.previousPage()
+    if (next) this.userNextPage()
+    else this.userPreviousPage()
     return true
   }
 
@@ -3035,14 +3083,14 @@ export struct ReaderPage {
     }
     const down = (event: InputConsumerKeyEvent): void => {
       if (event.action === Action.DOWN) {
-        if (this.preferences.volumeKeyBehavior === 'up_previous_down_next') this.nextPage()
-        else this.previousPage()
+        if (this.preferences.volumeKeyBehavior === 'up_previous_down_next') this.userNextPage()
+        else this.userPreviousPage()
       }
     }
     const up = (event: InputConsumerKeyEvent): void => {
       if (event.action === Action.DOWN) {
-        if (this.preferences.volumeKeyBehavior === 'up_next_down_previous') this.nextPage()
-        else this.previousPage()
+        if (this.preferences.volumeKeyBehavior === 'up_next_down_previous') this.userNextPage()
+        else this.userPreviousPage()
       }
     }
     this.volumeDownConsumer = down
@@ -3088,6 +3136,82 @@ export struct ReaderPage {
 
   private continuationChapterIds(): string[] {
     return this.sessionConfig.continuationChapterIds ?? this.sessionConfig.chapterIds
+  }
+
+  /**
+   * RDR-004-B automatic neighbour table. Only A's derived continuation
+   * sequence authorises an automatic chapter-edge crossing; the
+   * `?? chapterIds` fallback above is legacy explicit navigation and must
+   * never be treated as a verified automatic sequence.
+   */
+  private automaticChapterIds(): string[] {
+    return automaticContinuationChapterIds(this.sessionConfig.continuationChapterIds, this.sessionConfig.chapterId) ?? []
+  }
+
+  private canCrossChapterBoundary(): boolean {
+    return this.readerOpen && this.routeVisible && !this.closing && !this.sessionLoading &&
+      this.sessionConfig.totalPages > 0 && !this.zoomed
+  }
+
+  /** The current reading unit is the chapter's real last one (and is loaded). */
+  private isAtForwardBoundaryUnit(): boolean {
+    if (!this.isLastReadingUnitVisibleAndLoaded(this.pageIndex)) {
+      return false
+    }
+    // Continuous scrolling adds its own real-bottom requirement: the last image
+    // being merely visible is not a request to leave the chapter.
+    return this.effectiveMode() === ReaderMode.CONTINUOUS_SCROLL ? this.listScroller.isAtEnd() : true
+  }
+
+  private isAtBackwardBoundaryUnit(): boolean {
+    if (this.usesDisplayPagePager()) {
+      return this.displayPages.length > 0 && this.activeDisplayIndex === 0
+    }
+    if (this.effectiveMode() === ReaderMode.DUAL_PAGE) {
+      return this.spreadIndexForPage(this.pageIndex) === 0
+    }
+    return this.listScroller.currentOffset().yOffset <= 0 && this.verticalVisibleStart <= 0
+  }
+
+  /**
+   * Forward edge: the next continuation chapter opens at its first unit and
+   * the old chapter's final position is persisted under its own id first.
+   */
+  private crossToNextChapter(): boolean {
+    if (!this.canCrossChapterBoundary() || !this.isAtForwardBoundaryUnit()) return false
+    const ids = this.automaticChapterIds()
+    const index = ids.indexOf(this.sessionConfig.chapterId)
+    if (index < 0 || index + 1 >= ids.length) return false
+    this.persistCurrentProgress()
+    this.onOpenChapter(ids[index + 1], 'start')
+    return true
+  }
+
+  /** Backward edge: the previous continuation chapter opens at its last unit. */
+  private crossToPreviousChapter(): boolean {
+    if (!this.canCrossChapterBoundary() || !this.isAtBackwardBoundaryUnit()) return false
+    const ids = this.automaticChapterIds()
+    const index = ids.indexOf(this.sessionConfig.chapterId)
+    if (index <= 0) return false
+    this.persistCurrentProgress()
+    this.onOpenChapter(ids[index - 1], 'end')
+    return true
+  }
+
+  /**
+   * A user's page-turn. At the chapter edge it crosses instead of clamping;
+   * everywhere else it is exactly the existing in-chapter page turn. Auto-page
+   * keeps calling the plain nextPage()/previousPage() so it stays
+   * chapter-bound.
+   */
+  private userNextPage(): void {
+    if (this.crossToNextChapter()) return
+    this.nextPage()
+  }
+
+  private userPreviousPage(): void {
+    if (this.crossToPreviousChapter()) return
+    this.previousPage()
   }
 
   private chapterTitles(): string[] {

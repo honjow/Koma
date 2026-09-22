@@ -28,7 +28,12 @@ import { LocalImportCoordinator } from '../import/LocalImportCoordinator'
 import { ReaderPage } from './ReaderPage'
 import { MangaDetailPage } from './MangaDetailPage'
 import { resolveSourceChapterList } from '../model/SourceChapterListResolver'
-import { ReaderChapterDescriptor, cloneReaderChapterDescriptor, continuationChapterIds } from '../model/ReaderChapterSequence'
+import {
+  ReaderChapterDescriptor,
+  ReaderChapterOpenIntent,
+  cloneReaderChapterDescriptor,
+  continuationChapterIds,
+} from '../model/ReaderChapterSequence'
 import { SourceBrowsePage } from './SourceBrowsePage'
 import { SourceSearchPage } from './SourceSearchPage'
 import { SOURCE_SEARCH_TITLE_BOTTOM_HEIGHT, SourceSearchTitleFieldContentBuilder } from '../components/SourceSearchTitleField'
@@ -206,6 +211,19 @@ struct Index {
   private automaticBackupChecked: boolean = false
   private pendingTrackerProgressChecked: boolean = false
   private readerOpenEpoch: number = 0
+  /**
+   * RDR-004-B one-shot chapter open intent. It is runtime-only state: it never
+   * enters ReaderSessionConfig, LibraryPersistence or any backup schema. The
+   * open entry points set it, the terminal session publication consumes it, and
+   * 'start'/'end' are only ever produced by a chapter-edge crossing.
+   */
+  private readerOpenIntent: ReaderChapterOpenIntent = 'resume'
+  /**
+   * Landing hint for the crossed-into chapter: 'end' asks a continuous session
+   * to align the last image's bottom. It follows the same session publication
+   * as readerOpenIntent and is recomputed by every open (no reset needed).
+   */
+  private readerOpenAlign: 'start' | 'end' = 'start'
   /** Present only while Reader was launched from an un-shelved source item. */
   private activeSourceReaderRequest?: SourceReaderSessionRequest
 
@@ -356,7 +374,9 @@ struct Index {
       nextSessionConfig = this.createSourceUnavailableReaderSessionConfig(comic, chapterId, nextSessionConfig)
     }
     this.readerSessionConfig = nextSessionConfig
-    this.readerPageIndex = this.readerSessionStore.restorePageIndex(nextSessionConfig)
+    this.readerPageIndex = this.readerSessionStore.openPageIndex(nextSessionConfig, this.readerOpenIntent)
+    // Terminal publication: the one-shot crossing intent has been consumed.
+    this.readerOpenIntent = 'resume'
     this.readerSessionLoading = false
   }
 
@@ -449,13 +469,17 @@ struct Index {
       this.logReaderSourcePagesUnavailable(resolution.reasonCode)
       const unavailableConfig = this.createUnavailableSourceReaderSessionConfig(preparedRequest)
       this.readerSessionConfig = unavailableConfig
-      this.readerPageIndex = this.readerSessionStore.restorePageIndex(unavailableConfig)
+      // An unavailable placeholder has no real pages: an 'end' intent must not
+      // be consumed as a successful landing (openPageIndex returns 0 there).
+      this.readerPageIndex = this.readerSessionStore.openPageIndex(unavailableConfig, this.readerOpenIntent)
       this.readerSessionLoading = false
       return
     }
     const nextSessionConfig = this.createSourceReaderSessionConfig(preparedRequest, resolution.pages)
     this.readerSessionConfig = nextSessionConfig
-    this.readerPageIndex = this.readerSessionStore.restorePageIndex(nextSessionConfig)
+    this.readerPageIndex = this.readerSessionStore.openPageIndex(nextSessionConfig, this.readerOpenIntent)
+    // Terminal publication for the transient source session.
+    this.readerOpenIntent = 'resume'
     // Persist only stable identity/title/cover/current-chapter metadata. Page
     // descriptors intentionally stay in the route-local Reader config.
     this.readerSessionStore.saveSourceHistory(sourceReadHistoryEntryFromRequest(preparedRequest))
@@ -476,7 +500,13 @@ struct Index {
       comic.sourceKind === ComicSourceKind.WEBDAV_REMOTE
   }
 
-  private async openReader(comicId: ComicId, chapterId?: string): Promise<void> {
+  private async openReader(
+    comicId: ComicId,
+    chapterId?: string,
+    intent: ReaderChapterOpenIntent = 'resume',
+  ): Promise<void> {
+    this.readerOpenIntent = intent
+    this.readerOpenAlign = intent === 'end' ? 'end' : 'start'
     this.activeSourceReaderRequest = undefined
     const comic = this.libraryStore.getComic(comicId)
     const targetChapterId = comic === undefined ? chapterId : this.readerChapterIdForOpen(comic, chapterId)
@@ -489,7 +519,7 @@ struct Index {
     this.readerSessionConfig = comic === undefined
       ? MOCK_LIBRARY_READER_SESSION
       : this.createReaderSessionConfigForOpen(comic, targetChapterId)
-    this.readerPageIndex = this.readerSessionStore.restorePageIndex(this.readerSessionConfig)
+    this.readerPageIndex = this.readerSessionStore.openPageIndex(this.readerSessionConfig, this.readerOpenIntent)
     // Starting a chapter from a detail page that was opened by Reader updates
     // the already-mounted Reader beneath it.  It is not a second Reader route.
     if (readerDetailVisible) {
@@ -505,10 +535,18 @@ struct Index {
     }
     if (comic !== undefined) {
       void this.prepareReaderSession(comicId, targetChapterId, openEpoch)
+    } else {
+      // No session preparation will follow, so this publication is terminal.
+      this.readerOpenIntent = 'resume'
     }
   }
 
-  private async openSourceReader(request: SourceReaderSessionRequest): Promise<void> {
+  private async openSourceReader(
+    request: SourceReaderSessionRequest,
+    intent: ReaderChapterOpenIntent = 'resume',
+  ): Promise<void> {
+    this.readerOpenIntent = intent
+    this.readerOpenAlign = intent === 'end' ? 'end' : 'start'
     const nextRequest = cloneSourceReaderSessionRequest(request)
     if (nextRequest.sourceId.trim().length === 0 ||
       nextRequest.mangaId.trim().length === 0 ||
@@ -525,7 +563,7 @@ struct Index {
     this.readerChromeVisible = false
     this.readerSessionLoading = true
     this.readerSessionConfig = this.createSourceReaderSessionConfig(nextRequest, [])
-    this.readerPageIndex = 0
+    this.readerPageIndex = this.readerSessionStore.openPageIndex(this.readerSessionConfig, this.readerOpenIntent)
     // This matches normal Reader chapter switching: a detail page opened from
     // Reader is popped before the already-mounted Reader receives its next
     // transient session.
@@ -1455,19 +1493,23 @@ struct Index {
         onOpenMangaDetail: () => {
           this.openReaderMangaDetail()
         },
-        onOpenChapter: (chapterId: string) => {
+        onOpenChapter: (chapterId: string, intent?: ReaderChapterOpenIntent) => {
           const sourceRequest = this.activeSourceReaderRequest
           if (sourceRequest !== undefined && sourceRequest.comicId === this.readerSessionConfig.comicId) {
             const nextRequest = sourceReaderSessionRequestForChapter(sourceRequest, chapterId)
             if (nextRequest !== undefined) {
-              void this.openSourceReader(nextRequest)
+              void this.openSourceReader(nextRequest, intent)
             }
             return
           }
           if (this.readerSessionConfig.comicId.length > 0) {
-            void this.openReader(this.readerSessionConfig.comicId, chapterId)
+            void this.openReader(this.readerSessionConfig.comicId, chapterId, intent)
           }
-        }
+        },
+        // RDR-004-B: a crossed-into chapter may ask a continuous session to
+        // land on the last image's bottom instead of its top. Runtime hint
+        // only; it follows the same session publication as the open intent.
+        initialScrollAlign: this.readerOpenAlign
       })
     }
     .hideTitleBar(true)
