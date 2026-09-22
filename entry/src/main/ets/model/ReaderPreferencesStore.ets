@@ -45,6 +45,20 @@ export interface ReaderPreferences {
 
 const READER_PREFERENCES_STORE_NAME: string = 'koma_reader_preferences_v1'
 export const SERIES_OVERRIDES_KEY: string = 'reader.seriesOverrides.v1'
+/**
+ * RDR-005 narrow per-series override. Deliberately a DIFFERENT key and a
+ * DIFFERENT shape from the legacy `SERIES_OVERRIDES_KEY` whole-preference
+ * snapshots: only the two settings a reader legitimately wants per book, so a
+ * per-book choice can never silently shadow the global defaults of the other
+ * twenty settings. The legacy payload stays readable for backup/migration and
+ * is still not consumed at runtime.
+ */
+export const SERIES_MODE_OVERRIDES_KEY: string = 'reader.seriesModeOverrides.v1'
+
+export interface ReaderSeriesModeOverride {
+  pageMode: ReaderPageMode
+  readingDirection: ReadingDirection
+}
 
 export const DEFAULT_READER_PREFERENCES: ReaderPreferences = {
   pageMode: 'single_page',
@@ -343,6 +357,81 @@ export function normalizeReaderSeriesPreferenceOverrides(value: string): Record<
   return normalized
 }
 
+/**
+ * RDR-005 normalize the narrow per-series override payload: only pageMode and
+ * readingDirection are accepted, so an old or hand-edited payload can never
+ * drag a whole preference snapshot back into the live reader. Corrupt rows and
+ * empty comic identifiers are discarded, matching the legacy normalizer.
+ */
+export function normalizeReaderSeriesModeOverrides(value: string): Record<string, ReaderSeriesModeOverride> {
+  if (value.length === 0) {
+    return {}
+  }
+  let parsed: Object
+  try {
+    parsed = JSON.parse(value) as Object
+  } catch (_error) {
+    return {}
+  }
+  if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) {
+    return {}
+  }
+  const source = parsed as Record<string, Object>
+  const normalized: Record<string, ReaderSeriesModeOverride> = {}
+  Object.keys(source).forEach((comicId: string) => {
+    const key = comicId.trim()
+    const raw = source[comicId]
+    if (key.length === 0 || raw === undefined || raw === null || typeof raw !== 'object' || Array.isArray(raw)) {
+      return
+    }
+    const record = raw as Record<string, Object>
+    const pageMode = record.pageMode
+    const readingDirection = record.readingDirection
+    if (typeof pageMode !== 'string' || typeof readingDirection !== 'string') {
+      return
+    }
+    normalized[key] = {
+      pageMode: normalizeReaderPageMode(pageMode),
+      readingDirection: normalizeReaderDirection(readingDirection, DEFAULT_READER_PREFERENCES.readingDirection),
+    }
+  })
+  return normalized
+}
+
+/** RDR-005 apply a comic's narrow override on top of the global defaults. */
+export function applyReaderSeriesModeOverride(
+  preferences: ReaderPreferences,
+  override: ReaderSeriesModeOverride | undefined,
+): ReaderPreferences {
+  if (override === undefined) {
+    return preferences
+  }
+  return {
+    pageMode: override.pageMode,
+    readingDirection: override.readingDirection,
+    themeMode: preferences.themeMode,
+    backgroundMode: preferences.backgroundMode,
+    showProgressControls: preferences.showProgressControls,
+    keepScreenAwake: preferences.keepScreenAwake,
+    fullscreen: preferences.fullscreen,
+    imageFitMode: preferences.imageFitMode,
+    imageScalingQuality: preferences.imageScalingQuality,
+    showPageNumber: preferences.showPageNumber,
+    pageTurnAnimation: preferences.pageTurnAnimation,
+    autoPageSeconds: preferences.autoPageSeconds,
+    preloadPages: preferences.preloadPages,
+    spreadLayoutMode: preferences.spreadLayoutMode,
+    columnMode: preferences.columnMode,
+    tapZonePreset: preferences.tapZonePreset,
+    tapZoneInvert: preferences.tapZoneInvert,
+    pageGapMode: preferences.pageGapMode,
+    trimPageMarginsEnabled: preferences.trimPageMarginsEnabled,
+    wideImageMode: preferences.wideImageMode,
+    volumeKeyNavigationEnabled: preferences.volumeKeyNavigationEnabled,
+    volumeKeyBehavior: preferences.volumeKeyBehavior,
+  }
+}
+
 export function getReaderPageModeLabel(mode: ReaderPageMode): string {
   if (mode === 'double_page') {
     return AppStrings.get('reader_page_mode_double')
@@ -539,13 +628,18 @@ export class ReaderPreferencesStore {
   }
 
   async loadForComic(comicId: string): Promise<ReaderPreferences> {
-    // NextE has one global ReadModeState writer.  Koma v1 stored complete
-    // per-comic snapshots, which made the Settings page appear to save while
-    // an old override silently won on the next reader open.  Keep the legacy
-    // payload readable for backup/migration, but do not let it shadow the
-    // canonical global reader state at runtime.
-    void comicId
-    return this.load()
+    // RDR-005: global defaults first, then this comic's NARROW override (mode
+    // and direction only).  The legacy whole-snapshot payload stays readable
+    // for backup/migration and is still never consumed here, so it can no
+    // longer shadow every other global setting.
+    const base = await this.load()
+    const override = await this.seriesModeOverride(comicId)
+    if (override === undefined) {
+      return base
+    }
+    const effective = normalizeReaderPreferences(applyReaderSeriesModeOverride(base, override))
+    publishReaderModeState(effective)
+    return effective
   }
 
   async save(preferences: ReaderPreferences): Promise<ReaderPreferences> {
@@ -581,11 +675,87 @@ export class ReaderPreferencesStore {
   }
 
   async saveForComic(comicId: string, preferences: ReaderPreferences): Promise<ReaderPreferences> {
-    // ReaderChrome and SettingsPage must share the same state owner.  The
-    // legacy method remains as an API-compatible alias for callers that still
-    // pass a comic id; the id is intentionally ignored.
-    void comicId
-    return this.save(preferences)
+    // RDR-005: the reader's own settings sheet is where a per-book choice is
+    // made, so its mode and direction become this comic's narrow override —
+    // and deliberately NOT the shared global default.  Writing them globally
+    // too would silently move every other book and make 恢复默认 restore the
+    // value that was just set, which is exactly the trap the host check caught.
+    const currentGlobal = await this.load()
+    const narrowed = this.cloneBase(preferences)
+    narrowed.pageMode = currentGlobal.pageMode
+    narrowed.readingDirection = currentGlobal.readingDirection
+    const normalized = await this.save(narrowed)
+    if (preferences.pageMode !== currentGlobal.pageMode ||
+      preferences.readingDirection !== currentGlobal.readingDirection) {
+      await this.writeSeriesModeOverride(comicId, {
+        pageMode: preferences.pageMode,
+        readingDirection: preferences.readingDirection,
+      })
+    } else {
+      // Nothing differs from the global default, so this comic must not carry
+      // an override (e.g. a background-only change in the reader sheet).
+      await this.clearSeriesModeOverride(comicId)
+    }
+    const effective = this.cloneBase(normalized)
+    effective.pageMode = preferences.pageMode
+    effective.readingDirection = preferences.readingDirection
+    publishReaderModeState(effective)
+    return effective
+  }
+
+  /** RDR-005 read back this comic's narrow override, if it has one. */
+  async seriesModeOverride(comicId: string): Promise<ReaderSeriesModeOverride | undefined> {
+    const key = comicId.trim()
+    if (key.length === 0) {
+      return undefined
+    }
+    return (await this.readSeriesModeOverrides())[key]
+  }
+
+  /** RDR-005 恢复默认: drop this comic's override and return the global defaults. */
+  async clearSeriesOverride(comicId: string): Promise<ReaderPreferences> {
+    await this.clearSeriesModeOverride(comicId)
+    return this.load()
+  }
+
+  private async clearSeriesModeOverride(comicId: string): Promise<void> {
+    const key = comicId.trim()
+    if (key.length === 0) {
+      return
+    }
+    const overrides = await this.readSeriesModeOverrides()
+    if (overrides[key] === undefined) {
+      return
+    }
+    const remaining: Record<string, ReaderSeriesModeOverride> = {}
+    Object.keys(overrides).forEach((id: string) => {
+      if (id !== key) {
+        remaining[id] = overrides[id]
+      }
+    })
+    await this.writeSeriesModeOverrides(remaining)
+  }
+
+  private async readSeriesModeOverrides(): Promise<Record<string, ReaderSeriesModeOverride>> {
+    const store = await this.preferences()
+    const raw = await store.get(SERIES_MODE_OVERRIDES_KEY, '') as string
+    return normalizeReaderSeriesModeOverrides(raw)
+  }
+
+  private async writeSeriesModeOverride(comicId: string, override: ReaderSeriesModeOverride): Promise<void> {
+    const key = comicId.trim()
+    if (key.length === 0) {
+      return
+    }
+    const overrides = await this.readSeriesModeOverrides()
+    overrides[key] = override
+    await this.writeSeriesModeOverrides(overrides)
+  }
+
+  private async writeSeriesModeOverrides(overrides: Record<string, ReaderSeriesModeOverride>): Promise<void> {
+    const store = await this.preferences()
+    await store.put(SERIES_MODE_OVERRIDES_KEY, JSON.stringify(overrides))
+    await store.flush()
   }
 
   private cloneBase(current: ReaderPreferences): ReaderPreferences {

@@ -1643,6 +1643,11 @@ export struct ReaderPage {
    * Runtime only, recomputed by every open; never persisted.
    */
   @Param initialScrollAlign: 'start' | 'end' = 'start'
+  /**
+   * RDR-005: true while this comic carries its own narrow mode/direction
+   * override, so the settings sheet can label it and offer 恢复默认.
+   */
+  @Local private seriesOverrideActive: boolean = false
   @Event onPageIndexChange: (value: number) => void = (_value: number) => {}
   @Event onChromeVisibleChange: (value: boolean) => void = (_value: boolean) => {}
   @Event onWebtoonModeChange: (value: boolean) => void = (_value: boolean) => {}
@@ -1837,6 +1842,8 @@ export struct ReaderPage {
       }
       this.preferencesStore = new ReaderPreferencesStore(context)
       this.preferences = await this.preferencesStore.loadForComic(this.sessionConfig.comicId)
+      this.seriesOverrideActive =
+        await this.preferencesStore.seriesModeOverride(this.sessionConfig.comicId) !== undefined
       // Pairing parity belongs to the active comic/chapter progress.  The
       // legacy global preference remains only as a migration fallback in the
       // store; never carry another comic's parity into a new session.
@@ -2655,6 +2662,16 @@ export struct ReaderPage {
 
   private onPreferencesChanged(change: ReaderChromePreferencesChange): void {
     this.applyPreferences(change.preferences, true)
+  }
+
+  /** RDR-005 恢复默认: drop this comic's override and apply the global defaults. */
+  private async resetSeriesOverride(): Promise<void> {
+    if (this.preferencesStore === undefined) {
+      return
+    }
+    const effective = await this.preferencesStore.clearSeriesOverride(this.sessionConfig.comicId)
+    this.seriesOverrideActive = false
+    this.applyPreferences(effective, false)
   }
 
   private applyPreferences(next: ReaderPreferences, persist: boolean): void {
@@ -3592,6 +3609,8 @@ export struct ReaderPage {
       },
       onModeChange: (mode: ReaderMode) => { this.onModeChange(mode) },
       onPreferencesChange: (change: ReaderChromePreferencesChange) => { this.onPreferencesChanged(change) },
+      seriesOverrideActive: this.seriesOverrideActive,
+      onResetSeriesOverride: (): void => { void this.resetSeriesOverride() },
       onCloseReader: () => { this.closeReaderRoute() },
       onOpenMangaDetail: () => { this.onOpenMangaDetail() },
       onResetZoom: () => { this.resetZoomState() },

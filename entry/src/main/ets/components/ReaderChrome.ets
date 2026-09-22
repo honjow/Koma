@@ -58,6 +58,9 @@ export struct ReaderChrome {
   @Event onOpenChapter: (chapterIndex: number) => void = (_chapterIndex: number) => {}
   @Event onModeChange: (mode: ReaderMode) => void = (_mode: ReaderMode) => {}
   @Event onPreferencesChange: (change: ReaderChromePreferencesChange) => void = (_change: ReaderChromePreferencesChange) => {}
+  /** RDR-005 narrow per-comic mode/direction override, owned by the host page. */
+  @Param seriesOverrideActive: boolean = false
+  @Event onResetSeriesOverride: () => void = () => {}
   @Event onCloseReader: () => void = () => {}
   @Event onOpenMangaDetail: () => void = () => {}
   @Event onResetZoom: () => void = () => {}
@@ -176,6 +179,8 @@ export struct ReaderChrome {
     ReaderSettingsContent({
       readerMode: this.readerMode,
       preferences: this.preferences,
+      seriesOverrideActive: this.seriesOverrideActive,
+      onResetSeriesOverride: (): void => { this.onResetSeriesOverride() },
       onPreferencesChange: (preferences: ReaderPreferences): void => {
         this.onPreferencesChange({ preferences: preferences })
       },

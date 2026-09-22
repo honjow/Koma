@@ -731,6 +731,8 @@
     { "name": "reader_image_share_failed", "value": "无法打开分享面板" },
     { "name": "reader_control_chapter", "value": "章节" },
     { "name": "reader_control_mode", "value": "模式" },
+    { "name": "reader_series_override_badge", "value": "本书" },
+    { "name": "reader_series_override_reset", "value": "恢复默认" },
     { "name": "reader_control_zoom", "value": "缩放" },
     { "name": "settings_reader_group_layout", "value": "布局" },
     { "name": "settings_reader_group_tap_zones", "value": "点击区域" },
