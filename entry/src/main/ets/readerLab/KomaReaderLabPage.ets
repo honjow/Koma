@@ -2,7 +2,7 @@ import { common } from '@kit.AbilityKit'
 import { HdsNavDestination } from '@kit.UIDesignKit'
 import { ReaderCancellation, ReaderDisplayPolicy, ReaderImageSaveHost, ReaderImageShareHost, ReaderInputPort,
   ReaderObservedPosition, ReaderPagedSession, ReaderUnitKey, ReaderLayout } from '@reader-kit/core'
-import { ReaderHostAction, ReaderKeepScreenOn, ReaderLabRequest, ReaderLabSurface, ReaderSurface, ReaderTrialLayoutCommit, ReaderTrialWindow,
+import { ReaderActivitySink, ReaderAutoReadPolicy, ReaderCenterAction, ReaderCropPolicy, ReaderChapterNavigation, ReaderHostAction, ReaderHostSettings, ReaderObservationSink, ReaderPreferenceSink, ReaderHostActions, ReaderMediaActions, ReaderKeepScreenOn, ReaderLabRequest, ReaderLabSurface, ReaderSurface, ReaderTrialLayoutCommit, ReaderTrialWindow,
   ReaderLabVisibilityState, ReaderSystemImageSaveHost, ReaderVolumeKeys, connectReaderLabVisibility, ReaderTapAction,
   ReaderTapZonePreviewRegion } from '@reader-kit/ui'
 import { KomaReaderLabAdapter, KomaReaderLabChapterChoice } from './KomaReaderLabAdapter'
@@ -65,6 +65,11 @@ export struct KomaReaderLabPage {
   private chapterPickerTarget: ReaderUnitKey | null = null
   private chapterChoiceIdentity: string = ''
   private chapterPickerScroller: Scroller = new Scroller()
+  private hostActionDispatch: ReaderHostActions = new ReaderHostActions(
+    [new ReaderHostAction('manga-detail', AppStrings.get('reader_action_return_to_detail'))],
+    (id: string, source: ReaderUnitKey, navigation: number, sourceIndex: number): void => {
+      this.openMangaDetail(id, source, navigation, sourceIndex)
+    })
 
   @Monitor('chapterPickerShown')
   private onChapterPickerVisibilityChanged(): void {
@@ -301,10 +306,6 @@ export struct KomaReaderLabPage {
     return title.length > 0 ? title : `${AppStrings.get('reader_control_chapter')} ${index + 1}`
   }
 
-  private readerHostActions(): ReaderHostAction[] {
-    return [new ReaderHostAction('manga-detail', AppStrings.get('reader_action_return_to_detail'))]
-  }
-
   private openMangaDetail(id: string, source: ReaderUnitKey, navigation: number, sourceIndex: number): void {
     const snapshot = this.session?.snapshot()
     if (id !== 'manga-detail' || snapshot?.phase !== 'ready' || snapshot.unit === null ||
@@ -511,43 +512,40 @@ export struct KomaReaderLabPage {
                 (this.hostPreferences?.imageScalingQuality ?? this.readerMode.imageScalingQuality) === 'high'
                   ? ImageInterpolation.High : ImageInterpolation.Medium,
               canvasBackground: this.readerCanvasBackground(), canvasForeground: this.readerCanvasForeground(),
-              input: this.input, imageShare: this.imageShare, imageSave: this.imageSave,
+              input: this.input, mediaActions: new ReaderMediaActions(this.imageShare, this.imageSave),
               tapZoneResolver: (x: number, y: number, layout: ReaderLayout): ReaderTapAction => this.resolveTapZone(x, y, layout),
               tapZonePreviewRegions: this.sharedTapZonePreviewRegions(),
               tapZonePreviewRevision: this.tapZonePreviewRevision,
-              autoReadAvailable: true,
-              autoReadSeconds: this.hostPreferences?.autoPageSeconds ?? this.readerMode.autoPageSeconds,
+              autoReadPolicy: new ReaderAutoReadPolicy(true,
+                this.hostPreferences?.autoPageSeconds ?? this.readerMode.autoPageSeconds),
               pageTurnAnimation: this.request.pageTurnAnimationOverride ??
                 (this.hostPreferences?.pageTurnAnimation ?? this.readerMode.pageTurnAnimation),
               pageGap: this.readerPageGap(),
               preloadDepth: this.hostPreferences?.preloadPages ?? this.readerMode.preloadPages,
-              cropBorders: this.hostPreferences?.trimPageMarginsEnabled ?? this.readerMode.trimPageMarginsEnabled,
-              cropAvailable: true,
-              hostSettingsAvailable: this.request.preferencesReadWrite,
-              onHostSettings: (): void => { this.openHostSettings() },
-              hostActions: this.readerHostActions(),
-              onHostAction: (id: string, source: ReaderUnitKey, navigation: number, sourceIndex: number): void => {
-                this.openMangaDetail(id, source, navigation, sourceIndex)
-              },
+              cropPolicy: new ReaderCropPolicy(
+                this.hostPreferences?.trimPageMarginsEnabled ?? this.readerMode.trimPageMarginsEnabled, true),
+              hostSettings: this.request.preferencesReadWrite
+                ? new ReaderHostSettings((): void => { this.openHostSettings() }) : null,
+              hostActions: this.hostActionDispatch,
               active: this.routeActive && this.labVisibility.foreground && !this.readerSettingsSheetShown &&
                 !this.chapterPickerShown,
-              chapterNavigationAvailable: true, chapterNavigationBusy: this.chapterBusy,
-              hostCenterActionAvailable: this.chapterChoices.length > 0,
-              hostCenterActionLabel: this.chapterControlLabel(),
-              onHostCenterAction: (sourceUnit: ReaderUnitKey, navigation: number): void => {
-                this.openChapterPicker(sourceUnit, navigation)
-              },
+              centerAction: this.chapterChoices.length > 0
+                ? new ReaderCenterAction(this.chapterControlLabel(),
+                  (sourceUnit: ReaderUnitKey, navigation: number): void => {
+                    this.openChapterPicker(sourceUnit, navigation)
+                  }) : null,
               showPageNumber: this.hostPreferences?.showPageNumber ?? this.readerMode.showPageNumber,
-              onObservedPosition: (position: ReaderObservedPosition): void => {
-                this.onObservedPosition(position)
-              },
-              onPolicyChanged: (policy: ReaderDisplayPolicy): void => { this.onPolicyChanged(policy) },
-              onCropChanged: (enabled: boolean): void => { this.onCropChanged(enabled) },
-              onChapter: (direction: 'previous' | 'next', sourceUnit: ReaderUnitKey): void => {
-                void this.switchChapter(direction, sourceUnit)
-              },
+              observation: new ReaderObservationSink(null,
+                (position: ReaderObservedPosition): void => { this.onObservedPosition(position) }),
+              preferenceSink: new ReaderPreferenceSink(
+                (policy: ReaderDisplayPolicy): void => { this.onPolicyChanged(policy) },
+                (enabled: boolean): void => { this.onCropChanged(enabled) }),
+              chapterNavigation: new ReaderChapterNavigation(this.chapterBusy,
+                (direction: 'previous' | 'next', sourceUnit: ReaderUnitKey): void => {
+                  void this.switchChapter(direction, sourceUnit)
+                }),
               beforeShowChrome: (isCurrent: () => boolean): Promise<boolean> => this.prepareChromeShow(isCurrent),
-              onChromeVisible: (visible: boolean): void => { this.syncChromeVisible(visible) },
+              activitySink: new ReaderActivitySink((visible: boolean): void => { this.syncChromeVisible(visible) }),
               topInset: this.safeArea.topAvoidHeight, bottomInset: this.safeArea.bottomAvoidHeight,
               accent: ThemeConstants.BRAND_PRIMARY, onClose: (): void => { this.closeReader() } })
             Row().width(1).height(1).position({ x: 0, y: 0 }).hitTestBehavior(HitTestMode.None)
