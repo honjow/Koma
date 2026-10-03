@@ -142,13 +142,26 @@ therefore fails after its pure-state assertions. It was not rewritten to make
 this UI slice pass. Signed compilation succeeded; full suite/continuous motion,
 long-list/chapter/network/auto-read and performance acceptance remain OPEN.
 
-### Shared thumbnail page-follow checkpoint — 2026-10-03
+### Shared navigation and thumbnail checkpoint — 2026-10-03
 
-Kit286ccdda52e846e024a6d849b009ee6e348b1a38 changes ReaderThumbnailRail only:
-retain initial position, skip duplicate targets, animate committed-page
-following, directly position slider preview. Signed Koma HAP SHA256
-71e27524fe81290ed70eb61969c5dbe2969675287480dbe52f8942a478315bed compiles,
-but is not installed/runtime-accepted for this pin. The current NextN pair
-observes animation and rejects rapid navigation (Shared32 versus Native30);
-that shared owner is active in the single work order. No Koma-specific source,
-menu, cache, chapter or default change. Full replacement remains OPEN.
+Current common kit1ef28d39863868b17b6f51ecb48f2c7aad1ccb3e retains animated
+rail following, repairs native interaction stamps through their own page
+commits/echoes, and removes the redundant arbitrary-chrome animation owner.
+Current Native NextN Slider/thumbnail call turnToReaderPage(target,false);
+NextE Slider/jumpToThumb call jumpToPage(index), default animated=false;
+Koma rail/onSeekPage use setPage(index,false). Adjacent turns retain their
+existing separate animation path. Shared now directly invokes existing
+seekSource for both chrome callbacks. No new interface/app branch, host
+menu, entry, geometry, cache or default change.
+
+Signed Koma HAPc5dbaeb12b9cf4a24280538e3798aebc39bbbd796ec0f1937bd667d9faa0f899
+compiles with the clean full pin; it is not yet installed/runtime-accepted.
+The initial abbreviated fetch failed and the old-pin build is excluded;
+full-SHA fetch and rebuilt artifact are recorded in direct-seek-binding.json
+in the NextN controller-owned ignored artifact root. Current same-HAP NextN
+Native/Shared rapid gestures return the same logical pages (bounded accepted,
+not FPS); Shared slider black-body shrank from29 to4 captured frames, while
+Native also has4. The remaining mount interval is unaccepted; no Shared-only
+retention cause is established. This is not consumer runtime acceptance here.
+The single cross-host work order governs the current simulator continuation;
+full replacement remains OPEN.
