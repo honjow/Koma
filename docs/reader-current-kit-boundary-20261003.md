@@ -4,6 +4,25 @@ Replacement remains **OPEN**. This is a scoped integration checkpoint, not a
 second execution queue or a full Legacy replacement conclusion. The live queue
 is NextN's `docs/plans/active/shared-reader-replacement-work-order.md`.
 
+Current2026-10-04 checkpoint: host baseea955ee4, common clean
+kit370064c95a5f8f6245afad16117726f33b1d5be7; final signed Debug HAP
+3c57ba39200ee1b8cb5b08d6b0f4339727a012bf6b4b86725c8f0949fa4aacc1 installed.
+Ordinary real eleven-page CBZ route1→six fast swipes to7→six reverse to1→Back
+→same ordinary reentry1→Back retains Detail1/11. Movie
+15be212edffc0d262a032fc3cb851963f57552544838bab2579a97c0d2404332,
+all ordered0-703/20sheets and raw87/206/280/308/570 reviewed; current terminal
+layout and screenshot confirmed rootcom.honjow.koma [0,117][1320,2232].
+Raw308 matches original archive007.jpg at7/11, so no wrong-page claim.
+Logical route accepted only: full black206/280 and initial/reentry
+image+stage87/570 remain OPEN. Earlier diagnostic HAP254ba01d/movie0ceac90a
+1→11→1 separately proves source2-10 decode before preceding selection;
+temporary observation logs are removed from the final common pin. All three
+final consumer builds pass and N/E ordinary routes are also bounded logical
+acceptance in the sole work order. Failed cached-drawing/microtask candidates
+remain withdrawn. No host menus/entry/cache/default changes, physical197 work,
+numeric FPS or equal-cache Native parity claim. Earlier checkpoints below are
+historical; next source-owned boundary is shared image/loading handoff.
+
 ## Candidate and source scope
 
 - Host base: `93771857ed9fcfaf0f1a7cbe3ce5680af0c0ace2`.
@@ -154,14 +173,13 @@ existing separate animation path. Shared now directly invokes existing
 seekSource for both chrome callbacks. No new interface/app branch, host
 menu, entry, geometry, cache or default change.
 
-Signed Koma HAPc5dbaeb12b9cf4a24280538e3798aebc39bbbd796ec0f1937bd667d9faa0f899
-compiles with the clean full pin; it is not yet installed/runtime-accepted.
-The initial abbreviated fetch failed and the old-pin build is excluded;
-full-SHA fetch and rebuilt artifact are recorded in direct-seek-binding.json
-in the NextN controller-owned ignored artifact root. Current same-HAP NextN
-Native/Shared rapid gestures return the same logical pages (bounded accepted,
-not FPS); Shared slider black-body shrank from29 to4 captured frames, while
-Native also has4. The remaining mount interval is unaccepted; no Shared-only
-retention cause is established. This is not consumer runtime acceptance here.
-The single cross-host work order governs the current simulator continuation;
-full replacement remains OPEN.
+Historical Koma HAPc5dbaeb12b9cf4a24280538e3798aebc39bbbd796ec0f1937bd667d9faa0f899
+compiled with that clean pin and was installed by install-r.
+Ordinary Library Continue2/2 -> thumbnails -> six alternating40000 body swipes2/1 -> direct Slider1/2 -> Back Library2. Movie0a943a8af6ad052d4b7263200a107d9ce0928e9bf13ed0d2e10ede71dd8b62dc; ordered frames1-431 reviewed through settled Library; cached leading frame0 belongs to prior NextE and is excluded. Current root com.honjow.koma [0,117][1320,2232], actual public-domain two-page Nemo CBZ. Bounded logical navigation accepted and no full-body black interval observed within this route; this is not Native-matched FPS/trajectory, >5page rolling-preload, chapter, network or auto-read acceptance.
+
+Current manifests, layout, screen, original movie/PTS and binding are retained
+under the NextN controller ignored artifact root `.hvigor/outputs/emulator-reader-20261003/`
+(`direct-seek-koma-live` and `host-recording/`).
+Initial abbreviated fetch failed and the old-pin build remains excluded.
+Full replacement remains OPEN in the single cross-host work order; existing
+entry/menu/default ownership is unchanged.
