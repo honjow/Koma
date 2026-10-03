@@ -56,6 +56,9 @@ export struct KomaReaderLabPage {
   @Local private hostPreferences: ReaderPreferences | null = null
   @Local private tapZonePreviewRevision: number = 0
   @Local private chromeRepublishToken: number = 0
+  private statusBarHideTimerId: number = -1
+  // Timer ownership must change before a pending show gate awaits window/layout work.
+  private statusBarHideEpoch: number = 0
   @Local private chapterPickerShown: boolean = false
   @Local private chapterChoices: KomaReaderLabChapterChoice[] = []
   @Local private currentChapterUnit: string = ''
@@ -121,7 +124,7 @@ export struct KomaReaderLabPage {
       )
       this.unitKey = adapter.initialKey(this.request.work, this.request.unit)
       this.initialPageIndex = this.request.pageIndex
-      const session = new ReaderPagedSession(adapter, assetProvider, adapter, adapter)
+      const session = new ReaderPagedSession(adapter, assetProvider, adapter, adapter, adapter)
       if (this.request.readingChrome) {
         this.pendingSession = session
         if (this.embedded) this.syncInitializationActivity()
@@ -139,7 +142,8 @@ export struct KomaReaderLabPage {
 
   @Monitor('hostRouteActive')
   private syncHostRouteActivity(): void {
-    if (this.embedded) this.routeActive = this.hostRouteActive
+    if (!this.embedded) return
+    this.routeActive = this.hostRouteActive
   }
 
   @Monitor('closeRequestId')
@@ -211,11 +215,33 @@ export struct KomaReaderLabPage {
     return action === 'center' ? 'menu' : action
   }
 
+  private clearStatusBarHideTimer(): void {
+    this.statusBarHideEpoch += 1
+    if (this.statusBarHideTimerId >= 0) {
+      clearTimeout(this.statusBarHideTimerId)
+      this.statusBarHideTimerId = -1
+    }
+  }
+
   /** Koma owns fullscreen preference semantics; reader-kit only sequences the window lease. */
   private syncChromeVisible(visible: boolean): void {
+    this.clearStatusBarHideTimer()
     if (visible) return // The before-show gate restores the status area before chrome is painted.
     const fullscreen = this.hostPreferences?.fullscreen ?? this.readerMode.fullscreen
-    this.trialWindow.setStatusBarVisible(!fullscreen)
+    if (!fullscreen) {
+      this.trialWindow.setStatusBarVisible(true)
+      return
+    }
+    // Match legacy ReaderPage: let chrome retire before the status-area resize.
+    // Doing both in the same frame leaves native Image nodes mounted but black on 237.
+    const hideEpoch = ++this.statusBarHideEpoch
+    this.statusBarHideTimerId = setTimeout((): void => {
+      this.statusBarHideTimerId = -1
+      if (hideEpoch !== this.statusBarHideEpoch || this.readerClosed || !this.routeActive ||
+        !this.labVisibility.foreground || this.session === null) return
+      const stillFullscreen = this.hostPreferences?.fullscreen ?? this.readerMode.fullscreen
+      this.trialWindow.setStatusBarVisible(!stillFullscreen)
+    }, 500)
   }
 
   // A fullscreen/background preference flip must reach the window through the
@@ -226,6 +252,10 @@ export struct KomaReaderLabPage {
   }
 
   private async prepareChromeShow(isCurrent: () => boolean): Promise<boolean> {
+    // The reader-kit show gate awaits a bar write/layout commit. Retire a prior
+    // hide now, rather than waiting for chromeChanged(true), so a queued 500ms
+    // callback cannot re-hide the bar while that gate is still pending.
+    this.clearStatusBarHideTimer()
     const current = (): boolean => isCurrent() && !this.readerClosed && this.routeActive &&
       this.labVisibility.foreground && !this.readerSettingsSheetShown && !this.chapterPickerShown && this.session !== null
     if (!current()) return false
@@ -237,6 +267,7 @@ export struct KomaReaderLabPage {
   aboutToDisappear(): void {
     this.pageMounted = false
     this.readerClosed = true
+    this.clearStatusBarHideTimer()
     this.readerSettingsSheetShown = false
     this.chapterPickerShown = false
     this.chapterPickerTarget = null
@@ -262,6 +293,7 @@ export struct KomaReaderLabPage {
   private closeReader(): void {
     if (this.readerClosed) return
     this.readerClosed = true
+    this.clearStatusBarHideTimer()
     this.readerSettingsSheetShown = false
     this.chapterPickerShown = false
     this.chapterPickerTarget = null
@@ -613,12 +645,16 @@ export struct KomaReaderLabPage {
                 (this.hostPreferences?.imageScalingQuality ?? this.readerMode.imageScalingQuality) === 'high'
                   ? ImageInterpolation.High : ImageInterpolation.Medium,
               canvasBackground: this.readerCanvasBackground(), canvasForeground: this.readerCanvasForeground(),
+              // Koma has no thumbnail root proxy; retain the public surface's stable layers.
+              canvasBackdropOpacity: 1,
+              bodyOpacity: 1,
               input: this.input, mediaActions: this.mediaActions,
               tapPolicy: new ReaderTapPolicy(
                 (x: number, y: number, layout: ReaderLayout): ReaderTapAction => this.resolveTapZone(x, y, layout),
                 this.sharedTapZonePreviewRegions(), this.tapZonePreviewRevision),
+              // Legacy accepts a canonical next source before its first decode; Reader-kit keeps the timer.
               autoReadPolicy: new ReaderAutoReadPolicy(true,
-                this.hostPreferences?.autoPageSeconds ?? this.readerMode.autoPageSeconds),
+                this.hostPreferences?.autoPageSeconds ?? this.readerMode.autoPageSeconds, 'source'),
               // The embedded host entry is Koma's ordinary production route and
               // must open chrome-hidden like the legacy ReaderPage
               // (chromeShown=false). Only the standalone Debug Lab route asks

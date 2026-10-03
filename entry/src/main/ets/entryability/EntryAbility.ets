@@ -18,6 +18,10 @@ import { configureSourceRuntimeHttpTransport } from '../sourceRuntime/SourceRunt
 import { configureSourceSettingsStore } from '../sourceRuntime/SourceSettingsStore'
 import { LayoutSafeAreaBridge } from '../state/LayoutSafeAreaState'
 import { AppForegroundStateBridge } from '../state/AppForegroundState'
+import {
+  captureKomaDeviceVerificationIsolation,
+  shouldSuppressKomaDeviceVerificationBackgroundSideEffects,
+} from '../state/KomaDeviceVerificationIsolation'
 import { AppStrings } from '../i18n/AppStrings'
 import { LanguageSettings } from '../i18n/LanguageSettings'
 
@@ -50,6 +54,7 @@ export default class EntryAbility extends UIAbility {
   private windowStageRef: window.WindowStage | null = null
   onCreate(want: Want, launchParam: AbilityConstant.LaunchParam): void {
     captureReaderLabWant(want, this.context.applicationInfo.debug)
+    captureKomaDeviceVerificationIsolation(want, this.context.applicationInfo.debug)
     this.labOrientation = labOrientationFromWant(want, this.context.applicationInfo.debug)
     void launchParam
     AppStrings.init(this.context)
@@ -64,6 +69,7 @@ export default class EntryAbility extends UIAbility {
 
   onNewWant(want: Want, launchParam: AbilityConstant.LaunchParam): void {
     captureReaderLabWant(want, this.context.applicationInfo.debug)
+    captureKomaDeviceVerificationIsolation(want, this.context.applicationInfo.debug)
     this.labOrientation = labOrientationFromWant(want, this.context.applicationInfo.debug)
     void launchParam
     this.applyPreferredOrientation()
@@ -94,18 +100,22 @@ export default class EntryAbility extends UIAbility {
         console.error('[EntryAbility] step=load_content_failed code=load_content_failed')
       }
       this.configureAvoidAreas(windowStage)
-      setTimeout(() => {
-        this.syncRemoteProgressInBackground()
-      }, 250)
+      if (!shouldSuppressKomaDeviceVerificationBackgroundSideEffects()) {
+        setTimeout(() => {
+          this.syncRemoteProgressInBackground()
+        }, 250)
+      }
     })
   }
 
   onForeground(): void {
     updateReaderLabForeground(true, this.context.applicationInfo.debug)
     AppForegroundStateBridge.onForeground()
-    setTimeout(() => {
-      this.syncRemoteProgressInBackground()
-    }, 250)
+    if (!shouldSuppressKomaDeviceVerificationBackgroundSideEffects()) {
+      setTimeout(() => {
+        this.syncRemoteProgressInBackground()
+      }, 250)
+    }
   }
 
   onBackground(): void {

@@ -1,5 +1,5 @@
 import {
-  ReaderCatalog, ReaderAssetProvider, ReaderPreloadHost, ReaderUnitKey, ReaderUnit, ReaderPage,
+  ReaderCatalog, ReaderAssetProvider, ReaderPreloadHost, ReaderAutoReadSourceHost, ReaderUnitKey, ReaderUnit, ReaderPage,
   ReaderCancellation, ReaderAsset, ReaderAssetKind,
   ReaderImageInformation, ReaderImageInformationSource, ReaderImageShareTarget,
   ReaderAssetFailure, ReaderAssetFailureClassifier,
@@ -48,7 +48,7 @@ class KomaReaderFileInformation implements ReaderImageInformationSource {
 }
 
 /** D1 reads local/downloaded chapters. It never fetches chapter pages or persists the user's library. */
-export class KomaReaderLabAdapter implements ReaderCatalog, ReaderAssetProvider, ReaderPreloadHost,
+export class KomaReaderLabAdapter implements ReaderCatalog, ReaderAssetProvider, ReaderPreloadHost, ReaderAutoReadSourceHost,
   ReaderAssetFailureClassifier {
   cancellationMode: 'consumer-only' | 'transport' = 'consumer-only'
   informationSupported: boolean = true
@@ -158,6 +158,8 @@ export class KomaReaderLabAdapter implements ReaderCatalog, ReaderAssetProvider,
     const source = this.sources.get(this.unitId(unit.key))?.[index]
     page.thumbnail.available = source !== undefined &&
       source.kind !== ReaderPageRenderKind.URI_PLACEHOLDER && source.imageUri.length > 0
+    page.bodySourceReady = source !== undefined &&
+      source.kind !== ReaderPageRenderKind.URI_PLACEHOLDER && source.imageUri.length > 0
     return page
   }
 
@@ -203,6 +205,18 @@ export class KomaReaderLabAdapter implements ReaderCatalog, ReaderAssetProvider,
     cancellation.check()
     if (this.closed) throw new Error('closed_koma_reader')
     console.info(`[KomaReaderPreload] source=${page.sourceIndex} result=ready`)
+  }
+
+  /** Koma's legacy gate is the canonical non-placeholder URI, not thumbnail state. */
+  async prepareAutoReadSource(page: ReaderPage, cancellation: ReaderCancellation): Promise<ReaderPage> {
+    cancellation.check()
+    const source = this.sources.get(this.unitId(page.unit))?.[page.sourceIndex]
+    if (source === undefined || source.kind === ReaderPageRenderKind.URI_PLACEHOLDER || source.imageUri.length === 0) {
+      throw new Error('koma_lab_body_source_unavailable')
+    }
+    const resolved = page.copy()
+    resolved.bodySourceReady = true
+    return resolved
   }
 
   async imageShareSource(target: ReaderImageShareTarget,

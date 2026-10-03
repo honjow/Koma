@@ -1420,6 +1420,8 @@
     { "name": "source_pkg_min_app_version", "value": "Minimum Koma version" },
     { "name": "source_pkg_management_section", "value": "Management" },
     { "name": "source_pkg_current_index", "value": "Current index" },
-    { "name": "source_pkg_batch_actions_heading", "value": "Batch actions" }
+    { "name": "source_pkg_batch_actions_heading", "value": "Batch actions" },
+    { "name": "reader_implementation_title", "value": "Reader implementation" },
+    { "name": "reader_implementation_detail", "value": "Choose the new shared reader or the legacy reader" }
   ]
 }
