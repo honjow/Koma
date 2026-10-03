@@ -1,3 +1,4 @@
+import { ReaderModeControl } from '../components/ReaderModeControl'
 import { common } from '@kit.AbilityKit'
 import { HdsNavDestination } from '@kit.UIDesignKit'
 import { ReaderCancellation, ReaderDisplayPolicy, ReaderInputPort, ReaderAssetProvider,
@@ -6,7 +7,7 @@ import { ReaderHostAction, ReaderKeepScreenOn, ReaderLabRequest, ReaderLabSurfac
   ReaderLabVisibilityState, ReaderSystemImageSaveHost, ReaderVolumeKeys, connectReaderLabVisibility, ReaderTapAction,
   ReaderTapZonePreviewRegion, ReaderMediaActions, ReaderChapterNavigation, ReaderObservationSink,
   ReaderPreferenceSink, ReaderActivitySink, ReaderHostSettings, ReaderHostActions,
-  ReaderCenterAction, ReaderCropPolicy, ReaderAutoReadPolicy, ReaderTapPolicy, ReaderLabAssetProbe } from '@reader-kit/ui'
+  ReaderModeControlParams, ReaderCenterAction, ReaderCropPolicy, ReaderAutoReadPolicy, ReaderTapPolicy, ReaderLabAssetProbe } from '@reader-kit/ui'
 import { KomaReaderLabAdapter, KomaReaderLabChapterChoice } from './KomaReaderLabAdapter'
 import { KomaReaderLabImageShareHost } from './KomaReaderLabImageShareHost'
 import { connectLayoutSafeArea, LayoutSafeAreaState } from '../state/LayoutSafeAreaState'
@@ -506,6 +507,25 @@ export struct KomaReaderLabPage {
     this.enqueuePreferenceWrite(KomaReaderPreferenceBridge.applyPolicy(current, policy))
   }
 
+  @Builder
+  private HostModeControl(params: ReaderModeControlParams) {
+    ReaderModeControl({
+      readerMode: params.policy.layout === 'continuous' ? ReaderMode.CONTINUOUS_SCROLL :
+        params.policy.layout === 'spread' ? ReaderMode.DUAL_PAGE :
+          params.policy.pagingAxis === 'vertical' ? ReaderMode.VERTICAL_PAGE : ReaderMode.SINGLE_PAGE,
+      controlEnabled: params.enabled,
+      onModeChange: (mode: ReaderMode): void => {
+        const policy = params.policy.copy()
+        policy.layout = mode === ReaderMode.CONTINUOUS_SCROLL ? 'continuous' :
+          mode === ReaderMode.DUAL_PAGE ? 'spread' : 'single'
+        policy.pagingAxis = mode === ReaderMode.VERTICAL_PAGE ? 'vertical' : 'horizontal'
+        if (mode === ReaderMode.CONTINUOUS_SCROLL) policy.direction = 'ltr'
+        params.onChange(policy)
+      },
+      onMenuVisible: (visible: boolean): void => { params.onMenuVisible(visible) },
+    })
+  }
+
   private onCropChanged(enabled: boolean): void {
     const current = this.hostPreferences
     if (!this.request.preferencesReadWrite || current === null || this.readerClosed || !this.routeActive ||
@@ -640,6 +660,7 @@ export struct KomaReaderLabPage {
         if (this.session !== null) {
           if (this.request.readingChrome) {
             ReaderSurface({ session: this.session, initialUnit: this.unitKey, initialIndex: this.initialPageIndex,
+              modeControl: (params: ReaderModeControlParams): void => { this.HostModeControl(params) },
               imageInterpolation: (this.hostPreferences?.imageScalingQuality ?? this.readerMode.imageScalingQuality) === 'low'
                 ? ImageInterpolation.Low :
                 (this.hostPreferences?.imageScalingQuality ?? this.readerMode.imageScalingQuality) === 'high'

@@ -85,3 +85,50 @@ mid-flight return and full Legacy parity remain unaccepted. Legacy fallback is
 retained. Do not extend this slice into repeated rapid-swipe tuning. Freeze the
 accepted local entry/layout/return boundaries and continue the next source-owned
 gap in the single cross-host work order.
+
+
+## 2026-10-03 — native mode control reuse — menu accepted, handoff OPEN
+
+Current clean kitbd392c0 lost the old kit1afe5e7 host modeControl port and
+ReadingModeMenu when NextNf34b0732 selected a48e119. The current NextN
+same-state ordinary source38 capture proves the bottom control opens a mixed
+RuntimeMenu; earlier capability mapping is not menu parity. This slice restores
+only the existing host mode port and reuses each app's exact native button/menu
+between its Legacy and Shared backends. No core/pager/rail/image/loading/entry
+change. N/E four absolute directions retain independent double-page preference;
+Koma retains its four page modes. Source candidate and three-consumer builds
+precede finite same-state emulator menu/live-update/return acceptance. Full
+replacement remains OPEN; no physical target or defaults changed.
+
+Current kitbcac6b8 and signed HAP
+`4fc1f7fba36d1a1a98322752ba49b62e4d8da81721b2abb056e64848a2a441a3`
+were installed with install-r. Ordinary Library Continue2 -> Shared reader
+shows Single / Dual / Vertical paged / Continuous scroll, no start icons and
+a Single check, matching the extracted native contract. The finite retained
+reader chain selected Dual -> Vertical -> Continuous -> Single and reopened
+each checked choice. Current same-HAP Legacy1 and Shared1 native menu screens
+were reviewed at the same1320x2232 viewport; menu semantics/check match, while
+the existing unrelated chrome layouts differ. No chrome redesign is accepted.
+
+Movie SHA-256 `efad54a7f8b2da0ad52d2c62a8d1b24953ce22f02d4e9fb209de61b2f4ceab48`
+(`mode-control-koma-live.mov` in the NextN controller-owned ignored artifact
+root) has620 original-PTS frames. Ordered frames0-431 were reviewed; later
+idle Settings frames432-619 were not reviewed. Enlarged100/174/240/320 show
+the four selected checks. Recorder lead-in frame0 is excluded. Protocol and
+recorder exit0 are injection/capture results, not acceptance by themselves.
+
+**Handoff rejected:** fully black body at continuous entry193-197 and return
+single263-265. The continuous chain also changes source2 to1. The latter is an
+observed retention failure against the declared chain; comparison with native
+last-row/visible-start semantics is still needed before claiming regression
+cause. Original Shared backend and Single mode were restored via native
+settings; one existing forward swipe then Back restored Library progress2,
+observed in the terminal current layout. Raw gate evidence remains under the
+existing `.hermes-artifacts/.../20261003-current-kit/mode-control-*` partition.
+No cache/library reset, debug-only reader route or new sample was used.
+
+The pre-existing preference-bridge script's source-shape assertion expects a
+four-argument session, whereas current source uses five; the unchanged suite
+therefore fails after its pure-state assertions. It was not rewritten to make
+this UI slice pass. Signed compilation succeeded; full suite/continuous motion,
+long-list/chapter/network/auto-read and performance acceptance remain OPEN.
