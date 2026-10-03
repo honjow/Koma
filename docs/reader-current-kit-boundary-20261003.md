@@ -117,11 +117,20 @@ idle Settings frames432-619 were not reviewed. Enlarged100/174/240/320 show
 the four selected checks. Recorder lead-in frame0 is excluded. Protocol and
 recorder exit0 are injection/capture results, not acceptance by themselves.
 
-**Handoff rejected:** fully black body at continuous entry193-197 and return
-single263-265. The continuous chain also changes source2 to1. The latter is an
-observed retention failure against the declared chain; comparison with native
-last-row/visible-start semantics is still needed before claiming regression
-cause. Original Shared backend and Single mode were restored via native
+**Handoff continuity unaccepted:** fully black body at continuous entry193-197
+and return single263-265. The continuous chain also changes source2 to1.
+Current same-HAP native Legacy comparator from source2 reproduces both:
+continuous black body60-63 (loading glyph60-61), then visible-start1/2, and
+single black body129-132 before page1 reappears133. Native List also reports
+the first visible row when the last row cannot align at the viewport start.
+Thus this is not evidence of a Shared-only source-retention regression;
+no Koma-specific correction is justified by that observation. These mount
+intervals still do not establish seamless picture continuity for either side.
+`mode-handoff-koma-legacy-live.mov` SHA256
+`13e6d6b10eef9708f0d06ab29d16ef49c3b593fb46af0608c7a24d5a2667b577`
+has400 original-PTS frames; ordered0-287 were reviewed through return to
+Library1 (settled234). Later idle288-399 was not reviewed; lead-in0 excluded.
+Original Shared backend and Single mode were restored via native
 settings; one existing forward swipe then Back restored Library progress2,
 observed in the terminal current layout. Raw gate evidence remains under the
 existing `.hermes-artifacts/.../20261003-current-kit/mode-control-*` partition.
@@ -132,3 +141,14 @@ four-argument session, whereas current source uses five; the unchanged suite
 therefore fails after its pure-state assertions. It was not rewritten to make
 this UI slice pass. Signed compilation succeeded; full suite/continuous motion,
 long-list/chapter/network/auto-read and performance acceptance remain OPEN.
+
+### Shared thumbnail page-follow checkpoint — 2026-10-03
+
+Kit286ccdda52e846e024a6d849b009ee6e348b1a38 changes ReaderThumbnailRail only:
+retain initial position, skip duplicate targets, animate committed-page
+following, directly position slider preview. Signed Koma HAP SHA256
+71e27524fe81290ed70eb61969c5dbe2969675287480dbe52f8942a478315bed compiles,
+but is not installed/runtime-accepted for this pin. The current NextN pair
+observes animation and rejects rapid navigation (Shared32 versus Native30);
+that shared owner is active in the single work order. No Koma-specific source,
+menu, cache, chapter or default change. Full replacement remains OPEN.
