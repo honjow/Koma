@@ -1,5 +1,6 @@
+import { ReaderModeControl } from './ReaderModeControl'
 import { SymbolGlyphModifier } from '@kit.ArkUI'
-import { ReaderMode, getReaderModeLabel } from '../model/ReaderSessionStore'
+import { ReaderMode } from '../model/ReaderSessionStore'
 import { ReaderPreferences, DEFAULT_READER_PREFERENCES } from '../model/ReaderPreferencesStore'
 import { ReadingDirection } from '../model/ComicModels'
 import { AppStrings } from '../i18n/AppStrings'
@@ -74,7 +75,6 @@ export struct ReaderChrome {
 
   @Local private settingsShown: boolean = false
   @Local private moreShown: boolean = false
-  @Local private modeShown: boolean = false
   @Local private imageInfoShown: boolean = false
   @Local private chapterPickerShown: boolean = false
   @Local private chapterPickerTarget: number = -1
@@ -187,16 +187,6 @@ export struct ReaderChrome {
       onClose: (): void => { this.closeSettings() },
       onRevealTapZones: (): void => { this.onVisibleChange(false) },
     })
-  }
-
-  @Builder
-  private ModeMenu() {
-    Menu() {
-      MenuItem({ content: getReaderModeLabel(ReaderMode.SINGLE_PAGE), symbolEndIcon: this.readerMode === ReaderMode.SINGLE_PAGE ? new SymbolGlyphModifier($r('sys.symbol.checkmark')) : undefined }).onClick(() => { this.onModeChange(ReaderMode.SINGLE_PAGE); this.modeShown = false })
-      MenuItem({ content: getReaderModeLabel(ReaderMode.DUAL_PAGE), symbolEndIcon: this.readerMode === ReaderMode.DUAL_PAGE ? new SymbolGlyphModifier($r('sys.symbol.checkmark')) : undefined }).onClick(() => { this.onModeChange(ReaderMode.DUAL_PAGE); this.modeShown = false })
-      MenuItem({ content: getReaderModeLabel(ReaderMode.VERTICAL_PAGE), symbolEndIcon: this.readerMode === ReaderMode.VERTICAL_PAGE ? new SymbolGlyphModifier($r('sys.symbol.checkmark')) : undefined }).onClick(() => { this.onModeChange(ReaderMode.VERTICAL_PAGE); this.modeShown = false })
-      MenuItem({ content: getReaderModeLabel(ReaderMode.CONTINUOUS_SCROLL), symbolEndIcon: this.readerMode === ReaderMode.CONTINUOUS_SCROLL ? new SymbolGlyphModifier($r('sys.symbol.checkmark')) : undefined }).onClick(() => { this.onModeChange(ReaderMode.CONTINUOUS_SCROLL); this.modeShown = false })
-    }
   }
 
   @Builder
@@ -429,8 +419,9 @@ export struct ReaderChrome {
             .width(44).height(44).backgroundColor(Color.Transparent).enabled(this.readerMode !== ReaderMode.CONTINUOUS_SCROLL).onClick(() => { this.onToggleAutoPage() })
           Button({ type: ButtonType.Circle, stateEffect: true }) { SymbolGlyph($r('sys.symbol.rectangle_grid_2x1')).fontSize(22).fontColor([this.thumbStripVisible ? ThemeConstants.BRAND_PRIMARY : Color.White]) }
             .width(44).height(44).backgroundColor(Color.Transparent).onClick(() => { this.onToggleThumbStrip() })
-          Button({ type: ButtonType.Circle, stateEffect: true }) { SymbolGlyph(this.readerMode === ReaderMode.CONTINUOUS_SCROLL ? $r('sys.symbol.scroll_vertical') : $r('sys.symbol.arrow_right_and_square')).fontSize(22).fontColor([Color.White]) }
-            .width(44).height(44).backgroundColor(Color.Transparent).onClick(() => { this.modeShown = true }).bindMenu(this.modeShown, this.ModeMenu, { placement: Placement.TopRight, onDisappear: () => { this.modeShown = false } })
+          ReaderModeControl({ readerMode: this.readerMode,
+            onModeChange: (mode: ReaderMode): void => { this.onModeChange(mode) },
+          })
         }.width('100%').height(52).padding({ left: ThemeConstants.SPACE_LG, right: ThemeConstants.SPACE_LG }).alignItems(VerticalAlign.Center)
       }
       .width('100%').height(this.bottomInset + 104).padding({ left: ThemeConstants.SPACE_LG, right: ThemeConstants.SPACE_LG, top: ThemeConstants.SPACE_SM, bottom: this.bottomInset + ThemeConstants.SPACE_SM }).backgroundColor('#CC000000')

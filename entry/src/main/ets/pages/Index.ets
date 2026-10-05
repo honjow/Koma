@@ -1,7 +1,12 @@
 import { common } from '@kit.AbilityKit'
-import { KomaReaderLabPage } from '../readerLab/KomaReaderLabPage'
-import { ReaderLabLaunchState, ReaderLabRequest, connectReaderLabLaunch } from '@reader-kit/ui'
-import { ReaderObservedPosition } from '@reader-kit/core'
+import { KomaReaderLabPage, KomaReaderLoading } from '../readerLab/KomaReaderLabPage'
+import { KomaReaderCatalogHost } from '../readerLab/KomaReaderCatalogHost'
+import { KomaReaderBackend, connectKomaReaderBackendSelection } from '../state/KomaReaderBackendSelectionState'
+import { ReaderPreferencesStore, ReaderPreferences } from '../model/ReaderPreferencesStore'
+import { AppForegroundState, connectAppForegroundState } from '../state/AppForegroundState'
+import { shouldSuppressKomaDeviceVerificationBackgroundSideEffects } from '../state/KomaDeviceVerificationIsolation'
+import { ReaderLabLaunchState, ReaderLabRequest, ReaderTrialWindow, connectReaderLabLaunch } from '@reader-kit/ui'
+import { ReaderCancellation, ReaderObservedPosition, ReaderUnitKey } from '@reader-kit/core'
 import {
   BlurStrategy,
   hdsMaterial,
@@ -108,6 +113,7 @@ import {
   InMemoryReaderSessionStore,
   ReaderSessionConfig,
   ReaderSessionStore,
+  cloneReaderSessionConfig,
   createReaderSessionConfigFromComic,
   getReaderSessionPageId,
   sortedReaderChapters,
@@ -155,6 +161,23 @@ interface BackupTaskRouteParam {
   fileName: string
 }
 
+/** One external Reader open. Internal chapter commits never replace this identity. */
+class KomaSharedReaderEntry {
+  readonly epoch: number
+  readonly request: ReaderLabRequest
+  readonly initialCloseRequestId: number
+
+  constructor(epoch: number, config: ReaderSessionConfig, pageIndex: number, initialCloseRequestId: number) {
+    this.epoch = epoch
+    this.initialCloseRequestId = initialCloseRequestId
+    this.request = new ReaderLabRequest(config.comicId, config.chapterId, pageIndex)
+    this.request.readingChrome = true
+    this.request.progressReadWrite = true
+    this.request.preferencesReadWrite = true
+    this.request.pageIndexProvided = true
+  }
+}
+
 @Entry
 @ComponentV2
 struct Index {
@@ -183,6 +206,11 @@ struct Index {
   @Local private readerClosing: boolean = false
   @Local private readerRouteVisible: boolean = false
   @Local private readerSessionLoading: boolean = false
+  @Local private readerBackend: KomaReaderBackend = KomaReaderBackend.LEGACY
+  // One lease per ordinary route, retained while detail replaces a chapter body.
+  @Local private sharedReaderWindow: ReaderTrialWindow | null = null
+  @Local private sharedReaderEntries: KomaSharedReaderEntry[] = []
+  @Local private readerForeground: AppForegroundState = connectAppForegroundState()
   @Local private readerCloseRequestId: number = 0
   @Local private readerPageIndex: number = 0
   @Local private readerChromeVisible: boolean = false
@@ -224,8 +252,123 @@ struct Index {
    * as readerOpenIntent and is recomputed by every open (no reset needed).
    */
   private readerOpenAlign: 'start' | 'end' = 'start'
+  private sharedReaderPreparation: ReaderCancellation | null = null
+  private sharedReaderResumePending: boolean = false
+  private sharedReaderClosing: Promise<void> | null = null
   /** Present only while Reader was launched from an un-shelved source item. */
   private activeSourceReaderRequest?: SourceReaderSessionRequest
+
+  private seedReaderImplementationSelection(): void {
+    const context = this.getUIContext().getHostContext() as common.UIAbilityContext
+    new ReaderPreferencesStore(context).load().then((preferences: ReaderPreferences): void => {
+      connectKomaReaderBackendSelection().seedFromPersistence(
+        preferences.readerImplementation === 'legacy'
+          ? KomaReaderBackend.LEGACY
+          : KomaReaderBackend.SHARED,
+      )
+    }).catch((): void => {})
+  }
+
+  private beginSharedReaderOpen(shouldPresentReader: boolean): void {
+    if (shouldPresentReader) {
+      const context = this.getUIContext().getHostContext() as common.UIAbilityContext
+      this.readerBackend = connectKomaReaderBackendSelection().current(context.applicationInfo.debug)
+      this.sharedReaderWindow = this.readerBackend === KomaReaderBackend.SHARED
+        ? new ReaderTrialWindow(null, true) : null
+    }
+    this.sharedReaderPreparation?.cancel()
+    this.sharedReaderPreparation = null
+    this.sharedReaderResumePending = false
+    this.sharedReaderEntries = []
+    if (this.readerBackend === KomaReaderBackend.SHARED) {
+      this.sharedReaderPreparation = new ReaderCancellation()
+      if (!this.readerForeground.active) {
+        this.sharedReaderPreparation.cancel()
+        this.sharedReaderResumePending = true
+      }
+    }
+  }
+
+  private readerPreparationCurrent(epoch: number): boolean {
+    return epoch === this.readerOpenEpoch && this.readerOpen && !this.readerClosing &&
+      (this.readerBackend !== KomaReaderBackend.SHARED ||
+        (this.sharedReaderPreparation !== null && !this.sharedReaderPreparation.isCancelled()))
+  }
+
+  private publishSharedReaderEntry(epoch: number): void {
+    if (this.readerBackend !== KomaReaderBackend.SHARED || !this.readerPreparationCurrent(epoch) ||
+      this.readerSessionLoading) return
+    this.sharedReaderEntries = [new KomaSharedReaderEntry(epoch, this.readerSessionConfig,
+      this.readerPageIndex, this.readerCloseRequestId)]
+    this.sharedReaderPreparation = null
+  }
+
+  private sharedReaderEntryCurrent(epoch: number): boolean {
+    return this.readerBackend === KomaReaderBackend.SHARED && this.readerOpen && !this.readerClosing &&
+      this.sharedReaderEntries.length === 1 && this.sharedReaderEntries[0].epoch === epoch
+  }
+
+  private async prepareCurrentSharedReader(epoch: number): Promise<void> {
+    if (!this.readerPreparationCurrent(epoch)) return
+    try {
+      const source = this.activeSourceReaderRequest
+      if (source !== undefined) await this.prepareSourceReaderSession(source, epoch)
+      else await this.prepareReaderSession(this.readerSessionConfig.comicId, this.readerSessionConfig.chapterId, epoch)
+    } catch (_error) {
+      if (!this.readerPreparationCurrent(epoch)) return
+      console.warn('[Reader] shared_session_prepare_failed')
+      this.showToast(AppStrings.get('manga_detail_chapter_pages_load_failed'))
+      this.closeReader()
+    }
+  }
+
+  private closeSharedReaderEntry(epoch: number): void {
+    if (!this.sharedReaderEntryCurrent(epoch) || !this.isReaderRouteVisible()) return
+    void this.closeSharedReaderRoute()
+  }
+
+  private closeSharedReaderRoute(): Promise<void> {
+    if (this.sharedReaderClosing !== null) return this.sharedReaderClosing
+    if (!this.readerOpen || this.readerBackend !== KomaReaderBackend.SHARED || !this.isReaderRouteVisible()) {
+      return Promise.resolve()
+    }
+    const ownedWindow = this.sharedReaderWindow
+    this.readerClosing = true
+    this.readerOpenEpoch += 1
+    this.sharedReaderPreparation?.cancel()
+    this.sharedReaderPreparation = null
+    this.sharedReaderResumePending = false
+    this.readerSessionLoading = false
+    this.readerCloseRequestId += 1
+    const closing = this.restoreSharedReaderRoute(ownedWindow)
+    this.sharedReaderClosing = closing
+    return closing
+  }
+
+  private async restoreSharedReaderRoute(ownedWindow: ReaderTrialWindow | null): Promise<void> {
+    // Visibility is not ownership: a hidden/retired chapter can still have acquired this window.
+    await ownedWindow?.close()
+    if (this.sharedReaderWindow !== ownedWindow) return
+    this.popReaderRouteAfterSystemBarRestore(true)
+    this.sharedReaderClosing = null
+  }
+
+  @Monitor('readerForeground.active')
+  private onSharedReaderForegroundChanged(): void {
+    if (this.readerBackend !== KomaReaderBackend.SHARED || !this.readerOpen || this.readerClosing) return
+    if (!this.readerForeground.active) {
+      if (this.sharedReaderPreparation !== null) {
+        this.sharedReaderPreparation.cancel()
+        this.sharedReaderResumePending = true
+      }
+      return
+    }
+    if (!this.sharedReaderResumePending) return
+    this.sharedReaderResumePending = false
+    this.sharedReaderPreparation = new ReaderCancellation()
+    const epoch = ++this.readerOpenEpoch
+    void this.prepareCurrentSharedReader(epoch)
+  }
 
   @Monitor('layoutSafeArea.keyboardHeight')
   private updateRootTabBarForKeyboard(): void {
@@ -352,6 +495,7 @@ struct Index {
     if (originalComic === undefined) {
       if (openEpoch === this.readerOpenEpoch) {
         this.readerSessionLoading = false
+        this.publishSharedReaderEntry(openEpoch)
       }
       return
     }
@@ -360,13 +504,14 @@ struct Index {
     if (!offlineReaderPagesReady) {
       sourcePagesReady = await this.ensureReaderSourceChapterPages(originalComic, chapterId)
     }
+    if (this.readerBackend === KomaReaderBackend.SHARED && !this.readerPreparationCurrent(openEpoch)) return
     const comic = this.libraryStore.getComic(comicId) ?? originalComic
     try {
       await installReaderRemoteHeadersForComic(getContext(this) as common.UIAbilityContext, comic)
     } catch (_error) {
       console.error('[Favorite] step=open_remote_reader_headers_failed code=remote_headers_failed')
     }
-    if (openEpoch !== this.readerOpenEpoch || !this.readerOpen || this.readerClosing) {
+    if (!this.readerPreparationCurrent(openEpoch)) {
       return
     }
     let nextSessionConfig = this.createReaderSessionConfigForOpen(comic, chapterId)
@@ -378,6 +523,7 @@ struct Index {
     // Terminal publication: the one-shot crossing intent has been consumed.
     this.readerOpenIntent = 'resume'
     this.readerSessionLoading = false
+    this.publishSharedReaderEntry(openEpoch)
   }
 
   private createSourceReaderSessionConfig(
@@ -446,6 +592,7 @@ struct Index {
         console.warn('[ReaderSource] chapter catalog unresolved')
       }
     }
+    if (this.readerBackend === KomaReaderBackend.SHARED && !this.readerPreparationCurrent(openEpoch)) return
     // Do not share the library hydrator's result here. Source hosts may issue
     // short-lived descriptors; a transient Reader open always resolves pages
     // afresh and never writes them to LibraryStore.
@@ -456,9 +603,7 @@ struct Index {
       chapterId: request.chapterId,
     })
     const activeRequest = this.activeSourceReaderRequest
-    if (openEpoch !== this.readerOpenEpoch ||
-      !this.readerOpen ||
-      this.readerClosing ||
+    if (!this.readerPreparationCurrent(openEpoch) ||
       activeRequest === undefined ||
       activeRequest.comicId !== request.comicId ||
       activeRequest.chapterId !== request.chapterId) {
@@ -473,6 +618,7 @@ struct Index {
       // be consumed as a successful landing (openPageIndex returns 0 there).
       this.readerPageIndex = this.readerSessionStore.openPageIndex(unavailableConfig, this.readerOpenIntent)
       this.readerSessionLoading = false
+      this.publishSharedReaderEntry(openEpoch)
       return
     }
     const nextSessionConfig = this.createSourceReaderSessionConfig(preparedRequest, resolution.pages)
@@ -485,6 +631,99 @@ struct Index {
     this.readerSessionStore.saveSourceHistory(sourceReadHistoryEntryFromRequest(preparedRequest))
     this.readerSessionStore.flush()
     this.readerSessionLoading = false
+    this.publishSharedReaderEntry(openEpoch)
+  }
+
+  private readerLabInitialConfig(work: string, unit: string): ReaderSessionConfig | null {
+    if (this.readerSessionConfig.comicId === work && this.readerSessionConfig.chapterId === unit &&
+      this.readerSessionConfig.totalPages > 0) return cloneReaderSessionConfig(this.readerSessionConfig)
+    const comic = this.libraryStore.getComic(work)
+    if (comic === undefined) return null
+    const config = this.createReaderSessionConfigForOpen(comic, unit)
+    return config.chapterId === unit && config.totalPages > 0 ? config : null
+  }
+
+  private async prepareReaderLabCatalog(target: ReaderUnitKey,
+    cancellation: ReaderCancellation): Promise<ReaderSessionConfig | null> {
+    if (target.scope !== 'koma-local') return null
+    const sourceRequest = this.activeSourceReaderRequest
+    if (sourceRequest !== undefined && sourceRequest.comicId === target.work) {
+      const nextRequest = sourceReaderSessionRequestForChapter(sourceRequest, target.unit)
+      if (nextRequest === undefined) return null
+      if (sourceRequest.chapterId === target.unit &&
+        this.readerSessionConfig.comicId === target.work && this.readerSessionConfig.chapterId === target.unit &&
+        this.readerSessionConfig.totalPages > 0 &&
+        this.readerSessionConfig.pageUris.length === this.readerSessionConfig.totalPages) {
+        // The normal source open already resolved this exact current chapter.
+        // Reuse that immutable route snapshot instead of issuing a second
+        // provider request before the shared surface can display it.
+        return cloneReaderSessionConfig(this.readerSessionConfig)
+      }
+      const resolution = await resolveSourceChapterPages(this.sourceRegistry, {
+        comicId: nextRequest.comicId,
+        sourceId: nextRequest.sourceId,
+        mangaId: nextRequest.mangaId,
+        chapterId: nextRequest.chapterId,
+      })
+      cancellation.check()
+      // A chapter handoff is prepared beside the still-readable shared session.
+      // Do not turn a provider failure into a committed placeholder unit: reject
+      // the handoff so the current chapter stays visible and can be retried.
+      if (resolution.pages.length === 0) throw new Error('koma_reader_chapter_pages_unavailable')
+      return this.createSourceReaderSessionConfig(nextRequest, resolution.pages)
+    }
+    const original = this.libraryStore.getComic(target.work)
+    if (original === undefined) return null
+    // Keep local-folder permission activation in the adapter's established path.
+    if (original.sourceKind === ComicSourceKind.LOCAL_FOLDER) return null
+    const offlineReady = this.hasAvailableOfflineReaderPages(original.id, target.unit)
+    if (!offlineReady) await this.ensureReaderSourceChapterPages(original, target.unit)
+    cancellation.check()
+    const comic = this.libraryStore.getComic(target.work) ?? original
+    try {
+      await installReaderRemoteHeadersForComic(getContext(this) as common.UIAbilityContext, comic)
+    } catch (_error) {
+      console.warn('[KomaReaderLab] remote_headers_unavailable')
+    }
+    cancellation.check()
+    const config = this.createReaderSessionConfigForOpen(comic, target.unit)
+    if (config.totalPages > 0) return config
+    if (this.chapterNeedsReaderSourcePages(comic, target.unit)) {
+      throw new Error('koma_reader_chapter_pages_unavailable')
+    }
+    return null
+  }
+
+  private createReaderLabCatalogHost(epoch: number = -1): KomaReaderCatalogHost {
+    const current = (): boolean => epoch < 0 ||
+      (this.sharedReaderEntryCurrent(epoch) && epoch === this.readerOpenEpoch)
+    return new KomaReaderCatalogHost(
+      (work: string, unit: string): ReaderSessionConfig | null => current()
+        ? this.readerLabInitialConfig(work, unit) : null,
+      async (target: ReaderUnitKey, cancellation: ReaderCancellation): Promise<ReaderSessionConfig | null> => {
+        if (!current()) throw new Error('stale_koma_reader_route')
+        const config = await this.prepareReaderLabCatalog(target, cancellation)
+        if (!current()) throw new Error('stale_koma_reader_route')
+        return config
+      },
+      (target: ReaderUnitKey, config: ReaderSessionConfig): void => {
+        if (current()) this.commitReaderLabCatalog(target, config)
+      },
+    )
+  }
+
+  private commitReaderLabCatalog(target: ReaderUnitKey, config: ReaderSessionConfig): void {
+    if (target.scope !== 'koma-local' || config.comicId !== target.work || config.chapterId !== target.unit ||
+      config.totalPages < 1 || config.pageUris.length !== config.totalPages) return
+    this.readerSessionConfig = cloneReaderSessionConfig(config)
+    const sourceRequest = this.activeSourceReaderRequest
+    if (sourceRequest === undefined || sourceRequest.comicId !== target.work) return
+    const committedRequest = sourceReaderSessionRequestForChapter(sourceRequest, target.unit)
+    if (committedRequest === undefined) return
+    if (sourceRequest.chapterId === committedRequest.chapterId) return
+    this.activeSourceReaderRequest = committedRequest
+    this.readerSessionStore.saveSourceHistory(sourceReadHistoryEntryFromRequest(committedRequest))
+    this.readerSessionStore.flush()
   }
 
   private readerNeedsAsyncPreparation(comic: Comic, chapterId: string | undefined): boolean {
@@ -505,6 +744,7 @@ struct Index {
     chapterId?: string,
     intent: ReaderChapterOpenIntent = 'resume',
   ): Promise<void> {
+    if (this.sharedReaderClosing !== null) await this.sharedReaderClosing
     this.readerOpenIntent = intent
     this.readerOpenAlign = intent === 'end' ? 'end' : 'start'
     this.activeSourceReaderRequest = undefined
@@ -514,6 +754,7 @@ struct Index {
     const shouldPresentReader = !this.readerOpen || this.readerClosing
     const openEpoch = this.readerOpenEpoch + 1
     this.readerOpenEpoch = openEpoch
+    this.beginSharedReaderOpen(shouldPresentReader)
     this.readerChromeVisible = false
     this.readerSessionLoading = comic !== undefined && this.readerNeedsAsyncPreparation(comic, targetChapterId)
     this.readerSessionConfig = comic === undefined
@@ -531,13 +772,15 @@ struct Index {
       this.readerOpen = true
       // Native root navigation presents the Reader immediately. Descriptor
       // refresh remains session work and never blocks route presentation.
-      this.appPathStack.pushPath({ name: RouteName.READER }, true)
+      this.appPathStack.pushPath({ name: RouteName.READER, param: this.sharedReaderWindow ?? undefined }, true)
     }
     if (comic !== undefined) {
-      void this.prepareReaderSession(comicId, targetChapterId, openEpoch)
+      if (this.readerBackend === KomaReaderBackend.SHARED) void this.prepareCurrentSharedReader(openEpoch)
+      else void this.prepareReaderSession(comicId, targetChapterId, openEpoch)
     } else {
       // No session preparation will follow, so this publication is terminal.
       this.readerOpenIntent = 'resume'
+      this.publishSharedReaderEntry(openEpoch)
     }
   }
 
@@ -545,6 +788,7 @@ struct Index {
     request: SourceReaderSessionRequest,
     intent: ReaderChapterOpenIntent = 'resume',
   ): Promise<void> {
+    if (this.sharedReaderClosing !== null) await this.sharedReaderClosing
     this.readerOpenIntent = intent
     this.readerOpenAlign = intent === 'end' ? 'end' : 'start'
     const nextRequest = cloneSourceReaderSessionRequest(request)
@@ -559,6 +803,7 @@ struct Index {
     const shouldPresentReader = !this.readerOpen || this.readerClosing
     const openEpoch = this.readerOpenEpoch + 1
     this.readerOpenEpoch = openEpoch
+    this.beginSharedReaderOpen(shouldPresentReader)
     this.activeSourceReaderRequest = nextRequest
     this.readerChromeVisible = false
     this.readerSessionLoading = true
@@ -574,37 +819,29 @@ struct Index {
       this.readerClosing = false
       this.readerRouteVisible = false
       this.readerOpen = true
-      this.appPathStack.pushPath({ name: RouteName.READER }, true)
+      this.appPathStack.pushPath({ name: RouteName.READER, param: this.sharedReaderWindow ?? undefined }, true)
     }
-    void this.prepareSourceReaderSession(nextRequest, openEpoch)
-  }
-
-  private cloneExternalReaderSession(config: ReaderSessionConfig): ReaderSessionConfig {
-    return {
-      comicId: config.comicId,
-      chapterId: config.chapterId,
-      chapterIds: config.chapterIds.slice(),
-      chapterTitles: config.chapterTitles?.slice(),
-      title: config.title,
-      chapterTitle: config.chapterTitle,
-      totalPages: config.totalPages,
-      pageUris: config.pageUris.slice(),
-      pageIds: config.pageIds?.slice(),
-      pageWidths: config.pageWidths?.slice(),
-      pageHeights: config.pageHeights?.slice(),
-      sourceRuntimeId: config.sourceRuntimeId,
-    }
+    if (this.readerBackend === KomaReaderBackend.SHARED) void this.prepareCurrentSharedReader(openEpoch)
+    else void this.prepareSourceReaderSession(nextRequest, openEpoch)
   }
 
   private openExternalReaderSession(): void {
+    if (this.sharedReaderClosing !== null) {
+      void this.sharedReaderClosing.then((): void => { this.openExternalReaderSession() })
+      return
+    }
     if (this.readerOpen && !this.readerClosing) {
       return
     }
     this.readerOpenEpoch += 1
+    // External fixture/config sessions do not have a catalog identity for the shared adapter.
+    this.readerBackend = KomaReaderBackend.LEGACY
+    this.sharedReaderWindow = null
+    this.beginSharedReaderOpen(false)
     this.activeSourceReaderRequest = undefined
     this.readerChromeVisible = false
     this.readerSessionLoading = false
-    this.readerSessionConfig = this.cloneExternalReaderSession(MOCK_LIBRARY_READER_SESSION)
+    this.readerSessionConfig = cloneReaderSessionConfig(MOCK_LIBRARY_READER_SESSION)
     this.readerPageIndex = this.readerSessionStore.restorePageIndex(this.readerSessionConfig)
     this.readerClosing = false
     this.readerRouteVisible = false
@@ -757,7 +994,14 @@ struct Index {
       this.appPathStack.pop(true)
       return
     }
+    if (this.readerBackend === KomaReaderBackend.SHARED) {
+      void this.closeSharedReaderRoute()
+      return
+    }
     this.readerOpenEpoch += 1
+    this.sharedReaderPreparation?.cancel()
+    this.sharedReaderPreparation = null
+    this.sharedReaderResumePending = false
     this.readerSessionLoading = false
     if (!this.isReaderRouteVisible()) {
       return
@@ -775,8 +1019,8 @@ struct Index {
     this.readerCloseRequestId += 1
   }
 
-  private popReaderRouteAfterSystemBarRestore(): void {
-    if (!this.readerOpen || this.readerClosing || !this.isReaderRouteVisible()) {
+  private popReaderRouteAfterSystemBarRestore(sharedClose: boolean = false): void {
+    if (!this.readerOpen || (this.readerClosing && !sharedClose) || !this.isReaderRouteVisible()) {
       return
     }
     // ReaderPage calls this callback after it persists its current page. Keep
@@ -790,14 +1034,15 @@ struct Index {
     this.appPathStack.pop(true)
   }
 
-  private finishReaderRouteClose(): void {
-    if (!this.readerClosing) {
+  private finishReaderRouteClose(ownedWindow: ReaderTrialWindow | null): void {
+    if (this.sharedReaderWindow !== ownedWindow || !this.readerClosing) {
       return
     }
     this.readerOpen = false
     this.readerClosing = false
     this.readerRouteVisible = false
     this.readerSessionLoading = false
+    this.sharedReaderEntries = []
   }
 
   private reloadReaderSessionStore(reason: string): void {
@@ -825,19 +1070,16 @@ struct Index {
 
   private readReaderLabInitialPage(work: string, unit: string): number {
     if (!this.readerSessionPersistenceReady) throw new Error('reader_lab_progress_owner_unavailable')
-    const comic = this.libraryStore.getComic(work)
-    if (comic === undefined) return 0
-    const config = createReaderSessionConfigFromComic(comic, unit)
-    if (config.chapterId !== unit || config.totalPages <= 0) return 0
+    const config = this.readerLabInitialConfig(work, unit)
+    if (config === null) return 0
     return this.readerSessionStore.restorePageIndex(config)
   }
 
   private persistReaderLabObserved(position: ReaderObservedPosition,
     column: 'odd_left' | 'even_left'): void {
     if (!this.readerSessionPersistenceReady || position.anchor.unit.scope !== 'koma-local') return
-    const comic = this.libraryStore.getComic(position.anchor.unit.work)
-    if (comic === undefined) return
-    const config = createReaderSessionConfigFromComic(comic, position.anchor.unit.unit)
+    const config = this.readerLabInitialConfig(position.anchor.unit.work, position.anchor.unit.unit)
+    if (config === null) return
     if (config.chapterId !== position.anchor.unit.unit || config.totalPages !== position.pageCount ||
       position.anchor.sourceIndexHint < 0 || position.anchor.sourceIndexHint >= config.totalPages) return
     const index = position.anchor.sourceIndexHint
@@ -1424,6 +1666,7 @@ struct Index {
   aboutToAppear(): void {
     this.handleReaderLabLaunch()
     RouterHelper.setAppPathStack(this.appPathStack)
+    this.seedReaderImplementationSelection()
     RouterHelper.setReaderOpener(() => {
       this.openExternalReaderSession()
     })
@@ -1450,10 +1693,12 @@ struct Index {
         }
       }
     }
-    setTimeout(() => {
-      this.triggerAutomaticBackup(context)
-      this.triggerPendingTrackerProgressSync(context)
-    }, 250)
+    if (!shouldSuppressKomaDeviceVerificationBackgroundSideEffects()) {
+      setTimeout(() => {
+        this.triggerAutomaticBackup(context)
+        this.triggerPendingTrackerProgressSync(context)
+      }, 250)
+    }
   }
 
   @Builder
@@ -1466,8 +1711,50 @@ struct Index {
   }
 
   @Builder
-  private ReaderDestination() {
+  private SharedReaderBody(ownedWindow: ReaderTrialWindow) {
+    if (this.sharedReaderEntries.length === 0) {
+      KomaReaderLoading()
+    } else {
+      ForEach(this.sharedReaderEntries, (entry: KomaSharedReaderEntry) => {
+        KomaReaderLabPage({ request: entry.request, embedded: true,
+          hostWindow: ownedWindow,
+          hostRouteActive: this.sharedReaderEntryCurrent(entry.epoch) && this.readerRouteVisible,
+          closeRequestId: this.readerCloseRequestId, initialCloseRequestId: entry.initialCloseRequestId,
+          catalogHost: this.createReaderLabCatalogHost(entry.epoch),
+          readInitialColumn: (work: string, unit: string): 'odd_left' | 'even_left' => {
+            return this.readReaderLabInitialColumn(work, unit)
+          },
+          readInitialPage: (work: string, unit: string): number => {
+            return this.readReaderLabInitialPage(work, unit)
+          },
+          persistObserved: (position: ReaderObservedPosition, column: 'odd_left' | 'even_left'): void => {
+            if (this.sharedReaderEntryCurrent(entry.epoch) && entry.epoch === this.readerOpenEpoch) {
+              this.persistReaderLabObserved(position, column)
+            }
+          },
+          flushObserved: (): void => {
+            if (this.sharedReaderEntryCurrent(entry.epoch) && this.readerSessionPersistenceReady) {
+              this.readerSessionStore.flush()
+            }
+          },
+          onOpenMangaDetail: (work: string): void => {
+            if (this.sharedReaderEntryCurrent(entry.epoch) && entry.epoch === this.readerOpenEpoch &&
+              this.readerSessionConfig.comicId === work) this.openReaderMangaDetail()
+          },
+          onClose: (): void => { this.closeSharedReaderEntry(entry.epoch) },
+        })
+      }, (entry: KomaSharedReaderEntry): string => `${entry.epoch}`)
+    }
+  }
+
+  @Builder
+  private ReaderDestination(ownedWindow: ReaderTrialWindow | null) {
     HdsNavDestination() {
+      if (ownedWindow !== null) {
+        if (ownedWindow === this.sharedReaderWindow) {
+          this.SharedReaderBody(ownedWindow)
+        }
+      } else {
         ReaderPage({
           readerOpen: this.readerOpen!!,
         routeVisible: this.readerRouteVisible!!,
@@ -1511,25 +1798,26 @@ struct Index {
         // only; it follows the same session publication as the open intent.
         initialScrollAlign: this.readerOpenAlign
       })
+      }
     }
     .hideTitleBar(true)
     .onBackPressed(() => {
-      this.closeReader()
+      if (this.sharedReaderWindow === ownedWindow) this.closeReader()
       return true
     })
     .onShown(() => {
-      this.readerRouteVisible = true
+      if (this.sharedReaderWindow === ownedWindow) this.readerRouteVisible = true
     })
     .onWillHide(() => {
-      this.readerRouteVisible = false
+      if (this.sharedReaderWindow === ownedWindow) this.readerRouteVisible = false
     })
     .onWillDisappear(() => {
-      this.readerRouteVisible = false
+      if (this.sharedReaderWindow === ownedWindow) this.readerRouteVisible = false
     })
     .onDisAppear(() => {
       // A detail route hides Reader but does not remove it. Cleanup only after
       // the genuine Reader pop has completed its native transition.
-      this.finishReaderRouteClose()
+      this.finishReaderRouteClose(ownedWindow)
     })
   }
 
@@ -1610,6 +1898,7 @@ struct Index {
   private AppDestination(name: string, param: Object) {
     if (name === 'ReaderLab') {
       KomaReaderLabPage({ request: param as ReaderLabRequest,
+        catalogHost: this.createReaderLabCatalogHost(),
         readInitialColumn: (work: string, unit: string): 'odd_left' | 'even_left' => {
           return this.readReaderLabInitialColumn(work, unit)
         }, readInitialPage: (work: string, unit: string): number => {
@@ -1622,7 +1911,7 @@ struct Index {
           this.openLibraryMangaDetail(work)
         }, onClose: () => { this.appPathStack.pop() } })
     } else if (name === RouteName.READER) {
-      this.ReaderDestination()
+      this.ReaderDestination(param instanceof ReaderTrialWindow ? param : null)
     } else if (name === RouteName.IMPORT) {
       HdsNavDestination() {
         ImportPage({

@@ -18,6 +18,10 @@ import { configureSourceRuntimeHttpTransport } from '../sourceRuntime/SourceRunt
 import { configureSourceSettingsStore } from '../sourceRuntime/SourceSettingsStore'
 import { LayoutSafeAreaBridge } from '../state/LayoutSafeAreaState'
 import { AppForegroundStateBridge } from '../state/AppForegroundState'
+import {
+  captureKomaDeviceVerificationIsolation,
+  shouldSuppressKomaDeviceVerificationBackgroundSideEffects,
+} from '../state/KomaDeviceVerificationIsolation'
 import { AppStrings } from '../i18n/AppStrings'
 import { LanguageSettings } from '../i18n/LanguageSettings'
 
@@ -26,10 +30,32 @@ const ENTRY_PAGE: string = 'pages/Index'
 const FALLBACK_TOP_AVOID: number = 40
 const FALLBACK_BOTTOM_AVOID: number = 0
 
+/** Debug-only device lab: pin the main-window orientation for the shared-reader
+ *  rotation acceptance on a large-screen device. Read from an explicit Want only,
+ *  never a persisted setting, and unreachable in a release build (debug gate). */
+function labOrientationFromWant(want: Want, debugBuild: boolean): window.Orientation | undefined {
+  if (!debugBuild) {
+    return undefined
+  }
+  const value = want.parameters?.['readerLabOrientation']
+  if (value === 'landscape') {
+    return window.Orientation.LANDSCAPE
+  }
+  if (value === 'portrait') {
+    return window.Orientation.PORTRAIT
+  }
+  return undefined
+}
+
 export default class EntryAbility extends UIAbility {
   private keyboardHeightCallback: ((height: number) => void) | undefined = undefined
+  /** Debug-only orientation override; undefined means the production auto-rotation opt-in. */
+  private labOrientation: window.Orientation | undefined = undefined
+  private windowStageRef: window.WindowStage | null = null
   onCreate(want: Want, launchParam: AbilityConstant.LaunchParam): void {
     captureReaderLabWant(want, this.context.applicationInfo.debug)
+    captureKomaDeviceVerificationIsolation(want, this.context.applicationInfo.debug)
+    this.labOrientation = labOrientationFromWant(want, this.context.applicationInfo.debug)
     void launchParam
     AppStrings.init(this.context)
     void LanguageSettings.restore(this.context)
@@ -43,12 +69,16 @@ export default class EntryAbility extends UIAbility {
 
   onNewWant(want: Want, launchParam: AbilityConstant.LaunchParam): void {
     captureReaderLabWant(want, this.context.applicationInfo.debug)
+    captureKomaDeviceVerificationIsolation(want, this.context.applicationInfo.debug)
+    this.labOrientation = labOrientationFromWant(want, this.context.applicationInfo.debug)
     void launchParam
+    this.applyPreferredOrientation()
     this.openLaunchRouteFromWant(want)
     maybeRunSourceRuntimeDeviceSmoke(want, this.context.resourceManager, this.context)
   }
 
   onWindowStageCreate(windowStage: window.WindowStage): void {
+    this.windowStageRef = windowStage
     try {
       const win = windowStage.getMainWindowSync()
       win.setWindowLayoutFullScreen(true)
@@ -57,11 +87,9 @@ export default class EntryAbility extends UIAbility {
         navigationBarColor: TRANSPARENT_COLOR,
       })
       // Match NextE: opt the main window into sensor-driven rotation. The
-      // system rotation-lock toggle still pins portrait when enabled.
-      win.setPreferredOrientation(window.Orientation.AUTO_ROTATION_UNSPECIFIED)
-        .catch((error: Error) => {
-          console.error('[EntryAbility] step=set_orientation_failed code=orientation_request_failed msg=' + error.message)
-        })
+      // system rotation-lock toggle still pins portrait when enabled. A debug
+      // lab Want may pin a fixed orientation afterwards for rotation acceptance.
+      this.applyPreferredOrientation()
     } catch (error) {
       void error
       console.error('[EntryAbility] step=configure_window_failed code=window_configure_failed')
@@ -72,18 +100,22 @@ export default class EntryAbility extends UIAbility {
         console.error('[EntryAbility] step=load_content_failed code=load_content_failed')
       }
       this.configureAvoidAreas(windowStage)
-      setTimeout(() => {
-        this.syncRemoteProgressInBackground()
-      }, 250)
+      if (!shouldSuppressKomaDeviceVerificationBackgroundSideEffects()) {
+        setTimeout(() => {
+          this.syncRemoteProgressInBackground()
+        }, 250)
+      }
     })
   }
 
   onForeground(): void {
     updateReaderLabForeground(true, this.context.applicationInfo.debug)
     AppForegroundStateBridge.onForeground()
-    setTimeout(() => {
-      this.syncRemoteProgressInBackground()
-    }, 250)
+    if (!shouldSuppressKomaDeviceVerificationBackgroundSideEffects()) {
+      setTimeout(() => {
+        this.syncRemoteProgressInBackground()
+      }, 250)
+    }
   }
 
   onBackground(): void {
@@ -176,6 +208,27 @@ export default class EntryAbility extends UIAbility {
         void error
         console.warn('[Settings] step=apply_startup_theme_failed code=theme_apply_failed')
       })
+  }
+
+  /** Applies the debug lab orientation override, else the production auto-rotation opt-in. */
+  private applyPreferredOrientation(): void {
+    const stage = this.windowStageRef
+    if (stage === null) {
+      return
+    }
+    try {
+      const win = stage.getMainWindowSync()
+      const orientation: window.Orientation = this.labOrientation !== undefined
+        ? this.labOrientation
+        : window.Orientation.AUTO_ROTATION_UNSPECIFIED
+      win.setPreferredOrientation(orientation)
+        .catch((error: Error) => {
+          console.error('[EntryAbility] step=set_orientation_failed code=orientation_request_failed msg=' + error.message)
+        })
+    } catch (error) {
+      void error
+      console.error('[EntryAbility] step=configure_window_failed code=window_configure_failed')
+    }
   }
 
   private openLaunchRouteFromWant(want: Want): void {

@@ -28,6 +28,7 @@ export class KomaReaderPreferenceBridge {
       wideImageMode: current.wideImageMode,
       volumeKeyNavigationEnabled: current.volumeKeyNavigationEnabled,
       volumeKeyBehavior: current.volumeKeyBehavior,
+      readerImplementation: current.readerImplementation === 'legacy' ? 'legacy' : 'shared',
     })
   }
 

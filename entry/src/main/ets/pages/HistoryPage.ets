@@ -390,6 +390,26 @@ export struct HistoryPage {
     return sections.filter((section: HistorySection): boolean => section.items.length > 0)
   }
 
+  /** ArkUI ForEach keys must change when a history row moves groups or advances within a chapter. */
+  private historyItemRenderIdentity(item: HistoryItem): string {
+    return JSON.stringify([
+      item.id,
+      item.title,
+      item.coverUri ?? '',
+      item.progress?.chapterId ?? '',
+      item.progress?.pageIndex ?? -1,
+      item.progress?.totalPages ?? 0,
+      item.lastReadAt ?? 0,
+      item.sourceHistory?.chapterId ?? '',
+      item.sourceHistory?.chapterTitle ?? '',
+    ])
+  }
+
+  private historySectionRenderIdentity(section: HistorySection): string {
+    return `${section.key}:${section.items.map((item: HistoryItem): string =>
+      this.historyItemRenderIdentity(item)).join('|')}`
+  }
+
   private shouldShowCoverUri(
     coverUri: string | undefined,
     sourceRuntimeId?: string,
@@ -600,8 +620,8 @@ export struct HistoryPage {
               ListItem() {
                 this.HistoryRow(item)
               }
-            }, (item: HistoryItem) => item.comicId)
-          }, (section: HistorySection) => section.key)
+            }, (item: HistoryItem) => this.historyItemRenderIdentity(item))
+          }, (section: HistorySection) => this.historySectionRenderIdentity(section))
         }
       }
     }

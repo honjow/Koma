@@ -17,6 +17,7 @@ export type ReaderVolumeKeyBehavior = 'up_previous_down_next' | 'up_next_down_pr
 export type ReaderWideImageMode = 'keep_single' | 'split_wide_pages' | 'rotate_wide_pages'
 export type ReaderSpreadLayoutMode = 'joined' | 'split'
 export type ReaderColumnMode = 'odd_left' | 'even_left'
+export type ReaderImplementation = 'shared' | 'legacy'
 
 export interface ReaderPreferences {
   pageMode: ReaderPageMode
@@ -41,6 +42,7 @@ export interface ReaderPreferences {
   wideImageMode: ReaderWideImageMode
   volumeKeyNavigationEnabled: boolean
   volumeKeyBehavior: ReaderVolumeKeyBehavior
+  readerImplementation: ReaderImplementation
 }
 
 const READER_PREFERENCES_STORE_NAME: string = 'koma_reader_preferences_v1'
@@ -85,6 +87,7 @@ export const DEFAULT_READER_PREFERENCES: ReaderPreferences = {
   wideImageMode: 'keep_single',
   volumeKeyNavigationEnabled: false,
   volumeKeyBehavior: 'up_previous_down_next',
+  readerImplementation: 'shared',
 }
 
 export function normalizeReaderPageMode(value: string): ReaderPageMode {
@@ -211,6 +214,7 @@ export function normalizeReaderPreferences(value: ReaderPreferences): ReaderPref
     tapZoneInvert: normalizeReaderTapZoneInvert(value.tapZoneInvert),
     pageGapMode: normalizeReaderPageGapMode(value.pageGapMode),
     trimPageMarginsEnabled: value.trimPageMarginsEnabled === true,
+    readerImplementation: value.readerImplementation === 'legacy' ? 'legacy' : 'shared',
     wideImageMode: normalizeReaderWideImageMode(value.wideImageMode),
     volumeKeyNavigationEnabled: value.volumeKeyNavigationEnabled === true,
     volumeKeyBehavior: normalizeReaderVolumeKeyBehavior(value.volumeKeyBehavior),
@@ -244,6 +248,7 @@ export function readerPreferencesFromRuntimeState(columnMode: ReaderColumnMode):
     tapZoneInvert: normalizeReaderTapZoneInvert(runtime.tapZoneInvert),
     pageGapMode: normalizeReaderPageGapMode(runtime.pageGapMode),
     trimPageMarginsEnabled: runtime.trimPageMarginsEnabled,
+    readerImplementation: 'shared',
     wideImageMode: normalizeReaderWideImageMode(runtime.wideImageMode),
     volumeKeyNavigationEnabled: runtime.volumeKeyNavigationEnabled,
     volumeKeyBehavior: normalizeReaderVolumeKeyBehavior(runtime.volumeKeyBehavior),
@@ -321,6 +326,8 @@ function preferencesFromRecord(record: Record<string, Object>, fallback: ReaderP
     tapZoneInvert: normalizeReaderTapZoneInvert(stringField(record, 'tapZoneInvert', fallback.tapZoneInvert)),
     pageGapMode: normalizeReaderPageGapMode(stringField(record, 'pageGapMode', fallback.pageGapMode)),
     trimPageMarginsEnabled: booleanField(record, 'trimPageMarginsEnabled', fallback.trimPageMarginsEnabled),
+    readerImplementation: normalizeReaderImplementation(
+      stringField(record, 'readerImplementation', fallback.readerImplementation)),
     wideImageMode: normalizeReaderWideImageMode(stringField(record, 'wideImageMode', fallback.wideImageMode)),
     volumeKeyNavigationEnabled: booleanField(record, 'volumeKeyNavigationEnabled', fallback.volumeKeyNavigationEnabled),
     volumeKeyBehavior: normalizeReaderVolumeKeyBehavior(stringField(record, 'volumeKeyBehavior', fallback.volumeKeyBehavior)),
@@ -407,6 +414,7 @@ export function applyReaderSeriesModeOverride(
     return preferences
   }
   return {
+    readerImplementation: preferences.readerImplementation,
     pageMode: override.pageMode,
     readingDirection: override.readingDirection,
     themeMode: preferences.themeMode,
@@ -592,6 +600,7 @@ export class ReaderPreferencesStore {
     const tapZoneInvert = await store.get('reader.tapZoneInvert', DEFAULT_READER_PREFERENCES.tapZoneInvert) as string
     const pageGapMode = await store.get('reader.pageGapMode', DEFAULT_READER_PREFERENCES.pageGapMode) as string
     const trimPageMarginsEnabled = await store.get('reader.trimPageMarginsEnabled', DEFAULT_READER_PREFERENCES.trimPageMarginsEnabled) as boolean
+    const readerImplementation = await store.get('reader.readerImplementation', DEFAULT_READER_PREFERENCES.readerImplementation) as string
     const wideImageMode = await store.get('reader.wideImageMode', DEFAULT_READER_PREFERENCES.wideImageMode) as string
     const volumeKeyNavigationEnabled = await store.get('reader.volumeKeyNavigationEnabled', DEFAULT_READER_PREFERENCES.volumeKeyNavigationEnabled) as boolean
     const volumeKeyBehavior = await store.get('reader.volumeKeyBehavior', DEFAULT_READER_PREFERENCES.volumeKeyBehavior) as string
@@ -619,6 +628,7 @@ export class ReaderPreferencesStore {
       tapZoneInvert: normalizeReaderTapZoneInvert(tapZoneInvert),
       pageGapMode: normalizeReaderPageGapMode(pageGapMode),
       trimPageMarginsEnabled,
+      readerImplementation: normalizeReaderImplementation(readerImplementation),
       wideImageMode: normalizeReaderWideImageMode(wideImageMode),
       volumeKeyNavigationEnabled,
       volumeKeyBehavior: normalizeReaderVolumeKeyBehavior(volumeKeyBehavior),
@@ -667,6 +677,7 @@ export class ReaderPreferencesStore {
     await store.put('reader.tapZoneInvert', normalized.tapZoneInvert)
     await store.put('reader.pageGapMode', normalized.pageGapMode)
     await store.put('reader.trimPageMarginsEnabled', normalized.trimPageMarginsEnabled)
+    await store.put('reader.readerImplementation', normalized.readerImplementation)
     await store.put('reader.wideImageMode', normalized.wideImageMode)
     await store.put('reader.volumeKeyNavigationEnabled', normalized.volumeKeyNavigationEnabled)
     await store.put('reader.volumeKeyBehavior', normalized.volumeKeyBehavior)
@@ -779,6 +790,7 @@ export class ReaderPreferencesStore {
       tapZoneInvert: current.tapZoneInvert,
       pageGapMode: current.pageGapMode,
       trimPageMarginsEnabled: current.trimPageMarginsEnabled,
+      readerImplementation: current.readerImplementation,
       wideImageMode: current.wideImageMode,
       volumeKeyNavigationEnabled: current.volumeKeyNavigationEnabled,
       volumeKeyBehavior: current.volumeKeyBehavior,
@@ -919,6 +931,13 @@ export class ReaderPreferencesStore {
     return this.save(next)
   }
 
+  async saveReaderImplementation(implementation: ReaderImplementation): Promise<ReaderPreferences> {
+    const current = await this.load()
+    const next = this.cloneBase(current)
+    next.readerImplementation = normalizeReaderImplementation(implementation)
+    return this.save(next)
+  }
+
   async saveWideImageMode(wideImageMode: ReaderWideImageMode): Promise<ReaderPreferences> {
     const current = await this.load()
     const next = this.cloneBase(current)
@@ -943,4 +962,8 @@ export class ReaderPreferencesStore {
   private async preferences(): Promise<preferences.Preferences> {
     return preferences.getPreferences(this.context, READER_PREFERENCES_STORE_NAME)
   }
+}
+
+function normalizeReaderImplementation(value: string): ReaderImplementation {
+  return value === 'legacy' ? 'legacy' : 'shared'
 }

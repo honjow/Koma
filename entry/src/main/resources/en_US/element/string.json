@@ -1,5 +1,8 @@
 {
   "string": [
+    { "name": "settings_reader_backend", "value": "Reader implementation" },
+    { "name": "settings_reader_backend_legacy", "value": "Legacy" },
+    { "name": "settings_reader_backend_shared", "value": "Shared" },
     { "name": "backup_task_create", "value": "Create backup" },
     { "name": "backup_task_create_hint", "value": "Choose where to save and whether to encrypt" },
     { "name": "backup_task_restore", "value": "Restore backup" },
@@ -731,8 +734,6 @@
     { "name": "reader_image_share_failed", "value": "Could not open the share panel" },
     { "name": "reader_control_chapter", "value": "Chapter" },
     { "name": "reader_control_mode", "value": "Mode" },
-    { "name": "reader_series_override_badge", "value": "this book" },
-    { "name": "reader_series_override_reset", "value": "Use global defaults" },
     { "name": "reader_control_zoom", "value": "Zoom" },
     { "name": "settings_reader_group_layout", "value": "Layout" },
     { "name": "settings_reader_group_tap_zones", "value": "Tap zones" },
@@ -1419,6 +1420,10 @@
     { "name": "source_pkg_min_app_version", "value": "Minimum Koma version" },
     { "name": "source_pkg_management_section", "value": "Management" },
     { "name": "source_pkg_current_index", "value": "Current index" },
-    { "name": "source_pkg_batch_actions_heading", "value": "Batch actions" }
+    { "name": "source_pkg_batch_actions_heading", "value": "Batch actions" },
+    { "name": "reader_implementation_title", "value": "Reader implementation" },
+    { "name": "reader_implementation_detail", "value": "Choose the new shared reader or the legacy reader" },
+    { "name": "reader_series_override_badge", "value": "this book" },
+    { "name": "reader_series_override_reset", "value": "Use global defaults" }
   ]
 }

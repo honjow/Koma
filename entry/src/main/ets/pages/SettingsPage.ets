@@ -138,6 +138,8 @@ import { AppStrings } from '../i18n/AppStrings'
 import { LanguageSettings } from '../i18n/LanguageSettings'
 import { connectLanguageState, LanguageState } from '../state/LanguageState'
 import { connectReaderModeState, ReaderModeState } from '../state/ReaderModeState'
+import { connectKomaReaderBackendSelection, KomaReaderBackend,
+  KomaReaderBackendSelectionState } from '../state/KomaReaderBackendSelectionState'
 
 interface SettingsRow {
   key: string
@@ -228,7 +230,8 @@ function createSettingsSections(): SettingsSection[] {
         { key: 'reader-tap-zone-preset', titleKey: 'settings_row_reader_tap_zone_preset_title', detailKey: 'settings_row_reader_tap_zone_preset_detail' },
         { key: 'reader-tap-zone-invert', titleKey: 'settings_row_reader_tap_zone_invert_title', detailKey: 'settings_row_reader_tap_zone_invert_detail' },
         { key: 'reader-page-gap', titleKey: 'settings_row_reader_page_gap_title', detailKey: 'settings_row_reader_page_gap_detail' },
-        { key: 'reader-wide-image-mode', titleKey: 'settings_row_reader_wide_image_mode_title', detailKey: 'settings_row_reader_wide_image_mode_detail' },
+        { key: 'reader-implementation', titleKey: 'reader_implementation_title', detailKey: 'reader_implementation_detail' },
+    { key: 'reader-wide-image-mode', titleKey: 'settings_row_reader_wide_image_mode_title', detailKey: 'settings_row_reader_wide_image_mode_detail' },
         { key: 'reader-volume-key-navigation', titleKey: 'settings_row_reader_volume_key_navigation_title', detailKey: 'settings_row_reader_volume_key_navigation_detail' },
         { key: 'reader-volume-key-behavior', titleKey: 'settings_row_reader_volume_key_behavior_title', detailKey: 'settings_row_reader_volume_key_behavior_detail' },
         { key: 'reader-reset-defaults', titleKey: 'settings_row_reader_reset_defaults_title', detailKey: 'settings_row_reader_reset_defaults_detail' },
@@ -442,6 +445,8 @@ export struct SettingsPage {
   @Local private readerVolumeKeyBehavior: ReaderVolumeKeyBehavior = 'up_previous_down_next'
   @Local private language: LanguageState = connectLanguageState()
   @Local private readerModeState: ReaderModeState = connectReaderModeState()
+  @Local private readerBackendSelection: KomaReaderBackendSelectionState = connectKomaReaderBackendSelection()
+  @Local private readerBackendSelectionAvailable: boolean = false
   @Local private versionDetail: string = ''
   @Local private versionLoadFailed: boolean = false
   @Local private imageCacheStats?: ReaderRemoteImageCacheStats = undefined
@@ -1028,6 +1033,9 @@ export struct SettingsPage {
     void this.preferencesStore().load()
       .then((preferences: ReaderPreferences) => {
         this.applyReaderPreferences(preferences)
+        this.readerBackendSelection.seedFromPersistence(
+          preferences.readerImplementation === 'legacy'
+            ? KomaReaderBackend.LEGACY : KomaReaderBackend.SHARED)
         console.info('[Settings] step=load_preferences')
       })
       .catch((error: Error) => {
@@ -2620,9 +2628,56 @@ export struct SettingsPage {
     .width('100%')
   }
 
+  private readerImplementationValue(): KomaReaderBackend {
+    return this.readerBackendSelection.current(true)
+  }
+
+  private persistReaderImplementation(backend: KomaReaderBackend): void {
+    this.readerBackendSelection.select(backend, true)
+    void this.preferencesStore().saveReaderImplementation(
+      backend === KomaReaderBackend.LEGACY ? 'legacy' : 'shared')
+      .then(() => {
+        console.info('[Settings] step=save_reader_implementation value=' + backend)
+      })
+      .catch((error: Error) => {
+        console.warn('[Settings] step=save_reader_implementation_failed code=' + safeSettingsErrorCode(error))
+      })
+  }
+
+  @Builder
+  private ReaderBackendMenu(select: (action: () => void) => void) {
+    Menu() {
+      this.SelectionMenuItem(select, this.t('settings_reader_backend_legacy'),
+        this.readerImplementationValue() === KomaReaderBackend.LEGACY,
+        () => { this.persistReaderImplementation(KomaReaderBackend.LEGACY) })
+      this.SelectionMenuItem(select, this.t('settings_reader_backend_shared'),
+        this.readerImplementationValue() === KomaReaderBackend.SHARED,
+        () => { this.persistReaderImplementation(KomaReaderBackend.SHARED) })
+    }
+  }
+
+  @Builder
+  private ReaderBackendSelection() {
+    GroupedListSection() {
+      ConciseListRow({
+        title: this.t('settings_reader_backend'),
+        trailingText: this.readerImplementationValue() === KomaReaderBackend.SHARED
+          ? this.t('settings_reader_backend_shared') : this.t('settings_reader_backend_legacy'),
+        trailingDropdown: true,
+        dropdownMenuEnabled: true,
+        dropdownMenuBuilder: (select: (action: () => void) => void) => {
+          this.ReaderBackendMenu(select)
+        },
+      })
+    }
+  }
+
   @Builder
   private PaneSettings() {
     Column({ space: ThemeConstants.SPACE_LG }) {
+      if (this.pane === 'reader') {
+        this.ReaderBackendSelection()
+      }
       ForEach(this.paneSections(), (section: SettingsSection) => {
         this.Section(section)
       }, (section: SettingsSection) => `${section.key}-${section.rows.length}`)
@@ -2702,6 +2757,8 @@ export struct SettingsPage {
   }
 
   aboutToAppear(): void {
+    const context = this.getUIContext().getHostContext() as common.UIAbilityContext
+    this.readerBackendSelectionAvailable = context.applicationInfo.debug
     this.loadLatestLibraryUpdateSummary()
     this.loadVersion()
     this.loadPreferences()

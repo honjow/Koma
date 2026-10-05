@@ -1,8 +1,10 @@
 import {
-  ReaderCatalog, ReaderAssetProvider, ReaderPreloadHost, ReaderUnitKey, ReaderUnit, ReaderPage,
+  ReaderCatalog, ReaderAssetProvider, ReaderPreloadHost, ReaderAutoReadSourceHost, ReaderUnitKey, ReaderUnit, ReaderPage,
   ReaderCancellation, ReaderAsset, ReaderAssetKind,
   ReaderImageInformation, ReaderImageInformationSource, ReaderImageShareTarget,
+  ReaderAssetFailure, ReaderAssetFailureClassifier,
 } from '@reader-kit/core'
+import { KomaReaderFailure } from './KomaReaderFailure'
 import { fileIo as fs } from '@kit.CoreFileKit'
 import { ReaderFileCropSource, ReaderFileInformation } from '@reader-kit/ui'
 import { InMemoryLibraryStore } from '../model/LibraryStore'
@@ -10,10 +12,11 @@ import { ComicSourceKind } from '../model/ComicModels'
 import { localLibraryFolderRootUriFromComic } from '../model/LocalLibraryFolderContract'
 import { activateLocalLibraryFolderAccess } from '../model/LocalLibraryFolderAccessService'
 import { AppFilesLibraryStorePersistenceAdapter, hydrateLibraryStoreFromJson } from '../model/LibraryPersistence'
-import { ReaderSessionConfig, createReaderSessionConfigFromComic } from '../model/ReaderSessionStore'
+import { ReaderSessionConfig, cloneReaderSessionConfig, createReaderSessionConfigFromComic } from '../model/ReaderSessionStore'
 import { OfflineDownloadStore } from '../model/OfflineDownloadStore'
 import { createKomaReaderLabOfflineConfig } from './KomaReaderLabOfflineConfig'
 import { KomaReaderLabThumbnailProvider } from './KomaReaderLabThumbnailProvider'
+import { KomaReaderCatalogHost } from './KomaReaderCatalogHost'
 import {
   ReaderPageRenderKind, ReaderPageRenderSource, configureReaderOfflineDownloads, configureReaderRemoteImageCache,
   createReaderPageRenderSources, fetchAndCacheReaderRemoteSource,
@@ -45,9 +48,14 @@ class KomaReaderFileInformation implements ReaderImageInformationSource {
 }
 
 /** D1 reads local/downloaded chapters. It never fetches chapter pages or persists the user's library. */
-export class KomaReaderLabAdapter implements ReaderCatalog, ReaderAssetProvider, ReaderPreloadHost {
+export class KomaReaderLabAdapter implements ReaderCatalog, ReaderAssetProvider, ReaderPreloadHost, ReaderAutoReadSourceHost,
+  ReaderAssetFailureClassifier {
   cancellationMode: 'consumer-only' | 'transport' = 'consumer-only'
   informationSupported: boolean = true
+
+  classify(error: Error): ReaderAssetFailure {
+    return KomaReaderFailure.from(error)
+  }
   private library: InMemoryLibraryStore = new InMemoryLibraryStore()
   private configs: Map<string, ReaderSessionConfig> = new Map()
   private sources: Map<string, ReaderPageRenderSource[]> = new Map()
@@ -55,12 +63,14 @@ export class KomaReaderLabAdapter implements ReaderCatalog, ReaderAssetProvider,
   private closed: boolean = false
   private filesDir: string
   private thumbnails: KomaReaderLabThumbnailProvider
+  private catalogHost: KomaReaderCatalogHost | null
 
   private unitId(key: ReaderUnitKey): string { return JSON.stringify([key.scope, key.work, key.unit]) }
 
-  constructor(filesDir: string, cacheDir: string) {
+  constructor(filesDir: string, cacheDir: string, catalogHost: KomaReaderCatalogHost | null = null) {
     this.filesDir = filesDir
     this.thumbnails = new KomaReaderLabThumbnailProvider(cacheDir)
+    this.catalogHost = catalogHost
     const payload = new AppFilesLibraryStorePersistenceAdapter(filesDir).load()
     if (payload !== undefined) hydrateLibraryStoreFromJson(this.library, payload)
     configureReaderOfflineDownloads(filesDir)
@@ -68,6 +78,10 @@ export class KomaReaderLabAdapter implements ReaderCatalog, ReaderAssetProvider,
   }
 
   initialKey(work: string, unit: string): ReaderUnitKey {
+    const hosted = this.catalogHost?.initial(work, unit) ?? null
+    if (hosted !== null && hosted.comicId === work && hosted.chapterId === unit && hosted.totalPages > 0) {
+      return new ReaderUnitKey('koma-local', work, unit)
+    }
     const comic = this.library.getComic(work)
     const chapter = unit.length > 0 ? unit : (comic?.chapters[0]?.id ?? '')
     return new ReaderUnitKey('koma-local', work, chapter)
@@ -84,6 +98,8 @@ export class KomaReaderLabAdapter implements ReaderCatalog, ReaderAssetProvider,
   async prepare(key: ReaderUnitKey, cancellation: ReaderCancellation): Promise<ReaderUnit> {
     cancellation.check()
     if (this.closed || key.scope !== 'koma-local') throw new Error('invalid_koma_reader_scope')
+    const hosted = await this.catalogHost?.prepare(key, cancellation) ?? null
+    if (hosted !== null) return this.installConfig(key, hosted, cancellation)
     const comic = this.library.getComic(key.work)
     if (comic === undefined || !comic.chapters.some((chapter) => chapter.id === key.unit)) {
       throw new Error('missing_koma_chapter')
@@ -113,6 +129,14 @@ export class KomaReaderLabAdapter implements ReaderCatalog, ReaderAssetProvider,
     if (!Number.isSafeInteger(config.totalPages) || config.totalPages < 1) {
       throw new Error('missing_koma_chapter_pages')
     }
+    return this.installConfig(key, config, cancellation)
+  }
+
+  private installConfig(key: ReaderUnitKey, config: ReaderSessionConfig,
+    cancellation: ReaderCancellation): ReaderUnit {
+    if (config.comicId !== key.work || config.chapterId !== key.unit ||
+      !Number.isSafeInteger(config.totalPages) || config.totalPages < 1 ||
+      config.pageUris.length !== config.totalPages) throw new Error('invalid_koma_host_catalog')
     // One chapter source list; URI classification itself does not fetch remote pages.
     const sources = createReaderPageRenderSources(config, { preferOffline: true })
     const unit = new ReaderUnit(key.copy(), `${config.title ?? ''} · ${config.chapterTitle ?? ''}`, config.totalPages)
@@ -134,6 +158,8 @@ export class KomaReaderLabAdapter implements ReaderCatalog, ReaderAssetProvider,
     const source = this.sources.get(this.unitId(unit.key))?.[index]
     page.thumbnail.available = source !== undefined &&
       source.kind !== ReaderPageRenderKind.URI_PLACEHOLDER && source.imageUri.length > 0
+    page.bodySourceReady = source !== undefined &&
+      source.kind !== ReaderPageRenderKind.URI_PLACEHOLDER && source.imageUri.length > 0
     return page
   }
 
@@ -151,14 +177,21 @@ export class KomaReaderLabAdapter implements ReaderCatalog, ReaderAssetProvider,
   chapterChoices(unit: ReaderUnitKey): KomaReaderLabChapterChoice[] {
     const config = this.configs.get(this.unitId(unit))
     if (config === undefined) return []
-    const chapterIds = config.continuationChapterIds ?? config.chapterIds
-    return chapterIds.map((chapterId: string): KomaReaderLabChapterChoice => {
+    // Manual selection matches the legacy reader's complete catalog. Only the
+    // previous/next boundary above is restricted to the verified continuation
+    // sequence, so editions outside that sequence do not disappear from UI.
+    return config.chapterIds.map((chapterId: string): KomaReaderLabChapterChoice => {
       const index = config.chapterIds.indexOf(chapterId)
       return new KomaReaderLabChapterChoice(
         new ReaderUnitKey(unit.scope, unit.work, chapterId),
         index >= 0 ? (config.chapterTitles?.[index] ?? '') : '',
       )
     })
+  }
+
+  sessionConfig(unit: ReaderUnitKey): ReaderSessionConfig | null {
+    const config = this.configs.get(this.unitId(unit))
+    return config === undefined ? null : cloneReaderSessionConfig(config)
   }
 
   async preload(page: ReaderPage, cancellation: ReaderCancellation): Promise<void> {
@@ -172,6 +205,18 @@ export class KomaReaderLabAdapter implements ReaderCatalog, ReaderAssetProvider,
     cancellation.check()
     if (this.closed) throw new Error('closed_koma_reader')
     console.info(`[KomaReaderPreload] source=${page.sourceIndex} result=ready`)
+  }
+
+  /** Koma's legacy gate is the canonical non-placeholder URI, not thumbnail state. */
+  async prepareAutoReadSource(page: ReaderPage, cancellation: ReaderCancellation): Promise<ReaderPage> {
+    cancellation.check()
+    const source = this.sources.get(this.unitId(page.unit))?.[page.sourceIndex]
+    if (source === undefined || source.kind === ReaderPageRenderKind.URI_PLACEHOLDER || source.imageUri.length === 0) {
+      throw new Error('koma_lab_body_source_unavailable')
+    }
+    const resolved = page.copy()
+    resolved.bodySourceReady = true
+    return resolved
   }
 
   async imageShareSource(target: ReaderImageShareTarget,

@@ -1,3 +1,6 @@
 [submodule "third_party/lexbor"]
 	path = third_party/lexbor
 	url = https://github.com/lexbor/lexbor.git
+[submodule "third_party/reader-kit"]
+	path = third_party/reader-kit
+	url = https://github.com/erosTeam/reader-kit.git

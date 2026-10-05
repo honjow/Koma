@@ -163,6 +163,36 @@ Artifact 目录规范见 `docs/CONTROLLER_ARTIFACTS.md`。
 
 ### Lane 1E：阅读器原型
 
+共享阅读器接入检查点（2026-09-15）：Debug 的普通“设置 → 阅读”支持进程内
+Shared/Legacy 选择，普通书架入口捕获选择；导航、章节准备、进度和窗口恢复仍由
+Koma 持有，Release 和冷启动默认保留 Legacy。197 的匹配 Debug/Release 构建已
+走过原图 6/35、点击 chrome、滑动 6→7→6、详情返回、关闭重进、详情选另一章
+1/32 后恢复 6/35、显式 Legacy 回退及 Release 默认阅读。原始证据保存在独立
+worktree 的 `.hermes-artifacts/20260915-entry-baseline/`；其中 `21-single-monitor-reader`、
+`22-legacy-fallback`、`24-detail-selected-chapter`、`26-release-legacy` 位于
+`device197__ALN-AL80/not-applicable/portrait-1260x2720/`。28 项针对性检查和两种构建
+通过，但不代替三端最终替换矩阵。入口卡加载的已证实原因是相同参数的两个
+`@Monitor` 注册互相覆盖；初始化和章节取消现共用一个活动监听，测试防止重复注册。
+这不是默认替换许可。共享依赖现已固定为仓库内 `third_party/reader-kit` 的 `8112355`，
+并已验证公开远端取回、全新检出安装依赖及公开 Debug/Release 构建；28 项宿主检查通过，
+锁文件无漂移。构建日志位于 `.hermes-artifacts/20260915-reader-pin/`；这不是云端 CI 或
+额外设备验收。
+
+固定子模块构建本身亦已上 197 设备核对：签名 Debug HAP
+`14ff92f7f129155b570d8a625e2fcdb54023f16dc36dc9d149b8fa8f72ef84ce` 就地安装后普通冷启动进入
+正常书架（`com.honjow.koma`、`library-title-layout`），应用内选择器仍提供共享阅读器，
+普通书架入口挂载 `rkit-reading-surface`（1 个）而 `legacy-reader-surface` 为 0，页码 `6 / 35`
+与既有基线一致；屏幕超时已恢复 10000ms、应用已强制停止、租约已释放。证据位于
+`.hermes-artifacts/20260915-pinned-submodule-build/device197__ALN-AL80/not-applicable/portrait-1260x2720/`。
+下一步为 103 平板普通入口、横竖屏和 Legacy 回退，之后核对三端最终候选矩阵。
+
+宿主套件回归基线（2026-09-15）：在固定子模块 `8112355` 的 `codex/koma-reader-refactor`
+分支上，6 条共享阅读器宿主套件（`test_shared_reader_*.cjs`）全部通过；其余 13 条通过。
+唯一失败的 `test_data_migration_policy.mjs` 属于既有陈旧断言，与本分支及共享阅读器无关：
+`ReaderSessionStore.ets` 已是 `READER_PROGRESS_PERSISTENCE_SCHEMA_VERSION = 3` 并处理 v1/v2/v3
+迁移与拒绝，而该断言仍写死 `= 2`；同一套件在 Koma 主检出同样失败，因此不能作为本分支的
+回归证据。是否需要更新该断言属独立决定，本轮未改动。
+
 需要 1A 的 page model；可先用 mock/local asset。
 
 范围：

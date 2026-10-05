@@ -37,11 +37,11 @@ class Choice {
   constructor(value, title) { this.key = value; this.title = title }
 }
 
-test('adapter projects only the host continuation sequence and aligned titles', () => {
+test('adapter keeps the full manual catalog while adjacent navigation uses only the continuation sequence', () => {
   class ReaderUnitKey {
     constructor(scope, work, unit) { Object.assign(this, { scope, work, unit }) }
   }
-  const Adapter = subject('KomaReaderLabAdapter.ets', 'KomaReaderLabAdapter', ['unitId', 'chapterChoices'], {
+  const Adapter = subject('KomaReaderLabAdapter.ets', 'KomaReaderLabAdapter', ['unitId', 'adjacent', 'chapterChoices'], {
     KomaReaderLabChapterChoice: Choice, ReaderUnitKey,
   })
   const adapter = new Adapter()
@@ -51,7 +51,9 @@ test('adapter projects only the host continuation sequence and aligned titles', 
     chapterIds: ['A', 'B', 'C'], chapterTitles: ['Alpha', 'Beta', 'Gamma'], continuationChapterIds: ['B', 'C'],
   })
   assert.deepEqual(adapter.chapterChoices(current).map(value => [value.key.unit, value.title]),
-    [['B', 'Beta'], ['C', 'Gamma']])
+    [['A', 'Alpha'], ['B', 'Beta'], ['C', 'Gamma']])
+  assert.equal(adapter.adjacent({ key: current }, 'previous'), null)
+  assert.equal(adapter.adjacent({ key: current }, 'next').unit, 'C')
 })
 
 test('picker opens only for an exact current unit/navigation and dismisses before switching', () => {
@@ -80,14 +82,15 @@ test('picker opens only for an exact current unit/navigation and dismisses befor
   assert.deepEqual(opened, [['B', 'A', 'picker']])
 })
 
-test('a newer picker target cancels preparation and is the only chapter opened', async () => {
+test('a newer picker target cancels preparation and restores only the opened chapter position', async () => {
   class ReaderCancellation {
     constructor() { this.cancelled = false }
     cancel() { this.cancelled = true }
     isCancelled() { return this.cancelled }
     check() { if (this.cancelled) throw new Error('cancelled') }
   }
-  const Page = subject('KomaReaderLabPage.ets', 'KomaReaderLabPage', ['openChapterTarget'], {
+  const Page = subject('KomaReaderLabPage.ets', 'KomaReaderLabPage',
+    ['chapterInitialPage', 'openChapterTarget', 'syncChapterChoices', 'onObservedPosition'], {
     ReaderCancellation, $r: value => value,
   })
   const page = new Page()
@@ -96,15 +99,25 @@ test('a newer picker target cancels preparation and is the only chapter opened',
   let releaseB
   const pendingB = new Promise(resolve => { releaseB = resolve })
   const opened = []
-  const adapter = { prepare: target => target.unit === 'B' ? pendingB : Promise.resolve() }
+  const committed = []
+  const restored = []
+  const adapter = {
+    prepare: target => target.unit === 'B' ? pendingB : Promise.resolve(),
+    sessionConfig: target => ({ comicId: target.work, chapterId: target.unit,
+      chapterIds: [target.unit], totalPages: 1, pageUris: [`uri:${target.unit}`] }),
+    chapterChoices: () => [],
+  }
   const session = {
-    snapshot: () => ({ phase: 'ready', unit: { key: current } }),
-    open: async target => { opened.push(target.unit); current = target },
+    snapshot: () => ({ phase: 'ready', unit: { key: current }, policy: { firstPageAlone: false } }),
+    open: async (target, index) => { opened.push([target.unit, index]); current = target },
   }
   Object.assign(page, {
     session, adapter, routeActive: true, labVisibility: { foreground: true }, readerClosed: false,
-    chapterRequest: null, chapterBusy: false, request: { chapterProbe: '' },
-    runChapterPreparationProbe: async () => {}, syncChapterChoices() {},
+    chapterRequest: null, chapterBusy: false, request: { chapterProbe: '', progressReadWrite: true },
+    readInitialPage: (work, unit) => { restored.push([work, unit]); return unit === 'C' ? 7 : 3 },
+    runChapterPreparationProbe: async () => {}, chapterChoices: [], chapterChoiceIdentity: '',
+    catalogHost: { commit: target => committed.push(target.unit) },
+    persistObserved() {},
     getUIContext: () => ({ getPromptAction: () => ({ showToast() {} }) }),
   })
   const first = page.openChapterTarget(key('B'), source, 'picker')
@@ -113,14 +126,32 @@ test('a newer picker target cancels preparation and is the only chapter opened',
   await second
   releaseB()
   await first
-  assert.deepEqual(opened, ['C'])
+  assert.deepEqual(opened, [['C', 7]])
+  assert.deepEqual(committed, [])
+  page.onObservedPosition({ anchor: { unit: current, sourceIndexHint: 0 }, pageCount: 1 })
+  assert.deepEqual(committed, ['C'])
+  assert.deepEqual(restored, [['work', 'C']])
   assert.equal(page.chapterBusy, false)
+})
+
+test('chapter switch starts at zero when host progress is disabled', () => {
+  const Page = subject('KomaReaderLabPage.ets', 'KomaReaderLabPage', ['chapterInitialPage'])
+  const page = new Page()
+  Object.assign(page, {
+    request: { progressReadWrite: false },
+    readInitialPage: () => { throw new Error('must not read disabled progress') },
+  })
+  assert.equal(page.chapterInitialPage(key('B')), 0)
 })
 
 test('shared page keeps chapter data and sheet ownership outside reader-kit', () => {
   const page = fs.readFileSync(path.join(root, 'KomaReaderLabPage.ets'), 'utf8')
   const adapter = fs.readFileSync(path.join(root, 'KomaReaderLabAdapter.ets'), 'utf8')
-  assert.match(page, /hostCenterActionLabel: this\.chapterControlLabel\(\)/)
+  assert.match(page, /centerAction: this\.chapterChoices\.length > 0[\s\S]*new ReaderCenterAction\(this\.chapterControlLabel\(\)/)
+  assert.match(page, /chapterNavigation: new ReaderChapterNavigation\(this\.chapterBusy/)
+  assert.doesNotMatch(page, /chapterNavigationAvailable:/)
+  assert.doesNotMatch(page, /chapterNavigationBusy:/)
+  assert.doesNotMatch(page, /onChapter:/)
   assert.match(page, /ReaderHostChapterPickerSheet/)
   assert.match(page, /!this\.chapterPickerShown/)
   assert.match(adapter, /chapterChoices\(unit: ReaderUnitKey\)/)
