@@ -47,6 +47,13 @@ jobs:
       - name: Check i18n resources
         run: python3 scripts/check_i18n_duplicates.py
 
+      - name: Install native build dependencies
+        run: |
+          if ! command -v xxd >/dev/null 2>&1; then
+            apt-get update
+            DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends xxd
+          fi
+
       - name: Install OHPM dependencies
         run: ohpm install --all
 
