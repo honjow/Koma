@@ -35,6 +35,12 @@ jobs:
           submodules: recursive
           persist-credentials: false
 
+      - name: Configure Git workspace ownership
+        run: |
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
+          git config --global --add safe.directory "$GITHUB_WORKSPACE/third_party/reader-kit"
+          git config --global --add safe.directory "$GITHUB_WORKSPACE/third_party/lexbor"
+
       - name: Guard public build profile
         run: bash scripts/check-public-build-profile.sh --head
 
