@@ -1,0 +1,111 @@
+name: Build OHOS
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+    branches: [master]
+  workflow_dispatch:
+
+concurrency:
+  group: build-ohos-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  packages: read
+
+jobs:
+  build_hap:
+    name: Build unsigned HAP
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    container:
+      image: ghcr.io/honjow/harmonyos-build-env:26.0-api26
+      credentials:
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          persist-credentials: false
+
+      - name: Guard public build profile
+        run: bash scripts/check-public-build-profile.sh --head
+
+      - name: Check i18n resources
+        run: python3 scripts/check_i18n_duplicates.py
+
+      - name: Install OHPM dependencies
+        run: ohpm install --all
+
+      - name: Build unsigned HAP (debug)
+        run: hvigorw assembleHap --mode module -p product=default -p buildMode=debug --no-daemon
+
+      - name: Inspect and collect HAP
+        run: |
+          python3 - <<'PY'
+          import hashlib
+          import json
+          import os
+          from pathlib import Path
+          import re
+          import shutil
+          import subprocess
+          import zipfile
+
+          source = Path("entry/build/default/outputs/default/entry-default-unsigned.hap")
+          with zipfile.ZipFile(source) as archive:
+              if archive.testzip() is not None:
+                  raise SystemExit("HAP archive integrity check failed")
+              app = json.loads(archive.read("module.json"))["app"]
+              if app["bundleName"] != "com.honjow.koma":
+                  raise SystemExit("Unexpected HAP bundle name")
+              if app.get("buildMode") != "debug" or app.get("debug") is not True:
+                  raise SystemExit("Expected a Debug HAP")
+              required = {
+                  "libs/arm64-v8a/libkoma_source_runtime.so",
+                  "libs/arm64-v8a/libc++_shared.so",
+              }
+              if not required.issubset(archive.namelist()):
+                  raise SystemExit("HAP is missing required arm64 native libraries")
+
+          version = app["versionName"]
+          if re.fullmatch(r"[A-Za-z0-9._-]+", version) is None:
+              raise SystemExit("Invalid artifact version")
+          output = Path(f"Koma_{version}_ohos-debug-unsigned.hap")
+          shutil.copyfile(source, output)
+          manifest = {
+              "commit": os.environ["GITHUB_SHA"],
+              "readerKitCommit": subprocess.check_output(
+                  ["git", "-C", "third_party/reader-kit", "rev-parse", "HEAD"], text=True
+              ).strip(),
+              "bundleName": app["bundleName"],
+              "versionName": version,
+              "versionCode": app["versionCode"],
+              "buildMode": app["buildMode"],
+              "signed": False,
+              "hap": output.name,
+              "bytes": output.stat().st_size,
+              "sha256": hashlib.sha256(output.read_bytes()).hexdigest(),
+          }
+          Path("build-manifest.json").write_text(json.dumps(manifest, indent=2) + "\n")
+          with open(os.environ["GITHUB_ENV"], "a") as env:
+              env.write(f"HAP_PATH={output}\n")
+          print(json.dumps(manifest, indent=2))
+          PY
+
+      - name: Upload unsigned HAP
+        uses: actions/upload-artifact@v4
+        with:
+          name: ohos-hap-unsigned
+          path: |
+            ${{ env.HAP_PATH }}
+            build-manifest.json
+          if-no-files-found: error
+          retention-days: 14
