@@ -1,3 +1,4 @@
+import { AppearancePreferencesStore } from '../model/AppearancePreferencesStore'
 import { restoreReaderRemoteImageCache } from '../model/ReaderPageSourceAdapter'
 import { UIAbility, Want, AbilityConstant } from '@kit.AbilityKit'
 import { captureReaderLabWant, updateReaderLabForeground } from '@reader-kit/ui'
@@ -37,7 +38,6 @@ export default class EntryAbility extends UIAbility {
     captureReaderLabWant(want, this.context.applicationInfo.debug)
     void launchParam
     AppStrings.init(this.context)
-    void LanguageSettings.restore(this.context)
     this.startupPromise = this.prepareStartup(want).catch((_error: Error): void => {
       BackupRestoreActivity.blockUntilRestart()
       console.error('[BackupRecovery] step=startup_failed code=backup_recovery_pending')
@@ -48,7 +48,13 @@ export default class EntryAbility extends UIAbility {
     // Recover before theme Preferences, installed packages, Library or Reader
     // consumers are initialized. A failed recovery never loads ordinary Index.
     await BackupRestoreCheckpoint.recoverBeforeStartup(this.context)
+    await LanguageSettings.restore(this.context).catch((_error: Error): void => {
+      console.warn('[Language] startup_apply_failed retained_previous_runtime=true')
+    })
     await restoreReaderRemoteImageCache(this.context)
+    await new AppearancePreferencesStore(this.context).load().catch((_error: Error): void => {
+      console.warn('[Appearance] startup_load_failed retained_previous_runtime=true')
+    })
     configureSourceSettingsStore(this.context)
     configureSourceRuntimeHttpTransport()
     bootstrapSourceRuntimeAppRegistry(this.context)

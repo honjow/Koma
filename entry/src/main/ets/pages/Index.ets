@@ -174,6 +174,7 @@ struct Index {
   @Local selectedTab: number = TabIndex.LIBRARY
   @Local private importMenuShown: boolean = false
   @Local private trackerSettingsRevision: number = 0
+  @Local private applicationSettingsRestoreRevision: number = 0
   @Local private backupSettingsRevision: number = 0
   @Local private libraryPreferencesRevision: number = 0
   @Local private categoryDisplayStrategyChange?: LibraryCategoryDisplayStrategy = undefined
@@ -887,6 +888,8 @@ struct Index {
 
   private onBackupRestored(): void {
     this.ensureLibraryPersistenceService()?.restore()
+    this.libraryPreferencesRevision += 1
+    this.applicationSettingsRestoreRevision += 1
     this.readerProgressRevision += 1
     this.refreshLibrarySnapshot()
   }
@@ -1795,6 +1798,7 @@ struct Index {
     } else if (name === RouteName.SETTINGS_PANE) {
       HdsNavDestination() {
         SettingsPage({
+            preferencesRestoreRevision: this.applicationSettingsRestoreRevision,
           pane: this.settingsPaneFromParam(param),
           onLibraryPreferencesChanged: () => { this.libraryPreferencesRevision += 1 },
           libraryStore: this.libraryStore,
@@ -2033,6 +2037,7 @@ struct Index {
 
             TabContent() {
               SettingsPage({
+            preferencesRestoreRevision: this.applicationSettingsRestoreRevision,
                 pane: 'root',
                 onLibraryPreferencesChanged: () => { this.libraryPreferencesRevision += 1 },
                 libraryStore: this.libraryStore,

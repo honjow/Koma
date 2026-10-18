@@ -1,3 +1,5 @@
+import { connectAppearanceState, appearanceAccentValue } from '../state/AppearanceState'
+import { BackupRestoreActivity } from './BackupRestoreActivity'
 import { common } from '@kit.AbilityKit'
 import { preferences } from '@kit.ArkData'
 import { AppStrings } from '../i18n/AppStrings'
@@ -39,20 +41,10 @@ export function getAppearanceAccentColorLabel(value: AppearanceAccentColor): str
 }
 
 export function getAppearanceAccentColorValue(value: AppearanceAccentColor): ResourceColor {
-  if (value === 'ocean') {
-    return '#3268B8'
-  }
-  if (value === 'rose') {
-    return '#B8466A'
-  }
-  if (value === 'amber') {
-    return '#A66A1F'
-  }
-  if (value === 'mono') {
-    return '#6C706C'
-  }
-  return '#256E5D'
+  return appearanceAccentValue(value, '#256E5D')
 }
+
+const appearanceOperations: Map<string, Promise<void>> = new Map()
 
 export class AppearancePreferencesStore {
   private context: common.UIAbilityContext
@@ -61,22 +53,41 @@ export class AppearancePreferencesStore {
     this.context = context
   }
 
+  private ordered<T>(operation: () => Promise<T>): Promise<T> {
+    const key = this.context.filesDir
+    const result = (appearanceOperations.get(key) ?? Promise.resolve()).then(operation)
+    appearanceOperations.set(key, result.then(() => {}, () => {}))
+    return result
+  }
+
   async load(): Promise<AppearancePreferences> {
-    const store = await this.preferences()
-    const accentColor = await store.get(ACCENT_COLOR_KEY, DEFAULT_APPEARANCE_PREFERENCES.accentColor) as string
-    return {
-      accentColor: normalizeAppearanceAccentColor(accentColor),
-    }
+    return this.ordered(async (): Promise<AppearancePreferences> => {
+      const store = await this.preferences()
+      const raw = await store.get(ACCENT_COLOR_KEY, DEFAULT_APPEARANCE_PREFERENCES.accentColor) as string
+      const accentColor = normalizeAppearanceAccentColor(raw)
+      connectAppearanceState().accentColor = accentColor
+      return { accentColor }
+    })
   }
 
   async saveAccentColor(accentColor: AppearanceAccentColor): Promise<AppearancePreferences> {
-    const normalized = normalizeAppearanceAccentColor(accentColor)
-    const store = await this.preferences()
-    await store.put(ACCENT_COLOR_KEY, normalized)
-    await store.flush()
-    return {
-      accentColor: normalized,
-    }
+    return BackupRestoreActivity.runWrite(() => this.ordered(async (): Promise<AppearancePreferences> => {
+      const normalized = normalizeAppearanceAccentColor(accentColor)
+      const store = await this.preferences()
+      const existed = await store.has(ACCENT_COLOR_KEY)
+      const previous = await store.get(ACCENT_COLOR_KEY, DEFAULT_APPEARANCE_PREFERENCES.accentColor)
+      try {
+        await store.put(ACCENT_COLOR_KEY, normalized)
+        await store.flush()
+      } catch (error) {
+        if (existed) await store.put(ACCENT_COLOR_KEY, previous)
+        else await store.delete(ACCENT_COLOR_KEY)
+        await store.flush()
+        throw error as Error
+      }
+      connectAppearanceState().accentColor = normalized
+      return { accentColor: normalized }
+    }))
   }
 
   private async preferences(): Promise<preferences.Preferences> {

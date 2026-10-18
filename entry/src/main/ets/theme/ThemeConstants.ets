@@ -1,7 +1,11 @@
+import { connectAppearanceState, appearanceAccentValue } from '../state/AppearanceState'
+
 export class ThemeConstants {
   // Koma UI tokens, aligned with the NextE/V2Next HDS rhythm.
   // Keep Koma's own brand color, but avoid scattering raw sizes and colors in pages.
-  static readonly BRAND_PRIMARY: ResourceColor = $r('app.color.koma_accent')
+  static get BRAND_PRIMARY(): ResourceStr {
+    return appearanceAccentValue(connectAppearanceState().accentColor, $r('app.color.koma_accent'))
+  }
   static readonly BRAND_ACCENT: ResourceColor = $r('sys.color.font_secondary')
   static readonly TEXT_ON_BRAND: ResourceColor = $r('app.color.koma_text_on_brand')
   static readonly TEXT_PRIMARY: ResourceColor = $r('app.color.koma_text_primary')
@@ -14,7 +18,10 @@ export class ThemeConstants {
   static readonly DANGER: ResourceColor = $r('app.color.koma_danger')
   static readonly COVER_PLACEHOLDER: ResourceColor = $r('app.color.koma_cover_placeholder')
   static readonly SELECTED_OVERLAY: ResourceColor = '#66000000'
-  static readonly SOFT_TINT: ResourceColor = '#1F256E5D'
+  static get SOFT_TINT(): ResourceColor {
+    const accent = appearanceAccentValue(connectAppearanceState().accentColor, '#256E5D') as string
+    return '#1F' + accent.substring(1)
+  }
   static readonly SOFT_PRESSED: ResourceColor = '#0F000000'
   static readonly STATUS_SUCCESS: ResourceColor = '#1D7F5A'
   static readonly STATUS_INFO: ResourceColor = '#3268B8'

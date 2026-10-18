@@ -11,18 +11,16 @@ export class AppStrings {
   }
 
   static setOverrideLocale(locale: string): string {
-    if (locale.length === 0 || AppStrings.context === null) {
+    if (locale.length === 0) {
       AppStrings.overrideResMgr = null
       return locale
     }
-    try {
-      const config: resourceManager.Configuration = AppStrings.context.resourceManager.getOverrideConfiguration()
-      config.locale = locale
-      AppStrings.context.resourceManager.updateOverrideConfiguration(config)
-      AppStrings.overrideResMgr = AppStrings.context.resourceManager.getOverrideResourceManager(config)
-    } catch (_error) {
-      AppStrings.overrideResMgr = null
-    }
+    if (AppStrings.context === null) throw new Error('language_resources_not_initialized')
+    const config: resourceManager.Configuration = AppStrings.context.resourceManager.getOverrideConfiguration()
+    config.locale = locale
+    // Construction must succeed before replacing the previous manager.
+    const next = AppStrings.context.resourceManager.getOverrideResourceManager(config)
+    AppStrings.overrideResMgr = next
     return locale
   }
 

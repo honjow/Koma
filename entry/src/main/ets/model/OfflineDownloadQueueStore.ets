@@ -1,3 +1,5 @@
+import { BackupRestoreActivity } from './BackupRestoreActivity'
+import { writeAppTextFile } from './AppFileTextPersistence'
 import { fileIo as fs } from '@kit.CoreFileKit'
 import { OfflineDownloadRuntime } from './OfflineDownloadRuntime'
 import {
@@ -22,7 +24,6 @@ export const DEFAULT_OFFLINE_DOWNLOAD_QUEUE_PREFERENCES: OfflineDownloadQueuePre
   isPaused: false,
   wifiOnly: false,
 }
-const OFFLINE_DOWNLOAD_QUEUE_TEMP_FILE_NAME: string = 'queue.v1.json.tmp'
 export const OFFLINE_DOWNLOAD_FAILURE_REASON_CODES: string[] = [
   'paused',
   'wifi_only',
@@ -123,15 +124,6 @@ function joinPath(parent: string, child: string): string {
   return right.length === 0 ? left : `${left}/${right}`
 }
 
-function closeFileQuietly(file: fs.File | undefined): void {
-  if (file === undefined) {
-    return
-  }
-  try {
-    fs.closeSync(file)
-  } catch (_err) {
-  }
-}
 
 function ensureDirSync(path: string): void {
   if (!fs.accessSync(path)) {
@@ -139,25 +131,7 @@ function ensureDirSync(path: string): void {
   }
 }
 
-function unlinkQuietly(path: string): void {
-  try {
-    if (fs.accessSync(path)) {
-      fs.unlinkSync(path)
-    }
-  } catch (_err) {
-  }
-}
 
-function writeTextSync(path: string, payload: string): void {
-  let file: fs.File | undefined = undefined
-  try {
-    file = fs.openSync(path, fs.OpenMode.WRITE_ONLY | fs.OpenMode.CREATE | fs.OpenMode.TRUNC)
-    fs.writeSync(file.fd, payload, { encoding: 'utf-8' })
-    fs.fsyncSync(file.fd)
-  } finally {
-    closeFileQuietly(file)
-  }
-}
 
 function normalizeCount(value: number): number {
   return Math.max(0, Math.floor(value))
@@ -481,6 +455,16 @@ export class OfflineDownloadQueueStore {
   }
 
   savePreferences(preferences: OfflineDownloadQueuePreferences): OfflineDownloadQueuePreferences {
+    if (BackupRestoreActivity.isRestoring()) throw new Error('backup_restore_busy')
+    return this.persistPreferences(preferences)
+  }
+
+  savePreferencesForBackupRestore(preferences: OfflineDownloadQueuePreferences): OfflineDownloadQueuePreferences {
+    if (!BackupRestoreActivity.isRestoring()) throw new Error('backup_restore_not_active')
+    return this.persistPreferences(preferences)
+  }
+
+  private persistPreferences(preferences: OfflineDownloadQueuePreferences): OfflineDownloadQueuePreferences {
     const document = this.loadDocument()
     const normalized = normalizePreferences(preferences)
     this.saveDocument({
@@ -498,10 +482,11 @@ export class OfflineDownloadQueueStore {
   }
 
   pauseAllQueuedWork(): OfflineDownloadQueuePreferences {
-    OfflineDownloadRuntime.requestPause(this.filesDir)
     const preferences = this.loadPreferences()
     preferences.isPaused = true
-    return this.savePreferences(preferences)
+    const committed = this.savePreferences(preferences)
+    OfflineDownloadRuntime.requestPause(this.filesDir)
+    return committed
   }
 
   resumeAllQueuedWork(): OfflineDownloadQueuePreferences {
@@ -527,11 +512,7 @@ export class OfflineDownloadQueueStore {
     try {
       const document = JSON.parse(fs.readTextSync(this.queuePath, { encoding: 'utf-8' })) as OfflineDownloadQueueDocument
       if (document.schemaVersion !== OFFLINE_DOWNLOAD_QUEUE_SCHEMA_VERSION || !Array.isArray(document.entries)) {
-        return {
-          schemaVersion: OFFLINE_DOWNLOAD_QUEUE_SCHEMA_VERSION,
-          preferences: normalizePreferences(),
-          entries: [],
-        }
+        throw new Error('offline_download_queue_invalid')
       }
       return {
         schemaVersion: OFFLINE_DOWNLOAD_QUEUE_SCHEMA_VERSION,
@@ -539,11 +520,7 @@ export class OfflineDownloadQueueStore {
         entries: document.entries.map((entry: OfflineDownloadQueueEntry): OfflineDownloadQueueEntry => normalizeEntry(entry)),
       }
     } catch (_err) {
-      return {
-        schemaVersion: OFFLINE_DOWNLOAD_QUEUE_SCHEMA_VERSION,
-        preferences: normalizePreferences(),
-        entries: [],
-      }
+      throw new Error('offline_download_queue_read_failed')
     }
   }
 
@@ -637,19 +614,11 @@ export class OfflineDownloadQueueStore {
   private saveDocument(document: OfflineDownloadQueueDocument): void {
     assertSafeOfflineDownloadRoot(this.filesDir, this.queuePath)
     ensureDirSync(this.rootDir)
-    const tempPath = joinPath(this.rootDir, OFFLINE_DOWNLOAD_QUEUE_TEMP_FILE_NAME)
-    assertSafeOfflineDownloadRoot(this.filesDir, tempPath)
-    writeTextSync(tempPath, JSON.stringify({
+    writeAppTextFile(this.queuePath, JSON.stringify({
       schemaVersion: OFFLINE_DOWNLOAD_QUEUE_SCHEMA_VERSION,
       preferences: document.preferences === undefined ? normalizePreferences() : normalizePreferences(document.preferences),
       entries: document.entries.map((entry: OfflineDownloadQueueEntry): OfflineDownloadQueueEntry => normalizeEntry(entry)),
     }))
-    try {
-      // Harmony fileIo moveFileSync mode 0 replaces an existing app-sandbox file.
-      fs.moveFileSync(tempPath, this.queuePath, 0)
-    } finally {
-      unlinkQuietly(tempPath)
-    }
     OfflineDownloadRuntime.publish(this.filesDir)
   }
 

@@ -1,3 +1,4 @@
+import { BackupRestoreActivity } from '../model/BackupRestoreActivity'
 import { common } from '@kit.AbilityKit'
 import { preferences } from '@kit.ArkData'
 import { i18n } from '@kit.LocalizationKit'
@@ -6,6 +7,15 @@ import { connectLanguageState } from '../state/LanguageState'
 
 const APP_PREFERENCES_STORE_NAME: string = 'koma_app_preferences_v1'
 const APP_LANGUAGE_KEY: string = 'app.language'
+
+// Startup restore and settings edits share the same app preference publication order.
+let languageMutations: Promise<void> = Promise.resolve()
+
+function mutateLanguage(action: () => Promise<void>): Promise<void> {
+  const result = languageMutations.then(action)
+  languageMutations = result.catch((): void => {})
+  return result
+}
 
 export class LanguageSettings {
   static readonly MODE_SYSTEM: string = 'system'
@@ -23,11 +33,7 @@ export class LanguageSettings {
     if (mode !== LanguageSettings.MODE_SYSTEM) {
       return mode
     }
-    try {
-      return i18n.System.getSystemLanguage()
-    } catch (_error) {
-      return ''
-    }
+    return i18n.System.getSystemLanguage()
   }
 
   static label(mode: string): string {
@@ -44,36 +50,59 @@ export class LanguageSettings {
   static apply(mode: string): void {
     const normalized: string = LanguageSettings.normalize(mode)
     const locale: string = LanguageSettings.resolveLocale(normalized)
-    if (locale.length > 0) {
-      try {
-        i18n.System.setAppPreferredLanguage(locale)
-      } catch (_error) {
-      }
-    }
-    AppStrings.setOverrideLocale(normalized === LanguageSettings.MODE_SYSTEM ? '' : normalized)
     const state = connectLanguageState()
+    const previousMode = state.mode
+    try {
+      // The platform's documented sentinel restores future system-language following.
+      i18n.System.setAppPreferredLanguage(normalized === LanguageSettings.MODE_SYSTEM ? 'default' : normalized)
+      // Prepare and publish a separate resource manager; do not mutate the context's shared override.
+      AppStrings.setOverrideLocale(locale)
+    } catch (error) {
+      try {
+        i18n.System.setAppPreferredLanguage(previousMode === LanguageSettings.MODE_SYSTEM ? 'default' : previousMode)
+      } catch (_rollbackError) {
+        console.warn('[Language] platform_restore_failed')
+      }
+      throw error as Error
+    }
     state.mode = normalized
-    state.effectiveLocale = normalized === LanguageSettings.MODE_SYSTEM ? locale : normalized
+    state.effectiveLocale = locale
   }
 
-  static async restore(context: common.UIAbilityContext): Promise<void> {
-    try {
-      const store = await preferences.getPreferences(context, APP_PREFERENCES_STORE_NAME)
-      const mode = store.getSync(APP_LANGUAGE_KEY, LanguageSettings.MODE_SYSTEM) as string
+  static restore(context: common.UIAbilityContext): Promise<void> {
+    return mutateLanguage(async (): Promise<void> => {
+      let mode = LanguageSettings.MODE_SYSTEM
+      try {
+        const store = await preferences.getPreferences(context, APP_PREFERENCES_STORE_NAME)
+        mode = store.getSync(APP_LANGUAGE_KEY, LanguageSettings.MODE_SYSTEM) as string
+      } catch (_error) {
+        console.warn('[Language] restore_failed using_system=true')
+      }
       LanguageSettings.apply(mode)
-    } catch (_error) {
-      LanguageSettings.apply(LanguageSettings.MODE_SYSTEM)
-    }
+    })
   }
 
-  static async setMode(context: common.UIAbilityContext, mode: string): Promise<void> {
-    const normalized: string = LanguageSettings.normalize(mode)
-    LanguageSettings.apply(normalized)
-    try {
+  static setMode(context: common.UIAbilityContext, mode: string): Promise<void> {
+    const normalized = LanguageSettings.normalize(mode)
+    return BackupRestoreActivity.runWrite(() => mutateLanguage(async (): Promise<void> => {
       const store = await preferences.getPreferences(context, APP_PREFERENCES_STORE_NAME)
-      store.putSync(APP_LANGUAGE_KEY, normalized)
-      store.flushSync()
-    } catch (_error) {
-    }
+      const existed = store.hasSync(APP_LANGUAGE_KEY)
+      const previous = store.getSync(APP_LANGUAGE_KEY, LanguageSettings.MODE_SYSTEM) as string
+      try {
+        store.putSync(APP_LANGUAGE_KEY, normalized)
+        store.flushSync()
+        LanguageSettings.apply(normalized)
+      } catch (error) {
+        // Preferences also caches putSync in memory. Do not let a later restore publish it.
+        try {
+          if (existed) store.putSync(APP_LANGUAGE_KEY, previous)
+          else store.deleteSync(APP_LANGUAGE_KEY)
+          store.flushSync()
+        } catch (_rollbackError) {
+          throw new Error('language_preference_restore_failed')
+        }
+        throw error as Error
+      }
+    }))
   }
 }

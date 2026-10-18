@@ -4,6 +4,7 @@ import { preferences } from '@kit.ArkData'
 import { fileIo as fs } from '@kit.CoreFileKit'
 import { AppFilesLibraryStorePersistenceAdapter } from './LibraryPersistence'
 import { BackupRestoreActivity } from './BackupRestoreActivity'
+import { APPLICATION_SETTINGS_BACKUP_STORES } from './ApplicationSettingsBackup'
 
 const CHECKPOINT_FILE: string = 'backup-restore-checkpoint.v1.json'
 const RESTORE_FILES: string[] = [
@@ -14,12 +15,14 @@ const RESTORE_FILES: string[] = [
   'downloads/queue.v1.json',
   'source-runtime/source-runtime-registry.json',
 ]
-const RESTORE_PREFERENCES: string[] = [
+const RESTORE_PREFERENCES_V1: string[] = [
   'koma_remote_servers_v1',
   'koma_source_package_manager_v1',
   'koma_tracker_preferences_v1',
   'koma_reader_preferences_v1',
 ]
+const RESTORE_PREFERENCES: string[] = RESTORE_PREFERENCES_V1.concat(
+  APPLICATION_SETTINGS_BACKUP_STORES.filter((name: string): boolean => !RESTORE_PREFERENCES_V1.includes(name)))
 type RestorePreferenceValue = string | number | boolean
 
 interface RestoreFileImage {
@@ -48,7 +51,7 @@ function checkedPreferenceValues(value: Object): Record<string, RestorePreferenc
   const keys = Object.keys(values)
   for (let index = 0; index < keys.length; index += 1) {
     const item = values[keys[index]]
-    // These four app stores persist scalar values (structured values as JSON).
+    // These app stores persist scalar values (structured values as JSON).
     // Reject unknown types before any live write rather than coerce/lossily copy.
     if (typeof item !== 'string' && typeof item !== 'boolean' &&
       !(typeof item === 'number' && Number.isFinite(item))) {
@@ -83,10 +86,10 @@ function readExactUtf8(path: string): string {
 
 function checkedDocument(payload: string): RestoreCheckpointDocument {
   const document = JSON.parse(payload) as RestoreCheckpointDocument
-  if (document === null || document.schemaVersion !== 1 ||
+  if (document === null || (document.schemaVersion !== 1 && document.schemaVersion !== 2) ||
     (document.phase !== 'prepared' && document.phase !== 'committed') ||
     !Array.isArray(document.files) || document.files.length !== RESTORE_FILES.length ||
-    !Array.isArray(document.preferences) || document.preferences.length !== RESTORE_PREFERENCES.length) {
+    !Array.isArray(document.preferences) || document.preferences.length !== (document.schemaVersion === 1 ? RESTORE_PREFERENCES_V1.length : RESTORE_PREFERENCES.length)) {
     throw new Error('backup_checkpoint_invalid_document')
   }
   for (let index = 0; index < RESTORE_FILES.length; index += 1) {
@@ -97,9 +100,10 @@ function checkedDocument(payload: string): RestoreCheckpointDocument {
       throw new Error('backup_checkpoint_invalid_file')
     }
   }
-  for (let index = 0; index < RESTORE_PREFERENCES.length; index += 1) {
+  const expectedStores = document.schemaVersion === 1 ? RESTORE_PREFERENCES_V1 : RESTORE_PREFERENCES
+  for (let index = 0; index < expectedStores.length; index += 1) {
     const image = document.preferences[index]
-    if (image === null || image.name !== RESTORE_PREFERENCES[index]) {
+    if (image === null || image.name !== expectedStores[index]) {
       throw new Error('backup_checkpoint_invalid_store')
     }
     checkedPreferenceValues(image.values as Object)
@@ -134,7 +138,7 @@ export class BackupRestoreCheckpoint {
       // Freeze a copy before later put/delete operations mutate the cache.
       images.push({ name, values: JSON.parse(JSON.stringify(values)) as Record<string, RestorePreferenceValue> })
     }
-    const document: RestoreCheckpointDocument = { schemaVersion: 1, phase: 'prepared', files, preferences: images }
+    const document: RestoreCheckpointDocument = { schemaVersion: 2, phase: 'prepared', files, preferences: images }
     adapter.save(JSON.stringify(document))
     console.info('[BackupRecovery] step=prepared')
     return new BackupRestoreCheckpoint(context, document)

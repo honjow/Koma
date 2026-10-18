@@ -411,6 +411,7 @@ export struct SettingsPage {
   @Event onOpenBackupManagement: () => void = () => {}
   @Event onOpenTrackerSettings: () => void = () => {}
   @Event onOpenImportRequested: () => void = () => {}
+  @Param preferencesRestoreRevision: number = 0
   @Event onLibraryChanged: () => void = () => {}
   @Param libraryStore?: LibraryStore = undefined
   @Param libraryPersistenceService?: LibraryStorePersistenceService = undefined
@@ -1341,7 +1342,6 @@ export struct SettingsPage {
   }
 
   private saveAppearanceAccentColor(accentColor: AppearanceAccentColor): void {
-    this.appearanceAccentColor = accentColor
     void this.appearancePreferencesStore().saveAccentColor(accentColor)
       .then((preferences: AppearancePreferences) => {
         this.appearanceAccentColor = preferences.accentColor
@@ -2563,6 +2563,18 @@ export struct SettingsPage {
       },
     })
       .width('100%')
+  }
+
+  @Monitor('preferencesRestoreRevision')
+  private onPreferencesRestored(): void {
+    this.loadPreferences()
+    this.loadAppearancePreferences()
+    this.loadLibraryUpdatePreferences()
+    this.loadDownloadQueuePreferences()
+    this.loadLibraryFilterPreferences()
+    this.loadTrackerPreferences()
+    this.loadBackupContentPreferences()
+    this.loadImageCachePreferences()
   }
 
   private applyLibraryFilterPreferences(preferences: LibraryFilterPreferences): void {

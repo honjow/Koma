@@ -1,3 +1,5 @@
+import { ApplicationSettingsBackup, checkedApplicationSettingsBackup, exportApplicationSettings,
+  importApplicationSettings, countApplicationSettings, reloadApplicationSettingsRuntime } from './ApplicationSettingsBackup'
 import { writeAppTextFile } from './AppFileTextPersistence'
 import { common } from '@kit.AbilityKit'
 import { buffer } from '@kit.ArkTS'
@@ -149,6 +151,7 @@ interface KomaBackupDocument {
   sourceSettings?: Record<string, SourceSettingsRecord>
   sourceFilterPreferences?: Record<string, SourceFilterPreferenceSourceRecord>
   settings?: ReaderPreferences
+  applicationSettings?: ApplicationSettingsBackup
   sourceIndexUrl?: string
   downloadQueue?: string
   trackerMappings?: ComicTrackerMapping[]
@@ -800,6 +803,7 @@ function prepareBackupRestoreDocument(json: string, allowEncryptedContentSchema:
       })
     }
   }
+  document.applicationSettings = checkedApplicationSettingsBackup(document.applicationSettings)
   return document
 }
 
@@ -1005,6 +1009,7 @@ export class BackupService {
       }
       if (contentPreferences.includeSettings) {
         document.settings = await new ReaderPreferencesStore(this.context).load()
+        document.applicationSettings = await exportApplicationSettings(this.context)
         document.sourceIndexUrl = await this.exportSourceIndexUrl()
         document.trackerSyncPreferences = await this.exportTrackerSyncPreferences()
       }
@@ -1066,6 +1071,7 @@ export class BackupService {
           if (!restored.ok) throw new Error('Backup source registry commit failed')
         }
         await this.importSettings(document.settings)
+        await importApplicationSettings(this.context, document.applicationSettings)
       }
       checkpoint.commit()
       console.info('[Backup] step=import_json')
@@ -1078,6 +1084,7 @@ export class BackupService {
             throw new Error('backup_registry_recovery_failed')
           }
           await new ReaderPreferencesStore(this.context).load()
+          await reloadApplicationSettingsRuntime(this.context)
           checkpoint.completeRollback()
         } catch (_recoveryError) {
           BackupRestoreActivity.blockUntilRestart()
@@ -1095,6 +1102,7 @@ export class BackupService {
         BackupRestoreActivity.finishRestore()
       }
     }
+    await reloadApplicationSettingsRuntime(this.context)
   }
 
   preview(json: string): BackupImportPreview {
@@ -1144,7 +1152,8 @@ export class BackupService {
       libraryConflictCount: overlapCount(backupComicIds, currentComicIds),
       progressAddCount: missingInRightCount(backupProgressComicIds, currentProgressComicIds),
       progressConflictCount: overlapCount(backupProgressComicIds, currentProgressComicIds),
-      settingsCount: countReaderPreferences(document.settings) + countBackupTrackerSyncPreferences(document.trackerSyncPreferences),
+      settingsCount: countReaderPreferences(document.settings) + countBackupTrackerSyncPreferences(document.trackerSyncPreferences) +
+        countApplicationSettings(checkedApplicationSettingsBackup(document.applicationSettings)),
       categoryCount: countLibraryCategories(libraryStore),
       downloadQueueCount: countBackupDownloadQueueEntries(document.downloadQueue),
       trackerMappingCount: countBackupTrackerMappings(document.trackerMappings),
