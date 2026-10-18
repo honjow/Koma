@@ -69,6 +69,7 @@ export struct SearchPage {
   private handledQuerySubmitSeq: number = 0
   private sourceFilterLoaded: boolean = false
   private resultsQuery: string = ''
+  private resultsSourceFilter: CrossSearchSourceFilter = 'all'
   private service?: CrossSearchService
   private historyStore?: SearchHistoryStore
   @Param libraryStore: LibraryStore = createSeededLibraryStore()
@@ -84,7 +85,7 @@ export struct SearchPage {
     this.searchSerial += 1
     this.sourceFilterLoaded = false
     const context = getContext(this) as common.UIAbilityContext
-    this.service = new CrossSearchService(context)
+    this.service = new CrossSearchService(context, this.libraryStore)
     this.historyStore = new SearchHistoryStore(context)
     this.loadHistory()
     this.loadSourceFilter()
@@ -97,6 +98,7 @@ export struct SearchPage {
   }
 
   aboutToDisappear(): void {
+    this.service?.cancelPendingSearch()
     this.routeActive = false
     this.routeEpoch += 1
     this.searchSerial += 1
@@ -115,21 +117,55 @@ export struct SearchPage {
     if (!this.ownsRoute(routeEpoch)) {
       return
     }
+    this.service?.cancelPendingSearch()
     this.queryText = value
     if (this.searchTimer > 0) {
       clearTimeout(this.searchTimer)
       this.searchTimer = 0
     }
+    // Input takes ownership immediately, including the debounce interval.
+    this.searchSerial += 1
+    const serial = this.searchSerial
+    const query = value.trim()
+    this.prepareSearchResults(query)
+    if (query.length === 0 || !isCrossSearchQueryMeaningful(query)) {
+      return
+    }
     const timer = setTimeout(() => {
       if (this.searchTimer === timer) {
         this.searchTimer = 0
       }
-      if (!this.ownsRoute(routeEpoch)) {
+      if (!this.ownsRoute(routeEpoch) || serial !== this.searchSerial) {
         return
       }
-      void this.runSearch(value)
+      void this.runSearch(query)
     }, SEARCH_DEBOUNCE_MS)
     this.searchTimer = timer
+  }
+
+  private prepareSearchResults(query: string): void {
+    this.feedbackText = ''
+    if (query.length === 0 || !isCrossSearchQueryMeaningful(query)) {
+      this.resultsQuery = ''
+      this.sections = []
+      this.loading = false
+      return
+    }
+    const service = this.service
+    if (service === undefined) {
+      this.loading = false
+      return
+    }
+    const sameSearch = this.resultsQuery === query && this.resultsSourceFilter === this.sourceFilter
+    const pending = service.pendingSections(this.sourceFilter)
+    // A refresh keeps results owned by this same query/filter until replacement
+    // data arrives. A changed query/filter starts with its existing pending UI.
+    this.sections = sameSearch ? pending.map((section: CrossSearchSection): CrossSearchSection => {
+      return this.sections.find((current: CrossSearchSection) => current.id === section.id) ?? section
+    }) : pending
+    this.resultsQuery = query
+    this.resultsSourceFilter = this.sourceFilter
+    this.loading = true
   }
 
   private async runSearch(value: string): Promise<void> {
@@ -140,10 +176,8 @@ export struct SearchPage {
     const query = value.trim()
     this.searchSerial += 1
     const serial = this.searchSerial
+    this.prepareSearchResults(query)
     if (query.length === 0 || !isCrossSearchQueryMeaningful(query)) {
-      this.sections = []
-      this.feedbackText = ''
-      this.loading = false
       console.info(query.length === 0 ? '[Search] step=query_cleared' : '[Search] step=query_ignored reason=not_meaningful')
       return
     }
@@ -152,10 +186,6 @@ export struct SearchPage {
       return
     }
     const sourceFilter = this.sourceFilter
-    this.resultsQuery = query
-    this.loading = true
-    this.sections = service.pendingSections(sourceFilter)
-    this.feedbackText = ''
     this.recordHistory(query)
     console.info(`[Search] step=ui_search_start serial=${serial}`)
     try {
@@ -514,7 +544,8 @@ export struct SearchPage {
   }
 
   private sectionRenderKey(section: CrossSearchSection): string {
-    return `${this.searchSerial}:${section.id}:${section.state}:${section.resultCount}:${section.diagnosticCode}`
+    // Include all display and action data; identical refreshes retain their rows.
+    return JSON.stringify(section)
   }
 
   private sourceFilterLabel(): string {

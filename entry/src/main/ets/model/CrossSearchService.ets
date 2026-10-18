@@ -1,3 +1,4 @@
+import { installReaderRemoteHeaders } from './ReaderPageSourceAdapter'
 import { common } from '@kit.AbilityKit'
 import {
   Chapter,
@@ -7,14 +8,8 @@ import {
   ReadingDirection,
   normalizeSortKey,
 } from './ComicModels'
-import { InMemoryLibraryStore, LibraryStore } from './LibraryStore'
-import {
-  AppFilesLibraryStorePersistenceAdapter,
-  LibraryStorePersistenceService,
-} from './LibraryPersistence'
-import { createSeededLibraryStore } from './MockLibraryData'
+import { LibraryStore } from './LibraryStore'
 import { MOCK_LIBRARY_READER_SESSION } from './MockLibraryData'
-import { installReaderRemoteHeaders } from './ReaderPageSourceAdapter'
 import { createReaderSessionConfigFromComic } from './ReaderSessionStore'
 import { RemoteServerStore, WebDavServerRecord } from './RemoteServerStore'
 import { SourceManga } from './SourceModels'
@@ -28,6 +23,7 @@ import {
   OpdsClient,
   mapOpdsPublicationToImages,
   resolveOpdsHref,
+  resolveOpdsSearchUrl,
 } from '../remote/OpdsParser'
 import {
   OpdsBookDto,
@@ -63,11 +59,14 @@ export interface CrossSearchResultItem {
   localComicId?: string
   sourceId?: string
   sourceMangaId?: string
+  sourceMangaUrl?: string
   komgaSeriesId?: string
   kavitaLibraryId?: number
   kavitaSeriesId?: string
   opdsFeedUrl?: string
+  opdsSearchQuery?: string
   opdsPublicationId?: string
+  webDavRootUrl?: string
   webDavHref?: string
   webDavPathSegments?: string[]
   webDavIsCollection?: boolean
@@ -91,12 +90,25 @@ interface SourceSearchOutcome {
   section: CrossSearchSection
 }
 
+interface PagedSearchRun {
+  cancelled: boolean
+}
+
+interface WebDavSearchRun {
+  cancelled: boolean
+  resources: DavResource[]
+  serverId?: string
+  client?: WebDavClient
+  diagnostic?: SearchDiagnostic
+}
+
 const SEARCH_TIMEOUT_MS: number = 5000
 const KOMGA_PAGE_SIZE: number = 20
 const SOURCE_PAGE_SIZE: number = 20
 
 export function normalizeCrossSearchText(value: string): string {
-  const lower = value.trim().toLocaleLowerCase()
+  const trimmed = value.trim()
+  const lower = trimmed.toLowerCase() === trimmed ? trimmed : trimmed.toLocaleLowerCase()
   let normalized = ''
   let previousWasSpace = true
   for (let index = 0; index < lower.length; index += 1) {
@@ -124,9 +136,13 @@ export class CrossSearchService {
   private context: common.UIAbilityContext
   private remoteStore: RemoteServerStore
   private sourceViewModel: BrowseViewModel
+  private libraryStore: LibraryStore
+  private pagedSearchRuns: PagedSearchRun[] = []
+  private webDavSearchRun?: WebDavSearchRun = undefined
 
-  constructor(context: common.UIAbilityContext) {
+  constructor(context: common.UIAbilityContext, libraryStore: LibraryStore) {
     this.context = context
+    this.libraryStore = libraryStore
     this.remoteStore = new RemoteServerStore(context)
     this.sourceViewModel = new BrowseViewModel(appSourceRuntimeRegistry)
   }
@@ -136,6 +152,7 @@ export class CrossSearchService {
     sourceFilter: CrossSearchSourceFilter = 'all',
     onSectionResolved: ((section: CrossSearchSection) => void) | undefined = undefined,
   ): Promise<CrossSearchSection[]> {
+    this.cancelPendingSearch()
     const normalizedQuery = query.trim()
     if (normalizedQuery.length === 0) {
       return []
@@ -149,16 +166,34 @@ export class CrossSearchService {
       tasks.push(this.withTimeout(this.searchLocal(normalizedQuery), this.emptySection('local', AppStrings.get('tab_library'), 'local')))
     }
     if (this.sourceMatchesFilter('komga', sourceFilter)) {
-      tasks.push(this.withTimeout(this.searchKomga(normalizedQuery), this.emptySection('komga', AppStrings.get('route_komga_title'), 'komga')))
+      const run: PagedSearchRun = { cancelled: false }
+      this.pagedSearchRuns.push(run)
+      tasks.push(this.withTimeout(this.searchKomga(normalizedQuery, run), this.emptySection('komga', AppStrings.get('route_komga_title'), 'komga'), () => {
+        run.cancelled = true
+        return this.timeoutSection('komga', AppStrings.get('route_komga_title'), 'komga')
+      }))
     }
     if (this.sourceMatchesFilter('kavita', sourceFilter)) {
       tasks.push(this.withTimeout(this.searchKavita(normalizedQuery), this.emptySection('kavita', AppStrings.get('route_kavita_title'), 'kavita')))
     }
     if (this.sourceMatchesFilter('opds', sourceFilter)) {
-      tasks.push(this.withTimeout(this.searchOpds(normalizedQuery), this.emptySection('opds', AppStrings.get('route_opds_title'), 'opds')))
+      const run: PagedSearchRun = { cancelled: false }
+      this.pagedSearchRuns.push(run)
+      tasks.push(this.withTimeout(this.searchOpds(normalizedQuery, run), this.emptySection('opds', AppStrings.get('route_opds_title'), 'opds'), () => {
+        run.cancelled = true
+        return this.timeoutSection('opds', AppStrings.get('route_opds_title'), 'opds')
+      }))
     }
     if (this.sourceMatchesFilter('webdav', sourceFilter)) {
-      tasks.push(this.withTimeout(this.searchWebDav(normalizedQuery), this.emptySection('webdav', AppStrings.get('route_webdav_title'), 'webdav')))
+      const run: WebDavSearchRun = { cancelled: false, resources: [] }
+      this.webDavSearchRun = run
+      const search = this.searchWebDav(normalizedQuery, run).finally(() => {
+        if (this.webDavSearchRun === run) this.webDavSearchRun = undefined
+      })
+      tasks.push(this.withTimeout(search, this.emptySection('webdav', AppStrings.get('route_webdav_title'), 'webdav'), () => {
+        run.cancelled = true
+        return this.webDavSearchSection(normalizedQuery, run, true)
+      }))
     }
 
     const sourceTasks: Promise<SourceSearchOutcome>[] = this.sourceMatchesFilter('wasm', sourceFilter) ?
@@ -178,6 +213,19 @@ export class CrossSearchService {
     const sections = outcomes.map((outcome: SourceSearchOutcome): CrossSearchSection => outcome.section)
     console.info(`[Search] step=query_done sections=${sections.length}`)
     return sections
+  }
+
+  cancelPendingSearch(): void {
+    this.pagedSearchRuns.forEach((run: PagedSearchRun) => { run.cancelled = true })
+    this.pagedSearchRuns = []
+    // One-shot provider calls retain their existing UI ownership guards. Stop
+    // the directory traversal before it can issue any further PROPFIND calls.
+    if (this.webDavSearchRun !== undefined) this.webDavSearchRun.cancelled = true
+    this.webDavSearchRun = undefined
+  }
+
+  private ensureWebDavSearchActive(run: WebDavSearchRun): void {
+    if (run.cancelled) throw new Error('search_cancelled')
   }
 
   pendingSections(sourceFilter: CrossSearchSourceFilter = 'all'): CrossSearchSection[] {
@@ -246,7 +294,7 @@ export class CrossSearchService {
   }
 
   private async searchLocal(query: string): Promise<SourceSearchOutcome> {
-    const libraryStore = this.loadLocalLibraryStore()
+    const libraryStore = this.libraryStore
     const normalizedQuery = this.normalizeSearchText(query)
     const compactQuery = this.compactSearchText(query)
     const items = this.sortSearchResultItems(query, libraryStore.listComics()
@@ -261,34 +309,51 @@ export class CrossSearchService {
           coverUri: comic.coverUri,
           localComicId: comic.id,
         }
-      })).slice(0, SOURCE_PAGE_SIZE)
+      }))
     console.info(`[Search] step=local_done count=${items.length}`)
     return { section: this.section('local', AppStrings.get('tab_library'), 'local', items) }
   }
 
-  private async searchKomga(query: string): Promise<SourceSearchOutcome> {
+  private async searchKomga(query: string, run: PagedSearchRun): Promise<SourceSearchOutcome> {
     try {
       const record = await this.remoteStore.loadKomga()
       if (record === undefined) {
         return { section: this.stateSection('komga', AppStrings.get('route_komga_title'), 'komga', 'unsupported', 'not_configured') }
       }
-      const response = await this.remoteStore.createKomgaClient(record).listSeries({
-        page: 0,
-        size: KOMGA_PAGE_SIZE,
-        search: query,
-        sort: ['metadata.titleSort,asc'],
-      })
-      const items = this.sortSearchResultItems(query, response.content.map((series: KomgaSeriesDto): CrossSearchResultItem => {
+      const client = this.remoteStore.createKomgaClient(record)
+      const seriesRows: KomgaSeriesDto[] = []
+      const seen = new Set<string>()
+      let page = 0
+      while (true) {
+        if (run.cancelled) throw new Error('search_cancelled')
+        const response = await client.listSeries({ page, size: KOMGA_PAGE_SIZE, search: query, sort: ['metadata.titleSort,asc'] })
+        if (run.cancelled) throw new Error('search_cancelled')
+        let added = 0
+        response.content.forEach((series: KomgaSeriesDto) => {
+          if (!seen.has(series.id)) {
+            seen.add(series.id)
+            seriesRows.push(series)
+            added += 1
+          }
+        })
+        const more = response.last === false || (response.totalPages !== undefined && page + 1 < response.totalPages)
+        const last = response.last === true || (response.totalPages !== undefined && page + 1 >= response.totalPages)
+        if (added === 0 && (response.content.length > 0 || more)) throw new Error('Komga search pagination made no progress')
+        if (last || (!more && response.content.length < KOMGA_PAGE_SIZE)) break
+        page += 1
+      }
+      const items = this.sortSearchResultItems(query, seriesRows.map((series: KomgaSeriesDto): CrossSearchResultItem => {
         const title = this.komgaSeriesTitle(series)
         return {
           id: `komga:${record.server.id}:${series.id}`,
           title,
           subtitle: `${series.booksCount === undefined ? 0 : series.booksCount} books`,
+          remoteServerId: record.server.id,
           sourceKind: 'komga',
           sourceLabel: AppStrings.get('route_komga_title'),
           komgaSeriesId: series.id,
         }
-      })).slice(0, SOURCE_PAGE_SIZE)
+      }))
       console.info(`[Search] step=komga_done count=${items.length}`)
       return { section: this.section('komga', AppStrings.get('route_komga_title'), 'komga', items) }
     } catch (error) {
@@ -327,7 +392,7 @@ export class CrossSearchService {
           kavitaSeriesId: `${series.id}`,
         })
       })
-      const items = this.sortSearchResultItems(query, matchedItems).slice(0, SOURCE_PAGE_SIZE)
+      const items = this.sortSearchResultItems(query, matchedItems)
       console.info(`[Search] step=kavita_done candidates=${matches.length} count=${items.length}`)
       return { section: this.section('kavita', AppStrings.get('route_kavita_title'), 'kavita', items) }
     } catch (error) {
@@ -338,17 +403,34 @@ export class CrossSearchService {
     }
   }
 
-  private async searchOpds(query: string): Promise<SourceSearchOutcome> {
+  private async searchOpds(query: string, run: PagedSearchRun): Promise<SourceSearchOutcome> {
     try {
       const record = await this.remoteStore.loadOpds()
       if (record === undefined) {
         return { section: this.stateSection('opds', AppStrings.get('route_opds_title'), 'opds', 'unsupported', 'not_configured') }
       }
       const client = this.remoteStore.createOpdsClient(record)
+      if (run.cancelled) throw new Error('search_cancelled')
       const root = await client.fetchCatalog()
+      if (run.cancelled) throw new Error('search_cancelled')
       const searchUrl = this.findOpdsSearchUrl(root, query)
-      const catalog = searchUrl.length === 0 ? root : await client.fetchCatalog(searchUrl)
-      const items = this.filterOpdsPublications(client, catalog, query)
+      let catalog = searchUrl.length === 0 ? root : await client.fetchCatalog(searchUrl)
+      const items: CrossSearchResultItem[] = []
+      const visited = new Set<string>()
+      while (true) {
+        if (run.cancelled) throw new Error('search_cancelled')
+        visited.add(catalog.feedUrl)
+        this.filterOpdsPublications(client, catalog, query).forEach((item: CrossSearchResultItem) => {
+          item.remoteServerId = record.server.id
+          items.push(item)
+        })
+        const next = catalog.links.find((link: OpdsLink): boolean => link.rel?.toLocaleLowerCase() === 'next')
+        if (next === undefined) break
+        const url = resolveOpdsHref(catalog.feedUrl, next.href)
+        if (visited.has(url)) throw new Error('OPDS search pagination cycle')
+        if (run.cancelled) throw new Error('search_cancelled')
+        catalog = await client.fetchCatalog(url)
+      }
       console.info(`[Search] step=opds_done count=${items.length}`)
       return { section: this.section('opds', AppStrings.get('route_opds_title'), 'opds', items) }
     } catch (error) {
@@ -359,48 +441,66 @@ export class CrossSearchService {
     }
   }
 
-  private async searchWebDav(query: string): Promise<SourceSearchOutcome> {
+  private async searchWebDav(query: string, run: WebDavSearchRun): Promise<SourceSearchOutcome> {
     try {
       const record = await this.remoteStore.loadWebDav()
+      this.ensureWebDavSearchActive(run)
       if (record === undefined) {
         return { section: this.stateSection('webdav', AppStrings.get('route_webdav_title'), 'webdav', 'unsupported', 'not_configured') }
       }
       const client = this.remoteStore.createWebDavClient(record)
-      const normalizedQuery = this.normalizeSearchText(query)
-      const compactQuery = this.compactSearchText(query)
+      run.client = client
+      run.serverId = record.server.id
       const rootResources = await client.propfind([], 1)
-      const resources = await this.collectWebDavSearchResources(client, rootResources)
-      const matchedItems = resources.filter((resource: DavResource): boolean => {
-        if (this.isCurrentWebDavResource(client, [], resource)) {
-          return false
-        }
-        const supported = resource.isCollection || resource.candidateKind === DavComicCandidateKind.IMAGE_FILE
-        return supported && this.textMatchesQuery(this.davResourceName(resource), normalizedQuery, compactQuery)
-      }).map((resource: DavResource): CrossSearchResultItem => {
-        return {
-          id: `webdav:${resource.href}`,
-          title: this.davResourceName(resource),
-          subtitle: resource.isCollection
-            ? AppStrings.get('search_webdav_folder')
-            : AppStrings.get('search_webdav_image'),
-          sourceKind: 'webdav',
-          sourceLabel: AppStrings.get('route_webdav_title'),
-          webDavHref: resource.href,
-          webDavPathSegments: resource.isCollection ?
-            this.webDavRelativeSegments(client, resource.href) :
-            this.webDavParentSegments(client, resource.href),
-          webDavIsCollection: resource.isCollection,
-        }
+      this.ensureWebDavSearchActive(run)
+      const uniqueRoot: Map<string, DavResource> = new Map()
+      rootResources.forEach((resource: DavResource) => {
+        const key = this.normalizeUrl(resource.href)
+        if (!uniqueRoot.has(key)) uniqueRoot.set(key, resource)
       })
-      const items = this.sortSearchResultItems(query, matchedItems).slice(0, SOURCE_PAGE_SIZE)
-      console.info(`[Search] step=webdav_done count=${items.length}`)
-      return { section: this.section('webdav', AppStrings.get('route_webdav_title'), 'webdav', items) }
+      run.resources = Array.from(uniqueRoot.values())
+      await this.collectWebDavSearchResources(client, rootResources, run)
+      this.ensureWebDavSearchActive(run)
+      return { section: this.webDavSearchSection(query, run) }
     } catch (error) {
-      const e = error as Error
-      const diagnostic = safeSearchDiagnostic(e)
-      console.error('[Search] step=webdav_failed code=' + diagnostic.code)
-      return { section: this.errorSection('webdav', AppStrings.get('route_webdav_title'), 'webdav', diagnostic) }
+      run.diagnostic = safeSearchDiagnostic(error as Error)
+      console.error('[Search] step=webdav_failed code=' + run.diagnostic.code)
+      return { section: this.webDavSearchSection(query, run) }
     }
+  }
+
+  private webDavSearchSection(query: string, run: WebDavSearchRun, timedOut: boolean = false): CrossSearchSection {
+    const client = run.client
+    const normalizedQuery = this.normalizeSearchText(query)
+    const compactQuery = this.compactSearchText(query)
+    const matchedItems: CrossSearchResultItem[] = client === undefined ? [] : run.resources.filter((resource: DavResource): boolean => {
+      if (this.isCurrentWebDavResource(client, [], resource)) return false
+      const supported = resource.isCollection || resource.candidateKind === DavComicCandidateKind.IMAGE_FILE
+      return supported && this.textMatchesQuery(this.davResourceName(resource), normalizedQuery, compactQuery)
+    }).map((resource: DavResource): CrossSearchResultItem => {
+      return {
+        id: `webdav:${resource.href}`,
+        title: this.davResourceName(resource),
+        subtitle: AppStrings.get(resource.isCollection ? 'search_webdav_folder' : 'search_webdav_image'),
+        sourceKind: 'webdav',
+        sourceLabel: AppStrings.get('route_webdav_title'),
+        remoteServerId: run.serverId,
+        webDavRootUrl: client.buildUrl([]),
+        webDavHref: resource.href,
+        webDavPathSegments: resource.isCollection ?
+          this.webDavRelativeSegments(client, resource.href) :
+          this.webDavParentSegments(client, resource.href),
+        webDavIsCollection: resource.isCollection,
+      }
+    })
+    const items = this.sortSearchResultItems(query, matchedItems)
+    const section = timedOut ? this.timeoutSection('webdav', AppStrings.get('route_webdav_title'), 'webdav') :
+      run.diagnostic !== undefined ? this.errorSection('webdav', AppStrings.get('route_webdav_title'), 'webdav', run.diagnostic) :
+        this.section('webdav', AppStrings.get('route_webdav_title'), 'webdav', items)
+    section.items = items
+    section.resultCount = items.length
+    console.info(`[Search] step=webdav_done count=${items.length} state=${section.state}`)
+    return section
   }
 
   private async searchWasmSource(source: SourceRuntimeRegistryInstalledSourceSummary, query: string): Promise<SourceSearchOutcome> {
@@ -419,6 +519,7 @@ export class CrossSearchService {
           coverUri: manga.coverUrl,
           sourceId: manga.sourceId,
           sourceMangaId: manga.id,
+          sourceMangaUrl: manga.url,
         }
       })).slice(0, SOURCE_PAGE_SIZE)
       console.info(`[Search] step=wasm_done source=${source.sourceId} count=${items.length}`)
@@ -431,30 +532,46 @@ export class CrossSearchService {
     }
   }
 
-  private async collectWebDavSearchResources(client: WebDavClient, rootResources: DavResource[]): Promise<DavResource[]> {
-    const collected: DavResource[] = rootResources.slice()
-    const folders = rootResources.filter((resource: DavResource): boolean => {
-      return resource.isCollection && !this.isCurrentWebDavResource(client, [], resource)
-    }).slice(0, 20)
+  private async collectWebDavSearchResources(client: WebDavClient, rootResources: DavResource[], run: WebDavSearchRun): Promise<void> {
+    const folders: string[][] = []
+    const queued: Set<string> = new Set([this.normalizeUrl(client.buildUrl([]))])
+    const known: Set<string> = new Set(rootResources.map((resource: DavResource): string => this.normalizeUrl(resource.href)))
+    const enqueue = (resource: DavResource): void => {
+      if (!resource.isCollection) return
+      const pathSegments = this.webDavRelativeSegments(client, resource.href)
+      // A self/outside-root/unparseable href must not turn into a new root scan.
+      if (pathSegments.length === 0) return
+      const key = this.normalizeUrl(client.buildUrl(pathSegments))
+      if (queued.has(key)) return
+      queued.add(key)
+      folders.push(pathSegments)
+    }
+    rootResources.forEach(enqueue)
     for (let index = 0; index < folders.length; index += 1) {
-      const folder = folders[index]
+      this.ensureWebDavSearchActive(run)
+      const pathSegments = folders[index]
       try {
-        const pathSegments = this.webDavRelativeSegments(client, folder.href)
         const children = await client.propfind(pathSegments, 1)
+        this.ensureWebDavSearchActive(run)
         children.forEach((child: DavResource) => {
-          if (!this.isCurrentWebDavResource(client, pathSegments, child)) {
-            collected.push(child)
+          if (this.isCurrentWebDavResource(client, pathSegments, child)) return
+          const key = this.normalizeUrl(child.href)
+          if (!known.has(key)) {
+            known.add(key)
+            run.resources.push(child)
           }
+          enqueue(child)
         })
       } catch (error) {
-        const e = error as Error
-        console.error('[Search] step=webdav_child_scan_failed code=' + safeSearchDiagnostic(e).code)
+        this.ensureWebDavSearchActive(run)
+        const diagnostic = safeSearchDiagnostic(error as Error)
+        if (run.diagnostic === undefined) run.diagnostic = diagnostic
+        console.error('[Search] step=webdav_child_scan_failed code=' + diagnostic.code)
       }
     }
-    return collected
   }
 
-  private async withTimeout(task: Promise<SourceSearchOutcome>, fallback: CrossSearchSection): Promise<SourceSearchOutcome> {
+  private async withTimeout(task: Promise<SourceSearchOutcome>, fallback: CrossSearchSection, onTimeout: (() => CrossSearchSection) | undefined = undefined): Promise<SourceSearchOutcome> {
     return new Promise<SourceSearchOutcome>((resolve) => {
       let done = false
       const timer = setTimeout(() => {
@@ -464,7 +581,7 @@ export class CrossSearchService {
         done = true
         console.error(`[Search] step=source_timeout source=${fallback.id}`)
         resolve({
-          section: this.timeoutSection(fallback.id, fallback.title, fallback.sourceKind),
+          section: onTimeout === undefined ? this.timeoutSection(fallback.id, fallback.title, fallback.sourceKind) : onTimeout(),
         })
       }, SEARCH_TIMEOUT_MS)
       task.then((value: SourceSearchOutcome) => {
@@ -485,25 +602,6 @@ export class CrossSearchService {
         })
       })
     })
-  }
-
-  private loadLocalLibraryStore(): LibraryStore {
-    const store = createSeededLibraryStore()
-    try {
-      if (this.context.filesDir === undefined || this.context.filesDir.length === 0) {
-        return store
-      }
-      const persistence = new LibraryStorePersistenceService(
-        store,
-        new AppFilesLibraryStorePersistenceAdapter(this.context.filesDir)
-      )
-      persistence.restore()
-      return store
-    } catch (error) {
-      const e = error as Error
-      console.error('[Search] step=local_restore_failed code=' + safeSearchDiagnostic(e).code)
-      return new InMemoryLibraryStore()
-    }
   }
 
   private localComicMatches(comic: Comic, normalizedQuery: string, compactQuery: string): boolean {
@@ -546,26 +644,7 @@ export class CrossSearchService {
   }
 
   private findOpdsSearchUrl(catalog: OpdsParseResult, query: string): string {
-    const searchLink = catalog.links.find((link: OpdsLink): boolean => {
-      const rel = link.rel === undefined ? '' : link.rel.toLocaleLowerCase()
-      const type = link.type === undefined ? '' : link.type.toLocaleLowerCase()
-      return rel.indexOf('search') >= 0 || type.indexOf('opensearch') >= 0
-    })
-    if (searchLink === undefined) {
-      return ''
-    }
-    const encoded = encodeURIComponent(query)
-    let href = searchLink.href
-    href = href.replace('{searchTerms}', encoded)
-    href = href.replace('{query}', encoded)
-    href = href.replace('{?q}', `?q=${encoded}`)
-    href = href.replace('{?query}', `?query=${encoded}`)
-    href = href.replace('{?searchTerms}', `?searchTerms=${encoded}`)
-    href = href.replace('{?search}', `?search=${encoded}`)
-    href = href.replace('{&q}', `&q=${encoded}`)
-    href = href.replace('{&query}', `&query=${encoded}`)
-    href = href.replace('{&searchTerms}', `&searchTerms=${encoded}`)
-    return resolveOpdsHref(catalog.feedUrl, href)
+    return resolveOpdsSearchUrl(catalog, query)
   }
 
   private filterOpdsPublications(client: OpdsClient, catalog: OpdsParseResult, query: string): CrossSearchResultItem[] {
@@ -585,10 +664,11 @@ export class CrossSearchService {
         sourceLabel: AppStrings.get('route_opds_title'),
         coverUri: images.length === 0 ? undefined : images[0].href,
         opdsFeedUrl: catalog.feedUrl,
+        opdsSearchQuery: query,
         opdsPublicationId: publication.id,
       }
     })
-    return this.sortSearchResultItems(query, items).slice(0, SOURCE_PAGE_SIZE)
+    return this.sortSearchResultItems(query, items)
   }
 
   private installWebDavReaderSession(
@@ -745,11 +825,14 @@ export class CrossSearchService {
       localComicId: item.localComicId,
       sourceId: item.sourceId,
       sourceMangaId: item.sourceMangaId,
+      sourceMangaUrl: item.sourceMangaUrl,
       komgaSeriesId: item.komgaSeriesId,
       kavitaLibraryId: item.kavitaLibraryId,
       kavitaSeriesId: item.kavitaSeriesId,
       opdsFeedUrl: item.opdsFeedUrl,
+      opdsSearchQuery: item.opdsSearchQuery,
       opdsPublicationId: item.opdsPublicationId,
+      webDavRootUrl: item.webDavRootUrl,
       webDavHref: item.webDavHref,
       webDavPathSegments: item.webDavPathSegments,
       webDavIsCollection: item.webDavIsCollection,
@@ -805,7 +888,7 @@ export class CrossSearchService {
     if (normalized.indexOf(normalizedQuery) >= 0) {
       return true
     }
-    return this.compactSearchText(value).indexOf(compactQuery) >= 0
+    return normalized.replace(/ /g, '').indexOf(compactQuery) >= 0
   }
 
   private compactSearchText(value: string): string {

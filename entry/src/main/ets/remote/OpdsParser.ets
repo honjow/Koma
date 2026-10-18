@@ -68,6 +68,29 @@ export function parseOpdsCatalog(source: string, feedUrl: string, contentType?: 
   return parseOpds1Catalog(trimmed, feedUrl)
 }
 
+export function resolveOpdsSearchUrl(catalog: OpdsParseResult, query: string): string {
+  const searchLink = catalog.links.find((link: OpdsLink): boolean => {
+    const rel = link.rel === undefined ? '' : link.rel.toLocaleLowerCase()
+    const type = link.type === undefined ? '' : link.type.toLocaleLowerCase()
+    return rel.indexOf('search') >= 0 || type.indexOf('opensearch') >= 0
+  })
+  if (searchLink === undefined) {
+    return ''
+  }
+  const encoded = encodeURIComponent(query)
+  let href = searchLink.href
+  href = href.replace('{searchTerms}', encoded)
+  href = href.replace('{query}', encoded)
+  href = href.replace('{?q}', `?q=${encoded}`)
+  href = href.replace('{?query}', `?query=${encoded}`)
+  href = href.replace('{?searchTerms}', `?searchTerms=${encoded}`)
+  href = href.replace('{?search}', `?search=${encoded}`)
+  href = href.replace('{&q}', `&q=${encoded}`)
+  href = href.replace('{&query}', `&query=${encoded}`)
+  href = href.replace('{&searchTerms}', `&searchTerms=${encoded}`)
+  return resolveOpdsHref(catalog.feedUrl, href)
+}
+
 export function normalizeOpdsRootUrl(rootUrl: string): string {
   return rootUrl.trim()
 }
