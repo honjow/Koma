@@ -8,6 +8,7 @@ import { preferences } from '@kit.ArkData'
 import { fileIo as fs, ListFileOptions, picker } from '@kit.CoreFileKit'
 import { AppStrings } from '../i18n/AppStrings'
 import { BackupRestoreActivity } from './BackupRestoreActivity'
+import { RemoteServerStore, REMOTE_SERVER_ENDPOINT_IDENTITIES_KEY, parseRemoteServerEndpointIdentities, rememberRemoteServerEndpointIdentity } from './RemoteServerStore'
 import { BackupRestoreCheckpoint } from './BackupRestoreCheckpoint'
 import {
   LIBRARY_STORE_PERSISTENCE_FILE_NAME,
@@ -125,6 +126,7 @@ const OPDS_SERVER_KEY: string = 'opds.server'
 const OPDS_CREDENTIAL_KEY: string = 'opds.credential'
 
 interface RemoteServerBackupDocument {
+  endpointIdentities?: string
   komgaServer: string
   komgaCredential: string
   kavitaServer: string
@@ -758,11 +760,18 @@ function prepareBackupRestoreDocument(json: string, allowEncryptedContentSchema:
     const remote = asJsonObject(document.remoteServers as Object, 'remote servers')
     const keys: string[] = [
       'komgaServer', 'komgaCredential', 'kavitaServer', 'kavitaCredential',
-      'webDavServer', 'webDavCredential', 'opdsServer', 'opdsCredential',
+      'webDavServer', 'webDavCredential', 'opdsServer', 'opdsCredential', 'endpointIdentities',
     ]
     keys.forEach((key: string): void => {
       if (remote[key] !== undefined && typeof remote[key] !== 'string') throw new Error('Invalid backup remote servers')
     })
+    if (typeof document.remoteServers.endpointIdentities === 'string' && document.remoteServers.endpointIdentities.length > 0) {
+      const identities = parseRemoteServerEndpointIdentities(document.remoteServers.endpointIdentities)
+      rememberRemoteServerEndpointIdentity(identities, 'komga', document.remoteServers.komgaServer ?? '')
+      rememberRemoteServerEndpointIdentity(identities, 'kavita', document.remoteServers.kavitaServer ?? '')
+      rememberRemoteServerEndpointIdentity(identities, 'webdav', document.remoteServers.webDavServer ?? '')
+      rememberRemoteServerEndpointIdentity(identities, 'opds', document.remoteServers.opdsServer ?? '')
+    }
   }
   if (document.schemaVersion >= BACKUP_SCHEMA_VERSION) {
     if (document.sourceSettings !== undefined) {
@@ -1337,15 +1346,16 @@ export class BackupService {
   }
 
   private async exportRemoteServers(): Promise<RemoteServerBackupDocument> {
-    const store = await preferences.getPreferences(this.context, REMOTE_SERVER_STORE_NAME)
+    const snapshot = await new RemoteServerStore(this.context).exportConfiguration()
     return {
-      komgaServer: await store.get(KOMGA_SERVER_KEY, '') as string,
+      endpointIdentities: snapshot.endpointIdentities,
+      komgaServer: snapshot.komgaServer,
       komgaCredential: '',
-      kavitaServer: await store.get(KAVITA_SERVER_KEY, '') as string,
+      kavitaServer: snapshot.kavitaServer,
       kavitaCredential: '',
-      webDavServer: await store.get(WEBDAV_SERVER_KEY, '') as string,
+      webDavServer: snapshot.webDavServer,
       webDavCredential: '',
-      opdsServer: await store.get(OPDS_SERVER_KEY, '') as string,
+      opdsServer: snapshot.opdsServer,
       opdsCredential: '',
     }
   }
@@ -1362,6 +1372,7 @@ export class BackupService {
       opdsServer: '',
       opdsCredential: '',
     }
+    await this.putOrDelete(store, REMOTE_SERVER_ENDPOINT_IDENTITIES_KEY, backup.endpointIdentities ?? '')
     await this.putOrDelete(store, KOMGA_SERVER_KEY, backup.komgaServer)
     await this.putOrDelete(store, KOMGA_CREDENTIAL_KEY, backup.komgaCredential)
     await this.putOrDelete(store, KAVITA_SERVER_KEY, backup.kavitaServer)

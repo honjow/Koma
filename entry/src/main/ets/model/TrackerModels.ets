@@ -168,7 +168,7 @@ export const TRACKER_PROVIDER_OAUTH_CONFIGS_KEY: string = 'tracker.providerOAuth
 export const TRACKER_AUTO_SYNC_ENABLED_KEY: string = 'tracker.autoSyncEnabled'
 export const TRACKER_UPDATE_STRATEGY_KEY: string = 'tracker.updateStrategy'
 export const TRACKER_ASSET_ALIAS_PREFIX: string = 'koma.tracker'
-export const TRACKER_ASSET_GROUP_ID: string = 'koma-tracker-credentials'
+export const TRACKER_ASSET_GROUP_ID: string = 'koma_tracker_credentials'
 export const TRACKER_OAUTH_STATE_BYTES: number = 32
 export const TRACKER_PKCE_VERIFIER_BYTES: number = 32
 

@@ -136,7 +136,7 @@ export class RemoteProgressSyncService {
   ): Promise<ReadingProgress | undefined> {
     try {
       const record = await new RemoteServerStore(this.context).loadKomga()
-      if (record === undefined) {
+      if (record === undefined || !chapterId.startsWith(`komga:${record.server.id}:book:`)) {
         return undefined
       }
       const remote = await new RemoteServerStore(this.context).createKomgaClient(record).getBookReadProgress(bookId)
@@ -154,7 +154,7 @@ export class RemoteProgressSyncService {
   }
 
   private scheduleKomgaPush(bookId: KomgaBookId, progress: ReadingProgress): void {
-    const key = bookId
+    const key = progress.chapterId
     const previousTimer = this.pushTimers.get(key)
     if (previousTimer !== undefined && previousTimer > 0) {
       clearTimeout(previousTimer)
@@ -177,8 +177,8 @@ export class RemoteProgressSyncService {
     try {
       const store = new RemoteServerStore(this.context)
       const record = await store.loadKomga()
-      if (record === undefined) {
-        console.warn(`[KomgaSync] step=push_fail page=${page} code=server_not_configured`)
+      if (record === undefined || !pending.progress.chapterId.startsWith(`komga:${record.server.id}:book:`)) {
+        console.warn(`[KomgaSync] step=push_fail page=${page} code=server_unavailable`)
         return
       }
       await store.createKomgaClient(record).patchBookReadProgress(pending.bookId, page, pending.progress.completed)
@@ -227,7 +227,7 @@ export class RemoteProgressSyncService {
     try {
       const store = new RemoteServerStore(this.context)
       const record = await store.loadKavita()
-      if (record === undefined) {
+      if (record === undefined || !mappedChapterId.startsWith(`kavita:${record.server.id}:chapter:`)) {
         return undefined
       }
       const remote = await store.createKavitaClient(record).getReadProgress(chapterId)
@@ -245,7 +245,7 @@ export class RemoteProgressSyncService {
   }
 
   private scheduleKavitaPush(chapterId: KavitaChapterId, progress: ReadingProgress): void {
-    const key = `${chapterId}`
+    const key = progress.chapterId
     const previousTimer = this.kavitaPushTimers.get(key)
     if (previousTimer !== undefined && previousTimer > 0) {
       clearTimeout(previousTimer)
@@ -268,8 +268,8 @@ export class RemoteProgressSyncService {
     try {
       const store = new RemoteServerStore(this.context)
       const record = await store.loadKavita()
-      if (record === undefined) {
-        console.warn(`[KavitaSync] step=push_fail page=${page} code=server_not_configured`)
+      if (record === undefined || !pending.progress.chapterId.startsWith(`kavita:${record.server.id}:chapter:`)) {
+        console.warn(`[KavitaSync] step=push_fail page=${page} code=server_unavailable`)
         return
       }
       const client = store.createKavitaClient(record)

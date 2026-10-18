@@ -6,6 +6,10 @@
     "versionName": "0.1.0",
     "icon": "$media:app_icon_layered",
     "label": "$string:app_name",
+    "assetAccessGroups": [
+      "koma_remote_server_credentials",
+      "koma_tracker_credentials"
+    ],
     "targetAPIVersion": 26,
     "minAPIVersion": 23,
     "apiReleaseType": "Release26"

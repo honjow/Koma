@@ -1,8 +1,9 @@
 import { BackupRestoreActivity } from './BackupRestoreActivity'
 import { common } from '@kit.AbilityKit'
 import { preferences } from '@kit.ArkData'
-import { buffer } from '@kit.ArkTS'
+import { buffer, util } from '@kit.ArkTS'
 import { asset } from '@kit.AssetStoreKit'
+import { cryptoFramework } from '@kit.CryptoArchitectureKit'
 import { BusinessError } from '@kit.BasicServicesKit'
 import { http } from '@kit.NetworkKit'
 import { AppStrings } from '../i18n/AppStrings'
@@ -59,6 +60,7 @@ import {
 import { OpdsVersion } from '../remote/OpdsModels'
 
 const REMOTE_SERVER_STORE_NAME: string = 'koma_remote_servers_v1'
+export const REMOTE_SERVER_ENDPOINT_IDENTITIES_KEY: string = 'server.endpoint-identities'
 const KOMGA_SERVER_KEY: string = 'komga.server'
 const KOMGA_CREDENTIAL_KEY: string = 'komga.credential'
 const KAVITA_SERVER_KEY: string = 'kavita.server'
@@ -67,15 +69,11 @@ const WEBDAV_SERVER_KEY: string = 'webdav.server'
 const WEBDAV_CREDENTIAL_KEY: string = 'webdav.credential'
 const OPDS_SERVER_KEY: string = 'opds.server'
 const OPDS_CREDENTIAL_KEY: string = 'opds.credential'
-const DEFAULT_KOMGA_SERVER_ID: string = 'komga-default'
 const DEFAULT_KOMGA_CREDENTIAL_REF: string = 'komga-default-credential'
-const DEFAULT_KAVITA_SERVER_ID: string = 'kavita-default'
 const DEFAULT_KAVITA_CREDENTIAL_REF: string = 'kavita-default-credential'
-const DEFAULT_WEBDAV_SERVER_ID: string = 'webdav-default'
 const DEFAULT_WEBDAV_CREDENTIAL_REF: string = 'webdav-default-credential'
-const DEFAULT_OPDS_SERVER_ID: string = 'opds-default'
 const DEFAULT_OPDS_CREDENTIAL_REF: string = 'opds-default-credential'
-const REMOTE_SERVER_CREDENTIAL_ASSET_GROUP_ID: string = 'koma-remote-server-credentials'
+const REMOTE_SERVER_CREDENTIAL_ASSET_GROUP_ID: string = 'koma_remote_server_credentials'
 const REMOTE_SERVER_CREDENTIAL_ASSET_ALIAS_PREFIX: string = 'koma.remote-server'
 
 export interface KomgaServerDraft {
@@ -165,6 +163,81 @@ interface StoredOpdsCredential {
 
 export type RemoteServerCredentialKind = 'komga' | 'kavita' | 'webdav' | 'opds'
 
+interface RemoteServerEndpointIdentity {
+  kind: RemoteServerCredentialKind
+  endpointKey: string
+  id: string
+}
+
+interface StoredRemoteServerIdentity {
+  id: string
+  baseUrl?: string
+  rootUrl?: string
+}
+
+interface PreparedRemoteServerIdentity {
+  id: string
+  payload: string
+}
+
+export function parseRemoteServerEndpointIdentities(json: string): RemoteServerEndpointIdentity[] {
+  if (json.length === 0) return []
+  const identities = JSON.parse(json) as RemoteServerEndpointIdentity[]
+  if (!Array.isArray(identities)) throw new Error('Invalid remote endpoint identities')
+  identities.forEach((identity: RemoteServerEndpointIdentity, index: number): void => {
+    if (identity === null || typeof identity !== 'object' ||
+      !['komga', 'kavita', 'webdav', 'opds'].includes(identity.kind) ||
+      typeof identity.endpointKey !== 'string' || !/^[0-9a-f]{64}$/.test(identity.endpointKey) ||
+      typeof identity.id !== 'string' || identity.id.length === 0) {
+      throw new Error('Invalid remote endpoint identity')
+    }
+    if (identities.some((other: RemoteServerEndpointIdentity, otherIndex: number): boolean =>
+      otherIndex < index && (other.id === identity.id ||
+        (other.kind === identity.kind && other.endpointKey === identity.endpointKey)))) {
+      throw new Error('Conflicting remote endpoint identities')
+    }
+  })
+  return identities
+}
+
+function normalizeRemoteServerEndpoint(kind: RemoteServerCredentialKind, endpoint: string): string {
+  if (kind === 'komga') return normalizeKomgaBaseUrl(endpoint)
+  if (kind === 'kavita') return normalizeKavitaBaseUrl(endpoint)
+  if (kind === 'webdav') return normalizeWebDavBaseUrl(endpoint)
+  return normalizeOpdsRootUrl(endpoint)
+}
+
+function remoteServerEndpointKey(kind: RemoteServerCredentialKind, endpoint: string): string {
+  const md = cryptoFramework.createMd('SHA256')
+  md.updateSync({ data: remoteCredentialUtf8Encode(normalizeRemoteServerEndpoint(kind, endpoint)) })
+  return Array.from(md.digestSync().data).map((value: number): string => value.toString(16).padStart(2, '0')).join('')
+}
+
+export function rememberRemoteServerEndpointIdentity(
+  identities: RemoteServerEndpointIdentity[],
+  kind: RemoteServerCredentialKind,
+  payload: string,
+): void {
+  if (payload.length === 0) return
+  const current = JSON.parse(payload) as StoredRemoteServerIdentity
+  const rawEndpoint = kind === 'opds' ? current.rootUrl : current.baseUrl
+  if (typeof current.id !== 'string' || current.id.length === 0 || typeof rawEndpoint !== 'string') {
+    throw new Error('Invalid configured remote identity')
+  }
+  const endpoint = normalizeRemoteServerEndpoint(kind, rawEndpoint)
+  if (endpoint.length === 0) throw new Error('Invalid configured remote endpoint')
+  const endpointKey = remoteServerEndpointKey(kind, endpoint)
+  const remembered = identities.find((identity: RemoteServerEndpointIdentity): boolean => identity.kind === kind && identity.endpointKey === endpointKey)
+  if (remembered !== undefined) {
+    if (remembered.id !== current.id) throw new Error('Conflicting configured remote identity')
+    return
+  }
+  if (identities.some((identity: RemoteServerEndpointIdentity): boolean => identity.id === current.id)) {
+    throw new Error('Conflicting configured remote endpoint')
+  }
+  identities.push({ kind, endpointKey, id: current.id })
+}
+
 export class RemoteServerDraftError extends Error {
   readonly resourceKey: string
 
@@ -192,12 +265,17 @@ function remoteCredentialAssetAlias(kind: RemoteServerCredentialKind, credential
   return `${REMOTE_SERVER_CREDENTIAL_ASSET_ALIAS_PREFIX}.${kind}.${credentialRef}`
 }
 
-function remoteCredentialAssetQuery(kind: RemoteServerCredentialKind, credentialRef: string): asset.AssetMap {
+function remoteCredentialAssetIdentity(kind: RemoteServerCredentialKind, credentialRef: string): asset.AssetMap {
   const query: asset.AssetMap = new Map<asset.Tag, asset.Value>()
   query.set(asset.Tag.ALIAS, remoteCredentialUtf8Encode(remoteCredentialAssetAlias(kind, credentialRef)))
+  query.set(asset.Tag.GROUP_ID, remoteCredentialUtf8Encode(REMOTE_SERVER_CREDENTIAL_ASSET_GROUP_ID))
+  return query
+}
+
+function remoteCredentialAssetQuery(kind: RemoteServerCredentialKind, credentialRef: string): asset.AssetMap {
+  const query = remoteCredentialAssetIdentity(kind, credentialRef)
   query.set(asset.Tag.DATA_LABEL_CRITICAL_1, remoteCredentialUtf8Encode(kind))
   query.set(asset.Tag.DATA_LABEL_CRITICAL_2, remoteCredentialUtf8Encode(credentialRef))
-  query.set(asset.Tag.GROUP_ID, remoteCredentialUtf8Encode(REMOTE_SERVER_CREDENTIAL_ASSET_GROUP_ID))
   return query
 }
 
@@ -332,86 +410,121 @@ export class OpdsHarmonyHttpAdapter implements OpdsHttpAdapter {
   }
 }
 
+export interface RemoteServerConfigurationSnapshot {
+  endpointIdentities: string
+  komgaServer: string
+  kavitaServer: string
+  webDavServer: string
+  opdsServer: string
+}
+
+interface RemoteServerPreferenceChange {
+  key: string
+  value?: string
+}
+
+interface RemoteServerPreferenceSnapshot {
+  key: string
+  exists: boolean
+  value: preferences.ValueType
+}
+
 export class RemoteServerStore {
+  private static operations: Map<string, Promise<void>> = new Map<string, Promise<void>>()
   private context: common.UIAbilityContext
 
   constructor(context: common.UIAbilityContext) {
     this.context = context
   }
 
-  async hasSavedConfiguration(kind: RemoteServerCredentialKind): Promise<boolean> {
-    const store = await this.preferences()
-    let key: string = KOMGA_SERVER_KEY
-    if (kind === 'kavita') {
-      key = KAVITA_SERVER_KEY
-    } else if (kind === 'webdav') {
-      key = WEBDAV_SERVER_KEY
-    } else if (kind === 'opds') {
-      key = OPDS_SERVER_KEY
-    }
-    const payload = await store.get(key, '') as string
-    return payload.length > 0
-  }
-
-  async loadKomga(): Promise<KomgaServerRecord | undefined> {
-    return BackupRestoreActivity.runWrite(async (): Promise<KomgaServerRecord | undefined> => {
+  exportConfiguration(): Promise<RemoteServerConfigurationSnapshot> {
+    return this.ordered(async (): Promise<RemoteServerConfigurationSnapshot> => {
       const store = await this.preferences()
-      const serverPayload = await store.get(KOMGA_SERVER_KEY, '') as string
-      if (serverPayload.length === 0) {
-        return undefined
-      }
-      const server = JSON.parse(serverPayload) as KomgaServerConfig
-      if (server.credentialRef === undefined) {
-        return { server }
-      }
-      const credentialPayload = await this.loadSecureCredentialPayload(
-        store,
-        KOMGA_CREDENTIAL_KEY,
-        'komga',
-        server.credentialRef,
-      )
-      if (credentialPayload === undefined) {
-        return { server }
-      }
-      const stored = JSON.parse(credentialPayload) as StoredKomgaCredential
-      if (stored === undefined || stored.credentialRef !== server.credentialRef) {
-        return { server }
-      }
       return {
-        server,
-        credential: {
-          credentialRef: stored.credentialRef,
-          basicToken: stored.basicToken,
-          apiKey: stored.apiKey,
-          sessionToken: stored.sessionToken,
-        },
+        endpointIdentities: await store.get(REMOTE_SERVER_ENDPOINT_IDENTITIES_KEY, '') as string,
+        komgaServer: await store.get(KOMGA_SERVER_KEY, '') as string,
+        kavitaServer: await store.get(KAVITA_SERVER_KEY, '') as string,
+        webDavServer: await store.get(WEBDAV_SERVER_KEY, '') as string,
+        opdsServer: await store.get(OPDS_SERVER_KEY, '') as string,
       }
     })
   }
 
+  async hasSavedConfiguration(kind: RemoteServerCredentialKind): Promise<boolean> {
+    return this.ordered(async (): Promise<boolean> => {
+      const store = await this.preferences()
+      let key: string = KOMGA_SERVER_KEY
+      if (kind === 'kavita') {
+        key = KAVITA_SERVER_KEY
+      } else if (kind === 'webdav') {
+        key = WEBDAV_SERVER_KEY
+      } else if (kind === 'opds') {
+        key = OPDS_SERVER_KEY
+      }
+      const payload = await store.get(key, '') as string
+      return payload.length > 0
+    })
+  }
+
+  async loadKomga(): Promise<KomgaServerRecord | undefined> {
+    return this.ordered((): Promise<KomgaServerRecord | undefined> => this.readKomga())
+  }
+
+  private async readKomga(): Promise<KomgaServerRecord | undefined> {
+    const store = await this.preferences()
+    const serverPayload = await store.get(KOMGA_SERVER_KEY, '') as string
+    if (serverPayload.length === 0) {
+      return undefined
+    }
+    const server = JSON.parse(serverPayload) as KomgaServerConfig
+    if (server.credentialRef === undefined) {
+      return { server }
+    }
+    const credentialPayload = await this.loadSecureCredentialPayload(
+      store,
+      KOMGA_CREDENTIAL_KEY,
+      'komga',
+      server.credentialRef,
+    )
+    if (credentialPayload === undefined) {
+      return { server }
+    }
+    const stored = JSON.parse(credentialPayload) as StoredKomgaCredential
+    if (stored === undefined || stored.credentialRef !== server.credentialRef) {
+      return { server }
+    }
+    return {
+      server,
+      credential: {
+        credentialRef: stored.credentialRef,
+        basicToken: stored.basicToken,
+        apiKey: stored.apiKey,
+        sessionToken: stored.sessionToken,
+      },
+    }
+  }
+
   async saveKomga(draft: KomgaServerDraft): Promise<KomgaServerRecord> {
-    return BackupRestoreActivity.runWrite(async (): Promise<KomgaServerRecord> => {
+    return this.ordered(async (): Promise<KomgaServerRecord> => {
       const baseUrl = normalizeKomgaBaseUrl(draft.baseUrl)
       if (baseUrl.length === 0) {
         throw new RemoteServerDraftError('komga_error_missing_server_url')
       }
       const credential = await this.createCredential(draft, baseUrl)
+      const store = await this.preferences()
+      const identity = await this.prepareServerIdentity(store, KOMGA_SERVER_KEY, 'komga', baseUrl)
       const server: KomgaServerConfig = {
-        id: DEFAULT_KOMGA_SERVER_ID,
+        id: identity.id,
         name: 'Komga',
         baseUrl,
         authKind: draft.authKind,
         credentialRef: draft.authKind === KomgaAuthKind.NONE ? undefined : DEFAULT_KOMGA_CREDENTIAL_REF,
       }
-      const store = await this.preferences()
-      if (credential !== undefined) {
-        await this.saveSecureCredential(store, KOMGA_CREDENTIAL_KEY, 'komga', DEFAULT_KOMGA_CREDENTIAL_REF, JSON.stringify(credential))
-      }
-      await store.put(KOMGA_SERVER_KEY, JSON.stringify(server))
-      if (credential === undefined) {
-        await this.saveSecureCredential(store, KOMGA_CREDENTIAL_KEY, 'komga', DEFAULT_KOMGA_CREDENTIAL_REF, undefined)
-      }
-      await store.flush()
+      await this.commitStoredState(store, 'komga', KOMGA_CREDENTIAL_KEY,
+        DEFAULT_KOMGA_CREDENTIAL_REF, credential === undefined ? undefined : JSON.stringify(credential), [
+          { key: REMOTE_SERVER_ENDPOINT_IDENTITIES_KEY, value: identity.payload },
+          { key: KOMGA_SERVER_KEY, value: JSON.stringify(server) },
+        ])
       console.info('[Komga] step=save_server')
       return {
         server,
@@ -421,63 +534,71 @@ export class RemoteServerStore {
   }
 
   async clearKomga(): Promise<void> {
-    return BackupRestoreActivity.runWrite(async (): Promise<void> => {
+    return this.ordered(async (): Promise<void> => {
       const store = await this.preferences()
-      await store.delete(KOMGA_SERVER_KEY)
-      await this.saveSecureCredential(store, KOMGA_CREDENTIAL_KEY, 'komga', DEFAULT_KOMGA_CREDENTIAL_REF, undefined)
-      await store.flush()
+      const identities = await this.currentServerIdentities(store, KOMGA_SERVER_KEY, 'komga')
+      await this.commitStoredState(store, 'komga', KOMGA_CREDENTIAL_KEY,
+        DEFAULT_KOMGA_CREDENTIAL_REF, undefined, [
+          { key: REMOTE_SERVER_ENDPOINT_IDENTITIES_KEY, value: JSON.stringify(identities) },
+          { key: KOMGA_SERVER_KEY },
+        ])
       console.info('[Komga] step=clear_server')
     })
   }
 
   async loadKavita(): Promise<KavitaServerRecord | undefined> {
-    return BackupRestoreActivity.runWrite(async (): Promise<KavitaServerRecord | undefined> => {
-      const store = await this.preferences()
-      const serverPayload = await store.get(KAVITA_SERVER_KEY, '') as string
-      if (serverPayload.length === 0) {
-        return undefined
-      }
-      const server = JSON.parse(serverPayload) as KavitaServerConfig
-      const credentialPayload = await this.loadSecureCredentialPayload(
-        store,
-        KAVITA_CREDENTIAL_KEY,
-        'kavita',
-        server.credentialRef,
-      )
-      if (credentialPayload === undefined) {
-        return undefined
-      }
-      const stored = JSON.parse(credentialPayload) as StoredKavitaCredential
-      if (stored === undefined || stored.credentialRef !== server.credentialRef || stored.apiKey.length === 0) {
-        return undefined
-      }
-      return {
-        server,
-        credential: {
-          credentialRef: stored.credentialRef,
-          apiKey: stored.apiKey,
-        },
-      }
-    })
+    return this.ordered((): Promise<KavitaServerRecord | undefined> => this.readKavita())
+  }
+
+  private async readKavita(): Promise<KavitaServerRecord | undefined> {
+    const store = await this.preferences()
+    const serverPayload = await store.get(KAVITA_SERVER_KEY, '') as string
+    if (serverPayload.length === 0) {
+      return undefined
+    }
+    const server = JSON.parse(serverPayload) as KavitaServerConfig
+    const credentialPayload = await this.loadSecureCredentialPayload(
+      store,
+      KAVITA_CREDENTIAL_KEY,
+      'kavita',
+      server.credentialRef,
+    )
+    if (credentialPayload === undefined) {
+      return undefined
+    }
+    const stored = JSON.parse(credentialPayload) as StoredKavitaCredential
+    if (stored === undefined || stored.credentialRef !== server.credentialRef || stored.apiKey.length === 0) {
+      return undefined
+    }
+    return {
+      server,
+      credential: {
+        credentialRef: stored.credentialRef,
+        apiKey: stored.apiKey,
+      },
+    }
   }
 
   async saveKavita(draft: KavitaServerDraft): Promise<KavitaServerRecord> {
-    return BackupRestoreActivity.runWrite(async (): Promise<KavitaServerRecord> => {
+    return this.ordered(async (): Promise<KavitaServerRecord> => {
       const baseUrl = normalizeKavitaBaseUrl(draft.baseUrl)
       if (baseUrl.length === 0) {
         throw new RemoteServerDraftError('kavita_error_missing_server_url')
       }
       const credential = this.createKavitaCredential(draft)
+      const store = await this.preferences()
+      const identity = await this.prepareServerIdentity(store, KAVITA_SERVER_KEY, 'kavita', baseUrl)
       const server: KavitaServerConfig = {
-        id: DEFAULT_KAVITA_SERVER_ID,
+        id: identity.id,
         name: 'Kavita',
         baseUrl,
         credentialRef: DEFAULT_KAVITA_CREDENTIAL_REF,
       }
-      const store = await this.preferences()
-      await this.saveSecureCredential(store, KAVITA_CREDENTIAL_KEY, 'kavita', DEFAULT_KAVITA_CREDENTIAL_REF, JSON.stringify(credential))
-      await store.put(KAVITA_SERVER_KEY, JSON.stringify(server))
-      await store.flush()
+      await this.commitStoredState(store, 'kavita', KAVITA_CREDENTIAL_KEY,
+        DEFAULT_KAVITA_CREDENTIAL_REF, credential === undefined ? undefined : JSON.stringify(credential), [
+          { key: REMOTE_SERVER_ENDPOINT_IDENTITIES_KEY, value: identity.payload },
+          { key: KAVITA_SERVER_KEY, value: JSON.stringify(server) },
+        ])
       console.info('[Kavita] step=save_server')
       return {
         server,
@@ -487,74 +608,77 @@ export class RemoteServerStore {
   }
 
   async clearKavita(): Promise<void> {
-    return BackupRestoreActivity.runWrite(async (): Promise<void> => {
+    return this.ordered(async (): Promise<void> => {
       const store = await this.preferences()
-      await store.delete(KAVITA_SERVER_KEY)
-      await this.saveSecureCredential(store, KAVITA_CREDENTIAL_KEY, 'kavita', DEFAULT_KAVITA_CREDENTIAL_REF, undefined)
-      await store.flush()
+      const identities = await this.currentServerIdentities(store, KAVITA_SERVER_KEY, 'kavita')
+      await this.commitStoredState(store, 'kavita', KAVITA_CREDENTIAL_KEY,
+        DEFAULT_KAVITA_CREDENTIAL_REF, undefined, [
+          { key: REMOTE_SERVER_ENDPOINT_IDENTITIES_KEY, value: JSON.stringify(identities) },
+          { key: KAVITA_SERVER_KEY },
+        ])
       console.info('[Kavita] step=clear_server')
     })
   }
 
   async loadWebDav(): Promise<WebDavServerRecord | undefined> {
-    return BackupRestoreActivity.runWrite(async (): Promise<WebDavServerRecord | undefined> => {
-      const store = await this.preferences()
-      const serverPayload = await store.get(WEBDAV_SERVER_KEY, '') as string
-      if (serverPayload.length === 0) {
-        return undefined
-      }
-      const server = JSON.parse(serverPayload) as WebDavServerConfig
-      if (server.credentialRef === undefined) {
-        return { server }
-      }
-      const credentialPayload = await this.loadSecureCredentialPayload(
-        store,
-        WEBDAV_CREDENTIAL_KEY,
-        'webdav',
-        server.credentialRef,
-      )
-      if (credentialPayload === undefined) {
-        return { server }
-      }
-      const stored = JSON.parse(credentialPayload) as StoredWebDavCredential
-      if (stored === undefined || stored.credentialRef !== server.credentialRef) {
-        return { server }
-      }
-      return {
-        server,
-        credential: {
-          credentialRef: stored.credentialRef,
-          basicToken: stored.basicToken,
-        },
-      }
-    })
+    return this.ordered((): Promise<WebDavServerRecord | undefined> => this.readWebDav())
+  }
+
+  private async readWebDav(): Promise<WebDavServerRecord | undefined> {
+    const store = await this.preferences()
+    const serverPayload = await store.get(WEBDAV_SERVER_KEY, '') as string
+    if (serverPayload.length === 0) {
+      return undefined
+    }
+    const server = JSON.parse(serverPayload) as WebDavServerConfig
+    if (server.credentialRef === undefined) {
+      return { server }
+    }
+    const credentialPayload = await this.loadSecureCredentialPayload(
+      store,
+      WEBDAV_CREDENTIAL_KEY,
+      'webdav',
+      server.credentialRef,
+    )
+    if (credentialPayload === undefined) {
+      return { server }
+    }
+    const stored = JSON.parse(credentialPayload) as StoredWebDavCredential
+    if (stored === undefined || stored.credentialRef !== server.credentialRef) {
+      return { server }
+    }
+    return {
+      server,
+      credential: {
+        credentialRef: stored.credentialRef,
+        basicToken: stored.basicToken,
+      },
+    }
   }
 
   async saveWebDav(draft: WebDavServerDraft): Promise<WebDavServerRecord> {
-    return BackupRestoreActivity.runWrite(async (): Promise<WebDavServerRecord> => {
+    return this.ordered(async (): Promise<WebDavServerRecord> => {
       const baseUrl = normalizeWebDavBaseUrl(draft.baseUrl)
       if (baseUrl.length === 0) {
         throw new RemoteServerDraftError('webdav_error_missing_server_url')
       }
       const credential = await this.createWebDavCredential(draft, baseUrl)
       const rootPath = draft.rootPath === undefined ? '' : draft.rootPath.trim()
+      const store = await this.preferences()
+      const identity = await this.prepareServerIdentity(store, WEBDAV_SERVER_KEY, 'webdav', baseUrl)
       const server: WebDavServerConfig = {
-        id: DEFAULT_WEBDAV_SERVER_ID,
+        id: identity.id,
         name: 'WebDAV',
         baseUrl,
         rootPath: rootPath.length === 0 ? undefined : rootPath,
         authKind: credential === undefined ? WebDavAuthKind.NONE : WebDavAuthKind.BASIC,
         credentialRef: credential === undefined ? undefined : DEFAULT_WEBDAV_CREDENTIAL_REF,
       }
-      const store = await this.preferences()
-      if (credential !== undefined) {
-        await this.saveSecureCredential(store, WEBDAV_CREDENTIAL_KEY, 'webdav', DEFAULT_WEBDAV_CREDENTIAL_REF, JSON.stringify(credential))
-      }
-      await store.put(WEBDAV_SERVER_KEY, JSON.stringify(server))
-      if (credential === undefined) {
-        await this.saveSecureCredential(store, WEBDAV_CREDENTIAL_KEY, 'webdav', DEFAULT_WEBDAV_CREDENTIAL_REF, undefined)
-      }
-      await store.flush()
+      await this.commitStoredState(store, 'webdav', WEBDAV_CREDENTIAL_KEY,
+        DEFAULT_WEBDAV_CREDENTIAL_REF, credential === undefined ? undefined : JSON.stringify(credential), [
+          { key: REMOTE_SERVER_ENDPOINT_IDENTITIES_KEY, value: identity.payload },
+          { key: WEBDAV_SERVER_KEY, value: JSON.stringify(server) },
+        ])
       console.info('[WebDAV] step=save_server')
       return {
         server,
@@ -564,72 +688,75 @@ export class RemoteServerStore {
   }
 
   async clearWebDav(): Promise<void> {
-    return BackupRestoreActivity.runWrite(async (): Promise<void> => {
+    return this.ordered(async (): Promise<void> => {
       const store = await this.preferences()
-      await store.delete(WEBDAV_SERVER_KEY)
-      await this.saveSecureCredential(store, WEBDAV_CREDENTIAL_KEY, 'webdav', DEFAULT_WEBDAV_CREDENTIAL_REF, undefined)
-      await store.flush()
+      const identities = await this.currentServerIdentities(store, WEBDAV_SERVER_KEY, 'webdav')
+      await this.commitStoredState(store, 'webdav', WEBDAV_CREDENTIAL_KEY,
+        DEFAULT_WEBDAV_CREDENTIAL_REF, undefined, [
+          { key: REMOTE_SERVER_ENDPOINT_IDENTITIES_KEY, value: JSON.stringify(identities) },
+          { key: WEBDAV_SERVER_KEY },
+        ])
       console.info('[WebDAV] step=clear_server')
     })
   }
 
   async loadOpds(): Promise<OpdsServerRecord | undefined> {
-    return BackupRestoreActivity.runWrite(async (): Promise<OpdsServerRecord | undefined> => {
-      const store = await this.preferences()
-      const serverPayload = await store.get(OPDS_SERVER_KEY, '') as string
-      if (serverPayload.length === 0) {
-        return undefined
-      }
-      const server = JSON.parse(serverPayload) as OpdsServerConfig
-      if (server.credentialRef === undefined) {
-        return { server }
-      }
-      const credentialPayload = await this.loadSecureCredentialPayload(
-        store,
-        OPDS_CREDENTIAL_KEY,
-        'opds',
-        server.credentialRef,
-      )
-      if (credentialPayload === undefined) {
-        return { server }
-      }
-      const stored = JSON.parse(credentialPayload) as StoredOpdsCredential
-      if (stored === undefined || stored.credentialRef !== server.credentialRef) {
-        return { server }
-      }
-      return {
-        server,
-        credential: {
-          credentialRef: stored.credentialRef,
-          basicToken: stored.basicToken,
-        },
-      }
-    })
+    return this.ordered((): Promise<OpdsServerRecord | undefined> => this.readOpds())
+  }
+
+  private async readOpds(): Promise<OpdsServerRecord | undefined> {
+    const store = await this.preferences()
+    const serverPayload = await store.get(OPDS_SERVER_KEY, '') as string
+    if (serverPayload.length === 0) {
+      return undefined
+    }
+    const server = JSON.parse(serverPayload) as OpdsServerConfig
+    if (server.credentialRef === undefined) {
+      return { server }
+    }
+    const credentialPayload = await this.loadSecureCredentialPayload(
+      store,
+      OPDS_CREDENTIAL_KEY,
+      'opds',
+      server.credentialRef,
+    )
+    if (credentialPayload === undefined) {
+      return { server }
+    }
+    const stored = JSON.parse(credentialPayload) as StoredOpdsCredential
+    if (stored === undefined || stored.credentialRef !== server.credentialRef) {
+      return { server }
+    }
+    return {
+      server,
+      credential: {
+        credentialRef: stored.credentialRef,
+        basicToken: stored.basicToken,
+      },
+    }
   }
 
   async saveOpds(draft: OpdsServerDraft): Promise<OpdsServerRecord> {
-    return BackupRestoreActivity.runWrite(async (): Promise<OpdsServerRecord> => {
+    return this.ordered(async (): Promise<OpdsServerRecord> => {
       const rootUrl = normalizeOpdsRootUrl(draft.rootUrl)
       if (rootUrl.length === 0) {
         throw new RemoteServerDraftError('opds_error_missing_catalog_url')
       }
       const credential = await this.createOpdsCredential(draft, rootUrl)
+      const store = await this.preferences()
+      const identity = await this.prepareServerIdentity(store, OPDS_SERVER_KEY, 'opds', rootUrl)
       const server: OpdsServerConfig = {
-        id: DEFAULT_OPDS_SERVER_ID,
+        id: identity.id,
         name: 'OPDS',
         rootUrl,
         version: draft.version,
         credentialRef: credential === undefined ? undefined : DEFAULT_OPDS_CREDENTIAL_REF,
       }
-      const store = await this.preferences()
-      if (credential !== undefined) {
-        await this.saveSecureCredential(store, OPDS_CREDENTIAL_KEY, 'opds', DEFAULT_OPDS_CREDENTIAL_REF, JSON.stringify(credential))
-      }
-      await store.put(OPDS_SERVER_KEY, JSON.stringify(server))
-      if (credential === undefined) {
-        await this.saveSecureCredential(store, OPDS_CREDENTIAL_KEY, 'opds', DEFAULT_OPDS_CREDENTIAL_REF, undefined)
-      }
-      await store.flush()
+      await this.commitStoredState(store, 'opds', OPDS_CREDENTIAL_KEY,
+        DEFAULT_OPDS_CREDENTIAL_REF, credential === undefined ? undefined : JSON.stringify(credential), [
+          { key: REMOTE_SERVER_ENDPOINT_IDENTITIES_KEY, value: identity.payload },
+          { key: OPDS_SERVER_KEY, value: JSON.stringify(server) },
+        ])
       console.info('[OPDS] step=save_server')
       return {
         server,
@@ -639,11 +766,14 @@ export class RemoteServerStore {
   }
 
   async clearOpds(): Promise<void> {
-    return BackupRestoreActivity.runWrite(async (): Promise<void> => {
+    return this.ordered(async (): Promise<void> => {
       const store = await this.preferences()
-      await store.delete(OPDS_SERVER_KEY)
-      await this.saveSecureCredential(store, OPDS_CREDENTIAL_KEY, 'opds', DEFAULT_OPDS_CREDENTIAL_REF, undefined)
-      await store.flush()
+      const identities = await this.currentServerIdentities(store, OPDS_SERVER_KEY, 'opds')
+      await this.commitStoredState(store, 'opds', OPDS_CREDENTIAL_KEY,
+        DEFAULT_OPDS_CREDENTIAL_REF, undefined, [
+          { key: REMOTE_SERVER_ENDPOINT_IDENTITIES_KEY, value: JSON.stringify(identities) },
+          { key: OPDS_SERVER_KEY },
+        ])
       console.info('[OPDS] step=clear_server')
     })
   }
@@ -808,21 +938,21 @@ export class RemoteServerStore {
     let savedUrl: string = ''
     let token: string | undefined = undefined
     if (kind === 'komga') {
-      const saved = await this.loadKomga()
+      const saved = await this.readKomga()
       if (saved === undefined || saved.server.authKind !== KomgaAuthKind.BASIC) {
         return undefined
       }
       savedUrl = normalizeKomgaBaseUrl(saved.server.baseUrl)
       token = saved.credential?.basicToken
     } else if (kind === 'webdav') {
-      const saved = await this.loadWebDav()
+      const saved = await this.readWebDav()
       if (saved === undefined || saved.server.authKind !== WebDavAuthKind.BASIC) {
         return undefined
       }
       savedUrl = normalizeWebDavBaseUrl(saved.server.baseUrl)
       token = saved.credential?.basicToken
     } else if (kind === 'opds') {
-      const saved = await this.loadOpds()
+      const saved = await this.readOpds()
       if (saved === undefined || saved.server.credentialRef === undefined) {
         return undefined
       }
@@ -864,14 +994,77 @@ export class RemoteServerStore {
       return undefined
     }
     try {
-      await this.writeCredentialAsset(kind, credentialRef, legacyPayload)
-      await store.delete(legacyKey)
-      await store.flush()
+      await this.commitStoredState(store, kind, legacyKey, credentialRef, legacyPayload, [])
       console.info(`[RemoteServerStore] step=credential_migrated provider=${kind}`)
     } catch (error) {
       console.warn(`[RemoteServerStore] step=credential_migration_failed provider=${kind} code=${remoteCredentialFailureCode(error as Object)}`)
     }
     return legacyPayload
+  }
+
+  // One owner for the shared endpoint ledger, configuration, legacy values and secure assets.
+  private ordered<T>(operation: () => Promise<T>): Promise<T> {
+    return BackupRestoreActivity.runWrite((): Promise<T> => {
+      const key = this.context.filesDir
+      const previous = RemoteServerStore.operations.get(key) ?? Promise.resolve()
+      const result = previous.then(operation)
+      const settled = result.then((): void => {}, (): void => {})
+      RemoteServerStore.operations.set(key, settled)
+      void settled.then((): void => {
+        if (RemoteServerStore.operations.get(key) === settled) RemoteServerStore.operations.delete(key)
+      })
+      return result
+    })
+  }
+
+  private async commitStoredState(
+    store: preferences.Preferences,
+    kind: RemoteServerCredentialKind,
+    legacyKey: string,
+    credentialRef: string,
+    credentialPayload: string | undefined,
+    changes: RemoteServerPreferenceChange[],
+  ): Promise<void> {
+    const keys = changes.map((change: RemoteServerPreferenceChange): string => change.key).concat([legacyKey])
+    const before: RemoteServerPreferenceSnapshot[] = []
+    for (const key of keys) {
+      before.push({ key, exists: await store.has(key), value: await store.get(key, '') })
+    }
+    const previousCredential = await this.readCredentialAssetPayload(kind, credentialRef)
+    try {
+      await this.saveSecureCredential(store, legacyKey, kind, credentialRef, credentialPayload)
+      for (const change of changes) {
+        if (change.value === undefined) await store.delete(change.key)
+        else await store.put(change.key, change.value)
+      }
+      await store.flush()
+    } catch (error) {
+      let restoreFailed = false
+      try {
+        if (previousCredential === undefined) await this.deleteCredentialAsset(kind, credentialRef)
+        else await this.writeCredentialAsset(kind, credentialRef, previousCredential)
+      } catch (restoreError) {
+        restoreFailed = true
+      }
+      for (const value of before) {
+        try {
+          if (value.exists) await store.put(value.key, value.value)
+          else await store.delete(value.key)
+        } catch (restoreError) {
+          restoreFailed = true
+        }
+      }
+      try {
+        await store.flush()
+      } catch (restoreError) {
+        restoreFailed = true
+      }
+      if (restoreFailed) {
+        console.error(`[RemoteServerStore] step=state_restore_failed provider=${kind}`)
+        throw new Error('remote_server_state_restore_failed')
+      }
+      throw error as Error
+    }
   }
 
   private async saveSecureCredential(
@@ -921,21 +1114,51 @@ export class RemoteServerStore {
       }
       const secret = rows[0].get(asset.Tag.SECRET) as Uint8Array | undefined
       if (secret === undefined || secret.byteLength === 0) {
-        return undefined
+        throw new Error('remote_server_credential_read_failed')
       }
       return remoteCredentialUtf8Decode(secret)
     } catch (error) {
+      if ((error as BusinessError).code === 24000002) return undefined
       console.warn(`[RemoteServerStore] step=credential_read_failed provider=${kind} code=${remoteCredentialFailureCode(error as Object)}`)
-      return undefined
+      throw new Error('remote_server_credential_read_failed')
     }
   }
 
   private async deleteCredentialAsset(kind: RemoteServerCredentialKind, credentialRef: string): Promise<void> {
     try {
-      await asset.remove(remoteCredentialAssetQuery(kind, credentialRef))
+      await asset.remove(remoteCredentialAssetIdentity(kind, credentialRef))
     } catch (error) {
+      if ((error as BusinessError).code === 24000002) return
       console.warn(`[RemoteServerStore] step=credential_delete_failed provider=${kind} code=${remoteCredentialFailureCode(error as Object)}`)
+      throw new Error('remote_server_credential_delete_failed')
     }
+  }
+
+  private async currentServerIdentities(
+    store: preferences.Preferences,
+    serverKey: string,
+    kind: RemoteServerCredentialKind,
+  ): Promise<RemoteServerEndpointIdentity[]> {
+    const identities = parseRemoteServerEndpointIdentities(await store.get(REMOTE_SERVER_ENDPOINT_IDENTITIES_KEY, '') as string)
+    const payload = await store.get(serverKey, '') as string
+    rememberRemoteServerEndpointIdentity(identities, kind, payload)
+    return identities
+  }
+
+  private async prepareServerIdentity(
+    store: preferences.Preferences,
+    serverKey: string,
+    kind: RemoteServerCredentialKind,
+    endpoint: string,
+  ): Promise<PreparedRemoteServerIdentity> {
+    const identities = await this.currentServerIdentities(store, serverKey, kind)
+    const endpointKey = remoteServerEndpointKey(kind, endpoint)
+    let selected = identities.find((identity: RemoteServerEndpointIdentity): boolean => identity.kind === kind && identity.endpointKey === endpointKey)
+    if (selected === undefined) {
+      selected = { kind, endpointKey, id: `${kind}-${util.generateRandomUUID()}` }
+      identities.push(selected)
+    }
+    return { id: selected.id, payload: JSON.stringify(identities) }
   }
 
   private async preferences(): Promise<preferences.Preferences> {
