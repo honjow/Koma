@@ -1335,6 +1335,7 @@ export class BackupService {
       return
     }
     const nextSettings: ReaderPreferences = {
+      readerImplementation: settings.readerImplementation ?? DEFAULT_READER_PREFERENCES.readerImplementation,
       pageMode: settings.pageMode ?? DEFAULT_READER_PREFERENCES.pageMode,
       readingDirection: settings.readingDirection ?? DEFAULT_READER_PREFERENCES.readingDirection,
       themeMode: settings.themeMode ?? DEFAULT_READER_PREFERENCES.themeMode,
