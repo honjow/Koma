@@ -68,14 +68,12 @@ function joinSourceSettingsPath(parent: string, child: string): string {
   return left.length === 0 ? right : `${left}/${right}`
 }
 
-
 function ensureDirSync(path: string): void {
   if (fs.accessSync(path)) {
     return
   }
   fs.mkdirSync(path, true)
 }
-
 
 function emptyDocument(): SourceSettingsDocument {
   return {
@@ -291,11 +289,27 @@ export function normalizeSourceSettingDescriptors(response: SourceRuntimeCallRes
 
 export class SourceSettingsStore {
   private storagePath: string = ''
+  private scopeRevision: number = 0
+  private readonly sourceRevisions: Map<string, number> = new Map<string, number>()
 
   configure(context: common.UIAbilityContext): void {
     const root = joinSourceSettingsPath(context.filesDir, SOURCE_SETTINGS_ROOT_NAME)
     ensureDirSync(root)
-    this.storagePath = joinSourceSettingsPath(root, SOURCE_SETTINGS_FILE_NAME)
+    const nextPath = joinSourceSettingsPath(root, SOURCE_SETTINGS_FILE_NAME)
+    if (this.storagePath !== nextPath) {
+      this.scopeRevision += 1
+      this.sourceRevisions.clear()
+    }
+    this.storagePath = nextPath
+  }
+
+  /** Current-process validity only; no settings values or credentials enter cache identity. */
+  revisionForSource(sourceId: string): string {
+    return `${this.scopeRevision}:${this.sourceRevisions.get(sourceId.trim()) ?? 0}`
+  }
+
+  private sourceCommitted(sourceId: string): void {
+    this.sourceRevisions.set(sourceId, (this.sourceRevisions.get(sourceId) ?? 0) + 1)
   }
 
   isConfigured(): boolean {
@@ -320,6 +334,7 @@ export class SourceSettingsStore {
     const document = this.readDocument()
     document.sources[normalizedSourceId] = safeValues
     this.writeDocument(document)
+    this.sourceCommitted(normalizedSourceId)
   }
 
   removeSource(sourceId: string): void {
@@ -336,6 +351,7 @@ export class SourceSettingsStore {
     })
     document.sources = nextSources
     this.writeDocument(document)
+    this.sourceCommitted(normalizedSourceId)
   }
 
   exportAll(): Record<string, SourceSettingsRecord> {
@@ -354,6 +370,8 @@ export class SourceSettingsStore {
       schemaVersion: SOURCE_SETTINGS_SCHEMA_VERSION,
       sources: sanitized,
     })
+    this.scopeRevision += 1
+    this.sourceRevisions.clear()
   }
 
   private filterSafeValues(values: SourceSettingsRecord, descriptors: SourceSettingDescriptor[]): SourceSettingsRecord {

@@ -1,3 +1,4 @@
+import { appSourceSettingsStore } from '../sourceRuntime/SourceSettingsStore'
 import {
   MangaChapterItem,
   MangaDetail,
@@ -73,16 +74,34 @@ function sourceMangaDetailSnapshotCacheKey(
  * metadata and chapter rows: page descriptors can carry short-lived source
  * URLs and must be resolved again by the Reader path.
  */
+interface CachedSourceMangaDetailSnapshot {
+  entry: SourceRuntimeRegistryEntry
+  settingsRevision: string
+  snapshot: SourceMangaDetailSnapshot
+}
+
 export class SourceMangaDetailSnapshotCache {
-  private readonly snapshots: Map<string, SourceMangaDetailSnapshot> = new Map<string, SourceMangaDetailSnapshot>()
+  private readonly snapshots: Map<string, CachedSourceMangaDetailSnapshot> = new Map<string, CachedSourceMangaDetailSnapshot>()
 
   read(
     entry: SourceRuntimeRegistryEntry,
     sourceId: string,
     mangaId: string,
+    mangaUrl?: string,
   ): SourceMangaDetailSnapshot | undefined {
-    const snapshot = this.snapshots.get(sourceMangaDetailSnapshotCacheKey(entry, sourceId, mangaId))
-    return snapshot === undefined ? undefined : cloneSnapshot(snapshot)
+    const key = sourceMangaDetailSnapshotCacheKey(entry, sourceId, mangaId)
+    const cached = this.snapshots.get(key)
+    if (cached === undefined) return undefined
+    if (cached.entry !== entry || cached.settingsRevision !== appSourceSettingsStore.revisionForSource(sourceId)) {
+      this.snapshots.delete(key)
+      return undefined
+    }
+    const snapshot = cached.snapshot
+    const route = mangaUrl?.trim()
+    if (route !== undefined && route.length > 0 && snapshot.detail.url?.trim() !== route) {
+      return undefined
+    }
+    return cloneSnapshot(snapshot)
   }
 
   write(
@@ -90,10 +109,12 @@ export class SourceMangaDetailSnapshotCache {
     sourceId: string,
     mangaId: string,
     snapshot: SourceMangaDetailSnapshot,
+    settingsRevision: string,
   ): void {
+    if (settingsRevision !== appSourceSettingsStore.revisionForSource(sourceId)) return
     this.snapshots.set(
       sourceMangaDetailSnapshotCacheKey(entry, sourceId, mangaId),
-      cloneSnapshot(snapshot),
+      { entry, settingsRevision, snapshot: cloneSnapshot(snapshot) },
     )
   }
 }

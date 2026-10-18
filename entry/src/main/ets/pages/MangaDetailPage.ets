@@ -264,6 +264,8 @@ export struct MangaDetailPage {
   @Event onOpenImportRequested: () => void = () => {}
   @Event onLibraryChanged: () => void = () => {}
   private sourceDetailRequestEpoch: number = 0
+  private sourceDetailSettingsRevision: string = ''
+  private sourceDetailRegistryEntry?: SourceRuntimeRegistryEntry
   private handledTitleActionRequestSeq: number = 0
 
   private formatString(key: string, args: Array<string | number>): string {
@@ -455,12 +457,16 @@ export struct MangaDetailPage {
 
   private beginSourceDetailRequest(sourceId: string, mangaId: string): number {
     this.sourceChaptersResolved = false
+    this.sourceDetailSettingsRevision = appSourceSettingsStore.revisionForSource(sourceId)
+    this.sourceDetailRegistryEntry = undefined
     this.sourceDetailRequestEpoch = this.sourceDetailRequestEpoch + 1
     return this.sourceDetailRequestEpoch
   }
 
   private isCurrentSourceDetailRequest(requestEpoch: number, sourceId: string, mangaId: string): boolean {
     return this.sourceDetailRequestEpoch === requestEpoch &&
+      appSourceSettingsStore.revisionForSource(sourceId) === this.sourceDetailSettingsRevision &&
+      this.sourceRegistry.lookup(sourceId).entry === this.sourceDetailRegistryEntry &&
       this.params.sourceId?.trim() === sourceId.trim() &&
       this.params.mangaId?.trim() === mangaId.trim()
   }
@@ -612,6 +618,7 @@ export struct MangaDetailPage {
       if (!lookup.ok || lookup.entry === undefined) {
         throw new Error(lookup.reasonCode ?? 'source lookup failed')
       }
+      this.sourceDetailRegistryEntry = lookup.entry
       if (!sourceRuntimeEntryEnabled(lookup.entry)) {
         throw new Error('source_disabled')
       }
@@ -655,7 +662,7 @@ export struct MangaDetailPage {
           detail,
           chapters,
           chaptersResolved: false,
-        })
+        }, this.sourceDetailSettingsRevision)
       }
       let chaptersLoadFailed = false
       try {
@@ -703,7 +710,7 @@ export struct MangaDetailPage {
           detail,
           chapters,
           chaptersResolved: this.sourceChaptersResolved,
-        })
+        }, this.sourceDetailSettingsRevision)
       }
     } catch (error) {
       const e = error as Error
