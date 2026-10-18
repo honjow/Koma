@@ -483,7 +483,6 @@ export struct KomgaSeriesPage {
     Column() {
       SecondaryListScaffold({
         listSpace: ThemeConstants.SPACE_MD,
-        horizontalPadding: ThemeConstants.SPACE_XL,
         bottomPadding: ThemeConstants.SPACE_XL,
         onReachEnd: () => {
           this.loadMoreSeries()

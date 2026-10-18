@@ -272,7 +272,6 @@ export struct BrowsePage {
     PullRefreshListScaffold({
       scroller: this.browseScroller,
       listSpace: ThemeConstants.SPACE_SM,
-      horizontalPadding: ThemeConstants.SPACE_XL,
       bottomPadding: ThemeConstants.SPACE_XL,
       floatingTabTailPadding: ThemeConstants.FLOATING_TAB_BAR_CLEARANCE,
       onRefresh: async () => {

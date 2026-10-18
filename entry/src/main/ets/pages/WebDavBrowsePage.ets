@@ -514,7 +514,6 @@ export struct WebDavBrowsePage {
     Column() {
       SecondaryListScaffold({
         listSpace: ThemeConstants.SPACE_MD,
-        horizontalPadding: ThemeConstants.SPACE_XL,
         bottomPadding: ThemeConstants.SPACE_XL,
       }) {
         if (this.loading) {

@@ -882,7 +882,6 @@ export struct SearchPage {
     Stack({ alignContent: Alignment.TopEnd }) {
       SecondaryListScaffold({
         listSpace: ThemeConstants.SPACE_MD,
-        horizontalPadding: ThemeConstants.SPACE_XL,
         pinnedOverlayHeight: SEARCH_TITLE_BOTTOM_HEIGHT,
         bottomPadding: ThemeConstants.SPACE_XL,
         floatingTabTailPadding: ThemeConstants.FLOATING_TAB_BAR_CLEARANCE,

@@ -1298,7 +1298,6 @@ export struct BackupManagementPage {
       Column() {
         SecondaryListScaffold({
         listSpace: ThemeConstants.SPACE_MD,
-        horizontalPadding: ThemeConstants.SPACE_XL,
         bottomPadding: ThemeConstants.SPACE_XL,
       }) {
           if (this.pane === 'home') {

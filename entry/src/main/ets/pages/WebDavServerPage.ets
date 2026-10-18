@@ -246,7 +246,6 @@ export struct WebDavServerPage {
     Column() {
       SecondaryListScaffold({
         listSpace: ThemeConstants.SPACE_LG,
-        horizontalPadding: ThemeConstants.SPACE_XL,
         bottomPadding: ThemeConstants.SPACE_XL,
         includeKeyboardPadding: true,
       }) {
