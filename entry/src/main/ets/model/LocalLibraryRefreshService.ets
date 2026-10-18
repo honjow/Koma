@@ -1,4 +1,4 @@
-import { fileIo as fs } from '@kit.CoreFileKit'
+import { fileIo as fs, fileUri } from '@kit.CoreFileKit'
 import {
   Chapter,
   Comic,
@@ -43,7 +43,9 @@ function localFilePathFromUri(uri: string): string | undefined {
     return undefined
   }
   try {
-    const path = decodeURIComponent(uri.substring('file://'.length))
+    const path = uri.startsWith('file://docs/')
+      ? new fileUri.FileUri(uri).path
+      : decodeURIComponent(uri.substring('file://'.length))
     return path.trim().length === 0 ? undefined : path
   } catch (_error) {
     return undefined
