@@ -1,3 +1,4 @@
+import { isInvalidSourceLocalizedNames, normalizeSourceLocalizedNames } from './SourceLocalizedNames'
 import { common } from '@kit.AbilityKit'
 import { zlib } from '@kit.BasicServicesKit'
 import { cryptoFramework } from '@kit.CryptoArchitectureKit'
@@ -11,11 +12,14 @@ export const SOURCE_PACKAGE_MANIFEST_FILE: string = 'manifest.generated.json'
 export const SOURCE_PACKAGE_WASM_FILE: string = 'rust_source_runtime_fixture.wasm'
 export const SOURCE_REPO_PACKAGE_MANIFEST_FILE: string = 'manifest.json'
 export const SOURCE_REPO_PACKAGE_WASM_FILE: string = 'source.wasm'
-// A package-owned source icon is deliberately a fixed, optional root asset.
-// It is not a source-controlled path or a remote image URL.
+// Production packages require exactly one package-owned root identity asset.
+// Retain the image format; display cropping belongs to the UI, not these bytes.
 export const SOURCE_REPO_PACKAGE_ICON_FILE: string = 'icon.png'
 export const SOURCE_REPO_PACKAGE_ICON_MAX_BYTES: number = 1024 * 1024
-export const SOURCE_REPO_PACKAGE_ICON_MAX_DIMENSION: number = 1024
+export const SOURCE_REPO_PACKAGE_ICON_MAX_PIXELS: number = 1024 * 1024
+export const SOURCE_REPO_PACKAGE_ICON_FILES: string[] = [
+  'icon.png', 'icon.jpg', 'icon.jpeg', 'icon.gif', 'icon.webp', 'icon.ico',
+]
 export const SOURCE_PACKAGE_WASM_SHA256: string = '255163710202d77fa218f1ccf96fbdcc7ec954b8f8bd1a04e6f15426a2d00161'
 export const SOURCE_PACKAGE_WASM_MAX_BYTES: number = 131072
 
@@ -32,7 +36,8 @@ export type SourceArchiveValidationReason =
   'missing_manifest' |
   'missing_wasm' |
   'manifest_invalid' |
-  'invalid_icon'
+  'invalid_icon' |
+  'missing_icon'
 
 export interface SourceArchiveNegativeCaseFixture {
   id: string
@@ -54,6 +59,7 @@ export interface SourceArchiveNegativeImportResult {
 export interface LocalSourcePackageInfo {
   id: string
   name: string
+  localizedNames?: Record<string, string>
   version: string
   language: string
   type: string
@@ -97,8 +103,10 @@ export interface LocalSourcePackageManifest {
 }
 
 interface SourceRepoPackageManifest {
+  icon?: string
   id: string
   name: string
+  localizedNames?: Record<string, string>
   version: string
   lang?: string
   language?: string
@@ -244,25 +252,6 @@ function readUInt32Le(bytes: Uint8Array, offset: number): number {
     (bytes[offset + 3] << 24)) >>> 0
 }
 
-function readUInt32Be(bytes: Uint8Array, offset: number): number {
-  return ((bytes[offset] << 24) |
-    (bytes[offset + 1] << 16) |
-    (bytes[offset + 2] << 8) |
-    bytes[offset + 3]) >>> 0
-}
-
-function pngCrc32(bytes: Uint8Array, offset: number, length: number): number {
-  let crc = 0xffffffff
-  for (let index = 0; index < length; index += 1) {
-    crc ^= bytes[offset + index]
-    for (let bit = 0; bit < 8; bit += 1) {
-      const lowBit = crc & 1
-      crc = (crc >>> 1) ^ (lowBit === 1 ? 0xedb88320 : 0)
-    }
-  }
-  return (crc ^ 0xffffffff) >>> 0
-}
-
 function decodeAscii(bytes: Uint8Array, offset: number, length: number): string {
   let value = ''
   for (let index = 0; index < length; index += 1) {
@@ -365,7 +354,8 @@ function validateArchiveEntries(archiveBytes: Uint8Array): SourceArchiveValidati
       hasInternalManifest = true
     } else if (name === SOURCE_REPO_PACKAGE_MANIFEST_FILE) {
       hasSourceRepoManifest = true
-    } else if (name === SOURCE_REPO_PACKAGE_ICON_FILE) {
+    } else if (isSourcePackageIconFileName(name)) {
+      if (iconEntry !== undefined) return 'invalid_icon'
       iconEntry = entry
     }
   }
@@ -378,13 +368,14 @@ function validateArchiveEntries(archiveBytes: Uint8Array): SourceArchiveValidati
 
   const expectedManifest = hasInternalManifest ? SOURCE_PACKAGE_MANIFEST_FILE : SOURCE_REPO_PACKAGE_MANIFEST_FILE
   const expectedWasm = hasInternalManifest ? SOURCE_PACKAGE_WASM_FILE : SOURCE_REPO_PACKAGE_WASM_FILE
-  const expectedIcon = hasSourceRepoManifest ? SOURCE_REPO_PACKAGE_ICON_FILE : ''
+  const expectedIcon = hasSourceRepoManifest && iconEntry !== undefined ? iconEntry.name : ''
   for (let index = 0; index < entries.length; index += 1) {
     const name = entries[index].name
     if (name !== expectedManifest && name !== expectedWasm && name !== expectedIcon) {
       return 'unsafe_archive_entry'
     }
   }
+  if (hasSourceRepoManifest && iconEntry === undefined) return 'missing_icon'
   if (iconEntry !== undefined &&
     (iconEntry.uncompressedSize <= 0 || iconEntry.uncompressedSize > SOURCE_REPO_PACKAGE_ICON_MAX_BYTES)) {
     return 'invalid_icon'
@@ -392,73 +383,33 @@ function validateArchiveEntries(archiveBytes: Uint8Array): SourceArchiveValidati
   return undefined
 }
 
+export function isSourcePackageIconFileName(name: string): boolean {
+  return SOURCE_REPO_PACKAGE_ICON_FILES.includes(name)
+}
+
+// Identify formats, not a hand-selected subset of their internal layouts.
+// The platform decoder validates the complete image before any publication.
+export function sourcePackageIconFileName(bytes: Uint8Array): string | undefined {
+  if (bytes.byteLength === 0 || bytes.byteLength > SOURCE_REPO_PACKAGE_ICON_MAX_BYTES) return undefined
+  if (bytes.length >= 8 && bytes[0] === 0x89 && decodeAscii(bytes, 1, 3) === 'PNG' &&
+    bytes[4] === 13 && bytes[5] === 10 && bytes[6] === 26 && bytes[7] === 10) return 'icon.png'
+  if (bytes.length >= 3 && bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff) return 'icon.jpg'
+  if (bytes.length >= 6 && (decodeAscii(bytes, 0, 6) === 'GIF87a' ||
+    decodeAscii(bytes, 0, 6) === 'GIF89a')) return 'icon.gif'
+  if (bytes.length >= 12 && decodeAscii(bytes, 0, 4) === 'RIFF' &&
+    decodeAscii(bytes, 8, 4) === 'WEBP') return 'icon.webp'
+  if (bytes.length >= 6 && bytes[0] === 0 && bytes[1] === 0 && bytes[2] === 1 && bytes[3] === 0 &&
+    (bytes[4] !== 0 || bytes[5] !== 0)) return 'icon.ico'
+  return undefined
+}
+
+export function sourcePackageIconMatchesFileName(bytes: Uint8Array, name: string): boolean {
+  const detected = sourcePackageIconFileName(bytes)
+  return detected !== undefined && (detected === name || (detected === 'icon.jpg' && name === 'icon.jpeg'))
+}
+
 export function validateSourcePackageIconBytes(iconBytes: Uint8Array): boolean {
-  // The host only permits a compact standard PNG layout it can validate before
-  // exposing the asset to ArkUI: signature + IHDR + one-or-more IDAT chunks +
-  // IEND. Indexed PNG is limited to 8-bit so an official site touch icon can
-  // retain its original pixels; ImageKit still performs the final decode.
-  if (iconBytes.byteLength < 57 || iconBytes.byteLength > SOURCE_REPO_PACKAGE_ICON_MAX_BYTES) {
-    return false
-  }
-  const pngSignature: number[] = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]
-  for (let index = 0; index < pngSignature.length; index += 1) {
-    if (iconBytes[index] !== pngSignature[index]) {
-      return false
-    }
-  }
-  if (readUInt32Be(iconBytes, 8) !== 13 ||
-    iconBytes[12] !== 0x49 || iconBytes[13] !== 0x48 || iconBytes[14] !== 0x44 || iconBytes[15] !== 0x52) {
-    return false
-  }
-  const width = readUInt32Be(iconBytes, 16)
-  const height = readUInt32Be(iconBytes, 20)
-  if (width <= 0 || height <= 0 ||
-    width > SOURCE_REPO_PACKAGE_ICON_MAX_DIMENSION ||
-    height > SOURCE_REPO_PACKAGE_ICON_MAX_DIMENSION) {
-    return false
-  }
-  const bitDepth = iconBytes[24]
-  const colorType = iconBytes[25]
-  const directColorType = colorType === 0 || colorType === 2 || colorType === 4 || colorType === 6
-  const indexedColorType = colorType === 3
-  if ((!directColorType && !indexedColorType) ||
-    (directColorType && bitDepth !== 8 && bitDepth !== 16) ||
-    (indexedColorType && bitDepth !== 8) ||
-    iconBytes[26] !== 0 || iconBytes[27] !== 0 || iconBytes[28] !== 0) {
-    return false
-  }
-  let offset = 8
-  let sawImageData = false
-  while (offset + 12 <= iconBytes.byteLength) {
-    const chunkLength = readUInt32Be(iconBytes, offset)
-    const typeOffset = offset + 4
-    const payloadOffset = offset + 8
-    const nextOffset = payloadOffset + chunkLength + 4
-    if (nextOffset > iconBytes.byteLength) {
-      return false
-    }
-    const storedCrc = readUInt32Be(iconBytes, payloadOffset + chunkLength)
-    if (pngCrc32(iconBytes, typeOffset, 4 + chunkLength) !== storedCrc) {
-      return false
-    }
-    const isIhdr = iconBytes[typeOffset] === 0x49 && iconBytes[typeOffset + 1] === 0x48 &&
-      iconBytes[typeOffset + 2] === 0x44 && iconBytes[typeOffset + 3] === 0x52
-    const isIdat = iconBytes[typeOffset] === 0x49 && iconBytes[typeOffset + 1] === 0x44 &&
-      iconBytes[typeOffset + 2] === 0x41 && iconBytes[typeOffset + 3] === 0x54
-    const isIend = iconBytes[typeOffset] === 0x49 && iconBytes[typeOffset + 1] === 0x45 &&
-      iconBytes[typeOffset + 2] === 0x4e && iconBytes[typeOffset + 3] === 0x44
-    if (offset === 8 && (!isIhdr || chunkLength !== 13)) {
-      return false
-    }
-    if (isIdat && chunkLength > 0) {
-      sawImageData = true
-    }
-    if (isIend) {
-      return chunkLength === 0 && sawImageData && nextOffset === iconBytes.byteLength
-    }
-    offset = nextOffset
-  }
-  return false
+  return sourcePackageIconFileName(iconBytes) !== undefined
 }
 
 // The byte-level boundary keeps archive extraction bounded; this second
@@ -474,8 +425,7 @@ export async function validateSourcePackageIconFile(iconPath: string): Promise<b
     const width = info.size.width
     const height = info.size.height
     if (width <= 0 || height <= 0 ||
-      width > SOURCE_REPO_PACKAGE_ICON_MAX_DIMENSION ||
-      height > SOURCE_REPO_PACKAGE_ICON_MAX_DIMENSION) {
+      width * height > SOURCE_REPO_PACKAGE_ICON_MAX_PIXELS) {
       return false
     }
     pixelMap = await imageSource.createPixelMap({
@@ -613,6 +563,9 @@ function parseSourceRepoPackageManifest(raw: string, wasmSize: number): LocalSou
   if (id === undefined || name === undefined || version === undefined || id.length > 96) {
     return undefined
   }
+  if (isInvalidSourceLocalizedNames(parsed.localizedNames)) {
+    return undefined
+  }
   if (packageMetadataValueInvalid(parsed.author) || packageMetadataValueInvalid(parsed.description) ||
     packageMetadataValueInvalid(parsed.contentRating) || packageMetadataValueInvalid(parsed.minAppVersion)) {
     return undefined
@@ -630,6 +583,7 @@ function parseSourceRepoPackageManifest(raw: string, wasmSize: number): LocalSou
     package: {
       id,
       name,
+      localizedNames: normalizeSourceLocalizedNames(parsed.localizedNames),
       version,
       language: nonEmptyString(parsed.language) ?? nonEmptyString(parsed.lang) ?? 'multi',
       type: nonEmptyString(parsed.runtime) ?? 'wasm-source',
@@ -672,6 +626,9 @@ export function validateNormalizedManifest(manifest: LocalSourcePackageManifest)
     return 'network_not_allowed'
   }
   if (manifest.runtime.wasmPath !== SOURCE_PACKAGE_WASM_FILE && manifest.runtime.wasmPath !== SOURCE_REPO_PACKAGE_WASM_FILE) {
+    return 'manifest_invalid'
+  }
+  if (isInvalidSourceLocalizedNames(manifest.package.localizedNames)) {
     return 'manifest_invalid'
   }
   if (packageMetadataValueInvalid(manifest.package.author) || packageMetadataValueInvalid(manifest.package.description) ||
@@ -845,18 +802,26 @@ export async function importLocalSourceArchive(
 
   let iconPath: string | undefined = undefined
   if (sourceRepoLayout) {
-    const candidateIconPath = joinSourceRuntimePath(importedRoot, SOURCE_REPO_PACKAGE_ICON_FILE)
-    if (fs.accessSync(candidateIconPath)) {
-      try {
-        const iconBytes = readBytesSync(candidateIconPath)
-        if (!validateSourcePackageIconBytes(iconBytes) ||
-          !await validateSourcePackageIconFile(candidateIconPath)) {
-          return { ok: false, reasonCode: 'invalid_icon', manifest, manifestPath, attemptedWamrExecution: false }
-        }
-        iconPath = candidateIconPath
-      } catch (_err) {
+    const iconName = SOURCE_REPO_PACKAGE_ICON_FILES.find((name: string): boolean => {
+      return fs.accessSync(joinSourceRuntimePath(importedRoot, name))
+    })
+    if (iconName === undefined) {
+      return { ok: false, reasonCode: 'missing_icon', manifest, manifestPath, attemptedWamrExecution: false }
+    }
+    const declaredIcon = (JSON.parse(readTextSync(manifestPath)) as SourceRepoPackageManifest).icon
+    if (declaredIcon !== undefined && declaredIcon !== iconName) {
+      return { ok: false, reasonCode: 'invalid_icon', manifest, manifestPath, attemptedWamrExecution: false }
+    }
+    const candidateIconPath = joinSourceRuntimePath(importedRoot, iconName)
+    try {
+      const iconBytes = readBytesSync(candidateIconPath)
+      if (!sourcePackageIconMatchesFileName(iconBytes, iconName) ||
+        !await validateSourcePackageIconFile(candidateIconPath)) {
         return { ok: false, reasonCode: 'invalid_icon', manifest, manifestPath, attemptedWamrExecution: false }
       }
+      iconPath = candidateIconPath
+    } catch (_err) {
+      return { ok: false, reasonCode: 'invalid_icon', manifest, manifestPath, attemptedWamrExecution: false }
     }
   }
 

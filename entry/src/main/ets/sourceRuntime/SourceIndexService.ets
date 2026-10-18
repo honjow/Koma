@@ -1,3 +1,4 @@
+import { isInvalidSourceLocalizedNames, normalizeSourceLocalizedNames } from './SourceLocalizedNames'
 import { BackupRestoreActivity } from '../model/BackupRestoreActivity'
 import { common } from '@kit.AbilityKit'
 import { preferences } from '@kit.ArkData'
@@ -13,6 +14,7 @@ import {
 import { RemoteImageCacheStore } from '../model/RemoteImageCacheStore'
 import {
   SOURCE_REPO_PACKAGE_ICON_MAX_BYTES,
+  SOURCE_REPO_PACKAGE_ICON_FILES,
   isValidSourcePackageMinAppVersion,
   validateSourcePackageIconBytes,
   validateSourcePackageIconFile,
@@ -33,6 +35,7 @@ interface SourceIndexHttpUrl {
 export interface SourceIndexEntry {
   id: string
   name: string
+  localizedNames?: Record<string, string>
   version: string
   lang: string
   nsfw: boolean
@@ -228,7 +231,9 @@ function safeString(value: Object | undefined): string {
 }
 
 function safeResolveIndexAssetUrl(indexUrl: string, assetPath: string): string {
-  return safeResolveIndexRelativeUrl(indexUrl, assetPath, '.png')
+  const suffix = assetPath.substring(assetPath.lastIndexOf('.')).toLowerCase()
+  if (!SOURCE_REPO_PACKAGE_ICON_FILES.some((name: string): boolean => name.endsWith(suffix))) return ''
+  return safeResolveIndexRelativeUrl(indexUrl, assetPath, suffix)
 }
 
 function safeBoolean(value: Object | undefined): boolean {
@@ -265,6 +270,9 @@ function parseIndexEntry(raw: Object): SourceIndexEntry | undefined {
   if (id.length === 0 || name.length === 0 || pkg.length === 0) {
     return undefined
   }
+  if (isInvalidSourceLocalizedNames(record['localizedNames'])) {
+    return undefined
+  }
   const rawMinAppVersion = record['minAppVersion']
   if (rawMinAppVersion !== undefined && typeof rawMinAppVersion !== 'string') {
     return undefined
@@ -276,6 +284,7 @@ function parseIndexEntry(raw: Object): SourceIndexEntry | undefined {
   return {
     id,
     name,
+    localizedNames: normalizeSourceLocalizedNames(record['localizedNames']),
     version: safeString(record['version']),
     lang: safeString(record['lang']),
     nsfw: safeBoolean(record['nsfw']),
@@ -293,6 +302,7 @@ function entryWithCachedIcon(entry: SourceIndexEntry, iconUri: string): SourceIn
   return {
     id: entry.id,
     name: entry.name,
+    localizedNames: normalizeSourceLocalizedNames(entry.localizedNames),
     version: entry.version,
     lang: entry.lang,
     nsfw: entry.nsfw,
@@ -524,6 +534,10 @@ export class SourceIndexService {
       for (let index = 0; index < parsed.length; index += 1) {
         const entry = parseIndexEntry(parsed[index])
         if (entry !== undefined) {
+          if (entry.icon.trim().length === 0) return { ok: false, reasonCode: 'missing_icon', entries: [] }
+          if (safeResolveIndexAssetUrl(normalizedUrl, entry.icon).length === 0) {
+            return { ok: false, reasonCode: 'invalid_icon', entries: [] }
+          }
           const iconUri = await this.cachedIconUriFor(normalizedUrl, entry)
           if (iconUri.length > 0) {
             entries.push(entryWithCachedIcon(entry, iconUri))

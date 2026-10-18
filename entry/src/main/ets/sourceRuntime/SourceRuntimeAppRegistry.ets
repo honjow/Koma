@@ -15,7 +15,8 @@ import {
   SOURCE_REPO_PACKAGE_WASM_FILE,
   isValidSourcePackageMinAppVersion,
   validateSourcePackageIconFile,
-  validateSourcePackageIconBytes,
+  sourcePackageIconMatchesFileName,
+  isSourcePackageIconFileName,
   validateRestoredSourcePackage,
 } from './SourcePackageImporter'
 import {
@@ -32,6 +33,8 @@ import {
   sourceRuntimePackageIconPath,
   sourceRuntimePackageIconUri,
 } from './SourceRuntimeRegistry'
+import { connectLanguageState } from '../state/LanguageState'
+import { normalizeSourceLocalizedNames, resolveSourceLocalizedName } from './SourceLocalizedNames'
 import { SourceRuntimeStateBridge } from '../state/SourceRuntimeState'
 
 const IMPORTED_SOURCE_ROUTE: string = 'app-local-source-package'
@@ -73,6 +76,7 @@ export function isSourcePackageMinAppVersionSatisfied(minAppVersion: string | un
 export interface InstalledSourcePackage {
   id: string
   name: string
+  localizedNames?: Record<string, string>
   version: string
   lang: string
   nsfw: boolean
@@ -102,6 +106,13 @@ export interface SourcePackageSmokeResult {
   firstTitle?: string
 }
 
+export interface SourcePackageIconBackup {
+  schemaVersion: number
+  fileName: string
+  base64: string
+  byteCount: number
+}
+
 export interface SourcePackageBackupEntry {
   sourceId: string
   version: string
@@ -109,6 +120,7 @@ export interface SourcePackageBackupEntry {
   manifest: LocalSourcePackageManifest
   wasmBase64: string
   wasmByteCount: number
+  iconResource?: SourcePackageIconBackup
   iconPngBase64?: string
   iconByteCount?: number
   presentationDescription?: string
@@ -126,6 +138,7 @@ interface ValidatedSourcePackageBackup {
   manifest: LocalSourcePackageManifest
   wasmBytes: Uint8Array
   iconBytes?: Uint8Array
+  iconFileName?: string
   sourceRepoLayout: boolean
 }
 
@@ -439,6 +452,7 @@ function sourcePackageFromEntry(entry: SourceRuntimeRegistryEntry): InstalledSou
   return {
     id: entry.sourceId,
     name: entry.manifestName,
+    localizedNames: normalizeSourceLocalizedNames(entry.localizedNames),
     version: entry.manifestVersion,
     lang: entry.language,
     nsfw: entry.nsfw,
@@ -462,28 +476,33 @@ function sourcePackageIconBytes(entry: SourceRuntimeRegistryEntry): Uint8Array |
   }
   try {
     const bytes = readBytesSync(iconPath)
-    return validateSourcePackageIconBytes(bytes) ? bytes : undefined
+    const name = iconPath.substring(iconPath.lastIndexOf('/') + 1)
+    return sourcePackageIconMatchesFileName(bytes, name) ? bytes : undefined
   } catch (_err) {
     return undefined
   }
 }
 
 function restoredSourcePackageIconBytes(sourcePackage: SourcePackageBackupEntry): Uint8Array | undefined {
-  const encoded = sourcePackage.iconPngBase64
-  const byteCount = sourcePackage.iconByteCount
-  if (encoded === undefined && byteCount === undefined) {
+  const resource = sourcePackage.iconResource
+  if (resource !== undefined && (sourcePackage.iconPngBase64 !== undefined || sourcePackage.iconByteCount !== undefined)) {
     return undefined
   }
+  if (resource !== undefined && (resource === null || typeof resource !== 'object' ||
+    resource.schemaVersion !== 1 || typeof resource.fileName !== 'string' ||
+    !isSourcePackageIconFileName(resource.fileName))) return undefined
+  const encoded = resource === undefined ? sourcePackage.iconPngBase64 : resource.base64
+  const byteCount = resource === undefined ? sourcePackage.iconByteCount : resource.byteCount
+  const fileName = resource === undefined ? SOURCE_REPO_PACKAGE_ICON_FILE : resource.fileName
+  if (encoded === undefined && byteCount === undefined) return undefined
   if (typeof encoded !== 'string' || typeof byteCount !== 'number' || !Number.isInteger(byteCount) || byteCount <= 0) {
     return undefined
   }
   const maxEncodedLength = Math.ceil(SOURCE_REPO_PACKAGE_ICON_MAX_BYTES / 3) * 4 + 4
-  if (byteCount > SOURCE_REPO_PACKAGE_ICON_MAX_BYTES || encoded.length > maxEncodedLength) {
-    return undefined
-  }
+  if (byteCount > SOURCE_REPO_PACKAGE_ICON_MAX_BYTES || encoded.length > maxEncodedLength) return undefined
   try {
     const bytes = base64ToBytes(encoded)
-    return bytes.byteLength === byteCount && validateSourcePackageIconBytes(bytes) ? bytes : undefined
+    return bytes.byteLength === byteCount && sourcePackageIconMatchesFileName(bytes, fileName) ? bytes : undefined
   } catch (_err) {
     return undefined
   }
@@ -513,7 +532,8 @@ function validateSourcePackageBackupPayload(
     return { reasonCode: 'source_package_identity_mismatch' }
   }
 
-  const hasIconPayload = sourcePackage.iconPngBase64 !== undefined || sourcePackage.iconByteCount !== undefined
+  const hasIconPayload = sourcePackage.iconResource !== undefined ||
+    sourcePackage.iconPngBase64 !== undefined || sourcePackage.iconByteCount !== undefined
   const iconBytes = restoredSourcePackageIconBytes(sourcePackage)
   if (hasIconPayload && iconBytes === undefined) {
     return { reasonCode: 'invalid_icon' }
@@ -552,6 +572,8 @@ function validateSourcePackageBackupPayload(
       manifest,
       wasmBytes,
       iconBytes,
+      iconFileName: iconBytes === undefined ? undefined :
+        (sourcePackage.iconResource === undefined ? SOURCE_REPO_PACKAGE_ICON_FILE : sourcePackage.iconResource.fileName),
       sourceRepoLayout,
     },
   }
@@ -583,6 +605,7 @@ function manifestFromRegistryEntry(entry: SourceRuntimeRegistryEntry): LocalSour
     package: {
       id: entry.manifestId,
       name: entry.manifestName,
+      localizedNames: normalizeSourceLocalizedNames(entry.localizedNames),
       version: entry.manifestVersion,
       language: entry.language,
       type: entry.type,
@@ -716,8 +739,14 @@ export function exportInstalledSourcePackages(): SourcePackageBackupEntry[] {
       presentationIcon: entry.presentationIcon,
     }
     if (iconBytes !== undefined) {
-      sourcePackage.iconPngBase64 = bytesToBase64(iconBytes)
-      sourcePackage.iconByteCount = iconBytes.byteLength
+      const iconPath = sourceRuntimePackageIconPath(entry)!
+      const fileName = iconPath.substring(iconPath.lastIndexOf('/') + 1)
+      if (fileName === SOURCE_REPO_PACKAGE_ICON_FILE) {
+        sourcePackage.iconPngBase64 = bytesToBase64(iconBytes)
+        sourcePackage.iconByteCount = iconBytes.byteLength
+      } else {
+        sourcePackage.iconResource = { schemaVersion: 1, fileName, base64: bytesToBase64(iconBytes), byteCount: iconBytes.byteLength }
+      }
     }
     packages.push(sourcePackage)
   }
@@ -808,7 +837,7 @@ export async function prepareSourcePackagesFromBackup(
     const manifestPath = joinSourceRuntimePath(importedRoot, SOURCE_PACKAGE_MANIFEST_FILE)
     const wasmPath = joinSourceRuntimePath(importedRoot, manifest.runtime.wasmPath)
     const iconPath = validated.sourceRepoLayout && validated.iconBytes !== undefined ?
-      joinSourceRuntimePath(importedRoot, SOURCE_REPO_PACKAGE_ICON_FILE) : undefined
+      joinSourceRuntimePath(importedRoot, validated.iconFileName!) : undefined
     try {
       ensureDirSync(packageDir)
       ensureDirSync(importedRoot)
@@ -881,6 +910,7 @@ async function commitStagedSourcePackages(
       hashOk: true,
       network: false,
       enabled: staged.sourcePackage.enabled,
+      capabilities: staged.manifest.operationCapabilities,
       presentationDescription: staged.sourcePackage.presentationDescription,
       presentationIcon: staged.sourcePackage.presentationIcon,
       manifestPath: staged.manifestPath,
@@ -964,6 +994,8 @@ export function reloadInstalledSourcePackages(context: common.UIAbilityContext):
     if (existing !== undefined) {
       const unchanged = existing.importStatus === entry.importStatus &&
         existing.manifestVersion === entry.manifestVersion &&
+        JSON.stringify(normalizeSourceLocalizedNames(existing.localizedNames)) ===
+          JSON.stringify(normalizeSourceLocalizedNames(entry.localizedNames)) &&
         existing.wasmByteCount === entry.wasmByteCount &&
         existing.packageIconPath === entry.packageIconPath &&
         existing.packageAuthor === entry.packageAuthor &&
@@ -986,6 +1018,7 @@ export function reloadInstalledSourcePackages(context: common.UIAbilityContext):
         package: {
           id: entry.manifestId,
           name: entry.manifestName,
+          localizedNames: normalizeSourceLocalizedNames(entry.localizedNames),
           version: entry.manifestVersion,
           language: entry.language,
           type: entry.type,
@@ -1075,6 +1108,14 @@ export function persistedInstalledSourcePackageIconUri(
 export function bootstrapSourceRuntimeAppRegistry(context: common.UIAbilityContext): number {
   reloadInstalledSourcePackages(context)
   return appSourceRuntimeRegistry.count()
+}
+
+export function sourceDisplayName(sourceId: string, fallback: string = ''): string {
+  const entry = appSourceRuntimeRegistry.lookup(sourceId).entry
+  if (entry === undefined) {
+    return fallback
+  }
+  return resolveSourceLocalizedName(entry.manifestName, entry.localizedNames, connectLanguageState().effectiveLocale)
 }
 
 export function listInstalled(): InstalledSourcePackage[] {

@@ -1,12 +1,15 @@
+import { writeAppTextFile } from '../model/AppFileTextPersistence'
 import { fileIo as fs, fileUri } from '@kit.CoreFileKit'
 import {
   LocalSourcePackageManifest,
   isValidSourcePackageMinAppVersion,
   normalizeSourceOperationCapabilityToken,
   normalizeSourceOperationCapabilityTokens,
-  SOURCE_REPO_PACKAGE_ICON_FILE,
+  isSourcePackageIconFileName,
   SOURCE_REPO_PACKAGE_WASM_FILE,
 } from './SourcePackageImporter'
+
+import { isInvalidSourceLocalizedNames, normalizeSourceLocalizedNames } from './SourceLocalizedNames'
 
 export type SourceRuntimeRegistryRouteStatus = 'staged' | 'imported'
 
@@ -36,6 +39,7 @@ export interface SourceRuntimeRegistryEntry {
   sourceId: string
   manifestId: string
   manifestName: string
+  localizedNames?: Record<string, string>
   manifestVersion: string
   route: string
   importStatus: SourceRuntimeRegistryRouteStatus
@@ -79,6 +83,7 @@ export interface SourceRuntimeRegistryPersistedEntry {
   sourceId: string
   manifestId: string
   manifestName: string
+  localizedNames?: Record<string, string>
   manifestVersion: string
   route: string
   importStatus: SourceRuntimeRegistryRouteStatus
@@ -125,6 +130,7 @@ export interface SourceRuntimeRegistryReloadResult {
 export interface SourceRuntimeRegistryInstalledSourceSummary {
   sourceId: string
   displayName: string
+  localizedNames?: Record<string, string>
   version: string
   wasmByteCount: number
   importStatus: SourceRuntimeRegistryRouteStatus
@@ -169,7 +175,9 @@ export function sourceRuntimePackageIconPath(entry: SourceRuntimeRegistryEntry):
   }
   const packageDir = archivePath.replace(/\/[^/]*$/, '')
   const expectedWasmPath = `${packageDir}/package/${SOURCE_REPO_PACKAGE_WASM_FILE}`
-  const expectedIconPath = `${packageDir}/package/${SOURCE_REPO_PACKAGE_ICON_FILE}`
+  const iconName = iconPath.substring(iconPath.lastIndexOf('/') + 1)
+  if (!isSourcePackageIconFileName(iconName)) return undefined
+  const expectedIconPath = `${packageDir}/package/${iconName}`
   if (wasmPath !== expectedWasmPath || iconPath !== expectedIconPath || !fs.accessSync(iconPath)) {
     return undefined
   }
@@ -257,13 +265,7 @@ function closeFileQuietly(file: fs.File | undefined): void {
 }
 
 function writeTextSync(path: string, payload: string): void {
-  let file: fs.File | undefined = undefined
-  try {
-    file = fs.openSync(path, fs.OpenMode.WRITE_ONLY | fs.OpenMode.CREATE | fs.OpenMode.TRUNC)
-    fs.writeSync(file.fd, payload, { encoding: 'utf-8' })
-  } finally {
-    closeFileQuietly(file)
-  }
+  writeAppTextFile(path, payload)
 }
 
 function readTextSync(path: string): string {
@@ -309,6 +311,7 @@ function manifestForReload(entry: SourceRuntimeRegistryPersistedEntry): LocalSou
     package: {
       id: entry.manifestId,
       name: entry.manifestName,
+      localizedNames: normalizeSourceLocalizedNames(entry.localizedNames),
       version: entry.manifestVersion,
       language: entry.language ?? 'en',
       type: entry.type ?? 'wasm-source-fixture',
@@ -345,6 +348,7 @@ function persistedEntryFromRegistryEntry(entry: SourceRuntimeRegistryEntry): Sou
     sourceId: entry.sourceId,
     manifestId: entry.manifestId,
     manifestName: entry.manifestName,
+    localizedNames: normalizeSourceLocalizedNames(entry.localizedNames),
     manifestVersion: entry.manifestVersion,
     route: entry.route,
     importStatus: entry.importStatus,
@@ -407,6 +411,9 @@ function persistedEntryShapeInvalid(entry: SourceRuntimeRegistryPersistedEntry):
     typeof entry.route !== 'string' ||
     typeof entry.importStatus !== 'string' ||
     typeof entry.wasmPath !== 'string') {
+    return true
+  }
+  if (isInvalidSourceLocalizedNames(entry.localizedNames)) {
     return true
   }
   if (entry.importStatus !== 'staged' && entry.importStatus !== 'imported') {
@@ -480,7 +487,8 @@ export class SourceRuntimeRegistry {
     if (!input.hashOk || input.network !== false || input.wasmBytes.byteLength <= 0) {
       return { ok: false, reasonCode: 'validation_failed', sourceCount: this.entries.length }
     }
-    if (!isValidSourcePackageMinAppVersion(input.manifest.package.minAppVersion)) {
+    if (isInvalidSourceLocalizedNames(input.manifest.package.localizedNames) ||
+      !isValidSourcePackageMinAppVersion(input.manifest.package.minAppVersion)) {
       return { ok: false, reasonCode: 'validation_failed', sourceCount: this.entries.length }
     }
     for (let index = 0; index < this.entries.length; index += 1) {
@@ -493,6 +501,7 @@ export class SourceRuntimeRegistry {
       sourceId,
       manifestId: input.manifest.package.id,
       manifestName: input.manifest.package.name,
+      localizedNames: normalizeSourceLocalizedNames(input.manifest.package.localizedNames),
       manifestVersion: input.manifest.package.version,
       route: input.route,
       importStatus: input.importStatus,
@@ -588,6 +597,7 @@ export class SourceRuntimeRegistry {
       const summary: SourceRuntimeRegistryInstalledSourceSummary = {
         sourceId: entry.sourceId,
         displayName: entry.manifestName,
+        localizedNames: normalizeSourceLocalizedNames(entry.localizedNames),
         version: entry.manifestVersion,
         wasmByteCount: entry.wasmByteCount,
         importStatus: entry.importStatus,
