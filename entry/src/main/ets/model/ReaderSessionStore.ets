@@ -134,6 +134,8 @@ export interface ReaderSessionConfig {
   pageWidths?: (number | undefined)[]
   pageHeights?: (number | undefined)[]
   sourceRuntimeId?: string
+  /** Route-local provider category; never persisted with history or progress. */
+  sourceFailureReason?: string
 }
 
 export const EMPTY_READER_SESSION_CONFIG: ReaderSessionConfig = {
@@ -162,6 +164,7 @@ export function cloneReaderSessionConfig(config: ReaderSessionConfig): ReaderSes
     pageWidths: config.pageWidths?.slice(),
     pageHeights: config.pageHeights?.slice(),
     sourceRuntimeId: config.sourceRuntimeId,
+    sourceFailureReason: config.sourceFailureReason,
   }
 }
 

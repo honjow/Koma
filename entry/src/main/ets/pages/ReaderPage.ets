@@ -167,6 +167,7 @@ struct ReaderImageSurface {
   @Param fit: ImageFit = ImageFit.Contain
   @Param fitMode: ReaderImageFitMode = 'contain'
   @Param scalingQuality: string = 'medium'
+  @Param sourceFailureReason: string = ''
   @Param splitSide: 'none' | 'left' | 'right' = 'none'
   @Param rotateClockwise: boolean = false
   @Param zoomEnabled: boolean = true
@@ -691,7 +692,9 @@ struct ReaderImageSurface {
   private LoadingContent() {
     Column({ space: ThemeConstants.SPACE_SM }) {
       LoadingProgress().width(28).height(28).color(Color.White)
-      Text(this.failed ? s('reader_page_load_failed') : s('reader_decoding_image')).fontSize(13).fontColor(Color.White)
+      Text(this.failed ? s(this.sourceFailureReason === 'unsupported' &&
+        (this.source.kind === ReaderPageRenderKind.URI_PLACEHOLDER || this.source.uri === 'source-placeholder://chapter')
+        ? 'reader_source_chapter_unsupported' : 'reader_page_load_failed') : s('reader_decoding_image')).fontSize(13).fontColor(Color.White)
     }.justifyContent(FlexAlign.Center).alignItems(HorizontalAlign.Center).width('100%').height('100%')
   }
 
@@ -846,6 +849,7 @@ struct ReaderSpreadSurface {
   @Param joined: boolean = true
   @Param gap: number = 0
   @Param scalingQuality: string = 'medium'
+  @Param sourceFailureReason: string = ''
   @Param parentViewportWidth: number = 0
   @Param parentViewportHeight: number = 0
   @Param active: boolean = true
@@ -1238,6 +1242,7 @@ struct ReaderSpreadSurface {
       fit: ImageFit.Contain,
       fitMode: 'contain',
       scalingQuality: this.scalingQuality,
+      sourceFailureReason: this.sourceFailureReason,
       rotateClockwise: rotateClockwise,
       zoomEnabled: false,
       gesturesEnabled: false,
@@ -2758,6 +2763,8 @@ export struct ReaderPage {
 
   private persistProgress(index: number = this.pageIndex): void {
     if (this.sessionConfig.comicId.length === 0 || this.sessionConfig.chapterId.length === 0 || this.sessionConfig.totalPages <= 0) return
+    // A source failure placeholder has no real reading position.
+    if (this.sessionConfig.pageUris.includes('source-placeholder://chapter')) return
     const total = this.sessionConfig.totalPages
     this.sessionStore.saveProgress({
       comicId: this.sessionConfig.comicId,
@@ -3138,8 +3145,17 @@ export struct ReaderPage {
     this.volumeUpConsumer = null
   }
 
-  private retryCurrentPage(): void {
-    this.failedPages = this.failedPages.filter((index: number) => index !== this.pageIndex)
+  private sourceRetryConfig: ReaderSessionConfig | null = null
+
+  private retryCurrentPage(index: number = this.pageIndex): void {
+    if (this.sessionConfig.pageUris.includes('source-placeholder://chapter')) {
+      if (!this.readerOpen || !this.routeVisible || this.closing || this.sessionLoading ||
+        this.sourceRetryConfig === this.sessionConfig) return
+      this.sourceRetryConfig = this.sessionConfig
+      this.onOpenChapter(this.sessionConfig.chapterId)
+      return
+    }
+    this.failedPages = this.failedPages.filter((page: number) => page !== index)
     this.loadedRevision += 1
   }
 
@@ -3286,6 +3302,7 @@ export struct ReaderPage {
         // silently crops it before any zoom gesture is involved.
         fitMode: continuous ? this.preferences.imageFitMode : 'contain',
         scalingQuality: this.preferences.imageScalingQuality,
+        sourceFailureReason: this.sessionConfig.sourceFailureReason ?? '',
         splitSide: splitSide,
         rotateClockwise: this.preferences.wideImageMode === 'rotate_wide_pages' && isWidePage(this.pageWidth(index), this.pageHeight(index)),
         zoomEnabled: true,
@@ -3338,7 +3355,7 @@ export struct ReaderPage {
           Text(s('common_retry')).fontSize(13).fontColor(ThemeConstants.TEXT_ON_BRAND)
         }
         .backgroundColor(ThemeConstants.BRAND_PRIMARY)
-        .onClick(() => { this.failedPages = this.failedPages.filter((item: number) => item !== index); this.loadedRevision += 1 })
+        .onClick(() => { this.retryCurrentPage(index) })
       }
       if (compact) {
         Blank().width(1).height(1)
@@ -3412,6 +3429,7 @@ export struct ReaderPage {
           joined: this.preferences.spreadLayoutMode !== 'split',
           gap: this.preferences.spreadLayoutMode === 'split' ? pageGap(this.preferences.pageGapMode) : 0,
           scalingQuality: this.preferences.imageScalingQuality,
+          sourceFailureReason: this.sessionConfig.sourceFailureReason ?? '',
           parentViewportWidth: this.viewportWidth,
           parentViewportHeight: this.viewportHeight,
           active: this.pageIsZoomActive(start, false),

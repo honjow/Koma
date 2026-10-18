@@ -29,6 +29,8 @@ interface SourceOperationDataPayload {
 
 interface SourceOperationResponsePayload {
   ok?: boolean
+  reasonCode?: string
+  error?: Record<string, Object | string | number | boolean | null>
   data?: SourceOperationDataPayload
 }
 
@@ -57,6 +59,7 @@ export interface SourceChapterPageHydrationResult {
   hydrated: boolean
   pageCount: number
   reasonCode?: string
+  sourceFailureReason?: string
 }
 
 /**
@@ -75,6 +78,7 @@ export interface SourceChapterPagesResolveRequest {
 export interface SourceChapterPagesResolveResult {
   pages: Page[]
   reasonCode?: string
+  sourceFailureReason?: string
 }
 
 function normalizeSourceLookupHydrationReason(reasonCode: string | undefined): string {
@@ -212,7 +216,7 @@ function sourceMangaIdFromComic(comic: Comic, sourceId: string): string | undefi
 async function fetchSourceChapterPages(
   entry: SourceRuntimeRegistryEntry,
   request: SourceChapterPagesResolveRequest,
-): Promise<Page[]> {
+): Promise<SourceChapterPagesResolveResult> {
   const args: SourcePagesRequestArgs = { chapterId: request.chapterId }
   const mangaId = request.mangaId?.trim()
   if (mangaId !== undefined && mangaId.length > 0) {
@@ -235,10 +239,15 @@ async function fetchSourceChapterPages(
   ) as string
   const response = JSON.parse(responseJson) as SourceOperationResponsePayload
   const rows = response.data?.pages !== undefined ? response.data.pages : (response.data?.items ?? [])
-  if (response.ok !== true || rows.length === 0) {
-    throw new Error('get_pages returned no pages')
+  if (response.ok !== true) {
+    const reason = optionalSourceString(response.reasonCode) ?? optionalSourceString(response.error?.['code'])
+    // Preserve the existing download/lookup classification; only Reader consumes
+    // the explicit provider category. Never forward source messages or raw errors.
+    return { pages: [], reasonCode: 'source_pages_failed',
+      sourceFailureReason: reason?.trim().toLowerCase() === 'unsupported' ? 'unsupported' : undefined }
   }
-  return pagesFromSourceRows(request.comicId, request.chapterId, rows)
+  if (rows.length === 0) return { pages: [], reasonCode: 'source_pages_failed' }
+  return { pages: pagesFromSourceRows(request.comicId, request.chapterId, rows) }
 }
 
 export async function resolveSourceChapterPages(
@@ -261,16 +270,16 @@ export async function resolveSourceChapterPages(
     return { pages: [], reasonCode: 'source_disabled' }
   }
   try {
-    const pages = await fetchSourceChapterPages(lookup.entry, {
+    const resolution = await fetchSourceChapterPages(lookup.entry, {
       comicId: request.comicId,
       sourceId,
       mangaId: request.mangaId,
       chapterId,
     })
-    if (pages.length === 0) {
-      return { pages: [], reasonCode: 'pages_missing' }
+    if (resolution.pages.length === 0) {
+      console.warn('[SourceChapterPages] step=fetch_pages_failed failed=true reason=source_pages_failed')
     }
-    return { pages }
+    return resolution
   } catch (_error) {
     console.warn('[SourceChapterPages] step=fetch_pages_failed failed=true reason=source_pages_failed')
     return { pages: [], reasonCode: 'source_pages_failed' }
@@ -322,7 +331,8 @@ export class SourceChapterPageHydrator {
       chapterId,
     })
     if (resolution.pages.length === 0) {
-      return { hydrated: false, pageCount: 0, reasonCode: resolution.reasonCode ?? 'pages_missing' }
+      return { hydrated: false, pageCount: 0, reasonCode: resolution.reasonCode ?? 'pages_missing',
+        sourceFailureReason: resolution.sourceFailureReason }
     }
     return this.applyPages(baselineComic, baselineChapter, resolution.pages)
   }

@@ -352,7 +352,8 @@ struct Index {
     }
   }
 
-  private async ensureReaderSourceChapterPages(comic: Comic, chapterId: string | undefined): Promise<boolean> {
+  private async ensureReaderSourceChapterPages(comic: Comic, chapterId: string | undefined,
+    onSourceFailure?: (reason: string | undefined) => void): Promise<boolean> {
     if (!this.chapterNeedsReaderSourcePages(comic, chapterId)) {
       return true
     }
@@ -366,6 +367,7 @@ struct Index {
         },
       ).ensureChapterPages(comic.id, comic.sourceRuntimeId, chapterId as string, false)
       if (!result.hydrated) {
+        onSourceFailure?.(result.sourceFailureReason)
         this.logReaderSourcePagesUnavailable(result.reasonCode)
         return false
       }
@@ -390,8 +392,10 @@ struct Index {
     }
     const offlineReaderPagesReady = this.hasAvailableOfflineReaderPages(originalComic.id, chapterId)
     let sourcePagesReady = true
+    let sourceFailureReason: string | undefined = undefined
     if (!offlineReaderPagesReady) {
-      sourcePagesReady = await this.ensureReaderSourceChapterPages(originalComic, chapterId)
+      sourcePagesReady = await this.ensureReaderSourceChapterPages(originalComic, chapterId,
+        (reason: string | undefined): void => { sourceFailureReason = reason })
     }
     const comic = this.libraryStore.getComic(comicId) ?? originalComic
     try {
@@ -404,7 +408,7 @@ struct Index {
     }
     let nextSessionConfig = this.createReaderSessionConfigForOpen(comic, chapterId)
     if (!sourcePagesReady && nextSessionConfig.totalPages <= 0) {
-      nextSessionConfig = this.createSourceUnavailableReaderSessionConfig(comic, chapterId, nextSessionConfig)
+      nextSessionConfig = this.createSourceUnavailableReaderSessionConfig(comic, chapterId, nextSessionConfig, sourceFailureReason)
     }
     this.readerSessionConfig = nextSessionConfig
     this.readerPageIndex = this.readerSessionStore.openPageIndex(nextSessionConfig, this.readerOpenIntent)
@@ -446,13 +450,15 @@ struct Index {
     }
   }
 
-  private createUnavailableSourceReaderSessionConfig(request: SourceReaderSessionRequest): ReaderSessionConfig {
+  private createUnavailableSourceReaderSessionConfig(request: SourceReaderSessionRequest,
+    sourceFailureReason?: string): ReaderSessionConfig {
     const config = this.createSourceReaderSessionConfig(request, [])
     config.totalPages = 1
     config.pageUris = ['source-placeholder://chapter']
     config.pageIds = [`${request.chapterId}:source-unavailable`]
     config.pageWidths = [undefined]
     config.pageHeights = [undefined]
+    config.sourceFailureReason = sourceFailureReason
     return config
   }
 
@@ -500,7 +506,7 @@ struct Index {
     this.activeSourceReaderRequest = preparedRequest
     if (resolution.pages.length === 0) {
       this.logReaderSourcePagesUnavailable(resolution.reasonCode)
-      const unavailableConfig = this.createUnavailableSourceReaderSessionConfig(preparedRequest)
+      const unavailableConfig = this.createUnavailableSourceReaderSessionConfig(preparedRequest, resolution.sourceFailureReason)
       this.readerSessionConfig = unavailableConfig
       // An unavailable placeholder has no real pages: an 'end' intent must not
       // be consumed as a successful landing (openPageIndex returns 0 there).
@@ -709,6 +715,7 @@ struct Index {
     comic: Comic,
     chapterId: string | undefined,
     baseConfig: ReaderSessionConfig,
+    sourceFailureReason?: string,
   ): ReaderSessionConfig {
     const resolvedChapterId = chapterId !== undefined && chapterId.length > 0 ? chapterId : baseConfig.chapterId
     const chapter = comic.chapters.find((item: Chapter): boolean => item.id === resolvedChapterId)
@@ -735,6 +742,7 @@ struct Index {
       pageWidths: [undefined],
       pageHeights: [undefined],
       sourceRuntimeId: comic.sourceRuntimeId,
+      sourceFailureReason,
     }
   }
 
