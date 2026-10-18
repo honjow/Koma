@@ -121,7 +121,9 @@ async function environment(autoCheckEnabled = true) {
       return super.save(...args)
     }
   }
+  const activity = compile(source('model/BackupRestoreActivity'), {}).BackupRestoreActivity
   const coordinator = compile(source('model/LibraryUpdateCoordinator'), {
+    './BackupRestoreActivity': { BackupRestoreActivity: activity },
     './RemoteServerStore': { RemoteServerStore: class {} },
     './LibraryUpdateService': { ...helpers, LibraryUpdateService: class {
       constructor(store, registry, persistence) {
@@ -157,7 +159,7 @@ async function environment(autoCheckEnabled = true) {
   })
   const prefsStore = new preferences.LibraryUpdatePreferencesStore(request.context)
   await prefsStore.save({ ...preferences.DEFAULT_LIBRARY_UPDATE_PREFERENCES, autoCheckEnabled })
-  return { controls, calls, events, preferences, results, prefsStore, coordinator,
+  return { controls, calls, events, preferences, results, prefsStore, coordinator, activity,
     state: bridge.connectLibraryUpdateState(), request,
     foreground: foreground.connectAppForegroundState(),
     run: (reason = 'manual', requireForeground = false) =>
@@ -172,10 +174,11 @@ async function main() {
     env.controls.resultGate = deferred()
     env.controls.notifyGate = deferred()
     const first = env.run(firstReason)
-    assert.equal(env.state.busy, true)
+    assert.equal(env.state.busy, false, 'Admission alone does not advertise an executing check')
     const second = env.run('manual')
     const third = env.run('due')
     await until(() => env.calls.running === 1)
+    assert.equal(env.state.busy, true)
     assert.equal(env.calls.service, 0, 'Running snapshot must settle before service starts')
     env.controls.runningGate.resolve()
     await until(() => env.calls.service === 1)
@@ -316,6 +319,23 @@ async function main() {
     env.controls[failure] = false
     assert.equal((await env.run()).status, 'completed', `${failure} must release admission`)
   }
+  const restoreAdmission = await environment()
+  restoreAdmission.activity.beginRestore()
+  await assert.rejects(restoreAdmission.run(), /backup_restore_busy/)
+  await assert.rejects(restoreAdmission.coordinator.mutateLibraryUpdatePreferences(() =>
+    restoreAdmission.prefsStore.saveAutoCheckEnabled(false)), /backup_restore_busy/)
+  assert.equal(restoreAdmission.calls.service, 0)
+  assert.equal(restoreAdmission.state.busy, false)
+  restoreAdmission.activity.finishRestore()
+  restoreAdmission.controls.serviceGate = deferred()
+  const activeWriter = restoreAdmission.run()
+  await until(() => restoreAdmission.calls.service === 1)
+  assert.throws(() => restoreAdmission.activity.beginRestore(), /backup_restore_busy/)
+  restoreAdmission.controls.serviceGate.resolve()
+  assert.equal((await activeWriter).status, 'completed')
+  restoreAdmission.activity.beginRestore()
+  restoreAdmission.activity.finishRestore()
+
   const edits = await environment()
   edits.controls.serviceGate = deferred()
   const checking = edits.run()

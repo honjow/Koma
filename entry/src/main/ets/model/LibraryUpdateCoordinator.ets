@@ -1,3 +1,4 @@
+import { BackupRestoreActivity } from './BackupRestoreActivity'
 import { common } from '@kit.AbilityKit'
 import { LibraryStore } from './LibraryStore'
 import { LibraryStorePersistenceService } from './LibraryPersistence'
@@ -50,7 +51,7 @@ let preferenceMutation: Promise<void> = Promise.resolve()
 export function mutateLibraryUpdatePreferences(
   operation: () => Promise<LibraryUpdatePreferences>,
 ): Promise<LibraryUpdatePreferences> {
-  const result = preferenceMutation.then(operation)
+  const result = preferenceMutation.then(() => BackupRestoreActivity.runWrite(operation))
   preferenceMutation = result.then(() => {}, () => {})
   return result
 }
@@ -70,11 +71,11 @@ export function requestLibraryUpdateCheck(request: LibraryUpdateCheckRequest): P
     }
     return active
   }
-  LibraryUpdateStateBridge.setBusy(true)
   inFlightReason = request.reason
   let ran = false
   // Defer work until after the slot is reserved, including preference reads and running-state writes.
-  const operation = Promise.resolve().then(() => runLibraryUpdateCheck(request))
+  const operation = Promise.resolve().then(() =>
+    BackupRestoreActivity.runWrite(() => runLibraryUpdateCheck(request)))
     .then((result: LibraryUpdateCheckResult): LibraryUpdateCheckResult => {
       ran = result.status === 'completed' || result.status === 'failed'
       console.info('[LibraryUpdateCoordinator] step=' + (ran ? 'check_done' : 'admission') +
@@ -121,6 +122,7 @@ async function runLibraryUpdateCheck(request: LibraryUpdateCheckRequest): Promis
     return result
   }
 
+  LibraryUpdateStateBridge.setBusy(true)
   const startedAt = Date.now()
   console.info('[LibraryUpdateCoordinator] step=check_started reason=' + request.reason)
   const running = createLibraryUpdateJobSnapshot('running', startedAt, undefined, undefined, undefined, startedAt)
