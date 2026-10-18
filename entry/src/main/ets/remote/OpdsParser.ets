@@ -144,7 +144,7 @@ export class OpdsClient {
     const response = await this.send({
       method: 'GET',
       url,
-      headers: this.buildHeaders('application/divina+json, application/webpub+json, application/json, application/opds+json, image/*'),
+      headers: this.buildHeaders('application/opds-publication+json, application/divina+json, application/webpub+json, application/json, application/opds+json, image/*'),
     })
     return parseOpdsPublicationImages(response.body, url, response.contentType)
   }
@@ -295,7 +295,7 @@ export function classifyOpdsLink(rel?: string, type?: string, href?: string): Op
   if (isAcquisitionRel(normalizedRel)) {
     return isSupportedOpdsAcquisition(type, href) ? OpdsLinkKind.ACQUISITION : OpdsLinkKind.UNSUPPORTED
   }
-  if (normalizedRel === 'self') {
+  if (normalizedRel.split(/\s+/).indexOf('self') >= 0) {
     return OpdsLinkKind.SELF
   }
   if (normalizedRel === 'next') {
@@ -353,8 +353,13 @@ function readOpds2Publication(value: Object, feedUrl: string, fallbackId: string
   const title = readString(publicationMetadata['title']) ?? readString(publication['title']) ?? 'Untitled'
   const links = readOpds2Links(publication['links'], feedUrl)
     .concat(readOpds2Images(publication['images'], feedUrl))
+  const rawLinks = readArray(publication['links'])
+  const selfLink = links.find((link: OpdsLink, index: number): boolean =>
+    index < rawLinks.length && (readString(readRecord(rawLinks[index])['href']) ?? '').trim().length > 0 &&
+    (link.rel ?? '').toLocaleLowerCase().split(/\s+/).indexOf('self') >= 0 &&
+    /^https?:\/\/[^\/?#@]+(?:\/[^?#]*)?$/.test(link.href))
   return createPublication(
-    readString(publicationMetadata['identifier']) ?? readString(publication['href']) ?? fallbackId,
+    readString(publicationMetadata['identifier']) ?? readString(publication['href']) ?? selfLink?.href ?? fallbackId,
     title,
     readString(publicationMetadata['description']) ?? readString(publicationMetadata['subtitle']),
     readOpds2Author(publicationMetadata['author']),
@@ -450,8 +455,8 @@ function readOpds2Images(value: Object | undefined, feedUrl: string): OpdsLink[]
 
 function readOpds2ManifestImages(json: string, feedUrl: string): OpdsImageDto[] {
   const parsed = JSON.parse(json) as Record<string, Object>
-  const links = readOpds2Images(parsed['images'], feedUrl)
-    .concat(readImageCandidates(parsed['readingOrder'], feedUrl))
+  const readingOrder = readImageCandidates(parsed['readingOrder'], feedUrl)
+  const links = readingOrder.length > 0 ? readingOrder : readOpds2Images(parsed['images'], feedUrl)
     .concat(readImageCandidates(parsed['resources'], feedUrl))
     .concat(readImageCandidates(parsed['pageList'], feedUrl))
   return links.filter((link: OpdsLink): boolean => {

@@ -210,8 +210,8 @@ export struct OpdsBrowsePage {
 
   private async openPublication(publication: OpdsBookDto): Promise<void> {
     this.selectedPublication = publication
-    this.selectedImages = mapOpdsPublicationToImages(publication)
     const manifestLink = this.findManifestLink(publication)
+    this.selectedImages = manifestLink === undefined ? mapOpdsPublicationToImages(publication) : []
     if (manifestLink === undefined) {
       console.info(`[OPDS] step=open_publication title=${publication.title} images=${this.selectedImages.length}`)
       return
@@ -223,6 +223,9 @@ export struct OpdsBrowsePage {
     try {
       console.info(`[OPDS] step=load_publication_manifest_start urlHash=${this.shortHash(manifestLink.href)}`)
       const manifestImages = await this.store().createOpdsClient(record).fetchPublicationImages(manifestLink.href)
+      if (this.selectedPublication !== publication) {
+        return
+      }
       if (manifestImages.length > 0) {
         this.selectedImages = manifestImages
       }

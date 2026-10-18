@@ -805,13 +805,7 @@ export class LibraryUpdateService {
         }
       }
       const client = remoteServerStore.createKomgaClient(record)
-      const response = await client.listBooks({
-        page: 0,
-        size: 100,
-        seriesIds: [seriesId],
-        sort: ['metadata.numberSort,asc'],
-      })
-      const books = response.content.filter((book: KomgaBookDto): boolean => book.seriesId === seriesId)
+      const books = await client.listBooksForSeries(seriesId)
       const remoteIds = books.map((book: KomgaBookDto): string => createKomgaChapterId(record.server.id, book.id))
       const localIds = comic.chapters.map((chapter: Chapter): string => chapter.id)
       const hasNewId = remoteIds.some((chapterId: string): boolean => !localIds.includes(chapterId))

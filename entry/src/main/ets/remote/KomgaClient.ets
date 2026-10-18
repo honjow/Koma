@@ -53,6 +53,23 @@ export interface KomgaClientOptions {
   http?: KomgaHttpAdapter
 }
 
+interface KomgaSearchOperatorIs {
+  operator: 'is'
+  value: string
+}
+
+interface KomgaSearchCondition {
+  anyOf?: KomgaSearchCondition[]
+  allOf?: KomgaSearchCondition[]
+  libraryId?: KomgaSearchOperatorIs
+  seriesId?: KomgaSearchOperatorIs
+}
+
+interface KomgaSearchRequestBody {
+  condition?: KomgaSearchCondition
+  fullTextSearch?: string
+}
+
 export class KomgaPaths {
   static libraries(): string {
     return '/api/v1/libraries'
@@ -229,11 +246,11 @@ export class KomgaClient {
   }
 
   buildSeriesListRequest(request: KomgaListRequest = {}): KomgaHttpRequest {
-    return this.buildJsonRequest('POST', KomgaPaths.seriesList(), request)
+    return this.buildListRequest(KomgaPaths.seriesList(), request)
   }
 
   buildBooksListRequest(request: KomgaListRequest = {}): KomgaHttpRequest {
-    return this.buildJsonRequest('POST', KomgaPaths.booksList(), request)
+    return this.buildListRequest(KomgaPaths.booksList(), request)
   }
 
   buildBookPagesRequest(bookId: KomgaBookId): KomgaHttpRequest {
@@ -270,6 +287,49 @@ export class KomgaClient {
     return JSON.parse(response.body) as KomgaPageList<KomgaBookDto>
   }
 
+  async listBooksForSeries(seriesId: string): Promise<KomgaBookDto[]> {
+    const pageSize = 100
+    const books: KomgaBookDto[] = []
+    const seenIds = new Set<string>()
+    let page = 0
+    while (true) {
+      const response = await this.listBooks({
+        page,
+        size: pageSize,
+        seriesIds: [seriesId],
+        sort: ['metadata.numberSort,asc'],
+      })
+      let addedCount = 0
+      for (let index = 0; index < response.content.length; index += 1) {
+        const book = response.content[index]
+        if (book.seriesId !== seriesId || seenIds.has(book.id)) {
+          continue
+        }
+        seenIds.add(book.id)
+        books.push(book)
+        addedCount += 1
+      }
+
+      const hasMoreByMetadata = response.last === false ||
+        (response.totalPages !== undefined && page + 1 < response.totalPages)
+      const isLastByMetadata = response.last === true ||
+        (response.totalPages !== undefined && page + 1 >= response.totalPages)
+      if (addedCount === 0) {
+        if (response.content.length > 0 || hasMoreByMetadata) {
+          throw new Error(`Komga series pagination made no progress at page ${page}`)
+        }
+        return books
+      }
+      if (isLastByMetadata) {
+        return books
+      }
+      if (!hasMoreByMetadata && response.content.length < pageSize) {
+        return books
+      }
+      page += 1
+    }
+  }
+
   async listBookPages(bookId: KomgaBookId): Promise<KomgaPageDto[]> {
     const response = await this.send(this.buildBookPagesRequest(bookId))
     const parsed = JSON.parse(response.body) as KomgaPageDto[] | KomgaPageResponseDto
@@ -289,7 +349,64 @@ export class KomgaClient {
     await this.send(this.buildPatchBookReadProgressRequest(bookId, page, completed))
   }
 
-  private buildJsonRequest(method: 'GET' | 'POST' | 'PATCH', path: string, body?: KomgaListRequest | KomgaReadProgressPatchRequest): KomgaHttpRequest {
+  private buildListRequest(path: string, request: KomgaListRequest): KomgaHttpRequest {
+    const query: string[] = []
+    if (request.page !== undefined) {
+      query.push(`page=${encodeURIComponent(`${request.page}`)}`)
+    }
+    if (request.size !== undefined) {
+      query.push(`size=${encodeURIComponent(`${request.size}`)}`)
+    }
+    if (request.sort !== undefined) {
+      request.sort.forEach((sort: string) => query.push(`sort=${encodeURIComponent(sort)}`))
+    }
+    const queryPath = query.length === 0 ? path : `${path}?${query.join('&')}`
+    const body: KomgaSearchRequestBody = {}
+    const conditions: KomgaSearchCondition[] = []
+    const libraryCondition = this.libraryIdCondition(request.libraryIds)
+    const seriesCondition = this.seriesIdCondition(request.seriesIds)
+    if (libraryCondition !== undefined) {
+      conditions.push(libraryCondition)
+    }
+    if (seriesCondition !== undefined) {
+      conditions.push(seriesCondition)
+    }
+    const condition = this.combineConditions(conditions)
+    if (condition !== undefined) {
+      body.condition = condition
+    }
+    if (request.search !== undefined) {
+      body.fullTextSearch = request.search
+    }
+    return this.buildJsonRequest('POST', queryPath, body)
+  }
+
+  private libraryIdCondition(ids?: string[]): KomgaSearchCondition | undefined {
+    if (ids === undefined || ids.length === 0) {
+      return undefined
+    }
+    const conditions: KomgaSearchCondition[] = []
+    ids.forEach((id: string) => conditions.push({ libraryId: { operator: 'is', value: id } }))
+    return conditions.length === 1 ? conditions[0] : { anyOf: conditions }
+  }
+
+  private seriesIdCondition(ids?: string[]): KomgaSearchCondition | undefined {
+    if (ids === undefined || ids.length === 0) {
+      return undefined
+    }
+    const conditions: KomgaSearchCondition[] = []
+    ids.forEach((id: string) => conditions.push({ seriesId: { operator: 'is', value: id } }))
+    return conditions.length === 1 ? conditions[0] : { anyOf: conditions }
+  }
+
+  private combineConditions(conditions: KomgaSearchCondition[]): KomgaSearchCondition | undefined {
+    if (conditions.length === 0) {
+      return undefined
+    }
+    return conditions.length === 1 ? conditions[0] : { allOf: conditions }
+  }
+
+  private buildJsonRequest(method: 'GET' | 'POST' | 'PATCH', path: string, body?: KomgaSearchRequestBody | KomgaReadProgressPatchRequest): KomgaHttpRequest {
     const headers = this.buildHeaders({ accept: 'application/json' } as KomgaHeaders)
     if (method === 'POST' || method === 'PATCH') {
       headers.contentType = 'application/json'

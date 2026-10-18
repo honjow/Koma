@@ -91,7 +91,7 @@ export struct KomgaSeriesPage {
       const client = store.createKomgaClient(saved)
       console.info('[Komga] step=load_libraries_start')
       this.libraries = await client.listLibraries()
-      this.selectedLibraryId = this.params.libraryId === undefined ? '' : this.params.libraryId
+      this.selectedLibraryId = this.params?.libraryId ?? ''
       console.info(`[Komga] step=load_libraries_ok libraries=${this.libraries.length}`)
       await this.reloadSeries()
       await this.openInitialSeriesIfNeeded()
@@ -155,13 +155,7 @@ export struct KomgaSeriesPage {
     this.errorText = ''
     try {
       console.info(`[Komga] step=load_books_start series=${series.id}`)
-      const response = await client.listBooks({
-        page: 0,
-        size: 100,
-        seriesIds: [series.id],
-        sort: ['metadata.numberSort,asc'],
-      })
-      this.books = response.content.filter((book: KomgaBookDto) => book.seriesId === series.id)
+      this.books = await client.listBooksForSeries(series.id)
       console.info(`[Komga] step=load_books_ok books=${this.books.length}`)
     } catch (error) {
       void error
@@ -174,7 +168,7 @@ export struct KomgaSeriesPage {
     if (this.initialSeriesOpened) {
       return
     }
-    const seriesId = this.params.seriesId
+    const seriesId = this.params?.seriesId
     if (seriesId === undefined || seriesId.length === 0) {
       return
     }
@@ -184,9 +178,10 @@ export struct KomgaSeriesPage {
       await this.openSeries(loaded)
       return
     }
+    const seriesTitle = this.params?.seriesTitle
     await this.openSeries({
       id: seriesId,
-      name: this.params.seriesTitle === undefined || this.params.seriesTitle.length === 0 ? seriesId : this.params.seriesTitle,
+      name: seriesTitle === undefined || seriesTitle.length === 0 ? seriesId : seriesTitle,
     } as KomgaSeriesDto)
   }
 
@@ -248,13 +243,7 @@ export struct KomgaSeriesPage {
       console.info(`[Favorite] step=komga_add_start server=${record.server.id} resource=${series.id}`)
       let bookRows = this.books
       if (bookRows.length === 0) {
-        const response = await client.listBooks({
-          page: 0,
-          size: 100,
-          seriesIds: [series.id],
-          sort: ['metadata.numberSort,asc'],
-        })
-        bookRows = response.content.filter((book: KomgaBookDto) => book.seriesId === series.id)
+        bookRows = await client.listBooksForSeries(series.id)
         this.books = bookRows
       }
       const comicId = createKomgaComicId(record.server.id, series.id)
