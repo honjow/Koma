@@ -1,3 +1,4 @@
+import { writeAppTextFile } from './AppFileTextPersistence'
 import { common } from '@kit.AbilityKit'
 import { buffer } from '@kit.ArkTS'
 import { preferences } from '@kit.ArkData'
@@ -1038,8 +1039,8 @@ export class BackupService {
     try {
       const sessionStore = appReaderSessionStore(this.context.filesDir)
       sessionStore.flush()
-      writeText(this.libraryPath(), document.libraryStore)
-      writeText(this.readerProgressPath(), document.readingProgress)
+      writeAppTextFile(this.libraryPath(), document.libraryStore)
+      writeAppTextFile(this.readerProgressPath(), document.readingProgress)
       sessionStore.reload()
       await this.importRemoteServers(document.remoteServers)
       if (document.schemaVersion >= BACKUP_SCHEMA_VERSION) {
@@ -1175,7 +1176,7 @@ export class BackupService {
   private writeLocalBackup(fileName: string, payload: string): BackupLocalFileRecord {
     ensureDir(this.localBackupsDir())
     const targetName = this.uniqueLocalBackupFileName(fileName)
-    writeText(this.localBackupPath(targetName), payload)
+    writeAppTextFile(this.localBackupPath(targetName), payload)
     const record = this.readLocalBackupRecord(targetName)
     if (record === undefined) {
       throw new Error('backup_local_write_failed')
@@ -1521,6 +1522,6 @@ export class BackupService {
     }
     const payload = normalizeBackupDownloadQueuePayload(downloadQueue)
     ensureDir(joinBackupPath(this.context.filesDir, OFFLINE_DOWNLOAD_ROOT_DIR_NAME))
-    writeText(this.downloadQueuePath(), payload)
+    writeAppTextFile(this.downloadQueuePath(), payload)
   }
 }

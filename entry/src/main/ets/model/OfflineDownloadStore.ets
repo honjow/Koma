@@ -1,3 +1,4 @@
+import { writeAppTextFile } from './AppFileTextPersistence'
 import { fileIo as fs, ListFileOptions } from '@kit.CoreFileKit'
 import {
   ComicId,
@@ -224,16 +225,6 @@ export function createOfflineDownloadFileContentHash(path: string): string {
 function ensureDirSync(path: string): void {
   if (!fs.accessSync(path)) {
     fs.mkdirSync(path, true)
-  }
-}
-
-function writeTextSync(path: string, payload: string): void {
-  let file: fs.File | undefined = undefined
-  try {
-    file = fs.openSync(path, fs.OpenMode.WRITE_ONLY | fs.OpenMode.CREATE | fs.OpenMode.TRUNC)
-    fs.writeSync(file.fd, payload, { encoding: 'utf-8' })
-  } finally {
-    closeFileQuietly(file)
   }
 }
 
@@ -798,7 +789,7 @@ export class OfflineDownloadStore {
       failureReasonCode: manifest.failureReasonCode,
     }
     normalized.integrityHash = createManifestIntegrityHash(normalized)
-    writeTextSync(this.manifestPath(manifest.comicId, manifest.chapterId), JSON.stringify(normalized))
+    writeAppTextFile(this.manifestPath(manifest.comicId, manifest.chapterId), JSON.stringify(normalized))
     return normalized
   }
 

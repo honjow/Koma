@@ -1,3 +1,4 @@
+import { writeAppTextFile } from './AppFileTextPersistence'
 import {
   Chapter,
   Comic,
@@ -681,15 +682,7 @@ export class AppFilesLibraryStorePersistenceAdapter implements LibraryStorePersi
   }
 
   save(payload: string): void {
-    let file: fs.File | undefined = undefined
-    try {
-      file = fs.openSync(this.filePath, fs.OpenMode.WRITE_ONLY | fs.OpenMode.CREATE | fs.OpenMode.TRUNC)
-      fs.writeSync(file.fd, payload, { encoding: 'utf-8' })
-    } finally {
-      if (file !== undefined) {
-        fs.closeSync(file)
-      }
-    }
+    writeAppTextFile(this.filePath, payload)
   }
 }
 
