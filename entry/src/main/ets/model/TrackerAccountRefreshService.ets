@@ -1,3 +1,4 @@
+import { BackupRestoreActivity } from './BackupRestoreActivity'
 import { common } from '@kit.AbilityKit'
 import {
   AniListTrackerClient,
@@ -72,42 +73,44 @@ export class TrackerAccountRefreshService {
   }
 
   async refreshAccounts(preferredProviderId?: TrackerProviderId, now: number = Date.now()): Promise<TrackerAccountRefreshSummary> {
-    const store = this.preferencesStore()
-    const preferences = await store.load()
-    const providerIds = this.refreshableProviderIds(preferences.accounts, preferredProviderId)
-    const summary: TrackerAccountRefreshSummary = {
-      scannedCount: providerIds.length,
-      refreshedCount: 0,
-      skippedCount: 0,
-      failedCount: 0,
-      results: [],
-      preferences,
-    }
-    if (providerIds.length === 0) {
-      summary.skippedCount = preferredProviderId === undefined ? 0 : 1
-      if (preferredProviderId !== undefined) {
-        summary.results.push(this.skipped(preferredProviderId, 'account_missing'))
+    return BackupRestoreActivity.runWrite(async (): Promise<TrackerAccountRefreshSummary> => {
+      const store = this.preferencesStore()
+      const preferences = await store.load()
+      const providerIds = this.refreshableProviderIds(preferences.accounts, preferredProviderId)
+      const summary: TrackerAccountRefreshSummary = {
+        scannedCount: providerIds.length,
+        refreshedCount: 0,
+        skippedCount: 0,
+        failedCount: 0,
+        results: [],
+        preferences,
       }
-      return summary
-    }
+      if (providerIds.length === 0) {
+        summary.skippedCount = preferredProviderId === undefined ? 0 : 1
+        if (preferredProviderId !== undefined) {
+          summary.results.push(this.skipped(preferredProviderId, 'account_missing'))
+        }
+        return summary
+      }
 
-    let accounts = preferences.accounts
-    for (let index = 0; index < providerIds.length; index += 1) {
-      const providerId = providerIds[index]
-      const account = accounts.find((item: TrackerAccount): boolean => item.providerId === providerId)
-      const result = await this.refreshAccount(account, providerId, now)
-      summary.results.push(result.result)
-      accounts = this.replaceAccount(accounts, result.account)
-      if (result.result.status === 'refreshed') {
-        summary.refreshedCount += 1
-      } else if (result.result.status === 'failed') {
-        summary.failedCount += 1
-      } else {
-        summary.skippedCount += 1
+      let accounts = preferences.accounts
+      for (let index = 0; index < providerIds.length; index += 1) {
+        const providerId = providerIds[index]
+        const account = accounts.find((item: TrackerAccount): boolean => item.providerId === providerId)
+        const result = await this.refreshAccount(account, providerId, now)
+        summary.results.push(result.result)
+        accounts = this.replaceAccount(accounts, result.account)
+        if (result.result.status === 'refreshed') {
+          summary.refreshedCount += 1
+        } else if (result.result.status === 'failed') {
+          summary.failedCount += 1
+        } else {
+          summary.skippedCount += 1
+        }
       }
-    }
-    summary.preferences = await store.saveAccounts(accounts)
-    return summary
+      summary.preferences = await store.saveAccounts(accounts)
+      return summary
+    })
   }
 
   private async refreshAccount(

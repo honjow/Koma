@@ -1,3 +1,4 @@
+import { BackupRestoreActivity } from '../model/BackupRestoreActivity'
 import { common } from '@kit.AbilityKit'
 import { preferences } from '@kit.ArkData'
 import { BusinessError } from '@kit.BasicServicesKit'
@@ -419,64 +420,70 @@ export class SourceIndexService {
   }
 
   async saveUrl(url: string): Promise<void> {
-    const normalized = normalizeIndexUrl(url)
-    try {
-      const store = await preferences.getPreferences(this.context, SOURCE_INDEX_PREFS_STORE_NAME)
-      await store.put(SOURCE_INDEX_URL_KEY, normalized)
-      if (isValidHttpUrl(normalized)) {
-        const repositories = await this.loadSavedRepositories()
-        const next: SourceIndexRepository[] = [{
-          url: normalized,
-          lastUsedAt: Date.now(),
-        }]
-        repositories.forEach((repository: SourceIndexRepository) => {
-          if (repository.url !== normalized) {
-            next.push(repository)
-          }
-        })
-        await store.put(SOURCE_INDEX_REPOSITORIES_KEY, serializeSourceIndexRepositories(next))
+    return BackupRestoreActivity.runWrite(async (): Promise<void> => {
+      const normalized = normalizeIndexUrl(url)
+      try {
+        const store = await preferences.getPreferences(this.context, SOURCE_INDEX_PREFS_STORE_NAME)
+        await store.put(SOURCE_INDEX_URL_KEY, normalized)
+        if (isValidHttpUrl(normalized)) {
+          const repositories = await this.loadSavedRepositories()
+          const next: SourceIndexRepository[] = [{
+            url: normalized,
+            lastUsedAt: Date.now(),
+          }]
+          repositories.forEach((repository: SourceIndexRepository) => {
+            if (repository.url !== normalized) {
+              next.push(repository)
+            }
+          })
+          await store.put(SOURCE_INDEX_REPOSITORIES_KEY, serializeSourceIndexRepositories(next))
+        }
+        await store.flush()
+        console.info('[SourceIndex] step=save_url')
+      } catch (error) {
+        const e = error as BusinessError
+        console.error('[SourceIndex] step=save_url_fail code=' + e.code)
       }
-      await store.flush()
-      console.info('[SourceIndex] step=save_url')
-    } catch (error) {
-      const e = error as BusinessError
-      console.error('[SourceIndex] step=save_url_fail code=' + e.code)
-    }
+    })
   }
 
   async clearUrl(): Promise<void> {
-    try {
-      const store = await preferences.getPreferences(this.context, SOURCE_INDEX_PREFS_STORE_NAME)
-      await store.delete(SOURCE_INDEX_URL_KEY)
-      await store.flush()
-      console.info('[SourceIndex] step=clear_url')
-    } catch (_err) {
-    }
+    return BackupRestoreActivity.runWrite(async (): Promise<void> => {
+      try {
+        const store = await preferences.getPreferences(this.context, SOURCE_INDEX_PREFS_STORE_NAME)
+        await store.delete(SOURCE_INDEX_URL_KEY)
+        await store.flush()
+        console.info('[SourceIndex] step=clear_url')
+      } catch (_err) {
+      }
+    })
   }
 
   async removeSavedRepository(url: string): Promise<SourceIndexRepository[]> {
-    const normalized = normalizeIndexUrl(url)
-    try {
-      const store = await preferences.getPreferences(this.context, SOURCE_INDEX_PREFS_STORE_NAME)
-      const repositories = (await this.loadSavedRepositories())
-        .filter((repository: SourceIndexRepository): boolean => repository.url !== normalized)
-      await store.put(SOURCE_INDEX_REPOSITORIES_KEY, serializeSourceIndexRepositories(repositories))
-      const activeUrl = await store.get(SOURCE_INDEX_URL_KEY, '') as string
-      if (typeof activeUrl === 'string' && normalizeIndexUrl(activeUrl) === normalized) {
-        if (repositories.length > 0) {
-          await store.put(SOURCE_INDEX_URL_KEY, repositories[0].url)
-        } else {
-          await store.delete(SOURCE_INDEX_URL_KEY)
+    return BackupRestoreActivity.runWrite(async (): Promise<SourceIndexRepository[]> => {
+      const normalized = normalizeIndexUrl(url)
+      try {
+        const store = await preferences.getPreferences(this.context, SOURCE_INDEX_PREFS_STORE_NAME)
+        const repositories = (await this.loadSavedRepositories())
+          .filter((repository: SourceIndexRepository): boolean => repository.url !== normalized)
+        await store.put(SOURCE_INDEX_REPOSITORIES_KEY, serializeSourceIndexRepositories(repositories))
+        const activeUrl = await store.get(SOURCE_INDEX_URL_KEY, '') as string
+        if (typeof activeUrl === 'string' && normalizeIndexUrl(activeUrl) === normalized) {
+          if (repositories.length > 0) {
+            await store.put(SOURCE_INDEX_URL_KEY, repositories[0].url)
+          } else {
+            await store.delete(SOURCE_INDEX_URL_KEY)
+          }
         }
+        await store.flush()
+        console.info('[SourceIndex] step=remove_saved_repository')
+        return repositories
+      } catch (error) {
+        const e = error as BusinessError
+        console.error('[SourceIndex] step=remove_saved_repository_fail code=' + e.code)
+        return this.loadSavedRepositories()
       }
-      await store.flush()
-      console.info('[SourceIndex] step=remove_saved_repository')
-      return repositories
-    } catch (error) {
-      const e = error as BusinessError
-      console.error('[SourceIndex] step=remove_saved_repository_fail code=' + e.code)
-      return this.loadSavedRepositories()
-    }
+    })
   }
 
   async fetchIndex(indexUrl: string): Promise<SourceIndexFetchResult> {
@@ -537,62 +544,64 @@ export class SourceIndexService {
   }
 
   async installPackage(indexUrl: string, entry: SourceIndexEntry): Promise<SourceIndexInstallResult> {
-    if (!isSourcePackageMinAppVersionSatisfied(entry.minAppVersion)) {
-      console.error('[SourceIndex] step=install_blocked reason=app_version_unsupported')
-      return { ok: false, reasonCode: 'app_version_unsupported' }
-    }
-
-    const pkgUrl = safeResolvePkgUrl(resolveIndexDocumentUrl(indexUrl), entry.pkg)
-    if (!isValidHttpUrl(pkgUrl)) {
-      return { ok: false, reasonCode: 'invalid_pkg_url' }
-    }
-
-    console.info('[SourceIndex] step=download_pkg')
-
-    const httpRequest = http.createHttp()
-    try {
-      const response = await httpRequest.request(pkgUrl, {
-        method: http.RequestMethod.GET,
-        expectDataType: http.HttpDataType.ARRAY_BUFFER,
-        usingCache: false,
-        readTimeout: 60000,
-        connectTimeout: 30000,
-      })
-
-      if (response.responseCode !== 200) {
-        console.error('[SourceIndex] step=download_fail status=' + response.responseCode)
-        return { ok: false, reasonCode: 'http_error' }
+    return BackupRestoreActivity.runWrite(async (): Promise<SourceIndexInstallResult> => {
+      if (!isSourcePackageMinAppVersionSatisfied(entry.minAppVersion)) {
+        console.error('[SourceIndex] step=install_blocked reason=app_version_unsupported')
+        return { ok: false, reasonCode: 'app_version_unsupported' }
       }
 
-      let archiveBytes: Uint8Array
-      if (response.result instanceof ArrayBuffer) {
-        archiveBytes = new Uint8Array(response.result)
-      } else {
-        return { ok: false, reasonCode: 'invalid_response' }
+      const pkgUrl = safeResolvePkgUrl(resolveIndexDocumentUrl(indexUrl), entry.pkg)
+      if (!isValidHttpUrl(pkgUrl)) {
+        return { ok: false, reasonCode: 'invalid_pkg_url' }
       }
 
-      if (archiveBytes.byteLength === 0) {
-        return { ok: false, reasonCode: 'empty_package' }
-      }
-      if (entry.sha256.length > 0 && sha256Hex(archiveBytes) !== entry.sha256) {
-        console.error('[SourceIndex] step=download_fail reason=checksum_mismatch')
-        return { ok: false, reasonCode: 'checksum_mismatch' }
-      }
+      console.info('[SourceIndex] step=download_pkg')
 
-      const install = await installFromBytes(this.context, archiveBytes, entry.pkg, entry.id)
-      if (!install.ok) {
-        console.error('[SourceIndex] step=install_fail reason=' + (install.reasonCode ?? 'unknown'))
-        return { ok: false, reasonCode: install.reasonCode, install }
-      }
+      const httpRequest = http.createHttp()
+      try {
+        const response = await httpRequest.request(pkgUrl, {
+          method: http.RequestMethod.GET,
+          expectDataType: http.HttpDataType.ARRAY_BUFFER,
+          usingCache: false,
+          readTimeout: 60000,
+          connectTimeout: 30000,
+        })
 
-      console.info('[SourceIndex] step=install_ok id=' + install.id)
-      return { ok: true, install }
-    } catch (error) {
-      const e = error as BusinessError
-      console.error('[SourceIndex] step=download_error code=' + e.code)
-      return { ok: false, reasonCode: 'network_error' }
-    } finally {
-      httpRequest.destroy()
-    }
+        if (response.responseCode !== 200) {
+          console.error('[SourceIndex] step=download_fail status=' + response.responseCode)
+          return { ok: false, reasonCode: 'http_error' }
+        }
+
+        let archiveBytes: Uint8Array
+        if (response.result instanceof ArrayBuffer) {
+          archiveBytes = new Uint8Array(response.result)
+        } else {
+          return { ok: false, reasonCode: 'invalid_response' }
+        }
+
+        if (archiveBytes.byteLength === 0) {
+          return { ok: false, reasonCode: 'empty_package' }
+        }
+        if (entry.sha256.length > 0 && sha256Hex(archiveBytes) !== entry.sha256) {
+          console.error('[SourceIndex] step=download_fail reason=checksum_mismatch')
+          return { ok: false, reasonCode: 'checksum_mismatch' }
+        }
+
+        const install = await installFromBytes(this.context, archiveBytes, entry.pkg, entry.id)
+        if (!install.ok) {
+          console.error('[SourceIndex] step=install_fail reason=' + (install.reasonCode ?? 'unknown'))
+          return { ok: false, reasonCode: install.reasonCode, install }
+        }
+
+        console.info('[SourceIndex] step=install_ok id=' + install.id)
+        return { ok: true, install }
+      } catch (error) {
+        const e = error as BusinessError
+        console.error('[SourceIndex] step=download_error code=' + e.code)
+        return { ok: false, reasonCode: 'network_error' }
+      } finally {
+        httpRequest.destroy()
+      }
+    })
   }
 }

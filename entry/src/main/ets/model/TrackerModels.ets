@@ -1,3 +1,4 @@
+import { BackupRestoreActivity } from './BackupRestoreActivity'
 import { common } from '@kit.AbilityKit'
 import { preferences } from '@kit.ArkData'
 import { buffer, util } from '@kit.ArkTS'
@@ -858,84 +859,92 @@ export class TrackerPreferencesStore {
   }
 
   async saveAccounts(accounts: TrackerAccount[]): Promise<TrackerPreferences> {
-    const current = await this.load()
-    const next: TrackerPreferences = {
-      accounts: mergeTrackerAccounts(accounts, this.secretStore.isAvailable()),
-      comicMappings: current.comicMappings,
-      providerOAuthConfigs: current.providerOAuthConfigs,
-      autoSyncEnabled: current.autoSyncEnabled,
-      updateStrategy: current.updateStrategy,
-    }
-    const store = await this.preferences()
-    await store.put(TRACKER_ACCOUNTS_KEY, JSON.stringify(next.accounts))
-    await store.flush()
-    return next
+    return BackupRestoreActivity.runWrite(async (): Promise<TrackerPreferences> => {
+      const current = await this.load()
+      const next: TrackerPreferences = {
+        accounts: mergeTrackerAccounts(accounts, this.secretStore.isAvailable()),
+        comicMappings: current.comicMappings,
+        providerOAuthConfigs: current.providerOAuthConfigs,
+        autoSyncEnabled: current.autoSyncEnabled,
+        updateStrategy: current.updateStrategy,
+      }
+      const store = await this.preferences()
+      await store.put(TRACKER_ACCOUNTS_KEY, JSON.stringify(next.accounts))
+      await store.flush()
+      return next
+    })
   }
 
   async disconnectAccount(providerId: TrackerProviderId): Promise<TrackerPreferences> {
-    const current = await this.load()
-    const account = current.accounts.find((item: TrackerAccount): boolean => item.providerId === providerId)
-    if (account === undefined || account.status === 'disconnected') {
-      return current
-    }
-    if (account.credentialAccountKey !== undefined) {
-      const deleted = await this.secretStore.deleteAccount({
-        providerId,
-        accountKey: account.credentialAccountKey,
-      })
-      if (!deleted.ok) {
-        return this.saveAccounts(current.accounts.map((item: TrackerAccount): TrackerAccount => {
-          if (item.providerId !== providerId) {
-            return item
-          }
-          return {
-            providerId,
-            status: 'error',
-            statusReason: deleted.error?.code ?? 'storage_unavailable',
-          }
-        }))
+    return BackupRestoreActivity.runWrite(async (): Promise<TrackerPreferences> => {
+      const current = await this.load()
+      const account = current.accounts.find((item: TrackerAccount): boolean => item.providerId === providerId)
+      if (account === undefined || account.status === 'disconnected') {
+        return current
       }
-    }
-    return this.saveAccounts(current.accounts.map((item: TrackerAccount): TrackerAccount => {
-      if (item.providerId !== providerId) {
-        return item
+      if (account.credentialAccountKey !== undefined) {
+        const deleted = await this.secretStore.deleteAccount({
+          providerId,
+          accountKey: account.credentialAccountKey,
+        })
+        if (!deleted.ok) {
+          return this.saveAccounts(current.accounts.map((item: TrackerAccount): TrackerAccount => {
+            if (item.providerId !== providerId) {
+              return item
+            }
+            return {
+              providerId,
+              status: 'error',
+              statusReason: deleted.error?.code ?? 'storage_unavailable',
+            }
+          }))
+        }
       }
-      return {
-        providerId,
-        status: 'disconnected',
-      }
-    }))
+      return this.saveAccounts(current.accounts.map((item: TrackerAccount): TrackerAccount => {
+        if (item.providerId !== providerId) {
+          return item
+        }
+        return {
+          providerId,
+          status: 'disconnected',
+        }
+      }))
+    })
   }
 
   async saveComicMappings(mappings: ComicTrackerMapping[]): Promise<TrackerPreferences> {
-    const current = await this.load()
-    const next: TrackerPreferences = {
-      accounts: current.accounts,
-      comicMappings: normalizeComicTrackerMappings(mappings),
-      providerOAuthConfigs: current.providerOAuthConfigs,
-      autoSyncEnabled: current.autoSyncEnabled,
-      updateStrategy: current.updateStrategy,
-    }
-    const store = await this.preferences()
-    await store.put(TRACKER_COMIC_MAPPINGS_KEY, JSON.stringify(next.comicMappings))
-    await store.flush()
-    return next
+    return BackupRestoreActivity.runWrite(async (): Promise<TrackerPreferences> => {
+      const current = await this.load()
+      const next: TrackerPreferences = {
+        accounts: current.accounts,
+        comicMappings: normalizeComicTrackerMappings(mappings),
+        providerOAuthConfigs: current.providerOAuthConfigs,
+        autoSyncEnabled: current.autoSyncEnabled,
+        updateStrategy: current.updateStrategy,
+      }
+      const store = await this.preferences()
+      await store.put(TRACKER_COMIC_MAPPINGS_KEY, JSON.stringify(next.comicMappings))
+      await store.flush()
+      return next
+    })
   }
 
   async saveSyncPreferences(autoSyncEnabled: boolean, updateStrategy: TrackerUpdateStrategy): Promise<TrackerPreferences> {
-    const current = await this.load()
-    const next: TrackerPreferences = {
-      accounts: current.accounts,
-      comicMappings: current.comicMappings,
-      providerOAuthConfigs: current.providerOAuthConfigs,
-      autoSyncEnabled,
-      updateStrategy: normalizeTrackerUpdateStrategy(updateStrategy),
-    }
-    const store = await this.preferences()
-    await store.put(TRACKER_AUTO_SYNC_ENABLED_KEY, next.autoSyncEnabled)
-    await store.put(TRACKER_UPDATE_STRATEGY_KEY, next.updateStrategy)
-    await store.flush()
-    return next
+    return BackupRestoreActivity.runWrite(async (): Promise<TrackerPreferences> => {
+      const current = await this.load()
+      const next: TrackerPreferences = {
+        accounts: current.accounts,
+        comicMappings: current.comicMappings,
+        providerOAuthConfigs: current.providerOAuthConfigs,
+        autoSyncEnabled,
+        updateStrategy: normalizeTrackerUpdateStrategy(updateStrategy),
+      }
+      const store = await this.preferences()
+      await store.put(TRACKER_AUTO_SYNC_ENABLED_KEY, next.autoSyncEnabled)
+      await store.put(TRACKER_UPDATE_STRATEGY_KEY, next.updateStrategy)
+      await store.flush()
+      return next
+    })
   }
 
   async saveProviderOAuthConfig(
@@ -943,31 +952,35 @@ export class TrackerPreferencesStore {
     clientId: string,
     redirectUri: string,
   ): Promise<TrackerPreferences> {
-    const current = await this.load()
-    const nextConfigs = current.providerOAuthConfigs.filter((config: TrackerProviderOAuthConfig): boolean => {
-      return config.providerId !== providerId
+    return BackupRestoreActivity.runWrite(async (): Promise<TrackerPreferences> => {
+      const current = await this.load()
+      const nextConfigs = current.providerOAuthConfigs.filter((config: TrackerProviderOAuthConfig): boolean => {
+        return config.providerId !== providerId
+      })
+      nextConfigs.push({ providerId, clientId, redirectUri })
+      const next: TrackerPreferences = {
+        accounts: current.accounts,
+        comicMappings: current.comicMappings,
+        providerOAuthConfigs: normalizeTrackerProviderOAuthConfigs(nextConfigs),
+        autoSyncEnabled: current.autoSyncEnabled,
+        updateStrategy: current.updateStrategy,
+      }
+      const store = await this.preferences()
+      await store.put(TRACKER_PROVIDER_OAUTH_CONFIGS_KEY, JSON.stringify(next.providerOAuthConfigs))
+      await store.flush()
+      return next
     })
-    nextConfigs.push({ providerId, clientId, redirectUri })
-    const next: TrackerPreferences = {
-      accounts: current.accounts,
-      comicMappings: current.comicMappings,
-      providerOAuthConfigs: normalizeTrackerProviderOAuthConfigs(nextConfigs),
-      autoSyncEnabled: current.autoSyncEnabled,
-      updateStrategy: current.updateStrategy,
-    }
-    const store = await this.preferences()
-    await store.put(TRACKER_PROVIDER_OAUTH_CONFIGS_KEY, JSON.stringify(next.providerOAuthConfigs))
-    await store.flush()
-    return next
   }
 
   async upsertComicMapping(mapping: ComicTrackerMapping): Promise<TrackerPreferences> {
-    const current = await this.load()
-    const nextMappings = current.comicMappings.filter((item: ComicTrackerMapping): boolean => {
-      return item.comicId !== mapping.comicId.trim() || item.providerId !== mapping.providerId
+    return BackupRestoreActivity.runWrite(async (): Promise<TrackerPreferences> => {
+      const current = await this.load()
+      const nextMappings = current.comicMappings.filter((item: ComicTrackerMapping): boolean => {
+        return item.comicId !== mapping.comicId.trim() || item.providerId !== mapping.providerId
+      })
+      nextMappings.push(mapping)
+      return this.saveComicMappings(nextMappings)
     })
-    nextMappings.push(mapping)
-    return this.saveComicMappings(nextMappings)
   }
 
   async listComicMappings(comicId: ComicId): Promise<ComicTrackerMapping[]> {
@@ -976,20 +989,26 @@ export class TrackerPreferencesStore {
   }
 
   async confirmComicMapping(comicId: ComicId, providerId: TrackerProviderId, now: number = Date.now()): Promise<TrackerPreferences> {
-    return this.updateComicMappingState(comicId, providerId, 'confirmed', true, now)
+    return BackupRestoreActivity.runWrite(async (): Promise<TrackerPreferences> => {
+      return this.updateComicMappingState(comicId, providerId, 'confirmed', true, now)
+    })
   }
 
   async rejectComicMapping(comicId: ComicId, providerId: TrackerProviderId, now: number = Date.now()): Promise<TrackerPreferences> {
-    return this.updateComicMappingState(comicId, providerId, 'rejected', false, now)
+    return BackupRestoreActivity.runWrite(async (): Promise<TrackerPreferences> => {
+      return this.updateComicMappingState(comicId, providerId, 'rejected', false, now)
+    })
   }
 
   async removeComicMapping(comicId: ComicId, providerId: TrackerProviderId): Promise<TrackerPreferences> {
-    const normalizedComicId = comicId.trim()
-    const current = await this.load()
-    const nextMappings = current.comicMappings.filter((mapping: ComicTrackerMapping): boolean => {
-      return mapping.comicId !== normalizedComicId || mapping.providerId !== providerId
+    return BackupRestoreActivity.runWrite(async (): Promise<TrackerPreferences> => {
+      const normalizedComicId = comicId.trim()
+      const current = await this.load()
+      const nextMappings = current.comicMappings.filter((mapping: ComicTrackerMapping): boolean => {
+        return mapping.comicId !== normalizedComicId || mapping.providerId !== providerId
+      })
+      return this.saveComicMappings(nextMappings)
     })
-    return this.saveComicMappings(nextMappings)
   }
 
   private async updateComicMappingState(
@@ -1029,51 +1048,53 @@ export class TrackerPreferencesStore {
   }
 
   async prepareConnect(providerId: TrackerProviderId): Promise<TrackerOAuthStartPreparation> {
-    const current = await this.load()
-    const state = createTrackerOAuthState()
-    const pkce = createTrackerPkcePair()
-    const preparation = prepareTrackerOAuthStart({
-      providerId,
-      state,
-      codeChallenge: pkce.codeChallenge,
-      providerConfig: getConfiguredTrackerProviderConfig(providerId, current.providerOAuthConfigs),
-    }, this.secretStore.isAvailable())
-    if (preparation.status !== 'ready') {
-      return preparation
-    }
-    const written = await this.secretStore.writeToken({
-      providerId,
-      accountKey: state,
-      secretKind: 'oauth_code_verifier',
-      secretBytes: trackerUtf8Encode(pkce.codeVerifier),
-    })
-    if (!written.ok) {
-      return {
-        status: 'secure_storage_unavailable',
+    return BackupRestoreActivity.runWrite(async (): Promise<TrackerOAuthStartPreparation> => {
+      const current = await this.load()
+      const state = createTrackerOAuthState()
+      const pkce = createTrackerPkcePair()
+      const preparation = prepareTrackerOAuthStart({
         providerId,
-        message: written.error?.code ?? 'secure_storage_unavailable',
+        state,
+        codeChallenge: pkce.codeChallenge,
+        providerConfig: getConfiguredTrackerProviderConfig(providerId, current.providerOAuthConfigs),
+      }, this.secretStore.isAvailable())
+      if (preparation.status !== 'ready') {
+        return preparation
       }
-    }
-    try {
-      await this.saveAccounts(current.accounts.map((account: TrackerAccount): TrackerAccount => {
-        if (account.providerId !== providerId) {
-          return account
-        }
+      const written = await this.secretStore.writeToken({
+        providerId,
+        accountKey: state,
+        secretKind: 'oauth_code_verifier',
+        secretBytes: trackerUtf8Encode(pkce.codeVerifier),
+      })
+      if (!written.ok) {
         return {
+          status: 'secure_storage_unavailable',
           providerId,
-          status: 'auth_pending',
-          credentialAccountKey: state,
+          message: written.error?.code ?? 'secure_storage_unavailable',
         }
-      }))
-    } catch (error) {
-      await this.secretStore.deleteAccount({ providerId, accountKey: state })
-      return {
-        status: 'secure_storage_unavailable',
-        providerId,
-        message: 'auth_pending_save_failed',
       }
-    }
-    return preparation
+      try {
+        await this.saveAccounts(current.accounts.map((account: TrackerAccount): TrackerAccount => {
+          if (account.providerId !== providerId) {
+            return account
+          }
+          return {
+            providerId,
+            status: 'auth_pending',
+            credentialAccountKey: state,
+          }
+        }))
+      } catch (error) {
+        await this.secretStore.deleteAccount({ providerId, accountKey: state })
+        return {
+          status: 'secure_storage_unavailable',
+          providerId,
+          message: 'auth_pending_save_failed',
+        }
+      }
+      return preparation
+    })
   }
 
   private parseAccounts(value: string): TrackerAccount[] {

@@ -1,3 +1,4 @@
+import { BackupRestoreActivity } from './BackupRestoreActivity'
 import { common } from '@kit.AbilityKit'
 import { ReadingProgress } from './ComicModels'
 import {
@@ -98,70 +99,74 @@ export class TrackerProgressSyncService {
     now: number = Date.now(),
     preferredProviderId?: TrackerProviderId,
   ): Promise<TrackerProgressSyncResult> {
-    const preferences = await this.preferencesStore().load()
-    if (trigger !== 'manual' && !preferences.autoSyncEnabled) {
-      return this.skipped('auto_sync_disabled')
-    }
-    if (trigger === 'on_chapter_complete' && !progress.completed) {
-      return this.skipped('strategy_not_due')
-    }
-    if (trigger !== 'manual' && preferences.updateStrategy !== trigger) {
-      return this.skipped('strategy_not_due')
-    }
-    const mapping = this.findConfirmedMapping(preferences, progress.comicId, preferredProviderId)
-    if (mapping === undefined) {
-      return this.skipped('mapping_missing')
-    }
-    const providerProgress = calculateAniListChapterProgress(progress, chapterIds)
-    const account = this.findConnectedAccount(preferences, mapping.providerId)
-    if (account === undefined || account.credentialAccountKey === undefined) {
-      return this.failedWithPendingQueue('account_missing', mapping, progress, chapterIds, providerProgress, now)
-    }
-    if (!this.hasClientForProvider(mapping.providerId)) {
-      return this.failedWithPendingQueue('client_unavailable', mapping, progress, chapterIds, providerProgress, now)
-    }
-    const accessToken = await this.readAccessToken(account, mapping.providerId)
-    if (accessToken === undefined) {
-      return this.failedWithPendingQueue('credential_missing', mapping, progress, chapterIds, providerProgress, now)
-    }
-    const result = await this.pushProviderProgress(mapping.providerId, accessToken, mapping.providerTitleId, providerProgress, progress.completed)
-    if (!result.ok || result.value === undefined) {
-      return this.failedWithPendingQueue('provider_failed', mapping, progress, chapterIds, providerProgress, now)
-    }
-    await this.markAccountSynced(preferences, account, now)
-    await this.pendingStore.removeProgressForComic(mapping.providerId, progress.comicId)
-    return {
-      status: 'synced',
-      providerId: mapping.providerId,
-      providerTitleId: mapping.providerTitleId,
-      providerProgress: result.value.progress,
-      completed: result.value.completed,
-    }
+    return BackupRestoreActivity.runWrite(async (): Promise<TrackerProgressSyncResult> => {
+      const preferences = await this.preferencesStore().load()
+      if (trigger !== 'manual' && !preferences.autoSyncEnabled) {
+        return this.skipped('auto_sync_disabled')
+      }
+      if (trigger === 'on_chapter_complete' && !progress.completed) {
+        return this.skipped('strategy_not_due')
+      }
+      if (trigger !== 'manual' && preferences.updateStrategy !== trigger) {
+        return this.skipped('strategy_not_due')
+      }
+      const mapping = this.findConfirmedMapping(preferences, progress.comicId, preferredProviderId)
+      if (mapping === undefined) {
+        return this.skipped('mapping_missing')
+      }
+      const providerProgress = calculateAniListChapterProgress(progress, chapterIds)
+      const account = this.findConnectedAccount(preferences, mapping.providerId)
+      if (account === undefined || account.credentialAccountKey === undefined) {
+        return this.failedWithPendingQueue('account_missing', mapping, progress, chapterIds, providerProgress, now)
+      }
+      if (!this.hasClientForProvider(mapping.providerId)) {
+        return this.failedWithPendingQueue('client_unavailable', mapping, progress, chapterIds, providerProgress, now)
+      }
+      const accessToken = await this.readAccessToken(account, mapping.providerId)
+      if (accessToken === undefined) {
+        return this.failedWithPendingQueue('credential_missing', mapping, progress, chapterIds, providerProgress, now)
+      }
+      const result = await this.pushProviderProgress(mapping.providerId, accessToken, mapping.providerTitleId, providerProgress, progress.completed)
+      if (!result.ok || result.value === undefined) {
+        return this.failedWithPendingQueue('provider_failed', mapping, progress, chapterIds, providerProgress, now)
+      }
+      await this.markAccountSynced(preferences, account, now)
+      await this.pendingStore.removeProgressForComic(mapping.providerId, progress.comicId)
+      return {
+        status: 'synced',
+        providerId: mapping.providerId,
+        providerTitleId: mapping.providerTitleId,
+        providerProgress: result.value.progress,
+        completed: result.value.completed,
+      }
+    })
   }
 
   async pullReadingProgress(comicId: string, now: number = Date.now(), preferredProviderId?: TrackerProviderId): Promise<TrackerProgressSyncResult> {
-    const preferences = await this.preferencesStore().load()
-    const mapping = this.findConfirmedMapping(preferences, comicId, preferredProviderId)
-    if (mapping === undefined) {
-      return this.skipped('mapping_missing')
-    }
-    const account = this.findConnectedAccount(preferences, mapping.providerId)
-    if (account === undefined || account.credentialAccountKey === undefined) {
-      return this.failed('account_missing', mapping)
-    }
-    if (!this.hasClientForProvider(mapping.providerId)) {
-      return this.failed('client_unavailable', mapping)
-    }
-    const accessToken = await this.readAccessToken(account, mapping.providerId)
-    if (accessToken === undefined) {
-      return this.failed('credential_missing', mapping)
-    }
-    const result = await this.fetchProviderProgress(mapping.providerId, accessToken, mapping.providerTitleId)
-    if (!result.ok) {
-      return this.failed('provider_failed', mapping)
-    }
-    await this.markAccountSynced(preferences, account, now)
-    return this.progressResult(mapping, result.value)
+    return BackupRestoreActivity.runWrite(async (): Promise<TrackerProgressSyncResult> => {
+      const preferences = await this.preferencesStore().load()
+      const mapping = this.findConfirmedMapping(preferences, comicId, preferredProviderId)
+      if (mapping === undefined) {
+        return this.skipped('mapping_missing')
+      }
+      const account = this.findConnectedAccount(preferences, mapping.providerId)
+      if (account === undefined || account.credentialAccountKey === undefined) {
+        return this.failed('account_missing', mapping)
+      }
+      if (!this.hasClientForProvider(mapping.providerId)) {
+        return this.failed('client_unavailable', mapping)
+      }
+      const accessToken = await this.readAccessToken(account, mapping.providerId)
+      if (accessToken === undefined) {
+        return this.failed('credential_missing', mapping)
+      }
+      const result = await this.fetchProviderProgress(mapping.providerId, accessToken, mapping.providerTitleId)
+      if (!result.ok) {
+        return this.failed('provider_failed', mapping)
+      }
+      await this.markAccountSynced(preferences, account, now)
+      return this.progressResult(mapping, result.value)
+    })
   }
 
   async retryPendingProgress(
@@ -169,49 +174,51 @@ export class TrackerProgressSyncService {
     now: number = Date.now(),
     allowWhenAutoSyncDisabled: boolean = false,
   ): Promise<TrackerPendingProgressDrainSummary> {
-    const pending = await this.pendingStore.loadPendingProgress()
-    const normalizedLimit = Math.max(0, Math.min(50, Math.floor(limit)))
-    const entries = pending.slice(0, normalizedLimit)
-    const preferences = await this.preferencesStore().load()
-    const summary: TrackerPendingProgressDrainSummary = {
-      scannedCount: entries.length,
-      syncedCount: 0,
-      retainedCount: 0,
-      failedCount: 0,
-      skippedCount: 0,
-    }
-    if (!allowWhenAutoSyncDisabled && !preferences.autoSyncEnabled) {
-      summary.retainedCount = entries.length
-      summary.skippedCount = entries.length
-      return summary
-    }
-    const syncedComicKeys: string[] = []
-    for (let index = 0; index < entries.length; index += 1) {
-      const entry = entries[index]
-      const comicKey = `${entry.providerId}:${entry.comicId}`
-      if (syncedComicKeys.includes(comicKey)) {
-        summary.skippedCount += 1
-        continue
+    return BackupRestoreActivity.runWrite(async (): Promise<TrackerPendingProgressDrainSummary> => {
+      const pending = await this.pendingStore.loadPendingProgress()
+      const normalizedLimit = Math.max(0, Math.min(50, Math.floor(limit)))
+      const entries = pending.slice(0, normalizedLimit)
+      const preferences = await this.preferencesStore().load()
+      const summary: TrackerPendingProgressDrainSummary = {
+        scannedCount: entries.length,
+        syncedCount: 0,
+        retainedCount: 0,
+        failedCount: 0,
+        skippedCount: 0,
       }
-      const progress = readingProgressFromPendingEntry(entry, now)
-      if (progress.comicId.length === 0 || progress.chapterId.length === 0) {
-        summary.skippedCount += 1
-        continue
+      if (!allowWhenAutoSyncDisabled && !preferences.autoSyncEnabled) {
+        summary.retainedCount = entries.length
+        summary.skippedCount = entries.length
+        return summary
       }
-      const result = await this.pushReadingProgress(progress, entry.chapterIds, 'manual', now, entry.providerId)
-      if (result.status === 'synced') {
-        summary.syncedCount += 1
-        syncedComicKeys.push(comicKey)
-      } else {
-        summary.retainedCount += 1
-        if (result.status === 'failed') {
-          summary.failedCount += 1
-        } else {
+      const syncedComicKeys: string[] = []
+      for (let index = 0; index < entries.length; index += 1) {
+        const entry = entries[index]
+        const comicKey = `${entry.providerId}:${entry.comicId}`
+        if (syncedComicKeys.includes(comicKey)) {
           summary.skippedCount += 1
+          continue
+        }
+        const progress = readingProgressFromPendingEntry(entry, now)
+        if (progress.comicId.length === 0 || progress.chapterId.length === 0) {
+          summary.skippedCount += 1
+          continue
+        }
+        const result = await this.pushReadingProgress(progress, entry.chapterIds, 'manual', now, entry.providerId)
+        if (result.status === 'synced') {
+          summary.syncedCount += 1
+          syncedComicKeys.push(comicKey)
+        } else {
+          summary.retainedCount += 1
+          if (result.status === 'failed') {
+            summary.failedCount += 1
+          } else {
+            summary.skippedCount += 1
+          }
         }
       }
-    }
-    return summary
+      return summary
+    })
   }
 
   private preferencesStore(): TrackerPreferencesStore {

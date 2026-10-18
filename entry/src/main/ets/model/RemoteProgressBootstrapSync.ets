@@ -1,3 +1,4 @@
+import { BackupRestoreActivity } from './BackupRestoreActivity'
 import { common } from '@kit.AbilityKit'
 import { RemoteProgressSyncBridge } from '../state/RemoteProgressSyncState'
 import {
@@ -38,48 +39,51 @@ export class RemoteProgressBootstrapSync {
   }
 
   async syncAllPrivateLibraryProgress(): Promise<RemoteProgressBootstrapSyncResult> {
-    const empty: RemoteProgressBootstrapSyncResult = { synced: 0, updated: 0, failed: 0 }
-    if (RemoteProgressBootstrapSync.running || this.isCoolingDown()) {
-      return empty
-    }
-    RemoteProgressBootstrapSync.running = true
-    console.info('[BootstrapSync] step=start')
-    try {
-      const libraryStore = new InMemoryLibraryStore()
-      const libraryPersistence = new LibraryStorePersistenceService(
-        libraryStore,
-        new AppFilesLibraryStorePersistenceAdapter(this.context.filesDir)
-      )
-      libraryPersistence.restore()
+    if (BackupRestoreActivity.isRestoring()) return { synced: 0, updated: 0, failed: 0 }
+    return BackupRestoreActivity.runWrite(async (): Promise<RemoteProgressBootstrapSyncResult> => {
+      const empty: RemoteProgressBootstrapSyncResult = { synced: 0, updated: 0, failed: 0 }
+      if (RemoteProgressBootstrapSync.running || this.isCoolingDown()) {
+        return empty
+      }
+      RemoteProgressBootstrapSync.running = true
+      console.info('[BootstrapSync] step=start')
+      try {
+        const libraryStore = new InMemoryLibraryStore()
+        const libraryPersistence = new LibraryStorePersistenceService(
+          libraryStore,
+          new AppFilesLibraryStorePersistenceAdapter(this.context.filesDir)
+        )
+        libraryPersistence.restore()
 
-      const sessionStore = appReaderSessionStore(this.context.filesDir)
-      const remoteComics = libraryStore.listComics().filter((comic: Comic): boolean => {
-        return comic.sourceKind === ComicSourceKind.KOMGA_REMOTE || comic.sourceKind === ComicSourceKind.KAVITA_REMOTE
-      })
-      const groups = this.groupByServer(remoteComics)
-      const service = new RemoteProgressSyncService(this.context)
-      const results = await Promise.all(Array.from(groups.keys()).map((serverId: string) => {
-        const comics = groups.get(serverId) ?? []
-        return this.syncServer(serverId, comics, service, sessionStore)
-      }))
-      const total = results.reduce((acc: RemoteProgressBootstrapSyncResult, item: RemoteProgressBootstrapSyncResult) => {
-        return {
-          synced: acc.synced + item.synced,
-          updated: acc.updated + item.updated,
-          failed: acc.failed + item.failed,
-        }
-      }, empty)
-      sessionStore.flush()
-      RemoteProgressSyncBridge.markSuccess()
-      console.info(`[BootstrapSync] step=done updated=${total.updated} synced=${total.synced} failed=${total.failed}`)
-      return total
-    } catch (error) {
-      void error
-      console.warn('[BootstrapSync] step=done updated=0 synced=0 failed=1 code=bootstrap_sync_failed')
-      return { synced: 0, updated: 0, failed: 1 }
-    } finally {
-      RemoteProgressBootstrapSync.running = false
-    }
+        const sessionStore = appReaderSessionStore(this.context.filesDir)
+        const remoteComics = libraryStore.listComics().filter((comic: Comic): boolean => {
+          return comic.sourceKind === ComicSourceKind.KOMGA_REMOTE || comic.sourceKind === ComicSourceKind.KAVITA_REMOTE
+        })
+        const groups = this.groupByServer(remoteComics)
+        const service = new RemoteProgressSyncService(this.context)
+        const results = await Promise.all(Array.from(groups.keys()).map((serverId: string) => {
+          const comics = groups.get(serverId) ?? []
+          return this.syncServer(serverId, comics, service, sessionStore)
+        }))
+        const total = results.reduce((acc: RemoteProgressBootstrapSyncResult, item: RemoteProgressBootstrapSyncResult) => {
+          return {
+            synced: acc.synced + item.synced,
+            updated: acc.updated + item.updated,
+            failed: acc.failed + item.failed,
+          }
+        }, empty)
+        sessionStore.flush()
+        RemoteProgressSyncBridge.markSuccess()
+        console.info(`[BootstrapSync] step=done updated=${total.updated} synced=${total.synced} failed=${total.failed}`)
+        return total
+      } catch (error) {
+        void error
+        console.warn('[BootstrapSync] step=done updated=0 synced=0 failed=1 code=bootstrap_sync_failed')
+        return { synced: 0, updated: 0, failed: 1 }
+      } finally {
+        RemoteProgressBootstrapSync.running = false
+      }
+    })
   }
 
   private isCoolingDown(): boolean {

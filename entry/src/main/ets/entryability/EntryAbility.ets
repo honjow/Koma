@@ -20,6 +20,8 @@ import { LayoutSafeAreaBridge } from '../state/LayoutSafeAreaState'
 import { AppForegroundStateBridge } from '../state/AppForegroundState'
 import { AppStrings } from '../i18n/AppStrings'
 import { LanguageSettings } from '../i18n/LanguageSettings'
+import { BackupRestoreCheckpoint } from '../model/BackupRestoreCheckpoint'
+import { BackupRestoreActivity } from '../model/BackupRestoreActivity'
 
 const TRANSPARENT_COLOR: string = '#00FFFFFF'
 const ENTRY_PAGE: string = 'pages/Index'
@@ -28,24 +30,40 @@ const FALLBACK_BOTTOM_AVOID: number = 0
 
 export default class EntryAbility extends UIAbility {
   private keyboardHeightCallback: ((height: number) => void) | undefined = undefined
+  private startupReady: boolean = false
+  private startupPromise: Promise<void> = Promise.resolve()
   onCreate(want: Want, launchParam: AbilityConstant.LaunchParam): void {
     captureReaderLabWant(want, this.context.applicationInfo.debug)
     void launchParam
     AppStrings.init(this.context)
     void LanguageSettings.restore(this.context)
+    this.startupPromise = this.prepareStartup(want).catch((_error: Error): void => {
+      BackupRestoreActivity.blockUntilRestart()
+      console.error('[BackupRecovery] step=startup_failed code=backup_recovery_pending')
+    })
+  }
+
+  private async prepareStartup(want: Want): Promise<void> {
+    // Recover before theme Preferences, installed packages, Library or Reader
+    // consumers are initialized. A failed recovery never loads ordinary Index.
+    await BackupRestoreCheckpoint.recoverBeforeStartup(this.context)
     this.applySavedThemeMode()
     configureSourceSettingsStore(this.context)
     configureSourceRuntimeHttpTransport()
     bootstrapSourceRuntimeAppRegistry(this.context)
     this.openLaunchRouteFromWant(want)
     maybeRunSourceRuntimeDeviceSmoke(want, this.context.resourceManager, this.context)
+    this.startupReady = true
   }
 
   onNewWant(want: Want, launchParam: AbilityConstant.LaunchParam): void {
     captureReaderLabWant(want, this.context.applicationInfo.debug)
     void launchParam
-    this.openLaunchRouteFromWant(want)
-    maybeRunSourceRuntimeDeviceSmoke(want, this.context.resourceManager, this.context)
+    void this.startupPromise.then((): void => {
+      if (!this.startupReady) return
+      this.openLaunchRouteFromWant(want)
+      maybeRunSourceRuntimeDeviceSmoke(want, this.context.resourceManager, this.context)
+    })
   }
 
   onWindowStageCreate(windowStage: window.WindowStage): void {
@@ -67,14 +85,17 @@ export default class EntryAbility extends UIAbility {
       console.error('[EntryAbility] step=configure_window_failed code=window_configure_failed')
     }
 
-    windowStage.loadContent(ENTRY_PAGE, (err) => {
-      if (err.code) {
-        console.error('[EntryAbility] step=load_content_failed code=load_content_failed')
-      }
-      this.configureAvoidAreas(windowStage)
-      setTimeout(() => {
-        this.syncRemoteProgressInBackground()
-      }, 250)
+    void this.startupPromise.then((): void => {
+      if (!this.startupReady) return
+      windowStage.loadContent(ENTRY_PAGE, (err) => {
+        if (err.code) {
+          console.error('[EntryAbility] step=load_content_failed code=load_content_failed')
+        }
+        this.configureAvoidAreas(windowStage)
+        setTimeout(() => {
+          this.syncRemoteProgressInBackground()
+        }, 250)
+      })
     })
   }
 
@@ -163,7 +184,9 @@ export default class EntryAbility extends UIAbility {
   }
 
   private syncRemoteProgressInBackground(): void {
-    void new RemoteProgressBootstrapSync(this.context).syncAllPrivateLibraryProgress()
+    void this.startupPromise.then((): void => {
+      if (this.startupReady) void new RemoteProgressBootstrapSync(this.context).syncAllPrivateLibraryProgress()
+    })
   }
 
   private applySavedThemeMode(): void {

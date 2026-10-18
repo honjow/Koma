@@ -1,3 +1,4 @@
+import { BackupRestoreActivity } from '../model/BackupRestoreActivity'
 import { bundleManager, common } from '@kit.AbilityKit'
 import { buffer } from '@kit.ArkTS'
 import { cryptoFramework } from '@kit.CryptoArchitectureKit'
@@ -740,10 +741,10 @@ export class PreparedSourcePackageRestore {
     this.stagedPackages = stagedPackages
   }
 
-  async commit(): Promise<SourcePackageRestoreResult> {
+  async commit(retainReplacedDirectories: boolean = false): Promise<SourcePackageRestoreResult> {
     if (this.consumed) return { ok: false, restoredCount: 0, reasonCode: 'restore_plan_consumed' }
     this.consumed = true
-    return commitStagedSourcePackages(this.context, this.stagedPackages)
+    return commitStagedSourcePackages(this.context, this.stagedPackages, retainReplacedDirectories)
   }
 
   async discard(): Promise<void> {
@@ -757,11 +758,13 @@ export async function restoreSourcePackagesFromBackup(
   context: common.UIAbilityContext,
   packages: SourcePackageBackupEntry[],
 ): Promise<SourcePackageRestoreResult> {
-  const prepared = await prepareSourcePackagesFromBackup(context, packages)
-  if (!prepared.ok || prepared.plan === undefined) {
-    return { ok: false, restoredCount: 0, reasonCode: prepared.reasonCode ?? 'restore_failed' }
-  }
-  return prepared.plan.commit()
+  return BackupRestoreActivity.runWrite(async (): Promise<SourcePackageRestoreResult> => {
+    const prepared = await prepareSourcePackagesFromBackup(context, packages)
+    if (!prepared.ok || prepared.plan === undefined) {
+      return { ok: false, restoredCount: 0, reasonCode: prepared.reasonCode ?? 'restore_failed' }
+    }
+    return prepared.plan.commit()
+  })
 }
 
 export async function prepareSourcePackagesFromBackup(
@@ -855,6 +858,7 @@ export async function prepareSourcePackagesFromBackup(
 async function commitStagedSourcePackages(
   context: common.UIAbilityContext,
   stagedPackages: StagedSourcePackageBackup[],
+  retainReplacedDirectories: boolean = false,
 ): Promise<SourcePackageRestoreResult> {
   // Keep old package directories until the new registry is persisted so a
   // failed replacement can restore the previous in-memory entries.
@@ -919,7 +923,7 @@ async function commitStagedSourcePackages(
     return { ok: false, restoredCount: 0, reasonCode: 'source_registry_persist_failed' }
   }
 
-  for (let index = 0; index < previousEntries.length; index += 1) {
+  for (let index = 0; !retainReplacedDirectories && index < previousEntries.length; index += 1) {
     const archivePath = previousEntries[index].archivePath
     if (archivePath === undefined) {
       continue
@@ -1035,6 +1039,22 @@ export function reloadInstalledSourcePackages(context: common.UIAbilityContext):
     SourceRuntimeStateBridge.notifyChanged()
   }
   return allRegistered
+}
+
+/** A restored raw registry must replace newer in-process imported paths and
+ * enabled values. The normal best-effort reload's unchanged shortcut cannot. */
+export function restoreInstalledSourcePackagesAfterBackup(context: common.UIAbilityContext): boolean {
+  const restored = SourceRuntimeRegistry.reloadFromAppLocalMetadata(appSourceMetadataPath(context))
+  if (!restored.ok && restored.reasonCode !== 'metadata_missing') return false
+  const imported = appSourceRuntimeRegistry.list().filter((entry: SourceRuntimeRegistryEntry): boolean => {
+    return entry.importStatus === 'imported'
+  })
+  imported.forEach((entry: SourceRuntimeRegistryEntry): void => {
+    appSourceRuntimeRegistry.remove(entry.sourceId)
+  })
+  const ok = reloadInstalledSourcePackages(context)
+  if (imported.length > 0) SourceRuntimeStateBridge.notifyChanged()
+  return ok
 }
 
 // Read through the persisted registry without mutating the live app registry.
@@ -1157,25 +1177,27 @@ async function registerSourcePackageFromBytes(
 }
 
 export async function installFromArchive(context: common.UIAbilityContext, uri: string): Promise<SourcePackageInstallResult> {
-  console.info('[SourceManager] step=import_start')
-  ensureDirSync(appSourceRoot(context))
-  ensureDirSync(appSourcePackagesRoot(context))
-  const packageDir = joinSourceRuntimePath(appSourcePackagesRoot(context), `import-${Date.now()}`)
-  const archiveFileName = sourceArchiveSandboxFileName(uri)
-  const archivePath = joinSourceRuntimePath(packageDir, archiveFileName)
-  try {
-    ensureDirSync(packageDir)
-    await copyPickedArchiveUriToSandbox(uri, archivePath)
-    const archiveBytes = readBytesSync(archivePath)
-    return await registerSourcePackageFromBytes(context, archiveBytes, archiveFileName)
-  } catch (_error) {
+  return BackupRestoreActivity.runWrite(async (): Promise<SourcePackageInstallResult> => {
+    console.info('[SourceManager] step=import_start')
+    ensureDirSync(appSourceRoot(context))
+    ensureDirSync(appSourcePackagesRoot(context))
+    const packageDir = joinSourceRuntimePath(appSourcePackagesRoot(context), `import-${Date.now()}`)
+    const archiveFileName = sourceArchiveSandboxFileName(uri)
+    const archivePath = joinSourceRuntimePath(packageDir, archiveFileName)
     try {
-      await removeAppSourcePackageDir(context, packageDir)
-    } catch (_err) {
+      ensureDirSync(packageDir)
+      await copyPickedArchiveUriToSandbox(uri, archivePath)
+      const archiveBytes = readBytesSync(archivePath)
+      return await registerSourcePackageFromBytes(context, archiveBytes, archiveFileName)
+    } catch (_error) {
+      try {
+        await removeAppSourcePackageDir(context, packageDir)
+      } catch (_err) {
+      }
+      console.error('[SourceManager] step=import_fail reason=import_failed')
+      return { ok: false, reasonCode: 'import_failed' }
     }
-    console.error('[SourceManager] step=import_fail reason=import_failed')
-    return { ok: false, reasonCode: 'import_failed' }
-  }
+  })
 }
 
 export async function installFromBytes(
@@ -1184,11 +1206,13 @@ export async function installFromBytes(
   pkgFileName: string,
   expectedSourceId?: string,
 ): Promise<SourcePackageInstallResult> {
-  console.info('[SourceManager] step=import_start source=bytes pkg=' + pkgFileName)
-  const sanitized = pkgFileName.replace(/[\\/]/g, '_').replace(/^_+|_+$/g, '') || 'source-package.koma'
-  const archiveFileName = sanitized.endsWith('.koma') || sanitized.endsWith('.koma-source') ||
-    sanitized.endsWith('.koma-source.zip') || sanitized.endsWith('.zip') ? sanitized : sanitized + '.koma'
-  return await registerSourcePackageFromBytes(context, archiveBytes, archiveFileName, expectedSourceId)
+  return BackupRestoreActivity.runWrite(async (): Promise<SourcePackageInstallResult> => {
+    console.info('[SourceManager] step=import_start source=bytes pkg=' + pkgFileName)
+    const sanitized = pkgFileName.replace(/[\\/]/g, '_').replace(/^_+|_+$/g, '') || 'source-package.koma'
+    const archiveFileName = sanitized.endsWith('.koma') || sanitized.endsWith('.koma-source') ||
+      sanitized.endsWith('.koma-source.zip') || sanitized.endsWith('.zip') ? sanitized : sanitized + '.koma'
+    return await registerSourcePackageFromBytes(context, archiveBytes, archiveFileName, expectedSourceId)
+  })
 }
 
 export function setSourcePresentationMetadata(
@@ -1228,24 +1252,26 @@ export function setEnabled(context: common.UIAbilityContext, id: string, enabled
 }
 
 export async function remove(context: common.UIAbilityContext, id: string): Promise<boolean> {
-  const entry = appSourceRuntimeRegistry.remove(id)
-  if (entry === undefined) {
-    return false
-  }
-  if (entry.archivePath !== undefined) {
-    const packageDir = entry.archivePath.replace(/\\/g, '/').replace(/\/[^/]*$/, '')
-    try {
-      await removeAppSourcePackageDir(context, packageDir)
-    } catch (_err) {
+  return BackupRestoreActivity.runWrite(async (): Promise<boolean> => {
+    const entry = appSourceRuntimeRegistry.remove(id)
+    if (entry === undefined) {
+      return false
     }
-  }
-  appSourceSettingsStore.removeSource(id)
-  appSourceFilterPreferencesStore.removeSource(id)
-  clearSourceRuntimeDiagnostic(id)
-  persistInstalledSources(context)
-  SourceRuntimeStateBridge.notifyChanged()
-  console.info('[SourceManager] step=remove id=' + id)
-  return true
+    if (entry.archivePath !== undefined) {
+      const packageDir = entry.archivePath.replace(/\\/g, '/').replace(/\/[^/]*$/, '')
+      try {
+        await removeAppSourcePackageDir(context, packageDir)
+      } catch (_err) {
+      }
+    }
+    appSourceSettingsStore.removeSource(id)
+    appSourceFilterPreferencesStore.removeSource(id)
+    clearSourceRuntimeDiagnostic(id)
+    persistInstalledSources(context)
+    SourceRuntimeStateBridge.notifyChanged()
+    console.info('[SourceManager] step=remove id=' + id)
+    return true
+  })
 }
 
 export function runSmoke(id: string): SourcePackageSmokeResult {

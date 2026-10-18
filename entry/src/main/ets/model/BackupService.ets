@@ -4,6 +4,8 @@ import { buffer } from '@kit.ArkTS'
 import { preferences } from '@kit.ArkData'
 import { fileIo as fs, ListFileOptions, picker } from '@kit.CoreFileKit'
 import { AppStrings } from '../i18n/AppStrings'
+import { BackupRestoreActivity } from './BackupRestoreActivity'
+import { BackupRestoreCheckpoint } from './BackupRestoreCheckpoint'
 import {
   LIBRARY_STORE_PERSISTENCE_FILE_NAME,
   LIBRARY_STORE_PERSISTENCE_SCHEMA_VERSION,
@@ -25,6 +27,7 @@ import {
   exportInstalledSourcePackages,
   prepareSourcePackagesFromBackup,
   PreparedSourcePackageRestore,
+  restoreInstalledSourcePackagesAfterBackup,
 } from '../sourceRuntime/SourceRuntimeAppRegistry'
 import {
   SourceSettingsRecord,
@@ -983,39 +986,41 @@ export class BackupService {
   }
 
   private async buildBackupDocument(schemaVersion: number): Promise<KomaBackupDocument> {
-    const contentPreferences = await this.loadContentPreferences()
-    appReaderSessionStore(this.context.filesDir).flush()
-    const document: KomaBackupDocument = {
-      schemaVersion,
-      exportedAt: Date.now(),
-      encryption: {
-        state: BACKUP_ENCRYPTION_STATE,
-        algorithm: 'none',
-      },
-      libraryStore: readTextIfExists(this.libraryPath(), emptyLibraryStorePayload()),
-      readingProgress: readTextIfExists(this.readerProgressPath(), emptyReaderProgressPayload()),
-      remoteServers: await this.exportRemoteServers(),
-      sourcePackages: exportInstalledSourcePackages(),
-      sourceSettings: appSourceSettingsStore.exportAll(),
-      sourceFilterPreferences: appSourceFilterPreferencesStore.exportAll(),
-    }
-    if (contentPreferences.includeSettings) {
-      document.settings = await new ReaderPreferencesStore(this.context).load()
-      document.sourceIndexUrl = await this.exportSourceIndexUrl()
-      document.trackerSyncPreferences = await this.exportTrackerSyncPreferences()
-    }
-    if (contentPreferences.includeDownloadQueue) {
-      const downloadQueue = readTextIfExists(this.downloadQueuePath(), '')
-      if (downloadQueue.length > 0) {
-        document.downloadQueue = normalizeBackupDownloadQueuePayload(downloadQueue)
+    return BackupRestoreActivity.runWrite(async (): Promise<KomaBackupDocument> => {
+      const contentPreferences = await this.loadContentPreferences()
+      appReaderSessionStore(this.context.filesDir).flush()
+      const document: KomaBackupDocument = {
+        schemaVersion,
+        exportedAt: Date.now(),
+        encryption: {
+          state: BACKUP_ENCRYPTION_STATE,
+          algorithm: 'none',
+        },
+        libraryStore: readTextIfExists(this.libraryPath(), emptyLibraryStorePayload()),
+        readingProgress: readTextIfExists(this.readerProgressPath(), emptyReaderProgressPayload()),
+        remoteServers: await this.exportRemoteServers(),
+        sourcePackages: exportInstalledSourcePackages(),
+        sourceSettings: appSourceSettingsStore.exportAll(),
+        sourceFilterPreferences: appSourceFilterPreferencesStore.exportAll(),
       }
-    }
-    if (contentPreferences.includeTrackerMappings) {
-      document.trackerMappings = await this.exportTrackerMappings()
-    }
-    document.localLibraryMetadata = exportLocalLibraryMetadataBackupEntries(document.libraryStore)
-    console.info('[Backup] step=export_json')
-    return document
+      if (contentPreferences.includeSettings) {
+        document.settings = await new ReaderPreferencesStore(this.context).load()
+        document.sourceIndexUrl = await this.exportSourceIndexUrl()
+        document.trackerSyncPreferences = await this.exportTrackerSyncPreferences()
+      }
+      if (contentPreferences.includeDownloadQueue) {
+        const downloadQueue = readTextIfExists(this.downloadQueuePath(), '')
+        if (downloadQueue.length > 0) {
+          document.downloadQueue = normalizeBackupDownloadQueuePayload(downloadQueue)
+        }
+      }
+      if (contentPreferences.includeTrackerMappings) {
+        document.trackerMappings = await this.exportTrackerMappings()
+      }
+      document.localLibraryMetadata = exportLocalLibraryMetadataBackupEntries(document.libraryStore)
+      console.info('[Backup] step=export_json')
+      return document
+    })
   }
 
   async import(json: string): Promise<void> {
@@ -1028,17 +1033,21 @@ export class BackupService {
 
   private async importDocument(json: string, allowEncryptedContentSchema: boolean): Promise<void> {
     const document = prepareBackupRestoreDocument(json, allowEncryptedContentSchema)
+    BackupRestoreActivity.beginRestore()
     let sourcePlan: PreparedSourcePackageRestore | undefined
-    if (document.schemaVersion >= BACKUP_SCHEMA_VERSION_V2 && document.sourcePackages !== undefined) {
-      const prepared = await prepareSourcePackagesFromBackup(this.context, document.sourcePackages)
-      if (!prepared.ok || prepared.plan === undefined) {
-        throw new Error('Invalid backup source packages: ' + (prepared.reasonCode ?? 'restore_failed'))
-      }
-      sourcePlan = prepared.plan
-    }
+    let checkpoint: BackupRestoreCheckpoint | undefined
     try {
+      if (document.schemaVersion >= BACKUP_SCHEMA_VERSION_V2 && document.sourcePackages !== undefined) {
+        const prepared = await prepareSourcePackagesFromBackup(this.context, document.sourcePackages)
+        if (!prepared.ok || prepared.plan === undefined) {
+          throw new Error('Invalid backup source packages: ' + (prepared.reasonCode ?? 'restore_failed'))
+        }
+        sourcePlan = prepared.plan
+      }
       const sessionStore = appReaderSessionStore(this.context.filesDir)
+      // Include the user's already pending progress in the original state.
       sessionStore.flush()
+      checkpoint = await BackupRestoreCheckpoint.prepare(this.context)
       writeAppTextFile(this.libraryPath(), document.libraryStore)
       writeAppTextFile(this.readerProgressPath(), document.readingProgress)
       sessionStore.reload()
@@ -1053,14 +1062,38 @@ export class BackupService {
       }
       if (document.schemaVersion >= BACKUP_SCHEMA_VERSION_V2) {
         if (sourcePlan !== undefined) {
-          const restored = await sourcePlan.commit()
+          const restored = await sourcePlan.commit(true)
           if (!restored.ok) throw new Error('Backup source registry commit failed')
         }
         await this.importSettings(document.settings)
       }
+      checkpoint.commit()
       console.info('[Backup] step=import_json')
+    } catch (error) {
+      if (checkpoint !== undefined) {
+        try {
+          await checkpoint.rollback()
+          appReaderSessionStore(this.context.filesDir).reload()
+          if (!restoreInstalledSourcePackagesAfterBackup(this.context)) {
+            throw new Error('backup_registry_recovery_failed')
+          }
+          await new ReaderPreferencesStore(this.context).load()
+          checkpoint.completeRollback()
+        } catch (_recoveryError) {
+          BackupRestoreActivity.blockUntilRestart()
+          console.error('[BackupRecovery] step=rollback_failed code=backup_recovery_pending')
+          // Keep PREPARED and prevent this Ability from consuming mixed state.
+          await this.context.terminateSelf()
+          throw new Error('backup_recovery_pending')
+        }
+      }
+      throw error as Error
     } finally {
-      await sourcePlan?.discard()
+      try {
+        await sourcePlan?.discard()
+      } finally {
+        BackupRestoreActivity.finishRestore()
+      }
     }
   }
 
@@ -1360,7 +1393,7 @@ export class BackupService {
       volumeKeyNavigationEnabled: settings.volumeKeyNavigationEnabled ?? DEFAULT_READER_PREFERENCES.volumeKeyNavigationEnabled,
       volumeKeyBehavior: settings.volumeKeyBehavior ?? DEFAULT_READER_PREFERENCES.volumeKeyBehavior,
     }
-    await new ReaderPreferencesStore(this.context).save(nextSettings)
+    await new ReaderPreferencesStore(this.context).saveForBackupRestore(nextSettings)
   }
 
   private importSourceSettings(sourceSettings: Record<string, SourceSettingsRecord> | undefined): void {
@@ -1455,12 +1488,9 @@ export class BackupService {
     if (url === undefined || url.trim().length === 0) {
       return
     }
-    try {
-      const store = await preferences.getPreferences(this.context, SOURCE_INDEX_PREFS_STORE_NAME)
-      await store.put(SOURCE_INDEX_URL_KEY, url.trim())
-      await store.flush()
-    } catch (_err) {
-    }
+    const store = await preferences.getPreferences(this.context, SOURCE_INDEX_PREFS_STORE_NAME)
+    await store.put(SOURCE_INDEX_URL_KEY, url.trim())
+    await store.flush()
   }
 
   private async exportTrackerMappings(): Promise<ComicTrackerMapping[]> {

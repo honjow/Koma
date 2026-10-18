@@ -52,6 +52,7 @@ import { SourcePackageManagerPage } from './SourcePackageManagerPage'
 import { WebDavServerPage } from './WebDavServerPage'
 import { DownloadsPage } from './DownloadsPage'
 import { BackupManagementPage } from './BackupManagementPage'
+import { BackupRestoreActivity } from '../model/BackupRestoreActivity'
 import { TrackerSettingsPage } from './TrackerSettingsPage'
 import { RouteName, TabIndex, tabLabel } from '../common/Constants'
 import { MangaDetailTitleAction } from '../state/MangaDetailRouteChromeState'
@@ -1881,6 +1882,7 @@ struct Index {
           onOpenTask: (pane: string, fileName: string) => { this.openBackupTask(pane, fileName) } })
       }
       .titleBar(this.navDestTitleBarOpts(AppStrings.get('route_backup_management_title')))
+      .onBackPressed(() => BackupRestoreActivity.isRestoring())
       .onShown(() => { this.backupSettingsRevision += 1 })
     } else if (name === RouteName.BACKUP_TASK) {
       HdsNavDestination() {
@@ -1891,6 +1893,7 @@ struct Index {
           onOpenTask: (pane: string, fileName: string) => { this.openBackupTask(pane, fileName) } })
       }
       .titleBar(this.navDestTitleBarOpts(this.backupTaskTitle(param as BackupTaskRouteParam)))
+      .onBackPressed(() => BackupRestoreActivity.isRestoring())
       .onShown(() => { this.backupSettingsRevision += 1 })
     } else if (name === RouteName.TRACKER_SETTINGS) {
       HdsNavDestination() {

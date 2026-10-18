@@ -1,4 +1,5 @@
 import { OfflineChapterDownloadManifest } from './OfflineDownloadStore'
+import { BackupRestoreActivity } from './BackupRestoreActivity'
 
 interface OfflineDownloadExecution {
   filesDir: string
@@ -18,7 +19,7 @@ export class OfflineDownloadRuntime {
     if (existing !== undefined) {
       return existing
     }
-    const pending = Promise.resolve().then(initialize).then(() => {
+    const pending = BackupRestoreActivity.runWrite(() => Promise.resolve().then(initialize)).then(() => {
       OfflineDownloadRuntime.initialized.add(filesDir)
     }).catch((error: Error) => {
       OfflineDownloadRuntime.initializations.delete(filesDir)
@@ -51,7 +52,7 @@ export class OfflineDownloadRuntime {
     }
     const execution: OfflineDownloadExecution = {
       filesDir,
-      promise: Promise.resolve().then(start),
+      promise: BackupRestoreActivity.runWrite(() => Promise.resolve().then(start)),
       pauseRequested: false,
     }
     OfflineDownloadRuntime.executions.set(key, execution)

@@ -1,3 +1,4 @@
+import { BackupRestoreActivity } from './BackupRestoreActivity'
 import { common } from '@kit.AbilityKit'
 import { preferences } from '@kit.ArkData'
 import { buffer } from '@kit.ArkTS'
@@ -353,274 +354,298 @@ export class RemoteServerStore {
   }
 
   async loadKomga(): Promise<KomgaServerRecord | undefined> {
-    const store = await this.preferences()
-    const serverPayload = await store.get(KOMGA_SERVER_KEY, '') as string
-    if (serverPayload.length === 0) {
-      return undefined
-    }
-    const server = JSON.parse(serverPayload) as KomgaServerConfig
-    if (server.credentialRef === undefined) {
-      return { server }
-    }
-    const credentialPayload = await this.loadSecureCredentialPayload(
-      store,
-      KOMGA_CREDENTIAL_KEY,
-      'komga',
-      server.credentialRef,
-    )
-    if (credentialPayload === undefined) {
-      return { server }
-    }
-    const stored = JSON.parse(credentialPayload) as StoredKomgaCredential
-    if (stored === undefined || stored.credentialRef !== server.credentialRef) {
-      return { server }
-    }
-    return {
-      server,
-      credential: {
-        credentialRef: stored.credentialRef,
-        basicToken: stored.basicToken,
-        apiKey: stored.apiKey,
-        sessionToken: stored.sessionToken,
-      },
-    }
+    return BackupRestoreActivity.runWrite(async (): Promise<KomgaServerRecord | undefined> => {
+      const store = await this.preferences()
+      const serverPayload = await store.get(KOMGA_SERVER_KEY, '') as string
+      if (serverPayload.length === 0) {
+        return undefined
+      }
+      const server = JSON.parse(serverPayload) as KomgaServerConfig
+      if (server.credentialRef === undefined) {
+        return { server }
+      }
+      const credentialPayload = await this.loadSecureCredentialPayload(
+        store,
+        KOMGA_CREDENTIAL_KEY,
+        'komga',
+        server.credentialRef,
+      )
+      if (credentialPayload === undefined) {
+        return { server }
+      }
+      const stored = JSON.parse(credentialPayload) as StoredKomgaCredential
+      if (stored === undefined || stored.credentialRef !== server.credentialRef) {
+        return { server }
+      }
+      return {
+        server,
+        credential: {
+          credentialRef: stored.credentialRef,
+          basicToken: stored.basicToken,
+          apiKey: stored.apiKey,
+          sessionToken: stored.sessionToken,
+        },
+      }
+    })
   }
 
   async saveKomga(draft: KomgaServerDraft): Promise<KomgaServerRecord> {
-    const baseUrl = normalizeKomgaBaseUrl(draft.baseUrl)
-    if (baseUrl.length === 0) {
-      throw new RemoteServerDraftError('komga_error_missing_server_url')
-    }
-    const credential = await this.createCredential(draft, baseUrl)
-    const server: KomgaServerConfig = {
-      id: DEFAULT_KOMGA_SERVER_ID,
-      name: 'Komga',
-      baseUrl,
-      authKind: draft.authKind,
-      credentialRef: draft.authKind === KomgaAuthKind.NONE ? undefined : DEFAULT_KOMGA_CREDENTIAL_REF,
-    }
-    const store = await this.preferences()
-    if (credential !== undefined) {
-      await this.saveSecureCredential(store, KOMGA_CREDENTIAL_KEY, 'komga', DEFAULT_KOMGA_CREDENTIAL_REF, JSON.stringify(credential))
-    }
-    await store.put(KOMGA_SERVER_KEY, JSON.stringify(server))
-    if (credential === undefined) {
-      await this.saveSecureCredential(store, KOMGA_CREDENTIAL_KEY, 'komga', DEFAULT_KOMGA_CREDENTIAL_REF, undefined)
-    }
-    await store.flush()
-    console.info('[Komga] step=save_server')
-    return {
-      server,
-      credential,
-    }
+    return BackupRestoreActivity.runWrite(async (): Promise<KomgaServerRecord> => {
+      const baseUrl = normalizeKomgaBaseUrl(draft.baseUrl)
+      if (baseUrl.length === 0) {
+        throw new RemoteServerDraftError('komga_error_missing_server_url')
+      }
+      const credential = await this.createCredential(draft, baseUrl)
+      const server: KomgaServerConfig = {
+        id: DEFAULT_KOMGA_SERVER_ID,
+        name: 'Komga',
+        baseUrl,
+        authKind: draft.authKind,
+        credentialRef: draft.authKind === KomgaAuthKind.NONE ? undefined : DEFAULT_KOMGA_CREDENTIAL_REF,
+      }
+      const store = await this.preferences()
+      if (credential !== undefined) {
+        await this.saveSecureCredential(store, KOMGA_CREDENTIAL_KEY, 'komga', DEFAULT_KOMGA_CREDENTIAL_REF, JSON.stringify(credential))
+      }
+      await store.put(KOMGA_SERVER_KEY, JSON.stringify(server))
+      if (credential === undefined) {
+        await this.saveSecureCredential(store, KOMGA_CREDENTIAL_KEY, 'komga', DEFAULT_KOMGA_CREDENTIAL_REF, undefined)
+      }
+      await store.flush()
+      console.info('[Komga] step=save_server')
+      return {
+        server,
+        credential,
+      }
+    })
   }
 
   async clearKomga(): Promise<void> {
-    const store = await this.preferences()
-    await store.delete(KOMGA_SERVER_KEY)
-    await this.saveSecureCredential(store, KOMGA_CREDENTIAL_KEY, 'komga', DEFAULT_KOMGA_CREDENTIAL_REF, undefined)
-    await store.flush()
-    console.info('[Komga] step=clear_server')
+    return BackupRestoreActivity.runWrite(async (): Promise<void> => {
+      const store = await this.preferences()
+      await store.delete(KOMGA_SERVER_KEY)
+      await this.saveSecureCredential(store, KOMGA_CREDENTIAL_KEY, 'komga', DEFAULT_KOMGA_CREDENTIAL_REF, undefined)
+      await store.flush()
+      console.info('[Komga] step=clear_server')
+    })
   }
 
   async loadKavita(): Promise<KavitaServerRecord | undefined> {
-    const store = await this.preferences()
-    const serverPayload = await store.get(KAVITA_SERVER_KEY, '') as string
-    if (serverPayload.length === 0) {
-      return undefined
-    }
-    const server = JSON.parse(serverPayload) as KavitaServerConfig
-    const credentialPayload = await this.loadSecureCredentialPayload(
-      store,
-      KAVITA_CREDENTIAL_KEY,
-      'kavita',
-      server.credentialRef,
-    )
-    if (credentialPayload === undefined) {
-      return undefined
-    }
-    const stored = JSON.parse(credentialPayload) as StoredKavitaCredential
-    if (stored === undefined || stored.credentialRef !== server.credentialRef || stored.apiKey.length === 0) {
-      return undefined
-    }
-    return {
-      server,
-      credential: {
-        credentialRef: stored.credentialRef,
-        apiKey: stored.apiKey,
-      },
-    }
+    return BackupRestoreActivity.runWrite(async (): Promise<KavitaServerRecord | undefined> => {
+      const store = await this.preferences()
+      const serverPayload = await store.get(KAVITA_SERVER_KEY, '') as string
+      if (serverPayload.length === 0) {
+        return undefined
+      }
+      const server = JSON.parse(serverPayload) as KavitaServerConfig
+      const credentialPayload = await this.loadSecureCredentialPayload(
+        store,
+        KAVITA_CREDENTIAL_KEY,
+        'kavita',
+        server.credentialRef,
+      )
+      if (credentialPayload === undefined) {
+        return undefined
+      }
+      const stored = JSON.parse(credentialPayload) as StoredKavitaCredential
+      if (stored === undefined || stored.credentialRef !== server.credentialRef || stored.apiKey.length === 0) {
+        return undefined
+      }
+      return {
+        server,
+        credential: {
+          credentialRef: stored.credentialRef,
+          apiKey: stored.apiKey,
+        },
+      }
+    })
   }
 
   async saveKavita(draft: KavitaServerDraft): Promise<KavitaServerRecord> {
-    const baseUrl = normalizeKavitaBaseUrl(draft.baseUrl)
-    if (baseUrl.length === 0) {
-      throw new RemoteServerDraftError('kavita_error_missing_server_url')
-    }
-    const credential = this.createKavitaCredential(draft)
-    const server: KavitaServerConfig = {
-      id: DEFAULT_KAVITA_SERVER_ID,
-      name: 'Kavita',
-      baseUrl,
-      credentialRef: DEFAULT_KAVITA_CREDENTIAL_REF,
-    }
-    const store = await this.preferences()
-    await this.saveSecureCredential(store, KAVITA_CREDENTIAL_KEY, 'kavita', DEFAULT_KAVITA_CREDENTIAL_REF, JSON.stringify(credential))
-    await store.put(KAVITA_SERVER_KEY, JSON.stringify(server))
-    await store.flush()
-    console.info('[Kavita] step=save_server')
-    return {
-      server,
-      credential,
-    }
+    return BackupRestoreActivity.runWrite(async (): Promise<KavitaServerRecord> => {
+      const baseUrl = normalizeKavitaBaseUrl(draft.baseUrl)
+      if (baseUrl.length === 0) {
+        throw new RemoteServerDraftError('kavita_error_missing_server_url')
+      }
+      const credential = this.createKavitaCredential(draft)
+      const server: KavitaServerConfig = {
+        id: DEFAULT_KAVITA_SERVER_ID,
+        name: 'Kavita',
+        baseUrl,
+        credentialRef: DEFAULT_KAVITA_CREDENTIAL_REF,
+      }
+      const store = await this.preferences()
+      await this.saveSecureCredential(store, KAVITA_CREDENTIAL_KEY, 'kavita', DEFAULT_KAVITA_CREDENTIAL_REF, JSON.stringify(credential))
+      await store.put(KAVITA_SERVER_KEY, JSON.stringify(server))
+      await store.flush()
+      console.info('[Kavita] step=save_server')
+      return {
+        server,
+        credential,
+      }
+    })
   }
 
   async clearKavita(): Promise<void> {
-    const store = await this.preferences()
-    await store.delete(KAVITA_SERVER_KEY)
-    await this.saveSecureCredential(store, KAVITA_CREDENTIAL_KEY, 'kavita', DEFAULT_KAVITA_CREDENTIAL_REF, undefined)
-    await store.flush()
-    console.info('[Kavita] step=clear_server')
+    return BackupRestoreActivity.runWrite(async (): Promise<void> => {
+      const store = await this.preferences()
+      await store.delete(KAVITA_SERVER_KEY)
+      await this.saveSecureCredential(store, KAVITA_CREDENTIAL_KEY, 'kavita', DEFAULT_KAVITA_CREDENTIAL_REF, undefined)
+      await store.flush()
+      console.info('[Kavita] step=clear_server')
+    })
   }
 
   async loadWebDav(): Promise<WebDavServerRecord | undefined> {
-    const store = await this.preferences()
-    const serverPayload = await store.get(WEBDAV_SERVER_KEY, '') as string
-    if (serverPayload.length === 0) {
-      return undefined
-    }
-    const server = JSON.parse(serverPayload) as WebDavServerConfig
-    if (server.credentialRef === undefined) {
-      return { server }
-    }
-    const credentialPayload = await this.loadSecureCredentialPayload(
-      store,
-      WEBDAV_CREDENTIAL_KEY,
-      'webdav',
-      server.credentialRef,
-    )
-    if (credentialPayload === undefined) {
-      return { server }
-    }
-    const stored = JSON.parse(credentialPayload) as StoredWebDavCredential
-    if (stored === undefined || stored.credentialRef !== server.credentialRef) {
-      return { server }
-    }
-    return {
-      server,
-      credential: {
-        credentialRef: stored.credentialRef,
-        basicToken: stored.basicToken,
-      },
-    }
+    return BackupRestoreActivity.runWrite(async (): Promise<WebDavServerRecord | undefined> => {
+      const store = await this.preferences()
+      const serverPayload = await store.get(WEBDAV_SERVER_KEY, '') as string
+      if (serverPayload.length === 0) {
+        return undefined
+      }
+      const server = JSON.parse(serverPayload) as WebDavServerConfig
+      if (server.credentialRef === undefined) {
+        return { server }
+      }
+      const credentialPayload = await this.loadSecureCredentialPayload(
+        store,
+        WEBDAV_CREDENTIAL_KEY,
+        'webdav',
+        server.credentialRef,
+      )
+      if (credentialPayload === undefined) {
+        return { server }
+      }
+      const stored = JSON.parse(credentialPayload) as StoredWebDavCredential
+      if (stored === undefined || stored.credentialRef !== server.credentialRef) {
+        return { server }
+      }
+      return {
+        server,
+        credential: {
+          credentialRef: stored.credentialRef,
+          basicToken: stored.basicToken,
+        },
+      }
+    })
   }
 
   async saveWebDav(draft: WebDavServerDraft): Promise<WebDavServerRecord> {
-    const baseUrl = normalizeWebDavBaseUrl(draft.baseUrl)
-    if (baseUrl.length === 0) {
-      throw new RemoteServerDraftError('webdav_error_missing_server_url')
-    }
-    const credential = await this.createWebDavCredential(draft, baseUrl)
-    const rootPath = draft.rootPath === undefined ? '' : draft.rootPath.trim()
-    const server: WebDavServerConfig = {
-      id: DEFAULT_WEBDAV_SERVER_ID,
-      name: 'WebDAV',
-      baseUrl,
-      rootPath: rootPath.length === 0 ? undefined : rootPath,
-      authKind: credential === undefined ? WebDavAuthKind.NONE : WebDavAuthKind.BASIC,
-      credentialRef: credential === undefined ? undefined : DEFAULT_WEBDAV_CREDENTIAL_REF,
-    }
-    const store = await this.preferences()
-    if (credential !== undefined) {
-      await this.saveSecureCredential(store, WEBDAV_CREDENTIAL_KEY, 'webdav', DEFAULT_WEBDAV_CREDENTIAL_REF, JSON.stringify(credential))
-    }
-    await store.put(WEBDAV_SERVER_KEY, JSON.stringify(server))
-    if (credential === undefined) {
-      await this.saveSecureCredential(store, WEBDAV_CREDENTIAL_KEY, 'webdav', DEFAULT_WEBDAV_CREDENTIAL_REF, undefined)
-    }
-    await store.flush()
-    console.info('[WebDAV] step=save_server')
-    return {
-      server,
-      credential,
-    }
+    return BackupRestoreActivity.runWrite(async (): Promise<WebDavServerRecord> => {
+      const baseUrl = normalizeWebDavBaseUrl(draft.baseUrl)
+      if (baseUrl.length === 0) {
+        throw new RemoteServerDraftError('webdav_error_missing_server_url')
+      }
+      const credential = await this.createWebDavCredential(draft, baseUrl)
+      const rootPath = draft.rootPath === undefined ? '' : draft.rootPath.trim()
+      const server: WebDavServerConfig = {
+        id: DEFAULT_WEBDAV_SERVER_ID,
+        name: 'WebDAV',
+        baseUrl,
+        rootPath: rootPath.length === 0 ? undefined : rootPath,
+        authKind: credential === undefined ? WebDavAuthKind.NONE : WebDavAuthKind.BASIC,
+        credentialRef: credential === undefined ? undefined : DEFAULT_WEBDAV_CREDENTIAL_REF,
+      }
+      const store = await this.preferences()
+      if (credential !== undefined) {
+        await this.saveSecureCredential(store, WEBDAV_CREDENTIAL_KEY, 'webdav', DEFAULT_WEBDAV_CREDENTIAL_REF, JSON.stringify(credential))
+      }
+      await store.put(WEBDAV_SERVER_KEY, JSON.stringify(server))
+      if (credential === undefined) {
+        await this.saveSecureCredential(store, WEBDAV_CREDENTIAL_KEY, 'webdav', DEFAULT_WEBDAV_CREDENTIAL_REF, undefined)
+      }
+      await store.flush()
+      console.info('[WebDAV] step=save_server')
+      return {
+        server,
+        credential,
+      }
+    })
   }
 
   async clearWebDav(): Promise<void> {
-    const store = await this.preferences()
-    await store.delete(WEBDAV_SERVER_KEY)
-    await this.saveSecureCredential(store, WEBDAV_CREDENTIAL_KEY, 'webdav', DEFAULT_WEBDAV_CREDENTIAL_REF, undefined)
-    await store.flush()
-    console.info('[WebDAV] step=clear_server')
+    return BackupRestoreActivity.runWrite(async (): Promise<void> => {
+      const store = await this.preferences()
+      await store.delete(WEBDAV_SERVER_KEY)
+      await this.saveSecureCredential(store, WEBDAV_CREDENTIAL_KEY, 'webdav', DEFAULT_WEBDAV_CREDENTIAL_REF, undefined)
+      await store.flush()
+      console.info('[WebDAV] step=clear_server')
+    })
   }
 
   async loadOpds(): Promise<OpdsServerRecord | undefined> {
-    const store = await this.preferences()
-    const serverPayload = await store.get(OPDS_SERVER_KEY, '') as string
-    if (serverPayload.length === 0) {
-      return undefined
-    }
-    const server = JSON.parse(serverPayload) as OpdsServerConfig
-    if (server.credentialRef === undefined) {
-      return { server }
-    }
-    const credentialPayload = await this.loadSecureCredentialPayload(
-      store,
-      OPDS_CREDENTIAL_KEY,
-      'opds',
-      server.credentialRef,
-    )
-    if (credentialPayload === undefined) {
-      return { server }
-    }
-    const stored = JSON.parse(credentialPayload) as StoredOpdsCredential
-    if (stored === undefined || stored.credentialRef !== server.credentialRef) {
-      return { server }
-    }
-    return {
-      server,
-      credential: {
-        credentialRef: stored.credentialRef,
-        basicToken: stored.basicToken,
-      },
-    }
+    return BackupRestoreActivity.runWrite(async (): Promise<OpdsServerRecord | undefined> => {
+      const store = await this.preferences()
+      const serverPayload = await store.get(OPDS_SERVER_KEY, '') as string
+      if (serverPayload.length === 0) {
+        return undefined
+      }
+      const server = JSON.parse(serverPayload) as OpdsServerConfig
+      if (server.credentialRef === undefined) {
+        return { server }
+      }
+      const credentialPayload = await this.loadSecureCredentialPayload(
+        store,
+        OPDS_CREDENTIAL_KEY,
+        'opds',
+        server.credentialRef,
+      )
+      if (credentialPayload === undefined) {
+        return { server }
+      }
+      const stored = JSON.parse(credentialPayload) as StoredOpdsCredential
+      if (stored === undefined || stored.credentialRef !== server.credentialRef) {
+        return { server }
+      }
+      return {
+        server,
+        credential: {
+          credentialRef: stored.credentialRef,
+          basicToken: stored.basicToken,
+        },
+      }
+    })
   }
 
   async saveOpds(draft: OpdsServerDraft): Promise<OpdsServerRecord> {
-    const rootUrl = normalizeOpdsRootUrl(draft.rootUrl)
-    if (rootUrl.length === 0) {
-      throw new RemoteServerDraftError('opds_error_missing_catalog_url')
-    }
-    const credential = await this.createOpdsCredential(draft, rootUrl)
-    const server: OpdsServerConfig = {
-      id: DEFAULT_OPDS_SERVER_ID,
-      name: 'OPDS',
-      rootUrl,
-      version: draft.version,
-      credentialRef: credential === undefined ? undefined : DEFAULT_OPDS_CREDENTIAL_REF,
-    }
-    const store = await this.preferences()
-    if (credential !== undefined) {
-      await this.saveSecureCredential(store, OPDS_CREDENTIAL_KEY, 'opds', DEFAULT_OPDS_CREDENTIAL_REF, JSON.stringify(credential))
-    }
-    await store.put(OPDS_SERVER_KEY, JSON.stringify(server))
-    if (credential === undefined) {
-      await this.saveSecureCredential(store, OPDS_CREDENTIAL_KEY, 'opds', DEFAULT_OPDS_CREDENTIAL_REF, undefined)
-    }
-    await store.flush()
-    console.info('[OPDS] step=save_server')
-    return {
-      server,
-      credential,
-    }
+    return BackupRestoreActivity.runWrite(async (): Promise<OpdsServerRecord> => {
+      const rootUrl = normalizeOpdsRootUrl(draft.rootUrl)
+      if (rootUrl.length === 0) {
+        throw new RemoteServerDraftError('opds_error_missing_catalog_url')
+      }
+      const credential = await this.createOpdsCredential(draft, rootUrl)
+      const server: OpdsServerConfig = {
+        id: DEFAULT_OPDS_SERVER_ID,
+        name: 'OPDS',
+        rootUrl,
+        version: draft.version,
+        credentialRef: credential === undefined ? undefined : DEFAULT_OPDS_CREDENTIAL_REF,
+      }
+      const store = await this.preferences()
+      if (credential !== undefined) {
+        await this.saveSecureCredential(store, OPDS_CREDENTIAL_KEY, 'opds', DEFAULT_OPDS_CREDENTIAL_REF, JSON.stringify(credential))
+      }
+      await store.put(OPDS_SERVER_KEY, JSON.stringify(server))
+      if (credential === undefined) {
+        await this.saveSecureCredential(store, OPDS_CREDENTIAL_KEY, 'opds', DEFAULT_OPDS_CREDENTIAL_REF, undefined)
+      }
+      await store.flush()
+      console.info('[OPDS] step=save_server')
+      return {
+        server,
+        credential,
+      }
+    })
   }
 
   async clearOpds(): Promise<void> {
-    const store = await this.preferences()
-    await store.delete(OPDS_SERVER_KEY)
-    await this.saveSecureCredential(store, OPDS_CREDENTIAL_KEY, 'opds', DEFAULT_OPDS_CREDENTIAL_REF, undefined)
-    await store.flush()
-    console.info('[OPDS] step=clear_server')
+    return BackupRestoreActivity.runWrite(async (): Promise<void> => {
+      const store = await this.preferences()
+      await store.delete(OPDS_SERVER_KEY)
+      await this.saveSecureCredential(store, OPDS_CREDENTIAL_KEY, 'opds', DEFAULT_OPDS_CREDENTIAL_REF, undefined)
+      await store.flush()
+      console.info('[OPDS] step=clear_server')
+    })
   }
 
   createKomgaClient(record: KomgaServerRecord): KomgaClient {

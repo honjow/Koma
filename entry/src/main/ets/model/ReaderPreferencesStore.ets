@@ -1,3 +1,4 @@
+import { BackupRestoreActivity } from './BackupRestoreActivity'
 import { common } from '@kit.AbilityKit'
 import { preferences } from '@kit.ArkData'
 import { AppStrings } from '../i18n/AppStrings'
@@ -653,6 +654,15 @@ export class ReaderPreferencesStore {
   }
 
   async save(preferences: ReaderPreferences): Promise<ReaderPreferences> {
+    return BackupRestoreActivity.runWrite(() => this.persistPreferences(preferences))
+  }
+
+  async saveForBackupRestore(preferences: ReaderPreferences): Promise<ReaderPreferences> {
+    if (!BackupRestoreActivity.isRestoring()) throw new Error('backup_restore_not_active')
+    return this.persistPreferences(preferences)
+  }
+
+  private async persistPreferences(preferences: ReaderPreferences): Promise<ReaderPreferences> {
     const normalized = normalizeReaderPreferences(preferences)
     // Runtime state is published before the asynchronous flush so a visible
     // Reader and a mounted Settings page apply the same change immediately.
@@ -686,32 +696,34 @@ export class ReaderPreferencesStore {
   }
 
   async saveForComic(comicId: string, preferences: ReaderPreferences): Promise<ReaderPreferences> {
-    // RDR-005: the reader's own settings sheet is where a per-book choice is
-    // made, so its mode and direction become this comic's narrow override —
-    // and deliberately NOT the shared global default.  Writing them globally
-    // too would silently move every other book and make 恢复默认 restore the
-    // value that was just set, which is exactly the trap the host check caught.
-    const currentGlobal = await this.load()
-    const narrowed = this.cloneBase(preferences)
-    narrowed.pageMode = currentGlobal.pageMode
-    narrowed.readingDirection = currentGlobal.readingDirection
-    const normalized = await this.save(narrowed)
-    if (preferences.pageMode !== currentGlobal.pageMode ||
-      preferences.readingDirection !== currentGlobal.readingDirection) {
-      await this.writeSeriesModeOverride(comicId, {
-        pageMode: preferences.pageMode,
-        readingDirection: preferences.readingDirection,
-      })
-    } else {
-      // Nothing differs from the global default, so this comic must not carry
-      // an override (e.g. a background-only change in the reader sheet).
-      await this.clearSeriesModeOverride(comicId)
-    }
-    const effective = this.cloneBase(normalized)
-    effective.pageMode = preferences.pageMode
-    effective.readingDirection = preferences.readingDirection
-    publishReaderModeState(effective)
-    return effective
+    return BackupRestoreActivity.runWrite(async (): Promise<ReaderPreferences> => {
+      // RDR-005: the reader's own settings sheet is where a per-book choice is
+      // made, so its mode and direction become this comic's narrow override —
+      // and deliberately NOT the shared global default.  Writing them globally
+      // too would silently move every other book and make 恢复默认 restore the
+      // value that was just set, which is exactly the trap the host check caught.
+      const currentGlobal = await this.load()
+      const narrowed = this.cloneBase(preferences)
+      narrowed.pageMode = currentGlobal.pageMode
+      narrowed.readingDirection = currentGlobal.readingDirection
+      const normalized = await this.save(narrowed)
+      if (preferences.pageMode !== currentGlobal.pageMode ||
+        preferences.readingDirection !== currentGlobal.readingDirection) {
+        await this.writeSeriesModeOverride(comicId, {
+          pageMode: preferences.pageMode,
+          readingDirection: preferences.readingDirection,
+        })
+      } else {
+        // Nothing differs from the global default, so this comic must not carry
+        // an override (e.g. a background-only change in the reader sheet).
+        await this.clearSeriesModeOverride(comicId)
+      }
+      const effective = this.cloneBase(normalized)
+      effective.pageMode = preferences.pageMode
+      effective.readingDirection = preferences.readingDirection
+      publishReaderModeState(effective)
+      return effective
+    })
   }
 
   /** RDR-005 read back this comic's narrow override, if it has one. */
@@ -725,8 +737,10 @@ export class ReaderPreferencesStore {
 
   /** RDR-005 恢复默认: drop this comic's override and return the global defaults. */
   async clearSeriesOverride(comicId: string): Promise<ReaderPreferences> {
-    await this.clearSeriesModeOverride(comicId)
-    return this.load()
+    return BackupRestoreActivity.runWrite(async (): Promise<ReaderPreferences> => {
+      await this.clearSeriesModeOverride(comicId)
+      return this.load()
+    })
   }
 
   private async clearSeriesModeOverride(comicId: string): Promise<void> {
@@ -798,165 +812,209 @@ export class ReaderPreferencesStore {
   }
 
   async savePageMode(pageMode: ReaderPageMode): Promise<ReaderPreferences> {
-    const current = await this.load()
-    const next = this.cloneBase(current)
-    next.pageMode = pageMode
-    // Keep the legacy WEBTOON direction and the explicit mode in sync. This
-    // prevents a later switch back to single/vertical paging from remaining
-    // trapped in continuous mode because an old direction flag still wins.
-    if (pageMode === 'continuous_scroll') {
-      next.readingDirection = ReadingDirection.WEBTOON
-    } else if (next.readingDirection === ReadingDirection.WEBTOON) {
-      next.readingDirection = ReadingDirection.LEFT_TO_RIGHT
-    }
-    return this.save(next)
+    return BackupRestoreActivity.runWrite(async (): Promise<ReaderPreferences> => {
+      const current = await this.load()
+      const next = this.cloneBase(current)
+      next.pageMode = pageMode
+      // Keep the legacy WEBTOON direction and the explicit mode in sync. This
+      // prevents a later switch back to single/vertical paging from remaining
+      // trapped in continuous mode because an old direction flag still wins.
+      if (pageMode === 'continuous_scroll') {
+        next.readingDirection = ReadingDirection.WEBTOON
+      } else if (next.readingDirection === ReadingDirection.WEBTOON) {
+        next.readingDirection = ReadingDirection.LEFT_TO_RIGHT
+      }
+      return this.save(next)
+    })
   }
 
   async saveReadingDirection(readingDirection: ReadingDirection): Promise<ReaderPreferences> {
-    const current = await this.load()
-    const next = this.cloneBase(current)
-    next.readingDirection = readingDirection
-    return this.save(next)
+    return BackupRestoreActivity.runWrite(async (): Promise<ReaderPreferences> => {
+      const current = await this.load()
+      const next = this.cloneBase(current)
+      next.readingDirection = readingDirection
+      return this.save(next)
+    })
   }
 
   async saveSpreadLayoutMode(spreadLayoutMode: ReaderSpreadLayoutMode): Promise<ReaderPreferences> {
-    const current = await this.load()
-    const next = this.cloneBase(current)
-    next.spreadLayoutMode = normalizeReaderSpreadLayoutMode(spreadLayoutMode)
-    return this.save(next)
+    return BackupRestoreActivity.runWrite(async (): Promise<ReaderPreferences> => {
+      const current = await this.load()
+      const next = this.cloneBase(current)
+      next.spreadLayoutMode = normalizeReaderSpreadLayoutMode(spreadLayoutMode)
+      return this.save(next)
+    })
   }
 
   async saveThemeMode(themeMode: ReaderThemeMode): Promise<ReaderPreferences> {
-    const current = await this.load()
-    const next = this.cloneBase(current)
-    next.themeMode = themeMode
-    return this.save(next)
+    return BackupRestoreActivity.runWrite(async (): Promise<ReaderPreferences> => {
+      const current = await this.load()
+      const next = this.cloneBase(current)
+      next.themeMode = themeMode
+      return this.save(next)
+    })
   }
 
   async saveBackgroundMode(backgroundMode: ReaderBackgroundMode): Promise<ReaderPreferences> {
-    const current = await this.load()
-    const next = this.cloneBase(current)
-    next.backgroundMode = backgroundMode
-    return this.save(next)
+    return BackupRestoreActivity.runWrite(async (): Promise<ReaderPreferences> => {
+      const current = await this.load()
+      const next = this.cloneBase(current)
+      next.backgroundMode = backgroundMode
+      return this.save(next)
+    })
   }
 
   async saveImageScalingQuality(imageScalingQuality: ReaderImageScalingQuality): Promise<ReaderPreferences> {
-    const current = await this.load()
-    const next = this.cloneBase(current)
-    next.imageScalingQuality = normalizeReaderImageScalingQuality(imageScalingQuality)
-    return this.save(next)
+    return BackupRestoreActivity.runWrite(async (): Promise<ReaderPreferences> => {
+      const current = await this.load()
+      const next = this.cloneBase(current)
+      next.imageScalingQuality = normalizeReaderImageScalingQuality(imageScalingQuality)
+      return this.save(next)
+    })
   }
 
   async saveShowPageNumber(showPageNumber: boolean): Promise<ReaderPreferences> {
-    const current = await this.load()
-    const next = this.cloneBase(current)
-    next.showPageNumber = showPageNumber
-    return this.save(next)
+    return BackupRestoreActivity.runWrite(async (): Promise<ReaderPreferences> => {
+      const current = await this.load()
+      const next = this.cloneBase(current)
+      next.showPageNumber = showPageNumber
+      return this.save(next)
+    })
   }
 
   async saveFullscreen(fullscreen: boolean): Promise<ReaderPreferences> {
-    const current = await this.load()
-    const next = this.cloneBase(current)
-    next.fullscreen = fullscreen
-    return this.save(next)
+    return BackupRestoreActivity.runWrite(async (): Promise<ReaderPreferences> => {
+      const current = await this.load()
+      const next = this.cloneBase(current)
+      next.fullscreen = fullscreen
+      return this.save(next)
+    })
   }
 
   async savePageTurnAnimation(pageTurnAnimation: boolean): Promise<ReaderPreferences> {
-    const current = await this.load()
-    const next = this.cloneBase(current)
-    next.pageTurnAnimation = pageTurnAnimation
-    return this.save(next)
+    return BackupRestoreActivity.runWrite(async (): Promise<ReaderPreferences> => {
+      const current = await this.load()
+      const next = this.cloneBase(current)
+      next.pageTurnAnimation = pageTurnAnimation
+      return this.save(next)
+    })
   }
 
   async saveAutoPageSeconds(autoPageSeconds: number): Promise<ReaderPreferences> {
-    const current = await this.load()
-    const next = this.cloneBase(current)
-    next.autoPageSeconds = normalizeReaderAutoPageSeconds(autoPageSeconds)
-    return this.save(next)
+    return BackupRestoreActivity.runWrite(async (): Promise<ReaderPreferences> => {
+      const current = await this.load()
+      const next = this.cloneBase(current)
+      next.autoPageSeconds = normalizeReaderAutoPageSeconds(autoPageSeconds)
+      return this.save(next)
+    })
   }
 
   async savePreloadPages(preloadPages: number): Promise<ReaderPreferences> {
-    const current = await this.load()
-    const next = this.cloneBase(current)
-    next.preloadPages = normalizeReaderPreloadPages(preloadPages)
-    return this.save(next)
+    return BackupRestoreActivity.runWrite(async (): Promise<ReaderPreferences> => {
+      const current = await this.load()
+      const next = this.cloneBase(current)
+      next.preloadPages = normalizeReaderPreloadPages(preloadPages)
+      return this.save(next)
+    })
   }
 
   async saveShowProgressControls(showProgressControls: boolean): Promise<ReaderPreferences> {
-    const current = await this.load()
-    const next = this.cloneBase(current)
-    next.showProgressControls = showProgressControls
-    return this.save(next)
+    return BackupRestoreActivity.runWrite(async (): Promise<ReaderPreferences> => {
+      const current = await this.load()
+      const next = this.cloneBase(current)
+      next.showProgressControls = showProgressControls
+      return this.save(next)
+    })
   }
 
   async saveKeepScreenAwake(keepScreenAwake: boolean): Promise<ReaderPreferences> {
-    const current = await this.load()
-    const next = this.cloneBase(current)
-    next.keepScreenAwake = keepScreenAwake
-    return this.save(next)
+    return BackupRestoreActivity.runWrite(async (): Promise<ReaderPreferences> => {
+      const current = await this.load()
+      const next = this.cloneBase(current)
+      next.keepScreenAwake = keepScreenAwake
+      return this.save(next)
+    })
   }
 
   async saveImageFitMode(imageFitMode: ReaderImageFitMode): Promise<ReaderPreferences> {
-    const current = await this.load()
-    const next = this.cloneBase(current)
-    next.imageFitMode = imageFitMode
-    return this.save(next)
+    return BackupRestoreActivity.runWrite(async (): Promise<ReaderPreferences> => {
+      const current = await this.load()
+      const next = this.cloneBase(current)
+      next.imageFitMode = imageFitMode
+      return this.save(next)
+    })
   }
 
   async saveTapZonePreset(tapZonePreset: ReaderTapZonePreset): Promise<ReaderPreferences> {
-    const current = await this.load()
-    const next = this.cloneBase(current)
-    next.tapZonePreset = tapZonePreset
-    return this.save(next)
+    return BackupRestoreActivity.runWrite(async (): Promise<ReaderPreferences> => {
+      const current = await this.load()
+      const next = this.cloneBase(current)
+      next.tapZonePreset = tapZonePreset
+      return this.save(next)
+    })
   }
 
   async saveTapZoneInvert(tapZoneInvert: ReaderTapZoneInvert): Promise<ReaderPreferences> {
-    const current = await this.load()
-    const next = this.cloneBase(current)
-    next.tapZoneInvert = tapZoneInvert
-    return this.save(next)
+    return BackupRestoreActivity.runWrite(async (): Promise<ReaderPreferences> => {
+      const current = await this.load()
+      const next = this.cloneBase(current)
+      next.tapZoneInvert = tapZoneInvert
+      return this.save(next)
+    })
   }
 
   async savePageGapMode(pageGapMode: ReaderPageGapMode): Promise<ReaderPreferences> {
-    const current = await this.load()
-    const next = this.cloneBase(current)
-    next.pageGapMode = pageGapMode
-    return this.save(next)
+    return BackupRestoreActivity.runWrite(async (): Promise<ReaderPreferences> => {
+      const current = await this.load()
+      const next = this.cloneBase(current)
+      next.pageGapMode = pageGapMode
+      return this.save(next)
+    })
   }
 
   async saveTrimPageMarginsEnabled(trimPageMarginsEnabled: boolean): Promise<ReaderPreferences> {
-    const current = await this.load()
-    const next = this.cloneBase(current)
-    next.trimPageMarginsEnabled = trimPageMarginsEnabled
-    return this.save(next)
+    return BackupRestoreActivity.runWrite(async (): Promise<ReaderPreferences> => {
+      const current = await this.load()
+      const next = this.cloneBase(current)
+      next.trimPageMarginsEnabled = trimPageMarginsEnabled
+      return this.save(next)
+    })
   }
 
   async saveReaderImplementation(implementation: ReaderImplementation): Promise<ReaderPreferences> {
-    const current = await this.load()
-    const next = this.cloneBase(current)
-    next.readerImplementation = normalizeReaderImplementation(implementation)
-    return this.save(next)
+    return BackupRestoreActivity.runWrite(async (): Promise<ReaderPreferences> => {
+      const current = await this.load()
+      const next = this.cloneBase(current)
+      next.readerImplementation = normalizeReaderImplementation(implementation)
+      return this.save(next)
+    })
   }
 
   async saveWideImageMode(wideImageMode: ReaderWideImageMode): Promise<ReaderPreferences> {
-    const current = await this.load()
-    const next = this.cloneBase(current)
-    next.wideImageMode = wideImageMode
-    return this.save(next)
+    return BackupRestoreActivity.runWrite(async (): Promise<ReaderPreferences> => {
+      const current = await this.load()
+      const next = this.cloneBase(current)
+      next.wideImageMode = wideImageMode
+      return this.save(next)
+    })
   }
 
   async saveVolumeKeyNavigationEnabled(volumeKeyNavigationEnabled: boolean): Promise<ReaderPreferences> {
-    const current = await this.load()
-    const next = this.cloneBase(current)
-    next.volumeKeyNavigationEnabled = volumeKeyNavigationEnabled
-    return this.save(next)
+    return BackupRestoreActivity.runWrite(async (): Promise<ReaderPreferences> => {
+      const current = await this.load()
+      const next = this.cloneBase(current)
+      next.volumeKeyNavigationEnabled = volumeKeyNavigationEnabled
+      return this.save(next)
+    })
   }
 
   async saveVolumeKeyBehavior(volumeKeyBehavior: ReaderVolumeKeyBehavior): Promise<ReaderPreferences> {
-    const current = await this.load()
-    const next = this.cloneBase(current)
-    next.volumeKeyBehavior = volumeKeyBehavior
-    return this.save(next)
+    return BackupRestoreActivity.runWrite(async (): Promise<ReaderPreferences> => {
+      const current = await this.load()
+      const next = this.cloneBase(current)
+      next.volumeKeyBehavior = volumeKeyBehavior
+      return this.save(next)
+    })
   }
 
   private async preferences(): Promise<preferences.Preferences> {

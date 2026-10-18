@@ -1,3 +1,4 @@
+import { BackupRestoreActivity } from './BackupRestoreActivity'
 import { taskpool } from '@kit.ArkTS'
 import {
   Chapter,
@@ -579,33 +580,35 @@ export class LibraryUpdateService {
   }
 
   async checkLibraryUpdates(): Promise<LibraryUpdateSummary> {
-    const checkedAt = Date.now()
-    const comics = this.libraryStore.listComics()
-    const results: LibraryUpdateComicResult[] = []
-    let changed = false
-    const previousPayload = this.persistenceService === undefined ? undefined : serializeLibraryStore(this.libraryStore)
-    console.info(`[LibraryUpdate] step=start total=${comics.length}`)
-    for (let index = 0; index < comics.length; index += 1) {
-      const result = await this.checkComic(comics[index])
-      if (result.status === 'updated' || result.metadataChanged === true) {
-        changed = true
-      }
-      results.push(result)
-    }
-    if (changed && this.persistenceService !== undefined) {
-      try {
-        this.persistenceService.persist()
-      } catch (error) {
-        if (previousPayload !== undefined) {
-          hydrateLibraryStoreFromJson(this.libraryStore, previousPayload)
+    return BackupRestoreActivity.runWrite(async (): Promise<LibraryUpdateSummary> => {
+      const checkedAt = Date.now()
+      const comics = this.libraryStore.listComics()
+      const results: LibraryUpdateComicResult[] = []
+      let changed = false
+      const previousPayload = this.persistenceService === undefined ? undefined : serializeLibraryStore(this.libraryStore)
+      console.info(`[LibraryUpdate] step=start total=${comics.length}`)
+      for (let index = 0; index < comics.length; index += 1) {
+        const result = await this.checkComic(comics[index])
+        if (result.status === 'updated' || result.metadataChanged === true) {
+          changed = true
         }
-        const e = error as Error
-        throw new Error(e.message)
+        results.push(result)
       }
-    }
-    const summary = summarizeResults(checkedAt, results)
-    console.info(`[LibraryUpdate] step=done total=${summary.totalCount} updated=${summary.updatedCount} unchanged=${summary.unchangedCount} skipped=${summary.skippedCount} failed=${summary.failedCount}`)
-    return summary
+      if (changed && this.persistenceService !== undefined) {
+        try {
+          this.persistenceService.persist()
+        } catch (error) {
+          if (previousPayload !== undefined) {
+            hydrateLibraryStoreFromJson(this.libraryStore, previousPayload)
+          }
+          const e = error as Error
+          throw new Error(e.message)
+        }
+      }
+      const summary = summarizeResults(checkedAt, results)
+      console.info(`[LibraryUpdate] step=done total=${summary.totalCount} updated=${summary.updatedCount} unchanged=${summary.unchangedCount} skipped=${summary.skippedCount} failed=${summary.failedCount}`)
+      return summary
+    })
   }
 
   private async checkComic(comic: Comic): Promise<LibraryUpdateComicResult> {
