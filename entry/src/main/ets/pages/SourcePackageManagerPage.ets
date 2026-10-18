@@ -96,6 +96,10 @@ interface SourceSettingsValidationRequest {
   hostHints: SourceSettingsValidationHostHints
 }
 
+interface SourceDetailsContentParams {
+  source: InstalledSourcePackage
+}
+
 interface SourceDiagnosticsSettingCounts {
   total: number
   editable: number
@@ -126,6 +130,7 @@ export struct SourcePackageManagerPage {
   @Local private settingsValidationSourceId: string = ''
   @Local private sourceSheetShown: boolean = false
   @Local private sourceSheetSourceId: string = ''
+  @Local private sourceSheetRetainedSource: InstalledSourcePackage | undefined = undefined
   @Local private sourceSettingsSheetShown: boolean = false
   @Local private sourceIndexSheetShown: boolean = false
   @Local private pendingSourceSheetAction: SourceManagerPendingAction = 'none'
@@ -145,6 +150,10 @@ export struct SourcePackageManagerPage {
 
   private reload(): void {
     this.packages = listInstalled()
+    const sheetSource = this.sourceSheetSource()
+    if (sheetSource !== undefined) {
+      this.sourceSheetRetainedSource = sheetSource
+    }
     const availability: Record<string, string> = {}
     const validationStatuses: SourceSettingsValidationStatus[] = []
     this.packages.forEach((source: InstalledSourcePackage) => {
@@ -230,6 +239,7 @@ export struct SourcePackageManagerPage {
   private openSourceSheet(source: InstalledSourcePackage): void {
     this.pendingSourceSheetAction = 'none'
     this.pendingSourceSheetSourceId = ''
+    this.sourceSheetRetainedSource = source
     this.sourceSheetSourceId = source.id
     this.sourceSheetShown = true
   }
@@ -1618,7 +1628,7 @@ export struct SourcePackageManagerPage {
       parts.push(source.lang)
     }
     parts.push(this.sourceContentRatingLabel(source))
-    parts.push(source.status)
+    parts.push(this.installedTrustSummary(source).provenanceLabel)
     return parts.join(' · ')
   }
 
@@ -2056,77 +2066,77 @@ export struct SourcePackageManagerPage {
   }
 
   @Builder
-  private SourceDetailsContent(source: InstalledSourcePackage) {
+  private SourceDetailsContent(params: SourceDetailsContentParams) {
     Column({ space: ThemeConstants.SPACE_LG }) {
       GroupedListSection() {
         ConciseListRow({
           title: t('tab_browse'),
-          subtitle: source.enabled ? '' : t('source_pkg_disabled'),
+          subtitle: params.source.enabled ? '' : t('source_pkg_disabled'),
           leadingIcon: $r('sys.symbol.compass'),
-          isEnabled: source.enabled,
+          isEnabled: params.source.enabled,
           action: () => {
-            this.openSourceBrowseFromSheet(source)
+            this.openSourceBrowseFromSheet(params.source)
           },
         })
         ListDivider()
         ConciseListRow({
           title: t('tab_search'),
-          subtitle: this.sourceSupportsSearch(source) ? '' : t('source_pkg_unsupported'),
+          subtitle: this.sourceSupportsSearch(params.source) ? '' : t('source_pkg_unsupported'),
           leadingIcon: $r('sys.symbol.magnifyingglass'),
-          isEnabled: source.enabled && this.sourceSupportsSearch(source),
+          isEnabled: params.source.enabled && this.sourceSupportsSearch(params.source),
           action: () => {
-            this.openSourceSearchFromSheet(source)
+            this.openSourceSearchFromSheet(params.source)
           },
         })
         ListDivider()
         ConciseListRow({
           title: t('source_pkg_settings'),
-          trailingText: this.sourceSettingsText(source),
+          trailingText: this.sourceSettingsText(params.source),
           leadingIcon: $r('sys.symbol.gearshape'),
           action: () => {
-            this.openSourceSettingsFromSheet(source)
+            this.openSourceSettingsFromSheet(params.source)
           },
         })
       }
 
-      if (this.hasSourcePackageMetadata(source)) {
+      if (this.hasSourcePackageMetadata(params.source)) {
         SectionHeader({ title: t('source_pkg_information_section') })
         GroupedListSection() {
-          if (source.description.length > 0) {
+          if (params.source.description.length > 0) {
             ConciseListRow({
               title: t('common_description'),
-              subtitle: source.description,
+              subtitle: params.source.description,
               subtitleMaxLines: 3,
               showChevron: false,
             })
-            if (source.author.length > 0 || source.contentRating.length > 0 || source.minAppVersion.length > 0) {
+            if (params.source.author.length > 0 || params.source.contentRating.length > 0 || params.source.minAppVersion.length > 0) {
               ListDivider()
             }
           }
-          if (source.author.length > 0) {
+          if (params.source.author.length > 0) {
             ConciseListRow({
               title: t('source_pkg_author'),
-              subtitle: source.author,
+              subtitle: params.source.author,
               showChevron: false,
             })
-            if (source.contentRating.length > 0 || source.minAppVersion.length > 0) {
+            if (params.source.contentRating.length > 0 || params.source.minAppVersion.length > 0) {
               ListDivider()
             }
           }
-          if (source.contentRating.length > 0) {
+          if (params.source.contentRating.length > 0) {
             ConciseListRow({
               title: t('source_pkg_content_rating'),
-              subtitle: this.sourceContentRatingLabel(source),
+              subtitle: this.sourceContentRatingLabel(params.source),
               showChevron: false,
             })
-            if (source.minAppVersion.length > 0) {
+            if (params.source.minAppVersion.length > 0) {
               ListDivider()
             }
           }
-          if (source.minAppVersion.length > 0) {
+          if (params.source.minAppVersion.length > 0) {
             ConciseListRow({
               title: t('source_pkg_min_app_version'),
-              subtitle: source.minAppVersion,
+              subtitle: params.source.minAppVersion,
               showChevron: false,
             })
           }
@@ -2135,23 +2145,23 @@ export struct SourcePackageManagerPage {
 
       SectionHeader({ title: t('source_pkg_management_section') })
       GroupedListSection() {
-        if (this.updateEntry(source.id) !== undefined) {
+        if (this.updateEntry(params.source.id) !== undefined) {
           ConciseListRow({
-            title: this.updateActionLabel(source.id),
-            subtitle: this.updateStatusText(source),
+            title: this.updateActionLabel(params.source.id),
+            subtitle: this.updateStatusText(params.source),
             leadingIcon: $r('sys.symbol.arrow_clockwise'),
             isEnabled: this.updateInstallSourceId.length === 0 && !this.indexInstallBusy && !this.busy,
             action: () => {
-              this.updateInstalledPackage(source)
+              this.updateInstalledPackage(params.source)
             },
           })
           ListDivider()
         }
         ConciseListRow({
-          title: source.enabled ? t('source_pkg_disable') : t('source_pkg_enable'),
-          leadingIcon: source.enabled ? $r('sys.symbol.pause') : $r('sys.symbol.play'),
+          title: params.source.enabled ? t('source_pkg_disable') : t('source_pkg_enable'),
+          leadingIcon: params.source.enabled ? $r('sys.symbol.pause') : $r('sys.symbol.play'),
           action: () => {
-            this.togglePackage(source.id)
+            this.togglePackage(params.source.id)
           },
         })
         ListDivider()
@@ -2160,7 +2170,7 @@ export struct SourcePackageManagerPage {
           destructive: true,
           leadingIcon: $r('sys.symbol.trash'),
           action: () => {
-            this.requestSourceSheetDismiss('confirm_remove', source)
+            this.requestSourceSheetDismiss('confirm_remove', params.source)
           },
         })
       }
@@ -2182,7 +2192,9 @@ export struct SourcePackageManagerPage {
           this.requestSourceSheetDismiss()
         },
       }) {
-        this.SourceDetailsContent(this.sourceSheetSource()!)
+        // Child updates can outlive onDisappear clearing the selected ID.
+        // Retain the last live render payload; actions still resolve the registry.
+        this.SourceDetailsContent({ source: this.sourceSheetSource() ?? this.sourceSheetRetainedSource! })
       }
     }
   }
@@ -2504,7 +2516,6 @@ export struct SourcePackageManagerPage {
         Column() {
           SecondaryListScaffold({
             listSpace: ThemeConstants.SPACE_MD,
-            horizontalPadding: ThemeConstants.SPACE_XL,
             bottomPadding: ThemeConstants.SPACE_XL,
           }) {
             ListItem() {
