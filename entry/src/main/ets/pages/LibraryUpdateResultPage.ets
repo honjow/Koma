@@ -21,6 +21,10 @@ import { formatLibraryUpdateTimestamp } from '../model/LibraryUpdatePreferencesS
 import { ThemeConstants } from '../theme/ThemeConstants'
 import { AppStrings } from '../i18n/AppStrings'
 import { connectLanguageState, LanguageState } from '../state/LanguageState'
+import { connectLibraryUpdateState, LibraryUpdateState } from '../state/LibraryUpdateState'
+import { LibraryStore } from '../model/LibraryStore'
+import { SourceRuntimeRegistry, SourceRuntimeRegistryEntry } from '../sourceRuntime/SourceRuntimeRegistry'
+import { libraryUpdateComicTitle, libraryUpdateProviderTitle, LibraryUpdateSourceLabel } from '../model/LibraryUpdatePresentation'
 
 function s(name: string): string {
   return AppStrings.get(name)
@@ -28,7 +32,10 @@ function s(name: string): string {
 
 @ComponentV2
 export struct LibraryUpdateResultPage {
+  @Param libraryStore?: LibraryStore = undefined
+  @Param sourceRegistry?: SourceRuntimeRegistry = undefined
   @Local private languageState: LanguageState = connectLanguageState()
+  @Local private libraryUpdateState: LibraryUpdateState = connectLibraryUpdateState()
   @Local private summary?: LibraryUpdateSummary = undefined
   @Local private jobSnapshot?: LibraryUpdateJobSnapshot = undefined
 
@@ -41,6 +48,11 @@ export struct LibraryUpdateResultPage {
   }
 
   aboutToAppear(): void {
+    this.reloadResults()
+  }
+
+  @Monitor('libraryUpdateState.revision')
+  private reloadResults(): void {
     const latestJob = getLatestLibraryUpdateJobSnapshot()
     const latest = this.effectiveSummaryForJob(getLatestLibraryUpdateSummary(), latestJob)
     this.jobSnapshot = latestJob
@@ -81,7 +93,7 @@ export struct LibraryUpdateResultPage {
           setLatestLibraryUpdateSummary(summary)
           effectiveSummary = summary
         }
-        this.summary = this.effectiveSummaryForJob(effectiveSummary, jobSnapshot)
+        this.summary = this.effectiveSummaryForJob(effectiveSummary, getLatestLibraryUpdateJobSnapshot() ?? jobSnapshot)
         const total = effectiveSummary === undefined ? 0 : effectiveSummary.totalCount
         console.info('[LibraryUpdateResults] step=load_persisted hasSummary=' + (effectiveSummary !== undefined) + ' total=' + total)
       })
@@ -104,7 +116,7 @@ export struct LibraryUpdateResultPage {
     if (summary === undefined) {
       return true
     }
-    return (snapshot as LibraryUpdateJobSnapshot).updatedAt >= summary.checkedAt
+    return (snapshot as LibraryUpdateJobSnapshot).updatedAt > summary.checkedAt
   }
 
   private effectiveSummaryForJob(
@@ -145,10 +157,11 @@ export struct LibraryUpdateResultPage {
   }
 
   private providerTitle(summary: LibraryUpdateProviderSummary): string {
-    if (summary.sourceKey === summary.providerKind) {
-      return summary.providerKind
-    }
-    return `${summary.providerKind} / ${summary.sourceKey}`
+    const sources: LibraryUpdateSourceLabel[] = (this.sourceRegistry?.list() ?? [])
+      .map((entry: SourceRuntimeRegistryEntry): LibraryUpdateSourceLabel => {
+        return { id: entry.sourceId, name: entry.manifestName }
+      })
+    return libraryUpdateProviderTitle(summary, this.summary?.results ?? [], this.libraryStore?.listComics() ?? [], sources)
   }
 
   private providerCountsText(summary: LibraryUpdateProviderSummary): string {
@@ -221,9 +234,9 @@ export struct LibraryUpdateResultPage {
   }
 
   @Builder
-  private SummaryMetric(label: string, value: number) {
+  private SummaryMetric(label: string, metric: string) {
     Column({ space: ThemeConstants.SPACE_XS }) {
-      Text(`${value}`)
+      Text(`${this.summaryMetricValue(metric)}`)
         .fontSize(ThemeConstants.FONT_SIZE_HEADING)
         .fontWeight(FontWeight.Medium)
         .fontColor(ThemeConstants.TEXT_PRIMARY)
@@ -234,8 +247,23 @@ export struct LibraryUpdateResultPage {
     .layoutWeight(1)
   }
 
+  private summaryMetricValue(metric: string): number {
+    const summary = this.summary
+    if (summary === undefined) {
+      return 0
+    }
+    switch (metric) {
+      case 'total': return summary.totalCount
+      case 'updated': return summary.updatedCount
+      case 'unchanged': return summary.unchangedCount
+      case 'skipped': return summary.skippedCount
+      case 'failed': return summary.failedCount
+      default: return countLibraryUpdateNewChapters(summary)
+    }
+  }
+
   @Builder
-  private SummaryCard(summary: LibraryUpdateSummary) {
+  private SummaryCard() {
     ListItem() {
       Column({ space: ThemeConstants.SPACE_LG }) {
         Row() {
@@ -244,22 +272,22 @@ export struct LibraryUpdateResultPage {
             .fontWeight(FontWeight.Medium)
             .fontColor(ThemeConstants.TEXT_PRIMARY)
             .layoutWeight(1)
-          Text(this.formatTimestamp(summary.checkedAt))
+          Text(this.summary === undefined ? '' : this.formatTimestamp(this.summary.checkedAt))
             .fontSize(ThemeConstants.FONT_SIZE_META)
             .fontColor(ThemeConstants.TEXT_SECONDARY)
         }
         .width('100%')
 
         Row() {
-          this.SummaryMetric(s('library_update_results_metric_total'), summary.totalCount)
-          this.SummaryMetric(s('library_update_results_metric_updated'), summary.updatedCount)
-          this.SummaryMetric(s('library_update_results_metric_unchanged'), summary.unchangedCount)
-          this.SummaryMetric(s('library_update_results_metric_skipped'), summary.skippedCount)
-          this.SummaryMetric(s('library_update_results_metric_failed'), summary.failedCount)
+          this.SummaryMetric(s('library_update_results_metric_total'), 'total')
+          this.SummaryMetric(s('library_update_results_metric_updated'), 'updated')
+          this.SummaryMetric(s('library_update_results_metric_unchanged'), 'unchanged')
+          this.SummaryMetric(s('library_update_results_metric_skipped'), 'skipped')
+          this.SummaryMetric(s('library_update_results_metric_failed'), 'failed')
         }
         .width('100%')
         Row() {
-          this.SummaryMetric(s('library_update_results_metric_new_chapters'), countLibraryUpdateNewChapters(summary))
+          this.SummaryMetric(s('library_update_results_metric_new_chapters'), 'new-chapters')
           Blank()
             .layoutWeight(4)
         }
@@ -273,7 +301,7 @@ export struct LibraryUpdateResultPage {
   }
 
   @Builder
-  private ProviderSummaryCard(summary: LibraryUpdateSummary) {
+  private ProviderSummaryCard() {
     ListItem() {
       Column({ space: ThemeConstants.SPACE_MD }) {
         Text(s('library_update_results_provider_heading'))
@@ -281,7 +309,7 @@ export struct LibraryUpdateResultPage {
           .fontSize(ThemeConstants.FONT_SIZE_BODY)
           .fontWeight(FontWeight.Medium)
           .fontColor(ThemeConstants.TEXT_PRIMARY)
-        ForEach(summary.providerSummaries, (provider: LibraryUpdateProviderSummary) => {
+        ForEach(this.summary?.providerSummaries ?? [], (provider: LibraryUpdateProviderSummary) => {
           Column({ space: ThemeConstants.SPACE_XS }) {
             Text(this.providerTitle(provider))
               .width('100%')
@@ -303,7 +331,7 @@ export struct LibraryUpdateResultPage {
               .textOverflow({ overflow: TextOverflow.Ellipsis })
           }
           .width('100%')
-        }, (provider: LibraryUpdateProviderSummary) => `${provider.providerKind}:${provider.sourceKey}`)
+        }, (provider: LibraryUpdateProviderSummary) => `${this.summary?.checkedAt}:${provider.providerKind}:${provider.sourceKey}`)
       }
       .width('100%')
       .padding({ left: ThemeConstants.SPACE_LG, right: ThemeConstants.SPACE_LG, top: ThemeConstants.SPACE_LG, bottom: ThemeConstants.SPACE_LG })
@@ -317,7 +345,7 @@ export struct LibraryUpdateResultPage {
     ListItem() {
       Column({ space: ThemeConstants.SPACE_SM }) {
         Row({ space: ThemeConstants.SPACE_MD }) {
-          Text(result.comicId)
+          Text(libraryUpdateComicTitle(this.libraryStore?.getComic(result.comicId)))
             .fontSize(ThemeConstants.FONT_SIZE_BODY)
             .fontColor(ThemeConstants.TEXT_PRIMARY)
             .maxLines(1)
@@ -357,17 +385,16 @@ export struct LibraryUpdateResultPage {
     Column() {
       SecondaryListScaffold({
         listSpace: ThemeConstants.SPACE_MD,
-        horizontalPadding: ThemeConstants.SPACE_XL,
         bottomPadding: ThemeConstants.SPACE_XL,
       }) {
         if (this.summary === undefined) {
           this.EmptyState()
         } else {
-          this.SummaryCard(this.summary as LibraryUpdateSummary)
-          this.ProviderSummaryCard(this.summary as LibraryUpdateSummary)
-          ForEach((this.summary as LibraryUpdateSummary).results, (result: LibraryUpdateComicResult) => {
+          this.SummaryCard()
+          this.ProviderSummaryCard()
+          ForEach(this.summary?.results ?? [], (result: LibraryUpdateComicResult) => {
             this.ResultRow(result)
-          }, (result: LibraryUpdateComicResult) => result.comicId)
+          }, (result: LibraryUpdateComicResult) => `${this.summary?.checkedAt}:${result.comicId}`)
         }
       }
     }

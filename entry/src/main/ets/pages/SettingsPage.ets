@@ -18,9 +18,7 @@ import {
   LibraryViewMode,
 } from '../model/LibraryFilterStore'
 import {
-  LibraryUpdateService,
   LibraryUpdateSummary,
-  countLibraryUpdateNewChapters,
   formatLibraryUpdateSummary,
 } from '../model/LibraryUpdateService'
 import {
@@ -34,12 +32,10 @@ import {
   LibraryUpdateResultStore,
   LibraryUpdateNotificationDispatchResult,
   clearLatestLibraryUpdateSummary,
-  createLibraryUpdateJobSnapshot,
+  classifyLibraryUpdateSummary,
   getLibraryUpdateNotificationStatus,
   getLatestLibraryUpdateJobSnapshot,
   getLatestLibraryUpdateSummary,
-  publishLibraryUpdateFailureNotification,
-  publishLibraryUpdateNotification,
   requestLibraryUpdateNotificationPermission,
   setLatestLibraryUpdateJobSnapshot,
   setLatestLibraryUpdateSummary,
@@ -57,11 +53,9 @@ import {
   formatLibraryUpdateStoredSummary,
   getLibraryUpdateAutoCheckLabel,
   getLibraryUpdateLastResultLabel,
-  getLibraryUpdateNextDueAt,
   getLibraryUpdateNextDueLabel,
   getLibraryUpdateNotificationStatusLabel,
   formatLibraryUpdateTimestamp,
-  isLibraryUpdateDue,
   normalizeLibraryUpdateFailureCode,
   normalizeLibraryUpdateFailureCount,
 } from '../model/LibraryUpdatePreferencesStore'
@@ -138,6 +132,8 @@ import { AppStrings } from '../i18n/AppStrings'
 import { LanguageSettings } from '../i18n/LanguageSettings'
 import { connectLanguageState, LanguageState } from '../state/LanguageState'
 import { connectReaderModeState, ReaderModeState } from '../state/ReaderModeState'
+import { LibraryUpdateState, connectLibraryUpdateState } from '../state/LibraryUpdateState'
+import { mutateLibraryUpdatePreferences, requestLibraryUpdateCheck } from '../model/LibraryUpdateCoordinator'
 
 interface SettingsRow {
   key: string
@@ -448,7 +444,7 @@ export struct SettingsPage {
   @Local private imageCacheState: string = 'unavailable'
   @Local private imageCacheMaxBytes: number = DEFAULT_READER_REMOTE_IMAGE_CACHE_PREFERENCES.maxBytes
   @Local private imageCacheAutoCleanEnabled: boolean = DEFAULT_READER_REMOTE_IMAGE_CACHE_PREFERENCES.autoCleanEnabled
-  @Local private libraryUpdateBusy: boolean = false
+  @Local private libraryUpdateState: LibraryUpdateState = connectLibraryUpdateState()
   @Local private libraryUpdateSummary?: LibraryUpdateSummary = undefined
   @Local private libraryUpdateJobSnapshot?: LibraryUpdateJobSnapshot = undefined
   @Local private libraryUpdatePreferences: LibraryUpdatePreferences = DEFAULT_LIBRARY_UPDATE_PREFERENCES
@@ -666,16 +662,13 @@ export struct SettingsPage {
       return getLibraryUpdateAutoCheckLabel(this.libraryUpdatePreferences)
     }
     if (row.key === 'library-update-interval') {
-      if (!this.libraryUpdatePreferences.autoCheckEnabled) {
-        return this.t('settings_library_update_enable_first')
-      }
-      return `${getLibraryUpdateAutoCheckLabel(this.libraryUpdatePreferences)} · ${getLibraryUpdateNextDueLabel(this.libraryUpdatePreferences)}`
+      return getLibraryUpdateAutoCheckLabel(this.libraryUpdatePreferences)
     }
     if (row.key === 'library-update-notifications') {
       return getLibraryUpdateNotificationStatusLabel(this.libraryUpdateNotificationStatus)
     }
     if (row.key === 'library-update') {
-      if (this.libraryUpdateBusy) {
+      if (this.libraryUpdateState.busy) {
         return this.t('common_checking')
       }
       const effectiveSummary = this.getEffectiveLibraryUpdateSummary()
@@ -994,7 +987,7 @@ export struct SettingsPage {
     if (summary === undefined) {
       return true
     }
-    return (snapshot as LibraryUpdateJobSnapshot).updatedAt >= summary.checkedAt
+    return (snapshot as LibraryUpdateJobSnapshot).updatedAt > summary.checkedAt
   }
 
   private effectiveLibraryUpdateSummary(
@@ -1015,7 +1008,7 @@ export struct SettingsPage {
       normalizeLibraryUpdateFailureCount(this.libraryUpdatePreferences.failureCount) <= 0) {
       return false
     }
-    return this.libraryUpdatePreferences.lastCheckedAt >= summary.checkedAt
+    return this.libraryUpdatePreferences.lastCheckedAt > summary.checkedAt
   }
 
   private clearStaleLibraryUpdateSummaryAfterFailure(): void {
@@ -1078,13 +1071,18 @@ export struct SettingsPage {
     this.readerVolumeKeyBehavior = preferences.volumeKeyBehavior
   }
 
+  @Monitor('libraryUpdateState.revision')
+  private reloadCompletedLibraryUpdate(): void {
+    this.loadLibraryUpdatePreferences()
+    this.loadLatestLibraryUpdateSummary()
+  }
+
   private loadLibraryUpdatePreferences(): void {
-    void this.libraryUpdatePreferencesStore().load()
+    void mutateLibraryUpdatePreferences(() => this.libraryUpdatePreferencesStore().load(true))
       .then((preferences: LibraryUpdatePreferences) => {
         this.libraryUpdatePreferences = preferences
         this.clearStaleLibraryUpdateSummaryAfterFailure()
         console.info('[Settings] step=load_library_update_preferences auto=' + preferences.autoCheckEnabled + ' intervalHours=' + preferences.intervalHours)
-        this.runDueLibraryUpdateCheck()
       })
       .catch((error: Error) => {
         console.warn('[Settings] step=load_library_update_preferences_failed code=' + safeSettingsErrorCode(error))
@@ -1199,7 +1197,8 @@ export struct SettingsPage {
           setLatestLibraryUpdateSummary(summary)
           effectiveSummary = summary
         }
-        this.libraryUpdateSummary = this.effectiveLibraryUpdateSummary(effectiveSummary, jobSnapshot)
+        this.libraryUpdateSummary = this.effectiveLibraryUpdateSummary(effectiveSummary,
+          getLatestLibraryUpdateJobSnapshot() ?? jobSnapshot)
         const total = this.libraryUpdateSummary === undefined ? 0 : this.libraryUpdateSummary.totalCount
         console.info('[Settings] step=load_library_update_results hasSummary=' + (this.libraryUpdateSummary !== undefined) + ' total=' + total)
       })
@@ -1209,22 +1208,7 @@ export struct SettingsPage {
   }
 
   private runDueLibraryUpdateCheck(): void {
-    if (!isLibraryUpdateDue(this.libraryUpdatePreferences, Date.now())) {
-      return
-    }
-    console.info('[Settings] step=library_update_due_check intervalHours=' + this.libraryUpdatePreferences.intervalHours)
-    const dueAt = Date.now()
-    const dueSnapshot = createLibraryUpdateJobSnapshot('due', dueAt)
-    setLatestLibraryUpdateJobSnapshot(dueSnapshot)
-    void this.libraryUpdateResultStore().saveJobSnapshot(dueSnapshot)
-      .then(() => {
-        console.info('[Settings] step=save_library_update_job_due')
-        this.checkLibraryUpdates('due')
-      })
-      .catch((error: Error) => {
-        console.warn('[Settings] step=save_library_update_job_due_failed code=' + safeSettingsErrorCode(error))
-        this.checkLibraryUpdates('due')
-      })
+    this.checkLibraryUpdates('due')
   }
 
   private loadVersion(): void {
@@ -1650,21 +1634,7 @@ export struct SettingsPage {
   }
 
   private setLibraryAutoUpdateEnabled(autoCheckEnabled: boolean): void {
-    const nextPreferences: LibraryUpdatePreferences = {
-      autoCheckEnabled,
-      intervalHours: this.libraryUpdatePreferences.intervalHours,
-      foregroundOnly: this.libraryUpdatePreferences.foregroundOnly,
-      failureCount: this.libraryUpdatePreferences.failureCount,
-    }
-    if (this.libraryUpdatePreferences.lastCheckedAt !== undefined) {
-      nextPreferences.lastCheckedAt = this.libraryUpdatePreferences.lastCheckedAt
-    }
-    this.copyLibraryUpdateSummaryState(this.libraryUpdatePreferences, nextPreferences)
-    if (this.libraryUpdatePreferences.lastFailureCode !== undefined) {
-      nextPreferences.lastFailureCode = this.libraryUpdatePreferences.lastFailureCode
-    }
-    this.libraryUpdatePreferences = nextPreferences
-    void this.libraryUpdatePreferencesStore().saveAutoCheckEnabled(autoCheckEnabled)
+    void mutateLibraryUpdatePreferences(() => this.libraryUpdatePreferencesStore().saveAutoCheckEnabled(autoCheckEnabled))
       .then((preferences: LibraryUpdatePreferences) => {
         this.saveLibraryUpdatePreferences(preferences)
         console.info('[Settings] step=save_library_auto_update value=' + preferences.autoCheckEnabled)
@@ -1674,26 +1644,13 @@ export struct SettingsPage {
       })
       .catch((error: Error) => {
         console.warn('[Settings] step=save_library_auto_update_failed code=' + safeSettingsErrorCode(error))
+        this.loadLibraryUpdatePreferences()
         this.showToast(s('settings_library_auto_update_save_failed'))
       })
   }
 
   private saveLibraryUpdateInterval(intervalHours: number): void {
-    const nextPreferences: LibraryUpdatePreferences = {
-      autoCheckEnabled: this.libraryUpdatePreferences.autoCheckEnabled,
-      intervalHours,
-      foregroundOnly: this.libraryUpdatePreferences.foregroundOnly,
-      failureCount: this.libraryUpdatePreferences.failureCount,
-    }
-    if (this.libraryUpdatePreferences.lastCheckedAt !== undefined) {
-      nextPreferences.lastCheckedAt = this.libraryUpdatePreferences.lastCheckedAt
-    }
-    this.copyLibraryUpdateSummaryState(this.libraryUpdatePreferences, nextPreferences)
-    if (this.libraryUpdatePreferences.lastFailureCode !== undefined) {
-      nextPreferences.lastFailureCode = this.libraryUpdatePreferences.lastFailureCode
-    }
-    this.libraryUpdatePreferences = nextPreferences
-    void this.libraryUpdatePreferencesStore().saveIntervalHours(intervalHours)
+    void mutateLibraryUpdatePreferences(() => this.libraryUpdatePreferencesStore().saveIntervalHours(intervalHours))
       .then((preferences: LibraryUpdatePreferences) => {
         this.saveLibraryUpdatePreferences(preferences)
         console.info('[Settings] step=save_library_update_interval intervalHours=' + preferences.intervalHours)
@@ -1701,6 +1658,7 @@ export struct SettingsPage {
       })
       .catch((error: Error) => {
         console.warn('[Settings] step=save_library_update_interval_failed code=' + safeSettingsErrorCode(error))
+        this.loadLibraryUpdatePreferences()
         this.showToast(s('settings_library_update_interval_save_failed'))
       })
   }
@@ -1919,113 +1877,63 @@ export struct SettingsPage {
       })
   }
 
-  private checkLibraryUpdates(reason: string = 'manual'): void {
-    if (this.libraryUpdateBusy) {
-      return
-    }
+  private checkLibraryUpdates(reason: 'manual' | 'due' = 'manual'): void {
     if (this.libraryStore === undefined || this.sourceRegistry === undefined) {
-      this.showToast(s('settings_library_update_unavailable'))
+      if (reason === 'manual') {
+        this.showToast(s('settings_library_update_unavailable'))
+      }
       return
     }
-    this.libraryUpdateBusy = true
-    const startedAt = Date.now()
-    const runningSnapshot = createLibraryUpdateJobSnapshot('running', startedAt, undefined, undefined, undefined, startedAt)
-    setLatestLibraryUpdateJobSnapshot(runningSnapshot)
-    void this.libraryUpdateResultStore().saveJobSnapshot(runningSnapshot)
-      .catch((error: Error) => {
-        console.warn('[Settings] step=save_library_update_job_running_failed code=' + safeSettingsErrorCode(error))
-      })
-    console.info('[Settings] step=library_update_start')
-    const service = new LibraryUpdateService(
-      this.libraryStore,
-      this.sourceRegistry,
-      this.libraryPersistenceService,
-      new RemoteServerStore(this.context()),
-    )
-    void service.checkLibraryUpdates()
-      .then((summary: LibraryUpdateSummary) => {
-        this.libraryUpdateSummary = summary
-        setLatestLibraryUpdateSummary(summary)
-        const successSnapshot = createLibraryUpdateJobSnapshot('success', summary.checkedAt, summary, undefined, undefined, startedAt)
-        setLatestLibraryUpdateJobSnapshot(successSnapshot)
-        void this.libraryUpdateResultStore().save(summary)
-          .then(() => {
-            console.info('[Settings] step=save_library_update_results total=' + summary.totalCount)
-          })
-          .catch((error: Error) => {
-            console.warn('[Settings] step=save_library_update_results_failed code=' + safeSettingsErrorCode(error))
-          })
+    void requestLibraryUpdateCheck({
+      context: this.context(),
+      libraryStore: this.libraryStore,
+      sourceRegistry: this.sourceRegistry,
+      libraryPersistenceService: this.libraryPersistenceService,
+      reason,
+    }).then((result) => {
+      if (result.preferences !== undefined) {
+        this.saveLibraryUpdatePreferences(result.preferences)
+      }
+      this.libraryUpdateJobSnapshot = getLatestLibraryUpdateJobSnapshot()
+      if (result.status === 'completed' || result.status === 'failed') {
+        this.libraryUpdateSummary = result.summary
         this.onLibraryChanged()
-        console.info('[Settings] step=library_update_done trigger=' + reason + ' total=' + summary.totalCount + ' updated=' + summary.updatedCount + ' failed=' + summary.failedCount)
-        void this.libraryUpdatePreferencesStore().saveLastSummary(
-          summary.checkedAt,
-          summary.totalCount,
-          countLibraryUpdateNewChapters(summary),
-          summary.updatedCount,
-          summary.skippedCount,
-          summary.failedCount,
-        )
-          .then((preferences: LibraryUpdatePreferences) => {
-            this.saveLibraryUpdatePreferences(preferences)
-          })
-          .catch((error: Error) => {
-            console.warn('[Settings] step=save_library_update_summary_failed code=' + safeSettingsErrorCode(error))
-          })
-        void publishLibraryUpdateNotification(summary)
-          .then((result) => {
-            console.info('[Settings] step=library_update_notification code=' + result.code)
-            this.handleLibraryUpdateNotificationDispatch(result, reason)
-          })
-        if (reason === 'manual') {
-          this.showToast(summary.updatedCount > 0
+      }
+      if (result.notification !== undefined) {
+        this.handleLibraryUpdateNotificationDispatch(result.notification, reason)
+      }
+      if (reason !== 'manual') {
+        return
+      }
+      if (result.persistenceFailed) {
+        this.showToast(s('settings_library_update_result_save_failed'))
+      } else if (result.status === 'failed') {
+        this.showToast(s('settings_library_update_failed'))
+      } else if (result.status === 'unavailable') {
+        this.showToast(s('settings_library_update_unavailable'))
+      } else if (result.summary !== undefined) {
+        const summary = result.summary
+        const outcome = classifyLibraryUpdateSummary(summary)
+        if (outcome === 'all-failed') {
+          this.showToast(s('settings_library_update_failed'))
+        } else if (outcome === 'partial-failure') {
+          this.showToast(s('settings_library_update_partial_failure')
+            .replace('%s', `${summary.updatedCount + summary.unchangedCount}`)
+            .replace('%s', `${summary.failedCount}`))
+        } else if (outcome === 'no-eligible') {
+          this.showToast(s('settings_library_update_no_eligible'))
+        } else {
+          this.showToast(outcome === 'updated'
             ? s('settings_library_update_found_count').replace('%s', `${summary.updatedCount}`)
             : s('settings_library_update_up_to_date'))
         }
-      })
-      .catch((error: Error) => {
-        console.warn('[Settings] step=library_update_failed code=' + safeSettingsErrorCode(error))
-        const checkedAt = Date.now()
-        const failureCode = normalizeLibraryUpdateFailureCode('check_failed') ?? 'unknown'
-        this.libraryUpdateSummary = undefined
-        clearLatestLibraryUpdateSummary()
-        this.libraryUpdatePreferences = {
-          autoCheckEnabled: this.libraryUpdatePreferences.autoCheckEnabled,
-          intervalHours: this.libraryUpdatePreferences.intervalHours,
-          foregroundOnly: this.libraryUpdatePreferences.foregroundOnly,
-          lastCheckedAt: checkedAt,
-          failureCount: normalizeLibraryUpdateFailureCount(this.libraryUpdatePreferences.failureCount + 1),
-          lastFailureCode: failureCode,
-        }
-        const nextDueAt = getLibraryUpdateNextDueAt(this.libraryUpdatePreferences)
-        const failedState = nextDueAt !== undefined && nextDueAt > checkedAt ? 'backed-off' : 'failed'
-        const failedSnapshot = createLibraryUpdateJobSnapshot(failedState, checkedAt, undefined, failureCode, nextDueAt, startedAt)
-        setLatestLibraryUpdateJobSnapshot(failedSnapshot)
-        void this.libraryUpdateResultStore().saveJobSnapshot(failedSnapshot)
-          .then(() => {
-            console.info('[Settings] step=save_library_update_job_failed state=' + failedState)
-          })
-          .catch((saveError: Error) => {
-            console.warn('[Settings] step=save_library_update_job_failed_failed code=' + safeSettingsErrorCode(saveError))
-          })
-        void this.libraryUpdatePreferencesStore().saveFailedCheck(checkedAt, failureCode)
-          .then((preferences: LibraryUpdatePreferences) => {
-            this.saveLibraryUpdatePreferences(preferences)
-          })
-          .catch((saveError: Error) => {
-            console.warn('[Settings] step=save_library_update_failure_failed code=' + safeSettingsErrorCode(saveError))
-          })
-        void publishLibraryUpdateFailureNotification(checkedAt, failureCode)
-          .then((result) => {
-            console.info('[Settings] step=library_update_notification code=' + result.code)
-            this.handleLibraryUpdateNotificationDispatch(result, reason)
-          })
-        if (reason === 'manual') {
-          this.showToast(s('settings_library_update_failed'))
-        }
-      })
-      .finally(() => {
-        this.libraryUpdateBusy = false
-      })
+      }
+    }).catch((error: Error) => {
+      console.warn('[Settings] step=library_update_request_failed code=' + safeSettingsErrorCode(error))
+      if (reason === 'manual') {
+        this.showToast(s('settings_library_update_unavailable'))
+      }
+    })
   }
 
   private checkLocalLibraryRefresh(): void {
@@ -2488,6 +2396,7 @@ export struct SettingsPage {
       } else {
         ConciseListRow({
           title: this.rowTitle(row),
+          subtitle: row.key === 'library-update-interval' ? getLibraryUpdateNextDueLabel(this.libraryUpdatePreferences) : '',
           trailingText: this.rowDetail(row),
           trailingDropdown: true,
           showChevron: true,

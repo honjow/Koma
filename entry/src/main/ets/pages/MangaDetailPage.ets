@@ -482,7 +482,7 @@ export struct MangaDetailPage {
       return
     }
     this.activeLibraryComicId = comic.id
-    this.manga = mangaDetailFromComic(comic)
+    this.manga = mangaDetailFromComic(comic, this.sourceRegistry)
     this.chapters = this.decorateChapterStates(
       comic.chapters.map((chapter: Chapter): MangaChapterItem => mangaChapterItemFromComicChapter(chapter, comic.sourceKind))
     )
@@ -581,7 +581,7 @@ export struct MangaDetailPage {
         this.showToast(s('manga_detail_local_metadata_unavailable'))
         return
       }
-      this.manga = mangaDetailFromComic(updated)
+      this.manga = mangaDetailFromComic(updated, this.sourceRegistry)
       this.chapters = this.decorateChapterStates(
         updated.chapters.map((chapter: Chapter): MangaChapterItem => mangaChapterItemFromComicChapter(chapter, updated.sourceKind))
       )
@@ -749,7 +749,7 @@ export struct MangaDetailPage {
     if (detail === undefined) {
       if (libraryComic !== undefined) {
         this.activeLibraryComicId = libraryComic.id
-        this.manga = mangaDetailFromComic(libraryComic)
+        this.manga = mangaDetailFromComic(libraryComic, this.sourceRegistry)
         this.chapters = this.decorateChapterStates(
           libraryComic.chapters.map((ch: Chapter) => mangaChapterItemFromComicChapter(ch, libraryComic.sourceKind))
         )
@@ -2296,7 +2296,7 @@ export struct MangaDetailPage {
   }
 }
 
-function mangaDetailFromComic(comic: Comic): MangaDetail {
+function mangaDetailFromComic(comic: Comic, registry: SourceRuntimeRegistry): MangaDetail {
   let status = MangaStatus.UNKNOWN
   if (comic.localMetadata?.status === 'ongoing') {
     status = MangaStatus.ONGOING
@@ -2318,7 +2318,8 @@ function mangaDetailFromComic(comic: Comic): MangaDetail {
     isInLibrary: true,
     sourceId: comic.sourceRuntimeId,
     sourceImageId: comic.remoteResourceId,
-    sourceName: comic.sourceRuntimeId ?? '',
+    sourceName: comic.sourceRuntimeId === undefined ? '' :
+      (registry.list().find((entry) => entry.sourceId === comic.sourceRuntimeId)?.manifestName?.trim() || s('library_source_package')),
     url: comic.sourcePath,
   }
 }

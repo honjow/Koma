@@ -84,6 +84,7 @@ import {
   buildKnownLocalLibraryFolderSeriesFromComics,
   buildComicsFromLocalLibraryFolderScan,
 } from '../model/LocalLibraryFolderContract'
+import { activateLocalLibraryFolderAccessForComics } from '../model/LocalLibraryFolderAccessService'
 import { LibraryStore } from '../model/LibraryStore'
 import {
   AppFilesLibraryStorePersistenceAdapter,
@@ -137,6 +138,9 @@ import { TrackerPendingProgressDrainSummary, TrackerProgressSyncService } from '
 import { TRACKER_PROVIDER_CONFIGS, TrackerProviderConfig, TrackerProviderId } from '../model/TrackerModels'
 import { SourceBrowseRouteChromeState, SourceSearchRouteChromeState } from '../state/SourceRouteChromeState'
 import { SearchRouteChromeState } from '../state/SearchRouteChromeState'
+import { AppForegroundState, connectAppForegroundState } from '../state/AppForegroundState'
+import { LibraryUpdateState, connectLibraryUpdateState } from '../state/LibraryUpdateState'
+import { requestLibraryUpdateCheck } from '../model/LibraryUpdateCoordinator'
 
 const readerSessionStore: ReaderSessionStore = new InMemoryReaderSessionStore()
 const seededLibraryStore: LibraryStore = createSeededLibraryStore()
@@ -179,6 +183,8 @@ struct Index {
   }
   @Local private languageState: LanguageState = connectLanguageState()
   @Local private layoutSafeArea: LayoutSafeAreaState = connectLayoutSafeArea()
+  @Local private appForegroundState: AppForegroundState = connectAppForegroundState()
+  @Local private libraryUpdateState: LibraryUpdateState = connectLibraryUpdateState()
   @Local private readerOpen: boolean = false
   @Local private readerClosing: boolean = false
   @Local private readerRouteVisible: boolean = false
@@ -208,6 +214,7 @@ struct Index {
   private libraryPersistenceService?: LibraryStorePersistenceService
   private readerSessionPersistenceReady: boolean = false
   private libraryPersistenceRestored: boolean = false
+  private libraryUpdateReady: boolean = false
   private automaticBackupChecked: boolean = false
   private pendingTrackerProgressChecked: boolean = false
   private readerOpenEpoch: number = 0
@@ -241,9 +248,29 @@ struct Index {
     this.tabController.applyShowAnimation(HdsAnimationMode.SCROLL_ANIMATION)
   }
 
+  @Monitor('libraryUpdateState.revision')
   private refreshLibrarySnapshot(): void {
     this.libraryComics = this.libraryStore.listComics()
     this.libraryRevision += 1
+  }
+
+  @Monitor('appForegroundState.revision')
+  private runForegroundLibraryUpdate(): void {
+    if (!this.libraryUpdateReady || !this.appForegroundState.active) {
+      return
+    }
+    void requestLibraryUpdateCheck({
+      context: getContext(this) as common.UIAbilityContext,
+      libraryStore: this.libraryStore,
+      sourceRegistry: this.sourceRegistry,
+      libraryPersistenceService: this.libraryPersistenceService,
+      reason: 'due',
+      requireForeground: true,
+    }).then((result) => {
+      console.info('[LibraryUpdate] step=foreground_check status=' + result.status)
+    }).catch((_error: Error) => {
+      console.warn('[LibraryUpdate] step=foreground_check_failed')
+    })
   }
 
   private onMangaDetailLibraryChanged(): void {
@@ -1443,13 +1470,26 @@ struct Index {
       if (persistenceService !== undefined) {
         try {
           persistenceService.restore()
-          this.refreshLibrarySnapshot()
+          void activateLocalLibraryFolderAccessForComics(this.libraryStore.listComics())
+            .then((summary) => {
+              console.info('[LocalFolderAccess] step=restore_activate roots=' + summary.rootCount +
+                ' activated=' + summary.activatedCount +
+                ' reselect=' + summary.notPersistedCount +
+                ' unsupported=' + summary.unsupportedCount +
+                ' failed=' + summary.failedCount)
+            })
+            .finally(() => {
+              this.refreshLibrarySnapshot()
+              this.libraryUpdateReady = true
+              this.runForegroundLibraryUpdate()
+            })
         } catch (error) {
           void error
           console.error('[Library] step=restore_failed code=library_restore_failed')
         }
       }
     }
+    this.runForegroundLibraryUpdate()
     setTimeout(() => {
       this.triggerAutomaticBackup(context)
       this.triggerPendingTrackerProgressSync(context)
@@ -1799,7 +1839,10 @@ struct Index {
       .titleBar(this.navDestTitleBarOpts(settingsPaneTitle(this.settingsPaneFromParam(param))))
     } else if (name === RouteName.LIBRARY_UPDATE_RESULTS) {
       HdsNavDestination() {
-        LibraryUpdateResultPage()
+        LibraryUpdateResultPage({
+          libraryStore: this.libraryStore,
+          sourceRegistry: this.sourceRegistry,
+        })
       }
       .titleBar(this.navDestTitleBarOpts(AppStrings.get('route_library_update_results_title')))
     } else if (name === RouteName.LIBRARY_CATEGORIES) {

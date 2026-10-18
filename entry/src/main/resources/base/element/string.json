@@ -1,5 +1,10 @@
 {
   "string": [
+    {"name": "library_update_results_unavailable_comic", "value": "Manga information unavailable"},
+    {"name": "library_update_results_unsupported_source", "value": "Unsupported source"},
+    {"name": "settings_library_update_no_eligible", "value": "No items in this library support update checks."},
+    {"name": "settings_library_update_partial_failure", "value": "Checked %s successfully; %s failed. View update results for details."},
+    {"name": "settings_library_update_result_save_failed", "value": "Check records were not fully saved. Try again later."},
     { "name": "backup_task_create", "value": "Create backup" },
     { "name": "backup_task_create_hint", "value": "Choose where to save and whether to encrypt" },
     { "name": "backup_task_restore", "value": "Restore backup" },
