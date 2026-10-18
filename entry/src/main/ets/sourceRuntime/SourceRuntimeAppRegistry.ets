@@ -1095,10 +1095,11 @@ async function registerSourcePackageFromBytes(
   archiveBytes: Uint8Array,
   archiveFileName: string,
   expectedSourceId?: string,
+  stagedPackageDir?: string,
 ): Promise<SourcePackageInstallResult> {
   ensureDirSync(appSourceRoot(context))
   ensureDirSync(appSourcePackagesRoot(context))
-  const packageDir = joinSourceRuntimePath(appSourcePackagesRoot(context), `import-${Date.now()}`)
+  const packageDir = stagedPackageDir ?? joinSourceRuntimePath(appSourcePackagesRoot(context), `import-${Date.now()}`)
   const archivePath = joinSourceRuntimePath(packageDir, archiveFileName)
   const importedRoot = joinSourceRuntimePath(packageDir, 'package')
   let removedExisting: SourceRuntimeRegistryEntry | undefined = undefined
@@ -1188,7 +1189,7 @@ export async function installFromArchive(context: common.UIAbilityContext, uri: 
       ensureDirSync(packageDir)
       await copyPickedArchiveUriToSandbox(uri, archivePath)
       const archiveBytes = readBytesSync(archivePath)
-      return await registerSourcePackageFromBytes(context, archiveBytes, archiveFileName)
+      return await registerSourcePackageFromBytes(context, archiveBytes, archiveFileName, undefined, packageDir)
     } catch (_error) {
       try {
         await removeAppSourcePackageDir(context, packageDir)
