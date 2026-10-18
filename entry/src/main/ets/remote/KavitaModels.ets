@@ -50,6 +50,16 @@ export interface KavitaSeriesDto {
   lastChapterAddedUtc?: string
 }
 
+export interface KavitaSearchResultDto {
+  seriesId: KavitaSeriesId
+  libraryId: KavitaLibraryId
+  libraryName: string
+}
+
+export interface KavitaSearchResultGroupDto {
+  series: KavitaSearchResultDto[]
+}
+
 export interface KavitaChapterDto {
   id: KavitaChapterId
   range?: string

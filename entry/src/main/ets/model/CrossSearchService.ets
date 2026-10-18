@@ -21,7 +21,7 @@ import { SourceManga } from './SourceModels'
 import { BrowseViewModel } from '../viewmodel/BrowseViewModel'
 import { KomgaSeriesDto } from '../remote/KomgaModels'
 import {
-  KavitaLibraryDto,
+  KavitaSearchResultDto,
   KavitaSeriesDto,
 } from '../remote/KavitaModels'
 import {
@@ -58,6 +58,7 @@ export interface CrossSearchResultItem {
   subtitle: string
   sourceKind: CrossSearchSourceKind
   sourceLabel: string
+  remoteServerId?: string
   coverUri?: string
   localComicId?: string
   sourceId?: string
@@ -93,7 +94,6 @@ interface SourceSearchOutcome {
 const SEARCH_TIMEOUT_MS: number = 5000
 const KOMGA_PAGE_SIZE: number = 20
 const SOURCE_PAGE_SIZE: number = 20
-const KAVITA_LIBRARY_SEARCH_LIMIT: number = 10
 
 export function normalizeCrossSearchText(value: string): string {
   const lower = value.trim().toLocaleLowerCase()
@@ -306,34 +306,29 @@ export class CrossSearchService {
         return { section: this.stateSection('kavita', AppStrings.get('route_kavita_title'), 'kavita', 'unsupported', 'not_configured') }
       }
       const client = this.remoteStore.createKavitaClient(record)
-      const normalizedQuery = this.normalizeSearchText(query)
-      const compactQuery = this.compactSearchText(query)
-      const libraries = (await client.listLibraries()).slice(0, KAVITA_LIBRARY_SEARCH_LIMIT)
+      const matches = await client.searchSeries(query)
+      const rows = await client.getSeriesByIds(matches.map((match: KavitaSearchResultDto): number => match.seriesId))
       const matchedItems: CrossSearchResultItem[] = []
-      for (let index = 0; index < libraries.length; index += 1) {
-        const library = libraries[index]
-        const rows = await client.listSeries(library.id, 1, SOURCE_PAGE_SIZE)
-        rows.forEach((series: KavitaSeriesDto) => {
-          const title = this.kavitaSeriesTitle(series)
-          const metadata = `${library.name} ${series.sortName ?? ''}`
-          if (!this.textMatchesQuery(title, normalizedQuery, compactQuery) &&
-            !this.textMatchesQuery(metadata, normalizedQuery, compactQuery)) {
-            return
-          }
-          matchedItems.push({
-            id: `kavita:${record.server.id}:${library.id}:${series.id}`,
-            title,
-            subtitle: this.kavitaSeriesSubtitle(series, library),
-            sourceKind: 'kavita',
-            sourceLabel: AppStrings.get('route_kavita_title'),
-            coverUri: series.coverImage,
-            kavitaLibraryId: library.id,
-            kavitaSeriesId: `${series.id}`,
-          })
+      matches.forEach((match: KavitaSearchResultDto) => {
+        const series = rows.find((row: KavitaSeriesDto): boolean => row.id === match.seriesId)
+        // Hydration rechecks access; a removed series must not become a fabricated result.
+        if (series === undefined) {
+          return
+        }
+        matchedItems.push({
+          id: `kavita:${record.server.id}:${match.libraryId}:${series.id}`,
+          title: this.kavitaSeriesTitle(series),
+          subtitle: this.kavitaSeriesSubtitle(series, match.libraryName),
+          sourceKind: 'kavita',
+          sourceLabel: AppStrings.get('route_kavita_title'),
+          remoteServerId: record.server.id,
+          coverUri: series.coverImage,
+          kavitaLibraryId: match.libraryId,
+          kavitaSeriesId: `${series.id}`,
         })
-      }
+      })
       const items = this.sortSearchResultItems(query, matchedItems).slice(0, SOURCE_PAGE_SIZE)
-      console.info(`[Search] step=kavita_done libraries=${libraries.length} count=${items.length}`)
+      console.info(`[Search] step=kavita_done candidates=${matches.length} count=${items.length}`)
       return { section: this.section('kavita', AppStrings.get('route_kavita_title'), 'kavita', items) }
     } catch (error) {
       const e = error as Error
@@ -745,6 +740,7 @@ export class CrossSearchService {
       subtitle: item.subtitle,
       sourceKind: item.sourceKind,
       sourceLabel: item.sourceLabel,
+      remoteServerId: item.remoteServerId,
       coverUri: item.coverUri,
       localComicId: item.localComicId,
       sourceId: item.sourceId,
@@ -834,10 +830,10 @@ export class CrossSearchService {
     return item.name
   }
 
-  private kavitaSeriesSubtitle(item: KavitaSeriesDto, library: KavitaLibraryDto): string {
+  private kavitaSeriesSubtitle(item: KavitaSeriesDto, libraryName: string): string {
     const pages = item.pages === undefined ? 0 : item.pages
     const read = item.pagesRead === undefined ? 0 : item.pagesRead
-    return `${library.name} · ${AppStrings.get('kavita_series_pages_progress').replace('%s', `${read}`).replace('%s', `${pages}`)}`
+    return `${libraryName} · ${AppStrings.get('kavita_series_pages_progress').replace('%s', `${read}`).replace('%s', `${pages}`)}`
   }
 
   private section(id: string, title: string, kind: CrossSearchSourceKind, items: CrossSearchResultItem[]): CrossSearchSection {

@@ -12,6 +12,7 @@ import {
   isCrossSearchQueryMeaningful,
 } from '../model/CrossSearchService'
 import { ThemeConstants } from '../theme/ThemeConstants'
+import { ComicSourceKind } from '../model/ComicModels'
 import { KomgaSeriesRouteParam } from './KomgaSeriesPage'
 import { KavitaBrowseRouteParam } from './KavitaBrowsePage'
 import { OpdsBrowseRouteParam } from './OpdsBrowsePage'
@@ -752,12 +753,14 @@ export struct SearchPage {
     Row({ space: ThemeConstants.SPACE_MD }) {
       Stack({ alignContent: Alignment.Center }) {
         if (this.shouldShowCoverUri(item.coverUri, item.sourceId, item.sourceMangaId ?? item.id)) {
-          if (this.isSourceAwareCover(item)) {
+          if (this.isSourceAwareCover(item) || item.sourceKind === 'kavita') {
             CachedCoverImage({
               uri: item.coverUri ?? '',
               objectFit: ImageFit.Cover,
               sourceRuntimeId: item.sourceId ?? '',
-              sourceImageId: item.sourceMangaId ?? item.id,
+              sourceImageId: item.kavitaSeriesId ?? item.sourceMangaId ?? item.id,
+              sourceKind: item.sourceKind === 'kavita' ? ComicSourceKind.KAVITA_REMOTE : undefined,
+              remoteServerId: item.remoteServerId ?? '',
               onError: () => {
                 this.markCoverUriFailed(item.coverUri, item.sourceId, item.sourceMangaId ?? item.id)
               },

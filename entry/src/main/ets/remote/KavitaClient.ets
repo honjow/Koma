@@ -4,6 +4,8 @@ import {
   KavitaProgressDto,
   KavitaResolvedCredential,
   KavitaServerConfig,
+  KavitaSearchResultDto,
+  KavitaSearchResultGroupDto,
   KavitaSeriesDto,
   KavitaVolumeDto,
 } from './KavitaModels'
@@ -54,6 +56,10 @@ interface KavitaSeriesFilterRequest {
   limitTo: number
 }
 
+interface KavitaSeriesByIdsRequest {
+  seriesIds: number[]
+}
+
 export class KavitaPaths {
   static libraries(): string {
     return '/api/Library/libraries'
@@ -61,6 +67,14 @@ export class KavitaPaths {
 
   static librarySeries(pageNumber: number = 1, pageSize: number = 50): string {
     return `/api/Series/all-v2?PageNumber=${pageNumber}&PageSize=${pageSize}`
+  }
+
+  static search(query: string): string {
+    return `/api/Search/search?queryString=${encodeURIComponent(query)}&includeChapterAndFiles=false`
+  }
+
+  static seriesByIds(): string {
+    return '/api/Series/series-by-ids'
   }
 
   static seriesVolumes(seriesId: number): string {
@@ -201,6 +215,39 @@ export class KavitaClient {
       throw new Error(`kavita_http_status_${response.status}`)
     }
     return parseKavitaJson<KavitaVolumeDto[]>(response.body)
+  }
+
+  async searchSeries(query: string): Promise<KavitaSearchResultDto[]> {
+    const response = await this.request('GET', KavitaPaths.search(query), {
+      accept: 'application/json',
+    } as KavitaHeaders)
+    if (response.status < 200 || response.status >= 300) {
+      throw new Error(`kavita_http_status_${response.status}`)
+    }
+    const result = parseKavitaJson<KavitaSearchResultGroupDto>(response.body)
+    if (result === null || !Array.isArray(result.series)) {
+      throw new Error('kavita_invalid_json')
+    }
+    return result.series
+  }
+
+  async getSeriesByIds(seriesIds: number[]): Promise<KavitaSeriesDto[]> {
+    if (seriesIds.length === 0) {
+      return []
+    }
+    const request: KavitaSeriesByIdsRequest = { seriesIds }
+    const response = await this.request('POST', KavitaPaths.seriesByIds(), {
+      accept: 'application/json',
+      contentType: 'application/json',
+    } as KavitaHeaders, JSON.stringify(request))
+    if (response.status < 200 || response.status >= 300) {
+      throw new Error(`kavita_http_status_${response.status}`)
+    }
+    const result = parseKavitaJson<KavitaSeriesDto[]>(response.body)
+    if (!Array.isArray(result)) {
+      throw new Error('kavita_invalid_json')
+    }
+    return result
   }
 
   async getChapterInfo(chapterId: number): Promise<KavitaChapterInfoDto> {
