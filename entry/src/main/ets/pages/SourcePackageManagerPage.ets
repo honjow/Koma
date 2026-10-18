@@ -128,10 +128,13 @@ export struct SourcePackageManagerPage {
   @Local private settingsAvailability: Record<string, string> = {}
   @Local private settingsValidationStatuses: SourceSettingsValidationStatus[] = []
   @Local private settingsValidationSourceId: string = ''
+  @Local private savedSettingCounts: Record<string, number> = {}
+  @Local private savedSettingsReadFailed: boolean = false
   @Local private sourceSheetShown: boolean = false
   @Local private sourceSheetSourceId: string = ''
   @Local private sourceSheetRetainedSource: InstalledSourcePackage | undefined = undefined
   @Local private sourceSettingsSheetShown: boolean = false
+  private savedIndexLoadRevision: number = 0
   @Local private sourceIndexSheetShown: boolean = false
   @Local private pendingSourceSheetAction: SourceManagerPendingAction = 'none'
   @Local private pendingSourceSheetSourceId: string = ''
@@ -144,12 +147,17 @@ export struct SourcePackageManagerPage {
     this.loadSavedIndexUrl()
   }
 
+  aboutToDisappear(): void {
+    this.savedIndexLoadRevision += 1
+  }
+
   private context(): common.UIAbilityContext {
     return getContext(this) as common.UIAbilityContext
   }
 
   private reload(): void {
     this.packages = listInstalled()
+    this.refreshSavedSettingsCounts()
     const sheetSource = this.sourceSheetSource()
     if (sheetSource !== undefined) {
       this.sourceSheetRetainedSource = sheetSource
@@ -180,11 +188,18 @@ export struct SourcePackageManagerPage {
   }
 
   private async loadSavedIndexUrl(): Promise<void> {
-    const saved = await this.sourceIndexService.loadSavedUrl()
-    if (saved.length > 0) {
-      this.sourceIndexUrl = saved
+    const revision = ++this.savedIndexLoadRevision
+    const previousUrl = this.sourceIndexUrl
+    try {
+      const saved = await this.sourceIndexService.loadSavedUrl()
+      const repositories = await this.sourceIndexService.loadSavedRepositories()
+      if (revision !== this.savedIndexLoadRevision) return
+      if (saved.length > 0 && this.sourceIndexUrl === previousUrl) this.sourceIndexUrl = saved
+      this.sourceIndexRepositories = repositories
+    } catch (_error) {
+      if (revision !== this.savedIndexLoadRevision) return
+      this.indexStatusText = tf('source_pkg_index_load_failed', this.sourceReasonText('unknown'))
     }
-    this.sourceIndexRepositories = await this.sourceIndexService.loadSavedRepositories()
   }
 
   private installedSourceIds(): string[] {
@@ -280,10 +295,16 @@ export struct SourcePackageManagerPage {
   }
 
   private openSourceSettingsFromSheet(source: InstalledSourcePackage): void {
-    this.openSettings(source)
-    this.pendingSourceSheetAction = 'none'
-    this.pendingSourceSheetSourceId = ''
-    this.sourceSettingsSheetShown = true
+    try {
+      this.openSettings(source)
+      this.pendingSourceSheetAction = 'none'
+      this.pendingSourceSheetSourceId = ''
+      this.sourceSettingsSheetShown = true
+    } catch (_error) {
+      this.savedSettingsReadFailed = true
+      this.statusText = t('source_pkg_reason_settings_validation_failed')
+      this.showToast(this.statusText)
+    }
   }
 
   private closeSourceSettingsSheet(): void {
@@ -440,9 +461,23 @@ export struct SourcePackageManagerPage {
     this.packageUpdateStatuses = this.packageUpdateStatuses.filter((item: SourcePackageUpdateStatus): boolean => item.sourceId !== sourceId)
   }
 
+  private refreshSavedSettingsCounts(): void {
+    try {
+      const saved = appSourceSettingsStore.exportAll()
+      const counts: Record<string, number> = {}
+      Object.keys(saved).forEach((sourceId: string) => {
+        counts[sourceId] = Object.keys(saved[sourceId]).length
+      })
+      this.savedSettingCounts = counts
+      this.savedSettingsReadFailed = false
+    } catch (_error) {
+      // Keep file IO out of Builders and never present a failed read as zero.
+      this.savedSettingsReadFailed = true
+    }
+  }
+
   private savedSettingsCount(sourceId: string): number {
-    const saved = appSourceSettingsStore.loadForSource(sourceId)
-    return Object.keys(saved).length
+    return this.savedSettingCounts[sourceId] ?? 0
   }
 
   private diagnosticsSettingCounts(sourceId: string): SourceDiagnosticsSettingCounts {
@@ -553,13 +588,24 @@ export struct SourcePackageManagerPage {
     return urls
   }
 
+  private sourceIndexFailureReason(error: Object): string {
+    return (error as Error)?.message?.startsWith('source_index_preferences_') ? 'unknown' : 'network_error'
+  }
+
   private async currentIndexUrlOrPrompt(): Promise<string> {
     let url = this.sourceIndexUrl.trim()
     if (url.length === 0) {
-      const saved = await this.sourceIndexService.loadSavedUrl()
-      if (saved.length > 0) {
-        this.sourceIndexUrl = saved
-        url = saved
+      try {
+        const saved = await this.sourceIndexService.loadSavedUrl()
+        if (saved.length > 0) {
+          this.sourceIndexUrl = saved
+          url = saved
+        }
+      } catch (_error) {
+        this.indexStatusText = tf('source_pkg_index_load_failed', this.sourceReasonText('unknown'))
+        this.statusText = this.indexStatusText
+        this.showToast(this.indexStatusText)
+        return ''
       }
     }
     if (url.length === 0) {
@@ -571,6 +617,7 @@ export struct SourcePackageManagerPage {
   }
 
   private async checkInstalledUpdates(): Promise<void> {
+    this.savedIndexLoadRevision += 1
     if (this.updateCheckBusy || this.indexFetchBusy) {
       return
     }
@@ -684,10 +731,10 @@ export struct SourcePackageManagerPage {
           sourceId: source.id,
           status: 'failed',
           localVersion: source.version,
-          reasonCode: 'network_error',
+          reasonCode: this.sourceIndexFailureReason(_error),
         }
       })
-      this.statusText = tf('source_pkg_check_failed', this.sourceRedactedReasonText('network_error'))
+      this.statusText = tf('source_pkg_check_failed', this.sourceRedactedReasonText(this.sourceIndexFailureReason(_error)))
       console.info('[SourcePackageUpdate] step=check_done update=0 latest=0 missing=0 failed=' + count)
     } finally {
       this.updateCheckBusy = false
@@ -758,7 +805,7 @@ export struct SourcePackageManagerPage {
       })
       this.statusText = tf('source_pkg_update_failed', this.sourceRedactedReasonText('network_error'))
       this.showToast(t('source_pkg_toast_install_failed'))
-      console.error('[SourcePackageUpdate] step=install_failed id=' + source.id + ' reason=network_error')
+      console.error('[SourcePackageUpdate] step=install_failed id=' + source.id + ' reason=' + this.sourceIndexFailureReason(_error))
     } finally {
       this.updateInstallSourceId = ''
     }
@@ -937,6 +984,7 @@ export struct SourcePackageManagerPage {
   }
 
   private async fetchIndex(): Promise<void> {
+    this.savedIndexLoadRevision += 1
     if (this.indexFetchBusy) {
       return
     }
@@ -959,7 +1007,7 @@ export struct SourcePackageManagerPage {
         this.indexStatusText = tf('source_pkg_index_load_failed', this.sourceReasonText(result.reasonCode))
       }
     } catch (_error) {
-      this.indexStatusText = tf('source_pkg_index_load_failed', this.sourceReasonText('network_error'))
+      this.indexStatusText = tf('source_pkg_index_load_failed', this.sourceReasonText(this.sourceIndexFailureReason(_error)))
     } finally {
       this.indexFetchBusy = false
     }
@@ -971,6 +1019,7 @@ export struct SourcePackageManagerPage {
   }
 
   private removeSavedIndex(repository: SourceIndexRepository): void {
+    this.savedIndexLoadRevision += 1
     void this.sourceIndexService.removeSavedRepository(repository.url)
       .then((repositories: SourceIndexRepository[]) => {
         this.sourceIndexRepositories = repositories
@@ -1026,6 +1075,7 @@ export struct SourcePackageManagerPage {
   }
 
   private async installIndexEntryBatch(entries: SourceIndexEntry[], replaceExisting: boolean): Promise<void> {
+    this.savedIndexLoadRevision += 1
     if (this.sourceIndexBatchBusy()) {
       return
     }
@@ -1103,8 +1153,8 @@ export struct SourcePackageManagerPage {
         ' success=' + successCount + ' failed=' + failedCount + ' skipped=' + skippedCount)
     } catch (_error) {
       this.indexStatusText = replaceExisting
-        ? tf('source_pkg_batch_update_failed', this.sourceReasonText('network_error'))
-        : tf('source_pkg_batch_install_failed', this.sourceReasonText('network_error'))
+        ? tf('source_pkg_batch_update_failed', this.sourceReasonText(this.sourceIndexFailureReason(_error)))
+        : tf('source_pkg_batch_install_failed', this.sourceReasonText(this.sourceIndexFailureReason(_error)))
       this.showToast(t('source_pkg_toast_install_failed'))
       console.error('[SourcePackageBatch] step=failed mode=' + (replaceExisting ? 'update' : 'install') + ' reason=network_error')
     } finally {
@@ -1266,6 +1316,7 @@ export struct SourcePackageManagerPage {
   }
 
   private settingsValidationText(source: InstalledSourcePackage): string {
+    if (this.savedSettingsReadFailed) return t('source_pkg_reason_settings_validation_failed')
     const status = this.settingsValidationStatus(source.id)
     const savedText = tf('source_pkg_settings_saved_count', status.savedCount)
     switch (status.status) {
@@ -1285,28 +1336,32 @@ export struct SourcePackageManagerPage {
     if (this.settingsValidationSourceId.length > 0) {
       return
     }
-    const savedSettings = appSourceSettingsStore.loadForSource(source.id)
-    const savedCount = Object.keys(savedSettings).length
-    console.info('[SourceSettingsValidation] step=start id=' + source.id + ' saved=' + savedCount)
-    this.settingsValidationSourceId = source.id
-    this.setSettingsValidationStatus({
-      sourceId: source.id,
-      status: 'running',
-      savedCount,
-    })
-    const args: SourceSettingsValidationArgs = {}
-    const hostHints: SourceSettingsValidationHostHints = { network: false }
-    const request: SourceSettingsValidationRequest = {
-      type: 'request',
-      version: 1,
-      requestId: 'settings-validation-' + source.id + '-' + Date.now().toString(),
-      operation: 'get_settings',
-      sourceId: source.id,
-      args,
-      settings: savedSettings,
-      hostHints,
-    }
+    let savedCount = this.savedSettingsCount(source.id)
+    let settingsLoaded = false
     try {
+      const savedSettings = appSourceSettingsStore.loadForSource(source.id)
+      savedCount = Object.keys(savedSettings).length
+      settingsLoaded = true
+      this.savedSettingsReadFailed = false
+      console.info('[SourceSettingsValidation] step=start id=' + source.id + ' saved=' + savedCount)
+      this.settingsValidationSourceId = source.id
+      this.setSettingsValidationStatus({
+        sourceId: source.id,
+        status: 'running',
+        savedCount,
+      })
+      const args: SourceSettingsValidationArgs = {}
+      const hostHints: SourceSettingsValidationHostHints = { network: false }
+      const request: SourceSettingsValidationRequest = {
+        type: 'request',
+        version: 1,
+        requestId: 'settings-validation-' + source.id + '-' + Date.now().toString(),
+        operation: 'get_settings',
+        sourceId: source.id,
+        args,
+        settings: savedSettings,
+        hostHints,
+      }
       const result = runRegisteredSourceRequestById(appSourceRuntimeRegistry, source.id, JSON.stringify(request))
       if (result.response !== undefined && result.response.ok === true) {
         this.setSettingsValidationStatus({
@@ -1330,6 +1385,7 @@ export struct SourcePackageManagerPage {
       this.showToast(t('source_pkg_settings_validation_toast_fail'))
       console.error('[SourceSettingsValidation] step=done id=' + source.id + ' ok=false reason=' + reason + ' saved=' + savedCount)
     } catch (_error) {
+      if (!settingsLoaded) this.savedSettingsReadFailed = true
       const reason = 'settings_validation_failed'
       this.setSettingsValidationStatus({
         sourceId: source.id,
@@ -1346,10 +1402,11 @@ export struct SourcePackageManagerPage {
   }
 
   private openSettings(source: InstalledSourcePackage): void {
+    const saved = appSourceSettingsStore.loadForSource(source.id)
+    this.savedSettingsReadFailed = false
     this.settingsSourceId = source.id
     this.settingsSourceName = source.name
     this.settingDescriptors = fetchSourceSettingDescriptors(appSourceRuntimeRegistry, source.id)
-    const saved = appSourceSettingsStore.loadForSource(source.id)
     const nextDraft: SourceSettingsRecord = {}
     this.settingDescriptors.forEach((descriptor: SourceSettingDescriptor) => {
       if (!descriptor.supported || descriptor.sensitive) {
@@ -1695,11 +1752,13 @@ export struct SourcePackageManagerPage {
   }
 
   private diagnosticsSettingsText(source: InstalledSourcePackage): string {
+    if (this.savedSettingsReadFailed) return t('source_pkg_reason_settings_validation_failed')
     const counts = this.diagnosticsSettingCounts(source.id)
     return tf('source_pkg_diagnostics_settings', counts.total, counts.editable, counts.sensitive, counts.saved)
   }
 
   private diagnosticsSettingsValidationText(source: InstalledSourcePackage): string {
+    if (this.savedSettingsReadFailed) return t('source_pkg_reason_settings_validation_failed')
     const status = this.settingsValidationStatus(source.id)
     const reason = status.status === 'fail'
       ? this.sourceReasonText(status.reasonCode)

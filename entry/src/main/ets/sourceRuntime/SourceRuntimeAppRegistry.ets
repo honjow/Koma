@@ -1,3 +1,4 @@
+import { writeAppTextFile } from '../model/AppFileTextPersistence'
 import { BackupRestoreActivity } from '../model/BackupRestoreActivity'
 import { bundleManager, common } from '@kit.AbilityKit'
 import { buffer } from '@kit.ArkTS'
@@ -687,12 +688,12 @@ function sha256Hex(bytes: Uint8Array): string {
   return result
 }
 
-function persistInstalledSources(context: common.UIAbilityContext): void {
+function persistInstalledSources(context: common.UIAbilityContext, excludedSourceId?: string): void {
   const persistedRegistry = new SourceRuntimeRegistry()
   const entries = appSourceRuntimeRegistry.list()
   for (let index = 0; index < entries.length; index += 1) {
     const entry = entries[index]
-    if (entry.importStatus !== 'imported' || entry.archivePath === undefined) {
+    if (entry.sourceId === excludedSourceId || entry.importStatus !== 'imported' || entry.archivePath === undefined) {
       continue
     }
     persistedRegistry.register({
@@ -1283,38 +1284,79 @@ export function setSourcePresentationMetadata(
 }
 
 export function setEnabled(context: common.UIAbilityContext, id: string, enabled: boolean): boolean {
-  const changed = appSourceRuntimeRegistry.setEnabled(id, enabled)
-  if (!changed) {
+  const entry = appSourceRuntimeRegistry.lookup(id).entry
+  if (entry === undefined) return false
+  const previous = entry.enabled
+  if (!appSourceRuntimeRegistry.setEnabled(id, enabled)) return false
+  try {
+    persistInstalledSources(context)
+  } catch (_error) {
+    appSourceRuntimeRegistry.setEnabled(id, previous)
     return false
   }
-  persistInstalledSources(context)
   SourceRuntimeStateBridge.notifyChanged()
   console.info('[SourceManager] step=' + (enabled ? 'enable' : 'disable') + ' id=' + id)
   return true
 }
 
+interface SourceRemovePreferenceImage {
+  path: string
+  exists: boolean
+  content: string
+}
+
+function sourceRemovePreferenceImages(context: common.UIAbilityContext): SourceRemovePreferenceImage[] {
+  return ['source-settings.json', 'source-filter-preferences.json'].map((name: string): SourceRemovePreferenceImage => {
+    const path = joinSourceRuntimePath(appSourceRoot(context), name)
+    const exists = fs.accessSync(path)
+    return { path, exists, content: exists ? fs.readTextSync(path, { encoding: 'utf-8' }) : '' }
+  })
+}
+
+function restoreSourceRemovePreferences(images: SourceRemovePreferenceImage[]): void {
+  images.forEach((image: SourceRemovePreferenceImage) => {
+    if (image.exists) {
+      if (!fs.accessSync(image.path) || fs.readTextSync(image.path, { encoding: 'utf-8' }) !== image.content) {
+        writeAppTextFile(image.path, image.content)
+      }
+    } else if (fs.accessSync(image.path)) {
+      fs.unlinkSync(image.path)
+    }
+  })
+}
+
 export async function remove(context: common.UIAbilityContext, id: string): Promise<boolean> {
   return BackupRestoreActivity.runWrite(async (): Promise<boolean> => {
-    if (appSourceRuntimeRegistry.lookup(id).entry !== undefined) {
-      appSourceFilterPreferencesStore.exportAll()
+    const entry = appSourceRuntimeRegistry.lookup(id).entry
+    if (entry === undefined) return false
+    appSourceSettingsStore.exportAll()
+    appSourceFilterPreferencesStore.exportAll()
+    const images = sourceRemovePreferenceImages(context)
+    try {
+      // No awaited work or runtime/package removal before all file commits.
+      appSourceSettingsStore.removeSource(entry.sourceId)
+      appSourceFilterPreferencesStore.removeSource(entry.sourceId)
+      persistInstalledSources(context, entry.sourceId)
+    } catch (_error) {
+      try {
+        restoreSourceRemovePreferences(images)
+      } catch (_restoreError) {
+        throw new Error('source_remove_rollback_failed')
+      }
+      throw new Error('source_remove_commit_failed')
     }
-    const entry = appSourceRuntimeRegistry.remove(id)
-    if (entry === undefined) {
-      return false
-    }
+    appSourceRuntimeRegistry.remove(entry.sourceId)
+    clearSourceRuntimeDiagnostic(entry.sourceId)
+    SourceRuntimeStateBridge.notifyChanged()
+    console.info('[SourceManager] step=remove id=' + entry.sourceId)
     if (entry.archivePath !== undefined) {
       const packageDir = entry.archivePath.replace(/\\/g, '/').replace(/\/[^/]*$/, '')
       try {
         await removeAppSourcePackageDir(context, packageDir)
       } catch (_err) {
+        // Unreferenced package cleanup is after the committed removal.
       }
     }
-    appSourceSettingsStore.removeSource(id)
-    appSourceFilterPreferencesStore.removeSource(id)
-    clearSourceRuntimeDiagnostic(id)
-    persistInstalledSources(context)
-    SourceRuntimeStateBridge.notifyChanged()
-    console.info('[SourceManager] step=remove id=' + id)
     return true
   })
 }

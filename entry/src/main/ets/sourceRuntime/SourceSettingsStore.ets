@@ -1,3 +1,4 @@
+import { writeAppTextFile } from '../model/AppFileTextPersistence'
 import { common } from '@kit.AbilityKit'
 import { fileIo as fs } from '@kit.CoreFileKit'
 import { SourceRuntimeCallResponse } from './NativeSourceRuntime'
@@ -67,15 +68,6 @@ function joinSourceSettingsPath(parent: string, child: string): string {
   return left.length === 0 ? right : `${left}/${right}`
 }
 
-function closeFileQuietly(file: fs.File | undefined): void {
-  if (file === undefined) {
-    return
-  }
-  try {
-    fs.closeSync(file)
-  } catch (_err) {
-  }
-}
 
 function ensureDirSync(path: string): void {
   if (fs.accessSync(path)) {
@@ -84,15 +76,6 @@ function ensureDirSync(path: string): void {
   fs.mkdirSync(path, true)
 }
 
-function writeTextSync(path: string, payload: string): void {
-  let file: fs.File | undefined = undefined
-  try {
-    file = fs.openSync(path, fs.OpenMode.WRITE_ONLY | fs.OpenMode.CREATE | fs.OpenMode.TRUNC)
-    fs.writeSync(file.fd, payload, { encoding: 'utf-8' })
-  } finally {
-    closeFileQuietly(file)
-  }
-}
 
 function emptyDocument(): SourceSettingsDocument {
   return {
@@ -405,18 +388,35 @@ export class SourceSettingsStore {
   }
 
   private readDocument(): SourceSettingsDocument {
-    if (!this.isConfigured() || !fs.accessSync(this.storagePath)) {
+    if (!this.isConfigured()) {
       return emptyDocument()
     }
     try {
-      const document = JSON.parse(fs.readTextSync(this.storagePath, { encoding: 'utf-8' })) as SourceSettingsDocument
-      if (document.schemaVersion !== SOURCE_SETTINGS_SCHEMA_VERSION || document.sources === undefined ||
-        document.sources === null || Array.isArray(document.sources) || typeof document.sources !== 'object') {
+      if (!fs.accessSync(this.storagePath)) {
         return emptyDocument()
       }
+      const document = JSON.parse(fs.readTextSync(this.storagePath, { encoding: 'utf-8' })) as SourceSettingsDocument
+      if (document === null || typeof document !== 'object' || Array.isArray(document) ||
+        document.schemaVersion !== SOURCE_SETTINGS_SCHEMA_VERSION || document.sources === undefined ||
+        document.sources === null || Array.isArray(document.sources) || typeof document.sources !== 'object') {
+        throw new Error('source_settings_invalid')
+      }
+      Object.keys(document.sources).forEach((sourceId: string) => {
+        const values = document.sources[sourceId]
+        if (values === undefined || values === null || typeof values !== 'object' || Array.isArray(values)) {
+          throw new Error('source_settings_invalid')
+        }
+        Object.keys(values).forEach((key: string) => {
+          const value = values[key]
+          const valid = typeof value === 'string' || typeof value === 'boolean' ||
+            (typeof value === 'number' && Number.isFinite(value)) ||
+            (Array.isArray(value) && value.every((item: RuntimeValue): boolean => typeof item === 'string'))
+          if (!valid) throw new Error('source_settings_invalid')
+        })
+      })
       return document
-    } catch (_err) {
-      return emptyDocument()
+    } catch (_error) {
+      throw new Error('source_settings_invalid')
     }
   }
 
@@ -424,7 +424,7 @@ export class SourceSettingsStore {
     if (!this.isConfigured()) {
       return
     }
-    writeTextSync(this.storagePath, JSON.stringify(document))
+    writeAppTextFile(this.storagePath, JSON.stringify(document))
   }
 }
 

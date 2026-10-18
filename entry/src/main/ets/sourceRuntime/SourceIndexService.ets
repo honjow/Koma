@@ -329,6 +329,8 @@ function parseIndexEntriesDocument(raw: Object): Object[] | undefined {
   return Array.isArray(sources) ? sources as Object[] : undefined
 }
 
+const sourceIndexPreferenceOperations: Map<string, Promise<void>> = new Map()
+
 export class SourceIndexService {
   private context: common.UIAbilityContext
   private iconCacheStore: RemoteImageCacheStore
@@ -394,105 +396,142 @@ export class SourceIndexService {
     }
   }
 
-  async loadSavedUrl(): Promise<string> {
-    try {
-      const store = await preferences.getPreferences(this.context, SOURCE_INDEX_PREFS_STORE_NAME)
-      const url = await store.get(SOURCE_INDEX_URL_KEY, '') as string
-      return typeof url === 'string' && url.trim().length > 0 ? url.trim() : ''
-    } catch (_err) {
-      return ''
+  private ordered<T>(operation: () => Promise<T>): Promise<T> {
+    const key = this.context.filesDir
+    const result = (sourceIndexPreferenceOperations.get(key) ?? Promise.resolve()).then(operation)
+    sourceIndexPreferenceOperations.set(key, result.then(() => {}, () => {}))
+    return result
+  }
+
+  private async savedUrl(store: preferences.Preferences): Promise<string> {
+    const url = await store.get(SOURCE_INDEX_URL_KEY, '')
+    if (typeof url !== 'string') throw new Error('source_index_preferences_invalid')
+    return url.trim()
+  }
+
+  private async savedRepositories(store: preferences.Preferences): Promise<SourceIndexRepository[]> {
+    const payload = await store.get(SOURCE_INDEX_REPOSITORIES_KEY, '')
+    if (typeof payload !== 'string') throw new Error('source_index_preferences_invalid')
+    let repositories: SourceIndexRepository[] = []
+    if (payload.trim().length > 0) {
+      const parsed = JSON.parse(payload) as Object
+      if (!Array.isArray(parsed)) throw new Error('source_index_preferences_invalid')
+      for (const value of parsed as Object[]) {
+        if (normalizeSourceIndexRepository(value) === undefined) throw new Error('source_index_preferences_invalid')
+      }
+      repositories = normalizeSourceIndexRepositories(parsed as Object[])
     }
+    const legacyUrl = normalizeIndexUrl(await this.savedUrl(store))
+    if (isValidHttpUrl(legacyUrl) && !repositories.some((item: SourceIndexRepository): boolean => item.url === legacyUrl)) {
+      repositories.push({ url: legacyUrl, lastUsedAt: 0 })
+    }
+    return normalizeSourceIndexRepositories(repositories as Object[])
+  }
+
+  async loadSavedUrl(): Promise<string> {
+    return this.ordered(async (): Promise<string> => {
+      try {
+        const store = await preferences.getPreferences(this.context, SOURCE_INDEX_PREFS_STORE_NAME)
+        return await this.savedUrl(store)
+      } catch (_error) {
+        throw new Error('source_index_preferences_read_failed')
+      }
+    })
   }
 
   async loadSavedRepositories(): Promise<SourceIndexRepository[]> {
+    return this.ordered(async (): Promise<SourceIndexRepository[]> => {
+      try {
+        const store = await preferences.getPreferences(this.context, SOURCE_INDEX_PREFS_STORE_NAME)
+        return await this.savedRepositories(store)
+      } catch (_error) {
+        throw new Error('source_index_preferences_read_failed')
+      }
+    })
+  }
+
+  private async commitSavedPreferences(
+    store: preferences.Preferences,
+    repositories?: SourceIndexRepository[],
+    url?: string,
+    removeUrl: boolean = false,
+  ): Promise<void> {
+    const urlExisted = await store.has(SOURCE_INDEX_URL_KEY)
+    const previousUrl = await store.get(SOURCE_INDEX_URL_KEY, '')
+    const repositoriesExisted = await store.has(SOURCE_INDEX_REPOSITORIES_KEY)
+    const previousRepositories = await store.get(SOURCE_INDEX_REPOSITORIES_KEY, '')
     try {
-      const store = await preferences.getPreferences(this.context, SOURCE_INDEX_PREFS_STORE_NAME)
-      const payload = await store.get(SOURCE_INDEX_REPOSITORIES_KEY, '') as string
-      let repositories: SourceIndexRepository[] = []
-      if (typeof payload === 'string' && payload.trim().length > 0) {
-        const parsed = JSON.parse(payload) as Object
-        if (Array.isArray(parsed)) {
-          repositories = normalizeSourceIndexRepositories(parsed as Object[])
-        }
+      if (removeUrl) await store.delete(SOURCE_INDEX_URL_KEY)
+      else if (url !== undefined) await store.put(SOURCE_INDEX_URL_KEY, url)
+      if (repositories !== undefined) {
+        await store.put(SOURCE_INDEX_REPOSITORIES_KEY, serializeSourceIndexRepositories(repositories))
       }
-      const legacyUrl = await store.get(SOURCE_INDEX_URL_KEY, '') as string
-      const normalizedLegacyUrl = typeof legacyUrl === 'string' ? normalizeIndexUrl(legacyUrl) : ''
-      if (isValidHttpUrl(normalizedLegacyUrl) && !repositories.some((item: SourceIndexRepository): boolean => item.url === normalizedLegacyUrl)) {
-        repositories.push({
-          url: normalizedLegacyUrl,
-          lastUsedAt: 0,
-        })
-      }
-      return normalizeSourceIndexRepositories(repositories as Object[])
-    } catch (_err) {
-      return []
+      await store.flush()
+    } catch (_error) {
+      if (urlExisted) await store.put(SOURCE_INDEX_URL_KEY, previousUrl)
+      else await store.delete(SOURCE_INDEX_URL_KEY)
+      if (repositoriesExisted) await store.put(SOURCE_INDEX_REPOSITORIES_KEY, previousRepositories)
+      else await store.delete(SOURCE_INDEX_REPOSITORIES_KEY)
+      await store.flush()
+      throw new Error('source_index_preferences_commit_failed')
     }
   }
 
   async saveUrl(url: string): Promise<void> {
     return BackupRestoreActivity.runWrite(async (): Promise<void> => {
-      const normalized = normalizeIndexUrl(url)
-      try {
-        const store = await preferences.getPreferences(this.context, SOURCE_INDEX_PREFS_STORE_NAME)
-        await store.put(SOURCE_INDEX_URL_KEY, normalized)
-        if (isValidHttpUrl(normalized)) {
-          const repositories = await this.loadSavedRepositories()
-          const next: SourceIndexRepository[] = [{
-            url: normalized,
-            lastUsedAt: Date.now(),
-          }]
-          repositories.forEach((repository: SourceIndexRepository) => {
-            if (repository.url !== normalized) {
-              next.push(repository)
-            }
-          })
-          await store.put(SOURCE_INDEX_REPOSITORIES_KEY, serializeSourceIndexRepositories(next))
+      return this.ordered(async (): Promise<void> => {
+        try {
+          const normalized = normalizeIndexUrl(url)
+          const store = await preferences.getPreferences(this.context, SOURCE_INDEX_PREFS_STORE_NAME)
+          const repositories = await this.savedRepositories(store)
+          let next: SourceIndexRepository[] | undefined = undefined
+          if (isValidHttpUrl(normalized)) {
+            const updated: SourceIndexRepository[] = [{ url: normalized, lastUsedAt: Date.now() }]
+            repositories.forEach((repository: SourceIndexRepository) => {
+              if (repository.url !== normalized) updated.push(repository)
+            })
+            next = updated
+          }
+          await this.commitSavedPreferences(store, next, normalized)
+          console.info('[SourceIndex] step=save_url')
+        } catch (_error) {
+          throw new Error('source_index_preferences_save_failed')
         }
-        await store.flush()
-        console.info('[SourceIndex] step=save_url')
-      } catch (error) {
-        const e = error as BusinessError
-        console.error('[SourceIndex] step=save_url_fail code=' + e.code)
-      }
+      })
     })
   }
 
   async clearUrl(): Promise<void> {
     return BackupRestoreActivity.runWrite(async (): Promise<void> => {
-      try {
-        const store = await preferences.getPreferences(this.context, SOURCE_INDEX_PREFS_STORE_NAME)
-        await store.delete(SOURCE_INDEX_URL_KEY)
-        await store.flush()
-        console.info('[SourceIndex] step=clear_url')
-      } catch (_err) {
-      }
+      return this.ordered(async (): Promise<void> => {
+        try {
+          const store = await preferences.getPreferences(this.context, SOURCE_INDEX_PREFS_STORE_NAME)
+          await this.commitSavedPreferences(store, undefined, undefined, true)
+        } catch (_error) {
+          throw new Error('source_index_preferences_clear_failed')
+        }
+      })
     })
   }
 
   async removeSavedRepository(url: string): Promise<SourceIndexRepository[]> {
     return BackupRestoreActivity.runWrite(async (): Promise<SourceIndexRepository[]> => {
-      const normalized = normalizeIndexUrl(url)
-      try {
-        const store = await preferences.getPreferences(this.context, SOURCE_INDEX_PREFS_STORE_NAME)
-        const repositories = (await this.loadSavedRepositories())
-          .filter((repository: SourceIndexRepository): boolean => repository.url !== normalized)
-        await store.put(SOURCE_INDEX_REPOSITORIES_KEY, serializeSourceIndexRepositories(repositories))
-        const activeUrl = await store.get(SOURCE_INDEX_URL_KEY, '') as string
-        if (typeof activeUrl === 'string' && normalizeIndexUrl(activeUrl) === normalized) {
-          if (repositories.length > 0) {
-            await store.put(SOURCE_INDEX_URL_KEY, repositories[0].url)
-          } else {
-            await store.delete(SOURCE_INDEX_URL_KEY)
-          }
+      return this.ordered(async (): Promise<SourceIndexRepository[]> => {
+        try {
+          const normalized = normalizeIndexUrl(url)
+          const store = await preferences.getPreferences(this.context, SOURCE_INDEX_PREFS_STORE_NAME)
+          const repositories = (await this.savedRepositories(store))
+            .filter((repository: SourceIndexRepository): boolean => repository.url !== normalized)
+          const activeUrl = normalizeIndexUrl(await this.savedUrl(store))
+          const removingActive = activeUrl === normalized
+          await this.commitSavedPreferences(store, repositories,
+            removingActive && repositories.length > 0 ? repositories[0].url : undefined,
+            removingActive && repositories.length === 0)
+          return repositories
+        } catch (_error) {
+          throw new Error('source_index_preferences_remove_failed')
         }
-        await store.flush()
-        console.info('[SourceIndex] step=remove_saved_repository')
-        return repositories
-      } catch (error) {
-        const e = error as BusinessError
-        console.error('[SourceIndex] step=remove_saved_repository_fail code=' + e.code)
-        return this.loadSavedRepositories()
-      }
+      })
     })
   }
 

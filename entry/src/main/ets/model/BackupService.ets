@@ -1,3 +1,4 @@
+import { SourceIndexService } from '../sourceRuntime/SourceIndexService'
 import { ApplicationSettingsBackup, checkedApplicationSettingsBackup, exportApplicationSettings,
   importApplicationSettings, countApplicationSettings, reloadApplicationSettingsRuntime } from './ApplicationSettingsBackup'
 import { writeAppTextFile } from './AppFileTextPersistence'
@@ -1484,13 +1485,8 @@ export class BackupService {
   }
 
   private async exportSourceIndexUrl(): Promise<string | undefined> {
-    try {
-      const store = await preferences.getPreferences(this.context, SOURCE_INDEX_PREFS_STORE_NAME)
-      const url = await store.get(SOURCE_INDEX_URL_KEY, '') as string
-      return typeof url === 'string' && url.trim().length > 0 ? url.trim() : undefined
-    } catch (_err) {
-      return undefined
-    }
+    const url = await new SourceIndexService(this.context).loadSavedUrl()
+    return url.length > 0 ? url : undefined
   }
 
   private async importSourceIndexUrl(url: string | undefined): Promise<void> {
