@@ -72,7 +72,7 @@ export class RemoteProgressBootstrapSync {
             failed: acc.failed + item.failed,
           }
         }, empty)
-        sessionStore.flush()
+        if (sessionStore.flush() === false) throw new Error('reader_progress_save_failed')
         RemoteProgressSyncBridge.markSuccess()
         console.info(`[BootstrapSync] step=done updated=${total.updated} synced=${total.synced} failed=${total.failed}`)
         return total

@@ -1,3 +1,4 @@
+import { writeAppTextFile } from './AppFileTextPersistence'
 import { fileIo as fs } from '@kit.CoreFileKit'
 import { common } from '@kit.AbilityKit'
 import { continuationChapterIds, ReaderChapterOpenIntent } from './ReaderChapterSequence'
@@ -187,6 +188,8 @@ export interface ReaderSessionPersistenceAdapter {
   saveSourceHistory?(history: SourceReadHistoryEntry[]): void
   loadSnapshot?(): ReaderSessionDocumentSnapshot
   saveSnapshot?(snapshot: ReaderSessionDocumentSnapshot): void
+  /** Legacy data is readable while its normalized document still awaits commit. */
+  requiresMigration?(): boolean
 }
 
 export const READER_PROGRESS_PERSISTENCE_FILE_NAME: string = 'reader-sessions.v1.json'
@@ -276,19 +279,11 @@ function normalizeReaderSessionFilePath(filesDir: string): string {
   return dir.length === 0 ? READER_PROGRESS_PERSISTENCE_FILE_NAME : `${dir}/${READER_PROGRESS_PERSISTENCE_FILE_NAME}`
 }
 
-function closeReaderSessionFile(file: fs.File | undefined): void {
-  if (file === undefined) {
-    return
-  }
-  try {
-    fs.closeSync(file)
-  } catch (_err) {
-  }
-}
 
 export class AppFilesReaderSessionPersistenceAdapter implements ReaderSessionPersistenceAdapter {
   private readonly filePath: string
   private readonly filesDir: string
+  private migrationPending: boolean = false
 
   constructor(filesDir: string) {
     this.filesDir = filesDir
@@ -323,42 +318,52 @@ export class AppFilesReaderSessionPersistenceAdapter implements ReaderSessionPer
     this.saveDocument(snapshot)
   }
 
+  requiresMigration(): boolean {
+    return this.migrationPending
+  }
+
   private loadDocument(): ReaderSessionDocumentSnapshot {
+    let document: ReaderSessionDocument
     try {
-      const document: ReaderSessionDocument = fs.accessSync(this.filePath)
+      document = fs.accessSync(this.filePath)
         ? JSON.parse(fs.readTextSync(this.filePath, { encoding: 'utf-8' })) as ReaderSessionDocument
         : { schemaVersion: READER_PROGRESS_LEGACY_SCHEMA_VERSION, progress: [] }
-      if (document.schemaVersion !== READER_PROGRESS_LEGACY_SCHEMA_VERSION && document.schemaVersion !== 2 &&
-        document.schemaVersion !== READER_PROGRESS_PERSISTENCE_SCHEMA_VERSION) {
-        console.warn(`Unsupported reader progress schema version: ${document.schemaVersion}`)
-        return { progress: [], sourceHistory: [], chapters: [] }
-      }
-      const snapshot = readerSessionSnapshot(document)
-      if (document.schemaVersion !== READER_PROGRESS_PERSISTENCE_SCHEMA_VERSION) {
-        const legacyPayload = new AppFilesChapterReadStatePersistenceAdapter(this.filesDir).load()
-        if (legacyPayload !== undefined && legacyPayload.length > 0) {
-          const legacy = JSON.parse(legacyPayload) as LegacyChapterReadDocument
-          if (legacy.schemaVersion === 1 && Array.isArray(legacy.overrides)) {
-            legacy.overrides.forEach((row: ChapterReadStateOverride): void => {
-              const found = snapshot.chapters.find((state: ChapterReadingState): boolean =>
-                state.comicId === row.comicId && state.chapterId === row.chapterId)
-              if (found !== undefined) {
-                found.isRead = row.isRead
-                found.updatedAt = row.updatedAt
-              } else {
-                snapshot.chapters.push({ comicId: row.comicId, chapterId: row.chapterId,
-                  isRead: row.isRead, updatedAt: row.updatedAt })
-              }
-            })
-          }
-        }
-        // v3 is the one-time migration marker. Keep the legacy file untouched.
-        this.saveDocument(alignSnapshotChapterCompletion(snapshot))
-      }
-      return snapshot
-    } catch (_err) {
-      return { progress: [], sourceHistory: [], chapters: [] }
+    } catch (_error) {
+      throw new Error('reader_progress_load_failed')
     }
+    if (document === null || typeof document !== 'object' || Array.isArray(document) ||
+      !Array.isArray(document.progress)) {
+      throw new Error('Invalid reader progress persistence document')
+    }
+    if (document.schemaVersion !== READER_PROGRESS_LEGACY_SCHEMA_VERSION && document.schemaVersion !== 2 &&
+      document.schemaVersion !== READER_PROGRESS_PERSISTENCE_SCHEMA_VERSION) {
+      throw new Error(`Unsupported reader progress schema version: ${document.schemaVersion}`)
+    }
+    const snapshot = readerSessionSnapshot(document)
+    if (document.schemaVersion !== READER_PROGRESS_PERSISTENCE_SCHEMA_VERSION) {
+      const legacyPayload = document.schemaVersion <= 2
+        ? new AppFilesChapterReadStatePersistenceAdapter(this.filesDir).load() : undefined
+      if (legacyPayload !== undefined && legacyPayload.length > 0) {
+        const legacy = JSON.parse(legacyPayload) as LegacyChapterReadDocument
+        if (legacy.schemaVersion === 1 && Array.isArray(legacy.overrides)) {
+          legacy.overrides.forEach((row: ChapterReadStateOverride): void => {
+            const found = snapshot.chapters.find((state: ChapterReadingState): boolean =>
+              state.comicId === row.comicId && state.chapterId === row.chapterId)
+            if (found !== undefined) {
+              found.isRead = row.isRead
+              found.updatedAt = row.updatedAt
+            } else {
+              snapshot.chapters.push({ comicId: row.comicId, chapterId: row.chapterId,
+                isRead: row.isRead, updatedAt: row.updatedAt })
+            }
+          })
+        }
+      }
+      // The store owns migration admission and retry; keep both original files until commit.
+      alignSnapshotChapterCompletion(snapshot)
+      this.migrationPending = true
+    }
+    return snapshot
   }
 
   private saveDocument(snapshot: ReaderSessionDocumentSnapshot): void {
@@ -368,14 +373,8 @@ export class AppFilesReaderSessionPersistenceAdapter implements ReaderSessionPer
       sourceHistory: snapshot.sourceHistory,
       chapters: snapshot.chapters,
     }
-    let file: fs.File | undefined = undefined
-    try {
-      file = fs.openSync(this.filePath, fs.OpenMode.WRITE_ONLY | fs.OpenMode.CREATE | fs.OpenMode.TRUNC)
-      fs.writeSync(file.fd, JSON.stringify(document), { encoding: 'utf-8' })
-    } catch (_err) {
-    } finally {
-      closeReaderSessionFile(file)
-    }
+    writeAppTextFile(this.filePath, JSON.stringify(document))
+    this.migrationPending = false
   }
 }
 
@@ -391,7 +390,7 @@ export abstract class ReaderSessionStore {
   abstract removeSourceHistory(comicId: ComicId): void
   abstract listSourceHistory(): SourceReadHistoryEntry[]
   /** Writes any queued update before the Reader route releases its session. */
-  abstract flush(): void
+  abstract flush(): boolean
 
   getComicProgress(comic: Comic): ReadingProgress | undefined {
     return currentComicReadingProgress(comic, this.getProgress(comic.id))
@@ -562,7 +561,8 @@ export class InMemoryReaderSessionStore extends ReaderSessionStore {
     return out
   }
 
-  flush(): void {
+  flush(): boolean {
+    return true
   }
 }
 
@@ -577,22 +577,36 @@ export class PersistentReaderSessionStore extends ReaderSessionStore {
     super()
     this.adapter = adapter
     this.restoreSnapshot()
+    this.flushPendingMigration()
   }
 
   /** Reload a replaced backup without flushing the pre-restore pending snapshot. */
   reload(): void {
-    if (this.persistTimerId >= 0) clearTimeout(this.persistTimerId)
-    this.persistTimerId = -1
-    this.persistPending = false
-    this.progressByComicId.clear()
-    this.sourceHistoryByComicId.clear()
-    this.chapterStates.clear()
-    this.restoreSnapshot()
+    this.restoreSnapshot(true)
+    this.flushPendingMigration()
   }
 
-  private restoreSnapshot(): void {
+  private flushPendingMigration(): void {
+    if (this.adapter.requiresMigration !== undefined && this.adapter.requiresMigration()) {
+      this.persistPending = true
+      this.flush()
+    }
+  }
+
+  private restoreSnapshot(replace: boolean = false): void {
     const snapshot = this.adapter.loadSnapshot === undefined ? undefined : this.adapter.loadSnapshot()
     const progressRows = snapshot === undefined ? this.adapter.load() : snapshot.progress
+    const sourceHistory = snapshot !== undefined ? snapshot.sourceHistory :
+      (this.adapter.loadSourceHistory === undefined ? [] : this.adapter.loadSourceHistory())
+    // Finish loading before retiring the old snapshot or its pending write.
+    if (replace) {
+      if (this.persistTimerId >= 0) clearTimeout(this.persistTimerId)
+      this.persistTimerId = -1
+      this.persistPending = false
+      this.progressByComicId.clear()
+      this.sourceHistoryByComicId.clear()
+      this.chapterStates.clear()
+    }
     progressRows.forEach((progress: ReadingProgress): void => {
       this.progressByComicId.set(progress.comicId, progress)
       if (snapshot === undefined) this.recordChapterProgress(progress)
@@ -602,8 +616,6 @@ export class PersistentReaderSessionStore extends ReaderSessionStore {
         this.chapterStates.set(chapterStateKey(state.comicId, state.chapterId), state)
       })
     }
-    const sourceHistory = snapshot !== undefined ? snapshot.sourceHistory :
-      (this.adapter.loadSourceHistory === undefined ? [] : this.adapter.loadSourceHistory())
     sourceHistory.forEach((entry: SourceReadHistoryEntry): void => {
         const copied = copySourceReadHistoryEntry(entry)
         if (copied !== undefined) {
@@ -696,16 +708,21 @@ export class PersistentReaderSessionStore extends ReaderSessionStore {
     return out
   }
 
-  flush(): void {
+  flush(): boolean {
     if (this.persistTimerId >= 0) {
       clearTimeout(this.persistTimerId)
       this.persistTimerId = -1
     }
-    if (!this.persistPending) {
-      return
+    if (!this.persistPending) return true
+    try {
+      this.persist()
+      // Only a completed commit discharges pending work. A later normal boundary can retry a failure.
+      this.persistPending = false
+      return true
+    } catch (_error) {
+      console.warn('[ReaderProgress] persist_failed pending=true')
+      return false
     }
-    this.persistPending = false
-    this.persist()
   }
 
   private schedulePersist(): void {
