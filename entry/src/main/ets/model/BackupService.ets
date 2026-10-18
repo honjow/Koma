@@ -1,4 +1,5 @@
 import { common } from '@kit.AbilityKit'
+import { buffer } from '@kit.ArkTS'
 import { preferences } from '@kit.ArkData'
 import { fileIo as fs, ListFileOptions, picker } from '@kit.CoreFileKit'
 import { AppStrings } from '../i18n/AppStrings'
@@ -21,7 +22,8 @@ import {
 import {
   SourcePackageBackupEntry,
   exportInstalledSourcePackages,
-  restoreSourcePackagesFromBackup,
+  prepareSourcePackagesFromBackup,
+  PreparedSourcePackageRestore,
 } from '../sourceRuntime/SourceRuntimeAppRegistry'
 import {
   SourceSettingsRecord,
@@ -296,6 +298,27 @@ function readTextIfExists(path: string, fallback: string): string {
     return fallback
   }
   return fs.readTextSync(path, { encoding: 'utf-8' })
+}
+
+// DocumentViewPicker grants a URI. readTextSync only accepts sandbox paths;
+// openSync can consume the grant and the descriptor keeps partial reads exact.
+function readPickedBackupText(uri: string): string {
+  const file = fs.openSync(uri, fs.OpenMode.READ_ONLY)
+  try {
+    const size = fs.statSync(file.fd).size
+    const bytes = new Uint8Array(size)
+    let offset = 0
+    while (offset < size) {
+      const chunk = new ArrayBuffer(Math.min(65536, size - offset))
+      const count = fs.readSync(file.fd, chunk)
+      if (count <= 0) throw new Error('Incomplete backup file')
+      bytes.set(new Uint8Array(chunk, 0, count), offset)
+      offset += count
+    }
+    return buffer.from(bytes.buffer).toString('utf-8')
+  } finally {
+    fs.closeSync(file)
+  }
 }
 
 function writeText(path: string, payload: string): void {
@@ -708,6 +731,74 @@ function isAcceptedDecryptedSchemaVersion(schemaVersion: number): boolean {
   return isAcceptedPlaintextSchemaVersion(schemaVersion) || schemaVersion === BACKUP_ENCRYPTED_SCHEMA_VERSION
 }
 
+/** Normalize every payload that can fail before any live restore writer runs. */
+function prepareBackupRestoreDocument(json: string, allowEncryptedContentSchema: boolean): KomaBackupDocument {
+  const document = JSON.parse(json) as KomaBackupDocument
+  asJsonObject(document as Object, 'document')
+  const accepted = allowEncryptedContentSchema ?
+    isAcceptedDecryptedSchemaVersion(document.schemaVersion) :
+    isAcceptedPlaintextSchemaVersion(document.schemaVersion)
+  if (!accepted) throw new Error(`Unsupported backup schema version: ${document.schemaVersion}`)
+  if (typeof document.libraryStore !== 'string' || typeof document.readingProgress !== 'string') {
+    throw new Error('Invalid backup payload')
+  }
+  document.libraryStore = restoreLocalLibraryMetadataBackupEntries(document.libraryStore, document.localLibraryMetadata)
+  assertValidLibraryStoreJson(document.libraryStore)
+  document.readingProgress = normalizeReaderSessionBackupPayload(document.readingProgress)
+
+  if (document.remoteServers !== undefined && document.remoteServers !== null) {
+    const remote = asJsonObject(document.remoteServers as Object, 'remote servers')
+    const keys: string[] = [
+      'komgaServer', 'komgaCredential', 'kavitaServer', 'kavitaCredential',
+      'webDavServer', 'webDavCredential', 'opdsServer', 'opdsCredential',
+    ]
+    keys.forEach((key: string): void => {
+      if (remote[key] !== undefined && typeof remote[key] !== 'string') throw new Error('Invalid backup remote servers')
+    })
+  }
+  if (document.schemaVersion >= BACKUP_SCHEMA_VERSION) {
+    if (document.sourceSettings !== undefined) {
+      const sources = asJsonObject(document.sourceSettings as Object, 'source settings')
+      Object.keys(sources).forEach((sourceId: string): void => {
+        if (sources[sourceId] !== null) asJsonObject(sources[sourceId], 'source settings record')
+      })
+    }
+    if (document.sourceFilterPreferences !== undefined) {
+      asJsonObject(document.sourceFilterPreferences as Object, 'source filter preferences')
+    }
+    if (document.sourceIndexUrl !== undefined && typeof document.sourceIndexUrl !== 'string') {
+      throw new Error('Invalid backup source index URL')
+    }
+    if (document.downloadQueue !== undefined && document.downloadQueue !== '') {
+      if (typeof document.downloadQueue !== 'string') throw new Error('Invalid backup download queue')
+      document.downloadQueue = normalizeBackupDownloadQueuePayload(document.downloadQueue)
+    }
+    if (document.trackerMappings !== undefined) {
+      if (!Array.isArray(document.trackerMappings)) throw new Error('Invalid backup tracker mappings')
+      document.trackerMappings = normalizeComicTrackerMappings(document.trackerMappings)
+    }
+    if (document.trackerSyncPreferences !== undefined) {
+      asJsonObject(document.trackerSyncPreferences as Object, 'tracker sync preferences')
+      document.trackerSyncPreferences = normalizeBackupTrackerSyncPreferences(document.trackerSyncPreferences)
+    }
+  }
+  if (document.schemaVersion >= BACKUP_SCHEMA_VERSION_V2) {
+    if (document.sourcePackages !== undefined && !Array.isArray(document.sourcePackages)) {
+      throw new Error('Invalid backup source packages')
+    }
+    if (document.settings !== undefined) {
+      const settings = asJsonObject(document.settings as Object, 'reader settings')
+      const defaults = DEFAULT_READER_PREFERENCES as Object as Record<string, Object>
+      Object.keys(defaults).forEach((key: string): void => {
+        if (settings[key] !== undefined && typeof settings[key] !== typeof defaults[key]) {
+          throw new Error('Invalid backup reader settings')
+        }
+      })
+    }
+  }
+  return document
+}
+
 export class BackupService {
   private context: common.UIAbilityContext
 
@@ -935,38 +1026,41 @@ export class BackupService {
   }
 
   private async importDocument(json: string, allowEncryptedContentSchema: boolean): Promise<void> {
-    const document = JSON.parse(json) as KomaBackupDocument
-    const accepted = allowEncryptedContentSchema ?
-      isAcceptedDecryptedSchemaVersion(document.schemaVersion) :
-      isAcceptedPlaintextSchemaVersion(document.schemaVersion)
-    if (!accepted) {
-      throw new Error(`Unsupported backup schema version: ${document.schemaVersion}`)
+    const document = prepareBackupRestoreDocument(json, allowEncryptedContentSchema)
+    let sourcePlan: PreparedSourcePackageRestore | undefined
+    if (document.schemaVersion >= BACKUP_SCHEMA_VERSION_V2 && document.sourcePackages !== undefined) {
+      const prepared = await prepareSourcePackagesFromBackup(this.context, document.sourcePackages)
+      if (!prepared.ok || prepared.plan === undefined) {
+        throw new Error('Invalid backup source packages: ' + (prepared.reasonCode ?? 'restore_failed'))
+      }
+      sourcePlan = prepared.plan
     }
-    if (typeof document.libraryStore !== 'string' || typeof document.readingProgress !== 'string') {
-      throw new Error('Invalid backup payload')
+    try {
+      const sessionStore = appReaderSessionStore(this.context.filesDir)
+      sessionStore.flush()
+      writeText(this.libraryPath(), document.libraryStore)
+      writeText(this.readerProgressPath(), document.readingProgress)
+      sessionStore.reload()
+      await this.importRemoteServers(document.remoteServers)
+      if (document.schemaVersion >= BACKUP_SCHEMA_VERSION) {
+        this.importSourceSettings(document.sourceSettings)
+        this.importSourceFilterPreferences(document.sourceFilterPreferences)
+        await this.importSourceIndexUrl(document.sourceIndexUrl)
+        this.importDownloadQueue(document.downloadQueue)
+        await this.importTrackerMappings(document.trackerMappings)
+        await this.importTrackerSyncPreferences(document.trackerSyncPreferences)
+      }
+      if (document.schemaVersion >= BACKUP_SCHEMA_VERSION_V2) {
+        if (sourcePlan !== undefined) {
+          const restored = await sourcePlan.commit()
+          if (!restored.ok) throw new Error('Backup source registry commit failed')
+        }
+        await this.importSettings(document.settings)
+      }
+      console.info('[Backup] step=import_json')
+    } finally {
+      await sourcePlan?.discard()
     }
-    const libraryStorePayload = restoreLocalLibraryMetadataBackupEntries(document.libraryStore, document.localLibraryMetadata)
-    assertValidLibraryStoreJson(libraryStorePayload)
-    const readingProgress = normalizeReaderSessionBackupPayload(document.readingProgress)
-    const sessionStore = appReaderSessionStore(this.context.filesDir)
-    sessionStore.flush()
-    writeText(this.libraryPath(), libraryStorePayload)
-    writeText(this.readerProgressPath(), readingProgress)
-    sessionStore.reload()
-    await this.importRemoteServers(document.remoteServers)
-    if (document.schemaVersion >= BACKUP_SCHEMA_VERSION) {
-      this.importSourceSettings(document.sourceSettings)
-      this.importSourceFilterPreferences(document.sourceFilterPreferences)
-      await this.importSourceIndexUrl(document.sourceIndexUrl)
-      this.importDownloadQueue(document.downloadQueue)
-      await this.importTrackerMappings(document.trackerMappings)
-      await this.importTrackerSyncPreferences(document.trackerSyncPreferences)
-    }
-    if (document.schemaVersion >= BACKUP_SCHEMA_VERSION_V2) {
-      await this.importSourcePackages(document.sourcePackages)
-      await this.importSettings(document.settings)
-    }
-    console.info('[Backup] step=import_json')
   }
 
   preview(json: string): BackupImportPreview {
@@ -1154,7 +1248,7 @@ export class BackupService {
       console.info('[Backup] step=import_cancel')
       return false
     }
-    const payload = fs.readTextSync(result[0], { encoding: 'utf-8' })
+    const payload = readPickedBackupText(result[0])
     await this.import(payload)
     console.info('[Backup] step=import_select')
     return true
@@ -1169,7 +1263,7 @@ export class BackupService {
       console.info('[Backup] step=preview_cancel')
       return undefined
     }
-    const payload = fs.readTextSync(result[0], { encoding: 'utf-8' })
+    const payload = readPickedBackupText(result[0])
     const preview = this.preview(payload)
     console.info('[Backup] step=preview_select')
     return {
@@ -1235,18 +1329,6 @@ export class BackupService {
     await store.flush()
   }
 
-  private async importSourcePackages(sourcePackages: SourcePackageBackupEntry[] | undefined): Promise<void> {
-    if (sourcePackages === undefined) {
-      return
-    }
-    if (!Array.isArray(sourcePackages)) {
-      throw new Error('Invalid backup source packages')
-    }
-    const restored = await restoreSourcePackagesFromBackup(this.context, sourcePackages)
-    if (!restored.ok) {
-      throw new Error('Invalid backup source packages: ' + (restored.reasonCode ?? 'restore_failed'))
-    }
-  }
 
   private async importSettings(settings: ReaderPreferences | undefined): Promise<void> {
     if (settings === undefined) {

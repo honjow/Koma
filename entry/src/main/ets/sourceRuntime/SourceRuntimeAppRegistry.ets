@@ -491,7 +491,7 @@ function restoredSourcePackageIconBytes(sourcePackage: SourcePackageBackupEntry)
 function validateSourcePackageBackupPayload(
   sourcePackage: SourcePackageBackupEntry,
 ): SourcePackageBackupValidationResult {
-  if (sourcePackage === undefined ||
+  if (sourcePackage === undefined || sourcePackage === null || typeof sourcePackage !== 'object' ||
     typeof sourcePackage.sourceId !== 'string' ||
     typeof sourcePackage.version !== 'string' ||
     typeof sourcePackage.enabled !== 'boolean' ||
@@ -723,10 +723,52 @@ export function exportInstalledSourcePackages(): SourcePackageBackupEntry[] {
   return packages
 }
 
+export interface SourcePackageRestorePreparation {
+  ok: boolean
+  plan?: PreparedSourcePackageRestore
+  reasonCode?: string
+}
+
+/** Owns only the new staged directories until the whole backup is ready. */
+export class PreparedSourcePackageRestore {
+  private consumed: boolean = false
+  private context: common.UIAbilityContext
+  private stagedPackages: StagedSourcePackageBackup[]
+
+  constructor(context: common.UIAbilityContext, stagedPackages: StagedSourcePackageBackup[]) {
+    this.context = context
+    this.stagedPackages = stagedPackages
+  }
+
+  async commit(): Promise<SourcePackageRestoreResult> {
+    if (this.consumed) return { ok: false, restoredCount: 0, reasonCode: 'restore_plan_consumed' }
+    this.consumed = true
+    return commitStagedSourcePackages(this.context, this.stagedPackages)
+  }
+
+  async discard(): Promise<void> {
+    if (this.consumed) return
+    this.consumed = true
+    await removeStagedSourcePackageBackups(this.context, this.stagedPackages)
+  }
+}
+
 export async function restoreSourcePackagesFromBackup(
   context: common.UIAbilityContext,
   packages: SourcePackageBackupEntry[],
 ): Promise<SourcePackageRestoreResult> {
+  const prepared = await prepareSourcePackagesFromBackup(context, packages)
+  if (!prepared.ok || prepared.plan === undefined) {
+    return { ok: false, restoredCount: 0, reasonCode: prepared.reasonCode ?? 'restore_failed' }
+  }
+  return prepared.plan.commit()
+}
+
+export async function prepareSourcePackagesFromBackup(
+  context: common.UIAbilityContext,
+  packages: SourcePackageBackupEntry[],
+): Promise<SourcePackageRestorePreparation> {
+  if (!Array.isArray(packages)) return { ok: false, reasonCode: 'invalid_source_package_backup' }
   // Validate the complete backup before replacing any existing package. A
   // later incompatibility must not leave earlier replacements unpersisted.
   const validatedPackages: ValidatedSourcePackageBackup[] = []
@@ -734,11 +776,11 @@ export async function restoreSourcePackagesFromBackup(
   for (let index = 0; index < packages.length; index += 1) {
     const validation = validateSourcePackageBackupPayload(packages[index])
     if (validation.value === undefined) {
-      return { ok: false, restoredCount: 0, reasonCode: validation.reasonCode ?? 'invalid_source_package_backup' }
+      return { ok: false, reasonCode: validation.reasonCode ?? 'invalid_source_package_backup' }
     }
     const sourceId = validation.value.manifest.package.id.trim()
     if (sourceIds.indexOf(sourceId) >= 0) {
-      return { ok: false, restoredCount: 0, reasonCode: 'invalid_source_package_backup' }
+      return { ok: false, reasonCode: 'invalid_source_package_backup' }
     }
     sourceIds.push(sourceId)
     validatedPackages.push(validation.value)
@@ -782,7 +824,7 @@ export async function restoreSourcePackagesFromBackup(
             await removeAppSourcePackageDir(context, packageDir)
           } catch (_err) {
           }
-          return { ok: false, restoredCount: 0, reasonCode: 'invalid_icon' }
+          return { ok: false, reasonCode: 'invalid_icon' }
         }
       }
       stagedPackages.push({
@@ -803,10 +845,17 @@ export async function restoreSourcePackagesFromBackup(
         await removeAppSourcePackageDir(context, packageDir)
       } catch (_cleanupErr) {
       }
-      return { ok: false, restoredCount: 0, reasonCode: 'invalid_source_package_backup' }
+      return { ok: false, reasonCode: 'invalid_source_package_backup' }
     }
   }
 
+  return { ok: true, plan: new PreparedSourcePackageRestore(context, stagedPackages) }
+}
+
+async function commitStagedSourcePackages(
+  context: common.UIAbilityContext,
+  stagedPackages: StagedSourcePackageBackup[],
+): Promise<SourcePackageRestoreResult> {
   // Keep old package directories until the new registry is persisted so a
   // failed replacement can restore the previous in-memory entries.
   const previousEntries: SourceRuntimeRegistryEntry[] = []
