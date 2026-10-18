@@ -1,4 +1,6 @@
 import { common } from '@kit.AbilityKit'
+import { BusinessError } from '@kit.BasicServicesKit'
+import { fileIo as fs } from '@kit.CoreFileKit'
 import { image } from '@kit.ImageKit'
 import {
   configureReaderRemoteImageCache,
@@ -6,6 +8,7 @@ import {
 } from '../model/ReaderPageSourceAdapter'
 import { ComicSourceKind } from '../model/ComicModels'
 import { resolveCachedCoverImage } from '../model/CoverImageCacheService'
+import { waitForRestoredLocalLibraryFolderAccess } from '../model/LocalLibraryFolderAccessService'
 import {
   CoverPixelMapLease,
   coverPixelMapMemoryCache,
@@ -154,17 +157,28 @@ export struct CachedCoverImage {
     this.loadingSignature = signature
     this.loadingGeneration = generation
     let imageSource: image.ImageSource | undefined = undefined
+    let sourceFile: fs.File | undefined = undefined
+    let decodeStep: string = 'resolve'
     try {
       const resolvedUri = await this.resolveImageUri(uri, sourceRuntimeId, sourceImageId, sourceKind, remoteServerId)
       if (this.disposed || this.sourceSignature !== signature || this.decodeGeneration !== generation) {
         return
       }
-      // The cache returns a file URI for local covers. ImageSource consumes the
-      // filesystem path, matching the Reader's existing local-image path.
-      const imageSourcePath = resolvedUri.startsWith('file://')
-        ? resolvedUri.substring('file://'.length)
-        : resolvedUri
-      imageSource = image.createImageSource(imageSourcePath)
+      // A document URI is not a path with its scheme removed. Let FileIO
+      // resolve its read grant, then retain the descriptor through decoding.
+      if (resolvedUri.startsWith('file://')) {
+        if (resolvedUri.startsWith('file://docs/')) {
+          decodeStep = 'folder_access'
+          await waitForRestoredLocalLibraryFolderAccess()
+        }
+        decodeStep = 'open_uri'
+        sourceFile = await fs.open(resolvedUri, fs.OpenMode.READ_ONLY)
+        decodeStep = 'image_source'
+        imageSource = image.createImageSource(sourceFile.fd)
+      } else {
+        imageSource = image.createImageSource(resolvedUri)
+      }
+      decodeStep = 'image_info'
       const imageInfo = await imageSource.getImageInfo()
       if (this.disposed || this.sourceSignature !== signature || this.decodeGeneration !== generation) {
         return
@@ -175,6 +189,7 @@ export struct CachedCoverImage {
       const scale = Math.min(1, maxEdge / Math.max(sourceWidth, sourceHeight))
       const desiredWidth = Math.max(1, Math.round(sourceWidth * scale))
       const desiredHeight = Math.max(1, Math.round(sourceHeight * scale))
+      decodeStep = 'pixel_map'
       const lease = await coverPixelMapMemoryCache.acquireOrLoad(memoryCacheKey, async (): Promise<image.PixelMap> => {
         return imageSource!.createPixelMap({
           desiredSize: {
@@ -188,7 +203,9 @@ export struct CachedCoverImage {
         return
       }
       await this.replacePixelMap(lease, signature)
-    } catch (_error) {
+    } catch (error) {
+      console.warn('[CachedCoverImage] step=decode_failed stage=' + decodeStep +
+        ' code=' + ((error as BusinessError).code ?? 'unknown'))
       if (!this.disposed && this.sourceSignature === signature && this.decodeGeneration === generation) {
         this.failedSignature = signature
         this.onError()
@@ -199,6 +216,13 @@ export struct CachedCoverImage {
           await imageSource.release()
         } catch (_error) {
           console.warn('[CachedCoverImage] step=image_source_release_failed')
+        }
+      }
+      if (sourceFile !== undefined) {
+        try {
+          await fs.close(sourceFile)
+        } catch (_error) {
+          console.warn('[CachedCoverImage] step=source_file_close_failed')
         }
       }
       if (!this.disposed && this.loading && this.loadingSignature === signature && this.loadingGeneration === generation) {

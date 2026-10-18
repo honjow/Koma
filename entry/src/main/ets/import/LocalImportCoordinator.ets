@@ -1,7 +1,7 @@
 import { util } from '@kit.ArkTS'
 import { BusinessError } from '@kit.BasicServicesKit'
 import { common } from '@kit.AbilityKit'
-import { fileIo as fs, ListFileOptions, picker } from '@kit.CoreFileKit'
+import { fileIo as fs, fileUri, ListFileOptions, picker } from '@kit.CoreFileKit'
 import { AppStrings } from '../i18n/AppStrings'
 import {
   ArchiveExtractionResult,
@@ -24,6 +24,7 @@ import {
   LocalLibraryFolderScanResult,
   scanLocalLibraryFolderEntries,
 } from '../model/LocalLibraryFolderContract'
+import { persistLocalLibraryFolderAccess } from '../model/LocalLibraryFolderAccessService'
 import {
   LOCAL_ARCHIVE_DEBUG_STEP_CACHE_PATHS,
   LOCAL_ARCHIVE_DEBUG_STEP_COPY_FAILED,
@@ -124,6 +125,7 @@ const LOCAL_IMPORT_ERROR_IMPORT_FAILED = 'import_failed'
 const LOCAL_IMPORT_ERROR_ARCHIVE_IMPORT_FAILED = 'archive_import_failed'
 const LOCAL_IMPORT_ERROR_IMAGE_IMPORT_FAILED = 'image_import_failed'
 const LOCAL_IMPORT_ERROR_FOLDER_PICKER_FAILED = 'folder_picker_failed'
+const LOCAL_IMPORT_ERROR_FOLDER_ACCESS_FAILED = 'folder_access_failed'
 const LOCAL_IMPORT_ERROR_FOLDER_SCAN_FAILED = 'folder_scan_failed'
 
 function assertSupportedPickedArchive(sourceUri: string): void {
@@ -325,7 +327,9 @@ export async function scanPickedFolderUri(rootUri: string): Promise<LocalLibrary
     recursion: true,
     listNum: 0,
   }
-  const listedEntries = await fs.listFile(rootUri, listFileOptions)
+  // listFile accepts a sandbox path; retain the picker URI as the library identity.
+  const scanPath = new fileUri.FileUri(rootUri).path
+  const listedEntries = await fs.listFile(scanPath, listFileOptions)
   const entries: LocalLibraryFolderEntry[] = []
   for (const listedEntry of listedEntries) {
     const relativePath = normalizePickedFolderRelativePath(rootUri, listedEntry)
@@ -706,6 +710,18 @@ export class LocalImportCoordinator {
         sourceUri: rootUri,
       })
       try {
+        // Folder pages retain the selected external URI. Save its read grant
+        // while the picker grant is live; cold reader opens activate that grant.
+        const access = await persistLocalLibraryFolderAccess(rootUri)
+        console.info('[Import] step=folder_access status=' + access.status)
+        if (access.status !== 'persisted' && access.status !== 'activated') {
+          results.push({
+            status: 'failed',
+            rootUri,
+            error: LOCAL_IMPORT_ERROR_FOLDER_ACCESS_FAILED,
+          })
+          continue
+        }
         const scanResult = await scanPickedFolderUri(rootUri)
         results.push({
           status: 'succeeded',

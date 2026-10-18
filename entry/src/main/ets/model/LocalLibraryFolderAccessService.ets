@@ -93,7 +93,21 @@ export async function activateLocalLibraryFolderAccess(rootUri: string): Promise
   }
 }
 
-export async function activateLocalLibraryFolderAccessForComics(
+let restoredFolderAccess: Promise<LocalLibraryFolderAccessSummary> | undefined = undefined
+
+/** The shell starts one restoration task; document-cover reads share its completion. */
+export function activateLocalLibraryFolderAccessForComics(
+  comics: Comic[],
+): Promise<LocalLibraryFolderAccessSummary> {
+  restoredFolderAccess = activateFolderRootsFromComics(comics)
+  return restoredFolderAccess
+}
+
+export async function waitForRestoredLocalLibraryFolderAccess(): Promise<void> {
+  await restoredFolderAccess
+}
+
+async function activateFolderRootsFromComics(
   comics: Comic[],
 ): Promise<LocalLibraryFolderAccessSummary> {
   const rootUris = localLibraryFolderRootUrisFromComics(comics)
