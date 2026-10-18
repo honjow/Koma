@@ -157,6 +157,14 @@ export class RemoteImageCacheStore {
   private readonly manifestPath: string
   private entries: Map<string, RemoteImageCacheManifestEntry> = new Map<string, RemoteImageCacheManifestEntry>()
 
+  private operationTail: Promise<void> = Promise.resolve()
+
+  private enqueue<T>(operation: () => Promise<T>): Promise<T> {
+    const next = this.operationTail.then(operation, operation)
+    this.operationTail = next.then((): void => {}, (): void => {})
+    return next
+  }
+
   constructor(cacheDir: string, directoryName: string = REMOTE_IMAGE_CACHE_DIR_NAME) {
     this.rootDir = joinSandboxPath(cacheDir, directoryName)
     this.manifestPath = joinSandboxPath(this.rootDir, REMOTE_IMAGE_CACHE_MANIFEST_NAME)
@@ -165,6 +173,10 @@ export class RemoteImageCacheStore {
   }
 
   get(url: string, headers?: RemoteImageCacheHeaders, cacheKeySeed?: string): Promise<string | undefined> {
+    return this.enqueue(() => this.getNow(url, headers, cacheKeySeed))
+  }
+
+  private async getNow(url: string, headers?: RemoteImageCacheHeaders, cacheKeySeed?: string): Promise<string | undefined> {
     const key = cacheKeyFor(url, headers, cacheKeySeed)
     const entry = this.entries.get(key)
     if (entry === undefined) {
@@ -184,7 +196,11 @@ export class RemoteImageCacheStore {
     return Promise.resolve(entry.path)
   }
 
-  async put(url: string, headers: RemoteImageCacheHeaders | undefined, bytes: ArrayBuffer, cacheKeySeed?: string): Promise<string> {
+  put(url: string, headers: RemoteImageCacheHeaders | undefined, bytes: ArrayBuffer, cacheKeySeed?: string): Promise<string> {
+    return this.enqueue(() => this.putNow(url, headers, bytes, cacheKeySeed))
+  }
+
+  private async putNow(url: string, headers: RemoteImageCacheHeaders | undefined, bytes: ArrayBuffer, cacheKeySeed?: string): Promise<string> {
     const key = cacheKeyFor(url, headers, cacheKeySeed)
     const filePath = joinSandboxPath(this.rootDir, `${key}.${extensionForUrl(url)}`)
     writeBytesSync(filePath, bytes)
@@ -200,7 +216,11 @@ export class RemoteImageCacheStore {
     return filePath
   }
 
-  async evictIfOver(maxBytes: number): Promise<void> {
+  evictIfOver(maxBytes: number, preservedPath?: string): Promise<void> {
+    return this.enqueue(() => this.evictIfOverNow(maxBytes, preservedPath))
+  }
+
+  private async evictIfOverNow(maxBytes: number, preservedPath?: string): Promise<void> {
     if (maxBytes <= 0) {
       return
     }
@@ -222,9 +242,11 @@ export class RemoteImageCacheStore {
       if (total <= maxBytes) {
         break
       }
+      if (entry.path === preservedPath) continue
       try {
         await fs.unlink(entry.path)
       } catch (_err) {
+        if (fs.accessSync(entry.path)) continue
       }
       this.entries.delete(entry.key)
       total -= entry.size
@@ -233,7 +255,11 @@ export class RemoteImageCacheStore {
     this.persist()
   }
 
-  async stats(): Promise<RemoteImageCacheStats> {
+  stats(): Promise<RemoteImageCacheStats> {
+    return this.enqueue(() => this.statsNow())
+  }
+
+  private async statsNow(): Promise<RemoteImageCacheStats> {
     let totalBytes = 0
     let entryCount = 0
     const staleKeys: string[] = []
@@ -257,13 +283,18 @@ export class RemoteImageCacheStore {
     }
   }
 
-  async clear(): Promise<void> {
+  clear(): Promise<void> {
+    return this.enqueue(() => this.clearNow())
+  }
+
+  private async clearNow(): Promise<void> {
     const paths: string[] = []
     this.entries.forEach((entry: RemoteImageCacheManifestEntry) => {
       if (!paths.includes(entry.path)) {
         paths.push(entry.path)
       }
     })
+    let clearFailed = false
     try {
       const listFileOptions: ListFileOptions = {
         recursion: false,
@@ -285,6 +316,7 @@ export class RemoteImageCacheStore {
         }
       })
     } catch (_err) {
+      clearFailed = true
     }
     for (const path of paths) {
       try {
@@ -292,7 +324,15 @@ export class RemoteImageCacheStore {
           await fs.unlink(path)
         }
       } catch (_err) {
+        clearFailed = true
       }
+    }
+    this.entries.forEach((entry: RemoteImageCacheManifestEntry, key: string) => {
+      if (!fs.accessSync(entry.path)) this.entries.delete(key)
+    })
+    if (clearFailed) {
+      this.persist()
+      throw new Error('remote_image_cache_clear_failed')
     }
     this.entries.clear()
     try {
@@ -300,6 +340,7 @@ export class RemoteImageCacheStore {
         await fs.unlink(this.manifestPath)
       }
     } catch (_err) {
+      throw new Error('remote_image_cache_clear_failed')
     }
   }
 
@@ -316,7 +357,11 @@ export class RemoteImageCacheStore {
     try {
       const document = safeParseManifest(fs.readTextSync(this.manifestPath, { encoding: 'utf-8' }))
       document.entries.forEach((entry: RemoteImageCacheManifestEntry) => {
-        if (entry.key.length > 0 && entry.path.length > 0 && entry.size > 0) {
+        const prefix = `${this.rootDir}/`
+        const leaf = entry.path.startsWith(prefix) ? entry.path.slice(prefix.length) : ''
+        // A cache manifest never grants ownership of downloads or external files.
+        if (entry.key.length > 0 && entry.size > 0 && leaf.length > 0 &&
+          !leaf.includes('/') && leaf !== '.' && leaf !== '..' && leaf !== REMOTE_IMAGE_CACHE_MANIFEST_NAME) {
           this.entries.set(entry.key, entry)
         }
       })

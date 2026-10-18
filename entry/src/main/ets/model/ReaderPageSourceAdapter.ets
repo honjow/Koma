@@ -1,3 +1,4 @@
+import { BackupRestoreActivity } from './BackupRestoreActivity'
 import { common } from '@kit.AbilityKit'
 import { taskpool } from '@kit.ArkTS'
 import { http } from '@kit.NetworkKit'
@@ -66,6 +67,18 @@ const READER_REMOTE_IMAGE_CACHE_PREFERENCES_STORE_NAME: string = 'koma_reader_re
 const READER_REMOTE_IMAGE_CACHE_MAX_BYTES_KEY: string = 'readerRemoteImageCache.maxBytes'
 const READER_REMOTE_IMAGE_CACHE_AUTO_CLEAN_KEY: string = 'readerRemoteImageCache.autoCleanEnabled'
 
+const cachePreferenceMutations: Map<string, Promise<void>> = new Map<string, Promise<void>>()
+
+function mutateCachePreferences(
+  key: string,
+  operation: () => Promise<ReaderRemoteImageCachePreferences>,
+): Promise<ReaderRemoteImageCachePreferences> {
+  const previous = cachePreferenceMutations.get(key) ?? Promise.resolve()
+  const next = previous.then(operation, operation)
+  cachePreferenceMutations.set(key, next.then((): void => {}, (): void => {}))
+  return next
+}
+
 export class ReaderRemoteImageCachePreferencesStore {
   private context: common.UIAbilityContext
 
@@ -73,7 +86,11 @@ export class ReaderRemoteImageCachePreferencesStore {
     this.context = context
   }
 
-  async load(): Promise<ReaderRemoteImageCachePreferences> {
+  load(): Promise<ReaderRemoteImageCachePreferences> {
+    return mutateCachePreferences(this.context.filesDir, () => this.loadCurrent())
+  }
+
+  private async loadCurrent(): Promise<ReaderRemoteImageCachePreferences> {
     const store = await this.preferences()
     const maxBytes = await store.get(
       READER_REMOTE_IMAGE_CACHE_MAX_BYTES_KEY,
@@ -84,33 +101,40 @@ export class ReaderRemoteImageCachePreferencesStore {
       DEFAULT_READER_REMOTE_IMAGE_CACHE_PREFERENCES.autoCleanEnabled,
     ) as boolean
     return {
-      maxBytes: maxBytes > 0 ? maxBytes : DEFAULT_READER_REMOTE_IMAGE_CACHE_PREFERENCES.maxBytes,
-      autoCleanEnabled,
+      maxBytes: Number.isFinite(maxBytes) && maxBytes > 0 ? maxBytes : DEFAULT_READER_REMOTE_IMAGE_CACHE_PREFERENCES.maxBytes,
+      autoCleanEnabled: typeof autoCleanEnabled === 'boolean' ? autoCleanEnabled : DEFAULT_READER_REMOTE_IMAGE_CACHE_PREFERENCES.autoCleanEnabled,
     }
   }
 
-  async saveMaxBytes(maxBytes: number): Promise<ReaderRemoteImageCachePreferences> {
-    const current = await this.load()
-    const next: ReaderRemoteImageCachePreferences = {
-      maxBytes: maxBytes > 0 ? maxBytes : DEFAULT_READER_REMOTE_IMAGE_CACHE_PREFERENCES.maxBytes,
-      autoCleanEnabled: current.autoCleanEnabled,
-    }
-    const store = await this.preferences()
-    await store.put(READER_REMOTE_IMAGE_CACHE_MAX_BYTES_KEY, next.maxBytes)
-    await store.flush()
-    return next
+  saveMaxBytes(maxBytes: number): Promise<ReaderRemoteImageCachePreferences> {
+    return this.saveField(READER_REMOTE_IMAGE_CACHE_MAX_BYTES_KEY,
+      Number.isFinite(maxBytes) && maxBytes > 0 ? maxBytes : DEFAULT_READER_REMOTE_IMAGE_CACHE_PREFERENCES.maxBytes)
   }
 
-  async saveAutoCleanEnabled(enabled: boolean): Promise<ReaderRemoteImageCachePreferences> {
-    const current = await this.load()
-    const next: ReaderRemoteImageCachePreferences = {
-      maxBytes: current.maxBytes,
-      autoCleanEnabled: enabled,
-    }
-    const store = await this.preferences()
-    await store.put(READER_REMOTE_IMAGE_CACHE_AUTO_CLEAN_KEY, enabled)
-    await store.flush()
-    return next
+  saveAutoCleanEnabled(enabled: boolean): Promise<ReaderRemoteImageCachePreferences> {
+    return this.saveField(READER_REMOTE_IMAGE_CACHE_AUTO_CLEAN_KEY, enabled)
+  }
+
+  private saveField(key: string, value: number | boolean): Promise<ReaderRemoteImageCachePreferences> {
+    return BackupRestoreActivity.runWrite(() => mutateCachePreferences(this.context.filesDir, async (): Promise<ReaderRemoteImageCachePreferences> => {
+      const current = await this.loadCurrent()
+      const store = await this.preferences()
+      const previous = key === READER_REMOTE_IMAGE_CACHE_MAX_BYTES_KEY ? current.maxBytes : current.autoCleanEnabled
+      try {
+        await store.put(key, value)
+        await store.flush()
+      } catch (_error) {
+        // A failed disk flush must not leave the Preferences instance ahead of disk.
+        await store.put(key, previous)
+        throw new Error('reader_remote_image_cache_preferences_save_failed')
+      }
+      const next: ReaderRemoteImageCachePreferences = {
+        maxBytes: key === READER_REMOTE_IMAGE_CACHE_MAX_BYTES_KEY ? value as number : current.maxBytes,
+        autoCleanEnabled: key === READER_REMOTE_IMAGE_CACHE_AUTO_CLEAN_KEY ? value as boolean : current.autoCleanEnabled,
+      }
+      configureReaderRemoteImageCache(this.context.cacheDir, next.maxBytes, next.autoCleanEnabled)
+      return next
+    }))
   }
 
   private async preferences(): Promise<preferences.Preferences> {
@@ -121,6 +145,26 @@ export class ReaderRemoteImageCachePreferencesStore {
 let readerImageCacheStore: RemoteImageCacheStore | null = null
 let readerImageCacheMaxBytes: number = DEFAULT_READER_REMOTE_IMAGE_CACHE_PREFERENCES.maxBytes
 let readerImageCacheAutoCleanEnabled: boolean = DEFAULT_READER_REMOTE_IMAGE_CACHE_PREFERENCES.autoCleanEnabled
+
+/** Restore before Index/cover/Reader consumers; this cache never owns downloads. */
+export async function restoreReaderRemoteImageCache(context: common.UIAbilityContext): Promise<void> {
+  let saved: ReaderRemoteImageCachePreferences = {
+    maxBytes: DEFAULT_READER_REMOTE_IMAGE_CACHE_PREFERENCES.maxBytes,
+    autoCleanEnabled: false,
+  }
+  try {
+    saved = await new ReaderRemoteImageCachePreferencesStore(context).load()
+  } catch (_error) {
+    // Do not authorize cleanup under a guessed preference or block the App.
+    console.warn('[ReaderCache] step=preferences_restore_failed cleanup=false')
+  }
+  try {
+    configureReaderRemoteImageCache(context.cacheDir, saved.maxBytes, saved.autoCleanEnabled)
+    console.info(`[ReaderCache] step=startup_ready maxBytes=${saved.maxBytes} autoClean=${saved.autoCleanEnabled}`)
+  } catch (_error) {
+    console.warn('[ReaderCache] step=cache_unavailable')
+  }
+}
 
 export function configureReaderRemoteImageCache(
   cacheDir: string,
@@ -140,7 +184,19 @@ export function configureReaderRemoteImageCache(
     readerImageCacheStore = new RemoteImageCacheStore(cacheDir)
   }
   if (readerImageCacheAutoCleanEnabled) {
-    void readerImageCacheStore.evictIfOver(readerImageCacheMaxBytes)
+    void readerImageCacheStore.evictIfOver(readerImageCacheMaxBytes).catch((): void => {
+      console.warn('[ReaderCache] step=cleanup_failed')
+    })
+  }
+}
+
+async function maintainReaderImageCacheAfterWrite(path: string): Promise<void> {
+  if (readerImageCacheStore === null || !readerImageCacheAutoCleanEnabled) return
+  try {
+    // Keep the just-returned image available even when one image alone exceeds the limit.
+    await readerImageCacheStore.evictIfOver(readerImageCacheMaxBytes, path)
+  } catch (_error) {
+    console.warn('[ReaderCache] step=cleanup_failed')
   }
 }
 
@@ -163,6 +219,7 @@ export function clearReaderRemoteImageCache(): Promise<ReaderRemoteImageCacheSta
 export function formatReaderRemoteImageCacheSize(totalBytes: number): string {
   return formatRemoteImageCacheSize(totalBytes)
 }
+
 
 let readerUrlPrefix: string = ''
 let readerRemoteHeaders: KomgaHeaders | null = null
@@ -360,7 +417,9 @@ export async function fetchAndCacheReaderRemoteImage(uri: string): Promise<strin
     return cached
   }
   const bytes = await downloadReaderRemoteBytes(url)
-  return readerImageCacheStore.put(url, remoteImageCacheHeaders(), bytes)
+  const path = await readerImageCacheStore.put(url, remoteImageCacheHeaders(), bytes)
+  await maintainReaderImageCacheAfterWrite(path)
+  return path
 }
 
 function readerImageRequestForPage(pageId: string, url: string): string {
@@ -529,6 +588,7 @@ export async function fetchAndCacheSourceRuntimeRemoteImage(
   const cacheHeaders = remoteImageCacheHeaders(imageRequest.headers)
   const bytes = await downloadReaderRemoteBytes(imageRequest.url, imageRequest.headers)
   const path = await readerImageCacheStore.put(imageRequest.url, cacheHeaders, bytes, cacheKeySeed)
+  await maintainReaderImageCacheAfterWrite(path)
   console.info(`[ReaderImage] step=source_cache_written source=${sourceId} page=${sourceImageId} bytes=${bytes.byteLength}`)
   return path
 }

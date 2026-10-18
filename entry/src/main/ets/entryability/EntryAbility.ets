@@ -1,3 +1,4 @@
+import { restoreReaderRemoteImageCache } from '../model/ReaderPageSourceAdapter'
 import { UIAbility, Want, AbilityConstant } from '@kit.AbilityKit'
 import { captureReaderLabWant, updateReaderLabForeground } from '@reader-kit/ui'
 import { KeyboardAvoidMode, window } from '@kit.ArkUI'
@@ -47,6 +48,7 @@ export default class EntryAbility extends UIAbility {
     // Recover before theme Preferences, installed packages, Library or Reader
     // consumers are initialized. A failed recovery never loads ordinary Index.
     await BackupRestoreCheckpoint.recoverBeforeStartup(this.context)
+    await restoreReaderRemoteImageCache(this.context)
     configureSourceSettingsStore(this.context)
     configureSourceRuntimeHttpTransport()
     bootstrapSourceRuntimeAppRegistry(this.context)

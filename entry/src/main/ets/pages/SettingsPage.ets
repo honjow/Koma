@@ -1235,7 +1235,7 @@ export struct SettingsPage {
       if (context.cacheDir === undefined || context.cacheDir.length === 0) {
         return false
       }
-      configureReaderRemoteImageCache(context.cacheDir, this.imageCacheMaxBytes, this.imageCacheAutoCleanEnabled)
+      configureReaderRemoteImageCache(context.cacheDir)
       return true
     } catch (error) {
       console.warn('[Settings] step=image_cache_configure_failed code=' + safeSettingsErrorCode(error as Error))
@@ -1285,6 +1285,7 @@ export struct SettingsPage {
       .then((preferences: ReaderRemoteImageCachePreferences) => {
         this.imageCacheMaxBytes = preferences.maxBytes
         this.imageCacheAutoCleanEnabled = preferences.autoCleanEnabled
+        configureReaderRemoteImageCache(this.context().cacheDir, preferences.maxBytes, preferences.autoCleanEnabled)
         console.info('[Settings] step=load_image_cache_preferences maxBytes=' + preferences.maxBytes)
         this.loadImageCacheStats()
       })
