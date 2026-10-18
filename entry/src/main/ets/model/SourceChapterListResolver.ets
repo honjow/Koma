@@ -23,6 +23,8 @@ interface SourceChapterData {
 
 interface SourceChapterResponse {
   ok?: boolean
+  reasonCode?: string
+  error?: Record<string, Object | string | number | boolean | null>
   data?: SourceChapterData
 }
 
@@ -33,6 +35,7 @@ interface SourceChapterPageArgs {
 
 interface SourceChapterArgs {
   mangaId: string
+  mangaUrl?: string
   page: SourceChapterPageArgs
 }
 
@@ -54,6 +57,7 @@ interface SourceChapterRequest {
 export interface SourceChapterListResult {
   chapters: MangaChapterItem[]
   resolved: boolean
+  reasonCode?: string
 }
 
 @Concurrent
@@ -65,18 +69,26 @@ function executeSourceChapterListOperation(requestJson: string, wasmBytes: Uint8
 export async function resolveSourceChapterList(
   entry: SourceRuntimeRegistryEntry,
   mangaId: string,
+  mangaUrl?: string,
+  isCurrent?: () => boolean,
 ): Promise<SourceChapterListResult> {
   const chapters: MangaChapterItem[] = []
   let cursor: string | null = null
-  for (let pageIndex = 1; pageIndex <= 20; pageIndex += 1) {
+  const requestedCursors: Set<string> = new Set()
+  const settingsRevision = appSourceSettingsStore.revisionForSource(entry.sourceId)
+  const settings = appSourceSettingsStore.loadForSource(entry.sourceId)
+  const current = (): boolean => (isCurrent === undefined || isCurrent()) &&
+    appSourceSettingsStore.revisionForSource(entry.sourceId) === settingsRevision
+  while (true) {
+    if (!current()) return { chapters, resolved: false, reasonCode: 'source_chapters_cancelled' }
     const request: SourceChapterRequest = {
       type: 'request',
       version: 1,
       requestId: `detail-get_chapters-${entry.sourceId}-${Date.now()}`,
       operation: 'get_chapters',
       sourceId: entry.sourceId,
-      args: { mangaId, page: { cursor, limit: 100 } },
-      settings: appSourceSettingsStore.loadForSource(entry.sourceId),
+      args: { mangaId, mangaUrl, page: { cursor, limit: 100 } },
+      settings,
       hostHints: { network: true },
     }
     const wasmBytes = new Uint8Array(entry.wasmBytes.byteLength)
@@ -84,9 +96,14 @@ export async function resolveSourceChapterList(
     const responseJson = await taskpool.execute(
       executeSourceChapterListOperation, JSON.stringify(request), wasmBytes,
     ) as string
+    if (!current()) return { chapters, resolved: false, reasonCode: 'source_chapters_cancelled' }
     const response = JSON.parse(responseJson) as SourceChapterResponse
     if (response.ok !== true) {
-      throw new Error('get_chapters failed')
+      const nativeReason = response.reasonCode
+      const sourceReason = response.error?.['code']
+      const reason = typeof nativeReason === 'string' && nativeReason.trim().length > 0 ? nativeReason :
+        (typeof sourceReason === 'string' && sourceReason.trim().length > 0 ? sourceReason : 'get_chapters_failed')
+      throw new Error(reason)
     }
     const rows = response.data?.items ?? response.data?.chapters ?? []
     rows.forEach((item: Record<string, Object>): void => { chapters.push(parseMangaChapterFromSourceItem(item)) })
@@ -99,7 +116,15 @@ export async function resolveSourceChapterList(
     if (!hasMore) {
       return { chapters, resolved: true }
     }
-    cursor = nextCursor ?? `${pageIndex + 1}`
+    // A cursor belongs to the source. Never invent a numeric next page, or
+    // turn a request budget into a complete catalog. Empty pages may continue.
+    if (nextCursor === undefined) {
+      return { chapters, resolved: false, reasonCode: 'source_chapter_cursor_missing' }
+    }
+    if (requestedCursors.has(nextCursor)) {
+      return { chapters, resolved: false, reasonCode: 'source_chapter_cursor_repeated' }
+    }
+    requestedCursors.add(nextCursor)
+    cursor = nextCursor
   }
-  return { chapters, resolved: false }
 }

@@ -1,5 +1,4 @@
 import { BackupRestoreActivity } from './BackupRestoreActivity'
-import { taskpool } from '@kit.ArkTS'
 import {
   Chapter,
   Comic,
@@ -13,17 +12,13 @@ import {
   serializeLibraryStore,
   hydrateLibraryStoreFromJson,
 } from './LibraryPersistence'
-import { MangaChapterItem, parseMangaChapterFromSourceItem } from './MangaDetailModels'
+import { MangaChapterItem } from './MangaDetailModels'
+import { resolveSourceChapterList } from './SourceChapterListResolver'
 import {
   SourceRuntimeRegistry,
   SourceRuntimeRegistryEntry,
   sourceRuntimeEntryEnabled,
 } from '../sourceRuntime/SourceRuntimeRegistry'
-import { runSourceOperationFromBytes } from '../sourceRuntime/SourceRuntimeRunner'
-import {
-  SourceSettingsRecord,
-  appSourceSettingsStore,
-} from '../sourceRuntime/SourceSettingsStore'
 import { AppStrings } from '../i18n/AppStrings'
 import {
   KomgaBookDto,
@@ -101,91 +96,6 @@ export interface LibraryUpdateSummary {
   results: LibraryUpdateComicResult[]
 }
 
-interface SourceOperationDataPayload {
-  items?: Record<string, Object>[]
-  chapters?: Record<string, Object>[]
-  page?: SourceRuntimePagePayload
-  hasNextPage?: boolean
-  hasMore?: boolean
-  has_more?: boolean
-}
-
-interface SourceRuntimePagePayload {
-  hasMore?: boolean
-  hasNextPage?: boolean
-  has_more?: boolean
-  nextCursor?: string | null
-  next_cursor?: string | null
-}
-
-interface SourceOperationResponsePayload {
-  ok?: boolean
-  data?: SourceOperationDataPayload
-  reasonCode?: string
-}
-
-interface SourceChaptersPageArg {
-  cursor: string | null
-  limit: number
-}
-
-interface SourceChaptersRequestArgs {
-  mangaId: string
-  page: SourceChaptersPageArg
-}
-
-interface SourceDetailRequestHostHints {
-  network: boolean
-}
-
-interface SourceDetailRequest {
-  type: string
-  version: number
-  requestId: string
-  operation: string
-  sourceId: string
-  args: SourceChaptersRequestArgs
-  settings: SourceSettingsRecord
-  hostHints: SourceDetailRequestHostHints
-}
-
-@Concurrent
-function executeLibraryUpdateSourceOperation(requestJson: string, wasmBytes: Uint8Array): string {
-  const response = runSourceOperationFromBytes(requestJson, wasmBytes)
-  return JSON.stringify(response)
-}
-
-function cloneWasmBytes(entry: SourceRuntimeRegistryEntry): Uint8Array {
-  const copy = new Uint8Array(entry.wasmBytes.byteLength)
-  copy.set(entry.wasmBytes)
-  return copy
-}
-
-const SOURCE_UPDATE_CHAPTER_PAGE_SIZE: number = 100
-const SOURCE_UPDATE_CHAPTER_MAX_PAGES: number = 20
-
-function sourceChapterResponseItems(response: SourceOperationResponsePayload): Record<string, Object>[] {
-  if (response.data?.items !== undefined) {
-    return response.data.items
-  }
-  return response.data?.chapters ?? []
-}
-
-function sourcePageNextCursor(response: SourceOperationResponsePayload): string | undefined {
-  const nextCursor = response.data?.page?.nextCursor ?? response.data?.page?.next_cursor
-  return nextCursor === null || nextCursor === undefined || nextCursor.trim().length === 0 ? undefined : nextCursor
-}
-
-function sourcePageHasMore(response: SourceOperationResponsePayload, nextCursor: string | undefined): boolean {
-  return response.data?.hasNextPage === true ||
-    response.data?.hasMore === true ||
-    response.data?.has_more === true ||
-    response.data?.page?.hasMore === true ||
-    response.data?.page?.hasNextPage === true ||
-    response.data?.page?.has_more === true ||
-    nextCursor !== undefined
-}
-
 function sourceMangaIdFromComic(comic: Comic): string | undefined {
   const sourceRuntimeId = comic.sourceRuntimeId
   if (sourceRuntimeId === undefined || sourceRuntimeId.trim().length === 0) {
@@ -233,12 +143,12 @@ function mergeSourceChapters(comic: Comic, remoteChapters: MangaChapterItem[], n
         comicId: comic.id,
         title: remote.title.length > 0 ? remote.title : existing.title,
         index,
-        chapterNumber: remote.chapterNumber ?? existing.chapterNumber,
-        volumeNumber: remote.volumeNumber ?? existing.volumeNumber,
-        readingGroup: remote.readingGroup ?? existing.readingGroup,
-        continuationEligible: remote.continuationEligible ?? existing.continuationEligible,
+        chapterNumber: remote.chapterNumber,
+        volumeNumber: remote.volumeNumber,
+        readingGroup: remote.readingGroup,
+        continuationEligible: remote.continuationEligible,
         scanlator: remote.scanlator ?? existing.scanlator,
-        language: remote.language ?? existing.language,
+        language: remote.language,
         dateUpload: remote.dateUpload ?? existing.dateUpload,
         sourcePath: existing.sourcePath,
         sortKey: chapterSortKey(remote, index),
@@ -278,7 +188,7 @@ function mergeSourceChapters(comic: Comic, remoteChapters: MangaChapterItem[], n
   return merged
 }
 
-function enrichSourceChapterMetadata(comic: Comic, remoteChapters: MangaChapterItem[]): boolean {
+export function enrichSourceChapterMetadata(comic: Comic, remoteChapters: MangaChapterItem[]): boolean {
   const remoteById = new Map<string, MangaChapterItem>()
   remoteChapters.forEach((chapter: MangaChapterItem): void => { remoteById.set(chapter.id, chapter) })
   let changed = false
@@ -287,20 +197,30 @@ function enrichSourceChapterMetadata(comic: Comic, remoteChapters: MangaChapterI
     if (remote === undefined) {
       return
     }
-    if (remote.chapterNumber !== undefined && remote.chapterNumber !== chapter.chapterNumber) {
+    // A successfully resolved source snapshot owns sequence metadata and language, including unknown.
+    if (remote.language !== chapter.language) {
+      chapter.language = remote.language
+      changed = true
+    }
+    if (remote.chapterNumber !== chapter.chapterNumber) {
       chapter.chapterNumber = remote.chapterNumber
       changed = true
     }
-    if (remote.volumeNumber !== undefined && remote.volumeNumber !== chapter.volumeNumber) {
+    if (remote.volumeNumber !== chapter.volumeNumber) {
       chapter.volumeNumber = remote.volumeNumber
       changed = true
     }
-    if (remote.readingGroup !== undefined && remote.readingGroup !== chapter.readingGroup) {
+    if (remote.readingGroup !== chapter.readingGroup) {
       chapter.readingGroup = remote.readingGroup
       changed = true
     }
-    if (remote.continuationEligible !== undefined && remote.continuationEligible !== chapter.continuationEligible) {
+    if (remote.continuationEligible !== chapter.continuationEligible) {
       chapter.continuationEligible = remote.continuationEligible
+      changed = true
+    }
+    const sortKey = chapterSortKey(remote, chapter.index)
+    if (sortKey !== chapter.sortKey) {
+      chapter.sortKey = sortKey
       changed = true
     }
   })
@@ -684,7 +604,7 @@ export class LibraryUpdateService {
       }
     }
     try {
-      const remoteChapters = await this.fetchSourceRuntimeChapters(lookup.entry, mangaId)
+      const remoteChapters = await this.fetchSourceRuntimeChapters(lookup.entry, mangaId, comic.sourcePath)
       const remoteIds = remoteChapters.map((chapter: MangaChapterItem): string => chapter.id)
       const localIds = comic.chapters.map((chapter: Chapter): string => chapter.id)
       const hasNewId = remoteIds.some((chapterId: string): boolean => !localIds.includes(chapterId))
@@ -731,55 +651,12 @@ export class LibraryUpdateService {
     }
   }
 
-  private async fetchSourceRuntimeChapters(entry: SourceRuntimeRegistryEntry, mangaId: string): Promise<MangaChapterItem[]> {
-    const chapters: MangaChapterItem[] = []
-    let cursor: string | null = null
-    for (let pageIndex = 1; pageIndex <= SOURCE_UPDATE_CHAPTER_MAX_PAGES; pageIndex += 1) {
-      const response = await this.fetchSourceRuntimeChapterPage(entry, mangaId, cursor)
-      const rows = sourceChapterResponseItems(response)
-      rows.forEach((row: Record<string, Object>) => {
-        chapters.push(parseMangaChapterFromSourceItem(row))
-      })
-      const nextCursor = sourcePageNextCursor(response)
-      if (!sourcePageHasMore(response, nextCursor)) {
-        break
-      }
-      cursor = nextCursor ?? `${pageIndex + 1}`
+  private async fetchSourceRuntimeChapters(entry: SourceRuntimeRegistryEntry, mangaId: string, mangaUrl?: string): Promise<MangaChapterItem[]> {
+    const catalog = await resolveSourceChapterList(entry, mangaId, mangaUrl)
+    if (!catalog.resolved) {
+      throw new Error(catalog.reasonCode ?? 'source_chapters_incomplete')
     }
-    return chapters
-  }
-
-  private async fetchSourceRuntimeChapterPage(
-    entry: SourceRuntimeRegistryEntry,
-    mangaId: string,
-    cursor: string | null,
-  ): Promise<SourceOperationResponsePayload> {
-    const request: SourceDetailRequest = {
-      type: 'request',
-      version: 1,
-      requestId: `library-update-get_chapters-${entry.sourceId}-${Date.now()}`,
-      operation: 'get_chapters',
-      sourceId: entry.sourceId,
-      args: {
-        mangaId,
-        page: {
-          cursor,
-          limit: SOURCE_UPDATE_CHAPTER_PAGE_SIZE,
-        },
-      },
-      settings: appSourceSettingsStore.loadForSource(entry.sourceId),
-      hostHints: { network: true },
-    }
-    const responseJson = await taskpool.execute(
-      executeLibraryUpdateSourceOperation,
-      JSON.stringify(request),
-      cloneWasmBytes(entry)
-    ) as string
-    const response = JSON.parse(responseJson) as SourceOperationResponsePayload
-    if (response.ok !== true) {
-      throw new Error(response.reasonCode ?? 'get_chapters_failed')
-    }
-    return response
+    return catalog.chapters
   }
 
   private async checkKomgaComic(comic: Comic, previousChapterCount: number): Promise<LibraryUpdateComicResult> {
