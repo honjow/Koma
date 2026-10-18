@@ -309,10 +309,8 @@ export struct SearchPage {
       if (!this.ownsRoute(routeEpoch) || mutationEpoch !== this.historyMutationEpoch) {
         return
       }
-      if (this.historyLoadState === SearchHistoryLoadState.LOADING) {
-        this.historyLoadState = SearchHistoryLoadState.FAILED
-      }
       console.error('[Search] step=' + step + '_failed code=' + safeSearchDiagnostic(error).code)
+      this.loadHistory()
     })
   }
 
@@ -471,11 +469,25 @@ export struct SearchPage {
     }
     const queued = this.sourceFilterWriteTail.then(write, write)
     this.sourceFilterWriteTail = queued.catch(() => {})
-    void queued.catch((error: Error) => {
-      if (mutationEpoch !== this.sourceFilterMutationEpoch) {
+    const routeEpoch = this.routeEpoch
+    void queued.catch(async (error: Error): Promise<void> => {
+      if (!this.ownsRoute(routeEpoch) || mutationEpoch !== this.sourceFilterMutationEpoch) {
         return
       }
       console.error('[Search] step=source_filter_save_failed code=' + safeSearchDiagnostic(error).code)
+      try {
+        const committed = await store.loadSourceFilter()
+        if (!this.ownsRoute(routeEpoch) || mutationEpoch !== this.sourceFilterMutationEpoch) {
+          return
+        }
+        const changed = this.sourceFilter !== committed
+        this.sourceFilter = committed
+        if (changed && this.queryText.trim().length > 0) {
+          this.runImmediateQuery(this.queryText)
+        }
+      } catch (readError) {
+        console.error('[Search] step=source_filter_reload_failed code=' + safeSearchDiagnostic(readError as Error).code)
+      }
     })
   }
 

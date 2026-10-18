@@ -85,6 +85,9 @@ export function removeSearchHistoryEntry(entries: SearchHistoryEntry[], query: s
   })
 }
 
+// One Preferences resource is shared by old and new SearchPage instances.
+const searchHistoryOperations: Map<string, Promise<void>> = new Map()
+
 export class SearchHistoryStore {
   private context: common.UIAbilityContext
 
@@ -92,56 +95,87 @@ export class SearchHistoryStore {
     this.context = context
   }
 
+  private ordered<T>(operation: () => Promise<T>): Promise<T> {
+    const key = this.context.filesDir
+    const result = (searchHistoryOperations.get(key) ?? Promise.resolve()).then(operation)
+    searchHistoryOperations.set(key, result.then(() => {}, () => {}))
+    return result
+  }
+
   async load(): Promise<SearchHistoryEntry[]> {
-    const store = await this.preferences()
+    return this.ordered(async (): Promise<SearchHistoryEntry[]> => {
+      return this.readEntries(await this.preferences())
+    })
+  }
+
+  private async readEntries(store: preferences.Preferences): Promise<SearchHistoryEntry[]> {
     const payload = await store.get(SEARCH_HISTORY_QUERIES_KEY, '[]') as string
-    try {
-      const parsed = JSON.parse(payload) as SearchHistoryRecord[]
-      if (!Array.isArray(parsed)) {
-        return []
-      }
-      return normalizeSearchHistoryEntries(parsed)
-    } catch (_err) {
-      return []
+    const parsed = JSON.parse(payload) as SearchHistoryRecord[]
+    if (!Array.isArray(parsed)) {
+      throw new Error('search_history_invalid')
     }
+    parsed.forEach((record: SearchHistoryRecord): void => {
+      if (record === null || typeof record !== 'object' || Array.isArray(record) ||
+        (record.query !== undefined && typeof record.query !== 'string') ||
+        (record.updatedAt !== undefined && typeof record.updatedAt !== 'number')) {
+        throw new Error('search_history_invalid')
+      }
+    })
+    return normalizeSearchHistoryEntries(parsed)
   }
 
   async record(query: string): Promise<SearchHistoryEntry[]> {
-    const entries = addSearchHistoryEntry(await this.load(), query)
-    await this.save(entries)
-    return entries
+    return this.ordered(async (): Promise<SearchHistoryEntry[]> => {
+      const store = await this.preferences()
+      const entries = addSearchHistoryEntry(await this.readEntries(store), query)
+      await this.commit(store, SEARCH_HISTORY_QUERIES_KEY, JSON.stringify(entries))
+      return entries
+    })
   }
 
   async clear(): Promise<void> {
-    const store = await this.preferences()
-    await store.put(SEARCH_HISTORY_QUERIES_KEY, '[]')
-    await store.flush()
+    return this.ordered(async (): Promise<void> => {
+      await this.commit(await this.preferences(), SEARCH_HISTORY_QUERIES_KEY, '[]')
+    })
   }
 
   async remove(query: string): Promise<SearchHistoryEntry[]> {
-    const entries = removeSearchHistoryEntry(await this.load(), query)
-    await this.save(entries)
-    return entries
+    return this.ordered(async (): Promise<SearchHistoryEntry[]> => {
+      const store = await this.preferences()
+      const entries = removeSearchHistoryEntry(await this.readEntries(store), query)
+      await this.commit(store, SEARCH_HISTORY_QUERIES_KEY, JSON.stringify(entries))
+      return entries
+    })
   }
 
   async loadSourceFilter(): Promise<CrossSearchSourceFilter> {
-    const store = await this.preferences()
-    const value = await store.get(SEARCH_SOURCE_FILTER_KEY, 'all') as string
-    return normalizeSearchSourceFilter(value)
+    return this.ordered(async (): Promise<CrossSearchSourceFilter> => {
+      const store = await this.preferences()
+      const value = await store.get(SEARCH_SOURCE_FILTER_KEY, 'all') as string
+      return normalizeSearchSourceFilter(value)
+    })
   }
 
   async saveSourceFilter(sourceFilter: CrossSearchSourceFilter): Promise<CrossSearchSourceFilter> {
-    const normalized = normalizeSearchSourceFilter(sourceFilter)
-    const store = await this.preferences()
-    await store.put(SEARCH_SOURCE_FILTER_KEY, normalized)
-    await store.flush()
-    return normalized
+    return this.ordered(async (): Promise<CrossSearchSourceFilter> => {
+      const normalized = normalizeSearchSourceFilter(sourceFilter)
+      await this.commit(await this.preferences(), SEARCH_SOURCE_FILTER_KEY, normalized)
+      return normalized
+    })
   }
 
-  private async save(entries: SearchHistoryEntry[]): Promise<void> {
-    const store = await this.preferences()
-    await store.put(SEARCH_HISTORY_QUERIES_KEY, JSON.stringify(normalizeSearchHistoryEntries(entries)))
-    await store.flush()
+  private async commit(store: preferences.Preferences, key: string, value: string): Promise<void> {
+    const existed = await store.has(key)
+    const previous = await store.get(key, '')
+    try {
+      await store.put(key, value)
+      await store.flush()
+    } catch (error) {
+      if (existed) await store.put(key, previous)
+      else await store.delete(key)
+      await store.flush()
+      throw error as Error
+    }
   }
 
   private async preferences(): Promise<preferences.Preferences> {
