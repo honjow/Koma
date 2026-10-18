@@ -59,6 +59,8 @@ async function environment(autoCheckEnabled = true) {
     if (!maps.has(name)) maps.set(name, new Map())
     const data = maps.get(name)
     return {
+      has: async (key) => data.has(key),
+      delete: async (key) => data.delete(key),
       get: async (key, fallback) => data.has(key) ? data.get(key) : fallback,
       put: async (key, value) => { data.set(key, value) }, flush: async () => {},
     }

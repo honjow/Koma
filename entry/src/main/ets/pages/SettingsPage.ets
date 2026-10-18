@@ -444,6 +444,8 @@ export struct SettingsPage {
   @Local private imageCacheState: string = 'unavailable'
   @Local private imageCacheMaxBytes: number = DEFAULT_READER_REMOTE_IMAGE_CACHE_PREFERENCES.maxBytes
   @Local private imageCacheAutoCleanEnabled: boolean = DEFAULT_READER_REMOTE_IMAGE_CACHE_PREFERENCES.autoCleanEnabled
+  private manualLibraryUpdatePending: boolean = false
+  private libraryUpdatePreferencesEpoch: number = 0
   @Local private libraryUpdateState: LibraryUpdateState = connectLibraryUpdateState()
   @Local private libraryUpdateSummary?: LibraryUpdateSummary = undefined
   @Local private libraryUpdateJobSnapshot?: LibraryUpdateJobSnapshot = undefined
@@ -1078,8 +1080,10 @@ export struct SettingsPage {
   }
 
   private loadLibraryUpdatePreferences(): void {
+    const epoch = this.libraryUpdatePreferencesEpoch
     void mutateLibraryUpdatePreferences(() => this.libraryUpdatePreferencesStore().load(true))
       .then((preferences: LibraryUpdatePreferences) => {
+        if (epoch !== this.libraryUpdatePreferencesEpoch) return
         this.libraryUpdatePreferences = preferences
         this.clearStaleLibraryUpdateSummaryAfterFailure()
         console.info('[Settings] step=load_library_update_preferences auto=' + preferences.autoCheckEnabled + ' intervalHours=' + preferences.intervalHours)
@@ -1634,8 +1638,10 @@ export struct SettingsPage {
   }
 
   private setLibraryAutoUpdateEnabled(autoCheckEnabled: boolean): void {
+    const epoch = ++this.libraryUpdatePreferencesEpoch
     void mutateLibraryUpdatePreferences(() => this.libraryUpdatePreferencesStore().saveAutoCheckEnabled(autoCheckEnabled))
       .then((preferences: LibraryUpdatePreferences) => {
+        if (epoch !== this.libraryUpdatePreferencesEpoch) return
         this.saveLibraryUpdatePreferences(preferences)
         console.info('[Settings] step=save_library_auto_update value=' + preferences.autoCheckEnabled)
         if (preferences.autoCheckEnabled) {
@@ -1644,21 +1650,23 @@ export struct SettingsPage {
       })
       .catch((error: Error) => {
         console.warn('[Settings] step=save_library_auto_update_failed code=' + safeSettingsErrorCode(error))
-        this.loadLibraryUpdatePreferences()
+        if (epoch === this.libraryUpdatePreferencesEpoch) this.loadLibraryUpdatePreferences()
         this.showToast(s('settings_library_auto_update_save_failed'))
       })
   }
 
   private saveLibraryUpdateInterval(intervalHours: number): void {
+    const epoch = ++this.libraryUpdatePreferencesEpoch
     void mutateLibraryUpdatePreferences(() => this.libraryUpdatePreferencesStore().saveIntervalHours(intervalHours))
       .then((preferences: LibraryUpdatePreferences) => {
+        if (epoch !== this.libraryUpdatePreferencesEpoch) return
         this.saveLibraryUpdatePreferences(preferences)
         console.info('[Settings] step=save_library_update_interval intervalHours=' + preferences.intervalHours)
         this.runDueLibraryUpdateCheck()
       })
       .catch((error: Error) => {
         console.warn('[Settings] step=save_library_update_interval_failed code=' + safeSettingsErrorCode(error))
-        this.loadLibraryUpdatePreferences()
+        if (epoch === this.libraryUpdatePreferencesEpoch) this.loadLibraryUpdatePreferences()
         this.showToast(s('settings_library_update_interval_save_failed'))
       })
   }
@@ -1878,12 +1886,14 @@ export struct SettingsPage {
   }
 
   private checkLibraryUpdates(reason: 'manual' | 'due' = 'manual'): void {
+    if (reason === 'manual' && this.manualLibraryUpdatePending) return
     if (this.libraryStore === undefined || this.sourceRegistry === undefined) {
       if (reason === 'manual') {
         this.showToast(s('settings_library_update_unavailable'))
       }
       return
     }
+    if (reason === 'manual') this.manualLibraryUpdatePending = true
     void requestLibraryUpdateCheck({
       context: this.context(),
       libraryStore: this.libraryStore,
@@ -1891,9 +1901,6 @@ export struct SettingsPage {
       libraryPersistenceService: this.libraryPersistenceService,
       reason,
     }).then((result) => {
-      if (result.preferences !== undefined) {
-        this.saveLibraryUpdatePreferences(result.preferences)
-      }
       this.libraryUpdateJobSnapshot = getLatestLibraryUpdateJobSnapshot()
       if (result.status === 'completed' || result.status === 'failed') {
         this.libraryUpdateSummary = result.summary
@@ -1933,6 +1940,8 @@ export struct SettingsPage {
       if (reason === 'manual') {
         this.showToast(s('settings_library_update_unavailable'))
       }
+    }).finally(() => {
+      if (reason === 'manual') this.manualLibraryUpdatePending = false
     })
   }
 

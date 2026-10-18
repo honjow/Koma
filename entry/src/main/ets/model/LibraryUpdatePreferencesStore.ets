@@ -432,53 +432,85 @@ export class LibraryUpdatePreferencesStore {
 
   async save(libraryUpdatePreferences: LibraryUpdatePreferences): Promise<void> {
     const store = await this.preferences()
-    await store.put(
+    const keys: string[] = [
       LIBRARY_UPDATE_AUTO_CHECK_ENABLED_KEY,
-      normalizeLibraryUpdateAutoCheckEnabled(libraryUpdatePreferences.autoCheckEnabled),
-    )
-    await store.put(
       LIBRARY_UPDATE_INTERVAL_HOURS_KEY,
-      normalizeLibraryUpdateIntervalHours(libraryUpdatePreferences.intervalHours),
-    )
-    await store.put(
       LIBRARY_UPDATE_FOREGROUND_ONLY_KEY,
-      normalizeLibraryUpdateForegroundOnly(libraryUpdatePreferences.foregroundOnly),
-    )
-    const checkedAt = normalizeLibraryUpdateTimestamp(libraryUpdatePreferences.lastCheckedAt)
-    await store.put(LIBRARY_UPDATE_LAST_CHECKED_AT_KEY, checkedAt ?? 0)
-    await store.put(
+      LIBRARY_UPDATE_LAST_CHECKED_AT_KEY,
       LIBRARY_UPDATE_LAST_SUMMARY_TEXT_KEY,
-      normalizeLibraryUpdateSummaryText(libraryUpdatePreferences.lastSummaryText) ?? '',
-    )
-    await store.put(
       LIBRARY_UPDATE_LAST_SUMMARY_TOTAL_COUNT_KEY,
-      normalizeLibraryUpdateSummaryCount(libraryUpdatePreferences.lastSummaryTotalCount) ?? -1,
-    )
-    await store.put(
       LIBRARY_UPDATE_LAST_SUMMARY_NEW_CHAPTER_COUNT_KEY,
-      normalizeLibraryUpdateSummaryCount(libraryUpdatePreferences.lastSummaryNewChapterCount) ?? -1,
-    )
-    await store.put(
       LIBRARY_UPDATE_LAST_SUMMARY_UPDATED_COUNT_KEY,
-      normalizeLibraryUpdateSummaryCount(libraryUpdatePreferences.lastSummaryUpdatedCount) ?? -1,
-    )
-    await store.put(
       LIBRARY_UPDATE_LAST_SUMMARY_SKIPPED_COUNT_KEY,
-      normalizeLibraryUpdateSummaryCount(libraryUpdatePreferences.lastSummarySkippedCount) ?? -1,
-    )
-    await store.put(
       LIBRARY_UPDATE_LAST_SUMMARY_FAILED_COUNT_KEY,
-      normalizeLibraryUpdateSummaryCount(libraryUpdatePreferences.lastSummaryFailedCount) ?? -1,
-    )
-    await store.put(
       LIBRARY_UPDATE_FAILURE_COUNT_KEY,
-      normalizeLibraryUpdateFailureCount(libraryUpdatePreferences.failureCount),
-    )
-    await store.put(
       LIBRARY_UPDATE_LAST_FAILURE_CODE_KEY,
-      normalizeLibraryUpdateFailureCode(libraryUpdatePreferences.lastFailureCode) ?? '',
-    )
-    await store.flush()
+    ]
+    const previous: Map<string, preferences.ValueType> = new Map()
+    for (const key of keys) {
+      if (await store.has(key)) previous.set(key, await store.get(key, ''))
+    }
+    try {
+      await store.put(
+        LIBRARY_UPDATE_AUTO_CHECK_ENABLED_KEY,
+        normalizeLibraryUpdateAutoCheckEnabled(libraryUpdatePreferences.autoCheckEnabled),
+      )
+      await store.put(
+        LIBRARY_UPDATE_INTERVAL_HOURS_KEY,
+        normalizeLibraryUpdateIntervalHours(libraryUpdatePreferences.intervalHours),
+      )
+      await store.put(
+        LIBRARY_UPDATE_FOREGROUND_ONLY_KEY,
+        normalizeLibraryUpdateForegroundOnly(libraryUpdatePreferences.foregroundOnly),
+      )
+      const checkedAt = normalizeLibraryUpdateTimestamp(libraryUpdatePreferences.lastCheckedAt)
+      await store.put(LIBRARY_UPDATE_LAST_CHECKED_AT_KEY, checkedAt ?? 0)
+      await store.put(
+        LIBRARY_UPDATE_LAST_SUMMARY_TEXT_KEY,
+        normalizeLibraryUpdateSummaryText(libraryUpdatePreferences.lastSummaryText) ?? '',
+      )
+      await store.put(
+        LIBRARY_UPDATE_LAST_SUMMARY_TOTAL_COUNT_KEY,
+        normalizeLibraryUpdateSummaryCount(libraryUpdatePreferences.lastSummaryTotalCount) ?? -1,
+      )
+      await store.put(
+        LIBRARY_UPDATE_LAST_SUMMARY_NEW_CHAPTER_COUNT_KEY,
+        normalizeLibraryUpdateSummaryCount(libraryUpdatePreferences.lastSummaryNewChapterCount) ?? -1,
+      )
+      await store.put(
+        LIBRARY_UPDATE_LAST_SUMMARY_UPDATED_COUNT_KEY,
+        normalizeLibraryUpdateSummaryCount(libraryUpdatePreferences.lastSummaryUpdatedCount) ?? -1,
+      )
+      await store.put(
+        LIBRARY_UPDATE_LAST_SUMMARY_SKIPPED_COUNT_KEY,
+        normalizeLibraryUpdateSummaryCount(libraryUpdatePreferences.lastSummarySkippedCount) ?? -1,
+      )
+      await store.put(
+        LIBRARY_UPDATE_LAST_SUMMARY_FAILED_COUNT_KEY,
+        normalizeLibraryUpdateSummaryCount(libraryUpdatePreferences.lastSummaryFailedCount) ?? -1,
+      )
+      await store.put(
+        LIBRARY_UPDATE_FAILURE_COUNT_KEY,
+        normalizeLibraryUpdateFailureCount(libraryUpdatePreferences.failureCount),
+      )
+      await store.put(
+        LIBRARY_UPDATE_LAST_FAILURE_CODE_KEY,
+        normalizeLibraryUpdateFailureCode(libraryUpdatePreferences.lastFailureCode) ?? '',
+      )
+      await store.flush()
+    } catch (error) {
+      // The existing Coordinator queue keeps the full commit and recovery together.
+      try {
+        for (const key of keys) {
+          if (previous.has(key)) await store.put(key, previous.get(key)!)
+          else await store.delete(key)
+        }
+        await store.flush()
+      } catch (_restoreError) {
+        throw new Error('library_update_preferences_restore_failed')
+      }
+      throw error as Error
+    }
   }
 
   private async preferences(): Promise<preferences.Preferences> {

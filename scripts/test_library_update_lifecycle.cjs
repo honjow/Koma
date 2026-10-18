@@ -162,6 +162,7 @@ async function main() {
   let loads = 0
   const savedPreferences = { autoCheckEnabled: true, intervalHours: 48, failureCount: 0 }
   const Settings = compile(`export class Settings {
+    libraryUpdatePreferencesEpoch = 0;
     libraryUpdatePreferences = undefined; latestReloads = 0; toasts = [];
     libraryUpdatePreferencesStore() { return preferenceStore }
     clearStaleLibraryUpdateSummaryAfterFailure() {}
