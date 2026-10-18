@@ -22,6 +22,7 @@ import {
 } from './SourcePackageImporter'
 import {
   runRegisteredSourceRequestById,
+  runRegisteredSourceRequestByIdAsync,
 } from './SourceRuntimeService'
 import {
   runSourceOperationFromBytes,
@@ -1380,6 +1381,40 @@ export function runSmoke(id: string): SourcePackageSmokeResult {
   }
 
   const fixtureResult = runRegisteredSourceRequestById(
+    appSourceRuntimeRegistry,
+    id,
+    sourceManagerSmokeFixtureSearchRequest(id),
+  )
+  if (!fixtureResult.ok) {
+    const failed: SourcePackageSmokeResult = { ok: false, id, reasonCode: sourceInfoResult.reasonCode ?? fixtureResult.reasonCode ?? 'smoke_failed' }
+    setSourceRuntimeDiagnostic(failed)
+    return failed
+  }
+  console.info('[SourceManager] step=smoke_ok id=' + id + ' operation=search')
+  const passed: SourcePackageSmokeResult = { ok: true, id, firstTitle: 'Fixture Series' }
+  setSourceRuntimeDiagnostic(passed)
+  return passed
+}
+
+export async function runSmokeAsync(id: string): Promise<SourcePackageSmokeResult> {
+  const sourceInfoResult = await runRegisteredSourceRequestByIdAsync(
+    appSourceRuntimeRegistry,
+    id,
+    sourceManagerSmokeSourceInfoRequest(id),
+  )
+  if (sourceInfoResult.ok) {
+    console.info('[SourceManager] step=smoke_ok id=' + id + ' operation=source_info')
+    const passed: SourcePackageSmokeResult = { ok: true, id, firstTitle: 'source_info' }
+    setSourceRuntimeDiagnostic(passed)
+    return passed
+  }
+  if (!sourceInfoResult.attemptedWamrExecution) {
+    const failed: SourcePackageSmokeResult = { ok: false, id, reasonCode: sourceInfoResult.reasonCode ?? 'smoke_failed' }
+    setSourceRuntimeDiagnostic(failed)
+    return failed
+  }
+
+  const fixtureResult = await runRegisteredSourceRequestByIdAsync(
     appSourceRuntimeRegistry,
     id,
     sourceManagerSmokeFixtureSearchRequest(id),

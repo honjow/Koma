@@ -1,3 +1,4 @@
+import { taskpool } from '@kit.ArkTS'
 import { common } from '@kit.AbilityKit'
 import { fileIo as fs } from '@kit.CoreFileKit'
 import { resourceManager } from '@kit.LocalizationKit'
@@ -412,72 +413,81 @@ export function runRegisteredSourceApiOperationsById(
   }
 }
 
-export function runRegisteredSourceRequestById(
-  registry: SourceRuntimeRegistry,
-  sourceId: string,
-  requestJson: string,
-): SourceRuntimeServiceRunRequestByIdSummary {
+interface RegisteredSourceRequestAdmission {
+  sourceCount: number
+  entry?: SourceRuntimeRegistryEntry
+  operation?: string
+  failure?: SourceRuntimeServiceRunRequestByIdSummary
+}
+
+function rejectRegisteredSourceRequest(failure: SourceRuntimeServiceRunRequestByIdSummary): RegisteredSourceRequestAdmission {
+  return { sourceCount: failure.sourceCount, failure }
+}
+
+function admitRegisteredSourceRequest(
+  registry: SourceRuntimeRegistry, sourceId: string, requestJson: string,
+): RegisteredSourceRequestAdmission {
   const lookup = registry.lookup(sourceId)
   if (!lookup.ok || lookup.entry === undefined) {
-    return {
+    return rejectRegisteredSourceRequest({
       ok: false,
       sourceId,
       reasonCode: lookup.reasonCode,
       sourceCount: lookup.sourceCount,
       responseOk: false,
       attemptedWamrExecution: false,
-    }
+    })
   }
   if (!sourceRuntimeEntryEnabled(lookup.entry)) {
-    return {
+    return rejectRegisteredSourceRequest({
       ok: false,
       sourceId: lookup.entry.sourceId,
       reasonCode: 'source_disabled',
       sourceCount: lookup.sourceCount,
       responseOk: false,
       attemptedWamrExecution: false,
-    }
+    })
   }
 
   let request: SourceRuntimeCallRequest
   try {
     request = JSON.parse(requestJson) as SourceRuntimeCallRequest
   } catch (_err) {
-    return {
+    return rejectRegisteredSourceRequest({
       ok: false,
       sourceId: lookup.entry.sourceId,
       reasonCode: 'malformed_json',
       sourceCount: lookup.sourceCount,
       responseOk: false,
       attemptedWamrExecution: false,
-    }
+    })
   }
   if (request === null || typeof request !== 'object' || Array.isArray(request)) {
-    return {
+    return rejectRegisteredSourceRequest({
       ok: false,
       sourceId: lookup.entry.sourceId,
       reasonCode: 'missing_or_invalid_operation',
       sourceCount: lookup.sourceCount,
       responseOk: false,
       attemptedWamrExecution: false,
-    }
+    })
   }
 
   const operation = request['operation']
   if (typeof operation !== 'string' || operation.trim().length === 0) {
-    return {
+    return rejectRegisteredSourceRequest({
       ok: false,
       sourceId: lookup.entry.sourceId,
       reasonCode: 'missing_or_invalid_operation',
       sourceCount: lookup.sourceCount,
       responseOk: false,
       attemptedWamrExecution: false,
-    }
+    })
   }
 
   const requestSourceId = request['sourceId']
   if (requestSourceId !== undefined && (typeof requestSourceId !== 'string' || requestSourceId !== lookup.entry.sourceId)) {
-    return {
+    return rejectRegisteredSourceRequest({
       ok: false,
       sourceId: lookup.entry.sourceId,
       operation,
@@ -485,20 +495,73 @@ export function runRegisteredSourceRequestById(
       sourceCount: lookup.sourceCount,
       responseOk: false,
       attemptedWamrExecution: false,
-    }
+    })
   }
 
-  const response = runSourceOperationFromBytes(requestJson, lookup.entry.wasmBytes)
+  return { sourceCount: lookup.sourceCount, entry: lookup.entry, operation }
+}
+
+function registeredSourceResponse(
+  admission: RegisteredSourceRequestAdmission, sourceId: string, response: SourceRuntimeCallResponse,
+): SourceRuntimeServiceRunRequestByIdSummary {
+  const operation = admission.operation ?? ''
   const responseOk = sourceRuntimeRequestResponseOk(operation, response)
   return {
     ok: responseOk,
-    sourceId: lookup.entry.sourceId,
+    sourceId,
     operation,
     reasonCode: responseOk ? undefined : (responseReasonCode(response) ?? 'operation_response_mismatch'),
-    sourceCount: lookup.sourceCount,
+    sourceCount: admission.sourceCount,
     response,
     responseOk,
     attemptedWamrExecution: true,
+  }
+}
+
+export function runRegisteredSourceRequestById(
+  registry: SourceRuntimeRegistry, sourceId: string, requestJson: string,
+): SourceRuntimeServiceRunRequestByIdSummary {
+  const admission = admitRegisteredSourceRequest(registry, sourceId, requestJson)
+  if (admission.failure !== undefined) return admission.failure
+  if (admission.entry === undefined) {
+    return { ok: false, sourceId, sourceCount: admission.sourceCount, reasonCode: 'missing_source',
+      responseOk: false, attemptedWamrExecution: false }
+  }
+  const response = runSourceOperationFromBytes(requestJson, admission.entry.wasmBytes)
+  return registeredSourceResponse(admission, admission.entry.sourceId, response)
+}
+
+@Concurrent
+function executeRegisteredSourceRequest(requestJson: string, wasmBytes: Uint8Array): string {
+  return JSON.stringify(runSourceOperationFromBytes(requestJson, wasmBytes))
+}
+
+export async function runRegisteredSourceRequestByIdAsync(
+  registry: SourceRuntimeRegistry, sourceId: string, requestJson: string,
+): Promise<SourceRuntimeServiceRunRequestByIdSummary> {
+  const admission = admitRegisteredSourceRequest(registry, sourceId, requestJson)
+  if (admission.failure !== undefined) return admission.failure
+  const entry = admission.entry
+  if (entry === undefined) {
+    return { ok: false, sourceId, sourceCount: admission.sourceCount, reasonCode: 'missing_source',
+      responseOk: false, attemptedWamrExecution: false }
+  }
+  const wasmBytes = new Uint8Array(entry.wasmBytes.byteLength)
+  wasmBytes.set(entry.wasmBytes)
+  try {
+    // A worker can hold the WAMR lock while HTTP awaits the UI runtime.
+    // UI callers must yield here rather than synchronously wait for that lock.
+    const responseJson = await taskpool.execute(executeRegisteredSourceRequest, requestJson, wasmBytes) as string
+    const response = JSON.parse(responseJson) as SourceRuntimeCallResponse
+    const current = registry.lookup(sourceId).entry
+    if (current !== entry || !sourceRuntimeEntryEnabled(entry)) {
+      return { ok: false, sourceId, operation: admission.operation, sourceCount: admission.sourceCount,
+        reasonCode: 'source_changed', responseOk: false, attemptedWamrExecution: true }
+    }
+    return registeredSourceResponse(admission, entry.sourceId, response)
+  } catch (_error) {
+    return { ok: false, sourceId, operation: admission.operation, sourceCount: admission.sourceCount,
+      reasonCode: 'source_worker_failed', responseOk: false, attemptedWamrExecution: true }
   }
 }
 

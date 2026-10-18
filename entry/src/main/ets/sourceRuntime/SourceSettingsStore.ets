@@ -2,7 +2,7 @@ import { writeAppTextFile } from '../model/AppFileTextPersistence'
 import { common } from '@kit.AbilityKit'
 import { fileIo as fs } from '@kit.CoreFileKit'
 import { SourceRuntimeCallResponse } from './NativeSourceRuntime'
-import { runRegisteredSourceRequestById } from './SourceRuntimeService'
+import { runRegisteredSourceRequestById, runRegisteredSourceRequestByIdAsync } from './SourceRuntimeService'
 import { SourceRuntimeRegistry } from './SourceRuntimeRegistry'
 
 export type SourceSettingValue = string | boolean | number | string[]
@@ -449,5 +449,23 @@ export function fetchSourceSettingDescriptors(registry: SourceRuntimeRegistry, s
     hostHints,
   }
   const summary = runRegisteredSourceRequestById(registry, sourceId, JSON.stringify(request))
+  return normalizeSourceSettingDescriptors(summary.response)
+}
+
+export async function fetchSourceSettingDescriptorsAsync(registry: SourceRuntimeRegistry, sourceId: string): Promise<SourceSettingDescriptor[]> {
+  const args: SourceSettingsRequestArgs = {}
+  const settings: SourceSettingsRequestSettings = {}
+  const hostHints: SourceSettingsRequestHostHints = { network: false }
+  const request: SourceSettingsRequest = {
+    type: 'request',
+    version: 1,
+    requestId: `settings-${sourceId}-${Date.now()}`,
+    operation: 'get_settings',
+    sourceId,
+    args,
+    settings,
+    hostHints,
+  }
+  const summary = await runRegisteredSourceRequestByIdAsync(registry, sourceId, JSON.stringify(request))
   return normalizeSourceSettingDescriptors(summary.response)
 }

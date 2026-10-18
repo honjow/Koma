@@ -17,10 +17,10 @@ import {
   listInstalled,
   pickSourcePackageArchive,
   remove,
-  runSmoke,
+  runSmokeAsync,
   setEnabled,
 } from '../sourceRuntime/SourceRuntimeAppRegistry'
-import { runRegisteredSourceRequestById } from '../sourceRuntime/SourceRuntimeService'
+import { runRegisteredSourceRequestByIdAsync } from '../sourceRuntime/SourceRuntimeService'
 import {
   SourceSettingDescriptor,
   SourceSettingOption,
@@ -28,7 +28,7 @@ import {
   SourceSettingsRecord,
   appSourceSettingsStore,
   configureSourceSettingsStore,
-  fetchSourceSettingDescriptors,
+  fetchSourceSettingDescriptorsAsync,
 } from '../sourceRuntime/SourceSettingsStore'
 import {
   SourceIndexEntry,
@@ -134,6 +134,8 @@ export struct SourcePackageManagerPage {
   @Local private sourceSheetSourceId: string = ''
   @Local private sourceSheetRetainedSource: InstalledSourcePackage | undefined = undefined
   @Local private sourceSettingsSheetShown: boolean = false
+  @Local private settingsDescriptorSnapshot: Record<string, SourceSettingDescriptor[]> = {}
+  private settingsReloadRevision: number = 0
   private savedIndexLoadRevision: number = 0
   @Local private sourceIndexSheetShown: boolean = false
   @Local private pendingSourceSheetAction: SourceManagerPendingAction = 'none'
@@ -149,6 +151,7 @@ export struct SourcePackageManagerPage {
 
   aboutToDisappear(): void {
     this.savedIndexLoadRevision += 1
+    this.settingsReloadRevision += 1
   }
 
   private context(): common.UIAbilityContext {
@@ -162,16 +165,10 @@ export struct SourcePackageManagerPage {
     if (sheetSource !== undefined) {
       this.sourceSheetRetainedSource = sheetSource
     }
-    const availability: Record<string, string> = {}
+    const revision = ++this.settingsReloadRevision
+    const packages = this.packages.slice()
     const validationStatuses: SourceSettingsValidationStatus[] = []
     this.packages.forEach((source: InstalledSourcePackage) => {
-      const descriptors = fetchSourceSettingDescriptors(appSourceRuntimeRegistry, source.id)
-      if (descriptors.length === 0) {
-        availability[source.id] = t('source_pkg_settings_none')
-      } else {
-        const editable = descriptors.filter((descriptor: SourceSettingDescriptor): boolean => descriptor.supported && !descriptor.sensitive).length
-        availability[source.id] = tf('source_pkg_settings_editable', editable, descriptors.length)
-      }
       const existing = this.settingsValidationStatuses.find((status: SourceSettingsValidationStatus): boolean => status.sourceId === source.id)
       if (existing !== undefined) {
         validationStatuses.push(existing)
@@ -183,8 +180,27 @@ export struct SourcePackageManagerPage {
         })
       }
     })
-    this.settingsAvailability = availability
     this.settingsValidationStatuses = validationStatuses
+    void this.reloadSettingsDescriptors(packages, revision)
+  }
+
+  private async reloadSettingsDescriptors(packages: InstalledSourcePackage[], revision: number): Promise<void> {
+    const snapshot: Record<string, SourceSettingDescriptor[]> = {}
+    const availability: Record<string, string> = {}
+    for (const source of packages) {
+      const descriptors = await fetchSourceSettingDescriptorsAsync(appSourceRuntimeRegistry, source.id)
+      if (revision !== this.settingsReloadRevision) return
+      snapshot[source.id] = descriptors
+      if (descriptors.length === 0) {
+        availability[source.id] = t('source_pkg_settings_none')
+      } else {
+        const editable = descriptors.filter((descriptor: SourceSettingDescriptor): boolean => descriptor.supported && !descriptor.sensitive).length
+        availability[source.id] = tf('source_pkg_settings_editable', editable, descriptors.length)
+      }
+    }
+    if (revision !== this.settingsReloadRevision) return
+    this.settingsDescriptorSnapshot = snapshot
+    this.settingsAvailability = availability
   }
 
   private async loadSavedIndexUrl(): Promise<void> {
@@ -294,9 +310,11 @@ export struct SourcePackageManagerPage {
     this.requestSourceSheetDismiss('open_search', source)
   }
 
-  private openSourceSettingsFromSheet(source: InstalledSourcePackage): void {
+  private async openSourceSettingsFromSheet(source: InstalledSourcePackage): Promise<void> {
+    const descriptors = await fetchSourceSettingDescriptorsAsync(appSourceRuntimeRegistry, source.id)
+    if (!this.sourceSheetShown || this.sourceSheetSourceId !== source.id) return
     try {
-      this.openSettings(source)
+      this.openSettings(source, descriptors)
       this.pendingSourceSheetAction = 'none'
       this.pendingSourceSheetSourceId = ''
       this.sourceSettingsSheetShown = true
@@ -481,7 +499,7 @@ export struct SourcePackageManagerPage {
   }
 
   private diagnosticsSettingCounts(sourceId: string): SourceDiagnosticsSettingCounts {
-    const descriptors = fetchSourceSettingDescriptors(appSourceRuntimeRegistry, sourceId)
+    const descriptors = this.settingsDescriptorSnapshot[sourceId] ?? []
     const counts: SourceDiagnosticsSettingCounts = {
       total: descriptors.length,
       editable: descriptors.filter((descriptor: SourceSettingDescriptor): boolean => descriptor.supported && !descriptor.sensitive).length,
@@ -1299,8 +1317,8 @@ export struct SourcePackageManagerPage {
     })
   }
 
-  private smokePackage(source: InstalledSourcePackage): void {
-    const result = runSmoke(source.id)
+  private async smokePackage(source: InstalledSourcePackage): Promise<void> {
+    const result = await runSmokeAsync(source.id)
     if (result.ok) {
       this.statusText = t('source_pkg_smoke_pass')
       this.showToast(t('source_pkg_smoke_pass'))
@@ -1332,7 +1350,7 @@ export struct SourcePackageManagerPage {
     }
   }
 
-  private validateSettings(source: InstalledSourcePackage): void {
+  private async validateSettings(source: InstalledSourcePackage): Promise<void> {
     if (this.settingsValidationSourceId.length > 0) {
       return
     }
@@ -1362,7 +1380,7 @@ export struct SourcePackageManagerPage {
         settings: savedSettings,
         hostHints,
       }
-      const result = runRegisteredSourceRequestById(appSourceRuntimeRegistry, source.id, JSON.stringify(request))
+      const result = await runRegisteredSourceRequestByIdAsync(appSourceRuntimeRegistry, source.id, JSON.stringify(request))
       if (result.response !== undefined && result.response.ok === true) {
         this.setSettingsValidationStatus({
           sourceId: source.id,
@@ -1401,12 +1419,12 @@ export struct SourcePackageManagerPage {
     }
   }
 
-  private openSettings(source: InstalledSourcePackage): void {
+  private openSettings(source: InstalledSourcePackage, descriptors: SourceSettingDescriptor[]): void {
     const saved = appSourceSettingsStore.loadForSource(source.id)
     this.savedSettingsReadFailed = false
     this.settingsSourceId = source.id
     this.settingsSourceName = source.name
-    this.settingDescriptors = fetchSourceSettingDescriptors(appSourceRuntimeRegistry, source.id)
+    this.settingDescriptors = descriptors
     const nextDraft: SourceSettingsRecord = {}
     this.settingDescriptors.forEach((descriptor: SourceSettingDescriptor) => {
       if (!descriptor.supported || descriptor.sensitive) {
