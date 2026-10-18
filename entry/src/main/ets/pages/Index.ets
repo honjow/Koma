@@ -87,7 +87,7 @@ import {
   buildComicsFromLocalLibraryFolderScan,
 } from '../model/LocalLibraryFolderContract'
 import { activateLocalLibraryFolderAccessForComics } from '../model/LocalLibraryFolderAccessService'
-import { LibraryStore } from '../model/LibraryStore'
+import { LibraryCategoryDisplayStrategy, LibraryStore } from '../model/LibraryStore'
 import {
   AppFilesLibraryStorePersistenceAdapter,
   LibraryStorePersistenceService,
@@ -176,6 +176,7 @@ struct Index {
   @Local private trackerSettingsRevision: number = 0
   @Local private backupSettingsRevision: number = 0
   @Local private libraryPreferencesRevision: number = 0
+  @Local private categoryDisplayStrategyChange?: LibraryCategoryDisplayStrategy = undefined
   @Local private libraryTitleBar: LibraryTitleBarPresentation = {
     selectionMode: false,
     batchDownloadBusy: false,
@@ -1854,6 +1855,9 @@ struct Index {
         LibraryCategoryManagementPage({
           libraryStore: this.libraryStore,
           libraryPersistenceService: this.ensureLibraryPersistenceService(),
+          onDisplayStrategyChanged: (strategy: LibraryCategoryDisplayStrategy) => {
+            this.categoryDisplayStrategyChange = strategy
+          },
           onLibraryChanged: () => {
             this.refreshLibrarySnapshot()
           }
@@ -1938,6 +1942,7 @@ struct Index {
               LibraryPage({
                 libraryStore: this.libraryStore,
                 libraryPreferencesRevision: this.libraryPreferencesRevision,
+                categoryDisplayStrategyChange: this.categoryDisplayStrategyChange,
                 libraryComics: this.libraryComics,
                 libraryRevision: this.libraryRevision,
                 readerSessionStore: this.readerSessionStore,

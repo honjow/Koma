@@ -32,6 +32,7 @@ import {
 } from '../model/ComicModels'
 import {
   LibraryCategoryFilter,
+  LibraryCategoryDisplayStrategy,
   InMemoryLibraryStore,
   LibraryListOptions,
   LibraryReadStateFilter,
@@ -42,6 +43,7 @@ import {
   LibraryAvailabilityFilter,
   LibraryFilterPreferences,
   LibraryFilterStore,
+  LibraryFilterPreferenceChanges,
   LibraryListDensity,
   LibraryMetadataStatusFilter,
   libraryRuntimeIdFromSourceFilter,
@@ -230,6 +232,7 @@ export struct LibraryPage {
   @Param libraryComics: Comic[] = []
   @Param libraryRevision: number = 0
   @Param libraryPreferencesRevision: number = 0
+  @Param categoryDisplayStrategyChange?: LibraryCategoryDisplayStrategy = undefined
   @Param readerSessionStore: ReaderSessionStore = new InMemoryReaderSessionStore()
   @Param readerProgressRevision: number = 0
   @Local private languageState: LanguageState = connectLanguageState()
@@ -406,6 +409,20 @@ export struct LibraryPage {
   private onReaderProgressSnapshotChanged(): void {
     void this.readerProgressRevision
     this.refreshDisplayedSnapshotFromStore()
+  }
+
+  @Monitor('categoryDisplayStrategyChange')
+  private onCategoryDisplayStrategyChanged(): void {
+    const changed = this.categoryDisplayStrategyChange
+    if (changed === undefined || changed.categoryId !== this.filterCategory) return
+    const strategy = this.libraryStore.getCategoryDisplayStrategy(changed.categoryId)
+    if (strategy === undefined) return
+    // Only a successful edit of the active category replaces its current view.
+    // Unrelated library updates and edits of other categories retain user filters.
+    this.markFilterPreferencesMutation()
+    this.applyCategoryDisplayStrategy(changed.categoryId)
+    this.refreshDisplayedSnapshotFromStore()
+    this.saveFilterPreferences({ sortBy: strategy.sortBy, readState: strategy.readState })
   }
 
   @Monitor('libraryPreferencesRevision')
@@ -591,7 +608,7 @@ export struct LibraryPage {
     }
     this.filterCategory = 'all'
     this.markFilterPreferencesMutation()
-    this.saveFilterPreferences()
+    this.saveFilterPreferences({ category: 'all' })
     console.info('[Library] step=category_filter_reset reason=missing_category')
     return 'all'
   }
@@ -655,19 +672,7 @@ export struct LibraryPage {
         console.info('[Library] step=filter_restore_discarded reason=state_changed')
         return
       }
-      this.sortBy = preferencesValue.sortBy
-      this.viewMode = preferencesValue.viewMode
-      this.listDensity = preferencesValue.listDensity
-      this.showLibraryBadges = preferencesValue.showBadges
-      this.filterSource = preferencesValue.source
-      this.filterReadState = preferencesValue.readState
-      this.filterCategory = preferencesValue.category
-      this.filterAvailability = preferencesValue.availability
-      this.filterMetadataStatus = preferencesValue.metadataStatus
-      this.applyCategoryDisplayStrategy(this.validCategoryFilter())
-      console.info(
-        `[Library] step=filter_restored sortBy=${this.sortBy} viewMode=${this.viewMode} listDensity=${this.listDensity} showBadges=${this.showLibraryBadges} source=${this.filterSource} readState=${this.filterReadState} category=${this.filterCategory} availability=${this.filterAvailability} metadataStatus=${this.filterMetadataStatus}`
-      )
+      this.applyFilterPreferences(preferencesValue)
     } catch (error) {
       void error
       console.info('[Library] step=filter_restore_failed reason=filter_restore')
@@ -682,24 +687,24 @@ export struct LibraryPage {
     }
   }
 
-  private saveFilterPreferences(): void {
+  private saveFilterPreferences(changes: LibraryFilterPreferenceChanges): void {
+    const revision = this.filterPreferencesMutationRevision
+    const restoreEpoch = this.filterPreferencesRestoreEpoch
     try {
       const context = getContext(this) as common.UIAbilityContext
-      const preferencesValue: LibraryFilterPreferences = {
-        sortBy: this.sortBy,
-        viewMode: this.viewMode,
-        listDensity: this.listDensity,
-        showBadges: this.showLibraryBadges,
-        source: this.filterSource,
-        readState: this.filterReadState,
-        category: this.filterCategory,
-        availability: this.filterAvailability,
-        metadataStatus: this.filterMetadataStatus,
-      }
-      void new LibraryFilterStore(context).save(preferencesValue)
-    } catch (error) {
-      void error
+      void new LibraryFilterStore(context).update(changes)
+        .then((value: LibraryFilterPreferences) => {
+          if (revision !== this.filterPreferencesMutationRevision || restoreEpoch !== this.filterPreferencesRestoreEpoch) return
+          this.applyFilterPreferences(value, false)
+          this.refreshDisplayedSnapshotFromStore()
+        })
+        .catch(() => {
+          console.info('[Library] step=filter_save_failed reason=filter_save')
+          void this.recoverFilterPreferencesAfterSave()
+        })
+    } catch (_error) {
       console.info('[Library] step=filter_save_failed reason=filter_save')
+      void this.recoverFilterPreferencesAfterSave()
     }
   }
 
@@ -710,7 +715,7 @@ export struct LibraryPage {
     this.markFilterPreferencesMutation()
     this.sortBy = sortBy
     this.refreshDisplayedSnapshotFromStore()
-    this.saveFilterPreferences()
+    this.saveFilterPreferences({ sortBy })
     console.info(`[Library] step=sort_changed sortBy=${sortBy}`)
   }
 
@@ -720,7 +725,7 @@ export struct LibraryPage {
     }
     this.markFilterPreferencesMutation()
     this.viewMode = viewMode
-    this.saveFilterPreferences()
+    this.saveFilterPreferences({ viewMode })
   }
 
   private setSourceFilter(source: LibrarySourceFilter): void {
@@ -730,7 +735,7 @@ export struct LibraryPage {
     this.markFilterPreferencesMutation()
     this.filterSource = source
     this.refreshDisplayedSnapshotFromStore()
-    this.saveFilterPreferences()
+    this.saveFilterPreferences({ source })
     console.info(`[Library] step=filter_changed source=${source} readState=${this.filterReadState}`)
   }
 
@@ -741,7 +746,7 @@ export struct LibraryPage {
     this.markFilterPreferencesMutation()
     this.filterReadState = readState
     this.refreshDisplayedSnapshotFromStore()
-    this.saveFilterPreferences()
+    this.saveFilterPreferences({ readState })
     console.info(`[Library] step=filter_changed source=${this.filterSource} readState=${readState}`)
   }
 
@@ -753,7 +758,10 @@ export struct LibraryPage {
     this.filterCategory = category
     this.applyCategoryDisplayStrategy(category)
     this.refreshDisplayedSnapshotFromStore()
-    this.saveFilterPreferences()
+    const strategy = this.libraryStore.getCategoryDisplayStrategy(category)
+    this.saveFilterPreferences(strategy === undefined
+      ? { category }
+      : { category, sortBy: strategy.sortBy, readState: strategy.readState })
     console.info(`[Library] step=filter_changed category=${category}`)
   }
 
@@ -764,7 +772,7 @@ export struct LibraryPage {
     this.markFilterPreferencesMutation()
     this.filterAvailability = availability
     this.refreshDisplayedSnapshotFromStore()
-    this.saveFilterPreferences()
+    this.saveFilterPreferences({ availability })
     console.info(`[Library] step=filter_changed availability=${availability}`)
   }
 
@@ -775,7 +783,7 @@ export struct LibraryPage {
     this.markFilterPreferencesMutation()
     this.filterMetadataStatus = metadataStatus
     this.refreshDisplayedSnapshotFromStore()
-    this.saveFilterPreferences()
+    this.saveFilterPreferences({ metadataStatus })
     console.info(`[Library] step=filter_changed metadataStatus=${metadataStatus}`)
   }
 
@@ -800,7 +808,7 @@ export struct LibraryPage {
     this.filterAvailability = 'all'
     this.filterMetadataStatus = 'all'
     this.refreshDisplayedSnapshotFromStore()
-    this.saveFilterPreferences()
+    this.saveFilterPreferences({ sortBy: 'lastRead', source: 'all', readState: 'all', category: 'all', availability: 'all', metadataStatus: 'all' })
     console.info('[Library] step=filters_reset')
   }
 
@@ -2186,9 +2194,51 @@ export struct LibraryPage {
     .width('100%')
   }
 
+  private applyFilterPreferences(preferencesValue: LibraryFilterPreferences, applyCategoryStrategy: boolean = true): void {
+    this.sortBy = preferencesValue.sortBy
+    this.viewMode = preferencesValue.viewMode
+    this.listDensity = preferencesValue.listDensity
+    this.showLibraryBadges = preferencesValue.showBadges
+    this.filterSource = preferencesValue.source
+    this.filterReadState = preferencesValue.readState
+    this.filterCategory = preferencesValue.category
+    this.filterAvailability = preferencesValue.availability
+    this.filterMetadataStatus = preferencesValue.metadataStatus
+    if (applyCategoryStrategy) this.applyCategoryDisplayStrategy(this.validCategoryFilter())
+    console.info(
+      `[Library] step=filter_restored sortBy=${this.sortBy} viewMode=${this.viewMode} listDensity=${this.listDensity} showBadges=${this.showLibraryBadges} source=${this.filterSource} readState=${this.filterReadState} category=${this.filterCategory} availability=${this.filterAvailability} metadataStatus=${this.filterMetadataStatus}`
+    )
+  }
+
+  private async recoverFilterPreferencesAfterSave(): Promise<void> {
+    const revision = this.filterPreferencesMutationRevision
+    const restoreEpoch = this.filterPreferencesRestoreEpoch
+    try {
+      const context = getContext(this) as common.UIAbilityContext
+      const value = await new LibraryFilterStore(context).load()
+      if (revision !== this.filterPreferencesMutationRevision || restoreEpoch !== this.filterPreferencesRestoreEpoch) return
+      this.applyFilterPreferences(value, false)
+      this.refreshDisplayedSnapshotFromStore()
+    } catch (_error) {
+      console.info('[Library] step=filter_restore_failed reason=filter_save_recovery')
+    }
+  }
+
+  private restoreInitialFilterPreferences(): void {
+    this.filterPreferencesRestoreEpoch += 1
+    try {
+      const context = getContext(this) as common.UIAbilityContext
+      this.applyFilterPreferences(new LibraryFilterStore(context).loadSync())
+    } catch (error) {
+      void error
+      // Keep the existing asynchronous recovery if the initial read fails.
+      this.beginFilterPreferencesRestore()
+    }
+  }
+
   aboutToAppear(): void {
+    this.restoreInitialFilterPreferences()
     this.syncDisplayedSnapshotFromProps()
-    this.beginFilterPreferencesRestore()
     this.publishTitleBar()
   }
 

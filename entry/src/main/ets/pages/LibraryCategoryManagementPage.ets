@@ -40,6 +40,8 @@ export struct LibraryCategoryManagementPage {
   @Param libraryStore?: LibraryStore = undefined
   @Param libraryPersistenceService?: LibraryStorePersistenceService = undefined
   @Event onLibraryChanged: () => void = () => {}
+  @Event onDisplayStrategyChanged: (strategy: LibraryCategoryDisplayStrategy) => void = () => {}
+  @Local private categoryDisplayStrategies: LibraryCategoryDisplayStrategy[] = []
   @Local private categories: CustomLibraryCategory[] = []
   @Local private draftName: string = ''
   @Local private editingCategoryId: string = ''
@@ -50,6 +52,7 @@ export struct LibraryCategoryManagementPage {
 
   private refreshCategories(): void {
     this.categories = this.libraryStore === undefined ? [] : this.libraryStore.listCustomCategories()
+    this.categoryDisplayStrategies = this.libraryStore?.listCategoryDisplayStrategies() ?? []
   }
 
   private showToast(message: string): void {
@@ -76,7 +79,9 @@ export struct LibraryCategoryManagementPage {
   }
 
   private categoryStrategy(categoryId: LibraryCategoryDisplayCategoryId): LibraryCategoryDisplayStrategy {
-    const strategy = this.libraryStore?.getCategoryDisplayStrategy(categoryId)
+    const strategy = this.categoryDisplayStrategies.find((value: LibraryCategoryDisplayStrategy): boolean => {
+      return value.categoryId === categoryId
+    })
     if (strategy !== undefined) {
       return strategy
     }
@@ -124,13 +129,15 @@ export struct LibraryCategoryManagementPage {
       return
     }
     try {
-      setCategoryDisplayStrategyAndPersistLibraryStore(this.libraryStore, this.libraryPersistenceService, {
+      const savedStrategy = setCategoryDisplayStrategyAndPersistLibraryStore(this.libraryStore, this.libraryPersistenceService, {
         categoryId,
         sortBy,
         readState,
         updatedAt: Date.now(),
       })
       this.onLibraryChanged()
+      this.refreshCategories()
+      this.onDisplayStrategyChanged(savedStrategy)
       this.showToast(s('library_category_display_updated'))
     } catch (_error) {
       this.showToast(s('library_category_display_save_failed'))

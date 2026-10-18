@@ -13,6 +13,7 @@ import {
 import { LibraryStorePersistenceService } from '../model/LibraryPersistence'
 import {
   LibraryFilterPreferences,
+  LibraryFilterPreferenceChanges,
   LibraryFilterStore,
   LibraryListDensity,
   LibraryViewMode,
@@ -456,6 +457,8 @@ export struct SettingsPage {
   @Local private downloadForegroundConcurrencyLimit: number = 1
   @Local private downloadWifiOnly: boolean = false
   @Local private downloadNotificationStatus: OfflineDownloadNotificationStatus = 'unavailable'
+  private libraryFilterMutationRevision: number = 0
+  private libraryFilterLoadEpoch: number = 0
   @Local private libraryDefaultSortBy: LibrarySortBy = 'lastRead'
   @Local private libraryViewMode: LibraryViewMode = 'grid'
   @Local private libraryListDensity: LibraryListDensity = 'standard'
@@ -1127,12 +1130,12 @@ export struct SettingsPage {
   }
 
   private loadLibraryFilterPreferences(): void {
+    const revision = this.libraryFilterMutationRevision
+    const epoch = ++this.libraryFilterLoadEpoch
     void this.libraryFilterStore().load()
       .then((preferences: LibraryFilterPreferences) => {
-        this.libraryDefaultSortBy = preferences.sortBy
-        this.libraryViewMode = preferences.viewMode
-        this.libraryListDensity = preferences.listDensity
-        this.showLibraryBadges = preferences.showBadges
+        if (revision !== this.libraryFilterMutationRevision || epoch !== this.libraryFilterLoadEpoch) return
+        this.applyLibraryFilterPreferences(preferences)
         console.info('[Settings] step=load_library_filter_preferences sortBy=' + preferences.sortBy + ' viewMode=' + preferences.viewMode + ' listDensity=' + preferences.listDensity + ' showBadges=' + preferences.showBadges)
       })
       .catch((error: Error) => {
@@ -1698,70 +1701,22 @@ export struct SettingsPage {
 
   private saveLibraryDefaultSort(sortBy: LibrarySortBy): void {
     this.libraryDefaultSortBy = sortBy
-    void this.libraryFilterStore().load()
-      .then((preferences: LibraryFilterPreferences) => {
-        preferences.sortBy = sortBy
-        return this.libraryFilterStore().save(preferences)
-      })
-      .then(() => {
-        console.info('[Settings] step=save_library_default_sort sortBy=' + sortBy)
-        this.onLibraryPreferencesChanged()
-      })
-      .catch((error: Error) => {
-        console.warn('[Settings] step=save_library_default_sort_failed code=' + safeSettingsErrorCode(error))
-        this.showToast(s('settings_library_default_sort_save_failed'))
-      })
+    this.saveLibraryFilterChanges({ sortBy }, s('settings_library_default_sort_save_failed'))
   }
 
   private saveLibraryViewMode(viewMode: LibraryViewMode): void {
     this.libraryViewMode = viewMode
-    void this.libraryFilterStore().load()
-      .then((preferences: LibraryFilterPreferences) => {
-        preferences.viewMode = viewMode
-        return this.libraryFilterStore().save(preferences)
-      })
-      .then(() => {
-        console.info('[Settings] step=save_library_view_mode viewMode=' + viewMode)
-        this.onLibraryPreferencesChanged()
-      })
-      .catch((error: Error) => {
-        console.warn('[Settings] step=save_library_view_mode_failed code=' + safeSettingsErrorCode(error))
-        this.showToast(s('settings_library_view_mode_save_failed'))
-      })
+    this.saveLibraryFilterChanges({ viewMode }, s('settings_library_view_mode_save_failed'))
   }
 
   private saveLibraryListDensity(listDensity: LibraryListDensity): void {
     this.libraryListDensity = listDensity
-    void this.libraryFilterStore().load()
-      .then((preferences: LibraryFilterPreferences) => {
-        preferences.listDensity = listDensity
-        return this.libraryFilterStore().save(preferences)
-      })
-      .then(() => {
-        console.info('[Settings] step=save_library_list_density listDensity=' + listDensity)
-        this.onLibraryPreferencesChanged()
-      })
-      .catch((error: Error) => {
-        console.warn('[Settings] step=save_library_list_density_failed code=' + safeSettingsErrorCode(error))
-        this.showToast(s('settings_library_list_density_save_failed'))
-      })
+    this.saveLibraryFilterChanges({ listDensity }, s('settings_library_list_density_save_failed'))
   }
 
   private saveLibraryBadgesEnabled(enabled: boolean): void {
     this.showLibraryBadges = enabled
-    void this.libraryFilterStore().load()
-      .then((preferences: LibraryFilterPreferences) => {
-        preferences.showBadges = enabled
-        return this.libraryFilterStore().save(preferences)
-      })
-      .then(() => {
-        console.info('[Settings] step=save_library_badges enabled=' + enabled)
-        this.onLibraryPreferencesChanged()
-      })
-      .catch((error: Error) => {
-        console.warn('[Settings] step=save_library_badges_failed code=' + safeSettingsErrorCode(error))
-        this.showToast(s('settings_library_badges_save_failed'))
-      })
+    this.saveLibraryFilterChanges({ showBadges: enabled }, s('settings_library_badges_save_failed'))
   }
 
   private saveTrackerAutoSyncEnabled(enabled: boolean): void {
@@ -2607,6 +2562,27 @@ export struct SettingsPage {
       },
     })
       .width('100%')
+  }
+
+  private applyLibraryFilterPreferences(preferences: LibraryFilterPreferences): void {
+    this.libraryDefaultSortBy = preferences.sortBy
+    this.libraryViewMode = preferences.viewMode
+    this.libraryListDensity = preferences.listDensity
+    this.showLibraryBadges = preferences.showBadges
+  }
+
+  private saveLibraryFilterChanges(changes: LibraryFilterPreferenceChanges, failedMessage: string): void {
+    const revision = ++this.libraryFilterMutationRevision
+    void this.libraryFilterStore().update(changes)
+      .then((preferences: LibraryFilterPreferences) => {
+        if (revision === this.libraryFilterMutationRevision) this.applyLibraryFilterPreferences(preferences)
+        this.onLibraryPreferencesChanged()
+      })
+      .catch((error: Error) => {
+        console.warn('[Settings] step=save_library_filter_failed code=' + safeSettingsErrorCode(error))
+        this.showToast(failedMessage)
+        this.loadLibraryFilterPreferences()
+      })
   }
 
   aboutToAppear(): void {
