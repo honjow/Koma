@@ -33,6 +33,18 @@ export const LIBRARY_UPDATE_RESULT_MAX_MESSAGE_LENGTH: number = 512
 export const LIBRARY_UPDATE_RESULT_MAX_SOURCE_KEY_LENGTH: number = 64
 
 export type LibraryUpdateJobState = 'due' | 'running' | 'success' | 'failed' | 'backed-off'
+export type LibraryUpdateSummaryOutcome = 'all-failed' | 'partial-failure' | 'no-eligible' | 'updated' | 'unchanged'
+
+export function classifyLibraryUpdateSummary(summary: LibraryUpdateSummary): LibraryUpdateSummaryOutcome {
+  const successfulCount = summary.updatedCount + summary.unchangedCount
+  if (summary.failedCount > 0) {
+    return successfulCount > 0 ? 'partial-failure' : 'all-failed'
+  }
+  if (successfulCount === 0) {
+    return 'no-eligible'
+  }
+  return summary.updatedCount > 0 ? 'updated' : 'unchanged'
+}
 
 export interface PersistedLibraryUpdateResult {
   comicId: string
@@ -154,6 +166,9 @@ export function redactLibraryUpdateFailureCode(value: string | undefined): strin
   const trimmed = value.trim().toLocaleLowerCase()
   if (trimmed.length === 0) {
     return 'unknown'
+  }
+  if (trimmed === 'all_failed' || trimmed === 'partial_failure') {
+    return trimmed
   }
   if (/timeout|timed\s*out|deadline|etimedout/.test(trimmed)) {
     return 'timeout'
@@ -636,6 +651,24 @@ export function createLibraryUpdateJobSnapshot(
   return snapshot
 }
 
+export function completedLibraryUpdateJobSnapshot(
+  summary: LibraryUpdateSummary,
+  startedAt?: number,
+  nextDueAt?: number,
+): LibraryUpdateJobSnapshot {
+  const outcome = classifyLibraryUpdateSummary(summary)
+  let state: LibraryUpdateJobState = 'success'
+  let failureCode: string | undefined = undefined
+  if (outcome === 'all-failed') {
+    state = nextDueAt !== undefined && nextDueAt > summary.checkedAt ? 'backed-off' : 'failed'
+    failureCode = 'all_failed'
+  } else if (outcome === 'partial-failure') {
+    state = 'failed'
+    failureCode = 'partial_failure'
+  }
+  return createLibraryUpdateJobSnapshot(state, summary.checkedAt, summary, failureCode, nextDueAt, startedAt)
+}
+
 export function serializeLibraryUpdateJobSnapshot(snapshot: LibraryUpdateJobSnapshot): string {
   const persisted: PersistedLibraryUpdateJobSnapshot = {
     state: snapshot.state,
@@ -783,10 +816,11 @@ export class LibraryUpdateResultStore {
     }
   }
 
-  async save(summary: LibraryUpdateSummary): Promise<void> {
+  async save(summary: LibraryUpdateSummary, snapshot?: LibraryUpdateJobSnapshot): Promise<void> {
     const store = await this.preferences()
     await store.put(LIBRARY_UPDATE_LATEST_RESULT_JSON_KEY, serializeLibraryUpdateSummary(summary))
-    await store.put(LIBRARY_UPDATE_LATEST_JOB_JSON_KEY, serializeLibraryUpdateJobSnapshot(createLibraryUpdateJobSnapshot('success', summary.checkedAt, summary)))
+    await store.put(LIBRARY_UPDATE_LATEST_JOB_JSON_KEY,
+      serializeLibraryUpdateJobSnapshot(snapshot ?? completedLibraryUpdateJobSnapshot(summary)))
     await store.flush()
   }
 
@@ -805,7 +839,9 @@ export class LibraryUpdateResultStore {
 
   async saveJobSnapshot(snapshot: LibraryUpdateJobSnapshot): Promise<void> {
     const store = await this.preferences()
-    if (snapshot.state === 'failed' || snapshot.state === 'backed-off') {
+    if (snapshot.summary !== undefined && snapshot.summary.checkedAt === snapshot.updatedAt) {
+      await store.put(LIBRARY_UPDATE_LATEST_RESULT_JSON_KEY, serializeLibraryUpdateSummary(snapshot.summary))
+    } else if (snapshot.state === 'failed' || snapshot.state === 'backed-off') {
       await store.put(LIBRARY_UPDATE_LATEST_RESULT_JSON_KEY, '')
     }
     await store.put(LIBRARY_UPDATE_LATEST_JOB_JSON_KEY, serializeLibraryUpdateJobSnapshot(snapshot))

@@ -111,6 +111,9 @@ export function normalizeLibraryUpdateFailureCode(value: string | undefined): st
   if (trimmed.length === 0) {
     return undefined
   }
+  if (trimmed === 'all_failed') {
+    return trimmed
+  }
   if (/timeout|timed\s*out|deadline|etimedout/.test(trimmed)) {
     return 'timeout'
   }
@@ -267,7 +270,7 @@ export class LibraryUpdatePreferencesStore {
     this.context = context
   }
 
-  async load(): Promise<LibraryUpdatePreferences> {
+  async load(strict: boolean = false): Promise<LibraryUpdatePreferences> {
     try {
       const store = await this.preferences()
       const autoCheckEnabled =
@@ -323,6 +326,9 @@ export class LibraryUpdatePreferencesStore {
       }
       return normalized
     } catch (_error) {
+      if (strict) {
+        throw new Error('library_update_preferences_read_failed')
+      }
       return {
         autoCheckEnabled: DEFAULT_LIBRARY_UPDATE_PREFERENCES.autoCheckEnabled,
         intervalHours: DEFAULT_LIBRARY_UPDATE_PREFERENCES.intervalHours,
@@ -333,7 +339,7 @@ export class LibraryUpdatePreferencesStore {
   }
 
   async saveAutoCheckEnabled(autoCheckEnabled: boolean): Promise<LibraryUpdatePreferences> {
-    const current = await this.load()
+    const current = await this.load(true)
     const next: LibraryUpdatePreferences = {
       autoCheckEnabled,
       intervalHours: current.intervalHours,
@@ -355,7 +361,7 @@ export class LibraryUpdatePreferencesStore {
   }
 
   async saveIntervalHours(intervalHours: number): Promise<LibraryUpdatePreferences> {
-    const current = await this.load()
+    const current = await this.load(true)
     const next: LibraryUpdatePreferences = {
       autoCheckEnabled: current.autoCheckEnabled,
       intervalHours: normalizeLibraryUpdateIntervalHours(intervalHours),
@@ -383,26 +389,35 @@ export class LibraryUpdatePreferencesStore {
     updatedCount: number,
     skippedCount: number,
     failedCount: number,
+    strictLoad: boolean = false,
   ): Promise<LibraryUpdatePreferences> {
-    const current = await this.load()
+    const current = await this.load(strictLoad)
+    const normalizedTotalCount = normalizeLibraryUpdateSummaryCount(totalCount) ?? 0
+    const normalizedSkippedCount = normalizeLibraryUpdateSummaryCount(skippedCount) ?? 0
+    const normalizedFailedCount = normalizeLibraryUpdateSummaryCount(failedCount) ?? 0
+    const allFailed = normalizedFailedCount > 0 &&
+      normalizedTotalCount - normalizedSkippedCount - normalizedFailedCount <= 0
     const next: LibraryUpdatePreferences = {
       autoCheckEnabled: current.autoCheckEnabled,
       intervalHours: current.intervalHours,
       foregroundOnly: current.foregroundOnly,
       lastCheckedAt: checkedAt,
-      lastSummaryTotalCount: normalizeLibraryUpdateSummaryCount(totalCount) ?? 0,
+      lastSummaryTotalCount: normalizedTotalCount,
       lastSummaryNewChapterCount: normalizeLibraryUpdateSummaryCount(newChapterCount) ?? 0,
       lastSummaryUpdatedCount: normalizeLibraryUpdateSummaryCount(updatedCount) ?? 0,
-      lastSummarySkippedCount: normalizeLibraryUpdateSummaryCount(skippedCount) ?? 0,
-      lastSummaryFailedCount: normalizeLibraryUpdateSummaryCount(failedCount) ?? 0,
-      failureCount: 0,
+      lastSummarySkippedCount: normalizedSkippedCount,
+      lastSummaryFailedCount: normalizedFailedCount,
+      failureCount: allFailed ? normalizeLibraryUpdateFailureCount(current.failureCount + 1) : 0,
+    }
+    if (allFailed) {
+      next.lastFailureCode = 'all_failed'
     }
     await this.save(next)
     return next
   }
 
-  async saveFailedCheck(checkedAt: number, failureCode: string): Promise<LibraryUpdatePreferences> {
-    const current = await this.load()
+  async saveFailedCheck(checkedAt: number, failureCode: string, strictLoad: boolean = false): Promise<LibraryUpdatePreferences> {
+    const current = await this.load(strictLoad)
     const next: LibraryUpdatePreferences = {
       autoCheckEnabled: current.autoCheckEnabled,
       intervalHours: current.intervalHours,
