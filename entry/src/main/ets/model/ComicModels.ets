@@ -97,6 +97,13 @@ export interface Comic {
   lastImportedAt: number
 }
 
+export function sameComicIdentity(baseline: Comic, current: Comic): boolean {
+  return baseline.id === current.id && baseline.createdAt === current.createdAt &&
+    baseline.sourceKind === current.sourceKind && baseline.sourcePath === current.sourcePath &&
+    baseline.sourceRuntimeId === current.sourceRuntimeId && baseline.remoteServerId === current.remoteServerId &&
+    baseline.remoteResourceId === current.remoteResourceId
+}
+
 export const LIBRARY_CATEGORY_FAVORITE_ID: string = 'favorite'
 export const LIBRARY_CATEGORY_READ_LATER_ID: string = 'read_later'
 export const CUSTOM_LIBRARY_CATEGORY_ID_PREFIX: string = 'custom_'

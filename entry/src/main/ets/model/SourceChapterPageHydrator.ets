@@ -3,6 +3,7 @@ import {
   Chapter,
   Comic,
   Page,
+  sameComicIdentity,
 } from './ComicModels'
 import { LibraryStore } from './LibraryStore'
 import {
@@ -312,6 +313,8 @@ export class SourceChapterPageHydrator {
     if (resolvedSourceId === undefined || resolvedSourceId.trim().length === 0) {
       return { hydrated: false, pageCount: 0, reasonCode: 'source_missing' }
     }
+    const baselineComic = JSON.parse(JSON.stringify(comic)) as Comic
+    const baselineChapter = JSON.parse(JSON.stringify(chapter)) as Chapter
     const resolution = await resolveSourceChapterPages(this.sourceRegistry, {
       comicId: comic.id,
       sourceId: resolvedSourceId,
@@ -321,26 +324,39 @@ export class SourceChapterPageHydrator {
     if (resolution.pages.length === 0) {
       return { hydrated: false, pageCount: 0, reasonCode: resolution.reasonCode ?? 'pages_missing' }
     }
-    this.applyPages(comic, chapter, resolution.pages)
-    return { hydrated: true, pageCount: resolution.pages.length }
+    return this.applyPages(baselineComic, baselineChapter, resolution.pages)
   }
 
-  private applyPages(comic: Comic, chapter: Chapter, pages: Page[]): void {
-    chapter.pages = pages
-    chapter.pageCount = pages.length
-    chapter.updatedAt = Date.now()
-    comic.pageCount = comic.chapters.reduce((total: number, item: Chapter): number => total + item.pageCount, 0)
-    comic.updatedAt = chapter.updatedAt
-    const existsInLibrary = this.libraryStore.getComic(comic.id) !== undefined
-    if (existsInLibrary) {
-      if (this.libraryPersistenceService === undefined) {
-        this.libraryStore.upsertComic(comic)
-      } else {
-        upsertComicAndPersistLibraryStore(this.libraryStore, this.libraryPersistenceService, comic)
-      }
-      if (this.onLibraryChanged !== undefined) {
-        this.onLibraryChanged()
+  private applyPages(comic: Comic, chapter: Chapter, pages: Page[]): SourceChapterPageHydrationResult {
+    const current = this.libraryStore.getComic(comic.id)
+    const currentChapter = current?.chapters.find((item: Chapter): boolean => item.id === chapter.id)
+    if (current === undefined || !sameComicIdentity(comic, current) || currentChapter === undefined ||
+      currentChapter.createdAt !== chapter.createdAt || currentChapter.sourcePath !== chapter.sourcePath) {
+      return { hydrated: false, pageCount: 0, reasonCode: 'chapter_missing' }
+    }
+    // A newer page plan already committed while this request was resolving owns the chapter.
+    if (JSON.stringify(currentChapter.pages) !== JSON.stringify(chapter.pages)) {
+      return {
+        hydrated: currentChapter.pages.length > 0,
+        pageCount: currentChapter.pages.length,
+        reasonCode: currentChapter.pages.length > 0 ? undefined : 'pages_missing',
       }
     }
+    const next = JSON.parse(JSON.stringify(current)) as Comic
+    const nextChapter = next.chapters.find((item: Chapter): boolean => item.id === chapter.id) as Chapter
+    nextChapter.pages = pages
+    nextChapter.pageCount = pages.length
+    nextChapter.updatedAt = Date.now()
+    next.pageCount = next.chapters.reduce((total: number, item: Chapter): number => total + item.pageCount, 0)
+    next.updatedAt = nextChapter.updatedAt
+    if (this.libraryPersistenceService === undefined) {
+      this.libraryStore.upsertComic(next)
+    } else {
+      upsertComicAndPersistLibraryStore(this.libraryStore, this.libraryPersistenceService, next)
+    }
+    if (this.onLibraryChanged !== undefined) {
+      this.onLibraryChanged()
+    }
+    return { hydrated: true, pageCount: pages.length }
   }
 }
