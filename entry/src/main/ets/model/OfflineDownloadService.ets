@@ -1,3 +1,4 @@
+import { common } from '@kit.AbilityKit'
 import { fileIo as fs } from '@kit.CoreFileKit'
 import { taskpool } from '@kit.ArkTS'
 import { OfflineDownloadRuntime } from './OfflineDownloadRuntime'
@@ -171,10 +172,12 @@ function initializeOfflineDownloadQueue(filesDir: string): void {
 }
 
 export class OfflineDownloadService {
+  private readonly requestContext?: common.UIAbilityContext
   private readonly store: OfflineDownloadStore
   private readonly queueStore: OfflineDownloadQueueStore
 
-  constructor(store: OfflineDownloadStore, queueStore?: OfflineDownloadQueueStore) {
+  constructor(store: OfflineDownloadStore, queueStore?: OfflineDownloadQueueStore, requestContext?: common.UIAbilityContext) {
+    this.requestContext = requestContext
     this.store = store
     this.queueStore = queueStore ?? new OfflineDownloadQueueStore(store.filesRootDir())
   }
@@ -425,7 +428,7 @@ export class OfflineDownloadService {
     if (source.kind !== ReaderPageRenderKind.REMOTE_URL_IMAGE) {
       throw new Error('unsupported page source')
     }
-    const bytes = await fetchReaderRemoteSourceBytes(source)
+    const bytes = await fetchReaderRemoteSourceBytes(source, this.requestContext)
     return writeBytesSync(localPath, bytes)
   }
 }

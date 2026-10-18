@@ -5,7 +5,7 @@ import { http } from '@kit.NetworkKit'
 import { preferences } from '@kit.ArkData'
 import { BusinessError } from '@kit.BasicServicesKit'
 import { fileIo as fs, fileUri } from '@kit.CoreFileKit'
-import { Comic, ComicId, ComicSourceKind } from './ComicModels'
+import { ComicId, ComicSourceKind } from './ComicModels'
 import { ReaderSessionConfig } from './ReaderSessionStore'
 import {
   DEFAULT_REMOTE_IMAGE_CACHE_MAX_BYTES,
@@ -25,9 +25,11 @@ import {
   RemoteServerStore,
   WebDavServerRecord,
 } from './RemoteServerStore'
+import { privateServerHeadersForRequest } from './CoverImageCacheService'
 import { KomgaHeaders } from '../remote/KomgaClient'
+import { normalizeKavitaBaseUrl } from '../remote/KavitaClient'
 import { appSourceRuntimeRegistry } from '../sourceRuntime/SourceRuntimeAppRegistry'
-import { appSourceSettingsStore } from '../sourceRuntime/SourceSettingsStore'
+import { appSourceSettingsStore, SourceSettingsRecord } from '../sourceRuntime/SourceSettingsStore'
 import { runSourceOperationFromBytes } from '../sourceRuntime/SourceRuntimeRunner'
 
 @Concurrent
@@ -221,112 +223,73 @@ export function formatReaderRemoteImageCacheSize(totalBytes: number): string {
 }
 
 
-let readerUrlPrefix: string = ''
-let readerRemoteHeaders: KomgaHeaders | null = null
-
 class ResolvedReaderImageHeaders {
   urlPrefix: string
   headers: KomgaHeaders | null
+  kavitaImageApiKey?: string
 
-  constructor(urlPrefix: string, headers: KomgaHeaders | null) {
+  constructor(urlPrefix: string, headers: KomgaHeaders | null, kavitaImageApiKey?: string) {
     this.urlPrefix = urlPrefix
     this.headers = headers
+    this.kavitaImageApiKey = kavitaImageApiKey
   }
 }
 
-function httpHeadersForReaderRequest(extraHeaders?: RemoteImageCacheHeaders): Object {
-  const values: Record<string, string> = {}
-  if (readerRemoteHeaders !== null) {
-    const headers = readerRemoteHeaders
-    if (headers.authorization !== undefined) {
-      values['Authorization'] = headers.authorization
-    }
-    if (headers.accept !== undefined) {
-      values['Accept'] = headers.accept
-    }
-    if (headers.contentType !== undefined) {
-      values['Content-Type'] = headers.contentType
-    }
-    if (headers.xApiKey !== undefined) {
-      values['X-API-Key'] = headers.xApiKey
-    }
-    if (headers.xAuthToken !== undefined) {
-      values['X-Auth-Token'] = headers.xAuthToken
-    }
-  }
-  if (extraHeaders !== undefined) {
-    Object.keys(extraHeaders).forEach((name: string) => {
-      const value = extraHeaders[name]
-      if (name.trim().length > 0 && value.length > 0) {
-        values[name] = value
-      }
-    })
-  }
-  if (Object.keys(values).length === 0) {
-    return new EmptyHttpHeader()
-  }
-  return values as Object
+function httpHeadersForReaderRequest(headers?: RemoteImageCacheHeaders): Object {
+  return headers === undefined ? new EmptyHttpHeader() : headers as Object
 }
 
 class EmptyHttpHeader {
 }
 
-function remoteImageCacheHeaders(extraHeaders?: RemoteImageCacheHeaders): RemoteImageCacheHeaders | undefined {
-  const out: RemoteImageCacheHeaders = {}
-  if (readerRemoteHeaders !== null) {
-    const headers = readerRemoteHeaders
-    if (headers.authorization !== undefined) {
-      out['Authorization'] = headers.authorization
-    }
-    if (headers.accept !== undefined) {
-      out['Accept'] = headers.accept
-    }
-    if (headers.contentType !== undefined) {
-      out['Content-Type'] = headers.contentType
-    }
-    if (headers.xApiKey !== undefined) {
-      out['X-API-Key'] = headers.xApiKey
-    }
-    if (headers.xAuthToken !== undefined) {
-      out['X-Auth-Token'] = headers.xAuthToken
-    }
-  }
-  if (extraHeaders !== undefined) {
-    Object.keys(extraHeaders).forEach((name: string) => {
-      const value = extraHeaders[name]
-      if (name.trim().length > 0 && value.length > 0) {
-        out[name] = value
-      }
-    })
-  }
-  return Object.keys(out).length > 0 ? out : undefined
+interface ReaderRemoteIdentity {
+  sourceKind?: ComicSourceKind
+  remoteServerId?: string
 }
 
-export function installReaderRemoteHeaders(urlPrefix: string, headers: KomgaHeaders): void {
-  readerUrlPrefix = urlPrefix ?? ''
-  readerRemoteHeaders = headers
+class ReaderRemoteRequest {
+  readonly url: string
+  readonly requestUrl: string
+  readonly headers?: RemoteImageCacheHeaders
+
+  constructor(url: string, requestUrl: string, headers?: RemoteImageCacheHeaders) {
+    this.url = url
+    this.requestUrl = requestUrl
+    this.headers = headers
+  }
 }
 
-function normalizeReaderUrl(url: string): string {
-  if (url.startsWith('http://') || url.startsWith('https://')) {
-    return url
+async function resolveReaderRemoteRequest(
+  uri: string,
+  identity?: ReaderRemoteIdentity,
+  context?: common.UIAbilityContext,
+): Promise<ReaderRemoteRequest> {
+  const kind = identity?.sourceKind
+  const privateSource = kind === ComicSourceKind.KOMGA_REMOTE || kind === ComicSourceKind.KAVITA_REMOTE ||
+    kind === ComicSourceKind.OPDS_REMOTE || kind === ComicSourceKind.WEBDAV_REMOTE
+  if (!privateSource) return new ReaderRemoteRequest(uri, uri)
+  if (context === undefined || identity === undefined || !identity.remoteServerId?.trim()) {
+    throw new Error('reader_remote_server_identity_missing')
   }
-  const prefix = readerUrlPrefix.trim()
-  if (prefix.length === 0) {
-    return url
-  }
-  const normalizedPrefix = prefix.endsWith('/') ? prefix : `${prefix}/`
-  return `${normalizedPrefix}${url.replace(/^\/+/, '')}`
+  const resolved = await resolveServerImageHeaders(context, identity)
+  if (resolved.headers === null) throw new Error('reader_remote_server_unavailable')
+  const prefix = resolved.urlPrefix.endsWith('/') ? resolved.urlPrefix : `${resolved.urlPrefix}/`
+  const url = isRemoteHttpUrl(uri) ? uri : `${prefix}${uri.replace(/^\/+/, '')}`
+  const headers = privateServerHeadersForRequest(uri, resolved.urlPrefix, resolved.headers)
+  const imagePrefix = `${normalizeKavitaBaseUrl(resolved.urlPrefix)}/api/Reader/image?`
+  const requestUrl = resolved.kavitaImageApiKey !== undefined && url.startsWith(imagePrefix)
+    ? `${url}&apiKey=${encodeURIComponent(resolved.kavitaImageApiKey)}` : url
+  return new ReaderRemoteRequest(url, requestUrl, headers)
 }
 
 function resolveServerImageHeaders(
   context: common.UIAbilityContext,
-  comic: Comic,
+  comic: ReaderRemoteIdentity,
 ): Promise<ResolvedReaderImageHeaders> {
   const store = new RemoteServerStore(context)
   if (comic.sourceKind === ComicSourceKind.KOMGA_REMOTE) {
     return store.loadKomga().then((record: KomgaServerRecord | undefined): ResolvedReaderImageHeaders => {
-      if (record === undefined) {
+      if (record === undefined || comic.remoteServerId !== record.server.id) {
         return new ResolvedReaderImageHeaders('', null)
       }
       return new ResolvedReaderImageHeaders(record.server.baseUrl, store.getKomgaImageHeaders(record))
@@ -334,15 +297,15 @@ function resolveServerImageHeaders(
   }
   if (comic.sourceKind === ComicSourceKind.KAVITA_REMOTE) {
     return store.loadKavita().then((record: KavitaServerRecord | undefined): ResolvedReaderImageHeaders => {
-      if (record === undefined) {
+      if (record === undefined || comic.remoteServerId !== record.server.id) {
         return new ResolvedReaderImageHeaders('', null)
       }
-      return new ResolvedReaderImageHeaders(record.server.baseUrl, store.getKavitaImageHeaders(record))
+      return new ResolvedReaderImageHeaders(record.server.baseUrl, store.getKavitaImageHeaders(record), record.credential.apiKey)
     })
   }
   if (comic.sourceKind === ComicSourceKind.WEBDAV_REMOTE) {
     return store.loadWebDav().then((record: WebDavServerRecord | undefined): ResolvedReaderImageHeaders => {
-      if (record === undefined) {
+      if (record === undefined || comic.remoteServerId !== record.server.id) {
         return new ResolvedReaderImageHeaders('', null)
       }
       return new ResolvedReaderImageHeaders(record.server.baseUrl, store.getWebDavImageHeaders(record))
@@ -350,26 +313,13 @@ function resolveServerImageHeaders(
   }
   if (comic.sourceKind === ComicSourceKind.OPDS_REMOTE) {
     return store.loadOpds().then((record: OpdsServerRecord | undefined): ResolvedReaderImageHeaders => {
-      if (record === undefined) {
+      if (record === undefined || comic.remoteServerId !== record.server.id) {
         return new ResolvedReaderImageHeaders('', null)
       }
       return new ResolvedReaderImageHeaders(record.server.rootUrl, store.getOpdsImageHeaders(record))
     })
   }
   return Promise.resolve(new ResolvedReaderImageHeaders('', null))
-}
-
-export function installReaderRemoteHeadersForComic(
-  context: common.UIAbilityContext,
-  comic: Comic,
-): Promise<void> {
-  return resolveServerImageHeaders(context, comic).then((resolved) => {
-    if (resolved.headers === null) {
-      installReaderRemoteHeaders('', {})
-      return
-    }
-    installReaderRemoteHeaders(resolved.urlPrefix, resolved.headers)
-  })
 }
 
 function isRemoteHttpUrl(uri: string): boolean {
@@ -407,46 +357,55 @@ async function downloadReaderRemoteBytes(url: string, extraHeaders?: RemoteImage
   }
 }
 
-export async function fetchAndCacheReaderRemoteImage(uri: string): Promise<string> {
-  if (readerImageCacheStore === null) {
-    throw new Error('reader_remote_image_cache_unconfigured')
-  }
-  const url = normalizeReaderUrl(uri)
-  const cached = await readerImageCacheStore.get(url, remoteImageCacheHeaders())
-  if (cached !== undefined && cached.length > 0) {
-    return cached
-  }
-  const bytes = await downloadReaderRemoteBytes(url)
-  const path = await readerImageCacheStore.put(url, remoteImageCacheHeaders(), bytes)
+export async function fetchAndCacheReaderRemoteImage(
+  uri: string,
+  identity?: ReaderRemoteIdentity,
+  context?: common.UIAbilityContext,
+): Promise<string> {
+  if (readerImageCacheStore === null) throw new Error('reader_remote_image_cache_unconfigured')
+  const request = await resolveReaderRemoteRequest(uri, identity, context)
+  const path = await readerImageCacheStore.getOrFetch(request.url, request.headers,
+    () => downloadReaderRemoteBytes(request.requestUrl, request.headers))
   await maintainReaderImageCacheAfterWrite(path)
   return path
 }
 
-function readerImageRequestForPage(pageId: string, url: string): string {
+function readerImageRequestForPage(sourceId: string, pageId: string, url: string, mangaUrl?: string): string {
   const request: ReaderImageRuntimeRequest = {
     type: 'request',
     version: 1,
     requestId: `reader-image-${Date.now()}`,
     operation: 'get_image_request',
-    sourceId: '',
-    args: new ReaderImageRuntimeArgs(pageId, url),
-    settings: emptySourceSettingsRecord(),
+    sourceId,
+    args: new ReaderImageRuntimeArgs(pageId, url, mangaUrl),
+    settings: appSourceSettingsStore.loadForSource(sourceId),
     hostHints: new ReaderImageRuntimeHostHints(),
   }
   return JSON.stringify(request)
 }
 
-function emptySourceSettingsRecord(): Record<string, Object> {
-  return {} as Record<string, Object>
+function sourceImageMangaRoute(mangaUrl?: string): string | undefined {
+  const route = mangaUrl?.trim()
+  // source:// locates a Koma Library record; it is not the provider's optional
+  // manga URL. Keep the stored locator, but omit it from image request identity.
+  if (route === undefined || route.length === 0 || route.toLocaleLowerCase().startsWith('source://')) {
+    return undefined
+  }
+  return route
 }
 
 class ReaderImageRuntimeArgs {
   pageId: string
   url: string
+  mangaUrl?: string
 
-  constructor(pageId: string, url: string) {
+  constructor(pageId: string, url: string, mangaUrl?: string) {
     this.pageId = pageId
     this.url = url
+    const route = sourceImageMangaRoute(mangaUrl)
+    if (route !== undefined) {
+      this.mangaUrl = route
+    }
   }
 }
 
@@ -467,7 +426,7 @@ interface ReaderImageRuntimeRequest {
   operation: string
   sourceId: string
   args: ReaderImageRuntimeArgs
-  settings: Record<string, Object>
+  settings: SourceSettingsRecord
   hostHints: ReaderImageRuntimeHostHints
 }
 
@@ -516,6 +475,16 @@ function parseSourceImageRequestDescriptor(payload: string): SourceImageRequestD
     if (typeof directUrl === 'string' && directUrl.length > 0) {
       return new SourceImageRequestDescriptor(directUrl, parseSourceImageRequestHeaders(record['headers']))
     }
+    // The source operation also emits an explicit GET request envelope.
+    // The image transport is GET-only; never reinterpret another method as GET.
+    const request = record['request']
+    if (request !== undefined && request !== null && typeof request === 'object') {
+      const requestRecord = request as Record<string, Object>
+      const url = requestRecord['url']
+      if (requestRecord['method'] === 'GET' && typeof url === 'string' && url.length > 0) {
+        return new SourceImageRequestDescriptor(url, parseSourceImageRequestHeaders(requestRecord['headers']))
+      }
+    }
     return undefined
   } catch (_err) {
     return undefined
@@ -526,6 +495,7 @@ async function resolveSourceRuntimeImageRequest(
   sourceRuntimeId: string,
   uri: string,
   sourceImageId: string,
+  mangaUrl?: string,
 ): Promise<SourceImageRequestDescriptor | undefined> {
   const sourceId = sourceRuntimeId.trim()
   if (sourceId.length === 0) {
@@ -535,9 +505,10 @@ async function resolveSourceRuntimeImageRequest(
   if (!lookup.ok || lookup.entry === undefined || !lookup.entry.enabled) {
     return undefined
   }
-  const requestJson = readerImageRequestForPage(sourceImageId, uri)
+  const requestJson = readerImageRequestForPage(sourceId, sourceImageId, uri, mangaUrl)
   const wasmBytes = new Uint8Array(lookup.entry.wasmBytes.byteLength)
   wasmBytes.set(lookup.entry.wasmBytes)
+  const descriptorRequired = lookup.entry.capabilities.includes('imageRequest')
   let responseJson: string
   try {
     // Match the source detail/chapter path: WAMR stays on a TaskPool worker,
@@ -550,23 +521,29 @@ async function resolveSourceRuntimeImageRequest(
       wasmBytes,
     ) as string
   } catch (_error) {
+    if (descriptorRequired) throw new Error('reader_source_image_request_failed')
     return undefined
   }
   try {
     const response = JSON.parse(responseJson) as Record<string, Object>
     if (response['ok'] !== true) {
+      if (descriptorRequired) throw new Error('reader_source_image_request_rejected')
       return undefined
     }
   } catch (_error) {
+    if (descriptorRequired) throw new Error('reader_source_image_request_rejected')
     return undefined
   }
-  return parseSourceImageRequestDescriptor(responseJson)
+  const descriptor = parseSourceImageRequestDescriptor(responseJson)
+  if (descriptor === undefined && descriptorRequired) throw new Error('reader_source_image_request_invalid')
+  return descriptor
 }
 
 export async function fetchAndCacheSourceRuntimeRemoteImage(
   sourceRuntimeId: string,
   uri: string,
   sourceImageId: string,
+  mangaUrl?: string,
 ): Promise<string> {
   if (readerImageCacheStore === null) {
     throw new Error('reader_remote_image_cache_unconfigured')
@@ -575,21 +552,24 @@ export async function fetchAndCacheSourceRuntimeRemoteImage(
   if (sourceId.length === 0) {
     return fetchAndCacheReaderRemoteImage(uri)
   }
-  const cacheKeySeed = `source:${sourceId}:${sourceImageId}`
+  // Source page IDs can be chapter-local, so the original image URI belongs in the cache identity.
+  const route = sourceImageMangaRoute(mangaUrl)
+  const cacheIdentity = route === undefined
+    ? [sourceId, sourceImageId, uri] : [sourceId, sourceImageId, uri, route]
+  const cacheKeySeed = `source-page-v2:${JSON.stringify(cacheIdentity)}`
   const cachedFast = await readerImageCacheStore.get('', undefined, cacheKeySeed)
   if (cachedFast !== undefined && cachedFast.length > 0) {
     return cachedFast
   }
-  const imageRequest = await resolveSourceRuntimeImageRequest(sourceId, uri, sourceImageId)
+  const imageRequest = await resolveSourceRuntimeImageRequest(sourceId, uri, sourceImageId, route)
   if (imageRequest === undefined) {
     console.warn(`[ReaderImage] step=image_request_unavailable source=${sourceId} page=${sourceImageId}`)
     return fetchAndCacheReaderRemoteImage(uri)
   }
-  const cacheHeaders = remoteImageCacheHeaders(imageRequest.headers)
-  const bytes = await downloadReaderRemoteBytes(imageRequest.url, imageRequest.headers)
-  const path = await readerImageCacheStore.put(imageRequest.url, cacheHeaders, bytes, cacheKeySeed)
+  const cacheHeaders = imageRequest.headers
+  const path = await readerImageCacheStore.getOrFetch(imageRequest.url, cacheHeaders,
+    () => downloadReaderRemoteBytes(imageRequest.url, imageRequest.headers), cacheKeySeed)
   await maintainReaderImageCacheAfterWrite(path)
-  console.info(`[ReaderImage] step=source_cache_written source=${sourceId} page=${sourceImageId} bytes=${bytes.byteLength}`)
   return path
 }
 
@@ -607,11 +587,14 @@ export enum ReaderPageRenderKind {
   URI_PLACEHOLDER = 'uri_placeholder',
 }
 
-export interface ReaderPageRenderSource {
+export interface ReaderPageRenderSource extends ReaderRemoteIdentity {
   kind: ReaderPageRenderKind
   uri: string
   imageUri: string
   sourceRuntimeId?: string
+  sourceMangaUrl?: string
+  sourceKind?: ComicSourceKind
+  remoteServerId?: string
   pageId?: string
 }
 
@@ -739,6 +722,9 @@ function createReaderPageRenderSourceWithOfflinePath(
     uri: pageUri,
     imageUri: pageUri,
     sourceRuntimeId: config.sourceRuntimeId,
+    sourceMangaUrl: config.sourceMangaUrl,
+    sourceKind: config.sourceKind,
+    remoteServerId: config.remoteServerId,
     pageId,
   }
 }
@@ -782,20 +768,20 @@ export function createReaderPageRenderSources(
   return sources
 }
 
-export async function fetchAndCacheReaderRemoteSource(source: ReaderPageRenderSource): Promise<string> {
+export async function fetchAndCacheReaderRemoteSource(source: ReaderPageRenderSource, context?: common.UIAbilityContext): Promise<string> {
   if (source.kind === ReaderPageRenderKind.LOCAL_FILE_IMAGE) {
     return source.imageUri
   }
   if (source.kind === ReaderPageRenderKind.REMOTE_URL_IMAGE) {
     if (source.sourceRuntimeId !== undefined && source.sourceRuntimeId.trim().length > 0 && source.pageId !== undefined) {
-      return fetchAndCacheSourceRuntimeRemoteImage(source.sourceRuntimeId, source.imageUri, source.pageId)
+      return fetchAndCacheSourceRuntimeRemoteImage(source.sourceRuntimeId, source.imageUri, source.pageId, source.sourceMangaUrl)
     }
-    return fetchAndCacheReaderRemoteImage(source.imageUri)
+    return fetchAndCacheReaderRemoteImage(source.imageUri, source, context)
   }
   return source.uri
 }
 
-export async function fetchReaderRemoteSourceBytes(source: ReaderPageRenderSource): Promise<ArrayBuffer> {
+export async function fetchReaderRemoteSourceBytes(source: ReaderPageRenderSource, context?: common.UIAbilityContext): Promise<ArrayBuffer> {
   if (source.kind === ReaderPageRenderKind.LOCAL_FILE_IMAGE) {
     const file = fs.openSync(source.imageUri, fs.OpenMode.READ_ONLY)
     try {
@@ -809,13 +795,13 @@ export async function fetchReaderRemoteSourceBytes(source: ReaderPageRenderSourc
   }
   if (source.kind === ReaderPageRenderKind.REMOTE_URL_IMAGE) {
     if (source.sourceRuntimeId !== undefined && source.sourceRuntimeId.trim().length > 0 && source.pageId !== undefined) {
-      const imageRequest = await resolveSourceRuntimeImageRequest(source.sourceRuntimeId, source.imageUri, source.pageId)
+      const imageRequest = await resolveSourceRuntimeImageRequest(source.sourceRuntimeId, source.imageUri, source.pageId, source.sourceMangaUrl)
       if (imageRequest !== undefined) {
         return downloadReaderRemoteBytes(imageRequest.url, imageRequest.headers)
       }
     }
-    const url = normalizeReaderUrl(source.imageUri)
-    return downloadReaderRemoteBytes(url)
+    const request = await resolveReaderRemoteRequest(source.imageUri, source, context)
+    return downloadReaderRemoteBytes(request.requestUrl, request.headers)
   }
   throw new Error('reader_page_source_unavailable')
 }

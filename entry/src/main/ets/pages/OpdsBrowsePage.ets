@@ -17,7 +17,6 @@ import {
 } from '../model/LibraryPersistence'
 import { MOCK_LIBRARY_READER_SESSION } from '../model/MockLibraryData'
 import { createSeededLibraryStore } from '../model/MockLibraryData'
-import { installReaderRemoteHeaders } from '../model/ReaderPageSourceAdapter'
 import { ReaderSessionConfig, createReaderSessionConfigFromComic } from '../model/ReaderSessionStore'
 import { OpdsServerRecord, RemoteServerStore } from '../model/RemoteServerStore'
 import {
@@ -423,7 +422,9 @@ export struct OpdsBrowsePage {
     MOCK_LIBRARY_READER_SESSION.pageWidths = config.pageWidths
     MOCK_LIBRARY_READER_SESSION.pageHeights = config.pageHeights
     MOCK_LIBRARY_READER_SESSION.sourceRuntimeId = config.sourceRuntimeId
-    installReaderRemoteHeaders(this.store().createOpdsClient(record).getUrlPrefix(), this.store().getOpdsImageHeaders(record))
+    MOCK_LIBRARY_READER_SESSION.sourceMangaUrl = config.sourceMangaUrl
+    MOCK_LIBRARY_READER_SESSION.sourceKind = config.sourceKind
+    MOCK_LIBRARY_READER_SESSION.remoteServerId = config.remoteServerId
   }
 
   private acquisitionText(publication: OpdsBookDto): string {

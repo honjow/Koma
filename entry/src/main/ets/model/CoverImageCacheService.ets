@@ -88,7 +88,7 @@ function httpOriginKey(uri: string): string {
   return `${scheme}://${host}:${effectivePort}`
 }
 
-function privateServerHeadersForRequest(
+export function privateServerHeadersForRequest(
   requestUri: string,
   serverBaseUrl: string,
   headers: KomgaHeaders,

@@ -6,6 +6,7 @@ import {
   ChapterId,
   Comic,
   ComicId,
+  ComicSourceKind,
   ReadingProgress,
   currentComicReadingProgress,
 } from './ComicModels'
@@ -62,6 +63,10 @@ function copySourceReadHistoryEntry(entry: SourceReadHistoryEntry): SourceReadHi
     mangaId,
     title,
     chapterId,
+  }
+  const mangaUrl = entry.mangaUrl?.trim()
+  if (mangaUrl !== undefined && mangaUrl.length > 0) {
+    next.mangaUrl = mangaUrl
   }
   const coverUri = entry.coverUri?.trim()
   if (coverUri !== undefined && coverUri.length > 0) {
@@ -136,6 +141,9 @@ export interface ReaderSessionConfig {
   sourceRuntimeId?: string
   /** Route-local provider category; never persisted with history or progress. */
   sourceFailureReason?: string
+  sourceMangaUrl?: string
+  sourceKind?: ComicSourceKind
+  remoteServerId?: string
 }
 
 export const EMPTY_READER_SESSION_CONFIG: ReaderSessionConfig = {
@@ -165,6 +173,9 @@ export function cloneReaderSessionConfig(config: ReaderSessionConfig): ReaderSes
     pageHeights: config.pageHeights?.slice(),
     sourceRuntimeId: config.sourceRuntimeId,
     sourceFailureReason: config.sourceFailureReason,
+    sourceMangaUrl: config.sourceMangaUrl,
+    sourceKind: config.sourceKind,
+    remoteServerId: config.remoteServerId,
   }
 }
 
@@ -758,6 +769,9 @@ export function createReaderSessionConfigFromComic(
     pageWidths: chapter === undefined ? [] : chapter.pages.map((page) => page.width),
     pageHeights: chapter === undefined ? [] : chapter.pages.map((page) => page.height),
     sourceRuntimeId: comic.sourceRuntimeId,
+    sourceMangaUrl: comic.sourceRuntimeId === undefined ? undefined : comic.sourcePath,
+    sourceKind: comic.sourceKind,
+    remoteServerId: comic.remoteServerId,
   }
 }
 

@@ -64,12 +64,25 @@ function writeTextSync(path: string, payload: string): void {
 }
 
 function writeBytesSync(path: string, bytes: ArrayBuffer): void {
+  const tempPath = `${path}.tmp`
   let file: fs.File | undefined = undefined
   try {
-    file = fs.openSync(path, fs.OpenMode.WRITE_ONLY | fs.OpenMode.CREATE | fs.OpenMode.TRUNC)
-    fs.writeSync(file.fd, bytes)
+    // Keep a previously published complete image until its replacement is complete.
+    file = fs.openSync(tempPath, fs.OpenMode.WRITE_ONLY | fs.OpenMode.CREATE | fs.OpenMode.TRUNC)
+    const written = fs.writeSync(file.fd, bytes)
+    if (written !== bytes.byteLength) throw new Error('Incomplete image cache write')
+    fs.closeSync(file)
+    file = undefined
+    if (fs.statSync(tempPath).size !== bytes.byteLength) {
+      throw new Error('Incomplete image cache file')
+    }
+    fs.renameSync(tempPath, path)
   } finally {
     closeFileQuietly(file)
+    try {
+      if (fs.accessSync(tempPath)) fs.unlinkSync(tempPath)
+    } catch (_error) {
+    }
   }
 }
 
@@ -158,6 +171,7 @@ export class RemoteImageCacheStore {
   private entries: Map<string, RemoteImageCacheManifestEntry> = new Map<string, RemoteImageCacheManifestEntry>()
 
   private operationTail: Promise<void> = Promise.resolve()
+  private imageRequests: Map<string, Promise<string>> = new Map<string, Promise<string>>()
 
   private enqueue<T>(operation: () => Promise<T>): Promise<T> {
     const next = this.operationTail.then(operation, operation)
@@ -194,6 +208,31 @@ export class RemoteImageCacheStore {
     this.persist()
     console.info(`[ReaderCache] step=hit key=${key} size=${entry.size}`)
     return Promise.resolve(entry.path)
+  }
+
+  /** Body, thumbnail and preload share the same cache identity and complete file publication. */
+  getOrFetch(
+    url: string,
+    headers: RemoteImageCacheHeaders | undefined,
+    fetchBytes: () => Promise<ArrayBuffer>,
+    cacheKeySeed?: string,
+  ): Promise<string> {
+    const key = cacheKeyFor(url, headers, cacheKeySeed)
+    const pending = this.imageRequests.get(key)
+    if (pending !== undefined) return pending
+    const request = (async (): Promise<string> => {
+      const cached = await this.get(url, headers, cacheKeySeed)
+      if (cached !== undefined && cached.length > 0) return cached
+      const bytes = await fetchBytes()
+      return this.put(url, headers, bytes, cacheKeySeed)
+    })()
+    this.imageRequests.set(key, request)
+    const release = (): void => {
+      if (this.imageRequests.get(key) === request) this.imageRequests.delete(key)
+    }
+    // Release both success and failure; a failed shared request must permit an ordinary retry.
+    void request.then(release, release)
+    return request
   }
 
   put(url: string, headers: RemoteImageCacheHeaders | undefined, bytes: ArrayBuffer, cacheKeySeed?: string): Promise<string> {

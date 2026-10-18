@@ -13,6 +13,7 @@ export interface ComicCoverInfo {
   coverUri?: string
   sourceRuntimeId?: string
   sourceImageId?: string
+  sourceMangaUrl?: string
   sourceKind?: ComicSourceKind
   remoteServerId?: string
   categoryLabels?: string[]
@@ -85,6 +86,7 @@ export struct ComicCoverCard {
       this.displaySourceImageId(),
       this.comic.sourceKind,
       this.comic.remoteServerId,
+      this.comic.sourceMangaUrl,
     )
   }
 
@@ -118,6 +120,7 @@ export struct ComicCoverCard {
             sourceImageId: this.displaySourceImageId(),
             sourceKind: this.comic.sourceKind,
             remoteServerId: this.comic.remoteServerId ?? '',
+            sourceMangaUrl: this.comic.sourceMangaUrl ?? '',
             onError: () => {
               this.failedCoverUri = this.coverFailureKey()
             },

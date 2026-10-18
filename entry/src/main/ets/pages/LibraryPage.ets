@@ -132,6 +132,7 @@ struct ContinueReadingShelfCard {
       this.info.sourceImageId ?? this.info.comicId,
       this.info.sourceKind,
       this.info.remoteServerId,
+      this.info.sourceMangaUrl,
     )
   }
 
@@ -149,6 +150,7 @@ struct ContinueReadingShelfCard {
             sourceImageId: this.info.sourceImageId ?? this.info.comicId,
             sourceKind: this.info.sourceKind,
             remoteServerId: this.info.remoteServerId ?? '',
+            sourceMangaUrl: this.info.sourceMangaUrl ?? '',
             decodeMaxEdge: 256,
             onError: () => {
               this.failedCoverUri = this.coverFailureKey()
@@ -985,6 +987,7 @@ export struct LibraryPage {
         pageCount: comic.pageCount,
         coverUri: comic.coverUri,
         sourceRuntimeId: comic.sourceRuntimeId,
+        sourceMangaUrl: comic.sourceMangaUrl ?? sourceComic?.sourcePath,
         sourceImageId: comic.sourceImageId ?? sourceComic?.remoteResourceId ?? comic.id,
         sourceKind: comic.sourceKind ?? sourceComic?.sourceKind,
         remoteServerId: comic.remoteServerId ?? sourceComic?.remoteServerId,
@@ -2063,10 +2066,11 @@ export struct LibraryPage {
     sourceImageId?: string,
     sourceKind?: ComicSourceKind,
     remoteServerId?: string,
+    sourceMangaUrl?: string,
   ): boolean {
     const normalized = coverUri ?? ''
     return normalized.length > 0 && this.failedCoverUris.indexOf(
-      cachedCoverFailureKey(coverUri, sourceRuntimeId, sourceImageId, sourceKind, remoteServerId),
+      cachedCoverFailureKey(coverUri, sourceRuntimeId, sourceImageId, sourceKind, remoteServerId, sourceMangaUrl),
     ) < 0
   }
 
@@ -2076,9 +2080,10 @@ export struct LibraryPage {
     sourceImageId?: string,
     sourceKind?: ComicSourceKind,
     remoteServerId?: string,
+    sourceMangaUrl?: string,
   ): void {
     const normalized = coverUri ?? ''
-    const failureKey = cachedCoverFailureKey(coverUri, sourceRuntimeId, sourceImageId, sourceKind, remoteServerId)
+    const failureKey = cachedCoverFailureKey(coverUri, sourceRuntimeId, sourceImageId, sourceKind, remoteServerId, sourceMangaUrl)
     if (normalized.length > 0 && this.failedCoverUris.indexOf(failureKey) < 0) {
       this.failedCoverUris = this.failedCoverUris.concat([failureKey])
     }
@@ -2097,6 +2102,7 @@ export struct LibraryPage {
         this.sourceImageIdForComic(comic),
         comic.sourceKind,
         comic.remoteServerId,
+        comic.sourceMangaUrl,
       )) {
         CachedCoverImage({
           uri: comic.coverUri ?? '',
@@ -2105,6 +2111,7 @@ export struct LibraryPage {
           sourceImageId: this.sourceImageIdForComic(comic),
           sourceKind: comic.sourceKind,
           remoteServerId: comic.remoteServerId ?? '',
+          sourceMangaUrl: comic.sourceMangaUrl ?? '',
           onError: () => {
             this.markCoverUriFailed(
               comic.coverUri,
@@ -2112,6 +2119,7 @@ export struct LibraryPage {
               this.sourceImageIdForComic(comic),
               comic.sourceKind,
               comic.remoteServerId,
+              comic.sourceMangaUrl,
             )
           },
         })

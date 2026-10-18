@@ -760,14 +760,14 @@ export struct SearchPage {
     return s('search_match_weak')
   }
 
-  private shouldShowCoverUri(coverUri: string | undefined, sourceRuntimeId?: string, sourceImageId?: string): boolean {
+  private shouldShowCoverUri(coverUri: string | undefined, sourceRuntimeId?: string, sourceImageId?: string, sourceMangaUrl?: string): boolean {
     const normalized = coverUri ?? ''
-    return normalized.length > 0 && this.failedCoverUris.indexOf(cachedCoverFailureKey(coverUri, sourceRuntimeId, sourceImageId)) < 0
+    return normalized.length > 0 && this.failedCoverUris.indexOf(cachedCoverFailureKey(coverUri, sourceRuntimeId, sourceImageId, undefined, undefined, sourceMangaUrl)) < 0
   }
 
-  private markCoverUriFailed(coverUri: string | undefined, sourceRuntimeId?: string, sourceImageId?: string): void {
+  private markCoverUriFailed(coverUri: string | undefined, sourceRuntimeId?: string, sourceImageId?: string, sourceMangaUrl?: string): void {
     const normalized = coverUri ?? ''
-    const failureKey = cachedCoverFailureKey(coverUri, sourceRuntimeId, sourceImageId)
+    const failureKey = cachedCoverFailureKey(coverUri, sourceRuntimeId, sourceImageId, undefined, undefined, sourceMangaUrl)
     if (normalized.length > 0 && this.failedCoverUris.indexOf(failureKey) < 0) {
       this.failedCoverUris = this.failedCoverUris.concat([failureKey])
     }
@@ -783,17 +783,18 @@ export struct SearchPage {
   private ResultRow(item: CrossSearchResultItem) {
     Row({ space: ThemeConstants.SPACE_MD }) {
       Stack({ alignContent: Alignment.Center }) {
-        if (this.shouldShowCoverUri(item.coverUri, item.sourceId, item.sourceMangaId ?? item.id)) {
+        if (this.shouldShowCoverUri(item.coverUri, item.sourceId, item.sourceMangaId ?? item.id, item.sourceMangaUrl)) {
           if (this.isSourceAwareCover(item) || item.sourceKind === 'kavita') {
             CachedCoverImage({
               uri: item.coverUri ?? '',
               objectFit: ImageFit.Cover,
               sourceRuntimeId: item.sourceId ?? '',
               sourceImageId: item.kavitaSeriesId ?? item.sourceMangaId ?? item.id,
+              sourceMangaUrl: item.sourceMangaUrl ?? '',
               sourceKind: item.sourceKind === 'kavita' ? ComicSourceKind.KAVITA_REMOTE : undefined,
               remoteServerId: item.remoteServerId ?? '',
               onError: () => {
-                this.markCoverUriFailed(item.coverUri, item.sourceId, item.sourceMangaId ?? item.id)
+                this.markCoverUriFailed(item.coverUri, item.sourceId, item.sourceMangaId ?? item.id, item.sourceMangaUrl)
               },
             })
           } else {
@@ -803,7 +804,7 @@ export struct SearchPage {
               .objectFit(ImageFit.Cover)
               .interpolation(ImageInterpolation.Medium)
               .onError(() => {
-                this.markCoverUriFailed(item.coverUri, item.sourceId, item.sourceMangaId ?? item.id)
+                this.markCoverUriFailed(item.coverUri, item.sourceId, item.sourceMangaId ?? item.id, item.sourceMangaUrl)
               })
           }
         } else {

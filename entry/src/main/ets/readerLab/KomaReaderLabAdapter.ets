@@ -1,3 +1,4 @@
+import { common } from '@kit.AbilityKit'
 import {
   ReaderCatalog, ReaderAssetProvider, ReaderPreloadHost, ReaderUnitKey, ReaderUnit, ReaderPage,
   ReaderCancellation, ReaderAsset, ReaderAssetKind,
@@ -54,13 +55,15 @@ export class KomaReaderLabAdapter implements ReaderCatalog, ReaderAssetProvider,
   private sources: Map<string, ReaderPageRenderSource[]> = new Map()
   private preparedUnits: Map<string, ReaderUnit> = new Map()
   private closed: boolean = false
+  private requestContext?: common.UIAbilityContext
   private filesDir: string
   private thumbnails: KomaReaderLabThumbnailProvider
   private catalogHost: KomaReaderCatalogHost | null
 
   private unitId(key: ReaderUnitKey): string { return JSON.stringify([key.scope, key.work, key.unit]) }
 
-  constructor(filesDir: string, cacheDir: string, catalogHost: KomaReaderCatalogHost | null = null) {
+  constructor(filesDir: string, cacheDir: string, catalogHost: KomaReaderCatalogHost | null = null, requestContext?: common.UIAbilityContext) {
+    this.requestContext = requestContext
     this.filesDir = filesDir
     this.thumbnails = new KomaReaderLabThumbnailProvider(cacheDir)
     this.catalogHost = catalogHost
@@ -190,7 +193,7 @@ export class KomaReaderLabAdapter implements ReaderCatalog, ReaderAssetProvider,
       console.info(`[KomaReaderPreload] source=${page.sourceIndex} result=local-skip`)
       return
     }
-    await fetchAndCacheReaderRemoteSource(source)
+    await fetchAndCacheReaderRemoteSource(source, this.requestContext)
     cancellation.check()
     if (this.closed) throw new Error('closed_koma_reader')
     console.info(`[KomaReaderPreload] source=${page.sourceIndex} result=ready`)
@@ -203,7 +206,7 @@ export class KomaReaderLabAdapter implements ReaderCatalog, ReaderAssetProvider,
       throw new Error('koma_lab_share_source_unavailable')
     }
     cancellation.check()
-    const filePath = await fetchAndCacheReaderRemoteSource(source)
+    const filePath = await fetchAndCacheReaderRemoteSource(source, this.requestContext)
     cancellation.check()
     if (this.closed) throw new Error('closed_koma_reader')
     return new KomaReaderLabImageShareSource(filePath,
@@ -217,7 +220,7 @@ export class KomaReaderLabAdapter implements ReaderCatalog, ReaderAssetProvider,
     if (source.kind === ReaderPageRenderKind.URI_PLACEHOLDER || source.imageUri.length === 0) {
       throw new Error('koma_lab_page_source_unavailable')
     }
-    const filePath = await fetchAndCacheReaderRemoteSource(source)
+    const filePath = await fetchAndCacheReaderRemoteSource(source, this.requestContext)
     cancellation.check()
     if (this.closed) throw new Error('closed_koma_reader')
     if (kind === 'thumbnail') return this.thumbnails.load(filePath, cancellation)

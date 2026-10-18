@@ -35,6 +35,7 @@ export struct MangaDetailHeader {
       this.manga.sourceImageId ?? this.manga.id,
       this.sourceKind,
       this.remoteServerId,
+      this.manga.url,
     )
   }
 
@@ -119,6 +120,7 @@ export struct MangaDetailHeader {
           sourceImageId: this.manga.sourceImageId ?? this.manga.id,
           sourceKind: this.sourceKind,
           remoteServerId: this.remoteServerId,
+          sourceMangaUrl: this.manga.url ?? '',
           onError: () => {
             this.failedCoverUrl = this.coverFailureKey()
           },

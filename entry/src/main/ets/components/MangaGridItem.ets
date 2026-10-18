@@ -18,7 +18,7 @@ export struct MangaGridItem {
   }
 
   private coverFailureKey(): string {
-    return cachedCoverFailureKey(this.manga.coverUrl, this.manga.sourceId, this.manga.id)
+    return cachedCoverFailureKey(this.manga.coverUrl, this.manga.sourceId, this.manga.id, undefined, undefined, this.manga.url)
   }
 
   @Builder
@@ -47,6 +47,7 @@ export struct MangaGridItem {
             objectFit: ImageFit.Cover,
             sourceRuntimeId: this.manga.sourceId,
             sourceImageId: this.manga.id,
+            sourceMangaUrl: this.manga.url ?? '',
             onError: () => {
               this.failedCoverUrl = this.coverFailureKey()
             },

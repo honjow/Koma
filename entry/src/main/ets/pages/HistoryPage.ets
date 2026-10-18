@@ -60,6 +60,7 @@ interface HistoryItem {
   coverUri?: string
   sourceRuntimeId?: string
   sourceImageId?: string
+  sourceMangaUrl?: string
   sourceKind?: ComicSourceKind
   remoteServerId?: string
   chapterCount: number
@@ -160,6 +161,7 @@ export struct HistoryPage {
       title: item.title,
       coverUri: item.coverUri,
       sourceRuntimeId: item.sourceRuntimeId,
+      sourceMangaUrl: item.sourcePath,
       sourceImageId: item.sourceImageId,
       sourceKind: item.sourceKind,
       remoteServerId: item.remoteServerId,
@@ -177,6 +179,7 @@ export struct HistoryPage {
       title: entry.title,
       coverUri: entry.coverUri,
       sourceRuntimeId: entry.sourceId,
+      sourceMangaUrl: entry.mangaUrl,
       sourceImageId: entry.mangaId,
       chapterCount: 1,
       pageCount: progress.totalPages,
@@ -390,16 +393,38 @@ export struct HistoryPage {
     return sections.filter((section: HistorySection): boolean => section.items.length > 0)
   }
 
+  /** ArkUI ForEach keys must change when a history row moves groups or advances within a chapter. */
+  private historyItemRenderIdentity(item: HistoryItem): string {
+    return JSON.stringify([
+      item.id,
+      item.title,
+      item.coverUri ?? '',
+      item.sourceMangaUrl ?? '',
+      item.progress?.chapterId ?? '',
+      item.progress?.pageIndex ?? -1,
+      item.progress?.totalPages ?? 0,
+      item.lastReadAt ?? 0,
+      item.sourceHistory?.chapterId ?? '',
+      item.sourceHistory?.chapterTitle ?? '',
+    ])
+  }
+
+  private historySectionRenderIdentity(section: HistorySection): string {
+    return `${section.key}:${section.items.map((item: HistoryItem): string =>
+      this.historyItemRenderIdentity(item)).join('|')}`
+  }
+
   private shouldShowCoverUri(
     coverUri: string | undefined,
     sourceRuntimeId?: string,
     sourceImageId?: string,
     sourceKind?: ComicSourceKind,
     remoteServerId?: string,
+    sourceMangaUrl?: string,
   ): boolean {
     const normalized = coverUri ?? ''
     return normalized.length > 0 && this.failedCoverUris.indexOf(
-      cachedCoverFailureKey(coverUri, sourceRuntimeId, sourceImageId, sourceKind, remoteServerId),
+      cachedCoverFailureKey(coverUri, sourceRuntimeId, sourceImageId, sourceKind, remoteServerId, sourceMangaUrl),
     ) < 0
   }
 
@@ -409,9 +434,10 @@ export struct HistoryPage {
     sourceImageId?: string,
     sourceKind?: ComicSourceKind,
     remoteServerId?: string,
+    sourceMangaUrl?: string,
   ): void {
     const normalized = coverUri ?? ''
-    const failureKey = cachedCoverFailureKey(coverUri, sourceRuntimeId, sourceImageId, sourceKind, remoteServerId)
+    const failureKey = cachedCoverFailureKey(coverUri, sourceRuntimeId, sourceImageId, sourceKind, remoteServerId, sourceMangaUrl)
     if (normalized.length > 0 && this.failedCoverUris.indexOf(failureKey) < 0) {
       this.failedCoverUris = this.failedCoverUris.concat([failureKey])
     }
@@ -440,6 +466,7 @@ export struct HistoryPage {
         this.sourceImageIdForItem(item),
         item.sourceKind,
         item.remoteServerId,
+        item.sourceMangaUrl,
       )) {
         CachedCoverImage({
           uri: item.coverUri ?? '',
@@ -448,6 +475,7 @@ export struct HistoryPage {
           sourceImageId: this.sourceImageIdForItem(item),
             sourceKind: item.sourceKind,
             remoteServerId: item.remoteServerId ?? '',
+            sourceMangaUrl: item.sourceMangaUrl ?? '',
             decodeMaxEdge: 192,
             onError: () => {
             this.markCoverUriFailed(
@@ -456,6 +484,7 @@ export struct HistoryPage {
               this.sourceImageIdForItem(item),
               item.sourceKind,
               item.remoteServerId,
+              item.sourceMangaUrl,
             )
           },
         })
@@ -599,8 +628,8 @@ export struct HistoryPage {
               ListItem() {
                 this.HistoryRow(item)
               }
-            }, (item: HistoryItem) => item.comicId)
-          }, (section: HistorySection) => section.key)
+            }, (item: HistoryItem) => this.historyItemRenderIdentity(item))
+          }, (section: HistorySection) => this.historySectionRenderIdentity(section))
         }
       }
     }

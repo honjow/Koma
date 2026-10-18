@@ -1,4 +1,3 @@
-import { installReaderRemoteHeaders } from './ReaderPageSourceAdapter'
 import { common } from '@kit.AbilityKit'
 import {
   Chapter,
@@ -712,8 +711,10 @@ export class CrossSearchService {
     const comic: Comic = {
       id: comicId,
       title,
-      sourceKind: ComicSourceKind.PRIVATE_LIBRARY,
+      sourceKind: ComicSourceKind.WEBDAV_REMOTE,
       sourcePath,
+      remoteServerId: record.server.id,
+      remoteResourceId: sourcePath,
       coverUri: pages[0].uri,
       sortTitle: normalizeSortKey(title),
       preferredDirection: ReadingDirection.RIGHT_TO_LEFT,
@@ -737,7 +738,9 @@ export class CrossSearchService {
     MOCK_LIBRARY_READER_SESSION.pageWidths = config.pageWidths
     MOCK_LIBRARY_READER_SESSION.pageHeights = config.pageHeights
     MOCK_LIBRARY_READER_SESSION.sourceRuntimeId = config.sourceRuntimeId
-    installReaderRemoteHeaders(client.getBaseUrl(), this.remoteStore.getWebDavImageHeaders(record))
+    MOCK_LIBRARY_READER_SESSION.sourceMangaUrl = config.sourceMangaUrl
+    MOCK_LIBRARY_READER_SESSION.sourceKind = config.sourceKind
+    MOCK_LIBRARY_READER_SESSION.remoteServerId = config.remoteServerId
   }
 
   private isCurrentWebDavResource(client: WebDavClient, pathSegments: string[], resource: DavResource): boolean {

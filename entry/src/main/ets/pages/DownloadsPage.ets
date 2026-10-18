@@ -25,7 +25,6 @@ import {
   OfflineDownloadQueueStore,
   summarizeOfflineDownloadQueue,
 } from '../model/OfflineDownloadQueueStore'
-import { installReaderRemoteHeadersForComic } from '../model/ReaderPageSourceAdapter'
 import {
   SourceChapterPageHydrationResult,
   SourceChapterPageHydrator,
@@ -479,7 +478,7 @@ export struct DownloadsPage {
   ): Promise<OfflineDownloadQueueEntry> {
     const service = new OfflineDownloadService(
       new OfflineDownloadStore(this.context().filesDir),
-      this.queueStore()
+      this.queueStore(), this.context()
     )
     const manifest = await service.blockChapterDownload(comic, entry.chapterId, reasonCode, {
       comicTitle: entry.comicTitle ?? comic.title,
@@ -502,7 +501,17 @@ export struct DownloadsPage {
     const sourceId = comic.sourceRuntimeId?.trim()
     const sourceMangaId = comic.remoteResourceId?.trim()
     if (sourceId !== undefined && sourceId.length > 0 && sourceMangaId !== undefined && sourceMangaId.length > 0) {
-      RouterHelper.pushMangaDetail({ mangaId: sourceMangaId, sourceId })
+      RouterHelper.pushMangaDetail({
+        mangaId: sourceMangaId,
+        sourceId,
+        initialManga: {
+          id: sourceMangaId,
+          sourceId,
+          title: comic.title,
+          coverUrl: comic.coverUri,
+          url: comic.sourcePath,
+        },
+      })
       return
     }
     RouterHelper.pushMangaDetail({ mangaId: entry.comicId })
@@ -552,13 +561,9 @@ export struct DownloadsPage {
         this.showToast(s('downloads_toast_retry_failed'))
         return
       }
-      try {
-        await installReaderRemoteHeadersForComic(this.context(), comic)
-      } catch (_error) {
-      }
       const service = new OfflineDownloadService(
         new OfflineDownloadStore(this.context().filesDir),
-        this.queueStore()
+        this.queueStore(), this.context()
       )
       const manifest = await service.downloadChapter(comic, entry.chapterId, {
         comicTitle: entry.comicTitle ?? comic.title,
@@ -786,13 +791,9 @@ export struct DownloadsPage {
           await this.blockSourcePagesUnavailable(comic, entry, hydration.reasonCode ?? 'pages_missing')
           continue
         }
-        try {
-          await installReaderRemoteHeadersForComic(this.context(), comic)
-        } catch (_error) {
-        }
         const service = new OfflineDownloadService(
           new OfflineDownloadStore(this.context().filesDir),
-          this.queueStore()
+          this.queueStore(), this.context()
         )
         await service.downloadChapter(comic, entry.chapterId, {
           comicTitle: entry.comicTitle ?? comic.title,
@@ -1214,6 +1215,7 @@ export struct DownloadsPage {
           sourceImageId: this.libraryStore?.getComic(comicId)?.remoteResourceId ?? comicId,
           sourceKind: this.libraryStore?.getComic(comicId)?.sourceKind,
           remoteServerId: this.libraryStore?.getComic(comicId)?.remoteServerId ?? '',
+          sourceMangaUrl: this.libraryStore?.getComic(comicId)?.sourcePath ?? '',
           decodeMaxEdge: 192,
         })
       }

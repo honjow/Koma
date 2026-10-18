@@ -117,7 +117,7 @@ import {
   getReaderSessionPageId,
   sortedReaderChapters,
 } from '../model/ReaderSessionStore'
-import { createReaderOfflineMissingUri, installReaderRemoteHeadersForComic } from '../model/ReaderPageSourceAdapter'
+import { createReaderOfflineMissingUri } from '../model/ReaderPageSourceAdapter'
 import { SourceChapterPageHydrator, resolveSourceChapterPages } from '../model/SourceChapterPageHydrator'
 import {
   SourceReaderSessionRequest,
@@ -398,11 +398,6 @@ struct Index {
         (reason: string | undefined): void => { sourceFailureReason = reason })
     }
     const comic = this.libraryStore.getComic(comicId) ?? originalComic
-    try {
-      await installReaderRemoteHeadersForComic(getContext(this) as common.UIAbilityContext, comic)
-    } catch (_error) {
-      console.error('[Favorite] step=open_remote_reader_headers_failed code=remote_headers_failed')
-    }
     if (openEpoch !== this.readerOpenEpoch || !this.readerOpen || this.readerClosing) {
       return
     }
@@ -447,6 +442,7 @@ struct Index {
       pageWidths: pages.map((page: Page): number | undefined => page.width),
       pageHeights: pages.map((page: Page): number | undefined => page.height),
       sourceRuntimeId: request.sourceId,
+      sourceMangaUrl: request.mangaUrl,
     }
   }
 
@@ -561,11 +557,6 @@ struct Index {
     if (!offlineReady) await this.ensureReaderSourceChapterPages(original, target.unit)
     cancellation.check()
     const comic = this.libraryStore.getComic(target.work) ?? original
-    try {
-      await installReaderRemoteHeadersForComic(getContext(this) as common.UIAbilityContext, comic)
-    } catch (_error) {
-      console.warn('[KomaReaderLab] remote_headers_unavailable')
-    }
     cancellation.check()
     const config = this.createReaderSessionConfigForOpen(comic, target.unit)
     if (config.totalPages > 0) return config

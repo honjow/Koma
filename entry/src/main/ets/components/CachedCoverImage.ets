@@ -23,8 +23,11 @@ export function cachedCoverFailureKey(
   sourceImageId?: string,
   sourceKind?: ComicSourceKind,
   remoteServerId?: string,
+  sourceMangaUrl?: string,
 ): string {
-  return `${uri ?? ''}::${(sourceRuntimeId ?? '').trim()}::${(sourceImageId ?? '').trim()}::${sourceKind ?? ''}::${(remoteServerId ?? '').trim()}`
+  const key = `${uri ?? ''}::${(sourceRuntimeId ?? '').trim()}::${(sourceImageId ?? '').trim()}::${sourceKind ?? ''}::${(remoteServerId ?? '').trim()}`
+  const route = sourceMangaUrl?.trim() ?? ''
+  return route.length === 0 ? key : `${key}::${route}`
 }
 
 @ComponentV2
@@ -33,6 +36,7 @@ export struct CachedCoverImage {
   @Param objectFit: ImageFit = ImageFit.Cover
   @Param sourceRuntimeId: string = ''
   @Param sourceImageId: string = ''
+  @Param sourceMangaUrl: string = ''
   @Param sourceKind: ComicSourceKind | undefined = undefined
   @Param remoteServerId: string = ''
   @Param decodeMaxEdge: number = COVER_DECODE_MAX_EDGE
@@ -69,7 +73,7 @@ export struct CachedCoverImage {
     // aboutToAppear runs before the first build. Starting here lets the synchronous memory-cache
     // lease paint on the initial frame instead of waiting for the post-render onAppear callback.
     this.disposed = false
-    void this.handleSourceChanged(this.uri, this.sourceRuntimeId, this.sourceImageId, this.sourceKind, this.remoteServerId)
+    void this.handleSourceChanged(this.uri, this.sourceRuntimeId, this.sourceImageId, this.sourceKind, this.remoteServerId, this.sourceMangaUrl)
   }
 
   private async releasePixelMap(): Promise<void> {
@@ -102,8 +106,9 @@ export struct CachedCoverImage {
     sourceImageId: string | undefined,
     sourceKind: ComicSourceKind | undefined,
     remoteServerId: string | undefined,
+    sourceMangaUrl: string | undefined,
   ): string {
-    return `${cachedCoverFailureKey(uri, sourceRuntimeId, sourceImageId, sourceKind, remoteServerId)}::${Math.max(1, Math.round(this.decodeMaxEdge))}`
+    return `${cachedCoverFailureKey(uri, sourceRuntimeId, sourceImageId, sourceKind, remoteServerId, sourceMangaUrl)}::${Math.max(1, Math.round(this.decodeMaxEdge))}`
   }
 
   private async resolveImageUri(
@@ -112,11 +117,12 @@ export struct CachedCoverImage {
     sourceImageId: string,
     sourceKind: ComicSourceKind | undefined,
     remoteServerId: string,
+    sourceMangaUrl: string,
   ): Promise<string> {
     const context = getContext(this) as common.UIAbilityContext
     if (sourceRuntimeId.trim().length > 0) {
       configureReaderRemoteImageCache(context.cacheDir)
-      return fetchAndCacheSourceRuntimeRemoteImage(sourceRuntimeId, uri, sourceImageId)
+      return fetchAndCacheSourceRuntimeRemoteImage(sourceRuntimeId, uri, sourceImageId, sourceMangaUrl)
     }
     return resolveCachedCoverImage(context, {
       uri,
@@ -134,6 +140,7 @@ export struct CachedCoverImage {
     sourceImageId: string,
     sourceKind: ComicSourceKind | undefined,
     remoteServerId: string,
+    sourceMangaUrl: string,
   ): Promise<void> {
     if (uri.length === 0 ||
       this.disposed ||
@@ -160,7 +167,7 @@ export struct CachedCoverImage {
     let sourceFile: fs.File | undefined = undefined
     let decodeStep: string = 'resolve'
     try {
-      const resolvedUri = await this.resolveImageUri(uri, sourceRuntimeId, sourceImageId, sourceKind, remoteServerId)
+      const resolvedUri = await this.resolveImageUri(uri, sourceRuntimeId, sourceImageId, sourceKind, remoteServerId, sourceMangaUrl)
       if (this.disposed || this.sourceSignature !== signature || this.decodeGeneration !== generation) {
         return
       }
@@ -239,6 +246,7 @@ export struct CachedCoverImage {
     nextSourceImageId: string | undefined,
     nextSourceKind: ComicSourceKind | undefined,
     nextRemoteServerId: string | undefined,
+    nextSourceMangaUrl: string | undefined,
   ): Promise<void> {
     const nextSignature = this.createSourceSignature(
       nextUri,
@@ -246,6 +254,7 @@ export struct CachedCoverImage {
       nextSourceImageId,
       nextSourceKind,
       nextRemoteServerId,
+      nextSourceMangaUrl,
     )
     if (this.sourceSignature === nextSignature &&
       (this.displayedSignature === nextSignature ||
@@ -274,13 +283,14 @@ export struct CachedCoverImage {
         nextSourceImageId ?? '',
         nextSourceKind,
         nextRemoteServerId ?? '',
+        nextSourceMangaUrl ?? '',
       )
     }
   }
 
-  @Monitor('uri', 'sourceRuntimeId', 'sourceImageId', 'sourceKind', 'remoteServerId', 'decodeMaxEdge')
+  @Monitor('uri', 'sourceRuntimeId', 'sourceImageId', 'sourceKind', 'remoteServerId', 'sourceMangaUrl', 'decodeMaxEdge')
   onSourceChanged(): void {
-    this.handleSourceChanged(this.uri, this.sourceRuntimeId, this.sourceImageId, this.sourceKind, this.remoteServerId)
+    this.handleSourceChanged(this.uri, this.sourceRuntimeId, this.sourceImageId, this.sourceKind, this.remoteServerId, this.sourceMangaUrl)
   }
 
   build() {

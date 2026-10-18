@@ -323,7 +323,7 @@ struct ReaderImageSurface {
       return
     }
     try {
-      const filePath = await fetchAndCacheReaderRemoteSource(this.source)
+      const filePath = await fetchAndCacheReaderRemoteSource(this.source, getContext(this) as common.UIAbilityContext)
       if (this.disposed || run !== this.generation) return
       this.displayUri = readerDisplayUri(filePath)
       console.info(`[ReaderImage] step=display_ready page=${this.pageIndex + 1}`)
@@ -1472,7 +1472,7 @@ struct ReaderThumbnailTile {
   private async loadThumbnailPixelMap(): Promise<image.PixelMap> {
     let imageSource: image.ImageSource | undefined = undefined
     try {
-      const filePath = await fetchAndCacheReaderRemoteSource(this.source)
+      const filePath = await fetchAndCacheReaderRemoteSource(this.source, getContext(this) as common.UIAbilityContext)
       imageSource = image.createImageSource(filePath)
       const info = await imageSource.getImageInfo()
       const sourceWidth = Math.max(1, info.size.width)
@@ -2301,7 +2301,7 @@ export struct ReaderPage {
     if (source.kind === ReaderPageRenderKind.URI_PLACEHOLDER || source.imageUri.length === 0) {
       throw new Error('reader_page_source_unavailable')
     }
-    const sourcePath = await fetchAndCacheReaderRemoteSource(source)
+    const sourcePath = await fetchAndCacheReaderRemoteSource(source, getContext(this) as common.UIAbilityContext)
     const sandboxRoot = this.filesDir.trim().length > 0 ? `${this.filesDir}/` : ''
     if (sandboxRoot.length > 0 && sourcePath.startsWith(sandboxRoot)) {
       return sourcePath
@@ -2812,7 +2812,7 @@ export struct ReaderPage {
       if (source.kind !== ReaderPageRenderKind.REMOTE_URL_IMAGE) {
         continue
       }
-      void fetchAndCacheReaderRemoteSource(source).catch(() => {
+      void fetchAndCacheReaderRemoteSource(source, getContext(this) as common.UIAbilityContext).catch(() => {
         // The visible page owns user-facing failure/retry.  Lookahead is
         // opportunistic and must never turn a successful page into an error.
         if (epoch !== this.prefetchEpoch) {

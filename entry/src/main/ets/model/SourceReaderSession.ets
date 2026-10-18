@@ -10,6 +10,7 @@ export interface SourceReaderSessionRequest {
   comicId: ComicId
   sourceId: string
   mangaId: string
+  mangaUrl?: string
   title: string
   coverUri?: string
   sourceName?: string
@@ -29,6 +30,7 @@ export interface SourceReadHistoryEntry {
   comicId: ComicId
   sourceId: string
   mangaId: string
+  mangaUrl?: string
   title: string
   coverUri?: string
   sourceName?: string
@@ -62,6 +64,10 @@ export function cloneSourceReaderSessionRequest(request: SourceReaderSessionRequ
     chapterIds: request.chapterIds.slice(),
     chapters: request.chapters?.map((chapter: ReaderChapterDescriptor): ReaderChapterDescriptor => cloneReaderChapterDescriptor(chapter)),
     chaptersResolved: request.chaptersResolved,
+  }
+  const mangaUrl = normalizedText(request.mangaUrl)
+  if (mangaUrl !== undefined) {
+    next.mangaUrl = mangaUrl
   }
   const coverUri = normalizedText(request.coverUri)
   if (coverUri !== undefined) {
@@ -100,6 +106,10 @@ export function sourceReadHistoryEntryFromRequest(
     title: request.title,
     chapterId: request.chapterId,
   }
+  const mangaUrl = normalizedText(request.mangaUrl)
+  if (mangaUrl !== undefined) {
+    entry.mangaUrl = mangaUrl
+  }
   const coverUri = normalizedText(request.coverUri)
   if (coverUri !== undefined) {
     entry.coverUri = coverUri
@@ -133,6 +143,10 @@ export function sourceReaderSessionRequestFromHistory(
     chapterId,
     chapterIds: [chapterId],
     chaptersResolved: false,
+  }
+  const mangaUrl = normalizedText(entry.mangaUrl)
+  if (mangaUrl !== undefined) {
+    request.mangaUrl = mangaUrl
   }
   const coverUri = normalizedText(entry.coverUri)
   if (coverUri !== undefined) {

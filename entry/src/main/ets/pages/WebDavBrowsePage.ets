@@ -17,7 +17,6 @@ import {
 } from '../model/LibraryPersistence'
 import { MOCK_LIBRARY_READER_SESSION } from '../model/MockLibraryData'
 import { createSeededLibraryStore } from '../model/MockLibraryData'
-import { installReaderRemoteHeaders } from '../model/ReaderPageSourceAdapter'
 import { ReaderSessionConfig, createReaderSessionConfigFromComic } from '../model/ReaderSessionStore'
 import { RemoteServerStore, WebDavServerRecord } from '../model/RemoteServerStore'
 import { DavComicCandidateKind, DavResource } from '../remote/WebDavModels'
@@ -312,7 +311,9 @@ export struct WebDavBrowsePage {
     MOCK_LIBRARY_READER_SESSION.pageWidths = config.pageWidths
     MOCK_LIBRARY_READER_SESSION.pageHeights = config.pageHeights
     MOCK_LIBRARY_READER_SESSION.sourceRuntimeId = config.sourceRuntimeId
-    installReaderRemoteHeaders(client.getBaseUrl(), this.store().getWebDavImageHeaders(record))
+    MOCK_LIBRARY_READER_SESSION.sourceMangaUrl = config.sourceMangaUrl
+    MOCK_LIBRARY_READER_SESSION.sourceKind = config.sourceKind
+    MOCK_LIBRARY_READER_SESSION.remoteServerId = config.remoteServerId
   }
 
   private isCurrentResource(client: WebDavClient, pathSegments: string[], resource: DavResource): boolean {

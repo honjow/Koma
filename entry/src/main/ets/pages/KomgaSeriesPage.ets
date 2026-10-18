@@ -10,7 +10,6 @@ import {
 } from '../model/LibraryPersistence'
 import { createSeededLibraryStore } from '../model/MockLibraryData'
 import { MOCK_LIBRARY_READER_SESSION } from '../model/MockLibraryData'
-import { installReaderRemoteHeaders } from '../model/ReaderPageSourceAdapter'
 import { ReaderSessionConfig, createReaderSessionConfigFromComic } from '../model/ReaderSessionStore'
 import { RemoteServerStore, KomgaServerRecord } from '../model/RemoteServerStore'
 import { KomgaClient, KomgaHeaders } from '../remote/KomgaClient'
@@ -302,7 +301,9 @@ export struct KomgaSeriesPage {
     MOCK_LIBRARY_READER_SESSION.pageWidths = config.pageWidths
     MOCK_LIBRARY_READER_SESSION.pageHeights = config.pageHeights
     MOCK_LIBRARY_READER_SESSION.sourceRuntimeId = config.sourceRuntimeId
-    installReaderRemoteHeaders(urlPrefix, headers)
+    MOCK_LIBRARY_READER_SESSION.sourceMangaUrl = config.sourceMangaUrl
+    MOCK_LIBRARY_READER_SESSION.sourceKind = config.sourceKind
+    MOCK_LIBRARY_READER_SESSION.remoteServerId = config.remoteServerId
   }
 
   private seriesTitle(item: KomgaSeriesDto): string {

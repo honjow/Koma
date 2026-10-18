@@ -70,7 +70,6 @@ import {
   appSourceSettingsStore,
   configureSourceSettingsStore,
 } from '../sourceRuntime/SourceSettingsStore'
-import { installReaderRemoteHeadersForComic } from '../model/ReaderPageSourceAdapter'
 import {
   InMemoryReaderSessionStore,
   ReaderSessionConfig,
@@ -132,6 +131,7 @@ interface SourceMangaDetailLoadResult {
 
 interface SourceMangaRequestArgs {
   mangaId: string
+  mangaUrl?: string
 }
 
 interface SourceDetailRequestHostHints {
@@ -387,7 +387,7 @@ export struct MangaDetailPage {
       if (context === undefined || context.filesDir === undefined || context.filesDir.length === 0) {
         return undefined
       }
-      return new OfflineDownloadService(new OfflineDownloadStore(context.filesDir))
+      return new OfflineDownloadService(new OfflineDownloadStore(context.filesDir), undefined, context)
     } catch (error) {
       void error
       console.warn('[ReaderOffline] step=detail_service_unavailable failed=true')
@@ -622,7 +622,7 @@ export struct MangaDetailPage {
       if (!sourceRuntimeEntryEnabled(lookup.entry)) {
         throw new Error('source_disabled')
       }
-      const cached = sourceMangaDetailSnapshotCache.read(lookup.entry, sourceId, mangaId)
+      const cached = sourceMangaDetailSnapshotCache.read(lookup.entry, sourceId, mangaId, this.sourceMangaRouteUrl(sourceId, mangaId))
       let detail: MangaDetail
       let chapters: MangaChapterItem[]
       if (cached !== undefined) {
@@ -666,7 +666,8 @@ export struct MangaDetailPage {
       }
       let chaptersLoadFailed = false
       try {
-        const chapterResult = await resolveSourceChapterList(lookup.entry, mangaId)
+        const chapterResult = await resolveSourceChapterList(lookup.entry, mangaId, detail.url,
+          (): boolean => this.isCurrentSourceDetailRequest(requestEpoch, sourceId, mangaId))
         if (!this.isCurrentSourceDetailRequest(requestEpoch, sourceId, mangaId)) {
           return
         }
@@ -842,7 +843,7 @@ export struct MangaDetailPage {
     operation: string,
     mangaId: string
   ): Promise<SourceMangaDetailLoadResult> {
-    const args: SourceMangaRequestArgs = { mangaId }
+    const args: SourceMangaRequestArgs = { mangaId, mangaUrl: this.sourceMangaRouteUrl(entry.sourceId, mangaId) }
     const request = this.buildSourceDetailRequestJson(entry.sourceId, operation, args, { network: true })
     const responseJson = await taskpool.execute(
       executeMangaDetailSourceOperation,
@@ -884,9 +885,27 @@ export struct MangaDetailPage {
       sourceName: detail.sourceName,
       chapterCount: detail.chapterCount,
       isInLibrary: detail.isInLibrary,
-      url: detail.url,
+      url: detail.url ?? this.sourceMangaRouteUrl(sourceId, mangaId),
     }
     return next
+  }
+
+  private sourceMangaRouteUrl(sourceId: string, mangaId: string): string | undefined {
+    const current = this.manga
+    const initial = this.validInitialRouteManga(sourceId, mangaId)
+    const stored = this.findSourceRuntimeComic(sourceId, mangaId, this.sourceComicId(sourceId, mangaId))
+    // A direct shelf lookup can return another owner. Only its matching source/work may supply a route.
+    const storedRoute = stored?.sourceRuntimeId === sourceId && stored?.remoteResourceId === mangaId
+      ? stored.sourcePath : undefined
+    const currentRoute = current?.sourceId === sourceId && current?.id === mangaId ? current.url : undefined
+    const routes: Array<string | undefined> = [currentRoute, initial?.url, storedRoute]
+    for (let index = 0; index < routes.length; index += 1) {
+      const route = routes[index]?.trim()
+      if (route !== undefined && (route.startsWith('https://') || route.startsWith('http://'))) {
+        return route
+      }
+    }
+    return undefined
   }
 
   private firstRouteDetailText(values: Array<string | undefined>): string | undefined {
@@ -1342,12 +1361,6 @@ export struct MangaDetailPage {
           return
         }
       }
-      try {
-        await installReaderRemoteHeadersForComic(getContext(this) as common.UIAbilityContext, comic)
-      } catch (error) {
-        void error
-        console.warn('[ReaderOffline] step=detail_headers_unavailable failed=true')
-      }
       const chapterTitle = this.chapters.find((item: MangaChapterItem): boolean => item.id === resolvedChapterId)?.title
       const manifest = await service.downloadChapter(comic, resolvedChapterId, {
         comicTitle: comic.title,
@@ -1528,11 +1541,6 @@ export struct MangaDetailPage {
         this.downloadStatusText = s('manga_detail_add_to_library_first')
         this.showToast(s('manga_detail_add_to_library_first'))
         return
-      }
-      try {
-        await installReaderRemoteHeadersForComic(getContext(this) as common.UIAbilityContext, initialComic)
-      } catch (_error) {
-        console.warn('[ReaderOffline] step=detail_batch_headers_unavailable failed=true')
       }
       for (let index = 0; index < targetChapterIds.length; index += 1) {
         const chapterId = targetChapterIds[index]
