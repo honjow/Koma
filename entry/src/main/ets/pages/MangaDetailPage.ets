@@ -1293,6 +1293,7 @@ export struct MangaDetailPage {
       comicId: this.currentComicId(),
       sourceId,
       mangaId,
+      mangaUrl: manga.url,
       title,
       chapterId: resolvedChapterId,
       chapterIds,

@@ -36,6 +36,7 @@ interface SourceOperationResponsePayload {
 
 interface SourcePagesRequestArgs {
   mangaId?: string
+  mangaUrl?: string
   chapterId: string
 }
 
@@ -72,6 +73,7 @@ export interface SourceChapterPagesResolveRequest {
   comicId: string
   sourceId: string
   mangaId?: string
+  mangaUrl?: string
   chapterId: string
 }
 
@@ -222,6 +224,10 @@ async function fetchSourceChapterPages(
   if (mangaId !== undefined && mangaId.length > 0) {
     args.mangaId = mangaId
   }
+  const mangaUrl = request.mangaUrl?.trim()
+  if (mangaUrl !== undefined && mangaUrl.length > 0) {
+    args.mangaUrl = mangaUrl
+  }
   const sourceRequest: SourcePagesRequest = {
     type: 'request',
     version: 1,
@@ -274,6 +280,7 @@ export async function resolveSourceChapterPages(
       comicId: request.comicId,
       sourceId,
       mangaId: request.mangaId,
+      mangaUrl: request.mangaUrl,
       chapterId,
     })
     if (resolution.pages.length === 0) {
@@ -328,6 +335,7 @@ export class SourceChapterPageHydrator {
       comicId: comic.id,
       sourceId: resolvedSourceId,
       mangaId: sourceMangaIdFromComic(comic, resolvedSourceId),
+      mangaUrl: comic.sourcePath,
       chapterId,
     })
     if (resolution.pages.length === 0) {

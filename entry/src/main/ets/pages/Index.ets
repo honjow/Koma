@@ -467,7 +467,8 @@ struct Index {
       try {
         const lookup = this.sourceRegistry.lookup(request.sourceId)
         if (lookup.ok && lookup.entry !== undefined && sourceRuntimeEntryEnabled(lookup.entry)) {
-          const catalog = await resolveSourceChapterList(lookup.entry, request.mangaId)
+          const catalog = await resolveSourceChapterList(lookup.entry, request.mangaId, request.mangaUrl,
+            (): boolean => this.readerPreparationCurrent(openEpoch))
           if (catalog.resolved && catalog.chapters.some((chapter: ReaderChapterDescriptor): boolean => chapter.id === request.chapterId)) {
             preparedRequest.chapters = catalog.chapters.map((chapter: ReaderChapterDescriptor): ReaderChapterDescriptor =>
               cloneReaderChapterDescriptor(chapter))
@@ -488,6 +489,7 @@ struct Index {
       comicId: request.comicId,
       sourceId: request.sourceId,
       mangaId: request.mangaId,
+      mangaUrl: request.mangaUrl,
       chapterId: request.chapterId,
     })
     const activeRequest = this.activeSourceReaderRequest
@@ -542,6 +544,7 @@ struct Index {
         comicId: nextRequest.comicId,
         sourceId: nextRequest.sourceId,
         mangaId: nextRequest.mangaId,
+        mangaUrl: nextRequest.mangaUrl,
         chapterId: nextRequest.chapterId,
       })
       cancellation.check()
@@ -961,6 +964,7 @@ struct Index {
           sourceId,
           title: comic.title,
           coverUrl: comic.coverUri,
+          url: comic.sourcePath,
         },
       }
       : { mangaId: comic.id }
@@ -982,6 +986,7 @@ struct Index {
           sourceId: sourceRequest.sourceId,
           title: sourceRequest.title,
           coverUrl: sourceRequest.coverUri,
+          url: sourceRequest.mangaUrl,
         },
       }
       this.appPathStack.pushPath({
@@ -1002,6 +1007,7 @@ struct Index {
           sourceId,
           title: comic?.title ?? this.readerSessionConfig.title ?? comicId,
           coverUrl: comic?.coverUri,
+          url: comic?.sourcePath,
         },
       }
       : { mangaId: comic?.id ?? comicId }
