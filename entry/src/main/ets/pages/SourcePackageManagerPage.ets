@@ -1895,6 +1895,7 @@ export struct SourcePackageManagerPage {
               ForEach(this.sourceIndexRepositories, (repository: SourceIndexRepository, index: number) => {
                 ConciseListRow({
                   title: repository.url,
+                  wrapTitle: true,
                   subtitle: repository.url === this.sourceIndexUrl.trim() ? t('source_pkg_current_index') : '',
                   subtitleMaxLines: 1,
                   suffixBuilderParam: () => {

@@ -13,6 +13,7 @@ import { ThemeConstants } from '../../theme/ThemeConstants'
 @ComponentV2
 export struct ConciseListRow {
   @Param title: ResourceStr = ''
+  @Param wrapTitle: boolean = false
   @Param subtitle: ResourceStr = ''
   @Param subtitleMaxLines: number = 2
   @Param trailingText: ResourceStr = ''
@@ -73,8 +74,9 @@ export struct ConciseListRow {
       .fontSize(ThemeConstants.FONT_SIZE_LIST_ITEM)
       .fontWeight(FontWeight.Regular)
       .fontColor(this.primaryColor ?? (this.destructive ? Color.Red : $r('sys.color.font_primary')))
-      .maxLines(1)
-      .textOverflow({ overflow: TextOverflow.Ellipsis })
+      .maxLines(this.wrapTitle ? 2147483647 : 1)
+      .wordBreak(this.wrapTitle ? WordBreak.BREAK_ALL : WordBreak.BREAK_WORD)
+      .textOverflow({ overflow: this.wrapTitle ? TextOverflow.Clip : TextOverflow.Ellipsis })
   }
 
   private secondaryTextModifier(): TextModifier {
