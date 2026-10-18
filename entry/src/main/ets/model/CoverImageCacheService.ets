@@ -174,10 +174,25 @@ async function resolveKavitaCoverRequest(
   if (record === undefined || !matchingServerId(record.server.id, request.remoteServerId)) {
     throw new Error('cover_image_kavita_server_unavailable')
   }
-  const url = resolveServerUri(request.uri, record.server.baseUrl)
-  return configuredCoverRequest(
-    request,
+  let url = resolveServerUri(request.uri, record.server.baseUrl)
+  const internalCoverName = !isRemoteHttpUri(request.uri) && !request.uri.includes('/')
+  if (internalCoverName) {
+    // Kavita's coverImage is a cache filename, not a relative HTTP endpoint.
+    // Existing callers supply either the series ID or its server-qualified comic ID.
+    const prefix = `kavita:${record.server.id}:series:`
+    const seriesId = request.identity.startsWith(prefix)
+      ? request.identity.substring(prefix.length)
+      : request.identity
+    if (!/^[1-9][0-9]*$/.test(seriesId)) {
+      throw new Error('cover_image_kavita_series_unavailable')
+    }
+    url = resolveServerUri(`api/Image/series-cover?seriesId=${seriesId}`, record.server.baseUrl)
+  }
+  // Retain the server's cover revision in the cache identity when the endpoint is stable.
+  const namespace = cacheNamespaceFor(request, url) + (internalCoverName ? `:${request.uri}` : '')
+  return new ResolvedCoverImageRequest(
     url,
+    namespace,
     privateServerHeadersForRequest(request.uri, record.server.baseUrl, store.getKavitaImageHeaders(record)),
   )
 }

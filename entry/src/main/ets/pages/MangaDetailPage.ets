@@ -2210,6 +2210,8 @@ export struct MangaDetailPage {
             MangaDetailHeader({
               manga: this.displayedManga(this.manga),
               showChapterCount: this.shouldShowChapterCount(),
+              sourceKind: this.libraryStore?.getComic(this.currentComicId())?.sourceKind,
+              remoteServerId: this.libraryStore?.getComic(this.currentComicId())?.remoteServerId ?? '',
             })
           }
         }

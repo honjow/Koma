@@ -2,6 +2,7 @@ import { CachedCoverImage, cachedCoverFailureKey } from './CachedCoverImage'
 import { AppStrings } from '../i18n/AppStrings'
 import { connectLanguageState, LanguageState } from '../state/LanguageState'
 import { MangaDetail, MangaStatus } from '../model/MangaDetailModels'
+import { ComicSourceKind } from '../model/ComicModels'
 import { ThemeConstants } from '../theme/ThemeConstants'
 
 function s(name: string): string {
@@ -17,6 +18,8 @@ export struct MangaDetailHeader {
     isInLibrary: false,
   }
   @Param showChapterCount: boolean = true
+  @Param sourceKind: ComicSourceKind | undefined = undefined
+  @Param remoteServerId: string = ''
   @Local private languageState: LanguageState = connectLanguageState()
   @Local private failedCoverUrl: string = ''
 
@@ -26,7 +29,13 @@ export struct MangaDetailHeader {
   }
 
   private coverFailureKey(): string {
-    return cachedCoverFailureKey(this.manga.coverUrl, this.manga.sourceId ?? '', this.manga.sourceImageId ?? this.manga.id)
+    return cachedCoverFailureKey(
+      this.manga.coverUrl,
+      this.manga.sourceId ?? '',
+      this.manga.sourceImageId ?? this.manga.id,
+      this.sourceKind,
+      this.remoteServerId,
+    )
   }
 
   private displayTitle(): string {
@@ -108,6 +117,8 @@ export struct MangaDetailHeader {
           objectFit: ImageFit.Cover,
           sourceRuntimeId: this.manga.sourceId ?? '',
           sourceImageId: this.manga.sourceImageId ?? this.manga.id,
+          sourceKind: this.sourceKind,
+          remoteServerId: this.remoteServerId,
           onError: () => {
             this.failedCoverUrl = this.coverFailureKey()
           },
