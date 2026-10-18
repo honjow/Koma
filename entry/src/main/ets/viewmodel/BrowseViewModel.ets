@@ -736,8 +736,8 @@ export class BrowseViewModel {
     if (nextValues === undefined) {
       return
     }
-    this.browseFilterValues = nextValues
     this.saveSourceFilterValues('browse', nextValues)
+    this.browseFilterValues = nextValues
     const listing = this.currentListing()
     if (this.selectedSource !== undefined && listing !== undefined && !this.loadingBrowse) {
       await this.selectBrowseListing(listing)
@@ -748,8 +748,9 @@ export class BrowseViewModel {
     if (this.selectedSource === undefined || this.loadingBrowse) {
       return
     }
-    this.browseFilterValues = this.defaultSourceFilterValues(this.filters)
+    const nextValues = this.defaultSourceFilterValues(this.filters)
     this.clearSavedSourceFilterValues('browse')
+    this.browseFilterValues = nextValues
     const listing = this.currentListing()
     if (listing !== undefined) {
       await this.selectBrowseListing(listing)
@@ -804,14 +805,15 @@ export class BrowseViewModel {
     if (nextValues === undefined) {
       return false
     }
-    this.searchFilterValues = nextValues
     this.saveSourceFilterValues('search', nextValues)
+    this.searchFilterValues = nextValues
     return true
   }
 
   resetSearchFilters(): void {
-    this.searchFilterValues = this.initialSearchFilterValues()
+    const nextValues = this.initialSearchFilterValues()
     this.clearSavedSourceFilterValues('search')
+    this.searchFilterValues = nextValues
   }
 
   hasSearchFilterChanges(): boolean {

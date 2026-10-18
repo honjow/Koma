@@ -1253,6 +1253,9 @@ export function setEnabled(context: common.UIAbilityContext, id: string, enabled
 
 export async function remove(context: common.UIAbilityContext, id: string): Promise<boolean> {
   return BackupRestoreActivity.runWrite(async (): Promise<boolean> => {
+    if (appSourceRuntimeRegistry.lookup(id).entry !== undefined) {
+      appSourceFilterPreferencesStore.exportAll()
+    }
     const entry = appSourceRuntimeRegistry.remove(id)
     if (entry === undefined) {
       return false

@@ -1,3 +1,4 @@
+import { writeAppTextFile } from '../model/AppFileTextPersistence'
 import { common } from '@kit.AbilityKit'
 import { fileIo as fs } from '@kit.CoreFileKit'
 import { SourceFilter } from '../model/SourceModels'
@@ -28,15 +29,6 @@ function joinSourceFilterPreferencesPath(parent: string, child: string): string 
   return left.length === 0 ? right : `${left}/${right}`
 }
 
-function closeFileQuietly(file: fs.File | undefined): void {
-  if (file === undefined) {
-    return
-  }
-  try {
-    fs.closeSync(file)
-  } catch (_err) {
-  }
-}
 
 function ensureDirSync(path: string): void {
   if (fs.accessSync(path)) {
@@ -45,15 +37,6 @@ function ensureDirSync(path: string): void {
   fs.mkdirSync(path, true)
 }
 
-function writeTextSync(path: string, payload: string): void {
-  let file: fs.File | undefined = undefined
-  try {
-    file = fs.openSync(path, fs.OpenMode.WRITE_ONLY | fs.OpenMode.CREATE | fs.OpenMode.TRUNC)
-    fs.writeSync(file.fd, payload, { encoding: 'utf-8' })
-  } finally {
-    closeFileQuietly(file)
-  }
-}
 
 function emptyDocument(): SourceFilterPreferencesDocument {
   return {
@@ -113,6 +96,17 @@ function safeFilterPreferenceValue(value: RuntimeValue | undefined): SourceFilte
   return undefined
 }
 
+function storedFilterValuesValid(values: SourceFilterPreferenceRecord | undefined): boolean {
+  if (values === undefined) return true
+  if (values === null || typeof values !== 'object' || Array.isArray(values)) return false
+  return Object.keys(values).every((key: string): boolean => {
+    const value = values[key]
+    if (typeof value === 'string' || typeof value === 'boolean') return true
+    if (typeof value === 'number') return Number.isFinite(value)
+    return Array.isArray(value) && value.every((item: string): boolean => typeof item === 'string')
+  })
+}
+
 function normalizedRangeFilterValue(value: SourceFilterPreferenceValue, filter: SourceFilter): number | undefined {
   if (typeof value !== 'number' || !Number.isFinite(value)) {
     return undefined
@@ -163,7 +157,7 @@ function sanitizeFilterValue(value: SourceFilterPreferenceValue, filter: SourceF
     return typeof value === 'boolean' ? value : undefined
   }
   if (filter.type === 'text') {
-    return typeof value === 'string' && value.trim().length > 0 ? value.trim().substring(0, 160) : undefined
+    return typeof value === 'string' && value.trim().length > 0 ? value.trim() : undefined
   }
   if (filter.type === 'select' || filter.type === 'sort') {
     return sanitizeChoiceFilterValue(value, filter)
@@ -342,23 +336,34 @@ export class SourceFilterPreferencesStore {
     if (!this.isConfigured() || !fs.accessSync(this.storagePath)) {
       return emptyDocument()
     }
+    // Only a genuinely absent document is empty. A failed read or invalid
+    // existing document must not authorize exporting or overwriting defaults.
+    const payload = fs.readTextSync(this.storagePath, { encoding: 'utf-8' })
+    let document: SourceFilterPreferencesDocument
     try {
-      const document = JSON.parse(fs.readTextSync(this.storagePath, { encoding: 'utf-8' })) as SourceFilterPreferencesDocument
-      if (document.schemaVersion !== SOURCE_FILTER_PREFS_SCHEMA_VERSION || document.sources === undefined ||
-        document.sources === null || Array.isArray(document.sources) || typeof document.sources !== 'object') {
-        return emptyDocument()
-      }
-      return document
-    } catch (_err) {
-      return emptyDocument()
+      document = JSON.parse(payload) as SourceFilterPreferencesDocument
+    } catch (_error) {
+      throw new Error('source_filter_preferences_invalid')
     }
+    if (document === null || typeof document !== 'object' || Array.isArray(document) ||
+      document.schemaVersion !== SOURCE_FILTER_PREFS_SCHEMA_VERSION || document.sources === undefined ||
+      document.sources === null || Array.isArray(document.sources) || typeof document.sources !== 'object') {
+      throw new Error('source_filter_preferences_invalid')
+    }
+    const sourcesValid = Object.keys(document.sources).every((sourceId: string): boolean => {
+      const record = document.sources[sourceId]
+      return record !== null && typeof record === 'object' && !Array.isArray(record) &&
+        storedFilterValuesValid(record.browse) && storedFilterValuesValid(record.search)
+    })
+    if (!sourcesValid) throw new Error('source_filter_preferences_invalid')
+    return document
   }
 
   private writeDocument(document: SourceFilterPreferencesDocument): void {
     if (!this.isConfigured()) {
       return
     }
-    writeTextSync(this.storagePath, JSON.stringify(document))
+    writeAppTextFile(this.storagePath, JSON.stringify(document))
   }
 }
 
