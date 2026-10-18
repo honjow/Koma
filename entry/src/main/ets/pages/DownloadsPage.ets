@@ -102,9 +102,15 @@ export struct DownloadsPage {
   }
 
   private loadQueue(): void {
-    const store = this.queueStore()
-    this.entries = store.load()
-    this.preferences = store.loadPreferences()
+    try {
+      const store = this.queueStore()
+      const entries = store.load()
+      const preferences = store.loadPreferences()
+      this.entries = entries
+      this.preferences = preferences
+    } catch (_error) {
+      console.warn('[Downloads] step=load_queue_failed code=queue_read_failed')
+    }
   }
 
   private rowKey(entry: OfflineDownloadQueueEntry): string {
@@ -643,9 +649,13 @@ export struct DownloadsPage {
   }
 
   private pauseQueuedDownloads(): void {
-    this.preferences = this.queueStore().pauseAllQueuedWork()
-    this.loadQueue()
-    this.showToast(s('downloads_toast_paused_queued'))
+    try {
+      this.preferences = this.queueStore().pauseAllQueuedWork()
+      this.loadQueue()
+      this.showToast(s('downloads_toast_paused_queued'))
+    } catch (_error) {
+      console.warn('[Downloads] step=pause_queue_failed code=queue_commit_failed')
+    }
   }
 
   private startQueuedDownloads(): void {
