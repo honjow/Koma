@@ -111,7 +111,6 @@ import {
   ReaderThemeMode,
   ReaderVolumeKeyBehavior,
   ReaderWideImageMode,
-  applyReaderThemeMode,
   getReaderBackgroundModeLabel,
   getReaderKeepScreenAwakeLabel,
   getReaderPageGapModeLabel,
@@ -1326,18 +1325,14 @@ export struct SettingsPage {
   }
 
   private saveThemeMode(themeMode: ReaderThemeMode): void {
-    this.themeMode = themeMode
-    try {
-      applyReaderThemeMode(this.context(), themeMode)
-    } catch (error) {
-      console.warn('[Settings] step=apply_theme_failed code=' + safeSettingsErrorCode(error as Error))
-    }
     void this.preferencesStore().saveThemeMode(themeMode)
-      .then(() => {
+      .then((preferences: ReaderPreferences) => {
+        this.themeMode = preferences.themeMode
         console.info('[Settings] step=save_theme value=' + themeMode)
       })
       .catch((error: Error) => {
         console.warn('[Settings] step=save_theme_failed code=' + safeSettingsErrorCode(error))
+        this.loadPreferences()
       })
   }
 
@@ -1534,14 +1529,9 @@ export struct SettingsPage {
 
   private resetReaderPreferences(): void {
     const defaults = DEFAULT_READER_PREFERENCES
-    this.applyReaderPreferences(defaults)
-    try {
-      applyReaderThemeMode(this.context(), defaults.themeMode)
-    } catch (error) {
-      console.warn('[Settings] step=apply_reader_defaults_theme_failed code=' + safeSettingsErrorCode(error as Error))
-    }
     void this.preferencesStore().save(defaults)
-      .then(() => {
+      .then((preferences: ReaderPreferences) => {
+        this.applyReaderPreferences(preferences)
         console.info('[Settings] step=reset_reader_preferences')
         this.showToast(s('settings_reader_defaults_reset'))
       })

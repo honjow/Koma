@@ -32,6 +32,32 @@ export class KomaReaderPreferenceBridge {
     })
   }
 
+  static same(left: ReaderPreferences, right: ReaderPreferences): boolean {
+    return left.pageMode === right.pageMode &&
+      left.readingDirection === right.readingDirection &&
+      left.themeMode === right.themeMode &&
+      left.backgroundMode === right.backgroundMode &&
+      left.showProgressControls === right.showProgressControls &&
+      left.keepScreenAwake === right.keepScreenAwake &&
+      left.fullscreen === right.fullscreen &&
+      left.imageFitMode === right.imageFitMode &&
+      left.imageScalingQuality === right.imageScalingQuality &&
+      left.showPageNumber === right.showPageNumber &&
+      left.pageTurnAnimation === right.pageTurnAnimation &&
+      left.autoPageSeconds === right.autoPageSeconds &&
+      left.preloadPages === right.preloadPages &&
+      left.spreadLayoutMode === right.spreadLayoutMode &&
+      left.columnMode === right.columnMode &&
+      left.tapZonePreset === right.tapZonePreset &&
+      left.tapZoneInvert === right.tapZoneInvert &&
+      left.pageGapMode === right.pageGapMode &&
+      left.trimPageMarginsEnabled === right.trimPageMarginsEnabled &&
+      left.wideImageMode === right.wideImageMode &&
+      left.volumeKeyNavigationEnabled === right.volumeKeyNavigationEnabled &&
+      left.volumeKeyBehavior === right.volumeKeyBehavior &&
+      left.readerImplementation === right.readerImplementation
+  }
+
   static applyPolicy(current: ReaderPreferences, policy: ReaderDisplayPolicy): ReaderPreferences {
     const next = KomaReaderPreferenceBridge.copy(current)
     next.pageMode = policy.layout === 'continuous' ? 'continuous_scroll' :

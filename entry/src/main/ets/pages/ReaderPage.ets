@@ -2497,6 +2497,7 @@ export struct ReaderPage {
   }
 
   private turnOnePageInDoublePage(): void {
+    const previous = this.copyPreferences()
     if (!this.canTurnOnePageInDoublePage()) {
       return
     }
@@ -2508,7 +2509,7 @@ export struct ReaderPage {
     this.preferences = next
     this.preferenceRevision += 1
     this.refreshPageDataSources()
-    this.persistPreferences(next)
+    this.persistPreferences(previous, next)
     this.setPage(target)
   }
 
@@ -2595,6 +2596,7 @@ export struct ReaderPage {
   }
 
   private onModeChange(mode: ReaderMode): void {
+    const previous = this.copyPreferences()
     const next = this.copyPreferences()
     next.pageMode = mode === ReaderMode.DUAL_PAGE ? 'double_page' :
       (mode === ReaderMode.CONTINUOUS_SCROLL ? 'continuous_scroll' :
@@ -2608,7 +2610,7 @@ export struct ReaderPage {
     this.preferenceRevision += 1
     this.refreshPageDataSources()
     this.emitWebtoonMode(mode === ReaderMode.CONTINUOUS_SCROLL)
-    this.persistPreferences(next)
+    this.persistPreferences(previous, next)
     this.resetZoomState()
     if (mode === ReaderMode.CONTINUOUS_SCROLL) {
       this.continuousInitialTarget = this.pageIndex
@@ -2676,6 +2678,7 @@ export struct ReaderPage {
   }
 
   private applyPreferences(next: ReaderPreferences, persist: boolean): void {
+    const previous = this.copyPreferences()
     const previousMode = this.effectiveMode()
     const previousTapZone = this.preferences.tapZonePreset
     const previousTapInvert = this.preferences.tapZoneInvert
@@ -2712,14 +2715,14 @@ export struct ReaderPage {
       this.scheduleStatusBarVisibility()
     }
     if (persist) {
-      this.persistPreferences(this.preferences)
+      this.persistPreferences(previous, this.preferences)
       this.persistCurrentProgress()
     }
   }
 
-  private persistPreferences(next: ReaderPreferences): void {
+  private persistPreferences(previous: ReaderPreferences, next: ReaderPreferences): void {
     if (this.preferencesStore !== undefined) {
-      void this.preferencesStore.saveForComic(this.sessionConfig.comicId, next)
+      void this.preferencesStore.saveChangesForComic(this.sessionConfig.comicId, previous, next)
     }
   }
 

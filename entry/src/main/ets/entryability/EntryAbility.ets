@@ -10,7 +10,7 @@ import {
   KOMA_LAUNCH_ROUTE_TRACKER_SETTINGS,
 } from '../common/Constants'
 import { RouterHelper } from '../common/RouterHelper'
-import { ReaderPreferencesStore, applyReaderThemeMode } from '../model/ReaderPreferencesStore'
+import { ReaderPreferencesStore, bindReaderThemeWindow, unbindReaderThemeWindow } from '../model/ReaderPreferencesStore'
 import { RemoteProgressBootstrapSync } from '../model/RemoteProgressBootstrapSync'
 import { bootstrapSourceRuntimeAppRegistry } from '../sourceRuntime/SourceRuntimeAppRegistry'
 import { maybeRunSourceRuntimeDeviceSmoke } from '../sourceRuntime/SourceRuntimeDeviceSmoke'
@@ -47,7 +47,6 @@ export default class EntryAbility extends UIAbility {
     // Recover before theme Preferences, installed packages, Library or Reader
     // consumers are initialized. A failed recovery never loads ordinary Index.
     await BackupRestoreCheckpoint.recoverBeforeStartup(this.context)
-    this.applySavedThemeMode()
     configureSourceSettingsStore(this.context)
     configureSourceRuntimeHttpTransport()
     bootstrapSourceRuntimeAppRegistry(this.context)
@@ -90,13 +89,24 @@ export default class EntryAbility extends UIAbility {
       windowStage.loadContent(ENTRY_PAGE, (err) => {
         if (err.code) {
           console.error('[EntryAbility] step=load_content_failed code=load_content_failed')
+          return
         }
+        bindReaderThemeWindow(this.context)
+        this.applySavedThemeMode()
         this.configureAvoidAreas(windowStage)
         setTimeout(() => {
           this.syncRemoteProgressInBackground()
         }, 250)
       })
     })
+  }
+
+  onDestroy(): void {
+    unbindReaderThemeWindow()
+  }
+
+  onWindowStageDestroy(): void {
+    unbindReaderThemeWindow()
   }
 
   onForeground(): void {
@@ -192,7 +202,6 @@ export default class EntryAbility extends UIAbility {
   private applySavedThemeMode(): void {
     void new ReaderPreferencesStore(this.context).load()
       .then((preferences) => {
-        applyReaderThemeMode(this.context, preferences.themeMode)
         console.info('[Settings] step=apply_startup_theme value=' + preferences.themeMode)
       })
       .catch((error: Error) => {
