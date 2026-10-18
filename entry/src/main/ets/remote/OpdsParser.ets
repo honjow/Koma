@@ -381,13 +381,18 @@ function readOpds2Publication(value: Object, feedUrl: string, fallbackId: string
     index < rawLinks.length && (readString(readRecord(rawLinks[index])['href']) ?? '').trim().length > 0 &&
     (link.rel ?? '').toLocaleLowerCase().split(/\s+/).indexOf('self') >= 0 &&
     /^https?:\/\/[^\/?#@]+(?:\/[^?#]*)?$/.test(link.href))
-  return createPublication(
+  const result = createPublication(
     readString(publicationMetadata['identifier']) ?? readString(publication['href']) ?? selfLink?.href ?? fallbackId,
     title,
     readString(publicationMetadata['description']) ?? readString(publicationMetadata['subtitle']),
     readOpds2Author(publicationMetadata['author']),
     links
   )
+  const pageCount = publicationMetadata['numberOfPages']
+  if (typeof pageCount === 'number' && Number.isSafeInteger(pageCount) && pageCount >= 0) {
+    result.pageCount = pageCount
+  }
+  return result
 }
 
 function readOpds2Group(value: Object, feedUrl: string, fallbackTitle: string): OpdsPublicationGroup {

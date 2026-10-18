@@ -659,7 +659,9 @@ export class CrossSearchService {
       return {
         id: `opds:${this.shortHash(catalog.feedUrl)}:${publication.id}`,
         title: publication.title,
-        subtitle: publication.author ?? AppStrings.get('search_opds_image_count').replace('%s', `${images.length}`),
+        subtitle: publication.author ?? (publication.pageCount === undefined
+          ? AppStrings.get('route_opds_title')
+          : AppStrings.get('search_opds_image_count').replace('%s', `${publication.pageCount}`)),
         sourceKind: 'opds',
         sourceLabel: AppStrings.get('route_opds_title'),
         coverUri: images.length === 0 ? undefined : images[0].href,

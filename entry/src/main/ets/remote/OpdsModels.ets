@@ -60,6 +60,7 @@ export interface OpdsPublication {
   title: string
   summary?: string
   author?: string
+  pageCount?: number
   acquisitionLinks: OpdsLink[]
   unsupportedLinks: OpdsLink[]
   imageLinks: OpdsLink[]
