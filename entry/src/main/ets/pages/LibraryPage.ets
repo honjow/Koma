@@ -556,7 +556,7 @@ export struct LibraryPage {
   private progressByComicId(): Map<ComicId, ReadingProgress> {
     const progressByComicId: Map<ComicId, ReadingProgress> = new Map<ComicId, ReadingProgress>()
     this.libraryStore.listComics().forEach((comic: Comic) => {
-      const progress = this.readerSessionStore.getProgress(comic.id)
+      const progress = this.readerSessionStore.getComicProgress(comic)
       if (progress !== undefined) {
         progressByComicId.set(comic.id, progress)
       }
@@ -1295,7 +1295,7 @@ export struct LibraryPage {
   }
 
   private readerChapterIdForComic(comic: Comic): string | undefined {
-    const progress = this.readerSessionStore.getProgress(comic.id)
+    const progress = this.readerSessionStore.getComicProgress(comic)
     if (progress !== undefined && comic.chapters.some((chapter: Chapter): boolean => chapter.id === progress.chapterId)) {
       return progress.chapterId
     }

@@ -1,10 +1,12 @@
+import { util } from '@kit.ArkTS'
+import { BusinessError } from '@kit.BasicServicesKit'
 import { common } from '@kit.AbilityKit'
 import { fileIo as fs, ListFileOptions, picker } from '@kit.CoreFileKit'
 import { AppStrings } from '../i18n/AppStrings'
 import {
   ArchiveExtractionResult,
   ArchiveExtractionService,
-  createArchiveExtractionCachePaths,
+  ArchiveExtractionCachePaths,
 } from './ArchiveExtractionService'
 import {
   getBaseName,
@@ -140,22 +142,6 @@ function closeFileQuietly(file: fs.File | undefined): void {
   }
 }
 
-function sanitizeCacheSegment(value: string): string {
-  const normalized = stripExtension(getBaseName(value)).trim().toLocaleLowerCase().replace(/[^a-z0-9]+/g, '-')
-  const trimmed = normalized.replace(/^-+|-+$/g, '')
-  return trimmed.length === 0 ? 'images' : trimmed
-}
-
-function createStableCacheHash(value: string): string {
-  const normalized = value.replace(/\\/g, '/').trim()
-  let hash = 2166136261
-  for (let index = 0; index < normalized.length; index += 1) {
-    hash = (hash ^ normalized.charCodeAt(index)) >>> 0
-    hash = Math.imul(hash, 16777619) >>> 0
-  }
-  return hash.toString(16).padStart(8, '0')
-}
-
 function normalizeImportCachePath(value: string): string {
   let normalized = value.replace(/\\/g, '/').trim()
   while (normalized.length > 1 && normalized.endsWith('/')) {
@@ -186,27 +172,6 @@ function hasUnsafeImportCachePathSegment(path: string): boolean {
   })
 }
 
-function normalizeListedImportCacheEntry(path: string): string {
-  return path.replace(/\\/g, '/').replace(/^\/+/, '').replace(/\/+$/, '')
-}
-
-function compareDeepestPathFirst(left: string, right: string): number {
-  const leftDepth = left.split('/').length
-  const rightDepth = right.split('/').length
-  if (leftDepth !== rightDepth) {
-    return rightDepth - leftDepth
-  }
-  return right.localeCompare(left)
-}
-
-async function pathExists(path: string): Promise<boolean> {
-  try {
-    return await fs.access(path)
-  } catch (_err) {
-    return false
-  }
-}
-
 export function assertSafeComputedArchiveImportCacheRoot(cacheDir: string, cacheRootDir: string): void {
   const normalizedCacheDir = normalizeImportCachePath(cacheDir)
   const normalizedRootDir = normalizeImportCachePath(cacheRootDir)
@@ -219,38 +184,6 @@ export function assertSafeComputedArchiveImportCacheRoot(cacheDir: string, cache
   ) {
     throw new Error(`Refusing to delete outside computed archive import cache root: ${cacheRootDir}`)
   }
-}
-
-async function removeComputedArchiveImportCacheRoot(cacheDir: string, cacheRootDir: string): Promise<void> {
-  assertSafeComputedArchiveImportCacheRoot(cacheDir, cacheRootDir)
-  if (!(await pathExists(cacheRootDir))) {
-    return
-  }
-
-  const listFileOptions: ListFileOptions = {
-    recursion: true,
-    listNum: 0,
-  }
-  const listedEntries = await fs.listFile(cacheRootDir, listFileOptions)
-  const relativeEntries = listedEntries
-    .map(normalizeListedImportCacheEntry)
-    .filter((entry) => entry.length > 0)
-    .sort(compareDeepestPathFirst)
-
-  for (const relativeEntry of relativeEntries) {
-    if (hasUnsafeImportCachePathSegment(relativeEntry)) {
-      throw new Error(`Refusing to delete unsafe archive import cache entry: ${relativeEntry}`)
-    }
-    const entryPath = joinImportCachePath(cacheRootDir, relativeEntry)
-    const stat = await fs.stat(entryPath)
-    if (stat.isDirectory()) {
-      await fs.rmdir(entryPath)
-    } else {
-      await fs.unlink(entryPath)
-    }
-  }
-
-  await fs.rmdir(cacheRootDir)
 }
 
 export function createArchiveDocumentSelectOptions(maxSelectNumber: number = 100): picker.DocumentSelectOptions {
@@ -301,19 +234,6 @@ export async function copyPickedArchiveUriToSandbox(sourceUri: string, sandboxZi
   } finally {
     closeFileQuietly(sourceFile)
     closeFileQuietly(targetFile)
-  }
-}
-
-function createLocalImageImportCachePaths(cacheDir: string, sourceUris: string[]): LocalImageImportSelection {
-  const firstUri = sourceUris.length === 0 ? 'images' : sourceUris[0]
-  const readableSegment = sanitizeCacheSegment(firstUri)
-  const uniqueSegment = createStableCacheHash(sourceUris.join('\n'))
-  const rootDir = joinImportCachePath(joinImportCachePath(cacheDir, 'import'), `${readableSegment}-${uniqueSegment}`)
-  return {
-    sourceUris,
-    copiedImages: [],
-    cacheRootDir: rootDir,
-    extractionDir: joinImportCachePath(rootDir, 'extract'),
   }
 }
 
@@ -445,6 +365,31 @@ export async function copyPickedImageUriToSandbox(sourceUri: string, sandboxPath
   }
 }
 
+function createManagedImportPaths(filesDir: string): ArchiveExtractionCachePaths {
+  const rootDir = joinImportCachePath(joinImportCachePath(filesDir, 'import'), `v1-${util.generateRandomUUID()}`)
+  assertSafeComputedArchiveImportCacheRoot(filesDir, rootDir)
+  return {
+    rootDir,
+    archiveZipPath: joinImportCachePath(rootDir, 'archive.zip'),
+    extractionDir: joinImportCachePath(rootDir, 'extract'),
+    manifestPath: joinImportCachePath(rootDir, 'manifest.json'),
+  }
+}
+
+async function createManagedImportRoot(filesDir: string, rootDir: string): Promise<void> {
+  const parentDir = joinImportCachePath(filesDir, 'import')
+  try {
+    await fs.mkdir(parentDir, true)
+  } catch (error) {
+    // HarmonyOS recursive mkdir reports EEXIST for an existing target too.
+    if ((error as BusinessError).code !== 13900015 || !(await fs.stat(parentDir)).isDirectory()) {
+      throw new Error(`Import parent directory unavailable: ${(error as BusinessError).code}`)
+    }
+  }
+  // Do not reuse or clear any existing content, even on an unexpected UUID collision.
+  await fs.mkdir(rootDir, false)
+}
+
 export class LocalImportCoordinator {
   private readonly archiveExtractionService: ArchiveExtractionService
   private debugSink?: LocalArchiveImportDebugSink
@@ -468,7 +413,7 @@ export class LocalImportCoordinator {
 
   async preparePickedArchive(request: LocalArchiveImportRequest): Promise<LocalArchiveImportSelection> {
     assertSupportedPickedArchive(request.sourceUri)
-    const paths = createArchiveExtractionCachePaths(request.context.cacheDir, request.sourceUri, request.sourceUri)
+    const paths = createManagedImportPaths(request.context.filesDir)
     this.reportDebugEvent({
       step: LOCAL_ARCHIVE_DEBUG_STEP_CACHE_PATHS,
       sourceUri: request.sourceUri,
@@ -476,8 +421,7 @@ export class LocalImportCoordinator {
       cacheRootDir: paths.rootDir,
       extractionDir: paths.extractionDir,
     })
-    await removeComputedArchiveImportCacheRoot(request.context.cacheDir, paths.rootDir)
-    await fs.mkdir(paths.rootDir, true)
+    await createManagedImportRoot(request.context.filesDir, paths.rootDir)
     this.reportDebugEvent({
       step: LOCAL_ARCHIVE_DEBUG_STEP_COPY_STARTED,
       sourceUri: request.sourceUri,
@@ -525,6 +469,7 @@ export class LocalImportCoordinator {
           comicId: request.comicId,
           title: request.title,
           importedAt: request.importedAt,
+          cleanOutputDir: false,
         })
         this.reportDebugEvent({
           step: LOCAL_ARCHIVE_DEBUG_STEP_EXTRACTION_SUCCEEDED,
@@ -543,6 +488,8 @@ export class LocalImportCoordinator {
         })
         throw new Error(LOCAL_IMPORT_ERROR_EXTRACTION_FAILED)
       }
+
+      extractionResult.importResult.comic.localImportOrigin = { kind: 'archive', sourceUris: [request.sourceUri] }
 
       this.reportDebugEvent({
         step: LOCAL_ARCHIVE_DEBUG_STEP_IMPORT_SUCCEEDED,
@@ -604,15 +551,21 @@ export class LocalImportCoordinator {
 
   async preparePickedImages(request: LocalImageImportRequest): Promise<LocalImageImportSelection> {
     const supportedSourceUris = request.sourceUris.filter((sourceUri: string) => isSupportedImagePath(sourceUri))
-    const selection = createLocalImageImportCachePaths(request.context.cacheDir, request.sourceUris)
+    const paths = createManagedImportPaths(request.context.filesDir)
+    const selection: LocalImageImportSelection = {
+      sourceUris: request.sourceUris,
+      copiedImages: [],
+      cacheRootDir: paths.rootDir,
+      extractionDir: paths.extractionDir,
+    }
     this.reportDebugEvent({
       step: LOCAL_ARCHIVE_DEBUG_STEP_CACHE_PATHS,
       sourceUri: request.sourceUris.join(','),
       cacheRootDir: selection.cacheRootDir,
       extractionDir: selection.extractionDir,
     })
-    await removeComputedArchiveImportCacheRoot(request.context.cacheDir, selection.cacheRootDir)
-    await fs.mkdir(selection.extractionDir, true)
+    await createManagedImportRoot(request.context.filesDir, selection.cacheRootDir)
+    await fs.mkdir(selection.extractionDir, false)
 
     const usedFileNames = new Set<string>()
     for (const sourceUri of supportedSourceUris) {
@@ -674,6 +627,7 @@ export class LocalImportCoordinator {
         title: request.title ?? createLocalImageImportTitle(request.sourceUris),
         importedAt: request.importedAt,
       })
+      importResult.comic.localImportOrigin = { kind: 'images', sourceUris: request.sourceUris.slice() }
       this.reportDebugEvent({
         step: LOCAL_ARCHIVE_DEBUG_STEP_IMPORT_SUCCEEDED,
         sourceUri: request.sourceUris.join(','),

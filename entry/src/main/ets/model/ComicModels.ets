@@ -58,6 +58,21 @@ export interface Chapter {
   updatedAt: number
 }
 
+export interface LocalImportOrigin {
+  kind: 'archive' | 'images'
+  sourceUris: string[]
+}
+
+export function copyLocalImportOrigin(origin: LocalImportOrigin): LocalImportOrigin {
+  if ((origin.kind !== 'archive' && origin.kind !== 'images') ||
+    !Array.isArray(origin.sourceUris) || origin.sourceUris.length === 0 ||
+    origin.sourceUris.some((uri: string): boolean => typeof uri !== 'string' || uri.length === 0) ||
+    (origin.kind === 'archive' && origin.sourceUris.length !== 1)) {
+    throw new Error('Invalid local import origin')
+  }
+  return { kind: origin.kind, sourceUris: origin.sourceUris.slice() }
+}
+
 export interface Comic {
   id: ComicId
   title: string
@@ -71,6 +86,7 @@ export interface Comic {
   remoteResourceId?: string
   coverUri?: string
   localMetadata?: LocalLibraryStoredMetadata
+  localImportOrigin?: LocalImportOrigin
   sortTitle: string
   preferredDirection: ReadingDirection
   chapters: Chapter[]
@@ -220,6 +236,9 @@ export function withComicCategoryIds(comic: Comic, categoryIds?: string[]): Comi
   if (comic.coverUri !== undefined) {
     nextComic.coverUri = comic.coverUri
   }
+  if (comic.localImportOrigin !== undefined) {
+    nextComic.localImportOrigin = copyLocalImportOrigin(comic.localImportOrigin)
+  }
   if (comic.localMetadata !== undefined) {
     nextComic.localMetadata = comic.localMetadata
   }
@@ -303,6 +322,14 @@ export function updateReadingProgress(
   }
 }
 
+export function currentComicReadingProgress(comic: Comic, progress?: ReadingProgress): ReadingProgress | undefined {
+  if (comic.localImportOrigin !== undefined && progress !== undefined &&
+    !comic.chapters.some((chapter: Chapter): boolean => chapter.id === progress.chapterId)) {
+    return undefined
+  }
+  return progress
+}
+
 export function comicToLibraryItem(comic: Comic, progress?: ReadingProgress): LibraryItem {
   return {
     id: comic.id,
@@ -320,7 +347,7 @@ export function comicToLibraryItem(comic: Comic, progress?: ReadingProgress): Li
     addedAt: comic.createdAt,
     updatedAt: comic.updatedAt,
     lastReadAt: progress === undefined ? undefined : progress.updatedAt,
-    progress,
+    progress: currentComicReadingProgress(comic, progress),
   }
 }
 

@@ -1,3 +1,4 @@
+import { util } from '@kit.ArkTS'
 import {
   Chapter,
   Comic,
@@ -37,14 +38,18 @@ export interface ArchiveImportResult {
   sourceEntryCount: number
 }
 
-function sanitizeIdPart(value: string): string {
-  const normalized = value.trim().toLocaleLowerCase().replace(/[^a-z0-9]+/g, '-')
-  const trimmed = normalized.replace(/^-+|-+$/g, '')
-  return trimmed.length === 0 ? 'archive' : trimmed
+function createArchiveId(_archivePath: string): string {
+  return `local-archive-${util.generateRandomUUID()}`
 }
 
-function createArchiveId(archivePath: string): string {
-  return `local-archive-${sanitizeIdPart(stripExtension(archivePath))}`
+function defaultArchiveTitle(archivePath: string): string {
+  const title = stripExtension(archivePath)
+  if (!archivePath.startsWith('file://')) return title
+  try {
+    return decodeURIComponent(title)
+  } catch (_error) {
+    return title
+  }
 }
 
 function createArchiveEntryUri(archivePath: string, entryPath: string): string {
@@ -117,7 +122,7 @@ export class ArchiveImportService {
 
     const now = request.importedAt === undefined ? Date.now() : request.importedAt
     const comicId = request.comicId === undefined ? createArchiveId(request.archivePath) : request.comicId
-    const title = request.title === undefined ? stripExtension(request.archivePath) : request.title
+    const title = request.title === undefined ? defaultArchiveTitle(request.archivePath) : request.title
     const chapterId = `${comicId}-chapter-1`
     const pages: Page[] = sortedImagePaths.map((path: string, index: number) => {
       const candidate = entryByPath.get(path) as ArchiveEntryCandidate

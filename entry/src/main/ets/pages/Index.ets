@@ -25,6 +25,7 @@ import { SEARCH_TITLE_BOTTOM_HEIGHT, SearchTitleFieldContentBuilder } from '../c
 import { SettingsPage, SettingsPaneKey, settingsPaneTitle } from './SettingsPage'
 import { ImportPage, LocalFolderImportPersistResult } from './ImportPage'
 import { LocalImportCoordinator } from '../import/LocalImportCoordinator'
+import { LocalImportCommitService } from '../import/LocalImportCommitService'
 import { ReaderPage } from './ReaderPage'
 import { MangaDetailPage } from './MangaDetailPage'
 import { resolveSourceChapterList } from '../model/SourceChapterListResolver'
@@ -961,14 +962,14 @@ struct Index {
       const results = await this.localImportCoordinator.pickAndImportArchives(context, 1)
       let succeededCount = 0
       let failedCount = 0
-      results.forEach((result) => {
+      for (const result of results) {
         if (result.status === 'succeeded') {
           succeededCount += 1
-          this.handleArchiveImportSucceeded(result.extractionResult.importResult.comic)
+          await this.handleArchiveImportSucceeded(result.extractionResult.importResult.comic)
         } else {
           failedCount += 1
         }
-      })
+      }
       if (results.length === 0) {
         return
       }
@@ -991,14 +992,14 @@ struct Index {
       const results = await this.localImportCoordinator.pickAndImportImages(context)
       let succeededCount = 0
       let failedCount = 0
-      results.forEach((result) => {
+      for (const result of results) {
         if (result.status === 'succeeded') {
           succeededCount += 1
-          this.handleArchiveImportSucceeded(result.importResult.comic)
+          await this.handleArchiveImportSucceeded(result.importResult.comic)
         } else {
           failedCount += 1
         }
-      })
+      }
       if (results.length === 0) {
         return
       }
@@ -1161,17 +1162,19 @@ struct Index {
     return 'root'
   }
 
-  private handleArchiveImportSucceeded(comic: Comic): void {
+  private localImportCommitService?: LocalImportCommitService
+
+  private async handleArchiveImportSucceeded(comic: Comic): Promise<void> {
     const persistenceService = this.ensureLibraryPersistenceService()
-    if (persistenceService === undefined) {
-      this.libraryStore.upsertComic(comic)
-    } else {
-      try {
-        upsertComicAndPersistLibraryStore(this.libraryStore, persistenceService, comic)
-      } catch (error) {
-        console.error('[Library] step=persist_imported_comic_failed code=library_persist_failed')
-        throw error as Error
-      }
+    if (persistenceService === undefined) throw new Error('Local import persistence unavailable')
+    if (this.localImportCommitService === undefined) {
+      this.localImportCommitService = new LocalImportCommitService(this.libraryStore, persistenceService)
+    }
+    try {
+      await this.localImportCommitService.commit(comic)
+    } catch (error) {
+      console.error('[Library] step=persist_imported_comic_failed code=library_persist_failed')
+      throw error as Error
     }
     this.refreshLibrarySnapshot()
     this.selectRootTab(TabIndex.LIBRARY)
@@ -1666,12 +1669,12 @@ struct Index {
     } else if (name === RouteName.IMPORT) {
       HdsNavDestination() {
         ImportPage({
-          onArchiveImportSucceeded: (comic: Comic) => {
-            this.handleArchiveImportSucceeded(comic)
+          onArchiveImportSucceeded: async (comic: Comic): Promise<void> => {
+            await this.handleArchiveImportSucceeded(comic)
             this.appPathStack.pop(false)
           },
-          onLocalImageImportSucceeded: (comic: Comic) => {
-            this.handleArchiveImportSucceeded(comic)
+          onLocalImageImportSucceeded: async (comic: Comic): Promise<void> => {
+            await this.handleArchiveImportSucceeded(comic)
             this.appPathStack.pop(false)
           },
           onLocalFolderImportSucceeded: (scanResult: LocalLibraryFolderScanResult, rootUri: string): LocalFolderImportPersistResult => {

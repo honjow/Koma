@@ -71,8 +71,8 @@ export struct ImportPage {
   @Local private importing: boolean = false
   @Local private activeImportKind: ImportEntryKind | '' = ''
   @Local private languageState: LanguageState = connectLanguageState()
-  @Event onArchiveImportSucceeded: (comic: Comic) => void = (_comic: Comic) => {}
-  @Event onLocalImageImportSucceeded: (comic: Comic) => void = (_comic: Comic) => {}
+  @Event onArchiveImportSucceeded: (comic: Comic) => Promise<void> = async (_comic: Comic): Promise<void> => {}
+  @Event onLocalImageImportSucceeded: (comic: Comic) => Promise<void> = async (_comic: Comic): Promise<void> => {}
   @Event onLocalFolderImportSucceeded: (scanResult: LocalLibraryFolderScanResult, rootUri: string) => LocalFolderImportPersistResult =
     (_scanResult: LocalLibraryFolderScanResult, _rootUri: string) => ({
       importedCount: 0,
@@ -135,11 +135,11 @@ export struct ImportPage {
         }
         failedCount += 1
       })
-      results.forEach((result) => {
+      for (const result of results) {
         if (result.status === 'succeeded') {
-          this.onArchiveImportSucceeded(result.extractionResult.importResult.comic)
+          await this.onArchiveImportSucceeded(result.extractionResult.importResult.comic)
         }
-      })
+      }
       if (results.length === 0) {
         this.feedbackText = t('import_feedback_no_selection')
       } else if (failedCount === 0) {
@@ -185,11 +185,11 @@ export struct ImportPage {
         }
         failedCount += 1
       })
-      results.forEach((result) => {
+      for (const result of results) {
         if (result.status === 'succeeded') {
-          this.onLocalImageImportSucceeded(result.importResult.comic)
+          await this.onLocalImageImportSucceeded(result.importResult.comic)
         }
-      })
+      }
       if (results.length === 0) {
         this.feedbackText = t('import_feedback_no_selection')
       } else if (failedCount === 0) {

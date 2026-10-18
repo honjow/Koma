@@ -383,7 +383,7 @@ export function createLibraryViewModelFromComics(
   presentationByComicId: LibraryPresentationByComicId = new Map<ComicId, LibraryComicPresentation>()
 ): LibraryViewModel {
   const cards = comics.map((comic: Comic): LibraryComicCardViewModel => {
-    const progress = sessionStore === undefined ? undefined : sessionStore.getProgress(comic.id)
+    const progress = sessionStore === undefined ? undefined : sessionStore.getComicProgress(comic)
     const presentation = presentationByComicId.get(comic.id) ?? createFallbackPresentation(comic)
     return {
       id: comic.id,
@@ -407,7 +407,7 @@ export function createLibraryViewModelFromComics(
   let continueProgress: ReadingProgress | undefined = undefined
   for (let index = 0; index < comics.length; index += 1) {
     const comic = comics[index]
-    const progress = sessionStore === undefined ? undefined : sessionStore.getProgress(comic.id)
+    const progress = sessionStore === undefined ? undefined : sessionStore.getComicProgress(comic)
     if (progress !== undefined && (continueProgress === undefined || progress.updatedAt > continueProgress.updatedAt)) {
       continueComicIndex = index
       continueProgress = progress

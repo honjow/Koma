@@ -342,6 +342,9 @@ function updatedComicWithChapters(comic: Comic, chapters: Chapter[], now: number
   if (comic.coverUri !== undefined) {
     nextComic.coverUri = comic.coverUri
   }
+  if (comic.localImportOrigin !== undefined) {
+    nextComic.localImportOrigin = comic.localImportOrigin
+  }
   if (comic.localMetadata !== undefined) {
     nextComic.localMetadata = comic.localMetadata
   }
@@ -393,6 +396,9 @@ function updatedComicWithOnlyCoverUri(comic: Comic, coverUri: string, now: numbe
   }
   if (comic.remoteResourceId !== undefined) {
     nextComic.remoteResourceId = comic.remoteResourceId
+  }
+  if (comic.localImportOrigin !== undefined) {
+    nextComic.localImportOrigin = comic.localImportOrigin
   }
   if (comic.localMetadata !== undefined) {
     nextComic.localMetadata = comic.localMetadata

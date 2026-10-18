@@ -2,6 +2,8 @@ import {
   Chapter,
   Comic,
   ComicId,
+  LocalImportOrigin,
+  copyLocalImportOrigin,
   CUSTOM_LIBRARY_CATEGORY_ID_PREFIX,
   ComicSourceKind,
   CustomLibraryCategory,
@@ -77,6 +79,7 @@ export interface PersistedComic {
   remoteResourceId?: string
   coverUri?: string
   localMetadata?: LocalLibraryStoredMetadata
+  localImportOrigin?: LocalImportOrigin
   sortTitle: string
   preferredDirection: ReadingDirection
   chapters: PersistedChapter[]
@@ -262,6 +265,9 @@ export function persistComic(comic: Comic): PersistedComic {
   if (comic.coverUri !== undefined) {
     row.coverUri = comic.coverUri
   }
+  if (comic.localImportOrigin !== undefined) {
+    row.localImportOrigin = copyLocalImportOrigin(comic.localImportOrigin)
+  }
   if (comic.localMetadata !== undefined) {
     row.localMetadata = normalizeLocalLibraryStoredMetadata(comic.localMetadata as Object)
   }
@@ -306,6 +312,9 @@ export function hydrateComic(row: PersistedComic): Comic {
   }
   if (row.coverUri !== undefined) {
     comic.coverUri = row.coverUri
+  }
+  if (row.localImportOrigin !== undefined) {
+    comic.localImportOrigin = copyLocalImportOrigin(row.localImportOrigin)
   }
   if (row.localMetadata !== undefined) {
     comic.localMetadata = normalizeLocalLibraryStoredMetadata(row.localMetadata as Object)
@@ -473,6 +482,9 @@ function assertValidPersistedComic(row: PersistedComic): void {
   assertOptionalStringField(row.remoteServerId, 'comic.remoteServerId')
   assertOptionalStringField(row.remoteResourceId, 'comic.remoteResourceId')
   assertOptionalStringField(row.coverUri, 'comic.coverUri')
+  if (row.localImportOrigin !== undefined) {
+    copyLocalImportOrigin(row.localImportOrigin)
+  }
   if (row.localMetadata !== undefined) {
     normalizeLocalLibraryStoredMetadata(row.localMetadata as Object)
   }
@@ -813,6 +825,9 @@ export function updateLocalLibraryMetadataAndPersistLibraryStore(
   }
   if (previous.coverUri !== undefined) {
     next.coverUri = previous.coverUri
+  }
+  if (previous.localImportOrigin !== undefined) {
+    next.localImportOrigin = copyLocalImportOrigin(previous.localImportOrigin)
   }
   if (previous.localMetadata !== undefined) {
     next.localMetadata = previous.localMetadata

@@ -1,3 +1,4 @@
+import { util } from '@kit.ArkTS'
 import {
   Chapter,
   Comic,
@@ -39,14 +40,8 @@ export interface LocalImageImportResult {
   sourceEntryCount: number
 }
 
-function sanitizeIdPart(value: string): string {
-  const normalized = value.trim().toLocaleLowerCase().replace(/[^a-z0-9]+/g, '-')
-  const trimmed = normalized.replace(/^-+|-+$/g, '')
-  return trimmed.length === 0 ? 'images' : trimmed
-}
-
-function createLocalImageComicId(sourcePath: string): string {
-  return `local-folder-${sanitizeIdPart(sourcePath)}`
+function createLocalImageComicId(_sourcePath: string): string {
+  return `local-images-${util.generateRandomUUID()}`
 }
 
 function stripFileUriScheme(value: string): string {

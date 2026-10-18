@@ -7,6 +7,7 @@ import {
   Comic,
   ComicId,
   ReadingProgress,
+  currentComicReadingProgress,
 } from './ComicModels'
 import { AppStrings } from '../i18n/AppStrings'
 import { SourceReadHistoryEntry } from './SourceReaderSession'
@@ -359,6 +360,10 @@ export abstract class ReaderSessionStore {
   abstract listSourceHistory(): SourceReadHistoryEntry[]
   /** Writes any queued update before the Reader route releases its session. */
   abstract flush(): void
+
+  getComicProgress(comic: Comic): ReadingProgress | undefined {
+    return currentComicReadingProgress(comic, this.getProgress(comic.id))
+  }
 
   getChapterProgress(comicId: ComicId, chapterId: ChapterId): ReadingProgress | undefined {
     return this.chapterStates.get(chapterStateKey(comicId, chapterId))?.position

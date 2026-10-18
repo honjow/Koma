@@ -1061,8 +1061,14 @@ export struct MangaDetailPage {
     return (this.earliestNumberedChapter() ?? this.oldestDatedChapter() ?? this.chapters[0]).id
   }
 
+  private currentReadingProgress(): ReadingProgress | undefined {
+    const comic = this.libraryStore?.getComic(this.currentComicId())
+    return comic === undefined ? this.readerSessionStore.getProgress(this.currentComicId()) :
+      this.readerSessionStore.getComicProgress(comic)
+  }
+
   private progressChapterId(): string | undefined {
-    const progress = this.readerSessionStore.getProgress(this.currentComicId())
+    const progress = this.currentReadingProgress()
     if (progress === undefined || progress.chapterId.trim().length === 0) {
       return undefined
     }
@@ -1115,7 +1121,7 @@ export struct MangaDetailPage {
     if (bestIndex < 0 || bestChapterId.length === 0) {
       return undefined
     }
-    const currentProgress = this.readerSessionStore.getProgress(this.currentComicId())
+    const currentProgress = this.currentReadingProgress()
     if (currentProgress !== undefined) {
       const currentIndex = orderedChapterIds.indexOf(currentProgress.chapterId)
       if (currentIndex >= 0 && bestIndex < currentIndex) {
@@ -1745,7 +1751,7 @@ export struct MangaDetailPage {
     if (this.trackerSyncBusy) {
       return
     }
-    const progress = this.readerSessionStore.getProgress(this.currentComicId())
+    const progress = this.currentReadingProgress()
     if (progress === undefined) {
       this.showToast(s('manga_detail_tracker_sync_no_progress'))
       return
