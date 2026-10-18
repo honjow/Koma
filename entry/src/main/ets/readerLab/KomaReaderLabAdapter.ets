@@ -64,7 +64,7 @@ export class KomaReaderLabAdapter implements ReaderCatalog, ReaderAssetProvider,
     const payload = new AppFilesLibraryStorePersistenceAdapter(filesDir).load()
     if (payload !== undefined) hydrateLibraryStoreFromJson(this.library, payload)
     configureReaderOfflineDownloads(filesDir)
-    if (filesDir.length > 0) configureReaderRemoteImageCache(`${filesDir}/reader-image-cache`)
+    if (cacheDir.length > 0) configureReaderRemoteImageCache(cacheDir)
   }
 
   initialKey(work: string, unit: string): ReaderUnitKey {

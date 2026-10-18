@@ -1837,7 +1837,7 @@ export struct ReaderPage {
       const context = getContext(this) as common.UIAbilityContext
       this.filesDir = context.filesDir ?? ''
       if (this.filesDir.length > 0) {
-        configureReaderRemoteImageCache(`${this.filesDir}/reader-image-cache`)
+        configureReaderRemoteImageCache(context.cacheDir)
         configureReaderOfflineDownloads(this.filesDir)
       }
       this.preferencesStore = new ReaderPreferencesStore(context)
