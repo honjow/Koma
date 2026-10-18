@@ -331,11 +331,15 @@ function readPickedBackupText(uri: string): string {
   }
 }
 
-function writeText(path: string, payload: string): void {
+function writePickedBackupText(path: string, payload: string): void {
   let file: fs.File | undefined = undefined
   try {
     file = fs.openSync(path, fs.OpenMode.WRITE_ONLY | fs.OpenMode.CREATE | fs.OpenMode.TRUNC)
-    fs.writeSync(file.fd, payload, { encoding: 'utf-8' })
+    const written = fs.writeSync(file.fd, payload, { encoding: 'utf-8' })
+    if (written !== buffer.byteLength(payload, 'utf-8')) {
+      throw new Error('backup_file_write_incomplete')
+    }
+    fs.fsyncSync(file.fd)
   } finally {
     if (file !== undefined) {
       fs.closeSync(file)
@@ -1002,7 +1006,11 @@ export class BackupService {
   private async buildBackupDocument(schemaVersion: number): Promise<KomaBackupDocument> {
     return BackupRestoreActivity.runWrite(async (): Promise<KomaBackupDocument> => {
       const contentPreferences = await this.loadContentPreferences()
-      appReaderSessionStore(this.context.filesDir).flush()
+      if (appReaderSessionStore(this.context.filesDir).flush() === false) {
+        throw new Error('reader_progress_save_failed')
+      }
+      const libraryStore = readTextIfExists(this.libraryPath(), emptyLibraryStorePayload())
+      assertValidLibraryStoreJson(libraryStore)
       const document: KomaBackupDocument = {
         schemaVersion,
         exportedAt: Date.now(),
@@ -1010,7 +1018,7 @@ export class BackupService {
           state: BACKUP_ENCRYPTION_STATE,
           algorithm: 'none',
         },
-        libraryStore: readTextIfExists(this.libraryPath(), emptyLibraryStorePayload()),
+        libraryStore,
         readingProgress: readTextIfExists(this.readerProgressPath(), emptyReaderProgressPayload()),
         remoteServers: await this.exportRemoteServers(),
         sourcePackages: exportInstalledSourcePackages(),
@@ -1061,7 +1069,7 @@ export class BackupService {
       }
       const sessionStore = appReaderSessionStore(this.context.filesDir)
       // Include the user's already pending progress in the original state.
-      sessionStore.flush()
+      if (sessionStore.flush() === false) throw new Error('reader_progress_save_failed')
       checkpoint = await BackupRestoreCheckpoint.prepare(this.context)
       writeAppTextFile(this.libraryPath(), document.libraryStore)
       writeAppTextFile(this.readerProgressPath(), document.readingProgress)
@@ -1137,9 +1145,12 @@ export class BackupService {
     if (typeof document.libraryStore !== 'string' || typeof document.readingProgress !== 'string') {
       throw new Error('Invalid backup payload')
     }
+    assertValidLibraryStoreJson(document.libraryStore)
     const libraryStore = asJsonObject(JSON.parse(document.libraryStore) as Object, 'library')
     const readingProgress = asJsonObject(JSON.parse(document.readingProgress) as Object, 'progress')
-    const currentLibraryStore = asJsonObject(JSON.parse(readTextIfExists(this.libraryPath(), emptyLibraryStorePayload())) as Object, 'current library')
+    const currentLibraryPayload = readTextIfExists(this.libraryPath(), emptyLibraryStorePayload())
+    assertValidLibraryStoreJson(currentLibraryPayload)
+    const currentLibraryStore = asJsonObject(JSON.parse(currentLibraryPayload) as Object, 'current library')
     const currentReadingProgress = asJsonObject(JSON.parse(readTextIfExists(this.readerProgressPath(), emptyReaderProgressPayload())) as Object, 'current progress')
     const backupComicIds = stringFieldSet(libraryStore, 'comics', 'id')
     const backupProgressComicIds = stringFieldSet(readingProgress, 'progress', 'comicId')
@@ -1220,7 +1231,7 @@ export class BackupService {
       console.info('[Backup] step=export_cancel')
       return undefined
     }
-    writeText(result[0], payload)
+    writePickedBackupText(result[0], payload)
     console.info('[Backup] step=export_save')
     return result[0]
   }
@@ -1287,7 +1298,7 @@ export class BackupService {
       console.info('[Backup] step=export_encrypted_cancel')
       return undefined
     }
-    writeText(result[0], payload)
+    writePickedBackupText(result[0], payload)
     console.info('[Backup] step=export_encrypted_save')
     return result[0]
   }
