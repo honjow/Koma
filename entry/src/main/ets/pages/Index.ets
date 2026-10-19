@@ -309,7 +309,8 @@ struct Index {
       return requestedChapterId
     }
     const progress = this.readerSessionStore.getProgress(comic.id)
-    if (progress !== undefined && comic.chapters.some((chapter: Chapter): boolean => chapter.id === progress.chapterId)) {
+    if (progress !== undefined && (comic.chapters.some((chapter: Chapter): boolean => chapter.id === progress.chapterId) ||
+      (comic.sourceRuntimeId !== undefined && comic.sourceRuntimeId.trim().length > 0))) {
       return progress.chapterId
     }
     const firstChapter = sortedReaderChapters(comic.chapters)[0]
@@ -662,13 +663,47 @@ struct Index {
   ): Promise<void> {
     this.readerOpenIntent = intent
     this.readerOpenAlign = intent === 'end' ? 'end' : 'start'
-    this.activeSourceReaderRequest = undefined
-    const comic = this.libraryStore.getComic(comicId)
+    let comic = this.libraryStore.getComic(comicId)
     const targetChapterId = comic === undefined ? chapterId : this.readerChapterIdForOpen(comic, chapterId)
-    const readerDetailVisible = this.isReaderDetailRouteVisible()
-    const shouldPresentReader = !this.readerOpen || this.readerClosing
     const openEpoch = this.readerOpenEpoch + 1
     this.readerOpenEpoch = openEpoch
+    if (comic !== undefined && targetChapterId !== undefined &&
+      comic.sourceRuntimeId !== undefined && comic.sourceRuntimeId.trim().length > 0 &&
+      !comic.chapters.some((chapter: Chapter): boolean => chapter.id === targetChapterId)) {
+      const originPaths = this.appPathStack.getAllPathName().join('|')
+      const originTab = this.selectedTab
+      const isCurrent = (): boolean => openEpoch === this.readerOpenEpoch &&
+        originPaths === this.appPathStack.getAllPathName().join('|') && originTab === this.selectedTab
+      this.showToast(AppStrings.get('manga_detail_loading_source'))
+      try {
+        const restored = await new SourceChapterPageHydrator(
+          this.libraryStore, this.sourceRegistry, this.ensureLibraryPersistenceService(),
+          () => { this.refreshLibrarySnapshot() },
+        ).ensureChapterDescriptor(comicId, targetChapterId, isCurrent)
+        comic = this.libraryStore.getComic(comicId)
+        if (!isCurrent()) {
+          return
+        }
+        if (!restored || comic === undefined || !await this.ensureReaderSourceChapterPages(comic, targetChapterId)) {
+          if (isCurrent()) {
+            this.showToast(AppStrings.get('manga_detail_load_source_chapters_failed'))
+          }
+          return
+        }
+        if (!isCurrent()) {
+          return
+        }
+        comic = this.libraryStore.getComic(comicId)
+      } catch (_error) {
+        if (isCurrent()) {
+          this.showToast(AppStrings.get('manga_detail_load_source_chapters_failed'))
+        }
+        return
+      }
+    }
+    this.activeSourceReaderRequest = undefined
+    const readerDetailVisible = this.isReaderDetailRouteVisible()
+    const shouldPresentReader = !this.readerOpen || this.readerClosing
     this.readerChromeVisible = false
     this.readerSessionLoading = comic !== undefined && this.readerNeedsAsyncPreparation(comic, targetChapterId)
     this.readerSessionConfig = comic === undefined

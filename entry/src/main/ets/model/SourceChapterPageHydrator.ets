@@ -21,6 +21,7 @@ import {
   appSourceSettingsStore,
 } from '../sourceRuntime/SourceSettingsStore'
 import { normalizeSourceImageUrl } from './SourceTextNormalizer'
+import { resolveSourceChapterForResume } from './SourceChapterListResolver'
 
 interface SourceOperationDataPayload {
   items?: Record<string, Object>[]
@@ -309,6 +310,70 @@ export class SourceChapterPageHydrator {
     this.sourceRegistry = sourceRegistry
     this.libraryPersistenceService = libraryPersistenceService
     this.onLibraryChanged = onLibraryChanged
+  }
+
+  async ensureChapterDescriptor(
+    comicId: string,
+    chapterId: string,
+    isCurrent: () => boolean,
+  ): Promise<boolean> {
+    const comic = this.libraryStore.getComic(comicId)
+    if (comic === undefined) {
+      return false
+    }
+    if (comic.chapters.some((chapter: Chapter): boolean => chapter.id === chapterId)) {
+      return true
+    }
+    const sourceId = comic.sourceRuntimeId?.trim()
+    if (sourceId === undefined || sourceId.length === 0) {
+      return false
+    }
+    const mangaId = sourceMangaIdFromComic(comic, sourceId)
+    const lookup = this.sourceRegistry.lookup(sourceId)
+    if (mangaId === undefined || !lookup.ok || lookup.entry === undefined ||
+      !sourceRuntimeEntryEnabled(lookup.entry)) {
+      return false
+    }
+    const descriptor = await resolveSourceChapterForResume(lookup.entry, mangaId, chapterId, comic.sourcePath, isCurrent)
+    const latest = this.libraryStore.getComic(comicId)
+    if (descriptor === undefined || !isCurrent() || latest === undefined ||
+      !sameComicIdentity(comic, latest) || latest.sourceRuntimeId !== sourceId || sourceMangaIdFromComic(latest, sourceId) !== mangaId) {
+      return false
+    }
+    if (latest.chapters.some((chapter: Chapter): boolean => chapter.id === chapterId)) {
+      return true
+    }
+    const now = Date.now()
+    const chapter: Chapter = {
+      id: chapterId,
+      comicId,
+      title: descriptor.title,
+      index: latest.chapters.length,
+      chapterNumber: descriptor.chapterNumber,
+      volumeNumber: descriptor.volumeNumber,
+      readingGroup: descriptor.readingGroup,
+      continuationEligible: descriptor.continuationEligible,
+      scanlator: descriptor.scanlator,
+      language: descriptor.language,
+      dateUpload: descriptor.dateUpload,
+      sourcePath: `${latest.sourcePath}#${chapterId}`,
+      sortKey: `${descriptor.chapterNumber ?? latest.chapters.length}`,
+      pages: [],
+      pageCount: 0,
+      createdAt: now,
+      updatedAt: now,
+    }
+    const updated = JSON.parse(JSON.stringify(latest)) as Comic
+    updated.chapters = updated.chapters.concat([chapter])
+    updated.chapterCount = updated.chapters.length
+    updated.updatedAt = now
+    if (this.libraryPersistenceService === undefined) {
+      this.libraryStore.upsertComic(updated)
+    } else {
+      upsertComicAndPersistLibraryStore(this.libraryStore, this.libraryPersistenceService, updated)
+    }
+    this.onLibraryChanged?.()
+    return true
   }
 
   async ensureChapterPages(

@@ -37,6 +37,7 @@ interface SourceChapterArgs {
   mangaId: string
   mangaUrl?: string
   page: SourceChapterPageArgs
+  chapterId?: string
 }
 
 interface SourceChapterHostHints {
@@ -72,6 +73,28 @@ export async function resolveSourceChapterList(
   mangaUrl?: string,
   isCurrent?: () => boolean,
 ): Promise<SourceChapterListResult> {
+  return fetchSourceChapterList(entry, mangaId, undefined, mangaUrl, isCurrent)
+}
+
+/** Exact-ID recovery never exposes its partial response as a full catalog. */
+export async function resolveSourceChapterForResume(
+  entry: SourceRuntimeRegistryEntry,
+  mangaId: string,
+  chapterId: string,
+  mangaUrl?: string,
+  isCurrent?: () => boolean,
+): Promise<MangaChapterItem | undefined> {
+  const result = await fetchSourceChapterList(entry, mangaId, chapterId, mangaUrl, isCurrent)
+  return result.chapters.find((chapter: MangaChapterItem): boolean => chapter.id === chapterId)
+}
+
+async function fetchSourceChapterList(
+  entry: SourceRuntimeRegistryEntry,
+  mangaId: string,
+  chapterId?: string,
+  mangaUrl?: string,
+  isCurrent?: () => boolean,
+): Promise<SourceChapterListResult> {
   const chapters: MangaChapterItem[] = []
   let cursor: string | null = null
   const requestedCursors: Set<string> = new Set()
@@ -91,6 +114,9 @@ export async function resolveSourceChapterList(
       settings,
       hostHints: { network: true },
     }
+    if (chapterId !== undefined) {
+      request.args.chapterId = chapterId
+    }
     const wasmBytes = new Uint8Array(entry.wasmBytes.byteLength)
     wasmBytes.set(entry.wasmBytes)
     const responseJson = await taskpool.execute(
@@ -107,6 +133,12 @@ export async function resolveSourceChapterList(
     }
     const rows = response.data?.items ?? response.data?.chapters ?? []
     rows.forEach((item: Record<string, Object>): void => { chapters.push(parseMangaChapterFromSourceItem(item)) })
+    if (chapterId !== undefined) {
+      const matched = chapters.find((chapter: MangaChapterItem): boolean => chapter.id === chapterId)
+      if (matched !== undefined) {
+        return { chapters: [matched], resolved: false }
+      }
+    }
     const rawCursor = response.data?.page?.nextCursor ?? response.data?.page?.next_cursor
     const nextCursor = rawCursor === null || rawCursor === undefined || rawCursor.trim().length === 0
       ? undefined : rawCursor
