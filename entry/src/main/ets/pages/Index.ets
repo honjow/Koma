@@ -79,6 +79,7 @@ import {
   ComicId,
   ComicSourceKind,
   Page,
+  ReadingProgress,
   withComicAddedCategoryId,
   withComicCategoryIds,
   withComicRemovedCategoryId,
@@ -141,6 +142,7 @@ import { connectLanguageState, LanguageState } from '../state/LanguageState'
 import { connectLayoutSafeArea, LayoutSafeAreaState } from '../state/LayoutSafeAreaState'
 import { BackupService, BackupAutomaticRunResult } from '../model/BackupService'
 import { TrackerPendingProgressDrainSummary, TrackerProgressSyncService } from '../model/TrackerProgressSyncService'
+import { ReaderTrackerProgressCoordinator } from '../model/TrackerReadingProgress'
 import { TRACKER_PROVIDER_CONFIGS, TrackerProviderConfig, TrackerProviderId } from '../model/TrackerModels'
 import { SourceBrowseRouteChromeState, SourceSearchRouteChromeState } from '../state/SourceRouteChromeState'
 import { SearchRouteChromeState } from '../state/SearchRouteChromeState'
@@ -242,6 +244,7 @@ struct Index {
   private readerOpenAlign: 'start' | 'end' = 'start'
   /** Present only while Reader was launched from an un-shelved source item. */
   private activeSourceReaderRequest?: SourceReaderSessionRequest
+  private readerTrackerProgress?: ReaderTrackerProgressCoordinator
 
   @Monitor('layoutSafeArea.keyboardHeight')
   private updateRootTabBarForKeyboard(): void {
@@ -666,6 +669,7 @@ struct Index {
       this.appPathStack.pop(true)
     }
     if (shouldPresentReader) {
+      if (this.readerSessionPersistenceReady) this.readerTrackerCoordinator().beginReading()
       this.readerClosing = false
       this.readerRouteVisible = false
       this.readerOpen = true
@@ -711,6 +715,7 @@ struct Index {
       this.appPathStack.pop(true)
     }
     if (shouldPresentReader) {
+      if (this.readerSessionPersistenceReady) this.readerTrackerCoordinator().beginReading()
       this.readerClosing = false
       this.readerRouteVisible = false
       this.readerOpen = true
@@ -907,7 +912,8 @@ struct Index {
     // ReaderPage calls this callback after it persists its current page. Keep
     // the explicit flush here as the boundary before publishing the snapshot
     // to the shelf, including future Reader close implementations.
-    this.readerSessionStore.flush()
+    const committed = this.readerSessionPersistenceReady && this.readerSessionStore.flush()
+    this.readerTrackerProgress?.close(committed)
     this.readerProgressRevision += 1
     this.readerClosing = true
     this.readerRouteVisible = false
@@ -955,6 +961,32 @@ struct Index {
     return this.readerSessionStore.restorePageIndex(config)
   }
 
+  private readerTrackerCoordinator(): ReaderTrackerProgressCoordinator {
+    if (this.readerTrackerProgress === undefined) {
+      const context = this.getUIContext().getHostContext() as common.UIAbilityContext
+      this.readerTrackerProgress = new ReaderTrackerProgressCoordinator(this.readerSessionStore,
+        new TrackerProgressSyncService(context))
+    }
+    return this.readerTrackerProgress
+  }
+
+
+  private observeReaderTrackerProgress(progress: ReadingProgress): void {
+    if (!this.readerOpen || !this.readerSessionPersistenceReady ||
+      progress.comicId !== this.readerSessionConfig.comicId || progress.chapterId !== this.readerSessionConfig.chapterId) return
+    const source = this.activeSourceReaderRequest
+    const comic = this.libraryStore.getComic(progress.comicId)
+    const chapter = comic?.chapters.find((item: Chapter): boolean => item.id === progress.chapterId)
+    const sourceChapter = source?.comicId === progress.comicId ? source.chapters?.find((item: ReaderChapterDescriptor): boolean =>
+      item.id === progress.chapterId) : undefined
+    const localNumber = comic !== undefined && chapter !== undefined &&
+      (comic.sourceKind === ComicSourceKind.LOCAL_ARCHIVE || comic.sourceKind === ComicSourceKind.LOCAL_FOLDER)
+      ? chapter.index + 1 : undefined
+    this.readerTrackerCoordinator().observe(progress, this.readerSessionConfig.chapterIds,
+      sourceChapter?.chapterNumber ?? chapter?.chapterNumber ?? localNumber)
+  }
+
+
   private persistReaderLabObserved(position: ReaderObservedPosition,
     column: 'odd_left' | 'even_left'): void {
     if (!this.readerSessionPersistenceReady || position.anchor.unit.scope !== 'koma-local') return
@@ -963,7 +995,7 @@ struct Index {
     if (config.chapterId !== position.anchor.unit.unit || config.totalPages !== position.pageCount ||
       position.anchor.sourceIndexHint < 0 || position.anchor.sourceIndexHint >= config.totalPages) return
     const index = position.anchor.sourceIndexHint
-    this.readerSessionStore.saveProgress({
+    const progress: ReadingProgress = {
       comicId: config.comicId,
       chapterId: config.chapterId,
       pageId: getReaderSessionPageId(config, index),
@@ -973,11 +1005,14 @@ struct Index {
       completed: position.terminalSourceDisplayed,
       updatedAt: Date.now(),
       columnMode: column,
-    })
+    }
+    this.readerSessionStore.saveProgress(progress)
+    if (this.readerOpen) this.observeReaderTrackerProgress(progress)
     this.readerProgressRevision += 1
   }
 
   private onBackupRestored(): void {
+    this.readerTrackerProgress?.resetAfterRestore()
     this.ensureLibraryPersistenceService()?.restore()
     this.libraryPreferencesRevision += 1
     this.applicationSettingsRestoreRevision += 1
@@ -1646,6 +1681,9 @@ struct Index {
         },
         onWebtoonModeChange: (value: boolean) => {
           this.readerWebtoonMode = value
+        },
+        onObservedProgress: (progress: ReadingProgress): void => {
+          this.observeReaderTrackerProgress(progress)
         },
         onCloseReader: () => {
           this.popReaderRouteAfterSystemBarRestore()

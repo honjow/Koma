@@ -40,7 +40,7 @@ import {
   createReaderPageRenderSources,
   fetchAndCacheReaderRemoteSource,
 } from '../model/ReaderPageSourceAdapter'
-import { ReadingDirection } from '../model/ComicModels'
+import { ReadingDirection, ReadingProgress } from '../model/ComicModels'
 import { CoverPixelMapLease, CoverPixelMapMemoryCache } from '../model/CoverPixelMapMemoryCache'
 import { ReaderTapZoneRegion, readerTapZoneRegions, resolveReaderTapZoneAction } from '../model/ReaderTapZoneGeometry'
 import { ReaderPageIndexDataSource } from '../model/ReaderPageIndexDataSource'
@@ -1656,6 +1656,7 @@ export struct ReaderPage {
   @Event onPageIndexChange: (value: number) => void = (_value: number) => {}
   @Event onChromeVisibleChange: (value: boolean) => void = (_value: boolean) => {}
   @Event onWebtoonModeChange: (value: boolean) => void = (_value: boolean) => {}
+  @Event onObservedProgress: (progress: ReadingProgress) => void = () => {}
   @Event onCloseReader: () => void = () => {}
   @Event onOpenMangaDetail: () => void = () => {}
   @Event onOpenChapter: (chapterId: string, intent?: ReaderChapterOpenIntent) => void =
@@ -2766,7 +2767,7 @@ export struct ReaderPage {
     // A source failure placeholder has no real reading position.
     if (this.sessionConfig.pageUris.includes('source-placeholder://chapter')) return
     const total = this.sessionConfig.totalPages
-    this.sessionStore.saveProgress({
+    const progress: ReadingProgress = {
       comicId: this.sessionConfig.comicId,
       chapterId: this.sessionConfig.chapterId,
       pageId: getReaderSessionPageId(this.sessionConfig, index),
@@ -2776,7 +2777,9 @@ export struct ReaderPage {
       completed: this.isLastReadingUnitVisibleAndLoaded(index),
       updatedAt: Date.now(),
       columnMode: this.preferences.columnMode,
-    })
+    }
+    this.sessionStore.saveProgress(progress)
+    this.onObservedProgress(progress)
     this.prefetchLookahead(index)
   }
 
