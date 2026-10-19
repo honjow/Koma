@@ -10,6 +10,7 @@ import {
   ComicSourceKind,
   ReadingProgress,
   currentComicReadingProgress,
+  readingProgressPageIndex,
 } from './ComicModels'
 import { AppStrings } from '../i18n/AppStrings'
 import { SourceReadHistoryEntry } from './SourceReaderSession'
@@ -482,16 +483,7 @@ export abstract class ReaderSessionStore {
     if (progress === undefined) {
       return 0
     }
-    if (config.totalPages <= 0) {
-      return 0
-    }
-    if (progress.pageIndex < 0) {
-      return 0
-    }
-    if (progress.pageIndex >= config.totalPages) {
-      return config.totalPages - 1
-    }
-    return Math.floor(progress.pageIndex)
+    return readingProgressPageIndex(progress, config.totalPages, config.pageIds)
   }
 
   restoreColumnMode(

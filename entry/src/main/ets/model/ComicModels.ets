@@ -329,12 +329,48 @@ export function updateReadingProgress(
   }
 }
 
+export function readingProgressPageIndex(
+  progress: ReadingProgress,
+  totalPages: number,
+  pageIds?: PageId[],
+): number {
+  const fallback = clampPageIndex(progress.pageIndex, totalPages)
+  if (progress.pageId === undefined || pageIds === undefined || pageIds[fallback] === progress.pageId) {
+    return fallback
+  }
+  const pageIndex = pageIds.indexOf(progress.pageId)
+  return pageIndex >= 0 && pageIndex < totalPages ? pageIndex : fallback
+}
+
 export function currentComicReadingProgress(comic: Comic, progress?: ReadingProgress): ReadingProgress | undefined {
   if (comic.localImportOrigin !== undefined && progress !== undefined &&
     !comic.chapters.some((chapter: Chapter): boolean => chapter.id === progress.chapterId)) {
     return undefined
   }
-  return progress
+  if (progress === undefined || comic.sourceKind !== ComicSourceKind.LOCAL_FOLDER) {
+    return progress
+  }
+  const chapter = comic.chapters.find((item: Chapter): boolean => item.id === progress.chapterId)
+  if (chapter === undefined) {
+    return progress
+  }
+  const totalPages = chapter.pages.length
+  if (totalPages === progress.totalPages &&
+    (progress.pageId === undefined || chapter.pages[progress.pageIndex]?.id === progress.pageId)) {
+    return progress
+  }
+  const pageIndex = readingProgressPageIndex(progress, totalPages, chapter.pages.map((page: Page): PageId => page.id))
+  return {
+    comicId: progress.comicId,
+    chapterId: progress.chapterId,
+    pageId: progress.pageId,
+    pageIndex,
+    totalPages,
+    progressRatio: calculateProgressRatio(pageIndex, totalPages),
+    completed: progress.completed,
+    updatedAt: progress.updatedAt,
+    columnMode: progress.columnMode,
+  }
 }
 
 export function comicToLibraryItem(comic: Comic, progress?: ReadingProgress): LibraryItem {
