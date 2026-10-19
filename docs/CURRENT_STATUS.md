@@ -8,10 +8,10 @@
 - 源设置计数归类纠正：原8bd/716f并未包含saveSettings直接重读及save/clear catch；完整后继来自`3b08b47b`。Root亲审原Git diff及现存`app-worker-production-20-wip-current-a97ba08a-owner-dispositions.json`，此组已属“production可见叶”HOLD，不再另外计为第14组。原page-probe不覆盖save/clear，原Native只验证正常路径；未找到失败toast原人类批准，不单行拼接或回灌。已具名保留候选仍App6组/Kit7组，其余原输入尚未全裁定。
 - 本轮已实际退出六个纯派生报告父：source-build-failure-root、komiic014-sdk-readonly-followup、sixmh010-fetch-error-readonly、baozi-home-happy-listings-readonly、source-settings-static-audit、ccc-existing-dependency-readonly（均为原20261016/18具名路径）。26个常规文件；原source完整档7个相关成员由Root读回核同，其余未档叶逐内容确认仅Git文案/短log/静态投影。删除前完整精确叶集合、当前hash及无打开FD核回，外部Sixmh Native、Baozi原通道保持；CCC当时空父后来仅按空目录退出；零新增归档/报告/脚本。不把本批清理冒整恢复完成。
 
-- 本轮收尾实数：已退出110个顶层旧目录树，删除96份已核清重复文件；其中90个为空壳，共998层空目录，仅以rmdir退出。没有新增源码副本、工作树、分支、归档、脚本或报告。原具名来源/真实HTTP与Native原件、未处置候选和服务数据不因本批删除而采用或关闭。
+- 本轮收尾实数：已退出368个顶层旧目录树，删除96份已核清重复文件；其中348个为空壳，共9349层空目录，仅以rmdir退出。没有新增源码副本、工作树、分支、归档、脚本或报告。原具名来源/真实HTTP与Native原件、未处置候选和服务数据不因本批删除而采用或关闭。
 - Kit九条旧stash名字已原子清理；Root从现存 `kit-f769-object-verify-r38-20261019.git`独立读取其完整406对象（37commit/229tree/140blob，含index父与未跟踪第三父），逐raw SHA和GitOID核同r35 manifest，确认无alternates后才删除refs/stash；所有原代码仍在该已有载体，不称已归并或已获批准。本轮未新增reflog归档。当前三主仓均无stash、各一工作树/一本地分支。
 - 原89正文绑定中唯一missing的SourceMangaGrid候选也已找到精确现存载体：审计区`app-worker-exact-record-recovered-171fbe7bfd9bc8a3-koma-source-grid-candidate-20261015.py`的scaffold字面量，3506B/SHA256`1b519ed0430df52f91d031f264214e5a5d43e1af1ebcef32a24e9fe5f9065ded`/blob`11bcaaf706d72a513eea0c5eed0107ef0bc67085`均核同；仅ast读取，未执行脚本、未重建缺失路径、未覆盖当前后继。
-- 尚未完成：App6/Kit7组候选的最终采用/取代及其余原输入语义，真实证据父与MDX未知输入仍保留；13是已具名分组，不能冒全部剩余总数。普通产品开发、构建与设备未在本计时窗执行。当前独立系统栏任务WIP按其原owner保留。
+- 尚未完成：App6/Kit7组候选的最终采用/取代及其余原输入语义，真实证据父与MDX未知输入仍保留；13是已具名分组，不能冒全部剩余总数。普通产品开发、构建与设备未在本计时窗执行。18:10:49 UTC实读当前独立系统栏任务WIP为Koma1文件、sibling Kit7文件（含其正在增加的测试），按原owner保留。本轮起点917个/tmp相关顶层目录现549个；原登记证据父当前197个仍存在，目录数不换算未合功能数。
 
 ## 上一轮30分钟记录（保留当时事实与后续纠正）
 
@@ -393,14 +393,14 @@
 {
   "schemaVersion": 1,
   "title": "Koma 目录与分支成果恢复审计",
-  "state": "三份旧修改及网格正文已找回 · 110旧目录退出 · 未决候选保留",
+  "state": "三份旧修改及网格正文已找回 · 368旧目录退出 · 未决候选保留",
   "outcome": "本页区分已实际退出的旧开发副本、仍保留的服务与原证据、尚未合入的候选；不把归档或源码一致冒成产品验收。",
-  "updatedAt": "2026-10-19T18:08:21Z",
+  "updatedAt": "2026-10-19T18:11:50Z",
   "target": "唯一正式 /Users/honjow/git/Koma · 产品新增与设备仍暂停",
   "activeId": "RECOVERY",
   "activity": {
     "title": "第二轮30分钟恢复清理",
-    "detail": "110旧目录树/96重复文件已退出；九条旧stash名已清，完整406对象仍在原r38载体；无新归档/脚本/报告。",
+    "detail": "368旧目录树/96重复文件已退出；九条旧stash名已清，完整406对象仍在原r38载体；无新归档/脚本/报告。",
     "startedAt": "2026-10-19T17:44:16+00:00"
   },
   "nextAction": "继续核清未裁定原输入；App6/Kit7候选保留完整原件，不强行回灌。独立系统栏任务由其当前owner负责。",
@@ -438,7 +438,7 @@
       "hap": "本轮未构建/安装；当前独立系统栏任务源码仍为WIP。原三份初始正文已核回，被拒候选不重新采用。"
     }
   ],
-  "scope": "本轮恢复清理：原三份WIP和缺失网格正文已在现有原件逐字核回；110旧目录树及9旧stash名退出。各正式仓一工作树/一本地分支且无stash；独立系统栏WIP保留。没有新增源码副本/归档/脚本/报告、产品构建/设备验收或远端同步。",
+  "scope": "本轮恢复清理：原三份WIP和缺失网格正文已在现有原件逐字核回；368旧目录树及9旧stash名退出。各正式仓一工作树/一本地分支且无stash；独立系统栏WIP保留。没有新增源码副本/归档/脚本/报告、产品构建/设备验收或远端同步。",
   "items": [
     {
       "id": "APP05",
