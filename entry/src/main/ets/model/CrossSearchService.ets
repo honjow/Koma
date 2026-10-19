@@ -267,17 +267,28 @@ export class CrossSearchService {
     return sourceKind === 'komga' || sourceKind === 'kavita' || sourceKind === 'opds' || sourceKind === 'webdav'
   }
 
-  async openWebDavReader(item: CrossSearchResultItem): Promise<boolean> {
+  async openWebDavReader(item: CrossSearchResultItem, ownsOpen: () => boolean): Promise<boolean> {
     if (item.sourceKind !== 'webdav') {
       return false
     }
     const record = await this.remoteStore.loadWebDav()
+    if (!ownsOpen()) return false
     if (record === undefined) {
       throw new Error(AppStrings.get('search_webdav_config_required'))
     }
     const client = this.remoteStore.createWebDavClient(record)
+    if (record.server.id !== item.remoteServerId || client.buildUrl([]) !== item.webDavRootUrl) {
+      throw new Error('remote_server_changed')
+    }
     const pathSegments = item.webDavPathSegments ?? []
     const resources = await client.propfind(pathSegments, 1)
+    if (!ownsOpen()) return false
+    const current = await this.remoteStore.loadWebDav()
+    if (!ownsOpen()) return false
+    if (current === undefined || current.server.id !== item.remoteServerId ||
+      this.remoteStore.createWebDavClient(current).buildUrl([]) !== item.webDavRootUrl) {
+      throw new Error('remote_server_changed')
+    }
     const images = this.sortDavResources(resources.filter((resource: DavResource): boolean => {
       if (item.webDavIsCollection === true) {
         return !resource.isCollection && resource.candidateKind === DavComicCandidateKind.IMAGE_FILE

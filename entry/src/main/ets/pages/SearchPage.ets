@@ -59,6 +59,7 @@ export struct SearchPage {
   @Local private failedCoverUris: string[] = []
   private searchTimer: number = 0
   private searchSerial: number = 0
+  private resultOpenSerial: number = 0
   private routeEpoch: number = 0
   private routeActive: boolean = false
   private historyMutationEpoch: number = 0
@@ -492,6 +493,12 @@ export struct SearchPage {
   }
 
   private async openResult(item: CrossSearchResultItem): Promise<void> {
+    const routeEpoch = this.routeEpoch
+    const searchSerial = this.searchSerial
+    const openSerial = ++this.resultOpenSerial
+    const ownsOpen = (): boolean => this.ownsRoute(routeEpoch) && this.searchSerial === searchSerial &&
+      this.resultOpenSerial === openSerial
+    if (!ownsOpen()) return
     console.info(`[Search] step=open_result kind=${item.sourceKind}`)
     if (item.sourceKind === 'local' && item.localComicId !== undefined) {
       RouterHelper.pushMangaDetail({ mangaId: item.localComicId })
@@ -532,9 +539,10 @@ export struct SearchPage {
         return
       }
       try {
-        await service.openWebDavReader(item)
-        RouterHelper.pushReader()
+        const opened = await service.openWebDavReader(item, ownsOpen)
+        if (opened && ownsOpen()) RouterHelper.pushReader()
       } catch (error) {
+        if (!ownsOpen()) return
         const e = error as Error
         const diagnostic = safeSearchDiagnostic(e)
         this.feedbackText = diagnostic.userText
