@@ -2050,6 +2050,7 @@ struct Index {
 
             TabContent() {
               BrowsePage({
+                active: this.selectedTab === TabIndex.BROWSE,
                 sourceRegistry: this.sourceRegistry,
                 libraryStore: this.libraryStore,
                 libraryPersistenceService: this.ensureLibraryPersistenceService(),

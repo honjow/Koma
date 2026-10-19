@@ -41,6 +41,8 @@ export struct BrowsePage {
   @Local private opdsConfigured: boolean = false
   @Local private webDavConfigured: boolean = false
   private browseScroller: Scroller = new Scroller()
+  @Param active: boolean = false
+  private availabilityEpoch: number = 0
   @Param sourceRegistry: SourceRuntimeRegistry = appSourceRuntimeRegistry
   @Param libraryStore: LibraryStore = createSeededLibraryStore()
   @Param libraryPersistenceService?: LibraryStorePersistenceService = undefined
@@ -209,7 +211,7 @@ export struct BrowsePage {
           if (index + 1 < this.enabledRuntimeSources().length) {
             ListDivider({ leftMargin: ThemeConstants.SPACE_XL })
           }
-        }, (source: SourceRuntimeRegistryInstalledSourceSummary) => source.sourceId)
+        }, (source: SourceRuntimeRegistryInstalledSourceSummary) => JSON.stringify([source.sourceId, source.version]))
       }
     }
   }
@@ -221,6 +223,17 @@ export struct BrowsePage {
     this.loadRemoteAvailability()
   }
 
+  aboutToDisappear(): void {
+    this.availabilityEpoch += 1
+  }
+
+  @Monitor('active')
+  private onActiveChanged(): void {
+    if (this.active) {
+      void this.loadRemoteAvailability()
+    }
+  }
+
   @Monitor('sourceRuntimeState.revision')
   private refreshInstalledSourceSummaries(): void {
     reloadInstalledSourcePackages(getContext(this) as common.UIAbilityContext)
@@ -228,12 +241,14 @@ export struct BrowsePage {
   }
 
   private async loadRemoteAvailability(reportFailure: boolean = false): Promise<void> {
+    const epoch = ++this.availabilityEpoch
     try {
       const store = new RemoteServerStore(getContext(this) as common.UIAbilityContext)
       const komgaConfigured = await store.loadKomga() !== undefined
       const kavitaConfigured = await store.loadKavita() !== undefined
       const opdsConfigured = await store.loadOpds() !== undefined
       const webDavConfigured = await store.loadWebDav() !== undefined
+      if (epoch !== this.availabilityEpoch) return
       this.komgaConfigured = komgaConfigured
       this.kavitaConfigured = kavitaConfigured
       this.opdsConfigured = opdsConfigured
@@ -244,6 +259,7 @@ export struct BrowsePage {
       console.info(`[WebDAV] step=browse_availability configured=${this.webDavConfigured}`)
     } catch (error) {
       void error
+      if (epoch !== this.availabilityEpoch) return
       if (reportFailure) {
         throw new Error('availability_load_failed')
       }
