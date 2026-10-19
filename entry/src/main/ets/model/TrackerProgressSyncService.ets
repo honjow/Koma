@@ -126,7 +126,7 @@ export class TrackerProgressSyncService {
       if (accessToken === undefined) {
         return this.failedWithPendingQueue('credential_missing', mapping, progress, chapterIds, providerProgress, now)
       }
-      const result = await this.pushProviderProgress(mapping.providerId, accessToken, mapping.providerTitleId, providerProgress, progress.completed)
+      const result = await this.pushProviderProgress(mapping.providerId, accessToken, mapping.providerTitleId, providerProgress)
       if (!result.ok || result.value === undefined) {
         return this.failedWithPendingQueue('provider_failed', mapping, progress, chapterIds, providerProgress, now)
       }
@@ -276,16 +276,15 @@ export class TrackerProgressSyncService {
     accessToken: string,
     providerTitleId: string,
     providerProgress: number,
-    completed: boolean,
   ): Promise<TrackerProviderProgressResult> {
     if (providerId === 'myanimelist') {
       return this.myAnimeListClient === undefined
         ? { ok: false }
-        : this.myAnimeListClient.pushProgress(accessToken, providerTitleId, providerProgress, completed)
+        : this.myAnimeListClient.pushProgress(accessToken, providerTitleId, providerProgress)
     }
     return this.aniListClient === undefined
       ? { ok: false }
-      : this.aniListClient.pushProgress(accessToken, providerTitleId, providerProgress, completed)
+      : this.aniListClient.pushProgress(accessToken, providerTitleId, providerProgress)
   }
 
   private async fetchProviderProgress(

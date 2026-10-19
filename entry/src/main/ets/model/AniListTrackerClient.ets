@@ -333,7 +333,7 @@ export class AniListTrackerClient {
     return this.sendAndParseProgress(request, mediaId)
   }
 
-  async pushProgress(accessToken: string, providerTitleId: string, progress: number, completed: boolean): Promise<AniListTrackerResult<AniListTrackerProgress>> {
+  async pushProgress(accessToken: string, providerTitleId: string, progress: number, completed?: boolean): Promise<AniListTrackerResult<AniListTrackerProgress>> {
     const mediaId = normalizeAniListMediaId(providerTitleId)
     if (mediaId <= 0) {
       return {
@@ -344,7 +344,9 @@ export class AniListTrackerClient {
     const variables: AniListGraphqlVariables = {
       mediaId,
       progress: normalizeAniListTrackerProgress(progress),
-      status: completed ? 'COMPLETED' : 'CURRENT',
+    }
+    if (completed !== undefined) {
+      variables.status = completed ? 'COMPLETED' : 'CURRENT'
     }
     const request = this.buildGraphqlRequest(accessToken, ANILIST_SAVE_PROGRESS_MUTATION, variables)
     return this.sendAndParseSavedProgress(request, mediaId)

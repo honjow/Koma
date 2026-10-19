@@ -14,17 +14,13 @@ assert.match(
   /export function myAnimeListTrackerHeadersToHttpHeaderObject\(headers: MyAnimeListTrackerHeaders\)[\s\S]*"Authorization"[\s\S]*"Accept"[\s\S]*"Content-Type"/,
   'MyAnimeList HTTP adapter must convert typed headers to Harmony request headers',
 )
-assert.match(
-  source,
-  /export class HarmonyMyAnimeListTrackerHttpAdapter implements MyAnimeListTrackerHttpAdapter[\s\S]*http\.createHttp\(\)[\s\S]*method: request\.method === 'GET' \? http\.RequestMethod\.GET : http\.RequestMethod\.PUT[\s\S]*expectDataType: http\.HttpDataType\.STRING[\s\S]*header: myAnimeListTrackerHeadersToHttpHeaderObject\(request\.headers\)[\s\S]*httpRequest\.destroy\(\)/,
-  'MyAnimeList Harmony adapter must dispatch GET/PUT requests and always destroy the request handle',
-)
+// Transport/progress semantics are executed in test_tracker_progress_sync.cjs;
+// source-shape assertions previously required the incorrect PUT/status behavior.
 assert.match(source, /const MYANIMELIST_API_BASE: string = 'https:\/\/api\.myanimelist\.net\/v2'/, 'MyAnimeList client must target the official API v2 base')
 assert.match(source, /MYANIMELIST_PROVIDER_ID: TrackerProviderId = 'myanimelist'/, 'MyAnimeList client must identify the tracker provider id')
 assert.match(source, /fetchProfile\(accessToken: string\)[\s\S]*'\/users\/@me'[\s\S]*fields: 'id,name'/, 'MyAnimeList client must support profile fetch')
 assert.match(source, /searchManga\(accessToken: string, query: string[\s\S]*'\/manga'[\s\S]*q: normalizedQuery[\s\S]*fields: 'id,title,main_picture,media_type,status,alternative_titles'/, 'MyAnimeList client must support manga search mapping')
 assert.match(source, /fetchProgress\(accessToken: string, providerTitleId: string\)[\s\S]*`\/manga\/\$\{mangaId\}`[\s\S]*fields: 'id,title,status,media_type,my_list_status,num_chapters'/, 'MyAnimeList client must support progress pull')
-assert.match(source, /pushProgress\(accessToken: string, providerTitleId: string, progress: number, completed: boolean\)[\s\S]*`\/manga\/\$\{mangaId\}\/my_list_status`[\s\S]*status=\$\{completed \? 'completed' : 'reading'\}[\s\S]*num_chapters_read=\$\{normalizedProgress\}/, 'MyAnimeList client must support progress push')
 
 assert.match(
   source,

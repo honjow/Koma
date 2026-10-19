@@ -10,7 +10,7 @@ export type MyAnimeListTrackerErrorCode =
   'malformed_response' |
   'not_found'
 
-export type MyAnimeListTrackerHttpMethod = 'GET' | 'PUT'
+export type MyAnimeListTrackerHttpMethod = 'GET' | 'PATCH'
 
 export interface MyAnimeListTrackerHeaders {
   authorization?: string
@@ -218,7 +218,8 @@ export class HarmonyMyAnimeListTrackerHttpAdapter implements MyAnimeListTrackerH
     const httpRequest = http.createHttp()
     try {
       const response = await httpRequest.request(request.url, {
-        method: request.method === 'GET' ? http.RequestMethod.GET : http.RequestMethod.PUT,
+        method: request.method === 'GET' ? http.RequestMethod.GET : http.RequestMethod.POST,
+        customMethod: request.method === 'PATCH' ? 'PATCH' : undefined,
         extraData: request.body ?? '',
         expectDataType: http.HttpDataType.STRING,
         usingCache: false,
@@ -259,7 +260,7 @@ export class MyAnimeListTrackerClient {
       authorization: `Bearer ${token}`,
       accept: 'application/json',
     }
-    if (method === 'PUT') {
+    if (method === 'PATCH') {
       headers.contentType = 'application/x-www-form-urlencoded'
     }
     return {
@@ -307,7 +308,7 @@ export class MyAnimeListTrackerClient {
     return this.sendAndParseProgress(request, mangaId)
   }
 
-  async pushProgress(accessToken: string, providerTitleId: string, progress: number, completed: boolean): Promise<MyAnimeListTrackerResult<MyAnimeListTrackerProgress>> {
+  async pushProgress(accessToken: string, providerTitleId: string, progress: number, completed?: boolean): Promise<MyAnimeListTrackerResult<MyAnimeListTrackerProgress>> {
     const mangaId = normalizeMyAnimeListMangaId(providerTitleId)
     if (mangaId <= 0) {
       return {
@@ -316,12 +317,15 @@ export class MyAnimeListTrackerClient {
       }
     }
     const normalizedProgress = normalizeMyAnimeListTrackerProgress(progress)
+    const body = completed === undefined
+      ? `num_chapters_read=${normalizedProgress}`
+      : `status=${completed ? 'completed' : 'reading'}&num_chapters_read=${normalizedProgress}`
     const request = this.buildApiRequest(
       accessToken,
-      'PUT',
+      'PATCH',
       `/manga/${mangaId}/my_list_status`,
       undefined,
-      `status=${completed ? 'completed' : 'reading'}&num_chapters_read=${normalizedProgress}`,
+      body,
     )
     return this.sendAndParseSavedProgress(request, mangaId)
   }
