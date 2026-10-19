@@ -2,6 +2,9 @@
 
 ## 当前：目录与分支成果恢复审计（2026-10-19）
 
+- 原主仓文件夹阅读 WIP 已作范围提交 `6b62491a`：仅 Index 四处已有 span（root helper/单根激活导入、prepareReaderSession 等待授权、LOCAL_FOLDER 准入现有 loading），工作区源码字节未变；实际暂存两个完整方法的八项受控 grant/epoch/close/offline 场景通过。相对旧 index 存在现有加载层时序差异，无新文案、控件或当前构建/设备结论。原 Sep12 Adapter 记录仅作职责来源，不冒当前 Native。证据：`root-folder-reader-readiness-*`、`root-6b62491a-readiness-commit.json`。
+- 被 7f8/a987 失败硬门控取代的旧授权警告 WIP 已核清并移出工作区：Root 亲读原 baseline 的 success/accessStatus 与真实后继，当前 succeeded 只可能 persisted/activated；两完整消费者的14项可达 trace 前后相同。六 working 原件先完整 tar 并逐件字节/模式读回，再应用 `545e8e8a` 精确清理；index 无此旧组、保持不变，其余 tracked/untracked 字节和模式保持。原警告原件及差异保留，不放松授权门控、不新增可见反馈。证据：`root-superseded-folder-warning-*`。当前其余16 tracked WIP/2 untracked、Kit 已采用但有失败反例的组和源旧实体仍继续核实；产品新增与设备操作仍暂停，整体恢复 OPEN。
+
 - 本轮原主仓WIP恢复：App `59a885c7` 仅归回 `scanPickedFolderUri` 原失败catch，stat错误不再伪装 `exists:false` 发布缩减页表，改走既有 `folder_scan_failed`/failed且无scanResult；Root亲核完整picker、Contract、summary、持久化与Index/ImportPage成功准入。实际index本轮before/after方法检查及原20260905三个完整stat/list/正常用例通过，仅补FileUri端口，不变原断言；全部tracked工作字节/模式及3untracked保持。无新文字、样式、权限放宽、构建或Native结论。原逐字人类来源未定位，不冒历史批准。证据：`root-folder-stat-failure-stage-review.json`、`root-59a885c7-*`。
 - 十八旧六图标打包夹具已精确清理：r0/r1/r2共361原文件、595完整tar成员先全部归档逐件核后才首删。Root亲核原采纳Git blobs、f7共同工具差异、受取代的r0新模式/r1白名单、四陈旧素材说明的4209/539后继、腾讯首次失败/不同flags标准WASM与原包成员。外层素材/原包/REPORT/原拒方案保留，未回灌旧图或改当前图标，源主仓7af0及所有refs/worktree/源码字节保持。证据：`six-icon-eighteen-fixtures-cleanup-result.json`及三份完整原审附件。
 - 旧master-integration残壳已清理：三个符号链接及全部私有admin/index/log先完整归档逐member核，13164个App原对象独立pack逐type/rawbytes/SHA/GitOID重读；两个160000外部pin分别在r54独立Kit/Lexbor载体核同。69af→156→1e4原提交闭包仍由保留production继承，69af的CMake单文件当前精确；这不冒所有108职责均已归并。只删 `/private/tmp/koma-master-integration-20261005` 与其私有admin；主仓全部WIP/refs保持。首审计脚本误用仓根CMake路径，在任何归档/删除前停止，按真实 `entry/src/main/cpp/CMakeLists.txt` 修正，原失败保留。证据：`master-integration-residual-{preservation,cleanup-result}.json`。
