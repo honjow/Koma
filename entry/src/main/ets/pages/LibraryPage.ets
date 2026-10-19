@@ -110,6 +110,7 @@ enum LibraryProjectionState {
 
 @ComponentV2
 struct ContinueReadingShelfCard {
+  @Param compactList: boolean = false
   @Param info: ContinueReadingCardViewModel = {
     title: '',
     detail: '',
@@ -140,7 +141,7 @@ struct ContinueReadingShelfCard {
   }
 
   build() {
-    Row({ space: ThemeConstants.SPACE_MD }) {
+    Row({ space: this.compactList ? ThemeConstants.SPACE_SM : ThemeConstants.SPACE_MD }) {
       Stack({ alignContent: Alignment.Center }) {
         SymbolGlyph($r('sys.symbol.book'))
           .fontSize(ThemeConstants.FONT_SIZE_H2)
@@ -192,7 +193,7 @@ struct ContinueReadingShelfCard {
       .alignItems(HorizontalAlign.Start)
     }
     .width('100%')
-    .padding(ThemeConstants.SPACE_LG)
+    .padding(this.compactList ? ThemeConstants.SPACE_MD : ThemeConstants.SPACE_LG)
     .borderRadius(ThemeConstants.RADIUS_CARD)
     .backgroundColor(ThemeConstants.CARD)
     .onClick(() => {
@@ -1117,9 +1118,9 @@ export struct LibraryPage {
       return ThemeConstants.SPACE_XS
     }
     if (this.listDensity === 'comfortable') {
-      return ThemeConstants.SPACE_MD
+      return ThemeConstants.SPACE_SM
     }
-    return ThemeConstants.SPACE_SM
+    return ThemeConstants.SPACE_XS
   }
 
   private libraryListCoverWidth(): number {
@@ -2077,8 +2078,9 @@ export struct LibraryPage {
   }
 
   @Builder
-  private LibraryContinueReadingCard() {
+  private LibraryContinueReadingCard(compactList: boolean = false) {
     ContinueReadingShelfCard({
+      compactList: compactList,
       info: this.continueReading(),
       revision: this.displayedRevision,
       onOpenReader: (comicId: ComicId) => {
@@ -2222,6 +2224,7 @@ export struct LibraryPage {
             subtitle: this.listRowSubtitle(comic),
             trailingText: comic.progressText,
             showChevron: false,
+            prefixActsAsLeading: true,
             isEnabled: !this.selectionMode || this.canSelectComic(comic.id),
             action: () => {
               this.handleComicClick(comic.id)
@@ -2342,8 +2345,8 @@ export struct LibraryPage {
   private LibraryListSurface() {
       SecondaryListScaffold({
         scroller: this.libraryScroller,
-        listSpace: ThemeConstants.SPACE_LG,
-        horizontalPadding: this.libraryHorizontalInset(),
+        listSpace: this.viewMode === 'list' ? ThemeConstants.SPACE_SM : ThemeConstants.SPACE_LG,
+        horizontalPadding: this.viewMode === 'list' ? ThemeConstants.SPACE_MD : this.libraryHorizontalInset(),
         bottomPadding: ThemeConstants.SPACE_XL,
         floatingTabTailPadding: ThemeConstants.FLOATING_TAB_BAR_CLEARANCE,
       }) {
@@ -2354,7 +2357,7 @@ export struct LibraryPage {
         } else if (this.hasLibraryContent()) {
           if (this.hasContinueReading()) {
             ListItem() {
-              this.LibraryContinueReadingCard()
+              this.LibraryContinueReadingCard(this.viewMode === 'list')
             }
           }
 
