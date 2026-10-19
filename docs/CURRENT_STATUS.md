@@ -165,6 +165,17 @@
 
 - Kit原f769数据闭包恢复检查点：原reader-kit现分支提交`8201b4e6`，归回DisplayMap原metadata稳定身份/updatePage及PagedSession两实际生产者/消费者、原resolvePosition与idle/request0构造回声去重，两文件54增11删。Root实读原WIP和真实subscribe/reconcile顺序，核16输入及8原方法全字节保持，保089已恢复资源寿命、窗口/continuous/导航/close/UI/默认。实际当前Map/PagedSession/Session/AutoRead四套104/104通过；无新ArkTS/Native/优化收益或逐帧等价结论。31WIP剩余资源窗口/visual claim/Viewport等明确原消费者仍待审，不以纯helper闲置当恢复；原可见prefix与两删除保持具体OPEN/HOLD。证据：`kit-metadata-recovery-*`及r14逐职责报告。
 
+
+- 本轮原已批准备份呈现恢复检查点：App `dee6bc93` 归回原批准五pane分组、纠正后文件行/More菜单、loading/失败重试保旧结果、Reader条件divider与设置有限摘要行数；连原408预览DTO/已验证envelope算法KDF前置。Root重新读154476/155218/155238/155266/170443实际人类原文、全部原Git span与双port输入输出hash，原16业务方法及Settings十五对/三语各八对WIP保持；实际index原loading/metadata Host通过，无新构建/Native/视觉结论。全局行缩进、source fallback及3f新refresh/乐观时序继续具名HOLD，不把本组当整个备份恢复。证据：`backup-approved-ui-recovery-*`。
+
+- 本地目录身份原完整闭包恢复检查点：App `5bd9f971` 归回acb三生产文件的同root路径身份复用、新origin唯一书章ID与页身份保留；首次导入、rescan-before-summary和无persistence回退全部接齐。Root核原blob/原raw范围与三端消费者、十九对Index原WIP及无关文件；实际index原Host断言通过不同root不alias、同root重选/legacy重扫保持和前插页不撞ID。历史具名人类批准未定位，明确按当前找回有效成果授权审本数据安全修复，不冒旧许可；无当前ArkTS/Native/数据迁移或历史被覆盖书恢复结论。证据：`folder-identity-recovery-*`。
+
+- 又完成八个精确旧源目录清理：漫画社/漫画屋/MyComic/六漫画/MH160/CManhua/快看七owner全部17859物理文件与各自admin完整归档逐member核后删除工作树与七refs；Protectors原detached owner127物理文件和六admin另完整保全核档后删除，不混同此前textR2 owner。所有有效业务与接受后继已在主仓，原素材/fixture/工具/ignored和原历史仍保在原档，清理前后源HEAD/clean/其他refs及全部tracked字节精确保持。Protectors包装首次字段名/归档依赖错误均在删除前拦下并改正，未以失败跳过内容核验。证据：`seven-successor-owner-*`、`protectors-original-owner-*`。其余有实体残留的prunable目录继续逐项审，不能批量prune。
+
+- 漫画柜012原业务恢复检查点：源主仓 `4b80b9ba` 归回原七源件与仅ownlock0.1.2，原43路径重建及284兼容材料重新核同；当前SDK8506/原标准WASM flags离线锁定编译与无网络source_info通过，WASM e6ae5852与原SDK8506兼容产物全字节同。现有SDK/build registry及其他tracked保持，未选图标、未打包/联网/设备，正文和资产继续OPEN。证据：`manhuagui012-recovery-*`。
+
+- 源筛选条件divider原批准恢复检查点：App `46a5ece8` 从154476明确批准的whole-app原提案仅应用SourceFilterControls完整section，原before应用所得全字节等ab64 after；保可见条件、已有控件/参数、菜单和两源页WIP，不带同commit其他界面。Root发现代理此前把difflib重建与Git raw hunk混称逐字同，已撤回：Git行对齐确有差异，两次检查均在任何修改前停止，最后按原完整输入/输出证明恢复，不称raw hunk同。无新同构测试/构建/Native；其他App/Kit/源目录分支审计继续OPEN。证据：`source-filter-approved-recovery-*`。
+
 ---
 
 以下保留原主仓开发记录全文，其历史状态不得覆盖上方当前恢复任务。
