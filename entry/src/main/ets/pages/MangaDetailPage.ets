@@ -2231,7 +2231,6 @@ export struct MangaDetailPage {
       Stack({ alignContent: Alignment.TopEnd }) {
         SecondaryListScaffold({
           listSpace: ThemeConstants.SPACE_LG,
-          horizontalPadding: ThemeConstants.SPACE_XL,
           bottomPadding: ThemeConstants.SPACE_XL,
           reserveTitleBar: true,
         }) {

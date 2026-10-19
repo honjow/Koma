@@ -322,7 +322,6 @@ export struct ImportPage {
     if (this.languageState.effectiveLocale.length >= 0) {
       SecondaryListScaffold({
         listSpace: ThemeConstants.SPACE_MD,
-        horizontalPadding: ThemeConstants.SPACE_XL,
         bottomPadding: ThemeConstants.SPACE_XL,
       }) {
         ListItem() {

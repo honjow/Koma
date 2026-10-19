@@ -2623,7 +2623,6 @@ export struct SettingsPage {
     Column() {
       SecondaryListScaffold({
         listSpace: ThemeConstants.SPACE_LG,
-        horizontalPadding: ThemeConstants.SPACE_XL,
         bottomPadding: ThemeConstants.SPACE_XL,
         floatingTabTailPadding: this.pane === 'root' ? ThemeConstants.FLOATING_TAB_BAR_CLEARANCE : 0,
       }) {
