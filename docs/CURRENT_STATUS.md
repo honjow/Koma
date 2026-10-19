@@ -1,6 +1,20 @@
 # Koma 当前状态、缺口与执行基线
 
-## 当前：30分钟清理收尾（2026-10-20）
+## 当前：第二轮30分钟恢复清理（2026-10-20）
+
+- 本轮计时：北京时间01:44:16开始，02:14:16截止；准备、读取、判断、执行及检查均计入。仅恢复清理，不插入产品开发/设备操作；不新增归档、脚本、报告、目录或分支。
+- 三份初始WIP已完整找回并由Root逐字核实：原件在NextE既有 `.hvigor/outputs/reader-outer-screen-diagnosis/rejected-source/{8,4,5}`，对应Lab blob `34711db83d24`、Surface `dff06732e886`、input test `15a00febef4e`；`source-changes.json`三份after SHA精确匹配，`source-before/{8,4,5}`又分别等正式主仓当前HEAD正文。该处`rejected-candidate.json`明确候选REJECTED；无需复制、补造或重新采用。此前“初始正文未保全”的风险已解除，17:23小档本身仍不能证明初始保全；具体17:20:43写入事件不单凭hash归因。
+- 本轮起点所见5份未提交文件对应active会话“修复新版阅读器栏位呼出问题”（01a1550e-9cf8-71a2-8617-b3d15fc79367）的共同系统栏候选：Koma Lab一份，sibling Kit的Index/Surface/TrialWindow/新增SystemBarController四份；原会话人类明确要求N/E/K共同窗口流程，现成候选记录与实际差异相符。本清理不覆盖、不提交该独立任务WIP，不能再以旧clean快照描述当前状态。
+- 源设置计数归类纠正：原8bd/716f并未包含saveSettings直接重读及save/clear catch；完整后继来自`3b08b47b`。Root亲审原Git diff及现存`app-worker-production-20-wip-current-a97ba08a-owner-dispositions.json`，此组已属“production可见叶”HOLD，不再另外计为第14组。原page-probe不覆盖save/clear，原Native只验证正常路径；未找到失败toast原人类批准，不单行拼接或回灌。已具名保留候选仍App6组/Kit7组，其余原输入尚未全裁定。
+- 本轮已实际退出六个纯派生报告父：source-build-failure-root、komiic014-sdk-readonly-followup、sixmh010-fetch-error-readonly、baozi-home-happy-listings-readonly、source-settings-static-audit、ccc-existing-dependency-readonly（均为原20261016/18具名路径）。26个常规文件；原source完整档7个相关成员由Root读回核同，其余未档叶逐内容确认仅Git文案/短log/静态投影。删除前完整精确叶集合、当前hash及无打开FD核回，外部Sixmh Native、Baozi原通道保持；CCC当时空父后来仅按空目录退出；零新增归档/报告/脚本。不把本批清理冒整恢复完成。
+
+- 本轮收尾实数：已退出110个顶层旧目录树，删除96份已核清重复文件；其中90个为空壳，共998层空目录，仅以rmdir退出。没有新增源码副本、工作树、分支、归档、脚本或报告。原具名来源/真实HTTP与Native原件、未处置候选和服务数据不因本批删除而采用或关闭。
+- Kit九条旧stash名字已原子清理；Root从现存 `kit-f769-object-verify-r38-20261019.git`独立读取其完整406对象（37commit/229tree/140blob，含index父与未跟踪第三父），逐raw SHA和GitOID核同r35 manifest，确认无alternates后才删除refs/stash；所有原代码仍在该已有载体，不称已归并或已获批准。本轮未新增reflog归档。当前三主仓均无stash、各一工作树/一本地分支。
+- 原89正文绑定中唯一missing的SourceMangaGrid候选也已找到精确现存载体：审计区`app-worker-exact-record-recovered-171fbe7bfd9bc8a3-koma-source-grid-candidate-20261015.py`的scaffold字面量，3506B/SHA256`1b519ed0430df52f91d031f264214e5a5d43e1af1ebcef32a24e9fe5f9065ded`/blob`11bcaaf706d72a513eea0c5eed0107ef0bc67085`均核同；仅ast读取，未执行脚本、未重建缺失路径、未覆盖当前后继。
+- 尚未完成：App6/Kit7组候选的最终采用/取代及其余原输入语义，真实证据父与MDX未知输入仍保留；13是已具名分组，不能冒全部剩余总数。普通产品开发、构建与设备未在本计时窗执行。当前独立系统栏任务WIP按其原owner保留。
+
+## 上一轮30分钟记录（保留当时事实与后续纠正）
+
 
 - **最终状态纠正（17:26 UTC实读）**：三个仓当前Git状态均干净；早先观察到差异的Lab/Surface/test三文件现已与HEAD及index逐字相同，flags=0。其mtime在17:20:43 UTC发生变化，写回者与原因未核实，本续接未执行对这三文件的写入或回滚。17:23保存的小档实际只保当时已回到HEAD的正文，不能证明初始WIP已保全；早先Lab34711db8、Surface dff0673当前Git对象不可读，第三文件初始完整diff也未保存。此前“当前三份未提交WIP/精确保全早期WIP”的表述撤回，原记录和纠正分别保留。此缺口列为恢复OPEN，不能据最终干净状态说已交付。
 
@@ -379,17 +393,17 @@
 {
   "schemaVersion": 1,
   "title": "Koma 目录与分支成果恢复审计",
-  "state": "下载遗漏已恢复 · 早期差异保全缺口未闭",
+  "state": "三份旧修改及网格正文已找回 · 110旧目录退出 · 未决候选保留",
   "outcome": "本页区分已实际退出的旧开发副本、仍保留的服务与原证据、尚未合入的候选；不把归档或源码一致冒成产品验收。",
-  "updatedAt": "2026-10-19T17:27:41.919368+00:00",
+  "updatedAt": "2026-10-19T18:08:21Z",
   "target": "唯一正式 /Users/honjow/git/Koma · 产品新增与设备仍暂停",
   "activeId": "RECOVERY",
   "activity": {
-    "title": "30分钟限定清理收尾",
-    "detail": "原检查点父及19个已核清审查/实现父完整保全退出；下载初始化原五hunk已恢复并提交e280902b；源设置计数原父保留。",
-    "startedAt": "2026-10-19T16:58:03+00:00"
+    "title": "第二轮30分钟恢复清理",
+    "detail": "110旧目录树/96重复文件已退出；九条旧stash名已清，完整406对象仍在原r38载体；无新归档/脚本/报告。",
+    "startedAt": "2026-10-19T17:44:16+00:00"
   },
-  "nextAction": "优先核三文件期间回到HEAD的写入来源与早期完整正文保全；源设置计数完整候选及其它原输入裁定仍OPEN。",
+  "nextAction": "继续核清未裁定原输入；App6/Kit7候选保留完整原件，不强行回灌。独立系统栏任务由其当前owner负责。",
   "proof": [
     {
       "label": "原件保全",
@@ -421,10 +435,10 @@
       "name": "Koma",
       "checkout": "/Users/honjow/git/Koma",
       "appHead": "e280902b7d92d1dce3b30ed43bcb87e4229e94f3",
-      "hap": "本轮恢复未构建/安装；最终Git干净不代表当前包验收或早期差异已保全。"
+      "hap": "本轮未构建/安装；当前独立系统栏任务源码仍为WIP。原三份初始正文已核回，被拒候选不重新采用。"
     }
   ],
-  "scope": "最终三正式仓Git干净，三文件HEAD/index/working逐字同且flags0；早期差异期间变回HEAD的写入者未知，17:23小档不能证明初始WIP保全。App代码恢复e280902b；无当前构建、设备、远端同步或发布。",
+  "scope": "本轮恢复清理：原三份WIP和缺失网格正文已在现有原件逐字核回；110旧目录树及9旧stash名退出。各正式仓一工作树/一本地分支且无stash；独立系统栏WIP保留。没有新增源码副本/归档/脚本/报告、产品构建/设备验收或远端同步。",
   "items": [
     {
       "id": "APP05",
@@ -486,7 +500,7 @@
   "milestones": [],
   "releaseGates": [
     "旧开发副本/分支清理不等于全部原代码差异已裁定；未合入候选和未知原输入保持OPEN。",
-    "初始三文件差异未完整保全，期间回到HEAD的写入来源未知；最终Git干净不得冒成全部归并。",
+    "原三份初始修改已在既有拒绝候选完整核回；不重新采用被拒实现，不将当前独立任务WIP混入恢复提交。",
     "本轮未构建/安装/设备验收；既有卡片限定结论不扩大到Reader或其它宿主。"
   ],
   "stopRule": "任何真实反例保留；不得靠目录清理强制应用HOLD候选。",
