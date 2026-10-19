@@ -3,7 +3,8 @@ import { SOURCE_BROWSE_TITLE_BOTTOM_HEIGHT } from '../components/SourceBrowseTit
 import { SourcePaginationFooter } from '../components/SourcePaginationFooter'
 import { KomaActionButton } from '../components/ui/KomaActionButton'
 import { KomaEmptyState } from '../components/ui/KomaEmptyState'
-import { PullRefreshListScaffold } from '../components/PullRefreshListScaffold'
+import { MangaGridItem } from '../components/MangaGridItem'
+import { gridColumnCount, gridFallbackContainerWidth } from '../utils/GridColumns'
 import { SourceFiltersSheetScaffold } from '../components/SourceFiltersSheetScaffold'
 import { sourceFilterSheetOptions } from '../components/SourceFilterSheetOptions'
 import { SourceFilterControls, SourceFilterControlValue } from '../components/SourceFilterControls'
@@ -28,6 +29,20 @@ import { common } from '@kit.AbilityKit'
 
 function s(name: string): string {
   return AppStrings.get(name)
+}
+
+interface SourceBrowseGridRow {
+  key: string
+  kind: 'home-header' | 'browse-header' | 'manga' | 'loading' | 'empty-search' | 'empty-browse' | 'error' | 'footer'
+  manga?: SourceManga
+  homeSection?: SourceHomeSectionState
+  browseSection?: BrowseSourceSectionState
+  bottomPadding: number
+}
+interface SourceBrowseGridProjection {
+  rows: SourceBrowseGridRow[]
+  byKey: Map<string, SourceBrowseGridRow>
+  fullRowIndexes: number[]
 }
 
 @ComponentV2
@@ -268,12 +283,12 @@ export struct SourceBrowsePage {
   }
 
   @Builder
-  private SectionHeader(title: string, count: number, selectable: boolean = false) {
+  private SectionHeader(section: BrowseSourceSectionState) {
     Row() {
-      if (selectable) {
+      if (this.viewModel.listings.length > 1) {
         Button({ type: ButtonType.Normal, stateEffect: true }) {
           Row({ space: ThemeConstants.SPACE_XS }) {
-            Text(title)
+            Text(section.listing.name)
               .fontSize(ThemeConstants.FONT_SIZE_H3)
               .fontWeight(FontWeight.Bold)
               .fontColor(ThemeConstants.TEXT_PRIMARY)
@@ -294,12 +309,12 @@ export struct SourceBrowsePage {
             this.listingMenuOpen = false
           },
         })
-        .accessibilityText(title)
+        .accessibilityText(section.listing.name)
         .onClick(() => {
           this.openListingMenu()
         })
       } else {
-        Text(title)
+        Text(section.listing.name)
           .fontSize(ThemeConstants.FONT_SIZE_H3)
           .fontWeight(FontWeight.Bold)
           .fontColor(ThemeConstants.TEXT_PRIMARY)
@@ -307,7 +322,7 @@ export struct SourceBrowsePage {
           .textOverflow({ overflow: TextOverflow.Ellipsis })
       }
       Blank()
-      Text(s('library_count_books').replace('%s', `${count}`))
+      Text(s('library_count_books').replace('%s', `${section.manga.length}`))
         .fontSize(ThemeConstants.FONT_SIZE_META)
         .fontColor(ThemeConstants.TEXT_SECONDARY)
     }
@@ -315,18 +330,7 @@ export struct SourceBrowsePage {
   }
 
   @Builder
-  private BrowseSection(section: BrowseSourceSectionState) {
-    Column({ space: ThemeConstants.SPACE_MD }) {
-      this.SectionHeader(section.listing.name, section.manga.length, this.viewModel.listings.length > 1)
-      this.MangaGrid(section.manga)
-    }
-    .width('100%')
-    .alignItems(HorizontalAlign.Start)
-  }
-
-  @Builder
-  private HomeSection(section: SourceHomeSectionState) {
-    Column({ space: ThemeConstants.SPACE_MD }) {
+  private HomeSectionHeader(section: SourceHomeSectionState) {
       Row() {
         Text(section.title)
           .fontSize(ThemeConstants.FONT_SIZE_H3)
@@ -350,20 +354,104 @@ export struct SourceBrowsePage {
         }
       }
       .width('100%')
-      this.MangaGrid(section.manga)
+  }
+
+  private sourceGridColumnCount(): number {
+    const width = this.safeArea.windowWidthVp > 0 ? this.safeArea.windowWidthVp : gridFallbackContainerWidth()
+    return gridColumnCount(width, ThemeConstants.SOURCE_GRID_MIN_COLUMN_WIDTH, ThemeConstants.SPACE_MD,
+      ThemeConstants.SPACE_XL)
+  }
+
+  private appendMangaRows(rows: SourceBrowseGridRow[], prefix: string, manga: SourceManga[]): void {
+    const columns = this.sourceGridColumnCount()
+    const lastRowStart = Math.floor((manga.length - 1) / columns) * columns
+    manga.forEach((item: SourceManga, index: number) => {
+      rows.push({ key: `${prefix}:manga:${item.sourceId}:${item.id}`, kind: 'manga', manga: item,
+        bottomPadding: index >= lastRowStart ? ThemeConstants.SPACE_MD : ThemeConstants.SPACE_LG })
+    })
+  }
+
+  @Computed
+  private get gridProjection(): SourceBrowseGridProjection {
+    const rows: SourceBrowseGridRow[] = []
+    if (this.isSearchActive()) {
+      if (this.viewModel.loadingSearch && this.viewModel.searchResults.length === 0) {
+        rows.push({ key: 'search-loading', kind: 'loading', bottomPadding: ThemeConstants.SPACE_MD })
+      } else if (this.viewModel.searchResults.length === 0) {
+        rows.push({ key: 'search-empty', kind: 'empty-search', bottomPadding: ThemeConstants.SPACE_MD })
+      } else {
+        this.appendMangaRows(rows, 'search', this.viewModel.searchResults)
+        rows.push({ key: 'search-footer', kind: 'footer', bottomPadding: ThemeConstants.SPACE_MD })
+      }
+    } else if (!this.isBlockingBrowseLoading()) {
+      if (this.viewModel.browseContentState === BrowseContentState.ERROR && !this.hasBrowseContent()) {
+        rows.push({ key: 'browse-error', kind: 'error', bottomPadding: ThemeConstants.SPACE_MD })
+      } else if (this.viewModel.browseContentState === BrowseContentState.EMPTY) {
+        rows.push({ key: 'browse-empty', kind: 'empty-browse', bottomPadding: ThemeConstants.SPACE_MD })
+      } else {
+        this.viewModel.homeSections.forEach((section: SourceHomeSectionState) => {
+          const prefix = `home:${section.id}`
+          rows.push({ key: `${prefix}:header`, kind: 'home-header', homeSection: section,
+            bottomPadding: section.manga.length > 0 ? ThemeConstants.SPACE_MD : ThemeConstants.SPACE_MD * 2 })
+          this.appendMangaRows(rows, prefix, section.manga)
+        })
+        this.viewModel.browseSections.forEach((section: BrowseSourceSectionState) => {
+          const prefix = `browse:${section.listing.id}`
+          rows.push({ key: `${prefix}:header`, kind: 'browse-header', browseSection: section,
+            bottomPadding: section.manga.length > 0 ? ThemeConstants.SPACE_MD : ThemeConstants.SPACE_MD * 2 })
+          this.appendMangaRows(rows, prefix, section.manga)
+        })
+        if (this.viewModel.browseContentState === BrowseContentState.ERROR &&
+          this.viewModel.errorMessage.length > 0 && this.viewModel.browseErrorIntent !== BrowseLoadIntent.PAGINATION) {
+          rows.push({ key: 'browse-error', kind: 'error', bottomPadding: ThemeConstants.SPACE_MD })
+        } else if (this.viewModel.browseSections.length > 0) {
+          rows.push({ key: 'browse-footer', kind: 'footer', bottomPadding: ThemeConstants.SPACE_MD })
+        }
+      }
     }
-    .width('100%')
-    .alignItems(HorizontalAlign.Start)
+    const byKey = new Map<string, SourceBrowseGridRow>()
+    const fullRowIndexes: number[] = []
+    rows.forEach((row: SourceBrowseGridRow, index: number) => {
+      byKey.set(row.key, row)
+      if (row.kind !== 'manga') fullRowIndexes.push(index)
+    })
+    return { rows, byKey, fullRowIndexes }
+  }
+
+  private currentGridRow(row: SourceBrowseGridRow): SourceBrowseGridRow {
+    return this.gridProjection.byKey.get(row.key) ?? row
   }
 
   @Builder
-  private MangaGrid(manga: SourceManga[]) {
-    SourceMangaGrid({
-      manga,
-      onMangaTap: (selected: SourceManga) => {
-        this.onMangaTap(selected)
-      },
-    })
+  private GridRowContent(row: SourceBrowseGridRow) {
+    if (row.kind === 'manga') {
+      MangaGridItem({ manga: row.manga!, onMangaTap: (selected: SourceManga) => { this.onMangaTap(selected) } })
+    } else if (row.kind === 'home-header') {
+      this.HomeSectionHeader(row.homeSection!)
+    } else if (row.kind === 'browse-header') {
+      this.SectionHeader(row.browseSection!)
+    } else if (row.kind === 'loading') {
+      this.LoadingBrowseState()
+    } else if (row.kind === 'empty-search') {
+      KomaEmptyState({ title: s('source_search_empty_results_title'),
+        message: this.viewModel.errorMessage.length > 0 ? this.viewModel.errorMessage : s('source_search_empty_results_message') })
+    } else if (row.kind === 'empty-browse') {
+      this.EmptyBrowseResults()
+    } else if (row.kind === 'error') {
+      this.BrowseErrorState()
+    } else {
+      SourcePaginationFooter({
+        isLoading: this.isSearchActive() ? this.viewModel.loadingSearch :
+          this.viewModel.loadingBrowse && this.viewModel.browseLoadIntent === BrowseLoadIntent.PAGINATION,
+        hasMore: this.isSearchActive() ? this.viewModel.hasMoreSearch : this.viewModel.hasMoreBrowse,
+        isError: this.isSearchActive() ? this.viewModel.errorMessage.length > 0 :
+          this.viewModel.browseErrorIntent === BrowseLoadIntent.PAGINATION,
+        onRetry: () => {
+          if (this.isSearchActive()) void this.viewModel.retrySearchPage()
+          else void this.viewModel.retryBrowseFailure()
+        },
+      })
+    }
   }
 
   @Builder
@@ -476,105 +564,28 @@ export struct SourceBrowsePage {
   build() {
     if (this.languageState.effectiveLocale.length >= 0) {
       Stack() {
-        PullRefreshListScaffold({
+        SourceMangaGrid({
           scroller: this.chrome.scroller,
-          listSpace: ThemeConstants.SPACE_MD,
-          horizontalPadding: ThemeConstants.SPACE_XL,
-          bottomPadding: ThemeConstants.SPACE_XL,
-          reserveTitleBar: true,
+          contentItemCount: this.gridProjection.rows.length,
+          fullRowIndexes: this.gridProjection.fullRowIndexes,
           pinnedOverlayHeight: SOURCE_BROWSE_TITLE_BOTTOM_HEIGHT,
+          withPullRefresh: true,
+          resumeAtVisibleTail: !this.isSearchActive() && !this.viewModel.loadingBrowse &&
+            this.viewModel.hasMoreBrowse && this.viewModel.browseErrorIntent === BrowseLoadIntent.NONE,
           onRefresh: async () => {
-            if (this.isSearchActive()) {
-              await this.viewModel.runSearch(this.currentSource(), this.viewModel.searchQuery)
-            } else {
-              await this.refreshBrowse()
-            }
+            if (this.isSearchActive()) await this.viewModel.runSearch(this.currentSource(), this.viewModel.searchQuery)
+            else await this.refreshBrowse()
           },
           onReachEnd: () => {
-            if (this.isSearchActive()) {
-              void this.viewModel.loadMoreSearch()
-            } else {
-              void this.viewModel.loadMoreBrowse()
-            }
+            if (this.isSearchActive()) void this.viewModel.loadMoreSearch()
+            else void this.viewModel.loadMoreBrowse()
           },
         }) {
-          if (this.isSearchActive()) {
-            if (this.viewModel.loadingSearch && this.viewModel.searchResults.length === 0) {
-              ListItem() {
-                this.LoadingBrowseState()
-              }
-            } else if (this.viewModel.searchResults.length === 0) {
-              ListItem() {
-                KomaEmptyState({
-                  title: s('source_search_empty_results_title'),
-                  message: this.viewModel.errorMessage.length > 0
-                    ? this.viewModel.errorMessage
-                    : s('source_search_empty_results_message'),
-                })
-              }
-            } else {
-              ListItem() {
-                SourceMangaGrid({
-                  manga: this.viewModel.searchResults,
-                  onMangaTap: (selected: SourceManga) => {
-                    this.onMangaTap(selected)
-                  },
-                })
-              }
-              ListItem() {
-                SourcePaginationFooter({
-                  isLoading: this.viewModel.loadingSearch,
-                  hasMore: this.viewModel.hasMoreSearch,
-                  isError: this.viewModel.errorMessage.length > 0,
-                  onRetry: () => {
-                    void this.viewModel.retrySearchPage()
-                  },
-                })
-              }
-            }
-          } else if (!this.isBlockingBrowseLoading()) {
-            if (this.viewModel.browseContentState === BrowseContentState.ERROR && !this.hasBrowseContent()) {
-              ListItem() {
-                this.BrowseErrorState()
-              }
-            } else if (this.viewModel.browseContentState === BrowseContentState.EMPTY) {
-              ListItem() {
-                this.EmptyBrowseResults()
-              }
-            } else {
-              ForEach(this.viewModel.homeSections, (section: SourceHomeSectionState) => {
-                ListItem() {
-                  this.HomeSection(section)
-                }
-              }, (section: SourceHomeSectionState) => section.id)
-
-              ForEach(this.viewModel.browseSections, (section: BrowseSourceSectionState) => {
-                ListItem() {
-                  this.BrowseSection(section)
-                }
-              }, (section: BrowseSourceSectionState) => section.listing.id)
-
-              if (this.viewModel.browseContentState === BrowseContentState.ERROR &&
-                this.viewModel.errorMessage.length > 0 &&
-                this.viewModel.browseErrorIntent !== BrowseLoadIntent.PAGINATION) {
-                ListItem() {
-                  this.BrowseErrorState()
-                }
-              } else if (this.viewModel.browseSections.length > 0) {
-                ListItem() {
-                  SourcePaginationFooter({
-                    isLoading: this.viewModel.loadingBrowse &&
-                      this.viewModel.browseLoadIntent === BrowseLoadIntent.PAGINATION,
-                    hasMore: this.viewModel.hasMoreBrowse,
-                    isError: this.viewModel.browseErrorIntent === BrowseLoadIntent.PAGINATION,
-                    onRetry: () => {
-                      void this.viewModel.retryBrowseFailure()
-                    },
-                  })
-                }
-              }
-            }
-          }
+          ForEach(this.gridProjection.rows, (row: SourceBrowseGridRow) => {
+            GridItem() { this.GridRowContent(this.currentGridRow(row)) }
+              .padding({ bottom: this.currentGridRow(row).bottomPadding })
+              .clip(false)
+          }, (row: SourceBrowseGridRow) => row.key)
         }
         if (this.isBlockingBrowseLoading() && !this.isSearchActive()) {
           this.BlockingBrowseLoadingOverlay()

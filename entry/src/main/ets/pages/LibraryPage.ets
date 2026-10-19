@@ -4,6 +4,7 @@ import { ComponentContent } from '@kit.ArkUI'
 import { ComicCoverCard, ComicCoverInfo } from '../components/ComicCoverCard'
 import { CachedCoverImage, cachedCoverFailureKey } from '../components/CachedCoverImage'
 import { SecondaryListScaffold } from '../components/SecondaryListScaffold'
+import { connectLayoutSafeArea, LayoutSafeAreaState } from '../state/LayoutSafeAreaState'
 import { ConciseListRow } from '../components/ui/ConciseListRow'
 import { GroupedListSection, ListDivider } from '../components/ui/GroupedListSection'
 import { KomaActionButton } from '../components/ui/KomaActionButton'
@@ -85,6 +86,7 @@ interface LibraryServerSourceFilterOption {
 interface LibraryGridProjection {
   comics: ComicCoverInfo[]
   byId: Map<ComicId, ComicCoverInfo>
+  indexById: Map<ComicId, number>
 }
 
 interface LibraryComicBuilderParams {
@@ -256,6 +258,8 @@ export struct LibraryPage {
   @Local private filterAvailability: LibraryAvailabilityFilter = 'all'
   @Local private filterMetadataStatus: LibraryMetadataStatusFilter = 'all'
   @Local private containerWidth: number = 0
+  @Local private layoutSafeArea: LayoutSafeAreaState = connectLayoutSafeArea()
+  private libraryScroller: Scroller = new Scroller()
   private activeFilterCount(): number {
     let count = 0
     if (this.filterSource !== 'all') {
@@ -1015,15 +1019,21 @@ export struct LibraryPage {
     void this.languageState.effectiveLocale
     const comics = this.gridComics()
     const byId = new Map<ComicId, ComicCoverInfo>()
-    comics.forEach((comic: ComicCoverInfo) => {
+    const indexById = new Map<ComicId, number>()
+    comics.forEach((comic: ComicCoverInfo, index: number) => {
       byId.set(comic.id, comic)
+      indexById.set(comic.id, index)
     })
-    return { comics: comics, byId: byId }
+    return { comics: comics, byId: byId, indexById: indexById }
   }
 
   private currentGridComic(original: ComicCoverInfo): ComicCoverInfo {
     // A removed cell can finish unbinding with its real prior identity.
     return this.gridProjection.byId.get(original.id) ?? original
+  }
+
+  private libraryViewportWidth(): number {
+    return this.layoutSafeArea.windowWidthVp > 0 ? this.layoutSafeArea.windowWidthVp : this.containerWidth
   }
 
   private targetGridColumnWidth(): number {
@@ -1035,21 +1045,21 @@ export struct LibraryPage {
    }
     // Narrow windows (phones portrait, split view) only reach three columns
     // at the compact target; 112vp collapses them into two oversized cards.
-    if (this.containerWidth > 0 && this.containerWidth < 480) {
+    if (this.libraryViewportWidth() > 0 && this.libraryViewportWidth() < 480) {
       return 96
     }
    return 112
  }
 
   private libraryGridColumnCount(): number {
-    const measured = this.containerWidth > 0
-      ? this.containerWidth
+    const measured = this.libraryViewportWidth() > 0
+      ? this.libraryViewportWidth()
       : gridFallbackContainerWidth()
     return gridColumnCount(
       measured,
       this.targetGridColumnWidth(),
       this.libraryGridColumnGap(),
-      ThemeConstants.SPACE_XL,
+      this.libraryHorizontalInset(),
     )
   }
 
@@ -1061,6 +1071,10 @@ export struct LibraryPage {
       return ThemeConstants.SPACE_XL
     }
     return ThemeConstants.SPACE_MD
+  }
+
+  private libraryHorizontalInset(): number {
+    return this.libraryGridColumnGap()
   }
 
   private libraryGridRowGap(): number {
@@ -2037,28 +2051,85 @@ export struct LibraryPage {
     .width('100%')
   }
 
+  private libraryGridColumnsTemplate(): string {
+    const columns: string[] = []
+    for (let index = 0; index < this.libraryGridColumnCount(); index += 1) columns.push('1fr')
+    return columns.join(' ')
+  }
+
+  private libraryGridLayoutOptions(): GridLayoutOptions {
+    const headerCount = this.hasContinueReading() ? 3 : 2
+    const irregularIndexes: number[] = []
+    for (let index = 0; index < headerCount; index += 1) irregularIndexes.push(index)
+    irregularIndexes.push(headerCount + this.gridProjection.comics.length)
+    return { regularSize: [1, 1], irregularIndexes: irregularIndexes }
+  }
+
+  private libraryGridCellBottomPadding(comicId: ComicId): number {
+    const index = this.gridProjection.indexById.get(comicId) ?? 0
+    const count = this.libraryGridColumnCount()
+    const lastRowStart = Math.floor((this.gridProjection.comics.length - 1) / count) * count
+    return index >= lastRowStart ? ThemeConstants.SPACE_LG : this.libraryGridRowGap()
+  }
+
+  @Builder
+  private LibraryContinueReadingCard() {
+    ContinueReadingShelfCard({
+      info: this.continueReading(),
+      revision: this.displayedRevision,
+      onOpenReader: (comicId: ComicId) => {
+        if (!this.selectionMode) this.openComicFromLibrary(comicId)
+      },
+    })
+  }
+
   @Builder
   private LibraryGrid() {
-    Column({ space: this.libraryGridRowGap() }) {
-      ForEach(this.libraryGridRowIndexes(this.gridProjection.comics), (rowIndex: number) => {
-        Row({ space: this.libraryGridColumnGap() }) {
-          ForEach(this.libraryGridRowComics(this.gridProjection.comics, rowIndex), (comic: ComicCoverInfo) => {
-            Column() {
-              this.LibraryGridCell({ comic: this.currentGridComic(comic) })
-            }
-            .layoutWeight(1)
-          }, (comic: ComicCoverInfo) => this.comicRenderKey(comic))
+    // One scrolling owner and one keyed parent for every cover, including during rotation.
+    Grid(this.libraryScroller, this.libraryGridLayoutOptions()) {
+      GridItem() {
+        Column() {
+          Blank().height(this.layoutSafeArea.topAvoidHeight + ThemeConstants.TITLE_BAR_HEIGHT)
+        }.width('100%')
+      }
+      .padding({ bottom: ThemeConstants.SPACE_LG })
+      .clip(false)
 
-          ForEach(this.libraryGridMissingCells(this.libraryGridRowComics(this.gridProjection.comics, rowIndex)), (_index: number) => {
-            Blank()
-              .layoutWeight(1)
-          }, (index: number) => `blank-${rowIndex}-${index}`)
+      if (this.hasContinueReading()) {
+        GridItem() { this.LibraryContinueReadingCard() }
+          .padding({ bottom: ThemeConstants.SPACE_LG })
+          .clip(false)
+      }
+
+      GridItem() { this.SortFilterBar() }
+        .padding({ bottom: ThemeConstants.SPACE_LG })
+        .clip(false)
+
+      ForEach(this.gridProjection.comics, (comic: ComicCoverInfo) => {
+        GridItem() {
+          this.LibraryGridCell({ comic: this.currentGridComic(comic) })
         }
-        .width('100%')
-        .alignItems(VerticalAlign.Top)
-      }, (rowIndex: number) => `row-${rowIndex}`)
+        .padding({ bottom: this.libraryGridCellBottomPadding(comic.id) })
+        .clip(false)
+      }, (comic: ComicCoverInfo) => this.comicRenderKey(comic))
+
+      GridItem() {
+        Column() {
+          Blank().height(this.layoutSafeArea.bottomAvoidHeight + ThemeConstants.SPACE_XL +
+            ThemeConstants.FLOATING_TAB_BAR_CLEARANCE + Math.max(0, this.layoutSafeArea.keyboardHeight))
+        }.width('100%')
+      }.clip(false)
     }
+    // Retain all existing density rules, including the standard 480vp threshold.
+    .columnsTemplate(this.libraryGridColumnsTemplate())
+    .columnsGap(this.libraryGridColumnGap())
+    .rowsGap(0)
+    .scrollBar(BarState.Off)
     .width('100%')
+    .height('100%')
+    .padding({ left: this.libraryHorizontalInset(), right: this.libraryHorizontalInset() })
+    .clipContent(ContentClipMode.CONTENT_ONLY)
+    .edgeEffect(EdgeEffect.None)
   }
 
   private shouldShowCoverUri(
@@ -2263,11 +2334,12 @@ export struct LibraryPage {
     return false
   }
 
-  build() {
-    Column() {
+  @Builder
+  private LibraryListSurface() {
       SecondaryListScaffold({
+        scroller: this.libraryScroller,
         listSpace: ThemeConstants.SPACE_LG,
-        horizontalPadding: ThemeConstants.SPACE_XL,
+        horizontalPadding: this.libraryHorizontalInset(),
         bottomPadding: ThemeConstants.SPACE_XL,
         floatingTabTailPadding: ThemeConstants.FLOATING_TAB_BAR_CLEARANCE,
       }) {
@@ -2278,15 +2350,7 @@ export struct LibraryPage {
         } else if (this.hasLibraryContent()) {
           if (this.hasContinueReading()) {
             ListItem() {
-              ContinueReadingShelfCard({
-                info: this.continueReading(),
-                revision: this.displayedRevision,
-                onOpenReader: (comicId: ComicId) => {
-                  if (!this.selectionMode) {
-                    this.openComicFromLibrary(comicId)
-                  }
-                },
-              })
+              this.LibraryContinueReadingCard()
             }
           }
 
@@ -2296,11 +2360,7 @@ export struct LibraryPage {
 
           if (this.hasVisibleLibraryContent()) {
             ListItem() {
-              if (this.viewMode === 'list') {
-                this.LibraryList()
-              } else {
-                this.LibraryGrid()
-              }
+              this.LibraryList()
             }
           } else {
             ListItem() {
@@ -2313,6 +2373,17 @@ export struct LibraryPage {
           }
         }
       }
+  }
+
+  build() {
+    Column() {
+      if (this.viewMode !== 'list' && !this.isProjectionPending() &&
+        this.hasLibraryContent() && this.hasVisibleLibraryContent()) {
+        this.LibraryGrid()
+      } else {
+        this.LibraryListSurface()
+      }
+
 
     }
     .width('100%')

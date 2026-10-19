@@ -1,79 +1,115 @@
-import { SourceManga } from '../model/SourceModels'
+import { connectLayoutSafeArea, LayoutSafeAreaState } from '../state/LayoutSafeAreaState'
 import { ThemeConstants } from '../theme/ThemeConstants'
-import { MangaGridItem } from './MangaGridItem'
-import { gridFallbackContainerWidth, gridColumnCount } from '../utils/GridColumns'
+import { PullRefresh } from './PullRefresh'
 
+export const SOURCE_MANGA_GRID_GAP: number = ThemeConstants.SPACE_MD
+
+class SourceGridClipModifier implements AttributeModifier<GridAttribute> {
+  private unclipped: boolean
+  constructor(unclipped: boolean) { this.unclipped = unclipped }
+  applyNormalAttribute(grid: GridAttribute): void {
+    if (this.unclipped) grid.clip(false)
+    else grid.clipContent(ContentClipMode.CONTENT_ONLY)
+  }
+}
+
+// A source page has one scrolling Grid and one parent for all keyed cover items.
+// Headers, empty/error states and pagination remain full-width items in that Grid.
 @ComponentV2
 export struct SourceMangaGrid {
-  @Param manga: SourceManga[] = []
-  // Seeded from the display width so the first frame already uses the same
-  // column model as every later frame; onAreaChange keeps it exact.
-  @Local private containerWidth: number = gridFallbackContainerWidth()
-  @Event onMangaTap: (manga: SourceManga) => void = (_manga: SourceManga) => {}
+  @BuilderParam content: () => void
+  @Param scroller: Scroller = new Scroller()
+  @Param contentItemCount: number = 0
+  @Param fullRowIndexes: number[] = []
+  @Param pinnedOverlayHeight: number = 0
+  @Param withPullRefresh: boolean = false
+  @Param resumeAtVisibleTail: boolean = false
+  @Local private lastVisibleIndex: number = -1
+  @Local private safeArea: LayoutSafeAreaState = connectLayoutSafeArea()
+  @Local private pullScrollEnabled: boolean = true
+  @Event onRefresh?: () => Promise<void>
+  @Event onReachEnd?: () => void
 
-  private columnCount(): number {
-    return gridColumnCount(
-      this.containerWidth,
-      ThemeConstants.SOURCE_GRID_MIN_COLUMN_WIDTH,
-      ThemeConstants.SPACE_MD,
-      0,
-    )
-  }
-
-  private rowCount(): number {
-    return Math.ceil(this.manga.length / this.columnCount())
-  }
-
-  private rowIndexes(): number[] {
-    const rows: number[] = []
-    for (let index = 0; index < this.rowCount(); index += 1) {
-      rows.push(index)
+  @Monitor('resumeAtVisibleTail')
+  private resumePendingTail(): void {
+    // An empty source page leaves the same tail item visible, so no new scroll
+    // or appearance event occurs. Re-evaluate demand when loading completes.
+    if (this.resumeAtVisibleTail && this.withPullRefresh &&
+      this.lastVisibleIndex >= this.contentItemCount + 1 && this.onReachEnd) {
+      this.onReachEnd()
     }
-    return rows
   }
 
-  private rowManga(rowIndex: number): SourceManga[] {
-    const start = rowIndex * this.columnCount()
-    return this.manga.slice(start, start + this.columnCount())
+  private layoutOptions(): GridLayoutOptions {
+    const indexes: number[] = [0]
+    this.fullRowIndexes.forEach((index: number) => indexes.push(index + 1))
+    indexes.push(this.contentItemCount + 1)
+    return { regularSize: [1, 1], irregularIndexes: indexes }
   }
 
-  private missingCells(row: SourceManga[]): number[] {
-    const missing = this.columnCount() - row.length
-    const cells: number[] = []
-    for (let index = 0; index < missing; index += 1) {
-      cells.push(index)
+  @Builder
+  private GridSurface() {
+    Grid(this.scroller, this.layoutOptions()) {
+      GridItem() {
+        Column() {
+          Blank().height(this.safeArea.topAvoidHeight + ThemeConstants.TITLE_BAR_HEIGHT +
+            Math.max(0, this.pinnedOverlayHeight - ThemeConstants.SPACE_MD))
+        }.width('100%')
+      }
+      .padding({ bottom: ThemeConstants.SPACE_MD })
+      .clip(false)
+
+      this.content()
+
+      GridItem() {
+        Column() {
+          Blank().height(this.safeArea.bottomAvoidHeight + ThemeConstants.SPACE_XL +
+            Math.max(0, this.safeArea.keyboardHeight))
+        }.width('100%')
+      }
+      .onAppear(() => {
+        // The existing Browse list loads at tail appearance; Search only at reach-end.
+        if (this.withPullRefresh && this.onReachEnd) this.onReachEnd()
+      })
     }
-    return cells
+    .columnsTemplate(`repeat(auto-fit, ${ThemeConstants.SOURCE_GRID_MIN_COLUMN_WIDTH}vp)`)
+    .columnsGap(SOURCE_MANGA_GRID_GAP)
+    .rowsGap(0)
+    .enableScrollInteraction(this.pullScrollEnabled)
+    .backToTop(true)
+    .scrollBar(BarState.Off)
+    .width('100%')
+    .height('100%')
+    .padding({ left: SOURCE_MANGA_GRID_GAP, right: SOURCE_MANGA_GRID_GAP })
+    .attributeModifier(new SourceGridClipModifier(this.withPullRefresh))
+    .edgeEffect(EdgeEffect.None)
+    .onScrollIndex((_first: number, last: number) => {
+      this.lastVisibleIndex = last
+      if (this.withPullRefresh && last >= this.contentItemCount + 1 && this.onReachEnd) {
+        this.onReachEnd()
+      }
+    })
+    .onReachEnd(() => { if (this.onReachEnd) this.onReachEnd() })
   }
 
   build() {
-    Column({ space: ThemeConstants.SPACE_LG }) {
-      ForEach(this.rowIndexes(), (rowIndex: number) => {
-        Row({ space: ThemeConstants.SPACE_MD }) {
-          ForEach(this.rowManga(rowIndex), (item: SourceManga) => {
-            Column() {
-              MangaGridItem({
-                manga: item,
-                onMangaTap: (selected: SourceManga) => {
-                  this.onMangaTap(selected)
-                },
-              })
-            }
-            .layoutWeight(1)
-          }, (item: SourceManga) => `${item.sourceId}:${item.id}`)
-
-          ForEach(this.missingCells(this.rowManga(rowIndex)), (index: number) => {
-            Blank()
-              .layoutWeight(1)
-          }, (index: number) => `blank-${rowIndex}-${index}`)
-        }
-        .width('100%')
-        .alignItems(VerticalAlign.Top)
-      }, (rowIndex: number) => `row-${rowIndex}`)
+    Stack() {
+      if (this.withPullRefresh) {
+        PullRefresh({
+          scroller: this.scroller,
+          indicatorTop: this.safeArea.topAvoidHeight + ThemeConstants.TITLE_BAR_HEIGHT / 2 +
+            this.pinnedOverlayHeight,
+          bottomIndicatorBottom: this.safeArea.bottomAvoidHeight + ThemeConstants.SPACE_XL +
+            Math.max(0, this.safeArea.keyboardHeight),
+          onRefresh: async () => { if (this.onRefresh) await this.onRefresh() },
+          onScrollEnableChange: (enabled: boolean) => { this.pullScrollEnabled = enabled },
+        }) { this.GridSurface() }
+      } else {
+        this.GridSurface()
+      }
     }
     .width('100%')
-    .onAreaChange((_old: Area, next: Area) => {
-      this.containerWidth = next.width as number
-    })
+    .height('100%')
+    .backgroundColor(ThemeConstants.BG_SUB)
   }
 }

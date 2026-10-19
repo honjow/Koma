@@ -1,6 +1,6 @@
 import { AppearancePreferencesStore } from '../model/AppearancePreferencesStore'
 import { restoreReaderRemoteImageCache } from '../model/ReaderPageSourceAdapter'
-import { UIAbility, Want, AbilityConstant } from '@kit.AbilityKit'
+import { UIAbility, Want, AbilityConstant, Configuration } from '@kit.AbilityKit'
 import { captureReaderLabWant, updateReaderLabForeground } from '@reader-kit/ui'
 import { KeyboardAvoidMode, window } from '@kit.ArkUI'
 import {
@@ -35,6 +35,8 @@ const FALLBACK_TOP_AVOID: number = 40
 const FALLBACK_BOTTOM_AVOID: number = 0
 
 export default class EntryAbility extends UIAbility {
+  private layoutWindow: window.Window | undefined = undefined
+  private layoutWindowSizeCallback: ((size: window.Size) => void) | undefined = undefined
   private keyboardHeightCallback: ((height: number) => void) | undefined = undefined
   private startupReady: boolean = false
   private startupPromise: Promise<void> = Promise.resolve()
@@ -108,6 +110,7 @@ export default class EntryAbility extends UIAbility {
         bindReaderThemeWindow(this.context)
         this.applySavedThemeMode()
         this.configureAvoidAreas(windowStage)
+        this.bindLayoutWindow(windowStage.getMainWindowSync())
         if (!shouldSuppressKomaDeviceVerificationBackgroundSideEffects()) {
           setTimeout(() => {
             this.syncRemoteProgressInBackground()
@@ -117,11 +120,17 @@ export default class EntryAbility extends UIAbility {
     })
   }
 
+  onConfigurationUpdate(config: Configuration): void {
+    this.publishLayoutWindowWidth()
+  }
+
   onDestroy(): void {
+    this.unbindLayoutWindow()
     unbindReaderThemeWindow()
   }
 
   onWindowStageDestroy(): void {
+    this.unbindLayoutWindow()
     unbindReaderThemeWindow()
   }
 
@@ -138,6 +147,46 @@ export default class EntryAbility extends UIAbility {
   onBackground(): void {
     updateReaderLabForeground(false, this.context.applicationInfo.debug)
     AppForegroundStateBridge.onBackground()
+  }
+
+  private bindLayoutWindow(win: window.Window): void {
+    this.unbindLayoutWindow()
+    this.layoutWindow = win
+    this.publishLayoutWindowWidth()
+    this.layoutWindowSizeCallback = (size: window.Size): void => {
+      try {
+        LayoutSafeAreaBridge.publishWindowWidth(win.getUIContext().px2vp(size.width))
+      } catch (_error) {
+        // Keep the last valid width if this window is being torn down.
+      }
+    }
+    try {
+      win.on('windowSizeChange', this.layoutWindowSizeCallback)
+    } catch (_error) {
+      console.warn('[LibraryLayout] step=window_listener_unavailable')
+    }
+  }
+
+  private publishLayoutWindowWidth(): void {
+    const win = this.layoutWindow
+    if (win === undefined) return
+    try {
+      LayoutSafeAreaBridge.publishWindowWidth(win.getUIContext().px2vp(win.getWindowProperties().windowRect.width))
+    } catch (_error) {
+      // Keep the last valid width; Library retains its initial measured fallback.
+    }
+  }
+
+  private unbindLayoutWindow(): void {
+    if (this.layoutWindow !== undefined && this.layoutWindowSizeCallback !== undefined) {
+      try {
+        this.layoutWindow.off('windowSizeChange', this.layoutWindowSizeCallback)
+      } catch (_error) {
+        // This main window may already have been destroyed.
+      }
+    }
+    this.layoutWindowSizeCallback = undefined
+    this.layoutWindow = undefined
   }
 
   private configureAvoidAreas(windowStage: window.WindowStage): void {

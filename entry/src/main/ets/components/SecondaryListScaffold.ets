@@ -7,7 +7,7 @@ export struct SecondaryListScaffold {
   @BuilderParam content: () => void
   @Local private safeArea: LayoutSafeAreaState = connectLayoutSafeArea()
   @Local private languageState: LanguageState = connectLanguageState()
-  scroller: Scroller = new Scroller()
+  @Param scroller: Scroller = new Scroller()
   @Param listSpace: number = ThemeConstants.SPACE_SM - 2
   @Param horizontalPadding: number = ThemeConstants.SPACE_MD
   // Total height owned by a pinned title-bar bottomBuilder. This is the

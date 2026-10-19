@@ -2,7 +2,9 @@ import { SourceMangaGrid } from '../components/SourceMangaGrid'
 import { SOURCE_SEARCH_TITLE_BOTTOM_HEIGHT } from '../components/SourceSearchTitleField'
 import { SourcePaginationFooter } from '../components/SourcePaginationFooter'
 import { KomaEmptyState } from '../components/ui/KomaEmptyState'
-import { SecondaryListScaffold } from '../components/SecondaryListScaffold'
+import { MangaGridItem } from '../components/MangaGridItem'
+import { connectLayoutSafeArea, LayoutSafeAreaState } from '../state/LayoutSafeAreaState'
+import { gridColumnCount, gridFallbackContainerWidth } from '../utils/GridColumns'
 import { SourceFiltersSheetScaffold } from '../components/SourceFiltersSheetScaffold'
 import { sourceFilterSheetOptions } from '../components/SourceFilterSheetOptions'
 import { SourceFilterControls, SourceFilterControlValue } from '../components/SourceFilterControls'
@@ -16,6 +18,18 @@ import { SourceRuntimeRegistryInstalledSourceSummary } from '../sourceRuntime/So
 
 function s(name: string): string {
   return AppStrings.get(name)
+}
+
+interface SourceSearchGridRow {
+  key: string
+  kind: 'manga' | 'loading' | 'empty' | 'error' | 'footer'
+  manga?: SourceManga
+  bottomPadding: number
+}
+interface SourceSearchGridProjection {
+  rows: SourceSearchGridRow[]
+  byKey: Map<string, SourceSearchGridRow>
+  fullRowIndexes: number[]
 }
 
 @ComponentV2
@@ -38,6 +52,8 @@ export struct SourceSearchPage {
   @Param chrome: SourceSearchRouteChromeState = new SourceSearchRouteChromeState()
   @Local private languageState: LanguageState = connectLanguageState()
   @Local private query: string = ''
+  @Local private safeArea: LayoutSafeAreaState = connectLayoutSafeArea()
+  private gridScroller: Scroller = new Scroller()
   @Local private filtersShown: boolean = false
   private searchTimer: number = 0
   private handledFilterRequestSeq: number = 0
@@ -228,14 +244,54 @@ export struct SourceSearchPage {
     })
   }
 
-  @Builder
-  private ResultsGrid() {
-    SourceMangaGrid({
-      manga: this.viewModel.searchResults,
-      onMangaTap: (selected: SourceManga) => {
-        this.onMangaTap(selected)
-      },
+  @Computed
+  private get gridProjection(): SourceSearchGridProjection {
+    const rows: SourceSearchGridRow[] = []
+    if (this.viewModel.searchResults.length === 0) {
+      const kind: 'loading' | 'error' | 'empty' = this.viewModel.loadingSearch ? 'loading' : this.viewModel.errorMessage.length > 0 ? 'error' : 'empty'
+      rows.push({ key: kind, kind, bottomPadding: ThemeConstants.SPACE_MD })
+    } else {
+      const width = this.safeArea.windowWidthVp > 0 ? this.safeArea.windowWidthVp : gridFallbackContainerWidth()
+      const columns = gridColumnCount(width, ThemeConstants.SOURCE_GRID_MIN_COLUMN_WIDTH,
+        ThemeConstants.SPACE_MD, ThemeConstants.SPACE_XL)
+      const lastRowStart = Math.floor((this.viewModel.searchResults.length - 1) / columns) * columns
+      this.viewModel.searchResults.forEach((item: SourceManga, index: number) => {
+        rows.push({ key: `manga:${item.sourceId}:${item.id}`, kind: 'manga', manga: item,
+          bottomPadding: index >= lastRowStart ? ThemeConstants.SPACE_MD : ThemeConstants.SPACE_LG })
+      })
+      rows.push({ key: 'footer', kind: 'footer', bottomPadding: ThemeConstants.SPACE_MD })
+    }
+    const byKey = new Map<string, SourceSearchGridRow>()
+    const fullRowIndexes: number[] = []
+    rows.forEach((row: SourceSearchGridRow, index: number) => {
+      byKey.set(row.key, row)
+      if (row.kind !== 'manga') fullRowIndexes.push(index)
     })
+    return { rows, byKey, fullRowIndexes }
+  }
+
+  private currentGridRow(row: SourceSearchGridRow): SourceSearchGridRow {
+    return this.gridProjection.byKey.get(row.key) ?? row
+  }
+
+  @Builder
+  private GridRowContent(row: SourceSearchGridRow) {
+    if (row.kind === 'manga') {
+      MangaGridItem({ manga: row.manga!, onMangaTap: (selected: SourceManga) => { this.onMangaTap(selected) } })
+    } else if (row.kind === 'loading') {
+      this.LoadingSearchState()
+    } else if (row.kind === 'error') {
+      this.SearchErrorState()
+    } else if (row.kind === 'empty') {
+      this.EmptySearch()
+    } else {
+      SourcePaginationFooter({
+        isLoading: this.viewModel.loadingSearch,
+        hasMore: this.viewModel.hasMoreSearch,
+        isError: this.viewModel.errorMessage.length > 0,
+        onRetry: () => { void this.viewModel.retrySearchPage() },
+      })
+    }
   }
 
   @Builder
@@ -309,43 +365,18 @@ export struct SourceSearchPage {
   build() {
     if (this.languageState.effectiveLocale.length >= 0) {
       Stack() {
-        SecondaryListScaffold({
-          listSpace: ThemeConstants.SPACE_MD,
-          horizontalPadding: ThemeConstants.SPACE_XL,
+        SourceMangaGrid({
+          scroller: this.gridScroller,
+          contentItemCount: this.gridProjection.rows.length,
+          fullRowIndexes: this.gridProjection.fullRowIndexes,
           pinnedOverlayHeight: SOURCE_SEARCH_TITLE_BOTTOM_HEIGHT,
-          bottomPadding: ThemeConstants.SPACE_XL,
-          reserveTitleBar: true,
-          onReachEnd: () => {
-            void this.viewModel.loadMoreSearch()
-          },
+          onReachEnd: () => { void this.viewModel.loadMoreSearch() },
         }) {
-          if (this.viewModel.loadingSearch && this.viewModel.searchResults.length === 0) {
-            ListItem() {
-              this.LoadingSearchState()
-            }
-          } else if (this.viewModel.errorMessage.length > 0 && this.viewModel.searchResults.length === 0) {
-            ListItem() {
-              this.SearchErrorState()
-            }
-          } else if (this.viewModel.searchResults.length === 0) {
-            ListItem() {
-              this.EmptySearch()
-            }
-          } else {
-            ListItem() {
-              this.ResultsGrid()
-            }
-            ListItem() {
-              SourcePaginationFooter({
-                isLoading: this.viewModel.loadingSearch,
-                hasMore: this.viewModel.hasMoreSearch,
-                isError: this.viewModel.errorMessage.length > 0,
-                onRetry: () => {
-                  void this.viewModel.retrySearchPage()
-                },
-              })
-            }
-          }
+          ForEach(this.gridProjection.rows, (row: SourceSearchGridRow) => {
+            GridItem() { this.GridRowContent(this.currentGridRow(row)) }
+              .padding({ bottom: this.currentGridRow(row).bottomPadding })
+              .clip(false)
+          }, (row: SourceSearchGridRow) => row.key)
         }
       }
       .width('100%')
