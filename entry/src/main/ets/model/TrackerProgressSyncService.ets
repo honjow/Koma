@@ -32,6 +32,7 @@ export type TrackerProgressSyncStatus = 'synced' | 'skipped' | 'failed'
 export type TrackerProgressSyncReason =
   'auto_sync_disabled' |
   'strategy_not_due' |
+  'chapter_progress_unknown' |
   'mapping_missing' |
   'account_missing' |
   'credential_missing' |
@@ -77,7 +78,25 @@ export function calculateAniListChapterProgress(progress: ReadingProgress, chapt
   return progress.completed ? chapterIndex + 1 : chapterIndex
 }
 
-export class TrackerProgressSyncService {
+const trackerProgressWrites: Map<string, Promise<void>> = new Map()
+
+function mutateTrackerProgress<T>(filesDir: string, operation: () => Promise<T>): Promise<T> {
+  const previous = trackerProgressWrites.get(filesDir) ?? Promise.resolve()
+  const result = previous.catch((): void => {}).then(operation)
+  const settled = result.then((): void => {}, (): void => {})
+  trackerProgressWrites.set(filesDir, settled)
+  void settled.then((): void => {
+    if (trackerProgressWrites.get(filesDir) === settled) trackerProgressWrites.delete(filesDir)
+  })
+  return result
+}
+
+export interface ReaderTrackerProgressPort {
+  pushReadingProgress(progress: ReadingProgress, chapterIds: string[], trigger?: TrackerUpdateStrategy,
+    now?: number, preferredProviderId?: TrackerProviderId, providerProgress?: number | null): Promise<TrackerProgressSyncResult>
+}
+
+export class TrackerProgressSyncService implements ReaderTrackerProgressPort {
   private context: common.UIAbilityContext
   private secretStore: TrackerCredentialSecretStore
   private aniListClient?: AniListTrackerClient
@@ -98,8 +117,17 @@ export class TrackerProgressSyncService {
     trigger: TrackerUpdateStrategy = 'on_chapter_complete',
     now: number = Date.now(),
     preferredProviderId?: TrackerProviderId,
+    providerProgress?: number | null,
   ): Promise<TrackerProgressSyncResult> {
-    return BackupRestoreActivity.runWrite(async (): Promise<TrackerProgressSyncResult> => {
+    return BackupRestoreActivity.runWrite(() => mutateTrackerProgress(this.context.filesDir, () =>
+      this.pushReadingProgressNow(progress, chapterIds, trigger, now, preferredProviderId, providerProgress)))
+  }
+
+  private async pushReadingProgressNow(
+    progress: ReadingProgress, chapterIds: string[], trigger: TrackerUpdateStrategy,
+    now: number, preferredProviderId?: TrackerProviderId, count?: number | null,
+    origin: TrackerUpdateStrategy = trigger,
+  ): Promise<TrackerProgressSyncResult> {
       const preferences = await this.preferencesStore().load()
       if (trigger !== 'manual' && !preferences.autoSyncEnabled) {
         return this.skipped('auto_sync_disabled')
@@ -114,24 +142,40 @@ export class TrackerProgressSyncService {
       if (mapping === undefined) {
         return this.skipped('mapping_missing')
       }
-      const providerProgress = calculateAniListChapterProgress(progress, chapterIds)
+      // Undefined retains the previous API for existing callers/backups. Every
+      // current UI/Reader producer supplies an explicit ordinal or null.
+      const providerProgress = count === undefined ? calculateAniListChapterProgress(progress, chapterIds) : count
+      if (providerProgress === null || !Number.isSafeInteger(providerProgress) || providerProgress < 0) {
+        return this.skipped('chapter_progress_unknown')
+      }
       const account = this.findConnectedAccount(preferences, mapping.providerId)
       if (account === undefined || account.credentialAccountKey === undefined) {
-        return this.failedWithPendingQueue('account_missing', mapping, progress, chapterIds, providerProgress, now)
+        return this.failedWithPendingQueue('account_missing', mapping, progress, chapterIds, providerProgress, now, origin)
       }
       if (!this.hasClientForProvider(mapping.providerId)) {
-        return this.failedWithPendingQueue('client_unavailable', mapping, progress, chapterIds, providerProgress, now)
+        return this.failedWithPendingQueue('client_unavailable', mapping, progress, chapterIds, providerProgress, now, origin)
       }
       const accessToken = await this.readAccessToken(account, mapping.providerId)
       if (accessToken === undefined) {
-        return this.failedWithPendingQueue('credential_missing', mapping, progress, chapterIds, providerProgress, now)
+        return this.failedWithPendingQueue('credential_missing', mapping, progress, chapterIds, providerProgress, now, origin)
+      }
+      if (origin !== 'manual') {
+        const remote = await this.fetchProviderProgress(mapping.providerId, accessToken, mapping.providerTitleId)
+        if (!remote.ok) {
+          return this.failedWithPendingQueue('provider_failed', mapping, progress, chapterIds, providerProgress, now, origin)
+        }
+        // Revisiting an older chapter must not lower an existing online count.
+        if (remote.value !== undefined && remote.value.progress >= providerProgress) {
+          await this.pendingStore.removeProgressThrough(mapping.providerId, progress.comicId, remote.value.progress)
+          return this.progressResult(mapping, remote.value)
+        }
       }
       const result = await this.pushProviderProgress(mapping.providerId, accessToken, mapping.providerTitleId, providerProgress)
       if (!result.ok || result.value === undefined) {
-        return this.failedWithPendingQueue('provider_failed', mapping, progress, chapterIds, providerProgress, now)
+        return this.failedWithPendingQueue('provider_failed', mapping, progress, chapterIds, providerProgress, now, origin)
       }
       await this.markAccountSynced(preferences, account, now)
-      await this.pendingStore.removeProgressForComic(mapping.providerId, progress.comicId)
+      await this.pendingStore.removeProgressThrough(mapping.providerId, progress.comicId, providerProgress)
       return {
         status: 'synced',
         providerId: mapping.providerId,
@@ -139,11 +183,10 @@ export class TrackerProgressSyncService {
         providerProgress: result.value.progress,
         completed: result.value.completed,
       }
-    })
   }
 
   async pullReadingProgress(comicId: string, now: number = Date.now(), preferredProviderId?: TrackerProviderId): Promise<TrackerProgressSyncResult> {
-    return BackupRestoreActivity.runWrite(async (): Promise<TrackerProgressSyncResult> => {
+    return BackupRestoreActivity.runWrite(() => mutateTrackerProgress(this.context.filesDir, async (): Promise<TrackerProgressSyncResult> => {
       const preferences = await this.preferencesStore().load()
       const mapping = this.findConfirmedMapping(preferences, comicId, preferredProviderId)
       if (mapping === undefined) {
@@ -166,7 +209,7 @@ export class TrackerProgressSyncService {
       }
       await this.markAccountSynced(preferences, account, now)
       return this.progressResult(mapping, result.value)
-    })
+    }))
   }
 
   async retryPendingProgress(
@@ -174,7 +217,7 @@ export class TrackerProgressSyncService {
     now: number = Date.now(),
     allowWhenAutoSyncDisabled: boolean = false,
   ): Promise<TrackerPendingProgressDrainSummary> {
-    return BackupRestoreActivity.runWrite(async (): Promise<TrackerPendingProgressDrainSummary> => {
+    return BackupRestoreActivity.runWrite(() => mutateTrackerProgress(this.context.filesDir, async (): Promise<TrackerPendingProgressDrainSummary> => {
       const pending = await this.pendingStore.loadPendingProgress()
       const normalizedLimit = Math.max(0, Math.min(50, Math.floor(limit)))
       const entries = pending.slice(0, normalizedLimit)
@@ -204,7 +247,8 @@ export class TrackerProgressSyncService {
           summary.skippedCount += 1
           continue
         }
-        const result = await this.pushReadingProgress(progress, entry.chapterIds, 'manual', now, entry.providerId)
+        const result = await this.pushReadingProgressNow(progress, entry.chapterIds, 'manual', now, entry.providerId,
+          entry.providerProgress, entry.trigger ?? 'manual')
         if (result.status === 'synced') {
           summary.syncedCount += 1
           syncedComicKeys.push(comicKey)
@@ -218,7 +262,7 @@ export class TrackerProgressSyncService {
         }
       }
       return summary
-    })
+    }))
   }
 
   private preferencesStore(): TrackerPreferencesStore {
@@ -352,9 +396,10 @@ export class TrackerProgressSyncService {
     chapterIds: string[],
     providerProgress: number,
     now: number,
+    trigger: TrackerUpdateStrategy,
   ): Promise<TrackerProgressSyncResult> {
     const result = this.failed(reason, mapping)
-    await this.pendingStore.enqueueFailedProgress(mapping.providerId, progress, chapterIds, providerProgress, reason, now)
+    await this.pendingStore.enqueueFailedProgress(mapping.providerId, progress, chapterIds, providerProgress, reason, now, trigger)
     result.queued = true
     return result
   }

@@ -1,4 +1,5 @@
 import { sourceDisplayName } from '../sourceRuntime/SourceRuntimeAppRegistry'
+import { trackerChapterProgress, trackerChapterForProgress } from '../model/TrackerReadingProgress'
 import { MangaDetailHeader } from '../components/MangaDetailHeader'
 import { common } from '@kit.AbilityKit'
 import { MangaDescriptionSection } from '../components/MangaDescriptionSection'
@@ -1137,27 +1138,22 @@ export struct MangaDetailPage {
   }
 
   private latestTrackableMarkedReadProgress(chapterIds: string[]): ReadingProgress | undefined {
-    const orderedChapterIds = this.allChapterIds()
-    let bestIndex = -1
-    let bestChapterId = ''
-    chapterIds.forEach((chapterId: string): void => {
-      const index = orderedChapterIds.indexOf(chapterId)
-      if (index > bestIndex) {
-        bestIndex = index
-        bestChapterId = chapterId
-      }
+    let best: ReadingProgress | undefined
+    let bestCount: number = -1
+    chapterIds.forEach((id: string): void => {
+      const progress = this.completedProgressForChapter(id)
+      if (progress === undefined) return
+      const count = this.trackerProgressCount(progress)
+      if (count !== undefined && count > bestCount) { best = progress; bestCount = count }
     })
-    if (bestIndex < 0 || bestChapterId.length === 0) {
-      return undefined
-    }
-    const currentProgress = this.currentReadingProgress()
-    if (currentProgress !== undefined) {
-      const currentIndex = orderedChapterIds.indexOf(currentProgress.chapterId)
-      if (currentIndex >= 0 && bestIndex < currentIndex) {
-        return undefined
-      }
-    }
-    return this.completedProgressForChapter(bestChapterId)
+    const current = this.currentReadingProgress()
+    const currentCount = current === undefined ? undefined : this.trackerProgressCount(current)
+    return currentCount !== undefined && currentCount > bestCount ? undefined : best
+  }
+
+  private trackerProgressCount(progress: ReadingProgress): number | undefined {
+    const chapter = this.chapters.find((item: MangaChapterItem): boolean => item.id === progress.chapterId)
+    return trackerChapterProgress(progress, chapter?.chapterNumber)
   }
 
   private syncMarkedReadTrackerProgress(chapterIds: string[]): void {
@@ -1170,7 +1166,7 @@ export struct MangaDetailPage {
       void new TrackerProgressSyncService(context).pushReadingProgress(
         progress,
         this.allChapterIds(),
-        'on_chapter_complete',
+        'on_chapter_complete', Date.now(), undefined, this.trackerProgressCount(progress) ?? null,
       )
         .then((result) => {
           console.info(`[TrackerSync] step=marked_read_progress status=${result.status} reason=${result.reason ?? 'none'} queued=${result.queued === true}`)
@@ -1721,6 +1717,7 @@ export struct MangaDetailPage {
     if (reason === 'auto_sync_disabled') {
       return s('manga_detail_tracker_sync_disabled')
     }
+    if (reason === 'chapter_progress_unknown') return s('manga_detail_tracker_sync_no_progress')
     if (reason === 'strategy_not_due') {
       return s('manga_detail_tracker_sync_not_due')
     }
@@ -1744,12 +1741,9 @@ export struct MangaDetailPage {
     if (result.status !== 'synced' || result.providerProgress === undefined || result.providerProgress <= 0) {
       return undefined
     }
-    const chapterIds = this.allChapterIds()
-    if (chapterIds.length === 0) {
-      return undefined
-    }
-    const chapterIndex = Math.min(Math.max(Math.floor(result.providerProgress) - 1, 0), chapterIds.length - 1)
-    return this.completedProgressForChapter(chapterIds[chapterIndex])
+    const chapterId = trackerChapterForProgress(this.chapters, result.providerProgress,
+      this.currentReadingProgress()?.chapterId)
+    return chapterId === undefined ? undefined : this.completedProgressForChapter(chapterId)
   }
 
   private async refreshTrackerMappingCandidates(): Promise<void> {
@@ -1799,7 +1793,7 @@ export struct MangaDetailPage {
       const result = await new TrackerProgressSyncService(context).pushReadingProgress(
         progress,
         this.allChapterIds(),
-        'manual',
+        'manual', Date.now(), undefined, this.trackerProgressCount(progress) ?? null,
       )
       console.info(`[TrackerSync] step=manual_progress status=${result.status} reason=${result.reason ?? 'none'} queued=${result.queued === true}`)
       if (result.status === 'synced') {
