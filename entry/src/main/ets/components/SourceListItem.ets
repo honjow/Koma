@@ -1,3 +1,4 @@
+import { sourceDisplayName } from '../sourceRuntime/SourceRuntimeAppRegistry'
 import { SourceRuntimeRegistryInstalledSourceSummary } from '../sourceRuntime/SourceRuntimeRegistry'
 import { ThemeConstants } from '../theme/ThemeConstants'
 import { ConciseListRow } from './ui/ConciseListRow'
@@ -49,7 +50,7 @@ export struct SourceListItem {
     if (this.title !== '') {
       return this.title
     }
-    return this.source.displayName
+    return sourceDisplayName(this.source.sourceId, this.source.displayName)
   }
 
   private displaySubtitle(): ResourceStr {

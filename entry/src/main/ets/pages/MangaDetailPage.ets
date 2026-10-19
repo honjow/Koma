@@ -1,3 +1,4 @@
+import { sourceDisplayName } from '../sourceRuntime/SourceRuntimeAppRegistry'
 import { MangaDetailHeader } from '../components/MangaDetailHeader'
 import { common } from '@kit.AbilityKit'
 import { MangaDescriptionSection } from '../components/MangaDescriptionSection'
@@ -1888,7 +1889,7 @@ export struct MangaDetailPage {
       tags: manga.tags,
       sourceId: manga.sourceId,
       sourceImageId: manga.sourceImageId,
-      sourceName: manga.sourceId === undefined ? s('tab_library') : manga.sourceName,
+      sourceName: manga.sourceId === undefined ? s('tab_library') : sourceDisplayName(manga.sourceId, manga.sourceName ?? ''),
       chapterCount: this.chapters.length,
       isInLibrary: this.isInLibrary,
       url: manga.url,

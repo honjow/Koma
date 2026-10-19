@@ -1,3 +1,4 @@
+import { sourceDisplayName } from '../sourceRuntime/SourceRuntimeAppRegistry'
 import { common } from '@kit.AbilityKit'
 import { KomaReaderLabPage } from '../readerLab/KomaReaderLabPage'
 import { KomaReaderCatalogHost } from '../readerLab/KomaReaderCatalogHost'
@@ -2384,7 +2385,7 @@ struct Index {
     const source = param.source
     const chrome = param.chrome
     const title: Record<string, Object> = {}
-    title['mainTitle'] = source.displayName
+    title['mainTitle'] = sourceDisplayName(source.sourceId, source.displayName)
     const content: Record<string, Object> = {}
     content['title'] = title
     const bottomBuilder: Record<string, Object> = {}
@@ -2439,7 +2440,7 @@ struct Index {
     const source = param.source
     const chrome = param.chrome
     const title: Record<string, Object> = {}
-    title['mainTitle'] = source.displayName.length > 0 ? source.displayName : AppStrings.get('tab_search')
+    title['mainTitle'] = sourceDisplayName(source.sourceId, source.displayName) || AppStrings.get('tab_search')
     const bottomBuilder: Record<string, Object> = {}
     bottomBuilder['builderComponent'] = this.sourceSearchFieldContent(chrome)
     bottomBuilder['height'] = SOURCE_SEARCH_TITLE_BOTTOM_HEIGHT

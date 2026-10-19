@@ -140,7 +140,7 @@ export class RouterHelper {
     }
     const routeParam: SourceBrowseRouteParam = {
       source: param.source,
-      chrome: new SourceBrowseRouteChromeState(param.source.displayName),
+      chrome: new SourceBrowseRouteChromeState(param.source.displayName, param.source.sourceId),
     }
     stack.pushPath({ name: RouteName.SOURCE_BROWSE, param: routeParam })
   }
@@ -152,7 +152,7 @@ export class RouterHelper {
     }
     const routeParam: SourceSearchRouteParam = {
       source: param.source,
-      chrome: new SourceSearchRouteChromeState(param.source.displayName, initialQuery),
+      chrome: new SourceSearchRouteChromeState(param.source.displayName, initialQuery, param.source.sourceId),
     }
     stack.pushPath({ name: RouteName.SOURCE_SEARCH, param: routeParam })
   }

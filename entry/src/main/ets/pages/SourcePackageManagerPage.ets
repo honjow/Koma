@@ -1,3 +1,5 @@
+import { sourceDisplayName } from '../sourceRuntime/SourceRuntimeAppRegistry'
+import { resolveSourceLocalizedName } from '../sourceRuntime/SourceLocalizedNames'
 import { common } from '@kit.AbilityKit'
 import { SymbolGlyphModifier } from '@kit.ArkUI'
 import { SecondaryListScaffold } from '../components/SecondaryListScaffold'
@@ -218,6 +220,10 @@ export struct SourcePackageManagerPage {
     }
   }
 
+  private indexDisplayName(entry: SourceIndexEntry): string {
+    return resolveSourceLocalizedName(entry.name, entry.localizedNames, this.languageState.effectiveLocale)
+  }
+
   private installedSourceIds(): string[] {
     return this.packages.map((pkg: InstalledSourcePackage): string => pkg.id)
   }
@@ -231,6 +237,7 @@ export struct SourcePackageManagerPage {
     return {
       sourceId: source.id,
       displayName: source.name,
+      localizedNames: source.localizedNames,
       version: source.version,
       wasmByteCount: 0,
       importStatus,
@@ -776,7 +783,7 @@ export struct SourcePackageManagerPage {
     }
     const wasEnabled = source.enabled
     this.updateInstallSourceId = source.id
-    this.statusText = tf('source_pkg_update_running', source.name)
+    this.statusText = tf('source_pkg_update_running', sourceDisplayName(source.id, source.name))
     console.info('[SourcePackageUpdate] step=install_start id=' + source.id)
     try {
       const result: SourceIndexInstallResult = await this.sourceIndexService.installPackage(url, entry)
@@ -794,7 +801,7 @@ export struct SourcePackageManagerPage {
           remoteVersion: entry.version,
           localVersion: installed?.version ?? entry.version,
         })
-        this.statusText = tf('source_pkg_update_done', source.name)
+        this.statusText = tf('source_pkg_update_done', sourceDisplayName(source.id, source.name))
         this.showToast(t('source_pkg_toast_updated'))
         console.info('[SourcePackageUpdate] step=install_done id=' + source.id)
       } else {
@@ -1063,7 +1070,7 @@ export struct SourcePackageManagerPage {
       return
     }
     this.indexInstallBusy = true
-    this.indexStatusText = replaceExisting ? tf('source_pkg_update_running', entry.name) : tf('source_pkg_install_running', entry.name)
+    this.indexStatusText = replaceExisting ? tf('source_pkg_update_running', this.indexDisplayName(entry)) : tf('source_pkg_install_running', this.indexDisplayName(entry))
     try {
       const result: SourceIndexInstallResult = await this.sourceIndexService.installPackage(
         this.sourceIndexUrl.trim(),
@@ -1073,7 +1080,7 @@ export struct SourcePackageManagerPage {
         if (existing !== undefined && !existing.enabled) {
           setEnabled(this.context(), existing.id, false)
         }
-        this.indexStatusText = replaceExisting ? tf('source_pkg_update_done', entry.name) : tf('source_pkg_install_done', entry.name)
+        this.indexStatusText = replaceExisting ? tf('source_pkg_update_done', this.indexDisplayName(entry)) : tf('source_pkg_install_done', this.indexDisplayName(entry))
         this.showToast(replaceExisting ? t('source_pkg_toast_updated') : t('source_pkg_toast_install_success'))
         this.reload()
       } else {
@@ -1301,7 +1308,7 @@ export struct SourcePackageManagerPage {
     }
     this.getUIContext().showAlertDialog({
       title: t('source_pkg_remove_title'),
-      message: tf('source_pkg_remove_message', source.name),
+      message: tf('source_pkg_remove_message', sourceDisplayName(source.id, source.name)),
       autoCancel: true,
       primaryButton: {
         value: t('source_pkg_delete'),
@@ -1486,7 +1493,7 @@ export struct SourcePackageManagerPage {
     }
     this.getUIContext().showAlertDialog({
       title: t('source_pkg_clear_settings_title'),
-      message: tf('source_pkg_clear_settings_message', this.settingsSourceName),
+      message: tf('source_pkg_clear_settings_message', sourceDisplayName(this.settingsSourceId, this.settingsSourceName)),
       autoCancel: true,
       primaryButton: {
         value: t('source_pkg_clear_settings'),
@@ -1888,7 +1895,7 @@ export struct SourcePackageManagerPage {
   @Builder
   private RemoteIndexCard(entry: SourceIndexEntry) {
     ConciseListRow({
-      title: entry.name,
+      title: this.indexDisplayName(entry),
       subtitle: this.indexVersionText(entry) + (entry.lang.length > 0 ? ' · ' + entry.lang : ''),
       subtitleMaxLines: 1,
       hasSourceIdentityPrefix: true,
@@ -2123,7 +2130,7 @@ export struct SourcePackageManagerPage {
   @Builder
   private PackageCard(sourceId: string) {
     ConciseListRow({
-      title: this.installedPackage(sourceId)?.name ?? '',
+      title: sourceDisplayName(sourceId, this.installedPackage(sourceId)?.name ?? ''),
       subtitle: this.packageListMetaText(this.installedPackage(sourceId)),
       trailingText: (this.installedPackage(sourceId)?.enabled ?? false) ? t('source_pkg_enabled') : t('source_pkg_disabled'),
       hasSourceIdentityPrefix: true,
@@ -2263,7 +2270,7 @@ export struct SourcePackageManagerPage {
       Blank().width('100%').height('100%')
     } else {
       KomaModalScaffold({
-        title: this.sourceSheetSource()!.name,
+        title: sourceDisplayName(this.sourceSheetSource()!.id, this.sourceSheetSource()!.name),
         subtitle: this.sourceMetaText(this.sourceSheetSource()!),
         onClose: () => {
           this.requestSourceSheetDismiss()
@@ -2280,7 +2287,7 @@ export struct SourcePackageManagerPage {
   private SourceSettingsSheetContent() {
     KomaModalScaffold({
       title: t('source_pkg_settings_title'),
-      subtitle: this.settingsSourceName,
+      subtitle: sourceDisplayName(this.settingsSourceId, this.settingsSourceName),
       onClose: () => {
         this.closeSourceSettingsSheet()
       },
@@ -2453,7 +2460,7 @@ export struct SourcePackageManagerPage {
       Column({ space: ThemeConstants.SPACE_MD }) {
         Row({ space: ThemeConstants.SPACE_MD }) {
           Column({ space: ThemeConstants.SPACE_XS }) {
-            Text(this.settingsSourceName)
+            Text(sourceDisplayName(this.settingsSourceId, this.settingsSourceName))
               .fontSize(ThemeConstants.FONT_SIZE_TITLE)
               .fontWeight(FontWeight.Medium)
               .fontColor(ThemeConstants.TEXT_PRIMARY)

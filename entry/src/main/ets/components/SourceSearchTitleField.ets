@@ -1,3 +1,4 @@
+import { sourceDisplayName } from '../sourceRuntime/SourceRuntimeAppRegistry'
 import { AppStrings } from '../i18n/AppStrings'
 import { SourceSearchRouteChromeState } from '../state/SourceRouteChromeState'
 import { ThemeConstants } from '../theme/ThemeConstants'
@@ -32,7 +33,7 @@ export struct SourceSearchTitleField {
   }
 
   private placeholder(): string {
-    const sourceName = this.chrome.sourceName.trim()
+    const sourceName = sourceDisplayName(this.chrome.sourceId, this.chrome.sourceName).trim()
     return sourceName.length > 0 ? `${s('source_search_placeholder')} · ${sourceName}` : s('source_search_placeholder')
   }
 

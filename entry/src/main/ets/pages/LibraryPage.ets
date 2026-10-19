@@ -1,3 +1,4 @@
+import { sourceDisplayName } from '../sourceRuntime/SourceRuntimeAppRegistry'
 import { common } from '@kit.AbilityKit'
 import { ComponentContent } from '@kit.ArkUI'
 import { ComicCoverCard, ComicCoverInfo } from '../components/ComicCoverCard'
@@ -1193,7 +1194,7 @@ export struct LibraryPage {
       seenFilters.push(filter)
       options.push({
         filter,
-        title: summary?.displayName ?? s('library_source_package'),
+        title: sourceDisplayName(sourceId, summary?.displayName ?? s('library_source_package')),
       })
     })
     return options

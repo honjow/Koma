@@ -8,6 +8,7 @@
 @ObservedV2
 export class SourceBrowseRouteChromeState {
   readonly sourceName: string
+  readonly sourceId: string
   readonly scroller: Scroller = new Scroller()
   @Trace filtersAvailable: boolean = false
   @Trace filterRequestSeq: number = 0
@@ -15,8 +16,9 @@ export class SourceBrowseRouteChromeState {
   @Trace queryChangeSeq: number = 0
   @Trace querySubmitSeq: number = 0
 
-  constructor(sourceName: string = '') {
+  constructor(sourceName: string = '', sourceId: string = '') {
     this.sourceName = sourceName
+    this.sourceId = sourceId
   }
 
   requestFilters(): void {
@@ -38,6 +40,7 @@ export class SourceBrowseRouteChromeState {
 @ObservedV2
 export class SourceSearchRouteChromeState {
   readonly sourceName: string
+  readonly sourceId: string
   readonly initialQuery: string
   @Trace filtersAvailable: boolean = false
   @Trace filterRequestSeq: number = 0
@@ -45,8 +48,9 @@ export class SourceSearchRouteChromeState {
   @Trace queryChangeSeq: number = 0
   @Trace querySubmitSeq: number = 0
 
-  constructor(sourceName: string = '', initialQuery: string = '') {
+  constructor(sourceName: string = '', initialQuery: string = '', sourceId: string = '') {
     this.sourceName = sourceName
+    this.sourceId = sourceId
     this.initialQuery = initialQuery.trim()
     this.query = this.initialQuery
   }

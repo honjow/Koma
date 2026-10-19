@@ -1,3 +1,4 @@
+import { sourceDisplayName } from '../sourceRuntime/SourceRuntimeAppRegistry'
 import { common } from '@kit.AbilityKit'
 import { RouterHelper } from '../common/RouterHelper'
 import { CachedCoverImage, cachedCoverFailureKey } from '../components/CachedCoverImage'
@@ -559,8 +560,21 @@ export struct SearchPage {
     return count
   }
 
+  private sourceSectionTitle(section: CrossSearchSection): string {
+    return section.id.startsWith('wasm:') ? sourceDisplayName(section.id.substring(5), section.title) : section.title
+  }
+
   private sectionTitle(section: CrossSearchSection): string {
-    return section.resultCount === 0 ? section.title : `${section.title} · ${section.resultCount}`
+    const title = this.sourceSectionTitle(section)
+    return section.resultCount === 0 ? title : `${title} · ${section.resultCount}`
+  }
+
+  private resultSubtitle(item: CrossSearchResultItem): string {
+    if (item.sourceKind === 'wasm' && item.sourceId !== undefined &&
+      (item.subtitle.length === 0 || item.subtitle === item.sourceLabel)) {
+      return sourceDisplayName(item.sourceId, item.sourceLabel)
+    }
+    return item.subtitle.length === 0 ? item.sourceLabel : item.subtitle
   }
 
   private sectionRenderKey(section: CrossSearchSection): string {
@@ -847,7 +861,7 @@ export struct SearchPage {
           .maxLines(2)
           .textOverflow({ overflow: TextOverflow.Ellipsis })
           .width('100%')
-        Text(item.subtitle.length === 0 ? item.sourceLabel : item.subtitle)
+        Text(this.resultSubtitle(item))
           .fontSize(ThemeConstants.FONT_SIZE_META)
           .fontColor(ThemeConstants.TEXT_SECONDARY)
           .maxLines(1)
@@ -972,7 +986,7 @@ export struct SearchPage {
             if (section.state === 'running' || section.state === 'pending') {
               ListItem() {
                 Column({ space: ThemeConstants.SPACE_SM }) {
-                  this.SectionHeader(section.title)
+                  this.SectionHeader(this.sourceSectionTitle(section))
                   Row({ space: ThemeConstants.SPACE_MD }) {
                     LoadingProgress()
                       .width(ThemeConstants.SPACE_XL)
@@ -994,7 +1008,7 @@ export struct SearchPage {
             } else if (section.state === 'empty' || section.state === 'timeout' || section.state === 'failed' || section.state === 'unsupported') {
               ListItem() {
                 Column({ space: ThemeConstants.SPACE_SM }) {
-                  this.SectionHeader(section.title)
+                  this.SectionHeader(this.sourceSectionTitle(section))
                   Text(this.sectionStatusText(section))
                     .width('100%')
                     .fontSize(ThemeConstants.FONT_SIZE_META)

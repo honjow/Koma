@@ -1,3 +1,4 @@
+import { sourceDisplayName } from '../sourceRuntime/SourceRuntimeAppRegistry'
 import { common } from '@kit.AbilityKit'
 import { RouterHelper } from '../common/RouterHelper'
 import { SecondaryListScaffold } from '../components/SecondaryListScaffold'
@@ -159,7 +160,7 @@ export struct LibraryUpdateResultPage {
   private providerTitle(summary: LibraryUpdateProviderSummary): string {
     const sources: LibraryUpdateSourceLabel[] = (this.sourceRegistry?.list() ?? [])
       .map((entry: SourceRuntimeRegistryEntry): LibraryUpdateSourceLabel => {
-        return { id: entry.sourceId, name: entry.manifestName }
+        return { id: entry.sourceId, name: sourceDisplayName(entry.sourceId, entry.manifestName) }
       })
     return libraryUpdateProviderTitle(summary, this.summary?.results ?? [], this.libraryStore?.listComics() ?? [], sources)
   }
