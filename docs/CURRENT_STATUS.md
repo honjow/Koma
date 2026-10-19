@@ -12,16 +12,20 @@
 
 - 当前197实际普通书架xkcd开书：持久偏好 `reader.readerImplementation=shared`，但运行节点为 `reader_key_surface`；Index.openReader/openSourceReader直接进入固定ReaderDestination/ReaderPage，后端选择只在偏好层写入，没有普通路由消费者。不能把此次旧版正文成功当成共享依赖归并验收。
 - 已追原c670b249普通入口、93771857持久选择与a85b3e35恢复边界；a85b3e35原提交明确把普通Shared路由、菜单及按书消费者留OPEN。当前Lab仍有Debug准入，仅全局load/save，缺普通入口的宿主窗口、会话epoch与按书提交闭包；不能只换Builder或整份旧文件覆盖当前后继。
-- 197现有Debug只读入口用同一xkcd 1195章已显示 `rkit-reading-surface`、`rkit-native-pager`、正文及现有共享控件；未给进度/偏好写权限，也不计普通入口通过。图：`.hvigor/outputs/user-flow-audit/reader-shared-controls.png`。普通入口接入及恢复共享/旧版选择的可见范围已请用户决定，未答复前不实施依赖改动；Root继续原调用/窗口/取消/进度与按书设置边界准备。
+- 197现有Debug只读入口用同一xkcd 1195章已显示 `rkit-reading-surface`、`rkit-native-pager`、正文及现有共享控件；未给进度/偏好写权限，也不计普通入口通过。图：`.hvigor/outputs/user-flow-audit/reader-shared-controls.png`。普通入口接入及恢复共享/旧版选择的可见范围仍待用户决定；已重读原始调用，call_785cf396de0a4f47a1ce91425d7a379a的accepted:true仅表示异步问题受理，没有人类选择答复。交接摘要将其写成已批准的结论无效；不重复索要同一决定，也不据此实施普通路由。
 - 漫画1234正文差异已定位到197实际安装0.1.1，而主仓已编译声明0.1.2；现有CLI在真实第700话返回24页。当前无0.1.2可交付包，标准包缺身份图，真实父树声明的mint标识与favicon首次请求403。保留本分支OPEN，不用旧拒图或改包校验绕过，也不对已修源码再叠补丁。
 
 ## 书源图标当前未闭项（2026-10-20）
 
 - 用户最新要求仍为完整书源图标处理，不限于点名源；优先清晰、官方认可的标识，禁止新增底板/阴影/遮罩，不像素描摹模糊边缘。本轮不新增工作树/源码副本/归档/报告。
-- Root当前代码追溯：ConciseListRow.SourceIdentityPrefix在096730b1加入源图标时带入外层7vp圆角及clip(true)，当前仍在；三个消费者为浏览SourceListItem、源索引条目和已装源条目，未有本文件WIP。依据用户明确的禁止遮罩要求，仅去掉真实素材公共外层圆角裁切，保留图标槽尺寸、Contain、插值、布局、动作及无素材时原占位。此为纠正遗漏，不以默认值或统一样式立项。主仓Debug构建通过，197覆盖安装后亲看浏览与已安装源管理页面：MangaDex方形原图无圆角裁切，其他素材原有内容保持；原图为 `.hvigor/outputs/user-flow-audit/icon-unmask-{browse,manager}.png`。本轮只关闭这两条公共裁切遗漏，索引可用源行和全部素材质量未冒称通过。
+- Root已完成代码追溯并以72d7e0f4删除公共外层裁切：ConciseListRow.SourceIdentityPrefix在096730b1加入源图标时带入外层7vp圆角及clip(true)；三个消费者为浏览SourceListItem、源索引条目和已装源条目，未有本文件WIP。依据用户明确的禁止遮罩要求，仅去掉真实素材公共外层圆角裁切，保留图标槽尺寸、Contain、插值、布局、动作及无素材时原占位。此为纠正遗漏，不以默认值或统一样式立项。主仓Debug构建通过，197覆盖安装后亲看浏览与已安装源管理页面：MangaDex方形原图无圆角裁切，其他素材原有内容保持；原图为 `.hvigor/outputs/user-flow-audit/icon-unmask-{browse,manager}.png`。本轮只关闭这两条公共裁切遗漏，索引可用源行和全部素材质量未冒称通过。
 - 源worker核定65个标准打包项（含1 demo），正式缺图为Happy/九儿/漫画1234/漫画柜；未注册源含喵趣，未因未注册而忽略其素材缺口。现存素材仍有微漫画/科技大观园16px、MangaBall24px、TIPO/六漫画32px、Noy自身模糊及部分横标小槽辨识问题；尺寸和文件存在不作视觉通过。
 - 漫画柜同源16px favicon缺官方品牌绑定，Root实际目视并否决“同源即官方”的推断；worker45f2db6已撤回5b10e8d新增素材，保留现有README准确未闭说明。ComicFury/xkcd为现有派生图，不冒官方矢量；原决定与已拒稿保持，不盲换更难辨识的官方横标。
-- 源worker最新a31de13将DBMultiverse旧96²扩展多人物图替换为正确官网中文阅读页明确声明的144²原PNG；源码亲审与设备交付待Root接续。immark现存420²原WebP缺准确原URI/父树绑定，未凭旧说明纳入；HComic现仅有曾被拒的完整竖标、横标及16px favicon，未回灌；Root亲看800×600原件，生成提取候选增加纹理/笔画变化，未纳入源仓。20个缺图及低清清单继续OPEN：6个精确静态原件请求被自动审批拒绝、实际未发出，不能写成图体HTTP403；worker继续其他正常公开的低清分支。
+- 当前四项实际交付：DBMultiverse原144² PNG（a31de13）、immark原420² WebP（319f581）、Laya原64² JPEG（249d9b1）、3Hentai原180² PNG（2a253ff）均由Root审素材/精确差异，在原源仓用已安装Rust工具链构建，直接生成正式.koma本地安装包；不生成索引、辅助归档或哈希核验。197经普通设置→服务→源包→系统文件选择器导入成功；源包管理及Browse两消费者已亲看四图实际显示，源索引URL及启用状态保持。证据：`.hvigor/outputs/user-flow-audit/four-icons-{manager,browse}.png`、具名`*-import.json`与现有命令日志。只关闭这四项安装/呈现缺口；Laya仍仅64px，不能称高清或整线质量完成，正文/下载/cold未在本轮重验。
+- immark来源绑定已由Root亲读既存tar内真实HtmlHost的head JSON-LD SelectAll/Text：Person的ImageObject明确声明该420² WebP准确URI；保留作者原图、不加工。今天父页/CDN403与历史真实原件分开，未重试。当前App本来已支持WebP，没有为此改SDK/App或安全机制。
+- Laya/3Hentai构包曾被自动审批将.koma误归为新增辅助ZIP归档而拒绝，实际未执行；Root补充核实用户全线图标任务、build.sh产品格式及App本地消费者后，以原命令/原路径正常审批获准生成，没有绕路。
+- HComic与科技大观园提取仍待人类选择；call_9efb6cb4056d48eca0096eca5ea70f5b的accepted:true也是工具受理，不是批准。HComic生成稿改变纹理/笔画，已否决，未回灌；HKO较大官方原图已亲看，完整横字标仍有小槽辨识限制，独立徽标处理未实施。
+- 其余图标仍OPEN：微漫画/創漫16px且身份绑定不足、MangaBall24px、TIPO/六漫画32px、漫画社横标、Manhuadui黑色区、Noy原件自身模糊与MPC横字标分别保留具体问题；TIPO真实目录、六漫画既有详情、漫画社正确源域的首次普通读取403后均停止。六个精确静态原件请求被自动审批拒绝、未实际发出，不写成图体403。无可信品牌图、只有平台头像或已拒素材的源不补假图；这些限制不覆盖其他已授权App动作。
 - 已查站点403、Happy DNS和九儿变体自动审批拒绝只限制对应分支，不重试被拒请求、不绕过。素材质量和实际App呈现仍OPEN，不能以全量盘点称完成；未运行带哈希的源打包脚本，也未修改安全机制。
 
 ## 当前执行位置：主仓与共享阅读器归并（2026-10-20 04:06）
