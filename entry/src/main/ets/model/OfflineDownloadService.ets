@@ -205,14 +205,23 @@ export class OfflineDownloadService {
 
   private saveBlockedChapter(comic: Comic, chapterId: string, reasonCode: string, labels?: OfflineDownloadLabels): OfflineChapterDownloadManifest {
     const chapter = comic.chapters.find((item: Chapter): boolean => item.id === chapterId)
-    let manifest = this.store.createManifest(
-      comic.id,
-      chapterId,
-      0,
-      OfflineDownloadStatus.BLOCKED,
-      manifestIdentityFromComic(comic),
-      manifestLabelsFromDownload(comic, chapter, labels)
-    )
+    // A source lookup failure must not orphan pages already downloaded for this chapter.
+    let manifest = this.store.loadManifest(comic.id, chapterId)
+    if (manifest === undefined) {
+      manifest = this.store.createManifest(
+        comic.id,
+        chapterId,
+        0,
+        OfflineDownloadStatus.BLOCKED,
+        manifestIdentityFromComic(comic),
+        manifestLabelsFromDownload(comic, chapter, labels)
+      )
+    } else if (manifest.pages.length > 0) {
+      manifest.status = manifest.status === OfflineDownloadStatus.DOWNLOADED
+        ? OfflineDownloadStatus.DOWNLOADED : OfflineDownloadStatus.PARTIAL
+    } else {
+      manifest.status = OfflineDownloadStatus.BLOCKED
+    }
     manifest.failureReasonCode = reasonCode
     manifest = this.store.saveManifest(applyManifestLabels(manifest, comic, chapter, labels))
     this.queueStore.upsert(this.queueStore.fromManifest(manifest, labels?.comicTitle ?? comic.title, labels?.chapterTitle ?? chapter?.title))
@@ -248,8 +257,11 @@ export class OfflineDownloadService {
       const blockedReason = downloadBlockedReason(!latestCanDownload ? latestPreferences : initialPreferences)
       let existingManifest = this.store.loadManifest(comic.id, chapterId)
       if (existingManifest !== undefined) {
-        existingManifest.status = existingManifest.downloadedPageCount > 0 ? OfflineDownloadStatus.PARTIAL : OfflineDownloadStatus.QUEUED
-        existingManifest.failureReasonCode = blockedReason
+        const validation = this.store.validateDownloadedChapter(comic.id, chapterId)
+        const complete = validation.status === OfflineDownloadedChapterStatus.DOWNLOADED
+        existingManifest.status = complete ? OfflineDownloadStatus.DOWNLOADED :
+          (existingManifest.downloadedPageCount > 0 ? OfflineDownloadStatus.PARTIAL : OfflineDownloadStatus.QUEUED)
+        existingManifest.failureReasonCode = complete ? undefined : blockedReason
         existingManifest = this.store.saveManifest(applyManifestLabels(existingManifest, comic, undefined, labels))
         this.queueStore.upsert(this.queueStore.fromManifest(existingManifest, labels?.comicTitle ?? comic.title, labels?.chapterTitle))
         return existingManifest
@@ -270,42 +282,11 @@ export class OfflineDownloadService {
     const chapter = comic.chapters.find((item: Chapter): boolean => item.id === chapterId)
     if (chapter === undefined) {
       console.warn(`[ReaderOffline] step=download_blocked comic=${createOfflineDownloadStableHash(comic.id)} chapter=${createOfflineDownloadStableHash(chapterId)} reason=chapter_missing`)
-      let manifest = this.store.createManifest(
-        comic.id,
-        chapterId,
-        0,
-        OfflineDownloadStatus.BLOCKED,
-        manifestIdentityFromComic(comic),
-        manifestLabelsFromDownload(comic, undefined, labels)
-      )
-      manifest.failureReasonCode = 'chapter_missing'
-      manifest = this.store.saveManifest(manifest)
-      this.queueStore.upsert(this.queueStore.fromManifest(manifest, labels?.comicTitle ?? comic.title, labels?.chapterTitle))
-      this.publishNotification(manifest, labels ?? { comicTitle: comic.title })
-      return manifest
+      return this.saveBlockedChapter(comic, chapterId, 'chapter_missing', labels)
     }
     if (chapter.pages.length === 0) {
       console.warn(`[ReaderOffline] step=download_blocked comic=${createOfflineDownloadStableHash(comic.id)} chapter=${createOfflineDownloadStableHash(chapterId)} reason=pages_missing`)
-      const manifest = this.store.saveManifest({
-        schemaVersion: 1,
-        sourceKind: comic.sourceKind,
-        sourceId: comic.sourceRuntimeId ?? comic.remoteServerId ?? comic.sourceKind,
-        comicId: comic.id,
-        comicTitle: manifestLabelsFromDownload(comic, chapter, labels).comicTitle,
-        seriesId: comic.id,
-        chapterId,
-        chapterTitle: manifestLabelsFromDownload(comic, chapter, labels).chapterTitle,
-        pageCount: 0,
-        downloadedPageCount: 0,
-        status: OfflineDownloadStatus.BLOCKED,
-        updatedAt: Date.now(),
-        pages: [],
-        integrityHash: '',
-        failureReasonCode: 'pages_missing',
-      })
-      this.queueStore.upsert(this.queueStore.fromManifest(manifest, labels?.comicTitle ?? comic.title, labels?.chapterTitle ?? chapter.title))
-      this.publishNotification(manifest, labels ?? { comicTitle: comic.title, chapterTitle: chapter.title })
-      return manifest
+      return this.saveBlockedChapter(comic, chapterId, 'pages_missing', labels)
     }
 
     const existingValidation = this.store.validateDownloadedChapter(comic.id, chapterId)
