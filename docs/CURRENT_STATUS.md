@@ -1,6 +1,17 @@
 # Koma 当前状态、缺口与执行基线
 
-## 当前：目录与分支成果恢复审计（2026-10-19）
+## 当前：30分钟清理收尾（2026-10-20）
+
+- 最新期限：本轮从2026-10-19 16:58:03 UTC起计30分钟，截止17:28:03 UTC。每项实际操作及剩余时间见恢复区`root-cleanup-user-30min-20261020.json`；未捕获起点的准备操作明确记为未知，不补造耗时。产品开发与设备验收仍暂停。
+- 已实际退出原`koma-checkpoint-review-20261018`审查父目录。完整原件保留在`app-checkpoint-preferences-whole-host-input-c6bb8602.tar.gz`；退出回执`root-checkpoint-parent-final-retirement-20261020.json`核正式源码/index/flags/refs不变。此前的原preferences fixture、小Kit目录和三个旧检查点分支不再待执行。
+- 本轮进一步清理五组已批准修改的旧审查目录、两份对应实现旁件，以及History旧32vp提案和源地址Sheet旧检查点。每批先完整保全源码前后件、原补丁、失败、截图、HAP及原路径、正文和类型/权限/时间/扩展属性记录，独立全档读回，再核无FD/argv/容器挂载后退出。原件与旧路径映射分别在`approved-five-original-reviews-r2-20261020-{manifest.json,retirement.json}`、`approved-two-implementation-sidecars-20261020-{manifest.json,retirement.json}`、`resolved-design-review-originals-20261020-{manifest.json,retirement.json}`和同名前缀tar.gz中。第一次Python缺xattr接口在任何删除前停止，失败与修正版分别保留。
+- 三个正式仓实时各只有一个登记工作树和一条本地分支：Koma/master、koma-sources/master、reader-kit/codex/reconcile-f1-d1。按原源开发副本全集逐路径核对，仅正式源仓仍在；这不等于所有历史证据目录都已清理。physical05的活服务数据、MDX两个外部证据父、唯一审计与完整归档区继续保留；MDX未定位正文是HTTP证据，不是尚未归回的源业务代码。
+- 本轮原候选与当前源码核回：备份加载/失败保旧列表/重试、OPDS真实页数、明确unsupported文案、Shared/旧版真实章节重试、浏览错误上下文均保留。另核源索引完整URL换行及可滚动父树、History移除按钮24vp、Library已批准边距/padding和未缩减封面均保持。没有新产品差异、构建或设备验收；源码保留不冒运行通过。
+- 恢复尚未整体完成：App普通Shared入口、AutoRead、旧远端session、章节landing、production可见叶、f769宿主变体，以及Kit的claim/rollback、thumbnail委托、chapter landing、prepare失败叶、processing队列、title/window/loading和Pager动画候选继续档内保留，不能把真实反例、缺完整消费者或未定位批准的候选直接回灌。另有原输入未完成逐行为裁定，不可统称这几组或称全被取代；具体索引为审计区`app-worker-unmapped-app-source-member-binding-r2-c6bb8602.json`和原全量覆盖表，Kit路由为`kit-current-finite-owner-and-responsibility-queue-r161-20261019.json`，其中旧可删项已经退出，以本轮回执为准。
+- 当前仍有三份未提交工作文件：App `KomaReaderLabPage.ets`；Kit `ReaderSurface.ets`及`reader-surface-input.test.cjs`。本续接未修改、未覆盖、未提交这些差异，来源归属未查证；不把它们冒称清理已采纳。Kit stash继续保留。远端未由本轮同步，不发布。
+- 下一项仍是恢复清理：Root对现存原输入中未完成的行为差异继续作有限裁定，先用现成原候选/后继/反例，不能以归档代替采用，也不重开已闭源码组或插入产品测试。现有App、Kit、源owner均已回报其直接可退队列为空；历史证据父仍未全部退出。
+
+## 恢复审计记录（2026-10-19）
 
 - 2026-10-20 Root已实际收敛清理：咚漫五父由r3原件/9档/16独有Git正文完整保全后退出，Root逐5554旧路径成员独立读回；r2循环变量复用风险保留，未运行旧候选。四份非Koma命名旧源码已核后继并全档读回后精确退出，生产源码未变化。Kit旧小审查目录14原文件复用r154完整原档、补保存原目录元数据与路径图后退出；停止r160过宽全局扫描路线，未运行其删除模式。证据：`root-dongman-five-r3-independent-postcheck-20261020.json`、`app-four-nonkoma-original-inputs-retirement-20261020-result.json`、`root-kit-small-checkpoint-exact-retirement-20261020.json`。
 - 已退出工作树对应的b744/c585两条NextN检查点及eceb一条NextE检查点名字已精确CAS删除：完整无前提Git bundle、原ref/reflog保全，strict pack及全部可达OID/type核对通过，其他ref/worktree/config保持。bundle保存不等于原候选已采用；Reader冲突、未采与未知材料继续保留。证据：`root-nextn-two-checkpoint-ref-retirement-20261020.json`、`root-nexte-eceb-ref-retirement-20261020.json`。原首次pack delta长度与逻辑长度比较错误保留，未把该失败追认为通过。
@@ -359,17 +370,17 @@
 {
   "schemaVersion": 1,
   "title": "Koma 目录与分支成果恢复审计",
-  "state": "恢复未完成 · 已退出旧检查点分支继续收尾",
-  "outcome": "本页记录本轮保全、精确清理及仍存消费者；197已核仅限当前卡片三档/选择/回网格，不代表Reader Native或其它宿主验收。",
-  "updatedAt": "2026-10-19T16:48:36.537066+00:00",
+  "state": "旧开发副本已归一 · 原输入裁定仍未完成",
+  "outcome": "本页区分已实际退出的旧开发副本、仍保留的服务与原证据、尚未合入的候选；不把归档或源码一致冒成产品验收。",
+  "updatedAt": "2026-10-19T17:14:13.975662+00:00",
   "target": "唯一正式 /Users/honjow/git/Koma · 产品新增与设备仍暂停",
   "activeId": "RECOVERY",
   "activity": {
-    "title": "原目录消费者回收与成果归并",
-    "detail": "已实际退出咚漫五父、Kit小审查目录和四份旧源码；b744/c585/eceb检查点已完整bundle保全后删除。停止过宽全局验证与产品验收插入，继续处理有限残余。",
-    "startedAt": null
+    "title": "30分钟限定清理收尾",
+    "detail": "最后检查点父已退出；五组已批准修改审查父及四份同组/已裁定旁件完整保全、读回后清理。三个正式仓各一工作树/一本地分支。",
+    "startedAt": "2026-10-19T16:58:03+00:00"
   },
-  "nextAction": "Root接续现有未裁定原件与两个App残余桶的有限处置；历史证据归集清理与产品HOLD分开，不重开已完成组、不跑产品测试。",
+  "nextAction": "Root继续有限裁定档内尚未核完的原输入；已有真实反例与未定位批准的候选保留，不强制合入。期限17:28:03 UTC，届时按实际未完成项报告。",
   "proof": [
     {
       "label": "原件保全",
@@ -400,11 +411,11 @@
     {
       "name": "Koma",
       "checkout": "/Users/honjow/git/Koma",
-      "appHead": "965871d9c341761ed88cfb7b9800f4a334697b09",
-      "hap": "当前卡片候选已真实签名构建/安装；197仅核卡片三档、选择及回网格，完整回执与原图见唯一工作单，不冒Reader Native。"
+      "appHead": "46be267f21375db6dcccc5ba5a2ccbfa75469966",
+      "hap": "本轮清理未构建或安装；此前卡片197限定证据保持。App Lab有未提交差异，不能把当前工作字节冒作已验包。"
     }
   ],
-  "scope": "本snapshot位于唯一CURRENT_STATUS内，仅显示本轮四个具体能力/管理组；不是新队列或后台执行心跳。App/source提交是快照基线，liveKitHeads实时读同级Kit。updatedAt仅本次真实更新，不使用轮询、mtime或进程存活推算工时。正式Kit当前本地6c289f2且无remote事实只记为后续可信远端同步待核，不改分支/config，不把本地干净称交付完成。 当前App快照基线965871d9，Kit基线6c289f2；两漏依赖原合同已修，37原测试及同一正式Koma签名构建通过。卡片197限域实测已完成并恢复环境/释放租约，不扩大Reader或其它设备通过。",
+  "scope": "仅当前清理范围。源码基线App46be267f、Kit6c289f2、源7af0d9d；App一份及Kit两份当前WIP归属未核，未纳入清理提交。无本轮产品/设备验收、远端同步或发布。",
   "items": [
     {
       "id": "APP05",
@@ -456,25 +467,25 @@
     }
   ],
   "source": {
-    "status": "新增DM5三组完成／源恢复未完",
+    "status": "原源开发副本已退出／历史证据保留",
     "kind": "open",
     "title": "源原成果、依赖与历史父精确保全清理",
-    "result": "原Komiic/GoDa/GlobalComix三组保持；DM5新增六历史父699、两standard父1287（含756既有child）、两live合同父6884旧路径逐原件/补丁/依赖核实、完整保全后清理，Root独立全档读回；18/30/8参考分别独立保留。",
-    "remaining": "源主仓7af0保持；咚漫五父已完整保全后退出，三项原App行为已在8c0a采纳。旧HOLD/失败/MDX外部UNKNOWN保留，剩余源原件按既有处置记录归集，不插入网站或Native验收。",
+    "result": "对原源开发副本全集逐路径核存在，只剩正式koma-sources；主仓源码和refs保持。",
+    "remaining": "MDX两个外部证据父及HTTP正文UNKNOWN保留；纯历史证据目录未全退出，不能称整线恢复完。",
     "commit": "7af0d9d80c97e93c4bf3254dad24913ca68f60d4"
   },
   "milestones": [],
   "releaseGates": [
-    "目录/分支恢复与原有效成果归并尚未整体完成；未归／已采用有反例组继续具名保留。",
-    "旧production与b744/c585/eceb工作树已退出；对应三个检查点名字已完整bundle保全后删除。仍有历史证据父及未裁定原件需要有限归集清理，不能称整体完成。",
-    "本轮37原测试与正式Koma签名构建通过，197仅卡片三档/选择/回网格已核；Reader Native、其它宿主与其余路径未由此接受。产品新增及其它设备仍暂停，本地提交/干净不替代可信远端同步或发布。"
+    "旧开发副本/分支清理不等于全部原代码差异已裁定；未合入候选和未知原输入保持OPEN。",
+    "App一份、Kit两份未提交WIP及Kit stash保持，来源未核；本轮不冒采纳、同步或发布。",
+    "本轮未构建/安装/设备验收；既有卡片限定结论不扩大到Reader或其它宿主。"
   ],
   "stopRule": "任何真实反例保留；不得靠目录清理强制应用HOLD候选。",
   "evidence": [
     {
       "id": "b744-preservation",
-      "label": "b744两根退出独立核回",
-      "path": "root-b744-r149-independent-postcheck.json",
+      "label": "b744原完整保全回执",
+      "path": "kit-b744-parent-content-complete-r134-20261019.receipt.json",
       "storage": "recovery"
     },
     {
