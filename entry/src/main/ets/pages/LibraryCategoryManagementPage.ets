@@ -361,7 +361,7 @@ export struct LibraryCategoryManagementPage {
           if (index < this.categories.length - 1) {
             ListDivider()
           }
-        }, (category: CustomLibraryCategory) => category.id)
+        }, (category: CustomLibraryCategory) => JSON.stringify(category))
       }
     }
     .width('100%')
@@ -374,6 +374,7 @@ export struct LibraryCategoryManagementPage {
     }
     try {
       if (moveCustomCategoryAndPersistLibraryStore(this.libraryStore, this.libraryPersistenceService, categoryId, direction)) {
+        this.categoryMenuKey = ''
         this.refreshCategories()
         this.onLibraryChanged()
         this.showToast(s('library_category_order_updated'))
@@ -441,7 +442,7 @@ export struct LibraryCategoryManagementPage {
             if (index < this.categories.length - 1) {
               ListDivider()
             }
-          }, (category: CustomLibraryCategory) => category.id)
+          }, (category: CustomLibraryCategory) => JSON.stringify(category))
         }
       }
     }
