@@ -236,7 +236,8 @@ export class KomaReaderLabAdapter implements ReaderCatalog, ReaderAssetProvider,
     cancellation.check()
     const source = this.sources.get(this.unitId(page.unit))?.[page.sourceIndex]
     if (source === undefined) throw new Error('unsupported_koma_lab_asset')
-    if (source.kind === ReaderPageRenderKind.URI_PLACEHOLDER || source.imageUri.length === 0) {
+    if (source.kind === ReaderPageRenderKind.URI_PLACEHOLDER ||
+      source.uri === 'source-placeholder://chapter' || source.imageUri.length === 0) {
       const config = this.configs.get(this.unitId(page.unit))
       throw new Error(config?.sourceFailureReason === 'unsupported'
         ? 'koma_reader_source_chapter_unsupported' : 'koma_lab_page_source_unavailable')
