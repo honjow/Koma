@@ -257,7 +257,7 @@ export struct LibraryPage {
   @Local private filterCategory: LibraryCategoryFilter = 'all'
   @Local private filterAvailability: LibraryAvailabilityFilter = 'all'
   @Local private filterMetadataStatus: LibraryMetadataStatusFilter = 'all'
-  @Local private containerWidth: number = 0
+  @Local private containerWidth: number = gridFallbackContainerWidth()
   @Local private layoutSafeArea: LayoutSafeAreaState = connectLayoutSafeArea()
   private libraryScroller: Scroller = new Scroller()
   private activeFilterCount(): number {
