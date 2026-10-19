@@ -1,6 +1,7 @@
 import { SymbolGlyphModifier } from '@kit.ArkUI'
 import { KomaActionButton } from './ui/KomaActionButton'
 import { ConciseListRow } from './ui/ConciseListRow'
+import { ListDivider } from './ui/GroupedListSection'
 import { AppStrings } from '../i18n/AppStrings'
 import { SourceFilter } from '../model/SourceModels'
 import { ThemeConstants } from '../theme/ThemeConstants'
@@ -293,17 +294,21 @@ export struct SourceFilterControls {
     }
   }
 
+  private visibleVerticalFilters(): SourceFilter[] {
+    return this.filters.filter((filter: SourceFilter): boolean => {
+      return filter.type === 'check' || filter.type === 'text' || filter.type === 'range' ||
+        (filter.options ?? []).length > 0
+    })
+  }
+
   @Builder
   private VerticalControls() {
     Column() {
-      ForEach(this.filters, (filter: SourceFilter, index: number) => {
-        this.VerticalFilterRow(filter)
-        if (index < this.filters.length - 1) {
-          Divider()
-            .strokeWidth(0.5)
-            .color(ThemeConstants.DIVIDER)
-            .margin({ left: ThemeConstants.SPACE_LG })
+      ForEach(this.visibleVerticalFilters(), (filter: SourceFilter, index: number) => {
+        if (index > 0) {
+          ListDivider()
         }
+        this.VerticalFilterRow(filter)
       }, (filter: SourceFilter) => filter.id)
     }
     .width('100%')
