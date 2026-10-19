@@ -1,3 +1,4 @@
+import { LengthMetrics } from '@kit.ArkUI'
 import { CachedCoverImage, cachedCoverFailureKey } from './CachedCoverImage'
 import { AppStrings } from '../i18n/AppStrings'
 import { connectLanguageState, LanguageState } from '../state/LanguageState'
@@ -165,7 +166,10 @@ export struct MangaDetailHeader {
           .maxLines(2)
           .textOverflow({ overflow: TextOverflow.Ellipsis })
 
-        Row({ space: ThemeConstants.SPACE_SM }) {
+        Flex({ wrap: FlexWrap.Wrap, space: {
+          main: LengthMetrics.vp(ThemeConstants.SPACE_SM),
+          cross: LengthMetrics.vp(ThemeConstants.SPACE_SM),
+        } }) {
           Text(this.statusLabel())
             .fontSize(ThemeConstants.FONT_SIZE_CAPTION)
             .fontWeight(FontWeight.Medium)
@@ -176,6 +180,7 @@ export struct MangaDetailHeader {
 
           if (this.manga.sourceName !== undefined && this.manga.sourceName.length > 0) {
             Text(this.manga.sourceName)
+              .constraintSize({ maxWidth: '100%' })
               .fontSize(ThemeConstants.FONT_SIZE_CAPTION)
               .fontWeight(FontWeight.Medium)
               .fontColor(ThemeConstants.BRAND_PRIMARY)
