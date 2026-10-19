@@ -72,7 +72,7 @@ assert.equal(cropped.wideImageMode, base.wideImageMode)
 assert.equal(base.trimPageMarginsEnabled, false)
 assert.match(pageSource,
   /pageTurnAnimation: this\.request\.pageTurnAnimationOverride \?\?[\s\S]*?this\.hostPreferences\?\.pageTurnAnimation/)
-assert.match(pageSource, /new ReaderPagedSession\(adapter, adapter, adapter\)/)
+assert.match(pageSource, /new ReaderPagedSession\(adapter, adapter, adapter, adapter\)/)
 assert.match(pageSource, /preloadDepth: this\.hostPreferences\?\.preloadPages \?\? this\.readerMode\.preloadPages/)
 assert.match(pageSource, /pageGap: this\.readerPageGap\(\)/)
 assert.match(pageSource, /const mode = this\.hostPreferences\?\.pageGapMode \?\? this\.readerMode\.pageGapMode[\s\S]*?if \(mode === 'compact'\) return 2[\s\S]*?if \(mode === 'wide'\) return 18[\s\S]*?return 8/)

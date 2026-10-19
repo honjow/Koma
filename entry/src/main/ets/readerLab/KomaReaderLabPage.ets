@@ -96,7 +96,7 @@ export struct KomaReaderLabPage {
       this.imageShare = new KomaReaderLabImageShareHost(context, adapter)
       this.unitKey = adapter.initialKey(this.request.work, this.request.unit)
       this.initialPageIndex = this.request.pageIndex
-      const session = new ReaderPagedSession(adapter, adapter, adapter)
+      const session = new ReaderPagedSession(adapter, adapter, adapter, adapter)
       if (this.request.readingChrome) {
         this.trialWindow.open(context)
         this.keepScreenOn = new ReaderKeepScreenOn(context)
@@ -513,6 +513,7 @@ export struct KomaReaderLabPage {
         if (this.session !== null) {
           if (this.request.readingChrome) {
             ReaderSurface({ session: this.session, initialUnit: this.unitKey, initialIndex: this.initialPageIndex,
+              catalogFailureText: (): string => this.adapter?.catalogFailureMessage() ?? '',
               imageInterpolation: (this.hostPreferences?.imageScalingQuality ?? this.readerMode.imageScalingQuality) === 'low'
                 ? ImageInterpolation.Low :
                 (this.hostPreferences?.imageScalingQuality ?? this.readerMode.imageScalingQuality) === 'high'

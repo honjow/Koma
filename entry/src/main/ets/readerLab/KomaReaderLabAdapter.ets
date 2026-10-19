@@ -3,7 +3,9 @@ import {
   ReaderCatalog, ReaderAssetProvider, ReaderPreloadHost, ReaderUnitKey, ReaderUnit, ReaderPage,
   ReaderCancellation, ReaderAsset, ReaderAssetKind,
   ReaderImageInformation, ReaderImageInformationSource, ReaderImageShareTarget,
+  ReaderAssetFailure, ReaderAssetFailureClassifier,
 } from '@reader-kit/core'
+import { KomaReaderFailure } from './KomaReaderFailure'
 import { fileIo as fs } from '@kit.CoreFileKit'
 import { ReaderFileCropSource, ReaderFileInformation } from '@reader-kit/ui'
 import { InMemoryLibraryStore } from '../model/LibraryStore'
@@ -47,14 +49,22 @@ class KomaReaderFileInformation implements ReaderImageInformationSource {
 }
 
 /** D1 reads local/downloaded chapters. It never fetches chapter pages or persists the user's library. */
-export class KomaReaderLabAdapter implements ReaderCatalog, ReaderAssetProvider, ReaderPreloadHost {
+export class KomaReaderLabAdapter implements ReaderCatalog, ReaderAssetProvider, ReaderPreloadHost,
+  ReaderAssetFailureClassifier {
   cancellationMode: 'consumer-only' | 'transport' = 'consumer-only'
   informationSupported: boolean = true
+
+  classify(error: Error): ReaderAssetFailure {
+    return KomaReaderFailure.from(error)
+  }
   private library: InMemoryLibraryStore = new InMemoryLibraryStore()
   private configs: Map<string, ReaderSessionConfig> = new Map()
   private sources: Map<string, ReaderPageRenderSource[]> = new Map()
   private preparedUnits: Map<string, ReaderUnit> = new Map()
   private closed: boolean = false
+  private catalogFailureText: string = ''
+
+  catalogFailureMessage(): string { return this.catalogFailureText }
   private requestContext?: common.UIAbilityContext
   private filesDir: string
   private thumbnails: KomaReaderLabThumbnailProvider
@@ -94,7 +104,16 @@ export class KomaReaderLabAdapter implements ReaderCatalog, ReaderAssetProvider,
   async prepare(key: ReaderUnitKey, cancellation: ReaderCancellation): Promise<ReaderUnit> {
     cancellation.check()
     if (this.closed || key.scope !== 'koma-local') throw new Error('invalid_koma_reader_scope')
-    const hosted = await this.catalogHost?.prepare(key, cancellation) ?? null
+    this.catalogFailureText = ''
+    let hosted: ReaderSessionConfig | null = null
+    try {
+      hosted = await this.catalogHost?.prepare(key, cancellation) ?? null
+    } catch (error) {
+      cancellation.check()
+      if (this.closed) throw new Error('closed_koma_reader')
+      this.catalogFailureText = KomaReaderFailure.catalogMessage(error as Error)
+      throw error as Error
+    }
     if (hosted !== null) return this.installConfig(key, hosted, cancellation)
     const comic = this.library.getComic(key.work)
     if (comic === undefined || !comic.chapters.some((chapter) => chapter.id === key.unit)) {
@@ -218,7 +237,9 @@ export class KomaReaderLabAdapter implements ReaderCatalog, ReaderAssetProvider,
     const source = this.sources.get(this.unitId(page.unit))?.[page.sourceIndex]
     if (source === undefined) throw new Error('unsupported_koma_lab_asset')
     if (source.kind === ReaderPageRenderKind.URI_PLACEHOLDER || source.imageUri.length === 0) {
-      throw new Error('koma_lab_page_source_unavailable')
+      const config = this.configs.get(this.unitId(page.unit))
+      throw new Error(config?.sourceFailureReason === 'unsupported'
+        ? 'koma_reader_source_chapter_unsupported' : 'koma_lab_page_source_unavailable')
     }
     const filePath = await fetchAndCacheReaderRemoteSource(source, this.requestContext)
     cancellation.check()

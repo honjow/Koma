@@ -565,7 +565,8 @@ struct Index {
       // A chapter handoff is prepared beside the still-readable shared session.
       // Do not turn a provider failure into a committed placeholder unit: reject
       // the handoff so the current chapter stays visible and can be retried.
-      if (resolution.pages.length === 0) throw new Error('koma_reader_chapter_pages_unavailable')
+      if (resolution.pages.length === 0) throw new Error(resolution.sourceFailureReason === 'unsupported'
+        ? 'koma_reader_source_chapter_unsupported' : 'koma_reader_chapter_pages_unavailable')
       return this.createSourceReaderSessionConfig(nextRequest, resolution.pages)
     }
     const original = this.libraryStore.getComic(target.work)
@@ -573,14 +574,17 @@ struct Index {
     // Keep local-folder permission activation in the adapter's established path.
     if (original.sourceKind === ComicSourceKind.LOCAL_FOLDER) return null
     const offlineReady = this.hasAvailableOfflineReaderPages(original.id, target.unit)
-    if (!offlineReady) await this.ensureReaderSourceChapterPages(original, target.unit)
+    let sourceFailureReason: string | undefined = undefined
+    if (!offlineReady) await this.ensureReaderSourceChapterPages(original, target.unit,
+      (reason: string | undefined): void => { sourceFailureReason = reason })
     cancellation.check()
     const comic = this.libraryStore.getComic(target.work) ?? original
     cancellation.check()
     const config = this.createReaderSessionConfigForOpen(comic, target.unit)
     if (config.totalPages > 0) return config
     if (this.chapterNeedsReaderSourcePages(comic, target.unit)) {
-      throw new Error('koma_reader_chapter_pages_unavailable')
+      throw new Error(sourceFailureReason === 'unsupported'
+        ? 'koma_reader_source_chapter_unsupported' : 'koma_reader_chapter_pages_unavailable')
     }
     return null
   }
