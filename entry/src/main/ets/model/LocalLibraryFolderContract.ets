@@ -1,3 +1,4 @@
+import { util } from '@kit.ArkTS'
 import {
   compareNaturalPath,
   getBaseName,
@@ -452,6 +453,73 @@ export function buildComicFromLocalLibraryFolderSeries(
     }
   }
   return comic
+}
+
+// Structural scan IDs describe relative paths, not distinct selected roots.
+// Reuse persisted identity only within the exact origin; new records are unique.
+export function bindLocalLibraryFolderScanIdentity(
+  scanResult: LocalLibraryFolderScanResult,
+  rootUri: string,
+  knownComics: Comic[],
+): LocalLibraryFolderScanResult {
+  const knownByPath = new Map<string, LocalLibraryFolderSeries>()
+  buildKnownLocalLibraryFolderSeriesFromComics(knownComics, rootUri).forEach((series: LocalLibraryFolderSeries): void => {
+    knownByPath.set(series.relativePath, series)
+  })
+  const series = scanResult.series.map((fresh: LocalLibraryFolderSeries): LocalLibraryFolderSeries => {
+    const previous = knownByPath.get(fresh.relativePath)
+    const seriesId = previous?.id ?? `${LOCAL_LIBRARY_FOLDER_ID_PREFIX}-series-${util.generateRandomUUID()}`
+    const chapters = fresh.chapters.map((chapter: LocalLibraryFolderChapter): LocalLibraryFolderChapter => {
+      const oldChapter = previous?.chapters.find((known: LocalLibraryFolderChapter): boolean => {
+        return known.kind === chapter.kind && known.relativePath === chapter.relativePath
+      })
+      const chapterId = oldChapter?.id ?? `${LOCAL_LIBRARY_FOLDER_ID_PREFIX}-chapter-${util.generateRandomUUID()}`
+      const oldPages = new Map<string, LocalLibraryFolderPage>()
+      oldChapter?.pages.forEach((page: LocalLibraryFolderPage): void => {
+        oldPages.set(page.relativePath, page)
+      })
+      const pages = chapter.pages.map((page: LocalLibraryFolderPage): LocalLibraryFolderPage => {
+        const pageId = oldPages.get(page.relativePath)?.id ?? (oldChapter === undefined
+          ? `${chapterId}-page-${page.index + 1}`
+          : `${chapterId}-page-${util.generateRandomUUID()}`)
+        return {
+          id: pageId,
+          relativePath: page.relativePath,
+          fileName: page.fileName,
+          index: page.index,
+          sortKey: page.sortKey,
+        }
+      })
+      return {
+        id: chapterId,
+        seriesId,
+        title: chapter.title,
+        kind: chapter.kind,
+        relativePath: chapter.relativePath,
+        index: chapter.index,
+        pageCount: chapter.pageCount,
+        pages,
+        sourceArchivePath: chapter.sourceArchivePath,
+        sortKey: chapter.sortKey,
+      }
+    })
+    return {
+      id: seriesId,
+      title: fresh.title,
+      relativePath: fresh.relativePath,
+      sidecarMetadata: fresh.sidecarMetadata,
+      chapters,
+      chapterCount: fresh.chapterCount,
+      pageCount: fresh.pageCount,
+      sortKey: fresh.sortKey,
+    }
+  })
+  return {
+    contract: scanResult.contract,
+    series,
+    rejectedEntries: scanResult.rejectedEntries,
+    sourceEntryCount: scanResult.sourceEntryCount,
+  }
 }
 
 export function buildComicsFromLocalLibraryFolderScan(

@@ -33,6 +33,7 @@ import {
 import {
   LocalLibraryFolderScanResult,
   LocalLibraryFolderSeries,
+  bindLocalLibraryFolderScanIdentity,
   buildComicsFromLocalLibraryFolderScan,
   localLibraryFolderUri,
 } from './LocalLibraryFolderContract'
@@ -860,7 +861,8 @@ export function upsertLocalLibraryFolderScanAndPersistLibraryStore(
   rootUri: string,
   now: number = Date.now()
 ): number {
-  const comics = buildComicsFromLocalLibraryFolderScan(scanResult, rootUri, now)
+  const boundScan = bindLocalLibraryFolderScanIdentity(scanResult, rootUri, libraryStore.listComics())
+  const comics = buildComicsFromLocalLibraryFolderScan(boundScan, rootUri, now)
   if (comics.length === 0) {
     return 0
   }
@@ -949,14 +951,15 @@ export function upsertLocalLibraryFolderRescanAndPersistLibraryStore(
   failures: LocalLibraryRescanFailure[] = [],
   now: number = Date.now()
 ): LocalLibraryFolderRescanPersistResult {
-  const summary = createLocalLibraryRescanSummary(previousKnownSeries, freshScan, failures)
+  const boundScan = bindLocalLibraryFolderScanIdentity(freshScan, rootUri, libraryStore.listComics())
+  const summary = createLocalLibraryRescanSummary(previousKnownSeries, boundScan, failures)
   const changedSeriesIds = new Set<string>()
   summary.outcomes.forEach((outcome) => {
     if (outcome.status === 'added' || outcome.status === 'changed') {
       changedSeriesIds.add(outcome.id)
     }
   })
-  const comics = buildComicsFromLocalLibraryFolderScan(freshScan, rootUri, now)
+  const comics = buildComicsFromLocalLibraryFolderScan(boundScan, rootUri, now)
     .filter((comic: Comic): boolean => changedSeriesIds.has(comic.id))
   if (comics.length === 0) {
     return { summary, upsertedCount: 0 }

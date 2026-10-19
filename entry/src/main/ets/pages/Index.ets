@@ -86,6 +86,7 @@ import {
   LocalLibraryFolderScanResult,
   buildKnownLocalLibraryFolderSeriesFromComics,
   buildComicsFromLocalLibraryFolderScan,
+  bindLocalLibraryFolderScanIdentity,
 } from '../model/LocalLibraryFolderContract'
 import { activateLocalLibraryFolderAccessForComics } from '../model/LocalLibraryFolderAccessService'
 import { LibraryCategoryDisplayStrategy, LibraryStore } from '../model/LibraryStore'
@@ -1254,7 +1255,8 @@ struct Index {
     let metadataChangedCount = 0
     let rejectedEntryCount = 0
     if (persistenceService === undefined) {
-      const comics = buildComicsFromLocalLibraryFolderScan(scanResult, rootUri)
+      const boundScan = bindLocalLibraryFolderScanIdentity(scanResult, rootUri, this.libraryStore.listComics())
+      const comics = buildComicsFromLocalLibraryFolderScan(boundScan, rootUri)
       comics.forEach((comic: Comic) => {
         this.libraryStore.upsertComic(comic)
       })
