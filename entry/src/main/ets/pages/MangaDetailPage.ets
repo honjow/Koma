@@ -673,6 +673,7 @@ export struct MangaDetailPage {
         if (!this.isCurrentSourceDetailRequest(requestEpoch, sourceId, mangaId)) {
           return
         }
+        chaptersLoadFailed = !chapterResult.resolved
         this.sourceChaptersResolved = chapterResult.resolved && chapterResult.chapters.length > 0
         if (chapterResult.chapters.length > 0) {
           chapters = chapterResult.chapters
