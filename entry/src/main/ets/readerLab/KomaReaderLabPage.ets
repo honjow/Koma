@@ -52,7 +52,8 @@ export struct KomaReaderLabPage {
   @Local private currentChapterUnit: string = ''
   private unitKey: ReaderUnitKey = new ReaderUnitKey('', '', '')
   private initialPageIndex: number = 0
-  private trialWindow: ReaderTrialWindow = new ReaderTrialWindow(null, true)
+  private trialWindow: ReaderTrialWindow = new ReaderTrialWindow(null, true,
+    undefined, (): boolean => !this.readerClosed && this.routeActive && this.labVisibility.foreground)
   private keepScreenOn: ReaderKeepScreenOn | null = null
   private imageSave: ReaderImageSaveHost | null = null
   private imageShare: ReaderImageShareHost | null = null
@@ -150,20 +151,7 @@ export struct KomaReaderLabPage {
   }
 
   /** Koma owns fullscreen preference semantics; reader-kit only sequences the window lease. */
-  private syncChromeVisible(visible: boolean): void {
-    if (visible) return // The before-show gate restores the status area before chrome is painted.
-    const fullscreen = this.hostPreferences?.fullscreen ?? this.readerMode.fullscreen
-    this.trialWindow.setStatusBarVisible(!fullscreen)
-  }
 
-  private async prepareChromeShow(isCurrent: () => boolean): Promise<boolean> {
-    const current = (): boolean => isCurrent() && !this.readerClosed && this.routeActive &&
-      this.labVisibility.foreground && !this.readerSettingsSheetShown && !this.chapterPickerShown && this.session !== null
-    if (!current()) return false
-    if (!await this.trialWindow.prepareStatusBarVisible() || !current()) return false
-    return ReaderTrialLayoutCommit.wait(this.getUIContext(), (): string =>
-      this.safeArea.topAvoidHeight > 0 ? `${this.safeArea.topAvoidHeight}:${this.safeArea.bottomAvoidHeight}` : '', current)
-  }
 
   aboutToDisappear(): void {
     this.readerClosed = true
@@ -572,8 +560,9 @@ export struct KomaReaderLabPage {
                 (direction: 'previous' | 'next', sourceUnit: ReaderUnitKey): void => {
                   void this.switchChapter(direction, sourceUnit)
                 }),
-              beforeShowChrome: (isCurrent: () => boolean): Promise<boolean> => this.prepareChromeShow(isCurrent),
-              activitySink: new ReaderActivitySink((visible: boolean): void => { this.syncChromeVisible(visible) }),
+              windowPresentation: this.trialWindow.presentation,
+              windowFullscreen: this.hostPreferences?.fullscreen ?? this.readerMode.fullscreen,
+              windowCanvasDark: true,
               topInset: this.safeArea.topAvoidHeight, bottomInset: this.safeArea.bottomAvoidHeight,
               accent: ThemeConstants.BRAND_PRIMARY, onClose: (): void => { this.closeReader() } })
             Row().width(1).height(1).position({ x: 0, y: 0 }).hitTestBehavior(HitTestMode.None)
