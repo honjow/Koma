@@ -1,5 +1,7 @@
 # Koma vs Aidoku vs Mihon 功能对比
 
+> **历史对标快照。** 本文用于理解能力差异，不维护 Koma 当前完成度；表内状态必须在采纳前按当前 HEAD 和指定设备复核。当前事实与队列以 [`CURRENT_STATUS.md`](CURRENT_STATUS.md) 为准。
+
 更新时间：2026-05-27
 Koma 基线：`master` / `1269199` 后续实现
 

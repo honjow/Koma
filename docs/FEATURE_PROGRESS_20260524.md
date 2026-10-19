@@ -1,5 +1,7 @@
 # Koma Feature Progress — 2026-05-24
 
+> **HISTORICAL SNAPSHOT。** 本文记录 2026-05-24/25 的控制器会话、旧脚本和设备 103 证据；其中部分脚本已删除，结论不能代表当前 checkout。当前实现、缺口、197 证据和执行队列以 [`CURRENT_STATUS.md`](CURRENT_STATUS.md) 为准。
+
 This document records the feature-development baseline reached in the long 2026-05-24 controller session. It is not an instruction file; `AGENTS.md` remains only an index.
 
 ## Latest Consolidated Gate

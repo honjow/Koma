@@ -1,5 +1,7 @@
 # Koma Roadmap / Controller Plan
 
+> **历史路线分解。** 本文包含不同阶段的计划和完成记录，部分状态已被后续实现或验证推翻。不要从本文直接选择下一任务；当前实现、缺口和唯一执行队列以 [`CURRENT_STATUS.md`](CURRENT_STATUS.md) 为准。
+
 ## 当前定位
 
 Koma 是 HarmonyOS 私有漫画书架与阅读器。

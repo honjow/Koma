@@ -1,5 +1,7 @@
 # Koma 产品与架构草案
 
+> 本文描述产品与架构方向，不维护当前完成度。当前实现、缺口、197 证据与执行队列以 [`CURRENT_STATUS.md`](CURRENT_STATUS.md) 为准。
+
 ## 项目名
 
 - 暂定：Koma

@@ -1,5 +1,7 @@
 # Koma App Gap Plan vs Aidoku/Mihon
 
+> **历史 gap inventory。** 本文保留早期 lane 定义和验收思路，但基线、状态与脚本名可能过时；不能用本文的“已完成/进行中”关闭当前缺口。当前事实与队列以 [`CURRENT_STATUS.md`](CURRENT_STATUS.md) 为准。
+
 更新时间：2026-05-27
 基线：`master` / `1269199`
 

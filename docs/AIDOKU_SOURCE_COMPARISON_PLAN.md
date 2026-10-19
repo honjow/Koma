@@ -1,5 +1,7 @@
 # Koma vs Aidoku Source-Level Comparison Plan
 
+> **历史源码对照。** 本文的 Aidoku/Koma 基线与 Koma 状态均为 2026-07-03 快照，只用于追溯参考方向；采用任何判断前需按当前 HEAD 和 197 重新核实。当前事实与执行队列以 [`CURRENT_STATUS.md`](CURRENT_STATUS.md) 为准。
+
 更新时间：2026-07-03
 
 ## 基线与边界
