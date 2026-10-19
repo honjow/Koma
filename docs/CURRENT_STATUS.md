@@ -176,6 +176,21 @@
 
 - 源筛选条件divider原批准恢复检查点：App `46a5ece8` 从154476明确批准的whole-app原提案仅应用SourceFilterControls完整section，原before应用所得全字节等ab64 after；保可见条件、已有控件/参数、菜单和两源页WIP，不带同commit其他界面。Root发现代理此前把difflib重建与Git raw hunk混称逐字同，已撤回：Git行对齐确有差异，两次检查均在任何修改前停止，最后按原完整输入/输出证明恢复，不称raw hunk同。无新同构测试/构建/Native；其他App/Kit/源目录分支审计继续OPEN。证据：`source-filter-approved-recovery-*`。
 
+
+- 下载完整消费者恢复检查点：App `45d3c01d` 归回af903两文件19原raw span，四入口水合后复读当前漫画/章并核sameComicIdentity，队列缺目标不重造旧项、详情失败走既有文字出口，batch等待原workers全部settle后释放busy。原顺序循环/现URL/context/Builder全部尾段与详情八对WIP保持；实际index原12身份场景和失败套件通过，blockUnavailableEntry latestrow只有源码/调用审查、不冒Host覆盖。历史逐项人类原话未定位，按当前数据安全恢复授权审；无新runtime batch/style/当前ArkTS/Native。证据：`download-consumers-recovery-*`。
+
+- 原Tracker分组WIP恢复检查点：App `1fa8e153` 仅接154476精确批准的三个hunk，原before应用批准完整section后全文件等production原WIP；三方保主仓已接受外边距及全部账号业务，不把未提交当无效。明确有原批准surface/inset/divider变化，无新设计/默认/账户能力/Native。证据：`tracker-approved-group-recovery-*`。
+
+- 八个真实有文件的prunable残留及三个真正缺checkout的admin已逐对象清理：八目录原165实体文件和完整admin逐member SHA/类型/模式核档，原全部观察对象独立pack/index严格验证、完整原历史bundle无前置验证后，仅移除八实体与各admin；三缺checkout另完整核档并保全可恢复index/日志所有对象后只删admin。空intent-to-add不冒已找回缺失文件原内容，所有refs另保。三admin首次错误地拿bundle全部heads与普通refs全等比较被拦，已据实保额外HEAD/worktree伪引用并重核原档接续，未覆盖原档。证据：`eight-residual-*`、`three-absent-admin-*`。源五个仍有待核资产/独有原件的owner继续保留。
+
+- HentaiFox原业务恢复检查点：源 `a60eec80` 归回六原业务/许可/metadata/文档及自身workspace/lock，四业务原字节、两文档原全文后缀均保，前置准确说明当前no-pack与原有限安装/cold边界。当前SDK8506离线锁定WASM与无网info通过，无build row/图标/旧packager/HTTP/Native正文恢复，原16px资产尚未定、未称已拒。漫画人原011完整四路径续归回 `043a3ddf`：原cursor/listing ABI/HTTP分类/去API日志/能力与评级/metadata完整接齐；原50函数42个（含auth/签名/POST/保护目录正文）逐字不变、只8函数变，不能让原010已有auth缺口挡公共search有效成果。原20+20不同ID输出/GET日志及原包绑定核同；当前离线锁定WASM为原1f1b257d、无网info通过，未触发匿名POST、未增新网络/打包/Native。证据：`hentaifox-business-recovery-*`、`manhuaren011-recovery-*`。
+
+- 源根README三行遗漏已恢复 `d26facd1`：只补Guazi/Kuaikan/CManhua当前SourceInfo版本与有限事实，原三行逐字存审计/完整Git历史，不在当前README重复过时pending声明。首次错误以Cargo版本验证CManhua被拦在修改前，现明确Cargo010与SourceInfo012独立，未改版本。随后12个未占用本地ref逐tip/reflog/全部独有提交与有效后继审，原refs/log/config及完整原对象闭包pack/index核后用预期tip事务精确移除；d511明确未采纳的旧Komiic变体完整保全，票据能力本就在可信014/015，不回灌旧page:kid兼容退化。主仓、五个绑定owner、全部远端/配置/工作树与所有tracked保持；源本地分支18→6。这不证明非Git候选树或App/Kit恢复完成。证据：`source-readme-three-rows-*`、`twelve-source-refs-*`。
+
+- Kit数据与资源完整组续归回：原唯一分支上 `0f95bc3` 恢复f769原reconcileDepth/emit guard/完整try-finally wrapper，原reconcile主体/资源/异步progress保持，只更正旧idle注释；PagedSession+AutoRead实际68/68通过。`f260c8a` 随后恢复c76→fd76→8dc→e2的已保存preload深度→真实Core窗口→分页/连续native缓存及最多一个已租回翻edge完整四生产文件，原e2五项测试全文恢复后实际73/73。Root在c585真实原GitDB核全部13span（第8两个方法各全文同，仅中间原注释未入候选），保557/metadata/batch/reportVisible/seek/close；Pager保cachedCount第二参true，Continuous保原单参，不带slider/默认/mode/late renderState。未新构建/Native，不扩原具名有限运行证据。claim完整8消费者按原采纳证据续审，旧projection两删除已由c76/831源码取代、不回灌，晚期未验候选仍保原件。证据：`kit-reconcile-batch-recovery-*`、`kit-resource-depth-recovery-*`、原r17/r19。
+
+- 全目录范围补漏继续OPEN：除五现存App checkout、源五owner与Kit独立GitDB/WIP外，`/Users/honjow/git/koma-worktrees/source-settings` 是无.git指针但仍含App源码/证据的实体副本，不在Git worktree清单仍必须核。App worker已读2366件，非生成1764件中1762有可达原内容映射，旧ReaderChrome/ReaderPage两件继续逐行为找后继，未删该目录。`/private/tmp`原盘点1144顶层目录/220源树，当前仍有1117个Koma相关目录；源worker继续非Git候选树逐内容去向，不能把分支或工作树数量减少当本任务完成。普通产品与设备仍暂停；下一owner：Root亲审claim/剩余owner可清理闭包，App worker核无Git副本/CI依赖/文档，source worker核剩余实体和非Git树。
+
 ---
 
 以下保留原主仓开发记录全文，其历史状态不得覆盖上方当前恢复任务。
