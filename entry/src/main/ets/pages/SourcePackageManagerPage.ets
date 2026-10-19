@@ -871,6 +871,8 @@ export struct SourcePackageManagerPage {
         return t('source_pkg_reason_network_not_allowed')
       case 'unsafe_archive_entry':
         return t('source_pkg_reason_unsafe_archive_entry')
+      case 'missing_icon':
+        return t('source_pkg_reason_missing_icon')
       case 'invalid_icon':
         return t('source_pkg_reason_invalid_icon')
       case 'missing_manifest':
