@@ -628,7 +628,7 @@ export class BrowseViewModel {
       let homeSections: SourceHomeSectionState[] = []
       let homeLoadError: Error | undefined = undefined
       try {
-        homeSections = await this.loadSourceHomeSections(source)
+        homeSections = await this.loadSourceHomeSections(source, listings)
       } catch (error) {
         homeLoadError = error as Error
       }
@@ -686,8 +686,8 @@ export class BrowseViewModel {
     }
   }
 
-  async selectBrowseListing(listing: SourceListingDescriptor): Promise<void> {
-    if (this.selectedSource === undefined || this.loadingBrowse) {
+  async selectBrowseListing(listing: SourceListingDescriptor, replacePending: boolean = false): Promise<void> {
+    if (this.selectedSource === undefined || (this.loadingBrowse && !replacePending)) {
       return
     }
     const retainsCurrentContent = this.hasBrowseContent()
@@ -745,13 +745,13 @@ export class BrowseViewModel {
     this.saveSourceFilterValues('browse', nextValues)
     this.browseFilterValues = nextValues
     const listing = this.currentListing()
-    if (this.selectedSource !== undefined && listing !== undefined && !this.loadingBrowse) {
-      await this.selectBrowseListing(listing)
+    if (this.selectedSource !== undefined && listing !== undefined) {
+      await this.selectBrowseListing(listing, true)
     }
   }
 
   async resetBrowseFilters(): Promise<void> {
-    if (this.selectedSource === undefined || this.loadingBrowse) {
+    if (this.selectedSource === undefined) {
       return
     }
     const nextValues = this.defaultSourceFilterValues(this.filters)
@@ -759,7 +759,7 @@ export class BrowseViewModel {
     this.browseFilterValues = nextValues
     const listing = this.currentListing()
     if (listing !== undefined) {
-      await this.selectBrowseListing(listing)
+      await this.selectBrowseListing(listing, true)
     }
   }
 
@@ -1016,7 +1016,10 @@ export class BrowseViewModel {
       const args: SourceListingsArgs = {}
       const response = await this.runSourceOperationResponse(source.sourceId, 'get_filters', args, 1)
       return parseSourceFiltersJson(JSON.stringify(response.data ?? {}))
-    } catch (_error) {
+    } catch (error) {
+      if (source.capabilities.indexOf('filters') >= 0) {
+        throw error as Error
+      }
       return []
     }
   }
@@ -1032,20 +1035,30 @@ export class BrowseViewModel {
       const args: SourceListingsArgs = {}
       const response = await this.runSourceOperationResponse(source.sourceId, 'get_listings', args, 1)
       const listings = parseSourceListingsFromResponse(response)
-      return listings.length > 0 ? listings : this.defaultListings()
-    } catch (_error) {
+      return listings.length > 0 || source.capabilities.indexOf('listings') >= 0 ? listings : this.defaultListings()
+    } catch (error) {
+      if (source.capabilities.indexOf('listings') >= 0) {
+        throw error as Error
+      }
       return this.defaultListings()
     }
   }
 
-  private async loadSourceHomeSections(source: SourceRuntimeRegistryInstalledSourceSummary): Promise<SourceHomeSectionState[]> {
+  private async loadSourceHomeSections(
+    source: SourceRuntimeRegistryInstalledSourceSummary,
+    listings: SourceListingDescriptor[],
+  ): Promise<SourceHomeSectionState[]> {
     if (!this.sourceSupportsOperation(source, 'home')) {
       return []
     }
     const args: SourceHomeArgs = {}
     const response = await this.runSourceOperationResponse(source.sourceId, 'get_home', args, 1)
     return parseSourceHomeSectionsFromResponse(source.sourceId, response)
-      .filter((section: SourceHomeSectionState): boolean => section.kind === 'mangaList' && section.manga.length > 0)
+      .filter((section: SourceHomeSectionState): boolean => {
+        if (section.kind === 'mangaList') return section.manga.length > 0
+        return section.kind === 'listingLink' && section.listingId !== undefined &&
+          listings.some((listing: SourceListingDescriptor): boolean => listing.id === section.listingId)
+      })
   }
 
   private applyBrowseListing(

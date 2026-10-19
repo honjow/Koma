@@ -9,6 +9,7 @@ import { SourceFiltersSheetScaffold } from '../components/SourceFiltersSheetScaf
 import { sourceFilterSheetOptions } from '../components/SourceFilterSheetOptions'
 import { SourceFilterControls, SourceFilterControlValue } from '../components/SourceFilterControls'
 import { AppStrings } from '../i18n/AppStrings'
+import { safeSearchDiagnostic } from '../model/SearchStateMapper'
 import { SourceFilter, SourceManga } from '../model/SourceModels'
 import { connectLanguageState, LanguageState } from '../state/LanguageState'
 import { SourceSearchRouteChromeState } from '../state/SourceRouteChromeState'
@@ -112,6 +113,10 @@ export struct SourceSearchPage {
 
   private retrySearch(): void {
     this.clearPendingSearchTimer()
+    if (!this.searchFiltersReady) {
+      void this.initializeSearch()
+      return
+    }
     if (this.query.trim().length === 0) {
       return
     }
@@ -235,9 +240,9 @@ export struct SourceSearchPage {
   private SearchErrorState() {
     KomaEmptyState({
       title: s('source_search_error_title'),
-      message: this.viewModel.errorMessage,
+      message: this.viewModel.searchErrorMessage,
       actionLabel: s('common_retry'),
-      showAction: this.query.trim().length > 0,
+      showAction: !this.searchFiltersReady || this.query.trim().length > 0,
       action: () => {
         this.retrySearch()
       },
@@ -248,7 +253,7 @@ export struct SourceSearchPage {
   private get gridProjection(): SourceSearchGridProjection {
     const rows: SourceSearchGridRow[] = []
     if (this.viewModel.searchResults.length === 0) {
-      const kind: 'loading' | 'error' | 'empty' = this.viewModel.loadingSearch ? 'loading' : this.viewModel.errorMessage.length > 0 ? 'error' : 'empty'
+      const kind: 'loading' | 'error' | 'empty' = this.viewModel.loadingSearch ? 'loading' : this.viewModel.searchErrorMessage.length > 0 ? 'error' : 'empty'
       rows.push({ key: kind, kind, bottomPadding: ThemeConstants.SPACE_MD })
     } else {
       const width = this.safeArea.windowWidthVp > 0 ? this.safeArea.windowWidthVp : gridFallbackContainerWidth()
@@ -288,7 +293,7 @@ export struct SourceSearchPage {
       SourcePaginationFooter({
         isLoading: this.viewModel.loadingSearch,
         hasMore: this.viewModel.hasMoreSearch,
-        isError: this.viewModel.errorMessage.length > 0,
+        isError: this.viewModel.searchErrorMessage.length > 0,
         onRetry: () => { void this.viewModel.retrySearchPage() },
       })
     }
@@ -348,8 +353,21 @@ export struct SourceSearchPage {
       return
     }
     this.searchInitializationStarted = true
-    await this.viewModel.ensureSearchFilters(this.currentSource(), this.chrome.initialQuery.length === 0)
+    this.viewModel.loadingSearch = true
+    this.viewModel.searchErrorMessage = ''
+    try {
+      await this.viewModel.ensureSearchFilters(this.currentSource(), this.chrome.initialQuery.length === 0)
+    } catch (error) {
+      this.searchInitializationStarted = false
+      if (this.routeActive) {
+        this.viewModel.searchErrorMessage = safeSearchDiagnostic(error as Error).userText
+      }
+      return
+    } finally {
+      this.viewModel.loadingSearch = false
+    }
     if (!this.routeActive) {
+      this.searchInitializationStarted = false
       return
     }
     this.searchFiltersReady = true
