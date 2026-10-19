@@ -1541,6 +1541,7 @@ export struct MangaDetailPage {
     let blockedCount = 0
     let failedCount = 0
     let pausedCount = 0
+    let finishedCount = 0
     try {
       if (!this.isInLibrary && manga.sourceId !== undefined) {
         const added = await this.handleAddToLibrary()
@@ -1555,8 +1556,7 @@ export struct MangaDetailPage {
         this.showToast(s('manga_detail_add_to_library_first'))
         return
       }
-      for (let index = 0; index < targetChapterIds.length; index += 1) {
-        const chapterId = targetChapterIds[index]
+      await service.runChapterBatch(targetChapterIds, async (chapterId: string): Promise<void> => {
         if (manga.sourceId !== undefined) {
           let hydration: SourceChapterPageHydrationResult
           try {
@@ -1564,8 +1564,8 @@ export struct MangaDetailPage {
           } catch (_error) {
             console.warn('[ReaderOffline] step=batch_pages_unavailable failed=true reason=source_pages_lookup')
             blockedCount += 1
-            this.downloadStatusText = this.formatString('manga_detail_batch_downloading', [index + 1, targetChapterIds.length])
-            continue
+            this.downloadStatusText = this.formatString('manga_detail_batch_downloading', [++finishedCount, targetChapterIds.length])
+            return
           }
           if (!hydration.hydrated) {
             const comic = this.libraryStore?.getComic(this.currentComicId())
@@ -1579,16 +1579,16 @@ export struct MangaDetailPage {
             }
             blockedCount += 1
             console.warn(`[ReaderOffline] step=batch_pages_unavailable failed=true reason=${hydration.reasonCode ?? 'source_pages_missing'}`)
-            this.downloadStatusText = this.formatString('manga_detail_batch_downloading', [index + 1, targetChapterIds.length])
-            continue
+            this.downloadStatusText = this.formatString('manga_detail_batch_downloading', [++finishedCount, targetChapterIds.length])
+            return
           }
         }
         const comic = this.libraryStore?.getComic(this.currentComicId())
         if (comic === undefined || !sameComicIdentity(initialComic, comic) ||
           !comic.chapters.some((item: Chapter): boolean => item.id === chapterId)) {
           failedCount += 1
-          this.downloadStatusText = this.formatString('manga_detail_batch_downloading', [index + 1, targetChapterIds.length])
-          continue
+          this.downloadStatusText = this.formatString('manga_detail_batch_downloading', [++finishedCount, targetChapterIds.length])
+          return
         }
         const chapterTitle = this.chapters.find((item: MangaChapterItem): boolean => item.id === chapterId)?.title
         const manifest = await service.downloadChapter(comic, chapterId, {
@@ -1604,8 +1604,8 @@ export struct MangaDetailPage {
         } else {
           failedCount += 1
         }
-        this.downloadStatusText = this.formatString('manga_detail_batch_downloading', [index + 1, targetChapterIds.length])
-      }
+        this.downloadStatusText = this.formatString('manga_detail_batch_downloading', [++finishedCount, targetChapterIds.length])
+      })
       this.applyChapterStatesToCurrent()
       this.downloadStatusText = pausedCount > 0
         ? this.formatString('manga_detail_batch_paused', [downloadedCount, pausedCount, blockedCount, failedCount])

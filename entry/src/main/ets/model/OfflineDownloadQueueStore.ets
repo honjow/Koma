@@ -606,9 +606,11 @@ export class OfflineDownloadQueueStore {
   }
 
   async deleteComicDownloads(comicId: ComicId): Promise<number> {
-    const store = new OfflineDownloadStore(this.filesDir)
-    await store.deleteComicDownloads(comicId)
-    return this.removeComic(comicId)
+    return OfflineDownloadRuntime.removeComicDownloads(this.filesDir, comicId, async (): Promise<number> => {
+      const store = new OfflineDownloadStore(this.filesDir)
+      await store.deleteComicDownloads(comicId)
+      return this.removeComic(comicId)
+    })
   }
 
   private saveDocument(document: OfflineDownloadQueueDocument): void {

@@ -199,7 +199,7 @@ export class OfflineDownloadService {
   async blockChapterDownload(comic: Comic, chapterId: string, reasonCode: string, labels?: OfflineDownloadLabels): Promise<OfflineChapterDownloadManifest> {
     const filesDir = this.store.filesRootDir()
     await OfflineDownloadService.ensureQueueInitialized(filesDir)
-    return OfflineDownloadRuntime.run(filesDir, OfflineDownloadRuntime.key(filesDir, comic.id, chapterId),
+    return OfflineDownloadRuntime.run(filesDir, comic.id, chapterId,
       async (): Promise<OfflineChapterDownloadManifest> => this.saveBlockedChapter(comic, chapterId, reasonCode, labels))
   }
 
@@ -233,7 +233,13 @@ export class OfflineDownloadService {
     const filesDir = this.store.filesRootDir()
     await OfflineDownloadService.ensureQueueInitialized(filesDir)
     const key = OfflineDownloadRuntime.key(filesDir, comic.id, chapterId)
-    return OfflineDownloadRuntime.run(filesDir, key, () => this.runChapterDownload(comic, chapterId, key, labels))
+    return OfflineDownloadRuntime.run(filesDir, comic.id, chapterId,
+      () => this.runChapterDownload(comic, chapterId, key, labels),
+      () => this.queueStore.loadPreferences().foregroundConcurrencyLimit)
+  }
+
+  async runChapterBatch(chapterIds: string[], execute: (chapterId: string) => Promise<void>): Promise<void> {
+    await OfflineDownloadRuntime.runBatch(chapterIds, this.queueStore.loadPreferences().foregroundConcurrencyLimit, execute)
   }
 
   private async runChapterDownload(
