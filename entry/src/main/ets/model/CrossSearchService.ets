@@ -298,7 +298,7 @@ export class CrossSearchService {
     if (images.length === 0) {
       throw new Error(AppStrings.get('search_webdav_no_images'))
     }
-    this.installWebDavReaderSession(record, client, pathSegments, item.title, images)
+    this.installWebDavReaderSession(record, client, pathSegments, item.title, images, item.webDavIsCollection !== true)
     console.info(`[Search] step=open_webdav_reader pages=${images.length}`)
     return true
   }
@@ -689,11 +689,13 @@ export class CrossSearchService {
     pathSegments: string[],
     title: string,
     images: DavResource[],
+    singleImage: boolean,
   ): void {
     const now = Date.now()
-    const sourcePath = client.buildUrl(pathSegments)
-    const comicId = `webdav:${record.server.id}:comic:${this.shortHash(sourcePath)}`
-    const chapterId = `webdav:${record.server.id}:chapter:${this.shortHash(sourcePath)}`
+    const sourcePath = client.buildUrl(singleImage ? this.webDavRelativeSegments(client, images[0].href) : pathSegments)
+    const resourceKey = singleImage ? `image:${this.shortHash(sourcePath)}` : this.shortHash(sourcePath)
+    const comicId = `webdav:${record.server.id}:comic:${resourceKey}`
+    const chapterId = `webdav:${record.server.id}:chapter:${resourceKey}`
     const pages = images.map((resource: DavResource, index: number): Page => {
       const name = this.davResourceName(resource)
       return {
