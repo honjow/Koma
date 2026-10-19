@@ -2,6 +2,7 @@
 
 ## 当前：目录与分支成果恢复审计（2026-10-19）
 
+- 原进度页503回归已限定修复并通过真实验收：Root亲审r140全差异，先完整保全ORDER/index/状态三成员并逐字读回，再仅应用原HTML、正式路径server和唯一snapshot。fresh核旧PID65874/start/argv及唯一loopback8766，保存根页200/API与全文503基线后只TERM该进程；新PID18551从正式Koma路径运行。冻结verifier实际核原9876B HTML、正式工作单全文、两次API/真同级Kit6c、三证据全body与Range及未知404，浏览器实际展开版本/四组、回执与全文链接及自动刷新连接时间；原HTML外观不改。首次前件读取误将lexbor gitlink当普通文件，在任何写入前停止，原读取器保留，r2仅补真实gitlink HEAD/状态核对。原两容器和30227未动、b744尚未退休。证据：恢复区`progress-service-r140-{root-apply,restart,live-verifier}-result.json`、完整before档与审计区浏览器原图/AX；不冒整体恢复或Reader通过。
 - 当前用户卡片内边距增量已在正式主仓实现并做197限域实测：本会话明确要求内边距也处理、看到最终画面并核内外圆角；只将`LibraryList`外层Row上下padding从4改8vp。既有卡片R20、封面R12和全部封面42×60/48×68/56×78、继续阅读76×102保持；Continue卡原R24/p12/R12保持，不重开缩封面方案或公共HDS样式。180b80f5主仓基线与本单行候选分别真实签名构建/安装，Root实际看同数据ALN-AL80/1260×2720竖屏原图：标准封面156×221px不变，留白左/上/下由26/13/13变26/26/26px；宽松为26/26/25px（像素取整），紧凑因HDS文字区最小高度为26/32/33px，不能称三档完全等距。标准单项选择、取消、普通回网格已实际看图，书架/阅读进度仅设备端SHA核对始终同原；原标准密度、网格、桌面Focus11与10000ms覆盖均恢复并释放租约。没有横屏、系统字号改变或Reader正文验收；其他产品新增/源设备仍暂停。证据：恢复区`library-card-padding-current-user-{review.md,native-result.json}`及同一`device197__ALN-AL80/not-applicable/portrait-1260x2720/library-card-padding/`原图/manifest；前件完整档与此前缩封面候选原件均保留。
 - 本次真实主仓基线构建暴露两处先前恢复漏依赖，已精确修复并范围提交：App`180b80f5`将缺失`readerPreparationCurrent`调用投影回当前Legacy已有epoch/open/closing三条件，保目录resolver取消参数与最终发布门；Kit`6c289f2`补回原Snapshot `visualRevision=0`及copy两span，保当前assetRequestId所有真实writer，不回灌HOLD claim/rollback/Shared/AutoRead。原Host分别注入永真helper/非零revision fixture而漏查生产合同，原完整性确定结论据实际构建反例收窄。Root亲核原blob、生产者/五消费者和精确暂存，App四实际方法场景、Kit四原测试文件37项通过；同一正式Koma构建随后成功。这不证明Reader原生或其它宿主验收完成。证据：恢复区`library-build-original-contracts-{staged,commit}-result.json`及完整8成员前件档、两原失败/成功构建日志，审计区原owner追溯材料。
 - 当前人类界面取舍（原文来自本会话当前消息，非历史记忆）：看到原列表前后实机图后，用户表示“右边可以选”，但封面高度缩减过多，“边距的处理可以保留”。因此旧完整缩封面候选不整组应用；Root 已按本次边距/封面取舍归回限定子集并提交 `4c7fa41d`（单文件11增8删）：只接原外部边距/行及 section 间距/文字对齐，三档列表封面42×60、48×68、56×78与继续阅读76×102均保持，内部文字纵距、Grid、字体和颜色不改；不冒原具体尺寸已获历史批准。Root 原件读取两次因通用 padding 重复及方法片段与整行的边界假设在应用前停下，原失败保留，随后用真实 Git 的精确原行及已记录空格/LF边界核清，未改候选或产品断言。证据：`root-approved-library-margin-subset-{staged,commit}-result.json`、对应 before 完整档及两份原 prereview failure。原图均为 197/ALN-AL80 1260×2720 竖屏旧包，缺当前主仓精确候选截图，不能当本轮实机验收。后续选项须给推荐做法、现在→选择后的实际差异，并区分仅提交现有工作与改变产品界面。
@@ -16,7 +17,7 @@
 - production05 残留Git管理项已实际退休：379成员原档与15成员扩展元数据补档均由Root完整独立读回，13730原对象对应原14723独立档；361路径的flags/dev/inode按实际stat核回，360个原始xattr值另经系统xattr CLI交叉读回。fresh控制路径7713件核incoming0，两个原外域Linux skill解析错误保留；只移除完整App05 admin（含两个已保全provider）与固定156基线ref CAS，不操作physical05任何路径。独立postcheck证明主仓working/index/flags/其它refs精确、130个原服务/空目录身份、两个运行容器四bind及30227只读代理argv/cwd/start/listener保持。当前Koma仅正式主仓worktree与master；原physical05是仍活服务数据残留，不是开发副本，不因Git退休而可删。证据：恢复区`app-production05-exact-admin-retirement-2958a016-result.json`、379/15完整档，审计区两份Root独立readback与`app-worker-production05-independent-admin-postcheck-r2-2958a016-result.json`。
 - ComicABC六历史验证父与四合同父已完整归档并精确清理：Root独立读回1451（含此前400 child）＋144个旧地址成员，44＋10份原reference及111＋21份外层证据保持。原50代码输入、五＋三补丁链、后加479B历史说明、737→740文字纠正分开保留；两份缺失HTML从原受控输入严格反变换至原抓取回执完整SHA，明确为重建参考而非原文件/新HTTP。当前源7af0的代码、官方图标、index/flags/refs/worktree不变，无新Native/正文通过。证据：`comicabc-{six-historical,four-contract}-parents-cleanup-result.json`与`root-comicabc-{six,four}-parents-independent-postcheck.json`；另11证据父973成员已完整归档并精确清理，Root独立全读回；三份旧shared NOT_REPROVEN已由Root逐字连到六父第5实际归档，不冒重用旧基线。
 - Kit b744完整保全已由Root独立读回141031成员/164767旧路径及App21345、Kit3219、Enhancement106原对象，SHA与真实r134回执相同；r135只读就绪门也已实际通过。其结论仅限字节/metadata/当时open-fd，不证明无argv/延迟读文件消费者。fresh宿主发现65874进度页仍按旧b744 PAGE及production10 ORDER读文件；根页200但`/api/progress`、`/work-order`因production10路径已退休而503。这是原清理控制路径/fd扫描漏掉活进程argv造成的实际回归，旧独立postcheck不能覆盖它，b744退休继续HOLD。30227代理则只在启动读取旧脚本旁两个sidecar，当前HTTP无A/provider依赖；原三启动资产已归回正式忽略区并由Root独立核回；原30227尚未切新脚本，受控重启与HTTP验收仍OPEN。
-- 当前下一未验证动作：Root接续同8766服务限定修复；原r138三文件候选仍未应用、进程未动，因本轮卡片实测所需App/Kit提交及本工作单已更新，须按当前真实前件生成后继绑定，不能fuzz旧packet。服务继续保原HTML全文/同端口GET语义，将唯一正式工作单、同级Kit及本轮真实回执接回，实际HTTP与浏览器验证后才重审b744联合退休；Kit原owner准备限定后继packet，App原owner核30227三原启动资产与正式去向，不停止数据容器。源11证据父已由Root完整独立读回并完成清理；随后接Komiic四父及GoDa三父原成果核实与精确保全清理。MDX原体UNKNOWN外部parent继续保护；所有未采/反例HOLD原件保留，不借清理批准新UI。产品新增与设备仍暂停；整体恢复、剩余目录/refs归并及远端同步仍OPEN。
+- 当前下一未验证动作：Root按原完整保全与fresh全消费者/12跨owner硬链接屏障重审b744联合退休；8766正式路径实际HTTP与浏览器已通过，不沿用旧pending服务状态。App原owner接续30227原三启动资产、两容器四bind和受控HTTP前后对照，未操作容器；Komiic四父及GoDa三父继续原成果核实与精确保全清理。MDX原体UNKNOWN外部parent继续保护；所有未采/反例HOLD原件保留，不借清理批准新UI。产品新增与其它设备仍暂停；整体恢复、剩余目录/refs归并及远端同步仍OPEN。
 
 - DBMultiverse 三处与 IQIYI 两处历史 parent 已分别完整保全后精确清理：229＋3732＝3961、100＋772＝872 个新旧成员均由 Root 独立逐 type/mode/body/oldpath 读回，8＋11 份原包/WASM/index 独立保留。DBM 七原生产文件与 fe2190/current 全文同，七 App 文件是 freeze.py 只读捕获的历史输入；IQIYI 14 路 patch 严格内存重建、六业务文件等 1f01644，旧 CLI 1c49 从另一真实旧路径归档读回 14577200B，不拿新 CLI 代原输入。原69缺件、116 unsupported、0HTTP/空包失败均保，不新请求/构建/Native。源主仓源码、index/flags、refs/worktrees 保持 7af0。证据：恢复区 `dbm-three-whole-parents-cleanup-result.json`、`iqiyi-two-whole-parents-cleanup-result.json` 及审计区对应 Root independent-prereview/postcheck。
 - production05 六条旧构建链接已完整保全后解除：7 member 档包括六个原 link payload/mode/uid/gid 与 manifest，Root 独立全读回并保全部父目录；只 unlink 六条，活 Docker 服务/数据和旧 GitDB 均未操作。三主仓 index/flags/refs/worktrees 精确。当时整个 production05 仍受真实服务 bind 与 production10 两 module gitdir 引用约束；后者已由本轮production10退休解除，当前服务数据/provider去向仍待核，不因链接清理称父已退休。证据：`production05-six-build-links-{full-preserved.tar.gz,cleanup-result.json,oldpath-index.json}`、`root-production05-six-links-independent-postcheck.json`。
@@ -346,6 +347,146 @@
 - 最新核对基线：`master` / `b486da30`，源仓`0018287` + 当前未提交工作树。书架/源网格间距、20 页列表外边距、本地目录能力门控、源弹层状态、应用级前台更新、结果展示、语言入口及相关模型/资源/检查是既有 WIP；已提交切片及各自证据边界详见第13–43节及第24节。下文历史记录仅覆盖其当时构建与场景，不能扩大为当前整页或整个领域通过。
 - 指定验证设备：`192.168.50.197:12345`
 - 当前阶段：**App主枝已含9a55a47a（MangaDex跨语言章节身份App侧，197 v2限域验收，不推送）；源仓d5ee46d（0.1.6）对应提交。详情下载孤立行3c8d8548及RDR004-A章序/历史目录均197限域验证并独立提交，见第24节；**RDR-004-B章末自动衔接已限域验收并独立提交e8817da5（单页/双页/纵向分页/连续滚动四模式×前后两方向均197通过，含一个设备上发现并修复的连续模式落点缺陷），见第44节；**RDR-005单本模式/方向覆盖已限域验收并独立提交4e9e16b0（新增只承载 pageMode/readingDirection 的窄覆盖键 `reader.seriesModeOverrides.v1`，全局默认不被带跑；host 检查抓到并修掉一处「改一本顺手带跑全局」的真实缺陷；197 录屏＋偏好文件双重取证），见第45节；**OPM孤儿进度ch:5caba1e0精确ID恢复仅设计（`20260908-mangadex-chapter-identity/implementation/orphan-resume-design.md`）未实施。宣传图首次重开失败仍未归因，不宣称已修复。DL004正常暂停、DL001/CHP001批量入队、LIB012网格旧快照、LIB011误计数、初始化等待优化分别已提交，证据见第38–43节。虫笼取页报错、继续阅读卡长章节名可读性仍未闭合。用户已允许内容策略与源仓修正范围，后续同程度少量无损验证自行推进并报告，不再逐章请示。** 用户反馈不代表结束任务，每批197验收后独立提交并继续、不推送，不外推全项目通过。
+
+<!-- koma-progress-snapshot
+{
+  "schemaVersion": 1,
+  "title": "Koma 目录与分支成果恢复审计",
+  "state": "恢复未完成 · 进度页已接回正式仓",
+  "outcome": "本页记录本轮保全、精确清理及仍存消费者；197已核仅限当前卡片三档/选择/回网格，不代表Reader Native或其它宿主验收。",
+  "updatedAt": "2026-10-19T14:43:03.335044+00:00",
+  "target": "唯一正式 /Users/honjow/git/Koma · 产品新增与设备仍暂停",
+  "activeId": "RECOVERY",
+  "activity": {
+    "title": "原目录消费者回收与成果归并",
+    "detail": "同8766服务已由旧PID65874切换到正式Koma路径的PID18551；原HTML、正式全文工作单、三证据及Range、真实同级Kit、浏览器原页/链接/自动刷新已核。b744仍待fresh消费者与保护边界重审，30227和数据容器保持。",
+    "startedAt": null
+  },
+  "nextAction": "重审b744联合退休的fresh消费者、12跨owner硬链接及全部源/管理保护边界；接续Komiic四父、GoDa三父精确保全清理及30227原路径消费者迁出。",
+  "proof": [
+    {
+      "label": "原件保全",
+      "state": "已独立读回",
+      "kind": "accepted",
+      "detail": "b744 r134、App05原379及扩展15成员、源历史父原件完整保全；不是产品验收。"
+    },
+    {
+      "label": "旧App管理退休",
+      "state": "App05已核",
+      "kind": "accepted",
+      "detail": "只退App05管理项和固定基线ref；physical数据、两容器四bind及30227保留。"
+    },
+    {
+      "label": "源历史父清理",
+      "state": "六＋四＋十一父已核",
+      "kind": "accepted",
+      "detail": "1595旧路径映射（含旧400 child）及另973成员分别核回；源代码/refs/index保持。"
+    },
+    {
+      "label": "8766服务GET",
+      "state": "真实HTTP与浏览器已核",
+      "kind": "accepted",
+      "detail": "根页/全文/两次API/三证据与Range均实测通过；浏览器实际展开、回执与工作单链接、连接时间自然更新已核，旧argv已退出。"
+    }
+  ],
+  "hosts": [
+    {
+      "name": "Koma",
+      "checkout": "/Users/honjow/git/Koma",
+      "appHead": "965871d9c341761ed88cfb7b9800f4a334697b09",
+      "hap": "当前卡片候选已真实签名构建/安装；197仅核卡片三档、选择及回网格，完整回执与原图见唯一工作单，不冒Reader Native。"
+    }
+  ],
+  "scope": "本snapshot位于唯一CURRENT_STATUS内，仅显示本轮四个具体能力/管理组；不是新队列或后台执行心跳。App/source提交是快照基线，liveKitHeads实时读同级Kit。updatedAt仅本次真实更新，不使用轮询、mtime或进程存活推算工时。正式Kit当前本地6c289f2且无remote事实只记为后续可信远端同步待核，不改分支/config，不把本地干净称交付完成。 当前App快照基线965871d9，Kit基线6c289f2；两漏依赖原合同已修，37原测试及同一正式Koma签名构建通过。卡片197限域实测已完成并恢复环境/释放租约，不扩大Reader或其它设备通过。",
+  "items": [
+    {
+      "id": "APP05",
+      "title": "旧App05完整保全与管理项退休",
+      "status": "实际完成限定退出",
+      "kind": "accepted",
+      "result": "379成员原档及15成员扩展元数据由Root独立全读回；13730原raw对应既有14723独立档。r2真实SUCCESS并通过独立postcheck，只移除App05 admin（含两个已保全provider）与固定156基线ref。正式Koma仅主仓worktree/master，主仓其它状态精确。",
+      "remaining": "physical05仍为活服务数据残留：130个原服务/空目录身份、两容器四原bind和30227 argv/cwd/start/listener保持；原三代理启动资产已归回正式忽略区并独立核回，但30227未切新脚本、重启/HTTP仍OPEN，不授权删除这些数据。",
+      "reportedAt": null,
+      "reportedAtSource": "原始人类提出时间未定位；不以Git提交、归档或当前纠正冒原话。",
+      "firstEvidenceAt": null,
+      "closedAt": null
+    },
+    {
+      "id": "COMICABC",
+      "title": "六父、四父及十一证据父实际清理",
+      "status": "原件已读回／精确清理",
+      "kind": "accepted",
+      "result": "六父1451旧路径映射（1051本轮parent＋此前400 child）及四父144成员，共1595旧路径映射；另11证据父973成员已完整归档并精确清理，Root独立全读回。六／四父44＋10 reference及111＋21 outer、十一父4 reference及20 outer保持。三份旧shared NOT_REPROVEN已由Root逐字连到六父第5实际归档，不冒重用旧基线。",
+      "remaining": "这些数量不是1595当前物理文件；原失败、受控输入和重建参考边界保留，当前源7af0代码/图标/refs/index/flags保持，无新HTTP/Native结论。",
+      "reportedAt": null,
+      "reportedAtSource": "原始人类提出时间未定位；不以Git提交、归档或当前纠正冒原话。",
+      "firstEvidenceAt": null,
+      "closedAt": null
+    },
+    {
+      "id": "B744",
+      "title": "旧NextN父完整保全与路径消费者",
+      "status": "保全完成／尚未退休",
+      "kind": "open",
+      "result": "r134实际141031档成员覆盖164767原路径；App21345、Kit3219、Enhancement106 raw均保全并由Root独立读回。r135 readiness只证明源与档一致，不能排除请求时才读文件的consumer。",
+      "remaining": "8766原argv已退出，PID18551从正式Koma脚本/页面/工作单及同级Kit读取；这只解除该消费者。b744仍须Root按fresh全consumer、12跨owner硬链接和原完整保护边界另审，尚未退休。",
+      "reportedAt": null,
+      "reportedAtSource": "原始人类提出时间未定位；不以Git提交、归档或当前纠正冒原话。",
+      "firstEvidenceAt": null,
+      "closedAt": null
+    },
+    {
+      "id": "SERVICE8766",
+      "title": "原进度页限定恢复",
+      "status": "正式路径服务已验",
+      "kind": "accepted",
+      "result": "旧PID65874身份核同后仅TERM并释放8766；正式路径唯一PID18551实际提供原9876B HTML、完整CURRENT_STATUS、同级Kit6c289f2、三原JSON回执及Range。Root实际浏览器核展开/四组/未知时间、原链接和自动刷新；旧503基线与全部回执保留。",
+      "remaining": "本项只解除旧8766消费者，不代表整体恢复、b744退休、30227迁出、远端同步或Reader验收完成。",
+      "reportedAt": null,
+      "reportedAtSource": "原始人类提出时间未定位；不以Git提交、归档或当前纠正冒原话。",
+      "firstEvidenceAt": null,
+      "closedAt": null
+    }
+  ],
+  "source": {
+    "status": "历史父精确清理已核",
+    "kind": "accepted",
+    "title": "ComicABC 六＋四＋十一父",
+    "result": "六父1451（含此前400 child）＋四父144旧路径映射分别独立核回；另十一证据父973成员完整保全清理，三旧shared原边界逐字绑定实际六父第5档。",
+    "remaining": "原失败/受控输入/重建参考保留；不是新Native。后续原成果核查接Komiic/GoDa，未知外部parent继续保护。",
+    "commit": "7af0d9d80c97e93c4bf3254dad24913ca68f60d4"
+  },
+  "milestones": [],
+  "releaseGates": [
+    "目录/分支恢复与原有效成果归并尚未整体完成；未归／已采用有反例组继续具名保留。",
+    "8766真实HTTP与浏览器验收已完成；b744联合退休仍须fresh全消费者与硬链接/完整保护边界重审。",
+    "本轮37原测试与正式Koma签名构建通过，197仅卡片三档/选择/回网格已核；Reader Native、其它宿主与其余路径未由此接受。产品新增及其它设备仍暂停，本地提交/干净不替代可信远端同步或发布。"
+  ],
+  "stopRule": "任何真实反例保留；不得靠目录清理强制应用HOLD候选。",
+  "evidence": [
+    {
+      "id": "b744-preservation",
+      "label": "b744完整保全原回执（非退休）",
+      "path": "kit-b744-parent-content-complete-r134-20261019.receipt.json",
+      "storage": "recovery"
+    },
+    {
+      "id": "app05-retirement",
+      "label": "App05 r2实际管理退休结果",
+      "path": "app-production05-exact-admin-retirement-2958a016-result.json",
+      "storage": "recovery"
+    },
+    {
+      "id": "comicabc-cleanup",
+      "label": "ComicABC十一证据父实际清理结果",
+      "path": "comicabc-eleven-evidence-parents-cleanup-result.json",
+      "storage": "recovery"
+    }
+  ],
+  "evidenceNote": "原页面证据区域保持；以上三JSON只证明本轮保全/限定清理，不是当前原生画面验收。六／四父独立结果另由完整工作单原文绑定；原Native材料仍按原档保全。",
+  "excluded": "不改原HTML外观/父结构/schema，不新建daemon/端口/symlink，不停数据容器，不回灌旧错误snapshot。最早人类进度页原文/提出时间及工时未知。"
+}
+-->
 
 ## 0. 本轮审查结论与方法（2026-09-05）
 
