@@ -232,11 +232,12 @@ export struct HistoryPage {
       return s('history_chapter_read')
     }
     const comic = this.libraryStore.getComic(item.comicId)
-    const chapterIndex = comic === undefined ? -1 : comic.chapters.findIndex((chapter: Chapter) => {
-      return chapter.id === item.progress?.chapterId
+    const chapter = comic?.chapters.find((candidate: Chapter) => {
+      return candidate.id === item.progress?.chapterId
     })
-    if (chapterIndex >= 0) {
-      return s('history_chapter_index').replace('%s', `${chapterIndex + 1}`)
+    const chapterTitle = chapter?.title.trim()
+    if (chapterTitle !== undefined && chapterTitle.length > 0) {
+      return chapterTitle
     }
     return item.progress.chapterId.length > 0
       ? s('history_chapter_read')
@@ -497,7 +498,7 @@ export struct HistoryPage {
     }
     .width(64)
     .height(88)
-    .borderRadius(ThemeConstants.RADIUS_THUMB)
+    .borderRadius(ThemeConstants.RADIUS_CARD - ThemeConstants.SPACE_MD)
     .clip(true)
     .backgroundColor(this.coverColor(item))
   }
@@ -521,31 +522,25 @@ export struct HistoryPage {
   @Builder
   private HistoryRow(item: HistoryItem) {
     Row({ space: ThemeConstants.SPACE_LG }) {
-      Row({ space: ThemeConstants.SPACE_LG }) {
+      Row() {
         this.Cover(item)
+      }
+        .onClick(() => {
+          this.openHistoryItem(item)
+        })
 
+      Column({ space: ThemeConstants.SPACE_SM }) {
         Column({ space: ThemeConstants.SPACE_SM }) {
-          Row() {
-            Text(item.title)
-              .fontSize(ThemeConstants.FONT_SIZE_TITLE)
-              .fontWeight(FontWeight.Medium)
-              .fontColor(ThemeConstants.TEXT_PRIMARY)
-              .maxLines(2)
-              .textOverflow({ overflow: TextOverflow.Ellipsis })
-              .layoutWeight(1)
-            Text(this.relativeTime(item.lastReadAt))
-              .fontSize(ThemeConstants.FONT_SIZE_CAPTION)
-              .fontColor(ThemeConstants.TEXT_SECONDARY)
-              .margin({ left: ThemeConstants.SPACE_MD })
-          }
-          .width('100%')
-          .alignItems(VerticalAlign.Top)
+          Text(item.title)
+            .fontSize(ThemeConstants.FONT_SIZE_TITLE)
+            .fontWeight(FontWeight.Medium)
+            .fontColor(ThemeConstants.TEXT_PRIMARY)
+            .width('100%')
 
           Text(this.progressText(item))
             .fontSize(ThemeConstants.FONT_SIZE_META)
             .fontColor(ThemeConstants.TEXT_SECONDARY)
-            .maxLines(1)
-            .textOverflow({ overflow: TextOverflow.Ellipsis })
+            .width('100%')
 
           Progress({
             value: item.progress === undefined ? 0 : Math.round(item.progress.progressRatio * 100),
@@ -556,25 +551,43 @@ export struct HistoryPage {
             .color(ThemeConstants.BRAND_PRIMARY)
             .backgroundColor(ThemeConstants.SOFT_TINT)
         }
-        .layoutWeight(1)
+        .width('100%')
         .alignItems(HorizontalAlign.Start)
+        .onClick(() => {
+          this.openHistoryItem(item)
+        })
+
+        Row() {
+          Text(this.relativeTime(item.lastReadAt))
+            .fontSize(ThemeConstants.FONT_SIZE_CAPTION)
+            .fontColor(ThemeConstants.TEXT_SECONDARY)
+            .layoutWeight(1)
+            .onClick(() => {
+              this.openHistoryItem(item)
+            })
+          KomaIconButton({
+            icon: $r('sys.symbol.trash'),
+            controlSize: 24,
+            iconSize: ThemeConstants.FONT_SIZE_HEADING,
+            kind: 'ghost',
+            accentColor: ThemeConstants.TEXT_SECONDARY,
+            action: () => {
+              this.confirmRemoveHistoryItem(item)
+            },
+          })
+        }
+        .width('100%')
       }
       .layoutWeight(1)
-      .onClick(() => {
-        this.openHistoryItem(item)
-      })
-
-      KomaIconButton({
-        icon: $r('sys.symbol.trash'),
-        kind: 'ghost',
-        accentColor: ThemeConstants.TEXT_SECONDARY,
-        action: () => {
-          this.confirmRemoveHistoryItem(item)
-        },
-      })
+      .alignItems(HorizontalAlign.Start)
     }
     .width('100%')
-    .padding(ThemeConstants.SPACE_LG)
+    .padding({
+      left: ThemeConstants.SPACE_MD,
+      right: ThemeConstants.SPACE_MD,
+      top: ThemeConstants.SPACE_MD,
+      bottom: ThemeConstants.SPACE_MD,
+    })
     .borderRadius(ThemeConstants.RADIUS_CARD)
     .backgroundColor(ThemeConstants.CARD)
     .alignItems(VerticalAlign.Center)
