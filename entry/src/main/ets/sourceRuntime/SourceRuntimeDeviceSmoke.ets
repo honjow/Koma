@@ -1447,7 +1447,7 @@ function verifyLocalLibraryFolderReaderSmoke(
 
   if (reloadedComic !== undefined) {
     const config = createReaderSessionConfigFromComic(reloadedComic, reloadedComic.chapters[0]?.id)
-    const source = createReaderPageRenderSource(config, 0, { offlineOnly: true })
+    const source = createReaderPageRenderSource(config, 0)
     result.localLibraryFolderReaderKind = source.kind
     result.localLibraryFolderReaderOk =
       source.kind === ReaderPageRenderKind.LOCAL_FILE_IMAGE &&
@@ -1487,7 +1487,7 @@ function verifyLocalLibraryFolderReaderSmoke(
 
   if (visibleReloadedComic !== undefined) {
     const visibleConfig = createReaderSessionConfigFromComic(visibleReloadedComic, visibleReloadedComic.chapters[0]?.id)
-    const visibleSource = createReaderPageRenderSource(visibleConfig, 0, { offlineOnly: true })
+    const visibleSource = createReaderPageRenderSource(visibleConfig, 0)
     result.localLibraryFolderVisibleReaderKind = visibleSource.kind
     result.localLibraryFolderVisibleReaderOk =
       visibleSource.kind === ReaderPageRenderKind.LOCAL_FILE_IMAGE &&

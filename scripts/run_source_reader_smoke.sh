@@ -201,11 +201,13 @@ aa_start_args=(
   -m entry
   --ps koma.sourceRuntimeSmoke run
   --ps koma.sourceRuntimeSmoke.phase "$phase"
-  --ps koma.sourceRuntimeSmoke.packageFile "$source_package_file"
   --ps koma.sourceRuntimeSmoke.packageRawfile "$source_package_rawfile"
   --ps koma.sourceRuntimeSmoke.sourceId "$source_id"
   --ps koma.sourceRuntimeSmoke.query "$query"
 )
+if [ -n "$source_package_file" ]; then
+  aa_start_args+=(--ps koma.sourceRuntimeSmoke.packageFile "$source_package_file")
+fi
 if [ -n "$index_url" ]; then
   aa_start_args+=(--ps koma.sourceRuntimeSmoke.indexUrl "$index_url")
 fi
