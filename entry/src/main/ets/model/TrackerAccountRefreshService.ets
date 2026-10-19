@@ -23,6 +23,7 @@ import {
 export type TrackerAccountRefreshStatus = 'refreshed' | 'skipped' | 'failed'
 export type TrackerAccountRefreshReason =
   'account_missing' |
+  'account_changed' |
   'credential_missing' |
   'client_unavailable' |
   'provider_failed'
@@ -93,13 +94,19 @@ export class TrackerAccountRefreshService {
         return summary
       }
 
-      let accounts = preferences.accounts
       for (let index = 0; index < providerIds.length; index += 1) {
         const providerId = providerIds[index]
-        const account = accounts.find((item: TrackerAccount): boolean => item.providerId === providerId)
+        const account = preferences.accounts.find((item: TrackerAccount): boolean => item.providerId === providerId)
+        if (account === undefined) continue
         const result = await this.refreshAccount(account, providerId, now)
+        const commit = await store.saveAccountIfCurrent(account, result.account)
+        summary.preferences = commit.preferences
+        if (!commit.applied) {
+          summary.results.push(this.skipped(providerId, 'account_changed'))
+          summary.skippedCount += 1
+          continue
+        }
         summary.results.push(result.result)
-        accounts = this.replaceAccount(accounts, result.account)
         if (result.result.status === 'refreshed') {
           summary.refreshedCount += 1
         } else if (result.result.status === 'failed') {
@@ -108,7 +115,6 @@ export class TrackerAccountRefreshService {
           summary.skippedCount += 1
         }
       }
-      summary.preferences = await store.saveAccounts(accounts)
       return summary
     })
   }
@@ -256,11 +262,6 @@ export class TrackerAccountRefreshService {
     return { ok: false, expired: false }
   }
 
-  private replaceAccount(accounts: TrackerAccount[], nextAccount: TrackerAccount): TrackerAccount[] {
-    return accounts.map((account: TrackerAccount): TrackerAccount => {
-      return account.providerId === nextAccount.providerId ? nextAccount : account
-    })
-  }
 
   private skipped(providerId: TrackerProviderId, reason: TrackerAccountRefreshReason): TrackerAccountRefreshResult {
     return {

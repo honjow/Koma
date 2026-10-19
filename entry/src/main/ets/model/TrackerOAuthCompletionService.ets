@@ -19,6 +19,7 @@ import { TrackerAccountRefreshService } from './TrackerAccountRefreshService'
 export type TrackerOAuthCompletionStatus = 'connected' | 'failed'
 export type TrackerOAuthCompletionReason =
   'account_missing' |
+  'account_changed' |
   'provider_config_missing' |
   'invalid_callback' |
   'state_mismatch' |
@@ -58,6 +59,7 @@ export interface TrackerOAuthCompletionServiceOptions {
 interface TrackerOAuthCallbackFields {
   state?: string
   code?: string
+  accessToken?: string
 }
 
 interface TrackerTokenResponsePayload {
@@ -83,10 +85,10 @@ function formEncodeTokenRequest(provider: TrackerProviderConfig, code: string, c
   return pairs.join('&')
 }
 
-function parseCallbackFields(callbackUri: string): TrackerOAuthCallbackFields {
+function parseCallbackFields(callbackUri: string, implicitGrant: boolean = false): TrackerOAuthCallbackFields {
   const queryStart = callbackUri.indexOf('?')
   const fragmentStart = callbackUri.indexOf('#')
-  const start = queryStart >= 0 ? queryStart + 1 : fragmentStart >= 0 ? fragmentStart + 1 : 0
+  const start = implicitGrant ? fragmentStart + 1 : queryStart >= 0 ? queryStart + 1 : fragmentStart >= 0 ? fragmentStart + 1 : 0
   const payload = callbackUri.substring(start)
   const fields: TrackerOAuthCallbackFields = {}
   payload.split('&').forEach((pair: string) => {
@@ -100,6 +102,8 @@ function parseCallbackFields(callbackUri: string): TrackerOAuthCallbackFields {
       fields.state = value
     } else if (key === 'code') {
       fields.code = value
+    } else if (key === 'access_token') {
+      fields.accessToken = value.trim()
     }
   })
   return fields
@@ -186,76 +190,85 @@ export class TrackerOAuthCompletionService {
         return this.failed(providerId, 'account_missing', preferences)
       }
 
-      const callback = parseTrackerOAuthCallback(callbackUri, account.credentialAccountKey)
+      const implicitGrant = providerId === 'anilist'
+      const callback = parseTrackerOAuthCallback(callbackUri, account.credentialAccountKey, implicitGrant)
       if (!callback.ok) {
-        return this.failed(providerId, callback.reason ?? 'invalid_callback', await this.saveError(store, preferences, providerId, account, callback.reason ?? 'invalid_callback'))
+        return this.failed(providerId, callback.reason ?? 'invalid_callback', await this.saveError(store, providerId, account, callback.reason ?? 'invalid_callback'))
       }
 
       let fields: TrackerOAuthCallbackFields
       try {
-        fields = parseCallbackFields(callbackUri)
+        fields = parseCallbackFields(callbackUri, implicitGrant)
       } catch (_error) {
-        return this.failed(providerId, 'invalid_callback', await this.saveError(store, preferences, providerId, account, 'invalid_callback'))
+        return this.failed(providerId, 'invalid_callback', await this.saveError(store, providerId, account, 'invalid_callback'))
       }
-      if (fields.code === undefined || fields.code.length === 0) {
-        return this.failed(providerId, 'missing_code', await this.saveError(store, preferences, providerId, account, 'missing_code'))
+      if (!implicitGrant && (fields.code === undefined || fields.code.length === 0)) {
+        return this.failed(providerId, 'missing_code', await this.saveError(store, providerId, account, 'missing_code'))
       }
 
       const configuredProvider = getConfiguredTrackerProviderConfig(providerId, preferences.providerOAuthConfigs)
       if (configuredProvider === undefined) {
-        return this.failed(providerId, 'provider_config_missing', await this.saveError(store, preferences, providerId, account, 'provider_config_missing'))
+        return this.failed(providerId, 'provider_config_missing', await this.saveError(store, providerId, account, 'provider_config_missing'))
       }
 
-      const verifierBytes = await this.secretStore.readToken({
-        providerId,
-        accountKey: account.credentialAccountKey,
-        secretKind: 'oauth_code_verifier',
-      })
-      const verifier = verifierBytes === undefined ? undefined : decodeTrackerSecretBytes(verifierBytes).trim()
-      if (verifier === undefined || verifier.length === 0) {
-        return this.failed(providerId, 'verifier_missing', await this.saveError(store, preferences, providerId, account, 'verifier_missing'))
-      }
-
-      const tokenResult = await this.tokenExchanger.exchange(configuredProvider, fields.code, verifier)
-      if (!tokenResult.ok || tokenResult.accessToken === undefined) {
-        return this.failed(providerId, 'token_exchange_failed', await this.saveError(store, preferences, providerId, account, 'token_exchange_failed'))
-      }
-
-      const accessTokenSaved = await this.secretStore.writeToken({
-        providerId,
-        accountKey: account.credentialAccountKey,
-        secretKind: 'access_token',
-        secretBytes: utf8Bytes(tokenResult.accessToken),
-      })
-      if (!accessTokenSaved.ok) {
-        return this.failed(providerId, 'credential_store_failed', await this.saveError(store, preferences, providerId, account, 'credential_store_failed'))
-      }
-      if (tokenResult.refreshToken !== undefined) {
-        const refreshTokenSaved = await this.secretStore.writeToken({
+      let tokenResult: TrackerOAuthTokenExchangeResult
+      if (implicitGrant) {
+        if (callbackUri.substring(0, callbackUri.indexOf('#')) !== configuredProvider.redirectUri) {
+          return this.failed(providerId, 'invalid_callback', await this.saveError(store, providerId, account, 'invalid_callback'))
+        }
+        tokenResult = { ok: true, accessToken: fields.accessToken }
+      } else {
+        const verifierBytes = await this.secretStore.readToken({
           providerId,
           accountKey: account.credentialAccountKey,
-          secretKind: 'refresh_token',
-          secretBytes: utf8Bytes(tokenResult.refreshToken),
+          secretKind: 'oauth_code_verifier',
         })
-        if (!refreshTokenSaved.ok) {
-          return this.failed(providerId, 'credential_store_failed', await this.saveError(store, preferences, providerId, account, 'credential_store_failed'))
+        const verifier = verifierBytes === undefined ? undefined : decodeTrackerSecretBytes(verifierBytes).trim()
+        if (verifier === undefined || verifier.length === 0) {
+          return this.failed(providerId, 'verifier_missing', await this.saveError(store, providerId, account, 'verifier_missing'))
         }
+
+        tokenResult = await this.tokenExchanger.exchange(configuredProvider, fields.code ?? '', verifier)
       }
-      await this.secretStore.deleteToken({
-        providerId,
-        accountKey: account.credentialAccountKey,
-        secretKind: 'oauth_code_verifier',
-      })
-      await store.saveAccounts(preferences.accounts.map((item: TrackerAccount): TrackerAccount => {
-        return item.providerId === providerId
-          ? {
+      if (!tokenResult.ok || tokenResult.accessToken === undefined) {
+        return this.failed(providerId, 'token_exchange_failed', await this.saveError(store, providerId, account, 'token_exchange_failed'))
+      }
+
+      try {
+        const commit = await store.saveAccountIfCurrent(account, {
+          providerId,
+          status: 'connected',
+          credentialAccountKey: account.credentialAccountKey,
+          connectedAt: now,
+        }, async (): Promise<void> => {
+          const accessTokenSaved = await this.secretStore.writeToken({
             providerId,
-            status: 'connected',
-            credentialAccountKey: account.credentialAccountKey,
-            connectedAt: now,
+            accountKey: account.credentialAccountKey!,
+            secretKind: 'access_token',
+            secretBytes: utf8Bytes(tokenResult.accessToken!),
+          })
+          if (!accessTokenSaved.ok) throw new Error('credential_store_failed')
+          if (tokenResult.refreshToken !== undefined) {
+            const refreshTokenSaved = await this.secretStore.writeToken({
+              providerId,
+              accountKey: account.credentialAccountKey!,
+              secretKind: 'refresh_token',
+              secretBytes: utf8Bytes(tokenResult.refreshToken),
+            })
+            if (!refreshTokenSaved.ok) throw new Error('credential_store_failed')
           }
-          : item
-      }))
+          if (!implicitGrant) {
+            await this.secretStore.deleteToken({
+              providerId,
+              accountKey: account.credentialAccountKey!,
+              secretKind: 'oauth_code_verifier',
+            })
+          }
+        })
+        if (!commit.applied) return this.failed(providerId, 'account_changed', commit.preferences)
+      } catch (_error) {
+        return this.failed(providerId, 'credential_store_failed', await this.saveError(store, providerId, account, 'credential_store_failed'))
+      }
 
       const refresh = await new TrackerAccountRefreshService(this.context, { secretStore: this.secretStore }).refreshAccounts(providerId, now)
       if (refresh.refreshedCount <= 0) {
@@ -271,21 +284,17 @@ export class TrackerOAuthCompletionService {
 
   private async saveError(
     store: TrackerPreferencesStore,
-    preferences: TrackerPreferences,
     providerId: TrackerProviderId,
     account: TrackerAccount,
     reason: TrackerOAuthCompletionReason,
   ): Promise<TrackerPreferences> {
-    return store.saveAccounts(preferences.accounts.map((item: TrackerAccount): TrackerAccount => {
-      return item.providerId === providerId
-        ? {
-          providerId,
-          status: 'error',
-          credentialAccountKey: account.credentialAccountKey,
-          statusReason: reason,
-        }
-        : item
-    }))
+    const result = await store.saveAccountIfCurrent(account, {
+      providerId,
+      status: 'error',
+      credentialAccountKey: account.credentialAccountKey,
+      statusReason: reason,
+    })
+    return result.preferences
   }
 
   private failed(

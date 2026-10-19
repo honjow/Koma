@@ -83,6 +83,7 @@ import {
   DEFAULT_TRACKER_PREFERENCES,
   TrackerPreferences,
   TrackerPreferencesStore,
+  TrackerSyncPreferencesPatch,
   TrackerUpdateStrategy,
   getTrackerUpdateStrategyLabel,
 } from '../model/TrackerModels'
@@ -1157,9 +1158,13 @@ export struct SettingsPage {
       })
   }
 
+  private trackerPreferencesEpoch: number = 0
+
   private loadTrackerPreferences(): void {
+    const epoch = this.trackerPreferencesEpoch
     void this.trackerPreferencesStore().load()
       .then((preferences: TrackerPreferences) => {
+        if (epoch !== this.trackerPreferencesEpoch) return
         this.trackerAutoSyncEnabled = preferences.autoSyncEnabled
         this.trackerUpdateStrategy = preferences.updateStrategy
         console.info('[Settings] step=load_tracker_preferences autoSync=' + preferences.autoSyncEnabled + ' strategy=' + preferences.updateStrategy)
@@ -1720,32 +1725,30 @@ export struct SettingsPage {
     this.saveLibraryFilterChanges({ showBadges: enabled }, s('settings_library_badges_save_failed'))
   }
 
-  private saveTrackerAutoSyncEnabled(enabled: boolean): void {
-    this.trackerAutoSyncEnabled = enabled
-    void this.trackerPreferencesStore().saveSyncPreferences(enabled, this.trackerUpdateStrategy)
+  private saveTrackerChanges(patch: TrackerSyncPreferencesPatch): void {
+    const epoch = ++this.trackerPreferencesEpoch
+    void this.trackerPreferencesStore().saveSyncPreferenceChanges(patch)
       .then((preferences: TrackerPreferences) => {
+        if (epoch !== this.trackerPreferencesEpoch) return
         this.trackerAutoSyncEnabled = preferences.autoSyncEnabled
         this.trackerUpdateStrategy = preferences.updateStrategy
-        console.info('[Settings] step=save_tracker_auto_sync enabled=' + preferences.autoSyncEnabled)
+        console.info('[Settings] step=save_tracker_preferences')
       })
       .catch((error: Error) => {
-        console.warn('[Settings] step=save_tracker_auto_sync_failed code=' + safeSettingsErrorCode(error))
+        console.warn('[Settings] step=save_tracker_sync_failed code=' + safeSettingsErrorCode(error))
+        if (epoch === this.trackerPreferencesEpoch) this.loadTrackerPreferences()
         this.showToast(s('settings_tracker_sync_save_failed'))
       })
   }
 
+  private saveTrackerAutoSyncEnabled(enabled: boolean): void {
+    this.trackerAutoSyncEnabled = enabled
+    this.saveTrackerChanges({ autoSyncEnabled: enabled })
+  }
+
   private saveTrackerUpdateStrategy(strategy: TrackerUpdateStrategy): void {
     this.trackerUpdateStrategy = strategy
-    void this.trackerPreferencesStore().saveSyncPreferences(this.trackerAutoSyncEnabled, strategy)
-      .then((preferences: TrackerPreferences) => {
-        this.trackerAutoSyncEnabled = preferences.autoSyncEnabled
-        this.trackerUpdateStrategy = preferences.updateStrategy
-        console.info('[Settings] step=save_tracker_update_strategy strategy=' + preferences.updateStrategy)
-      })
-      .catch((error: Error) => {
-        console.warn('[Settings] step=save_tracker_update_strategy_failed code=' + safeSettingsErrorCode(error))
-        this.showToast(s('settings_tracker_sync_save_failed'))
-      })
+    this.saveTrackerChanges({ updateStrategy: strategy })
   }
 
   private saveBackupIncludeSettings(enabled: boolean): void {

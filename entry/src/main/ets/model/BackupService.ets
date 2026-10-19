@@ -72,6 +72,7 @@ import {
 } from './LocalLibraryMetadataService'
 import {
   DEFAULT_TRACKER_PREFERENCES,
+  TrackerPreferencesStore,
   TRACKER_AUTO_SYNC_ENABLED_KEY,
   TRACKER_COMIC_MAPPINGS_KEY,
   TRACKER_PREFERENCES_STORE_NAME,
@@ -1614,14 +1615,7 @@ export class BackupService {
   }
 
   private async exportTrackerMappings(): Promise<ComicTrackerMapping[]> {
-    try {
-      const store = await preferences.getPreferences(this.context, TRACKER_PREFERENCES_STORE_NAME)
-      const payload = await store.get(TRACKER_COMIC_MAPPINGS_KEY, JSON.stringify([])) as string
-      const parsed = JSON.parse(payload) as ComicTrackerMapping[]
-      return Array.isArray(parsed) ? normalizeComicTrackerMappings(parsed) : []
-    } catch (_err) {
-      return []
-    }
+    return (await new TrackerPreferencesStore(this.context).load()).comicMappings
   }
 
   private async importTrackerMappings(mappings: ComicTrackerMapping[] | undefined): Promise<void> {
@@ -1637,22 +1631,8 @@ export class BackupService {
   }
 
   private async exportTrackerSyncPreferences(): Promise<BackupTrackerSyncPreferences> {
-    try {
-      const store = await preferences.getPreferences(this.context, TRACKER_PREFERENCES_STORE_NAME)
-      const autoSyncEnabled =
-        await store.get(TRACKER_AUTO_SYNC_ENABLED_KEY, DEFAULT_TRACKER_PREFERENCES.autoSyncEnabled) as boolean
-      const updateStrategy =
-        await store.get(TRACKER_UPDATE_STRATEGY_KEY, DEFAULT_TRACKER_PREFERENCES.updateStrategy) as string
-      return {
-        autoSyncEnabled: autoSyncEnabled === true,
-        updateStrategy: normalizeTrackerUpdateStrategy(updateStrategy),
-      }
-    } catch (_err) {
-      return {
-        autoSyncEnabled: DEFAULT_TRACKER_PREFERENCES.autoSyncEnabled,
-        updateStrategy: DEFAULT_TRACKER_PREFERENCES.updateStrategy,
-      }
-    }
+    const current = await new TrackerPreferencesStore(this.context).load()
+    return { autoSyncEnabled: current.autoSyncEnabled, updateStrategy: current.updateStrategy }
   }
 
   private async importTrackerSyncPreferences(preferencesValue: BackupTrackerSyncPreferences | undefined): Promise<void> {

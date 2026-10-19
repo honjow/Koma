@@ -302,31 +302,10 @@ export class TrackerProgressSyncService {
       : this.aniListClient.fetchProgress(accessToken, providerTitleId)
   }
 
-  private async markAccountSynced(preferences: TrackerPreferences, account: TrackerAccount, now: number): Promise<void> {
-    const nextAccounts = preferences.accounts.map((item: TrackerAccount): TrackerAccount => {
-      if (item.providerId !== account.providerId) {
-        return item
-      }
-      const next: TrackerAccount = {
-        providerId: item.providerId,
-        status: item.status,
-        lastSyncAt: now,
-      }
-      if (item.profile !== undefined) {
-        next.profile = item.profile
-      }
-      if (item.credentialAccountKey !== undefined) {
-        next.credentialAccountKey = item.credentialAccountKey
-      }
-      if (item.connectedAt !== undefined) {
-        next.connectedAt = item.connectedAt
-      }
-      if (item.statusReason !== undefined) {
-        next.statusReason = item.statusReason
-      }
-      return next
-    })
-    await this.preferencesStore().saveAccounts(nextAccounts)
+  private async markAccountSynced(_preferences: TrackerPreferences, account: TrackerAccount, now: number): Promise<void> {
+    if (account.credentialAccountKey !== undefined) {
+      await this.preferencesStore().markAccountSynced(account.providerId, account.credentialAccountKey, now)
+    }
   }
 
   private progressResult(mapping: ComicTrackerMapping, progress: AniListTrackerProgress | MyAnimeListTrackerProgress | undefined): TrackerProgressSyncResult {
